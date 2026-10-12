@@ -290,6 +290,17 @@ The owner asked for "a diesel inboard, not a revvy outboard, with a bigger prop 
    - A chart display (canvas atlas page) rendered from the world registry: coastlines, depth contours, ports, buoys, plus own-ship position, heading and track history. It could be a chartplotter screen on the dash, a paper chart on the chart table, or a page on the wrist menu.
    - GPS position in the vessel state (already known: world position). Waypoints and a course-to-steer readout could feed an autopilot later, which would just be another intent source driving `helm`.
 
+6. **Exhaust smoke driven by load and engine temperature.**
+   - A small particle system at the exhaust outlet (funnel or stack on the wheelhouse roof): one instanced or Points draw call with a soft sprite.
+   - **Driven by the engine state:**
+     - Emission rate and opacity from the fuel rack (load), with a dark puff when the rack rises quickly (turbo lag; `rackRiseRate` already models it).
+     - Black smoke when overfuelled at low RPM (heavy prop load, bollard).
+     - White/grey vapour when cold (low coolant temperature, from the planned thermal model).
+     - Thin and clear when warm at cruise.
+     - A burst at start-up.
+   - **Movement:** particles drift with the apparent wind (boat velocity plus the planned weather wind), so smoke streams aft under way.
+   - **Performance:** cap at about 100–200 particles; fade with distance.
+
 ## Decision: ocean masking inside the hull (deferred)
 
 The deck and wheelhouse floor are opaque and sit well above the DWL (freeboard about 0.95–1.5 m), so the sea can't show "through" the boat. The only remaining case is green water overtopping the bulwark in big rolls, which is physically what happens; it would need a "freeboard volume" mask to hide. I'll revisit in the polish pass if it's visible in practice. It matters for a future open well-deck or a low-freeboard rescue boat.
