@@ -27,6 +27,7 @@ export const KEYS = {
   timeEarlier: { codes: ['KeyN'], description: 'Time of day -30 min' },
   timeLater: { codes: ['KeyM'], description: 'Time of day +30 min' },
   toggleOverlay: { codes: ['F3', 'KeyI'], description: 'Debug overlay on/off' },
+  toggleProbes: { codes: ['KeyP'], description: 'Wave surface probes on/off' },
   toggleHelp: { codes: ['F1', 'KeyH'], description: 'This help on/off' },
 } satisfies Record<string, KeyBinding>;
 

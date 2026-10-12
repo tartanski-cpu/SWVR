@@ -6,17 +6,9 @@
  * Day/night is just `timeScale > 0`; weather will hang off EnvironmentState later.
  */
 import { CONFIG } from '../config';
-import type { EntityId } from '../core/ids';
 import type { Intent } from '../core/intents';
 import { DEG, clamp, hexToRGB, lerp, lerpRGB, wrap, type RGB, type Vec3 } from '../core/math';
-
-export interface EnvironmentState {
-  id: EntityId;
-  /** Hours, 0..24. */
-  timeOfDay: number;
-  /** Game-hours per real second. */
-  timeScale: number;
-}
+import type { EnvironmentState } from './environmentState';
 
 export function stepEnvironment(env: EnvironmentState, dt: number): void {
   if (env.timeScale !== 0) env.timeOfDay = wrap(env.timeOfDay + env.timeScale * dt, 24);

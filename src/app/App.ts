@@ -13,7 +13,11 @@ import { EnvironmentView } from '../environment/environmentView';
 import { DesktopController } from '../player/desktopController';
 import { PlayerRig } from '../player/playerRig';
 import { XRInput, XR_BUTTON } from '../player/xrInput';
-import { createPlaceholderScene } from './placeholderScene';
+import { SkyView } from '../environment/skyView';
+import { OceanView } from '../ocean/oceanView';
+import { prepareWaves, type PreparedWave } from '../ocean/waves';
+import { SurfaceProbes } from '../debug/surfaceProbes';
+import { Buoys, createPlatform } from './testScene';
 
 /**
  * Top-level wiring. Owns the renderer, the simulation state and the per-frame loop:
@@ -38,6 +42,12 @@ export class App {
   private readonly rig: PlayerRig;
   private readonly desktop: DesktopController;
   private readonly environment: EnvironmentView;
+  private readonly sky = new SkyView();
+  private readonly ocean = new OceanView();
+  private readonly buoys = new Buoys();
+  private readonly probes = new SurfaceProbes();
+  /** Wave constants at the current *render* time (reused every frame). */
+  private renderWaves: PreparedWave[] = [];
   private readonly overlay = new DebugOverlay();
   private readonly help = new HelpPanel();
   private readonly focus = new THREE.Vector3();
@@ -70,7 +80,9 @@ export class App {
 
     this.desktop = new DesktopController(this.camera, this.renderer.domElement, this.keyboard);
     this.environment = new EnvironmentView(this.scene);
-    this.scene.add(createPlaceholderScene());
+    this.scene.add(this.sky.mesh, this.ocean.mesh, this.buoys.mesh, this.probes.mesh, createPlatform());
+    // Stand on the observation platform deck (milestone 2 test scene).
+    this.rig.root.position.y = CONFIG.testScene.platformDeckHeight;
 
     this.setupXR();
     window.addEventListener('resize', () => this.onResize());
@@ -122,15 +134,24 @@ export class App {
     this.handleDebugInput();
 
     // 2. Fixed-step simulation
-    const { ticks } = this.loop.advance(dt);
+    const { ticks, alpha } = this.loop.advance(dt);
     for (let i = 0; i < ticks; i++) {
       stepWorld(this.world, i === 0 ? this.intents.drain() : [], this.loop.dt);
     }
 
-    // 3. Views (interpolation alpha is used from milestone 3 onwards)
+    // 3. Views. Rendering runs one tick behind the simulation and interpolates between
+    // the previous and current tick by `alpha`; the ocean uses the same render time so
+    // floating objects and the water surface always agree.
+    const renderTime = Math.max(0, (this.world.tick - 1 + alpha) * this.loop.dt);
+    this.renderWaves = prepareWaves(this.world.environment.waves, renderTime, this.renderWaves);
+
     if (!inXR) this.desktop.update(dt);
     this.camera.getWorldPosition(this.focus);
     this.environment.update(this.world.environment, this.focus);
+    this.sky.update(this.environment, this.focus);
+    this.ocean.update(this.renderWaves, this.focus, this.environment);
+    this.buoys.update(this.renderWaves);
+    this.probes.update(this.renderWaves, this.camera);
 
     // 4. Render
     this.renderer.info.reset();
@@ -158,6 +179,7 @@ export class App {
       this.overlay.toggle();
     }
     if (k.actionPressed('toggleHelp')) this.help.toggle();
+    if (k.actionPressed('toggleProbes')) this.probes.toggle();
     const step = CONFIG.environment.timeStepHours;
     if (k.actionPressed('timeEarlier')) this.pushEnvIntent('timeOfDayDelta', -step);
     if (k.actionPressed('timeLater')) this.pushEnvIntent('timeOfDayDelta', step);

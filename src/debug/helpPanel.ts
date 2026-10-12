@@ -14,6 +14,7 @@ const ROWS: (KeyAction | KeyAction[])[] = [
   'fast',
   ['timeEarlier', 'timeLater'],
   'toggleOverlay',
+  'toggleProbes',
   'toggleHelp',
 ];
 

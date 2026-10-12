@@ -32,6 +32,7 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | Shift (hold) | Move faster |
 | N / M | Time of day −/+ 30 min |
 | F3 or I | Debug overlay on/off |
+| P | Wave surface probes (magenta spheres) on/off |
 | F1 or H | Help panel on/off |
 
 ### VR (Quest 3)
@@ -84,11 +85,13 @@ src/
   config.ts        every tunable number (waves, mass, thrust, drag, comfort, perf)
   app/             top-level wiring: renderer, XR session, frame loop
   core/            fixed-step loop, ids, intents, WorldState, Simulation.step, math, keyboard
-  environment/     time of day -> sun direction, sky/fog/light palette (+ view)
+  environment/     time of day + sea state; sun direction, sky/fog/light palette; sky dome
   player/          player state, rig (moving-frame parenting), desktop controller, XR input
   debug/           FPS / draw-call overlay (DOM on desktop, panel in VR)
+  ocean/           waves.ts (Gerstner maths shared by CPU physics and the shader), grid, shaders, view
+  render/          geometry helpers (vertex-coloured, merged, flat-shaded parts)
   missions/        placeholder only
-  ocean/ vessel/ controls/ audio/   added in milestones 2-6
+  vessel/ controls/ audio/   added in milestones 3-6
 tests/             vitest: run in plain Node, no browser
 ```
 

@@ -1,8 +1,7 @@
-import { CONFIG } from '../config';
-import type { EnvironmentState } from '../environment/timeOfDay';
+import { createEnvironment, type EnvironmentState } from '../environment/environmentState';
 import type { PlayerState } from '../player/playerState';
 import { createPlayerState } from '../player/playerState';
-import { ENVIRONMENT_ID, IdFactory, type EntityId } from './ids';
+import { IdFactory, type EntityId } from './ids';
 
 /**
  * The complete simulation state. Plain, JSON-serializable data only: no class
@@ -24,11 +23,7 @@ export function createWorld(ids: IdFactory): { world: WorldState; localPlayerId:
   const world: WorldState = {
     tick: 0,
     time: 0,
-    environment: {
-      id: ENVIRONMENT_ID,
-      timeOfDay: CONFIG.environment.startTimeOfDay,
-      timeScale: CONFIG.environment.timeScale,
-    },
+    environment: createEnvironment(),
     players: {
       [localPlayerId]: createPlayerState(localPlayerId, 'Player 1'),
     },

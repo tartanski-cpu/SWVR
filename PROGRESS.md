@@ -22,8 +22,8 @@ This file lets a new session pick up the work cold. Keep it current at the end o
 | # | Milestone | Status |
 |---|---|---|
 | 1 | Scaffold: Vite + TS + Three, desktop camera, Enter VR, debug overlay, HTTPS LAN server, Pages deploy, fixed-tick sim skeleton | **Done** (VR verified by owner on Quest 3; desktop keys reworked for QWERTZ) |
-| 2 | Ocean: Gerstner shader + matching CPU height (with horizontal-displacement inversion), sky dome, sun, fog | Next |
-| 3 | Floating hull: buoyancy points, drag, debug view | — |
+| 2 | Ocean: Gerstner shader + matching CPU height (with horizontal-displacement inversion), sky dome, sun, fog | **Done, awaiting owner test** |
+| 3 | Floating hull: buoyancy points, drag, debug view | Next |
 | 4 | Propulsion and steering via keyboard; sea-trial measurement command; engine hum | — |
 | 5 | Interior, player aboard (rig parented to vessel), grab-the-world locomotion, snap-turn, comfort options | — |
 | 6a | Interaction system, throttle lever, start/stop button, haptics | — |
@@ -59,21 +59,49 @@ This file lets a new session pick up the work cold. Keep it current at the end o
 - **Placeholder scene:** flat sea, a 4 × 4 m raft, a test cube and a ring of buoys. Static geometry is merged into one draw call; the whole scene is 2 draw calls.
 - **Tests (9):** loop timing, headless 60 s sim run, JSON round-trip of the world, intent application, sun geometry.
 
+## Done (milestone 2)
+
+- **Sea state:** `world.environment.waves` holds 8 Gerstner components (serializable, so a host can change the sea state later). They are tuned by eye for a moderate wind sea:
+  - Hs ≈ 1.25 m (4σ of the sum), periods 2–7 s.
+  - Waves travel towards the NE with ±35° spread.
+  - Q = 1 (true deep-water orbit).
+  - Σ Q·k·A ≈ 0.2. This must stay < 1: it guarantees no looping crests and that the CPU inversion converges.
+- **Wave maths:** `src/ocean/waves.ts` is the single source of truth.
+  - `prepareWaves(components, t)`: per-component k, ω (deep-water dispersion), direction, and phase wrapped to [0, 2π) on the CPU in double precision. These are fed straight to the shader as uniforms.
+  - `surfaceHeight(x, z)`: inverts the horizontal Gerstner displacement by fixed-point iteration (4 iterations, sub-mm), then sums the heights.
+  - `sampleSurface(x, z)`: height, analytic normal, and particle orbital velocity. The velocity is for buoyancy damping relative to the water in milestone 3.
+- **Ocean view:**
+  - One graded grid: 1 m cells out to 32 m, then growing 8 % per cell out to 3 km. That's about 42k vertices and 84k triangles in 1 draw call.
+  - The grid follows the viewer, snapped to 1 m so the dense centre never swims.
+  - Each wave is faded (visually only) where cells exceed λ/4. The shortest 2 s wave fades from about 40 m out, so the CPU and GPU agree exactly near the player, which is where physics matters.
+  - Shading: flat facet normals via derivatives, Schlick Fresnel sky reflection (scaled by `reflectionStrength`), Blinn-Phong sun glint, faint crest tint, and linear fog matching THREE.Fog.
+- **Sky:**
+  - A gradient dome with sun disc and glow, sharing one palette with the fog and the ocean reflection.
+  - Below the horizon it stays at the horizon colour, so the far ocean edge has no seam.
+- **Test scene:**
+  - A pile-mounted observation platform (deck at +3 m, handrails). The player rig stands on it.
+  - Ten floating buoys posed from `sampleSurface()` (1 instanced draw).
+  - 24 magenta surface probes plus 1 that follows a point 6 m ahead of the viewer. Toggle with P.
+- **Render timing:** views render at `(tick − 1 + alpha)·dt`, one tick behind the sim. Boat interpolation in milestone 3 will use the same convention, so hull and water can't drift apart visually.
+- **Tests (16):** dispersion, Hs range, no-loop condition, inversion accuracy over 600 random points at 3 times, analytic normal vs finite differences, orbital velocity vs time derivative, calm sea.
+
 ## Next
 
-Milestone 2: the ocean.
-- Gerstner sum in the vertex shader, with the same parameters as the CPU function.
-- Per-wave phase computed on the CPU modulo 2π and passed as uniforms (avoids float32 precision drift).
-- A camera-following grid snapped to its own cell size.
-- Faceted normals via derivatives.
-- A sky dome with a gradient and sun disc.
-- A debug sphere that tracks the surface height.
+Milestone 3: the floating hull.
+- A 12 m displacement workboat hull built procedurally.
+- A rigid body with a diagonal inertia tensor and a quaternion for orientation.
+- About 16 buoyancy columns, each with a force of ρ·g·area·immersion and damping against the relative velocity of the water particle.
+- Linear and quadratic hydrodynamic drag, plus angular damping.
+- A debug view showing the sample points and force vectors.
+- Headless tests for equilibrium draft and decay of free heave and roll.
 
 ## Known issues / notes
 
 - Headless SwiftShader (used for automated screenshots) mis-renders geometry below the horizon when the camera pitch is exactly 0. Real GPUs are unaffected. The desktop camera starts tilted slightly down.
 - npm 10 crashes with `edgesOut` when adding packages because of vitest's optional peer dependencies. `npm ci` works. Use `npx npm@11 install` to add dependencies.
-- At dusk the placeholder sea goes almost black (Lambert material with weak ambient light). The real ocean shader in milestone 2 reflects sky colour.
+- The ocean at night is very dark (no moon yet). A moon and night palette come with the day/night work later.
+- Wave fading at distance means far-away objects (more than about 40 m from the viewer) can sit a few cm off the drawn surface for the shortest waves. Physics always uses the exact CPU surface.
+- There are no whitecaps or foam yet beyond a faint crest tint. A moderate sea would show some whitecaps; that's a candidate for the polish pass.
 
 ## Multiplayer recommendation (for later — not implemented)
 
