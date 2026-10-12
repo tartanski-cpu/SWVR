@@ -37,6 +37,8 @@ export interface VesselDef {
   spawn: VesselConfig['spawn'];
   /** Deck layout: wheelhouse, bulwarks, walkable margins. */
   layout: VesselConfig['layout'];
+  bridge: VesselConfig['bridge'];
+  navLights: VesselConfig['navLights'];
 }
 
 /** Wetted surface at the DWL: submerged girth of each station times its spacing. */
@@ -81,6 +83,8 @@ export function fromConfig(id: string, c: VesselConfig): VesselDef {
     boardingSpot: c.boardingSpot,
     spawn: c.spawn,
     layout: c.layout,
+    bridge: c.bridge,
+    navLights: c.navLights,
   };
 }
 

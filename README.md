@@ -30,10 +30,11 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | W A S D | Walk (with collision; Shift = brisk) |
 | F | Toggle walk / free-fly camera (Space / C = up / down when flying) |
 | B | Board the boat (you appear at the helm) / back to the platform |
-| E | Engine start / stop (lever must be in neutral to start) |
-| ↑ / ↓ | Throttle/gear lever ahead / astern (stops briefly at neutral) |
-| ← / → | Wheel to port / starboard |
-| X / G | Lever to neutral / wheel amidships |
+| Aim **+** and click / drag | Operate the bridge controls (see below) |
+| E | Debug: engine start / stop |
+| ↑ / ↓ | Debug: throttle/gear lever ahead / astern |
+| ← / → | Debug: wheel to port / starboard |
+| X / G | Debug: lever to neutral / wheel amidships |
 | T | Hydrostatics + sea trials report |
 | L | Sea state: flat calm / moderate |
 | 9 / 0 | Motion coupling −/+ 10 % |
@@ -48,17 +49,29 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 
 | Input | Action |
 |---|---|
-| **Grip + pull** | **Move (grab the world).** Squeeze a grip and pull yourself along. Two grips + twist: turn |
+| **Grip** on the throttle lever or wheel | Grab it; it follows your hand. Two hands work on the wheel |
+| **Trigger** touching a button or switch | Press it (start/stop, horn, nav lights) |
+| Trigger / grip pointing at a control a little out of reach | Pointer-ray fallback (a blue line shows what you're pointing at) |
+| **Grip** on empty air + pull | Move (grab the world). Two grips + twist: turn |
 | Left stick | Walk (head-relative, optional) |
 | Right stick ← / → | Snap turn 30° |
 | Left stick click | Board the boat (at the helm) / back to the platform |
-| **A** | Engine start / stop (lever in neutral; you get a buzz and a message if not) |
-| Hold X + left stick ↑ / ↓ | **Motion coupling** 0–100 % (comfort; 100 % = rigid to the deck). Remembered between visits |
+| Hold X + left stick ↑ / ↓ | Motion coupling 0–100 % (comfort; 100 % = rigid to the deck) |
 | B or Y | Debug panel (on your left wrist) |
-| Right stick ↑ / ↓ | Debug: throttle lever (click = neutral) |
-| Left / right trigger | Debug: wheel to port / starboard |
 
-The debug driving controls are temporary. Milestone 6 replaces them with the physical lever and wheel on the bridge.
+### Bridge (milestone 6)
+
+At the helm, from left to right on the console:
+
+- **Nav lights** toggle switch.
+- **Horn** button (hold).
+- **Wheel**: 1.5 turns lock to lock. Hydraulic steering, so it stays where you leave it.
+- **Throttle/gear lever**: forward = ahead, back = astern, with a notch at neutral.
+- **Start/stop** button. The engine only starts with the lever in neutral.
+
+The dash shows **speed** (kn), **heading** (compass tape), **engine RPM** (with gear, engine state and load) and **rudder angle** (needle for the actual rudder, ring for the helm order).
+
+On desktop, aim the **+** reticle at a control. Click buttons and switches. Click and drag the lever (mouse up/down) and the wheel (mouse left/right).
 
 ## Local development
 

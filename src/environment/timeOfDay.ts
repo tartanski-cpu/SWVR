@@ -55,6 +55,11 @@ export function sunDirection(
   return [east, up, -north];
 }
 
+/** Sun elevation (degrees) at a given time of day. */
+export function sunElevation(timeOfDay: number): number {
+  return sunElevationDeg(sunDirection(timeOfDay));
+}
+
 /** Sun elevation above the horizon in degrees. */
 export function sunElevationDeg(sunDir: Vec3): number {
   return Math.asin(clamp(sunDir[1], -1, 1)) / DEG;

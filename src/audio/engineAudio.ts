@@ -21,6 +21,11 @@ export class EngineAudio {
   private osc1!: OscillatorNode;
   private osc2!: OscillatorNode;
 
+  /** The shared AudioContext (null until a user gesture has unlocked audio). */
+  get context(): AudioContext | null {
+    return this.ctx;
+  }
+
   unlock(): void {
     if (this.ctx) {
       void this.ctx.resume();

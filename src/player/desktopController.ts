@@ -28,7 +28,7 @@ export class DesktopController {
       if (document.pointerLockElement !== canvas) canvas.requestPointerLock();
     });
     document.addEventListener('mousemove', (e) => {
-      if (document.pointerLockElement !== canvas) return;
+      if (document.pointerLockElement !== canvas || this.lookFrozen) return;
       const s = CONFIG.desktop.lookSensitivity;
       this.yaw -= e.movementX * s;
       this.pitch = THREE.MathUtils.clamp(this.pitch - e.movementY * s, -1.5, 1.5);
@@ -48,6 +48,8 @@ export class DesktopController {
    * player's body. 'fly': free debug camera inside the rig (Space/C for up/down).
    */
   mode: 'walk' | 'fly' = 'walk';
+  /** True while the mouse is dragging a bridge control: mouse moves the control, not the view. */
+  lookFrozen = false;
   /** Walking displacement this frame in rig axes (x right, z back), set by update(). */
   readonly walk = { x: 0, z: 0 };
 

@@ -9,6 +9,8 @@ import type { Handedness } from './xrInput';
  */
 export class XRControllers {
   readonly grips: Record<Handedness, THREE.Group | null> = { left: null, right: null };
+  /** Target-ray spaces (pointing direction, origin at the controller tip). */
+  readonly rays: Record<Handedness, THREE.Group | null> = { left: null, right: null };
 
   constructor(renderer: THREE.WebGLRenderer, parent: THREE.Object3D) {
     const factory = new XRControllerModelFactory();
@@ -23,7 +25,26 @@ export class XRControllers {
       grip.addEventListener('disconnected', () => {
         for (const h of ['left', 'right'] as const) if (this.grips[h] === grip) this.grips[h] = null;
       });
+
+      const ray = renderer.xr.getController(i);
+      parent.add(ray);
+      ray.addEventListener('connected', (e) => {
+        const hand = (e as unknown as { data: XRInputSource }).data.handedness;
+        if (hand === 'left' || hand === 'right') this.rays[hand] = ray;
+      });
+      ray.addEventListener('disconnected', () => {
+        for (const h of ['left', 'right'] as const) if (this.rays[h] === ray) this.rays[h] = null;
+      });
     }
+  }
+
+  /** World pointer ray of a hand (origin at the controller tip), or false if not tracked. */
+  worldRay(hand: Handedness, out: THREE.Ray): boolean {
+    const r = this.rays[hand];
+    if (!r || !r.visible) return false;
+    r.getWorldPosition(out.origin);
+    out.direction.set(0, 0, -1).transformDirection(r.matrixWorld);
+    return true;
   }
 
   /** World position of a hand's grip, or null if not tracked. */

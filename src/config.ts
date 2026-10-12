@@ -296,6 +296,31 @@ export const CONFIG = {
         /** Player body radius used for collision with walls. */
         bodyRadius: 0.22,
       },
+      /**
+       * Bridge controls and displays (vessel axes, m). The helm console top is at
+       * floorY + consoleHeight = 2.15, its aft face at z = -1.32; the helmsman stands at
+       * z ~ -0.75. Controls are data, so another vessel can lay out its own bridge.
+       */
+      bridge: {
+        /** Wheel: centre, tilt of its plane back toward the helmsman, rim radius, turns lock-to-lock. */
+        wheel: { position: [0, 2.32, -1.2] as [number, number, number], tiltDeg: 22, radius: 0.22, turnsLockToLock: 1.5 },
+        /** Combined throttle/gear lever on the console top, pivoting fore-aft. */
+        lever: { position: [0.45, 2.16, -1.5] as [number, number, number], maxAngleDeg: 40, length: 0.2 },
+        startButton: { position: [0.78, 2.16, -1.52] as [number, number, number] },
+        hornButton: { position: [-0.42, 2.16, -1.52] as [number, number, number] },
+        navLightsSwitch: { position: [-0.78, 2.16, -1.52] as [number, number, number] },
+        /** Instrument dash across the front of the console: displays on its aft face. */
+        dash: { front: -1.82, aft: -1.66, bottom: 2.15, top: 2.56, halfWidth: 1.25, tiltDeg: 14 },
+        /** Display centres (x) on the dash, and their size (m). Order: speed, heading, rpm, rudder. */
+        displays: { x: [-0.95, -0.52, 0.52, 0.95], y: 2.36, width: 0.38, height: 0.22 },
+      },
+      /** Navigation lights (vessel axes): masthead, sidelights, stern light. */
+      navLights: {
+        masthead: [0, 4.62, 0.33] as [number, number, number],
+        port: [-1.52, 3.42, -1.75] as [number, number, number],
+        starboard: [1.52, 3.42, -1.75] as [number, number, number],
+        stern: [0, 2.0, 5.92] as [number, number, number],
+      },
       /** Where a player stands after boarding (vessel axes): at the helm, facing forward. */
       boardingSpot: [0, 1.2, -0.75] as [number, number, number],
       /** Debug: spawn/drop point and drop height (m above the DWL). */
@@ -346,6 +371,20 @@ export const CONFIG = {
     vignette: 0.6,
   },
 
+  /** Bridge-control interaction tuning. */
+  interaction: {
+    /** Direct grab: hand within this distance of a lever knob / the wheel rim (m). */
+    grabRadius: 0.09,
+    /** Direct press: controller tip within this distance of a button / switch (m). */
+    touchRadius: 0.06,
+    /** Pointer-ray fallback length (m) for controls just out of reach. */
+    rayLength: 1.5,
+    /** Desktop reticle reach (m). */
+    desktopReach: 2.6,
+    /** Displays redraw rate (Hz). */
+    displayHz: 10,
+  },
+
   desktop: {
     eyeHeight: 1.7,
     /** Walking speed (m/s); Shift = brisk. */
@@ -367,7 +406,7 @@ export const CONFIG = {
   debug: {
     overlayVisibleAtStart: true,
     surfaceProbesVisibleAtStart: false,
-    hydroDebugVisibleAtStart: true,
+    hydroDebugVisibleAtStart: false,
     /** How often the overlay text is refreshed (Hz). */
     overlayUpdateHz: 4,
   },

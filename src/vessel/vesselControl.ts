@@ -50,6 +50,12 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
     case 'helm':
       s.controls.helm = clamp(intent.value, -1, 1);
       break;
+    case 'navLights':
+      s.controls.navLights = intent.value > 0.5 ? 1 : 0;
+      break;
+    case 'horn':
+      s.controls.horn = intent.value > 0.5 ? 1 : 0;
+      break;
     case 'engineStartStop':
       toggleEngine(s, VESSEL_DEFS[s.defId]);
       break;

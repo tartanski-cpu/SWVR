@@ -102,10 +102,11 @@ export class HelpPanel {
       <div class="title">Desktop controls</div>
       <div class="hint">Click the 3D view to steer the camera with the mouse · <kbd>Esc</kbd> releases it</div>
       <table>${rows}</table>
+      <div class="hint">On the bridge: aim the <b>+</b> at a control · click buttons/switches · click-and-drag the lever (↕) and wheel (↔)</div>
       <div class="title">VR</div>
       <div class="hint">Press <b>Enter VR</b> · <b>B</b>/<b>Y</b> debug panel (on your left wrist)<br>
-      Grip + pull: move (two grips: turn) · Left stick: walk · Right stick ←/→: snap turn<br>
-      Left stick click: board / leave · <b>A</b>: engine start/stop · hold <b>X</b> + left stick ↑/↓: motion coupling<br>
-      Debug driving: right stick ↑/↓ lever (click = neutral), triggers = wheel port / stbd</div>`;
+      <b>Grip</b> a lever or the wheel to move it · <b>trigger</b> on buttons and switches (touch them, or point from a distance)<br>
+      Grip on empty air + pull: move (two grips: turn) · Left stick: walk · Right stick ←/→: snap turn<br>
+      Left stick click: board / leave · hold <b>X</b> + left stick ↑/↓: motion coupling</div>`;
   }
 }

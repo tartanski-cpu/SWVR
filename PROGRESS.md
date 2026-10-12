@@ -25,9 +25,8 @@ This file lets a new session pick up the work cold. Keep it current at the end o
 | 2 | Ocean: Gerstner shader + matching CPU height (with horizontal-displacement inversion), sky dome, sun, fog | **Done** (owner: "Stormworks-like, feels alive", 90 fps on Quest 3) |
 | 3 | Floating hull: strip-theory hydrostatics on hull stations, damping, debug view | **Done** (owner OK; drop-test rebound fixed in M4) |
 | 4 | Single-engine propulsion, rudder, resistance curve, keyboard/VR-stick driving, sea trials, engine hum, boarding | **Done** (owner tested in VR) |
-| 5 | Walk-in wheelhouse, bulwarks, walk areas, grab-the-world locomotion, snap-turn, comfort options, controller models | **Done, awaiting owner test** |
-| 6a | Interaction system, throttle lever, start/stop button, haptics | Next |
-| 6b | Wheel, nav-lights toggle, horn, live displays | — |
+| 5 | Walk-in wheelhouse, bulwarks, walk areas, grab-the-world locomotion, snap-turn, comfort options, controller models | **Done** (owner asked for BeamNG-style motion coupling: done) |
+| 6 | Interaction system, lever, wheel, start/stop, horn, nav-lights switch, live displays, haptics, nav lights; slow-revving diesel drivetrain | **Done, awaiting owner test** |
 | 7 | Polish: headset profiling, tuning, docs | — |
 
 ## Done (milestone 1)
@@ -157,11 +156,6 @@ This file lets a new session pick up the work cold. Keep it current at the end o
 - **Guide:** `docs/TESTING_NEW_BOATS.md`.
 - **Snapshot:** branch `sea-trials-lab` points at the commit that introduced this. It is a snapshot to revisit, not a line of development; the lab keeps evolving on the main development branch.
 
-## Open questions for the owner
-
-- **Beam-sea roll of about 26°.** Physical, but heavy in VR; comfort options arrive in milestone 5. Options: more roll damping (bilge keels), or more GM.
-- **Astern speed of 6.4 kn** may be optimistic. It's tunable via `resistance.asternFactor` and `propeller.asternEfficiency`.
-
 ## Done (milestone 5)
 
 - **Owner feedback from M4, fixed:**
@@ -198,6 +192,47 @@ This file lets a new session pick up the work cold. Keep it current at the end o
 - **Lighting:** the hemisphere sky light now blends zenith toward horizon and is 35 % stronger. Shaded white paint was reading navy.
 - **Tests (48):** motion decoupling (rigid at 100 %, level at 0 %, attenuation at 50 %, steady heel followed and heading untouched), walk area (helm walkable, walls/console/outboard not, window band and doorway open), walking aft deck → doorway → helm, wall collision, grab direction, snap turn.
 
+## Done (drivetrain rework, owner request before milestone 6)
+
+The owner asked for "a diesel inboard, not a revvy outboard, with a bigger prop for torquey manoeuvring and, eventually, towing".
+
+- **Engine is now a shaft torque balance**, not an RPM target:
+  - (I_e + I_p/i²)·dω/dt = rack·Q_max(rpm) − (a + b·rpm) − Q_prop/(i·η).
+  - Torque curve of a 200 kW heavy-duty 6-cylinder: idle 600, rated 1800, peak about 1320 N·m at 1300 rpm, cut-out at 1950.
+  - Droop governor (full rack 120 rpm below the set speed). Turbo/smoke limiter: the rack rises at most 0.45 per second.
+  - Starter torque and cranking.
+- **Gearbox:** 3:1 reverse/reduction. The clutch picks up the stationary prop with an angular-momentum RPM dip.
+- **Propeller:** 1.05 m, P/D about 0.85. K_T = 0.38·(1 − J/0.88) and K_Q = 0.045·(1 − J/0.98) give open-water efficiency about 0.5. Astern: 50 % thrust, 90 % torque. w = t = 0.18.
+- **Rudder** enlarged to 0.55 m² to suit the bigger, slower slipstream (the 0.36 m² one lost authority).
+- **Audio:** the same synth, fundamental rpm/20 (30 Hz at idle, 90 Hz at rated). Load comes from the fuel rack.
+- **Trials:**
+  - Full ahead 9.5 kn at 1681 rpm (93 % of rated).
+  - **Bollard pull 2.28 t at 1367 rpm** (the RPM sags under load). Astern bollard pull 1.2 t.
+  - Tactical diameter 3.0 L. Crash stop 1.6 L. 0 → 90 % of top speed in 7.3 s.
+  - Astern 6.4 kn (still optimistic).
+
+## Done (milestone 6: bridge controls)
+
+- **Control component system** (`src/controls/`):
+  - `Control` base: object tree in the vessel frame, hit objects for rays, `distanceTo` for proximity, grab/press lifecycle, hover highlight. Sends **absolute** values through `ctx.emit(channel, value)`, which becomes an intent. `sync(state)` shows the authoritative state except while locally held.
+  - `Lever`: pivots about local X. Hand angle atan2(z, y) with a grab offset (no jump). Clamped ±40°. Magnetic neutral detent with haptic clicks.
+  - `Wheel`: rim in local XY. Accumulates wrapped hand-angle changes, averaged over the hands holding it (two-handed). 1.5 turns lock to lock, spoke ticks every 30°, a stop bump.
+  - `Button`: momentary (horn) or pulse (start/stop). The cap travels, and the start button glows when running.
+  - `Toggle`: nav-lights switch.
+  - `InstrumentPanel`: speed, heading tape, RPM dial with gear/state/load, and rudder indicator showing actual rudder plus helm order. One 1024×512 canvas atlas and one merged mesh, redrawn at 10 Hz.
+- **Interaction system:**
+  - VR: per hand, direct grab (grip within 9 cm of a lever knob or the wheel rim) or direct press (controller tip within 6 cm plus trigger). Otherwise a 1.5 m pointer-ray fallback with a visible line.
+  - Hands holding or hovering a grab control are "busy", so their grip doesn't drive grab-the-world.
+  - Haptics on touch, grab, detent, spokes, stop and press.
+  - Desktop: screen-centre reticle (pointer lock) with the control's name. Click buttons; click-and-drag nudges the lever (mouse up/down) or wheel (left/right) with mouse-look frozen.
+- **Bridge layout is data** (`vessels.workboat.bridge`): wheel, lever, buttons, switch, instrument dash and display positions. Engraved labels on the console are one draw call.
+- **New vessel controls:** `navLights` and `horn` (intents and state).
+- **Navigation lights:** masthead, sidelights and stern light. Lamp housings dim when off; additive glow, stronger at night. Arcs of visibility aren't modelled.
+- **Horn:** low two-tone sawtooth chord (150/188 Hz plus harmonic), sharing the engine's AudioContext.
+- **VR debug driving removed** (right stick and triggers), as is A for the engine; you drive from the bridge. Keyboard debug driving is kept on desktop.
+- The refused-start message also appears when you press the physical start button with the lever out of neutral.
+- **Tests (60):** lever direction, travel and detent, no jump on grab, state sync; wheel direction, multi-turn to the stops, rim reach; button momentary vs pulse; toggle; interaction-system grab, busy hand, release; plus all earlier tests.
+
 ## Decision: ocean masking inside the hull (deferred)
 
 The deck and wheelhouse floor are opaque and sit well above the DWL (freeboard about 0.95–1.5 m), so the sea can't show "through" the boat. The only remaining case is green water overtopping the bulwark in big rolls, which is physically what happens; it would need a "freeboard volume" mask to hide. I'll revisit in the polish pass if it's visible in practice. It matters for a future open well-deck or a low-freeboard rescue boat.
@@ -209,11 +244,11 @@ The deck and wheelhouse floor are opaque and sit well above the DWL (freeboard a
 
 ## Next
 
-Milestone 6a: the interaction system.
-- `Control` base with Button, Toggle, Lever, Wheel and Display, plus interactors for direct grab (grip), poke (trigger) and short-ray fallback.
-- Haptics.
-- Start with the throttle lever and the engine start/stop button on the console.
-- Grip on a control grabs the control; grip on empty air keeps grab-the-world.
+Milestone 7: polish pass.
+- Profile on the Quest: draw calls, frame time, foveation, framebuffer scale.
+- Tune handling and comfort from owner feedback.
+- Sidelight arcs of visibility.
+- Finish the docs and the multiplayer write-up.
 
 ## Known issues / notes
 

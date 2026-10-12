@@ -7,6 +7,10 @@ export interface VesselControls {
   lever: number;
   /** Helm (wheel) position, -1 (hard to port) .. +1 (hard to starboard). */
   helm: number;
+  /** Navigation lights switch, 0 off / 1 on. */
+  navLights: number;
+  /** Horn button, 0 released / 1 held. */
+  horn: number;
 }
 
 /** Machinery state, advanced by the simulation. */
@@ -55,7 +59,7 @@ export function createVesselState(id: EntityId, defId: string): VesselState {
     orientation: [0, 0, 0, 1],
     linearVelocity: [0, 0, 0],
     angularVelocity: [0, 0, 0],
-    controls: { lever: 0, helm: 0 },
+    controls: { lever: 0, helm: 0, navLights: 0, horn: 0 },
     engine: { phase: 'off', crank: 0, rpm: 0, rack: 0, gear: 0, shift: 0 },
     rudder: 0,
     thrust: 0,

@@ -29,6 +29,11 @@ import { leverDemand } from '../vessel/physics/propulsion';
 import { Locomotion } from '../player/locomotion';
 import { ComfortOverlay, MotionDecoupler } from '../player/comfort';
 import { XRControllers } from '../player/xrControllers';
+import { Bridge } from '../controls/bridge';
+import { InteractionSystem, type HandFrame } from '../controls/InteractionSystem';
+import { NavLightsView } from '../vessel/view/navLights';
+import { HornAudio } from '../audio/hornAudio';
+import { sunElevation } from '../environment/timeOfDay';
 import { clamp } from '../core/math';
 import type { VesselState } from '../vessel/vesselState';
 
@@ -74,6 +79,19 @@ export class App {
   private readonly comfortOverlay = new ComfortOverlay();
   private readonly controllers: XRControllers;
   private readonly decoupler = new MotionDecoupler();
+  private bridge: Bridge | null = null;
+  private interaction: InteractionSystem | null = null;
+  private readonly navViews = new Map<EntityId, NavLightsView>();
+  private readonly horn = new HornAudio();
+  private readonly hands: Record<'left' | 'right', HandFrame> = {
+    left: { tracked: false, grip: new THREE.Vector3(), ray: new THREE.Ray(), gripDown: false, gripPressed: false, triggerDown: false, triggerPressed: false },
+    right: { tracked: false, grip: new THREE.Vector3(), ray: new THREE.Ray(), gripDown: false, gripPressed: false, triggerDown: false, triggerPressed: false },
+  };
+  private busyHands = { left: false, right: false };
+  /** Desktop mouse state for clicking/dragging bridge controls (pointer-locked). */
+  private readonly mouse = { down: false, pressed: false, released: false, dx: 0, dy: 0 };
+  private readonly reticle = document.createElement('div');
+  private readonly deskRay = new THREE.Ray();
   /** Last comfort outputs, reused for the second rig sync in a frame. */
   private viewOffset = 0;
   private readonly comfortQ = new THREE.Quaternion();
@@ -133,12 +151,19 @@ export class App {
       this.vesselViews.set(vessel.id, view);
       this.hydroViews.set(vessel.id, hydro);
       this.walkAreas.set(vessel.id, vesselWalkArea(def, def.layout));
+      const nav = new NavLightsView(def);
+      view.root.add(nav.root);
+      this.navViews.set(vessel.id, nav);
     }
+    this.setupBridge();
 
     this.setupXR();
     window.addEventListener('resize', () => this.onResize());
     // Audio may only start after a user gesture.
-    const unlock = () => this.engineAudio.unlock();
+    const unlock = () => {
+      this.engineAudio.unlock();
+      this.horn.attach(this.engineAudio.context);
+    };
     window.addEventListener('pointerdown', unlock);
     window.addEventListener('keydown', unlock);
     this.renderer.xr.addEventListener('sessionstart', unlock);
@@ -225,6 +250,7 @@ export class App {
     }
     this.syncRigToPlayer(dt);
     if (!inXR) this.desktop.update(dt);
+    this.updateInteraction(inXR);
     this.updateLocomotion(dt, inXR);
     this.syncRigToPlayer(0);
     this.camera.getWorldPosition(this.focus);
@@ -238,7 +264,13 @@ export class App {
       // Engine room sits roughly under the wheelhouse.
       const distance = testView.root.localToWorld(this.tmpV.set(0, 0, 1)).distanceTo(this.focus);
       this.engineAudio.update(this.world.vessels[this.testVesselId], distance);
+      this.horn.update(this.world.vessels[this.testVesselId].controls.horn > 0, distance);
     }
+    // Bridge controls and displays read the (just-updated) vessel state.
+    const testVessel = this.world.vessels[this.testVesselId];
+    if (this.bridge && testVessel) this.bridge.update(testVessel, dt);
+    const darkness = Math.min(1, Math.max(0, (8 - sunElevation(this.world.environment.timeOfDay)) / 14));
+    for (const [id, nav] of this.navViews) nav.update(this.world.vessels[id].controls.navLights > 0, darkness);
 
     // 4. Render
     this.renderer.info.reset();
@@ -257,6 +289,10 @@ export class App {
       inXR,
     );
     this.keyboard.endFrame();
+    this.mouse.pressed = false;
+    this.mouse.released = false;
+    this.mouse.dx = 0;
+    this.mouse.dy = 0;
   }
 
   /** Debug-only bindings. Note time-of-day goes through the intent path like any control. */
@@ -272,7 +308,7 @@ export class App {
     if (k.actionPressed('dropVessel')) this.pushVesselIntent('debugDrop', 0);
     if (k.actionPressed('flyMode')) this.desktop.toggleFly();
     this.handleDebugDriving(dt);
-    if (k.actionPressed('engine') || this.xrInput.wasPressed('right', XR_BUTTON.primary)) this.requestEngineStartStop();
+    if (k.actionPressed('engine')) this.requestEngineStartStop();
     // Motion coupling: hold X and push the left stick up/down (VR), or 9 / 0 (desktop).
     let dc = 0;
     if (this.xrInput.isDown('left', XR_BUTTON.primary)) {
@@ -302,25 +338,17 @@ export class App {
   }
 
   /**
-   * Debug driving: arrow keys or the right VR thumbstick move the lever and helm at a fixed
-   * rate. They send absolute positions as intents, exactly like the physical bridge
-   * controls will in milestone 6.
+   * Debug driving (desktop keyboard only; in VR you use the bridge controls): arrow keys move
+   * the lever and helm at a fixed rate, sending absolute positions as intents - the same
+   * path the physical controls use.
    */
   private handleDebugDriving(dt: number): void {
     const v = this.world.vessels[this.testVesselId];
     if (!v) return;
     const k = this.keyboard;
     const cfg = CONFIG.debugDriving;
-    // VR (temporary until the bridge controls in milestone 6): right stick up/down moves the
-    // lever (only when clearly vertical, so snap-turn on x doesn't nudge it), triggers steer.
-    const [sx, sy] = this.xrInput.hands.right.stick;
-    const stickLever = Math.abs(sy) > 0.5 && Math.abs(sy) > 1.5 * Math.abs(sx) ? -sy : 0;
-    const trig = (h: 'left' | 'right') => {
-      const t = this.xrInput.hands[h].values[XR_BUTTON.trigger] ?? 0;
-      return t > 0.1 ? t : 0;
-    };
-    const leverIn = (k.action('leverAhead') ? 1 : 0) - (k.action('leverAstern') ? 1 : 0) + stickLever;
-    const helmIn = (k.action('helmStarboard') ? 1 : 0) - (k.action('helmPort') ? 1 : 0) + trig('right') - trig('left');
+    const leverIn = (k.action('leverAhead') ? 1 : 0) - (k.action('leverAstern') ? 1 : 0);
+    const helmIn = (k.action('helmStarboard') ? 1 : 0) - (k.action('helmPort') ? 1 : 0);
 
     let lever = v.controls.lever;
     if (leverIn !== 0) {
@@ -328,7 +356,7 @@ export class App {
       // Stop briefly at the neutral detent when passing through it.
       lever = Math.sign(next) !== Math.sign(lever) && lever !== 0 ? 0 : next;
     }
-    if (k.actionPressed('leverNeutral') || this.xrInput.wasPressed('right', XR_BUTTON.stick)) lever = 0;
+    if (k.actionPressed('leverNeutral')) lever = 0;
     if (lever !== v.controls.lever) this.pushVesselIntent('lever', lever);
 
     let helm = v.controls.helm;
@@ -381,7 +409,7 @@ export class App {
     const grabbing = { left: null as THREE.Vector3 | null, right: null as THREE.Vector3 | null };
     if (inXR) {
       for (const h of ['left', 'right'] as const) {
-        if (this.xrInput.isDown(h, XR_BUTTON.grip)) grabbing[h] = this.controllers.worldPosition(h, this.gripW[h]);
+        if (this.xrInput.isDown(h, XR_BUTTON.grip) && !this.busyHands[h]) grabbing[h] = this.controllers.worldPosition(h, this.gripW[h]);
       }
     }
     let desktopDelta: { x: number; z: number } | null = null;
@@ -438,6 +466,88 @@ export class App {
     this.overlay.vrPanel.position.set(-0.35, 1.15, -0.6);
     this.overlay.vrPanel.rotation.set(-0.35, 0.45, 0);
     this.overlay.vrPanel.scale.setScalar(1);
+  }
+
+  /** Bridge controls for the test vessel, the interaction system and desktop mouse/reticle. */
+  private setupBridge(): void {
+    const v = this.world.vessels[this.testVesselId];
+    const view = this.vesselViews.get(this.testVesselId);
+    if (!v || !view) return;
+    this.bridge = new Bridge(VESSEL_DEFS[v.defId]);
+    view.root.add(this.bridge.root);
+    this.interaction = new InteractionSystem(
+      this.bridge.controls,
+      (channel, value) => (channel === 'engineStartStop' ? this.requestEngineStartStop() : this.pushVesselIntent(channel, value)),
+      (hand, i, ms) => this.xrInput.pulse(hand, i, ms),
+    );
+    this.scene.add(this.interaction.rayLine('left'), this.interaction.rayLine('right'));
+
+    const canvas = this.renderer.domElement;
+    document.addEventListener('mousedown', (e) => {
+      if (document.pointerLockElement !== canvas || e.button !== 0) return;
+      this.mouse.down = true;
+      this.mouse.pressed = true;
+      // Freeze mouse-look immediately if the reticle is on a control: movement events
+      // arrive before the next frame processes the press and would swing the aim off it.
+      if (this.interaction?.desktopHoverLabel) this.desktop.lookFrozen = true;
+    });
+    document.addEventListener('mouseup', (e) => {
+      if (e.button !== 0 || !this.mouse.down) return;
+      this.mouse.down = false;
+      this.mouse.released = true;
+    });
+    document.addEventListener('mousemove', (e) => {
+      if (!this.mouse.down) return;
+      this.mouse.dx += e.movementX;
+      this.mouse.dy += e.movementY;
+    });
+
+    Object.assign(this.reticle.style, {
+      position: 'fixed',
+      left: '50%',
+      top: '50%',
+      transform: 'translate(-50%, -50%)',
+      font: '600 13px system-ui, sans-serif',
+      color: '#fff',
+      textShadow: '0 0 3px #000',
+      pointerEvents: 'none',
+      textAlign: 'center',
+      whiteSpace: 'pre',
+      display: 'none',
+    } satisfies Partial<CSSStyleDeclaration>);
+    document.body.appendChild(this.reticle);
+  }
+
+  /** Feed hands (VR) or the reticle (desktop) to the bridge controls. */
+  private updateInteraction(inXR: boolean): void {
+    this.busyHands = { left: false, right: false };
+    if (!this.interaction) return;
+    if (inXR) {
+      for (const h of ['left', 'right'] as const) {
+        const f = this.hands[h];
+        const grip = this.controllers.worldPosition(h, f.grip);
+        f.tracked = !!grip && this.controllers.worldRay(h, f.ray);
+        f.gripDown = this.xrInput.isDown(h, XR_BUTTON.grip);
+        f.gripPressed = this.xrInput.wasPressed(h, XR_BUTTON.grip);
+        f.triggerDown = this.xrInput.isDown(h, XR_BUTTON.trigger);
+        f.triggerPressed = this.xrInput.wasPressed(h, XR_BUTTON.trigger);
+      }
+      this.busyHands = this.interaction.updateXR(this.hands);
+      this.reticle.style.display = 'none';
+      return;
+    }
+    const locked = this.desktop.pointerLocked;
+    let ray: THREE.Ray | null = null;
+    if (locked) {
+      this.camera.getWorldPosition(this.deskRay.origin);
+      this.camera.getWorldDirection(this.deskRay.direction);
+      ray = this.deskRay;
+    }
+    const m = this.mouse;
+    this.desktop.lookFrozen = this.interaction.updateDesktop(ray, m.down, m.pressed, m.released, m.dx, m.dy);
+    const label = this.interaction.desktopHoverLabel;
+    this.reticle.style.display = locked ? 'block' : 'none';
+    this.reticle.textContent = label ? `+\n${label}` : '+';
   }
 
   /** Engine start/stop with feedback when the neutral-start interlock refuses. */
