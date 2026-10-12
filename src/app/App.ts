@@ -7,6 +7,7 @@ import { Keyboard } from '../core/keyboard';
 import { FixedStepLoop } from '../core/loop';
 import { stepWorld } from '../core/simulation';
 import { createWorld, type WorldState } from '../core/world';
+import { HelpPanel } from '../debug/helpPanel';
 import { DebugOverlay } from '../debug/overlay';
 import { EnvironmentView } from '../environment/environmentView';
 import { DesktopController } from '../player/desktopController';
@@ -38,6 +39,7 @@ export class App {
   private readonly desktop: DesktopController;
   private readonly environment: EnvironmentView;
   private readonly overlay = new DebugOverlay();
+  private readonly help = new HelpPanel();
   private readonly focus = new THREE.Vector3();
   private lastFrameMs = performance.now();
 
@@ -151,17 +153,14 @@ export class App {
   /** Debug-only bindings. Note time-of-day goes through the intent path like any control. */
   private handleDebugInput(): void {
     const k = this.keyboard;
-    if (k.wasPressed('Backquote') || k.wasPressed('F3')) this.overlay.toggle();
+    if (k.actionPressed('toggleOverlay')) this.overlay.toggle();
     if (this.xrInput.wasPressed('left', XR_BUTTON.secondary) || this.xrInput.wasPressed('right', XR_BUTTON.secondary)) {
       this.overlay.toggle();
     }
-    if (k.wasPressed('KeyH')) {
-      const help = document.getElementById('help');
-      if (help) help.style.display = help.style.display === 'none' ? '' : 'none';
-    }
+    if (k.actionPressed('toggleHelp')) this.help.toggle();
     const step = CONFIG.environment.timeStepHours;
-    if (k.wasPressed('BracketLeft')) this.pushEnvIntent('timeOfDayDelta', -step);
-    if (k.wasPressed('BracketRight')) this.pushEnvIntent('timeOfDayDelta', step);
+    if (k.actionPressed('timeEarlier')) this.pushEnvIntent('timeOfDayDelta', -step);
+    if (k.actionPressed('timeLater')) this.pushEnvIntent('timeOfDayDelta', step);
   }
 
   private pushEnvIntent(control: string, value: number): void {

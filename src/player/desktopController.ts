@@ -42,13 +42,12 @@ export class DesktopController {
   update(dt: number): void {
     const k = this.keyboard;
     this.move.set(
-      (k.isDown('KeyD') ? 1 : 0) - (k.isDown('KeyA') ? 1 : 0),
-      (k.isDown('Space') ? 1 : 0) - (k.isDown('KeyC') ? 1 : 0),
-      (k.isDown('KeyS') ? 1 : 0) - (k.isDown('KeyW') ? 1 : 0),
+      (k.action('right') ? 1 : 0) - (k.action('left') ? 1 : 0),
+      (k.action('up') ? 1 : 0) - (k.action('down') ? 1 : 0),
+      (k.action('back') ? 1 : 0) - (k.action('forward') ? 1 : 0),
     );
     if (this.move.lengthSq() > 0) {
-      const speed =
-        CONFIG.desktop.moveSpeed * (k.isDown('ShiftLeft') || k.isDown('ShiftRight') ? CONFIG.desktop.fastMultiplier : 1);
+      const speed = CONFIG.desktop.moveSpeed * (k.action('fast') ? CONFIG.desktop.fastMultiplier : 1);
       // Horizontal movement follows yaw only; vertical is world-up.
       const vertical = this.move.y;
       this.move.y = 0;

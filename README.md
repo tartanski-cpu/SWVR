@@ -22,15 +22,17 @@ The site redeploys automatically on every push to the development branch, about 
 
 ### Desktop (development)
 
-| Input | Action |
+Keys are bound by **physical position**, so they work the same on QWERTZ (German), QWERTY and other layouts. The on-screen help shows each key as printed on *your* keyboard; this works in Chrome and Edge, while Firefox shows US names. All bindings are in `src/core/keybindings.ts`.
+
+| Key | Action |
 |---|---|
 | Click the view | Capture the mouse for looking (Esc releases it) |
-| W A S D | Move |
+| W A S D or arrow keys | Move |
 | Space / C | Up / down (free-fly until milestone 5) |
-| Shift | Move faster |
-| `[` / `]` | Time of day −/+ 30 min |
-| `` ` `` or F3 | Toggle the debug overlay |
-| H | Hide/show the help text |
+| Shift (hold) | Move faster |
+| N / M | Time of day −/+ 30 min |
+| F3 or I | Debug overlay on/off |
+| F1 or H | Help panel on/off |
 
 ### VR (Quest 3)
 

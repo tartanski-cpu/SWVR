@@ -21,7 +21,7 @@ This file lets a new session pick up the work cold. Keep it current at the end o
 
 | # | Milestone | Status |
 |---|---|---|
-| 1 | Scaffold: Vite + TS + Three, desktop camera, Enter VR, debug overlay, HTTPS LAN server, Pages deploy, fixed-tick sim skeleton | **Done, awaiting owner test** |
+| 1 | Scaffold: Vite + TS + Three, desktop camera, Enter VR, debug overlay, HTTPS LAN server, Pages deploy, fixed-tick sim skeleton | **Done** (VR verified by owner on Quest 3; desktop keys reworked for QWERTZ) |
 | 2 | Ocean: Gerstner shader + matching CPU height (with horizontal-displacement inversion), sky dome, sun, fog | Next |
 | 3 | Floating hull: buoyancy points, drag, debug view | — |
 | 4 | Propulsion and steering via keyboard; sea-trial measurement command; engine hum | — |
@@ -43,7 +43,7 @@ This file lets a new session pick up the work cold. Keep it current at the end o
 - **Environment:**
   - Sun direction from time of day using real solar geometry (latitude and declination in config).
   - Sky, fog and light palette keyed by sun elevation.
-  - Time of day changes through the intent path (`[` / `]`).
+  - Time of day changes through the intent path (N / M).
 - **Player rig:** a Group containing the camera. Later it gets re-parented to the vessel.
 - **Desktop:** a pointer-lock fly camera.
 - **WebXR:**
@@ -51,7 +51,11 @@ This file lets a new session pick up the work cold. Keep it current at the end o
   - Foveation and framebuffer scale from config.
   - Requests 90 Hz on the Quest.
   - Gamepad polling with button edges and haptic pulses (`player/xrInput.ts`).
-- **Debug overlay:** FPS, average and max frame time, draw calls, triangles, tick and time. It's a DOM panel on desktop and a panel on the rig in VR. Toggle with `` ` ``/F3 or B/Y.
+- **Debug overlay:** FPS, average and max frame time, draw calls, triangles, tick and time. It's a DOM panel on desktop and a panel on the rig in VR. Toggle with F3/I or B/Y.
+- **Keyboard layout:** the owner uses a **German QWERTZ keyboard**.
+  - All bindings live in `src/core/keybindings.ts` and are bound by physical key (`KeyboardEvent.code`).
+  - The help panel is generated from that file and labels keys with the user's layout via `navigator.keyboard.getLayoutMap()`.
+  - Avoid punctuation keys for bindings; they move around between layouts and need AltGr on German keyboards.
 - **Placeholder scene:** flat sea, a 4 × 4 m raft, a test cube and a ring of buoys. Static geometry is merged into one draw call; the whole scene is 2 draw calls.
 - **Tests (9):** loop timing, headless 60 s sim run, JSON round-trip of the world, intent application, sun geometry.
 
