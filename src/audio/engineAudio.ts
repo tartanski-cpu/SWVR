@@ -1,4 +1,4 @@
-import { CONFIG } from '../config';
+import { VESSEL_DEFS } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
 
 /**
@@ -79,7 +79,7 @@ export class EngineAudio {
     const t = ctx.currentTime;
     const smooth = 0.08;
     const e = v.engine;
-    const cfg = CONFIG.vessels.workboat.engine;
+    const cfg = VESSEL_DEFS[v.defId].engine;
 
     const running = e.phase !== 'off' || e.rpm > 20;
     const rpm = Math.max(e.rpm, 1);

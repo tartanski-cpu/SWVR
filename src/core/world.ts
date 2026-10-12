@@ -1,3 +1,4 @@
+import { CONFIG } from '../config';
 import { createEnvironment, type EnvironmentState } from '../environment/environmentState';
 import type { PlayerState } from '../player/playerState';
 import { createPlayerState } from '../player/playerState';
@@ -21,10 +22,13 @@ export interface WorldState {
   vessels: Record<EntityId, VesselState>;
 }
 
-export function createWorld(ids: IdFactory): { world: WorldState; localPlayerId: EntityId; vesselId: EntityId } {
+export function createWorld(
+  ids: IdFactory,
+  vesselDefId: string = CONFIG.testScene.vesselDefId,
+): { world: WorldState; localPlayerId: EntityId; vesselId: EntityId } {
   const localPlayerId = ids.next('player');
   const vesselId = ids.next('vessel');
-  const vessel = createVesselState(vesselId, 'workboat');
+  const vessel = createVesselState(vesselId, vesselDefId);
   dropVessel(vessel);
   const player = createPlayerState(localPlayerId, 'Player 1');
   placeOnPlatform(player);

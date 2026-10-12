@@ -1,6 +1,7 @@
 import { CONFIG } from '../config';
 import type { Intent } from '../core/intents';
 import type { WorldState } from '../core/world';
+import { VESSEL_DEFS } from '../vessel/vesselDef';
 import type { PlayerState } from './playerState';
 
 /** Where a player stands when not aboard anything (the test platform, until there's a quay). */
@@ -23,7 +24,7 @@ export function applyPlayerIntent(world: WorldState, p: PlayerState, intent: Int
         break;
       }
       p.aboardVesselId = vessel.id;
-      p.position = [...CONFIG.vessels.workboat.boardingSpot];
+      p.position = [...VESSEL_DEFS[vessel.defId].boardingSpot];
       p.yaw = 0;
       break;
     }

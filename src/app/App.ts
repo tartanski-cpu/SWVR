@@ -23,6 +23,7 @@ import { VESSEL_DEFS } from '../vessel/vesselDef';
 import { VesselView } from '../vessel/view/vesselView';
 import { EngineAudio } from '../audio/engineAudio';
 import { formatSeaTrials, runSeaTrials } from '../vessel/seaTrials';
+import { formatHydrostatics } from '../vessel/hydrostatics';
 import { clamp } from '../core/math';
 import type { VesselState } from '../vessel/vesselState';
 
@@ -256,6 +257,7 @@ export class App {
       });
     }
     if (k.actionPressed('seaTrials')) this.showSeaTrials();
+    if (k.actionPressed('seaState')) this.pushEnvIntent('seaState', this.world.environment.waves.length > 0 ? 0 : 1);
     if (k.actionPressed('heelVessel') || this.xrInput.wasPressed('left', XR_BUTTON.primary)) this.pushVesselIntent('debugHeel', 20);
     const step = CONFIG.environment.timeStepHours;
     if (k.actionPressed('timeEarlier')) this.pushEnvIntent('timeOfDayDelta', -step);
@@ -310,12 +312,13 @@ export class App {
       this.trialsPanel.style.display = 'none';
       return;
     }
-    this.trialsPanel.textContent = 'Running sea trials (calm water)...';
+    this.trialsPanel.textContent = 'Running hydrostatics and sea trials (calm water)...';
     this.trialsPanel.style.display = 'block';
     // Let the message paint before the (~1 s) synchronous run.
     setTimeout(() => {
       const t0 = performance.now();
-      const report = formatSeaTrials(runSeaTrials(), CONFIG.vessels.workboat.hull.length);
+      const defId = this.world.vessels[this.testVesselId].defId;
+      const report = `${formatHydrostatics(VESSEL_DEFS[defId])}\n\n${formatSeaTrials(runSeaTrials(defId))}`;
       console.log(report);
       this.trialsPanel.textContent = `${report}\n\n(${((performance.now() - t0) / 1000).toFixed(1)} s to simulate · T to close)`;
     }, 30);

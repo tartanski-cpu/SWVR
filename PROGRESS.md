@@ -144,6 +144,19 @@ This file lets a new session pick up the work cold. Keep it current at the end o
 - **Overlay:** speed over ground, heading, rpm or engine state, lever %, gear, rudder angle, heel, trim, heave, immersed tonnage.
 - **Engine audio:** WebAudio sawtooth at firing frequency (rpm/20 for a 6-cylinder four-stroke) plus a half-order square wave, low-passed by RPM and load. Turbo hiss grows with load, there's a cranking wobble, and volume falls with distance. Unlocked on the first click, key press or entering VR.
 
+## Sea-trials lab (owner request after milestone 4)
+
+- `src/vessel/hydrostatics.ts`: upright particulars and a fixed-trim GZ curve with free sinkage, from the hull stations.
+- `src/vessel/seaTrials.ts`:
+  - Speed, turning and stopping trials.
+  - `runMotionTrials`: heave, pitch and roll natural periods; roll decay and damping ratio; a dynamic inclining test that back-calculates GM.
+- Trials and hydrostatics run per vessel definition. `VESSEL=<id> npm run trials` runs one vessel.
+- `tests/seaTrials.test.ts` checks that GM agrees three ways (formula, small-angle GZ, inclining). Current values: 1.19 / 1.19 / 1.20 m.
+- **Any vessel works end to end:** vessel-specific values (spawn, boarding spot, engine for audio) now come from `VesselDef` rather than `CONFIG.vessels.workboat`. `testScene.vesselDefId` picks the vessel in the scene.
+- **Keys:** L toggles flat calm / moderate sea (environment intent `seaState`). T shows hydrostatics plus trials in game.
+- **Guide:** `docs/TESTING_NEW_BOATS.md`.
+- **Snapshot:** branch `sea-trials-lab` and tag `sea-trials-lab-v1` point at the commit that introduced this.
+
 ## Open questions for the owner
 
 - **Beam-sea roll of about 26°.** Physical, but heavy in VR; comfort options arrive in milestone 5. Options: more roll damping (bilge keels), or more GM.

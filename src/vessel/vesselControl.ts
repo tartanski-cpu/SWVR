@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { CONFIG } from '../config';
 import type { Intent } from '../core/intents';
 import { clamp } from '../core/math';
 import { toggleEngine } from './physics/propulsion';
@@ -35,7 +34,7 @@ export function placeVessel(
 
 /** Debug test: drop the vessel from height at the spawn point. */
 export function dropVessel(s: VesselState): void {
-  const sp = CONFIG.vessels.workboat.spawn;
+  const sp = VESSEL_DEFS[s.defId].spawn;
   placeVessel(s, sp.x, sp.dropHeight, sp.z, sp.headingDeg, 6, -3);
 }
 

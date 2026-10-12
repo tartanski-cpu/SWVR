@@ -9,12 +9,14 @@ import type { Intent } from '../core/intents';
 import { stepWorld } from '../core/simulation';
 import { createWorld, type WorldState } from '../core/world';
 import { placeVessel } from './vesselControl';
+import { VESSEL_DEFS } from './vesselDef';
 import type { VesselState } from './vesselState';
 
 const DT = 1 / 60;
 const KN = 1.943844; // m/s -> knots
 
 export interface SeaTrialResults {
+  vesselDefId: string;
   /** Speed (kn) at lever 25 / 50 / 75 / 100 % ahead, and engine RPM there. */
   speedTable: { lever: number; knots: number; rpm: number }[];
   topSpeedKn: number;
@@ -33,6 +35,21 @@ export interface SeaTrialResults {
   coastDistance: number;
   /** Full astern speed (kn). */
   asternSpeedKn: number;
+  /** Free-decay tests in calm water (the "inclining-style" experiments). */
+  motions: MotionTrials;
+}
+
+export interface MotionTrials {
+  /** Natural periods (s) from free decay. */
+  heavePeriod: number;
+  pitchPeriod: number;
+  rollPeriod: number;
+  /** Released from 10° heel: successive peak heel angles (deg, magnitude). */
+  rollPeaks: number[];
+  /** Roll damping as a fraction of critical, from the logarithmic decrement. */
+  rollDampingRatio: number;
+  /** Static heel (deg) from a transverse heeling moment, and the GM it implies. */
+  inclining: { momentKNm: number; heelDeg: number; impliedGM: number };
 }
 
 class Trial {
@@ -41,8 +58,8 @@ class Trial {
   private readonly q = new THREE.Quaternion();
   private readonly f = new THREE.Vector3();
 
-  constructor() {
-    const { world, vesselId } = createWorld(new IdFactory());
+  constructor(defId: string) {
+    const { world, vesselId } = createWorld(new IdFactory(), defId);
     world.environment.waves = []; // calm water
     this.world = world;
     this.v = world.vessels[vesselId];
@@ -60,6 +77,18 @@ class Trial {
       stepWorld(this.world, [], DT);
       if (each?.() === true) return;
     }
+  }
+
+  heel(): number {
+    this.q.fromArray(this.v.orientation);
+    this.f.set(1, 0, 0).applyQuaternion(this.q);
+    return (-Math.asin(this.f.y) * 180) / Math.PI;
+  }
+
+  trim(): number {
+    this.q.fromArray(this.v.orientation);
+    this.f.set(0, 0, -1).applyQuaternion(this.q);
+    return (-Math.asin(this.f.y) * 180) / Math.PI;
   }
 
   get speed(): number {
@@ -94,18 +123,100 @@ class Trial {
   }
 }
 
-export function runSeaTrials(): SeaTrialResults {
+/** Period (s) from the zero crossings of a decaying signal sampled every DT. */
+function periodOf(series: number[]): number {
+  const c: number[] = [];
+  for (let i = 1; i < series.length; i++) if (series[i - 1] > 0 !== series[i] > 0) c.push(i * DT);
+  if (c.length < 3) return NaN;
+  const use = c.slice(0, Math.min(c.length, 6));
+  return (2 * (use[use.length - 1] - use[0])) / (use.length - 1);
+}
+
+function peaksOf(series: number[]): number[] {
+  const p: number[] = [];
+  for (let i = 1; i < series.length - 1; i++) {
+    const a = Math.abs(series[i]);
+    if (a > Math.abs(series[i - 1]) && a >= Math.abs(series[i + 1]) && a > 0.05) p.push(a);
+  }
+  return p;
+}
+
+/** Free-decay heave, pitch and roll, and a static inclining test, in calm water. */
+export function runMotionTrials(defId: string): MotionTrials {
+  const decay = (setup: (t: Trial) => void, read: (t: Trial) => number, seconds: number): number[] => {
+    const t = new Trial(defId);
+    t.run(20); // settle at rest
+    const rest = read(t);
+    setup(t);
+    const out: number[] = [];
+    t.run(seconds, () => void out.push(read(t) - rest));
+    return out;
+  };
+  const heave = decay(
+    (t) => (t.v.position[1] += 0.3),
+    (t) => t.v.position[1],
+    10,
+  );
+  const pitch = decay(
+    (t) => placeVessel(t.v, t.v.position[0], t.v.position[1], t.v.position[2], 0, 0, 3),
+    (t) => t.trim(),
+    10,
+  );
+  const roll = decay(
+    (t) => placeVessel(t.v, t.v.position[0], t.v.position[1], t.v.position[2], 0, 10),
+    (t) => t.heel(),
+    25,
+  );
+  // Roll peaks alternate sides every half cycle; damping ratio from the full-cycle decrement.
+  const rollPeaks = peaksOf(roll).slice(0, 8);
+  let zeta = NaN;
+  if (rollPeaks.length >= 3) {
+    const delta = Math.log(rollPeaks[0] / rollPeaks[2]);
+    zeta = delta / Math.sqrt(4 * Math.PI * Math.PI + delta * delta);
+  }
+
+  // Inclining experiment: apply a known transverse heeling moment and read the heel.
+  // In the real test you shift a weight w by distance d: moment = w*g*d, GM = w*d / (Δ tan φ).
+  const def = VESSEL_DEFS[defId];
+  const momentKNm = 0.02 * def.mass * 9.81 * 0.5 / 1000; // ~2 % of displacement shifted 0.5 m
+  const inc = new Trial(defId);
+  inc.run(10);
+  const steps = Math.round(40 / DT);
+  for (let i = 0; i < steps; i++) {
+    // Couple about the vessel's longitudinal axis (roll), applied as a body-axis torque.
+    const q = new THREE.Quaternion().fromArray(inc.v.orientation);
+    const axis = new THREE.Vector3(0, 0, -1).applyQuaternion(q); // +moment heels to starboard
+    const w = inc.v.angularVelocity;
+    const I = def.inertia[2] * (1 + def.addedAngular[2]);
+    const dw = (momentKNm * 1000 * DT) / I;
+    inc.v.angularVelocity = [w[0] + axis.x * dw, w[1] + axis.y * dw, w[2] + axis.z * dw];
+    stepWorld(inc.world, [], DT);
+  }
+  const heelDeg = inc.heel();
+  const impliedGM = (momentKNm * 1000) / (def.mass * 9.81 * Math.tan((heelDeg * Math.PI) / 180));
+
+  return {
+    heavePeriod: periodOf(heave),
+    pitchPeriod: periodOf(pitch),
+    rollPeriod: periodOf(roll),
+    rollPeaks,
+    rollDampingRatio: zeta,
+    inclining: { momentKNm, heelDeg, impliedGM },
+  };
+}
+
+export function runSeaTrials(defId = 'workboat'): SeaTrialResults {
   // ── Speed table and acceleration ──
   const speedTable: SeaTrialResults['speedTable'] = [];
   for (const lever of [0.25, 0.5, 0.75, 1]) {
-    const t = new Trial();
+    const t = new Trial(defId);
     t.startEngine();
     t.settle(lever);
     speedTable.push({ lever, knots: t.speed * KN, rpm: t.v.engine.rpm });
   }
   const top = speedTable[speedTable.length - 1].knots / KN;
 
-  const acc = new Trial();
+  const acc = new Trial(defId);
   acc.startEngine();
   acc.send('lever', 1);
   let timeTo90Pct = 0;
@@ -115,7 +226,7 @@ export function runSeaTrials(): SeaTrialResults {
   });
 
   // ── Turning circle, full ahead, hard to starboard ──
-  const turn = new Trial();
+  const turn = new Trial(defId);
   turn.startEngine();
   turn.settle(1);
   const x0 = turn.v.position[0];
@@ -150,7 +261,7 @@ export function runSeaTrials(): SeaTrialResults {
   const turnSpeedKn = turn.speed * KN;
 
   // ── Crash stop: full ahead -> full astern ──
-  const crash = new Trial();
+  const crash = new Trial(defId);
   crash.startEngine();
   crash.settle(1);
   const cz = crash.v.position[2];
@@ -164,7 +275,7 @@ export function runSeaTrials(): SeaTrialResults {
   const crashStopDistance = -(crash.v.position[2] - cz);
 
   // ── Coast stop: full ahead -> neutral ──
-  const coast = new Trial();
+  const coast = new Trial(defId);
   coast.startEngine();
   coast.settle(1);
   const sz = coast.v.position[2];
@@ -173,11 +284,12 @@ export function runSeaTrials(): SeaTrialResults {
   const coastDistance = -(coast.v.position[2] - sz);
 
   // ── Astern speed ──
-  const astern = new Trial();
+  const astern = new Trial(defId);
   astern.startEngine();
   astern.settle(-1);
 
   return {
+    vesselDefId: defId,
     speedTable,
     topSpeedKn: top * KN,
     timeTo90Pct,
@@ -190,13 +302,16 @@ export function runSeaTrials(): SeaTrialResults {
     crashStopTime,
     coastDistance,
     asternSpeedKn: astern.speed * KN,
+    motions: runMotionTrials(defId),
   };
 }
 
-export function formatSeaTrials(r: SeaTrialResults, length: number): string {
+export function formatSeaTrials(r: SeaTrialResults): string {
+  const length = VESSEL_DEFS[r.vesselDefId].hull.params.length;
   const L = (m: number) => `${m.toFixed(0)} m (${(m / length).toFixed(1)} L)`;
+  const m = r.motions;
   return [
-    'SEA TRIALS (calm water)',
+    `SEA TRIALS: ${r.vesselDefId} (calm water)`,
     ...r.speedTable.map((s) => `  lever ${(s.lever * 100).toFixed(0).padStart(3)} %: ${s.knots.toFixed(1)} kn @ ${s.rpm.toFixed(0)} rpm`),
     `  0 -> 90 % top speed: ${r.timeTo90Pct.toFixed(1)} s`,
     `  full astern: ${r.asternSpeedKn.toFixed(1)} kn`,
@@ -204,5 +319,9 @@ export function formatSeaTrials(r: SeaTrialResults, length: number): string {
     `    tactical diameter ${L(r.tacticalDiameter)}, steady diameter ${L(r.steadyTurnDiameter)}, speed in turn ${r.turnSpeedKn.toFixed(1)} kn`,
     `  crash stop: ${L(r.crashStopDistance)} in ${r.crashStopTime.toFixed(1)} s`,
     `  coast to 1 kn: ${L(r.coastDistance)}`,
+    'MOTIONS (free decay, calm water)',
+    `  natural periods: heave ${m.heavePeriod.toFixed(2)} s, pitch ${m.pitchPeriod.toFixed(2)} s, roll ${m.rollPeriod.toFixed(2)} s`,
+    `  roll decay from 10°: ${m.rollPeaks.map((p) => p.toFixed(1)).join(', ')}  (damping ${(m.rollDampingRatio * 100).toFixed(0)} % of critical)`,
+    `  inclining: ${m.inclining.momentKNm.toFixed(1)} kN·m heeling moment -> ${m.inclining.heelDeg.toFixed(2)}° heel -> GM ${m.inclining.impliedGM.toFixed(2)} m`,
   ].join('\n');
 }

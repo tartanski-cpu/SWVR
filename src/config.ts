@@ -254,6 +254,8 @@ export const CONFIG = {
 
   /** Milestone 2 test scene: a pile-mounted observation platform above the waves. */
   testScene: {
+    /** Vessel type spawned in the test scene (a key of CONFIG.vessels / VESSEL_DEFS). */
+    vesselDefId: 'workboat',
     platformDeckHeight: 3.0,
     platformHalfSize: 3.0,
   },

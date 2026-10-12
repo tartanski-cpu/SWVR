@@ -35,7 +35,8 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | ↑ / ↓ | Throttle/gear lever ahead / astern (stops briefly at neutral) |
 | ← / → | Wheel to port / starboard |
 | X / G | Lever to neutral / wheel amidships |
-| T | Run calm-water sea trials and show the report |
+| T | Hydrostatics + sea trials report (GZ curve, inclining, motions, speed, turning, stopping) |
+| L | Sea state: flat calm / moderate |
 | N / M | Time of day −/+ 30 min |
 | F3 or I | Debug overlay on/off |
 | R | Drop the boat from 4 m (test) |
@@ -65,7 +66,7 @@ npm ci            # install exact locked versions
 npm run dev       # HTTPS dev server on https://localhost:5173 and your LAN IP
 npm test          # unit tests (physics/sim run headless in Node)
 npm run build     # typecheck + production build into dist/
-npm run trials    # calm-water sea trials report (speed, turning, stopping)
+npm run trials    # hydrostatics, GZ curve, inclining + free-decay tests, sea trials (see docs/TESTING_NEW_BOATS.md)
 npm run preview   # serve the production build over HTTPS on :4173
 ```
 
@@ -92,6 +93,10 @@ Install Meta's **Immersive Web Emulator** extension (Chrome or Edge Web Store). 
 4. Click **Enter VR** on the page.
 
 You can move the emulated headset and controllers and press their buttons from the DevTools panel.
+
+## Testing a new boat
+
+There's a built-in "sea-trials lab". It covers hydrostatics, the GZ curve, an inclining experiment, free-decay motions, and speed/turning/stopping trials, all computed from the same hull the game floats. See [`docs/TESTING_NEW_BOATS.md`](docs/TESTING_NEW_BOATS.md). A snapshot of the project at that stage lives on the `sea-trials-lab` branch (tag `sea-trials-lab-v1`).
 
 ## Project layout
 

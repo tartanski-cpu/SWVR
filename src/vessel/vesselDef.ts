@@ -2,7 +2,11 @@ import { CONFIG } from '../config';
 import type { Vec3 } from '../core/math';
 import { buildHullForm, type HullForm } from './hullForm';
 
-type WorkboatConfig = typeof CONFIG.vessels.workboat;
+/**
+ * Shape of a vessel's config block. Every vessel type in CONFIG.vessels uses this
+ * structure, so adding a boat = adding a config block + one line in VESSEL_DEFS.
+ */
+export type VesselConfig = typeof CONFIG.vessels.workboat;
 
 /**
  * Static description of a vessel type (shared by every vessel of that type).
@@ -18,15 +22,19 @@ export interface VesselDef {
   /** Added-mass fractions in vessel axes: linear [sway (x), heave (y), surge (z)], angular [pitch, yaw, roll]. */
   addedLinear: Vec3;
   addedAngular: Vec3;
-  damping: WorkboatConfig['damping'];
+  damping: VesselConfig['damping'];
   /** Volume (m^3) displaced at equilibrium; used to scale added mass by immersion. */
   designVolume: number;
   /** Wetted surface (m^2) at the DWL, from the stations. */
   wettedSurface: number;
-  resistance: WorkboatConfig['resistance'];
-  engine: WorkboatConfig['engine'];
-  propeller: WorkboatConfig['propeller'];
-  rudder: WorkboatConfig['rudder'];
+  resistance: VesselConfig['resistance'];
+  engine: VesselConfig['engine'];
+  propeller: VesselConfig['propeller'];
+  rudder: VesselConfig['rudder'];
+  /** Where players stand after boarding (vessel axes). */
+  boardingSpot: Vec3;
+  /** Debug spawn / drop test placement. */
+  spawn: VesselConfig['spawn'];
 }
 
 /** Wetted surface at the DWL: submerged girth of each station times its spacing. */
@@ -50,7 +58,7 @@ function wettedSurfaceAtDWL(hull: HullForm): number {
   return s;
 }
 
-function fromConfig(id: string, c: WorkboatConfig): VesselDef {
+export function fromConfig(id: string, c: VesselConfig): VesselDef {
   const m = c.mass;
   const hull = buildHullForm(c.hull);
   return {
@@ -68,9 +76,12 @@ function fromConfig(id: string, c: WorkboatConfig): VesselDef {
     engine: c.engine,
     propeller: c.propeller,
     rudder: c.rudder,
+    boardingSpot: c.boardingSpot,
+    spawn: c.spawn,
   };
 }
 
+/** Registry of vessel types. To add a boat: add a config block, then a line here. */
 export const VESSEL_DEFS: Record<string, VesselDef> = {
   workboat: fromConfig('workboat', CONFIG.vessels.workboat),
 };

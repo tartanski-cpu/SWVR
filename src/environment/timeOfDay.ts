@@ -25,6 +25,10 @@ export function applyEnvironmentIntent(env: EnvironmentState, intent: Intent): v
     case 'timeScale':
       env.timeScale = intent.value;
       break;
+    case 'seaState':
+      // 0 = flat calm (for inclining / trials), 1 = the configured moderate sea.
+      env.waves = intent.value > 0 ? CONFIG.ocean.waves.map((w) => ({ ...w })) : [];
+      break;
   }
 }
 

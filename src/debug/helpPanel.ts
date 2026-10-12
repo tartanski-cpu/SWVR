@@ -18,6 +18,7 @@ const ROWS: (KeyAction | KeyAction[])[] = [
   ['helmPort', 'helmStarboard'],
   ['leverNeutral', 'helmMidships'],
   'seaTrials',
+  'seaState',
   ['timeEarlier', 'timeLater'],
   'dropVessel',
   'heelVessel',
