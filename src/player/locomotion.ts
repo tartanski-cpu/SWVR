@@ -12,6 +12,9 @@
  * Methods:
  *  - grab-the-world (default): squeeze a grip and pull - the world moves with your hand.
  *    Two hands: pull and twist to turn. Precise and nausea-free in tight spaces.
+ *    On a ladder the vertical part of the pull climbs (pull down = go up); elsewhere
+ *    vertical pulls are ignored (no flying). Off a ladder, gravity settles you onto the
+ *    highest floor within a step below your feet - which is also how stairs and sills work.
  *  - smooth stick movement (optional), head-relative.
  *  - snap turn about the head.
  *  - desktop walking (WASD) through the same collision.
@@ -21,7 +24,7 @@
  */
 import * as THREE from 'three';
 import { CONFIG } from '../config';
-import type { WalkArea } from '../vessel/layout';
+import { STEP_HEIGHT, type WalkArea } from '../vessel/layout';
 import type { PlayerState } from './playerState';
 import type { Handedness } from './xrInput';
 
@@ -40,8 +43,8 @@ export interface LocomotionInput {
   moveStick: [number, number];
   /** Snap-turn stick x (-1..1). */
   turnStick: number;
-  /** Desktop walking displacement already in the frame's axes (m), or null. */
-  desktopDelta: { x: number; z: number } | null;
+  /** Desktop walking displacement already in the frame's axes (m), or null. y = climbing. */
+  desktopDelta: { x: number; y?: number; z: number } | null;
 }
 
 const headL = new THREE.Vector3();
@@ -87,11 +90,15 @@ export class Locomotion {
       // The rotation pivots on the hands' midpoint, so the midpoint itself hasn't moved.
       const anchorMid = this.anchors.left.clone().add(this.anchors.right).multiplyScalar(0.5);
       moved += this.tryMove(p, area, headL, anchorMid.x - mid.x, anchorMid.z - mid.z);
+      moved += this.climb(p, area, headL, anchorMid.y - mid.y);
     } else {
       for (const h of ['left', 'right'] as const) {
         const a = this.anchors[h];
         const c = handsL[h];
-        if (a && c) moved += this.tryMove(p, area, headL, a.x - c.x, a.z - c.z);
+        if (a && c) {
+          moved += this.tryMove(p, area, headL, a.x - c.x, a.z - c.z);
+          moved += this.climb(p, area, headL, a.y - c.y);
+        }
       }
     }
 
@@ -110,7 +117,10 @@ export class Locomotion {
     }
 
     // ── Desktop walking ──
-    if (inp.desktopDelta) moved += this.tryMove(p, area, headL, inp.desktopDelta.x, inp.desktopDelta.z);
+    if (inp.desktopDelta) {
+      moved += this.tryMove(p, area, headL, inp.desktopDelta.x, inp.desktopDelta.z);
+      moved += this.climb(p, area, headL, inp.desktopDelta.y ?? 0);
+    }
 
     // ── Snap turn about the head ──
     const t = inp.turnStick;
@@ -123,9 +133,21 @@ export class Locomotion {
     }
     this.snapFlash = Math.max(0, this.snapFlash - dt);
 
-    // ── Follow the floor under the head (smoothed, e.g. over the doorway sill) ──
-    const floor = area.floorY(headL.x, headL.z);
-    p.position[1] += (floor - p.position[1]) * Math.min(1, dt / cfg.floorSmoothing);
+    // ── Ladder or floor ──
+    const ladder = area.ladderAt(headL.x, headL.z);
+    const y = p.position[1];
+    if (ladder && y > ladder.bottom + 0.03) {
+      // Holding on to the ladder: stay at this height.
+      p.position[1] = Math.min(y, ladder.top);
+    } else {
+      // Settle onto the highest floor within a step below the feet (smoothed: sills, stairs,
+      // stepping off the ladder). With no floor under the head (leaning out), stay put.
+      const floors = area.floorsAt(headL.x, headL.z).filter((f) => f <= y + STEP_HEIGHT);
+      if (floors.length) {
+        const target = Math.max(...floors);
+        p.position[1] += (target - y) * Math.min(1, dt / cfg.floorSmoothing);
+      }
+    }
 
     const speed = dt > 0 ? moved / dt : 0;
     return Math.max(Math.min(1, speed / cfg.smoothSpeed), this.snapFlash > 0 ? 1 : 0);
@@ -134,16 +156,17 @@ export class Locomotion {
   /** Move the player by (dx, dz) if the head ends up somewhere walkable; slide along walls. */
   private tryMove(p: PlayerState, area: WalkArea, head: THREE.Vector3, dx: number, dz: number): number {
     if (dx === 0 && dz === 0) return 0;
+    const y = p.position[1];
     // If the head is already somewhere unwalkable (room-scale), allow any move to get out.
-    const free = !area.walkable(head.x, head.z);
+    const free = !area.walkable(head.x, head.z, y);
     let mx = 0;
     let mz = 0;
-    if (free || area.walkable(head.x + dx, head.z + dz)) {
+    if (free || area.walkable(head.x + dx, head.z + dz, y)) {
       mx = dx;
       mz = dz;
-    } else if (area.walkable(head.x + dx, head.z)) {
+    } else if (area.walkable(head.x + dx, head.z, y)) {
       mx = dx;
-    } else if (area.walkable(head.x, head.z + dz)) {
+    } else if (area.walkable(head.x, head.z + dz, y)) {
       mz = dz;
     }
     p.position[0] += mx;
@@ -151,6 +174,17 @@ export class Locomotion {
     head.x += mx;
     head.z += mz;
     return Math.hypot(mx, mz);
+  }
+
+  /** Climb by dy (m) if the head is at a ladder; clamped to the ladder's ends. */
+  private climb(p: PlayerState, area: WalkArea, head: THREE.Vector3, dy: number): number {
+    if (Math.abs(dy) < 1e-6) return 0;
+    const ladder = area.ladderAt(head.x, head.z);
+    if (!ladder) return 0;
+    const before = p.position[1];
+    p.position[1] = Math.min(ladder.top, Math.max(ladder.bottom, before + dy));
+    head.y += p.position[1] - before;
+    return Math.abs(p.position[1] - before);
   }
 
   /** Rotate the player by `angle` (rad, about +Y) around the point (cx, cz) of the frame. */
@@ -171,7 +205,8 @@ export class Locomotion {
     const hz = head.z - cz;
     const nhx = cx + hx * c + hz * s;
     const nhz = cz - hx * s + hz * c;
-    if (!force && area.walkable(head.x, head.z) && !area.walkable(nhx, nhz)) return;
+    const y = p.position[1];
+    if (!force && area.walkable(head.x, head.z, y) && !area.walkable(nhx, nhz, y)) return;
     p.position[0] = cx + px * c + pz * s;
     p.position[2] = cz - px * s + pz * c;
     p.yaw += angle;

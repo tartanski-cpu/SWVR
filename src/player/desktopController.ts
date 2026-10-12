@@ -50,8 +50,8 @@ export class DesktopController {
   mode: 'walk' | 'fly' = 'walk';
   /** True while the mouse is dragging a bridge control: mouse moves the control, not the view. */
   lookFrozen = false;
-  /** Walking displacement this frame in rig axes (x right, z back), set by update(). */
-  readonly walk = { x: 0, z: 0 };
+  /** Walking displacement this frame in rig axes (x right, z back; y = climb), set by update(). */
+  readonly walk = { x: 0, y: 0, z: 0 };
 
   toggleFly(): void {
     this.mode = this.mode === 'walk' ? 'fly' : 'walk';
@@ -70,8 +70,11 @@ export class DesktopController {
       (k.action('back') ? 1 : 0) - (k.action('forward') ? 1 : 0),
     );
     this.walk.x = 0;
+    this.walk.y = 0;
     this.walk.z = 0;
     if (this.mode === 'walk') {
+      // Space / C climb when you're at a ladder (ignored elsewhere).
+      this.walk.y = this.move.y * CONFIG.desktop.climbSpeed * dt;
       this.move.y = 0;
       if (this.move.lengthSq() > 0) {
         const speed = CONFIG.desktop.walkSpeed * (k.action('fast') ? 1.8 : 1);

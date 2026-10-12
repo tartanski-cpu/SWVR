@@ -6,9 +6,11 @@
  *   2. Otherwise find what the hand is on:
  *        direct - grip within grabRadius of a lever/wheel, or controller tip within
  *                 touchRadius of a button/switch;
- *        ray    - else, the short pointer ray (fallback for controls just out of reach).
- *   3. Grip (or trigger, for a ray) on a grab control -> grab it. Trigger on a press
- *      control -> press it (release on trigger release).
+ *        ray    - else, for buttons/switches only, the short pointer ray (fallback for
+ *                 ones just out of reach). Levers and the wheel are grabbed by hand only,
+ *                 and follow the hand's position - never where the controller points.
+ *   3. Grip on a grab control -> grab it. Trigger on a press control -> press it
+ *      (release on trigger release).
  * A hand that is holding or hovering a grab control is "busy": its grip must not also
  * drive grab-the-world locomotion.
  *
@@ -35,7 +37,6 @@ export interface HandFrame {
 
 interface HandState {
   held: Control | null;
-  heldByRay: boolean;
   pressing: Control | null;
   hover: Control | null;
   hoverByRay: boolean;
@@ -45,6 +46,8 @@ interface HandState {
 export class InteractionSystem {
   private readonly owner = new Map<THREE.Object3D, Control>();
   private readonly hitObjects: THREE.Object3D[] = [];
+  /** VR pointer-ray targets: buttons and switches only. Levers and the wheel are hand-only. */
+  private readonly pressHitObjects: THREE.Object3D[] = [];
   private readonly raycaster = new THREE.Raycaster();
   private readonly hands: Record<Handedness, HandState>;
   private readonly pointers: Record<Handedness, Pointer>;
@@ -63,6 +66,7 @@ export class InteractionSystem {
       for (const o of c.hitObjects) {
         this.owner.set(o, c);
         this.hitObjects.push(o);
+        if (c.kind === 'press') this.pressHitObjects.push(o);
       }
     }
     const line = () => {
@@ -73,12 +77,13 @@ export class InteractionSystem {
       return l;
     };
     this.hands = {
-      left: { held: null, heldByRay: false, pressing: null, hover: null, hoverByRay: false, rayLine: line() },
-      right: { held: null, heldByRay: false, pressing: null, hover: null, hoverByRay: false, rayLine: line() },
+      left: { held: null, pressing: null, hover: null, hoverByRay: false, rayLine: line() },
+      right: { held: null, pressing: null, hover: null, hoverByRay: false, rayLine: line() },
     };
+    // Hands are points only: grab controls follow where the HAND is, never where it points.
     this.pointers = {
-      left: { position: new THREE.Vector3(), ray: new THREE.Ray() },
-      right: { position: new THREE.Vector3(), ray: new THREE.Ray() },
+      left: { position: new THREE.Vector3() },
+      right: { position: new THREE.Vector3() },
     };
   }
 
@@ -108,17 +113,15 @@ export class InteractionSystem {
       const h = this.hands[hand];
       const p = this.pointers[hand];
       p.position = f.grip;
-      p.ray!.copy(f.ray);
 
       if (!f.tracked) {
         this.releaseHand(hand);
         continue;
       }
 
-      // 1. Holding something.
+      // 1. Holding something (grip held).
       if (h.held) {
-        const keep = h.heldByRay ? f.gripDown || f.triggerDown : f.gripDown;
-        if (keep) {
+        if (f.gripDown) {
           h.held.grabMove(p);
         } else {
           h.held.grabEnd(p);
@@ -151,7 +154,7 @@ export class InteractionSystem {
       if (!best) {
         this.raycaster.set(f.ray.origin, f.ray.direction);
         this.raycaster.far = cfg.rayLength;
-        const hit = this.raycaster.intersectObjects(this.hitObjects, false)[0];
+        const hit = this.raycaster.intersectObjects(this.pressHitObjects, false)[0];
         if (hit) {
           best = this.owner.get(hit.object) ?? null;
           byRay = true;
@@ -167,14 +170,12 @@ export class InteractionSystem {
 
       // 3. Act on it.
       if (best?.kind === 'grab') {
-        busy[hand] = !byRay; // grip on a nearby control is the control's, not locomotion's
-        if (f.gripPressed || (byRay && f.triggerPressed)) {
+        busy[hand] = true; // grip on a nearby control is the control's, not locomotion's
+        if (f.gripPressed) {
           best.bind(this.context(hand));
           best.grabStart(p);
           h.held = best;
-          h.heldByRay = byRay;
           this.pulse(hand, 0.4, 25);
-          busy[hand] = true;
         }
       } else if (best?.kind === 'press' && f.triggerPressed && !h.pressing) {
         best.bind(this.context(hand));

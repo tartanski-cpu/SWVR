@@ -29,6 +29,7 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | Click the view | Capture the mouse for looking (Esc releases it) |
 | W A S D | Walk (with collision; Shift = brisk) |
 | F | Toggle walk / free-fly camera (Space / C = up / down when flying) |
+| Space / C at the ladder | Climb up / down (walk forward off the top onto the roof) |
 | B | Board the boat (you appear at the helm) / back to the platform |
 | Aim **+** and click / drag | Operate the bridge controls (see below) |
 | E | Debug: engine start / stop |
@@ -49,10 +50,11 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 
 | Input | Action |
 |---|---|
-| **Grip** on the throttle lever or wheel | Grab it; it follows your hand. Two hands work on the wheel |
+| **Grip** with your hand on the throttle lever or wheel | Grab it; it follows your hand (not where the controller points). Two hands work on the wheel |
 | **Trigger** touching a button or switch | Press it (start/stop, horn, nav lights) |
-| Trigger / grip pointing at a control a little out of reach | Pointer-ray fallback (a blue line shows what you're pointing at) |
+| Trigger pointing at a button or switch a little out of reach | Pointer-ray fallback for buttons and switches only (a blue line shows the target) |
 | **Grip** on empty air + pull | Move (grab the world). Two grips + twist: turn |
+| **Grip + pull down at the ladder** | Climb (aft face of the wheelhouse, up to the railed roof). Push up to climb down |
 | Left stick | Walk (head-relative, optional) |
 | Right stick ← / → | Snap turn 30° |
 | Left stick click | Board the boat (at the helm) / back to the platform |

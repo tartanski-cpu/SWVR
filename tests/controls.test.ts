@@ -22,11 +22,9 @@ describe('Lever', () => {
     lever.bind(r.ctx);
     return { lever, r };
   };
-  // Hand on the knob, which sits 0.24 m above the base origin (pivot at 0.04).
-  const hand = (deg: number) => {
-    const a = (deg * Math.PI) / 180;
-    return { position: new THREE.Vector3(0, 0.04 + 0.2 * Math.cos(a), 0.2 * Math.sin(a)) };
-  };
+  // Hand on the knob (0.24 m above the base), moved fore-aft so the knob's arc length
+  // corresponds to `deg` of lever angle (the lever follows fore-aft hand travel).
+  const hand = (deg: number) => ({ position: new THREE.Vector3(0, 0.24, 0.2 * ((deg * Math.PI) / 180)) });
 
   it('pushing forward (toward the bow, -Z) is ahead; pulling back is astern', () => {
     const { lever, r } = make();
@@ -153,13 +151,14 @@ describe('InteractionSystem (VR hands)', () => {
     const sys = new InteractionSystem([lever], (c, v) => sent.push([c, v]), () => {});
     const grip = new THREE.Vector3(0, 0.24, 0);
     const idle = frame(new THREE.Vector3(5, 5, 5));
+    // The controller points somewhere else entirely: must not matter for a hand grab.
+    const pointingAway = { ray: new THREE.Ray(grip.clone(), new THREE.Vector3(1, 0, 0)) };
     let busy = sys.updateXR({ left: idle, right: frame(grip) });
     expect(busy.right).toBe(true); // hovering a grab control: grip is the control's
-    sys.updateXR({ left: idle, right: frame(grip, { gripDown: true, gripPressed: true }) });
+    sys.updateXR({ left: idle, right: frame(grip, { gripDown: true, gripPressed: true, ...pointingAway }) });
     expect(lever.held).toBe(true);
-    const a = (-20 * Math.PI) / 180;
-    grip.set(0, 0.04 + 0.2 * Math.cos(a), 0.2 * Math.sin(a));
-    busy = sys.updateXR({ left: idle, right: frame(grip, { gripDown: true }) });
+    grip.set(0, 0.24, 0.2 * ((-20 * Math.PI) / 180)); // hand pushed 7 cm forward
+    busy = sys.updateXR({ left: idle, right: frame(grip, { gripDown: true, ...pointingAway }) });
     expect(busy.right).toBe(true);
     expect(sent[sent.length - 1][1]).toBeCloseTo(0.5, 2);
     sys.updateXR({ left: idle, right: frame(grip) }); // let go
@@ -216,5 +215,35 @@ describe('Lever desktop drag', () => {
     expect(lever.value).toBe(0); // caught in neutral...
     for (let i = 0; i < 30; i++) lever.nudge(0, 5); // ...until pulled on deliberately
     expect(lever.value).toBeLessThan(0);
+  });
+});
+
+describe('InteractionSystem pointer ray', () => {
+  it('reaches buttons from a distance but never grabs levers', () => {
+    const lever = new Lever('lever', { maxAngleDeg: 40, length: 0.2 }, 0.06);
+    lever.root.position.set(0, 0, -1);
+    lever.root.updateMatrixWorld(true);
+    const horn = new Button('horn', 'horn', 'Horn', 'momentary', 0xffff00);
+    horn.root.position.set(0.5, 0, -1);
+    horn.root.updateMatrixWorld(true);
+    const sent: [string, number][] = [];
+    const sys = new InteractionSystem([lever, horn], (c, v) => sent.push([c, v]), () => {});
+    const far = (target: THREE.Vector3, trigger: boolean, grip: boolean) => {
+      const origin = new THREE.Vector3(0, 0.3, 0);
+      return {
+        tracked: true,
+        grip: origin.clone(),
+        ray: new THREE.Ray(origin, target.clone().sub(origin).normalize()),
+        gripDown: grip,
+        gripPressed: grip,
+        triggerDown: trigger,
+        triggerPressed: trigger,
+      };
+    };
+    const off = far(new THREE.Vector3(9, 9, 9), false, false);
+    sys.updateXR({ left: off, right: far(new THREE.Vector3(0, 0.24, -1), true, true) }); // at the lever knob
+    expect(lever.held).toBe(false);
+    sys.updateXR({ left: off, right: far(new THREE.Vector3(0.5, 0.028, -1), true, false) }); // at the horn
+    expect(sent).toEqual([['horn', 1]]);
   });
 });

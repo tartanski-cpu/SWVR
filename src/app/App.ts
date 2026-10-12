@@ -414,12 +414,12 @@ export class App {
         if (this.xrInput.isDown(h, XR_BUTTON.grip) && !this.busyHands[h]) grabbing[h] = this.controllers.worldPosition(h, this.gripW[h]);
       }
     }
-    let desktopDelta: { x: number; z: number } | null = null;
+    let desktopDelta: { x: number; y: number; z: number } | null = null;
     if (!inXR && this.desktop.mode === 'walk') {
-      const { x, z } = this.desktop.walk;
+      const { x, y, z } = this.desktop.walk;
       const c = Math.cos(p.yaw);
       const s = Math.sin(p.yaw);
-      desktopDelta = { x: x * c + z * s, z: -x * s + z * c };
+      desktopDelta = { x: x * c + z * s, y, z: -x * s + z * c };
     }
     const [lx, ly] = this.xrInput.hands.left.stick;
     const moving = this.locomotion.update(p, {
@@ -453,7 +453,9 @@ export class App {
   }
 
   private setCoupling(value: number): void {
-    const c = Math.round(Math.min(1, Math.max(0, value)) * 100) / 100;
+    // Keep full precision: the stick adds tiny amounts per frame (rounding here used to
+    // swallow them, so holding X + stick did nothing). Round only for display.
+    const c = Math.min(1, Math.max(0, value));
     this.decoupler.coupling = c;
     this.overlay.notify(`Motion coupling ${Math.round(c * 100)} %  (100 = rigid to the deck)`, 2);
     try {

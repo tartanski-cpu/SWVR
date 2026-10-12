@@ -7,10 +7,10 @@ import { Control, type Pointer } from './Control';
  * Single-lever throttle/gear control. Pivots about its local X axis (athwartships):
  * pushed forward (toward the bow, -Z) = ahead, pulled back = astern, upright = neutral.
  *
- * Grab maths, in the lever's local frame: the hand's angle about the pivot in the Y-Z plane
- * is theta_hand = atan2(z, y). At grab start we remember the offset to the lever's current
- * angle, so grabbing anywhere on the handle doesn't make it jump; afterwards
- * theta = clamp(theta_hand - offset). A magnetic detent holds it in neutral, with a click.
+ * Grab maths, in the lever's local frame: the lever follows the hand's fore-aft travel
+ * since the grab, as arc length at the knob: theta = theta0 + (z - z0) / length. That is
+ * independent of where on the handle (or how close to the pivot) you grabbed, so it feels
+ * like pushing the knob directly. A magnetic detent holds it in neutral, with a click.
  *
  * Value convention: -1 (full astern) .. +1 (full ahead); value = -theta / maxAngle.
  */
@@ -22,7 +22,8 @@ export class Lever extends Control {
   private readonly max: number;
   private readonly length: number;
   private theta = 0;
-  private offset = 0;
+  private grabTheta = 0;
+  private grabZ = 0;
   private lastSent = 0; // matches the initial (neutral / amidships) state
   private inDetent = true;
 
@@ -63,18 +64,15 @@ export class Lever extends Control {
     return this.theta === 0 ? 0 : -this.theta / this.max;
   }
 
-  private handAngle(p: Pointer): number {
-    const l = this.pointerOnPlane(p, new THREE.Vector3(1, 0, 0)).sub(this.arm.position);
-    return Math.atan2(l.z, l.y);
-  }
-
   grabStart(p: Pointer): void {
     this.held = true;
-    this.offset = this.handAngle(p) - this.theta;
+    this.grabTheta = this.theta;
+    this.grabZ = this.toLocal(p.position).z;
   }
 
   grabMove(p: Pointer): void {
-    this.setTheta(this.handAngle(p) - this.offset);
+    const dz = this.toLocal(p.position).z - this.grabZ;
+    this.setTheta(this.grabTheta + dz / this.length);
   }
 
   grabEnd(_p: Pointer): void {

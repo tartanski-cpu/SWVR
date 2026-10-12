@@ -183,9 +183,40 @@ function buildWheelhouse(layout: LayoutConfig): THREE.BufferGeometry[] {
 
   // Floor, roof, mast.
   parts.push(box(-hw + w, hw - w, wh.floorY - 0.1, wh.floorY, wh.front + w, wh.aft - w, COLORS.floor));
-  parts.push(box(-hw - 0.12, hw + 0.12, roof, roof + 0.12, wh.front - 0.15, wh.aft + 0.2, COLORS.roof));
-  parts.push(box(-0.06, 0.06, roof + 0.12, roof + 1.7, 0.34, 0.46, COLORS.mast));
+  const rf = layout.roof;
+  const top = roof + rf.thickness;
+  const ov = rf.overhang;
+  parts.push(box(-hw - ov, hw + ov, roof, top, wh.front - ov, wh.aft + ov, COLORS.roof));
+  parts.push(box(-0.06, 0.06, top, roof + 1.7, 0.34, 0.46, COLORS.mast));
   parts.push(box(-0.45, 0.45, roof + 1.3, roof + 1.38, 0.36, 0.44, COLORS.mast));
+
+  // Roof rail (posts + top rail), open at the ladder head on the aft edge.
+  const lad = layout.ladder;
+  const rx = hw + ov - 0.04;
+  const z0 = wh.front - ov + 0.04;
+  const z1 = wh.aft + ov - 0.04;
+  const rail = (a: THREE.Vector3, b: THREE.Vector3) => {
+    parts.push(bar(a.clone().setY(top + rf.railHeight), b.clone().setY(top + rf.railHeight), 0.045, 0.045, COLORS.rail));
+    parts.push(bar(a.clone().setY(top + rf.railHeight / 2), b.clone().setY(top + rf.railHeight / 2), 0.035, 0.035, COLORS.rail));
+    for (const p of [a, b]) parts.push(bar(p.clone().setY(top), p.clone().setY(top + rf.railHeight), 0.04, 0.04, COLORS.rail));
+  };
+  const V = (x: number, z: number) => new THREE.Vector3(x, top, z);
+  rail(V(-rx, z0), V(rx, z0)); // front
+  rail(V(-rx, z0), V(-rx, z1)); // port
+  rail(V(rx, z0), V(rx, z1)); // starboard
+  rail(V(-rx, z1), V(lad.x - lad.width / 2, z1)); // aft, port of the ladder head
+  rail(V(lad.x + lad.width / 2, z1), V(rx, z1)); // aft, starboard of it
+
+  // Vertical ladder on the aft face, deck to roof, stiles carried up as grab handles.
+  const lz = wh.aft + 0.12;
+  const sx = lad.width / 2 - 0.04;
+  const footY = 0.9;
+  for (const s of [-1, 1]) {
+    parts.push(bar(new THREE.Vector3(lad.x + s * sx, footY, lz), new THREE.Vector3(lad.x + s * sx, top + 1.0, lz), 0.045, 0.045, COLORS.rail));
+  }
+  for (let y = footY + 0.32; y < top; y += 0.3) {
+    parts.push(bar(new THREE.Vector3(lad.x - sx, y, lz), new THREE.Vector3(lad.x + sx, y, lz), 0.035, 0.035, COLORS.rail));
+  }
 
   // Helm console across the front: body, sloping top (approximated by a step), panel face.
   const c0 = wh.front + w;

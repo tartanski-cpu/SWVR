@@ -1,22 +1,34 @@
 /**
  * Walkable areas, in the frame of whatever the player stands on (vessel axes aboard, world
- * axes on the platform). Locomotion asks three questions:
+ * axes on the platform). Several floor LEVELS can overlap in plan (deck, wheelhouse floor,
+ * wheelhouse roof), and ladders join them. Locomotion asks:
  *
- *   walkable(x, z)       may the player's body centre (radius bodyRadius) be here?
- *   floorY(x, z)         floor height under that point (deck sheer, wheelhouse floor)
- *   insideSolid(x,y,z)   is the head inside structure? (room-scale: fade to black)
+ *   floorsAt(x, z)        heights of the floor surfaces at this point
+ *   walkable(x, z, y)     may a body standing at feet height y be here? (only floors within a
+ *                         step of y count, so the roof doesn't make the deck below walkable)
+ *   ladderAt(x, z)        is there a ladder here? (bottom/top feet heights)
+ *   insideSolid(x, y, z)  is the head inside structure? (room-scale: fade to black)
  *
  * The vessel version is derived from the hull stations and the layout block in the config,
- * the same numbers the wheelhouse geometry is built from.
+ * the same numbers the geometry is built from.
  */
 import { CONFIG } from '../config';
 import type { VesselDef } from './vesselDef';
 
+export interface Ladder {
+  bottom: number;
+  top: number;
+}
+
 export interface WalkArea {
-  walkable(x: number, z: number): boolean;
-  floorY(x: number, z: number): number;
+  floorsAt(x: number, z: number): number[];
+  walkable(x: number, z: number, y: number): boolean;
+  ladderAt(x: number, z: number): Ladder | null;
   insideSolid(x: number, y: number, z: number): boolean;
 }
+
+/** Largest rise you can just step up (door sills, deck sheer) without climbing (m). */
+export const STEP_HEIGHT = 0.4;
 
 export type LayoutConfig = typeof CONFIG.vessels.workboat.layout;
 
@@ -33,6 +45,11 @@ function stationLerp(def: VesselDef, z: number, get: (i: number) => number): num
   return get(st.length - 1);
 }
 
+interface Surface {
+  height(x: number, z: number): number;
+  contains(x: number, z: number): boolean;
+}
+
 export function vesselWalkArea(def: VesselDef, layout: LayoutConfig): WalkArea {
   const wh = layout.wheelhouse;
   const r = layout.bodyRadius;
@@ -46,31 +63,66 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig): WalkArea {
   const int = { x: wh.halfWidth - wh.wall, z0: wh.front + wh.wall, z1: wh.aft - wh.wall };
   const consoleAft = int.z0 + wh.consoleDepth;
   const doorHalf = wh.doorWidth / 2;
-
   const inHouseFootprint = (x: number, z: number) => Math.abs(x) <= ext.x && z >= ext.z0 && z <= ext.z1;
 
+  // Roof (walkable, railed) and the ladder up the aft face of the wheelhouse.
+  const roof = layout.roof;
+  const roofTop = wh.roofY + roof.thickness;
+  const lad = layout.ladder;
+  const inLadder = (x: number, z: number) => Math.abs(x - lad.x) <= lad.width / 2 && z >= ext.z1 + 0.02 && z <= ext.z1 + lad.depth;
+
+  const surfaces: Surface[] = [
+    {
+      // Open deck: inside the bulwarks, aft of the bow, clear of the wheelhouse exterior.
+      height: (_x, z) => deckY(z),
+      contains: (x, z) => {
+        const onDeck = z <= transom - layout.deckEdgeMargin && Math.abs(x) <= deckHalfBeam(z) - layout.deckEdgeMargin;
+        const nearHouse = Math.abs(x) < ext.x + r && z > ext.z0 - r && z < ext.z1 + r;
+        return onDeck && !nearHouse;
+      },
+    },
+    {
+      // Wheelhouse floor, clear of walls and console, plus the aft doorway.
+      height: () => wh.floorY,
+      contains: (x, z) =>
+        (Math.abs(x) <= int.x - r && z >= consoleAft + r && z <= int.z1 - r) ||
+        (Math.abs(x) <= doorHalf - r * 0.6 && z > int.z1 - r - 0.02 && z < ext.z1 + r + 0.02),
+    },
+    {
+      // Wheelhouse roof inside its rail, around the mast, plus the landing at the ladder head.
+      height: () => roofTop,
+      contains: (x, z) => {
+        const m = roof.edgeMargin;
+        const onRoof = Math.abs(x) <= ext.x + roof.overhang - m && z >= ext.z0 - roof.overhang + m && z <= ext.z1 - m;
+        const atMast = Math.abs(x) < 0.25 && Math.abs(z - 0.4) < 0.25;
+        const landing = Math.abs(x - lad.x) <= lad.width / 2 && z > ext.z1 - 0.5 && z <= ext.z1 + 0.05;
+        return (onRoof && !atMast) || landing;
+      },
+    },
+  ];
+
   return {
-    walkable(x, z) {
-      // Inside the wheelhouse, clear of walls and the console.
-      if (Math.abs(x) <= int.x - r && z >= consoleAft + r && z <= int.z1 - r) return true;
-      // Through the aft doorway (a little lenient so it doesn't feel fiddly).
-      if (Math.abs(x) <= doorHalf - r * 0.6 && z > int.z1 - r - 0.02 && z < ext.z1 + r + 0.02) return true;
-      // On deck: inside the bulwarks, aft of the bow, clear of the wheelhouse exterior.
-      const onDeck = z <= transom - layout.deckEdgeMargin && Math.abs(x) <= deckHalfBeam(z) - layout.deckEdgeMargin;
-      const nearHouse = Math.abs(x) < ext.x + r && z > ext.z0 - r && z < ext.z1 + r;
-      return onDeck && !nearHouse;
+    floorsAt(x, z) {
+      return surfaces.filter((s) => s.contains(x, z)).map((s) => s.height(x, z));
     },
 
-    floorY(x, z) {
-      return inHouseFootprint(x, z) ? wh.floorY : deckY(z);
+    walkable(x, z, y) {
+      if (inLadder(x, z)) return true;
+      return surfaces.some((s) => s.contains(x, z) && Math.abs(s.height(x, z) - y) <= STEP_HEIGHT);
+    },
+
+    ladderAt(x, z) {
+      return inLadder(x, z) ? { bottom: deckY(ext.z1 + lad.depth / 2), top: roofTop } : null;
     },
 
     insideSolid(x, y, z) {
       const ax = Math.abs(x);
-      // Below the deck / floor, within the hull.
-      if (z <= transom && ax <= deckHalfBeam(z) && y < this.floorY(x, z) - 0.15) return true;
-      if (!inHouseFootprint(x, z)) return false;
-      if (y > wh.roofY + 0.15) return false; // above the roof
+      if (!inHouseFootprint(x, z)) {
+        // Below the open deck, within the hull.
+        return z <= transom && ax <= deckHalfBeam(z) && y < deckY(z) - 0.15;
+      }
+      if (y < wh.floorY - 0.15) return true; // below the wheelhouse floor
+      if (y > roofTop + 0.05) return false; // above the roof
       if (y > wh.roofY - 0.05) return true; // in the roof slab
       const inInterior = ax < int.x && z > int.z0 && z < int.z1;
       if (inInterior) {
@@ -89,10 +141,12 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig): WalkArea {
 /** The pile-mounted test platform (world axes): a square deck with handrails. */
 export function platformWalkArea(): WalkArea {
   const half = CONFIG.testScene.platformHalfSize - 0.3;
-  const y = CONFIG.testScene.platformDeckHeight;
+  const h = CONFIG.testScene.platformDeckHeight;
+  const on = (x: number, z: number) => Math.abs(x) <= half && Math.abs(z) <= half;
   return {
-    walkable: (x, z) => Math.abs(x) <= half && Math.abs(z) <= half,
-    floorY: () => y,
+    floorsAt: (x, z) => (on(x, z) ? [h] : []),
+    walkable: (x, z, y) => on(x, z) && Math.abs(y - h) <= STEP_HEIGHT,
+    ladderAt: () => null,
     insideSolid: () => false,
   };
 }

@@ -289,6 +289,13 @@ export const CONFIG = {
           consoleDepth: 0.5,
           consoleHeight: 0.95,
         },
+        /** Wheelhouse roof: walkable, with a rail around it (opening at the ladder head). */
+        roof: { thickness: 0.12, overhang: 0.1, railHeight: 0.9, edgeMargin: 0.3 },
+        /**
+         * Vertical ladder up the aft face of the wheelhouse, starboard of the door: centre x,
+         * width, and how far aft of the wall the climbing zone reaches.
+         */
+        ladder: { x: 0.92, width: 0.5, depth: 0.5 },
         /** Bulwark and rail heights above the deck, and how close a player may get to the deck edge. */
         bulwarkHeight: 0.3,
         railHeight: 1.0,
@@ -376,7 +383,7 @@ export const CONFIG = {
   /** Bridge-control interaction tuning. */
   interaction: {
     /** Direct grab: hand within this distance of a lever knob / the wheel rim (m). */
-    grabRadius: 0.09,
+    grabRadius: 0.12,
     /** Direct press: controller tip within this distance of a button / switch (m). */
     touchRadius: 0.06,
     /** Pointer-ray fallback length (m) for controls just out of reach. */
@@ -391,6 +398,8 @@ export const CONFIG = {
     eyeHeight: 1.7,
     /** Walking speed (m/s); Shift = brisk. */
     walkSpeed: 1.6,
+    /** Ladder climbing speed with Space / C (m/s). */
+    climbSpeed: 1.0,
     /** Free-fly speed (m/s). */
     moveSpeed: 4,
     fastMultiplier: 5,
