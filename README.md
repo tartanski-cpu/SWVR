@@ -56,7 +56,7 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | Left stick | Walk (head-relative, optional) |
 | Right stick ← / → | Snap turn 30° |
 | Left stick click | Board the boat (at the helm) / back to the platform |
-| Hold X + left stick ↑ / ↓ | Motion coupling 0–100 % (comfort; 100 % = rigid to the deck) |
+| Hold X + left stick ↑ / ↓ | Motion coupling 0–100 % (comfort; default 100 % = rigid to the deck; lower values make controls harder to grab) |
 | B or Y | Debug panel (on your left wrist) |
 
 ### Bridge (milestone 6)

@@ -359,7 +359,9 @@ export const CONFIG = {
      * Heading and horizontal position always stay locked to the deck (walking/collision).
      * Adjust in VR: hold X and push the left stick up/down. Desktop: 9 / 0.
      */
-    motionCoupling: 0.5,
+    // Default rigid: in VR testing, decoupling also moved the hands relative to the deck
+    // (they live in the same rig as the head), making the bridge controls hard to grab.
+    motionCoupling: 1.0,
     /** Filter time constant at coupling 0 (s); shrinks to `minTimeConstant` at coupling 1. */
     maxTimeConstant: 1.6,
     minTimeConstant: 0.12,

@@ -183,7 +183,8 @@ This file lets a new session pick up the work cold. Keep it current at the end o
     - Heave is measured from an 8 s low-passed reference height.
     - The deck-to-view vertical offset is soft-limited (tanh) to 0.4 m, the "knees".
     - Output: a carrier rotation C = T⁻¹·T_player plus a world-vertical offset.
-    - Default 50 %. VR: hold X + left stick. Desktop: 9 / 0. Persisted in localStorage.
+    - **Default reverted to 100 % (rigid) after VR testing.** The controllers live in the same rig as the head, so decoupling the view also moved the hands relative to the deck (up to 0.4 m heave), and the bridge controls became hard to grab. The slider is still available. VR: hold X + left stick. Desktop: 9 / 0. Persisted in localStorage under `swvr.motionCoupling.v2`; older saved values are ignored.
+    - Possible later refinement: automatically ease back to rigid while a hand is near or holding a control, so lower settings stay usable at the helm.
   - **Measured** (±15° roll at 3.5 s, ±0.5 m heave at 4 s): coupling 100/75/50/25/0 % → roll felt ±15 / 9.8 / 4.2 / 1.0 / 0°, heave ±0.50 / 0.34 / 0.18 / 0.16 / 0.16 m.
   - Head-locked tunnel vignette while artificially moving or snap-turning.
   - Fade to black when the head is inside structure (room-scale).

@@ -133,8 +133,10 @@ export class App {
     this.camera.add(this.comfortOverlay.mesh);
     this.controllers = new XRControllers(this.renderer, this.rig.root);
     try {
-      const saved = Number(localStorage.getItem('swvr.motionCoupling'));
-      if (localStorage.getItem('swvr.motionCoupling') !== null && Number.isFinite(saved)) this.decoupler.coupling = saved;
+      // v2: values saved before the default went back to rigid are ignored.
+      const raw = localStorage.getItem('swvr.motionCoupling.v2');
+      const saved = Number(raw);
+      if (raw !== null && Number.isFinite(saved)) this.decoupler.coupling = saved;
     } catch {
       /* storage unavailable: use the default */
     }
@@ -455,7 +457,7 @@ export class App {
     this.decoupler.coupling = c;
     this.overlay.notify(`Motion coupling ${Math.round(c * 100)} %  (100 = rigid to the deck)`, 2);
     try {
-      localStorage.setItem('swvr.motionCoupling', String(c));
+      localStorage.setItem('swvr.motionCoupling.v2', String(c));
     } catch {
       /* storage unavailable: setting just isn't remembered */
     }
