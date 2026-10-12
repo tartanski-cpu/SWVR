@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SWVR</title>
+    <style>
+      html, body { margin: 0; height: 100%; overflow: hidden; background: #000; }
+      canvas { display: block; }
+      #help {
+        position: fixed; left: 12px; bottom: 12px; max-width: 360px;
+        font: 12px/1.45 system-ui, sans-serif; color: #e8eef2;
+        background: rgba(10, 20, 30, 0.6); padding: 8px 10px; border-radius: 6px;
+        pointer-events: none;
+      }
+      #help b { color: #fff; }
+    </style>
+  </head>
+  <body>
+    <div id="help">
+      <b>Desktop:</b> click to look · <b>WASD</b> move · <b>Space/C</b> up/down · <b>Shift</b> fast ·
+      <b>Esc</b> release mouse<br />
+      <b>[ ]</b> time of day · <b>`</b> or <b>F3</b> debug overlay · <b>H</b> hide this help<br />
+      <b>VR:</b> press <b>Enter VR</b> · <b>B/Y</b> toggles the debug panel
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

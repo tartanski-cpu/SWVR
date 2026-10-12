@@ -1,0 +1,24 @@
+{
+  "name": "swvr",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Browser-based VR sea rescue and operations game (WebXR + Three.js)",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "three": "0.186.1"
+  },
+  "devDependencies": {
+    "@types/three": "0.186.0",
+    "@vitejs/plugin-basic-ssl": "2.3.0",
+    "typescript": "7.0.2",
+    "vite": "8.3.1",
+    "vitest": "5.0.2"
+  }
+}
