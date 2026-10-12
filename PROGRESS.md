@@ -23,9 +23,9 @@ This file lets a new session pick up the work cold. Keep it current at the end o
 |---|---|---|
 | 1 | Scaffold: Vite + TS + Three, desktop camera, Enter VR, debug overlay, HTTPS LAN server, Pages deploy, fixed-tick sim skeleton | **Done** (VR verified by owner on Quest 3; desktop keys reworked for QWERTZ) |
 | 2 | Ocean: Gerstner shader + matching CPU height (with horizontal-displacement inversion), sky dome, sun, fog | **Done** (owner: "Stormworks-like, feels alive", 90 fps on Quest 3) |
-| 3 | Floating hull: strip-theory hydrostatics on hull stations, damping, debug view | **Done, awaiting owner test** |
-| 4 | Propulsion and steering via keyboard; resistance curve; sea-trial measurement command; engine hum | Next |
-| 5 | Interior, player aboard (rig parented to vessel), grab-the-world locomotion, snap-turn, comfort options | — |
+| 3 | Floating hull: strip-theory hydrostatics on hull stations, damping, debug view | **Done** (owner OK; drop-test rebound fixed in M4) |
+| 4 | Single-engine propulsion, rudder, resistance curve, keyboard/VR-stick driving, sea trials, engine hum, boarding | **Done, awaiting owner test** |
+| 5 | Interior, walkable deck, grab-the-world locomotion, snap-turn, comfort options, hull water masking | Next |
 | 6a | Interaction system, throttle lever, start/stop button, haptics | — |
 | 6b | Wheel, nav-lights toggle, horn, live displays | — |
 | 7 | Polish: headset profiling, tuning, docs | — |
@@ -116,22 +116,49 @@ This file lets a new session pick up the work cold. Keep it current at the end o
   - Test intents: drop from 4 m (R / right A) and heel 20° (K / left X). Both go through the normal intent path.
 - **Tests (26):** section clipping, displacement = mass at DWL, calm equilibrium, 4 m drop, roll period and decay, positive GZ at 45°, 2 minutes in waves, JSON round trip.
 
-## Open question for the owner
+## Done (milestone 4)
 
-- **Beam-sea roll of about 26°.** Realistic for a lightly damped chine hull at zero speed with wave energy at its roll period, but heavy in VR. Options:
-  - Keep it physical and rely on the comfort options (milestone 5).
-  - Add more roll damping (bilge keels or a skeg).
-  - Raise GM a little to shorten the roll period away from the sea.
+- **Drop-test rebound fixed** (the owner spotted the bow-up trim).
+  - Cause: no energy loss on water entry. The hull plunged 1.6 m and rebounded 2.8 m clear of the water. While fully immersed, the centre of buoyancy moved forward into the high, flared bow, giving 33° bow-up.
+  - The wheelhouse has no buoyancy and was not involved. Mean trim in waves is only about −0.3°.
+  - Fix: a quadratic water-entry drag on each station's waterplane strip (`damping.verticalCd`). Now: plunge 0.5 m, rebound 0.24 m, ±3° trim. Seakeeping is unchanged.
+- **Propulsion** (`vessel/physics/propulsion.ts`), single engine as the owner asked:
+  - Engine: 180 kW diesel, idle 700, max 2300 rpm, RPM-governed with first-order spool (4 s up, 0.9 s down).
+  - Cranking takes 1.6 s, and the engine starts only with the lever in neutral (neutral-safety switch).
+  - Gearbox: 2.4:1 reverse/reduction. One combined lever with a ±8 % neutral detent. The clutch engages only after the lever is held for 0.6 s with the engine near idle; going to neutral is immediate.
+  - Propeller: 0.7 m fixed pitch, K_T = 0.45·(1 − J/1.05), astern at 45 % efficiency, w = 0.15, t = 0.15. T(1 − t) is applied on the shaft line, and thrust fades as the propeller emerges.
+  - Rudder: 0.36 m² spade, hydraulic at 14°/s to ±35°. Normal-force model with C_N slope 2.4 per rad, stalling at 25°.
+  - Rudder inflow: hull flow (with wake and 50 % flow straightening) plus the propeller slipstream from momentum theory. **The slipstream's extra rudder force is capped at 0.45·T** (it can't exceed the momentum the slipstream carries). Without the cap the boat pirouetted.
+  - Resistance: ITTC-57 C_F·(1 + 0.2), applied at mid-draft at the LCG against speed through the water, plus Δ·g·(Fn⁴ + 0.94·max(0, Fn − 0.3)²). Astern ×2.6.
+  - Wetted surface is computed from the stations.
+- **Hull lift added to the manoeuvring forces:** a lateral force ∝ ½ρ·a·A·U·v per station, a = 1.2. This gives the linear Y_v/N_r damping; without it, turning collapsed into a spin.
+- **Sea trials** (`npm run trials`, in-game key T, and asserted in `tests/seaTrials.test.ts`), calm water:
+  - Speed vs lever 25/50/75/100 %: 5.1 / 7.0 / 8.2 / **9.2 kn** (996 → 2300 rpm). 0 → 90 % top speed in 10.8 s. Full astern 6.4 kn.
+  - Turn at full ahead, hard over: advance 2.8 L, transfer 1.4 L, **tactical diameter 3.3 L**, steady turning diameter 3.2 L, 7.7 kn in the turn, about 5° outward heel.
+  - **Crash stop 2.0 L in 10 s.** Coast to 1 kn 7.2 L.
+- **Controls as intents:** `lever`, `helm`, `engineStartStop` (vessel) and `board` (player, with `Intent.ref` = vessel id). Values are absolute.
+  - Keyboard: arrows, X, G, E.
+  - VR: right stick, right stick click.
+  - These are debug paths; milestone 6 replaces them with physical controls that send the same intents.
+- **Boarding** (B / left stick click): player state `aboardVesselId` plus a vessel-local position. The rig is re-parented to the vessel's interpolated root and stands on the aft deck. This is the moving-frame foundation for milestone 5. No locomotion or comfort options yet.
+- **Overlay:** speed over ground, heading, rpm or engine state, lever %, gear, rudder angle, heel, trim, heave, immersed tonnage.
+- **Engine audio:** WebAudio sawtooth at firing frequency (rpm/20 for a 6-cylinder four-stroke) plus a half-order square wave, low-passed by RPM and load. Turbo hiss grows with load, there's a cranking wobble, and volume falls with distance. Unlocked on the first click, key press or entering VR.
+
+## Open questions for the owner
+
+- **Beam-sea roll of about 26°.** Physical, but heavy in VR; comfort options arrive in milestone 5. Options: more roll damping (bilge keels), or more GM.
+- **Astern speed of 6.4 kn** may be optimistic. It's tunable via `resistance.asternFactor` and `propeller.asternEfficiency`.
 
 ## Next
 
-Milestone 4: propulsion and steering via keyboard.
-- **Engine:** RPM lag, plus a gearbox with forward, neutral and reverse.
-- **Propeller:** thrust ∝ RPM² with a speed-dependent loss.
-- **Rudder:** lift ∝ (water speed + prop wash)² · angle.
-- **Resistance:** a displacement-hull curve with the wave-making rise near Fn 0.4, replacing the placeholder surge drag.
-- **Sea-trial command:** measures top speed, turning circle and stopping distance.
-- **Engine hum:** synthesised with WebAudio.
+Milestone 5: interior and player on board.
+- Bulwarks, aft deck and a walkable wheelhouse with a doorway.
+- Walk areas in vessel space.
+- Grab-the-world locomotion as the default, with smooth stick movement optional and snap-turn.
+- Comfort options: horizon steadying and a vignette.
+- Fade to black when the head enters a wall.
+- Hide ocean water inside the hull with a depth/stencil mask.
+- Desktop walking aboard.
 
 ## Known issues / notes
 
@@ -139,7 +166,8 @@ Milestone 4: propulsion and steering via keyboard.
 - npm 10 crashes with `edgesOut` when adding packages because of vitest's optional peer dependencies. `npm ci` works. Use `npx npm@11 install` to add dependencies.
 - The ocean at night is very dark (no moon yet). A moon and night palette come with the day/night work later.
 - **Water inside the hull:** the ocean is drawn wherever it is, so a wave that overtops the deck edge or a steep crest beside the hull can show water "inside" the boat. That will matter once we walk inside (milestone 5). The plan is a depth/stencil mask of the hull interior volume.
-- The splash on the 4 m drop test is dramatic (brief large trim), because slamming loads are not modelled beyond hydrostatics plus damping. It settles cleanly.
+- No collisions yet: the boat drives straight through the buoys and the platform.
+- Debug driving in VR uses the right thumbstick. That will clash with snap-turn in milestone 5, so it will be remapped or dropped once the bridge controls exist.
 - Wave fading at distance means far-away objects (more than about 40 m from the viewer) can sit a few cm off the drawn surface for the shortest waves. Physics always uses the exact CPU surface.
 - There are no whitecaps or foam yet beyond a faint crest tint. A moderate sea would show some whitecaps; that's a candidate for the polish pass.
 

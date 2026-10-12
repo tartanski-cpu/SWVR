@@ -1,6 +1,7 @@
 import { applyEnvironmentIntent, stepEnvironment } from '../environment/timeOfDay';
 import { prepareWaves, type PreparedWave } from '../ocean/waves';
 import { stepVessel, type HydroDebug } from '../vessel/physics/vesselPhysics';
+import { applyPlayerIntent } from '../player/playerControl';
 import { applyVesselIntent } from '../vessel/vesselControl';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 import { ENVIRONMENT_ID, type EntityId } from './ids';
@@ -25,6 +26,8 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
       applyEnvironmentIntent(world.environment, intent);
     } else if (world.vessels[intent.targetId]) {
       applyVesselIntent(world.vessels[intent.targetId], intent);
+    } else if (world.players[intent.targetId]) {
+      applyPlayerIntent(world, world.players[intent.targetId], intent);
     }
   }
 

@@ -21,6 +21,9 @@ import { Buoys, createPlatform } from './testScene';
 import { HydroDebugView } from '../debug/hydroDebugView';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 import { VesselView } from '../vessel/view/vesselView';
+import { EngineAudio } from '../audio/engineAudio';
+import { formatSeaTrials, runSeaTrials } from '../vessel/seaTrials';
+import { clamp } from '../core/math';
 import type { VesselState } from '../vessel/vesselState';
 
 /**
@@ -55,6 +58,11 @@ export class App {
   private readonly vesselViews = new Map<EntityId, VesselView>();
   private readonly hydroViews = new Map<EntityId, HydroDebugView>();
   private readonly simDebug: SimDebug = new Map();
+  private readonly engineAudio = new EngineAudio();
+  private readonly trialsPanel = document.createElement('pre');
+  /** Which vessel (if any) the local rig is currently parented to. */
+  private rigParentId: EntityId | null | undefined = undefined;
+  private readonly tmpV = new THREE.Vector3();
   /** Wave constants at the current *render* time (reused every frame). */
   private renderWaves: PreparedWave[] = [];
   private readonly overlay = new DebugOverlay();
@@ -105,6 +113,26 @@ export class App {
 
     this.setupXR();
     window.addEventListener('resize', () => this.onResize());
+    // Audio may only start after a user gesture.
+    const unlock = () => this.engineAudio.unlock();
+    window.addEventListener('pointerdown', unlock);
+    window.addEventListener('keydown', unlock);
+    this.renderer.xr.addEventListener('sessionstart', unlock);
+
+    Object.assign(this.trialsPanel.style, {
+      position: 'fixed',
+      right: '8px',
+      top: '8px',
+      margin: '0',
+      font: '12px/1.4 ui-monospace, Menlo, Consolas, monospace',
+      color: '#ffe9b0',
+      background: 'rgba(0,0,0,0.7)',
+      padding: '8px 10px',
+      borderRadius: '4px',
+      display: 'none',
+      pointerEvents: 'none',
+    } satisfies Partial<CSSStyleDeclaration>);
+    document.body.appendChild(this.trialsPanel);
   }
 
   start(): void {
@@ -150,7 +178,7 @@ export class App {
 
     // 1. Input -> intents
     this.xrInput.update(inXR ? this.renderer.xr.getSession() : null);
-    this.handleDebugInput();
+    this.handleDebugInput(dt);
 
     // 2. Fixed-step simulation
     const { ticks, alpha } = this.loop.advance(dt);
@@ -166,6 +194,7 @@ export class App {
     const renderTime = Math.max(0, (this.world.tick - 1 + alpha) * this.loop.dt);
     this.renderWaves = prepareWaves(this.world.environment.waves, renderTime, this.renderWaves);
 
+    this.syncRigToPlayer();
     if (!inXR) this.desktop.update(dt);
     this.camera.getWorldPosition(this.focus);
     this.environment.update(this.world.environment, this.focus);
@@ -176,6 +205,12 @@ export class App {
     for (const [id, view] of this.vesselViews) {
       view.update(this.world.vessels[id], alpha);
       this.hydroViews.get(id)?.update(this.simDebug.get(id));
+    }
+    const testView = this.vesselViews.get(this.testVesselId);
+    if (testView) {
+      // Engine room sits roughly under the wheelhouse.
+      const distance = testView.root.localToWorld(this.tmpV.set(0, 0, 1)).distanceTo(this.focus);
+      this.engineAudio.update(this.world.vessels[this.testVesselId], distance);
     }
 
     // 4. Render
@@ -190,7 +225,7 @@ export class App {
         tick: this.world.tick,
         timeOfDay: this.world.environment.timeOfDay,
         xr: inXR ? 'presenting' : this.desktop.pointerLocked ? 'desktop (mouse captured)' : 'desktop',
-        extra: this.vesselSummary(this.world.vessels[this.testVesselId]),
+        extra: this.bridgeSummary(this.world.vessels[this.testVesselId]) + '\n' + this.vesselSummary(this.world.vessels[this.testVesselId]),
       },
       inXR,
     );
@@ -198,7 +233,7 @@ export class App {
   }
 
   /** Debug-only bindings. Note time-of-day goes through the intent path like any control. */
-  private handleDebugInput(): void {
+  private handleDebugInput(dt: number): void {
     const k = this.keyboard;
     if (k.actionPressed('toggleOverlay')) this.overlay.toggle();
     if (this.xrInput.wasPressed('left', XR_BUTTON.secondary) || this.xrInput.wasPressed('right', XR_BUTTON.secondary)) {
@@ -208,10 +243,99 @@ export class App {
     if (k.actionPressed('toggleProbes')) this.probes.toggle();
     if (k.actionPressed('toggleHydro')) for (const h of this.hydroViews.values()) h.toggle();
     if (k.actionPressed('dropVessel') || this.xrInput.wasPressed('right', XR_BUTTON.primary)) this.pushVesselIntent('debugDrop', 0);
+    this.handleDebugDriving(dt);
+    if (k.actionPressed('engine') || this.xrInput.wasPressed('right', XR_BUTTON.stick)) this.pushVesselIntent('engineStartStop', 1);
+    if (k.actionPressed('board') || this.xrInput.wasPressed('left', XR_BUTTON.stick)) {
+      const aboard = this.world.players[this.localPlayerId].aboardVesselId;
+      this.intents.push({
+        playerId: this.localPlayerId,
+        targetId: this.localPlayerId,
+        control: 'board',
+        value: aboard ? 0 : 1,
+        ref: aboard ? undefined : this.testVesselId,
+      });
+    }
+    if (k.actionPressed('seaTrials')) this.showSeaTrials();
     if (k.actionPressed('heelVessel') || this.xrInput.wasPressed('left', XR_BUTTON.primary)) this.pushVesselIntent('debugHeel', 20);
     const step = CONFIG.environment.timeStepHours;
     if (k.actionPressed('timeEarlier')) this.pushEnvIntent('timeOfDayDelta', -step);
     if (k.actionPressed('timeLater')) this.pushEnvIntent('timeOfDayDelta', step);
+  }
+
+  /**
+   * Debug driving: arrow keys or the right VR thumbstick move the lever and helm at a fixed
+   * rate. They send absolute positions as intents, exactly like the physical bridge
+   * controls will in milestone 6.
+   */
+  private handleDebugDriving(dt: number): void {
+    const v = this.world.vessels[this.testVesselId];
+    if (!v) return;
+    const k = this.keyboard;
+    const cfg = CONFIG.debugDriving;
+    const [sx, sy] = this.xrInput.hands.right.stick;
+    const dead = (a: number) => (Math.abs(a) < 0.25 ? 0 : a);
+    const leverIn = (k.action('leverAhead') ? 1 : 0) - (k.action('leverAstern') ? 1 : 0) - dead(sy);
+    const helmIn = (k.action('helmStarboard') ? 1 : 0) - (k.action('helmPort') ? 1 : 0) + dead(sx);
+
+    let lever = v.controls.lever;
+    if (leverIn !== 0) {
+      const next = clamp(lever + leverIn * cfg.leverRate * dt, -1, 1);
+      // Stop briefly at the neutral detent when passing through it.
+      lever = Math.sign(next) !== Math.sign(lever) && lever !== 0 ? 0 : next;
+    }
+    if (k.actionPressed('leverNeutral')) lever = 0;
+    if (lever !== v.controls.lever) this.pushVesselIntent('lever', lever);
+
+    let helm = v.controls.helm;
+    if (helmIn !== 0) helm = clamp(helm + helmIn * cfg.helmRate * dt, -1, 1);
+    if (k.actionPressed('helmMidships')) helm = 0;
+    if (helm !== v.controls.helm) this.pushVesselIntent('helm', helm);
+  }
+
+  /** Parent the local rig to whatever the player is aboard, at the player's position. */
+  private syncRigToPlayer(): void {
+    const p = this.world.players[this.localPlayerId];
+    if (p.aboardVesselId !== this.rigParentId) {
+      const parent = p.aboardVesselId ? this.vesselViews.get(p.aboardVesselId)?.root : this.scene;
+      (parent ?? this.scene).add(this.rig.root);
+      this.rigParentId = p.aboardVesselId;
+      this.desktop.resetPose();
+    }
+    this.rig.root.position.fromArray(p.position);
+    this.rig.root.rotation.set(0, p.yaw, 0);
+  }
+
+  private showSeaTrials(): void {
+    if (this.trialsPanel.style.display === 'block') {
+      this.trialsPanel.style.display = 'none';
+      return;
+    }
+    this.trialsPanel.textContent = 'Running sea trials (calm water)...';
+    this.trialsPanel.style.display = 'block';
+    // Let the message paint before the (~1 s) synchronous run.
+    setTimeout(() => {
+      const t0 = performance.now();
+      const report = formatSeaTrials(runSeaTrials(), CONFIG.vessels.workboat.hull.length);
+      console.log(report);
+      this.trialsPanel.textContent = `${report}\n\n(${((performance.now() - t0) / 1000).toFixed(1)} s to simulate · T to close)`;
+    }, 30);
+  }
+
+  /** Bridge readouts for the debug overlay (live displays replace this in milestone 6). */
+  private bridgeSummary(v: VesselState | undefined): string {
+    if (!v) return '';
+    this.attQ.fromArray(v.orientation);
+    const fwd = this.attV.set(0, 0, -1).applyQuaternion(this.attQ);
+    const heading = ((Math.atan2(fwd.x, -fwd.z) * 180) / Math.PI + 360) % 360;
+    const kn = Math.hypot(v.linearVelocity[0], v.linearVelocity[2]) * 1.943844;
+    const gear = v.engine.gear === 1 ? 'AHEAD' : v.engine.gear === -1 ? 'ASTERN' : 'NEUTRAL';
+    const engine = v.engine.phase === 'off' ? 'ENGINE OFF' : v.engine.phase === 'cranking' ? 'CRANKING' : `${v.engine.rpm.toFixed(0)} rpm`;
+    const rudder = (v.rudder * 180) / Math.PI;
+    const rudderText = Math.abs(rudder) < 0.5 ? 'midships' : `${Math.abs(rudder).toFixed(0)}° ${rudder > 0 ? 'stbd' : 'port'}`;
+    return [
+      `SOG ${kn.toFixed(1)} kn  HDG ${heading.toFixed(0).padStart(3, '0')}°  ${engine}`,
+      `lever ${(v.controls.lever * 100).toFixed(0)} %  ${gear}  rudder ${rudderText}`,
+    ].join('\n');
   }
 
   private pushVesselIntent(control: string, value: number): void {

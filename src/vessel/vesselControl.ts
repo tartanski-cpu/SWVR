@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import { CONFIG } from '../config';
 import type { Intent } from '../core/intents';
+import { clamp } from '../core/math';
+import { toggleEngine } from './physics/propulsion';
+import { VESSEL_DEFS } from './vesselDef';
 import type { VesselState } from './vesselState';
 
 const q = new THREE.Quaternion();
@@ -37,11 +40,20 @@ export function dropVessel(s: VesselState): void {
 }
 
 /**
- * Vessel intents. Milestone 3 only has debug tests; throttle, rudder, engine and
- * switches are routed through here from milestone 4.
+ * Vessel intents: the only way players (local or, later, remote) operate a vessel.
+ * Values are absolute (lever at 0.6, not "+0.1") so a repeated or late intent is harmless.
  */
 export function applyVesselIntent(s: VesselState, intent: Intent): void {
   switch (intent.control) {
+    case 'lever':
+      s.controls.lever = clamp(intent.value, -1, 1);
+      break;
+    case 'helm':
+      s.controls.helm = clamp(intent.value, -1, 1);
+      break;
+    case 'engineStartStop':
+      toggleEngine(s, VESSEL_DEFS[s.defId]);
+      break;
     case 'debugDrop':
       dropVessel(s);
       break;

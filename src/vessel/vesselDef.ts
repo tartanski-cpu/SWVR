@@ -21,13 +21,41 @@ export interface VesselDef {
   damping: WorkboatConfig['damping'];
   /** Volume (m^3) displaced at equilibrium; used to scale added mass by immersion. */
   designVolume: number;
+  /** Wetted surface (m^2) at the DWL, from the stations. */
+  wettedSurface: number;
+  resistance: WorkboatConfig['resistance'];
+  engine: WorkboatConfig['engine'];
+  propeller: WorkboatConfig['propeller'];
+  rudder: WorkboatConfig['rudder'];
+}
+
+/** Wetted surface at the DWL: submerged girth of each station times its spacing. */
+function wettedSurfaceAtDWL(hull: HullForm): number {
+  let s = 0;
+  for (const st of hull.stations) {
+    let girth = 0;
+    const p = st.polygon;
+    // Hull edges only (skip the deck edge, last -> first).
+    for (let i = 0; i < p.length - 1; i++) {
+      let [x0, y0] = p[i];
+      let [x1, y1] = p[i + 1];
+      if (y0 > 0 && y1 > 0) continue;
+      // Clip the segment to y <= 0.
+      if (y0 > 0) [x0, y0] = [x0 + ((x1 - x0) * (0 - y0)) / (y1 - y0), 0];
+      if (y1 > 0) [x1, y1] = [x1 + ((x0 - x1) * (0 - y1)) / (y0 - y1), 0];
+      girth += Math.hypot(x1 - x0, y1 - y0);
+    }
+    s += girth * st.weight;
+  }
+  return s;
 }
 
 function fromConfig(id: string, c: WorkboatConfig): VesselDef {
   const m = c.mass;
+  const hull = buildHullForm(c.hull);
   return {
     id,
-    hull: buildHullForm(c.hull),
+    hull,
     mass: m,
     cg: c.cg,
     inertia: [m * c.gyradius.pitch ** 2, m * c.gyradius.yaw ** 2, m * c.gyradius.roll ** 2],
@@ -35,6 +63,11 @@ function fromConfig(id: string, c: WorkboatConfig): VesselDef {
     addedAngular: [c.addedMass.pitch, c.addedMass.yaw, c.addedMass.roll],
     damping: c.damping,
     designVolume: m / CONFIG.ocean.density,
+    wettedSurface: wettedSurfaceAtDWL(hull),
+    resistance: c.resistance,
+    engine: c.engine,
+    propeller: c.propeller,
+    rudder: c.rudder,
   };
 }
 

@@ -15,6 +15,8 @@ export interface Intent {
   /** Control/channel name, e.g. 'throttle', 'rudder', 'engineStart', 'timeOfDay'. */
   control: string;
   value: number;
+  /** Optional entity reference, e.g. the vessel to board. */
+  ref?: EntityId;
 }
 
 /** FIFO of intents waiting for the next simulation tick. */

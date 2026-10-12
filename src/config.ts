@@ -137,13 +137,21 @@ export const CONFIG = {
          * Gives heave and pitch damping (~13 % of critical in heave).
          */
         vertical: 800,
-        /** Lateral (sway) drag per station: linear (N*s/m per m^2) and quadratic Cd. */
+        /**
+         * Quadratic vertical drag coefficient on each station's waterplane strip. Stands in
+         * for slamming / water-entry losses so a hard landing doesn't bounce elastically.
+         */
+        verticalCd: 1.5,
+        /**
+         * Lateral force per station on its draft x spacing area: linear settling term
+         * (N*s/m per m^2), hull lift slope (per rad, force = 0.5*rho*a*A*U*v) and crossflow Cd.
+         */
         lateralLinear: 400,
+        lateralLift: 1.2,
         lateralCd: 1.0,
-        /** Longitudinal (surge) drag per station section area: linear and quadratic Cd.
-         *  Placeholder until the resistance curve in milestone 4. */
-        surgeLinear: 300,
-        surgeCd: 0.12,
+        /** Small linear surge damping per station section area (N*s/m per m^2), only to
+         *  settle residual creep; calm-water resistance is the `resistance` curve below. */
+        surgeLinear: 20,
         /**
          * Angular damping (N*m*s/rad). Roll: ~10 % of critical
          * (critical = 2*sqrt(Delta*g*GM * I_roll) ~ 233 kN*m*s for this hull).
@@ -152,9 +160,89 @@ export const CONFIG = {
         pitch: 20000,
         yaw: 20000,
       },
+      /**
+       * Calm-water resistance R(V) = R_friction + R_wave, applied at mid-draft at the LCB.
+       *   R_friction = 0.5*rho*S*V^2 * C_F(Re) * (1 + k),  C_F = ITTC-57 line
+       *   R_wave     = Delta*g * (waveA*Fn^4 + waveB*max(0, Fn - waveKnee)^2)
+       * The second wave term is the steep rise past Fn ~0.35 that makes a displacement hull
+       * hit a "wall" around Fn 0.45-0.5 (~9.5 kn here). S (wetted surface) is computed
+       * from the hull stations at the DWL.
+       */
+      resistance: {
+        lwl: 11.0,
+        formFactor: 0.2,
+        waveA: 1.0,
+        waveB: 0.94,
+        waveKnee: 0.3,
+        /** Going astern (transom first) is less efficient. */
+        asternFactor: 2.6,
+        /** Height (vessel y) at which resistance acts (~ mid-draft). */
+        y: -0.45,
+      },
+      /** Single diesel through a reverse/reduction gearbox to one fixed-pitch propeller. */
+      engine: {
+        /** Maximum continuous rating (kW) - informational; the model is RPM-governed. */
+        powerKw: 180,
+        idleRpm: 700,
+        maxRpm: 2300,
+        /** First-order RPM response time constants (s); spool-up also stands in for turbo lag. */
+        spoolUpTime: 4.0,
+        spoolDownTime: 0.9,
+        /** Cranking time before the engine catches (s). */
+        crankTime: 1.6,
+        /** The engine will only start with the lever in neutral (like a real neutral-safety switch). */
+        startOnlyInNeutral: true,
+        gearRatio: 2.4,
+        /** Clutch: lever must sit in the new direction this long, at idle, before it engages (s). */
+        shiftDelay: 0.6,
+        /** Lever travel either side of centre that counts as neutral (detent). */
+        neutralBand: 0.08,
+      },
+      propeller: {
+        diameter: 0.7,
+        /**
+         * Linearised open-water thrust coefficient: K_T(J) = kt0 * (1 - J / j0),
+         * J = Va / (n*D). kt0 ~0.45 for a pitch ratio ~1 workboat prop.
+         */
+        kt0: 0.45,
+        j0: 1.05,
+        /** Astern thrust as a fraction of ahead (blade sections work backwards). */
+        asternEfficiency: 0.45,
+        /** Taylor wake fraction w and thrust deduction t. */
+        wake: 0.15,
+        thrustDeduction: 0.15,
+        /** Shaft line position (vessel axes, m). */
+        position: [0, -0.62, 5.0] as [number, number, number],
+      },
+      rudder: {
+        area: 0.36,
+        /** Normal-force slope dC_N/dalpha (per rad) for a low aspect-ratio spade rudder, and stall angle. */
+        liftSlope: 2.4,
+        stallDeg: 25,
+        maxAngleDeg: 35,
+        /** Hydraulic steering rate (deg/s). */
+        rateDegPerS: 14,
+        /** Fraction of the propeller's slipstream momentum increase seen at the rudder. */
+        washFactor: 0.6,
+        /** Cap on the slipstream's extra rudder force, as a fraction of propeller thrust. */
+        washMaxFraction: 0.45,
+        /** Hull flow straightening of the lateral inflow at the rudder (0..1). */
+        flowStraightening: 0.5,
+        position: [0, -0.55, 5.65] as [number, number, number],
+      },
+      /** Where a player stands after boarding (vessel axes): aft deck, facing forward. */
+      boardingSpot: [0, 0.97, 4.2] as [number, number, number],
       /** Debug: spawn/drop point and drop height (m above the DWL). */
       spawn: { x: 0, z: -22, dropHeight: 4, headingDeg: 90 },
     },
+  },
+
+  /** Debug keyboard / VR-stick driving (milestone 4; physical controls arrive in 6). */
+  debugDriving: {
+    /** Lever travel per second while the key is held (full range is -1..1). */
+    leverRate: 0.6,
+    /** Helm travel per second while the key is held (full range is -1..1). */
+    helmRate: 0.8,
   },
 
   desktop: {

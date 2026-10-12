@@ -27,9 +27,15 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | Key | Action |
 |---|---|
 | Click the view | Capture the mouse for looking (Esc releases it) |
-| W A S D or arrow keys | Move |
+| W A S D | Move (free-fly camera) |
 | Space / C | Up / down (free-fly until milestone 5) |
 | Shift (hold) | Move faster |
+| B | Board the boat (aft deck) / back to the platform |
+| E | Engine start / stop (lever must be in neutral to start) |
+| ↑ / ↓ | Throttle/gear lever ahead / astern (stops briefly at neutral) |
+| ← / → | Wheel to port / starboard |
+| X / G | Lever to neutral / wheel amidships |
+| T | Run calm-water sea trials and show the report |
 | N / M | Time of day −/+ 30 min |
 | F3 or I | Debug overlay on/off |
 | R | Drop the boat from 4 m (test) |
@@ -46,6 +52,9 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | B or Y | Toggle the debug panel (front-left of you, at chest height) |
 | A (right) | Drop the boat from 4 m (test) |
 | X (left) | Heel the boat 20° and release (test) |
+| Left stick click | Board the boat / back to the platform |
+| Right stick click | Engine start / stop |
+| Right stick up/down, left/right | Throttle lever, wheel (debug driving until the bridge controls exist) |
 
 ## Local development
 
@@ -56,6 +65,7 @@ npm ci            # install exact locked versions
 npm run dev       # HTTPS dev server on https://localhost:5173 and your LAN IP
 npm test          # unit tests (physics/sim run headless in Node)
 npm run build     # typecheck + production build into dist/
+npm run trials    # calm-water sea trials report (speed, turning, stopping)
 npm run preview   # serve the production build over HTTPS on :4173
 ```
 
@@ -98,7 +108,8 @@ src/
   missions/        placeholder only
   vessel/          hull form (stations), vessel defs, state, physics (strip hydrostatics,
                    damping, rigid body), debug intents, view (lofted hull mesh, interpolation)
-  controls/ audio/ added in milestones 4-6
+  audio/           synthesised engine hum (WebAudio, no files)
+  controls/        added in milestone 6
 tests/             vitest: run in plain Node, no browser
 ```
 

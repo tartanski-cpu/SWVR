@@ -17,10 +17,19 @@ export interface KeyBinding {
 }
 
 export const KEYS = {
-  forward: { codes: ['KeyW', 'ArrowUp'], description: 'Forward' },
-  back: { codes: ['KeyS', 'ArrowDown'], description: 'Back' },
-  left: { codes: ['KeyA', 'ArrowLeft'], description: 'Left' },
-  right: { codes: ['KeyD', 'ArrowRight'], description: 'Right' },
+  forward: { codes: ['KeyW'], description: 'Forward' },
+  back: { codes: ['KeyS'], description: 'Back' },
+  left: { codes: ['KeyA'], description: 'Left' },
+  right: { codes: ['KeyD'], description: 'Right' },
+  leverAhead: { codes: ['ArrowUp'], description: 'Throttle lever ahead' },
+  leverAstern: { codes: ['ArrowDown'], description: 'Throttle lever astern' },
+  helmPort: { codes: ['ArrowLeft'], description: 'Wheel to port' },
+  helmStarboard: { codes: ['ArrowRight'], description: 'Wheel to starboard' },
+  leverNeutral: { codes: ['KeyX'], description: 'Lever to neutral' },
+  helmMidships: { codes: ['KeyG'], description: 'Wheel amidships' },
+  engine: { codes: ['KeyE'], description: 'Engine start / stop (lever in neutral)' },
+  board: { codes: ['KeyB'], description: 'Board the boat / back to the platform' },
+  seaTrials: { codes: ['KeyT'], description: 'Run sea trials (calm water report)' },
   up: { codes: ['Space'], description: 'Up (free-fly)' },
   down: { codes: ['KeyC'], description: 'Down (free-fly)' },
   fast: { codes: ['ShiftLeft', 'ShiftRight'], description: 'Move faster (hold)' },

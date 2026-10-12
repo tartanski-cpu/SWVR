@@ -1,6 +1,7 @@
 import { createEnvironment, type EnvironmentState } from '../environment/environmentState';
 import type { PlayerState } from '../player/playerState';
 import { createPlayerState } from '../player/playerState';
+import { placeOnPlatform } from '../player/playerControl';
 import { dropVessel } from '../vessel/vesselControl';
 import { createVesselState, type VesselState } from '../vessel/vesselState';
 import { IdFactory, type EntityId } from './ids';
@@ -25,12 +26,14 @@ export function createWorld(ids: IdFactory): { world: WorldState; localPlayerId:
   const vesselId = ids.next('vessel');
   const vessel = createVesselState(vesselId, 'workboat');
   dropVessel(vessel);
+  const player = createPlayerState(localPlayerId, 'Player 1');
+  placeOnPlatform(player);
   const world: WorldState = {
     tick: 0,
     time: 0,
     environment: createEnvironment(),
     players: {
-      [localPlayerId]: createPlayerState(localPlayerId, 'Player 1'),
+      [localPlayerId]: player,
     },
     vessels: { [vesselId]: vessel },
   };

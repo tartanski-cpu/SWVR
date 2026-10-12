@@ -17,11 +17,17 @@
  *  3. Hydrodynamic damping and drag, using velocity RELATIVE to the water particles (the
  *     orbital velocity from the wave model), so the hull is not damped for moving with
  *     the water, only for moving through it:
- *       - vertical damping along the centreline of each station (heave and pitch),
- *       - lateral drag per station, proportional to local draft (sway and yaw damping;
- *         the centre of lateral resistance falls out of the hull shape),
+ *       - vertical damping along the centreline of each station (heave and pitch), linear
+ *         plus a quadratic water-entry term standing in for slamming losses,
+ *       - lateral hull lift (∝ U·v) and crossflow drag per station, proportional to local
+ *         draft (sway and yaw damping; the centre of lateral resistance falls out of the
+ *         hull shape),
  *       - longitudinal drag per station (placeholder for the milestone 4 resistance curve),
  *       - angular damping, chiefly roll (radiation + viscous/chine roll damping).
+ *
+ *  4. Propulsion (propulsion.ts): engine/gearbox/steering gear state, propeller thrust
+ *     T(1-t) on the shaft line, rudder normal force (hull inflow + slipstream), and the
+ *     calm-water resistance curve R(V) against speed through the water.
  *
  * Added mass is modelled as constant fractions of the rigid-body mass/inertia per axis,
  * scaled by immersion, so it vanishes when the hull is airborne.
@@ -35,6 +41,7 @@ import { CONFIG } from '../../config';
 import { sampleSurface, type PreparedWave, type SurfaceSample } from '../../ocean/waves';
 import type { VesselDef } from '../vesselDef';
 import type { VesselState } from '../vesselState';
+import { calmWaterResistance, propellerThrust, rudderForce, stepMachinery } from './propulsion';
 import { submergedSection, type SubmergedSection } from './sectionClip';
 
 /** Optional per-tick diagnostics for the debug view (vessel-local coordinates). */
@@ -64,6 +71,7 @@ const centreW = new THREE.Vector3();
 const sub: SubmergedSection = { area: 0, cx: 0, cy: 0, maxDepth: 0 };
 const depths: number[] = [];
 const dq = new THREE.Quaternion();
+const rud = { x: 0, z: 0 };
 
 function toWorld(x: number, y: number, z: number, out: THREE.Vector3): THREE.Vector3 {
   return out.set(x, y, z).applyQuaternion(q).add(pos);
@@ -143,10 +151,14 @@ export function stepVessel(
     // ── Vertical damping on the centreline, relative to the water (heave and pitch) ──
     // Applied on the centreline so it does not also damp roll; roll damping has its own
     // coefficient below. Scaled by how wet the section is (fades in over 0.3 m of draft).
+    // A quadratic term (flat-plate drag on the station's waterplane strip) stands in for
+    // slamming / water-entry losses: negligible at seakeeping velocities (~0.3 m/s), but
+    // it dominates on violent entry and stops the hull rebounding out of the water.
     const wet = Math.min(1, sub.maxDepth / 0.3);
-    const cv = d.vertical * 2 * b * st.weight * wet;
+    const strip = 2 * b * st.weight * wet;
     const relV = pointVelocity(centreW, tmp).y - sC.velocity[1];
-    addForceAt(tmp.set(0, -cv * relV, 0), centreW);
+    const fv = -(d.vertical * strip * relV + 0.5 * rho * d.verticalCd * strip * Math.abs(relV) * relV);
+    addForceAt(tmp.set(0, fv, 0), centreW);
 
     // ── Horizontal drag at the immersed centroid, in vessel axes ──
     pointVelocity(pt, tmp);
@@ -154,14 +166,59 @@ export function stepVessel(
     tmp.z -= sC.velocity[2];
     tmp.y = 0;
     tmp.applyQuaternion(qInv); // relative velocity in vessel axes (x = sway, z = surge)
+    // Lateral force on the local "keel area" (draft x station spacing):
+    //   - hull lift: the hull is a very low aspect-ratio foil; at forward speed U a drift
+    //     velocity v gives a force linear in U*v. This is what gives a hull its linear
+    //     sway and yaw damping (Y_v, N_r) and a sensible turning circle.
+    //   - crossflow drag, quadratic in v (dominant at low speed and large drift),
+    //   - a small linear term for settling at rest.
     const aLat = sub.maxDepth * st.weight;
-    const fx = -(d.lateralLinear * aLat * tmp.x + 0.5 * rho * d.lateralCd * aLat * Math.abs(tmp.x) * tmp.x);
-    const fz = -(d.surgeLinear * sub.area * tmp.z + 0.5 * rho * d.surgeCd * sub.area * Math.abs(tmp.z) * tmp.z);
+    const uFwd = Math.abs(tmp.z);
+    const fx = -(
+      d.lateralLinear * aLat * tmp.x +
+      0.5 * rho * d.lateralLift * aLat * uFwd * tmp.x +
+      0.5 * rho * d.lateralCd * aLat * Math.abs(tmp.x) * tmp.x
+    );
+    const fz = -d.surgeLinear * sub.area * tmp.z;
     addForceAt(tmp.set(fx, 0, fz).applyQuaternion(q), pt);
   }
 
   const immersion = Math.min(1, submergedVolume / def.designVolume);
   if (debug) debug.submergedVolume = submergedVolume;
+
+  // ── Machinery, propeller, rudder, calm-water resistance ──
+  stepMachinery(state, def, dt);
+  const rudderW = toWorld(...def.rudder.position, portW);
+  const propW = toWorld(...def.propeller.position, stbdW);
+  const sR = sampleSurface(waves, rudderW.x, rudderW.z);
+  // Propeller immersion: full thrust when the disc is under water, fading as it emerges.
+  const D = def.propeller.diameter;
+  const propWet = Math.min(1, Math.max(0, (sR.height - propW.y + D / 2) / D));
+  // Rudder's velocity relative to the water, in vessel axes.
+  pointVelocity(rudderW, tmp);
+  tmp.x -= sR.velocity[0];
+  tmp.y -= sR.velocity[1];
+  tmp.z -= sR.velocity[2];
+  tmp.applyQuaternion(qInv);
+  const relRx = tmp.x;
+  const relRz = tmp.z;
+  const thrust = propellerThrust(state, def, -relRz) * propWet;
+  state.thrust = thrust;
+  // Net propulsive force T(1 - t) along the shaft (forward is -z).
+  addForceAt(tmp.set(0, 0, -thrust * (1 - def.propeller.thrustDeduction)).applyQuaternion(q), propW);
+  rudderForce(state, def, relRx, relRz, thrust, rud);
+  addForceAt(tmp.set(rud.x * propWet, 0, rud.z * propWet).applyQuaternion(q), rudderW);
+
+  // Calm-water resistance at mid-draft at the LCG, against speed through the water.
+  const resW = toWorld(0, def.resistance.y, def.cg[2], centreW);
+  const sO = sampleSurface(waves, resW.x, resW.z);
+  pointVelocity(resW, tmp);
+  tmp.x -= sO.velocity[0];
+  tmp.z -= sO.velocity[2];
+  tmp.y = 0;
+  const U = -tmp.applyQuaternion(qInv).z; // forward speed through water
+  const R = calmWaterResistance(def, U) * immersion;
+  addForceAt(tmp.set(0, 0, Math.sign(U) * R).applyQuaternion(q), resW);
 
   // ── Linear: a = F / m_eff, with added mass per vessel axis ──
   tmp.copy(force).applyQuaternion(qInv);

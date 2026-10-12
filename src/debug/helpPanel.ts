@@ -12,6 +12,12 @@ const ROWS: (KeyAction | KeyAction[])[] = [
   ['forward', 'left', 'back', 'right'],
   ['up', 'down'],
   'fast',
+  'board',
+  'engine',
+  ['leverAhead', 'leverAstern'],
+  ['helmPort', 'helmStarboard'],
+  ['leverNeutral', 'helmMidships'],
+  'seaTrials',
   ['timeEarlier', 'timeLater'],
   'dropVessel',
   'heelVessel',
@@ -25,6 +31,9 @@ const ROW_TEXT: Partial<Record<KeyAction, string>> = {
   forward: 'Move',
   up: 'Up / down (free-fly)',
   timeEarlier: 'Time of day − / + 30 min',
+  leverAhead: 'Throttle lever ahead / astern',
+  helmPort: 'Wheel to port / starboard',
+  leverNeutral: 'Lever neutral / wheel amidships',
 };
 
 const SPECIAL: Record<string, string> = {
@@ -79,7 +88,7 @@ export class HelpPanel {
     const rows = ROWS.map((row) => {
       if (Array.isArray(row)) {
         const keys = row.map((a) => `<kbd>${this.label(KEYS[a].codes[0])}</kbd>`).join(' ');
-        const extra = row[0] === 'forward' ? ' or arrow keys' : '';
+        const extra = '';
         return `<tr><td>${keys}${extra}</td><td>${ROW_TEXT[row[0]] ?? KEYS[row[0]].description}</td></tr>`;
       }
       return `<tr><td>${this.keys(row)}</td><td>${KEYS[row].description}</td></tr>`;
@@ -90,6 +99,8 @@ export class HelpPanel {
       <div class="hint">Click the 3D view to steer the camera with the mouse · <kbd>Esc</kbd> releases it</div>
       <table>${rows}</table>
       <div class="title">VR</div>
-      <div class="hint">Press <b>Enter VR</b> · <b>B</b> / <b>Y</b> debug panel · <b>A</b> drop boat · <b>X</b> heel boat</div>`;
+      <div class="hint">Press <b>Enter VR</b> · <b>B</b>/<b>Y</b> debug panel · <b>A</b> drop boat · <b>X</b> heel boat<br>
+      Left stick click: board / leave · Right stick click: engine start/stop<br>
+      Right stick: up/down = throttle lever, left/right = wheel</div>`;
   }
 }

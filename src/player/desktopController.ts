@@ -35,6 +35,13 @@ export class DesktopController {
     });
   }
 
+  /** Back to standing at the rig origin, looking forward (used when boarding/leaving). */
+  resetPose(): void {
+    this.position.set(0, CONFIG.desktop.eyeHeight, 0);
+    this.yaw = 0;
+    this.pitch = -0.12;
+  }
+
   get pointerLocked(): boolean {
     return document.pointerLockElement === this.canvas;
   }
