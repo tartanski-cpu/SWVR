@@ -270,6 +270,26 @@ The owner asked for "a diesel inboard, not a revvy outboard, with a bigger prop 
    - Contents: motion coupling slider, smooth-walk on/off, snap-turn angle, sea state, time of day, buoyancy/probe debug views, sea-trials report, drop/heel tests, board/leave.
    - The keyboard bindings stay for desktop.
 
+## Future roadmap (owner notes, not started)
+
+3. **A small explorable archipelago with ports.**
+   - Islands as static, merged low-poly terrain meshes: a heightfield or hand-placed cones and ridges, flat-shaded like the boat.
+   - A world map/registry module (`src/world/`) holds island outlines, depth contours and port definitions as data: berths, fuel points, mooring bollards.
+   - The water needs a depth field, so waves can shoal or break near shore and the hull can ground.
+   - Collision: hull stations against a terrain/depth query (cheap, same pattern as the wave query). Simple box/capsule colliders for quays and pontoons.
+   - Ports are walkable areas (the existing multi-level WalkArea) that players can step onto from the boat.
+   - Moorings and fenders would want contact forces, the point to revisit Rapier versus a hand-written contact model.
+   - **Performance:** keep islands to a few draw calls each, and cull or LOD by distance (fog helps).
+4. **Dynamic weather.**
+   - `EnvironmentState` already holds the sea state (wave components) and time of day. Add wind (speed, direction), visibility (fog density), cloud cover and rain intensity.
+   - A slow weather simulation interpolates between weather presets, building and decaying the wave components, which are scaled from a target Hs and Tp. A JSONSWAP-style fit is possible later.
+   - **Wind on the boat:** windage force and moment on the topsides and wheelhouse (projected areas from the layout).
+   - **Visuals:** sky and fog palette darkened by cloud, rain particles (one draw call), whitecaps on the ocean shader.
+   - Host-authoritative like the rest of the environment, so all players see the same weather.
+5. **Map and charts.**
+   - A chart display (canvas atlas page) rendered from the world registry: coastlines, depth contours, ports, buoys, plus own-ship position, heading and track history. It could be a chartplotter screen on the dash, a paper chart on the chart table, or a page on the wrist menu.
+   - GPS position in the vessel state (already known: world position). Waypoints and a course-to-steer readout could feed an autopilot later, which would just be another intent source driving `helm`.
+
 ## Decision: ocean masking inside the hull (deferred)
 
 The deck and wheelhouse floor are opaque and sit well above the DWL (freeboard about 0.95–1.5 m), so the sea can't show "through" the boat. The only remaining case is green water overtopping the bulwark in big rolls, which is physically what happens; it would need a "freeboard volume" mask to hide. I'll revisit in the polish pass if it's visible in practice. It matters for a future open well-deck or a low-freeboard rescue boat.
