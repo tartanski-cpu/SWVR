@@ -289,12 +289,23 @@ export const CONFIG = {
 
   comfort: {
     /**
-     * Horizon steadying presets (fraction of the boat's roll and pitch removed from the
-     * player's frame), cycled in VR with X. 0 = feel every roll (most realistic, the deck
-     * stays exactly under your feet), 1 = horizon locked (the boat rolls around you).
+     * Motion coupling between the deck and the player's view, 0..1 (BeamNG-style).
+     *   1   = rigidly attached: you feel every roll, pitch and heave of the deck.
+     *   0.x = a critically damped "neck and knees" spring between deck and view: slow,
+     *         gross motion is followed, faster roll/pitch/heave is soaked up, like the
+     *         human head-stabilisation reflexes do.
+     *   0   = horizon level, height smoothed.
+     * Heading and horizontal position always stay locked to the deck (walking/collision).
+     * Adjust in VR: hold X and push the left stick up/down. Desktop: 9 / 0.
      */
-    horizonPresets: [0, 0.5, 0.85],
-    horizonDefaultIndex: 1,
+    motionCoupling: 0.5,
+    /** Filter time constant at coupling 0 (s); shrinks to `minTimeConstant` at coupling 1. */
+    maxTimeConstant: 1.6,
+    minTimeConstant: 0.12,
+    /** Time constant (s) of the very slow reference height that heave is measured from. */
+    heaveReferenceTime: 8,
+    /** Softly limits how far the view may move vertically relative to the deck (m). */
+    maxHeaveOffset: 0.4,
     /** Tunnel vignette while artificially moving (0..1 strength). */
     vignette: 0.6,
   },

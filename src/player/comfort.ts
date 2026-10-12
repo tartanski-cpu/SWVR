@@ -1,28 +1,110 @@
 import * as THREE from 'three';
 import { CONFIG } from '../config';
 
-const yawQ = new THREE.Quaternion();
+const euler = new THREE.Euler(0, 0, 0, 'YXZ');
 const tilt = new THREE.Quaternion();
-const partial = new THREE.Quaternion();
-const fwd = new THREE.Vector3();
-const UP = new THREE.Vector3(0, 1, 0);
+const tiltP = new THREE.Quaternion();
+
+/** Critically damped second-order follower: x'' = w^2 (target - x) - 2 w x'. */
+class Follower {
+  x = 0;
+  v = 0;
+  step(target: number, omega: number, dt: number): number {
+    // Substep so that omega*h stays small whatever the frame time (stable, accurate).
+    const n = Math.max(1, Math.ceil((omega * dt) / 0.2));
+    const h = dt / n;
+    for (let i = 0; i < n; i++) {
+      this.v += (omega * omega * (target - this.x) - 2 * omega * this.v) * h;
+      this.x += this.v * h;
+    }
+    return this.x;
+  }
+  reset(x: number): void {
+    this.x = x;
+    this.v = 0;
+  }
+}
 
 /**
- * Horizon steadying. The vessel's world orientation q is split into heading and tilt,
- * q = Yaw(psi) * T. The player should feel only (1 - s) of the tilt:
- *     player frame = Yaw(psi) * slerp(I, T, 1 - s)
- * Since the carrier is a child of the vessel (which applies q), its local rotation is
- *     C = T^-1 * slerp(I, T, 1 - s)
- * pivoting about the player's feet, so the deck under you stays put and the boat rolls
- * "around" you. s = 0: full motion; s = 1: horizon locked.
+ * BeamNG-style motion decoupling between the deck and the player's view.
+ *
+ * The deck's world orientation is split into heading and tilt, q = Yaw * Rx(pitch) * Rz(roll).
+ * Heading is always followed exactly. The player's own pitch/roll and vertical position
+ * follow `coupling` times the deck's, through a critically damped spring-damper whose time
+ * constant grows as coupling falls. Low frequencies (the boat's gross attitude) get through;
+ * the faster roll/pitch/heave of the waves is soaked up - roughly what our neck and
+ * vestibular reflexes do to keep the head stable in space.
+ *
+ * Outputs, applied to the rig's carrier (a child of the vessel, at the player's feet):
+ *   - a local rotation C = T^-1 * T_player, so the carrier's world tilt is T_player,
+ *   - a world-vertical offset of the view relative to the deck (softly limited).
+ * Collision and walking still use the deck frame; this is purely what the eyes see.
  */
-export function horizonCorrection(vesselWorld: THREE.Quaternion, steadying: number, out: THREE.Quaternion): THREE.Quaternion {
-  if (steadying <= 0) return out.identity();
-  fwd.set(0, 0, -1).applyQuaternion(vesselWorld);
-  yawQ.setFromAxisAngle(UP, Math.atan2(-fwd.x, -fwd.z));
-  tilt.copy(yawQ).invert().multiply(vesselWorld);
-  partial.identity().slerp(tilt, 1 - steadying);
-  return out.copy(tilt).invert().multiply(partial);
+export class MotionDecoupler {
+  coupling: number = CONFIG.comfort.motionCoupling;
+  private readonly roll = new Follower();
+  private readonly pitch = new Follower();
+  private readonly height = new Follower();
+  private refHeight = 0;
+  private needsReset = true;
+
+  /** Call when boarding/leaving so the filters start from the current state. */
+  reset(): void {
+    this.needsReset = true;
+  }
+
+  /**
+   * @param deckWorld  vessel world orientation
+   * @param feetY      world height of the player's feet on the deck
+   * @param outQ       carrier local rotation
+   * @returns world-vertical offset (m) to add to the view
+   */
+  update(dt: number, deckWorld: THREE.Quaternion, feetY: number, outQ: THREE.Quaternion): number {
+    const cfg = CONFIG.comfort;
+    euler.setFromQuaternion(deckWorld, 'YXZ');
+    const deckPitch = euler.x;
+    const deckRoll = euler.z;
+
+    if (this.needsReset) {
+      this.needsReset = false;
+      this.roll.reset(deckRoll * this.coupling);
+      this.pitch.reset(deckPitch * this.coupling);
+      this.refHeight = feetY;
+      this.height.reset(feetY);
+    }
+
+    const c = Math.min(1, Math.max(0, this.coupling));
+    if (c >= 0.999) {
+      // Rigid: exactly the deck.
+      this.roll.reset(deckRoll);
+      this.pitch.reset(deckPitch);
+      this.height.reset(feetY);
+      this.refHeight = feetY;
+      outQ.identity();
+      return 0;
+    }
+
+    // Squared so the slider feels even: the filter and the coupling scale both reduce
+    // motion, and with a linear map almost everything happened in the top quarter.
+    const tau = cfg.minTimeConstant + (1 - c) ** 2 * (cfg.maxTimeConstant - cfg.minTimeConstant);
+    const omega = 1 / tau;
+    const r = this.roll.step(deckRoll * c, omega, dt);
+    const p = this.pitch.step(deckPitch * c, omega, dt);
+
+    // Heave relative to a very slow reference (tracks sinkage, trim changes, tide...).
+    this.refHeight += (feetY - this.refHeight) * Math.min(1, dt / cfg.heaveReferenceTime);
+    const y = this.height.step(this.refHeight + c * (feetY - this.refHeight), omega, dt);
+    const m = cfg.maxHeaveOffset;
+    const offset = m * Math.tanh((y - feetY) / m);
+
+    // Carrier rotation: undo the deck tilt, apply the player's filtered tilt.
+    euler.set(deckPitch, 0, deckRoll, 'YXZ');
+    tilt.setFromEuler(euler);
+    euler.set(p, 0, r, 'YXZ');
+    tiltP.setFromEuler(euler);
+    outQ.copy(tilt).invert().multiply(tiltP);
+    return offset;
+  }
 }
 
 /**

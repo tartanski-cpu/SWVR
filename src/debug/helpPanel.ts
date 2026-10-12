@@ -20,6 +20,7 @@ const ROWS: (KeyAction | KeyAction[])[] = [
   ['leverNeutral', 'helmMidships'],
   'seaTrials',
   'seaState',
+  ['couplingDown', 'couplingUp'],
   ['timeEarlier', 'timeLater'],
   'dropVessel',
   'heelVessel',
@@ -36,6 +37,7 @@ const ROW_TEXT: Partial<Record<KeyAction, string>> = {
   leverAhead: 'Throttle lever ahead / astern',
   helmPort: 'Wheel to port / starboard',
   leverNeutral: 'Lever neutral / wheel amidships',
+  couplingDown: 'Motion coupling − / + (100 % = rigid)',
 };
 
 const SPECIAL: Record<string, string> = {
@@ -103,7 +105,7 @@ export class HelpPanel {
       <div class="title">VR</div>
       <div class="hint">Press <b>Enter VR</b> · <b>B</b>/<b>Y</b> debug panel (on your left wrist)<br>
       Grip + pull: move (two grips: turn) · Left stick: walk · Right stick ←/→: snap turn<br>
-      Left stick click: board / leave · <b>A</b>: engine start/stop · <b>X</b>: horizon steadying<br>
+      Left stick click: board / leave · <b>A</b>: engine start/stop · hold <b>X</b> + left stick ↑/↓: motion coupling<br>
       Debug driving: right stick ↑/↓ lever (click = neutral), triggers = wheel port / stbd</div>`;
   }
 }

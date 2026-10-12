@@ -39,6 +39,8 @@ export const KEYS = {
   timeLater: { codes: ['KeyM'], description: 'Time of day +30 min' },
   dropVessel: { codes: ['KeyR'], description: 'Drop the boat from 4 m (test)' },
   heelVessel: { codes: ['KeyK'], description: 'Heel the boat 20° and release (test)' },
+  couplingDown: { codes: ['Digit9'], description: 'Motion coupling -10 % (comfort)' },
+  couplingUp: { codes: ['Digit0'], description: 'Motion coupling +10 % (100 = rigid)' },
   toggleHydro: { codes: ['KeyV'], description: 'Buoyancy debug view on/off' },
   toggleOverlay: { codes: ['F3', 'KeyI'], description: 'Debug overlay on/off' },
   toggleProbes: { codes: ['KeyP'], description: 'Wave surface probes on/off' },

@@ -36,6 +36,7 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | X / G | Lever to neutral / wheel amidships |
 | T | Hydrostatics + sea trials report |
 | L | Sea state: flat calm / moderate |
+| 9 / 0 | Motion coupling −/+ 10 % |
 | R / K | Test: drop the boat from 4 m / heel her 20° and release |
 | V | Buoyancy debug view on/off |
 | N / M | Time of day −/+ 30 min |
@@ -52,7 +53,7 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | Right stick ← / → | Snap turn 30° |
 | Left stick click | Board the boat (at the helm) / back to the platform |
 | **A** | Engine start / stop (lever in neutral; you get a buzz and a message if not) |
-| X | Horizon steadying: 0 % / 50 % / 85 % (comfort) |
+| Hold X + left stick ↑ / ↓ | **Motion coupling** 0–100 % (comfort; 100 % = rigid to the deck). Remembered between visits |
 | B or Y | Debug panel (on your left wrist) |
 | Right stick ↑ / ↓ | Debug: throttle lever (click = neutral) |
 | Left / right trigger | Debug: wheel to port / starboard |

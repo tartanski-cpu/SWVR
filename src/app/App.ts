@@ -27,7 +27,7 @@ import { formatHydrostatics } from '../vessel/hydrostatics';
 import { platformWalkArea, vesselWalkArea, type WalkArea } from '../vessel/layout';
 import { leverDemand } from '../vessel/physics/propulsion';
 import { Locomotion } from '../player/locomotion';
-import { ComfortOverlay, horizonCorrection } from '../player/comfort';
+import { ComfortOverlay, MotionDecoupler } from '../player/comfort';
 import { XRControllers } from '../player/xrControllers';
 import { clamp } from '../core/math';
 import type { VesselState } from '../vessel/vesselState';
@@ -73,7 +73,11 @@ export class App {
   private readonly locomotion = new Locomotion();
   private readonly comfortOverlay = new ComfortOverlay();
   private readonly controllers: XRControllers;
-  private horizonIndex = CONFIG.comfort.horizonDefaultIndex;
+  private readonly decoupler = new MotionDecoupler();
+  /** Last comfort outputs, reused for the second rig sync in a frame. */
+  private viewOffset = 0;
+  private readonly comfortQ = new THREE.Quaternion();
+  private readonly offsetV = new THREE.Vector3();
   private readonly headW = new THREE.Vector3();
   private readonly headFwd = new THREE.Vector3();
   private readonly gripW: Record<'left' | 'right', THREE.Vector3> = { left: new THREE.Vector3(), right: new THREE.Vector3() };
@@ -110,6 +114,12 @@ export class App {
     this.placePanelOnRig();
     this.camera.add(this.comfortOverlay.mesh);
     this.controllers = new XRControllers(this.renderer, this.rig.root);
+    try {
+      const saved = Number(localStorage.getItem('swvr.motionCoupling'));
+      if (localStorage.getItem('swvr.motionCoupling') !== null && Number.isFinite(saved)) this.decoupler.coupling = saved;
+    } catch {
+      /* storage unavailable: use the default */
+    }
 
     this.desktop = new DesktopController(this.camera, this.renderer.domElement, this.keyboard);
     this.environment = new EnvironmentView(this.scene);
@@ -213,10 +223,10 @@ export class App {
       view.update(this.world.vessels[id], alpha);
       this.hydroViews.get(id)?.update(this.simDebug.get(id));
     }
-    this.syncRigToPlayer();
+    this.syncRigToPlayer(dt);
     if (!inXR) this.desktop.update(dt);
     this.updateLocomotion(dt, inXR);
-    this.syncRigToPlayer();
+    this.syncRigToPlayer(0);
     this.camera.getWorldPosition(this.focus);
     this.environment.update(this.world.environment, this.focus);
     this.sky.update(this.environment, this.focus);
@@ -263,11 +273,16 @@ export class App {
     if (k.actionPressed('flyMode')) this.desktop.toggleFly();
     this.handleDebugDriving(dt);
     if (k.actionPressed('engine') || this.xrInput.wasPressed('right', XR_BUTTON.primary)) this.requestEngineStartStop();
-    if (this.xrInput.wasPressed('left', XR_BUTTON.primary)) {
-      const presets = CONFIG.comfort.horizonPresets;
-      this.horizonIndex = (this.horizonIndex + 1) % presets.length;
-      this.overlay.notify(`Horizon steadying ${Math.round(presets[this.horizonIndex] * 100)} %`, 2);
+    // Motion coupling: hold X and push the left stick up/down (VR), or 9 / 0 (desktop).
+    let dc = 0;
+    if (this.xrInput.isDown('left', XR_BUTTON.primary)) {
+      const sy = this.xrInput.hands.left.stick[1];
+      if (Math.abs(sy) > 0.2) dc = -sy * 0.4 * dt;
+      if (this.xrInput.wasPressed('left', XR_BUTTON.primary)) dc = 1e-9; // show the current value
     }
+    if (k.actionPressed('couplingDown')) dc = -0.1;
+    if (k.actionPressed('couplingUp')) dc = 0.1;
+    if (dc !== 0) this.setCoupling(this.decoupler.coupling + dc);
     if (k.actionPressed('board') || this.xrInput.wasPressed('left', XR_BUTTON.stick)) {
       const aboard = this.world.players[this.localPlayerId].aboardVesselId;
       this.intents.push({
@@ -322,19 +337,34 @@ export class App {
     if (helm !== v.controls.helm) this.pushVesselIntent('helm', helm);
   }
 
-  /** Parent the local rig to whatever the player is aboard, at the player's position. */
-  private syncRigToPlayer(): void {
+  /**
+   * Parent the local rig to whatever the player is aboard, at the player's position, with
+   * the motion-decoupling comfort correction. `dt` > 0 advances the comfort filters; the
+   * second call in a frame (after locomotion) passes 0 and reuses them.
+   */
+  private syncRigToPlayer(dt: number): void {
     const p = this.world.players[this.localPlayerId];
     const vesselView = p.aboardVesselId ? this.vesselViews.get(p.aboardVesselId) : undefined;
     if (p.aboardVesselId !== this.rigParentId) {
       (vesselView?.root ?? this.scene).add(this.rig.carrier);
       this.rigParentId = p.aboardVesselId;
       this.desktop.resetPose();
+      this.decoupler.reset();
     }
     const carrier = this.rig.carrier;
     carrier.position.fromArray(p.position);
-    if (vesselView) horizonCorrection(vesselView.root.quaternion, CONFIG.comfort.horizonPresets[this.horizonIndex], carrier.quaternion);
-    else carrier.quaternion.identity();
+    if (vesselView) {
+      if (dt > 0) {
+        const feetY = vesselView.root.localToWorld(this.offsetV.fromArray(p.position)).y;
+        this.viewOffset = this.decoupler.update(dt, vesselView.root.quaternion, feetY, this.comfortQ);
+      }
+      carrier.quaternion.copy(this.comfortQ);
+      // The heave offset is world-vertical; express it in the vessel's axes.
+      this.offsetV.set(0, this.viewOffset, 0).applyQuaternion(this.attQ.copy(vesselView.root.quaternion).invert());
+      carrier.position.add(this.offsetV);
+    } else {
+      carrier.quaternion.identity();
+    }
     this.rig.root.rotation.set(0, p.yaw, 0);
     this.camera.updateWorldMatrix(true, false);
   }
@@ -369,7 +399,7 @@ export class App {
       head: this.headW,
       headForward: this.headFwd,
       grabbing,
-      moveStick: inXR ? [lx, -ly] : [0, 0],
+      moveStick: inXR && !this.xrInput.isDown('left', XR_BUTTON.primary) ? [lx, -ly] : [0, 0],
       turnStick: inXR ? this.xrInput.hands.right.stick[0] : 0,
       desktopDelta,
     });
@@ -389,6 +419,17 @@ export class App {
       this.overlay.vrPanel.scale.setScalar(0.75);
     } else if ((!inXR || !left) && this.overlay.vrPanel.parent !== this.rig.root) {
       this.placePanelOnRig();
+    }
+  }
+
+  private setCoupling(value: number): void {
+    const c = Math.round(Math.min(1, Math.max(0, value)) * 100) / 100;
+    this.decoupler.coupling = c;
+    this.overlay.notify(`Motion coupling ${Math.round(c * 100)} %  (100 = rigid to the deck)`, 2);
+    try {
+      localStorage.setItem('swvr.motionCoupling', String(c));
+    } catch {
+      /* storage unavailable: setting just isn't remembered */
     }
   }
 

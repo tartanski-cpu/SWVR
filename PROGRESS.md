@@ -182,13 +182,21 @@ This file lets a new session pick up the work cold. Keep it current at the end o
   - The floor height follows the head with 0.12 s smoothing (the doorway sill step).
   - Desktop walks through the same collision; F toggles free-fly.
 - **Comfort** (`player/comfort.ts`):
-  - Horizon steadying 0 / 50 / 85 % (VR: X; default 50 %). The carrier rotation is C = T⁻¹·slerp(I, T, 1 − s), pivoting at the feet, so the deck stays under you while the felt roll and pitch are reduced.
+  - **Motion coupling slider, BeamNG-style** (owner request after testing; replaced the fixed horizon-steadying presets).
+    - The deck's world attitude is split into heading and tilt: q = Yaw·Rx(pitch)·Rz(roll). Heading and horizontal position always follow the deck exactly, so walking and collision are unchanged.
+    - The view's pitch, roll and **heave** follow *coupling ×* the deck's, through a critically damped spring-damper. Its time constant is 0.12 s at 100 % and grows as (1 − c)² to 1.6 s at 0 %.
+    - Gross, slow motion gets through; wave-frequency roll, pitch and heave are soaked up, like neck and vestibular reflexes.
+    - Heave is measured from an 8 s low-passed reference height.
+    - The deck-to-view vertical offset is soft-limited (tanh) to 0.4 m, the "knees".
+    - Output: a carrier rotation C = T⁻¹·T_player plus a world-vertical offset.
+    - Default 50 %. VR: hold X + left stick. Desktop: 9 / 0. Persisted in localStorage.
+  - **Measured** (±15° roll at 3.5 s, ±0.5 m heave at 4 s): coupling 100/75/50/25/0 % → roll felt ±15 / 9.8 / 4.2 / 1.0 / 0°, heave ±0.50 / 0.34 / 0.18 / 0.16 / 0.16 m.
   - Head-locked tunnel vignette while artificially moving or snap-turning.
   - Fade to black when the head is inside structure (room-scale).
 - **Controllers:** real Touch controller models via `XRControllerModelFactory` (fetched from the WebXR input-profiles CDN). The debug panel rides on the left wrist.
 - **Messages:** the overlay has `notify()`, a toast shown on desktop and on the wrist panel in VR.
 - **Lighting:** the hemisphere sky light now blends zenith toward horizon and is 35 % stronger. Shaded white paint was reading navy.
-- **Tests (44):** walk area (helm walkable, walls/console/outboard not, window band and doorway open), walking aft deck → doorway → helm, wall collision, grab direction, snap turn.
+- **Tests (48):** motion decoupling (rigid at 100 %, level at 0 %, attenuation at 50 %, steady heel followed and heading untouched), walk area (helm walkable, walls/console/outboard not, window band and doorway open), walking aft deck → doorway → helm, wall collision, grab direction, snap turn.
 
 ## Decision: ocean masking inside the hull (deferred)
 
