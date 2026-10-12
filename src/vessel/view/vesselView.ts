@@ -27,7 +27,7 @@ export class VesselView {
     def: VesselDef,
   ) {
     this.root.name = `vessel:${vesselId}`;
-    this.root.add(buildVesselMesh(def.hull, def.layout));
+    this.root.add(buildVesselMesh(def.hull, def.layout, def.exhaust.position));
   }
 
   snapshot(state: VesselState): void {

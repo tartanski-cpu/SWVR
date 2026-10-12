@@ -331,6 +331,8 @@ export const CONFIG = {
         /** Display centres (x) on the dash, and their size (m). Order: speed, heading, rpm, rudder. */
         displays: { x: [-0.95, -0.52, 0.52, 0.95], y: 2.36, width: 0.38, height: 0.22 },
       },
+      /** Exhaust stack outlet on the wheelhouse roof (vessel axes). */
+      exhaust: { position: [-0.95, 4.35, 0.95] as [number, number, number] },
       /** Navigation lights (vessel axes): masthead, sidelights, stern light. */
       navLights: {
         masthead: [0, 4.62, 0.33] as [number, number, number],

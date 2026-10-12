@@ -23,13 +23,13 @@ const COLORS = {
  * stations), closes the transom, and adds bulwarks, rails and the walk-in wheelhouse.
  * Everything static is merged into one vertex-coloured, flat-shaded mesh: one draw call.
  */
-export function buildVesselMesh(form: HullForm, layout: LayoutConfig): THREE.Mesh {
-  const mesh = new THREE.Mesh(mergeParts(buildParts(form, layout)), flatVertexColorMaterial());
+export function buildVesselMesh(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number, number, number]): THREE.Mesh {
+  const mesh = new THREE.Mesh(mergeParts(buildParts(form, layout, exhaustOutlet)), flatVertexColorMaterial());
   mesh.name = 'hull';
   return mesh;
 }
 
-function buildParts(form: HullForm, layout: LayoutConfig): THREE.BufferGeometry[] {
+function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number, number, number]): THREE.BufferGeometry[] {
   const positions: number[] = [];
   const colors: number[] = [];
   const c = new THREE.Color();
@@ -89,7 +89,7 @@ function buildParts(form: HullForm, layout: LayoutConfig): THREE.BufferGeometry[
   hull.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
   hull.computeVertexNormals();
 
-  return [hull, ...buildDeckFittings(form, layout), ...buildWheelhouse(layout)];
+  return [hull, ...buildDeckFittings(form, layout), ...buildWheelhouse({ ...layout, exhaustOutlet })];
 }
 
 /** Box from (x0,y0,z0) to (x1,y1,z1), axis-aligned. */
@@ -140,7 +140,7 @@ function buildDeckFittings(form: HullForm, layout: LayoutConfig): THREE.BufferGe
  * Walk-in wheelhouse: walls with a window band all round, an aft doorway, floor, helm
  * console, roof and mast. Dimensions come from the layout config (shared with layout.ts).
  */
-function buildWheelhouse(layout: LayoutConfig): THREE.BufferGeometry[] {
+function buildWheelhouse(layout: LayoutConfig & { exhaustOutlet: [number, number, number] }): THREE.BufferGeometry[] {
   const wh = layout.wheelhouse;
   const parts: THREE.BufferGeometry[] = [];
   const hw = wh.halfWidth;
@@ -206,6 +206,10 @@ function buildWheelhouse(layout: LayoutConfig): THREE.BufferGeometry[] {
   rail(V(rx, z0), V(rx, z1)); // starboard
   rail(V(-rx, z1), V(lad.x - lad.width / 2, z1)); // aft, port of the ladder head
   rail(V(lad.x + lad.width / 2, z1), V(rx, z1)); // aft, starboard of it
+
+  // Exhaust stack on the roof (outlet position from the config; smoke rises from its top).
+  const ex = layout.exhaustOutlet;
+  parts.push(bar(new THREE.Vector3(ex[0], top, ex[2]), new THREE.Vector3(ex[0], ex[1], ex[2]), 0.16, 0.16, COLORS.mast));
 
   // Vertical ladder on the aft face, deck to roof, stiles carried up as grab handles.
   const lz = wh.aft + 0.12;

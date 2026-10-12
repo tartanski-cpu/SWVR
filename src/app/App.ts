@@ -33,6 +33,7 @@ import { Bridge } from '../controls/bridge';
 import { InteractionSystem, type HandFrame } from '../controls/InteractionSystem';
 import { NavLightsView } from '../vessel/view/navLights';
 import { HornAudio } from '../audio/hornAudio';
+import { ExhaustSmoke } from '../vessel/view/exhaustSmoke';
 import { sunElevation } from '../environment/timeOfDay';
 import { clamp } from '../core/math';
 import type { VesselState } from '../vessel/vesselState';
@@ -83,6 +84,7 @@ export class App {
   private interaction: InteractionSystem | null = null;
   private readonly navViews = new Map<EntityId, NavLightsView>();
   private readonly horn = new HornAudio();
+  private readonly smoke = new ExhaustSmoke();
   private readonly hands: Record<'left' | 'right', HandFrame> = {
     left: { tracked: false, grip: new THREE.Vector3(), ray: new THREE.Ray(), gripDown: false, gripPressed: false, triggerDown: false, triggerPressed: false },
     right: { tracked: false, grip: new THREE.Vector3(), ray: new THREE.Ray(), gripDown: false, gripPressed: false, triggerDown: false, triggerPressed: false },
@@ -158,6 +160,7 @@ export class App {
       this.navViews.set(vessel.id, nav);
     }
     this.setupBridge();
+    this.scene.add(this.smoke.points);
 
     this.setupXR();
     window.addEventListener('resize', () => this.onResize());
@@ -271,6 +274,7 @@ export class App {
     // Bridge controls and displays read the (just-updated) vessel state.
     const testVessel = this.world.vessels[this.testVesselId];
     if (this.bridge && testVessel) this.bridge.update(testVessel, dt);
+    if (testView && testVessel) this.smoke.update(dt, testVessel, VESSEL_DEFS[testVessel.defId], testView.root);
     const darkness = Math.min(1, Math.max(0, (8 - sunElevation(this.world.environment.timeOfDay)) / 14));
     for (const [id, nav] of this.navViews) nav.update(this.world.vessels[id].controls.navLights > 0, darkness);
 
