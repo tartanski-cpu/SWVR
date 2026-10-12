@@ -10,6 +10,7 @@ type LayoutMap = Map<string, string>;
 
 const ROWS: (KeyAction | KeyAction[])[] = [
   ['forward', 'left', 'back', 'right'],
+  'flyMode',
   ['up', 'down'],
   'fast',
   'board',
@@ -100,8 +101,9 @@ export class HelpPanel {
       <div class="hint">Click the 3D view to steer the camera with the mouse · <kbd>Esc</kbd> releases it</div>
       <table>${rows}</table>
       <div class="title">VR</div>
-      <div class="hint">Press <b>Enter VR</b> · <b>B</b>/<b>Y</b> debug panel · <b>A</b> drop boat · <b>X</b> heel boat<br>
-      Left stick click: board / leave · Right stick click: engine start/stop<br>
-      Right stick: up/down = throttle lever, left/right = wheel</div>`;
+      <div class="hint">Press <b>Enter VR</b> · <b>B</b>/<b>Y</b> debug panel (on your left wrist)<br>
+      Grip + pull: move (two grips: turn) · Left stick: walk · Right stick ←/→: snap turn<br>
+      Left stick click: board / leave · <b>A</b>: engine start/stop · <b>X</b>: horizon steadying<br>
+      Debug driving: right stick ↑/↓ lever (click = neutral), triggers = wheel port / stbd</div>`;
   }
 }

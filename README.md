@@ -27,35 +27,37 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | Key | Action |
 |---|---|
 | Click the view | Capture the mouse for looking (Esc releases it) |
-| W A S D | Move (free-fly camera) |
-| Space / C | Up / down (free-fly until milestone 5) |
-| Shift (hold) | Move faster |
-| B | Board the boat (aft deck) / back to the platform |
+| W A S D | Walk (with collision; Shift = brisk) |
+| F | Toggle walk / free-fly camera (Space / C = up / down when flying) |
+| B | Board the boat (you appear at the helm) / back to the platform |
 | E | Engine start / stop (lever must be in neutral to start) |
 | ↑ / ↓ | Throttle/gear lever ahead / astern (stops briefly at neutral) |
 | ← / → | Wheel to port / starboard |
 | X / G | Lever to neutral / wheel amidships |
-| T | Hydrostatics + sea trials report (GZ curve, inclining, motions, speed, turning, stopping) |
+| T | Hydrostatics + sea trials report |
 | L | Sea state: flat calm / moderate |
+| R / K | Test: drop the boat from 4 m / heel her 20° and release |
+| V | Buoyancy debug view on/off |
 | N / M | Time of day −/+ 30 min |
 | F3 or I | Debug overlay on/off |
-| R | Drop the boat from 4 m (test) |
-| K | Heel the boat 20° and release (roll-decay test) |
-| V | Buoyancy debug view (stations, force arrows, CG) on/off |
-| P | Wave surface probes (magenta spheres) on/off |
+| P | Wave surface probes on/off |
 | F1 or H | Help panel on/off |
 
 ### VR (Quest 3)
 
 | Input | Action |
 |---|---|
-| Enter VR button | Start the immersive session |
-| B or Y | Toggle the debug panel (front-left of you, at chest height) |
-| A (right) | Drop the boat from 4 m (test) |
-| X (left) | Heel the boat 20° and release (test) |
-| Left stick click | Board the boat / back to the platform |
-| Right stick click | Engine start / stop |
-| Right stick up/down, left/right | Throttle lever, wheel (debug driving until the bridge controls exist) |
+| **Grip + pull** | **Move (grab the world).** Squeeze a grip and pull yourself along. Two grips + twist: turn |
+| Left stick | Walk (head-relative, optional) |
+| Right stick ← / → | Snap turn 30° |
+| Left stick click | Board the boat (at the helm) / back to the platform |
+| **A** | Engine start / stop (lever in neutral; you get a buzz and a message if not) |
+| X | Horizon steadying: 0 % / 50 % / 85 % (comfort) |
+| B or Y | Debug panel (on your left wrist) |
+| Right stick ↑ / ↓ | Debug: throttle lever (click = neutral) |
+| Left / right trigger | Debug: wheel to port / starboard |
+
+The debug driving controls are temporary. Milestone 6 replaces them with the physical lever and wheel on the bridge.
 
 ## Local development
 

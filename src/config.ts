@@ -230,8 +230,38 @@ export const CONFIG = {
         flowStraightening: 0.5,
         position: [0, -0.55, 5.65] as [number, number, number],
       },
-      /** Where a player stands after boarding (vessel axes): aft deck, facing forward. */
-      boardingSpot: [0, 0.97, 4.2] as [number, number, number],
+      /**
+       * Deck layout (vessel axes, m). The wheelhouse is a box from `front` to `aft` with
+       * walls of thickness `wall`, an aft doorway and a window band all round. These numbers
+       * drive both the visible geometry and the walkable area, so they can't disagree.
+       */
+      layout: {
+        wheelhouse: {
+          halfWidth: 1.45,
+          front: -1.9,
+          aft: 1.5,
+          /** Interior floor height; must be above the deck under the house (deck sheer). */
+          floorY: 1.2,
+          roofY: 3.35,
+          wall: 0.08,
+          doorWidth: 0.8,
+          doorHeight: 2.0,
+          /** Window band, heights above the wheelhouse floor. */
+          windowSill: 0.95,
+          windowHead: 1.75,
+          /** Helm console across the front of the house. */
+          consoleDepth: 0.5,
+          consoleHeight: 0.95,
+        },
+        /** Bulwark and rail heights above the deck, and how close a player may get to the deck edge. */
+        bulwarkHeight: 0.3,
+        railHeight: 1.0,
+        deckEdgeMargin: 0.3,
+        /** Player body radius used for collision with walls. */
+        bodyRadius: 0.22,
+      },
+      /** Where a player stands after boarding (vessel axes): at the helm, facing forward. */
+      boardingSpot: [0, 1.2, -0.75] as [number, number, number],
       /** Debug: spawn/drop point and drop height (m above the DWL). */
       spawn: { x: 0, z: -22, dropHeight: 4, headingDeg: 90 },
     },
@@ -245,8 +275,35 @@ export const CONFIG = {
     helmRate: 0.8,
   },
 
+  /** Player movement aboard and on the platform. */
+  locomotion: {
+    /** Grab-the-world (grip + drag) is always on; smooth stick movement is optional. */
+    smoothEnabled: true,
+    smoothSpeed: 1.4,
+    snapTurnDeg: 30,
+    /** Stick deflection that triggers a snap turn, and that must be released before the next. */
+    snapThreshold: 0.7,
+    /** Floor-height following time constant (s), smooths steps like the doorway sill. */
+    floorSmoothing: 0.12,
+  },
+
+  comfort: {
+    /**
+     * Horizon steadying presets (fraction of the boat's roll and pitch removed from the
+     * player's frame), cycled in VR with X. 0 = feel every roll (most realistic, the deck
+     * stays exactly under your feet), 1 = horizon locked (the boat rolls around you).
+     */
+    horizonPresets: [0, 0.5, 0.85],
+    horizonDefaultIndex: 1,
+    /** Tunnel vignette while artificially moving (0..1 strength). */
+    vignette: 0.6,
+  },
+
   desktop: {
     eyeHeight: 1.7,
+    /** Walking speed (m/s); Shift = brisk. */
+    walkSpeed: 1.6,
+    /** Free-fly speed (m/s). */
     moveSpeed: 4,
     fastMultiplier: 5,
     lookSensitivity: 0.0022,

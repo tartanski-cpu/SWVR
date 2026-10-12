@@ -24,6 +24,11 @@ import { VesselView } from '../vessel/view/vesselView';
 import { EngineAudio } from '../audio/engineAudio';
 import { formatSeaTrials, runSeaTrials } from '../vessel/seaTrials';
 import { formatHydrostatics } from '../vessel/hydrostatics';
+import { platformWalkArea, vesselWalkArea, type WalkArea } from '../vessel/layout';
+import { leverDemand } from '../vessel/physics/propulsion';
+import { Locomotion } from '../player/locomotion';
+import { ComfortOverlay, horizonCorrection } from '../player/comfort';
+import { XRControllers } from '../player/xrControllers';
 import { clamp } from '../core/math';
 import type { VesselState } from '../vessel/vesselState';
 
@@ -63,6 +68,15 @@ export class App {
   private readonly trialsPanel = document.createElement('pre');
   /** Which vessel (if any) the local rig is currently parented to. */
   private rigParentId: EntityId | null | undefined = undefined;
+  private readonly walkAreas = new Map<EntityId, WalkArea>();
+  private readonly platformArea = platformWalkArea();
+  private readonly locomotion = new Locomotion();
+  private readonly comfortOverlay = new ComfortOverlay();
+  private readonly controllers: XRControllers;
+  private horizonIndex = CONFIG.comfort.horizonDefaultIndex;
+  private readonly headW = new THREE.Vector3();
+  private readonly headFwd = new THREE.Vector3();
+  private readonly gripW: Record<'left' | 'right', THREE.Vector3> = { left: new THREE.Vector3(), right: new THREE.Vector3() };
   private readonly tmpV = new THREE.Vector3();
   /** Wave constants at the current *render* time (reused every frame). */
   private renderWaves: PreparedWave[] = [];
@@ -92,10 +106,10 @@ export class App {
     this.testVesselId = created.vesselId;
 
     this.rig = new PlayerRig(this.localPlayerId, this.camera);
-    this.scene.add(this.rig.root);
-    this.overlay.vrPanel.position.set(-0.35, 1.15, -0.6);
-    this.overlay.vrPanel.rotation.set(-0.35, 0.45, 0);
-    this.rig.root.add(this.overlay.vrPanel);
+    this.scene.add(this.rig.carrier);
+    this.placePanelOnRig();
+    this.camera.add(this.comfortOverlay.mesh);
+    this.controllers = new XRControllers(this.renderer, this.rig.root);
 
     this.desktop = new DesktopController(this.camera, this.renderer.domElement, this.keyboard);
     this.environment = new EnvironmentView(this.scene);
@@ -108,9 +122,8 @@ export class App {
       this.scene.add(view.root);
       this.vesselViews.set(vessel.id, view);
       this.hydroViews.set(vessel.id, hydro);
+      this.walkAreas.set(vessel.id, vesselWalkArea(def, def.layout));
     }
-    // Stand on the observation platform deck (test scene until the player boards in milestone 5).
-    this.rig.root.position.y = CONFIG.testScene.platformDeckHeight;
 
     this.setupXR();
     window.addEventListener('resize', () => this.onResize());
@@ -195,18 +208,21 @@ export class App {
     const renderTime = Math.max(0, (this.world.tick - 1 + alpha) * this.loop.dt);
     this.renderWaves = prepareWaves(this.world.environment.waves, renderTime, this.renderWaves);
 
+    // Vessels first: the player rides on their interpolated pose.
+    for (const [id, view] of this.vesselViews) {
+      view.update(this.world.vessels[id], alpha);
+      this.hydroViews.get(id)?.update(this.simDebug.get(id));
+    }
     this.syncRigToPlayer();
     if (!inXR) this.desktop.update(dt);
+    this.updateLocomotion(dt, inXR);
+    this.syncRigToPlayer();
     this.camera.getWorldPosition(this.focus);
     this.environment.update(this.world.environment, this.focus);
     this.sky.update(this.environment, this.focus);
     this.ocean.update(this.renderWaves, this.focus, this.environment);
     this.buoys.update(this.renderWaves);
     this.probes.update(this.renderWaves, this.camera);
-    for (const [id, view] of this.vesselViews) {
-      view.update(this.world.vessels[id], alpha);
-      this.hydroViews.get(id)?.update(this.simDebug.get(id));
-    }
     const testView = this.vesselViews.get(this.testVesselId);
     if (testView) {
       // Engine room sits roughly under the wheelhouse.
@@ -243,9 +259,15 @@ export class App {
     if (k.actionPressed('toggleHelp')) this.help.toggle();
     if (k.actionPressed('toggleProbes')) this.probes.toggle();
     if (k.actionPressed('toggleHydro')) for (const h of this.hydroViews.values()) h.toggle();
-    if (k.actionPressed('dropVessel') || this.xrInput.wasPressed('right', XR_BUTTON.primary)) this.pushVesselIntent('debugDrop', 0);
+    if (k.actionPressed('dropVessel')) this.pushVesselIntent('debugDrop', 0);
+    if (k.actionPressed('flyMode')) this.desktop.toggleFly();
     this.handleDebugDriving(dt);
-    if (k.actionPressed('engine') || this.xrInput.wasPressed('right', XR_BUTTON.stick)) this.pushVesselIntent('engineStartStop', 1);
+    if (k.actionPressed('engine') || this.xrInput.wasPressed('right', XR_BUTTON.primary)) this.requestEngineStartStop();
+    if (this.xrInput.wasPressed('left', XR_BUTTON.primary)) {
+      const presets = CONFIG.comfort.horizonPresets;
+      this.horizonIndex = (this.horizonIndex + 1) % presets.length;
+      this.overlay.notify(`Horizon steadying ${Math.round(presets[this.horizonIndex] * 100)} %`, 2);
+    }
     if (k.actionPressed('board') || this.xrInput.wasPressed('left', XR_BUTTON.stick)) {
       const aboard = this.world.players[this.localPlayerId].aboardVesselId;
       this.intents.push({
@@ -258,7 +280,7 @@ export class App {
     }
     if (k.actionPressed('seaTrials')) this.showSeaTrials();
     if (k.actionPressed('seaState')) this.pushEnvIntent('seaState', this.world.environment.waves.length > 0 ? 0 : 1);
-    if (k.actionPressed('heelVessel') || this.xrInput.wasPressed('left', XR_BUTTON.primary)) this.pushVesselIntent('debugHeel', 20);
+    if (k.actionPressed('heelVessel')) this.pushVesselIntent('debugHeel', 20);
     const step = CONFIG.environment.timeStepHours;
     if (k.actionPressed('timeEarlier')) this.pushEnvIntent('timeOfDayDelta', -step);
     if (k.actionPressed('timeLater')) this.pushEnvIntent('timeOfDayDelta', step);
@@ -274,10 +296,16 @@ export class App {
     if (!v) return;
     const k = this.keyboard;
     const cfg = CONFIG.debugDriving;
+    // VR (temporary until the bridge controls in milestone 6): right stick up/down moves the
+    // lever (only when clearly vertical, so snap-turn on x doesn't nudge it), triggers steer.
     const [sx, sy] = this.xrInput.hands.right.stick;
-    const dead = (a: number) => (Math.abs(a) < 0.25 ? 0 : a);
-    const leverIn = (k.action('leverAhead') ? 1 : 0) - (k.action('leverAstern') ? 1 : 0) - dead(sy);
-    const helmIn = (k.action('helmStarboard') ? 1 : 0) - (k.action('helmPort') ? 1 : 0) + dead(sx);
+    const stickLever = Math.abs(sy) > 0.5 && Math.abs(sy) > 1.5 * Math.abs(sx) ? -sy : 0;
+    const trig = (h: 'left' | 'right') => {
+      const t = this.xrInput.hands[h].values[XR_BUTTON.trigger] ?? 0;
+      return t > 0.1 ? t : 0;
+    };
+    const leverIn = (k.action('leverAhead') ? 1 : 0) - (k.action('leverAstern') ? 1 : 0) + stickLever;
+    const helmIn = (k.action('helmStarboard') ? 1 : 0) - (k.action('helmPort') ? 1 : 0) + trig('right') - trig('left');
 
     let lever = v.controls.lever;
     if (leverIn !== 0) {
@@ -285,7 +313,7 @@ export class App {
       // Stop briefly at the neutral detent when passing through it.
       lever = Math.sign(next) !== Math.sign(lever) && lever !== 0 ? 0 : next;
     }
-    if (k.actionPressed('leverNeutral')) lever = 0;
+    if (k.actionPressed('leverNeutral') || this.xrInput.wasPressed('right', XR_BUTTON.stick)) lever = 0;
     if (lever !== v.controls.lever) this.pushVesselIntent('lever', lever);
 
     let helm = v.controls.helm;
@@ -297,14 +325,90 @@ export class App {
   /** Parent the local rig to whatever the player is aboard, at the player's position. */
   private syncRigToPlayer(): void {
     const p = this.world.players[this.localPlayerId];
+    const vesselView = p.aboardVesselId ? this.vesselViews.get(p.aboardVesselId) : undefined;
     if (p.aboardVesselId !== this.rigParentId) {
-      const parent = p.aboardVesselId ? this.vesselViews.get(p.aboardVesselId)?.root : this.scene;
-      (parent ?? this.scene).add(this.rig.root);
+      (vesselView?.root ?? this.scene).add(this.rig.carrier);
       this.rigParentId = p.aboardVesselId;
       this.desktop.resetPose();
     }
-    this.rig.root.position.fromArray(p.position);
+    const carrier = this.rig.carrier;
+    carrier.position.fromArray(p.position);
+    if (vesselView) horizonCorrection(vesselView.root.quaternion, CONFIG.comfort.horizonPresets[this.horizonIndex], carrier.quaternion);
+    else carrier.quaternion.identity();
     this.rig.root.rotation.set(0, p.yaw, 0);
+    this.camera.updateWorldMatrix(true, false);
+  }
+
+  /** Grab-the-world, stick and desktop movement, collision, floor following, comfort overlay. */
+  private updateLocomotion(dt: number, inXR: boolean): void {
+    const p = this.world.players[this.localPlayerId];
+    const frame = (p.aboardVesselId && this.vesselViews.get(p.aboardVesselId)?.root) || this.scene;
+    const area = (p.aboardVesselId && this.walkAreas.get(p.aboardVesselId)) || this.platformArea;
+    // Head from the camera's pose relative to the rig (fresh this frame; see syncRigToPlayer).
+    this.camera.getWorldPosition(this.headW);
+    this.camera.getWorldDirection(this.headFwd);
+
+    const grabbing = { left: null as THREE.Vector3 | null, right: null as THREE.Vector3 | null };
+    if (inXR) {
+      for (const h of ['left', 'right'] as const) {
+        if (this.xrInput.isDown(h, XR_BUTTON.grip)) grabbing[h] = this.controllers.worldPosition(h, this.gripW[h]);
+      }
+    }
+    let desktopDelta: { x: number; z: number } | null = null;
+    if (!inXR && this.desktop.mode === 'walk') {
+      const { x, z } = this.desktop.walk;
+      const c = Math.cos(p.yaw);
+      const s = Math.sin(p.yaw);
+      desktopDelta = { x: x * c + z * s, z: -x * s + z * c };
+    }
+    const [lx, ly] = this.xrInput.hands.left.stick;
+    const moving = this.locomotion.update(p, {
+      dt,
+      frame,
+      area,
+      head: this.headW,
+      headForward: this.headFwd,
+      grabbing,
+      moveStick: inXR ? [lx, -ly] : [0, 0],
+      turnStick: inXR ? this.xrInput.hands.right.stick[0] : 0,
+      desktopDelta,
+    });
+    for (const h of ['left', 'right'] as const) if (this.locomotion.grabStarted[h]) this.xrInput.pulse(h, 0.3, 30);
+
+    // Fade to black if the head is inside structure (room-scale walking into a wall).
+    const headL = frame.worldToLocal(this.headW.clone());
+    const inWall = inXR && area.insideSolid(headL.x, headL.y, headL.z);
+    this.comfortOverlay.update(dt, inXR ? moving : 0, inWall);
+
+    // Debug panel rides on the left wrist when that controller is tracked.
+    const left = this.controllers.grips.left;
+    if (inXR && left && this.overlay.vrPanel.parent !== left) {
+      left.add(this.overlay.vrPanel);
+      this.overlay.vrPanel.position.set(0, 0.06, 0.1);
+      this.overlay.vrPanel.rotation.set(-1.0, 0, 0);
+      this.overlay.vrPanel.scale.setScalar(0.75);
+    } else if ((!inXR || !left) && this.overlay.vrPanel.parent !== this.rig.root) {
+      this.placePanelOnRig();
+    }
+  }
+
+  private placePanelOnRig(): void {
+    this.rig.root.add(this.overlay.vrPanel);
+    this.overlay.vrPanel.position.set(-0.35, 1.15, -0.6);
+    this.overlay.vrPanel.rotation.set(-0.35, 0.45, 0);
+    this.overlay.vrPanel.scale.setScalar(1);
+  }
+
+  /** Engine start/stop with feedback when the neutral-start interlock refuses. */
+  private requestEngineStartStop(): void {
+    const v = this.world.vessels[this.testVesselId];
+    if (!v) return;
+    const def = VESSEL_DEFS[v.defId];
+    if (v.engine.phase === 'off' && def.engine.startOnlyInNeutral && leverDemand(def, v.controls.lever).gear !== 0) {
+      this.overlay.notify('Engine won\'t start: lever not in neutral');
+      this.xrInput.pulse('right', 0.8, 150);
+    }
+    this.pushVesselIntent('engineStartStop', 1);
   }
 
   private showSeaTrials(): void {

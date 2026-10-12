@@ -6,7 +6,7 @@ import type { Keyboard } from '../core/keyboard';
  * Development-only first-person camera for desktop browsers.
  * Click the canvas to capture the mouse (pointer lock), Esc to release.
  *
- * Milestones 1-4: free-fly. From milestone 5 it walks on the vessel like the VR player.
+ * Walks with collision like the VR player (default), or free-flies for debugging (F).
  * It only drives the camera's *local* pose inside the player rig, so it follows the
  * same moving-frame rules as the headset.
  */
@@ -42,6 +42,20 @@ export class DesktopController {
     this.pitch = -0.12;
   }
 
+  /**
+   * 'walk' (default): the camera stays at eye height over the rig origin and WASD produces
+   * a walking displacement that the Locomotion applies with collision, exactly like a VR
+   * player's body. 'fly': free debug camera inside the rig (Space/C for up/down).
+   */
+  mode: 'walk' | 'fly' = 'walk';
+  /** Walking displacement this frame in rig axes (x right, z back), set by update(). */
+  readonly walk = { x: 0, z: 0 };
+
+  toggleFly(): void {
+    this.mode = this.mode === 'walk' ? 'fly' : 'walk';
+    if (this.mode === 'walk') this.position.set(0, CONFIG.desktop.eyeHeight, 0);
+  }
+
   get pointerLocked(): boolean {
     return document.pointerLockElement === this.canvas;
   }
@@ -53,7 +67,18 @@ export class DesktopController {
       (k.action('up') ? 1 : 0) - (k.action('down') ? 1 : 0),
       (k.action('back') ? 1 : 0) - (k.action('forward') ? 1 : 0),
     );
-    if (this.move.lengthSq() > 0) {
+    this.walk.x = 0;
+    this.walk.z = 0;
+    if (this.mode === 'walk') {
+      this.move.y = 0;
+      if (this.move.lengthSq() > 0) {
+        const speed = CONFIG.desktop.walkSpeed * (k.action('fast') ? 1.8 : 1);
+        this.move.normalize().applyAxisAngle(THREE.Object3D.DEFAULT_UP, this.yaw).multiplyScalar(speed * dt);
+        this.walk.x = this.move.x;
+        this.walk.z = this.move.z;
+      }
+      this.position.set(0, CONFIG.desktop.eyeHeight, 0);
+    } else if (this.move.lengthSq() > 0) {
       const speed = CONFIG.desktop.moveSpeed * (k.action('fast') ? CONFIG.desktop.fastMultiplier : 1);
       // Horizontal movement follows yaw only; vertical is world-up.
       const vertical = this.move.y;

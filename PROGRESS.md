@@ -24,9 +24,9 @@ This file lets a new session pick up the work cold. Keep it current at the end o
 | 1 | Scaffold: Vite + TS + Three, desktop camera, Enter VR, debug overlay, HTTPS LAN server, Pages deploy, fixed-tick sim skeleton | **Done** (VR verified by owner on Quest 3; desktop keys reworked for QWERTZ) |
 | 2 | Ocean: Gerstner shader + matching CPU height (with horizontal-displacement inversion), sky dome, sun, fog | **Done** (owner: "Stormworks-like, feels alive", 90 fps on Quest 3) |
 | 3 | Floating hull: strip-theory hydrostatics on hull stations, damping, debug view | **Done** (owner OK; drop-test rebound fixed in M4) |
-| 4 | Single-engine propulsion, rudder, resistance curve, keyboard/VR-stick driving, sea trials, engine hum, boarding | **Done, awaiting owner test** |
-| 5 | Interior, walkable deck, grab-the-world locomotion, snap-turn, comfort options, hull water masking | Next |
-| 6a | Interaction system, throttle lever, start/stop button, haptics | — |
+| 4 | Single-engine propulsion, rudder, resistance curve, keyboard/VR-stick driving, sea trials, engine hum, boarding | **Done** (owner tested in VR) |
+| 5 | Walk-in wheelhouse, bulwarks, walk areas, grab-the-world locomotion, snap-turn, comfort options, controller models | **Done, awaiting owner test** |
+| 6a | Interaction system, throttle lever, start/stop button, haptics | Next |
 | 6b | Wheel, nav-lights toggle, horn, live displays | — |
 | 7 | Polish: headset profiling, tuning, docs | — |
 
@@ -162,16 +162,50 @@ This file lets a new session pick up the work cold. Keep it current at the end o
 - **Beam-sea roll of about 26°.** Physical, but heavy in VR; comfort options arrive in milestone 5. Options: more roll damping (bilge keels), or more GM.
 - **Astern speed of 6.4 kn** may be optimistic. It's tunable via `resistance.asternFactor` and `propeller.asternEfficiency`.
 
+## Done (milestone 5)
+
+- **Owner feedback from M4, fixed:**
+  - "Boarded behind the wheelhouse, can't see forward": boarding now puts you at the helm inside the wheelhouse, facing forward.
+  - "Right stick doesn't start the engine": clicking the stick nudged the lever (also on the right stick) out of neutral, and the neutral-start interlock refused silently. Engine start/stop moved to **A**. A refused start now gives a message and a haptic buzz. Right stick click sets the lever to neutral.
+- **Deck layout** (`layout` block in the vessel config, shared by the geometry and the walk area):
+  - Walk-in wheelhouse 2.9 × 3.4 m with a 2.15 m interior height, a window band all round (sill 0.95 m, head 1.75 m above the floor), and an aft doorway 0.8 × 2.0 m with a sill.
+  - Helm console across the front.
+  - Floor at +1.2 m, above the sheered deck under the house.
+  - Bulwarks (0.3 m) and handrails (1.0 m) with stanchions along the deck edge and across the transom.
+  - All merged into the hull's single draw call.
+- **Walk area** (`vessel/layout.ts`): `walkable(x, z)` (body radius 0.22 m), `floorY(x, z)` (deck sheer or wheelhouse floor) and `insideSolid(x, y, z)` (walls, console, roof, below deck). Window band and doorway count as open. There's also a platform walk area for off-boat.
+- **Rig hierarchy:** vessel root → *carrier* (feet position plus horizon correction) → *root* (yaw, XR floor origin) → camera, controller grips, wrist panel. PlayerState.position and yaw are vessel-local and client-authoritative.
+- **Locomotion** (`player/locomotion.ts`), all in the vessel frame. Collision is on the head position and slides along walls; it's always allowed to escape if the head is already somewhere unwalkable.
+  - Grab-the-world, the default: one grip translates. Two grips rotate about the hands' midpoint and translate. Re-anchors whenever the set of gripping hands changes. Haptic tick on grab.
+  - Optional smooth movement on the left stick (head-relative, 1.4 m/s).
+  - Snap turn 30° about the head on the right stick, with hysteresis.
+  - The floor height follows the head with 0.12 s smoothing (the doorway sill step).
+  - Desktop walks through the same collision; F toggles free-fly.
+- **Comfort** (`player/comfort.ts`):
+  - Horizon steadying 0 / 50 / 85 % (VR: X; default 50 %). The carrier rotation is C = T⁻¹·slerp(I, T, 1 − s), pivoting at the feet, so the deck stays under you while the felt roll and pitch are reduced.
+  - Head-locked tunnel vignette while artificially moving or snap-turning.
+  - Fade to black when the head is inside structure (room-scale).
+- **Controllers:** real Touch controller models via `XRControllerModelFactory` (fetched from the WebXR input-profiles CDN). The debug panel rides on the left wrist.
+- **Messages:** the overlay has `notify()`, a toast shown on desktop and on the wrist panel in VR.
+- **Lighting:** the hemisphere sky light now blends zenith toward horizon and is 35 % stronger. Shaded white paint was reading navy.
+- **Tests (44):** walk area (helm walkable, walls/console/outboard not, window band and doorway open), walking aft deck → doorway → helm, wall collision, grab direction, snap turn.
+
+## Decision: ocean masking inside the hull (deferred)
+
+The deck and wheelhouse floor are opaque and sit well above the DWL (freeboard about 0.95–1.5 m), so the sea can't show "through" the boat. The only remaining case is green water overtopping the bulwark in big rolls, which is physically what happens; it would need a "freeboard volume" mask to hide. I'll revisit in the polish pass if it's visible in practice. It matters for a future open well-deck or a low-freeboard rescue boat.
+
+## Open questions for the owner
+
+- **Beam-sea roll of about 26°.** Physical. Comfort options now exist; does it need more roll damping or GM?
+- **Astern speed of 6.4 kn** may be optimistic.
+
 ## Next
 
-Milestone 5: interior and player on board.
-- Bulwarks, aft deck and a walkable wheelhouse with a doorway.
-- Walk areas in vessel space.
-- Grab-the-world locomotion as the default, with smooth stick movement optional and snap-turn.
-- Comfort options: horizon steadying and a vignette.
-- Fade to black when the head enters a wall.
-- Hide ocean water inside the hull with a depth/stencil mask.
-- Desktop walking aboard.
+Milestone 6a: the interaction system.
+- `Control` base with Button, Toggle, Lever, Wheel and Display, plus interactors for direct grab (grip), poke (trigger) and short-ray fallback.
+- Haptics.
+- Start with the throttle lever and the engine start/stop button on the console.
+- Grip on a control grabs the control; grip on empty air keeps grab-the-world.
 
 ## Known issues / notes
 
@@ -180,7 +214,8 @@ Milestone 5: interior and player on board.
 - The ocean at night is very dark (no moon yet). A moon and night palette come with the day/night work later.
 - **Water inside the hull:** the ocean is drawn wherever it is, so a wave that overtops the deck edge or a steep crest beside the hull can show water "inside" the boat. That will matter once we walk inside (milestone 5). The plan is a depth/stencil mask of the hull interior volume.
 - No collisions yet: the boat drives straight through the buoys and the platform.
-- Debug driving in VR uses the right thumbstick. That will clash with snap-turn in milestone 5, so it will be remapped or dropped once the bridge controls exist.
+- Debug driving in VR: right stick ↑/↓ for the lever (only when clearly vertical, so snap-turn doesn't move it) and triggers for the wheel. Temporary until the bridge controls exist (milestone 6).
+- Controller models need internet on the headset (CDN). Without it, the hands are invisible but still work.
 - Wave fading at distance means far-away objects (more than about 40 m from the viewer) can sit a few cm off the drawn surface for the shortest waves. Physics always uses the exact CPU surface.
 - There are no whitecaps or foam yet beyond a faint crest tint. A moderate sea would show some whitecaps; that's a candidate for the polish pass.
 

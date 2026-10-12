@@ -31,6 +31,7 @@ export const KEYS = {
   board: { codes: ['KeyB'], description: 'Board the boat / back to the platform' },
   seaTrials: { codes: ['KeyT'], description: 'Hydrostatics + sea trials report' },
   seaState: { codes: ['KeyL'], description: 'Sea: flat calm / moderate' },
+  flyMode: { codes: ['KeyF'], description: 'Walk / free-fly camera' },
   up: { codes: ['Space'], description: 'Up (free-fly)' },
   down: { codes: ['KeyC'], description: 'Down (free-fly)' },
   fast: { codes: ['ShiftLeft', 'ShiftRight'], description: 'Move faster (hold)' },

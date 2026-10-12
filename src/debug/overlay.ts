@@ -67,6 +67,36 @@ export class DebugOverlay {
     this.visible = !this.visible;
   }
 
+  private toastText = '';
+  private toastUntil = 0;
+  private readonly toastEl = (() => {
+    const el = document.createElement('div');
+    Object.assign(el.style, {
+      position: 'fixed',
+      top: '18%',
+      left: '50%',
+      transform: 'translateX(-50%)',
+      font: '600 16px system-ui, sans-serif',
+      color: '#fff',
+      background: 'rgba(160,40,20,0.85)',
+      padding: '8px 14px',
+      borderRadius: '6px',
+      display: 'none',
+      pointerEvents: 'none',
+      zIndex: '20',
+    } satisfies Partial<CSSStyleDeclaration>);
+    document.body.appendChild(el);
+    return el;
+  })();
+
+  /** Short message shown for a few seconds (DOM on desktop, on the wrist panel in VR). */
+  notify(text: string, seconds = 3): void {
+    this.toastText = text;
+    this.toastUntil = performance.now() + seconds * 1000;
+    this.toastEl.textContent = text;
+    this.sinceRefresh = 1e9; // force a panel redraw
+  }
+
   /** Call once per rendered frame with real frame time in ms. */
   frame(frameMs: number, stats: DebugStats, inXR: boolean): void {
     this.frames++;
@@ -89,14 +119,19 @@ export class DebugOverlay {
     this.maxMs = 0;
     this.sinceRefresh = 0;
 
-    if (!this.visible) return;
+    if (!this.visible && !this.toastActive) return;
     if (inXR) this.drawPanel();
     else this.dom.textContent = this.lines.join('\n');
   }
 
+  private get toastActive(): boolean {
+    return performance.now() < this.toastUntil;
+  }
+
   private applyVisibility(inXR: boolean): void {
     this.dom.style.display = this.visible && !inXR ? 'block' : 'none';
-    this.vrPanel.visible = this.visible && inXR;
+    this.vrPanel.visible = (this.visible || this.toastActive) && inXR;
+    this.toastEl.style.display = this.toastActive && !inXR ? 'block' : 'none';
   }
 
   private drawPanel(): void {
@@ -106,7 +141,11 @@ export class DebugOverlay {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = '#bff7c8';
     ctx.font = '26px monospace';
-    this.lines.forEach((line, i) => ctx.fillText(line, 14, 38 + i * 34));
+    const lines = this.toastActive ? [`>> ${this.toastText}`, ...(this.visible ? this.lines : [])] : this.lines;
+    lines.forEach((line, i) => {
+      ctx.fillStyle = i === 0 && this.toastActive ? '#ffb38a' : '#bff7c8';
+      ctx.fillText(line, 14, 38 + i * 34);
+    });
     this.texture.needsUpdate = true;
   }
 }

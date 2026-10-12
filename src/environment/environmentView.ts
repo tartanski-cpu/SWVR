@@ -69,8 +69,10 @@ export class EnvironmentView {
     this.fog.color.setRGB(...p.fog, THREE.SRGBColorSpace);
     this.sun.color.copy(this.sunColor);
     this.sun.intensity = p.sunIntensity;
-    this.hemi.color.copy(this.zenith);
+    // Sky light: average of zenith and horizon - the whole dome lights a shaded wall, and
+    // the pure zenith blue made white paint look navy.
+    this.hemi.color.copy(this.zenith).lerp(this.horizon, 0.55);
     this.hemi.groundColor.setRGB(p.horizon[0] * 0.3, p.horizon[1] * 0.35, p.horizon[2] * 0.4, THREE.SRGBColorSpace);
-    this.hemi.intensity = p.ambientIntensity;
+    this.hemi.intensity = p.ambientIntensity * 1.35;
   }
 }

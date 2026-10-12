@@ -35,6 +35,8 @@ export interface VesselDef {
   boardingSpot: Vec3;
   /** Debug spawn / drop test placement. */
   spawn: VesselConfig['spawn'];
+  /** Deck layout: wheelhouse, bulwarks, walkable margins. */
+  layout: VesselConfig['layout'];
 }
 
 /** Wetted surface at the DWL: submerged girth of each station times its spacing. */
@@ -78,6 +80,7 @@ export function fromConfig(id: string, c: VesselConfig): VesselDef {
     rudder: c.rudder,
     boardingSpot: c.boardingSpot,
     spawn: c.spawn,
+    layout: c.layout,
   };
 }
 
