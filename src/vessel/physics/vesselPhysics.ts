@@ -41,7 +41,7 @@ import { CONFIG } from '../../config';
 import { sampleSurface, type PreparedWave, type SurfaceSample } from '../../ocean/waves';
 import type { VesselDef } from '../vesselDef';
 import type { VesselState } from '../vesselState';
-import { calmWaterResistance, propellerThrust, rudderForce, stepMachinery } from './propulsion';
+import { calmWaterResistance, rudderForce, stepEngineAndPropeller, stepSteering } from './propulsion';
 import { submergedSection, type SubmergedSection } from './sectionClip';
 
 /** Optional per-tick diagnostics for the debug view (vessel-local coordinates). */
@@ -187,7 +187,7 @@ export function stepVessel(
   if (debug) debug.submergedVolume = submergedVolume;
 
   // ── Machinery, propeller, rudder, calm-water resistance ──
-  stepMachinery(state, def, dt);
+  stepSteering(state, def, dt);
   const rudderW = toWorld(...def.rudder.position, portW);
   const propW = toWorld(...def.propeller.position, stbdW);
   const sR = sampleSurface(waves, rudderW.x, rudderW.z);
@@ -202,8 +202,7 @@ export function stepVessel(
   tmp.applyQuaternion(qInv);
   const relRx = tmp.x;
   const relRz = tmp.z;
-  const thrust = propellerThrust(state, def, -relRz) * propWet;
-  state.thrust = thrust;
+  const thrust = stepEngineAndPropeller(state, def, -relRz, propWet, dt);
   // Net propulsive force T(1 - t) along the shaft (forward is -z).
   addForceAt(tmp.set(0, 0, -thrust * (1 - def.propeller.thrustDeduction)).applyQuaternion(q), propW);
   rudderForce(state, def, relRx, relRz, thrust, rud);

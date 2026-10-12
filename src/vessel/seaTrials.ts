@@ -35,6 +35,8 @@ export interface SeaTrialResults {
   coastDistance: number;
   /** Full astern speed (kn). */
   asternSpeedKn: number;
+  /** Bollard pull: moored, full ahead / full astern - net pull (kN, = T(1-t)) and engine RPM. */
+  bollard: { aheadKN: number; aheadRpm: number; asternKN: number; asternRpm: number };
   /** Free-decay tests in calm water (the "inclining-style" experiments). */
   motions: MotionTrials;
 }
@@ -288,8 +290,28 @@ export function runSeaTrials(defId = 'workboat'): SeaTrialResults {
   astern.startEngine();
   astern.settle(-1);
 
+  // ── Bollard pull: held on station (a towline to a bollard), full ahead then full astern ──
+  const bollardAt = (lever: number) => {
+    const b = new Trial(defId);
+    b.startEngine();
+    b.send('lever', lever);
+    const pos = [...b.v.position] as [number, number, number];
+    b.run(25, () => {
+      // The towline: hold her horizontally where she is (she may still heave/pitch/roll).
+      b.v.position[0] = pos[0];
+      b.v.position[2] = pos[2];
+      b.v.linearVelocity[0] = 0;
+      b.v.linearVelocity[2] = 0;
+    });
+    const def = VESSEL_DEFS[defId];
+    return { kN: (Math.abs(b.v.thrust) * (1 - def.propeller.thrustDeduction)) / 1000, rpm: b.v.engine.rpm };
+  };
+  const bAhead = bollardAt(1);
+  const bAstern = bollardAt(-1);
+
   return {
     vesselDefId: defId,
+    bollard: { aheadKN: bAhead.kN, aheadRpm: bAhead.rpm, asternKN: bAstern.kN, asternRpm: bAstern.rpm },
     speedTable,
     topSpeedKn: top * KN,
     timeTo90Pct,
@@ -315,6 +337,7 @@ export function formatSeaTrials(r: SeaTrialResults): string {
     ...r.speedTable.map((s) => `  lever ${(s.lever * 100).toFixed(0).padStart(3)} %: ${s.knots.toFixed(1)} kn @ ${s.rpm.toFixed(0)} rpm`),
     `  0 -> 90 % top speed: ${r.timeTo90Pct.toFixed(1)} s`,
     `  full astern: ${r.asternSpeedKn.toFixed(1)} kn`,
+    `  bollard pull: ahead ${r.bollard.aheadKN.toFixed(1)} kN (${(r.bollard.aheadKN / 9.81).toFixed(2)} t) @ ${r.bollard.aheadRpm.toFixed(0)} rpm, astern ${r.bollard.asternKN.toFixed(1)} kN @ ${r.bollard.asternRpm.toFixed(0)} rpm`,
     `  turn (full ahead, hard over): advance ${L(r.advance)}, transfer ${L(r.transfer)}`,
     `    tactical diameter ${L(r.tacticalDiameter)}, steady diameter ${L(r.steadyTurnDiameter)}, speed in turn ${r.turnSpeedKn.toFixed(1)} kn`,
     `  crash stop: ${L(r.crashStopDistance)} in ${r.crashStopTime.toFixed(1)} s`,

@@ -175,47 +175,83 @@ export const CONFIG = {
         waveB: 0.94,
         waveKnee: 0.3,
         /** Going astern (transom first) is less efficient. */
-        asternFactor: 2.6,
+        asternFactor: 3.6,
         /** Height (vessel y) at which resistance acts (~ mid-draft). */
         y: -0.45,
       },
-      /** Single diesel through a reverse/reduction gearbox to one fixed-pitch propeller. */
+      /**
+       * Single slow-revving heavy-duty inboard diesel through a reverse/reduction gearbox to
+       * one large fixed-pitch propeller. The shaft is a torque balance, not an RPM target:
+       *   (I_engine + I_prop / i^2) * dw/dt = rack * Q_max(rpm) - Q_friction - Q_prop / (i * eta)
+       * with an all-speed droop governor setting the fuel rack. Under heavy prop load
+       * (bollard, towing, crash stop) RPM sags and the engine digs in.
+       */
       engine: {
-        /** Maximum continuous rating (kW) - informational; the model is RPM-governed. */
-        powerKw: 180,
-        idleRpm: 700,
-        maxRpm: 2300,
-        /** First-order RPM response time constants (s); spool-up also stands in for turbo lag. */
-        spoolUpTime: 4.0,
-        spoolDownTime: 0.9,
-        /** Cranking time before the engine catches (s). */
+        /** Rated power (kW) at rated RPM - for reference; the torque curve is what's used. */
+        powerKw: 200,
+        idleRpm: 600,
+        ratedRpm: 1800,
+        /** Full-load torque curve (rpm, N*m): heavy-duty 6-cyl, ~25 % torque rise, cut-out at 1950. */
+        torqueCurve: [
+          [0, 0],
+          [300, 500],
+          [600, 850],
+          [1000, 1250],
+          [1300, 1320],
+          [1600, 1210],
+          [1800, 1061],
+          [1900, 600],
+          [1950, 0],
+        ] as [number, number][],
+        /** Internal friction torque: a + b*rpm (N*m). */
+        frictionTorque: 60,
+        frictionPerRpm: 0.05,
+        /** Rotating inertia at the crankshaft, engine + flywheel + gearbox (kg*m^2). */
+        inertia: 3.2,
+        /** Governor droop: full rack this many RPM below the set speed. */
+        droopRpm: 120,
+        /** Turbo / smoke limiter: fuel rack may rise at most this much per second. */
+        rackRiseRate: 0.45,
+        /** Starter motor torque (N*m) up to its maximum speed, and cranking time before firing. */
+        starterTorque: 450,
+        starterMaxRpm: 160,
         crankTime: 1.6,
         /** The engine will only start with the lever in neutral (like a real neutral-safety switch). */
         startOnlyInNeutral: true,
-        gearRatio: 2.4,
-        /** Clutch: lever must sit in the new direction this long, at idle, before it engages (s). */
+        gearRatio: 3.0,
+        gearEfficiency: 0.97,
+        /** Clutch: lever must sit in the new direction this long, near idle, before it engages (s). */
         shiftDelay: 0.6,
         /** Lever travel either side of centre that counts as neutral (detent). */
         neutralBand: 0.08,
       },
       propeller: {
-        diameter: 0.7,
+        /** Large, slow, four-blade workboat propeller (m). Tip just below the keel line. */
+        diameter: 1.05,
         /**
-         * Linearised open-water thrust coefficient: K_T(J) = kt0 * (1 - J / j0),
-         * J = Va / (n*D). kt0 ~0.45 for a pitch ratio ~1 workboat prop.
+         * Linearised open-water coefficients, J = Va / (n*D), pitch ratio ~0.85 (matched so
+         * the engine just reaches rated RPM at full speed; open-water efficiency ~0.5):
+         *   K_T(J) = kt0 * (1 - J / j0)     thrust = K_T * rho * n^2 * D^4
+         *   K_Q(J) = kq0 * (1 - J / jq0)    torque = K_Q * rho * n^2 * D^5
          */
-        kt0: 0.45,
-        j0: 1.05,
-        /** Astern thrust as a fraction of ahead (blade sections work backwards). */
-        asternEfficiency: 0.45,
-        /** Taylor wake fraction w and thrust deduction t. */
-        wake: 0.15,
-        thrustDeduction: 0.15,
+        kt0: 0.38,
+        j0: 0.88,
+        kq0: 0.045,
+        jq0: 0.98,
+        /** Astern: thrust and torque as fractions of the ahead values (blades work backwards). */
+        asternEfficiency: 0.5,
+        asternTorque: 0.9,
+        /** Prop + shaft rotating inertia at the propeller (kg*m^2). */
+        inertia: 4.5,
+        /** Taylor wake fraction w and thrust deduction t (bigger, slower prop: a bit higher). */
+        wake: 0.18,
+        thrustDeduction: 0.18,
         /** Shaft line position (vessel axes, m). */
-        position: [0, -0.62, 5.0] as [number, number, number],
+        position: [0, -0.5, 4.9] as [number, number, number],
       },
       rudder: {
-        area: 0.36,
+        /** Sized to the big prop: ~1.0 m span x 0.55 m chord, mostly in the slipstream. */
+        area: 0.55,
         /** Normal-force slope dC_N/dalpha (per rad) for a low aspect-ratio spade rudder, and stall angle. */
         liftSlope: 2.4,
         stallDeg: 25,

@@ -1,8 +1,10 @@
 /**
  * Machinery, propeller, rudder and calm-water resistance. Deliberately simple, one engine:
  *
- *   lever ──► gearbox (clutch with shift delay) ──► engine RPM governor (first-order lag)
- *         └─► propeller: T = ρ n² D⁴ K_T(J), K_T linear in J (ahead / astern)
+ *   lever ──► gearbox (clutch with shift delay)
+ *         └─► droop governor ──► fuel rack ──► engine torque curve ──┐
+ *                                                    shaft torque balance (engine + prop inertia)
+ *   propeller: T = K_T(J) ρ n² D⁴, load Q = K_Q(J) ρ n² D⁵ ◄─────────┘
  *   helm  ──► hydraulic rudder actuator (rate-limited) ──► rudder normal force from hull
  *             inflow plus propeller slipstream
  *
@@ -35,53 +37,44 @@ export function toggleEngine(s: VesselState, def: VesselDef): void {
   }
 }
 
-/** Advance engine, clutch and steering gear by dt. */
-export function stepMachinery(s: VesselState, def: VesselDef, dt: number): void {
-  const e = s.engine;
-  const cfg = def.engine;
-  const demand = leverDemand(def, s.controls.lever);
+const TWO_PI = Math.PI * 2;
 
-  let target = 0;
-  switch (e.phase) {
-    case 'off':
-      e.gear = 0; // no oil pressure, clutch disengaged
-      target = 0;
-      break;
-    case 'cranking':
-      e.crank += dt;
-      target = 180; // starter motor speed
-      if (e.crank >= cfg.crankTime) {
-        e.phase = 'running';
-        e.rpm = Math.max(e.rpm, cfg.idleRpm * 0.85);
-      }
-      break;
-    case 'running': {
-      // Clutch: going to neutral is immediate; engaging a gear needs the lever held there
-      // for shiftDelay with the engine near idle (protects the gearbox, like the real thing).
-      if (demand.gear !== e.gear) {
-        if (demand.gear === 0) {
-          e.gear = 0;
-          e.shift = 0;
-        } else {
-          e.shift += dt;
-          if (e.shift >= cfg.shiftDelay && e.rpm < cfg.idleRpm * 1.3) {
-            e.gear = demand.gear;
-            e.shift = 0;
-          }
-        }
-      } else {
-        e.shift = 0;
-      }
-      const throttle = demand.gear === e.gear ? demand.throttle : 0;
-      target = cfg.idleRpm + throttle * (cfg.maxRpm - cfg.idleRpm);
-      break;
+/** Full-load torque (N*m) at `rpm`, linear interpolation of the configured curve. */
+export function fullLoadTorque(def: VesselDef, rpm: number): number {
+  const c = def.engine.torqueCurve;
+  if (rpm <= c[0][0]) return c[0][1];
+  for (let i = 0; i < c.length - 1; i++) {
+    if (rpm <= c[i + 1][0]) {
+      const t = (rpm - c[i][0]) / (c[i + 1][0] - c[i][0]);
+      return c[i][1] + (c[i + 1][1] - c[i][1]) * t;
     }
   }
-  const tau = target > e.rpm ? cfg.spoolUpTime : cfg.spoolDownTime;
-  e.rpm += (target - e.rpm) * Math.min(1, dt / tau);
-  if (e.phase === 'off' && e.rpm < 1) e.rpm = 0;
+  return 0;
+}
 
-  // Steering gear: rudder follows the helm at a fixed rate.
+/**
+ * Propeller thrust (N, + = ahead) and shaft torque (N*m, opposing rotation, >= 0) at prop
+ * speed n (rev/s, signed: + = ahead rotation) and vessel speed through the water (m/s).
+ */
+export function propellerForces(def: VesselDef, n: number, speed: number): { thrust: number; torque: number } {
+  const p = def.propeller;
+  const an = Math.abs(n);
+  if (an < 0.02) return { thrust: 0, torque: 0 };
+  const rho = CONFIG.ocean.density;
+  const va = speed * (1 - p.wake);
+  // Advance ratio in the prop's own working direction: moving ahead while backing
+  // (crash stop) gives negative J, so the prop bites harder and absorbs more torque.
+  const J = (n > 0 ? va : -va) / (an * p.diameter);
+  const kt = clamp(p.kt0 * (1 - J / p.j0), -0.2 * p.kt0, 1.6 * p.kt0);
+  const kq = clamp(p.kq0 * (1 - J / p.jq0), -0.1 * p.kq0, 1.6 * p.kq0);
+  const astern = n < 0;
+  const thrust = kt * rho * an * an * p.diameter ** 4 * (astern ? p.asternEfficiency : 1);
+  const torque = kq * rho * an * an * p.diameter ** 5 * (astern ? p.asternTorque : 1);
+  return { thrust: astern ? -thrust : thrust, torque };
+}
+
+/** Advance the steering gear: the rudder follows the helm at a fixed rate. */
+export function stepSteering(s: VesselState, def: VesselDef, dt: number): void {
   const maxA = (def.rudder.maxAngleDeg * Math.PI) / 180;
   const want = clamp(s.controls.helm, -1, 1) * maxA;
   const step = ((def.rudder.rateDegPerS * Math.PI) / 180) * dt;
@@ -89,25 +82,88 @@ export function stepMachinery(s: VesselState, def: VesselDef, dt: number): void 
 }
 
 /**
- * Propeller thrust (N), + = ahead.
- * @param speed vessel speed through the water along the shaft (m/s), + = ahead
+ * Advance engine, clutch and shaft by dt and return the propeller thrust (N).
+ *
+ *   engine torque  Q_e = rack * Q_max(rpm) - (a + b*rpm)          (+ starter while cranking)
+ *   prop load      Q_l = Q_prop / (i * eta)                         (only when a gear is in)
+ *   shaft          (I_e + I_p / i^2) * dw/dt = Q_e - Q_l
+ *   governor       rack = clamp((rpm_set - rpm) / droop, 0, 1), rising no faster than
+ *                  the turbo/smoke limiter allows
+ *
+ * @param speed     vessel speed through the water at the propeller (m/s, + ahead)
+ * @param immersion 0..1 how much of the propeller disc is under water
  */
-export function propellerThrust(s: VesselState, def: VesselDef, speed: number): number {
+export function stepEngineAndPropeller(s: VesselState, def: VesselDef, speed: number, immersion: number, dt: number): number {
   const e = s.engine;
-  if (e.phase !== 'running' || e.gear === 0) return 0;
-  const p = def.propeller;
-  const n = e.rpm / def.engine.gearRatio / 60; // prop rev/s
-  if (n < 0.05) return 0;
-  const va = speed * (1 - p.wake);
-  const base = CONFIG.ocean.density * n * n * p.diameter ** 4;
-  if (e.gear === 1) {
-    const J = va / (n * p.diameter);
-    return base * clamp(p.kt0 * (1 - J / p.j0), -0.2 * p.kt0, p.kt0 * 1.5);
+  const cfg = def.engine;
+  const demand = leverDemand(def, s.controls.lever);
+  const i = cfg.gearRatio;
+  const propInertiaAtCrank = def.propeller.inertia / (i * i);
+
+  // ── Clutch ──
+  if (e.phase !== 'running') {
+    e.gear = 0; // no oil pressure: clutch packs released
+    e.shift = 0;
+  } else if (demand.gear !== e.gear) {
+    if (demand.gear === 0) {
+      e.gear = 0;
+      e.shift = 0;
+    } else {
+      // Engaging needs the lever held there for shiftDelay with the engine near idle.
+      e.shift += dt;
+      if (e.shift >= cfg.shiftDelay && e.rpm < cfg.idleRpm * 1.3) {
+        e.gear = demand.gear;
+        e.shift = 0;
+        // The stationary prop is picked up: shared angular momentum, a small RPM dip.
+        e.rpm *= cfg.inertia / (cfg.inertia + propInertiaAtCrank);
+      }
+    }
+  } else {
+    e.shift = 0;
   }
-  // Astern: advance ratio measured in the astern direction, so moving ahead (crash stop)
-  // makes the backing prop bite harder.
-  const J = -va / (n * p.diameter);
-  return -base * clamp(p.kt0 * p.asternEfficiency * (1 - J / p.j0), -0.2 * p.kt0, p.kt0 * 1.5);
+
+  // ── Governor and fuel ──
+  let rackTarget = 0;
+  if (e.phase === 'running') {
+    const throttle = demand.gear === e.gear ? demand.throttle : 0;
+    const set = cfg.idleRpm + throttle * (cfg.ratedRpm - cfg.idleRpm);
+    rackTarget = clamp((set - e.rpm) / cfg.droopRpm, 0, 1);
+  }
+  e.rack = rackTarget > e.rack ? Math.min(rackTarget, e.rack + cfg.rackRiseRate * dt) : rackTarget;
+
+  // ── Shaft dynamics (substepped: the governor loop is stiff) ──
+  const inertia = cfg.inertia + (e.gear !== 0 ? propInertiaAtCrank : 0);
+  const steps = 4;
+  const h = dt / steps;
+  let thrust = 0;
+  for (let k = 0; k < steps; k++) {
+    const rpm = Math.max(0, e.rpm);
+    let q = e.rack * fullLoadTorque(def, rpm);
+    if (e.phase === 'cranking' && rpm < cfg.starterMaxRpm) q += cfg.starterTorque;
+    if (rpm > 0.5) q -= cfg.frictionTorque + cfg.frictionPerRpm * rpm;
+    thrust = 0;
+    if (e.gear !== 0) {
+      const n = (e.gear * rpm) / i / 60; // prop rev/s, signed
+      const f = propellerForces(def, n, speed);
+      thrust = f.thrust * immersion;
+      q -= (f.torque * immersion) / (i * cfg.gearEfficiency);
+    }
+    const omega = (rpm * TWO_PI) / 60 + (q / inertia) * h;
+    e.rpm = Math.max(0, (omega * 60) / TWO_PI);
+  }
+
+  // ── Starting and stopping ──
+  if (e.phase === 'cranking') {
+    e.crank += dt;
+    if (e.crank >= cfg.crankTime && e.rpm > cfg.starterMaxRpm * 0.6) {
+      e.phase = 'running';
+      e.rack = 0.3; // fuel on: catches and runs up to idle
+    }
+  }
+  if (e.phase === 'off' && e.rpm < 1) e.rpm = 0;
+
+  s.thrust = thrust;
+  return thrust;
 }
 
 /**

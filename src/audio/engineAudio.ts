@@ -3,7 +3,7 @@ import type { VesselState } from '../vessel/vesselState';
 
 /**
  * Synthesised diesel hum - no audio files. A 6-cylinder four-stroke fires 3 times per
- * revolution, so the fundamental is rpm/20 Hz (35 Hz at idle, 115 Hz flat out).
+ * revolution, so the fundamental is rpm/20 Hz (30 Hz at 600 rpm idle, 90 Hz at 1800 rated).
  *
  *   sawtooth @ firing freq ─┐
  *   square   @ half order  ─┼─► low-pass (opens with load) ─► gain ─┐
@@ -84,9 +84,10 @@ export class EngineAudio {
     const running = e.phase !== 'off' || e.rpm > 20;
     const rpm = Math.max(e.rpm, 1);
     const firing = rpm / 20;
-    // Load: how hard the prop is pulling, 0..1 (drives filter brightness and hiss).
-    const load = Math.min(1, Math.abs(v.thrust) / 22000);
-    const rpmFrac = Math.min(1, rpm / cfg.maxRpm);
+    // Load = fuel rack (0..1): how hard the engine is working, which is what you hear on a
+    // diesel - it gets rougher and louder digging in at the same RPM.
+    const load = e.rack;
+    const rpmFrac = Math.min(1, rpm / cfg.ratedRpm);
 
     this.osc1.frequency.setTargetAtTime(firing, t, smooth);
     this.osc2.frequency.setTargetAtTime(firing / 2, t, smooth);

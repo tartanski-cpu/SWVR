@@ -14,7 +14,10 @@ export interface EngineState {
   phase: 'off' | 'cranking' | 'running';
   /** Seconds spent cranking so far. */
   crank: number;
+  /** Engine (crankshaft) speed. */
   rpm: number;
+  /** Fuel rack position 0..1 as set by the governor (engine load). */
+  rack: number;
   /** Engaged gear: -1 astern, 0 neutral, +1 ahead. */
   gear: -1 | 0 | 1;
   /** Seconds the lever has been asking for a different gear. */
@@ -53,7 +56,7 @@ export function createVesselState(id: EntityId, defId: string): VesselState {
     linearVelocity: [0, 0, 0],
     angularVelocity: [0, 0, 0],
     controls: { lever: 0, helm: 0 },
-    engine: { phase: 'off', crank: 0, rpm: 0, gear: 0, shift: 0 },
+    engine: { phase: 'off', crank: 0, rpm: 0, rack: 0, gear: 0, shift: 0 },
     rudder: 0,
     thrust: 0,
   };

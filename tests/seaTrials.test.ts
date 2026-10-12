@@ -44,8 +44,8 @@ for (const id of ids) {
       it('speed rises with lever and RPM', () => {
         for (let i = 1; i < r.speedTable.length; i++) expect(r.speedTable[i].knots).toBeGreaterThan(r.speedTable[i - 1].knots);
       });
-      it('feels heavy but responsive: 90 % of top speed in 10-40 s', () => {
-        expect(r.timeTo90Pct).toBeGreaterThan(10);
+      it('heavy but torquey: 90 % of top speed in 5-40 s', () => {
+        expect(r.timeTo90Pct).toBeGreaterThan(5);
         expect(r.timeTo90Pct).toBeLessThan(40);
       });
       it('turns to starboard on starboard helm, tactical diameter 2-5 L', () => {
@@ -56,6 +56,17 @@ for (const id of ids) {
       it('crash-stops within 1.2-5 L', () => {
         expect(r.crashStopDistance / L).toBeGreaterThan(1.2);
         expect(r.crashStopDistance / L).toBeLessThan(5);
+      });
+      it('slow-revving inboard: reaches 85-100 % of rated RPM at full ahead', () => {
+        const rated = def.engine.ratedRpm;
+        const full = r.speedTable[r.speedTable.length - 1].rpm;
+        expect(full / rated).toBeGreaterThan(0.85);
+        expect(full / rated).toBeLessThan(1.02);
+      });
+      it('pulls like a workboat: bollard pull 1.8-3.5 t ahead, RPM sags under load', () => {
+        expect(r.bollard.aheadKN / 9.81).toBeGreaterThan(1.8);
+        expect(r.bollard.aheadKN / 9.81).toBeLessThan(3.5);
+        expect(r.bollard.aheadRpm).toBeLessThan(r.speedTable[r.speedTable.length - 1].rpm);
       });
       it('goes astern slower than ahead', () => {
         expect(r.asternSpeedKn).toBeGreaterThan(3);
