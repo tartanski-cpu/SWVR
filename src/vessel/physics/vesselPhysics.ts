@@ -1,0 +1,203 @@
+/**
+ * Rigid-body dynamics of one hull in waves. Called once per fixed simulation tick.
+ *
+ * Forces (all evaluated at the start of the tick, then integrated semi-implicitly):
+ *
+ *  1. Gravity  m·g at the centre of gravity.
+ *
+ *  2. Hydrostatics, station by station (strip method). For each transverse station we
+ *     sample the wave surface at its port chine, centreline and starboard chine, treat the
+ *     water surface as linear across the section, clip the section polygon at that
+ *     waterline and get the immersed area A and its centroid. The station's slice of
+ *     displaced volume is A·w (w = station spacing), giving a vertical force ρ·g·A·w at the
+ *     centroid. Summed over stations this reproduces displacement, LCB, and the full
+ *     large-angle righting-arm (GZ) curve of the actual hull shape, including deck-edge
+ *     immersion, in calm water and in waves (Froude-Krylov at hydrostatic level).
+ *
+ *  3. Hydrodynamic damping and drag, using velocity RELATIVE to the water particles (the
+ *     orbital velocity from the wave model), so the hull is not damped for moving with
+ *     the water, only for moving through it:
+ *       - vertical damping along the centreline of each station (heave and pitch),
+ *       - lateral drag per station, proportional to local draft (sway and yaw damping;
+ *         the centre of lateral resistance falls out of the hull shape),
+ *       - longitudinal drag per station (placeholder for the milestone 4 resistance curve),
+ *       - angular damping, chiefly roll (radiation + viscous/chine roll damping).
+ *
+ * Added mass is modelled as constant fractions of the rigid-body mass/inertia per axis,
+ * scaled by immersion, so it vanishes when the hull is airborne.
+ *
+ * Integration: semi-implicit (symplectic) Euler on the CG: v += a·dt, then x += v·dt;
+ * angular velocity in body axes with the gyroscopic term ω × (I·ω); orientation via
+ * q += ½·(0, ω)·q·dt, renormalised.
+ */
+import * as THREE from 'three';
+import { CONFIG } from '../../config';
+import { sampleSurface, type PreparedWave, type SurfaceSample } from '../../ocean/waves';
+import type { VesselDef } from '../vesselDef';
+import type { VesselState } from '../vesselState';
+import { submergedSection, type SubmergedSection } from './sectionClip';
+
+/** Optional per-tick diagnostics for the debug view (vessel-local coordinates). */
+export interface HydroDebug {
+  /** Per station: immersed-area centroid (x, y, z) and buoyant force (N). */
+  stations: { x: number; y: number; z: number; force: number }[];
+  /** World up direction expressed in vessel axes (to draw vertical force arrows). */
+  upLocal: [number, number, number];
+  submergedVolume: number;
+}
+
+// Scratch objects (the sim is single-threaded; avoids per-tick allocation).
+const q = new THREE.Quaternion();
+const qInv = new THREE.Quaternion();
+const pos = new THREE.Vector3();
+const cgW = new THREE.Vector3();
+const v = new THREE.Vector3();
+const w = new THREE.Vector3();
+const force = new THREE.Vector3();
+const torque = new THREE.Vector3();
+const tmp = new THREE.Vector3();
+const tmp2 = new THREE.Vector3();
+const pt = new THREE.Vector3();
+const portW = new THREE.Vector3();
+const stbdW = new THREE.Vector3();
+const centreW = new THREE.Vector3();
+const sub: SubmergedSection = { area: 0, cx: 0, cy: 0, maxDepth: 0 };
+const depths: number[] = [];
+const dq = new THREE.Quaternion();
+
+function toWorld(x: number, y: number, z: number, out: THREE.Vector3): THREE.Vector3 {
+  return out.set(x, y, z).applyQuaternion(q).add(pos);
+}
+
+/** Add force F (world) acting at world point p: accumulates force and torque about the CG. */
+function addForceAt(f: THREE.Vector3, p: THREE.Vector3): void {
+  force.add(f);
+  tmp2.subVectors(p, cgW).cross(f);
+  torque.add(tmp2);
+}
+
+/** Velocity of the hull material point at world position p. */
+function pointVelocity(p: THREE.Vector3, out: THREE.Vector3): THREE.Vector3 {
+  return out.subVectors(p, cgW).crossVectors(w, out).add(v);
+}
+
+export function stepVessel(
+  state: VesselState,
+  def: VesselDef,
+  waves: readonly PreparedWave[],
+  dt: number,
+  debug?: HydroDebug,
+): void {
+  const rho = CONFIG.ocean.density;
+  const g = CONFIG.ocean.gravity;
+  const d = def.damping;
+
+  q.fromArray(state.orientation);
+  qInv.copy(q).invert();
+  pos.fromArray(state.position);
+  cgW.fromArray(def.cg).applyQuaternion(q).add(pos);
+  v.fromArray(state.linearVelocity);
+  w.fromArray(state.angularVelocity);
+
+  force.set(0, -def.mass * g, 0);
+  torque.set(0, 0, 0);
+
+  if (debug) {
+    debug.stations.length = 0;
+    tmp.set(0, 1, 0).applyQuaternion(qInv);
+    debug.upLocal = [tmp.x, tmp.y, tmp.z];
+  }
+
+  let submergedVolume = 0;
+  for (const st of def.hull.stations) {
+    const b = Math.max(st.halfBeamChine, 0.05);
+    // Water surface at port chine, centreline and starboard chine (at DWL height).
+    toWorld(-b, 0, st.z, portW);
+    toWorld(0, 0, st.z, centreW);
+    toWorld(b, 0, st.z, stbdW);
+    const sP: SurfaceSample = sampleSurface(waves, portW.x, portW.z);
+    const sC: SurfaceSample = sampleSurface(waves, centreW.x, centreW.z);
+    const sS: SurfaceSample = sampleSurface(waves, stbdW.x, stbdW.z);
+
+    // Depth of each section vertex below the (piecewise-linear) water surface.
+    depths.length = st.polygon.length;
+    for (let i = 0; i < st.polygon.length; i++) {
+      const [x, y] = st.polygon[i];
+      const h = x < 0 ? sC.height + (sP.height - sC.height) * (-x / b) : sC.height + (sS.height - sC.height) * (x / b);
+      depths[i] = h - toWorld(x, y, st.z, pt).y;
+    }
+    submergedSection(st.polygon, depths, sub);
+    if (sub.area <= 0) {
+      if (debug) debug.stations.push({ x: 0, y: 0, z: st.z, force: 0 });
+      continue;
+    }
+
+    // ── Hydrostatic (buoyant) force at the immersed centroid ──
+    const vol = sub.area * st.weight;
+    submergedVolume += vol;
+    const fb = rho * g * vol;
+    toWorld(sub.cx, sub.cy, st.z, pt);
+    addForceAt(tmp.set(0, fb, 0), pt);
+    if (debug) debug.stations.push({ x: sub.cx, y: sub.cy, z: st.z, force: fb });
+
+    // ── Vertical damping on the centreline, relative to the water (heave and pitch) ──
+    // Applied on the centreline so it does not also damp roll; roll damping has its own
+    // coefficient below. Scaled by how wet the section is (fades in over 0.3 m of draft).
+    const wet = Math.min(1, sub.maxDepth / 0.3);
+    const cv = d.vertical * 2 * b * st.weight * wet;
+    const relV = pointVelocity(centreW, tmp).y - sC.velocity[1];
+    addForceAt(tmp.set(0, -cv * relV, 0), centreW);
+
+    // ── Horizontal drag at the immersed centroid, in vessel axes ──
+    pointVelocity(pt, tmp);
+    tmp.x -= sC.velocity[0];
+    tmp.z -= sC.velocity[2];
+    tmp.y = 0;
+    tmp.applyQuaternion(qInv); // relative velocity in vessel axes (x = sway, z = surge)
+    const aLat = sub.maxDepth * st.weight;
+    const fx = -(d.lateralLinear * aLat * tmp.x + 0.5 * rho * d.lateralCd * aLat * Math.abs(tmp.x) * tmp.x);
+    const fz = -(d.surgeLinear * sub.area * tmp.z + 0.5 * rho * d.surgeCd * sub.area * Math.abs(tmp.z) * tmp.z);
+    addForceAt(tmp.set(fx, 0, fz).applyQuaternion(q), pt);
+  }
+
+  const immersion = Math.min(1, submergedVolume / def.designVolume);
+  if (debug) debug.submergedVolume = submergedVolume;
+
+  // ── Linear: a = F / m_eff, with added mass per vessel axis ──
+  tmp.copy(force).applyQuaternion(qInv);
+  tmp.set(
+    tmp.x / (def.mass * (1 + def.addedLinear[0] * immersion)),
+    tmp.y / (def.mass * (1 + def.addedLinear[1] * immersion)),
+    tmp.z / (def.mass * (1 + def.addedLinear[2] * immersion)),
+  );
+  v.addScaledVector(tmp.applyQuaternion(q), dt);
+
+  // ── Angular, in vessel axes (x = pitch, y = yaw, z = roll) ──
+  const wb = tmp.copy(w).applyQuaternion(qInv);
+  const tb = tmp2.copy(torque).applyQuaternion(qInv);
+  tb.x -= d.pitch * immersion * wb.x;
+  tb.y -= d.yaw * immersion * wb.y;
+  tb.z -= d.roll * immersion * wb.z;
+  const Ix = def.inertia[0] * (1 + def.addedAngular[0] * immersion);
+  const Iy = def.inertia[1] * (1 + def.addedAngular[1] * immersion);
+  const Iz = def.inertia[2] * (1 + def.addedAngular[2] * immersion);
+  // Gyroscopic term ω × (I·ω)
+  const gx = wb.y * (Iz * wb.z) - wb.z * (Iy * wb.y);
+  const gy = wb.z * (Ix * wb.x) - wb.x * (Iz * wb.z);
+  const gz = wb.x * (Iy * wb.y) - wb.y * (Ix * wb.x);
+  wb.x += ((tb.x - gx) / Ix) * dt;
+  wb.y += ((tb.y - gy) / Iy) * dt;
+  wb.z += ((tb.z - gz) / Iz) * dt;
+  w.copy(wb).applyQuaternion(q);
+
+  // ── Integrate CG position and orientation with the new velocities ──
+  cgW.addScaledVector(v, dt);
+  dq.set(w.x, w.y, w.z, 0).multiply(q);
+  q.set(q.x + 0.5 * dt * dq.x, q.y + 0.5 * dt * dq.y, q.z + 0.5 * dt * dq.z, q.w + 0.5 * dt * dq.w).normalize();
+  pos.fromArray(def.cg).applyQuaternion(q).negate().add(cgW);
+
+  state.position = [pos.x, pos.y, pos.z];
+  state.orientation = [q.x, q.y, q.z, q.w];
+  state.linearVelocity = [v.x, v.y, v.z];
+  state.angularVelocity = [w.x, w.y, w.z];
+}

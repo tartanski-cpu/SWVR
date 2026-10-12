@@ -13,6 +13,9 @@ const ROWS: (KeyAction | KeyAction[])[] = [
   ['up', 'down'],
   'fast',
   ['timeEarlier', 'timeLater'],
+  'dropVessel',
+  'heelVessel',
+  'toggleHydro',
   'toggleOverlay',
   'toggleProbes',
   'toggleHelp',
@@ -87,6 +90,6 @@ export class HelpPanel {
       <div class="hint">Click the 3D view to steer the camera with the mouse · <kbd>Esc</kbd> releases it</div>
       <table>${rows}</table>
       <div class="title">VR</div>
-      <div class="hint">Press <b>Enter VR</b> · <b>B</b> / <b>Y</b> on a controller toggles the debug panel</div>`;
+      <div class="hint">Press <b>Enter VR</b> · <b>B</b> / <b>Y</b> debug panel · <b>A</b> drop boat · <b>X</b> heel boat</div>`;
   }
 }

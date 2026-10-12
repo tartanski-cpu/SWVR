@@ -98,6 +98,65 @@ export const CONFIG = {
     reflectionStrength: 0.75,
   },
 
+  vessels: {
+    /**
+     * 12 m hard-chine displacement workboat. Axes: +X starboard, +Y up, -Z forward;
+     * origin on the centreline, amidships, at the design waterline (DWL).
+     * Hydrostatics of this hull at DWL (computed from the stations, see tests/vessel.test.ts):
+     *   displacement 17.9 m^3 = 18.35 t, LCB 2.25 m aft of amidships, KB 0.62 m,
+     *   GM ~1.17 m with VCG at +0.45 (KG 1.40 m), GZ max ~0.45 m at 30-45 deg.
+     */
+    workboat: {
+      hull: {
+        length: 12.0,
+        beamDeck: 4.2,
+        beamChine: 3.7,
+        keelY: -0.95,
+        chineYAft: -0.4,
+        chineYBow: 0.5,
+        deckYAft: 0.95,
+        deckYBow: 1.5,
+        stations: 17,
+      },
+      /** kg. Chosen to float at the DWL. */
+      mass: 18300,
+      /** Centre of gravity (m, vessel axes). z = LCB so she floats level. */
+      cg: [0, 0.45, 2.25] as [number, number, number],
+      /** Radii of gyration (m): roll ~0.4 B, pitch and yaw ~0.25-0.27 L. */
+      gyradius: { roll: 1.68, pitch: 3.0, yaw: 3.2 },
+      /**
+       * Frequency-independent added mass / added inertia as a fraction of the rigid-body
+       * value, applied in proportion to how much of the hull is immersed. Slows the
+       * motions to a realistic pace without changing the equilibrium.
+       */
+      addedMass: { surge: 0.05, sway: 0.4, heave: 0.6, roll: 0.25, pitch: 0.6, yaw: 0.3 },
+      damping: {
+        /**
+         * Vertical damping per m^2 of waterplane (N*s/m per m^2), applied on the centreline
+         * of every station against velocity relative to the water particles.
+         * Gives heave and pitch damping (~13 % of critical in heave).
+         */
+        vertical: 800,
+        /** Lateral (sway) drag per station: linear (N*s/m per m^2) and quadratic Cd. */
+        lateralLinear: 400,
+        lateralCd: 1.0,
+        /** Longitudinal (surge) drag per station section area: linear and quadratic Cd.
+         *  Placeholder until the resistance curve in milestone 4. */
+        surgeLinear: 300,
+        surgeCd: 0.12,
+        /**
+         * Angular damping (N*m*s/rad). Roll: ~10 % of critical
+         * (critical = 2*sqrt(Delta*g*GM * I_roll) ~ 233 kN*m*s for this hull).
+         */
+        roll: 24000,
+        pitch: 20000,
+        yaw: 20000,
+      },
+      /** Debug: spawn/drop point and drop height (m above the DWL). */
+      spawn: { x: 0, z: -22, dropHeight: 4, headingDeg: 90 },
+    },
+  },
+
   desktop: {
     eyeHeight: 1.7,
     moveSpeed: 4,
@@ -113,7 +172,8 @@ export const CONFIG = {
 
   debug: {
     overlayVisibleAtStart: true,
-    surfaceProbesVisibleAtStart: true,
+    surfaceProbesVisibleAtStart: false,
+    hydroDebugVisibleAtStart: true,
     /** How often the overlay text is refreshed (Hz). */
     overlayUpdateHz: 4,
   },

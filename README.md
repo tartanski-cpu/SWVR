@@ -32,6 +32,9 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | Shift (hold) | Move faster |
 | N / M | Time of day −/+ 30 min |
 | F3 or I | Debug overlay on/off |
+| R | Drop the boat from 4 m (test) |
+| K | Heel the boat 20° and release (roll-decay test) |
+| V | Buoyancy debug view (stations, force arrows, CG) on/off |
 | P | Wave surface probes (magenta spheres) on/off |
 | F1 or H | Help panel on/off |
 
@@ -41,6 +44,8 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 |---|---|
 | Enter VR button | Start the immersive session |
 | B or Y | Toggle the debug panel (front-left of you, at chest height) |
+| A (right) | Drop the boat from 4 m (test) |
+| X (left) | Heel the boat 20° and release (test) |
 
 ## Local development
 
@@ -91,7 +96,9 @@ src/
   ocean/           waves.ts (Gerstner maths shared by CPU physics and the shader), grid, shaders, view
   render/          geometry helpers (vertex-coloured, merged, flat-shaded parts)
   missions/        placeholder only
-  vessel/ controls/ audio/   added in milestones 3-6
+  vessel/          hull form (stations), vessel defs, state, physics (strip hydrostatics,
+                   damping, rigid body), debug intents, view (lofted hull mesh, interpolation)
+  controls/ audio/ added in milestones 4-6
 tests/             vitest: run in plain Node, no browser
 ```
 

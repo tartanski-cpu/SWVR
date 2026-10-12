@@ -22,9 +22,9 @@ This file lets a new session pick up the work cold. Keep it current at the end o
 | # | Milestone | Status |
 |---|---|---|
 | 1 | Scaffold: Vite + TS + Three, desktop camera, Enter VR, debug overlay, HTTPS LAN server, Pages deploy, fixed-tick sim skeleton | **Done** (VR verified by owner on Quest 3; desktop keys reworked for QWERTZ) |
-| 2 | Ocean: Gerstner shader + matching CPU height (with horizontal-displacement inversion), sky dome, sun, fog | **Done, awaiting owner test** |
-| 3 | Floating hull: buoyancy points, drag, debug view | Next |
-| 4 | Propulsion and steering via keyboard; sea-trial measurement command; engine hum | — |
+| 2 | Ocean: Gerstner shader + matching CPU height (with horizontal-displacement inversion), sky dome, sun, fog | **Done** (owner: "Stormworks-like, feels alive", 90 fps on Quest 3) |
+| 3 | Floating hull: strip-theory hydrostatics on hull stations, damping, debug view | **Done, awaiting owner test** |
+| 4 | Propulsion and steering via keyboard; resistance curve; sea-trial measurement command; engine hum | Next |
 | 5 | Interior, player aboard (rig parented to vessel), grab-the-world locomotion, snap-turn, comfort options | — |
 | 6a | Interaction system, throttle lever, start/stop button, haptics | — |
 | 6b | Wheel, nav-lights toggle, horn, live displays | — |
@@ -85,21 +85,61 @@ This file lets a new session pick up the work cold. Keep it current at the end o
 - **Render timing:** views render at `(tick − 1 + alpha)·dt`, one tick behind the sim. Boat interpolation in milestone 3 will use the same convention, so hull and water can't drift apart visually.
 - **Tests (16):** dispersion, Hs range, no-loop condition, inversion accuracy over 600 random points at 3 times, analytic normal vs finite differences, orbital velocity vs time derivative, calm sea.
 
+## Done (milestone 3)
+
+- **Buoyancy method (agreed change from the original columns plan):** strip-theory hydrostatics on the real hull shape.
+  - The hull is 17 transverse stations (`vessel/hullForm.ts`), hard-chine sections with 5-point polygons.
+  - Each tick, each station samples the waves at port chine, centreline and starboard chine. It clips its polygon at that (linear) waterline and applies ρ·g·A·w at the immersed centroid (trapezoidal weights).
+  - This gives true displacement, LCB and the large-angle GZ curve, including deck-edge immersion.
+  - The same stations loft the visible hull, so the drawn waterline and the physics agree.
+- **Hull particulars at DWL** (from the stations):
+  - LOA 12 m, beam 4.2 m at deck and 3.7 m at chine, keel 0.95 m below DWL, 16.6° deadrise aft.
+  - Displacement 17.9 m³ = 18.35 t. Mass is set to 18.3 t.
+  - LCB 2.25 m aft of amidships, and the LCG is set to match.
+  - KB 0.62 m. VCG +0.45 m (KG 1.40 m) gives GM ≈ 1.17 m.
+  - GZ ≈ 0.20 m at 10°, 0.36 at 20°, 0.45 at 30–45°, and still +0.32 at 60°.
+- **Dynamics** (`vessel/physics/vesselPhysics.ts`): a rigid body at the CG with semi-implicit Euler, body-axis angular velocity, the gyroscopic term, and quaternion integration.
+  - Added mass and inertia per axis (surge 5 %, sway 40 %, heave 60 %, roll 25 %, pitch 60 %, yaw 30 %), scaled by immersion.
+  - Vertical damping on the centreline of each station, against velocity relative to the orbital water velocity.
+  - Lateral and longitudinal quadratic + linear drag per station, also relative to the water. The centre of lateral resistance emerges from the hull shape.
+  - Explicit angular damping, with roll at about 10 % of critical.
+- **Measured (headless, calm water):** sinkage 1 mm and trim 0.02° at rest. Natural periods: heave 1.9 s, pitch 2.3 s, roll 3.7 s. Roll decay from 10°: 7.0, 4.9, 3.5, 2.4, …
+- **Measured in the default sea (Hs ≈ 1.25 m):**
+  - Head/following seas: max heel about 5°, trim about 10°.
+  - Waves 45° off the bow: up to about 15°.
+  - **Beam-on: up to about 26° roll**, because the 3.6 s wave component is at roll resonance.
+  - Drift about 1 m in 2 minutes. Physics cost about 60 µs per tick.
+- **Interpolation:** `VesselView` snapshots the pose before each tick and lerps/slerps by alpha. Ocean render time uses the same (tick − 1 + alpha) convention.
+- **Debug:**
+  - Hydro view (V): station outlines, immersed centroids, buoyancy arrows (10 kN = 1 m) and the CG.
+  - Overlay shows heel, trim, heave and immersed tonnage.
+  - Test intents: drop from 4 m (R / right A) and heel 20° (K / left X). Both go through the normal intent path.
+- **Tests (26):** section clipping, displacement = mass at DWL, calm equilibrium, 4 m drop, roll period and decay, positive GZ at 45°, 2 minutes in waves, JSON round trip.
+
+## Open question for the owner
+
+- **Beam-sea roll of about 26°.** Realistic for a lightly damped chine hull at zero speed with wave energy at its roll period, but heavy in VR. Options:
+  - Keep it physical and rely on the comfort options (milestone 5).
+  - Add more roll damping (bilge keels or a skeg).
+  - Raise GM a little to shorten the roll period away from the sea.
+
 ## Next
 
-Milestone 3: the floating hull.
-- A 12 m displacement workboat hull built procedurally.
-- A rigid body with a diagonal inertia tensor and a quaternion for orientation.
-- About 16 buoyancy columns, each with a force of ρ·g·area·immersion and damping against the relative velocity of the water particle.
-- Linear and quadratic hydrodynamic drag, plus angular damping.
-- A debug view showing the sample points and force vectors.
-- Headless tests for equilibrium draft and decay of free heave and roll.
+Milestone 4: propulsion and steering via keyboard.
+- **Engine:** RPM lag, plus a gearbox with forward, neutral and reverse.
+- **Propeller:** thrust ∝ RPM² with a speed-dependent loss.
+- **Rudder:** lift ∝ (water speed + prop wash)² · angle.
+- **Resistance:** a displacement-hull curve with the wave-making rise near Fn 0.4, replacing the placeholder surge drag.
+- **Sea-trial command:** measures top speed, turning circle and stopping distance.
+- **Engine hum:** synthesised with WebAudio.
 
 ## Known issues / notes
 
 - Headless SwiftShader (used for automated screenshots) mis-renders geometry below the horizon when the camera pitch is exactly 0. Real GPUs are unaffected. The desktop camera starts tilted slightly down.
 - npm 10 crashes with `edgesOut` when adding packages because of vitest's optional peer dependencies. `npm ci` works. Use `npx npm@11 install` to add dependencies.
 - The ocean at night is very dark (no moon yet). A moon and night palette come with the day/night work later.
+- **Water inside the hull:** the ocean is drawn wherever it is, so a wave that overtops the deck edge or a steep crest beside the hull can show water "inside" the boat. That will matter once we walk inside (milestone 5). The plan is a depth/stencil mask of the hull interior volume.
+- The splash on the 4 m drop test is dramatic (brief large trim), because slamming loads are not modelled beyond hydrostatics plus damping. It settles cleanly.
 - Wave fading at distance means far-away objects (more than about 40 m from the viewer) can sit a few cm off the drawn surface for the shortest waves. Physics always uses the exact CPU surface.
 - There are no whitecaps or foam yet beyond a faint crest tint. A moderate sea would show some whitecaps; that's a candidate for the polish pass.
 

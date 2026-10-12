@@ -5,7 +5,7 @@ import { IdFactory, ENVIRONMENT_ID, type EntityId } from '../core/ids';
 import { IntentQueue } from '../core/intents';
 import { Keyboard } from '../core/keyboard';
 import { FixedStepLoop } from '../core/loop';
-import { stepWorld } from '../core/simulation';
+import { stepWorld, type SimDebug } from '../core/simulation';
 import { createWorld, type WorldState } from '../core/world';
 import { HelpPanel } from '../debug/helpPanel';
 import { DebugOverlay } from '../debug/overlay';
@@ -18,6 +18,10 @@ import { OceanView } from '../ocean/oceanView';
 import { prepareWaves, type PreparedWave } from '../ocean/waves';
 import { SurfaceProbes } from '../debug/surfaceProbes';
 import { Buoys, createPlatform } from './testScene';
+import { HydroDebugView } from '../debug/hydroDebugView';
+import { VESSEL_DEFS } from '../vessel/vesselDef';
+import { VesselView } from '../vessel/view/vesselView';
+import type { VesselState } from '../vessel/vesselState';
 
 /**
  * Top-level wiring. Owns the renderer, the simulation state and the per-frame loop:
@@ -33,6 +37,8 @@ export class App {
   readonly ids = new IdFactory();
   readonly world: WorldState;
   readonly localPlayerId: EntityId;
+  /** The vessel debug keys act on (milestone 3 has exactly one). */
+  readonly testVesselId: EntityId;
   readonly intents = new IntentQueue();
   private readonly loop = new FixedStepLoop(CONFIG.sim.tickRate, CONFIG.sim.maxTicksPerFrame);
 
@@ -46,6 +52,9 @@ export class App {
   private readonly ocean = new OceanView();
   private readonly buoys = new Buoys();
   private readonly probes = new SurfaceProbes();
+  private readonly vesselViews = new Map<EntityId, VesselView>();
+  private readonly hydroViews = new Map<EntityId, HydroDebugView>();
+  private readonly simDebug: SimDebug = new Map();
   /** Wave constants at the current *render* time (reused every frame). */
   private renderWaves: PreparedWave[] = [];
   private readonly overlay = new DebugOverlay();
@@ -71,6 +80,7 @@ export class App {
     const created = createWorld(this.ids);
     this.world = created.world;
     this.localPlayerId = created.localPlayerId;
+    this.testVesselId = created.vesselId;
 
     this.rig = new PlayerRig(this.localPlayerId, this.camera);
     this.scene.add(this.rig.root);
@@ -81,7 +91,16 @@ export class App {
     this.desktop = new DesktopController(this.camera, this.renderer.domElement, this.keyboard);
     this.environment = new EnvironmentView(this.scene);
     this.scene.add(this.sky.mesh, this.ocean.mesh, this.buoys.mesh, this.probes.mesh, createPlatform());
-    // Stand on the observation platform deck (milestone 2 test scene).
+    for (const vessel of Object.values(this.world.vessels)) {
+      const def = VESSEL_DEFS[vessel.defId];
+      const view = new VesselView(vessel.id, def);
+      const hydro = new HydroDebugView(def, CONFIG.debug.hydroDebugVisibleAtStart);
+      view.root.add(hydro.root);
+      this.scene.add(view.root);
+      this.vesselViews.set(vessel.id, view);
+      this.hydroViews.set(vessel.id, hydro);
+    }
+    // Stand on the observation platform deck (test scene until the player boards in milestone 5).
     this.rig.root.position.y = CONFIG.testScene.platformDeckHeight;
 
     this.setupXR();
@@ -136,7 +155,9 @@ export class App {
     // 2. Fixed-step simulation
     const { ticks, alpha } = this.loop.advance(dt);
     for (let i = 0; i < ticks; i++) {
-      stepWorld(this.world, i === 0 ? this.intents.drain() : [], this.loop.dt);
+      // Keep each vessel's pre-tick pose so views can interpolate across the last tick.
+      for (const [id, view] of this.vesselViews) view.snapshot(this.world.vessels[id]);
+      stepWorld(this.world, i === 0 ? this.intents.drain() : [], this.loop.dt, this.simDebug);
     }
 
     // 3. Views. Rendering runs one tick behind the simulation and interpolates between
@@ -152,6 +173,10 @@ export class App {
     this.ocean.update(this.renderWaves, this.focus, this.environment);
     this.buoys.update(this.renderWaves);
     this.probes.update(this.renderWaves, this.camera);
+    for (const [id, view] of this.vesselViews) {
+      view.update(this.world.vessels[id], alpha);
+      this.hydroViews.get(id)?.update(this.simDebug.get(id));
+    }
 
     // 4. Render
     this.renderer.info.reset();
@@ -165,6 +190,7 @@ export class App {
         tick: this.world.tick,
         timeOfDay: this.world.environment.timeOfDay,
         xr: inXR ? 'presenting' : this.desktop.pointerLocked ? 'desktop (mouse captured)' : 'desktop',
+        extra: this.vesselSummary(this.world.vessels[this.testVesselId]),
       },
       inXR,
     );
@@ -180,9 +206,31 @@ export class App {
     }
     if (k.actionPressed('toggleHelp')) this.help.toggle();
     if (k.actionPressed('toggleProbes')) this.probes.toggle();
+    if (k.actionPressed('toggleHydro')) for (const h of this.hydroViews.values()) h.toggle();
+    if (k.actionPressed('dropVessel') || this.xrInput.wasPressed('right', XR_BUTTON.primary)) this.pushVesselIntent('debugDrop', 0);
+    if (k.actionPressed('heelVessel') || this.xrInput.wasPressed('left', XR_BUTTON.primary)) this.pushVesselIntent('debugHeel', 20);
     const step = CONFIG.environment.timeStepHours;
     if (k.actionPressed('timeEarlier')) this.pushEnvIntent('timeOfDayDelta', -step);
     if (k.actionPressed('timeLater')) this.pushEnvIntent('timeOfDayDelta', step);
+  }
+
+  private pushVesselIntent(control: string, value: number): void {
+    this.intents.push({ playerId: this.localPlayerId, targetId: this.testVesselId, control, value });
+  }
+
+  private readonly attQ = new THREE.Quaternion();
+  private readonly attV = new THREE.Vector3();
+
+  /** One-line motion summary for the debug overlay. */
+  private vesselSummary(v: VesselState | undefined): string {
+    if (!v) return '';
+    const D = 180 / Math.PI;
+    this.attQ.fromArray(v.orientation);
+    const heel = -Math.asin(this.attV.set(1, 0, 0).applyQuaternion(this.attQ).y) * D;
+    const trim = -Math.asin(this.attV.set(0, 0, -1).applyQuaternion(this.attQ).y) * D;
+    const vol = this.simDebug.get(v.id)?.submergedVolume ?? 0;
+    const disp = (vol * CONFIG.ocean.density) / 1000;
+    return `boat heel ${heel.toFixed(1)}°  trim ${trim.toFixed(1)}°  heave ${v.position[1].toFixed(2)} m\nboat immersed ${disp.toFixed(1)} t of ${(VESSEL_DEFS[v.defId].mass / 1000).toFixed(1)} t`;
   }
 
   private pushEnvIntent(control: string, value: number): void {
