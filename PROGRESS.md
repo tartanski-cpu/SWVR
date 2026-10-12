@@ -155,7 +155,7 @@ This file lets a new session pick up the work cold. Keep it current at the end o
 - **Any vessel works end to end:** vessel-specific values (spawn, boarding spot, engine for audio) now come from `VesselDef` rather than `CONFIG.vessels.workboat`. `testScene.vesselDefId` picks the vessel in the scene.
 - **Keys:** L toggles flat calm / moderate sea (environment intent `seaState`). T shows hydrostatics plus trials in game.
 - **Guide:** `docs/TESTING_NEW_BOATS.md`.
-- **Snapshot:** branch `sea-trials-lab` and tag `sea-trials-lab-v1` point at the commit that introduced this.
+- **Snapshot:** branch `sea-trials-lab` points at the commit that introduced this. It is a snapshot to revisit, not a line of development; the lab keeps evolving on the main development branch.
 
 ## Open questions for the owner
 
