@@ -115,3 +115,28 @@ describe('vessel dynamics (headless)', () => {
     expect(JSON.parse(JSON.stringify(world))).toEqual(world);
   });
 });
+
+describe('prop walk (right-handed prop)', () => {
+  const swing = (lever: number) => {
+    const { world, vessel } = setup(true);
+    placeVessel(vessel, 0, 0, 0, 0);
+    const send = (control: string, value: number) => stepWorld(world, [{ playerId: 'p', targetId: vessel.id, control, value }], DT);
+    send('engineStartStop', 1);
+    run(world, 3);
+    send('lever', lever);
+    run(world, 12);
+    const q = new THREE.Quaternion().fromArray(vessel.orientation);
+    const f = new THREE.Vector3(0, 0, -1).applyQuaternion(q);
+    return (Math.atan2(f.x, -f.z) * 180) / Math.PI; // heading change from north, + = to starboard
+  };
+
+  it('going astern from rest with the wheel amidships, the stern walks to port (bow swings to starboard)', () => {
+    expect(swing(-0.6)).toBeGreaterThan(5);
+  });
+
+  it('the effect ahead is much smaller and the other way', () => {
+    const ahead = swing(0.6);
+    expect(ahead).toBeLessThan(0);
+    expect(Math.abs(ahead)).toBeLessThan(Math.abs(swing(-0.6)));
+  });
+});

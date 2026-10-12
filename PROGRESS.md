@@ -250,6 +250,26 @@ The owner asked for "a diesel inboard, not a revvy outboard, with a bigger prop 
   - Desktop: Space / C climb at a ladder.
 - **Tests (67):** multi-level walk area, ladder hand-over-hand climb to the roof and step-off, lever follows the hand even when pointing away, the pointer ray presses buttons but never grabs levers.
 
+## Done (owner feedback, round 3)
+
+- **Stronger rudder, especially power-on.** Slipstream allowance raised from 0.45 to 0.55·T, wash factor from 0.6 to 0.8, stall angle from 25° to 28°. Tactical diameter went from 3.0 L to 2.4 L, holding 7.1 kn in the turn. A first try (0.7·T, C_N slope 2.6) overshot to 1.8 L.
+- **Prop walk.** Right-handed prop: side force at the prop of 3 % of thrust ahead (stern to starboard) and 12 % astern (stern to port), fading with speed (half at 1.5 m/s). Config: `propeller.rightHanded`, `propWalkAhead`, `propWalkAstern`, `propWalkFadeSpeed`. Tests: going astern from rest the bow swings to starboard; the effect ahead is smaller and opposite.
+- **Taller wheelhouse windows.** The window band now runs 0.75–1.95 m above the floor (was 0.95–1.75). It's shared by the geometry and the head-in-wall check.
+
+## Planned next (owner requests, not started)
+
+1. **Fuel and oil temperature (engine management, refuelling).** Fits the existing structure:
+   - New fields in the serializable `EngineState`: `fuelL` (tank litres) and `oilTempC` / `coolantTempC`.
+   - Fuel burn from the torque balance already computed: fuel flow = BSFC(load) × engine power, with BSFC about 210–230 g/kWh near rated. At idle it's a small constant.
+   - Oil/coolant temperature: a first-order thermal model. Heat in ∝ power, heat out ∝ (T − sea temperature) through the heat exchanger, a thermostat at about 82 °C. Overheating derates the governor (rack cap) and can trip an alarm.
+   - Engine stops when the tank is empty. Refuelling is a vessel intent (`refuel`, litres) that a quay or fuel-hose interaction can send later.
+   - New displays (fuel gauge, temperature gauge, alarm lamp) slot into the instrument atlas, and the sea-trials report gains fuel consumption: L/h at speed and range.
+2. **VR menu** to replace the growing list of debug keys and button combinations.
+   - A wrist-mounted menu panel on the left hand. Open it by turning your palm up or with Y. Operate it by poking with the right index or using the existing pointer ray.
+   - It would reuse the `Control` components (Button, Toggle, plus a new Slider) on a panel that follows the left grip.
+   - Contents: motion coupling slider, smooth-walk on/off, snap-turn angle, sea state, time of day, buoyancy/probe debug views, sea-trials report, drop/heel tests, board/leave.
+   - The keyboard bindings stay for desktop.
+
 ## Decision: ocean masking inside the hull (deferred)
 
 The deck and wheelhouse floor are opaque and sit well above the DWL (freeboard about 0.95–1.5 m), so the sea can't show "through" the boat. The only remaining case is green water overtopping the bulwark in big rolls, which is physically what happens; it would need a "freeboard volume" mask to hide. I'll revisit in the polish pass if it's visible in practice. It matters for a future open well-deck or a low-freeboard rescue boat.

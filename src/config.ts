@@ -248,20 +248,30 @@ export const CONFIG = {
         thrustDeduction: 0.18,
         /** Shaft line position (vessel axes, m). */
         position: [0, -0.5, 4.9] as [number, number, number],
+        /**
+         * Prop walk: a right-handed prop (turns clockwise seen from astern when going ahead)
+         * walks the stern to starboard ahead and, much more strongly, to PORT going astern.
+         * Side force = fraction of thrust at the prop, fading out with speed through water.
+         */
+        rightHanded: true,
+        propWalkAhead: 0.03,
+        propWalkAstern: 0.12,
+        /** Speed (m/s) at which prop walk has dropped to half. */
+        propWalkFadeSpeed: 1.5,
       },
       rudder: {
         /** Sized to the big prop: ~1.0 m span x 0.55 m chord, mostly in the slipstream. */
         area: 0.55,
         /** Normal-force slope dC_N/dalpha (per rad) for a low aspect-ratio spade rudder, and stall angle. */
         liftSlope: 2.4,
-        stallDeg: 25,
+        stallDeg: 28,
         maxAngleDeg: 35,
         /** Hydraulic steering rate (deg/s). */
         rateDegPerS: 14,
         /** Fraction of the propeller's slipstream momentum increase seen at the rudder. */
-        washFactor: 0.6,
+        washFactor: 0.8,
         /** Cap on the slipstream's extra rudder force, as a fraction of propeller thrust. */
-        washMaxFraction: 0.45,
+        washMaxFraction: 0.55,
         /** Hull flow straightening of the lateral inflow at the rudder (0..1). */
         flowStraightening: 0.5,
         position: [0, -0.55, 5.65] as [number, number, number],
@@ -283,8 +293,8 @@ export const CONFIG = {
           doorWidth: 0.8,
           doorHeight: 2.0,
           /** Window band, heights above the wheelhouse floor. */
-          windowSill: 0.95,
-          windowHead: 1.75,
+          windowSill: 0.75,
+          windowHead: 1.95,
           /** Helm console across the front of the house. */
           consoleDepth: 0.5,
           consoleHeight: 0.95,

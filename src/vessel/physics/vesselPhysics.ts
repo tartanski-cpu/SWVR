@@ -205,6 +205,12 @@ export function stepVessel(
   const thrust = stepEngineAndPropeller(state, def, -relRz, propWet, dt);
   // Net propulsive force T(1 - t) along the shaft (forward is -z).
   addForceAt(tmp.set(0, 0, -thrust * (1 - def.propeller.thrustDeduction)).applyQuaternion(q), propW);
+  // Prop walk: sideways force at the prop from the blades' asymmetric bite (strongest at low
+  // speed and going astern). Right-handed: stern to starboard ahead, to port astern.
+  const pp = def.propeller;
+  const walkFrac = thrust >= 0 ? pp.propWalkAhead : -pp.propWalkAstern;
+  const walk = Math.abs(thrust) * walkFrac * (pp.rightHanded ? 1 : -1) / (1 + (relRz / pp.propWalkFadeSpeed) ** 2);
+  addForceAt(tmp.set(walk, 0, 0).applyQuaternion(q), propW);
   rudderForce(state, def, relRx, relRz, thrust, rud);
   addForceAt(tmp.set(rud.x * propWet, 0, rud.z * propWet).applyQuaternion(q), rudderW);
 
