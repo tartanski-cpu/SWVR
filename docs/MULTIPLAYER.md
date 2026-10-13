@@ -12,6 +12,8 @@ Everyone can use every control. **Levers, the wheel and the searchlight joystick
 
 **Names:** Crew tab → **Your name** → **Change** cycles through Skipper, Mate, Bosun and so on (typing in VR is awkward). Your name shows on a tag over your head and can be changed mid-game.
 
+**Cargo together:** anyone can pick up, carry, set down and lash cargo. A crate in someone's hands shows in their avatar's hands, and nobody else can take it until they set it down. If a player leaves while carrying something, it's set down where they stood.
+
 ## Design
 
 **Host-authoritative peer-to-peer** over WebRTC data channels, using [PeerJS](https://peerjs.com/) (about 100 KB, approved by the owner).

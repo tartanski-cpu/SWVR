@@ -27,7 +27,10 @@ The owner's feature ideas, in roughly the order they came up, with their status.
 | Low exhaust at the stern so you see it when backing up; no water spray, dirtier smoke | **Done** | Transom outlet, grey-brown diesel smoke. |
 | Cabin light | **Done** | Console switch, ceiling lamp. |
 | Controllable searchlight, controls on the bridge | **Done** | SPOT switch and a joystick to port of the wheel; lights the water, quays and islands. |
-| Cargo: pick up at one port, deliver to another | **Partly** | Basic version: load and unload by menu, cargo has real weight. Not yet: carrying cargo by hand, pay or economy. |
+| Cargo: pick up at one port, deliver to another | **Partly** | Carried by hand to and from the boat, delivered by setting it down at the destination, real weight in her stability. Not yet: pay or economy. |
+| Jump off the boat, walk ashore, swim | **Done** | Jump (A / Space) onto quays and back aboard, into the sea; swim, climb out at the gunwale, transom or a quay. |
+| Grab cargo crates and tie them down | **Done** | Hand-carried crates, sacks, bottles and drums; loose cargo slides on deck and can go over the side; lash to D-rings. |
+| Deck crane or davit | **Open** | To bring back heavy (tonne) cargo that can't be carried by hand. |
 
 ## Bridge and controls
 
@@ -70,9 +73,9 @@ The owner's feature ideas, in roughly the order they came up, with their status.
 
 These came out of the work above rather than being separate requests:
 
-- **Walking ashore** onto quays and piers.
-- **Solid deck cargo,** so you can't walk through it.
-- **Carrying cargo by hand.**
+- ~~**Walking ashore** onto quays and piers.~~ Done.
+- **Solid deck cargo,** so you can't walk through it. (Crates now bump each other, but you can still walk through them.)
+- ~~**Carrying cargo by hand.**~~ Done.
 - **Mooring lines,** once weather or current gives them something to hold against.
 - **Breaking waves** on beaches.
 - **A moon,** so nights aren't so dark.

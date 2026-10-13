@@ -23,6 +23,8 @@ export class DesktopPointer {
     private readonly interaction: InteractionSystem,
     /** The menu, when open, takes the reticle before the bridge controls. */
     private readonly menu: WristMenu,
+    /** Cargo: picked up and set down with a click when the reticle isn't on a control. */
+    private readonly cargo?: { carrying(): boolean; label(ray: THREE.Ray | null): string | null; click(ray: THREE.Ray | null): boolean },
   ) {
     document.addEventListener('mousedown', (e) => {
       if (document.pointerLockElement !== canvas || e.button !== 0) return;
@@ -69,9 +71,15 @@ export class DesktopPointer {
       ray = this.ray;
     }
     const onMenu = this.menu.updateDesktop(ray, this.pressed);
-    const ctlRay = onMenu ? null : ray;
-    this.desktop.lookFrozen = this.interaction.updateDesktop(ctlRay, this.down, this.pressed && !onMenu, this.released, this.dx, this.dy);
-    const label = onMenu ? null : this.interaction.desktopHoverLabel;
+    // While carrying, a click sets the item down, whatever the reticle is on.
+    const carrying = !onMenu && !!this.cargo?.carrying();
+    const ctlRay = onMenu || carrying ? null : ray;
+    this.desktop.lookFrozen = this.interaction.updateDesktop(ctlRay, this.down, this.pressed && !onMenu && !carrying, this.released, this.dx, this.dy);
+    let label = onMenu ? null : this.interaction.desktopHoverLabel;
+    if (!onMenu && !label && this.cargo) {
+      if (this.pressed && locked) this.cargo.click(ray);
+      label = this.cargo.label(ray);
+    }
     this.reticle.style.display = locked ? 'block' : 'none';
     this.reticle.textContent = label ? `+\n${label}` : '+';
     this.endFrame();

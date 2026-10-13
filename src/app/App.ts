@@ -21,7 +21,9 @@ import { HydroDebugView } from '../debug/hydroDebugView';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 import { VesselView } from '../vessel/view/vesselView';
 import { EngineAudio } from '../audio/engineAudio';
-import { platformWalkArea, vesselWalkArea, type WalkArea } from '../vessel/layout';
+import { hullPlan, vesselWalkArea, type WalkArea } from '../vessel/layout';
+import { climbOut, jump, swimArea, updateAir, updateSwim, type BodyVessel } from '../player/body';
+import { worldWalkArea } from '../world/landWalkArea';
 import { leverDemand } from '../vessel/physics/propulsion';
 import { Locomotion } from '../player/locomotion';
 import { ComfortOverlay, MotionDecoupler } from '../player/comfort';
@@ -32,7 +34,8 @@ import { placeInFront } from '../ui/placeInFront';
 import { canRefuel, releaseHolds } from '../vessel/vesselControl';
 import { PORTS } from '../world/archipelago';
 import { groundHeight } from '../world/terrain';
-import { aboard, cargoLabel, cargoPortAt, loadBlocker, payloadMass, unloadBlocker, type CargoItem } from '../cargo/cargo';
+import { aboard, carriedBy, dropCarried, cargoLabel, cargoPortAt, kindOf, loadBlocker, payloadMass, portAtPoint, skiffPortAt, unloadBlocker, type CargoItem } from '../cargo/cargo';
+import { CargoHands, type CargoHandsContext } from '../cargo/cargoHands';
 import { CargoView } from '../cargo/cargoView';
 import { berthById } from '../vessel/physics/mooring';
 import { XRControllers } from '../player/xrControllers';
@@ -99,7 +102,18 @@ export class App {
   /** Which vessel (if any) the local rig is currently parented to. */
   private rigParentId: EntityId | null | undefined = undefined;
   private readonly walkAreas = new Map<EntityId, WalkArea>();
-  private readonly platformArea = platformWalkArea();
+  /** Off the boat: islands, quays, piers and the platform. */
+  private readonly worldArea = worldWalkArea();
+  private readonly swimArea = swimArea();
+  private readonly hullPlans = new Map<EntityId, BodyVessel['plan']>();
+  private readonly bodyW = new THREE.Vector3();
+  private readonly carryV = new THREE.Vector3();
+  private readonly tmpRay = new THREE.Ray();
+  private readonly carryQ = new THREE.Quaternion();
+  private readonly tmpQ2 = new THREE.Quaternion();
+  private readonly yAxis = new THREE.Vector3(0, 1, 0);
+  /** Set when the body changes frame (jump, landing, climbing out): don't reset the view. */
+  private keepViewOnReparent = false;
   private readonly locomotion = new Locomotion();
   private readonly comfortOverlay = new ComfortOverlay();
   private readonly controllers: XRControllers;
@@ -113,6 +127,7 @@ export class App {
   private readonly waterAudio = new WaterAudio();
   private readonly worldView = new WorldView();
   private readonly cargoView = new CargoView();
+  private readonly cargoHands = new CargoHands();
   private readonly vesselRoots = new Map<string, THREE.Object3D>();
   private readonly hands: Record<'left' | 'right', HandFrame> = {
     left: { tracked: false, grip: new THREE.Vector3(), ray: new THREE.Ray(), gripDown: false, gripPressed: false, triggerDown: false, triggerPressed: false },
@@ -183,7 +198,7 @@ export class App {
 
     this.desktop = new DesktopController(this.camera, this.renderer.domElement, this.keyboard);
     this.environment = new EnvironmentView(this.scene);
-    this.scene.add(this.sky.mesh, this.ocean.mesh, this.buoys.mesh, this.probes.mesh, createPlatform(), this.worldView.root, this.cargoView.mesh);
+    this.scene.add(this.sky.mesh, this.ocean.mesh, this.buoys.mesh, this.probes.mesh, createPlatform(), this.worldView.root, this.cargoView.root);
     for (const vessel of Object.values(this.world.vessels)) {
       const def = VESSEL_DEFS[vessel.defId];
       const view = new VesselView(vessel.id, def);
@@ -195,6 +210,7 @@ export class App {
       this.walkAreas.set(vessel.id, vesselWalkArea(def, def.layout));
       this.effects.set(vessel.id, new VesselEffects(def, view.root, this.scene, this.ocean.sharedUniforms));
       this.vesselRoots.set(vessel.id, view.root);
+      this.cargoView.attachVessel(view.root, vessel.defId);
     }
     this.setupBridge();
 
@@ -271,6 +287,7 @@ export class App {
     // 3. Views
     this.renderWaves = prepareWaves(this.world.environment.waves, renderTime, this.renderWaves);
     this.syncRigToPlayer(dt);
+    this.cargoHands.tick(this.cargoCtx(), dt);
     if (!inXR) this.desktop.update(dt);
     this.updateInteraction(inXR);
     this.updateLocomotion(dt, inXR);
@@ -308,7 +325,7 @@ export class App {
     this.ocean.setPortLight(this.worldView.portLighting.flood);
     const fxTest = this.effects.get(this.testVesselId);
     if (fxTest) this.ocean.setSpotlight(fxTest.searchlight.light);
-    this.cargoView.update(this.world, this.vesselRoots);
+    this.cargoView.update(this.world, this.vesselRoots, (c) => this.carriedPose(c), this.cargoHands.hovered);
     this.updateNetPose(dt);
     this.avatars.update(this.world, this.localPlayerId, this.vesselRoots, dt);
     if (testView && testVessel) {
@@ -380,6 +397,11 @@ export class App {
     if (k.actionPressed('toggleHydro')) for (const h of this.hydroViews.values()) h.toggle();
     if (k.actionPressed('dropVessel')) this.pushVesselIntent('debugDrop', 0);
     if (k.actionPressed('flyMode')) this.desktop.toggleFly();
+    if (k.actionPressed('lash') && !this.renderer.xr.isPresenting) {
+      this.camera.getWorldPosition(this.tmpRay.origin);
+      this.camera.getWorldDirection(this.tmpRay.direction);
+      this.cargoHands.desktopLash(this.cargoCtx(), this.tmpRay);
+    }
     this.handleDebugDriving(dt);
     if (k.actionPressed('engine')) this.requestEngineStartStop();
     // Motion coupling: hold X and push the left stick up/down (VR), or 9 / 0 (desktop).
@@ -447,9 +469,11 @@ export class App {
     if (p.aboardVesselId !== this.rigParentId) {
       (vesselView?.root ?? this.scene).add(this.rig.carrier);
       this.rigParentId = p.aboardVesselId;
-      this.desktop.resetPose();
+      // Jumping and climbing keep your view; teleports (menu, B) face you forward.
+      if (!this.keepViewOnReparent) this.desktop.resetPose();
       this.decoupler.reset();
     }
+    this.keepViewOnReparent = false;
     const carrier = this.rig.carrier;
     carrier.position.fromArray(p.position);
     if (vesselView) {
@@ -468,14 +492,95 @@ export class App {
     this.camera.updateWorldMatrix(true, false);
   }
 
+  /** Vessels as the body module sees them (rendered roots, walk areas, hull plans). */
+  private bodyVessels(): BodyVessel[] {
+    const out: BodyVessel[] = [];
+    for (const [id, view] of this.vesselViews) {
+      const state = this.world.vessels[id];
+      const def = state && VESSEL_DEFS[state.defId];
+      if (!def) continue;
+      let plan = this.hullPlans.get(id);
+      if (!plan) this.hullPlans.set(id, (plan = hullPlan(def)));
+      out.push({ id, root: view.root, area: this.walkAreas.get(id)!, plan, state });
+    }
+    return out;
+  }
+
+  /**
+   * Jumping, flying through the air, swimming and climbing out (player/body.ts). Returns
+   * true if the body handled movement this frame (so walking locomotion is skipped).
+   */
+  private updateBody(dt: number, inXR: boolean, area: WalkArea, frame: THREE.Object3D): boolean {
+    const p = this.world.players[this.localPlayerId];
+    const mode = p.mode ?? 'walk';
+    const jumpPressed = inXR ? this.xrInput.wasPressed('right', XR_BUTTON.primary) : this.keyboard.actionPressed('jump');
+    const rigW = this.rig.root.getWorldPosition(this.tmpV);
+    const headOffset = this.offsetV.copy(this.headW).sub(rigW).setY(0);
+    const headHeight = this.headW.y - rigW.y;
+    const bodyW = this.bodyW.copy(this.headW).setY(rigW.y);
+    const pulseBoth = (i: number, ms: number) => {
+      this.xrInput.pulse('left', i, ms);
+      this.xrInput.pulse('right', i, ms);
+    };
+
+    if (mode === 'walk') {
+      if (!jumpPressed) return false;
+      const headL = frame.worldToLocal(this.tmpV.copy(this.headW));
+      if (area.ladderAt(headL.x, headL.z)) return false; // Space climbs ladders
+      const v = p.aboardVesselId ? this.vesselViews.get(p.aboardVesselId) : undefined;
+      jump(p, v && p.aboardVesselId ? { root: v.root, state: this.world.vessels[p.aboardVesselId] } : null, this.headFwd);
+      this.keepViewOnReparent = true;
+      return true;
+    }
+    if (mode === 'air') {
+      const ev = updateAir(p, dt, headOffset, this.bodyVessels(), this.worldArea, this.renderWaves);
+      if (ev) this.keepViewOnReparent = true;
+      if (ev === 'landedDeck' || ev === 'landedLand') pulseBoth(0.5, 50);
+      if (ev === 'splash') {
+        pulseBoth(0.7, 120);
+        this.waterAudio.splash(1);
+        this.cargoHands.dropInSea(this.cargoCtx());
+      }
+      this.comfortOverlay.update(dt, 0.6, false);
+      return true;
+    }
+    // Swimming: climb out with a hand on the gunwale or transom, or the jump button near a
+    // hull or quay; otherwise swim (strokes with grab-the-world, or the stick).
+    let out = false;
+    if (inXR) {
+      for (const h of ['left', 'right'] as const) {
+        if (out || !this.xrInput.wasPressed(h, XR_BUTTON.grip)) continue;
+        const hand = this.controllers.worldPosition(h, this.gripW[h]);
+        if (hand) out = climbOut(p, bodyW, hand, this.bodyVessels(), this.renderWaves);
+      }
+    }
+    if (!out && jumpPressed) out = climbOut(p, bodyW, null, this.bodyVessels(), this.renderWaves);
+    if (out) {
+      this.keepViewOnReparent = true;
+      pulseBoth(0.4, 60);
+      return true;
+    }
+    this.runLocomotion(dt, inXR, this.scene, this.swimArea, CONFIG.body.swimSpeed / CONFIG.locomotion.smoothSpeed);
+    this.camera.getWorldPosition(this.headW);
+    const ev = updateSwim(p, dt, this.bodyW.copy(this.headW).setY(p.position[1]), headHeight, this.bodyVessels(), this.worldArea, this.renderWaves);
+    if (ev) this.keepViewOnReparent = true;
+    return true;
+  }
+
   /** Grab-the-world, stick and desktop movement, collision, floor following, comfort overlay. */
   private updateLocomotion(dt: number, inXR: boolean): void {
     const p = this.world.players[this.localPlayerId];
     const frame = (p.aboardVesselId && this.vesselViews.get(p.aboardVesselId)?.root) || this.scene;
-    const area = (p.aboardVesselId && this.walkAreas.get(p.aboardVesselId)) || this.platformArea;
+    const area = (p.aboardVesselId && this.walkAreas.get(p.aboardVesselId)) || this.worldArea;
     // Head from the camera's pose relative to the rig (fresh this frame; see syncRigToPlayer).
     this.camera.getWorldPosition(this.headW);
     this.camera.getWorldDirection(this.headFwd);
+    if (!this.updateBody(dt, inXR, area, frame)) this.runLocomotion(dt, inXR, frame, area, 1);
+    this.placeDebugPanel(inXR);
+  }
+
+  private runLocomotion(dt: number, inXR: boolean, frame: THREE.Object3D, area: WalkArea, speedScale: number): void {
+    const p = this.world.players[this.localPlayerId];
 
     const grabbing = { left: null as THREE.Vector3 | null, right: null as THREE.Vector3 | null };
     if (inXR) {
@@ -488,7 +593,7 @@ export class App {
       const { x, y, z } = this.desktop.walk;
       const c = Math.cos(p.yaw);
       const s = Math.sin(p.yaw);
-      desktopDelta = { x: x * c + z * s, y, z: -x * s + z * c };
+      desktopDelta = { x: (x * c + z * s) * speedScale, y, z: (-x * s + z * c) * speedScale };
     }
     const [lx, ly] = this.xrInput.hands.left.stick;
     const moving = this.locomotion.update(p, {
@@ -498,7 +603,7 @@ export class App {
       head: this.headW,
       headForward: this.headFwd,
       grabbing,
-      moveStick: inXR && !this.xrInput.isDown('left', XR_BUTTON.primary) ? [lx, -ly] : [0, 0],
+      moveStick: inXR && !this.xrInput.isDown('left', XR_BUTTON.primary) ? [lx * speedScale, -ly * speedScale] : [0, 0],
       turnStick: inXR ? this.xrInput.hands.right.stick[0] : 0,
       desktopDelta,
     });
@@ -508,7 +613,9 @@ export class App {
     const headL = frame.worldToLocal(this.headW.clone());
     const inWall = inXR && area.insideSolid(headL.x, headL.y, headL.z);
     this.comfortOverlay.update(dt, inXR ? moving : 0, inWall);
+  }
 
+  private placeDebugPanel(inXR: boolean): void {
     // Debug panel rides on the left wrist when that controller is tracked; while the menu
     // is open it sits beside the menu instead, so both stay readable.
     const left = this.controllers.grips.left;
@@ -626,7 +733,9 @@ export class App {
       },
       cargoAboard: (i) => {
         const c = aboard(this.world, boat().id)[i];
-        return c ? { label: cargoLabel(c), ready: unloadBlocker(boat(), c) === null } : null;
+        if (!c) return null;
+        const lashed = 'vessel' in c.at && c.at.lashed;
+        return { label: `${cargoLabel(c)}${lashed ? ' · lashed' : ' · loose'}`, ready: unloadBlocker(boat(), c) === null };
       },
       cargoWaiting: (i) => {
         const c = this.waitingHere()[i];
@@ -861,7 +970,13 @@ export class App {
 
   private toSolo(): void {
     this.client = null;
-    for (const id of Object.keys(this.world.players)) if (id !== this.localPlayerId) delete this.world.players[id];
+    for (const id of Object.keys(this.world.players)) {
+      if (id === this.localPlayerId) continue;
+      dropCarried(this.world, id);
+      delete this.world.players[id];
+    }
+    // What we carried was ours under the host's id: it stays in our hands under our own.
+    for (const c of carriedBy(this.world, this.localPlayerId)) c.at = { carriedBy: this.soloPlayerId };
     // The local simulation carries on from the last snapshot. Nobody else is here now,
     // and our own holds were under the id the host gave us: start with free hands.
     for (const v of Object.values(this.world.vessels)) releaseHolds(v);
@@ -924,7 +1039,7 @@ export class App {
       },
     );
     this.scene.add(this.interaction.rayLine('left'), this.interaction.rayLine('right'));
-    this.pointer = new DesktopPointer(this.renderer.domElement, this.desktop, this.interaction, this.menu);
+    this.pointer = new DesktopPointer(this.renderer.domElement, this.desktop, this.interaction, this.menu, this.desktopCargo());
   }
 
   /** Feed hands (VR) or the reticle (desktop) to the bridge controls. */
@@ -947,10 +1062,25 @@ export class App {
         this.hands.right.triggerPressed = false;
       }
       this.busyHands = this.interaction.updateXR(this.hands);
+      this.cargoHands.updateXR(this.cargoCtx(), this.hands, this.busyHands);
+      for (const h of ['left', 'right'] as const) if (this.cargoHands.busy(h)) this.busyHands[h] = true;
       this.pointer?.hide();
       return;
     }
     this.pointer?.update(this.camera);
+  }
+
+  /** Desktop cargo: label under the reticle, and clicks (see DesktopPointer). */
+  private desktopCargo() {
+    return {
+      carrying: () => this.cargoHands.carrying,
+      label: (ray: THREE.Ray | null) => {
+        this.camera.getWorldPosition(this.headW);
+        this.camera.getWorldDirection(this.headFwd);
+        return this.cargoHands.updateDesktop(this.cargoCtx(), ray, this.headW, this.headFwd);
+      },
+      click: (ray: THREE.Ray | null) => this.cargoHands.desktopClick(this.cargoCtx(), ray),
+    };
   }
 
   /** Engine start/stop with feedback when the neutral-start interlock refuses. */
@@ -969,13 +1099,50 @@ export class App {
     this.intents.push({ playerId: this.localPlayerId, targetId: this.testVesselId, control, value, ref });
   }
 
-  /** Cargo waiting at the port whose cargo berth the boat is at (stack order). */
+  /** Cargo waiting ashore at the anchorage the boat is anchored off (the skiff's work). */
   private waitingHere(): CargoItem[] {
-    const here = cargoPortAt(this.world.vessels[this.testVesselId]);
+    const here = skiffPortAt(this.world.vessels[this.testVesselId]);
     if (!here) return [];
     return Object.values(this.world.cargo)
-      .filter((c) => 'port' in c.at && c.at.port === here.id)
-      .sort((a, b) => a.at.slot - b.at.slot);
+      .filter((c) => 'ground' in c.at && portAtPoint(c.at.ground[0], c.at.ground[2])?.id === here.id)
+      .sort((a, b) => (a.id < b.id ? -1 : 1));
+  }
+
+  /** The cargo hands' view of the app. */
+  private cargoCtx(): CargoHandsContext {
+    return {
+      world: this.world,
+      playerId: this.localPlayerId,
+      frame: this.playerFrame(),
+      vesselRoots: this.vesselRoots,
+      push: (control, targetId, ref, value, args) => this.intents.push({ playerId: this.localPlayerId, targetId, control, value, ref, args }),
+      notify: (text) => this.overlay.notify(text, 2.5),
+      pulse: (h, i, ms) => this.xrInput.pulse(h, i, ms),
+    };
+  }
+
+  /**
+   * Where a carried item is drawn: in our own hands (from the cargo hands), or in another
+   * player's avatar hands (both hands' midpoint, or one; desktop players carry it in front).
+   */
+  private carriedPose(c: CargoItem): { pos: THREE.Vector3; quat: THREE.Quaternion } | null {
+    const local = this.cargoHands.localPose(c);
+    if (local) return local;
+    if (!('carriedBy' in c.at)) return null;
+    const p = this.world.players[c.at.carriedBy];
+    if (!p || p.id === this.localPlayerId || !p.avatar) return null;
+    const frame = (p.aboardVesselId && this.vesselRoots.get(p.aboardVesselId)) || this.scene;
+    const { head, left, right } = p.avatar;
+    const hq = this.attQ.set(head[3], head[4], head[5], head[6]);
+    const yaw = 2 * Math.atan2(hq.y, hq.w);
+    const pt = this.carryV;
+    if (left && right) pt.set((left[0] + right[0]) / 2, (left[1] + right[1]) / 2, (left[2] + right[2]) / 2);
+    else if (left || right) pt.fromArray((left ?? right)!);
+    else pt.set(head[0] - Math.sin(yaw) * 0.7, head[1] - 0.85, head[2] - Math.cos(yaw) * 0.7);
+    pt.y -= kindOf(c).size[1] / 2;
+    frame.localToWorld(pt);
+    const quat = frame.getWorldQuaternion(this.carryQ).multiply(this.tmpQ2.setFromAxisAngle(this.yAxis, yaw));
+    return { pos: pt, quat };
   }
 
 

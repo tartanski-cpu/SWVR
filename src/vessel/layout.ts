@@ -45,6 +45,20 @@ function stationLerp(def: VesselDef, z: number, get: (i: number) => number): num
   return get(st.length - 1);
 }
 
+/**
+ * The hull in plan, vessel axes: half-beam at deck level and deck height at z, and the
+ * transom and stem positions. Used for swimmers (pushed clear of the hull, climbing out).
+ */
+export function hullPlan(def: VesselDef): { halfBeam(z: number): number; deckY(z: number): number; transom: number; stem: number } {
+  const st = def.hull.stations;
+  return {
+    halfBeam: (z) => stationLerp(def, z, (i) => st[i].halfBeamDeck),
+    deckY: (z) => stationLerp(def, z, (i) => st[i].polygon[0][1]),
+    transom: st[0].z,
+    stem: st[st.length - 1].z,
+  };
+}
+
 interface Surface {
   height(x: number, z: number): number;
   contains(x: number, z: number): boolean;

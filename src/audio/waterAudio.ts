@@ -139,4 +139,9 @@ export class WaterAudio {
   update(speed: number, slam: number, lap: number, distance: number, dt: number): void {
     this.sound?.update(speed, slam, lap, 1 / (1 + distance / 10), dt);
   }
+
+  /** Something (you, a crate) hitting the water nearby: `strength` 0..1. */
+  splash(strength: number, distance = 0): void {
+    this.sound?.splash(strength, 1 / (1 + distance / 10));
+  }
 }

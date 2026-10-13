@@ -29,6 +29,8 @@ export const KEYS = {
   helmMidships: { codes: ['KeyG'], description: 'Wheel amidships' },
   engine: { codes: ['KeyE'], description: 'Engine start / stop (lever in neutral)' },
   board: { codes: ['KeyB'], description: 'Board the boat / back to the platform' },
+  lash: { codes: ['KeyQ'], description: 'Lash / release the cargo under the reticle' },
+  jump: { codes: ['Space'], description: 'Jump (ashore, aboard, into the sea); climb out when swimming' },
   seaTrials: { codes: ['KeyT'], description: 'Hydrostatics + sea trials report' },
   seaState: { codes: ['KeyL'], description: 'Sea state: calm / slight / moderate / rough / storm' },
   flyMode: { codes: ['KeyF'], description: 'Walk / free-fly camera' },

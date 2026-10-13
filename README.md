@@ -47,6 +47,9 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | W A S D | Walk (with collision; Shift = brisk) |
 | F | Toggle walk / free-fly camera (Space / C = up / down when flying) |
 | Space / C at the ladder | Climb up / down (walk forward off the top onto the roof) |
+| Space (elsewhere) | **Jump**: off the boat onto a quay, from a quay aboard, or into the sea. Swimming near the hull or a quay: climb out |
+| Click a cargo item | Pick it up (carried in front of you); click again to set it down |
+| Q on cargo on deck | Lash it to the nearest D-ring / release it |
 | B | Board the boat (you appear at the helm) / back to the platform |
 | Aim **+** and click / drag | Operate the bridge controls (see below) |
 | E | Debug: engine start / stop |
@@ -70,7 +73,11 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | **Grip** with your hand on the throttle lever or wheel | Grab it; it follows your hand (not where the controller points). Two hands work on the wheel |
 | **Trigger** touching a button or switch | Press it (start/stop, horn, nav lights) |
 | Trigger pointing at a button or switch a little out of reach | Pointer-ray fallback for buttons and switches only (a blue line shows the target) |
-| **Grip** on empty air + pull | Move (grab the world). Two grips + twist: turn |
+| **Grip** on empty air + pull | Move (grab the world). Two grips + twist: turn. In the water these are your swimming strokes |
+| **A** | **Jump** (off the boat, onto a quay, into the sea) |
+| **Grip** on a cargo item | Pick it up; it follows your hand. Items over 60 kg need both grips on them. Let go to set it down: on the deck over the boat, ashore over land, lost in the sea |
+| **Trigger** touching cargo on deck | Lash it to the nearest D-ring (orange straps) / release it |
+| **Grip** on the gunwale or transom while swimming | Haul yourself aboard (A near a quay climbs out there) |
 | **Grip + pull down at the ladder** | Climb (aft face of the wheelhouse, up to the railed roof). Push up to climb down |
 | **Y** | **Menu** on your left wrist (see below) |
 | Left stick | Walk (head-relative; can be switched off in the menu) |
@@ -88,13 +95,13 @@ The menu stands above your left hand. Use the **right** controller on it in one 
 
 While your right hand is on the menu, its trigger doesn't reach the bridge controls behind it. If the left controller isn't tracked, the menu floats in front of you instead.
 
-The menu has five tabs along the top:
+The menu has six tabs along the top:
 
 | Tab | Settings |
 |---|---|
 | Sea & time | Time of day ±1 h / ±10 min; time flow stopped / ×60 / ×600; sea state Calm / Slight / Moderate / Rough / Storm, with ± for the wave height (Hs 0–3.6 m); bearing and range to each port |
 | Boat | Board / leave; fuel and **Refuel** (at a fuel berth); anchor status; sea-trials report on a big panel in front of you (the game freezes for about a second while the trials run) |
-| Cargo | Where you are, payload, deliveries; cargo aboard (**Unload** at its destination) and cargo waiting at this port (**Load**) |
+| Cargo | Where you are, payload, deliveries; cargo aboard (lashed or loose). At an anchorage, the port's **skiff** brings goods out and takes them ashore |
 | Comfort | Motion coupling ±10 %, stick walking on/off, snap-turn angle. Remembered on the device |
 | Tests | Drop from 4 m, heel 20°; engine faults (fuel to 5 %, raw-water pump failure); perf panel, buoyancy view, wave probes |
 
@@ -126,6 +133,14 @@ The dash shows:
 - **Fuel:** the tank holds 600 L. Flat out burns about 49 L/h; 6–7 kn about 11 L/h. Run dry and the engine stops; it won't restart until you refuel.
 - **Cold start:** the engine starts cold and smokes white until it warms up, which takes about 5 minutes under way.
 - **Overheating:** with the pump-failure fault on, it overheats under load. The alarm sounds at 95 °C, power is derated from 100 °C, and it shuts down at 115 °C. Ease off before that.
+
+## Off the boat, and cargo by hand
+
+- **Walking ashore:** jump (A / Space) from the deck onto a quay or pier when you're alongside, and back aboard the same way. You keep the boat's own speed when you jump, so jumping off a moving boat is a bad idea. Quays you hit just below the top you clamber onto. Beaches you can wade out from.
+- **Swimming:** land in the sea and you float with your head just above the water. Swim with grab-the-world strokes or the stick. Climb out by gripping the gunwale or the transom, or press A beside a quay.
+- **Cargo:** each port has goods waiting in a row on its quay or beach, coloured by destination. They're man-portable (30–110 kg). Carry one to the boat, set it on the deck, and at its destination set it down ashore near that port's goods stack to deliver it. Dropped in the sea, it's lost.
+- **Lashing:** loose cargo slides when the deck heels or accelerates past friction (μ ≈ 0.35, so from about 19° of heel, sooner in a seaway) and goes over the rail if pressed against it hard enough (about 33°). Strap it to a D-ring (the rings along the bulwarks and centreline) and it stays put. Cargo is real weight in her stability: stow it all to one side and she lists.
+- **Selkie Bay** has no quay: anchor in the bay and the bothy's skiff brings goods out and takes them ashore (Cargo tab).
 
 ## The archipelago
 

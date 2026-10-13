@@ -17,6 +17,8 @@ export interface Intent {
   value: number;
   /** Optional entity reference, e.g. the vessel to board. */
   ref?: EntityId;
+  /** Optional extra numbers, e.g. where a crate is set down (x, y, z, yaw). */
+  args?: number[];
 }
 
 /** FIFO of intents waiting for the next simulation tick. */

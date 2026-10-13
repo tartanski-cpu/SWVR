@@ -32,6 +32,8 @@ export interface WorldState {
   cargoSeq: number;
   /** Deliveries completed. */
   deliveries: number;
+  /** Items lost overboard or dropped in the sea. */
+  lost?: number;
 }
 
 export function createWorld(

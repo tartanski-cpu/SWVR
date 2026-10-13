@@ -17,6 +17,13 @@ export interface PlayerState {
   /** Rig heading about +Y (radians). */
   yaw: number;
   /**
+   * What the body is doing (player/body.ts): standing or walking on something, in the air
+   * after a jump (world frame, with `velocity`), or swimming (world frame). Absent = walk.
+   */
+  mode?: 'walk' | 'air' | 'swim';
+  /** World velocity while in the air (m/s). */
+  velocity?: Vec3;
+  /**
    * Head and hands as other players should see them (multiplayer), in the same frame as
    * `position`: head (x, y, z, qx, qy, qz, qw), hands (x, y, z) or null if not tracked.
    */

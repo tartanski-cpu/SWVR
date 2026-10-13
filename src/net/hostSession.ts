@@ -4,6 +4,7 @@ import type { WorldState } from '../core/world';
 import { createPlayerState } from '../player/playerState';
 import { placeOnPlatform } from '../player/playerControl';
 import { releaseHolds } from '../vessel/vesselControl';
+import { dropCarried } from '../cargo/cargo';
 import { NET_RATE, type ClientMessage, type HostMessage } from './protocol';
 import type { HostTransport, Link } from './transport';
 
@@ -66,6 +67,7 @@ export class HostSession {
   private drop(link: Link): void {
     const peer = this.peers.get(link.id);
     if (!peer) return;
+    dropCarried(this.world, peer.playerId);
     delete this.world.players[peer.playerId];
     for (const v of Object.values(this.world.vessels)) releaseHolds(v, peer.playerId);
     this.peers.delete(link.id);
@@ -92,6 +94,7 @@ export class HostSession {
 
   close(): void {
     for (const { playerId } of this.peers.values()) {
+      dropCarried(this.world, playerId);
       delete this.world.players[playerId];
       for (const v of Object.values(this.world.vessels)) releaseHolds(v, playerId);
     }

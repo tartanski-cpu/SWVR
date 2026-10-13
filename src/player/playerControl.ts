@@ -9,6 +9,8 @@ export function placeOnPlatform(p: PlayerState): void {
   p.aboardVesselId = null;
   p.position = [0, CONFIG.testScene.platformDeckHeight, 0];
   p.yaw = 0;
+  p.mode = 'walk';
+  delete p.velocity;
 }
 
 /**
@@ -19,6 +21,8 @@ export function applyPlayerIntent(world: WorldState, p: PlayerState, intent: Int
   switch (intent.control) {
     case 'board': {
       const vessel = intent.ref ? world.vessels[intent.ref] : undefined;
+      p.mode = 'walk';
+      delete p.velocity;
       if (!vessel) {
         placeOnPlatform(p);
         break;

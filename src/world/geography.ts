@@ -85,3 +85,42 @@ export function standingHeight(x: number, z: number): number {
   }
   return groundHeight(x, z);
 }
+
+/** Deck height of the quay or pier covering (x, z), or null if none does. */
+export function blockTop(x: number, z: number): number | null {
+  for (const b of PREPARED) {
+    const dx = x - b.def.x;
+    const dz = z - b.def.z;
+    const l = dx * b.ax + dz * b.az;
+    const w = -dx * b.az + dz * b.ax;
+    if (Math.abs(l) <= b.def.halfLength && Math.abs(w) <= b.def.halfWidth) return b.def.top;
+  }
+  return null;
+}
+
+/**
+ * The nearest quay or pier face within `range` of (x, z) in plan: its deck height and a
+ * point just inside the edge to stand on (for climbing out of the water). Null if none.
+ */
+export function nearestBlockEdge(x: number, z: number, range: number): { top: number; x: number; z: number } | null {
+  let best: { top: number; x: number; z: number } | null = null;
+  let bestD = range;
+  for (const b of PREPARED) {
+    const d = b.def;
+    const dx = x - d.x;
+    const dz = z - d.z;
+    const l = dx * b.ax + dz * b.az;
+    const w = -dx * b.az + dz * b.ax;
+    // Distance from the point to the rectangle (0 inside).
+    const ol = Math.max(0, Math.abs(l) - d.halfLength);
+    const ow = Math.max(0, Math.abs(w) - d.halfWidth);
+    const dist = Math.hypot(ol, ow);
+    if (dist >= bestD) continue;
+    // Stand 0.6 m in from the edge nearest the point.
+    const cl = Math.max(-d.halfLength + 0.6, Math.min(d.halfLength - 0.6, l));
+    const cw = Math.max(-d.halfWidth + 0.6, Math.min(d.halfWidth - 0.6, w));
+    bestD = dist;
+    best = { top: d.top, x: d.x + cl * b.ax - cw * b.az, z: d.z + cl * b.az + cw * b.ax };
+  }
+  return best;
+}

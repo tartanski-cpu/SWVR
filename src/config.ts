@@ -467,18 +467,19 @@ export const CONFIG = {
         catenarySoftness: 3,
       },
       /**
-       * Cargo stowage on the aft deck: slot centres (vessel axes, on the deck) and the most
-       * the boat may carry. Cargo aboard is added to the hull's mass, CG and inertia in the
-       * physics, so a full load sits her deeper and trims her by the stern.
+       * Deck cargo. Items sit wherever they're put on the open deck; their masses and
+       * positions go into the hull's mass, CG and inertia, so a load shifting to one side
+       * gives her a list. Lashing points (D-rings, vessel axes, on the deck) along the aft
+       * bulwarks and centreline: a crate within `lashRange` of one can be strapped down.
        */
       cargo: {
-        slots: [
-          [-0.85, 0.98, 3.1],
-          [0.85, 0.98, 3.1],
-          [-0.85, 0.98, 4.7],
-          [0.85, 0.98, 4.7],
-        ] as [number, number, number][],
         maxPayloadKg: 5000,
+        lashPoints: [
+          [-1.75, 3.0], [-1.75, 4.2], [-1.75, 5.4],
+          [1.75, 3.0], [1.75, 4.2], [1.75, 5.4],
+          [0, 3.6], [0, 5.0],
+        ] as [number, number][],
+        lashRange: 1.1,
       },
       /**
        * Cabin light: a ceiling lamp in the wheelhouse (vessel axes) and its light (cd, m).
@@ -552,16 +553,35 @@ export const CONFIG = {
   /** Cargo between ports (cargo/cargo.ts). */
   cargo: {
     /** Each port keeps this many items waiting (a delivery spawns a replacement elsewhere). */
-    perPort: 3,
-    /** Loading/unloading needs the boat nearly stopped at the berth (m/s). */
+    perPort: 5,
+    /** Skiff loading at an anchorage needs the boat nearly stopped (m/s). */
     maxSpeed: 0.6,
-    /** Kinds of cargo: name, mass (kg) and box size (m: across, height, along). */
+    /** Set an item down ashore within this of its destination's goods stack to deliver it (m). */
+    deliveryRadius: 12,
+    /** Spacing of items waiting in a port's stack row (m). */
+    stackSpacing: 0.9,
+    /**
+     * Kinds of cargo, all man-portable (carried by hand): name, mass (kg), size (m: across,
+     * height, along) and shape. Above `twoHandKg` an item needs both hands.
+     */
     kinds: [
-      { name: 'Crate', mass: 800, size: [1.1, 0.9, 1.0] as [number, number, number] },
-      { name: 'Fish boxes', mass: 600, size: [1.2, 0.7, 0.8] as [number, number, number] },
-      { name: 'Drums', mass: 1100, size: [1.1, 1.0, 1.1] as [number, number, number] },
-      { name: 'Sacks', mass: 1400, size: [1.2, 0.8, 1.2] as [number, number, number] },
+      { name: 'Crate', mass: 40, size: [0.6, 0.45, 0.5] as [number, number, number], shape: 'box' as const },
+      { name: 'Fish box', mass: 30, size: [0.8, 0.3, 0.5] as [number, number, number], shape: 'box' as const },
+      { name: 'Sack', mass: 50, size: [0.55, 0.3, 0.85] as [number, number, number], shape: 'box' as const },
+      { name: 'Gas bottle', mass: 70, size: [0.32, 1.1, 0.32] as [number, number, number], shape: 'drum' as const },
+      { name: 'Oil drum', mass: 110, size: [0.58, 0.88, 0.58] as [number, number, number], shape: 'drum' as const },
     ],
+    twoHandKg: 60,
+    /**
+     * Unlashed cargo on deck slides when the apparent gravity along the deck (heel, trim,
+     * the deck's own accelerations in a seaway, slams) beats friction: wood/steel on a wet
+     * steel deck, μ ≈ 0.35. Pressed against the bulwark by more than `overboardG` (in g)
+     * along the deck, it goes over the rail.
+     */
+    friction: 0.35,
+    overboardG: 0.55,
+    /** Accelerations above this (g) are clipped: penalty-contact spikes aren't real. */
+    maxDeckG: 3,
   },
 
   /** Water effects (all one draw call each; see vessel/view/wakeTrail.ts and spray.ts). */
@@ -634,6 +654,34 @@ export const CONFIG = {
     snapThreshold: 0.7,
     /** Floor-height following time constant (s), smooths steps like the doorway sill. */
     floorSmoothing: 0.12,
+  },
+
+  /**
+   * The player's body off the deck: walking ashore, jumping, swimming (player/body.ts).
+   * Jumps start with the boat's own velocity at your feet, so leaping off a moving boat
+   * carries you along with her, as it would.
+   */
+  body: {
+    gravity: 9.81,
+    /** Take-off speed up and along your view (m/s): ~0.55 m high, ~2 m long from standing. */
+    jumpUp: 3.3,
+    jumpForward: 2.4,
+    /** Hitting a quay face with your feet this far below its top, you clamber up onto it (m). */
+    clamberHeight: 0.8,
+    /** You can stand where the ground is at most this deep under mean water (m). */
+    wadeDepth: 1.0,
+    /** Steepest terrain you can walk up: minimum ground-normal Y (0.55 ≈ 57°). */
+    maxSlopeNormalY: 0.55,
+    /** Swimming: stick speed (m/s), head height above the surface (m), surface-follow time constant (s). */
+    swimSpeed: 0.8,
+    swimHeadAbove: 0.15,
+    swimSmoothing: 0.4,
+    /** Climbing out: a gripping hand this close to the gunwale or transom hauls you aboard (m). */
+    climbReach: 0.45,
+    /** Jump / grip while swimming within this of the hull or a quay face climbs out (m). */
+    climbOutRange: 1.3,
+    /** Highest quay or pier deck above the water you can climb onto from the water (m). */
+    quayClimbMax: 2.8,
   },
 
   comfort: {
