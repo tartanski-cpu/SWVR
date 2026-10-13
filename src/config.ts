@@ -35,6 +35,8 @@ export const CONFIG = {
     startTimeOfDay: 10.5,
     /** Game-hours per real second. 0 = frozen sun. */
     timeScale: 0,
+    /** Sea (and air) temperature (°C): a cold engine starts here, the cooler rejects heat to it. */
+    seaTempC: 14,
     /** Hours added per keypress of N / M (debug). */
     timeStepHours: 0.5,
     /** Observer latitude and solar declination drive the sun path (degrees). */
@@ -225,6 +227,58 @@ export const CONFIG = {
         shiftDelay: 0.6,
         /** Lever travel either side of centre that counts as neutral (detent). */
         neutralBand: 0.08,
+        /**
+         * Fuel. The rack sets fuel per stroke and strokes per second follow RPM, so fuel flow
+         * follows indicated power:  m_dot = sfc(rack) * rack * Q_max(rpm) * omega,
+         * sfc(rack) = sfc * (1 + partLoadPenalty * (1 - rack)^2)  (worse at light load).
+         * At rated power that is ~52 L/h; at idle ~1.8 L/h.
+         */
+        fuel: {
+          tankL: 600,
+          /** Fuel aboard at the start (L). */
+          startL: 420,
+          /** Specific fuel consumption at full rack, on indicated power (g/kWh). */
+          sfcGPerKWh: 205,
+          partLoadPenalty: 0.3,
+          densityKgPerL: 0.84,
+          /** Low-fuel warning below this fraction of the tank. */
+          lowFraction: 0.1,
+          /** Fuel berth delivery rate (L/s). */
+          refuelRateLps: 2.5,
+        },
+        /**
+         * Cooling and temperatures. One lumped heat capacity (block + coolant):
+         *   C dT/dt = Q_in - UA (T - T_sea)
+         *   Q_in = heatToCoolant * fuel energy rate (m_dot * LHV)
+         *   UA   = baseLoss + exchanger * thermostat opening (0 at openC .. 1 at fullC),
+         *          the exchanger only working while the engine-driven raw-water pump turns.
+         * Oil follows the coolant with a lag, running hotter under load.
+         */
+        thermal: {
+          heatToCoolant: 0.3,
+          lhvMJPerKg: 42.7,
+          /** kJ/K; about half a real engine's, so warming up takes minutes rather than half an hour. */
+          heatCapacity: 150,
+          thermostatOpenC: 80,
+          thermostatFullC: 88,
+          /** Sea-water heat exchanger conductance, thermostat fully open (kW/K). */
+          exchangerKwPerK: 2.2,
+          /** Losses with the thermostat shut or the engine stopped (kW/K). */
+          baseLossKwPerK: 0.03,
+          /** A failed raw-water pump impeller leaves this fraction of the exchanger working. */
+          faultExchangerFraction: 0.08,
+          /** High-temperature alarm (°C). */
+          alarmC: 95,
+          /** Governor derates the rack linearly to `derateRack` between these (°C)... */
+          derateStartC: 100,
+          derateFullC: 110,
+          derateRack: 0.3,
+          /** ...and the engine protection stops it above this (°C). */
+          shutdownC: 115,
+          /** Oil temperature lag behind the coolant (s) and extra rise at full load (°C). */
+          oilLagS: 90,
+          oilLoadRiseC: 12,
+        },
       },
       propeller: {
         /** Large, slow, four-blade workboat propeller (m). Tip just below the keel line. */
@@ -327,10 +381,15 @@ export const CONFIG = {
         startButton: { position: [0.78, 2.16, -1.52] as [number, number, number] },
         hornButton: { position: [-0.42, 2.16, -1.52] as [number, number, number] },
         navLightsSwitch: { position: [-0.78, 2.16, -1.52] as [number, number, number] },
+        /** Windlass: up = heave in / stowed, down = let go. */
+        anchorSwitch: { position: [-0.6, 2.16, -1.52] as [number, number, number] },
         /** Instrument dash across the front of the console: displays on its aft face. */
         dash: { front: -1.82, aft: -1.66, bottom: 2.15, top: 2.56, halfWidth: 1.25, tiltDeg: 14 },
-        /** Display centres (x) on the dash, and their size (m). Order: speed, heading, rpm, rudder. */
-        displays: { x: [-0.95, -0.52, 0.52, 0.95], y: 2.36, width: 0.38, height: 0.22 },
+        /**
+         * Display centres (x) on the dash, and their size (m). Order: speed, heading, rpm,
+         * rudder, engine monitor (centre, behind the wheel - read through the spokes).
+         */
+        displays: { x: [-0.95, -0.52, 0.52, 0.95, 0], y: 2.36, width: 0.38, height: 0.22 },
       },
       /**
        * Wet exhaust: smoke and engine cooling water leave through one outlet in the transom,
@@ -347,11 +406,50 @@ export const CONFIG = {
         starboard: [1.52, 3.42, -1.75] as [number, number, number],
         stern: [0, 2.0, 5.92] as [number, number, number],
       },
+      /**
+       * Anchor, chain and windlass. Chain tension at the bow (horizontal), with x the
+       * horizontal distance bow -> anchor, h the bow height above the seabed, L the chain out:
+       *   x < x_taut = sqrt(L² - h²):  T = w·h·exp((x - x_taut) / softness)   (catenary lifting)
+       *   x ≥ x_taut:                  T = w·h + k·(x - x_taut) + c·dx/dt       (bar taut)
+       * Above `holdingN` the anchor drags. Scope paid out: 4 × depth + 5 m.
+       */
+      anchor: {
+        /** Bow roller / hawse (vessel axes). */
+        hawse: [0, 1.35, -5.7] as [number, number, number],
+        chainM: 60,
+        /** 10 mm chain, weight in water (N/m). */
+        chainWeightNPerM: 16,
+        /** Holding power in sand/mud of a ~25 kg anchor (N). */
+        holdingN: 20000,
+        payOutRate: 2.0,
+        heaveRate: 0.35,
+        /** Windlass stalls above this pull (N). */
+        windlassPullN: 9000,
+        tautStiffness: 30000,
+        tautDamping: 15000,
+        catenarySoftness: 3,
+      },
       /** Where a player stands after boarding (vessel axes): at the helm, facing forward. */
       boardingSpot: [0, 1.2, -0.75] as [number, number, number],
       /** Debug: spawn/drop point and drop height (m above the DWL). */
       spawn: { x: 0, z: -22, dropHeight: 4, headingDeg: 90 },
     },
+  },
+
+  /**
+   * Hull contacts with the seabed, shore, quays and piers: penalty springs at points on the
+   * keel, chines and deck edges (vessel physics). Per point: F_n = k·depth − c·v_n (pushing
+   * only), friction ≤ μ·F_n opposing sliding. Fendered faces are softer and slippery.
+   */
+  contacts: {
+    stiffness: 4e5,
+    damping: 3e4,
+    friction: 0.45,
+    fenderStiffness: 1.2e5,
+    fenderDamping: 2.5e4,
+    fenderFriction: 0.12,
+    /** Below this sliding speed friction becomes viscous, so a grounded boat settles (m/s). */
+    stickSpeed: 0.08,
   },
 
   /** Desktop debug driving with the arrow keys (in VR you use the bridge controls). */

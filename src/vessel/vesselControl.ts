@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import type { Intent } from '../core/intents';
 import { clamp } from '../core/math';
 import { toggleEngine } from './physics/propulsion';
-import { VESSEL_DEFS } from './vesselDef';
+import { VESSEL_DEFS, type VesselDef } from './vesselDef';
+import { fuelBerthAt } from '../world/geography';
 import type { VesselState } from './vesselState';
 
 const q = new THREE.Quaternion();
@@ -59,6 +60,23 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
     case 'engineStartStop':
       toggleEngine(s, VESSEL_DEFS[s.defId]);
       break;
+    case 'debugFuel': {
+      // Set the tank to `value` litres (debug/test, e.g. to try running dry).
+      const tank = VESSEL_DEFS[s.defId].engine.fuel.tankL;
+      s.engine.fuelL = clamp(intent.value, 0, tank);
+      break;
+    }
+    case 'debugCoolingFault':
+      // Raw-water pump impeller failure on (1) / repaired (0).
+      s.engine.coolingFault = intent.value > 0.5;
+      break;
+    case 'anchor':
+      s.controls.anchor = intent.value > 0.5 ? 1 : 0;
+      break;
+    case 'refuel':
+      // Start (1) or stop (0) taking fuel; stepRefuelling checks the berth each tick.
+      s.refuelling = intent.value > 0.5;
+      break;
     case 'debugDrop':
       dropVessel(s);
       break;
@@ -70,4 +88,23 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
       break;
     }
   }
+}
+
+/** Below this speed (m/s) a boat counts as alongside for fuelling. */
+const REFUEL_MAX_SPEED = 0.6;
+
+/** Whether a vessel is at a fuel berth and slow enough to take fuel. */
+export function canRefuel(s: VesselState): boolean {
+  return fuelBerthAt(s.position[0], s.position[2]) !== null && Math.hypot(s.linearVelocity[0], s.linearVelocity[2]) < REFUEL_MAX_SPEED;
+}
+
+/** Fuel flows while `refuelling` is on, the boat stays at the berth and the tank isn't full. */
+export function stepRefuelling(s: VesselState, def: VesselDef, dt: number, archipelago: boolean): void {
+  if (!s.refuelling) return;
+  const f = def.engine.fuel;
+  if (!archipelago || !canRefuel(s) || s.engine.fuelL >= f.tankL) {
+    s.refuelling = false;
+    return;
+  }
+  s.engine.fuelL = Math.min(f.tankL, s.engine.fuelL + f.refuelRateLps * dt);
 }

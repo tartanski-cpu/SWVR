@@ -20,6 +20,11 @@ export interface WorldState {
   environment: EnvironmentState;
   players: Record<EntityId, PlayerState>;
   vessels: Record<EntityId, VesselState>;
+  /**
+   * 'archipelago': vessels collide with the islands, seabed and harbour structures and can
+   * anchor; 'openSea': deep water everywhere (sea trials, tests).
+   */
+  geography: 'archipelago' | 'openSea';
 }
 
 export function createWorld(
@@ -40,6 +45,7 @@ export function createWorld(
       [localPlayerId]: player,
     },
     vessels: { [vesselId]: vessel },
+    geography: 'archipelago',
   };
   return { world, localPlayerId, vesselId };
 }

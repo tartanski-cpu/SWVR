@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { beforeAll, describe, expect, it } from 'vitest';
 import type { HandFrame } from '../src/controls/InteractionSystem';
-import { formatHours, mainMenuRows, type MenuHost } from '../src/ui/mainMenu';
+import { formatHours, mainMenu, type MainMenu, type MenuHost } from '../src/ui/mainMenu';
 import type { MenuButton } from '../src/ui/menuPanel';
 import type { WristMenu as WristMenuT } from '../src/ui/wristMenu';
 
@@ -34,6 +34,15 @@ function fakeHost() {
     toggleBoard: () => calls.push('board'),
     dropBoat: () => calls.push('drop'),
     heelBoat: () => calls.push('heel'),
+    fuel: () => ({ litres: 420, tank: 600 }),
+    canRefuel: () => false,
+    refuelling: () => false,
+    toggleRefuel: () => calls.push('refuel'),
+    setFuelDebug: (l) => calls.push(`fuel ${l}`),
+    coolingFault: () => false,
+    toggleCoolingFault: () => calls.push('fault'),
+    ports: () => [],
+    anchorStatus: () => 'stowed',
     seaTrialsShown: () => state.trials,
     toggleSeaTrials: () => calls.push('trials'),
     debugPanel: () => state.dbg,
@@ -49,7 +58,9 @@ function fakeHost() {
 
 const label = (b: MenuButton) => (typeof b.text === 'function' ? b.text() : b.text);
 
-function findButton(rows: ReturnType<typeof mainMenuRows>, text: string): MenuButton {
+/** Find a button by its label anywhere in the menu (header or any page). */
+function findButton(menu: MainMenu, text: string): MenuButton {
+  const rows = [...menu.header, ...menu.pages.flatMap((p) => p.rows)];
   for (const r of rows) if ('buttons' in r) for (const b of r.buttons) if (label(b) === text) return b;
   throw new Error(`no button "${text}"`);
 }
@@ -57,7 +68,7 @@ function findButton(rows: ReturnType<typeof mainMenuRows>, text: string): MenuBu
 describe('main menu contents', () => {
   it('time buttons shift the time of day and the clock shows it', () => {
     const { host, calls } = fakeHost();
-    const rows = mainMenuRows(host);
+    const rows = mainMenu(host);
     findButton(rows, '+1 h').press!();
     findButton(rows, '−10′').press!();
     expect(calls).toEqual(['shift 1.000', 'shift -0.167']);
@@ -66,7 +77,7 @@ describe('main menu contents', () => {
 
   it('choice rows highlight the current setting and switch it', () => {
     const { host, state } = fakeHost();
-    const rows = mainMenuRows(host);
+    const rows = mainMenu(host);
     const x60 = findButton(rows, '×60');
     const stopped = findButton(rows, 'Stopped');
     expect(stopped.active!()).toBe(true);
@@ -84,7 +95,7 @@ describe('main menu contents', () => {
 
   it('coupling steps by 10 % and the board button names what it will do', () => {
     const { host, state } = fakeHost();
-    const rows = mainMenuRows(host);
+    const rows = mainMenu(host);
     findButton(rows, '−10 %').press!();
     expect(state.coupling).toBeCloseTo(0.9);
     expect(findButton(rows, 'Board boat (at the helm)')).toBeTruthy();
@@ -108,7 +119,9 @@ describe('wrist menu pointing and poking', () => {
   /** A menu floating in front of a camera at the origin looking down -Z. */
   function setup() {
     const { host, calls } = fakeHost();
-    const menu = new WristMenu(mainMenuRows(host));
+    const def = mainMenu(host);
+    const menu = new WristMenu(def);
+    menu.panel.showPage('Tests');
     const frame = new THREE.Group();
     const camera = new THREE.PerspectiveCamera();
     camera.updateMatrixWorld(true);
@@ -116,13 +129,8 @@ describe('wrist menu pointing and poking', () => {
     frame.updateMatrixWorld(true);
     /** World point on a button's centre, `depth` m in front of the panel. */
     const at = (text: string, depth: number) => {
-      const panel = menu.panel as unknown as { placed: { btn: MenuButton; x: number; y: number; w: number; h: number }[]; canvas: { width: number; height: number } };
-      const p = panel.placed.find((q) => label(q.btn) === text)!;
-      const W = panel.canvas.width;
-      const H = panel.canvas.height;
-      const x = ((p.x + p.w / 2) / W - 0.5) * menu.panel.width;
-      const y = (0.5 - (p.y + p.h / 2) / H) * menu.panel.height;
-      return menu.panel.mesh.localToWorld(new THREE.Vector3(x, y, depth));
+      const c = menu.panel.localCentreOf(findButton(def, text))!;
+      return menu.panel.mesh.localToWorld(new THREE.Vector3(c.x, c.y, depth));
     };
     const hand = (tip: THREE.Vector3, dir: THREE.Vector3, trigger = false): HandFrame => ({
       tracked: true,
@@ -133,7 +141,7 @@ describe('wrist menu pointing and poking', () => {
       triggerDown: trigger,
       triggerPressed: trigger,
     });
-    return { menu, calls, at, hand };
+    return { menu, calls, at, hand, def };
   }
 
   it('a fingertip poke from the front presses once until it backs off', () => {
@@ -177,5 +185,20 @@ describe('wrist menu pointing and poking', () => {
     const { menu, at, hand } = setup();
     menu.close();
     expect(menu.updateXR(hand(at('Drop 4 m', 0.01), new THREE.Vector3(0, 0, -1), true), () => {})).toBe(false);
+  });
+});
+
+describe('menu tabs', () => {
+  it('only the current page is pressable; the tab bar switches pages', async () => {
+    const { WristMenu } = await import('../src/ui/wristMenu');
+    const { host, calls } = fakeHost();
+    const def = mainMenu(host);
+    const menu = new WristMenu(def);
+    expect(menu.panel.localCentreOf(findButton(def, 'Drop 4 m'))).toBeNull(); // on 'Tests'
+    expect(menu.panel.localCentreOf(findButton(def, '+1 h'))).not.toBeNull(); // first page
+    menu.panel.showPage('Tests');
+    expect(menu.panel.localCentreOf(findButton(def, 'Drop 4 m'))).not.toBeNull();
+    expect(menu.panel.localCentreOf(findButton(def, '+1 h'))).toBeNull();
+    expect(calls).toEqual([]);
   });
 });

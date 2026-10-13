@@ -18,7 +18,7 @@ const KN = 1.943844; // m/s -> knots
 export interface SeaTrialResults {
   vesselDefId: string;
   /** Speed (kn) at lever 25 / 50 / 75 / 100 % ahead, and engine RPM there. */
-  speedTable: { lever: number; knots: number; rpm: number }[];
+  speedTable: { lever: number; knots: number; rpm: number; fuelLph: number; rangeNm: number }[];
   topSpeedKn: number;
   /** Seconds from rest to 90 % of top speed. */
   timeTo90Pct: number;
@@ -63,6 +63,7 @@ class Trial {
   constructor(defId: string) {
     const { world, vesselId } = createWorld(new IdFactory(), defId);
     world.environment.waves = []; // calm water
+    world.geography = 'openSea'; // deep water everywhere: the trials are about the hull
     this.world = world;
     this.v = world.vessels[vesselId];
     placeVessel(this.v, 0, 0, 0, 0); // heading north (-Z)
@@ -214,7 +215,9 @@ export function runSeaTrials(defId = 'workboat'): SeaTrialResults {
     const t = new Trial(defId);
     t.startEngine();
     t.settle(lever);
-    speedTable.push({ lever, knots: t.speed * KN, rpm: t.v.engine.rpm });
+    const fuelLph = t.v.engine.fuelFlowLph;
+    const tank = VESSEL_DEFS[defId].engine.fuel.tankL;
+    speedTable.push({ lever, knots: t.speed * KN, rpm: t.v.engine.rpm, fuelLph, rangeNm: (tank / fuelLph) * t.speed * KN });
   }
   const top = speedTable[speedTable.length - 1].knots / KN;
 
@@ -334,7 +337,10 @@ export function formatSeaTrials(r: SeaTrialResults): string {
   const m = r.motions;
   return [
     `SEA TRIALS: ${r.vesselDefId} (calm water)`,
-    ...r.speedTable.map((s) => `  lever ${(s.lever * 100).toFixed(0).padStart(3)} %: ${s.knots.toFixed(1)} kn @ ${s.rpm.toFixed(0)} rpm`),
+    ...r.speedTable.map(
+      (s) =>
+        `  lever ${(s.lever * 100).toFixed(0).padStart(3)} %: ${s.knots.toFixed(1)} kn @ ${s.rpm.toFixed(0)} rpm, ${s.fuelLph.toFixed(1)} L/h, range ${s.rangeNm.toFixed(0)} nm (full tank)`,
+    ),
     `  0 -> 90 % top speed: ${r.timeTo90Pct.toFixed(1)} s`,
     `  full astern: ${r.asternSpeedKn.toFixed(1)} kn`,
     `  bollard pull: ahead ${r.bollard.aheadKN.toFixed(1)} kN (${(r.bollard.aheadKN / 9.81).toFixed(2)} t) @ ${r.bollard.aheadRpm.toFixed(0)} rpm, astern ${r.bollard.asternKN.toFixed(1)} kN @ ${r.bollard.asternRpm.toFixed(0)} rpm`,

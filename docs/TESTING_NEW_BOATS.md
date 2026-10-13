@@ -10,9 +10,11 @@ The project has a small test tank built in. You give a vessel definition (hull s
    - Roll decay from 10° and the damping ratio from the logarithmic decrement.
    - A dynamic **inclining test**: a known heeling moment is applied, the heel is read off, and GM is back-calculated.
 3. **Sea trials** in calm water, on the live simulation with the same intents a player sends.
-   - Speed against lever setting and RPM, plus time to 90 % of top speed.
+   - Speed against lever setting and RPM, with fuel burn (L/h) and range on a full tank, plus time to 90 % of top speed.
    - Turning circle: advance, transfer, tactical and steady diameter, speed loss.
    - Crash stop, coast-down and astern speed.
+
+The trials run in **open sea** (`world.geography = 'openSea'`): deep water everywhere, no islands, no harbour structures, no shelter. They measure the hull, not the archipelago.
 
 The tests cross-check the model. **GM is computed three independent ways** (KB + BM − KG, small-angle GZ, and the dynamic inclining test), and the three must agree. If they don't, the dynamics and the hydrostatics have drifted apart.
 

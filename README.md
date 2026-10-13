@@ -10,7 +10,13 @@ What's in the MVP:
 - **A 12 m displacement workboat** floated by strip-theory hydrostatics. It has a slow-revving diesel, gearbox and prop, a rudder and prop walk.
 - **A walk-in wheelhouse**, a ladder to the roof, and grab-the-world locomotion.
 - **Physical bridge controls** (wheel, throttle/gear lever, start/stop, horn, nav-light switch) with live instruments.
-- **Nav lights** with proper arcs of visibility, exhaust smoke driven by engine load, and synthesised engine and horn audio.
+- **Nav lights** with proper arcs of visibility, exhaust smoke driven by engine load and temperature, and synthesised engine and horn audio.
+
+Since the MVP:
+
+- **VR wrist menu.**
+- **Fuel and engine temperatures:** an engine monitor, alarms and refuelling.
+- **A small archipelago** with three kinds of port (see below), groundings and collisions, an anchor and windlass, sheltered water and an echo sounder.
 
 ## Play it (no install)
 
@@ -80,25 +86,54 @@ The menu stands above your left hand. Use the **right** controller on it in one 
 
 While your right hand is on the menu, its trigger doesn't reach the bridge controls behind it. If the left controller isn't tracked, the menu floats in front of you instead.
 
-| Section | Settings |
+The menu has four tabs along the top:
+
+| Tab | Settings |
 |---|---|
-| Time | Time of day ±1 h / ±10 min; time flow stopped / ×60 / ×600 |
-| Sea | Flat calm / moderate |
+| Sea & time | Time of day ±1 h / ±10 min; time flow stopped / ×60 / ×600; flat calm / moderate sea; bearing and range to each port |
+| Boat | Board / leave; fuel and **Refuel** (at a fuel berth); anchor status; sea-trials report on a big panel in front of you (the game freezes for about a second while the trials run) |
 | Comfort | Motion coupling ±10 %, stick walking on/off, snap-turn angle. Remembered on the device |
-| Boat | Board / leave; tests (drop from 4 m, heel 20°); sea-trials report on a big panel in front of you (the game freezes for about a second while the trials run) |
-| Debug views | Perf panel, buoyancy view, wave probes |
+| Tests | Drop from 4 m, heel 20°; engine faults (fuel to 5 %, raw-water pump failure); perf panel, buoyancy view, wave probes |
 
 ### Bridge
 
 At the helm, from left to right on the console:
 
 - **Nav lights** toggle switch.
+- **Anchor** switch: down = let go (the chain pays out to 4 × depth + 5 m), up = heave in and stow.
 - **Horn** button (hold).
 - **Wheel**: 1.5 turns lock to lock. Hydraulic steering, so it stays where you leave it.
 - **Throttle/gear lever**: forward = ahead, back = astern, with a notch at neutral.
 - **Start/stop** button. The engine only starts with the lever in neutral.
 
-The dash shows **speed** (kn), **heading** (compass tape), **engine RPM** (with gear, engine state and load) and **rudder angle** (needle for the actual rudder, ring for the helm order).
+The dash shows:
+
+- **Speed** (kn), with **depth under the keel** (red below 2 m).
+- **Heading** (compass tape).
+- **Engine RPM**, with gear, engine state and load.
+- **Rudder angle**: the needle is the actual rudder, the ring is the helm order.
+- The **engine monitor**, behind the wheel (read it through the spokes): coolant and oil temperature, fuel litres and L/h, and HIGH TEMP / LOW FUEL lamps. A buzzer sounds with the alarms.
+
+### Engine management
+
+- **Fuel:** the tank holds 600 L. Flat out burns about 49 L/h; 6–7 kn about 11 L/h. Run dry and the engine stops; it won't restart until you refuel.
+- **Cold start:** the engine starts cold and smokes white until it warms up, which takes about 5 minutes under way.
+- **Overheating:** with the pump-failure fault on, it overheats under load. The alarm sounds at 95 °C, power is derated from 100 °C, and it shuts down at 115 °C. Ease off before that.
+
+## The archipelago
+
+From the start (the pilot-station platform), the ports are a few minutes away. Bearings and ranges are on the menu's Sea & time tab.
+
+| Port | Type | What's there |
+|---|---|---|
+| **Calder Haven**, Calder Holm (SE, ~0.5 nm) | Sheltered harbour | A narrow entrance between breakwaters (Fl R 4 s to port, Fl G 4 s to starboard, entering), a calm dredged basin (4.5 m), a fendered quay with a **fuel berth** at its north end |
+| **Brannock Pier** (WSW, ~0.4 nm) | Big pier | A 130 m pier into deep water with a T-head berth, **fuel** on the T-head, and a red pier-head light |
+| **Selkie Bay**, Rona (S, ~0.6 nm) | Anchorage only | A horseshoe bay about 9 m deep with a beach at its head, sheltered from most of the swell |
+
+Also look out for **Gull Rocks** (on the direct line to Calder Haven), **Tarran** with its lighthouse (Fl W 10 s), Skerry and Eilean Dubh.
+
+- **Collisions:** you can run aground and hit quays. Fenders are soft; rock isn't.
+- **Refuelling:** come alongside a fuel berth and stop, then use **Refuel** on the menu's Boat tab.
 
 On desktop, aim the **+** reticle at a control. Click buttons and switches. Click and drag the lever (mouse up/down) and the wheel (mouse left/right).
 
@@ -169,8 +204,11 @@ src/
   ocean/           waves.ts (Gerstner maths shared by CPU physics and the shader), grid, shaders, view
   render/          geometry helpers (vertex-coloured, merged, flat-shaded parts)
   vessel/          hull form (stations), vessel defs, state, physics (strip hydrostatics,
-                   damping, rigid body, engine/prop/rudder), walk areas, sea trials,
-                   view (lofted hull mesh, interpolation, nav lights, exhaust smoke)
+                   damping, rigid body, engine/prop/rudder, fuel + thermal, contacts, anchor),
+                   walk areas, sea trials, view (hull mesh, nav lights, smoke, anchor chain)
+  world/           archipelago level data, terrain height, shelter zones, quay/pier queries,
+                   view (terrain, structures, trees, harbour lights)
+  ui/              the in-game menu (canvas panel, tabs, wrist mount, poke/point)
   controls/        Control base, Lever, Wheel, Button, Toggle, interaction system, bridge, instruments
   audio/           synthesised engine and horn (WebAudio, no files)
 tests/             vitest: run in plain Node, no browser

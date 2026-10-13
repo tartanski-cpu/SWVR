@@ -41,7 +41,10 @@ export class Bridge {
     const nav = new Toggle('navLights', 'navLights', 'Navigation lights', (s) => s.controls.navLights);
     nav.root.position.fromArray(b.navLightsSwitch.position);
 
-    this.controls.push(wheel, lever, start, horn, nav);
+    const anchor = new Toggle('anchor', 'anchor', 'Anchor: let go / heave in', (s) => s.controls.anchor);
+    anchor.root.position.fromArray(b.anchorSwitch.position);
+
+    this.controls.push(wheel, lever, start, horn, nav, anchor);
     for (const c of this.controls) this.root.add(c.root);
 
     // Instrument dash: a box across the front of the console with the displays on its face.
@@ -93,6 +96,7 @@ function buildLabels(b: VesselDef['bridge']): THREE.Mesh {
     ['START / STOP', b.startButton.position],
     ['HORN', b.hornButton.position],
     ['NAV LIGHTS', b.navLightsSwitch.position],
+    ['ANCHOR', b.anchorSwitch.position],
   ];
   const slotW = 512;
   const slotH = 64;
@@ -109,7 +113,7 @@ function buildLabels(b: VesselDef['bridge']): THREE.Mesh {
   texture.colorSpace = THREE.SRGBColorSpace;
 
   const planes = labels.map(([, pos], i) => {
-    const plane = new THREE.PlaneGeometry(0.2, 0.025);
+    const plane = new THREE.PlaneGeometry(0.16, 0.02);
     const uv = plane.attributes.uv as THREE.BufferAttribute;
     for (let k = 0; k < uv.count; k++) {
       const v0 = 1 - (i + 1) / labels.length;

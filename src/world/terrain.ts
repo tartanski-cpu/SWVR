@@ -1,0 +1,99 @@
+/**
+ * Terrain height: one analytic function of (x, z) for land AND seabed, shared by the
+ * terrain mesh, hull-vs-ground contacts, the anchor and the depth sounder - so what you see
+ * is what you run aground on.
+ *
+ *   island  : coastline radius r(θ) = R·(1 + Σ a_k cos(kθ + φ_k)); inland of it the ground
+ *             rises over a beach of slope 1:12 into hills (smoothstep profile plus gentle
+ *             sinusoidal undulation); offshore the seabed falls away as
+ *             −MAX_DEPTH·(1 − e^(−d/SHELF)), d = distance offshore.
+ *   islands : combined with max() (the shallower wins), floor at −MAX_DEPTH.
+ *   flats   : waterfronts: land brought down to a level (never raised), blended at the edge.
+ *   cuts    : basins and bays lower everything inside to a fixed depth, with a sloped edge.
+ *   ridges  : breakwaters raise a trapezoidal mound along a segment.
+ */
+import { CUTS, FLATS, ISLANDS, MAX_DEPTH, RIDGES, SHELF, type IslandDef } from './archipelago';
+
+const smoothstep = (a: number, b: number, x: number) => {
+  const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
+  return t * t * (3 - 2 * t);
+};
+
+/** Distance beyond which an island no longer shallows the seabed noticeably (m). */
+const INFLUENCE = 6 * SHELF;
+
+function coastRadius(isl: IslandDef, theta: number): number {
+  let f = 1;
+  for (const [k, a, p] of isl.shape) f += a * Math.cos(k * theta + p);
+  return isl.radius * f;
+}
+
+function islandHeight(isl: IslandDef, x: number, z: number): number {
+  const dx = x - isl.x;
+  const dz = z - isl.z;
+  const dist = Math.hypot(dx, dz);
+  if (dist > isl.radius * 1.4 + INFLUENCE) return -MAX_DEPTH;
+  const r = coastRadius(isl, Math.atan2(dz, dx));
+  const inland = r - dist;
+  if (inland < 0) return -MAX_DEPTH * (1 - Math.exp(inland / SHELF));
+  // Beach, then hills.
+  const beach = inland / 12;
+  const s = isl.seed;
+  const undulate = 0.5 + 0.25 * Math.sin(x * 0.021 + s * 1.7) * Math.sin(z * 0.017 + s * 2.3) + 0.15 * Math.sin((x + z) * 0.043 + s);
+  const hills = isl.height * smoothstep(isl.beach * 0.5, r * 0.75, inland) * (0.55 + 0.45 * undulate) * (0.75 + 0.25 * smoothstep(0, r, inland));
+  return Math.max(Math.min(beach, 1.5 + inland * 0.02), hills);
+}
+
+/**
+ * Ground (land or seabed) height at (x, z), m above MSL.
+ * @param ridges include breakwater mounds (the terrain MESH leaves them out; they have
+ *               their own rock-armour mesh)
+ */
+export function groundHeight(x: number, z: number, ridges = true): number {
+  let h = -MAX_DEPTH;
+  for (const isl of ISLANDS) {
+    if (Math.abs(x - isl.x) > isl.radius * 1.4 + INFLUENCE || Math.abs(z - isl.z) > isl.radius * 1.4 + INFLUENCE) continue;
+    h = Math.max(h, islandHeight(isl, x, z));
+  }
+  for (const f of FLATS) {
+    if (h <= f.height) continue;
+    const d = Math.hypot(x - f.x, z - f.z);
+    if (d >= f.radius) continue;
+    const w = 1 - smoothstep(f.radius - f.edge, f.radius, d);
+    h += (f.height - h) * w;
+  }
+  for (const c of CUTS) {
+    const d = Math.hypot(x - c.x, z - c.z);
+    if (d >= c.radius) continue;
+    const w = 1 - smoothstep(c.radius - c.edge, c.radius, d);
+    h = Math.min(h, h + (-c.depth - h) * w);
+  }
+  if (ridges) {
+    for (const r of RIDGES) {
+      const d = distanceToSegment(x, z, r.ax, r.az, r.bx, r.bz);
+      if (d > r.halfWidth + (r.crest + MAX_DEPTH) / r.slope) continue;
+      h = Math.max(h, r.crest - Math.max(0, d - r.halfWidth) * r.slope);
+    }
+  }
+  return h;
+}
+
+/** Unit ground normal at (x, z) by central differences. */
+export function groundNormal(x: number, z: number, out: { x: number; y: number; z: number }, e = 0.5): void {
+  const hx = groundHeight(x + e, z) - groundHeight(x - e, z);
+  const hz = groundHeight(x, z + e) - groundHeight(x, z - e);
+  const nx = -hx;
+  const ny = 2 * e;
+  const nz = -hz;
+  const len = Math.hypot(nx, ny, nz);
+  out.x = nx / len;
+  out.y = ny / len;
+  out.z = nz / len;
+}
+
+export function distanceToSegment(x: number, z: number, ax: number, az: number, bx: number, bz: number): number {
+  const vx = bx - ax;
+  const vz = bz - az;
+  const t = Math.min(1, Math.max(0, ((x - ax) * vx + (z - az) * vz) / (vx * vx + vz * vz)));
+  return Math.hypot(x - (ax + vx * t), z - (az + vz * t));
+}

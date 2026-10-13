@@ -15,6 +15,7 @@ import { CONFIG } from '../../config';
 import { clamp } from '../../core/math';
 import type { VesselDef } from '../vesselDef';
 import type { VesselState } from '../vesselState';
+import { derateRackCap } from './engineThermal';
 
 const NU = 1.19e-6; // kinematic viscosity of sea water at 15 °C (m²/s)
 
@@ -127,7 +128,7 @@ export function stepEngineAndPropeller(s: VesselState, def: VesselDef, speed: nu
   if (e.phase === 'running') {
     const throttle = demand.gear === e.gear ? demand.throttle : 0;
     const set = cfg.idleRpm + throttle * (cfg.ratedRpm - cfg.idleRpm);
-    rackTarget = clamp((set - e.rpm) / cfg.droopRpm, 0, 1);
+    rackTarget = clamp((set - e.rpm) / cfg.droopRpm, 0, derateRackCap(def, e.coolantC));
   }
   e.rack = rackTarget > e.rack ? Math.min(rackTarget, e.rack + cfg.rackRiseRate * dt) : rackTarget;
 
@@ -155,7 +156,8 @@ export function stepEngineAndPropeller(s: VesselState, def: VesselDef, speed: nu
   // ── Starting and stopping ──
   if (e.phase === 'cranking') {
     e.crank += dt;
-    if (e.crank >= cfg.crankTime && e.rpm > cfg.starterMaxRpm * 0.6) {
+    // It fires once the starter has it spinning, if there is fuel to burn.
+    if (e.crank >= cfg.crankTime && e.rpm > cfg.starterMaxRpm * 0.6 && e.fuelL > 0) {
       e.phase = 'running';
       e.rack = 0.3; // fuel on: catches and runs up to idle
     }

@@ -28,7 +28,12 @@
  *
  *  4. Propulsion (propulsion.ts): engine/gearbox/steering gear state, propeller thrust
  *     T(1-t) on the shaft line, rudder normal force (hull inflow + slipstream), and the
- *     calm-water resistance curve R(V) against speed through the water.
+ *     calm-water resistance curve R(V) against speed through the water. Fuel burn and
+ *     engine temperatures (engineThermal.ts).
+ *
+ *  5. With the archipelago present: penalty contacts with seabed, shore, quays and piers at
+ *     points on the keel/chines/deck edges (contacts.ts), and the anchor chain pulling at the
+ *     bow roller (anchor.ts).
  *
  * Added mass is modelled as constant fractions of the rigid-body mass/inertia per axis,
  * scaled by immersion, so it vanishes when the hull is airborne.
@@ -44,6 +49,9 @@ import type { VesselDef } from '../vesselDef';
 import type { VesselState } from '../vesselState';
 import { calmWaterResistance, rudderForce, stepEngineAndPropeller, stepSteering } from './propulsion';
 import { submergedSection, type SubmergedSection } from './sectionClip';
+import { stepFuelAndHeat } from './engineThermal';
+import { contactAt, hullContactPoints, type ContactResult } from './contacts';
+import { stepAnchor } from './anchor';
 
 /** Optional per-tick diagnostics for the debug view (vessel-local coordinates). */
 export interface HydroDebug {
@@ -73,6 +81,10 @@ const sub: SubmergedSection = { area: 0, cx: 0, cy: 0, maxDepth: 0 };
 const depths: number[] = [];
 const dq = new THREE.Quaternion();
 const rud = { x: 0, z: 0 };
+const ptV = new THREE.Vector3();
+const cf = new THREE.Vector3();
+const contact: ContactResult = { fx: 0, fy: 0, fz: 0, normal: 0, slide: 0, approach: 0 };
+const chain = { x: 0, y: 0, z: 0 };
 
 function toWorld(x: number, y: number, z: number, out: THREE.Vector3): THREE.Vector3 {
   return out.set(x, y, z).applyQuaternion(q).add(pos);
@@ -96,6 +108,8 @@ export function stepVessel(
   waves: readonly PreparedWave[],
   dt: number,
   debug?: HydroDebug,
+  /** Land, seabed and harbour structures to collide with (false: open sea, e.g. trials). */
+  geography = true,
 ): void {
   const rho = CONFIG.ocean.density;
   const g = CONFIG.ocean.gravity;
@@ -204,6 +218,7 @@ export function stepVessel(
   const relRx = tmp.x;
   const relRz = tmp.z;
   const thrust = stepEngineAndPropeller(state, def, -relRz, propWet, dt);
+  stepFuelAndHeat(state, def, dt);
   // Net propulsive force T(1 - t) along the shaft (forward is -z).
   addForceAt(tmp.set(0, 0, -thrust * (1 - def.propeller.thrustDeduction)).applyQuaternion(q), propW);
   // Prop walk: sideways force at the prop from the blades' asymmetric bite (strongest at low
@@ -225,6 +240,30 @@ export function stepVessel(
   const U = -tmp.applyQuaternion(qInv).z; // forward speed through water
   const R = calmWaterResistance(def, U) * immersion;
   addForceAt(tmp.set(0, 0, Math.sign(U) * R).applyQuaternion(q), resW);
+
+  // ── Contacts and anchor (archipelago only) ──
+  const c = state.contact;
+  c.force = 0;
+  c.slide = 0;
+  c.impact = 0;
+  if (geography) {
+    let touching = 0;
+    for (const [lx, ly, lz] of hullContactPoints(def.hull)) {
+      toWorld(lx, ly, lz, pt);
+      pointVelocity(pt, ptV);
+      if (!contactAt(pt.x, pt.y, pt.z, ptV.x, ptV.y, ptV.z, contact)) continue;
+      addForceAt(cf.set(contact.fx, contact.fy, contact.fz), pt);
+      touching++;
+      c.force += contact.normal;
+      c.slide += contact.slide;
+      c.impact = Math.max(c.impact, contact.approach);
+    }
+    if (touching > 0) c.slide /= touching;
+    toWorld(...def.anchor.hawse, pt);
+    pointVelocity(pt, ptV);
+    stepAnchor(state, def, pt, ptV, dt, chain);
+    if (chain.x !== 0 || chain.y !== 0 || chain.z !== 0) addForceAt(cf.set(chain.x, chain.y, chain.z), pt);
+  }
 
   // ── Linear: a = F / m_eff, with added mass per vessel axis ──
   tmp.copy(force).applyQuaternion(qInv);

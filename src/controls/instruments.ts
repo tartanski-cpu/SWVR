@@ -3,18 +3,21 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { CONFIG } from '../config';
 import type { VesselDef } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
+import { engineAlarms } from '../vessel/physics/engineThermal';
+import { groundHeight } from '../world/terrain';
 
 /**
- * The bridge instrument displays: speed, heading, engine RPM (+ gear), rudder angle.
+ * The bridge instrument displays: speed, heading, engine RPM (+ gear), rudder angle, and an
+ * engine monitor (temperatures, fuel, alarms) behind the wheel, read through the spokes.
  *
- * All four screens share ONE canvas (an atlas, 2 x 2 regions) and ONE merged mesh whose
+ * All five screens share ONE canvas (an atlas, 2 x 3 regions) and ONE merged mesh whose
  * UVs map each screen to its region: one texture upload and one draw call, redrawn at a
  * modest rate (CONFIG.interaction.displayHz) - cheap on the headset.
  *
  * Displays only READ vessel state (they subscribe by sampling it), like any other view.
  */
 const W = 1024;
-const H = 512;
+const H = 768;
 const RW = 512;
 const RH = 256;
 const AMBER = '#ffb340';
@@ -31,7 +34,7 @@ export class InstrumentPanel {
   private readonly g: CanvasRenderingContext2D;
   private readonly texture: THREE.CanvasTexture;
   private sinceDraw = Infinity;
-  private readonly painters: Painter[] = [paintSpeed, paintHeading, paintRpm, paintRudder];
+  private readonly painters: Painter[] = [paintSpeed, paintHeading, paintRpm, paintRudder, paintEngineMonitor];
 
   constructor(cfg: VesselDef['bridge']) {
     this.canvas = document.createElement('canvas');
@@ -112,8 +115,15 @@ function headingDeg(s: VesselState): number {
   return ((Math.atan2(f.x, -f.z) * 180) / Math.PI + 360) % 360;
 }
 
-const paintSpeed: Painter = (g, s) => {
+const paintSpeed: Painter = (g, s, def) => {
   title(g, 'SPEED  SOG');
+  // Echo sounder: water under the keel.
+  const underKeel = -groundHeight(s.position[0], s.position[2]) + s.position[1] + def.hull.params.keelY;
+  g.textAlign = 'right';
+  g.fillStyle = underKeel < 2 ? RED : GREEN;
+  g.font = 'bold 26px ui-monospace, Menlo, Consolas, monospace';
+  g.textBaseline = 'top';
+  g.fillText(underKeel > 99 ? 'DEPTH >99 m' : `DEPTH ${underKeel.toFixed(1)} m`, 488, 18);
   const kn = knots(s);
   g.textAlign = 'right';
   big(g, kn.toFixed(1), 380, 128, 120);
@@ -272,4 +282,50 @@ const paintRudder: Painter = (g, s, def) => {
   big(g, `${Math.abs(deg).toFixed(0)}°`, 24, 200, 54, Math.abs(deg) < 0.5 ? AMBER : deg > 0 ? GREEN : RED);
   g.textAlign = 'right';
   big(g, side, 488, 200, 44, Math.abs(deg) < 0.5 ? AMBER : deg > 0 ? GREEN : RED);
+};
+
+/** Engine monitor: coolant and oil temperature, fuel, consumption, alarm lamps. */
+const paintEngineMonitor: Painter = (g, s, def) => {
+  title(g, 'ENGINE MONITOR');
+  const e = s.engine;
+  const th = def.engine.thermal;
+  const al = engineAlarms(s, def);
+  const blink = Math.floor(performance.now() / 400) % 2 === 0;
+  // Two horizontal bar gauges: coolant 40-120 °C, fuel 0-100 %.
+  const bar = (y: number, label: string, frac: number, value: string, color: string, marks: number[] = []) => {
+    g.fillStyle = DIM;
+    g.font = 'bold 24px ui-monospace, Menlo, Consolas, monospace';
+    g.textAlign = 'left';
+    g.textBaseline = 'middle';
+    g.fillText(label, 24, y);
+    g.fillStyle = '#1f2a24';
+    g.fillRect(130, y - 13, 230, 26);
+    g.fillStyle = color;
+    g.fillRect(130, y - 13, 230 * Math.max(0, Math.min(1, frac)), 26);
+    g.fillStyle = '#ffe6b0';
+    for (const m of marks) g.fillRect(130 + 230 * m - 1, y - 17, 3, 34);
+    g.textAlign = 'right';
+    big(g, value, 492, y, 34, color);
+  };
+  const tFrac = (c: number) => (c - 40) / 80;
+  const tempColor = e.coolantC > th.alarmC ? RED : e.coolantC < 60 ? '#7fb8ff' : GREEN;
+  bar(78, 'TEMP', tFrac(e.coolantC), `${e.coolantC.toFixed(0)}°C`, tempColor, [tFrac(th.alarmC)]);
+  bar(118, 'OIL', tFrac(e.oilC), `${e.oilC.toFixed(0)}°C`, e.oilC > th.alarmC + 10 ? RED : AMBER);
+  const fuelFrac = e.fuelL / def.engine.fuel.tankL;
+  bar(158, 'FUEL', fuelFrac, `${e.fuelL.toFixed(0)} L`, al.lowFuel ? RED : AMBER, [def.engine.fuel.lowFraction]);
+  g.fillStyle = DIM;
+  g.font = 'bold 22px ui-monospace, Menlo, Consolas, monospace';
+  g.textAlign = 'left';
+  g.fillText(`${e.fuelFlowLph.toFixed(1)} L/h`, 24, 204);
+  // Alarm lamps.
+  const lamp = (x: number, text: string, on: boolean) => {
+    g.fillStyle = on ? (blink ? RED : '#7a1c12') : '#2a1a16';
+    g.fillRect(x, 188, 120, 34);
+    g.fillStyle = on ? '#fff2e8' : '#4a3430';
+    g.font = 'bold 20px ui-monospace, Menlo, Consolas, monospace';
+    g.textAlign = 'center';
+    g.fillText(text, x + 60, 206);
+  };
+  lamp(236, 'HIGH TEMP', al.highTemp);
+  lamp(368, 'LOW FUEL', al.lowFuel);
 };

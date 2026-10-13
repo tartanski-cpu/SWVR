@@ -16,7 +16,7 @@ const SMOKE_MAX = 200;
  * into it so it rolls up around the stern. One Points draw call, hidden (and not updated)
  * when no particle is alive. Particles fade out within ~2 m of the viewer so a cloud
  * doesn't fill the headset view with large overlapping sprites (comfort and fill rate).
- * (White smoke when cold comes with the planned coolant-temperature model.)
+ * A cold engine smokes white until the block warms through 25-60 °C.
  */
 export class ExhaustSmoke {
   readonly root = new THREE.Group();
@@ -53,6 +53,9 @@ export class ExhaustSmoke {
     const puff = Math.min(1, rackRate / 0.4);
     const labour = running && e.rack > 0.9 && e.rpm < 0.85 * def.engine.ratedRpm ? 1 : 0;
     const darkness = Math.min(1, 0.35 + 0.4 * e.rack + 0.5 * puff + 0.4 * labour);
+    // Cold engine: unburnt fuel and condensing water vapour give white smoke, fading as the
+    // block warms through 25-60 °C (thicker at light load, where combustion is coolest).
+    const cold = Math.min(1, Math.max(0, (60 - e.coolantC) / 35)) * (1 - 0.6 * e.rack);
     let burst = 0;
     if (running && this.lastPhase === 'cranking') burst = 25;
     this.lastPhase = e.phase;
@@ -60,7 +63,7 @@ export class ExhaustSmoke {
     const [vx, vy, vz] = s.linearVelocity;
 
     // ── Smoke ──
-    this.smokeAccum += (running ? (submerged ? 0.5 : 1) * (12 + 35 * e.rack + 45 * puff) : 0) * dt + burst;
+    this.smokeAccum += (running ? (submerged ? 0.5 : 1) * (12 + 35 * e.rack + 45 * puff + 25 * cold) : 0) * dt + burst;
     while (this.smokeAccum >= 1) {
       this.smokeAccum -= 1;
       const jet = submerged ? 0.3 : 2 + 3 * rpmFrac;
@@ -75,6 +78,7 @@ export class ExhaustSmoke {
         2.5 + 2.5 * Math.random(),
         burst > 0 ? 0.9 : darkness,
         burst > 0 ? 0.7 : 0.3 + 0.45 * darkness,
+        burst > 0 ? 0 : cold,
       );
     }
 
@@ -96,6 +100,7 @@ class ParticlePool {
   private readonly age: Float32Array;
   private readonly life: Float32Array;
   private readonly shade: Float32Array;
+  private readonly white: Float32Array;
   private readonly alpha: Float32Array;
   private next = 0;
   private alive = 0;
@@ -111,6 +116,7 @@ class ParticlePool {
     this.age = new Float32Array(max).fill(1e9);
     this.life = new Float32Array(max).fill(1);
     this.shade = new Float32Array(max);
+    this.white = new Float32Array(max);
     this.alpha = new Float32Array(max);
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(this.pos, 3));
@@ -119,7 +125,8 @@ class ParticlePool {
     this.points.frustumCulled = false;
   }
 
-  emit(x: number, y: number, z: number, vx: number, vy: number, vz: number, life: number, shade: number, alpha: number): void {
+  /** @param white 0 = dirty diesel smoke .. 1 = white (cold-engine) smoke */
+  emit(x: number, y: number, z: number, vx: number, vy: number, vz: number, life: number, shade: number, alpha: number, white = 0): void {
     const i = this.next;
     this.next = (this.next + 1) % this.max;
     this.pos.set([x, y, z], i * 3);
@@ -128,6 +135,7 @@ class ParticlePool {
     this.life[i] = life;
     this.shade[i] = shade;
     this.alpha[i] = alpha;
+    this.white[i] = white;
     this.alive++;
   }
 
@@ -168,10 +176,12 @@ class ParticlePool {
       this.pos[k + 2] += this.vel[k + 2] * dt;
       const t = a / this.life[i];
       // Dirty diesel smoke: grey with a slight brown cast.
-      const g = grey(t, this.shade[i]);
-      this.col[c] = g * 1.04;
+      // Blend towards white (cold-engine smoke), which also loses the brown cast.
+      const w = this.white[i];
+      const g = grey(t, this.shade[i]) * (1 - w) + 0.9 * w;
+      this.col[c] = g * (1.04 - 0.04 * w);
       this.col[c + 1] = g;
-      this.col[c + 2] = g * 0.9;
+      this.col[c + 2] = g * (0.9 + 0.1 * w);
       const near = Math.hypot(this.pos[k] - viewer.x, this.pos[k + 1] - viewer.y, this.pos[k + 2] - viewer.z);
       const nearFade = Math.min(1, Math.max(0, (near - 0.6) / 1.4));
       this.col[c + 3] = this.alpha[i] * Math.min(1, a * 8) * (1 - t) ** 1.5 * nearFade;

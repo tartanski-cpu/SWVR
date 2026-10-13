@@ -1,5 +1,7 @@
 import type { EntityId } from '../core/ids';
+import { CONFIG } from '../config';
 import type { Quat, Vec3 } from '../core/math';
+import { VESSEL_DEFS } from './vesselDef';
 
 /** Control positions as set by players (via intents). */
 export interface VesselControls {
@@ -11,6 +13,39 @@ export interface VesselControls {
   navLights: number;
   /** Horn button, 0 released / 1 held. */
   horn: number;
+  /** Anchor windlass switch: 1 = let go / pay out, 0 = heave in and stow. */
+  anchor: number;
+}
+
+/** Anchor and windlass (see physics/anchor.ts). */
+export interface AnchorState {
+  /**
+   * stowed   - in the bow roller
+   * paying   - let go: chain running out to the scope for the depth
+   * set      - on the bottom with the chain out
+   * weighing - windlass heaving in; the anchor breaks out when the chain is up-and-down
+   * hanging  - off the bottom (too deep for the chain, or broken out while weighing)
+   */
+  phase: 'stowed' | 'paying' | 'set' | 'weighing' | 'hanging';
+  /** Anchor position on the seabed (world x, z). */
+  x: number;
+  z: number;
+  /** Chain paid out (m). */
+  rodeM: number;
+  /** Horizontal chain tension at the bow (N), last tick. */
+  tension: number;
+  /** Tension exceeds holding power: the anchor is ploughing through the bottom. */
+  dragging: boolean;
+}
+
+/** Contact with seabed, shore or structures on the last tick. */
+export interface ContactState {
+  /** Total normal force (N). */
+  force: number;
+  /** Mean sliding speed over the touching points (m/s). */
+  slide: number;
+  /** Largest approach speed of a point that touched this tick (m/s): impacts. */
+  impact: number;
 }
 
 /** Machinery state, advanced by the simulation. */
@@ -26,6 +61,15 @@ export interface EngineState {
   gear: -1 | 0 | 1;
   /** Seconds the lever has been asking for a different gear. */
   shift: number;
+  /** Fuel in the tank (L). */
+  fuelL: number;
+  /** Current fuel flow (L/h), for displays and the trials report. */
+  fuelFlowLph: number;
+  /** Coolant (block) and lube oil temperatures (°C). */
+  coolantC: number;
+  oilC: number;
+  /** Raw-water pump impeller failed: the heat exchanger barely works. */
+  coolingFault: boolean;
 }
 
 /**
@@ -49,6 +93,10 @@ export interface VesselState {
   rudder: number;
   /** Propeller thrust (N) on the last tick, for displays/audio. */
   thrust: number;
+  anchor: AnchorState;
+  /** Taking fuel at a fuel berth. */
+  refuelling: boolean;
+  contact: ContactState;
 }
 
 export function createVesselState(id: EntityId, defId: string): VesselState {
@@ -59,9 +107,25 @@ export function createVesselState(id: EntityId, defId: string): VesselState {
     orientation: [0, 0, 0, 1],
     linearVelocity: [0, 0, 0],
     angularVelocity: [0, 0, 0],
-    controls: { lever: 0, helm: 0, navLights: 0, horn: 0 },
-    engine: { phase: 'off', crank: 0, rpm: 0, rack: 0, gear: 0, shift: 0 },
+    controls: { lever: 0, helm: 0, navLights: 0, horn: 0, anchor: 0 },
+    engine: {
+      phase: 'off',
+      crank: 0,
+      rpm: 0,
+      rack: 0,
+      gear: 0,
+      shift: 0,
+      fuelL: VESSEL_DEFS[defId].engine.fuel.startL,
+      fuelFlowLph: 0,
+      // A cold engine: everything at sea temperature.
+      coolantC: CONFIG.environment.seaTempC,
+      oilC: CONFIG.environment.seaTempC,
+      coolingFault: false,
+    },
     rudder: 0,
     thrust: 0,
+    anchor: { phase: 'stowed', x: 0, z: 0, rodeM: 0, tension: 0, dragging: false },
+    refuelling: false,
+    contact: { force: 0, slide: 0, impact: 0 },
   };
 }

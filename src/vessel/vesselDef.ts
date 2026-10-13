@@ -40,6 +40,7 @@ export interface VesselDef {
   bridge: VesselConfig['bridge'];
   navLights: VesselConfig['navLights'];
   exhaust: VesselConfig['exhaust'];
+  anchor: VesselConfig['anchor'];
 }
 
 /** Wetted surface at the DWL: submerged girth of each station times its spacing. */
@@ -87,6 +88,7 @@ export function fromConfig(id: string, c: VesselConfig): VesselDef {
     bridge: c.bridge,
     navLights: c.navLights,
     exhaust: c.exhaust,
+    anchor: c.anchor,
   };
 }
 

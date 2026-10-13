@@ -1,4 +1,4 @@
-import type { MenuRow } from './menuPanel';
+import type { MenuPage, MenuRow } from './menuPanel';
 
 /** What the menu can read and change. Implemented by the App; keeps the menu UI-only. */
 export interface MenuHost {
@@ -19,6 +19,19 @@ export interface MenuHost {
   toggleBoard(): void;
   dropBoat(): void;
   heelBoat(): void;
+  /** Fuel aboard (L) and tank size. */
+  fuel(): { litres: number; tank: number };
+  /** Whether the boat is at a fuel berth, slow enough to take fuel. */
+  canRefuel(): boolean;
+  refuelling(): boolean;
+  toggleRefuel(): void;
+  setFuelDebug(litres: number): void;
+  coolingFault(): boolean;
+  toggleCoolingFault(): void;
+  /** One-line anchor/windlass status. */
+  anchorStatus(): string;
+  /** Ports with bearing (°T) and range (nm) from the boat. */
+  ports(): { name: string; bearingDeg: number; rangeNm: number }[];
   seaTrialsShown(): boolean;
   toggleSeaTrials(): void;
   debugPanel(): boolean;
@@ -37,14 +50,20 @@ const TIME_FLOW: [string, number][] = [
   ['×600', 600 / 3600],
 ];
 
-export function mainMenuRows(h: MenuHost): MenuRow[] {
+export interface MainMenu {
+  header: MenuRow[];
+  pages: MenuPage[];
+}
+
+export function mainMenu(h: MenuHost): MainMenu {
   const choice = <T>(label: string, value: T, get: () => T, set: (v: T) => void) => ({
     text: label,
     active: () => get() === value,
     press: () => set(value),
   });
-  return [
-    { label: '', buttons: [{ text: 'SWVR menu', weight: 3 }, { text: 'Close ✕', press: () => h.close(), weight: 1.4 }] },
+  const header: MenuRow[] = [{ label: '', buttons: [{ text: 'SWVR menu', weight: 3 }, { text: 'Close ✕', press: () => h.close(), weight: 1.4 }] }];
+
+  const seaAndTime: MenuRow[] = [
     { heading: 'Time' },
     {
       label: 'Time of day',
@@ -65,6 +84,46 @@ export function mainMenuRows(h: MenuHost): MenuRow[] {
       label: 'Sea state',
       buttons: [choice('Flat calm', true, () => h.calmSea(), (v) => h.setCalmSea(v)), choice('Moderate', false, () => h.calmSea(), (v) => h.setCalmSea(v))],
     },
+    { heading: 'Ports (bearing, range)' },
+    ...[0, 1, 2].map((i) => ({
+      label: '',
+      buttons: [
+        {
+          text: () => {
+            const p = h.ports()[i];
+            return p ? `${p.name}   ${p.bearingDeg.toFixed(0).padStart(3, '0')}°  ${p.rangeNm.toFixed(2)} nm` : '';
+          },
+        },
+      ],
+    })),
+  ];
+
+  const boat: MenuRow[] = [
+    { heading: 'Boat' },
+    {
+      label: '',
+      buttons: [{ text: () => (h.aboard() ? 'Leave boat (to platform)' : 'Board boat (at the helm)'), press: () => h.toggleBoard() }],
+    },
+    {
+      label: 'Fuel',
+      buttons: [
+        { text: () => `${h.fuel().litres.toFixed(0)} / ${h.fuel().tank} L`, weight: 1.1 },
+        {
+          text: () => (h.refuelling() ? 'Stop fuelling' : h.canRefuel() ? 'Refuel' : 'Refuel at a fuel berth'),
+          active: () => h.refuelling(),
+          press: () => h.toggleRefuel(),
+          weight: 1.5,
+        },
+      ],
+    },
+    { label: 'Anchor', buttons: [{ text: () => h.anchorStatus() }] },
+    {
+      label: 'Sea trials',
+      buttons: [{ text: () => (h.seaTrialsShown() ? 'Hide report' : 'Run + show report'), active: () => h.seaTrialsShown(), press: () => h.toggleSeaTrials() }],
+    },
+  ];
+
+  const comfort: MenuRow[] = [
     { heading: 'Comfort' },
     {
       label: 'Motion coupling',
@@ -82,23 +141,23 @@ export function mainMenuRows(h: MenuHost): MenuRow[] {
       label: 'Snap turn',
       buttons: [15, 30, 45, 90].map((d) => choice(`${d}°`, d, () => h.snapTurnDeg(), (v) => h.setSnapTurnDeg(v))),
     },
-    { heading: 'Boat' },
+  ];
+
+  const tests: MenuRow[] = [
+    { heading: 'Tests' },
     {
-      label: '',
-      buttons: [
-        { text: () => (h.aboard() ? 'Leave boat (to platform)' : 'Board boat (at the helm)'), press: () => h.toggleBoard() },
-      ],
-    },
-    {
-      label: 'Tests',
+      label: 'Boat',
       buttons: [
         { text: 'Drop 4 m', press: () => h.dropBoat() },
         { text: 'Heel 20°', press: () => h.heelBoat() },
       ],
     },
     {
-      label: 'Sea trials',
-      buttons: [{ text: () => (h.seaTrialsShown() ? 'Hide report' : 'Run + show report'), active: () => h.seaTrialsShown(), press: () => h.toggleSeaTrials() }],
+      label: 'Engine faults',
+      buttons: [
+        { text: 'Fuel to 5 %', press: () => h.setFuelDebug(0.05 * h.fuel().tank) },
+        { text: 'Pump failure', active: () => h.coolingFault(), press: () => h.toggleCoolingFault() },
+      ],
     },
     { heading: 'Debug views' },
     {
@@ -110,6 +169,16 @@ export function mainMenuRows(h: MenuHost): MenuRow[] {
       ],
     },
   ];
+
+  return {
+    header,
+    pages: [
+      { name: 'Sea & time', rows: seaAndTime },
+      { name: 'Boat', rows: boat },
+      { name: 'Comfort', rows: comfort },
+      { name: 'Tests', rows: tests },
+    ],
+  };
 }
 
 export function formatHours(t: number): string {

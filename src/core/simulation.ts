@@ -2,7 +2,7 @@ import { applyEnvironmentIntent, stepEnvironment } from '../environment/timeOfDa
 import { prepareWaves, type PreparedWave } from '../ocean/waves';
 import { stepVessel, type HydroDebug } from '../vessel/physics/vesselPhysics';
 import { applyPlayerIntent } from '../player/playerControl';
-import { applyVesselIntent } from '../vessel/vesselControl';
+import { applyVesselIntent, stepRefuelling } from '../vessel/vesselControl';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 import { ENVIRONMENT_ID, type EntityId } from './ids';
 import type { Intent } from './intents';
@@ -40,7 +40,8 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
       dbg = debug.get(vessel.id) ?? { stations: [], upLocal: [0, 1, 0], submergedVolume: 0 };
       debug.set(vessel.id, dbg);
     }
-    stepVessel(vessel, VESSEL_DEFS[vessel.defId], simWaves, dt, dbg);
+    stepVessel(vessel, VESSEL_DEFS[vessel.defId], simWaves, dt, dbg, world.geography === 'archipelago');
+    stepRefuelling(vessel, VESSEL_DEFS[vessel.defId], dt, world.geography === 'archipelago');
   }
 
   world.tick += 1;

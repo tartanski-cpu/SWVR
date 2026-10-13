@@ -5,6 +5,8 @@ import { createOceanGeometry, distanceForCellSize } from './oceanGeometry';
 import fragmentShader from './shaders/ocean.frag.glsl?raw';
 import vertexShader from './shaders/ocean.vert.glsl?raw';
 import type { PreparedWave } from './waves';
+import { SHELTERS } from '../world/archipelago';
+import { MAX_SHELTERS } from '../world/shelter';
 
 const MAX_WAVES = 8;
 
@@ -19,6 +21,13 @@ export class OceanView {
     uWaveB: { value: Array.from({ length: MAX_WAVES }, () => new THREE.Vector4()) },
     uWaveCount: { value: 0 },
     uCenter: { value: new THREE.Vector2() },
+    // Static: the shelter zones never move.
+    uShelter: { value: Array.from({ length: MAX_SHELTERS }, (_, i) => {
+      const z = SHELTERS[i];
+      return z ? new THREE.Vector4(z.x, z.z, z.rIn, z.rOut) : new THREE.Vector4();
+    }) },
+    uShelterK: { value: Array.from({ length: MAX_SHELTERS }, (_, i) => SHELTERS[i]?.factor ?? 1) },
+    uShelterCount: { value: Math.min(SHELTERS.length, MAX_SHELTERS) },
     uDeep: { value: new THREE.Color(CONFIG.ocean.colors.deep) },
     uScatter: { value: new THREE.Color(CONFIG.ocean.colors.scatter) },
     uFoam: { value: new THREE.Color(CONFIG.ocean.colors.foam) },
@@ -41,7 +50,7 @@ export class OceanView {
       uniforms: this.uniforms,
       vertexShader,
       fragmentShader,
-      defines: { MAX_WAVES },
+      defines: { MAX_WAVES, MAX_SHELTERS },
     });
     this.mesh = new THREE.Mesh(createOceanGeometry(), material);
     this.mesh.name = 'ocean';

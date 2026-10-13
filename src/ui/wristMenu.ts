@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { CONFIG } from '../config';
 import type { HandFrame } from '../controls/InteractionSystem';
-import { MenuPanel, type MenuButton, type MenuRow } from './menuPanel';
+import { MenuPanel, type MenuButton } from './menuPanel';
+import type { MainMenu } from './mainMenu';
 import { placeInFront } from './placeInFront';
 
 /**
@@ -26,8 +27,8 @@ export class WristMenu {
   private lastDepth: number | null = null;
   private hover: MenuButton | null = null;
 
-  constructor(rows: MenuRow[]) {
-    this.panel = new MenuPanel(rows, CONFIG.menu.width);
+  constructor(menu: MainMenu) {
+    this.panel = new MenuPanel(menu.header, menu.pages, CONFIG.menu.width);
     this.root.name = 'menu';
     this.root.add(this.panel.mesh);
     this.root.visible = false;

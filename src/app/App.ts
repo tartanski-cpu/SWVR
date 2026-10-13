@@ -27,12 +27,19 @@ import { Locomotion } from '../player/locomotion';
 import { ComfortOverlay, MotionDecoupler } from '../player/comfort';
 import { saveUserSettings, userSettings } from '../player/userSettings';
 import { WristMenu } from '../ui/wristMenu';
-import { mainMenuRows, type MenuHost } from '../ui/mainMenu';
+import { mainMenu, type MenuHost } from '../ui/mainMenu';
 import { placeInFront } from '../ui/placeInFront';
+import { canRefuel } from '../vessel/vesselControl';
+import { PORTS } from '../world/archipelago';
+import { groundHeight } from '../world/terrain';
 import { XRControllers } from '../player/xrControllers';
 import { Bridge } from '../controls/bridge';
 import { InteractionSystem, type HandFrame } from '../controls/InteractionSystem';
 import { HornAudio } from '../audio/hornAudio';
+import { AlarmAudio } from '../audio/alarmAudio';
+import { ContactAudio } from '../audio/contactAudio';
+import { WorldView } from '../world/view/worldView';
+import { engineAlarms } from '../vessel/physics/engineThermal';
 import { VesselEffects } from '../vessel/view/vesselEffects';
 import { sunElevation } from '../environment/timeOfDay';
 import { clamp } from '../core/math';
@@ -88,6 +95,9 @@ export class App {
   private interaction: InteractionSystem | null = null;
   private readonly effects = new Map<EntityId, VesselEffects>();
   private readonly horn = new HornAudio();
+  private readonly alarm = new AlarmAudio();
+  private readonly contactAudio = new ContactAudio();
+  private readonly worldView = new WorldView();
   private readonly hands: Record<'left' | 'right', HandFrame> = {
     left: { tracked: false, grip: new THREE.Vector3(), ray: new THREE.Ray(), gripDown: false, gripPressed: false, triggerDown: false, triggerPressed: false },
     right: { tracked: false, grip: new THREE.Vector3(), ray: new THREE.Ray(), gripDown: false, gripPressed: false, triggerDown: false, triggerPressed: false },
@@ -139,12 +149,12 @@ export class App {
     this.camera.add(this.comfortOverlay.mesh);
     this.controllers = new XRControllers(this.renderer, this.rig.root);
     this.decoupler.coupling = userSettings.motionCoupling;
-    this.menu = new WristMenu(mainMenuRows(this.menuHost()));
+    this.menu = new WristMenu(mainMenu(this.menuHost()));
     this.scene.add(this.menu.rayLine);
 
     this.desktop = new DesktopController(this.camera, this.renderer.domElement, this.keyboard);
     this.environment = new EnvironmentView(this.scene);
-    this.scene.add(this.sky.mesh, this.ocean.mesh, this.buoys.mesh, this.probes.mesh, createPlatform());
+    this.scene.add(this.sky.mesh, this.ocean.mesh, this.buoys.mesh, this.probes.mesh, createPlatform(), this.worldView.root);
     for (const vessel of Object.values(this.world.vessels)) {
       const def = VESSEL_DEFS[vessel.defId];
       const view = new VesselView(vessel.id, def);
@@ -164,6 +174,8 @@ export class App {
     const unlock = () => {
       this.engineAudio.unlock();
       this.horn.attach(this.engineAudio.context);
+      this.alarm.attach(this.engineAudio.context);
+      this.contactAudio.attach(this.engineAudio.context);
     };
     window.addEventListener('pointerdown', unlock);
     window.addEventListener('keydown', unlock);
@@ -236,13 +248,28 @@ export class App {
       // Engine room sits roughly under the wheelhouse.
       const distance = testView.root.localToWorld(this.tmpV.set(0, 0, 1)).distanceTo(this.focus);
       this.engineAudio.update(this.world.vessels[this.testVesselId], distance);
-      this.horn.update(this.world.vessels[this.testVesselId].controls.horn > 0, distance);
+      const v = this.world.vessels[this.testVesselId];
+      this.horn.update(v.controls.horn > 0, distance);
+      // Bridge buzzer: high temperature always, low fuel while the engine runs.
+      const al = engineAlarms(v, VESSEL_DEFS[v.defId]);
+      const consoleDist = this.bridge ? this.bridge.dashAnchor.getWorldPosition(this.tmpV).distanceTo(this.focus) : 99;
+      this.alarm.update(al.highTemp || (al.lowFuel && v.engine.phase === 'running'), consoleDist);
     }
     // Bridge controls and displays read the (just-updated) vessel state.
     const testVessel = this.world.vessels[this.testVesselId];
     if (this.bridge && testVessel) this.bridge.update(testVessel, dt, this.dashInView());
     const darkness = Math.min(1, Math.max(0, (8 - sunElevation(this.world.environment.timeOfDay)) / 14));
     for (const [id, fx] of this.effects) fx.update(dt, this.world.vessels[id], this.renderWaves, this.focus, darkness);
+    this.worldView.lights.update(renderTime, darkness);
+    if (testView && testVessel) {
+      // Hull contact: thump and scrape, and a jolt through both controllers if you're aboard.
+      const d = testView.root.position.distanceTo(this.focus);
+      const hit = this.contactAudio.update(testVessel.contact, d, dt);
+      if (hit > 0 && this.world.players[this.localPlayerId].aboardVesselId === testVessel.id) {
+        this.xrInput.pulse('left', 0.3 + 0.7 * hit, 60 + 140 * hit);
+        this.xrInput.pulse('right', 0.3 + 0.7 * hit, 60 + 140 * hit);
+      }
+    }
     this.menu.refresh();
     const t2 = performance.now();
 
@@ -485,6 +512,7 @@ export class App {
   /** The menu's view of the app (see ui/mainMenu.ts). */
   private menuHost(): MenuHost {
     const env = () => this.world.environment;
+    const boat = () => this.world.vessels[this.testVesselId];
     const saveSettings = () => saveUserSettings();
     return {
       timeOfDay: () => env().timeOfDay,
@@ -509,6 +537,41 @@ export class App {
       toggleBoard: () => this.toggleBoard(),
       dropBoat: () => this.pushVesselIntent('debugDrop', 0),
       heelBoat: () => this.pushVesselIntent('debugHeel', 20),
+      fuel: () => ({ litres: boat().engine.fuelL, tank: VESSEL_DEFS[boat().defId].engine.fuel.tankL }),
+      canRefuel: () => canRefuel(boat()),
+      refuelling: () => boat().refuelling,
+      toggleRefuel: () => {
+        if (boat().refuelling) this.pushVesselIntent('refuel', 0);
+        else if (canRefuel(boat())) this.pushVesselIntent('refuel', 1);
+        else this.overlay.notify('Come alongside a fuel berth (Calder Haven quay, Brannock pier head) and stop');
+      },
+      setFuelDebug: (l) => this.pushVesselIntent('debugFuel', l),
+      coolingFault: () => boat().engine.coolingFault,
+      toggleCoolingFault: () => this.pushVesselIntent('debugCoolingFault', boat().engine.coolingFault ? 0 : 1),
+      anchorStatus: () => {
+        const a = boat().anchor;
+        const depth = -groundHeight(a.x, a.z);
+        switch (a.phase) {
+          case 'stowed':
+            return 'Stowed (switch on the console)';
+          case 'paying':
+            return `Letting go: ${a.rodeM.toFixed(0)} m out`;
+          case 'set':
+            return a.dragging ? `DRAGGING! ${a.rodeM.toFixed(0)} m in ${depth.toFixed(0)} m` : `Holding: ${a.rodeM.toFixed(0)} m chain in ${depth.toFixed(1)} m`;
+          case 'weighing':
+            return `Heaving in: ${a.rodeM.toFixed(0)} m out`;
+          case 'hanging':
+            return a.rodeM >= VESSEL_DEFS[boat().defId].anchor.chainM ? 'Too deep: not on the bottom' : `Off the bottom: ${a.rodeM.toFixed(0)} m out`;
+        }
+      },
+      ports: () => {
+        const [x, , z] = boat().position;
+        return PORTS.map((p) => ({
+          name: p.name,
+          bearingDeg: ((Math.atan2(p.x - x, -(p.z - z)) * 180) / Math.PI + 360) % 360,
+          rangeNm: Math.hypot(p.x - x, p.z - z) / 1852,
+        }));
+      },
       seaTrialsShown: () => this.trialsPanel.shown,
       toggleSeaTrials: () => this.toggleSeaTrials(),
       debugPanel: () => this.overlay.visible,

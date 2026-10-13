@@ -24,9 +24,15 @@
  *
  * Phases are wrapped to [0, 2π) on the CPU in double precision, so the shader never sees
  * a large `t` and float32 precision does not degrade over long sessions.
+ *
+ * ── Sheltered water ────────────────────────────────────────────────────────────
+ * In harbours and bays every component is scaled by s(x0, z0) ≤ 1 (world/shelter.ts),
+ * evaluated at the rest position like the phase. s ≤ 1 only shrinks Σ Q·k·A, so the
+ * convergence argument above still holds.
  */
 import { CONFIG } from '../config';
 import { wrap } from '../core/math';
+import { shelterFactor } from '../world/shelter';
 
 const TWO_PI = Math.PI * 2;
 
@@ -91,8 +97,9 @@ function horizontalDisplacement(waves: readonly PreparedWave[], x0: number, z0: 
     hx += w.horizontal * w.dirX * c;
     hz += w.horizontal * w.dirZ * c;
   }
-  out.x = hx;
-  out.z = hz;
+  const s = waves.length > 0 ? shelterFactor(x0, z0) : 1;
+  out.x = hx * s;
+  out.z = hz * s;
 }
 
 const scratchH = { x: 0, z: 0 };
@@ -114,6 +121,7 @@ export function restPosition(waves: readonly PreparedWave[], x: number, z: numbe
 
 /** Full displaced position of the particle with rest position (x0, z0). */
 export function displacedPosition(waves: readonly PreparedWave[], x0: number, z0: number): [number, number, number] {
+  const sh = waves.length > 0 ? shelterFactor(x0, z0) : 1;
   let x = x0;
   let y = 0;
   let z = z0;
@@ -121,19 +129,20 @@ export function displacedPosition(waves: readonly PreparedWave[], x0: number, z0
     const theta = w.k * (w.dirX * x0 + w.dirZ * z0) - w.phase;
     const s = Math.sin(theta);
     const c = Math.cos(theta);
-    x += w.horizontal * w.dirX * c;
-    y += w.amplitude * s;
-    z += w.horizontal * w.dirZ * c;
+    x += sh * w.horizontal * w.dirX * c;
+    y += sh * w.amplitude * s;
+    z += sh * w.horizontal * w.dirZ * c;
   }
   return [x, y, z];
 }
 
 /** Water surface elevation (m above mean level) at world point (x, z). */
 export function surfaceHeight(waves: readonly PreparedWave[], x: number, z: number): number {
+  if (waves.length === 0) return 0;
   const [x0, z0] = restPosition(waves, x, z);
   let y = 0;
   for (const w of waves) y += w.amplitude * Math.sin(w.k * (w.dirX * x0 + w.dirZ * z0) - w.phase);
-  return y;
+  return y * shelterFactor(x0, z0);
 }
 
 export interface SurfaceSample {
@@ -152,6 +161,7 @@ export interface SurfaceSample {
  */
 export function sampleSurface(waves: readonly PreparedWave[], x: number, z: number): SurfaceSample {
   const [x0, z0] = restPosition(waves, x, z);
+  const sh = waves.length > 0 ? shelterFactor(x0, z0) : 1;
   let y = 0;
   // Tangent along x0: (1 + txx, txy, txz); along z0: (tzx, tzy, 1 + tzz)
   let txx = 0, txy = 0, txz = 0, tzy = 0, tzz = 0; // prettier-ignore
@@ -160,17 +170,19 @@ export function sampleSurface(waves: readonly PreparedWave[], x: number, z: numb
     const theta = w.k * (w.dirX * x0 + w.dirZ * z0) - w.phase;
     const s = Math.sin(theta);
     const c = Math.cos(theta);
-    y += w.amplitude * s;
-    const qks = w.horizontal * w.k * s;
-    const akc = w.amplitude * w.k * c;
+    const amp = w.amplitude * sh;
+    const hor = w.horizontal * sh;
+    y += amp * s;
+    const qks = hor * w.k * s;
+    const akc = amp * w.k * c;
     txx -= qks * w.dirX * w.dirX;
     txz -= qks * w.dirX * w.dirZ;
     tzz -= qks * w.dirZ * w.dirZ;
     txy += akc * w.dirX;
     tzy += akc * w.dirZ;
-    vx += w.horizontal * w.dirX * w.omega * s;
-    vz += w.horizontal * w.dirZ * w.omega * s;
-    vy -= w.amplitude * w.omega * c;
+    vx += hor * w.dirX * w.omega * s;
+    vz += hor * w.dirZ * w.omega * s;
+    vy -= amp * w.omega * c;
   }
   // Tx = (1+txx, txy, txz), Tz = (txz, tzy, 1+tzz)  (the cross term is symmetric)
   const ax = txz, ay = tzy, az = 1 + tzz; // Tz

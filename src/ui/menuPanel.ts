@@ -20,12 +20,24 @@ export interface MenuButton {
 
 export type MenuRow = { heading: string } | { label: string; buttons: MenuButton[] };
 
+/** A tab of the menu. */
+export interface MenuPage {
+  name: string;
+  rows: MenuRow[];
+}
+
 interface Placed {
   btn: MenuButton;
   x: number;
   y: number;
   w: number;
   h: number;
+}
+
+interface Layout {
+  placed: Placed[];
+  headings: { text: string; y: number }[];
+  labels: { text: string; y: number }[];
 }
 
 const W = 640;
@@ -44,10 +56,16 @@ const COLORS = {
   buttonHover: '#3f6170',
   active: '#d18a2c',
   activeHover: '#e8a347',
+  tab: '#1b2a30',
   text: '#f2f5f5',
   value: '#ffd27a',
 };
 
+/**
+ * Layout: `header` rows (always shown), a tab bar when there is more than one page, then
+ * the current page's rows. The quad is as tall as the tallest page, so it doesn't change
+ * size when you switch tabs.
+ */
 export class MenuPanel {
   readonly mesh: THREE.Mesh;
   /** World size of the quad (m). */
@@ -56,35 +74,32 @@ export class MenuPanel {
   private readonly canvas = document.createElement('canvas');
   private readonly g: CanvasRenderingContext2D;
   private readonly texture: THREE.CanvasTexture;
-  private readonly placed: Placed[] = [];
-  private readonly headings: { text: string; y: number }[] = [];
-  private readonly labels: { text: string; y: number }[] = [];
+  private readonly fixed: Layout = { placed: [], headings: [], labels: [] };
+  private readonly pages: Layout[] = [];
+  private readonly pageNames: string[];
+  private page = 0;
   private hover: MenuButton | null = null;
   private signature = '';
   private readonly raycaster = new THREE.Raycaster();
   private readonly local = new THREE.Vector3();
 
-  constructor(rows: MenuRow[], widthM: number) {
-    let y = PAD;
-    for (const row of rows) {
-      if ('heading' in row) {
-        this.headings.push({ text: row.heading, y });
-        y += HEAD_H;
-        continue;
-      }
-      this.labels.push({ text: row.label, y });
-      const x0 = row.label ? LABEL_W : PAD;
-      const total = row.buttons.reduce((s, b) => s + (b.weight ?? 1), 0);
-      const span = W - PAD - x0 - GAP * (row.buttons.length - 1);
-      let x = x0;
-      for (const btn of row.buttons) {
-        const w = (span * (btn.weight ?? 1)) / total;
-        this.placed.push({ btn, x, y: y + 4, w, h: ROW_H - 8 });
-        x += w + GAP;
-      }
-      y += ROW_H;
+  constructor(header: MenuRow[], pages: MenuPage[], widthM: number) {
+    this.pageNames = pages.map((p) => p.name);
+    let y = this.layoutRows(header, PAD, this.fixed);
+    if (pages.length > 1) {
+      const tabs: MenuRow = {
+        label: '',
+        buttons: pages.map((p, i) => ({ text: p.name, active: () => this.page === i, press: () => (this.page = i) })),
+      };
+      y = this.layoutRows([tabs], y, this.fixed);
     }
-    const H = Math.ceil(y + PAD);
+    let bottom = y;
+    for (const p of pages) {
+      const layout: Layout = { placed: [], headings: [], labels: [] };
+      bottom = Math.max(bottom, this.layoutRows(p.rows, y + 6, layout));
+      this.pages.push(layout);
+    }
+    const H = Math.ceil(bottom + PAD);
     this.canvas.width = W;
     this.canvas.height = H;
     this.g = this.canvas.getContext('2d')!;
@@ -100,6 +115,51 @@ export class MenuPanel {
     );
     this.mesh.name = 'menuPanel';
     this.refresh(true);
+  }
+
+  private layoutRows(rows: MenuRow[], y: number, out: Layout): number {
+    for (const row of rows) {
+      if ('heading' in row) {
+        out.headings.push({ text: row.heading, y });
+        y += HEAD_H;
+        continue;
+      }
+      out.labels.push({ text: row.label, y });
+      const x0 = row.label ? LABEL_W : PAD;
+      const total = row.buttons.reduce((s, b) => s + (b.weight ?? 1), 0);
+      const span = W - PAD - x0 - GAP * (row.buttons.length - 1);
+      let x = x0;
+      for (const btn of row.buttons) {
+        const w = (span * (btn.weight ?? 1)) / total;
+        out.placed.push({ btn, x, y: y + 4, w, h: ROW_H - 8 });
+        x += w + GAP;
+      }
+      y += ROW_H;
+    }
+    return y;
+  }
+
+  /** Switch to the named tab (for code and tests; players press the tab buttons). */
+  showPage(name: string): void {
+    const i = this.pageNames.indexOf(name);
+    if (i >= 0) this.page = i;
+  }
+
+  /**
+   * Centre of a visible button in the quad's local frame (m), or null if it isn't on the
+   * current page. Used by tests to aim at buttons.
+   */
+  localCentreOf(btn: MenuButton): { x: number; y: number } | null {
+    const p = this.visible().find((q) => q.btn === btn);
+    if (!p) return null;
+    return {
+      x: ((p.x + p.w / 2) / W - 0.5) * this.width,
+      y: (0.5 - (p.y + p.h / 2) / this.canvas.height) * this.height,
+    };
+  }
+
+  private visible(): Placed[] {
+    return [...this.fixed.placed, ...(this.pages[this.page]?.placed ?? [])];
   }
 
   /** Button under a world ray within `far` metres, with the hit point and distance. */
@@ -130,14 +190,14 @@ export class MenuPanel {
 
   /** Redraw if anything shown changed (cheap check; call every frame while visible). */
   refresh(force = false): void {
-    const sig = this.placed.map((p) => `${text(p.btn)}|${p.btn.active?.() ? 1 : 0}|${p.btn === this.hover ? 1 : 0}`).join(';');
+    const sig = `${this.page}#` + this.visible().map((p) => `${text(p.btn)}|${p.btn.active?.() ? 1 : 0}|${p.btn === this.hover ? 1 : 0}`).join(';');
     if (!force && sig === this.signature) return;
     this.signature = sig;
     this.draw();
   }
 
   private buttonAt(px: number, py: number): MenuButton | null {
-    for (const p of this.placed) {
+    for (const p of this.visible()) {
       if (p.btn.press && px >= p.x && px <= p.x + p.w && py >= p.y && py <= p.y + p.h) return p.btn;
     }
     return null;
@@ -153,17 +213,20 @@ export class MenuPanel {
     g.lineWidth = 3;
     g.stroke();
 
+    const page = this.pages[this.page];
+    const headings = [...this.fixed.headings, ...(page?.headings ?? [])];
+    const labels = [...this.fixed.labels, ...(page?.labels ?? [])];
     g.textBaseline = 'middle';
     g.textAlign = 'left';
     g.font = 'bold 24px system-ui, sans-serif';
     g.fillStyle = COLORS.heading;
-    for (const h of this.headings) g.fillText(h.text.toUpperCase(), PAD + 4, h.y + HEAD_H / 2 + 4);
+    for (const h of headings) g.fillText(h.text.toUpperCase(), PAD + 4, h.y + HEAD_H / 2 + 4);
     g.font = '23px system-ui, sans-serif';
     g.fillStyle = COLORS.label;
-    for (const l of this.labels) if (l.text) g.fillText(l.text, PAD + 4, l.y + ROW_H / 2, LABEL_W - PAD - 10);
+    for (const l of labels) if (l.text) g.fillText(l.text, PAD + 4, l.y + ROW_H / 2, LABEL_W - PAD - 10);
 
     g.textAlign = 'center';
-    for (const p of this.placed) {
+    for (const p of this.visible()) {
       const hover = p.btn === this.hover;
       const active = p.btn.active?.() ?? false;
       if (p.btn.press) {
@@ -174,7 +237,7 @@ export class MenuPanel {
         g.font = `${active ? 'bold ' : ''}24px system-ui, sans-serif`;
       } else {
         g.fillStyle = COLORS.value;
-        g.font = 'bold 26px ui-monospace, Menlo, Consolas, monospace';
+        g.font = 'bold 24px ui-monospace, Menlo, Consolas, monospace';
       }
       g.fillText(text(p.btn), p.x + p.w / 2, p.y + p.h / 2 + 1, p.w - 8);
     }

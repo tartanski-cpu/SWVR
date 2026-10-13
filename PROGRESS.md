@@ -310,26 +310,85 @@ The owner asked for "a diesel inboard, not a revvy outboard, with a bigger prop 
   - Tunables in `CONFIG.menu`: size, wrist offset/tilt, poke depths, ray length.
 - **Tests (77):** menu rows drive the host and highlight the current choice; a poke from the front presses once until backed off; a poke from behind doesn't press; ray + trigger presses but the ray alone doesn't; a closed menu takes nothing.
 
+## Done (fuel, engine temperature, archipelago and harbours, owner request)
+
+### Fuel and engine temperatures
+
+- **Fuel flow** follows the fuel rack, as on a real jerk-pump diesel: indicated power × sfc, with a part-load penalty. Measured: idle 1.7 L/h; 6.7 kn on 11 L/h; 8.3 kn on 26 L/h; 9.5 kn flat out on 49 L/h.
+- **Tank:** 600 L, starting with 420 L. The engine stops when it runs dry and won't restart until refuelled.
+- **Coolant temperature:** one lumped heat capacity (`thermal.heatCapacity`, about half a real engine's so warm-up takes minutes), heated by 30 % of the fuel energy.
+  - Heat is rejected through a sea-water exchanger behind an 80–88 °C thermostat. The exchanger only works while the engine-driven raw-water pump turns, so after shutdown the engine heat-soaks and cools slowly.
+  - **Oil** lags the coolant and runs up to 12 °C hotter at full load.
+  - **Warm-up:** cold-start under way reaches about 80 °C in 4–5 minutes; idling alone takes about 20 minutes to reach 50 °C.
+- **Overheat chain:**
+  - Alarm and buzzer above 95 °C.
+  - The governor derates the rack to 30 % between 100 and 110 °C.
+  - Protection shutdown above 115 °C.
+  - The **Pump failure** fault (menu > Tests) cuts the exchanger to 8 %. Flat out, the alarm sounds in about 15 s and the engine shuts down after about 2.5 minutes; backing off to idle saves it.
+- **Engine monitor:** a fifth screen behind the wheel, read through the spokes. It shows coolant and oil temperature, fuel litres and L/h, and **HIGH TEMP** / **LOW FUEL** lamps (low fuel below 10 %).
+- **Bridge buzzer** (WebAudio).
+- **White smoke** from a cold engine, fading as the block warms through 25–60 °C. This was the remaining exhaust item.
+- **Sea-trials report:** gains L/h and range (nm, full tank) for each lever setting.
+
+### The archipelago (`src/world/`)
+
+- **Level data:** `archipelago.ts` holds islands, dredged basins and bays ("cuts"), levelled waterfronts ("flats"), breakwaters ("ridges"), quay and pier blocks, buildings, lights, ports and shelter zones. It is plain data, kept separate from the tunables.
+- **Terrain:** `terrain.ts` has one analytic `groundHeight(x, z)` for land **and** seabed: coastline harmonics, beaches into hills, and an exponential shelf down to 40 m. The terrain mesh, hull contacts, anchor and depth sounder all use it, so what you see is what you ground on.
+- **Islands:**
+  - **Calder Holm**, big, with **Calder Haven**: a ~30 m entrance between rubble breakwaters, a dredged 4.5 m basin, a 70 m fendered quay, a fuel pump and a small waterfront.
+  - **Brannock**, with a 130 m timber **pier** and T-head in deep water, a fuel pump and a pier-head light.
+  - **Rona**, with **Selkie Bay**, a horseshoe **anchorage** (about 9 m, beach and bothy at its head).
+  - **Smaller islands:** Eilean Dubh, Tarran (with a lighthouse, Fl W 10 s), Skerry and Gull Rocks (on the direct line to Calder Haven, so mind them).
+- **Lights:** IALA A entrance lights at Calder Haven (Fl R 4 s to port and Fl G 4 s to starboard, entering), a fixed red pier-head light, and the lighthouse. They show as constant pixel size at night, so they're visible from miles off.
+- **Sheltered water:** the waves are scaled down inside Calder Haven (to 8 %) and Selkie Bay (to 40 %). The same `shelterFactor` is applied at the particle rest position on the CPU (physics) and in the ocean vertex shader (uniforms).
+- **Rendering:** about 66k triangles and 4 draw calls (terrain, merged structures, instanced trees, lights). The world builds in well under a second at start-up.
+- **Hull contacts** (`physics/contacts.ts`):
+  - Penalty springs at keel, chine and deck-edge points on every other station, against the terrain and the quay/pier boxes.
+  - Fendered faces are softer and slippery.
+  - Friction becomes viscous below 8 cm/s, so a grounded boat settles.
+  - Gated by `WorldState.geography`; the sea trials run in `'openSea'`.
+- **Contact feedback:** a thump on impact, a scrape while sliding, and a controller jolt if you're aboard.
+- **Anchor** (`physics/anchor.ts`), worked by a new **ANCHOR** switch on the console:
+  - **Letting go:** chain pays out to 4 × depth + 5 m (60 m of chain).
+  - **Chain tension:** a soft catenary-like curve while the chain lifts off the bottom, then a stiff spring once it's taut.
+  - **Holding:** about 20 kN, reduced at short scope (full from 3:1); the anchor drags beyond that.
+  - **Weighing:** the windlass heaves in, stalling above a 9 kN pull, so it draws the boat up to the anchor, then stows it.
+  - **Display:** the chain is drawn from the bow roller, and the menu shows the anchor status.
+- **Refuelling:** stop within about 14 m of a fuel berth (Calder Haven quay, Brannock T-head) and press **Refuel** in the menu (Boat tab). Fuel flows at 2.5 L/s and stops automatically if you move off.
+- **Echo sounder:** depth under the keel on the speed screen, red below 2 m.
+
+### Menu
+
+- The menu has grown, so it now has **tabs** (Sea & time / Boat / Comfort / Tests) and stays 24 × 22 cm on the wrist.
+- **New rows:**
+  - Fuel and refuel.
+  - Anchor status.
+  - Engine faults.
+  - Port bearings and ranges (until there's a chart).
+
+### Tests (95)
+
+- **Fuel:** idle and full-load burn, the tank integral, running dry.
+- **Temperature:** warm-up and the thermostat holding, the pump-failure overheat (alarm, derate, cool at idle), the protection shutdown.
+- **Terrain and structures:** islands vs deep start, basin depths, the quay pushing out through its face.
+- **Sheltered water:** Calder Haven waves are less than 15 % of the open sea's.
+- **Collisions:** running aground on Brannock at full power (stops on the shore, doesn't pass through or blow up, stays aground); hitting the pier side (bounces off).
+- **Anchor:** set in Selkie Bay and holds against the engine astern; weighs and stows; in 40 m all the chain goes out at a poor scope and it drags.
+- **Refuelling:** fills at the berth, stops when the boat leaves, refused elsewhere.
+- **Menu:** tabs.
+
 ## Planned next (owner requests, not started)
 
-1. **Fuel and oil temperature (engine management, refuelling).** Fits the existing structure:
-   - New fields in the serializable `EngineState`: `fuelL` (tank litres) and `oilTempC` / `coolantTempC`.
-   - Fuel burn from the torque balance already computed: fuel flow = BSFC(load) × engine power, with BSFC about 210–230 g/kWh near rated. At idle it's a small constant.
-   - Oil/coolant temperature: a first-order thermal model. Heat in ∝ power, heat out ∝ (T − sea temperature) through the heat exchanger, a thermostat at about 82 °C. Overheating derates the governor (rack cap) and can trip an alarm.
-   - Engine stops when the tank is empty. Refuelling is a vessel intent (`refuel`, litres) that a quay or fuel-hose interaction can send later.
-   - New displays (fuel gauge, temperature gauge, alarm lamp) slot into the instrument atlas, and the sea-trials report gains fuel consumption: L/h at speed and range.
-2. ~~VR menu~~ **Done** (see above). New settings go in `ui/mainMenu.ts` via `MenuHost`.
+1. ~~Fuel and oil temperature~~ **Done** (see above).
+2. ~~VR menu~~ **Done**. New settings go in `ui/mainMenu.ts` via `MenuHost`.
+3. **Missions and game loop.** On hold at the owner's request until asked for.
 
 ## Future roadmap (owner notes, not started)
 
-3. **A small explorable archipelago with ports.**
-   - Islands as static, merged low-poly terrain meshes: a heightfield or hand-placed cones and ridges, flat-shaded like the boat.
-   - A world map/registry module (`src/world/`) holds island outlines, depth contours and port definitions as data: berths, fuel points, mooring bollards.
-   - The water needs a depth field, so waves can shoal or break near shore and the hull can ground.
-   - Collision: hull stations against a terrain/depth query (cheap, same pattern as the wave query). Simple box/capsule colliders for quays and pontoons.
-   - Ports are walkable areas (the existing multi-level WalkArea) that players can step onto from the boat.
-   - Moorings and fenders would want contact forces, the point to revisit Rapier versus a hand-written contact model.
-   - **Performance:** keep islands to a few draw calls each, and cull or LOD by distance (fog helps).
+3. ~~Archipelago with ports~~ **Done** (see above). Still open from the original notes:
+   - **Walking ashore:** stepping from the boat onto quays and piers, using the existing multi-level WalkArea.
+   - **Mooring lines:** not needed until there's wind or current to hold against.
+   - **Breaking waves** on beaches.
 4. **Dynamic weather.**
    - `EnvironmentState` already holds the sea state (wave components) and time of day. Add wind (speed, direction), visibility (fog density), cloud cover and rain intensity.
    - A slow weather simulation interpolates between weather presets, building and decaying the wave components, which are scaled from a target Hs and Tp. A JSONSWAP-style fit is possible later.
@@ -345,7 +404,7 @@ The owner asked for "a diesel inboard, not a revvy outboard, with a bigger prop 
    - **Smoke:** dirty grey-brown diesel haze even at idle, denser and darker with load, a black puff on fast throttle-up (turbo lag), black when labouring, and a start-up burst.
    - **When the outlet is under a wave:** the smoke bubbles up at the surface.
    - **World-space particles:** under way the plume trails astern; going astern you back into it. 1 draw call.
-   - **Still to do:** white smoke when cold (needs the coolant-temperature model) and wind drift (needs weather). The original notes follow.
+   - **Cold white smoke:** done with the thermal model. Wind drift still needs weather. The original notes follow.
    - A small particle system at the exhaust outlet (funnel or stack on the wheelhouse roof): one instanced or Points draw call with a soft sprite.
    - **Driven by the engine state:**
      - Emission rate and opacity from the fuel rack (load), with a dark puff when the rack rises quickly (turbo lag; `rackRiseRate` already models it).
@@ -364,9 +423,10 @@ The deck and wheelhouse floor are opaque and sit well above the DWL (freeboard a
 
 The MVP is done. Pick from "Planned next" and the "Future roadmap" above. Suggested order:
 
-1. **Fuel and oil temperature.** The gauges go on the dash; refuelling and engine settings go in the menu.
-2. **Archipelago with ports.** It brings collisions: boat vs quay and seabed.
-3. **Missions** (rescue tasks). When they start, a mission is a small state machine in `WorldState` (plain data, stable ids) that reads world state each tick and emits events ("survivor spawned", "objective complete"). It never touches rendering.
+1. **Owner VR test** of fuel and temperatures, harbours, anchoring and refuelling. Then tune contact stiffness, the shelter factors and the menu size and placement.
+2. **Weather** (wind, current), which gives the anchor and mooring lines something to do, plus mooring lines and walking ashore.
+3. **Charts:** the world data already has coastlines, depths and ports.
+4. **Missions** (rescue tasks), on hold until the owner asks. When they start, a mission is a small state machine in `WorldState` (plain data, stable ids) that reads world state each tick and emits events ("survivor spawned", "objective complete"). It never touches rendering.
 
 For performance on the Quest, read the debug panel's cpu/gpu lines in VR:
 
@@ -376,7 +436,9 @@ For performance on the Quest, read the debug panel's cpu/gpu lines in VR:
 ## Known issues / notes
 
 - **Water inside the hull:** the ocean is drawn wherever it is, so green water over the bulwark in big rolls can show "inside" the boat. Freeboard is 0.95–1.5 m, so it's rare in the current sea state. The fix is a hull-interior depth/stencil mask (see "Decision" above).
-- **No collisions:** the boat drives straight through the buoys and the platform. Collisions come with the archipelago.
+- **Collisions** are with the terrain, quays and piers only. The boat still passes through the buoys and the pilot-station platform near the start.
+- **Fixed-size lights:** harbour lights are constant pixel size, so they don't grow as you approach.
+- **Players can't walk ashore yet.** Boarding and leaving still go to the platform at the start.
 - **No whitecaps or foam** beyond a faint crest tint.
 - **The ocean at night is very dark** (no moon yet).
 - **Beam-sea roll** is near resonance: the roll period is 3.5 s and the sea has energy at 2–7 s. Roll damping was raised to 15 % of critical; bilge keels or a lower GM would be the naval-architecture levers if it's still too lively.
