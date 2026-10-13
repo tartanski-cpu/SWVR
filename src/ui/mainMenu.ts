@@ -38,6 +38,9 @@ export interface MenuHost {
   cargoWaiting(i: number): { label: string; ready: boolean } | null;
   unloadCargo(i: number): void;
   loadCargo(i: number): void;
+  /** Docking: status line, and whether DOCK would do something now (dock or cast off). */
+  dockStatus(): { text: string; ready: boolean; docked: boolean };
+  toggleDock(): void;
   /** One-line anchor/windlass status. */
   anchorStatus(): string;
   /** Ports with bearing (°T) and range (nm) from the boat. */
@@ -131,6 +134,17 @@ export function mainMenu(h: MenuHost): MainMenu {
           active: () => h.refuelling(),
           press: () => h.toggleRefuel(),
           weight: 1.5,
+        },
+      ],
+    },
+    {
+      label: 'Docking',
+      buttons: [
+        { text: () => h.dockStatus().text, weight: 2.4 },
+        {
+          text: () => (h.dockStatus().docked ? 'Cast off' : 'Dock'),
+          active: () => h.dockStatus().ready,
+          press: () => h.toggleDock(),
         },
       ],
     },

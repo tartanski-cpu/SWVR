@@ -15,6 +15,20 @@ export interface VesselControls {
   horn: number;
   /** Anchor windlass switch: 1 = let go / pay out, 0 = heave in and stow. */
   anchor: number;
+  /** Wheelhouse light switch, 0 off / 1 on. */
+  cabinLight: number;
+}
+
+/** Docking and mooring lines (physics/mooring.ts). */
+export interface MooringState {
+  /** free: under way; docking: lines out, warping in; moored: made fast alongside. */
+  phase: 'free' | 'docking' | 'moored';
+  /** Berth id while docking/moored, or the berth whose hot spot she is in (phase free). */
+  berthId: string | null;
+  /** Lying the berth's way (0) or the other way round (1), chosen when docking. */
+  reversed: boolean;
+  /** Seconds since DOCK was pressed (lines come taut over warpTime). */
+  t: number;
 }
 
 /** Anchor and windlass (see physics/anchor.ts). */
@@ -94,6 +108,7 @@ export interface VesselState {
   /** Propeller thrust (N) on the last tick, for displays/audio. */
   thrust: number;
   anchor: AnchorState;
+  mooring: MooringState;
   /** Taking fuel at a fuel berth. */
   refuelling: boolean;
   contact: ContactState;
@@ -107,7 +122,7 @@ export function createVesselState(id: EntityId, defId: string): VesselState {
     orientation: [0, 0, 0, 1],
     linearVelocity: [0, 0, 0],
     angularVelocity: [0, 0, 0],
-    controls: { lever: 0, helm: 0, navLights: 0, horn: 0, anchor: 0 },
+    controls: { lever: 0, helm: 0, navLights: 0, horn: 0, anchor: 0, cabinLight: 0 },
     engine: {
       phase: 'off',
       crank: 0,
@@ -125,6 +140,7 @@ export function createVesselState(id: EntityId, defId: string): VesselState {
     rudder: 0,
     thrust: 0,
     anchor: { phase: 'stowed', x: 0, z: 0, rodeM: 0, tension: 0, dragging: false },
+    mooring: { phase: 'free', berthId: null, reversed: false, t: 0 },
     refuelling: false,
     contact: { force: 0, slide: 0, impact: 0 },
   };

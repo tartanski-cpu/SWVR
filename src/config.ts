@@ -414,6 +414,9 @@ export const CONFIG = {
         navLightsSwitch: { position: [-0.78, 2.16, -1.52] as [number, number, number] },
         /** Windlass: up = heave in / stowed, down = let go. */
         anchorSwitch: { position: [-0.6, 2.16, -1.52] as [number, number, number] },
+        cabinLightSwitch: { position: [-0.96, 2.16, -1.52] as [number, number, number] },
+        /** DOCK / cast off (where the lever used to stand on the console top). */
+        dockButton: { position: [0.45, 2.16, -1.52] as [number, number, number] },
         /** Instrument dash across the front of the console: displays on its aft face. */
         dash: { front: -1.82, aft: -1.66, bottom: 2.15, top: 2.56, halfWidth: 1.25, tiltDeg: 14 },
         /**
@@ -474,11 +477,57 @@ export const CONFIG = {
         ] as [number, number, number][],
         maxPayloadKg: 5000,
       },
+      /**
+       * Cabin light: a ceiling lamp in the wheelhouse (vessel axes) and its light (cd, m).
+       * One real PointLight, kept at intensity 0 when off so switching never recompiles shaders.
+       */
+      cabinLight: { position: [0, 3.22, -0.2] as [number, number, number], intensity: 3, distance: 6 },
+      /**
+       * Docking (the DOCK button) and the mooring lines that hold her: bow and stern line
+       * points (vessel axes, at the deck edge on the berth side are found automatically).
+       */
+      mooring: {
+        lineZ: 4.5,
+        lineY: 1.2,
+      },
       /** Where a player stands after boarding (vessel axes): at the helm, facing forward. */
       boardingSpot: [0, 1.2, -0.75] as [number, number, number],
       /** Debug: spawn/drop point and drop height (m above the DWL). */
       spawn: { x: 0, z: -22, dropHeight: 4, headingDeg: 90 },
     },
+  },
+
+  /**
+   * Docking: inside a berth's hot spot (close, slow, roughly lined up either way round),
+   * DOCK warps the boat in and the "lines" then hold her alongside. They are horizontal
+   * spring-dampers at bow and stern towards the berth, so she still heaves and rolls.
+   */
+  docking: {
+    /** Hot spot: boat origin within this distance of the berth (m)... */
+    range: 18,
+    /** ...below this speed (m/s)... */
+    maxSpeed: 1.5,
+    /** ...and within this angle of the berth axis, either way round (degrees). */
+    maxAngleDeg: 40,
+    /** Line stiffness and damping per end (N/m, N*s/m) once made fast. */
+    stiffness: 9000,
+    damping: 14000,
+    /** Most a line pulls while warping in, and when moored (N); beyond `breakDist` m off, lines part. */
+    warpForce: 7000,
+    holdForce: 40000,
+    breakDist: 8,
+    /** Lines come taut over this long when docking (s). */
+    warpTime: 4,
+  },
+
+  /** Port lighting: the shared floodlight for the nearest port at night. */
+  portLights: {
+    /** Floodlight intensity (cd) and reach (m); only on within `activeRange` m of the port. */
+    floodIntensity: 1600,
+    floodDistance: 70,
+    activeRange: 500,
+    /** Lamp glow colour (warm LED / sodium). */
+    lampColor: 0xffd9a0,
   },
 
   /** Cargo between ports (cargo/cargo.ts). */

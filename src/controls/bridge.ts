@@ -44,7 +44,14 @@ export class Bridge {
     const anchor = new Toggle('anchor', 'anchor', 'Anchor: let go / heave in', (s) => s.controls.anchor);
     anchor.root.position.fromArray(b.anchorSwitch.position);
 
-    this.controls.push(wheel, lever, start, horn, nav, anchor);
+    const cabin = new Toggle('cabinLight', 'cabinLight', 'Cabin light', (s) => s.controls.cabinLight);
+    cabin.root.position.fromArray(b.cabinLightSwitch.position);
+
+    // Lit when there's a berth to dock at (hot spot) or while docking/moored.
+    const dock = new Button('dock', 'dock', 'Dock / cast off', 'pulse', 0x2f6fd0, (s) => s.mooring.phase !== 'free' || s.mooring.berthId !== null);
+    dock.root.position.fromArray(b.dockButton.position);
+
+    this.controls.push(wheel, lever, start, horn, nav, anchor, cabin, dock);
     for (const c of this.controls) this.root.add(c.root);
 
     // Instrument dash: a box across the front of the console with the displays on its face.
@@ -106,6 +113,8 @@ function buildLabels(b: VesselDef['bridge']): THREE.Mesh {
     ['HORN', b.hornButton.position],
     ['NAV LIGHTS', b.navLightsSwitch.position],
     ['ANCHOR', b.anchorSwitch.position],
+    ['CABIN', b.cabinLightSwitch.position],
+    ['DOCK', b.dockButton.position],
   ];
   const slotW = 512;
   const slotH = 64;

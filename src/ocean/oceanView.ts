@@ -64,6 +64,9 @@ export class OceanView {
     uReflection: { value: CONFIG.ocean.reflectionStrength },
     uCrestHeight: { value: 1 },
     uFoamAmount: { value: 0 },
+    uPortLightPos: { value: new THREE.Vector3() },
+    uPortLightColor: { value: new THREE.Color(0, 0, 0) },
+    uPortLightRange: { value: 1 },
     uFogColor: { value: new THREE.Color() },
     uFogNear: { value: 0 },
     uFogFar: { value: 1 },
@@ -87,6 +90,14 @@ export class OceanView {
    * @param waves  wave constants for the current render time (from prepareWaves)
    * @param viewer viewer world position; the grid is re-centred under it
    */
+  /** The port floodlight's glints on the water (intensity 0 = off). */
+  setPortLight(light: THREE.PointLight): void {
+    const u = this.uniforms;
+    light.getWorldPosition(u.uPortLightPos.value);
+    u.uPortLightColor.value.copy(light.color).multiplyScalar(Math.min(1, light.intensity / 1600) * 0.9);
+    u.uPortLightRange.value = light.distance;
+  }
+
   update(waves: readonly PreparedWave[], viewer: THREE.Vector3, env: EnvironmentView): void {
     const step = CONFIG.ocean.mesh.innerSpacing;
     this.mesh.position.set(Math.round(viewer.x / step) * step, 0, Math.round(viewer.z / step) * step);

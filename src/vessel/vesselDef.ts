@@ -42,6 +42,8 @@ export interface VesselDef {
   exhaust: VesselConfig['exhaust'];
   anchor: VesselConfig['anchor'];
   cargo: VesselConfig['cargo'];
+  cabinLight: VesselConfig['cabinLight'];
+  mooring: VesselConfig['mooring'];
 }
 
 /** Wetted surface at the DWL: submerged girth of each station times its spacing. */
@@ -91,6 +93,8 @@ export function fromConfig(id: string, c: VesselConfig): VesselDef {
     exhaust: c.exhaust,
     anchor: c.anchor,
     cargo: c.cargo,
+    cabinLight: c.cabinLight,
+    mooring: c.mooring,
   };
 }
 

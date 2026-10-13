@@ -424,6 +424,25 @@ Frame-rate friendly: 3 extra draw calls, a few hundred vertices, and almost no C
 - **Not yet:** players walk through deck cargo (it isn't in the walk area); no pay or economy; cargo is moved by menu, not carried by hand.
 - **Tests (106):** stocked ports, loading and the sinkage/trim check, refusal away from the berth or while moving, delivery only at the destination with a replacement, the anchorage needing the anchor, slot and payload limits.
 
+## Done (cabin light, port lighting, docking, owner request)
+
+- **Cabin light:**
+  - A **CABIN** toggle on the console and a ceiling lamp whose diffuser glows when on.
+  - It's one real PointLight (3 cd, 6 m reach). It always exists and is dimmed to 0 when off, so switching never changes the light count, which would recompile shaders and hitch.
+- **Port lighting** (frame-rate friendly):
+  - **Lamps:** posts on the quays, pier and T-head, plus one at the Selkie bothy. Their heads glow at night (one Points draw call).
+  - **Floodlight:** ONE shared real PointLight, positioned at the floodlight of the nearest port within 500 m. It lights the quay and the boat while you dock.
+  - **Water:** the ocean shader adds that light's soft pool and long glinting reflection.
+  - **Cost:** 2 real lights in the scene in total.
+- **Docking** (`vessel/physics/mooring.ts`):
+  - Four berths (Calder Haven quay fuel/cargo, Brannock T-head fuel/cargo), each marked with a yellow strip on the edge.
+  - **Hot spot:** within 18 m, under 1.5 m/s, and within 40° of the berth axis either way round. The sim notes it each tick, so the blue **DOCK** button lights.
+  - **DOCK:** sends bow and stern lines ashore that come taut over 4 s (capped at 7 kN, so she warps in gently), then hold her as stiff, damped horizontal springs (capped at 40 kN). She still heaves and rolls. Dragged 8 m off, the lines part.
+  - **Cast off:** DOCK again.
+  - **Visuals:** the lines are drawn as ropes from the deck edge to bollards on the quay edge.
+  - Also in the menu's Boat tab, with a status line.
+- **Tests (111):** the hot-spot rules (close, slow, aligned, either way round), warping in onto the berth without a hard hit, holding against slow ahead while riding the swell, casting off, DOCK outside a hot spot, the cabin-light control.
+
 ## Planned next (owner requests, not started)
 
 1. ~~Fuel and oil temperature~~ **Done** (see above).

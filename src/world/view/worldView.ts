@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { flatVertexColorMaterial, mergeParts, part } from '../../render/geometryUtils';
-import { BLOCKS, BUILDINGS, ISLANDS, LIGHTS, PORTS, RIDGES, type BlockDef } from '../archipelago';
+import { BERTHS, BLOCKS, BUILDINGS, ISLANDS, LAMPS, LIGHTS, PORT_FLOODS, PORTS, RIDGES, type BlockDef } from '../archipelago';
+import { CONFIG } from '../../config';
 import { groundHeight } from '../terrain';
 import { standingHeight } from '../geography';
 
@@ -16,6 +17,7 @@ import { standingHeight } from '../geography';
 export class WorldView {
   readonly root = new THREE.Group();
   readonly lights: HarbourLights;
+  readonly portLighting: PortLighting;
 
   constructor() {
     this.root.name = 'archipelago';
@@ -24,7 +26,8 @@ export class WorldView {
     const structures = new THREE.Mesh(mergeParts(buildStructures()), flatVertexColorMaterial());
     structures.name = 'structures';
     this.lights = new HarbourLights();
-    this.root.add(terrain, structures, buildTrees(), this.lights.points);
+    this.portLighting = new PortLighting();
+    this.root.add(terrain, structures, buildTrees(), this.lights.points, this.portLighting.root);
     // Static: no per-frame matrix updates needed.
     this.root.traverse((o) => {
       o.matrixAutoUpdate = false;
@@ -138,6 +141,22 @@ function buildStructures(): THREE.BufferGeometry[] {
   for (const r of RIDGES) buildBreakwater(r.ax, r.az, r.bx, r.bz, r.crest, r.halfWidth, r.slope, parts);
   for (const bd of BUILDINGS) buildBuilding(bd, parts);
   for (const l of LIGHTS) buildLightTower(l.x, l.z, l.y, l.color, l.tower, parts);
+  // Lamp posts: a slim pole with a downward-facing head.
+  for (const l of LAMPS) {
+    const base = standingHeight(l.x, l.z);
+    const h = l.y - base;
+    parts.push(part(new THREE.CylinderGeometry(0.07, 0.1, h, 6).translate(l.x, base + h / 2, l.z), 0x50565c));
+    parts.push(part(new THREE.BoxGeometry(0.5, 0.14, 0.28).translate(l.x, l.y + 0.05, l.z), 0x3a3f44));
+    parts.push(part(new THREE.BoxGeometry(0.42, 0.04, 0.22).translate(l.x, l.y - 0.04, l.z), 0xfff1c8));
+  }
+  // Berth marks: a yellow strip along the quay/pier edge for each dockable berth.
+  for (const b of BERTHS) {
+    const yaw = (b.headingDeg * Math.PI) / 180;
+    const ex = b.x + b.shoreX * (b.shoreDist + 0.3);
+    const ez = b.z + b.shoreZ * (b.shoreDist + 0.3);
+    const strip = new THREE.BoxGeometry(0.3, 0.03, 12).rotateY(-yaw).translate(ex, b.deckY + 0.015, ez);
+    parts.push(part(strip, 0xf2c200));
+  }
   for (const p of PORTS) {
     if (!p.fuel) continue;
     const top = standingHeight(p.fuel.pumpX, p.fuel.pumpZ);
@@ -426,4 +445,65 @@ function glowTexture(): THREE.Texture {
   g.fillStyle = grad;
   g.fillRect(0, 0, s, s);
   return new THREE.CanvasTexture(g.canvas);
+}
+
+// ── Port lighting ────────────────────────────────────────────────────────────────
+
+/**
+ * Night lighting for the ports, frame-rate friendly:
+ *  - every lamp post's head glows (one Points draw call, warm, world-sized sprites);
+ *  - ONE real PointLight - the floodlight of the nearest port within `activeRange` - lights
+ *    the quay, the boat and (in the ocean shader) the water near you. Moving between ports
+ *    moves the light; the scene's light count never changes, so no shader recompiles.
+ */
+export class PortLighting {
+  readonly root = new THREE.Group();
+  readonly flood: THREE.PointLight;
+  private readonly glow: THREE.Points;
+  private readonly glowMat: THREE.PointsMaterial;
+
+  constructor() {
+    const c = CONFIG.portLights;
+    const pos = new Float32Array(LAMPS.length * 3);
+    LAMPS.forEach((l, i) => pos.set([l.x, l.y - 0.12, l.z], i * 3));
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    this.glowMat = new THREE.PointsMaterial({
+      color: c.lampColor,
+      size: 2.2,
+      map: glowTexture(),
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      fog: false,
+    });
+    this.glow = new THREE.Points(geo, this.glowMat);
+    this.glow.name = 'lampGlow';
+    this.glow.frustumCulled = false;
+    this.flood = new THREE.PointLight(c.lampColor, 0, c.floodDistance, 2);
+    this.flood.name = 'portFlood';
+    this.root.add(this.glow, this.flood);
+  }
+
+  /**
+   * @param near     a point near the action (the boat or the viewer)
+   * @param darkness 0 (noon) .. 1 (night); lamps come on at dusk
+   */
+  update(near: THREE.Vector3, darkness: number): void {
+    const c = CONFIG.portLights;
+    const on = Math.min(1, Math.max(0, (darkness - 0.25) / 0.3));
+    this.glow.visible = on > 0.01;
+    this.glowMat.opacity = on;
+    let best: (typeof PORT_FLOODS)[number] | null = null;
+    let bestD = c.activeRange;
+    for (const f of PORT_FLOODS) {
+      const d = Math.hypot(near.x - f.x, near.z - f.z);
+      if (d < bestD) [best, bestD] = [f, d];
+    }
+    if (best) this.flood.position.set(best.x, best.y, best.z);
+    this.flood.intensity = best ? c.floodIntensity * on : 0;
+    // Static group: refresh the moved light's matrix by hand.
+    this.flood.updateMatrix();
+    this.flood.updateMatrixWorld(true);
+  }
 }

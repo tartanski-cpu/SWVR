@@ -304,3 +304,67 @@ export const PORTS: PortDef[] = [
 export const MAX_DEPTH = 40;
 /** Seabed shelf: depth reaches ~63 % of MAX_DEPTH this far offshore (m). */
 export const SHELF = 55;
+
+/**
+ * Berths you can dock at (the DOCK button). Where the boat's origin lies when moored
+ * (alongside, fenders touching), the berth's axis (compass bearing; the boat may lie
+ * either way round), and the unit vector + distance from the boat's centreline to the
+ * quay/pier edge, where the mooring lines go ashore. `deckY` is that edge's height.
+ */
+export interface BerthDef {
+  id: string;
+  portId: string;
+  name: string;
+  x: number;
+  z: number;
+  headingDeg: number;
+  shoreX: number;
+  shoreZ: number;
+  shoreDist: number;
+  deckY: number;
+}
+
+const S2 = Math.SQRT1_2;
+export const BERTHS: BerthDef[] = [
+  // Calder Haven quay, west face at x = 711: half beam 2.1 m + fenders.
+  { id: 'calder-fuel', portId: 'calder', name: 'Calder Haven quay (fuel)', x: 708.5, z: 625, headingDeg: 0, shoreX: 1, shoreZ: 0, shoreDist: 2.5, deckY: 1.6 },
+  { id: 'calder-cargo', portId: 'calder', name: 'Calder Haven quay (cargo)', x: 708.5, z: 660, headingDeg: 0, shoreX: 1, shoreZ: 0, shoreDist: 2.5, deckY: 1.6 },
+  // Brannock T-head, seaward (NE) face; the T-head runs 135°/315°.
+  { id: 'brannock-fuel', portId: 'brannock', name: 'Brannock T-head (fuel)', x: -553.4, z: 306.1, headingDeg: 135, shoreX: -S2, shoreZ: S2, shoreDist: 2.5, deckY: 2.2 },
+  { id: 'brannock-cargo', portId: 'brannock', name: 'Brannock T-head (cargo)', x: -539.2, z: 320.2, headingDeg: 135, shoreX: -S2, shoreZ: S2, shoreDist: 2.5, deckY: 2.2 },
+];
+
+/** Lamp posts on quays and piers (a warm glow each; see PORT_FLOODS for the real light). */
+export interface LampDef {
+  x: number;
+  z: number;
+  /** Lamp height above MSL (m). */
+  y: number;
+}
+
+export const LAMPS: LampDef[] = [
+  // Calder Haven: along the back of the quay apron, and the waterfront.
+  { x: 716, z: 618, y: 7.5 },
+  { x: 716, z: 642, y: 7.5 },
+  { x: 716, z: 668, y: 7.5 },
+  { x: 735, z: 690, y: 7.5 },
+  // Brannock: along the pier and on the T-head.
+  { x: -640, z: 404, y: 7 },
+  { x: -615, z: 379, y: 7 },
+  { x: -590, z: 354, y: 7 },
+  { x: -568, z: 329, y: 7 },
+  { x: -562.2, z: 305, y: 7 },
+  { x: -541, z: 326.2, y: 7 },
+  // Selkie Bay: a single lamp at the bothy.
+  { x: -150, z: 1305, y: 4.5 },
+];
+
+/**
+ * One real light per port, high over the berths. Only the nearest port's is switched on
+ * at night (a single shared PointLight), so the frame cost stays that of one light.
+ */
+export const PORT_FLOODS: { portId: string; x: number; y: number; z: number }[] = [
+  { portId: 'calder', x: 712, y: 11, z: 645 },
+  { portId: 'brannock', x: -552, y: 10, z: 316 },
+  { portId: 'selkie', x: -150, y: 6, z: 1300 },
+];

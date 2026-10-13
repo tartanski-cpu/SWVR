@@ -57,6 +57,7 @@ import { submergedSection, type SubmergedSection } from './sectionClip';
 import { stepFuelAndHeat } from './engineThermal';
 import { contactAt, hullContactPoints, type ContactResult } from './contacts';
 import { stepAnchor } from './anchor';
+import { stepMooring } from './mooring';
 
 /** Optional per-tick diagnostics for the debug view (vessel-local coordinates). */
 export interface HydroDebug {
@@ -90,6 +91,12 @@ const ptV = new THREE.Vector3();
 const cf = new THREE.Vector3();
 const contact: ContactResult = { fx: 0, fy: 0, fz: 0, normal: 0, slide: 0, approach: 0 };
 const chain = { x: 0, y: 0, z: 0 };
+const lineBow = new THREE.Vector3();
+const lineBowV = new THREE.Vector3();
+const lineStern = new THREE.Vector3();
+const lineSternV = new THREE.Vector3();
+const fBow = { x: 0, y: 0, z: 0 };
+const fStern = { x: 0, y: 0, z: 0 };
 /** Centre of gravity (vessel axes) and principal inertia (x pitch, y yaw, z roll) this tick. */
 const cgL = new THREE.Vector3();
 const inertia = new THREE.Vector3();
@@ -296,6 +303,17 @@ export function stepVessel(
     pointVelocity(pt, ptV);
     stepAnchor(state, def, pt, ptV, dt, chain);
     if (chain.x !== 0 || chain.y !== 0 || chain.z !== 0) addForceAt(cf.set(chain.x, chain.y, chain.z), pt);
+    // Mooring lines (docked) at bow and stern.
+    const mo = def.mooring;
+    toWorld(0, mo.lineY, -mo.lineZ, lineBow);
+    pointVelocity(lineBow, lineBowV);
+    toWorld(0, mo.lineY, mo.lineZ, lineStern);
+    pointVelocity(lineStern, lineSternV);
+    stepMooring(state, def, lineBow, lineBowV, lineStern, lineSternV, dt, fBow, fStern);
+    if (state.mooring.phase !== 'free') {
+      addForceAt(cf.set(fBow.x, 0, fBow.z), lineBow);
+      addForceAt(cf.set(fStern.x, 0, fStern.z), lineStern);
+    }
   }
 
   // ── Linear: a = F / m_eff, with added mass per vessel axis ──

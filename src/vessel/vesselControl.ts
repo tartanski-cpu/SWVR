@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { Intent } from '../core/intents';
 import { clamp } from '../core/math';
 import { toggleEngine } from './physics/propulsion';
+import { toggleDock } from './physics/mooring';
 import { VESSEL_DEFS, type VesselDef } from './vesselDef';
 import { fuelBerthAt } from '../world/geography';
 import type { VesselState } from './vesselState';
@@ -72,6 +73,13 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
       break;
     case 'anchor':
       s.controls.anchor = intent.value > 0.5 ? 1 : 0;
+      break;
+    case 'cabinLight':
+      s.controls.cabinLight = intent.value > 0.5 ? 1 : 0;
+      break;
+    case 'dock':
+      // DOCK button: dock in a berth's hot spot, or cast off.
+      toggleDock(s);
       break;
     case 'refuel':
       // Start (1) or stop (0) taking fuel; stepRefuelling checks the berth each tick.

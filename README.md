@@ -104,6 +104,8 @@ At the helm, from left to right on the console:
 
 - **Nav lights** toggle switch.
 - **Anchor** switch: down = let go (the chain pays out to 4 × depth + 5 m), up = heave in and stow.
+- **Cabin** light switch (far left): the wheelhouse ceiling lamp.
+- **DOCK** button (blue, right of the wheel): lights up when you're in a berth's hot spot. Press it to dock; press again to cast off.
 - **Horn** button (hold).
 - **Wheel**: 1.5 turns lock to lock. Hydraulic steering, so it stays where you leave it.
 - **Throttle/gear lever**, on a pedestal starboard of the wheel so it falls to hand: forward = ahead, back = astern, with a notch at neutral.
@@ -147,6 +149,22 @@ Each port has three items waiting ashore, each bound for another port. The box c
 3. **Take it to its destination** and **Unload** it there. That's a delivery. A replacement cargo then appears at one of the ports.
 
 Cargo is real weight. A full load sits her about 10–15 cm deeper and down by the stern, and she'll feel heavier.
+
+### Docking
+
+Dockable berths are marked with a **yellow strip** on the quay or pier edge:
+
+- **Calder Haven quay:** a fuel berth and a cargo berth.
+- **Brannock T-head:** a fuel berth and a cargo berth.
+
+To dock:
+
+1. Come slowly alongside: within about 18 m, under 3 kn, roughly parallel to the quay (bow either way).
+2. The blue **DOCK** button lights. Press it, or use the menu's Boat tab.
+3. Bow and stern lines go ashore and warp her in over a few seconds. She's then held alongside but still moves with the swell.
+4. **Cast off** with the same button. A hard pull with the engine parts the lines.
+
+**Night:** the ports have lamp posts. Near a port, its floodlight lights the quay, your boat and the water around you.
 
 - **Collisions:** you can run aground and hit quays. Fenders are soft; rock isn't.
 - **Refuelling:** come alongside a fuel berth and stop, then use **Refuel** on the menu's Boat tab.

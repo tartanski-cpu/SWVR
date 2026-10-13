@@ -15,6 +15,10 @@ uniform float uSpecPower;
 uniform float uReflection;
 uniform float uCrestHeight;
 uniform float uFoamAmount;      // 0..1 whitecaps from the sea's steepness
+// The one port floodlight (see world/view/worldView.ts PortLighting): glints on the water.
+uniform vec3 uPortLightPos;
+uniform vec3 uPortLightColor;   // colour x strength (0 when off)
+uniform float uPortLightRange;
 uniform vec3 uFogColor;
 uniform float uFogNear;
 uniform float uFogFar;
@@ -54,6 +58,14 @@ void main() {
   float crestLo = uCrestHeight * mix(0.75, 0.45, uFoamAmount);
   float foam = smoothstep(crestLo, uCrestHeight * mix(1.0, 0.8, uFoamAmount), vHeight) * mix(0.35, 0.85, uFoamAmount);
   col = mix(col, uFoam * (0.4 * uAmbient + 0.3 * uSunIntensity), foam);
+
+  // Port floodlight: a soft pool of light and a long glinting reflection on the facets.
+  vec3 toL = uPortLightPos - vWorldPos;
+  float dl = length(toL);
+  vec3 ldir = toL / max(dl, 0.001);
+  float atten = 1.0 / (1.0 + (dl / 14.0) * (dl / 14.0)) * (1.0 - smoothstep(uPortLightRange * 0.6, uPortLightRange, dl));
+  float glint = pow(max(dot(n, normalize(ldir + v)), 0.0), 70.0);
+  col += uPortLightColor * atten * (glint * 2.5 + 0.12 * max(dot(n, ldir), 0.0));
 
   float fogF = clamp((dist - uFogNear) / (uFogFar - uFogNear), 0.0, 1.0);
   col = mix(col, uFogColor, fogF);

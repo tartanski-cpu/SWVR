@@ -34,6 +34,7 @@ import { PORTS } from '../world/archipelago';
 import { groundHeight } from '../world/terrain';
 import { aboard, cargoLabel, cargoPortAt, loadBlocker, payloadMass, unloadBlocker, type CargoItem } from '../cargo/cargo';
 import { CargoView } from '../cargo/cargoView';
+import { berthById } from '../vessel/physics/mooring';
 import { XRControllers } from '../player/xrControllers';
 import { Bridge } from '../controls/bridge';
 import { InteractionSystem, type HandFrame } from '../controls/InteractionSystem';
@@ -273,6 +274,8 @@ export class App {
       if (id === this.testVesselId) slam = sl;
     }
     this.worldView.lights.update(renderTime, darkness);
+    this.worldView.portLighting.update(this.focus, darkness);
+    this.ocean.setPortLight(this.worldView.portLighting.flood);
     this.cargoView.update(this.world, this.vesselRoots);
     if (testView && testVessel) {
       // Hull contact: thump and scrape, and a jolt through both controllers if you're aboard.
@@ -610,6 +613,19 @@ export class App {
         const why = loadBlocker(this.world, boat(), c);
         if (why) this.overlay.notify(why);
         else this.pushVesselIntent('cargoLoad', 1, c.id);
+      },
+      dockStatus: () => {
+        const m = boat().mooring;
+        const b = berthById(m.berthId);
+        if (m.phase === 'moored') return { text: `Moored: ${b?.name}`, ready: true, docked: true };
+        if (m.phase === 'docking') return { text: `Docking: ${b?.name}`, ready: true, docked: true };
+        if (b) return { text: `In range: ${b.name}`, ready: true, docked: false };
+        return { text: 'No berth in range (come slowly alongside a yellow-marked berth)', ready: false, docked: false };
+      },
+      toggleDock: () => {
+        const m = boat().mooring;
+        if (m.phase === 'free' && !m.berthId) this.overlay.notify('No berth in range: come slowly alongside a berth marked in yellow, lined up with the quay');
+        else this.pushVesselIntent('dock', 1);
       },
       anchorStatus: () => {
         const a = boat().anchor;

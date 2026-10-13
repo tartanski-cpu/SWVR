@@ -44,6 +44,8 @@ function fakeHost() {
     toggleCoolingFault: () => calls.push('fault'),
     ports: () => [],
     anchorStatus: () => 'stowed',
+    dockStatus: () => ({ text: 'No berth in range', ready: false, docked: false }),
+    toggleDock: () => calls.push('dock'),
     cargoStatus: () => ({ port: null, delivered: 0, payloadT: 0, maxT: 5 }),
     cargoAboard: () => null,
     cargoWaiting: () => null,

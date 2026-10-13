@@ -7,6 +7,8 @@ import { NavLightsView } from './navLights';
 import { AnchorChainView } from './anchorView';
 import { WakeTrail } from './wakeTrail';
 import { Spray } from './spray';
+import { CabinLight } from './cabinLight';
+import { MooringLines } from './mooringLines';
 
 /**
  * Per-vessel visual effects driven by its state: navigation lights, exhaust smoke, anchor
@@ -18,6 +20,8 @@ export class VesselEffects {
   private readonly chain = new AnchorChainView();
   private readonly wake: WakeTrail;
   private readonly spray: Spray;
+  private readonly cabin: CabinLight;
+  private readonly lines = new MooringLines();
 
   /**
    * @param root   the vessel view's root (nav lights ride on it)
@@ -34,7 +38,9 @@ export class VesselEffects {
     root.add(this.nav.root);
     this.wake = new WakeTrail(ocean, def.hull.params.length / 2 - 0.2);
     this.spray = new Spray(def);
-    world.add(this.smoke.root, this.chain.line, this.wake.mesh, this.spray.points);
+    this.cabin = new CabinLight(def);
+    root.add(this.cabin.root);
+    world.add(this.smoke.root, this.chain.line, this.wake.mesh, this.spray.points, this.lines.mesh);
   }
 
   /**
@@ -48,6 +54,8 @@ export class VesselEffects {
     this.smoke.setLight(light);
     this.smoke.update(dt, s, this.def, this.root, (x, z) => surfaceHeight(waves, x, z), viewer);
     this.chain.update(s, this.def, this.root);
+    this.cabin.update(s.controls.cabinLight > 0);
+    this.lines.update(s, this.def, this.root);
     this.wake.update(s, this.root, waves, time);
     return this.spray.update(dt, s, this.root, waves, viewer, light);
   }
