@@ -5,6 +5,7 @@ import { toggleEngine } from './physics/propulsion';
 import { toggleDock } from './physics/mooring';
 import { VESSEL_DEFS, type VesselDef } from './vesselDef';
 import { fuelBerthAt } from '../world/geography';
+import { BERTHS, PORTS } from '../world/archipelago';
 import type { VesselState } from './vesselState';
 
 const q = new THREE.Quaternion();
@@ -127,6 +128,23 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
     case 'debugDrop':
       dropVessel(s);
       break;
+    case 'teleportToPort': {
+      // Menu shortcut (ref = port id): lie at the port's cargo berth, ready to DOCK, or in
+      // the middle of its anchorage. Lever to neutral, anchor stowed, lines off.
+      const port = PORTS.find((p) => p.id === intent.ref);
+      if (!port) break;
+      const berth = BERTHS.find((b) => b.portId === port.id && b.id.endsWith('cargo'));
+      const a = port.cargo.anchorage;
+      if (berth) placeVessel(s, berth.x, 0, berth.z, berth.headingDeg);
+      else if (a) placeVessel(s, a.x, 0, a.z, 0);
+      else break;
+      s.controls.lever = 0;
+      s.anchor = { phase: 'stowed', x: 0, z: 0, rodeM: 0, tension: 0, dragging: false };
+      s.controls.anchor = 0;
+      s.mooring = { phase: 'free', berthId: null, reversed: false, t: 0 };
+      s.refuelling = false;
+      break;
+    }
     case 'debugHeel': {
       // Heel to `value` degrees at the current position and heading, then release.
       q.fromArray(s.orientation);

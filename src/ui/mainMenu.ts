@@ -45,6 +45,8 @@ export interface MenuHost {
   anchorStatus(): string;
   /** Ports with bearing (°T) and range (nm) from the boat. */
   ports(): { name: string; bearingDeg: number; rangeNm: number }[];
+  /** Move the boat (and you, aboard) to port i's berth or anchorage. */
+  teleportToPort(i: number): void;
   seaTrialsShown(): boolean;
   toggleSeaTrials(): void;
   debugPanel(): boolean;
@@ -127,7 +129,9 @@ export function mainMenu(h: MenuHost): MainMenu {
             const p = h.ports()[i];
             return p ? `${p.name}   ${p.bearingDeg.toFixed(0).padStart(3, '0')}°  ${p.rangeNm.toFixed(2)} nm` : '';
           },
+          weight: 4,
         },
+        { text: () => (h.ports()[i] ? 'Go' : ''), press: () => h.teleportToPort(i) },
       ],
     })),
   ];

@@ -99,7 +99,7 @@ The menu has six tabs along the top:
 
 | Tab | Settings |
 |---|---|
-| Sea & time | Time of day ±1 h / ±10 min; time flow stopped / ×60 / ×600; sea state Calm / Slight / Moderate / Rough / Storm, with ± for the wave height (Hs 0–3.6 m); bearing and range to each port |
+| Sea & time | Time of day ±1 h / ±10 min; time flow stopped / ×60 / ×600; sea state Calm / Slight / Moderate / Rough / Storm, with ± for the wave height (Hs 0–3.6 m); bearing and range to each port, with **Go** to move the boat (and you) to that port's cargo berth or anchorage |
 | Boat | Board / leave; fuel and **Refuel** (at a fuel berth); anchor status; sea-trials report on a big panel in front of you (the game freezes for about a second while the trials run) |
 | Cargo | Where you are, payload, deliveries; cargo aboard (lashed or loose). At an anchorage, the port's **skiff** brings goods out and takes them ashore |
 | Comfort | Motion coupling ±10 %, stick walking on/off, snap-turn angle. Remembered on the device |

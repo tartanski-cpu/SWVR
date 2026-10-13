@@ -656,6 +656,11 @@ export class App {
     return (p.aboardVesselId && this.vesselViews.get(p.aboardVesselId)?.root) || this.scene;
   }
 
+  /** Board the test boat (at the helm), or go back to the platform. */
+  private toggleBoardTo(aboard: boolean): void {
+    this.intents.push({ playerId: this.localPlayerId, targetId: this.localPlayerId, control: 'board', value: aboard ? 1 : 0, ref: aboard ? this.testVesselId : undefined });
+  }
+
   private toggleBoard(): void {
     const aboard = this.world.players[this.localPlayerId].aboardVesselId;
     this.intents.push({
@@ -794,6 +799,14 @@ export class App {
           bearingDeg: ((Math.atan2(p.x - x, -(p.z - z)) * 180) / Math.PI + 360) % 360,
           rangeNm: Math.hypot(p.x - x, p.z - z) / 1852,
         }));
+      },
+      teleportToPort: (i) => {
+        const port = PORTS[i];
+        if (!port) return;
+        this.pushVesselIntent('teleportToPort', 1, port.id);
+        // Off the boat (ashore, swimming): come along, at the helm.
+        if (this.world.players[this.localPlayerId].aboardVesselId !== this.testVesselId) this.toggleBoardTo(true);
+        this.overlay.notify(port.cargo.berth ? `${port.name}: at the cargo berth, press DOCK` : `${port.name}: in the bay, let go the anchor`, 3);
       },
       seaTrialsShown: () => this.trialsPanel.shown,
       toggleSeaTrials: () => this.toggleSeaTrials(),

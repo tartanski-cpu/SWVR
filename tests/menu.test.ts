@@ -43,6 +43,7 @@ function fakeHost() {
     coolingFault: () => false,
     toggleCoolingFault: () => calls.push('fault'),
     ports: () => [],
+    teleportToPort: (i) => calls.push(`go ${i}`),
     anchorStatus: () => 'stowed',
     dockStatus: () => ({ text: 'No berth in range', ready: false, docked: false }),
     toggleDock: () => calls.push('dock'),
