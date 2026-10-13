@@ -17,7 +17,8 @@ Since the MVP:
 - **VR wrist menu.**
 - **Fuel and engine temperatures:** an engine monitor, alarms and refuelling.
 - **A small archipelago** with three kinds of port (see below), groundings and collisions, an anchor and windlass, sheltered water and an echo sounder.
-- **Wake, bow wave and spray:** foam that rides the swell, spray when the bow slams, and water and splash sounds.
+- **Cargo runs** between the ports, with real deadweight.
+- **Wake and spray:** foam that rides the swell, spray when the bow slams, and water and splash sounds.
 
 ## Play it (no install)
 
@@ -87,12 +88,13 @@ The menu stands above your left hand. Use the **right** controller on it in one 
 
 While your right hand is on the menu, its trigger doesn't reach the bridge controls behind it. If the left controller isn't tracked, the menu floats in front of you instead.
 
-The menu has four tabs along the top:
+The menu has five tabs along the top:
 
 | Tab | Settings |
 |---|---|
 | Sea & time | Time of day ±1 h / ±10 min; time flow stopped / ×60 / ×600; sea state Calm / Slight / Moderate / Rough / Storm, with ± for the wave height (Hs 0–3.6 m); bearing and range to each port |
 | Boat | Board / leave; fuel and **Refuel** (at a fuel berth); anchor status; sea-trials report on a big panel in front of you (the game freezes for about a second while the trials run) |
+| Cargo | Where you are, payload, deliveries; cargo aboard (**Unload** at its destination) and cargo waiting at this port (**Load**) |
 | Comfort | Motion coupling ±10 %, stick walking on/off, snap-turn angle. Remembered on the device |
 | Tests | Drop from 4 m, heel 20°; engine faults (fuel to 5 %, raw-water pump failure); perf panel, buoyancy view, wave probes |
 
@@ -132,6 +134,19 @@ From the start (the pilot-station platform), the ports are a few minutes away. B
 | **Selkie Bay**, Rona (S, ~0.6 nm) | Anchorage only | A horseshoe bay about 9 m deep with a beach at its head, sheltered from most of the swell |
 
 Also look out for **Gull Rocks** (on the direct line to Calder Haven), **Tarran** with its lighthouse (Fl W 10 s), Skerry and Eilean Dubh.
+
+### Cargo
+
+Each port has three items waiting ashore, each bound for another port. The box colour shows the destination: **blue** Calder Haven, **orange** Brannock Pier, **green** Selkie Bay.
+
+1. **Go to a port's cargo berth:**
+   - **Calder Haven:** the middle/south of the quay. Fuel is at its north end.
+   - **Brannock Pier:** the south-east end of the T-head. Fuel is at the north-west end.
+   - **Selkie Bay:** anchor in the bay, since there's no quay; the goods come off the beach.
+2. **Stop**, open the menu's **Cargo** tab and **Load** what you want. There are four deck slots and a 5 t payload limit.
+3. **Take it to its destination** and **Unload** it there. That's a delivery. A replacement cargo then appears at one of the ports.
+
+Cargo is real weight. A full load sits her about 10–15 cm deeper and down by the stern, and she'll feel heavier.
 
 - **Collisions:** you can run aground and hit quays. Fenders are soft; rock isn't.
 - **Refuelling:** come alongside a fuel berth and stop, then use **Refuel** on the menu's Boat tab.

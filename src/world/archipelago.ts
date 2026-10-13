@@ -129,6 +129,20 @@ export interface PortDef {
   fuel?: { x: number; z: number; radius: number; pumpX: number; pumpZ: number };
   /** Keep trees off the waterfront around here (m). */
   clearRadius: number;
+  /**
+   * Cargo: where the boat must be to load/unload (`berth`: alongside, nearly stopped;
+   * `anchorage`: the anchor set within the circle - goods come off the beach by tender),
+   * where waiting cargo stands ashore (stack origin and the bearing the row runs along),
+   * and the colour that marks cargo bound for this port.
+   */
+  cargo: {
+    berth?: { x: number; z: number; radius: number };
+    anchorage?: { x: number; z: number; radius: number };
+    stackX: number;
+    stackZ: number;
+    stackYawDeg: number;
+    color: number;
+  };
 }
 
 export const ISLANDS: IslandDef[] = [
@@ -246,7 +260,7 @@ export const BUILDINGS: BuildingDef[] = [
   { x: -680, z: 440, width: 14, depth: 9, height: 5, yawDeg: 45, wall: 0x8c9aa3, roof: 0x3e4a52 },
   { x: -705, z: 470, width: 8, depth: 6, height: 4, yawDeg: 30, wall: 0xf0ebe0, roof: 0x7a2e22 },
   // Rona: a bothy above the beach at Selkie Bay.
-  { x: -140, z: 1295, width: 6, depth: 5, height: 3, yawDeg: 5, wall: 0xd8d2c4, roof: 0x3a3a3a },
+  { x: -142, z: 1309, width: 6, depth: 5, height: 3, yawDeg: 5, wall: 0xd8d2c4, roof: 0x3a3a3a },
 ];
 
 export const LIGHTS: LightDef[] = [
@@ -264,9 +278,26 @@ export const SHELTERS: ShelterDef[] = [
 ];
 
 export const PORTS: PortDef[] = [
-  { id: 'calder', name: 'Calder Haven', kind: 'harbour', x: 570, z: 646, fuel: { x: 705, z: 625, radius: 14, pumpX: 713, pumpZ: 625 }, clearRadius: 140 },
-  { id: 'brannock', name: 'Brannock Pier', kind: 'pier', x: -553, z: 317, fuel: { x: -545, z: 305, radius: 14, pumpX: -550, pumpZ: 314 }, clearRadius: 70 },
-  { id: 'selkie', name: 'Selkie Bay (anchorage)', kind: 'anchorage', x: -150, z: 1150, clearRadius: 40 },
+  { id: 'calder', name: 'Calder Haven', kind: 'harbour', x: 570, z: 646, fuel: { x: 705, z: 625, radius: 14, pumpX: 713, pumpZ: 625 },
+    clearRadius: 140,
+    // Middle-south of the quay (the fuel berth is at its north end).
+    cargo: { berth: { x: 707, z: 660, radius: 16 }, stackX: 716, stackZ: 652, stackYawDeg: 0, color: 0x2f6fd0 },
+  },
+  { id: 'brannock', name: 'Brannock Pier', kind: 'pier', x: -553, z: 317, fuel: { x: -545, z: 305, radius: 14, pumpX: -550, pumpZ: 314 },
+    clearRadius: 70,
+    // South-east end of the T-head's seaward face (fuel is at the north-west end).
+    cargo: { berth: { x: -539, z: 321, radius: 14 }, stackX: -547, stackZ: 320, stackYawDeg: 135, color: 0xe07a1f },
+  },
+  {
+    id: 'selkie',
+    name: 'Selkie Bay (anchorage)',
+    kind: 'anchorage',
+    x: -150,
+    z: 1150,
+    clearRadius: 40,
+    // Anchor in the bay; the goods wait on the beach by the bothy.
+    cargo: { anchorage: { x: -150, z: 1190, radius: 110 }, stackX: -162, stackZ: 1301, stackYawDeg: 90, color: 0x2fa050 },
+  },
 ];
 
 /** Deepest water anywhere (m): the open sea floor. */

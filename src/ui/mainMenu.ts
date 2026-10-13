@@ -31,6 +31,13 @@ export interface MenuHost {
   setFuelDebug(litres: number): void;
   coolingFault(): boolean;
   toggleCoolingFault(): void;
+  /** Cargo: where you are, deliveries, payload. */
+  cargoStatus(): { port: string | null; delivered: number; payloadT: number; maxT: number };
+  /** Cargo in deck slot i, or waiting at this port (row i): label and whether the action is possible now. */
+  cargoAboard(i: number): { label: string; ready: boolean } | null;
+  cargoWaiting(i: number): { label: string; ready: boolean } | null;
+  unloadCargo(i: number): void;
+  loadCargo(i: number): void;
   /** One-line anchor/windlass status. */
   anchorStatus(): string;
   /** Ports with bearing (°T) and range (nm) from the boat. */
@@ -134,6 +141,43 @@ export function mainMenu(h: MenuHost): MainMenu {
     },
   ];
 
+  const aboardRow = (i: number): MenuRow => ({
+    label: '',
+    buttons: [
+      { text: () => h.cargoAboard(i)?.label ?? (i === 0 ? 'Deck empty' : ''), weight: 3 },
+      {
+        text: () => (h.cargoAboard(i) ? (h.cargoAboard(i)!.ready ? 'Unload' : '—') : ''),
+        active: () => h.cargoAboard(i)?.ready ?? false,
+        press: () => h.unloadCargo(i),
+      },
+    ],
+  });
+  const waitingRow = (i: number): MenuRow => ({
+    label: '',
+    buttons: [
+      { text: () => h.cargoWaiting(i)?.label ?? (i === 0 ? (h.cargoStatus().port ? 'Nothing waiting' : '') : ''), weight: 3 },
+      {
+        text: () => (h.cargoWaiting(i) ? (h.cargoWaiting(i)!.ready ? 'Load' : '—') : ''),
+        active: () => h.cargoWaiting(i)?.ready ?? false,
+        press: () => h.loadCargo(i),
+      },
+    ],
+  });
+  const cargo: MenuRow[] = [
+    {
+      label: '',
+      buttons: [
+        { text: () => h.cargoStatus().port ?? 'Not at a cargo berth', weight: 2.2 },
+        { text: () => `${h.cargoStatus().payloadT.toFixed(1)}/${h.cargoStatus().maxT} t`, weight: 1 },
+        { text: () => `Delivered ${h.cargoStatus().delivered}`, weight: 1.2 },
+      ],
+    },
+    { heading: 'Aboard' },
+    ...[0, 1, 2, 3].map(aboardRow),
+    { heading: 'Waiting here' },
+    ...[0, 1, 2].map(waitingRow),
+  ];
+
   const comfort: MenuRow[] = [
     { heading: 'Comfort' },
     {
@@ -186,6 +230,7 @@ export function mainMenu(h: MenuHost): MainMenu {
     pages: [
       { name: 'Sea & time', rows: seaAndTime },
       { name: 'Boat', rows: boat },
+      { name: 'Cargo', rows: cargo },
       { name: 'Comfort', rows: comfort },
       { name: 'Tests', rows: tests },
     ],

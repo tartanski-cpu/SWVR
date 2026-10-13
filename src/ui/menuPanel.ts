@@ -198,7 +198,8 @@ export class MenuPanel {
 
   private buttonAt(px: number, py: number): MenuButton | null {
     for (const p of this.visible()) {
-      if (p.btn.press && px >= p.x && px <= p.x + p.w && py >= p.y && py <= p.y + p.h) return p.btn;
+      // A button with no text is hidden (e.g. an empty cargo row) and can't be pressed.
+      if (p.btn.press && text(p.btn) !== '' && px >= p.x && px <= p.x + p.w && py >= p.y && py <= p.y + p.h) return p.btn;
     }
     return null;
   }
@@ -227,6 +228,7 @@ export class MenuPanel {
 
     g.textAlign = 'center';
     for (const p of this.visible()) {
+      if (text(p.btn) === '') continue;
       const hover = p.btn === this.hover;
       const active = p.btn.active?.() ?? false;
       if (p.btn.press) {

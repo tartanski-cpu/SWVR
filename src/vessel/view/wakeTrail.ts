@@ -49,17 +49,8 @@ export class WakeTrail {
   private readonly side = new THREE.Vector3();
   private readonly q = new THREE.Quaternion();
 
-  /**
-   * @param originZ where the trail starts along the hull (vessel z: transom +, stem -)
-   * @param kind    'stern': Kelvin arms + prop wash; 'bow': the bow wave's arms only
-   */
-  constructor(shared: Record<string, { value: unknown }>, originZ: number, kind: 'stern' | 'bow' = 'stern') {
-    this.kind = kind;
-    const b = CONFIG.effects.bowWave;
-    this.tuning =
-      kind === 'bow'
-        ? { startHalfWidth: b.startHalfWidth, spreadPerSpeed: b.spreadPerSpeed, maxSpread: b.maxSpread, life: b.life, fullArmSpeed: b.fullArmSpeed }
-        : this.cfg;
+  /** @param originZ where the trail starts along the hull (vessel z, the transom) */
+  constructor(shared: Record<string, { value: unknown }>, originZ: number) {
     const n = this.cfg.maxPoints * ACROSS;
     this.center = new Float32Array(n * 2);
     this.perp = new Float32Array(n * 2);
@@ -85,10 +76,9 @@ export class WakeTrail {
       uniforms: {
         ...shared,
         uTime: this.uTime,
-        uLife: { value: this.tuning.life },
+        uLife: { value: this.cfg.life },
         uWashLife: { value: this.cfg.washLife },
-        uHalfWidth0: { value: this.tuning.startHalfWidth },
-        uBow: { value: kind === 'bow' ? 1 : 0 },
+        uHalfWidth0: { value: this.cfg.startHalfWidth },
         uNoise: { value: foamNoiseTexture() },
       },
       vertexShader: `${gerstnerChunk}\n${WAKE_VERT}`,
@@ -111,8 +101,6 @@ export class WakeTrail {
   }
 
   private readonly originZ: number;
-  private readonly kind: 'stern' | 'bow';
-  private readonly tuning: { startHalfWidth: number; spreadPerSpeed: number; maxSpread: number; life: number; fullArmSpeed: number };
 
   /**
    * @param root   the vessel's interpolated root
@@ -125,9 +113,8 @@ export class WakeTrail {
     root.localToWorld(this.stern.set(0, 0, this.originZ));
     const moved = Math.hypot(this.stern.x - this.lastX, this.stern.z - this.lastZ);
     const speed = Math.hypot(s.linearVelocity[0], s.linearVelocity[2]);
-    const t = this.tuning;
-    const wash = this.kind === 'bow' ? 0 : Math.min(1, Math.abs(s.thrust) / c.fullWashThrust);
-    const arm = Math.min(1, Math.max(0, (speed - (this.kind === 'bow' ? 1.2 : 0.6)) / t.fullArmSpeed));
+    const wash = Math.min(1, Math.abs(s.thrust) / c.fullWashThrust);
+    const arm = Math.min(1, Math.max(0, (speed - 0.6) / c.fullArmSpeed));
     // `moved` is NaN before the first point, which counts as due (and as a jump).
     const due = !(moved < c.spacing) || (wash > 0.05 && time - this.lastTime >= c.idleInterval);
     if (!due) return;
@@ -148,7 +135,7 @@ export class WakeTrail {
     this.side.y = 0;
     this.side.normalize();
     const [x0, z0] = restPosition(waves, this.stern.x, this.stern.z);
-    const spread = Math.min(t.maxSpread, speed * t.spreadPerSpeed);
+    const spread = Math.min(c.maxSpread, speed * c.spreadPerSpeed);
 
     const slot = this.next;
     this.next = (this.next + 1) % c.maxPoints;
@@ -229,7 +216,6 @@ const WAKE_FRAG = /* glsl */ `
 uniform sampler2D uNoise;
 uniform float uLife;
 uniform float uWashLife;
-uniform float uBow;
 uniform float uSunIntensity;
 uniform float uAmbient;
 uniform vec3 uFogColor;
@@ -245,10 +231,8 @@ void main() {
   float t = vAge / uLife;
   if (t >= 1.0) discard;
   float u = abs(vSide);
-  // Kelvin arms: bright bands along the edges, fading with age. The bow wave's ribbon is
-  // narrow when young, so its arms fill more of it.
-  float armIn = mix(0.6, 0.35, uBow);
-  float arm = smoothstep(armIn, 0.88, u) * (1.0 - smoothstep(0.9, 1.0, u)) * vStrength.x * (1.0 - t);
+  // Kelvin arms: bright bands along the edges, fading with age.
+  float arm = smoothstep(0.6, 0.88, u) * (1.0 - smoothstep(0.9, 1.0, u)) * vStrength.x * (1.0 - t);
   // Prop wash: churned water down the middle, gone sooner; clear water between it and the arms.
   float wash = (1.0 - smoothstep(0.0, 0.4, u)) * vStrength.y * max(0.0, 1.0 - vAge / uWashLife);
   // Foam texture fixed to the water; it thins into patches as it ages.

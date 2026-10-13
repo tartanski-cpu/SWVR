@@ -32,6 +32,8 @@ import { placeInFront } from '../ui/placeInFront';
 import { canRefuel } from '../vessel/vesselControl';
 import { PORTS } from '../world/archipelago';
 import { groundHeight } from '../world/terrain';
+import { aboard, cargoLabel, cargoPortAt, loadBlocker, payloadMass, unloadBlocker, type CargoItem } from '../cargo/cargo';
+import { CargoView } from '../cargo/cargoView';
 import { XRControllers } from '../player/xrControllers';
 import { Bridge } from '../controls/bridge';
 import { InteractionSystem, type HandFrame } from '../controls/InteractionSystem';
@@ -100,6 +102,8 @@ export class App {
   private readonly contactAudio = new ContactAudio();
   private readonly waterAudio = new WaterAudio();
   private readonly worldView = new WorldView();
+  private readonly cargoView = new CargoView();
+  private readonly vesselRoots = new Map<string, THREE.Object3D>();
   private readonly hands: Record<'left' | 'right', HandFrame> = {
     left: { tracked: false, grip: new THREE.Vector3(), ray: new THREE.Ray(), gripDown: false, gripPressed: false, triggerDown: false, triggerPressed: false },
     right: { tracked: false, grip: new THREE.Vector3(), ray: new THREE.Ray(), gripDown: false, gripPressed: false, triggerDown: false, triggerPressed: false },
@@ -156,7 +160,7 @@ export class App {
 
     this.desktop = new DesktopController(this.camera, this.renderer.domElement, this.keyboard);
     this.environment = new EnvironmentView(this.scene);
-    this.scene.add(this.sky.mesh, this.ocean.mesh, this.buoys.mesh, this.probes.mesh, createPlatform(), this.worldView.root);
+    this.scene.add(this.sky.mesh, this.ocean.mesh, this.buoys.mesh, this.probes.mesh, createPlatform(), this.worldView.root, this.cargoView.mesh);
     for (const vessel of Object.values(this.world.vessels)) {
       const def = VESSEL_DEFS[vessel.defId];
       const view = new VesselView(vessel.id, def);
@@ -167,6 +171,7 @@ export class App {
       this.hydroViews.set(vessel.id, hydro);
       this.walkAreas.set(vessel.id, vesselWalkArea(def, def.layout));
       this.effects.set(vessel.id, new VesselEffects(def, view.root, this.scene, this.ocean.sharedUniforms));
+      this.vesselRoots.set(vessel.id, view.root);
     }
     this.setupBridge();
 
@@ -268,6 +273,7 @@ export class App {
       if (id === this.testVesselId) slam = sl;
     }
     this.worldView.lights.update(renderTime, darkness);
+    this.cargoView.update(this.world, this.vesselRoots);
     if (testView && testVessel) {
       // Hull contact: thump and scrape, and a jolt through both controllers if you're aboard.
       const d = testView.root.position.distanceTo(this.focus);
@@ -570,6 +576,41 @@ export class App {
       setFuelDebug: (l) => this.pushVesselIntent('debugFuel', l),
       coolingFault: () => boat().engine.coolingFault,
       toggleCoolingFault: () => this.pushVesselIntent('debugCoolingFault', boat().engine.coolingFault ? 0 : 1),
+      cargoStatus: () => {
+        const v = boat();
+        const here = cargoPortAt(v);
+        return {
+          port: here ? `At ${here.name.replace(' (anchorage)', '')}` : null,
+          delivered: this.world.deliveries,
+          payloadT: payloadMass(this.world, v.id) / 1000,
+          maxT: VESSEL_DEFS[v.defId].cargo.maxPayloadKg / 1000,
+        };
+      },
+      cargoAboard: (i) => {
+        const c = aboard(this.world, boat().id)[i];
+        return c ? { label: cargoLabel(c), ready: unloadBlocker(boat(), c) === null } : null;
+      },
+      cargoWaiting: (i) => {
+        const c = this.waitingHere()[i];
+        return c ? { label: cargoLabel(c), ready: loadBlocker(this.world, boat(), c) === null } : null;
+      },
+      unloadCargo: (i) => {
+        const c = aboard(this.world, boat().id)[i];
+        if (!c) return;
+        const why = unloadBlocker(boat(), c);
+        if (why) this.overlay.notify(why);
+        else {
+          this.pushVesselIntent('cargoUnload', 1, c.id);
+          this.overlay.notify(`Delivered: ${cargoLabel(c)}`, 2.5);
+        }
+      },
+      loadCargo: (i) => {
+        const c = this.waitingHere()[i];
+        if (!c) return;
+        const why = loadBlocker(this.world, boat(), c);
+        if (why) this.overlay.notify(why);
+        else this.pushVesselIntent('cargoLoad', 1, c.id);
+      },
       anchorStatus: () => {
         const a = boat().anchor;
         const depth = -groundHeight(a.x, a.z);
@@ -679,8 +720,17 @@ export class App {
     this.pushVesselIntent('engineStartStop', 1);
   }
 
-  private pushVesselIntent(control: string, value: number): void {
-    this.intents.push({ playerId: this.localPlayerId, targetId: this.testVesselId, control, value });
+  private pushVesselIntent(control: string, value: number, ref?: string): void {
+    this.intents.push({ playerId: this.localPlayerId, targetId: this.testVesselId, control, value, ref });
+  }
+
+  /** Cargo waiting at the port whose cargo berth the boat is at (stack order). */
+  private waitingHere(): CargoItem[] {
+    const here = cargoPortAt(this.world.vessels[this.testVesselId]);
+    if (!here) return [];
+    return Object.values(this.world.cargo)
+      .filter((c) => 'port' in c.at && c.at.port === here.id)
+      .sort((a, b) => a.at.slot - b.at.slot);
   }
 
 

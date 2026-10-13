@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { flatVertexColorMaterial, mergeParts, part } from '../../render/geometryUtils';
 import { BLOCKS, BUILDINGS, ISLANDS, LIGHTS, PORTS, RIDGES, type BlockDef } from '../archipelago';
 import { groundHeight } from '../terrain';
+import { standingHeight } from '../geography';
 
 /**
  * Everything static in the archipelago, built once at start-up from the level data:
@@ -139,22 +140,11 @@ function buildStructures(): THREE.BufferGeometry[] {
   for (const l of LIGHTS) buildLightTower(l.x, l.z, l.y, l.color, l.tower, parts);
   for (const p of PORTS) {
     if (!p.fuel) continue;
-    const top = deckTopAt(p.fuel.pumpX, p.fuel.pumpZ);
+    const top = standingHeight(p.fuel.pumpX, p.fuel.pumpZ);
     parts.push(part(new THREE.BoxGeometry(0.7, 1.5, 0.5).translate(p.fuel.pumpX, top + 0.75, p.fuel.pumpZ), 0xc8281e));
     parts.push(part(new THREE.BoxGeometry(0.72, 0.25, 0.52).translate(p.fuel.pumpX, top + 1.62, p.fuel.pumpZ), 0xf0f0f0));
   }
   return parts;
-}
-
-/** Deck height of whichever block covers (x, z), or the ground. */
-function deckTopAt(x: number, z: number): number {
-  for (const b of BLOCKS) {
-    const a = (b.yawDeg * Math.PI) / 180;
-    const l = (x - b.x) * Math.sin(a) - (z - b.z) * Math.cos(a);
-    const w = (x - b.x) * Math.cos(a) + (z - b.z) * Math.sin(a);
-    if (Math.abs(l) <= b.halfLength && Math.abs(w) <= b.halfWidth) return b.top;
-  }
-  return groundHeight(x, z);
 }
 
 /**
@@ -279,7 +269,7 @@ function buildBuilding(bd: (typeof BUILDINGS)[number], parts: THREE.BufferGeomet
   ]) {
     const x = bd.x + cx * Math.cos(yaw) - cz * Math.sin(yaw);
     const z = bd.z + cx * Math.sin(yaw) + cz * Math.cos(yaw);
-    base = Math.min(base, Math.max(deckTopAt(x, z), groundHeight(x, z)));
+    base = Math.min(base, Math.max(standingHeight(x, z), groundHeight(x, z)));
   }
   const m = new THREE.Matrix4().makeRotationY(-yaw).setPosition(bd.x, base, bd.z);
   const walls = new THREE.BoxGeometry(bd.width, bd.height + 2, bd.depth).translate(0, bd.height / 2 - 1, 0);

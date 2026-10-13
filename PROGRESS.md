@@ -388,7 +388,7 @@ The owner asked for "a diesel inboard, not a revvy outboard, with a bigger prop 
   - **Whitecaps:** grow with the sea's steepness (shader uniform `uFoamAmount`).
 - **Tests (97):** storm-sea scaling, and riding out a storm under way (stays finite, never past 60° of tilt).
 
-## Done (wake, bow wave and spray, owner request)
+## Done (wake and spray, owner request)
 
 Frame-rate friendly: 3 extra draw calls, a few hundred vertices, and almost no CPU.
 
@@ -397,7 +397,7 @@ Frame-rate friendly: 3 extra draw calls, a few hundred vertices, and almost no C
   - **Vertex shader:** spreads each point across 9 vertices, with the half-width growing with age (a softened 19.5° Kelvin spread). It then displaces them with the SAME Gerstner sum as the ocean, now a shared chunk `ocean/shaders/gerstner.glsl`. So the foam rides the swell exactly and drifts with the orbital motion, like real foam.
   - **Fragment shader:** bright Kelvin arms at the edges and a narrow prop-wash core that fades in 9 s, with clear water between. A noise texture fixed to the water breaks the foam up, and it thins into patches over its 26 s life. It's lit by the scene and fogged.
   - **Lessons:** fewer vertices across let the flat strips dip under curved crests, hence 9 vertices and a lift that grows with width. Winding flips with direction of travel, hence double-sided.
-- **Bow wave:** a second, short trail from the stem (arms only, 9 s) peeling away along both sides.
+- **Bow wave:** tried as a second trail from the stem; removed after owner testing (it didn't add much).
 - **Spray** (`vessel/view/spray.ts`): pooled particles, one draw call, sharing `render/particlePool.ts` with the smoke.
   - **Bow "moustache":** above 2.2 m/s.
   - **Slam bursts:** probes on both bows detect fast re-entry into the water (bow dropping into a wave).
@@ -407,6 +407,22 @@ Frame-rate friendly: 3 extra draw calls, a few hundred vertices, and almost no C
 - **Haptics:** a light controller thud on slams.
 - **Tunables:** `CONFIG.effects`.
 - **Tests (100):** trail spacing and quads, no foam when stopped, foam by time with the prop churning, a strip break on a teleport.
+
+## Done (cargo between ports; bow wave removed, owner request)
+
+- **Bow wave removed:** it didn't add much. The stern wake and spray stay.
+- **Cargo** (`src/cargo/`):
+  - Items are plain data in `WorldState.cargo` (id, kind, mass, from, to, and where: a port stack slot or a vessel deck slot), with a deterministic spawn counter, so a host and its clients agree.
+  - Every port keeps 3 waiting (`CONFIG.cargo.perPort`), coloured by destination.
+- **Load and unload:** by intents (`cargoLoad` / `cargoUnload`, ref = cargo id), checked by the sim.
+  - **Load:** alongside the port's cargo berth below 0.6 m/s, or at Selkie Bay (the anchorage) with the anchor set in the bay. It goes into a free deck slot (4) within the 5 t payload limit.
+  - **Unload:** only at the destination, which counts as a delivery. A replacement then spawns at the emptiest port.
+- **Real deadweight:** cargo aboard is passed to the physics as point masses. Total mass, the combined CG and the inertia (parallel axis) are recomputed every tick, and the strip hydrostatics find the new waterline by themselves. Tested: about 2.8 t aboard sinks her by roughly ΔW/(ρ·A_wp) at the LCF and trims her by the stern.
+- **View:** one instanced mesh of boxes, sized by kind (crate, fish boxes, drums, sacks), with stacks on the quay, T-head and beach, and cargo riding in its deck slots.
+- **Menu:** a new **Cargo** tab shows where you are, payload and deliveries, the cargo aboard (Unload) and the cargo waiting here (Load). If an action isn't possible, the menu says why (e.g. "Deliver to Brannock Pier"). Empty buttons are now hidden.
+- **Fixes:** the Selkie Bay bothy had been sitting half in the water; it and the beach cargo are now on dry beach.
+- **Not yet:** players walk through deck cargo (it isn't in the walk area); no pay or economy; cargo is moved by menu, not carried by hand.
+- **Tests (106):** stocked ports, loading and the sinkage/trim check, refusal away from the berth or while moving, delivery only at the destination with a replacement, the anchorage needing the anchor, slot and payload limits.
 
 ## Planned next (owner requests, not started)
 

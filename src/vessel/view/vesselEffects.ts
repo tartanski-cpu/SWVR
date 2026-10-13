@@ -17,7 +17,6 @@ export class VesselEffects {
   private readonly smoke = new ExhaustSmoke();
   private readonly chain = new AnchorChainView();
   private readonly wake: WakeTrail;
-  private readonly bowWave: WakeTrail;
   private readonly spray: Spray;
 
   /**
@@ -33,10 +32,9 @@ export class VesselEffects {
   ) {
     this.nav = new NavLightsView(def);
     root.add(this.nav.root);
-    this.wake = new WakeTrail(ocean, def.hull.params.length / 2 - 0.2, 'stern');
-    this.bowWave = new WakeTrail(ocean, -def.hull.params.length / 2 + 0.4, 'bow');
+    this.wake = new WakeTrail(ocean, def.hull.params.length / 2 - 0.2);
     this.spray = new Spray(def);
-    world.add(this.smoke.root, this.chain.line, this.wake.mesh, this.bowWave.mesh, this.spray.points);
+    world.add(this.smoke.root, this.chain.line, this.wake.mesh, this.spray.points);
   }
 
   /**
@@ -51,7 +49,6 @@ export class VesselEffects {
     this.smoke.update(dt, s, this.def, this.root, (x, z) => surfaceHeight(waves, x, z), viewer);
     this.chain.update(s, this.def, this.root);
     this.wake.update(s, this.root, waves, time);
-    this.bowWave.update(s, this.root, waves, time);
     return this.spray.update(dt, s, this.root, waves, viewer, light);
   }
 }

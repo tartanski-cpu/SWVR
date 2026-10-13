@@ -22,7 +22,7 @@ const internals = (w: WakeTrail) => w as unknown as { order: number[]; stripStar
 
 describe('wake trail', () => {
   it('lays a point every ~1.2 m under way and draws quads between them', () => {
-    const w = new WakeTrail({}, 5.8, 'stern');
+    const w = new WakeTrail({}, 5.8);
     run(w, 4, 20000, 6); // 24 m
     const n = internals(w).order.length;
     expect(n).toBeGreaterThan(17);
@@ -31,16 +31,16 @@ describe('wake trail', () => {
     expect(w.mesh.geometry.drawRange.count).toBe((n - 1) * 8 * 6);
   });
 
-  it('a bow wave needs speed; stopped with no thrust nothing is laid', () => {
-    const bow = new WakeTrail({}, -5.6, 'bow');
-    run(bow, 0, 0, 5);
-    expect(internals(bow).order.length).toBe(0);
-    run(bow, 4, 0, 3, 5);
-    expect(internals(bow).order.length).toBeGreaterThan(5);
+  it('stopped with no thrust nothing is laid; under way it is', () => {
+    const w = new WakeTrail({}, 5.8);
+    run(w, 0, 0, 5);
+    expect(internals(w).order.length).toBe(0);
+    run(w, 4, 0, 3, 5);
+    expect(internals(w).order.length).toBeGreaterThan(5);
   });
 
   it('the prop churning at rest still lays foam (by time), and a teleport breaks the strip', () => {
-    const w = new WakeTrail({}, 5.8, 'stern');
+    const w = new WakeTrail({}, 5.8);
     const { t, root } = run(w, 0, 20000, 3);
     expect(internals(w).order.length).toBeGreaterThan(5);
     const before = internals(w).order.length;

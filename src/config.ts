@@ -460,11 +460,40 @@ export const CONFIG = {
         tautDamping: 15000,
         catenarySoftness: 3,
       },
+      /**
+       * Cargo stowage on the aft deck: slot centres (vessel axes, on the deck) and the most
+       * the boat may carry. Cargo aboard is added to the hull's mass, CG and inertia in the
+       * physics, so a full load sits her deeper and trims her by the stern.
+       */
+      cargo: {
+        slots: [
+          [-0.85, 0.98, 3.1],
+          [0.85, 0.98, 3.1],
+          [-0.85, 0.98, 4.7],
+          [0.85, 0.98, 4.7],
+        ] as [number, number, number][],
+        maxPayloadKg: 5000,
+      },
       /** Where a player stands after boarding (vessel axes): at the helm, facing forward. */
       boardingSpot: [0, 1.2, -0.75] as [number, number, number],
       /** Debug: spawn/drop point and drop height (m above the DWL). */
       spawn: { x: 0, z: -22, dropHeight: 4, headingDeg: 90 },
     },
+  },
+
+  /** Cargo between ports (cargo/cargo.ts). */
+  cargo: {
+    /** Each port keeps this many items waiting (a delivery spawns a replacement elsewhere). */
+    perPort: 3,
+    /** Loading/unloading needs the boat nearly stopped at the berth (m/s). */
+    maxSpeed: 0.6,
+    /** Kinds of cargo: name, mass (kg) and box size (m: across, height, along). */
+    kinds: [
+      { name: 'Crate', mass: 800, size: [1.1, 0.9, 1.0] as [number, number, number] },
+      { name: 'Fish boxes', mass: 600, size: [1.2, 0.7, 0.8] as [number, number, number] },
+      { name: 'Drums', mass: 1100, size: [1.1, 1.0, 1.1] as [number, number, number] },
+      { name: 'Sacks', mass: 1400, size: [1.2, 0.8, 1.2] as [number, number, number] },
+    ],
   },
 
   /** Water effects (all one draw call each; see vessel/view/wakeTrail.ts and spray.ts). */
@@ -487,17 +516,6 @@ export const CONFIG = {
       /** Speed (m/s) for full-strength arms, and thrust (N) for full-strength prop wash. */
       fullArmSpeed: 4,
       fullWashThrust: 25000,
-    },
-    /**
-     * Bow wave: a second, short foam trail from the stem whose arms peel away along the
-     * sides (the Kelvin arms really start at the bow). Arms only, no prop wash.
-     */
-    bowWave: {
-      startHalfWidth: 0.35,
-      spreadPerSpeed: 0.42,
-      maxSpread: 3,
-      life: 9,
-      fullArmSpeed: 4.5,
     },
     spray: {
       maxParticles: 320,

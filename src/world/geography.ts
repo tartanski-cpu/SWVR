@@ -3,6 +3,7 @@
  * piers), fuel berths, ports. Terrain height lives in terrain.ts.
  */
 import { BLOCKS, PORTS, type BlockDef, type PortDef } from './archipelago';
+import { groundHeight } from './terrain';
 
 /** Blocks are solid from this depth (m) up to their deck: piles and walls go to the seabed. */
 const BLOCK_BOTTOM = -45;
@@ -68,4 +69,19 @@ export function fuelBerthAt(x: number, z: number): PortDef | null {
     if (p.fuel && Math.hypot(x - p.fuel.x, z - p.fuel.z) < p.fuel.radius) return p;
   }
   return null;
+}
+
+/**
+ * Height you'd stand at: the deck of a quay or pier covering (x, z), else the ground.
+ * (Used to set buildings, pumps and cargo stacks down.)
+ */
+export function standingHeight(x: number, z: number): number {
+  for (const b of PREPARED) {
+    const dx = x - b.def.x;
+    const dz = z - b.def.z;
+    const l = dx * b.ax + dz * b.az;
+    const w = -dx * b.az + dz * b.ax;
+    if (Math.abs(l) <= b.def.halfLength && Math.abs(w) <= b.def.halfWidth) return b.def.top;
+  }
+  return groundHeight(x, z);
 }

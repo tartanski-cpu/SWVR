@@ -31,6 +31,11 @@
  *     calm-water resistance curve R(V) against speed through the water. Fuel burn and
  *     engine temperatures (engineThermal.ts).
  *
+ *  Payload (cargo on deck) is added as point masses: total mass, the combined CG and the
+ *  inertia about it (parallel-axis theorem, principal axes kept) are recomputed every tick,
+ *  so a load sinks her by its weight and trims/heels her by its position - the buoyancy
+ *  side needs nothing, since the strips simply find the new equilibrium waterline.
+ *
  *  5. With the archipelago present: penalty contacts with seabed, shore, quays and piers at
  *     points on the keel/chines/deck edges (contacts.ts), and the anchor chain pulling at the
  *     bow roller (anchor.ts).
@@ -85,6 +90,16 @@ const ptV = new THREE.Vector3();
 const cf = new THREE.Vector3();
 const contact: ContactResult = { fx: 0, fy: 0, fz: 0, normal: 0, slide: 0, approach: 0 };
 const chain = { x: 0, y: 0, z: 0 };
+/** Centre of gravity (vessel axes) and principal inertia (x pitch, y yaw, z roll) this tick. */
+const cgL = new THREE.Vector3();
+const inertia = new THREE.Vector3();
+
+/** Add a point mass m at offset d from the CG to the inertia (diagonal terms). */
+function addPointInertia(m: number, d: THREE.Vector3): void {
+  inertia.x += m * (d.y * d.y + d.z * d.z);
+  inertia.y += m * (d.x * d.x + d.z * d.z);
+  inertia.z += m * (d.x * d.x + d.y * d.y);
+}
 
 function toWorld(x: number, y: number, z: number, out: THREE.Vector3): THREE.Vector3 {
   return out.set(x, y, z).applyQuaternion(q).add(pos);
@@ -110,19 +125,37 @@ export function stepVessel(
   debug?: HydroDebug,
   /** Land, seabed and harbour structures to collide with (false: open sea, e.g. trials). */
   geography = true,
+  /** Cargo aboard: point masses at positions in vessel axes. */
+  payload: readonly { mass: number; pos: THREE.Vector3 }[] = [],
 ): void {
   const rho = CONFIG.ocean.density;
   const g = CONFIG.ocean.gravity;
   const d = def.damping;
 
+  // ── Mass properties with payload ──
+  let mass = def.mass;
+  cgL.fromArray(def.cg);
+  inertia.fromArray(def.inertia);
+  if (payload.length > 0) {
+    cgL.multiplyScalar(def.mass);
+    for (const p of payload) {
+      mass += p.mass;
+      cgL.addScaledVector(p.pos, p.mass);
+    }
+    cgL.divideScalar(mass);
+    // Parallel axis: the hull's own inertia moved to the new CG, plus each point mass.
+    addPointInertia(def.mass, tmp.fromArray(def.cg).sub(cgL));
+    for (const p of payload) addPointInertia(p.mass, tmp.copy(p.pos).sub(cgL));
+  }
+
   q.fromArray(state.orientation);
   qInv.copy(q).invert();
   pos.fromArray(state.position);
-  cgW.fromArray(def.cg).applyQuaternion(q).add(pos);
+  cgW.copy(cgL).applyQuaternion(q).add(pos);
   v.fromArray(state.linearVelocity);
   w.fromArray(state.angularVelocity);
 
-  force.set(0, -def.mass * g, 0);
+  force.set(0, -mass * g, 0);
   torque.set(0, 0, 0);
 
   if (debug) {
@@ -231,7 +264,7 @@ export function stepVessel(
   addForceAt(tmp.set(rud.x * propWet, 0, rud.z * propWet).applyQuaternion(q), rudderW);
 
   // Calm-water resistance at mid-draft at the LCG, against speed through the water.
-  const resW = toWorld(0, def.resistance.y, def.cg[2], centreW);
+  const resW = toWorld(0, def.resistance.y, cgL.z, centreW);
   const sO = sampleSurface(waves, resW.x, resW.z);
   pointVelocity(resW, tmp);
   tmp.x -= sO.velocity[0];
@@ -268,9 +301,9 @@ export function stepVessel(
   // ── Linear: a = F / m_eff, with added mass per vessel axis ──
   tmp.copy(force).applyQuaternion(qInv);
   tmp.set(
-    tmp.x / (def.mass * (1 + def.addedLinear[0] * immersion)),
-    tmp.y / (def.mass * (1 + def.addedLinear[1] * immersion)),
-    tmp.z / (def.mass * (1 + def.addedLinear[2] * immersion)),
+    tmp.x / (mass * (1 + def.addedLinear[0] * immersion)),
+    tmp.y / (mass * (1 + def.addedLinear[1] * immersion)),
+    tmp.z / (mass * (1 + def.addedLinear[2] * immersion)),
   );
   v.addScaledVector(tmp.applyQuaternion(q), dt);
 
@@ -280,9 +313,9 @@ export function stepVessel(
   tb.x -= d.pitch * immersion * wb.x;
   tb.y -= d.yaw * immersion * wb.y;
   tb.z -= d.roll * immersion * wb.z;
-  const Ix = def.inertia[0] * (1 + def.addedAngular[0] * immersion);
-  const Iy = def.inertia[1] * (1 + def.addedAngular[1] * immersion);
-  const Iz = def.inertia[2] * (1 + def.addedAngular[2] * immersion);
+  const Ix = inertia.x * (1 + def.addedAngular[0] * immersion);
+  const Iy = inertia.y * (1 + def.addedAngular[1] * immersion);
+  const Iz = inertia.z * (1 + def.addedAngular[2] * immersion);
   // Gyroscopic term ω × (I·ω)
   const gx = wb.y * (Iz * wb.z) - wb.z * (Iy * wb.y);
   const gy = wb.z * (Ix * wb.x) - wb.x * (Iz * wb.z);
@@ -296,7 +329,7 @@ export function stepVessel(
   cgW.addScaledVector(v, dt);
   dq.set(w.x, w.y, w.z, 0).multiply(q);
   q.set(q.x + 0.5 * dt * dq.x, q.y + 0.5 * dt * dq.y, q.z + 0.5 * dt * dq.z, q.w + 0.5 * dt * dq.w).normalize();
-  pos.fromArray(def.cg).applyQuaternion(q).negate().add(cgW);
+  pos.copy(cgL).applyQuaternion(q).negate().add(cgW);
 
   state.position = [pos.x, pos.y, pos.z];
   state.orientation = [q.x, q.y, q.z, q.w];

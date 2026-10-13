@@ -6,6 +6,7 @@ import { placeOnPlatform } from '../player/playerControl';
 import { dropVessel } from '../vessel/vesselControl';
 import { createVesselState, type VesselState } from '../vessel/vesselState';
 import { IdFactory, type EntityId } from './ids';
+import { stockPorts, type CargoItem } from '../cargo/cargo';
 
 /**
  * The complete simulation state. Plain, JSON-serializable data only: no class
@@ -25,6 +26,12 @@ export interface WorldState {
    * anchor; 'openSea': deep water everywhere (sea trials, tests).
    */
   geography: 'archipelago' | 'openSea';
+  /** Cargo items, waiting at ports or aboard vessels (cargo/cargo.ts). */
+  cargo: Record<EntityId, CargoItem>;
+  /** Counter for cargo ids and its deterministic choices. */
+  cargoSeq: number;
+  /** Deliveries completed. */
+  deliveries: number;
 }
 
 export function createWorld(
@@ -46,6 +53,10 @@ export function createWorld(
     },
     vessels: { [vesselId]: vessel },
     geography: 'archipelago',
+    cargo: {},
+    cargoSeq: 0,
+    deliveries: 0,
   };
+  stockPorts(world);
   return { world, localPlayerId, vesselId };
 }
