@@ -269,9 +269,10 @@ export class App {
     if (this.bridge && testVessel) this.bridge.update(testVessel, dt, this.dashInView());
     const darkness = Math.min(1, Math.max(0, (8 - sunElevation(this.world.environment.timeOfDay)) / 14));
     let slam = 0;
+    let lap = 0;
     for (const [id, fx] of this.effects) {
-      const sl = fx.update(dt, this.world.vessels[id], this.renderWaves, this.focus, darkness, renderTime);
-      if (id === this.testVesselId) slam = sl;
+      const hit = fx.update(dt, this.world.vessels[id], this.renderWaves, this.focus, darkness, renderTime);
+      if (id === this.testVesselId) ({ slam, lap } = hit);
     }
     this.worldView.lights.update(renderTime, darkness);
     this.worldView.portLighting.update(this.focus, darkness);
@@ -287,7 +288,7 @@ export class App {
         this.xrInput.pulse('right', 0.3 + 0.7 * hit, 60 + 140 * hit);
       }
       // Water rushing past and bow slams: sound, and a light thud through the controllers.
-      this.waterAudio.update(Math.hypot(testVessel.linearVelocity[0], testVessel.linearVelocity[2]), slam, d, dt);
+      this.waterAudio.update(Math.hypot(testVessel.linearVelocity[0], testVessel.linearVelocity[2]), slam, lap, d, dt);
       if (slam > 0.1 && aboard) {
         this.xrInput.pulse('left', 0.15 + 0.35 * slam, 40 + 60 * slam);
         this.xrInput.pulse('right', 0.15 + 0.35 * slam, 40 + 60 * slam);

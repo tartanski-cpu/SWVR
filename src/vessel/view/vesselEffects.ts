@@ -46,9 +46,9 @@ export class VesselEffects {
   /**
    * @param darkness 0 (day) .. 1 (night)
    * @param time     render time (s), the waves' clock
-   * @returns slam strength 0..1 this frame (bow hitting the water), for sound and haptics
+   * @returns slam and lap strengths 0..1 this frame (bow hitting the water), for sound and haptics
    */
-  update(dt: number, s: VesselState, waves: PreparedWave[], viewer: THREE.Vector3, darkness: number, time: number): number {
+  update(dt: number, s: VesselState, waves: PreparedWave[], viewer: THREE.Vector3, darkness: number, time: number): { slam: number; lap: number } {
     const light = 1 - 0.8 * darkness;
     this.nav.update(s.controls.navLights > 0, darkness, viewer);
     this.smoke.setLight(light);

@@ -49,14 +49,16 @@ export class Spray {
 
   /**
    * @param light 0..1 scene light level (spray darkens at night)
-   * @returns slam strength this frame, 0..1 (for sound and haptics)
+   * @returns slam strength this frame, 0..1 (big bow entries: spray, splash sound, haptics)
+   *          and lap strength (smaller entries, even at rest: lapping sounds)
    */
-  update(dt: number, s: VesselState, root: THREE.Object3D, waves: readonly PreparedWave[], viewer: THREE.Vector3, light: number): number {
+  update(dt: number, s: VesselState, root: THREE.Object3D, waves: readonly PreparedWave[], viewer: THREE.Vector3, light: number): { slam: number; lap: number } {
     const c = this.cfg;
     const [vx, vy, vz] = s.linearVelocity;
     const speed = Math.hypot(vx, vz);
     root.getWorldQuaternion(this.q);
     let slam = 0;
+    let lap = 0;
 
     if (dt > 0) {
       // ── Slams ──
@@ -65,6 +67,8 @@ export class Spray {
         const h = surfaceHeight(waves, this.p.x, this.p.z);
         const depth = h - this.p.y;
         const rate = (depth - this.lastDepth[i]) / dt;
+        // Any entry into the water faster than ~0.3 m/s is an audible lap against the hull.
+        if (this.lastDepth[i] < 0.02 && depth >= 0.02 && rate > 0.3) lap = Math.max(lap, Math.min(1, (rate - 0.3) / 1.2));
         if (this.lastDepth[i] < 0.05 && depth >= 0.05 && rate > c.slamSpeed) {
           const strength = Math.min(1, (rate - c.slamSpeed) / 3);
           slam = Math.max(slam, strength);
@@ -120,7 +124,7 @@ export class Spray {
 
     this.pool.setBrightness(0.2 + 0.8 * light);
     this.pool.step(dt, 1.2, 0, -9.81, () => 0.9, viewer);
-    return slam;
+    return { slam, lap };
   }
 }
 
