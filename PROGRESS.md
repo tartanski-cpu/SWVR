@@ -537,6 +537,20 @@ Frame-rate friendly: 3 extra draw calls, a few hundred vertices, and almost no C
 - **Desktop searchlight:** clicking the joystick puts it in keyboard steering. W A S D deflect it like a hand would (same rates), the mouse still looks around, walking pauses, and a click anywhere lets go. While steering it counts as held, so control ownership applies in multiplayer.
 - **Tests (144):** ping replace and expiry, ping round trip over the network, desktop steering rate and release.
 
+## Done (engine and water sound, owner request)
+
+- **Engine less noisy:** the exhaust pulses are now smooth (1.5 ms rise instead of an instant step) and mostly tone (8 % noise instead of 40 %). Clatter is at 40 % of before, intake hiss at about a third, saturation is softer. Rendered: everything above 400 Hz is 8–14 dB down; the low thump is unchanged.
+- **Wet exhaust:**
+  - **Depth:** App works out how far the transom outlet is under the rendered sea surface, plus the water the hull raises at the transom, which the wave model leaves out: the stern wave near hull speed (Fn 0.28–0.45, up to 0.3 m) and water piling up going astern. Prop wash makes it come and go.
+  - **How often:** it's under about 6–21 % of the time in moderate to stormy seas, often near full speed, and on and off going astern.
+  - **Sound:** the dry exhaust path fades (down to 20 %), a low-passed (220 Hz) copy comes up, and a new worklet channel of exhaust bubbles burbles: 1–3 big bubbles (100–450 Hz) per firing beat, more under load. A little gurgle is always there while running (cooling water). It goes under fast and clears more slowly.
+- **Water as bubbles** (`audio/waterWorklet.ts`):
+  - **Model:** splashing water is mostly air bubbles ringing as they form. Each bubble is a decaying sine at its Minnaert frequency (3.26/r) that chirps upward (van den Doel's model).
+  - **Stream:** grows with speed, from a trickle at rest to about 500 bubbles/s, mostly small bright ones; bigger ones join as the bow digs in.
+  - **Splashes:** slams fire clusters of up to about 120 bubbles over a quarter second; laps fire small spatters. Each bubble gets its own stereo position.
+  - **Bed:** the old noise whoosh and fizz stay underneath at about half level.
+  - **Levels:** a gentle compressor keeps slams loud without clipping (rendered peak 0.76).
+
 ## Planned next (owner requests, not started)
 
 1. ~~Fuel and oil temperature~~ **Done** (see above).

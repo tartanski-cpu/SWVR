@@ -19,6 +19,7 @@ import { SurfaceProbes } from '../debug/surfaceProbes';
 import { Buoys, createPlatform } from './testScene';
 import { HydroDebugView } from '../debug/hydroDebugView';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
+import type { VesselState } from '../vessel/vesselState';
 import { VesselView } from '../vessel/view/vesselView';
 import { EngineAudio } from '../audio/engineAudio';
 import { hullPlan, vesselWalkArea, type WalkArea } from '../vessel/layout';
@@ -312,7 +313,8 @@ export class App {
     if (testView) {
       // Engine room sits roughly under the wheelhouse.
       const distance = testView.root.localToWorld(this.tmpV.set(0, 0, 1)).distanceTo(this.focus);
-      this.engineAudio.update(this.world.vessels[this.testVesselId], distance);
+      const submerged = this.exhaustSubmersion(testView.root, this.world.vessels[this.testVesselId], nowMs / 1000);
+      this.engineAudio.update(this.world.vessels[this.testVesselId], distance, submerged);
       const v = this.world.vessels[this.testVesselId];
       this.horn.update(v.controls.horn > 0, distance);
       // Bridge buzzer: high temperature always, low fuel while the engine runs.
@@ -501,6 +503,29 @@ export class App {
     }
     this.rig.root.rotation.set(0, p.yaw, 0);
     this.camera.updateWorldMatrix(true, false);
+  }
+
+  /**
+   * How far the wet-exhaust outlet is under water, 0..1, for the engine sound: its depth
+   * under the (rendered) sea surface, plus the water the hull itself raises at the transom,
+   * which the wave model doesn't include. Near hull speed (Froude number ~0.35-0.45) a
+   * displacement hull squats into its own stern wave and the outlet goes under; going
+   * astern the water piles up against the transom. Prop wash makes it come and go.
+   */
+  private exhaustSubmersion(root: THREE.Object3D, v: VesselState, t: number): number {
+    const def = VESSEL_DEFS[v.defId];
+    const ex = root.localToWorld(this.tmpV.fromArray(def.exhaust.position));
+    let depth = surfaceHeight(this.renderWaves, ex.x, ex.z) - ex.y;
+    // Speed through the water along the bow (vessel -z is forward).
+    const fwd = this.offsetV.set(0, 0, -1).applyQuaternion(root.quaternion);
+    const u = v.linearVelocity[0] * fwd.x + v.linearVelocity[2] * fwd.z;
+    const lwl = def.hull.stations[0].z - def.hull.stations[def.hull.stations.length - 1].z;
+    const fn = u / Math.sqrt(CONFIG.ocean.gravity * lwl);
+    depth += 0.3 * clamp((fn - 0.28) / 0.17, 0, 1) + 0.25 * clamp(-u / 1.5, 0, 1);
+    // Wash slopping round the outlet: a slow, uneven wobble that grows with thrust.
+    const wash = Math.min(1, Math.abs(v.thrust) / 15000);
+    depth += wash * 0.07 * (Math.sin(t * 4.3) + 0.6 * Math.sin(t * 7.1 + 1.3));
+    return clamp((depth + 0.03) / 0.2, 0, 1);
   }
 
   /** Vessels as the body module sees them (rendered roots, walk areas, hull plans). */
