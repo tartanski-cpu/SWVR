@@ -78,6 +78,10 @@ const TIME_FLOW: [string, number][] = [
   ['×600', 600 / 3600],
 ];
 
+declare const __BUILD__: string | undefined;
+/** Commit and build time, injected by vite.config.ts (absent in tests). */
+const BUILD = typeof __BUILD__ === 'string' ? __BUILD__ : 'dev';
+
 export interface MainMenu {
   header: MenuRow[];
   pages: MenuPage[];
@@ -89,7 +93,7 @@ export function mainMenu(h: MenuHost): MainMenu {
     active: () => get() === value,
     press: () => set(value),
   });
-  const header: MenuRow[] = [{ label: '', buttons: [{ text: 'SWVR menu', weight: 3 }, { text: 'Close ✕', press: () => h.close(), weight: 1.4 }] }];
+  const header: MenuRow[] = [{ label: '', buttons: [{ text: `SWVR  ${BUILD}`, weight: 3 }, { text: 'Close ✕', press: () => h.close(), weight: 1.4 }] }];
 
   const seaAndTime: MenuRow[] = [
     { heading: 'Time' },
