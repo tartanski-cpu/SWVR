@@ -65,6 +65,10 @@ export class InteractionSystem {
   private readonly pointers: Record<Handedness, Pointer>;
   // Desktop
   private dragging: Control | null = null;
+  /** Desktop: a rate control clicked into keyboard steering (WASD), until clicked again. */
+  steering: Control | null = null;
+  /** The last desktop click was used to start or stop steering (nothing else should take it). */
+  pressConsumed = false;
   private deskPressing: Control | null = null;
   private deskHover: Control | null = null;
   private readonly deskPointer: Pointer = { position: new THREE.Vector3() };
@@ -120,6 +124,7 @@ export class InteractionSystem {
    */
   updateXR(frames: Record<Handedness, HandFrame>): Record<Handedness, boolean> {
     const cfg = CONFIG.interaction;
+    this.stopSteering(); // desktop-only mode
     const busy = { left: false, right: false };
     for (const hand of ['left', 'right'] as const) {
       const f = frames[hand];
@@ -214,6 +219,7 @@ export class InteractionSystem {
     const now = new Set<Control>();
     for (const h of Object.values(this.hands)) if (h.held) now.add(h.held);
     if (this.dragging) now.add(this.dragging);
+    if (this.steering) now.add(this.steering);
     for (const c of now) if (!this.localHolds.has(c)) this.rules.holdChanged(c, true);
     for (const c of this.localHolds) if (!now.has(c)) this.rules.holdChanged(c, false);
     this.localHolds.clear();
@@ -261,6 +267,20 @@ export class InteractionSystem {
       hover = hit ? (this.owner.get(hit.object) ?? null) : null;
     }
 
+    // Keyboard steering: any click lets go; a crew-mate grabbing it first also ends it.
+    this.pressConsumed = false;
+    if (this.steering && pressed) this.pressConsumed = true;
+    if (this.steering && (pressed || this.rules.lockedByOther(this.steering))) {
+      this.stopSteering();
+      pressed = false;
+    }
+    if (pressed && hover?.keySteerable && !this.rules.lockedByOther(hover)) {
+      hover.bind(this.context(null));
+      hover.keySteer(0, 0);
+      this.steering = hover;
+      this.pressConsumed = true;
+      pressed = false;
+    }
     // Press before release: on a slow frame both can arrive together (a quick click).
     if (pressed && hover && !(hover.kind === 'grab' && this.rules.lockedByOther(hover))) {
       hover.bind(this.context(null));
@@ -290,8 +310,22 @@ export class InteractionSystem {
     return this.dragging !== null;
   }
 
+  /** Desktop keyboard steering of the clicked rate control (x right, y forward). */
+  steerKeys(x: number, y: number): void {
+    this.steering?.keySteer(x, y);
+  }
+
+  private stopSteering(): void {
+    const c = this.steering;
+    if (!c) return;
+    c.grabEnd(this.deskPointer);
+    c.held = false;
+    this.steering = null;
+  }
+
   /** Name of whatever the desktop reticle is on (for a hint), or null. */
   get desktopHoverLabel(): string | null {
+    if (this.steering) return `${this.steering.label}: W A S D to steer · click to let go`;
     const c = this.deskHover;
     if (!c) return null;
     return c.kind === 'grab' && this.rules.lockedByOther(c) ? `${c.label} (crew-mate has it)` : c.label;
@@ -304,6 +338,7 @@ export class InteractionSystem {
       if (h.held) hovered.add(h.held);
     }
     if (this.deskHover) hovered.add(this.deskHover);
+    if (this.steering) hovered.add(this.steering);
     for (const c of this.controls) c.setHover(hovered.has(c), c.kind === 'grab' && this.rules.lockedByOther(c));
   }
 }

@@ -52,3 +52,33 @@ describe('searchlight joystick', () => {
     expect(v.controls.spotPan).toBe(-opts.panLimitDeg);
   });
 });
+
+describe('searchlight joystick on the desktop', () => {
+  it('click it, then WASD steer it at the same rates; a second click lets go', async () => {
+    const { InteractionSystem } = await import('../src/controls/InteractionSystem');
+    const sent: Record<string, number> = {};
+    const j = new Joystick('j', opts);
+    j.root.position.set(0, 0, -1);
+    j.root.updateMatrixWorld(true);
+    j.sync(createVesselState('v', 'workboat'));
+    const sys = new InteractionSystem([j], (c, v) => (sent[c] = v), () => {});
+    // Reticle ray from 0.5 m above, straight down the stick to its knob.
+    const knob = new THREE.Vector3(0, 0.105 + 0.035, -1);
+    const ray = new THREE.Ray(knob.clone().add(new THREE.Vector3(0, 0.5, 0)), new THREE.Vector3(0, -1, 0));
+    const dragging = sys.updateDesktop(ray, true, true, false, 0, 0);
+    expect(dragging).toBe(false); // mouse-look stays free
+    expect(sys.steering).toBe(j);
+    sys.updateDesktop(ray, false, false, true, 0, 0);
+    for (let i = 0; i < 10; i++) {
+      sys.steerKeys(1, 0); // D held
+      j.tick(0.1);
+    }
+    expect(sent.spotPan).toBeCloseTo(opts.panRateDeg, 0);
+    expect(sys.desktopHoverLabel).toMatch(/W A S D/);
+    sys.updateDesktop(null, true, true, false, 0, 0); // click anywhere: let go
+    expect(sys.steering).toBeNull();
+    const pan = sent.spotPan;
+    j.tick(1);
+    expect(sent.spotPan).toBe(pan);
+  });
+});

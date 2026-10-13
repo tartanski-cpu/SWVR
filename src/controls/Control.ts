@@ -79,6 +79,13 @@ export abstract class Control {
   nudge(_dx: number, _dy: number): void {}
   /** Every frame (for rate controls such as the searchlight joystick). */
   tick(_dt: number): void {}
+  /**
+   * Desktop keyboard steering (rate controls): click the control once, then WASD deflect
+   * it (x right, y forward, -1..1) while the mouse still looks around. Controls that
+   * support it set `keySteerable`.
+   */
+  readonly keySteerable: boolean = false;
+  keySteer(_x: number, _y: number): void {}
 
   // ── press controls ──
   pressStart(): void {}

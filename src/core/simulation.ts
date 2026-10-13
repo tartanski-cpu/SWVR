@@ -2,6 +2,7 @@ import { applyEnvironmentIntent, stepEnvironment } from '../environment/timeOfDa
 import { prepareWaves, type PreparedWave } from '../ocean/waves';
 import { stepVessel, type HydroDebug } from '../vessel/physics/vesselPhysics';
 import { applyPlayerIntent } from '../player/playerControl';
+import { applyPing, expirePings } from '../player/ping';
 import { applyVesselIntent, stepRefuelling } from '../vessel/vesselControl';
 import { applyCargoIntent, deckVelocitiesBefore, isCargoIntent, payloadOf, stepDeckCargo } from '../cargo/cargo';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
@@ -23,7 +24,9 @@ let simWaves: PreparedWave[] = [];
 export function stepWorld(world: WorldState, intents: readonly Intent[], dt: number, debug?: SimDebug): void {
   // 1. Apply intents, routed by target entity.
   for (const intent of intents) {
-    if (isCargoIntent(intent.control)) {
+    if (intent.control === 'ping') {
+      applyPing(world, intent);
+    } else if (isCargoIntent(intent.control)) {
       applyCargoIntent(world, intent);
     } else if (intent.targetId === ENVIRONMENT_ID) {
       applyEnvironmentIntent(world.environment, intent);
@@ -50,6 +53,7 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
     stepRefuelling(vessel, VESSEL_DEFS[vessel.defId], dt, world.geography === 'archipelago');
   }
 
+  expirePings(world);
   world.tick += 1;
   world.time = world.tick * dt;
 }

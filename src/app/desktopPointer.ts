@@ -11,6 +11,7 @@ import type { WristMenu } from '../ui/wristMenu';
 export class DesktopPointer {
   private down = false;
   private pressed = false;
+  private pingPressed = false;
   private released = false;
   private dx = 0;
   private dy = 0;
@@ -25,7 +26,13 @@ export class DesktopPointer {
     private readonly menu: WristMenu,
     /** Cargo: picked up and set down with a click when the reticle isn't on a control. */
     private readonly cargo?: { carrying(): boolean; label(ray: THREE.Ray | null): string | null; click(ray: THREE.Ray | null): boolean },
+    /** Right mouse button: drop a ping where the reticle points. */
+    private readonly onPing?: (ray: THREE.Ray) => void,
   ) {
+    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    document.addEventListener('mousedown', (e) => {
+      if (document.pointerLockElement === canvas && e.button === 2) this.pingPressed = true;
+    });
     document.addEventListener('mousedown', (e) => {
       if (document.pointerLockElement !== canvas || e.button !== 0) return;
       this.down = true;
@@ -70,6 +77,8 @@ export class DesktopPointer {
       camera.getWorldDirection(this.ray.direction);
       ray = this.ray;
     }
+    if (this.pingPressed && ray) this.onPing?.(ray);
+    this.pingPressed = false;
     const onMenu = this.menu.updateDesktop(ray, this.pressed);
     // While carrying, a click sets the item down, whatever the reticle is on.
     const carrying = !onMenu && !!this.cargo?.carrying();
@@ -77,7 +86,7 @@ export class DesktopPointer {
     this.desktop.lookFrozen = this.interaction.updateDesktop(ctlRay, this.down, this.pressed && !onMenu && !carrying, this.released, this.dx, this.dy);
     let label = onMenu ? null : this.interaction.desktopHoverLabel;
     if (!onMenu && !label && this.cargo) {
-      if (this.pressed && locked) this.cargo.click(ray);
+      if (this.pressed && locked && !this.interaction.pressConsumed) this.cargo.click(ray);
       label = this.cargo.label(ray);
     }
     this.reticle.style.display = locked ? 'block' : 'none';

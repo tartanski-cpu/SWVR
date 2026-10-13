@@ -684,6 +684,13 @@ export const CONFIG = {
     quayClimbMax: 2.8,
   },
 
+  /** Pings: "look here" markers (player/ping.ts). Lifetime (s), beam height (m), reach (m). */
+  ping: {
+    life: 10,
+    beamHeight: 30,
+    reach: 2500,
+  },
+
   comfort: {
     /**
      * Motion coupling between the deck and the player's view, 0..1 (BeamNG-style).

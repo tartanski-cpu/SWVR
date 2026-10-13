@@ -10,8 +10,9 @@ import { Control, type Pointer } from './Control';
  * like a real searchlight joystick. Let go and it springs back to centre; the light stays.
  *
  * It sends ABSOLUTE pan/tilt angles (degrees) as intents while it moves the light, so a
- * late or repeated intent is harmless (same rule as every control). Desktop: click-and-drag
- * moves the light directly.
+ * late or repeated intent is harmless (same rule as every control). Desktop: click it to
+ * steer with WASD while looking around with the mouse (click again to let go), or
+ * click-and-drag to move the light directly.
  */
 export class Joystick extends Control {
   readonly kind = 'grab' as const;
@@ -66,6 +67,15 @@ export class Joystick extends Control {
   grabEnd(_p: Pointer): void {
     this.held = false;
     this.defl = { x: 0, y: 0 };
+    this.showStick();
+  }
+
+  readonly keySteerable = true;
+
+  /** Desktop keys: deflect the stick as a hand would (tick() turns it into rates). */
+  keySteer(x: number, y: number): void {
+    this.held = true;
+    this.defl = { x: clamp(x, -1, 1), y: clamp(y, -1, 1) };
     this.showStick();
   }
 

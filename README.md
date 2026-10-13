@@ -50,6 +50,8 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | Space (elsewhere) | **Jump**: off the boat onto a quay, from a quay aboard, or into the sea. Swimming near the hull or a quay: climb out |
 | Click a cargo item | Pick it up (carried in front of you); click again to set it down |
 | Q on cargo on deck | Lash it to the nearest D-ring / release it |
+| Right mouse button | **Ping**: a marker where the reticle points, seen by the whole crew for 10 s |
+| Click the searchlight joystick | Steer the light with **W A S D** while the mouse still looks around; click again to let go |
 | B | Board the boat (you appear at the helm) / back to the platform |
 | Aim **+** and click / drag | Operate the bridge controls (see below) |
 | E | Debug: engine start / stop |
@@ -75,6 +77,7 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | Trigger pointing at a button or switch a little out of reach | Pointer-ray fallback for buttons and switches only (a blue line shows the target) |
 | **Grip** on empty air + pull | Move (grab the world). Two grips + twist: turn. In the water these are your swimming strokes |
 | **A** | **Jump** (off the boat, onto a quay, into the sea) |
+| **Right stick click** | **Ping**: a marker where the right controller points, seen by the whole crew for 10 s |
 | **Grip** on a cargo item | Pick it up; it follows your hand. Items over 60 kg need both grips on them. Let go to set it down: on the deck over the boat, ashore over land, lost in the sea |
 | **Trigger** touching cargo on deck | Lash it to the nearest D-ring (orange straps) / release it |
 | **Grip** on the gunwale or transom while swimming | Haul yourself aboard (A near a quay climbs out there) |

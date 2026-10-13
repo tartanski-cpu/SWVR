@@ -14,7 +14,7 @@ import { PlayerRig } from '../player/playerRig';
 import { XRInput, XR_BUTTON } from '../player/xrInput';
 import { SkyView } from '../environment/skyView';
 import { OceanView } from '../ocean/oceanView';
-import { prepareWaves, significantWaveHeight, type PreparedWave } from '../ocean/waves';
+import { prepareWaves, significantWaveHeight, surfaceHeight, type PreparedWave } from '../ocean/waves';
 import { SurfaceProbes } from '../debug/surfaceProbes';
 import { Buoys, createPlatform } from './testScene';
 import { HydroDebugView } from '../debug/hydroDebugView';
@@ -46,6 +46,7 @@ import { AlarmAudio } from '../audio/alarmAudio';
 import { ContactAudio } from '../audio/contactAudio';
 import { WaterAudio } from '../audio/waterAudio';
 import { WorldView } from '../world/view/worldView';
+import { PingAudio, PingView } from '../player/pingView';
 import { engineAlarms } from '../vessel/physics/engineThermal';
 import { VesselEffects } from '../vessel/view/vesselEffects';
 import { sunElevation } from '../environment/timeOfDay';
@@ -128,6 +129,10 @@ export class App {
   private readonly worldView = new WorldView();
   private readonly cargoView = new CargoView();
   private readonly cargoHands = new CargoHands();
+  private readonly platform = createPlatform();
+  private readonly pingView = new PingView(this.scene);
+  private readonly pingAudio = new PingAudio();
+  private readonly pingCaster = new THREE.Raycaster();
   private readonly vesselRoots = new Map<string, THREE.Object3D>();
   private readonly hands: Record<'left' | 'right', HandFrame> = {
     left: { tracked: false, grip: new THREE.Vector3(), ray: new THREE.Ray(), gripDown: false, gripPressed: false, triggerDown: false, triggerPressed: false },
@@ -198,7 +203,11 @@ export class App {
 
     this.desktop = new DesktopController(this.camera, this.renderer.domElement, this.keyboard);
     this.environment = new EnvironmentView(this.scene);
-    this.scene.add(this.sky.mesh, this.ocean.mesh, this.buoys.mesh, this.probes.mesh, createPlatform(), this.worldView.root, this.cargoView.root);
+    this.scene.add(this.sky.mesh, this.ocean.mesh, this.buoys.mesh, this.probes.mesh, this.platform, this.worldView.root, this.cargoView.root);
+    this.pingView.onNew = (pos, mine) => {
+      this.pingAudio.play(pos.distanceTo(this.focus));
+      if (mine) this.xrInput.pulse('right', 0.4, 40);
+    };
     for (const vessel of Object.values(this.world.vessels)) {
       const def = VESSEL_DEFS[vessel.defId];
       const view = new VesselView(vessel.id, def);
@@ -223,6 +232,7 @@ export class App {
       this.alarm.attach(this.engineAudio.context);
       this.contactAudio.attach(this.engineAudio.context);
       this.waterAudio.attach(this.engineAudio.context);
+      this.pingAudio.attach(this.engineAudio.context);
     };
     window.addEventListener('pointerdown', unlock);
     window.addEventListener('keydown', unlock);
@@ -326,6 +336,7 @@ export class App {
     const fxTest = this.effects.get(this.testVesselId);
     if (fxTest) this.ocean.setSpotlight(fxTest.searchlight.light);
     this.cargoView.update(this.world, this.vesselRoots, (c) => this.carriedPose(c), this.cargoHands.hovered);
+    this.pingView.update(this.world, this.vesselRoots, this.focus, this.localPlayerId);
     this.updateNetPose(dt);
     this.avatars.update(this.world, this.localPlayerId, this.vesselRoots, dt);
     if (testView && testVessel) {
@@ -589,7 +600,12 @@ export class App {
       }
     }
     let desktopDelta: { x: number; y: number; z: number } | null = null;
-    if (!inXR && this.desktop.mode === 'walk') {
+    const steering = !inXR && this.interaction?.steering;
+    if (steering) {
+      // WASD steer the clicked control (the searchlight joystick) instead of walking.
+      const k = this.keyboard;
+      this.interaction!.steerKeys((k.action('right') ? 1 : 0) - (k.action('left') ? 1 : 0), (k.action('forward') ? 1 : 0) - (k.action('back') ? 1 : 0));
+    } else if (!inXR && this.desktop.mode === 'walk') {
       const { x, y, z } = this.desktop.walk;
       const c = Math.cos(p.yaw);
       const s = Math.sin(p.yaw);
@@ -647,7 +663,9 @@ export class App {
     }
     const left = this.controllers.grips.left;
     if (this.renderer.xr.isPresenting && left?.visible) this.menu.openOnWrist(left);
-    else this.menu.openInFront(this.playerFrame(), this.camera);
+    // In front of you, in the rig's carrier: that's the frame your view rides in, so with
+    // motion decoupled the menu stays steady with your view instead of rolling with the deck.
+    else this.menu.openInFront(this.rig.carrier, this.camera);
   }
 
   /** The object the player's position is expressed in: the vessel aboard, or the scene. */
@@ -683,7 +701,7 @@ export class App {
       return;
     }
     this.trialsPanel.showVR(defId); // ~1 s freeze while the trials run
-    placeInFront(this.trialsPanel.vrMesh, this.playerFrame(), this.camera, 1.4, -0.1);
+    placeInFront(this.trialsPanel.vrMesh, this.rig.carrier, this.camera, 1.4, -0.1);
   }
 
   /** The menu's view of the app (see ui/mainMenu.ts). */
@@ -866,6 +884,8 @@ export class App {
       w.cargo = snap.cargo;
       w.cargoSeq = snap.cargoSeq;
       w.deliveries = snap.deliveries;
+      w.pings = snap.pings;
+      w.lost = snap.lost;
       w.geography = snap.geography;
       w.players = { ...snap.players, [this.localPlayerId]: me };
     }
@@ -1052,7 +1072,7 @@ export class App {
       },
     );
     this.scene.add(this.interaction.rayLine('left'), this.interaction.rayLine('right'));
-    this.pointer = new DesktopPointer(this.renderer.domElement, this.desktop, this.interaction, this.menu, this.desktopCargo());
+    this.pointer = new DesktopPointer(this.renderer.domElement, this.desktop, this.interaction, this.menu, this.desktopCargo(), (ray) => this.ping(ray));
   }
 
   /** Feed hands (VR) or the reticle (desktop) to the bridge controls. */
@@ -1075,12 +1095,59 @@ export class App {
         this.hands.right.triggerPressed = false;
       }
       this.busyHands = this.interaction.updateXR(this.hands);
+      if (this.xrInput.wasPressed('right', XR_BUTTON.stick) && this.hands.right.tracked) this.ping(this.hands.right.ray);
       this.cargoHands.updateXR(this.cargoCtx(), this.hands, this.busyHands);
       for (const h of ['left', 'right'] as const) if (this.cargoHands.busy(h)) this.busyHands[h] = true;
       this.pointer?.hide();
       return;
     }
     this.pointer?.update(this.camera);
+  }
+
+  /**
+   * Drop a ping where a ray first meets something: a boat, the islands and quays, cargo,
+   * the platform, or the sea (ray against the wave surface). On a boat it's stored in her
+   * frame so it rides along. Our own body, the menu and other pings don't count.
+   */
+  private ping(ray: THREE.Ray): void {
+    const reach = CONFIG.ping.reach;
+    this.pingCaster.set(ray.origin, ray.direction);
+    this.pingCaster.far = reach;
+    const targets = [...this.vesselRoots.values(), this.worldView.root, this.cargoView.root, this.platform];
+    const skip = (o: THREE.Object3D | null): boolean => {
+      for (; o; o = o.parent) if (o === this.rig.carrier || o === this.menu.root || o.name === 'ping' || o.name.startsWith('avatar:')) return true;
+      return false;
+    };
+    const hit = this.pingCaster.intersectObjects(targets, true).find((h) => !skip(h.object) && (h.object as THREE.Mesh).isMesh);
+    // The sea: march along the ray to where it drops below the surface.
+    let sea: THREE.Vector3 | null = null;
+    if (ray.direction.y < -1e-3) {
+      let t = (0 - ray.origin.y) / ray.direction.y;
+      const p = new THREE.Vector3();
+      for (let i = 0; i < 4 && t > 0; i++) {
+        ray.at(t, p);
+        const dy = p.y - surfaceHeight(this.renderWaves, p.x, p.z);
+        t += dy / -ray.direction.y;
+      }
+      if (t > 0 && t < reach) sea = ray.at(t, new THREE.Vector3());
+    }
+    let point: THREE.Vector3 | null = null;
+    let vesselId: string | undefined;
+    if (hit && (!sea || hit.distance <= sea.distanceTo(ray.origin))) {
+      point = hit.point.clone();
+      for (const [id, root] of this.vesselRoots) {
+        let o: THREE.Object3D | null = hit.object;
+        while (o && o !== root) o = o.parent;
+        if (o === root) {
+          vesselId = id;
+          root.worldToLocal(point);
+        }
+      }
+    } else if (sea) {
+      point = sea;
+    }
+    if (!point) return;
+    this.intents.push({ playerId: this.localPlayerId, targetId: ENVIRONMENT_ID, control: 'ping', value: 1, ref: vesselId, args: [point.x, point.y, point.z] });
   }
 
   /** Desktop cargo: label under the reticle, and clicks (see DesktopPointer). */

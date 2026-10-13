@@ -54,8 +54,8 @@ export class WristMenu {
   }
 
   /**
-   * Float the menu in front of the viewer, in `frame` (the vessel the player is aboard,
-   * or the scene) so it stays put relative to the deck.
+   * Float the menu in front of the viewer, in `frame` (the frame the view rides in: the
+   * rig's carrier, which follows the deck through the motion-comfort filter).
    */
   openInFront(frame: THREE.Object3D, camera: THREE.Camera): void {
     placeInFront(this.root, frame, camera, CONFIG.menu.floatDistance, 0.12);

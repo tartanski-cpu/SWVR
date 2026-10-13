@@ -7,6 +7,7 @@ import { dropVessel } from '../vessel/vesselControl';
 import { createVesselState, type VesselState } from '../vessel/vesselState';
 import { IdFactory, type EntityId } from './ids';
 import { stockPorts, type CargoItem } from '../cargo/cargo';
+import type { Ping } from '../player/ping';
 
 /**
  * The complete simulation state. Plain, JSON-serializable data only: no class
@@ -34,6 +35,8 @@ export interface WorldState {
   deliveries: number;
   /** Items lost overboard or dropped in the sea. */
   lost?: number;
+  /** "Look here" markers, one per player (player/ping.ts). */
+  pings?: Record<EntityId, Ping>;
 }
 
 export function createWorld(

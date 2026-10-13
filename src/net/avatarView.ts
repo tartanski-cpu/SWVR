@@ -4,6 +4,12 @@ import type { WorldState } from '../core/world';
 
 const COLORS = [0xd8582a, 0x2a8ad8, 0x3aa84a, 0xc8a020, 0x9a4ad0, 0x20a8a0];
 
+/** A player's colour (avatar, name tag, pings): from the number in their id, the same for everyone. */
+export function playerColor(id: EntityId): number {
+  const n = Number(/(\d+)$/.exec(id)?.[1] ?? 1);
+  return COLORS[(n - 1 + COLORS.length) % COLORS.length];
+}
+
 interface Avatar {
   root: THREE.Group;
   head: THREE.Group;
@@ -31,12 +37,10 @@ export class AvatarsView {
 
   update(world: WorldState, localId: EntityId, vesselRoots: Map<string, THREE.Object3D>, dt: number): void {
     const seen = new Set<EntityId>();
-    let n = 0;
     for (const p of Object.values(world.players)) {
       if (p.id === localId) continue;
       seen.add(p.id);
-      const a = this.avatars.get(p.id) ?? this.create(p.id, n);
-      n++;
+      const a = this.avatars.get(p.id) ?? this.create(p.id);
       const frame = (p.aboardVesselId && vesselRoots.get(p.aboardVesselId)) || this.scene;
       if (a.frame !== frame) {
         frame.add(a.root);
@@ -75,8 +79,8 @@ export class AvatarsView {
     }
   }
 
-  private create(id: EntityId, index: number): Avatar {
-    const color = COLORS[index % COLORS.length];
+  private create(id: EntityId): Avatar {
+    const color = playerColor(id);
     const mat = new THREE.MeshLambertMaterial({ color, flatShading: true });
     const root = new THREE.Group();
     root.name = `avatar:${id}`;
