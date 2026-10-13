@@ -89,7 +89,11 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
   hull.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
   hull.computeVertexNormals();
 
-  return [hull, ...buildDeckFittings(form, layout), ...buildWheelhouse({ ...layout, exhaustOutlet })];
+  // Wet-exhaust outlet: a short pipe stub through the transom.
+  const ex = exhaustOutlet;
+  const stub = bar(new THREE.Vector3(ex[0], ex[1], ex[2] - 0.12), new THREE.Vector3(ex[0], ex[1], ex[2]), 0.13, 0.13, COLORS.mast);
+
+  return [hull, stub, ...buildDeckFittings(form, layout), ...buildWheelhouse(layout)];
 }
 
 /** Box from (x0,y0,z0) to (x1,y1,z1), axis-aligned. */
@@ -140,7 +144,7 @@ function buildDeckFittings(form: HullForm, layout: LayoutConfig): THREE.BufferGe
  * Walk-in wheelhouse: walls with a window band all round, an aft doorway, floor, helm
  * console, roof and mast. Dimensions come from the layout config (shared with layout.ts).
  */
-function buildWheelhouse(layout: LayoutConfig & { exhaustOutlet: [number, number, number] }): THREE.BufferGeometry[] {
+function buildWheelhouse(layout: LayoutConfig): THREE.BufferGeometry[] {
   const wh = layout.wheelhouse;
   const parts: THREE.BufferGeometry[] = [];
   const hw = wh.halfWidth;
@@ -206,10 +210,6 @@ function buildWheelhouse(layout: LayoutConfig & { exhaustOutlet: [number, number
   rail(V(rx, z0), V(rx, z1)); // starboard
   rail(V(-rx, z1), V(lad.x - lad.width / 2, z1)); // aft, port of the ladder head
   rail(V(lad.x + lad.width / 2, z1), V(rx, z1)); // aft, starboard of it
-
-  // Exhaust stack on the roof (outlet position from the config; smoke rises from its top).
-  const ex = layout.exhaustOutlet;
-  parts.push(bar(new THREE.Vector3(ex[0], top, ex[2]), new THREE.Vector3(ex[0], ex[1], ex[2]), 0.16, 0.16, COLORS.mast));
 
   // Vertical ladder on the aft face, deck to roof, stiles carried up as grab handles.
   const lz = wh.aft + 0.12;

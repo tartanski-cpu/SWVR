@@ -15,7 +15,7 @@ import { PlayerRig } from '../player/playerRig';
 import { XRInput, XR_BUTTON } from '../player/xrInput';
 import { SkyView } from '../environment/skyView';
 import { OceanView } from '../ocean/oceanView';
-import { prepareWaves, type PreparedWave } from '../ocean/waves';
+import { prepareWaves, surfaceHeight, type PreparedWave } from '../ocean/waves';
 import { SurfaceProbes } from '../debug/surfaceProbes';
 import { Buoys, createPlatform } from './testScene';
 import { HydroDebugView } from '../debug/hydroDebugView';
@@ -160,7 +160,7 @@ export class App {
       this.navViews.set(vessel.id, nav);
     }
     this.setupBridge();
-    this.scene.add(this.smoke.points);
+    this.scene.add(this.smoke.root);
 
     this.setupXR();
     window.addEventListener('resize', () => this.onResize());
@@ -274,7 +274,9 @@ export class App {
     // Bridge controls and displays read the (just-updated) vessel state.
     const testVessel = this.world.vessels[this.testVesselId];
     if (this.bridge && testVessel) this.bridge.update(testVessel, dt);
-    if (testView && testVessel) this.smoke.update(dt, testVessel, VESSEL_DEFS[testVessel.defId], testView.root);
+    if (testView && testVessel) {
+      this.smoke.update(dt, testVessel, VESSEL_DEFS[testVessel.defId], testView.root, (x, z) => surfaceHeight(this.renderWaves, x, z));
+    }
     const darkness = Math.min(1, Math.max(0, (8 - sunElevation(this.world.environment.timeOfDay)) / 14));
     for (const [id, nav] of this.navViews) nav.update(this.world.vessels[id].controls.navLights > 0, darkness);
 

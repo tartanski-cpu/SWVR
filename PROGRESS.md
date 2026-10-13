@@ -290,7 +290,13 @@ The owner asked for "a diesel inboard, not a revvy outboard, with a bigger prop 
    - A chart display (canvas atlas page) rendered from the world registry: coastlines, depth contours, ports, buoys, plus own-ship position, heading and track history. It could be a chartplotter screen on the dash, a paper chart on the chart table, or a page on the wrist menu.
    - GPS position in the vessel state (already known: world position). Waypoints and a course-to-steer readout could feed an autopilot later, which would just be another intent source driving `helm`.
 
-6. **Exhaust smoke driven by load and engine temperature.** *Lean version done* (`vessel/view/exhaustSmoke.ts`, stack on the wheelhouse roof at `exhaust.position`): load (rack), dark puff on fast throttle-up, black when labouring (full rack, RPM < 85 % of rated), start-up burst. World-space particles, so the plume streams aft under way. 160 particles, 1 draw call. **Still to do:** white smoke when cold, once the coolant-temperature model exists, and wind drift once weather exists. The original notes follow.
+6. **Exhaust smoke driven by load and engine temperature.** *Done as a wet exhaust* (owner request).
+   - Smoke and cooling water leave through one transom outlet, starboard, just above the DWL (`exhaust.position` / `direction`).
+   - **Smoke** (steamy grey-white): load-driven, dark puff on fast throttle-up, dark when labouring, start-up burst.
+   - **Cooling water:** pulsing droplet jet with flow ∝ RPM (engine-driven raw-water pump), ballistic, dying when it hits the sea.
+   - **When the outlet is under a wave:** no jet, and the smoke bubbles up at the surface.
+   - **World-space particles:** under way the plume trails astern; going astern you back into it. 2 draw calls.
+   - **Still to do:** white smoke when cold (needs the coolant-temperature model) and wind drift (needs weather). The original notes follow.
    - A small particle system at the exhaust outlet (funnel or stack on the wheelhouse roof): one instanced or Points draw call with a soft sprite.
    - **Driven by the engine state:**
      - Emission rate and opacity from the fuel rack (load), with a dark puff when the rack rises quickly (turbo lag; `rackRiseRate` already models it).
