@@ -16,14 +16,15 @@ beforeAll(() => {
 
 function fakeHost() {
   const calls: string[] = [];
-  const state = { time: 10.5, scale: 0, calm: false, coupling: 1, smooth: true, snap: 30, aboard: false, trials: false, dbg: false, hydro: false, probes: false };
+  const state = { time: 10.5, scale: 0, sea: 1, coupling: 1, smooth: true, snap: 30, aboard: false, trials: false, dbg: false, hydro: false, probes: false };
   const host: MenuHost = {
     timeOfDay: () => state.time,
     shiftTime: (h) => calls.push(`shift ${h.toFixed(3)}`),
     timeScale: () => state.scale,
     setTimeScale: (v) => (state.scale = v),
-    calmSea: () => state.calm,
-    setCalmSea: (c) => (state.calm = c),
+    seaScale: () => state.sea,
+    setSeaScale: (v) => (state.sea = v),
+    waveHeight: () => 1.25 * state.sea,
     coupling: () => state.coupling,
     setCoupling: (v) => (state.coupling = v),
     smoothWalk: () => state.smooth,
@@ -85,8 +86,11 @@ describe('main menu contents', () => {
     expect(state.scale).toBeCloseTo(1 / 60);
     expect(x60.active!()).toBe(true);
     expect(stopped.active!()).toBe(false);
-    findButton(rows, 'Flat calm').press!();
-    expect(state.calm).toBe(true);
+    findButton(rows, 'Storm').press!();
+    expect(state.sea).toBe(2.6);
+    expect(findButton(rows, 'Storm').active!()).toBe(true);
+    findButton(rows, '−').press!();
+    expect(state.sea).toBeCloseTo(2.5);
     findButton(rows, '45°').press!();
     expect(state.snap).toBe(45);
     findButton(rows, 'Off').press!();

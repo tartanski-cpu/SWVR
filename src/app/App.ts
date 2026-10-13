@@ -14,7 +14,7 @@ import { PlayerRig } from '../player/playerRig';
 import { XRInput, XR_BUTTON } from '../player/xrInput';
 import { SkyView } from '../environment/skyView';
 import { OceanView } from '../ocean/oceanView';
-import { prepareWaves, type PreparedWave } from '../ocean/waves';
+import { prepareWaves, significantWaveHeight, type PreparedWave } from '../ocean/waves';
 import { SurfaceProbes } from '../debug/surfaceProbes';
 import { Buoys, createPlatform } from './testScene';
 import { HydroDebugView } from '../debug/hydroDebugView';
@@ -336,7 +336,14 @@ export class App {
     if (dc !== 0) this.setCoupling(this.decoupler.coupling + dc);
     if (k.actionPressed('board') || this.xrInput.wasPressed('left', XR_BUTTON.stick)) this.toggleBoard();
     if (k.actionPressed('seaTrials')) this.trialsPanel.toggle(this.world.vessels[this.testVesselId].defId);
-    if (k.actionPressed('seaState')) this.pushEnvIntent('seaState', this.world.environment.waves.length > 0 ? 0 : 1);
+    if (k.actionPressed('seaState')) {
+      // Cycle the presets: calm -> slight -> moderate -> rough -> storm -> calm.
+      const states = CONFIG.ocean.seaStates;
+      const i = states.findIndex((st) => st.scale > this.world.environment.seaScale + 1e-6);
+      const next = i < 0 ? states[0] : states[i];
+      this.pushEnvIntent('seaState', next.scale);
+      this.overlay.notify(`Sea state: ${next.name}`, 2);
+    }
     if (k.actionPressed('heelVessel')) this.pushVesselIntent('debugHeel', 20);
     const step = CONFIG.environment.timeStepHours;
     if (k.actionPressed('timeEarlier')) this.pushEnvIntent('timeOfDayDelta', -step);
@@ -519,8 +526,9 @@ export class App {
       shiftTime: (h) => this.pushEnvIntent('timeOfDayDelta', h),
       timeScale: () => env().timeScale,
       setTimeScale: (v) => this.pushEnvIntent('timeScale', v),
-      calmSea: () => env().waves.length === 0,
-      setCalmSea: (calm) => this.pushEnvIntent('seaState', calm ? 0 : 1),
+      seaScale: () => env().seaScale,
+      setSeaScale: (v) => this.pushEnvIntent('seaState', v),
+      waveHeight: () => significantWaveHeight(env().waves),
       coupling: () => this.decoupler.coupling,
       setCoupling: (v) => this.setCoupling(Math.round(v * 10) / 10),
       smoothWalk: () => userSettings.smoothWalk,

@@ -190,3 +190,33 @@ describe('refuelling', () => {
     expect(b.v.refuelling).toBe(false);
   });
 });
+
+describe('sea states', () => {
+  it('a building sea gets bigger and steeper, but crests never loop (Σ Q·k·A < 1)', async () => {
+    const { seaStateWaves } = await import('../src/environment/environmentState');
+    const { crestLoopFactor, significantWaveHeight } = await import('../src/ocean/waves');
+    const m = seaStateWaves(1);
+    const storm = seaStateWaves(2.6);
+    expect(significantWaveHeight(storm)).toBeCloseTo(2.6 * significantWaveHeight(m), 6);
+    expect(crestLoopFactor(storm)).toBeGreaterThan(crestLoopFactor(m));
+    expect(crestLoopFactor(seaStateWaves(3))).toBeLessThan(0.5);
+    expect(seaStateWaves(0)).toEqual([]);
+  });
+
+  it('the boat rides out a storm sea under way without blowing up or capsizing', () => {
+    const b = boatAt(0, -22, 45, false);
+    b.world.environment.seaScale = 2.6;
+    b.send('seaState', 2.6);
+    b.start();
+    b.send('lever', 0.5);
+    let maxHeel = 0;
+    b.run(90, () => {
+      const q = b.v.orientation;
+      // Body up-vector's world y: cos of the total tilt.
+      const upY = 1 - 2 * (q[0] * q[0] + q[2] * q[2]);
+      maxHeel = Math.max(maxHeel, (Math.acos(Math.min(1, upY)) * 180) / Math.PI);
+    });
+    expect(Number.isFinite(b.v.position[0] + b.v.position[1] + b.v.position[2])).toBe(true);
+    expect(maxHeel).toBeLessThan(60);
+  });
+});

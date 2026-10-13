@@ -53,9 +53,18 @@ export class Bridge {
       new THREE.BoxGeometry(d.halfWidth * 2, d.top - d.bottom, d.aft - d.front).translate(0, (d.top + d.bottom) / 2, (d.front + d.aft) / 2),
       0x30363b,
     );
+    // Throttle pedestal: from the console's aft face back to under the lever, floor to console top.
+    const ped = b.lever.pedestal;
+    const lp = b.lever.position;
+    const floorY = def.layout.wheelhouse.floorY;
+    const pedFront = lp[2] - 0.25; // overlaps into the console body
+    const pedestal = part(
+      new THREE.BoxGeometry(ped.halfWidth * 2, lp[1] - 0.01 - floorY, ped.aft - pedFront).translate(lp[0], (lp[1] - 0.01 + floorY) / 2, (ped.aft + pedFront) / 2),
+      0x3c4248,
+    );
     this.instruments = new InstrumentPanel(b);
     this.dashAnchor.position.set(0, (d.top + d.bottom) / 2, d.aft);
-    this.root.add(bakeFixedParts(this.root, [dash]), this.instruments.mesh, buildLabels(b), this.dashAnchor);
+    this.root.add(bakeFixedParts(this.root, [dash, pedestal]), this.instruments.mesh, buildLabels(b), this.dashAnchor);
   }
 
   /**

@@ -8,7 +8,7 @@
 import { CONFIG } from '../config';
 import type { Intent } from '../core/intents';
 import { DEG, clamp, hexToRGB, lerp, lerpRGB, wrap, type RGB, type Vec3 } from '../core/math';
-import type { EnvironmentState } from './environmentState';
+import { seaStateWaves, type EnvironmentState } from './environmentState';
 
 export function stepEnvironment(env: EnvironmentState, dt: number): void {
   if (env.timeScale !== 0) env.timeOfDay = wrap(env.timeOfDay + env.timeScale * dt, 24);
@@ -26,8 +26,9 @@ export function applyEnvironmentIntent(env: EnvironmentState, intent: Intent): v
       env.timeScale = intent.value;
       break;
     case 'seaState':
-      // 0 = flat calm (for inclining / trials), 1 = the configured moderate sea.
-      env.waves = intent.value > 0 ? CONFIG.ocean.waves.map((w) => ({ ...w })) : [];
+      // Sea scale: 0 = flat calm, 1 = the configured moderate sea, up to maxSeaScale (storm).
+      env.seaScale = Math.round(clamp(intent.value, 0, CONFIG.ocean.maxSeaScale) * 100) / 100;
+      env.waves = seaStateWaves(env.seaScale);
       break;
   }
 }

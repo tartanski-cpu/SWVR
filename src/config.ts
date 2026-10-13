@@ -74,6 +74,27 @@ export const CONFIG = {
       { amplitude: 0.055, period: 2.4, directionDeg: 55, steepness: 1.0, phase: 3.8 },
       { amplitude: 0.035, period: 2.0, directionDeg: 30, steepness: 1.0, phase: 2.2 },
     ],
+    /**
+     * Sea states: the waves above are "Moderate" (scale 1). Other states scale them:
+     * amplitudes × s, periods × s^seaPeriodExponent. Exponent 0.5 would be pure Froude
+     * scaling (constant steepness, a storm just a bigger copy of a moderate sea - accurate
+     * for a fully developed swell but it looks the same from the boat); 0.3 makes a building
+     * sea steeper as well as longer, like a young storm sea (steepness ∝ s^0.4; the Gerstner
+     * crest-loop factor Σ Q·k·A goes 0.24 -> 0.35 at Storm, safely < 1). Hs ≈ 1.25 m × s.
+     * Measured on the workboat beam-on: Moderate rolls ~16° and heaves 1.5 m, Rough 25° /
+     * 2.8 m, Storm 31° / 4 m.
+     */
+    seaPeriodExponent: 0.3,
+    seaStates: [
+      { name: 'Calm', scale: 0 },
+      { name: 'Slight', scale: 0.5 },
+      { name: 'Moderate', scale: 1 },
+      { name: 'Rough', scale: 1.8 },
+      { name: 'Storm', scale: 2.6 },
+    ],
+    /** Largest sea scale the fine control allows, and its step. */
+    maxSeaScale: 3,
+    seaScaleStep: 0.1,
     mesh: {
       /** Grid spacing (m) in the dense centre around the viewer. */
       innerSpacing: 1.0,
@@ -376,8 +397,18 @@ export const CONFIG = {
       bridge: {
         /** Wheel: centre, tilt of its plane back toward the helmsman, rim radius, turns lock-to-lock. */
         wheel: { position: [0, 2.32, -1.2] as [number, number, number], tiltDeg: 22, radius: 0.22, turnsLockToLock: 1.5 },
-        /** Combined throttle/gear lever on the console top, pivoting fore-aft. */
-        lever: { position: [0.45, 2.16, -1.5] as [number, number, number], maxAngleDeg: 40, length: 0.2 },
+        /**
+         * Combined throttle/gear lever, pivoting fore-aft. It stands on a small pedestal
+         * jutting aft from the console (starboard of the wheel) so it falls to hand from the
+         * helm position (owner feedback: on the console top it was too far forward in VR).
+         * Pedestal: half-width (m) and its aft face (z); its top is level with the console.
+         */
+        lever: {
+          position: [0.45, 2.16, -1.15] as [number, number, number],
+          maxAngleDeg: 40,
+          length: 0.2,
+          pedestal: { halfWidth: 0.13, aft: -1.02 },
+        },
         startButton: { position: [0.78, 2.16, -1.52] as [number, number, number] },
         hornButton: { position: [-0.42, 2.16, -1.52] as [number, number, number] },
         navLightsSwitch: { position: [-0.78, 2.16, -1.52] as [number, number, number] },

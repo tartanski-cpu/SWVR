@@ -40,6 +40,7 @@ export class OceanView {
     uSpecPower: { value: CONFIG.ocean.specularPower },
     uReflection: { value: CONFIG.ocean.reflectionStrength },
     uCrestHeight: { value: 1 },
+    uFoamAmount: { value: 0 },
     uFogColor: { value: new THREE.Color() },
     uFogNear: { value: 0 },
     uFogFar: { value: 1 },
@@ -72,13 +73,17 @@ export class OceanView {
     const count = Math.min(waves.length, MAX_WAVES);
     u.uWaveCount.value = count;
     let crest = 0;
+    let steep = 0;
     for (let i = 0; i < count; i++) {
       const w = waves[i];
       const fadeEnd = distanceForCellSize(w.wavelength / CONFIG.ocean.mesh.minCellsPerWavelength);
       u.uWaveA.value[i].set(w.dirX, w.dirZ, w.k, w.amplitude);
       u.uWaveB.value[i].set(w.horizontal, w.phase, fadeEnd, 0);
       crest += w.amplitude;
+      steep += w.k * w.horizontal;
     }
+    // Whitecaps: none at the moderate sea's steepness (Σ Q·k·A ≈ 0.24), plenty by a storm (0.35).
+    u.uFoamAmount.value = Math.min(1, Math.max(0, (steep - 0.25) / 0.09));
     // Crest whitening starts at a fraction of the theoretical maximum elevation.
     u.uCrestHeight.value = crest * 0.75;
 

@@ -12,8 +12,17 @@ export interface EnvironmentState {
   timeOfDay: number;
   /** Game-hours per real second. */
   timeScale: number;
-  /** Wave components of the current sea state. */
+  /** Sea state as a scale on the configured waves (0 = flat calm, 1 = moderate). */
+  seaScale: number;
+  /** Wave components of the current sea state (derived from seaScale). */
   waves: WaveComponent[];
+}
+
+/** The configured waves scaled to sea state `s` (see CONFIG.ocean.seaStates). */
+export function seaStateWaves(s: number): WaveComponent[] {
+  if (s <= 0) return [];
+  const tScale = Math.pow(s, CONFIG.ocean.seaPeriodExponent);
+  return CONFIG.ocean.waves.map((w) => ({ ...w, amplitude: w.amplitude * s, period: w.period * tScale }));
 }
 
 export function createEnvironment(): EnvironmentState {
@@ -21,6 +30,7 @@ export function createEnvironment(): EnvironmentState {
     id: ENVIRONMENT_ID,
     timeOfDay: CONFIG.environment.startTimeOfDay,
     timeScale: CONFIG.environment.timeScale,
-    waves: CONFIG.ocean.waves.map((w) => ({ ...w })),
+    seaScale: 1,
+    waves: seaStateWaves(1),
   };
 }

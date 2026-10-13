@@ -377,6 +377,17 @@ The owner asked for "a diesel inboard, not a revvy outboard, with a bigger prop 
 - **Refuelling:** fills at the berth, stops when the boat leaves, refused elsewhere.
 - **Menu:** tabs.
 
+## Done (owner feedback: throttle position, wave height)
+
+- **Throttle moved aft:** it was too far forward to reach comfortably in VR, so the lever moved 35 cm aft onto a small pedestal jutting from the console, starboard of the wheel (`bridge.lever.position` and `pedestal`).
+- **Sea-state control:** the menu's Sea & time tab has presets (Calm / Slight / Moderate / Rough / Storm) plus ± fine steps on the wave height. The L key cycles the presets.
+  - The sea state is one number, `EnvironmentState.seaScale`. Amplitudes scale × s and periods × s^0.3, so a building sea gets steeper as well as longer, like a young storm sea. Pure Froude scaling (constant steepness) looked identical from the boat.
+  - **Wave sizes:** Hs ≈ 1.25 m × s, up to 3.6 m. The crest-loop factor goes from 0.24 (Moderate) to 0.35 (Storm), well under 1.
+  - **Accuracy:** the wave-height solver's iterations went from 4 to 6, keeping its error under 1 cm in a storm.
+  - **Measured beam-on:** Moderate rolls 16° and heaves 1.5 m; Rough 25° and 2.8 m; Storm 31° and 4 m.
+  - **Whitecaps:** grow with the sea's steepness (shader uniform `uFoamAmount`).
+- **Tests (97):** storm-sea scaling, and riding out a storm under way (stays finite, never past 60° of tilt).
+
 ## Planned next (owner requests, not started)
 
 1. ~~Fuel and oil temperature~~ **Done** (see above).

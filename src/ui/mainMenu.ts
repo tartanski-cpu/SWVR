@@ -1,3 +1,4 @@
+import { CONFIG } from '../config';
 import type { MenuPage, MenuRow } from './menuPanel';
 
 /** What the menu can read and change. Implemented by the App; keeps the menu UI-only. */
@@ -7,8 +8,10 @@ export interface MenuHost {
   /** Game hours per real second. */
   timeScale(): number;
   setTimeScale(hoursPerSecond: number): void;
-  calmSea(): boolean;
-  setCalmSea(calm: boolean): void;
+  /** Sea state as a scale (0 calm, 1 moderate, ...) and its significant wave height (m). */
+  seaScale(): number;
+  setSeaScale(scale: number): void;
+  waveHeight(): number;
   coupling(): number;
   setCoupling(value: number): void;
   smoothWalk(): boolean;
@@ -81,8 +84,16 @@ export function mainMenu(h: MenuHost): MainMenu {
     },
     { heading: 'Sea' },
     {
-      label: 'Sea state',
-      buttons: [choice('Flat calm', true, () => h.calmSea(), (v) => h.setCalmSea(v)), choice('Moderate', false, () => h.calmSea(), (v) => h.setCalmSea(v))],
+      label: '',
+      buttons: CONFIG.ocean.seaStates.map((st) => choice(st.name, st.scale, () => h.seaScale(), (v) => h.setSeaScale(v))),
+    },
+    {
+      label: 'Wave height',
+      buttons: [
+        { text: '−', press: () => h.setSeaScale(h.seaScale() - CONFIG.ocean.seaScaleStep) },
+        { text: () => `Hs ${h.waveHeight().toFixed(1)} m`, weight: 1.6 },
+        { text: '+', press: () => h.setSeaScale(h.seaScale() + CONFIG.ocean.seaScaleStep) },
+      ],
     },
     { heading: 'Ports (bearing, range)' },
     ...[0, 1, 2].map((i) => ({

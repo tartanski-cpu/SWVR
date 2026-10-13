@@ -14,6 +14,7 @@ uniform float uAmbient;
 uniform float uSpecPower;
 uniform float uReflection;
 uniform float uCrestHeight;
+uniform float uFoamAmount;      // 0..1 whitecaps from the sea's steepness
 uniform vec3 uFogColor;
 uniform float uFogNear;
 uniform float uFogFar;
@@ -49,8 +50,10 @@ void main() {
   float spec = pow(max(dot(n, h), 0.0), uSpecPower) * sunUp;
   col += uSunColor * spec * uSunIntensity * 0.8;
 
-  // Faint whitening on the highest crests.
-  col = mix(col, uFoam * (0.4 * uAmbient + 0.3 * uSunIntensity), smoothstep(uCrestHeight * 0.75, uCrestHeight, vHeight) * 0.35);
+  // Whitening on the highest crests: faint in a moderate sea, breaking whitecaps in a steep one.
+  float crestLo = uCrestHeight * mix(0.75, 0.45, uFoamAmount);
+  float foam = smoothstep(crestLo, uCrestHeight * mix(1.0, 0.8, uFoamAmount), vHeight) * mix(0.35, 0.85, uFoamAmount);
+  col = mix(col, uFoam * (0.4 * uAmbient + 0.3 * uSunIntensity), foam);
 
   float fogF = clamp((dist - uFogNear) / (uFogFar - uFogNear), 0.0, 1.0);
   col = mix(col, uFogColor, fogF);

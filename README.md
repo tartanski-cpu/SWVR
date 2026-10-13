@@ -52,7 +52,7 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | ← / → | Debug: wheel to port / starboard |
 | X / G | Debug: lever to neutral / wheel amidships |
 | T | Hydrostatics + sea trials report |
-| L | Sea state: flat calm / moderate |
+| L | Sea state: cycle calm / slight / moderate / rough / storm |
 | 9 / 0 | Motion coupling −/+ 10 % |
 | R / K | Test: drop the boat from 4 m / heel her 20° and release |
 | V | Buoyancy debug view on/off |
@@ -90,7 +90,7 @@ The menu has four tabs along the top:
 
 | Tab | Settings |
 |---|---|
-| Sea & time | Time of day ±1 h / ±10 min; time flow stopped / ×60 / ×600; flat calm / moderate sea; bearing and range to each port |
+| Sea & time | Time of day ±1 h / ±10 min; time flow stopped / ×60 / ×600; sea state Calm / Slight / Moderate / Rough / Storm, with ± for the wave height (Hs 0–3.6 m); bearing and range to each port |
 | Boat | Board / leave; fuel and **Refuel** (at a fuel berth); anchor status; sea-trials report on a big panel in front of you (the game freezes for about a second while the trials run) |
 | Comfort | Motion coupling ±10 %, stick walking on/off, snap-turn angle. Remembered on the device |
 | Tests | Drop from 4 m, heel 20°; engine faults (fuel to 5 %, raw-water pump failure); perf panel, buoyancy view, wave probes |
@@ -103,7 +103,7 @@ At the helm, from left to right on the console:
 - **Anchor** switch: down = let go (the chain pays out to 4 × depth + 5 m), up = heave in and stow.
 - **Horn** button (hold).
 - **Wheel**: 1.5 turns lock to lock. Hydraulic steering, so it stays where you leave it.
-- **Throttle/gear lever**: forward = ahead, back = astern, with a notch at neutral.
+- **Throttle/gear lever**, on a pedestal starboard of the wheel so it falls to hand: forward = ahead, back = astern, with a notch at neutral.
 - **Start/stop** button. The engine only starts with the lever in neutral.
 
 The dash shows:

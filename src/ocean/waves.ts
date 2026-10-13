@@ -20,7 +20,8 @@
  * particle ends up at (x, z):  p0 + H(p0) = (x, z),  H = horizontal displacement.
  * Fixed-point iteration p0 ← (x, z) − H(p0) converges because |∂H/∂p0| ≤ Σ Qi·ki·Ai < 1,
  * which is the very same condition that stops crests from looping over themselves.
- * The error shrinks by that factor (~0.17 here) each iteration; 4 iterations ≈ sub-mm.
+ * The error shrinks by that factor each iteration (0.24 in the moderate sea, 0.35 in a
+ * storm); 6 iterations keep it under a centimetre even then.
  *
  * Phases are wrapped to [0, 2π) on the CPU in double precision, so the shader never sees
  * a large `t` and float32 precision does not degrade over long sessions.
@@ -108,7 +109,7 @@ const scratchH = { x: 0, z: 0 };
  * Rest position (x0, z0) of the particle currently at world point (x, z).
  * See the header comment for why this iteration converges.
  */
-export function restPosition(waves: readonly PreparedWave[], x: number, z: number, iterations = 4): [number, number] {
+export function restPosition(waves: readonly PreparedWave[], x: number, z: number, iterations = 6): [number, number] {
   let x0 = x;
   let z0 = z;
   for (let i = 0; i < iterations; i++) {
