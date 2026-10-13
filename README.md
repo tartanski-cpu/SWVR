@@ -35,6 +35,7 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | Key | Action |
 |---|---|
 | Click the view | Capture the mouse for looking (Esc releases it) |
+| O | Menu, floating in front of you: aim and click (same menu as in VR) |
 | W A S D | Walk (with collision; Shift = brisk) |
 | F | Toggle walk / free-fly camera (Space / C = up / down when flying) |
 | Space / C at the ladder | Climb up / down (walk forward off the top onto the roof) |
@@ -63,11 +64,29 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | Trigger pointing at a button or switch a little out of reach | Pointer-ray fallback for buttons and switches only (a blue line shows the target) |
 | **Grip** on empty air + pull | Move (grab the world). Two grips + twist: turn |
 | **Grip + pull down at the ladder** | Climb (aft face of the wheelhouse, up to the railed roof). Push up to climb down |
-| Left stick | Walk (head-relative, optional) |
-| Right stick ← / → | Snap turn 30° |
+| **Y** | **Menu** on your left wrist (see below) |
+| Left stick | Walk (head-relative; can be switched off in the menu) |
+| Right stick ← / → | Snap turn (30° by default; 15/30/45/90° in the menu) |
 | Left stick click | Board the boat (at the helm) / back to the platform |
-| Hold X + left stick ↑ / ↓ | Motion coupling 0–100 % (comfort; default 100 % = rigid to the deck; lower values make controls harder to grab) |
-| B or Y | Debug panel on your left wrist: FPS, cpu/gpu frame time, draw calls, XR resolution, boat readouts |
+| Hold X + left stick ↑ / ↓ | Motion coupling 0–100 % (fine adjust; also in the menu in 10 % steps). Default 100 % = rigid to the deck; lower values make controls harder to grab |
+| B | Debug/perf panel on your left wrist: FPS, cpu/gpu frame time, draw calls, XR resolution, boat readouts |
+
+### VR menu (Y)
+
+The menu stands above your left hand. Use the **right** controller on it in one of two ways:
+
+- **Poke:** push the tip of the controller into a button.
+- **Point:** aim the ray (an orange line) and pull the trigger.
+
+While your right hand is on the menu, its trigger doesn't reach the bridge controls behind it. If the left controller isn't tracked, the menu floats in front of you instead.
+
+| Section | Settings |
+|---|---|
+| Time | Time of day ±1 h / ±10 min; time flow stopped / ×60 / ×600 |
+| Sea | Flat calm / moderate |
+| Comfort | Motion coupling ±10 %, stick walking on/off, snap-turn angle. Remembered on the device |
+| Boat | Board / leave; tests (drop from 4 m, heel 20°); sea-trials report on a big panel in front of you (the game freezes for about a second while the trials run) |
+| Debug views | Perf panel, buoyancy view, wave probes |
 
 ### Bridge
 
@@ -122,7 +141,7 @@ You can move the emulated headset and controllers and press their buttons from t
 
 ## Performance on the Quest
 
-Open the debug panel (B or Y) in VR. At 90 Hz the frame budget is 11.1 ms.
+Open the perf panel in VR with B (or from the menu). At 90 Hz the frame budget is 11.1 ms.
 
 - **FPS below 90 while cpu is low:** the GPU is the limit. In `src/config.ts`, lower `xr.framebufferScale` or raise `xr.foveation`.
 - **cpu near the budget:** the main thread is the limit. The sim / views / render split shows which part.

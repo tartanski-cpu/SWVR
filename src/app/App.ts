@@ -24,7 +24,11 @@ import { EngineAudio } from '../audio/engineAudio';
 import { platformWalkArea, vesselWalkArea, type WalkArea } from '../vessel/layout';
 import { leverDemand } from '../vessel/physics/propulsion';
 import { Locomotion } from '../player/locomotion';
-import { ComfortOverlay, MotionDecoupler, loadCoupling, saveCoupling } from '../player/comfort';
+import { ComfortOverlay, MotionDecoupler } from '../player/comfort';
+import { saveUserSettings, userSettings } from '../player/userSettings';
+import { WristMenu } from '../ui/wristMenu';
+import { mainMenuRows, type MenuHost } from '../ui/mainMenu';
+import { placeInFront } from '../ui/placeInFront';
 import { XRControllers } from '../player/xrControllers';
 import { Bridge } from '../controls/bridge';
 import { InteractionSystem, type HandFrame } from '../controls/InteractionSystem';
@@ -90,6 +94,7 @@ export class App {
   };
   private busyHands = { left: false, right: false };
   private pointer: DesktopPointer | null = null;
+  private readonly menu: WristMenu;
   /** Last comfort outputs, reused for the second rig sync in a frame. */
   private viewOffset = 0;
   private readonly comfortQ = new THREE.Quaternion();
@@ -133,7 +138,9 @@ export class App {
     this.placePanelOnRig();
     this.camera.add(this.comfortOverlay.mesh);
     this.controllers = new XRControllers(this.renderer, this.rig.root);
-    this.decoupler.coupling = loadCoupling() ?? this.decoupler.coupling;
+    this.decoupler.coupling = userSettings.motionCoupling;
+    this.menu = new WristMenu(mainMenuRows(this.menuHost()));
+    this.scene.add(this.menu.rayLine);
 
     this.desktop = new DesktopController(this.camera, this.renderer.domElement, this.keyboard);
     this.environment = new EnvironmentView(this.scene);
@@ -161,6 +168,13 @@ export class App {
     window.addEventListener('pointerdown', unlock);
     window.addEventListener('keydown', unlock);
     this.renderer.xr.addEventListener('sessionstart', unlock);
+    // Menus opened in one mode don't carry over (the wrist grip disappears outside VR).
+    const closePanels = () => {
+      this.menu.close();
+      this.trialsPanel.hide();
+    };
+    this.renderer.xr.addEventListener('sessionstart', closePanels);
+    this.renderer.xr.addEventListener('sessionend', closePanels);
   }
 
   start(): void {
@@ -229,6 +243,7 @@ export class App {
     if (this.bridge && testVessel) this.bridge.update(testVessel, dt, this.dashInView());
     const darkness = Math.min(1, Math.max(0, (8 - sunElevation(this.world.environment.timeOfDay)) / 14));
     for (const [id, fx] of this.effects) fx.update(dt, this.world.vessels[id], this.renderWaves, this.focus, darkness);
+    this.menu.refresh();
     const t2 = performance.now();
 
     // 4. Render
@@ -273,10 +288,8 @@ export class App {
   /** Debug-only bindings. Note time-of-day goes through the intent path like any control. */
   private handleDebugInput(dt: number): void {
     const k = this.keyboard;
-    if (k.actionPressed('toggleOverlay')) this.overlay.toggle();
-    if (this.xrInput.wasPressed('left', XR_BUTTON.secondary) || this.xrInput.wasPressed('right', XR_BUTTON.secondary)) {
-      this.overlay.toggle();
-    }
+    if (k.actionPressed('toggleOverlay') || this.xrInput.wasPressed('right', XR_BUTTON.secondary)) this.overlay.toggle();
+    if (k.actionPressed('menu') || this.xrInput.wasPressed('left', XR_BUTTON.secondary)) this.toggleMenu();
     if (k.actionPressed('toggleHelp')) this.help.toggle();
     if (k.actionPressed('toggleProbes')) this.probes.toggle();
     if (k.actionPressed('toggleHydro')) for (const h of this.hydroViews.values()) h.toggle();
@@ -294,16 +307,7 @@ export class App {
     if (k.actionPressed('couplingDown')) dc = -0.1;
     if (k.actionPressed('couplingUp')) dc = 0.1;
     if (dc !== 0) this.setCoupling(this.decoupler.coupling + dc);
-    if (k.actionPressed('board') || this.xrInput.wasPressed('left', XR_BUTTON.stick)) {
-      const aboard = this.world.players[this.localPlayerId].aboardVesselId;
-      this.intents.push({
-        playerId: this.localPlayerId,
-        targetId: this.localPlayerId,
-        control: 'board',
-        value: aboard ? 0 : 1,
-        ref: aboard ? undefined : this.testVesselId,
-      });
-    }
+    if (k.actionPressed('board') || this.xrInput.wasPressed('left', XR_BUTTON.stick)) this.toggleBoard();
     if (k.actionPressed('seaTrials')) this.trialsPanel.toggle(this.world.vessels[this.testVesselId].defId);
     if (k.actionPressed('seaState')) this.pushEnvIntent('seaState', this.world.environment.waves.length > 0 ? 0 : 1);
     if (k.actionPressed('heelVessel')) this.pushVesselIntent('debugHeel', 20);
@@ -413,16 +417,110 @@ export class App {
     const inWall = inXR && area.insideSolid(headL.x, headL.y, headL.z);
     this.comfortOverlay.update(dt, inXR ? moving : 0, inWall);
 
-    // Debug panel rides on the left wrist when that controller is tracked.
+    // Debug panel rides on the left wrist when that controller is tracked; while the menu
+    // is open it sits beside the menu instead, so both stay readable.
     const left = this.controllers.grips.left;
-    if (inXR && left && this.overlay.vrPanel.parent !== left) {
-      left.add(this.overlay.vrPanel);
-      this.overlay.vrPanel.position.set(0, 0.06, 0.1);
-      this.overlay.vrPanel.rotation.set(-1.0, 0, 0);
-      this.overlay.vrPanel.scale.setScalar(0.75);
-    } else if ((!inXR || !left) && this.overlay.vrPanel.parent !== this.rig.root) {
+    const panel = this.overlay.vrPanel;
+    if (inXR && this.menu.isOpen) {
+      if (panel.parent !== this.menu.root) {
+        this.menu.root.add(panel);
+        panel.position.set(this.menu.panel.width / 2 + 0.17, this.menu.panel.height / 2 - 0.12, 0);
+        panel.rotation.set(0, 0, 0);
+        panel.scale.setScalar(0.75);
+      }
+    } else if (inXR && left) {
+      if (panel.parent !== left) {
+        left.add(panel);
+        panel.position.set(0, 0.06, 0.1);
+        panel.rotation.set(-1.0, 0, 0);
+        panel.scale.setScalar(0.75);
+      }
+    } else if (panel.parent !== this.rig.root) {
       this.placePanelOnRig();
     }
+  }
+
+  /** Y (VR) / O (desktop): open the menu on the left wrist, or in front of you. */
+  private toggleMenu(): void {
+    if (this.menu.isOpen) {
+      this.menu.close();
+      return;
+    }
+    const left = this.controllers.grips.left;
+    if (this.renderer.xr.isPresenting && left?.visible) this.menu.openOnWrist(left);
+    else this.menu.openInFront(this.playerFrame(), this.camera);
+  }
+
+  /** The object the player's position is expressed in: the vessel aboard, or the scene. */
+  private playerFrame(): THREE.Object3D {
+    const p = this.world.players[this.localPlayerId];
+    return (p.aboardVesselId && this.vesselViews.get(p.aboardVesselId)?.root) || this.scene;
+  }
+
+  private toggleBoard(): void {
+    const aboard = this.world.players[this.localPlayerId].aboardVesselId;
+    this.intents.push({
+      playerId: this.localPlayerId,
+      targetId: this.localPlayerId,
+      control: 'board',
+      value: aboard ? 0 : 1,
+      ref: aboard ? undefined : this.testVesselId,
+    });
+  }
+
+  private toggleSeaTrials(): void {
+    const defId = this.world.vessels[this.testVesselId].defId;
+    if (!this.renderer.xr.isPresenting) {
+      this.trialsPanel.toggle(defId);
+      return;
+    }
+    if (this.trialsPanel.shown) {
+      this.trialsPanel.hide();
+      return;
+    }
+    this.trialsPanel.showVR(defId); // ~1 s freeze while the trials run
+    placeInFront(this.trialsPanel.vrMesh, this.playerFrame(), this.camera, 1.4, -0.1);
+  }
+
+  /** The menu's view of the app (see ui/mainMenu.ts). */
+  private menuHost(): MenuHost {
+    const env = () => this.world.environment;
+    const saveSettings = () => saveUserSettings();
+    return {
+      timeOfDay: () => env().timeOfDay,
+      shiftTime: (h) => this.pushEnvIntent('timeOfDayDelta', h),
+      timeScale: () => env().timeScale,
+      setTimeScale: (v) => this.pushEnvIntent('timeScale', v),
+      calmSea: () => env().waves.length === 0,
+      setCalmSea: (calm) => this.pushEnvIntent('seaState', calm ? 0 : 1),
+      coupling: () => this.decoupler.coupling,
+      setCoupling: (v) => this.setCoupling(Math.round(v * 10) / 10),
+      smoothWalk: () => userSettings.smoothWalk,
+      setSmoothWalk: (on) => {
+        userSettings.smoothWalk = on;
+        saveSettings();
+      },
+      snapTurnDeg: () => userSettings.snapTurnDeg,
+      setSnapTurnDeg: (deg) => {
+        userSettings.snapTurnDeg = deg;
+        saveSettings();
+      },
+      aboard: () => !!this.world.players[this.localPlayerId].aboardVesselId,
+      toggleBoard: () => this.toggleBoard(),
+      dropBoat: () => this.pushVesselIntent('debugDrop', 0),
+      heelBoat: () => this.pushVesselIntent('debugHeel', 20),
+      seaTrialsShown: () => this.trialsPanel.shown,
+      toggleSeaTrials: () => this.toggleSeaTrials(),
+      debugPanel: () => this.overlay.visible,
+      toggleDebugPanel: () => this.overlay.toggle(),
+      hydroView: () => [...this.hydroViews.values()].some((h) => h.root.visible),
+      toggleHydroView: () => {
+        for (const h of this.hydroViews.values()) h.toggle();
+      },
+      probes: () => this.probes.mesh.visible,
+      toggleProbes: () => this.probes.toggle(),
+      close: () => this.menu.close(),
+    };
   }
 
   private setCoupling(value: number): void {
@@ -431,7 +529,8 @@ export class App {
     const c = Math.min(1, Math.max(0, value));
     this.decoupler.coupling = c;
     this.overlay.notify(`Motion coupling ${Math.round(c * 100)} %  (100 = rigid to the deck)`, 2);
-    saveCoupling(c);
+    userSettings.motionCoupling = c;
+    saveUserSettings();
   }
 
   private placePanelOnRig(): void {
@@ -454,7 +553,7 @@ export class App {
       (hand, i, ms) => this.xrInput.pulse(hand, i, ms),
     );
     this.scene.add(this.interaction.rayLine('left'), this.interaction.rayLine('right'));
-    this.pointer = new DesktopPointer(this.renderer.domElement, this.desktop, this.interaction);
+    this.pointer = new DesktopPointer(this.renderer.domElement, this.desktop, this.interaction, this.menu);
   }
 
   /** Feed hands (VR) or the reticle (desktop) to the bridge controls. */
@@ -470,6 +569,11 @@ export class App {
         f.gripPressed = this.xrInput.wasPressed(h, XR_BUTTON.grip);
         f.triggerDown = this.xrInput.isDown(h, XR_BUTTON.trigger);
         f.triggerPressed = this.xrInput.wasPressed(h, XR_BUTTON.trigger);
+      }
+      // The menu gets the right hand first; while it's on the menu its trigger is the menu's.
+      if (this.menu.updateXR(this.hands.right, (i, ms) => this.xrInput.pulse('right', i, ms))) {
+        this.hands.right.triggerDown = false;
+        this.hands.right.triggerPressed = false;
       }
       this.busyHands = this.interaction.updateXR(this.hands);
       this.pointer?.hide();

@@ -364,7 +364,10 @@ export const CONFIG = {
 
   /** Player movement aboard and on the platform. */
   locomotion: {
-    /** Grab-the-world (grip + drag) is always on; smooth stick movement is optional. */
+    /**
+     * Grab-the-world (grip + drag) is always on; smooth stick movement is optional.
+     * This and snapTurnDeg are defaults: the VR menu changes them per device.
+     */
     smoothEnabled: true,
     smoothSpeed: 1.4,
     snapTurnDeg: 30,
@@ -383,7 +386,7 @@ export const CONFIG = {
      *         human head-stabilisation reflexes do.
      *   0   = horizon level, height smoothed.
      * Heading and horizontal position always stay locked to the deck (walking/collision).
-     * Adjust in VR: hold X and push the left stick up/down. Desktop: 9 / 0.
+     * Adjust in VR: the menu (Y), or hold X and push the left stick up/down. Desktop: 9 / 0.
      */
     // Default rigid: in VR testing, decoupling also moved the hands relative to the deck
     // (they live in the same rig as the head), making the bridge controls hard to grab.
@@ -411,6 +414,26 @@ export const CONFIG = {
     desktopReach: 2.6,
     /** Displays redraw rate (Hz). */
     displayHz: 10,
+  },
+
+  /** The in-game menu (Y in VR, O on desktop). */
+  menu: {
+    /** Panel width (m); the height follows from the number of rows. */
+    width: 0.24,
+    /** Bottom-centre of the panel on the left grip (m, grip axes: +Y up, -Z forward). */
+    wristOffset: [0, 0.05, -0.02] as [number, number, number],
+    /** Tilt about the grip's X axis; negative leans the top away so it faces you. */
+    wristTiltDeg: -35,
+    /** Distance in front of the head when the menu floats (desktop / no left controller). */
+    floatDistance: 0.55,
+    /** Poke: the fingertip counts as on the panel within this distance of it (m)... */
+    pokeReach: 0.04,
+    /** ...presses when it gets this close (m)... */
+    pokeDepth: 0.006,
+    /** ...and must back off this far before the next press (m). */
+    pokeRelease: 0.02,
+    /** Pointer-ray reach for the menu (m). */
+    rayLength: 2.0,
   },
 
   desktop: {

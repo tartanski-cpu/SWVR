@@ -24,6 +24,7 @@
  */
 import * as THREE from 'three';
 import { CONFIG } from '../config';
+import { userSettings } from './userSettings';
 import { STEP_HEIGHT, type WalkArea } from '../vessel/layout';
 import type { PlayerState } from './playerState';
 import type { Handedness } from './xrInput';
@@ -104,7 +105,7 @@ export class Locomotion {
 
     // ── Smooth stick movement (head-relative) ──
     const [mx, my] = inp.moveStick;
-    if (cfg.smoothEnabled && Math.hypot(mx, my) > 0.15) {
+    if (userSettings.smoothWalk && Math.hypot(mx, my) > 0.15) {
       frame.worldToLocal(fwdL.copy(inp.head).add(inp.headForward)).sub(headL);
       fwdL.y = 0;
       if (fwdL.lengthSq() > 1e-6) {
@@ -126,7 +127,7 @@ export class Locomotion {
     const t = inp.turnStick;
     if (this.snapArmed && Math.abs(t) > cfg.snapThreshold) {
       this.snapArmed = false;
-      this.rotateAbout(p, (-Math.sign(t) * cfg.snapTurnDeg * Math.PI) / 180, headL.x, headL.z, area, headL, true);
+      this.rotateAbout(p, (-Math.sign(t) * userSettings.snapTurnDeg * Math.PI) / 180, headL.x, headL.z, area, headL, true);
       this.snapFlash = 0.12;
     } else if (Math.abs(t) < cfg.snapThreshold * 0.5) {
       this.snapArmed = true;

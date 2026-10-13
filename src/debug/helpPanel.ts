@@ -9,6 +9,7 @@ import { KEYS, type KeyAction } from '../core/keybindings';
 type LayoutMap = Map<string, string>;
 
 const ROWS: (KeyAction | KeyAction[])[] = [
+  'menu',
   ['forward', 'left', 'back', 'right'],
   'flyMode',
   ['up', 'down'],
@@ -104,7 +105,7 @@ export class HelpPanel {
       <table>${rows}</table>
       <div class="hint">On the bridge: aim the <b>+</b> at a control · click buttons/switches · click-and-drag the lever (↕) and wheel (↔)</div>
       <div class="title">VR</div>
-      <div class="hint">Press <b>Enter VR</b> · <b>B</b>/<b>Y</b> debug panel (on your left wrist)<br>
+      <div class="hint">Press <b>Enter VR</b> · <b>Y</b>: menu on your left wrist (poke or point + trigger with the right hand) · <b>B</b>: debug panel<br>
       <b>Grip</b> a lever or the wheel to move it · <b>trigger</b> on buttons and switches (touch them, or point from a distance)<br>
       Grip on empty air + pull: move (two grips: turn) · Left stick: walk · Right stick ←/→: snap turn<br>
       Left stick click: board / leave · hold <b>X</b> + left stick ↑/↓: motion coupling</div>`;

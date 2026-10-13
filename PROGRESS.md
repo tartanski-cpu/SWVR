@@ -283,6 +283,33 @@ The owner asked for "a diesel inboard, not a revvy outboard, with a bigger prop 
   - Stale milestone comments are fixed.
 - **Docs:** README brought up to date. New `docs/MULTIPLAYER.md` covers the host-authoritative design, message types, the change needed per module and the order of work.
 
+## Done (VR menu, owner request after the MVP)
+
+- **The menu:**
+  - In VR, **Y** opens a menu on the left wrist: one canvas quad, one draw call. B now toggles only the perf/debug panel.
+  - On desktop, **O** opens the same menu floating in front of you, operated with the reticle and a click.
+- **Operating it with the right controller:**
+  - **Poke** a button with the controller tip. A press fires as the tip reaches the surface from the front, and re-arms after you pull back 2 cm, so you can't double-press or press from behind.
+  - Or **point** the ray (orange line) and pull the trigger.
+  - While the right hand is on the menu, its trigger is withheld from the bridge controls.
+- **Contents:**
+  - Time of day (±1 h, ±10 min) and time flow (stopped / ×60 / ×600).
+  - Sea state.
+  - Motion coupling, stick walking, snap-turn angle.
+  - Board / leave.
+  - Drop and heel tests.
+  - The sea-trials report on a 1.1 m panel in front of you.
+  - Perf panel, buoyancy view, wave probes.
+- **Debug panel placement:** while the menu is open, the debug panel moves beside it.
+- **Code:**
+  - `ui/menuPanel.ts`: a generic canvas menu; rows of closures; ray and poke hit-testing in the quad's local frame.
+  - `ui/mainMenu.ts`: the rows, against a `MenuHost` interface the App implements.
+  - `ui/wristMenu.ts`: mounting plus poke/point logic.
+  - `ui/placeInFront.ts`.
+  - Comfort settings live in `player/userSettings.ts` (localStorage `swvr.settings.v1`; the old coupling key is migrated). Locomotion reads stick walking and snap angle from there.
+  - Tunables in `CONFIG.menu`: size, wrist offset/tilt, poke depths, ray length.
+- **Tests (77):** menu rows drive the host and highlight the current choice; a poke from the front presses once until backed off; a poke from behind doesn't press; ray + trigger presses but the ray alone doesn't; a closed menu takes nothing.
+
 ## Planned next (owner requests, not started)
 
 1. **Fuel and oil temperature (engine management, refuelling).** Fits the existing structure:
@@ -291,11 +318,7 @@ The owner asked for "a diesel inboard, not a revvy outboard, with a bigger prop 
    - Oil/coolant temperature: a first-order thermal model. Heat in ∝ power, heat out ∝ (T − sea temperature) through the heat exchanger, a thermostat at about 82 °C. Overheating derates the governor (rack cap) and can trip an alarm.
    - Engine stops when the tank is empty. Refuelling is a vessel intent (`refuel`, litres) that a quay or fuel-hose interaction can send later.
    - New displays (fuel gauge, temperature gauge, alarm lamp) slot into the instrument atlas, and the sea-trials report gains fuel consumption: L/h at speed and range.
-2. **VR menu** to replace the growing list of debug keys and button combinations.
-   - A wrist-mounted menu panel on the left hand. Open it by turning your palm up or with Y. Operate it by poking with the right index or using the existing pointer ray.
-   - It would reuse the `Control` components (Button, Toggle, plus a new Slider) on a panel that follows the left grip.
-   - Contents: motion coupling slider, smooth-walk on/off, snap-turn angle, sea state, time of day, buoyancy/probe debug views, sea-trials report, drop/heel tests, board/leave.
-   - The keyboard bindings stay for desktop.
+2. ~~VR menu~~ **Done** (see above). New settings go in `ui/mainMenu.ts` via `MenuHost`.
 
 ## Future roadmap (owner notes, not started)
 
@@ -341,10 +364,9 @@ The deck and wheelhouse floor are opaque and sit well above the DWL (freeboard a
 
 The MVP is done. Pick from "Planned next" and the "Future roadmap" above. Suggested order:
 
-1. **VR wrist menu.** It unblocks everything else, because every new feature adds settings.
-2. **Fuel and oil temperature.**
-3. **Archipelago with ports.** It brings collisions: boat vs quay and seabed.
-4. **Missions** (rescue tasks). When they start, a mission is a small state machine in `WorldState` (plain data, stable ids) that reads world state each tick and emits events ("survivor spawned", "objective complete"). It never touches rendering.
+1. **Fuel and oil temperature.** The gauges go on the dash; refuelling and engine settings go in the menu.
+2. **Archipelago with ports.** It brings collisions: boat vs quay and seabed.
+3. **Missions** (rescue tasks). When they start, a mission is a small state machine in `WorldState` (plain data, stable ids) that reads world state each tick and emits events ("survivor spawned", "objective complete"). It never touches rendering.
 
 For performance on the Quest, read the debug panel's cpu/gpu lines in VR:
 

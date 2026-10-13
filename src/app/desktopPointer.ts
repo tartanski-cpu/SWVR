@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { InteractionSystem } from '../controls/InteractionSystem';
 import type { DesktopController } from '../player/desktopController';
+import type { WristMenu } from '../ui/wristMenu';
 
 /**
  * Desktop mouse for the bridge controls: with the pointer captured, a centre reticle
@@ -20,6 +21,8 @@ export class DesktopPointer {
     canvas: HTMLCanvasElement,
     private readonly desktop: DesktopController,
     private readonly interaction: InteractionSystem,
+    /** The menu, when open, takes the reticle before the bridge controls. */
+    private readonly menu: WristMenu,
   ) {
     document.addEventListener('mousedown', (e) => {
       if (document.pointerLockElement !== canvas || e.button !== 0) return;
@@ -65,8 +68,10 @@ export class DesktopPointer {
       camera.getWorldDirection(this.ray.direction);
       ray = this.ray;
     }
-    this.desktop.lookFrozen = this.interaction.updateDesktop(ray, this.down, this.pressed, this.released, this.dx, this.dy);
-    const label = this.interaction.desktopHoverLabel;
+    const onMenu = this.menu.updateDesktop(ray, this.pressed);
+    const ctlRay = onMenu ? null : ray;
+    this.desktop.lookFrozen = this.interaction.updateDesktop(ctlRay, this.down, this.pressed && !onMenu, this.released, this.dx, this.dy);
+    const label = onMenu ? null : this.interaction.desktopHoverLabel;
     this.reticle.style.display = locked ? 'block' : 'none';
     this.reticle.textContent = label ? `+\n${label}` : '+';
     this.endFrame();

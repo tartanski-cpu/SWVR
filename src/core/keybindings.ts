@@ -45,6 +45,7 @@ export const KEYS = {
   toggleOverlay: { codes: ['F3', 'KeyI'], description: 'Debug overlay on/off' },
   toggleProbes: { codes: ['KeyP'], description: 'Wave surface probes on/off' },
   toggleHelp: { codes: ['F1', 'KeyH'], description: 'This help on/off' },
+  menu: { codes: ['KeyO'], description: 'Menu (time, sea, comfort, tests, debug views)' },
 } satisfies Record<string, KeyBinding>;
 
 export type KeyAction = keyof typeof KEYS;
