@@ -481,6 +481,17 @@ Frame-rate friendly: 3 extra draw calls, a few hundred vertices, and almost no C
 - **Controls API:** a new `Control.tick(dt)` hook for rate controls.
 - **Tests (114):** pan rate at full deflection, forward raising the beam, no drift after release, the vessel clamping pan and tilt.
 
+## Done (multiplayer v1: shared boat and avatars, branch `multiplayer`)
+
+- **Peer-to-peer, one player hosts** (owner's choice), over WebRTC with PeerJS (approved, about 100 KB raw, 30 KB gzipped). The free public PeerJS broker only introduces the peers.
+- **Host-authoritative:** the host runs `stepWorld` as in single player; clients send intents (stamped with their player id by the host) and render the host's 20 Hz snapshots 0.12 s behind, interpolated, with a smoothed estimate of the host's clock so the waves match.
+- **Bodies are client-authoritative:** each player sends feet, head and hands at 20 Hz in the frame they stand in (vessel-local on deck), so crew-mates ride the boat exactly.
+- **Avatars** (`net/avatarView.ts`): head with a visor, hands, body to the neck, one colour per player.
+- **Menu:** a **Crew** tab with Host a game, a keypad for the 5-digit code, Join and Leave.
+- **Leaving:** everyone carries on alone from the last state; if the host leaves, crew are told and continue solo.
+- **Tests (121):** loopback host and client (welcome, intents, poses, snapshots, interpolation, disconnects), and the keypad. Checked in the browser with an in-memory loopback both ways: a crew avatar on the host's deck, a client following a host sim, the client's lever reaching the host, and falling back to solo when the host leaves. The real PeerJS connection can't be reached from the build sandbox; it needs testing on devices.
+- **Design and limits:** [`docs/MULTIPLAYER.md`](docs/MULTIPLAYER.md).
+
 ## Planned next (owner requests, not started)
 
 1. ~~Fuel and oil temperature~~ **Done** (see above).
@@ -552,6 +563,6 @@ For performance on the Quest, read the debug panel's cpu/gpu lines in VR:
   - Headless SwiftShader (used for automated screenshots) mis-renders geometry below the horizon at exactly zero camera pitch. Real GPUs are unaffected. The desktop camera starts tilted slightly down.
   - npm 10 crashes with `edgesOut` when adding packages (vitest optional peers). `npm ci` works. Use `npx npm@11 install` to add dependencies.
 
-## Multiplayer recommendation (for later — not implemented)
+## Multiplayer
 
-**Host-authoritative simulation over WebSockets**, running the same `stepWorld()` headless in Node. Clients send intents, the server broadcasts snapshots at about 20 Hz, and clients interpolate about 100 ms behind. Player bodies stay client-authoritative in vessel-local coordinates. Full design, message types, the change needed per module and the order of work: [`docs/MULTIPLAYER.md`](docs/MULTIPLAYER.md). A server is a paid service, so ask the owner first.
+Version 1 (shared boat and avatars, peer-to-peer) is done on the `multiplayer` branch; see above and [`docs/MULTIPLAYER.md`](docs/MULTIPLAYER.md).

@@ -52,6 +52,12 @@ import { TrialsPanel } from '../debug/trialsPanel';
 import { vesselReadout } from '../debug/vesselReadout';
 import { DesktopPointer } from './desktopPointer';
 import { setupXR, xrSessionInfo } from './xrSession';
+import { applyPlayerIntent } from '../player/playerControl';
+import { HostSession } from '../net/hostSession';
+import { ClientSession } from '../net/clientSession';
+import { PeerClientTransport, PeerHostTransport, randomRoomCode, type ClientTransport } from '../net/transport';
+import { NET_RATE, type PlayerPose } from '../net/protocol';
+import { AvatarsView } from '../net/avatarView';
 
 /**
  * Top-level wiring. Owns the renderer, the simulation state and the per-frame loop:
@@ -66,7 +72,10 @@ export class App {
   // Simulation
   readonly ids = new IdFactory();
   readonly world: WorldState;
-  readonly localPlayerId: EntityId;
+  /** Changes when joining someone else's game (the host hands out player ids). */
+  localPlayerId: EntityId;
+  /** Our id when playing alone, restored after leaving a game. */
+  private readonly soloPlayerId: EntityId;
   /** The vessel the bridge, debug keys and audio act on (the MVP has exactly one). */
   readonly testVesselId: EntityId;
   readonly intents = new IntentQueue();
@@ -129,6 +138,18 @@ export class App {
   private lastFrameMs = performance.now();
   private readonly gpuTimer: GpuTimer;
 
+  // Multiplayer (net/): at most one of host / client is set.
+  private host: HostSession | null = null;
+  private client: ClientSession | null = null;
+  /** Hosting: waiting for the PeerJS server to register the room code. */
+  private hostStarting = false;
+  private joinCode = '';
+  private netMessage = '';
+  private poseTimer = 0;
+  private readonly avatars = new AvatarsView(this.scene);
+  private readonly poseQ = new THREE.Quaternion();
+  private readonly invFrame = new THREE.Matrix4();
+
   constructor(container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: CONFIG.render.antialias, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, CONFIG.render.maxPixelRatio));
@@ -148,6 +169,7 @@ export class App {
     const created = createWorld(this.ids);
     this.world = created.world;
     this.localPlayerId = created.localPlayerId;
+    this.soloPlayerId = created.localPlayerId;
     this.testVesselId = created.vesselId;
 
     this.rig = new PlayerRig(this.localPlayerId, this.camera);
@@ -221,26 +243,33 @@ export class App {
     this.xrInput.update(inXR ? this.renderer.xr.getSession() : null);
     this.handleDebugInput(dt);
 
-    // 2. Fixed-step simulation
-    const { ticks, alpha } = this.loop.advance(dt);
-    for (let i = 0; i < ticks; i++) {
-      // Keep each vessel's pre-tick pose so views can interpolate across the last tick.
-      for (const [id, view] of this.vesselViews) view.snapshot(this.world.vessels[id]);
-      stepWorld(this.world, i === 0 ? this.intents.drain() : [], this.loop.dt, this.simDebug);
+    // 2. Simulation: fixed steps here (alone or hosting), or the host's snapshots (client).
+    let renderTime: number;
+    const client = this.client?.status === 'connected' ? this.client : null;
+    if (client) {
+      renderTime = this.followHost(client);
+    } else {
+      if (this.host) for (const i of this.host.takeIntents()) this.intents.push(i);
+      const { ticks, alpha } = this.loop.advance(dt);
+      for (let i = 0; i < ticks; i++) {
+        // Keep each vessel's pre-tick pose so views can interpolate across the last tick.
+        for (const [id, view] of this.vesselViews) view.snapshot(this.world.vessels[id]);
+        stepWorld(this.world, i === 0 ? this.intents.drain() : [], this.loop.dt, this.simDebug);
+      }
+      // Rendering runs one tick behind the simulation and interpolates between the previous
+      // and current tick by `alpha`; the ocean uses the same render time so floating objects
+      // and the water surface always agree.
+      renderTime = Math.max(0, (this.world.tick - 1 + alpha) * this.loop.dt);
+      // Vessels first: the player rides on their interpolated pose.
+      for (const [id, view] of this.vesselViews) {
+        view.update(this.world.vessels[id], alpha);
+        this.hydroViews.get(id)?.update(this.simDebug.get(id));
+      }
     }
     const t1 = performance.now();
 
-    // 3. Views. Rendering runs one tick behind the simulation and interpolates between
-    // the previous and current tick by `alpha`; the ocean uses the same render time so
-    // floating objects and the water surface always agree.
-    const renderTime = Math.max(0, (this.world.tick - 1 + alpha) * this.loop.dt);
+    // 3. Views
     this.renderWaves = prepareWaves(this.world.environment.waves, renderTime, this.renderWaves);
-
-    // Vessels first: the player rides on their interpolated pose.
-    for (const [id, view] of this.vesselViews) {
-      view.update(this.world.vessels[id], alpha);
-      this.hydroViews.get(id)?.update(this.simDebug.get(id));
-    }
     this.syncRigToPlayer(dt);
     if (!inXR) this.desktop.update(dt);
     this.updateInteraction(inXR);
@@ -280,6 +309,8 @@ export class App {
     const fxTest = this.effects.get(this.testVesselId);
     if (fxTest) this.ocean.setSpotlight(fxTest.searchlight.light);
     this.cargoView.update(this.world, this.vesselRoots);
+    this.updateNetPose(dt);
+    this.avatars.update(this.world, this.localPlayerId, this.vesselRoots, dt);
     if (testView && testVessel) {
       // Hull contact: thump and scrape, and a jolt through both controllers if you're aboard.
       const d = testView.root.position.distanceTo(this.focus);
@@ -297,6 +328,7 @@ export class App {
       }
     }
     this.menu.refresh();
+    this.host?.tick(dt);
     const t2 = performance.now();
 
     // 4. Render
@@ -664,8 +696,185 @@ export class App {
       },
       probes: () => this.probes.mesh.visible,
       toggleProbes: () => this.probes.toggle(),
+      netStatus: () => this.netStatus(),
+      netRole: () => (this.host ? 'host' : this.client ? 'client' : this.hostStarting ? 'starting' : 'solo'),
+      hostGame: () => this.hostGame(),
+      leaveGame: () => {
+        this.netMessage = '';
+        this.leaveGame();
+      },
+      joinCode: () => this.joinCode,
+      typeDigit: (d) => {
+        if (this.joinCode.length < 5) this.joinCode += d;
+        this.netMessage = '';
+      },
+      backspace: () => (this.joinCode = this.joinCode.slice(0, -1)),
+      joinGame: () => this.joinGame(),
       close: () => this.menu.close(),
     };
+  }
+
+  /**
+   * Client frame: no local simulation. Our own intents go to the host, except our own
+   * body (boarding), which is ours to move. The newest snapshot becomes `this.world`
+   * (controls, engine, cargo, other players...); vessel poses are blended between the two
+   * snapshots around the render time, ~INTERP_DELAY behind the host. Returns that time.
+   */
+  private followHost(client: ClientSession): number {
+    const me = this.world.players[this.localPlayerId];
+    const remote = [];
+    for (const i of this.intents.drain()) {
+      if (i.targetId === this.localPlayerId) applyPlayerIntent(this.world, me, i);
+      else remote.push(i);
+    }
+    client.sendIntents(remote);
+    const snap = client.latest;
+    if (snap) {
+      const w = this.world;
+      w.tick = snap.tick;
+      w.time = snap.time;
+      w.environment = snap.environment;
+      w.vessels = snap.vessels;
+      w.cargo = snap.cargo;
+      w.cargoSeq = snap.cargoSeq;
+      w.deliveries = snap.deliveries;
+      w.geography = snap.geography;
+      w.players = { ...snap.players, [this.localPlayerId]: me };
+    }
+    const renderTime = Math.max(0, client.renderTime());
+    const br = client.bracket(renderTime);
+    if (br) for (const [id, view] of this.vesselViews) view.setPoseBetween(br.a.vessels[id], br.b.vessels[id], br.alpha);
+    return renderTime;
+  }
+
+  /**
+   * Our head and hands, in the frame we're standing in, for the other players: written
+   * into our PlayerState when hosting (it goes out in the snapshots), sent as a pose
+   * NET_RATE times a second when a client.
+   */
+  private updateNetPose(dt: number): void {
+    if (!this.host && this.client?.status !== 'connected') return;
+    const p = this.world.players[this.localPlayerId];
+    const frame = this.playerFrame();
+    frame.updateMatrixWorld();
+    this.invFrame.copy(frame.matrixWorld).invert();
+    const head = this.camera.getWorldPosition(this.tmpV).applyMatrix4(this.invFrame);
+    const q = this.camera.getWorldQuaternion(this.poseQ).premultiply(this.attQ.setFromRotationMatrix(this.invFrame));
+    const hand = (h: 'left' | 'right') => {
+      const w = this.renderer.xr.isPresenting ? this.controllers.worldPosition(h, this.gripW[h]) : null;
+      return w ? (w.clone().applyMatrix4(this.invFrame).toArray() as [number, number, number]) : null;
+    };
+    const r = (x: number) => Math.round(x * 1000) / 1000;
+    const pose: PlayerPose = {
+      aboardVesselId: p.aboardVesselId,
+      position: p.position,
+      yaw: p.yaw,
+      head: [r(head.x), r(head.y), r(head.z), r(q.x), r(q.y), r(q.z), r(q.w)],
+      left: hand('left'),
+      right: hand('right'),
+    };
+    if (this.host) {
+      p.avatar = { head: pose.head, left: pose.left, right: pose.right };
+      return;
+    }
+    this.poseTimer += dt;
+    if (this.poseTimer < 1 / NET_RATE) return;
+    this.poseTimer = 0;
+    this.client!.sendPose(pose);
+  }
+
+  /** Host a game: register a room code with the PeerJS server, then accept crew. */
+  private hostGame(): void {
+    if (this.host || this.client || this.hostStarting) return;
+    const code = randomRoomCode();
+    const transport = new PeerHostTransport(code);
+    this.hostStarting = true;
+    this.netMessage = 'Opening a game...';
+    transport.ready.then(
+      () => {
+        this.hostStarting = false;
+        this.host = new HostSession(this.world, this.ids, transport, code);
+        this.netMessage = '';
+        this.overlay.notify(`Hosting: game code ${code}`, 4);
+      },
+      (e: { type?: string }) => {
+        this.hostStarting = false;
+        transport.close();
+        this.netMessage = `Couldn't host (${e?.type ?? 'network'})`;
+      },
+    );
+  }
+
+  /** Join the game with the code typed on the keypad. */
+  private joinGame(): void {
+    if (this.host || this.client || this.hostStarting) return;
+    if (this.joinCode.length !== 5) {
+      this.netMessage = 'Type the 5-digit game code first';
+      return;
+    }
+    this.connectClient(new PeerClientTransport(this.joinCode));
+  }
+
+  /** Become a client over `transport` (PeerJS, or the in-memory loopback in tests). */
+  private connectClient(transport: ClientTransport): void {
+    const client = new ClientSession(transport, `Crew ${this.joinCode.slice(-2)}`);
+    this.client = client;
+    this.netMessage = '';
+    client.onWelcome = (playerId, world) => {
+      if (!Object.keys(world.vessels).every((id) => this.vesselViews.has(id))) {
+        this.netMessage = 'That game is a different version';
+        this.leaveGame();
+        return;
+      }
+      // Become the player the host made for us; keep standing where we are.
+      this.movePlayer(playerId);
+      this.overlay.notify('Joined: you are aboard the host\'s world', 3);
+    };
+    client.onClosed = (reason) => {
+      if (this.client !== client) return;
+      this.netMessage = reason;
+      this.toSolo();
+    };
+  }
+
+  /** Stop hosting, or leave the game we joined; play on alone from where things are. */
+  private leaveGame(): void {
+    if (this.host) {
+      this.host.close();
+      this.host = null;
+    }
+    if (this.client) {
+      const c = this.client;
+      this.client = null;
+      c.close();
+    }
+    this.toSolo();
+  }
+
+  private toSolo(): void {
+    this.client = null;
+    for (const id of Object.keys(this.world.players)) if (id !== this.localPlayerId) delete this.world.players[id];
+    // The local simulation carries on from the last snapshot.
+    this.movePlayer(this.soloPlayerId);
+  }
+
+  /** Re-key the local player's state under a new id (the rig keeps following it). */
+  private movePlayer(id: EntityId): void {
+    if (id === this.localPlayerId) return;
+    const me = this.world.players[this.localPlayerId];
+    delete this.world.players[this.localPlayerId];
+    this.world.players[id] = { ...me, id };
+    this.localPlayerId = id;
+  }
+
+  private netStatus(): string {
+    if (this.netMessage) return this.netMessage;
+    if (this.host) {
+      const n = this.host.playerCount;
+      return `Hosting, code ${this.host.code}: ${n} aboard`;
+    }
+    if (this.client) return this.client.status === 'connected' ? `In game ${this.joinCode}` : `Joining ${this.joinCode}...`;
+    return 'Playing alone';
   }
 
   private setCoupling(value: number): void {

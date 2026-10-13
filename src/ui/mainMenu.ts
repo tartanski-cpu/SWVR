@@ -53,6 +53,16 @@ export interface MenuHost {
   toggleHydroView(): void;
   probes(): boolean;
   toggleProbes(): void;
+  /** Multiplayer: one-line status, and whether we're alone, hosting or in someone's game. */
+  netStatus(): string;
+  netRole(): 'solo' | 'starting' | 'host' | 'client';
+  hostGame(): void;
+  leaveGame(): void;
+  /** The game code typed so far on the keypad. */
+  joinCode(): string;
+  typeDigit(d: string): void;
+  backspace(): void;
+  joinGame(): void;
   close(): void;
 }
 
@@ -239,6 +249,31 @@ export function mainMenu(h: MenuHost): MainMenu {
     },
   ];
 
+  const solo = () => h.netRole() === 'solo';
+  const digit = (d: string) => ({ text: () => (solo() ? d : ''), press: () => h.typeDigit(d) });
+  const crew: MenuRow[] = [
+    { heading: 'Crew (multiplayer)' },
+    { label: '', buttons: [{ text: () => h.netStatus() }] },
+    {
+      label: '',
+      buttons: [
+        { text: () => (solo() ? 'Host a game' : ''), press: () => h.hostGame() },
+        { text: () => (solo() ? '' : h.netRole() === 'host' ? 'Stop hosting' : 'Leave game'), press: () => h.leaveGame() },
+      ],
+    },
+    { heading: 'Join a game' },
+    {
+      label: 'Game code',
+      buttons: [
+        { text: () => (h.joinCode() + '_____').slice(0, 5).split('').join(' '), weight: 1.6 },
+        { text: () => (solo() ? 'Join' : ''), active: () => h.joinCode().length === 5, press: () => h.joinGame() },
+      ],
+    },
+    { label: '', buttons: ['1', '2', '3', '4', '5'].map(digit) },
+    { label: '', buttons: ['6', '7', '8', '9', '0'].map(digit) },
+    { label: '', buttons: [{ text: () => (solo() ? '⌫' : ''), press: () => h.backspace() }] },
+  ];
+
   return {
     header,
     pages: [
@@ -246,6 +281,7 @@ export function mainMenu(h: MenuHost): MainMenu {
       { name: 'Boat', rows: boat },
       { name: 'Cargo', rows: cargo },
       { name: 'Comfort', rows: comfort },
+      { name: 'Crew', rows: crew },
       { name: 'Tests', rows: tests },
     ],
   };

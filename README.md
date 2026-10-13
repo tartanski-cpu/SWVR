@@ -220,7 +220,7 @@ Open the perf panel in VR with B (or from the menu). At 90 Hz the frame budget i
 
 ## Multiplayer
 
-The code is structured for co-op, but none is implemented. See [`docs/MULTIPLAYER.md`](docs/MULTIPLAYER.md).
+Co-op crew on one boat, peer-to-peer (one player hosts). Menu → **Crew** → **Host a game** shows a 5-digit code; the others type it on the keypad and press **Join**. Everyone sees each other's head and hands and can use every control. Details and limits: [`docs/MULTIPLAYER.md`](docs/MULTIPLAYER.md).
 
 ## Testing a new boat
 
@@ -247,8 +247,9 @@ src/
   ui/              the in-game menu (canvas panel, tabs, wrist mount, poke/point)
   controls/        Control base, Lever, Wheel, Button, Toggle, interaction system, bridge, instruments
   audio/           synthesised engine and horn (WebAudio, no files)
+  net/             multiplayer: messages, PeerJS / loopback transports, host and client sessions, avatars
 tests/             vitest: run in plain Node, no browser
-docs/              TESTING_NEW_BOATS.md (sea-trials lab, adding a boat), MULTIPLAYER.md (co-op design)
+docs/              TESTING_NEW_BOATS.md (sea-trials lab, adding a boat), MULTIPLAYER.md (co-op)
 ```
 
 ### Architecture rules
@@ -268,3 +269,4 @@ docs/              TESTING_NEW_BOATS.md (sea-trials lab, adding a boat), MULTIPL
 | `typescript`, `@types/three` | dev | Type checking |
 | `@vitejs/plugin-basic-ssl` | dev | Self-signed HTTPS for LAN testing (WebXR requires a secure context) |
 | `vitest` | dev | Unit tests for physics and sim, run in Node |
+| `peerjs` | runtime | Multiplayer: WebRTC data channels between players; its free public server only introduces them (about 30 KB gzipped) |

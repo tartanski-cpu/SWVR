@@ -36,6 +36,17 @@ export class VesselView {
     this.hasSnapshot = true;
   }
 
+  /** Multiplayer client: pose blended between two host snapshots. */
+  setPoseBetween(a: VesselState | undefined, b: VesselState | undefined, alpha: number): void {
+    if (!a || !b) return;
+    this.prevPos.fromArray(a.position);
+    this.prevQuat.fromArray(a.orientation);
+    this.currPos.fromArray(b.position);
+    this.currQuat.fromArray(b.orientation);
+    this.root.position.lerpVectors(this.prevPos, this.currPos, alpha);
+    this.root.quaternion.slerpQuaternions(this.prevQuat, this.currQuat, alpha);
+  }
+
   update(state: VesselState, alpha: number): void {
     this.currPos.fromArray(state.position);
     this.currQuat.fromArray(state.orientation);

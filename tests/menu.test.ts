@@ -16,7 +16,7 @@ beforeAll(() => {
 
 function fakeHost() {
   const calls: string[] = [];
-  const state = { time: 10.5, scale: 0, sea: 1, coupling: 1, smooth: true, snap: 30, aboard: false, trials: false, dbg: false, hydro: false, probes: false };
+  const state = { time: 10.5, scale: 0, sea: 1, coupling: 1, smooth: true, snap: 30, aboard: false, trials: false, dbg: false, hydro: false, probes: false, code: '' };
   const host: MenuHost = {
     timeOfDay: () => state.time,
     shiftTime: (h) => calls.push(`shift ${h.toFixed(3)}`),
@@ -59,6 +59,14 @@ function fakeHost() {
     toggleHydroView: () => calls.push('hydro'),
     probes: () => state.probes,
     toggleProbes: () => calls.push('probes'),
+    netStatus: () => 'Playing alone',
+    netRole: () => 'solo',
+    hostGame: () => calls.push('host'),
+    leaveGame: () => calls.push('leave'),
+    joinCode: () => state.code,
+    typeDigit: (d) => (state.code += d),
+    backspace: () => (state.code = state.code.slice(0, -1)),
+    joinGame: () => calls.push(`join ${state.code}`),
     close: () => calls.push('close'),
   };
   return { host, calls, state };
@@ -118,6 +126,21 @@ describe('main menu contents', () => {
     expect(formatHours(10.5)).toBe('10:30');
     expect(formatHours(23.9999)).toBe('00:00');
     expect(formatHours(-0.5)).toBe('23:30');
+  });
+});
+
+describe('crew tab', () => {
+  it('the keypad types a game code and Join sends it', () => {
+    const { host, calls, state } = fakeHost();
+    const rows = mainMenu(host);
+    for (const d of ['4', '2', '0', '1', '7']) findButton(rows, d).press!();
+    findButton(rows, '⌫').press!();
+    findButton(rows, '9').press!();
+    expect(state.code).toBe('42019');
+    expect(findButton(rows, '4 2 0 1 9')).toBeTruthy();
+    findButton(rows, 'Join').press!();
+    findButton(rows, 'Host a game').press!();
+    expect(calls).toEqual(['join 42019', 'host']);
   });
 });
 

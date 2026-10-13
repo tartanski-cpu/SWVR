@@ -1,66 +1,73 @@
-# Multiplayer: design notes
+# Multiplayer
 
-Nothing here is implemented. This document records how co-op would be added on top of the MVP's structure, so the work can start without rethinking the architecture.
+Co-op crew on one shared boat, peer-to-peer: one player hosts, the others join with a 5-digit game code. Version 1 lives on the `multiplayer` branch.
 
-## Recommendation
+## How to play
 
-Use a **host-authoritative simulation over WebSockets**, with a small Node server running the same `stepWorld()` the browser runs today.
+1. **Host:** open the menu (Y in VR, O on desktop) → **Crew** tab → **Host a game**. The status line shows the game code, e.g. `Hosting, code 48213: 1 aboard`.
+2. **Join:** on the other headset or browser, **Crew** tab → type the code on the keypad → **Join**. You appear on the platform; board the boat as usual (left stick click / B).
+3. **Leave:** **Leave game** (or **Stop hosting**). Everyone carries on alone from where things were. If the host leaves, the crew get "The host left" and continue solo.
 
-- **Why it's cheap here:** `src/core`, `src/vessel/physics`, `src/ocean/waves.ts` and the environment state import no DOM or Three.js code. `tests/simulation.test.ts` already runs the sim headless in Node.
-- **Why server-authoritative rather than peer-to-peer:** one source of truth for boat physics, no NAT traversal, and no player's browser has to be the host. Co-op players are trusted, so we need authority for consistency, not anti-cheat.
-- **The cost:** a small always-on server (about 1 vCPU per few sessions). That's a **paid service**, so it's the owner's call before any of this starts. A WebRTC data channel could later sit behind the same message interface.
+Everyone can use every control. Two people grabbing the same lever at once will fight over it (see "Not yet").
 
-## What already fits
+## Design
 
-| MVP rule | Why it matters for networking |
+**Host-authoritative peer-to-peer** over WebRTC data channels, using [PeerJS](https://peerjs.com/) (about 100 KB, approved by the owner).
+
+- **The host's browser runs the simulation** exactly as in single player: `stepWorld()` at 60 Hz. Clients don't simulate.
+- **No server of ours.** The free public PeerJS broker (`0.peerjs.com`) only introduces the two browsers. After that the game data flows directly between them. The room code `48213` is registered with the broker as the peer id `swvr-room-48213`.
+- **Why not a dedicated server** (the earlier recommendation): it needs a paid always-on host. P2P costs nothing, and for co-op the host being the authority is fine.
+- **Limits:** if the host's network blocks WebRTC (some corporate or carrier-grade NAT), peers can't connect without a TURN relay. PeerJS's free tier tries STUN only. Home Wi-Fi works.
+
+### Messages (`net/protocol.ts`)
+
+```
+client -> host   hello     { name }                 on connect
+host -> client   welcome   { playerId, world }      your player id + the whole world
+client -> host   intents   { intents }              boat, environment, cargo intents
+client -> host   pose      { pose }                 20 Hz: feet, head, hands
+host -> client   snapshot  { world }                20 Hz: the whole WorldState
+```
+
+- **Snapshots** are the full `WorldState` as JSON, about 2.6 KB. At 20 Hz that's about 50 KB/s per client. Deltas can come later if it ever matters.
+- **Intents** arrive at the host stamped with the sender's player id; a client can't act as another player.
+- **Poses** are client-authoritative. Each player walks, climbs and boards locally with no latency and sends where they are, in the frame of what they're aboard (vessel-local on deck). Trusting them is fine for co-op.
+
+### The moving frame
+
+Everything a player sends is in the frame they stand in: on deck, that's the vessel's body frame. A crew-mate standing at the wheel is a fixed vessel-local position, so they ride the boat exactly with no jitter however much she rolls. Avatars (`net/avatarView.ts`) are parented to the vessel's scene node and eased toward each 20 Hz update.
+
+### Client rendering and time
+
+- The client keeps the last 8 snapshots and renders **0.12 s behind** the newest, blending the boat's pose between the two snapshots around that time (`ClientSession.bracket`, `VesselView.setPoseBetween`).
+- **Host clock:** each snapshot carries the host's sim time. The client tracks `hostTime − localTime`, snapping down to faster samples and drifting up slowly, so jitter doesn't make the render clock jump.
+- **Waves** are a pure function of world time and the wave components in the snapshot, so the client draws the same sea at its render time. The boat and the water agree.
+- **Everything else** (controls, engine, fuel, cargo, docking, anchor, lights, time of day, other players) comes straight from the newest snapshot. Gauges, sounds and effects read it as in single player.
+
+### Latency feel
+
+- **Your hand on a control:** instant. A held control shows the hand's position, not the state.
+- **The boat's response:** about 0.12 s plus the network round trip. A 12 m displacement boat responds over seconds, so you can't feel it. Client-side prediction isn't worth its complexity here.
+- **Walking:** local and instant.
+
+## Code
+
+| File | What |
 |---|---|
-| Input → `Intent` → `stepWorld` → `WorldState` → views | Remote clients just send intents. Nothing in input code changes state directly. |
-| `WorldState` is plain JSON with string ids | Snapshots serialize as-is. No class instances or scene objects to strip. |
-| Fixed 60 Hz tick, views interpolate between ticks | The server ticks at 60 Hz; clients render from interpolated snapshots, as they do today with local ticks. |
-| The local player is `world.players[localPlayerId]` | A second player is just another entry. Nothing assumes a singleton. |
-| Controls emit **absolute** values (`lever = 0.6`, not "+0.1") | Intents are idempotent: a lost or duplicated message can't drift a control. |
-| Held controls ignore state while a local hand holds them | The holder sees their own lever with zero latency. Everyone else sees the authoritative value. |
-| Player positions are in the vessel frame they're aboard | A player standing on a rolling deck is a few bytes of vessel-local position. No world-space jitter. |
+| `net/protocol.ts` | Message types, rates |
+| `net/transport.ts` | `PeerHostTransport` / `PeerClientTransport` (PeerJS), `LoopbackHost` (in memory, JSON round trip, for tests) |
+| `net/hostSession.ts` | Accepts players, queues their intents, writes their poses, broadcasts snapshots |
+| `net/clientSession.ts` | Snapshot buffer, host clock, interpolation brackets |
+| `net/avatarView.ts` | Remote players: head with visor, hands, body |
+| `app/App.ts` | `hostGame`, `joinGame`, `connectClient`, `leaveGame`, `followHost` (client frame), `updateNetPose` |
+| `ui/mainMenu.ts` | **Crew** tab with keypad |
 
-## Messages
+Tests: `tests/net.test.ts` (loopback host and client: welcome, intents stamped and validated, poses, snapshots, interpolation, disconnects). The broker can't be reached from the build sandbox, so the PeerJS path itself is tested on real devices.
 
-```
-client → server   { type: 'hello', name }                       → server assigns playerId
-client → server   { type: 'intents', tick, intents: Intent[] }   (sent each frame there are any)
-client → server   { type: 'pose', position, yaw, aboardVesselId, head?, hands? }  (~20 Hz)
-server → client   { type: 'welcome', playerId, world: WorldState }
-server → client   { type: 'snapshot', tick, vessels, environment, players }    (~20 Hz)
-```
+## Not yet
 
-- **Snapshots.** Vessel state is small: pose, velocities, engine, rudder, controls. That's roughly 300 bytes per boat as JSON, so full snapshots at 20 Hz are fine for a handful of boats. Deltas or a binary encoding can come later if the archipelago gets busy.
-- **Wave time.** Waves are a pure function of `world.time`, so clients only need the server tick to draw the same sea. There's no ocean state to sync.
-
-## Changes per module
-
-- **`core/simulation.ts`:** no change. The server calls `stepWorld(world, intentsSinceLastTick, dt)`.
-- **`core/ids.ts`:** only the server mints ids (`IdFactory` already notes this). Clients receive theirs in `welcome`.
-- **`app/App.ts`:**
-  - Online, replace the local `FixedStepLoop` and `stepWorld` with a `NetSession`. It sends intents and keeps the last two snapshots.
-  - `VesselView.snapshot()` / `update(alpha)` then interpolate between server snapshots about 100 ms behind, instead of between local ticks.
-  - Offline play keeps today's path.
-- **Player bodies (`player/locomotion.ts`, `playerState.ts`):** locomotion stays **client-authoritative**. Each client moves its own player locally, exactly as now, and sends `pose`. The server copies it into `world.players` and rebroadcasts. Boarding (`board` intent) stays an intent, because it changes which frame positions are in.
-- **Remote avatars (new `player/avatarView.ts`):** a simple head and two hands, parented to the vessel root they're aboard, posed from the vessel-local data. They ride the boat with no extra smoothing.
-- **Controls (`controls/*`):**
-  - Add an owner per grab control (`heldBy: playerId | null` in `VesselState.controls`) so two people can't fight over the lever.
-  - The server grants the first grab intent; others see the control locked (haptic bump, no movement).
-  - The wheel can allow two holders from the same player only, as now.
-- **Audio and effects:** no change. They already read vessel state, which now comes from snapshots.
-
-## Latency feel
-
-- **Your own controls:** instant, because the held-control rule shows the hand's value locally.
-- **Your own boat's response:** arrives with about 100 ms interpolation delay plus round trip. A 12 m displacement boat responds over seconds, so this delay is far below what you can feel. Client-side prediction of vessel physics is **not** worth its complexity for slow boats.
-- **Walking:** local and instant (client-authoritative).
-
-## Suggested order of work
-
-1. A headless Node server: `stepWorld` loop, WebSocket broadcast, intents in, plus a debug client that just prints snapshots.
-2. A client `NetSession` with snapshot interpolation. Two browser tabs drive the same boat.
-3. Remote avatars and `pose` messages.
-4. Control ownership.
-5. Hosting, after the owner approves a provider.
+- **Control ownership:** a `heldBy` per grab control, so the first hand on the lever keeps it and others get a haptic bump.
+- **Several boats:** the world and views already handle many vessels; it needs spawning a second boat and the bridge, audio and menu following "the boat I'm aboard" instead of the one test boat.
+- **Names over heads,** voice chat (WebRTC can carry audio on the same connection).
+- **Host migration:** if the host leaves, the game ends for everyone.
+- **TURN relay** for networks where direct connections fail (a paid or self-hosted service; ask first).
