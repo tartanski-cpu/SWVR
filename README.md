@@ -2,7 +2,15 @@
 
 A browser-based VR sea rescue and operations game: chunky flat-shaded boats that you operate from the inside, with physical levers, wheels, switches and live instruments. It's built with TypeScript, Vite, Three.js and WebXR, and targets the Meta Quest 3 and desktop browsers.
 
-**Status:** MVP in progress. See [`PROGRESS.md`](PROGRESS.md).
+**Status:** MVP complete (milestones 1–7). A snapshot lives on the `mvp-1` branch. See [`PROGRESS.md`](PROGRESS.md) for what's done, what's next and known issues.
+
+What's in the MVP:
+
+- **A moderate Gerstner sea**, with physics and rendering sampling the same surface.
+- **A 12 m displacement workboat** floated by strip-theory hydrostatics. It has a slow-revving diesel, gearbox and prop, a rudder and prop walk.
+- **A walk-in wheelhouse**, a ladder to the roof, and grab-the-world locomotion.
+- **Physical bridge controls** (wheel, throttle/gear lever, start/stop, horn, nav-light switch) with live instruments.
+- **Nav lights** with proper arcs of visibility, exhaust smoke driven by engine load, and synthesised engine and horn audio.
 
 ## Play it (no install)
 
@@ -42,7 +50,7 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | R / K | Test: drop the boat from 4 m / heel her 20° and release |
 | V | Buoyancy debug view on/off |
 | N / M | Time of day −/+ 30 min |
-| F3 or I | Debug overlay on/off |
+| F3 or I | Debug overlay on/off (FPS, cpu/gpu frame time, draw calls, boat readouts) |
 | P | Wave surface probes on/off |
 | F1 or H | Help panel on/off |
 
@@ -59,9 +67,9 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | Right stick ← / → | Snap turn 30° |
 | Left stick click | Board the boat (at the helm) / back to the platform |
 | Hold X + left stick ↑ / ↓ | Motion coupling 0–100 % (comfort; default 100 % = rigid to the deck; lower values make controls harder to grab) |
-| B or Y | Debug panel (on your left wrist) |
+| B or Y | Debug panel on your left wrist: FPS, cpu/gpu frame time, draw calls, XR resolution, boat readouts |
 
-### Bridge (milestone 6)
+### Bridge
 
 At the helm, from left to right on the console:
 
@@ -112,6 +120,18 @@ Install Meta's **Immersive Web Emulator** extension (Chrome or Edge Web Store). 
 
 You can move the emulated headset and controllers and press their buttons from the DevTools panel.
 
+## Performance on the Quest
+
+Open the debug panel (B or Y) in VR. At 90 Hz the frame budget is 11.1 ms.
+
+- **FPS below 90 while cpu is low:** the GPU is the limit. In `src/config.ts`, lower `xr.framebufferScale` or raise `xr.foveation`.
+- **cpu near the budget:** the main thread is the limit. The sim / views / render split shows which part.
+- **gpu:** shown only where the browser exposes the timer extension; otherwise it reads "n/a".
+
+## Multiplayer
+
+The code is structured for co-op, but none is implemented. See [`docs/MULTIPLAYER.md`](docs/MULTIPLAYER.md).
+
 ## Testing a new boat
 
 There's a built-in "sea-trials lab". It covers hydrostatics, the GZ curve, an inclining experiment, free-decay motions, and speed/turning/stopping trials, all computed from the same hull the game floats. See [`docs/TESTING_NEW_BOATS.md`](docs/TESTING_NEW_BOATS.md). A snapshot of the project at that stage lives on the `sea-trials-lab` branch.
@@ -121,19 +141,21 @@ There's a built-in "sea-trials lab". It covers hydrostatics, the GZ curve, an in
 ```
 src/
   config.ts        every tunable number (waves, mass, thrust, drag, comfort, perf)
-  app/             top-level wiring: renderer, XR session, frame loop
+  app/             top-level wiring: renderer, frame loop, XR session setup, desktop mouse, test scene
   core/            fixed-step loop, ids, intents, WorldState, Simulation.step, math, keyboard
   environment/     time of day + sea state; sun direction, sky/fog/light palette; sky dome
   player/          player state, rig (moving-frame parenting), desktop controller, XR input
-  debug/           FPS / draw-call overlay (DOM on desktop, panel in VR)
+  debug/           overlay (FPS, cpu/gpu time, draw calls; DOM on desktop, wrist panel in VR),
+                   GPU timer, buoyancy view, surface probes, sea-trials panel
   ocean/           waves.ts (Gerstner maths shared by CPU physics and the shader), grid, shaders, view
   render/          geometry helpers (vertex-coloured, merged, flat-shaded parts)
-  missions/        placeholder only
   vessel/          hull form (stations), vessel defs, state, physics (strip hydrostatics,
-                   damping, rigid body), debug intents, view (lofted hull mesh, interpolation)
-  audio/           synthesised engine hum (WebAudio, no files)
-  controls/        added in milestone 6
+                   damping, rigid body, engine/prop/rudder), walk areas, sea trials,
+                   view (lofted hull mesh, interpolation, nav lights, exhaust smoke)
+  controls/        Control base, Lever, Wheel, Button, Toggle, interaction system, bridge, instruments
+  audio/           synthesised engine and horn (WebAudio, no files)
 tests/             vitest: run in plain Node, no browser
+docs/              TESTING_NEW_BOATS.md (sea-trials lab, adding a boat), MULTIPLAYER.md (co-op design)
 ```
 
 ### Architecture rules

@@ -18,7 +18,7 @@ export class Toggle extends Control {
     private readonly read: (s: VesselState) => number,
   ) {
     super(id, channel);
-    const plate = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.012, 0.09), new THREE.MeshLambertMaterial({ color: 0x23282c }));
+    const plate = this.fixed(new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.012, 0.09), new THREE.MeshLambertMaterial({ color: 0x23282c })));
     plate.position.y = 0.006;
     const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.007, 0.009, 0.05, 8), this.material(0xd8dadc));
     stick.position.y = 0.025;

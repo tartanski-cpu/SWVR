@@ -94,6 +94,16 @@ export abstract class Control {
     return m;
   }
 
+  /**
+   * Mark a part that never moves relative to the boat (a base, housing or plate). The
+   * Bridge bakes all such parts into one draw call and hides the originals, which stay
+   * in the scene (invisible) so the pointer ray can still hit them.
+   */
+  protected fixed<T extends THREE.Mesh>(mesh: T): T {
+    mesh.userData.fixed = true;
+    return mesh;
+  }
+
   /** Point (world) -> this control's local frame. */
   protected toLocal(world: THREE.Vector3, out = new THREE.Vector3()): THREE.Vector3 {
     return this.root.worldToLocal(out.copy(world));

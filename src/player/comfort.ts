@@ -158,3 +158,24 @@ export class ComfortOverlay {
     this.mesh.visible = this.vignette > 0.01 || this.fade > 0.01;
   }
 }
+
+const COUPLING_KEY = 'swvr.motionCoupling.v2';
+
+/** Saved motion-coupling preference, or null. (v2: values saved before the default went back to rigid are ignored.) */
+export function loadCoupling(): number | null {
+  try {
+    const raw = localStorage.getItem(COUPLING_KEY);
+    const saved = Number(raw);
+    return raw !== null && Number.isFinite(saved) ? saved : null;
+  } catch {
+    return null; // storage unavailable: use the default
+  }
+}
+
+export function saveCoupling(value: number): void {
+  try {
+    localStorage.setItem(COUPLING_KEY, String(value));
+  } catch {
+    /* storage unavailable: setting just isn't remembered */
+  }
+}

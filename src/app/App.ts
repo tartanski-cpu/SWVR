@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { VRButton } from 'three/addons/webxr/VRButton.js';
 import { CONFIG } from '../config';
 import { IdFactory, ENVIRONMENT_ID, type EntityId } from '../core/ids';
 import { IntentQueue } from '../core/intents';
@@ -15,28 +14,29 @@ import { PlayerRig } from '../player/playerRig';
 import { XRInput, XR_BUTTON } from '../player/xrInput';
 import { SkyView } from '../environment/skyView';
 import { OceanView } from '../ocean/oceanView';
-import { prepareWaves, surfaceHeight, type PreparedWave } from '../ocean/waves';
+import { prepareWaves, type PreparedWave } from '../ocean/waves';
 import { SurfaceProbes } from '../debug/surfaceProbes';
 import { Buoys, createPlatform } from './testScene';
 import { HydroDebugView } from '../debug/hydroDebugView';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 import { VesselView } from '../vessel/view/vesselView';
 import { EngineAudio } from '../audio/engineAudio';
-import { formatSeaTrials, runSeaTrials } from '../vessel/seaTrials';
-import { formatHydrostatics } from '../vessel/hydrostatics';
 import { platformWalkArea, vesselWalkArea, type WalkArea } from '../vessel/layout';
 import { leverDemand } from '../vessel/physics/propulsion';
 import { Locomotion } from '../player/locomotion';
-import { ComfortOverlay, MotionDecoupler } from '../player/comfort';
+import { ComfortOverlay, MotionDecoupler, loadCoupling, saveCoupling } from '../player/comfort';
 import { XRControllers } from '../player/xrControllers';
 import { Bridge } from '../controls/bridge';
 import { InteractionSystem, type HandFrame } from '../controls/InteractionSystem';
-import { NavLightsView } from '../vessel/view/navLights';
 import { HornAudio } from '../audio/hornAudio';
-import { ExhaustSmoke } from '../vessel/view/exhaustSmoke';
+import { VesselEffects } from '../vessel/view/vesselEffects';
 import { sunElevation } from '../environment/timeOfDay';
 import { clamp } from '../core/math';
-import type { VesselState } from '../vessel/vesselState';
+import { GpuTimer } from '../debug/gpuTimer';
+import { TrialsPanel } from '../debug/trialsPanel';
+import { vesselReadout } from '../debug/vesselReadout';
+import { DesktopPointer } from './desktopPointer';
+import { setupXR, xrSessionInfo } from './xrSession';
 
 /**
  * Top-level wiring. Owns the renderer, the simulation state and the per-frame loop:
@@ -52,7 +52,7 @@ export class App {
   readonly ids = new IdFactory();
   readonly world: WorldState;
   readonly localPlayerId: EntityId;
-  /** The vessel debug keys act on (milestone 3 has exactly one). */
+  /** The vessel the bridge, debug keys and audio act on (the MVP has exactly one). */
   readonly testVesselId: EntityId;
   readonly intents = new IntentQueue();
   private readonly loop = new FixedStepLoop(CONFIG.sim.tickRate, CONFIG.sim.maxTicksPerFrame);
@@ -71,7 +71,7 @@ export class App {
   private readonly hydroViews = new Map<EntityId, HydroDebugView>();
   private readonly simDebug: SimDebug = new Map();
   private readonly engineAudio = new EngineAudio();
-  private readonly trialsPanel = document.createElement('pre');
+  private readonly trialsPanel = new TrialsPanel();
   /** Which vessel (if any) the local rig is currently parented to. */
   private rigParentId: EntityId | null | undefined = undefined;
   private readonly walkAreas = new Map<EntityId, WalkArea>();
@@ -82,18 +82,14 @@ export class App {
   private readonly decoupler = new MotionDecoupler();
   private bridge: Bridge | null = null;
   private interaction: InteractionSystem | null = null;
-  private readonly navViews = new Map<EntityId, NavLightsView>();
+  private readonly effects = new Map<EntityId, VesselEffects>();
   private readonly horn = new HornAudio();
-  private readonly smoke = new ExhaustSmoke();
   private readonly hands: Record<'left' | 'right', HandFrame> = {
     left: { tracked: false, grip: new THREE.Vector3(), ray: new THREE.Ray(), gripDown: false, gripPressed: false, triggerDown: false, triggerPressed: false },
     right: { tracked: false, grip: new THREE.Vector3(), ray: new THREE.Ray(), gripDown: false, gripPressed: false, triggerDown: false, triggerPressed: false },
   };
   private busyHands = { left: false, right: false };
-  /** Desktop mouse state for clicking/dragging bridge controls (pointer-locked). */
-  private readonly mouse = { down: false, pressed: false, released: false, dx: 0, dy: 0 };
-  private readonly reticle = document.createElement('div');
-  private readonly deskRay = new THREE.Ray();
+  private pointer: DesktopPointer | null = null;
   /** Last comfort outputs, reused for the second rig sync in a frame. */
   private viewOffset = 0;
   private readonly comfortQ = new THREE.Quaternion();
@@ -102,12 +98,14 @@ export class App {
   private readonly headFwd = new THREE.Vector3();
   private readonly gripW: Record<'left' | 'right', THREE.Vector3> = { left: new THREE.Vector3(), right: new THREE.Vector3() };
   private readonly tmpV = new THREE.Vector3();
+  private readonly attQ = new THREE.Quaternion();
   /** Wave constants at the current *render* time (reused every frame). */
   private renderWaves: PreparedWave[] = [];
   private readonly overlay = new DebugOverlay();
   private readonly help = new HelpPanel();
   private readonly focus = new THREE.Vector3();
   private lastFrameMs = performance.now();
+  private readonly gpuTimer: GpuTimer;
 
   constructor(container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: CONFIG.render.antialias, powerPreference: 'high-performance' });
@@ -116,6 +114,7 @@ export class App {
     // We reset renderer.info ourselves so XR's two eye renders are counted per frame.
     this.renderer.info.autoReset = false;
     container.appendChild(this.renderer.domElement);
+    this.gpuTimer = new GpuTimer(this.renderer.getContext() as WebGL2RenderingContext);
 
     this.camera = new THREE.PerspectiveCamera(
       CONFIG.render.fovDeg,
@@ -134,14 +133,7 @@ export class App {
     this.placePanelOnRig();
     this.camera.add(this.comfortOverlay.mesh);
     this.controllers = new XRControllers(this.renderer, this.rig.root);
-    try {
-      // v2: values saved before the default went back to rigid are ignored.
-      const raw = localStorage.getItem('swvr.motionCoupling.v2');
-      const saved = Number(raw);
-      if (raw !== null && Number.isFinite(saved)) this.decoupler.coupling = saved;
-    } catch {
-      /* storage unavailable: use the default */
-    }
+    this.decoupler.coupling = loadCoupling() ?? this.decoupler.coupling;
 
     this.desktop = new DesktopController(this.camera, this.renderer.domElement, this.keyboard);
     this.environment = new EnvironmentView(this.scene);
@@ -155,14 +147,11 @@ export class App {
       this.vesselViews.set(vessel.id, view);
       this.hydroViews.set(vessel.id, hydro);
       this.walkAreas.set(vessel.id, vesselWalkArea(def, def.layout));
-      const nav = new NavLightsView(def);
-      view.root.add(nav.root);
-      this.navViews.set(vessel.id, nav);
+      this.effects.set(vessel.id, new VesselEffects(def, view.root, this.scene));
     }
     this.setupBridge();
-    this.scene.add(this.smoke.root);
 
-    this.setupXR();
+    setupXR(this.renderer, this.camera);
     window.addEventListener('resize', () => this.onResize());
     // Audio may only start after a user gesture.
     const unlock = () => {
@@ -172,48 +161,10 @@ export class App {
     window.addEventListener('pointerdown', unlock);
     window.addEventListener('keydown', unlock);
     this.renderer.xr.addEventListener('sessionstart', unlock);
-
-    Object.assign(this.trialsPanel.style, {
-      position: 'fixed',
-      right: '8px',
-      top: '8px',
-      margin: '0',
-      font: '12px/1.4 ui-monospace, Menlo, Consolas, monospace',
-      color: '#ffe9b0',
-      background: 'rgba(0,0,0,0.7)',
-      padding: '8px 10px',
-      borderRadius: '4px',
-      display: 'none',
-      pointerEvents: 'none',
-    } satisfies Partial<CSSStyleDeclaration>);
-    document.body.appendChild(this.trialsPanel);
   }
 
   start(): void {
     this.renderer.setAnimationLoop((t) => this.frame(t));
-  }
-
-  private setupXR(): void {
-    const xr = this.renderer.xr;
-    xr.enabled = true;
-    xr.setReferenceSpaceType('local-floor');
-    xr.setFramebufferScaleFactor(CONFIG.xr.framebufferScale);
-    document.body.appendChild(VRButton.createButton(this.renderer));
-
-    xr.addEventListener('sessionstart', () => {
-      xr.setFoveation(CONFIG.xr.foveation);
-      const session = xr.getSession() as (XRSession & {
-        supportedFrameRates?: Float32Array;
-        updateTargetFrameRate?: (rate: number) => Promise<void>;
-      }) | null;
-      const rates = session?.supportedFrameRates;
-      if (rates && session?.updateTargetFrameRate && Array.from(rates).includes(CONFIG.xr.targetFrameRate)) {
-        session.updateTargetFrameRate(CONFIG.xr.targetFrameRate).catch(() => {});
-      }
-      // The headset now owns the camera pose relative to the rig.
-      this.camera.position.set(0, 0, 0);
-      this.camera.quaternion.identity();
-    });
   }
 
   private onResize(): void {
@@ -224,6 +175,7 @@ export class App {
   }
 
   private frame(nowMs: number): void {
+    const t0 = performance.now();
     const frameMs = nowMs - this.lastFrameMs;
     this.lastFrameMs = nowMs;
     // Clamp so a long pause (tab hidden, headset off) doesn't produce a huge step.
@@ -241,6 +193,7 @@ export class App {
       for (const [id, view] of this.vesselViews) view.snapshot(this.world.vessels[id]);
       stepWorld(this.world, i === 0 ? this.intents.drain() : [], this.loop.dt, this.simDebug);
     }
+    const t1 = performance.now();
 
     // 3. Views. Rendering runs one tick behind the simulation and interpolates between
     // the previous and current tick by `alpha`; the ocean uses the same render time so
@@ -273,16 +226,17 @@ export class App {
     }
     // Bridge controls and displays read the (just-updated) vessel state.
     const testVessel = this.world.vessels[this.testVesselId];
-    if (this.bridge && testVessel) this.bridge.update(testVessel, dt);
-    if (testView && testVessel) {
-      this.smoke.update(dt, testVessel, VESSEL_DEFS[testVessel.defId], testView.root, (x, z) => surfaceHeight(this.renderWaves, x, z));
-    }
+    if (this.bridge && testVessel) this.bridge.update(testVessel, dt, this.dashInView());
     const darkness = Math.min(1, Math.max(0, (8 - sunElevation(this.world.environment.timeOfDay)) / 14));
-    for (const [id, nav] of this.navViews) nav.update(this.world.vessels[id].controls.navLights > 0, darkness);
+    for (const [id, fx] of this.effects) fx.update(dt, this.world.vessels[id], this.renderWaves, this.focus, darkness);
+    const t2 = performance.now();
 
     // 4. Render
     this.renderer.info.reset();
+    this.gpuTimer.begin();
     this.renderer.render(this.scene, this.camera);
+    this.gpuTimer.end();
+    const t3 = performance.now();
 
     this.overlay.frame(
       frameMs,
@@ -291,16 +245,29 @@ export class App {
         triangles: this.renderer.info.render.triangles,
         tick: this.world.tick,
         timeOfDay: this.world.environment.timeOfDay,
-        xr: inXR ? 'presenting' : this.desktop.pointerLocked ? 'desktop (mouse captured)' : 'desktop',
-        extra: this.bridgeSummary(this.world.vessels[this.testVesselId]) + '\n' + this.vesselSummary(this.world.vessels[this.testVesselId]),
+        xr: inXR ? xrSessionInfo(this.renderer) : this.desktop.pointerLocked ? 'desktop (mouse captured)' : 'desktop',
+        cpu: { sim: t1 - t0, views: t2 - t1, render: t3 - t2 },
+        gpuMs: this.gpuTimer.lastMs,
+        extra: vesselReadout(testVessel, this.simDebug),
       },
       inXR,
     );
     this.keyboard.endFrame();
-    this.mouse.pressed = false;
-    this.mouse.released = false;
-    this.mouse.dx = 0;
-    this.mouse.dy = 0;
+  }
+
+  /**
+   * Whether the instrument dash could be on screen: within 12 m and not behind the viewer.
+   * When it can't, the displays skip their canvas redraw and texture upload.
+   */
+  private dashInView(): boolean {
+    const anchor = this.bridge?.dashAnchor;
+    if (!anchor) return false;
+    const toDash = anchor.getWorldPosition(this.tmpV).sub(this.focus);
+    const dist = toDash.length();
+    if (dist > 12) return false;
+    if (dist < 1.5) return true;
+    this.camera.getWorldDirection(this.headFwd);
+    return toDash.dot(this.headFwd) > -0.3 * dist;
   }
 
   /** Debug-only bindings. Note time-of-day goes through the intent path like any control. */
@@ -337,7 +304,7 @@ export class App {
         ref: aboard ? undefined : this.testVesselId,
       });
     }
-    if (k.actionPressed('seaTrials')) this.showSeaTrials();
+    if (k.actionPressed('seaTrials')) this.trialsPanel.toggle(this.world.vessels[this.testVesselId].defId);
     if (k.actionPressed('seaState')) this.pushEnvIntent('seaState', this.world.environment.waves.length > 0 ? 0 : 1);
     if (k.actionPressed('heelVessel')) this.pushVesselIntent('debugHeel', 20);
     const step = CONFIG.environment.timeStepHours;
@@ -464,11 +431,7 @@ export class App {
     const c = Math.min(1, Math.max(0, value));
     this.decoupler.coupling = c;
     this.overlay.notify(`Motion coupling ${Math.round(c * 100)} %  (100 = rigid to the deck)`, 2);
-    try {
-      localStorage.setItem('swvr.motionCoupling.v2', String(c));
-    } catch {
-      /* storage unavailable: setting just isn't remembered */
-    }
+    saveCoupling(c);
   }
 
   private placePanelOnRig(): void {
@@ -491,41 +454,7 @@ export class App {
       (hand, i, ms) => this.xrInput.pulse(hand, i, ms),
     );
     this.scene.add(this.interaction.rayLine('left'), this.interaction.rayLine('right'));
-
-    const canvas = this.renderer.domElement;
-    document.addEventListener('mousedown', (e) => {
-      if (document.pointerLockElement !== canvas || e.button !== 0) return;
-      this.mouse.down = true;
-      this.mouse.pressed = true;
-      // Freeze mouse-look immediately if the reticle is on a control: movement events
-      // arrive before the next frame processes the press and would swing the aim off it.
-      if (this.interaction?.desktopHoverLabel) this.desktop.lookFrozen = true;
-    });
-    document.addEventListener('mouseup', (e) => {
-      if (e.button !== 0 || !this.mouse.down) return;
-      this.mouse.down = false;
-      this.mouse.released = true;
-    });
-    document.addEventListener('mousemove', (e) => {
-      if (!this.mouse.down) return;
-      this.mouse.dx += e.movementX;
-      this.mouse.dy += e.movementY;
-    });
-
-    Object.assign(this.reticle.style, {
-      position: 'fixed',
-      left: '50%',
-      top: '50%',
-      transform: 'translate(-50%, -50%)',
-      font: '600 13px system-ui, sans-serif',
-      color: '#fff',
-      textShadow: '0 0 3px #000',
-      pointerEvents: 'none',
-      textAlign: 'center',
-      whiteSpace: 'pre',
-      display: 'none',
-    } satisfies Partial<CSSStyleDeclaration>);
-    document.body.appendChild(this.reticle);
+    this.pointer = new DesktopPointer(this.renderer.domElement, this.desktop, this.interaction);
   }
 
   /** Feed hands (VR) or the reticle (desktop) to the bridge controls. */
@@ -543,21 +472,10 @@ export class App {
         f.triggerPressed = this.xrInput.wasPressed(h, XR_BUTTON.trigger);
       }
       this.busyHands = this.interaction.updateXR(this.hands);
-      this.reticle.style.display = 'none';
+      this.pointer?.hide();
       return;
     }
-    const locked = this.desktop.pointerLocked;
-    let ray: THREE.Ray | null = null;
-    if (locked) {
-      this.camera.getWorldPosition(this.deskRay.origin);
-      this.camera.getWorldDirection(this.deskRay.direction);
-      ray = this.deskRay;
-    }
-    const m = this.mouse;
-    this.desktop.lookFrozen = this.interaction.updateDesktop(ray, m.down, m.pressed, m.released, m.dx, m.dy);
-    const label = this.interaction.desktopHoverLabel;
-    this.reticle.style.display = locked ? 'block' : 'none';
-    this.reticle.textContent = label ? `+\n${label}` : '+';
+    this.pointer?.update(this.camera);
   }
 
   /** Engine start/stop with feedback when the neutral-start interlock refuses. */
@@ -572,58 +490,10 @@ export class App {
     this.pushVesselIntent('engineStartStop', 1);
   }
 
-  private showSeaTrials(): void {
-    if (this.trialsPanel.style.display === 'block') {
-      this.trialsPanel.style.display = 'none';
-      return;
-    }
-    this.trialsPanel.textContent = 'Running hydrostatics and sea trials (calm water)...';
-    this.trialsPanel.style.display = 'block';
-    // Let the message paint before the (~1 s) synchronous run.
-    setTimeout(() => {
-      const t0 = performance.now();
-      const defId = this.world.vessels[this.testVesselId].defId;
-      const report = `${formatHydrostatics(VESSEL_DEFS[defId])}\n\n${formatSeaTrials(runSeaTrials(defId))}`;
-      console.log(report);
-      this.trialsPanel.textContent = `${report}\n\n(${((performance.now() - t0) / 1000).toFixed(1)} s to simulate · T to close)`;
-    }, 30);
-  }
-
-  /** Bridge readouts for the debug overlay (live displays replace this in milestone 6). */
-  private bridgeSummary(v: VesselState | undefined): string {
-    if (!v) return '';
-    this.attQ.fromArray(v.orientation);
-    const fwd = this.attV.set(0, 0, -1).applyQuaternion(this.attQ);
-    const heading = ((Math.atan2(fwd.x, -fwd.z) * 180) / Math.PI + 360) % 360;
-    const kn = Math.hypot(v.linearVelocity[0], v.linearVelocity[2]) * 1.943844;
-    const gear = v.engine.gear === 1 ? 'AHEAD' : v.engine.gear === -1 ? 'ASTERN' : 'NEUTRAL';
-    const engine = v.engine.phase === 'off' ? 'ENGINE OFF' : v.engine.phase === 'cranking' ? 'CRANKING' : `${v.engine.rpm.toFixed(0)} rpm`;
-    const rudder = (v.rudder * 180) / Math.PI;
-    const rudderText = Math.abs(rudder) < 0.5 ? 'midships' : `${Math.abs(rudder).toFixed(0)}° ${rudder > 0 ? 'stbd' : 'port'}`;
-    return [
-      `SOG ${kn.toFixed(1)} kn  HDG ${heading.toFixed(0).padStart(3, '0')}°  ${engine}`,
-      `lever ${(v.controls.lever * 100).toFixed(0)} %  ${gear}  rudder ${rudderText}`,
-    ].join('\n');
-  }
-
   private pushVesselIntent(control: string, value: number): void {
     this.intents.push({ playerId: this.localPlayerId, targetId: this.testVesselId, control, value });
   }
 
-  private readonly attQ = new THREE.Quaternion();
-  private readonly attV = new THREE.Vector3();
-
-  /** One-line motion summary for the debug overlay. */
-  private vesselSummary(v: VesselState | undefined): string {
-    if (!v) return '';
-    const D = 180 / Math.PI;
-    this.attQ.fromArray(v.orientation);
-    const heel = -Math.asin(this.attV.set(1, 0, 0).applyQuaternion(this.attQ).y) * D;
-    const trim = -Math.asin(this.attV.set(0, 0, -1).applyQuaternion(this.attQ).y) * D;
-    const vol = this.simDebug.get(v.id)?.submergedVolume ?? 0;
-    const disp = (vol * CONFIG.ocean.density) / 1000;
-    return `boat heel ${heel.toFixed(1)}°  trim ${trim.toFixed(1)}°  heave ${v.position[1].toFixed(2)} m\nboat immersed ${disp.toFixed(1)} t of ${(VESSEL_DEFS[v.defId].mass / 1000).toFixed(1)} t`;
-  }
 
   private pushEnvIntent(control: string, value: number): void {
     this.intents.push({ playerId: this.localPlayerId, targetId: ENVIRONMENT_ID, control, value });

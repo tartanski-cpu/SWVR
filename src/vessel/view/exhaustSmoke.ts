@@ -13,7 +13,9 @@ const SMOKE_MAX = 200;
  *
  * Particles live in WORLD space and leave with the boat's velocity plus the outlet's jet,
  * then drag to still air - under way the plume trails astern, and going astern you back
- * into it so it rolls up around the stern. One Points draw call.
+ * into it so it rolls up around the stern. One Points draw call, hidden (and not updated)
+ * when no particle is alive. Particles fade out within ~2 m of the viewer so a cloud
+ * doesn't fill the headset view with large overlapping sprites (comfort and fill rate).
  * (White smoke when cold comes with the planned coolant-temperature model.)
  */
 export class ExhaustSmoke {
@@ -34,8 +36,9 @@ export class ExhaustSmoke {
   /**
    * @param root      the vessel's interpolated root (outlet position and direction)
    * @param surfaceAt sea surface height at a world (x, z)
+   * @param viewer    world position of the viewer's head
    */
-  update(dt: number, s: VesselState, def: VesselDef, root: THREE.Object3D, surfaceAt: (x: number, z: number) => number): void {
+  update(dt: number, s: VesselState, def: VesselDef, root: THREE.Object3D, surfaceAt: (x: number, z: number) => number, viewer: THREE.Vector3): void {
     const e = s.engine;
     root.localToWorld(this.outlet.fromArray(def.exhaust.position));
     root.getWorldQuaternion(this.q);
@@ -76,7 +79,7 @@ export class ExhaustSmoke {
     }
 
     // Smoke: drag to still air, gentle rise, lightens and fades as it disperses.
-    this.smoke.step(dt, 1.0, 0.45, 0, (t, shade) => 0.62 - 0.5 * shade + 0.2 * t);
+    this.smoke.step(dt, 1.0, 0.45, 0, (t, shade) => 0.62 - 0.5 * shade + 0.2 * t, viewer);
   }
 }
 
@@ -95,6 +98,7 @@ class ParticlePool {
   private readonly shade: Float32Array;
   private readonly alpha: Float32Array;
   private next = 0;
+  private alive = 0;
 
   constructor(
     private readonly max: number,
@@ -124,6 +128,7 @@ class ParticlePool {
     this.life[i] = life;
     this.shade[i] = shade;
     this.alpha[i] = alpha;
+    this.alive++;
   }
 
   /**
@@ -131,6 +136,7 @@ class ParticlePool {
    * @param rise    terminal upward drift (m/s) for buoyant smoke
    * @param gravity vertical acceleration (m/s^2)
    * @param grey    grey level from (age fraction, shade)
+   * @param viewer  world position of the viewer (near particles fade out)
    */
   step(
     dt: number,
@@ -138,7 +144,12 @@ class ParticlePool {
     rise: number,
     gravity: number,
     grey: (t: number, shade: number) => number,
+    viewer: THREE.Vector3,
   ): void {
+    // Nothing alive: skip the loop and the buffer uploads, and the draw call.
+    this.points.visible = this.alive > 0;
+    if (this.alive === 0) return;
+    this.alive = 0;
     const d = Math.exp(-drag * dt);
     for (let i = 0; i < this.max; i++) {
       const a = (this.age[i] += dt);
@@ -148,6 +159,7 @@ class ParticlePool {
         this.col[c + 3] = 0;
         continue;
       }
+      this.alive++;
       this.vel[k] *= d;
       this.vel[k + 1] = this.vel[k + 1] * d + rise * (1 - d) + gravity * dt;
       this.vel[k + 2] *= d;
@@ -160,7 +172,9 @@ class ParticlePool {
       this.col[c] = g * 1.04;
       this.col[c + 1] = g;
       this.col[c + 2] = g * 0.9;
-      this.col[c + 3] = this.alpha[i] * Math.min(1, a * 8) * (1 - t) ** 1.5;
+      const near = Math.hypot(this.pos[k] - viewer.x, this.pos[k + 1] - viewer.y, this.pos[k + 2] - viewer.z);
+      const nearFade = Math.min(1, Math.max(0, (near - 0.6) / 1.4));
+      this.col[c + 3] = this.alpha[i] * Math.min(1, a * 8) * (1 - t) ** 1.5 * nearFade;
     }
     this.points.geometry.attributes.position.needsUpdate = true;
     this.points.geometry.attributes.color.needsUpdate = true;

@@ -48,7 +48,7 @@ export const CONFIG = {
 
   ocean: {
     gravity: 9.81,
-    /** Sea water density (kg/m^3), used by buoyancy from milestone 3. */
+    /** Sea water density (kg/m^3). */
     density: 1025,
     /**
      * Wave components summed as Gerstner (trochoidal) waves. Tuned by eye for a moderate
@@ -153,10 +153,11 @@ export const CONFIG = {
          *  settle residual creep; calm-water resistance is the `resistance` curve below. */
         surgeLinear: 20,
         /**
-         * Angular damping (N*m*s/rad). Roll: ~10 % of critical
-         * (critical = 2*sqrt(Delta*g*GM * I_roll) ~ 233 kN*m*s for this hull).
+         * Angular damping (N*m*s/rad). Roll: ~15 % of critical in the free-decay trial
+         * (critical = 2*sqrt(Delta*g*GM * I_roll) ~ 233 kN*m*s for this hull), roughly a
+         * hard-chine hull with modest bilge keels. Raised from 24000 (~11 %) on owner feedback.
          */
-        roll: 24000,
+        roll: 33000,
         pitch: 20000,
         yaw: 20000,
       },
@@ -353,7 +354,7 @@ export const CONFIG = {
     },
   },
 
-  /** Debug keyboard / VR-stick driving (milestone 4; physical controls arrive in 6). */
+  /** Desktop debug driving with the arrow keys (in VR you use the bridge controls). */
   debugDriving: {
     /** Lever travel per second while the key is held (full range is -1..1). */
     leverRate: 0.6,

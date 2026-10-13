@@ -50,7 +50,7 @@ export class Wheel extends Control {
     marker.position.set(0, R, 0.01);
     this.spinner.add(wheel, marker);
     // Shaft back into the console.
-    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.12, 8).rotateX(Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0x3c4248 }));
+    const shaft = this.fixed(new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.12, 8).rotateX(Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0x3c4248 })));
     shaft.position.z = -0.06;
     this.root.add(this.spinner, shaft);
     this.hitObjects.push(wheel, marker);

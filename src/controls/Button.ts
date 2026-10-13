@@ -22,7 +22,7 @@ export class Button extends Control {
     private readonly litWhen?: (s: VesselState) => boolean,
   ) {
     super(id, channel);
-    const housing = new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.042, 0.022, 14), new THREE.MeshLambertMaterial({ color: 0x23282c }));
+    const housing = this.fixed(new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.042, 0.022, 14), new THREE.MeshLambertMaterial({ color: 0x23282c })));
     housing.position.y = 0.011;
     this.cap = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.018, 14), this.material(capColor));
     this.cap.position.y = 0.028;

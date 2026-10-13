@@ -3,6 +3,17 @@ import { CONFIG } from '../config';
 
 /**
  * FPS / frame-time / draw-call overlay.
+ *
+ * Frame-time lines, for profiling on the headset:
+ *   FPS / avg / max   wall-clock interval between frames (what you see; capped by the display)
+ *   cpu               main-thread JS time inside our frame callback, split into the fixed-step
+ *                     simulation, view updates, and render() (three.js building and submitting
+ *                     the draw commands - not the GPU's work)
+ *   gpu               GPU time of the frame where the timer extension exists, else "n/a"
+ * At 90 Hz the budget is 11.1 ms: if FPS drops while cpu is low, the GPU is the limit
+ * (lower xr.framebufferScale or raise xr.foveation in config.ts); if cpu is near the
+ * budget, the main thread is.
+ *
  * Desktop: a DOM panel in the top-left corner. VR: a small canvas panel attached to the
  * player rig (it rides along with the player, like a clipboard held at chest height).
  */
@@ -12,6 +23,10 @@ export interface DebugStats {
   tick: number;
   timeOfDay: number;
   xr: string;
+  /** Main-thread time (ms) this frame, by phase. */
+  cpu: { sim: number; views: number; render: number };
+  /** GPU time (ms) of a recent frame, or null if unavailable. */
+  gpuMs: number | null;
   extra?: string;
 }
 
@@ -28,6 +43,8 @@ export class DebugOverlay {
   private frames = 0;
   private sumMs = 0;
   private maxMs = 0;
+  private readonly cpuSum = { sim: 0, views: 0, render: 0 };
+  private cpuMax = 0;
   private sinceRefresh = 0;
   private lines: string[] = [];
 
@@ -50,12 +67,12 @@ export class DebugOverlay {
 
     this.canvas = document.createElement('canvas');
     this.canvas.width = 512;
-    this.canvas.height = 320;
+    this.canvas.height = 384;
     this.ctx = this.canvas.getContext('2d')!;
     this.texture = new THREE.CanvasTexture(this.canvas);
     this.texture.colorSpace = THREE.SRGBColorSpace;
     this.vrPanel = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.4, 0.25),
+      new THREE.PlaneGeometry(0.4, 0.3),
       new THREE.MeshBasicMaterial({ map: this.texture, transparent: true, fog: false, depthTest: false }),
     );
     this.vrPanel.name = 'debugPanel';
@@ -102,13 +119,24 @@ export class DebugOverlay {
     this.frames++;
     this.sumMs += frameMs;
     this.maxMs = Math.max(this.maxMs, frameMs);
+    const { sim, views, render } = stats.cpu;
+    this.cpuSum.sim += sim;
+    this.cpuSum.views += views;
+    this.cpuSum.render += render;
+    this.cpuMax = Math.max(this.cpuMax, sim + views + render);
     this.sinceRefresh += frameMs;
     this.applyVisibility(inXR);
 
     if (this.sinceRefresh < 1000 / CONFIG.debug.overlayUpdateHz) return;
     const avg = this.sumMs / this.frames;
+    const n = this.frames;
+    const c = this.cpuSum;
+    const cpu = (c.sim + c.views + c.render) / n;
+    const gpu = stats.gpuMs === null ? 'n/a' : `${stats.gpuMs.toFixed(1)} ms`;
     this.lines = [
       `FPS ${(1000 / avg).toFixed(0).padStart(3)}  avg ${avg.toFixed(1)} ms  max ${this.maxMs.toFixed(1)} ms`,
+      `cpu ${cpu.toFixed(1)} ms (max ${this.cpuMax.toFixed(1)})  gpu ${gpu}`,
+      `  sim ${(c.sim / n).toFixed(1)}  views ${(c.views / n).toFixed(1)}  render ${(c.render / n).toFixed(1)} ms`,
       `draws ${stats.drawCalls}  tris ${stats.triangles.toLocaleString()}`,
       `tick ${stats.tick}  time ${formatHours(stats.timeOfDay)}`,
       `XR ${stats.xr}`,
@@ -117,6 +145,8 @@ export class DebugOverlay {
     this.frames = 0;
     this.sumMs = 0;
     this.maxMs = 0;
+    this.cpuSum.sim = this.cpuSum.views = this.cpuSum.render = 0;
+    this.cpuMax = 0;
     this.sinceRefresh = 0;
 
     if (!this.visible && !this.toastActive) return;

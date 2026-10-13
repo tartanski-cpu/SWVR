@@ -9,5 +9,15 @@ export default defineConfig({
   plugins: [basicSsl()],
   server: { host: true, port: 5173 },
   preview: { host: true, port: 4173 },
-  build: { target: 'es2022', chunkSizeWarningLimit: 1000 },
+  build: {
+    target: 'es2022',
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        // three.js in its own chunk: it only changes when we upgrade it, so the headset
+        // browser keeps it cached across our (frequent) game-code deploys.
+        manualChunks: (id) => (id.includes('/node_modules/three/') ? 'three' : undefined),
+      },
+    },
+  },
 });

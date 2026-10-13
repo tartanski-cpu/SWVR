@@ -4,7 +4,7 @@ import { sampleSurface, type PreparedWave } from '../ocean/waves';
 import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
 
 /**
- * Milestone 2 test scene, replaced by the vessel from milestone 3 onwards:
+ * Test scene around the boat (until the archipelago replaces it):
  *  - a pile-mounted observation platform to stand on above the waves (fixed to the seabed),
  *  - navigation buoys that float on the CPU wave surface (a second visual check that CPU
  *    and GPU waves agree).

@@ -8,6 +8,7 @@ import { InstrumentPanel } from './instruments';
 import { Lever } from './Lever';
 import { Toggle } from './Toggle';
 import { Wheel } from './Wheel';
+import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
 
 /**
  * Builds a vessel's bridge from its config: controls, instrument dash, labels.
@@ -16,6 +17,8 @@ import { Wheel } from './Wheel';
 export class Bridge {
   readonly root = new THREE.Group();
   readonly controls: Control[] = [];
+  /** Empty object at the centre of the instrument dash (for visibility checks). */
+  readonly dashAnchor = new THREE.Object3D();
   private readonly instruments: InstrumentPanel;
 
   constructor(private readonly def: VesselDef) {
@@ -43,19 +46,44 @@ export class Bridge {
 
     // Instrument dash: a box across the front of the console with the displays on its face.
     const d = b.dash;
-    const dash = new THREE.Mesh(
+    const dash = part(
       new THREE.BoxGeometry(d.halfWidth * 2, d.top - d.bottom, d.aft - d.front).translate(0, (d.top + d.bottom) / 2, (d.front + d.aft) / 2),
-      new THREE.MeshLambertMaterial({ color: 0x30363b, flatShading: true }),
+      0x30363b,
     );
     this.instruments = new InstrumentPanel(b);
-    this.root.add(dash, this.instruments.mesh, buildLabels(b));
+    this.dashAnchor.position.set(0, (d.top + d.bottom) / 2, d.aft);
+    this.root.add(bakeFixedParts(this.root, [dash]), this.instruments.mesh, buildLabels(b), this.dashAnchor);
   }
 
-  /** Visuals from authoritative state (controls skip this while locally held). */
-  update(state: VesselState, dt: number): void {
+  /**
+   * Visuals from authoritative state (controls skip this while locally held).
+   * @param displaysInView false when nobody can see the dash: the instrument canvas then
+   *                       skips its redraw and texture upload (the costly part on Quest).
+   */
+  update(state: VesselState, dt: number, displaysInView = true): void {
     for (const c of this.controls) c.sync(state);
-    this.instruments.update(state, this.def, dt);
+    if (displaysInView) this.instruments.update(state, this.def, dt);
   }
+}
+
+/**
+ * Bake every control part marked `fixed` (bases, housings, plates) plus `extra` parts into
+ * one vertex-coloured mesh: one draw call instead of one per part. The original meshes are
+ * hidden but kept, so the pointer ray (which ignores visibility) still hits them.
+ */
+function bakeFixedParts(root: THREE.Object3D, extra: THREE.BufferGeometry[]): THREE.Mesh {
+  root.updateMatrixWorld(true);
+  const toRoot = root.matrixWorld.clone().invert();
+  const parts = [...extra];
+  root.traverse((o) => {
+    if (!(o instanceof THREE.Mesh) || !o.userData.fixed) return;
+    const geo = (o.geometry as THREE.BufferGeometry).clone().applyMatrix4(o.matrixWorld.clone().premultiply(toRoot));
+    parts.push(part(geo, (o.material as THREE.MeshLambertMaterial).color.getHex()));
+    o.visible = false;
+  });
+  const mesh = new THREE.Mesh(mergeParts(parts), flatVertexColorMaterial());
+  mesh.name = 'bridgeFixed';
+  return mesh;
 }
 
 /** Small engraved labels on the console top in front of each control (one draw call). */

@@ -6,7 +6,7 @@ import type { Vec3 } from '../core/math';
  * `world.players`; remote players will be added the same way later.
  *
  * Positions are expressed in the frame of the vessel the player is aboard
- * (or world frame if `aboardVesselId` is null). Used from milestone 5.
+ * (or world frame if `aboardVesselId` is null).
  */
 export interface PlayerState {
   id: EntityId;

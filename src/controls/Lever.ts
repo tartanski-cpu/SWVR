@@ -33,11 +33,11 @@ export class Lever extends Control {
     this.length = opts.length;
 
     // Quadrant base (static part of the control) with ahead/astern colour marks.
-    const base = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.05, 0.16), this.material(0x2a2f33));
+    const base = this.fixed(new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.05, 0.16), new THREE.MeshLambertMaterial({ color: 0x2a2f33 })));
     base.position.y = 0.025;
-    const ahead = new THREE.Mesh(new THREE.BoxGeometry(0.104, 0.006, 0.05), new THREE.MeshLambertMaterial({ color: 0x2f8f3a }));
+    const ahead = this.fixed(new THREE.Mesh(new THREE.BoxGeometry(0.104, 0.006, 0.05), new THREE.MeshLambertMaterial({ color: 0x2f8f3a })));
     ahead.position.set(0, 0.051, -0.05);
-    const astern = new THREE.Mesh(new THREE.BoxGeometry(0.104, 0.006, 0.05), new THREE.MeshLambertMaterial({ color: 0xa8402a }));
+    const astern = this.fixed(new THREE.Mesh(new THREE.BoxGeometry(0.104, 0.006, 0.05), new THREE.MeshLambertMaterial({ color: 0xa8402a })));
     astern.position.set(0, 0.051, 0.05);
     this.root.add(base, ahead, astern);
 

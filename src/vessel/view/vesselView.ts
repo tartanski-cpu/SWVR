@@ -6,7 +6,7 @@ import { buildVesselMesh } from './hullMesh';
 /**
  * Scene-graph representation of one vessel, interpolated between simulation ticks.
  *
- * `root` is the vessel's frame: anything parented to it (the player rig from milestone 5,
+ * `root` is the vessel's frame: anything parented to it (the player rig,
  * controls, debug views) rides with the boat exactly as rendered.
  *
  * Interpolation: before every sim tick the App calls `snapshot()`, which keeps the pose

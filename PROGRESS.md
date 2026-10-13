@@ -26,8 +26,10 @@ This file lets a new session pick up the work cold. Keep it current at the end o
 | 3 | Floating hull: strip-theory hydrostatics on hull stations, damping, debug view | **Done** (owner OK; drop-test rebound fixed in M4) |
 | 4 | Single-engine propulsion, rudder, resistance curve, keyboard/VR-stick driving, sea trials, engine hum, boarding | **Done** (owner tested in VR) |
 | 5 | Walk-in wheelhouse, bulwarks, walk areas, grab-the-world locomotion, snap-turn, comfort options, controller models | **Done** (owner asked for BeamNG-style motion coupling: done) |
-| 6 | Interaction system, lever, wheel, start/stop, horn, nav-lights switch, live displays, haptics, nav lights; slow-revving diesel drivetrain | **Done, awaiting owner test** |
-| 7 | Polish: headset profiling, tuning, docs | — |
+| 6 | Interaction system, lever, wheel, start/stop, horn, nav-lights switch, live displays, haptics, nav lights; slow-revving diesel drivetrain | **Done** (owner tested in VR; three feedback rounds) |
+| 7 | Polish: headset profiling, tuning, docs | **Done** (owner to read the new frame-time panel on the Quest) |
+
+**The MVP is complete.** A snapshot of this state lives on the `mvp-1` branch.
 
 ## Done (milestone 1)
 
@@ -256,6 +258,31 @@ The owner asked for "a diesel inboard, not a revvy outboard, with a bigger prop 
 - **Prop walk.** Right-handed prop: side force at the prop of 3 % of thrust ahead (stern to starboard) and 12 % astern (stern to port), fading with speed (half at 1.5 m/s). Config: `propeller.rightHanded`, `propWalkAhead`, `propWalkAstern`, `propWalkFadeSpeed`. Tests: going astern from rest the bow swings to starboard; the effect ahead is smaller and opposite.
 - **Taller wheelhouse windows.** The window band now runs 0.75–1.95 m above the floor (was 0.95–1.75). It's shared by the geometry and the head-in-wall check.
 
+## Done (milestone 7: polish)
+
+- **Profiling readout** in the debug panel (B / Y in VR, F3 on desktop):
+  - **cpu:** main-thread time per frame, split into sim / views / render submit.
+  - **gpu:** GPU time via `EXT_disjoint_timer_query_webgl2`, where the browser exposes it (else "n/a").
+  - **XR line:** framebuffer size, refresh rate, foveation and scale.
+  - The overlay doc comment explains how to read it against the 11.1 ms budget at 90 Hz.
+- **Cheaper frames:**
+  - The bridge's fixed parts (dash, lever quadrant, button housings, switch plate, wheel shaft) are baked into one draw call. Draw calls aboard went from 23 to 17 per eye. The hidden originals stay as ray targets.
+  - The instrument canvas skips its redraw and texture upload when the dash is more than 12 m away or behind you.
+  - The exhaust smoke skips its update and draw when no particle is alive. Particles fade out within about 2 m of your head, so backing into the plume doesn't fill the view with big overlapping sprites (fill rate and comfort).
+- **Faster reloads:** three.js is split into its own cached chunk (631 kB). The game code is now 104 kB, so a redeploy re-downloads only that.
+- **Roll damping** raised from 24000 to 33000 N·m·s, at owner request. Free decay from 10° now gives 15 % of critical (was 11 %); natural period 3.5 s. Astern speed is left as is, per the owner.
+- **Sidelight arcs of visibility** (COLREGs Rule 21):
+  - Masthead light: 225° ahead.
+  - Sidelights: from right ahead to 22.5° abaft the beam.
+  - Stern light: 135° astern.
+  - A 2° practical cut-off at the edges.
+  - Bearings are measured from the centreline, so both sidelights show from dead ahead.
+- **Clean-up:**
+  - `App.ts` is split into `xrSession.ts`, `desktopPointer.ts`, `debug/trialsPanel.ts`, `debug/vesselReadout.ts` and `vessel/view/vesselEffects.ts` (nav lights and smoke per vessel). Coupling persistence moved to `comfort.ts`.
+  - The empty `missions/` placeholder is removed (its intended shape is noted under "Next").
+  - Stale milestone comments are fixed.
+- **Docs:** README brought up to date. New `docs/MULTIPLAYER.md` covers the host-authoritative design, message types, the change needed per module and the order of work.
+
 ## Planned next (owner requests, not started)
 
 1. **Fuel and oil temperature (engine management, refuelling).** Fits the existing structure:
@@ -310,37 +337,33 @@ The owner asked for "a diesel inboard, not a revvy outboard, with a bigger prop 
 
 The deck and wheelhouse floor are opaque and sit well above the DWL (freeboard about 0.95–1.5 m), so the sea can't show "through" the boat. The only remaining case is green water overtopping the bulwark in big rolls, which is physically what happens; it would need a "freeboard volume" mask to hide. I'll revisit in the polish pass if it's visible in practice. It matters for a future open well-deck or a low-freeboard rescue boat.
 
-## Open questions for the owner
-
-- **Beam-sea roll of about 26°.** Physical. Comfort options now exist; does it need more roll damping or GM?
-- **Astern speed of 6.4 kn** may be optimistic.
-
 ## Next
 
-Milestone 7: polish pass.
-- Profile on the Quest: draw calls, frame time, foveation, framebuffer scale.
-- Tune handling and comfort from owner feedback.
-- Sidelight arcs of visibility.
-- Finish the docs and the multiplayer write-up.
+The MVP is done. Pick from "Planned next" and the "Future roadmap" above. Suggested order:
+
+1. **VR wrist menu.** It unblocks everything else, because every new feature adds settings.
+2. **Fuel and oil temperature.**
+3. **Archipelago with ports.** It brings collisions: boat vs quay and seabed.
+4. **Missions** (rescue tasks). When they start, a mission is a small state machine in `WorldState` (plain data, stable ids) that reads world state each tick and emits events ("survivor spawned", "objective complete"). It never touches rendering.
+
+For performance on the Quest, read the debug panel's cpu/gpu lines in VR:
+
+- **FPS below 90 with low cpu:** the GPU is the limit. Lower `xr.framebufferScale` or raise `xr.foveation` in `config.ts`.
+- **Headroom on both:** try `framebufferScale` 1.2 for sharper instruments.
 
 ## Known issues / notes
 
-- Headless SwiftShader (used for automated screenshots) mis-renders geometry below the horizon when the camera pitch is exactly 0. Real GPUs are unaffected. The desktop camera starts tilted slightly down.
-- npm 10 crashes with `edgesOut` when adding packages because of vitest's optional peer dependencies. `npm ci` works. Use `npx npm@11 install` to add dependencies.
-- The ocean at night is very dark (no moon yet). A moon and night palette come with the day/night work later.
-- **Water inside the hull:** the ocean is drawn wherever it is, so a wave that overtops the deck edge or a steep crest beside the hull can show water "inside" the boat. That will matter once we walk inside (milestone 5). The plan is a depth/stencil mask of the hull interior volume.
-- No collisions yet: the boat drives straight through the buoys and the platform.
-- Debug driving in VR: right stick ↑/↓ for the lever (only when clearly vertical, so snap-turn doesn't move it) and triggers for the wheel. Temporary until the bridge controls exist (milestone 6).
-- Controller models need internet on the headset (CDN). Without it, the hands are invisible but still work.
-- Wave fading at distance means far-away objects (more than about 40 m from the viewer) can sit a few cm off the drawn surface for the shortest waves. Physics always uses the exact CPU surface.
-- There are no whitecaps or foam yet beyond a faint crest tint. A moderate sea would show some whitecaps; that's a candidate for the polish pass.
+- **Water inside the hull:** the ocean is drawn wherever it is, so green water over the bulwark in big rolls can show "inside" the boat. Freeboard is 0.95–1.5 m, so it's rare in the current sea state. The fix is a hull-interior depth/stencil mask (see "Decision" above).
+- **No collisions:** the boat drives straight through the buoys and the platform. Collisions come with the archipelago.
+- **No whitecaps or foam** beyond a faint crest tint.
+- **The ocean at night is very dark** (no moon yet).
+- **Beam-sea roll** is near resonance: the roll period is 3.5 s and the sea has energy at 2–7 s. Roll damping was raised to 15 % of critical; bilge keels or a lower GM would be the naval-architecture levers if it's still too lively.
+- **Controller models need internet** on the headset (CDN). Without it, the hands are invisible but still work.
+- **Wave fading at distance:** far objects (more than about 40 m from the viewer) can sit a few cm off the drawn surface for the shortest waves. Physics always uses the exact CPU surface.
+- **Tooling quirks:**
+  - Headless SwiftShader (used for automated screenshots) mis-renders geometry below the horizon at exactly zero camera pitch. Real GPUs are unaffected. The desktop camera starts tilted slightly down.
+  - npm 10 crashes with `edgesOut` when adding packages (vitest optional peers). `npm ci` works. Use `npx npm@11 install` to add dependencies.
 
 ## Multiplayer recommendation (for later — not implemented)
 
-**A host-authoritative simulation over WebSockets**, running the same `stepWorld()` code headless in Node. This is possible because the sim has no DOM or Three.js dependencies.
-
-- **Clients to server:** clients send `Intent`s, which are already the only way input changes state.
-- **Server to clients:** the server ticks at 60 Hz and broadcasts snapshots or deltas at about 20 Hz.
-- **Clients:** interpolate vessels about 100 ms behind. The local player's own controls are shown predictively while held, which the control design already does.
-- **Player bodies:** client-authoritative, in vessel-local coordinates. They are cosmetic, so trusting clients is fine for co-op.
-- **Why not peer-to-peer WebRTC first:** it avoids a server but needs signalling and NAT traversal, and makes one player's browser the host. A data-channel transport can be added later behind the same intent/snapshot interface if hosting costs matter.
+**Host-authoritative simulation over WebSockets**, running the same `stepWorld()` headless in Node. Clients send intents, the server broadcasts snapshots at about 20 Hz, and clients interpolate about 100 ms behind. Player bodies stay client-authoritative in vessel-local coordinates. Full design, message types, the change needed per module and the order of work: [`docs/MULTIPLAYER.md`](docs/MULTIPLAYER.md). A server is a paid service, so ask the owner first.

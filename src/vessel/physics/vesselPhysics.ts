@@ -22,7 +22,8 @@
  *       - lateral hull lift (∝ U·v) and crossflow drag per station, proportional to local
  *         draft (sway and yaw damping; the centre of lateral resistance falls out of the
  *         hull shape),
- *       - longitudinal drag per station (placeholder for the milestone 4 resistance curve),
+ *       - a small linear surge damping per station, only to settle residual creep (the
+ *         real resistance is the calm-water curve in propulsion.ts),
  *       - angular damping, chiefly roll (radiation + viscous/chine roll damping).
  *
  *  4. Propulsion (propulsion.ts): engine/gearbox/steering gear state, propeller thrust
