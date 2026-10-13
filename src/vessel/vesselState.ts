@@ -17,6 +17,10 @@ export interface VesselControls {
   anchor: number;
   /** Wheelhouse light switch, 0 off / 1 on. */
   cabinLight: number;
+  /** Searchlight: switch (0/1), pan (deg, + to starboard) and tilt (deg, + up, 0 = horizontal). */
+  spotlight: number;
+  spotPan: number;
+  spotTilt: number;
 }
 
 /** Docking and mooring lines (physics/mooring.ts). */
@@ -122,7 +126,7 @@ export function createVesselState(id: EntityId, defId: string): VesselState {
     orientation: [0, 0, 0, 1],
     linearVelocity: [0, 0, 0],
     angularVelocity: [0, 0, 0],
-    controls: { lever: 0, helm: 0, navLights: 0, horn: 0, anchor: 0, cabinLight: 0 },
+    controls: { lever: 0, helm: 0, navLights: 0, horn: 0, anchor: 0, cabinLight: 0, spotlight: 0, spotPan: 0, spotTilt: -4 },
     engine: {
       phase: 'off',
       crank: 0,

@@ -26,6 +26,7 @@ The owner's feature ideas, in roughly the order they came up, with their status.
 | Exhaust smoke driven by load and engine temperature | **Done** | Darker under load, black puffs, white when cold. |
 | Low exhaust at the stern so you see it when backing up; no water spray, dirtier smoke | **Done** | Transom outlet, grey-brown diesel smoke. |
 | Cabin light | **Done** | Console switch, ceiling lamp. |
+| Controllable searchlight, controls on the bridge | **Done** | SPOT switch and a joystick to port of the wheel; lights the water, quays and islands. |
 | Cargo: pick up at one port, deliver to another | **Partly** | Basic version: load and unload by menu, cargo has real weight. Not yet: carrying cargo by hand, pay or economy. |
 
 ## Bridge and controls

@@ -466,6 +466,21 @@ Frame-rate friendly: 3 extra draw calls, a few hundred vertices, and almost no C
 - **Less clatter and hiss.**
 - **Rendered:** idle is 63 % at 60–150 Hz and 27 % at 150–400 Hz, with almost nothing above 400 Hz. No clipping.
 
+## Done (searchlight, owner request)
+
+- **Searchlight** on the wheelhouse roof (`vessel/view/searchlight.ts`).
+  - **Housing:** a yoke and drum that pan and tilt with the controls.
+  - **Light:** one real SpotLight (30 000 cd, 6° half-angle, 300 m). Kept at intensity 0 when off, so no recompiles.
+  - **Beam:** a faint additive cone that shows at night.
+  - **Water:** the ocean shader draws the bright pool and glints where the beam meets the sea, since the ocean doesn't receive scene lights.
+- **Controls:**
+  - A **SPOT** switch on the console.
+  - A **joystick** (`controls/Joystick.ts`) on a pedestal to port of the wheel, mirroring the throttle's, so your left hand works the light and your right the throttle. It's a rate control: deflection² × 50°/s pan and 22°/s tilt. It springs to centre when released.
+  - **Limits:** pan ±170°, tilt −35° to +12°.
+  - **Intents:** pan and tilt are absolute values in degrees (`spotPan`, `spotTilt`, clamped by the vessel), like every control.
+- **Controls API:** a new `Control.tick(dt)` hook for rate controls.
+- **Tests (114):** pan rate at full deflection, forward raising the beam, no drift after release, the vessel clamping pan and tilt.
+
 ## Planned next (owner requests, not started)
 
 1. ~~Fuel and oil temperature~~ **Done** (see above).

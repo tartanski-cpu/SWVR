@@ -67,6 +67,10 @@ export class OceanView {
     uPortLightPos: { value: new THREE.Vector3() },
     uPortLightColor: { value: new THREE.Color(0, 0, 0) },
     uPortLightRange: { value: 1 },
+    uSpotPos: { value: new THREE.Vector3() },
+    uSpotDir: { value: new THREE.Vector3(0, -1, 0) },
+    uSpotCos: { value: new THREE.Vector2(1, 1) },
+    uSpotColor: { value: new THREE.Color(0, 0, 0) },
     uFogColor: { value: new THREE.Color() },
     uFogNear: { value: 0 },
     uFogFar: { value: 1 },
@@ -90,6 +94,15 @@ export class OceanView {
    * @param waves  wave constants for the current render time (from prepareWaves)
    * @param viewer viewer world position; the grid is re-centred under it
    */
+  /** The searchlight's pool on the water (intensity 0 = off). */
+  setSpotlight(light: THREE.SpotLight): void {
+    const u = this.uniforms;
+    light.getWorldPosition(u.uSpotPos.value);
+    light.target.getWorldPosition(u.uSpotDir.value).sub(u.uSpotPos.value).normalize();
+    u.uSpotCos.value.set(Math.cos(light.angle), Math.cos(light.angle * (1 - light.penumbra)));
+    u.uSpotColor.value.copy(light.color).multiplyScalar(light.intensity > 0 ? 1.2 : 0);
+  }
+
   /** The port floodlight's glints on the water (intensity 0 = off). */
   setPortLight(light: THREE.PointLight): void {
     const u = this.uniforms;

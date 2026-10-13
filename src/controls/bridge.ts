@@ -8,6 +8,7 @@ import { InstrumentPanel } from './instruments';
 import { Lever } from './Lever';
 import { Toggle } from './Toggle';
 import { Wheel } from './Wheel';
+import { Joystick } from './Joystick';
 import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
 
 /**
@@ -51,7 +52,12 @@ export class Bridge {
     const dock = new Button('dock', 'dock', 'Dock / cast off', 'pulse', 0x2f6fd0, (s) => s.mooring.phase !== 'free' || s.mooring.berthId !== null);
     dock.root.position.fromArray(b.dockButton.position);
 
-    this.controls.push(wheel, lever, start, horn, nav, anchor, cabin, dock);
+    const spot = new Toggle('spotlight', 'spotlight', 'Searchlight on/off', (s) => s.controls.spotlight);
+    spot.root.position.fromArray(b.spotlightSwitch.position);
+    const joy = new Joystick('spotJoystick', def.spotlight);
+    joy.root.position.fromArray(b.spotJoystick.position);
+
+    this.controls.push(wheel, lever, start, horn, nav, anchor, cabin, dock, spot, joy);
     for (const c of this.controls) this.root.add(c.root);
 
     // Instrument dash: a box across the front of the console with the displays on its face.
@@ -65,13 +71,17 @@ export class Bridge {
     const lp = b.lever.position;
     const floorY = def.layout.wheelhouse.floorY;
     const pedFront = lp[2] - 0.25; // overlaps into the console body
-    const pedestal = part(
-      new THREE.BoxGeometry(ped.halfWidth * 2, lp[1] - 0.01 - floorY, ped.aft - pedFront).translate(lp[0], (lp[1] - 0.01 + floorY) / 2, (ped.aft + pedFront) / 2),
-      0x3c4248,
-    );
+    const pedestalAt = (x: number) =>
+      part(
+        new THREE.BoxGeometry(ped.halfWidth * 2, lp[1] - 0.01 - floorY, ped.aft - pedFront).translate(x, (lp[1] - 0.01 + floorY) / 2, (ped.aft + pedFront) / 2),
+        0x3c4248,
+      );
+    // The throttle's pedestal, and its mirror image to port for the searchlight joystick.
+    const pedestal = pedestalAt(lp[0]);
+    const spotPedestal = pedestalAt(b.spotJoystick.position[0]);
     this.instruments = new InstrumentPanel(b);
     this.dashAnchor.position.set(0, (d.top + d.bottom) / 2, d.aft);
-    this.root.add(bakeFixedParts(this.root, [dash, pedestal]), this.instruments.mesh, buildLabels(b), this.dashAnchor);
+    this.root.add(bakeFixedParts(this.root, [dash, pedestal, spotPedestal]), this.instruments.mesh, buildLabels(b), this.dashAnchor);
   }
 
   /**
@@ -80,7 +90,10 @@ export class Bridge {
    *                       skips its redraw and texture upload (the costly part on Quest).
    */
   update(state: VesselState, dt: number, displaysInView = true): void {
-    for (const c of this.controls) c.sync(state);
+    for (const c of this.controls) {
+      c.sync(state);
+      c.tick(dt);
+    }
     if (displaysInView) this.instruments.update(state, this.def, dt);
   }
 }
@@ -115,6 +128,8 @@ function buildLabels(b: VesselDef['bridge']): THREE.Mesh {
     ['ANCHOR', b.anchorSwitch.position],
     ['CABIN', b.cabinLightSwitch.position],
     ['DOCK', b.dockButton.position],
+    ['SPOT', b.spotlightSwitch.position],
+    ['SEARCHLIGHT', b.spotJoystick.position],
   ];
   const slotW = 512;
   const slotH = 64;

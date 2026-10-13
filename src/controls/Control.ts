@@ -76,6 +76,8 @@ export abstract class Control {
   grabEnd(_p: Pointer): void {}
   /** Desktop drag: mouse movement in pixels. */
   nudge(_dx: number, _dy: number): void {}
+  /** Every frame (for rate controls such as the searchlight joystick). */
+  tick(_dt: number): void {}
 
   // ── press controls ──
   pressStart(): void {}

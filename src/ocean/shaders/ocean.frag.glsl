@@ -19,6 +19,11 @@ uniform float uFoamAmount;      // 0..1 whitecaps from the sea's steepness
 uniform vec3 uPortLightPos;
 uniform vec3 uPortLightColor;   // colour x strength (0 when off)
 uniform float uPortLightRange;
+// The boat's searchlight: a bright pool where the beam meets the water.
+uniform vec3 uSpotPos;
+uniform vec3 uSpotDir;
+uniform vec2 uSpotCos;          // cos(outer), cos(inner) half-angles
+uniform vec3 uSpotColor;        // colour x strength (0 when off)
 uniform vec3 uFogColor;
 uniform float uFogNear;
 uniform float uFogFar;
@@ -66,6 +71,15 @@ void main() {
   float atten = 1.0 / (1.0 + (dl / 14.0) * (dl / 14.0)) * (1.0 - smoothstep(uPortLightRange * 0.6, uPortLightRange, dl));
   float glint = pow(max(dot(n, normalize(ldir + v)), 0.0), 70.0);
   col += uPortLightColor * atten * (glint * 2.5 + 0.12 * max(dot(n, ldir), 0.0));
+
+  // Searchlight pool and glints.
+  vec3 toS = uSpotPos - vWorldPos;
+  float ds = length(toS);
+  vec3 sdir = toS / max(ds, 0.001);
+  float cone = smoothstep(uSpotCos.x, uSpotCos.y, dot(-sdir, uSpotDir));
+  float satten = cone / (1.0 + (ds / 45.0) * (ds / 45.0));
+  float sglint = pow(max(dot(n, normalize(sdir + v)), 0.0), 50.0);
+  col += uSpotColor * satten * (0.5 * max(dot(n, sdir), 0.0) + sglint * 1.5);
 
   float fogF = clamp((dist - uFogNear) / (uFogFar - uFogNear), 0.0, 1.0);
   col = mix(col, uFogColor, fogF);

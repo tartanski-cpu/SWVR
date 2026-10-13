@@ -104,7 +104,9 @@ At the helm, from left to right on the console:
 
 - **Nav lights** toggle switch.
 - **Anchor** switch: down = let go (the chain pays out to 4 × depth + 5 m), up = heave in and stow.
-- **Cabin** light switch (far left): the wheelhouse ceiling lamp.
+- **SPOT** switch (far left): the searchlight on the wheelhouse roof.
+- **Searchlight joystick:** on the pedestal to port of the wheel, under your left hand. Grip it and push sideways to pan, forward/back to raise/lower the beam. The further you push, the faster it moves; let go and the light stays put. On desktop, click and drag it.
+- **Cabin** light switch: the wheelhouse ceiling lamp.
 - **DOCK** button (blue, right of the wheel): lights up when you're in a berth's hot spot. Press it to dock; press again to cast off.
 - **Horn** button (hold).
 - **Wheel**: 1.5 turns lock to lock. Hydraulic steering, so it stays where you leave it.

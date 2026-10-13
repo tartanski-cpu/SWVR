@@ -277,6 +277,8 @@ export class App {
     this.worldView.lights.update(renderTime, darkness);
     this.worldView.portLighting.update(this.focus, darkness);
     this.ocean.setPortLight(this.worldView.portLighting.flood);
+    const fxTest = this.effects.get(this.testVesselId);
+    if (fxTest) this.ocean.setSpotlight(fxTest.searchlight.light);
     this.cargoView.update(this.world, this.vesselRoots);
     if (testView && testVessel) {
       // Hull contact: thump and scrape, and a jolt through both controllers if you're aboard.

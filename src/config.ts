@@ -415,6 +415,9 @@ export const CONFIG = {
         /** Windlass: up = heave in / stowed, down = let go. */
         anchorSwitch: { position: [-0.6, 2.16, -1.52] as [number, number, number] },
         cabinLightSwitch: { position: [-0.96, 2.16, -1.52] as [number, number, number] },
+        spotlightSwitch: { position: [-1.14, 2.16, -1.52] as [number, number, number] },
+        /** Searchlight joystick on a pedestal to port of the wheel (mirrors the throttle's). */
+        spotJoystick: { position: [-0.45, 2.16, -1.15] as [number, number, number] },
         /** DOCK / cast off (where the lever used to stand on the console top). */
         dockButton: { position: [0.45, 2.16, -1.52] as [number, number, number] },
         /** Instrument dash across the front of the console: displays on its aft face. */
@@ -482,6 +485,22 @@ export const CONFIG = {
        * One real PointLight, kept at intensity 0 when off so switching never recompiles shaders.
        */
       cabinLight: { position: [0, 3.22, -0.2] as [number, number, number], intensity: 3, distance: 6 },
+      /**
+       * Searchlight on the wheelhouse roof (vessel axes): beam (cd, m, half-angle deg,
+       * penumbra 0..1), travel limits and joystick rates (deg/s at full deflection).
+       */
+      spotlight: {
+        position: [0, 3.62, -1.55] as [number, number, number],
+        intensity: 30000,
+        distance: 300,
+        angleDeg: 6,
+        penumbra: 0.35,
+        panLimitDeg: 170,
+        tiltMinDeg: -35,
+        tiltMaxDeg: 12,
+        panRateDeg: 50,
+        tiltRateDeg: 22,
+      },
       /**
        * Docking (the DOCK button) and the mooring lines that hold her: bow and stern line
        * points (vessel axes, at the deck edge on the berth side are found automatically).

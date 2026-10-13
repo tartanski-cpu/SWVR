@@ -77,6 +77,19 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
     case 'cabinLight':
       s.controls.cabinLight = intent.value > 0.5 ? 1 : 0;
       break;
+    case 'spotlight':
+      s.controls.spotlight = intent.value > 0.5 ? 1 : 0;
+      break;
+    case 'spotPan': {
+      const sp = VESSEL_DEFS[s.defId].spotlight;
+      s.controls.spotPan = clamp(intent.value, -sp.panLimitDeg, sp.panLimitDeg);
+      break;
+    }
+    case 'spotTilt': {
+      const sp = VESSEL_DEFS[s.defId].spotlight;
+      s.controls.spotTilt = clamp(intent.value, sp.tiltMinDeg, sp.tiltMaxDeg);
+      break;
+    }
     case 'dock':
       // DOCK button: dock in a berth's hot spot, or cast off.
       toggleDock(s);
