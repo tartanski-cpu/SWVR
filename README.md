@@ -2,7 +2,7 @@
 
 A browser-based VR sea rescue and operations game: chunky flat-shaded boats that you operate from the inside, with physical levers, wheels, switches and live instruments. It's built with TypeScript, Vite, Three.js and WebXR, and targets the Meta Quest 3 and desktop browsers.
 
-**Status:** MVP complete (milestones 1–7). A snapshot lives on the `mvp-1` branch. See [`PROGRESS.md`](PROGRESS.md) for what's done, what's next and known issues.
+**Status:** MVP complete (milestones 1–7). A snapshot lives on the `mvp-1` branch. See [`PROGRESS.md`](PROGRESS.md) for what's done, what's next and known issues. Feature ideas and their status are in [`ideas.md`](ideas.md).
 
 What's in the MVP:
 

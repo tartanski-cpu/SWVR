@@ -1,0 +1,74 @@
+# Feature ideas
+
+The owner's feature ideas, in roughly the order they came up, with their status. Technical detail for the work done is in [`PROGRESS.md`](PROGRESS.md).
+
+**Status:** **Done** · **Partly** (a first version exists) · **Open** (not started) · **On hold** (parked on purpose)
+
+## Core vision
+
+| Idea | Status | Notes |
+|---|---|---|
+| A VR sea rescue and operations game in the spirit of a career mode: chunky low-poly boats operated from the inside with physical controls | **Partly** | The boat, bridge, sea, islands and cargo are in. Rescue missions and the career loop are on hold. |
+| Missions and game loop (rescues, jobs, progression) | **On hold** | Parked until asked for. |
+| Multiplayer later | **Partly** | The code is structured for it (intents, plain-data state, fixed tick); see `docs/MULTIPLAYER.md`. Nothing is networked yet. |
+
+## Boat and engine
+
+| Idea | Status | Notes |
+|---|---|---|
+| Displacement workboat with wheel steering | **Done** | 12 m hard-chine hull, hydraulic wheel. |
+| Single slow-revving inboard diesel with a big prop: torquey for manoeuvring and, eventually, towing | **Done** | 200 kW, 600–1800 rpm, 3:1 gearbox, 1.05 m prop. |
+| Towing | **Open** | The engine and prop were sized for it. It needs a tow line and a vessel or object to tow. |
+| Stronger rudder, especially with the engine pushing | **Done** | Bigger slipstream effect on the rudder. |
+| Prop walk | **Done** | Right-handed prop, strongest going astern. |
+| More roll damping | **Done** | About 15 % of critical. |
+| Fuel consumption and oil temperature, so there's refuelling and engine management | **Done** | Fuel burn, coolant and oil temperature, alarms, derate and shutdown, engine-monitor screen, refuelling at fuel berths, pump-failure fault. |
+| Exhaust smoke driven by load and engine temperature | **Done** | Darker under load, black puffs, white when cold. |
+| Low exhaust at the stern so you see it when backing up; no water spray, dirtier smoke | **Done** | Transom outlet, grey-brown diesel smoke. |
+| Cargo: pick up at one port, deliver to another | **Partly** | Basic version: load and unload by menu, cargo has real weight. Not yet: carrying cargo by hand, pay or economy. |
+
+## Bridge and controls
+
+| Idea | Status | Notes |
+|---|---|---|
+| Taller wheelhouse windows for a better view | **Done** | |
+| Grab the throttle lever directly with the hand, not with the laser pointer | **Done** | Levers and the wheel follow the hand. The pointer works only on buttons and switches. |
+| Throttle closer to the skipper | **Done** | It's on a pedestal starboard of the wheel. |
+| A VR menu for configuration and debug controls | **Done** | Wrist menu (Y) with tabs: Sea & time, Boat, Cargo, Comfort, Tests. |
+| Desktop controls that work on a German keyboard | **Done** | Keys bound by physical position. The help shows your own key labels. |
+
+## Moving around in VR
+
+| Idea | Status | Notes |
+|---|---|---|
+| Grab-the-world locomotion as the default | **Done** | Stick walking is optional and can be switched off in the menu. |
+| Vertical movement: climb ladders, go up and down stairs | **Done** | Ladder to the wheelhouse roof; floors at several levels. |
+| BeamNG-style slider from "head fixed to the boat" to "head compensates for the motion" | **Done** | Motion coupling 0–100 % (menu, or X + stick). The default is rigid, because decoupling made the controls hard to grab. |
+
+## World and sea
+
+| Idea | Status | Notes |
+|---|---|---|
+| Explorable small archipelago with small ports | **Done** | Nine islands of different sizes. |
+| A variety of port types: anchor-only bay, big pier, small entrance into a sheltered harbour | **Done** | Selkie Bay, Brannock Pier and Calder Haven. |
+| Wave-height control (slider, or calm / medium / stormy) | **Done** | Presets from Calm to Storm, plus fine ± steps. |
+| Wake and splash effects for immersion, frame-rate friendly | **Done** | Wake, slam spray and water sounds. The bow wave was tried and removed. |
+| Dynamic weather | **Open** | Wind, changing sea state, fog and rain. Wind would also give the anchor something to hold against. |
+| Map and charts | **Open** | The world data already holds the coastlines, depths and ports. For now the menu lists bearing and range to each port. |
+
+## Testing and tools
+
+| Idea | Status | Notes |
+|---|---|---|
+| Keep the sea-trials / inclining test as something to revisit for testing new boats | **Done** | `npm run trials`, the `sea-trials-lab` branch, and `docs/TESTING_NEW_BOATS.md`. |
+
+## Follow-ups noted along the way
+
+These came out of the work above rather than being separate requests:
+
+- **Walking ashore** onto quays and piers.
+- **Solid deck cargo,** so you can't walk through it.
+- **Carrying cargo by hand.**
+- **Mooring lines,** once weather or current gives them something to hold against.
+- **Breaking waves** on beaches.
+- **A moon,** so nights aren't so dark.
