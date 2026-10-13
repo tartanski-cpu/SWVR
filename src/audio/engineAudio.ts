@@ -18,10 +18,11 @@ export interface EngineSoundInput {
  *   diesel worklet ─ ch0 combustion pulses ─► high-pass 45 Hz ─► resonances (110, 220 Hz) ─► low-pass
  *                  │                          (opens with rpm and load) ─► soft clip ─► thump ─┐
  *                  └ ch1 injector clicks ───► high-pass ─► presence peak (3.2 kHz) ─► clatter ─┤
- *   turbo whistle (sine, spools up with load, lags) ──────────────────────────────────────────┤
  *   starter motor whine (while cranking) ──────────────────────────────────────────────────────┤
  *   noise ─► band-pass (intake / exhaust rush, with load) ─────────────────────────────────────┼─► master
  *
+ * Voiced as a working fishing boat's naturally aspirated diesel: no turbo whistle, a dark,
+ * round exhaust note with a resonant stack "pop", lumpy uneven beats and little clatter.
  * The worklet is what makes it "meaty": real, uneven firing pulses (see dieselWorklet.ts),
  * so you hear each cylinder thump at idle and a hard, gritty bark under load. Where
  * AudioWorklet isn't available it falls back to two oscillators (the old, thinner sound).
@@ -37,8 +38,6 @@ export class EngineSound {
     private readonly bodyLp: BiquadFilterNode,
     private readonly thump: GainNode,
     private readonly clatter: GainNode,
-    private readonly turbo: OscillatorNode,
-    private readonly turboGain: GainNode,
     private readonly starter: OscillatorNode,
     private readonly starterGain: GainNode,
     private readonly hiss: GainNode,
@@ -63,9 +62,10 @@ export class EngineSound {
     body.gain.value = 8;
     const body2 = ctx.createBiquadFilter();
     body2.type = 'peaking';
-    body2.frequency.value = 220;
-    body2.Q.value = 1.2;
-    body2.gain.value = 4;
+    // Exhaust stack resonance: the hollow "pop" of each beat.
+    body2.frequency.value = 150;
+    body2.Q.value = 2.2;
+    body2.gain.value = 6;
     const bodyLp = ctx.createBiquadFilter();
     bodyLp.type = 'lowpass';
     bodyLp.Q.value = 0.7;
@@ -112,15 +112,6 @@ export class EngineSound {
       fallback = { osc1, osc2 };
     }
 
-    // ── Turbo whistle ──
-    const turbo = ctx.createOscillator();
-    turbo.type = 'sine';
-    turbo.frequency.value = 1500;
-    const turboGain = ctx.createGain();
-    turboGain.gain.value = 0;
-    turbo.connect(turboGain).connect(master);
-    turbo.start();
-
     // ── Starter motor ──
     const starter = ctx.createOscillator();
     starter.type = 'sawtooth';
@@ -147,7 +138,7 @@ export class EngineSound {
     noise.connect(band).connect(hiss).connect(master);
     noise.start();
 
-    return new EngineSound(ctx, master, worklet, fallback, bodyLp, thump, clatter, turbo, turboGain, starter, starterGain, hiss);
+    return new EngineSound(ctx, master, worklet, fallback, bodyLp, thump, clatter, starter, starterGain, hiss);
   }
 
   /** @param level overall level (distance attenuation etc.); @param t schedule time (default now) */
@@ -168,16 +159,12 @@ export class EngineSound {
       this.fallback.osc2.frequency.setTargetAtTime(Math.max(1, rpm / 40), t, smooth);
     }
     // Brighter and harder as it revs and digs in.
-    this.bodyLp.frequency.setTargetAtTime(220 + 520 * rpmFrac + 700 * load, t, smooth);
-    this.thump.gain.setTargetAtTime(turning ? 0.55 + 0.25 * rpmFrac + 0.35 * load : 0, t, 0.1);
-    this.clatter.gain.setTargetAtTime(e.running ? 0.3 + 0.08 * rpmFrac : 0, t, 0.1);
-    // Turbo: pitch and level follow boost, which lags the rack (spool-up).
-    const boost = load * rpmFrac;
-    this.turbo.frequency.setTargetAtTime(1400 + 5200 * boost, t, 0.6);
-    this.turboGain.gain.setTargetAtTime(e.running ? 0.004 + 0.02 * boost : 0, t, 0.6);
+    this.bodyLp.frequency.setTargetAtTime(190 + 320 * rpmFrac + 380 * load, t, smooth);
+    this.thump.gain.setTargetAtTime(turning ? 0.65 + 0.25 * rpmFrac + 0.35 * load : 0, t, 0.1);
+    this.clatter.gain.setTargetAtTime(e.running ? 0.13 + 0.04 * rpmFrac : 0, t, 0.1);
     this.starter.frequency.setTargetAtTime(120 + rpm * 1.4, t, 0.05);
     this.starterGain.gain.setTargetAtTime(e.cranking ? 0.06 : 0, t, 0.04);
-    this.hiss.gain.setTargetAtTime(e.running ? 0.012 + 0.05 * load * rpmFrac : 0, t, 0.2);
+    this.hiss.gain.setTargetAtTime(e.running ? 0.006 + 0.02 * load * rpmFrac : 0, t, 0.2);
     this.master.gain.setTargetAtTime(level, t, 0.1);
   }
 }

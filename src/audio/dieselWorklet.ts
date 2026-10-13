@@ -29,7 +29,8 @@ class DieselProcessor extends AudioWorkletProcessor {
     this.env = 0;
     this.click = 0;
     this.seed = 12345;
-    this.strength = [1.0, 0.86, 1.08, 0.92, 1.04, 0.9];
+    // A worn fishing-boat engine: cylinders noticeably unequal, so the beat is a lumpy chug.
+    this.strength = [1.0, 0.76, 1.14, 0.84, 1.07, 0.8];
   }
   rand() {
     this.seed = (this.seed * 16807) % 2147483647;
@@ -51,7 +52,7 @@ class DieselProcessor extends AudioWorkletProcessor {
       if (this.phase >= 1) {
         this.phase -= 1;
         this.cyl = (this.cyl + 1) % 6;
-        const s = this.strength[this.cyl] * (0.93 + 0.14 * this.rand());
+        const s = this.strength[this.cyl] * (0.88 + 0.24 * this.rand());
         this.env += s * (firing ? 0.45 + 0.55 * load : 0.2);
         if (firing) this.click += s * (0.9 - 0.6 * load);
       }

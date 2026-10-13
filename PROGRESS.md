@@ -458,6 +458,14 @@ Frame-rate friendly: 3 extra draw calls, a few hundred vertices, and almost no C
   - **Lapping:** short wet clops when smaller waves meet the bow, even at rest (at anchor or alongside). `Spray.update` now reports both slam and lap strengths.
 - Both sound graphs build on any BaseAudioContext, so they are rendered offline (OfflineAudioContext in headless Chrome) to check levels and spectra.
 
+## Done (engine voiced as a fishing boat, owner request)
+
+- **Turbo whistle removed:** naturally aspirated.
+- **Lumpier beat:** cylinder strengths 0.76–1.14 with ±12 % jitter.
+- **Darker, rounder note:** the low-pass is at 190–890 Hz instead of 220–1440, with a resonant exhaust-stack "pop" (150 Hz, Q 2.2).
+- **Less clatter and hiss.**
+- **Rendered:** idle is 63 % at 60–150 Hz and 27 % at 150–400 Hz, with almost nothing above 400 Hz. No clipping.
+
 ## Planned next (owner requests, not started)
 
 1. ~~Fuel and oil temperature~~ **Done** (see above).
