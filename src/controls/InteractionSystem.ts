@@ -43,7 +43,19 @@ interface HandState {
   rayLine: THREE.Line;
 }
 
+/** Multiplayer: who may hold what (see VesselState.holds). */
+export interface HoldRules {
+  /** Someone else has a hand on this control. */
+  lockedByOther(c: Control): boolean;
+  /** A local hand (or the desktop mouse) took hold of / let go of a control. */
+  holdChanged(c: Control, held: boolean): void;
+}
+
+const NO_RULES: HoldRules = { lockedByOther: () => false, holdChanged: () => {} };
+
 export class InteractionSystem {
+  /** Grab controls a local hand or the mouse holds, as last reported to `rules`. */
+  private readonly localHolds = new Set<Control>();
   private readonly owner = new Map<THREE.Object3D, Control>();
   private readonly hitObjects: THREE.Object3D[] = [];
   /** VR pointer-ray targets: buttons and switches only. Levers and the wheel are hand-only. */
@@ -61,6 +73,7 @@ export class InteractionSystem {
     private readonly controls: Control[],
     private readonly emit: (channel: string, value: number) => void,
     private readonly pulse: (hand: Handedness, intensity: number, ms: number) => void,
+    private readonly rules: HoldRules = NO_RULES,
   ) {
     for (const c of controls) {
       for (const o of c.hitObjects) {
@@ -119,7 +132,13 @@ export class InteractionSystem {
         continue;
       }
 
-      // 1. Holding something (grip held).
+      // 1. Holding something (grip held). If another player turns out to have grabbed it
+      // first (both grabbed within one network round trip), theirs wins: let go.
+      if (h.held && this.rules.lockedByOther(h.held)) {
+        h.held.grabEnd(p);
+        h.held = null;
+        this.pulse(hand, 0.8, 80);
+      }
       if (h.held) {
         if (f.gripDown) {
           h.held.grabMove(p);
@@ -171,7 +190,9 @@ export class InteractionSystem {
       // 3. Act on it.
       if (best?.kind === 'grab') {
         busy[hand] = true; // grip on a nearby control is the control's, not locomotion's
-        if (f.gripPressed) {
+        if (f.gripPressed && this.rules.lockedByOther(best)) {
+          this.pulse(hand, 0.8, 80); // someone else has it: a firm bump, no grab
+        } else if (f.gripPressed) {
           best.bind(this.context(hand));
           best.grabStart(p);
           h.held = best;
@@ -184,7 +205,19 @@ export class InteractionSystem {
       }
     }
     this.refreshHover();
+    this.syncHolds();
     return busy;
+  }
+
+  /** Tell the rules about holds that started or ended this frame. */
+  private syncHolds(): void {
+    const now = new Set<Control>();
+    for (const h of Object.values(this.hands)) if (h.held) now.add(h.held);
+    if (this.dragging) now.add(this.dragging);
+    for (const c of now) if (!this.localHolds.has(c)) this.rules.holdChanged(c, true);
+    for (const c of this.localHolds) if (!now.has(c)) this.rules.holdChanged(c, false);
+    this.localHolds.clear();
+    for (const c of now) this.localHolds.add(c);
   }
 
   private showRay(h: HandState, f: HandFrame, hit: THREE.Vector3 | null): void {
@@ -212,7 +245,12 @@ export class InteractionSystem {
    * @returns true while dragging a control (freeze mouse-look).
    */
   updateDesktop(ray: THREE.Ray | null, down: boolean, pressed: boolean, released: boolean, dx: number, dy: number): boolean {
-    // Continue an existing drag.
+    // Continue an existing drag (unless someone else turned out to have it first).
+    if (this.dragging && this.rules.lockedByOther(this.dragging)) {
+      this.dragging.grabEnd(this.deskPointer);
+      this.dragging.held = false;
+      this.dragging = null;
+    }
     if (this.dragging) this.dragging.nudge(dx, dy);
 
     let hover: Control | null = null;
@@ -224,7 +262,7 @@ export class InteractionSystem {
     }
 
     // Press before release: on a slow frame both can arrive together (a quick click).
-    if (pressed && hover) {
+    if (pressed && hover && !(hover.kind === 'grab' && this.rules.lockedByOther(hover))) {
       hover.bind(this.context(null));
       if (hover.kind === 'grab') {
         hover.held = true;
@@ -248,12 +286,15 @@ export class InteractionSystem {
     }
     this.deskHover = this.dragging ?? hover;
     this.refreshHover();
+    this.syncHolds();
     return this.dragging !== null;
   }
 
   /** Name of whatever the desktop reticle is on (for a hint), or null. */
   get desktopHoverLabel(): string | null {
-    return this.deskHover?.label ?? null;
+    const c = this.deskHover;
+    if (!c) return null;
+    return c.kind === 'grab' && this.rules.lockedByOther(c) ? `${c.label} (crew-mate has it)` : c.label;
   }
 
   private refreshHover(): void {
@@ -263,6 +304,6 @@ export class InteractionSystem {
       if (h.held) hovered.add(h.held);
     }
     if (this.deskHover) hovered.add(this.deskHover);
-    for (const c of this.controls) c.setHover(hovered.has(c));
+    for (const c of this.controls) c.setHover(hovered.has(c), c.kind === 'grab' && this.rules.lockedByOther(c));
   }
 }

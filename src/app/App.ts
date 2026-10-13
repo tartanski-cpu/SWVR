@@ -25,11 +25,11 @@ import { platformWalkArea, vesselWalkArea, type WalkArea } from '../vessel/layou
 import { leverDemand } from '../vessel/physics/propulsion';
 import { Locomotion } from '../player/locomotion';
 import { ComfortOverlay, MotionDecoupler } from '../player/comfort';
-import { saveUserSettings, userSettings } from '../player/userSettings';
+import { PLAYER_NAMES, saveUserSettings, userSettings } from '../player/userSettings';
 import { WristMenu } from '../ui/wristMenu';
 import { mainMenu, type MenuHost } from '../ui/mainMenu';
 import { placeInFront } from '../ui/placeInFront';
-import { canRefuel } from '../vessel/vesselControl';
+import { canRefuel, releaseHolds } from '../vessel/vesselControl';
 import { PORTS } from '../world/archipelago';
 import { groundHeight } from '../world/terrain';
 import { aboard, cargoLabel, cargoPortAt, loadBlocker, payloadMass, unloadBlocker, type CargoItem } from '../cargo/cargo';
@@ -697,6 +697,12 @@ export class App {
       probes: () => this.probes.mesh.visible,
       toggleProbes: () => this.probes.toggle(),
       netStatus: () => this.netStatus(),
+      playerName: () => userSettings.playerName,
+      nextPlayerName: () => {
+        const i = PLAYER_NAMES.indexOf(userSettings.playerName);
+        userSettings.playerName = PLAYER_NAMES[(i + 1) % PLAYER_NAMES.length];
+        saveSettings();
+      },
       netRole: () => (this.host ? 'host' : this.client ? 'client' : this.hostStarting ? 'starting' : 'solo'),
       hostGame: () => this.hostGame(),
       leaveGame: () => {
@@ -766,6 +772,7 @@ export class App {
     };
     const r = (x: number) => Math.round(x * 1000) / 1000;
     const pose: PlayerPose = {
+      name: userSettings.playerName,
       aboardVesselId: p.aboardVesselId,
       position: p.position,
       yaw: p.yaw,
@@ -774,6 +781,7 @@ export class App {
       right: hand('right'),
     };
     if (this.host) {
+      p.name = pose.name;
       p.avatar = { head: pose.head, left: pose.left, right: pose.right };
       return;
     }
@@ -817,7 +825,7 @@ export class App {
 
   /** Become a client over `transport` (PeerJS, or the in-memory loopback in tests). */
   private connectClient(transport: ClientTransport): void {
-    const client = new ClientSession(transport, `Crew ${this.joinCode.slice(-2)}`);
+    const client = new ClientSession(transport, userSettings.playerName);
     this.client = client;
     this.netMessage = '';
     client.onWelcome = (playerId, world) => {
@@ -854,7 +862,9 @@ export class App {
   private toSolo(): void {
     this.client = null;
     for (const id of Object.keys(this.world.players)) if (id !== this.localPlayerId) delete this.world.players[id];
-    // The local simulation carries on from the last snapshot.
+    // The local simulation carries on from the last snapshot. Nobody else is here now,
+    // and our own holds were under the id the host gave us: start with free hands.
+    for (const v of Object.values(this.world.vessels)) releaseHolds(v);
     this.movePlayer(this.soloPlayerId);
   }
 
@@ -905,6 +915,13 @@ export class App {
       this.bridge.controls,
       (channel, value) => (channel === 'engineStartStop' ? this.requestEngineStartStop() : this.pushVesselIntent(channel, value)),
       (hand, i, ms) => this.xrInput.pulse(hand, i, ms),
+      {
+        lockedByOther: (c) => {
+          const who = this.world.vessels[this.testVesselId]?.holds[c.channel];
+          return !!who && who !== this.localPlayerId;
+        },
+        holdChanged: (c, held) => this.pushVesselIntent('hold', held ? 1 : 0, c.channel),
+      },
     );
     this.scene.add(this.interaction.rayLine('left'), this.interaction.rayLine('right'));
     this.pointer = new DesktopPointer(this.renderer.domElement, this.desktop, this.interaction, this.menu);

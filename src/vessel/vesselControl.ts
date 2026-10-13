@@ -40,12 +40,38 @@ export function dropVessel(s: VesselState): void {
   placeVessel(s, sp.x, sp.dropHeight, sp.z, sp.headingDeg, 6, -3);
 }
 
+/** Grab controls that can be held, by channel. */
+const HOLDABLE: Record<string, true> = { lever: true, helm: true, spotPan: true };
+/** Intent -> the hold that guards it (the joystick drives pan and tilt). */
+const HOLD_KEY: Record<string, string> = { lever: 'lever', helm: 'helm', spotPan: 'spotPan', spotTilt: 'spotPan' };
+
+/** Let go of everything a player is holding (they left, or the game ended). */
+export function releaseHolds(s: VesselState, playerId?: string): void {
+  for (const [k, who] of Object.entries(s.holds)) if (playerId === undefined || who === playerId) delete s.holds[k];
+}
+
 /**
  * Vessel intents: the only way players (local or, later, remote) operate a vessel.
  * Values are absolute (lever at 0.6, not "+0.1") so a repeated or late intent is harmless.
  */
 export function applyVesselIntent(s: VesselState, intent: Intent): void {
+  // A grab control someone else has a hand on only answers to them.
+  const guard = HOLD_KEY[intent.control];
+  const holder = guard ? s.holds[guard] : undefined;
+  if (holder && holder !== intent.playerId) return;
   switch (intent.control) {
+    case 'hold': {
+      // ref = the control's channel; value 1 = hand on, 0 = hand off.
+      const key = intent.ref ?? '';
+      if (!(key in HOLDABLE)) break;
+      const current = s.holds[key];
+      if (intent.value > 0.5) {
+        if (!current) s.holds[key] = intent.playerId;
+      } else if (current === intent.playerId) {
+        delete s.holds[key];
+      }
+      break;
+    }
     case 'lever':
       s.controls.lever = clamp(intent.value, -1, 1);
       break;

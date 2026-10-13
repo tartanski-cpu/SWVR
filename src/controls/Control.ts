@@ -40,6 +40,7 @@ export abstract class Control {
   /** Objects the pointer ray / desktop reticle can hit. */
   readonly hitObjects: THREE.Object3D[] = [];
   hovered = false;
+  private lockedShown = false;
   held = false;
   /** Whether two hands may hold it at once (the wheel). */
   readonly multiGrab: boolean = false;
@@ -83,10 +84,12 @@ export abstract class Control {
   pressStart(): void {}
   pressEnd(): void {}
 
-  setHover(on: boolean): void {
-    if (on === this.hovered) return;
+  /** Hover glow: green, or red if another player has their hand on it (multiplayer). */
+  setHover(on: boolean, locked = false): void {
+    if (on === this.hovered && locked === this.lockedShown) return;
     this.hovered = on;
-    for (const m of this.highlightMaterials) m.emissive.setHex(on ? 0x335533 : 0x000000);
+    this.lockedShown = locked;
+    for (const m of this.highlightMaterials) m.emissive.setHex(!on ? 0x000000 : locked ? 0x662222 : 0x335533);
   }
 
   /** Make a flat-shaded material that lights up when the control is hovered. */

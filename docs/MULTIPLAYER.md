@@ -8,7 +8,9 @@ Co-op crew on one shared boat, peer-to-peer: one player hosts, the others join w
 2. **Join:** on the other headset or browser, **Crew** tab → type the code on the keypad → **Join**. You appear on the platform; board the boat as usual (left stick click / B).
 3. **Leave:** **Leave game** (or **Stop hosting**). Everyone carries on alone from where things were. If the host leaves, the crew get "The host left" and continue solo.
 
-Everyone can use every control. Two people grabbing the same lever at once will fight over it (see "Not yet").
+Everyone can use every control. **Levers, the wheel and the searchlight joystick have one owner at a time:** the first hand on it keeps it until it lets go. If a crew-mate has it, the control glows red when you reach for it and your grip gets a firm bump instead of grabbing. Buttons and switches anyone can press.
+
+**Names:** Crew tab → **Your name** → **Change** cycles through Skipper, Mate, Bosun and so on (typing in VR is awkward). Your name shows on a tag over your head and can be changed mid-game.
 
 ## Design
 
@@ -44,6 +46,10 @@ Everything a player sends is in the frame they stand in: on deck, that's the ves
 - **Waves** are a pure function of world time and the wave components in the snapshot, so the client draws the same sea at its render time. The boat and the water agree.
 - **Everything else** (controls, engine, fuel, cargo, docking, anchor, lights, time of day, other players) comes straight from the newest snapshot. Gauges, sounds and effects read it as in single player.
 
+### Control ownership
+
+`VesselState.holds` maps a grab control's channel to the player holding it. A local grab sends `hold` = 1 (ref = channel), letting go sends 0. The simulation grants a hold only if it's free, and ignores lever/helm/spot intents from anyone but the holder. If two players grab within one round trip, the host's order decides: the loser's interaction system sees the hold belongs to someone else, lets go and bumps the controller. A player who leaves releases everything they held.
+
 ### Latency feel
 
 - **Your hand on a control:** instant. A held control shows the hand's position, not the state.
@@ -66,8 +72,7 @@ Tests: `tests/net.test.ts` (loopback host and client: welcome, intents stamped a
 
 ## Not yet
 
-- **Control ownership:** a `heldBy` per grab control, so the first hand on the lever keeps it and others get a haptic bump.
-- **Several boats:** the world and views already handle many vessels; it needs spawning a second boat and the bridge, audio and menu following "the boat I'm aboard" instead of the one test boat.
-- **Names over heads,** voice chat (WebRTC can carry audio on the same connection).
+- **Several boats** (not wanted for now): the world and views already handle many vessels; it needs spawning a second boat and the bridge, audio and menu following "the boat I'm aboard" instead of the one test boat.
+- **Voice chat** (WebRTC can carry audio on the same connection). Not wanted for now.
 - **Host migration:** if the host leaves, the game ends for everyone.
 - **TURN relay** for networks where direct connections fail (a paid or self-hosted service; ask first).

@@ -60,6 +60,8 @@ function fakeHost() {
     probes: () => state.probes,
     toggleProbes: () => calls.push('probes'),
     netStatus: () => 'Playing alone',
+    playerName: () => 'Mate',
+    nextPlayerName: () => calls.push('name'),
     netRole: () => 'solo',
     hostGame: () => calls.push('host'),
     leaveGame: () => calls.push('leave'),

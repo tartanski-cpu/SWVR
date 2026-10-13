@@ -116,6 +116,11 @@ export interface VesselState {
   /** Taking fuel at a fuel berth. */
   refuelling: boolean;
   contact: ContactState;
+  /**
+   * Who has a hand on each grab control (multiplayer): channel -> player id. The first
+   * hand keeps it until it lets go; other players' intents for it are ignored meanwhile.
+   */
+  holds: Record<string, EntityId>;
 }
 
 export function createVesselState(id: EntityId, defId: string): VesselState {
@@ -141,6 +146,7 @@ export function createVesselState(id: EntityId, defId: string): VesselState {
       oilC: CONFIG.environment.seaTempC,
       coolingFault: false,
     },
+    holds: {},
     rudder: 0,
     thrust: 0,
     anchor: { phase: 'stowed', x: 0, z: 0, rodeM: 0, tension: 0, dragging: false },

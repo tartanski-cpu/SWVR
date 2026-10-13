@@ -20,6 +20,8 @@ import type { Vec3 } from '../core/math';
 
 /** A player's body as others should see it, in the frame of what they're aboard. */
 export interface PlayerPose {
+  /** Shown over the head; can change mid-game from the menu. */
+  name: string;
   aboardVesselId: EntityId | null;
   position: Vec3;
   yaw: number;

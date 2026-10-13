@@ -11,6 +11,8 @@ interface Avatar {
   left: THREE.Mesh;
   right: THREE.Mesh;
   frame: THREE.Object3D | null;
+  tag: THREE.Sprite;
+  tagName: string;
 }
 
 /**
@@ -51,6 +53,8 @@ export class AvatarsView {
       } else {
         a.head.position.set(0, 1.65, 0);
       }
+      if (a.tagName !== p.name) drawTag(a, p.name);
+      a.tag.position.set(a.head.position.x, a.head.position.y + 0.32, a.head.position.z);
       const neck = Math.max(0.6, a.head.position.y - 0.18);
       a.body.scale.set(1, neck, 1);
       a.body.position.set(a.head.position.x * 0.7, neck / 2, a.head.position.z * 0.7);
@@ -65,6 +69,8 @@ export class AvatarsView {
     for (const [id, a] of this.avatars) {
       if (seen.has(id)) continue;
       a.root.removeFromParent();
+      (a.tag.material.map as THREE.Texture).dispose();
+      a.tag.material.dispose();
       this.avatars.delete(id);
     }
   }
@@ -84,8 +90,17 @@ export class AvatarsView {
     const handGeo = new THREE.SphereGeometry(0.05, 8, 6);
     const left = new THREE.Mesh(handGeo, mat);
     const right = new THREE.Mesh(handGeo, mat);
-    root.add(head, body, left, right);
-    const a: Avatar = { root, head, body, left, right, frame: null };
+    // Name tag: a camera-facing sprite above the head, redrawn when the name changes.
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 64;
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, fog: false, toneMapped: false }));
+    tag.scale.set(0.6, 0.15, 1);
+    tag.userData.color = color;
+    root.add(head, body, left, right, tag);
+    const a: Avatar = { root, head, body, left, right, frame: null, tag, tagName: '' };
     this.avatars.set(id, a);
     return a;
   }
@@ -97,4 +112,31 @@ function snap(a: Avatar, feet: number[], av: WorldState['players'][string]['avat
     a.head.position.set(av.head[0] - feet[0], av.head[1] - feet[1], av.head[2] - feet[2]);
     a.head.quaternion.set(av.head[3], av.head[4], av.head[5], av.head[6]);
   }
+}
+
+/** Draw a name on the avatar's tag: white text on a dark pill edged in the avatar colour. */
+function drawTag(a: Avatar, name: string): void {
+  a.tagName = name;
+  const map = a.tag.material.map as THREE.CanvasTexture;
+  const canvas = map.image as HTMLCanvasElement;
+  const g = canvas.getContext('2d');
+  if (!g) return;
+  const w = canvas.width;
+  const h = canvas.height;
+  g.clearRect(0, 0, w, h);
+  g.font = 'bold 34px system-ui, sans-serif';
+  const tw = Math.min(w - 12, g.measureText(name).width + 36);
+  const x = (w - tw) / 2;
+  g.fillStyle = 'rgba(14, 22, 26, 0.75)';
+  g.beginPath();
+  g.roundRect(x, 6, tw, h - 12, (h - 12) / 2);
+  g.fill();
+  g.lineWidth = 4;
+  g.strokeStyle = `#${(a.tag.userData.color as number).toString(16).padStart(6, '0')}`;
+  g.stroke();
+  g.fillStyle = '#f2f5f5';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText(name, w / 2, h / 2 + 1, tw - 20);
+  map.needsUpdate = true;
 }

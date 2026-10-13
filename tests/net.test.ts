@@ -22,6 +22,7 @@ async function setup() {
 }
 
 const pose = (aboard: string | null): PlayerPose => ({
+  name: 'Bosun',
   aboardVesselId: aboard,
   position: [0.5, 1.2, -0.7],
   yaw: 0.3,

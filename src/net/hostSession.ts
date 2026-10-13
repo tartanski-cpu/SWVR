@@ -3,6 +3,7 @@ import type { Intent } from '../core/intents';
 import type { WorldState } from '../core/world';
 import { createPlayerState } from '../player/playerState';
 import { placeOnPlatform } from '../player/playerControl';
+import { releaseHolds } from '../vessel/vesselControl';
 import { NET_RATE, type ClientMessage, type HostMessage } from './protocol';
 import type { HostTransport, Link } from './transport';
 
@@ -54,6 +55,7 @@ export class HostSession {
       const p = this.world.players[peer.playerId];
       if (!p) return;
       const pose = msg.pose;
+      if (typeof pose.name === 'string' && pose.name) p.name = pose.name.slice(0, 24);
       p.aboardVesselId = pose.aboardVesselId && this.world.vessels[pose.aboardVesselId] ? pose.aboardVesselId : null;
       p.position = pose.position;
       p.yaw = pose.yaw;
@@ -65,6 +67,7 @@ export class HostSession {
     const peer = this.peers.get(link.id);
     if (!peer) return;
     delete this.world.players[peer.playerId];
+    for (const v of Object.values(this.world.vessels)) releaseHolds(v, peer.playerId);
     this.peers.delete(link.id);
   }
 
@@ -88,7 +91,10 @@ export class HostSession {
   }
 
   close(): void {
-    for (const { playerId } of this.peers.values()) delete this.world.players[playerId];
+    for (const { playerId } of this.peers.values()) {
+      delete this.world.players[playerId];
+      for (const v of Object.values(this.world.vessels)) releaseHolds(v, playerId);
+    }
     this.peers.clear();
     this.transport.close();
   }

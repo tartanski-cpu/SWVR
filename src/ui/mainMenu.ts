@@ -55,6 +55,9 @@ export interface MenuHost {
   toggleProbes(): void;
   /** Multiplayer: one-line status, and whether we're alone, hosting or in someone's game. */
   netStatus(): string;
+  /** Your name over your head, and the next one from the list. */
+  playerName(): string;
+  nextPlayerName(): void;
   netRole(): 'solo' | 'starting' | 'host' | 'client';
   hostGame(): void;
   leaveGame(): void;
@@ -254,6 +257,7 @@ export function mainMenu(h: MenuHost): MainMenu {
   const crew: MenuRow[] = [
     { heading: 'Crew (multiplayer)' },
     { label: '', buttons: [{ text: () => h.netStatus() }] },
+    { label: 'Your name', buttons: [{ text: () => h.playerName(), weight: 1.6 }, { text: 'Change', press: () => h.nextPlayerName() }] },
     {
       label: '',
       buttons: [

@@ -10,7 +10,7 @@ The owner's feature ideas, in roughly the order they came up, with their status.
 |---|---|---|
 | A VR sea rescue and operations game in the spirit of a career mode: chunky low-poly boats operated from the inside with physical controls | **Partly** | The boat, bridge, sea, islands and cargo are in. Rescue missions and the career loop are on hold. |
 | Missions and game loop (rescues, jobs, progression) | **On hold** | Parked until asked for. |
-| Multiplayer | **Partly** | Version 1 on the `multiplayer` branch: peer-to-peer, one player hosts, crew join with a code, shared boat, avatars. Not yet: control ownership, several boats, names, voice. See `docs/MULTIPLAYER.md`. |
+| Multiplayer | **Partly** | Version 1 on the `multiplayer` branch: peer-to-peer, one player hosts, crew join with a code, shared boat, avatars. Control ownership and name tags done. Not wanted for now: several boats, voice. See `docs/MULTIPLAYER.md`. |
 
 ## Boat and engine
 
