@@ -290,12 +290,11 @@ The owner asked for "a diesel inboard, not a revvy outboard, with a bigger prop 
    - A chart display (canvas atlas page) rendered from the world registry: coastlines, depth contours, ports, buoys, plus own-ship position, heading and track history. It could be a chartplotter screen on the dash, a paper chart on the chart table, or a page on the wrist menu.
    - GPS position in the vessel state (already known: world position). Waypoints and a course-to-steer readout could feed an autopilot later, which would just be another intent source driving `helm`.
 
-6. **Exhaust smoke driven by load and engine temperature.** *Done as a wet exhaust* (owner request).
-   - Smoke and cooling water leave through one transom outlet, starboard, just above the DWL (`exhaust.position` / `direction`).
-   - **Smoke** (steamy grey-white): load-driven, dark puff on fast throttle-up, dark when labouring, start-up burst.
-   - **Cooling water:** pulsing droplet jet with flow ∝ RPM (engine-driven raw-water pump), ballistic, dying when it hits the sea.
-   - **When the outlet is under a wave:** no jet, and the smoke bubbles up at the surface.
-   - **World-space particles:** under way the plume trails astern; going astern you back into it. 2 draw calls.
+6. **Exhaust smoke driven by load and engine temperature.** *Done* (owner request).
+   - Smoke leaves through a low transom outlet, starboard, just above the DWL (`exhaust.position` / `direction`), so it's visible when backing up. The cooling-water spray was tried and then removed at the owner's request.
+   - **Smoke:** dirty grey-brown diesel haze even at idle, denser and darker with load, a black puff on fast throttle-up (turbo lag), black when labouring, and a start-up burst.
+   - **When the outlet is under a wave:** the smoke bubbles up at the surface.
+   - **World-space particles:** under way the plume trails astern; going astern you back into it. 1 draw call.
    - **Still to do:** white smoke when cold (needs the coolant-temperature model) and wind drift (needs weather). The original notes follow.
    - A small particle system at the exhaust outlet (funnel or stack on the wheelhouse roof): one instanced or Points draw call with a soft sprite.
    - **Driven by the engine state:**

@@ -2,32 +2,24 @@ import * as THREE from 'three';
 import type { VesselDef } from '../vesselDef';
 import type { VesselState } from '../vesselState';
 
-const SMOKE_MAX = 160;
-const WATER_MAX = 120;
+const SMOKE_MAX = 200;
 
 /**
- * Wet exhaust out of the transom: engine cooling water and smoke leave through the same
- * outlet just above the waterline, blowing aft. Driven by engine state only:
- *
- *   smoke  - steamy grey-white (it's been through the water-cooled riser); thicker and
- *            darker with fuel rack (load); a dark puff when the rack rises quickly (turbo
- *            lag); dark when labouring (full rack, RPM well below rated); a burst on start-up.
- *   water  - spurts of heavy droplets that arc out and fall back; flow follows RPM because
- *            the raw-water pump is engine driven.
- *   submerged outlet (a wave or the stern squatting): no water jet, and the smoke bubbles
- *            up at the surface instead.
+ * Diesel exhaust smoke from the transom outlet, just above the waterline, blowing aft.
+ * Driven by engine state only: a dirty grey-brown haze even at idle, thicker and darker
+ * with fuel rack (load), a black puff when the rack rises quickly (turbo lag), black when
+ * labouring (full rack, RPM well below rated), and a cloud on start-up. When a wave covers
+ * the outlet the smoke bubbles up at the surface instead.
  *
  * Particles live in WORLD space and leave with the boat's velocity plus the outlet's jet,
  * then drag to still air - under way the plume trails astern, and going astern you back
- * into it so it rolls up around the stern. Two Points draw calls (smoke, water).
+ * into it so it rolls up around the stern. One Points draw call.
  * (White smoke when cold comes with the planned coolant-temperature model.)
  */
 export class ExhaustSmoke {
   readonly root = new THREE.Group();
-  private readonly smoke = new ParticlePool(SMOKE_MAX, 1.1, puffTexture());
-  private readonly water = new ParticlePool(WATER_MAX, 0.2, puffTexture());
+  private readonly smoke = new ParticlePool(SMOKE_MAX, 1.25, puffTexture());
   private smokeAccum = 0;
-  private waterAccum = 0;
   private lastRack = 0;
   private lastPhase = 'off';
   private readonly outlet = new THREE.Vector3();
@@ -35,8 +27,8 @@ export class ExhaustSmoke {
   private readonly q = new THREE.Quaternion();
 
   constructor() {
-    this.root.name = 'wetExhaust';
-    this.root.add(this.smoke.points, this.water.points);
+    this.root.name = 'exhaustSmoke';
+    this.root.add(this.smoke.points);
   }
 
   /**
@@ -57,7 +49,7 @@ export class ExhaustSmoke {
     this.lastRack = e.rack;
     const puff = Math.min(1, rackRate / 0.4);
     const labour = running && e.rack > 0.9 && e.rpm < 0.85 * def.engine.ratedRpm ? 1 : 0;
-    const darkness = Math.min(1, 0.1 + 0.4 * e.rack + 0.5 * puff + 0.35 * labour);
+    const darkness = Math.min(1, 0.35 + 0.4 * e.rack + 0.5 * puff + 0.4 * labour);
     let burst = 0;
     if (running && this.lastPhase === 'cranking') burst = 25;
     this.lastPhase = e.phase;
@@ -65,7 +57,7 @@ export class ExhaustSmoke {
     const [vx, vy, vz] = s.linearVelocity;
 
     // ── Smoke ──
-    this.smokeAccum += (running ? (submerged ? 0.5 : 1) * (5 + 30 * e.rack + 40 * puff) : 0) * dt + burst;
+    this.smokeAccum += (running ? (submerged ? 0.5 : 1) * (12 + 35 * e.rack + 45 * puff) : 0) * dt + burst;
     while (this.smokeAccum >= 1) {
       this.smokeAccum -= 1;
       const jet = submerged ? 0.3 : 2 + 3 * rpmFrac;
@@ -78,34 +70,13 @@ export class ExhaustSmoke {
         vy + this.dir.y * jet + 0.4 + Math.random() * 0.4,
         vz + this.dir.z * jet + jitter(0.4),
         2.5 + 2.5 * Math.random(),
-        burst > 0 ? 0.7 : darkness,
-        burst > 0 ? 0.55 : 0.12 + 0.4 * darkness,
-      );
-    }
-
-    // ── Cooling water (pulsing spurts) ──
-    const pulse = 0.6 + 0.4 * Math.sin(performance.now() * 0.012);
-    this.waterAccum += running && !submerged ? (25 + 70 * rpmFrac) * pulse * dt : 0;
-    while (this.waterAccum >= 1) {
-      this.waterAccum -= 1;
-      const jet = 1.6 + 2.2 * rpmFrac + Math.random() * 0.6;
-      this.water.emit(
-        this.outlet.x + jitter(0.04),
-        this.outlet.y + jitter(0.04),
-        this.outlet.z,
-        vx + this.dir.x * jet + jitter(0.25),
-        vy + this.dir.y * jet + jitter(0.25),
-        vz + this.dir.z * jet + jitter(0.25),
-        0.5 + 0.4 * Math.random(),
-        -1, // water colour
-        0.75,
+        burst > 0 ? 0.9 : darkness,
+        burst > 0 ? 0.7 : 0.3 + 0.45 * darkness,
       );
     }
 
     // Smoke: drag to still air, gentle rise, lightens and fades as it disperses.
-    this.smoke.step(dt, 1.0, 0.45, 0, (t, shade) => 0.92 - 0.6 * shade + 0.15 * t);
-    // Water: ballistic with a little air drag; dies when it hits the sea.
-    this.water.step(dt, 0.15, 0, -9.81, () => 0.9, surfaceAt);
+    this.smoke.step(dt, 1.0, 0.45, 0, (t, shade) => 0.62 - 0.5 * shade + 0.2 * t);
   }
 }
 
@@ -160,7 +131,6 @@ class ParticlePool {
    * @param rise    terminal upward drift (m/s) for buoyant smoke
    * @param gravity vertical acceleration (m/s^2)
    * @param grey    grey level from (age fraction, shade)
-   * @param surfaceAt if given, particles die when they fall below the sea surface
    */
   step(
     dt: number,
@@ -168,7 +138,6 @@ class ParticlePool {
     rise: number,
     gravity: number,
     grey: (t: number, shade: number) => number,
-    surfaceAt?: (x: number, z: number) => number,
   ): void {
     const d = Math.exp(-drag * dt);
     for (let i = 0; i < this.max; i++) {
@@ -185,23 +154,12 @@ class ParticlePool {
       this.pos[k] += this.vel[k] * dt;
       this.pos[k + 1] += this.vel[k + 1] * dt;
       this.pos[k + 2] += this.vel[k + 2] * dt;
-      if (surfaceAt && this.pos[k + 1] < surfaceAt(this.pos[k], this.pos[k + 2])) {
-        this.age[i] = this.life[i];
-        this.col[c + 3] = 0;
-        continue;
-      }
       const t = a / this.life[i];
-      if (this.shade[i] < 0) {
-        // Water: white-blue spray.
-        this.col[c] = 0.82;
-        this.col[c + 1] = 0.9;
-        this.col[c + 2] = 0.95;
-      } else {
-        const g = grey(t, this.shade[i]);
-        this.col[c] = g;
-        this.col[c + 1] = g;
-        this.col[c + 2] = g;
-      }
+      // Dirty diesel smoke: grey with a slight brown cast.
+      const g = grey(t, this.shade[i]);
+      this.col[c] = g * 1.04;
+      this.col[c + 1] = g;
+      this.col[c + 2] = g * 0.9;
       this.col[c + 3] = this.alpha[i] * Math.min(1, a * 8) * (1 - t) ** 1.5;
     }
     this.points.geometry.attributes.position.needsUpdate = true;
