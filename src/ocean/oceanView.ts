@@ -3,12 +3,14 @@ import { CONFIG } from '../config';
 import type { EnvironmentView } from '../environment/environmentView';
 import { createOceanGeometry, distanceForCellSize } from './oceanGeometry';
 import fragmentShader from './shaders/ocean.frag.glsl?raw';
-import vertexShader from './shaders/ocean.vert.glsl?raw';
+import oceanVertex from './shaders/ocean.vert.glsl?raw';
+import gerstnerChunk from './shaders/gerstner.glsl?raw';
 import type { PreparedWave } from './waves';
 import { SHELTERS } from '../world/archipelago';
 import { MAX_SHELTERS } from '../world/shelter';
 
-const MAX_WAVES = 8;
+export const MAX_WAVES = 8;
+export { gerstnerChunk };
 
 /**
  * The visible ocean: one large graded grid that follows the viewer, displaced on the GPU
@@ -16,6 +18,27 @@ const MAX_WAVES = 8;
  */
 export class OceanView {
   readonly mesh: THREE.Mesh;
+  /**
+   * Uniforms other water-surface shaders share by reference (the wake): the wave sum,
+   * shelter zones, viewer centre, lighting and fog. Updated here once per frame.
+   */
+  get sharedUniforms() {
+    const u = this.uniforms;
+    return {
+      uWaveA: u.uWaveA,
+      uWaveB: u.uWaveB,
+      uWaveCount: u.uWaveCount,
+      uCenter: u.uCenter,
+      uShelter: u.uShelter,
+      uShelterK: u.uShelterK,
+      uShelterCount: u.uShelterCount,
+      uSunIntensity: u.uSunIntensity,
+      uAmbient: u.uAmbient,
+      uFogColor: u.uFogColor,
+      uFogNear: u.uFogNear,
+      uFogFar: u.uFogFar,
+    };
+  }
   private readonly uniforms = {
     uWaveA: { value: Array.from({ length: MAX_WAVES }, () => new THREE.Vector4()) },
     uWaveB: { value: Array.from({ length: MAX_WAVES }, () => new THREE.Vector4()) },
@@ -49,7 +72,7 @@ export class OceanView {
   constructor() {
     const material = new THREE.ShaderMaterial({
       uniforms: this.uniforms,
-      vertexShader,
+      vertexShader: `${gerstnerChunk}\n${oceanVertex}`,
       fragmentShader,
       defines: { MAX_WAVES, MAX_SHELTERS },
     });

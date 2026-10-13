@@ -467,6 +467,50 @@ export const CONFIG = {
     },
   },
 
+  /** Water effects (all one draw call each; see vessel/view/wakeTrail.ts and spray.ts). */
+  effects: {
+    wake: {
+      /** Ring-buffer size; with the spacing below this must cover `life` at full speed. */
+      maxPoints: 220,
+      /** A new trail point every this many metres travelled... */
+      spacing: 1.2,
+      /** ...or this often (s) while the prop churns with the boat (nearly) stopped. */
+      idleInterval: 0.35,
+      /** Seconds until the foam has gone. The prop wash in the middle fades sooner. */
+      life: 26,
+      washLife: 9,
+      /** Half-width at the transom (m), and how fast the arms spread per m/s of speed (m/s). */
+      startHalfWidth: 1.7,
+      /** tan(19.47°) - the Kelvin wake half-angle - softened. */
+      spreadPerSpeed: 0.3,
+      maxSpread: 2.5,
+      /** Speed (m/s) for full-strength arms, and thrust (N) for full-strength prop wash. */
+      fullArmSpeed: 4,
+      fullWashThrust: 25000,
+    },
+    /**
+     * Bow wave: a second, short foam trail from the stem whose arms peel away along the
+     * sides (the Kelvin arms really start at the bow). Arms only, no prop wash.
+     */
+    bowWave: {
+      startHalfWidth: 0.35,
+      spreadPerSpeed: 0.42,
+      maxSpread: 3,
+      life: 9,
+      fullArmSpeed: 4.5,
+    },
+    spray: {
+      maxParticles: 320,
+      /** Bow wave "moustache": starts above this speed (m/s), particles/s per m/s above it. */
+      bowSpeed: 2.2,
+      bowRate: 18,
+      /** A slam: the bow re-entering the water faster than this (m/s) throws spray. */
+      slamSpeed: 1.0,
+      /** Particles per m/s of slam speed above the threshold (each bow probe). */
+      slamParticles: 14,
+    },
+  },
+
   /**
    * Hull contacts with the seabed, shore, quays and piers: penalty springs at points on the
    * keel, chines and deck edges (vessel physics). Per point: F_n = k·depth − c·v_n (pushing

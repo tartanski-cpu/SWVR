@@ -5,31 +5,53 @@ import type { VesselState } from '../vesselState';
 import { ExhaustSmoke } from './exhaustSmoke';
 import { NavLightsView } from './navLights';
 import { AnchorChainView } from './anchorView';
+import { WakeTrail } from './wakeTrail';
+import { Spray } from './spray';
 
-/** Per-vessel visual effects driven by its state: navigation lights, exhaust smoke, anchor chain. */
+/**
+ * Per-vessel visual effects driven by its state: navigation lights, exhaust smoke, anchor
+ * chain, wake and spray.
+ */
 export class VesselEffects {
   private readonly nav: NavLightsView;
   private readonly smoke = new ExhaustSmoke();
   private readonly chain = new AnchorChainView();
+  private readonly wake: WakeTrail;
+  private readonly bowWave: WakeTrail;
+  private readonly spray: Spray;
 
   /**
-   * @param root  the vessel view's root (nav lights ride on it)
-   * @param world where world-space effects (smoke) live
+   * @param root   the vessel view's root (nav lights ride on it)
+   * @param world  where world-space effects (smoke, wake, spray) live
+   * @param ocean  the ocean's shared uniforms (the wake displaces with the same waves)
    */
   constructor(
     private readonly def: VesselDef,
     private readonly root: THREE.Object3D,
     world: THREE.Object3D,
+    ocean: Record<string, { value: unknown }>,
   ) {
     this.nav = new NavLightsView(def);
     root.add(this.nav.root);
-    world.add(this.smoke.root, this.chain.line);
+    this.wake = new WakeTrail(ocean, def.hull.params.length / 2 - 0.2, 'stern');
+    this.bowWave = new WakeTrail(ocean, -def.hull.params.length / 2 + 0.4, 'bow');
+    this.spray = new Spray(def);
+    world.add(this.smoke.root, this.chain.line, this.wake.mesh, this.bowWave.mesh, this.spray.points);
   }
 
-  /** @param darkness 0 (day) .. 1 (night) */
-  update(dt: number, s: VesselState, waves: PreparedWave[], viewer: THREE.Vector3, darkness: number): void {
+  /**
+   * @param darkness 0 (day) .. 1 (night)
+   * @param time     render time (s), the waves' clock
+   * @returns slam strength 0..1 this frame (bow hitting the water), for sound and haptics
+   */
+  update(dt: number, s: VesselState, waves: PreparedWave[], viewer: THREE.Vector3, darkness: number, time: number): number {
+    const light = 1 - 0.8 * darkness;
     this.nav.update(s.controls.navLights > 0, darkness, viewer);
+    this.smoke.setLight(light);
     this.smoke.update(dt, s, this.def, this.root, (x, z) => surfaceHeight(waves, x, z), viewer);
     this.chain.update(s, this.def, this.root);
+    this.wake.update(s, this.root, waves, time);
+    this.bowWave.update(s, this.root, waves, time);
+    return this.spray.update(dt, s, this.root, waves, viewer, light);
   }
 }

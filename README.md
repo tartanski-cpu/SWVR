@@ -17,6 +17,7 @@ Since the MVP:
 - **VR wrist menu.**
 - **Fuel and engine temperatures:** an engine monitor, alarms and refuelling.
 - **A small archipelago** with three kinds of port (see below), groundings and collisions, an anchor and windlass, sheltered water and an echo sounder.
+- **Wake, bow wave and spray:** foam that rides the swell, spray when the bow slams, and water and splash sounds.
 
 ## Play it (no install)
 

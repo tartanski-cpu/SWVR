@@ -38,6 +38,7 @@ import { InteractionSystem, type HandFrame } from '../controls/InteractionSystem
 import { HornAudio } from '../audio/hornAudio';
 import { AlarmAudio } from '../audio/alarmAudio';
 import { ContactAudio } from '../audio/contactAudio';
+import { WaterAudio } from '../audio/waterAudio';
 import { WorldView } from '../world/view/worldView';
 import { engineAlarms } from '../vessel/physics/engineThermal';
 import { VesselEffects } from '../vessel/view/vesselEffects';
@@ -97,6 +98,7 @@ export class App {
   private readonly horn = new HornAudio();
   private readonly alarm = new AlarmAudio();
   private readonly contactAudio = new ContactAudio();
+  private readonly waterAudio = new WaterAudio();
   private readonly worldView = new WorldView();
   private readonly hands: Record<'left' | 'right', HandFrame> = {
     left: { tracked: false, grip: new THREE.Vector3(), ray: new THREE.Ray(), gripDown: false, gripPressed: false, triggerDown: false, triggerPressed: false },
@@ -164,7 +166,7 @@ export class App {
       this.vesselViews.set(vessel.id, view);
       this.hydroViews.set(vessel.id, hydro);
       this.walkAreas.set(vessel.id, vesselWalkArea(def, def.layout));
-      this.effects.set(vessel.id, new VesselEffects(def, view.root, this.scene));
+      this.effects.set(vessel.id, new VesselEffects(def, view.root, this.scene, this.ocean.sharedUniforms));
     }
     this.setupBridge();
 
@@ -176,6 +178,7 @@ export class App {
       this.horn.attach(this.engineAudio.context);
       this.alarm.attach(this.engineAudio.context);
       this.contactAudio.attach(this.engineAudio.context);
+      this.waterAudio.attach(this.engineAudio.context);
     };
     window.addEventListener('pointerdown', unlock);
     window.addEventListener('keydown', unlock);
@@ -259,15 +262,26 @@ export class App {
     const testVessel = this.world.vessels[this.testVesselId];
     if (this.bridge && testVessel) this.bridge.update(testVessel, dt, this.dashInView());
     const darkness = Math.min(1, Math.max(0, (8 - sunElevation(this.world.environment.timeOfDay)) / 14));
-    for (const [id, fx] of this.effects) fx.update(dt, this.world.vessels[id], this.renderWaves, this.focus, darkness);
+    let slam = 0;
+    for (const [id, fx] of this.effects) {
+      const sl = fx.update(dt, this.world.vessels[id], this.renderWaves, this.focus, darkness, renderTime);
+      if (id === this.testVesselId) slam = sl;
+    }
     this.worldView.lights.update(renderTime, darkness);
     if (testView && testVessel) {
       // Hull contact: thump and scrape, and a jolt through both controllers if you're aboard.
       const d = testView.root.position.distanceTo(this.focus);
       const hit = this.contactAudio.update(testVessel.contact, d, dt);
-      if (hit > 0 && this.world.players[this.localPlayerId].aboardVesselId === testVessel.id) {
+      const aboard = this.world.players[this.localPlayerId].aboardVesselId === testVessel.id;
+      if (hit > 0 && aboard) {
         this.xrInput.pulse('left', 0.3 + 0.7 * hit, 60 + 140 * hit);
         this.xrInput.pulse('right', 0.3 + 0.7 * hit, 60 + 140 * hit);
+      }
+      // Water rushing past and bow slams: sound, and a light thud through the controllers.
+      this.waterAudio.update(Math.hypot(testVessel.linearVelocity[0], testVessel.linearVelocity[2]), slam, d, dt);
+      if (slam > 0.1 && aboard) {
+        this.xrInput.pulse('left', 0.15 + 0.35 * slam, 40 + 60 * slam);
+        this.xrInput.pulse('right', 0.15 + 0.35 * slam, 40 + 60 * slam);
       }
     }
     this.menu.refresh();

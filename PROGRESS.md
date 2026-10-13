@@ -388,6 +388,26 @@ The owner asked for "a diesel inboard, not a revvy outboard, with a bigger prop 
   - **Whitecaps:** grow with the sea's steepness (shader uniform `uFoamAmount`).
 - **Tests (97):** storm-sea scaling, and riding out a storm under way (stays finite, never past 60° of tilt).
 
+## Done (wake, bow wave and spray, owner request)
+
+Frame-rate friendly: 3 extra draw calls, a few hundred vertices, and almost no CPU.
+
+- **Wake** (`vessel/view/wakeTrail.ts`): a foam ribbon from the transom.
+  - **CPU work:** one trail point every 1.2 m (or every 0.35 s while the prop churns at rest). Each records the water's REST position at the transom (inverted through the wave model), the beam direction, the time, and the strength of the arms (from speed) and the prop wash (from thrust). Strips break on a jump or a gap.
+  - **Vertex shader:** spreads each point across 9 vertices, with the half-width growing with age (a softened 19.5° Kelvin spread). It then displaces them with the SAME Gerstner sum as the ocean, now a shared chunk `ocean/shaders/gerstner.glsl`. So the foam rides the swell exactly and drifts with the orbital motion, like real foam.
+  - **Fragment shader:** bright Kelvin arms at the edges and a narrow prop-wash core that fades in 9 s, with clear water between. A noise texture fixed to the water breaks the foam up, and it thins into patches over its 26 s life. It's lit by the scene and fogged.
+  - **Lessons:** fewer vertices across let the flat strips dip under curved crests, hence 9 vertices and a lift that grows with width. Winding flips with direction of travel, hence double-sided.
+- **Bow wave:** a second, short trail from the stem (arms only, 9 s) peeling away along both sides.
+- **Spray** (`vessel/view/spray.ts`): pooled particles, one draw call, sharing `render/particlePool.ts` with the smoke.
+  - **Bow "moustache":** above 2.2 m/s.
+  - **Slam bursts:** probes on both bows detect fast re-entry into the water (bow dropping into a wave).
+  - **Drift:** particles keep the boat's velocity, then drag to still air, so they drift aft over the foredeck in a head sea.
+  - **Night:** spray and smoke now darken at night.
+- **Sound** (`audio/waterAudio.ts`): a water rush that rises with speed, and a splash burst on slams.
+- **Haptics:** a light controller thud on slams.
+- **Tunables:** `CONFIG.effects`.
+- **Tests (100):** trail spacing and quads, no foam when stopped, foam by time with the prop churning, a strip break on a teleport.
+
 ## Planned next (owner requests, not started)
 
 1. ~~Fuel and oil temperature~~ **Done** (see above).
