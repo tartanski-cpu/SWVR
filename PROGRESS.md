@@ -738,6 +738,16 @@ Plan in three milestones: **S1** the skiff itself, **S2** the stern davit (one-c
 - The game's world has the skiff floating off the workboat's starboard side (until S2 hangs it on the davit). Test worlds only get it when asked (`createWorld(..., { tender: true })`).
 - **Tests (182):** skiff trials (speed, battery, turning, motions), drives / drains / steers, no battery no thrust, bumps off the workboat.
 
+### S1 follow-up: gear lever, motor switch, propeller sound (owner feedback)
+
+Owner: in VR the controller drops out of tracking when you look ahead, the twist grip jumped and she went astern.
+- **Gear lever** on the motor's side (`controls/GearSelector.ts`): FORWARD (push toward the bow, green end) / NEUTRAL / REVERSE (pull aft, red end), with detents and a haptic click. Shifting closes the throttle (`obGear` intent).
+- **On/off button** (red, on top of the cowl, aft of the battery bars). The motor starts OFF and in NEUTRAL; no thrust unless it is on and in gear (`obPower`, `controls.obOn`).
+- **Twist grip** now sets only how much throttle (0..1); the direction is the gear lever's, so a tracking glitch can't put her astern. A twist jump of more than 40 degrees in one frame is ignored as a glitch.
+- **Desktop:** click the tiller, W / S as before (through neutral, which shifts the gear for you); the hint shows "motor OFF" or the gear. The debug driving keys switch the motor on and shift for you.
+- **Sound:** the whine is lower, softer (triangle through a lowpass) and about 8 dB down. New **propeller churn**: band-limited noise beating at the blade rate (3 blades, ~75 Hz flat out), louder and rougher astern.
+- **Tests (183):** motor off and neutral give no thrust; shifting closes the throttle; reverse goes astern.
+
 ## Planned next (owner requests, not started)
 
 1. ~~Fuel and oil temperature~~ **Done** (see above).

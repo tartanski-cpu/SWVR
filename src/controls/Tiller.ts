@@ -2,13 +2,17 @@ import * as THREE from 'three';
 import { clamp } from '../core/math';
 import type { OutboardConfig } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
+import { Button } from './Button';
 import { Control, type Pointer } from './Control';
+import { GearSelector } from './GearSelector';
 
 /** Twist (rad) of the grip for full throttle either way. */
 const TWIST_FULL = (60 * Math.PI) / 180;
 /** Desktop keys: throttle change per second (W / S held), tiller swing per second (A / D). */
 const KEY_THROTTLE_RATE = 0.6;
 const KEY_HELM_RATE = 2.0;
+/** Largest believable twist change between frames (rad); more is a tracking glitch. */
+const MAX_TWIST_STEP = (40 * Math.PI) / 180;
 
 /**
  * The outboard's tiller, and the motor it swings: a handle reaching forward over the
@@ -28,7 +32,12 @@ const KEY_HELM_RATE = 2.0;
  */
 export class Tiller extends Control {
   readonly kind = 'grab' as const;
-  readonly label = 'Outboard tiller';
+  /** The gear lever and the on/off button on the motor (they swing with it). */
+  readonly gearLever: GearSelector;
+  readonly power: Button;
+  /** This control and the ones on the motor, for the interaction system. */
+  readonly parts: Control[];
+  private motorOn = false;
   /** Swings with the steering: the motor and the handle. */
   private readonly arm = new THREE.Group();
   private readonly grip: THREE.Mesh;
@@ -46,6 +55,9 @@ export class Tiller extends Control {
   private readonly maxSteer: number;
   private readonly tmpQ = new THREE.Quaternion();
   private readonly axis = new THREE.Vector3();
+  /** Last twist reading: a jump bigger than a wrist can make in a frame is a tracking glitch. */
+  private lastTwist = 0;
+  private gear = 0;
 
   constructor(
     readonly vesselId: string,
@@ -82,12 +94,20 @@ export class Tiller extends Control {
     }
     // An invisible, generous box around the handle: easy to click on the desktop and to
     // find with a hand (the pointer ray ignores visibility).
-    const hit = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.14, t.length), new THREE.MeshBasicMaterial());
-    hit.position.copy(handle.position);
+    // Only the outer part of the handle, so it doesn't hide the controls on the motor.
+    const hit = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.14, t.length * 0.55), new THREE.MeshBasicMaterial());
+    hit.position.set(0, this.grip.position.y, -t.length * 0.725);
     hit.visible = false;
     this.arm.add(hit);
+    // On the motor: the gear lever on its starboard side, the on/off button on top, aft.
+    this.gearLever = new GearSelector(vesselId);
+    this.gearLever.root.position.set(0.138, 0.0, 0.08);
+    this.power = new Button(`power:${vesselId}`, `${vesselId}:obPower`, 'Motor on / off', 'pulse', 0xd03020, (st) => st.controls.obOn > 0);
+    this.power.root.position.set(0, 0.13, 0.22);
+    this.arm.add(this.gearLever.root, this.power.root);
     this.root.add(this.arm);
     this.hitObjects.push(this.grip, handle, hit);
+    this.parts = [this, this.gearLever, this.power];
   }
 
   grabPoint(out: THREE.Vector3): THREE.Vector3 {
@@ -98,10 +118,16 @@ export class Tiller extends Control {
     return this.grip.getWorldPosition(new THREE.Vector3()).distanceTo(world);
   }
 
+  get label(): string {
+    if (!this.motorOn) return 'Outboard tiller (motor OFF: red button on the motor)';
+    return `Outboard tiller (${this.gearLever.gearName})`;
+  }
+
   grabStart(p: Pointer): void {
     this.held = true;
     this.throttleAtGrab = this.throttle;
     this.hasTwist = !!p.quaternion;
+    this.lastTwist = 0;
     if (p.quaternion) this.twistStart.copy(p.quaternion);
   }
 
@@ -117,8 +143,13 @@ export class Tiller extends Control {
       this.axis.set(0, 0, -1).applyQuaternion(this.arm.getWorldQuaternion(new THREE.Quaternion()));
       this.axis.applyQuaternion(this.twistStart.clone().invert());
       const twist = 2 * Math.atan2(r.x * this.axis.x + r.y * this.axis.y + r.z * this.axis.z, r.w);
-      // Right-hand rule about the axis toward the grip: + is clockwise seen from behind it = ahead.
-      this.setThrottle(clamp(this.throttleAtGrab + twist / TWIST_FULL, -1, 1));
+      // A jump of more than ~40 deg in one frame is the controller losing tracking (out of
+      // view), not a wrist: ignore it. The grip only sets HOW MUCH throttle (0..1); the
+      // direction is the gear lever's, so a glitch can never put her in reverse.
+      if (Math.abs(twist - this.lastTwist) > MAX_TWIST_STEP) return;
+      this.lastTwist = twist;
+      // Right-hand rule about the axis toward the grip: + is clockwise seen from behind it = more.
+      this.setThrottle(clamp(this.throttleAtGrab + twist / TWIST_FULL, 0, 1));
     }
   }
 
@@ -138,8 +169,22 @@ export class Tiller extends Control {
   }
 
   tick(dt: number): void {
+    this.gearLever.tick(dt);
+    this.power.tick(dt);
     if (!this.keySteering) return;
-    if (this.keys.y !== 0) this.setThrottle(clamp(this.throttle + this.keys.y * KEY_THROTTLE_RATE * dt, -1, 1));
+    // W / S: one signed command through neutral (forward -> neutral -> reverse), sent as the
+    // gear lever and the twist grip would send it.
+    if (this.keys.y !== 0) {
+      const before = this.gear * this.throttle;
+      let c = clamp(before + this.keys.y * KEY_THROTTLE_RATE * dt, -1, 1);
+      if (Math.sign(c) !== Math.sign(before) && before !== 0) c = 0; // stop in neutral on the way through
+      const g = c > 0 ? 1 : c < 0 ? -1 : 0;
+      if (g !== this.gear) {
+        this.gear = g;
+        this.ctx?.emit(`${this.vesselId}:obGear`, g);
+      }
+      this.setThrottle(Math.abs(c));
+    }
     // A (x -1) turns the bow to port: helm -1. Springs back to the middle with no key.
     const want = this.keys.x;
     const step = KEY_HELM_RATE * dt;
@@ -148,6 +193,10 @@ export class Tiller extends Control {
 
   /** From the authoritative state (another crew member may be steering), unless held here. */
   sync(state: VesselState): void {
+    this.gearLever.sync(state);
+    this.power.sync(state);
+    this.motorOn = state.controls.obOn > 0;
+    this.gear = state.controls.obGear;
     if (!this.held) {
       this.helm = state.controls.helm;
       this.throttle = state.controls.lever;
@@ -170,9 +219,9 @@ export class Tiller extends Control {
   }
 
   private setThrottle(v: number): void {
-    // A small detent at neutral, with a tick.
-    const t = Math.abs(v) < 0.06 ? 0 : v;
-    if (Math.sign(t) !== Math.sign(this.throttle) && this.throttle !== 0) this.ctx?.haptic(0.4, 25);
+    // Closed below a few percent, with a tick as it closes.
+    const t = v < 0.04 ? 0 : v;
+    if (t === 0 && this.throttle !== 0) this.ctx?.haptic(0.4, 25);
     this.throttle = t;
     if (Math.abs(t - this.sentThrottle) > 0.01 || (t === 0 && this.sentThrottle !== 0)) {
       this.ctx?.emit(`${this.vesselId}:lever`, t);

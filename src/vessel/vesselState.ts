@@ -28,6 +28,12 @@ export interface VesselControls {
   /** FM radio: on (0/1) and the station (index into CONFIG.fmRadio.stations). */
   fmOn: number;
   fmStation: number;
+  /**
+   * Outboard boats: motor on (0/1) and gear (-1 reverse, 0 neutral, +1 forward). Their
+   * `lever` is then the twist-grip throttle, 0..1, in that gear.
+   */
+  obOn: number;
+  obGear: number;
 }
 
 /** Docking and mooring lines (physics/mooring.ts). */
@@ -140,7 +146,7 @@ export function createVesselState(id: EntityId, defId: string): VesselState {
     orientation: [0, 0, 0, 1],
     linearVelocity: [0, 0, 0],
     angularVelocity: [0, 0, 0],
-    controls: { lever: 0, helm: 0, navLights: 0, horn: 0, anchor: 0, cabinLight: 0, spotlight: 0, spotPan: 0, spotTilt: -4, deckFore: 0, deckAft: 0, railLights: 0, fmOn: 0, fmStation: 0 },
+    controls: { lever: 0, helm: 0, navLights: 0, horn: 0, anchor: 0, cabinLight: 0, spotlight: 0, spotPan: 0, spotTilt: -4, deckFore: 0, deckAft: 0, railLights: 0, fmOn: 0, fmStation: 0, obOn: 0, obGear: 0 },
     engine: {
       phase: 'off',
       crank: 0,

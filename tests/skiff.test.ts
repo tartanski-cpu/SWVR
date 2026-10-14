@@ -38,9 +38,31 @@ describe('the skiff', () => {
     expect(Math.abs(skiff.position[1])).toBeLessThan(0.15);
   });
 
+  it('gives no thrust with the motor off or in neutral; shifting closes the throttle', () => {
+    const { skiff, send, run } = setup();
+    placeVessel(skiff, 0, 0, 200, 0);
+    const speed = () => Math.hypot(skiff.linearVelocity[0], skiff.linearVelocity[2]);
+    send('lever', 1); // motor off
+    run(3);
+    expect(speed()).toBeLessThan(0.1);
+    send('obPower', 1); // on, still neutral
+    send('lever', 1);
+    run(3);
+    expect(speed()).toBeLessThan(0.1);
+    send('obGear', -1);
+    expect(skiff.controls.lever).toBe(0); // shifting closes the throttle
+    send('lever', 1);
+    run(3);
+    expect(skiff.linearVelocity[2]).toBeGreaterThan(0.3); // astern (forward is -z at heading 0)
+    send('obPower', 0); // toggles off
+    expect(skiff.controls.obOn).toBe(0);
+  });
+
   it('drives on its outboard; the throttle drains the battery; the tiller turns it', () => {
     const { skiff, send, run } = setup();
     placeVessel(skiff, 0, 0, 200, 0); // heading north, well clear of the workboat
+    send('obPower', 1);
+    send('obGear', 1);
     send('lever', 1);
     run(10);
     const speed = Math.hypot(skiff.linearVelocity[0], skiff.linearVelocity[2]);
@@ -61,6 +83,8 @@ describe('the skiff', () => {
     const { skiff, send, run } = setup();
     placeVessel(skiff, 0, 0, 200, 0);
     skiff.battery = 0;
+    send('obPower', 1);
+    send('obGear', 1);
     send('lever', 1);
     run(5);
     expect(Math.hypot(skiff.linearVelocity[0], skiff.linearVelocity[2])).toBeLessThan(0.2);
@@ -71,6 +95,8 @@ describe('the skiff', () => {
     placeVessel(boat, 0, 0, 0, 0); // heading north
     // Skiff 6 m to starboard, heading west, straight at the workboat's side, full throttle.
     placeVessel(skiff, 6, 0, 0, 270);
+    send('obPower', 1);
+    send('obGear', 1);
     send('lever', 1);
     const plan = hullPlan(VESSEL_DEFS[boat.defId]);
     const qb = new THREE.Quaternion();

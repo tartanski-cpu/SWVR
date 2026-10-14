@@ -116,6 +116,18 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
     case 'fmOn':
       s.controls[intent.control] = intent.value > 0.5 ? 1 : 0;
       break;
+    case 'obPower':
+      // The outboard's on/off button (a press toggles it).
+      s.controls.obOn = s.controls.obOn ? 0 : 1;
+      break;
+    case 'obGear': {
+      // Gear lever: forward / neutral / reverse. Like a real outboard, shifting closes the
+      // throttle (you can't slam it from full ahead into reverse).
+      const g = Math.sign(Math.round(intent.value));
+      if (g !== s.controls.obGear) s.controls.lever = 0;
+      s.controls.obGear = g;
+      break;
+    }
     case 'fmTune': {
       // TUNE: on to the next station (switching the set on if it was off).
       const n = CONFIG.fmRadio.stations.length;

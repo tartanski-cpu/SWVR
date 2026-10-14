@@ -393,7 +393,7 @@ export class App {
         if (!sv) continue;
         t.sync(sv);
         t.tick(dt);
-        this.motorAudio.update(sv.controls.lever, sv.battery ?? 0, t.root.getWorldPosition(this.tmpV).distanceTo(this.focus));
+        this.motorAudio.update(sv.controls.obOn > 0 ? Math.sign(sv.controls.obGear) * sv.controls.lever : 0, sv.battery ?? 0, t.root.getWorldPosition(this.tmpV).distanceTo(this.focus));
       }
       this.bridge.chart.update(this.world, this.testVesselId, dt, this.dashInView());
       this.updateRadioSound();
@@ -575,14 +575,25 @@ export class App {
     const leverIn = (k.action('leverAhead') ? 1 : 0) - (k.action('leverAstern') ? 1 : 0);
     const helmIn = (k.action('helmStarboard') ? 1 : 0) - (k.action('helmPort') ? 1 : 0);
 
-    let lever = v.controls.lever;
+    const outboard = !!VESSEL_DEFS[v.defId]?.outboard;
+    // An outboard's throttle is the gear (sign) times the twist grip (0..1); the keys drive
+    // that as one signed command, switching the motor on if needed.
+    let lever = outboard ? Math.sign(v.controls.obGear) * v.controls.lever : v.controls.lever;
+    const before = lever;
+    if (outboard && leverIn !== 0 && v.controls.obOn <= 0) this.pushIntentTo(id, 'obPower', 1);
     if (leverIn !== 0) {
       const next = clamp(lever + leverIn * cfg.leverRate * dt, -1, 1);
       // Stop briefly at the neutral detent when passing through it.
       lever = Math.sign(next) !== Math.sign(lever) && lever !== 0 ? 0 : next;
     }
     if (k.actionPressed('leverNeutral')) lever = 0;
-    if (lever !== v.controls.lever) this.pushIntentTo(id, 'lever', lever);
+    if (outboard) {
+      if (lever !== before) {
+        const g = Math.sign(lever);
+        if (g !== Math.sign(v.controls.obGear)) this.pushIntentTo(id, 'obGear', g);
+        this.pushIntentTo(id, 'lever', Math.abs(lever));
+      }
+    } else if (lever !== v.controls.lever) this.pushIntentTo(id, 'lever', lever);
 
     let helm = v.controls.helm;
     if (helmIn !== 0) helm = clamp(helm + helmIn * cfg.helmRate * dt, -1, 1);
@@ -1292,7 +1303,7 @@ export class App {
       // No storage: an empty board, no count.
     }
     this.interaction = new InteractionSystem(
-      [...this.bridge.controls, ...this.tillers],
+      [...this.bridge.controls, ...this.tillers.flatMap((t) => t.parts)],
       (channel, value) => {
         if (channel === 'engineStartStop') return this.requestEngineStartStop();
         const { vesselId, control } = this.routeChannel(channel);

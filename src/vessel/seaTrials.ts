@@ -107,17 +107,34 @@ class Trial {
     return Math.atan2(this.f.x, -this.f.z);
   }
 
-  /** Start the diesel (an electric outboard needs no starting). */
+  /** Start the diesel, or switch the electric outboard on. */
   startEngine(): void {
-    if (VESSEL_DEFS[this.v.defId].outboard) return;
-    this.send('lever', 0);
+    if (VESSEL_DEFS[this.v.defId].outboard) {
+      if (!this.v.controls.obOn) this.send('obPower', 1);
+      return;
+    }
+    this.throttle(0);
     this.send('engineStartStop', 1);
     this.run(3);
   }
 
+  /**
+   * Throttle -1 (full astern) .. +1 (full ahead): the workboat's lever, or the outboard's
+   * gear lever and twist grip.
+   */
+  throttle(value: number): void {
+    if (!VESSEL_DEFS[this.v.defId].outboard) {
+      this.send('lever', value);
+      return;
+    }
+    const gear = Math.sign(value);
+    if (gear !== this.v.controls.obGear) this.send('obGear', gear);
+    this.send('lever', Math.abs(value));
+  }
+
   /** Run at a lever setting until speed is steady. */
   settle(lever: number, maxSeconds = 120): void {
-    this.send('lever', lever);
+    this.throttle(lever);
     let last = -1;
     let t = 0;
     this.run(maxSeconds, () => {
@@ -228,7 +245,7 @@ export function runSeaTrials(defId = 'workboat'): SeaTrialResults {
 
   const acc = new Trial(defId);
   acc.startEngine();
-  acc.send('lever', 1);
+  acc.throttle(1);
   let timeTo90Pct = 0;
   acc.run(120, () => {
     timeTo90Pct += DT;
@@ -294,7 +311,7 @@ export function runSeaTrials(defId = 'workboat'): SeaTrialResults {
   crash.startEngine();
   crash.settle(1);
   const cz = crash.v.position[2];
-  crash.send('lever', -1);
+  crash.throttle(-1);
   let crashStopTime = 0;
   crash.run(120, () => {
     crashStopTime += DT;
@@ -308,7 +325,7 @@ export function runSeaTrials(defId = 'workboat'): SeaTrialResults {
   coast.startEngine();
   coast.settle(1);
   const sz = coast.v.position[2];
-  coast.send('lever', 0);
+  coast.throttle(0);
   coast.run(600, () => coast.speed * KN < 1);
   const coastDistance = -(coast.v.position[2] - sz);
 
@@ -321,7 +338,7 @@ export function runSeaTrials(defId = 'workboat'): SeaTrialResults {
   const bollardAt = (lever: number) => {
     const b = new Trial(defId);
     b.startEngine();
-    b.send('lever', lever);
+    b.throttle(lever);
     const pos = [...b.v.position] as [number, number, number];
     b.run(25, () => {
       // The towline: hold her horizontally where she is (she may still heave/pitch/roll).

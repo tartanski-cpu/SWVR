@@ -3,8 +3,10 @@
  * swinging the whole unit on its tiller. Deliberately simple, like the rest of the
  * machinery:
  *
- *   thrust T = throttle * T0 * (1 - Va / Vz)     ahead  (Va: speed of advance at the prop)
- *            = throttle * T0 * astern             astern (|throttle|, pointing aft)
+ *   throttle = twist grip 0..1 (`lever`), in the gear selected (`obGear`: +1 forward,
+ *              0 neutral, -1 reverse), only with the motor switched on (`obOn`)
+ *   thrust T = throttle * T0 * (1 - Va / Vz)     forward  (Va: speed of advance at the prop)
+ *            = -throttle * T0 * astern           reverse
  *   direction: along the motor's centreline, swung by the steering angle
  *              delta = helm * maxSteer  (helm +1: tiller to port -> stern pushed to port ->
  *              bow swings to starboard; the same sense as the workboat's wheel)
@@ -25,7 +27,8 @@ import type { VesselState } from '../vesselState';
 export function stepOutboard(s: VesselState, def: VesselDef, speed: number, immersion: number, dt: number, outDir: { x: number; z: number }): number {
   const ob = def.outboard;
   if (!ob) return 0;
-  const throttle = Math.max(-1, Math.min(1, s.controls.lever));
+  const on = s.controls.obOn > 0;
+  const throttle = on ? Math.sign(s.controls.obGear) * Math.max(0, Math.min(1, s.controls.lever)) : 0;
   const delta = (Math.max(-1, Math.min(1, s.controls.helm)) * ob.maxSteerDeg * Math.PI) / 180;
   outDir.x = -Math.sin(delta);
   outDir.z = -Math.cos(delta);
