@@ -25,9 +25,10 @@ export class RadioSet {
   private signature = '';
   private flash = 0;
 
-  constructor(cfg: { position: [number, number, number]; tiltDeg: number }, roofY: number) {
+  constructor(cfg: { position: [number, number, number]; tiltDeg: number; yawDeg?: number }, roofY: number) {
     this.root.name = 'radio';
     this.root.position.fromArray(cfg.position);
+    this.root.rotation.y = ((cfg.yawDeg ?? 0) * Math.PI) / 180;
     // The set itself, tilted so its face (+z, aft) looks down toward the helmsman.
     const set = new THREE.Group();
     set.rotation.x = (cfg.tiltDeg * Math.PI) / 180;

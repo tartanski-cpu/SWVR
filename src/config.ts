@@ -419,12 +419,14 @@ export const CONFIG = {
         /** Searchlight joystick on a pedestal to port of the wheel (mirrors the throttle's). */
         spotJoystick: { position: [-0.45, 2.16, -1.15] as [number, number, number] },
         /**
-         * VHF radio hung from the wheelhouse roof ahead of the helm, to port, tilted down
-         * toward the helmsman; its handset hangs on a clip on its starboard side.
+         * VHF radio hung close under the wheelhouse roof, out to port above the window head
+         * (3.15 m) so it doesn't block the view (owner feedback), tilted down and turned
+         * toward the helm (yaw: + turns its face toward starboard); its handset hangs on a
+         * clip on its starboard side.
          */
-        radio: { position: [-0.5, 3.0, -1.5] as [number, number, number], tiltDeg: 40 },
-        /** Chartplotter hung from the roof beside the radio, ahead of the helm (rescue/cargo chart). */
-        chart: { position: [0.22, 2.98, -1.5] as [number, number, number], tiltDeg: 40 },
+        radio: { position: [-1.0, 3.2, -1.45] as [number, number, number], tiltDeg: 35, yawDeg: 35 },
+        /** Chartplotter, the same out to starboard (rescue/cargo chart). */
+        chart: { position: [0.98, 3.17, -1.45] as [number, number, number], tiltDeg: 35, yawDeg: -35 },
         /** DOCK / cast off (where the lever used to stand on the console top). */
         dockButton: { position: [0.45, 2.16, -1.52] as [number, number, number] },
         /** Instrument dash across the front of the console: displays on its aft face. */

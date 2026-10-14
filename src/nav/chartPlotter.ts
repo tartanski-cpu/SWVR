@@ -34,9 +34,10 @@ export class ChartPlotter {
   /** Debug: draw the targets too. */
   showTargets = false;
 
-  constructor(cfg: { position: [number, number, number]; tiltDeg: number }, roofY: number) {
+  constructor(cfg: { position: [number, number, number]; tiltDeg: number; yawDeg?: number }, roofY: number) {
     this.root.name = 'chartPlotter';
     this.root.position.fromArray(cfg.position);
+    this.root.rotation.y = ((cfg.yawDeg ?? 0) * Math.PI) / 180;
     const set = new THREE.Group();
     set.rotation.x = (cfg.tiltDeg * Math.PI) / 180;
     this.root.add(set);
