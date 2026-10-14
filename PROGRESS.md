@@ -660,6 +660,11 @@ Plan agreed with the owner: five milestones, stopping after each for testing. Si
   - Cruising at 8–9 kn is economical; the last knots cost fuel (range at full ahead ~140 nm).
 - The speed bar on the dash now reads 0–15 kn. Tests updated (top speed 12.5–13.8 kn, bollard 3–5.5 t, fuel flat out 70–110 L/h).
 
+## Rudder: a little more bite (owner request)
+
+- Steering gear 14 → 25 °/s (hard over in ~1.4 s) and rudder blade 0.55 → 0.62 m². The slipstream cap stays at 0.55 of thrust: above ~0.6 the hull starts spinning on the spot.
+- New sea-trial measure **helm response**: time from hard over to 10° / 30° of heading change. Half ahead 2.8 → 2.3 s / 4.8 → 4.2 s; full ahead 2.0 → 1.6 s / 3.4 → 2.9 s. Tactical diameter 2.2 → 2.1 L; steady turn unchanged.
+
 ## Planned next (owner requests, not started)
 
 1. ~~Fuel and oil temperature~~ **Done** (see above).

@@ -53,7 +53,13 @@ for (const id of ids) {
         expect(r.tacticalDiameter / L).toBeGreaterThan(2);
         expect(r.tacticalDiameter / L).toBeLessThan(5);
       });
-      it('crash-stops within 1.2-5 L', () => {
+      it('answers the helm: 10° of heading in under 2.6 s at half ahead, 2 s at full (owner: "bite")', () => {
+        const [half, full] = r.helmResponse;
+        expect(half.to10).toBeLessThan(2.6);
+        expect(full.to10).toBeLessThan(2.0);
+        expect(full.to30).toBeLessThan(half.to30);
+      });
+            it('crash-stops within 1.2-5 L', () => {
         expect(r.crashStopDistance / L).toBeGreaterThan(1.2);
         expect(r.crashStopDistance / L).toBeLessThan(5);
       });

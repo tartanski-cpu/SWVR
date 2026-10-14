@@ -344,14 +344,14 @@ export const CONFIG = {
         propWalkFadeSpeed: 1.5,
       },
       rudder: {
-        /** Sized to the big prop: ~1.0 m span x 0.55 m chord, mostly in the slipstream. */
-        area: 0.55,
+        /** Sized to the big prop: ~1.05 m span x 0.6 m chord, mostly in the slipstream. */
+        area: 0.62,
         /** Normal-force slope dC_N/dalpha (per rad) for a low aspect-ratio spade rudder, and stall angle. */
         liftSlope: 2.4,
         stallDeg: 28,
         maxAngleDeg: 35,
-        /** Hydraulic steering rate (deg/s). */
-        rateDegPerS: 14,
+        /** Hydraulic steering rate (deg/s): hard over in ~1.4 s (owner: "a little more bite"). */
+        rateDegPerS: 25,
         /** Fraction of the propeller's slipstream momentum increase seen at the rudder. */
         washFactor: 0.8,
         /** Cap on the slipstream's extra rudder force, as a fraction of propeller thrust. */

@@ -28,6 +28,8 @@ export interface SeaTrialResults {
   tacticalDiameter: number;
   steadyTurnDiameter: number;
   turnSpeedKn: number;
+  /** Helm response ("bite"): seconds from putting the helm hard over to 10° / 30° heading change, at half and full ahead. */
+  helmResponse: { lever: number; to10: number; to30: number }[];
   /** Full ahead -> full astern: track reach until stopped (m) and time (s). */
   crashStopDistance: number;
   crashStopTime: number;
@@ -265,6 +267,25 @@ export function runSeaTrials(defId = 'workboat'): SeaTrialResults {
   const steadyTurnDiameter = (2 * turn.speed) / Math.max(yawRate, 1e-6);
   const turnSpeedKn = turn.speed * KN;
 
+  // ── Helm response: hard over from a steady straight course; time to 10° and 30° ──
+  const helmResponse = [0.5, 1].map((lever) => {
+    const t = new Trial(defId);
+    t.startEngine();
+    t.settle(lever);
+    const start = t.heading();
+    t.send('helm', 1);
+    let time = 0;
+    let to10 = 0;
+    t.run(30, () => {
+      time += DT;
+      let dh = Math.abs(t.heading() - start);
+      if (dh > Math.PI) dh = 2 * Math.PI - dh;
+      if (!to10 && dh >= (10 * Math.PI) / 180) to10 = time;
+      return dh >= (30 * Math.PI) / 180;
+    });
+    return { lever, to10, to30: time };
+  });
+
   // ── Crash stop: full ahead -> full astern ──
   const crash = new Trial(defId);
   crash.startEngine();
@@ -321,6 +342,7 @@ export function runSeaTrials(defId = 'workboat'): SeaTrialResults {
     advance,
     transfer,
     tacticalDiameter: tactical,
+    helmResponse,
     steadyTurnDiameter,
     turnSpeedKn,
     crashStopDistance,
@@ -346,6 +368,7 @@ export function formatSeaTrials(r: SeaTrialResults): string {
     `  bollard pull: ahead ${r.bollard.aheadKN.toFixed(1)} kN (${(r.bollard.aheadKN / 9.81).toFixed(2)} t) @ ${r.bollard.aheadRpm.toFixed(0)} rpm, astern ${r.bollard.asternKN.toFixed(1)} kN @ ${r.bollard.asternRpm.toFixed(0)} rpm`,
     `  turn (full ahead, hard over): advance ${L(r.advance)}, transfer ${L(r.transfer)}`,
     `    tactical diameter ${L(r.tacticalDiameter)}, steady diameter ${L(r.steadyTurnDiameter)}, speed in turn ${r.turnSpeedKn.toFixed(1)} kn`,
+    ...r.helmResponse.map((h) => `  helm response, lever ${(h.lever * 100).toFixed(0)} %: 10° in ${h.to10.toFixed(1)} s, 30° in ${h.to30.toFixed(1)} s`),
     `  crash stop: ${L(r.crashStopDistance)} in ${r.crashStopTime.toFixed(1)} s`,
     `  coast to 1 kn: ${L(r.coastDistance)}`,
     'MOTIONS (free decay, calm water)',
