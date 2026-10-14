@@ -231,6 +231,8 @@ export function calmWaterResistance(def: VesselDef, U: number): number {
   const cf = 0.075 / (Math.log10(Re) - 2) ** 2;
   const rf = 0.5 * rho * def.wettedSurface * speed * speed * cf * (1 + r.formFactor);
   const fn = speed / Math.sqrt(g * r.lwl);
-  const rw = def.mass * g * (r.waveA * fn ** 4 + r.waveB * Math.max(0, fn - r.waveKnee) ** 2);
+  // Steep rise toward hull speed, levelled off over the hump (see CONFIG resistance).
+  const w = r.waveA * fn ** 4 + r.waveB * Math.max(0, fn - r.waveKnee) ** 2;
+  const rw = def.mass * g * r.waveCap * Math.tanh(w / r.waveCap);
   return (rf + rw) * (U < 0 ? r.asternFactor : 1);
 }

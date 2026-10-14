@@ -31,7 +31,7 @@ function boat() {
 }
 
 describe('fuel', () => {
-  it('burns about 1-3 L/h at idle and 40-60 L/h flat out', () => {
+  it('burns about 1-3 L/h at idle and 70-110 L/h flat out (400 kW)', () => {
     const b = boat();
     b.start();
     b.run(5);
@@ -39,8 +39,8 @@ describe('fuel', () => {
     expect(b.v.engine.fuelFlowLph).toBeLessThan(3);
     b.send('lever', 1);
     b.run(60);
-    expect(b.v.engine.fuelFlowLph).toBeGreaterThan(40);
-    expect(b.v.engine.fuelFlowLph).toBeLessThan(60);
+    expect(b.v.engine.fuelFlowLph).toBeGreaterThan(70);
+    expect(b.v.engine.fuelFlowLph).toBeLessThan(110);
   });
 
   it('the tank drains by the integrated flow', () => {

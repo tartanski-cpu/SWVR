@@ -37,9 +37,9 @@ for (const id of ids) {
     });
 
     describe('sea trials (calm water)', () => {
-      it('top speed is that of a displacement workboat (~9-10 kn)', () => {
-        expect(r.topSpeedKn).toBeGreaterThan(8.8);
-        expect(r.topSpeedKn).toBeLessThan(10.5);
+      it('top speed ~13 kn: driven past hull speed (Fn ~0.65) by a 400 kW engine (owner request)', () => {
+        expect(r.topSpeedKn).toBeGreaterThan(12.5);
+        expect(r.topSpeedKn).toBeLessThan(13.8);
       });
       it('speed rises with lever and RPM', () => {
         for (let i = 1; i < r.speedTable.length; i++) expect(r.speedTable[i].knots).toBeGreaterThan(r.speedTable[i - 1].knots);
@@ -63,9 +63,9 @@ for (const id of ids) {
         expect(full / rated).toBeGreaterThan(0.85);
         expect(full / rated).toBeLessThan(1.02);
       });
-      it('pulls like a workboat: bollard pull 1.8-3.5 t ahead, RPM sags under load', () => {
-        expect(r.bollard.aheadKN / 9.81).toBeGreaterThan(1.8);
-        expect(r.bollard.aheadKN / 9.81).toBeLessThan(3.5);
+      it('pulls like a 400 kW workboat: bollard pull 3-5.5 t ahead, RPM sags under load', () => {
+        expect(r.bollard.aheadKN / 9.81).toBeGreaterThan(3);
+        expect(r.bollard.aheadKN / 9.81).toBeLessThan(5.5);
         expect(r.bollard.aheadRpm).toBeLessThan(r.speedTable[r.speedTable.length - 1].rpm);
       });
       it('goes astern slower than ahead', () => {

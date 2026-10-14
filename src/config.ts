@@ -187,10 +187,13 @@ export const CONFIG = {
       /**
        * Calm-water resistance R(V) = R_friction + R_wave, applied at mid-draft at the LCB.
        *   R_friction = 0.5*rho*S*V^2 * C_F(Re) * (1 + k),  C_F = ITTC-57 line
-       *   R_wave     = Delta*g * (waveA*Fn^4 + waveB*max(0, Fn - waveKnee)^2)
-       * The second wave term is the steep rise past Fn ~0.35 that makes a displacement hull
-       * hit a "wall" around Fn 0.45-0.5 (~9.5 kn here). S (wetted surface) is computed
-       * from the hull stations at the DWL.
+       *   R_wave     = Delta*g * cap * tanh(w / cap),  w = waveA*Fn^4 + waveB*max(0, Fn - waveKnee)^2
+       * w is the steep rise past Fn ~0.35 toward hull speed; the tanh levels it off at
+       * R_wave/Delta = `waveCap` over the hump (Fn ~0.5+), as for a transom-sterned workboat
+       * hull that can be driven past hull speed with enough power (no planing lift modelled:
+       * still a displacement boat). Below ~9 kn it is within ~8 % of the plain curve.
+       * Owner request: top speed ~13 kn (Fn ~0.64). S (wetted surface) is computed from the
+       * hull stations at the DWL.
        */
       resistance: {
         lwl: 11.0,
@@ -198,6 +201,7 @@ export const CONFIG = {
         waveA: 1.0,
         waveB: 0.94,
         waveKnee: 0.3,
+        waveCap: 0.115,
         /** Going astern (transom first) is less efficient. */
         asternFactor: 3.6,
         /** Height (vessel y) at which resistance acts (~ mid-draft). */
@@ -212,32 +216,35 @@ export const CONFIG = {
        */
       engine: {
         /** Rated power (kW) at rated RPM - for reference; the torque curve is what's used. */
-        powerKw: 200,
+        powerKw: 400,
         idleRpm: 600,
         ratedRpm: 1800,
-        /** Full-load torque curve (rpm, N*m): heavy-duty 6-cyl, ~25 % torque rise, cut-out at 1950. */
+        /**
+         * Full-load torque curve (rpm, N*m): heavy-duty 6-cyl, ~25 % torque rise, cut-out at
+         * 1950. Uprated from 200 to 400 kW for ~13 kn (owner request).
+         */
         torqueCurve: [
           [0, 0],
-          [300, 500],
-          [600, 850],
-          [1000, 1250],
-          [1300, 1320],
-          [1600, 1210],
-          [1800, 1061],
-          [1900, 600],
+          [300, 1000],
+          [600, 1700],
+          [1000, 2500],
+          [1300, 2640],
+          [1600, 2420],
+          [1800, 2122],
+          [1900, 1200],
           [1950, 0],
         ] as [number, number][],
         /** Internal friction torque: a + b*rpm (N*m). */
-        frictionTorque: 60,
-        frictionPerRpm: 0.05,
+        frictionTorque: 100,
+        frictionPerRpm: 0.08,
         /** Rotating inertia at the crankshaft, engine + flywheel + gearbox (kg*m^2). */
-        inertia: 3.2,
+        inertia: 4.5,
         /** Governor droop: full rack this many RPM below the set speed. */
         droopRpm: 120,
         /** Turbo / smoke limiter: fuel rack may rise at most this much per second. */
         rackRiseRate: 0.45,
         /** Starter motor torque (N*m) up to its maximum speed, and cranking time before firing. */
-        starterTorque: 450,
+        starterTorque: 700,
         starterMaxRpm: 160,
         crankTime: 1.6,
         /** The engine will only start with the lever in neutral (like a real neutral-safety switch). */
@@ -252,12 +259,12 @@ export const CONFIG = {
          * Fuel. The rack sets fuel per stroke and strokes per second follow RPM, so fuel flow
          * follows indicated power:  m_dot = sfc(rack) * rack * Q_max(rpm) * omega,
          * sfc(rack) = sfc * (1 + partLoadPenalty * (1 - rack)^2)  (worse at light load).
-         * At rated power that is ~52 L/h; at idle ~1.8 L/h.
+         * At full ahead (~13 kn) that is ~83 L/h; at idle ~1.8 L/h.
          */
         fuel: {
-          tankL: 600,
+          tankL: 900,
           /** Fuel aboard at the start (L). */
-          startL: 420,
+          startL: 630,
           /** Specific fuel consumption at full rack, on indicated power (g/kWh). */
           sfcGPerKWh: 205,
           partLoadPenalty: 0.3,
@@ -283,7 +290,7 @@ export const CONFIG = {
           thermostatOpenC: 80,
           thermostatFullC: 88,
           /** Sea-water heat exchanger conductance, thermostat fully open (kW/K). */
-          exchangerKwPerK: 2.2,
+          exchangerKwPerK: 4.4,
           /** Losses with the thermostat shut or the engine stopped (kW/K). */
           baseLossKwPerK: 0.03,
           /** A failed raw-water pump impeller leaves this fraction of the exchanger working. */
@@ -305,15 +312,16 @@ export const CONFIG = {
         /** Large, slow, four-blade workboat propeller (m). Tip just below the keel line. */
         diameter: 1.05,
         /**
-         * Linearised open-water coefficients, J = Va / (n*D), pitch ratio ~0.85 (matched so
-         * the engine just reaches rated RPM at full speed; open-water efficiency ~0.5):
+         * Linearised open-water coefficients, J = Va / (n*D), pitch ratio ~1.15 (matched so
+         * the 400 kW engine just reaches rated RPM at ~13 kn, J ~0.52; open-water efficiency
+         * ~0.55 there):
          *   K_T(J) = kt0 * (1 - J / j0)     thrust = K_T * rho * n^2 * D^4
          *   K_Q(J) = kq0 * (1 - J / jq0)    torque = K_Q * rho * n^2 * D^5
          */
-        kt0: 0.38,
-        j0: 0.88,
-        kq0: 0.045,
-        jq0: 0.98,
+        kt0: 0.57,
+        j0: 1.15,
+        kq0: 0.077,
+        jq0: 1.25,
         /** Astern: thrust and torque as fractions of the ahead values (blades work backwards). */
         asternEfficiency: 0.5,
         asternTorque: 0.9,

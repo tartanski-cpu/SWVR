@@ -129,11 +129,11 @@ const paintSpeed: Painter = (g, s, def) => {
   big(g, kn.toFixed(1), 380, 128, 120);
   g.textAlign = 'left';
   big(g, 'kn', 392, 150, 40, DIM);
-  // 0-12 kn bar.
+  // 0-15 kn bar.
   g.fillStyle = '#1f2a24';
   g.fillRect(24, 206, 464, 22);
   g.fillStyle = AMBER;
-  g.fillRect(24, 206, Math.min(464, (kn / 12) * 464), 22);
+  g.fillRect(24, 206, Math.min(464, (kn / 15) * 464), 22);
 };
 
 const paintHeading: Painter = (g, s) => {
