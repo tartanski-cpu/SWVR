@@ -58,6 +58,7 @@ export interface MenuHost {
   /** Sound levels 0..1 by id ('master', 'engine', 'effects', 'radio', 'music'). */
   volume(id: string): number;
   setVolume(id: string, v: number): void;
+  resetVolumes(): void;
   /** Debug: say a radio check through the radio voice and report what the browser can do. */
   voiceTest(): void;
   /** Debug: a target alongside ('manOverboard' / 'lostCargo'); show targets on the chart. */
@@ -268,6 +269,7 @@ export function mainMenu(h: MenuHost): MainMenu {
         { text: '+', press: () => h.setVolume(b.id, h.volume(b.id) + 0.1) },
       ],
     })),
+    { label: '', buttons: [{ text: 'Reset to defaults', press: () => h.resetVolumes() }] },
     { heading: 'FM radio (overhead panel in the wheelhouse)' },
     {
       label: 'Power',

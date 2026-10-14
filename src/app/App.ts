@@ -980,6 +980,7 @@ export class App {
       setFmStation: (i) => this.pushVesselIntent('fmStation', i),
       volume: (id) => mixer.get(id as Bus),
       setVolume: (id, v) => mixer.set(id as Bus, v),
+      resetVolumes: () => mixer.reset(),
       voiceTest: () => {
         this.radioAudio.crackle(0.3);
         this.radioAudio.speak('Radio check. One, two, three. How do you read?', 0.3);

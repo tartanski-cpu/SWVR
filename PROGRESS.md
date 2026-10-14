@@ -696,6 +696,13 @@ Plan agreed with the owner: five milestones, stopping after each for testing. Si
 - The distortion's low-pass now tops out at ~450 Hz (was ~900); soft clip 1.6 -> 1.25.
 - Engine alone is now 50-65 dB down above 600 Hz at cruise (was -33 to -44). Engine + water still matches the recording within ~2 dB to 4 kHz: the upper range is the water, as in the real boat.
 
+### Water and engine balance (owner feedback)
+
+- The wash was far too loud in the game (the offline match had engine and water at equal level; in the game the engine is attenuated and on an 80 % bus): water was ~2 dB *over* the engine at the helm. Now ~18 dB under (`WASH` 0.1).
+- It sounded like wind: the smooth top end is gone (no fizz, low-pass 2.5 kHz, smaller brightness swings).
+- The "thick water globs" were the engine's exhaust bubbles, always on (and on the engine bus, so turning the engine up made them louder). Now only when the outlet is actually under water. The lap clop is quieter too.
+- Sound page: **Reset to defaults** button.
+
 ### Milestone 4: landing and finishing (done, awaiting owner test)
 
 - **Landing survivors** (`rescue.ts`, shared simulation): once everyone is recovered, survivors sit aboard until she is **moored alongside any quay** (DOCK) or **anchored at an anchorage** (the port's skiff takes them, landing them by the goods stack).

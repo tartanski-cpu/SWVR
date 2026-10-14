@@ -8,7 +8,7 @@ import { noiseBuffer } from './engineAudio';
  *  wash - the water rushing along the hull: two independent noise streams (left / right:
  *    in the recording the water above 300 Hz is diffuse, L/R correlation ~0.1-0.4) shaped
  *    to its measured spectrum - a gentle -6 dB/octave slope above ~500 Hz, a small "fizz"
- *    shelf around 3-5 kHz, little above 9 kHz. Not crackly: its 20 ms level rarely
+ *    shelf around 3-5 kHz, little above 9 kHz (in the game it is kept darker: see `top`). Not crackly: its 20 ms level rarely
  *    exceeds 2x the median (the old bubble "babble" was dense popping - "frying in oil").
  *    It swells slowly and randomly: mostly with 2-4 s periods (0.25-0.5 Hz, the waves
  *    going by), some 1-2 Hz surging, ~30 % depth, brighter as it swells. The hull's real
@@ -22,8 +22,13 @@ import { noiseBuffer } from './engineAudio';
 
 /** Speed (m/s) at which the wash has its reference level (~7 kn, as in the recording). */
 const REF_SPEED = 3.5;
-/** Wash level at the reference speed (tuned against the recording, engine at ~894 rpm). */
-const WASH = 1.0;
+/**
+ * Wash level at the reference speed. Matched to the recording it was ~1.0, but in the game
+ * the engine is quieter than in that offline match (attenuated from the engine room, 80 %
+ * bus) and from the wheelhouse the wash should sit well under it: owner found it far too
+ * loud (set effects to 10 %): now ~18 dB under the engine at the helm.
+ */
+const WASH = 0.1;
 
 export class WaterSound {
   readonly master: GainNode;
@@ -47,8 +52,7 @@ export class WaterSound {
     const merge = ctx.createChannelMerger(2);
     this.loop().connect(merge, 0, 0);
     this.loop(1.37).connect(merge, 0, 1);
-    // Spectrum: high-pass under the engine, falling above ~400 Hz, the fizz shelf (peaking
-    // at 4 kHz), roll-off above 10 kHz.
+    // Spectrum: high-pass under the engine, falling above ~400 Hz, rolled off above 2.5 kHz.
     const hp = ctx.createBiquadFilter();
     hp.type = 'highpass';
     hp.frequency.value = 160;
@@ -61,14 +65,11 @@ export class WaterSound {
     };
     const slope = pole(380);
     const slope2 = pole(1500);
-    const fizz = ctx.createBiquadFilter();
-    fizz.type = 'peaking';
-    fizz.frequency.value = 4800;
-    fizz.Q.value = 1.8;
-    fizz.gain.value = 4;
+    // No hiss on top: a smooth broadband top end reads as wind (owner feedback), so the
+    // wash is kept darker than the recording - a rush and slosh under ~2.5 kHz.
     const top = ctx.createBiquadFilter();
     top.type = 'lowpass';
-    top.frequency.value = 10000;
+    top.frequency.value = 2500;
     top.Q.value = 0.6;
     // Brightness that moves with the swell and the speed.
     this.bright = ctx.createBiquadFilter();
@@ -77,7 +78,7 @@ export class WaterSound {
     this.bright.gain.value = 0;
     this.wash = ctx.createGain();
     this.wash.gain.value = 0;
-    merge.connect(hp).connect(slope).connect(slope2).connect(fizz).connect(top).connect(this.bright).connect(this.wash).connect(this.master);
+    merge.connect(hp).connect(slope).connect(slope2).connect(top).connect(this.bright).connect(this.wash).connect(this.master);
   }
 
   private loop(rate = 1): AudioBufferSourceNode {
@@ -115,7 +116,7 @@ export class WaterSound {
     const swell = Math.max(0.25, 1 + 0.3 * z + this.surge);
     this.wash.gain.setTargetAtTime(WASH * base * swell * level, t, 0.06);
     // Brighter as it swells, and faster.
-    this.bright.gain.setTargetAtTime(Math.max(-9, Math.min(6, 2.5 * z + 4 * this.surge + 3 * (Math.min(v, 2.5) - 1))), t, 0.08);
+    this.bright.gain.setTargetAtTime(Math.max(-9, Math.min(3, 1.5 * z + 2 * this.surge + 2 * (Math.min(v, 2.5) - 1))), t, 0.08);
 
     if (slam > 0.05 && this.splashCooldown === 0) {
       this.splash(slam, level, t);
@@ -156,7 +157,7 @@ export class WaterSound {
   lap(strength: number, level: number, t = this.ctx.currentTime): void {
     const s = (0.25 + 0.75 * strength) * level;
     const r = () => 0.75 + Math.random() * 0.5;
-    this.burst('bandpass', 380 * r(), 1.4, 0.6 * s, 0.008, 0.12 * r(), t);
+    this.burst('bandpass', 380 * r(), 1.4, 0.3 * s, 0.008, 0.1 * r(), t);
   }
 }
 

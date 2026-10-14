@@ -56,6 +56,7 @@ function fakeHost() {
     setFmStation: () => {},
     volume: () => 0.5,
     setVolume: () => {},
+    resetVolumes: () => {},
     rescueNear: (k) => calls.push(`near ${k}`),
     showTargets: () => false,
     toggleShowTargets: () => calls.push('showTargets'),

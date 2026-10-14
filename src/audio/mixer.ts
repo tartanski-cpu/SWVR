@@ -69,6 +69,11 @@ class Mixer {
     return this.levels[bus] * this.levels.master;
   }
 
+  /** Back to the default levels. */
+  reset(): void {
+    for (const k of Object.keys(DEFAULTS) as (Bus | 'master')[]) this.set(k, DEFAULTS[k]);
+  }
+
   set(id: Bus | 'master', v: number): void {
     this.levels[id] = Math.min(1, Math.max(0, Math.round(v * 10) / 10));
     const node = id === 'master' ? this.master : this.buses.get(id);

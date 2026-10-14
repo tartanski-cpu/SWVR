@@ -34,8 +34,8 @@ export interface EngineSoundInput {
  *
  * Wet exhaust: the outlet is in the transom just above the waterline. When it dips under
  * (stern squat, a passing wave, pitching), the note goes dull and burbling: the dry path
- * fades, a low-passed copy and the exhaust-bubble channel come up. It always gurgles a
- * little while running (the cooling water leaving with the gas).
+ * fades, a low-passed copy and the exhaust-bubble channel come up (only then: always on,
+ * the bubbles were "thick water globs").
  * The worklet is what makes it "meaty": real, uneven firing pulses (see dieselWorklet.ts),
  * so you hear each cylinder thump at idle and a hard, gritty bark under load. Where
  * AudioWorklet isn't available it falls back to two oscillators (the old, thinner sound).
@@ -197,7 +197,9 @@ export class EngineSound {
     this.lastSub = sub;
     this.dry.gain.setTargetAtTime(1 - 0.8 * sub, t, k);
     this.muffled.gain.setTargetAtTime(1.1 * sub, t, k);
-    this.burble.gain.setTargetAtTime(e.running ? (0.04 + 0.32 * sub) * (0.6 + 0.4 * load) : 0, t, k);
+    // Exhaust bubbles only when the outlet is actually under: always-on they were "thick
+    // water globs" (owner feedback).
+    this.burble.gain.setTargetAtTime(e.running ? 0.3 * Math.max(0, sub - 0.25) * (0.6 + 0.4 * load) : 0, t, k);
     this.starter.frequency.setTargetAtTime(120 + rpm * 1.4, t, 0.05);
     this.starterGain.gain.setTargetAtTime(e.cranking ? 0.06 : 0, t, 0.04);
     this.hiss.gain.setTargetAtTime(e.running ? 0.002 + 0.008 * load * rpmFrac : 0, t, 0.2);
