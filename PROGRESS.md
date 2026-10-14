@@ -645,6 +645,11 @@ Plan agreed with the owner: five milestones, stopping after each for testing. Si
   - **Placement:** the board covers the port aft window. Its position is in the vessel config `whiteboard`.
 - **Tests (164):** panel switches and FM tuning, whiteboard add/move/delete, full board, saved-board parsing.
 
+### Follow-up (owner test)
+
+- **FM too loud:** streams now play at `CONFIG.fmRadio.gain` = 0.2 of the setting (they're mastered loud); default FM setting 50 %.
+- **VR crate lift didn't work:** the free hand had to be within 60 cm of the crate's centre at the waterline, out of reach from the deck. Now reaching over it is enough: within 1 m horizontally and above it, with the crate alongside. The hand ticks when it's in reach, and a notice says what to do when a hooked crate first comes alongside. Test added.
+
 ## Planned next (owner requests, not started)
 
 1. ~~Fuel and oil temperature~~ **Done** (see above).

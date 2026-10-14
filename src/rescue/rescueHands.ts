@@ -69,6 +69,9 @@ export class RescueHands {
   /** A free hand is within reach of the line (it's drawn highlighted, the hand ticks). */
   lineHover = false;
   private readonly hoverWas = { left: false, right: false };
+  private readonly liftWas = { left: false, right: false };
+  /** The hooked crate we've already said "lift it" about. */
+  private liftHinted: string | null = null;
   private readonly rope = new Float32Array(ROPE_POINTS * 3);
   private ringSince = 0;
   private hookSince = 0;
@@ -296,10 +299,14 @@ export class RescueHands {
       if (near && !this.hoverWas[h]) ctx.pulse(h, 0.25, 20);
       this.hoverWas[h] = !!near;
       if (near) this.lineHover = true;
-      if (!free || !f.gripPressed) continue;
+      // The other hand over a hooked crate alongside: it ticks, and a grip lifts it.
       const hooked = this.hookedCrate(ctx);
-      if (hooked && this.hook && this.hook !== h && this.crateCentre(ctx, hooked, this.tmp).distanceTo(f.grip) < 0.6) {
-        if (this.lift(ctx, hooked, [h])) ctx.pulse(h, 0.6, 60);
+      const canLift = free && !!hooked && !!this.hook && this.hook !== h && this.inLiftReach(ctx, hooked, f.grip);
+      if (canLift && !this.liftWas[h]) ctx.pulse(h, 0.35, 25);
+      this.liftWas[h] = canLift;
+      if (!free || !f.gripPressed) continue;
+      if (canLift) {
+        if (this.lift(ctx, hooked!, [h])) ctx.pulse(h, 0.6, 60);
         continue;
       }
       const stow = this.ringStowW(ctx, this.tmp);
@@ -319,6 +326,19 @@ export class RescueHands {
         ctx.pulse(h, 0.5, 40);
       }
     }
+  }
+
+  /**
+   * Can this hand take the hooked crate? It floats at the waterline, a metre or more below
+   * the rail, out of reach of a hand on deck - so reaching over it is enough: the hand
+   * within a metre of it horizontally (and above it), the crate alongside.
+   */
+  private inLiftReach(ctx: RescueHandsContext, t: RescueTarget, grip: THREE.Vector3): boolean {
+    const v = ctx.world.vessels[ctx.vesselId];
+    if (!v || distanceToHull(v, t.x, t.z) > CONFIG.rescue.liftRange) return false;
+    const c = this.crateCentre(ctx, t, this.tmp2);
+    const above = grip.y - c.y;
+    return Math.hypot(grip.x - c.x, grip.z - c.z) < 1.0 && above > -0.5 && above < 2.8;
   }
 
   /** Is a hand at the cleat or on the line? */
@@ -347,6 +367,11 @@ export class RescueHands {
     const cfg = CONFIG.rescue;
     const on = this.hookedCrate(ctx);
     if (on) {
+      const v = ctx.world.vessels[ctx.vesselId];
+      if (hand !== 'desk' && v && this.liftHinted !== on.id && distanceToHull(v, on.x, on.z) <= cfg.liftRange) {
+        this.liftHinted = on.id;
+        ctx.notify('Crate alongside: reach over the side above it and grip with your other hand to lift it aboard.');
+      }
       this.towT -= dt;
       if (this.towT <= 0) {
         this.towT = 0.1;

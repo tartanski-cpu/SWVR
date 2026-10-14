@@ -76,6 +76,7 @@ export class FmRadio {
       });
     }
     const fade = distance <= cfg.fullRange ? 1 : Math.max(0, 1 - (distance - cfg.fullRange) / (cfg.range - cfg.fullRange));
-    el.volume = Math.min(1, mixer.level('music') * fade * fade);
+    // Broadcast streams are mastered loud: `gain` brings them down to sit with the game's sounds.
+    el.volume = Math.min(1, cfg.gain * mixer.level('music') * fade * fade);
   }
 }

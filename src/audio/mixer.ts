@@ -20,7 +20,7 @@ export const BUSES: { id: Bus | 'master'; label: string }[] = [
 ];
 
 const KEY = 'swvr.volume';
-const DEFAULTS: Record<Bus | 'master', number> = { master: 0.9, engine: 0.8, effects: 1, radio: 1, music: 0.6 };
+const DEFAULTS: Record<Bus | 'master', number> = { master: 0.9, engine: 0.8, effects: 1, radio: 1, music: 0.5 };
 
 class Mixer {
   private readonly levels = { ...DEFAULTS };

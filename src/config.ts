@@ -829,6 +829,8 @@ export const CONFIG = {
     ],
     fullRange: 3,
     range: 16,
+    /** Streams are mastered loud: their level at 100 % on the FM volume setting (owner: too loud). */
+    gain: 0.2,
   },
 
   /** Pings: "look here" markers (player/ping.ts). Lifetime (s), beam height (m), reach (m). */

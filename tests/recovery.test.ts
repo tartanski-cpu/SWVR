@@ -211,3 +211,58 @@ describe('recovery: boat hook laid down', () => {
     expect(world.rescue!.hook!.deck).toBeUndefined();
   });
 });
+
+describe('recovery: VR hands', () => {
+  it('a hooked crate alongside is lifted by the other hand reaching over it from the deck', async () => {
+    const { RescueHands } = await import('../src/rescue/rescueHands');
+    const { CargoHands } = await import('../src/cargo/cargoHands');
+    const s = setup('lostCargo');
+    const { world, v } = s;
+    const root = new THREE.Object3D();
+    root.position.fromArray(v.position);
+    root.quaternion.fromArray(v.orientation);
+    root.updateMatrixWorld();
+    const pushed: string[] = [];
+    const pending: Intent[] = [];
+    const ctx = {
+      world,
+      playerId: 'p',
+      vesselId: v.id,
+      vesselRoot: root,
+      waves: [],
+      cargoHands: new CargoHands(),
+      push: (control: string, ref: string | undefined, value: number, args?: number[]) => {
+        pushed.push(control);
+        pending.push({ playerId: 'p', targetId: v.id, control, value, ref, args });
+      },
+      notify: () => {},
+      pulse: () => {},
+    };
+    const flush = () => stepWorld(world, pending.splice(0), DT);
+    const frame = (grip: THREE.Vector3) => ({ tracked: true, grip, ray: new THREE.Ray(grip.clone(), new THREE.Vector3(-1, -0.6, 0).normalize()), gripDown: false, gripPressed: false, triggerDown: false, triggerPressed: false });
+    const hands = { left: frame(vesselToWorld(v, [-1.2, 1.9, 3.0])), right: frame(vesselToWorld(v, [-1.72, 1.55, 3.8])) };
+    const free = { left: false, right: false };
+    const hr = new RescueHands();
+    // Right hand takes the hook from its clips.
+    hands.right.gripPressed = true;
+    hr.updateXR(ctx, hands, free, DT);
+    flush();
+    hands.right.gripPressed = false;
+    expect(world.rescue!.hook!.holder).toBe('p');
+    // A crate right at the hook's tip, alongside to port: hooked.
+    hr.updateXR(ctx, hands, free, DT);
+    const crate = s.inc.targets[0];
+    crate.x = hr.hookTip.x;
+    crate.z = hr.hookTip.z;
+    hr.updateXR(ctx, hands, free, DT);
+    flush();
+    expect(crate.phase).toBe('hooked');
+    // Left hand over the side, well above the water (it can't reach the waterline): grip lifts it.
+    hands.left.grip.copy(new THREE.Vector3(crate.x, 1.5, crate.z));
+    hands.left.gripPressed = true;
+    hr.updateXR(ctx, hands, free, DT);
+    flush();
+    expect(pushed).toContain('crateLift');
+    expect(crate.phase).toBe('aboard');
+  });
+});
