@@ -4,6 +4,7 @@ import type { WorldState } from '../core/world';
 import { sampleSurface, type PreparedWave } from '../ocean/waves';
 import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
+import { standingHeight } from '../world/geography';
 import type { RescueTarget } from './rescue';
 
 const ORANGE = 0xff6a10;
@@ -12,6 +13,8 @@ const SKIN = 0xd8a07a;
 interface Marker {
   root: THREE.Group;
   arm: THREE.Object3D | null;
+  /** Legs, shown once a survivor stands up (landing, ashore). */
+  legs: THREE.Object3D | null;
   strobe: THREE.Sprite;
   kind: RescueTarget['kind'];
   phase: number;
@@ -40,6 +43,7 @@ export class TargetsView {
   private readonly markers = new Map<string, Marker>();
   private readonly personGeo: THREE.BufferGeometry;
   private readonly armGeo: THREE.BufferGeometry;
+  private readonly legsGeo: THREE.BufferGeometry;
   private readonly crateGeo: THREE.BufferGeometry;
   /** A little self-lit so the orange stays bright in shadow and at dusk. */
   private readonly mat = (() => {
@@ -49,6 +53,7 @@ export class TargetsView {
   })();
   private readonly strobeMat: THREE.SpriteMaterial;
   private readonly tmp = new THREE.Vector3();
+  private readonly endV = new THREE.Vector3();
   private readonly up = new THREE.Vector3(0, 1, 0);
   private readonly n = new THREE.Vector3();
   private readonly q = new THREE.Quaternion();
@@ -73,6 +78,13 @@ export class TargetsView {
     this.armGeo = mergeParts([
       part(new THREE.BoxGeometry(0.09, 0.42, 0.09).translate(0, 0.21, 0), ORANGE),
       part(new THREE.SphereGeometry(0.055, 8, 6).translate(0, 0.46, 0), SKIN),
+    ]);
+    // Legs and boots under the lifejacket, for standing (the bust's hem is at y = -0.35).
+    this.legsGeo = mergeParts([
+      part(new THREE.BoxGeometry(0.15, 0.72, 0.17).translate(-0.1, -0.71, 0), 0x2c3440),
+      part(new THREE.BoxGeometry(0.15, 0.72, 0.17).translate(0.1, -0.71, 0), 0x2c3440),
+      part(new THREE.BoxGeometry(0.16, 0.08, 0.26).translate(-0.1, -1.11, 0.04), 0x1a1a1a),
+      part(new THREE.BoxGeometry(0.16, 0.08, 0.26).translate(0.1, -1.11, 0.04), 0x1a1a1a),
     ]);
     // Crate: origin at the waterline, a third of it below.
     this.crateGeo = mergeParts([
@@ -99,11 +111,14 @@ export class TargetsView {
     const root = new THREE.Group();
     root.name = `target:${t.id}`;
     let arm: THREE.Object3D | null = null;
+    let legs: THREE.Object3D | null = null;
     if (t.kind === 'person') {
       root.add(new THREE.Mesh(this.personGeo, this.mat));
       arm = new THREE.Mesh(this.armGeo, this.mat);
       arm.position.set(0.27, 0.12, 0);
-      root.add(arm);
+      legs = new THREE.Mesh(this.legsGeo, this.mat);
+      legs.visible = false;
+      root.add(arm, legs);
     } else {
       root.add(new THREE.Mesh(this.crateGeo, this.mat));
     }
@@ -112,7 +127,7 @@ export class TargetsView {
     strobe.visible = false;
     root.add(strobe);
     this.root.add(root);
-    const m: Marker = { root, arm, strobe, kind: t.kind, phase: t.id.length * 0.37, x: t.x, z: t.z };
+    const m: Marker = { root, arm, legs, strobe, kind: t.kind, phase: t.id.length * 0.37, x: t.x, z: t.z };
     this.markers.set(t.id, m);
     return m;
   }
@@ -132,8 +147,13 @@ export class TargetsView {
       // Lifted crates are cargo now.
       m.root.visible = !(t.kind === 'crate' && t.phase === 'aboard');
       if (!m.root.visible) continue;
+      if (m.legs) m.legs.visible = t.phase === 'landing' || t.phase === 'ashore';
       if ((t.phase === 'climbing' || t.phase === 'aboard') && v && vesselRoot) {
         this.poseAboard(m, t, v.defId, vesselRoot, cfg.climbTime);
+        continue;
+      }
+      if ((t.phase === 'landing' || t.phase === 'ashore') && t.shore) {
+        this.poseLanding(m, t, t.shore, vesselRoot, time);
         continue;
       }
       // Smooth the drift and tow (big jumps snap).
@@ -171,6 +191,35 @@ export class TargetsView {
       this.whistleT = cfg.whistleEvery * (0.8 + Math.random() * 0.4);
       this.onWhistle(whistle);
     }
+  }
+
+  /**
+   * Going ashore: stand up from the seat, then step across to the quay (a little hop over
+   * the rail), and stand there facing the boat, waving.
+   */
+  private poseLanding(m: Marker, t: RescueTarget, shore: [number, number], root: THREE.Object3D | undefined, time: number): void {
+    const STAND = 1.15; // bust origin above the feet
+    const ground = standingHeight(shore[0], shore[1]);
+    const end = this.endV.set(shore[0], ground + STAND, shore[1]);
+    m.strobe.visible = false;
+    if (t.phase === 'landing' && root) {
+      const s = Math.min(1, (t.t ?? 0) / CONFIG.rescue.landTime);
+      const seat = t.seat ?? [0, 1, 3];
+      const start = root.localToWorld(this.n.set(seat[0], seat[1] + STAND, seat[2]));
+      const up = Math.min(1, s / 0.3); // getting up
+      const go = Math.max(0, (s - 0.3) / 0.7); // stepping across
+      const p = this.tmp.lerpVectors(start, end, go);
+      p.y += 0.45 * Math.sin(Math.PI * go) - (1 - up) * 0.8;
+      m.root.position.copy(p);
+      m.root.quaternion.setFromAxisAngle(this.up, Math.atan2(shore[0] - start.x, shore[1] - start.z));
+      if (m.arm) m.arm.rotation.z = -1.0;
+      return;
+    }
+    m.root.position.copy(end);
+    // Face the boat and wave.
+    const look = root ? root.getWorldPosition(this.n) : this.n.set(shore[0], 0, shore[1] - 1);
+    m.root.quaternion.setFromAxisAngle(this.up, Math.atan2(look.x - shore[0], look.z - shore[1]));
+    if (m.arm) m.arm.rotation.z = -0.25 - 0.45 * (0.5 + 0.5 * Math.sin(time * 6 + m.phase));
   }
 
   /** Climbing over the stern (an arc from the waterline to the seat), or sitting there. */

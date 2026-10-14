@@ -9,7 +9,11 @@
  *               handset (accepted) or the call times out (declined: it just goes away).
  *               'accepted': the search is on; the cargo run is paused (the radio and, from
  *               milestone 2, the chart show the rescue instead of the destination) and
- *               resumes when the rescue is over.
+ *               resumes when the rescue is over. 'recovered': everything is out of the
+ *               water (recovery.ts); survivors sit on deck until she is moored alongside a
+ *               quay or anchored at an anchorage (the skiff), where they step ashore one by
+ *               one ('landed': they wave from the quay a while, then the rescue closes).
+ *               Recovered crates are cargo bound for any harbour (cargo.ts).
  *   radio       the latest message (id, text, kind). Every client's radio plays a message
  *               when its id changes.
  *
@@ -21,11 +25,13 @@ import type { Intent } from '../core/intents';
 import type { WorldState } from '../core/world';
 import type { VesselState } from '../vessel/vesselState';
 import { PORTS, type PortDef } from '../world/archipelago';
+import { skiffPortAt, stackPoint } from '../cargo/cargo';
+import { berthById } from '../vessel/physics/mooring';
 import { groundHeight } from '../world/terrain';
 import { RESCUE_DEFS, type RescueDef } from './rescueDefs';
 import type { Vec3 } from '../core/math';
 import type { PreparedWave } from '../ocean/waves';
-import { applyRecoveryIntent, stepRecovery, type HookState, type RingState, type Shout } from './recovery';
+import { applyRecoveryIntent, freeSeat, stepRecovery, type HookState, type RingState, type Shout } from './recovery';
 
 export interface RadioMessage {
   id: number;
@@ -50,9 +56,11 @@ export interface RescueTarget {
   x: number;
   z: number;
   /** Recovery (rescue/recovery.ts). Absent = floating. */
-  phase?: 'floating' | 'onLine' | 'climbing' | 'aboard' | 'hooked';
-  /** Climbing: seconds since they reached the stern. */
+  phase?: 'floating' | 'onLine' | 'climbing' | 'aboard' | 'hooked' | 'landing' | 'ashore';
+  /** Climbing: seconds since they reached the stern. Landing: since they got up. */
   t?: number;
+  /** Landing / ashore: where they stand ashore (world x, z). */
+  shore?: [number, number];
   /** Aboard: where they sit (vessel axes). */
   seat?: Vec3;
   /** Hooked: by whom. Lifted crates: the cargo item they became. */
@@ -63,8 +71,15 @@ export interface RescueTarget {
 export interface Incident {
   defId: string;
   targets: RescueTarget[];
-  /** calling -> accepted (searching, recovering) -> recovered (survivors aboard, to be landed). */
-  phase: 'calling' | 'accepted' | 'recovered';
+  /**
+   * calling -> accepted (searching, recovering) -> recovered (survivors aboard, to be
+   * landed) -> landed (ashore; the rescue closes at `endT`).
+   */
+  phase: 'calling' | 'accepted' | 'recovered' | 'landed';
+  /** Landing: world time the last survivor got up (s), and where (port name). */
+  landT?: number;
+  landedAt?: string;
+  endT?: number;
   /** Last time the survivor shouted about the propeller (s). */
   propWarned?: number;
   /** The closing radio message has gone out. */
@@ -95,6 +110,11 @@ export interface RescueState {
   shout?: Shout;
   shoutSeq?: number;
   cheer?: number;
+  /**
+   * After a rescue, the cargo run carries on: no second call for cargo bound here (port id)
+   * until she gets there.
+   */
+  quietTo?: string | null;
 }
 
 export function createRescueState(): RescueState {
@@ -245,6 +265,80 @@ export function finishIncident(world: WorldState, v: VesselState): void {
   say(r, 'info', (def?.done ?? 'Thank you, skipper.').replace('{harbour}', harbour) + run, world.time);
 }
 
+/**
+ * Where survivors can be landed right now, or null: moored alongside a quay (they stand on
+ * the quay in from the edge, spread along it), or anchored at an anchorage (the port's
+ * skiff takes them to its landing, by the goods stack).
+ */
+export function landingSpot(v: VesselState): { port: PortDef; at: (i: number, n: number) => [number, number] } | null {
+  const cfg = CONFIG.rescue;
+  if (v.mooring.phase === 'moored') {
+    const b = berthById(v.mooring.berthId);
+    const port = b && portById(b.portId);
+    if (b && port) {
+      const d = b.shoreDist + cfg.quayInset;
+      // Along the quay: perpendicular to the shore direction.
+      const ax = -b.shoreZ;
+      const az = b.shoreX;
+      return {
+        port,
+        at: (i, n) => {
+          const o = (i - (n - 1) / 2) * cfg.ashoreSpacing;
+          return [b.x + b.shoreX * d + ax * o, b.z + b.shoreZ * d + az * o];
+        },
+      };
+    }
+  }
+  const skiff = skiffPortAt(v);
+  if (skiff) {
+    return {
+      port: skiff,
+      at: (i) => {
+        const p = stackPoint(skiff, CONFIG.cargo.perPort + 1 + i);
+        return [p[0], p[2]];
+      },
+    };
+  }
+  return null;
+}
+
+/** Survivors aboard step ashore one by one; when all are ashore the coastguard thanks you. */
+function stepLanding(world: WorldState, r: RescueState, inc: Incident, v: VesselState, dt: number): void {
+  const cfg = CONFIG.rescue;
+  const people = inc.targets.filter((t) => t.kind === 'person');
+  for (const t of people) {
+    if (t.phase === 'landing') {
+      t.t = (t.t ?? 0) + dt;
+      if (t.t >= cfg.landTime) t.phase = 'ashore';
+    }
+  }
+  if (inc.phase === 'recovered') {
+    const spot = landingSpot(v);
+    const next = people.find((t) => t.phase === 'aboard');
+    const busy = inc.landT !== undefined && world.time - inc.landT < cfg.landEvery;
+    if (spot && next && !busy) {
+      const i = people.indexOf(next);
+      next.phase = 'landing';
+      next.t = 0;
+      next.shore = spot.at(i, people.length);
+      inc.landT = world.time;
+      inc.landedAt = spot.port.name.replace(' (anchorage)', '');
+    }
+    if (people.length && people.every((t) => t.phase === 'ashore')) {
+      const def = RESCUE_DEFS.find((d) => d.id === inc.defId);
+      inc.phase = 'landed';
+      inc.endT = world.time + cfg.ashoreTime;
+      r.completed += 1;
+      r.cheer = (r.cheer ?? 0) + 1;
+      const dest = r.run?.to ?? cargoDestination(world, v.id);
+      r.quietTo = dest;
+      const carryOn = dest ? ` Carry on to ${portById(dest)?.name.replace(' (anchorage)', '')} when you're ready.` : '';
+      say(r, 'info', (def?.landed ?? 'Thank you, skipper.').replace('{harbour}', inc.landedAt ?? 'the harbour') + carryOn, world.time);
+    }
+  }
+  if (inc.phase === 'landed' && world.time >= (inc.endT ?? 0)) r.active = null;
+}
+
 /** The vessel the rescues follow: the first one (the cargo boat). */
 function rescueVessel(world: WorldState): VesselState | undefined {
   return Object.values(world.vessels)[0];
@@ -263,6 +357,7 @@ export function stepRescue(world: WorldState, dt: number, waves: readonly Prepar
     // In harbour: whatever run there was is over; the next one starts from here.
     r.lastPort = near.port.id;
     r.run = null;
+    if (r.quietTo === near.port.id) r.quietTo = null;
   } else {
     const dest = cargoDestination(world, v.id);
     if (dest && !r.run && dest !== r.lastPort) {
@@ -270,7 +365,8 @@ export function stepRescue(world: WorldState, dt: number, waves: readonly Prepar
       const a = portById(from)!;
       const b = portById(dest)!;
       const route = Math.hypot(b.x - a.x, b.z - a.z);
-      const call = rand(r) < cfg.chance;
+      // One rescue per delivery: cargo that already stopped for one carries on in peace.
+      const call = rand(r) < cfg.chance && dest !== r.quietTo;
       r.run = { from, to: dest, triggerAt: call ? route * between(r, cfg.triggerFraction) : null };
     }
     const run = r.run;
@@ -293,6 +389,7 @@ export function stepRescue(world: WorldState, dt: number, waves: readonly Prepar
     }
   }
   stepRecovery(world, v, waves, dt);
+  if (inc && (inc.phase === 'recovered' || inc.phase === 'landed')) stepLanding(world, r, inc, v, dt);
   if (inc && inc.phase === 'recovered' && !inc.doneSaid) {
     inc.doneSaid = true;
     const def = RESCUE_DEFS.find((d) => d.id === inc.defId);
@@ -318,6 +415,7 @@ export function stepRescue(world: WorldState, dt: number, waves: readonly Prepar
  * Rescue intents:
  *   rescueHandset  value 1: someone picked up the radio handset - accepts a call
  *   rescueDebugTrigger  raise an incident now (ahead of the boat)
+ *   rescueDebugAboard   a survivor sitting aboard (to try landing)
  *   rescueDebugComplete end the active rescue as if done
  */
 export function applyRescueIntent(world: WorldState, intent: Intent): void {
@@ -354,6 +452,15 @@ export function applyRescueIntent(world: WorldState, intent: Intent): void {
       say(r, 'info', `Debug: ${def.target === 'person' ? 'a person' : 'crates'} in the water off your bow.`, world.time);
       break;
     }
+    case 'rescueDebugAboard': {
+      // A survivor already sitting aboard, to try landing them.
+      if (!v || r.active) break;
+      const inc: Incident = { defId: 'manOverboard', phase: 'recovered', doneSaid: true, x: v.position[0], z: v.position[2], radius: 0, count: 1, callT: world.time, alertT: world.time, targets: [] };
+      r.active = inc;
+      inc.targets.push({ id: `t${++r.seq}-0`, kind: 'person', x: v.position[0], z: v.position[2], phase: 'aboard', seat: freeSeat(r, v) });
+      say(r, 'info', 'Debug: a survivor aboard. Dock at a quay or anchor at an anchorage to land them.', world.time);
+      break;
+    }
     case 'rescueDebugComplete':
       if (v) finishIncident(world, v);
       break;
@@ -375,7 +482,11 @@ export function runStatus(world: WorldState): string {
   const aboardTo = v ? short(cargoDestination(world, v.id)) : undefined;
   if (inc?.phase === 'calling') return 'Distress call: pick up the handset';
   if (inc?.phase === 'accepted') return runTo || aboardTo ? `Cargo for ${runTo ?? aboardTo}: paused (rescue)` : 'Rescue under way';
-  if (inc?.phase === 'recovered') return `Survivors aboard: land them at a harbour`;
+  if (inc?.phase === 'recovered') {
+    const people = inc.targets.filter((t) => t.kind === 'person' && t.phase !== 'ashore').length;
+    return people ? `${people === 1 ? 'Survivor' : 'Survivors'} aboard: dock or anchor at a harbour to land them` : 'Survivors going ashore';
+  }
+  if (inc?.phase === 'landed') return `Survivors landed at ${inc.landedAt}${runTo || aboardTo ? ` · cargo for ${runTo ?? aboardTo}` : ''}`;
   if (runTo) return `Cargo run to ${runTo}`;
   if (aboardTo) {
     const here = v && nearestPort(v.position[0], v.position[2]);

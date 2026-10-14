@@ -194,8 +194,8 @@ export function loadBlocker(world: WorldState, v: VesselState, item: CargoItem):
 export function unloadBlocker(v: VesselState, item: CargoItem): string | null {
   if (!('vessel' in item.at) || item.at.vessel !== v.id) return 'Not aboard';
   const here = skiffPortAt(v);
-  if (!here) return `Deliver to ${portById(item.to)?.name}`;
-  if (here.id !== item.to) return `Deliver to ${portById(item.to)?.name}`;
+  const where = item.to === 'any' ? 'any harbour' : portById(item.to)?.name;
+  if (!here || (here.id !== item.to && item.to !== 'any')) return `Deliver to ${where}`;
   return null;
 }
 
@@ -260,7 +260,8 @@ export function applyCargoIntent(world: WorldState, intent: Intent): void {
       }
       item.at = { ground: [x, g, z], yaw };
       const port = portAtPoint(x, z);
-      if (port && port.id === item.to) retire(world, item, true);
+      // Delivered: at its port, or anywhere for cargo fished out of the sea (to 'any').
+      if (port && (port.id === item.to || item.to === 'any')) retire(world, item, true);
       break;
     }
     case 'cargoLash':

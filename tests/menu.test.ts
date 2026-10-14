@@ -48,6 +48,8 @@ function fakeHost() {
     rescueNow: () => calls.push('rescue'),
     rescueEnd: () => calls.push('rescueEnd'),
     voiceTest: () => calls.push('voiceTest'),
+    rescueAboard: () => calls.push('rescueAboard'),
+    rescues: () => 0,
     fmOn: () => false,
     setFmOn: () => {},
     fmStation: () => 0,

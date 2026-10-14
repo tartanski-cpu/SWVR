@@ -696,6 +696,19 @@ Plan agreed with the owner: five milestones, stopping after each for testing. Si
 - The distortion's low-pass now tops out at ~450 Hz (was ~900); soft clip 1.6 -> 1.25.
 - Engine alone is now 50-65 dB down above 600 Hz at cruise (was -33 to -44). Engine + water still matches the recording within ~2 dB to 4 kHz: the upper range is the water, as in the real boat.
 
+### Milestone 4: landing and finishing (done, awaiting owner test)
+
+- **Landing survivors** (`rescue.ts`, shared simulation): once everyone is recovered, survivors sit aboard until she is **moored alongside any quay** (DOCK) or **anchored at an anchorage** (the port's skiff takes them, landing them by the goods stack).
+  - They get up one every 1.4 s, step across in 2 s (a hop over the rail), and stand ashore 1.6 m in from the quay edge, 0.9 m apart, waving at the boat.
+  - Then: the coastguard thanks you on the VHF (and says to carry on with the cargo), a cheer, rescue count +1. After 12 s the rescue closes.
+  - The radio's closing message still names the nearest harbour, but any harbour counts (no penalty).
+- **Recovered crates** (to "any harbour") are delivered at any port: set down in its goods area, or taken off by the skiff at an anchorage.
+- **Cargo resumes:** while survivors are aboard the chart shows the nearest harbour. After landing it goes back to the destination, and that cargo won't trigger a second distress call on the same trip (`quietTo`).
+- **Rescue count:** kept in the host's browser (localStorage `swvr.rescues`), shown in the menu's Cargo tab ("Rescues: N completed").
+- **Views:** standing survivors get legs; getting up, stepping across and waving on the quay are animated (`targetView.ts`).
+- **Debug:** Tests → Alongside → **Aboard** puts a survivor on deck, to try landing.
+- **Tests (170):** quay landing (aboard at sea → moored → landing → ashore → thanks → closes); skiff landing at an anchorage; crates delivered anywhere; no second call on the same cargo trip.
+
 ## Planned next (owner requests, not started)
 
 1. ~~Fuel and oil temperature~~ **Done** (see above).

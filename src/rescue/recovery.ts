@@ -89,7 +89,7 @@ function persons(r: RescueState): RescueTarget[] {
 }
 
 /** The free seat for the next survivor aboard (vessel axes). */
-function freeSeat(r: RescueState, v: VesselState): Vec3 {
+export function freeSeat(r: RescueState, v: VesselState): Vec3 {
   const seats = VESSEL_DEFS[v.defId].rescueGear.seats;
   const taken = persons(r).filter((t) => t.phase === 'aboard').length;
   const [x, z] = seats[Math.min(taken, seats.length - 1)];

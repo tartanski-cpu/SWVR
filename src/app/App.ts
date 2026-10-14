@@ -62,7 +62,7 @@ import { NoteKeyboard } from '../board/noteKeyboard';
 import { parseBoard } from '../board/board';
 import { DesktopHand } from '../player/desktopHand';
 import { playerColor } from '../net/avatarView';
-import { runStatus } from '../rescue/rescue';
+import { createRescueState, runStatus } from '../rescue/rescue';
 import { engineAlarms } from '../vessel/physics/engineThermal';
 import { VesselEffects } from '../vessel/view/vesselEffects';
 import { sunElevation } from '../environment/timeOfDay';
@@ -86,6 +86,8 @@ import { AvatarsView } from '../net/avatarView';
  */
 /** Where the host keeps the whiteboard's notes between visits. */
 const BOARD_KEY = 'swvr.board';
+/** ...and the number of rescues completed. */
+const RESCUES_KEY = 'swvr.rescues';
 
 export class App {
   readonly renderer: THREE.WebGLRenderer;
@@ -164,6 +166,7 @@ export class App {
   private readonly noteKeys = new NoteKeyboard((text, x, y, colour) => this.pushBoardIntent('noteAdd', text, [x, y, colour]));
   /** The board's seq last saved to this browser (host / solo keeps the notes over a reload). */
   private boardSaved = -1;
+  private rescuesSaved = -1;
   /** Last cheer count / shout id heard (null until the first frame). */
   private rescueHeard: { cheer: number; shout: number; ring: string } | null = null;
   private frameDt = 0;
@@ -399,6 +402,16 @@ export class App {
         } catch {
           // Not saved; still shared.
         }
+      }
+    }
+    // Host / solo: keep the rescue count in this browser too.
+    const done = this.world.rescue?.completed ?? 0;
+    if (!this.client && done !== this.rescuesSaved) {
+      this.rescuesSaved = done;
+      try {
+        localStorage.setItem(RESCUES_KEY, String(done));
+      } catch {
+        // Not saved.
       }
     }
     if (this.bridge && testVessel) {
@@ -977,6 +990,8 @@ export class App {
         }, 2000);
       },
       rescueNear: (kind) => this.pushVesselIntent('rescueDebugNear', 1, kind),
+      rescueAboard: () => this.pushVesselIntent('rescueDebugAboard', 1),
+      rescues: () => this.world.rescue?.completed ?? 0,
       showTargets: () => !!this.bridge?.chart.showTargets,
       toggleShowTargets: () => {
         if (this.bridge) this.bridge.chart.showTargets = !this.bridge.chart.showTargets;
@@ -1235,8 +1250,11 @@ export class App {
     this.scene.add(this.board.rayLine);
     try {
       this.world.board ??= parseBoard(localStorage.getItem(BOARD_KEY)) ?? undefined;
+      // Rescues completed in this browser so far (milestone 4).
+      const n = Number(localStorage.getItem(RESCUES_KEY));
+      if (Number.isFinite(n) && n > 0) (this.world.rescue ??= createRescueState()).completed = Math.floor(n);
     } catch {
-      // No storage: an empty board.
+      // No storage: an empty board, no count.
     }
     this.interaction = new InteractionSystem(
       this.bridge.controls,
@@ -1442,7 +1460,7 @@ export class App {
     }
     if (now.cheer > was.cheer) {
       this.rescueSounds.cheer();
-      this.overlay.notify('Recovered! Everyone out of the water.', 4);
+      this.overlay.notify(r?.active?.phase === 'landed' ? 'Safely ashore. Rescue complete!' : 'Recovered! Everyone out of the water.', 4);
     }
     if (now.shout !== was.shout && r?.shout) {
       this.rescueSounds.shout(r.shout.text);

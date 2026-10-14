@@ -62,6 +62,9 @@ export interface MenuHost {
   voiceTest(): void;
   /** Debug: a target alongside ('manOverboard' / 'lostCargo'); show targets on the chart. */
   rescueNear(defId: string): void;
+  /** Debug: a survivor sitting aboard, to try landing. Rescues completed so far. */
+  rescueAboard(): void;
+  rescues(): number;
   showTargets(): boolean;
   toggleShowTargets(): void;
   /** Move the boat (and you, aboard) to port i's berth or anchorage. */
@@ -227,6 +230,7 @@ export function mainMenu(h: MenuHost): MainMenu {
       ],
     },
     { label: '', buttons: [{ text: () => h.runStatus() }] },
+    { label: 'Rescues', buttons: [{ text: () => `${h.rescues()} completed` }] },
     { label: '', buttons: [{ text: 'Carry by hand: grip (VR) / click. Lash: trigger / Q' }] },
     { heading: 'Aboard' },
     ...[0, 1, 2, 3, 4].map(aboardRow),
@@ -309,6 +313,7 @@ export function mainMenu(h: MenuHost): MainMenu {
         { text: 'Person', press: () => h.rescueNear('manOverboard') },
         { text: 'Crates', press: () => h.rescueNear('lostCargo') },
         { text: 'On chart', active: () => h.showTargets(), press: () => h.toggleShowTargets() },
+        { text: 'Aboard', press: () => h.rescueAboard() },
       ],
     },
     { heading: 'Debug views' },

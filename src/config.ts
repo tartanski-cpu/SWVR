@@ -817,6 +817,17 @@ export const CONFIG = {
     hookLength: 2.2,
     hookReach: 0.6,
     liftRange: 2.5,
+    /**
+     * Landing survivors (milestone 4): moored alongside any quay, or anchored at an
+     * anchorage (the skiff takes them), they step off one every `landEvery` s, each taking
+     * `landTime` s; they stand ashore `quayInset` m in from the quay edge, `ashoreSpacing`
+     * apart, and wave for `ashoreTime` s before the rescue is closed.
+     */
+    landEvery: 1.4,
+    landTime: 2.0,
+    quayInset: 1.6,
+    ashoreSpacing: 0.9,
+    ashoreTime: 12,
     /** Night strobe on lifejacket and crates: flash period and length (s); shown when it's this dark (0..1). */
     strobePeriod: 1.0,
     strobeOn: 0.08,

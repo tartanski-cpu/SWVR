@@ -21,6 +21,8 @@ export interface RescueDef {
   call: string;
   /** Closing message once everything is aboard ({harbour} = where to land them). */
   done: string;
+  /** People only: once they're all ashore ({harbour} = where they were landed). */
+  landed?: string;
 }
 
 export const RESCUE_DEFS: RescueDef[] = [
@@ -32,6 +34,7 @@ export const RESCUE_DEFS: RescueDef[] = [
     searchRadius: 120,
     call: 'MAYDAY RELAY. Man overboard from a yacht, one person in the water in a lifejacket, bearing {bearing}, {range} miles from you. Any vessel able to assist, respond.',
     done: 'Good work, skipper. Please land the survivor at {harbour}.',
+    landed: 'Coastguard: the survivor is safely ashore at {harbour} and in good hands. Thank you, skipper. Fine seamanship.',
   },
   {
     id: 'lostCargo',
