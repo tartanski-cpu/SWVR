@@ -474,6 +474,24 @@ export const CONFIG = {
         catenarySoftness: 3,
       },
       /**
+       * Rescue gear (vessel axes): the life ring hangs on the aft face of the wheelhouse,
+       * its line made fast to a cleat on the starboard quarter rail; the boat hook lies in
+       * clips along the port bulwark (x, y, from z0 to z1). `stern` is the transom centre at
+       * the waterline, where a survivor on the line comes aboard.
+       */
+      rescueGear: {
+        ringStow: [-0.85, 2.3, 1.58] as [number, number, number],
+        ringCleat: [0.95, 1.9, 5.7] as [number, number, number],
+        hookStow: [-1.72, 1.55, 2.6, 5.0] as [number, number, number, number],
+        stern: [0, 0.2, 6.05] as [number, number, number],
+        /** Where survivors sit once aboard (vessel axes, on the aft deck). */
+        seats: [
+          [-0.9, 2.6],
+          [0.9, 2.6],
+          [0, 2.4],
+        ] as [number, number][],
+      },
+      /**
        * Deck cargo. Items sit wherever they're put on the open deck; their masses and
        * positions go into the hull's mass, CG and inertia, so a load shifting to one side
        * gives her a list. Lashing points (D-rings, vessel axes, on the deck) along the aft
@@ -718,13 +736,38 @@ export const CONFIG = {
     crateSpacing: [4, 12] as [number, number],
     /** Slow drift of everything in the water (m/s, world x/z); there's no wind yet. */
     drift: [0.1, 0.06] as [number, number],
-    /** Debug "spawn alongside": this far off the bow (m). */
-    debugSpawnDistance: 30,
+    /** Debug "spawn alongside": this far off the bow (m), within a life ring's throw. */
+    debugSpawnDistance: 18,
     /** A survivor waves when you're within this (m), and blows the lifejacket whistle every few seconds within that (m, s). */
     waveRange: 300,
     whistleRange: 350,
     whistleEvery: 6,
-    /** Night strobe on lifejackets and crates: flash period and length (s); shown when it's this dark (0..1). */
+    /**
+     * Recovery. Life ring: thrown with the controller's release velocity x `throwScale`
+     * (slower than `minThrowSpeed` puts it back); it lands within `catchRadius` of a survivor
+     * and they grab it. The line pays out to `maxLine`; each hand pull reels in that distance
+     * x `reelScale` (desktop: `desktopPull` per click; throws land where you look, at up to
+     * `desktopThrowSpeed` m/s).
+     */
+    throwScale: 1.4,
+    minThrowSpeed: 1.2,
+    catchRadius: 2.5,
+    maxLine: 30,
+    reelScale: 1.6,
+    desktopThrowSpeed: 17,
+    desktopPull: 1.5,
+    /** On the line within this of the stern (and in neutral), they climb aboard over `climbTime` s. */
+    climbRange: 3,
+    climbTime: 2.2,
+    /** In gear with a survivor within this of the stern: they swim away from the propeller at this speed (m/s). */
+    propRadius: 7,
+    swimAway: 0.8,
+    /** Boat hook: length (m), how close its tip must come to a crate to hook it, and how close
+     *  alongside (from the hull side, m) a hooked crate must be to lift aboard. */
+    hookLength: 2.2,
+    hookReach: 0.6,
+    liftRange: 2.5,
+    /** Night strobe on lifejacket and crates: flash period and length (s); shown when it's this dark (0..1). */
     strobePeriod: 1.0,
     strobeOn: 0.08,
     strobeDarkness: 0.25,

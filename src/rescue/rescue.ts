@@ -23,6 +23,9 @@ import type { VesselState } from '../vessel/vesselState';
 import { PORTS, type PortDef } from '../world/archipelago';
 import { groundHeight } from '../world/terrain';
 import { RESCUE_DEFS, type RescueDef } from './rescueDefs';
+import type { Vec3 } from '../core/math';
+import type { PreparedWave } from '../ocean/waves';
+import { applyRecoveryIntent, stepRecovery, type HookState, type RingState, type Shout } from './recovery';
 
 export interface RadioMessage {
   id: number;
@@ -46,12 +49,26 @@ export interface RescueTarget {
   /** World position on the water (m). */
   x: number;
   z: number;
+  /** Recovery (rescue/recovery.ts). Absent = floating. */
+  phase?: 'floating' | 'onLine' | 'climbing' | 'aboard' | 'hooked';
+  /** Climbing: seconds since they reached the stern. */
+  t?: number;
+  /** Aboard: where they sit (vessel axes). */
+  seat?: Vec3;
+  /** Hooked: by whom. Lifted crates: the cargo item they became. */
+  hookedBy?: string;
+  cargoId?: string;
 }
 
 export interface Incident {
   defId: string;
   targets: RescueTarget[];
-  phase: 'calling' | 'accepted';
+  /** calling -> accepted (searching, recovering) -> recovered (survivors aboard, to be landed). */
+  phase: 'calling' | 'accepted' | 'recovered';
+  /** Last time the survivor shouted about the propeller (s). */
+  propWarned?: number;
+  /** The closing radio message has gone out. */
+  doneSaid?: boolean;
   /** Centre of the search area (world, m) and its radius. */
   x: number;
   z: number;
@@ -72,6 +89,12 @@ export interface RescueState {
   active: Incident | null;
   radio: RadioMessage | null;
   completed: number;
+  /** Rescue gear and survivors' shouts (rescue/recovery.ts); counter for the cheer. */
+  ring?: RingState;
+  hook?: HookState;
+  shout?: Shout;
+  shoutSeq?: number;
+  cheer?: number;
 }
 
 export function createRescueState(): RescueState {
@@ -118,9 +141,10 @@ export function cargoDestination(world: WorldState, vesselId: EntityId): string 
   return best;
 }
 
-/** The cargo run is on hold while a rescue is accepted. */
+/** The cargo run is on hold from accepting a rescue until the survivors are landed. */
 export function cargoPaused(world: WorldState): boolean {
-  return world.rescue?.active?.phase === 'accepted';
+  const ph = world.rescue?.active?.phase;
+  return ph === 'accepted' || ph === 'recovered';
 }
 
 function say(r: RescueState, kind: RadioMessage['kind'], text: string, t: number): void {
@@ -226,8 +250,8 @@ function rescueVessel(world: WorldState): VesselState | undefined {
   return Object.values(world.vessels)[0];
 }
 
-/** One tick: track cargo runs, roll and raise calls, time out unanswered ones, drift targets. */
-export function stepRescue(world: WorldState, dt: number): void {
+/** One tick: track cargo runs, roll and raise calls, time out unanswered ones, drift targets, recovery. */
+export function stepRescue(world: WorldState, dt: number, waves: readonly PreparedWave[] = []): void {
   const cfg = CONFIG.rescue;
   const r = (world.rescue ??= createRescueState());
   const v = rescueVessel(world);
@@ -262,8 +286,22 @@ export function stepRescue(world: WorldState, dt: number): void {
   const inc = r.active;
   if (inc) {
     for (const t of inc.targets) {
-      t.x += cfg.drift[0] * dt;
-      t.z += cfg.drift[1] * dt;
+      if (!t.phase || t.phase === 'floating') {
+        t.x += cfg.drift[0] * dt;
+        t.z += cfg.drift[1] * dt;
+      }
+    }
+  }
+  stepRecovery(world, v, waves, dt);
+  if (inc && inc.phase === 'recovered' && !inc.doneSaid) {
+    inc.doneSaid = true;
+    const def = RESCUE_DEFS.find((d) => d.id === inc.defId);
+    const harbour = nearestPort(x, z).port.name.replace(' (anchorage)', '');
+    say(r, 'info', (def?.done ?? 'Thank you, skipper.').replace('{harbour}', harbour), world.time);
+    // Only crates: they're cargo now (land them at any harbour), so the rescue is over.
+    if (!inc.targets.some((t) => t.kind === 'person')) {
+      r.active = null;
+      r.completed += 1;
     }
   }
   if (inc?.phase === 'calling') {
@@ -285,6 +323,7 @@ export function stepRescue(world: WorldState, dt: number): void {
 export function applyRescueIntent(world: WorldState, intent: Intent): void {
   const r = (world.rescue ??= createRescueState());
   const v = rescueVessel(world);
+  if (applyRecoveryIntent(world, v, intent)) return;
   switch (intent.control) {
     case 'rescueHandset': {
       const inc = r.active;
@@ -322,7 +361,7 @@ export function applyRescueIntent(world: WorldState, intent: Intent): void {
 }
 
 export function isRescueIntent(control: string): boolean {
-  return control.startsWith('rescue');
+  return control.startsWith('rescue') || control.startsWith('ring') || control.startsWith('hook') || control.startsWith('crate');
 }
 
 /** One line for displays: the cargo aboard and the run, or the rescue that has paused it. */
@@ -336,6 +375,7 @@ export function runStatus(world: WorldState): string {
   const aboardTo = v ? short(cargoDestination(world, v.id)) : undefined;
   if (inc?.phase === 'calling') return 'Distress call: pick up the handset';
   if (inc?.phase === 'accepted') return runTo || aboardTo ? `Cargo for ${runTo ?? aboardTo}: paused (rescue)` : 'Rescue under way';
+  if (inc?.phase === 'recovered') return `Survivors aboard: land them at a harbour`;
   if (runTo) return `Cargo run to ${runTo}`;
   if (aboardTo) {
     const here = v && nearestPort(v.position[0], v.position[2]);

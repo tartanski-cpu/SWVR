@@ -3,6 +3,7 @@ import { CONFIG } from '../config';
 import type { WorldState } from '../core/world';
 import { sampleSurface, type PreparedWave } from '../ocean/waves';
 import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
+import { VESSEL_DEFS } from '../vessel/vesselDef';
 import type { RescueTarget } from './rescue';
 
 const ORANGE = 0xff6a10;
@@ -14,6 +15,9 @@ interface Marker {
   strobe: THREE.Sprite;
   kind: RescueTarget['kind'];
   phase: number;
+  /** Smoothed horizontal position (snapshots and tows arrive in steps). */
+  x: number;
+  z: number;
 }
 
 /**
@@ -25,6 +29,11 @@ interface Marker {
  * Both ride the wave surface (sampled at their position; no physics body) and carry a
  * flashing strobe at night: a glowing sprite, not a real light, kept a readable size at
  * any distance.
+ *
+ * Recovery (see recovery.ts): a survivor on the line hangs on to the ring (no more
+ * waving); climbing, they come up over the stern to their seat on deck, and aboard they
+ * sit there, riding in the boat's frame. A crate on the hook follows it; once lifted it's
+ * ordinary cargo, drawn by the cargo view, so it's hidden here.
  */
 export class TargetsView {
   readonly root = new THREE.Group();
@@ -103,21 +112,36 @@ export class TargetsView {
     strobe.visible = false;
     root.add(strobe);
     this.root.add(root);
-    const m: Marker = { root, arm, strobe, kind: t.kind, phase: t.id.length * 0.37 };
+    const m: Marker = { root, arm, strobe, kind: t.kind, phase: t.id.length * 0.37, x: t.x, z: t.z };
     this.markers.set(t.id, m);
     return m;
   }
 
-  update(world: WorldState, waves: readonly PreparedWave[], viewer: THREE.Vector3, darkness: number, time: number, dt: number): void {
+  /**
+   * @param vesselId / vesselRoot  the rescuing boat (survivors climb aboard and sit in it)
+   */
+  update(world: WorldState, waves: readonly PreparedWave[], viewer: THREE.Vector3, darkness: number, time: number, dt: number, vesselId: string, vesselRoot?: THREE.Object3D): void {
     const cfg = CONFIG.rescue;
     const targets = world.rescue?.active?.targets ?? [];
+    const v = world.vessels[vesselId];
     const seen = new Set<string>();
     let whistle: THREE.Vector3 | null = null;
     for (const t of targets) {
       seen.add(t.id);
       const m = this.markers.get(t.id) ?? this.create(t);
-      const s = sampleSurface(waves, t.x, t.z);
-      m.root.position.set(t.x, s.height, t.z);
+      // Lifted crates are cargo now.
+      m.root.visible = !(t.kind === 'crate' && t.phase === 'aboard');
+      if (!m.root.visible) continue;
+      if ((t.phase === 'climbing' || t.phase === 'aboard') && v && vesselRoot) {
+        this.poseAboard(m, t, v.defId, vesselRoot, cfg.climbTime);
+        continue;
+      }
+      // Smooth the drift and tow (big jumps snap).
+      const k = Math.hypot(t.x - m.x, t.z - m.z) > 5 ? 1 : Math.min(1, dt * 12);
+      m.x += (t.x - m.x) * k;
+      m.z += (t.z - m.z) * k;
+      const s = sampleSurface(waves, m.x, m.z);
+      m.root.position.set(m.x, s.height, m.z);
       const dist = this.tmp.copy(m.root.position).distanceTo(viewer);
       m.root.visible = dist < 3000;
       // Lean with the wave slope (half of it), and face the viewer (the survivor) or keep a
@@ -127,7 +151,8 @@ export class TargetsView {
       const yaw = m.kind === 'person' ? Math.atan2(viewer.x - t.x, viewer.z - t.z) : m.phase + time * 0.05;
       m.root.quaternion.copy(this.q).multiply(this.qYaw.setFromAxisAngle(this.up, yaw));
       if (m.arm) {
-        const waving = dist < cfg.waveRange;
+        // On the line they hang on to the ring with both hands: no waving, no whistle.
+        const waving = dist < cfg.waveRange && t.phase !== 'onLine';
         m.arm.rotation.z = waving ? -0.25 - 0.45 * (0.5 + 0.5 * Math.sin(time * 6 + m.phase)) : -1.35;
         if (waving && dist < cfg.whistleRange) whistle = m.root.position;
       }
@@ -146,5 +171,26 @@ export class TargetsView {
       this.whistleT = cfg.whistleEvery * (0.8 + Math.random() * 0.4);
       this.onWhistle(whistle);
     }
+  }
+
+  /** Climbing over the stern (an arc from the waterline to the seat), or sitting there. */
+  private poseAboard(m: Marker, t: RescueTarget, defId: string, root: THREE.Object3D, climbTime: number): void {
+    const seat = t.seat ?? [0, 1, 3];
+    const stern = VESSEL_DEFS[defId].rescueGear.stern;
+    // Sitting: the bust's lifejacket hem on the deck.
+    const sit = this.tmp.set(seat[0], seat[1] + 0.35, seat[2]);
+    if (t.phase === 'climbing') {
+      const s = Math.min(1, (t.t ?? 0) / climbTime);
+      // Up the transom first (most of the height), then forward to the seat.
+      const up = Math.min(1, s / 0.55);
+      const fwd = Math.max(0, (s - 0.45) / 0.55);
+      sit.set(stern[0] + (seat[0] - stern[0]) * fwd, stern[1] + (sit.y - stern[1]) * up + 0.25 * Math.sin(Math.PI * fwd), stern[2] + (seat[2] - stern[2]) * fwd);
+    }
+    root.localToWorld(m.root.position.copy(sit));
+    // Sitting facing aft, toward the open deck (the model faces +z); climbing in, facing forward.
+    root.getWorldQuaternion(m.root.quaternion);
+    if (t.phase === 'climbing') m.root.rotateY(Math.PI);
+    if (m.arm) m.arm.rotation.z = t.phase === 'climbing' ? -0.4 : -1.35;
+    m.strobe.visible = false;
   }
 }

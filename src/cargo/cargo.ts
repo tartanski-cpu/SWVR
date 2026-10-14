@@ -480,5 +480,6 @@ export function payloadOf(world: WorldState, vesselId: EntityId): { mass: number
 
 export function cargoLabel(item: CargoItem): string {
   const k = kindOf(item);
-  return `${k.name} ${item.mass} kg → ${portById(item.to)?.name.replace(' (anchorage)', '')}`;
+  const to = item.to === 'any' ? 'any harbour' : portById(item.to)?.name.replace(' (anchorage)', '');
+  return `${k.name} ${item.mass} kg → ${to}`;
 }

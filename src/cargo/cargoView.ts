@@ -111,7 +111,8 @@ export class CargoView {
       if (i >= MAX) continue;
       this.m.compose(this.p, this.q, this.scale.set(sx, sy, sz));
       im.setMatrixAt(i, this.m);
-      this.color.set(portById(c.to)?.cargo.color ?? 0x888888);
+      // Cargo fished out of the sea (bound for 'any' harbour) stays rescue orange.
+      this.color.set(c.to === 'any' ? 0xff6a10 : (portById(c.to)?.cargo.color ?? 0x888888));
       if (c.id === hovered) this.color.offsetHSL(0, 0, 0.18);
       im.setColorAt(i, this.color);
 

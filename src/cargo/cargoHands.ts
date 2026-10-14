@@ -30,6 +30,8 @@ export interface CargoHandsContext {
   push(control: string, targetId: string, ref: string, value: number, args?: number[]): void;
   notify(text: string): void;
   pulse(hand: Handedness, intensity: number, ms: number): void;
+  /** Something was set down on a deck (the "snap" sound). */
+  placedOnDeck?(): void;
 }
 
 interface Carry {
@@ -51,6 +53,8 @@ export class CargoHands {
   /** Items just set down, drawn there until the simulation agrees (or 1.5 s). */
   private readonly placed = new Map<string, { pos: THREE.Vector3; quat: THREE.Quaternion; until: number }>();
   private clock = 0;
+  /** An adopted carry (see adopt) may wait this long for the simulation to create the item. */
+  private adoptUntil = 0;
   hovered: string | null = null;
   private readonly tmp = new THREE.Vector3();
   private readonly tmp2 = new THREE.Vector3();
@@ -161,7 +165,7 @@ export class CargoHands {
     // We think we're carrying it, but the simulation gave it to someone else (MP race).
     if (this.carry) {
       const c = ctx.world.cargo[this.carry.id];
-      if (!c || ('carriedBy' in c.at && c.at.carriedBy !== ctx.playerId)) this.carry = null;
+      if (c ? 'carriedBy' in c.at && c.at.carriedBy !== ctx.playerId : this.clock > this.adoptUntil) this.carry = null;
     }
   }
 
@@ -181,6 +185,17 @@ export class CargoHands {
     this.heavyWait = null;
     ctx.push('cargoTake', c.at && 'vessel' in c.at ? c.at.vessel : GROUND, c.id, 1);
     for (const h of hands) ctx.pulse(h, 0.5, 40);
+  }
+
+  /**
+   * Start carrying an item the simulation is about to put in our hands (a crate lifted
+   * out of the sea with 'crateLift'): drawn at the hand(s) from now on, the item hanging
+   * below them. It may not exist yet; it has a moment to appear.
+   */
+  adopt(id: string, hands: Handedness[], drop = 0.3): void {
+    this.carry = { id, hands, offset: new THREE.Vector3(0, -drop, 0), yaw: 0 };
+    this.heavyWait = null;
+    this.adoptUntil = this.clock + 1.5;
   }
 
   private updateCarryPose(ctx: CargoHandsContext, handsMid: THREE.Vector3): void {
@@ -212,6 +227,7 @@ export class CargoHands {
       const rq = root.getWorldQuaternion(this.q).invert().multiply(quat);
       const yaw = 2 * Math.atan2(rq.y, rq.w);
       ctx.push('cargoPlace', vid, c.id, 1, [l.x, l.y, l.z, yaw]);
+      ctx.placedOnDeck?.();
       this.placed.set(c.id, { pos: root.localToWorld(this.tmp.set(l.x, plan.deckY(l.z), l.z)).clone(), quat, until: this.clock + 1.5 });
       return;
     }

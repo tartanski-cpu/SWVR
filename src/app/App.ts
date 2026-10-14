@@ -51,6 +51,9 @@ import { PingAudio, PingView } from '../player/pingView';
 import { RadioAudio } from '../audio/radioAudio';
 import { WhistleAudio } from '../audio/whistleAudio';
 import { TargetsView } from '../rescue/targetView';
+import { RescueHands, type RescueHandsContext } from '../rescue/rescueHands';
+import { RescueGearView, type AvatarHands } from '../rescue/rescueGearView';
+import { RescueSounds } from '../audio/rescueSounds';
 import { DesktopHand } from '../player/desktopHand';
 import { playerColor } from '../net/avatarView';
 import { runStatus } from '../rescue/rescue';
@@ -144,6 +147,12 @@ export class App {
   private readonly desktopHand = new DesktopHand();
   private readonly deskHandW = new THREE.Vector3();
   private readonly whistleAudio = new WhistleAudio();
+  private readonly rescueHands = new RescueHands();
+  private readonly gearView = new RescueGearView();
+  private readonly rescueSounds = new RescueSounds();
+  /** Last cheer count / shout id heard (null until the first frame). */
+  private rescueHeard: { cheer: number; shout: number } | null = null;
+  private frameDt = 0;
   private readonly listenerFwd = new THREE.Vector3();
   private readonly listenerUp = new THREE.Vector3();
   /** Last radio message / alert played here (null until the first frame: don't replay old ones). */
@@ -220,7 +229,7 @@ export class App {
     this.desktop = new DesktopController(this.camera, this.renderer.domElement, this.keyboard);
     this.environment = new EnvironmentView(this.scene);
     this.scene.add(this.sky.mesh, this.ocean.mesh, this.buoys.mesh, this.probes.mesh, this.platform, this.worldView.root, this.cargoView.root);
-    this.scene.add(this.targetsView.root, this.desktopHand.root);
+    this.scene.add(this.targetsView.root, this.gearView.root, this.desktopHand.root);
     this.targetsView.onWhistle = (pos) => this.whistleAudio.blow(pos);
     this.pingView.onNew = (pos, mine) => {
       this.pingAudio.play(pos.distanceTo(this.focus));
@@ -253,6 +262,7 @@ export class App {
       this.pingAudio.attach(this.engineAudio.context);
       this.radioAudio.attach(this.engineAudio.context);
       this.whistleAudio.attach(this.engineAudio.context);
+      this.rescueSounds.attach(this.engineAudio.context);
     };
     window.addEventListener('pointerdown', unlock);
     window.addEventListener('keydown', unlock);
@@ -318,6 +328,8 @@ export class App {
     this.renderWaves = prepareWaves(this.world.environment.waves, renderTime, this.renderWaves);
     this.syncRigToPlayer(dt);
     this.cargoHands.tick(this.cargoCtx(), dt);
+    this.rescueHands.tick(this.rescueCtx(), dt);
+    this.frameDt = dt;
     if (!inXR) this.desktop.update(dt);
     this.updateInteraction(inXR);
     this.updateLocomotion(dt, inXR);
@@ -357,7 +369,9 @@ export class App {
       if (id === this.testVesselId) ({ slam, lap } = hit);
     }
     this.worldView.lights.update(renderTime, darkness);
-    this.targetsView.update(this.world, this.renderWaves, this.focus, darkness, renderTime, dt);
+    this.targetsView.update(this.world, this.renderWaves, this.focus, darkness, renderTime, dt, this.testVesselId, this.vesselRoots.get(this.testVesselId));
+    this.gearView.update(this.world, this.testVesselId, this.vesselRoots.get(this.testVesselId), this.renderWaves, this.rescueHands, this.localPlayerId, this.avatarHands);
+    this.updateRescueSounds();
     if (this.world.rescue?.active) {
       // Spatial sounds (the survivor's whistle) hear from the head.
       this.camera.getWorldDirection(this.listenerFwd);
@@ -589,6 +603,8 @@ export class App {
   private desktopHandWorld(out: THREE.Vector3): THREE.Vector3 | null {
     const c = this.interaction?.desktopHeld;
     if (c) return c.grabPoint(out);
+    if (this.rescueHands.holdingRing) return out.copy(this.rescueHands.ringPos);
+    if (this.rescueHands.holdingHook) return out.copy(this.rescueHands.hookBase);
     return this.cargoHands.handPoint(out);
   }
 
@@ -640,6 +656,7 @@ export class App {
         pulseBoth(0.7, 120);
         this.waterAudio.splash(1);
         this.cargoHands.dropInSea(this.cargoCtx());
+        this.rescueHands.dropAll(this.rescueCtx());
       }
       this.comfortOverlay.update(dt, 0.6, false);
       return true;
@@ -1198,6 +1215,8 @@ export class App {
       if (this.xrInput.wasPressed('right', XR_BUTTON.stick) && this.hands.right.tracked) this.ping(this.hands.right.ray);
       this.cargoHands.updateXR(this.cargoCtx(), this.hands, this.busyHands);
       for (const h of ['left', 'right'] as const) if (this.cargoHands.busy(h)) this.busyHands[h] = true;
+      this.rescueHands.updateXR(this.rescueCtx(), this.hands, this.busyHands, this.frameDt);
+      for (const h of ['left', 'right'] as const) if (this.rescueHands.busy(h)) this.busyHands[h] = true;
       this.pointer?.hide();
       return;
     }
@@ -1252,15 +1271,76 @@ export class App {
 
   /** Desktop cargo: label under the reticle, and clicks (see DesktopPointer). */
   private desktopCargo() {
+    // The rescue gear (ring, line, hook) comes first, then cargo.
     return {
-      carrying: () => this.cargoHands.carrying,
+      carrying: () => this.cargoHands.carrying || this.rescueHands.deskBusy,
       label: (ray: THREE.Ray | null) => {
         this.camera.getWorldPosition(this.headW);
         this.camera.getWorldDirection(this.headFwd);
-        return this.cargoHands.updateDesktop(this.cargoCtx(), ray, this.headW, this.headFwd);
+        const gear = this.cargoHands.carrying ? null : this.rescueHands.updateDesktop(this.rescueCtx(), ray, this.headW, this.headFwd, this.frameDt);
+        return gear ?? this.cargoHands.updateDesktop(this.cargoCtx(), ray, this.headW, this.headFwd);
       },
-      click: (ray: THREE.Ray | null) => this.cargoHands.desktopClick(this.cargoCtx(), ray),
+      click: (ray: THREE.Ray | null) => {
+        this.camera.getWorldDirection(this.headFwd);
+        if (!this.cargoHands.carrying && this.rescueHands.desktopClick(this.rescueCtx(), ray, this.headFwd)) return true;
+        return this.cargoHands.desktopClick(this.cargoCtx(), ray);
+      },
     };
+  }
+
+  /** The rescue hands' view of the app. */
+  private rescueCtx(): RescueHandsContext {
+    return {
+      world: this.world,
+      playerId: this.localPlayerId,
+      vesselId: this.testVesselId,
+      vesselRoot: this.vesselRoots.get(this.testVesselId),
+      waves: this.renderWaves,
+      cargoHands: this.cargoHands,
+      push: (control, ref, value, args) => this.intents.push({ playerId: this.localPlayerId, targetId: this.testVesselId, control, value, ref, args }),
+      notify: (text) => this.overlay.notify(text, 2.5),
+      pulse: (h, i, ms) => this.xrInput.pulse(h, i, ms),
+    };
+  }
+
+  /** Other players' hands and facing (world), for the gear they hold. */
+  private readonly avatarHands: AvatarHands = {
+    hand: (id, out) => {
+      const p = this.world.players[id];
+      if (!p?.avatar) return null;
+      const h = p.avatar.right ?? p.avatar.left;
+      const frame = (p.aboardVesselId && this.vesselRoots.get(p.aboardVesselId)) || this.scene;
+      if (h) return frame.localToWorld(out.fromArray(h));
+      const [x, y, z] = p.avatar.head;
+      return frame.localToWorld(out.set(x, y - 0.5, z));
+    },
+    facing: (id, out) => {
+      const p = this.world.players[id];
+      if (!p?.avatar) return null;
+      const head = p.avatar.head;
+      const frame = (p.aboardVesselId && this.vesselRoots.get(p.aboardVesselId)) || this.scene;
+      const q = frame.getWorldQuaternion(new THREE.Quaternion()).multiply(new THREE.Quaternion(head[3], head[4], head[5], head[6]));
+      out.set(0, 0, -1).applyQuaternion(q);
+      out.y = 0;
+      return out.lengthSq() > 1e-6 ? out.normalize() : null;
+    },
+  };
+
+  /** The cheer when everyone's out of the water, and what survivors shout. */
+  private updateRescueSounds(): void {
+    const r = this.world.rescue;
+    const now = { cheer: r?.cheer ?? 0, shout: r?.shout?.id ?? 0 };
+    const was = this.rescueHeard;
+    this.rescueHeard = now;
+    if (!was) return;
+    if (now.cheer > was.cheer) {
+      this.rescueSounds.cheer();
+      this.overlay.notify('Recovered! Everyone out of the water.', 4);
+    }
+    if (now.shout !== was.shout && r?.shout) {
+      this.rescueSounds.shout(r.shout.text);
+      this.overlay.notify(`"${r.shout.text}"`, 4);
+    }
   }
 
   /** Engine start/stop with feedback when the neutral-start interlock refuses. */
@@ -1298,6 +1378,7 @@ export class App {
       push: (control, targetId, ref, value, args) => this.intents.push({ playerId: this.localPlayerId, targetId, control, value, ref, args }),
       notify: (text) => this.overlay.notify(text, 2.5),
       pulse: (h, i, ms) => this.xrInput.pulse(h, i, ms),
+      placedOnDeck: () => this.rescueSounds.snap(),
     };
   }
 
