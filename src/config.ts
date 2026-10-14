@@ -514,6 +514,37 @@ export const CONFIG = {
        */
       cabinLight: { position: [0, 3.22, -0.2] as [number, number, number], intensity: 3, distance: 6 },
       /**
+       * Overhead switch panel under the wheelhouse roof, just ahead of and above the helm
+       * (well above the windscreen sightline): deck light switches and the FM radio.
+       * Item x offsets along the panel (m) from its centre.
+       */
+      overheadPanel: {
+        position: [0, 3.27, -1.05] as [number, number, number],
+        width: 0.82,
+        depth: 0.2,
+        deckFore: -0.32,
+        deckAft: -0.21,
+        railLights: -0.1,
+        fmDisplay: 0.11,
+        fmPower: 0.27,
+        fmTune: 0.36,
+      },
+      /**
+       * Deck lights. Floods: a lamp on the wheelhouse roof edge aimed at a point on deck,
+       * each ONE real SpotLight (cd, m, half-angle, penumbra), kept at 0 when off (no shader
+       * recompiles). Rail lights: LED strips along the inside of the bulwark tops - glow
+       * only, no real light (cheap on Quest).
+       */
+      deckLights: {
+        fore: { position: [0, 3.36, -1.98] as [number, number, number], target: [0, 1.3, -3.9] as [number, number, number] },
+        aft: { position: [0, 3.36, 1.58] as [number, number, number], target: [0, 1.0, 4.2] as [number, number, number] },
+        intensity: 160,
+        distance: 14,
+        angleDeg: 60,
+        penumbra: 0.6,
+        railColor: 0xc4e8ff,
+      },
+      /**
        * Searchlight on the wheelhouse roof (vessel axes): beam (cd, m, half-angle deg,
        * penumbra 0..1), travel limits and joystick rates (deg/s at full deflection).
        */
@@ -773,6 +804,26 @@ export const CONFIG = {
     strobePeriod: 1.0,
     strobeOn: 0.08,
     strobeDarkness: 0.25,
+  },
+
+  /**
+   * FM radio in the wheelhouse: internet radio streams played by the browser (an <audio>
+   * element, so no CORS needed). Every player aboard hears the station the set is tuned to,
+   * each from their own connection. The frequencies are made up, for the display. Streams
+   * must be https (the game is served over https). Heard fully within `fullRange` of the
+   * set (m), fading to nothing at `range`.
+   */
+  fmRadio: {
+    stations: [
+      { freq: '88.6', name: 'Groove Salad', url: 'https://ice1.somafm.com/groovesalad-128-mp3' },
+      { freq: '91.2', name: 'Radio Paradise', url: 'https://stream.radioparadise.com/mp3-128' },
+      { freq: '94.7', name: 'Swiss Jazz', url: 'https://stream.srg-ssr.ch/m/rsj/mp3_128' },
+      { freq: '97.3', name: 'Swiss Classic', url: 'https://stream.srg-ssr.ch/m/rsc_de/mp3_128' },
+      { freq: '101.5', name: 'Secret Agent', url: 'https://ice1.somafm.com/secretagent-128-mp3' },
+      { freq: '104.8', name: 'Deutschlandfunk', url: 'https://st01.sslstream.dlf.de/dlf/01/128/mp3/stream.mp3' },
+    ],
+    fullRange: 3,
+    range: 16,
   },
 
   /** Pings: "look here" markers (player/ping.ts). Lifetime (s), beam height (m), reach (m). */

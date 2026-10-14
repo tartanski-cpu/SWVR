@@ -11,6 +11,7 @@ import { Wheel } from './Wheel';
 import { Joystick } from './Joystick';
 import { RadioSet } from '../rescue/radioView';
 import { ChartPlotter } from '../nav/chartPlotter';
+import { OverheadPanel } from './overheadPanel';
 import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
 
 /**
@@ -27,6 +28,8 @@ export class Bridge {
   readonly radio: RadioSet;
   /** Overhead chartplotter (search area, destination). */
   readonly chart: ChartPlotter;
+  /** Overhead switch panel: deck lights and the FM radio. */
+  readonly overhead: OverheadPanel;
 
   constructor(private readonly def: VesselDef) {
     const b = def.bridge;
@@ -67,7 +70,9 @@ export class Bridge {
     this.root.add(this.radio.root);
     this.chart = new ChartPlotter(b.chart, def.layout.wheelhouse.roofY);
     this.root.add(this.chart.root);
-    this.controls.push(wheel, lever, start, horn, nav, anchor, cabin, dock, spot, joy, this.radio.handset);
+    this.overhead = new OverheadPanel(def);
+    this.root.add(this.overhead.root);
+    this.controls.push(wheel, lever, start, horn, nav, anchor, cabin, dock, spot, joy, this.radio.handset, ...this.overhead.controls);
     for (const c of this.controls) if (!c.root.parent) this.root.add(c.root);
 
     // Instrument dash: a box across the front of the console with the displays on its face.
@@ -91,7 +96,7 @@ export class Bridge {
     const spotPedestal = pedestalAt(b.spotJoystick.position[0]);
     this.instruments = new InstrumentPanel(b);
     this.dashAnchor.position.set(0, (d.top + d.bottom) / 2, d.aft);
-    this.root.add(bakeFixedParts(this.root, [dash, pedestal, spotPedestal]), this.instruments.mesh, buildLabels(b), this.dashAnchor);
+    this.root.add(bakeFixedParts(this.root, [dash, pedestal, spotPedestal, this.overhead.body]), this.instruments.mesh, buildLabels(b), this.dashAnchor);
   }
 
   /**
@@ -105,6 +110,7 @@ export class Bridge {
       c.tick(dt);
     }
     if (displaysInView) this.instruments.update(state, this.def, dt);
+    this.overhead.update(state);
   }
 }
 

@@ -50,6 +50,11 @@ export interface MenuHost {
   runStatus(): string;
   rescueNow(): void;
   rescueEnd(): void;
+  /** FM radio in the wheelhouse: on/off and the station (index into CONFIG.fmRadio.stations). */
+  fmOn(): boolean;
+  setFmOn(on: boolean): void;
+  fmStation(): number;
+  setFmStation(i: number): void;
   /** Sound levels 0..1 by id ('master', 'engine', 'effects', 'radio', 'music'). */
   volume(id: string): number;
   setVolume(id: string, v: number): void;
@@ -258,6 +263,19 @@ export function mainMenu(h: MenuHost): MainMenu {
         { text: () => (h.volume(b.id) <= 0 ? 'off' : `${Math.round(h.volume(b.id) * 100)} %`), weight: 1.2 },
         { text: '+', press: () => h.setVolume(b.id, h.volume(b.id) + 0.1) },
       ],
+    })),
+    { heading: 'FM radio (overhead panel in the wheelhouse)' },
+    {
+      label: 'Power',
+      buttons: [choice('On', true, () => h.fmOn(), (v) => h.setFmOn(v)), choice('Off', false, () => h.fmOn(), (v) => h.setFmOn(v))],
+    },
+    ...[0, 3].map((from) => ({
+      label: from === 0 ? 'Station' : '',
+      buttons: CONFIG.fmRadio.stations.slice(from, from + 3).map((st, k) => ({
+        text: st.name,
+        active: () => h.fmOn() && h.fmStation() === from + k,
+        press: () => h.setFmStation(from + k),
+      })),
     })),
   ];
 

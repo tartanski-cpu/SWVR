@@ -56,6 +56,7 @@ import { RescueGearView, type AvatarHands } from '../rescue/rescueGearView';
 import { RescueSounds } from '../audio/rescueSounds';
 import { lastSpeech, speechVoices, watchVoices } from '../audio/babble';
 import { mixer, type Bus } from '../audio/mixer';
+import { FmRadio } from '../audio/fmRadio';
 import { DesktopHand } from '../player/desktopHand';
 import { playerColor } from '../net/avatarView';
 import { runStatus } from '../rescue/rescue';
@@ -152,6 +153,7 @@ export class App {
   private readonly rescueHands = new RescueHands();
   private readonly gearView = new RescueGearView();
   private readonly rescueSounds = new RescueSounds();
+  private readonly fmRadio = new FmRadio();
   /** Last cheer count / shout id heard (null until the first frame). */
   private rescueHeard: { cheer: number; shout: number; ring: string } | null = null;
   private frameDt = 0;
@@ -375,6 +377,11 @@ export class App {
     this.targetsView.update(this.world, this.renderWaves, this.focus, darkness, renderTime, dt, this.testVesselId, this.vesselRoots.get(this.testVesselId));
     this.gearView.update(this.world, this.testVesselId, this.vesselRoots.get(this.testVesselId), this.renderWaves, this.rescueHands, this.localPlayerId, this.avatarHands);
     this.updateRescueSounds();
+    if (this.bridge && testVessel) {
+      const c = testVessel.controls;
+      this.fmRadio.update(c.fmOn > 0, c.fmStation, this.bridge.overhead.root.getWorldPosition(this.tmpV).distanceTo(this.focus));
+      this.bridge.overhead.fmStatus = this.fmRadio.status;
+    }
     if (this.world.rescue?.active) {
       // Spatial sounds (the survivor's whistle) hear from the head.
       this.camera.getWorldDirection(this.listenerFwd);
@@ -930,6 +937,10 @@ export class App {
       runStatus: () => runStatus(this.world),
       rescueNow: () => this.pushVesselIntent('rescueDebugTrigger', 1),
       rescueEnd: () => this.pushVesselIntent('rescueDebugComplete', 1),
+      fmOn: () => (this.world.vessels[this.testVesselId]?.controls.fmOn ?? 0) > 0,
+      setFmOn: (on) => this.pushVesselIntent('fmOn', on ? 1 : 0),
+      fmStation: () => this.world.vessels[this.testVesselId]?.controls.fmStation ?? 0,
+      setFmStation: (i) => this.pushVesselIntent('fmStation', i),
       volume: (id) => mixer.get(id as Bus),
       setVolume: (id, v) => mixer.set(id as Bus, v),
       voiceTest: () => {

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { Intent } from '../core/intents';
 import { clamp } from '../core/math';
+import { CONFIG } from '../config';
 import { toggleEngine } from './physics/propulsion';
 import { toggleDock } from './physics/mooring';
 import { VESSEL_DEFS, type VesselDef } from './vesselDef';
@@ -107,6 +108,27 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
     case 'spotlight':
       s.controls.spotlight = intent.value > 0.5 ? 1 : 0;
       break;
+    case 'deckFore':
+    case 'deckAft':
+    case 'railLights':
+    case 'fmOn':
+      s.controls[intent.control] = intent.value > 0.5 ? 1 : 0;
+      break;
+    case 'fmTune': {
+      // TUNE: on to the next station (switching the set on if it was off).
+      const n = CONFIG.fmRadio.stations.length;
+      if (s.controls.fmOn) s.controls.fmStation = (s.controls.fmStation + 1) % n;
+      s.controls.fmOn = 1;
+      break;
+    }
+    case 'fmStation': {
+      const n = CONFIG.fmRadio.stations.length;
+      if (Number.isInteger(intent.value) && intent.value >= 0 && intent.value < n) {
+        s.controls.fmStation = intent.value;
+        s.controls.fmOn = 1;
+      }
+      break;
+    }
     case 'spotPan': {
       const sp = VESSEL_DEFS[s.defId].spotlight;
       s.controls.spotPan = clamp(intent.value, -sp.panLimitDeg, sp.panLimitDeg);

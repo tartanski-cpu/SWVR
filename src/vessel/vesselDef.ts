@@ -44,6 +44,8 @@ export interface VesselDef {
   cargo: VesselConfig['cargo'];
   rescueGear: VesselConfig['rescueGear'];
   cabinLight: VesselConfig['cabinLight'];
+  overheadPanel: VesselConfig['overheadPanel'];
+  deckLights: VesselConfig['deckLights'];
   spotlight: VesselConfig['spotlight'];
   mooring: VesselConfig['mooring'];
 }
@@ -97,6 +99,8 @@ export function fromConfig(id: string, c: VesselConfig): VesselDef {
     cargo: c.cargo,
     rescueGear: c.rescueGear,
     cabinLight: c.cabinLight,
+    overheadPanel: c.overheadPanel,
+    deckLights: c.deckLights,
     spotlight: c.spotlight,
     mooring: c.mooring,
   };
