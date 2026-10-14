@@ -69,10 +69,10 @@ export class WaterSound {
       // Take the very top off (the smallest bubbles are glassy on headset speakers).
       const soft = ctx.createBiquadFilter();
       soft.type = 'highshelf';
-      soft.frequency.value = 5000;
-      soft.gain.value = -6;
+      soft.frequency.value = 4000;
+      soft.gain.value = -4;
       const g = ctx.createGain();
-      g.gain.value = 0.55;
+      g.gain.value = 0.7;
       // A gentle compressor so a big slam is loud without clipping.
       const comp = ctx.createDynamicsCompressor();
       comp.threshold.value = -14;
@@ -110,19 +110,20 @@ export class WaterSound {
     this.surge = Math.max(this.surge * Math.exp(-dt / 0.5), Math.max(slam, lap * 0.6));
     const v = Math.min(1, speed / 5);
     const flow = Math.pow(v, 1.5) * (this.mod + this.surge);
-    // With bubbles carrying the detail, the noise layers are just the soft bed under them.
-    const bed = this.bubbles ? 0.55 : 1;
-    this.whoosh.gain.setTargetAtTime(0.24 * bed * flow * level, t, 0.15);
-    this.whooshBp.frequency.setTargetAtTime(350 + 500 * v + 200 * this.surge, t, 0.2);
-    this.fizz.gain.setTargetAtTime(0.07 * bed * bed * Math.pow(v, 2.5) * (0.6 + this.mod * 0.4 + this.surge) * level, t, 0.12);
+    // With splash events carrying the detail, the noise is a low rushing bed under them, and
+    // the high fizz (which on its own sounds like frying) is only a hint at full speed.
+    const ev = !!this.bubbles;
+    this.whoosh.gain.setTargetAtTime((ev ? 0.17 : 0.24) * flow * level, t, 0.15);
+    this.whooshBp.frequency.setTargetAtTime((ev ? 260 : 350) + (ev ? 300 : 500) * v + 200 * this.surge, t, 0.2);
+    this.fizz.gain.setTargetAtTime((ev ? 0.012 : 0.07) * Math.pow(v, 2.5) * (0.6 + this.mod * 0.4 + this.surge) * level, t, 0.12);
     if (this.bubbles) {
       const p = this.bubbles.parameters;
-      // A trickle at rest (water working round the hull), a busy stream at speed; the
-      // breathing and surges come through as gusts of bubbles.
-      const rate = (6 + 520 * Math.pow(v, 1.4)) * (0.7 + 0.3 * this.mod + this.surge);
+      // Splashes against the hull: now and then at rest, about ten a second at speed, in
+      // gusts as the bow meets the waves.
+      const rate = (0.4 + 9 * Math.pow(v, 1.2)) * (0.6 + 0.4 * this.mod + 1.5 * this.surge);
       p.get('rate')!.setTargetAtTime(rate, t, 0.08);
-      this.bubbleGain!.gain.setTargetAtTime(0.55 * level, t, 0.1);
-      p.get('size')!.setTargetAtTime(Math.min(1, 0.15 + 0.5 * v + 0.3 * this.surge), t, 0.2);
+      this.bubbleGain!.gain.setTargetAtTime(0.7 * level, t, 0.1);
+      p.get('size')!.setTargetAtTime(Math.min(1, 0.2 + 0.5 * v + 0.3 * this.surge), t, 0.2);
     }
 
     if (slam > 0.05 && this.splashCooldown === 0) {

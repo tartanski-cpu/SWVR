@@ -544,12 +544,14 @@ Frame-rate friendly: 3 extra draw calls, a few hundred vertices, and almost no C
   - **Depth:** App works out how far the transom outlet is under the rendered sea surface, plus the water the hull raises at the transom, which the wave model leaves out: the stern wave near hull speed (Fn 0.28–0.45, up to 0.3 m) and water piling up going astern. Prop wash makes it come and go.
   - **How often:** it's under about 6–21 % of the time in moderate to stormy seas, often near full speed, and on and off going astern.
   - **Sound:** the dry exhaust path fades (down to 20 %), a low-passed (220 Hz) copy comes up, and a new worklet channel of exhaust bubbles burbles: 1–3 big bubbles (100–450 Hz) per firing beat, more under load. A little gurgle is always there while running (cooling water). It goes under fast and clears more slowly.
-- **Water as bubbles** (`audio/waterWorklet.ts`):
-  - **Model:** splashing water is mostly air bubbles ringing as they form. Each bubble is a decaying sine at its Minnaert frequency (3.26/r) that chirps upward (van den Doel's model).
-  - **Stream:** grows with speed, from a trickle at rest to about 500 bubbles/s, mostly small bright ones; bigger ones join as the bow digs in.
-  - **Splashes:** slams fire clusters of up to about 120 bubbles over a quarter second; laps fire small spatters. Each bubble gets its own stereo position.
-  - **Bed:** the old noise whoosh and fizz stay underneath at about half level.
-  - **Levels:** a gentle compressor keeps slams loud without clipping (rendered peak 0.76).
+- **Water as splash events** (`audio/waterWorklet.ts`; second pass after the owner said the first "sounds like frying in oil"):
+  - **What was wrong:** a steady random stream of tiny bubbles is exactly the sound of sizzling. Their instant, random-phase starts were clicks, and the high-passed fizz noise added more of the same.
+  - **Now:** water against the hull is separate splashes. Each is a short, wet, low-mid slap (low-passed noise, 12–37 ms) followed by 2–14 fairly big bubbles (1.5–12 mm, 2.2 kHz down to 270 Hz) that bloop and glide upward in pitch over about 0.15 s. That's the van den Doel bubble model, but in the liquid range rather than the sizzle range.
+  - **Bubble starts:** each bubble starts at zero phase with a 1.5 ms fade-in.
+  - **Rate:** about 0.4 splashes a second at rest, about 10 at speed, in gusts as the bow meets the waves. Bigger bubbles come in as she digs in. Splashes alternate port and starboard in the stereo field.
+  - **Slams:** a heavy low double slap and a crowd of bubbles. Laps are a small version.
+  - **Bed:** the noise whoosh is now a low rush (260–560 Hz); the fizz is only a hint at full speed.
+  - **Rendered:** energy sits in 150–1500 Hz with the 1.5–6 kHz sizzle band 10–20 dB down, and the 10 ms loudness swings 17–25 dB (discrete splashes; a sizzle stays within a few dB). A compressor keeps slams below clipping (peak 0.93).
 
 ## Planned next (owner requests, not started)
 
