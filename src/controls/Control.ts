@@ -32,8 +32,10 @@ export interface Pointer {
   position: THREE.Vector3;
   /** World ray (for ray-grabs: the control intersects it with its own plane). */
   ray?: THREE.Ray;
-  /** World orientation of the hand (VR), for controls you twist (the tiller's grip). */
+  /** World orientation of the hand (VR). */
   quaternion?: THREE.Quaternion;
+  /** How far the hand's trigger is pulled, 0..1 (VR only; the tiller's throttle). */
+  trigger?: number;
 }
 
 export abstract class Control {

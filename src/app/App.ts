@@ -167,6 +167,9 @@ export class App {
   /** Outboard tillers (the skiff's), one per outboard boat. */
   private readonly tillers: Tiller[] = [];
   private readonly motorAudio = new ElectricMotorAudio();
+  /** Crouching (X / C), and the current crouch drop (m, eased). */
+  private crouched = false;
+  private crouchY = 0;
   private board: BoardView | null = null;
   private readonly noteKeys = new NoteKeyboard((text, x, y, colour) => this.pushBoardIntent('noteAdd', text, [x, y, colour]));
   /** The board's seq last saved to this browser (host / solo keeps the notes over a reload). */
@@ -535,13 +538,12 @@ export class App {
     }
     this.handleDebugDriving(dt);
     if (k.actionPressed('engine')) this.requestEngineStartStop();
-    // Motion coupling: hold X and push the left stick up/down (VR), or 9 / 0 (desktop).
-    let dc = 0;
-    if (this.xrInput.isDown('left', XR_BUTTON.primary)) {
-      const sy = this.xrInput.hands.left.stick[1];
-      if (Math.abs(sy) > 0.2) dc = -sy * 0.4 * dt;
-      if (this.xrInput.wasPressed('left', XR_BUTTON.primary)) dc = 1e-9; // show the current value
+    // Crouch: X (VR) or C (desktop, walking) toggles it.
+    if (this.xrInput.wasPressed('left', XR_BUTTON.primary) || (k.actionPressed('crouch') && this.desktop.mode === 'walk' && !this.interaction?.steering)) {
+      this.crouched = !this.crouched;
     }
+    // Motion coupling: in the menu, or 9 / 0 (desktop).
+    let dc = 0;
     if (k.actionPressed('couplingDown')) dc = -0.1;
     if (k.actionPressed('couplingUp')) dc = 0.1;
     if (dc !== 0) this.setCoupling(this.decoupler.coupling + dc);
@@ -632,6 +634,13 @@ export class App {
       carrier.quaternion.identity();
     }
     this.rig.root.rotation.set(0, p.yaw, 0);
+    // Crouch lowers the whole rig (view and hands) toward the deck; only while walking.
+    if ((p.mode ?? 'walk') !== 'walk') this.crouched = false;
+    if (dt > 0) {
+      const want = this.crouched ? CONFIG.locomotion.crouchDrop : 0;
+      this.crouchY += (want - this.crouchY) * Math.min(1, dt / CONFIG.locomotion.crouchTime);
+    }
+    this.rig.root.position.y = -this.crouchY;
     this.camera.updateWorldMatrix(true, false);
   }
 
@@ -807,7 +816,7 @@ export class App {
       head: this.headW,
       headForward: this.headFwd,
       grabbing,
-      moveStick: inXR && !this.xrInput.isDown('left', XR_BUTTON.primary) ? [lx * speedScale, -ly * speedScale] : [0, 0],
+      moveStick: inXR ? [lx * speedScale, -ly * speedScale] : [0, 0],
       turnStick: inXR ? this.xrInput.hands.right.stick[0] : 0,
       desktopDelta,
     });
@@ -1340,16 +1349,19 @@ export class App {
         f.gripPressed = this.xrInput.wasPressed(h, XR_BUTTON.grip);
         f.triggerDown = this.xrInput.isDown(h, XR_BUTTON.trigger);
         f.triggerPressed = this.xrInput.wasPressed(h, XR_BUTTON.trigger);
+        f.trigger = this.xrInput.hands[h].values[XR_BUTTON.trigger] ?? (f.triggerDown ? 1 : 0);
       }
       // The menu gets the right hand first; while it's on the menu its trigger is the menu's.
       if (this.menu.updateXR(this.hands.right, (i, ms) => this.xrInput.pulse('right', i, ms))) {
         this.hands.right.triggerDown = false;
         this.hands.right.triggerPressed = false;
+        this.hands.right.trigger = 0;
       }
       // The note keyboard, while open, the same.
       if (this.noteKeys.isOpen && this.noteKeys.menu.updateXR(this.hands.right, (i, ms) => this.xrInput.pulse('right', i, ms))) {
         this.hands.right.triggerDown = false;
         this.hands.right.triggerPressed = false;
+        this.hands.right.trigger = 0;
       }
       this.busyHands = this.interaction.updateXR(this.hands);
       if (this.xrInput.wasPressed('right', XR_BUTTON.stick) && this.hands.right.tracked) this.ping(this.hands.right.ray);

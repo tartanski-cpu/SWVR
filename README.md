@@ -86,7 +86,8 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | Left stick | Walk (head-relative; can be switched off in the menu) |
 | Right stick ← / → | Snap turn (30° by default; 15/30/45/90° in the menu) |
 | Left stick click | Board the boat (at the helm) / back to the platform |
-| Hold X + left stick ↑ / ↓ | Motion coupling 0–100 % (fine adjust; also in the menu in 10 % steps). Default 100 % = rigid to the deck; lower values make controls harder to grab |
+| **X** | **Crouch** / stand up (drops your view and hands 0.6 m; desktop: C) |
+| **Grip** on the skiff's tiller, then **trigger** | Steer by swinging the tiller; the same hand's trigger is the throttle (let go = idle). Red button on the motor: on/off; yellow lever on its side: forward / neutral / reverse |
 | B | Debug/perf panel on your left wrist: FPS, cpu/gpu frame time, draw calls, XR resolution, boat readouts |
 
 ### VR menu (Y)

@@ -748,6 +748,12 @@ Owner: in VR the controller drops out of tracking when you look ahead, the twist
 - **Sound:** the whine is lower, softer (triangle through a lowpass) and about 8 dB down. New **propeller churn**: band-limited noise beating at the blade rate (3 blades, ~75 Hz flat out), louder and rougher astern.
 - **Tests (183):** motor off and neutral give no thrust; shifting closes the throttle; reverse goes astern.
 
+### Trigger throttle and crouch (owner feedback)
+
+- **The twist grip is gone** (still hard to use in VR). Grip the tiller to take control and steer by swinging it; the **trigger of that hand is the throttle**: squeeze for more, ease off for less, let go to idle (a dead-man, like a jet-ski trigger). Letting go of the tiller closes it too. The gear lever still sets the direction. Hand jumps of more than 25 cm in a frame (tracking loss) don't move the tiller.
+- **Crouch:** X in VR (it used to be hold X + stick for motion coupling, which is in the menu), C on the desktop while walking. The view and hands drop 0.6 m (`CONFIG.locomotion.crouchDrop`); standing up is the same button. Jumping or swimming stands you up.
+- **Tests (186):** trigger throttle, easing off idles, letting go closes it, tracking jumps ignored.
+
 ## Planned next (owner requests, not started)
 
 1. ~~Fuel and oil temperature~~ **Done** (see above).

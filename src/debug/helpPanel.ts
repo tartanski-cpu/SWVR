@@ -11,6 +11,7 @@ type LayoutMap = Map<string, string>;
 const ROWS: (KeyAction | KeyAction[])[] = [
   'menu',
   ['forward', 'left', 'back', 'right'],
+  'crouch',
   'flyMode',
   ['up', 'down'],
   'fast',

@@ -29,8 +29,10 @@ export interface HandFrame {
   grip: THREE.Vector3;
   /** Pointer ray from the controller tip (world). */
   ray: THREE.Ray;
-  /** Grip orientation (world). Optional: only twist controls use it. */
+  /** Grip orientation (world). Optional. */
   quat?: THREE.Quaternion;
+  /** Analog trigger pull 0..1 (0 while the trigger belongs to a menu). */
+  trigger?: number;
   gripDown: boolean;
   gripPressed: boolean;
   triggerDown: boolean;
@@ -134,6 +136,7 @@ export class InteractionSystem {
       const p = this.pointers[hand];
       p.position = f.grip;
       p.quaternion = f.quat;
+      p.trigger = f.trigger ?? (f.triggerDown ? 1 : 0);
 
       if (!f.tracked) {
         this.releaseHand(hand);

@@ -810,6 +810,9 @@ export const CONFIG = {
     smoothEnabled: true,
     smoothSpeed: 1.4,
     snapTurnDeg: 30,
+    /** Crouch (X in VR, C on the desktop): how far the view and hands drop (m), and how fast (s). */
+    crouchDrop: 0.6,
+    crouchTime: 0.12,
     /** Stick deflection that triggers a snap turn, and that must be released before the next. */
     snapThreshold: 0.7,
     /** Floor-height following time constant (s), smooths steps like the doorway sill. */
@@ -957,7 +960,7 @@ export const CONFIG = {
      *         human head-stabilisation reflexes do.
      *   0   = horizon level, height smoothed.
      * Heading and horizontal position always stay locked to the deck (walking/collision).
-     * Adjust in VR: the menu (Y), or hold X and push the left stick up/down. Desktop: 9 / 0.
+     * Adjust in VR: the menu (Y). Desktop: 9 / 0.
      */
     // Default rigid: in VR testing, decoupling also moved the hands relative to the deck
     // (they live in the same rig as the head), making the bridge controls hard to grab.

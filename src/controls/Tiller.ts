@@ -6,25 +6,27 @@ import { Button } from './Button';
 import { Control, type Pointer } from './Control';
 import { GearSelector } from './GearSelector';
 
-/** Twist (rad) of the grip for full throttle either way. */
-const TWIST_FULL = (60 * Math.PI) / 180;
 /** Desktop keys: throttle change per second (W / S held), tiller swing per second (A / D). */
 const KEY_THROTTLE_RATE = 0.6;
 const KEY_HELM_RATE = 2.0;
-/** Largest believable twist change between frames (rad); more is a tracking glitch. */
-const MAX_TWIST_STEP = (40 * Math.PI) / 180;
+/** Trigger travel ignored at the start (a resting finger), and the throttle's slew rate (1/s). */
+const TRIGGER_DEADZONE = 0.06;
+const TRIGGER_SLEW = 2.5;
+/** Largest believable hand movement between frames (m); more is a tracking glitch. */
+const MAX_HAND_STEP = 0.25;
 
 /**
  * The outboard's tiller, and the motor it swings: a handle reaching forward over the
- * transom from the motor's pivot, with a twist-grip throttle on its end.
+ * transom from the motor's pivot, with a rubber grip on its end.
  *
- * VR: grab the handle. Swing it sideways to steer - like any outboard, tiller to port turns
- * the bow to starboard (`helm` +1). Twist your wrist for the throttle: rolling the grip
- * clockwise as seen from behind it (thumb outward on the right hand) is ahead, the other way
- * astern; it stays where you leave it, like a real twist grip, and the tiller stays put.
- * Desktop: click it, then W / S open and close the throttle, A / D swing the tiller (it
- * springs back to the middle when you let go of the keys), and the mouse still looks around;
- * click again to let go.
+ * VR: grab the handle (grip) to take control, and swing it sideways to steer - like any
+ * outboard, tiller to port turns the bow to starboard (`helm` +1). The TRIGGER of that hand
+ * is the throttle: squeeze for more, ease off for less, let go to idle (a dead-man, like a
+ * jet-ski or e-foil trigger). Letting go of the tiller closes the throttle too. Direction is
+ * the gear lever's, so neither a trigger nor a tracking dropout can put her astern.
+ * Desktop: click it, then W / S open and close the throttle (through neutral, shifting for
+ * you), A / D swing the tiller (it springs back to the middle when you let go of the keys),
+ * and the mouse still looks around; click again to let go.
  *
  * It sends absolute values (`helm`, `lever`) on channels prefixed with its vessel's id
  * (`<vesselId>:helm`), so the App sends them to the skiff, not the workboat.
@@ -46,17 +48,14 @@ export class Tiller extends Control {
   private throttle = 0;
   private sentHelm = 0;
   private sentThrottle = 0;
-  /** Grab: hand orientation and throttle at the start of the twist. */
-  private readonly twistStart = new THREE.Quaternion();
-  private hasTwist = false;
-  private throttleAtGrab = 0;
+  /** Last hand position (control frame) while held, to reject tracking jumps. */
+  private readonly lastHand = new THREE.Vector3();
+  private hasHand = false;
+  /** Held by a VR hand (trigger throttle) rather than the desktop mouse. */
+  private vrHeld = false;
   private readonly keys = { x: 0, y: 0 };
   private keySteering = false;
   private readonly maxSteer: number;
-  private readonly tmpQ = new THREE.Quaternion();
-  private readonly axis = new THREE.Vector3();
-  /** Last twist reading: a jump bigger than a wrist can make in a frame is a tracking glitch. */
-  private lastTwist = 0;
   private gear = 0;
 
   constructor(
@@ -78,7 +77,7 @@ export class Tiller extends Control {
     pod.position.set(0, prop.y, prop.z);
     const blades = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.05, 0.02), m(0x9aa0a6));
     blades.position.set(0, prop.y, prop.z + 0.13);
-    // Handle: forward and a little up from the pivot, with the rubber twist grip on its end.
+    // Handle: forward and a little up from the pivot, with the rubber grip on its end.
     const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.022, t.length, 8).rotateX(Math.PI / 2 - 0.12), m(0x3a3f44));
     handle.position.set(0, 0.03 + Math.sin(0.12) * (t.length / 2), -t.length / 2);
     this.grip = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.024, 0.13, 10).rotateX(Math.PI / 2 - 0.12), this.material(0xd8582a));
@@ -120,42 +119,42 @@ export class Tiller extends Control {
 
   get label(): string {
     if (!this.motorOn) return 'Outboard tiller (motor OFF: red button on the motor)';
-    return `Outboard tiller (${this.gearLever.gearName})`;
+    return `Outboard tiller (${this.gearLever.gearName}; VR: grip to hold, trigger = throttle)`;
   }
 
   grabStart(p: Pointer): void {
     this.held = true;
-    this.throttleAtGrab = this.throttle;
-    this.hasTwist = !!p.quaternion;
-    this.lastTwist = 0;
-    if (p.quaternion) this.twistStart.copy(p.quaternion);
+    this.hasHand = false;
+    this.vrHeld = p.trigger !== undefined;
   }
 
   grabMove(p: Pointer): void {
-    // Steering: where the hand is around the pivot (handle points forward, -z).
+    // Steering: where the hand is around the pivot (handle points forward, -z). A jump
+    // bigger than a hand can move in a frame is the controller losing tracking: hold course.
     const h = this.toLocal(p.position);
-    const angle = Math.atan2(-h.x, -h.z); // tiller angle, + to port
-    this.setHelm(clamp(angle / this.maxSteer, -1, 1));
-    // Throttle: twist of the hand about the handle since the grab.
-    if (this.hasTwist && p.quaternion) {
-      const r = this.tmpQ.copy(this.twistStart).invert().multiply(p.quaternion);
-      // The handle's axis (toward the grip), in the hand's starting frame.
-      this.axis.set(0, 0, -1).applyQuaternion(this.arm.getWorldQuaternion(new THREE.Quaternion()));
-      this.axis.applyQuaternion(this.twistStart.clone().invert());
-      const twist = 2 * Math.atan2(r.x * this.axis.x + r.y * this.axis.y + r.z * this.axis.z, r.w);
-      // A jump of more than ~40 deg in one frame is the controller losing tracking (out of
-      // view), not a wrist: ignore it. The grip only sets HOW MUCH throttle (0..1); the
-      // direction is the gear lever's, so a glitch can never put her in reverse.
-      if (Math.abs(twist - this.lastTwist) > MAX_TWIST_STEP) return;
-      this.lastTwist = twist;
-      // Right-hand rule about the axis toward the grip: + is clockwise seen from behind it = more.
-      this.setThrottle(clamp(this.throttleAtGrab + twist / TWIST_FULL, 0, 1));
+    const jumped = this.hasHand && h.distanceTo(this.lastHand) > MAX_HAND_STEP;
+    this.lastHand.copy(h);
+    this.hasHand = true;
+    if (!jumped) {
+      const angle = Math.atan2(-h.x, -h.z); // tiller angle, + to port
+      this.setHelm(clamp(angle / this.maxSteer, -1, 1));
+    }
+    // Throttle: the trigger of the hand on the tiller, eased a little so it isn't twitchy.
+    if (p.trigger !== undefined) {
+      const want = clamp((p.trigger - TRIGGER_DEADZONE) / (1 - 2 * TRIGGER_DEADZONE), 0, 1);
+      const step = TRIGGER_SLEW / 72; // per frame at the Quest's 72 Hz; only a smoothing
+      const next = this.throttle + clamp(want - this.throttle, -step, step);
+      if (next >= 1 && this.throttle < 1) this.ctx?.haptic(0.3, 20); // full throttle stop
+      this.setThrottle(want === 0 ? 0 : next);
     }
   }
 
   grabEnd(_p: Pointer): void {
     this.held = false;
     this.keySteering = false;
+    // Dead-man: letting go of the tiller in VR closes the throttle.
+    if (this.vrHeld) this.setThrottle(0);
+    this.vrHeld = false;
   }
 
   readonly keySteerable = true;
@@ -173,7 +172,7 @@ export class Tiller extends Control {
     this.power.tick(dt);
     if (!this.keySteering) return;
     // W / S: one signed command through neutral (forward -> neutral -> reverse), sent as the
-    // gear lever and the twist grip would send it.
+    // gear lever and the trigger would send it.
     if (this.keys.y !== 0) {
       const before = this.gear * this.throttle;
       let c = clamp(before + this.keys.y * KEY_THROTTLE_RATE * dt, -1, 1);
@@ -219,8 +218,8 @@ export class Tiller extends Control {
   }
 
   private setThrottle(v: number): void {
-    // Closed below a few percent, with a tick as it closes.
-    const t = v < 0.04 ? 0 : v;
+    // Closing: shut below a few percent, with a tick (opening passes through freely).
+    const t = v < 0.04 && v <= this.throttle ? 0 : v;
     if (t === 0 && this.throttle !== 0) this.ctx?.haptic(0.4, 25);
     this.throttle = t;
     if (Math.abs(t - this.sentThrottle) > 0.01 || (t === 0 && this.sentThrottle !== 0)) {

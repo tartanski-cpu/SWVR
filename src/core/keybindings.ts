@@ -36,6 +36,7 @@ export const KEYS = {
   flyMode: { codes: ['KeyF'], description: 'Walk / free-fly camera' },
   up: { codes: ['Space'], description: 'Up (free-fly)' },
   down: { codes: ['KeyC'], description: 'Down (free-fly)' },
+  crouch: { codes: ['KeyC'], description: 'Crouch / stand up (walking)' },
   fast: { codes: ['ShiftLeft', 'ShiftRight'], description: 'Move faster (hold)' },
   timeEarlier: { codes: ['KeyN'], description: 'Time of day -30 min' },
   timeLater: { codes: ['KeyM'], description: 'Time of day +30 min' },
