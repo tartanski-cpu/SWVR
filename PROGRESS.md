@@ -675,6 +675,20 @@ Plan agreed with the owner: five milestones, stopping after each for testing. Si
   - Softer 110/150 Hz body peaks, and a second high-pass at 36 Hz.
 - **Result at 894 rpm:** 1/3-octave levels within ~3 dB of the recording from 40 Hz to 3 kHz; half-order lines within 2-5 dB.
 - The new floor is mostly in the range small headset speakers can play, so the engine should carry better on the Quest. Offline render and analysis scripts were used to measure this.
+- **Correction (water):** a closer look showed the 300 Hz - 8 kHz floor is mostly **water**, not engine. It isn't locked to the firing (only 0-3 % of its fluctuation is at 44.7 Hz), it swells slowly, and L/R are decorrelated. So the engine's mechanical layer is turned down (MECH 0.15) and the floor now comes from the water wash.
+
+## Water sound back: hull wash voiced from the recording (owner request)
+
+- The old flow sound (bubble "babble" worklet + band-passed rush + fizz) is gone (`waterWorklet.ts` deleted). It was dense popping, "frying in oil".
+- **New wash** (`waterAudio.ts`): two decorrelated noise streams (stereo, diffuse like the recording), shaped to its measured spectrum:
+  - Filters: high-pass 160 Hz, two first-order poles (380 Hz, 1.5 kHz), a small fizz peak at 4.8 kHz, low-pass 10 kHz.
+  - Slow random swells (two Ornstein-Uhlenbeck processes, corners ~0.3 Hz and ~1.3 Hz, ~30 % depth), brighter as it swells; the hull's real wave hits (lap, slam) add surges.
+  - Level ~speed^1.5, a trickle at rest, brighter with speed.
+- **Matched against the recording** (engine + water at 894 rpm and ~7 kn):
+  - 1/3-octave levels within ~2 dB from 315 Hz to 4 kHz.
+  - Swell rhythm (most energy at 0.25-0.5 Hz), swell depth 0.26 / 0.33 / 0.39 (recording 0.27 / 0.32 / 0.37).
+  - Burstiness p99/median 2.0-2.4 (2.1-2.5); L/R correlation ~0.1.
+- The hull impacts stay: low thud on a slam (now also surging the wash) and the wet clop for laps.
 
 ## Planned next (owner requests, not started)
 

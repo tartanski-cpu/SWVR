@@ -43,7 +43,7 @@ export interface EngineSoundInput {
  * Built on any BaseAudioContext, so it can also be rendered offline for checking levels.
  */
 /** Level of the mechanical noise floor (tuned against the reference recording). */
-const MECH = 0.6;
+const MECH = 0.15;
 
 export class EngineSound {
   private constructor(

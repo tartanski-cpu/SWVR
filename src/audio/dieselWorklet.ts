@@ -12,7 +12,7 @@
  *     idle and light load - the "diesel clatter".
  *   - channel 2, exhaust bubbles: a wet exhaust blowing into water burbles. Each firing
  *     event releases a few big bubbles (100-450 Hz) that ring and chirp upward as they
- *     rise (the same bubble model as the water sound, see waterWorklet.ts). The main
+ *     rise (Minnaert bubbles: f = 3.26 / radius). The main
  *     thread fades this in as the outlet goes under.
  *   - channel 3, mechanical noise: a continuous grit (valve train, gears, the hull
  *     carrying it), its level pulsing with the firing. A recording of a similar boat
