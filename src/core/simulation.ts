@@ -1,6 +1,7 @@
 import { applyEnvironmentIntent, stepEnvironment } from '../environment/timeOfDay';
 import { prepareWaves, type PreparedWave } from '../ocean/waves';
 import { stepVessel, type HydroDebug } from '../vessel/physics/vesselPhysics';
+import { vesselContacts } from '../vessel/physics/vesselContact';
 import { applyPlayerIntent } from '../player/playerControl';
 import { applyPing, expirePings } from '../player/ping';
 import { applyRescueIntent, isRescueIntent, stepRescue } from '../rescue/rescue';
@@ -46,6 +47,8 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
   // 2. Integrate systems. Forces are evaluated at the start-of-tick time.
   stepEnvironment(world.environment, dt);
   simWaves = prepareWaves(world.environment.waves, world.time, simWaves);
+  // Boat against boat (the tender alongside), from the start-of-tick states.
+  const touching = vesselContacts(Object.values(world.vessels), (v) => VESSEL_DEFS[v.defId]);
   for (const vessel of Object.values(world.vessels)) {
     let dbg: HydroDebug | undefined;
     if (debug) {
@@ -54,7 +57,7 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
     }
     const payload = payloadOf(world, vessel.id);
     const deckBefore = deckVelocitiesBefore(world, vessel);
-    stepVessel(vessel, VESSEL_DEFS[vessel.defId], simWaves, dt, dbg, world.geography === 'archipelago', payload);
+    stepVessel(vessel, VESSEL_DEFS[vessel.defId], simWaves, dt, dbg, world.geography === 'archipelago', payload, touching.get(vessel.id));
     stepDeckCargo(world, vessel, deckBefore, dt);
     stepRefuelling(vessel, VESSEL_DEFS[vessel.defId], dt, world.geography === 'archipelago');
   }

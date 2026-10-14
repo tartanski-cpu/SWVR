@@ -57,6 +57,8 @@ import { RescueSounds } from '../audio/rescueSounds';
 import { lastSpeech, speechVoices, watchVoices } from '../audio/babble';
 import { mixer, type Bus } from '../audio/mixer';
 import { FmRadio } from '../audio/fmRadio';
+import { Tiller } from '../controls/Tiller';
+import { ElectricMotorAudio } from '../audio/electricMotorAudio';
 import { BoardView, type BoardContext } from '../board/boardView';
 import { NoteKeyboard } from '../board/noteKeyboard';
 import { parseBoard } from '../board/board';
@@ -162,6 +164,9 @@ export class App {
   private readonly gearView = new RescueGearView();
   private readonly rescueSounds = new RescueSounds();
   private readonly fmRadio = new FmRadio();
+  /** Outboard tillers (the skiff's), one per outboard boat. */
+  private readonly tillers: Tiller[] = [];
+  private readonly motorAudio = new ElectricMotorAudio();
   private board: BoardView | null = null;
   private readonly noteKeys = new NoteKeyboard((text, x, y, colour) => this.pushBoardIntent('noteAdd', text, [x, y, colour]));
   /** The board's seq last saved to this browser (host / solo keeps the notes over a reload). */
@@ -177,8 +182,8 @@ export class App {
   private readonly pingCaster = new THREE.Raycaster();
   private readonly vesselRoots = new Map<string, THREE.Object3D>();
   private readonly hands: Record<'left' | 'right', HandFrame> = {
-    left: { tracked: false, grip: new THREE.Vector3(), ray: new THREE.Ray(), gripDown: false, gripPressed: false, triggerDown: false, triggerPressed: false },
-    right: { tracked: false, grip: new THREE.Vector3(), ray: new THREE.Ray(), gripDown: false, gripPressed: false, triggerDown: false, triggerPressed: false },
+    left: { tracked: false, grip: new THREE.Vector3(), ray: new THREE.Ray(), quat: new THREE.Quaternion(), gripDown: false, gripPressed: false, triggerDown: false, triggerPressed: false },
+    right: { tracked: false, grip: new THREE.Vector3(), ray: new THREE.Ray(), quat: new THREE.Quaternion(), gripDown: false, gripPressed: false, triggerDown: false, triggerPressed: false },
   };
   private busyHands = { left: false, right: false };
   private pointer: DesktopPointer | null = null;
@@ -228,7 +233,7 @@ export class App {
       CONFIG.render.far,
     );
 
-    const created = createWorld(this.ids);
+    const created = createWorld(this.ids, undefined, { tender: true });
     this.world = created.world;
     this.localPlayerId = created.localPlayerId;
     this.soloPlayerId = created.localPlayerId;
@@ -264,6 +269,12 @@ export class App {
       this.effects.set(vessel.id, new VesselEffects(def, view.root, this.scene, this.ocean.sharedUniforms));
       this.vesselRoots.set(vessel.id, view.root);
       this.cargoView.attachVessel(view.root, vessel.defId);
+      // An outboard boat (the skiff): its tiller, with the motor it swings.
+      if (def.outboard) {
+        const tiller = new Tiller(vessel.id, def.outboard);
+        view.root.add(tiller.root);
+        this.tillers.push(tiller);
+      }
     }
     this.setupBridge();
 
@@ -281,6 +292,7 @@ export class App {
       this.whistleAudio.attach(this.engineAudio.context);
       watchVoices();
       this.rescueSounds.attach(this.engineAudio.context);
+      this.motorAudio.attach(this.engineAudio.context);
     };
     window.addEventListener('pointerdown', unlock);
     window.addEventListener('keydown', unlock);
@@ -376,6 +388,13 @@ export class App {
     if (this.bridge && testVessel) {
       this.bridge.update(testVessel, dt, this.dashInView());
       this.bridge.radio.update(this.world.rescue, runStatus(this.world), dt);
+      for (const t of this.tillers) {
+        const sv = this.world.vessels[t.vesselId];
+        if (!sv) continue;
+        t.sync(sv);
+        t.tick(dt);
+        this.motorAudio.update(sv.controls.lever, sv.battery ?? 0, t.root.getWorldPosition(this.tmpV).distanceTo(this.focus));
+      }
       this.bridge.chart.update(this.world, this.testVesselId, dt, this.dashInView());
       this.updateRadioSound();
     }
@@ -446,7 +465,11 @@ export class App {
         this.xrInput.pulse('right', 0.3 + 0.7 * hit, 60 + 140 * hit);
       }
       // Water rushing past and bow slams: sound, and a light thud through the controllers.
-      this.waterAudio.update(Math.hypot(testVessel.linearVelocity[0], testVessel.linearVelocity[2]), slam, lap, d, dt);
+      // The wash of the boat you're in (the skiff's, when you're in the skiff).
+      const inSkiff = this.world.vessels[this.drivenVesselId()];
+      const washBoat = inSkiff && inSkiff.id !== this.testVesselId ? inSkiff : testVessel;
+      const washD = washBoat === testVessel ? d : (this.vesselRoots.get(washBoat.id)?.position.distanceTo(this.focus) ?? d);
+      this.waterAudio.update(Math.hypot(washBoat.linearVelocity[0], washBoat.linearVelocity[2]), washBoat === testVessel ? slam : 0, washBoat === testVessel ? lap : 0, washD, dt);
       if (slam > 0.1 && aboard) {
         this.xrInput.pulse('left', 0.15 + 0.35 * slam, 40 + 60 * slam);
         this.xrInput.pulse('right', 0.15 + 0.35 * slam, 40 + 60 * slam);
@@ -544,7 +567,8 @@ export class App {
    * path the physical controls use.
    */
   private handleDebugDriving(dt: number): void {
-    const v = this.world.vessels[this.testVesselId];
+    const id = this.drivenVesselId();
+    const v = this.world.vessels[id];
     if (!v) return;
     const k = this.keyboard;
     const cfg = CONFIG.debugDriving;
@@ -558,12 +582,12 @@ export class App {
       lever = Math.sign(next) !== Math.sign(lever) && lever !== 0 ? 0 : next;
     }
     if (k.actionPressed('leverNeutral')) lever = 0;
-    if (lever !== v.controls.lever) this.pushVesselIntent('lever', lever);
+    if (lever !== v.controls.lever) this.pushIntentTo(id, 'lever', lever);
 
     let helm = v.controls.helm;
     if (helmIn !== 0) helm = clamp(helm + helmIn * cfg.helmRate * dt, -1, 1);
     if (k.actionPressed('helmMidships')) helm = 0;
-    if (helm !== v.controls.helm) this.pushVesselIntent('helm', helm);
+    if (helm !== v.controls.helm) this.pushIntentTo(id, 'helm', helm);
   }
 
   /**
@@ -884,6 +908,11 @@ export class App {
       },
       aboard: () => !!this.world.players[this.localPlayerId].aboardVesselId,
       toggleBoard: () => this.toggleBoard(),
+      boardSkiff: () => {
+        const skiff = this.skiff();
+        if (skiff) this.intents.push({ playerId: this.localPlayerId, targetId: this.localPlayerId, control: 'board', value: 1, ref: skiff.id });
+      },
+      skiffBattery: () => this.skiff()?.battery ?? 0,
       dropBoat: () => this.pushVesselIntent('debugDrop', 0),
       heelBoat: () => this.pushVesselIntent('debugHeel', 20),
       fuel: () => ({ litres: boat().engine.fuelL, tank: this.testDef.engine.fuel.tankL }),
@@ -1263,15 +1292,23 @@ export class App {
       // No storage: an empty board, no count.
     }
     this.interaction = new InteractionSystem(
-      this.bridge.controls,
-      (channel, value) => (channel === 'engineStartStop' ? this.requestEngineStartStop() : this.pushVesselIntent(channel, value)),
+      [...this.bridge.controls, ...this.tillers],
+      (channel, value) => {
+        if (channel === 'engineStartStop') return this.requestEngineStartStop();
+        const { vesselId, control } = this.routeChannel(channel);
+        this.pushIntentTo(vesselId, control, value);
+      },
       (hand, i, ms) => this.xrInput.pulse(hand, i, ms),
       {
         lockedByOther: (c) => {
-          const who = this.world.vessels[this.testVesselId]?.holds[c.channel];
+          const { vesselId, control } = this.routeChannel(c.channel);
+          const who = this.world.vessels[vesselId]?.holds[control];
           return !!who && who !== this.localPlayerId;
         },
-        holdChanged: (c, held) => this.pushVesselIntent('hold', held ? 1 : 0, c.channel),
+        holdChanged: (c, held) => {
+          const { vesselId, control } = this.routeChannel(c.channel);
+          this.pushIntentTo(vesselId, 'hold', held ? 1 : 0, control);
+        },
       },
     );
     this.scene.add(this.interaction.rayLine('left'), this.interaction.rayLine('right'));
@@ -1287,6 +1324,7 @@ export class App {
         const f = this.hands[h];
         const grip = this.controllers.worldPosition(h, f.grip);
         f.tracked = !!grip && this.controllers.worldRay(h, f.ray);
+        if (f.quat) this.controllers.worldQuaternion(h, f.quat);
         f.gripDown = this.xrInput.isDown(h, XR_BUTTON.grip);
         f.gripPressed = this.xrInput.wasPressed(h, XR_BUTTON.grip);
         f.triggerDown = this.xrInput.isDown(h, XR_BUTTON.trigger);
@@ -1487,7 +1525,31 @@ export class App {
   }
 
   private pushVesselIntent(control: string, value: number, ref?: string): void {
-    this.intents.push({ playerId: this.localPlayerId, targetId: this.testVesselId, control, value, ref });
+    this.pushIntentTo(this.testVesselId, control, value, ref);
+  }
+
+  private pushIntentTo(vesselId: string, control: string, value: number, ref?: string): void {
+    this.intents.push({ playerId: this.localPlayerId, targetId: vesselId, control, value, ref });
+  }
+
+  /**
+   * Which vessel a control channel belongs to: "<vesselId>:<control>" (the skiff's tiller),
+   * or a plain control name (the workboat's bridge).
+   */
+  private routeChannel(channel: string): { vesselId: string; control: string } {
+    const i = channel.indexOf(':');
+    return i < 0 ? { vesselId: this.testVesselId, control: channel } : { vesselId: channel.slice(0, i), control: channel.slice(i + 1) };
+  }
+
+  /** The workboat's tender (the first outboard boat), if any. */
+  private skiff(): VesselState | undefined {
+    return Object.values(this.world.vessels).find((v) => VESSEL_DEFS[v.defId].outboard);
+  }
+
+  /** The boat the driving keys steer: the one you're standing in, else the workboat. */
+  private drivenVesselId(): string {
+    const aboard = this.world.players[this.localPlayerId]?.aboardVesselId;
+    return aboard && this.world.vessels[aboard] ? aboard : this.testVesselId;
   }
 
   /** Cargo waiting ashore at the anchorage the boat is anchored off (the skiff's work). */

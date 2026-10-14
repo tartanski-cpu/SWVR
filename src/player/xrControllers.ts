@@ -47,6 +47,13 @@ export class XRControllers {
     return true;
   }
 
+  /** World orientation of a hand's grip (for a twist grip), or null if not tracked. */
+  worldQuaternion(hand: Handedness, out: THREE.Quaternion): THREE.Quaternion | null {
+    const g = this.grips[hand];
+    if (!g || !g.visible) return null;
+    return g.getWorldQuaternion(out);
+  }
+
   /** World position of a hand's grip, or null if not tracked. */
   worldPosition(hand: Handedness, out: THREE.Vector3): THREE.Vector3 | null {
     const g = this.grips[hand];

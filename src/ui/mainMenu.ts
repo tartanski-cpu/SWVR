@@ -21,6 +21,9 @@ export interface MenuHost {
   setSnapTurnDeg(deg: number): void;
   aboard(): boolean;
   toggleBoard(): void;
+  /** The tender: step into it (at the tiller); its battery charge 0..1. */
+  boardSkiff(): void;
+  skiffBattery(): number;
   dropBoat(): void;
   heelBoat(): void;
   /** Fuel aboard (L) and tank size. */
@@ -168,6 +171,13 @@ export function mainMenu(h: MenuHost): MainMenu {
     {
       label: '',
       buttons: [{ text: () => (h.aboard() ? 'Leave boat (to platform)' : 'Board boat (at the helm)'), press: () => h.toggleBoard() }],
+    },
+    {
+      label: 'Skiff',
+      buttons: [
+        { text: 'Board the skiff', press: () => h.boardSkiff() },
+        { text: () => `Battery ${Math.round(h.skiffBattery() * 100)} %` },
+      ],
     },
     {
       label: 'Fuel',

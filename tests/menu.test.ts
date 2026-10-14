@@ -33,6 +33,8 @@ function fakeHost() {
     setSnapTurnDeg: (d) => (state.snap = d),
     aboard: () => state.aboard,
     toggleBoard: () => calls.push('board'),
+    boardSkiff: () => calls.push('boardSkiff'),
+    skiffBattery: () => 1,
     dropBoat: () => calls.push('drop'),
     heelBoat: () => calls.push('heel'),
     fuel: () => ({ litres: 420, tank: 600 }),

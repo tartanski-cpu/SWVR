@@ -672,8 +672,8 @@ export const CONFIG = {
       },
       /** Where a player stands after boarding: by the tiller, facing forward. */
       boardingSpot: [0, 0.3, 1.1] as [number, number, number],
-      /** Debug: starts floating on the workboat's starboard side. */
-      spawn: { x: 9, z: -18, dropHeight: 0.3, headingDeg: 90 },
+      /** Starts floating off the workboat's starboard side (she starts heading east at z -22). */
+      spawn: { x: 0, z: -15, dropHeight: 0.3, headingDeg: 90 },
     },
   },
 

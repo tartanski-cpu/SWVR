@@ -73,6 +73,7 @@ export class CargoView {
     const parts = def.cargo.lashPoints.map(([x, z]) =>
       part(new THREE.TorusGeometry(0.05, 0.012, 5, 10).rotateY(Math.abs(x) > 0.1 ? 0 : Math.PI / 2).translate(x, deckY(z) + 0.05, z), 0xd8d0b0),
     );
+    if (!parts.length) return; // no D-rings (the skiff)
     const mesh = new THREE.Mesh(mergeParts(parts), flatVertexColorMaterial());
     mesh.name = 'lashPoints';
     root.add(mesh);

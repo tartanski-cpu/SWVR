@@ -59,6 +59,7 @@ import { contactAt, hullContactPoints, type ContactResult } from './contacts';
 import { stepAnchor } from './anchor';
 import { stepMooring } from './mooring';
 import { stepOutboard } from './outboard';
+import type { ExternalForce } from './vesselContact';
 
 /** Optional per-tick diagnostics for the debug view (vessel-local coordinates). */
 export interface HydroDebug {
@@ -192,6 +193,8 @@ export function stepVessel(
   geography = true,
   /** Cargo aboard: point masses at positions in vessel axes. */
   payload: readonly { mass: number; pos: THREE.Vector3 }[] = [],
+  /** Other forces this tick (world force at a world point): another boat's hull against this one. */
+  external: readonly ExternalForce[] = [],
 ): void {
   const rho = CONFIG.ocean.density;
   const g = CONFIG.ocean.gravity;
@@ -313,6 +316,8 @@ export function stepVessel(
   const U = -tmp.applyQuaternion(qInv).z; // forward speed through water
   const R = calmWaterResistance(def, U) * immersion;
   addForceAt(tmp.set(0, 0, Math.sign(U) * R).applyQuaternion(q), resW);
+
+  for (const e of external) addForceAt(cf.copy(e.force), e.point);
 
   // ── Contacts and anchor (archipelago only) ──
   const c = state.contact;

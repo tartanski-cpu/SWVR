@@ -48,11 +48,15 @@ export interface WorldState {
 export function createWorld(
   ids: IdFactory,
   vesselDefId: string = CONFIG.testScene.vesselDefId,
+  /** Also put the workboat's tender (the skiff) in the water: the game does, tests may. */
+  opts: { tender?: boolean } = {},
 ): { world: WorldState; localPlayerId: EntityId; vesselId: EntityId } {
   const localPlayerId = ids.next('player');
   const vesselId = ids.next('vessel');
   const vessel = createVesselState(vesselId, vesselDefId);
   dropVessel(vessel);
+  const tender = opts.tender ? createVesselState(ids.next('vessel'), 'skiff') : null;
+  if (tender) dropVessel(tender);
   const player = createPlayerState(localPlayerId, 'Player 1');
   placeOnPlatform(player);
   const world: WorldState = {
@@ -62,7 +66,7 @@ export function createWorld(
     players: {
       [localPlayerId]: player,
     },
-    vessels: { [vesselId]: vessel },
+    vessels: { [vesselId]: vessel, ...(tender ? { [tender.id]: tender } : {}) },
     geography: 'archipelago',
     cargo: {},
     cargoSeq: 0,
