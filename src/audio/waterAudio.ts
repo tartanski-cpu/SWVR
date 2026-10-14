@@ -25,6 +25,13 @@ import { WATER_WORKLET } from './waterWorklet';
  * Where AudioWorklet is missing, the noise layers carry it alone (louder, brighter).
  * Built on any BaseAudioContext, so it can be rendered offline for checking.
  */
+/**
+ * The continuous "boat moving through water" layers (babble, rush, fizz) are switched off
+ * for now at the owner's request; only the hull impacts remain (a low thud when the bow
+ * slams, a short clop for laps). The code is kept to come back to.
+ */
+const FLOW_SOUND = false;
+
 export class WaterSound {
   readonly master: GainNode;
   private readonly rush: GainNode;
@@ -68,7 +75,7 @@ export class WaterSound {
     this.fizz.gain.value = 0;
     this.loop().connect(hp).connect(shelf).connect(this.fizz).connect(this.master);
 
-    this.ready = loadWorklet(ctx, 'water', WATER_WORKLET).then((ok) => {
+    this.ready = (FLOW_SOUND ? loadWorklet(ctx, 'water', WATER_WORKLET) : Promise.resolve(false)).then((ok) => {
       if (!ok) return;
       const node = new AudioWorkletNode(ctx, 'water', { numberOfInputs: 0, outputChannelCount: [2] });
       // Keep the babble out of the deep bass (that's the slaps' and the engine's) and
@@ -118,10 +125,11 @@ export class WaterSound {
     // Two slow swells at slightly different rates (amplitude, colour): the sea breathing.
     const a = 0.75 + 0.25 * Math.sin(this.swell * 2 * Math.PI * 0.21) + 0.6 * this.surge;
     const c = 0.5 + 0.5 * Math.sin(this.swell * 2 * Math.PI * 0.29 + 1.1);
+    const flowLevel = FLOW_SOUND ? level : 0;
     const hasBabble = !!this.babble;
-    this.rush.gain.setTargetAtTime((hasBabble ? 0.16 : 0.24) * Math.pow(v, 1.5) * a * level, t, 0.15);
+    this.rush.gain.setTargetAtTime((hasBabble ? 0.16 : 0.24) * Math.pow(v, 1.5) * a * flowLevel, t, 0.15);
     this.rushBp.frequency.setTargetAtTime(250 + 350 * v + 250 * c + 200 * this.surge, t, 0.25);
-    this.fizz.gain.setTargetAtTime((hasBabble ? 0.01 : 0.07) * Math.pow(v, 2.5) * (0.7 + this.surge) * level, t, 0.12);
+    this.fizz.gain.setTargetAtTime((hasBabble ? 0.01 : 0.07) * Math.pow(v, 2.5) * (0.7 + this.surge) * flowLevel, t, 0.12);
     if (this.babble) {
       const p = this.babble.parameters;
       // A trickle at rest, a busy babble at speed; it swells with the sea and the surges.
@@ -173,7 +181,7 @@ export class WaterSound {
     this.burst('lowpass', 150 * r(), 0.9, 0.9 * s, 0.006, 0.16 * r(), t);
     if (this.babble) {
       this.gush(0.4 + 0.6 * strength, t + 0.005);
-    } else {
+    } else if (FLOW_SOUND) {
       this.burst('bandpass', 800 * r(), 0.8, 0.55 * s, 0.012, 0.35 * r(), t + 0.01);
       this.burst('highpass', 2600 * r(), 0.7, 0.22 * s, 0.03, (0.6 + 0.6 * strength) * r(), t + 0.02);
     }
@@ -185,7 +193,7 @@ export class WaterSound {
     const r = () => 0.75 + Math.random() * 0.5;
     this.burst('bandpass', 380 * r(), 1.4, 0.6 * s, 0.008, 0.12 * r(), t);
     if (this.babble) this.gush(0.08 + 0.25 * strength, t + 0.01);
-    else this.burst('bandpass', 1300 * r(), 1.0, 0.25 * s, 0.01, 0.18 * r(), t + 0.015);
+    else if (FLOW_SOUND) this.burst('bandpass', 1300 * r(), 1.0, 0.25 * s, 0.01, 0.18 * r(), t + 0.015);
   }
 }
 

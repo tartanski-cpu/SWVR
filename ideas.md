@@ -57,7 +57,8 @@ The owner's feature ideas, in roughly the order they came up, with their status.
 | Explorable small archipelago with small ports | **Done** | Nine islands of different sizes. |
 | A variety of port types: anchor-only bay, big pier, small entrance into a sheltered harbour | **Done** | Selkie Bay, Brannock Pier and Calder Haven. |
 | Wave-height control (slider, or calm / medium / stormy) | **Done** | Presets from Calm to Storm, plus fine ± steps. |
-| Wake and splash effects for immersion, frame-rate friendly | **Done** | Wake, slam spray and water sounds. The bow wave was tried and removed. |
+| Wake and splash effects for immersion, frame-rate friendly | **Done** | Wake and slam spray. The bow wave was tried and removed. |
+| A good "boat through water" sound | **On hold** | Three synthesis attempts didn't convince; switched off for now, only slam thuds and lap clops remain. |
 | Port lighting for night docking | **Done** | Lamp posts everywhere, plus a real floodlight at the nearest port that also lights the water. |
 | Basic docking: press a button in a hot spot | **Done** | Yellow-marked berths; DOCK warps her in and holds her with lines; press again to cast off. |
 | Dynamic weather | **Open** | Wind, changing sea state, fog and rain. Wind would also give the anchor something to hold against. |
