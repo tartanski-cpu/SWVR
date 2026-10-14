@@ -91,11 +91,16 @@ export function nearestPort(x: number, z: number): { port: PortDef; dist: number
   return { port: best, dist: bd };
 }
 
-/** The port most of the cargo aboard is bound for, or null if none. */
+/**
+ * The port most of the cargo aboard is bound for, or null if none. Counts items on deck and
+ * items in the hands of players standing aboard.
+ */
 export function cargoDestination(world: WorldState, vesselId: EntityId): string | null {
   const counts = new Map<string, number>();
   for (const c of Object.values(world.cargo)) {
-    if ('vessel' in c.at && c.at.vessel === vesselId && portById(c.to)) counts.set(c.to, (counts.get(c.to) ?? 0) + 1);
+    const onDeck = 'vessel' in c.at && c.at.vessel === vesselId;
+    const inHand = 'carriedBy' in c.at && world.players[c.at.carriedBy]?.aboardVesselId === vesselId;
+    if ((onDeck || inHand) && portById(c.to)) counts.set(c.to, (counts.get(c.to) ?? 0) + 1);
   }
   let best: string | null = null;
   let bn = 0;
@@ -268,14 +273,22 @@ export function isRescueIntent(control: string): boolean {
   return control.startsWith('rescue');
 }
 
-/** One line for displays: the cargo run, or the rescue that has paused it. */
+/** One line for displays: the cargo aboard and the run, or the rescue that has paused it. */
 export function runStatus(world: WorldState): string {
   const r = world.rescue;
   const inc = r?.active;
-  const run = r?.run;
-  const to = run ? portById(run.to)?.name.replace(' (anchorage)', '') : null;
-  if (inc?.phase === 'accepted') return to ? `Cargo for ${to}: paused (rescue)` : 'Rescue under way';
+  const v = rescueVessel(world);
+  const short = (id: string | null | undefined) => (id ? portById(id)?.name.replace(' (anchorage)', '') : undefined);
+  // The run under way, or (still in harbour) the cargo already aboard.
+  const runTo = short(r?.run?.to);
+  const aboardTo = v ? short(cargoDestination(world, v.id)) : undefined;
   if (inc?.phase === 'calling') return 'Distress call: pick up the handset';
-  if (to) return `Cargo run to ${to}`;
-  return 'No cargo run';
+  if (inc?.phase === 'accepted') return runTo || aboardTo ? `Cargo for ${runTo ?? aboardTo}: paused (rescue)` : 'Rescue under way';
+  if (runTo) return `Cargo run to ${runTo}`;
+  if (aboardTo) {
+    const here = v && nearestPort(v.position[0], v.position[2]);
+    if (here && here.dist < CONFIG.rescue.harbourRadius && short(here.port.id) === aboardTo) return `Cargo for ${aboardTo}: set it down ashore`;
+    return `Cargo for ${aboardTo}: loaded, head out`;
+  }
+  return 'No cargo aboard';
 }

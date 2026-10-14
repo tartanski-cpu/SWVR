@@ -53,10 +53,13 @@ function setup(chance: number) {
 describe('rescue: cargo runs and distress calls', () => {
   it('a cargo run starts on leaving harbour with cargo for another port; at chance 1 a call comes partway', () => {
     const { world, calder, at, loadFor, steam } = setup(1);
+    at(calder.x, calder.z);
+    expect(runStatus(world)).toBe('No cargo aboard');
     loadFor('brannock');
     at(calder.x, calder.z);
     expect(world.rescue!.lastPort).toBe('calder');
     expect(world.rescue!.run).toBeNull();
+    expect(runStatus(world)).toBe('Cargo for Brannock Pier: loaded, head out');
     const f = steam()!;
     expect(f).toBeGreaterThan(0.15);
     expect(f).toBeLessThan(0.8);
