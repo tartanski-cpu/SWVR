@@ -19,7 +19,8 @@ export function placeInFront(obj: THREE.Object3D, frame: THREE.Object3D, camera:
   pos.y -= drop;
   frame.add(obj);
   frame.updateWorldMatrix(true, false);
-  obj.position.copy(frame.worldToLocal(pos));
+  // worldToLocal works in place: convert a copy, so `pos` stays in world space for lookAt.
+  obj.position.copy(frame.worldToLocal(pos.clone()));
   obj.rotation.set(0, 0, 0);
   obj.updateWorldMatrix(true, false);
   // Face the camera horizontally (no tilt), so text stays upright on a rolling deck.

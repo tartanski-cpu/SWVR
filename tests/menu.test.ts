@@ -239,3 +239,26 @@ describe('menu tabs', () => {
     expect(calls).toEqual([]);
   });
 });
+
+describe('menu placement', () => {
+  it('floats upright in front of the viewer, whatever frame it is put in', async () => {
+    const { placeInFront } = await import('../src/ui/placeInFront');
+    const frame = new THREE.Group();
+    frame.position.set(5, 3, -2); // e.g. the rig on the 3 m platform
+    frame.rotation.set(0.1, 0.7, -0.15); // and on a heeled, yawed boat
+    const camera = new THREE.PerspectiveCamera();
+    camera.position.set(5, 4.7, -2);
+    camera.updateMatrixWorld(true);
+    const obj = new THREE.Group();
+    placeInFront(obj, frame, camera, 0.6, 0.12);
+    obj.updateMatrixWorld(true);
+    const up = new THREE.Vector3(0, 1, 0).applyQuaternion(obj.getWorldQuaternion(new THREE.Quaternion()));
+    expect(up.y).toBeGreaterThan(0.999); // upright
+    const w = obj.getWorldPosition(new THREE.Vector3());
+    expect(w.y).toBeCloseTo(4.58, 5);
+    expect(Math.hypot(w.x - 5, w.z + 2)).toBeCloseTo(0.6, 5);
+    // Facing the camera: its +Z points back at the viewer.
+    const facing = new THREE.Vector3(0, 0, 1).applyQuaternion(obj.getWorldQuaternion(new THREE.Quaternion()));
+    expect(facing.z).toBeGreaterThan(0.99);
+  });
+});
