@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { ParticlePool } from '../../render/particlePool';
-import type { VesselDef } from '../vesselDef';
+import type { WorkboatDef } from '../vesselDef';
 import type { VesselState } from '../vesselState';
 
 const SMOKE_MAX = 200;
@@ -44,7 +44,7 @@ export class ExhaustSmoke {
    * @param surfaceAt sea surface height at a world (x, z)
    * @param viewer    world position of the viewer's head
    */
-  update(dt: number, s: VesselState, def: VesselDef, root: THREE.Object3D, surfaceAt: (x: number, z: number) => number, viewer: THREE.Vector3): void {
+  update(dt: number, s: VesselState, def: WorkboatDef, root: THREE.Object3D, surfaceAt: (x: number, z: number) => number, viewer: THREE.Vector3): void {
     const e = s.engine;
     root.localToWorld(this.outlet.fromArray(def.exhaust.position));
     root.getWorldQuaternion(this.q);

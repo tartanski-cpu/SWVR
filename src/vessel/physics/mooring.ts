@@ -13,7 +13,7 @@
 import * as THREE from 'three';
 import { CONFIG } from '../../config';
 import { BERTHS, type BerthDef } from '../../world/archipelago';
-import type { VesselDef } from '../vesselDef';
+import type { WorkboatDef } from '../vesselDef';
 import type { VesselState } from '../vesselState';
 
 const q = new THREE.Quaternion();
@@ -79,7 +79,7 @@ type V = { x: number; y: number; z: number };
  * @param bow, stern          line points on the boat (world) and their velocities
  * @param outBow, outStern    horizontal forces (world, N)
  */
-export function stepMooring(s: VesselState, def: VesselDef, bow: V, bowVel: V, stern: V, sternVel: V, dt: number, outBow: V, outStern: V): void {
+export function stepMooring(s: VesselState, def: WorkboatDef, bow: V, bowVel: V, stern: V, sternVel: V, dt: number, outBow: V, outStern: V): void {
   const c = CONFIG.docking;
   const m = s.mooring;
   outBow.x = outBow.y = outBow.z = 0;

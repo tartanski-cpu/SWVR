@@ -4,14 +4,14 @@
  */
 import { CONFIG } from '../../config';
 import { clamp } from '../../core/math';
-import type { VesselDef } from '../vesselDef';
+import type { WorkboatDef } from '../vesselDef';
 import type { VesselState } from '../vesselState';
 import { fullLoadTorque } from './propulsion';
 
 const TWO_PI = Math.PI * 2;
 
 /** Fuel mass flow (kg/s) for the engine's current rack and RPM (0 unless running). */
-export function fuelFlowKgPerS(s: VesselState, def: VesselDef): number {
+export function fuelFlowKgPerS(s: VesselState, def: WorkboatDef): number {
   const e = s.engine;
   if (e.phase !== 'running' || e.rack <= 0) return 0;
   const f = def.engine.fuel;
@@ -21,14 +21,14 @@ export function fuelFlowKgPerS(s: VesselState, def: VesselDef): number {
 }
 
 /** Highest fuel rack the governor may use at this coolant temperature (overheat derate). */
-export function derateRackCap(def: VesselDef, coolantC: number): number {
+export function derateRackCap(def: WorkboatDef, coolantC: number): number {
   const th = def.engine.thermal;
   const t = clamp((coolantC - th.derateStartC) / (th.derateFullC - th.derateStartC), 0, 1);
   return 1 - t * (1 - th.derateRack);
 }
 
 /** Burn fuel, heat and cool the engine, and stop it if it runs dry or overheats. */
-export function stepFuelAndHeat(s: VesselState, def: VesselDef, dt: number): void {
+export function stepFuelAndHeat(s: VesselState, def: WorkboatDef, dt: number): void {
   const e = s.engine;
   const f = def.engine.fuel;
   const th = def.engine.thermal;
@@ -56,7 +56,7 @@ export function stepFuelAndHeat(s: VesselState, def: VesselDef, dt: number): voi
 }
 
 /** Alarms for displays and audio. */
-export function engineAlarms(s: VesselState, def: VesselDef): { highTemp: boolean; lowFuel: boolean } {
+export function engineAlarms(s: VesselState, def: WorkboatDef): { highTemp: boolean; lowFuel: boolean } {
   return {
     highTemp: s.engine.coolantC > def.engine.thermal.alarmC,
     lowFuel: s.engine.fuelL < def.engine.fuel.lowFraction * def.engine.fuel.tankL,

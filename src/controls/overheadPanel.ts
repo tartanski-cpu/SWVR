@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { CONFIG } from '../config';
 import { part } from '../render/geometryUtils';
-import type { VesselDef } from '../vessel/vesselDef';
+import type { WorkboatDef } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
 import { Button } from './Button';
 import type { Control } from './Control';
@@ -33,7 +33,7 @@ export class OverheadPanel {
   /** What the FM set is doing, set by the App from the player (tuning, playing, no signal). */
   fmStatus = '';
 
-  constructor(def: VesselDef) {
+  constructor(def: WorkboatDef) {
     const c = def.overheadPanel;
     const [px, py, pz] = c.position;
     this.root.name = 'overheadPanel';
@@ -70,7 +70,7 @@ export class OverheadPanel {
     this.draw('FM  OFF');
   }
 
-  private labels(c: VesselDef['overheadPanel']): THREE.Mesh {
+  private labels(c: WorkboatDef['overheadPanel']): THREE.Mesh {
     const items: [string, number][] = [
       ['FOREDECK', c.deckFore],
       ['AFT DECK', c.deckAft],

@@ -2,11 +2,53 @@ import { CONFIG } from '../config';
 import type { Vec3 } from '../core/math';
 import { buildHullForm, type HullForm } from './hullForm';
 
+type Workboat = typeof CONFIG.vessels.workboat;
+type WorkboatLayout = Workboat['layout'];
+
 /**
- * Shape of a vessel's config block. Every vessel type in CONFIG.vessels uses this
- * structure, so adding a boat = adding a config block + one line in VESSEL_DEFS.
+ * Deck layout: bulwarks, rails, walkable margins, and (on boats that have them) the
+ * wheelhouse, its walkable roof and the ladder up to it.
  */
-export type VesselConfig = typeof CONFIG.vessels.workboat;
+export type LayoutConfig = Omit<WorkboatLayout, 'wheelhouse' | 'roof' | 'ladder'> & Partial<Pick<WorkboatLayout, 'wheelhouse' | 'roof' | 'ladder'>>;
+
+/** Electric outboard (see CONFIG.vessels.skiff.outboard and physics/outboard.ts). */
+export type OutboardConfig = typeof CONFIG.vessels.skiff.outboard;
+
+/**
+ * Shape of a vessel's config block. Every boat has a hull, mass properties, resistance, a
+ * deck layout and a cargo deck, and EITHER an inboard drive (engine + propeller + rudder)
+ * OR an outboard. The rest is equipment only some boats carry (the workboat's bridge,
+ * lights, anchor, mooring lines, rescue gear...). Adding a boat = a config block + a line
+ * in VESSEL_DEFS.
+ */
+export interface VesselConfig {
+  hull: Workboat['hull'];
+  mass: number;
+  cg: Vec3;
+  gyradius: Workboat['gyradius'];
+  addedMass: Workboat['addedMass'];
+  damping: Workboat['damping'];
+  resistance: Workboat['resistance'];
+  layout: LayoutConfig;
+  cargo: Workboat['cargo'];
+  boardingSpot: Vec3;
+  spawn: Workboat['spawn'];
+  engine?: Workboat['engine'];
+  propeller?: Workboat['propeller'];
+  rudder?: Workboat['rudder'];
+  outboard?: OutboardConfig;
+  bridge?: Workboat['bridge'];
+  navLights?: Workboat['navLights'];
+  exhaust?: Workboat['exhaust'];
+  anchor?: Workboat['anchor'];
+  rescueGear?: Workboat['rescueGear'];
+  cabinLight?: Workboat['cabinLight'];
+  overheadPanel?: Workboat['overheadPanel'];
+  whiteboard?: Workboat['whiteboard'];
+  deckLights?: Workboat['deckLights'];
+  spotlight?: Workboat['spotlight'];
+  mooring?: Workboat['mooring'];
+}
 
 /**
  * Static description of a vessel type (shared by every vessel of that type).
@@ -28,27 +70,52 @@ export interface VesselDef {
   /** Wetted surface (m^2) at the DWL, from the stations. */
   wettedSurface: number;
   resistance: VesselConfig['resistance'];
-  engine: VesselConfig['engine'];
-  propeller: VesselConfig['propeller'];
-  rudder: VesselConfig['rudder'];
+  /** Inboard drive (diesel, shaft, propeller, rudder), or an outboard. */
+  engine?: VesselConfig['engine'];
+  propeller?: VesselConfig['propeller'];
+  rudder?: VesselConfig['rudder'];
+  outboard?: OutboardConfig;
   /** Where players stand after boarding (vessel axes). */
   boardingSpot: Vec3;
   /** Debug spawn / drop test placement. */
   spawn: VesselConfig['spawn'];
   /** Deck layout: wheelhouse, bulwarks, walkable margins. */
-  layout: VesselConfig['layout'];
-  bridge: VesselConfig['bridge'];
-  navLights: VesselConfig['navLights'];
-  exhaust: VesselConfig['exhaust'];
-  anchor: VesselConfig['anchor'];
+  layout: LayoutConfig;
   cargo: VesselConfig['cargo'];
-  rescueGear: VesselConfig['rescueGear'];
-  cabinLight: VesselConfig['cabinLight'];
-  overheadPanel: VesselConfig['overheadPanel'];
-  whiteboard: VesselConfig['whiteboard'];
-  deckLights: VesselConfig['deckLights'];
-  spotlight: VesselConfig['spotlight'];
-  mooring: VesselConfig['mooring'];
+  /** Equipment only some boats have. */
+  bridge?: VesselConfig['bridge'];
+  navLights?: VesselConfig['navLights'];
+  exhaust?: VesselConfig['exhaust'];
+  anchor?: VesselConfig['anchor'];
+  rescueGear?: VesselConfig['rescueGear'];
+  cabinLight?: VesselConfig['cabinLight'];
+  overheadPanel?: VesselConfig['overheadPanel'];
+  whiteboard?: VesselConfig['whiteboard'];
+  deckLights?: VesselConfig['deckLights'];
+  spotlight?: VesselConfig['spotlight'];
+  mooring?: VesselConfig['mooring'];
+}
+
+type Equipment = 'engine' | 'propeller' | 'rudder' | 'bridge' | 'navLights' | 'exhaust' | 'anchor' | 'rescueGear' | 'cabinLight' | 'overheadPanel' | 'whiteboard' | 'deckLights' | 'spotlight' | 'mooring';
+
+/**
+ * A fully equipped vessel like the workboat: inboard drive, wheelhouse and bridge, lights,
+ * anchor, mooring lines, rescue gear. Code that only makes sense on such a boat (the
+ * bridge controls, instruments, engine sound, anchor and mooring physics...) takes this.
+ */
+export type WorkboatDef = VesselDef & { [K in Equipment]-?: NonNullable<VesselDef[K]> } & {
+  layout: LayoutConfig & Required<Pick<WorkboatLayout, 'wheelhouse' | 'roof' | 'ladder'>>;
+};
+
+/** Is this a fully equipped boat (see WorkboatDef)? */
+export function isWorkboat(def: VesselDef): def is WorkboatDef {
+  return !!(def.engine && def.propeller && def.rudder && def.bridge && def.navLights && def.exhaust && def.anchor && def.rescueGear && def.cabinLight && def.overheadPanel && def.whiteboard && def.deckLights && def.spotlight && def.mooring && def.layout.wheelhouse && def.layout.roof && def.layout.ladder);
+}
+
+/** The def as a fully equipped boat; throws if it isn't one (a programming error). */
+export function asWorkboat(def: VesselDef): WorkboatDef {
+  if (!isWorkboat(def)) throw new Error(`${def.id} is not a fully equipped vessel`);
+  return def;
 }
 
 /** Wetted surface at the DWL: submerged girth of each station times its spacing. */
@@ -90,6 +157,7 @@ export function fromConfig(id: string, c: VesselConfig): VesselDef {
     engine: c.engine,
     propeller: c.propeller,
     rudder: c.rudder,
+    outboard: c.outboard,
     boardingSpot: c.boardingSpot,
     spawn: c.spawn,
     layout: c.layout,
@@ -111,4 +179,5 @@ export function fromConfig(id: string, c: VesselConfig): VesselDef {
 /** Registry of vessel types. To add a boat: add a config block, then a line here. */
 export const VESSEL_DEFS: Record<string, VesselDef> = {
   workboat: fromConfig('workboat', CONFIG.vessels.workboat),
+  skiff: fromConfig('skiff', CONFIG.vessels.skiff),
 };

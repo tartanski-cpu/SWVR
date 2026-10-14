@@ -18,7 +18,7 @@ import { prepareWaves, significantWaveHeight, surfaceHeight, type PreparedWave }
 import { SurfaceProbes } from '../debug/surfaceProbes';
 import { Buoys, createPlatform } from './testScene';
 import { HydroDebugView } from '../debug/hydroDebugView';
-import { VESSEL_DEFS } from '../vessel/vesselDef';
+import { asWorkboat, VESSEL_DEFS, type WorkboatDef } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
 import { VesselView } from '../vessel/view/vesselView';
 import { EngineAudio } from '../audio/engineAudio';
@@ -367,7 +367,7 @@ export class App {
       const v = this.world.vessels[this.testVesselId];
       this.horn.update(v.controls.horn > 0, distance);
       // Bridge buzzer: high temperature always, low fuel while the engine runs.
-      const al = engineAlarms(v, VESSEL_DEFS[v.defId]);
+      const al = engineAlarms(v, this.testDef);
       const consoleDist = this.bridge ? this.bridge.dashAnchor.getWorldPosition(this.tmpV).distanceTo(this.focus) : 99;
       this.alarm.update(al.highTemp || (al.lowFuel && v.engine.phase === 'running'), consoleDist);
     }
@@ -428,7 +428,7 @@ export class App {
     this.worldView.portLighting.update(this.focus, darkness);
     this.ocean.setPortLight(this.worldView.portLighting.flood);
     const fxTest = this.effects.get(this.testVesselId);
-    if (fxTest) this.ocean.setSpotlight(fxTest.searchlight.light);
+    if (fxTest?.searchlight) this.ocean.setSpotlight(fxTest.searchlight.light);
     this.cargoView.update(this.world, this.vesselRoots, (c) => this.carriedPose(c), this.cargoHands.hovered);
     this.pingView.update(this.world, this.vesselRoots, this.focus, this.localPlayerId);
     const deskHand = inXR ? null : this.desktopHandWorld(this.deskHandW);
@@ -608,7 +608,7 @@ export class App {
    * astern the water piles up against the transom. Prop wash makes it come and go.
    */
   private exhaustSubmersion(root: THREE.Object3D, v: VesselState, t: number): number {
-    const def = VESSEL_DEFS[v.defId];
+    const def = asWorkboat(VESSEL_DEFS[v.defId]);
     const ex = root.localToWorld(this.tmpV.fromArray(def.exhaust.position));
     let depth = surfaceHeight(this.renderWaves, ex.x, ex.z) - ex.y;
     // Speed through the water along the bow (vessel -z is forward).
@@ -886,7 +886,7 @@ export class App {
       toggleBoard: () => this.toggleBoard(),
       dropBoat: () => this.pushVesselIntent('debugDrop', 0),
       heelBoat: () => this.pushVesselIntent('debugHeel', 20),
-      fuel: () => ({ litres: boat().engine.fuelL, tank: VESSEL_DEFS[boat().defId].engine.fuel.tankL }),
+      fuel: () => ({ litres: boat().engine.fuelL, tank: this.testDef.engine.fuel.tankL }),
       canRefuel: () => canRefuel(boat()),
       refuelling: () => boat().refuelling,
       toggleRefuel: () => {
@@ -960,7 +960,7 @@ export class App {
           case 'weighing':
             return `Heaving in: ${a.rodeM.toFixed(0)} m out`;
           case 'hanging':
-            return a.rodeM >= VESSEL_DEFS[boat().defId].anchor.chainM ? 'Too deep: not on the bottom' : `Off the bottom: ${a.rodeM.toFixed(0)} m out`;
+            return a.rodeM >= this.testDef.anchor.chainM ? 'Too deep: not on the bottom' : `Off the bottom: ${a.rodeM.toFixed(0)} m out`;
         }
       },
       ports: () => {
@@ -1235,15 +1235,20 @@ export class App {
     this.overlay.vrPanel.scale.setScalar(1);
   }
 
+  /** The test vessel's type: the fully equipped workboat (bridge, engine, lights...). */
+  private get testDef(): WorkboatDef {
+    return asWorkboat(VESSEL_DEFS[this.world.vessels[this.testVesselId].defId]);
+  }
+
   /** Bridge controls for the test vessel, the interaction system and desktop mouse/reticle. */
   private setupBridge(): void {
     const v = this.world.vessels[this.testVesselId];
     const view = this.vesselViews.get(this.testVesselId);
     if (!v || !view) return;
-    this.bridge = new Bridge(VESSEL_DEFS[v.defId]);
+    this.bridge = new Bridge(this.testDef);
     view.root.add(this.bridge.root);
     // Crew whiteboard on the wheelhouse aft wall, facing forward.
-    const wb = VESSEL_DEFS[v.defId].whiteboard;
+    const wb = this.testDef.whiteboard;
     this.board = new BoardView(wb.width, wb.height);
     this.board.root.position.fromArray(wb.position);
     this.board.root.rotation.y = Math.PI;
@@ -1473,7 +1478,7 @@ export class App {
   private requestEngineStartStop(): void {
     const v = this.world.vessels[this.testVesselId];
     if (!v) return;
-    const def = VESSEL_DEFS[v.defId];
+    const def = this.testDef;
     if (v.engine.phase === 'off' && def.engine.startOnlyInNeutral && leverDemand(def, v.controls.lever).gear !== 0) {
       this.overlay.notify('Engine won\'t start: lever not in neutral');
       this.xrInput.pulse('right', 0.8, 150);

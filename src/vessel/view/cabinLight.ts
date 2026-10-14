@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { VesselDef } from '../vesselDef';
+import type { WorkboatDef } from '../vesselDef';
 
 /**
  * Wheelhouse ceiling lamp: a small fixture whose diffuser glows when on, and ONE real
@@ -12,7 +12,7 @@ export class CabinLight {
   private readonly light: THREE.PointLight;
   private readonly diffuser: THREE.MeshBasicMaterial;
 
-  constructor(private readonly def: VesselDef) {
+  constructor(private readonly def: WorkboatDef) {
     const [x, y, z] = def.cabinLight.position;
     this.root.position.set(x, y, z);
     const base = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.04, 12), new THREE.MeshLambertMaterial({ color: 0x3c4248 }));

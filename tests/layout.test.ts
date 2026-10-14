@@ -3,9 +3,9 @@ import { describe, expect, it } from 'vitest';
 import { Locomotion, type LocomotionInput } from '../src/player/locomotion';
 import { createPlayerState } from '../src/player/playerState';
 import { vesselWalkArea } from '../src/vessel/layout';
-import { VESSEL_DEFS } from '../src/vessel/vesselDef';
+import { asWorkboat, VESSEL_DEFS } from '../src/vessel/vesselDef';
 
-const def = VESSEL_DEFS.workboat;
+const def = asWorkboat(VESSEL_DEFS.workboat);
 const area = vesselWalkArea(def, def.layout);
 const L = def.layout;
 const wh = L.wheelhouse;

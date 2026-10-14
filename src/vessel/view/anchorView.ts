@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { groundHeight } from '../../world/terrain';
-import type { VesselDef } from '../vesselDef';
+import type { WorkboatDef } from '../vesselDef';
 import type { VesselState } from '../vesselState';
 
 const N = 24;
@@ -25,7 +25,7 @@ export class AnchorChainView {
     this.line.visible = false;
   }
 
-  update(s: VesselState, def: VesselDef, root: THREE.Object3D): void {
+  update(s: VesselState, def: WorkboatDef, root: THREE.Object3D): void {
     const a = s.anchor;
     this.line.visible = a.phase !== 'stowed' && a.rodeM > 0.2;
     if (!this.line.visible) return;

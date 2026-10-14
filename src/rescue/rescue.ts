@@ -27,6 +27,7 @@ import type { VesselState } from '../vessel/vesselState';
 import { PORTS, type PortDef } from '../world/archipelago';
 import { skiffPortAt, stackPoint } from '../cargo/cargo';
 import { berthById } from '../vessel/physics/mooring';
+import { isWorkboat, VESSEL_DEFS } from '../vessel/vesselDef';
 import { groundHeight } from '../world/terrain';
 import { RESCUE_DEFS, type RescueDef } from './rescueDefs';
 import type { Vec3 } from '../core/math';
@@ -339,9 +340,9 @@ function stepLanding(world: WorldState, r: RescueState, inc: Incident, v: Vessel
   if (inc.phase === 'landed' && world.time >= (inc.endT ?? 0)) r.active = null;
 }
 
-/** The vessel the rescues follow: the first one (the cargo boat). */
+/** The vessel the rescues follow: the cargo boat (the first fully equipped one, not its tender). */
 function rescueVessel(world: WorldState): VesselState | undefined {
-  return Object.values(world.vessels)[0];
+  return Object.values(world.vessels).find((v) => isWorkboat(VESSEL_DEFS[v.defId]));
 }
 
 /** One tick: track cargo runs, roll and raise calls, time out unanswered ones, drift targets, recovery. */

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { CONFIG } from '../config';
-import type { VesselDef } from '../vessel/vesselDef';
+import type { WorkboatDef } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
 import { engineAlarms } from '../vessel/physics/engineThermal';
 import { groundHeight } from '../world/terrain';
@@ -26,7 +26,7 @@ const BG = '#0d1210';
 const GREEN = '#6fe08a';
 const RED = '#ff5a45';
 
-type Painter = (g: CanvasRenderingContext2D, s: VesselState, def: VesselDef) => void;
+type Painter = (g: CanvasRenderingContext2D, s: VesselState, def: WorkboatDef) => void;
 
 export class InstrumentPanel {
   readonly mesh: THREE.Mesh;
@@ -36,7 +36,7 @@ export class InstrumentPanel {
   private sinceDraw = Infinity;
   private readonly painters: Painter[] = [paintSpeed, paintHeading, paintRpm, paintRudder, paintEngineMonitor];
 
-  constructor(cfg: VesselDef['bridge']) {
+  constructor(cfg: WorkboatDef['bridge']) {
     this.canvas = document.createElement('canvas');
     this.canvas.width = W;
     this.canvas.height = H;
@@ -66,7 +66,7 @@ export class InstrumentPanel {
     this.mesh.name = 'instruments';
   }
 
-  update(state: VesselState, def: VesselDef, dt: number): void {
+  update(state: VesselState, def: WorkboatDef, dt: number): void {
     this.sinceDraw += dt;
     if (this.sinceDraw < 1 / CONFIG.interaction.displayHz) return;
     this.sinceDraw = 0;

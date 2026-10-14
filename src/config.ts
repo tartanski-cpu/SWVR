@@ -590,6 +590,91 @@ export const CONFIG = {
       /** Debug: spawn/drop point and drop height (m above the DWL). */
       spawn: { x: 0, z: -22, dropHeight: 4, headingDeg: 90 },
     },
+
+    /**
+     * The workboat's tender: a 3.6 m flat-decked aluminium skiff (a punt with a low coaming)
+     * with a small electric outboard. Same axes and physics as the workboat; no wheelhouse,
+     * engine room, anchor or mooring - just a hull, a deck, an outboard and a tiller.
+     * Mass chosen to float at the DWL (tests/seaTrials.test.ts).
+     */
+    skiff: {
+      hull: {
+        length: 3.6,
+        beamDeck: 1.6,
+        beamChine: 1.4,
+        keelY: -0.14,
+        chineYAft: -0.1,
+        chineYBow: 0.1,
+        deckYAft: 0.3,
+        deckYBow: 0.42,
+        stations: 9,
+      },
+      /** Hull, decking, outboard and battery (kg). */
+      mass: 330,
+      /** z = LCB so she floats level. */
+      cg: [0, 0.05, 0.76] as [number, number, number],
+      gyradius: { roll: 0.55, pitch: 0.95, yaw: 1.0 },
+      addedMass: { surge: 0.05, sway: 0.4, heave: 0.6, roll: 0.25, pitch: 0.6, yaw: 0.3 },
+      /**
+       * Same per-area coefficients as the workboat; the angular ones scaled to this boat's
+       * critical damping (~1 kN*m*s in roll: 15 %).
+       */
+      damping: {
+        vertical: 800,
+        verticalCd: 1.5,
+        lateralLinear: 400,
+        lateralLift: 1.2,
+        lateralCd: 1.0,
+        surgeLinear: 20,
+        roll: 150,
+        pitch: 120,
+        yaw: 120,
+      },
+      resistance: {
+        lwl: 3.3,
+        formFactor: 0.2,
+        waveA: 1.0,
+        waveB: 0.94,
+        waveKnee: 0.3,
+        waveCap: 0.115,
+        asternFactor: 2.0,
+        y: -0.05,
+      },
+      /**
+       * Electric outboard on the transom: thrust at the propeller (vessel axes), falling
+       * linearly from `staticThrustN` at rest to zero at `zeroThrustSpeed` (m/s, ~the
+       * propeller's pitch speed); astern a fraction of that. Steered by swinging the whole
+       * motor on its tiller (thrust direction), up to `maxSteerDeg`. Draws up to `powerKw`
+       * from a `batteryKWh` battery, ~ |throttle|^1.5 (most of it near full).
+       */
+      outboard: {
+        position: [0, -0.32, 1.95] as [number, number, number],
+        staticThrustN: 750,
+        zeroThrustSpeed: 5.5,
+        asternFactor: 0.55,
+        powerKw: 3,
+        batteryKWh: 2,
+        maxSteerDeg: 30,
+        /** Tiller: pivot on top of the motor, handle length forward over the transom (m). */
+        tiller: { pivot: [0, 0.55, 1.85] as [number, number, number], length: 0.55 },
+      },
+      layout: {
+        bulwarkHeight: 0.15,
+        railHeight: 0,
+        deckEdgeMargin: 0.12,
+        bodyRadius: 0.22,
+      },
+      /** Deck cargo (milestone S3 adds the item limits). */
+      cargo: {
+        maxPayloadKg: 250,
+        lashPoints: [] as [number, number][],
+        lashRange: 0.8,
+      },
+      /** Where a player stands after boarding: by the tiller, facing forward. */
+      boardingSpot: [0, 0.3, 1.1] as [number, number, number],
+      /** Debug: starts floating on the workboat's starboard side. */
+      spawn: { x: 9, z: -18, dropHeight: 0.3, headingDeg: 90 },
+    },
   },
 
   /**

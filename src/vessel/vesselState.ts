@@ -128,6 +128,8 @@ export interface VesselState {
    * hand keeps it until it lets go; other players' intents for it are ignored meanwhile.
    */
   holds: Record<string, EntityId>;
+  /** Outboard boats: battery charge, 0 (flat) .. 1 (full). */
+  battery?: number;
 }
 
 export function createVesselState(id: EntityId, defId: string): VesselState {
@@ -146,7 +148,7 @@ export function createVesselState(id: EntityId, defId: string): VesselState {
       rack: 0,
       gear: 0,
       shift: 0,
-      fuelL: VESSEL_DEFS[defId].engine.fuel.startL,
+      fuelL: VESSEL_DEFS[defId].engine?.fuel.startL ?? 0,
       fuelFlowLph: 0,
       // A cold engine: everything at sea temperature.
       coolantC: CONFIG.environment.seaTempC,
@@ -160,5 +162,6 @@ export function createVesselState(id: EntityId, defId: string): VesselState {
     mooring: { phase: 'free', berthId: null, reversed: false, t: 0 },
     refuelling: false,
     contact: { force: 0, slide: 0, impact: 0 },
+    ...(VESSEL_DEFS[defId].outboard ? { battery: 1 } : {}),
   };
 }

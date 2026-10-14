@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import type { VesselDef } from '../vessel/vesselDef';
+import type { WorkboatDef } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
 import { Button } from './Button';
 import type { Control } from './Control';
@@ -31,7 +31,7 @@ export class Bridge {
   /** Overhead switch panel: deck lights and the FM radio. */
   readonly overhead: OverheadPanel;
 
-  constructor(private readonly def: VesselDef) {
+  constructor(private readonly def: WorkboatDef) {
     const b = def.bridge;
     this.root.name = 'bridge';
 
@@ -135,7 +135,7 @@ function bakeFixedParts(root: THREE.Object3D, extra: THREE.BufferGeometry[]): TH
 }
 
 /** Small engraved labels on the console top in front of each control (one draw call). */
-function buildLabels(b: VesselDef['bridge']): THREE.Mesh {
+function buildLabels(b: WorkboatDef['bridge']): THREE.Mesh {
   const labels: [string, [number, number, number]][] = [
     ['AHEAD ▲  ▼ ASTERN', b.lever.position],
     ['START / STOP', b.startButton.position],

@@ -239,7 +239,7 @@ export class EngineAudio {
     if (!this.sound || !v) return;
     const e = v.engine;
     this.sound.set(
-      { rpm: e.rpm, load: e.rack, ratedRpm: VESSEL_DEFS[v.defId].engine.ratedRpm, running: e.phase === 'running', cranking: e.phase === 'cranking', submerged },
+      { rpm: e.rpm, load: e.rack, ratedRpm: VESSEL_DEFS[v.defId].engine?.ratedRpm ?? 1800, running: e.phase === 'running', cranking: e.phase === 'cranking', submerged },
       0.42 / (1 + distance / 8),
     );
   }

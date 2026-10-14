@@ -1,6 +1,6 @@
 import type * as THREE from 'three';
 import { surfaceHeight, type PreparedWave } from '../../ocean/waves';
-import type { VesselDef } from '../vesselDef';
+import { isWorkboat, type VesselDef, type WorkboatDef } from '../vesselDef';
 import type { VesselState } from '../vesselState';
 import { ExhaustSmoke } from './exhaustSmoke';
 import { NavLightsView } from './navLights';
@@ -16,16 +16,34 @@ import { DeckLights } from './deckLights';
  * Per-vessel visual effects driven by its state: navigation lights, cabin and deck lights,
  * searchlight, exhaust smoke, anchor chain, wake and spray.
  */
+/** What only a fully equipped boat (the workboat) shows. */
+class Equipment {
+  readonly nav: NavLightsView;
+  readonly smoke = new ExhaustSmoke();
+  readonly chain = new AnchorChainView();
+  readonly cabin: CabinLight;
+  readonly deckLights: DeckLights;
+  readonly lines = new MooringLines();
+  readonly searchlight: Searchlight;
+
+  constructor(
+    readonly def: WorkboatDef,
+    root: THREE.Object3D,
+    world: THREE.Object3D,
+  ) {
+    this.nav = new NavLightsView(def);
+    this.cabin = new CabinLight(def);
+    this.deckLights = new DeckLights(def);
+    this.searchlight = new Searchlight(def);
+    root.add(this.nav.root, this.cabin.root, this.deckLights.root, this.searchlight.root);
+    world.add(this.smoke.root, this.chain.line, this.lines.mesh);
+  }
+}
+
 export class VesselEffects {
-  private readonly nav: NavLightsView;
-  private readonly smoke = new ExhaustSmoke();
-  private readonly chain = new AnchorChainView();
   private readonly wake: WakeTrail;
   private readonly spray: Spray;
-  private readonly cabin: CabinLight;
-  private readonly deckLights: DeckLights;
-  private readonly lines = new MooringLines();
-  readonly searchlight: Searchlight;
+  private readonly equip: Equipment | null;
 
   /**
    * @param root   the vessel view's root (nav lights ride on it)
@@ -33,22 +51,20 @@ export class VesselEffects {
    * @param ocean  the ocean's shared uniforms (the wake displaces with the same waves)
    */
   constructor(
-    private readonly def: VesselDef,
+    def: VesselDef,
     private readonly root: THREE.Object3D,
     world: THREE.Object3D,
     ocean: Record<string, { value: unknown }>,
   ) {
-    this.nav = new NavLightsView(def);
-    root.add(this.nav.root);
     this.wake = new WakeTrail(ocean, def.hull.params.length / 2 - 0.2);
     this.spray = new Spray(def);
-    this.cabin = new CabinLight(def);
-    root.add(this.cabin.root);
-    this.deckLights = new DeckLights(def);
-    root.add(this.deckLights.root);
-    this.searchlight = new Searchlight(def);
-    root.add(this.searchlight.root);
-    world.add(this.smoke.root, this.chain.line, this.wake.mesh, this.spray.points, this.lines.mesh);
+    this.equip = isWorkboat(def) ? new Equipment(def, root, world) : null;
+    world.add(this.wake.mesh, this.spray.points);
+  }
+
+  /** The searchlight, on boats that have one (the ocean shader lights the water with it). */
+  get searchlight(): Searchlight | null {
+    return this.equip?.searchlight ?? null;
   }
 
   /**
@@ -58,14 +74,17 @@ export class VesselEffects {
    */
   update(dt: number, s: VesselState, waves: PreparedWave[], viewer: THREE.Vector3, darkness: number, time: number): { slam: number; lap: number } {
     const light = 1 - 0.8 * darkness;
-    this.nav.update(s.controls.navLights > 0, darkness, viewer);
-    this.smoke.setLight(light);
-    this.smoke.update(dt, s, this.def, this.root, (x, z) => surfaceHeight(waves, x, z), viewer);
-    this.chain.update(s, this.def, this.root);
-    this.cabin.update(s.controls.cabinLight > 0);
-    this.deckLights.update(s);
-    this.searchlight.update(s, darkness);
-    this.lines.update(s, this.def, this.root);
+    const e = this.equip;
+    if (e) {
+      e.nav.update(s.controls.navLights > 0, darkness, viewer);
+      e.smoke.setLight(light);
+      e.smoke.update(dt, s, e.def, this.root, (x, z) => surfaceHeight(waves, x, z), viewer);
+      e.chain.update(s, e.def, this.root);
+      e.cabin.update(s.controls.cabinLight > 0);
+      e.deckLights.update(s);
+      e.searchlight.update(s, darkness);
+      e.lines.update(s, e.def, this.root);
+    }
     this.wake.update(s, this.root, waves, time);
     return this.spray.update(dt, s, this.root, waves, viewer, light);
   }

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { berthAxis, berthById } from '../physics/mooring';
-import type { VesselDef } from '../vesselDef';
+import type { WorkboatDef } from '../vesselDef';
 import type { VesselState } from '../vesselState';
 
 /**
@@ -29,7 +29,7 @@ export class MooringLines {
     this.mesh.visible = false;
   }
 
-  update(s: VesselState, def: VesselDef, root: THREE.Object3D): void {
+  update(s: VesselState, def: WorkboatDef, root: THREE.Object3D): void {
     const berth = s.mooring.phase !== 'free' ? berthById(s.mooring.berthId) : undefined;
     this.mesh.visible = !!berth;
     if (!berth) return;

@@ -12,7 +12,7 @@ import { CONFIG } from '../config';
 import type { WorldState } from '../core/world';
 import { surfaceHeight, type PreparedWave } from '../ocean/waves';
 import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
-import { VESSEL_DEFS } from '../vessel/vesselDef';
+import { asWorkboat, VESSEL_DEFS } from '../vessel/vesselDef';
 import type { RescueHands } from './rescueHands';
 
 export const ROPE_POINTS = 24;
@@ -115,7 +115,7 @@ export class RescueGearView {
     const r = world.rescue;
     this.root.visible = !!(v && vesselRoot);
     if (!v || !vesselRoot) return;
-    const gear = VESSEL_DEFS[v.defId].rescueGear;
+    const gear = asWorkboat(VESSEL_DEFS[v.defId]).rescueGear;
     vesselRoot.getWorldQuaternion(this.q);
     const ring = r?.ring;
     const state = ring?.state ?? 'stowed';

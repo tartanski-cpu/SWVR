@@ -30,7 +30,8 @@ export interface WalkArea {
 /** Largest rise you can just step up (door sills, deck sheer) without climbing (m). */
 export const STEP_HEIGHT = 0.4;
 
-export type LayoutConfig = typeof CONFIG.vessels.workboat.layout;
+import type { LayoutConfig } from './vesselDef';
+export type { LayoutConfig };
 
 /** Linear interpolation of a per-station quantity at longitudinal position z. */
 function stationLerp(def: VesselDef, z: number, get: (i: number) => number): number {
@@ -64,7 +65,25 @@ interface Surface {
   contains(x: number, z: number): boolean;
 }
 
+/** A boat with no wheelhouse (the skiff): just its deck, inside the gunwale. */
+function openDeckWalkArea(def: VesselDef, layout: LayoutConfig): WalkArea {
+  const st = def.hull.stations;
+  const transom = st[0].z;
+  const stem = st[st.length - 1].z;
+  const deckHalfBeam = (z: number) => stationLerp(def, z, (i) => st[i].halfBeamDeck);
+  const deckY = (z: number) => stationLerp(def, z, (i) => st[i].polygon[0][1]);
+  const m = layout.deckEdgeMargin;
+  const on = (x: number, z: number) => z <= transom - m && z >= stem + 2 * m && Math.abs(x) <= deckHalfBeam(z) - m;
+  return {
+    floorsAt: (x, z) => (on(x, z) ? [deckY(z)] : []),
+    walkable: (x, z, y) => on(x, z) && Math.abs(deckY(z) - y) <= STEP_HEIGHT,
+    ladderAt: () => null,
+    insideSolid: (x, y, z) => z <= transom && z >= stem && Math.abs(x) <= deckHalfBeam(z) && y < deckY(z) - 0.15,
+  };
+}
+
 export function vesselWalkArea(def: VesselDef, layout: LayoutConfig): WalkArea {
+  if (!layout.wheelhouse || !layout.roof || !layout.ladder) return openDeckWalkArea(def, layout);
   const wh = layout.wheelhouse;
   const r = layout.bodyRadius;
   const st = def.hull.stations;

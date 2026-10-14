@@ -23,13 +23,20 @@ const COLORS = {
  * stations), closes the transom, and adds bulwarks, rails and the walk-in wheelhouse.
  * Everything static is merged into one vertex-coloured, flat-shaded mesh: one draw call.
  */
-export function buildVesselMesh(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number, number, number]): THREE.Mesh {
+export function buildVesselMesh(form: HullForm, layout: LayoutConfig, exhaustOutlet?: [number, number, number]): THREE.Mesh {
   const mesh = new THREE.Mesh(mergeParts(buildParts(form, layout, exhaustOutlet)), flatVertexColorMaterial());
   mesh.name = 'hull';
   return mesh;
 }
 
-function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number, number, number]): THREE.BufferGeometry[] {
+/** A layout with a wheelhouse (and its roof and ladder). */
+type HouseLayout = LayoutConfig & Required<Pick<LayoutConfig, 'wheelhouse' | 'roof' | 'ladder'>>;
+
+function hasHouse(layout: LayoutConfig): layout is HouseLayout {
+  return !!(layout.wheelhouse && layout.roof && layout.ladder);
+}
+
+function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet?: [number, number, number]): THREE.BufferGeometry[] {
   const positions: number[] = [];
   const colors: number[] = [];
   const c = new THREE.Color();
@@ -89,11 +96,12 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
   hull.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
   hull.computeVertexNormals();
 
+  const parts = [hull, ...buildDeckFittings(form, layout)];
   // Wet-exhaust outlet: a short pipe stub through the transom.
   const ex = exhaustOutlet;
-  const stub = bar(new THREE.Vector3(ex[0], ex[1], ex[2] - 0.12), new THREE.Vector3(ex[0], ex[1], ex[2]), 0.13, 0.13, COLORS.mast);
-
-  return [hull, stub, ...buildDeckFittings(form, layout), ...buildWheelhouse(layout)];
+  if (ex) parts.push(bar(new THREE.Vector3(ex[0], ex[1], ex[2] - 0.12), new THREE.Vector3(ex[0], ex[1], ex[2]), 0.13, 0.13, COLORS.mast));
+  if (hasHouse(layout)) parts.push(...buildWheelhouse(layout));
+  return parts;
 }
 
 /** Box from (x0,y0,z0) to (x1,y1,z1), axis-aligned. */
@@ -112,7 +120,7 @@ function bar(p0: THREE.Vector3, p1: THREE.Vector3, w: number, h: number, color: 
   return part(g, color);
 }
 
-/** Bulwarks, handrails and stanchions along the deck edge and across the transom. */
+/** Bulwarks, and (if `railHeight` > 0) handrails and stanchions, along the deck edge and across the transom. */
 function buildDeckFittings(form: HullForm, layout: LayoutConfig): THREE.BufferGeometry[] {
   const parts: THREE.BufferGeometry[] = [];
   const st = form.stations;
@@ -128,6 +136,7 @@ function buildDeckFittings(form: HullForm, layout: LayoutConfig): THREE.BufferGe
       const a = edge(i, side, bh / 2);
       const b = edge(i + 1, side, bh / 2);
       parts.push(bar(a, b, 0.05, bh, COLORS.topsides));
+      if (rh <= 0) continue;
       parts.push(bar(edge(i, side, rh), edge(i + 1, side, rh), 0.05, 0.05, COLORS.rail));
       parts.push(bar(edge(i, side, bh), edge(i, side, rh), 0.04, 0.04, COLORS.rail));
     }
@@ -136,7 +145,7 @@ function buildDeckFittings(form: HullForm, layout: LayoutConfig): THREE.BufferGe
   const p = edge(0, -1, 0);
   const q = edge(0, 1, 0);
   parts.push(bar(p.clone().setY(p.y + bh / 2), q.clone().setY(q.y + bh / 2), 0.05, bh, COLORS.topsides));
-  parts.push(bar(p.clone().setY(p.y + rh), q.clone().setY(q.y + rh), 0.05, 0.05, COLORS.rail));
+  if (rh > 0) parts.push(bar(p.clone().setY(p.y + rh), q.clone().setY(q.y + rh), 0.05, 0.05, COLORS.rail));
   return parts;
 }
 
@@ -144,7 +153,7 @@ function buildDeckFittings(form: HullForm, layout: LayoutConfig): THREE.BufferGe
  * Walk-in wheelhouse: walls with a window band all round, an aft doorway, floor, helm
  * console, roof and mast. Dimensions come from the layout config (shared with layout.ts).
  */
-function buildWheelhouse(layout: LayoutConfig): THREE.BufferGeometry[] {
+function buildWheelhouse(layout: HouseLayout): THREE.BufferGeometry[] {
   const wh = layout.wheelhouse;
   const parts: THREE.BufferGeometry[] = [];
   const hw = wh.halfWidth;

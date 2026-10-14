@@ -28,7 +28,7 @@ function openPoint(defId: string, x: number, z: number): boolean {
   const wh = VESSEL_DEFS[defId].layout.wheelhouse;
   if (z > plan.transom - EDGE || z < plan.stem + 1.5) return false;
   if (Math.abs(x) > plan.halfBeam(z) - EDGE) return false;
-  if (Math.abs(x) < wh.halfWidth + 0.05 && z > wh.front - 0.05 && z < wh.aft + 0.05) return false;
+  if (wh && Math.abs(x) < wh.halfWidth + 0.05 && z > wh.front - 0.05 && z < wh.aft + 0.05) return false;
   return true;
 }
 

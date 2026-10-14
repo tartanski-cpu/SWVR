@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { hullPlan } from '../layout';
-import type { VesselDef } from '../vesselDef';
+import type { WorkboatDef } from '../vesselDef';
 import type { VesselState } from '../vesselState';
 
 /**
@@ -19,7 +19,7 @@ export class DeckLights {
   private readonly floods: { light: THREE.SpotLight; lens: THREE.MeshBasicMaterial }[] = [];
   private readonly rail: THREE.MeshBasicMaterial;
 
-  constructor(private readonly def: VesselDef) {
+  constructor(private readonly def: WorkboatDef) {
     const c = def.deckLights;
     for (const f of [c.fore, c.aft]) {
       const lamp = new THREE.Group();

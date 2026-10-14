@@ -131,6 +131,7 @@ export function updateAir(
   // frame can't step through a thin wall.
   for (const ves of vessels) {
     const wh = VESSEL_DEFS[ves.state.defId].layout.wheelhouse;
+    if (!wh) continue;
     const inHouse = (l: THREE.Vector3) => Math.abs(l.x) < wh.halfWidth && l.z > wh.front && l.z < wh.aft && l.y < wh.roofY;
     const wasIn = inHouse(ves.root.worldToLocal(tmpD.copy(before)));
     const ln = ves.root.worldToLocal(tmpC.copy(body));
@@ -165,7 +166,7 @@ export function updateAir(
           // Nearest open-deck floor athwartships (inboard of a bulwark, outboard of the
           // wheelhouse), never inside the wheelhouse.
           const wh = VESSEL_DEFS[ves.state.defId].layout.wheelhouse;
-          const inHouse = (x: number) => Math.abs(x) < wh.halfWidth + 0.05 && lz > wh.front && lz < wh.aft;
+          const inHouse = (x: number) => !!wh && Math.abs(x) < wh.halfWidth + 0.05 && lz > wh.front && lz < wh.aft;
           for (let k = 1; k <= 20; k++) {
             const x = lx + (k % 2 ? -1 : 1) * Math.sign(lx || 1) * Math.ceil(k / 2) * 0.1;
             if (inHouse(x)) continue;

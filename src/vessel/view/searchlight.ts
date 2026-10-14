@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { VesselDef } from '../vesselDef';
+import type { WorkboatDef } from '../vesselDef';
 import type { VesselState } from '../vesselState';
 
 /**
@@ -16,7 +16,7 @@ export class Searchlight {
   private readonly lens: THREE.MeshBasicMaterial;
   private readonly beamMat: THREE.MeshBasicMaterial;
 
-  constructor(private readonly def: VesselDef) {
+  constructor(private readonly def: WorkboatDef) {
     const c = def.spotlight;
     this.root.position.fromArray(c.position);
     // Yoke on a short post, lamp drum pointing forward (-Z).

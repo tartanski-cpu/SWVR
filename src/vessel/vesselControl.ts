@@ -4,7 +4,7 @@ import { clamp } from '../core/math';
 import { CONFIG } from '../config';
 import { toggleEngine } from './physics/propulsion';
 import { toggleDock } from './physics/mooring';
-import { VESSEL_DEFS, type VesselDef } from './vesselDef';
+import { isWorkboat, VESSEL_DEFS, type VesselDef } from './vesselDef';
 import { fuelBerthAt } from '../world/geography';
 import { BERTHS, PORTS } from '../world/archipelago';
 import type { VesselState } from './vesselState';
@@ -86,12 +86,14 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
     case 'horn':
       s.controls.horn = intent.value > 0.5 ? 1 : 0;
       break;
-    case 'engineStartStop':
-      toggleEngine(s, VESSEL_DEFS[s.defId]);
+    case 'engineStartStop': {
+      const def = VESSEL_DEFS[s.defId];
+      if (isWorkboat(def)) toggleEngine(s, def);
       break;
+    }
     case 'debugFuel': {
       // Set the tank to `value` litres (debug/test, e.g. to try running dry).
-      const tank = VESSEL_DEFS[s.defId].engine.fuel.tankL;
+      const tank = VESSEL_DEFS[s.defId].engine?.fuel.tankL ?? 0;
       s.engine.fuelL = clamp(intent.value, 0, tank);
       break;
     }
@@ -131,11 +133,13 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
     }
     case 'spotPan': {
       const sp = VESSEL_DEFS[s.defId].spotlight;
+      if (!sp) break;
       s.controls.spotPan = clamp(intent.value, -sp.panLimitDeg, sp.panLimitDeg);
       break;
     }
     case 'spotTilt': {
       const sp = VESSEL_DEFS[s.defId].spotlight;
+      if (!sp) break;
       s.controls.spotTilt = clamp(intent.value, sp.tiltMinDeg, sp.tiltMaxDeg);
       break;
     }
@@ -187,7 +191,7 @@ export function canRefuel(s: VesselState): boolean {
 
 /** Fuel flows while `refuelling` is on, the boat stays at the berth and the tank isn't full. */
 export function stepRefuelling(s: VesselState, def: VesselDef, dt: number, archipelago: boolean): void {
-  if (!s.refuelling) return;
+  if (!s.refuelling || !def.engine) return;
   const f = def.engine.fuel;
   if (!archipelago || !canRefuel(s) || s.engine.fuelL >= f.tankL) {
     s.refuelling = false;

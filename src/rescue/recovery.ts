@@ -23,7 +23,7 @@ import type { Vec3 } from '../core/math';
 import type { WorldState } from '../core/world';
 import { surfaceHeight, type PreparedWave } from '../ocean/waves';
 import { hullPlan } from '../vessel/layout';
-import { VESSEL_DEFS } from '../vessel/vesselDef';
+import { asWorkboat, VESSEL_DEFS } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
 import type { CargoItem } from '../cargo/cargo';
 import type { RescueState, RescueTarget } from './rescue';
@@ -90,7 +90,7 @@ function persons(r: RescueState): RescueTarget[] {
 
 /** The free seat for the next survivor aboard (vessel axes). */
 export function freeSeat(r: RescueState, v: VesselState): Vec3 {
-  const seats = VESSEL_DEFS[v.defId].rescueGear.seats;
+  const seats = asWorkboat(VESSEL_DEFS[v.defId]).rescueGear.seats;
   const taken = persons(r).filter((t) => t.phase === 'aboard').length;
   const [x, z] = seats[Math.min(taken, seats.length - 1)];
   return [x, hullPlan(VESSEL_DEFS[v.defId]).deckY(z), z];
@@ -112,7 +112,7 @@ export function stepRecovery(world: WorldState, v: VesselState, waves: readonly 
   const cfg = CONFIG.rescue;
   const r = world.rescue!;
   const ring = (r.ring ??= createRing());
-  const gear = VESSEL_DEFS[v.defId].rescueGear;
+  const gear = asWorkboat(VESSEL_DEFS[v.defId]).rescueGear;
   const cleat = vesselToWorld(v, gear.ringCleat);
 
   if (ring.state === 'flying') {
@@ -220,7 +220,7 @@ export function applyRecoveryIntent(world: WorldState, v: VesselState | undefine
     }
     case 'ringPull':
       if (ring.state === 'water' && v) {
-        const cleat = vesselToWorld(v, VESSEL_DEFS[v.defId].rescueGear.ringCleat);
+        const cleat = vesselToWorld(v, asWorkboat(VESSEL_DEFS[v.defId]).rescueGear.ringCleat);
         const d = Math.hypot(ring.pos[0] - cleat.x, ring.pos[2] - cleat.z);
         ring.line = Math.max(0.5, Math.min(ring.line, d) - Math.max(0, Math.min(5, intent.value)));
       }

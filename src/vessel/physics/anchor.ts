@@ -15,7 +15,7 @@
  */
 import { clamp } from '../../core/math';
 import { groundHeight } from '../../world/terrain';
-import type { VesselDef } from '../vesselDef';
+import type { WorkboatDef } from '../vesselDef';
 import type { VesselState } from '../vesselState';
 
 /**
@@ -25,7 +25,7 @@ import type { VesselState } from '../vesselState';
  */
 export function stepAnchor(
   s: VesselState,
-  def: VesselDef,
+  def: WorkboatDef,
   hawse: { x: number; y: number; z: number },
   hawseVel: { x: number; y: number; z: number },
   dt: number,

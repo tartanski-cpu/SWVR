@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import type { VesselDef } from '../vesselDef';
+import type { WorkboatDef } from '../vesselDef';
 
 const COLORS = { masthead: 0xfff4dc, port: 0xff2a1a, starboard: 0x22ff55, stern: 0xfff4dc };
 type LightName = keyof typeof COLORS;
@@ -41,7 +41,7 @@ export class NavLightsView {
   private readonly glowCol: THREE.BufferAttribute;
   private readonly local = new THREE.Vector3();
 
-  constructor(def: VesselDef) {
+  constructor(def: WorkboatDef) {
     this.root.name = 'navLights';
     const entries = Object.entries(def.navLights) as [LightName, [number, number, number]][];
     this.names = entries.map(([name]) => name);

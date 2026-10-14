@@ -5,7 +5,7 @@ import { stepWorld } from '../src/core/simulation';
 import { createWorld } from '../src/core/world';
 import { engineAlarms } from '../src/vessel/physics/engineThermal';
 import { placeVessel } from '../src/vessel/vesselControl';
-import { VESSEL_DEFS } from '../src/vessel/vesselDef';
+import { asWorkboat, VESSEL_DEFS } from '../src/vessel/vesselDef';
 
 const DT = 1 / 60;
 
@@ -14,7 +14,7 @@ function boat() {
   world.environment.waves = [];
   const v = world.vessels[vesselId];
   placeVessel(v, 0, 0, 0, 0);
-  const def = VESSEL_DEFS[v.defId];
+  const def = asWorkboat(VESSEL_DEFS[v.defId]);
   const send = (control: string, value: number) => {
     const intent: Intent = { playerId: 't', targetId: v.id, control, value };
     stepWorld(world, [intent], DT);

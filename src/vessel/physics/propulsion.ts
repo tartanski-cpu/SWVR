@@ -13,21 +13,21 @@
  */
 import { CONFIG } from '../../config';
 import { clamp } from '../../core/math';
-import type { VesselDef } from '../vesselDef';
+import type { VesselDef, WorkboatDef } from '../vesselDef';
 import type { VesselState } from '../vesselState';
 import { derateRackCap } from './engineThermal';
 
 const NU = 1.19e-6; // kinematic viscosity of sea water at 15 °C (m²/s)
 
 /** Gear the lever is asking for, and the throttle fraction beyond the neutral detent. */
-export function leverDemand(def: VesselDef, lever: number): { gear: -1 | 0 | 1; throttle: number } {
+export function leverDemand(def: WorkboatDef, lever: number): { gear: -1 | 0 | 1; throttle: number } {
   const nb = def.engine.neutralBand;
   const gear = lever > nb ? 1 : lever < -nb ? -1 : 0;
   return { gear, throttle: gear === 0 ? 0 : clamp((Math.abs(lever) - nb) / (1 - nb), 0, 1) };
 }
 
 /** Start (only in neutral, if so configured) or stop the engine. */
-export function toggleEngine(s: VesselState, def: VesselDef): void {
+export function toggleEngine(s: VesselState, def: WorkboatDef): void {
   const e = s.engine;
   if (e.phase === 'off') {
     if (def.engine.startOnlyInNeutral && leverDemand(def, s.controls.lever).gear !== 0) return;
@@ -41,7 +41,7 @@ export function toggleEngine(s: VesselState, def: VesselDef): void {
 const TWO_PI = Math.PI * 2;
 
 /** Full-load torque (N*m) at `rpm`, linear interpolation of the configured curve. */
-export function fullLoadTorque(def: VesselDef, rpm: number): number {
+export function fullLoadTorque(def: WorkboatDef, rpm: number): number {
   const c = def.engine.torqueCurve;
   if (rpm <= c[0][0]) return c[0][1];
   for (let i = 0; i < c.length - 1; i++) {
@@ -57,7 +57,7 @@ export function fullLoadTorque(def: VesselDef, rpm: number): number {
  * Propeller thrust (N, + = ahead) and shaft torque (N*m, opposing rotation, >= 0) at prop
  * speed n (rev/s, signed: + = ahead rotation) and vessel speed through the water (m/s).
  */
-export function propellerForces(def: VesselDef, n: number, speed: number): { thrust: number; torque: number } {
+export function propellerForces(def: WorkboatDef, n: number, speed: number): { thrust: number; torque: number } {
   const p = def.propeller;
   const an = Math.abs(n);
   if (an < 0.02) return { thrust: 0, torque: 0 };
@@ -78,7 +78,7 @@ export function propellerForces(def: VesselDef, n: number, speed: number): { thr
  * Advance the steering gear. Mechanical (cable / chain) steering: the rudder is where the
  * wheel puts it. Hydraulic: it follows the helm at a fixed rate.
  */
-export function stepSteering(s: VesselState, def: VesselDef, dt: number): void {
+export function stepSteering(s: VesselState, def: WorkboatDef, dt: number): void {
   const maxA = (def.rudder.maxAngleDeg * Math.PI) / 180;
   const want = clamp(s.controls.helm, -1, 1) * maxA;
   const rate = def.rudder.rateDegPerS;
@@ -102,7 +102,7 @@ export function stepSteering(s: VesselState, def: VesselDef, dt: number): void {
  * @param speed     vessel speed through the water at the propeller (m/s, + ahead)
  * @param immersion 0..1 how much of the propeller disc is under water
  */
-export function stepEngineAndPropeller(s: VesselState, def: VesselDef, speed: number, immersion: number, dt: number): number {
+export function stepEngineAndPropeller(s: VesselState, def: WorkboatDef, speed: number, immersion: number, dt: number): number {
   const e = s.engine;
   const cfg = def.engine;
   const demand = leverDemand(def, s.controls.lever);
@@ -184,7 +184,7 @@ export function stepEngineAndPropeller(s: VesselState, def: VesselDef, speed: nu
  */
 export function rudderForce(
   s: VesselState,
-  def: VesselDef,
+  def: WorkboatDef,
   relVx: number,
   relVz: number,
   thrust: number,
@@ -212,7 +212,7 @@ export function rudderForce(
 }
 
 /** Signed normal force (N) on the rudder plate for inflow (fx, fz) in vessel axes. */
-function rudderNormal(s: VesselState, def: VesselDef, fx: number, fz: number): number {
+function rudderNormal(s: VesselState, def: WorkboatDef, fx: number, fz: number): number {
   const r = def.rudder;
   const u2 = fx * fx + fz * fz;
   if (u2 < 1e-6) return 0;
