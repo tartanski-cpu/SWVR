@@ -42,6 +42,9 @@ export interface EngineSoundInput {
  *
  * Built on any BaseAudioContext, so it can also be rendered offline for checking levels.
  */
+/** Level of the mechanical noise floor (tuned against the reference recording). */
+const MECH = 0.6;
+
 export class EngineSound {
   private constructor(
     private readonly ctx: BaseAudioContext,
@@ -57,6 +60,7 @@ export class EngineSound {
     private readonly dry: GainNode,
     private readonly muffled: GainNode,
     private readonly burble: GainNode,
+    private readonly mech: GainNode,
   ) {}
 
   static async create(ctx: BaseAudioContext, destination: AudioNode): Promise<EngineSound> {
@@ -71,17 +75,23 @@ export class EngineSound {
     // harmonics around 110 and 220 Hz (exhaust resonances) that carry the "meat" instead.
     dcBlock.frequency.value = 45;
     dcBlock.Q.value = 0.7;
+    // A second high-pass: the cylinder imbalance makes a half-firing line (~22 Hz at 900
+    // rpm) that a hull and real speakers don't pass (absent in the reference recording).
+    const dcBlock2 = ctx.createBiquadFilter();
+    dcBlock2.type = 'highpass';
+    dcBlock2.frequency.value = 36;
+    dcBlock2.Q.value = 0.7;
     const body = ctx.createBiquadFilter();
     body.type = 'peaking';
     body.frequency.value = 110;
     body.Q.value = 0.9;
-    body.gain.value = 8;
+    body.gain.value = 4;
     const body2 = ctx.createBiquadFilter();
     body2.type = 'peaking';
     // Exhaust stack resonance: the hollow "pop" of each beat.
     body2.frequency.value = 150;
     body2.Q.value = 2.2;
-    body2.gain.value = 6;
+    body2.gain.value = 3;
     const bodyLp = ctx.createBiquadFilter();
     bodyLp.type = 'lowpass';
     bodyLp.Q.value = 0.7;
@@ -91,7 +101,7 @@ export class EngineSound {
     shaper.oversample = '2x';
     const thump = ctx.createGain();
     thump.gain.value = 0;
-    dcBlock.connect(body).connect(body2).connect(bodyLp).connect(shaper).connect(thump);
+    dcBlock.connect(dcBlock2).connect(body).connect(body2).connect(bodyLp).connect(shaper).connect(thump);
     // Exhaust in the air (dry) or under water (muffled): crossfaded by `submerged`.
     const dry = ctx.createGain();
     dry.gain.value = 1;
@@ -111,6 +121,23 @@ export class EngineSound {
     burble.gain.value = 0;
     burbleLp.connect(burble).connect(master);
 
+    // ── Mechanical noise floor (worklet channel 3): 200 Hz - 2 kHz, falling with frequency ──
+    const mechHp = ctx.createBiquadFilter();
+    mechHp.type = 'highpass';
+    mechHp.frequency.value = 180;
+    mechHp.Q.value = 0.6;
+    const mechLp = ctx.createBiquadFilter();
+    mechLp.type = 'lowpass';
+    mechLp.frequency.value = 900;
+    mechLp.Q.value = 0.5;
+    const mechLp2 = ctx.createBiquadFilter();
+    mechLp2.type = 'lowpass';
+    mechLp2.frequency.value = 4500;
+    mechLp2.Q.value = 0.5;
+    const mech = ctx.createGain();
+    mech.gain.value = 0;
+    mechHp.connect(mechLp).connect(mechLp2).connect(mech).connect(master);
+
     // ── Clatter ──
     const clickHp = ctx.createBiquadFilter();
     clickHp.type = 'highpass';
@@ -127,12 +154,13 @@ export class EngineSound {
     let worklet: AudioWorkletNode | null = null;
     let fallback: { osc1: OscillatorNode; osc2: OscillatorNode } | null = null;
     if (await loadDieselWorklet(ctx)) {
-      worklet = new AudioWorkletNode(ctx, 'diesel', { numberOfInputs: 0, outputChannelCount: [3] });
-      const split = ctx.createChannelSplitter(3);
+      worklet = new AudioWorkletNode(ctx, 'diesel', { numberOfInputs: 0, outputChannelCount: [4] });
+      const split = ctx.createChannelSplitter(4);
       worklet.connect(split);
       split.connect(dcBlock, 0);
       split.connect(clickHp, 1);
       split.connect(burbleLp, 2);
+      split.connect(mechHp, 3);
     } else {
       const osc1 = ctx.createOscillator();
       osc1.type = 'sawtooth';
@@ -173,7 +201,7 @@ export class EngineSound {
     noise.connect(band).connect(hiss).connect(master);
     noise.start();
 
-    return new EngineSound(ctx, master, worklet, fallback, bodyLp, thump, clatter, starter, starterGain, hiss, dry, muffled, burble);
+    return new EngineSound(ctx, master, worklet, fallback, bodyLp, thump, clatter, starter, starterGain, hiss, dry, muffled, burble, mech);
   }
 
   private lastSub = 0;
@@ -199,6 +227,7 @@ export class EngineSound {
     this.bodyLp.frequency.setTargetAtTime(190 + 320 * rpmFrac + 380 * load, t, smooth);
     this.thump.gain.setTargetAtTime(turning ? 0.65 + 0.25 * rpmFrac + 0.35 * load : 0, t, 0.1);
     this.clatter.gain.setTargetAtTime(e.running ? 0.05 + 0.02 * rpmFrac : 0, t, 0.1);
+    this.mech.gain.setTargetAtTime(turning ? MECH * (0.6 + 0.4 * rpmFrac + 0.3 * load) : 0, t, 0.1);
     // Wet exhaust: dry bark in the air, dull and burbling under water. Under goes fast (the
     // outlet floods), back out a little slower (the water has to clear).
     const sub = Math.min(1, Math.max(0, e.submerged ?? 0));

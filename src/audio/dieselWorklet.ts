@@ -14,6 +14,10 @@
  *     event releases a few big bubbles (100-450 Hz) that ring and chirp upward as they
  *     rise (the same bubble model as the water sound, see waterWorklet.ts). The main
  *     thread fades this in as the outlet goes under.
+ *   - channel 3, mechanical noise: a continuous grit (valve train, gears, the hull
+ *     carrying it), its level pulsing with the firing. A recording of a similar boat
+ *     (owner reference) has this floor ~15-20 dB under the rumble from ~200 Hz to 2 kHz;
+ *     it is also what small headset speakers can actually play.
  * No cylinder is quite like the others (fixed strength pattern + a little random jitter
  * per event), so the cycle has the uneven, lumpy rhythm of a real engine.
  * The main thread shapes the channels with filters (see engineAudio.ts).
@@ -35,8 +39,10 @@ class DieselProcessor extends AudioWorkletProcessor {
     this.rise = 0;
     this.click = 0;
     this.seed = 12345;
-    // A worn fishing-boat engine: cylinders noticeably unequal, so the beat is a lumpy chug.
-    this.strength = [1.0, 0.76, 1.14, 0.84, 1.07, 0.8];
+    // A worn fishing-boat engine: cylinders noticeably unequal, alternating strong / weak
+    // (the reference recording's half-order lines at 1.5x, 2.5x, 3.5x firing/2 are only
+    // 7-14 dB under the firing line), so the beat is a lumpy chug that lopes once a cycle.
+    this.strength = [1.0, 0.48, 1.1, 0.55, 1.03, 0.46];
     // Exhaust bubbles: a small pool of ringing, upward-chirping sinusoids.
     this.bub = [];
     for (let i = 0; i < 12; i++) this.bub.push({ on: false, ph: 0, f: 0, a: 0, d: 0, s: 0, t: 0, delay: 0 });
@@ -66,11 +72,14 @@ class DieselProcessor extends AudioWorkletProcessor {
     const a = out[0];
     const b = out[1] || out[0];
     const c = out[2] || out[0];
+    const d = out[3] || out[0];
     const rpm = p.rpm[0];
     const load = p.load[0];
     const firing = p.firing[0] > 0.5;
     const step = rpm / 20 / sampleRate;
-    const tau = 0.005 + 0.004 * (1 - Math.min(1, rpm / 1800));
+    // Pulse decay: long enough that the beats run into each other (a rumble, not separate
+    // thumps: the reference's level pulses ~40 %, not 70 %).
+    const tau = 0.013 + 0.006 * (1 - Math.min(1, rpm / 1800));
     const dEnv = Math.exp(-1 / (tau * sampleRate));
     const dRise = Math.exp(-1 / (0.0015 * sampleRate));
     const dClick = Math.exp(-1 / (0.0025 * sampleRate));
@@ -94,6 +103,7 @@ class DieselProcessor extends AudioWorkletProcessor {
       const n = this.rand() * 2 - 1;
       a[i] = this.rise * (0.92 + 0.08 * n);
       b[i] = this.click * n;
+      d[i] = (this.rand() * 2 - 1) * (0.3 + this.rise) * (firing ? 1 : 0.4);
       this.env *= dEnv;
       this.click *= dClick;
       let w = 0;
