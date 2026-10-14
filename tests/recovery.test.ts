@@ -195,3 +195,19 @@ describe('recovery: desktop hands', () => {
     expect(Math.hypot(r.pos[0] - spot.x, r.pos[2] - spot.z)).toBeLessThan(CONFIG.rescue.catchRadius);
   });
 });
+
+describe('recovery: boat hook laid down', () => {
+  it('can be laid on deck and taken from there; over the side it goes back in its clips', () => {
+    const s = setup('lostCargo');
+    const { world, send } = s;
+    send('hookTake');
+    send('hookDrop', { args: [0.3, 1, 3.5, 0.4] });
+    expect(world.rescue!.hook!.holder).toBeNull();
+    expect(world.rescue!.hook!.deck?.[2]).toBeCloseTo(3.5);
+    send('hookTake', { player: 'b' });
+    expect(world.rescue!.hook!.holder).toBe('b');
+    expect(world.rescue!.hook!.deck).toBeUndefined();
+    send('hookDrop', { player: 'b', args: [6, 1, 3.5, 0] });
+    expect(world.rescue!.hook!.deck).toBeUndefined();
+  });
+});

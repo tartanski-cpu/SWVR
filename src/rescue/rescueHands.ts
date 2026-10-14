@@ -11,11 +11,12 @@
  *   - Ring in the water: grip the line near the quarter cleat (or anywhere along it) and
  *     pull, hand over hand - every pull shortens the line by the distance your hand moved
  *     (times CONFIG.rescue.reelScale).
- *   - Grip the boat hook on the port bulwark to take it; it points along your controller.
- *     Touch a floating crate with the tip to hook it; it follows the tip. Bring it alongside
- *     and grip it with your other hand to lift it aboard (then it's an ordinary carried
- *     crate: set it down on deck). Let go of the hook to put it back (anything on it floats
- *     off).
+ *   - Grip the boat hook on the port bulwark to take it: it stays in that hand (no need to
+ *     keep gripping) and points along your controller. Touch a floating crate with the tip
+ *     to hook it; it follows the tip. Bring it alongside and grip it with your other hand to
+ *     lift it aboard (then it's an ordinary carried crate: set it down on deck). Grip again
+ *     with the hook hand to put it down: back in its clips if you're at them, else on the
+ *     deck, to be picked up again (anything on it floats off).
  * Desktop
  *   - Click the ring to take it, click again to throw it where you look.
  *   - Click the line or the cleat to pull a length in.
@@ -29,9 +30,11 @@ import type { HandFrame } from '../controls/InteractionSystem';
 import type { WorldState } from '../core/world';
 import { surfaceHeight, type PreparedWave } from '../ocean/waves';
 import type { Handedness } from '../player/xrInput';
+import { hullPlan } from '../vessel/layout';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 import type { CargoHands } from '../cargo/cargoHands';
 import { distanceToHull } from './recovery';
+import { ropePoints, ROPE_POINTS } from './rescueGearView';
 import type { RescueTarget } from './rescue';
 
 export interface RescueHandsContext {
@@ -46,8 +49,9 @@ export interface RescueHandsContext {
   pulse(hand: Handedness, intensity: number, ms: number): void;
 }
 
-/** How close a hand must be to the gear to grab it (m). */
+/** How close a hand must be to the gear to grab it (m); the line, more forgiving. */
 const GRAB = 0.3;
+const GRAB_LINE = 0.45;
 /** Desktop reach to the ring, hook and line (m). */
 const DESK_REACH = 3.2;
 /** Seconds to wait for the simulation to agree we're holding something. */
@@ -62,6 +66,10 @@ export class RescueHands {
   private ring: Holder | null = null;
   private hook: Holder | null = null;
   private line: { hand: Handedness; last: THREE.Vector3; acc: number } | null = null;
+  /** A free hand is within reach of the line (it's drawn highlighted, the hand ticks). */
+  lineHover = false;
+  private readonly hoverWas = { left: false, right: false };
+  private readonly rope = new Float32Array(ROPE_POINTS * 3);
   private ringSince = 0;
   private hookSince = 0;
   private clock = 0;
@@ -81,6 +89,10 @@ export class RescueHands {
   }
   get holdingHook(): boolean {
     return this.hook !== null;
+  }
+  /** Is a hand on the line, pulling? */
+  get pulling(): boolean {
+    return this.line !== null;
   }
   /** Is the mouse busy with rescue gear (so a click is ours, not the cargo's)? */
   get deskBusy(): boolean {
@@ -109,21 +121,44 @@ export class RescueHands {
     return g && ctx.vesselRoot ? ctx.vesselRoot.localToWorld(out.fromArray(g.ringCleat)) : null;
   }
 
-  /** The stowed hook's pole, as a segment (world). */
-  private hookStowW(ctx: RescueHandsContext): THREE.Line3 | null {
+  /** The resting hook's pole (in its clips, or laid on deck), as a segment (world). */
+  private hookRestW(ctx: RescueHandsContext): THREE.Line3 | null {
+    const g = this.gear(ctx);
+    if (!g || !ctx.vesselRoot) return null;
+    const deck = ctx.world.rescue?.hook?.deck;
+    if (deck) {
+      const [x, y, z, yaw] = deck;
+      const L = CONFIG.rescue.hookLength;
+      return new THREE.Line3(
+        ctx.vesselRoot.localToWorld(new THREE.Vector3(x, y, z)),
+        ctx.vesselRoot.localToWorld(new THREE.Vector3(x + Math.sin(yaw) * L, y, z + Math.cos(yaw) * L)),
+      );
+    }
+    const [x, y, z0, z1] = g.hookStow;
+    return new THREE.Line3(ctx.vesselRoot.localToWorld(new THREE.Vector3(x, y, z0)), ctx.vesselRoot.localToWorld(new THREE.Vector3(x, y, z1)));
+  }
+
+  /** The clips' segment (world), whether the hook is in them or not. */
+  private clipsW(ctx: RescueHandsContext): THREE.Line3 | null {
     const g = this.gear(ctx);
     if (!g || !ctx.vesselRoot) return null;
     const [x, y, z0, z1] = g.hookStow;
     return new THREE.Line3(ctx.vesselRoot.localToWorld(new THREE.Vector3(x, y, z0)), ctx.vesselRoot.localToWorld(new THREE.Vector3(x, y, z1)));
   }
 
-  /** Distance from a point to the line between the cleat and the ring in the water (m). */
+  /** Distance from a point to the line from the cleat to the ring in the water, as drawn (m). */
   private lineDistance(ctx: RescueHandsContext, p: THREE.Vector3): number {
     const r = ctx.world.rescue?.ring;
     if (!r || r.state !== 'water' || !this.cleatW(ctx, this.tmp2)) return Infinity;
-    const seg = new THREE.Line3(this.tmp2.clone(), new THREE.Vector3().fromArray(r.pos));
-    // Only the first few metres from the cleat are in reach from the deck anyway.
-    return seg.closestPointToPoint(p, true, this.closest).distanceTo(p);
+    ropePoints(this.tmp2, this.closest.fromArray(r.pos), r.line, true, ctx.waves, this.rope);
+    let best = Infinity;
+    const seg = new THREE.Line3();
+    for (let i = 0; i + 1 < ROPE_POINTS; i++) {
+      seg.start.fromArray(this.rope, i * 3);
+      seg.end.fromArray(this.rope, i * 3 + 3);
+      best = Math.min(best, seg.closestPointToPoint(p, true, this.closest).distanceTo(p));
+    }
+    return best;
   }
 
   private floatingCrates(ctx: RescueHandsContext): RescueTarget[] {
@@ -235,22 +270,33 @@ export class RescueHands {
         }
       }
     }
-    // Holding the hook: it points along the controller.
+    // Holding the hook: it stays in the hand (no need to keep gripping) and points along the
+    // controller. Grip again to put it down: in its clips if you're at them, else on deck.
     if (this.hook && this.hook !== 'desk') {
-      const f = hands[this.hook];
-      if (!f.tracked || !f.gripDown) {
-        ctx.pulse(this.hook, 0.3, 30);
-        this.stowHook(ctx);
-      } else {
+      const h = this.hook;
+      const f = hands[h];
+      if (f.tracked && f.gripPressed && this.clock - this.hookSince > 0.3) {
+        ctx.pulse(h, 0.4, 40);
+        const clips = this.clipsW(ctx);
+        if (clips && clips.closestPointToPoint(f.grip, true, this.closest).distanceTo(f.grip) < 0.5) this.stowHook(ctx);
+        else this.layHook(ctx, f.grip, f.ray.direction);
+      } else if (f.tracked) {
         this.hookBase.copy(f.grip);
         this.hookTip.copy(f.grip).addScaledVector(f.ray.direction, cfg.hookLength);
-        this.useHook(ctx, dt, this.hook);
+        this.useHook(ctx, dt, h);
       }
     }
     // Free hands: grab the gear (or, with the hook in the other hand, the crate on it).
+    // A hand within reach of the line lights it up and ticks once, so you can find it.
+    this.lineHover = false;
     for (const h of ['left', 'right'] as const) {
       const f = hands[h];
-      if (!f.tracked || busy[h] || this.busy(h) || !f.gripPressed || ctx.cargoHands.busy(h)) continue;
+      const free = f.tracked && !busy[h] && !this.busy(h) && !ctx.cargoHands.busy(h);
+      const near = free && rs?.ring?.state === 'water' && this.nearLine(ctx, f.grip);
+      if (near && !this.hoverWas[h]) ctx.pulse(h, 0.25, 20);
+      this.hoverWas[h] = !!near;
+      if (near) this.lineHover = true;
+      if (!free || !f.gripPressed) continue;
       const hooked = this.hookedCrate(ctx);
       if (hooked && this.hook && this.hook !== h && this.crateCentre(ctx, hooked, this.tmp).distanceTo(f.grip) < 0.6) {
         if (this.lift(ctx, hooked, [h])) ctx.pulse(h, 0.6, 60);
@@ -262,18 +308,38 @@ export class RescueHands {
         ctx.pulse(h, 0.5, 40);
         continue;
       }
-      const pole = this.hookStowW(ctx);
+      const pole = this.hookRestW(ctx);
       if (!this.hook && !rs?.hook?.holder && pole && pole.closestPointToPoint(f.grip, true, this.closest).distanceTo(f.grip) < GRAB) {
         this.takeHook(ctx, h);
         ctx.pulse(h, 0.5, 40);
         continue;
       }
-      const cleat = this.cleatW(ctx, this.tmp);
-      if (rs?.ring?.state === 'water' && cleat && (cleat.distanceTo(f.grip) < 0.5 || this.lineDistance(ctx, f.grip) < GRAB)) {
+      if (near) {
         this.line = { hand: h, last: f.grip.clone(), acc: 0 };
-        ctx.pulse(h, 0.4, 30);
+        ctx.pulse(h, 0.5, 40);
       }
     }
+  }
+
+  /** Is a hand at the cleat or on the line? */
+  private nearLine(ctx: RescueHandsContext, p: THREE.Vector3): boolean {
+    const cleat = this.cleatW(ctx, this.tmp);
+    return !!cleat && (cleat.distanceTo(p) < 0.6 || this.lineDistance(ctx, p) < GRAB_LINE);
+  }
+
+  /** Lay the hook down on deck, butt at the hand, lying the way it pointed. */
+  private layHook(ctx: RescueHandsContext, grip: THREE.Vector3, dir: THREE.Vector3): void {
+    const v = ctx.world.vessels[ctx.vesselId];
+    const root = ctx.vesselRoot;
+    this.hook = null;
+    if (!v || !root) {
+      ctx.push('hookStow', undefined, 1);
+      return;
+    }
+    const l = root.worldToLocal(this.tmp.copy(grip));
+    const d = this.tmp2.copy(dir).applyQuaternion(root.getWorldQuaternion(new THREE.Quaternion()).invert());
+    const plan = hullPlan(VESSEL_DEFS[v.defId]);
+    ctx.push('hookDrop', undefined, 1, [l.x, plan.deckY(l.z), l.z, Math.atan2(d.x, d.z)]);
   }
 
   /** The hook in hand: hook a crate the tip touches; tow the one on it. */
@@ -358,7 +424,7 @@ export class RescueHands {
     const rs = ctx.world.rescue;
     const stow = this.ringStowW(ctx, this.tmp);
     if (rs?.ring?.state === 'stowed' && stow && stow.distanceTo(ray.origin) < DESK_REACH && ray.distanceToPoint(stow) < 0.35) return 'ring';
-    const pole = this.hookStowW(ctx);
+    const pole = this.hookRestW(ctx);
     if (!rs?.hook?.holder && pole) {
       const a = new THREE.Vector3();
       const b = new THREE.Vector3();

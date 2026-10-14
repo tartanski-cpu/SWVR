@@ -1,3 +1,4 @@
+import { babble, speakOrBabble } from './babble';
 import { noiseBuffer } from './engineAudio';
 
 /**
@@ -5,7 +6,8 @@ import { noiseBuffer } from './engineAudio';
  *   - cheer: a bright rising chime and a swell of "crowd" (band-passed noise with a fast
  *     ragged wobble) when everything is out of the water;
  *   - shout: what a survivor calls out, read with the browser's speech synthesis (higher
- *     and quicker than the radio voice, not through the radio's little speaker);
+ *     and quicker than the radio voice, not through the radio's little speaker), or a
+ *     babble where the browser can't speak;
  *   - snap: a cargo item set down on deck - a short wooden knock and a small ding.
  */
 export class RescueSounds {
@@ -69,13 +71,18 @@ export class RescueSounds {
   }
 
   shout(text: string): void {
-    const synth = typeof window !== 'undefined' ? window.speechSynthesis : undefined;
-    if (!synth || typeof SpeechSynthesisUtterance === 'undefined') return;
-    const u = new SpeechSynthesisUtterance(text);
-    u.rate = 1.2;
-    u.pitch = 1.35;
-    u.volume = 1;
-    synth.speak(u);
+    speakOrBabble(
+      text,
+      (u) => {
+        u.rate = 1.2;
+        u.pitch = 1.35;
+        u.volume = 1;
+      },
+      () => {
+        if (this.ctx) babble(this.ctx, this.ctx.destination, text, this.ctx.currentTime + 0.05, 210, 0.35);
+      },
+      false,
+    );
   }
 
   snap(): void {

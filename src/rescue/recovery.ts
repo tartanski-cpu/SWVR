@@ -40,6 +40,8 @@ export interface RingState {
 
 export interface HookState {
   holder: string | null;
+  /** Laid down on deck (not in its clips): butt position (vessel axes) and the pole's yaw. */
+  deck?: [number, number, number, number];
 }
 
 /** A short message shouted by a survivor (views show / speak it when the id changes). */
@@ -224,11 +226,25 @@ export function applyRecoveryIntent(world: WorldState, v: VesselState | undefine
       }
       return true;
     case 'hookTake':
-      if (!hook.holder) hook.holder = who;
+      if (!hook.holder) {
+        hook.holder = who;
+        delete hook.deck;
+      }
       return true;
     case 'hookStow':
+    case 'hookDrop':
+      // Back in its clips, or laid down on deck (args: butt x, y, z in vessel axes, yaw).
+      // Let go of it over the side and it's back in the clips: a lost hook is no fun.
       if (hook.holder === who) {
         hook.holder = null;
+        delete hook.deck;
+        const a = intent.args ?? [];
+        if (intent.control === 'hookDrop' && v && a.length >= 4 && a.every(Number.isFinite)) {
+          const plan = hullPlan(VESSEL_DEFS[v.defId]);
+          const z = Math.min(plan.transom - 0.2, Math.max(plan.stem + 0.5, a[2]));
+          const x = Math.max(-(plan.halfBeam(z) - 0.2), Math.min(plan.halfBeam(z) - 0.2, a[0]));
+          if (Math.abs(a[0] - x) < 0.6 && Math.abs(a[2] - z) < 0.6) hook.deck = [x, plan.deckY(z) + 0.03, z, a[3]];
+        }
         for (const t of r.active?.targets ?? []) if (t.phase === 'hooked' && t.hookedBy === who) t.phase = 'floating';
       }
       return true;

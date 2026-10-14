@@ -49,6 +49,8 @@ export interface MenuHost {
   runStatus(): string;
   rescueNow(): void;
   rescueEnd(): void;
+  /** Debug: say a radio check through the radio voice and report what the browser can do. */
+  voiceTest(): void;
   /** Debug: a target alongside ('manOverboard' / 'lostCargo'); show targets on the chart. */
   rescueNear(defId: string): void;
   showTargets(): boolean;
@@ -264,6 +266,7 @@ export function mainMenu(h: MenuHost): MainMenu {
       buttons: [
         { text: 'Call now', press: () => h.rescueNow() },
         { text: 'End rescue', press: () => h.rescueEnd() },
+        { text: 'Voice test', press: () => h.voiceTest() },
       ],
     },
     {

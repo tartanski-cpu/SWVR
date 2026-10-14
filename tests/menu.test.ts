@@ -47,6 +47,7 @@ function fakeHost() {
     runStatus: () => 'No cargo run',
     rescueNow: () => calls.push('rescue'),
     rescueEnd: () => calls.push('rescueEnd'),
+    voiceTest: () => calls.push('voiceTest'),
     rescueNear: (k) => calls.push(`near ${k}`),
     showTargets: () => false,
     toggleShowTargets: () => calls.push('showTargets'),

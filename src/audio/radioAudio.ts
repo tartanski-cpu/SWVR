@@ -1,3 +1,4 @@
+import { babble, speakOrBabble } from './babble';
 import { noiseBuffer } from './engineAudio';
 
 /**
@@ -71,21 +72,32 @@ export class RadioAudio {
     src.stop(t + duration + 0.05);
   }
 
-  /** Read a message out (if the browser can), after `delay` seconds. */
+  /**
+   * Read a message out after `delay` seconds: with the browser's speech synthesis if it
+   * can, else (no voices, or it stays silent - the Quest browser) a radio-voice babble.
+   */
   speak(text: string, delay = 0): void {
-    const synth = typeof window !== 'undefined' ? window.speechSynthesis : undefined;
-    if (!synth || typeof SpeechSynthesisUtterance === 'undefined') return;
     const spoken = text.replace(/°/g, ' degrees').replace(/(\d)\.(\d)/g, '$1 point $2').replace(/MAYDAY RELAY/g, 'Mayday relay, Mayday relay').replace(/PAN-PAN/g, 'Pan-pan, pan-pan');
     setTimeout(() => {
-      synth.cancel();
-      const u = new SpeechSynthesisUtterance(spoken);
-      u.rate = 1.05;
-      u.pitch = 0.85;
-      u.volume = Math.min(1, 0.9 * this.level);
-      const en = synth.getVoices().find((v) => v.lang.startsWith('en-GB')) ?? synth.getVoices().find((v) => v.lang.startsWith('en'));
-      if (en) u.voice = en;
-      u.onend = () => this.crackle(0.2);
-      synth.speak(u);
+      speakOrBabble(
+        spoken,
+        (u) => {
+          u.rate = 1.05;
+          u.pitch = 0.85;
+          u.volume = Math.min(1, 0.9 * this.level);
+          const voices = window.speechSynthesis.getVoices();
+          const en = voices.find((v) => v.lang.startsWith('en-GB')) ?? voices.find((v) => v.lang.startsWith('en'));
+          if (en) u.voice = en;
+          u.onend = () => this.crackle(0.2);
+        },
+        () => {
+          const ctx = this.ctx;
+          if (!ctx) return;
+          const end = babble(ctx, this.out, spoken, ctx.currentTime + 0.05, 115, 0.45);
+          this.crackle(0.2, end - ctx.currentTime);
+        },
+        true,
+      );
     }, delay * 1000);
   }
 

@@ -54,6 +54,7 @@ import { TargetsView } from '../rescue/targetView';
 import { RescueHands, type RescueHandsContext } from '../rescue/rescueHands';
 import { RescueGearView, type AvatarHands } from '../rescue/rescueGearView';
 import { RescueSounds } from '../audio/rescueSounds';
+import { lastSpeech, speechVoices, watchVoices } from '../audio/babble';
 import { DesktopHand } from '../player/desktopHand';
 import { playerColor } from '../net/avatarView';
 import { runStatus } from '../rescue/rescue';
@@ -151,7 +152,7 @@ export class App {
   private readonly gearView = new RescueGearView();
   private readonly rescueSounds = new RescueSounds();
   /** Last cheer count / shout id heard (null until the first frame). */
-  private rescueHeard: { cheer: number; shout: number } | null = null;
+  private rescueHeard: { cheer: number; shout: number; ring: string } | null = null;
   private frameDt = 0;
   private readonly listenerFwd = new THREE.Vector3();
   private readonly listenerUp = new THREE.Vector3();
@@ -262,6 +263,7 @@ export class App {
       this.pingAudio.attach(this.engineAudio.context);
       this.radioAudio.attach(this.engineAudio.context);
       this.whistleAudio.attach(this.engineAudio.context);
+      watchVoices();
       this.rescueSounds.attach(this.engineAudio.context);
     };
     window.addEventListener('pointerdown', unlock);
@@ -927,6 +929,15 @@ export class App {
       runStatus: () => runStatus(this.world),
       rescueNow: () => this.pushVesselIntent('rescueDebugTrigger', 1),
       rescueEnd: () => this.pushVesselIntent('rescueDebugComplete', 1),
+      voiceTest: () => {
+        this.radioAudio.crackle(0.3);
+        this.radioAudio.speak('Radio check. One, two, three. How do you read?', 0.3);
+        setTimeout(() => {
+          const n = speechVoices();
+          const speech = n < 0 ? 'no speech synthesis' : `${n} speech voices`;
+          this.overlay.notify(`Voice test: ${speech}; spoken ${lastSpeech.started} of ${lastSpeech.tried}${n <= 0 || lastSpeech.started < lastSpeech.tried ? ' (using the radio babble)' : ''}`, 8);
+        }, 2000);
+      },
       rescueNear: (kind) => this.pushVesselIntent('rescueDebugNear', 1, kind),
       showTargets: () => !!this.bridge?.chart.showTargets,
       toggleShowTargets: () => {
@@ -1329,10 +1340,18 @@ export class App {
   /** The cheer when everyone's out of the water, and what survivors shout. */
   private updateRescueSounds(): void {
     const r = this.world.rescue;
-    const now = { cheer: r?.cheer ?? 0, shout: r?.shout?.id ?? 0 };
+    const now = { cheer: r?.cheer ?? 0, shout: r?.shout?.id ?? 0, ring: r?.ring?.state ?? 'stowed' };
     const was = this.rescueHeard;
     this.rescueHeard = now;
     if (!was) return;
+    if (now.ring === 'water' && was.ring !== 'water') {
+      this.overlay.notify(
+        this.renderer.xr.isPresenting
+          ? 'Ring in the water. Pull it in: grip the line at the starboard quarter (it lights up yellow when your hand is on it) and pull, hand over hand.'
+          : 'Ring in the water. Click the line or its cleat at the starboard quarter to pull it in.',
+        6,
+      );
+    }
     if (now.cheer > was.cheer) {
       this.rescueSounds.cheer();
       this.overlay.notify('Recovered! Everyone out of the water.', 4);

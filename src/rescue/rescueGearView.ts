@@ -15,7 +15,32 @@ import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUti
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 import type { RescueHands } from './rescueHands';
 
-const LINE_POINTS = 24;
+export const ROPE_POINTS = 24;
+const ROPE = 0xf0e6c0;
+/** The line when a hand can take it, or is pulling it. */
+const ROPE_LIT = 0xffd23a;
+
+const tmpP = new THREE.Vector3();
+
+/**
+ * The line from the cleat to the ring, as drawn (and as hands find it): a parabola whose
+ * depth grows with the slack (and a little always: it's rope); lying in the water it
+ * floats on it. Writes ROPE_POINTS world points into `out`.
+ */
+export function ropePoints(cleat: THREE.Vector3, end: THREE.Vector3, line: number, inWater: boolean, waves: readonly PreparedWave[], out: Float32Array): void {
+  const d = cleat.distanceTo(end);
+  const len = inWater ? Math.max(line, d) : d + 1;
+  const sag = Math.min(3, 0.15 + 0.5 * Math.sqrt(Math.max(0, len * len - d * d)));
+  for (let i = 0; i < ROPE_POINTS; i++) {
+    const s = i / (ROPE_POINTS - 1);
+    const p = tmpP.lerpVectors(cleat, end, s);
+    p.y -= sag * 4 * s * (1 - s);
+    if (inWater) p.y = Math.max(p.y, surfaceHeight(waves, p.x, p.z) + 0.01);
+    out[i * 3] = p.x;
+    out[i * 3 + 1] = p.y;
+    out[i * 3 + 2] = p.z;
+  }
+}
 
 /** Where another player's hand / head is (world), if known. */
 export interface AvatarHands {
@@ -27,7 +52,8 @@ export interface AvatarHands {
 export class RescueGearView {
   readonly root = new THREE.Group();
   private readonly ring: THREE.Mesh;
-  private readonly line: THREE.Line;
+  /** The rope: one thin cylinder per segment between the curve's points. */
+  private readonly line: THREE.InstancedMesh;
   private readonly linePos: Float32Array;
   private readonly hook: THREE.Mesh;
   private readonly tmp = new THREE.Vector3();
@@ -36,6 +62,11 @@ export class RescueGearView {
   private readonly q = new THREE.Quaternion();
   private readonly zAxis = new THREE.Vector3(0, 0, 1);
   private readonly xAxis = new THREE.Vector3(1, 0, 0);
+  private readonly yAxis = new THREE.Vector3(0, 1, 0);
+  private readonly qYaw = new THREE.Quaternion();
+  private readonly segQ = new THREE.Quaternion();
+  private readonly segM = new THREE.Matrix4();
+  private readonly segS = new THREE.Vector3();
 
   constructor() {
     this.root.name = 'rescueGear';
@@ -57,10 +88,13 @@ export class RescueGearView {
     this.ring = new THREE.Mesh(torus, ringMat);
     this.ring.name = 'lifeRing';
     // Line.
-    this.linePos = new Float32Array(LINE_POINTS * 3);
-    const lg = new THREE.BufferGeometry();
-    lg.setAttribute('position', new THREE.BufferAttribute(this.linePos, 3));
-    this.line = new THREE.Line(lg, new THREE.LineBasicMaterial({ color: 0xf0e6c0 }));
+    this.linePos = new Float32Array(ROPE_POINTS * 3);
+    // Unit-length segment along +y from its origin; 2.5 cm thick so it's easy to see in VR.
+    this.line = new THREE.InstancedMesh(
+      new THREE.CylinderGeometry(0.0125, 0.0125, 1, 5, 1, true).translate(0, 0.5, 0),
+      new THREE.MeshLambertMaterial({ color: ROPE, emissive: 0x302a18 }),
+      ROPE_POINTS - 1,
+    );
     this.line.frustumCulled = false;
     // Boat hook: an ash pole along +z from its butt (origin), a galvanised hook at the end.
     const L = CONFIG.rescue.hookLength;
@@ -110,20 +144,17 @@ export class RescueGearView {
     this.line.visible = out;
     if (out) {
       const cleat = vesselRoot.localToWorld(this.b.fromArray(gear.ringCleat));
-      const end = this.ring.position;
-      const d = cleat.distanceTo(end);
-      const len = state === 'water' ? Math.max(ring!.line, d) : d + 1;
-      // A parabola whose depth grows with the slack (and a little always: it's rope).
-      const sag = Math.min(3, 0.15 + 0.5 * Math.sqrt(Math.max(0, len * len - d * d)));
-      for (let i = 0; i < LINE_POINTS; i++) {
-        const s = i / (LINE_POINTS - 1);
-        const p = this.tmp.lerpVectors(cleat, end, s);
-        p.y -= sag * 4 * s * (1 - s);
-        // Rope lying in the water floats on it.
-        if (state === 'water') p.y = Math.max(p.y, surfaceHeight(waves, p.x, p.z) + 0.01);
-        this.linePos.set([p.x, p.y, p.z], i * 3);
+      ropePoints(cleat, this.ring.position, ring?.line ?? 0, state === 'water', waves, this.linePos);
+      (this.line.material as THREE.MeshLambertMaterial).color.setHex(local.lineHover || local.pulling ? ROPE_LIT : ROPE);
+      for (let i = 0; i + 1 < ROPE_POINTS; i++) {
+        this.a.fromArray(this.linePos, i * 3);
+        const seg = this.tmp.fromArray(this.linePos, i * 3 + 3).sub(this.a);
+        const len = seg.length();
+        this.segQ.setFromUnitVectors(this.yAxis, len > 1e-6 ? seg.divideScalar(len) : this.yAxis);
+        this.segM.compose(this.a, this.segQ, this.segS.set(1, Math.max(len, 1e-4), 1));
+        this.line.setMatrixAt(i, this.segM);
       }
-      this.line.geometry.attributes.position.needsUpdate = true;
+      this.line.instanceMatrix.needsUpdate = true;
     }
 
     // ── Boat hook ──
@@ -136,6 +167,11 @@ export class RescueGearView {
       const tip = this.tmp.copy(this.a).addScaledVector(f, CONFIG.rescue.hookLength * 0.8);
       tip.y -= CONFIG.rescue.hookLength * 0.6;
       this.pose(this.a, tip);
+    } else if (r?.hook?.deck) {
+      // Laid down on deck.
+      const [x, y, z, yaw] = r.hook.deck;
+      vesselRoot.localToWorld(this.hook.position.set(x, y + 0.02, z));
+      this.hook.quaternion.copy(this.q).multiply(this.qYaw.setFromAxisAngle(this.yAxis, yaw));
     } else {
       // In its clips along the port bulwark.
       const [x, y, z0] = gear.hookStow;
