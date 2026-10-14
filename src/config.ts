@@ -350,8 +350,12 @@ export const CONFIG = {
         liftSlope: 2.4,
         stallDeg: 28,
         maxAngleDeg: 35,
-        /** Hydraulic steering rate (deg/s): hard over in ~1.4 s (owner: "a little more bite"). */
-        rateDegPerS: 25,
+        /**
+         * Steering gear rate (deg/s) for hydraulic steering, or null for direct mechanical
+         * steering (cable / chain from the wheel, as on a boat this size: owner feedback) -
+         * the rudder is wherever the wheel puts it, no lag.
+         */
+        rateDegPerS: null as number | null,
         /** Fraction of the propeller's slipstream momentum increase seen at the rudder. */
         washFactor: 0.8,
         /** Cap on the slipstream's extra rudder force, as a fraction of propeller thrust. */

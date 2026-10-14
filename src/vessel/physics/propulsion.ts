@@ -74,11 +74,19 @@ export function propellerForces(def: VesselDef, n: number, speed: number): { thr
   return { thrust: astern ? -thrust : thrust, torque };
 }
 
-/** Advance the steering gear: the rudder follows the helm at a fixed rate. */
+/**
+ * Advance the steering gear. Mechanical (cable / chain) steering: the rudder is where the
+ * wheel puts it. Hydraulic: it follows the helm at a fixed rate.
+ */
 export function stepSteering(s: VesselState, def: VesselDef, dt: number): void {
   const maxA = (def.rudder.maxAngleDeg * Math.PI) / 180;
   const want = clamp(s.controls.helm, -1, 1) * maxA;
-  const step = ((def.rudder.rateDegPerS * Math.PI) / 180) * dt;
+  const rate = def.rudder.rateDegPerS;
+  if (rate === null) {
+    s.rudder = want;
+    return;
+  }
+  const step = ((rate * Math.PI) / 180) * dt;
   s.rudder += clamp(want - s.rudder, -step, step);
 }
 

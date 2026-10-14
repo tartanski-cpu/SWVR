@@ -662,8 +662,8 @@ Plan agreed with the owner: five milestones, stopping after each for testing. Si
 
 ## Rudder: a little more bite (owner request)
 
-- Steering gear 14 → 25 °/s (hard over in ~1.4 s) and rudder blade 0.55 → 0.62 m². The slipstream cap stays at 0.55 of thrust: above ~0.6 the hull starts spinning on the spot.
-- New sea-trial measure **helm response**: time from hard over to 10° / 30° of heading change. Half ahead 2.8 → 2.3 s / 4.8 → 4.2 s; full ahead 2.0 → 1.6 s / 3.4 → 2.9 s. Tactical diameter 2.2 → 2.1 L; steady turn unchanged.
+- Rudder blade 0.55 → 0.62 m². Steering is now **direct mechanical** (cable / chain, owner feedback): the rudder is where the wheel puts it, no steering-gear lag (`rudder.rateDegPerS: null`; a number gives hydraulic steering at that rate). The slipstream cap stays at 0.55 of thrust: above ~0.6 the hull starts spinning on the spot.
+- New sea-trial measure **helm response**: time from hard over to 10° / 30° of heading change. Half ahead 2.8 → 1.9 s / 4.8 → 3.8 s; full ahead 2.0 → 1.2 s / 3.4 → 2.4 s (with the helm put hard over at once). Tactical diameter 2.2 → 2.1 L; steady turn unchanged.
 
 ## Planned next (owner requests, not started)
 
