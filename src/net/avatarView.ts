@@ -16,6 +16,9 @@ interface Avatar {
   body: THREE.Mesh;
   left: THREE.Mesh;
   right: THREE.Mesh;
+  /** Arms: stretchy cylinders from the shoulders to the hands (a rubber band for desktop players). */
+  leftArm: THREE.Mesh;
+  rightArm: THREE.Mesh;
   frame: THREE.Object3D | null;
   tag: THREE.Sprite;
   tagName: string;
@@ -32,6 +35,10 @@ export class AvatarsView {
   private readonly avatars = new Map<EntityId, Avatar>();
   private readonly tmpV = new THREE.Vector3();
   private readonly tmpQ = new THREE.Quaternion();
+  private readonly side = new THREE.Vector3();
+  private readonly shoulder = new THREE.Vector3();
+  private readonly dir = new THREE.Vector3();
+  private readonly yUp = new THREE.Vector3(0, 1, 0);
 
   constructor(private readonly scene: THREE.Object3D) {}
 
@@ -62,12 +69,27 @@ export class AvatarsView {
       const neck = Math.max(0.6, a.head.position.y - 0.18);
       a.body.scale.set(1, neck, 1);
       a.body.position.set(a.head.position.x * 0.7, neck / 2, a.head.position.z * 0.7);
-      for (const [mesh, hand] of [
-        [a.left, p.avatar?.left],
-        [a.right, p.avatar?.right],
+      // Shoulders: below the head, either side of where it faces.
+      this.side.set(1, 0, 0).applyQuaternion(a.head.quaternion).setY(0);
+      if (this.side.lengthSq() < 1e-6) this.side.set(1, 0, 0);
+      this.side.normalize().multiplyScalar(0.2);
+      for (const [mesh, arm, hand, s] of [
+        [a.left, a.leftArm, p.avatar?.left, -1],
+        [a.right, a.rightArm, p.avatar?.right, 1],
       ] as const) {
         mesh.visible = !!hand;
-        if (hand) mesh.position.lerp(this.tmpV.set(hand[0] - p.position[0], hand[1] - p.position[1], hand[2] - p.position[2]), k);
+        arm.visible = !!hand;
+        if (!hand) continue;
+        // Hands snap fast toward a new grip ("magnet"), then follow it.
+        mesh.position.lerp(this.tmpV.set(hand[0] - p.position[0], hand[1] - p.position[1], hand[2] - p.position[2]), Math.min(1, dt * 20));
+        this.shoulder.copy(a.head.position).addScaledVector(this.side, s);
+        this.shoulder.y -= 0.3;
+        const len = this.dir.copy(mesh.position).sub(this.shoulder).length();
+        arm.position.copy(this.shoulder);
+        arm.quaternion.setFromUnitVectors(this.yUp, this.dir.normalize());
+        // Thinner as it stretches, like a rubber band.
+        const w = Math.max(0.4, Math.min(1, 0.7 / Math.max(0.01, len)));
+        arm.scale.set(w, Math.max(0.01, len), w);
       }
     }
     for (const [id, a] of this.avatars) {
@@ -103,8 +125,12 @@ export class AvatarsView {
     const tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, fog: false, toneMapped: false }));
     tag.scale.set(0.6, 0.15, 1);
     tag.userData.color = color;
-    root.add(head, body, left, right, tag);
-    const a: Avatar = { root, head, body, left, right, frame: null, tag, tagName: '' };
+    const armGeo = new THREE.CylinderGeometry(0.03, 0.03, 1, 6).translate(0, 0.5, 0);
+    const leftArm = new THREE.Mesh(armGeo, mat);
+    const rightArm = new THREE.Mesh(armGeo, mat);
+    leftArm.visible = rightArm.visible = false;
+    root.add(head, body, left, right, leftArm, rightArm, tag);
+    const a: Avatar = { root, head, body, left, right, leftArm, rightArm, frame: null, tag, tagName: '' };
     this.avatars.set(id, a);
     return a;
   }

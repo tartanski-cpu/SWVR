@@ -68,6 +68,14 @@ export abstract class Control {
    */
   abstract distanceTo(world: THREE.Vector3): number;
 
+  /**
+   * Where a hand holds this control (world), for desktop players' rubber-band hands: the
+   * first hit object by default; levers and the joystick use their knob, the wheel its rim.
+   */
+  grabPoint(out: THREE.Vector3): THREE.Vector3 {
+    return (this.hitObjects[0] ?? this.root).getWorldPosition(out);
+  }
+
   /** Visual from authoritative state (skipped by subclasses while held). */
   abstract sync(state: VesselState): void;
 

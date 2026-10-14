@@ -423,6 +423,8 @@ export const CONFIG = {
          * toward the helmsman; its handset hangs on a clip on its starboard side.
          */
         radio: { position: [-0.5, 3.0, -1.5] as [number, number, number], tiltDeg: 40 },
+        /** Chartplotter hung from the roof beside the radio, ahead of the helm (rescue/cargo chart). */
+        chart: { position: [0.22, 2.98, -1.5] as [number, number, number], tiltDeg: 40 },
         /** DOCK / cast off (where the lever used to stand on the console top). */
         dockButton: { position: [0.45, 2.16, -1.52] as [number, number, number] },
         /** Instrument dash across the front of the console: displays on its aft face. */
@@ -710,6 +712,22 @@ export const CONFIG = {
     /** An unanswered call goes away after this long (s), and repeats its alert this often (s). */
     callTimeout: 120,
     callRepeat: 10,
+    /** Targets lie within this fraction of the search radius from its centre. */
+    targetSpread: 0.6,
+    /** Lost crates float in a loose group: this far apart (m). */
+    crateSpacing: [4, 12] as [number, number],
+    /** Slow drift of everything in the water (m/s, world x/z); there's no wind yet. */
+    drift: [0.1, 0.06] as [number, number],
+    /** Debug "spawn alongside": this far off the bow (m). */
+    debugSpawnDistance: 30,
+    /** A survivor waves when you're within this (m), and blows the lifejacket whistle every few seconds within that (m, s). */
+    waveRange: 300,
+    whistleRange: 350,
+    whistleEvery: 6,
+    /** Night strobe on lifejackets and crates: flash period and length (s); shown when it's this dark (0..1). */
+    strobePeriod: 1.0,
+    strobeOn: 0.08,
+    strobeDarkness: 0.25,
   },
 
   /** Pings: "look here" markers (player/ping.ts). Lifetime (s), beam height (m), reach (m). */

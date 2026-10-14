@@ -39,8 +39,18 @@ export interface CargoRun {
   triggerAt: number | null;
 }
 
+/** Something in the water to recover: a person in a lifejacket, or a floating crate. */
+export interface RescueTarget {
+  id: string;
+  kind: 'person' | 'crate';
+  /** World position on the water (m). */
+  x: number;
+  z: number;
+}
+
 export interface Incident {
   defId: string;
+  targets: RescueTarget[];
   phase: 'calling' | 'accepted';
   /** Centre of the search area (world, m) and its radius. */
   x: number;
@@ -169,7 +179,7 @@ export function startIncident(world: WorldState, v: VesselState, toward: string 
     break;
   }
   const count = Math.round(between(r, [def.count[0], def.count[1] + 0.999]) - 0.499);
-  const inc: Incident = { defId: def.id, phase: 'calling', x, z, radius: def.searchRadius, count, callT: world.time, alertT: world.time };
+  const inc: Incident = { defId: def.id, phase: 'calling', x, z, radius: def.searchRadius, count, callT: world.time, alertT: world.time, targets: placeTargets(r, def, x, z, count) };
   r.active = inc;
   const text = def.call
     .replace('{bearing}', `${bearingDeg(bx, bz, x, z).toFixed(0).padStart(3, '0')}°`)
@@ -177,6 +187,25 @@ export function startIncident(world: WorldState, v: VesselState, toward: string 
     .replace('{count}', String(count));
   say(r, 'distress', text, world.time);
   return inc;
+}
+
+/**
+ * Where the people or crates are: somewhere inside the search area (not at its centre - the
+ * area is where to look, not where they are), crates in a loose group.
+ */
+function placeTargets(r: RescueState, def: RescueDef, cx: number, cz: number, count: number): RescueTarget[] {
+  const cfg = CONFIG.rescue;
+  const ang = rand(r) * Math.PI * 2;
+  const dist = Math.sqrt(rand(r)) * def.searchRadius * cfg.targetSpread;
+  const gx = cx + Math.cos(ang) * dist;
+  const gz = cz + Math.sin(ang) * dist;
+  const out: RescueTarget[] = [];
+  for (let i = 0; i < count; i++) {
+    const a = rand(r) * Math.PI * 2;
+    const d = i === 0 ? 0 : between(r, cfg.crateSpacing);
+    out.push({ id: `t${r.seq}-${i}`, kind: def.target === 'person' ? 'person' : 'crate', x: gx + Math.cos(a) * d, z: gz + Math.sin(a) * d });
+  }
+  return out;
 }
 
 /** End the active rescue: closing message naming where to land what was recovered. */
@@ -197,8 +226,8 @@ function rescueVessel(world: WorldState): VesselState | undefined {
   return Object.values(world.vessels)[0];
 }
 
-/** One tick: track cargo runs, roll and raise calls, time out unanswered ones. */
-export function stepRescue(world: WorldState): void {
+/** One tick: track cargo runs, roll and raise calls, time out unanswered ones, drift targets. */
+export function stepRescue(world: WorldState, dt: number): void {
   const cfg = CONFIG.rescue;
   const r = (world.rescue ??= createRescueState());
   const v = rescueVessel(world);
@@ -231,6 +260,12 @@ export function stepRescue(world: WorldState): void {
   }
 
   const inc = r.active;
+  if (inc) {
+    for (const t of inc.targets) {
+      t.x += cfg.drift[0] * dt;
+      t.z += cfg.drift[1] * dt;
+    }
+  }
   if (inc?.phase === 'calling') {
     if (world.time - inc.callT > cfg.callTimeout) {
       r.active = null;
@@ -263,6 +298,23 @@ export function applyRescueIntent(world: WorldState, intent: Intent): void {
     case 'rescueDebugTrigger':
       if (v && !r.active) startIncident(world, v, r.run?.to ?? null, intent.ref);
       break;
+    case 'rescueDebugNear': {
+      // A target alongside, off the bow, already accepted: for trying out spotting and recovery.
+      if (!v || r.active) break;
+      const def = RESCUE_DEFS.find((d) => d.id === intent.ref) ?? RESCUE_DEFS[0];
+      const [qx, qy, qz, qw] = v.orientation;
+      const fx = -(2 * (qx * qz + qw * qy));
+      const fz = -(1 - 2 * (qx * qx + qy * qy));
+      const len = Math.hypot(fx, fz) || 1;
+      const d = CONFIG.rescue.debugSpawnDistance;
+      const x = v.position[0] + (fx / len) * d;
+      const z = v.position[2] + (fz / len) * d;
+      const count = def.count[1];
+      const targets = placeTargets(r, { ...def, searchRadius: 0 }, x, z, count);
+      r.active = { defId: def.id, phase: 'accepted', x, z, radius: def.searchRadius, count, callT: world.time, alertT: world.time, targets };
+      say(r, 'info', `Debug: ${def.target === 'person' ? 'a person' : 'crates'} in the water off your bow.`, world.time);
+      break;
+    }
     case 'rescueDebugComplete':
       if (v) finishIncident(world, v);
       break;

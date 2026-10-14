@@ -52,6 +52,10 @@ export class Lever extends Control {
     this.hitObjects.push(rod, this.knob, base);
   }
 
+  grabPoint(out: THREE.Vector3): THREE.Vector3 {
+    return this.knob.getWorldPosition(out);
+  }
+
   distanceTo(world: THREE.Vector3): number {
     // Anywhere along the upper half of the handle counts.
     const p = this.toLocal(world).sub(this.arm.position);

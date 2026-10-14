@@ -56,6 +56,11 @@ export class Wheel extends Control {
     this.hitObjects.push(wheel, marker);
   }
 
+  /** The rim marker: a hand on it turns with the wheel. */
+  grabPoint(out: THREE.Vector3): THREE.Vector3 {
+    return this.hitObjects[1].getWorldPosition(out);
+  }
+
   distanceTo(world: THREE.Vector3): number {
     const l = this.toLocal(world);
     const inPlane = Math.hypot(l.x, l.y);

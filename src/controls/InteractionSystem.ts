@@ -310,6 +310,11 @@ export class InteractionSystem {
     return this.dragging !== null;
   }
 
+  /** The control the desktop mouse holds right now (dragging or keyboard-steering), if any. */
+  get desktopHeld(): Control | null {
+    return this.dragging ?? this.steering;
+  }
+
   /** Desktop keyboard steering of the clicked rate control (x right, y forward). */
   steerKeys(x: number, y: number): void {
     this.steering?.keySteer(x, y);

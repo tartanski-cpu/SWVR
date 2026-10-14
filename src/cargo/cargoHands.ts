@@ -69,6 +69,11 @@ export class CargoHands {
     return this.carry !== null;
   }
 
+  /** Where a desktop player's hand holds the carried item (world): on its top. */
+  handPoint(out: THREE.Vector3): THREE.Vector3 | null {
+    return this.carry ? out.copy(this.carryPos).add(this.tmp2.set(0, 0.35, 0)) : null;
+  }
+
   /** Hands holding the carried item: their grips belong to it, not to locomotion. */
   busy(hand: Handedness): boolean {
     return !!this.carry?.hands.includes(hand) || this.heavyWait?.hand === hand;

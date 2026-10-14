@@ -10,6 +10,7 @@ import { Toggle } from './Toggle';
 import { Wheel } from './Wheel';
 import { Joystick } from './Joystick';
 import { RadioSet } from '../rescue/radioView';
+import { ChartPlotter } from '../nav/chartPlotter';
 import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
 
 /**
@@ -24,6 +25,8 @@ export class Bridge {
   private readonly instruments: InstrumentPanel;
   /** Overhead VHF (rescue calls). */
   readonly radio: RadioSet;
+  /** Overhead chartplotter (search area, destination). */
+  readonly chart: ChartPlotter;
 
   constructor(private readonly def: VesselDef) {
     const b = def.bridge;
@@ -62,6 +65,8 @@ export class Bridge {
 
     this.radio = new RadioSet(b.radio, def.layout.wheelhouse.roofY);
     this.root.add(this.radio.root);
+    this.chart = new ChartPlotter(b.chart, def.layout.wheelhouse.roofY);
+    this.root.add(this.chart.root);
     this.controls.push(wheel, lever, start, horn, nav, anchor, cabin, dock, spot, joy, this.radio.handset);
     for (const c of this.controls) if (!c.root.parent) this.root.add(c.root);
 

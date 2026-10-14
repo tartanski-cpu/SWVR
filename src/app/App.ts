@@ -49,6 +49,10 @@ import { WaterAudio } from '../audio/waterAudio';
 import { WorldView } from '../world/view/worldView';
 import { PingAudio, PingView } from '../player/pingView';
 import { RadioAudio } from '../audio/radioAudio';
+import { WhistleAudio } from '../audio/whistleAudio';
+import { TargetsView } from '../rescue/targetView';
+import { DesktopHand } from '../player/desktopHand';
+import { playerColor } from '../net/avatarView';
 import { runStatus } from '../rescue/rescue';
 import { engineAlarms } from '../vessel/physics/engineThermal';
 import { VesselEffects } from '../vessel/view/vesselEffects';
@@ -136,6 +140,12 @@ export class App {
   private readonly pingView = new PingView(this.scene);
   private readonly pingAudio = new PingAudio();
   private readonly radioAudio = new RadioAudio();
+  private readonly targetsView = new TargetsView();
+  private readonly desktopHand = new DesktopHand();
+  private readonly deskHandW = new THREE.Vector3();
+  private readonly whistleAudio = new WhistleAudio();
+  private readonly listenerFwd = new THREE.Vector3();
+  private readonly listenerUp = new THREE.Vector3();
   /** Last radio message / alert played here (null until the first frame: don't replay old ones). */
   private radioSeen: { id: number; alertT: number } | null = null;
   private readonly pingCaster = new THREE.Raycaster();
@@ -210,6 +220,8 @@ export class App {
     this.desktop = new DesktopController(this.camera, this.renderer.domElement, this.keyboard);
     this.environment = new EnvironmentView(this.scene);
     this.scene.add(this.sky.mesh, this.ocean.mesh, this.buoys.mesh, this.probes.mesh, this.platform, this.worldView.root, this.cargoView.root);
+    this.scene.add(this.targetsView.root, this.desktopHand.root);
+    this.targetsView.onWhistle = (pos) => this.whistleAudio.blow(pos);
     this.pingView.onNew = (pos, mine) => {
       this.pingAudio.play(pos.distanceTo(this.focus));
       if (mine) this.xrInput.pulse('right', 0.4, 40);
@@ -240,6 +252,7 @@ export class App {
       this.waterAudio.attach(this.engineAudio.context);
       this.pingAudio.attach(this.engineAudio.context);
       this.radioAudio.attach(this.engineAudio.context);
+      this.whistleAudio.attach(this.engineAudio.context);
     };
     window.addEventListener('pointerdown', unlock);
     window.addEventListener('keydown', unlock);
@@ -333,6 +346,7 @@ export class App {
     if (this.bridge && testVessel) {
       this.bridge.update(testVessel, dt, this.dashInView());
       this.bridge.radio.update(this.world.rescue, runStatus(this.world), dt);
+      this.bridge.chart.update(this.world, this.testVesselId, dt, this.dashInView());
       this.updateRadioSound();
     }
     const darkness = Math.min(1, Math.max(0, (8 - sunElevation(this.world.environment.timeOfDay)) / 14));
@@ -343,12 +357,22 @@ export class App {
       if (id === this.testVesselId) ({ slam, lap } = hit);
     }
     this.worldView.lights.update(renderTime, darkness);
+    this.targetsView.update(this.world, this.renderWaves, this.focus, darkness, renderTime, dt);
+    if (this.world.rescue?.active) {
+      // Spatial sounds (the survivor's whistle) hear from the head.
+      this.camera.getWorldDirection(this.listenerFwd);
+      this.listenerUp.set(0, 1, 0).applyQuaternion(this.camera.getWorldQuaternion(this.attQ));
+      this.whistleAudio.setListener(this.focus, this.listenerFwd, this.listenerUp);
+    }
     this.worldView.portLighting.update(this.focus, darkness);
     this.ocean.setPortLight(this.worldView.portLighting.flood);
     const fxTest = this.effects.get(this.testVesselId);
     if (fxTest) this.ocean.setSpotlight(fxTest.searchlight.light);
     this.cargoView.update(this.world, this.vesselRoots, (c) => this.carriedPose(c), this.cargoHands.hovered);
     this.pingView.update(this.world, this.vesselRoots, this.focus, this.localPlayerId);
+    const deskHand = inXR ? null : this.desktopHandWorld(this.deskHandW);
+    if (deskHand) this.desktopHand.setColor(playerColor(this.localPlayerId));
+    this.desktopHand.update(this.camera, deskHand, dt);
     this.updateNetPose(dt);
     this.avatars.update(this.world, this.localPlayerId, this.vesselRoots, dt);
     if (testView && testVessel) {
@@ -556,6 +580,16 @@ export class App {
       this.radioAudio.alert();
     }
     this.radioSeen = { id, alertT };
+  }
+
+  /**
+   * Desktop: where the mouse "hand" holds something (world): the grip point of the control
+   * being dragged or steered, or the top of the crate being carried; else null.
+   */
+  private desktopHandWorld(out: THREE.Vector3): THREE.Vector3 | null {
+    const c = this.interaction?.desktopHeld;
+    if (c) return c.grabPoint(out);
+    return this.cargoHands.handPoint(out);
   }
 
   /** Vessels as the body module sees them (rendered roots, walk areas, hull plans). */
@@ -876,6 +910,11 @@ export class App {
       runStatus: () => runStatus(this.world),
       rescueNow: () => this.pushVesselIntent('rescueDebugTrigger', 1),
       rescueEnd: () => this.pushVesselIntent('rescueDebugComplete', 1),
+      rescueNear: (kind) => this.pushVesselIntent('rescueDebugNear', 1, kind),
+      showTargets: () => !!this.bridge?.chart.showTargets,
+      toggleShowTargets: () => {
+        if (this.bridge) this.bridge.chart.showTargets = !this.bridge.chart.showTargets;
+      },
       teleportToPort: (i) => {
         const port = PORTS[i];
         if (!port) return;
@@ -967,8 +1006,10 @@ export class App {
     this.invFrame.copy(frame.matrixWorld).invert();
     const head = this.camera.getWorldPosition(this.tmpV).applyMatrix4(this.invFrame);
     const q = this.camera.getWorldQuaternion(this.poseQ).premultiply(this.attQ.setFromRotationMatrix(this.invFrame));
+    const inXR = this.renderer.xr.isPresenting;
     const hand = (h: 'left' | 'right') => {
-      const w = this.renderer.xr.isPresenting ? this.controllers.worldPosition(h, this.gripW[h]) : null;
+      // Desktop players have one hand: on whatever the mouse holds (a rubber band to others).
+      const w = inXR ? this.controllers.worldPosition(h, this.gripW[h]) : h === 'right' ? this.desktopHandWorld(this.gripW[h]) : null;
       return w ? (w.clone().applyMatrix4(this.invFrame).toArray() as [number, number, number]) : null;
     };
     const r = (x: number) => Math.round(x * 1000) / 1000;

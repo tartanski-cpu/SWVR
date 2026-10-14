@@ -48,6 +48,10 @@ export class Joystick extends Control {
     this.hitObjects.push(rod, this.knob, base);
   }
 
+  grabPoint(out: THREE.Vector3): THREE.Vector3 {
+    return this.knob.getWorldPosition(out);
+  }
+
   distanceTo(world: THREE.Vector3): number {
     return this.toLocal(world).distanceTo(this.toLocal(this.knob.getWorldPosition(new THREE.Vector3())));
   }

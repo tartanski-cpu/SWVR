@@ -49,6 +49,10 @@ export interface MenuHost {
   runStatus(): string;
   rescueNow(): void;
   rescueEnd(): void;
+  /** Debug: a target alongside ('manOverboard' / 'lostCargo'); show targets on the chart. */
+  rescueNear(defId: string): void;
+  showTargets(): boolean;
+  toggleShowTargets(): void;
   /** Move the boat (and you, aboard) to port i's berth or anchorage. */
   teleportToPort(i: number): void;
   seaTrialsShown(): boolean;
@@ -260,6 +264,14 @@ export function mainMenu(h: MenuHost): MainMenu {
       buttons: [
         { text: 'Call now', press: () => h.rescueNow() },
         { text: 'End rescue', press: () => h.rescueEnd() },
+      ],
+    },
+    {
+      label: 'Alongside',
+      buttons: [
+        { text: 'Person', press: () => h.rescueNear('manOverboard') },
+        { text: 'Crates', press: () => h.rescueNear('lostCargo') },
+        { text: 'On chart', active: () => h.showTargets(), press: () => h.toggleShowTargets() },
       ],
     },
     { heading: 'Debug views' },

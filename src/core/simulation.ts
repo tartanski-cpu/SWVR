@@ -57,7 +57,7 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
   }
 
   expirePings(world);
-  stepRescue(world);
+  stepRescue(world, dt);
   world.tick += 1;
   world.time = world.tick * dt;
 }

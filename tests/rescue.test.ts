@@ -127,4 +127,31 @@ describe('rescue: cargo runs and distress calls', () => {
     expect(world.rescue!.active).toBeNull();
     expect(world.rescue!.radio?.kind).toBe('info');
   });
+
+  it('targets lie inside the search area (not at its centre) and drift slowly', () => {
+    const { world, send, v } = setup(1);
+    placeVessel(v, 0, 0, -400, 0);
+    send('rescueDebugTrigger', 1, 'lostCargo');
+    const inc = world.rescue!.active!;
+    expect(inc.targets.length).toBeGreaterThanOrEqual(2);
+    expect(inc.targets.length).toBeLessThanOrEqual(3);
+    for (const t of inc.targets) {
+      expect(t.kind).toBe('crate');
+      expect(Math.hypot(t.x - inc.x, t.z - inc.z)).toBeLessThan(inc.radius);
+    }
+    const x0 = inc.targets[0].x;
+    for (let i = 0; i < 60 / DT; i++) stepWorld(world, [], DT);
+    expect(inc.targets[0].x - x0).toBeCloseTo(CONFIG.rescue.drift[0] * 60, 0);
+  });
+
+  it('debug: a person in the water off the bow, already accepted', () => {
+    const { world, send, v } = setup(1);
+    placeVessel(v, 0, 0, -400, 0); // heading north (-z)
+    send('rescueDebugNear', 1, 'manOverboard');
+    const inc = world.rescue!.active!;
+    expect(inc.phase).toBe('accepted');
+    expect(inc.targets).toHaveLength(1);
+    expect(inc.targets[0].kind).toBe('person');
+    expect(inc.targets[0].z).toBeLessThan(-400 - CONFIG.rescue.debugSpawnDistance + 2);
+  });
 });
