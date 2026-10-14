@@ -55,6 +55,7 @@ import { RescueHands, type RescueHandsContext } from '../rescue/rescueHands';
 import { RescueGearView, type AvatarHands } from '../rescue/rescueGearView';
 import { RescueSounds } from '../audio/rescueSounds';
 import { lastSpeech, speechVoices, watchVoices } from '../audio/babble';
+import { mixer, type Bus } from '../audio/mixer';
 import { DesktopHand } from '../player/desktopHand';
 import { playerColor } from '../net/avatarView';
 import { runStatus } from '../rescue/rescue';
@@ -929,6 +930,8 @@ export class App {
       runStatus: () => runStatus(this.world),
       rescueNow: () => this.pushVesselIntent('rescueDebugTrigger', 1),
       rescueEnd: () => this.pushVesselIntent('rescueDebugComplete', 1),
+      volume: (id) => mixer.get(id as Bus),
+      setVolume: (id, v) => mixer.set(id as Bus, v),
       voiceTest: () => {
         this.radioAudio.crackle(0.3);
         this.radioAudio.speak('Radio check. One, two, three. How do you read?', 0.3);

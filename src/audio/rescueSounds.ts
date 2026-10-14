@@ -1,3 +1,4 @@
+import { mixer } from './mixer';
 import { babble, speakOrBabble } from './babble';
 import { noiseBuffer } from './engineAudio';
 
@@ -29,7 +30,7 @@ export class RescueSounds {
     g.gain.setValueAtTime(0, at);
     g.gain.linearRampToValueAtTime(level, at + 0.01);
     g.gain.exponentialRampToValueAtTime(0.0005, at + len);
-    o.connect(g).connect(ctx.destination);
+    o.connect(g).connect(mixer.bus(ctx, 'effects'));
     o.start(at);
     o.stop(at + len + 0.05);
   }
@@ -63,7 +64,7 @@ export class RescueSounds {
     g.gain.linearRampToValueAtTime(0.16, t0 + 0.4);
     g.gain.linearRampToValueAtTime(0.1, t0 + 1.2);
     g.gain.linearRampToValueAtTime(0, t0 + 2.2);
-    src.connect(bp).connect(wob).connect(g).connect(ctx.destination);
+    src.connect(bp).connect(wob).connect(g).connect(mixer.bus(ctx, 'effects'));
     src.start(t0);
     lfo.start(t0);
     src.stop(t0 + 2.3);
@@ -76,10 +77,10 @@ export class RescueSounds {
       (u) => {
         u.rate = 1.2;
         u.pitch = 1.35;
-        u.volume = 1;
+        u.volume = mixer.level('radio');
       },
       () => {
-        if (this.ctx) babble(this.ctx, this.ctx.destination, text, this.ctx.currentTime + 0.05, 210, 0.35);
+        if (this.ctx) babble(this.ctx, mixer.bus(this.ctx, 'radio'), text, this.ctx.currentTime + 0.05, 210, 0.35);
       },
       false,
     );
@@ -98,7 +99,7 @@ export class RescueSounds {
     const g = ctx.createGain();
     g.gain.setValueAtTime(0.5, t);
     g.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
-    src.connect(lp).connect(g).connect(ctx.destination);
+    src.connect(lp).connect(g).connect(mixer.bus(ctx, 'effects'));
     src.start(t, Math.random());
     src.stop(t + 0.08);
     this.tone(110, t, 0.12, 0.3, 'triangle');

@@ -1,3 +1,4 @@
+import { mixer } from './mixer';
 import type { ContactState } from '../vessel/vesselState';
 
 /**
@@ -30,7 +31,7 @@ export class ContactAudio {
     low.frequency.value = 160;
     this.thump = ctx.createGain();
     this.thump.gain.value = 0;
-    source().connect(low).connect(this.thump).connect(ctx.destination);
+    source().connect(low).connect(this.thump).connect(mixer.bus(ctx, 'effects'));
 
     const band = ctx.createBiquadFilter();
     band.type = 'bandpass';
@@ -38,7 +39,7 @@ export class ContactAudio {
     band.Q.value = 0.8;
     this.scrape = ctx.createGain();
     this.scrape.gain.value = 0;
-    source().connect(band).connect(this.scrape).connect(ctx.destination);
+    source().connect(band).connect(this.scrape).connect(mixer.bus(ctx, 'effects'));
   }
 
   /** @param distance listener distance from the boat (m); returns impact strength 0..1 (for haptics) */

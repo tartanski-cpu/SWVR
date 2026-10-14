@@ -1,3 +1,4 @@
+import { BUSES } from '../audio/mixer';
 import { CONFIG } from '../config';
 import type { MenuPage, MenuRow } from './menuPanel';
 
@@ -49,6 +50,9 @@ export interface MenuHost {
   runStatus(): string;
   rescueNow(): void;
   rescueEnd(): void;
+  /** Sound levels 0..1 by id ('master', 'engine', 'effects', 'radio', 'music'). */
+  volume(id: string): number;
+  setVolume(id: string, v: number): void;
   /** Debug: say a radio check through the radio voice and report what the browser can do. */
   voiceTest(): void;
   /** Debug: a target alongside ('manOverboard' / 'lostCargo'); show targets on the chart. */
@@ -245,6 +249,18 @@ export function mainMenu(h: MenuHost): MainMenu {
     },
   ];
 
+  const sound: MenuRow[] = [
+    { heading: 'Volume' },
+    ...BUSES.map((b) => ({
+      label: b.label,
+      buttons: [
+        { text: '−', press: () => h.setVolume(b.id, h.volume(b.id) - 0.1) },
+        { text: () => (h.volume(b.id) <= 0 ? 'off' : `${Math.round(h.volume(b.id) * 100)} %`), weight: 1.2 },
+        { text: '+', press: () => h.setVolume(b.id, h.volume(b.id) + 0.1) },
+      ],
+    })),
+  ];
+
   const tests: MenuRow[] = [
     { heading: 'Tests' },
     {
@@ -321,6 +337,7 @@ export function mainMenu(h: MenuHost): MainMenu {
       { name: 'Boat', rows: boat },
       { name: 'Cargo', rows: cargo },
       { name: 'Comfort', rows: comfort },
+      { name: 'Sound', rows: sound },
       { name: 'Crew', rows: crew },
       { name: 'Tests', rows: tests },
     ],

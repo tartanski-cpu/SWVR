@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mixer } from '../audio/mixer';
 import { CONFIG } from '../config';
 import type { EntityId } from '../core/ids';
 import type { WorldState } from '../core/world';
@@ -108,7 +109,7 @@ export class PingAudio {
       g.gain.setValueAtTime(0, t + dt);
       g.gain.linearRampToValueAtTime(level, t + dt + 0.01);
       g.gain.exponentialRampToValueAtTime(0.0001, t + dt + 0.35);
-      o.connect(g).connect(ctx.destination);
+      o.connect(g).connect(mixer.bus(ctx, 'effects'));
       o.start(t + dt);
       o.stop(t + dt + 0.4);
     }

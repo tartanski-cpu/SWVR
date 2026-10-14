@@ -48,6 +48,8 @@ function fakeHost() {
     rescueNow: () => calls.push('rescue'),
     rescueEnd: () => calls.push('rescueEnd'),
     voiceTest: () => calls.push('voiceTest'),
+    volume: () => 0.5,
+    setVolume: () => {},
     rescueNear: (k) => calls.push(`near ${k}`),
     showTargets: () => false,
     toggleShowTargets: () => calls.push('showTargets'),

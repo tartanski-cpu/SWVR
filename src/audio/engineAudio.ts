@@ -1,3 +1,4 @@
+import { mixer } from './mixer';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
 import { loadDieselWorklet } from './dieselWorklet';
@@ -234,7 +235,7 @@ export class EngineAudio {
     const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     if (!AC) return;
     this.ctx = new AC();
-    void EngineSound.create(this.ctx, this.ctx.destination).then((s) => (this.sound = s));
+    void EngineSound.create(this.ctx, mixer.bus(this.ctx, 'engine')).then((s) => (this.sound = s));
   }
 
   /**

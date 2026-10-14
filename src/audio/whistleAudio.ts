@@ -1,3 +1,4 @@
+import { mixer } from './mixer';
 /**
  * A lifejacket whistle, placed in 3D: three trilling blasts (a pea whistle: ~3 kHz with a
  * fast warble from the pea), through an HRTF panner at the survivor's position, so you can
@@ -43,7 +44,7 @@ export class WhistleAudio {
     panner.positionX.value = pos.x;
     panner.positionY.value = pos.y + 0.4;
     panner.positionZ.value = pos.z;
-    panner.connect(ctx.destination);
+    panner.connect(mixer.bus(ctx, 'effects'));
     const t0 = ctx.currentTime + 0.02;
     for (let i = 0; i < 3; i++) {
       const t = t0 + i * 0.7;

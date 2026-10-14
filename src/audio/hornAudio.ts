@@ -1,3 +1,4 @@
+import { mixer } from './mixer';
 /**
  * Ship's horn: two detuned low sawtooth tones a major third apart (~150 / 188 Hz) with a
  * little 2nd harmonic, low-passed - a workboat "whistle" rather than a car hooter.
@@ -15,7 +16,7 @@ export class HornAudio {
     filter.frequency.value = 1400;
     this.gain = ctx.createGain();
     this.gain.gain.value = 0;
-    filter.connect(this.gain).connect(ctx.destination);
+    filter.connect(this.gain).connect(mixer.bus(ctx, 'effects'));
     for (const [f, a] of [
       [150, 0.5],
       [188, 0.45],

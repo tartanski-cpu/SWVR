@@ -1,3 +1,4 @@
+import { mixer } from './mixer';
 import { babble, speakOrBabble } from './babble';
 import { noiseBuffer } from './engineAudio';
 
@@ -23,7 +24,7 @@ export class RadioAudio {
     bp.Q.value = 0.8;
     this.out = ctx.createGain();
     this.out.gain.value = 1;
-    this.out.connect(bp).connect(ctx.destination);
+    this.out.connect(bp).connect(mixer.bus(ctx, 'radio'));
   }
 
   /** @param distance from the listener to the radio (m) */
@@ -84,7 +85,7 @@ export class RadioAudio {
         (u) => {
           u.rate = 1.05;
           u.pitch = 0.85;
-          u.volume = Math.min(1, 0.9 * this.level);
+          u.volume = Math.min(1, 0.9 * this.level * mixer.level('radio'));
           const voices = window.speechSynthesis.getVoices();
           const en = voices.find((v) => v.lang.startsWith('en-GB')) ?? voices.find((v) => v.lang.startsWith('en'));
           if (en) u.voice = en;

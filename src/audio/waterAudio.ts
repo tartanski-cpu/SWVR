@@ -1,3 +1,4 @@
+import { mixer } from './mixer';
 import { noiseBuffer } from './engineAudio';
 import { loadWorklet } from './dieselWorklet';
 import { WATER_WORKLET } from './waterWorklet';
@@ -203,7 +204,7 @@ export class WaterAudio {
 
   attach(ctx: AudioContext | null): void {
     if (!ctx || this.sound) return;
-    this.sound = new WaterSound(ctx, ctx.destination);
+    this.sound = new WaterSound(ctx, mixer.bus(ctx, 'effects'));
   }
 
   /** @param distance listener distance from the boat (m) */
