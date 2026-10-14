@@ -4,20 +4,16 @@
  *
  * A 6-cylinder four-stroke fires 3 times per revolution: firing frequency = rpm / 20 Hz
  * (30 Hz at 600 rpm idle, 90 Hz at 1800 rated). At each firing event:
- *   - channel 0, the exhaust pressure pulse: a smooth bump (1.5 ms rise, 5-9 ms decay,
+ *   - channel 0, the exhaust pressure pulse: a smooth bump (1.5 ms rise, 13-19 ms decay,
  *     longer at low rpm), strong with load; a soft compression puff when not firing
  *     (cranking). Only a touch of noise rides on it: a pressure pulse through a silencer
  *     is mostly tone, and the old 40 % noise made the engine sound hissy and "noisy".
- *   - channel 1, the injector / combustion-knock click: a 2.5 ms noise tick, loudest at
- *     idle and light load - the "diesel clatter".
- *   - channel 2, exhaust bubbles: a wet exhaust blowing into water burbles. Each firing
+ *   - channel 1, exhaust bubbles: a wet exhaust blowing into water burbles. Each firing
  *     event releases a few big bubbles (100-450 Hz) that ring and chirp upward as they
  *     rise (Minnaert bubbles: f = 3.26 / radius). The main
  *     thread fades this in as the outlet goes under.
- *   - channel 3, mechanical noise: a continuous grit (valve train, gears, the hull
- *     carrying it), its level pulsing with the firing. A recording of a similar boat
- *     (owner reference) has this floor ~15-20 dB under the rumble from ~200 Hz to 2 kHz;
- *     it is also what small headset speakers can actually play.
+ * No injector clatter or mechanical rasp: those read as a tinny "lawnmower" buzz (owner
+ * feedback), and in a recording of a similar boat everything above ~250 Hz is the water.
  * No cylinder is quite like the others (fixed strength pattern + a little random jitter
  * per event), so the cycle has the uneven, lumpy rhythm of a real engine.
  * The main thread shapes the channels with filters (see engineAudio.ts).
@@ -37,7 +33,6 @@ class DieselProcessor extends AudioWorkletProcessor {
     this.cyl = 0;
     this.env = 0;
     this.rise = 0;
-    this.click = 0;
     this.seed = 12345;
     // A worn fishing-boat engine: cylinders noticeably unequal, alternating strong / weak
     // (the reference recording's half-order lines at 1.5x, 2.5x, 3.5x firing/2 are only
@@ -71,8 +66,6 @@ class DieselProcessor extends AudioWorkletProcessor {
     const out = outputs[0];
     const a = out[0];
     const b = out[1] || out[0];
-    const c = out[2] || out[0];
-    const d = out[3] || out[0];
     const rpm = p.rpm[0];
     const load = p.load[0];
     const firing = p.firing[0] > 0.5;
@@ -82,7 +75,6 @@ class DieselProcessor extends AudioWorkletProcessor {
     const tau = 0.013 + 0.006 * (1 - Math.min(1, rpm / 1800));
     const dEnv = Math.exp(-1 / (tau * sampleRate));
     const dRise = Math.exp(-1 / (0.0015 * sampleRate));
-    const dClick = Math.exp(-1 / (0.0025 * sampleRate));
     const dt = 1 / sampleRate;
     for (let i = 0; i < a.length; i++) {
       this.phase += step;
@@ -92,7 +84,6 @@ class DieselProcessor extends AudioWorkletProcessor {
         const s = this.strength[this.cyl] * (0.9 + 0.2 * this.rand());
         this.env += s * (firing ? 0.45 + 0.55 * load : 0.2);
         if (firing) {
-          this.click += s * (0.9 - 0.6 * load);
           // 1-3 bubbles per beat; more and bigger under load.
           const n = 1 + Math.floor(this.rand() * (1.6 + 1.6 * load));
           for (let k = 0; k < n; k++) this.spawnBubble(0.6 + 0.8 * load);
@@ -102,10 +93,7 @@ class DieselProcessor extends AudioWorkletProcessor {
       this.rise += (this.env - this.rise) * (1 - dRise);
       const n = this.rand() * 2 - 1;
       a[i] = this.rise * (0.92 + 0.08 * n);
-      b[i] = this.click * n;
-      d[i] = (this.rand() * 2 - 1) * (0.3 + this.rise) * (firing ? 1 : 0.4);
       this.env *= dEnv;
-      this.click *= dClick;
       let w = 0;
       for (const q of this.bub) {
         if (!q.on) continue;
@@ -116,7 +104,7 @@ class DieselProcessor extends AudioWorkletProcessor {
         w += amp * Math.sin(q.ph);
         q.t += dt;
       }
-      c[i] = w;
+      b[i] = w;
     }
     return true;
   }

@@ -690,6 +690,12 @@ Plan agreed with the owner: five milestones, stopping after each for testing. Si
   - Burstiness p99/median 2.0-2.4 (2.1-2.5); L/R correlation ~0.1.
 - The hull impacts stay: low thud on a slam (now also surging the wash) and the wet clop for laps.
 
+## Engine: tinny "lawnmower" part removed (owner feedback)
+
+- Removed the injector clatter channel (~3 kHz ticks) and the firing-modulated mechanical noise channel (both periodic buzz in the upper range). The worklet now has 2 channels: pulses and exhaust bubbles.
+- The distortion's low-pass now tops out at ~450 Hz (was ~900); soft clip 1.6 -> 1.25.
+- Engine alone is now 50-65 dB down above 600 Hz at cruise (was -33 to -44). Engine + water still matches the recording within ~2 dB to 4 kHz: the upper range is the water, as in the real boat.
+
 ## Planned next (owner requests, not started)
 
 1. ~~Fuel and oil temperature~~ **Done** (see above).

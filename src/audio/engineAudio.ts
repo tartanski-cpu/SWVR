@@ -24,13 +24,13 @@ export interface EngineSoundInput {
  *   diesel worklet ─ ch0 exhaust pulses ─► high-pass 45 Hz ─► resonances (110, 150 Hz) ─► low-pass
  *                  │                       (opens with rpm and load) ─► soft clip ─► thump ─┬─ dry ──────────────┐
  *                  │                                                                          └─ low-pass 220 Hz ─ muffled ─┤
- *                  ├ ch1 injector clicks ─► high-pass ─► presence peak (3.2 kHz) ─► clatter ─────────────────────┤
- *                  └ ch2 exhaust bubbles ─► low-pass 1.2 kHz ─► burble ───────────────────────────────────────────┤
+ *                  └ ch1 exhaust bubbles ─► low-pass 1.2 kHz ─► burble ───────────────────────────────────────────┤
  *   starter motor whine (while cranking) ─────────────────────────────────────────────────────────────────────┤
  *   noise ─► band-pass (intake rush, with load) ─────────────────────────────────────────────────────────────┼─► master
  *
  * Voiced as a working fishing boat's naturally aspirated diesel: no turbo whistle, a dark,
- * round exhaust note with a resonant stack "pop", lumpy uneven beats and little clatter.
+ * round exhaust note with a resonant stack "pop", lumpy uneven beats, no clatter or rasp:
+ * nothing above a few hundred Hz (that reads as a tinny lawnmower; owner feedback).
  *
  * Wet exhaust: the outlet is in the transom just above the waterline. When it dips under
  * (stern squat, a passing wave, pitching), the note goes dull and burbling: the dry path
@@ -42,9 +42,6 @@ export interface EngineSoundInput {
  *
  * Built on any BaseAudioContext, so it can also be rendered offline for checking levels.
  */
-/** Level of the mechanical noise floor (tuned against the reference recording). */
-const MECH = 0.15;
-
 export class EngineSound {
   private constructor(
     private readonly ctx: BaseAudioContext,
@@ -53,14 +50,12 @@ export class EngineSound {
     private readonly fallback: { osc1: OscillatorNode; osc2: OscillatorNode } | null,
     private readonly bodyLp: BiquadFilterNode,
     private readonly thump: GainNode,
-    private readonly clatter: GainNode,
     private readonly starter: OscillatorNode,
     private readonly starterGain: GainNode,
     private readonly hiss: GainNode,
     private readonly dry: GainNode,
     private readonly muffled: GainNode,
     private readonly burble: GainNode,
-    private readonly mech: GainNode,
   ) {}
 
   static async create(ctx: BaseAudioContext, destination: AudioNode): Promise<EngineSound> {
@@ -97,7 +92,7 @@ export class EngineSound {
     bodyLp.Q.value = 0.7;
     bodyLp.frequency.value = 300;
     const shaper = ctx.createWaveShaper();
-    shaper.curve = softClip(1.6);
+    shaper.curve = softClip(1.25);
     shaper.oversample = '2x';
     const thump = ctx.createGain();
     thump.gain.value = 0;
@@ -121,46 +116,14 @@ export class EngineSound {
     burble.gain.value = 0;
     burbleLp.connect(burble).connect(master);
 
-    // ── Mechanical noise floor (worklet channel 3): 200 Hz - 2 kHz, falling with frequency ──
-    const mechHp = ctx.createBiquadFilter();
-    mechHp.type = 'highpass';
-    mechHp.frequency.value = 180;
-    mechHp.Q.value = 0.6;
-    const mechLp = ctx.createBiquadFilter();
-    mechLp.type = 'lowpass';
-    mechLp.frequency.value = 900;
-    mechLp.Q.value = 0.5;
-    const mechLp2 = ctx.createBiquadFilter();
-    mechLp2.type = 'lowpass';
-    mechLp2.frequency.value = 4500;
-    mechLp2.Q.value = 0.5;
-    const mech = ctx.createGain();
-    mech.gain.value = 0;
-    mechHp.connect(mechLp).connect(mechLp2).connect(mech).connect(master);
-
-    // ── Clatter ──
-    const clickHp = ctx.createBiquadFilter();
-    clickHp.type = 'highpass';
-    clickHp.frequency.value = 1200;
-    const clickPeak = ctx.createBiquadFilter();
-    clickPeak.type = 'peaking';
-    clickPeak.frequency.value = 3200;
-    clickPeak.Q.value = 1.2;
-    clickPeak.gain.value = 6;
-    const clatter = ctx.createGain();
-    clatter.gain.value = 0;
-    clickHp.connect(clickPeak).connect(clatter).connect(master);
-
     let worklet: AudioWorkletNode | null = null;
     let fallback: { osc1: OscillatorNode; osc2: OscillatorNode } | null = null;
     if (await loadDieselWorklet(ctx)) {
-      worklet = new AudioWorkletNode(ctx, 'diesel', { numberOfInputs: 0, outputChannelCount: [4] });
-      const split = ctx.createChannelSplitter(4);
+      worklet = new AudioWorkletNode(ctx, 'diesel', { numberOfInputs: 0, outputChannelCount: [2] });
+      const split = ctx.createChannelSplitter(2);
       worklet.connect(split);
       split.connect(dcBlock, 0);
-      split.connect(clickHp, 1);
-      split.connect(burbleLp, 2);
-      split.connect(mechHp, 3);
+      split.connect(burbleLp, 1);
     } else {
       const osc1 = ctx.createOscillator();
       osc1.type = 'sawtooth';
@@ -201,7 +164,7 @@ export class EngineSound {
     noise.connect(band).connect(hiss).connect(master);
     noise.start();
 
-    return new EngineSound(ctx, master, worklet, fallback, bodyLp, thump, clatter, starter, starterGain, hiss, dry, muffled, burble, mech);
+    return new EngineSound(ctx, master, worklet, fallback, bodyLp, thump, starter, starterGain, hiss, dry, muffled, burble);
   }
 
   private lastSub = 0;
@@ -224,10 +187,9 @@ export class EngineSound {
       this.fallback.osc2.frequency.setTargetAtTime(Math.max(1, rpm / 40), t, smooth);
     }
     // Brighter and harder as it revs and digs in.
-    this.bodyLp.frequency.setTargetAtTime(190 + 320 * rpmFrac + 380 * load, t, smooth);
+    // Darker than before (it topped out near 900 Hz): the bark stays under ~450 Hz.
+    this.bodyLp.frequency.setTargetAtTime(150 + 120 * rpmFrac + 180 * load, t, smooth);
     this.thump.gain.setTargetAtTime(turning ? 0.65 + 0.25 * rpmFrac + 0.35 * load : 0, t, 0.1);
-    this.clatter.gain.setTargetAtTime(e.running ? 0.05 + 0.02 * rpmFrac : 0, t, 0.1);
-    this.mech.gain.setTargetAtTime(turning ? MECH * (0.6 + 0.4 * rpmFrac + 0.3 * load) : 0, t, 0.1);
     // Wet exhaust: dry bark in the air, dull and burbling under water. Under goes fast (the
     // outlet floods), back out a little slower (the water has to clear).
     const sub = Math.min(1, Math.max(0, e.submerged ?? 0));
