@@ -544,14 +544,15 @@ Frame-rate friendly: 3 extra draw calls, a few hundred vertices, and almost no C
   - **Depth:** App works out how far the transom outlet is under the rendered sea surface, plus the water the hull raises at the transom, which the wave model leaves out: the stern wave near hull speed (Fn 0.28–0.45, up to 0.3 m) and water piling up going astern. Prop wash makes it come and go.
   - **How often:** it's under about 6–21 % of the time in moderate to stormy seas, often near full speed, and on and off going astern.
   - **Sound:** the dry exhaust path fades (down to 20 %), a low-passed (220 Hz) copy comes up, and a new worklet channel of exhaust bubbles burbles: 1–3 big bubbles (100–450 Hz) per firing beat, more under load. A little gurgle is always there while running (cooling water). It goes under fast and clears more slowly.
-- **Water as splash events** (`audio/waterWorklet.ts`; second pass after the owner said the first "sounds like frying in oil"):
-  - **What was wrong:** a steady random stream of tiny bubbles is exactly the sound of sizzling. Their instant, random-phase starts were clicks, and the high-passed fizz noise added more of the same.
-  - **Now:** water against the hull is separate splashes. Each is a short, wet, low-mid slap (low-passed noise, 12–37 ms) followed by 2–14 fairly big bubbles (1.5–12 mm, 2.2 kHz down to 270 Hz) that bloop and glide upward in pitch over about 0.15 s. That's the van den Doel bubble model, but in the liquid range rather than the sizzle range.
-  - **Bubble starts:** each bubble starts at zero phase with a 1.5 ms fade-in.
-  - **Rate:** about 0.4 splashes a second at rest, about 10 at speed, in gusts as the bow meets the waves. Bigger bubbles come in as she digs in. Splashes alternate port and starboard in the stereo field.
-  - **Slams:** a heavy low double slap and a crowd of bubbles. Laps are a small version.
-  - **Bed:** the noise whoosh is now a low rush (260–560 Hz); the fizz is only a hint at full speed.
-  - **Rendered:** energy sits in 150–1500 Hz with the 1.5–6 kHz sizzle band 10–20 dB down, and the 10 ms loudness swings 17–25 dB (discrete splashes; a sizzle stays within a few dB). A compressor keeps slams below clipping (peak 0.93).
+- **Water, third pass: Farnell's running-water model** (owner: the splash events still weren't right; asked to research and implement the best approach).
+  - **Research:** Andy Farnell's *Designing Sound* (MIT Press 2010, practical 13 "Running water", and the SuperCollider port of it on Wikibooks) builds running water from a few continuous sine voices. Each voice's pitch keeps jumping to random cavity frequencies, glides up after each jump, and wobbles slowly. It only becomes water when several are layered. Up close water is that sine pattern; further off it blurs into filtered noise. The usual procedural sea is band-passed noise whose loudness and centre frequency swell at slightly different slow rates. Short decaying blips (both earlier versions) give crackle and plink instead.
+  - **babble** (`audio/waterWorklet.ts`): 8 continuous sine voices spread across the stereo field.
+    - Each jumps 8–118 times a second (with flow) to a random pitch in 220–700 Hz (gurgly) up to 480–2000 Hz (lighter, with speed). After each jump it glides up from about 75 % over about 30 ms, with a slow random wobble.
+    - Each voice has its own slow gust envelope, so the babble comes in patches. More voices join as the flow grows.
+    - It's a faint trickle at rest and a busy rush at 5 m/s.
+  - **rush:** band-passed noise (250–850 Hz) whose loudness and colour swell at 0.21 and 0.29 Hz, surging when the bow digs in.
+  - **Wave hits:** a soft, heavy double slap plus a gush (all voices jump fast and a little lower for about 0.35 s). Laps are a clop and a small gush. The fizz is only a hint.
+  - **Rendered:** continuous (5–8 dB short-term variation, no crackle), energy in 150–1500 Hz, nothing above 6 kHz to speak of. Level about 0.06 at rest, 0.08 slow, 0.27 at speed with slams; no clipping.
 
 ## Planned next (owner requests, not started)
 
