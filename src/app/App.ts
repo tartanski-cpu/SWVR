@@ -57,6 +57,9 @@ import { RescueSounds } from '../audio/rescueSounds';
 import { lastSpeech, speechVoices, watchVoices } from '../audio/babble';
 import { mixer, type Bus } from '../audio/mixer';
 import { FmRadio } from '../audio/fmRadio';
+import { BoardView, type BoardContext } from '../board/boardView';
+import { NoteKeyboard } from '../board/noteKeyboard';
+import { parseBoard } from '../board/board';
 import { DesktopHand } from '../player/desktopHand';
 import { playerColor } from '../net/avatarView';
 import { runStatus } from '../rescue/rescue';
@@ -81,6 +84,9 @@ import { AvatarsView } from '../net/avatarView';
  *
  *   gather input  ->  intents  ->  N fixed sim ticks  ->  update views (with alpha)  ->  render
  */
+/** Where the host keeps the whiteboard's notes between visits. */
+const BOARD_KEY = 'swvr.board';
+
 export class App {
   readonly renderer: THREE.WebGLRenderer;
   readonly scene = new THREE.Scene();
@@ -154,6 +160,10 @@ export class App {
   private readonly gearView = new RescueGearView();
   private readonly rescueSounds = new RescueSounds();
   private readonly fmRadio = new FmRadio();
+  private board: BoardView | null = null;
+  private readonly noteKeys = new NoteKeyboard((text, x, y, colour) => this.pushBoardIntent('noteAdd', text, [x, y, colour]));
+  /** The board's seq last saved to this browser (host / solo keeps the notes over a reload). */
+  private boardSaved = -1;
   /** Last cheer count / shout id heard (null until the first frame). */
   private rescueHeard: { cheer: number; shout: number; ring: string } | null = null;
   private frameDt = 0;
@@ -228,7 +238,7 @@ export class App {
     this.controllers = new XRControllers(this.renderer, this.rig.root);
     this.decoupler.coupling = userSettings.motionCoupling;
     this.menu = new WristMenu(mainMenu(this.menuHost()));
-    this.scene.add(this.menu.rayLine);
+    this.scene.add(this.menu.rayLine, this.noteKeys.menu.root, this.noteKeys.menu.rayLine);
 
     this.desktop = new DesktopController(this.camera, this.renderer.domElement, this.keyboard);
     this.environment = new EnvironmentView(this.scene);
@@ -377,6 +387,20 @@ export class App {
     this.targetsView.update(this.world, this.renderWaves, this.focus, darkness, renderTime, dt, this.testVesselId, this.vesselRoots.get(this.testVesselId));
     this.gearView.update(this.world, this.testVesselId, this.vesselRoots.get(this.testVesselId), this.renderWaves, this.rescueHands, this.localPlayerId, this.avatarHands);
     this.updateRescueSounds();
+    this.noteKeys.menu.refresh();
+    if (this.board) {
+      this.board.update(this.world);
+      // Host / solo: keep the notes in this browser, so they survive a reload.
+      const b = this.world.board;
+      if (b && !this.client && b.seq !== this.boardSaved) {
+        this.boardSaved = b.seq;
+        try {
+          localStorage.setItem(BOARD_KEY, JSON.stringify(b));
+        } catch {
+          // Not saved; still shared.
+        }
+      }
+    }
     if (this.bridge && testVessel) {
       const c = testVessel.controls;
       this.fmRadio.update(c.fmOn > 0, c.fmStation, this.bridge.overhead.root.getWorldPosition(this.tmpV).distanceTo(this.focus));
@@ -1025,6 +1049,7 @@ export class App {
       w.deliveries = snap.deliveries;
       w.pings = snap.pings;
       w.rescue = snap.rescue;
+      w.board = snap.board;
       w.lost = snap.lost;
       w.geography = snap.geography;
       w.players = { ...snap.players, [this.localPlayerId]: me };
@@ -1201,6 +1226,18 @@ export class App {
     if (!v || !view) return;
     this.bridge = new Bridge(VESSEL_DEFS[v.defId]);
     view.root.add(this.bridge.root);
+    // Crew whiteboard on the wheelhouse aft wall, facing forward.
+    const wb = VESSEL_DEFS[v.defId].whiteboard;
+    this.board = new BoardView(wb.width, wb.height);
+    this.board.root.position.fromArray(wb.position);
+    this.board.root.rotation.y = Math.PI;
+    view.root.add(this.board.root);
+    this.scene.add(this.board.rayLine);
+    try {
+      this.world.board ??= parseBoard(localStorage.getItem(BOARD_KEY)) ?? undefined;
+    } catch {
+      // No storage: an empty board.
+    }
     this.interaction = new InteractionSystem(
       this.bridge.controls,
       (channel, value) => (channel === 'engineStartStop' ? this.requestEngineStartStop() : this.pushVesselIntent(channel, value)),
@@ -1236,12 +1273,21 @@ export class App {
         this.hands.right.triggerDown = false;
         this.hands.right.triggerPressed = false;
       }
+      // The note keyboard, while open, the same.
+      if (this.noteKeys.isOpen && this.noteKeys.menu.updateXR(this.hands.right, (i, ms) => this.xrInput.pulse('right', i, ms))) {
+        this.hands.right.triggerDown = false;
+        this.hands.right.triggerPressed = false;
+      }
       this.busyHands = this.interaction.updateXR(this.hands);
       if (this.xrInput.wasPressed('right', XR_BUTTON.stick) && this.hands.right.tracked) this.ping(this.hands.right.ray);
       this.cargoHands.updateXR(this.cargoCtx(), this.hands, this.busyHands);
       for (const h of ['left', 'right'] as const) if (this.cargoHands.busy(h)) this.busyHands[h] = true;
       this.rescueHands.updateXR(this.rescueCtx(), this.hands, this.busyHands, this.frameDt);
       for (const h of ['left', 'right'] as const) if (this.rescueHands.busy(h)) this.busyHands[h] = true;
+      if (this.board && !this.noteKeys.isOpen) {
+        const onBoard = this.board.updateXR(this.boardCtx(), this.hands, this.busyHands);
+        for (const h of ['left', 'right'] as const) if (onBoard[h]) this.busyHands[h] = true;
+      } else if (this.board) this.board.rayLine.visible = false;
       this.pointer?.hide();
       return;
     }
@@ -1298,19 +1344,47 @@ export class App {
   private desktopCargo() {
     // The rescue gear (ring, line, hook) comes first, then cargo.
     return {
-      carrying: () => this.cargoHands.carrying || this.rescueHands.deskBusy,
+      carrying: () => this.cargoHands.carrying || this.rescueHands.deskBusy || !!this.board?.deskDragging,
       label: (ray: THREE.Ray | null) => {
         this.camera.getWorldPosition(this.headW);
         this.camera.getWorldDirection(this.headFwd);
-        const gear = this.cargoHands.carrying ? null : this.rescueHands.updateDesktop(this.rescueCtx(), ray, this.headW, this.headFwd, this.frameDt);
-        return gear ?? this.cargoHands.updateDesktop(this.cargoCtx(), ray, this.headW, this.headFwd);
+        // The board first (the life ring hangs just behind it, outside the wall), unless
+        // the mouse already holds rescue gear or cargo.
+        const free = !this.cargoHands.carrying;
+        const board = free && !this.rescueHands.deskBusy && this.board ? this.board.label(this.boardCtx(), ray) : null;
+        const gear = free && !board ? this.rescueHands.updateDesktop(this.rescueCtx(), ray, this.headW, this.headFwd, this.frameDt) : null;
+        return board ?? gear ?? this.cargoHands.updateDesktop(this.cargoCtx(), ray, this.headW, this.headFwd);
       },
       click: (ray: THREE.Ray | null) => {
         this.camera.getWorldDirection(this.headFwd);
+        if (!this.cargoHands.carrying && !this.rescueHands.deskBusy && this.board?.click(this.boardCtx(), ray)) return true;
         if (!this.cargoHands.carrying && this.rescueHands.desktopClick(this.rescueCtx(), ray, this.headFwd)) return true;
         return this.cargoHands.desktopClick(this.cargoCtx(), ray);
       },
     };
+  }
+
+  /** The whiteboard's view of the app. */
+  private boardCtx(): BoardContext {
+    return {
+      world: this.world,
+      push: (control, ref, args) => this.pushBoardIntent(control, ref, args),
+      pulse: (h, i, ms) => this.xrInput.pulse(h, i, ms),
+      compose: (x, y) => {
+        if (this.renderer.xr.isPresenting) {
+          this.noteKeys.begin(x, y);
+          this.noteKeys.menu.openInFront(this.rig.carrier, this.camera);
+          return;
+        }
+        // Desktop: the browser's own text box (it releases the mouse; click to look again).
+        const text = window.prompt('Note for the whiteboard:');
+        if (text?.trim()) this.pushBoardIntent('noteAdd', text, [x, y, Math.floor(Math.random() * 4)]);
+      },
+    };
+  }
+
+  private pushBoardIntent(control: string, ref: string, args?: number[]): void {
+    this.intents.push({ playerId: this.localPlayerId, targetId: ENVIRONMENT_ID, control, value: 1, ref, args });
   }
 
   /** The rescue hands' view of the app. */

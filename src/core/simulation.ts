@@ -4,6 +4,7 @@ import { stepVessel, type HydroDebug } from '../vessel/physics/vesselPhysics';
 import { applyPlayerIntent } from '../player/playerControl';
 import { applyPing, expirePings } from '../player/ping';
 import { applyRescueIntent, isRescueIntent, stepRescue } from '../rescue/rescue';
+import { applyBoardIntent, isBoardIntent } from '../board/board';
 import { applyVesselIntent, stepRefuelling } from '../vessel/vesselControl';
 import { applyCargoIntent, deckVelocitiesBefore, isCargoIntent, payloadOf, stepDeckCargo } from '../cargo/cargo';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
@@ -25,7 +26,9 @@ let simWaves: PreparedWave[] = [];
 export function stepWorld(world: WorldState, intents: readonly Intent[], dt: number, debug?: SimDebug): void {
   // 1. Apply intents, routed by target entity.
   for (const intent of intents) {
-    if (isRescueIntent(intent.control)) {
+    if (isBoardIntent(intent.control)) {
+      applyBoardIntent(world, intent);
+    } else if (isRescueIntent(intent.control)) {
       applyRescueIntent(world, intent);
     } else if (intent.control === 'ping') {
       applyPing(world, intent);

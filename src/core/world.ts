@@ -1,3 +1,4 @@
+import type { BoardState } from '../board/board';
 import { CONFIG } from '../config';
 import { createEnvironment, type EnvironmentState } from '../environment/environmentState';
 import type { PlayerState } from '../player/playerState';
@@ -40,6 +41,8 @@ export interface WorldState {
   pings?: Record<EntityId, Ping>;
   /** Cargo runs, distress calls and the active rescue (rescue/rescue.ts). */
   rescue?: RescueState;
+  /** The crew whiteboard's notes (board/board.ts). */
+  board?: BoardState;
 }
 
 export function createWorld(

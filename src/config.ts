@@ -530,6 +530,11 @@ export const CONFIG = {
         fmTune: 0.36,
       },
       /**
+       * Crew whiteboard (board/boardView.ts): inside the wheelhouse on the aft wall, port of
+       * the door, facing forward (vessel axes: centre, width, height, m).
+       */
+      whiteboard: { position: [-0.9, 2.5, 1.4] as [number, number, number], width: 0.85, height: 0.62 },
+      /**
        * Deck lights. Floods: a lamp on the wheelhouse roof edge aimed at a point on deck,
        * each ONE real SpotLight (cd, m, half-angle, penumbra), kept at 0 when off (no shader
        * recompiles). Rail lights: LED strips along the inside of the bulwark tops - glow

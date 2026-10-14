@@ -45,6 +45,7 @@ export interface VesselDef {
   rescueGear: VesselConfig['rescueGear'];
   cabinLight: VesselConfig['cabinLight'];
   overheadPanel: VesselConfig['overheadPanel'];
+  whiteboard: VesselConfig['whiteboard'];
   deckLights: VesselConfig['deckLights'];
   spotlight: VesselConfig['spotlight'];
   mooring: VesselConfig['mooring'];
@@ -100,6 +101,7 @@ export function fromConfig(id: string, c: VesselConfig): VesselDef {
     rescueGear: c.rescueGear,
     cabinLight: c.cabinLight,
     overheadPanel: c.overheadPanel,
+    whiteboard: c.whiteboard,
     deckLights: c.deckLights,
     spotlight: c.spotlight,
     mooring: c.mooring,
