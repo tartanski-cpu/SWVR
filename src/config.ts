@@ -418,6 +418,11 @@ export const CONFIG = {
         spotlightSwitch: { position: [-1.14, 2.16, -1.52] as [number, number, number] },
         /** Searchlight joystick on a pedestal to port of the wheel (mirrors the throttle's). */
         spotJoystick: { position: [-0.45, 2.16, -1.15] as [number, number, number] },
+        /**
+         * VHF radio hung from the wheelhouse roof ahead of the helm, to port, tilted down
+         * toward the helmsman; its handset hangs on a clip on its starboard side.
+         */
+        radio: { position: [-0.5, 3.0, -1.5] as [number, number, number], tiltDeg: 40 },
         /** DOCK / cast off (where the lever used to stand on the console top). */
         dockButton: { position: [0.45, 2.16, -1.52] as [number, number, number] },
         /** Instrument dash across the front of the console: displays on its aft face. */
@@ -682,6 +687,29 @@ export const CONFIG = {
     climbOutRange: 1.3,
     /** Highest quay or pier deck above the water you can climb onto from the water (m). */
     quayClimbMax: 2.8,
+  },
+
+  /**
+   * Rescues on cargo runs (rescue/rescue.ts; the kinds of rescue are in rescue/rescueDefs.ts).
+   * A run is: cargo aboard bound for another port, and the boat out of harbour. Once per run
+   * there's a `chance` of a call, somewhere between `triggerFraction` of the way along.
+   */
+  rescue: {
+    chance: 0.5,
+    /** Out of harbour: further than this from every port (m). */
+    harbourRadius: 300,
+    /** The call comes this fraction of the way from the departure port to the destination. */
+    triggerFraction: [0.25, 0.65] as [number, number],
+    /** The incident: this far ahead of the boat, toward the destination (m)... */
+    ahead: [450, 800] as [number, number],
+    /** ...and this far off to one side, so it's an easy diversion (m). */
+    offset: [80, 220] as [number, number],
+    /** Keep it in open water: at least this deep (m) and this far from any port (m). */
+    minDepth: 5,
+    minPortDistance: 350,
+    /** An unanswered call goes away after this long (s), and repeats its alert this often (s). */
+    callTimeout: 120,
+    callRepeat: 10,
   },
 
   /** Pings: "look here" markers (player/ping.ts). Lifetime (s), beam height (m), reach (m). */

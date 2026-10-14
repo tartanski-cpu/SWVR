@@ -9,6 +9,7 @@ import { Lever } from './Lever';
 import { Toggle } from './Toggle';
 import { Wheel } from './Wheel';
 import { Joystick } from './Joystick';
+import { RadioSet } from '../rescue/radioView';
 import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
 
 /**
@@ -21,6 +22,8 @@ export class Bridge {
   /** Empty object at the centre of the instrument dash (for visibility checks). */
   readonly dashAnchor = new THREE.Object3D();
   private readonly instruments: InstrumentPanel;
+  /** Overhead VHF (rescue calls). */
+  readonly radio: RadioSet;
 
   constructor(private readonly def: VesselDef) {
     const b = def.bridge;
@@ -57,8 +60,10 @@ export class Bridge {
     const joy = new Joystick('spotJoystick', def.spotlight);
     joy.root.position.fromArray(b.spotJoystick.position);
 
-    this.controls.push(wheel, lever, start, horn, nav, anchor, cabin, dock, spot, joy);
-    for (const c of this.controls) this.root.add(c.root);
+    this.radio = new RadioSet(b.radio, def.layout.wheelhouse.roofY);
+    this.root.add(this.radio.root);
+    this.controls.push(wheel, lever, start, horn, nav, anchor, cabin, dock, spot, joy, this.radio.handset);
+    for (const c of this.controls) if (!c.root.parent) this.root.add(c.root);
 
     // Instrument dash: a box across the front of the console with the displays on its face.
     const d = b.dash;

@@ -45,6 +45,10 @@ export interface MenuHost {
   anchorStatus(): string;
   /** Ports with bearing (°T) and range (nm) from the boat. */
   ports(): { name: string; bearingDeg: number; rangeNm: number }[];
+  /** Cargo run / rescue status line; debug: raise a rescue call now, end the active rescue. */
+  runStatus(): string;
+  rescueNow(): void;
+  rescueEnd(): void;
   /** Move the boat (and you, aboard) to port i's berth or anchorage. */
   teleportToPort(i: number): void;
   seaTrialsShown(): boolean;
@@ -207,6 +211,7 @@ export function mainMenu(h: MenuHost): MainMenu {
         { text: () => `Delivered ${h.cargoStatus().delivered}`, weight: 1.3 },
       ],
     },
+    { label: '', buttons: [{ text: () => h.runStatus() }] },
     { label: '', buttons: [{ text: 'Carry by hand: grip (VR) / click. Lash: trigger / Q' }] },
     { heading: 'Aboard' },
     ...[0, 1, 2, 3, 4].map(aboardRow),
@@ -248,6 +253,13 @@ export function mainMenu(h: MenuHost): MainMenu {
       buttons: [
         { text: 'Fuel to 5 %', press: () => h.setFuelDebug(0.05 * h.fuel().tank) },
         { text: 'Pump failure', active: () => h.coolingFault(), press: () => h.toggleCoolingFault() },
+      ],
+    },
+    {
+      label: 'Rescue',
+      buttons: [
+        { text: 'Call now', press: () => h.rescueNow() },
+        { text: 'End rescue', press: () => h.rescueEnd() },
       ],
     },
     { heading: 'Debug views' },

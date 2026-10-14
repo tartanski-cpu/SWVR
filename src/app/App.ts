@@ -48,6 +48,8 @@ import { ContactAudio } from '../audio/contactAudio';
 import { WaterAudio } from '../audio/waterAudio';
 import { WorldView } from '../world/view/worldView';
 import { PingAudio, PingView } from '../player/pingView';
+import { RadioAudio } from '../audio/radioAudio';
+import { runStatus } from '../rescue/rescue';
 import { engineAlarms } from '../vessel/physics/engineThermal';
 import { VesselEffects } from '../vessel/view/vesselEffects';
 import { sunElevation } from '../environment/timeOfDay';
@@ -133,6 +135,9 @@ export class App {
   private readonly platform = createPlatform();
   private readonly pingView = new PingView(this.scene);
   private readonly pingAudio = new PingAudio();
+  private readonly radioAudio = new RadioAudio();
+  /** Last radio message / alert played here (null until the first frame: don't replay old ones). */
+  private radioSeen: { id: number; alertT: number } | null = null;
   private readonly pingCaster = new THREE.Raycaster();
   private readonly vesselRoots = new Map<string, THREE.Object3D>();
   private readonly hands: Record<'left' | 'right', HandFrame> = {
@@ -234,6 +239,7 @@ export class App {
       this.contactAudio.attach(this.engineAudio.context);
       this.waterAudio.attach(this.engineAudio.context);
       this.pingAudio.attach(this.engineAudio.context);
+      this.radioAudio.attach(this.engineAudio.context);
     };
     window.addEventListener('pointerdown', unlock);
     window.addEventListener('keydown', unlock);
@@ -324,7 +330,11 @@ export class App {
     }
     // Bridge controls and displays read the (just-updated) vessel state.
     const testVessel = this.world.vessels[this.testVesselId];
-    if (this.bridge && testVessel) this.bridge.update(testVessel, dt, this.dashInView());
+    if (this.bridge && testVessel) {
+      this.bridge.update(testVessel, dt, this.dashInView());
+      this.bridge.radio.update(this.world.rescue, runStatus(this.world), dt);
+      this.updateRadioSound();
+    }
     const darkness = Math.min(1, Math.max(0, (8 - sunElevation(this.world.environment.timeOfDay)) / 14));
     let slam = 0;
     let lap = 0;
@@ -526,6 +536,26 @@ export class App {
     const wash = Math.min(1, Math.abs(v.thrust) / 15000);
     depth += wash * 0.07 * (Math.sin(t * 4.3) + 0.6 * Math.sin(t * 7.1 + 1.3));
     return clamp((depth + 0.03) / 0.2, 0, 1);
+  }
+
+  /** Play new radio traffic (and repeat the alert of an unanswered call); show it as a notice too. */
+  private updateRadioSound(): void {
+    const r = this.world.rescue;
+    if (!r || !this.bridge) return;
+    const id = r.radio?.id ?? 0;
+    const alertT = r.active?.phase === 'calling' ? r.active.alertT : -1;
+    this.radioAudio.setDistance(this.bridge.radio.root.getWorldPosition(this.tmpV).distanceTo(this.focus));
+    if (!this.radioSeen) {
+      this.radioSeen = { id, alertT };
+      return;
+    }
+    if (id !== this.radioSeen.id && r.radio) {
+      this.radioAudio.message(r.radio.kind, r.radio.text);
+      this.overlay.notify(`VHF: ${r.radio.text}`, 8);
+    } else if (alertT !== this.radioSeen.alertT && alertT >= 0) {
+      this.radioAudio.alert();
+    }
+    this.radioSeen = { id, alertT };
   }
 
   /** Vessels as the body module sees them (rendered roots, walk areas, hull plans). */
@@ -843,6 +873,9 @@ export class App {
           rangeNm: Math.hypot(p.x - x, p.z - z) / 1852,
         }));
       },
+      runStatus: () => runStatus(this.world),
+      rescueNow: () => this.pushVesselIntent('rescueDebugTrigger', 1),
+      rescueEnd: () => this.pushVesselIntent('rescueDebugComplete', 1),
       teleportToPort: (i) => {
         const port = PORTS[i];
         if (!port) return;
@@ -910,6 +943,7 @@ export class App {
       w.cargoSeq = snap.cargoSeq;
       w.deliveries = snap.deliveries;
       w.pings = snap.pings;
+      w.rescue = snap.rescue;
       w.lost = snap.lost;
       w.geography = snap.geography;
       w.players = { ...snap.players, [this.localPlayerId]: me };

@@ -8,6 +8,7 @@ import { createVesselState, type VesselState } from '../vessel/vesselState';
 import { IdFactory, type EntityId } from './ids';
 import { stockPorts, type CargoItem } from '../cargo/cargo';
 import type { Ping } from '../player/ping';
+import { createRescueState, type RescueState } from '../rescue/rescue';
 
 /**
  * The complete simulation state. Plain, JSON-serializable data only: no class
@@ -37,6 +38,8 @@ export interface WorldState {
   lost?: number;
   /** "Look here" markers, one per player (player/ping.ts). */
   pings?: Record<EntityId, Ping>;
+  /** Cargo runs, distress calls and the active rescue (rescue/rescue.ts). */
+  rescue?: RescueState;
 }
 
 export function createWorld(
@@ -61,6 +64,7 @@ export function createWorld(
     cargo: {},
     cargoSeq: 0,
     deliveries: 0,
+    rescue: createRescueState(),
   };
   stockPorts(world);
   return { world, localPlayerId, vesselId };
