@@ -55,7 +55,9 @@ export class RescueGearView {
   /** The rope: one thin cylinder per segment between the curve's points. */
   private readonly line: THREE.InstancedMesh;
   private readonly linePos: Float32Array;
-  private readonly hook: THREE.Mesh;
+  private readonly hook: THREE.Group;
+  private readonly pole: THREE.Mesh;
+  private readonly head: THREE.Mesh;
   private readonly tmp = new THREE.Vector3();
   private readonly a = new THREE.Vector3();
   private readonly b = new THREE.Vector3();
@@ -98,14 +100,18 @@ export class RescueGearView {
     this.line.frustumCulled = false;
     // Boat hook: an ash pole along +z from its butt (origin), a galvanised hook at the end.
     const L = CONFIG.rescue.hookLength;
-    this.hook = new THREE.Mesh(
+    // Two parts so it can telescope (auto-extend): the pole stretches, the head moves out.
+    this.hook = new THREE.Group();
+    this.pole = new THREE.Mesh(part(new THREE.CylinderGeometry(0.018, 0.02, L, 8).rotateX(Math.PI / 2).translate(0, 0, L / 2), 0xb08850), flatVertexColorMaterial());
+    this.head = new THREE.Mesh(
       mergeParts([
-        part(new THREE.CylinderGeometry(0.018, 0.02, L, 8).rotateX(Math.PI / 2).translate(0, 0, L / 2), 0xb08850),
-        part(new THREE.CylinderGeometry(0.012, 0.012, 0.22, 6).rotateX(Math.PI / 2).translate(0, 0, L + 0.08), 0x9aa0a6),
-        part(new THREE.TorusGeometry(0.06, 0.011, 6, 12, Math.PI).rotateY(Math.PI / 2).translate(0, -0.06, L + 0.12), 0x9aa0a6),
+        part(new THREE.CylinderGeometry(0.012, 0.012, 0.22, 6).rotateX(Math.PI / 2).translate(0, 0, 0.08), 0x9aa0a6),
+        part(new THREE.TorusGeometry(0.06, 0.011, 6, 12, Math.PI).rotateY(Math.PI / 2).translate(0, -0.06, 0.12), 0x9aa0a6),
       ]),
       flatVertexColorMaterial(),
     );
+    this.hook.add(this.pole, this.head);
+    this.telescope(L);
     this.hook.name = 'boatHook';
     this.root.add(this.ring, this.line, this.hook);
   }
@@ -168,11 +174,13 @@ export class RescueGearView {
       tip.y -= CONFIG.rescue.hookLength * 0.6;
       this.pose(this.a, tip);
     } else if (r?.hook?.deck) {
+      this.telescope(CONFIG.rescue.hookLength);
       // Laid down on deck.
       const [x, y, z, yaw] = r.hook.deck;
       vesselRoot.localToWorld(this.hook.position.set(x, y + 0.02, z));
       this.hook.quaternion.copy(this.q).multiply(this.qYaw.setFromAxisAngle(this.yAxis, yaw));
     } else {
+      this.telescope(CONFIG.rescue.hookLength);
       // In its clips along the port bulwark.
       const [x, y, z0] = gear.hookStow;
       vesselRoot.localToWorld(this.hook.position.set(x, y, z0));
@@ -180,11 +188,19 @@ export class RescueGearView {
     }
   }
 
-  /** Pole from `base` toward `tip`. */
+  /** Pole from `base` to `tip`, telescoped to reach it (never shorter than the hook). */
   private pose(base: THREE.Vector3, tip: THREE.Vector3): void {
     this.hook.position.copy(base);
     const dir = this.tmp.copy(tip).sub(base);
-    if (dir.lengthSq() < 1e-8) return;
-    this.hook.quaternion.setFromUnitVectors(this.zAxis, dir.normalize());
+    const len = dir.length();
+    if (len < 1e-4) return;
+    this.hook.quaternion.setFromUnitVectors(this.zAxis, dir.divideScalar(len));
+    this.telescope(Math.max(CONFIG.rescue.hookLength, len));
+  }
+
+  /** Pole length (m): the pole is scaled along its axis, the head sits at its end. */
+  private telescope(len: number): void {
+    this.pole.scale.z = len / CONFIG.rescue.hookLength;
+    this.head.position.z = len;
   }
 }

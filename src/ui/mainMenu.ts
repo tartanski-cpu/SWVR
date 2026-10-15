@@ -41,6 +41,9 @@ export interface MenuHost {
   setCoupling(value: number): void;
   smoothWalk(): boolean;
   setSmoothWalk(on: boolean): void;
+  /** The boat hook telescopes out to what you point it at. */
+  hookAutoExtend(): boolean;
+  setHookAutoExtend(on: boolean): void;
   snapTurnDeg(): number;
   setSnapTurnDeg(deg: number): void;
   aboard(): boolean;
@@ -316,6 +319,10 @@ export function mainMenu(h: MenuHost): MainMenu {
     {
       label: 'Stick walking',
       buttons: [choice('On', true, () => h.smoothWalk(), (v) => h.setSmoothWalk(v)), choice('Off', false, () => h.smoothWalk(), (v) => h.setSmoothWalk(v))],
+    },
+    {
+      label: 'Boat hook reach',
+      buttons: [choice('Auto-extend', true, () => h.hookAutoExtend(), (v) => h.setHookAutoExtend(v)), choice('Fixed', false, () => h.hookAutoExtend(), (v) => h.setHookAutoExtend(v))],
     },
     {
       label: 'Snap turn',

@@ -2,20 +2,16 @@ import * as THREE from 'three';
 import type { WorkboatDef } from '../vesselDef';
 
 /**
- * Closing the wheelhouse up: glass in the window openings (shown only with the windows
- * shut - one merged, faintly tinted transparent mesh) and a sliding door in the aft
- * doorway. The door is a convenience, not an obstacle: it slides open whenever someone is
- * near the doorway and closes behind them. With the windows shut and the door closed,
- * the wind and rain are much quieter inside (the App asks `sealed`).
+ * Closing the wheelhouse up: glass in the window openings, shown only with the windows
+ * shut (one merged, faintly tinted transparent mesh). The aft door is a control of its
+ * own (controls/WheelhouseDoor.ts). With the windows shut and the door shut, the wind and
+ * rain are much quieter inside (the App asks `sealed`).
  */
 export class WheelhouseClosure {
   readonly root = new THREE.Group();
   private readonly glass: THREE.Mesh;
-  private readonly door: THREE.Mesh;
-  private doorOpen = 0;
-  private readonly doorX: number;
 
-  constructor(private readonly def: WorkboatDef) {
+  constructor(def: WorkboatDef) {
     const wh = def.layout.wheelhouse;
     const hw = wh.halfWidth;
     const w = wh.wall;
@@ -47,29 +43,11 @@ export class WheelhouseClosure {
     this.glass.name = 'windowGlass';
     this.glass.visible = false;
     this.glass.renderOrder = 2;
-    // Sliding door: a panel with a window, sliding to port behind the aft wall.
-    this.doorX = 0;
-    this.door = new THREE.Mesh(new THREE.BoxGeometry(wh.doorWidth, wh.doorHeight, 0.04).translate(0, wh.doorHeight / 2, 0), new THREE.MeshLambertMaterial({ color: 0xd8dcdc }));
-    this.door.position.set(this.doorX, wh.floorY, wh.aft + 0.03);
-    this.door.name = 'wheelhouseDoor';
-    this.root.add(this.glass, this.door);
+    this.root.add(this.glass);
   }
 
-  /**
-   * @param shut      windows switched shut
-   * @param someoneAt is anyone near the doorway (vessel axes positions of the players aboard)
-   */
-  update(shut: boolean, people: { x: number; z: number }[], range: number, dt: number): void {
+  /** @param shut windows switched shut */
+  update(shut: boolean): void {
     this.glass.visible = shut;
-    const wh = this.def.layout.wheelhouse;
-    const near = people.some((p) => Math.abs(p.x) < range && Math.abs(p.z - wh.aft) < range);
-    const target = near ? 1 : 0;
-    this.doorOpen += Math.sign(target - this.doorOpen) * Math.min(Math.abs(target - this.doorOpen), dt * 2.5);
-    this.door.position.x = this.doorX - this.doorOpen * (wh.doorWidth + 0.05);
-  }
-
-  /** Windows shut and the door closed: the wheelhouse is sealed against wind and rain. */
-  sealed(shut: boolean): boolean {
-    return shut && this.doorOpen < 0.05;
   }
 }

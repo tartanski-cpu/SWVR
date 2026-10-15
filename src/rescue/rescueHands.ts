@@ -25,6 +25,10 @@
  *     the hook back.
  * Towing missions: with the hook, touch (VR) or click (desktop) a tow's orange bow eye to
  * make the towline fast to our towing post (towMake; the simulation checks the range).
+ * Auto-extend (menu option, on by default): point the hook at a floating crate or a bow
+ * eye up to CONFIG.rescue.hookAutoReach away and it telescopes out to it, so the tip
+ * touches it (VR hooks it straight away; desktop: click). With a crate on it, it slides
+ * back to its own length, bringing the crate in.
  */
 import * as THREE from 'three';
 import { CONFIG } from '../config';
@@ -35,6 +39,7 @@ import type { Handedness } from '../player/xrInput';
 import { hullPlan } from '../vessel/layout';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 import type { CargoHands } from '../cargo/cargoHands';
+import { userSettings } from '../player/userSettings';
 import { distanceToHull, vesselToWorld } from './recovery';
 import { bowEyeLocal, towReach } from '../tow/tow';
 import { ropePoints, ROPE_POINTS } from './rescueGearView';
@@ -82,6 +87,8 @@ export class RescueHands {
   private towT = 0;
   /** Last time we asked to make a towline fast (s), so a hook resting on the eye asks once a second. */
   private towAsk = -9;
+  /** How far the hook reaches right now (m): its own length, or telescoped out (auto-extend). */
+  private reach: number = CONFIG.rescue.hookLength;
   /** Recent grip positions of the ring hand, for the throw speed. */
   private readonly trail: { t: number; p: THREE.Vector3 }[] = [];
   /** World pose of the gear in our hands (valid while held). */
@@ -117,6 +124,34 @@ export class RescueHands {
   private gear(ctx: RescueHandsContext) {
     const v = ctx.world.vessels[ctx.vesselId];
     return v ? VESSEL_DEFS[v.defId].rescueGear : null;
+  }
+
+  /**
+   * Auto-extend: the reach (m) along `dir` from `base` this frame. Out to the nearest
+   * crate or bow eye close to the line of the pole (within ~0.6 m, a little more further
+   * out) and within hookAutoReach; back to the hook's own length otherwise, slowly while
+   * something is on it (that brings it in), quickly when not.
+   */
+  private extend(ctx: RescueHandsContext, base: THREE.Vector3, dir: THREE.Vector3, dt: number): number {
+    const cfg = CONFIG.rescue;
+    let want = cfg.hookLength;
+    const loaded = !!this.hookedCrate(ctx);
+    if (userSettings.hookAutoExtend && !loaded) {
+      let best = Infinity;
+      const consider = (c: THREE.Vector3) => {
+        const t = this.tmp2.copy(c).sub(base).dot(dir);
+        if (t < cfg.hookLength * 0.5 || t > cfg.hookAutoReach || t >= best) return;
+        const off = this.tmp2.copy(base).addScaledVector(dir, t).distanceTo(c);
+        if (off < 0.6 + 0.05 * t) best = t;
+      };
+      for (const t of this.floatingCrates(ctx)) consider(this.crateCentre(ctx, t, this.tmp));
+      const eye = this.towEyeW(ctx, this.tmp);
+      if (eye) consider(eye);
+      if (best < Infinity) want = Math.max(cfg.hookLength, best);
+    }
+    const rate = want > this.reach ? cfg.hookExtendSpeed : loaded ? cfg.hookRetractSpeed : cfg.hookExtendSpeed;
+    this.reach += Math.sign(want - this.reach) * Math.min(Math.abs(want - this.reach), rate * dt);
+    return this.reach;
   }
 
   /** A tow waiting for its line: its bow eye (world), else null. */
@@ -225,6 +260,7 @@ export class RescueHands {
   private takeHook(ctx: RescueHandsContext, who: Holder): void {
     this.hook = who;
     this.hookSince = this.clock;
+    this.reach = CONFIG.rescue.hookLength;
     ctx.push('hookTake', undefined, 1);
   }
 
@@ -311,7 +347,7 @@ export class RescueHands {
         else this.layHook(ctx, f.grip, f.ray.direction);
       } else if (f.tracked) {
         this.hookBase.copy(f.grip);
-        this.hookTip.copy(f.grip).addScaledVector(f.ray.direction, cfg.hookLength);
+        this.hookTip.copy(f.grip).addScaledVector(f.ray.direction, this.extend(ctx, f.grip, f.ray.direction, dt));
         this.useHook(ctx, dt, h);
       }
     }
@@ -437,6 +473,11 @@ export class RescueHands {
       this.hookBase.copy(eye).addScaledVector(right, 0.25);
       this.hookBase.y -= 0.45;
       this.deskHookTip(ctx, eye, forward);
+      // Auto-extend: telescoped out to the crate or bow eye under the reticle.
+      if (userSettings.hookAutoExtend && !this.hookedCrate(ctx)) {
+        const target = this.towEyeOnRay(ctx, ray) ? this.towEyeW(ctx, this.tmp2) : this.crateOnRay(ctx, ray) && this.crateCentre(ctx, this.crateOnRay(ctx, ray)!, this.tmp2);
+        if (target) this.hookTip.copy(target);
+      }
       this.useHook(ctx, dt, 'desk');
       const on = this.hookedCrate(ctx);
       if (on) {
@@ -467,17 +508,23 @@ export class RescueHands {
     if (d.length() > L) tip.copy(this.hookBase).addScaledVector(d.normalize(), L);
   }
 
+  /** Desktop: how far from the eye the hook reaches a crate or bow eye (auto-extend: further). */
+  private deskReach(): number {
+    const cfg = CONFIG.rescue;
+    return userSettings.hookAutoExtend ? Math.max(cfg.hookAutoReach + 1, cfg.hookLength + 2.5) : cfg.hookLength + 2.5;
+  }
+
   /** Desktop: is the reticle on a waiting tow's bow eye, within the hook's reach? */
   private towEyeOnRay(ctx: RescueHandsContext, ray: THREE.Ray | null): boolean {
     const eye = ray && this.towEyeW(ctx, this.tmp);
-    return !!eye && eye.distanceTo(ray.origin) < CONFIG.rescue.hookLength + 2.5 && ray.distanceToPoint(eye) < 0.5;
+    return !!eye && eye.distanceTo(ray.origin) < this.deskReach() && ray.distanceToPoint(eye) < 0.5;
   }
 
   private crateOnRay(ctx: RescueHandsContext, ray: THREE.Ray | null): RescueTarget | null {
     if (!ray) return null;
     for (const t of this.floatingCrates(ctx)) {
       const c = this.crateCentre(ctx, t, this.tmp);
-      if (c.distanceTo(ray.origin) < CONFIG.rescue.hookLength + 2.5 && ray.distanceToPoint(c) < 0.6) return t;
+      if (c.distanceTo(ray.origin) < this.deskReach() && ray.distanceToPoint(c) < 0.6) return t;
     }
     return null;
   }

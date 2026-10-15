@@ -86,6 +86,7 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | Left stick | Walk (head-relative; can be switched off in the menu) |
 | Right stick ← / → | Snap turn (30° by default; 15/30/45/90° in the menu) |
 | Left stick click | Board the boat (at the helm) / back to the platform |
+| **Grip** the boat hook (port bulwark) | Take it; it points along your controller. Touch a floating crate or a tow's bow eye with the tip to hook it. With **auto-extend** (menu Comfort → Boat hook reach, on by default) it telescopes out to whatever you point it at, up to 8 m, then slides back in with the crate on it. Desktop: click the hook, then click the crate or bow eye |
 | **X** | **Crouch** / stand up (drops your view and hands 0.6 m; desktop: C) |
 | **Trigger** on the red key on the yellow plate (aft wall, by the door) | **Battery master** on / off. The boat starts cold and dark: master on first (voltmeter by the helm, under the starboard window) |
 | **Starting the engine** | Follow the card by the key: battery MASTER on (aft wall), INSTR breaker on, throttle in neutral, KEY on, hold HEAT until the GLOW lamp goes out, hold START until she runs. Stop: key off. Battery selector (1 / BOTH / 2) beside the master. The duty board on the starboard wall ticks off the start-up steps. Desktop E: hint (or quick start if enabled in config) |
@@ -189,7 +190,7 @@ The chart table stands along the port wall, behind the helm. On it:
   2. If it's low, press the red **oil can** to top up.
 
   Nearly dry, the OIL lamp blinks while running.
-- **Windows and door:** the **WINDOWS** switch on the console (left of the wheel) shuts glass into every opening. The aft door slides open as anyone comes near and closes behind them. With both shut, the wind and rain are much quieter inside. The "secure the boat" duty suggests it.
+- **Windows and door:** the **WINDOWS** switch on the console (left of the wheel) shuts glass into every opening. The aft door has a window and opens or shuts by hand: trigger on it in VR, or click it on the desktop. It starts open, and when shut it blocks desktop walking. With both shut, the wind and rain are much quieter inside. The "secure the boat" duty suggests it.
 - **The pen:** pick it up from beside the logbook (grip) and touch a box, or the sign box, with its tip. Pointing and pulling the trigger still works too.
 
 ### Traffic and hazards

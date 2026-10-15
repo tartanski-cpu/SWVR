@@ -130,4 +130,14 @@ describe('docking', () => {
     send('cabinLight', 0);
     expect(v.controls.cabinLight).toBe(0);
   });
+
+  it('the wheelhouse door starts open and is shut / opened by hand (not automatic)', () => {
+    const { v, send, run } = boat();
+    expect(v.controls.door).toBe(1);
+    send('door', 0);
+    run(2);
+    expect(v.controls.door).toBe(0);
+    send('door', 1);
+    expect(v.controls.door).toBe(1);
+  });
 });

@@ -75,6 +75,8 @@ function fakeHost() {
     voiceTest: () => calls.push('voiceTest'),
     rescueAboard: () => calls.push('rescueAboard'),
     rescues: () => 0,
+    hookAutoExtend: () => true,
+    setHookAutoExtend: (on) => calls.push(`hook ${on}`),
     towStatus: () => null,
     towFast: () => false,
     towToggle: () => calls.push('towToggle'),

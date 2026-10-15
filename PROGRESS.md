@@ -1223,6 +1223,20 @@ The brief's "no new physics bodies or ropes" rule was flagged; the owner approve
   - The comfort fade still darkens the view while your head is inside a wall.
 - **Tests:** flying up and out through a wall; the height staying; the stick passing a wall; a teleport ending free flight. The older collision tests now run with fly off (desktop rules).
 
+## Wheelhouse door by hand, boat hook auto-extend (owner requests)
+
+- **Wheelhouse door** (`controls/WheelhouseDoor.ts`): the door now has a large window, so you can see astern from the helm with it shut.
+  - It's no longer automatic. A press control (trigger in VR, click on desktop, from inside or out) toggles `controls.door`, which is shared in multiplayer.
+  - It starts open. Shut, it blocks desktop walking; VR movement has no collisions.
+  - The "sealed" quiet wheelhouse needs the windows shut and the door shut.
+  - `bridge.doorOpenRange` is gone.
+- **Boat hook auto-extend** (`rescue/rescueHands.ts`, menu Comfort → Boat hook reach: Auto-extend / Fixed; on by default, remembered per device):
+  - Point the hook at a floating crate or a tow's bow eye up to 8 m away (`CONFIG.rescue.hookAutoReach`) and it telescopes out to it at 10 m/s. In VR the tip touching it hooks it.
+  - With a crate on it, the hook slides back to its own length at 1.5 m/s, bringing the crate alongside.
+  - Desktop: the hook reaches what's under the reticle up to 9 m, and a click hooks it.
+  - The drawn hook telescopes: the pole stretches and the head moves out.
+- **Tests:** the door control; desktop auto-extend hooking a crate 6 m off the side, and not when Fixed.
+
 ## Planned next (owner requests, not started)
 
 1. ~~Fuel and oil temperature~~ **Done** (see above).

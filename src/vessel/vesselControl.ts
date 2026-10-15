@@ -101,6 +101,9 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
     case 'windows':
       s.controls.windows = intent.value > 0.5 ? 1 : 0;
       break;
+    case 'door':
+      s.controls.door = intent.value > 0.5 ? 1 : 0;
+      break;
     case 'dipstick':
       // Oil checked: the clock to the next check starts again.
       if (s.engine.oil !== undefined) s.engine.sinceCheck = 0;

@@ -16,6 +16,8 @@ export interface UserSettings {
   playerName: string;
   /** Rain streaks: all, fewer (a slower headset), or none. */
   rainQuality: 'high' | 'low' | 'off';
+  /** The boat hook telescopes out to the crate or bow eye you point it at (CONFIG.rescue.hookAutoReach). */
+  hookAutoExtend: boolean;
 }
 
 /** Names to pick from in the menu (there's no comfortable way to type in VR). */
@@ -34,6 +36,7 @@ function load(): UserSettings {
     snapTurnDeg: CONFIG.locomotion.snapTurnDeg,
     playerName: PLAYER_NAMES[Math.floor(Math.random() * PLAYER_NAMES.length)],
     rainQuality: 'high',
+    hookAutoExtend: true,
   };
   try {
     const raw = localStorage.getItem(KEY);
@@ -43,6 +46,7 @@ function load(): UserSettings {
       if (typeof saved.smoothWalk === 'boolean') s.smoothWalk = saved.smoothWalk;
       if (typeof saved.snapTurnDeg === 'number' && saved.snapTurnDeg > 0) s.snapTurnDeg = saved.snapTurnDeg;
       if (typeof saved.playerName === 'string' && saved.playerName) s.playerName = saved.playerName.slice(0, 24);
+      if (typeof saved.hookAutoExtend === 'boolean') s.hookAutoExtend = saved.hookAutoExtend;
       if (saved.rainQuality === 'high' || saved.rainQuality === 'low' || saved.rainQuality === 'off') s.rainQuality = saved.rainQuality;
     } else {
       const legacy = localStorage.getItem(LEGACY_COUPLING_KEY);

@@ -933,8 +933,17 @@ export class App {
     // Head from the camera's pose relative to the rig (fresh this frame; see syncRigToPlayer).
     this.camera.getWorldPosition(this.headW);
     this.camera.getWorldDirection(this.headFwd);
-    if (!this.updateBody(dt, inXR, area, frame)) this.runLocomotion(dt, inXR, frame, area, 1, inXR);
+    if (!this.updateBody(dt, inXR, area, frame)) this.runLocomotion(dt, inXR, frame, inXR ? area : this.withDoor(area, p.aboardVesselId), 1, inXR);
     this.placeDebugPanel(inXR);
+  }
+
+  /** Desktop walking on the workboat: a shut wheelhouse door blocks the doorway. */
+  private withDoor(area: WalkArea, vesselId: EntityId | null): WalkArea {
+    const v = vesselId === this.testVesselId ? this.world.vessels[vesselId] : undefined;
+    if (!v || v.controls.door > 0.5) return area;
+    const wh = this.testDef.layout.wheelhouse;
+    const inDoor = (x: number, z: number, y: number) => Math.abs(x) < wh.doorWidth / 2 + 0.15 && Math.abs(z - wh.aft) < 0.3 && y < wh.floorY + 0.5;
+    return { ...area, walkable: (x, z, y) => area.walkable(x, z, y) && !inDoor(x, z, y) };
   }
 
   /** `fly`: VR on foot - grab-the-world moves freely in 3D, nothing collides (see Locomotion). */
@@ -1115,6 +1124,11 @@ export class App {
       smoothWalk: () => userSettings.smoothWalk,
       setSmoothWalk: (on) => {
         userSettings.smoothWalk = on;
+        saveSettings();
+      },
+      hookAutoExtend: () => userSettings.hookAutoExtend,
+      setHookAutoExtend: (on) => {
+        userSettings.hookAutoExtend = on;
         saveSettings();
       },
       snapTurnDeg: () => userSettings.snapTurnDeg,
@@ -1952,12 +1966,12 @@ export class App {
     const wh = this.testDef.layout.wheelhouse;
     const inside = !!v && v.id === this.testVesselId && Math.abs(p.position[0]) < wh.halfWidth && p.position[2] > wh.front && p.position[2] < wh.aft && p.position[1] > wh.floorY - 0.3;
     this.insideHouse = inside;
-    // The door: open while anyone aboard is near the doorway; sealed with it and the windows shut.
+    // Sealed with the windows and the door shut.
     const wv = this.world.vessels[this.testVesselId];
-    if (this.closure && wv) {
-      const people = Object.values(this.world.players).filter((q) => q.aboardVesselId === wv.id).map((q) => ({ x: q.position[0], z: q.position[2] }));
-      this.closure.update(wv.controls.windows > 0, people, this.testDef.bridge.doorOpenRange, dt);
-      this.sealed = this.closure.sealed(wv.controls.windows > 0);
+    if (this.closure && wv && this.bridge) {
+      this.closure.update(wv.controls.windows > 0);
+      this.bridge.door.tick(dt);
+      this.sealed = wv.controls.windows > 0 && this.bridge.door.shut;
     }
     this.windAudio.update(Math.hypot(ax, az), inside, dt, this.sealed);
   }

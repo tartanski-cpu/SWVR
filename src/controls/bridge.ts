@@ -16,6 +16,7 @@ import { ChartPlotter } from '../nav/chartPlotter';
 import { OverheadPanel } from './overheadPanel';
 import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
 import { Hatch } from './Hatch';
+import { WheelhouseDoor } from './WheelhouseDoor';
 import { hullPlan } from '../vessel/layout';
 import { RainGlass } from '../vessel/view/rainGlass';
 import { Dipstick, FenderBasket, FendersView, OilCan } from './deckGear';
@@ -42,6 +43,8 @@ export class Bridge {
   readonly overhead: OverheadPanel;
   /** Rain on the front windows and the wipers (the App feeds it the weather). */
   readonly rainGlass: RainGlass;
+  /** The aft door (press to open / shut). */
+  readonly door: WheelhouseDoor;
   /** The fenders over the side or stowed (boats that carry them). */
   private readonly fenders: FendersView | null = null;
 
@@ -98,6 +101,10 @@ export class Bridge {
     this.overhead = new OverheadPanel(def);
     this.root.add(this.overhead.root);
     this.controls.push(wheel, lever, start, heat, key, horn, nav, anchor, cabin, dock, spot, wipers, windows, joy, this.radio.handset, ...this.overhead.controls);
+    const wh = def.layout.wheelhouse;
+    this.door = new WheelhouseDoor(wh.doorWidth, wh.doorHeight);
+    this.door.root.position.set(0, wh.floorY, wh.aft + 0.03);
+    this.controls.push(this.door);
     this.rainGlass = new RainGlass(def);
     this.root.add(this.rainGlass.root);
     // Forepeak hatch on the foredeck (boats that have one).

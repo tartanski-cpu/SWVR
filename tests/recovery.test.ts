@@ -196,6 +196,62 @@ describe('recovery: desktop hands', () => {
   });
 });
 
+describe('recovery: boat hook auto-extend (desktop)', () => {
+  it('reaches a crate 6 m off the side when pointed at it; fixed, it does not', async () => {
+    const { RescueHands } = await import('../src/rescue/rescueHands');
+    const { CargoHands } = await import('../src/cargo/cargoHands');
+    const { userSettings } = await import('../src/player/userSettings');
+    for (const auto of [true, false]) {
+      userSettings.hookAutoExtend = auto;
+      const s = setup('lostCargo');
+      const { world, v } = s;
+      const root = new THREE.Object3D();
+      root.position.fromArray(v.position);
+      root.quaternion.fromArray(v.orientation);
+      root.updateMatrixWorld();
+      const pending: Intent[] = [];
+      const hands = new RescueHands();
+      const ctx = {
+        world,
+        playerId: 'p',
+        vesselId: v.id,
+        vesselRoot: root,
+        waves: [],
+        cargoHands: new CargoHands(),
+        push: (control: string, ref: string | undefined, value: number, args?: number[]) => pending.push({ playerId: 'p', targetId: v.id, control, value, ref, args }),
+        notify: () => {},
+        pulse: () => {},
+      };
+      const flush = () => stepWorld(world, pending.splice(0), DT);
+      // Take the hook from its clips on the port bulwark.
+      const eye = vesselToWorld(v, [-1.0, 2.4, 3.6]);
+      const pole = vesselToWorld(v, [s.gear.hookStow[0], s.gear.hookStow[1], 3.6]);
+      const toPole = new THREE.Ray(eye.clone(), pole.clone().sub(eye).normalize());
+      expect(hands.desktopClick(ctx, toPole, toPole.direction)).toBe(true);
+      flush();
+      expect(world.rescue!.hook!.holder).toBe('p');
+      // A crate 6 m off the port side: look at it.
+      const crate = s.inc.targets[0];
+      const at = vesselToWorld(v, [-8, 0, 3]);
+      crate.x = at.x;
+      crate.z = at.z;
+      for (const t of s.inc.targets.slice(1)) t.x += 200;
+      const look = new THREE.Vector3(at.x, 0, at.z).sub(eye).normalize();
+      const ray = new THREE.Ray(eye.clone(), look);
+      hands.updateDesktop(ctx, ray, eye, look, DT);
+      hands.desktopClick(ctx, ray, look);
+      flush();
+      if (auto) {
+        expect(hands.hookTip.distanceTo(new THREE.Vector3(at.x, hands.hookTip.y, at.z))).toBeLessThan(0.8);
+        expect(crate.phase).toBe('hooked');
+      } else {
+        expect(crate.phase ?? 'floating').toBe('floating');
+      }
+    }
+    userSettings.hookAutoExtend = true;
+  });
+});
+
 describe('recovery: boat hook laid down', () => {
   it('can be laid on deck and taken from there; over the side it goes back in its clips', () => {
     const s = setup('lostCargo');

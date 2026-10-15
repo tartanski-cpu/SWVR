@@ -483,11 +483,10 @@ export const CONFIG = {
         wipersSwitch: { position: [-1.3, 2.16, -1.52] as [number, number, number] },
         /**
          * Wheelhouse windows (glass in every opening when shut; quieter inside with the
-         * door closed too), on the console between the horn and the wheel. The aft door
-         * slides open as someone comes within `doorOpenRange` m of the doorway.
+         * door shut too), on the console between the horn and the wheel. The aft door is
+         * opened and shut by hand (controls/WheelhouseDoor.ts).
          */
         windowsSwitch: { position: [-0.25, 2.16, -1.52] as [number, number, number] },
-        doorOpenRange: 1.1,
         /** Searchlight joystick on a pedestal to port of the wheel (mirrors the throttle's). */
         spotJoystick: { position: [-0.45, 2.16, -1.15] as [number, number, number] },
         /**
@@ -1443,6 +1442,14 @@ export const CONFIG = {
      *  alongside (from the hull side, m) a hooked crate must be to lift aboard. */
     hookLength: 2.2,
     hookReach: 0.6,
+    /**
+     * Auto-extend (menu option, on by default): pointed at a floating crate or a tow's bow
+     * eye within this range (m), the hook telescopes out to it; it slides back to its own
+     * length once something is on it, bringing it in. Telescoping speed (m/s) out and in.
+     */
+    hookAutoReach: 8,
+    hookExtendSpeed: 10,
+    hookRetractSpeed: 1.5,
     liftRange: 2.5,
     /**
      * Landing survivors (milestone 4): moored alongside any quay, or anchored at an
