@@ -39,6 +39,7 @@ export class Toggle extends Control {
 
   pressStart(): void {
     this.show(!this.on);
+    this.markPending();
     this.ctx?.haptic(0.5, 30);
     this.ctx?.emit(this.channel, this.on ? 1 : 0);
   }
@@ -50,6 +51,7 @@ export class Toggle extends Control {
 
   sync(state: VesselState): void {
     const on = this.read(state) > 0.5;
+    if (this.awaiting(on === this.on)) return;
     if (on !== this.on) this.show(on);
   }
 }

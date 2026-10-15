@@ -247,6 +247,8 @@ export class App {
   private readonly tableRef = new THREE.Vector3();
   /** How shut-in the wheelhouse is, 0 (door open) .. 1 (door shut): muffles the engine, wind, rain, wash, fire. */
   private closed = 0;
+  /** Desktop: 0..1, how far the view has eased to riding rigidly (at the controls). */
+  private deskRigid = 0;
   /** Auto rain quality: frame time accumulated while raining in the headset. */
   private rainSlowT = 0;
   private rainFrames = 0;
@@ -501,6 +503,10 @@ export class App {
       this.desktop.lookScale = this.binoculars.updateDesktop(this.keyboard.action('binoculars'));
       this.desktop.update(dt);
     }
+    // The boat we're on, posed for this frame before hit-testing its controls (else they're
+    // where the last frame drew them: a frame behind the reticle and hands).
+    const onboard = this.world.players[this.localPlayerId]?.aboardVesselId;
+    if (onboard) this.vesselViews.get(onboard)?.root.updateMatrixWorld();
     this.updateInteraction(inXR);
     this.updateLocomotion(dt, inXR);
     this.syncRigToPlayer(0);
@@ -799,8 +805,13 @@ export class App {
     const carrier = this.rig.carrier;
     carrier.position.fromArray(p.position);
     if (vesselView) {
-      // VR and desktop have their own coupling (desktop softer: see CONFIG.comfort).
-      this.decoupler.coupling = this.renderer.xr.isPresenting ? userSettings.motionCoupling : userSettings.desktopCoupling;
+      // VR and desktop have their own coupling (desktop softer: see CONFIG.comfort), but on
+      // the desktop the view rides rigidly at the controls so they hold still to click.
+      const xr = this.renderer.xr.isPresenting;
+      const atControls = !xr && CONFIG.comfort.desktopRigidAtControls && (this.insideHouse || !!this.interaction?.desktopActive);
+      this.deskRigid = Math.min(1, Math.max(0, this.deskRigid + (atControls ? 1 : -1) * dt / CONFIG.comfort.desktopRigidTime));
+      const desk = userSettings.desktopCoupling;
+      this.decoupler.coupling = xr ? userSettings.motionCoupling : desk + (1 - desk) * this.deskRigid;
       if (dt > 0) {
         const feetY = vesselView.root.localToWorld(this.offsetV.fromArray(p.position)).y;
         this.viewOffset = this.decoupler.update(dt, vesselView.root.quaternion, feetY, this.comfortQ);

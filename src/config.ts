@@ -1604,6 +1604,14 @@ export const CONFIG = {
      * onlookers queasy (owner feedback).
      */
     desktopMotionCoupling: 0.3,
+    /**
+     * ...except at the controls: in the wheelhouse, or with the reticle on a control, the
+     * desktop view eases to riding rigidly with the boat over `desktopRigidTime` s, so the
+     * console holds still under the reticle (with the softer coupling it swung by several
+     * degrees in a seaway, worst for crew-mates joining, whose boat moves in snapshot steps).
+     */
+    desktopRigidAtControls: true,
+    desktopRigidTime: 0.5,
     /** Filter time constant at coupling 0 (s); shrinks to `minTimeConstant` at coupling 1. */
     maxTimeConstant: 1.6,
     minTimeConstant: 0.12,
@@ -1640,6 +1648,21 @@ export const CONFIG = {
     rayLength: 1.5,
     /** Desktop reticle reach (m). */
     desktopReach: 2.6,
+    /**
+     * Desktop aim help (degrees): a reticle that just misses a control still picks the
+     * nearest one within `desktopAssistDeg` of its edge, and a control under the reticle
+     * stays picked until the aim is `desktopStickyDeg` off it. In a seaway the console
+     * swings under the reticle (the desktop view is steadied against the roll), and for a
+     * crew-mate joining it moves in 20 Hz snapshot steps: without this, small switches
+     * flicker in and out of reach.
+     */
+    desktopAssistDeg: 2.5,
+    desktopStickyDeg: 5,
+    /**
+     * After you set a control, how long (ms) it waits for the host's state to show it
+     * before believing an older value (a joining crew-mate's round trip; see Control).
+     */
+    pendingMs: 800,
     /** Displays redraw rate (Hz). */
     displayHz: 10,
   },

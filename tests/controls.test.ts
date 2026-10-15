@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { Button } from '../src/controls/Button';
 import type { ControlContext } from '../src/controls/Control';
 import { InteractionSystem, type HandFrame } from '../src/controls/InteractionSystem';
@@ -130,6 +130,29 @@ describe('Button and Toggle', () => {
       ['navLights', 0],
     ]);
   });
+
+  it("a crew-mate's switch doesn't bounce back while the host's state catches up", () => {
+    let now = 1000;
+    const spy = vi.spyOn(performance, 'now').mockImplementation(() => now);
+    const t = new Toggle('nav', 'navLights', 'Nav', (s) => s.controls.navLights);
+    t.bind(recorder().ctx);
+    const s = createVesselState('v', 'workboat');
+    const on = () => (t as unknown as { on: boolean }).on;
+    t.pressStart(); // on, locally
+    now += 100;
+    t.sync(s); // the snapshot still says off: wait
+    expect(on()).toBe(true);
+    s.controls.navLights = 1;
+    t.sync(s); // the host has it
+    s.controls.navLights = 0;
+    t.sync(s); // someone else turned it off: follow at once
+    expect(on()).toBe(false);
+    t.pressStart();
+    now += 2000;
+    t.sync(s); // never arrived (refused): give up and show the truth
+    expect(on()).toBe(false);
+    spy.mockRestore();
+  });
 });
 
 describe('InteractionSystem (VR hands)', () => {
@@ -201,6 +224,22 @@ describe('InteractionSystem (desktop reticle)', () => {
     expect(sent[sent.length - 1][1]).toBeGreaterThan(0.5);
     expect(sys.updateDesktop(ray, false, false, true, 0, 0)).toBe(false);
     expect(lever.held).toBe(false);
+  });
+
+  it('aim help: a near miss picks the switch, and it stays picked while the reticle is close', () => {
+    const nav = new Toggle('nav', 'navLights', 'Nav', (s) => s.controls.navLights);
+    nav.root.position.set(0, 0, -1);
+    nav.root.updateMatrixWorld(true);
+    const sys = new InteractionSystem([nav], () => {}, () => {});
+    const aim = (deg: number) => new THREE.Ray(new THREE.Vector3(0, 0.03, 0), new THREE.Vector3(Math.sin((deg * Math.PI) / 180), 0, -Math.cos((deg * Math.PI) / 180)));
+    sys.updateDesktop(aim(5), false, false, false, 0, 0);
+    expect(sys.desktopHoverLabel).toBe('Nav'); // just missed, within the assist
+    sys.updateDesktop(aim(7), false, false, false, 0, 0);
+    expect(sys.desktopHoverLabel).toBe('Nav'); // drifting off: sticky
+    sys.updateDesktop(aim(20), false, false, false, 0, 0);
+    expect(sys.desktopHoverLabel).toBeNull(); // well away
+    sys.updateDesktop(aim(7), false, false, false, 0, 0);
+    expect(sys.desktopHoverLabel).toBeNull(); // not sticky from nothing
   });
 });
 

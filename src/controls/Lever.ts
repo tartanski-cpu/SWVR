@@ -81,6 +81,7 @@ export class Lever extends Control {
 
   grabEnd(_p: Pointer): void {
     this.held = false;
+    this.markPending();
   }
 
   /** Extra drag travel absorbed while sitting in the neutral notch (desktop). */
@@ -126,6 +127,7 @@ export class Lever extends Control {
 
   sync(state: VesselState): void {
     if (this.held) return;
+    if (this.awaiting(Math.abs(state.controls.lever - this.value) < 0.01)) return;
     this.theta = -state.controls.lever * this.max;
     this.arm.rotation.x = this.theta;
     this.lastSent = state.controls.lever;

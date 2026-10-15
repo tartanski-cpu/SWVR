@@ -17,6 +17,7 @@
  *   'press' (Button, Toggle): trigger while the controller touches it, or click.
  */
 import * as THREE from 'three';
+import { CONFIG } from '../config';
 import type { VesselState } from '../vessel/vesselState';
 
 export interface ControlContext {
@@ -59,6 +60,26 @@ export abstract class Control {
     readonly channel: string,
   ) {
     this.root.name = `control:${id}`;
+  }
+
+  private pendingUntil = 0;
+
+  /**
+   * We just set this control ourselves. A crew-mate joining sees the host's state about a
+   * round trip later, so for `interaction.pendingMs` `sync` must not snap the control back
+   * to the old value (a switch would flick on, off, on - and get clicked again).
+   */
+  protected markPending(): void {
+    this.pendingUntil = performance.now() + CONFIG.interaction.pendingMs;
+  }
+
+  /**
+   * In `sync`: true while our own change is still on its way and the state doesn't show it
+   * yet (skip the sync). Once the state agrees, the wait is over.
+   */
+  protected awaiting(agrees: boolean): boolean {
+    if (agrees) this.pendingUntil = 0;
+    return !agrees && performance.now() < this.pendingUntil;
   }
 
   /** Called by the interaction system with the context of whoever is using it. */

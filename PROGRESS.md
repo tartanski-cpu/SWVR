@@ -1331,6 +1331,13 @@ The brief's "no new particle effects" rule was flagged: the fire is drawn withou
   - The WINDOWS switch, the glass it showed and the `windows` control are gone (the "secure the boat" duty drops its windows step). The windscreen's rain and wipers stay.
   - How shut-in the wheelhouse is now depends on the aft door alone: shut, it fully muffles wind, rain, wash and fire inside.
   - The engine sound gets a wheelhouse low-pass and level (`CONFIG.wheelhouseSound`): full on deck; inside with the door open ×0.75 and 1200 Hz; door shut ×0.45 and 320 Hz.
+- **Controls hard to use for crew-mates joining** (owner feedback; the host tests in VR, the crew on desktop):
+  - **The main cause:** the desktop view's comfort coupling (0.3) holds the view mostly steady while the boat moves, so the console swung under the reticle. For a joining player, whose boat arrives as 20 Hz snapshot steps, the camera moved about ±0.2 m and 3° against the console in a moderate sea; small switches slid in and out of reach.
+    - Now, in the wheelhouse or with the reticle on a control, the desktop view eases to riding rigidly with the boat over 0.5 s (`comfort.desktopRigidAtControls`, `desktopRigidTime`). Measured after the change: no camera movement relative to the console, on the host or a client.
+  - **Switches bounced on clients:** a click flipped the switch, then the next snapshot (sent before the host had the click) flipped it back, then on again a moment later. A crew-mate would click again and turn it off. Toggles, the lever and the wheel now wait up to `interaction.pendingMs` (800) for the host's state to show their own change (`Control.markPending` / `awaiting`).
+  - **Desktop aim help:** a reticle that just misses picks the nearest control within 2.5° (`desktopAssistDeg`). A control under the reticle stays picked until the aim is 5° off it (`desktopStickyDeg`); a direct hit always wins.
+  - The boat you're on is posed for the frame before its controls are hit-tested (they were a frame behind).
+  - **Tests (2):** a client's switch doesn't bounce back, follows someone else's change at once, and gives up if its change never arrives; the aim help picks a near miss, is sticky, and lets go when well away.
 - **Twisted side rails** (workboat and skiff): `bar()` in `vessel/view/hullMesh.ts` turned each box onto its segment with a shortest-arc rotation. That leaves the roll arbitrary, and with the stations running aft-to-fore against the box's +z it came out near 180°, so each bulwark plate and rail segment lay rolled its own way. Bars now keep their height side vertical.
 
 ## Planned next (owner requests, not started)

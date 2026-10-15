@@ -271,6 +271,18 @@ export class InteractionSystem {
       this.raycaster.far = CONFIG.interaction.desktopReach;
       const hit = this.raycaster.intersectObjects(this.hitObjects, false)[0];
       hover = hit ? (this.owner.get(hit.object) ?? null) : null;
+      // Aim help, only when the ray hits nothing (a direct hit always wins): keep what we
+      // were on while the reticle is still near it, else take the nearest control just
+      // missed (see CONFIG.interaction.desktopStickyDeg / desktopAssistDeg).
+      const prev = this.deskHover;
+      if (!hover && prev && this.offAim(prev, ray) < CONFIG.interaction.desktopStickyDeg) hover = prev;
+      if (!hover) {
+        let best = CONFIG.interaction.desktopAssistDeg;
+        for (const c of this.controls) {
+          const off = this.offAim(c, ray);
+          if (off < best) [hover, best] = [c, off];
+        }
+      }
     }
 
     // Keyboard steering: any click lets go; a crew-mate grabbing it first also ends it.
@@ -314,6 +326,35 @@ export class InteractionSystem {
     this.refreshHover();
     this.syncHolds();
     return this.dragging !== null;
+  }
+
+  private readonly sphere = new THREE.Sphere();
+  private readonly toCentre = new THREE.Vector3();
+
+  /**
+   * How far off the ray a control is (degrees from the edge of its nearest hit part's
+   * bounding sphere; 0 on it), or Infinity if it's out of desktop reach. Hidden parts
+   * count, as they do for the ray (baked fixed parts are hidden; see Control.fixed).
+   */
+  private offAim(c: Control, ray: THREE.Ray): number {
+    let best = Infinity;
+    for (const o of c.hitObjects) {
+      const mesh = o as THREE.Mesh;
+      if (!mesh.geometry) continue;
+      if (!mesh.geometry.boundingSphere) mesh.geometry.computeBoundingSphere();
+      this.sphere.copy(mesh.geometry.boundingSphere!).applyMatrix4(o.matrixWorld);
+      this.toCentre.subVectors(this.sphere.center, ray.origin);
+      const dist = this.toCentre.length();
+      if (dist > CONFIG.interaction.desktopReach || dist < 1e-3) continue;
+      const angle = this.toCentre.angleTo(ray.direction) - Math.asin(Math.min(1, this.sphere.radius / dist));
+      best = Math.min(best, Math.max(0, angle) * THREE.MathUtils.RAD2DEG);
+    }
+    return best;
+  }
+
+  /** The desktop reticle is on, dragging or steering a control. */
+  get desktopActive(): boolean {
+    return !!(this.deskHover || this.dragging || this.steering);
   }
 
   /** The control the desktop mouse holds right now (dragging or keyboard-steering), if any. */

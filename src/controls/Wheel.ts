@@ -95,6 +95,7 @@ export class Wheel extends Control {
     if (this.grabs === 0) {
       this.held = false;
       this.prev.clear();
+      this.markPending();
     }
   }
 
@@ -124,6 +125,7 @@ export class Wheel extends Control {
 
   sync(state: VesselState): void {
     if (this.held) return;
+    if (this.awaiting(Math.abs(state.controls.helm + this.angle / this.maxAngle) < 0.01)) return;
     this.angle = -state.controls.helm * this.maxAngle;
     this.spinner.rotation.z = this.angle;
     this.lastSent = state.controls.helm;
