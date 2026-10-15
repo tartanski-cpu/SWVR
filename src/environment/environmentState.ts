@@ -1,6 +1,7 @@
 import { CONFIG } from '../config';
 import { ENVIRONMENT_ID, type EntityId } from '../core/ids';
 import type { WaveComponent } from '../ocean/waves';
+import type { WeatherState } from './weather';
 
 /**
  * Serializable environment state: time of day and sea state. Weather (wind, rain,
@@ -16,6 +17,8 @@ export interface EnvironmentState {
   seaScale: number;
   /** Wave components of the current sea state (derived from seaScale). */
   waves: WaveComponent[];
+  /** Dynamic weather (weather.ts). Absent: fixed fair weather (tests, trials). */
+  weather?: WeatherState;
 }
 
 /** The configured waves scaled to sea state `s` (see CONFIG.ocean.seaStates). */

@@ -32,7 +32,7 @@ export const KEYS = {
   lash: { codes: ['KeyQ'], description: 'Lash / release the cargo under the reticle' },
   jump: { codes: ['Space'], description: 'Jump (ashore, aboard, into the sea); climb out when swimming' },
   seaTrials: { codes: ['KeyT'], description: 'Hydrostatics + sea trials report' },
-  seaState: { codes: ['KeyL'], description: 'Sea state: calm / slight / moderate / rough / storm' },
+  seaState: { codes: ['KeyL'], description: 'Weather: next preset (clear / overcast / fog / rain / squall)' },
   flyMode: { codes: ['KeyF'], description: 'Walk / free-fly camera' },
   up: { codes: ['Space'], description: 'Up (free-fly)' },
   down: { codes: ['KeyC'], description: 'Down (free-fly)' },

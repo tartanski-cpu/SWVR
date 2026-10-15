@@ -59,7 +59,7 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | ← / → | Debug: wheel to port / starboard |
 | X / G | Debug: lever to neutral / wheel amidships |
 | T | Hydrostatics + sea trials report |
-| L | Sea state: cycle calm / slight / moderate / rough / storm |
+| L | Weather: switch to the next preset (Clear / Overcast / Fog / Rain / Squall), changing over a minute |
 | 9 / 0 | Motion coupling −/+ 10 % |
 | R / K | Test: drop the boat from 4 m / heel her 20° and release |
 | V | Buoyancy debug view on/off |
@@ -107,7 +107,7 @@ The menu has six tabs along the top:
 
 | Tab | Settings |
 |---|---|
-| Sea & time | Time of day ±1 h / ±10 min; time flow stopped / ×60 / ×600; sea state Calm / Slight / Moderate / Rough / Storm, with ± for the wave height (Hs 0–3.6 m); bearing and range to each port, with **Go** to move the boat (and you) to that port's cargo berth or anchorage |
+| Sea & time | Time of day ±1 h / ±10 min; time flow stopped / ×60 / ×600; **weather**: what it is now and what's coming, presets Clear / Overcast / Fog / Rain / Squall, **Fixed weather** (stop the changes) and **Fast ×10** (changes come ten times sooner); sea state Calm / Slight / Moderate / Rough / Storm, with ± for the wave height (Hs 0–3.6 m; the wind builds or calms it back over a few minutes); bearing and range to each port, with **Go** to move the boat (and you) to that port's cargo berth or anchorage |
 | Boat | Board / leave; fuel and **Refuel** (at a fuel berth); anchor status; sea-trials report on a big panel in front of you (the game freezes for about a second while the trials run) |
 | Cargo | Where you are, payload, deliveries; cargo aboard (lashed or loose), and what's in the skiff (two crates or one drum) |
 | Comfort | Motion coupling ±10 %, stick walking on/off, snap-turn angle. Remembered on the device |

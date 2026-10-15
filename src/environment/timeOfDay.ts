@@ -9,13 +9,35 @@ import { CONFIG } from '../config';
 import type { Intent } from '../core/intents';
 import { DEG, clamp, hexToRGB, lerp, lerpRGB, wrap, type RGB, type Vec3 } from '../core/math';
 import { seaStateWaves, type EnvironmentState } from './environmentState';
+import { setWeatherPreset } from './weather';
+import type { WeatherPresetName } from '../config';
 
 export function stepEnvironment(env: EnvironmentState, dt: number): void {
   if (env.timeScale !== 0) env.timeOfDay = wrap(env.timeOfDay + env.timeScale * dt, 24);
 }
 
-export function applyEnvironmentIntent(env: EnvironmentState, intent: Intent): void {
+export function applyEnvironmentIntent(env: EnvironmentState, intent: Intent, time = 0): void {
   switch (intent.control) {
+    case 'weatherForce': {
+      // Debug: change to preset `value` (index into CONFIG.weather.presets); args[0] = 1 instant.
+      const names = Object.keys(CONFIG.weather.presets) as WeatherPresetName[];
+      const name = names[Math.round(intent.value)];
+      if (env.weather && name) setWeatherPreset(env.weather, name, time, (intent.args?.[0] ?? 0) > 0.5, env);
+      break;
+    }
+    case 'weatherFixed':
+      if (env.weather) env.weather.fixed = intent.value > 0.5;
+      break;
+    case 'weatherSpeed':
+      // Debug: transitions (and holds) this many times faster.
+      if (env.weather) {
+        const w = env.weather;
+        const speed = clamp(intent.value, 1, 60);
+        // The change already planned comes sooner (or later) too.
+        w.next.at = time + Math.max(0, w.next.at - time) * (w.speed / speed);
+        w.speed = speed;
+      }
+      break;
     case 'timeOfDay':
       env.timeOfDay = wrap(intent.value, 24);
       break;

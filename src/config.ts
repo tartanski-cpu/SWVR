@@ -2,6 +2,8 @@
  * Every tunable number in the game lives here, grouped by module.
  * Units are SI (metres, seconds, kilograms, radians) unless the name says otherwise.
  */
+export type WeatherPresetName = 'Clear' | 'Overcast' | 'Fog' | 'Rain' | 'Squall';
+
 export const CONFIG = {
   sim: {
     /** Fixed simulation rate (Hz). Physics and intents are processed on this tick only. */
@@ -720,6 +722,17 @@ export const CONFIG = {
         lineZ: 4.5,
         lineY: 1.2,
       },
+      /**
+       * Windage for leeway (CONFIG.weather): projected areas above the water, side-on and
+       * end-on (m2: hull topsides ~12 x 1.1 plus the wheelhouse ~3.4 x 2.2; 4.6 x 1.1 plus
+       * 2.9 x 2.2 end-on), and the centre of effort (vessel axes).
+       */
+      /**
+       * Windage for leeway: areas side-on and end-on (m2), and the centre of effort with
+       * the wind on the beam (x, y; z as an offset from the hull's centre of lateral
+       * resistance, + aft). See physics/windage.ts.
+       */
+      windage: { side: 21, front: 11, center: [0, 1.9, 0] as [number, number, number] },
       /** Where a player stands after boarding (vessel axes): at the helm, facing forward. */
       boardingSpot: [0, 1.2, -0.75] as [number, number, number],
       /** Debug: spawn/drop point and drop height (m above the DWL). */
@@ -814,6 +827,8 @@ export const CONFIG = {
         lashPoints: [] as [number, number][],
         lashRange: 0.8,
       },
+      /** Windage (see the workboat's): low sides plus whoever is aboard. */
+      windage: { side: 2.4, front: 1.2, center: [0, 0.6, 0] as [number, number, number] },
       /** Where a player stands after boarding: by the tiller, facing forward. */
       boardingSpot: [0, 0.3, 1.1] as [number, number, number],
       /** Starts floating off the workboat's starboard side (she starts heading east at z -22). */
@@ -887,6 +902,68 @@ export const CONFIG = {
     overboardG: 0.55,
     /** Accelerations above this (g) are clipped: penalty-contact spikes aren't real. */
     maxDeckG: 3,
+  },
+
+  /**
+   * Dynamic weather (environment/weather.ts). One state - wind, visibility, rain, cloud -
+   * moving between presets by smooth transitions; the sea follows the wind with a lag.
+   *   presets   wind (m/s), visibility (m), rain and cloud (0..1)
+   *   next      which presets may follow which (never clear straight to squall), weights
+   *   hold      how long a preset holds before the director moves on (s, real time),
+   *             squalls are short (`squallHold`)
+   *   transition  time constant (s) of the values easing toward a new preset
+   *   seaPerWind  sea scale per m/s of wind (CONFIG.ocean.seaStates: 1 = moderate)
+   *   seaBuild / seaDecay  time constants (s): the sea builds after the wind, and settles slower
+   *   windDir  the wind comes FROM this bearing, wandering +-`windDirSpread`
+   * Fog banks: patches of thick fog in the archipelago (x, z, radius m, visibility m).
+   */
+  weather: {
+    startPreset: 'Clear' as WeatherPresetName,
+    /** Fix the weather to the start preset for a session (no director). */
+    fixed: false,
+    presets: {
+      Clear: { wind: 5, visibility: 20000, rain: 0, cloud: 0.1 },
+      Overcast: { wind: 7, visibility: 9000, rain: 0, cloud: 0.85 },
+      Fog: { wind: 2.5, visibility: 220, rain: 0, cloud: 0.6 },
+      Rain: { wind: 10, visibility: 2500, rain: 0.6, cloud: 1 },
+      Squall: { wind: 17, visibility: 900, rain: 1, cloud: 1 },
+    },
+    next: {
+      Clear: { Clear: 2, Overcast: 3, Fog: 1 },
+      Overcast: { Clear: 3, Rain: 2, Fog: 1 },
+      Fog: { Clear: 2, Overcast: 2 },
+      Rain: { Overcast: 3, Squall: 1 },
+      Squall: { Rain: 1 },
+    },
+    hold: [240, 600] as [number, number],
+    squallHold: [90, 150] as [number, number],
+    transition: 60,
+    seaPerWind: 0.12,
+    seaBuild: 90,
+    seaDecay: 160,
+    windDir: 225,
+    windDirSpread: 35,
+    fogBanks: [
+      // Around Gull Rocks (between the start and Calder Haven) and off the Skerry.
+      { x: 380, z: 430, r: 260, visibility: 160 },
+      { x: -470, z: -360, r: 230, visibility: 180 },
+    ],
+    /** Fog: scene fog runs from `nearFraction` x visibility to the visibility. */
+    nearFraction: 0.12,
+    /** Leeway: air density (kg/m3) and drag coefficient on the boats' windage (vessel `windage`). */
+    airDensity: 1.225,
+    windCd: 1.0,
+    /**
+     * How far the centre of effort moves toward the upwind end with the wind ahead or
+     * astern (fraction of the length; a flat plate's centre of pressure is near its leading
+     * quarter at a fine angle, mid-plate side-on). This is what turns a stopped boat
+     * beam-on to the wind, as real ones lie.
+     */
+    windCeShift: 0.25,
+    /** Things floating in the water drift downwind at this fraction of the wind speed. */
+    driftPerWind: 0.02,
+    /** The thrown life ring is pushed downwind in flight at this fraction of the wind (m/s^2 per m/s). */
+    ringPushPerWind: 0.06,
   },
 
   /** The duty board's game-generated task list (duties/duties.ts). */

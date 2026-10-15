@@ -20,6 +20,7 @@
  * Random choices use a deterministic hash of a counter in the state, like the cargo code.
  */
 import { isPowered } from '../vessel/electrics';
+import { windVector } from '../environment/weather';
 import { CONFIG } from '../config';
 import type { EntityId } from '../core/ids';
 import type { Intent } from '../core/intents';
@@ -370,11 +371,13 @@ export function stepRescue(world: WorldState, dt: number, waves: readonly Prepar
   }
 
   const inc = r.active;
+  const wind = windVector(world.environment, { x: 0, z: 0 });
   if (inc) {
     for (const t of inc.targets) {
       if (!t.phase || t.phase === 'floating') {
-        t.x += cfg.drift[0] * dt;
-        t.z += cfg.drift[1] * dt;
+        // Current, plus leeway: things in the water drift downwind.
+        t.x += (cfg.drift[0] + wind.x * CONFIG.weather.driftPerWind) * dt;
+        t.z += (cfg.drift[1] + wind.z * CONFIG.weather.driftPerWind) * dt;
       }
     }
   }

@@ -33,6 +33,7 @@ export interface VesselConfig {
   cargo: Workboat['cargo'];
   boardingSpot: Vec3;
   spawn: Workboat['spawn'];
+  windage: Workboat['windage'];
   engine?: Workboat['engine'];
   propeller?: Workboat['propeller'];
   rudder?: Workboat['rudder'];
@@ -82,6 +83,8 @@ export interface VesselDef {
   boardingSpot: Vec3;
   /** Debug spawn / drop test placement. */
   spawn: VesselConfig['spawn'];
+  /** Windage for leeway: side-on and end-on areas (m2) and centre of effort (vessel axes). */
+  windage: VesselConfig['windage'];
   /** Deck layout: wheelhouse, bulwarks, walkable margins. */
   layout: LayoutConfig;
   cargo: VesselConfig['cargo'];
@@ -169,6 +172,7 @@ export function fromConfig(id: string, c: VesselConfig): VesselDef {
     outboard: c.outboard,
     boardingSpot: c.boardingSpot,
     spawn: c.spawn,
+    windage: c.windage,
     layout: c.layout,
     bridge: c.bridge,
     navLights: c.navLights,

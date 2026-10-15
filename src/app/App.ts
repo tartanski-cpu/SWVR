@@ -20,6 +20,9 @@ import { Buoys, createPlatform } from './testScene';
 import { HydroDebugView } from '../debug/hydroDebugView';
 import { onDavit, recoverCheck } from '../vessel/davit';
 import { isPowered } from '../vessel/electrics';
+import { beaufort, compass8, visibilityAt, windVector } from '../environment/weather';
+import { WindAudio } from '../audio/windAudio';
+import { WindSock } from '../vessel/view/windSock';
 import { DutyBoardView } from '../duties/dutyBoardView';
 import { DavitGear } from '../controls/DavitGear';
 import { asWorkboat, VESSEL_DEFS, type WorkboatDef } from '../vessel/vesselDef';
@@ -174,6 +177,9 @@ export class App {
   private readonly davits: DavitGear[] = [];
   private lastAnchorPhase: string | null = null;
   private readonly motorAudio = new ElectricMotorAudio();
+  private readonly windAudio = new WindAudio();
+  private windSock: WindSock | null = null;
+  private readonly windV = { x: 0, z: 0 };
   /** Crouching (X / C), and the current crouch drop (m, eased). */
   private crouched = false;
   private crouchY = 0;
@@ -246,7 +252,7 @@ export class App {
       CONFIG.render.far,
     );
 
-    const created = createWorld(this.ids, undefined, { tender: true, cold: true });
+    const created = createWorld(this.ids, undefined, { tender: true, cold: true, weather: true });
     this.world = created.world;
     this.localPlayerId = created.localPlayerId;
     this.soloPlayerId = created.localPlayerId;
@@ -314,6 +320,7 @@ export class App {
       watchVoices();
       this.rescueSounds.attach(this.engineAudio.context);
       this.motorAudio.attach(this.engineAudio.context);
+      this.windAudio.attach(this.engineAudio.context);
     };
     window.addEventListener('pointerdown', unlock);
     window.addEventListener('keydown', unlock);
@@ -416,6 +423,8 @@ export class App {
         if (ap === 'set') this.overlay.notify(`Anchor holding: ${testVessel.anchor.rodeM.toFixed(0)} m of chain out`, 2.5);
         this.lastAnchorPhase = ap;
       }
+      this.windSock?.update(testVessel, this.world.environment, dt);
+      this.updateWindSound(dt);
       for (const g of this.davits) {
         const tv = this.world.vessels[g.tenderId];
         if (!tv) continue;
@@ -586,12 +595,12 @@ export class App {
     if (k.actionPressed('board') || this.xrInput.wasPressed('left', XR_BUTTON.stick)) this.toggleBoard();
     if (k.actionPressed('seaTrials')) this.trialsPanel.toggle(this.world.vessels[this.testVesselId].defId);
     if (k.actionPressed('seaState')) {
-      // Cycle the presets: calm -> slight -> moderate -> rough -> storm -> calm.
-      const states = CONFIG.ocean.seaStates;
-      const i = states.findIndex((st) => st.scale > this.world.environment.seaScale + 1e-6);
-      const next = i < 0 ? states[0] : states[i];
-      this.pushEnvIntent('seaState', next.scale);
-      this.overlay.notify(`Sea state: ${next.name}`, 2);
+      // Cycle the weather presets (each eases in; the sea follows the wind).
+      const names = Object.keys(CONFIG.weather.presets);
+      const w = this.world.environment.weather;
+      const next = names[(names.indexOf(w?.preset ?? names[0]) + 1) % names.length];
+      this.pushEnvIntent('weatherForce', names.indexOf(next));
+      this.overlay.notify(`Weather: ${next} (easing in)`, 2);
     }
     if (k.actionPressed('heelVessel')) this.pushVesselIntent('debugHeel', 20);
     const step = CONFIG.environment.timeStepHours;
@@ -956,6 +965,20 @@ export class App {
       seaScale: () => env().seaScale,
       setSeaScale: (v) => this.pushEnvIntent('seaState', v),
       waveHeight: () => significantWaveHeight(env().waves),
+      weatherStatus: () => {
+        const w = env().weather;
+        if (!w) return 'Fixed fair weather';
+        const n = w.now;
+        const vis = visibilityAt(env(), this.focus.x, this.focus.z);
+        const visText = vis >= 10000 ? 'good' : vis >= 2000 ? 'moderate' : vis >= 1000 ? 'poor' : `fog ${Math.round(vis)} m`;
+        return `${w.preset} · wind ${compass8(n.windFrom).toUpperCase()} ${beaufort(n.wind)} (${n.wind.toFixed(0)} m/s) · vis ${visText} · Hs ${significantWaveHeight(env().waves).toFixed(1)} m · next ${w.next.preset} in ${Math.max(0, (w.next.at - this.world.time) / 60).toFixed(0)} min`;
+      },
+      weatherPreset: () => env().weather?.preset ?? '',
+      setWeather: (name) => this.pushEnvIntent('weatherForce', Object.keys(CONFIG.weather.presets).indexOf(name)),
+      weatherFixed: () => env().weather?.fixed ?? true,
+      setWeatherFixed: (on) => this.pushEnvIntent('weatherFixed', on ? 1 : 0),
+      weatherFast: () => (env().weather?.speed ?? 1) > 1,
+      setWeatherFast: (on) => this.pushEnvIntent('weatherSpeed', on ? 10 : 1),
       coupling: () => this.decoupler.coupling,
       setCoupling: (v) => this.setCoupling(Math.round(v * 10) / 10),
       smoothWalk: () => userSettings.smoothWalk,
@@ -1355,6 +1378,10 @@ export class App {
     this.board.root.rotation.y = Math.PI;
     view.root.add(this.board.root);
     this.scene.add(this.board.rayLine);
+    // Wind sock at the masthead.
+    const wh = this.testDef.layout.wheelhouse;
+    this.windSock = new WindSock([0, wh.roofY + 1.7, 0.4]);
+    view.root.add(this.windSock.root);
     // Duty board (game tasks, shipping forecast) on the starboard wall.
     const db = this.testDef.dutyBoard;
     if (db) {
@@ -1595,6 +1622,18 @@ export class App {
   }
 
   /** Engine start/stop with feedback when the neutral-start interlock refuses. */
+  /** Wind noise: the apparent wind where you are (minus your boat's way), muffled inside. */
+  private updateWindSound(dt: number): void {
+    const p = this.world.players[this.localPlayerId];
+    const v = p?.aboardVesselId ? this.world.vessels[p.aboardVesselId] : undefined;
+    windVector(this.world.environment, this.windV);
+    const ax = this.windV.x - (v?.linearVelocity[0] ?? 0);
+    const az = this.windV.z - (v?.linearVelocity[2] ?? 0);
+    const wh = this.testDef.layout.wheelhouse;
+    const inside = !!v && v.id === this.testVesselId && Math.abs(p.position[0]) < wh.halfWidth && p.position[2] > wh.front && p.position[2] < wh.aft && p.position[1] > wh.floorY - 0.3;
+    this.windAudio.update(Math.hypot(ax, az), inside, dt);
+  }
+
   /** START pressed with the lever in gear: the neutral-safety switch says no. */
   private startInGearHint(): void {
     const v = this.world.vessels[this.testVesselId];

@@ -907,6 +907,32 @@ Owner decision: **no radar screen.** Passing vessels will show as AIS targets (t
   - Triangles unchanged (~160k).
 - **Tests (211):** start from cold by the card, with the duty ticking off; no key / START in gear does nothing; letting go of START stops cranking; cold and unheated cranks long, preheated catches fast; key off stops her; battery 1 flat → selector 2 starts her; the selector steps; quick start.
 
+### E4: weather (done, awaiting owner test)
+
+- **Weather state** (`environment/weather.ts`, `EnvironmentState.weather`, synced in snapshots like the rest of the world):
+  - Five presets in config: **Clear, Overcast, Fog, Rain, Squall**, each a wind speed, visibility, rain and cloud cover.
+  - A **director** holds each preset for 4–10 min (squalls 1.5–2.5 min), then picks the next from an allowed list: never clear straight to a squall, a squall always eases to rain.
+  - Changes **ease over a minute**; the wind direction wanders ±35° around the south-west.
+- **Sea follows the wind, with a lag:** Hs target = `seaPerWind` × wind; it builds over ~90 s and decays over ~160 s. The waves are rebuilt once a second with their phases carried over, so the surface never jumps.
+- **Fog and visibility:** Three's built-in scene fog only (no new passes), from 12 % of the visibility out to the visibility. Cloud greys the sky and dims the sun. Two **fog banks** sit by Gull Rocks and off the Skerry: visibility drops as you sail into them.
+- **Leeway** (`vessel/physics/windage.ts`): one horizontal drag force, ½ρ·Cd·A·|u|u per axis on the apparent wind, using side and end areas from the vessel config.
+  - It acts at a **centre of effort** that sits over the hull's centre of lateral resistance with the wind on the beam, and moves toward the upwind end as the wind comes ahead or astern (like a flat plate). So a stopped boat **swings beam-on and lies there**, as real ones do.
+  - In a squall (17 m/s) in flat water: workboat ~0.6 m/s (1.2 kn), skiff ~1.1 m/s. Under way you'll feel her pushed off and need a little helm.
+- **Drift:** people and things in the water drift downwind (2 % of the wind on top of the current). The thrown life ring is pushed downwind in flight.
+- **Wind sock** on the wheelhouse roof: striped, swings to the apparent wind, droops in a calm.
+- **Wind noise:** filtered noise with gusts, muffled inside the wheelhouse, rising with the wind.
+- **Controls:** **L** steps to the next preset.
+  - **Menu → Sea & time → Weather:** shows now / next (preset, wind as compass point and Beaufort, visibility, Hs, minutes to the next change), the preset buttons, **Fixed weather** and **Fast ×10**.
+  - The debug "force any weather preset" and "speed up transitions" options are these.
+- **Tests (218):**
+  - the start preset;
+  - the director only makes allowed changes;
+  - smooth transitions, with the sea lagging the wind;
+  - the wave surface stays continuous through a rebuild;
+  - fog and fog-bank visibility;
+  - leeway: beam-on, a realistic speed, the skiff faster;
+  - things in the water drift downwind.
+
 ## Planned next (owner requests, not started)
 
 1. ~~Fuel and oil temperature~~ **Done** (see above).

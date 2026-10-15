@@ -16,6 +16,7 @@
  * Propeller rule: a survivor on the line near the stern with the engine in gear shouts and
  * swims away until it's in neutral - no failure, just the lesson.
  */
+import { windVector } from '../environment/weather';
 import * as THREE from 'three';
 import { CONFIG } from '../config';
 import type { Intent } from '../core/intents';
@@ -115,8 +116,12 @@ export function stepRecovery(world: WorldState, v: VesselState, waves: readonly 
   const gear = asWorkboat(VESSEL_DEFS[v.defId]).rescueGear;
   const cleat = vesselToWorld(v, gear.ringCleat);
 
+  const wind = windVector(world.environment, { x: 0, z: 0 });
   if (ring.state === 'flying') {
     ring.vel[1] -= CONFIG.ocean.gravity * dt;
+    // The wind pushes it off line a little in flight.
+    ring.vel[0] += wind.x * CONFIG.weather.ringPushPerWind * dt;
+    ring.vel[2] += wind.z * CONFIG.weather.ringPushPerWind * dt;
     for (let i = 0; i < 3; i++) ring.pos[i] += ring.vel[i] * dt;
     const h = surfaceHeight(waves, ring.pos[0], ring.pos[2]);
     const dist = Math.hypot(ring.pos[0] - cleat.x, ring.pos[2] - cleat.z);
@@ -129,8 +134,8 @@ export function stepRecovery(world: WorldState, v: VesselState, waves: readonly 
     }
   }
   if (ring.state === 'water') {
-    ring.pos[0] += cfg.drift[0] * dt;
-    ring.pos[2] += cfg.drift[1] * dt;
+    ring.pos[0] += (cfg.drift[0] + wind.x * CONFIG.weather.driftPerWind) * dt;
+    ring.pos[2] += (cfg.drift[1] + wind.z * CONFIG.weather.driftPerWind) * dt;
     // The line: no longer than paid out. Taut, it drags the ring toward the cleat.
     const dx = ring.pos[0] - cleat.x;
     const dz = ring.pos[2] - cleat.z;

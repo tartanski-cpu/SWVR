@@ -1,4 +1,6 @@
 import { applyEnvironmentIntent, stepEnvironment } from '../environment/timeOfDay';
+import { stepWeather } from '../environment/weather';
+import { windForce } from '../vessel/physics/windage';
 import { prepareWaves, type PreparedWave } from '../ocean/waves';
 import { stepVessel, type HydroDebug } from '../vessel/physics/vesselPhysics';
 import { vesselContacts } from '../vessel/physics/vesselContact';
@@ -41,7 +43,7 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
     } else if (isCargoIntent(intent.control)) {
       applyCargoIntent(world, intent);
     } else if (intent.targetId === ENVIRONMENT_ID) {
-      applyEnvironmentIntent(world.environment, intent);
+      applyEnvironmentIntent(world.environment, intent, world.time);
     } else if (world.vessels[intent.targetId]) {
       applyVesselIntent(world.vessels[intent.targetId], intent);
     } else if (world.players[intent.targetId]) {
@@ -51,6 +53,7 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
 
   // 2. Integrate systems. Forces are evaluated at the start-of-tick time.
   stepEnvironment(world.environment, dt);
+  stepWeather(world.environment, world.time, dt);
   simWaves = prepareWaves(world.environment.waves, world.time, simWaves);
   // Boat against boat (the tender alongside), from the start-of-tick states.
   // A tender hanging on the davit rides her ship instead (stepped below, after it).
@@ -64,7 +67,11 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
     }
     const payload = payloadOf(world, vessel.id);
     const deckBefore = deckVelocitiesBefore(world, vessel);
-    stepVessel(vessel, VESSEL_DEFS[vessel.defId], simWaves, dt, dbg, world.geography === 'archipelago', payload, touching.get(vessel.id));
+    // External pushes: other boats (contact) and the wind (leeway).
+    const wind = windForce(vessel, VESSEL_DEFS[vessel.defId], world.environment);
+    const ext = touching.get(vessel.id);
+    const external = wind ? [...(ext ?? []), wind] : ext;
+    stepVessel(vessel, VESSEL_DEFS[vessel.defId], simWaves, dt, dbg, world.geography === 'archipelago', payload, external);
     stepDeckCargo(world, vessel, deckBefore, dt);
     stepRefuelling(vessel, VESSEL_DEFS[vessel.defId], dt, world.geography === 'archipelago');
     stepElectrics(vessel, dt);

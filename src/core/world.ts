@@ -10,6 +10,7 @@ import { IdFactory, type EntityId } from './ids';
 import { stockPorts, type CargoItem } from '../cargo/cargo';
 import type { Ping } from '../player/ping';
 import { stowTender } from '../vessel/davit';
+import { createWeather, rebuildWaves, seaForWind } from '../environment/weather';
 import type { DutiesState } from '../duties/duties';
 import { createRescueState, type RescueState } from '../rescue/rescue';
 
@@ -56,7 +57,7 @@ export function createWorld(
   vesselDefId: string = CONFIG.testScene.vesselDefId,
   /** Also give the workboat her tender (the skiff, on the stern davit): the game does, tests may. */
   /** cold: the boat starts dark and cold, battery master off (the game; tests start warm). */
-  opts: { tender?: boolean; cold?: boolean } = {},
+  opts: { tender?: boolean; cold?: boolean; weather?: boolean } = {},
 ): { world: WorldState; localPlayerId: EntityId; vesselId: EntityId } {
   const localPlayerId = ids.next('player');
   const vesselId = ids.next('vessel');
@@ -79,6 +80,12 @@ export function createWorld(
     deliveries: 0,
     rescue: createRescueState(),
   };
+  // Dynamic weather (the game): starting preset, the sea matching its wind.
+  if (opts.weather) {
+    world.environment.weather = createWeather();
+    world.environment.seaScale = seaForWind(world.environment.weather.now.wind);
+    rebuildWaves(world.environment, 0);
+  }
   if (opts.cold && vessel.electrics) {
     vessel.electrics.master = 0;
     for (const k of Object.keys(vessel.electrics.breakers) as (keyof typeof vessel.electrics.breakers)[]) vessel.electrics.breakers[k] = 0;

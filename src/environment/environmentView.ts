@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { CONFIG } from '../config';
 import type { EnvironmentState } from './environmentState';
 import { skyPalette, sunDirection, sunElevationDeg } from './timeOfDay';
+import { visibilityAt } from './weather';
 
 /**
  * Turns environment state into lights, fog and a set of shared colours/vectors that the
@@ -22,7 +23,9 @@ export class EnvironmentView {
 
   private readonly background = new THREE.Color();
   private readonly fog: THREE.Fog;
-  private lastTimeOfDay = Number.NaN;
+  private lastKey = '';
+  /** Visibility where the viewer is (m), for anything that wants it (spotting, sounds). */
+  visibility = Infinity;
 
   constructor(scene: THREE.Scene) {
     this.fog = new THREE.Fog(0xffffff, CONFIG.environment.fogNear, CONFIG.environment.fogFar);
@@ -45,10 +48,16 @@ export class EnvironmentView {
 
   /** @param focus world position the sun light should be centred on (the player). */
   update(env: EnvironmentState, focus: THREE.Vector3): void {
-    // Palette only changes when the time changes.
-    if (env.timeOfDay !== this.lastTimeOfDay) {
-      this.lastTimeOfDay = env.timeOfDay;
+    // Weather where you are: cloud cover, and visibility (fog banks included).
+    const w = env.weather?.now;
+    const cloud = w?.cloud ?? 0;
+    this.visibility = visibilityAt(env, focus.x, focus.z);
+    // The palette only changes when the time or the weather visibly does.
+    const key = `${env.timeOfDay.toFixed(3)}|${cloud.toFixed(2)}|${Math.round(Math.log(this.visibility) * 20)}`;
+    if (key !== this.lastKey) {
+      this.lastKey = key;
       this.applyTimeOfDay(env.timeOfDay);
+      this.applyWeather(cloud, this.visibility);
     }
     this.sun.target.position.copy(focus);
     this.sun.position.copy(focus).addScaledVector(this.sunDir, 100);
@@ -74,5 +83,47 @@ export class EnvironmentView {
     this.hemi.color.copy(this.zenith).lerp(this.horizon, 0.55);
     this.hemi.groundColor.setRGB(p.horizon[0] * 0.3, p.horizon[1] * 0.35, p.horizon[2] * 0.4, THREE.SRGBColorSpace);
     this.hemi.intensity = p.ambientIntensity * 1.35;
+    this.fog.near = CONFIG.environment.fogNear;
+    this.fog.far = CONFIG.environment.fogFar;
   }
+
+  /**
+   * Weather on top of the time-of-day palette:
+   *   cloud      the sky greys toward its own brightness, the sun dims (up to 75 %), the
+   *              sky light a little;
+   *   visibility scene fog closes in (built-in linear fog: from `nearFraction` x visibility
+   *              to the visibility), and in thick fog the whole sky turns the fog colour.
+   * Everything that reads the shared colours (sky dome, ocean, lights) follows.
+   */
+  private applyWeather(cloud: number, visibility: number): void {
+    const grey = (c: THREE.Color, amount: number, scale: number) => {
+      const l = (0.3 * c.r + 0.59 * c.g + 0.11 * c.b) * scale;
+      c.lerp(this.tmpColor.setRGB(l, l * 1.02, l * 1.06), amount);
+    };
+    if (cloud > 0.01) {
+      grey(this.zenith, cloud * 0.85, 1.1);
+      grey(this.horizon, cloud * 0.7, 0.95);
+      this.sunIntensity *= 1 - 0.75 * cloud;
+      this.ambientIntensity *= 1 - 0.2 * cloud;
+      this.sun.intensity = this.sunIntensity;
+      this.hemi.intensity = this.ambientIntensity * 1.35;
+      this.hemi.color.copy(this.zenith).lerp(this.horizon, 0.55);
+    }
+    const far = Math.min(CONFIG.environment.fogFar, visibility);
+    this.fog.far = far;
+    this.fog.near = Math.min(CONFIG.environment.fogNear, far * CONFIG.weather.nearFraction);
+    // Fog: the sky dome takes the fog colour as visibility drops below ~3 km.
+    const thick = 1 - Math.min(1, Math.max(0, (Math.log(visibility) - Math.log(300)) / (Math.log(3000) - Math.log(300))));
+    if (thick > 0) {
+      const fogC = this.tmpColor2.copy(this.horizon);
+      grey(fogC, 0.6, 1.05);
+      this.zenith.lerp(fogC, thick);
+      this.horizon.lerp(fogC, thick);
+    }
+    this.background.copy(this.horizon);
+    this.fog.color.copy(this.horizon);
+  }
+
+  private readonly tmpColor = new THREE.Color();
+  private readonly tmpColor2 = new THREE.Color();
 }

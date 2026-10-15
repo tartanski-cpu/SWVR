@@ -13,6 +13,14 @@ export interface MenuHost {
   seaScale(): number;
   setSeaScale(scale: number): void;
   waveHeight(): number;
+  /** Weather: one-line status, the preset now, force one, and the debug switches. */
+  weatherStatus(): string;
+  weatherPreset(): string;
+  setWeather(preset: string): void;
+  weatherFixed(): boolean;
+  setWeatherFixed(on: boolean): void;
+  weatherFast(): boolean;
+  setWeatherFast(on: boolean): void;
   coupling(): number;
   setCoupling(value: number): void;
   smoothWalk(): boolean;
@@ -143,7 +151,24 @@ export function mainMenu(h: MenuHost): MainMenu {
       label: 'Time flow',
       buttons: TIME_FLOW.map(([label, rate]) => choice(label, rate, () => h.timeScale(), (v) => h.setTimeScale(v))),
     },
-    { heading: 'Sea' },
+    { heading: 'Weather' },
+    { label: '', buttons: [{ text: () => h.weatherStatus() }] },
+    {
+      label: '',
+      buttons: Object.keys(CONFIG.weather.presets).map((name) => ({
+        text: name,
+        active: () => h.weatherPreset() === name,
+        press: () => h.setWeather(name),
+      })),
+    },
+    {
+      label: 'Director',
+      buttons: [
+        { text: () => (h.weatherFixed() ? 'Fixed weather' : 'Changing'), active: () => h.weatherFixed(), press: () => h.setWeatherFixed(!h.weatherFixed()) },
+        { text: 'Fast ×10', active: () => h.weatherFast(), press: () => h.setWeatherFast(!h.weatherFast()) },
+      ],
+    },
+    { heading: 'Sea (test: the wind takes it back)' },
     {
       label: '',
       buttons: CONFIG.ocean.seaStates.map((st) => choice(st.name, st.scale, () => h.seaScale(), (v) => h.setSeaScale(v))),
