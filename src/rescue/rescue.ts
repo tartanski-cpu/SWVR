@@ -35,6 +35,7 @@ import { RESCUE_DEFS, type RescueDef } from './rescueDefs';
 import type { Vec3 } from '../core/math';
 import type { PreparedWave } from '../ocean/waves';
 import { acceptTowCall, towStatus } from '../tow/tow';
+import { acceptFireCall, fireStatus } from '../fire/fire';
 import { applyRecoveryIntent, freeSeat, stepRecovery, type HookState, type RingState, type Shout } from './recovery';
 
 export interface RadioMessage {
@@ -384,7 +385,7 @@ export function stepRescue(world: WorldState, dt: number, waves: readonly Prepar
     }
     const run = r.run;
     // A tow job on: the call waits until it's over.
-    if (run && run.triggerAt !== null && !r.active && !world.tow?.job) {
+    if (run && run.triggerAt !== null && !r.active && !world.tow?.job && !world.fire?.job) {
       const a = portById(run.from)!;
       if (Math.hypot(x - a.x, z - a.z) >= run.triggerAt) {
         run.triggerAt = null; // one call per run
@@ -442,7 +443,7 @@ export function applyRescueIntent(world: WorldState, intent: Intent): void {
   switch (intent.control) {
     case 'rescueHandset': {
       // A ringing tow call is answered the same way.
-      if (intent.value > 0.5 && acceptTowCall(world)) break;
+      if (intent.value > 0.5 && (acceptTowCall(world) || acceptFireCall(world))) break;
       const inc = r.active;
       // The VHF needs 12 V: with the bridge dark the call just rings out unheard.
       if (intent.value > 0.5 && inc?.phase === 'calling' && (!v || isPowered(v, 'radio'))) {
@@ -501,7 +502,7 @@ export function runStatus(world: WorldState): string {
   const runTo = short(r?.run?.to);
   const aboardTo = v ? short(cargoDestination(world, v.id)) : undefined;
   if (inc?.phase === 'calling') return 'Distress call: pick up the handset';
-  const tow = !inc ? towStatus(world) : null;
+  const tow = !inc ? (towStatus(world) ?? fireStatus(world)) : null;
   if (tow) return tow;
   if (inc?.phase === 'accepted') return runTo || aboardTo ? `Cargo for ${runTo ?? aboardTo}: paused (rescue)` : 'Rescue under way';
   if (inc?.phase === 'recovered') {

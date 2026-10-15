@@ -143,9 +143,13 @@ export class ChartPlotter {
     const job = world.tow?.job;
     const towS = job && job.phase === 'accepted' ? world.vessels[job.vesselId] : undefined;
     const tow = towS && !CONFIG.rescue.plotYourself ? towS : undefined;
+    const fireJob = world.fire?.job && world.fire.job.phase !== 'calling' && !CONFIG.rescue.plotYourself ? world.fire.job : null;
     if (inc) {
       [fx, fz] = [inc.x, inc.z];
       label = 'SEARCH';
+    } else if (fireJob) {
+      [fx, fz] = [fireJob.x, fireJob.z];
+      label = 'FIRE';
     } else if (tow && !job?.fast) {
       [fx, fz] = [tow.position[0], tow.position[2]];
       label = 'TOW';
@@ -229,6 +233,19 @@ export class ChartPlotter {
           g.fillRect(tx - 3, ty - 3, 6, 6);
         }
       }
+    }
+
+    // A fire: a red flame mark.
+    if (fireJob) {
+      const [px, py] = toPx(fireJob.x, fireJob.z);
+      g.fillStyle = fireJob.phase === 'out' ? '#808080' : '#ff3a1a';
+      g.beginPath();
+      g.moveTo(px, py - 12);
+      g.quadraticCurveTo(px + 9, py, px, py + 8);
+      g.quadraticCurveTo(px - 9, py, px, py - 12);
+      g.fill();
+      g.font = 'bold 16px system-ui, sans-serif';
+      g.fillText(fireJob.phase === 'out' ? 'OUT' : 'FIRE', px + 11, py - 10);
     }
 
     // The tow: an orange diamond.

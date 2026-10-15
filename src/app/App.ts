@@ -69,6 +69,10 @@ import { WorldView } from '../world/view/worldView';
 import { LaserBeam } from '../player/laserBeam';
 import { TowlineView } from '../tow/towlineView';
 import { Binoculars } from '../player/binoculars';
+import { fireAlertT } from '../fire/fire';
+import { FireView, JetView } from '../fire/fireView';
+import { FireAudio } from '../audio/fireAudio';
+import { jetOn } from '../fire/fire';
 import { towAlertT, towReach, towStatus } from '../tow/tow';
 import { RadioAudio } from '../audio/radioAudio';
 import { WhistleAudio } from '../audio/whistleAudio';
@@ -188,6 +192,10 @@ export class App {
   private readonly laser = new LaserBeam();
   /** Binoculars on the dash (VR: pick up and raise to the eyes; desktop: hold Z). */
   private binoculars!: Binoculars;
+  /** Fire missions: the fire, and the monitor's jet. */
+  private readonly fireView = new FireView();
+  private readonly jetView = new JetView();
+  private readonly fireAudio = new FireAudio();
   /** The towline and our towing post (towing missions). */
   private readonly towline = new TowlineView();
   private laserHit: THREE.Vector3 | null = null;
@@ -319,7 +327,7 @@ export class App {
       CONFIG.render.far,
     );
 
-    const created = createWorld(this.ids, undefined, { tender: true, cold: true, weather: true, tows: true });
+    const created = createWorld(this.ids, undefined, { tender: true, cold: true, weather: true, tows: true, fires: true });
     this.world = created.world;
     this.localPlayerId = created.localPlayerId;
     this.soloPlayerId = created.localPlayerId;
@@ -354,7 +362,7 @@ export class App {
     if (tugView) this.towline.attachPost(tugView.root, VESSEL_DEFS[this.world.vessels[this.testVesselId].defId]);
     this.binoculars = new Binoculars(this.camera);
     if (tugView) this.binoculars.stow(tugView.root);
-    this.scene.add(this.towline.root);
+    this.scene.add(this.towline.root, this.fireView.root, this.jetView.root);
     this.setupBridge();
 
     setupXR(this.renderer, this.camera);
@@ -374,6 +382,7 @@ export class App {
       this.motorAudio.attach(this.engineAudio.context);
       this.windAudio.attach(this.engineAudio.context);
       this.paperAudio.attach(this.engineAudio.context);
+      this.fireAudio.attach(this.engineAudio.context);
     };
     window.addEventListener('pointerdown', unlock);
     window.addEventListener('keydown', unlock);
@@ -522,7 +531,7 @@ export class App {
     const testVessel = this.world.vessels[this.testVesselId];
     if (this.bridge && testVessel) {
       this.bridge.update(testVessel, dt, this.dashInView(), this.world.environment);
-      this.bridge.radio.update(this.world.rescue, runStatus(this.world), dt, isPowered(testVessel, 'radio'), towAlertT(this.world) >= 0);
+      this.bridge.radio.update(this.world.rescue, runStatus(this.world), dt, isPowered(testVessel, 'radio'), towAlertT(this.world) >= 0 || fireAlertT(this.world) >= 0);
       // Say so when the anchor is up or holding (the speed screen shows it all the time).
       const ap = testVessel.anchor.phase;
       if (ap !== this.lastAnchorPhase) {
@@ -558,6 +567,15 @@ export class App {
       if (id === this.testVesselId) ({ slam, lap } = hit);
     }
     this.towline.update(this.world, this.vesselRoots, this.testVesselId, this.renderWaves);
+    this.fireView.update(this.world, this.renderWaves, renderTime, dt);
+    this.jetView.update(this.world, this.world.vessels[this.testVesselId], this.vesselRoots.get(this.testVesselId), renderTime);
+    {
+      const fj = this.world.fire?.job;
+      const tv = this.world.vessels[this.testVesselId];
+      const burning = fj && fj.phase !== 'calling' ? fj.intensity : 0;
+      const dist = fj ? Math.hypot(fj.x - this.focus.x, fj.z - this.focus.z) : 1e9;
+      this.fireAudio.update(burning, dist, !!tv && jetOn(tv), this.insideHouse ? this.closed : 0);
+    }
     this.worldView.lights.update(renderTime, darkness);
     this.targetsView.visibility = this.environment.visibility;
     this.updateWeatherViews(renderTime, darkness, dt);
@@ -833,7 +851,7 @@ export class App {
     const r = this.world.rescue;
     if (!r || !this.bridge) return;
     const id = r.radio?.id ?? 0;
-    const alertT = r.active?.phase === 'calling' ? r.active.alertT : towAlertT(this.world);
+    const alertT = r.active?.phase === 'calling' ? r.active.alertT : Math.max(towAlertT(this.world), fireAlertT(this.world));
     this.radioAudio.setDistance(this.bridge.radio.root.getWorldPosition(this.tmpV).distanceTo(this.focus));
     if (!this.radioSeen) {
       this.radioSeen = { id, alertT };
@@ -1295,6 +1313,9 @@ export class App {
       towNear: (kind) => this.pushVesselIntent('towDebugNear', 1, kind),
       towCall: () => this.pushVesselIntent('towDebugCall', 1),
       towEnd: () => this.pushVesselIntent('towDebugEnd', 1),
+      fireNear: (kind) => this.pushVesselIntent('fireDebugNear', 1, kind),
+      fireCall: () => this.pushVesselIntent('fireDebugCall', 1),
+      fireEnd: () => this.pushVesselIntent('fireDebugEnd', 1),
       showTargets: () => !!this.bridge?.chart.showTargets,
       toggleShowTargets: () => {
         if (this.bridge) this.bridge.chart.showTargets = !this.bridge.chart.showTargets;
@@ -1371,6 +1392,7 @@ export class App {
       w.forecast = snap.forecast;
       w.traffic = snap.traffic;
       w.tow = snap.tow;
+      w.fire = snap.fire;
       // The log comes in its own messages when it changes (not in every snapshot).
       w.log = client.log ?? snap.log;
       w.lost = snap.lost;

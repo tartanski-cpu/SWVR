@@ -16,7 +16,7 @@ import { Control, type Pointer } from './Control';
  */
 export class Joystick extends Control {
   readonly kind = 'grab' as const;
-  readonly label = 'Searchlight joystick';
+  readonly label: string;
   private readonly stick = new THREE.Group();
   private readonly knob: THREE.Mesh;
   /** Hand travel (m) for full deflection, and the stick's tilt at full deflection (rad). */
@@ -29,11 +29,19 @@ export class Joystick extends Control {
   private lastPan = 0;
   private lastTilt = 0;
 
+  /**
+   * @param channels the pan / tilt intents it drives and reads back (the searchlight's by
+   *                 default; the fire monitor's joystick drives monPan / monTilt)
+   */
   constructor(
     id: string,
     private readonly opts: { panRateDeg: number; tiltRateDeg: number; panLimitDeg: number; tiltMinDeg: number; tiltMaxDeg: number },
+    private readonly channels: { pan: 'spotPan' | 'monPan'; tilt: 'spotTilt' | 'monTilt' } = { pan: 'spotPan', tilt: 'spotTilt' },
+    label = 'Searchlight joystick',
+    knobColor = 0xe0b020,
   ) {
-    super(id, 'spotPan');
+    super(id, channels.pan);
+    this.label = label;
     const base = this.fixed(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.03, 12), new THREE.MeshLambertMaterial({ color: 0x23282c })));
     base.position.y = 0.015;
     const boot = this.fixed(new THREE.Mesh(new THREE.SphereGeometry(0.03, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0x15181a })));
@@ -41,7 +49,7 @@ export class Joystick extends Control {
     this.stick.position.y = 0.035;
     const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.011, 0.1, 8), this.material(0x9aa0a6));
     rod.position.y = 0.05;
-    this.knob = new THREE.Mesh(new THREE.SphereGeometry(0.024, 12, 8), this.material(0xe0b020));
+    this.knob = new THREE.Mesh(new THREE.SphereGeometry(0.024, 12, 8), this.material(knobColor));
     this.knob.position.y = 0.105;
     this.stick.add(rod, this.knob);
     this.root.add(base, boot, this.stick);
@@ -98,8 +106,8 @@ export class Joystick extends Control {
 
   sync(state: VesselState): void {
     if (this.held) return;
-    this.pan = state.controls.spotPan;
-    this.tilt = state.controls.spotTilt;
+    this.pan = state.controls[this.channels.pan];
+    this.tilt = state.controls[this.channels.tilt];
     this.lastPan = this.pan;
     this.lastTilt = this.tilt;
   }
@@ -109,11 +117,11 @@ export class Joystick extends Control {
     this.pan = clamp(pan, -o.panLimitDeg, o.panLimitDeg);
     this.tilt = clamp(tilt, o.tiltMinDeg, o.tiltMaxDeg);
     if (Math.abs(this.pan - this.lastPan) > 0.05) {
-      this.ctx?.emit('spotPan', this.pan);
+      this.ctx?.emit(this.channels.pan, this.pan);
       this.lastPan = this.pan;
     }
     if (Math.abs(this.tilt - this.lastTilt) > 0.05) {
-      this.ctx?.emit('spotTilt', this.tilt);
+      this.ctx?.emit(this.channels.tilt, this.tilt);
       this.lastTilt = this.tilt;
     }
   }

@@ -44,6 +44,7 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 |---|---|
 | Click the view | Capture the mouse for looking (Esc releases it) |
 | O | Menu, floating in front of you: aim and click (same menu as in VR) |
+| Z (hold) | **Binoculars**: 7x zoom through two lens circles (the key left of X, so Y on a German keyboard) |
 | W A S D | Walk (with collision; hold Shift to **run**) |
 | F | Toggle walk / free-fly camera (Space / C = up / down when flying) |
 | Space / C at the ladder | Climb up / down (walk forward off the top onto the roof) |
@@ -227,6 +228,26 @@ The dash shows:
 - **Fuel:** the tank holds 600 L. Flat out burns about 49 L/h; 6–7 kn about 11 L/h. Run dry and the engine stops; it won't restart until you refuel.
 - **Cold start:** the engine starts cold and smokes white until it warms up, which takes about 5 minutes under way.
 - **Overheating:** with the pump-failure fault on, it overheats under load. The alarm sounds at 95 °C, power is derated from 100 °C, and it shuts down at 115 °C. Ease off before that.
+
+### NAV / WIND display and binoculars
+
+- **NAV / WIND** (overhead, just forward of the light switches; glance up from the wheel):
+  - your position (latitude and longitude);
+  - speed and course over ground, heading;
+  - the true wind (direction it blows from, knots, Beaufort force);
+  - a dial with the apparent wind (what you feel on deck) relative to the bow.
+- **Binoculars** lie on top of the dash, port end. VR: grip them to pick them up and raise them to your eyes for a 7× view; let go and they go back. Desktop: hold Z.
+
+### Fire missions
+
+Out of harbour, with no other job on, a fire is reported on the VHF every 5–11 minutes. It's either a fishing boat burning at sea, or a shed ashore that you can reach from deep water. Pick up the handset to take it; the plotter marks it **FIRE**.
+
+1. **Engine running, FIRE PUMP on.** The switch is on the console, right of the wheel. The pump is engine-driven, so there's no water with the engine off.
+2. **Aim the fire monitor** on the wheelhouse roof with its joystick (red knob, on its own pedestal starboard of the throttle). Sideways pans it, forward and back raises and lowers it. The jet flies a real arc, carried by the boat's way and blown a little by the wind.
+3. **Keep the jet on the fire.** The smoke turns to white steam when you're on target, and the radio line shows how much is left. Left alone, a fire grows. About a minute of steady hosing puts out a big one.
+4. **Out:** the coastguard thanks you, and it counts as a mission and goes in the log.
+
+The duty board walks you through it. The menu's Tests tab has debug buttons that light one close by (Boat, Shore), raise a call, or end it.
 
 ### Towing missions
 

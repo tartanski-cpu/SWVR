@@ -18,6 +18,7 @@ import { OverheadPanel } from './overheadPanel';
 import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
 import { Hatch } from './Hatch';
 import { WheelhouseDoor } from './WheelhouseDoor';
+import { MonitorView } from '../fire/monitorView';
 import { hullPlan } from '../vessel/layout';
 import { RainGlass } from '../vessel/view/rainGlass';
 import { Dipstick, FenderBasket, FendersView, OilCan } from './deckGear';
@@ -45,6 +46,8 @@ export class Bridge {
   readonly overhead: OverheadPanel;
   /** Rain on the front windows and the wipers (the App feeds it the weather). */
   readonly rainGlass: RainGlass;
+  /** The fire monitor on the roof (boats that have one). */
+  private monitor: MonitorView | null = null;
   /** The aft door (press to open / shut). */
   readonly door: WheelhouseDoor;
   /** The fenders over the side or stowed (boats that carry them). */
@@ -103,6 +106,20 @@ export class Bridge {
     this.overhead = new OverheadPanel(def);
     this.root.add(this.overhead.root);
     this.controls.push(wheel, lever, start, heat, key, horn, nav, anchor, cabin, dock, spot, wipers, windows, joy, this.radio.handset, ...this.overhead.controls);
+    // Fire monitor (fire missions): the FIRE PUMP switch, its joystick (red knob) and the
+    // monitor itself on the roof.
+    const extraLabels: [string, [number, number, number]][] = [];
+    if (def.fireMonitor) {
+      const m = def.fireMonitor;
+      const pump = new Toggle('firePump', 'firePump', 'FIRE PUMP (needs the engine running)', (s) => s.controls.firePump);
+      pump.root.position.fromArray(m.pumpSwitch);
+      const monJoy = new Joystick('monJoystick', m, { pan: 'monPan', tilt: 'monTilt' }, 'Fire monitor joystick', 0xd8301a);
+      monJoy.root.position.fromArray(m.joystick);
+      this.controls.push(pump, monJoy);
+      this.monitor = new MonitorView(m);
+      this.root.add(this.monitor.root);
+      extraLabels.push(['FIRE PUMP', m.pumpSwitch], ['MONITOR', m.joystick]);
+    }
     const wh = def.layout.wheelhouse;
     this.door = new WheelhouseDoor(wh.doorWidth, wh.doorHeight);
     this.door.root.position.set(0, wh.floorY, wh.aft + 0.03);
@@ -199,9 +216,10 @@ export class Bridge {
     // The throttle's pedestal, and its mirror image to port for the searchlight joystick.
     const pedestal = pedestalAt(lp[0]);
     const spotPedestal = pedestalAt(b.spotJoystick.position[0]);
+    if (def.fireMonitor) extraFixed.push(pedestalAt(def.fireMonitor.joystick[0]));
     this.instruments = new InstrumentPanel(b);
     this.dashAnchor.position.set(0, (d.top + d.bottom) / 2, d.aft);
-    this.root.add(bakeFixedParts(this.root, [dash, pedestal, spotPedestal, this.overhead.body, ...extraFixed]), this.instruments.mesh, buildLabels(b), this.dashAnchor);
+    this.root.add(bakeFixedParts(this.root, [dash, pedestal, spotPedestal, this.overhead.body, ...extraFixed]), this.instruments.mesh, buildLabels(b, extraLabels), this.dashAnchor);
   }
 
   /**
@@ -219,6 +237,7 @@ export class Bridge {
     this.electrics?.update(state, dt);
     this.lamps.update(state, this.def);
     this.fenders?.update(state);
+    this.monitor?.update(state);
   }
 }
 
@@ -243,7 +262,7 @@ function bakeFixedParts(root: THREE.Object3D, extra: THREE.BufferGeometry[]): TH
 }
 
 /** Small engraved labels on the console top in front of each control (one draw call). */
-function buildLabels(b: WorkboatDef['bridge']): THREE.Mesh {
+function buildLabels(b: WorkboatDef['bridge'], extra: [string, [number, number, number]][] = []): THREE.Mesh {
   const labels: [string, [number, number, number]][] = [
     ['AHEAD ▲  ▼ ASTERN', b.lever.position],
     ['START', b.startButton.position],
@@ -258,6 +277,7 @@ function buildLabels(b: WorkboatDef['bridge']): THREE.Mesh {
     ['WIPERS', b.wipersSwitch.position],
     ['WINDOWS', b.windowsSwitch.position],
     ['SEARCHLIGHT', b.spotJoystick.position],
+    ...extra,
   ];
   const slotW = 512;
   const slotH = 64;

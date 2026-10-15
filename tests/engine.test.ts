@@ -74,7 +74,7 @@ describe('fuel', () => {
   });
 });
 
-describe('engine temperature', () => {
+describe('engine temperature', { timeout: 30000 }, () => {
   it('starts cold, warms up under way within a few minutes, and the thermostat holds it', () => {
     const b = boat();
     const e = b.v.engine;

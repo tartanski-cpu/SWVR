@@ -18,6 +18,7 @@ import { applyLogIntent, isLogIntent, stepLog } from '../log/log';
 import { applyTrafficIntent, stepTraffic } from '../traffic/traffic';
 import { stepDuties } from '../duties/duties';
 import { applyDavitIntent, onDavit, stepTender } from '../vessel/davit';
+import { applyFireIntent, isFireIntent, stepFire } from '../fire/fire';
 import { applyTowIntent, isTowIntent, stepTow, towlineForces } from '../tow/tow';
 import { ENVIRONMENT_ID, type EntityId } from './ids';
 import type { Intent } from './intents';
@@ -41,6 +42,8 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
       applyBoardIntent(world, intent);
     } else if (isRescueIntent(intent.control)) {
       applyRescueIntent(world, intent);
+    } else if (isFireIntent(intent.control)) {
+      applyFireIntent(world, intent);
     } else if (isTowIntent(intent.control)) {
       applyTowIntent(world, intent);
     } else if (intent.control === 'davit') {
@@ -97,6 +100,7 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
   stepDuties(world);
   stepRescue(world, dt, simWaves);
   stepTow(world, dt);
+  stepFire(world, dt);
   world.tick += 1;
   world.time = world.tick * dt;
 }

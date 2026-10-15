@@ -1288,6 +1288,32 @@ The brief's "no new physics bodies or ropes" rule was flagged; the owner approve
   - Under power the turning circle is unchanged (the sea-trial band still holds).
 - **Tests:** the ladder (a low rung, and the jump button near it); the coasting turn, better than with the bare rudder.
 
+## NAV / WIND display, binoculars, fire missions (owner requests)
+
+The brief's "no new particle effects" rule was flagged: the fire is drawn without a particle system. The flames and smoke are a fixed handful of camera-facing billboards animated by a shader (two instanced draw calls), and the jet is one instanced mesh along its arc. All of it is only there during a fire.
+
+- **NAV / WIND display** (`controls/instruments.ts`, the atlas's free sixth slot; no extra draw call):
+  - Overhead on the centreline just forward of the overhead panel, tilted toward the helm.
+  - Shows position (lat/lon), SOG, COG, heading, the true wind (from, knots, Beaufort), and an apparent-wind dial relative to the bow.
+  - A first spot, hung lower in front of the windscreen, blocked the view ahead and was moved.
+- **Binoculars** (`player/binoculars.ts`), 7×, on the dash top, port end:
+  - VR: grip them to pick them up; raised within 20 cm of the eyes they show a head-locked lens view. That view is a second, small (640² px), narrow-field render of the scene, only while you're looking. WebXR fixes the eyes' projection, so it can't be a zoom of the eyes themselves.
+  - Desktop: hold Z. The field of view narrows 7×, the screen is masked to two circles, and mouse look slows to match.
+- **Fix found on the way:** the desktop heave filter could lift the eye 0.4 m for several seconds after boarding (the boat was still settling from its spawn drop). A sudden jump in deck height now resets it.
+- **Fire missions** (`fire/fire.ts`, `fire/fireView.ts`, `fire/monitorView.ts`, `audio/fireAudio.ts`):
+  - **Calls** come like tows: one job at a time (rescue, tow and fire each wait for the others), handset to accept, 2-minute timeout.
+  - A **boat fire** burns 400–800 m ahead in open water. A **shore fire** is a shed on dry land 0.8–6 m up, with water at least 6 m deep within 45 m, within 1.5 km of us.
+  - **The fire:** intensity starts at 0.6 and grows at 0.004/s up to 1. Water on it knocks it down at 0.02/s at full flow, so about a minute from full. Below 0.03 it's out. It counts as a mission and goes in the log; the wreck smoulders 40 s, then goes.
+  - **The monitor:** a red water cannon on the roof (pan ±170°, elevation −10…55°), driven like the searchlight from its own joystick (red knob, pedestal starboard of the throttle; `monPan` / `monTilt`, held like the searchlight in multiplayer). The FIRE PUMP switch is on the console right of the wheel.
+  - **The jet** flows with the pump on and the engine running, at 30 m/s and 2400 L/min. `jetPath` integrates the nozzle velocity plus the boat's own, with gravity, air drag 0.12/s and 35 % wind drift, down to the sea or the ground.
+    - The same function scores hits (the arc passing within the hit radius, up to the flames' height) and draws the jet from the rendered boat.
+    - About 70–90 m range at 30° elevation.
+  - **Views:** a burnt fishing-boat hulk bobbing on the swell, or a shed. Flames are alpha-blended so they stay orange against the sky. The smoke column drifts downwind and turns to white steam while you're on target. The jet is translucent white water widening as it flies, with a splash where it lands.
+  - **Sound:** a fire roar (rumble and crackle) by distance and intensity, and a jet hiss. Both are muffled in the wheelhouse.
+  - **Wiring:** duty board (answer; engine running and FIRE PUMP on; put it out), plotter FIRE mark, VHF rings for fire calls, status line, and Tests-tab debug buttons (Boat / Shore / Call / End).
+- **Tests (4):** the jet only with pump and engine, an arc ahead that's shorter lower and to starboard with pan; a boat fire grows unattended, then the aimed jet puts it out (counted, logged, duty done, wreck removed); calls, handset and timeout; a shore fire is on dry land with deep water within reach.
+- The engine-temperature suite (14 simulated minutes) gets a 30 s limit like the other long-simulation suites.
+
 ## Planned next (owner requests, not started)
 
 1. ~~Fuel and oil temperature~~ **Done** (see above).

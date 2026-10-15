@@ -301,7 +301,7 @@ export function stepTow(world: WorldState, dt: number): void {
   }
 
   if (!job) {
-    const busy = !!world.rescue?.active;
+    const busy = !!world.rescue?.active || !!world.fire?.job;
     const out = nearestPort(v.position[0], v.position[2]).dist > CONFIG.rescue.harbourRadius;
     // Only out of harbour, with nothing else on; otherwise the call waits.
     if (t.calls && world.time >= t.nextAt && out && !busy) startTowCall(world, v);

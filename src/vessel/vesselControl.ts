@@ -46,9 +46,9 @@ export function dropVessel(s: VesselState): void {
 }
 
 /** Grab controls that can be held, by channel. */
-const HOLDABLE: Record<string, true> = { lever: true, helm: true, spotPan: true };
+const HOLDABLE: Record<string, true> = { lever: true, helm: true, spotPan: true, monPan: true };
 /** Intent -> the hold that guards it (the joystick drives pan and tilt). */
-const HOLD_KEY: Record<string, string> = { lever: 'lever', helm: 'helm', spotPan: 'spotPan', spotTilt: 'spotPan' };
+const HOLD_KEY: Record<string, string> = { lever: 'lever', helm: 'helm', spotPan: 'spotPan', spotTilt: 'spotPan', monPan: 'monPan', monTilt: 'monPan' };
 
 /** Let go of everything a player is holding (they left, or the game ended). */
 export function releaseHolds(s: VesselState, playerId?: string): void {
@@ -244,6 +244,21 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
       const sp = VESSEL_DEFS[s.defId].spotlight;
       if (!sp) break;
       s.controls.spotTilt = clamp(intent.value, sp.tiltMinDeg, sp.tiltMaxDeg);
+      break;
+    }
+    case 'firePump':
+      s.controls.firePump = intent.value > 0.5 ? 1 : 0;
+      break;
+    case 'monPan': {
+      const m = VESSEL_DEFS[s.defId].fireMonitor;
+      if (!m) break;
+      s.controls.monPan = clamp(intent.value, -m.panLimitDeg, m.panLimitDeg);
+      break;
+    }
+    case 'monTilt': {
+      const m = VESSEL_DEFS[s.defId].fireMonitor;
+      if (!m) break;
+      s.controls.monTilt = clamp(intent.value, m.tiltMinDeg, m.tiltMaxDeg);
       break;
     }
     case 'dock':

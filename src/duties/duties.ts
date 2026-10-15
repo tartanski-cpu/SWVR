@@ -25,6 +25,7 @@
  *   cargo       cargo aboard bound for a port: take her there and set it down ashore.
  *   rescue      a distress call (answer it), the search and recovery, landing survivors.
  *   tow         a tow job: answer the call, make fast, bring her into a harbour.
+ *   fire        a fire job: answer the call, pump on, put it out with the monitor.
  * The log is optional (owner request): writing entries never shows up here.
  */
 import { CONFIG } from '../config';
@@ -32,6 +33,7 @@ import type { WorldState } from '../core/world';
 import { visibilityAt } from '../environment/weather';
 import { isPowered } from '../vessel/electrics';
 import { cargoDestination, nearestPort, portById } from '../rescue/rescue';
+import { jetOn } from '../fire/fire';
 import { answerFogSignal } from '../traffic/traffic';
 import { PORTS } from '../world/archipelago';
 import { allBerths } from '../world/berths';
@@ -49,7 +51,7 @@ export interface DutyStep {
 
 export interface Duty {
   id: string;
-  kind: 'startup' | 'fogSignal' | 'secure' | 'bilge' | 'fendersOut' | 'fendersIn' | 'lash' | 'oil' | 'cargo' | 'rescue' | 'tow';
+  kind: 'startup' | 'fogSignal' | 'secure' | 'bilge' | 'fendersOut' | 'fendersIn' | 'lash' | 'oil' | 'cargo' | 'rescue' | 'tow' | 'fire';
   title: string;
   steps: DutyStep[];
   createdAt: number;
@@ -312,6 +314,17 @@ function stepRescueDuty(world: WorldState, d: DutiesState): void {
   syncJob(d, 'rescue', live, `Rescue: ${what}`, steps, world.time);
 }
 
+/** The fire job (answer, pump on, put it out). */
+function stepFireDuty(world: WorldState, d: DutiesState, v: VesselState | undefined): void {
+  const job = world.fire?.job;
+  const live = job && job.phase !== 'out' ? `${job.kind}@${Math.round(job.callT)}` : null;
+  syncJob(d, 'fire', live, job?.kind === 'shore' ? 'Fire: a shed ashore' : 'Fire: a fishing boat', [
+    { text: 'Answer the call: pick up the VHF handset', done: !!job && job.phase !== 'calling' },
+    { text: 'Engine running, FIRE PUMP on (console, right of the wheel)', done: !!v && jetOn(v) },
+    { text: 'Put it out: aim the monitor with its joystick (red knob)', done: false },
+  ], world.time);
+}
+
 /** The tow job (answer, make fast, bring her in). */
 function stepTowDuty(world: WorldState, d: DutiesState): void {
   const job = world.tow?.job;
@@ -366,6 +379,7 @@ export function stepDuties(world: WorldState): void {
   }
   stepRescueDuty(world, d);
   stepTowDuty(world, d);
+  stepFireDuty(world, d, v);
 
   for (const x of d.items) {
     if (x.doneAt === undefined && !x.holdOpen && x.steps.length && x.steps.every((s) => s.done || s.optional)) {

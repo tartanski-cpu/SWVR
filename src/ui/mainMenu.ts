@@ -110,6 +110,10 @@ export interface MenuHost {
   towNear(kind: string): void;
   towCall(): void;
   towEnd(): void;
+  /** Debug fires: one close by ('boat' / 'shore'), a call, end it. */
+  fireNear(kind: string): void;
+  fireCall(): void;
+  fireEnd(): void;
   showTargets(): boolean;
   toggleShowTargets(): void;
   /** Move the boat (and you, aboard) to port i's berth or anchorage. */
@@ -443,6 +447,15 @@ export function mainMenu(h: MenuHost): MainMenu {
         { text: 'Barge', press: () => h.towNear('barge') },
         { text: 'Call', press: () => h.towCall() },
         { text: 'End', press: () => h.towEnd() },
+      ],
+    },
+    {
+      label: 'Fire',
+      buttons: [
+        { text: 'Boat', press: () => h.fireNear('boat') },
+        { text: 'Shore', press: () => h.fireNear('shore') },
+        { text: 'Call', press: () => h.fireCall() },
+        { text: 'End', press: () => h.fireEnd() },
       ],
     },
     { heading: 'Debug views' },

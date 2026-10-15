@@ -812,6 +812,30 @@ export const CONFIG = {
         tiltRateDeg: 22,
       },
       /**
+       * Fire monitor (fire missions, fire/fire.ts): a water cannon on the wheelhouse roof,
+       * aft of the searchlight, fed by an engine-driven pump. In the wheelhouse: the FIRE
+       * PUMP switch on the console (right of the wheel) and the monitor joystick on its own
+       * pedestal starboard of the throttle (red knob): pan (+ to starboard) and elevation
+       * at a rate, like the searchlight's. The jet leaves the nozzle at `nozzleSpeed` m/s
+       * (`flowLpm` L/min) and flies a ballistic arc, slowed a little by the air
+       * (`airDrag`, 1/s) and blown downwind (`windDrift` of the wind's speed); it only
+       * flows with the pump on AND the engine running (no pressure otherwise).
+       */
+      fireMonitor: {
+        position: [0, 3.75, -0.55] as [number, number, number],
+        joystick: [0.85, 2.16, -1.15] as [number, number, number],
+        pumpSwitch: [0.27, 2.16, -1.52] as [number, number, number],
+        panLimitDeg: 170,
+        tiltMinDeg: -10,
+        tiltMaxDeg: 55,
+        panRateDeg: 40,
+        tiltRateDeg: 22,
+        nozzleSpeed: 30,
+        flowLpm: 2400,
+        airDrag: 0.12,
+        windDrift: 0.35,
+      },
+      /**
        * Docking (the DOCK button) and the mooring lines that hold her: bow and stern line
        * points (vessel axes, at the deck edge on the berth side are found automatically).
        */
@@ -1056,6 +1080,39 @@ export const CONFIG = {
     postInset: 0.4,
     /** Debug "tow job alongside": this far astern of us (m). */
     debugDistance: 12,
+  },
+
+  /**
+   * Fire missions (fire/fire.ts; the monitor itself is CONFIG.vessels.workboat.fireMonitor).
+   * Out of harbour with no other job on, a fire is reported every so often: a fishing boat
+   * burning at sea (`shoreChance` of the time a fire ashore instead, if a spot is found).
+   * It starts at `startIntensity`, grows at `growth` per s to 1, and the jet knocks it down
+   * at `douse` per s at full flow on target (net: about a minute's steady hosing from
+   * full). Out below `outBelow`; the wreck smoulders `removeAfter` s. The jet hits within
+   * `hitRadius` m of it, up to the flames' height (`flameHeight` x 0.4..1 with intensity).
+   */
+  fire: {
+    every: [300, 660] as [number, number],
+    shoreChance: 0.5,
+    ahead: [400, 800] as [number, number],
+    offset: [100, 300] as [number, number],
+    minDepth: 6,
+    minPortDistance: 350,
+    /** Ashore: ground this high (m), with water `minDepth` deep within `shoreReach` m, within `shoreRange` m of us. */
+    shoreHeight: [0.8, 6] as [number, number],
+    shoreReach: 45,
+    shoreRange: 1500,
+    callTimeout: 120,
+    callRepeat: 10,
+    startIntensity: 0.6,
+    growth: 0.004,
+    douse: 0.02,
+    outBelow: 0.03,
+    removeAfter: 40,
+    hitRadius: { boat: 5, shore: 6 } as Record<'boat' | 'shore', number>,
+    flameHeight: { boat: 5, shore: 7 } as Record<'boat' | 'shore', number>,
+    /** Debug "fire off the bow": this far ahead (m). */
+    debugDistance: 45,
   },
 
   /** Port lighting: the shared floodlight for the nearest port at night. */
