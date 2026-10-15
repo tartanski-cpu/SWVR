@@ -34,6 +34,7 @@ export class InstrumentPanel {
   private readonly g: CanvasRenderingContext2D;
   private readonly texture: THREE.CanvasTexture;
   private sinceDraw = Infinity;
+  private lastKey = '';
   private readonly painters: Painter[] = [paintSpeed, paintHeading, paintRpm, paintRudder, paintEngineMonitor];
 
   constructor(cfg: WorkboatDef['bridge']) {
@@ -70,6 +71,11 @@ export class InstrumentPanel {
     this.sinceDraw += dt;
     if (this.sinceDraw < 1 / CONFIG.interaction.displayHz) return;
     this.sinceDraw = 0;
+    // Only repaint (and re-upload the 3 MB atlas) when something shown has changed: moored
+    // or drifting with the engine off, the screens cost nothing.
+    const key = displayKey(state, def);
+    if (key === this.lastKey) return;
+    this.lastKey = key;
     const g = this.g;
     this.painters.forEach((paint, i) => {
       g.save();
@@ -90,6 +96,44 @@ export class InstrumentPanel {
   }
 }
 
+/**
+ * Everything the screens show, rounded to what you could see change (a tenth of a knot, a
+ * degree of heading, 10 rpm...), plus the blink phases while something flashes. Equal keys
+ * mean identical screens.
+ */
+function displayKey(s: VesselState, def: WorkboatDef): string {
+  const e = s.engine;
+  const a = s.anchor;
+  const al = engineAlarms(s, def);
+  const now = performance.now();
+  const anchorFlash = a.phase !== 'stowed' && (a.phase !== 'set' || a.dragging) ? Math.floor(now / 500) % 2 : 0;
+  const alarmBlink = al.highTemp || al.lowFuel ? Math.floor(now / 400) % 2 : 0;
+  const underKeel = depthUnderKeel(s, def);
+  return [
+    knots(s).toFixed(1),
+    Math.min(99.9, underKeel).toFixed(1),
+    a.phase,
+    a.rodeM.toFixed(0),
+    a.dragging ? 1 : 0,
+    anchorFlash,
+    Math.round(headingDeg(s)),
+    Math.round(e.rpm / 10),
+    e.phase,
+    e.gear,
+    Math.round(e.rack * 50),
+    Math.round((s.rudder * 180) / Math.PI * 2),
+    Math.round(s.controls.helm * 100),
+    e.coolantC.toFixed(0),
+    e.oilC.toFixed(0),
+    e.fuelL.toFixed(0),
+    e.fuelFlowLph.toFixed(1),
+    al.highTemp ? 1 : 0,
+    al.lowFuel ? 1 : 0,
+    alarmBlink,
+    e.coolingFault ? 1 : 0,
+  ].join('|');
+}
+
 function title(g: CanvasRenderingContext2D, text: string): void {
   g.fillStyle = DIM;
   g.font = 'bold 26px ui-monospace, Menlo, Consolas, monospace';
@@ -105,6 +149,14 @@ function big(g: CanvasRenderingContext2D, text: string, x: number, y: number, si
   g.fillText(text, x, y);
 }
 
+/**
+ * Echo sounder: water under the keel, from the still waterline (like a real sounder's
+ * smoothing, it doesn't jump with every wave's heave).
+ */
+function depthUnderKeel(s: VesselState, def: WorkboatDef): number {
+  return -groundHeight(s.position[0], s.position[2]) + def.hull.params.keelY;
+}
+
 function knots(s: VesselState): number {
   return Math.hypot(s.linearVelocity[0], s.linearVelocity[2]) * 1.943844;
 }
@@ -118,7 +170,7 @@ function headingDeg(s: VesselState): number {
 const paintSpeed: Painter = (g, s, def) => {
   title(g, 'SPEED  SOG');
   // Echo sounder: water under the keel.
-  const underKeel = -groundHeight(s.position[0], s.position[2]) + s.position[1] + def.hull.params.keelY;
+  const underKeel = depthUnderKeel(s, def);
   g.textAlign = 'right';
   g.fillStyle = underKeel < 2 ? RED : GREEN;
   g.font = 'bold 26px ui-monospace, Menlo, Consolas, monospace';
@@ -255,7 +307,7 @@ const paintRpm: Painter = (g, s, def) => {
   g.fill();
   // Digital RPM, gear and engine state.
   g.textAlign = 'right';
-  big(g, Math.round(e.rpm).toString(), 488, 92, 72);
+  big(g, (Math.round(e.rpm / 10) * 10).toString(), 488, 92, 72); // in tens, like a real tacho
   const gear = e.phase !== 'running' ? (e.phase === 'cranking' ? 'CRANKING' : 'ENGINE OFF') : e.gear === 1 ? 'AHEAD' : e.gear === -1 ? 'ASTERN' : 'NEUTRAL';
   const color = e.phase !== 'running' ? (e.phase === 'cranking' ? AMBER : RED) : e.gear === 1 ? GREEN : e.gear === -1 ? RED : AMBER;
   big(g, gear, 488, 160, 38, color);

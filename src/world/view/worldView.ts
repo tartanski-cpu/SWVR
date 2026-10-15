@@ -454,7 +454,8 @@ function glowTexture(): THREE.Texture {
  *  - every lamp post's head glows (one Points draw call, warm, world-sized sprites);
  *  - ONE real PointLight - the floodlight of the nearest port within `activeRange` - lights
  *    the quay, the boat and (in the ocean shader) the water near you. Moving between ports
- *    moves the light; the scene's light count never changes, so no shader recompiles.
+ *    moves the light. It's hidden from dawn to dusk, so by day no shader pays for it (it
+ *    comes into the shaders once at dusk and leaves once at dawn: one recompile each).
  */
 export class PortLighting {
   readonly root = new THREE.Group();
@@ -502,6 +503,9 @@ export class PortLighting {
     }
     if (best) this.flood.position.set(best.x, best.y, best.z);
     this.flood.intensity = best ? c.floodIntensity * on : 0;
+    // In the scene's lights only from dusk to dawn (changes twice a day: one recompile each),
+    // so in daylight no shader pays for it.
+    this.flood.visible = on > 0.01;
     // Static group: refresh the moved light's matrix by hand.
     this.flood.updateMatrix();
     this.flood.updateMatrixWorld(true);

@@ -794,6 +794,29 @@ Owner: hard to walk past the wheelhouse to the bow; keep the wheelhouse as it is
 - Moved out with the bulwarks: the boat hook clips (x -1.92) and the side D-rings (x ±1.95).
 - **Tests (194):** both side decks walkable along the whole wheelhouse, at least 0.25 m of walkable band (fails on the old hull).
 
+### Optimisation pass (owner request)
+
+**Measured first** (headless Chromium with software GL; scripts in the scratchpad `perf/`):
+- **CPU (views + simulation), GPU render stubbed:** 0.54 ms per frame here, so roughly 2 ms on a Quest 3. One sim tick is 0.24 ms.
+- **Garbage:** about 0.4 KB per frame, too little to cause collector hitches.
+- **Scene:** 41-73 draw calls and about 160k triangles (ocean 85k, terrain 39k, trees 20k), no shadows, 15 shader programs, Lambert materials throughout.
+
+**The costs found were on the GPU and in uploads:**
+1. **Switched-off lights cost on every pixel.** Five real lights (deck floodlights ×2, searchlight, cabin lamp, port floodlight) were kept at intensity 0 when off, to avoid shader recompiles. A zero-intensity light is still evaluated per pixel in every lit material, so in daylight every Lambert surface paid for 3 spot lights and 2 point lights doing nothing.
+   - **Fix:** an off light is now hidden, which drops it from the shaders. Switching it costs one recompile (a brief hitch). The port floodlight joins at dusk and leaves at dawn.
+   - **Result:** by day, 2 lights instead of 7.
+2. **Ocean shader:** the port-light and searchlight terms (lengths, normalises, two `pow`s) ran on every sea pixel, day and night. They are now behind uniform branches that skip them while those lights are off.
+3. **Instrument atlas** (1024×768, about 3 MB):
+   - Before: it was re-uploaded at the full 10 Hz whenever the dash was in view.
+   - Now: it repaints only when something shown changes, keyed on the values rounded to what you could see change.
+   - The echo sounder now reads from the still waterline (no heave jitter), and the tacho digits read in tens.
+   - **Result:** idling at the helm, 22 uploads per 10 s instead of 90 (about 6.6 MB/s less).
+
+**Not changed:**
+- XR resolution (framebuffer scale 1.0).
+- Foveation (0.5). Raising it to 1.0 is the next cheap fill-rate lever if the Quest still struggles.
+- Triangle counts are within budget.
+
 ## Planned next (owner requests, not started)
 
 1. ~~Fuel and oil temperature~~ **Done** (see above).

@@ -3,9 +3,10 @@ import type { WorkboatDef } from '../vesselDef';
 
 /**
  * Wheelhouse ceiling lamp: a small fixture whose diffuser glows when on, and ONE real
- * PointLight (short reach). The light always exists and is dimmed to 0 when off, so
- * switching it never changes the scene's light count (which would recompile shaders and
- * hitch the frame).
+ * PointLight (short reach). Off, the light is hidden: hidden lights are left out of every
+ * lit material's shader, so an unused lamp costs nothing per pixel. The price is one shader
+ * recompile (a brief hitch) when it's switched - far cheaper on Quest than paying for a
+ * dark light on every pixel all the time.
  */
 export class CabinLight {
   readonly root = new THREE.Group();
@@ -27,6 +28,7 @@ export class CabinLight {
 
   update(on: boolean): void {
     this.light.intensity = on ? this.def.cabinLight.intensity : 0;
+    this.light.visible = on; // off: not in any shader (one recompile when switched)
     this.diffuser.color.setHex(on ? 0xfff6e0 : 0x444444);
   }
 }

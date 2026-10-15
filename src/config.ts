@@ -565,7 +565,7 @@ export const CONFIG = {
       },
       /**
        * Cabin light: a ceiling lamp in the wheelhouse (vessel axes) and its light (cd, m).
-       * One real PointLight, kept at intensity 0 when off so switching never recompiles shaders.
+       * One real PointLight, hidden when off (no per-pixel cost; one shader recompile per switch).
        */
       cabinLight: { position: [0, 3.22, -0.2] as [number, number, number], intensity: 3, distance: 6 },
       /**
@@ -591,8 +591,8 @@ export const CONFIG = {
       whiteboard: { position: [-0.9, 2.5, 1.4] as [number, number, number], width: 0.85, height: 0.62 },
       /**
        * Deck lights. Floods: a lamp on the wheelhouse roof edge aimed at a point on deck,
-       * each ONE real SpotLight (cd, m, half-angle, penumbra), kept at 0 when off (no shader
-       * recompiles). Rail lights: LED strips along the inside of the bulwark tops - glow
+       * each ONE real SpotLight (cd, m, half-angle, penumbra), hidden when off (no per-pixel
+       * cost; one shader recompile per switch). Rail lights: LED strips along the inside of the bulwark tops - glow
        * only, no real light (cheap on Quest).
        */
       deckLights: {

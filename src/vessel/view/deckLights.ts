@@ -7,8 +7,8 @@ import type { VesselState } from '../vesselState';
 /**
  * Working lights on deck, switched from the overhead panel:
  *   - foredeck and aft deck floodlights: a lamp on the wheelhouse roof edge aimed down at
- *     the deck, each ONE real SpotLight. Lights always exist and are dimmed to 0 when off,
- *     so switching never changes the light count (no shader recompile hitch);
+ *     the deck, each ONE real SpotLight. Off, a light is hidden, so no shader pays for it
+ *     (switching costs one shader recompile, a brief hitch);
  *   - rail lights: LED strips along the inside of the bulwark tops and across the transom.
  *     Glow only (an unlit material), no real light: they mark the deck edge at night for
  *     next to nothing.
@@ -80,6 +80,8 @@ export class DeckLights {
     const on = [s.controls.deckFore > 0, s.controls.deckAft > 0];
     this.floods.forEach((f, i) => {
       f.light.intensity = on[i] ? c.intensity : 0;
+      // Off = out of the scene's light list, so no shader pays for it.
+      f.light.visible = on[i];
       f.lens.color.setHex(on[i] ? 0xfffbe8 : 0x333333);
     });
     this.rail.color.setHex(s.controls.railLights > 0 ? c.railColor : 0x2a3036);

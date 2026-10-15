@@ -65,21 +65,27 @@ void main() {
   col = mix(col, uFoam * (0.4 * uAmbient + 0.3 * uSunIntensity), foam);
 
   // Port floodlight: a soft pool of light and a long glinting reflection on the facets.
-  vec3 toL = uPortLightPos - vWorldPos;
-  float dl = length(toL);
-  vec3 ldir = toL / max(dl, 0.001);
-  float atten = 1.0 / (1.0 + (dl / 14.0) * (dl / 14.0)) * (1.0 - smoothstep(uPortLightRange * 0.6, uPortLightRange, dl));
-  float glint = pow(max(dot(n, normalize(ldir + v)), 0.0), 70.0);
-  col += uPortLightColor * atten * (glint * 2.5 + 0.12 * max(dot(n, ldir), 0.0));
+  // Uniform branch (the same for every pixel): skipped entirely by day, which on a mobile
+  // GPU saves this whole block across the half of the screen that is sea.
+  if (dot(uPortLightColor, uPortLightColor) > 0.0) {
+    vec3 toL = uPortLightPos - vWorldPos;
+    float dl = length(toL);
+    vec3 ldir = toL / max(dl, 0.001);
+    float atten = 1.0 / (1.0 + (dl / 14.0) * (dl / 14.0)) * (1.0 - smoothstep(uPortLightRange * 0.6, uPortLightRange, dl));
+    float glint = pow(max(dot(n, normalize(ldir + v)), 0.0), 70.0);
+    col += uPortLightColor * atten * (glint * 2.5 + 0.12 * max(dot(n, ldir), 0.0));
+  }
 
-  // Searchlight pool and glints.
-  vec3 toS = uSpotPos - vWorldPos;
-  float ds = length(toS);
-  vec3 sdir = toS / max(ds, 0.001);
-  float cone = smoothstep(uSpotCos.x, uSpotCos.y, dot(-sdir, uSpotDir));
-  float satten = cone / (1.0 + (ds / 45.0) * (ds / 45.0));
-  float sglint = pow(max(dot(n, normalize(sdir + v)), 0.0), 50.0);
-  col += uSpotColor * satten * (0.5 * max(dot(n, sdir), 0.0) + sglint * 1.5);
+  // Searchlight pool and glints (uniform branch: skipped while it's off).
+  if (dot(uSpotColor, uSpotColor) > 0.0) {
+    vec3 toS = uSpotPos - vWorldPos;
+    float ds = length(toS);
+    vec3 sdir = toS / max(ds, 0.001);
+    float cone = smoothstep(uSpotCos.x, uSpotCos.y, dot(-sdir, uSpotDir));
+    float satten = cone / (1.0 + (ds / 45.0) * (ds / 45.0));
+    float sglint = pow(max(dot(n, normalize(sdir + v)), 0.0), 50.0);
+    col += uSpotColor * satten * (0.5 * max(dot(n, sdir), 0.0) + sglint * 1.5);
+  }
 
   float fogF = clamp((dist - uFogNear) / (uFogFar - uFogNear), 0.0, 1.0);
   col = mix(col, uFogColor, fogF);

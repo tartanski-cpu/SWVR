@@ -6,7 +6,7 @@ import type { VesselState } from '../vesselState';
  * The roof searchlight: a lamp housing that pans and tilts with the controls, one real
  * SpotLight (it lights islands, quays and other boats; the ocean shader adds its pool on the
  * water via `light`), and a faint additive beam cone that shows at night.
- * The light always exists and is dimmed to 0 when off - no shader recompiles.
+ * Off, the light is hidden (left out of every shader; switching costs one recompile).
  */
 export class Searchlight {
   readonly root = new THREE.Group();
@@ -71,6 +71,7 @@ export class Searchlight {
     this.pan.rotation.y = (-c.spotPan * Math.PI) / 180;
     this.tilt.rotation.x = (c.spotTilt * Math.PI) / 180;
     this.light.intensity = on ? this.def.spotlight.intensity : 0;
+    this.light.visible = on; // off: not in any shader (one recompile when switched)
     this.lens.color.setHex(on ? 0xffffff : 0x333333);
     this.beamMat.opacity = on ? 0.02 + 0.07 * darkness : 0;
     this.beamMat.visible = on;
