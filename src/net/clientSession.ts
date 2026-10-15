@@ -3,6 +3,7 @@ import type { Intent } from '../core/intents';
 import type { WorldState } from '../core/world';
 import { INTERP_DELAY, type HostMessage, type PlayerPose } from './protocol';
 import type { ClientTransport } from './transport';
+import type { ChartMarks, ChartOp } from '../chart/marks';
 
 interface Snapshot {
   world: WorldState;
@@ -23,7 +24,9 @@ export class ClientSession {
   private readonly snapshots: Snapshot[] = [];
   private offset: number | null = null;
   /** Called once with the host's world when we're in. */
-  onWelcome: (playerId: EntityId, world: WorldState) => void = () => {};
+  onWelcome: (playerId: EntityId, world: WorldState, chart?: ChartMarks) => void = () => {};
+  /** A chart op from the host (someone else's pencil). */
+  onChart: (op: ChartOp) => void = () => {};
   onClosed: (reason: string) => void = () => {};
 
   constructor(
@@ -46,9 +49,11 @@ export class ClientSession {
       this.playerId = msg.playerId;
       this.status = 'connected';
       this.push(msg.world);
-      this.onWelcome(msg.playerId, msg.world);
+      this.onWelcome(msg.playerId, msg.world, msg.chart);
     } else if (msg.t === 'snapshot') {
       this.push(msg.world);
+    } else if (msg.t === 'chart') {
+      this.onChart(msg.op);
     }
   }
 
@@ -88,6 +93,10 @@ export class ClientSession {
 
   sendIntents(intents: Intent[]): void {
     if (intents.length && this.status === 'connected') this.transport.send({ t: 'intents', intents });
+  }
+
+  sendChart(op: ChartOp): void {
+    if (this.status === 'connected') this.transport.send({ t: 'chart', op });
   }
 
   sendPose(pose: PlayerPose): void {

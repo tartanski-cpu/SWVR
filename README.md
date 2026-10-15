@@ -140,7 +140,21 @@ The chart table stands along the port wall, behind the helm. On it:
 - a parallel rule and dividers;
 - a lamp with its own small switch (DECK LTS breaker).
 
-The pencil, eraser and rule are props for now. Drawing on the chart comes next.
+**Drawing on the chart:**
+
+| | VR | Desktop |
+|---|---|---|
+| Pick up the **pencil**, **eraser** or **parallel rule** | Grip near it (let go: it goes back) | (not needed) |
+| Draw | Touch the chart with the pencil tip; lift it off to stop | Aim at the chart and drag |
+| Straight line | Hold the trigger while drawing (from where you started), or draw along the rule's edge: the line snaps straight | Hold Shift while dragging |
+| Lay the rule | Hold it low over the chart: it lies flat and slides and turns with your hand; let go and it stays | – |
+| Erase | Rub the eraser on the chart | Right-drag |
+| Clear the chart | Hold the eraser's trigger 2 s | Menu → Tests → Chart → Clear marks |
+
+- Marks are kept in chart coordinates, so a route you plot lines up with the real places. They show faintly on the chartplotter too.
+- Marks are saved in the browser, so a route plotted before leaving is still there after a reload.
+- In multiplayer, crewmates see the marks appear as you draw, and several people can draw at once.
+- **Plot it yourself** (Menu → Tests → Chart, or `rescue.plotYourself` in the config; off by default): rescue calls give only the last known position in latitude and longitude, and the chartplotter doesn't show the search area. Plot it on the paper chart, using the latitude and longitude scale on the chart's edges.
 
 - **Writing the log:** point at the right-hand page and pull the trigger (desktop: click).
   1. Tick what happened: **Departure** or **Arrival**.

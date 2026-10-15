@@ -27,6 +27,8 @@ import { ChartTableView } from '../vessel/view/chartTable';
 import { LogbookView, type LogbookContext } from '../log/logbookView';
 import { parseLog, serializeLog } from '../log/log';
 import { PaperAudio } from '../audio/paperAudio';
+import { ChartTools, type ChartToolsContext } from '../chart/chartTools';
+import { applyChartOp, createMarks, parseMarks, pointCount, serializeMarks, type ChartOp } from '../chart/marks';
 import { WindSock } from '../vessel/view/windSock';
 import { DutyBoardView } from '../duties/dutyBoardView';
 import { DavitGear } from '../controls/DavitGear';
@@ -102,6 +104,8 @@ import { AvatarsView } from '../net/avatarView';
 const BOARD_KEY = 'swvr.board';
 /** ...and the ship's log (the last few voyages). */
 const LOG_KEY = 'swvr.log';
+/** ...and the pencil marks on the paper chart. */
+const CHART_KEY = 'swvr.chart';
 /** ...and the number of rescues completed. */
 const RESCUES_KEY = 'swvr.rescues';
 
@@ -207,6 +211,11 @@ export class App {
   private logbook: LogbookView | null = null;
   private readonly paperAudio = new PaperAudio();
   private logSaved = -1;
+  /** Pencil marks on the paper chart: this peer's copy (kept in step by ops; not in the world). */
+  private marks = createMarks();
+  private chartTools: ChartTools | null = null;
+  private marksSaved = 0;
+  private marksSaveT = 0;
   /** Duties completed (for the tick sound when one finishes). */
   private dutiesDone = -1;
   private readonly noteKeys = new NoteKeyboard((text, x, y, colour) => this.pushBoardIntent('noteAdd', text, [x, y, colour]));
@@ -462,6 +471,7 @@ export class App {
         t.tick(dt);
         this.motorAudio.update(sv.controls.obOn > 0 ? Math.sign(sv.controls.obGear) * sv.controls.lever : 0, sv.battery ?? 0, t.root.getWorldPosition(this.tmpV).distanceTo(this.focus));
       }
+      this.bridge.chart.marks = CONFIG.chartMarks.showOnPlotter ? this.marks : null;
       this.bridge.chart.update(this.world, this.testVesselId, dt, this.dashInView());
       this.updateRadioSound();
     }
@@ -1019,6 +1029,12 @@ export class App {
         return `Bilge ${Math.round(b * 100)} % · hatch ${v?.controls.hatch ? 'OPEN' : 'shut'} · pump ${v && b > 0.01 && isPowered(v, 'bilge') ? 'running' : 'off'}`;
       },
       floodBilge: () => this.pushVesselIntent('debugBilge', 0.6),
+      chartStatus: () => `${this.marks.strokes.length} marks, ${pointCount(this.marks)} points`,
+      clearChart: () => this.sendChartOp({ k: 'clear' }),
+      plotYourself: () => CONFIG.rescue.plotYourself,
+      setPlotYourself: (on) => {
+        (CONFIG.rescue as { plotYourself: boolean }).plotYourself = on;
+      },
       coupling: () => this.decoupler.coupling,
       setCoupling: (v) => this.setCoupling(Math.round(v * 10) / 10),
       smoothWalk: () => userSettings.smoothWalk,
@@ -1291,6 +1307,7 @@ export class App {
       () => {
         this.hostStarting = false;
         this.host = new HostSession(this.world, this.ids, transport, code);
+        this.host.marks = this.marks;
         this.netMessage = '';
         this.overlay.notify(`Hosting: game code ${code}`, 4);
       },
@@ -1317,7 +1334,10 @@ export class App {
     const client = new ClientSession(transport, userSettings.playerName);
     this.client = client;
     this.netMessage = '';
-    client.onWelcome = (playerId, world) => {
+    client.onChart = (op) => applyChartOp(this.marks, op);
+    client.onWelcome = (playerId, world, chart) => {
+      // The host's chart: their marks replace ours while we're aboard their boat.
+      this.marks = chart ? { strokes: chart.strokes, seq: this.marks.seq + 1 } : createMarks();
       if (!Object.keys(world.vessels).every((id) => this.vesselViews.has(id))) {
         this.netMessage = 'That game is a different version';
         this.leaveGame();
@@ -1434,6 +1454,8 @@ export class App {
       this.chartTable = new ChartTableView(ct, wh.floorY);
       view.root.add(this.chartTable.root);
       this.bridge.controls.push(this.chartTable.lampSwitch);
+      this.chartTools = new ChartTools(this.chartTable);
+      this.chartTable.root.add(this.chartTools.root);
       // The book: its own frame has x across the pages (forward, -z), y up the page
       // (outboard, -x) and z up, like the chart - you read it facing the wall.
       const [bx, bz] = ct.book.center;
@@ -1447,6 +1469,7 @@ export class App {
     }
     try {
       if (!this.client) this.world.log ??= parseLog(localStorage.getItem(LOG_KEY)) ?? undefined;
+      if (!this.client) this.marks = parseMarks(localStorage.getItem(CHART_KEY)) ?? this.marks;
       this.world.board ??= parseBoard(localStorage.getItem(BOARD_KEY)) ?? undefined;
       // Rescues completed in this browser so far (milestone 4).
       const n = Number(localStorage.getItem(RESCUES_KEY));
@@ -1477,6 +1500,10 @@ export class App {
     );
     this.scene.add(this.interaction.rayLine('left'), this.interaction.rayLine('right'));
     this.pointer = new DesktopPointer(this.renderer.domElement, this.desktop, this.interaction, this.menu, this.desktopCargo(), (ray) => this.ping(ray));
+    if (this.chartTools) {
+      const tools = this.chartTools;
+      this.pointer.chart = (ray, b) => tools.updateDesktop(this.chartCtx(), ray, b, this.frameDt);
+    }
   }
 
   /** Feed hands (VR) or the reticle (desktop) to the bridge controls. */
@@ -1507,7 +1534,16 @@ export class App {
         this.hands.right.triggerPressed = false;
         this.hands.right.trigger = 0;
       }
+      // The chart table's tools: a hand holding one gives its grip and trigger to the tool.
+      const onTools = this.chartTools ? this.chartTools.updateXR(this.chartCtx(), this.hands, this.busyHands, this.frameDt) : { left: false, right: false };
+      for (const h of ['left', 'right'] as const) {
+        if (!onTools[h]) continue;
+        const f = this.hands[h];
+        f.gripDown = f.gripPressed = f.triggerDown = f.triggerPressed = false;
+        f.trigger = 0;
+      }
       this.busyHands = this.interaction.updateXR(this.hands);
+      for (const h of ['left', 'right'] as const) if (onTools[h]) this.busyHands[h] = true;
       if (this.xrInput.wasPressed('right', XR_BUTTON.stick) && this.hands.right.tracked) this.ping(this.hands.right.ray);
       this.cargoHands.updateXR(this.cargoCtx(), this.hands, this.busyHands);
       for (const h of ['left', 'right'] as const) if (this.cargoHands.busy(h)) this.busyHands[h] = true;
@@ -1611,6 +1647,18 @@ export class App {
     const level = Math.min(1, Math.max(0.04, this.environment.ambientIntensity * 1.1 + (cabin ? 0.45 : 0) + (lamp ? 1 : 0)));
     this.chartTable.setLight(level, lamp);
     this.logbook.update(this.world, this.localPlayerId, level, dt);
+    this.chartTools?.refresh(this.marks);
+    // Host / solo: keep the chart marks in this browser (at most once a second).
+    this.marksSaveT += dt;
+    if (!this.client && this.marks.seq !== this.marksSaved && this.marksSaveT > 1) {
+      this.marksSaved = this.marks.seq;
+      this.marksSaveT = 0;
+      try {
+        localStorage.setItem(CHART_KEY, serializeMarks(this.marks));
+      } catch {
+        // Not saved.
+      }
+    }
     const log = this.world.log;
     if (log && !this.client && log.seq !== this.logSaved) {
       this.logSaved = log.seq;
@@ -1620,6 +1668,25 @@ export class App {
         // Not saved; still shared.
       }
     }
+  }
+
+  /** A chart op from this player: apply it here and share it (host: to all; client: to the host). */
+  private sendChartOp(op: ChartOp): void {
+    applyChartOp(this.marks, op);
+    if (this.host) this.host.broadcastChart(op);
+    else if (this.client?.status === 'connected') this.client.sendChart(op);
+  }
+
+  /** The chart tools' view of the app. */
+  private chartCtx(): ChartToolsContext {
+    return {
+      marks: this.marks,
+      playerId: this.localPlayerId,
+      send: (op) => this.sendChartOp(op),
+      pulse: (h, i, ms) => this.xrInput.pulse(h, i, ms),
+      notify: (text) => this.overlay.notify(text, 2.5),
+      scratch: (p, r) => this.paperAudio.setScratch(p, r),
+    };
   }
 
   /** Light enough to read the log: daylight, or the chart table lamp. */

@@ -20,6 +20,7 @@
  * Random choices use a deterministic hash of a counter in the state, like the cargo code.
  */
 import { isPowered } from '../vessel/electrics';
+import { formatPosition } from '../nav/geo';
 import { windVector } from '../environment/weather';
 import { CONFIG } from '../config';
 import type { EntityId } from '../core/ids';
@@ -227,7 +228,9 @@ export function startIncident(world: WorldState, v: VesselState, toward: string 
   const count = Math.round(between(r, [def.count[0], def.count[1] + 0.999]) - 0.499);
   const inc: Incident = { defId: def.id, phase: 'calling', x, z, radius: def.searchRadius, count, callT: world.time, alertT: world.time, targets: placeTargets(r, def, x, z, count) };
   r.active = inc;
-  const text = def.call
+  // Plot-it-yourself mode: the call gives the position only; the crew plots it on the chart.
+  const call = cfg.plotYourself ? def.call.replace('bearing {bearing}, {range} miles from you', `last seen in position ${formatPosition(x, z)}`) : def.call;
+  const text = call
     .replace('{bearing}', `${bearingDeg(bx, bz, x, z).toFixed(0).padStart(3, '0')}°`)
     .replace('{range}', (Math.hypot(x - bx, z - bz) / 1852).toFixed(1))
     .replace('{count}', String(count));

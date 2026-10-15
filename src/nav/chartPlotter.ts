@@ -5,6 +5,8 @@ import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUti
 import { cargoPaused, portById } from '../rescue/rescue';
 import { ISLANDS, PORTS } from '../world/archipelago';
 import { groundHeight } from '../world/terrain';
+import { CONFIG } from '../config';
+import type { ChartMarks } from '../chart/marks';
 
 const W = 512;
 const H = 384;
@@ -35,6 +37,8 @@ export class ChartPlotter {
   private since = Infinity;
   /** Debug: draw the targets too. */
   showTargets = false;
+  /** The crew's pencil marks, drawn faintly over the map (null: not shown). */
+  marks: ChartMarks | null = null;
 
   constructor(cfg: { position: [number, number, number]; tiltDeg: number; yawDeg?: number }, roofY: number) {
     this.root.name = 'chartPlotter';
@@ -127,7 +131,8 @@ export class ChartPlotter {
     const g = this.g;
     const [sx, , sz] = v.position;
     const r = world.rescue;
-    const inc = r?.active?.phase === 'accepted' ? r.active : null;
+    // Plot-it-yourself mode: no search area here; it's on the paper chart if anywhere.
+    const inc = r?.active?.phase === 'accepted' && !CONFIG.rescue.plotYourself ? r.active : null;
     const destId = r?.run?.to ?? null;
     const dest = destId ? portById(destId) : undefined;
     // What to keep in view.
@@ -158,6 +163,21 @@ export class ChartPlotter {
     const srcX = (sx - span / 2 - land.x0) / RES;
     const srcZ = (sz - (span * H) / W / 2 - land.z0) / RES;
     g.drawImage(land.canvas, srcX, srcZ, span / RES, (span * H) / W / RES, 0, 0, W, H);
+
+    // The crew's pencil marks from the paper chart, faint.
+    if (this.marks?.strokes.length) {
+      g.strokeStyle = 'rgba(230, 230, 220, 0.55)';
+      g.lineWidth = 2;
+      g.beginPath();
+      for (const st of this.marks.strokes) {
+        for (let i = 0; i + 1 < st.pts.length; i += 2) {
+          const [px, py] = toPx(st.pts[i], st.pts[i + 1]);
+          if (i === 0) g.moveTo(px, py);
+          else g.lineTo(px, py);
+        }
+      }
+      g.stroke();
+    }
 
     // Ports.
     g.font = 'bold 18px system-ui, sans-serif';

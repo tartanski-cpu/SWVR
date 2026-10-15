@@ -4,16 +4,43 @@ import { noiseBuffer } from './engineAudio';
 /**
  * Paper sounds at the chart table, synthesised: a pencil tick (a tiny filtered click), a
  * signature (a pen scratching: band-passed noise with a quick ragged wobble, ~0.7 s), and
- * a page turned (a soft swish).
+ * a page turned (a soft swish). And two loops while drawing: the pencil's graphite scratch
+ * (bright, follows the pencil's speed) and the eraser's duller rub.
  */
 export class PaperAudio {
   private ctx: AudioContext | null = null;
   private noise!: AudioBuffer;
+  private scratchGain: GainNode | null = null;
+  private rubGain: GainNode | null = null;
 
   attach(ctx: AudioContext | null): void {
     if (!ctx || this.ctx) return;
     this.ctx = ctx;
     this.noise = noiseBuffer(ctx, 2);
+    const loop = (freq: number, q: number) => {
+      const src = ctx.createBufferSource();
+      src.buffer = this.noise;
+      src.loop = true;
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = freq;
+      bp.Q.value = q;
+      const g = ctx.createGain();
+      g.gain.value = 0;
+      src.connect(bp).connect(g).connect(mixer.bus(ctx, 'effects'));
+      src.start();
+      return g;
+    };
+    this.scratchGain = loop(3800, 1.5);
+    this.rubGain = loop(900, 0.8);
+  }
+
+  /** Pencil scratch and eraser rub loudness, 0..1. */
+  setScratch(pencil: number, rub: number): void {
+    const ctx = this.ctx;
+    if (!ctx || !this.scratchGain || !this.rubGain) return;
+    this.scratchGain.gain.setTargetAtTime(pencil * 0.12, ctx.currentTime, 0.03);
+    this.rubGain.gain.setTargetAtTime(rub * 0.1, ctx.currentTime, 0.04);
   }
 
   private burst(at: number, len: number, freq: number, q: number, level: number, wobble = 0): void {

@@ -1055,6 +1055,27 @@ export const CONFIG = {
    * over by someone else. It's too dark to read the book below `readLight` daylight
    * (0..1) unless the chart table lamp is on.
    */
+  /**
+   * Pencil marks on the paper chart (chart/marks.ts). Strokes are stored in world metres
+   * (so they line up with the map), points kept at least `minStepM` m of chart apart and
+   * rounded to `quantM`. Over `maxPoints` in all, the oldest strokes go (the oldest ones
+   * are drawn fainter as the cap nears, as if rubbed). Table side (m): the pencil touches
+   * within `contactMm` of the paper; the eraser rubs out within `eraseRadius`; the rule's
+   * edge pulls the pencil within `ruleSnap`. Hold the eraser's trigger `clearHold` s to
+   * clear the chart. `showOnPlotter`: the crew's marks faintly on the chartplotter too.
+   */
+  chartMarks: {
+    maxPoints: 4000,
+    minStepM: 15,
+    quantM: 0.5,
+    contactMm: 6,
+    eraseRadius: 0.012,
+    ruleSnap: 0.015,
+    clearHold: 2,
+    sendEvery: 0.1,
+    showOnPlotter: true,
+  },
+
   log: { keepVoyages: 5, eventLinger: 600, draftIdle: 90, readLight: 0.35, harbourRadius: 300 },
 
   duties: {
@@ -1200,6 +1221,11 @@ export const CONFIG = {
     targetSpread: 0.6,
     /** Lost crates float in a loose group: this far apart (m). */
     crateSpacing: [4, 12] as [number, number],
+    /**
+     * Harder mode: the call gives the last known position as latitude/longitude only, and
+     * the chartplotter doesn't show the search area - plot it on the paper chart yourself.
+     */
+    plotYourself: false,
     /** Slow drift of everything in the water (m/s, world x/z); there's no wind yet. */
     drift: [0.1, 0.06] as [number, number],
     /** Debug "spawn alongside": this far off the bow (m), within a life ring's throw. */

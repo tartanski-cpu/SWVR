@@ -5,6 +5,8 @@
  * Radio text placeholders, filled in when the call goes out:
  *   {bearing}  bearing of the incident from the boat (°T, three digits)
  *   {range}    range in nautical miles
+ * In the "plot it yourself" mode (CONFIG.rescue.plotYourself) "bearing {bearing}, {range}
+ * miles from you" is replaced by the last known position as latitude and longitude.
  *   {count}    number of targets
  */
 export interface RescueDef {

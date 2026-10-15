@@ -26,6 +26,11 @@ export interface MenuHost {
   setRainQuality(q: string): void;
   bilgeStatus(): string;
   floodBilge(): void;
+  /** Chart marks: how many, clear them all; the plot-it-yourself rescue mode. */
+  chartStatus(): string;
+  clearChart(): void;
+  plotYourself(): boolean;
+  setPlotYourself(on: boolean): void;
   coupling(): number;
   setCoupling(value: number): void;
   smoothWalk(): boolean;
@@ -346,6 +351,14 @@ export function mainMenu(h: MenuHost): MainMenu {
       buttons: [
         { text: 'Quick start (all in one)', press: () => h.electricsDebug(4), weight: 1.6 },
         { text: 'Battery 1 flat', press: () => h.electricsDebug(3), weight: 1.2 },
+      ],
+    },
+    {
+      label: 'Chart',
+      buttons: [
+        { text: () => h.chartStatus(), weight: 1.4 },
+        { text: 'Clear marks', press: () => h.clearChart() },
+        { text: 'Plot it yourself', active: () => h.plotYourself(), press: () => h.setPlotYourself(!h.plotYourself()), weight: 1.3 },
       ],
     },
     {

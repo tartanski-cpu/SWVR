@@ -1015,6 +1015,53 @@ Owner decision: **no radar screen.** Passing vessels will show as AIS targets (t
   - save/load keeps the last voyages and drops junk;
   - position format.
 
+### E7: drawing on the chart (done, awaiting owner test)
+
+- **Marks** (`chart/marks.ts`): strokes in chart coordinates (world metres), so they line up with real places.
+  - Points are at least 15 m of chart apart and rounded to 0.5 m.
+  - Ops: `start`, `add`, `set` (straight lines while dragging), `erase` (rubs out points within r and splits strokes where cut), `clear`.
+  - **Cap:** 4000 points. Over it, the oldest strokes go, and as the cap nears the oldest are drawn fainter.
+  - Saved by the host / solo player in localStorage (`swvr.chart`, at most once a second).
+- **Multiplayer, done now rather than in M10:** marks are not in WorldState, because they're too big for the 20 Hz snapshots.
+  - Each peer keeps a copy and applies the same small ops: new `chart` messages both ways (`net/protocol.ts`).
+  - A client applies its own ops at once and sends them; the host applies them and relays them to everyone else.
+  - The welcome message carries the whole set. Several people can draw at once.
+- **Rendering** (`chart/chartTools.ts`): the marks are thin graphite line segments 1.2 mm above the paper.
+  - One draw call, redrawn only when the marks change; vertex colours do the fading.
+  - No canvas texture uploads (simplification 2 from the plan).
+- **Hand tools** (moved out of the table's merged mesh): pencil, eraser, parallel rule.
+  - **Pick up and put down:** grip near a tool picks it up. A hand holding a tool gives its grip and trigger to the tool and nothing else. Let go and it goes home.
+  - **Pencil:** the tip sits 11 cm ahead of the grip. Within 6 mm of the paper it draws: the tip locks to the paper and the line is smoothed against tremor and the boat's motion. A light haptic tick runs while drawing, with a graphite scratch that follows the speed.
+  - **Straight lines:** hold the trigger for a straight line from the stroke's start. Near either outer edge of the parallel rule (1.5 cm), the line snaps onto the edge.
+  - **Rule:** held within 12 cm of the chart it lies flat, at the hand's position and heading. Released there it stays; anywhere else it goes home.
+  - **Eraser:** rubs out within 12 mm of table (with a rub sound and haptics). Hold its trigger 2 s to clear the chart.
+- **Desktop** (`DesktopPointer.chart` hook):
+  - Aim at the chart and drag to draw (mouse-look aims the line). Shift gives a straight line; right-drag erases.
+  - The pencil or eraser is shown at the reticle. While they're in use, the buttons go to them and nothing else (no ping, no control presses).
+- **Chartplotter:** shows the crew's marks faintly (`chartMarks.showOnPlotter`, on).
+- **Plot it yourself** (`rescue.plotYourself`, default off; Menu → Tests → Chart): the call gives "last seen in position 56°38.1'N 005°55.2'W" instead of bearing and range, and the plotter shows no search area or bearing to it.
+- **Debug:** Menu → Tests → Chart: mark count, **Clear marks**, Plot it yourself.
+- **Profile (milestone 7):** headless with SwiftShader, CPU only. Squall at full rain, wipers on, 3600 points on the chart.
+
+  | | M5 | M7 |
+  |---|---|---|
+  | Draw calls at the helm | 48 | 48 |
+  | Draw calls, aft deck looking forward (through the door) | 96 | 109 |
+  | Draw calls at the chart table | – | 40 |
+  | View CPU per frame | 1.2 ms | ~1.7 ms (noisy at this frame rate) |
+  | Sim tick | 0.19 ms | 0.23 ms |
+  | Triangles | ~160k | ~161k |
+
+  The chart table and its tools are about 10 draw calls. If that matters on the Quest, the next step is to merge the book cover into the table and hide the tools from outside the wheelhouse.
+- **Tests (238):**
+  - ops, including straight lines and rounding;
+  - bad ops ignored;
+  - the eraser splits strokes;
+  - the cap drops the oldest;
+  - save/load;
+  - multiplayer: a joiner gets the chart, and a client's stroke reaches the host and the other client (not echoed back). The host's erase reaches everyone.
+- **Checked in the browser** with a simulated VR hand: pencil pick-up and a drawn circle; the rule laid flat on the chart, where a wobbly line along its edge came out exactly straight; the eraser splitting the line; desktop drag and Shift lines.
+
 ## Planned next (owner requests, not started)
 
 1. ~~Fuel and oil temperature~~ **Done** (see above).

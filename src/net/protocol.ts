@@ -6,6 +6,12 @@
  *   client -> host   intents   { intents }                  vessel / environment / cargo intents
  *   client -> host   pose      { pose }                     ~20 Hz: where my body, head, hands are
  *   host -> client   snapshot  { world }                    ~20 Hz: the authoritative world
+ *   both ways        chart     { op }                       pencil marks on the paper chart
+ *
+ * Chart marks are kept out of the world (too big to send 20 times a second): each peer
+ * keeps its own copy and applies the same small ops (chart/marks.ts). A client applies its
+ * own at once and sends them; the host applies them and relays them to everyone else; the
+ * welcome carries the whole set.
  *
  * The host runs the simulation exactly as in single player. Clients don't simulate: they
  * render the host's snapshots ~100 ms in the past, interpolated, and send intents. Each
@@ -17,6 +23,7 @@ import type { EntityId } from '../core/ids';
 import type { Intent } from '../core/intents';
 import type { WorldState } from '../core/world';
 import type { Vec3 } from '../core/math';
+import type { ChartMarks, ChartOp } from '../chart/marks';
 
 /** A player's body as others should see it, in the frame of what they're aboard. */
 export interface PlayerPose {
@@ -31,9 +38,9 @@ export interface PlayerPose {
   right: Vec3 | null;
 }
 
-export type ClientMessage = { t: 'hello'; name: string } | { t: 'intents'; intents: Intent[] } | { t: 'pose'; pose: PlayerPose };
+export type ClientMessage = { t: 'hello'; name: string } | { t: 'intents'; intents: Intent[] } | { t: 'pose'; pose: PlayerPose } | { t: 'chart'; op: ChartOp };
 
-export type HostMessage = { t: 'welcome'; playerId: EntityId; world: WorldState } | { t: 'snapshot'; world: WorldState };
+export type HostMessage = { t: 'welcome'; playerId: EntityId; world: WorldState; chart?: ChartMarks } | { t: 'snapshot'; world: WorldState } | { t: 'chart'; op: ChartOp };
 
 /** Snapshot / pose send rate (Hz). */
 export const NET_RATE = 20;

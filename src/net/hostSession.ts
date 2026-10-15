@@ -7,6 +7,7 @@ import { releaseHolds } from '../vessel/vesselControl';
 import { dropCarried } from '../cargo/cargo';
 import { NET_RATE, type ClientMessage, type HostMessage } from './protocol';
 import type { HostTransport, Link } from './transport';
+import { applyChartOp, type ChartMarks, type ChartOp } from '../chart/marks';
 
 /**
  * The hosting player's side. The host's simulation is the authority: clients' intents are
@@ -18,6 +19,8 @@ export class HostSession {
   private readonly peers = new Map<string, { link: Link; playerId: EntityId }>();
   private pending: Intent[] = [];
   private sinceSend = 0;
+  /** The host's chart marks (the App's copy): a joiner gets them, ops are applied to them. */
+  marks: ChartMarks | null = null;
 
   constructor(
     private readonly world: WorldState,
@@ -41,7 +44,7 @@ export class HostSession {
       placeOnPlatform(p);
       this.world.players[playerId] = p;
       this.peers.set(link.id, { link, playerId });
-      this.send(link, { t: 'welcome', playerId, world: this.world });
+      this.send(link, { t: 'welcome', playerId, world: this.world, ...(this.marks ? { chart: this.marks } : {}) });
       return;
     }
     const peer = this.peers.get(link.id);
@@ -52,6 +55,10 @@ export class HostSession {
         if (i.targetId in this.world.players && i.targetId !== peer.playerId) continue;
         this.pending.push({ ...i, playerId: peer.playerId });
       }
+    } else if (msg.t === 'chart') {
+      // A crewmate's pencil: apply it here and pass it on to the others.
+      if (this.marks) applyChartOp(this.marks, msg.op);
+      this.broadcastChart(msg.op, link);
     } else if (msg.t === 'pose') {
       const p = this.world.players[peer.playerId];
       if (!p) return;
@@ -78,6 +85,11 @@ export class HostSession {
     const out = this.pending;
     this.pending = [];
     return out;
+  }
+
+  /** Send a chart op to every client (but the one it came from). */
+  broadcastChart(op: ChartOp, except?: Link): void {
+    for (const { link } of this.peers.values()) if (link !== except) this.send(link, { t: 'chart', op });
   }
 
   /** Call every frame: broadcasts a snapshot NET_RATE times a second. */

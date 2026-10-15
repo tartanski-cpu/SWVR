@@ -17,6 +17,14 @@ export class DesktopPointer {
   private dy = 0;
   private readonly reticle = document.createElement('div');
   private readonly ray = new THREE.Ray();
+  private rightDown = false;
+  private shift = false;
+  /**
+   * The chart table's pencil (set by the App): drag on the chart to draw, right-drag to
+   * erase. Called before everything else; while it uses the buttons, nothing else sees
+   * them (no ping, no control press).
+   */
+  chart: ((ray: THREE.Ray | null, b: { down: boolean; right: boolean; shift: boolean }) => { label: string | null; consumed: boolean }) | null = null;
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -31,8 +39,17 @@ export class DesktopPointer {
   ) {
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     document.addEventListener('mousedown', (e) => {
-      if (document.pointerLockElement === canvas && e.button === 2) this.pingPressed = true;
+      if (document.pointerLockElement === canvas && e.button === 2) {
+        this.pingPressed = true;
+        this.rightDown = true;
+      }
     });
+    document.addEventListener('mouseup', (e) => {
+      if (e.button === 2) this.rightDown = false;
+    });
+    const shift = (e: KeyboardEvent) => (this.shift = e.shiftKey);
+    document.addEventListener('keydown', shift);
+    document.addEventListener('keyup', shift);
     document.addEventListener('mousedown', (e) => {
       if (document.pointerLockElement !== canvas || e.button !== 0) return;
       this.down = true;
@@ -77,18 +94,25 @@ export class DesktopPointer {
       camera.getWorldDirection(this.ray.direction);
       ray = this.ray;
     }
+    const onMenu = this.menu.updateDesktop(ray, this.pressed);
+    const chart = !onMenu && this.chart && !this.cargo?.carrying() ? this.chart(locked ? ray : null, { down: this.down && locked, right: this.rightDown && locked, shift: this.shift }) : null;
+    if (chart?.consumed) {
+      // The pencil or eraser has the buttons.
+      this.pressed = false;
+      this.pingPressed = false;
+    }
     if (this.pingPressed && ray) this.onPing?.(ray);
     this.pingPressed = false;
-    const onMenu = this.menu.updateDesktop(ray, this.pressed);
     // While carrying, a click sets the item down, whatever the reticle is on.
     const carrying = !onMenu && !!this.cargo?.carrying();
     const ctlRay = onMenu || carrying ? null : ray;
     this.desktop.lookFrozen = this.interaction.updateDesktop(ctlRay, this.down, this.pressed && !onMenu && !carrying, this.released, this.dx, this.dy);
-    let label = onMenu ? null : this.interaction.desktopHoverLabel;
+    let label = onMenu ? null : (chart?.consumed ? chart.label : this.interaction.desktopHoverLabel);
     if (!onMenu && !label && this.cargo) {
       if (this.pressed && locked && !this.interaction.pressConsumed) this.cargo.click(ray);
       label = this.cargo.label(ray);
     }
+    if (!label && chart?.label) label = chart.label;
     this.reticle.style.display = locked ? 'block' : 'none';
     this.reticle.textContent = label ? `+\n${label}` : '+';
     this.endFrame();

@@ -25,6 +25,8 @@ export class ChartTableView {
   /** The lamp switch (Deck lights breaker), for the interaction system. */
   readonly lampSwitch: Toggle;
   readonly top: number;
+  /** The pen holder on the table top [x, z] (the hand tools stand by it). */
+  readonly holderAt: [number, number];
   private readonly chartMat: THREE.MeshBasicMaterial;
   /** The table's own material: a warm glow while the lamp is on (no real light). */
   private readonly tableMat: THREE.MeshLambertMaterial;
@@ -39,6 +41,7 @@ export class ChartTableView {
     this.root.name = 'chartTable';
     const T = floorY + cfg.height;
     this.top = T;
+    this.holderAt = cfg.holder;
     const { x0, x1, z0, z1 } = cfg;
     const box = (ax: number, bx: number, ay: number, by: number, az: number, bz: number, c: number) =>
       part(new THREE.BoxGeometry(bx - ax, by - ay, bz - az).translate((ax + bx) / 2, (ay + by) / 2, (az + bz) / 2), c);
@@ -57,16 +60,9 @@ export class ChartTableView {
         return [box(x1 - 0.035, x1 - 0.028, y - 0.11, y + 0.11, z0 + 0.06, z1 - 0.06, 0x6a4628), box(x1 - 0.03, x1 - 0.012, y - 0.012, y + 0.012, (z0 + z1) / 2 - 0.08, (z0 + z1) / 2 + 0.08, 0xb8a070)];
       }),
     ];
-    // Pen holder: a cup with a pencil standing in it, the eraser beside it.
+    // Pen holder (the pencil, eraser and parallel rule are hand tools: chart/chartTools.ts), dividers.
     const [hx, hz] = cfg.holder;
     parts.push(part(new THREE.CylinderGeometry(0.032, 0.03, 0.085, 12).translate(hx, T + 0.0425, hz), 0x2c3a44));
-    parts.push(part(new THREE.CylinderGeometry(0.0045, 0.0045, 0.17, 6).rotateZ(0.18).translate(hx + 0.012, T + 0.1, hz + 0.008), 0xe8c030));
-    parts.push(part(new THREE.BoxGeometry(0.025, 0.014, 0.05).translate(hx + 0.07, T + 0.007, hz + 0.02), 0xe88a9a));
-    // Parallel rule (two perspex rules and their brass links) and dividers, lying on the chart.
-    const rx = (x0 + x1) / 2 + 0.1;
-    const rz = z0 + 0.22;
-    for (const off of [-0.035, 0.035]) parts.push(placed(new THREE.BoxGeometry(0.04, 0.005, 0.32).translate(off, 0, 0), rx, T + 0.004, rz, 0.3, 0xcfe0dc));
-    for (const zz of [-0.1, 0.1]) parts.push(placed(new THREE.BoxGeometry(0.08, 0.007, 0.01).translate(0, 0, zz), rx, T + 0.008, rz, 0.3, 0xb89040));
     for (const a of [-0.12, 0.12]) parts.push(placed(new THREE.BoxGeometry(0.005, 0.005, 0.16).translate(0, 0, -0.08), x0 + 0.12, T + 0.004, z0 + 0.58, 2.3 + a, 0x9aa0a6));
     // Lamp: weighted base, stem, arm reaching over the book, shade.
     const lp = cfg.lamp;
@@ -106,6 +102,23 @@ export class ChartTableView {
     this.lampSwitch.root.rotation.y = -Math.PI / 2; // lever moves toward / away from you
     this.lampSwitch.root.scale.setScalar(0.8);
     this.root.add(table, chart, bulb, this.lampSwitch.root);
+  }
+
+  /** The chart's rectangle on the table (vessel axes) and its surface height. */
+  get chartRect(): { x0: number; x1: number; z0: number; z1: number; y: number } {
+    const b = this.chart.bounds;
+    const hn = ((b.z1 - b.z0) * this.scale) / 2;
+    const he = ((b.x1 - b.x0) * this.scale) / 2;
+    const c = this.chartCenter;
+    return { x0: c.x - hn, x1: c.x + hn, z0: c.z - he, z1: c.z + he, y: c.y };
+  }
+
+  /** Table (vessel axes) point -> world metres on the chart. */
+  tableToChart(x: number, z: number): { x: number; z: number } {
+    const b = this.chart.bounds;
+    const n = this.chartCenter.x - x; // outboard = north
+    const e = this.chartCenter.z - z; // forward = east
+    return { x: (b.x0 + b.x1) / 2 + e / this.scale, z: (b.z0 + b.z1) / 2 - n / this.scale };
   }
 
   /** World metres on the chart -> table (vessel axes) point on the chart's surface. */
