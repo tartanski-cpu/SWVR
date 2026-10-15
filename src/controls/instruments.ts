@@ -6,12 +6,18 @@ import type { WorkboatDef } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
 import { engineAlarms } from '../vessel/physics/engineThermal';
 import { groundHeight } from '../world/terrain';
+import type { EnvironmentState } from '../environment/environmentState';
+import { beaufort, windVector } from '../environment/weather';
+import { formatPosition } from '../nav/geo';
 
 /**
  * The bridge instrument displays: speed, heading, engine RPM (+ gear), rudder angle, and an
- * engine monitor (temperatures, fuel, alarms) behind the wheel, read through the spokes.
+ * engine monitor (temperatures, fuel, alarms) behind the wheel, read through the spokes;
+ * plus NAV / WIND under the roof between the radio and the chartplotter (owner request):
+ * GPS position, speed and course over ground, heading, and the true and apparent wind with
+ * a dial (apparent wind = true wind minus the boat's own way, relative to the bow).
  *
- * All five screens share ONE canvas (an atlas, 2 x 3 regions) and ONE merged mesh whose
+ * All six screens share ONE canvas (an atlas, 2 x 3 regions) and ONE merged mesh whose
  * UVs map each screen to its region: one texture upload and one draw call, redrawn at a
  * modest rate (CONFIG.interaction.displayHz) - cheap on the headset.
  *
@@ -27,7 +33,7 @@ const BG = '#0d1210';
 const GREEN = '#6fe08a';
 const RED = '#ff5a45';
 
-type Painter = (g: CanvasRenderingContext2D, s: VesselState, def: WorkboatDef) => void;
+type Painter = (g: CanvasRenderingContext2D, s: VesselState, def: WorkboatDef, env: EnvironmentState | null) => void;
 
 export class InstrumentPanel {
   readonly mesh: THREE.Mesh;
@@ -36,7 +42,7 @@ export class InstrumentPanel {
   private readonly texture: THREE.CanvasTexture;
   private sinceDraw = Infinity;
   private lastKey = '';
-  private readonly painters: Painter[] = [paintSpeed, paintHeading, paintRpm, paintRudder, paintEngineMonitor];
+  private readonly painters: Painter[] = [paintSpeed, paintHeading, paintRpm, paintRudder, paintEngineMonitor, paintNav];
 
   constructor(cfg: WorkboatDef['bridge']) {
     this.canvas = document.createElement('canvas');
@@ -49,26 +55,36 @@ export class InstrumentPanel {
 
     const d = cfg.displays;
     const tilt = (-cfg.dash.tiltDeg * Math.PI) / 180;
-    const faces = d.x.map((x, i) => {
-      const plane = new THREE.PlaneGeometry(d.width, d.height);
-      // Map this plane's UVs into atlas region i (canvas y grows down; texture v grows up).
+    /** A screen plane whose UVs map into atlas region i (canvas y grows down; texture v grows up). */
+    const screen = (i: number, w: number, h: number) => {
+      const plane = new THREE.PlaneGeometry(w, h);
       const cx = (i % 2) * RW;
       const cy = Math.floor(i / 2) * RH;
       const uv = plane.attributes.uv as THREE.BufferAttribute;
       for (let k = 0; k < uv.count; k++) {
         uv.setXY(k, (cx + uv.getX(k) * RW) / W, 1 - (cy + (1 - uv.getY(k)) * RH) / H);
       }
-      plane.rotateX(tilt);
+      return plane;
+    };
+    const faces = d.x.map((x, i) => {
+      const plane = screen(i, d.width, d.height).rotateX(tilt);
       // Tilted back, the screen's top edge leans toward the dash: stand it off the face
       // far enough that the whole screen stays in front of it.
       plane.translate(x, d.y, cfg.dash.aft + 0.006 + (d.height / 2) * Math.sin(-tilt));
       return plane;
     });
+    // NAV / WIND: hung under the roof, its face tilted down toward the helm (region 5; its
+    // housing is in the bridge's fixed mesh).
+    const n = cfg.navDisplay;
+    const nav = screen(5, n.width, n.height)
+      .rotateX((n.tiltDeg * Math.PI) / 180)
+      .translate(n.position[0], n.position[1], n.position[2]);
+    faces.push(nav);
     this.mesh = new THREE.Mesh(mergeGeometries(faces), new THREE.MeshBasicMaterial({ map: this.texture, toneMapped: false }));
     this.mesh.name = 'instruments';
   }
 
-  update(state: VesselState, def: WorkboatDef, dt: number): void {
+  update(state: VesselState, def: WorkboatDef, dt: number, env: EnvironmentState | null = null): void {
     this.sinceDraw += dt;
     if (this.sinceDraw < 1 / CONFIG.interaction.displayHz) return;
     this.sinceDraw = 0;
@@ -76,7 +92,7 @@ export class InstrumentPanel {
     // or drifting with the engine off, the screens cost nothing.
     // No 12 V: the screens go black (drawn once).
     const powered = isPowered(state, 'instruments');
-    const key = powered ? displayKey(state, def) : 'off';
+    const key = powered ? `${displayKey(state, def)}|${navKey(state, env)}` : 'off';
     if (key === this.lastKey) return;
     this.lastKey = key;
     const g = this.g;
@@ -94,7 +110,7 @@ export class InstrumentPanel {
       g.clip();
       g.fillStyle = BG;
       g.fillRect(0, 0, RW, RH);
-      paint(g, state, def);
+      paint(g, state, def, env);
       // Bezel.
       g.strokeStyle = '#2b2f2c';
       g.lineWidth = 10;
@@ -424,4 +440,108 @@ const paintEngineMonitor: Painter = (g, s, def) => {
   };
   lamp(236, 'HIGH TEMP', al.highTemp);
   lamp(368, 'LOW FUEL', al.lowFuel);
+};
+
+/** True and apparent wind where the boat is: speed (m/s) and the direction it blows FROM. */
+function winds(s: VesselState, env: EnvironmentState | null): { trueFrom: number; trueSpd: number; appRel: number; appSpd: number } {
+  const w = env ? windVector(env, { x: 0, z: 0 }) : { x: 0, z: 0 };
+  const trueSpd = Math.hypot(w.x, w.z);
+  // Blowing toward (x, z); FROM is the opposite bearing (0 = north = -z).
+  const trueFrom = trueSpd > 0.05 ? ((Math.atan2(-w.x, w.z) * 180) / Math.PI + 360) % 360 : 0;
+  // Apparent: the wind you feel on deck = true wind minus the boat's velocity.
+  const ax = w.x - s.linearVelocity[0];
+  const az = w.z - s.linearVelocity[2];
+  const appSpd = Math.hypot(ax, az);
+  const appFrom = ((Math.atan2(-ax, az) * 180) / Math.PI + 360) % 360;
+  // Relative to the bow: -180..180, + to starboard.
+  const appRel = ((appFrom - headingDeg(s) + 540) % 360) - 180;
+  return { trueFrom, trueSpd, appRel, appSpd };
+}
+
+/** Course over ground (deg). */
+function cogDeg(s: VesselState): number {
+  return ((Math.atan2(s.linearVelocity[0], -s.linearVelocity[2]) * 180) / Math.PI + 360) % 360;
+}
+
+function navKey(s: VesselState, env: EnvironmentState | null): string {
+  const w = winds(s, env);
+  return [formatPosition(s.position[0], s.position[2]), Math.round(cogDeg(s)), Math.round(w.trueFrom / 5), Math.round(w.trueSpd * 2), Math.round(w.appRel / 5), Math.round(w.appSpd * 2)].join('|');
+}
+
+const paintNav: Painter = (g, s, _def, env) => {
+  title(g, 'NAV  /  WIND');
+  const mono = 'ui-monospace, Menlo, Consolas, monospace';
+  const [lat, lon] = formatPosition(s.position[0], s.position[2]).split(' ');
+  g.textAlign = 'left';
+  g.textBaseline = 'alphabetic';
+  g.fillStyle = AMBER;
+  g.font = `bold 34px ${mono}`;
+  g.fillText(lat, 24, 92);
+  g.fillText(lon, 24, 132);
+  const kn = knots(s);
+  g.font = `bold 26px ${mono}`;
+  g.fillStyle = GREEN;
+  g.fillText(`SOG ${kn.toFixed(1)} kn`, 24, 174);
+  g.fillText(`COG ${kn > 0.3 ? String(Math.round(cogDeg(s))).padStart(3, '0') + '°' : '---'}`, 24, 206);
+  g.fillText(`HDG ${String(Math.round(headingDeg(s)) % 360).padStart(3, '0')}°`, 24, 238);
+  // Wind: true (from, speed, force) as text; apparent on a dial, bow up.
+  const w = winds(s, env);
+  const toKn = 1.943844;
+  g.fillStyle = AMBER;
+  g.font = `bold 22px ${mono}`;
+  g.fillText(`TRUE ${String(Math.round(w.trueFrom)).padStart(3, '0')}° ${(w.trueSpd * toKn).toFixed(0)} kn F${beaufort(w.trueSpd)}`, 268, 66);
+  const cx = 388;
+  const cy = 156;
+  const r = 66;
+  g.strokeStyle = DIM;
+  g.lineWidth = 3;
+  g.beginPath();
+  g.arc(cx, cy, r, 0, Math.PI * 2);
+  g.stroke();
+  // Ticks every 30 degrees.
+  for (let a = 0; a < 360; a += 30) {
+    const t = (a * Math.PI) / 180;
+    g.beginPath();
+    g.moveTo(cx + Math.sin(t) * (r - 8), cy - Math.cos(t) * (r - 8));
+    g.lineTo(cx + Math.sin(t) * r, cy - Math.cos(t) * r);
+    g.stroke();
+  }
+  // The boat, bow up.
+  g.fillStyle = '#3a4a40';
+  g.beginPath();
+  g.moveTo(cx, cy - 26);
+  g.lineTo(cx + 11, cy + 4);
+  g.lineTo(cx + 9, cy + 24);
+  g.lineTo(cx - 9, cy + 24);
+  g.lineTo(cx - 11, cy + 4);
+  g.closePath();
+  g.fill();
+  // Apparent wind: an arrow from the rim (where it comes from) toward the boat.
+  if (w.appSpd > 0.3) {
+    const t = (w.appRel * Math.PI) / 180;
+    const ox = cx + Math.sin(t) * (r - 4);
+    const oy = cy - Math.cos(t) * (r - 4);
+    const ix = cx + Math.sin(t) * 30;
+    const iy = cy - Math.cos(t) * 30;
+    g.strokeStyle = GREEN;
+    g.fillStyle = GREEN;
+    g.lineWidth = 6;
+    g.beginPath();
+    g.moveTo(ox, oy);
+    g.lineTo(ix, iy);
+    g.stroke();
+    const hx = -Math.sin(t);
+    const hy = Math.cos(t);
+    g.beginPath();
+    g.moveTo(ix, iy);
+    g.lineTo(ix - hx * 14 + hy * 9, iy - hy * 14 - hx * 9);
+    g.lineTo(ix - hx * 14 - hy * 9, iy - hy * 14 + hx * 9);
+    g.closePath();
+    g.fill();
+  }
+  g.fillStyle = GREEN;
+  g.font = `bold 20px ${mono}`;
+  g.textAlign = 'center';
+  const side = Math.abs(w.appRel) < 2 || Math.abs(w.appRel) > 178 ? '' : w.appRel > 0 ? ' S' : ' P';
+  g.fillText(`APP ${Math.abs(Math.round(w.appRel))}°${side} ${(w.appSpd * toKn).toFixed(0)} kn`, cx, 246);
 };

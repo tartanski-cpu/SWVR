@@ -509,7 +509,7 @@ export class App {
     // Bridge controls and displays read the (just-updated) vessel state.
     const testVessel = this.world.vessels[this.testVesselId];
     if (this.bridge && testVessel) {
-      this.bridge.update(testVessel, dt, this.dashInView());
+      this.bridge.update(testVessel, dt, this.dashInView(), this.world.environment);
       this.bridge.radio.update(this.world.rescue, runStatus(this.world), dt, isPowered(testVessel, 'radio'), towAlertT(this.world) >= 0);
       // Say so when the anchor is up or holding (the speed screen shows it all the time).
       const ap = testVessel.anchor.phase;

@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { WorkboatDef } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
+import type { EnvironmentState } from '../environment/environmentState';
 import { Button } from './Button';
 import type { Control } from './Control';
 import { InstrumentPanel } from './instruments';
@@ -126,6 +127,15 @@ export class Bridge {
       this.fenders = new FendersView(def.fenders.z, plan);
       this.root.add(this.fenders.mesh);
     }
+    // The NAV / WIND display's housing (its screen is in the instrument mesh) and the
+    // bracket up to the roof.
+    {
+      const n = b.navDisplay;
+      const t = (n.tiltDeg * Math.PI) / 180;
+      extraFixed.push(part(new THREE.BoxGeometry(n.width + 0.04, n.height + 0.04, 0.05).translate(0, 0, -0.03).rotateX(t).translate(n.position[0], n.position[1], n.position[2]), 0x1a1d1c));
+      const roof = def.layout.wheelhouse.roofY;
+      extraFixed.push(part(new THREE.BoxGeometry(0.04, roof - n.position[1], 0.04).translate(n.position[0], (roof + n.position[1]) / 2, n.position[2] - 0.06), 0x2a2d2c));
+    }
     // Swim ladder over the starboard side: two stainless rails hooked over the bulwark top,
     // down past the waterline, with flat treads (see player/body.ts climbOut).
     if (def.swimLadder) {
@@ -199,12 +209,12 @@ export class Bridge {
    * @param displaysInView false when nobody can see the dash: the instrument canvas then
    *                       skips its redraw and texture upload (the costly part on Quest).
    */
-  update(state: VesselState, dt: number, displaysInView = true): void {
+  update(state: VesselState, dt: number, displaysInView = true, env: EnvironmentState | null = null): void {
     for (const c of this.controls) {
       c.sync(state);
       c.tick(dt);
     }
-    if (displaysInView) this.instruments.update(state, this.def, dt);
+    if (displaysInView) this.instruments.update(state, this.def, dt, env);
     this.overhead.update(state);
     this.electrics?.update(state, dt);
     this.lamps.update(state, this.def);

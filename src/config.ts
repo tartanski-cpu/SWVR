@@ -521,6 +521,12 @@ export const CONFIG = {
          * rudder, engine monitor (centre, behind the wheel - read through the spokes).
          */
         displays: { x: [-0.95, -0.52, 0.52, 0.95, 0], y: 2.36, width: 0.38, height: 0.22 },
+        /**
+         * NAV / WIND display (owner request: position and wind data): hung under the roof
+         * on the centreline between the radio and the chartplotter, tilted down toward the
+         * helm. Position (lat/lon), SOG, COG, heading, true wind and an apparent-wind dial.
+         */
+        navDisplay: { position: [0, 3.12, -1.55] as [number, number, number], width: 0.46, height: 0.23, tiltDeg: 35 },
       },
       /**
        * Wet exhaust: smoke and engine cooling water leave through one outlet in the transom,
