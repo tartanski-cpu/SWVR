@@ -33,7 +33,7 @@ describe('milestone 4: landing survivors', () => {
     send('rescueDebugAboard');
     const inc = world.rescue!.active!;
     expect(inc.phase).toBe('recovered');
-    expect(runStatus(world)).toMatch(/dock or anchor/);
+    expect(runStatus(world)).toMatch(/dock alongside a quay/);
     run(3);
     expect(inc.targets[0].phase).toBe('aboard');
     // Alongside Calder Haven's cargo berth, made fast.

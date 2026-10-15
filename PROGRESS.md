@@ -776,6 +776,15 @@ Owner: in VR the controller drops out of tracking when you look ahead, the twist
 - **Survivors are landed only at a quay** (an anchorage has no quay).
 - **Tests (191):** two crates / one drum; full skiff refuses (you keep it); cargo stays put and clear of the tiller; Selkie beach run, ground and deliver; anchorages don't land survivors.
 
+### Anchor fix and indicator (owner bug report)
+
+Owner: after raising the anchor at Selkie, motoring out of the bay hit "an invisible wall", as if the anchor were still down.
+- **Bug** (`physics/anchor.ts`): once broken out, the anchor hangs under the bow while the last of the chain comes in. If the boat moved into water shallower than the chain still out, the code took it as on the bottom again: it set where it was and held the boat. Being no longer "weighing", it also stopped heaving in, so it never came up. Now a broken-out anchor stays off the bottom until it's stowed.
+- **Faster windlass:** heave-in 0.35 → 0.6 m/s (46 m of chain in Selkie Bay in about 80 s instead of 2+ min).
+- **Indicator** on the speed screen: ANCHOR UP (dim), ANCHOR DOWN 46 m (amber), LETTING GO / HEAVING IN n m (flashing), DRAGGING (flashing red). Pop-ups "Anchor holding: n m of chain out" and "Anchor up and stowed".
+- Run status for survivors now says "dock alongside a quay" (anchorages no longer land them, S3).
+- **Tests (193):** weighed while motoring off, it comes home and lets her go; a broken-out anchor doesn't set again in shallow water.
+
 ## Planned next (owner requests, not started)
 
 1. ~~Fuel and oil temperature~~ **Done** (see above).

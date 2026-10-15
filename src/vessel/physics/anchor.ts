@@ -62,7 +62,10 @@ export function stepAnchor(
   }
 
   // Off the bottom: not enough chain to reach it (too deep), or broken out while weighing.
-  if (a.rodeM < h) {
+  // Once broken out it stays off while it comes up, even if the boat moves into water
+  // shallower than the chain still out (it would otherwise "set" again where it is, hold
+  // the boat, and - not being 'weighing' any more - never come in).
+  if (a.rodeM < h || (a.phase === 'hanging' && !down)) {
     // The anchor hangs under the bow: it follows the boat.
     a.x = hawse.x;
     a.z = hawse.z;

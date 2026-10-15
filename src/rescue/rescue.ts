@@ -473,7 +473,7 @@ export function runStatus(world: WorldState): string {
   if (inc?.phase === 'accepted') return runTo || aboardTo ? `Cargo for ${runTo ?? aboardTo}: paused (rescue)` : 'Rescue under way';
   if (inc?.phase === 'recovered') {
     const people = inc.targets.filter((t) => t.kind === 'person' && t.phase !== 'ashore').length;
-    return people ? `${people === 1 ? 'Survivor' : 'Survivors'} aboard: dock or anchor at a harbour to land them` : 'Survivors going ashore';
+    return people ? `${people === 1 ? 'Survivor' : 'Survivors'} aboard: dock alongside a quay to land them` : 'Survivors going ashore';
   }
   if (inc?.phase === 'landed') return `Survivors landed at ${inc.landedAt}${runTo || aboardTo ? ` · cargo for ${runTo ?? aboardTo}` : ''}`;
   if (runTo) return `Cargo run to ${runTo}`;

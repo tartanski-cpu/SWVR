@@ -170,6 +170,7 @@ export class App {
   private readonly tillers: Tiller[] = [];
   /** Stern davits, one per tender. */
   private readonly davits: DavitGear[] = [];
+  private lastAnchorPhase: string | null = null;
   private readonly motorAudio = new ElectricMotorAudio();
   /** Crouching (X / C), and the current crouch drop (m, eased). */
   private crouched = false;
@@ -403,6 +404,13 @@ export class App {
     if (this.bridge && testVessel) {
       this.bridge.update(testVessel, dt, this.dashInView());
       this.bridge.radio.update(this.world.rescue, runStatus(this.world), dt);
+      // Say so when the anchor is up or holding (the speed screen shows it all the time).
+      const ap = testVessel.anchor.phase;
+      if (ap !== this.lastAnchorPhase) {
+        if (ap === 'stowed' && this.lastAnchorPhase) this.overlay.notify('Anchor up and stowed', 2.5);
+        if (ap === 'set') this.overlay.notify(`Anchor holding: ${testVessel.anchor.rodeM.toFixed(0)} m of chain out`, 2.5);
+        this.lastAnchorPhase = ap;
+      }
       for (const g of this.davits) {
         const tv = this.world.vessels[g.tenderId];
         if (!tv) continue;

@@ -134,7 +134,42 @@ const paintSpeed: Painter = (g, s, def) => {
   g.fillRect(24, 206, 464, 22);
   g.fillStyle = AMBER;
   g.fillRect(24, 206, Math.min(464, (kn / 15) * 464), 22);
+  paintAnchor(g, s);
 };
+
+/**
+ * Anchor indicator on the speed screen (left, under the title), so it's plain whether the
+ * anchor is down: UP (dim) when stowed, DOWN with the chain out (steady amber) when it's
+ * on the bottom, flashing while the chain runs out or comes in, red DRAGGING.
+ */
+function paintAnchor(g: CanvasRenderingContext2D, s: VesselState): void {
+  const a = s.anchor;
+  const flash = Math.floor(performance.now() / 500) % 2 === 0;
+  let text: string;
+  let color = AMBER;
+  switch (a.phase) {
+    case 'stowed':
+      text = 'ANCHOR UP';
+      color = DIM;
+      break;
+    case 'set':
+      text = a.dragging ? 'DRAGGING' : `ANCHOR DOWN ${a.rodeM.toFixed(0)} m`;
+      color = a.dragging ? (flash ? RED : DIM) : AMBER;
+      break;
+    case 'paying':
+      text = `LETTING GO ${a.rodeM.toFixed(0)} m`;
+      color = flash ? AMBER : DIM;
+      break;
+    default: // weighing, hanging
+      text = `HEAVING IN ${a.rodeM.toFixed(0)} m`;
+      color = flash ? AMBER : DIM;
+  }
+  g.textAlign = 'left';
+  g.textBaseline = 'top';
+  g.font = 'bold 24px ui-monospace, Menlo, Consolas, monospace';
+  g.fillStyle = color;
+  g.fillText(text, 24, 172);
+}
 
 const paintHeading: Painter = (g, s) => {
   title(g, 'HEADING');

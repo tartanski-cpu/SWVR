@@ -480,7 +480,7 @@ export const CONFIG = {
         /** Holding power in sand/mud of a ~25 kg anchor (N). */
         holdingN: 20000,
         payOutRate: 2.0,
-        heaveRate: 0.35,
+        heaveRate: 0.6,
         /** Windlass stalls above this pull (N). */
         windlassPullN: 9000,
         tautStiffness: 30000,
