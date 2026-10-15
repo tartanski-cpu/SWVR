@@ -44,7 +44,7 @@ function attitude(o: number[]): { heel: number; trim: number } {
   return { heel: (Math.atan2(Math.hypot(ux, 0), uy) * 180) / Math.PI, trim: (Math.atan2(Math.abs(uz), uy) * 180) / Math.PI };
 }
 
-describe('towing missions', () => {
+describe('towing missions', { timeout: 30000 }, () => {
   it('every towable hull floats upright and level at about her DWL', () => {
     const { world, run } = setup();
     TOW_DEFS.forEach((id, i) => {
@@ -66,7 +66,11 @@ describe('towing missions', () => {
   it('out of harbour a call comes by itself; the handset takes it; unanswered it goes away', () => {
     const { world, v, send, run } = setup(true);
     placeVessel(v, 0, 0, -400, 0);
-    run(CONFIG.tow.every[1] + 1);
+    run(0.5);
+    // The first call is due 4-9 minutes in; skip the wait (simulating it is slow on CI).
+    expect(world.tow!.nextAt).toBeGreaterThanOrEqual(CONFIG.tow.every[0]);
+    world.tow!.nextAt = world.time + 0.5;
+    run(1);
     const job = world.tow!.job!;
     expect(job.phase).toBe('calling');
     expect(world.vessels[job.vesselId]).toBeTruthy();
@@ -80,7 +84,9 @@ describe('towing missions', () => {
     send('towDebugCall', 1, 'barge');
     const id = world.tow!.job!.vesselId;
     expect(world.vessels[id].defId).toBe('barge');
-    run(CONFIG.tow.callTimeout + 1);
+    // Two minutes unanswered (skipped, as above).
+    world.tow!.job!.callT = world.time - CONFIG.tow.callTimeout - 0.5;
+    run(0.5);
     expect(world.tow!.job).toBeNull();
     expect(world.vessels[id]).toBeUndefined();
   });
