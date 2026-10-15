@@ -1900,8 +1900,9 @@ export class App {
   private updateChartTable(v: VesselState | undefined, dt: number): void {
     if (!this.chartTable || !this.logbook || !v) return;
     const lamp = v.controls.chartLamp > 0 && isPowered(v, 'deckLights');
-    const cabin = v.controls.cabinLight > 0 && isPowered(v, 'deckLights');
-    const level = Math.min(1, Math.max(0.04, this.environment.ambientIntensity * 1.1 + (cabin ? 0.45 : 0) + (lamp ? 1 : 0)));
+    // The cabin lamp lights the chart; red (night) only faintly.
+    const cabin = isPowered(v, 'deckLights') ? v.controls.cabinLight : 0;
+    const level = Math.min(1, Math.max(0.04, this.environment.ambientIntensity * 1.1 + (cabin === 1 ? 0.45 : cabin === 2 ? 0.12 : 0) + (lamp ? 1 : 0)));
     this.chartTable.setLight(level, lamp);
     // From outside the wheelhouse the chart, bulb, book pages, pen, tools and marks are too
     // small to matter (and mostly behind the aft wall): skip their draw calls.

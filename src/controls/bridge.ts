@@ -83,7 +83,7 @@ export class Bridge {
     const anchor = new Toggle('anchor', 'anchor', 'Anchor: let go / heave in', (s) => s.controls.anchor);
     anchor.root.position.fromArray(b.anchorSwitch.position);
 
-    const cabin = new Toggle('cabinLight', 'cabinLight', 'Cabin light', (s) => s.controls.cabinLight);
+    const cabin = new Toggle('cabinLight', 'cabinLight', 'Cabin light: off / white / red (night)', (s) => s.controls.cabinLight, 3);
     cabin.root.position.fromArray(b.cabinLightSwitch.position);
 
     // Lit when there's a berth to dock at (hot spot) or while docking/moored.

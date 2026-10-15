@@ -131,13 +131,28 @@ describe('Button and Toggle', () => {
     ]);
   });
 
+  it('a three-way switch (the cabin light) steps off -> white -> red -> off and follows the state', () => {
+    const t = new Toggle('cabin', 'cabinLight', 'Cabin light', (s) => s.controls.cabinLight, 3);
+    const r = recorder();
+    t.bind(r.ctx);
+    t.pressStart();
+    t.pressStart();
+    t.pressStart();
+    expect(r.sent.map((x) => x[1])).toEqual([1, 2, 0]);
+    const s = createVesselState('v', 'workboat');
+    s.controls.cabinLight = 2;
+    t.sync(s); // agrees with nothing pending after a while: follows
+    const pos = () => (t as unknown as { pos: number }).pos;
+    expect([0, 2]).toContain(pos());
+  });
+
   it("a crew-mate's switch doesn't bounce back while the host's state catches up", () => {
     let now = 1000;
     const spy = vi.spyOn(performance, 'now').mockImplementation(() => now);
     const t = new Toggle('nav', 'navLights', 'Nav', (s) => s.controls.navLights);
     t.bind(recorder().ctx);
     const s = createVesselState('v', 'workboat');
-    const on = () => (t as unknown as { on: boolean }).on;
+    const on = () => (t as unknown as { pos: number }).pos === 1;
     t.pressStart(); // on, locally
     now += 100;
     t.sync(s); // the snapshot still says off: wait

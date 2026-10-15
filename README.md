@@ -123,7 +123,7 @@ At the helm, from left to right on the console:
 - **Anchor** switch: down = let go (the chain pays out to 4 × depth + 5 m), up = heave in and stow. You hear it: the chain rattles out over the bow roller and the anchor splashes in; heaving in, the windlass hums and the links clank in one by one, with a clunk as it stows.
 - **SPOT** switch (far left): the searchlight on the wheelhouse roof.
 - **Searchlight joystick:** on the pedestal to port of the wheel, under your left hand. Grip it and push sideways to pan, forward/back to raise/lower the beam. The further you push, the faster it moves; let go and the light stays put. On desktop, click and drag it.
-- **Cabin** light switch: the wheelhouse ceiling lamp.
+- **Cabin** light switch: the wheelhouse ceiling lamp, three-way. Each press steps **off → white → red → off**: the bat is in the middle for off, forward for white, and aft for red. Red is dim, for night work: you can see the controls without losing your night vision.
 - **WIPERS** switch (far port end): the three pendulum wipers on the front windows. They need the INSTR breaker; switched off they finish the sweep and park.
 - **DOCK** button (blue, right of the wheel): lights up when you're in a berth's hot spot (any quay or pier face with water alongside). Press it to dock; press again to cast off.
 - **Horn** button (hold).

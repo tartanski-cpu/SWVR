@@ -4,19 +4,22 @@ import type { VesselState } from '../vessel/vesselState';
 import { Control } from './Control';
 
 /**
- * Two-position toggle switch (e.g. navigation lights). A press flips it; the bat lever
- * tilts forward (on) or aft (off). The authoritative position comes from the vessel state.
+ * Toggle switch (e.g. navigation lights). Two positions: a press flips it; the bat lever
+ * tilts forward (on) or aft (off). Three positions (the cabin light: off / white / red):
+ * each press steps 0 -> 1 -> 2 -> 0; the bat sits in the middle (0), forward (1) or aft
+ * (2). It sends the position number. The authoritative position comes from the vessel state.
  */
 export class Toggle extends Control {
   readonly kind = 'press' as const;
   private readonly bat = new THREE.Group();
-  private on = false;
+  private pos = 0;
 
   constructor(
     id: string,
     channel: string,
     readonly label: string,
     private readonly read: (s: VesselState) => number,
+    private readonly positions: 2 | 3 = 2,
   ) {
     super(id, channel);
     const plate = this.fixed(new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.012, 0.09), new THREE.MeshLambertMaterial({ color: 0x23282c })));
@@ -30,7 +33,7 @@ export class Toggle extends Control {
     this.bat.add(bat);
     this.root.add(plate, this.bat);
     this.hitObjects.push(bat, plate);
-    this.show(false);
+    this.show(0);
   }
 
   distanceTo(world: THREE.Vector3): number {
@@ -38,20 +41,22 @@ export class Toggle extends Control {
   }
 
   pressStart(): void {
-    this.show(!this.on);
+    this.show((this.pos + 1) % this.positions);
     this.markPending();
     this.ctx?.haptic(0.5, 30);
-    this.ctx?.emit(this.channel, this.on ? 1 : 0);
+    this.ctx?.emit(this.channel, this.pos);
   }
 
-  private show(on: boolean): void {
-    this.on = on;
-    this.bat.rotation.x = on ? -0.45 : 0.45; // forward = on
+  private show(pos: number): void {
+    this.pos = pos;
+    // Forward = on (1); two-way: aft = off; three-way: middle = off, aft = 2.
+    this.bat.rotation.x = pos === 1 ? -0.45 : pos === 2 || this.positions === 2 ? 0.45 : 0;
   }
 
   sync(state: VesselState): void {
-    const on = this.read(state) > 0.5;
-    if (this.awaiting(on === this.on)) return;
-    if (on !== this.on) this.show(on);
+    const v = this.read(state);
+    const pos = this.positions === 2 ? (v > 0.5 ? 1 : 0) : Math.max(0, Math.min(2, Math.round(v)));
+    if (this.awaiting(pos === this.pos)) return;
+    if (pos !== this.pos) this.show(pos);
   }
 }

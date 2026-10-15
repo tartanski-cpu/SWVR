@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { WorkboatDef } from '../vesselDef';
 
 /**
- * Wheelhouse ceiling lamp: a small fixture whose diffuser glows when on, and ONE real
+ * Wheelhouse ceiling lamp, white or red (night): a small fixture whose diffuser glows when on, and ONE real
  * PointLight (short reach). Off, the light is hidden: hidden lights are left out of every
  * lit material's shader, so an unused lamp costs nothing per pixel. The price is one shader
  * recompile (a brief hitch) when it's switched - far cheaper on Quest than paying for a
@@ -26,9 +26,14 @@ export class CabinLight {
     this.root.add(base, lens, this.light);
   }
 
-  update(on: boolean): void {
-    this.light.intensity = on ? this.def.cabinLight.intensity : 0;
-    this.light.visible = on; // off: not in any shader (one recompile when switched)
-    this.diffuser.color.setHex(on ? 0xfff6e0 : 0x444444);
+  /** @param mode 0 off, 1 white, 2 red (dim, for night work: the eyes stay dark-adapted) */
+  update(mode: number): void {
+    const on = mode > 0;
+    const red = mode === 2;
+    const c = this.def.cabinLight;
+    this.light.intensity = on ? (red ? c.redIntensity : c.intensity) : 0;
+    this.light.color.setHex(red ? 0xff2008 : 0xfff1d6);
+    this.light.visible = on; // off: not in any shader (one recompile when switched on/off)
+    this.diffuser.color.setHex(!on ? 0x444444 : red ? 0xff3018 : 0xfff6e0);
   }
 }

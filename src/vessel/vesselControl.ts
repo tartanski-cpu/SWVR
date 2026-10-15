@@ -196,7 +196,8 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
       if (s.bilge !== undefined) s.bilge = Math.max(0, Math.min(1, intent.value));
       break;
     case 'cabinLight':
-      s.controls.cabinLight = intent.value > 0.5 ? 1 : 0;
+      // Three-way: 0 off, 1 white, 2 red (night: keeps your eyes dark-adapted).
+      s.controls.cabinLight = Math.max(0, Math.min(2, Math.round(intent.value)));
       break;
     case 'spotlight':
       s.controls.spotlight = intent.value > 0.5 ? 1 : 0;

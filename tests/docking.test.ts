@@ -127,6 +127,8 @@ describe('docking', () => {
     const { v, send } = boat();
     send('cabinLight', 1);
     expect(v.controls.cabinLight).toBe(1);
+    send('cabinLight', 2);
+    expect(v.controls.cabinLight).toBe(2); // red (night)
     send('cabinLight', 0);
     expect(v.controls.cabinLight).toBe(0);
   });

@@ -725,7 +725,8 @@ export const CONFIG = {
        * Cabin light: a ceiling lamp in the wheelhouse (vessel axes) and its light (cd, m).
        * One real PointLight, hidden when off (no per-pixel cost; one shader recompile per switch).
        */
-      cabinLight: { position: [0, 3.22, -0.2] as [number, number, number], intensity: 3, distance: 6 },
+      /** Ceiling lamp: white `intensity`, or red at `redIntensity` (night: enough to see the controls, not to dazzle). */
+      cabinLight: { position: [0, 3.22, -0.2] as [number, number, number], intensity: 3, redIntensity: 0.45, distance: 6 },
       /**
        * Overhead switch panel under the wheelhouse roof, just ahead of and above the helm
        * (well above the windscreen sightline): deck light switches and the FM radio.
