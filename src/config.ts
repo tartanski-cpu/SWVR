@@ -189,9 +189,10 @@ export const CONFIG = {
         /**
          * Vertical damping per m^2 of waterplane (N*s/m per m^2), applied on the centreline
          * of every station against velocity relative to the water particles.
-         * Gives heave and pitch damping (~13 % of critical in heave).
+         * Gives heave and pitch damping (~20 % of critical in heave; raised from 800, ~13 %,
+         * owner feedback: too bouncy for the crew watching on desktop).
          */
-        vertical: 800,
+        vertical: 1300,
         /**
          * Quadratic vertical drag coefficient on each station's waterplane strip. Stands in
          * for slamming / water-entry losses so a hard landing doesn't bounce elastically.
@@ -208,12 +209,13 @@ export const CONFIG = {
          *  settle residual creep; calm-water resistance is the `resistance` curve below. */
         surgeLinear: 20,
         /**
-         * Angular damping (N*m*s/rad). Roll: ~15 % of critical in the free-decay trial
-         * (critical = 2*sqrt(Delta*g*GM * I_roll) ~ 233 kN*m*s for this hull), roughly a
-         * hard-chine hull with modest bilge keels. Raised from 24000 (~11 %) on owner feedback.
+         * Angular damping (N*m*s/rad). Roll: ~30 % of critical in the free-decay trial
+         * (critical = 2*sqrt(Delta*g*GM * I_roll) ~ 233 kN*m*s for this hull): a hard-chine
+         * hull with deep bilge keels / a gentle roll-damping system. Raised from 24000
+         * (~11 %) and 33000 (~15 %) on owner feedback (motion sickness); pitch likewise.
          */
-        roll: 33000,
-        pitch: 20000,
+        roll: 70000,
+        pitch: 40000,
         yaw: 20000,
       },
       /**
@@ -1516,6 +1518,12 @@ export const CONFIG = {
     // Default rigid: in VR testing, decoupling also moved the hands relative to the deck
     // (they live in the same rig as the head), making the bridge controls hard to grab.
     motionCoupling: 1.0,
+    /**
+     * The same on the desktop (its own setting, keys 9 / 0): softer by default, since there
+     * are no hands to keep on the controls and a screen that rolls with the deck makes
+     * onlookers queasy (owner feedback).
+     */
+    desktopMotionCoupling: 0.3,
     /** Filter time constant at coupling 0 (s); shrinks to `minTimeConstant` at coupling 1. */
     maxTimeConstant: 1.6,
     minTimeConstant: 0.12,

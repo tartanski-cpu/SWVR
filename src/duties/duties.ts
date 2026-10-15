@@ -22,14 +22,16 @@
  *   fendersIn   out of harbour with them still hanging over the side: take them in.
  *   lash        under way with loose cargo on deck: lash it (unless a weather duty has it).
  *   oil         an engine oil check is due: pull the dipstick, top up if it's low.
- *   log         something loggable happened (left harbour, arrived): write it in the log
- *               at the chart table. Ticks off when the entry is signed.
+ *   cargo       cargo aboard bound for a port: take her there and set it down ashore.
+ *   rescue      a distress call (answer it), the search and recovery, landing survivors.
+ *   tow         a tow job: answer the call, make fast, bring her into a harbour.
+ * The log is optional (owner request): writing entries never shows up here.
  */
 import { CONFIG } from '../config';
 import type { WorldState } from '../core/world';
 import { visibilityAt } from '../environment/weather';
 import { isPowered } from '../vessel/electrics';
-import { LOG_TITLES } from '../log/log';
+import { cargoDestination, nearestPort, portById } from '../rescue/rescue';
 import { answerFogSignal } from '../traffic/traffic';
 import { PORTS } from '../world/archipelago';
 import { allBerths } from '../world/berths';
@@ -47,7 +49,7 @@ export interface DutyStep {
 
 export interface Duty {
   id: string;
-  kind: 'startup' | 'fogSignal' | 'secure' | 'bilge' | 'log' | 'fendersOut' | 'fendersIn' | 'lash' | 'oil';
+  kind: 'startup' | 'fogSignal' | 'secure' | 'bilge' | 'fendersOut' | 'fendersIn' | 'lash' | 'oil' | 'cargo' | 'rescue' | 'tow';
   title: string;
   steps: DutyStep[];
   createdAt: number;
@@ -59,8 +61,8 @@ export interface Duty {
   lastBlast?: number;
   /** Stays up even with every step ticked (fogSignal, until the fog clears). */
   holdOpen?: boolean;
-  /** log: the log event it's for (log/log.ts). */
-  ref?: number;
+  /** cargo / rescue / tow: which job it's for (port id, incident call time, tow vessel id). */
+  key?: string;
 }
 
 export interface DutiesState {
@@ -257,26 +259,69 @@ function stepOilDuty(world: WorldState, d: DutiesState, v: VesselState): void {
   duty.steps[1].done = !low && duty.steps[0].done;
 }
 
-/** A "Log: ..." duty for each loggable event, ticked when its entry is signed. */
-function stepLogDuties(world: WorldState, d: DutiesState): void {
-  const log = world.log;
-  if (!log) return;
-  for (const ev of log.events) {
-    if (ev.logged || d.items.some((x) => x.kind === 'log' && x.ref === ev.id)) continue;
-    const what = `${LOG_TITLES[ev.type].toLowerCase()}${ev.port ? (ev.type === 'departure' ? ` from ${ev.port}` : ` at ${ev.port}`) : ''}`;
-    const duty = addDuty(d, 'log', `Log: ${what}`, [{ text: 'Write it up in the logbook (chart table)', done: false }], world.time);
-    duty.ref = ev.id;
-    duty.expireAt = ev.at + CONFIG.log.eventLinger;
+/**
+ * A job duty (cargo, rescue, tow) kept in step with the world: up while `key` is the
+ * active job (with its steps' done flags), finished when the job is over (`key` null or a
+ * different job, after it was up).
+ */
+function syncJob(d: DutiesState, kind: Duty['kind'], key: string | null, title: string, steps: DutyStep[], now: number): void {
+  let duty = d.items.find((x) => x.kind === kind && x.doneAt === undefined);
+  if (duty && duty.key !== key) {
+    // That job is over. A call nobody answered (it went to another vessel) just goes;
+    // anything else was seen through: tick it off.
+    const unanswered = kind !== 'cargo' && !duty.steps[0]?.done;
+    if (unanswered) d.items = d.items.filter((x) => x !== duty);
+    else for (const st of duty.steps) st.done = true;
+    duty = undefined;
   }
-  for (const x of d.items) {
-    if (x.kind !== 'log' || x.doneAt !== undefined) continue;
-    // Logged (the event is marked, or gone because it was): tick it off.
-    const ev = log.events.find((e) => e.id === x.ref);
-    if (!ev || ev.logged) {
-      if (!ev && world.time >= (x.expireAt ?? Infinity)) continue; // just expired
-      x.steps[0].done = true;
-    }
+  if (!key) return;
+  if (!duty) {
+    duty = addDuty(d, kind, title, steps, now);
+    duty.key = key;
   }
+  duty.title = title;
+  steps.forEach((st, i) => {
+    if (duty!.steps[i]) duty!.steps[i].done ||= st.done;
+  });
+}
+
+/** The cargo job: cargo aboard bound for a port, until it's set down there. */
+function stepCargoDuty(world: WorldState, d: DutiesState, v: VesselState): void {
+  const to = cargoDestination(world, v.id);
+  const port = to ? portById(to) : undefined;
+  const name = port?.name.replace(' (anchorage)', '') ?? '';
+  const there = !!port && nearestPort(v.position[0], v.position[2]).port.id === port.id && nearestPort(v.position[0], v.position[2]).dist < CONFIG.rescue.harbourRadius;
+  syncJob(d, 'cargo', port ? port.id : null, `Cargo job: deliver to ${name}`, [
+    { text: `Take her to ${name}`, done: there },
+    { text: 'Set the cargo down ashore by the goods stack', done: false },
+  ], world.time);
+}
+
+/** The rescue under way (a distress call, the search, landing survivors). */
+function stepRescueDuty(world: WorldState, d: DutiesState): void {
+  const inc = world.rescue?.active;
+  const what = inc?.defId === 'manOverboard' ? 'man overboard' : inc?.defId === 'lostCargo' ? 'lost deck cargo' : 'rescue';
+  const people = !!inc?.targets.some((t) => t.kind === 'person');
+  const live = inc && inc.phase !== 'landed' ? `${inc.defId}@${Math.round(inc.callT)}` : null;
+  const recovered = !!inc && (inc.phase === 'recovered' || inc.phase === 'landed');
+  const steps: DutyStep[] = [
+    { text: 'Answer the call: pick up the VHF handset', done: !!inc && inc.phase !== 'calling' },
+    { text: people ? 'Search the area on the chart; get them aboard' : 'Search the area on the chart; hook the crates aboard', done: recovered },
+  ];
+  if (people) steps.push({ text: 'Land the survivors: moor alongside a quay', done: inc?.phase === 'landed' });
+  syncJob(d, 'rescue', live, `Rescue: ${what}`, steps, world.time);
+}
+
+/** The tow job (answer, make fast, bring her in). */
+function stepTowDuty(world: WorldState, d: DutiesState): void {
+  const job = world.tow?.job;
+  const live = job && job.phase !== 'delivered' ? job.vesselId : null;
+  const name = job ? (VESSEL_DEFS[job.defId]?.tow?.name ?? 'a tow').replace(/^an? /, '') : '';
+  syncJob(d, 'tow', live, `Tow: ${name}`, [
+    { text: 'Answer the call: pick up the VHF handset', done: !!job && job.phase !== 'calling' },
+    { text: 'Make the towline fast to her bow eye (boat hook)', done: !!job?.fast },
+    { text: 'Bring her into any harbour, slow', done: false },
+  ], world.time);
 }
 
 /** Advance the duties: add what's due, tick off steps, finish, drop old ones. */
@@ -317,8 +362,10 @@ export function stepDuties(world: WorldState): void {
     stepFenders(world, d, v);
     stepLash(world, d, v);
     stepOilDuty(world, d, v);
+    stepCargoDuty(world, d, v);
   }
-  stepLogDuties(world, d);
+  stepRescueDuty(world, d);
+  stepTowDuty(world, d);
 
   for (const x of d.items) {
     if (x.doneAt === undefined && !x.holdOpen && x.steps.length && x.steps.every((s) => s.done || s.optional)) {

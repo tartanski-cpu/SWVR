@@ -768,6 +768,8 @@ export class App {
     const carrier = this.rig.carrier;
     carrier.position.fromArray(p.position);
     if (vesselView) {
+      // VR and desktop have their own coupling (desktop softer: see CONFIG.comfort).
+      this.decoupler.coupling = this.renderer.xr.isPresenting ? userSettings.motionCoupling : userSettings.desktopCoupling;
       if (dt > 0) {
         const feetY = vesselView.root.localToWorld(this.offsetV.fromArray(p.position)).y;
         this.viewOffset = this.decoupler.update(dt, vesselView.root.quaternion, feetY, this.comfortQ);
@@ -1519,8 +1521,10 @@ export class App {
     // swallow them, so holding X + stick did nothing). Round only for display.
     const c = Math.min(1, Math.max(0, value));
     this.decoupler.coupling = c;
-    this.overlay.notify(`Motion coupling ${Math.round(c * 100)} %  (100 = rigid to the deck)`, 2);
-    userSettings.motionCoupling = c;
+    const xr = this.renderer.xr.isPresenting;
+    this.overlay.notify(`${xr ? '' : 'Desktop '}Motion coupling ${Math.round(c * 100)} %  (100 = rigid to the deck)`, 2);
+    if (xr) userSettings.motionCoupling = c;
+    else userSettings.desktopCoupling = c;
     saveUserSettings();
   }
 

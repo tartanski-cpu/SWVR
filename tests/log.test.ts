@@ -22,7 +22,8 @@ function setup() {
   const run = (s: number) => {
     for (let i = 0; i < s / DT; i++) stepWorld(world, [], DT);
   };
-  const logDuty = () => world.duties?.items.find((d) => d.kind === 'log' && d.title.startsWith('Log: departure'));
+  /** The log is optional: nothing about it ever goes on the duty board. */
+  const logDuty = () => world.duties?.items.find((d) => d.title.startsWith('Log'));
   const write = (type: (typeof LOG_TYPES)[number], fuel: string, playerId?: string) => {
     send('logBegin', undefined, [LOG_TYPES.indexOf(type)], playerId);
     send('logPick', 'fuel', [['Full', '¾', '½', '¼'].indexOf(fuel)], playerId);
@@ -32,14 +33,14 @@ function setup() {
 }
 
 describe("ship's log", () => {
-  it('leaving harbour: a departure event and a "Log:" duty; signing writes the entry and ticks it', () => {
+  it('leaving harbour: a departure event (but no duty: the log is optional); signing writes the entry', () => {
     const { world, v, run, logDuty, write } = setup();
     run(0.1);
     expect(world.log!.events).toHaveLength(0); // starting in harbour isn't news
     placeVessel(v, calder.x - 800, 0, calder.z, 0);
     run(0.1);
-    const d = logDuty()!;
-    expect(d.title).toBe('Log: departure from Calder Haven');
+    expect(world.log!.events.some((e) => e.type === 'departure' && e.port === 'Calder Haven')).toBe(true);
+    expect(logDuty()).toBeUndefined();
     write('departure', fuelWord(v));
     const e = world.log!.voyages[0].entries[0];
     expect(e.type).toBe('departure');
@@ -48,12 +49,12 @@ describe("ship's log", () => {
     expect(e.pos).toMatch(/^\d\d°\d\d\.\d'N 00\d°\d\d\.\d'W$/);
     expect(e.fields[0]).toMatchObject({ key: 'fuel', correct: true });
     run(0.1);
-    expect(d.doneAt).toBeDefined();
+    expect(world.log!.events.find((ev) => ev.type === 'departure')?.logged ?? true).toBe(true);
     expect(world.log!.voyages[0].closed).toBe(false);
   });
 
   it('a wrong reading is written but not ticked; arrival closes the voyage with its score', () => {
-    const { world, v, run, write } = setup();
+    const { world, v, run, write, logDuty } = setup();
     run(0.1);
     placeVessel(v, calder.x - 800, 0, calder.z, 0);
     run(0.1);
@@ -65,7 +66,7 @@ describe("ship's log", () => {
     v.mooring = { phase: 'moored', berthId: 'calder-cargo', reversed: false, t: 0 };
     run(0.1);
     expect(world.log!.events.some((e) => e.type === 'arrival' && e.port === 'Calder Haven')).toBe(true);
-    expect(world.duties!.items.some((d) => d.title === 'Log: arrival at Calder Haven')).toBe(true);
+    expect(logDuty()).toBeUndefined();
     write('arrival', fuelWord(v));
     const voyage = world.log!.voyages[0];
     expect(voyage.closed).toBe(true);
@@ -93,14 +94,13 @@ describe("ship's log", () => {
   });
 
   it('unlogged events drop off after a while', () => {
-    const { world, v, run, logDuty } = setup();
+    const { world, v, run } = setup();
     run(0.1);
     placeVessel(v, calder.x - 800, 0, calder.z, 0);
     run(0.1);
-    expect(logDuty()).toBeTruthy();
+    expect(world.log!.events.some((e) => e.type === 'departure')).toBe(true);
     run(CONFIG.log.eventLinger + 1);
     expect(world.log!.events.filter((e) => e.type === 'departure')).toHaveLength(0);
-    expect(logDuty()).toBeUndefined();
   });
 
   it('saved voyages load back (only the last few kept); junk is ignored', () => {

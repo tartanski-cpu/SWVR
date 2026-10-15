@@ -24,7 +24,6 @@ export interface EngineSoundInput {
  *   diesel worklet ─ ch0 exhaust pulses ─► high-pass 45 Hz ─► resonances (110, 150 Hz) ─► low-pass
  *                  │                       (opens with rpm and load) ─► soft clip ─► thump ─┬─ dry ──────────────┐
  *                  │                                                                          └─ low-pass 220 Hz ─ muffled ─┤
- *                  └ ch1 exhaust bubbles ─► low-pass 1.2 kHz ─► burble ───────────────────────────────────────────┤
  *   starter motor whine (while cranking) ─────────────────────────────────────────────────────────────────────┤
  *   noise ─► band-pass (intake rush, with load) ─────────────────────────────────────────────────────────────┼─► master
  *
@@ -33,9 +32,8 @@ export interface EngineSoundInput {
  * nothing above a few hundred Hz (that reads as a tinny lawnmower; owner feedback).
  *
  * Wet exhaust: the outlet is in the transom just above the waterline. When it dips under
- * (stern squat, a passing wave, pitching), the note goes dull and burbling: the dry path
- * fades, a low-passed copy and the exhaust-bubble channel come up (only then: always on,
- * the bubbles were "thick water globs").
+ * (stern squat, a passing wave, pitching), the note goes dull: the dry path fades and a
+ * low-passed copy comes up. (There were exhaust bubbles too; taken out, owner feedback.)
  * The worklet is what makes it "meaty": real, uneven firing pulses (see dieselWorklet.ts),
  * so you hear each cylinder thump at idle and a hard, gritty bark under load. Where
  * AudioWorklet isn't available it falls back to two oscillators (the old, thinner sound).
@@ -55,7 +53,6 @@ export class EngineSound {
     private readonly hiss: GainNode,
     private readonly dry: GainNode,
     private readonly muffled: GainNode,
-    private readonly burble: GainNode,
   ) {}
 
   static async create(ctx: BaseAudioContext, destination: AudioNode): Promise<EngineSound> {
@@ -108,22 +105,12 @@ export class EngineSound {
     const muffled = ctx.createGain();
     muffled.gain.value = 0;
     thump.connect(underLp).connect(muffled).connect(master);
-    // Exhaust bubbles (worklet channel 2).
-    const burbleLp = ctx.createBiquadFilter();
-    burbleLp.type = 'lowpass';
-    burbleLp.frequency.value = 1200;
-    const burble = ctx.createGain();
-    burble.gain.value = 0;
-    burbleLp.connect(burble).connect(master);
 
     let worklet: AudioWorkletNode | null = null;
     let fallback: { osc1: OscillatorNode; osc2: OscillatorNode } | null = null;
     if (await loadDieselWorklet(ctx)) {
-      worklet = new AudioWorkletNode(ctx, 'diesel', { numberOfInputs: 0, outputChannelCount: [2] });
-      const split = ctx.createChannelSplitter(2);
-      worklet.connect(split);
-      split.connect(dcBlock, 0);
-      split.connect(burbleLp, 1);
+      worklet = new AudioWorkletNode(ctx, 'diesel', { numberOfInputs: 0, outputChannelCount: [1] });
+      worklet.connect(dcBlock);
     } else {
       const osc1 = ctx.createOscillator();
       osc1.type = 'sawtooth';
@@ -164,7 +151,7 @@ export class EngineSound {
     noise.connect(band).connect(hiss).connect(master);
     noise.start();
 
-    return new EngineSound(ctx, master, worklet, fallback, bodyLp, thump, starter, starterGain, hiss, dry, muffled, burble);
+    return new EngineSound(ctx, master, worklet, fallback, bodyLp, thump, starter, starterGain, hiss, dry, muffled);
   }
 
   private lastSub = 0;
@@ -190,16 +177,13 @@ export class EngineSound {
     // Darker than before (it topped out near 900 Hz): the bark stays under ~450 Hz.
     this.bodyLp.frequency.setTargetAtTime(150 + 120 * rpmFrac + 180 * load, t, smooth);
     this.thump.gain.setTargetAtTime(turning ? 0.65 + 0.25 * rpmFrac + 0.35 * load : 0, t, 0.1);
-    // Wet exhaust: dry bark in the air, dull and burbling under water. Under goes fast (the
+    // Wet exhaust: dry bark in the air, dull under water. Under goes fast (the
     // outlet floods), back out a little slower (the water has to clear).
     const sub = Math.min(1, Math.max(0, e.submerged ?? 0));
     const k = sub > this.lastSub ? 0.04 : 0.12;
     this.lastSub = sub;
     this.dry.gain.setTargetAtTime(1 - 0.8 * sub, t, k);
     this.muffled.gain.setTargetAtTime(1.1 * sub, t, k);
-    // Exhaust bubbles only when the outlet is actually under: always-on they were "thick
-    // water globs" (owner feedback).
-    this.burble.gain.setTargetAtTime(e.running ? 0.3 * Math.max(0, sub - 0.25) * (0.6 + 0.4 * load) : 0, t, k);
     this.starter.frequency.setTargetAtTime(120 + rpm * 1.4, t, 0.05);
     this.starterGain.gain.setTargetAtTime(e.cranking ? 0.06 : 0, t, 0.04);
     this.hiss.gain.setTargetAtTime(e.running ? 0.002 + 0.008 * load * rpmFrac : 0, t, 0.2);

@@ -60,7 +60,7 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | X / G | Debug: lever to neutral / wheel amidships |
 | T | Hydrostatics + sea trials report |
 | L | Weather: switch to the next preset (Clear / Overcast / Fog / Rain / Squall), changing over a minute |
-| 9 / 0 | Motion coupling −/+ 10 % |
+| 9 / 0 | Motion coupling −/+ 10 % (desktop has its own setting, 30 % by default: the view soaks up the boat's quick roll and heave) |
 | R / K | Test: drop the boat from 4 m / heel her 20° and release |
 | V | Buoyancy debug view on/off |
 | N / M | Time of day −/+ 30 min |
@@ -89,7 +89,7 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | **Grip** the boat hook (port bulwark) | Take it; it points along your controller. Touch a floating crate or a tow's bow eye with the tip to hook it. With **auto-extend** (menu Comfort → Boat hook reach, on by default) it telescopes out to whatever you point it at, up to 8 m, then slides back in with the crate on it. Desktop: click the hook, then click the crate or bow eye |
 | **X** | **Crouch** / stand up (drops your view and hands 0.6 m; desktop: C) |
 | **Trigger** on the red key on the yellow plate (aft wall, by the door) | **Battery master** on / off. The boat starts cold and dark: master on first (voltmeter by the helm, under the starboard window) |
-| **Starting the engine** | Follow the card by the key: battery MASTER on (aft wall), INSTR breaker on, throttle in neutral, KEY on, hold HEAT until the GLOW lamp goes out (about 2.5 s cold, well under a second once the engine is warm), hold START until she runs. Stop: key off. Battery selector (1 / BOTH / 2) beside the master. The duty board on the starboard wall ticks off the start-up steps. Desktop E: hint (or quick start if enabled in config) |
+| **Starting the engine** | Follow the card by the key: battery MASTER on (aft wall), INSTR breaker on, throttle in neutral, KEY on, hold HEAT until the GLOW lamp goes out (about 2.5 s cold, well under a second once the engine is warm), hold START until she runs. Stop: key off. Battery selector (1 / BOTH / 2) beside the master. The duty board on the starboard wall ticks off the start-up steps, and lists the jobs on: the cargo job, and any rescue or tow under way. Desktop E: hint (or quick start if enabled in config) |
 | **Trigger** on a breaker (panel by the helm, under the starboard window) | Breakers: Instruments, Chart, Radio, Nav lights, Deck lights, Bilge. A device works only with the master and its breaker on; a green lamp shows the circuit is live |
 | **Trigger** on the green button on the stern davit (or Menu > Boat > Skiff) | Launch the skiff / recover her (she must be close under the stern and moving with you) |
 | **Grip** on the skiff's tiller, then **trigger** | Steer by swinging the tiller; the same hand's trigger is the throttle (let go = idle). Red button on the motor: on/off; yellow lever on its side: forward / neutral / reverse |
@@ -174,7 +174,7 @@ The chart table stands along the port wall, behind the helm. On it:
   | Weather forecast | a VHF forecast is received | nothing: the forecast is copied in, just sign |
   | Rescue | a rescue is completed | nothing: the summary is filled in, just sign |
 
-  Each puts a "Log: …" duty on the duty board, which ticks off when you sign.
+  The log is **optional**: these show as "(due)" in the logbook, but never go on the duty board. Unlogged ones drop off after 10 minutes.
 - **One writer at a time:** while a crewmate writes an entry, the page says so. If they leave it for 90 s, you can take it over.
 - **At night** you need the chart table lamp to read or write.
 

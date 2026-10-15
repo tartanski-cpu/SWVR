@@ -88,9 +88,10 @@ for (const id of ids) {
           expect(r.motions.rollPeriod).toBeGreaterThan(2.5);
           expect(r.motions.rollPeriod).toBeLessThan(6);
         });
-        it('roll is lightly but clearly damped (5-25 % of critical)', () => {
+        // Raised for comfort (owner feedback): well damped, still a roll you can see.
+        it('roll is clearly but not overly damped (5-35 % of critical)', () => {
           expect(r.motions.rollDampingRatio).toBeGreaterThan(0.05);
-          expect(r.motions.rollDampingRatio).toBeLessThan(0.25);
+          expect(r.motions.rollDampingRatio).toBeLessThan(0.35);
         });
       });
     }

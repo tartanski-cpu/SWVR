@@ -8,10 +8,8 @@
  *     longer at low rpm), strong with load; a soft compression puff when not firing
  *     (cranking). Only a touch of noise rides on it: a pressure pulse through a silencer
  *     is mostly tone, and the old 40 % noise made the engine sound hissy and "noisy".
- *   - channel 1, exhaust bubbles: a wet exhaust blowing into water burbles. Each firing
- *     event releases a few big bubbles (100-450 Hz) that ring and chirp upward as they
- *     rise (Minnaert bubbles: f = 3.26 / radius). The main
- *     thread fades this in as the outlet goes under.
+ *   (A second channel of exhaust bubbles was taken out at the owner's request: it didn't
+ *   sound good. With the outlet under water the main thread just muffles this note.)
  * No injector clatter or mechanical rasp: those read as a tinny "lawnmower" buzz (owner
  * feedback), and in a recording of a similar boat everything above ~250 Hz is the water.
  * No cylinder is quite like the others (fixed strength pattern + a little random jitter
@@ -38,34 +36,14 @@ class DieselProcessor extends AudioWorkletProcessor {
     // (the reference recording's half-order lines at 1.5x, 2.5x, 3.5x firing/2 are only
     // 7-14 dB under the firing line), so the beat is a lumpy chug that lopes once a cycle.
     this.strength = [1.0, 0.48, 1.1, 0.55, 1.03, 0.46];
-    // Exhaust bubbles: a small pool of ringing, upward-chirping sinusoids.
-    this.bub = [];
-    for (let i = 0; i < 12; i++) this.bub.push({ on: false, ph: 0, f: 0, a: 0, d: 0, s: 0, t: 0, delay: 0 });
   }
   rand() {
     this.seed = (this.seed * 16807) % 2147483647;
     return this.seed / 2147483647;
   }
-  spawnBubble(size) {
-    for (const b of this.bub) {
-      if (b.on) continue;
-      // Minnaert: f0 = 3.26 / r (r in m). Exhaust gas makes big bubbles: r 7-30 mm.
-      const r = 0.007 + 0.023 * Math.pow(this.rand(), 1.5) * size;
-      b.f = 3.26 / r;
-      b.d = 0.13 * b.f + 0.0072 * Math.pow(b.f, 1.5); // damping (1/s)
-      b.s = 0.1 * b.d; // rise chirp
-      b.a = Math.pow(r / 0.02, 0.8) * (0.5 + 0.5 * this.rand());
-      b.ph = 0;
-      b.t = 0;
-      b.delay = Math.floor(this.rand() * 0.012 * sampleRate);
-      b.on = true;
-      return;
-    }
-  }
   process(inputs, outputs, p) {
     const out = outputs[0];
     const a = out[0];
-    const b = out[1] || out[0];
     const rpm = p.rpm[0];
     const load = p.load[0];
     const firing = p.firing[0] > 0.5;
@@ -75,7 +53,6 @@ class DieselProcessor extends AudioWorkletProcessor {
     const tau = 0.013 + 0.006 * (1 - Math.min(1, rpm / 1800));
     const dEnv = Math.exp(-1 / (tau * sampleRate));
     const dRise = Math.exp(-1 / (0.0015 * sampleRate));
-    const dt = 1 / sampleRate;
     for (let i = 0; i < a.length; i++) {
       this.phase += step;
       if (this.phase >= 1) {
@@ -83,28 +60,12 @@ class DieselProcessor extends AudioWorkletProcessor {
         this.cyl = (this.cyl + 1) % 6;
         const s = this.strength[this.cyl] * (0.9 + 0.2 * this.rand());
         this.env += s * (firing ? 0.45 + 0.55 * load : 0.2);
-        if (firing) {
-          // 1-3 bubbles per beat; more and bigger under load.
-          const n = 1 + Math.floor(this.rand() * (1.6 + 1.6 * load));
-          for (let k = 0; k < n; k++) this.spawnBubble(0.6 + 0.8 * load);
-        }
       }
       // Smooth pulse: the attack follows the envelope with a 1.5 ms lag (no click edge).
       this.rise += (this.env - this.rise) * (1 - dRise);
       const n = this.rand() * 2 - 1;
       a[i] = this.rise * (0.92 + 0.08 * n);
       this.env *= dEnv;
-      let w = 0;
-      for (const q of this.bub) {
-        if (!q.on) continue;
-        if (q.delay > 0) { q.delay--; continue; }
-        const amp = q.a * Math.exp(-q.d * q.t);
-        if (amp < 0.001) { q.on = false; continue; }
-        q.ph += 2 * Math.PI * q.f * (1 + q.s * q.t) * dt;
-        w += amp * Math.sin(q.ph);
-        q.t += dt;
-      }
-      b[i] = w;
     }
     return true;
   }

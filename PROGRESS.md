@@ -1252,6 +1252,28 @@ The brief's "no new physics bodies or ropes" rule was flagged; the owner approve
 - **Debug panel off at start** (`debug.overlayVisibleAtStart`): F3 / I on desktop, B in VR, or the menu.
 - **Tests:** a warm engine needs much less preheat; traffic fills to four, and near a harbour ships keep to deep water; the tow is removed soon after delivery even with us alongside.
 
+## Optional log, jobs on the duty board, no exhaust bubbles, calmer motion (owner feedback)
+
+- **The log is optional:** loggable events no longer put "Log: …" duties on the duty board. The logbook still shows them as "(due)", and you can write them or not.
+- **The duty board shows the jobs** (`duties.ts`: `cargo`, `rescue`, `tow`), kept in step with the world:
+  - **Cargo job: deliver to X**, with cargo aboard bound for a port: "take her to X" (ticks when she's in), then "set the cargo down ashore".
+  - **Rescue: man overboard / lost deck cargo:** answer the call; search and recover; land the survivors (people only).
+  - **Tow: …:** answer the call; make the towline fast; bring her into any harbour.
+  - A job that ends ticks off. A call nobody answered just goes and isn't counted as done.
+- **Logbook in VR with many entries:** I couldn't reproduce it. A new test (`logbookView.test.ts`) clicks each entry type with a VR trigger ray through 10 signed entries, and every one starts an entry.
+- **Exhaust bubbles removed** (`dieselWorklet.ts` is mono now). With the outlet under water the note still goes dull and muffled, as before.
+- **Calmer motion:**
+  - Workboat damping raised: roll 33000 → 70000 N·m·s (about 27 % of critical in the free-decay trial, was about 15 %), pitch 20000 → 40000, vertical 800 → 1300 per m².
+  - Measured over 60 s in the default sea, before → after:
+
+    | Case | Roll RMS | Helm vertical acceleration RMS |
+    |---|---|---|
+    | Drifting beam-on | 6.7° → 5.2° | 0.74 → 0.65 m/s² |
+    | Under way in head seas | 5.8° → 4.0° | 0.36 → 0.28 m/s² |
+
+  - Desktop now has its own motion coupling, 30 % by default (`comfort.desktopMotionCoupling`; keys 9 / 0). The screen follows the boat's slow attitude but soaks up the quick roll and heave, which is what made onlookers sick. VR keeps its own setting (100 % by default, so hands stay on the controls).
+- **Tests:** duty-board jobs (tow steps, unanswered call, rescue, cargo); logbook VR clicks; the sea-trials roll band is widened to 35 %.
+
 ## Planned next (owner requests, not started)
 
 1. ~~Fuel and oil temperature~~ **Done** (see above).

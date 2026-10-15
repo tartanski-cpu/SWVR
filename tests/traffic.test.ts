@@ -54,7 +54,7 @@ describe('passing ships and hazards', { timeout: 30000 }, () => {
     expect(ship).toBeTruthy();
     const ev = world.log!.events.find((e) => e.type === 'vessel')!;
     expect(ev.truth!.ship).toBe(SHIP_NAMES[ship.type]);
-    expect(world.duties!.items.some((d) => d.title === 'Log: vessel sighted')).toBe(true);
+    expect(world.duties!.items.some((d) => d.title.startsWith('Log'))).toBe(false); // the log is optional
     const right = write('vessel', { ship: SHIP_NAMES[ship.type], dir: pointOf(ev.bearing!) });
     expect(right.fields.every((f) => f.correct)).toBe(true);
     // Next ship, logged wrongly (opposite direction).
