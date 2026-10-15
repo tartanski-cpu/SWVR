@@ -111,11 +111,19 @@ function box(x0: number, x1: number, y0: number, y1: number, z0: number, z1: num
   return part(g, color);
 }
 
-/** A thin bar of cross-section w x h running from p0 to p1 (any direction). */
+/**
+ * A thin bar of cross-section w x h running from p0 to p1 (any direction). Its h side is
+ * kept as near vertical as the direction allows (a vertical bar keeps it fore-and-aft), so
+ * consecutive segments of a rail or bulwark line up instead of each rolling its own way.
+ */
 function bar(p0: THREE.Vector3, p1: THREE.Vector3, w: number, h: number, color: number): THREE.BufferGeometry {
   const d = new THREE.Vector3().subVectors(p1, p0);
   const g = new THREE.BoxGeometry(w, h, d.length());
-  g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), d.normalize()));
+  const z = d.clone().normalize();
+  const up = Math.abs(z.y) > 0.99 ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(0, 1, 0);
+  const x = new THREE.Vector3().crossVectors(up, z).normalize();
+  const y = new THREE.Vector3().crossVectors(z, x);
+  g.applyMatrix4(new THREE.Matrix4().makeBasis(x, y, z));
   g.translate((p0.x + p1.x) / 2, (p0.y + p1.y) / 2, (p0.z + p1.z) / 2);
   return part(g, color);
 }
