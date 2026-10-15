@@ -1,0 +1,99 @@
+import { describe, expect, it } from 'vitest';
+import { CONFIG } from '../src/config';
+import { IdFactory } from '../src/core/ids';
+import type { Intent } from '../src/core/intents';
+import { stepWorld } from '../src/core/simulation';
+import { createWorld } from '../src/core/world';
+import { aboard, GROUND, stackPoint } from '../src/cargo/cargo';
+import { fishingStatus, trawlForces } from '../src/fishing/fishing';
+import { placeVessel } from '../src/vessel/vesselControl';
+import { PORTS } from '../src/world/archipelago';
+
+const DT = 1 / 60;
+const ground = CONFIG.fishing.grounds[1];
+
+function setup() {
+  const { world, vesselId, localPlayerId } = createWorld(new IdFactory());
+  world.environment.waves = [];
+  const v = world.vessels[vesselId];
+  const send = (control: string, value = 1, ref?: string, targetId = v.id, args?: number[]) =>
+    stepWorld(world, [{ playerId: localPlayerId, targetId, control, value, ref, args } as Intent], DT);
+  /** Run with her held at a speed northward (the test drives her, not the engine). */
+  const run = (s: number, speed = 0) => {
+    for (let i = 0; i < s / DT; i++) {
+      v.linearVelocity = [0, 0, -speed];
+      v.angularVelocity = [0, 0, 0];
+      stepWorld(world, [], DT);
+    }
+  };
+  return { world, v, send, run, localPlayerId };
+}
+
+describe('fishing', { timeout: 60000 }, () => {
+  it('shoot the trawl, tow it in a ground at 2-4 kn: boxes of fish come aboard; haul it in', () => {
+    const { world, v, send, run } = setup();
+    placeVessel(v, ground.x, 0, ground.z + 100, 0);
+    send('trawl', 1);
+    run(CONFIG.fishing.shootTime + 0.5, 1.5);
+    expect(world.fishing!.net).toBe('down');
+    const per = CONFIG.fishing.boxEvery / ground.richness;
+    run(per + 1, 1.5);
+    expect(fishingStatus(world)).toMatch(/Trawling on Skerry Ground/);
+    const fish = aboard(world, v.id).filter((c) => c.from === 'trawl');
+    expect(fish.length).toBe(1);
+    expect(world.fishing!.caught).toBe(1);
+    // The net drags on her: a few kN at 3 kn, against her motion.
+    const f = trawlForces(world).get(v.id)![0].force;
+    expect(f.z).toBeGreaterThan(2000);
+    send('trawl', 0);
+    run(CONFIG.fishing.haulTime + 0.5);
+    expect(world.fishing!.net).toBe('stowed');
+    expect(trawlForces(world).size).toBe(0);
+  });
+
+  it('nothing too slow, too fast or outside a ground; shallow water fouls the net until hauled', () => {
+    const { world, v, send, run } = setup();
+    placeVessel(v, ground.x, 0, ground.z, 0);
+    send('trawl', 1);
+    run(CONFIG.fishing.shootTime + 0.5, 1.5);
+    const f0 = world.fishing!.fill;
+    run(5, 0.3);
+    expect(world.fishing!.status).toBe('slow');
+    expect(world.fishing!.fill).toBe(f0);
+    run(5, 3);
+    expect(world.fishing!.status).toBe('fast');
+    const before = world.fishing!.fill;
+    placeVessel(v, 0, 0, -1500, 0);
+    run(5, 1.5);
+    expect(world.fishing!.status).toBe('outside');
+    expect(world.fishing!.fill).toBe(before); // nothing caught out there
+    // Into the shallows off Calder: fouled, and it stays fouled while down.
+    const calder = PORTS.find((p) => p.id === 'calder')!;
+    placeVessel(v, calder.x + 10, 0, calder.z, 0);
+    run(1, 1.5);
+    expect(world.fishing!.status).toBe('fouled');
+    expect(fishingStatus(world)).toMatch(/fouled/);
+    placeVessel(v, ground.x, 0, ground.z, 0);
+    run(2, 1.5);
+    expect(world.fishing!.status).toBe('fouled');
+    send('trawl', 0);
+    run(CONFIG.fishing.haulTime + 0.5);
+    expect(world.fishing!.status).toBe('stowed');
+  });
+
+  it('a box of fish carried ashore to any goods stack is landed', () => {
+    const { world, v, send, run, localPlayerId } = setup();
+    placeVessel(v, ground.x, 0, ground.z, 0);
+    send('trawl', 1);
+    run(CONFIG.fishing.shootTime + CONFIG.fishing.boxEvery / ground.richness + 1, 1.5);
+    const box = aboard(world, v.id).find((c) => c.from === 'trawl')!;
+    expect(box).toBeDefined();
+    const port = PORTS.find((p) => p.id === 'brannock')!;
+    const [x, y, z] = stackPoint(port, 0);
+    send('cargoTake', 1, box.id);
+    send('cargoPlace', 1, box.id, GROUND, [x, y, z, 0]);
+    expect(world.cargo[box.id]).toBeUndefined();
+    expect(world.fishing!.landed).toBe(1);
+    void localPlayerId;
+  });
+});

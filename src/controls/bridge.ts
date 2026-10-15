@@ -118,6 +118,13 @@ export class Bridge {
       this.root.add(this.monitor.root);
       extraLabels.push(['FIRE PUMP', m.pumpSwitch], ['MONITOR', m.joystick]);
     }
+    // Fishing: the TRAWL switch (up: shoot the net; down: haul it).
+    if (def.fishing) {
+      const trawl = new Toggle('trawl', 'trawl', 'TRAWL: shoot / haul the net', (s) => s.controls.trawl);
+      trawl.root.position.fromArray(def.fishing.trawlSwitch);
+      this.controls.push(trawl);
+      extraLabels.push(['TRAWL', def.fishing.trawlSwitch]);
+    }
     const wh = def.layout.wheelhouse;
     this.door = new WheelhouseDoor(wh.doorWidth, wh.doorHeight);
     this.door.root.position.set(0, wh.floorY, wh.aft + 0.03);

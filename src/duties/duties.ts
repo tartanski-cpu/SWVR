@@ -52,7 +52,7 @@ export interface DutyStep {
 
 export interface Duty {
   id: string;
-  kind: 'startup' | 'fogSignal' | 'secure' | 'bilge' | 'fendersOut' | 'fendersIn' | 'lash' | 'oil' | 'cargo' | 'rescue' | 'tow' | 'fire';
+  kind: 'startup' | 'fogSignal' | 'secure' | 'bilge' | 'fendersOut' | 'fendersIn' | 'lash' | 'oil' | 'cargo' | 'rescue' | 'tow' | 'fire' | 'fishing' | 'salvage';
   title: string;
   steps: DutyStep[];
   createdAt: number;
@@ -336,6 +336,29 @@ function stepTowDuty(world: WorldState, d: DutiesState): void {
   ], world.time);
 }
 
+/** Fishing (a side mission): from shooting the net until the catch is landed. */
+function stepFishingDuty(world: WorldState, d: DutiesState, v: VesselState | undefined): void {
+  const f = world.fishing;
+  const fishAboard = !!v && Object.values(world.cargo).some((c) => c.from === 'trawl' && 'vessel' in c.at && c.at.vessel === v.id);
+  const live = f && (f.net !== 'stowed' || fishAboard) ? 'fishing' : null;
+  syncJob(d, 'fishing', live, 'Fishing: trawl', [
+    { text: 'Shoot the net: TRAWL switch (console, left of the wheel)', done: !!f && (f.net !== 'stowed' || f.caught > 0) },
+    { text: 'Tow it on a fishing ground (dashed on the plotter) at 2-4 kn', done: !!f && f.caught > 0 },
+    { text: 'Haul the net; carry the fish boxes ashore to any goods stack', done: false },
+  ], world.time);
+}
+
+/** Log salvage (a side mission): while there are logs on the beaches. */
+function stepSalvageDuty(world: WorldState, d: DutiesState): void {
+  const logs = world.salvage?.logs ?? [];
+  const onLine = !!world.tow?.line?.target.startsWith('l:');
+  syncJob(d, 'salvage', logs.length ? 'salvage' : null, `Log salvage: ${logs.length} ${logs.length === 1 ? 'log' : 'logs'} washed up`, [
+    { text: 'Find one (LOG on the plotter); stand off the beach, stern to it', done: onLine },
+    { text: 'Make the towline fast to it (hook, or menu Tow, within 30 m) and pull it off', done: onLine && logs.some((l) => l.afloat && world.tow?.line?.target === `l:${l.id}`) },
+    { text: 'Tow it into any harbour, slow: the yard buys it', done: false },
+  ], world.time);
+}
+
 /** Advance the duties: add what's due, tick off steps, finish, drop old ones. */
 export function stepDuties(world: WorldState): void {
   const d = (world.duties ??= createDuties());
@@ -379,6 +402,8 @@ export function stepDuties(world: WorldState): void {
   stepRescueDuty(world, d);
   stepTowDuty(world, d);
   stepFireDuty(world, d, v);
+  stepFishingDuty(world, d, v);
+  stepSalvageDuty(world, d);
 
   for (const x of d.items) {
     if (x.doneAt === undefined && !x.holdOpen && x.steps.length && x.steps.every((s) => s.done || s.optional)) {

@@ -98,6 +98,9 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
     case 'fenders':
       s.controls.fenders = intent.value > 0.5 ? 1 : 0;
       break;
+    case 'trawl':
+      s.controls.trawl = intent.value > 0.5 ? 1 : 0;
+      break;
     case 'door':
       s.controls.door = intent.value > 0.5 ? 1 : 0;
       break;
@@ -269,6 +272,17 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
     case 'debugDrop':
       dropVessel(s);
       break;
+    case 'teleportToGround': {
+      // Menu shortcut (Tests, ref = fishing ground name): in the middle of it, lever neutral.
+      const g = CONFIG.fishing.grounds.find((o) => o.name === intent.ref);
+      if (!g) break;
+      placeVessel(s, g.x, 0, g.z, 0);
+      s.controls.lever = 0;
+      s.anchor = { phase: 'stowed', x: 0, z: 0, rodeM: 0, tension: 0, dragging: false };
+      s.controls.anchor = 0;
+      s.mooring = { phase: 'free', berthId: null, reversed: false, t: 0 };
+      break;
+    }
     case 'teleportToPort': {
       // Menu shortcut (ref = port id): lie at the port's cargo berth, ready to DOCK, or in
       // the middle of its anchorage. Lever to neutral, anchor stowed, lines off.

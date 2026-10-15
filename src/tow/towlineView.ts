@@ -3,7 +3,7 @@ import type { WorldState } from '../core/world';
 import { VESSEL_DEFS, type VesselDef } from '../vessel/vesselDef';
 import { CONFIG } from '../config';
 import { surfaceHeight, type PreparedWave } from '../ocean/waves';
-import { bowEyeLocal, towPoint, towPostLocal } from './tow';
+import { bowEyeLocal, lineFor, towPoint, towPostLocal } from './tow';
 
 const SEGMENTS = 14;
 
@@ -61,14 +61,18 @@ export class TowlineView {
     const towRoot = line.target.startsWith('v:') ? roots.get(line.target.slice(2)) : undefined;
     const ts = towRoot && world.vessels[line.target.slice(2)];
     if (towRoot && ts) towRoot.localToWorld(this.b.fromArray(bowEyeLocal(VESSEL_DEFS[ts.defId])));
-    else if (towPoint(world, line.target, this.b)) this.b.setY(surfaceHeight(waves, this.b.x, this.b.z) + 0.15);
+    else if (towPoint(world, line.target, this.b)) {
+      // Debris and afloat logs ride the drawn surface; a log on the beach keeps its height.
+      const log = world.salvage?.logs.find((l) => `l:${l.id}` === line.target);
+      if (!log || log.afloat) this.b.setY(surfaceHeight(waves, this.b.x, this.b.z) + 0.15);
+    }
     else {
       this.root.visible = false;
       return;
     }
     tug.localToWorld(this.a.fromArray(towPostLocal(VESSEL_DEFS[tugS.defId])));
     const d = this.a.distanceTo(this.b);
-    const L = CONFIG.tow.lineLength;
+    const L = lineFor(line.target).length;
     const sag = d < L ? Math.sqrt((3 * d * (L - d)) / 8) : 0;
     const point = (t: number, out: THREE.Vector3) => {
       out.lerpVectors(this.a, this.b, t);

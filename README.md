@@ -268,6 +268,29 @@ Unanswered calls go away after two minutes. The menu's Tests tab has debug butto
 
 One thing at a time on the line. The menu's **Tow → Make fast** picks the nearest thing within 16 m of the towing post. Floating crates from lost cargo still go on the boat hook, not the towline.
 
+### Log salvage (side job)
+
+Now and then timber washes up on a beach, and the VHF says where ("timber reported washed up on the north shore of Tarran"). Logs show on the chartplotter as brown **LOG** marks; there are up to three about at once.
+
+1. **Stand off the beach, stern to it.** It's shallow close in, so stay in 2 m or more of water. The line to a log is 30 m, so the boat can lie well off.
+2. **Make the line fast:** with the boat hook in hand, click the log (desktop, up to 30 m away: the line is thrown to it). Or use the menu's **Tow → Make fast**, which also works in VR.
+3. **Pull it off.** A log on the sand doesn't move until the line pulls harder than its friction (about 8 kN), so ease ahead and then give her more power. It slides down the beach and floats.
+4. **Tow it into any harbour** and slow down there for a few seconds. The yard buys it and the radio keeps count.
+
+Logs nobody comes for go again after half an hour. The menu's Tests tab has **Side jobs → Log on beach** to put one on the nearest beach.
+
+### Fishing (side job)
+
+The boat has a trawl: quarter gallows with a block each side of the stern, and a winch on the aft deck.
+
+1. **Find a fishing ground:** the dashed teal rings on the chartplotter (Skerry Ground near the start, Calder Bank east of Calder Holm, The Hollows to the north-west).
+2. **Shoot the net:** the **TRAWL** switch on the console, left of the wheel. The warps run out astern and the net's orange floats show on the surface. You'll feel the drag: the engine has to work.
+3. **Tow at 2–4 knots** inside the ground. Every 30–50 s of good trawling a **box of fish** appears on the aft deck. The status line says why not if you're too slow, too fast or outside a ground.
+4. **Mind the shallows:** trawling where it's under 7 m deep fouls the net on the bottom. It holds her back hard and catches nothing until you haul it.
+5. **Haul the net** (TRAWL switch off) and **carry the boxes ashore** to any port's goods stack to land them. If the deck's full, the catch waits in the net.
+
+**Tests → Side jobs → Fishing ground** takes you to the nearest ground.
+
 ### Wildlife
 
 Gulls wheel over the boat by day, gliding and now and then flapping, and calling. Under way in open, deep water, a pod of dolphins sometimes comes up from astern and rides off the bow for a minute or so, each one blowing as it surfaces. They're decoration: worked out from the time and the boat's position, so the whole crew sees the same animals.
@@ -403,6 +426,8 @@ src/
   net/             multiplayer: messages, PeerJS / loopback transports, host and client sessions, avatars
   tow/             towing: tow jobs and the towline on anything afloat (tow.ts), tow models, towline view
   wildlife/        gulls and dolphins (poses from time; view)
+  salvage/         log salvage: beach spots, logs, their physics on the line; view
+  fishing/         the trawl: net, grounds, catch, drag; gallows/warps/floats view
 tests/             vitest: run in plain Node, no browser
 docs/              TESTING_NEW_BOATS.md (sea-trials lab, adding a boat), MULTIPLAYER.md (co-op)
 ```

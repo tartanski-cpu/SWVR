@@ -18,9 +18,11 @@
  *              to (see CONFIG.tow and towlineForces below). It parts if snatched too hard.
  *              It isn't only for the job (owner request: "tow anything in the water"): it
  *              goes on any vessel afloat - a tow, our own skiff - at her bow eye, or on a
- *              piece of drifting debris (TowState.line, keyed 'v:<vessel id>' / 'd:<debris
- *              id>'). Debris has no physics of its own: on the line it's a point mass with
- *              water drag (CONFIG.tow.debris). Towed slow into a harbour, it's cleared away.
+ *              piece of drifting debris, or a salvage log (TowState.line, keyed 'v:<vessel
+ *              id>' / 'd:<debris id>' / 'l:<log id>'). Debris has no physics of its own: on
+ *              the line it's a point mass with water drag (CONFIG.tow.debris); towed slow
+ *              into a harbour, it's cleared away. Logs are stepped by salvage/salvage.ts
+ *              (beach friction, then afloat) with a longer line (CONFIG.salvage.line).
  *
  * Random choices use a deterministic hash of a counter in the state, like the rescues.
  */
@@ -39,6 +41,7 @@ import { PORTS } from '../world/archipelago';
 import type { ExternalForce } from '../vessel/physics/vesselContact';
 import { createRescueState, nearestPort, sayRadio } from '../rescue/rescue';
 import { formatPosition } from '../nav/geo';
+import { logOf, salvageStatus, stepLog } from '../salvage/salvage';
 
 export interface TowJob {
   /** The tow (a vessel in world.vessels while the job lasts) and its kind (def id). */
@@ -153,7 +156,13 @@ export function towTargets(world: WorldState): string[] {
     keys.push(vesselKey(o.id));
   }
   for (const d of world.traffic?.debris ?? []) keys.push(`d:${d.id}`);
+  for (const l of world.salvage?.logs ?? []) keys.push(`l:${l.id}`);
   return keys;
+}
+
+/** The line's length and how near our post a target must be to make fast (m): longer for logs (we stand off the beach). */
+export function lineFor(key: string): { length: number; attach: number } {
+  return key.startsWith('l:') ? CONFIG.salvage.line : { length: CONFIG.tow.lineLength, attach: CONFIG.tow.attachRange };
 }
 
 function debrisOf(world: WorldState, key: string) {
@@ -169,14 +178,22 @@ export function towPoint(world: WorldState, key: string, out: THREE.Vector3): TH
   const o = vesselOf(world, key);
   if (o) return toWorld(o, bowEyeLocal(VESSEL_DEFS[o.defId]), out);
   const d = debrisOf(world, key);
-  return d ? out.set(d.x, 0.2, d.z) : null;
+  if (d) return out.set(d.x, 0.2, d.z);
+  const l = logOf(world, key);
+  if (!l) return null;
+  // The end of the log nearer our boat (a line goes round one end).
+  const tug0 = tug(world);
+  const ex = (Math.sin(l.yaw) * l.len) / 2;
+  const ez = (Math.cos(l.yaw) * l.len) / 2;
+  const s = tug0 && Math.hypot(l.x + ex - tug0.position[0], l.z + ez - tug0.position[2]) > Math.hypot(l.x - ex - tug0.position[0], l.z - ez - tug0.position[2]) ? -1 : 1;
+  return out.set(l.x + s * ex, l.afloat ? 0.1 : groundHeight(l.x, l.z) + 0.3, l.z + s * ez);
 }
 
 /** What it is, for messages: the tow's name, "the skiff", "the debris". */
 export function towName(world: WorldState, key: string): string {
   const o = vesselOf(world, key);
   if (o) return o.id === world.tow?.job?.vesselId ? 'her' : (VESSEL_DEFS[o.defId].tow?.name ?? `the ${o.defId}`);
-  return 'the debris';
+  return key.startsWith('l:') ? 'the log' : 'the debris';
 }
 
 /** The line is fast to the tow job's vessel. */
@@ -203,10 +220,10 @@ export function nearestTowTarget(world: WorldState): string | null {
   const job = world.tow?.job;
   if (job?.phase === 'accepted' && towReach(world, vesselKey(job.vesselId)) <= CONFIG.tow.attachRange) return vesselKey(job.vesselId);
   let best: string | null = null;
-  let bd: number = CONFIG.tow.attachRange;
+  let bd = Infinity;
   for (const k of towTargets(world)) {
     const d = towReach(world, k);
-    if (d <= bd) [best, bd] = [k, d];
+    if (d <= lineFor(k).attach && d < bd) [best, bd] = [k, d];
   }
   return best;
 }
@@ -235,17 +252,19 @@ export function towlineForces(world: WorldState): Map<EntityId, ExternalForce[]>
   if (!line || !v) return out;
   const t = vesselOf(world, line.target);
   const d = debrisOf(world, line.target);
-  if (!t && !d) return out;
+  const log = logOf(world, line.target);
+  if (!t && !d && !log) return out;
   const cfg = CONFIG.tow;
   const defV = VESSEL_DEFS[v.defId];
   toWorld(v, towPostLocal(defV), pA);
   if (t) toWorld(t, bowEyeLocal(VESSEL_DEFS[t.defId]), pB);
-  else pB.set(d!.x, pA.y, d!.z); // debris: the pull is horizontal (it floats at the surface)
+  else if (d) pB.set(d.x, pA.y, d.z); // debris: the pull is horizontal (it floats at the surface)
+  else towPoint(world, line.target, pB)?.setY(pA.y); // a log, by its near end
   dir.copy(pB).sub(pA);
   const len = dir.length();
   if (len < 1e-6) return out;
   dir.divideScalar(len);
-  const stretch = len - cfg.lineLength;
+  const stretch = len - lineFor(line.target).length;
   if (stretch <= 0) {
     line.tension = 0;
     return out;
@@ -253,9 +272,10 @@ export function towlineForces(world: WorldState): Map<EntityId, ExternalForce[]>
   // Rate of stretch: the two points' relative velocity along the line. For debris, its
   // velocity on the line (from stepTow).
   if (t) pointVelocity(t, pB, vB);
+  else if (log) vB.set(log.vel[0], 0, log.vel[1]);
   else vB.set(line.vel?.[0] ?? 0, 0, line.vel?.[1] ?? 0);
   const rate = vB.sub(pointVelocity(v, pA, vA)).dot(dir);
-  const mT = t ? VESSEL_DEFS[t.defId].mass : cfg.debris.mass;
+  const mT = t ? VESSEL_DEFS[t.defId].mass : log ? CONFIG.salvage.mass : cfg.debris.mass;
   const m = (defV.mass * mT) / (defV.mass + mT);
   const c = 2 * cfg.dampingRatio * Math.sqrt(cfg.stiffness * m);
   const T = Math.max(0, cfg.stiffness * stretch + c * rate);
@@ -367,6 +387,18 @@ function bearing(fromX: number, fromZ: number, toX: number, toZ: number): number
   return ((Math.atan2(toX - fromX, -(toZ - fromZ)) * 180) / Math.PI + 360) % 360;
 }
 
+/** A log on the line: pulled toward our post with the line's tension (salvage.ts does the rest). */
+function stepTowedLog(world: WorldState, line: TowLine, dt: number): void {
+  const log = logOf(world, line.target);
+  const v = tug(world);
+  if (!log || !v) return;
+  toWorld(v, towPostLocal(VESSEL_DEFS[v.defId]), pA);
+  const ux = pA.x - log.x;
+  const uz = pA.z - log.z;
+  const ul = Math.hypot(ux, uz) || 1;
+  stepLog(world, log, line.tension, ux / ul, uz / ul, dt);
+}
+
 /** Cast the line off if it's on this vessel. */
 function castOffFrom(world: WorldState, id: EntityId): void {
   if (world.tow?.line?.target === vesselKey(id)) world.tow.line = null;
@@ -420,8 +452,9 @@ export function stepTow(world: WorldState, dt: number): void {
   if (t.nextAt === null) t.nextAt = world.time + between(t, cfg.every);
   // The line: gone with what it was on; debris on it is towed along.
   const line = t.line;
-  if (line && !vesselOf(world, line.target) && !debrisOf(world, line.target)) t.line = null;
+  if (line && !vesselOf(world, line.target) && !debrisOf(world, line.target) && !logOf(world, line.target)) t.line = null;
   else if (line?.target.startsWith('d:')) stepTowedDebris(world, line, dt);
+  else if (line?.target.startsWith('l:')) stepTowedLog(world, line, dt);
   const job = t.job;
   const tow = job ? world.vessels[job.vesselId] : undefined;
   // The tow vanished (a snapshot from an older host, a debug reset): no job.
@@ -501,7 +534,7 @@ export function applyTowIntent(world: WorldState, intent: Intent): void {
       if (!key || t.line || !towTargets(world).includes(key)) break;
       // A tow that's been handed over is the harbour's now.
       if (job && key === vesselKey(job.vesselId) && job.phase !== 'accepted') break;
-      if (towReach(world, key) <= CONFIG.tow.attachRange) t.line = { target: key, tension: 0 };
+      if (towReach(world, key) <= lineFor(key).attach) t.line = { target: key, tension: 0 };
       break;
     }
     case 'towToggle': {
@@ -548,6 +581,7 @@ export function towStatus(world: WorldState): string | null {
   const job = world.tow?.job;
   const line = world.tow?.line;
   const kN = `line ${((line?.tension ?? 0) / 1000).toFixed(1)} kN`;
+  if (line?.target.startsWith('l:')) return salvageStatus(world);
   if (line && !towFast(world)) {
     return line.target.startsWith('d:') ? `Towing debris: bring it into a harbour to clear it (${kN})` : `Towing ${towName(world, line.target)} (${kN})`;
   }

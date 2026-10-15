@@ -212,6 +212,37 @@ export class ChartPlotter {
       g.fillText(p.name.replace(' (anchorage)', ''), px + 10, py - 12);
     }
 
+    // Fishing grounds: dashed teal rings with their names.
+    g.lineWidth = 2;
+    for (const fg of CONFIG.fishing.grounds) {
+      const [cx, cy] = toPx(fg.x, fg.z);
+      const rad = fg.radius / mpp;
+      if (cx + rad < 0 || cx - rad > W || cy + rad < 0 || cy - rad > H) continue;
+      g.strokeStyle = 'rgba(90, 220, 200, 0.75)';
+      g.setLineDash([6, 6]);
+      g.beginPath();
+      g.arc(cx, cy, Math.max(rad, 8), 0, Math.PI * 2);
+      g.stroke();
+      g.setLineDash([]);
+      g.fillStyle = '#7fe8d8';
+      g.fillText(`${fg.name} (fish)`, cx - 60, cy);
+    }
+    // Salvage logs washed up: brown bars, LOG.
+    for (const l of world.salvage?.logs ?? []) {
+      const [lx, ly] = toPx(l.x, l.z);
+      if (lx < -20 || lx > W + 20 || ly < -20 || ly > H + 20) continue;
+      const hx = Math.max(6, (Math.sin(l.yaw) * l.len) / 2 / mpp);
+      const hz = Math.max(0, (Math.cos(l.yaw) * l.len) / 2 / mpp);
+      g.strokeStyle = '#c8894a';
+      g.lineWidth = 5;
+      g.beginPath();
+      g.moveTo(lx - hx, ly - hz);
+      g.lineTo(lx + hx, ly + hz);
+      g.stroke();
+      g.fillStyle = '#e0a868';
+      g.fillText('LOG', lx + 9, ly - 10);
+    }
+
     // Search area.
     if (inc) {
       const [cx, cy] = toPx(inc.x, inc.z);

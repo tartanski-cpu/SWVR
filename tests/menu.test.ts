@@ -84,6 +84,8 @@ function fakeHost() {
     towNear: (k) => calls.push(`towNear ${k}`),
     towCall: () => calls.push('towCall'),
     towEnd: () => calls.push('towEnd'),
+    logNear: () => calls.push('logNear'),
+    goFishing: () => calls.push('goFishing'),
     fireNear: (k) => calls.push(`fireNear ${k}`),
     fireCall: () => calls.push('fireCall'),
     fireEnd: () => calls.push('fireEnd'),

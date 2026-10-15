@@ -20,6 +20,8 @@ import { stepDuties } from '../duties/duties';
 import { applyDavitIntent, onDavit, stepTender } from '../vessel/davit';
 import { applyFireIntent, isFireIntent, stepFire } from '../fire/fire';
 import { applyTowIntent, isTowIntent, stepTow, towlineForces } from '../tow/tow';
+import { applySalvageIntent, isSalvageIntent, stepSalvage } from '../salvage/salvage';
+import { stepFishing, trawlForces } from '../fishing/fishing';
 import { ENVIRONMENT_ID, type EntityId } from './ids';
 import type { Intent } from './intents';
 import type { WorldState } from './world';
@@ -46,6 +48,8 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
       applyFireIntent(world, intent);
     } else if (isTowIntent(intent.control)) {
       applyTowIntent(world, intent);
+    } else if (isSalvageIntent(intent.control)) {
+      applySalvageIntent(world, intent.playerId, intent.control);
     } else if (intent.control === 'davit') {
       applyDavitIntent(world, intent);
     } else if (isLogIntent(intent.control)) {
@@ -72,6 +76,8 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
   const touching = vesselContacts(Object.values(world.vessels), (v) => VESSEL_DEFS[v.defId], onDavit);
   // The towline (towing missions): its pull on us and on the tow.
   for (const [id, f] of towlineForces(world)) touching.set(id, [...(touching.get(id) ?? []), ...f]);
+  // The trawl (fishing): its drag at the stern gallows.
+  for (const [id, f] of trawlForces(world)) touching.set(id, [...(touching.get(id) ?? []), ...f]);
   for (const vessel of Object.values(world.vessels)) {
     if (onDavit(vessel)) continue;
     let dbg: HydroDebug | undefined;
@@ -101,6 +107,8 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
   stepRescue(world, dt, simWaves);
   stepTow(world, dt);
   stepFire(world, dt);
+  stepSalvage(world, dt);
+  stepFishing(world, dt);
   world.tick += 1;
   world.time = world.tick * dt;
 }

@@ -44,7 +44,7 @@ import { VESSEL_DEFS } from '../vessel/vesselDef';
 import type { CargoHands } from '../cargo/cargoHands';
 import { userSettings } from '../player/userSettings';
 import { distanceToHull } from './recovery';
-import { towName, towPoint, towReach, towTargets } from '../tow/tow';
+import { lineFor, towName, towPoint, towReach, towTargets } from '../tow/tow';
 import { ropePoints, ROPE_POINTS } from './rescueGearView';
 import type { RescueTarget } from './rescue';
 
@@ -192,8 +192,8 @@ export class RescueHands {
       return;
     }
     // The line runs from our towing post: what we tow must be near enough our stern.
-    if (towReach(ctx.world, key) > CONFIG.tow.attachRange) {
-      ctx.notify(`Too far from our towing post: bring our stern within ${CONFIG.tow.attachRange} m of it.`);
+    if (towReach(ctx.world, key) > lineFor(key).attach) {
+      ctx.notify(`Too far from our towing post: bring our stern within ${lineFor(key).attach} m of it.`);
       return;
     }
     ctx.push('towMake', key, 1);
@@ -204,6 +204,8 @@ export class RescueHands {
         ? 'Towline made fast. Tow her into any harbour - easy on the throttle at first.'
         : key.startsWith('d:')
           ? 'Towline made fast to the debris. Tow it into a harbour to clear it.'
+          : key.startsWith('l:')
+            ? 'Line made fast round the log. Ease ahead and pull it off the beach, then tow it into any harbour.'
           : `Towline made fast to ${towName(ctx.world, key)}. Easy on the throttle.`,
     );
   }
@@ -508,7 +510,9 @@ export class RescueHands {
       this.deskHookTip(ctx, eye, forward);
       // Auto-extend: telescoped out to the crate or bow eye under the reticle.
       if (userSettings.hookAutoExtend && !this.hookedCrate(ctx)) {
-        const target = this.towEyeOnRay(ctx, ray)?.p ?? (this.crateOnRay(ctx, ray) && this.crateCentre(ctx, this.crateOnRay(ctx, ray)!, this.tmp2));
+        // (Not out to a log on the beach: the line is thrown there, the hook stays its length.)
+        const eyeT = this.towEyeOnRay(ctx, ray);
+        const target = (eyeT && !eyeT.key.startsWith('l:') ? eyeT.p : null) ?? (this.crateOnRay(ctx, ray) && this.crateCentre(ctx, this.crateOnRay(ctx, ray)!, this.tmp2));
         if (target) this.hookTip.copy(target);
       }
       this.useHook(ctx, dt, 'desk');
@@ -520,7 +524,7 @@ export class RescueHands {
       }
       const eyeOn = this.towEyeOnRay(ctx, ray);
       if (eyeOn) {
-        const what = eyeOn.key.startsWith('d:') ? 'debris' : 'bow eye';
+        const what = eyeOn.key.startsWith('d:') ? 'debris' : eyeOn.key.startsWith('l:') ? 'log' : 'bow eye';
         return ctx.world.tow?.line ? `${what}\nclick to cast off the towline` : `${what}\nclick to make the towline fast`;
       }
       return this.crateOnRay(ctx, ray) ? 'crate\nclick to hook it' : 'boat hook\nclick a crate to hook it · click open water to put it back';
@@ -552,11 +556,17 @@ export class RescueHands {
   }
 
   /** Desktop: is the reticle on a waiting tow's bow eye, within the hook's reach? */
-  /** The tow point the reticle is on, within the hook's reach (debris is a bigger target). */
+  /**
+   * The tow point the reticle is on, within the hook's reach (debris is a bigger target).
+   * A log on a beach can be clicked from further off: the line is thrown to it (the boat
+   * can't come close in the shallows); the simulation checks the line's reach.
+   */
   private towEyeOnRay(ctx: RescueHandsContext, ray: THREE.Ray | null): { key: string; p: THREE.Vector3 } | null {
     if (!ray) return null;
     for (const e of this.towEyes(ctx)) {
-      if (e.p.distanceTo(ray.origin) < this.deskReach() && ray.distanceToPoint(e.p) < (e.key.startsWith('d:') ? 1.2 : 0.5)) return e;
+      const log = e.key.startsWith('l:');
+      const reach = log ? lineFor(e.key).attach + 5 : this.deskReach();
+      if (e.p.distanceTo(ray.origin) < reach && ray.distanceToPoint(e.p) < (log ? 1.8 : e.key.startsWith('d:') ? 1.2 : 0.5)) return e;
     }
     return null;
   }

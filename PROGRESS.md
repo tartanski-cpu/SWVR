@@ -1331,6 +1331,22 @@ The brief's "no new particle effects" rule was flagged: the fire is drawn withou
   - The WINDOWS switch, the glass it showed and the `windows` control are gone (the "secure the boat" duty drops its windows step). The windscreen's rain and wipers stay.
   - How shut-in the wheelhouse is now depends on the aft door alone: shut, it fully muffles wind, rain, wash and fire inside.
   - The engine sound gets a wheelhouse low-pass and level (`CONFIG.wheelhouseSound`): full on deck; inside with the door open ×0.75 and 1200 Hz; door shut ×0.45 and 320 Hz.
+- **Two side missions: log salvage and fishing** (owner request). Both are original designs: log salvage is in the spirit of salvaging timber off beaches, and the fishing is a simple arcade-style trawl.
+  - **Log salvage** (`salvage/`):
+    - **Beach spots**, computed once from the terrain (271 of them): marching out from each island's centre along bearings to the shoreline, keep the spot 3 m inland if it's 0.05–1 m up, not a cliff, with 2.2 m of water 20 m off, and 300 m from ports.
+    - **Spawning:** logs wash up every 4–9 min (up to 3, at least 500 m from the boat) with a VHF notice, and show as LOG on the plotter.
+    - **On the towline** (`l:<id>`, line 30 m, attach 30 m), a log is a point mass of 1500 kg. Beached, it doesn't move until the pull beats mu_s m g (0.55: about 8 kN); sliding, mu_k = 0.4. It floats once the ground is 0.4 m under; afloat, it has water drag like debris and drifts with the wind off the line. Dragged by one end, it swings into line.
+    - **Selling:** afloat and slow in any port for 5 s, it's sold (radio, `salvage.sold`). Unvisited logs expire after 30 min.
+    - **Hook:** desktop can click a log up to 30 m off (the line is thrown); the hook doesn't telescope out to it.
+    - **Duty board** job "Log salvage". Tests → Side jobs → Log on beach.
+  - **Fishing** (`fishing/`):
+    - **TRAWL switch** (console, where WINDOWS was). The net shoots in 10 s and hauls in 12 s.
+    - **Drag** while it's out: (600 + 1000 |v|) v N at the stern, scaled by how far out it is (about 3 kN at 3 kn). Fouled (trawled in under 7 m of water), 9000 |v| plus a 6 kN hold astern, until hauled.
+    - **Catch:** in a ground (three in config, with richness), at 1.0–2.1 m/s, the net fills over 40 s / richness. Each fill puts a fish box (cargo kind 'Fish box', `from: 'trawl'`, `to: 'any'`) on the aft deck. Landed at any goods stack, it's counted (`fishing.landed`).
+    - **Shown:** status line (why not catching), plotter rings, duty board job "Fishing: trawl".
+    - **View:** quarter gallows and winch (merged, one draw call). Rope-free warps (two straight line segments) and seven orange floats (instanced) on the surface astern. An A-frame over the transom was tried first, but it clashed with the skiff on her davit.
+  - **Multiplayer:** both states travel in the snapshots (the client now copies `salvage` and `fishing`).
+  - **Tests (6):** beach spots valid; a log made fast, pulled off under power, floats and is sold; logs wash up by themselves with a radio notice. Trawl catches in a ground at speed, drags, hauls; nothing slow, fast or outside, fouling in the shallows sticks until hauled; a box landed at any stack counts.
 - **Tow anything in the water** (owner request):
   - The towline is now its own state (`TowState.line`, keyed `v:<vessel>` / `d:<debris>`), no longer part of the tow job. It goes on any vessel afloat other than ours, at her bow eye; a tender on her davit doesn't count. It also goes on drifting debris.
   - **Debris on the line** is a point mass (900 kg) with linear and quadratic water drag (`tow.debris`), pulled by the same spring-damper line. Its usual drift still applies, like a current. Towed slowly into a port for 5 s, it's removed and counted (`TowState.cleared`).

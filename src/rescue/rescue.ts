@@ -36,6 +36,7 @@ import type { Vec3 } from '../core/math';
 import type { PreparedWave } from '../ocean/waves';
 import { acceptTowCall, towStatus } from '../tow/tow';
 import { acceptFireCall, fireStatus } from '../fire/fire';
+import { fishingStatus } from '../fishing/fishing';
 import { applyRecoveryIntent, freeSeat, stepRecovery, type HookState, type RingState, type Shout } from './recovery';
 
 export interface RadioMessage {
@@ -502,7 +503,7 @@ export function runStatus(world: WorldState): string {
   const runTo = short(r?.run?.to);
   const aboardTo = v ? short(cargoDestination(world, v.id)) : undefined;
   if (inc?.phase === 'calling') return 'Distress call: pick up the handset';
-  const tow = !inc ? (towStatus(world) ?? fireStatus(world)) : null;
+  const tow = !inc ? (towStatus(world) ?? fireStatus(world) ?? fishingStatus(world)) : null;
   if (tow) return tow;
   if (inc?.phase === 'accepted') return runTo || aboardTo ? `Cargo for ${runTo ?? aboardTo}: paused (rescue)` : 'Rescue under way';
   if (inc?.phase === 'recovered') {

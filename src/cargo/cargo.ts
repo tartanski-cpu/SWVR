@@ -146,6 +146,8 @@ export function stockPorts(world: WorldState): void {
 function retire(world: WorldState, item: CargoItem, delivered: boolean): void {
   delete world.cargo[item.id];
   if (delivered) world.deliveries += 1;
+  // A box of fish from the trawl, landed (fishing/fishing.ts).
+  if (delivered && item.from === 'trawl' && world.fishing) world.fishing.landed += 1;
   else world.lost = (world.lost ?? 0) + 1;
   spawnCargo(world);
 }
@@ -293,6 +295,11 @@ export function dropCarried(world: WorldState, playerId: EntityId): void {
 /** Is this one of the cargo intents? */
 export function isCargoIntent(control: string): boolean {
   return control.startsWith('cargo');
+}
+
+/** Deck height (vessel axes) at a station's z, from the hull's deck line. */
+export function deckHeightAt(defId: string, z: number): number {
+  return deckHeight(defId, z);
 }
 
 function deckHeight(defId: string, z: number): number {

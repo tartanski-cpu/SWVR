@@ -17,6 +17,8 @@ import type { DutiesState } from '../duties/duties';
 import { createRescueState, type RescueState } from '../rescue/rescue';
 import { createTowState, type TowState } from '../tow/tow';
 import { createFireState, type FireState } from '../fire/fire';
+import { createSalvageState, type SalvageState } from '../salvage/salvage';
+import { createFishingState, type FishingState } from '../fishing/fishing';
 
 /**
  * The complete simulation state. Plain, JSON-serializable data only: no class
@@ -60,6 +62,10 @@ export interface WorldState {
   tow?: TowState;
   /** Fire missions: the fire job (fire/fire.ts). */
   fire?: FireState;
+  /** Log salvage: logs washed up on beaches (salvage/salvage.ts). */
+  salvage?: SalvageState;
+  /** Fishing: the trawl and the catch (fishing/fishing.ts). */
+  fishing?: FishingState;
 }
 
 export function createWorld(
@@ -68,7 +74,7 @@ export function createWorld(
   /** Also give the workboat her tender (the skiff, on the stern davit): the game does, tests may. */
   /** cold: the boat starts dark and cold, battery master off (the game; tests start warm). */
   /** tows / fires: towing and fire calls come by themselves (the game). */
-  opts: { tender?: boolean; cold?: boolean; weather?: boolean; tows?: boolean; fires?: boolean } = {},
+  opts: { tender?: boolean; cold?: boolean; weather?: boolean; tows?: boolean; fires?: boolean; logs?: boolean } = {},
 ): { world: WorldState; localPlayerId: EntityId; vesselId: EntityId } {
   const localPlayerId = ids.next('player');
   const vesselId = ids.next('vessel');
@@ -93,6 +99,8 @@ export function createWorld(
     // Towing missions: calls come by themselves in the game (tests raise them by intent).
     tow: createTowState(!!opts.tows),
     fire: createFireState(!!opts.fires),
+    salvage: createSalvageState(!!opts.logs),
+    fishing: createFishingState(),
   };
   // Dynamic weather (the game): starting preset, the sea matching its wind.
   if (opts.weather) {

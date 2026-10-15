@@ -74,6 +74,8 @@ import { FireAudio } from '../audio/fireAudio';
 import { AnchorAudio } from '../audio/anchorAudio';
 import { WildlifeAudio } from '../audio/wildlifeAudio';
 import { WildlifeView } from '../wildlife/wildlifeView';
+import { LogView } from '../salvage/logView';
+import { TrawlView } from '../fishing/trawlView';
 import { jetOn } from '../fire/fire';
 import { nearestTowTarget, towAlertT, towStatus } from '../tow/tow';
 import { RadioAudio } from '../audio/radioAudio';
@@ -203,6 +205,8 @@ export class App {
   private readonly wildlifeAudio = new WildlifeAudio();
   /** The towline and our towing post (towing missions). */
   private readonly towline = new TowlineView();
+  private readonly logView = new LogView();
+  private readonly trawlView = new TrawlView();
   private laserHit: THREE.Vector3 | null = null;
   private laserFrame: THREE.Object3D | null = null;
   private laserT = 0;
@@ -332,7 +336,7 @@ export class App {
       CONFIG.render.far,
     );
 
-    const created = createWorld(this.ids, undefined, { tender: true, cold: true, weather: true, tows: true, fires: true });
+    const created = createWorld(this.ids, undefined, { tender: true, cold: true, weather: true, tows: true, fires: true, logs: true });
     this.world = created.world;
     this.localPlayerId = created.localPlayerId;
     this.soloPlayerId = created.localPlayerId;
@@ -366,9 +370,10 @@ export class App {
     }
     const tugView = this.vesselViews.get(this.testVesselId);
     if (tugView) this.towline.attachPost(tugView.root, VESSEL_DEFS[this.world.vessels[this.testVesselId].defId]);
+    if (tugView) this.trawlView.attachGallows(tugView.root, VESSEL_DEFS[this.world.vessels[this.testVesselId].defId]);
     this.binoculars = new Binoculars(this.camera);
     if (tugView) this.binoculars.stow(tugView.root);
-    this.scene.add(this.towline.root, this.fireView.root, this.jetView.root);
+    this.scene.add(this.towline.root, this.fireView.root, this.jetView.root, this.logView.root, this.trawlView.root);
     this.setupBridge();
 
     setupXR(this.renderer, this.camera);
@@ -582,6 +587,8 @@ export class App {
       if (id === this.testVesselId) ({ slam, lap } = hit);
     }
     this.towline.update(this.world, this.vesselRoots, this.testVesselId, this.renderWaves);
+    this.logView.update(this.world, this.renderWaves, renderTime);
+    this.trawlView.update(this.world, this.vesselRoots.get(this.testVesselId) ?? null, this.renderWaves, renderTime);
     this.fireView.update(this.world, this.renderWaves, renderTime, dt);
     this.jetView.update(this.world, this.world.vessels[this.testVesselId], this.vesselRoots.get(this.testVesselId), renderTime);
     {
@@ -1341,6 +1348,15 @@ export class App {
       towsDelivered: () => this.world.tow?.delivered ?? 0,
       towNear: (kind) => this.pushVesselIntent('towDebugNear', 1, kind),
       towCall: () => this.pushVesselIntent('towDebugCall', 1),
+      logNear: () => this.pushEnvIntent('salvageDebugNear', 1),
+      goFishing: () => {
+        // Teleport (with the boat) to the nearest fishing ground's edge, like the port Go buttons.
+        const v = this.world.vessels[this.testVesselId];
+        const fg = [...CONFIG.fishing.grounds].sort((a, b) => Math.hypot(a.x - v.position[0], a.z - v.position[2]) - Math.hypot(b.x - v.position[0], b.z - v.position[2]))[0];
+        this.pushVesselIntent('teleportToGround', 1, fg.name);
+        if (this.world.players[this.localPlayerId].aboardVesselId !== this.testVesselId) this.toggleBoardTo(true);
+        this.overlay.notify(`${fg.name}: TRAWL switch on, then 2-4 kn`, 3);
+      },
       towEnd: () => this.pushVesselIntent('towDebugEnd', 1),
       fireNear: (kind) => this.pushVesselIntent('fireDebugNear', 1, kind),
       fireCall: () => this.pushVesselIntent('fireDebugCall', 1),
@@ -1422,6 +1438,8 @@ export class App {
       w.traffic = snap.traffic;
       w.tow = snap.tow;
       w.fire = snap.fire;
+      w.salvage = snap.salvage;
+      w.fishing = snap.fishing;
       // The log comes in its own messages when it changes (not in every snapshot).
       w.log = client.log ?? snap.log;
       w.lost = snap.lost;

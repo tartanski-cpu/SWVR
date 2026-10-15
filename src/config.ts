@@ -815,6 +815,13 @@ export const CONFIG = {
        * (`airDrag`, 1/s) and blown downwind (`windDrift` of the wind's speed); it only
        * flows with the pump on AND the engine running (no pressure otherwise).
        */
+      /**
+       * Fishing: the TRAWL switch on the console (the quarter gallows, where the warps lead
+       * and the net's drag acts, are placed from the hull: fishing/trawlView.ts, fishing.ts).
+       */
+      fishing: {
+        trawlSwitch: [-0.25, 2.16, -1.52] as [number, number, number],
+      },
       fireMonitor: {
         position: [0, 3.75, -0.55] as [number, number, number],
         joystick: [0.85, 2.16, -1.15] as [number, number, number],
@@ -1079,6 +1086,62 @@ export const CONFIG = {
      * (N; about 0.5 rho Cd A for a waterlogged tangle of planks and a drum: ~5 kN at 3.5 m/s).
      */
     debris: { mass: 900, dragLinear: 150, dragQuad: 350 },
+  },
+
+  /**
+   * Log salvage (salvage/salvage.ts): logs wash up on beaches every `every` s (the first
+   * after `firstAfter`), at most `max`, `length` m long, `mass` kg. Pulling one off the
+   * beach takes more than mu_s m g (~8 kN) on the line; sliding, mu_k. Afloat it drags
+   * (dragLinear + dragQuad |v|) v N, and floats once the ground is `floatDepth` m under.
+   * Beach spots: water `reachDepth` m deep `reachOut` m off the shore, `portClear` m from
+   * ports; logs wash up at least `minDistance` m from the boat and go after `expire` s
+   * if nobody comes. The towline to a log is longer (`line`): we stand off the beach.
+   */
+  salvage: {
+    every: [240, 540] as [number, number],
+    firstAfter: 120,
+    max: 3,
+    length: [7, 11] as [number, number],
+    mass: 1500,
+    frictionStatic: 0.55,
+    frictionKinetic: 0.4,
+    dragLinear: 250,
+    dragQuad: 450,
+    floatDepth: 0.4,
+    reachDepth: 2.2,
+    reachOut: 20,
+    portClear: 300,
+    minDistance: 500,
+    expire: 1800,
+    /** Debug "log on the nearest beach": within this of the boat (m). */
+    debugNear: 3000,
+    line: { length: 30, attach: 30 },
+  },
+
+  /**
+   * Fishing (fishing/fishing.ts): the grounds (centre, radius m, richness), trawling speed
+   * (m/s; 1.0-2.1 is 2-4 kn), seconds of good trawling per box at richness 1, how long the
+   * net takes out and in (s), where it fouls (shallower than m), and its drag on the boat:
+   * (dragLinear + dragQuad |v|) v N (~3.5 kN at 3 kn), fouled `foulDrag` |v| and a
+   * `foulHold` N pull astern. Boxes appear `boxInset` m in from the transom.
+   */
+  fishing: {
+    grounds: [
+      { name: 'Calder Bank', x: 1700, z: 650, radius: 300, richness: 1.2 },
+      { name: 'Skerry Ground', x: -150, z: -150, radius: 250, richness: 0.8 },
+      { name: 'The Hollows', x: -1100, z: 1000, radius: 320, richness: 1.0 },
+    ],
+    minSpeed: 1.0,
+    maxSpeed: 2.1,
+    boxEvery: 40,
+    shootTime: 10,
+    haulTime: 12,
+    snagDepth: 7,
+    dragLinear: 600,
+    dragQuad: 1000,
+    foulDrag: 9000,
+    foulHold: 6000,
+    boxInset: 2.2,
   },
 
   /**

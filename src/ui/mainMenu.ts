@@ -110,6 +110,9 @@ export interface MenuHost {
   towNear(kind: string): void;
   towCall(): void;
   towEnd(): void;
+  /** Debug side missions: a salvage log on the nearest beach; go to a fishing ground. */
+  logNear(): void;
+  goFishing(): void;
   /** Debug fires: one close by ('boat' / 'shore'), a call, end it. */
   fireNear(kind: string): void;
   fireCall(): void;
@@ -447,6 +450,13 @@ export function mainMenu(h: MenuHost): MainMenu {
         { text: 'Barge', press: () => h.towNear('barge') },
         { text: 'Call', press: () => h.towCall() },
         { text: 'End', press: () => h.towEnd() },
+      ],
+    },
+    {
+      label: 'Side jobs',
+      buttons: [
+        { text: 'Log on beach', press: () => h.logNear() },
+        { text: 'Fishing ground', press: () => h.goFishing() },
       ],
     },
     {
