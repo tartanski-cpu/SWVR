@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { PlayerPose } from '../src/net/protocol';
 import { CONFIG } from '../src/config';
 import { IdFactory } from '../src/core/ids';
 import type { Intent } from '../src/core/intents';
@@ -104,6 +105,14 @@ describe('multiplayer: log and tools', () => {
     // The client holds the pencil: the host's world shows it in their hand.
     c.sendPose({ name: 'Mate', aboardVesselId: null, position: [0, 0, 0], yaw: 0, head: [0, 1.7, 0, 0, 0, 0, 1], left: null, right: [0.3, 1.2, 0], tool: { kind: 'pencil', hand: 'right' } });
     expect(world.players[c.playerId!].avatar!.tool).toEqual({ kind: 'pencil', hand: 'right' });
+    // The laser pointer rides in the pose too; junk is dropped, letting go clears it.
+    const pose: PlayerPose = { name: 'Mate', aboardVesselId: null, position: [0, 0, 0], yaw: 0, head: [0, 1.7, 0, 0, 0, 0, 1], left: null, right: null };
+    c.sendPose({ ...pose, laser: [0, 1.4, 0, 5, 0, -20, true] });
+    expect(world.players[c.playerId!].avatar!.laser).toEqual([0, 1.4, 0, 5, 0, -20, true]);
+    c.sendPose({ ...pose, laser: [0, 1, 0, Number.NaN, 0, 0, true] } as never);
+    expect(world.players[c.playerId!].avatar!.laser).toBeNull();
+    c.sendPose({ ...pose, laser: null });
+    expect(world.players[c.playerId!].avatar!.laser).toBeNull();
     expect(CONFIG.log.keepVoyages).toBeGreaterThan(0);
   });
 });

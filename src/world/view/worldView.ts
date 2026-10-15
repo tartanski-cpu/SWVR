@@ -149,7 +149,8 @@ function buildStructures(): THREE.BufferGeometry[] {
     parts.push(part(new THREE.BoxGeometry(0.5, 0.14, 0.28).translate(l.x, l.y + 0.05, l.z), 0x3a3f44));
     parts.push(part(new THREE.BoxGeometry(0.42, 0.04, 0.22).translate(l.x, l.y - 0.04, l.z), 0xfff1c8));
   }
-  // Berth marks: a yellow strip along the quay/pier edge for each dockable berth.
+  // Berth marks: a yellow strip along the quay/pier edge for each named berth (fuel,
+  // cargo); you can dock at any bollards, but these are where things happen.
   for (const b of BERTHS) {
     const yaw = (b.headingDeg * Math.PI) / 180;
     const ex = b.x + b.shoreX * (b.shoreDist + 0.3);

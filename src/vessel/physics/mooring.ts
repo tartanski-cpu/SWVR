@@ -12,7 +12,8 @@
  */
 import * as THREE from 'three';
 import { CONFIG } from '../../config';
-import { BERTHS, type BerthDef } from '../../world/archipelago';
+import type { BerthDef } from '../../world/archipelago';
+import { allBerths } from '../../world/berths';
 import type { WorkboatDef } from '../vesselDef';
 import type { VesselState } from '../vesselState';
 
@@ -40,7 +41,7 @@ export function berthInRange(s: VesselState): { berth: BerthDef; reversed: boole
   const cosMax = Math.cos((c.maxAngleDeg * Math.PI) / 180);
   let best: { berth: BerthDef; reversed: boolean } | null = null;
   let bestDist = Infinity;
-  for (const b of BERTHS) {
+  for (const b of allBerths()) {
     const d = Math.hypot(s.position[0] - b.x, s.position[2] - b.z);
     if (d > c.range || d >= bestDist) continue;
     const a = berthAxis(b, false);
@@ -69,7 +70,7 @@ export function toggleDock(s: VesselState): void {
 }
 
 export function berthById(id: string | null): BerthDef | undefined {
-  return id ? BERTHS.find((b) => b.id === id) : undefined;
+  return id ? allBerths().find((b) => b.id === id) : undefined;
 }
 
 type V = { x: number; y: number; z: number };

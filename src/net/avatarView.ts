@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 import type { EntityId } from '../core/ids';
 import type { WorldState } from '../core/world';
+import { LaserBeam } from '../player/laserBeam';
 
 const COLORS = [0xd8582a, 0x2a8ad8, 0x3aa84a, 0xc8a020, 0x9a4ad0, 0x20a8a0];
 
-/** A player's colour (avatar, name tag, pings): from the number in their id, the same for everyone. */
+/** A player's colour (avatar, name tag, laser): from the number in their id, the same for everyone. */
 export function playerColor(id: EntityId): number {
   const n = Number(/(\d+)$/.exec(id)?.[1] ?? 1);
   return COLORS[(n - 1 + COLORS.length) % COLORS.length];
@@ -25,6 +26,8 @@ interface Avatar {
   /** A chart tool in hand, shown at the hand. */
   tool: THREE.Object3D | null;
   toolKey: string;
+  /** Their laser pointer, in the same frame as the avatar (the pose gives it in frame coordinates). */
+  laser: LaserBeam;
 }
 
 /**
@@ -42,6 +45,7 @@ export class AvatarsView {
   private readonly shoulder = new THREE.Vector3();
   private readonly dir = new THREE.Vector3();
   private readonly yUp = new THREE.Vector3(0, 1, 0);
+  private readonly laserTo = new THREE.Vector3();
 
   constructor(private readonly scene: THREE.Object3D) {}
 
@@ -53,7 +57,7 @@ export class AvatarsView {
       const a = this.avatars.get(p.id) ?? this.create(p.id);
       const frame = (p.aboardVesselId && vesselRoots.get(p.aboardVesselId)) || this.scene;
       if (a.frame !== frame) {
-        frame.add(a.root);
+        frame.add(a.root, a.laser.root);
         a.frame = frame;
         snap(a, p.position, p.avatar);
       }
@@ -67,6 +71,9 @@ export class AvatarsView {
       } else {
         a.head.position.set(0, 1.65, 0);
       }
+      const laser = p.avatar?.laser;
+      if (laser) a.laser.set(this.tmpV.set(laser[0], laser[1], laser[2]), this.laserTo.set(laser[3], laser[4], laser[5]), laser[6]);
+      else a.laser.hide();
       if (a.tagName !== p.name) drawTag(a, p.name);
       a.tag.position.set(a.head.position.x, a.head.position.y + 0.32, a.head.position.z);
       const neck = Math.max(0.6, a.head.position.y - 0.18);
@@ -107,6 +114,7 @@ export class AvatarsView {
     for (const [id, a] of this.avatars) {
       if (seen.has(id)) continue;
       a.root.removeFromParent();
+      a.laser.root.removeFromParent();
       (a.tag.material.map as THREE.Texture).dispose();
       a.tag.material.dispose();
       this.avatars.delete(id);
@@ -142,7 +150,7 @@ export class AvatarsView {
     const rightArm = new THREE.Mesh(armGeo, mat);
     leftArm.visible = rightArm.visible = false;
     root.add(head, body, left, right, leftArm, rightArm, tag);
-    const a: Avatar = { root, head, body, left, right, leftArm, rightArm, frame: null, tag, tagName: '', tool: null, toolKey: '' };
+    const a: Avatar = { root, head, body, left, right, leftArm, rightArm, frame: null, tag, tagName: '', tool: null, toolKey: '', laser: new LaserBeam(color) };
     this.avatars.set(id, a);
     return a;
   }

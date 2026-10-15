@@ -11,18 +11,19 @@ import type { WristMenu } from '../ui/wristMenu';
 export class DesktopPointer {
   private down = false;
   private pressed = false;
-  private pingPressed = false;
   private released = false;
   private dx = 0;
   private dy = 0;
   private readonly reticle = document.createElement('div');
   private readonly ray = new THREE.Ray();
   private rightDown = false;
+  /** The right button is held for the laser pointer (not taken by the chart eraser). */
+  laserDown = false;
   private shift = false;
   /**
    * The chart table's pencil (set by the App): drag on the chart to draw, right-drag to
    * erase. Called before everything else; while it uses the buttons, nothing else sees
-   * them (no ping, no control press).
+   * them (no laser, no control press).
    */
   chart: ((ray: THREE.Ray | null, b: { down: boolean; right: boolean; shift: boolean }) => { label: string | null; consumed: boolean }) | null = null;
 
@@ -34,15 +35,10 @@ export class DesktopPointer {
     private readonly menu: WristMenu,
     /** Cargo: picked up and set down with a click when the reticle isn't on a control. */
     private readonly cargo?: { carrying(): boolean; label(ray: THREE.Ray | null): string | null; click(ray: THREE.Ray | null): boolean },
-    /** Right mouse button: drop a ping where the reticle points. */
-    private readonly onPing?: (ray: THREE.Ray) => void,
   ) {
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     document.addEventListener('mousedown', (e) => {
-      if (document.pointerLockElement === canvas && e.button === 2) {
-        this.pingPressed = true;
-        this.rightDown = true;
-      }
+      if (document.pointerLockElement === canvas && e.button === 2) this.rightDown = true;
     });
     document.addEventListener('mouseup', (e) => {
       if (e.button === 2) this.rightDown = false;
@@ -99,10 +95,9 @@ export class DesktopPointer {
     if (chart?.consumed) {
       // The pencil or eraser has the buttons.
       this.pressed = false;
-      this.pingPressed = false;
     }
-    if (this.pingPressed && ray) this.onPing?.(ray);
-    this.pingPressed = false;
+    // Right button held, not erasing on the chart: the laser pointer.
+    this.laserDown = locked && this.rightDown && !chart?.consumed;
     // While carrying, a click sets the item down, whatever the reticle is on.
     const carrying = !onMenu && !!this.cargo?.carrying();
     const ctlRay = onMenu || carrying ? null : ray;

@@ -8,7 +8,6 @@ import { dropVessel } from '../vessel/vesselControl';
 import { createVesselState, type VesselState } from '../vessel/vesselState';
 import { IdFactory, type EntityId } from './ids';
 import { stockPorts, type CargoItem } from '../cargo/cargo';
-import type { Ping } from '../player/ping';
 import { stowTender } from '../vessel/davit';
 import { createWeather, rebuildWaves, seaForWind } from '../environment/weather';
 import type { Forecast } from '../environment/forecast';
@@ -43,8 +42,6 @@ export interface WorldState {
   deliveries: number;
   /** Items lost overboard or dropped in the sea. */
   lost?: number;
-  /** "Look here" markers, one per player (player/ping.ts). */
-  pings?: Record<EntityId, Ping>;
   /** Cargo runs, distress calls and the active rescue (rescue/rescue.ts). */
   rescue?: RescueState;
   /** The crew whiteboard's notes (board/board.ts). */

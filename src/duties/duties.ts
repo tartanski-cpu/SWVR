@@ -31,7 +31,8 @@ import { visibilityAt } from '../environment/weather';
 import { isPowered } from '../vessel/electrics';
 import { LOG_TITLES } from '../log/log';
 import { answerFogSignal } from '../traffic/traffic';
-import { BERTHS, PORTS } from '../world/archipelago';
+import { PORTS } from '../world/archipelago';
+import { allBerths } from '../world/berths';
 import { oilCheckDue } from '../vessel/maintenance';
 import { leverDemand } from '../vessel/physics/propulsion';
 import { isWorkboat, VESSEL_DEFS, type WorkboatDef } from '../vessel/vesselDef';
@@ -202,7 +203,7 @@ function stepFenders(world: WorldState, d: DutiesState, v: VesselState): void {
   if (!VESSEL_DEFS[v.defId].fenders) return;
   const now = world.time;
   const [x, , z] = v.position;
-  const berth = Math.min(...BERTHS.map((b) => Math.hypot(b.x - x, b.z - z)));
+  const berth = Math.min(...allBerths().map((b) => Math.hypot(b.x - x, b.z - z)));
   const speed = Math.hypot(v.linearVelocity[0], v.linearVelocity[2]);
   const under = v.engine.phase === 'running' && v.mooring.phase === 'free';
   let out = open(d, 'fendersOut');

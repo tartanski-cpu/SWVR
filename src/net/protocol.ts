@@ -27,7 +27,7 @@ import type { WorldState } from '../core/world';
 import type { Vec3 } from '../core/math';
 import type { ChartMarks, ChartOp } from '../chart/marks';
 import type { LogState } from '../log/log';
-import type { HeldTool } from '../player/playerState';
+import type { HeldTool, LaserPose } from '../player/playerState';
 
 /** A player's body as others should see it, in the frame of what they're aboard. */
 export interface PlayerPose {
@@ -42,6 +42,8 @@ export interface PlayerPose {
   right: Vec3 | null;
   /** A chart table tool in one hand (pencil, eraser, rule), if any. */
   tool?: HeldTool | null;
+  /** Laser pointer: beam from, to (frame coordinates) and whether it hit something. */
+  laser?: LaserPose | null;
 }
 
 export type ClientMessage = { t: 'hello'; name: string } | { t: 'intents'; intents: Intent[] } | { t: 'pose'; pose: PlayerPose } | { t: 'chart'; op: ChartOp };

@@ -106,6 +106,23 @@ describe('docking', () => {
     expect(v.mooring.phase).toBe('free');
   });
 
+  it('any pier face with water alongside is a berth: DOCK works on the Brannock pier too', async () => {
+    const { allBerths } = await import('../src/world/berths');
+    const gen = allBerths().filter((b) => !BERTHS.some((n) => n.id === b.id));
+    expect(gen.length).toBeGreaterThan(4);
+    const b = gen.find((g) => g.id.startsWith('brannock')) ?? gen[0];
+    const { v, send, run } = boat();
+    const a = berthAxis(b, false);
+    placeVessel(v, b.x - b.shoreX * 6 + a.x * 2, 0, b.z - b.shoreZ * 6 + a.z * 2, b.headingDeg + 10);
+    run(1);
+    expect(berthInRange(v)?.berth.id).toBe(b.id);
+    send('dock');
+    expect(v.mooring.phase).toBe('docking');
+    run(30);
+    expect(v.mooring.phase).toBe('moored');
+    expect(Math.hypot(v.position[0] - b.x, v.position[2] - b.z)).toBeLessThan(0.8);
+  });
+
   it('the cabin light switch is a vessel control', () => {
     const { v, send } = boat();
     send('cabinLight', 1);

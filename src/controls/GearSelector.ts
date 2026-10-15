@@ -33,15 +33,16 @@ export class GearSelector extends Control {
     const rev = this.fixed(new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.032, 0.025), new THREE.MeshLambertMaterial({ color: 0xa8402a })));
     rev.position.z = 0.04;
     this.root.add(plate, fwd, rev);
-    // Lever sticking out sideways (+x), pivoting about x.
-    const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.007, 0.009, this.length, 8).rotateZ(-Math.PI / 2).translate(this.length / 2, 0, 0), this.material(0xb8bcc0));
+    // Lever standing up out of the gate, pivoting about x: it flips fore and aft (owner
+    // feedback - lying sideways it only twisted about its own length).
+    const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.007, 0.009, this.length, 8).translate(0, this.length / 2, 0), this.material(0xb8bcc0));
     this.knob = new THREE.Mesh(new THREE.SphereGeometry(0.02, 10, 8), this.material(0xe0b020));
-    this.knob.position.x = this.length;
+    this.knob.position.y = this.length;
     this.arm.add(rod, this.knob);
     this.root.add(this.arm);
     // Generous invisible grab volume around the knob (the pointer ray ignores visibility).
-    const hit = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.08, 0.14), new THREE.MeshBasicMaterial());
-    hit.position.x = this.length * 0.8;
+    const hit = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.1, 0.14), new THREE.MeshBasicMaterial());
+    hit.position.y = this.length * 0.8;
     hit.visible = false;
     this.arm.add(hit);
     this.hitObjects.push(this.knob, rod, hit);

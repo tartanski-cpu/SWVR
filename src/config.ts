@@ -1374,12 +1374,11 @@ export const CONFIG = {
     gain: 0.2,
   },
 
-  /** Pings: "look here" markers (player/ping.ts). Lifetime (s), beam height (m), reach (m). */
-  ping: {
-    life: 10,
-    beamHeight: 30,
-    reach: 2500,
-  },
+  /**
+   * Laser pointer (replaces pings, owner request): VR, hold the right stick in; desktop,
+   * hold the right mouse button. Reach (m); what it hits is found `hitRate` times a second.
+   */
+  laser: { reach: 600, hitRate: 15 },
 
   comfort: {
     /**

@@ -66,7 +66,7 @@ import { AlarmAudio } from '../audio/alarmAudio';
 import { ContactAudio } from '../audio/contactAudio';
 import { WaterAudio } from '../audio/waterAudio';
 import { WorldView } from '../world/view/worldView';
-import { PingAudio, PingView } from '../player/pingView';
+import { LaserBeam } from '../player/laserBeam';
 import { RadioAudio } from '../audio/radioAudio';
 import { WhistleAudio } from '../audio/whistleAudio';
 import { TargetsView } from '../rescue/targetView';
@@ -116,6 +116,9 @@ const BATTERY_KEY = 'swvr.battery';
 /** ...and the number of rescues completed. */
 const RESCUES_KEY = 'swvr.rescues';
 
+
+/** Things the laser beam passes through: glass, rain on it, the comfort vignette, beams. */
+const SEE_THROUGH = new Set(['laser', 'windowGlass', 'rainGlass', 'comfortOverlay']);
 export class App {
   readonly renderer: THREE.WebGLRenderer;
   readonly scene = new THREE.Scene();
@@ -178,8 +181,13 @@ export class App {
   private readonly cargoView = new CargoView();
   private readonly cargoHands = new CargoHands();
   private readonly platform = createPlatform();
-  private readonly pingView = new PingView(this.scene);
-  private readonly pingAudio = new PingAudio();
+  /** Our laser pointer (others see it in our pose); where it hit, refreshed a few times a second. */
+  private readonly laser = new LaserBeam();
+  private laserHit: THREE.Vector3 | null = null;
+  private laserFrame: THREE.Object3D | null = null;
+  private laserT = 0;
+  private readonly laserFrom = new THREE.Vector3();
+  private readonly laserTo = new THREE.Vector3();
   private readonly radioAudio = new RadioAudio();
   private readonly targetsView = new TargetsView();
   private readonly desktopHand = new DesktopHand();
@@ -249,7 +257,7 @@ export class App {
   private readonly listenerUp = new THREE.Vector3();
   /** Last radio message / alert played here (null until the first frame: don't replay old ones). */
   private radioSeen: { id: number; alertT: number } | null = null;
-  private readonly pingCaster = new THREE.Raycaster();
+  private readonly laserCaster = new THREE.Raycaster();
   private readonly vesselRoots = new Map<string, THREE.Object3D>();
   private readonly hands: Record<'left' | 'right', HandFrame> = {
     left: { tracked: false, grip: new THREE.Vector3(), ray: new THREE.Ray(), quat: new THREE.Quaternion(), gripDown: false, gripPressed: false, triggerDown: false, triggerPressed: false },
@@ -324,10 +332,7 @@ export class App {
     this.scene.add(this.targetsView.root, this.gearView.root, this.desktopHand.root, this.rain.mesh, this.trafficView.root);
     this.rain.quality = userSettings.rainQuality;
     this.targetsView.onWhistle = (pos) => this.whistleAudio.blow(pos);
-    this.pingView.onNew = (pos, mine) => {
-      this.pingAudio.play(pos.distanceTo(this.focus));
-      if (mine) this.xrInput.pulse('right', 0.4, 40);
-    };
+    this.scene.add(this.laser.root);
     for (const vessel of Object.values(this.world.vessels)) {
       const def = VESSEL_DEFS[vessel.defId];
       const view = new VesselView(vessel.id, def);
@@ -366,7 +371,6 @@ export class App {
       this.alarm.attach(this.engineAudio.context);
       this.contactAudio.attach(this.engineAudio.context);
       this.waterAudio.attach(this.engineAudio.context);
-      this.pingAudio.attach(this.engineAudio.context);
       this.radioAudio.attach(this.engineAudio.context);
       this.whistleAudio.attach(this.engineAudio.context);
       this.shipHorn.attach(this.engineAudio.context);
@@ -446,6 +450,7 @@ export class App {
     this.updateInteraction(inXR);
     this.updateLocomotion(dt, inXR);
     this.syncRigToPlayer(0);
+    this.updateLaser(dt);
     this.camera.getWorldPosition(this.focus);
     this.environment.update(this.world.environment, this.focus, this.world.time);
     this.sky.update(this.environment, this.focus);
@@ -555,7 +560,6 @@ export class App {
     const fxTest = this.effects.get(this.testVesselId);
     if (fxTest?.searchlight) this.ocean.setSpotlight(fxTest.searchlight.light);
     this.cargoView.update(this.world, this.vesselRoots, (c) => this.carriedPose(c), this.cargoHands.hovered);
-    this.pingView.update(this.world, this.vesselRoots, this.focus, this.localPlayerId);
     const deskHand = inXR ? null : this.desktopHandWorld(this.deskHandW);
     if (deskHand) this.desktopHand.setColor(playerColor(this.localPlayerId));
     this.desktopHand.update(this.camera, deskHand, dt);
@@ -1275,7 +1279,6 @@ export class App {
       w.cargo = snap.cargo;
       w.cargoSeq = snap.cargoSeq;
       w.deliveries = snap.deliveries;
-      w.pings = snap.pings;
       w.rescue = snap.rescue;
       w.board = snap.board;
       w.duties = snap.duties;
@@ -1322,10 +1325,11 @@ export class App {
       left: hand('left'),
       right: hand('right'),
       tool: this.chartTools?.heldTool() ?? null,
+      laser: this.laserPose(),
     };
     if (this.host) {
       p.name = pose.name;
-      p.avatar = { head: pose.head, left: pose.left, right: pose.right, tool: pose.tool };
+      p.avatar = { head: pose.head, left: pose.left, right: pose.right, tool: pose.tool, laser: pose.laser };
       return;
     }
     this.poseTimer += dt;
@@ -1541,7 +1545,7 @@ export class App {
       },
     );
     this.scene.add(this.interaction.rayLine('left'), this.interaction.rayLine('right'));
-    this.pointer = new DesktopPointer(this.renderer.domElement, this.desktop, this.interaction, this.menu, this.desktopCargo(), (ray) => this.ping(ray));
+    this.pointer = new DesktopPointer(this.renderer.domElement, this.desktop, this.interaction, this.menu, this.desktopCargo());
     if (this.chartTools) {
       const tools = this.chartTools;
       this.pointer.chart = (ray, b) => tools.updateDesktop(this.chartCtx(), ray, b, this.frameDt);
@@ -1586,7 +1590,6 @@ export class App {
       }
       this.busyHands = this.interaction.updateXR(this.hands);
       for (const h of ['left', 'right'] as const) if (onTools[h]) this.busyHands[h] = true;
-      if (this.xrInput.wasPressed('right', XR_BUTTON.stick) && this.hands.right.tracked) this.ping(this.hands.right.ray);
       this.cargoHands.updateXR(this.cargoCtx(), this.hands, this.busyHands);
       for (const h of ['left', 'right'] as const) if (this.cargoHands.busy(h)) this.busyHands[h] = true;
       this.rescueHands.updateXR(this.rescueCtx(), this.hands, this.busyHands, this.frameDt);
@@ -1606,20 +1609,47 @@ export class App {
   }
 
   /**
-   * Drop a ping where a ray first meets something: a boat, the islands and quays, cargo,
-   * the platform, or the sea (ray against the wave surface). On a boat it's stored in her
-   * frame so it rides along. Our own body, the menu and other pings don't count.
+   * The laser pointer: while the right stick is held in (VR) or the right mouse button is
+   * held (desktop), a beam from the hand or the eyes to whatever it meets - a boat, the
+   * islands and quays, cargo, the platform, or the sea. What it hits is looked up a few
+   * times a second (the beam itself follows the hand every frame); the hit point is kept
+   * in the frame of what it hit, so on a boat it rides along.
    */
-  private ping(ray: THREE.Ray): void {
-    const reach = CONFIG.ping.reach;
-    this.pingCaster.set(ray.origin, ray.direction);
-    this.pingCaster.far = reach;
-    const targets = [...this.vesselRoots.values(), this.worldView.root, this.cargoView.root, this.platform];
+  private updateLaser(dt: number): void {
+    const inXR = this.renderer.xr.isPresenting;
+    const on = inXR ? this.xrInput.isDown('right', XR_BUTTON.stick) && this.hands.right.tracked : !!this.pointer?.laserDown;
+    if (!on) {
+      this.laser.hide();
+      this.laserHit = null;
+      return;
+    }
+    const ray = inXR ? this.hands.right.ray : new THREE.Ray(this.camera.getWorldPosition(new THREE.Vector3()), this.camera.getWorldDirection(new THREE.Vector3()));
+    this.laserT -= dt;
+    if (this.laserT <= 0 || !this.laserHit) {
+      this.laserT = 1 / CONFIG.laser.hitRate;
+      this.findLaserHit(ray);
+    }
+    // Desktop: the beam starts a little below the eyes (from the "hand"), so it shows.
+    this.laserFrom.copy(ray.origin);
+    if (!inXR) this.laserFrom.addScaledVector(this.camera.up.clone().applyQuaternion(this.camera.getWorldQuaternion(new THREE.Quaternion())), -0.25);
+    const hit = !!this.laserHit;
+    if (hit) this.laserTo.copy(this.laserHit!).applyMatrix4(this.laserFrame?.matrixWorld ?? new THREE.Matrix4());
+    else ray.at(CONFIG.laser.reach * 0.2, this.laserTo);
+    // Aim follows the hand every frame; the hit distance comes from the last lookup.
+    if (hit) ray.at(this.laserTo.distanceTo(ray.origin), this.laserTo);
+    this.laser.set(this.laserFrom, this.laserTo, hit);
+  }
+
+  private findLaserHit(ray: THREE.Ray): void {
+    const reach = CONFIG.laser.reach;
+    this.laserCaster.set(ray.origin, ray.direction);
+    this.laserCaster.far = reach;
+    const targets = [...this.vesselRoots.values(), this.worldView.root, this.cargoView.root, this.platform, this.trafficView.root];
     const skip = (o: THREE.Object3D | null): boolean => {
-      for (; o; o = o.parent) if (o === this.rig.carrier || o === this.menu.root || o.name === 'ping' || o.name.startsWith('avatar:')) return true;
+      for (; o; o = o.parent) if (!o.visible || o === this.rig.carrier || o === this.menu.root || SEE_THROUGH.has(o.name) || o.name.startsWith('avatar:')) return true;
       return false;
     };
-    const hit = this.pingCaster.intersectObjects(targets, true).find((h) => !skip(h.object) && (h.object as THREE.Mesh).isMesh);
+    const hit = this.laserCaster.intersectObjects(targets, true).find((h) => (h.object as THREE.Mesh).isMesh && !skip(h.object));
     // The sea: march along the ray to where it drops below the surface.
     let sea: THREE.Vector3 | null = null;
     if (ray.direction.y < -1e-3) {
@@ -1632,23 +1662,29 @@ export class App {
       }
       if (t > 0 && t < reach) sea = ray.at(t, new THREE.Vector3());
     }
-    let point: THREE.Vector3 | null = null;
-    let vesselId: string | undefined;
+    this.laserHit = null;
+    this.laserFrame = null;
     if (hit && (!sea || hit.distance <= sea.distanceTo(ray.origin))) {
-      point = hit.point.clone();
-      for (const [id, root] of this.vesselRoots) {
+      const point = hit.point.clone();
+      for (const root of this.vesselRoots.values()) {
         let o: THREE.Object3D | null = hit.object;
         while (o && o !== root) o = o.parent;
         if (o === root) {
-          vesselId = id;
+          this.laserFrame = root;
           root.worldToLocal(point);
         }
       }
-    } else if (sea) {
-      point = sea;
-    }
-    if (!point) return;
-    this.intents.push({ playerId: this.localPlayerId, targetId: ENVIRONMENT_ID, control: 'ping', value: 1, ref: vesselId, args: [point.x, point.y, point.z] });
+      this.laserHit = point;
+    } else if (sea) this.laserHit = sea;
+  }
+
+  /** Our laser beam for the pose (frame coordinates), or null. */
+  private laserPose(): [number, number, number, number, number, number, boolean] | null {
+    if (!this.laser.root.visible) return null;
+    const r = (x: number) => Math.round(x * 100) / 100;
+    const a = this.laserFrom.clone().applyMatrix4(this.invFrame);
+    const b = this.laserTo.clone().applyMatrix4(this.invFrame);
+    return [r(a.x), r(a.y), r(a.z), r(b.x), r(b.y), r(b.z), !!this.laserHit];
   }
 
   /** Desktop cargo: label under the reticle, and clicks (see DesktopPointer). */

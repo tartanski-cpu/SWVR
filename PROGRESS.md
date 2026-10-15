@@ -1148,6 +1148,21 @@ Desktop voice input (milestone 9) was skipped at the owner's request.
   - the log travels outside the snapshots;
   - a client's held pencil reaches the host's world.
 
+## Skiff gear lever, berths on every pier, laser pointer (owner requests)
+
+- **Skiff gear lever** (`controls/GearSelector.ts`): it now stands upright and tips fore and aft (forward = ahead, back = astern) instead of turning like a dial.
+- **Dock at any pier** (`world/berths.ts`):
+  - Every quay and pier face with deep water alongside now has a berth every 12 m, as well as the named berths: 24 in all, including both sides of the Brannock pier.
+  - DOCK, the hot-spot light and the fender duty use them all (`allBerths()`).
+  - Only the named berths have painted strips on the quay.
+- **Laser pointer replaces the ping** (`player/laserBeam.ts`):
+  - VR: hold the right stick in. Desktop: hold the right mouse button.
+  - A thin beam and a bright dot where it hits: a boat, the islands and quays, cargo, the platform or the sea. On a boat the dot rides with her.
+  - It travels in the pose (frame coordinates), so the crew sees it in your player colour. It is drawn, not simulated: no world state.
+  - Tunables: `CONFIG.laser` (reach 600 m, 15 hit look-ups a second).
+  - The ping code, its sound and its tests were removed.
+- **Tests:** docking at a generated pier berth; the laser travels in the pose (bad numbers dropped).
+
 ## Planned next (owner requests, not started)
 
 1. ~~Fuel and oil temperature~~ **Done** (see above).

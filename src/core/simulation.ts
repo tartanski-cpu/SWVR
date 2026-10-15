@@ -5,7 +5,6 @@ import { prepareWaves, type PreparedWave } from '../ocean/waves';
 import { stepVessel, type HydroDebug } from '../vessel/physics/vesselPhysics';
 import { vesselContacts } from '../vessel/physics/vesselContact';
 import { applyPlayerIntent } from '../player/playerControl';
-import { applyPing, expirePings } from '../player/ping';
 import { applyRescueIntent, isRescueIntent, stepRescue } from '../rescue/rescue';
 import { applyBoardIntent, isBoardIntent } from '../board/board';
 import { applyVesselIntent, stepRefuelling } from '../vessel/vesselControl';
@@ -47,8 +46,6 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
       applyLogIntent(world, intent);
     } else if (intent.control === 'trafficSpawn') {
       applyTrafficIntent(world, intent);
-    } else if (intent.control === 'ping') {
-      applyPing(world, intent);
     } else if (isCargoIntent(intent.control)) {
       applyCargoIntent(world, intent);
     } else if (intent.targetId === ENVIRONMENT_ID) {
@@ -89,7 +86,6 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
   }
   for (const vessel of Object.values(world.vessels)) if (onDavit(vessel)) stepTender(world, vessel, dt);
 
-  expirePings(world);
   stepForecast(world);
   stepLog(world);
   stepTraffic(world, dt);
