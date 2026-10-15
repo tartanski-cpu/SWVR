@@ -153,7 +153,13 @@ export interface ElectricsState {
   /** Bus voltage and net battery current (A, + = discharging) on the last tick. */
   volts: number;
   amps: number;
+  /** Breakers on the panel by the helm, 0 off / 1 on (see BREAKERS in electrics.ts). */
+  breakers: Record<BreakerName, number>;
 }
+
+/** The breakers, in panel order. */
+export const BREAKERS = ['instruments', 'chart', 'radio', 'navLights', 'deckLights', 'bilge'] as const;
+export type BreakerName = (typeof BREAKERS)[number];
 
 /**
  * A tender and her mother ship's davit.
@@ -203,6 +209,8 @@ export function createVesselState(id: EntityId, defId: string): VesselState {
     ...(VESSEL_DEFS[defId].outboard ? { battery: 1 } : {}),
     // Warm by default (tests, trials): master on, both batteries full. The game itself
     // starts cold and dark (createWorld `cold`).
-    ...(VESSEL_DEFS[defId].electrics ? { electrics: { master: 1, selector: 1, soc: [1, 1] as [number, number], volts: 12.7, amps: 0 } } : {}),
+    ...(VESSEL_DEFS[defId].electrics
+      ? { electrics: { master: 1, selector: 1, soc: [1, 1] as [number, number], volts: 12.7, amps: 0, breakers: { instruments: 1, chart: 1, radio: 1, navLights: 1, deckLights: 1, bilge: 1 } } }
+      : {}),
   };
 }

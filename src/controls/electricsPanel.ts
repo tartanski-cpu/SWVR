@@ -1,7 +1,10 @@
 import * as THREE from 'three';
 import { clamp } from '../core/math';
 import type { VesselState } from '../vessel/vesselState';
+import { isPowered } from '../vessel/electrics';
+import { BREAKERS, type BreakerName } from '../vessel/vesselState';
 import { Control } from './Control';
+import { Toggle } from './Toggle';
 
 /**
  * Battery master switch: the big red key on a yellow plate, low on the aft wall by the door
@@ -71,38 +74,87 @@ function plateLabel(): THREE.CanvasTexture {
   return t;
 }
 
+/** Breaker labels on the panel (short, engraved style). */
+const BREAKER_LABELS: Record<BreakerName, string> = {
+  instruments: 'INSTR',
+  chart: 'CHART',
+  radio: 'RADIO',
+  navLights: 'NAV LTS',
+  deckLights: 'DECK LTS',
+  bilge: 'BILGE',
+};
+
 /**
- * The electrics panel on the starboard wall by the helm. For now its voltmeter: a dial
- * (8-16 V, printed once) and a needle that swings to the bus voltage - no texture uploads.
- * Wired straight to the bus (not through a breaker), so it reads 0 with the master off.
- * The breakers join it in the next milestone.
+ * The electrics panel: a small sloping console under the starboard window sill by the helm.
+ *   - Voltmeter: a dial (8-16 V, printed once) and a needle swinging to the bus voltage.
+ *     Wired straight to the bus, not through a breaker: it reads 0 with the master off.
+ *   - Breakers: a toggle per circuit (BREAKERS, two rows of three) with a green lamp that
+ *     shows the circuit is live (master on, battery not flat, breaker on). Sends
+ *     `brk_<name>` 1 / 0.
+ * No per-frame texture work: the needle is a mesh, the lamps only change colour on change.
  */
 export class ElectricsPanel {
   readonly root = new THREE.Group();
+  /** The breaker toggles, for the interaction system. */
+  readonly controls: Control[] = [];
   private readonly needle = new THREE.Group();
+  private readonly lamps = new Map<BreakerName, THREE.MeshBasicMaterial>();
+  private readonly lampLit = new Map<BreakerName, boolean>();
   private shown = 0;
 
   constructor(cfg: { position: [number, number, number]; width: number; height: number; tiltDeg: number }) {
     this.root.position.fromArray(cfg.position);
     // Face inboard (-x) from the starboard wall, tilted back so the face looks up at you.
     this.root.rotation.set((-cfg.tiltDeg * Math.PI) / 180, -Math.PI / 2, 0, 'YXZ');
+    const W = cfg.width;
+    const H = cfg.height;
     // A wedge-ish housing: the sloping face plus a block behind it down to the wall.
-    const body = new THREE.Mesh(new THREE.BoxGeometry(cfg.width, cfg.height, 0.12), new THREE.MeshLambertMaterial({ color: 0x2a2f33 }));
+    const body = new THREE.Mesh(new THREE.BoxGeometry(W, H, 0.12), new THREE.MeshLambertMaterial({ color: 0x2a2f33 }));
     body.position.z = -0.06;
     const face = new THREE.Mesh(new THREE.CircleGeometry(0.075, 32), new THREE.MeshBasicMaterial({ map: dialFace() }));
-    face.position.set(-cfg.width / 2 + 0.1, cfg.height / 2 - 0.1, 0.001);
+    face.position.set(-W / 2 + 0.1, 0.02, 0.001);
     const needle = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.06, 0.002).translate(0, 0.03, 0), new THREE.MeshBasicMaterial({ color: 0xff3a20 }));
     this.needle.position.copy(face.position).setZ(0.003);
     this.needle.add(needle);
     this.root.add(body, face, this.needle);
+
+    // Breakers: two rows of three to the right of the dial.
+    const x0 = -W / 2 + 0.25;
+    const pitch = 0.1;
+    const rows = [0.075, -0.075];
+    const spots: { k: BreakerName; x: number; y: number }[] = BREAKERS.map((k, i) => ({ k, x: x0 + (i % 3) * pitch, y: rows[Math.floor(i / 3)] }));
+    for (const { k, x, y } of spots) {
+      const t = new Toggle(`brk_${k}`, `brk_${k}`, `Breaker: ${BREAKER_LABELS[k].toLowerCase()}`, (s) => s.electrics?.breakers[k] ?? 1);
+      t.root.position.set(x, y - 0.005, 0);
+      t.root.rotation.x = Math.PI / 2; // its "up" out of the panel face; on = bat up
+      t.root.scale.setScalar(0.8);
+      this.root.add(t.root);
+      this.controls.push(t);
+      const mat = new THREE.MeshBasicMaterial({ color: LAMP_OFF });
+      const lamp = new THREE.Mesh(new THREE.CircleGeometry(0.007, 12), mat);
+      lamp.position.set(x + 0.032, y + 0.035, 0.002);
+      this.root.add(lamp);
+      this.lamps.set(k, mat);
+      this.lampLit.set(k, false);
+    }
+    const labels = new THREE.Mesh(new THREE.PlaneGeometry(W, H), new THREE.MeshBasicMaterial({ map: panelLabels(W, H, spots), transparent: true }));
+    labels.position.z = 0.0015;
+    this.root.add(labels);
     this.setNeedle(0);
   }
 
-  /** Smoothly follow the bus voltage (a real meter's movement takes a moment). */
+  /** Needle and lamps from the vessel state. */
   update(state: VesselState, dt: number): void {
     const v = state.electrics?.volts ?? 0;
+    // Smoothly follow the bus voltage (a real meter's movement takes a moment).
     this.shown += (v - this.shown) * Math.min(1, dt * 4);
     this.setNeedle(this.shown);
+    for (const k of BREAKERS) {
+      const lit = isPowered(state, k);
+      if (lit === this.lampLit.get(k)) continue;
+      this.lampLit.set(k, lit);
+      this.lamps.get(k)!.color.setHex(lit ? LAMP_ON : LAMP_OFF);
+    }
   }
 
   private setNeedle(volts: number): void {
@@ -110,6 +162,31 @@ export class ElectricsPanel {
     const f = clamp((volts - 8) / 8, -0.05, 1.05);
     this.needle.rotation.z = (120 - 240 * f) * (Math.PI / 180);
   }
+}
+
+const LAMP_ON = 0x50ff70;
+const LAMP_OFF = 0x173020;
+
+/** Labels under each breaker and over the dial, on a transparent overlay (drawn once). */
+function panelLabels(W: number, H: number, spots: { k: BreakerName; x: number; y: number }[]): THREE.CanvasTexture {
+  const px = 1024 / W; // pixels per metre
+  const c = document.createElement('canvas');
+  c.width = 1024;
+  c.height = Math.round(H * px);
+  const g = c.getContext('2d')!;
+  const toC = (x: number, y: number): [number, number] => [(x + W / 2) * px, (H / 2 - y) * px];
+  g.fillStyle = '#e8e2cc';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.font = 'bold 36px system-ui, sans-serif';
+  for (const { k, x, y } of spots) g.fillText(BREAKER_LABELS[k], ...toC(x, y - 0.048));
+  g.font = 'bold 26px system-ui, sans-serif';
+  g.fillText('BREAKERS', ...toC(spots[1].x, H / 2 - 0.012));
+  g.fillText('BATTERY', ...toC(-W / 2 + 0.1, H / 2 - 0.022));
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  return t;
 }
 
 /** Voltmeter dial: 8-16 V scale, red below 11.5, green 12.4-14.4 (drawn once). */

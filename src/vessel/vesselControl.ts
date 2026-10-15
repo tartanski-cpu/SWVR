@@ -1,3 +1,4 @@
+import { BREAKERS, type BreakerName } from './vesselState';
 import * as THREE from 'three';
 import type { Intent } from '../core/intents';
 import { clamp } from '../core/math';
@@ -110,12 +111,22 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
       // Battery master switch: 1 on / 0 off.
       if (s.electrics) s.electrics.master = intent.value > 0.5 ? 1 : 0;
       break;
+    default:
+      // Breakers: 'brk_<name>' 1 on / 0 off.
+      if (intent.control.startsWith('brk_') && s.electrics) {
+        const k = intent.control.slice(4) as BreakerName;
+        if (k in s.electrics.breakers) s.electrics.breakers[k] = intent.value > 0.5 ? 1 : 0;
+      }
+      break;
     case 'debugElectrics':
       // Debug: 0 = both batteries flat, 1 = fill both, 2 = power everything on (master on, full).
       if (s.electrics) {
         if (intent.value < 0.5) s.electrics.soc = [0, 0];
         else s.electrics.soc = [1, 1];
-        if (intent.value > 1.5) s.electrics.master = 1;
+        if (intent.value > 1.5) {
+          s.electrics.master = 1;
+          for (const k of BREAKERS) s.electrics.breakers[k] = 1;
+        }
       }
       break;
     case 'cabinLight':

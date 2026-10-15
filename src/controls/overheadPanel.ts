@@ -109,7 +109,7 @@ export class OverheadPanel {
   update(state: VesselState): void {
     const st = CONFIG.fmRadio.stations[state.controls.fmStation];
     // No 12 V: the FM display is dark (an empty text draws a blank screen).
-    const text = !isPowered(state) ? '' : state.controls.fmOn && st ? `FM ${st.freq}\n${st.name}${this.fmStatus ? `  ${this.fmStatus}` : ''}` : 'FM  OFF';
+    const text = !isPowered(state, 'radio') ? '' : state.controls.fmOn && st ? `FM ${st.freq}\n${st.name}${this.fmStatus ? `  ${this.fmStatus}` : ''}` : 'FM  OFF';
     if (text !== this.text) this.draw(text);
   }
 

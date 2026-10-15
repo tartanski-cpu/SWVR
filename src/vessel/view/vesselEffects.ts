@@ -78,14 +78,14 @@ export class VesselEffects {
     const e = this.equip;
     if (e) {
       // Lights need 12 V (master on, battery not flat).
-      const p = isPowered(s);
-      e.nav.update(s.controls.navLights > 0 && p, darkness, viewer);
+      const deck = isPowered(s, 'deckLights');
+      e.nav.update(s.controls.navLights > 0 && isPowered(s, 'navLights'), darkness, viewer);
       e.smoke.setLight(light);
       e.smoke.update(dt, s, e.def, this.root, (x, z) => surfaceHeight(waves, x, z), viewer);
       e.chain.update(s, e.def, this.root);
-      e.cabin.update(s.controls.cabinLight > 0 && p);
-      e.deckLights.update(s, p);
-      e.searchlight.update(s, darkness, p);
+      e.cabin.update(s.controls.cabinLight > 0 && deck);
+      e.deckLights.update(s, deck);
+      e.searchlight.update(s, darkness, deck);
       e.lines.update(s, e.def, this.root);
     }
     // A tender hanging on the davit throws no wake or spray.

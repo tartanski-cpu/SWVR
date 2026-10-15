@@ -14,7 +14,7 @@
 import { clamp } from '../core/math';
 import type { VesselDef } from './vesselDef';
 import { VESSEL_DEFS } from './vesselDef';
-import type { ElectricsState, VesselState } from './vesselState';
+import type { BreakerName, ElectricsState, VesselState } from './vesselState';
 
 type Electrics = NonNullable<VesselDef['electrics']>;
 
@@ -23,12 +23,20 @@ export function selectedSoc(e: ElectricsState): number {
   return e.selector === 1 ? e.soc[0] : e.selector === 2 ? e.soc[1] : Math.max(e.soc[0], e.soc[1]);
 }
 
-/** Is there 12 V on the bus? Boats without modelled electrics always count as powered. */
-export function isPowered(s: VesselState): boolean {
+/**
+ * Is there 12 V on the bus - and, given a breaker, is that circuit switched on? Boats
+ * without modelled electrics always count as powered. What hangs on which breaker:
+ *   instruments  dash displays (gauges)       chart     chart plotter
+ *   radio        VHF (screen, speaker, handset) and FM
+ *   navLights    navigation lights            deckLights  floods, rail LEDs, cabin lamp, searchlight
+ *   bilge        the bilge pump (a load only)
+ * The starter, fuel solenoid, horn and windlass are on the master alone.
+ */
+export function isPowered(s: VesselState, breaker?: BreakerName): boolean {
   const e = s.electrics;
   if (!e) return true;
   const cfg = VESSEL_DEFS[s.defId].electrics;
-  return e.master > 0 && !!cfg && selectedSoc(e) > cfg.cutoffSoc;
+  return e.master > 0 && !!cfg && selectedSoc(e) > cfg.cutoffSoc && (!breaker || e.breakers[breaker] > 0);
 }
 
 /** Resting (no load) voltage at a state of charge. */
@@ -40,14 +48,21 @@ export function restVolts(cfg: Electrics, soc: number): number {
 export function loadAmps(s: VesselState, cfg: Electrics): number {
   const c = s.controls;
   const L = cfg.loads;
-  let a = L.base + L.instruments + L.chart + L.radio;
-  if (c.fmOn > 0) a += L.fm;
-  if (c.navLights > 0) a += L.navLights;
-  if (c.deckFore > 0) a += L.deckFlood;
-  if (c.deckAft > 0) a += L.deckFlood;
-  if (c.railLights > 0) a += L.railLights;
-  if (c.cabinLight > 0) a += L.cabinLight;
-  if (c.spotlight > 0) a += L.searchlight;
+  const b = s.electrics?.breakers;
+  const on = (k: BreakerName) => !b || b[k] > 0;
+  let a = L.base;
+  if (on('instruments')) a += L.instruments;
+  if (on('chart')) a += L.chart;
+  if (on('radio')) a += L.radio + (c.fmOn > 0 ? L.fm : 0);
+  if (on('navLights') && c.navLights > 0) a += L.navLights;
+  if (on('deckLights')) {
+    if (c.deckFore > 0) a += L.deckFlood;
+    if (c.deckAft > 0) a += L.deckFlood;
+    if (c.railLights > 0) a += L.railLights;
+    if (c.cabinLight > 0) a += L.cabinLight;
+    if (c.spotlight > 0) a += L.searchlight;
+  }
+  if (on('bilge')) a += L.bilge;
   if (c.horn > 0) a += L.horn;
   const an = s.anchor.phase;
   if (an === 'paying' || an === 'weighing' || (an === 'hanging' && c.anchor <= 0)) a += L.windlass;

@@ -404,7 +404,7 @@ export class App {
     const testVessel = this.world.vessels[this.testVesselId];
     if (this.bridge && testVessel) {
       this.bridge.update(testVessel, dt, this.dashInView());
-      this.bridge.radio.update(this.world.rescue, runStatus(this.world), dt, isPowered(testVessel));
+      this.bridge.radio.update(this.world.rescue, runStatus(this.world), dt, isPowered(testVessel, 'radio'));
       // Say so when the anchor is up or holding (the speed screen shows it all the time).
       const ap = testVessel.anchor.phase;
       if (ap !== this.lastAnchorPhase) {
@@ -465,7 +465,7 @@ export class App {
     }
     if (this.bridge && testVessel) {
       const c = testVessel.controls;
-      this.fmRadio.update(c.fmOn > 0 && isPowered(testVessel), c.fmStation, this.bridge.overhead.root.getWorldPosition(this.tmpV).distanceTo(this.focus));
+      this.fmRadio.update(c.fmOn > 0 && isPowered(testVessel, 'radio'), c.fmStation, this.bridge.overhead.root.getWorldPosition(this.tmpV).distanceTo(this.focus));
       this.bridge.overhead.fmStatus = this.fmRadio.status;
     }
     if (this.world.rescue?.active) {
@@ -707,7 +707,7 @@ export class App {
     }
     // A dark VHF neither rings nor speaks: the message is simply missed.
     const v = this.world.vessels[this.testVesselId];
-    if (v && !isPowered(v)) {
+    if (v && !isPowered(v, 'radio')) {
       this.radioSeen = { id, alertT };
       return;
     }
@@ -994,7 +994,7 @@ export class App {
         const e = boat().electrics;
         if (!e) return '-';
         const pct = (x: number) => `${Math.round(x * 100)} %`;
-        return `${e.master ? 'Master ON' : 'Master off'} · ${e.volts.toFixed(1)} V · B1 ${pct(e.soc[0])} B2 ${pct(e.soc[1])}`;
+        return `${e.master ? 'Master ON' : 'Master off'} · ${e.volts.toFixed(1)} V ${e.amps.toFixed(0)} A · B1 ${pct(e.soc[0])} B2 ${pct(e.soc[1])}`;
       },
       electricsDebug: (m) => this.pushVesselIntent('debugElectrics', m),
       coolingFault: () => boat().engine.coolingFault,

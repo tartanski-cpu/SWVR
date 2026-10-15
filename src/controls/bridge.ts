@@ -85,6 +85,7 @@ export class Bridge {
       this.controls.push(master);
       this.electrics = new ElectricsPanel(el.panel);
       this.root.add(this.electrics.root);
+      this.controls.push(...this.electrics.controls);
     }
     for (const c of this.controls) if (!c.root.parent) this.root.add(c.root);
 

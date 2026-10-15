@@ -416,7 +416,7 @@ export function applyRescueIntent(world: WorldState, intent: Intent): void {
     case 'rescueHandset': {
       const inc = r.active;
       // The VHF needs 12 V: with the bridge dark the call just rings out unheard.
-      if (intent.value > 0.5 && inc?.phase === 'calling' && (!v || isPowered(v))) {
+      if (intent.value > 0.5 && inc?.phase === 'calling' && (!v || isPowered(v, 'radio'))) {
         inc.phase = 'accepted';
         const client = r.run ? ' Your cargo client has been told.' : '';
         say(r, 'reply', `Thanks, skipper.${client} Search area is on your chart.`, world.time);

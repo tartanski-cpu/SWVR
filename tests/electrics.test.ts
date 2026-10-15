@@ -54,8 +54,10 @@ describe('12 V electrics', () => {
   it('switched-on loads drain the battery; the alternator charges it', () => {
     const { v, send, run } = setup();
     send('master', 1);
+    send('brk_deckLights', 1);
     send('spotlight', 1);
     send('deckFore', 1);
+    v.electrics!.soc = [0.5, 1];
     const s0 = v.electrics!.soc[0];
     run(60);
     const drained = s0 - v.electrics!.soc[0];
@@ -104,6 +106,37 @@ describe('12 V electrics', () => {
     send('master', 1);
     run(5);
     expect(v.anchor.rodeM).toBeGreaterThan(1);
+  });
+
+  it('breakers: each circuit on its own; a device works only with master AND its breaker on', () => {
+    const { v, send, run } = setup();
+    send('master', 1);
+    run(0.2);
+    expect(isPowered(v)).toBe(true);
+    expect(isPowered(v, 'chart')).toBe(false);
+    expect(isPowered(v, 'radio')).toBe(false);
+    send('brk_chart', 1);
+    expect(isPowered(v, 'chart')).toBe(true);
+    expect(isPowered(v, 'radio')).toBe(false);
+    send('brk_radio', 1);
+    expect(isPowered(v, 'radio')).toBe(true);
+    // Each breaker adds its draw: the current goes up.
+    run(0.5);
+    const a0 = v.electrics!.amps;
+    send('brk_instruments', 1);
+    run(0.5);
+    expect(v.electrics!.amps).toBeGreaterThan(a0 + 1);
+    // Master off kills them all, whatever the breakers say.
+    send('master', 0);
+    expect(isPowered(v, 'chart')).toBe(false);
+  });
+
+  it('the cold boat has every breaker off; debug "power on" switches master and breakers on', () => {
+    const { v, send } = setup();
+    expect(Object.values(v.electrics!.breakers).every((b) => b === 0)).toBe(true);
+    send('debugElectrics', 2);
+    expect(isPowered(v, 'instruments')).toBe(true);
+    expect(isPowered(v, 'deckLights')).toBe(true);
   });
 
   it('tests and trials start warm (master on) unless asked for cold', () => {

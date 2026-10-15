@@ -538,6 +538,7 @@ export const CONFIG = {
           searchlight: 12,
           windlass: 60,
           horn: 10,
+          bilge: 3,
           starter: 180,
         },
         /** Battery master (big red key) on the aft wall, starboard of the door, low down. */
@@ -545,9 +546,9 @@ export const CONFIG = {
         /**
          * Panel by the helm: a small sloping console against the starboard wall just under
          * the window sill (the side walls are windows above it), face tilted up toward you.
-         * Voltmeter now, breakers later.
+         * Voltmeter and the breakers (a toggle and an indicator lamp each).
          */
-        panel: { position: [1.22, 1.84, -0.85] as [number, number, number], width: 0.4, height: 0.3, tiltDeg: 40 },
+        panel: { position: [1.22, 1.84, -0.85] as [number, number, number], width: 0.54, height: 0.32, tiltDeg: 40 },
       },
       /**
        * Stern davit for the tender (the skiff), vessel axes. She hangs athwartships just aft

@@ -112,7 +112,7 @@ export class ChartPlotter {
     const v = world.vessels[vesselId];
     if (!v) return;
     // No 12 V: a black screen (drawn once).
-    if (!isPowered(v)) {
+    if (!isPowered(v, 'chart')) {
       if (!this.dark) {
         this.dark = true;
         this.g.fillStyle = '#020303';

@@ -861,6 +861,23 @@ Owner decisions:
 - **Menu → Tests → Electrics:** status (master, volts, battery charges), Power on, Fill, Flat.
 - **Tests (201):** cold start won't crank; master on gives power, cranking dips the volts, the alternator lifts them; loads drain and running charges; master off stops the engine; a flat battery gives no power; the windlass needs power; trials start warm.
 
+### E2: breaker panel (done, awaiting owner test)
+
+Owner decision: **no radar screen.** Passing vessels will show as AIS targets (triangles) on the chart plotter when they arrive (milestone 8).
+
+- **Breakers** (`ElectricsState.breakers`, `BREAKERS`): Instruments, Chart, Radio, Nav lights, Deck lights, Bilge pump. `isPowered(s, breaker)` means master on, battery not flat, and that breaker on. What each one feeds:
+  - **Instruments:** the dash displays.
+  - **Chart:** the chart plotter.
+  - **Radio:** the VHF (screen, speaker, handset) and FM.
+  - **Nav lights:** the nav lights.
+  - **Deck lights:** floods, rail LEDs, cabin lamp and searchlight.
+  - **Bilge:** draw only (3 A).
+  - The starter, fuel solenoid, horn and windlass are on the master alone.
+- **Power draw:** a load counts only with its breaker on (instruments 2.5 A, chart 2 A, VHF 1.5 A + FM 1 A, ...). The alternator charges while running, so you can watch the voltmeter drift.
+- **Panel:** six toggles in two rows next to the voltmeter, each with a green lamp lit while its circuit is live. Lamps change colour only on change, and the labels are drawn once. Intents `brk_<name>` 1 / 0.
+- **The cold boat has every breaker off.** Menu → Tests → Electrics → "Power on" switches the master and all breakers on. The status line now shows amps too.
+- **Tests (203):** circuits are independent; a device needs master AND breaker; each breaker adds its draw; master off kills them all; cold breakers are off; "power on".
+
 ## Planned next (owner requests, not started)
 
 1. ~~Fuel and oil temperature~~ **Done** (see above).

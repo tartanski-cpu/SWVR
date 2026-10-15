@@ -75,7 +75,7 @@ export class InstrumentPanel {
     // Only repaint (and re-upload the 3 MB atlas) when something shown has changed: moored
     // or drifting with the engine off, the screens cost nothing.
     // No 12 V: the screens go black (drawn once).
-    const powered = isPowered(state);
+    const powered = isPowered(state, 'instruments');
     const key = powered ? displayKey(state, def) : 'off';
     if (key === this.lastKey) return;
     this.lastKey = key;

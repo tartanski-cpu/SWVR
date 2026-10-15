@@ -74,7 +74,10 @@ export function createWorld(
     deliveries: 0,
     rescue: createRescueState(),
   };
-  if (opts.cold && vessel.electrics) vessel.electrics.master = 0;
+  if (opts.cold && vessel.electrics) {
+    vessel.electrics.master = 0;
+    for (const k of Object.keys(vessel.electrics.breakers) as (keyof typeof vessel.electrics.breakers)[]) vessel.electrics.breakers[k] = 0;
+  }
   // The tender starts hanging on the ship's stern davit.
   if (tender) stowTender(world, tender, vesselId);
   stockPorts(world);
