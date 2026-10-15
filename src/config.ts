@@ -698,16 +698,18 @@ export const CONFIG = {
        * pencil, eraser), a parallel rule and dividers, and a lamp with its own switch
        * (Deck lights breaker). All positions are on the table top: [x, z].
        */
+      // Pushed aft against the aft wall (owner feedback), under the whiteboard: more room
+      // behind the helm.
       chartTable: {
         x0: -1.37,
         x1: -0.72,
-        z0: -0.6,
-        z1: 0.72,
+        z0: 0.08,
+        z1: 1.4,
         height: 0.95,
-        book: { center: [-1.02, 0.42] as [number, number], width: 0.46, depth: 0.32 },
-        holder: [-1.3, 0.12] as [number, number],
-        lamp: { base: [-1.3, 0.66] as [number, number], height: 0.42 },
-        lampSwitch: [-0.79, 0.64] as [number, number],
+        book: { center: [-1.02, 1.12] as [number, number], width: 0.46, depth: 0.32 },
+        holder: [-1.31, 0.74] as [number, number],
+        lamp: { base: [-1.29, 0.88] as [number, number], height: 0.42 },
+        lampSwitch: [-0.79, 1.33] as [number, number],
       },
       /**
        * The duty board (game tasks and the shipping forecast; duties/dutyBoardView.ts): on
@@ -1042,6 +1044,44 @@ export const CONFIG = {
   spotting: { range: 900, strobeVisFactor: 1.6 },
 
   /** The duty board's game-generated task list (duties/duties.ts). */
+  /**
+   * Passing ships and hazards (traffic/traffic.ts). Out of harbour, a ship is spawned every
+   * `every` s (random in the range; at most `maxShips` at once) on a straight course that
+   * crosses ahead of the workboat `pass` m off at its closest, starting `spawnDist` m away
+   * and clear of land; it goes when it's `despawn` m off and moving away. Ship types:
+   * length, beam, speed (m/s), AIS names. Sighted within min(`sightRange`, visibility x
+   * `sightVis`). In restricted visibility they sound a prolonged blast every 2 min, and
+   * answer yours. Hazards: floating debris (spawned like ships, drifting), the rocks and
+   * these buoys; passed within `hazardRange` m (and in sight) they're loggable.
+   */
+  traffic: {
+    every: [150, 360] as [number, number],
+    maxShips: 2,
+    spawnDist: [1800, 2600] as [number, number],
+    pass: [350, 900] as [number, number],
+    despawn: 3600,
+    sightRange: 2500,
+    sightVis: 1.1,
+    hornRange: 3000,
+    ships: {
+      cargo: { length: 82, beam: 13, speed: 6.5, names: ['Hebridean Trader', 'Lorne Carrier', 'Skerry Star'] },
+      fishing: { length: 19, beam: 6, speed: 4, names: ['Morning Dew', 'Silver Harvest', 'Girl Isla'] },
+      yacht: { length: 12, beam: 3.8, speed: 3, names: ['Kittiwake', 'Blue Moon', 'Saorsa'] },
+    },
+    debrisEvery: [300, 600] as [number, number],
+    hazardRange: 200,
+    rocks: [
+      { name: 'Gull Rocks', x: 380, z: 430 },
+      { name: 'Skerry', x: -470, z: -360 },
+    ],
+    /** Hazard marks (vessel-free buoys): position and colour. */
+    buoys: [
+      { x: 270, z: 430, color: 0xe8c020 },
+      { x: -580, z: -360, color: 0xe8c020 },
+      { x: 150, z: 980, color: 0xd0302a },
+    ],
+  },
+
   /**
    * The chart's grid (nav/geo.ts): the latitude and longitude of the world origin. The
    * archipelago is fictional; this just makes positions read like real ones.

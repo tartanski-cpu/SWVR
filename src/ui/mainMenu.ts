@@ -31,6 +31,9 @@ export interface MenuHost {
   clearChart(): void;
   plotYourself(): boolean;
   setPlotYourself(on: boolean): void;
+  /** Debug: spawn a passing ship (0) or debris (1) close by; the traffic now. */
+  spawnTraffic(what: number): void;
+  trafficStatus(): string;
   coupling(): number;
   setCoupling(value: number): void;
   smoothWalk(): boolean;
@@ -359,6 +362,14 @@ export function mainMenu(h: MenuHost): MainMenu {
         { text: () => h.chartStatus(), weight: 1.4 },
         { text: 'Clear marks', press: () => h.clearChart() },
         { text: 'Plot it yourself', active: () => h.plotYourself(), press: () => h.setPlotYourself(!h.plotYourself()), weight: 1.3 },
+      ],
+    },
+    {
+      label: 'Traffic',
+      buttons: [
+        { text: () => h.trafficStatus(), weight: 1.4 },
+        { text: 'Spawn ship', press: () => h.spawnTraffic(0) },
+        { text: 'Spawn debris', press: () => h.spawnTraffic(1) },
       ],
     },
     {

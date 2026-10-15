@@ -22,7 +22,7 @@ function setup() {
   const run = (s: number) => {
     for (let i = 0; i < s / DT; i++) stepWorld(world, [], DT);
   };
-  const logDuty = () => world.duties?.items.find((d) => d.kind === 'log');
+  const logDuty = () => world.duties?.items.find((d) => d.kind === 'log' && d.title.startsWith('Log: departure'));
   const write = (type: (typeof LOG_TYPES)[number], fuel: string, playerId?: string) => {
     send('logBegin', undefined, [LOG_TYPES.indexOf(type)], playerId);
     send('logPick', 'fuel', [['Full', '¾', '½', '¼'].indexOf(fuel)], playerId);
@@ -99,7 +99,7 @@ describe("ship's log", () => {
     run(0.1);
     expect(logDuty()).toBeTruthy();
     run(CONFIG.log.eventLinger + 1);
-    expect(world.log!.events).toHaveLength(0);
+    expect(world.log!.events.filter((e) => e.type === 'departure')).toHaveLength(0);
     expect(logDuty()).toBeUndefined();
   });
 

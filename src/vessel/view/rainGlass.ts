@@ -115,7 +115,7 @@ export class RainGlass {
     this.glass.renderOrder = 3;
 
     // Wiper arms on the outside of the glass: arm and blade in one box, one instanced draw call.
-    const armGeo = new THREE.BoxGeometry(0.016, c.wiperArm, 0.012).translate(0, -c.wiperArm / 2, 0);
+    const armGeo = new THREE.BoxGeometry(0.01, c.wiperArm, 0.01).translate(0, -c.wiperArm / 2, 0);
     this.arms = new THREE.InstancedMesh(armGeo, new THREE.MeshLambertMaterial({ color: 0x15181a }), this.pivots.length);
     this.arms.name = 'wipers';
     this.root.add(this.glass, this.arms);

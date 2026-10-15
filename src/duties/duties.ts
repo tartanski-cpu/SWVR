@@ -26,6 +26,7 @@ import type { WorldState } from '../core/world';
 import { visibilityAt } from '../environment/weather';
 import { isPowered } from '../vessel/electrics';
 import { LOG_TITLES } from '../log/log';
+import { answerFogSignal } from '../traffic/traffic';
 import { leverDemand } from '../vessel/physics/propulsion';
 import { isWorkboat, VESSEL_DEFS, type WorkboatDef } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
@@ -117,7 +118,10 @@ function stepFogSignal(world: WorldState, d: DutiesState, v: VesselState): void 
   const sounding = v.controls.horn > 0 && isPowered(v);
   if (sounding && duty.hornFrom === undefined) duty.hornFrom = now;
   if (!sounding && duty.hornFrom !== undefined) {
-    if (now - duty.hornFrom >= cfg.blastMin) duty.lastBlast = now;
+    if (now - duty.hornFrom >= cfg.blastMin) {
+      duty.lastBlast = now;
+      answerFogSignal(world); // a ship out there in the murk answers
+    }
     duty.hornFrom = undefined;
   }
   if (sounding && duty.hornFrom !== undefined && now - duty.hornFrom >= cfg.blastMin) duty.lastBlast = now;

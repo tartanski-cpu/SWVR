@@ -1062,6 +1062,41 @@ Owner decision: **no radar screen.** Passing vessels will show as AIS targets (t
   - multiplayer: a joiner gets the chart, and a client's stroke reaches the host and the other client (not echoed back). The host's erase reaches everyone.
 - **Checked in the browser** with a simulated VR hand: pencil pick-up and a drawn circle; the rule laid flat on the chart, where a wobbly line along its edge came out exactly straight; the eraser splitting the line; desktop drag and Shift lines.
 
+### E8: passing ships, hazards and the rest of the log (done, awaiting owner test)
+
+- **Chart table moved aft** against the aft wall, under the whiteboard (owner feedback), at z 0.08 to 1.40. The book is at the aft end, with the lamp and pen holder beside it, and there's more room behind the helm.
+- **Traffic** (`traffic/traffic.ts`, `WorldState.traffic`, host-simulated; no physics):
+  - **Spawning:** out of harbour, a ship every 150–360 s (at most 2 at once). It's put on a course crossing ahead of the workboat 350–900 m off, starting 1.8–2.6 km away. The track is checked clear of land (deeper than 8 m every 100 m).
+  - **Despawning:** a ship goes when it's 3.6 km off and opening.
+  - **Types** (config `traffic.ships`): coaster 82 m at 6.5 m/s, fishing boat 19 m at 4 m/s, yacht 12 m at 3 m/s, each with AIS names.
+  - **Sighting:** a ship is sighted within min(2.5 km, 1.1 × visibility). That's a `vessel` log event with its true type and bearing, and the lookout calls it out.
+  - **Fog signals:** in visibility under 1 km, ships within 3 km sound a prolonged blast every 2 min. The nearest answers yours: the fog duty's 4 s blast calls `answerFogSignal`.
+  - **Debris:** spawned every 300–600 s (at most 2), 400–900 m from the boat, drifting downwind like everything in the water.
+  - **Hazards:** debris, the rocks (Gull Rocks, Skerry) and 3 hazard buoys (config). Passing within 200 m, out of harbour and in sight, is a `hazard` event (once until she's 500 m clear).
+- **Views** (`traffic/trafficView.ts`):
+  - Each ship type is one merged vertex-coloured mesh, shared. The hull is an extruded plan with a pointed bow; there's superstructure, containers, gantry, or mast and sail.
+  - Nav lights are a few fixed-size points, shown in the dark only.
+  - Ships bob, pitch and roll from three wave samples (big ships less). Positions ease between snapshots.
+  - Debris is one small shared mesh; the hazard buoys are one instanced mesh.
+  - Ship horns (`audio/shipHorn.ts`): HRTF-placed, deep for the coaster and thin for the yacht. They arrive after distance / 343 s and are low-passed with distance.
+- **Chartplotter: AIS.** Ships as triangles with their name and a 6-minute course line, in any visibility. They're the radar replacement the owner chose.
+- **Log** (`log/log.ts`): four more entry types, each with a "Log:" duty.
+  - **Vessel sighted:** type, and direction from us in 8 points (correct within 45° of the true bearing).
+  - **Hazard:** debris / rocks / buoy.
+  - **Weather change:** an event when the preset changes. Sea (calm < 0.5 m Hs < moderate < 1.25 m < rough) and visibility (good ≥ 4 km) are checked against the world when signed.
+  - **Rescue:** an event when one is completed (`RescueState.lastDone`). Nothing to pick; the summary goes in the entry's remarks.
+  - An entry is ticked only if all its checked readings are right.
+  - The book's option boxes now wrap onto more rows (8 compass points), and readings are written out ("Fishing boat, bearing NE", "sea moderate, vis. good").
+- **Debug:** Menu → Tests → Traffic: counts, **Spawn ship**, **Spawn debris** (close by).
+- **Wipers** drawn thinner (they looked heavy parked in dry weather).
+- **Draw calls:** +1 per ship in view (+1 for its lights at night), +1 per debris, +1 for the buoys. Typically 1–3 more.
+- **Tests (243):**
+  - a ship spawns out at sea, moves, is sighted and logged; type and direction are checked right and wrong;
+  - far-off ships go; none spawn in harbour;
+  - debris and the rocks become hazard events of the right type;
+  - in fog, ships sound every 2 min and answer our prolonged blast;
+  - weather and rescue events; weather readings are checked.
+
 ## Planned next (owner requests, not started)
 
 1. ~~Fuel and oil temperature~~ **Done** (see above).

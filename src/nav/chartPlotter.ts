@@ -224,6 +224,33 @@ export class ChartPlotter {
       }
     }
 
+    // AIS targets: passing ships as triangles along their course, with a 6-minute course
+    // line and their name (AIS works in any visibility - that's the point of it).
+    for (const ship of world.traffic?.ships ?? []) {
+      const [px, py] = toPx(ship.x, ship.z);
+      if (px < -40 || px > W + 40 || py < -40 || py > H + 40) continue;
+      const [ex, ey] = toPx(ship.x + Math.sin(ship.course) * ship.speed * 360, ship.z - Math.cos(ship.course) * ship.speed * 360);
+      g.strokeStyle = '#7af0c0';
+      g.lineWidth = 2;
+      g.beginPath();
+      g.moveTo(px, py);
+      g.lineTo(ex, ey);
+      g.stroke();
+      g.save();
+      g.translate(px, py);
+      g.rotate(ship.course);
+      g.beginPath();
+      g.moveTo(0, -10);
+      g.lineTo(6, 7);
+      g.lineTo(-6, 7);
+      g.closePath();
+      g.stroke();
+      g.restore();
+      g.fillStyle = '#7af0c0';
+      g.font = 'bold 14px system-ui, sans-serif';
+      g.fillText(ship.name.toUpperCase(), px + 10, py + 14);
+    }
+
     // Own ship: a triangle pointing along the heading.
     const [qx, qy, qz, qw] = v.orientation;
     const hx = -(2 * (qx * qz + qw * qy));

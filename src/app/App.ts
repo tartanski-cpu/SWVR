@@ -27,6 +27,9 @@ import { ChartTableView } from '../vessel/view/chartTable';
 import { LogbookView, type LogbookContext } from '../log/logbookView';
 import { parseLog, serializeLog } from '../log/log';
 import { PaperAudio } from '../audio/paperAudio';
+import { TrafficView } from '../traffic/trafficView';
+import { ShipHorn } from '../audio/shipHorn';
+import { SHIP_NAMES } from '../traffic/traffic';
 import { ChartTools, type ChartToolsContext } from '../chart/chartTools';
 import { applyChartOp, createMarks, parseMarks, pointCount, serializeMarks, type ChartOp } from '../chart/marks';
 import { WindSock } from '../vessel/view/windSock';
@@ -210,6 +213,11 @@ export class App {
   private chartTable: ChartTableView | null = null;
   private logbook: LogbookView | null = null;
   private readonly paperAudio = new PaperAudio();
+  /** Passing ships, debris, hazard buoys; their horns; ships the lookout has called. */
+  private readonly trafficView = new TrafficView();
+  private readonly shipHorn = new ShipHorn();
+  private hornSeen = -1;
+  private readonly shipsCalled = new Set<string>();
   private logSaved = -1;
   /** Pencil marks on the paper chart: this peer's copy (kept in step by ops; not in the world). */
   private marks = createMarks();
@@ -301,7 +309,7 @@ export class App {
     this.desktop = new DesktopController(this.camera, this.renderer.domElement, this.keyboard);
     this.environment = new EnvironmentView(this.scene);
     this.scene.add(this.sky.mesh, this.ocean.mesh, this.buoys.mesh, this.probes.mesh, this.platform, this.worldView.root, this.cargoView.root);
-    this.scene.add(this.targetsView.root, this.gearView.root, this.desktopHand.root, this.rain.mesh);
+    this.scene.add(this.targetsView.root, this.gearView.root, this.desktopHand.root, this.rain.mesh, this.trafficView.root);
     this.rain.quality = userSettings.rainQuality;
     this.targetsView.onWhistle = (pos) => this.whistleAudio.blow(pos);
     this.pingView.onNew = (pos, mine) => {
@@ -349,6 +357,7 @@ export class App {
       this.pingAudio.attach(this.engineAudio.context);
       this.radioAudio.attach(this.engineAudio.context);
       this.whistleAudio.attach(this.engineAudio.context);
+      this.shipHorn.attach(this.engineAudio.context);
       watchVoices();
       this.rescueSounds.attach(this.engineAudio.context);
       this.motorAudio.attach(this.engineAudio.context);
@@ -1031,6 +1040,11 @@ export class App {
       floodBilge: () => this.pushVesselIntent('debugBilge', 0.6),
       chartStatus: () => `${this.marks.strokes.length} marks, ${pointCount(this.marks)} points`,
       clearChart: () => this.sendChartOp({ k: 'clear' }),
+      spawnTraffic: (what) => this.intents.push({ playerId: this.localPlayerId, targetId: ENVIRONMENT_ID, control: 'trafficSpawn', value: what }),
+      trafficStatus: () => {
+        const t = this.world.traffic;
+        return `${t?.ships.length ?? 0} ships, ${t?.debris.length ?? 0} debris`;
+      },
       plotYourself: () => CONFIG.rescue.plotYourself,
       setPlotYourself: (on) => {
         (CONFIG.rescue as { plotYourself: boolean }).plotYourself = on;
@@ -1849,6 +1863,32 @@ export class App {
     }
     this.forecastSeen = fseq;
     this.lookout(v);
+    this.updateTraffic(v, darkness, dt);
+  }
+
+  /** Ships, debris and buoys on the waves; ships' fog horns; the lookout calls new ships. */
+  private updateTraffic(v: VesselState | undefined, darkness: number, dt: number): void {
+    this.trafficView.update(this.world, this.renderWaves, darkness, dt);
+    const t = this.world.traffic;
+    if (!t) return;
+    if (this.hornSeen >= 0 && t.hornSeq !== this.hornSeen && t.hornFrom) {
+      const pos = this.trafficView.shipPosition(t.hornFrom);
+      const type = this.trafficView.shipType(t.hornFrom);
+      if (pos && type) this.shipHorn.blow(pos, type === 'cargo' ? 105 : type === 'fishing' ? 165 : 290, pos.distanceTo(this.focus));
+    }
+    this.hornSeen = t.hornSeq;
+    if (!v) return;
+    const fwd = this.tmpV.set(0, 0, -1).applyQuaternion(this.lookQ.fromArray(v.orientation));
+    const heading = Math.atan2(fwd.x, -fwd.z);
+    for (const s of t.ships) {
+      if (!s.sighted || this.shipsCalled.has(s.id)) continue;
+      this.shipsCalled.add(s.id);
+      const dx = s.x - v.position[0];
+      const dz = s.z - v.position[2];
+      const rel = (Math.atan2(dx, -dz) - heading + Math.PI * 4) % (Math.PI * 2);
+      const clock = Math.round((rel / (Math.PI * 2)) * 12) || 12;
+      this.overlay.notify(`Lookout: ${SHIP_NAMES[s.type].toLowerCase()}, ${clock} o'clock, ${(Math.hypot(dx, dz) / 1000).toFixed(1)} km`, 5);
+    }
   }
 
   /**

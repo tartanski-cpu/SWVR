@@ -39,6 +39,8 @@ function fakeHost() {
     clearChart: () => 0,
     plotYourself: () => false,
     setPlotYourself: () => 0,
+    spawnTraffic: () => 0,
+    trafficStatus: () => '0 ships',
     setWeatherFast: () => {},
     coupling: () => state.coupling,
     setCoupling: (v) => (state.coupling = v),

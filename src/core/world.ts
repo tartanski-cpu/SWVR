@@ -13,6 +13,7 @@ import { stowTender } from '../vessel/davit';
 import { createWeather, rebuildWaves, seaForWind } from '../environment/weather';
 import type { Forecast } from '../environment/forecast';
 import type { LogState } from '../log/log';
+import type { TrafficState } from '../traffic/traffic';
 import type { DutiesState } from '../duties/duties';
 import { createRescueState, type RescueState } from '../rescue/rescue';
 
@@ -54,6 +55,8 @@ export interface WorldState {
   forecast?: Forecast;
   /** The ship's log: voyages, loggable events, the entry being written (log/log.ts). */
   log?: LogState;
+  /** Passing ships, floating debris (traffic/traffic.ts). */
+  traffic?: TrafficState;
 }
 
 export function createWorld(

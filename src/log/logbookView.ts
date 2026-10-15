@@ -355,7 +355,7 @@ export class LogbookView {
       LOG_TYPES.forEach((type, i) => {
         const ev = log ? pendingEvent(log, type) : undefined;
         const due = ev ? `  (due${ev.port ? `: ${ev.port}` : ''})` : '';
-        this.button(X, 124 + i * 56, 380, 34, `write a ${LOG_TITLES[type].toLowerCase()} entry`, (c) => {
+        this.button(X, 118 + i * 50, 380, 32, `write a ${LOG_TITLES[type].toLowerCase()} entry`, (c) => {
           c.push('logBegin', undefined, [i]);
           c.sound('tick');
         }, `${LOG_TITLES[type]}${due}`, { font: `bold 24px ${PRINT}` });
@@ -373,30 +373,48 @@ export class LogbookView {
     g.fillStyle = '#5a5040';
     g.font = `20px ${PRINT}`;
     g.fillText(`Time and position: on signing${ev?.port ? `   Port: ${ev.port}` : ''}`, X, 136, CW - X - 30);
-    let y = 172;
+    let y = 168;
+    const right = CW - 30;
     for (const f of LOG_FIELDS[d.type]) {
       g.fillStyle = '#3a3226';
       g.font = `20px ${PRINT}`;
+      g.textBaseline = 'alphabetic';
       g.fillText(f.label, X, y);
-      y += 14;
+      y += 12;
+      // Options as tick boxes, wrapping onto more rows as needed.
+      let x = X;
+      g.font = `bold 22px ${PRINT}`;
       f.options.forEach((opt, j) => {
+        const w = 30 + 12 + g.measureText(opt).width;
+        if (x + w > right) {
+          x = X;
+          y += 42;
+        }
         const label = `${f.label.split(' (')[0].toLowerCase()}: ${opt}`;
         if (mine) {
-          this.button(X + j * 104, y, 90, 32, label, (c) => {
+          this.button(x, y, w, 30, label, (c) => {
             c.push('logPick', f.key, [j]);
             c.sound('tick');
-          }, opt, { ticked: d.values[f.key] === opt, font: `bold 24px ${PRINT}` });
+          }, opt, { ticked: d.values[f.key] === opt, font: `bold 22px ${PRINT}` });
         } else {
           g.fillStyle = d.values[f.key] === opt ? INK : '#9a9080';
-          g.font = `bold 24px ${PRINT}`;
-          g.fillText(opt, X + j * 104 + 4, y + 24);
+          g.font = `bold 22px ${PRINT}`;
+          g.textBaseline = 'middle';
+          g.fillText(opt, x + 4, y + 15);
         }
+        x += w + 14;
       });
-      y += 60;
+      y += 66;
     }
     g.fillStyle = '#3a3226';
     g.font = `20px ${PRINT}`;
-    g.fillText('Remarks: ______________________', X, y + 16);
+    g.textBaseline = 'alphabetic';
+    const ev2 = log ? pendingEvent(log, d.type) : undefined;
+    if (ev2?.summary) {
+      g.fillStyle = INK;
+      g.font = `20px ${HAND}`;
+      g.fillText(ev2.summary, X, y + 4, CW - X - 30);
+    } else g.fillText('Remarks: ______________________', X, y + 4);
     const complete = LOG_FIELDS[d.type].every((f) => d.values[f.key]);
     const sy = this.ch - 130;
     if (!mine) {
@@ -462,12 +480,20 @@ function smooth(t: number): number {
   return t * t * (3 - 2 * t);
 }
 
+/** How each reading is written in the book. */
+const READING: Record<string, (v: string) => string> = {
+  fuel: (v) => `Fuel ${v}`,
+  dir: (v) => `bearing ${v}`,
+  sea: (v) => `sea ${v.toLowerCase()}`,
+  vis: (v) => `vis. ${v.toLowerCase()}`,
+};
+
 /** An entry as handwritten lines: time and what; position and readings; signature. */
 function entryLines(e: LogEntry): Line[] {
   const out: Line[] = [{ text: `${e.time}  ${LOG_TITLES[e.type]}${e.port ? ` - ${e.port}` : ''}`, kind: 'head' }];
-  const readings = e.fields.map((f) => `${f.key === 'fuel' ? 'Fuel' : f.key} ${f.value}`).join(', ');
-  const checked = e.fields.find((f) => f.correct !== undefined);
-  out.push({ text: `${e.pos}${readings ? `   ${readings}` : ''}`, kind: 'body', tick: checked?.correct });
+  const readings = e.fields.map((f) => READING[f.key]?.(f.value) ?? f.value).join(', ');
+  const checked = e.fields.filter((f) => f.correct !== undefined);
+  out.push({ text: `${e.pos}${readings ? `   ${readings}` : ''}`, kind: 'body', tick: checked.length ? checked.every((f) => f.correct) : undefined });
   if (e.remarks) out.push({ text: e.remarks, kind: 'body' });
   out.push({ text: `${e.score ? `Log accuracy ${e.score[0]}/${e.score[1]}   ` : ''}- ${e.by || 'crew'}`, kind: 'sign' });
   return out;

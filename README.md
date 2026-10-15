@@ -163,9 +163,29 @@ The chart table stands along the port wall, behind the helm. On it:
 
   Time, position (latitude and longitude) and port fill in by themselves. A correct reading gets a green tick; a wrong one is still written (it's your log), and the arrival entry shows the voyage's score.
 - **Reading back:** use ◀ ▶ at the foot of the left page to turn back through earlier voyages. The last five voyages are kept in the browser.
-- **When to write:** leaving a harbour or arriving (made fast alongside, or anchored in an anchorage) puts "Log: departure from …" or "Log: arrival at …" on the duty board. It ticks off when you sign.
+- **Entry types and what you record:**
+
+  | Entry | Comes up when | You record (checked against the truth) |
+  |---|---|---|
+  | Departure / Arrival | leaving a harbour / made fast alongside, or anchored in an anchorage | fuel from the gauge |
+  | Vessel sighted | a passing ship comes into sight | its type (cargo ship / fishing boat / yacht) and its direction from you (8 points; one point off still counts) |
+  | Hazard | passing within 200 m of floating debris, rocks or a hazard buoy | which |
+  | Weather change | the weather turns | sea (calm / moderate / rough) and visibility (good / poor), as they are when you sign |
+  | Rescue | a rescue is completed | nothing: the summary is filled in, just sign |
+
+  Each puts a "Log: …" duty on the duty board, which ticks off when you sign.
 - **One writer at a time:** while a crewmate writes an entry, the page says so. If they leave it for 90 s, you can take it over.
 - **At night** you need the chart table lamp to read or write.
+
+### Traffic and hazards
+
+- **Passing ships:** out of harbour, a coaster, fishing boat or yacht comes by now and then, crossing ahead some way off.
+  - They show on the chartplotter as **AIS** triangles with their name and a 6-minute course line, in any visibility.
+  - They carry navigation lights at night.
+  - The lookout calls each one out with a clock bearing and range.
+- **In fog** ships sound a prolonged blast every 2 minutes, and the nearest one answers yours. Listen for where it comes from.
+- **Hazards:** floating debris, the rocks at Gull Rocks and the Skerry, and yellow/red hazard buoys. Pass within 200 m and it's a log entry.
+- **Debug:** Menu → Tests → Traffic → **Spawn ship** / **Spawn debris** (close by).
 
 ### Weather work
 

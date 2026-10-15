@@ -5,14 +5,17 @@
  *   voyage   from a departure to an arrival. Entries go into the open voyage (one is
  *            opened if there's none); an arrival entry closes it. The last
  *            `keepVoyages` are kept, and the host saves them in its browser.
- *   events   loggable things that happened (left harbour, arrived): each puts a "Log: ..."
- *            duty on the duty board and fills in the port when that entry is written.
- *            Unlogged, they drop off after `eventLinger` s.
+ *   events   loggable things that happened: left harbour, arrived, a ship sighted, a hazard
+ *            passed (traffic/traffic.ts), the weather changed, a rescue completed. Each puts
+ *            a "Log: ..." duty on the duty board, and carries what's true about it (the
+ *            ship's type and bearing, the hazard's type, the rescue's summary) to check
+ *            the entry against. Unlogged, they drop off after `eventLinger` s.
  *   draft    the new entry being written on the right-hand page: its type and the values
  *            picked so far. One writer at a time (`by`, a simple lock); someone else can
  *            take it over once it's been left alone for `draftIdle` s.
- *   checks   values the crew reads off the boat (fuel) are checked against the real
- *            state when signed: a correct one gets a tick. A wrong one is still written
+ *   checks   what the crew reads off the boat or sees (fuel gauge, sea and visibility, the
+ *            ship's type and direction - within a point either side -, the hazard) is
+ *            checked against the truth when signed: a correct entry gets a tick. A wrong one is still written
  *            (it's their log). The arrival entry shows the voyage's score.
  *
  * Intents (targetId: environment): logBegin [type index], logPick ref=field [value
@@ -27,18 +30,36 @@ import { berthById } from '../vessel/physics/mooring';
 import { isWorkboat, VESSEL_DEFS } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
 import { PORTS } from '../world/archipelago';
+import { significantWaveHeight } from '../ocean/waves';
+import { visibilityAt } from '../environment/weather';
 
-/** Entry types, in the order of the buttons on the page (more come with milestone 8). */
-export const LOG_TYPES = ['departure', 'arrival'] as const;
+/** Entry types, in the order of the buttons on the page. */
+export const LOG_TYPES = ['departure', 'arrival', 'vessel', 'hazard', 'weather', 'rescue'] as const;
 export type LogType = (typeof LOG_TYPES)[number];
 
 /** The values the crew picks for each type of entry. */
 export const FUEL_WORDS = ['Full', '¾', '½', '¼'] as const;
+export const SHIP_WORDS = ['Cargo ship', 'Fishing boat', 'Yacht'] as const;
+export const POINTS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'] as const;
+export const HAZARD_WORDS = ['Debris', 'Rocks', 'Buoy'] as const;
+export const SEA_WORDS = ['Calm', 'Moderate', 'Rough'] as const;
+export const VIS_WORDS = ['Good', 'Poor'] as const;
+const FUEL = { key: 'fuel', label: 'Fuel (read the gauge)', options: FUEL_WORDS };
 export const LOG_FIELDS: Record<LogType, { key: string; label: string; options: readonly string[] }[]> = {
-  departure: [{ key: 'fuel', label: 'Fuel (read the gauge)', options: FUEL_WORDS }],
-  arrival: [{ key: 'fuel', label: 'Fuel (read the gauge)', options: FUEL_WORDS }],
+  departure: [FUEL],
+  arrival: [FUEL],
+  vessel: [
+    { key: 'ship', label: 'Type', options: SHIP_WORDS },
+    { key: 'dir', label: 'Direction (from us)', options: POINTS },
+  ],
+  hazard: [{ key: 'hazard', label: 'Type', options: HAZARD_WORDS }],
+  weather: [
+    { key: 'sea', label: 'Sea', options: SEA_WORDS },
+    { key: 'vis', label: 'Visibility', options: VIS_WORDS },
+  ],
+  rescue: [],
 };
-export const LOG_TITLES: Record<LogType, string> = { departure: 'Departure', arrival: 'Arrival' };
+export const LOG_TITLES: Record<LogType, string> = { departure: 'Departure', arrival: 'Arrival', vessel: 'Vessel sighted', hazard: 'Hazard', weather: 'Weather change', rescue: 'Rescue' };
 
 export interface LogField {
   key: string;
@@ -76,6 +97,12 @@ export interface LogEvent {
   /** World time it happened (s). */
   at: number;
   logged: boolean;
+  /** What's true about it, to check the entry against (field key -> value). */
+  truth?: Record<string, string>;
+  /** Vessel sighted: its true bearing from us (deg). */
+  bearing?: number;
+  /** Rescue: the summary that goes in the entry's remarks. */
+  summary?: string;
 }
 
 export interface LogDraft {
@@ -98,10 +125,38 @@ export interface LogState {
   harbour: string | null;
   mooredAt: string | null;
   started: boolean;
+  /** The weather preset and rescues completed, as last seen (their changes are events). */
+  weather?: string;
+  rescues?: number;
 }
 
 export function createLog(): LogState {
   return { voyages: [], events: [], draft: null, seq: 0, entrySeq: 0, harbour: null, mooredAt: null, started: false };
+}
+
+/** Record a loggable event (puts a "Log:" duty up). */
+export function addLogEvent(world: WorldState, ev: Omit<LogEvent, 'id' | 'at' | 'logged'>): void {
+  const log = (world.log ??= createLog());
+  log.entrySeq += 1;
+  log.events.push({ ...ev, id: log.entrySeq, at: world.time, logged: false });
+  log.seq += 1;
+}
+
+/** The sea as a log would put it, from the significant wave height. */
+export function seaWord(world: WorldState): string {
+  const hs = significantWaveHeight(world.environment.waves);
+  return hs < 0.5 ? 'Calm' : hs < 1.25 ? 'Moderate' : 'Rough';
+}
+
+/** Visibility, good or poor (under 4 km). */
+export function visWord(world: WorldState, v: VesselState | undefined): string {
+  const vis = v ? visibilityAt(world.environment, v.position[0], v.position[2]) : Infinity;
+  return vis >= 4000 ? 'Good' : 'Poor';
+}
+
+/** Compass point nearest a bearing (deg). */
+export function pointOf(bearing: number): string {
+  return POINTS[Math.round((((bearing % 360) + 360) % 360) / 45) % 8];
 }
 
 export function isLogIntent(control: string): boolean {
@@ -151,22 +206,25 @@ export function stepLog(world: WorldState): void {
   const berth = v.mooring.phase === 'moored' ? (berthById(v.mooring.berthId)?.portId ?? null) : null;
   const anchorage = v.anchor.phase === 'set' ? (PORTS.find((p) => p.cargo.anchorage && Math.hypot(p.cargo.anchorage.x - x, p.cargo.anchorage.z - z) < p.cargo.anchorage.radius)?.id ?? null) : null;
   const arrivedAt = berth ?? anchorage;
+  const preset = world.environment.weather?.preset;
+  const rescues = world.rescue?.completed ?? 0;
   if (!log.started) {
     // Whatever she's doing when the session starts isn't news.
     log.started = true;
     log.harbour = near;
     log.mooredAt = arrivedAt;
+    log.weather = preset;
+    log.rescues = rescues;
     return;
   }
-  const add = (type: LogType, port: string | null) => {
-    log.entrySeq += 1;
-    log.events.push({ id: log.entrySeq, type, port: portName(port), at: world.time, logged: false });
-    log.seq += 1;
-  };
-  if (log.harbour && !near) add('departure', log.harbour);
-  if (arrivedAt && arrivedAt !== log.mooredAt) add('arrival', arrivedAt);
+  if (log.harbour && !near) addLogEvent(world, { type: 'departure', port: portName(log.harbour) });
+  if (arrivedAt && arrivedAt !== log.mooredAt) addLogEvent(world, { type: 'arrival', port: portName(arrivedAt) });
   log.harbour = near;
   log.mooredAt = arrivedAt;
+  if (preset && log.weather !== undefined && preset !== log.weather) addLogEvent(world, { type: 'weather' });
+  log.weather = preset;
+  if (rescues > (log.rescues ?? 0)) addLogEvent(world, { type: 'rescue', summary: world.rescue?.lastDone });
+  log.rescues = rescues;
   // Old events nobody logged drop off.
   const before = log.events.length;
   log.events = log.events.filter((e) => !e.logged && world.time - e.at < CONFIG.log.eventLinger);
@@ -229,8 +287,8 @@ function sign(world: WorldState, log: LogState, d: LogDraft, name: string): void
   const ev = pendingEvent(log, d.type);
   const fields: LogField[] = LOG_FIELDS[d.type].map((f) => {
     const value = d.values[f.key];
-    const truth = f.key === 'fuel' && v ? fuelWord(v) : undefined;
-    return truth === undefined ? { key: f.key, value } : { key: f.key, value, correct: value === truth };
+    const correct = checkField(world, v, ev, f.key, value);
+    return correct === undefined ? { key: f.key, value } : { key: f.key, value, correct };
   });
   log.entrySeq += 1;
   const entry: LogEntry = {
@@ -238,9 +296,10 @@ function sign(world: WorldState, log: LogState, d: LogDraft, name: string): void
     type: d.type,
     time: clockTime(world.environment.timeOfDay),
     pos: v ? formatPosition(v.position[0], v.position[2]) : '',
-    port: ev?.port ?? nearestPortName(v),
+    ...(d.type === 'departure' || d.type === 'arrival' ? { port: ev?.port ?? nearestPortName(v) } : {}),
     fields,
     by: name,
+    ...(ev?.summary ? { remarks: ev.summary } : {}),
   };
   if (d.type === 'arrival') {
     // The voyage's score: correct readings out of those checked, this entry included.
@@ -250,6 +309,25 @@ function sign(world: WorldState, log: LogState, d: LogDraft, name: string): void
   }
   voyage.entries.push(entry);
   if (ev) ev.logged = true;
+}
+
+/**
+ * Is a value right? The boat's own readings (fuel, sea, visibility) against the world now;
+ * what was seen against the event (the ship's direction: within a point, 45°, either side
+ * of the true bearing). Undefined: nothing to check it against.
+ */
+function checkField(world: WorldState, v: VesselState | undefined, ev: LogEvent | undefined, key: string, value: string): boolean | undefined {
+  if (key === 'fuel') return v ? value === fuelWord(v) : undefined;
+  if (key === 'sea') return value === seaWord(world);
+  if (key === 'vis') return value === visWord(world, v);
+  if (key === 'dir') {
+    if (ev?.bearing === undefined) return undefined;
+    const i = POINTS.indexOf(value as (typeof POINTS)[number]);
+    const off = Math.abs(((i * 45 - ev.bearing + 540) % 360) - 180);
+    return off <= 45;
+  }
+  const truth = ev?.truth?.[key];
+  return truth === undefined ? undefined : value === truth;
 }
 
 function nearestPortName(v: VesselState | undefined): string | undefined {
