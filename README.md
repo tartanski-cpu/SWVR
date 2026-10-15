@@ -61,7 +61,7 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | X / G | Debug: lever to neutral / wheel amidships |
 | T | Hydrostatics + sea trials report |
 | L | Weather: switch to the next preset (Clear / Overcast / Fog / Rain / Squall), changing over a minute |
-| 9 / 0 | Motion coupling −/+ 10 % (desktop has its own setting, 30 % by default: the view soaks up the boat's quick roll and heave) |
+| 9 / 0 | Motion coupling −/+ 10 % (desktop has its own setting, 30 % by default: the view soaks up the boat's quick roll and heave; in the wheelhouse or with the reticle on a control it rides rigidly with the boat, so the console holds still to click) |
 | R / K | Test: drop the boat from 4 m / heel her 20° and release |
 | V | Buoyancy debug view on/off |
 | N / M | Time of day −/+ 30 min |
