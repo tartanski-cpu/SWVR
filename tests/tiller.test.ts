@@ -49,3 +49,21 @@ describe('outboard tiller (VR)', () => {
     expect(sent['s:helm'] ?? 0).toBe(before);
   });
 });
+
+describe('outboard tiller (desktop)', () => {
+  it("a click on the gear lever takes the whole outboard into keyboard steering (so WASD doesn't walk)", async () => {
+    const { InteractionSystem } = await import('../src/controls/InteractionSystem');
+    const t = new Tiller('s', VESSEL_DEFS.skiff.outboard!);
+    t.root.position.set(0, 0, -1);
+    t.root.updateMatrixWorld(true);
+    const sys = new InteractionSystem(t.parts, () => {}, () => {});
+    const knob = t.gearLever.hitObjects[0].getWorldPosition(new THREE.Vector3());
+    const eye = knob.clone().add(new THREE.Vector3(0.6, 0.3, 0.6));
+    const ray = new THREE.Ray(eye, knob.clone().sub(eye).normalize());
+    sys.updateDesktop(ray, false, false, false, 0, 0);
+    expect(sys.desktopHoverLabel).toBe(t.gearLever.label);
+    sys.updateDesktop(ray, true, true, false, 0, 0);
+    expect(sys.steering).toBe(t);
+    expect(sys.desktopHeld).toBe(t);
+  });
+});

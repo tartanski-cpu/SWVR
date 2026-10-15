@@ -292,10 +292,11 @@ export class InteractionSystem {
       this.stopSteering();
       pressed = false;
     }
-    if (pressed && hover?.keySteerable && !this.rules.lockedByOther(hover)) {
-      hover.bind(this.context(null));
-      hover.keySteer(0, 0);
-      this.steering = hover;
+    const steer = hover?.keySteerable ? hover : hover?.steerOwner;
+    if (pressed && steer?.keySteerable && !this.rules.lockedByOther(steer)) {
+      steer.bind(this.context(null));
+      steer.keySteer(0, 0);
+      this.steering = steer;
       this.pressConsumed = true;
       pressed = false;
     }

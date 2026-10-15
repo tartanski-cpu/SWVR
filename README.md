@@ -52,7 +52,7 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | Click a cargo item | Pick it up (carried in front of you); click again to set it down |
 | Q on cargo on deck | Lash it to the nearest D-ring / release it |
 | Right mouse button (hold) | **Laser pointer** to the reticle (the beam comes from your lower right); the crew sees the beam and dot |
-| Click the searchlight joystick | Steer the light with **W A S D** while the mouse still looks around; click again to let go |
+| Click the searchlight or fire monitor joystick, or the skiff's tiller or gear lever | Steer it with **W A S D** (you don't walk meanwhile) while the mouse still looks around; click again to let go. You don't walk while dragging a lever or the wheel either |
 | B | Board the boat (you appear at the helm) / back to the platform |
 | Aim **+** and click / drag | Operate the bridge controls (see below) |
 | E | Debug: engine start / stop |

@@ -119,6 +119,11 @@ export abstract class Control {
    */
   readonly keySteerable: boolean = false;
   keySteer(_x: number, _y: number): void {}
+  /**
+   * Desktop: a part of a keyboard-steered control (the skiff's gear lever on her tiller):
+   * clicking it starts steering that control instead (WASD does the gear and throttle).
+   */
+  steerOwner: Control | null = null;
 
   // ── press controls ──
   pressStart(): void {}

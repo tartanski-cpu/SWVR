@@ -107,6 +107,8 @@ export class Tiller extends Control {
     this.root.add(this.arm);
     this.hitObjects.push(this.grip, handle, hit);
     this.parts = [this, this.gearLever, this.power];
+    // Desktop: a click on the gear lever takes the whole outboard (W/S work the gear too).
+    this.gearLever.steerOwner = this;
   }
 
   grabPoint(out: THREE.Vector3): THREE.Vector3 {

@@ -1031,10 +1031,12 @@ export class App {
     let desktopDelta: { x: number; y: number; z: number } | null = null;
     const steering = !inXR && this.interaction?.steering;
     if (steering) {
-      // WASD steer the clicked control (the searchlight joystick) instead of walking.
+      // WASD steer the clicked control (the searchlight or monitor joystick, the skiff's
+      // outboard) instead of walking.
       const k = this.keyboard;
       this.interaction!.steerKeys((k.action('right') ? 1 : 0) - (k.action('left') ? 1 : 0), (k.action('forward') ? 1 : 0) - (k.action('back') ? 1 : 0));
-    } else if (!inXR && this.desktop.mode === 'walk') {
+    } else if (!inXR && this.desktop.mode === 'walk' && !this.interaction?.desktopHeld) {
+      // (Not while the mouse holds a control - dragging a lever or the wheel: you stay put.)
       const { x, y, z } = this.desktop.walk;
       const c = Math.cos(p.yaw);
       const s = Math.sin(p.yaw);
