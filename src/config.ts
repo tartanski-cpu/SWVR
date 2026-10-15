@@ -119,6 +119,24 @@ export const CONFIG = {
     specularPower: 220,
     /** Scales the Fresnel sky reflection (1 = physical). Lower = more water colour. */
     reflectionStrength: 0.75,
+    /**
+     * Fine wind ripples on top of the waves (surface detail only: they tilt the shading
+     * normal, they don't move the water or the boat). Without them a calm sea is one flat
+     * colour: no texture for the eye, hard to judge distance in VR. Two layers of the same
+     * tiling pattern at different scales drift across each other. `strength`: slope added
+     * to the normal; faded out between `fadeNear` and `fadeFar` (m) where they'd only
+     * sparkle. `calmBoost`: extra strength in a flat calm (scaled down as the waves grow).
+     */
+    ripples: {
+      strength: 0.13,
+      calmBoost: 0.06,
+      layers: [
+        { scale: 9, speed: 0.35, directionDeg: 50 },
+        { scale: 3.1, speed: 0.22, directionDeg: 125 },
+      ],
+      fadeNear: 30,
+      fadeFar: 260,
+    },
   },
 
   vessels: {

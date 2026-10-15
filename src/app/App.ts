@@ -383,7 +383,7 @@ export class App {
     this.camera.getWorldPosition(this.focus);
     this.environment.update(this.world.environment, this.focus);
     this.sky.update(this.environment, this.focus);
-    this.ocean.update(this.renderWaves, this.focus, this.environment);
+    this.ocean.update(this.renderWaves, this.focus, this.environment, renderTime);
     this.buoys.update(this.renderWaves);
     this.probes.update(this.renderWaves, this.camera);
     const testView = this.vesselViews.get(this.testVesselId);

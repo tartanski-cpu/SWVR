@@ -27,6 +27,10 @@ uniform vec3 uSpotColor;        // colour x strength (0 when off)
 uniform vec3 uFogColor;
 uniform float uFogNear;
 uniform float uFogFar;
+uniform sampler2D uRipple;      // tiling ripple slopes (rg, 0.5 = flat), see rippleTexture.ts
+uniform vec4 uRippleUv[2];      // per layer: uv drift offset (xy), 1/scale (z)
+uniform float uRippleStrength;
+uniform vec2 uRippleFade;       // near, far (m)
 
 varying vec3 vWorldPos;
 varying float vHeight;
@@ -38,6 +42,16 @@ void main() {
 
   vec3 toEye = cameraPosition - vWorldPos;
   float dist = length(toEye);
+
+  // Wind ripples: two drifting layers of the ripple slopes tilt the facet normal, so even a
+  // flat calm catches the sky and the sun. Faded out with distance (they'd only sparkle).
+  float rippleFade = 1.0 - smoothstep(uRippleFade.x, uRippleFade.y, dist);
+  if (rippleFade > 0.0) {
+    vec2 s1 = texture2D(uRipple, vWorldPos.xz * uRippleUv[0].z + uRippleUv[0].xy).rg * 2.0 - 1.0;
+    vec2 s2 = texture2D(uRipple, vWorldPos.xz * uRippleUv[1].z + uRippleUv[1].xy).rg * 2.0 - 1.0;
+    vec2 slope = (s1 + 0.7 * s2) * uRippleStrength * rippleFade;
+    n = normalize(n - vec3(slope.x, 0.0, slope.y));
+  }
   vec3 v = toEye / dist;
   float ndv = clamp(dot(n, v), 0.0, 1.0);
 

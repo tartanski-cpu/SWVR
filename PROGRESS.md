@@ -817,6 +817,17 @@ Owner: hard to walk past the wheelhouse to the bow; keep the wheelhouse as it is
 - Foveation (0.5). Raising it to 1.0 is the next cheap fill-rate lever if the Quest still struggles.
 - Triangle counts are within budget.
 
+### Sea surface detail: wind ripples (owner feedback)
+
+Owner: a completely calm sea is hard to see. In a flat calm every facet normal is straight up, so the water was one even colour: nothing for the eye to focus on, hard to judge distance or where the surface is in VR.
+- **Ripples** (`ocean/rippleTexture.ts`, `CONFIG.ocean.ripples`):
+  - A 256² tiling slope texture built at start-up: 28 sine ripples with whole cycles per tile (seamless), a wind-ripple spectrum, spread around one direction. No download.
+  - The ocean shader samples it twice: a 9 m layer and a 3.1 m layer drifting in different directions (0.35 and 0.22 m/s). It tilts the facet normal, so the sky reflection and sun glitter break up.
+  - Shading only: the water and the boats don't move with them.
+- Faded out between 30 and 260 m, where they'd only shimmer; mipmapped.
+- Slightly stronger in a flat calm (`calmBoost`, fading as the waves reach ~0.3 m), where they're the only texture there is.
+- **Cost:** two mipmapped texture reads per sea pixel within 260 m.
+
 ## Planned next (owner requests, not started)
 
 1. ~~Fuel and oil temperature~~ **Done** (see above).

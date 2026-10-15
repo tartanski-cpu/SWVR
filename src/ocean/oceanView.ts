@@ -6,6 +6,7 @@ import fragmentShader from './shaders/ocean.frag.glsl?raw';
 import oceanVertex from './shaders/ocean.vert.glsl?raw';
 import gerstnerChunk from './shaders/gerstner.glsl?raw';
 import type { PreparedWave } from './waves';
+import { createRippleTexture } from './rippleTexture';
 import { SHELTERS } from '../world/archipelago';
 import { MAX_SHELTERS } from '../world/shelter';
 
@@ -74,6 +75,11 @@ export class OceanView {
     uFogColor: { value: new THREE.Color() },
     uFogNear: { value: 0 },
     uFogFar: { value: 1 },
+    // Wind ripples (CONFIG.ocean.ripples): texture, per-layer uv offset (drift) and scale.
+    uRipple: { value: createRippleTexture() },
+    uRippleUv: { value: [new THREE.Vector4(), new THREE.Vector4()] }, // offset x, z; 1/scale; unused
+    uRippleStrength: { value: CONFIG.ocean.ripples.strength },
+    uRippleFade: { value: new THREE.Vector2(CONFIG.ocean.ripples.fadeNear, CONFIG.ocean.ripples.fadeFar) },
   };
 
   constructor() {
@@ -111,7 +117,8 @@ export class OceanView {
     u.uPortLightRange.value = light.distance;
   }
 
-  update(waves: readonly PreparedWave[], viewer: THREE.Vector3, env: EnvironmentView): void {
+  /** @param time render time (s): drifts the ripples */
+  update(waves: readonly PreparedWave[], viewer: THREE.Vector3, env: EnvironmentView, time = 0): void {
     const step = CONFIG.ocean.mesh.innerSpacing;
     this.mesh.position.set(Math.round(viewer.x / step) * step, 0, Math.round(viewer.z / step) * step);
 
@@ -133,6 +140,17 @@ export class OceanView {
     u.uFoamAmount.value = Math.min(1, Math.max(0, (steep - 0.25) / 0.09));
     // Crest whitening starts at a fraction of the theoretical maximum elevation.
     u.uCrestHeight.value = crest * 0.75;
+    // Ripples drift with the breeze; a little stronger in a flat calm, where they're all
+    // the texture there is (fading out as the waves reach ~0.3 m).
+    const rc = CONFIG.ocean.ripples;
+    u.uRippleStrength.value = rc.strength + rc.calmBoost * Math.max(0, 1 - crest / 0.3);
+    rc.layers.forEach((l, i) => {
+      const a = (l.directionDeg * Math.PI) / 180;
+      // Offset in tile units, wrapped so it stays precise however long the game runs.
+      const ox = (((Math.sin(a) * l.speed * time) / l.scale) % 1 + 1) % 1;
+      const oz = (((-Math.cos(a) * l.speed * time) / l.scale) % 1 + 1) % 1;
+      u.uRippleUv.value[i].set(ox, oz, 1 / l.scale, 0);
+    });
 
     u.uZenith.value.copy(env.zenith);
     u.uHorizon.value.copy(env.horizon);
