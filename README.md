@@ -51,7 +51,7 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | Space (elsewhere) | **Jump**: off the boat onto a quay, from a quay aboard, or into the sea. Swimming near the hull, the swim ladder or a quay: climb out |
 | Click a cargo item | Pick it up (carried in front of you); click again to set it down |
 | Q on cargo on deck | Lash it to the nearest D-ring / release it |
-| Right mouse button (hold) | **Laser pointer** from the reticle; the crew sees the beam and dot |
+| Right mouse button (hold) | **Laser pointer** to the reticle (the beam comes from your lower right); the crew sees the beam and dot |
 | Click the searchlight joystick | Steer the light with **W A S D** while the mouse still looks around; click again to let go |
 | B | Board the boat (you appear at the helm) / back to the platform |
 | Aim **+** and click / drag | Operate the bridge controls (see below) |

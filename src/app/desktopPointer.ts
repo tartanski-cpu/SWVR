@@ -36,7 +36,12 @@ export class DesktopPointer {
     /** Cargo: picked up and set down with a click when the reticle isn't on a control. */
     private readonly cargo?: { carrying(): boolean; label(ray: THREE.Ray | null): string | null; click(ray: THREE.Ray | null): boolean },
   ) {
+    // No context menu on a right click: it would release the mouse and stall the view.
+    // (Some browsers send it to the document while the pointer is captured.)
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    document.addEventListener('contextmenu', (e) => {
+      if (document.pointerLockElement === canvas) e.preventDefault();
+    });
     document.addEventListener('mousedown', (e) => {
       if (document.pointerLockElement === canvas && e.button === 2) this.rightDown = true;
     });

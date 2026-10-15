@@ -1323,6 +1323,10 @@ The brief's "no new particle effects" rule was flagged: the fire is drawn withou
   - ship sightings are spaced at least `traffic.sightEvery` (300 s), and only one hazard waits at a time;
   - unlogged events drop off after 5 minutes (`log.eventLinger`, was 10).
 - **Tests (1):** signing a hazard entry clears all three waiting hazards and leaves the weather change.
+- **Desktop laser pointer** (owner: right click froze the game, no beam):
+  - The beam started at the eyes, so it was seen end-on: only a small dot showed. It now starts at a "hand" down and to the right (`laser.deskHand`) and reads as a line to the reticle.
+  - The hit lookup ran every frame while the beam hit nothing (the sky, the horizon): a whole-scene raycast each frame. It now runs `hitRate` times a second whatever it hits.
+  - The browser's context menu is blocked on the whole page while the mouse is captured; a menu popping up would release the mouse.
 
 ## Planned next (owner requests, not started)
 

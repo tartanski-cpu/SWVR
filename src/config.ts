@@ -1585,8 +1585,10 @@ export const CONFIG = {
   /**
    * Laser pointer (replaces pings, owner request): VR, hold the right stick in; desktop,
    * hold the right mouse button. Reach (m); what it hits is found `hitRate` times a second.
+   * Desktop: the beam starts at a "hand" `deskHand` (m: right, up, forward of the eyes), so it's
+   * seen from the side; started at the eyes it would be seen end-on, just a dot.
    */
-  laser: { reach: 600, hitRate: 15 },
+  laser: { reach: 600, hitRate: 15, deskHand: [0.2, -0.25, -0.35] as [number, number, number] },
 
   comfort: {
     /**

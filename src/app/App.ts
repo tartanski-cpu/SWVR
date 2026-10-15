@@ -1750,17 +1750,21 @@ export class App {
     if (!on) {
       this.laser.hide();
       this.laserHit = null;
+      this.laserT = 0; // look up at once when pressed again
       return;
     }
     const ray = inXR ? this.hands.right.ray : new THREE.Ray(this.camera.getWorldPosition(new THREE.Vector3()), this.camera.getWorldDirection(new THREE.Vector3()));
+    // The hit is looked up a few times a second (also while it hits nothing: a whole-scene
+    // raycast every frame, aimed at the sky, stalls a desktop machine).
     this.laserT -= dt;
-    if (this.laserT <= 0 || !this.laserHit) {
+    if (this.laserT <= 0) {
       this.laserT = 1 / CONFIG.laser.hitRate;
       this.findLaserHit(ray);
     }
-    // Desktop: the beam starts a little below the eyes (from the "hand"), so it shows.
+    // Desktop: the beam starts at a "hand" down and to the right of the eyes, so it's seen
+    // from the side as a line, not end-on as a dot.
     this.laserFrom.copy(ray.origin);
-    if (!inXR) this.laserFrom.addScaledVector(this.camera.up.clone().applyQuaternion(this.camera.getWorldQuaternion(new THREE.Quaternion())), -0.25);
+    if (!inXR) this.laserFrom.copy(this.tmpV.fromArray(CONFIG.laser.deskHand)).applyMatrix4(this.camera.matrixWorld);
     const hit = !!this.laserHit;
     if (hit) this.laserTo.copy(this.laserHit!).applyMatrix4(this.laserFrame?.matrixWorld ?? new THREE.Matrix4());
     else ray.at(CONFIG.laser.reach * 0.2, this.laserTo);
