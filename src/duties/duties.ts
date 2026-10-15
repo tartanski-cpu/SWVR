@@ -34,7 +34,7 @@ import { answerFogSignal } from '../traffic/traffic';
 import { PORTS } from '../world/archipelago';
 import { allBerths } from '../world/berths';
 import { oilCheckDue } from '../vessel/maintenance';
-import { leverDemand } from '../vessel/physics/propulsion';
+import { leverDemand, preheatNeeded } from '../vessel/physics/propulsion';
 import { isWorkboat, VESSEL_DEFS, type WorkboatDef } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
 
@@ -79,7 +79,7 @@ const STARTUP: { text: string; check: (v: VesselState, def: WorkboatDef) => bool
   { text: 'Battery master ON (aft wall, by the door)', check: (v) => (v.electrics?.master ?? 1) > 0 },
   { text: 'INSTR breaker ON (panel by the helm)', check: (v) => (v.electrics?.breakers.instruments ?? 1) > 0 },
   { text: 'Throttle in NEUTRAL', check: (v, def) => leverDemand(def, v.controls.lever).gear === 0 },
-  { text: 'Key ON, hold HEAT until the glow lamp goes out', check: (v, def) => v.engine.key > 0 && v.engine.glow >= def.engine.preheatTime },
+  { text: 'Key ON, hold HEAT until the glow lamp goes out', check: (v, def) => v.engine.key > 0 && v.engine.glow >= preheatNeeded(v, def) },
   { text: 'Hold START until she runs', check: (v) => v.engine.phase === 'running' },
   { text: 'Breakers as needed: CHART, RADIO, NAV LTS', check: (v) => !!v.electrics && v.electrics.breakers.chart > 0 && v.electrics.breakers.radio > 0, optional: true },
 ];

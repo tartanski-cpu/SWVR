@@ -237,7 +237,8 @@ export class App {
   /** Window glass and the sliding door; the wheelhouse is sealed with both shut. */
   private closure: WheelhouseClosure | null = null;
   private readonly tableRef = new THREE.Vector3();
-  private sealed = false;
+  /** How shut-in the wheelhouse is, 0 (door and windows open) .. 1 (both shut): muffles wind, rain, wash. */
+  private closed = 0;
   /** Auto rain quality: frame time accumulated while raining in the headset. */
   private rainSlowT = 0;
   private rainFrames = 0;
@@ -616,7 +617,8 @@ export class App {
       const inSkiff = this.world.vessels[this.drivenVesselId()];
       const washBoat = inSkiff && inSkiff.id !== this.testVesselId && !onDavit(inSkiff) ? inSkiff : testVessel;
       const washD = washBoat === testVessel ? d : (this.vesselRoots.get(washBoat.id)?.position.distanceTo(this.focus) ?? d);
-      this.waterAudio.update(Math.hypot(washBoat.linearVelocity[0], washBoat.linearVelocity[2]), washBoat === testVessel ? slam : 0, washBoat === testVessel ? lap : 0, washD, dt);
+      const muffle = this.insideHouse ? this.closed * CONFIG.wheelhouseSound.washMuffle : 0;
+      this.waterAudio.update(Math.hypot(washBoat.linearVelocity[0], washBoat.linearVelocity[2]), washBoat === testVessel ? slam : 0, washBoat === testVessel ? lap : 0, washD, dt, muffle);
       if (slam > 0.1 && aboard) {
         this.xrInput.pulse('left', 0.15 + 0.35 * slam, 40 + 60 * slam);
         this.xrInput.pulse('right', 0.15 + 0.35 * slam, 40 + 60 * slam);
@@ -1966,14 +1968,14 @@ export class App {
     const wh = this.testDef.layout.wheelhouse;
     const inside = !!v && v.id === this.testVesselId && Math.abs(p.position[0]) < wh.halfWidth && p.position[2] > wh.front && p.position[2] < wh.aft && p.position[1] > wh.floorY - 0.3;
     this.insideHouse = inside;
-    // Sealed with the windows and the door shut.
+    // How shut-in the wheelhouse is: the door (the big opening) counts most, the windows the rest.
     const wv = this.world.vessels[this.testVesselId];
     if (this.closure && wv && this.bridge) {
       this.closure.update(wv.controls.windows > 0);
       this.bridge.door.tick(dt);
-      this.sealed = wv.controls.windows > 0 && this.bridge.door.shut;
+      this.closed = (this.bridge.door.shut ? CONFIG.wheelhouseSound.door : 0) + (wv.controls.windows > 0 ? 1 - CONFIG.wheelhouseSound.door : 0);
     }
-    this.windAudio.update(Math.hypot(ax, az), inside, dt, this.sealed);
+    this.windAudio.update(Math.hypot(ax, az), inside, dt, this.closed);
   }
 
   /**
@@ -2001,7 +2003,7 @@ export class App {
     this.autoRainQuality(rain, dt);
     this.rain.update(rain, time, this.focus, this.windV, house, light);
     if (this.bridge && v) this.bridge.rainGlass.update(rain, v.controls.wipers > 0 && isPowered(v, 'instruments'), light, dt);
-    this.windAudio.setRain(rain, this.insideHouse, this.sealed);
+    this.windAudio.setRain(rain, this.insideHouse, this.closed);
     // Thunder: the flash is drawn by the environment view; the sound follows by distance.
     const L = w?.lightning;
     if (L) {

@@ -140,7 +140,7 @@ describe('towing missions', { timeout: 30000 }, () => {
     expect(world.rescue!.radio?.text).toMatch(/parted/);
   });
 
-  it('slow in a port it is delivered, counted and logged; taken away once we are clear', () => {
+  it('slow in a port it is delivered, counted and logged; the harbour takes it away soon after', () => {
     const { world, v, send, run } = setup();
     placeVessel(v, 0, 0, -400, 0);
     run(1);
@@ -156,8 +156,11 @@ describe('towing missions', { timeout: 30000 }, () => {
     expect(world.rescue!.completed).toBe(before + 1);
     expect(world.rescue!.lastDone).toMatch(/Tow/);
     expect(world.log?.events.some((e) => e.type === 'rescue')).toBe(true);
-    // We're far off already: next tick it's gone and the job is over.
-    run(0.1);
+    // Still there for a moment (even with us right beside her), then gone, and the job is over.
+    placeVessel(v, port.x + 30, 0, port.z, 0);
+    run(1);
+    expect(world.vessels[job.vesselId]).toBeDefined();
+    run(CONFIG.tow.removeAfter);
     expect(world.tow!.job).toBeNull();
     expect(world.vessels[job.vesselId]).toBeUndefined();
   });

@@ -117,7 +117,7 @@ export interface EngineState {
   coolingFault: boolean;
   /** Ignition key: 0 off / 1 on. Off stops a running engine (fuel solenoid). */
   key: number;
-  /** Glow plug preheat accumulated (s); `preheatTime` is enough. */
+  /** Glow plug preheat accumulated (s); `preheatNeeded()` (physics/propulsion.ts) is enough. */
   glow: number;
   /** Quick start: keep cranking without START held until she catches. */
   autoCrank?: boolean;

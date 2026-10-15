@@ -38,7 +38,7 @@ export function toggleEngine(s: VesselState, def: WorkboatDef): void {
     if (!isPowered(s)) return; // no 12 V: the starter doesn't turn
     if (def.engine.startOnlyInNeutral && leverDemand(def, s.controls.lever).gear !== 0) return;
     e.key = 1;
-    e.glow = def.engine.preheatTime;
+    e.glow = preheatNeeded(s, def);
     e.phase = 'cranking';
     e.crank = 0;
     e.autoCrank = true;
@@ -52,7 +52,7 @@ export function toggleEngine(s: VesselState, def: WorkboatDef): void {
 /**
  * Diesel ignition, before the engine dynamics each tick:
  *   - no 12 V or the key off: the fuel solenoid closes - she stops (or never starts);
- *   - HEAT held with the key on: the glow plugs heat (lamp lit until preheatTime); they
+ *   - HEAT held with the key on: the glow plugs heat (lamp lit until preheatNeeded: shorter warm); they
  *     cool again when released;
  *   - START held, key on, lever in neutral (neutral-safety switch): crank; let go before
  *     she catches and the starter stops.
@@ -65,8 +65,9 @@ export function stepIgnition(s: VesselState, def: WorkboatDef, dt: number): void
     e.phase = 'off';
     e.autoCrank = false;
   }
-  if (keyOn && s.controls.heat > 0) e.glow = Math.min(cfg.preheatTime * 1.5, e.glow + dt);
-  else e.glow = Math.max(0, e.glow - cfg.glowCoolRate * dt);
+  if (keyOn && s.controls.heat > 0) e.glow = Math.min(preheatNeeded(s, def) * 1.5, e.glow + dt);
+  // The plugs stay hot while she cranks (they're powered with the starter); they cool after.
+  else if (e.phase !== 'cranking') e.glow = Math.max(0, e.glow - cfg.glowCoolRate * dt);
   const neutral = !cfg.startOnlyInNeutral || leverDemand(def, s.controls.lever).gear === 0;
   if (e.phase === 'off' && keyOn && s.controls.start > 0 && neutral) {
     e.phase = 'cranking';
@@ -76,11 +77,22 @@ export function stepIgnition(s: VesselState, def: WorkboatDef, dt: number): void
   }
 }
 
+/**
+ * Seconds of glow-plug preheat the engine needs now: preheatTime stone cold (coolant at
+ * sea temperature), falling linearly to preheatHotTime at coldBelowC and above.
+ */
+export function preheatNeeded(s: VesselState, def: WorkboatDef): number {
+  const cfg = def.engine;
+  const sea = CONFIG.environment.seaTempC;
+  const warm = clamp((s.engine.coolantC - sea) / Math.max(1, cfg.coldBelowC - sea), 0, 1);
+  return cfg.preheatTime + (cfg.preheatHotTime - cfg.preheatTime) * warm;
+}
+
 /** Seconds of cranking she needs to catch: longer cold and unheated. */
 export function crankNeeded(s: VesselState, def: WorkboatDef): number {
   const cfg = def.engine;
   const cold = s.engine.coolantC < cfg.coldBelowC ? 1 : 0;
-  const heated = Math.min(1, s.engine.glow / cfg.preheatTime);
+  const heated = Math.min(1, s.engine.glow / preheatNeeded(s, def));
   return cfg.crankTime + cold * (1 - heated) * cfg.unheatedExtraCrank;
 }
 

@@ -7,6 +7,7 @@ import { createWorld } from '../src/core/world';
 import { LOG_TYPES, POINTS, pointOf, seaWord } from '../src/log/log';
 import { bearingTo, SHIP_NAMES, spawnShip } from '../src/traffic/traffic';
 import { placeVessel } from '../src/vessel/vesselControl';
+import { groundHeight } from '../src/world/terrain';
 
 const DT = 1 / 60;
 
@@ -41,15 +42,16 @@ function setup(x = 0, z = -2600) {
 describe('passing ships and hazards', { timeout: 30000 }, () => {
   it('out at sea a ship comes by on a clear course, is sighted and logged; type and direction are checked', () => {
     const { world, v, run, write } = setup();
-    run(CONFIG.traffic.every[1] + 61);
-    const ship = world.traffic!.ships[0];
-    expect(ship).toBeTruthy();
-    const x0 = ship.x;
+    run(CONFIG.traffic.firstShip + 1);
+    const first = world.traffic!.ships[0];
+    expect(first).toBeTruthy();
+    const x0 = first.x;
     run(10);
-    expect(Math.abs(ship.x - x0) + 0).toBeGreaterThan(0); // under way
-    // Run until it's sighted (it crosses ahead of us).
-    for (let i = 0; i < 600 && !ship.sighted; i++) run(1);
-    expect(ship.sighted).toBe(true);
+    expect(Math.abs(first.x - x0) + 0).toBeGreaterThan(0); // under way
+    // Run until one is sighted (they cross ahead of us).
+    for (let i = 0; i < 600 && !world.traffic!.ships.some((s) => s.sighted); i++) run(1);
+    const ship = world.traffic!.ships.find((s) => s.sighted)!;
+    expect(ship).toBeTruthy();
     const ev = world.log!.events.find((e) => e.type === 'vessel')!;
     expect(ev.truth!.ship).toBe(SHIP_NAMES[ship.type]);
     expect(world.duties!.items.some((d) => d.title === 'Log: vessel sighted')).toBe(true);
@@ -63,20 +65,27 @@ describe('passing ships and hazards', { timeout: 30000 }, () => {
     expect(wrong.fields.find((f) => f.key === 'dir')!.correct).toBe(false);
   });
 
-  it('a ship far off and opening goes; none spawn in harbour', () => {
+  it('a ship far off and opening goes; four are kept about; near a harbour they keep to deep water', () => {
     const { world, v, run } = setup();
     const s = spawnShip(world, world.traffic ?? (run(0.1), world.traffic!), v)!;
     s.x = v.position[0] + Math.sin(s.course) * (CONFIG.traffic.despawn + 100);
     s.z = v.position[2] - Math.cos(s.course) * (CONFIG.traffic.despawn + 100);
     run(0.1);
     expect(world.traffic!.ships.includes(s)).toBe(false);
+    // Spawns due one after another: it fills up to four, and no more.
+    for (let i = 0; i < 12; i++) {
+      world.traffic!.nextShipAt = world.time;
+      run(0.1);
+    }
+    expect(world.traffic!.ships).toHaveLength(CONFIG.traffic.maxShips);
+    expect(CONFIG.traffic.maxShips).toBe(4);
     const h = setup(570, 646); // Calder Haven
     h.run(0.1);
-    for (let i = 0; i < 5; i++) {
-      h.world.traffic!.nextShipAt = h.world.time; // a spawn is due...
+    for (let i = 0; i < 8; i++) {
+      h.world.traffic!.nextShipAt = h.world.time;
       h.run(0.1);
     }
-    expect(h.world.traffic!.ships).toHaveLength(0); // ...but not in harbour
+    for (const sh of h.world.traffic!.ships) expect(groundHeight(sh.x, sh.z)).toBeLessThan(-8);
   });
 
   it('hazards: debris close by and the rocks are logged with their true type', () => {

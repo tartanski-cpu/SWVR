@@ -13,7 +13,7 @@ export type LaserPose = [number, number, number, number, number, number, boolean
 
 /** A chart table tool in a player's hand (shown to the others). */
 export interface HeldTool {
-  kind: 'pencil' | 'eraser' | 'rule';
+  kind: 'pencil' | 'eraser';
   hand: 'left' | 'right';
 }
 

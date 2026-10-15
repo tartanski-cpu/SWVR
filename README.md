@@ -64,7 +64,7 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | R / K | Test: drop the boat from 4 m / heel her 20° and release |
 | V | Buoyancy debug view on/off |
 | N / M | Time of day −/+ 30 min |
-| F3 or I | Debug overlay on/off (FPS, cpu/gpu frame time, draw calls, boat readouts) |
+| F3 or I | Debug overlay on/off (FPS, cpu/gpu frame time, draw calls, boat readouts); off at start |
 | P | Wave surface probes on/off |
 | F1 or H | Help panel on/off |
 
@@ -89,11 +89,11 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | **Grip** the boat hook (port bulwark) | Take it; it points along your controller. Touch a floating crate or a tow's bow eye with the tip to hook it. With **auto-extend** (menu Comfort → Boat hook reach, on by default) it telescopes out to whatever you point it at, up to 8 m, then slides back in with the crate on it. Desktop: click the hook, then click the crate or bow eye |
 | **X** | **Crouch** / stand up (drops your view and hands 0.6 m; desktop: C) |
 | **Trigger** on the red key on the yellow plate (aft wall, by the door) | **Battery master** on / off. The boat starts cold and dark: master on first (voltmeter by the helm, under the starboard window) |
-| **Starting the engine** | Follow the card by the key: battery MASTER on (aft wall), INSTR breaker on, throttle in neutral, KEY on, hold HEAT until the GLOW lamp goes out, hold START until she runs. Stop: key off. Battery selector (1 / BOTH / 2) beside the master. The duty board on the starboard wall ticks off the start-up steps. Desktop E: hint (or quick start if enabled in config) |
+| **Starting the engine** | Follow the card by the key: battery MASTER on (aft wall), INSTR breaker on, throttle in neutral, KEY on, hold HEAT until the GLOW lamp goes out (about 2.5 s cold, well under a second once the engine is warm), hold START until she runs. Stop: key off. Battery selector (1 / BOTH / 2) beside the master. The duty board on the starboard wall ticks off the start-up steps. Desktop E: hint (or quick start if enabled in config) |
 | **Trigger** on a breaker (panel by the helm, under the starboard window) | Breakers: Instruments, Chart, Radio, Nav lights, Deck lights, Bilge. A device works only with the master and its breaker on; a green lamp shows the circuit is live |
 | **Trigger** on the green button on the stern davit (or Menu > Boat > Skiff) | Launch the skiff / recover her (she must be close under the stern and moving with you) |
 | **Grip** on the skiff's tiller, then **trigger** | Steer by swinging the tiller; the same hand's trigger is the throttle (let go = idle). Red button on the motor: on/off; yellow lever on its side: forward / neutral / reverse |
-| B | Debug/perf panel on your left wrist: FPS, cpu/gpu frame time, draw calls, XR resolution, boat readouts |
+| B | Debug/perf panel on your left wrist (off at start): FPS, cpu/gpu frame time, draw calls, XR resolution, boat readouts |
 
 ### VR menu (Y)
 
@@ -138,17 +138,16 @@ The chart table stands along the port wall, behind the helm. On it:
 - a paper chart of the sound (north toward the wall);
 - the **logbook**, lying open;
 - a pen holder with the pen, a pencil and an eraser;
-- a parallel rule and dividers;
+- dividers;
 - a lamp with its own small switch (DECK LTS breaker).
 
 **Drawing on the chart:**
 
 | | VR | Desktop |
 |---|---|---|
-| Pick up the **pencil**, **eraser** or **parallel rule** | Grip near it (let go: it goes back) | (not needed) |
+| Pick up the **pencil** or **eraser** | Grip near it (let go: it goes back) | (not needed) |
 | Draw | Touch the chart with the pencil tip; lift it off to stop | Aim at the chart and drag |
-| Straight line | Hold the trigger while drawing (from where you started), or draw along the rule's edge: the line snaps straight | Hold Shift while dragging |
-| Lay the rule | Hold it low over the chart: it lies flat and slides and turns with your hand; let go and it stays | – |
+| Straight line | Hold the trigger while drawing (from where you started) | Hold Shift while dragging |
 | Erase | Rub the eraser on the chart | Right-drag |
 | Clear the chart | Hold the eraser's trigger 2 s | Menu → Tests → Chart → Clear marks |
 
@@ -190,12 +189,12 @@ The chart table stands along the port wall, behind the helm. On it:
   2. If it's low, press the red **oil can** to top up.
 
   Nearly dry, the OIL lamp blinks while running.
-- **Windows and door:** the **WINDOWS** switch on the console (left of the wheel) shuts glass into every opening. The aft door has a window and opens or shuts by hand: trigger on it in VR, or click it on the desktop. It starts open, and when shut it blocks desktop walking. With both shut, the wind and rain are much quieter inside. The "secure the boat" duty suggests it.
+- **Windows and door:** the **WINDOWS** switch on the console (left of the wheel) shuts glass into every opening. The aft door has a window and opens or shuts by hand: trigger on it in VR, or click it on the desktop. It starts open, and when shut it blocks desktop walking. Shutting the door muffles the wind, rain and hull wash inside; with the windows shut too it's quieter still. The "secure the boat" duty suggests it.
 - **The pen:** pick it up from beside the logbook (grip) and touch a box, or the sign box, with its tip. Pointing and pulling the trigger still works too.
 
 ### Traffic and hazards
 
-- **Passing ships:** out of harbour, a coaster, fishing boat or yacht comes by now and then, crossing ahead some way off.
+- **Passing ships:** four AI ships (coasters, fishing boats, yachts) are always about, crossing ahead some way off on deep-water tracks; a new one comes along when one has passed.
   - They show on the chartplotter as **AIS** triangles with their name and a 6-minute course line, in any visibility.
   - They carry navigation lights at night.
   - The lookout calls each one out with a clock bearing and range.
@@ -237,7 +236,7 @@ Out of harbour, with no rescue on, a tow call comes over the VHF every few minut
 2. **Come alongside with your stern to her bow.** Our towing post is the black bollard on the aft deck, and her **bow eye** is the orange ring on her stem.
 3. **Make fast:** take the boat hook, then touch the bow eye with its tip (VR) or click the bow eye (desktop). The menu's Boat tab has a **Tow → Make fast** button too. Our stern must be within 16 m of her bow. To **cast off**, do the same again with the line fast (hook on the bow eye), or use **Tow → Cast off** on the menu.
 4. **Tow her into any harbour.** The line is 22 m long and stretchy. Take up the slack gently: snatching it at speed (or dragging her over rocks) parts it, and you have to go back and make fast again.
-5. **Slow down inside the port** for a few seconds and the harbour takes her over. The tow counts as a mission and becomes a log event, and she is taken away once you're clear.
+5. **Slow down inside the port** for a few seconds and the harbour takes her over. The tow counts as a mission and becomes a log event, and she is taken away a few seconds later.
 
 Unanswered calls go away after two minutes. The menu's Tests tab has debug buttons that put a tow just astern (Cruiser, Logs, Barge), raise a call, or end the job.
 

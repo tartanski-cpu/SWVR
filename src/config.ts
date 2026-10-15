@@ -282,12 +282,15 @@ export const CONFIG = {
         /** The engine will only start with the lever in neutral (like a real neutral-safety switch). */
         startOnlyInNeutral: true,
         /**
-         * Ignition (diesel): key ON, hold HEAT until the glow lamp goes out (`preheatTime`),
-         * then hold START. Unheated, a cold engine (coolant below `coldBelowC`) needs up to
-         * `unheatedExtraCrank` more seconds of cranking to catch. Glow plugs cool again at
-         * `glowCoolRate` (s of preheat lost per s).
+         * Ignition (diesel): key ON, hold HEAT until the glow lamp goes out, then hold START.
+         * The preheat needed is `preheatTime` stone cold (coolant at sea temperature),
+         * falling to `preheatHotTime` once the coolant is at `coldBelowC` and above (a warm
+         * engine barely needs it). Unheated, a cold engine needs up to `unheatedExtraCrank`
+         * more seconds of cranking to catch. Glow plugs cool again at `glowCoolRate` (s of
+         * preheat lost per s).
          */
-        preheatTime: 4,
+        preheatTime: 2.5,
+        preheatHotTime: 0.6,
         unheatedExtraCrank: 5,
         coldBelowC: 40,
         glowCoolRate: 0.25,
@@ -730,7 +733,7 @@ export const CONFIG = {
        * across, z0..z1 fore-aft) and top height above the wheelhouse floor. You stand on
        * its inboard side facing the wall (port), so north on the chart points to port.
        * On it: the paper chart, the logbook (open, at the aft end), a pen holder (pen,
-       * pencil, eraser), a parallel rule and dividers, and a lamp with its own switch
+       * pencil, eraser), dividers, and a lamp with its own switch
        * (Deck lights breaker). All positions are on the table top: [x, z].
        */
       // Pushed aft against the aft wall (owner feedback), under the whiteboard: more room
@@ -1021,9 +1024,8 @@ export const CONFIG = {
     deliverRadius: 170,
     deliverSpeed: 0.8,
     deliverTime: 5,
-    /** A delivered tow stays put until we are this far away (m), or this long has passed (s). */
-    removeRange: 120,
-    removeAfter: 300,
+    /** A delivered tow is taken over by the harbour (removed) this long after the hand-over (s). */
+    removeAfter: 8,
     /** Towing post on our stern: height above the deck (m) and in from the transom (m). */
     postHeight: 0.6,
     postInset: 0.4,
@@ -1189,18 +1191,22 @@ export const CONFIG = {
 
   /** The duty board's game-generated task list (duties/duties.ts). */
   /**
-   * Passing ships and hazards (traffic/traffic.ts). Out of harbour, a ship is spawned every
-   * `every` s (random in the range; at most `maxShips` at once) on a straight course that
-   * crosses ahead of the workboat `pass` m off at its closest, starting `spawnDist` m away
-   * and clear of land; it goes when it's `despawn` m off and moving away. Ship types:
+   * Passing ships and hazards (traffic/traffic.ts). `maxShips` AI ships are kept about
+   * (owner request: 4): while there are fewer, one is spawned every `every` s (random in the
+   * range; the first `firstShip` s in) on a straight course that crosses ahead of the
+   * workboat `pass` m off at its closest, starting `spawnDist` m away, its whole track in
+   * deep water; it goes when it's `despawn` m off and moving away. In harbour too, as long
+   * as such a track exists (debris only out of harbour). A "vessel sighted" log event
+   * waits while an earlier one is unlogged, so they don't pile up. Ship types:
    * length, beam, speed (m/s), AIS names. Sighted within min(`sightRange`, visibility x
    * `sightVis`). In restricted visibility they sound a prolonged blast every 2 min, and
    * answer yours. Hazards: floating debris (spawned like ships, drifting), the rocks and
    * these buoys; passed within `hazardRange` m (and in sight) they're loggable.
    */
   traffic: {
-    every: [150, 360] as [number, number],
-    maxShips: 2,
+    every: [20, 45] as [number, number],
+    firstShip: 5,
+    maxShips: 4,
     spawnDist: [1800, 2600] as [number, number],
     pass: [350, 900] as [number, number],
     despawn: 3600,
@@ -1244,9 +1250,8 @@ export const CONFIG = {
    * (so they line up with the map), points kept at least `minStepM` m of chart apart and
    * rounded to `quantM`. Over `maxPoints` in all, the oldest strokes go (the oldest ones
    * are drawn fainter as the cap nears, as if rubbed). Table side (m): the pencil touches
-   * within `contactMm` of the paper; the eraser rubs out within `eraseRadius`; the rule's
-   * edge pulls the pencil within `ruleSnap`. Hold the eraser's trigger `clearHold` s to
-   * clear the chart. `showOnPlotter`: the crew's marks faintly on the chartplotter too.
+   * within `contactMm` of the paper; the eraser rubs out within `eraseRadius`. Hold the
+   * eraser's trigger `clearHold` s to clear the chart. `showOnPlotter`: the crew's marks faintly on the chartplotter too.
    */
   chartMarks: {
     maxPoints: 4000,
@@ -1254,7 +1259,6 @@ export const CONFIG = {
     quantM: 0.5,
     contactMm: 6,
     eraseRadius: 0.012,
-    ruleSnap: 0.015,
     clearHold: 2,
     sendEvery: 0.1,
     showOnPlotter: true,
@@ -1577,8 +1581,18 @@ export const CONFIG = {
     platformHalfSize: 3.0,
   },
 
+  /**
+   * How shut-in the wheelhouse is, for sound (0 open .. 1 shut): the aft door is the big
+   * opening, so shutting it counts `door` (the windows the rest). Inside, wind, rain and the
+   * hull wash are muffled by that much (the wash by up to `washMuffle`).
+   */
+  wheelhouseSound: {
+    door: 0.6,
+    washMuffle: 0.6,
+  },
+
   debug: {
-    overlayVisibleAtStart: true,
+    overlayVisibleAtStart: false,
     surfaceProbesVisibleAtStart: false,
     hydroDebugVisibleAtStart: false,
     /** How often the overlay text is refreshed (Hz). */

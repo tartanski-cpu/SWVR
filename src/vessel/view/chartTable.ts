@@ -8,7 +8,7 @@ type ChartTableConfig = NonNullable<VesselDef['chartTable']>;
 
 /**
  * The chart table along the port wall (vessel axes). One merged static mesh for the
- * table, cabinet, fiddle rails, pen holder with pencil and eraser, parallel rule, dividers
+ * table, cabinet, fiddle rails, pen holder, dividers
  * and the lamp's stand and shade; plus the paper chart (drawn once), the lamp's bulb and
  * its switch. The logbook lies at the aft end (log/logbookView.ts).
  *
@@ -60,7 +60,7 @@ export class ChartTableView {
         return [box(x1 - 0.035, x1 - 0.028, y - 0.11, y + 0.11, z0 + 0.06, z1 - 0.06, 0x6a4628), box(x1 - 0.03, x1 - 0.012, y - 0.012, y + 0.012, (z0 + z1) / 2 - 0.08, (z0 + z1) / 2 + 0.08, 0xb8a070)];
       }),
     ];
-    // Pen holder (the pencil, eraser and parallel rule are hand tools: chart/chartTools.ts), dividers.
+    // Pen holder (the pencil and eraser are hand tools: chart/chartTools.ts), dividers.
     const [hx, hz] = cfg.holder;
     parts.push(part(new THREE.CylinderGeometry(0.032, 0.03, 0.085, 12).translate(hx, T + 0.0425, hz), 0x2c3a44));
     for (const a of [-0.12, 0.12]) parts.push(placed(new THREE.BoxGeometry(0.005, 0.005, 0.16).translate(0, 0, -0.08), x0 + 0.12, T + 0.004, z0 + 0.58, 2.3 + a, 0x9aa0a6));

@@ -170,9 +170,12 @@ export class WaterAudio {
     this.sound = new WaterSound(ctx, mixer.bus(ctx, 'effects'));
   }
 
-  /** @param distance listener distance from the boat (m) */
-  update(speed: number, slam: number, lap: number, distance: number, dt: number): void {
-    this.sound?.update(speed, slam, lap, 1 / (1 + distance / 10), dt);
+  /**
+   * @param distance listener distance from the boat (m)
+   * @param muffle   0..1: how much the wheelhouse shuts the wash out (inside, door and windows shut)
+   */
+  update(speed: number, slam: number, lap: number, distance: number, dt: number, muffle = 0): void {
+    this.sound?.update(speed, slam, lap, (1 - muffle) / (1 + distance / 10), dt);
   }
 
   /** Something (you, a crate) hitting the water nearby: `strength` 0..1. */

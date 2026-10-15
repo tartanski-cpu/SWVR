@@ -13,7 +13,7 @@
  *              eye, or the menu), tow it into any port. Slow in port for a few seconds and
  *              it's 'delivered': the harbour takes it over, the line is cast off, the job
  *              counts as a completed mission (and goes in the log). The tow is taken away
- *              once we're clear of it.
+ *              a few seconds later (CONFIG.tow.removeAfter).
  *   towline    one straight spring-damper between our towing post and its bow eye (see
  *              CONFIG.tow and towlineForces below). It parts if snatched too hard.
  *
@@ -342,9 +342,10 @@ export function stepTow(world: WorldState, dt: number): void {
     return;
   }
 
+  // The harbour takes her over: she's gone a few seconds after the hand-over (owner
+  // feedback: delivered tows were left drifting about the harbour).
   if (job.phase === 'delivered' && tow) {
-    const away = Math.hypot(tow.position[0] - v.position[0], tow.position[2] - v.position[2]) > cfg.removeRange;
-    if ((away || world.time - (job.doneT ?? 0) > cfg.removeAfter) && removeTow(world, job)) {
+    if (world.time - (job.doneT ?? 0) > cfg.removeAfter && removeTow(world, job)) {
       t.job = null;
       t.nextAt = world.time + between(t, cfg.every);
     }

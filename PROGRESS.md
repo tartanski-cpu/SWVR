@@ -1238,6 +1238,20 @@ The brief's "no new physics bodies or ropes" rule was flagged; the owner approve
 - **Tests:** the door control; desktop auto-extend hooking a crate 6 m off the side, and not when Fixed.
 - **Fix (owner feedback):** the boat hook on the bow eye now also **casts off** a fast towline. Desktop: click it again; the label says which it will do. VR: each touch toggles once, so take the tip away and touch again. Test: click to make fast, click to cast off.
 
+## Fixes: tow clean-up, glow plugs, door sound, no ruler, four AI ships, no debug panel (owner feedback)
+
+- **Delivered tows are cleaned up:** the harbour takes the tow over 8 s after the hand-over (`CONFIG.tow.removeAfter`), however close you are. Before, it was only removed once you were 120 m away, so delivered logs were left drifting about.
+- **Glow plugs:**
+  - Cold, the preheat is now 2.5 s (was 4). It falls linearly with coolant temperature to 0.6 s once she's warm (`preheatNeeded()`; `preheatHotTime`). The glow lamp, the duty-board step and the start all use it.
+  - The plugs no longer cool while she's cranking (they're powered with the starter), so a properly preheated engine catches in about the plain crank time.
+- **Wheelhouse door muffles the outside:** sound now grades with how shut-in the wheelhouse is (`CONFIG.wheelhouseSound`). The door counts 0.6 and the windows 0.4. Inside, wind, rain and the hull wash are muffled in proportion, so shutting the door alone makes a clear difference. Before, it took both shut to change anything, and the wash wasn't muffled at all.
+- **No parallel rule on the chart table:** the pencil's straight-line trigger covers it. The mesh, snapping and the multiplayer tool kind are gone.
+- **Four AI ships:** `traffic.maxShips` is 4. The first comes 5 s in; while there are fewer than four, another comes every 20–45 s.
+  - They now appear in harbour too, as long as their whole track is deep water.
+  - A "vessel sighted" log event waits while the last one is unlogged, so they don't pile up on the duty board.
+- **Debug panel off at start** (`debug.overlayVisibleAtStart`): F3 / I on desktop, B in VR, or the menu.
+- **Tests:** a warm engine needs much less preheat; traffic fills to four, and near a harbour ships keep to deep water; the tow is removed soon after delivery even with us alongside.
+
 ## Planned next (owner requests, not started)
 
 1. ~~Fuel and oil temperature~~ **Done** (see above).

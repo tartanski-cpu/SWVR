@@ -83,7 +83,7 @@ export class AvatarsView {
       this.side.set(1, 0, 0).applyQuaternion(a.head.quaternion).setY(0);
       if (this.side.lengthSq() < 1e-6) this.side.set(1, 0, 0);
       this.side.normalize().multiplyScalar(0.2);
-      // A chart tool in hand (pencil, eraser, rule): a small copy of it at that hand.
+      // A chart tool in hand (pencil, eraser): a small copy of it at that hand.
       const tool = p.avatar?.tool ?? null;
       const tk = tool ? `${tool.kind}:${tool.hand}` : '';
       if (a.toolKey !== tk) {
@@ -193,7 +193,7 @@ function drawTag(a: Avatar, name: string): void {
 
 /** Small stand-ins for the chart table tools, held in a crewmate's hand. */
 function toolMesh(kind: string): THREE.Object3D {
-  const color = kind === 'pencil' ? 0xe8c030 : kind === 'eraser' ? 0xe88a9a : 0xcfe0dc;
-  const geo = kind === 'pencil' ? new THREE.CylinderGeometry(0.005, 0.005, 0.17, 6).rotateX(Math.PI / 2).translate(0, -0.02, -0.07) : kind === 'eraser' ? new THREE.BoxGeometry(0.025, 0.014, 0.05).translate(0, -0.03, -0.02) : new THREE.BoxGeometry(0.11, 0.006, 0.32).translate(0, -0.03, -0.1);
+  const color = kind === 'pencil' ? 0xe8c030 : 0xe88a9a;
+  const geo = kind === 'pencil' ? new THREE.CylinderGeometry(0.005, 0.005, 0.17, 6).rotateX(Math.PI / 2).translate(0, -0.02, -0.07) : new THREE.BoxGeometry(0.025, 0.014, 0.05).translate(0, -0.03, -0.02);
   return new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color }));
 }

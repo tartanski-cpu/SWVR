@@ -1,17 +1,14 @@
 /**
  * Drawing on the paper chart: the pencil marks (drawn as thin lines lying on the chart:
  * one draw call, sharp at any distance, redrawn only when the marks change) and the hand
- * tools - pencil, eraser and parallel rule - with how they feel:
+ * tools - pencil and eraser - with how they feel (the parallel rule was taken out at the
+ * owner's request: the pencil's straight-line trigger does its job):
  *
- *   pick up   VR: grip near a tool takes it in that hand; let go and it goes back to its
- *             place (the rule stays where you left it if it's lying on the chart).
+ *   pick up   VR: grip near a tool takes it in that hand; let go and it goes back to its place.
  *   pencil    the tip within a few mm of the paper draws: the tip is locked to the paper
  *             and the line smoothed a little, so hand tremor and the boat's motion don't
  *             wobble it. Hold the trigger for a straight line from where you started.
- *             Near the parallel rule's edge, the line snaps onto the edge.
  *   eraser    rub it on the paper to rub marks out; hold its trigger 2 s to clear the chart.
- *   rule      held low over the chart it lies flat on it, sliding and turning with your
- *             hand; let go there and it stays.
  *   desktop   aim at the chart: drag to draw (Shift: straight line), right-drag to erase.
  *
  * Everything here is in the chart table's frame (vessel axes); marks are converted to
@@ -37,7 +34,7 @@ export interface ChartToolsContext {
   scratch(pencil: number, rub: number): void;
 }
 
-type ToolName = 'pencil' | 'eraser' | 'rule';
+type ToolName = 'pencil' | 'eraser';
 type Holder = Handedness | 'desk' | null;
 
 interface Tool {
@@ -70,7 +67,6 @@ export class ChartTools {
   private readonly lineGeo = new THREE.BufferGeometry();
   private shownSeq = -1;
   private readonly tools: Record<ToolName, Tool>;
-  private ruleOnChart = false;
   private strokeN = 0;
   private drawing: Drawing | null = null;
   private eraseLast: THREE.Vector3 | null = null;
@@ -87,7 +83,6 @@ export class ChartTools {
 
   constructor(private readonly table: ChartTableView) {
     this.root.name = 'chartTools';
-    const r = table.chartRect;
     // Marks: line segments just above the paper, a vertex colour per point (old marks fade).
     const cap = CONFIG.chartMarks.maxPoints * 2;
     this.lineGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(cap * 3), 3));
@@ -108,14 +103,6 @@ export class ChartTools {
       flatVertexColorMaterial(),
     );
     const eraser = new THREE.Mesh(part(new THREE.BoxGeometry(0.025, 0.014, 0.05).translate(0, 0.007, 0), 0xe88a9a), flatVertexColorMaterial());
-    // Parallel rule: two perspex rules joined by brass links; flat, long axis along its z.
-    const rule = new THREE.Mesh(
-      mergeParts([
-        ...[-0.035, 0.035].map((x) => part(new THREE.BoxGeometry(0.04, 0.005, 0.32).translate(x, 0.0025, 0), 0xcfe0dc)),
-        ...[-0.1, 0.1].map((z) => part(new THREE.BoxGeometry(0.08, 0.004, 0.01).translate(0, 0.006, z), 0xb89040)),
-      ]),
-      flatVertexColorMaterial(),
-    );
     const [hx, hz] = table.holderAt;
     const T = table.top;
     const home = (pos: THREE.Vector3, rot: THREE.Euler) => new THREE.Matrix4().compose(pos, new THREE.Quaternion().setFromEuler(rot), new THREE.Vector3(1, 1, 1));
@@ -123,7 +110,6 @@ export class ChartTools {
       // Standing in the holder, tip down.
       pencil: { mesh: pencil, home: home(new THREE.Vector3(hx + 0.012, T + 0.02, hz + 0.008), new THREE.Euler(-Math.PI / 2 + 0.18, 0, 0)), grab: new THREE.Vector3(0, 0, 0.08), held: null },
       eraser: { mesh: eraser, home: home(new THREE.Vector3(hx + 0.07, T, hz + 0.02), new THREE.Euler(0, 0, 0)), grab: new THREE.Vector3(0, 0.007, 0), held: null },
-      rule: { mesh: rule, home: home(new THREE.Vector3((r.x0 + r.x1) / 2 + 0.12, r.y + 0.001, r.z0 + 0.2), new THREE.Euler(0, 0.3, 0)), grab: new THREE.Vector3(0, 0.004, 0), held: null },
     };
     for (const t of Object.values(this.tools)) {
       t.mesh.matrixAutoUpdate = false;
@@ -175,24 +161,6 @@ export class ChartTools {
     return p.x >= r.x0 - margin && p.x <= r.x1 + margin && p.z >= r.z0 - margin && p.z <= r.z1 + margin;
   }
 
-  /** Pull a point onto the rule's nearer long edge if it's close to it. */
-  private snapToRule(p: THREE.Vector3): void {
-    if (!this.ruleOnChart && this.tools.rule.held === null) return;
-    const rm = this.tools.rule.mesh.matrix;
-    this.inv.copy(rm).invert();
-    const l = this.tmp2.copy(p).applyMatrix4(this.inv);
-    const edge = 0.055; // outer edges of the two rules (rule frame x)
-    if (Math.abs(l.z) > 0.16) return;
-    for (const ex of [-edge, edge]) {
-      if (Math.abs(l.x - ex) < CONFIG.chartMarks.ruleSnap) {
-        l.x = ex;
-        const y = p.y;
-        p.copy(l.applyMatrix4(rm)).setY(y);
-        return;
-      }
-    }
-  }
-
   private penDown(ctx: ChartToolsContext, tip: THREE.Vector3, straight: boolean): void {
     const c = this.table.tableToChart(tip.x, tip.z);
     const id = `${ctx.playerId}:${Date.now().toString(36)}${++this.strokeN}`;
@@ -206,8 +174,7 @@ export class ChartTools {
     // Light smoothing against tremor and the boat's motion.
     d.tip.lerp(raw, Math.min(1, dt * 25));
     const p = this.tmp.copy(d.tip);
-    this.snapToRule(p);
-    const c = this.table.tableToChart(p.x, p.z);
+    const c =this.table.tableToChart(p.x, p.z);
     const moved = Math.hypot(c.x - d.last.x, c.z - d.last.z);
     d.since += dt;
     if (straight || d.straight) {
@@ -291,7 +258,6 @@ export class ChartTools {
       }
       if (best) {
         this.tools[best].held = h;
-        if (best === 'rule') this.ruleOnChart = false;
         ctx.pulse(h, 0.5, 30);
         used[h] = true;
       }
@@ -309,19 +275,6 @@ export class ChartTools {
     this.root.getWorldQuaternion(this.q).invert();
     const hq = f.quat ? this.q.clone().multiply(f.quat) : new THREE.Quaternion();
     const out = { pencil: 0, rub: 0 };
-    if (name === 'rule') {
-      // Low over the chart it lies flat on it, turned to the hand's heading.
-      const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(hq);
-      const flat = hp.y - plane < 0.12 && this.inChart(hp);
-      if (flat) {
-        const yaw = Math.atan2(-fwd.x, -fwd.z);
-        t.mesh.matrix.compose(new THREE.Vector3(hp.x, plane + 0.001, hp.z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw), new THREE.Vector3(1, 1, 1));
-      } else {
-        t.mesh.matrix.compose(hp, hq, new THREE.Vector3(1, 1, 1));
-      }
-      this.ruleWasFlat = flat;
-      return out;
-    }
     if (name === 'pencil') {
       // Pencil out of the fist, tip ~11 cm ahead of the grip, pointing where the hand points.
       const tip = hp.clone().add(new THREE.Vector3(0, -0.01, -0.11).applyQuaternion(hq));
@@ -377,17 +330,13 @@ export class ChartTools {
     return out;
   }
 
-  private ruleWasFlat = false;
-
   private release(ctx: ChartToolsContext, name: ToolName, h: Holder): void {
     const t = this.tools[name];
     t.held = null;
     if (name === 'pencil' && this.drawing) this.penUp(ctx);
     this.eraseHold = 0;
     this.eraseLast = null;
-    // The rule stays where it lies on the chart; everything else goes home.
-    if (name === 'rule' && this.ruleWasFlat) this.ruleOnChart = true;
-    else t.mesh.matrix.copy(t.home);
+    t.mesh.matrix.copy(t.home);
     if (h && h !== 'desk') ctx.pulse(h, 0.3, 20);
   }
 

@@ -69,14 +69,17 @@ export class WindAudio {
     rsrc.start();
   }
 
-  /** Rain level 0..1 where you are; inside, it drums on the roof instead of hissing. */
-  setRain(rain: number, inside: boolean, sealed = false): void {
+  /**
+   * Rain level 0..1 where you are; inside, it drums on the roof instead of hissing.
+   * `closed`: how shut-in the wheelhouse is, 0 (door and windows open) .. 1 (both shut).
+   */
+  setRain(rain: number, inside: boolean, closed = 0): void {
     const ctx = this.ctx;
     if (!ctx) return;
     const t = ctx.currentTime;
     // Shut in, the drumming on the roof is duller and quieter.
-    this.rain.gain.setTargetAtTime(rain * (inside ? (sealed ? 0.12 : 0.22) : 0.14), t, 0.4);
-    this.rainLp.frequency.setTargetAtTime(inside ? (sealed ? 700 : 1400) : 8000, t, 0.2);
+    this.rain.gain.setTargetAtTime(rain * (inside ? 0.22 - 0.13 * closed : 0.14), t, 0.4);
+    this.rainLp.frequency.setTargetAtTime(inside ? 1400 - 850 * closed : 8000, t, 0.2);
   }
 
   /** Thunder from a flash `dist` m away (call at the flash: it waits for the sound). */
@@ -120,8 +123,9 @@ export class WindAudio {
   /**
    * @param apparent apparent wind speed where you are (m/s)
    * @param inside   inside the wheelhouse (muffled)
+   * @param closed   how shut-in it is, 0 (door and windows open) .. 1 (both shut)
    */
-  update(apparent: number, inside: boolean, dt: number, sealed = false): void {
+  update(apparent: number, inside: boolean, dt: number, closed = 0): void {
     const ctx = this.ctx;
     if (!ctx) return;
     // Gusts: a new random target every couple of seconds, eased toward.
@@ -132,7 +136,7 @@ export class WindAudio {
     }
     this.gust += (this.gustTarget - this.gust) * Math.min(1, dt * 0.8);
     const w = Math.max(0, apparent - 3) * this.gust; // nothing in a light breeze
-    const level = Math.min(1, Math.pow(w / 18, 1.5)) * (inside ? (sealed ? 0.1 : 0.35) : 1);
+    const level = Math.min(1, Math.pow(w / 18, 1.5)) * (inside ? 0.35 - 0.28 * closed : 1);
     const t = ctx.currentTime;
     this.low.gain.setTargetAtTime(level * 0.5, t, 0.3);
     this.high.gain.setTargetAtTime(level * 0.18 * Math.min(1, w / 10), t, 0.3);

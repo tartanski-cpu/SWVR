@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { isPowered } from '../vessel/electrics';
-import { leverDemand } from '../vessel/physics/propulsion';
+import { leverDemand, preheatNeeded } from '../vessel/physics/propulsion';
 import type { WorkboatDef } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
 import { Control } from './Control';
@@ -173,7 +173,7 @@ export class WarningLamps {
     const lit = [
       instr && (!running || (dry && blink)),
       instr && !running,
-      isPowered(s) && e.key > 0 && s.controls.heat > 0 && e.glow < def.engine.preheatTime,
+      isPowered(s) && e.key > 0 && s.controls.heat > 0 && e.glow < preheatNeeded(s, def),
       instr && (neutral || (s.controls.start > 0 && blink)),
       instr && (s.bilge ?? 0) >= (def.bilge?.alarmAt ?? 1) && blink,
     ];

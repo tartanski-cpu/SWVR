@@ -3,12 +3,14 @@
  * No physics - ships follow straight courses at constant speed, debris drifts - and the
  * views sample the waves to bob them.
  *
- *   ships    out of harbour, every `every` s (random) a ship is put on a course that
- *            crosses ahead of the workboat `pass` m off, starting `spawnDist` away, the
- *            whole track checked clear of land. It goes when it's `despawn` m off and
- *            opening. Each has an AIS name (the plotter shows them all, fog or not).
+ *   ships    `maxShips` of them kept about: while fewer, every `every` s (random) one is
+ *            put on a course that crosses ahead of the workboat `pass` m off, starting
+ *            `spawnDist` away, the whole track checked in deep water. It goes when it's
+ *            `despawn` m off and opening. Each has an AIS name (the plotter shows them all,
+ *            fog or not).
  *   sighted  the first time a ship comes within min(sightRange, visibility x sightVis), a
- *            "vessel sighted" log event with its true type and bearing.
+ *            "vessel sighted" log event with its true type and bearing (one at a time: a
+ *            sighting waits while the last is still unlogged).
  *   hazards  floating debris (spawned now and then ahead of the boat, drifting downwind),
  *            the rocks and the hazard buoys (config). Passing within `hazardRange` with it
  *            in sight is a "hazard" log event (once until she's well clear again).
@@ -18,7 +20,7 @@ import { CONFIG } from '../config';
 import type { Intent } from '../core/intents';
 import type { WorldState } from '../core/world';
 import { visibilityAt, windVector } from '../environment/weather';
-import { addLogEvent } from '../log/log';
+import { addLogEvent, pendingEvent } from '../log/log';
 import { isWorkboat, VESSEL_DEFS } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
 import { PORTS } from '../world/archipelago';
@@ -63,7 +65,7 @@ export interface TrafficState {
 }
 
 export function createTraffic(time = 0): TrafficState {
-  return { ships: [], debris: [], seq: 1, nextShipAt: time + 60, nextDebrisAt: time + 120, near: [], hornSeq: 0, hornFrom: null };
+  return { ships: [], debris: [], seq: 1, nextShipAt: time + CONFIG.traffic.firstShip, nextDebrisAt: time + 120, near: [], hornSeq: 0, hornFrom: null };
 }
 
 function hash01(n: number): number {
@@ -159,10 +161,10 @@ export function stepTraffic(world: WorldState, dt: number): void {
   const c = CONFIG.traffic;
   const [bx, , bz] = v.position;
   const away = !inHarbour(bx, bz);
-  // New ships and debris now and then, out of harbour.
+  // Keep maxShips ships about (anywhere their track is in deep water); debris out of harbour.
   if (world.time >= t.nextShipAt) {
     t.nextShipAt = world.time + between(hash01(t.seq + 0.9), c.every);
-    if (away && t.ships.length < c.maxShips) spawnShip(world, t, v);
+    if (t.ships.length < c.maxShips) spawnShip(world, t, v);
   }
   if (world.time >= t.nextDebrisAt) {
     t.nextDebrisAt = world.time + between(hash01(t.seq + 0.95), c.debrisEvery);
@@ -175,7 +177,8 @@ export function stepTraffic(world: WorldState, dt: number): void {
     s.x += Math.sin(s.course) * s.speed * dt;
     s.z -= Math.cos(s.course) * s.speed * dt;
     const d = Math.hypot(s.x - bx, s.z - bz);
-    if (!s.sighted && d < sight) {
+    // Sighted: a log event, unless an earlier sighting is still waiting to be logged.
+    if (!s.sighted && d < sight && !(world.log && pendingEvent(world.log, 'vessel'))) {
       s.sighted = true;
       const brg = bearingTo(bx, bz, s.x, s.z);
       addLogEvent(world, { type: 'vessel', truth: { ship: SHIP_NAMES[s.type] }, bearing: brg });

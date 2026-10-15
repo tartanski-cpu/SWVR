@@ -93,6 +93,18 @@ describe('diesel start procedure', () => {
     expect(b.v.engine.phase).toBe('running');
   });
 
+  it('a warm engine needs much less preheat than a cold one (glow lamp goes out sooner)', async () => {
+    const { preheatNeeded } = await import('../src/vessel/physics/propulsion');
+    const { asWorkboat } = await import('../src/vessel/vesselDef');
+    const { v } = setup();
+    const def = asWorkboat(VESSEL_DEFS.workboat);
+    const cold = preheatNeeded(v, def);
+    expect(cold).toBeCloseTo(def.engine.preheatTime, 5);
+    v.engine.coolantC = 80;
+    expect(preheatNeeded(v, def)).toBeCloseTo(def.engine.preheatHotTime, 5);
+    expect(preheatNeeded(v, def)).toBeLessThan(cold / 3);
+  });
+
   it('key off stops her', () => {
     const { v, send, run } = setup();
     send('quickStart', 1);
