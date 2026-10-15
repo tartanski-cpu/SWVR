@@ -235,7 +235,7 @@ Out of harbour, with no rescue on, a tow call comes over the VHF every few minut
 
 1. **Pick up the handset** to take the job. The tow shows as an orange **TOW** diamond on the chartplotter.
 2. **Come alongside with your stern to her bow.** Our towing post is the black bollard on the aft deck, and her **bow eye** is the orange ring on her stem.
-3. **Make fast:** take the boat hook, then touch the bow eye with its tip (VR) or click the bow eye (desktop). The menu's Boat tab has a **Tow → Make fast** button too. Our stern must be within 16 m of her bow.
+3. **Make fast:** take the boat hook, then touch the bow eye with its tip (VR) or click the bow eye (desktop). The menu's Boat tab has a **Tow → Make fast** button too. Our stern must be within 16 m of her bow. To **cast off**, do the same again with the line fast (hook on the bow eye), or use **Tow → Cast off** on the menu.
 4. **Tow her into any harbour.** The line is 22 m long and stretchy. Take up the slack gently: snatching it at speed (or dragging her over rocks) parts it, and you have to go back and make fast again.
 5. **Slow down inside the port** for a few seconds and the harbour takes her over. The tow counts as a mission and becomes a log event, and she is taken away once you're clear.
 

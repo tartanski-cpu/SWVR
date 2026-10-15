@@ -1236,6 +1236,7 @@ The brief's "no new physics bodies or ropes" rule was flagged; the owner approve
   - Desktop: the hook reaches what's under the reticle up to 9 m, and a click hooks it.
   - The drawn hook telescopes: the pole stretches and the head moves out.
 - **Tests:** the door control; desktop auto-extend hooking a crate 6 m off the side, and not when Fixed.
+- **Fix (owner feedback):** the boat hook on the bow eye now also **casts off** a fast towline. Desktop: click it again; the label says which it will do. VR: each touch toggles once, so take the tip away and touch again. Test: click to make fast, click to cast off.
 
 ## Planned next (owner requests, not started)
 

@@ -252,6 +252,60 @@ describe('recovery: boat hook auto-extend (desktop)', () => {
   });
 });
 
+describe('recovery: boat hook on a tow\'s bow eye (desktop)', () => {
+  it('a click makes the towline fast; another click casts it off', async () => {
+    const { RescueHands } = await import('../src/rescue/rescueHands');
+    const { CargoHands } = await import('../src/cargo/cargoHands');
+    const { bowEyeLocal } = await import('../src/tow/tow');
+    const s = setup('lostCargo');
+    const { world, v, send, run } = s;
+    send('rescueDebugComplete');
+    send('towDebugNear', { ref: 'derelict' });
+    const job = world.tow!.job!;
+    const tow = world.vessels[job.vesselId];
+    // Lay her bow right under our stern rail, within the hook's reach of the aft deck.
+    const stern = vesselToWorld(v, [0, 0, 8.2]);
+    placeVessel(tow, stern.x, 0, stern.z, 0);
+    const root = new THREE.Object3D();
+    root.position.fromArray(v.position);
+    root.quaternion.fromArray(v.orientation);
+    root.updateMatrixWorld();
+    const pending: Intent[] = [];
+    const hands = new RescueHands();
+    const ctx = {
+      world,
+      playerId: 'p',
+      vesselId: v.id,
+      vesselRoot: root,
+      waves: [],
+      cargoHands: new CargoHands(),
+      push: (control: string, ref: string | undefined, value: number, args?: number[]) => pending.push({ playerId: 'p', targetId: v.id, control, value, ref, args }),
+      notify: () => {},
+      pulse: () => {},
+    };
+    const flush = () => stepWorld(world, pending.splice(0), DT);
+    const eye = vesselToWorld(v, [-1.0, 2.4, 3.6]);
+    const pole = vesselToWorld(v, [s.gear.hookStow[0], s.gear.hookStow[1], 3.6]);
+    const toPole = new THREE.Ray(eye.clone(), pole.clone().sub(eye).normalize());
+    hands.desktopClick(ctx, toPole, toPole.direction);
+    flush();
+    const me = vesselToWorld(v, [0, 2.4, 5.2]);
+    const click = () => {
+      const bow = vesselToWorld(tow, bowEyeLocal(VESSEL_DEFS[tow.defId]));
+      const ray = new THREE.Ray(me.clone(), bow.clone().sub(me).normalize());
+      hands.updateDesktop(ctx, ray, me, ray.direction, DT);
+      expect(hands.desktopClick(ctx, ray, ray.direction)).toBe(true);
+      flush();
+    };
+    click();
+    expect(job.fast).toBe(true);
+    run(1.1);
+    (hands as unknown as { clock: number }).clock += 1.1; // once a second at most (the frame loop's clock)
+    click();
+    expect(job.fast).toBe(false);
+  });
+});
+
 describe('recovery: boat hook laid down', () => {
   it('can be laid on deck and taken from there; over the side it goes back in its clips', () => {
     const s = setup('lostCargo');
