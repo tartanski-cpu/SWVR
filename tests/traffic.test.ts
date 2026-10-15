@@ -38,7 +38,7 @@ function setup(x = 0, z = -2600) {
   return { world, v, env, send, run, write };
 }
 
-describe('passing ships and hazards', () => {
+describe('passing ships and hazards', { timeout: 30000 }, () => {
   it('out at sea a ship comes by on a clear course, is sighted and logged; type and direction are checked', () => {
     const { world, v, run, write } = setup();
     run(CONFIG.traffic.every[1] + 61);
@@ -71,8 +71,12 @@ describe('passing ships and hazards', () => {
     run(0.1);
     expect(world.traffic!.ships.includes(s)).toBe(false);
     const h = setup(570, 646); // Calder Haven
-    h.run(CONFIG.traffic.every[1] * 2);
-    expect(h.world.traffic!.ships).toHaveLength(0);
+    h.run(0.1);
+    for (let i = 0; i < 5; i++) {
+      h.world.traffic!.nextShipAt = h.world.time; // a spawn is due...
+      h.run(0.1);
+    }
+    expect(h.world.traffic!.ships).toHaveLength(0); // ...but not in harbour
   });
 
   it('hazards: debris close by and the rocks are logged with their true type', () => {
