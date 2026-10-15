@@ -93,6 +93,19 @@ describe("ship's log", () => {
     expect(world.log!.draft).toBeNull();
   });
 
+  it('signing an entry clears every waiting event of its type (its "due" mark goes at once)', () => {
+    const { world, send } = setup();
+    world.log = createLog();
+    world.log.started = true;
+    for (let i = 0; i < 3; i++) world.log.events.push({ id: 100 + i, type: 'hazard', at: world.time, logged: false, truth: { hazard: 'Debris' } });
+    world.log.events.push({ id: 200, type: 'weather', at: world.time, logged: false });
+    send('logBegin', undefined, [LOG_TYPES.indexOf('hazard')]);
+    send('logPick', 'hazard', [0]);
+    send('logSign');
+    expect(world.log.events.map((e) => e.type)).toEqual(['weather']);
+    expect(world.log.voyages[0].entries[0].fields[0]).toMatchObject({ key: 'hazard', value: 'Debris', correct: true });
+  });
+
   it('unlogged events drop off after a while', () => {
     const { world, v, run } = setup();
     run(0.1);

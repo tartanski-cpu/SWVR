@@ -136,6 +136,12 @@ export class LogbookView {
     return { x, y, point: this.hitP.applyMatrix4(this.root.matrixWorld) };
   }
 
+  /** How far along this ray the pages are (m), or null if it misses them (VR: the nearer of book and whiteboard wins). */
+  rayDistance(ray: THREE.Ray): number | null {
+    const hit = this.hit(ray);
+    return hit ? hit.point.distanceTo(ray.origin) : null;
+  }
+
   private regionAt(x: number, y: number): Region | null {
     return this.regions.find((r) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h) ?? null;
   }
@@ -165,8 +171,10 @@ export class LogbookView {
     this.root.getWorldQuaternion(this.bq).invert();
     const q = f.quat ? this.bq.multiply(f.quat) : this.bq.identity();
     const tip = grip.add(new THREE.Vector3(0, -0.01, -0.1).applyQuaternion(q));
+    // On the paper: from just above it to well through it (pushing a virtual pen into a
+    // page you can't feel easily overshoots by several centimetres).
     const above = tip.z - this.pageZ;
-    if (above < 0.006 && above > -0.04) {
+    if (above < 0.008 && above > -0.15) {
       tip.z = this.pageZ + 0.0008; // the tip rests on the paper
       const r = this.regionAt((tip.x / this.w + 0.5) * CW, (0.5 - tip.y / this.h) * this.ch);
       if (r && r.label !== this.penTouched) {
@@ -190,12 +198,12 @@ export class LogbookView {
     if (this.penHand) {
       used[this.penHand] = true;
       this.holdPen(ctx, hands[this.penHand], this.penHand);
-      return used;
+      if (!this.penHand) return used; // just put it down
     }
     // Pick the pen up: grip close to it.
     for (const hd of ['right', 'left'] as const) {
       const f = hands[hd];
-      if (!f.tracked || busy[hd] || !f.gripPressed || this.penAnim >= 0) continue;
+      if (this.penHand || !f.tracked || busy[hd] || !f.gripPressed || this.penAnim >= 0) continue;
       if (this.hitP.copy(f.grip).applyMatrix4(this.inv).distanceTo(this.pen.position) < 0.09) {
         this.penHand = hd;
         used[hd] = true;
@@ -205,7 +213,7 @@ export class LogbookView {
     }
     for (const hd of ['right', 'left'] as const) {
       const f = hands[hd];
-      if (!f.tracked || busy[hd]) continue;
+      if (!f.tracked || busy[hd] || hd === this.penHand) continue;
       const hit = this.hit(f.ray);
       if (!hit) continue;
       used[hd] = true;

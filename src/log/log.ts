@@ -316,7 +316,10 @@ function sign(world: WorldState, log: LogState, d: LogDraft, name: string): void
     voyage.closed = true;
   }
   voyage.entries.push(entry);
-  if (ev) ev.logged = true;
+  // One entry answers everything of its type that's waiting (its "due" mark goes).
+  for (const e of log.events) if (e.type === d.type) e.logged = true;
+  // Logged events go now, not at the next tick.
+  log.events = log.events.filter((e) => !e.logged);
 }
 
 /**

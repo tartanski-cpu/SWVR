@@ -175,7 +175,7 @@ The chart table stands along the port wall, behind the helm. On it:
   | Weather forecast | a VHF forecast is received | nothing: the forecast is copied in, just sign |
   | Rescue | a rescue is completed | nothing: the summary is filled in, just sign |
 
-  The log is **optional**: these show as "(due)" in the logbook, but never go on the duty board. Unlogged ones drop off after 10 minutes.
+  The log is **optional**: these show as "(due)" in the logbook, but never go on the duty board. One entry clears every waiting event of its type. Ship sightings come at most every 5 minutes, and unlogged events drop off after 5 minutes.
 - **One writer at a time:** while a crewmate writes an entry, the page says so. If they leave it for 90 s, you can take it over.
 - **At night** you need the chart table lamp to read or write.
 

@@ -1716,7 +1716,15 @@ export class App {
       this.rescueHands.updateXR(this.rescueCtx(), this.hands, this.busyHands, this.frameDt);
       for (const h of ['left', 'right'] as const) if (this.rescueHands.busy(h)) this.busyHands[h] = true;
       if (this.board && !this.noteKeys.isOpen) {
-        const onBoard = this.board.updateXR(this.boardCtx(), this.hands, this.busyHands);
+        // The logbook lies right by the whiteboard: a ray on the book can carry on into the
+        // board behind it. The nearer of the two along the ray gets that hand.
+        const boardBusy = { ...this.busyHands };
+        for (const h of ['left', 'right'] as const) {
+          const lb = this.logbook?.rayDistance(this.hands[h].ray) ?? null;
+          const bd = this.board.rayDistance(this.hands[h].ray);
+          if (lb !== null && (bd === null || lb < bd)) boardBusy[h] = true;
+        }
+        const onBoard = this.board.updateXR(this.boardCtx(), this.hands, boardBusy);
         for (const h of ['left', 'right'] as const) if (onBoard[h]) this.busyHands[h] = true;
       } else if (this.board) this.board.rayLine.visible = false;
       if (this.logbook) {

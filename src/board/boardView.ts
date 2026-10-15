@@ -98,6 +98,12 @@ export class BoardView {
     return { x: p.x / this.w + 0.5, y: 0.5 - p.y / this.h, point: this.hitP.applyMatrix4(this.root.matrixWorld) };
   }
 
+  /** How far along this ray the board is (m), if it hits inside it, else null. */
+  rayDistance(ray: THREE.Ray): number | null {
+    const hit = this.hit(ray);
+    return hit && BoardView.inside(hit.x, hit.y) ? hit.point.distanceTo(ray.origin) : null;
+  }
+
   private noteAt(world: WorldState, x: number, y: number): Note | null {
     const notes = world.board?.notes ?? [];
     const hw = NOTE / 2;

@@ -1294,6 +1294,8 @@ export const CONFIG = {
     despawn: 3600,
     sightRange: 2500,
     sightVis: 1.1,
+    /** Shortest gap between two ship sightings put in the log (s). */
+    sightEvery: 300,
     hornRange: 3000,
     ships: {
       cargo: { length: 82, beam: 13, speed: 6.5, names: ['Hebridean Trader', 'Lorne Carrier', 'Skerry Star'] },
@@ -1346,7 +1348,7 @@ export const CONFIG = {
     showOnPlotter: true,
   },
 
-  log: { keepVoyages: 5, eventLinger: 600, draftIdle: 90, readLight: 0.35, harbourRadius: 300 },
+  log: { keepVoyages: 5, eventLinger: 300, draftIdle: 90, readLight: 0.35, harbourRadius: 300 },
 
   duties: {
     /** A finished duty stays up, ticked, this long (s), then drops off. */

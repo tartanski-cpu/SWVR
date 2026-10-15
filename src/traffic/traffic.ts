@@ -10,7 +10,8 @@
  *            fog or not).
  *   sighted  the first time a ship comes within min(sightRange, visibility x sightVis), a
  *            "vessel sighted" log event with its true type and bearing (one at a time: a
- *            sighting waits while the last is still unlogged).
+ *            sighting waits while the last is still unlogged,
+ *            and they're spaced `sightEvery` s so the log isn't a chore).
  *   hazards  floating debris (spawned now and then ahead of the boat, drifting downwind),
  *            the rocks and the hazard buoys (config). Passing within `hazardRange` with it
  *            in sight is a "hazard" log event (once until she's well clear again).
@@ -62,6 +63,8 @@ export interface TrafficState {
   /** Counts fog-signal answers (views play a horn when it changes; see hornFrom). */
   hornSeq: number;
   hornFrom: string | null;
+  /** World time of the last sighting put in the log (s): sightings are spaced `sightEvery`. */
+  sightAt?: number;
 }
 
 export function createTraffic(time = 0): TrafficState {
@@ -178,8 +181,10 @@ export function stepTraffic(world: WorldState, dt: number): void {
     s.z -= Math.cos(s.course) * s.speed * dt;
     const d = Math.hypot(s.x - bx, s.z - bz);
     // Sighted: a log event, unless an earlier sighting is still waiting to be logged.
-    if (!s.sighted && d < sight && !(world.log && pendingEvent(world.log, 'vessel'))) {
+    const spaced = world.time - (t.sightAt ?? -Infinity) >= c.sightEvery;
+    if (!s.sighted && d < sight && spaced && !(world.log && pendingEvent(world.log, 'vessel'))) {
       s.sighted = true;
+      t.sightAt = world.time;
       const brg = bearingTo(bx, bz, s.x, s.z);
       addLogEvent(world, { type: 'vessel', truth: { ship: SHIP_NAMES[s.type] }, bearing: brg });
     }
@@ -209,7 +214,8 @@ export function stepTraffic(world: WorldState, dt: number): void {
     const was = t.near.includes(h.id);
     if (!was && away && d < Math.min(c.hazardRange, vis)) {
       t.near.push(h.id);
-      addLogEvent(world, { type: 'hazard', truth: { hazard: h.word } });
+      // One hazard waiting in the log at a time.
+      if (!(world.log && pendingEvent(world.log, 'hazard'))) addLogEvent(world, { type: 'hazard', truth: { hazard: h.word } });
     } else if (was && d > c.hazardRange * 2.5) t.near = t.near.filter((id) => id !== h.id);
   }
 }

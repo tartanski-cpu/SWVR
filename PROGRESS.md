@@ -1314,6 +1314,16 @@ The brief's "no new particle effects" rule was flagged: the fire is drawn withou
 - **Tests (4):** the jet only with pump and engine, an arc ahead that's shorter lower and to starboard with pan; a boat fire grows unattended, then the aimed jet puts it out (counted, logged, duty done, wreck removed); calls, handset and timeout; a shore fire is on dry land with deep water within reach.
 - The engine-temperature suite (14 simulated minutes) gets a 30 s limit like the other long-simulation suites.
 
+## Logbook fixes (owner feedback after fire missions)
+
+- **VR: couldn't tick a log entry.** The whiteboard hangs right beside the book, and its bottom edge comes down past the table. The board was checked first and took the hand whenever the ray, carried on, met its rectangle. Now the nearer of the two takes the hand (`rayDistance` on both, arbitrated in `App`).
+  - The pen's press zone runs 15 cm into the page (it was a thin band), and the other hand's laser still works while one hand holds the pen.
+- **Desktop: the "(due)" marks didn't go.** Signing worked, but with four AI ships about, the next sighting queued the moment one was logged, and hazards stacked one per rock or buoy passed. Now:
+  - one signed entry clears everything of its type that's waiting, at once;
+  - ship sightings are spaced at least `traffic.sightEvery` (300 s), and only one hazard waits at a time;
+  - unlogged events drop off after 5 minutes (`log.eventLinger`, was 10).
+- **Tests (1):** signing a hazard entry clears all three waiting hazards and leaves the weather change.
+
 ## Planned next (owner requests, not started)
 
 1. ~~Fuel and oil temperature~~ **Done** (see above).
