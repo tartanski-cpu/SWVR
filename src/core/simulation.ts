@@ -18,6 +18,7 @@ import { applyLogIntent, isLogIntent, stepLog } from '../log/log';
 import { applyTrafficIntent, stepTraffic } from '../traffic/traffic';
 import { stepDuties } from '../duties/duties';
 import { applyDavitIntent, onDavit, stepTender } from '../vessel/davit';
+import { applyTowIntent, isTowIntent, stepTow, towlineForces } from '../tow/tow';
 import { ENVIRONMENT_ID, type EntityId } from './ids';
 import type { Intent } from './intents';
 import type { WorldState } from './world';
@@ -40,6 +41,8 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
       applyBoardIntent(world, intent);
     } else if (isRescueIntent(intent.control)) {
       applyRescueIntent(world, intent);
+    } else if (isTowIntent(intent.control)) {
+      applyTowIntent(world, intent);
     } else if (intent.control === 'davit') {
       applyDavitIntent(world, intent);
     } else if (isLogIntent(intent.control)) {
@@ -64,6 +67,8 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
   // Boat against boat (the tender alongside), from the start-of-tick states.
   // A tender hanging on the davit rides her ship instead (stepped below, after it).
   const touching = vesselContacts(Object.values(world.vessels), (v) => VESSEL_DEFS[v.defId], onDavit);
+  // The towline (towing missions): its pull on us and on the tow.
+  for (const [id, f] of towlineForces(world)) touching.set(id, [...(touching.get(id) ?? []), ...f]);
   for (const vessel of Object.values(world.vessels)) {
     if (onDavit(vessel)) continue;
     let dbg: HydroDebug | undefined;
@@ -91,6 +96,7 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
   stepTraffic(world, dt);
   stepDuties(world);
   stepRescue(world, dt, simWaves);
+  stepTow(world, dt);
   world.tick += 1;
   world.time = world.tick * dt;
 }

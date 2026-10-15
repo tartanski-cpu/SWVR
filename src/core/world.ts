@@ -15,6 +15,7 @@ import type { LogState } from '../log/log';
 import type { TrafficState } from '../traffic/traffic';
 import type { DutiesState } from '../duties/duties';
 import { createRescueState, type RescueState } from '../rescue/rescue';
+import { createTowState, type TowState } from '../tow/tow';
 
 /**
  * The complete simulation state. Plain, JSON-serializable data only: no class
@@ -54,6 +55,8 @@ export interface WorldState {
   log?: LogState;
   /** Passing ships, floating debris (traffic/traffic.ts). */
   traffic?: TrafficState;
+  /** Towing missions: the tow job and its towline (tow/tow.ts). */
+  tow?: TowState;
 }
 
 export function createWorld(
@@ -61,7 +64,8 @@ export function createWorld(
   vesselDefId: string = CONFIG.testScene.vesselDefId,
   /** Also give the workboat her tender (the skiff, on the stern davit): the game does, tests may. */
   /** cold: the boat starts dark and cold, battery master off (the game; tests start warm). */
-  opts: { tender?: boolean; cold?: boolean; weather?: boolean } = {},
+  /** tows: towing calls come by themselves (the game). */
+  opts: { tender?: boolean; cold?: boolean; weather?: boolean; tows?: boolean } = {},
 ): { world: WorldState; localPlayerId: EntityId; vesselId: EntityId } {
   const localPlayerId = ids.next('player');
   const vesselId = ids.next('vessel');
@@ -83,6 +87,8 @@ export function createWorld(
     cargoSeq: 0,
     deliveries: 0,
     rescue: createRescueState(),
+    // Towing missions: calls come by themselves in the game (tests raise them by intent).
+    tow: createTowState(!!opts.tows),
   };
   // Dynamic weather (the game): starting preset, the sea matching its wind.
   if (opts.weather) {

@@ -139,9 +139,16 @@ export class ChartPlotter {
     let fx: number;
     let fz: number;
     let label: string;
+    // A tow job: the tow, until it's on the line (then the harbour we're making for).
+    const job = world.tow?.job;
+    const towS = job && job.phase === 'accepted' ? world.vessels[job.vesselId] : undefined;
+    const tow = towS && !CONFIG.rescue.plotYourself ? towS : undefined;
     if (inc) {
       [fx, fz] = [inc.x, inc.z];
       label = 'SEARCH';
+    } else if (tow && !job?.fast) {
+      [fx, fz] = [tow.position[0], tow.position[2]];
+      label = 'TOW';
     } else if (dest && !cargoPaused(world)) {
       [fx, fz] = [dest.x, dest.z];
       label = dest.name.replace(' (anchorage)', '');
@@ -222,6 +229,21 @@ export class ChartPlotter {
           g.fillRect(tx - 3, ty - 3, 6, 6);
         }
       }
+    }
+
+    // The tow: an orange diamond.
+    if (tow) {
+      const [tx, ty] = toPx(tow.position[0], tow.position[2]);
+      g.fillStyle = '#ff9a3a';
+      g.beginPath();
+      g.moveTo(tx, ty - 9);
+      g.lineTo(tx + 7, ty);
+      g.lineTo(tx, ty + 9);
+      g.lineTo(tx - 7, ty);
+      g.closePath();
+      g.fill();
+      g.font = 'bold 16px system-ui, sans-serif';
+      g.fillText('TOW', tx + 11, ty - 10);
     }
 
     // AIS targets: passing ships as triangles along their course, with a 6-minute course

@@ -4,6 +4,14 @@
  */
 export type WeatherPresetName = 'Clear' | 'Overcast' | 'Fog' | 'Rain' | 'Squall';
 
+// Towable hulls (CONFIG.vessels.derelict / logRaft / barge): displacement at the DWL (kg) and LCB (m aft).
+const DERELICT_MASS = 2750;
+const DERELICT_LCB = 1.29;
+const LOGRAFT_MASS = 6400;
+const LOGRAFT_LCB = 1.0;
+const BARGE_MASS = 10500;
+const BARGE_LCB = 1.39;
+
 export const CONFIG = {
   sim: {
     /** Fixed simulation rate (Hz). Physics and intents are processed on this tick only. */
@@ -896,6 +904,59 @@ export const CONFIG = {
       /** Starts floating off the workboat's starboard side (she starts heading east at z -22). */
       spawn: { x: 0, z: -15, dropHeight: 0.3, headingDeg: 90 },
     },
+
+    /**
+     * Things to tow (towing missions, tow/tow.ts): no engine, no controls, the same boat
+     * physics as everything else. Masses are what their hulls displace at the DWL and the
+     * CG is over the LCB, so they float level (tests/tow.test.ts checks). Angular damping
+     * is scaled from the workboat's and the skiff's by mass x size^2.
+     * `tow.look` picks the model drawn over the hull (tow/towLook.ts).
+     */
+    derelict: {
+      tow: { look: 'derelict' as const, name: 'a motor cruiser with engine failure' },
+      hull: { length: 7, beamDeck: 2.5, beamChine: 2.1, keelY: -0.45, chineYAft: -0.15, chineYBow: 0.15, deckYAft: 0.7, deckYBow: 1.0, stations: 11, deckParallel: 0.5 },
+      mass: DERELICT_MASS,
+      cg: [0, 0.25, DERELICT_LCB] as [number, number, number],
+      gyradius: { roll: 0.9, pitch: 1.8, yaw: 1.9 },
+      addedMass: { surge: 0.05, sway: 0.4, heave: 0.6, roll: 0.25, pitch: 0.6, yaw: 0.3 },
+      damping: { vertical: 800, verticalCd: 1.5, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 20, roll: 2000, pitch: 2500, yaw: 2500 },
+      resistance: { lwl: 6.5, formFactor: 0.25, waveA: 1.5, waveB: 1.2, waveKnee: 0.28, waveCap: 0.15, asternFactor: 2.0, y: -0.2 },
+      layout: { bulwarkHeight: 0.25, railHeight: 0, deckEdgeMargin: 0.15, bodyRadius: 0.22 },
+      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true, lashPoints: [] as [number, number][], lashRange: 0.8 },
+      windage: { side: 9, front: 4, center: [0, 1.1, 0] as [number, number, number] },
+      boardingSpot: [0, 0.75, 2] as [number, number, number],
+      spawn: { x: 0, z: 0, dropHeight: 0.2, headingDeg: 0 },
+    },
+    logRaft: {
+      tow: { look: 'logs' as const, name: 'a raft of logs broken loose from a timber tow' },
+      hull: { length: 8, beamDeck: 3.0, beamChine: 2.9, keelY: -0.45, chineYAft: -0.3, chineYBow: -0.15, deckYAft: 0.2, deckYBow: 0.3, stations: 11, deckParallel: 0.85 },
+      mass: LOGRAFT_MASS,
+      cg: [0, -0.1, LOGRAFT_LCB] as [number, number, number],
+      gyradius: { roll: 1.0, pitch: 2.2, yaw: 2.3 },
+      addedMass: { surge: 0.05, sway: 0.4, heave: 0.6, roll: 0.25, pitch: 0.6, yaw: 0.3 },
+      damping: { vertical: 800, verticalCd: 1.5, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 20, roll: 7000, pitch: 7000, yaw: 7000 },
+      resistance: { lwl: 7.8, formFactor: 0.8, waveA: 4, waveB: 3, waveKnee: 0.2, waveCap: 0.3, asternFactor: 1.5, y: -0.2 },
+      layout: { bulwarkHeight: 0, railHeight: 0, deckEdgeMargin: 0.15, bodyRadius: 0.22 },
+      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true, lashPoints: [] as [number, number][], lashRange: 0.8 },
+      windage: { side: 2, front: 1.2, center: [0, 0.3, 0] as [number, number, number] },
+      boardingSpot: [0, 0.3, 1] as [number, number, number],
+      spawn: { x: 0, z: 0, dropHeight: 0.2, headingDeg: 0 },
+    },
+    barge: {
+      tow: { look: 'barge' as const, name: 'a work barge adrift from her moorings' },
+      hull: { length: 9, beamDeck: 3.6, beamChine: 3.4, keelY: -0.55, chineYAft: -0.45, chineYBow: -0.15, deckYAft: 0.5, deckYBow: 0.6, stations: 11, deckParallel: 0.85 },
+      mass: BARGE_MASS,
+      cg: [0, 0.1, BARGE_LCB] as [number, number, number],
+      gyradius: { roll: 1.2, pitch: 2.5, yaw: 2.6 },
+      addedMass: { surge: 0.05, sway: 0.4, heave: 0.6, roll: 0.25, pitch: 0.6, yaw: 0.3 },
+      damping: { vertical: 800, verticalCd: 1.5, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 20, roll: 10000, pitch: 10000, yaw: 10000 },
+      resistance: { lwl: 8.7, formFactor: 0.6, waveA: 3, waveB: 2.5, waveKnee: 0.22, waveCap: 0.25, asternFactor: 1.5, y: -0.25 },
+      layout: { bulwarkHeight: 0.1, railHeight: 0, deckEdgeMargin: 0.15, bodyRadius: 0.22 },
+      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true, lashPoints: [] as [number, number][], lashRange: 0.8 },
+      windage: { side: 5, front: 3, center: [0, 0.8, 0] as [number, number, number] },
+      boardingSpot: [0, 0.55, 1] as [number, number, number],
+      spawn: { x: 0, z: 0, dropHeight: 0.2, headingDeg: 0 },
+    },
   },
 
   /**
@@ -919,6 +980,56 @@ export const CONFIG = {
     breakDist: 8,
     /** Lines come taut over this long when docking (s). */
     warpTime: 4,
+  },
+
+  /**
+   * Towing missions (tow/tow.ts). Out of harbour with nothing else on, every so often a
+   * call comes: something adrift (a broken-down motor cruiser, a raft of logs, a work
+   * barge) to bring into any port. Pick up the handset to take the job; hook its bow eye
+   * with the boat hook (or the menu's Tow row) to make the towline fast to our towing post.
+   *
+   * The towline is one straight spring-damper between the towing post on our stern and
+   * the tow's bow eye. It only pulls when taut (stretched past `lineLength`):
+   *   T = k * stretch + c * (rate of stretch),  never negative (a rope can't push),
+   * on the tow toward our stern and on us toward the tow, at those two points. c is set
+   * for `dampingRatio` of critical on the two masses (so a heavy barge isn't springier
+   * than a light cruiser). Snatching it (or dragging a tow over the rocks) above
+   * `breakForce`, or stretching it past `maxStretch`, parts it.
+   */
+  tow: {
+    /** Seconds between calls while she's out of harbour and free (first one too). */
+    every: [240, 540] as [number, number],
+    /** Relative odds of each kind (def ids). */
+    weights: { derelict: 1, logRaft: 1, barge: 0.7 } as Record<string, number>,
+    /** Where it's adrift: this far ahead (m), this far off to one side (m), in open water. */
+    ahead: [450, 850] as [number, number],
+    offset: [80, 260] as [number, number],
+    minDepth: 6,
+    minPortDistance: 400,
+    /** An unanswered call goes away after this long (s); the alert repeats this often (s). */
+    callTimeout: 120,
+    callRepeat: 10,
+    /** Towline: length (m), and the most the bow eye may be from our towing post to make it fast (m). */
+    lineLength: 22,
+    attachRange: 16,
+    /** Line stiffness (N/m) and damping as a fraction of critical. */
+    stiffness: 6000,
+    dampingRatio: 0.5,
+    /** It parts above this tension (N) or this stretch (m). */
+    breakForce: 40000,
+    maxStretch: 12,
+    /** Delivered: the tow within this of a port (m), slower than this (m/s), for this long (s). */
+    deliverRadius: 170,
+    deliverSpeed: 0.8,
+    deliverTime: 5,
+    /** A delivered tow stays put until we are this far away (m), or this long has passed (s). */
+    removeRange: 120,
+    removeAfter: 300,
+    /** Towing post on our stern: height above the deck (m) and in from the transom (m). */
+    postHeight: 0.6,
+    postInset: 0.4,
+    /** Debug "tow job alongside": this far astern of us (m). */
+    debugDistance: 12,
   },
 
   /** Port lighting: the shared floodlight for the nearest port at night. */

@@ -57,6 +57,14 @@ export interface VesselConfig {
   chartTable?: Workboat['chartTable'];
   fenders?: Workboat['fenders'];
   maintenance?: Workboat['maintenance'];
+  /** Something to tow (towing missions): its look and what the radio calls it. */
+  tow?: TowLook;
+}
+
+/** A towable hull: the model drawn over it (tow/towLook.ts) and what the radio calls it. */
+export interface TowLook {
+  look: 'derelict' | 'logs' | 'barge';
+  name: string;
 }
 
 /**
@@ -119,6 +127,8 @@ export interface VesselDef {
   /** Fenders and engine oil (optional: not part of WorkboatDef). */
   fenders?: VesselConfig['fenders'];
   maintenance?: VesselConfig['maintenance'];
+  /** Towable (towing missions; optional: not part of WorkboatDef). */
+  tow?: TowLook;
 }
 
 type Equipment = 'engine' | 'propeller' | 'rudder' | 'bridge' | 'navLights' | 'exhaust' | 'anchor' | 'rescueGear' | 'cabinLight' | 'overheadPanel' | 'whiteboard' | 'deckLights' | 'spotlight' | 'mooring';
@@ -207,6 +217,7 @@ export function fromConfig(id: string, c: VesselConfig): VesselDef {
     chartTable: c.chartTable,
     fenders: c.fenders,
     maintenance: c.maintenance,
+    tow: c.tow,
   };
 }
 
@@ -214,4 +225,10 @@ export function fromConfig(id: string, c: VesselConfig): VesselDef {
 export const VESSEL_DEFS: Record<string, VesselDef> = {
   workboat: fromConfig('workboat', CONFIG.vessels.workboat),
   skiff: fromConfig('skiff', CONFIG.vessels.skiff),
+  derelict: fromConfig('derelict', CONFIG.vessels.derelict),
+  logRaft: fromConfig('logRaft', CONFIG.vessels.logRaft),
+  barge: fromConfig('barge', CONFIG.vessels.barge),
 };
+
+/** The towable kinds (towing missions), by def id. */
+export const TOW_DEFS = ['derelict', 'logRaft', 'barge'] as const;

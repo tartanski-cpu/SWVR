@@ -1,3 +1,4 @@
+import { buildTowModel } from '../../tow/towLook';
 import * as THREE from 'three';
 import type { VesselDef } from '../vesselDef';
 import type { VesselState } from '../vesselState';
@@ -27,7 +28,8 @@ export class VesselView {
     def: VesselDef,
   ) {
     this.root.name = `vessel:${vesselId}`;
-    this.root.add(buildVesselMesh(def.hull, def.layout, def.exhaust?.position));
+    // A towable hull (towing missions) has its own model: a cruiser, logs, a barge.
+    this.root.add(def.tow ? buildTowModel(def) : buildVesselMesh(def.hull, def.layout, def.exhaust?.position));
   }
 
   snapshot(state: VesselState): void {

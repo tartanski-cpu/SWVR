@@ -99,6 +99,14 @@ export interface MenuHost {
   /** Debug: a survivor sitting aboard, to try landing. Rescues completed so far. */
   rescueAboard(): void;
   rescues(): number;
+  /** Towing missions: one-line status (or null), make fast / cast off, tows delivered; debug. */
+  towStatus(): string | null;
+  towFast(): boolean;
+  towToggle(): void;
+  towsDelivered(): number;
+  towNear(kind: string): void;
+  towCall(): void;
+  towEnd(): void;
   showTargets(): boolean;
   toggleShowTargets(): void;
   /** Move the boat (and you, aboard) to port i's berth or anchorage. */
@@ -244,6 +252,13 @@ export function mainMenu(h: MenuHost): MainMenu {
       ],
     },
     {
+      label: 'Tow',
+      buttons: [
+        { text: () => h.towStatus() ?? 'No tow job', weight: 2.4 },
+        { text: () => (h.towFast() ? 'Cast off' : 'Make fast'), active: () => h.towFast(), press: () => h.towToggle() },
+      ],
+    },
+    {
       label: 'Docking',
       buttons: [
         { text: () => h.dockStatus().text, weight: 2.4 },
@@ -279,7 +294,7 @@ export function mainMenu(h: MenuHost): MainMenu {
       ],
     },
     { label: '', buttons: [{ text: () => h.runStatus() }] },
-    { label: 'Rescues', buttons: [{ text: () => `${h.rescues()} completed` }] },
+    { label: 'Missions', buttons: [{ text: () => `${h.rescues()} completed (${h.towsDelivered()} tows)` }] },
     { label: '', buttons: [{ text: 'Carry by hand: grip (VR) / click. Lash: trigger / Q' }] },
     { heading: 'Aboard' },
     ...[0, 1, 2, 3, 4].map(aboardRow),
@@ -411,6 +426,16 @@ export function mainMenu(h: MenuHost): MainMenu {
         { text: 'Crates', press: () => h.rescueNear('lostCargo') },
         { text: 'On chart', active: () => h.showTargets(), press: () => h.toggleShowTargets() },
         { text: 'Aboard', press: () => h.rescueAboard() },
+      ],
+    },
+    {
+      label: 'Tow',
+      buttons: [
+        { text: 'Cruiser', press: () => h.towNear('derelict') },
+        { text: 'Logs', press: () => h.towNear('logRaft') },
+        { text: 'Barge', press: () => h.towNear('barge') },
+        { text: 'Call', press: () => h.towCall() },
+        { text: 'End', press: () => h.towEnd() },
       ],
     },
     { heading: 'Debug views' },

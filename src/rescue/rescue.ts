@@ -34,6 +34,7 @@ import { groundHeight } from '../world/terrain';
 import { RESCUE_DEFS, type RescueDef } from './rescueDefs';
 import type { Vec3 } from '../core/math';
 import type { PreparedWave } from '../ocean/waves';
+import { acceptTowCall, towStatus } from '../tow/tow';
 import { applyRecoveryIntent, freeSeat, stepRecovery, type HookState, type RingState, type Shout } from './recovery';
 
 export interface RadioMessage {
@@ -174,6 +175,11 @@ export function cargoPaused(world: WorldState): boolean {
 
 function say(r: RescueState, kind: RadioMessage['kind'], text: string, t: number): void {
   r.radio = { id: ++r.msgSeq, kind, text, t };
+}
+
+/** A radio message from outside the rescues (the towing missions share the VHF). */
+export function sayRadio(world: WorldState, kind: RadioMessage['kind'], text: string): void {
+  say((world.rescue ??= createRescueState()), kind, text, world.time);
 }
 
 function bearingDeg(fromX: number, fromZ: number, toX: number, toZ: number): number {
@@ -377,7 +383,8 @@ export function stepRescue(world: WorldState, dt: number, waves: readonly Prepar
       r.run = { from, to: dest, triggerAt: call ? route * between(r, cfg.triggerFraction) : null };
     }
     const run = r.run;
-    if (run && run.triggerAt !== null && !r.active) {
+    // A tow job on: the call waits until it's over.
+    if (run && run.triggerAt !== null && !r.active && !world.tow?.job) {
       const a = portById(run.from)!;
       if (Math.hypot(x - a.x, z - a.z) >= run.triggerAt) {
         run.triggerAt = null; // one call per run
@@ -434,6 +441,8 @@ export function applyRescueIntent(world: WorldState, intent: Intent): void {
   if (applyRecoveryIntent(world, v, intent)) return;
   switch (intent.control) {
     case 'rescueHandset': {
+      // A ringing tow call is answered the same way.
+      if (intent.value > 0.5 && acceptTowCall(world)) break;
       const inc = r.active;
       // The VHF needs 12 V: with the bridge dark the call just rings out unheard.
       if (intent.value > 0.5 && inc?.phase === 'calling' && (!v || isPowered(v, 'radio'))) {
@@ -492,6 +501,8 @@ export function runStatus(world: WorldState): string {
   const runTo = short(r?.run?.to);
   const aboardTo = v ? short(cargoDestination(world, v.id)) : undefined;
   if (inc?.phase === 'calling') return 'Distress call: pick up the handset';
+  const tow = !inc ? towStatus(world) : null;
+  if (tow) return tow;
   if (inc?.phase === 'accepted') return runTo || aboardTo ? `Cargo for ${runTo ?? aboardTo}: paused (rescue)` : 'Rescue under way';
   if (inc?.phase === 'recovered') {
     const people = inc.targets.filter((t) => t.kind === 'person' && t.phase !== 'ashore').length;

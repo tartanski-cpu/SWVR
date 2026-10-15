@@ -78,7 +78,8 @@ export class RadioSet {
    * @param r      rescue state (latest message, active incident)
    * @param status one line about the cargo run / rescue, for the bottom of the screen
    */
-  update(r: RescueState | undefined, status: string, dt: number, powered = true): void {
+  /** `towCalling`: a tow call is ringing (towing missions share the VHF). */
+  update(r: RescueState | undefined, status: string, dt: number, powered = true, towCalling = false): void {
     if (!powered) {
       // No 12 V: dark screen, no lamp (drawn once).
       (this.lamp.material as THREE.MeshBasicMaterial).color.setHex(0x200808);
@@ -90,7 +91,8 @@ export class RadioSet {
       }
       return;
     }
-    const calling = r?.active?.phase === 'calling';
+    // A distress call or a tow call ringing.
+    const calling = r?.active?.phase === 'calling' || towCalling;
     this.flash += dt;
     const on = calling && this.flash % 0.8 < 0.4;
     (this.lamp.material as THREE.MeshBasicMaterial).color.setHex(on ? 0xff2a1a : calling ? 0x601010 : 0x401010);

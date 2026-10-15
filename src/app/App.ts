@@ -67,6 +67,8 @@ import { ContactAudio } from '../audio/contactAudio';
 import { WaterAudio } from '../audio/waterAudio';
 import { WorldView } from '../world/view/worldView';
 import { LaserBeam } from '../player/laserBeam';
+import { TowlineView } from '../tow/towlineView';
+import { towAlertT, towReach, towStatus } from '../tow/tow';
 import { RadioAudio } from '../audio/radioAudio';
 import { WhistleAudio } from '../audio/whistleAudio';
 import { TargetsView } from '../rescue/targetView';
@@ -183,6 +185,8 @@ export class App {
   private readonly platform = createPlatform();
   /** Our laser pointer (others see it in our pose); where it hit, refreshed a few times a second. */
   private readonly laser = new LaserBeam();
+  /** The towline and our towing post (towing missions). */
+  private readonly towline = new TowlineView();
   private laserHit: THREE.Vector3 | null = null;
   private laserFrame: THREE.Object3D | null = null;
   private laserT = 0;
@@ -311,7 +315,7 @@ export class App {
       CONFIG.render.far,
     );
 
-    const created = createWorld(this.ids, undefined, { tender: true, cold: true, weather: true });
+    const created = createWorld(this.ids, undefined, { tender: true, cold: true, weather: true, tows: true });
     this.world = created.world;
     this.localPlayerId = created.localPlayerId;
     this.soloPlayerId = created.localPlayerId;
@@ -333,25 +337,7 @@ export class App {
     this.rain.quality = userSettings.rainQuality;
     this.targetsView.onWhistle = (pos) => this.whistleAudio.blow(pos);
     this.scene.add(this.laser.root);
-    for (const vessel of Object.values(this.world.vessels)) {
-      const def = VESSEL_DEFS[vessel.defId];
-      const view = new VesselView(vessel.id, def);
-      const hydro = new HydroDebugView(def, CONFIG.debug.hydroDebugVisibleAtStart);
-      view.root.add(hydro.root);
-      this.scene.add(view.root);
-      this.vesselViews.set(vessel.id, view);
-      this.hydroViews.set(vessel.id, hydro);
-      this.walkAreas.set(vessel.id, vesselWalkArea(def, def.layout));
-      this.effects.set(vessel.id, new VesselEffects(def, view.root, this.scene, this.ocean.sharedUniforms));
-      this.vesselRoots.set(vessel.id, view.root);
-      this.cargoView.attachVessel(view.root, vessel.defId);
-      // An outboard boat (the skiff): its tiller, with the motor it swings.
-      if (def.outboard) {
-        const tiller = new Tiller(vessel.id, def.outboard);
-        view.root.add(tiller.root);
-        this.tillers.push(tiller);
-      }
-    }
+    for (const vessel of Object.values(this.world.vessels)) this.addVesselView(vessel);
     // A tender's davit (arms, falls, LAUNCH / RECOVER button) on her ship's stern.
     for (const vessel of Object.values(this.world.vessels)) {
       const davit = vessel.tender && VESSEL_DEFS[this.world.vessels[vessel.tender.hostId]?.defId]?.davit;
@@ -360,6 +346,9 @@ export class App {
       this.vesselViews.get(vessel.tender.hostId)?.root.add(gear.root);
       this.davits.push(gear);
     }
+    const tugView = this.vesselViews.get(this.testVesselId);
+    if (tugView) this.towline.attachPost(tugView.root, VESSEL_DEFS[this.world.vessels[this.testVesselId].defId]);
+    this.scene.add(this.towline.root);
     this.setupBridge();
 
     setupXR(this.renderer, this.camera);
@@ -390,6 +379,47 @@ export class App {
     };
     this.renderer.xr.addEventListener('sessionstart', closePanels);
     this.renderer.xr.addEventListener('sessionend', closePanels);
+  }
+
+  /** A vessel's view, effects, walk area and debug view (at start, and for each new tow). */
+  private addVesselView(vessel: VesselState): void {
+    const def = VESSEL_DEFS[vessel.defId];
+    if (!def) return;
+    const view = new VesselView(vessel.id, def);
+    const hydro = new HydroDebugView(def, CONFIG.debug.hydroDebugVisibleAtStart);
+    view.root.add(hydro.root);
+    this.scene.add(view.root);
+    this.vesselViews.set(vessel.id, view);
+    this.hydroViews.set(vessel.id, hydro);
+    this.walkAreas.set(vessel.id, vesselWalkArea(def, def.layout));
+    this.effects.set(vessel.id, new VesselEffects(def, view.root, this.scene, this.ocean.sharedUniforms));
+    this.vesselRoots.set(vessel.id, view.root);
+    if (!def.tow) this.cargoView.attachVessel(view.root, vessel.defId);
+    // An outboard boat (the skiff): its tiller, with the motor it swings.
+    if (def.outboard) {
+      const tiller = new Tiller(vessel.id, def.outboard);
+      view.root.add(tiller.root);
+      this.tillers.push(tiller);
+    }
+  }
+
+  /**
+   * Tows (towing missions) come and go: give a new one its views, and take the views of
+   * one that's gone out of the scene. Only towable hulls are ever added or removed.
+   */
+  private syncVesselViews(): void {
+    const vessels = this.world.vessels;
+    for (const v of Object.values(vessels)) if (!this.vesselViews.has(v.id)) this.addVesselView(v);
+    for (const [id, view] of this.vesselViews) {
+      if (vessels[id]) continue;
+      view.root.removeFromParent();
+      view.root.traverse((o) => {
+        const m = o as THREE.Mesh;
+        if (m.isMesh) m.geometry.dispose();
+      });
+      this.effects.get(id)?.dispose();
+      for (const map of [this.vesselViews, this.hydroViews, this.walkAreas, this.effects, this.vesselRoots, this.hullPlans] as Map<EntityId, unknown>[]) map.delete(id);
+    }
   }
 
   start(): void {
@@ -425,15 +455,20 @@ export class App {
       const { ticks, alpha } = this.loop.advance(dt);
       for (let i = 0; i < ticks; i++) {
         // Keep each vessel's pre-tick pose so views can interpolate across the last tick.
-        for (const [id, view] of this.vesselViews) view.snapshot(this.world.vessels[id]);
+        for (const [id, view] of this.vesselViews) {
+          const s = this.world.vessels[id];
+          if (s) view.snapshot(s);
+        }
         stepWorld(this.world, i === 0 ? this.intents.drain() : [], this.loop.dt, this.simDebug);
       }
+      this.syncVesselViews();
       // Rendering runs one tick behind the simulation and interpolates between the previous
       // and current tick by `alpha`; the ocean uses the same render time so floating objects
       // and the water surface always agree.
       renderTime = Math.max(0, (this.world.tick - 1 + alpha) * this.loop.dt);
       // Vessels first: the player rides on their interpolated pose.
       for (const [id, view] of this.vesselViews) {
+        if (!this.world.vessels[id]) continue;
         view.update(this.world.vessels[id], alpha);
         this.hydroViews.get(id)?.update(this.simDebug.get(id));
       }
@@ -474,7 +509,7 @@ export class App {
     const testVessel = this.world.vessels[this.testVesselId];
     if (this.bridge && testVessel) {
       this.bridge.update(testVessel, dt, this.dashInView());
-      this.bridge.radio.update(this.world.rescue, runStatus(this.world), dt, isPowered(testVessel, 'radio'));
+      this.bridge.radio.update(this.world.rescue, runStatus(this.world), dt, isPowered(testVessel, 'radio'), towAlertT(this.world) >= 0);
       // Say so when the anchor is up or holding (the speed screen shows it all the time).
       const ap = testVessel.anchor.phase;
       if (ap !== this.lastAnchorPhase) {
@@ -505,9 +540,11 @@ export class App {
     let slam = 0;
     let lap = 0;
     for (const [id, fx] of this.effects) {
+      if (!this.world.vessels[id]) continue;
       const hit = fx.update(dt, this.world.vessels[id], this.renderWaves, this.focus, darkness, renderTime);
       if (id === this.testVesselId) ({ slam, lap } = hit);
     }
+    this.towline.update(this.world, this.vesselRoots, this.testVesselId, this.renderWaves);
     this.worldView.lights.update(renderTime, darkness);
     this.targetsView.visibility = this.environment.visibility;
     this.updateWeatherViews(renderTime, darkness, dt);
@@ -779,7 +816,7 @@ export class App {
     const r = this.world.rescue;
     if (!r || !this.bridge) return;
     const id = r.radio?.id ?? 0;
-    const alertT = r.active?.phase === 'calling' ? r.active.alertT : -1;
+    const alertT = r.active?.phase === 'calling' ? r.active.alertT : towAlertT(this.world);
     this.radioAudio.setDistance(this.bridge.radio.root.getWorldPosition(this.tmpV).distanceTo(this.focus));
     if (!this.radioSeen) {
       this.radioSeen = { id, alertT };
@@ -1209,6 +1246,18 @@ export class App {
       rescueNear: (kind) => this.pushVesselIntent('rescueDebugNear', 1, kind),
       rescueAboard: () => this.pushVesselIntent('rescueDebugAboard', 1),
       rescues: () => this.world.rescue?.completed ?? 0,
+      towStatus: () => towStatus(this.world),
+      towFast: () => !!this.world.tow?.job?.fast,
+      towToggle: () => {
+        const job = this.world.tow?.job;
+        if (job?.phase !== 'accepted') this.overlay.notify('No tow to make fast: they come by radio (pick up the handset)');
+        else if (!job.fast && towReach(this.world) > CONFIG.tow.attachRange) this.overlay.notify(`Bring our stern within ${CONFIG.tow.attachRange} m of her bow eye`);
+        else this.pushVesselIntent('towToggle', 1);
+      },
+      towsDelivered: () => this.world.tow?.delivered ?? 0,
+      towNear: (kind) => this.pushVesselIntent('towDebugNear', 1, kind),
+      towCall: () => this.pushVesselIntent('towDebugCall', 1),
+      towEnd: () => this.pushVesselIntent('towDebugEnd', 1),
       showTargets: () => !!this.bridge?.chart.showTargets,
       toggleShowTargets: () => {
         if (this.bridge) this.bridge.chart.showTargets = !this.bridge.chart.showTargets;
@@ -1284,12 +1333,14 @@ export class App {
       w.duties = snap.duties;
       w.forecast = snap.forecast;
       w.traffic = snap.traffic;
+      w.tow = snap.tow;
       // The log comes in its own messages when it changes (not in every snapshot).
       w.log = client.log ?? snap.log;
       w.lost = snap.lost;
       w.geography = snap.geography;
       w.players = { ...snap.players, [this.localPlayerId]: me };
     }
+    this.syncVesselViews();
     const renderTime = Math.max(0, client.renderTime());
     const br = client.bracket(renderTime);
     if (br) for (const [id, view] of this.vesselViews) view.setPoseBetween(br.a.vessels[id], br.b.vessels[id], br.alpha);
@@ -1380,7 +1431,8 @@ export class App {
     client.onWelcome = (playerId, world, chart) => {
       // The host's chart: their marks replace ours while we're aboard their boat.
       this.marks = chart ? { strokes: chart.strokes, seq: this.marks.seq + 1 } : createMarks();
-      if (!Object.keys(world.vessels).every((id) => this.vesselViews.has(id))) {
+      // Same boats on both sides (tows come and go, so they don't count).
+      if (!Object.values(world.vessels).every((v) => this.vesselViews.has(v.id) || VESSEL_DEFS[v.defId]?.tow)) {
         this.netMessage = 'That game is a different version';
         this.leaveGame();
         return;

@@ -228,6 +228,18 @@ The dash shows:
 - **Cold start:** the engine starts cold and smokes white until it warms up, which takes about 5 minutes under way.
 - **Overheating:** with the pump-failure fault on, it overheats under load. The alarm sounds at 95 °C, power is derated from 100 °C, and it shuts down at 115 °C. Ease off before that.
 
+### Towing missions
+
+Out of harbour, with no rescue on, a tow call comes over the VHF every few minutes: something adrift a few hundred metres ahead. It's a broken-down motor cruiser, a raft of logs, or a work barge.
+
+1. **Pick up the handset** to take the job. The tow shows as an orange **TOW** diamond on the chartplotter.
+2. **Come alongside with your stern to her bow.** Our towing post is the black bollard on the aft deck, and her **bow eye** is the orange ring on her stem.
+3. **Make fast:** take the boat hook, then touch the bow eye with its tip (VR) or click the bow eye (desktop). The menu's Boat tab has a **Tow → Make fast** button too. Our stern must be within 16 m of her bow.
+4. **Tow her into any harbour.** The line is 22 m long and stretchy. Take up the slack gently: snatching it at speed (or dragging her over rocks) parts it, and you have to go back and make fast again.
+5. **Slow down inside the port** for a few seconds and the harbour takes her over. The tow counts as a mission and becomes a log event, and she is taken away once you're clear.
+
+Unanswered calls go away after two minutes. The menu's Tests tab has debug buttons that put a tow just astern (Cruiser, Logs, Barge), raise a call, or end the job.
+
 ## Off the boat, and cargo by hand
 
 - **Walking ashore:** jump (A / Space) from the deck onto a quay or pier when you're alongside, and back aboard the same way. You keep the boat's own speed when you jump, so jumping off a moving boat is a bad idea. Quays you hit just below the top you clamber onto. Beaches you can wade out from.
@@ -263,7 +275,7 @@ Cargo is real weight. A full load sits her about 10–15 cm deeper and down by t
 
 ### Docking
 
-Dockable berths are marked with a **yellow strip** on the quay or pier edge:
+You can dock along any quay or pier face with deep water alongside. The named berths are marked with a **yellow strip** on the edge:
 
 - **Calder Haven quay:** a fuel berth and a cargo berth.
 - **Brannock T-head:** a fuel berth and a cargo berth.
@@ -357,6 +369,7 @@ src/
   controls/        Control base, Lever, Wheel, Button, Toggle, interaction system, bridge, instruments
   audio/           synthesised engine and horn (WebAudio, no files)
   net/             multiplayer: messages, PeerJS / loopback transports, host and client sessions, avatars
+  tow/             towing missions: tow jobs and the towline (tow.ts), tow models, towline view
 tests/             vitest: run in plain Node, no browser
 docs/              TESTING_NEW_BOATS.md (sea-trials lab, adding a boat), MULTIPLAYER.md (co-op)
 ```

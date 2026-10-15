@@ -63,6 +63,15 @@ export class VesselEffects {
     world.add(this.wake.mesh, this.spray.points);
   }
 
+  /** Take the world-space effects out of the scene (a tow taken away; never the workboat). */
+  dispose(): void {
+    for (const o of [this.wake.mesh, this.spray.points] as THREE.Mesh[]) {
+      o.removeFromParent();
+      o.geometry.dispose();
+      (o.material as THREE.Material).dispose();
+    }
+  }
+
   /** The searchlight, on boats that have one (the ocean shader lights the water with it). */
   get searchlight(): Searchlight | null {
     return this.equip?.searchlight ?? null;

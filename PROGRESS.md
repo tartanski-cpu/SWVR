@@ -1163,6 +1163,54 @@ Desktop voice input (milestone 9) was skipped at the owner's request.
   - The ping code, its sound and its tests were removed.
 - **Tests:** docking at a generated pier berth; the laser travels in the pose (bad numbers dropped).
 
+## Towing missions (owner request)
+
+The brief's "no new physics bodies or ropes" rule was flagged; the owner approved this plan: the tows reuse the existing boat physics, and the towline is one spring.
+
+- **Tows** (`CONFIG.vessels.derelict / logRaft / barge`, `tow/towLook.ts`):
+  - Three new towable hulls: a 7 m motor cruiser (2.75 t), a raft of logs (6.4 t) and a 9 m work barge (10.5 t).
+  - Each is an ordinary vessel def with no engine. It floats, drifts with the wind and bumps into things with the same physics as our boats.
+  - Masses are the DWL displacement and the CG sits over the LCB, so they float level (checked by a test).
+  - The logs and the barge have extra wave-making drag, because they're bluff.
+  - Each has its own one-draw-call model, with an orange bow eye on the stem.
+- **The job** (`tow/tow.ts`, `WorldState.tow`):
+  - Out of harbour with no rescue on, a call comes every 4–9 minutes (`CONFIG.tow.every`). The tow is spawned 450–850 m ahead, a little to one side, in open water.
+  - Picking up the handset takes the job. Unanswered, it goes away after 2 minutes.
+  - While a tow job is on, a cargo-run rescue call waits until it's over.
+  - Calls only come by themselves in the game (`createWorld` `tows`); tests raise them by intent.
+- **The towline:**
+  - One spring-damper from our towing post (a new bollard on the aft deck) to the bow eye. It pulls only when stretched past 22 m.
+  - Damping is set to half of critical on the two boats' reduced mass, so a heavy barge isn't springier than a light cruiser.
+  - It parts above 40 kN or 12 m of stretch. A slack-to-taut snatch at full ahead with the barge peaks at about 32 kN, so in practice it takes something harsher, such as a snag or grounding.
+  - It's drawn as one instanced mesh of 14 cylinders. Slack, it sags to its length and floats on the surface.
+- **Making fast:**
+  - VR: touch the bow eye with the boat hook's tip. Desktop: click it with the hook.
+  - Either way, our stern must be within 16 m of her bow.
+  - The menu's Boat tab has a Tow row (status, Make fast / Cast off).
+- **Delivery:** within 170 m of a port and under 0.8 m/s for 5 s.
+  - A radio thank-you, and the job is counted with the rescues (Cargo tab: "Missions … (n tows)").
+  - It goes in the log as a rescue-type event.
+  - The tow is removed once we're 120 m clear (never while someone stands on it).
+- **Plotter:** an orange TOW diamond. The plotter keeps the tow in view until it's on the line, then the nearest port.
+- **Radio:** a tow call rings and flashes the VHF like a distress call.
+- **App:** vessel views are now created and removed as tows come and go (`syncVesselViews`). A client joining checks the version against the fixed boats only.
+- **Tuning (towed at half / full ahead):**
+
+  | Tow | Half ahead | Full ahead |
+  |---|---|---|
+  | Cruiser | 7.6 kn | 11.3 kn |
+  | Logs | 6.4 kn | 9.2 kn |
+  | Barge | 6.4 kn | 8.3 kn, line at about 25 kN |
+
+- **Debug** (Tests tab, Tow row): Cruiser / Logs / Barge put one just astern, ready to make fast. Call raises a call; End ends the job.
+- **Tests (6):**
+  - the hulls float level;
+  - a call comes, the handset takes it, unanswered calls time out;
+  - towing at speed on a taut line;
+  - out of range, and a snatch parts the line;
+  - delivery, the mission count, the log and removal;
+  - a client making fast over the network.
+
 ## Planned next (owner requests, not started)
 
 1. ~~Fuel and oil temperature~~ **Done** (see above).
