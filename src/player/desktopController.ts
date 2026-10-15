@@ -77,7 +77,7 @@ export class DesktopController {
       this.walk.y = this.move.y * CONFIG.desktop.climbSpeed * dt;
       this.move.y = 0;
       if (this.move.lengthSq() > 0) {
-        const speed = CONFIG.desktop.walkSpeed * (k.action('fast') ? 1.8 : 1);
+        const speed = CONFIG.desktop.walkSpeed * (k.action('fast') ? CONFIG.locomotion.runMultiplier : 1);
         this.move.normalize().applyAxisAngle(THREE.Object3D.DEFAULT_UP, this.yaw).multiplyScalar(speed * dt);
         this.walk.x = this.move.x;
         this.walk.z = this.move.z;

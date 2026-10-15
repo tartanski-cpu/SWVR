@@ -44,10 +44,10 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 |---|---|
 | Click the view | Capture the mouse for looking (Esc releases it) |
 | O | Menu, floating in front of you: aim and click (same menu as in VR) |
-| W A S D | Walk (with collision; Shift = brisk) |
+| W A S D | Walk (with collision; hold Shift to **run**) |
 | F | Toggle walk / free-fly camera (Space / C = up / down when flying) |
 | Space / C at the ladder | Climb up / down (walk forward off the top onto the roof) |
-| Space (elsewhere) | **Jump**: off the boat onto a quay, from a quay aboard, or into the sea. Swimming near the hull or a quay: climb out |
+| Space (elsewhere) | **Jump**: off the boat onto a quay, from a quay aboard, or into the sea. Swimming near the hull, the swim ladder or a quay: climb out |
 | Click a cargo item | Pick it up (carried in front of you); click again to set it down |
 | Q on cargo on deck | Lash it to the nearest D-ring / release it |
 | Right mouse button (hold) | **Laser pointer** from the reticle; the crew sees the beam and dot |
@@ -83,7 +83,7 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | **Grip** on the gunwale or transom while swimming | Haul yourself aboard (A near a quay climbs out there) |
 | **Grip + pull down at the ladder** | Climb (aft face of the wheelhouse, up to the railed roof). Push up to climb down |
 | **Y** | **Menu** on your left wrist (see below) |
-| Left stick | Walk (head-relative; can be switched off in the menu) |
+| Left stick | Walk (head-relative; can be switched off in the menu). Push it right to the edge to **run** |
 | Right stick ← / → | Snap turn (30° by default; 15/30/45/90° in the menu) |
 | Left stick click | Board the boat (at the helm) / back to the platform |
 | **Grip** the boat hook (port bulwark) | Take it; it points along your controller. Touch a floating crate or a tow's bow eye with the tip to hook it. With **auto-extend** (menu Comfort → Boat hook reach, on by default) it telescopes out to whatever you point it at, up to 8 m, then slides back in with the crate on it. Desktop: click the hook, then click the crate or bow eye |
@@ -243,7 +243,7 @@ Unanswered calls go away after two minutes. The menu's Tests tab has debug butto
 ## Off the boat, and cargo by hand
 
 - **Walking ashore:** jump (A / Space) from the deck onto a quay or pier when you're alongside, and back aboard the same way. You keep the boat's own speed when you jump, so jumping off a moving boat is a bad idea. Quays you hit just below the top you clamber onto. Beaches you can wade out from.
-- **Swimming:** land in the sea and you float with your head just above the water. Swim with grab-the-world strokes or the stick. Climb out by gripping the gunwale or the transom, or press A beside a quay.
+- **Swimming:** land in the sea and you float with your head just above the water. Swim with grab-the-world strokes or the stick. Climb out by gripping the gunwale or the transom, or press A beside a quay. The workboat has a **swim ladder** over the starboard side of the aft deck: grip any rung from the water (or press A / Space near it) and you're up it.
 - **Cargo:** each port has goods waiting in a row on its quay or beach, coloured by destination. They're man-portable (30–110 kg). Carry one to the boat, set it on the deck, and at its destination set it down ashore near that port's goods stack to deliver it. Dropped in the sea, it's lost.
 - **Lashing:** loose cargo slides when the deck heels or accelerates past friction (μ ≈ 0.35, so from about 19° of heel, sooner in a seaway) and goes over the rail if pressed against it hard enough (about 33°). Strap it to a D-ring (the rings along the bulwarks and centreline) and it stays put. Cargo is real weight in her stability: stow it all to one side and she lists.
 - **Selkie Bay** has no quay: anchor in the bay, launch the skiff, load her (two crates or one drum), run her up the beach and carry the goods up to the stack. Survivors can only be landed at a quay.

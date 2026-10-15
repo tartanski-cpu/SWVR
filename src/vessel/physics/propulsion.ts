@@ -256,15 +256,17 @@ export function rudderForce(
   const fx = -relVx * (1 - r.flowStraightening);
   let fz = -relVz;
   if (fz > 0) fz *= 1 - def.propeller.wake;
-  // Normal force without slipstream...
-  let N = rudderNormal(s, def, fx, fz);
+  // Normal force without slipstream; coasting (little or no thrust), the skeg helps it
+  // (coastSteer, fading out as thrust builds)...
+  const coast = 1 + (r.coastSteer - 1) * Math.max(0, 1 - Math.abs(thrust) / r.coastFadeThrust);
+  let N = rudderNormal(s, def, fx, fz) * coast;
   if (thrust > 0) {
     // ...plus the slipstream's contribution. Momentum theory gives the far-wake speed
     // increase; part of it is developed at the rudder. The extra force can't exceed what
     // deflecting the slipstream's momentum (~T) can give, so it is capped at washMaxFraction*T.
     const d = def.propeller.diameter;
     const extra = (r.washFactor * 8 * thrust) / (CONFIG.ocean.density * Math.PI * d * d);
-    const withWash = rudderNormal(s, def, fx, Math.sqrt(Math.max(fz, 0) ** 2 + extra));
+    const withWash = rudderNormal(s, def, fx, Math.sqrt(Math.max(fz, 0) ** 2 + extra)) * coast;
     const cap = r.washMaxFraction * thrust;
     N += clamp(withWash - N, -cap, cap);
   }

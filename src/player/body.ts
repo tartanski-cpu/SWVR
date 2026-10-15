@@ -274,6 +274,24 @@ export function updateSwim(
  */
 export function climbOut(p: PlayerState, body: THREE.Vector3, hand: THREE.Vector3 | null, vessels: readonly BodyVessel[], waves: readonly PreparedWave[]): boolean {
   const cfg = CONFIG.body;
+  // A swim ladder first: grip a rung, or jump near its foot, and you're up it.
+  for (const ves of vessels) {
+    const lad = swimLadderOf(ves);
+    if (!lad) continue;
+    const l = ves.root.worldToLocal(tmpA.copy(hand ?? body));
+    const near = hand
+      ? Math.abs(l.x - lad.x) < 0.45 && Math.abs(l.z - lad.z) < 0.5 && l.y > lad.bottom - 0.3 && l.y < lad.top + 0.4
+      : Math.hypot(l.x - lad.x, l.z - lad.z) < lad.range;
+    if (!near) continue;
+    const floors = ves.area.floorsAt(lad.deckX, lad.z);
+    if (!floors.length) continue;
+    p.aboardVesselId = ves.id;
+    p.position = [lad.deckX, Math.min(...floors), lad.z];
+    p.yaw -= yawOf(ves.root.quaternion);
+    p.mode = 'walk';
+    delete p.velocity;
+    return true;
+  }
   for (const ves of vessels) {
     const { plan, area } = ves;
     let at: THREE.Vector3 | null = null;
@@ -319,4 +337,17 @@ export function climbOut(p: PlayerState, body: THREE.Vector3, hand: THREE.Vector
     }
   }
   return false;
+}
+
+/**
+ * A vessel's swim ladder (vessel axes), if it has one: its outboard line (x, z), foot and
+ * head heights, where you step aboard (deckX, inboard of the bulwark) and the desktop's
+ * jump range. It hangs over the starboard side (see CONFIG.vessels.workboat.swimLadder).
+ */
+export function swimLadderOf(ves: { plan: BodyVessel['plan']; state: VesselState }): { x: number; z: number; bottom: number; top: number; deckX: number; range: number; width: number } | null {
+  const def = VESSEL_DEFS[ves.state.defId];
+  const c = def?.swimLadder;
+  if (!c) return null;
+  const hb = ves.plan.halfBeam(c.z);
+  return { x: hb + 0.08, z: c.z, bottom: c.bottom, top: ves.plan.deckY(c.z) + def.layout.bulwarkHeight, deckX: hb - 0.6, range: c.range, width: c.width };
 }

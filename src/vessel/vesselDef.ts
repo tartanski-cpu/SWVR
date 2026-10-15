@@ -53,6 +53,7 @@ export interface VesselConfig {
   davit?: Workboat['davit'];
   electrics?: Workboat['electrics'];
   hatch?: Workboat['hatch'];
+  swimLadder?: Workboat['swimLadder'];
   bilge?: Workboat['bilge'];
   chartTable?: Workboat['chartTable'];
   fenders?: Workboat['fenders'];
@@ -121,6 +122,8 @@ export interface VesselDef {
   electrics?: VesselConfig['electrics'];
   /** Forepeak hatch and bilge (optional: not part of WorkboatDef). */
   hatch?: VesselConfig['hatch'];
+  /** Swim ladder over the starboard side (optional: not part of WorkboatDef). */
+  swimLadder?: VesselConfig['swimLadder'];
   bilge?: VesselConfig['bilge'];
   /** Chart table with the logbook (optional: not part of WorkboatDef). */
   chartTable?: VesselConfig['chartTable'];
@@ -213,6 +216,7 @@ export function fromConfig(id: string, c: VesselConfig): VesselDef {
     davit: c.davit,
     electrics: c.electrics,
     hatch: c.hatch,
+    swimLadder: c.swimLadder,
     bilge: c.bilge,
     chartTable: c.chartTable,
     fenders: c.fenders,

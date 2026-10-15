@@ -973,6 +973,10 @@ export class App {
       desktopDelta = { x: (x * c + z * s) * speedScale, y, z: (-x * s + z * c) * speedScale };
     }
     const [lx, ly] = this.xrInput.hands.left.stick;
+    // Run (on foot): push the stick right to the edge - it ramps from walk to run over the
+    // last fifth of its travel, so it doesn't lurch. (A stick click is already "board".)
+    const push = Math.min(1, Math.max(0, (Math.hypot(lx, ly) - 0.8) / 0.2));
+    const run = inXR && fly ? 1 + (CONFIG.locomotion.runMultiplier - 1) * push : 1;
     const moving = this.locomotion.update(p, {
       dt,
       frame,
@@ -980,7 +984,7 @@ export class App {
       head: this.headW,
       headForward: this.headFwd,
       grabbing,
-      moveStick: inXR ? [lx * speedScale, -ly * speedScale] : [0, 0],
+      moveStick: inXR ? [lx * speedScale * run, -ly * speedScale * run] : [0, 0],
       turnStick: inXR ? this.xrInput.hands.right.stick[0] : 0,
       desktopDelta,
       fly,

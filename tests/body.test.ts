@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { IdFactory } from '../src/core/ids';
 import { createWorld } from '../src/core/world';
-import { climbOut, jump, setAirborne, swimArea, updateAir, updateSwim, type BodyVessel } from '../src/player/body';
+import { climbOut, jump, setAirborne, swimArea, swimLadderOf, updateAir, updateSwim, type BodyVessel } from '../src/player/body';
 import { createPlayerState } from '../src/player/playerState';
 import { hullPlan, vesselWalkArea } from '../src/vessel/layout';
 import { placeVessel } from '../src/vessel/vesselControl';
@@ -113,6 +113,27 @@ describe('body: jumping, swimming, climbing out', () => {
     const q = createPlayerState('q', 'Q');
     q.mode = 'swim';
     expect(climbOut(q, new THREE.Vector3(30, 0, -300), null, [v], [])).toBe(false);
+  });
+
+  it('the swim ladder: a hand on a low rung (well below the gunwale) gets you aboard at its head', () => {
+    const v = boat(0, -300);
+    const lad = swimLadderOf(v)!;
+    expect(lad).toBeTruthy();
+    expect(lad.bottom).toBeLessThan(0); // its foot is in the water
+    const p = createPlayerState('p', 'P');
+    p.mode = 'swim';
+    p.position = [lad.x + 0.6, -1.4, lad.z];
+    // Just above the water: far too low for the gunwale, fine for the ladder.
+    const hand = v.root.localToWorld(new THREE.Vector3(lad.x, 0.1, lad.z + 0.1));
+    expect(climbOut(p, v.root.localToWorld(new THREE.Vector3(lad.x + 0.6, 0, lad.z)), hand, [v], [])).toBe(true);
+    expect(p.aboardVesselId).toBe(v.id);
+    expect(p.position[0]).toBeCloseTo(lad.deckX, 5);
+    expect(v.area.walkable(p.position[0], p.position[2], p.position[1])).toBe(true);
+    // Desktop: the jump button within reach of it does the same.
+    const q = createPlayerState('q', 'Q');
+    q.mode = 'swim';
+    expect(climbOut(q, v.root.localToWorld(new THREE.Vector3(lad.x + 1.5, 0, lad.z + 0.5)), null, [v], [])).toBe(true);
+    expect(q.position[2]).toBeCloseTo(lad.z, 5);
   });
 
   it('you can climb out onto a quay from the water beside it', () => {

@@ -124,3 +124,39 @@ describe('engine temperature', () => {
     expect(b.v.engine.phase).toBe('off');
   });
 });
+
+describe('steering', () => {
+  it('coasting in neutral she still answers the helm, better than with the bare rudder', () => {
+    const turnRate = (coastSteer: number) => {
+      const cfg = VESSEL_DEFS.workboat.rudder!;
+      const was = cfg.coastSteer;
+      (cfg as { coastSteer: number }).coastSteer = coastSteer;
+      const b = boat();
+      b.start();
+      b.send('lever', 0.7);
+      b.run(30); // up to speed
+      b.send('lever', 0); // neutral: coasting
+      b.send('helm', 1);
+      // Heading change over 6 s, unwrapped (sampled every 0.1 s).
+      let last = heading(b.v.orientation);
+      let turned = 0;
+      for (let i = 0; i < 60; i++) {
+        b.run(0.1);
+        const h = heading(b.v.orientation);
+        turned += ((h - last + 540) % 360) - 180;
+        last = h;
+      }
+      (cfg as { coastSteer: number }).coastSteer = was;
+      return Math.abs(turned);
+    };
+    const bare = turnRate(1);
+    const now = turnRate(VESSEL_DEFS.workboat.rudder!.coastSteer);
+    expect(now).toBeGreaterThan(bare * 1.2);
+  });
+});
+
+/** Heading (deg) from an orientation quaternion. */
+function heading(q: number[]): number {
+  const [x, y, z, w] = q;
+  return (Math.atan2(-2 * (x * z + w * y), -(1 - 2 * (x * x + y * y))) * 180) / Math.PI;
+}

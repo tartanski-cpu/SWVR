@@ -20,6 +20,7 @@ import { WheelhouseDoor } from './WheelhouseDoor';
 import { hullPlan } from '../vessel/layout';
 import { RainGlass } from '../vessel/view/rainGlass';
 import { Dipstick, FenderBasket, FendersView, OilCan } from './deckGear';
+import { swimLadderOf } from '../player/body';
 
 /**
  * Builds a vessel's bridge from its config: controls, instrument dash, labels.
@@ -124,6 +125,21 @@ export class Bridge {
       this.controls.push(basket);
       this.fenders = new FendersView(def.fenders.z, plan);
       this.root.add(this.fenders.mesh);
+    }
+    // Swim ladder over the starboard side: two stainless rails hooked over the bulwark top,
+    // down past the waterline, with flat treads (see player/body.ts climbOut).
+    if (def.swimLadder) {
+      const lad = swimLadderOf({ plan: hullPlan(def), state: { defId: def.id } as VesselState })!;
+      const steel = 0xc8ccd0;
+      const len = lad.top - lad.bottom;
+      for (const dz of [-lad.width / 2, lad.width / 2]) {
+        extraFixed.push(part(new THREE.CylinderGeometry(0.016, 0.016, len, 6).translate(lad.x, lad.bottom + len / 2, lad.z + dz), steel));
+        // The hook over the bulwark top, back to the deck side.
+        extraFixed.push(part(new THREE.BoxGeometry(lad.x - lad.deckX - 0.45, 0.03, 0.03).translate((lad.x + lad.deckX + 0.45) / 2, lad.top + 0.02, lad.z + dz), steel));
+      }
+      for (let y = lad.bottom + 0.15; y < lad.top - 0.1; y += 0.3) {
+        extraFixed.push(part(new THREE.BoxGeometry(0.08, 0.025, lad.width).translate(lad.x + 0.02, y, lad.z), 0x9aa0a6));
+      }
     }
     // Engine oil: the hatch in the wheelhouse floor, the dipstick and the oil can by it.
     const mt = def.maintenance;

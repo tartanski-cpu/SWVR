@@ -37,7 +37,7 @@ export const KEYS = {
   up: { codes: ['Space'], description: 'Up (free-fly)' },
   down: { codes: ['KeyC'], description: 'Down (free-fly)' },
   crouch: { codes: ['KeyC'], description: 'Crouch / stand up (walking)' },
-  fast: { codes: ['ShiftLeft', 'ShiftRight'], description: 'Move faster (hold)' },
+  fast: { codes: ['ShiftLeft', 'ShiftRight'], description: 'Run / move faster (hold)' },
   timeEarlier: { codes: ['KeyN'], description: 'Time of day -30 min' },
   timeLater: { codes: ['KeyM'], description: 'Time of day +30 min' },
   dropVessel: { codes: ['KeyR'], description: 'Drop the boat from 4 m (test)' },

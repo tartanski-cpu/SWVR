@@ -409,6 +409,15 @@ export const CONFIG = {
         washMaxFraction: 0.55,
         /** Hull flow straightening of the lateral inflow at the rudder (0..1). */
         flowStraightening: 0.5,
+        /**
+         * Extra rudder force from the flow past the hull (the skeg and deadwood ahead of the
+         * rudder work with it): the steerage she keeps with no power on, coasting. Raised
+         * from 1 (owner feedback: more steerage with the engine in neutral). It fades out as
+         * propeller thrust builds to `coastFadeThrust` (N), so steering under power (the
+         * turning circle) is as before.
+         */
+        coastSteer: 1.5,
+        coastFadeThrust: 8000,
         position: [0, -0.55, 5.65] as [number, number, number],
       },
       /**
@@ -521,6 +530,12 @@ export const CONFIG = {
         position: [0.9, 0.22, 6.04] as [number, number, number],
         direction: [0, -0.12, 1] as [number, number, number],
       },
+      /**
+       * Swim ladder (owner request): hooked over the starboard bulwark on the aft deck, at
+       * `z`, its foot `bottom` m below the waterline. From the water, grip any rung (VR) or
+       * press jump within `range` m of it (desktop) to climb aboard at its head.
+       */
+      swimLadder: { z: 4.3, bottom: -0.9, width: 0.42, range: 2.0 },
       /** Navigation lights (vessel axes): masthead, sidelights, stern light. */
       navLights: {
         masthead: [0, 4.62, 0.33] as [number, number, number],
@@ -1348,6 +1363,8 @@ export const CONFIG = {
      */
     smoothEnabled: true,
     smoothSpeed: 1.4,
+    /** Running (owner request): walking speed times this. VR: push the stick all the way; desktop: Shift. */
+    runMultiplier: 2.4,
     snapTurnDeg: 30,
     /** Crouch (X in VR, C on the desktop): how far the view and hands drop (m), and how fast (s). */
     crouchDrop: 0.6,
@@ -1571,7 +1588,7 @@ export const CONFIG = {
 
   desktop: {
     eyeHeight: 1.7,
-    /** Walking speed (m/s); Shift = brisk. */
+    /** Walking speed (m/s); Shift = run (x locomotion.runMultiplier). */
     walkSpeed: 1.6,
     /** Ladder climbing speed with Space / C (m/s). */
     climbSpeed: 1.0,

@@ -1274,6 +1274,20 @@ The brief's "no new physics bodies or ropes" rule was flagged; the owner approve
   - Desktop now has its own motion coupling, 30 % by default (`comfort.desktopMotionCoupling`; keys 9 / 0). The screen follows the boat's slow attitude but soaks up the quick roll and heave, which is what made onlookers sick. VR keeps its own setting (100 % by default, so hands stay on the controls).
 - **Tests:** duty-board jobs (tow steps, unanswered call, rescue, cargo); logbook VR clicks; the sea-trials roll band is widened to 35 %.
 
+## Run, swim ladder, steerage when coasting (owner requests)
+
+- **Run:** walking speed × 2.4 (`locomotion.runMultiplier`).
+  - Desktop: hold Shift (it was 1.8× "brisk").
+  - VR: push the left stick right to the edge. It ramps from walk to run over the last fifth of the stick's travel, so it doesn't lurch. A stick click was already "board".
+  - Not while swimming.
+- **Swim ladder** (`workboat.swimLadder`, `player/body.ts` `swimLadderOf`):
+  - Stainless rails hooked over the starboard bulwark on the aft deck at z 4.3, down to 0.9 m below the waterline, with treads every 0.3 m. Merged into the bridge's static mesh.
+  - From the water, grip any rung (VR), even just above the water where the gunwale is out of reach. Or press jump within 2 m of it (desktop). Either way you're put on deck at its head.
+- **Steerage when coasting** (`rudder.coastSteer` 1.5, `coastFadeThrust` 8 kN): the rudder's force from the flow past the hull is 1.5× with no thrust (the skeg helps), fading back to 1× as propeller thrust builds.
+  - Coasting in neutral with the helm hard over, she turns 26.6° in 6 s (was 19.3°).
+  - Under power the turning circle is unchanged (the sea-trial band still holds).
+- **Tests:** the ladder (a low rung, and the jump button near it); the coasting turn, better than with the bare rudder.
+
 ## Planned next (owner requests, not started)
 
 1. ~~Fuel and oil temperature~~ **Done** (see above).
