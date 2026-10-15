@@ -131,6 +131,28 @@ At the helm, from left to right on the console:
 
 Warning lamps in front of the key: **OIL**, **CHARGE**, **GLOW**, **NEUTRAL** and **BILGE** (blinks with water in the bilge).
 
+### Chart table and logbook
+
+The chart table stands along the port wall, behind the helm. On it:
+- a paper chart of the sound (north toward the wall);
+- the **logbook**, lying open;
+- a pen holder with the pen, a pencil and an eraser;
+- a parallel rule and dividers;
+- a lamp with its own small switch (DECK LTS breaker).
+
+The pencil, eraser and rule are props for now. Drawing on the chart comes next.
+
+- **Writing the log:** point at the right-hand page and pull the trigger (desktop: click).
+  1. Tick what happened: **Departure** or **Arrival**.
+  2. Read the fuel gauge and tick Full / ¾ / ½ / ¼.
+  3. Touch **Sign here**. The pen comes out of the holder and signs.
+
+  Time, position (latitude and longitude) and port fill in by themselves. A correct reading gets a green tick; a wrong one is still written (it's your log), and the arrival entry shows the voyage's score.
+- **Reading back:** use ◀ ▶ at the foot of the left page to turn back through earlier voyages. The last five voyages are kept in the browser.
+- **When to write:** leaving a harbour or arriving (made fast alongside, or anchored in an anchorage) puts "Log: departure from …" or "Log: arrival at …" on the duty board. It ticks off when you sign.
+- **One writer at a time:** while a crewmate writes an entry, the page says so. If they leave it for 90 s, you can take it over.
+- **At night** you need the chart table lamp to read or write.
+
 ### Weather work
 
 - **Shipping forecast:** the coastguard reads it out on the VHF every 6 minutes and soon after the weather turns: wind, sky, visibility, and what's coming and when. You only hear it with the RADIO breaker on. The last one received stays on the **duty board** (starboard wall) with its time.

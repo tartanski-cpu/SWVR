@@ -54,6 +54,7 @@ export interface VesselConfig {
   electrics?: Workboat['electrics'];
   hatch?: Workboat['hatch'];
   bilge?: Workboat['bilge'];
+  chartTable?: Workboat['chartTable'];
 }
 
 /**
@@ -111,6 +112,8 @@ export interface VesselDef {
   /** Forepeak hatch and bilge (optional: not part of WorkboatDef). */
   hatch?: VesselConfig['hatch'];
   bilge?: VesselConfig['bilge'];
+  /** Chart table with the logbook (optional: not part of WorkboatDef). */
+  chartTable?: VesselConfig['chartTable'];
 }
 
 type Equipment = 'engine' | 'propeller' | 'rudder' | 'bridge' | 'navLights' | 'exhaust' | 'anchor' | 'rescueGear' | 'cabinLight' | 'overheadPanel' | 'whiteboard' | 'deckLights' | 'spotlight' | 'mooring';
@@ -196,6 +199,7 @@ export function fromConfig(id: string, c: VesselConfig): VesselDef {
     electrics: c.electrics,
     hatch: c.hatch,
     bilge: c.bilge,
+    chartTable: c.chartTable,
   };
 }
 

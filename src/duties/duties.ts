@@ -18,11 +18,14 @@
  *   secure      rain or a squall forecast (or here): close the forepeak hatch, lash the deck
  *               cargo (wipers on, optional). Dropped if the weather turns fair first.
  *   bilge       water over the alarm level: bilge breaker on, pump her dry.
+ *   log         something loggable happened (left harbour, arrived): write it in the log
+ *               at the chart table. Ticks off when the entry is signed.
  */
 import { CONFIG } from '../config';
 import type { WorldState } from '../core/world';
 import { visibilityAt } from '../environment/weather';
 import { isPowered } from '../vessel/electrics';
+import { LOG_TITLES } from '../log/log';
 import { leverDemand } from '../vessel/physics/propulsion';
 import { isWorkboat, VESSEL_DEFS, type WorkboatDef } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
@@ -36,7 +39,7 @@ export interface DutyStep {
 
 export interface Duty {
   id: string;
-  kind: 'startup' | 'fogSignal' | 'secure' | 'bilge';
+  kind: 'startup' | 'fogSignal' | 'secure' | 'bilge' | 'log';
   title: string;
   steps: DutyStep[];
   createdAt: number;
@@ -48,6 +51,8 @@ export interface Duty {
   lastBlast?: number;
   /** Stays up even with every step ticked (fogSignal, until the fog clears). */
   holdOpen?: boolean;
+  /** log: the log event it's for (log/log.ts). */
+  ref?: number;
 }
 
 export interface DutiesState {
@@ -180,6 +185,28 @@ function stepBilgeDuty(world: WorldState, d: DutiesState, v: VesselState): void 
   duty.steps[2].done = v.bilge < 0.02;
 }
 
+/** A "Log: ..." duty for each loggable event, ticked when its entry is signed. */
+function stepLogDuties(world: WorldState, d: DutiesState): void {
+  const log = world.log;
+  if (!log) return;
+  for (const ev of log.events) {
+    if (ev.logged || d.items.some((x) => x.kind === 'log' && x.ref === ev.id)) continue;
+    const what = `${LOG_TITLES[ev.type].toLowerCase()}${ev.port ? (ev.type === 'departure' ? ` from ${ev.port}` : ` at ${ev.port}`) : ''}`;
+    const duty = addDuty(d, 'log', `Log: ${what}`, [{ text: 'Write it up in the logbook (chart table)', done: false }], world.time);
+    duty.ref = ev.id;
+    duty.expireAt = ev.at + CONFIG.log.eventLinger;
+  }
+  for (const x of d.items) {
+    if (x.kind !== 'log' || x.doneAt !== undefined) continue;
+    // Logged (the event is marked, or gone because it was): tick it off.
+    const ev = log.events.find((e) => e.id === x.ref);
+    if (!ev || ev.logged) {
+      if (!ev && world.time >= (x.expireAt ?? Infinity)) continue; // just expired
+      x.steps[0].done = true;
+    }
+  }
+}
+
 /** Advance the duties: add what's due, tick off steps, finish, drop old ones. */
 export function stepDuties(world: WorldState): void {
   const d = (world.duties ??= createDuties());
@@ -216,6 +243,7 @@ export function stepDuties(world: WorldState): void {
     stepSecure(world, d, v);
     stepBilgeDuty(world, d, v);
   }
+  stepLogDuties(world, d);
 
   for (const x of d.items) {
     if (x.doneAt === undefined && !x.holdOpen && x.steps.length && x.steps.every((s) => s.done || s.optional)) {

@@ -28,7 +28,8 @@ export function selectedSoc(e: ElectricsState): number {
  * without modelled electrics always count as powered. What hangs on which breaker:
  *   instruments  dash displays (gauges), wipers   chart     chart plotter
  *   radio        VHF (screen, speaker, handset) and FM
- *   navLights    navigation lights            deckLights  floods, rail LEDs, cabin lamp, searchlight
+ *   navLights    navigation lights            deckLights  floods, rail LEDs, cabin lamp, searchlight,
+ *                                                         chart table lamp
  *   bilge        the bilge pump (float switch: runs while there's water; vessel/bilge.ts)
  * The starter, fuel solenoid, horn and windlass are on the master alone.
  */
@@ -60,6 +61,7 @@ export function loadAmps(s: VesselState, cfg: Electrics): number {
     if (c.deckAft > 0) a += L.deckFlood;
     if (c.railLights > 0) a += L.railLights;
     if (c.cabinLight > 0) a += L.cabinLight;
+    if (c.chartLamp > 0) a += L.chartLamp;
     if (c.spotlight > 0) a += L.searchlight;
   }
   if (on('bilge') && bilgePumping(s)) a += L.bilge;

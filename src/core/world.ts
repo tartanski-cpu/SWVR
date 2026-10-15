@@ -12,6 +12,7 @@ import type { Ping } from '../player/ping';
 import { stowTender } from '../vessel/davit';
 import { createWeather, rebuildWaves, seaForWind } from '../environment/weather';
 import type { Forecast } from '../environment/forecast';
+import type { LogState } from '../log/log';
 import type { DutiesState } from '../duties/duties';
 import { createRescueState, type RescueState } from '../rescue/rescue';
 
@@ -51,6 +52,8 @@ export interface WorldState {
   duties?: DutiesState;
   /** The last shipping forecast received by VHF (shown on the duty board; weather milestones). */
   forecast?: Forecast;
+  /** The ship's log: voyages, loggable events, the entry being written (log/log.ts). */
+  log?: LogState;
 }
 
 export function createWorld(

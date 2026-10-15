@@ -14,6 +14,7 @@ import { VESSEL_DEFS } from '../vessel/vesselDef';
 import { stepElectrics } from '../vessel/electrics';
 import { stepBilge } from '../vessel/bilge';
 import { stepForecast } from '../environment/forecast';
+import { applyLogIntent, isLogIntent, stepLog } from '../log/log';
 import { stepDuties } from '../duties/duties';
 import { applyDavitIntent, onDavit, stepTender } from '../vessel/davit';
 import { ENVIRONMENT_ID, type EntityId } from './ids';
@@ -40,6 +41,8 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
       applyRescueIntent(world, intent);
     } else if (intent.control === 'davit') {
       applyDavitIntent(world, intent);
+    } else if (isLogIntent(intent.control)) {
+      applyLogIntent(world, intent);
     } else if (intent.control === 'ping') {
       applyPing(world, intent);
     } else if (isCargoIntent(intent.control)) {
@@ -83,6 +86,7 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
 
   expirePings(world);
   stepForecast(world);
+  stepLog(world);
   stepDuties(world);
   stepRescue(world, dt, simWaves);
   world.tick += 1;

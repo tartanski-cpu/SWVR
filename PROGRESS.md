@@ -981,6 +981,40 @@ Owner decision: **no radar screen.** Passing vessels will show as AIS targets (t
   - the bilge, secure and fog-signal duties (including the blast un-ticking after 2 min and done on clearing);
   - the wipers' load.
 
+### E6: chart table and logbook (done, awaiting owner test)
+
+- **Chart table** (`vessel/view/chartTable.ts`, config `workboat.chartTable`): along the port wall, aft half, 0.65 × 1.32 m, top 0.95 m above the floor.
+  - It's solid in the walk area (`layout.ts`).
+  - **One merged static mesh:** table, cabinet with drawers, fiddle rails, pen holder with pencil and eraser, a parallel rule, dividers, and the lamp's base, arm and shade.
+  - **Separate parts:** the paper chart, the lamp bulb, the lamp switch (Toggle `chartLamp`, Deck lights breaker, 0.5 A), and the logbook's page and pen.
+- **Paper chart** (`nav/paperChart.ts`): drawn once from the terrain.
+  - Printed-chart style: buff land with a dark coastline, blue shallows, soundings, a half-minute lat/long grid, island and port names, a compass rose and a title block.
+  - North points to port (you face the wall), at about 1:5500.
+  - `chartToTable()` maps world metres to the table, ready for the M7 pencil marks.
+- **Chart grid** (`nav/geo.ts`): world origin at 56°37.2'N 005°57.0'W (`CONFIG.nav`). `formatPosition()` gives the log's positions.
+- **Light, with no real lights:** the chart and pages are unlit materials whose brightness follows daylight, the cabin lamp and the chart lamp. With the lamp on, the table gets a warm emissive glow. Below `log.readLight` daylight, the book can't be read or written without the lamp.
+- **Ship's log** (`log/log.ts`, `WorldState.log`, host-authoritative):
+  - **Voyages:** a voyage runs from a departure to an arrival; arrival closes it. The last 5 are kept and saved by the host in localStorage.
+  - **Events:** leaving within 300 m of a port, or being moored alongside / anchored in an anchorage. Each puts a "Log: …" duty on the duty board, ticked when the entry is signed. Unlogged events drop off after 10 min.
+  - **Entries:** type, ship's clock, lat/long and port, filled in at signing. The fuel reading is checked against the gauge (nearest of Full / ¾ / ½ / ¼). The arrival entry carries the voyage's score (correct readings / checked).
+  - **Writer lock:** one person writes at a time; someone else can take over after 90 s idle.
+  - **Intents:** `logBegin`, `logPick`, `logSign`, `logCancel`.
+  - In multiplayer the log rides in the snapshots for now. Milestone 10 moves it to its own messages.
+- **Logbook view** (`log/logbookView.ts`): an open book with both pages on one canvas, redrawn only on change.
+  - Left page: handwritten entries, paged, with ◀ ▶.
+  - Right page: entry-type boxes (with "due" hints from events), the readings, a Remarks line (filled by desktop voice in M9), and a "Sign here" box.
+  - VR: point and trigger. Desktop: click.
+  - Signing animates the pen from its holder to the box and back. Paper sounds (tick, scribble, page) in `audio/paperAudio.ts`.
+- **Simplification:** signing is a press on the box, with the pen animated, rather than picking the pen up. The pencil (M7) will be a real hand-held tool; the pen could follow if you want it.
+- **Draw calls:** +5 (table, chart, bulb, book body and pages, pen); about 34 in view at the table.
+- **Tests (232):**
+  - departure event and duty, signing with time, position, port and checked fuel, duty ticked;
+  - a wrong reading is not ticked; arrival closes the voyage with its score, and the next entry opens a new voyage;
+  - no signing until filled in; the writer lock and idle takeover;
+  - events expire;
+  - save/load keeps the last voyages and drops junk;
+  - position format.
+
 ## Planned next (owner requests, not started)
 
 1. ~~Fuel and oil temperature~~ **Done** (see above).

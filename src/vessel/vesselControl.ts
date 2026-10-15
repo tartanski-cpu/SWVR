@@ -92,6 +92,9 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
     case 'wipers':
       s.controls.wipers = intent.value > 0.5 ? 1 : 0;
       break;
+    case 'chartLamp':
+      s.controls.chartLamp = intent.value > 0.5 ? 1 : 0;
+      break;
     case 'hatch':
       s.controls.hatch = intent.value > 0.5 ? 1 : 0;
       break;

@@ -23,6 +23,10 @@ import { isPowered } from '../vessel/electrics';
 import { beaufort, compass8, visibilityAt, windVector } from '../environment/weather';
 import { WindAudio } from '../audio/windAudio';
 import { RainView } from '../environment/rainView';
+import { ChartTableView } from '../vessel/view/chartTable';
+import { LogbookView, type LogbookContext } from '../log/logbookView';
+import { parseLog, serializeLog } from '../log/log';
+import { PaperAudio } from '../audio/paperAudio';
 import { WindSock } from '../vessel/view/windSock';
 import { DutyBoardView } from '../duties/dutyBoardView';
 import { DavitGear } from '../controls/DavitGear';
@@ -96,6 +100,8 @@ import { AvatarsView } from '../net/avatarView';
  */
 /** Where the host keeps the whiteboard's notes between visits. */
 const BOARD_KEY = 'swvr.board';
+/** ...and the ship's log (the last few voyages). */
+const LOG_KEY = 'swvr.log';
 /** ...and the number of rescues completed. */
 const RESCUES_KEY = 'swvr.rescues';
 
@@ -196,6 +202,11 @@ export class App {
   private crouchY = 0;
   private board: BoardView | null = null;
   private dutyBoard: DutyBoardView | null = null;
+  /** Chart table (paper chart, lamp) and the logbook on it. */
+  private chartTable: ChartTableView | null = null;
+  private logbook: LogbookView | null = null;
+  private readonly paperAudio = new PaperAudio();
+  private logSaved = -1;
   /** Duties completed (for the tick sound when one finishes). */
   private dutiesDone = -1;
   private readonly noteKeys = new NoteKeyboard((text, x, y, colour) => this.pushBoardIntent('noteAdd', text, [x, y, colour]));
@@ -333,6 +344,7 @@ export class App {
       this.rescueSounds.attach(this.engineAudio.context);
       this.motorAudio.attach(this.engineAudio.context);
       this.windAudio.attach(this.engineAudio.context);
+      this.paperAudio.attach(this.engineAudio.context);
     };
     window.addEventListener('pointerdown', unlock);
     window.addEventListener('keydown', unlock);
@@ -485,6 +497,7 @@ export class App {
         }
       }
     }
+    this.updateChartTable(testVessel, dt);
     // Host / solo: keep the rescue count in this browser too.
     const done = this.world.rescue?.completed ?? 0;
     if (!this.client && done !== this.rescuesSaved) {
@@ -1415,7 +1428,25 @@ export class App {
       this.dutyBoard = new DutyBoardView(db);
       view.root.add(this.dutyBoard.root);
     }
+    // Chart table on the port side, aft half: the paper chart, its lamp, the logbook.
+    const ct = this.testDef.chartTable;
+    if (ct) {
+      this.chartTable = new ChartTableView(ct, wh.floorY);
+      view.root.add(this.chartTable.root);
+      this.bridge.controls.push(this.chartTable.lampSwitch);
+      // The book: its own frame has x across the pages (forward, -z), y up the page
+      // (outboard, -x) and z up, like the chart - you read it facing the wall.
+      const [bx, bz] = ct.book.center;
+      const top = this.chartTable.top;
+      const holder = new THREE.Vector3(-(ct.holder[1] - bz), -(ct.holder[0] - bx), 0.085 - 0.024);
+      this.logbook = new LogbookView(ct.book.width, ct.book.depth, holder);
+      this.logbook.root.matrixAutoUpdate = false;
+      this.logbook.root.matrix.makeBasis(new THREE.Vector3(0, 0, -1), new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 1, 0)).setPosition(bx, top + 0.001, bz);
+      view.root.add(this.logbook.root);
+      this.scene.add(this.logbook.rayLine);
+    }
     try {
+      if (!this.client) this.world.log ??= parseLog(localStorage.getItem(LOG_KEY)) ?? undefined;
       this.world.board ??= parseBoard(localStorage.getItem(BOARD_KEY)) ?? undefined;
       // Rescues completed in this browser so far (milestone 4).
       const n = Number(localStorage.getItem(RESCUES_KEY));
@@ -1486,6 +1517,10 @@ export class App {
         const onBoard = this.board.updateXR(this.boardCtx(), this.hands, this.busyHands);
         for (const h of ['left', 'right'] as const) if (onBoard[h]) this.busyHands[h] = true;
       } else if (this.board) this.board.rayLine.visible = false;
+      if (this.logbook) {
+        const onBook = this.logbook.updateXR(this.logbookCtx(), this.hands, this.busyHands);
+        for (const h of ['left', 'right'] as const) if (onBook[h]) this.busyHands[h] = true;
+      }
       this.pointer?.hide();
       return;
     }
@@ -1549,16 +1584,61 @@ export class App {
         // The board first (the life ring hangs just behind it, outside the wall), unless
         // the mouse already holds rescue gear or cargo.
         const free = !this.cargoHands.carrying;
+        const book = free && !this.rescueHands.deskBusy && this.logbook ? this.logbook.label(this.logbookCtx(), ray) : null;
+        if (book) return book;
         const board = free && !this.rescueHands.deskBusy && this.board ? this.board.label(this.boardCtx(), ray) : null;
         const gear = free && !board ? this.rescueHands.updateDesktop(this.rescueCtx(), ray, this.headW, this.headFwd, this.frameDt) : null;
         return board ?? gear ?? this.cargoHands.updateDesktop(this.cargoCtx(), ray, this.headW, this.headFwd);
       },
       click: (ray: THREE.Ray | null) => {
         this.camera.getWorldDirection(this.headFwd);
+        if (!this.cargoHands.carrying && !this.rescueHands.deskBusy && this.logbook?.click(this.logbookCtx(), ray)) return true;
         if (!this.cargoHands.carrying && !this.rescueHands.deskBusy && this.board?.click(this.boardCtx(), ray)) return true;
         if (!this.cargoHands.carrying && this.rescueHands.desktopClick(this.rescueCtx(), ray, this.headFwd)) return true;
         return this.cargoHands.desktopClick(this.cargoCtx(), ray);
       },
+    };
+  }
+
+  /**
+   * The chart table: how much light falls on the chart and the book (daylight, the cabin
+   * lamp, the chart table lamp), the book's redraw and pen, and saving the log (host).
+   */
+  private updateChartTable(v: VesselState | undefined, dt: number): void {
+    if (!this.chartTable || !this.logbook || !v) return;
+    const lamp = v.controls.chartLamp > 0 && isPowered(v, 'deckLights');
+    const cabin = v.controls.cabinLight > 0 && isPowered(v, 'deckLights');
+    const level = Math.min(1, Math.max(0.04, this.environment.ambientIntensity * 1.1 + (cabin ? 0.45 : 0) + (lamp ? 1 : 0)));
+    this.chartTable.setLight(level, lamp);
+    this.logbook.update(this.world, this.localPlayerId, level, dt);
+    const log = this.world.log;
+    if (log && !this.client && log.seq !== this.logSaved) {
+      this.logSaved = log.seq;
+      try {
+        localStorage.setItem(LOG_KEY, serializeLog(log));
+      } catch {
+        // Not saved; still shared.
+      }
+    }
+  }
+
+  /** Light enough to read the log: daylight, or the chart table lamp. */
+  private canReadLog(): boolean {
+    const v = this.world.vessels[this.testVesselId];
+    const lamp = !!v && v.controls.chartLamp > 0 && isPowered(v, 'deckLights');
+    return lamp || this.environment.ambientIntensity >= CONFIG.log.readLight;
+  }
+
+  /** The logbook's view of the app. */
+  private logbookCtx(): LogbookContext {
+    return {
+      world: this.world,
+      playerId: this.localPlayerId,
+      push: (control, ref, args) => this.intents.push({ playerId: this.localPlayerId, targetId: ENVIRONMENT_ID, control, value: 1, ref, args }),
+      pulse: (h, i, ms) => this.xrInput.pulse(h, i, ms),
+      canRead: () => this.canReadLog(),
+      notify: (text) => this.overlay.notify(text, 3),
+      sound: (kind) => this.paperAudio.play(kind),
     };
   }
 

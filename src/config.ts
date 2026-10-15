@@ -563,6 +563,7 @@ export const CONFIG = {
           horn: 10,
           bilge: 3,
           wipers: 4,
+          chartLamp: 0.5,
           glowPlugs: 35,
           starter: 180,
         },
@@ -689,6 +690,25 @@ export const CONFIG = {
        * the door, facing forward (vessel axes: centre, width, height, m).
        */
       whiteboard: { position: [-0.9, 2.5, 1.4] as [number, number, number], width: 0.85, height: 0.62 },
+      /**
+       * Chart table along the port wall, aft half (vessel axes): its footprint (x0..x1
+       * across, z0..z1 fore-aft) and top height above the wheelhouse floor. You stand on
+       * its inboard side facing the wall (port), so north on the chart points to port.
+       * On it: the paper chart, the logbook (open, at the aft end), a pen holder (pen,
+       * pencil, eraser), a parallel rule and dividers, and a lamp with its own switch
+       * (Deck lights breaker). All positions are on the table top: [x, z].
+       */
+      chartTable: {
+        x0: -1.37,
+        x1: -0.72,
+        z0: -0.6,
+        z1: 0.72,
+        height: 0.95,
+        book: { center: [-1.02, 0.42] as [number, number], width: 0.46, depth: 0.32 },
+        holder: [-1.3, 0.12] as [number, number],
+        lamp: { base: [-1.3, 0.66] as [number, number], height: 0.42 },
+        lampSwitch: [-0.79, 0.64] as [number, number],
+      },
       /**
        * The duty board (game tasks and the shipping forecast; duties/dutyBoardView.ts): on
        * the starboard wall in the aft half of the side window (behind the helm, where it
@@ -1022,6 +1042,21 @@ export const CONFIG = {
   spotting: { range: 900, strobeVisFactor: 1.6 },
 
   /** The duty board's game-generated task list (duties/duties.ts). */
+  /**
+   * The chart's grid (nav/geo.ts): the latitude and longitude of the world origin. The
+   * archipelago is fictional; this just makes positions read like real ones.
+   */
+  nav: { originLat: 56.62, originLon: -5.95 },
+
+  /**
+   * The ship's log (log/log.ts). A voyage runs from a departure to an arrival; the last
+   * `keepVoyages` are kept (in the browser). An event waits `eventLinger` s to be logged
+   * (its duty drops off after that). A draft left untouched for `draftIdle` s can be taken
+   * over by someone else. It's too dark to read the book below `readLight` daylight
+   * (0..1) unless the chart table lamp is on.
+   */
+  log: { keepVoyages: 5, eventLinger: 600, draftIdle: 90, readLight: 0.35, harbourRadius: 300 },
+
   duties: {
     /** A finished duty stays up, ticked, this long (s), then drops off. */
     doneLinger: 15,
