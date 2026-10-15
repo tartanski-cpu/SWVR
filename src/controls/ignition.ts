@@ -127,6 +127,7 @@ const LAMPS = [
   { name: 'CHARGE', on: 0xff3020, off: 0x2a0c08 },
   { name: 'GLOW', on: 0xffa020, off: 0x2a1a06 },
   { name: 'NEUTRAL', on: 0x40e060, off: 0x0c2a12 },
+  { name: 'BILGE', on: 0xff3020, off: 0x2a0c08 },
 ] as const;
 
 /**
@@ -136,6 +137,7 @@ const LAMPS = [
  *   GLOW         lit while HEAT is held, until the plugs are hot enough (then go!);
  *   NEUTRAL      lit with the lever in neutral (the start interlock); blinks if START is
  *                held in gear.
+ *   BILGE        blinks with water in the bilge over the alarm level (bilge.ts).
  * Colours change only when a lamp changes.
  */
 export class WarningLamps {
@@ -172,6 +174,7 @@ export class WarningLamps {
       instr && !running,
       isPowered(s) && e.key > 0 && s.controls.heat > 0 && e.glow < def.engine.preheatTime,
       instr && (neutral || (s.controls.start > 0 && blink)),
+      instr && (s.bilge ?? 0) >= (def.bilge?.alarmAt ?? 1) && blink,
     ];
     const key = lit.map((x) => (x ? 1 : 0)).join('');
     if (key === this.shown) return;

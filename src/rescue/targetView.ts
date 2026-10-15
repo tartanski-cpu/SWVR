@@ -135,6 +135,9 @@ export class TargetsView {
   /**
    * @param vesselId / vesselRoot  the rescuing boat (survivors climb aboard and sit in it)
    */
+  /** Visibility where the viewer is (m): waving is seen within it, the strobe a bit beyond. */
+  visibility = Infinity;
+
   update(world: WorldState, waves: readonly PreparedWave[], viewer: THREE.Vector3, darkness: number, time: number, dt: number, vesselId: string, vesselRoot?: THREE.Object3D): void {
     const cfg = CONFIG.rescue;
     const targets = world.rescue?.active?.targets ?? [];
@@ -172,12 +175,16 @@ export class TargetsView {
       m.root.quaternion.copy(this.q).multiply(this.qYaw.setFromAxisAngle(this.up, yaw));
       if (m.arm) {
         // On the line they hang on to the ring with both hands: no waving, no whistle.
-        const waving = dist < cfg.waveRange && t.phase !== 'onLine';
+        // They wave once they can see you (within the visibility); the whistle carries in fog.
+        const inWater = t.phase !== 'onLine';
+        const waving = inWater && dist < Math.min(cfg.waveRange, this.visibility);
         m.arm.rotation.z = waving ? -0.25 - 0.45 * (0.5 + 0.5 * Math.sin(time * 6 + m.phase)) : -1.35;
-        if (waving && dist < cfg.whistleRange) whistle = m.root.position;
+        if (inWater && dist < cfg.whistleRange) whistle = m.root.position;
       }
       // Night strobe: a short bright flash once a period, sized to stay visible far off.
-      const flash = darkness > cfg.strobeDarkness && (time + m.phase) % cfg.strobePeriod < cfg.strobeOn;
+      // Fog swallows it beyond a little more than the visibility.
+      const inSight = dist < this.visibility * CONFIG.spotting.strobeVisFactor;
+      const flash = inSight && darkness > cfg.strobeDarkness && (time + m.phase) % cfg.strobePeriod < cfg.strobeOn;
       m.strobe.visible = flash;
       if (flash) m.strobe.scale.setScalar(Math.max(0.35, dist / 45));
     }

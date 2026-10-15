@@ -933,6 +933,54 @@ Owner decision: **no radar screen.** Passing vessels will show as AIS targets (t
   - leeway: beam-on, a realistic speed, the skiff faster;
   - things in the water drift downwind.
 
+### E5: rain, squalls and crew work (done, awaiting owner test)
+
+- **Rain streaks** (`environment/rainView.ts`): the one new visual effect, capped.
+  - Line segments in a 16 × 8 m box around the viewer: 1400 on high, 500 on low (Menu → Sea & time → Rain effect, remembered on the device).
+  - **One draw call**; how many are drawn follows the rain.
+  - All motion is in the vertex shader (falling, leaning with half the wind, wrapping round the viewer), so there's no per-frame CPU work or upload.
+  - None fall inside the wheelhouse (a box in the boat's frame) or below the sea.
+- **Window rain and wipers** (`vessel/view/rainGlass.ts`): a wet-glass plane on the three front panes, shown only while it rains.
+  - Drops are hashed cells whose share rises with the rain and with the time since that spot was wiped.
+  - Three pendulum wipers hang from the window head. The shader works out when the arm last passed a point from the wiper's clock (a triangle wave), so nothing is painted or uploaded.
+  - **WIPERS** switch on the console (port end). The wipers draw 4 A on the Instruments breaker; switched off they park.
+- **Squalls:** rain darkens the light beyond cloud cover.
+  - Lightning every 10–30 s at 0.5–4 km (`WeatherState.lightning`, host-chosen and synced). The view flashes the sky and sky light for a third of a second.
+  - Thunder follows at 343 m/s: a crack if close, then a rumble.
+  - Rain sound: a hiss outside, a drum on the roof inside.
+- **Shipping forecast** (`environment/forecast.ts`):
+  - The coastguard reads the director's plan every 6 min and 30 s after each change.
+  - Wording is shipping-forecast style: Beaufort, compass, fair / cloudy / fog patches / rain / squally showers, and visibility good / moderate / poor / very poor. "Gale warning" comes with squalls.
+  - **Heard only with the radio on.** It is then `WorldState.forecast`, read out on the VHF and shown on the duty board with its time.
+- **Forepeak hatch and bilge** (`controls/Hatch.ts`, `vessel/bilge.ts`):
+  - The hatch is on the foredeck and starts open. Open in rain, the bilge fills (full in about 7 min of steady rain, double in a squall).
+  - The pump on the BILGE breaker has a float switch and only runs, and draws current, with water in the bilge.
+  - A **BILGE** warning lamp (5th) blinks above 30 %. There are no physics effects: it's state the crew has to look after.
+- **New duties** (duty board):
+  - **Rain/Squall (coming): secure the boat.** Comes from a received forecast of rain or a squall, or the weather itself. Steps: close the hatch, lash cargo, wipers (optional). It drops if fair weather returns first.
+  - **Restricted visibility.** Under way in visibility below 1000 m. Steps: nav lights; a prolonged blast (≥ 4 s, timed from the horn) that un-ticks after 2 min; safe speed (optional). It stays up until the visibility is over 1500 m, then counts as done if the signal was kept.
+  - **Bilge alarm.** Steps: BILGE breaker, pumped dry.
+- **Spotting:** survivors wave only within the visibility. Their strobe (which ignores fog) is cut beyond 1.6 × the visibility; the whistle still carries. The **lookout** calls out each floating target once, as it comes within min(900 m, visibility), with a clock bearing and range.
+- **Debug:** Menu → Tests → Bilge: level, hatch and pump, and **Flood (60 %)**. Rain effect High / Low / None. With the E4 options, this covers the brief's power, battery, weather-preset, transition-speed and rain-quality debug options. Spawn passing vessel and clear chart marks come with M8 and M7.
+- **Profile (milestone 5),** headless with SwiftShader, CPU only. Worst case: a squall at full rain on high quality, wipers going, engine running.
+
+  | | M3 | M5 |
+  |---|---|---|
+  | Draw calls at the helm | 42 | 48 |
+  | Draw calls, aft deck looking forward | 88 | 96 |
+  | View CPU per frame | 0.76 ms | 1.2 ms |
+  | Sim tick | 0.16 ms | 0.19 ms |
+  | Triangles | ~160k | ~160k |
+
+  The extra draw calls are the rain, the wet glass, the instanced wipers and the M4 wind sock. The wet glass is the costliest new pixel work at the helm: it covers the windscreen with a small hash shader. If the Quest struggles, try Rain effect Low / None first.
+- **Tests (226):**
+  - the forecast is heard only with the radio on, says what's coming and when, and is repeated on schedule;
+  - a forecast follows a change, with a gale warning in a squall;
+  - lightning comes only in squalls;
+  - an open hatch in the rain fills the bilge, and the pump empties it with its float switch;
+  - the bilge, secure and fog-signal duties (including the blast un-ticking after 2 min and done on clearing);
+  - the wipers' load.
+
 ## Planned next (owner requests, not started)
 
 1. ~~Fuel and oil temperature~~ **Done** (see above).

@@ -37,6 +37,9 @@ export interface VesselControls {
   /** Diesel ignition: HEAT and START buttons, 1 while held (the key is in EngineState). */
   heat: number;
   start: number;
+  /** Windscreen wipers switch (0/1) and the forepeak hatch (1 open / 0 closed). */
+  wipers: number;
+  hatch: number;
 }
 
 /** Docking and mooring lines (physics/mooring.ts). */
@@ -149,6 +152,8 @@ export interface VesselState {
   tender?: TenderState;
   /** 12 V electrics, boats that have them (vessel/electrics.ts). */
   electrics?: ElectricsState;
+  /** Water in the bilge, 0 (dry) .. 1 (full), boats with a hatch (vessel/bilge.ts). */
+  bilge?: number;
 }
 
 /** Batteries, master switch and the last tick's readings (vessel/electrics.ts). */
@@ -193,7 +198,7 @@ export function createVesselState(id: EntityId, defId: string): VesselState {
     orientation: [0, 0, 0, 1],
     linearVelocity: [0, 0, 0],
     angularVelocity: [0, 0, 0],
-    controls: { lever: 0, helm: 0, navLights: 0, horn: 0, anchor: 0, cabinLight: 0, spotlight: 0, spotPan: 0, spotTilt: -4, deckFore: 0, deckAft: 0, railLights: 0, fmOn: 0, fmStation: 0, obOn: 0, obGear: 0, heat: 0, start: 0 },
+    controls: { lever: 0, helm: 0, navLights: 0, horn: 0, anchor: 0, cabinLight: 0, spotlight: 0, spotPan: 0, spotTilt: -4, deckFore: 0, deckAft: 0, railLights: 0, fmOn: 0, fmStation: 0, obOn: 0, obGear: 0, heat: 0, start: 0, wipers: 0, hatch: VESSEL_DEFS[defId].hatch?.startOpen ? 1 : 0 },
     engine: {
       phase: 'off',
       crank: 0,
@@ -218,6 +223,7 @@ export function createVesselState(id: EntityId, defId: string): VesselState {
     refuelling: false,
     contact: { force: 0, slide: 0, impact: 0 },
     ...(VESSEL_DEFS[defId].outboard ? { battery: 1 } : {}),
+    ...(VESSEL_DEFS[defId].bilge ? { bilge: 0 } : {}),
     // Warm by default (tests, trials): master on, both batteries full. The game itself
     // starts cold and dark (createWorld `cold`).
     ...(VESSEL_DEFS[defId].electrics

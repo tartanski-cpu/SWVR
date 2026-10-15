@@ -21,6 +21,11 @@ export interface MenuHost {
   setWeatherFixed(on: boolean): void;
   weatherFast(): boolean;
   setWeatherFast(on: boolean): void;
+  /** Rain streak quality (a local setting) and the debug bilge flood. */
+  rainQuality(): string;
+  setRainQuality(q: string): void;
+  bilgeStatus(): string;
+  floodBilge(): void;
   coupling(): number;
   setCoupling(value: number): void;
   smoothWalk(): boolean;
@@ -167,6 +172,10 @@ export function mainMenu(h: MenuHost): MainMenu {
         { text: () => (h.weatherFixed() ? 'Fixed weather' : 'Changing'), active: () => h.weatherFixed(), press: () => h.setWeatherFixed(!h.weatherFixed()) },
         { text: 'Fast ×10', active: () => h.weatherFast(), press: () => h.setWeatherFast(!h.weatherFast()) },
       ],
+    },
+    {
+      label: 'Rain effect',
+      buttons: (['high', 'low', 'off'] as const).map((q) => ({ text: q === 'high' ? 'High' : q === 'low' ? 'Low' : 'None', active: () => h.rainQuality() === q, press: () => h.setRainQuality(q) })),
     },
     { heading: 'Sea (test: the wind takes it back)' },
     {
@@ -337,6 +346,13 @@ export function mainMenu(h: MenuHost): MainMenu {
       buttons: [
         { text: 'Quick start (all in one)', press: () => h.electricsDebug(4), weight: 1.6 },
         { text: 'Battery 1 flat', press: () => h.electricsDebug(3), weight: 1.2 },
+      ],
+    },
+    {
+      label: 'Bilge',
+      buttons: [
+        { text: () => h.bilgeStatus(), weight: 2 },
+        { text: 'Flood (60 %)', press: () => h.floodBilge() },
       ],
     },
     {

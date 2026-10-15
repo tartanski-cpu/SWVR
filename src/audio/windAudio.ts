@@ -1,9 +1,11 @@
 import { mixer } from './mixer';
 
 /**
- * Wind noise: two bands of noise (a low rumble and a higher whistle in the rigging) whose
+ * Weather sounds. Wind noise: two bands of noise (a low rumble and a higher whistle in the rigging) whose
  * level rises with the apparent wind - nothing below a light breeze, a steady roar in a
  * gale - and which gust: a slow random swell on the level. Quieter inside the wheelhouse.
+ * Rain: a bright hiss outside; inside, a duller drumming on the roof. Thunder: a crack
+ * (close strikes) and a long low rumble, after the flash by distance / speed of sound.
  */
 export class WindAudio {
   private ctx: AudioContext | null = null;
@@ -13,6 +15,9 @@ export class WindAudio {
   private gust = 0.5;
   private gustTarget = 0.5;
   private gustT = 0;
+  private rain!: GainNode;
+  private rainLp!: BiquadFilterNode;
+  private white: AudioBuffer | null = null;
 
   attach(ctx: AudioContext | null): void {
     if (!ctx || this.ctx) return;
@@ -44,6 +49,71 @@ export class WindAudio {
     src.connect(lowLp).connect(this.low).connect(out);
     src.connect(this.highBp).connect(this.high).connect(out);
     src.start();
+    // Rain: white noise, high-passed (hiss); the low-pass closes down inside (roof drum).
+    const wlen = ctx.sampleRate * 2;
+    this.white = ctx.createBuffer(1, wlen, ctx.sampleRate);
+    const wd = this.white.getChannelData(0);
+    for (let i = 0; i < wlen; i++) wd[i] = Math.random() * 2 - 1;
+    const rsrc = ctx.createBufferSource();
+    rsrc.buffer = this.white;
+    rsrc.loop = true;
+    const hp = ctx.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = 500;
+    this.rainLp = ctx.createBiquadFilter();
+    this.rainLp.type = 'lowpass';
+    this.rainLp.frequency.value = 8000;
+    this.rain = ctx.createGain();
+    this.rain.gain.value = 0;
+    rsrc.connect(hp).connect(this.rainLp).connect(this.rain).connect(out);
+    rsrc.start();
+  }
+
+  /** Rain level 0..1 where you are; inside, it drums on the roof instead of hissing. */
+  setRain(rain: number, inside: boolean): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    this.rain.gain.setTargetAtTime(rain * (inside ? 0.22 : 0.14), t, 0.4);
+    this.rainLp.frequency.setTargetAtTime(inside ? 1400 : 8000, t, 0.2);
+  }
+
+  /** Thunder from a flash `dist` m away (call at the flash: it waits for the sound). */
+  thunder(dist: number): void {
+    const ctx = this.ctx;
+    if (!ctx || !this.white) return;
+    const at = ctx.currentTime + dist / 343;
+    const near = Math.max(0, 1 - dist / 4500);
+    const out = mixer.bus(ctx, 'effects');
+    // Rumble: low-passed noise swelling and dying away over several seconds.
+    const len = 3 + 4 * (1 - near);
+    const src = ctx.createBufferSource();
+    src.buffer = this.white;
+    src.loop = true;
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 120 + 250 * near;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, at);
+    g.gain.linearRampToValueAtTime(0.9 * (0.3 + near), at + 0.15 + (1 - near) * 0.8);
+    g.gain.exponentialRampToValueAtTime(0.001, at + len);
+    src.connect(lp).connect(g).connect(out);
+    src.start(at);
+    src.stop(at + len + 0.1);
+    // A close strike cracks first.
+    if (near > 0.6) {
+      const c = ctx.createBufferSource();
+      c.buffer = this.white;
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = 1800;
+      const cg = ctx.createGain();
+      cg.gain.setValueAtTime(0.5 * near, at);
+      cg.gain.exponentialRampToValueAtTime(0.001, at + 0.35);
+      c.connect(bp).connect(cg).connect(out);
+      c.start(at);
+      c.stop(at + 0.4);
+    }
   }
 
   /**

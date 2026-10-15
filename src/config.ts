@@ -471,6 +471,8 @@ export const CONFIG = {
         anchorSwitch: { position: [-0.6, 2.16, -1.52] as [number, number, number] },
         cabinLightSwitch: { position: [-0.96, 2.16, -1.52] as [number, number, number] },
         spotlightSwitch: { position: [-1.14, 2.16, -1.52] as [number, number, number] },
+        /** Windscreen wipers (Instruments breaker), at the port end of the row. */
+        wipersSwitch: { position: [-1.3, 2.16, -1.52] as [number, number, number] },
         /** Searchlight joystick on a pedestal to port of the wheel (mirrors the throttle's). */
         spotJoystick: { position: [-0.45, 2.16, -1.15] as [number, number, number] },
         /**
@@ -560,6 +562,7 @@ export const CONFIG = {
           windlass: 60,
           horn: 10,
           bilge: 3,
+          wipers: 4,
           glowPlugs: 35,
           starter: 180,
         },
@@ -579,6 +582,15 @@ export const CONFIG = {
          */
         panel: { position: [1.22, 1.84, -0.85] as [number, number, number], width: 0.54, height: 0.32, tiltDeg: 40 },
       },
+      /**
+       * Forepeak hatch on the foredeck (vessel axes: centre x/z, side length m). Left open
+       * in rain, water gets below: the bilge fills (fraction/s at full rain, a squall's
+       * spray counts double); the bilge pump (BILGE breaker, float switch) empties it at
+       * `pumpRate`. The BILGE lamp lights above `alarmAt`. The game starts with it open,
+       * airing the forepeak.
+       */
+      hatch: { position: [0, -3.3] as [number, number], size: 0.62, startOpen: true },
+      bilge: { rainInflow: 1 / 400, pumpRate: 1 / 90, alarmAt: 0.3 },
       /**
        * Stern davit for the tender (the skiff), vessel axes. She hangs athwartships just aft
        * of the transom (`hang`: her origin; `yawDeg` 90 = her bow to port, outboard to
@@ -964,12 +976,63 @@ export const CONFIG = {
     driftPerWind: 0.02,
     /** The thrown life ring is pushed downwind in flight at this fraction of the wind (m/s^2 per m/s). */
     ringPushPerWind: 0.06,
+    /** Rain darkens the light a little more than cloud alone (fraction at full rain). */
+    rainDarken: 0.3,
+    /**
+     * Lightning in squalls: a flash every `every` s (random in the range), `dist` m away
+     * (random); thunder follows at the speed of sound.
+     */
+    lightning: { every: [10, 30] as [number, number], dist: [500, 4000] as [number, number], flashTime: 0.35 },
+    /**
+     * Shipping forecast on the VHF: every `every` s, and `afterChange` s after the weather
+     * turns (the plan for the next change is new). Received only with the radio on.
+     */
+    forecast: { every: 360, afterChange: 30 },
   },
+
+  /**
+   * Rain (view only): streaks in a box around the viewer, one draw call, animated in the
+   * vertex shader - no per-frame CPU work. `count` at full rain on high quality, `lowCount`
+   * on low; they don't fall inside the wheelhouse.
+   */
+  rain: {
+    count: 1400,
+    lowCount: 500,
+    /** Box around the viewer (m): width/depth and height. */
+    area: 16,
+    height: 8,
+    /** Fall speed (m/s) and streak length (m). */
+    speed: 9,
+    length: 0.45,
+    opacity: 0.6,
+    /** Window rain: drops build back up this long after a wipe at full rain (s); drop grid (m). */
+    glassRefill: 3.5,
+    glassCell: 0.022,
+    /** Wipers: one sweep there and back (s), half-angle (deg), arm length (m). */
+    wiperPeriod: 1.7,
+    wiperSweepDeg: 42,
+    wiperArm: 0.7,
+  },
+
+  /**
+   * Spotting: the lookout calls out something in the water within this range (m) - or the
+   * visibility, if less. A survivor's strobe shows through fog to `strobeVisFactor` x the
+   * visibility; their arm waving is seen within the visibility.
+   */
+  spotting: { range: 900, strobeVisFactor: 1.6 },
 
   /** The duty board's game-generated task list (duties/duties.ts). */
   duties: {
     /** A finished duty stays up, ticked, this long (s), then drops off. */
     doneLinger: 15,
+    /** Restricted visibility (COLREG rule 35): under way in visibility below `fogVis` (m)... */
+    fogVis: 1000,
+    /** ...until it clears above `fogClearVis`: a prolonged blast (>= `blastMin` s) every `blastEvery` s. */
+    fogClearVis: 1500,
+    blastMin: 4,
+    blastEvery: 120,
+    /** Heavy weather: a received forecast of rain or a squall counts for this long (s). */
+    forecastValid: 900,
   },
 
   /** Water effects (all one draw call each; see vessel/view/wakeTrail.ts and spray.ts). */

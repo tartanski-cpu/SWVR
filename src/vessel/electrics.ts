@@ -26,10 +26,10 @@ export function selectedSoc(e: ElectricsState): number {
 /**
  * Is there 12 V on the bus - and, given a breaker, is that circuit switched on? Boats
  * without modelled electrics always count as powered. What hangs on which breaker:
- *   instruments  dash displays (gauges)       chart     chart plotter
+ *   instruments  dash displays (gauges), wipers   chart     chart plotter
  *   radio        VHF (screen, speaker, handset) and FM
  *   navLights    navigation lights            deckLights  floods, rail LEDs, cabin lamp, searchlight
- *   bilge        the bilge pump (a load only)
+ *   bilge        the bilge pump (float switch: runs while there's water; vessel/bilge.ts)
  * The starter, fuel solenoid, horn and windlass are on the master alone.
  */
 export function isPowered(s: VesselState, breaker?: BreakerName): boolean {
@@ -51,7 +51,7 @@ export function loadAmps(s: VesselState, cfg: Electrics): number {
   const b = s.electrics?.breakers;
   const on = (k: BreakerName) => !b || b[k] > 0;
   let a = L.base;
-  if (on('instruments')) a += L.instruments;
+  if (on('instruments')) a += L.instruments + (c.wipers > 0 ? L.wipers : 0);
   if (on('chart')) a += L.chart;
   if (on('radio')) a += L.radio + (c.fmOn > 0 ? L.fm : 0);
   if (on('navLights') && c.navLights > 0) a += L.navLights;
@@ -62,13 +62,18 @@ export function loadAmps(s: VesselState, cfg: Electrics): number {
     if (c.cabinLight > 0) a += L.cabinLight;
     if (c.spotlight > 0) a += L.searchlight;
   }
-  if (on('bilge')) a += L.bilge;
+  if (on('bilge') && bilgePumping(s)) a += L.bilge;
   if (c.horn > 0) a += L.horn;
   const an = s.anchor.phase;
   if (an === 'paying' || an === 'weighing' || (an === 'hanging' && c.anchor <= 0)) a += L.windlass;
   if (s.engine.phase === 'cranking') a += L.starter;
   if (s.engine.key > 0 && c.heat > 0) a += L.glowPlugs;
   return a;
+}
+
+/** Is the bilge pump running: its breaker live and water over the float switch? */
+export function bilgePumping(s: VesselState): boolean {
+  return (s.bilge ?? 0) > 0.01 && isPowered(s, 'bilge');
 }
 
 /** Advance the electrics by dt: charge and discharge, and the bus voltage. */

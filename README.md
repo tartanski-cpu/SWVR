@@ -107,11 +107,11 @@ The menu has six tabs along the top:
 
 | Tab | Settings |
 |---|---|
-| Sea & time | Time of day ±1 h / ±10 min; time flow stopped / ×60 / ×600; **weather**: what it is now and what's coming, presets Clear / Overcast / Fog / Rain / Squall, **Fixed weather** (stop the changes) and **Fast ×10** (changes come ten times sooner); sea state Calm / Slight / Moderate / Rough / Storm, with ± for the wave height (Hs 0–3.6 m; the wind builds or calms it back over a few minutes); bearing and range to each port, with **Go** to move the boat (and you) to that port's cargo berth or anchorage |
+| Sea & time | Time of day ±1 h / ±10 min; time flow stopped / ×60 / ×600; **weather**: what it is now and what's coming, presets Clear / Overcast / Fog / Rain / Squall, **Fixed weather** (stop the changes) and **Fast ×10** (changes come ten times sooner), **Rain effect** High / Low / None (remembered on the device); sea state Calm / Slight / Moderate / Rough / Storm, with ± for the wave height (Hs 0–3.6 m; the wind builds or calms it back over a few minutes); bearing and range to each port, with **Go** to move the boat (and you) to that port's cargo berth or anchorage |
 | Boat | Board / leave; fuel and **Refuel** (at a fuel berth); anchor status; sea-trials report on a big panel in front of you (the game freezes for about a second while the trials run) |
 | Cargo | Where you are, payload, deliveries; cargo aboard (lashed or loose), and what's in the skiff (two crates or one drum) |
 | Comfort | Motion coupling ±10 %, stick walking on/off, snap-turn angle. Remembered on the device |
-| Tests | Drop from 4 m, heel 20°; engine faults (fuel to 5 %, raw-water pump failure); perf panel, buoyancy view, wave probes |
+| Tests | Electrics (power on, fill, flat); start-up (quick start, battery 1 flat); **Bilge**: level, hatch, pump, and **Flood (60 %)**; drop from 4 m, heel 20°; engine faults (fuel to 5 %, raw-water pump failure); perf panel, buoyancy view, wave probes |
 
 ### Bridge
 
@@ -122,11 +122,26 @@ At the helm, from left to right on the console:
 - **SPOT** switch (far left): the searchlight on the wheelhouse roof.
 - **Searchlight joystick:** on the pedestal to port of the wheel, under your left hand. Grip it and push sideways to pan, forward/back to raise/lower the beam. The further you push, the faster it moves; let go and the light stays put. On desktop, click and drag it.
 - **Cabin** light switch: the wheelhouse ceiling lamp.
+- **WIPERS** switch (far port end): the three pendulum wipers on the front windows. They need the INSTR breaker; switched off they finish the sweep and park.
 - **DOCK** button (blue, right of the wheel): lights up when you're in a berth's hot spot. Press it to dock; press again to cast off.
 - **Horn** button (hold).
 - **Wheel**: 1.5 turns lock to lock. Hydraulic steering, so it stays where you leave it.
 - **Throttle/gear lever**, on a pedestal starboard of the wheel so it falls to hand: forward = ahead, back = astern, with a notch at neutral.
 - **Start/stop** button. The engine only starts with the lever in neutral.
+
+Warning lamps in front of the key: **OIL**, **CHARGE**, **GLOW**, **NEUTRAL** and **BILGE** (blinks with water in the bilge).
+
+### Weather work
+
+- **Shipping forecast:** the coastguard reads it out on the VHF every 6 minutes and soon after the weather turns: wind, sky, visibility, and what's coming and when. You only hear it with the RADIO breaker on. The last one received stays on the **duty board** (starboard wall) with its time.
+- **Rain:** drops build up on the front windows; the wipers clear them. Rain drums on the roof inside and hisses outside.
+- **Squalls:** gloomy light, lightning flashes, and thunder after them (count the seconds: about 3 s per km).
+- **Forepeak hatch** (foredeck, ahead of the wheelhouse; click / trigger to open or close). It starts open. Left open in the rain, water gets below: the BILGE lamp blinks and the bilge pump (BILGE breaker) pumps it out.
+- **Duties** the weather puts on the duty board:
+  - **Rain/Squall coming: secure the boat:** close the hatch and lash the deck cargo (wipers on is optional).
+  - **Restricted visibility** (under way in fog): nav lights on, and a prolonged blast on the horn (4 s or more) every 2 minutes until it clears.
+  - **Bilge alarm:** BILGE breaker on and pump her dry.
+- **Spotting:** the lookout calls out anything in the water as it comes within sight (900 m, or the visibility in fog), with a clock bearing. Survivors wave once they can see you; their strobe shows only a little beyond the visibility, but the whistle carries.
 
 The dash shows:
 

@@ -11,6 +11,7 @@ import { stockPorts, type CargoItem } from '../cargo/cargo';
 import type { Ping } from '../player/ping';
 import { stowTender } from '../vessel/davit';
 import { createWeather, rebuildWaves, seaForWind } from '../environment/weather';
+import type { Forecast } from '../environment/forecast';
 import type { DutiesState } from '../duties/duties';
 import { createRescueState, type RescueState } from '../rescue/rescue';
 
@@ -49,7 +50,7 @@ export interface WorldState {
   /** The duty board's task list: game-generated duties (duties/duties.ts). */
   duties?: DutiesState;
   /** The last shipping forecast received by VHF (shown on the duty board; weather milestones). */
-  forecast?: { text: string; receivedAt: string };
+  forecast?: Forecast;
 }
 
 export function createWorld(

@@ -52,6 +52,8 @@ export interface VesselConfig {
   mooring?: Workboat['mooring'];
   davit?: Workboat['davit'];
   electrics?: Workboat['electrics'];
+  hatch?: Workboat['hatch'];
+  bilge?: Workboat['bilge'];
 }
 
 /**
@@ -106,6 +108,9 @@ export interface VesselDef {
   davit?: VesselConfig['davit'];
   /** 12 V electrics (optional: not part of WorkboatDef; the skiff has its own battery). */
   electrics?: VesselConfig['electrics'];
+  /** Forepeak hatch and bilge (optional: not part of WorkboatDef). */
+  hatch?: VesselConfig['hatch'];
+  bilge?: VesselConfig['bilge'];
 }
 
 type Equipment = 'engine' | 'propeller' | 'rudder' | 'bridge' | 'navLights' | 'exhaust' | 'anchor' | 'rescueGear' | 'cabinLight' | 'overheadPanel' | 'whiteboard' | 'deckLights' | 'spotlight' | 'mooring';
@@ -189,6 +194,8 @@ export function fromConfig(id: string, c: VesselConfig): VesselDef {
     mooring: c.mooring,
     davit: c.davit,
     electrics: c.electrics,
+    hatch: c.hatch,
+    bilge: c.bilge,
   };
 }
 

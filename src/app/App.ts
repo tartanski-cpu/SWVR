@@ -22,6 +22,7 @@ import { onDavit, recoverCheck } from '../vessel/davit';
 import { isPowered } from '../vessel/electrics';
 import { beaufort, compass8, visibilityAt, windVector } from '../environment/weather';
 import { WindAudio } from '../audio/windAudio';
+import { RainView } from '../environment/rainView';
 import { WindSock } from '../vessel/view/windSock';
 import { DutyBoardView } from '../duties/dutyBoardView';
 import { DavitGear } from '../controls/DavitGear';
@@ -178,6 +179,16 @@ export class App {
   private lastAnchorPhase: string | null = null;
   private readonly motorAudio = new ElectricMotorAudio();
   private readonly windAudio = new WindAudio();
+  /** Rain streaks around the viewer (the one capped weather effect). */
+  readonly rain = new RainView();
+  private readonly rainHouse = { matrixWorld: new THREE.Matrix4(), min: new THREE.Vector3(), max: new THREE.Vector3() };
+  /** The local player is inside the wheelhouse (wind muffled, rain drums on the roof). */
+  private insideHouse = false;
+  /** Last lightning flash and forecast seen (thunder / VHF on change), and targets the lookout has called. */
+  private lightningSeen = -1;
+  private forecastSeen = -1;
+  private readonly spotted = new Set<string>();
+  private readonly lookQ = new THREE.Quaternion();
   private windSock: WindSock | null = null;
   private readonly windV = { x: 0, z: 0 };
   /** Crouching (X / C), and the current crouch drop (m, eased). */
@@ -270,7 +281,8 @@ export class App {
     this.desktop = new DesktopController(this.camera, this.renderer.domElement, this.keyboard);
     this.environment = new EnvironmentView(this.scene);
     this.scene.add(this.sky.mesh, this.ocean.mesh, this.buoys.mesh, this.probes.mesh, this.platform, this.worldView.root, this.cargoView.root);
-    this.scene.add(this.targetsView.root, this.gearView.root, this.desktopHand.root);
+    this.scene.add(this.targetsView.root, this.gearView.root, this.desktopHand.root, this.rain.mesh);
+    this.rain.quality = userSettings.rainQuality;
     this.targetsView.onWhistle = (pos) => this.whistleAudio.blow(pos);
     this.pingView.onNew = (pos, mine) => {
       this.pingAudio.play(pos.distanceTo(this.focus));
@@ -393,7 +405,7 @@ export class App {
     this.updateLocomotion(dt, inXR);
     this.syncRigToPlayer(0);
     this.camera.getWorldPosition(this.focus);
-    this.environment.update(this.world.environment, this.focus);
+    this.environment.update(this.world.environment, this.focus, this.world.time);
     this.sky.update(this.environment, this.focus);
     this.ocean.update(this.renderWaves, this.focus, this.environment, renderTime);
     this.buoys.update(this.renderWaves);
@@ -449,6 +461,8 @@ export class App {
       if (id === this.testVesselId) ({ slam, lap } = hit);
     }
     this.worldView.lights.update(renderTime, darkness);
+    this.targetsView.visibility = this.environment.visibility;
+    this.updateWeatherViews(renderTime, darkness, dt);
     this.targetsView.update(this.world, this.renderWaves, this.focus, darkness, renderTime, dt, this.testVesselId, this.vesselRoots.get(this.testVesselId));
     this.gearView.update(this.world, this.testVesselId, this.vesselRoots.get(this.testVesselId), this.renderWaves, this.rescueHands, this.localPlayerId, this.avatarHands);
     this.updateRescueSounds();
@@ -979,6 +993,19 @@ export class App {
       setWeatherFixed: (on) => this.pushEnvIntent('weatherFixed', on ? 1 : 0),
       weatherFast: () => (env().weather?.speed ?? 1) > 1,
       setWeatherFast: (on) => this.pushEnvIntent('weatherSpeed', on ? 10 : 1),
+      rainQuality: () => userSettings.rainQuality,
+      setRainQuality: (q) => {
+        if (q !== 'high' && q !== 'low' && q !== 'off') return;
+        userSettings.rainQuality = q;
+        this.rain.quality = q;
+        saveSettings();
+      },
+      bilgeStatus: () => {
+        const v = this.world.vessels[this.testVesselId];
+        const b = v?.bilge ?? 0;
+        return `Bilge ${Math.round(b * 100)} % · hatch ${v?.controls.hatch ? 'OPEN' : 'shut'} · pump ${v && b > 0.01 && isPowered(v, 'bilge') ? 'running' : 'off'}`;
+      },
+      floodBilge: () => this.pushVesselIntent('debugBilge', 0.6),
       coupling: () => this.decoupler.coupling,
       setCoupling: (v) => this.setCoupling(Math.round(v * 10) / 10),
       smoothWalk: () => userSettings.smoothWalk,
@@ -1631,7 +1658,78 @@ export class App {
     const az = this.windV.z - (v?.linearVelocity[2] ?? 0);
     const wh = this.testDef.layout.wheelhouse;
     const inside = !!v && v.id === this.testVesselId && Math.abs(p.position[0]) < wh.halfWidth && p.position[2] > wh.front && p.position[2] < wh.aft && p.position[1] > wh.floorY - 0.3;
+    this.insideHouse = inside;
     this.windAudio.update(Math.hypot(ax, az), inside, dt);
+  }
+
+  /**
+   * Rain (streaks, window drops and wipers, its sound), thunder after each lightning flash,
+   * a new shipping forecast on the VHF, and the lookout's calls for things in the water.
+   */
+  private updateWeatherViews(time: number, darkness: number, dt: number): void {
+    const env = this.world.environment;
+    const w = env.weather;
+    const rain = w?.now.rain ?? 0;
+    const light = 1 - darkness * 0.85;
+    const v = this.world.vessels[this.testVesselId];
+    const view = this.vesselViews.get(this.testVesselId);
+    // Rain streaks: none inside the wheelhouse box.
+    let house: typeof this.rainHouse | null = null;
+    if (view) {
+      const wh = this.testDef.layout.wheelhouse;
+      const ov = this.testDef.layout.roof.overhang;
+      this.rainHouse.matrixWorld.copy(view.root.matrixWorld);
+      this.rainHouse.min.set(-wh.halfWidth - ov, wh.floorY - 1.5, wh.front - ov);
+      this.rainHouse.max.set(wh.halfWidth + ov, wh.roofY + 0.3, wh.aft + ov);
+      house = this.rainHouse;
+    }
+    windVector(env, this.windV);
+    this.rain.update(rain, time, this.focus, this.windV, house, light);
+    if (this.bridge && v) this.bridge.rainGlass.update(rain, v.controls.wipers > 0 && isPowered(v, 'instruments'), light, dt);
+    this.windAudio.setRain(rain, this.insideHouse);
+    // Thunder: the flash is drawn by the environment view; the sound follows by distance.
+    const L = w?.lightning;
+    if (L) {
+      if (this.lightningSeen >= 0 && L.seq !== this.lightningSeen) this.windAudio.thunder(L.dist);
+      this.lightningSeen = L.seq;
+    }
+    // A new forecast received: the VHF reads it out (only if it's on - it was received).
+    const fc = this.world.forecast;
+    const fseq = fc?.seq ?? 0;
+    if (this.forecastSeen >= 0 && fseq !== this.forecastSeen && fc && v && isPowered(v, 'radio')) {
+      this.radioAudio.message('info', `Shipping forecast. ${fc.text}`);
+      this.overlay.notify(`VHF shipping forecast: ${fc.text}`, 10);
+    }
+    this.forecastSeen = fseq;
+    this.lookout(v);
+  }
+
+  /**
+   * The lookout: the first time something in the water comes within sight - the spotting
+   * range or the visibility, whichever is less - it's called out with a clock bearing.
+   */
+  private lookout(v: VesselState | undefined): void {
+    const inc = this.world.rescue?.active;
+    if (!inc || !v) {
+      this.spotted.clear();
+      return;
+    }
+    const range = Math.min(CONFIG.spotting.range, visibilityAt(this.world.environment, v.position[0], v.position[2]));
+    const fwd = this.tmpV.set(0, 0, -1).applyQuaternion(this.lookQ.fromArray(v.orientation));
+    const heading = Math.atan2(fwd.x, -fwd.z);
+    for (const t of inc.targets) {
+      if ((t.phase && t.phase !== 'floating') || this.spotted.has(t.id)) continue; // only those still floating free
+      const dx = t.x - v.position[0];
+      const dz = t.z - v.position[2];
+      const d = Math.hypot(dx, dz);
+      if (d > range) continue;
+      this.spotted.add(t.id);
+      const rel = (Math.atan2(dx, -dz) - heading + Math.PI * 4) % (Math.PI * 2);
+      const clock = Math.round((rel / (Math.PI * 2)) * 12) || 12;
+      const what = t.kind === 'person' ? 'Person in the water' : 'Crate in the water';
+      this.overlay.notify(`Lookout: ${what}, ${clock} o'clock, ${Math.round(d / 10) * 10} m!`, 5);
+      this.rescueSounds.snap();
+    }
   }
 
   /** START pressed with the lever in gear: the neutral-safety switch says no. */

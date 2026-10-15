@@ -46,18 +46,26 @@ export class EnvironmentView {
     return this.fog.far;
   }
 
-  /** @param focus world position the sun light should be centred on (the player). */
-  update(env: EnvironmentState, focus: THREE.Vector3): void {
-    // Weather where you are: cloud cover, and visibility (fog banks included).
+  /**
+   * @param focus world position the sun light should be centred on (the player).
+   * @param time  world time (s), for lightning flashes.
+   */
+  update(env: EnvironmentState, focus: THREE.Vector3, time = 0): void {
+    // Weather where you are: cloud cover, rain, and visibility (fog banks included).
     const w = env.weather?.now;
     const cloud = w?.cloud ?? 0;
+    const rain = w?.rain ?? 0;
     this.visibility = visibilityAt(env, focus.x, focus.z);
-    // The palette only changes when the time or the weather visibly does.
-    const key = `${env.timeOfDay.toFixed(3)}|${cloud.toFixed(2)}|${Math.round(Math.log(this.visibility) * 20)}`;
-    if (key !== this.lastKey) {
+    // The palette only changes when the time or the weather visibly does - or during a
+    // lightning flash (a third of a second, recomputed each frame, then once more after).
+    const flash = this.flashLevel(env, time);
+    const key = `${env.timeOfDay.toFixed(3)}|${cloud.toFixed(2)}|${rain.toFixed(2)}|${Math.round(Math.log(this.visibility) * 20)}`;
+    if (key !== this.lastKey || flash > 0 || this.flashing) {
       this.lastKey = key;
       this.applyTimeOfDay(env.timeOfDay);
-      this.applyWeather(cloud, this.visibility);
+      this.applyWeather(cloud, this.visibility, rain);
+      if (flash > 0) this.applyFlash(flash);
+      this.flashing = flash > 0;
     }
     this.sun.target.position.copy(focus);
     this.sun.position.copy(focus).addScaledVector(this.sunDir, 100);
@@ -95,7 +103,7 @@ export class EnvironmentView {
    *              to the visibility), and in thick fog the whole sky turns the fog colour.
    * Everything that reads the shared colours (sky dome, ocean, lights) follows.
    */
-  private applyWeather(cloud: number, visibility: number): void {
+  private applyWeather(cloud: number, visibility: number, rain: number): void {
     const grey = (c: THREE.Color, amount: number, scale: number) => {
       const l = (0.3 * c.r + 0.59 * c.g + 0.11 * c.b) * scale;
       c.lerp(this.tmpColor.setRGB(l, l * 1.02, l * 1.06), amount);
@@ -108,6 +116,16 @@ export class EnvironmentView {
       this.sun.intensity = this.sunIntensity;
       this.hemi.intensity = this.ambientIntensity * 1.35;
       this.hemi.color.copy(this.zenith).lerp(this.horizon, 0.55);
+    }
+    if (rain > 0.01) {
+      // Rain clouds are darker still: a squall is gloomy.
+      const k = 1 - CONFIG.weather.rainDarken * rain;
+      this.sunIntensity *= k;
+      this.ambientIntensity *= k;
+      this.sun.intensity = this.sunIntensity;
+      this.hemi.intensity = this.ambientIntensity * 1.35;
+      this.zenith.multiplyScalar(k);
+      this.horizon.multiplyScalar(0.5 + 0.5 * k);
     }
     const far = Math.min(CONFIG.environment.fogFar, visibility);
     this.fog.far = far;
@@ -124,6 +142,29 @@ export class EnvironmentView {
     this.fog.color.copy(this.horizon);
   }
 
+  /** How bright a lightning flash is now, 0..1: a double flicker, fainter far off. */
+  private flashLevel(env: EnvironmentState, time: number): number {
+    const L = env.weather?.lightning;
+    if (!L || L.at < 0) return 0;
+    const age = time - L.at;
+    const T = CONFIG.weather.lightning.flashTime;
+    if (age < 0 || age > T) return 0;
+    const flicker = age < 0.06 ? 1 : age < 0.12 ? 0.15 : age < 0.2 ? 0.75 : 0.3 * (1 - (age - 0.2) / (T - 0.2));
+    return flicker * (1 - 0.7 * Math.min(1, L.dist / 4500));
+  }
+
+  /** Lightning: the sky and the sky light jump toward a cold white. */
+  private applyFlash(f: number): void {
+    const white = this.tmpColor.setRGB(0.85, 0.88, 1.0);
+    this.zenith.lerp(white, 0.6 * f);
+    this.horizon.lerp(white, 0.5 * f);
+    this.hemi.color.lerp(white, f);
+    this.hemi.intensity = this.ambientIntensity * 1.35 * (1 + 6 * f);
+    this.background.copy(this.horizon);
+    this.fog.color.copy(this.horizon);
+  }
+
+  private flashing = false;
   private readonly tmpColor = new THREE.Color();
   private readonly tmpColor2 = new THREE.Color();
 }

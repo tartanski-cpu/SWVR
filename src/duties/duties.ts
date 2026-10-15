@@ -9,9 +9,20 @@
  *   - A finished duty stays up, ticked, for `doneLinger` seconds, then drops off. One that
  *     is ignored drops off quietly after its own `expireAt` (start-up never does while the
  *     boat is cold). No penalty either way.
+ *
+ * The duties:
+ *   startup     while the boat is cold: the start-up procedure.
+ *   fogSignal   under way in restricted visibility (COLREG rule 35): nav lights on and a
+ *               prolonged blast on the horn (4 s+) every two minutes. The blast step un-ticks
+ *               when the next one is due. Done when the fog clears (if you sounded it).
+ *   secure      rain or a squall forecast (or here): close the forepeak hatch, lash the deck
+ *               cargo (wipers on, optional). Dropped if the weather turns fair first.
+ *   bilge       water over the alarm level: bilge breaker on, pump her dry.
  */
 import { CONFIG } from '../config';
 import type { WorldState } from '../core/world';
+import { visibilityAt } from '../environment/weather';
+import { isPowered } from '../vessel/electrics';
 import { leverDemand } from '../vessel/physics/propulsion';
 import { isWorkboat, VESSEL_DEFS, type WorkboatDef } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
@@ -25,13 +36,18 @@ export interface DutyStep {
 
 export interface Duty {
   id: string;
-  kind: 'startup';
+  kind: 'startup' | 'fogSignal' | 'secure' | 'bilge';
   title: string;
   steps: DutyStep[];
   createdAt: number;
   doneAt?: number;
   /** Quietly dropped at this world time if not done (undefined: never). */
   expireAt?: number;
+  /** fogSignal: when the horn went down, and the last prolonged blast (world time). */
+  hornFrom?: number;
+  lastBlast?: number;
+  /** Stays up even with every step ticked (fogSignal, until the fog clears). */
+  holdOpen?: boolean;
 }
 
 export interface DutiesState {
@@ -58,6 +74,110 @@ const STARTUP: { text: string; check: (v: VesselState, def: WorkboatDef) => bool
 /** Is the boat cold: engine off and below the cold-start temperature? */
 function isCold(v: VesselState, def: WorkboatDef): boolean {
   return v.engine.phase === 'off' && v.engine.coolantC < def.engine.coldBelowC;
+}
+
+function addDuty(d: DutiesState, kind: Duty['kind'], title: string, steps: DutyStep[], now: number): Duty {
+  const duty: Duty = { id: `duty-${++d.seq}`, kind, title, steps, createdAt: now };
+  d.items.unshift(duty);
+  return duty;
+}
+
+function open(d: DutiesState, kind: Duty['kind']): Duty | undefined {
+  return d.items.find((x) => x.kind === kind && x.doneAt === undefined);
+}
+
+/** Restricted visibility: nav lights on, a prolonged blast every two minutes. */
+function stepFogSignal(world: WorldState, d: DutiesState, v: VesselState): void {
+  const cfg = CONFIG.duties;
+  const now = world.time;
+  const vis = visibilityAt(world.environment, v.position[0], v.position[2]);
+  let duty = open(d, 'fogSignal');
+  if (!duty) {
+    if (vis >= cfg.fogVis || v.engine.phase !== 'running') return;
+    duty = addDuty(
+      d,
+      'fogSignal',
+      'Restricted visibility',
+      [
+        { text: 'NAV LTS breaker and nav lights ON', done: false },
+        { text: `Prolonged blast on the horn (${cfg.blastMin} s+), every ${cfg.blastEvery / 60} min`, done: false },
+        { text: 'Safe speed: keep a lookout, slow down', done: false, optional: true },
+      ],
+      now,
+    );
+  }
+  const navOn = isPowered(v, 'navLights') && v.controls.navLights > 0;
+  duty.steps[0].done = navOn;
+  // The horn: time the blast while it's held; a long enough one counts.
+  const sounding = v.controls.horn > 0 && isPowered(v);
+  if (sounding && duty.hornFrom === undefined) duty.hornFrom = now;
+  if (!sounding && duty.hornFrom !== undefined) {
+    if (now - duty.hornFrom >= cfg.blastMin) duty.lastBlast = now;
+    duty.hornFrom = undefined;
+  }
+  if (sounding && duty.hornFrom !== undefined && now - duty.hornFrom >= cfg.blastMin) duty.lastBlast = now;
+  duty.steps[1].done = duty.lastBlast !== undefined && now - duty.lastBlast < cfg.blastEvery;
+  // Cleared: done if the signal was kept, else it just goes.
+  duty.holdOpen = vis <= cfg.fogClearVis;
+  if (vis > cfg.fogClearVis) {
+    if (duty.lastBlast !== undefined) duty.steps.forEach((s) => (s.done = true));
+    else duty.expireAt = now;
+  }
+}
+
+/** Heavy weather coming (forecast) or here: hatch shut, cargo lashed. */
+function stepSecure(world: WorldState, d: DutiesState, v: VesselState): void {
+  const w = world.environment.weather;
+  if (!w || !VESSEL_DEFS[v.defId].hatch) return;
+  const now = world.time;
+  const wet = (p: string) => p === 'Rain' || p === 'Squall';
+  const fc = world.forecast;
+  const warned = !!fc && now - fc.at < CONFIG.duties.forecastValid && wet(fc.next);
+  const heavy = warned || wet(w.preset);
+  const loose = Object.values(world.cargo).some((c) => 'vessel' in c.at && c.at.vessel === v.id && !c.at.lashed);
+  let duty = open(d, 'secure');
+  if (!duty) {
+    if (!heavy || (v.controls.hatch <= 0 && !loose)) return;
+    duty = addDuty(
+      d,
+      'secure',
+      `${w.preset === 'Squall' || fc?.next === 'Squall' ? 'Squall' : 'Rain'}${wet(w.preset) ? '' : ' coming'}: secure the boat`,
+      [
+        { text: 'Close the forepeak hatch (foredeck)', done: false },
+        { text: 'Lash all deck cargo', done: false },
+        { text: 'Wipers ON (switch by the helm)', done: false, optional: true },
+      ],
+      now,
+    );
+  }
+  duty.steps[0].done = v.controls.hatch <= 0;
+  duty.steps[1].done = !loose;
+  duty.steps[2].done = v.controls.wipers > 0;
+  if (!heavy) duty.expireAt = now; // fair again before it was done
+}
+
+/** Water in the bilge over the alarm level: pump her dry. */
+function stepBilgeDuty(world: WorldState, d: DutiesState, v: VesselState): void {
+  const cfg = VESSEL_DEFS[v.defId].bilge;
+  if (!cfg || v.bilge === undefined) return;
+  let duty = open(d, 'bilge');
+  if (!duty) {
+    if (v.bilge < cfg.alarmAt) return;
+    duty = addDuty(
+      d,
+      'bilge',
+      'Bilge alarm: water below',
+      [
+        { text: 'BILGE breaker ON (the pump)', done: false },
+        { text: 'Close the forepeak hatch', done: false, optional: true },
+        { text: 'Bilge pumped dry', done: false },
+      ],
+      world.time,
+    );
+  }
+  duty.steps[0].done = isPowered(v, 'bilge');
+  duty.steps[1].done = v.controls.hatch <= 0;
+  duty.steps[2].done = v.bilge < 0.02;
 }
 
 /** Advance the duties: add what's due, tick off steps, finish, drop old ones. */
@@ -92,10 +212,13 @@ export function stepDuties(world: WorldState): void {
         });
       }
     }
+    stepFogSignal(world, d, v);
+    stepSecure(world, d, v);
+    stepBilgeDuty(world, d, v);
   }
 
   for (const x of d.items) {
-    if (x.doneAt === undefined && x.steps.length && x.steps.every((s) => s.done || s.optional)) {
+    if (x.doneAt === undefined && !x.holdOpen && x.steps.length && x.steps.every((s) => s.done || s.optional)) {
       x.doneAt = now;
       d.completed += 1;
     }

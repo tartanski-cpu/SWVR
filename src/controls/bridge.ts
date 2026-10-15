@@ -15,6 +15,9 @@ import { RadioSet } from '../rescue/radioView';
 import { ChartPlotter } from '../nav/chartPlotter';
 import { OverheadPanel } from './overheadPanel';
 import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
+import { Hatch } from './Hatch';
+import { hullPlan } from '../vessel/layout';
+import { RainGlass } from '../vessel/view/rainGlass';
 
 /**
  * Builds a vessel's bridge from its config: controls, instrument dash, labels.
@@ -36,6 +39,8 @@ export class Bridge {
   readonly chart: ChartPlotter;
   /** Overhead switch panel: deck lights and the FM radio. */
   readonly overhead: OverheadPanel;
+  /** Rain on the front windows and the wipers (the App feeds it the weather). */
+  readonly rainGlass: RainGlass;
 
   constructor(private readonly def: WorkboatDef) {
     const b = def.bridge;
@@ -76,6 +81,8 @@ export class Bridge {
 
     const spot = new Toggle('spotlight', 'spotlight', 'Searchlight on/off', (s) => s.controls.spotlight);
     spot.root.position.fromArray(b.spotlightSwitch.position);
+    const wipers = new Toggle('wipers', 'wipers', 'Windscreen wipers', (s) => s.controls.wipers);
+    wipers.root.position.fromArray(b.wipersSwitch.position);
     const joy = new Joystick('spotJoystick', def.spotlight);
     joy.root.position.fromArray(b.spotJoystick.position);
 
@@ -85,7 +92,16 @@ export class Bridge {
     this.root.add(this.chart.root);
     this.overhead = new OverheadPanel(def);
     this.root.add(this.overhead.root);
-    this.controls.push(wheel, lever, start, heat, key, horn, nav, anchor, cabin, dock, spot, joy, this.radio.handset, ...this.overhead.controls);
+    this.controls.push(wheel, lever, start, heat, key, horn, nav, anchor, cabin, dock, spot, wipers, joy, this.radio.handset, ...this.overhead.controls);
+    this.rainGlass = new RainGlass(def);
+    this.root.add(this.rainGlass.root);
+    // Forepeak hatch on the foredeck (boats that have one).
+    if (def.hatch) {
+      const hatch = new Hatch(def.hatch.size);
+      const [hx, hz] = def.hatch.position;
+      hatch.root.position.set(hx, hullPlan(def).deckY(hz), hz);
+      this.controls.push(hatch);
+    }
     // 12 V: battery master on the aft wall by the door, voltmeter panel by the helm.
     const el = def.electrics;
     if (el) {
@@ -176,6 +192,7 @@ function buildLabels(b: WorkboatDef['bridge']): THREE.Mesh {
     ['CABIN', b.cabinLightSwitch.position],
     ['DOCK', b.dockButton.position],
     ['SPOT', b.spotlightSwitch.position],
+    ['WIPERS', b.wipersSwitch.position],
     ['SEARCHLIGHT', b.spotJoystick.position],
   ];
   const slotW = 512;

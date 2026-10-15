@@ -89,6 +89,12 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
     case 'horn':
       s.controls.horn = intent.value > 0.5 ? 1 : 0;
       break;
+    case 'wipers':
+      s.controls.wipers = intent.value > 0.5 ? 1 : 0;
+      break;
+    case 'hatch':
+      s.controls.hatch = intent.value > 0.5 ? 1 : 0;
+      break;
     case 'engineStartStop': {
       const def = VESSEL_DEFS[s.defId];
       if (isWorkboat(def)) toggleEngine(s, def);
@@ -158,6 +164,10 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
           for (const k of BREAKERS) s.electrics.breakers[k] = 1;
         }
       }
+      break;
+    case 'debugBilge':
+      // Debug: set the bilge water level (0..1).
+      if (s.bilge !== undefined) s.bilge = Math.max(0, Math.min(1, intent.value));
       break;
     case 'cabinLight':
       s.controls.cabinLight = intent.value > 0.5 ? 1 : 0;

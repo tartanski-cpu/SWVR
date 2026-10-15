@@ -10,6 +10,10 @@
  *              presets allowed to follow it (`next`, weighted) - never clear straight to a
  *              squall. It always knows its NEXT change (preset and time) a step ahead:
  *              that plan is what a forecast describes (weather milestone 5).
+ *   lightning  in a squall, a flash every so often at a random distance (`lightning`):
+ *              views flash the sky and play the thunder, delayed by the distance.
+ *   forecast   the time of the next VHF shipping forecast (environment/forecast.ts):
+ *              regularly, and soon after each change of weather.
  *   sea        follows the wind: target scale = wind x seaPerWind, built up over
  *              `seaBuild`, settling over `seaDecay` - so waves lag the wind. The wave
  *              components are rebuilt each second with their phases kept continuous
@@ -45,6 +49,10 @@ export interface WeatherState {
   speed: number;
   /** World time of the last wave rebuild (s). */
   wavesAt: number;
+  /** The last lightning flash (seq counts them; views flash/thunder on change) and the next. */
+  lightning: { seq: number; at: number; dist: number; nextAt: number };
+  /** When the next shipping forecast goes out (world time, s). */
+  forecastAt: number;
 }
 
 const TWO_PI = Math.PI * 2;
@@ -88,6 +96,9 @@ export function createWeather(preset: WeatherPresetName = CONFIG.weather.startPr
     fixed: CONFIG.weather.fixed,
     speed: 1,
     wavesAt: -1,
+    lightning: { seq: 0, at: -1, dist: 0, nextAt: time },
+    // The first forecast a couple of minutes in: time to get the boat started.
+    forecastAt: time + 120,
   };
 }
 
@@ -102,6 +113,8 @@ export function setWeatherPreset(w: WeatherState, preset: WeatherPresetName, tim
   w.preset = preset;
   w.target = targetFor(preset, w.seq);
   w.next = { preset: pickNext(preset, w.seq + 1), at: time + holdFor(preset, w.seq + 2) / w.speed };
+  // A new plan: the coastguard puts out a fresh forecast shortly.
+  w.forecastAt = Math.min(w.forecastAt, time + CONFIG.weather.forecast.afterChange / w.speed);
   if (instant) {
     w.now = { ...w.target };
     if (env) {
@@ -135,6 +148,19 @@ export function stepWeather(env: EnvironmentState, time: number, dt: number): vo
   env.seaScale += (seaTarget - env.seaScale) * (1 - Math.exp((-dt * w.speed) / tau));
   // Rebuild the wave components once a second.
   if (time - w.wavesAt >= 1) rebuildWaves(env, time);
+  // Lightning, in squalls once the rain has set in.
+  const L = w.lightning;
+  if (w.preset === 'Squall' && n.rain > 0.7) {
+    if (time >= L.nextAt) {
+      const lc = c.lightning;
+      L.seq += 1;
+      L.at = time;
+      L.dist = lc.dist[0] + (lc.dist[1] - lc.dist[0]) * hash01(w.seq * 31 + L.seq * 1.7);
+      L.nextAt = time + (lc.every[0] + (lc.every[1] - lc.every[0]) * hash01(w.seq * 17 + L.seq * 2.3)) / w.speed;
+    }
+  } else {
+    L.nextAt = Math.max(L.nextAt, time + 3);
+  }
 }
 
 /**
