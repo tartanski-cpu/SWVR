@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { VesselState } from '../vessel/vesselState';
 import { Control } from './Control';
 
@@ -20,14 +21,15 @@ export class Toggle extends Control {
     super(id, channel);
     const plate = this.fixed(new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.012, 0.09), new THREE.MeshLambertMaterial({ color: 0x23282c })));
     plate.position.y = 0.006;
-    const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.007, 0.009, 0.05, 8), this.material(0xd8dadc));
-    stick.position.y = 0.025;
-    const tip = new THREE.Mesh(new THREE.SphereGeometry(0.012, 8, 6), this.material(0xd8dadc));
-    tip.position.y = 0.05;
+    // Bat lever: stick and ball tip in one mesh (one draw call per toggle).
+    const bat = new THREE.Mesh(
+      mergeGeometries([new THREE.CylinderGeometry(0.007, 0.009, 0.05, 8).translate(0, 0.025, 0).toNonIndexed(), new THREE.SphereGeometry(0.012, 8, 6).translate(0, 0.05, 0).toNonIndexed()]),
+      this.material(0xd8dadc),
+    );
     this.bat.position.y = 0.012;
-    this.bat.add(stick, tip);
+    this.bat.add(bat);
     this.root.add(plate, this.bat);
-    this.hitObjects.push(stick, tip, plate);
+    this.hitObjects.push(bat, plate);
     this.show(false);
   }
 

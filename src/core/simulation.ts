@@ -10,6 +10,7 @@ import { applyVesselIntent, stepRefuelling } from '../vessel/vesselControl';
 import { applyCargoIntent, deckVelocitiesBefore, isCargoIntent, payloadOf, stepDeckCargo } from '../cargo/cargo';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 import { stepElectrics } from '../vessel/electrics';
+import { stepDuties } from '../duties/duties';
 import { applyDavitIntent, onDavit, stepTender } from '../vessel/davit';
 import { ENVIRONMENT_ID, type EntityId } from './ids';
 import type { Intent } from './intents';
@@ -71,6 +72,7 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
   for (const vessel of Object.values(world.vessels)) if (onDavit(vessel)) stepTender(world, vessel, dt);
 
   expirePings(world);
+  stepDuties(world);
   stepRescue(world, dt, simWaves);
   world.tick += 1;
   world.time = world.tick * dt;

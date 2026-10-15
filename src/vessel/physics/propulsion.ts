@@ -27,17 +27,61 @@ export function leverDemand(def: WorkboatDef, lever: number): { gear: -1 | 0 | 1
   return { gear, throttle: gear === 0 ? 0 : clamp((Math.abs(lever) - nb) / (1 - nb), 0, 1) };
 }
 
-/** Start (only in neutral, if so configured) or stop the engine. */
+/**
+ * Quick start / stop (tests, trials, the quick-start option): stopped, it turns the key on,
+ * counts the plugs as preheated and cranks until she catches (only in neutral, with 12 V);
+ * running, it turns the key off. The real procedure is key, HEAT, START (stepIgnition).
+ */
 export function toggleEngine(s: VesselState, def: WorkboatDef): void {
   const e = s.engine;
   if (e.phase === 'off') {
     if (!isPowered(s)) return; // no 12 V: the starter doesn't turn
     if (def.engine.startOnlyInNeutral && leverDemand(def, s.controls.lever).gear !== 0) return;
+    e.key = 1;
+    e.glow = def.engine.preheatTime;
     e.phase = 'cranking';
     e.crank = 0;
+    e.autoCrank = true;
   } else {
     e.phase = 'off';
+    e.key = 0;
+    e.autoCrank = false;
   }
+}
+
+/**
+ * Diesel ignition, before the engine dynamics each tick:
+ *   - no 12 V or the key off: the fuel solenoid closes - she stops (or never starts);
+ *   - HEAT held with the key on: the glow plugs heat (lamp lit until preheatTime); they
+ *     cool again when released;
+ *   - START held, key on, lever in neutral (neutral-safety switch): crank; let go before
+ *     she catches and the starter stops.
+ */
+export function stepIgnition(s: VesselState, def: WorkboatDef, dt: number): void {
+  const e = s.engine;
+  const cfg = def.engine;
+  const keyOn = e.key > 0 && isPowered(s);
+  if (!keyOn && e.phase !== 'off') {
+    e.phase = 'off';
+    e.autoCrank = false;
+  }
+  if (keyOn && s.controls.heat > 0) e.glow = Math.min(cfg.preheatTime * 1.5, e.glow + dt);
+  else e.glow = Math.max(0, e.glow - cfg.glowCoolRate * dt);
+  const neutral = !cfg.startOnlyInNeutral || leverDemand(def, s.controls.lever).gear === 0;
+  if (e.phase === 'off' && keyOn && s.controls.start > 0 && neutral) {
+    e.phase = 'cranking';
+    e.crank = 0;
+  } else if (e.phase === 'cranking' && s.controls.start <= 0 && !e.autoCrank) {
+    e.phase = 'off';
+  }
+}
+
+/** Seconds of cranking she needs to catch: longer cold and unheated. */
+export function crankNeeded(s: VesselState, def: WorkboatDef): number {
+  const cfg = def.engine;
+  const cold = s.engine.coolantC < cfg.coldBelowC ? 1 : 0;
+  const heated = Math.min(1, s.engine.glow / cfg.preheatTime);
+  return cfg.crankTime + cold * (1 - heated) * cfg.unheatedExtraCrank;
 }
 
 const TWO_PI = Math.PI * 2;
@@ -110,8 +154,7 @@ export function stepEngineAndPropeller(s: VesselState, def: WorkboatDef, speed: 
   const demand = leverDemand(def, s.controls.lever);
   const i = cfg.gearRatio;
   const propInertiaAtCrank = def.propeller.inertia / (i * i);
-  // No 12 V (master off, battery flat): the fuel solenoid closes and she stops.
-  if (e.phase !== 'off' && !isPowered(s)) e.phase = 'off';
+  stepIgnition(s, def, dt);
   const starter = cfg.starterTorque * starterFactor(s);
 
   // ── Clutch ──
@@ -170,8 +213,9 @@ export function stepEngineAndPropeller(s: VesselState, def: WorkboatDef, speed: 
   if (e.phase === 'cranking') {
     e.crank += dt;
     // It fires once the starter has it spinning, if there is fuel to burn.
-    if (e.crank >= cfg.crankTime && e.rpm > cfg.starterMaxRpm * 0.6 && e.fuelL > 0) {
+    if (e.crank >= crankNeeded(s, def) && e.rpm > cfg.starterMaxRpm * 0.6 && e.fuelL > 0) {
       e.phase = 'running';
+      e.autoCrank = false;
       e.rack = 0.3; // fuel on: catches and runs up to idle
     }
   }

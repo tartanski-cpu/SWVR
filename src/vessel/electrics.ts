@@ -67,6 +67,7 @@ export function loadAmps(s: VesselState, cfg: Electrics): number {
   const an = s.anchor.phase;
   if (an === 'paying' || an === 'weighing' || (an === 'hanging' && c.anchor <= 0)) a += L.windlass;
   if (s.engine.phase === 'cranking') a += L.starter;
+  if (s.engine.key > 0 && c.heat > 0) a += L.glowPlugs;
   return a;
 }
 

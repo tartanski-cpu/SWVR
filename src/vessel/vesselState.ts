@@ -34,6 +34,9 @@ export interface VesselControls {
    */
   obOn: number;
   obGear: number;
+  /** Diesel ignition: HEAT and START buttons, 1 while held (the key is in EngineState). */
+  heat: number;
+  start: number;
 }
 
 /** Docking and mooring lines (physics/mooring.ts). */
@@ -101,6 +104,12 @@ export interface EngineState {
   oilC: number;
   /** Raw-water pump impeller failed: the heat exchanger barely works. */
   coolingFault: boolean;
+  /** Ignition key: 0 off / 1 on. Off stops a running engine (fuel solenoid). */
+  key: number;
+  /** Glow plug preheat accumulated (s); `preheatTime` is enough. */
+  glow: number;
+  /** Quick start: keep cranking without START held until she catches. */
+  autoCrank?: boolean;
 }
 
 /**
@@ -184,7 +193,7 @@ export function createVesselState(id: EntityId, defId: string): VesselState {
     orientation: [0, 0, 0, 1],
     linearVelocity: [0, 0, 0],
     angularVelocity: [0, 0, 0],
-    controls: { lever: 0, helm: 0, navLights: 0, horn: 0, anchor: 0, cabinLight: 0, spotlight: 0, spotPan: 0, spotTilt: -4, deckFore: 0, deckAft: 0, railLights: 0, fmOn: 0, fmStation: 0, obOn: 0, obGear: 0 },
+    controls: { lever: 0, helm: 0, navLights: 0, horn: 0, anchor: 0, cabinLight: 0, spotlight: 0, spotPan: 0, spotTilt: -4, deckFore: 0, deckAft: 0, railLights: 0, fmOn: 0, fmStation: 0, obOn: 0, obGear: 0, heat: 0, start: 0 },
     engine: {
       phase: 'off',
       crank: 0,
@@ -198,6 +207,8 @@ export function createVesselState(id: EntityId, defId: string): VesselState {
       coolantC: CONFIG.environment.seaTempC,
       oilC: CONFIG.environment.seaTempC,
       coolingFault: false,
+      key: 0,
+      glow: 0,
     },
     holds: {},
     rudder: 0,

@@ -5,7 +5,7 @@ import { clamp } from '../core/math';
 import { CONFIG } from '../config';
 import { toggleEngine } from './physics/propulsion';
 import { toggleDock } from './physics/mooring';
-import { isWorkboat, VESSEL_DEFS, type VesselDef } from './vesselDef';
+import { isWorkboat, VESSEL_DEFS, type VesselDef, type WorkboatDef } from './vesselDef';
 import { fuelBerthAt } from '../world/geography';
 import { BERTHS, PORTS } from '../world/archipelago';
 import type { VesselState } from './vesselState';
@@ -107,6 +107,34 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
     case 'anchor':
       s.controls.anchor = intent.value > 0.5 ? 1 : 0;
       break;
+    case 'key':
+      // Ignition key 1 on / 0 off.
+      s.engine.key = intent.value > 0.5 ? 1 : 0;
+      break;
+    case 'heat':
+      s.controls.heat = intent.value > 0.5 ? 1 : 0;
+      break;
+    case 'start':
+      s.controls.start = intent.value > 0.5 ? 1 : 0;
+      break;
+    case 'batSelect':
+      // Battery selector: 1, 2 or 3 (both); any other value steps 1 -> both -> 2 -> 1.
+      if (s.electrics) {
+        const v = Math.round(intent.value);
+        s.electrics.selector = v >= 1 && v <= 3 ? v : s.electrics.selector === 1 ? 3 : s.electrics.selector === 3 ? 2 : 1;
+      }
+      break;
+    case 'quickStart':
+      // One press does it all (quick-start option / debug): master, main breakers, start.
+      if (s.electrics) {
+        s.electrics.master = 1;
+        for (const k of ['instruments', 'chart', 'radio', 'navLights'] as const) s.electrics.breakers[k] = 1;
+      }
+      {
+        const def = VESSEL_DEFS[s.defId];
+        if (s.engine.phase === 'off' && isWorkboat(def)) toggleEngine(s, def as WorkboatDef);
+      }
+      break;
     case 'master':
       // Battery master switch: 1 on / 0 off.
       if (s.electrics) s.electrics.master = intent.value > 0.5 ? 1 : 0;
@@ -119,11 +147,13 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
       }
       break;
     case 'debugElectrics':
-      // Debug: 0 = both batteries flat, 1 = fill both, 2 = power everything on (master on, full).
+      // Debug: 0 = both batteries flat, 1 = fill both, 2 = power everything on (master on, full),
+      // 3 = battery 1 flat (try the selector).
       if (s.electrics) {
         if (intent.value < 0.5) s.electrics.soc = [0, 0];
+        else if (intent.value > 2.5) s.electrics.soc = [0, s.electrics.soc[1]]; // 3: battery 1 flat
         else s.electrics.soc = [1, 1];
-        if (intent.value > 1.5) {
+        if (intent.value > 1.5 && intent.value < 2.5) {
           s.electrics.master = 1;
           for (const k of BREAKERS) s.electrics.breakers[k] = 1;
         }

@@ -45,6 +45,7 @@ export interface VesselConfig {
   cabinLight?: Workboat['cabinLight'];
   overheadPanel?: Workboat['overheadPanel'];
   whiteboard?: Workboat['whiteboard'];
+  dutyBoard?: Workboat['dutyBoard'];
   deckLights?: Workboat['deckLights'];
   spotlight?: Workboat['spotlight'];
   mooring?: Workboat['mooring'];
@@ -93,6 +94,8 @@ export interface VesselDef {
   cabinLight?: VesselConfig['cabinLight'];
   overheadPanel?: VesselConfig['overheadPanel'];
   whiteboard?: VesselConfig['whiteboard'];
+  /** Duty board (optional: not part of WorkboatDef). */
+  dutyBoard?: VesselConfig['dutyBoard'];
   deckLights?: VesselConfig['deckLights'];
   spotlight?: VesselConfig['spotlight'];
   mooring?: VesselConfig['mooring'];
@@ -176,6 +179,7 @@ export function fromConfig(id: string, c: VesselConfig): VesselDef {
     cabinLight: c.cabinLight,
     overheadPanel: c.overheadPanel,
     whiteboard: c.whiteboard,
+    dutyBoard: c.dutyBoard,
     deckLights: c.deckLights,
     spotlight: c.spotlight,
     mooring: c.mooring,

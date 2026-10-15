@@ -20,6 +20,7 @@ import { Buoys, createPlatform } from './testScene';
 import { HydroDebugView } from '../debug/hydroDebugView';
 import { onDavit, recoverCheck } from '../vessel/davit';
 import { isPowered } from '../vessel/electrics';
+import { DutyBoardView } from '../duties/dutyBoardView';
 import { DavitGear } from '../controls/DavitGear';
 import { asWorkboat, VESSEL_DEFS, type WorkboatDef } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
@@ -177,6 +178,9 @@ export class App {
   private crouched = false;
   private crouchY = 0;
   private board: BoardView | null = null;
+  private dutyBoard: DutyBoardView | null = null;
+  /** Duties completed (for the tick sound when one finishes). */
+  private dutiesDone = -1;
   private readonly noteKeys = new NoteKeyboard((text, x, y, colour) => this.pushBoardIntent('noteAdd', text, [x, y, colour]));
   /** The board's seq last saved to this browser (host / solo keeps the notes over a reload). */
   private boardSaved = -1;
@@ -442,6 +446,11 @@ export class App {
     this.noteKeys.menu.refresh();
     if (this.board) {
       this.board.update(this.world);
+      this.dutyBoard?.update(this.world);
+      // A duty ticked off: a small tick.
+      const done = this.world.duties?.completed ?? 0;
+      if (this.dutiesDone >= 0 && done > this.dutiesDone) this.rescueSounds.snap();
+      this.dutiesDone = done;
       // Host / solo: keep the notes in this browser, so they survive a reload.
       const b = this.world.board;
       if (b && !this.client && b.seq !== this.boardSaved) {
@@ -996,7 +1005,7 @@ export class App {
         const pct = (x: number) => `${Math.round(x * 100)} %`;
         return `${e.master ? 'Master ON' : 'Master off'} · ${e.volts.toFixed(1)} V ${e.amps.toFixed(0)} A · B1 ${pct(e.soc[0])} B2 ${pct(e.soc[1])}`;
       },
-      electricsDebug: (m) => this.pushVesselIntent('debugElectrics', m),
+      electricsDebug: (m) => (m === 4 ? this.pushVesselIntent('quickStart', 1) : this.pushVesselIntent('debugElectrics', m)),
       coolingFault: () => boat().engine.coolingFault,
       toggleCoolingFault: () => this.pushVesselIntent('debugCoolingFault', boat().engine.coolingFault ? 0 : 1),
       cargoStatus: () => {
@@ -1346,6 +1355,12 @@ export class App {
     this.board.root.rotation.y = Math.PI;
     view.root.add(this.board.root);
     this.scene.add(this.board.rayLine);
+    // Duty board (game tasks, shipping forecast) on the starboard wall.
+    const db = this.testDef.dutyBoard;
+    if (db) {
+      this.dutyBoard = new DutyBoardView(db);
+      view.root.add(this.dutyBoard.root);
+    }
     try {
       this.world.board ??= parseBoard(localStorage.getItem(BOARD_KEY)) ?? undefined;
       // Rescues completed in this browser so far (milestone 4).
@@ -1358,6 +1373,7 @@ export class App {
       [...this.bridge.controls, ...this.tillers.flatMap((t) => t.parts), ...this.davits.map((d) => d.button)],
       (channel, value) => {
         if (channel === 'engineStartStop') return this.requestEngineStartStop();
+        if (channel === 'start' && value > 0) this.startInGearHint();
         const { vesselId, control } = this.routeChannel(channel);
         this.pushIntentTo(vesselId, control, value);
       },
@@ -1579,15 +1595,37 @@ export class App {
   }
 
   /** Engine start/stop with feedback when the neutral-start interlock refuses. */
+  /** START pressed with the lever in gear: the neutral-safety switch says no. */
+  private startInGearHint(): void {
+    const v = this.world.vessels[this.testVesselId];
+    if (v && leverDemand(this.testDef, v.controls.lever).gear !== 0) {
+      this.overlay.notify('Neutral safety: the lever must be in neutral to start', 2.5);
+      this.xrInput.pulse('right', 0.8, 150);
+    }
+  }
+
+  /**
+   * Desktop E key: with the quick-start option, one press does it all (master, breakers,
+   * key, preheat, start) or stops her; otherwise it points to the real procedure.
+   */
   private requestEngineStartStop(): void {
     const v = this.world.vessels[this.testVesselId];
     if (!v) return;
     const def = this.testDef;
-    if (v.engine.phase === 'off' && def.engine.startOnlyInNeutral && leverDemand(def, v.controls.lever).gear !== 0) {
-      this.overlay.notify('Engine won\'t start: lever not in neutral');
-      this.xrInput.pulse('right', 0.8, 150);
+    if (!def.electrics?.quickStart) {
+      if (v.engine.phase === 'off') this.overlay.notify('Start her properly: master, INSTR breaker, key, HEAT, START (see the card). Menu > Tests > Quick start does it all.', 5);
+      else this.pushVesselIntent('key', 0);
+      return;
     }
-    this.pushVesselIntent('engineStartStop', 1);
+    if (v.engine.phase === 'off') {
+      if (def.engine.startOnlyInNeutral && leverDemand(def, v.controls.lever).gear !== 0) {
+        this.overlay.notify('Engine won\'t start: lever not in neutral');
+        this.xrInput.pulse('right', 0.8, 150);
+      }
+      this.pushVesselIntent('quickStart', 1);
+      return;
+    }
+    this.pushVesselIntent('key', 0); // stop: key off
   }
 
   private pushVesselIntent(control: string, value: number, ref?: string): void {

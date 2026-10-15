@@ -1,4 +1,5 @@
 import { ElectricsPanel, MasterSwitch } from './electricsPanel';
+import { checklistCard, KeySwitch, SelectorSwitch, WarningLamps } from './ignition';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { WorkboatDef } from '../vessel/vesselDef';
@@ -22,6 +23,8 @@ import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUti
 export class Bridge {
   readonly root = new THREE.Group();
   readonly controls: Control[] = [];
+  /** Engine warning lamps by the ignition. */
+  private readonly lamps: WarningLamps;
   /** Voltmeter (and, later, the breakers), on boats with 12 V electrics. */
   readonly electrics: ElectricsPanel | null = null;
   /** Empty object at the centre of the instrument dash (for visibility checks). */
@@ -45,8 +48,15 @@ export class Bridge {
     const lever = new Lever('lever', b.lever, def.engine.neutralBand * 0.75);
     lever.root.position.fromArray(b.lever.position);
 
-    const start = new Button('start', 'engineStartStop', 'Engine start / stop', 'pulse', 0x3aa04a, (s) => s.engine.phase === 'running');
+    // Diesel ignition: hold HEAT (glow plugs), hold START; the key switches it all on/off.
+    const start = new Button('start', 'start', 'START (hold)', 'momentary', 0x3aa04a, (s) => s.engine.phase === 'running');
     start.root.position.fromArray(b.startButton.position);
+    const heat = new Button('heat', 'heat', 'HEAT: glow plugs (hold)', 'momentary', 0xe07020);
+    heat.root.position.fromArray(b.heatButton.position);
+    const key = new KeySwitch();
+    key.root.position.fromArray(b.keySwitch.position);
+    this.lamps = new WarningLamps(b.warningLamps);
+    this.root.add(this.lamps.root, checklistCard(b.checklistCard));
 
     const horn = new Button('horn', 'horn', 'Horn', 'momentary', 0xe0b020);
     horn.root.position.fromArray(b.hornButton.position);
@@ -75,14 +85,17 @@ export class Bridge {
     this.root.add(this.chart.root);
     this.overhead = new OverheadPanel(def);
     this.root.add(this.overhead.root);
-    this.controls.push(wheel, lever, start, horn, nav, anchor, cabin, dock, spot, joy, this.radio.handset, ...this.overhead.controls);
+    this.controls.push(wheel, lever, start, heat, key, horn, nav, anchor, cabin, dock, spot, joy, this.radio.handset, ...this.overhead.controls);
     // 12 V: battery master on the aft wall by the door, voltmeter panel by the helm.
     const el = def.electrics;
     if (el) {
       const master = new MasterSwitch();
       master.root.position.fromArray(el.masterSwitch.position);
       master.root.rotation.y = Math.PI; // face forward, into the wheelhouse
-      this.controls.push(master);
+      const selector = new SelectorSwitch();
+      selector.root.position.fromArray(el.selectorSwitch.position);
+      selector.root.rotation.y = Math.PI;
+      this.controls.push(master, selector);
       this.electrics = new ElectricsPanel(el.panel);
       this.root.add(this.electrics.root);
       this.controls.push(...this.electrics.controls);
@@ -126,6 +139,7 @@ export class Bridge {
     if (displaysInView) this.instruments.update(state, this.def, dt);
     this.overhead.update(state);
     this.electrics?.update(state, dt);
+    this.lamps.update(state, this.def);
   }
 }
 
@@ -153,7 +167,9 @@ function bakeFixedParts(root: THREE.Object3D, extra: THREE.BufferGeometry[]): TH
 function buildLabels(b: WorkboatDef['bridge']): THREE.Mesh {
   const labels: [string, [number, number, number]][] = [
     ['AHEAD ▲  ▼ ASTERN', b.lever.position],
-    ['START / STOP', b.startButton.position],
+    ['START', b.startButton.position],
+    ['HEAT', b.heatButton.position],
+    ['KEY', b.keySwitch.position],
     ['HORN', b.hornButton.position],
     ['NAV LIGHTS', b.navLightsSwitch.position],
     ['ANCHOR', b.anchorSwitch.position],

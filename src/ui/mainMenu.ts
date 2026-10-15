@@ -36,7 +36,7 @@ export interface MenuHost {
   refuelling(): boolean;
   toggleRefuel(): void;
   setFuelDebug(litres: number): void;
-  /** 12 V electrics: one-line status, and the debug actions (0 flat, 1 fill, 2 all on). */
+  /** 12 V electrics: one-line status, and the debug actions (0 flat, 1 fill, 2 all on, 3 battery 1 flat, 4 quick start). */
   electricsStatus(): string;
   electricsDebug(mode: number): void;
   coolingFault(): boolean;
@@ -305,6 +305,13 @@ export function mainMenu(h: MenuHost): MainMenu {
         { text: 'Power on', press: () => h.electricsDebug(2) },
         { text: 'Fill', press: () => h.electricsDebug(1) },
         { text: 'Flat', press: () => h.electricsDebug(0) },
+      ],
+    },
+    {
+      label: 'Start-up',
+      buttons: [
+        { text: 'Quick start (all in one)', press: () => h.electricsDebug(4), weight: 1.6 },
+        { text: 'Battery 1 flat', press: () => h.electricsDebug(3), weight: 1.2 },
       ],
     },
     {

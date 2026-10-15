@@ -271,6 +271,16 @@ export const CONFIG = {
         crankTime: 1.6,
         /** The engine will only start with the lever in neutral (like a real neutral-safety switch). */
         startOnlyInNeutral: true,
+        /**
+         * Ignition (diesel): key ON, hold HEAT until the glow lamp goes out (`preheatTime`),
+         * then hold START. Unheated, a cold engine (coolant below `coldBelowC`) needs up to
+         * `unheatedExtraCrank` more seconds of cranking to catch. Glow plugs cool again at
+         * `glowCoolRate` (s of preheat lost per s).
+         */
+        preheatTime: 4,
+        unheatedExtraCrank: 5,
+        coldBelowC: 40,
+        glowCoolRate: 0.25,
         gearRatio: 3.0,
         gearEfficiency: 0.97,
         /** Clutch: lever must sit in the new direction this long, near idle, before it engages (s). */
@@ -443,7 +453,16 @@ export const CONFIG = {
           length: 0.2,
           pedestal: { halfWidth: 0.13, aft: -1.02 },
         },
+        /**
+         * Diesel ignition on the console, starboard of the lever: HEAT (glow plugs) and START
+         * buttons (hold), the key, and a row of warning lamps (oil, charge, glow, neutral)
+         * in front of them. A laminated start-up card lies by them (starboard end).
+         */
         startButton: { position: [0.78, 2.16, -1.52] as [number, number, number] },
+        heatButton: { position: [0.62, 2.16, -1.47] as [number, number, number] },
+        keySwitch: { position: [0.98, 2.16, -1.5] as [number, number, number] },
+        warningLamps: { position: [0.8, 2.165, -1.61] as [number, number, number], spacing: 0.085 },
+        checklistCard: { position: [1.17, 2.175, -1.47] as [number, number, number], width: 0.19, height: 0.26 },
         hornButton: { position: [-0.42, 2.16, -1.52] as [number, number, number] },
         navLightsSwitch: { position: [-0.78, 2.16, -1.52] as [number, number, number] },
         /** Windlass: up = heave in / stowed, down = let go. */
@@ -539,10 +558,18 @@ export const CONFIG = {
           windlass: 60,
           horn: 10,
           bilge: 3,
+          glowPlugs: 35,
           starter: 180,
         },
         /** Battery master (big red key) on the aft wall, starboard of the door, low down. */
         masterSwitch: { position: [0.8, 1.75, 1.41] as [number, number, number] },
+        /** Battery selector (1 / BOTH / 2) beside it. */
+        selectorSwitch: { position: [1.08, 1.75, 1.41] as [number, number, number] },
+        /**
+         * Quick start (casual sessions, desktop crew): the desktop E key / one press does it
+         * all - master, the main breakers, key, preheat, start. Off: start her properly.
+         */
+        quickStart: false,
         /**
          * Panel by the helm: a small sloping console against the starboard wall just under
          * the window sill (the side walls are windows above it), face tilted up toward you.
@@ -648,6 +675,12 @@ export const CONFIG = {
        * the door, facing forward (vessel axes: centre, width, height, m).
        */
       whiteboard: { position: [-0.9, 2.5, 1.4] as [number, number, number], width: 0.85, height: 0.62 },
+      /**
+       * The duty board (game tasks and the shipping forecast; duties/dutyBoardView.ts): on
+       * the starboard wall in the aft half of the side window (behind the helm, where it
+       * blocks the least of the view), facing inboard.
+       */
+      dutyBoard: { position: [1.355, 2.5, 0.78] as [number, number, number], width: 0.72, height: 0.54 },
       /**
        * Deck lights. Floods: a lamp on the wheelhouse roof edge aimed at a point on deck,
        * each ONE real SpotLight (cd, m, half-angle, penumbra), hidden when off (no per-pixel
@@ -854,6 +887,12 @@ export const CONFIG = {
     overboardG: 0.55,
     /** Accelerations above this (g) are clipped: penalty-contact spikes aren't real. */
     maxDeckG: 3,
+  },
+
+  /** The duty board's game-generated task list (duties/duties.ts). */
+  duties: {
+    /** A finished duty stays up, ticked, this long (s), then drops off. */
+    doneLinger: 15,
   },
 
   /** Water effects (all one draw call each; see vessel/view/wakeTrail.ts and spray.ts). */

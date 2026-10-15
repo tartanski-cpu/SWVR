@@ -98,9 +98,11 @@ export class ElectricsPanel {
   /** The breaker toggles, for the interaction system. */
   readonly controls: Control[] = [];
   private readonly needle = new THREE.Group();
-  private readonly lamps = new Map<BreakerName, THREE.MeshBasicMaterial>();
+  /** The breakers' lamps: one instanced draw call, a colour per lamp. */
+  private readonly lamps: THREE.InstancedMesh;
   private readonly lampLit = new Map<BreakerName, boolean>();
   private shown = 0;
+  private readonly tmpColor = new THREE.Color();
 
   constructor(cfg: { position: [number, number, number]; width: number; height: number; tiltDeg: number }) {
     this.root.position.fromArray(cfg.position);
@@ -123,6 +125,14 @@ export class ElectricsPanel {
     const pitch = 0.1;
     const rows = [0.075, -0.075];
     const spots: { k: BreakerName; x: number; y: number }[] = BREAKERS.map((k, i) => ({ k, x: x0 + (i % 3) * pitch, y: rows[Math.floor(i / 3)] }));
+    this.lamps = new THREE.InstancedMesh(new THREE.CircleGeometry(0.007, 12), new THREE.MeshBasicMaterial(), spots.length);
+    const m = new THREE.Matrix4();
+    const off = new THREE.Color(LAMP_OFF);
+    spots.forEach(({ x, y }, i) => {
+      this.lamps.setMatrixAt(i, m.makeTranslation(x + 0.032, y + 0.035, 0.002));
+      this.lamps.setColorAt(i, off);
+    });
+    this.root.add(this.lamps);
     for (const { k, x, y } of spots) {
       const t = new Toggle(`brk_${k}`, `brk_${k}`, `Breaker: ${BREAKER_LABELS[k].toLowerCase()}`, (s) => s.electrics?.breakers[k] ?? 1);
       t.root.position.set(x, y - 0.005, 0);
@@ -130,11 +140,6 @@ export class ElectricsPanel {
       t.root.scale.setScalar(0.8);
       this.root.add(t.root);
       this.controls.push(t);
-      const mat = new THREE.MeshBasicMaterial({ color: LAMP_OFF });
-      const lamp = new THREE.Mesh(new THREE.CircleGeometry(0.007, 12), mat);
-      lamp.position.set(x + 0.032, y + 0.035, 0.002);
-      this.root.add(lamp);
-      this.lamps.set(k, mat);
       this.lampLit.set(k, false);
     }
     const labels = new THREE.Mesh(new THREE.PlaneGeometry(W, H), new THREE.MeshBasicMaterial({ map: panelLabels(W, H, spots), transparent: true }));
@@ -149,12 +154,13 @@ export class ElectricsPanel {
     // Smoothly follow the bus voltage (a real meter's movement takes a moment).
     this.shown += (v - this.shown) * Math.min(1, dt * 4);
     this.setNeedle(this.shown);
-    for (const k of BREAKERS) {
+    BREAKERS.forEach((k, i) => {
       const lit = isPowered(state, k);
-      if (lit === this.lampLit.get(k)) continue;
+      if (lit === this.lampLit.get(k)) return;
       this.lampLit.set(k, lit);
-      this.lamps.get(k)!.color.setHex(lit ? LAMP_ON : LAMP_OFF);
-    }
+      this.lamps.setColorAt(i, this.tmpColor.setHex(lit ? LAMP_ON : LAMP_OFF));
+      this.lamps.instanceColor!.needsUpdate = true;
+    });
   }
 
   private setNeedle(volts: number): void {

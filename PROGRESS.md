@@ -878,6 +878,35 @@ Owner decision: **no radar screen.** Passing vessels will show as AIS targets (t
 - **The cold boat has every breaker off.** Menu → Tests → Electrics → "Power on" switches the master and all breakers on. The status line now shows amps too.
 - **Tests (203):** circuits are independent; a device needs master AND breaker; each breaker adds its draw; master off kills them all; cold breakers are off; "power on".
 
+### E3: engine start procedure, duty board (done, awaiting owner test)
+
+- **Diesel ignition** (`propulsion.ts` `stepIgnition`, `EngineState.key/glow`, controls `heat`/`start`). On the console, starboard of the throttle:
+  - **HEAT** (orange, hold), **START** (green, hold) and the **key** (press: off ↔ on).
+  - The key off (or no 12 V) closes the fuel solenoid: she stops.
+  - HEAT with the key on heats the glow plugs (`preheatTime` 4 s, 35 A); they cool again when let go.
+  - START with the key on and the lever in neutral cranks (neutral-safety switch). Let go before she catches and the starter stops.
+  - **Cold and unheated**, she needs up to 5 s more cranking (`unheatedExtraCrank`).
+  - **START in gear:** nothing happens, the NEUTRAL lamp blinks, and a hint says why.
+- **Warning lamps** (Instruments breaker), in front of the ignition:
+  - **OIL, CHARGE:** red until she runs.
+  - **GLOW:** orange while heating, until the plugs are hot.
+  - **NEUTRAL:** green with the lever in neutral.
+  - One instanced draw call; colours change only on change.
+- **Battery selector** (1 / BOTH / 2, a press steps it) beside the master on the aft wall. **Debug:** Menu → Tests → Start-up → "Battery 1 flat", then recover on battery 2.
+- **Start-up card:** a laminated card on the console by the key, drawn once.
+- **Quick start** (`electrics.quickStart`, default off): the desktop E key does it all; otherwise E explains the procedure, and stops her (key off) if she's running. Menu → Tests → Start-up → "Quick start" always works. The old START/STOP toggle is now this quick start (tests and trials still use it).
+- **Duty board** (`duties/duties.ts`, `duties/dutyBoardView.ts`, `WorldState.duties`):
+  - A green board on the starboard wall, aft half of the side window. One canvas, redrawn only on change.
+  - **DUTIES:** game tasks with steps that tick themselves off. Finished duties linger 15 s, then drop off; there's a tick sound when one finishes.
+  - **SHIPPING FORECAST:** "No forecast received" until milestone 5.
+  - The crew whiteboard is untouched.
+- **Start-up duty:** up while the boat is cold (engine off, coolant < 40 °C). Steps: master, INSTR, neutral, key + HEAT, START, then CHART/RADIO/NAV as needed (optional). Done when she runs.
+- **Profile (milestone 3)**, headless, CPU only:
+  - 0.63 ms per frame (views + sim); one sim tick 0.16 ms.
+  - Draw calls: 42 at the helm, 88 from the aft deck looking forward (110 before merging each toggle's lever into one mesh and instancing the lamps).
+  - Triangles unchanged (~160k).
+- **Tests (211):** start from cold by the card, with the duty ticking off; no key / START in gear does nothing; letting go of START stops cranking; cold and unheated cranks long, preheated catches fast; key off stops her; battery 1 flat → selector 2 starts her; the selector steps; quick start.
+
 ## Planned next (owner requests, not started)
 
 1. ~~Fuel and oil temperature~~ **Done** (see above).
