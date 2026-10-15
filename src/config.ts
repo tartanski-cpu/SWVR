@@ -1324,13 +1324,15 @@ export const CONFIG = {
    * set (m), fading to nothing at `range`.
    */
   fmRadio: {
+    // Owner: pop and 90s, English-speaking, no German stations. Streams are plain HTTPS MP3
+    // (played in an <audio> element, so no CORS needed); a dead one just shows NO SIGNAL.
     stations: [
-      { freq: '88.6', name: 'Groove Salad', url: 'https://ice1.somafm.com/groovesalad-128-mp3' },
-      { freq: '91.2', name: 'Radio Paradise', url: 'https://stream.radioparadise.com/mp3-128' },
-      { freq: '94.7', name: 'Swiss Jazz', url: 'https://stream.srg-ssr.ch/m/rsj/mp3_128' },
-      { freq: '97.3', name: 'Swiss Classic', url: 'https://stream.srg-ssr.ch/m/rsc_de/mp3_128' },
-      { freq: '101.5', name: 'Secret Agent', url: 'https://ice1.somafm.com/secretagent-128-mp3' },
-      { freq: '104.8', name: 'Deutschlandfunk', url: 'https://st01.sslstream.dlf.de/dlf/01/128/mp3/stream.mp3' },
+      { freq: '88.6', name: 'TruckersFM', url: 'https://live.truckers.fm/' },
+      { freq: '91.2', name: 'Heart 90s', url: 'https://media-ssl.musicradio.com/Heart90s' },
+      { freq: '94.7', name: 'Absolute 90s (1.FM)', url: 'https://strm112.1.fm/90s_mobile_mp3' },
+      { freq: '97.3', name: 'Heart', url: 'https://media-ssl.musicradio.com/HeartUK' },
+      { freq: '101.5', name: 'Smooth', url: 'https://media-ssl.musicradio.com/SmoothUK' },
+      { freq: '104.8', name: 'Radio Paradise', url: 'https://stream.radioparadise.com/mp3-128' },
     ],
     fullRange: 3,
     range: 16,
