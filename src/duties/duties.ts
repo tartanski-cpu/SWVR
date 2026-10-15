@@ -34,6 +34,7 @@ import { visibilityAt } from '../environment/weather';
 import { isPowered } from '../vessel/electrics';
 import { cargoDestination, nearestPort, portById } from '../rescue/rescue';
 import { jetOn } from '../fire/fire';
+import { towFast } from '../tow/tow';
 import { answerFogSignal } from '../traffic/traffic';
 import { PORTS } from '../world/archipelago';
 import { allBerths } from '../world/berths';
@@ -330,7 +331,7 @@ function stepTowDuty(world: WorldState, d: DutiesState): void {
   const name = job ? (VESSEL_DEFS[job.defId]?.tow?.name ?? 'a tow').replace(/^an? /, '') : '';
   syncJob(d, 'tow', live, `Tow: ${name}`, [
     { text: 'Answer the call: pick up the VHF handset', done: !!job && job.phase !== 'calling' },
-    { text: 'Make the towline fast to her bow eye (boat hook)', done: !!job?.fast },
+    { text: 'Make the towline fast to her bow eye (boat hook)', done: towFast(world) },
     { text: 'Bring her into any harbour, slow', done: false },
   ], world.time);
 }

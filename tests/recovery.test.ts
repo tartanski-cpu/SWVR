@@ -298,11 +298,11 @@ describe('recovery: boat hook on a tow\'s bow eye (desktop)', () => {
       flush();
     };
     click();
-    expect(job.fast).toBe(true);
+    expect(world.tow!.line?.target).toBe(`v:${job.vesselId}`);
     run(1.1);
     (hands as unknown as { clock: number }).clock += 1.1; // once a second at most (the frame loop's clock)
     click();
-    expect(job.fast).toBe(false);
+    expect(world.tow!.line ?? null).toBeNull();
   });
 });
 

@@ -7,7 +7,7 @@ import { createWorld } from '../src/core/world';
 import { placeVessel } from '../src/vessel/vesselControl';
 import { TOW_DEFS, VESSEL_DEFS } from '../src/vessel/vesselDef';
 import { createVesselState } from '../src/vessel/vesselState';
-import { towReach, towStatus, towVessel } from '../src/tow/tow';
+import { towFast, towReach, towStatus, towTargets, towVessel } from '../src/tow/tow';
 import { runStatus } from '../src/rescue/rescue';
 import { PORTS } from '../src/world/archipelago';
 import { ClientSession } from '../src/net/clientSession';
@@ -100,7 +100,7 @@ describe('towing missions', { timeout: 30000 }, () => {
     expect(job.phase).toBe('accepted');
     expect(towReach(world)).toBeLessThan(CONFIG.tow.attachRange);
     send('towMake');
-    expect(job.fast).toBe(true);
+    expect(towFast(world)).toBe(true);
     expect(towStatus(world)).toMatch(/Towing/);
     send('engineStartStop');
     run(3);
@@ -108,15 +108,15 @@ describe('towing missions', { timeout: 30000 }, () => {
     let maxReach = 0;
     run(60, () => (maxReach = Math.max(maxReach, towReach(world))));
     const tow = towVessel(world)!;
-    expect(job.fast).toBe(true);
+    expect(towFast(world)).toBe(true);
     // Under way together, northward (-z), the line taut but not snapping.
     expect(-tow.linearVelocity[2]).toBeGreaterThan(1.5);
-    expect(job.tension).toBeGreaterThan(100);
+    expect((world.tow!.line?.tension ?? 0)).toBeGreaterThan(100);
     expect(maxReach).toBeLessThan(CONFIG.tow.lineLength + 6);
     // Cast off: no more pull.
     send('towCast');
     run(1);
-    expect(job.tension).toBe(0);
+    expect((world.tow!.line?.tension ?? 0)).toBe(0);
   });
 
   it('too far off to make fast; a snatch parts the line', () => {
@@ -128,15 +128,15 @@ describe('towing missions', { timeout: 30000 }, () => {
     // Out of range: nothing.
     placeVessel(tow, tow.position[0], 0, tow.position[2] + 40, 0);
     send('towMake');
-    expect(world.tow!.job!.fast).toBe(false);
+    expect(towFast(world)).toBe(false);
     // Back in range, made fast, then yanked away hard.
     placeVessel(tow, tow.position[0], 0, tow.position[2] - 40, 0);
     run(0.5);
     send('towMake');
-    expect(world.tow!.job!.fast).toBe(true);
+    expect(towFast(world)).toBe(true);
     tow.linearVelocity = [0, 0, 12];
     run(4);
-    expect(world.tow!.job!.fast).toBe(false);
+    expect(towFast(world)).toBe(false);
     expect(world.rescue!.radio?.text).toMatch(/parted/);
   });
 
@@ -165,6 +165,59 @@ describe('towing missions', { timeout: 30000 }, () => {
     expect(world.vessels[job.vesselId]).toBeUndefined();
   });
 
+  it('tow anything: debris follows us on the line, and towed slow into a harbour it is cleared', () => {
+    const { world, v, send, run } = setup();
+    placeVessel(v, 0, 0, -400, 0);
+    run(1);
+    world.traffic!.debris.push({ id: 'dx', x: 0, z: -380 });
+    expect(towTargets(world)).toContain('d:dx');
+    send('towMake', 1, 'd:dx');
+    expect(world.tow!.line?.target).toBe('d:dx');
+    expect(towStatus(world)).toMatch(/Towing debris/);
+    send('engineStartStop');
+    run(3);
+    send('lever', 0.5);
+    let maxReach = 0;
+    run(40, () => (maxReach = Math.max(maxReach, towReach(world))));
+    const d = world.traffic!.debris.find((o) => o.id === 'dx')!;
+    expect(-380 - d.z).toBeGreaterThan(60); // came along northward with us
+    expect(maxReach).toBeLessThan(CONFIG.tow.lineLength + 6);
+    expect(world.tow!.line?.tension ?? 0).toBeGreaterThan(50);
+    // Into harbour, stopped: cleared.
+    send('lever', 0);
+    const port = PORTS.find((p) => p.id === 'calder')!;
+    placeVessel(v, port.x, 0, port.z - 20, 0);
+    d.x = port.x;
+    d.z = port.z;
+    world.tow!.line!.vel = [0, 0];
+    run(CONFIG.tow.deliverTime + 1);
+    expect(world.traffic!.debris.some((o) => o.id === 'dx')).toBe(false);
+    expect(world.tow!.line ?? null).toBeNull();
+    expect(world.tow!.cleared).toBe(1);
+  });
+
+  it('tow anything: our skiff once she is afloat (not on her davit); the menu makes fast to the nearest', () => {
+    const ids = new IdFactory();
+    const { world, vesselId } = createWorld(ids, undefined, { tender: true });
+    world.environment.waves = [];
+    const v = world.vessels[vesselId];
+    const skiff = Object.values(world.vessels).find((o) => o.tender)!;
+    const send = (control: string, ref?: string) => stepWorld(world, [{ playerId: 'player-1', targetId: v.id, control, value: 1, ref }], DT);
+    placeVessel(v, 0, 0, -400, 0);
+    stepWorld(world, [], DT);
+    expect(towTargets(world)).not.toContain(`v:${skiff.id}`); // on the davit
+    send('towMake', `v:${skiff.id}`);
+    expect(world.tow!.line ?? null).toBeNull();
+    skiff.tender!.phase = 'free';
+    placeVessel(skiff, 0, 0, -400 + 18, 0);
+    stepWorld(world, [], DT);
+    send('towToggle');
+    expect(world.tow!.line?.target).toBe(`v:${skiff.id}`);
+    expect(towStatus(world)).toMatch(/Towing/);
+    send('towToggle');
+    expect(world.tow!.line ?? null).toBeNull();
+  });
+
   it('multiplayer: the tow and its line reach the crew; a crew-mate can make fast', async () => {
     const ids = new IdFactory();
     const { world, vesselId } = createWorld(ids);
@@ -180,7 +233,7 @@ describe('towing missions', { timeout: 30000 }, () => {
     for (const i of host.takeIntents()) stepWorld(world, [i], DT);
     host.tick(1);
     const job = c.latest!.tow!.job!;
-    expect(job.fast).toBe(true);
+    expect(c.latest!.tow!.line?.target).toBe(`v:${job.vesselId}`);
     expect(c.latest!.vessels[job.vesselId].defId).toBe('barge');
   });
 });

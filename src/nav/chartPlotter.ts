@@ -7,6 +7,7 @@ import { ISLANDS, PORTS } from '../world/archipelago';
 import { groundHeight } from '../world/terrain';
 import { CONFIG } from '../config';
 import type { ChartMarks } from '../chart/marks';
+import { towFast } from '../tow/tow';
 
 const W = 512;
 const H = 384;
@@ -150,7 +151,7 @@ export class ChartPlotter {
     } else if (fireJob) {
       [fx, fz] = [fireJob.x, fireJob.z];
       label = 'FIRE';
-    } else if (tow && !job?.fast) {
+    } else if (tow && !towFast(world)) {
       [fx, fz] = [tow.position[0], tow.position[2]];
       label = 'TOW';
     } else if (dest && !cargoPaused(world)) {

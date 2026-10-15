@@ -1331,6 +1331,21 @@ The brief's "no new particle effects" rule was flagged: the fire is drawn withou
   - The WINDOWS switch, the glass it showed and the `windows` control are gone (the "secure the boat" duty drops its windows step). The windscreen's rain and wipers stay.
   - How shut-in the wheelhouse is now depends on the aft door alone: shut, it fully muffles wind, rain, wash and fire inside.
   - The engine sound gets a wheelhouse low-pass and level (`CONFIG.wheelhouseSound`): full on deck; inside with the door open ×0.75 and 1200 Hz; door shut ×0.45 and 320 Hz.
+- **Tow anything in the water** (owner request):
+  - The towline is now its own state (`TowState.line`, keyed `v:<vessel>` / `d:<debris>`), no longer part of the tow job. It goes on any vessel afloat other than ours, at her bow eye; a tender on her davit doesn't count. It also goes on drifting debris.
+  - **Debris on the line** is a point mass (900 kg) with linear and quadratic water drag (`tow.debris`), pulled by the same spring-damper line. Its usual drift still applies, like a current. Towed slowly into a port for 5 s, it's removed and counted (`TowState.cleared`).
+  - **Hook:** it now finds every tow point within 40 m (bow eyes and debris; debris is a bigger target). The menu's Make fast takes the nearest within range, the job's tow first. Crates stay on the boat hook.
+  - **Tests (2):** debris follows on the line and is cleared in harbour; the skiff on her davit isn't towable, but afloat the menu makes fast to her and casts off.
+- **Anchor sound** (`audio/anchorAudio.ts`), driven by the chain's movement:
+  - paying out: a link clank per 6 cm over the roller (a rattle at 2 m/s), and a splash as the anchor goes in;
+  - heaving in: the windlass motor (a buzz around 90 Hz) with slower, heavier clanks;
+  - stowing: a clunk.
+  - Level by distance to the hawse, muffled in the wheelhouse.
+- **Wildlife** (`wildlife/`): pure functions of world time and the boat's pose, so no network state and every crew-mate sees the same animals.
+  - **Gulls:** 6 circle their own wandering centres about the boat, banking into the turn and gliding with now-and-then flapping. They call every 4–12 s (a synthesised falling "kee-ow").
+  - **Dolphins:** a pod of 4 in 60 % of 5-minute slots, staying 70 s, when she's under way above 2 m/s in water over 12 m deep, 500 m from ports. They arc out on their own breathing rhythm with a blow sound.
+  - None at night. Three instanced draw calls; no physics or particles.
+  - **Tests (2):** gull bounds and determinism; pod frequency and duration, the breathing fraction, staying off the bow.
 - **Controls hard to use for crew-mates joining** (owner feedback; the host tests in VR, the crew on desktop):
   - **The main cause:** the desktop view's comfort coupling (0.3) holds the view mostly steady while the boat moves, so the console swung under the reticle. For a joining player, whose boat arrives as 20 Hz snapshot steps, the camera moved about ±0.2 m and 3° against the console in a moderate sea; small switches slid in and out of reach.
     - Now, in the wheelhouse or with the reticle on a control, the desktop view eases to riding rigidly with the boat over 0.5 s (`comfort.desktopRigidAtControls`, `desktopRigidTime`). Measured after the change: no camera movement relative to the console, on the host or a client.

@@ -120,7 +120,7 @@ The menu has six tabs along the top:
 At the helm, from left to right on the console:
 
 - **Nav lights** toggle switch.
-- **Anchor** switch: down = let go (the chain pays out to 4 × depth + 5 m), up = heave in and stow.
+- **Anchor** switch: down = let go (the chain pays out to 4 × depth + 5 m), up = heave in and stow. You hear it: the chain rattles out over the bow roller and the anchor splashes in; heaving in, the windlass hums and the links clank in one by one, with a clunk as it stows.
 - **SPOT** switch (far left): the searchlight on the wheelhouse roof.
 - **Searchlight joystick:** on the pedestal to port of the wheel, under your left hand. Grip it and push sideways to pan, forward/back to raise/lower the beam. The further you push, the faster it moves; let go and the light stays put. On desktop, click and drag it.
 - **Cabin** light switch: the wheelhouse ceiling lamp.
@@ -262,6 +262,16 @@ Out of harbour, with no rescue on, a tow call comes over the VHF every few minut
 
 Unanswered calls go away after two minutes. The menu's Tests tab has debug buttons that put a tow just astern (Cruiser, Logs, Barge), raise a call, or end the job.
 
+**Tow anything in the water.** The towline isn't only for tow jobs. Make it fast the same way (hook or menu) to:
+- **any boat afloat**, at her bow, e.g. our own skiff once she's off the davit;
+- **floating debris** (the planks-and-drum hazards). Towed slowly into a harbour, it's cleared away, and the harbour thanks you.
+
+One thing at a time on the line. The menu's **Tow → Make fast** picks the nearest thing within 16 m of the towing post. Floating crates from lost cargo still go on the boat hook, not the towline.
+
+### Wildlife
+
+Gulls wheel over the boat by day, gliding and now and then flapping, and calling. Under way in open, deep water, a pod of dolphins sometimes comes up from astern and rides off the bow for a minute or so, each one blowing as it surfaces. They're decoration: worked out from the time and the boat's position, so the whole crew sees the same animals.
+
 ## Off the boat, and cargo by hand
 
 - **Walking ashore:** jump (A / Space) from the deck onto a quay or pier when you're alongside, and back aboard the same way. You keep the boat's own speed when you jump, so jumping off a moving boat is a bad idea. Quays you hit just below the top you clamber onto. Beaches you can wade out from.
@@ -391,7 +401,8 @@ src/
   controls/        Control base, Lever, Wheel, Button, Toggle, interaction system, bridge, instruments
   audio/           synthesised engine and horn (WebAudio, no files)
   net/             multiplayer: messages, PeerJS / loopback transports, host and client sessions, avatars
-  tow/             towing missions: tow jobs and the towline (tow.ts), tow models, towline view
+  tow/             towing: tow jobs and the towline on anything afloat (tow.ts), tow models, towline view
+  wildlife/        gulls and dolphins (poses from time; view)
 tests/             vitest: run in plain Node, no browser
 docs/              TESTING_NEW_BOATS.md (sea-trials lab, adding a boat), MULTIPLAYER.md (co-op)
 ```

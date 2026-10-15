@@ -71,8 +71,11 @@ import { Binoculars } from '../player/binoculars';
 import { fireAlertT } from '../fire/fire';
 import { FireView, JetView } from '../fire/fireView';
 import { FireAudio } from '../audio/fireAudio';
+import { AnchorAudio } from '../audio/anchorAudio';
+import { WildlifeAudio } from '../audio/wildlifeAudio';
+import { WildlifeView } from '../wildlife/wildlifeView';
 import { jetOn } from '../fire/fire';
-import { towAlertT, towReach, towStatus } from '../tow/tow';
+import { nearestTowTarget, towAlertT, towStatus } from '../tow/tow';
 import { RadioAudio } from '../audio/radioAudio';
 import { WhistleAudio } from '../audio/whistleAudio';
 import { TargetsView } from '../rescue/targetView';
@@ -89,7 +92,7 @@ import { NoteKeyboard } from '../board/noteKeyboard';
 import { parseBoard } from '../board/board';
 import { DesktopHand } from '../player/desktopHand';
 import { playerColor } from '../net/avatarView';
-import { createRescueState, runStatus } from '../rescue/rescue';
+import { createRescueState, nearestPort, runStatus } from '../rescue/rescue';
 import { engineAlarms } from '../vessel/physics/engineThermal';
 import { VesselEffects } from '../vessel/view/vesselEffects';
 import { sunElevation } from '../environment/timeOfDay';
@@ -195,6 +198,9 @@ export class App {
   private readonly fireView = new FireView();
   private readonly jetView = new JetView();
   private readonly fireAudio = new FireAudio();
+  private readonly anchorAudio = new AnchorAudio();
+  private readonly wildlife = new WildlifeView();
+  private readonly wildlifeAudio = new WildlifeAudio();
   /** The towline and our towing post (towing missions). */
   private readonly towline = new TowlineView();
   private laserHit: THREE.Vector3 | null = null;
@@ -348,6 +354,7 @@ export class App {
     this.rain.quality = userSettings.rainQuality;
     this.targetsView.onWhistle = (pos) => this.whistleAudio.blow(pos);
     this.scene.add(this.laser.root);
+    this.scene.add(this.wildlife.root);
     for (const vessel of Object.values(this.world.vessels)) this.addVesselView(vessel);
     // A tender's davit (arms, falls, LAUNCH / RECOVER button) on her ship's stern.
     for (const vessel of Object.values(this.world.vessels)) {
@@ -382,6 +389,8 @@ export class App {
       this.windAudio.attach(this.engineAudio.context);
       this.paperAudio.attach(this.engineAudio.context);
       this.fireAudio.attach(this.engineAudio.context);
+      this.anchorAudio.attach(this.engineAudio.context);
+      this.wildlifeAudio.attach(this.engineAudio.context);
     };
     window.addEventListener('pointerdown', unlock);
     window.addEventListener('keydown', unlock);
@@ -581,6 +590,16 @@ export class App {
       const burning = fj && fj.phase !== 'calling' ? fj.intensity : 0;
       const dist = fj ? Math.hypot(fj.x - this.focus.x, fj.z - this.focus.z) : 1e9;
       this.fireAudio.update(burning, dist, !!tv && jetOn(tv), this.insideHouse ? this.closed : 0);
+      // The anchor chain over the bow roller and the windlass.
+      const root = this.vesselRoots.get(this.testVesselId);
+      const hawse = this.testDef.anchor && root ? root.localToWorld(this.tmpV.fromArray(this.testDef.anchor.hawse)).distanceTo(this.focus) : 1e9;
+      this.anchorAudio.update(tv?.anchor, hawse, this.insideHouse ? this.closed : 0, dt);
+      // Gulls overhead; dolphins at the bow when she's under way in open, deep water.
+      const wl = CONFIG.wildlife.dolphins;
+      const open = !!tv && groundHeight(tv.position[0], tv.position[2]) < -wl.minDepth && nearestPort(tv.position[0], tv.position[2]).dist > wl.minPortDistance;
+      const speed = tv ? Math.hypot(tv.linearVelocity[0], tv.linearVelocity[2]) : 0;
+      this.wildlife.update(renderTime, root ?? null, speed, open, this.renderWaves, darkness, this.focus);
+      this.wildlifeAudio.update(this.wildlife.events, this.insideHouse ? this.closed : 0);
     }
     this.worldView.lights.update(renderTime, darkness);
     this.targetsView.visibility = this.environment.visibility;
@@ -1313,11 +1332,10 @@ export class App {
       rescueAboard: () => this.pushVesselIntent('rescueDebugAboard', 1),
       rescues: () => this.world.rescue?.completed ?? 0,
       towStatus: () => towStatus(this.world),
-      towFast: () => !!this.world.tow?.job?.fast,
+      towFast: () => !!this.world.tow?.line,
       towToggle: () => {
-        const job = this.world.tow?.job;
-        if (job?.phase !== 'accepted') this.overlay.notify('No tow to make fast: they come by radio (pick up the handset)');
-        else if (!job.fast && towReach(this.world) > CONFIG.tow.attachRange) this.overlay.notify(`Bring our stern within ${CONFIG.tow.attachRange} m of her bow eye`);
+        // Cast off whatever's on the line, or make fast to the nearest thing in reach.
+        if (!this.world.tow?.line && !nearestTowTarget(this.world)) this.overlay.notify(`Nothing to tow within ${CONFIG.tow.attachRange} m of our towing post: back our stern up to a bow eye or debris`);
         else this.pushVesselIntent('towToggle', 1);
       },
       towsDelivered: () => this.world.tow?.delivered ?? 0,

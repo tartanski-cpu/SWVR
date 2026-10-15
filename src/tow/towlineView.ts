@@ -3,7 +3,7 @@ import type { WorldState } from '../core/world';
 import { VESSEL_DEFS, type VesselDef } from '../vessel/vesselDef';
 import { CONFIG } from '../config';
 import { surfaceHeight, type PreparedWave } from '../ocean/waves';
-import { bowEyeLocal, towPostLocal } from './tow';
+import { bowEyeLocal, towPoint, towPostLocal } from './tow';
 
 const SEGMENTS = 14;
 
@@ -49,17 +49,24 @@ export class TowlineView {
   }
 
   update(world: WorldState, roots: Map<string, THREE.Object3D>, tugId: string, waves: readonly PreparedWave[]): void {
-    const job = world.tow?.job;
+    const line = world.tow?.line;
     const tug = roots.get(tugId);
-    const tow = job && roots.get(job.vesselId);
-    const ts = job && world.vessels[job.vesselId];
-    if (!job?.fast || !tug || !tow || !ts) {
+    const tugS = world.vessels[tugId];
+    if (!line || !tug || !tugS) {
       this.root.visible = false;
       return;
     }
-    const tugDef = VESSEL_DEFS[world.vessels[tugId].defId];
-    tug.localToWorld(this.a.fromArray(towPostLocal(tugDef)));
-    tow.localToWorld(this.b.fromArray(bowEyeLocal(VESSEL_DEFS[ts.defId])));
+    // A vessel's bow eye from her drawn pose (it rides the swell with her); debris at the
+    // drawn surface.
+    const towRoot = line.target.startsWith('v:') ? roots.get(line.target.slice(2)) : undefined;
+    const ts = towRoot && world.vessels[line.target.slice(2)];
+    if (towRoot && ts) towRoot.localToWorld(this.b.fromArray(bowEyeLocal(VESSEL_DEFS[ts.defId])));
+    else if (towPoint(world, line.target, this.b)) this.b.setY(surfaceHeight(waves, this.b.x, this.b.z) + 0.15);
+    else {
+      this.root.visible = false;
+      return;
+    }
+    tug.localToWorld(this.a.fromArray(towPostLocal(VESSEL_DEFS[tugS.defId])));
     const d = this.a.distanceTo(this.b);
     const L = CONFIG.tow.lineLength;
     const sag = d < L ? Math.sqrt((3 * d * (L - d)) / 8) : 0;

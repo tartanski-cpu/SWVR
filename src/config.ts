@@ -1074,6 +1074,27 @@ export const CONFIG = {
     postInset: 0.4,
     /** Debug "tow job alongside": this far astern of us (m). */
     debugDistance: 12,
+    /**
+     * Debris on the towline: a point mass (kg) with water drag F = (dragLinear + dragQuad |v|) v
+     * (N; about 0.5 rho Cd A for a waterlogged tangle of planks and a drum: ~5 kN at 3.5 m/s).
+     */
+    debris: { mass: 900, dragLinear: 150, dragQuad: 350 },
+  },
+
+  /**
+   * Wildlife (wildlife/wildlife.ts): decoration, a pure function of world time and the
+   * boat's pose. Gulls: how many, the radius (m), height above the sea (m) and turn rate
+   * (rad/s) of their circles, how far their centres wander about the boat (m). Dolphins: a
+   * pod of `count` in most (`chance`) slots of `every` s, staying `stay` s, if she's doing
+   * more than `minSpeed` m/s in water deeper than `minDepth` m, `minPortDistance` m from a
+   * port. Neither come out after dark (darkness above `night`, 0 day .. 1 night).
+   */
+  wildlife: {
+    gulls: { count: 6, radius: [12, 35] as [number, number], height: [7, 18] as [number, number], turnRate: [0.15, 0.32] as [number, number], wander: 12 },
+    dolphins: { count: 4, every: 300, chance: 0.6, stay: 70, minSpeed: 2, minDepth: 12, minPortDistance: 500 },
+    night: 0.6,
+    /** Seconds between gull calls (when gulls are about). */
+    gullCallEvery: [4, 12] as [number, number],
   },
 
   /**
