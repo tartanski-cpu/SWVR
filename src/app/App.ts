@@ -27,7 +27,6 @@ import { ChartTableView } from '../vessel/view/chartTable';
 import { LogbookView, type LogbookContext } from '../log/logbookView';
 import { parseLog, serializeLog } from '../log/log';
 import { PaperAudio } from '../audio/paperAudio';
-import { WheelhouseClosure } from '../vessel/view/wheelhouseClosure';
 import { dipstickReading } from '../vessel/maintenance';
 import { TrafficView } from '../traffic/trafficView';
 import { ShipHorn } from '../audio/shipHorn';
@@ -245,10 +244,8 @@ export class App {
   private readonly shipHorn = new ShipHorn();
   private hornSeen = -1;
   private readonly shipsCalled = new Set<string>();
-  /** Window glass and the sliding door; the wheelhouse is sealed with both shut. */
-  private closure: WheelhouseClosure | null = null;
   private readonly tableRef = new THREE.Vector3();
-  /** How shut-in the wheelhouse is, 0 (door and windows open) .. 1 (both shut): muffles wind, rain, wash. */
+  /** How shut-in the wheelhouse is, 0 (door open) .. 1 (door shut): muffles the engine, wind, rain, wash, fire. */
   private closed = 0;
   /** Auto rain quality: frame time accumulated while raining in the headset. */
   private rainSlowT = 0;
@@ -519,7 +516,10 @@ export class App {
       // Engine room sits roughly under the wheelhouse.
       const distance = testView.root.localToWorld(this.tmpV.set(0, 0, 1)).distanceTo(this.focus);
       const submerged = this.exhaustSubmersion(testView.root, this.world.vessels[this.testVesselId], nowMs / 1000);
-      this.engineAudio.update(this.world.vessels[this.testVesselId], distance, submerged);
+      // In the wheelhouse the engine's quieter (more so with the door shut); full on deck.
+      const ws = CONFIG.wheelhouseSound;
+      const house = this.insideHouse ? (this.closed > 0 ? [ws.engineShut, ws.engineShutLp] : [ws.engineInside, ws.engineInsideLp]) : [1, 20000];
+      this.engineAudio.update(this.world.vessels[this.testVesselId], distance, submerged, house[0], house[1]);
       const v = this.world.vessels[this.testVesselId];
       this.horn.update(v.controls.horn > 0 && isPowered(v), distance); // electric horn
       // Bridge buzzer: high temperature always, low fuel while the engine runs.
@@ -1593,9 +1593,6 @@ export class App {
     this.board.root.rotation.y = Math.PI;
     view.root.add(this.board.root);
     this.scene.add(this.board.rayLine);
-    // Window glass and the sliding aft door.
-    this.closure = new WheelhouseClosure(this.testDef);
-    view.root.add(this.closure.root);
     // Wind sock at the masthead.
     const wh = this.testDef.layout.wheelhouse;
     this.windSock = new WindSock([0, wh.roofY + 1.7, 0.4]);
@@ -2031,12 +2028,10 @@ export class App {
     const wh = this.testDef.layout.wheelhouse;
     const inside = !!v && v.id === this.testVesselId && Math.abs(p.position[0]) < wh.halfWidth && p.position[2] > wh.front && p.position[2] < wh.aft && p.position[1] > wh.floorY - 0.3;
     this.insideHouse = inside;
-    // How shut-in the wheelhouse is: the door (the big opening) counts most, the windows the rest.
-    const wv = this.world.vessels[this.testVesselId];
-    if (this.closure && wv && this.bridge) {
-      this.closure.update(wv.controls.windows > 0);
+    // How shut-in the wheelhouse is: the aft door decides.
+    if (this.bridge) {
       this.bridge.door.tick(dt);
-      this.closed = (this.bridge.door.shut ? CONFIG.wheelhouseSound.door : 0) + (wv.controls.windows > 0 ? 1 - CONFIG.wheelhouseSound.door : 0);
+      this.closed = this.bridge.door.shut ? 1 : 0;
     }
     this.windAudio.update(Math.hypot(ax, az), inside, dt, this.closed);
   }

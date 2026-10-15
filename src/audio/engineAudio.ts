@@ -53,12 +53,18 @@ export class EngineSound {
     private readonly hiss: GainNode,
     private readonly dry: GainNode,
     private readonly muffled: GainNode,
+    private readonly houseLp: BiquadFilterNode,
   ) {}
 
   static async create(ctx: BaseAudioContext, destination: AudioNode): Promise<EngineSound> {
     const master = ctx.createGain();
     master.gain.value = 0;
-    master.connect(destination);
+    // Heard from inside the wheelhouse: the high end goes first (see set's `lp`).
+    const houseLp = ctx.createBiquadFilter();
+    houseLp.type = 'lowpass';
+    houseLp.frequency.value = 20000;
+    houseLp.Q.value = 0.5;
+    master.connect(houseLp).connect(destination);
 
     // ── Combustion: body resonance, low-pass, a little saturation ──
     const dcBlock = ctx.createBiquadFilter();
@@ -151,13 +157,18 @@ export class EngineSound {
     noise.connect(band).connect(hiss).connect(master);
     noise.start();
 
-    return new EngineSound(ctx, master, worklet, fallback, bodyLp, thump, starter, starterGain, hiss, dry, muffled);
+    return new EngineSound(ctx, master, worklet, fallback, bodyLp, thump, starter, starterGain, hiss, dry, muffled, houseLp);
   }
 
   private lastSub = 0;
 
-  /** @param level overall level (distance attenuation etc.); @param t schedule time (default now) */
-  set(e: EngineSoundInput, level: number, t = this.ctx.currentTime): void {
+  /**
+   * @param level overall level (distance attenuation, the wheelhouse etc.)
+   * @param lp    low-pass on everything (Hz): 20000 on deck, lower through the wheelhouse
+   * @param t     schedule time (default now)
+   */
+  set(e: EngineSoundInput, level: number, lp = 20000, t = this.ctx.currentTime): void {
+    this.houseLp.frequency.setTargetAtTime(lp, t, 0.15);
     const smooth = 0.06;
     const rpm = Math.max(0, e.rpm);
     const rpmFrac = Math.min(1, rpm / e.ratedRpm);
@@ -218,13 +229,16 @@ export class EngineAudio {
   /**
    * @param distance  metres from the listener to the engine room
    * @param submerged how far under water the exhaust outlet is, 0..1 (see App)
+   * @param house     level factor and low-pass (Hz) for where you are: 1 / 20000 on deck,
+   *                  less inside the wheelhouse (CONFIG.wheelhouseSound)
    */
-  update(v: VesselState | undefined, distance: number, submerged = 0): void {
+  update(v: VesselState | undefined, distance: number, submerged = 0, house = 1, lp = 20000): void {
     if (!this.sound || !v) return;
     const e = v.engine;
     this.sound.set(
       { rpm: e.rpm, load: e.rack, ratedRpm: VESSEL_DEFS[v.defId].engine?.ratedRpm ?? 1800, running: e.phase === 'running', cranking: e.phase === 'cranking', submerged },
-      0.42 / (1 + distance / 8),
+      (0.42 / (1 + distance / 8)) * house,
+      lp,
     );
   }
 }

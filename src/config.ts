@@ -495,12 +495,6 @@ export const CONFIG = {
         spotlightSwitch: { position: [-1.14, 2.16, -1.52] as [number, number, number] },
         /** Windscreen wipers (Instruments breaker), at the port end of the row. */
         wipersSwitch: { position: [-1.3, 2.16, -1.52] as [number, number, number] },
-        /**
-         * Wheelhouse windows (glass in every opening when shut; quieter inside with the
-         * door shut too), on the console between the horn and the wheel. The aft door is
-         * opened and shut by hand (controls/WheelhouseDoor.ts).
-         */
-        windowsSwitch: { position: [-0.25, 2.16, -1.52] as [number, number, number] },
         /** Searchlight joystick on a pedestal to port of the wheel (mirrors the throttle's). */
         spotJoystick: { position: [-0.45, 2.16, -1.15] as [number, number, number] },
         /**
@@ -1695,8 +1689,16 @@ export const CONFIG = {
    * opening, so shutting it counts `door` (the windows the rest). Inside, wind, rain and the
    * hull wash are muffled by that much (the wash by up to `washMuffle`).
    */
+  /**
+   * Inside the wheelhouse: the engine's level (x) and low-pass (Hz) with the aft door open
+   * and shut (on deck: full, unfiltered). Wind, rain, wash and fire are muffled by the door
+   * too; `washMuffle` is how much of the wash goes with it shut.
+   */
   wheelhouseSound: {
-    door: 0.6,
+    engineInside: 0.75,
+    engineInsideLp: 1200,
+    engineShut: 0.45,
+    engineShutLp: 320,
     washMuffle: 0.6,
   },
 

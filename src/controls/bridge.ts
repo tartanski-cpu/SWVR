@@ -94,8 +94,6 @@ export class Bridge {
     spot.root.position.fromArray(b.spotlightSwitch.position);
     const wipers = new Toggle('wipers', 'wipers', 'Windscreen wipers', (s) => s.controls.wipers);
     wipers.root.position.fromArray(b.wipersSwitch.position);
-    const windows = new Toggle('windows', 'windows', 'Wheelhouse windows: open / shut', (s) => s.controls.windows);
-    windows.root.position.fromArray(b.windowsSwitch.position);
     const joy = new Joystick('spotJoystick', def.spotlight);
     joy.root.position.fromArray(b.spotJoystick.position);
 
@@ -105,7 +103,7 @@ export class Bridge {
     this.root.add(this.chart.root);
     this.overhead = new OverheadPanel(def);
     this.root.add(this.overhead.root);
-    this.controls.push(wheel, lever, start, heat, key, horn, nav, anchor, cabin, dock, spot, wipers, windows, joy, this.radio.handset, ...this.overhead.controls);
+    this.controls.push(wheel, lever, start, heat, key, horn, nav, anchor, cabin, dock, spot, wipers, joy, this.radio.handset, ...this.overhead.controls);
     // Fire monitor (fire missions): the FIRE PUMP switch, its joystick (red knob) and the
     // monitor itself on the roof.
     const extraLabels: [string, [number, number, number]][] = [];
@@ -275,7 +273,6 @@ function buildLabels(b: WorkboatDef['bridge'], extra: [string, [number, number, 
     ['DOCK', b.dockButton.position],
     ['SPOT', b.spotlightSwitch.position],
     ['WIPERS', b.wipersSwitch.position],
-    ['WINDOWS', b.windowsSwitch.position],
     ['SEARCHLIGHT', b.spotJoystick.position],
     ...extra,
   ];

@@ -190,7 +190,8 @@ The chart table stands along the port wall, behind the helm. On it:
   2. If it's low, press the red **oil can** to top up.
 
   Nearly dry, the OIL lamp blinks while running.
-- **Windows and door:** the **WINDOWS** switch on the console (left of the wheel) shuts glass into every opening. The aft door has a window and opens or shuts by hand: trigger on it in VR, or click it on the desktop. It starts open, and when shut it blocks desktop walking. Shutting the door muffles the wind, rain and hull wash inside; with the windows shut too it's quieter still. The "secure the boat" duty suggests it.
+- **Wheelhouse door:** the aft door has a window and opens or shuts by hand: trigger on it in VR, or click it on the desktop. It starts open, and when shut it blocks desktop walking.
+  - **Sound:** on deck the engine is at full noise. Inside the wheelhouse it's a little quieter and duller; with the door shut it's much quieter and duller. Shutting the door also muffles the wind, rain, hull wash and fires inside.
 - **The pen:** pick it up from beside the logbook (grip) and touch a box, or the sign box, with its tip. Pointing and pulling the trigger still works too.
 
 ### Traffic and hazards

@@ -166,7 +166,6 @@ function stepSecure(world: WorldState, d: DutiesState, v: VesselState): void {
         { text: 'Close the forepeak hatch (foredeck)', done: false },
         { text: 'Lash all deck cargo', done: false },
         { text: 'Wipers ON (switch by the helm)', done: false, optional: true },
-        { text: 'Shut the wheelhouse windows (WINDOWS switch)', done: false, optional: true },
       ],
       now,
     );
@@ -174,7 +173,6 @@ function stepSecure(world: WorldState, d: DutiesState, v: VesselState): void {
   duty.steps[0].done = v.controls.hatch <= 0;
   duty.steps[1].done = !loose;
   duty.steps[2].done = v.controls.wipers > 0;
-  duty.steps[3].done = v.controls.windows > 0;
   if (!heavy) duty.expireAt = now; // fair again before it was done
 }
 
