@@ -29,13 +29,16 @@ export class DesktopController {
     });
     document.addEventListener('mousemove', (e) => {
       if (document.pointerLockElement !== canvas || this.lookFrozen) return;
-      const s = CONFIG.desktop.lookSensitivity;
+      const s = CONFIG.desktop.lookSensitivity * this.lookScale;
       this.yaw -= e.movementX * s;
       this.pitch = THREE.MathUtils.clamp(this.pitch - e.movementY * s, -1.5, 1.5);
     });
   }
 
   /** Back to standing at the rig origin, looking forward (used when boarding/leaving). */
+  /** Mouse-look speed factor (slower through the binoculars). */
+  lookScale = 1;
+
   resetPose(): void {
     this.position.set(0, CONFIG.desktop.eyeHeight, 0);
     this.yaw = 0;

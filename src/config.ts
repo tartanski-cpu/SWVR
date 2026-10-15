@@ -522,11 +522,13 @@ export const CONFIG = {
          */
         displays: { x: [-0.95, -0.52, 0.52, 0.95, 0], y: 2.36, width: 0.38, height: 0.22 },
         /**
-         * NAV / WIND display (owner request: position and wind data): hung under the roof
-         * on the centreline between the radio and the chartplotter, tilted down toward the
-         * helm. Position (lat/lon), SOG, COG, heading, true wind and an apparent-wind dial.
+         * NAV / WIND display (owner request: position and wind data): overhead on the
+         * centreline, just forward of the overhead panel, tilted steeply down toward the helm:
+         * a glance up from the wheel reads it, and it sits above the line of sight out of
+         * the windscreen (which tops out at 3.15 m). Position (lat/lon), SOG, COG, heading,
+         * true wind and an apparent-wind dial.
          */
-        navDisplay: { position: [0, 3.12, -1.55] as [number, number, number], width: 0.46, height: 0.23, tiltDeg: 35 },
+        navDisplay: { position: [0, 3.2, -1.32] as [number, number, number], width: 0.44, height: 0.22, tiltDeg: 58 },
       },
       /**
        * Wet exhaust: smoke and engine cooling water leave through one outlet in the transom,
@@ -1556,6 +1558,21 @@ export const CONFIG = {
     maxHeaveOffset: 0.4,
     /** Tunnel vignette while artificially moving (0..1 strength). */
     vignette: 0.6,
+  },
+
+  /**
+   * Binoculars (player/binoculars.ts): 7x. They lie on top of the dash, port end (vessel
+   * axes, `stowYawDeg` turned). VR: grip within `grabRange` to take them; held within
+   * `eyeRange` of your eyes you look through them (a `renderSize` square view). Desktop:
+   * hold Z.
+   */
+  binoculars: {
+    magnification: 7,
+    stow: [-1.05, 2.6, -1.74] as [number, number, number],
+    stowYawDeg: 20,
+    grabRange: 0.14,
+    eyeRange: 0.2,
+    renderSize: 640,
   },
 
   /** Bridge-control interaction tuning. */

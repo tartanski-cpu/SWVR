@@ -68,6 +68,7 @@ import { WaterAudio } from '../audio/waterAudio';
 import { WorldView } from '../world/view/worldView';
 import { LaserBeam } from '../player/laserBeam';
 import { TowlineView } from '../tow/towlineView';
+import { Binoculars } from '../player/binoculars';
 import { towAlertT, towReach, towStatus } from '../tow/tow';
 import { RadioAudio } from '../audio/radioAudio';
 import { WhistleAudio } from '../audio/whistleAudio';
@@ -185,6 +186,8 @@ export class App {
   private readonly platform = createPlatform();
   /** Our laser pointer (others see it in our pose); where it hit, refreshed a few times a second. */
   private readonly laser = new LaserBeam();
+  /** Binoculars on the dash (VR: pick up and raise to the eyes; desktop: hold Z). */
+  private binoculars!: Binoculars;
   /** The towline and our towing post (towing missions). */
   private readonly towline = new TowlineView();
   private laserHit: THREE.Vector3 | null = null;
@@ -349,6 +352,8 @@ export class App {
     }
     const tugView = this.vesselViews.get(this.testVesselId);
     if (tugView) this.towline.attachPost(tugView.root, VESSEL_DEFS[this.world.vessels[this.testVesselId].defId]);
+    this.binoculars = new Binoculars(this.camera);
+    if (tugView) this.binoculars.stow(tugView.root);
     this.scene.add(this.towline.root);
     this.setupBridge();
 
@@ -380,6 +385,9 @@ export class App {
     };
     this.renderer.xr.addEventListener('sessionstart', closePanels);
     this.renderer.xr.addEventListener('sessionend', closePanels);
+    // Binoculars go back on the dash (and the desktop zoom ends) when switching modes.
+    this.renderer.xr.addEventListener('sessionstart', () => this.binoculars.updateDesktop(false));
+    this.renderer.xr.addEventListener('sessionend', () => this.binoculars.drop());
   }
 
   /** A vessel's view, effects, walk area and debug view (at start, and for each new tow). */
@@ -482,7 +490,11 @@ export class App {
     this.cargoHands.tick(this.cargoCtx(), dt);
     this.rescueHands.tick(this.rescueCtx(), dt);
     this.frameDt = dt;
-    if (!inXR) this.desktop.update(dt);
+    if (!inXR) {
+      // Binoculars (hold Z): zoomed in, the mouse look slows to match.
+      this.desktop.lookScale = this.binoculars.updateDesktop(this.keyboard.action('binoculars'));
+      this.desktop.update(dt);
+    }
     this.updateInteraction(inXR);
     this.updateLocomotion(dt, inXR);
     this.syncRigToPlayer(0);
@@ -631,6 +643,7 @@ export class App {
     // 4. Render
     this.renderer.info.reset();
     this.gpuTimer.begin();
+    if (inXR) this.binoculars.renderScope(this.renderer, this.scene);
     this.renderer.render(this.scene, this.camera);
     this.gpuTimer.end();
     const t3 = performance.now();
@@ -1658,6 +1671,14 @@ export class App {
         this.hands.right.triggerPressed = false;
         this.hands.right.trigger = 0;
       }
+      // Binoculars: a hand holding them gives its grip and trigger to them.
+      const onBino = this.binoculars.updateXR(this.hands, this.busyHands, this.camera.getWorldPosition(this.tmpV), (h, i, ms) => this.xrInput.pulse(h, i, ms));
+      for (const h of ['left', 'right'] as const) {
+        if (!onBino[h]) continue;
+        const f = this.hands[h];
+        f.gripDown = f.gripPressed = f.triggerDown = f.triggerPressed = false;
+        f.trigger = 0;
+      }
       // The chart table's tools: a hand holding one gives its grip and trigger to the tool.
       const onTools = this.chartTools ? this.chartTools.updateXR(this.chartCtx(), this.hands, this.busyHands, this.frameDt) : { left: false, right: false };
       for (const h of ['left', 'right'] as const) {
@@ -1667,7 +1688,7 @@ export class App {
         f.trigger = 0;
       }
       this.busyHands = this.interaction.updateXR(this.hands);
-      for (const h of ['left', 'right'] as const) if (onTools[h]) this.busyHands[h] = true;
+      for (const h of ['left', 'right'] as const) if (onTools[h] || onBino[h]) this.busyHands[h] = true;
       this.cargoHands.updateXR(this.cargoCtx(), this.hands, this.busyHands);
       for (const h of ['left', 'right'] as const) if (this.cargoHands.busy(h)) this.busyHands[h] = true;
       this.rescueHands.updateXR(this.rescueCtx(), this.hands, this.busyHands, this.frameDt);

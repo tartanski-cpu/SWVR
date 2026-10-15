@@ -47,6 +47,7 @@ export class MotionDecoupler {
   private readonly height = new Follower();
   private refHeight = 0;
   private needsReset = true;
+  private lastFeet = NaN;
 
   /** Call when boarding/leaving so the filters start from the current state. */
   reset(): void {
@@ -65,6 +66,11 @@ export class MotionDecoupler {
     const deckPitch = euler.x;
     const deckRoll = euler.z;
 
+    // A sudden jump in deck height (the boat dropped in at the start, a teleport): that's
+    // not wave motion, so start the filters afresh rather than lag (and lift the view) for
+    // the heave reference's whole time constant.
+    if (dt > 0 && Math.abs(feetY - this.lastFeet) / dt > 2.5) this.needsReset = true;
+    this.lastFeet = feetY;
     if (this.needsReset) {
       this.needsReset = false;
       this.roll.reset(deckRoll * this.coupling);
