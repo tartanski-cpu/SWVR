@@ -4,6 +4,7 @@ import type { WorldState } from '../core/world';
 import { INTERP_DELAY, type HostMessage, type PlayerPose } from './protocol';
 import type { ClientTransport } from './transport';
 import type { ChartMarks, ChartOp } from '../chart/marks';
+import type { LogState } from '../log/log';
 
 interface Snapshot {
   world: WorldState;
@@ -25,6 +26,8 @@ export class ClientSession {
   private offset: number | null = null;
   /** Called once with the host's world when we're in. */
   onWelcome: (playerId: EntityId, world: WorldState, chart?: ChartMarks) => void = () => {};
+  /** The ship's log as last received (welcome, then `log` messages). */
+  log: LogState | null = null;
   /** A chart op from the host (someone else's pencil). */
   onChart: (op: ChartOp) => void = () => {};
   onClosed: (reason: string) => void = () => {};
@@ -48,12 +51,15 @@ export class ClientSession {
     if (msg.t === 'welcome') {
       this.playerId = msg.playerId;
       this.status = 'connected';
+      this.log = msg.world.log ?? null;
       this.push(msg.world);
       this.onWelcome(msg.playerId, msg.world, msg.chart);
     } else if (msg.t === 'snapshot') {
       this.push(msg.world);
     } else if (msg.t === 'chart') {
       this.onChart(msg.op);
+    } else if (msg.t === 'log') {
+      this.log = msg.log;
     }
   }
 

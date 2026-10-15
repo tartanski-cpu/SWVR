@@ -55,6 +55,8 @@ export interface VesselConfig {
   hatch?: Workboat['hatch'];
   bilge?: Workboat['bilge'];
   chartTable?: Workboat['chartTable'];
+  fenders?: Workboat['fenders'];
+  maintenance?: Workboat['maintenance'];
 }
 
 /**
@@ -114,6 +116,9 @@ export interface VesselDef {
   bilge?: VesselConfig['bilge'];
   /** Chart table with the logbook (optional: not part of WorkboatDef). */
   chartTable?: VesselConfig['chartTable'];
+  /** Fenders and engine oil (optional: not part of WorkboatDef). */
+  fenders?: VesselConfig['fenders'];
+  maintenance?: VesselConfig['maintenance'];
 }
 
 type Equipment = 'engine' | 'propeller' | 'rudder' | 'bridge' | 'navLights' | 'exhaust' | 'anchor' | 'rescueGear' | 'cabinLight' | 'overheadPanel' | 'whiteboard' | 'deckLights' | 'spotlight' | 'mooring';
@@ -200,6 +205,8 @@ export function fromConfig(id: string, c: VesselConfig): VesselDef {
     hatch: c.hatch,
     bilge: c.bilge,
     chartTable: c.chartTable,
+    fenders: c.fenders,
+    maintenance: c.maintenance,
   };
 }
 

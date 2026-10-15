@@ -18,6 +18,10 @@
  *   secure      rain or a squall forecast (or here): close the forepeak hatch, lash the deck
  *               cargo (wipers on, optional). Dropped if the weather turns fair first.
  *   bilge       water over the alarm level: bilge breaker on, pump her dry.
+ *   fendersOut  coming up to a berth under way with the fenders in: put them out.
+ *   fendersIn   out of harbour with them still hanging over the side: take them in.
+ *   lash        under way with loose cargo on deck: lash it (unless a weather duty has it).
+ *   oil         an engine oil check is due: pull the dipstick, top up if it's low.
  *   log         something loggable happened (left harbour, arrived): write it in the log
  *               at the chart table. Ticks off when the entry is signed.
  */
@@ -27,6 +31,8 @@ import { visibilityAt } from '../environment/weather';
 import { isPowered } from '../vessel/electrics';
 import { LOG_TITLES } from '../log/log';
 import { answerFogSignal } from '../traffic/traffic';
+import { BERTHS, PORTS } from '../world/archipelago';
+import { oilCheckDue } from '../vessel/maintenance';
 import { leverDemand } from '../vessel/physics/propulsion';
 import { isWorkboat, VESSEL_DEFS, type WorkboatDef } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
@@ -40,7 +46,7 @@ export interface DutyStep {
 
 export interface Duty {
   id: string;
-  kind: 'startup' | 'fogSignal' | 'secure' | 'bilge' | 'log';
+  kind: 'startup' | 'fogSignal' | 'secure' | 'bilge' | 'log' | 'fendersOut' | 'fendersIn' | 'lash' | 'oil';
   title: string;
   steps: DutyStep[];
   createdAt: number;
@@ -155,6 +161,7 @@ function stepSecure(world: WorldState, d: DutiesState, v: VesselState): void {
         { text: 'Close the forepeak hatch (foredeck)', done: false },
         { text: 'Lash all deck cargo', done: false },
         { text: 'Wipers ON (switch by the helm)', done: false, optional: true },
+        { text: 'Shut the wheelhouse windows (WINDOWS switch)', done: false, optional: true },
       ],
       now,
     );
@@ -162,6 +169,7 @@ function stepSecure(world: WorldState, d: DutiesState, v: VesselState): void {
   duty.steps[0].done = v.controls.hatch <= 0;
   duty.steps[1].done = !loose;
   duty.steps[2].done = v.controls.wipers > 0;
+  duty.steps[3].done = v.controls.windows > 0;
   if (!heavy) duty.expireAt = now; // fair again before it was done
 }
 
@@ -187,6 +195,65 @@ function stepBilgeDuty(world: WorldState, d: DutiesState, v: VesselState): void 
   duty.steps[0].done = isPowered(v, 'bilge');
   duty.steps[1].done = v.controls.hatch <= 0;
   duty.steps[2].done = v.bilge < 0.02;
+}
+
+/** Fenders: out coming alongside, in again once clear of the harbour. */
+function stepFenders(world: WorldState, d: DutiesState, v: VesselState): void {
+  if (!VESSEL_DEFS[v.defId].fenders) return;
+  const now = world.time;
+  const [x, , z] = v.position;
+  const berth = Math.min(...BERTHS.map((b) => Math.hypot(b.x - x, b.z - z)));
+  const speed = Math.hypot(v.linearVelocity[0], v.linearVelocity[2]);
+  const under = v.engine.phase === 'running' && v.mooring.phase === 'free';
+  let out = open(d, 'fendersOut');
+  if (!out && under && berth < 200 && v.controls.fenders <= 0) {
+    out = addDuty(d, 'fendersOut', 'Coming alongside: fenders out', [{ text: 'Fenders out (basket on the aft deck, starboard)', done: false }], now);
+  }
+  if (out) {
+    out.steps[0].done = v.controls.fenders > 0;
+    if (!out.steps[0].done && berth > 400) out.expireAt = now; // went somewhere else
+  }
+  let inn = open(d, 'fendersIn');
+  if (!inn && v.controls.fenders > 0 && berth > 350 && speed > 1.5) {
+    inn = addDuty(d, 'fendersIn', 'Under way: fenders in', [{ text: 'Fenders in (basket on the aft deck)', done: false }], now);
+  }
+  if (inn) inn.steps[0].done = v.controls.fenders <= 0;
+}
+
+/** Under way with loose cargo: lash it (a weather "secure" duty covers it when up). */
+function stepLash(world: WorldState, d: DutiesState, v: VesselState): void {
+  const [x, , z] = v.position;
+  const away = PORTS.every((p) => Math.hypot(p.x - x, p.z - z) > CONFIG.log.harbourRadius);
+  const loose = Object.values(world.cargo).some((c) => 'vessel' in c.at && c.at.vessel === v.id && !c.at.lashed);
+  let duty = open(d, 'lash');
+  if (!duty && away && loose && v.engine.phase === 'running' && !open(d, 'secure')) {
+    duty = addDuty(d, 'lash', 'Under way: lash the deck cargo', [{ text: 'Lash every crate and drum on deck', done: false }], world.time);
+  }
+  if (duty) duty.steps[0].done = !loose;
+}
+
+/** Engine oil: a check falls due every so often; top up if the dipstick says low. */
+function stepOilDuty(world: WorldState, d: DutiesState, v: VesselState): void {
+  const cfg = VESSEL_DEFS[v.defId].maintenance;
+  if (!cfg || v.engine.oil === undefined) return;
+  let duty = open(d, 'oil');
+  if (!duty && oilCheckDue(v)) {
+    duty = addDuty(
+      d,
+      'oil',
+      'Engine check: oil',
+      [
+        { text: 'Pull the dipstick (engine hatch, aft starboard)', done: false },
+        { text: 'Top up from the oil can if it reads low', done: false, optional: true },
+      ],
+      world.time,
+    );
+  }
+  if (!duty) return;
+  duty.steps[0].done ||= (v.engine.sinceCheck ?? 0) < cfg.checkEvery;
+  const low = v.engine.oil < cfg.lowAt;
+  duty.steps[1].optional = !low;
+  duty.steps[1].done = !low && duty.steps[0].done;
 }
 
 /** A "Log: ..." duty for each loggable event, ticked when its entry is signed. */
@@ -246,6 +313,9 @@ export function stepDuties(world: WorldState): void {
     stepFogSignal(world, d, v);
     stepSecure(world, d, v);
     stepBilgeDuty(world, d, v);
+    stepFenders(world, d, v);
+    stepLash(world, d, v);
+    stepOilDuty(world, d, v);
   }
   stepLogDuties(world, d);
 

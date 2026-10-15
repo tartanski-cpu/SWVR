@@ -8,7 +8,9 @@
  *               gauge); time, position and port fill in when it's signed. Touch "Sign"
  *               and the pen comes out of its holder and signs; the entry moves across.
  *
- * VR: point either controller at the book and pull the trigger on a box. Desktop: click.
+ * VR: point either controller at the book and pull the trigger on a box - or pick the pen
+ * up out of its holder (grip) and touch the box with its tip, signing included. Desktop:
+ * click.
  * At night the book can't be read without the chart table lamp (the page goes dark and
  * clicks just say so).
  */
@@ -18,7 +20,6 @@ import type { HandFrame } from '../controls/InteractionSystem';
 import type { EntityId } from '../core/ids';
 import type { WorldState } from '../core/world';
 import type { Handedness } from '../player/xrInput';
-import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
 import { LOG_FIELDS, LOG_TITLES, LOG_TYPES, pendingEvent, type LogEntry, type LogState } from './log';
 
 const CW = 1024;
@@ -78,26 +79,23 @@ export class LogbookView {
   private readonly lray = new THREE.Ray();
   private readonly hitP = new THREE.Vector3();
   private lightKey = -1;
+  /** The hand holding the pen (VR), and the box its tip last touched (one press per touch). */
+  private penHand: Handedness | null = null;
+  private penTouched: string | null = null;
+  private readonly bq = new THREE.Quaternion();
 
   /**
    * @param w, h  the open book's size (m)
-   * @param holderLocal the pen holder, in the book's own frame (x right, y up the page, z up)
    */
   constructor(
     private readonly w: number,
     private readonly h: number,
-    holderLocal: THREE.Vector3,
   ) {
     this.root.name = 'logbook';
     // Cover and the block of pages, one mesh; the pages' face is the canvas.
     const t = 0.012;
     this.pageZ = t + 0.012;
-    const body = mergeParts([
-      part(new THREE.BoxGeometry(w + 0.02, h + 0.02, t).translate(0, 0, t / 2), 0x2a3550),
-      part(new THREE.BoxGeometry(w / 2 - 0.006, h - 0.004, 0.012).translate(-w / 4, 0, t + 0.006), 0xf2ecd8),
-      part(new THREE.BoxGeometry(w / 2 - 0.006, h - 0.004, 0.012).translate(w / 4, 0, t + 0.006), 0xf2ecd8),
-    ]);
-    this.root.add(new THREE.Mesh(body, flatVertexColorMaterial()));
+    // (The cover and page blocks are baked into the chart table's mesh.)
     this.ch = Math.round((CW * h) / w);
     this.canvas.width = CW;
     this.canvas.height = this.ch;
@@ -110,11 +108,10 @@ export class LogbookView {
     page.position.z = this.pageZ + 0.0005;
     page.name = 'logbookPages';
     this.root.add(page);
-    // The pen, standing in its holder until someone signs.
+    // The pen, lying on the table beside the book (right of the right page) until someone signs.
     this.pen = new THREE.Mesh(new THREE.CylinderGeometry(0.0055, 0.004, 0.14, 8).rotateX(Math.PI / 2).translate(0, 0, 0.07), new THREE.MeshLambertMaterial({ color: 0x14213d }));
-    this.penHome = holderLocal.clone().add(new THREE.Vector3(-0.01, 0, 0.02));
-    this.pen.position.copy(this.penHome);
-    this.pen.rotation.set(0.15, -0.1, 0);
+    this.penHome = new THREE.Vector3(w / 2 + 0.025, -0.06, 0.006);
+    this.restPen();
     this.root.add(this.pen);
     const geo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3(0, 0, -1)]);
     this.rayLine = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0x9fd6ff }));
@@ -152,11 +149,60 @@ export class LogbookView {
     r.act(ctx);
   }
 
-  /** VR: either hand's ray and trigger. Returns the hands on the book. */
+  /**
+   * The pen in hand: it follows the hand (tip ~10 cm ahead of the grip); touching a box on
+   * the page with the tip presses it, once per touch. Let go and it goes back in its holder.
+   */
+  private holdPen(ctx: LogbookContext, f: HandFrame, hd: Handedness): void {
+    if (!f.tracked || !f.gripDown) {
+      this.penHand = null;
+      this.penTouched = null;
+      this.restPen();
+      ctx.pulse(hd, 0.3, 20);
+      return;
+    }
+    const grip = this.hitP.copy(f.grip).applyMatrix4(this.inv);
+    this.root.getWorldQuaternion(this.bq).invert();
+    const q = f.quat ? this.bq.multiply(f.quat) : this.bq.identity();
+    const tip = grip.add(new THREE.Vector3(0, -0.01, -0.1).applyQuaternion(q));
+    const above = tip.z - this.pageZ;
+    if (above < 0.006 && above > -0.04) {
+      tip.z = this.pageZ + 0.0008; // the tip rests on the paper
+      const r = this.regionAt((tip.x / this.w + 0.5) * CW, (0.5 - tip.y / this.h) * this.ch);
+      if (r && r.label !== this.penTouched) {
+        this.penTouched = r.label;
+        ctx.pulse(hd, 0.5, 30);
+        this.press(ctx, r);
+      }
+      this.hover = r?.label ?? null;
+    } else this.penTouched = null;
+    this.pen.position.copy(tip);
+    this.pen.quaternion.copy(q);
+  }
+
+  /** VR: the pen in hand, or either hand's ray and trigger. Returns the hands on the book. */
   updateXR(ctx: LogbookContext, hands: Record<Handedness, HandFrame>, busy: Record<Handedness, boolean>): Record<Handedness, boolean> {
     const used = { left: false, right: false };
     this.hover = null;
     this.rayLine.visible = false;
+    this.root.updateWorldMatrix(true, false);
+    this.inv.copy(this.root.matrixWorld).invert();
+    if (this.penHand) {
+      used[this.penHand] = true;
+      this.holdPen(ctx, hands[this.penHand], this.penHand);
+      return used;
+    }
+    // Pick the pen up: grip close to it.
+    for (const hd of ['right', 'left'] as const) {
+      const f = hands[hd];
+      if (!f.tracked || busy[hd] || !f.gripPressed || this.penAnim >= 0) continue;
+      if (this.hitP.copy(f.grip).applyMatrix4(this.inv).distanceTo(this.pen.position) < 0.09) {
+        this.penHand = hd;
+        used[hd] = true;
+        ctx.pulse(hd, 0.5, 30);
+        return used;
+      }
+    }
     for (const hd of ['right', 'left'] as const) {
       const f = hands[hd];
       if (!f.tracked || busy[hd]) continue;
@@ -413,7 +459,9 @@ export class LogbookView {
     if (ev2?.summary) {
       g.fillStyle = INK;
       g.font = `20px ${HAND}`;
-      g.fillText(ev2.summary, X, y + 4, CW - X - 30);
+      wrapChars(ev2.summary, 40)
+        .slice(0, 6)
+        .forEach((l, i) => g.fillText(l, X, y + 4 + i * 28));
     } else g.fillText('Remarks: ______________________', X, y + 4);
     const complete = LOG_FIELDS[d.type].every((f) => d.values[f.key]);
     const sy = this.ch - 130;
@@ -445,10 +493,17 @@ export class LogbookView {
   private sign(ctx: LogbookContext, px: number, py: number): void {
     ctx.push('logSign');
     ctx.sound('sign');
+    this.back = 0;
+    if (this.penHand) return; // signed with the pen in hand: no need to fly it over
     // The pen: out of the holder to the signature box, a scribble, and back.
     this.penTo.set((px / CW - 0.5) * this.w, (0.5 - py / this.ch) * this.h, this.pageZ + 0.004);
     this.penAnim = 0;
-    this.back = 0;
+  }
+
+  /** The pen at rest: lying along the edge of the book, tip toward the top of the page. */
+  private restPen(): void {
+    this.pen.position.copy(this.penHome);
+    this.pen.rotation.set(Math.PI / 2, 0, 0);
   }
 
   private animatePen(dt: number): void {
@@ -461,10 +516,11 @@ export class LogbookView {
     else if (t < 0.85) p.copy(this.penTo).add(new THREE.Vector3(Math.sin(t * 40) * 0.02 + (t - 0.575) * 0.12, Math.sin(t * 23) * 0.006, 0));
     else if (t < T) p.lerpVectors(this.penTo, this.penHome, smooth((t - 0.85) / (T - 0.85)));
     else {
-      p.copy(this.penHome);
+      this.restPen();
       this.penAnim = -1;
+      return;
     }
-    this.pen.rotation.set(t < T ? 0.5 : 0.15, -0.1, 0);
+    this.pen.rotation.set(0.5, -0.1, 0);
   }
 
   private showRay(from: THREE.Vector3, to: THREE.Vector3): void {
@@ -474,6 +530,20 @@ export class LogbookView {
     pos.needsUpdate = true;
     this.rayLine.visible = true;
   }
+}
+
+/** Break text into lines of at most `n` characters, at spaces. */
+function wrapChars(text: string, n: number): string[] {
+  const out: string[] = [];
+  let line = '';
+  for (const w of text.split(/\s+/)) {
+    if (line && line.length + 1 + w.length > n) {
+      out.push(line);
+      line = w;
+    } else line = line ? `${line} ${w}` : w;
+  }
+  if (line) out.push(line);
+  return out;
 }
 
 function smooth(t: number): number {
@@ -494,7 +564,7 @@ function entryLines(e: LogEntry): Line[] {
   const readings = e.fields.map((f) => READING[f.key]?.(f.value) ?? f.value).join(', ');
   const checked = e.fields.filter((f) => f.correct !== undefined);
   out.push({ text: `${e.pos}${readings ? `   ${readings}` : ''}`, kind: 'body', tick: checked.length ? checked.every((f) => f.correct) : undefined });
-  if (e.remarks) out.push({ text: e.remarks, kind: 'body' });
+  if (e.remarks) for (const l of wrapChars(e.remarks, 46)) out.push({ text: l, kind: 'body' });
   out.push({ text: `${e.score ? `Log accuracy ${e.score[0]}/${e.score[1]}   ` : ''}- ${e.by || 'crew'}`, kind: 'sign' });
   return out;
 }

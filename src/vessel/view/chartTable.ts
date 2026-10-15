@@ -74,6 +74,12 @@ export class ChartTableView {
     parts.push(part(new THREE.CylinderGeometry(0.03, 0.085, 0.09, 16, 1, true).translate(head.x, head.y - 0.03, head.z), 0x1f4a32));
     parts.push(part(new THREE.CylinderGeometry(0.03, 0.03, 0.01, 16).translate(head.x, head.y + 0.015, head.z), 0x1f4a32));
     this.tableMat = flatVertexColorMaterial();
+    // The logbook's cover and page blocks (its pages are the logbook view's canvas).
+    const bm = new THREE.Matrix4().makeBasis(new THREE.Vector3(0, 0, -1), new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 1, 0)).setPosition(cfg.book.center[0], T + 0.001, cfg.book.center[1]);
+    const bw = cfg.book.width;
+    const bd = cfg.book.depth;
+    parts.push(part(new THREE.BoxGeometry(bw + 0.02, bd + 0.02, 0.012).translate(0, 0, 0.006).applyMatrix4(bm), 0x2a3550));
+    for (const sx of [-1, 1]) parts.push(part(new THREE.BoxGeometry(bw / 2 - 0.006, bd - 0.004, 0.012).translate((sx * bw) / 4, 0, 0.018).applyMatrix4(bm), 0xf2ecd8));
     const table = new THREE.Mesh(mergeParts(parts), this.tableMat);
     table.name = 'chartTableBody';
     this.bulbMat = new THREE.MeshBasicMaterial({ color: 0x4a463e });
@@ -102,6 +108,13 @@ export class ChartTableView {
     this.lampSwitch.root.rotation.y = -Math.PI / 2; // lever moves toward / away from you
     this.lampSwitch.root.scale.setScalar(0.8);
     this.root.add(table, chart, bulb, this.lampSwitch.root);
+    this.detail = [chart, bulb];
+  }
+
+  /** The chart and the lamp bulb (the small things), hidden from afar to save draw calls. */
+  private detail: THREE.Object3D[] = [];
+  setDetail(on: boolean): void {
+    for (const o of this.detail) o.visible = on;
   }
 
   /** The chart's rectangle on the table (vessel axes) and its surface height. */

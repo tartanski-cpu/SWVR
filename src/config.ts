@@ -473,6 +473,13 @@ export const CONFIG = {
         spotlightSwitch: { position: [-1.14, 2.16, -1.52] as [number, number, number] },
         /** Windscreen wipers (Instruments breaker), at the port end of the row. */
         wipersSwitch: { position: [-1.3, 2.16, -1.52] as [number, number, number] },
+        /**
+         * Wheelhouse windows (glass in every opening when shut; quieter inside with the
+         * door closed too), on the console between the horn and the wheel. The aft door
+         * slides open as someone comes within `doorOpenRange` m of the doorway.
+         */
+        windowsSwitch: { position: [-0.25, 2.16, -1.52] as [number, number, number] },
+        doorOpenRange: 1.1,
         /** Searchlight joystick on a pedestal to port of the wheel (mirrors the throttle's). */
         spotJoystick: { position: [-0.45, 2.16, -1.15] as [number, number, number] },
         /**
@@ -577,6 +584,13 @@ export const CONFIG = {
          */
         quickStart: false,
         /**
+         * Leaving the battery master on in harbour drains the batteries between sessions
+         * (`drainPerHour` of a full charge per hour away). Off by default; with it on, the
+         * batteries' charge also carries over from the last session.
+         */
+        drainBetweenSessions: false,
+        drainPerHour: 0.05,
+        /**
          * Panel by the helm: a small sloping console against the starboard wall just under
          * the window sill (the side walls are windows above it), face tilted up toward you.
          * Voltmeter and the breakers (a toggle and an indicator lamp each).
@@ -591,6 +605,20 @@ export const CONFIG = {
        * airing the forepeak.
        */
       hatch: { position: [0, -3.3] as [number, number], size: 0.62, startOpen: true },
+      /**
+       * Fenders: three a side (vessel z), hung over the rail when out; stowed lying along
+       * the bulwark. One press on the fender basket (aft deck, starboard) puts them all out
+       * or takes them in.
+       */
+      fenders: { z: [-2.4, 0.6, 3.4], basket: [1.75, 2.4] as [number, number] },
+      /**
+       * Engine oil (vessel/maintenance.ts): level 0..1 when the session starts; burnt at
+       * `use` per second running (more under load); a check is due every `checkEvery` s of
+       * running. Below `lowAt` the dipstick says top up; below `lampAt` the OIL lamp
+       * blinks. The engine hatch is in the wheelhouse floor, aft to starboard, with the
+       * dipstick and an oil can by it ([x, z] on the floor).
+       */
+      maintenance: { oilStart: 0.72, use: 0.00025, checkEvery: 900, lowAt: 0.4, lampAt: 0.12, hatch: [0.62, 0.85] as [number, number], dipstick: [0.98, 0.7] as [number, number], oilCan: [1.05, 1.08] as [number, number] },
       bilge: { rainInflow: 1 / 400, pumpRate: 1 / 90, alarmAt: 0.3 },
       /**
        * Stern davit for the tender (the skiff), vessel axes. She hangs athwartships just aft
@@ -1028,6 +1056,12 @@ export const CONFIG = {
     length: 0.45,
     opacity: 0.6,
     /** Window rain: drops build back up this long after a wipe at full rain (s); drop grid (m). */
+    /**
+     * In the headset, on "High": if frames take longer than `autoLowFrameMs` on average
+     * over `autoLowSeconds` while it rains, drop to Low for the session (and say so).
+     */
+    autoLowFrameMs: 16.5,
+    autoLowSeconds: 3,
     glassRefill: 3.5,
     glassCell: 0.022,
     /** Wipers: one sweep there and back (s), half-angle (deg), arm length (m). */

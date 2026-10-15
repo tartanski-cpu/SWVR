@@ -19,6 +19,8 @@ export class HostSession {
   private readonly peers = new Map<string, { link: Link; playerId: EntityId }>();
   private pending: Intent[] = [];
   private sinceSend = 0;
+  /** The log's seq as last sent (it travels on its own, only when it changes). */
+  private logSent = -1;
   /** The host's chart marks (the App's copy): a joiner gets them, ops are applied to them. */
   marks: ChartMarks | null = null;
 
@@ -67,7 +69,8 @@ export class HostSession {
       p.aboardVesselId = pose.aboardVesselId && this.world.vessels[pose.aboardVesselId] ? pose.aboardVesselId : null;
       p.position = pose.position;
       p.yaw = pose.yaw;
-      p.avatar = { head: pose.head, left: pose.left, right: pose.right };
+      const tool = pose.tool && ['pencil', 'eraser', 'rule'].includes(pose.tool.kind) && (pose.tool.hand === 'left' || pose.tool.hand === 'right') ? { kind: pose.tool.kind, hand: pose.tool.hand } : null;
+      p.avatar = { head: pose.head, left: pose.left, right: pose.right, tool };
     }
   }
 
@@ -97,7 +100,14 @@ export class HostSession {
     this.sinceSend += dt;
     if (this.sinceSend < 1 / NET_RATE) return;
     this.sinceSend = 0;
-    for (const { link } of this.peers.values()) this.send(link, { t: 'snapshot', world: this.world });
+    const log = this.world.log;
+    if (log && log.seq !== this.logSent) {
+      this.logSent = log.seq;
+      for (const { link } of this.peers.values()) this.send(link, { t: 'log', log });
+    }
+    // The world without the log (a shallow copy: the snapshot is serialised as it's sent).
+    const world = { ...this.world, log: undefined };
+    for (const { link } of this.peers.values()) this.send(link, { t: 'snapshot', world });
   }
 
   private send(link: Link, msg: HostMessage): void {

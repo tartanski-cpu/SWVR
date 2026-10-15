@@ -18,6 +18,7 @@ import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUti
 import { Hatch } from './Hatch';
 import { hullPlan } from '../vessel/layout';
 import { RainGlass } from '../vessel/view/rainGlass';
+import { Dipstick, FenderBasket, FendersView, OilCan } from './deckGear';
 
 /**
  * Builds a vessel's bridge from its config: controls, instrument dash, labels.
@@ -41,6 +42,8 @@ export class Bridge {
   readonly overhead: OverheadPanel;
   /** Rain on the front windows and the wipers (the App feeds it the weather). */
   readonly rainGlass: RainGlass;
+  /** The fenders over the side or stowed (boats that carry them). */
+  private readonly fenders: FendersView | null = null;
 
   constructor(private readonly def: WorkboatDef) {
     const b = def.bridge;
@@ -83,6 +86,8 @@ export class Bridge {
     spot.root.position.fromArray(b.spotlightSwitch.position);
     const wipers = new Toggle('wipers', 'wipers', 'Windscreen wipers', (s) => s.controls.wipers);
     wipers.root.position.fromArray(b.wipersSwitch.position);
+    const windows = new Toggle('windows', 'windows', 'Wheelhouse windows: open / shut', (s) => s.controls.windows);
+    windows.root.position.fromArray(b.windowsSwitch.position);
     const joy = new Joystick('spotJoystick', def.spotlight);
     joy.root.position.fromArray(b.spotJoystick.position);
 
@@ -92,7 +97,7 @@ export class Bridge {
     this.root.add(this.chart.root);
     this.overhead = new OverheadPanel(def);
     this.root.add(this.overhead.root);
-    this.controls.push(wheel, lever, start, heat, key, horn, nav, anchor, cabin, dock, spot, wipers, joy, this.radio.handset, ...this.overhead.controls);
+    this.controls.push(wheel, lever, start, heat, key, horn, nav, anchor, cabin, dock, spot, wipers, windows, joy, this.radio.handset, ...this.overhead.controls);
     this.rainGlass = new RainGlass(def);
     this.root.add(this.rainGlass.root);
     // Forepeak hatch on the foredeck (boats that have one).
@@ -101,6 +106,30 @@ export class Bridge {
       const [hx, hz] = def.hatch.position;
       hatch.root.position.set(hx, hullPlan(def).deckY(hz), hz);
       this.controls.push(hatch);
+    }
+    // Fenders: the basket on the aft deck, and the six fenders themselves.
+    const extraFixed: THREE.BufferGeometry[] = [];
+    if (def.fenders) {
+      const plan = hullPlan(def);
+      const basket = new FenderBasket();
+      const [fx, fz] = def.fenders.basket;
+      basket.root.position.set(fx, plan.deckY(fz), fz);
+      this.controls.push(basket);
+      this.fenders = new FendersView(def.fenders.z, plan);
+      this.root.add(this.fenders.mesh);
+    }
+    // Engine oil: the hatch in the wheelhouse floor, the dipstick and the oil can by it.
+    const mt = def.maintenance;
+    if (mt) {
+      const fy = def.layout.wheelhouse.floorY;
+      extraFixed.push(part(new THREE.BoxGeometry(0.6, 0.012, 0.6).translate(mt.hatch[0], fy + 0.006, mt.hatch[1]), 0x6a6e72));
+      extraFixed.push(part(new THREE.BoxGeometry(0.12, 0.02, 0.03).translate(mt.hatch[0], fy + 0.016, mt.hatch[1] - 0.24), 0x2a2e32));
+      const dip = new Dipstick();
+      dip.root.position.set(mt.dipstick[0], fy, mt.dipstick[1]);
+      const can = new OilCan();
+      can.root.position.set(mt.oilCan[0], fy, mt.oilCan[1]);
+      can.root.rotation.y = 0.4;
+      this.controls.push(dip, can);
     }
     // 12 V: battery master on the aft wall by the door, voltmeter panel by the helm.
     const el = def.electrics;
@@ -139,7 +168,7 @@ export class Bridge {
     const spotPedestal = pedestalAt(b.spotJoystick.position[0]);
     this.instruments = new InstrumentPanel(b);
     this.dashAnchor.position.set(0, (d.top + d.bottom) / 2, d.aft);
-    this.root.add(bakeFixedParts(this.root, [dash, pedestal, spotPedestal, this.overhead.body]), this.instruments.mesh, buildLabels(b), this.dashAnchor);
+    this.root.add(bakeFixedParts(this.root, [dash, pedestal, spotPedestal, this.overhead.body, ...extraFixed]), this.instruments.mesh, buildLabels(b), this.dashAnchor);
   }
 
   /**
@@ -156,6 +185,7 @@ export class Bridge {
     this.overhead.update(state);
     this.electrics?.update(state, dt);
     this.lamps.update(state, this.def);
+    this.fenders?.update(state);
   }
 }
 
@@ -193,6 +223,7 @@ function buildLabels(b: WorkboatDef['bridge']): THREE.Mesh {
     ['DOCK', b.dockButton.position],
     ['SPOT', b.spotlightSwitch.position],
     ['WIPERS', b.wipersSwitch.position],
+    ['WINDOWS', b.windowsSwitch.position],
     ['SEARCHLIGHT', b.spotJoystick.position],
   ];
   const slotW = 512;

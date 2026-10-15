@@ -41,6 +41,8 @@ function fakeHost() {
     setPlotYourself: () => 0,
     spawnTraffic: () => 0,
     trafficStatus: () => '0 ships',
+    oilStatus: () => 'Oil 72 %',
+    oilLow: () => 0,
     setWeatherFast: () => {},
     coupling: () => state.coupling,
     setCoupling: (v) => (state.coupling = v),

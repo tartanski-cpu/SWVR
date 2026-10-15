@@ -34,6 +34,9 @@ export interface MenuHost {
   /** Debug: spawn a passing ship (0) or debris (1) close by; the traffic now. */
   spawnTraffic(what: number): void;
   trafficStatus(): string;
+  /** Engine oil: level and check; debug: make it low with a check due. */
+  oilStatus(): string;
+  oilLow(): void;
   coupling(): number;
   setCoupling(value: number): void;
   smoothWalk(): boolean;
@@ -370,6 +373,13 @@ export function mainMenu(h: MenuHost): MainMenu {
         { text: () => h.trafficStatus(), weight: 1.4 },
         { text: 'Spawn ship', press: () => h.spawnTraffic(0) },
         { text: 'Spawn debris', press: () => h.spawnTraffic(1) },
+      ],
+    },
+    {
+      label: 'Engine oil',
+      buttons: [
+        { text: () => h.oilStatus(), weight: 2 },
+        { text: 'Low + check due', press: () => h.oilLow() },
       ],
     },
     {

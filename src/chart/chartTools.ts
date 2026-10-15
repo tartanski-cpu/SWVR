@@ -457,6 +457,24 @@ export class ChartTools {
     this.tools.pencil.mesh.matrix.compose(new THREE.Vector3(p.x, p.y + 0.0008, p.z), this.q, new THREE.Vector3(1, 1, 1));
   }
 
+  /** The tool in one of our hands (for the other players to see), or null. */
+  heldTool(): { kind: ToolName; hand: Handedness } | null {
+    for (const k of Object.keys(this.tools) as ToolName[]) {
+      const h = this.tools[k].held;
+      if (h === 'left' || h === 'right') return { kind: k, hand: h };
+      if (h === 'desk' || (k === 'pencil' && this.deskTool === 'pencil') || (k === 'eraser' && this.deskTool === 'eraser')) return { kind: k, hand: 'right' };
+    }
+    return null;
+  }
+
+  /** Tools a crewmate has in hand: not on the table here (they're in their hand). */
+  setRemoteHeld(kinds: Set<string>): void {
+    for (const k of Object.keys(this.tools) as ToolName[]) {
+      const t = this.tools[k];
+      t.mesh.visible = !(kinds.has(k) && t.held === null && !(k === this.deskTool));
+    }
+  }
+
   /** Is a tool in this hand (its grip is ours)? */
   holding(hand: Handedness): boolean {
     return Object.values(this.tools).some((t) => t.held === hand);

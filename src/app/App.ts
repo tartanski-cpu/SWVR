@@ -27,6 +27,8 @@ import { ChartTableView } from '../vessel/view/chartTable';
 import { LogbookView, type LogbookContext } from '../log/logbookView';
 import { parseLog, serializeLog } from '../log/log';
 import { PaperAudio } from '../audio/paperAudio';
+import { WheelhouseClosure } from '../vessel/view/wheelhouseClosure';
+import { dipstickReading } from '../vessel/maintenance';
 import { TrafficView } from '../traffic/trafficView';
 import { ShipHorn } from '../audio/shipHorn';
 import { SHIP_NAMES } from '../traffic/traffic';
@@ -109,6 +111,8 @@ const BOARD_KEY = 'swvr.board';
 const LOG_KEY = 'swvr.log';
 /** ...and the pencil marks on the paper chart. */
 const CHART_KEY = 'swvr.chart';
+/** ...and the batteries when we left (only with electrics.drainBetweenSessions). */
+const BATTERY_KEY = 'swvr.battery';
 /** ...and the number of rescues completed. */
 const RESCUES_KEY = 'swvr.rescues';
 
@@ -218,6 +222,14 @@ export class App {
   private readonly shipHorn = new ShipHorn();
   private hornSeen = -1;
   private readonly shipsCalled = new Set<string>();
+  /** Window glass and the sliding door; the wheelhouse is sealed with both shut. */
+  private closure: WheelhouseClosure | null = null;
+  private readonly tableRef = new THREE.Vector3();
+  private sealed = false;
+  /** Auto rain quality: frame time accumulated while raining in the headset. */
+  private rainSlowT = 0;
+  private rainFrames = 0;
+  private rainFrameSum = 0;
   private logSaved = -1;
   /** Pencil marks on the paper chart: this peer's copy (kept in step by ops; not in the world). */
   private marks = createMarks();
@@ -1041,6 +1053,12 @@ export class App {
       chartStatus: () => `${this.marks.strokes.length} marks, ${pointCount(this.marks)} points`,
       clearChart: () => this.sendChartOp({ k: 'clear' }),
       spawnTraffic: (what) => this.intents.push({ playerId: this.localPlayerId, targetId: ENVIRONMENT_ID, control: 'trafficSpawn', value: what }),
+      oilStatus: () => {
+        const e = this.world.vessels[this.testVesselId]?.engine;
+        const due = Math.max(0, (this.testDef.maintenance?.checkEvery ?? 0) - (e?.sinceCheck ?? 0));
+        return `Oil ${Math.round((e?.oil ?? 0) * 100)} % · next check in ${Math.ceil(due / 60)} min running`;
+      },
+      oilLow: () => this.pushVesselIntent('debugOil', 0.3),
       trafficStatus: () => {
         const t = this.world.traffic;
         return `${t?.ships.length ?? 0} ships, ${t?.debris.length ?? 0} debris`;
@@ -1260,6 +1278,11 @@ export class App {
       w.pings = snap.pings;
       w.rescue = snap.rescue;
       w.board = snap.board;
+      w.duties = snap.duties;
+      w.forecast = snap.forecast;
+      w.traffic = snap.traffic;
+      // The log comes in its own messages when it changes (not in every snapshot).
+      w.log = client.log ?? snap.log;
       w.lost = snap.lost;
       w.geography = snap.geography;
       w.players = { ...snap.players, [this.localPlayerId]: me };
@@ -1298,10 +1321,11 @@ export class App {
       head: [r(head.x), r(head.y), r(head.z), r(q.x), r(q.y), r(q.z), r(q.w)],
       left: hand('left'),
       right: hand('right'),
+      tool: this.chartTools?.heldTool() ?? null,
     };
     if (this.host) {
       p.name = pose.name;
-      p.avatar = { head: pose.head, left: pose.left, right: pose.right };
+      p.avatar = { head: pose.head, left: pose.left, right: pose.right, tool: pose.tool };
       return;
     }
     this.poseTimer += dt;
@@ -1452,6 +1476,9 @@ export class App {
     this.board.root.rotation.y = Math.PI;
     view.root.add(this.board.root);
     this.scene.add(this.board.rayLine);
+    // Window glass and the sliding aft door.
+    this.closure = new WheelhouseClosure(this.testDef);
+    view.root.add(this.closure.root);
     // Wind sock at the masthead.
     const wh = this.testDef.layout.wheelhouse;
     this.windSock = new WindSock([0, wh.roofY + 1.7, 0.4]);
@@ -1474,13 +1501,13 @@ export class App {
       // (outboard, -x) and z up, like the chart - you read it facing the wall.
       const [bx, bz] = ct.book.center;
       const top = this.chartTable.top;
-      const holder = new THREE.Vector3(-(ct.holder[1] - bz), -(ct.holder[0] - bx), 0.085 - 0.024);
-      this.logbook = new LogbookView(ct.book.width, ct.book.depth, holder);
+      this.logbook = new LogbookView(ct.book.width, ct.book.depth);
       this.logbook.root.matrixAutoUpdate = false;
       this.logbook.root.matrix.makeBasis(new THREE.Vector3(0, 0, -1), new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 1, 0)).setPosition(bx, top + 0.001, bz);
       view.root.add(this.logbook.root);
       this.scene.add(this.logbook.rayLine);
     }
+    this.restoreBatteries();
     try {
       if (!this.client) this.world.log ??= parseLog(localStorage.getItem(LOG_KEY)) ?? undefined;
       if (!this.client) this.marks = parseMarks(localStorage.getItem(CHART_KEY)) ?? this.marks;
@@ -1496,6 +1523,7 @@ export class App {
       (channel, value) => {
         if (channel === 'engineStartStop') return this.requestEngineStartStop();
         if (channel === 'start' && value > 0) this.startInGearHint();
+        if (channel === 'dipstick') this.readDipstick();
         const { vesselId, control } = this.routeChannel(channel);
         this.pushIntentTo(vesselId, control, value);
       },
@@ -1660,8 +1688,22 @@ export class App {
     const cabin = v.controls.cabinLight > 0 && isPowered(v, 'deckLights');
     const level = Math.min(1, Math.max(0.04, this.environment.ambientIntensity * 1.1 + (cabin ? 0.45 : 0) + (lamp ? 1 : 0)));
     this.chartTable.setLight(level, lamp);
+    // From outside the wheelhouse the chart, bulb, book pages, pen, tools and marks are too
+    // small to matter (and mostly behind the aft wall): skip their draw calls.
+    const wh = this.testDef.layout.wheelhouse;
+    const l = this.chartTable.root.worldToLocal(this.tableRef.copy(this.focus));
+    const near = Math.abs(l.x) < wh.halfWidth + 0.3 && l.z > wh.front - 0.3 && l.z < wh.aft + 0.6 && l.y > wh.floorY - 0.5;
+    this.chartTable.setDetail(near);
+    this.logbook.root.visible = near;
+    if (this.chartTools) this.chartTools.root.visible = near;
     this.logbook.update(this.world, this.localPlayerId, level, dt);
     this.chartTools?.refresh(this.marks);
+    // Tools a crewmate is holding aren't lying on our table.
+    if (this.chartTools) {
+      const held = new Set<string>();
+      for (const p of Object.values(this.world.players)) if (p.id !== this.localPlayerId && p.avatar?.tool) held.add(p.avatar.tool.kind);
+      this.chartTools.setRemoteHeld(held);
+    }
     // Host / solo: keep the chart marks in this browser (at most once a second).
     this.marksSaveT += dt;
     if (!this.client && this.marks.seq !== this.marksSaved && this.marksSaveT > 1) {
@@ -1820,7 +1862,14 @@ export class App {
     const wh = this.testDef.layout.wheelhouse;
     const inside = !!v && v.id === this.testVesselId && Math.abs(p.position[0]) < wh.halfWidth && p.position[2] > wh.front && p.position[2] < wh.aft && p.position[1] > wh.floorY - 0.3;
     this.insideHouse = inside;
-    this.windAudio.update(Math.hypot(ax, az), inside, dt);
+    // The door: open while anyone aboard is near the doorway; sealed with it and the windows shut.
+    const wv = this.world.vessels[this.testVesselId];
+    if (this.closure && wv) {
+      const people = Object.values(this.world.players).filter((q) => q.aboardVesselId === wv.id).map((q) => ({ x: q.position[0], z: q.position[2] }));
+      this.closure.update(wv.controls.windows > 0, people, this.testDef.bridge.doorOpenRange, dt);
+      this.sealed = this.closure.sealed(wv.controls.windows > 0);
+    }
+    this.windAudio.update(Math.hypot(ax, az), inside, dt, this.sealed);
   }
 
   /**
@@ -1845,9 +1894,10 @@ export class App {
       house = this.rainHouse;
     }
     windVector(env, this.windV);
+    this.autoRainQuality(rain, dt);
     this.rain.update(rain, time, this.focus, this.windV, house, light);
     if (this.bridge && v) this.bridge.rainGlass.update(rain, v.controls.wipers > 0 && isPowered(v, 'instruments'), light, dt);
-    this.windAudio.setRain(rain, this.insideHouse);
+    this.windAudio.setRain(rain, this.insideHouse, this.sealed);
     // Thunder: the flash is drawn by the environment view; the sound follows by distance.
     const L = w?.lightning;
     if (L) {
@@ -1864,6 +1914,59 @@ export class App {
     this.forecastSeen = fseq;
     this.lookout(v);
     this.updateTraffic(v, darkness, dt);
+  }
+
+  /**
+   * In the headset on High: if the frame rate sags while it rains, drop the rain to Low for
+   * this session (the menu setting is left alone) and say so once.
+   */
+  private autoRainQuality(rain: number, dt: number): void {
+    if (!this.renderer.xr.isPresenting || this.rain.quality !== 'high' || rain < 0.2) {
+      this.rainSlowT = this.rainFrames = this.rainFrameSum = 0;
+      return;
+    }
+    this.rainSlowT += dt;
+    this.rainFrames += 1;
+    this.rainFrameSum += dt;
+    if (this.rainSlowT < CONFIG.rain.autoLowSeconds) return;
+    const avgMs = (this.rainFrameSum / this.rainFrames) * 1000;
+    this.rainSlowT = this.rainFrames = this.rainFrameSum = 0;
+    if (avgMs > CONFIG.rain.autoLowFrameMs) {
+      this.rain.quality = 'low';
+      this.overlay.notify('Rain effect lowered to keep the frame rate (Menu: Rain effect)', 4);
+    }
+  }
+
+  /**
+   * Batteries between sessions (host / solo, only with electrics.drainBetweenSessions):
+   * their charge is saved when the page goes away, and on the next visit restored, less
+   * what the master left on would have drawn meanwhile.
+   */
+  private restoreBatteries(): void {
+    const v = this.world.vessels[this.testVesselId];
+    const cfg = this.testDef.electrics;
+    if (!v?.electrics || !cfg?.drainBetweenSessions || this.client) return;
+    try {
+      const saved = JSON.parse(localStorage.getItem(BATTERY_KEY) ?? 'null') as { soc: [number, number]; master: number; t: number } | null;
+      if (saved && Array.isArray(saved.soc) && saved.soc.length === 2) {
+        const hours = Math.max(0, (Date.now() - saved.t) / 3.6e6);
+        const drain = saved.master > 0 ? hours * cfg.drainPerHour : 0;
+        v.electrics.soc = [Math.max(0, saved.soc[0] - drain), Math.max(0, saved.soc[1] - drain)].map((x) => Math.min(1, x)) as [number, number];
+        v.electrics.master = saved.master > 0 ? 1 : 0;
+        if (drain > 0.01) this.overlay.notify(`The master was left on: batteries down ${Math.round(drain * 100)} %`, 5);
+      }
+    } catch {
+      // Nothing saved.
+    }
+    window.addEventListener('pagehide', () => {
+      const e = this.world.vessels[this.testVesselId]?.electrics;
+      if (!e || this.client) return;
+      try {
+        localStorage.setItem(BATTERY_KEY, JSON.stringify({ soc: e.soc, master: e.master, t: Date.now() }));
+      } catch {
+        // Not saved.
+      }
+    });
   }
 
   /** Ships, debris and buoys on the waves; ships' fog horns; the lookout calls new ships. */
@@ -1917,6 +2020,14 @@ export class App {
       this.overlay.notify(`Lookout: ${what}, ${clock} o'clock, ${Math.round(d / 10) * 10} m!`, 5);
       this.rescueSounds.snap();
     }
+  }
+
+  /** The dipstick pulled: say what it shows. */
+  private readDipstick(): void {
+    const v = this.world.vessels[this.testVesselId];
+    if (!v) return;
+    const r = dipstickReading(v);
+    this.overlay.notify(r === 'ok' ? 'Dipstick: oil between MIN and MAX. Fine.' : r === 'low' ? 'Dipstick: oil near MIN. Top up from the can.' : 'Dipstick: barely any oil on it! Top up now.', 4);
   }
 
   /** START pressed with the lever in gear: the neutral-safety switch says no. */

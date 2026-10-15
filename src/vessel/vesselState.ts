@@ -42,6 +42,10 @@ export interface VesselControls {
   hatch: number;
   /** Chart table lamp switch (0/1; Deck lights breaker). */
   chartLamp: number;
+  /** Fenders out over the side (1) or stowed (0). */
+  fenders: number;
+  /** Wheelhouse windows shut (1) or open (0). */
+  windows: number;
 }
 
 /** Docking and mooring lines (physics/mooring.ts). */
@@ -115,6 +119,9 @@ export interface EngineState {
   glow: number;
   /** Quick start: keep cranking without START held until she catches. */
   autoCrank?: boolean;
+  /** Lube oil in the sump, 0..1, and running time since the last dipstick check (s). */
+  oil?: number;
+  sinceCheck?: number;
 }
 
 /**
@@ -200,7 +207,7 @@ export function createVesselState(id: EntityId, defId: string): VesselState {
     orientation: [0, 0, 0, 1],
     linearVelocity: [0, 0, 0],
     angularVelocity: [0, 0, 0],
-    controls: { lever: 0, helm: 0, navLights: 0, horn: 0, anchor: 0, cabinLight: 0, spotlight: 0, spotPan: 0, spotTilt: -4, deckFore: 0, deckAft: 0, railLights: 0, fmOn: 0, fmStation: 0, obOn: 0, obGear: 0, heat: 0, start: 0, wipers: 0, chartLamp: 0, hatch: VESSEL_DEFS[defId].hatch?.startOpen ? 1 : 0 },
+    controls: { lever: 0, helm: 0, navLights: 0, horn: 0, anchor: 0, cabinLight: 0, spotlight: 0, spotPan: 0, spotTilt: -4, deckFore: 0, deckAft: 0, railLights: 0, fmOn: 0, fmStation: 0, obOn: 0, obGear: 0, heat: 0, start: 0, wipers: 0, chartLamp: 0, fenders: 0, windows: 0, hatch: VESSEL_DEFS[defId].hatch?.startOpen ? 1 : 0 },
     engine: {
       phase: 'off',
       crank: 0,
@@ -216,6 +223,7 @@ export function createVesselState(id: EntityId, defId: string): VesselState {
       coolingFault: false,
       key: 0,
       glow: 0,
+      ...(VESSEL_DEFS[defId].maintenance ? { oil: VESSEL_DEFS[defId].maintenance!.oilStart, sinceCheck: 0 } : {}),
     },
     holds: {},
     rudder: 0,

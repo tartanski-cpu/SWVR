@@ -111,7 +111,7 @@ The menu has six tabs along the top:
 | Boat | Board / leave; fuel and **Refuel** (at a fuel berth); anchor status; sea-trials report on a big panel in front of you (the game freezes for about a second while the trials run) |
 | Cargo | Where you are, payload, deliveries; cargo aboard (lashed or loose), and what's in the skiff (two crates or one drum) |
 | Comfort | Motion coupling ±10 %, stick walking on/off, snap-turn angle. Remembered on the device |
-| Tests | Electrics (power on, fill, flat); start-up (quick start, battery 1 flat); **Bilge**: level, hatch, pump, and **Flood (60 %)**; drop from 4 m, heel 20°; engine faults (fuel to 5 %, raw-water pump failure); perf panel, buoyancy view, wave probes |
+| Tests | Engine oil (level, next check; **Low + check due**); traffic (spawn ship / debris); chart (clear marks, plot it yourself); electrics (power on, fill, flat); start-up (quick start, battery 1 flat); **Bilge**: level, hatch, pump, and **Flood (60 %)**; drop from 4 m, heel 20°; engine faults (fuel to 5 %, raw-water pump failure); perf panel, buoyancy view, wave probes |
 
 ### Bridge
 
@@ -171,11 +171,26 @@ The chart table stands along the port wall, behind the helm. On it:
   | Vessel sighted | a passing ship comes into sight | its type (cargo ship / fishing boat / yacht) and its direction from you (8 points; one point off still counts) |
   | Hazard | passing within 200 m of floating debris, rocks or a hazard buoy | which |
   | Weather change | the weather turns | sea (calm / moderate / rough) and visibility (good / poor), as they are when you sign |
+  | Weather forecast | a VHF forecast is received | nothing: the forecast is copied in, just sign |
   | Rescue | a rescue is completed | nothing: the summary is filled in, just sign |
 
   Each puts a "Log: …" duty on the duty board, which ticks off when you sign.
 - **One writer at a time:** while a crewmate writes an entry, the page says so. If they leave it for 90 s, you can take it over.
 - **At night** you need the chart table lamp to read or write.
+
+### Transit jobs and closing up
+
+- **Fenders:** press the fender basket on the aft deck (starboard) to put all six out over the side, or take them in.
+  - Coming up to a berth with them in puts "Coming alongside: fenders out" on the duty board.
+  - Out of harbour with them still out gives "Under way: fenders in".
+- **Lash the cargo:** under way with loose cargo on deck, "Under way: lash the deck cargo" comes up.
+- **Engine oil:** the engine burns a little oil. Every 15 minutes of running, "Engine check: oil" comes up.
+  1. Pull the **dipstick** in the engine hatch (wheelhouse floor, aft, starboard). It tells you whether the oil is fine or low.
+  2. If it's low, press the red **oil can** to top up.
+
+  Nearly dry, the OIL lamp blinks while running.
+- **Windows and door:** the **WINDOWS** switch on the console (left of the wheel) shuts glass into every opening. The aft door slides open as anyone comes near and closes behind them. With both shut, the wind and rain are much quieter inside. The "secure the boat" duty suggests it.
+- **The pen:** pick it up from beside the logbook (grip) and touch a box, or the sign box, with its tip. Pointing and pulling the trigger still works too.
 
 ### Traffic and hazards
 

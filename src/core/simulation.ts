@@ -13,6 +13,7 @@ import { applyCargoIntent, deckVelocitiesBefore, isCargoIntent, payloadOf, stepD
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 import { stepElectrics } from '../vessel/electrics';
 import { stepBilge } from '../vessel/bilge';
+import { stepOil } from '../vessel/maintenance';
 import { stepForecast } from '../environment/forecast';
 import { applyLogIntent, isLogIntent, stepLog } from '../log/log';
 import { applyTrafficIntent, stepTraffic } from '../traffic/traffic';
@@ -84,6 +85,7 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
     stepRefuelling(vessel, VESSEL_DEFS[vessel.defId], dt, world.geography === 'archipelago');
     stepElectrics(vessel, dt);
     stepBilge(vessel, world.environment, dt);
+    stepOil(vessel, dt);
   }
   for (const vessel of Object.values(world.vessels)) if (onDavit(vessel)) stepTender(world, vessel, dt);
 

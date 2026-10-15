@@ -6,7 +6,8 @@
  *            opened if there's none); an arrival entry closes it. The last
  *            `keepVoyages` are kept, and the host saves them in its browser.
  *   events   loggable things that happened: left harbour, arrived, a ship sighted, a hazard
- *            passed (traffic/traffic.ts), the weather changed, a rescue completed. Each puts
+ *            passed (traffic/traffic.ts), the weather changed, a forecast came in, a rescue
+ *            completed. Each puts
  *            a "Log: ..." duty on the duty board, and carries what's true about it (the
  *            ship's type and bearing, the hazard's type, the rescue's summary) to check
  *            the entry against. Unlogged, they drop off after `eventLinger` s.
@@ -34,7 +35,7 @@ import { significantWaveHeight } from '../ocean/waves';
 import { visibilityAt } from '../environment/weather';
 
 /** Entry types, in the order of the buttons on the page. */
-export const LOG_TYPES = ['departure', 'arrival', 'vessel', 'hazard', 'weather', 'rescue'] as const;
+export const LOG_TYPES = ['departure', 'arrival', 'vessel', 'hazard', 'weather', 'forecast', 'rescue'] as const;
 export type LogType = (typeof LOG_TYPES)[number];
 
 /** The values the crew picks for each type of entry. */
@@ -57,9 +58,10 @@ export const LOG_FIELDS: Record<LogType, { key: string; label: string; options: 
     { key: 'sea', label: 'Sea', options: SEA_WORDS },
     { key: 'vis', label: 'Visibility', options: VIS_WORDS },
   ],
+  forecast: [],
   rescue: [],
 };
-export const LOG_TITLES: Record<LogType, string> = { departure: 'Departure', arrival: 'Arrival', vessel: 'Vessel sighted', hazard: 'Hazard', weather: 'Weather change', rescue: 'Rescue' };
+export const LOG_TITLES: Record<LogType, string> = { departure: 'Departure', arrival: 'Arrival', vessel: 'Vessel sighted', hazard: 'Hazard', weather: 'Weather change', forecast: 'Weather forecast', rescue: 'Rescue' };
 
 export interface LogField {
   key: string;
@@ -128,6 +130,7 @@ export interface LogState {
   /** The weather preset and rescues completed, as last seen (their changes are events). */
   weather?: string;
   rescues?: number;
+  forecasts?: number;
 }
 
 export function createLog(): LogState {
@@ -215,6 +218,7 @@ export function stepLog(world: WorldState): void {
     log.mooredAt = arrivedAt;
     log.weather = preset;
     log.rescues = rescues;
+    log.forecasts = world.forecast?.seq ?? 0;
     return;
   }
   if (log.harbour && !near) addLogEvent(world, { type: 'departure', port: portName(log.harbour) });
@@ -225,6 +229,10 @@ export function stepLog(world: WorldState): void {
   log.weather = preset;
   if (rescues > (log.rescues ?? 0)) addLogEvent(world, { type: 'rescue', summary: world.rescue?.lastDone });
   log.rescues = rescues;
+  // A forecast received: copy it into the log (it's filled in; just sign).
+  const fseq = world.forecast?.seq ?? 0;
+  if (fseq > (log.forecasts ?? 0) && world.forecast) addLogEvent(world, { type: 'forecast', summary: `${world.forecast.receivedAt}: ${world.forecast.text}` });
+  log.forecasts = fseq;
   // Old events nobody logged drop off.
   const before = log.events.length;
   log.events = log.events.filter((e) => !e.logged && world.time - e.at < CONFIG.log.eventLinger);

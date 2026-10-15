@@ -1097,6 +1097,57 @@ Owner decision: **no radar screen.** Passing vessels will show as AIS targets (t
   - in fog, ships sound every 2 min and answer our prolonged blast;
   - weather and rescue events; weather readings are checked.
 
+### E10: duty board integration, multiplayer and polish (done, awaiting owner test)
+
+Desktop voice input (milestone 9) was skipped at the owner's request.
+
+- **Transit jobs** (`duties/duties.ts`):
+  - **fendersOut:** within 200 m of a berth, under way, fenders in.
+  - **fendersIn:** fenders out, over 350 m from any berth, moving.
+  - **lash:** loose cargo, out of harbour, engine running; skipped while a weather "secure" duty is up.
+  - **oil:** a check is due every 15 min of running. Pull the dipstick; top up if it's low (the step becomes required when low).
+- **Fenders** (`controls/deckGear.ts`): a FenderBasket control on the aft deck and six fenders, one instanced mesh. They hang just outside the hull on their lines when out, and lie along the bulwark when stowed.
+- **Engine oil** (`vessel/maintenance.ts`):
+  - Burnt at 0.00025/s × (0.5 + load); the session starts at 72 %.
+  - An engine hatch plate in the wheelhouse floor, with a Dipstick control (pull: the App shows the reading) and an OilCan control (top up).
+  - The OIL lamp blinks running below 12 %. No damage.
+- **Weather forecast log entry:** each forecast received is a `forecast` event ("Log: weather forecast"). The entry carries the forecast text; just sign.
+- **Book:** remarks wrap onto several lines.
+- **Multiplayer:**
+  - **Bug fixed:** clients never copied `duties`, `forecast`, `log` or `traffic` from the host's snapshots, so a crewmate's duty board, logbook, forecast and AIS stayed empty. They're copied now.
+  - **The log** is left out of the 20 Hz snapshots and sent whole in a `log` message only when it changes, like the chart marks.
+  - **Held tools:** a chart tool in hand (pencil, eraser, rule) travels in the player's pose and shows at their hand. Everyone else's table hides that tool while it's held.
+- **Polish:**
+  - **Auto rain quality:** in the headset on High, if frames average over 16.5 ms for 3 s while it rains, the rain drops to Low for the session (a notice says so; the menu setting is unchanged).
+  - **Battery drain between sessions** (`electrics.drainBetweenSessions`, off by default): with it on, the batteries' charge and master are saved on leaving. Next visit, a master left on has drained `drainPerHour` per hour away.
+  - **Windows and door** (`vessel/view/wheelhouseClosure.ts`):
+    - A WINDOWS switch on the console shows faint glass in every opening (one transparent mesh).
+    - A sliding aft door opens while anyone aboard is within 1.1 m of the doorway, so it never blocks walking.
+    - Windows shut with the door closed makes the wheelhouse "sealed": wind inside falls from 35 % to 10 %, and the rain drum is quieter and duller. There's an optional step in the "secure" duty.
+  - **The pen is a real tool:** grip it from beside the book; its tip touching a box presses it (once per touch), signing included. Pointing and trigger still work.
+  - **Draw calls:** the book's cover and page blocks are merged into the table mesh. The chart, bulb, book pages, pen, tools and marks are hidden whenever the viewer is outside the wheelhouse.
+- **Debug:** Menu → Tests → Engine oil: level, next check, **Low + check due**.
+- **Final profile:** headless with SwiftShader, CPU only. Night squall at full rain, wipers and windows on, two ships and debris, 3600 points on the chart.
+
+  | | M7 (day, no ships) | M10 (night, worst case) |
+  |---|---|---|
+  | Draw calls at the helm | 48 | 54 |
+  | Draw calls, aft deck looking forward | 109 | 109 |
+  | Draw calls at the chart table | 40 | 44 |
+  | View CPU per frame | ~1.7 ms | ~2.2 ms |
+  | Sim tick | 0.23 ms | 0.25 ms |
+  | Triangles | ~161k | ~167k |
+  | Shader programs | – | 31–34 |
+
+  The night extras are the ships' lights and the debris.
+- **Not done:** a real two-headset session. Multiplayer is covered by the in-memory loopback tests: chart ops, the log message, held tools, cargo, holds. The PeerJS server can't be reached from the build machine.
+- **Tests (247):**
+  - fenders out and in;
+  - the oil check, dipstick reading and top-up;
+  - a forecast becoming a log entry;
+  - the log travels outside the snapshots;
+  - a client's held pencil reaches the host's world.
+
 ## Planned next (owner requests, not started)
 
 1. ~~Fuel and oil temperature~~ **Done** (see above).

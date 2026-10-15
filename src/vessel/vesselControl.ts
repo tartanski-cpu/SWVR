@@ -95,6 +95,26 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
     case 'chartLamp':
       s.controls.chartLamp = intent.value > 0.5 ? 1 : 0;
       break;
+    case 'fenders':
+      s.controls.fenders = intent.value > 0.5 ? 1 : 0;
+      break;
+    case 'windows':
+      s.controls.windows = intent.value > 0.5 ? 1 : 0;
+      break;
+    case 'dipstick':
+      // Oil checked: the clock to the next check starts again.
+      if (s.engine.oil !== undefined) s.engine.sinceCheck = 0;
+      break;
+    case 'oilTopUp':
+      if (s.engine.oil !== undefined) s.engine.oil = 1;
+      break;
+    case 'debugOil':
+      // Debug: oil level (0..1) and an oil check due now.
+      if (s.engine.oil !== undefined) {
+        s.engine.oil = Math.max(0, Math.min(1, intent.value));
+        s.engine.sinceCheck = 1e6;
+      }
+      break;
     case 'hatch':
       s.controls.hatch = intent.value > 0.5 ? 1 : 0;
       break;

@@ -22,6 +22,9 @@ interface Avatar {
   frame: THREE.Object3D | null;
   tag: THREE.Sprite;
   tagName: string;
+  /** A chart tool in hand, shown at the hand. */
+  tool: THREE.Object3D | null;
+  toolKey: string;
 }
 
 /**
@@ -73,6 +76,15 @@ export class AvatarsView {
       this.side.set(1, 0, 0).applyQuaternion(a.head.quaternion).setY(0);
       if (this.side.lengthSq() < 1e-6) this.side.set(1, 0, 0);
       this.side.normalize().multiplyScalar(0.2);
+      // A chart tool in hand (pencil, eraser, rule): a small copy of it at that hand.
+      const tool = p.avatar?.tool ?? null;
+      const tk = tool ? `${tool.kind}:${tool.hand}` : '';
+      if (a.toolKey !== tk) {
+        a.toolKey = tk;
+        a.tool?.removeFromParent();
+        a.tool = tool ? toolMesh(tool.kind) : null;
+        if (a.tool && tool) (tool.hand === 'left' ? a.left : a.right).add(a.tool);
+      }
       for (const [mesh, arm, hand, s] of [
         [a.left, a.leftArm, p.avatar?.left, -1],
         [a.right, a.rightArm, p.avatar?.right, 1],
@@ -130,7 +142,7 @@ export class AvatarsView {
     const rightArm = new THREE.Mesh(armGeo, mat);
     leftArm.visible = rightArm.visible = false;
     root.add(head, body, left, right, leftArm, rightArm, tag);
-    const a: Avatar = { root, head, body, left, right, leftArm, rightArm, frame: null, tag, tagName: '' };
+    const a: Avatar = { root, head, body, left, right, leftArm, rightArm, frame: null, tag, tagName: '', tool: null, toolKey: '' };
     this.avatars.set(id, a);
     return a;
   }
@@ -169,4 +181,11 @@ function drawTag(a: Avatar, name: string): void {
   g.textBaseline = 'middle';
   g.fillText(name, w / 2, h / 2 + 1, tw - 20);
   map.needsUpdate = true;
+}
+
+/** Small stand-ins for the chart table tools, held in a crewmate's hand. */
+function toolMesh(kind: string): THREE.Object3D {
+  const color = kind === 'pencil' ? 0xe8c030 : kind === 'eraser' ? 0xe88a9a : 0xcfe0dc;
+  const geo = kind === 'pencil' ? new THREE.CylinderGeometry(0.005, 0.005, 0.17, 6).rotateX(Math.PI / 2).translate(0, -0.02, -0.07) : kind === 'eraser' ? new THREE.BoxGeometry(0.025, 0.014, 0.05).translate(0, -0.03, -0.02) : new THREE.BoxGeometry(0.11, 0.006, 0.32).translate(0, -0.03, -0.1);
+  return new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color }));
 }

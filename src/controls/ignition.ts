@@ -133,7 +133,7 @@ const LAMPS = [
 /**
  * The engine's warning lamps, as on a real panel (on the Instruments breaker):
  *   OIL, CHARGE  lit whenever the engine isn't running (no oil pressure, no alternator):
- *                they go out as she starts;
+ *                they go out as she starts; OIL blinks running with the sump nearly dry;
  *   GLOW         lit while HEAT is held, until the plugs are hot enough (then go!);
  *   NEUTRAL      lit with the lever in neutral (the start interlock); blinks if START is
  *                held in gear.
@@ -169,8 +169,9 @@ export class WarningLamps {
     const running = e.phase === 'running';
     const neutral = leverDemand(def, s.controls.lever).gear === 0;
     const blink = Math.floor(performance.now() / 250) % 2 === 0;
+    const dry = (s.engine.oil ?? 1) < (def.maintenance?.lampAt ?? 0);
     const lit = [
-      instr && !running,
+      instr && (!running || (dry && blink)),
       instr && !running,
       isPowered(s) && e.key > 0 && s.controls.heat > 0 && e.glow < def.engine.preheatTime,
       instr && (neutral || (s.controls.start > 0 && blink)),
