@@ -106,7 +106,7 @@ The menu has six tabs along the top:
 |---|---|
 | Sea & time | Time of day ±1 h / ±10 min; time flow stopped / ×60 / ×600; sea state Calm / Slight / Moderate / Rough / Storm, with ± for the wave height (Hs 0–3.6 m); bearing and range to each port, with **Go** to move the boat (and you) to that port's cargo berth or anchorage |
 | Boat | Board / leave; fuel and **Refuel** (at a fuel berth); anchor status; sea-trials report on a big panel in front of you (the game freezes for about a second while the trials run) |
-| Cargo | Where you are, payload, deliveries; cargo aboard (lashed or loose). At an anchorage, the port's **skiff** brings goods out and takes them ashore |
+| Cargo | Where you are, payload, deliveries; cargo aboard (lashed or loose), and what's in the skiff (two crates or one drum) |
 | Comfort | Motion coupling ±10 %, stick walking on/off, snap-turn angle. Remembered on the device |
 | Tests | Drop from 4 m, heel 20°; engine faults (fuel to 5 %, raw-water pump failure); perf panel, buoyancy view, wave probes |
 
@@ -145,7 +145,7 @@ The dash shows:
 - **Swimming:** land in the sea and you float with your head just above the water. Swim with grab-the-world strokes or the stick. Climb out by gripping the gunwale or the transom, or press A beside a quay.
 - **Cargo:** each port has goods waiting in a row on its quay or beach, coloured by destination. They're man-portable (30–110 kg). Carry one to the boat, set it on the deck, and at its destination set it down ashore near that port's goods stack to deliver it. Dropped in the sea, it's lost.
 - **Lashing:** loose cargo slides when the deck heels or accelerates past friction (μ ≈ 0.35, so from about 19° of heel, sooner in a seaway) and goes over the rail if pressed against it hard enough (about 33°). Strap it to a D-ring (the rings along the bulwarks and centreline) and it stays put. Cargo is real weight in her stability: stow it all to one side and she lists.
-- **Selkie Bay** has no quay: anchor in the bay and the bothy's skiff brings goods out and takes them ashore (Cargo tab).
+- **Selkie Bay** has no quay: anchor in the bay, launch the skiff, load her (two crates or one drum), run her up the beach and carry the goods up to the stack. Survivors can only be landed at a quay.
 
 ## The archipelago
 

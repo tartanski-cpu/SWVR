@@ -326,13 +326,17 @@ export function stepVessel(
   c.impact = 0;
   if (geography) {
     let touching = 0;
+    // The penalty springs are tuned for the workboat; a lighter boat gets them scaled by
+    // her mass, so k/m and c/m (what sets the step's stability) stay the same. Unscaled,
+    // the 330 kg skiff would bounce off a beach and blow up.
+    const scale = Math.min(1, def.mass / CONFIG.contacts.referenceMass);
     for (const [lx, ly, lz] of hullContactPoints(def.hull)) {
       toWorld(lx, ly, lz, pt);
       pointVelocity(pt, ptV);
       if (!contactAt(pt.x, pt.y, pt.z, ptV.x, ptV.y, ptV.z, contact)) continue;
-      addForceAt(cf.set(contact.fx, contact.fy, contact.fz), pt);
+      addForceAt(cf.set(contact.fx * scale, contact.fy * scale, contact.fz * scale), pt);
       touching++;
-      c.force += contact.normal;
+      c.force += contact.normal * scale;
       c.slide += contact.slide;
       c.impact = Math.max(c.impact, contact.approach);
     }

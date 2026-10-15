@@ -184,20 +184,92 @@ describe('cargo by hand', () => {
     expect(heel() - h0).toBeGreaterThan(0.5);
     void plan;
   });
+});
 
-  it('at an anchorage the skiff works the cargo, only with the anchor set in the bay', () => {
-    const { world, v, send, run, waiting } = setup();
-    const a = PORTS.find((p) => p.id === 'selkie')!.cargo.anchorage!;
-    placeVessel(v, a.x, 0, a.z, 0);
+describe('cargo in the skiff', () => {
+  function skiffSetup() {
+    const { world, vesselId, localPlayerId } = createWorld(new IdFactory(), undefined, { tender: true });
+    world.environment.waves = [];
+    const boat = world.vessels[vesselId];
+    const skiff = Object.values(world.vessels).find((x) => x.defId === 'skiff')!;
+    const step = (intents: Intent[] = []) => stepWorld(world, intents, DT);
+    const run = (s: number) => {
+      for (let i = 0; i < s / DT; i++) step();
+    };
+    const give = (id: string, kind: number) => {
+      world.cargo[id] = { id, kind, mass: CONFIG.cargo.kinds[kind].mass, from: 'calder', to: 'selkie', at: { carriedBy: localPlayerId } };
+      return world.cargo[id];
+    };
+    const put = (id: string, x: number, z: number, target = skiff.id, y = 0.3) =>
+      step([{ playerId: localPlayerId, targetId: target, control: 'cargoPlace', value: 1, ref: id, args: [x, y, z, 0] }]);
+    return { world, boat, skiff, step, run, give, put, me: localPlayerId };
+  }
+  const CRATE = 0;
+  const DRUM = CONFIG.cargo.kinds.findIndex((k) => k.name === 'Oil drum');
+
+  it('takes two crates, or one drum, at a time', () => {
+    const { world, skiff, give, put } = skiffSetup();
+    placeVessel(skiff, 0, 0, -300, 0);
+    give('a', CRATE);
+    give('b', CRATE);
+    give('c', CRATE);
+    put('a', 0, -0.6);
+    put('b', 0, 0.3);
+    put('c', 0, 0);
+    expect(aboard(world, skiff.id).map((c) => c.id)).toEqual(['a', 'b']);
+    expect('carriedBy' in world.cargo.c.at).toBe(true); // full: still in your hands
+    // Unload, then one drum: fills her.
+    delete world.cargo.a;
+    delete world.cargo.b;
+    give('d', DRUM);
+    put('d', 0, -0.3);
+    put('c', 0, 0.4);
+    expect(aboard(world, skiff.id).map((c) => c.id)).toEqual(['d']);
+  });
+
+  it('goods stay put in her bottom (no sliding), and keep clear of the helmsman by the tiller', () => {
+    const { world, skiff, give, put, run } = skiffSetup();
+    placeVessel(skiff, 0, 0, -300, 0, 12, 0); // heeled
+    give('a', CRATE);
+    put('a', 0, 1.4); // by the tiller: moved forward
+    const at = world.cargo.a.at as { pos: number[] };
+    expect(at.pos[2]).toBeLessThan(0.95);
+    const before = [...at.pos];
+    run(3);
+    expect((world.cargo.a.at as { pos: number[] }).pos).toEqual(before);
+  });
+
+  it('beach delivery at Selkie: run her up the beach and carry the goods up', () => {
+    const { world, skiff, give, put, step, run, me } = skiffSetup();
+    const port = PORTS.find((p) => p.id === 'selkie')!;
+    const { stackX, stackZ, anchorage } = port.cargo;
+    // 40 m off the beach, heading for the goods stack.
+    const dx = stackX - anchorage!.x;
+    const dz = stackZ - anchorage!.z;
+    const d = Math.hypot(dx, dz);
+    const heading = (Math.atan2(dx, -dz) * 180) / Math.PI;
+    placeVessel(skiff, stackX - (dx / d) * 40, 0, stackZ - (dz / d) * 40, heading);
+    give('a', CRATE);
+    put('a', 0, 0);
+    const send = (control: string, value: number) => step([{ playerId: me, targetId: skiff.id, control, value }]);
+    send('obPower', 1);
+    send('obGear', 1);
+    send('lever', 0.6);
+    run(25);
+    send('lever', 0);
     run(2);
-    const item = waiting('selkie')[0];
-    send('cargoLoad', item.id);
-    expect('ground' in item.at).toBe(true);
-    send('anchor', '');
-    run(30);
-    expect(v.anchor.phase).toBe('set');
-    send('cargoLoad', item.id);
-    expect('vessel' in item.at).toBe(true);
-    expect(aboard(world, v.id)).toHaveLength(1);
+    // Aground on the beach, within the goods area.
+    const off = Math.hypot(skiff.position[0] - stackX, skiff.position[2] - stackZ);
+    expect(off).toBeLessThan(CONFIG.cargo.deliveryRadius - 2);
+    expect(Math.hypot(skiff.linearVelocity[0], skiff.linearVelocity[2])).toBeLessThan(0.3);
+    // Lift it out and set it down on the beach ahead of her bow: delivered.
+    const d0 = world.deliveries;
+    step([{ playerId: me, targetId: skiff.id, control: 'cargoTake', value: 1, ref: 'a' }]);
+    const bx = skiff.position[0] + (dx / d) * 3;
+    const bz = skiff.position[2] + (dz / d) * 3;
+    put('a', bx, bz, GROUND, standingHeight(bx, bz) + 0.5);
+    expect(world.cargo.a).toBeUndefined();
+    expect(world.deliveries).toBe(d0 + 1);
+    expect(standingHeight(bx, bz)).toBeGreaterThan(-0.3);
   });
 });

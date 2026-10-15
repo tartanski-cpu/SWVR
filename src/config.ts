@@ -545,6 +545,13 @@ export const CONFIG = {
        */
       cargo: {
         maxPayloadKg: 5000,
+        /** Item limit in cargo slots (see CONFIG.cargo.kinds); 0: no limit, only space and mass. */
+        slots: 0,
+        /** Deck kept clear of cargo at the narrow bow and at the transom (m from stem / transom). */
+        bowClear: 1.5,
+        aftClear: 0.25,
+        /** Cargo stays where it's put (true), or slides about the deck in a seaway (false). */
+        fixed: false,
         lashPoints: [
           [-1.75, 3.0], [-1.75, 4.2], [-1.75, 5.4],
           [1.75, 3.0], [1.75, 4.2], [1.75, 5.4],
@@ -696,9 +703,17 @@ export const CONFIG = {
         deckEdgeMargin: 0.12,
         bodyRadius: 0.22,
       },
-      /** Deck cargo (milestone S3 adds the item limits). */
+      /**
+       * Cargo: two crates, or one drum (`slots`, CONFIG.cargo.kinds), in her bottom between
+       * the bow and the helmsman's place by the tiller. Sitting low, wedged in, it doesn't
+       * slide about (`fixed`), and she has no D-rings.
+       */
       cargo: {
         maxPayloadKg: 250,
+        slots: 2,
+        bowClear: 0.6,
+        aftClear: 0.9,
+        fixed: true,
         lashPoints: [] as [number, number][],
         lashRange: 0.8,
       },
@@ -746,7 +761,7 @@ export const CONFIG = {
   cargo: {
     /** Each port keeps this many items waiting (a delivery spawns a replacement elsewhere). */
     perPort: 5,
-    /** Skiff loading at an anchorage needs the boat nearly stopped (m/s). */
+    /** Counts as anchored in a port's bay only nearly stopped (m/s). */
     maxSpeed: 0.6,
     /** Set an item down ashore within this of its destination's goods stack to deliver it (m). */
     deliveryRadius: 12,
@@ -754,14 +769,15 @@ export const CONFIG = {
     stackSpacing: 0.9,
     /**
      * Kinds of cargo, all man-portable (carried by hand): name, mass (kg), size (m: across,
-     * height, along) and shape. Above `twoHandKg` an item needs both hands.
+     * height, along) and shape. Above `twoHandKg` an item needs both hands. `slots`: room
+     * it takes in a small boat with a slot limit (the skiff: two crates, or one drum).
      */
     kinds: [
-      { name: 'Crate', mass: 40, size: [0.6, 0.45, 0.5] as [number, number, number], shape: 'box' as const },
-      { name: 'Fish box', mass: 30, size: [0.8, 0.3, 0.5] as [number, number, number], shape: 'box' as const },
-      { name: 'Sack', mass: 50, size: [0.55, 0.3, 0.85] as [number, number, number], shape: 'box' as const },
-      { name: 'Gas bottle', mass: 70, size: [0.32, 1.1, 0.32] as [number, number, number], shape: 'drum' as const },
-      { name: 'Oil drum', mass: 110, size: [0.58, 0.88, 0.58] as [number, number, number], shape: 'drum' as const },
+      { name: 'Crate', mass: 40, size: [0.6, 0.45, 0.5] as [number, number, number], shape: 'box' as const, slots: 1 },
+      { name: 'Fish box', mass: 30, size: [0.8, 0.3, 0.5] as [number, number, number], shape: 'box' as const, slots: 1 },
+      { name: 'Sack', mass: 50, size: [0.55, 0.3, 0.85] as [number, number, number], shape: 'box' as const, slots: 1 },
+      { name: 'Gas bottle', mass: 70, size: [0.32, 1.1, 0.32] as [number, number, number], shape: 'drum' as const, slots: 1 },
+      { name: 'Oil drum', mass: 110, size: [0.58, 0.88, 0.58] as [number, number, number], shape: 'drum' as const, slots: 2 },
     ],
     twoHandKg: 60,
     /**
@@ -815,6 +831,8 @@ export const CONFIG = {
    * only), friction ≤ μ·F_n opposing sliding. Fendered faces are softer and slippery.
    */
   contacts: {
+    /** The values below are for a boat of this mass (the workboat); lighter ones scale them down. */
+    referenceMass: 18300,
     stiffness: 4e5,
     damping: 3e4,
     friction: 0.45,

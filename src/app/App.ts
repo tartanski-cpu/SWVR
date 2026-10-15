@@ -37,7 +37,7 @@ import { placeInFront } from '../ui/placeInFront';
 import { canRefuel, releaseHolds } from '../vessel/vesselControl';
 import { PORTS } from '../world/archipelago';
 import { groundHeight } from '../world/terrain';
-import { aboard, carriedBy, dropCarried, cargoLabel, cargoPortAt, kindOf, loadBlocker, payloadMass, portAtPoint, skiffPortAt, unloadBlocker, type CargoItem } from '../cargo/cargo';
+import { aboard, carriedBy, dropCarried, cargoLabel, cargoPortAt, kindOf, payloadMass, slotsUsed, type CargoItem } from '../cargo/cargo';
 import { CargoHands, type CargoHandsContext } from '../cargo/cargoHands';
 import { CargoView } from '../cargo/cargoView';
 import { berthById } from '../vessel/physics/mooring';
@@ -991,28 +991,18 @@ export class App {
         const c = aboard(this.world, boat().id)[i];
         if (!c) return null;
         const lashed = 'vessel' in c.at && c.at.lashed;
-        return { label: `${cargoLabel(c)}${lashed ? ' · lashed' : ' · loose'}`, ready: unloadBlocker(boat(), c) === null };
+        return `${cargoLabel(c)}${lashed ? ' · lashed' : ' · loose'}`;
       },
-      cargoWaiting: (i) => {
-        const c = this.waitingHere()[i];
-        return c ? { label: cargoLabel(c), ready: loadBlocker(this.world, boat(), c) === null } : null;
+      skiffCargo: (i) => {
+        const skiff = this.skiff();
+        const c = skiff && aboard(this.world, skiff.id)[i];
+        return c ? cargoLabel(c) : null;
       },
-      unloadCargo: (i) => {
-        const c = aboard(this.world, boat().id)[i];
-        if (!c) return;
-        const why = unloadBlocker(boat(), c);
-        if (why) this.overlay.notify(why);
-        else {
-          this.pushVesselIntent('cargoUnload', 1, c.id);
-          this.overlay.notify(`Delivered: ${cargoLabel(c)}`, 2.5);
-        }
-      },
-      loadCargo: (i) => {
-        const c = this.waitingHere()[i];
-        if (!c) return;
-        const why = loadBlocker(this.world, boat(), c);
-        if (why) this.overlay.notify(why);
-        else this.pushVesselIntent('cargoLoad', 1, c.id);
+      skiffLoad: () => {
+        const skiff = this.skiff();
+        if (!skiff) return '-';
+        const max = VESSEL_DEFS[skiff.defId].cargo.slots;
+        return `${slotsUsed(this.world, skiff.id)} / ${max} slots · ${payloadMass(this.world, skiff.id)} kg · carry goods in and out by hand`;
       },
       dockStatus: () => {
         const m = boat().mooring;
@@ -1604,15 +1594,6 @@ export class App {
   private drivenVesselId(): string {
     const aboard = this.world.players[this.localPlayerId]?.aboardVesselId;
     return aboard && this.world.vessels[aboard] ? aboard : this.testVesselId;
-  }
-
-  /** Cargo waiting ashore at the anchorage the boat is anchored off (the skiff's work). */
-  private waitingHere(): CargoItem[] {
-    const here = skiffPortAt(this.world.vessels[this.testVesselId]);
-    if (!here) return [];
-    return Object.values(this.world.cargo)
-      .filter((c) => 'ground' in c.at && portAtPoint(c.at.ground[0], c.at.ground[2])?.id === here.id)
-      .sort((a, b) => (a.id < b.id ? -1 : 1));
   }
 
   /** The cargo hands' view of the app. */

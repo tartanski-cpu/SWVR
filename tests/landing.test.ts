@@ -56,17 +56,16 @@ describe('milestone 4: landing survivors', () => {
     expect(world.rescue!.active).toBeNull();
   });
 
-  it('at an anchorage the skiff takes them ashore', () => {
+  it('anchorages have no quay: survivors stay aboard', () => {
     const { world, v, send, run } = setup();
     const port = PORTS.find((p) => p.cargo.anchorage)!;
     const a = port.cargo.anchorage!;
     send('rescueDebugAboard');
     placeVessel(v, a.x, 0, a.z, 0);
-    // Let go the anchor and wait for it to set and the boat to settle.
     send('anchor', 1);
-    for (let i = 0; i < 1200 && world.rescue!.active?.phase !== 'landed'; i++) run(0.1);
-    expect(world.rescue!.active?.phase).toBe('landed');
-    expect(world.rescue!.radio!.text).toMatch(new RegExp(port.name.replace(' (anchorage)', '')));
+    run(60);
+    expect(v.anchor.phase).toBe('set');
+    expect(world.rescue!.active?.phase).toBe('recovered');
   });
 
   it('crates fished out of the sea are delivered at any harbour', () => {

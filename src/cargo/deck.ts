@@ -1,6 +1,6 @@
 /**
  * Where cargo can stand on a vessel's open deck (vessel axes): inside the bulwarks, clear
- * of the wheelhouse, aft of the narrow bow. Shared by the simulation (placing, sliding) and
+ * of the wheelhouse, aft of the narrow bow (`cargo.bowClear`), forward of `cargo.aftClear`. Shared by the simulation (placing, sliding) and
  * the hands (choosing where a crate will go). Footprints are treated as squares of their
  * larger half-size, so an item's yaw on deck doesn't matter.
  */
@@ -25,8 +25,9 @@ function planOf(defId: string) {
 /** Is a point of the deck open (not bulwark, wheelhouse or bow)? */
 function openPoint(defId: string, x: number, z: number): boolean {
   const plan = planOf(defId);
-  const wh = VESSEL_DEFS[defId].layout.wheelhouse;
-  if (z > plan.transom - EDGE || z < plan.stem + 1.5) return false;
+  const def = VESSEL_DEFS[defId];
+  const wh = def.layout.wheelhouse;
+  if (z > plan.transom - Math.max(EDGE, def.cargo.aftClear) || z < plan.stem + def.cargo.bowClear) return false;
   if (Math.abs(x) > plan.halfBeam(z) - EDGE) return false;
   if (wh && Math.abs(x) < wh.halfWidth + 0.05 && z > wh.front - 0.05 && z < wh.aft + 0.05) return false;
   return true;

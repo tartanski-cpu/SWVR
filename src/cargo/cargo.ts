@@ -11,8 +11,8 @@
  *   - On deck, unlashed items slide when the apparent gravity along the deck beats friction
  *     (stepDeckCargo below), and can go over the rail. Strapped to a lashing point
  *     ('cargoLash') they stay put.
- *   - At an anchorage, the port's skiff brings goods out and takes them ashore ('cargoLoad'
- *     / 'cargoUnload' from the menu), since you can't carry them while swimming.
+ *   - At an anchorage there's no quay: launch the workboat's skiff, load her (two crates
+ *     or one drum: `cargo.slots`), run her up the beach and carry the goods up to the stack.
  *   - Cargo aboard, and cargo carried by players aboard, is real deadweight: payloadOf()
  *     feeds masses and positions to the vessel physics (mass, CG, inertia), so cargo
  *     shifting to one side gives her a list.
@@ -150,11 +150,8 @@ function retire(world: WorldState, item: CargoItem, delivered: boolean): void {
   spawnCargo(world);
 }
 
-/**
- * The anchorage port whose skiff can work the vessel right now: anchor set in the bay and
- * nearly stopped. (At quays and piers you carry the goods yourself.)
- */
-export function skiffPortAt(v: VesselState): PortDef | null {
+/** The anchorage port whose bay the vessel is anchored in (anchor set, nearly stopped). */
+export function anchoredAt(v: VesselState): PortDef | null {
   const speed = Math.hypot(v.linearVelocity[0], v.linearVelocity[2]);
   for (const p of PORTS) {
     const a = p.cargo.anchorage;
@@ -165,8 +162,8 @@ export function skiffPortAt(v: VesselState): PortDef | null {
 
 /** The port the vessel is at (alongside its berth, or anchored in its bay), for the menu. */
 export function cargoPortAt(v: VesselState): PortDef | null {
-  const skiff = skiffPortAt(v);
-  if (skiff) return skiff;
+  const anchored = anchoredAt(v);
+  if (anchored) return anchored;
   for (const p of PORTS) {
     const b = p.cargo.berth;
     if (b && Math.hypot(v.position[0] - b.x, v.position[2] - b.z) < b.radius) return p;
@@ -178,24 +175,19 @@ export function payloadMass(world: WorldState, vesselId: EntityId): number {
   return aboard(world, vesselId).reduce((s, c) => s + c.mass, 0);
 }
 
-/** Why the skiff can't bring an item out right now, or null if it can. */
-export function loadBlocker(world: WorldState, v: VesselState, item: CargoItem): string | null {
-  if (!('ground' in item.at)) return 'Not ashore';
-  const here = skiffPortAt(v);
-  const at = portAtPoint(item.at.ground[0], item.at.ground[2]);
-  if (!here || !at || here.id !== at.id) return 'The skiff only works anchorages: anchor in the bay';
-  const def = VESSEL_DEFS[v.defId];
-  if (payloadMass(world, v.id) + item.mass > def.cargo.maxPayloadKg) return `Over the ${def.cargo.maxPayloadKg / 1000} t payload limit`;
-  if (!deckSpot(v.defId, footprint(item), 0, 4, aboard(world, v.id).map(deckDisc))) return 'No room on deck';
-  return null;
+/** Cargo slots in use aboard a vessel (CONFIG.cargo.kinds[].slots). */
+export function slotsUsed(world: WorldState, vesselId: EntityId): number {
+  return aboard(world, vesselId).reduce((n, c) => n + kindOf(c).slots, 0);
 }
 
-/** Why the skiff can't take an item ashore right now, or null if it can. */
-export function unloadBlocker(v: VesselState, item: CargoItem): string | null {
-  if (!('vessel' in item.at) || item.at.vessel !== v.id) return 'Not aboard';
-  const here = skiffPortAt(v);
-  const where = item.to === 'any' ? 'any harbour' : portById(item.to)?.name;
-  if (!here || (here.id !== item.to && item.to !== 'any')) return `Deliver to ${where}`;
+/** Why an item can't be set down aboard this vessel (payload or slot limit), or null. */
+export function placeBlocker(world: WorldState, v: VesselState, item: CargoItem): string | null {
+  const c = VESSEL_DEFS[v.defId].cargo;
+  const others = aboard(world, v.id).filter((o) => o.id !== item.id);
+  if (others.reduce((m, o) => m + o.mass, 0) + item.mass > c.maxPayloadKg) return `Over her ${c.maxPayloadKg} kg payload`;
+  if (c.slots > 0 && others.reduce((n, o) => n + kindOf(o).slots, 0) + kindOf(item).slots > c.slots) {
+    return `She's full: ${c.slots === 2 ? 'two crates or one drum' : `${c.slots} slots`} at a time`;
+  }
   return null;
 }
 
@@ -230,7 +222,6 @@ export function lashPointFor(v: VesselState, item: CargoItem): [number, number] 
  *   cargoTake               pick it up (if free and not lashed)
  *   cargoPlace  args [x, y, z, yaw]   set it down there, in the vessel's axes or the world
  *   cargoLash   value 1/0   strap down / release (on deck, near a lashing point)
- *   cargoLoad / cargoUnload the anchorage skiff
  */
 export function applyCargoIntent(world: WorldState, intent: Intent): void {
   const item = intent.ref ? world.cargo[intent.ref] : undefined;
@@ -244,6 +235,7 @@ export function applyCargoIntent(world: WorldState, intent: Intent): void {
       if (!('carriedBy' in item.at) || item.at.carriedBy !== intent.playerId) break;
       const [x = 0, y = 0, z = 0, yaw = 0] = intent.args ?? [];
       if (v) {
+        if (placeBlocker(world, v, item)) break; // full: you keep holding it
         const others = aboard(world, v.id).map(deckDisc);
         const spot = onOpenDeck(v.defId, footprint(item), x, z) && !others.some((o) => Math.hypot(o.x - x, o.z - z) < o.r + 0.2)
           ? { x, z, y: 0 }
@@ -273,15 +265,6 @@ export function applyCargoIntent(world: WorldState, intent: Intent): void {
           item.at.lashed = false;
         }
       }
-      break;
-    case 'cargoLoad':
-      if (v && !loadBlocker(world, v, item)) {
-        const spot = deckSpot(v.defId, footprint(item), 0, 4, aboard(world, v.id).map(deckDisc))!;
-        item.at = { vessel: v.id, pos: [spot.x, deckHeight(v.defId, spot.z), spot.z], yaw: 0, vel: [0, 0], lashed: false };
-      }
-      break;
-    case 'cargoUnload':
-      if (v && !unloadBlocker(v, item)) retire(world, item, true);
       break;
   }
 }
@@ -363,6 +346,7 @@ export function deckVelocitiesBefore(world: WorldState, v: VesselState): Map<Ent
  * the bulwarks and the wheelhouse, and go over the rail if pressed against it hard.
  */
 export function stepDeckCargo(world: WorldState, v: VesselState, before: Map<EntityId, THREE.Vector3>, dt: number): void {
+  if (VESSEL_DEFS[v.defId].cargo.fixed) return; // wedged in her bottom (the skiff)
   const cfg = CONFIG.cargo;
   const g = CONFIG.ocean.gravity;
   qInv.fromArray(v.orientation).invert();

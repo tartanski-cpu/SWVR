@@ -19,7 +19,7 @@ import type { Handedness } from '../player/xrInput';
 import { hullPlan } from '../vessel/layout';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 import { standingHeight } from '../world/geography';
-import { GROUND, cargoLabel, footprint, isHeavy, kindOf, lashPointFor, takeBlocker, type CargoItem } from './cargo';
+import { GROUND, cargoLabel, footprint, isHeavy, kindOf, lashPointFor, placeBlocker, takeBlocker, type CargoItem } from './cargo';
 
 export interface CargoHandsContext {
   world: WorldState;
@@ -41,6 +41,8 @@ interface Carry {
   offset: THREE.Vector3;
   /** Item yaw in the player's frame. */
   yaw: number;
+  /** Setting it down was refused (the skiff is full): held until gripped again. */
+  refused?: boolean;
 }
 
 const MARGIN = 0.12;
@@ -217,13 +219,29 @@ export class CargoHands {
     if (!c) return;
     const pos = this.carryPos.clone();
     const quat = this.carryQuat.clone();
+    // Over a hull: the one whose deck is nearest below (the skiff on the davit hangs above
+    // the workboat's stern).
+    let best: { vid: string; root: THREE.Object3D; l: THREE.Vector3; plan: ReturnType<typeof hullPlan>; gap: number } | null = null;
     for (const [vid, root] of ctx.vesselRoots) {
       const v = ctx.world.vessels[vid];
       if (!v) continue;
-      const l = root.worldToLocal(this.tmp.copy(pos));
+      const l = root.worldToLocal(pos.clone());
       const plan = hullPlan(VESSEL_DEFS[v.defId]);
       if (l.z < plan.stem || l.z > plan.transom + 0.3 || Math.abs(l.x) > plan.halfBeam(Math.min(l.z, plan.transom)) + 0.3) continue;
       if (l.y > plan.deckY(l.z) + 4 || l.y < plan.deckY(l.z) - 1.5) continue;
+      const gap = Math.abs(l.y - plan.deckY(l.z));
+      if (!best || gap < best.gap) best = { vid, root, l, plan, gap };
+    }
+    if (best) {
+      const { vid, root, l, plan } = best;
+      const v = ctx.world.vessels[vid];
+      const why = placeBlocker(ctx.world, v, c);
+      if (why) {
+        // Full: it stays in your hands (VR: until you grip it again and let go elsewhere).
+        this.carry = { ...carry, refused: true };
+        ctx.notify(why);
+        return;
+      }
       const rq = root.getWorldQuaternion(this.q).invert().multiply(quat);
       const yaw = 2 * Math.atan2(rq.y, rq.w);
       ctx.push('cargoPlace', vid, c.id, 1, [l.x, l.y, l.z, yaw]);
@@ -263,7 +281,8 @@ export class CargoHands {
     // Carrying: follow the hand(s); let go of any carrying grip to put it down.
     if (this.carry) {
       const hs = this.carry.hands;
-      if (hs.some((h) => !hands[h].tracked || !hands[h].gripDown)) {
+      if (this.carry.refused && hs.every((h) => hands[h].gripDown)) this.carry.refused = false;
+      if (!this.carry.refused && hs.some((h) => !hands[h].tracked || !hands[h].gripDown)) {
         this.putDown(ctx);
         for (const h of hs) ctx.pulse(h, 0.3, 30);
       } else {

@@ -40,11 +40,11 @@ export interface MenuHost {
   toggleCoolingFault(): void;
   /** Cargo: where you are, deliveries, payload. */
   cargoStatus(): { port: string | null; delivered: number; payloadT: number; maxT: number };
-  /** Cargo in deck slot i, or waiting at this port (row i): label and whether the action is possible now. */
-  cargoAboard(i: number): { label: string; ready: boolean } | null;
-  cargoWaiting(i: number): { label: string; ready: boolean } | null;
-  unloadCargo(i: number): void;
-  loadCargo(i: number): void;
+  /** Cargo on the workboat's deck (row i), and in the skiff (row i), as labels. */
+  cargoAboard(i: number): string | null;
+  skiffCargo(i: number): string | null;
+  /** The skiff's load, e.g. "1 / 2 slots, 40 kg". */
+  skiffLoad(): string;
   /** Docking: status line, and whether DOCK would do something now (dock or cast off). */
   dockStatus(): { text: string; ready: boolean; docked: boolean };
   toggleDock(): void;
@@ -215,25 +215,11 @@ export function mainMenu(h: MenuHost): MainMenu {
 
   const aboardRow = (i: number): MenuRow => ({
     label: '',
-    buttons: [
-      { text: () => h.cargoAboard(i)?.label ?? (i === 0 ? 'Deck empty' : ''), weight: 3 },
-      {
-        text: () => (h.cargoAboard(i) ? (h.cargoAboard(i)!.ready ? 'Skiff ashore' : '—') : ''),
-        active: () => h.cargoAboard(i)?.ready ?? false,
-        press: () => h.unloadCargo(i),
-      },
-    ],
+    buttons: [{ text: () => h.cargoAboard(i) ?? (i === 0 ? 'Deck empty' : '') }],
   });
-  const waitingRow = (i: number): MenuRow => ({
+  const skiffRow = (i: number): MenuRow => ({
     label: '',
-    buttons: [
-      { text: () => h.cargoWaiting(i)?.label ?? (i === 0 ? 'Only at an anchorage, anchored in the bay' : ''), weight: 3 },
-      {
-        text: () => (h.cargoWaiting(i) ? (h.cargoWaiting(i)!.ready ? 'Skiff out' : '—') : ''),
-        active: () => h.cargoWaiting(i)?.ready ?? false,
-        press: () => h.loadCargo(i),
-      },
-    ],
+    buttons: [{ text: () => h.skiffCargo(i) ?? (i === 0 ? 'Empty: two crates or one drum' : '') }],
   });
   const cargo: MenuRow[] = [
     {
@@ -249,8 +235,9 @@ export function mainMenu(h: MenuHost): MainMenu {
     { label: '', buttons: [{ text: 'Carry by hand: grip (VR) / click. Lash: trigger / Q' }] },
     { heading: 'Aboard' },
     ...[0, 1, 2, 3, 4].map(aboardRow),
-    { heading: 'Anchorage skiff' },
-    ...[0, 1].map(waitingRow),
+    { heading: 'In the skiff' },
+    { label: '', buttons: [{ text: () => h.skiffLoad() }] },
+    ...[0, 1].map(skiffRow),
   ];
 
   const comfort: MenuRow[] = [

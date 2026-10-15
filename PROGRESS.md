@@ -705,7 +705,7 @@ Plan agreed with the owner: five milestones, stopping after each for testing. Si
 
 ### Milestone 4: landing and finishing (done, awaiting owner test)
 
-- **Landing survivors** (`rescue.ts`, shared simulation): once everyone is recovered, survivors sit aboard until she is **moored alongside any quay** (DOCK) or **anchored at an anchorage** (the port's skiff takes them, landing them by the goods stack).
+- **Landing survivors** (`rescue.ts`, shared simulation): once everyone is recovered, survivors sit aboard until she is **moored alongside any quay** (DOCK). (Anchorage landing by the port skiff was removed in skiff S3.)
   - They get up one every 1.4 s, step across in 2 s (a hop over the rail), and stand ashore 1.6 m in from the quay edge, 0.9 m apart, waving at the boat.
   - Then: the coastguard thanks you on the VHF (and says to carry on with the cargo), a cheer, rescue count +1. After 12 s the rescue closes.
   - The radio's closing message still names the nearest harbour, but any harbour counts (no penalty).
@@ -764,6 +764,17 @@ Owner: in VR the controller drops out of tracking when you look ahead, the twist
 - **Charging:** on the davit the battery charges from the ship, flat to full in 5 min (`chargeMinutes`).
 - The game starts with the skiff stowed on the davit. Moving her anywhere (`placeVessel`) puts her afloat.
 - **Tests (189):** hangs at the davit point riding with the boat; charges; launch ends afloat; recover refused far away, accepted under the stern; crew step off.
+
+### S3: cargo in the skiff, beach work (done, awaiting owner test)
+
+- **Load limits** (`cargo.slots`, `CONFIG.cargo.kinds[].slots`): the skiff takes two crates (or fish boxes, sacks, gas bottles), or one oil drum (2 slots), within her 250 kg payload. Trying to set down one more says "She's full: two crates or one drum at a time" and it stays in your hands (VR: grip it again to put it somewhere else). The payload limit is now checked for every boat when cargo is set down.
+- **Cargo space** (`cargo.bowClear` / `aftClear`): in her bottom between the bow and the helmsman's place by the tiller. It sits wedged in and doesn't slide (`cargo.fixed`).
+- Cargo can go in while she hangs on the davit (it rides up and down with her). When you set something down over the stern, it goes to whichever deck is nearest below your hands.
+- **Beach delivery at Selkie:** anchor in the bay, launch, load, and run her up the beach. She grounds about 5 m from the goods stack, well inside the delivery radius. Step ashore and carry the goods up.
+- **Fix: light boats aground.** The seabed and shore contact springs were tuned for the 18 t workboat, and the 330 kg skiff blew up numerically on the beach. The contact forces now scale with the boat's mass (`contacts.referenceMass`), so k/m and c/m are the same for every boat.
+- **The invisible port skiff is gone:** no more `cargoLoad` / `cargoUnload` or menu "Skiff out / ashore". `skiffPortAt` is now `anchoredAt`. The Cargo tab lists what's on deck and what's in the skiff (slots, kg).
+- **Survivors are landed only at a quay** (an anchorage has no quay).
+- **Tests (191):** two crates / one drum; full skiff refuses (you keep it); cargo stays put and clear of the tiller; Selkie beach run, ground and deliver; anchorages don't land survivors.
 
 ## Planned next (owner requests, not started)
 

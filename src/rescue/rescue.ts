@@ -11,8 +11,8 @@
  *               milestone 2, the chart show the rescue instead of the destination) and
  *               resumes when the rescue is over. 'recovered': everything is out of the
  *               water (recovery.ts); survivors sit on deck until she is moored alongside a
- *               quay or anchored at an anchorage (the skiff), where they step ashore one by
- *               one ('landed': they wave from the quay a while, then the rescue closes).
+ *               quay, where they step ashore one by one ('landed': they wave from the quay
+ *               a while, then the rescue closes).
  *               Recovered crates are cargo bound for any harbour (cargo.ts).
  *   radio       the latest message (id, text, kind). Every client's radio plays a message
  *               when its id changes.
@@ -25,7 +25,6 @@ import type { Intent } from '../core/intents';
 import type { WorldState } from '../core/world';
 import type { VesselState } from '../vessel/vesselState';
 import { PORTS, type PortDef } from '../world/archipelago';
-import { skiffPortAt, stackPoint } from '../cargo/cargo';
 import { berthById } from '../vessel/physics/mooring';
 import { isWorkboat, VESSEL_DEFS } from '../vessel/vesselDef';
 import { groundHeight } from '../world/terrain';
@@ -268,8 +267,7 @@ export function finishIncident(world: WorldState, v: VesselState): void {
 
 /**
  * Where survivors can be landed right now, or null: moored alongside a quay (they stand on
- * the quay in from the edge, spread along it), or anchored at an anchorage (the port's
- * skiff takes them to its landing, by the goods stack).
+ * the quay in from the edge, spread along it). Anchorages have no quay.
  */
 export function landingSpot(v: VesselState): { port: PortDef; at: (i: number, n: number) => [number, number] } | null {
   const cfg = CONFIG.rescue;
@@ -289,16 +287,6 @@ export function landingSpot(v: VesselState): { port: PortDef; at: (i: number, n:
         },
       };
     }
-  }
-  const skiff = skiffPortAt(v);
-  if (skiff) {
-    return {
-      port: skiff,
-      at: (i) => {
-        const p = stackPoint(skiff, CONFIG.cargo.perPort + 1 + i);
-        return [p[0], p[2]];
-      },
-    };
   }
   return null;
 }
@@ -459,7 +447,7 @@ export function applyRescueIntent(world: WorldState, intent: Intent): void {
       const inc: Incident = { defId: 'manOverboard', phase: 'recovered', doneSaid: true, x: v.position[0], z: v.position[2], radius: 0, count: 1, callT: world.time, alertT: world.time, targets: [] };
       r.active = inc;
       inc.targets.push({ id: `t${++r.seq}-0`, kind: 'person', x: v.position[0], z: v.position[2], phase: 'aboard', seat: freeSeat(r, v) });
-      say(r, 'info', 'Debug: a survivor aboard. Dock at a quay or anchor at an anchorage to land them.', world.time);
+      say(r, 'info', 'Debug: a survivor aboard. Dock at a quay to land them.', world.time);
       break;
     }
     case 'rescueDebugComplete':

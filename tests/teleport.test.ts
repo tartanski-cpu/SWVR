@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { IdFactory } from '../src/core/ids';
 import { stepWorld } from '../src/core/simulation';
 import { createWorld } from '../src/core/world';
-import { skiffPortAt } from '../src/cargo/cargo';
+import { anchoredAt } from '../src/cargo/cargo';
 import { berthInRange } from '../src/vessel/physics/mooring';
 import { PORTS } from '../src/world/archipelago';
 
@@ -23,7 +23,7 @@ describe('teleport to port (menu)', () => {
       } else {
         stepWorld(world, [{ playerId: 'p', targetId: v.id, control: 'anchor', value: 1 }], 1 / 60);
         for (let i = 0; i < 30 * 60; i++) stepWorld(world, [], 1 / 60);
-        expect(skiffPortAt(v)?.id).toBe(port.id);
+        expect(anchoredAt(v)?.id).toBe(port.id);
       }
     });
   }
