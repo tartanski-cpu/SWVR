@@ -735,7 +735,7 @@ Plan in three milestones: **S1** the skiff itself, **S2** the stern davit (one-c
   - Its intents go to the skiff (channels `<vesselId>:helm` / `:lever`; the App routes them).
 - **Driving keys** steer the boat you're standing in. Menu → Boat → **Board the skiff**, and its battery %. You can also jump or swim across.
 - **Sound:** a quiet electric whine that rises with throttle; the water wash follows the boat you're in.
-- The game's world has the skiff floating off the workboat's starboard side (until S2 hangs it on the davit). Test worlds only get it when asked (`createWorld(..., { tender: true })`).
+- The game's world has the skiff on the workboat's stern davit (S2). Test worlds only get it when asked (`createWorld(..., { tender: true })`).
 - **Tests (182):** skiff trials (speed, battery, turning, motions), drives / drains / steers, no battery no thrust, bumps off the workboat.
 
 ### S1 follow-up: gear lever, motor switch, propeller sound (owner feedback)
@@ -753,6 +753,17 @@ Owner: in VR the controller drops out of tracking when you look ahead, the twist
 - **The twist grip is gone** (still hard to use in VR). Grip the tiller to take control and steer by swinging it; the **trigger of that hand is the throttle**: squeeze for more, ease off for less, let go to idle (a dead-man, like a jet-ski trigger). Letting go of the tiller closes it too. The gear lever still sets the direction. Hand jumps of more than 25 cm in a frame (tracking loss) don't move the tiller.
 - **Crouch:** X in VR (it used to be hold X + stick for motion coupling, which is in the menu), C on the desktop while walking. The view and hands drop 0.6 m (`CONFIG.locomotion.crouchDrop`); standing up is the same button. Jumping or swimming stands you up.
 - **Tests (186):** trigger throttle, easing off idles, letting go closes it, tracking jumps ignored.
+
+### S2: the stern davit (done, awaiting owner test)
+
+- **Davit** (`CONFIG.vessels.workboat.davit`, `vessel/davit.ts`, `controls/DavitGear.ts`): two arms on the quarters reaching aft over the transom. The skiff hangs athwartships from them, keel above the rail, so the transom stays clear for survivors.
+- **On the davit she rides the ship** (kinematic, like the crew on deck): her pose is the ship's pose times a point in the ship's axes, no floating physics and no boat-against-boat contact. No wake or spray while she hangs.
+- **One click** (green button on the starboard davit post, or Menu > Boat > Skiff):
+  - **LAUNCH**: lowered on the falls over 7 s (eased), then let go at the water with the velocity the ship gave her. Crew aboard ride down with her.
+  - **RECOVER**: only when she is within 3 m of the spot under the davit and moving within 1.2 m/s of the ship; the button and menu say why not ("too far" / "too fast"). The motor is switched off, she is lined up under the arms (2.5 s), then hoisted (7 s). Anyone still in her steps off onto the aft deck.
+- **Charging:** on the davit the battery charges from the ship, flat to full in 5 min (`chargeMinutes`).
+- The game starts with the skiff stowed on the davit. Moving her anywhere (`placeVessel`) puts her afloat.
+- **Tests (189):** hangs at the davit point riding with the boat; charges; launch ends afloat; recover refused far away, accepted under the stern; crew step off.
 
 ## Planned next (owner requests, not started)
 

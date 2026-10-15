@@ -35,6 +35,8 @@ function fakeHost() {
     toggleBoard: () => calls.push('board'),
     boardSkiff: () => calls.push('boardSkiff'),
     skiffBattery: () => 1,
+    davitAction: () => 'LAUNCH',
+    davit: () => calls.push('davit'),
     dropBoat: () => calls.push('drop'),
     heelBoat: () => calls.push('heel'),
     fuel: () => ({ litres: 420, tank: 600 }),

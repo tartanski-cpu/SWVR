@@ -48,6 +48,7 @@ export interface VesselConfig {
   deckLights?: Workboat['deckLights'];
   spotlight?: Workboat['spotlight'];
   mooring?: Workboat['mooring'];
+  davit?: Workboat['davit'];
 }
 
 /**
@@ -94,6 +95,8 @@ export interface VesselDef {
   deckLights?: VesselConfig['deckLights'];
   spotlight?: VesselConfig['spotlight'];
   mooring?: VesselConfig['mooring'];
+  /** Stern davit for a tender (optional: not part of WorkboatDef). */
+  davit?: VesselConfig['davit'];
 }
 
 type Equipment = 'engine' | 'propeller' | 'rudder' | 'bridge' | 'navLights' | 'exhaust' | 'anchor' | 'rescueGear' | 'cabinLight' | 'overheadPanel' | 'whiteboard' | 'deckLights' | 'spotlight' | 'mooring';
@@ -173,6 +176,7 @@ export function fromConfig(id: string, c: VesselConfig): VesselDef {
     deckLights: c.deckLights,
     spotlight: c.spotlight,
     mooring: c.mooring,
+    davit: c.davit,
   };
 }
 

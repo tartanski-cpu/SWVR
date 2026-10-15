@@ -136,6 +136,23 @@ export interface VesselState {
   holds: Record<string, EntityId>;
   /** Outboard boats: battery charge, 0 (flat) .. 1 (full). */
   battery?: number;
+  /** A ship's tender: whose davit she belongs to and where she is (vessel/davit.ts). */
+  tender?: TenderState;
+}
+
+/**
+ * A tender and her mother ship's davit.
+ *   free     - afloat, her own physics
+ *   stowed   - hanging on the davit, riding the ship (kinematic), charging
+ *   lowering - on the falls, going down; let go at the water (`t` seconds in)
+ *   hoisting - hooked on: lined up under the davit from `from`, then hoisted
+ */
+export interface TenderState {
+  hostId: EntityId;
+  phase: 'free' | 'stowed' | 'lowering' | 'hoisting';
+  t: number;
+  /** Hoisting: her pose in the ship's axes when she was hooked on (x, y, z, yaw rad). */
+  from?: [number, number, number, number];
 }
 
 export function createVesselState(id: EntityId, defId: string): VesselState {

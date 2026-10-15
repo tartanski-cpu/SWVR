@@ -15,7 +15,8 @@ export class Button extends Control {
   constructor(
     id: string,
     channel: string,
-    readonly label: string,
+    /** Hover text; may be changed (the davit button says what it will do). */
+    public label: string,
     private readonly mode: 'momentary' | 'pulse',
     capColor: number,
     /** Optional: read a "lit" state from the vessel (e.g. engine running). */

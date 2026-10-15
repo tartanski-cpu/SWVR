@@ -488,6 +488,38 @@ export const CONFIG = {
         catenarySoftness: 3,
       },
       /**
+       * Stern davit for the tender (the skiff), vessel axes. She hangs athwartships just aft
+       * of the transom (`hang`: her origin; `yawDeg` 90 = her bow to port, outboard to
+       * starboard), high enough that the transom stays clear for survivors coming aboard.
+       * LAUNCH lowers her on the falls to `waterY` (her waterline level with ours) and lets
+       * go; RECOVER (she must be within `recoverRange` of that spot, moving slower than
+       * `recoverSpeed` relative to us) lines her up in `alignTime`, then hoists her.
+       * Stowed, her battery charges from the ship (`chargeMinutes` from flat to full).
+       */
+      davit: {
+        hang: [0, 2.3, 7.0] as [number, number, number],
+        yawDeg: 90,
+        waterY: 0.0,
+        /** The two arms: posts on the quarters (x, base y, z), up to `topY`, reaching aft to `headZ`. */
+        armX: 1.3,
+        baseY: 1.0,
+        baseZ: 5.8,
+        topY: 3.45,
+        headZ: 7.0,
+        /** Lifting points on the skiff, her axes (she hangs from both ends). */
+        liftZ: 1.3,
+        lowerTime: 7,
+        alignTime: 2.5,
+        hoistTime: 7,
+        recoverRange: 3.0,
+        recoverSpeed: 1.2,
+        chargeMinutes: 5,
+        /** LAUNCH / RECOVER button on the starboard davit post, facing forward. */
+        button: [1.3, 1.75, 5.72] as [number, number, number],
+        /** Crew still in her when she's stowed step off here (on our aft deck). */
+        stepOff: [0.6, 1.0, 4.9] as [number, number, number],
+      },
+      /**
        * Rescue gear (vessel axes): the life ring hangs on the aft face of the wheelhouse,
        * its line made fast to a cleat on the starboard quarter rail; the boat hook lies in
        * clips along the port bulwark (x, y, from z0 to z1). `stern` is the transom centre at

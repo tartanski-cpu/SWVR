@@ -24,6 +24,9 @@ export interface MenuHost {
   /** The tender: step into it (at the tiller); its battery charge 0..1. */
   boardSkiff(): void;
   skiffBattery(): number;
+  /** The davit button's action: 'LAUNCH', 'RECOVER', or what's happening / why not. */
+  davitAction(): string;
+  davit(): void;
   dropBoat(): void;
   heelBoat(): void;
   /** Fuel aboard (L) and tank size. */
@@ -175,8 +178,9 @@ export function mainMenu(h: MenuHost): MainMenu {
     {
       label: 'Skiff',
       buttons: [
-        { text: 'Board the skiff', press: () => h.boardSkiff() },
-        { text: () => `Battery ${Math.round(h.skiffBattery() * 100)} %` },
+        { text: 'Board', press: () => h.boardSkiff() },
+        { text: () => h.davitAction(), press: () => h.davit(), weight: 1.6 },
+        { text: () => `${Math.round(h.skiffBattery() * 100)} %`, weight: 0.6 },
       ],
     },
     {

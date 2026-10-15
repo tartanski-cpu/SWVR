@@ -9,6 +9,7 @@ import { applyBoardIntent, isBoardIntent } from '../board/board';
 import { applyVesselIntent, stepRefuelling } from '../vessel/vesselControl';
 import { applyCargoIntent, deckVelocitiesBefore, isCargoIntent, payloadOf, stepDeckCargo } from '../cargo/cargo';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
+import { applyDavitIntent, onDavit, stepTender } from '../vessel/davit';
 import { ENVIRONMENT_ID, type EntityId } from './ids';
 import type { Intent } from './intents';
 import type { WorldState } from './world';
@@ -31,6 +32,8 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
       applyBoardIntent(world, intent);
     } else if (isRescueIntent(intent.control)) {
       applyRescueIntent(world, intent);
+    } else if (intent.control === 'davit') {
+      applyDavitIntent(world, intent);
     } else if (intent.control === 'ping') {
       applyPing(world, intent);
     } else if (isCargoIntent(intent.control)) {
@@ -48,8 +51,10 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
   stepEnvironment(world.environment, dt);
   simWaves = prepareWaves(world.environment.waves, world.time, simWaves);
   // Boat against boat (the tender alongside), from the start-of-tick states.
-  const touching = vesselContacts(Object.values(world.vessels), (v) => VESSEL_DEFS[v.defId]);
+  // A tender hanging on the davit rides her ship instead (stepped below, after it).
+  const touching = vesselContacts(Object.values(world.vessels), (v) => VESSEL_DEFS[v.defId], onDavit);
   for (const vessel of Object.values(world.vessels)) {
+    if (onDavit(vessel)) continue;
     let dbg: HydroDebug | undefined;
     if (debug) {
       dbg = debug.get(vessel.id) ?? { stations: [], upLocal: [0, 1, 0], submergedVolume: 0 };
@@ -61,6 +66,7 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
     stepDeckCargo(world, vessel, deckBefore, dt);
     stepRefuelling(vessel, VESSEL_DEFS[vessel.defId], dt, world.geography === 'archipelago');
   }
+  for (const vessel of Object.values(world.vessels)) if (onDavit(vessel)) stepTender(world, vessel, dt);
 
   expirePings(world);
   stepRescue(world, dt, simWaves);

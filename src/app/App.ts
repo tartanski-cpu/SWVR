@@ -18,6 +18,8 @@ import { prepareWaves, significantWaveHeight, surfaceHeight, type PreparedWave }
 import { SurfaceProbes } from '../debug/surfaceProbes';
 import { Buoys, createPlatform } from './testScene';
 import { HydroDebugView } from '../debug/hydroDebugView';
+import { onDavit, recoverCheck } from '../vessel/davit';
+import { DavitGear } from '../controls/DavitGear';
 import { asWorkboat, VESSEL_DEFS, type WorkboatDef } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
 import { VesselView } from '../vessel/view/vesselView';
@@ -166,6 +168,8 @@ export class App {
   private readonly fmRadio = new FmRadio();
   /** Outboard tillers (the skiff's), one per outboard boat. */
   private readonly tillers: Tiller[] = [];
+  /** Stern davits, one per tender. */
+  private readonly davits: DavitGear[] = [];
   private readonly motorAudio = new ElectricMotorAudio();
   /** Crouching (X / C), and the current crouch drop (m, eased). */
   private crouched = false;
@@ -279,6 +283,14 @@ export class App {
         this.tillers.push(tiller);
       }
     }
+    // A tender's davit (arms, falls, LAUNCH / RECOVER button) on her ship's stern.
+    for (const vessel of Object.values(this.world.vessels)) {
+      const davit = vessel.tender && VESSEL_DEFS[this.world.vessels[vessel.tender.hostId]?.defId]?.davit;
+      if (!vessel.tender || !davit) continue;
+      const gear = new DavitGear(vessel.id, davit);
+      this.vesselViews.get(vessel.tender.hostId)?.root.add(gear.root);
+      this.davits.push(gear);
+    }
     this.setupBridge();
 
     setupXR(this.renderer, this.camera);
@@ -391,6 +403,12 @@ export class App {
     if (this.bridge && testVessel) {
       this.bridge.update(testVessel, dt, this.dashInView());
       this.bridge.radio.update(this.world.rescue, runStatus(this.world), dt);
+      for (const g of this.davits) {
+        const tv = this.world.vessels[g.tenderId];
+        if (!tv) continue;
+        g.update(tv, recoverCheck(this.world, tv), this.vesselRoots.get(tv.id));
+        g.button.tick(dt);
+      }
       for (const t of this.tillers) {
         const sv = this.world.vessels[t.vesselId];
         if (!sv) continue;
@@ -470,7 +488,7 @@ export class App {
       // Water rushing past and bow slams: sound, and a light thud through the controllers.
       // The wash of the boat you're in (the skiff's, when you're in the skiff).
       const inSkiff = this.world.vessels[this.drivenVesselId()];
-      const washBoat = inSkiff && inSkiff.id !== this.testVesselId ? inSkiff : testVessel;
+      const washBoat = inSkiff && inSkiff.id !== this.testVesselId && !onDavit(inSkiff) ? inSkiff : testVessel;
       const washD = washBoat === testVessel ? d : (this.vesselRoots.get(washBoat.id)?.position.distanceTo(this.focus) ?? d);
       this.waterAudio.update(Math.hypot(washBoat.linearVelocity[0], washBoat.linearVelocity[2]), washBoat === testVessel ? slam : 0, washBoat === testVessel ? lap : 0, washD, dt);
       if (slam > 0.1 && aboard) {
@@ -933,6 +951,19 @@ export class App {
         if (skiff) this.intents.push({ playerId: this.localPlayerId, targetId: this.localPlayerId, control: 'board', value: 1, ref: skiff.id });
       },
       skiffBattery: () => this.skiff()?.battery ?? 0,
+      davitAction: () => {
+        const skiff = this.skiff();
+        const phase = skiff?.tender?.phase;
+        if (!skiff || !phase) return '-';
+        if (phase === 'stowed') return 'LAUNCH';
+        if (phase !== 'free') return phase === 'lowering' ? 'Lowering...' : 'Hoisting...';
+        const r = recoverCheck(this.world, skiff);
+        return r.ok ? 'RECOVER' : 'RECOVER: ' + (r.why.startsWith('bring') ? 'too far' : 'too fast');
+      },
+      davit: () => {
+        const skiff = this.skiff();
+        if (skiff) this.pushIntentTo(skiff.id, 'davit', 1);
+      },
       dropBoat: () => this.pushVesselIntent('debugDrop', 0),
       heelBoat: () => this.pushVesselIntent('debugHeel', 20),
       fuel: () => ({ litres: boat().engine.fuelL, tank: this.testDef.engine.fuel.tankL }),
@@ -1312,7 +1343,7 @@ export class App {
       // No storage: an empty board, no count.
     }
     this.interaction = new InteractionSystem(
-      [...this.bridge.controls, ...this.tillers.flatMap((t) => t.parts)],
+      [...this.bridge.controls, ...this.tillers.flatMap((t) => t.parts), ...this.davits.map((d) => d.button)],
       (channel, value) => {
         if (channel === 'engineStartStop') return this.requestEngineStartStop();
         const { vesselId, control } = this.routeChannel(channel);

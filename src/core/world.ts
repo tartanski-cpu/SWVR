@@ -9,6 +9,7 @@ import { createVesselState, type VesselState } from '../vessel/vesselState';
 import { IdFactory, type EntityId } from './ids';
 import { stockPorts, type CargoItem } from '../cargo/cargo';
 import type { Ping } from '../player/ping';
+import { stowTender } from '../vessel/davit';
 import { createRescueState, type RescueState } from '../rescue/rescue';
 
 /**
@@ -48,7 +49,7 @@ export interface WorldState {
 export function createWorld(
   ids: IdFactory,
   vesselDefId: string = CONFIG.testScene.vesselDefId,
-  /** Also put the workboat's tender (the skiff) in the water: the game does, tests may. */
+  /** Also give the workboat her tender (the skiff, on the stern davit): the game does, tests may. */
   opts: { tender?: boolean } = {},
 ): { world: WorldState; localPlayerId: EntityId; vesselId: EntityId } {
   const localPlayerId = ids.next('player');
@@ -56,7 +57,6 @@ export function createWorld(
   const vessel = createVesselState(vesselId, vesselDefId);
   dropVessel(vessel);
   const tender = opts.tender ? createVesselState(ids.next('vessel'), 'skiff') : null;
-  if (tender) dropVessel(tender);
   const player = createPlayerState(localPlayerId, 'Player 1');
   placeOnPlatform(player);
   const world: WorldState = {
@@ -73,6 +73,8 @@ export function createWorld(
     deliveries: 0,
     rescue: createRescueState(),
   };
+  // The tender starts hanging on the ship's stern davit.
+  if (tender) stowTender(world, tender, vesselId);
   stockPorts(world);
   return { world, localPlayerId, vesselId };
 }

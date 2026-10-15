@@ -3,6 +3,7 @@ import { IdFactory } from '../src/core/ids';
 import type { Intent } from '../src/core/intents';
 import { stepWorld } from '../src/core/simulation';
 import { createWorld } from '../src/core/world';
+import { recoverCheck } from '../src/vessel/davit';
 import { placeVessel } from '../src/vessel/vesselControl';
 import { VESSEL_DEFS } from '../src/vessel/vesselDef';
 import { hullPlan } from '../src/vessel/layout';
@@ -29,13 +30,67 @@ function setup() {
   return { world, boat, skiff, send, run };
 }
 
+describe('the stern davit', () => {
+  const davit = VESSEL_DEFS.workboat.davit!;
+
+  it('one click launches her: lowered to the water, then afloat on her own', () => {
+    const { world, skiff, send, run } = setup();
+    run(1);
+    send('davit', 1);
+    expect(skiff.tender?.phase).toBe('lowering');
+    run(davit.lowerTime + 0.2);
+    expect(skiff.tender?.phase).toBe('free');
+    run(4);
+    // Floating near her waterline, astern of the workboat.
+    expect(Math.abs(skiff.position[1])).toBeLessThan(0.2);
+    expect(world.vessels[skiff.id]).toBe(skiff);
+  });
+
+  it('recovers her only when close under the stern and slow; the crew step off', () => {
+    const { world, boat, skiff, send, run } = setup();
+    send('davit', 1);
+    run(davit.lowerTime + 2);
+    // Far away: refused.
+    const bx = boat.position[0];
+    const bz = boat.position[2];
+    placeVessel(skiff, bx + 30, 0, bz, 0);
+    run(1);
+    send('davit', 1);
+    expect(skiff.tender?.phase).toBe('free');
+    // Back under the stern (the spot under the davit), with a player aboard.
+    // 1.5 m further aft than the spot under the davit, lying athwartships (she heads 90).
+    const spot = new THREE.Vector3(davit.hang[0], 0, davit.hang[2] + 1.5).applyQuaternion(new THREE.Quaternion(...boat.orientation)).add(new THREE.Vector3(...boat.position));
+    placeVessel(skiff, spot.x, 0, spot.z, 180);
+    run(0.5);
+    const player = Object.values(world.players)[0];
+    player.aboardVesselId = skiff.id;
+    player.position = [0, 0.3, 0.5];
+    expect(recoverCheck(world, skiff).ok).toBe(true);
+    send('davit', 1);
+    expect(skiff.tender?.phase).toBe('hoisting');
+    run(davit.alignTime + davit.hoistTime + 0.2);
+    expect(skiff.tender?.phase).toBe('stowed');
+    expect(player.aboardVesselId).toBe(boat.id);
+  });
+});
+
 describe('the skiff', () => {
-  it('comes with the workboat, floating, with a full battery', () => {
-    const { skiff, run } = setup();
+  it('comes hanging on the workboat\'s stern davit, riding with her, with a full battery', () => {
+    const { boat, skiff, run } = setup();
     expect(VESSEL_DEFS[skiff.defId].outboard).toBeTruthy();
     expect(skiff.battery).toBe(1);
+    expect(skiff.tender?.phase).toBe('stowed');
     run(3);
-    expect(Math.abs(skiff.position[1])).toBeLessThan(0.15);
+    const hang = VESSEL_DEFS[boat.defId].davit!.hang;
+    const local = new THREE.Vector3(...skiff.position).sub(new THREE.Vector3(...boat.position)).applyQuaternion(new THREE.Quaternion(...boat.orientation).invert());
+    expect(local.distanceTo(new THREE.Vector3(...hang))).toBeLessThan(1e-6);
+  });
+
+  it('charges on the davit', () => {
+    const { skiff, run } = setup();
+    skiff.battery = 0.5;
+    run(30);
+    expect(skiff.battery).toBeGreaterThan(0.5);
   });
 
   it('gives no thrust with the motor off or in neutral; shifting closes the throttle', () => {

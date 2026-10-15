@@ -34,6 +34,8 @@ export function placeVessel(
   s.orientation = [q.x, q.y, q.z, q.w];
   s.linearVelocity = [0, 0, 0];
   s.angularVelocity = [0, 0, 0];
+  // A tender placed somewhere is off her davit and afloat.
+  if (s.tender) s.tender = { hostId: s.tender.hostId, phase: 'free', t: 0 };
 }
 
 /** Debug test: drop the vessel from height at the spawn point. */
