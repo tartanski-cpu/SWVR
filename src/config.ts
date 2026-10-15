@@ -126,13 +126,16 @@ export const CONFIG = {
      * 12 m hard-chine displacement workboat. Axes: +X starboard, +Y up, -Z forward;
      * origin on the centreline, amidships, at the design waterline (DWL).
      * Hydrostatics of this hull at DWL (computed from the stations, see tests/vessel.test.ts):
-     *   displacement 17.9 m^3 = 18.35 t, LCB 2.25 m aft of amidships, KB 0.62 m,
-     *   GM ~1.17 m with VCG at +0.45 (KG 1.40 m), GZ max ~0.45 m at 30-45 deg.
+     *   displacement 17.9 m^3 = 18.3 t, LCB 2.26 m aft of amidships, KB 0.62 m,
+     *   GM ~1.31 m with VCG at +0.45 (KG 1.40 m), GZ max ~0.58 m at 40 deg.
+     * Deck 4.6 m wide with the parallel body carried to 62 % of the length, so the side
+     * decks stay ~0.75 m wide all along the wheelhouse (walk-around space, owner request);
+     * the chine (and so the waterline) is unchanged: the extra width is flare.
      */
     workboat: {
       hull: {
         length: 12.0,
-        beamDeck: 4.2,
+        beamDeck: 4.6,
         beamChine: 3.7,
         keelY: -0.95,
         chineYAft: -0.4,
@@ -140,13 +143,14 @@ export const CONFIG = {
         deckYAft: 0.95,
         deckYBow: 1.5,
         stations: 17,
+        deckParallel: 0.62,
       },
       /** kg. Chosen to float at the DWL. */
       mass: 18300,
       /** Centre of gravity (m, vessel axes). z = LCB so she floats level. */
       cg: [0, 0.45, 2.25] as [number, number, number],
       /** Radii of gyration (m): roll ~0.4 B, pitch and yaw ~0.25-0.27 L. */
-      gyradius: { roll: 1.68, pitch: 3.0, yaw: 3.2 },
+      gyradius: { roll: 1.8, pitch: 3.0, yaw: 3.2 },
       /**
        * Frequency-independent added mass / added inertia as a fraction of the rigid-body
        * value, applied in proportion to how much of the hull is immersed. Slows the
@@ -528,7 +532,7 @@ export const CONFIG = {
       rescueGear: {
         ringStow: [-0.85, 2.3, 1.58] as [number, number, number],
         ringCleat: [0.95, 1.9, 5.7] as [number, number, number],
-        hookStow: [-1.72, 1.55, 2.6, 5.0] as [number, number, number, number],
+        hookStow: [-1.92, 1.55, 2.6, 5.0] as [number, number, number, number],
         stern: [0, 0.2, 6.05] as [number, number, number],
         /** Where survivors sit once aboard (vessel axes, on the aft deck). */
         seats: [
@@ -553,8 +557,8 @@ export const CONFIG = {
         /** Cargo stays where it's put (true), or slides about the deck in a seaway (false). */
         fixed: false,
         lashPoints: [
-          [-1.75, 3.0], [-1.75, 4.2], [-1.75, 5.4],
-          [1.75, 3.0], [1.75, 4.2], [1.75, 5.4],
+          [-1.95, 3.0], [-1.95, 4.2], [-1.95, 5.4],
+          [1.95, 3.0], [1.95, 4.2], [1.95, 5.4],
           [0, 3.6], [0, 5.0],
         ] as [number, number][],
         lashRange: 1.1,
@@ -647,6 +651,7 @@ export const CONFIG = {
         deckYAft: 0.3,
         deckYBow: 0.42,
         stations: 9,
+        deckParallel: 0.45,
       },
       /** Hull, decking, outboard and battery (kg). */
       mass: 330,

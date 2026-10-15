@@ -25,6 +25,12 @@ export interface HullParams {
   deckYBow: number;
   /** Number of stations, evenly spaced from transom to stem. */
   stations: number;
+  /**
+   * How far forward the deck edge runs parallel, as a fraction of the length from the
+   * transom (default 0.45); forward of it the deck fines to the stem. Carrying it further
+   * forward keeps the side decks wide past a wheelhouse.
+   */
+  deckParallel?: number;
 }
 
 /** One transverse station. Polygon vertex order: port deck, port chine, keel, stbd chine, stbd deck. */
@@ -53,8 +59,9 @@ export function buildHullForm(p: HullParams): HullForm {
     const t = i / (n - 1);
     const z = p.length / 2 - i * dz;
 
-    // Plan view: parallel body aft, fining to the stem over the forward ~55 %.
-    const deckTaper = t < 0.45 ? 1 - 0.04 * (1 - t / 0.45) : Math.pow(Math.cos(((t - 0.45) / 0.55) * (Math.PI / 2)), 0.75);
+    // Plan view: parallel body aft, fining to the stem forward of `deckParallel` (~55 %).
+    const tp = p.deckParallel ?? 0.45;
+    const deckTaper = t < tp ? 1 - 0.04 * (1 - t / tp) : Math.pow(Math.cos(((t - tp) / (1 - tp)) * (Math.PI / 2)), 0.75);
     const chineTaper = t < 0.4 ? 1 : Math.pow(Math.cos(((t - 0.4) / 0.6) * (Math.PI / 2)), 0.7);
     const bD = Math.max(0.03, (p.beamDeck / 2) * deckTaper);
     const bC = Math.min(bD, Math.max(0.02, (p.beamChine / 2) * chineTaper));

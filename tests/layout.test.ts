@@ -19,6 +19,16 @@ describe('vessel walk area (multi-level)', () => {
     expect(area.floorsAt(x, z)).toContain(wh.floorY);
   });
 
+  it('side decks run the full length of the wheelhouse, both sides, at least 0.25 m of walkable width (owner request)', () => {
+    for (const side of [-1, 1]) {
+      for (let z = wh.front - 0.3; z <= wh.aft + 0.3; z += 0.1) {
+        let band = 0;
+        for (let x = wh.halfWidth; x < 3; x += 0.01) if (area.floorsAt(side * x, z).length) band += 0.01;
+        expect(band, `side ${side} z ${z.toFixed(1)}`).toBeGreaterThan(0.25);
+      }
+    }
+  });
+
   it('decks are walkable at deck level; walls, console and outboard are not', () => {
     expect(area.walkable(0, 4, DECK_AFT)).toBe(true); // aft deck
     expect(area.walkable(1.75, 0, 1.1)).toBe(true); // starboard side deck

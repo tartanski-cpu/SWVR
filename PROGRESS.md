@@ -785,6 +785,15 @@ Owner: after raising the anchor at Selkie, motoring out of the bay hit "an invis
 - Run status for survivors now says "dock alongside a quay" (anchorages no longer land them, S3).
 - **Tests (193):** weighed while motoring off, it comes home and lets her go; a broken-out anchor doesn't set again in shallow water.
 
+### Walk-around side decks (owner request)
+
+Owner: hard to walk past the wheelhouse to the bow; keep the wheelhouse as it is.
+- **Before:** deck 4.2 m wide, parallel only to 45 % of the length. Beside the wheelhouse (2.9 m wide) that left ~0.55 m aft, closing to nothing at its front corners where the bow fines. The walkable band was blocked there.
+- **Now:** deck 4.6 m (`hull.beamDeck`), parallel body carried forward to 62 % of the length (new `hull.deckParallel`; the skiff keeps 0.45). The side decks are 0.73-0.77 m clear from the wheelhouse side to the bulwark, all the way from the aft deck to the foredeck. The chine is unchanged, so the waterline and the underwater hull barely move: the extra width is flare.
+- **Hydrostatics:** same displacement (18.3 t, sinkage -5 mm, level). GM 1.19 → 1.31 m, max GZ 0.47 → 0.58 m at 40°. Roll gyradius 1.68 → 1.8 m (0.4 B). Speed, turning and motion trials are unchanged within their limits.
+- Moved out with the bulwarks: the boat hook clips (x -1.92) and the side D-rings (x ±1.95).
+- **Tests (194):** both side decks walkable along the whole wheelhouse, at least 0.25 m of walkable band (fails on the old hull).
+
 ## Planned next (owner requests, not started)
 
 1. ~~Fuel and oil temperature~~ **Done** (see above).
