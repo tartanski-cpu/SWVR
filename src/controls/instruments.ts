@@ -1,3 +1,4 @@
+import { isPowered } from '../vessel/electrics';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { CONFIG } from '../config';
@@ -73,10 +74,18 @@ export class InstrumentPanel {
     this.sinceDraw = 0;
     // Only repaint (and re-upload the 3 MB atlas) when something shown has changed: moored
     // or drifting with the engine off, the screens cost nothing.
-    const key = displayKey(state, def);
+    // No 12 V: the screens go black (drawn once).
+    const powered = isPowered(state);
+    const key = powered ? displayKey(state, def) : 'off';
     if (key === this.lastKey) return;
     this.lastKey = key;
     const g = this.g;
+    if (!powered) {
+      g.fillStyle = '#020303';
+      g.fillRect(0, 0, W, H);
+      this.texture.needsUpdate = true;
+      return;
+    }
     this.painters.forEach((paint, i) => {
       g.save();
       g.translate((i % 2) * RW, Math.floor(i / 2) * RH);

@@ -50,7 +50,8 @@ export function createWorld(
   ids: IdFactory,
   vesselDefId: string = CONFIG.testScene.vesselDefId,
   /** Also give the workboat her tender (the skiff, on the stern davit): the game does, tests may. */
-  opts: { tender?: boolean } = {},
+  /** cold: the boat starts dark and cold, battery master off (the game; tests start warm). */
+  opts: { tender?: boolean; cold?: boolean } = {},
 ): { world: WorldState; localPlayerId: EntityId; vesselId: EntityId } {
   const localPlayerId = ids.next('player');
   const vesselId = ids.next('vessel');
@@ -73,6 +74,7 @@ export function createWorld(
     deliveries: 0,
     rescue: createRescueState(),
   };
+  if (opts.cold && vessel.electrics) vessel.electrics.master = 0;
   // The tender starts hanging on the ship's stern davit.
   if (tender) stowTender(world, tender, vesselId);
   stockPorts(world);

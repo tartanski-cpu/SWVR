@@ -36,6 +36,9 @@ export interface MenuHost {
   refuelling(): boolean;
   toggleRefuel(): void;
   setFuelDebug(litres: number): void;
+  /** 12 V electrics: one-line status, and the debug actions (0 flat, 1 fill, 2 all on). */
+  electricsStatus(): string;
+  electricsDebug(mode: number): void;
   coolingFault(): boolean;
   toggleCoolingFault(): void;
   /** Cargo: where you are, deliveries, payload. */
@@ -293,6 +296,15 @@ export function mainMenu(h: MenuHost): MainMenu {
       buttons: [
         { text: 'Drop 4 m', press: () => h.dropBoat() },
         { text: 'Heel 20°', press: () => h.heelBoat() },
+      ],
+    },
+    {
+      label: 'Electrics',
+      buttons: [
+        { text: () => h.electricsStatus(), weight: 2.2 },
+        { text: 'Power on', press: () => h.electricsDebug(2) },
+        { text: 'Fill', press: () => h.electricsDebug(1) },
+        { text: 'Flat', press: () => h.electricsDebug(0) },
       ],
     },
     {

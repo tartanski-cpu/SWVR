@@ -1,3 +1,4 @@
+import { ElectricsPanel, MasterSwitch } from './electricsPanel';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { WorkboatDef } from '../vessel/vesselDef';
@@ -21,6 +22,8 @@ import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUti
 export class Bridge {
   readonly root = new THREE.Group();
   readonly controls: Control[] = [];
+  /** Voltmeter (and, later, the breakers), on boats with 12 V electrics. */
+  readonly electrics: ElectricsPanel | null = null;
   /** Empty object at the centre of the instrument dash (for visibility checks). */
   readonly dashAnchor = new THREE.Object3D();
   private readonly instruments: InstrumentPanel;
@@ -73,6 +76,16 @@ export class Bridge {
     this.overhead = new OverheadPanel(def);
     this.root.add(this.overhead.root);
     this.controls.push(wheel, lever, start, horn, nav, anchor, cabin, dock, spot, joy, this.radio.handset, ...this.overhead.controls);
+    // 12 V: battery master on the aft wall by the door, voltmeter panel by the helm.
+    const el = def.electrics;
+    if (el) {
+      const master = new MasterSwitch();
+      master.root.position.fromArray(el.masterSwitch.position);
+      master.root.rotation.y = Math.PI; // face forward, into the wheelhouse
+      this.controls.push(master);
+      this.electrics = new ElectricsPanel(el.panel);
+      this.root.add(this.electrics.root);
+    }
     for (const c of this.controls) if (!c.root.parent) this.root.add(c.root);
 
     // Instrument dash: a box across the front of the console with the displays on its face.
@@ -111,6 +124,7 @@ export class Bridge {
     }
     if (displaysInView) this.instruments.update(state, this.def, dt);
     this.overhead.update(state);
+    this.electrics?.update(state, dt);
   }
 }
 

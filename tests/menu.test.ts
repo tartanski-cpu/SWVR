@@ -44,6 +44,8 @@ function fakeHost() {
     refuelling: () => false,
     toggleRefuel: () => calls.push('refuel'),
     setFuelDebug: (l) => calls.push(`fuel ${l}`),
+    electricsStatus: () => 'Master on',
+    electricsDebug: (m) => calls.push(`electrics ${m}`),
     coolingFault: () => false,
     toggleCoolingFault: () => calls.push('fault'),
     ports: () => [],

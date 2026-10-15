@@ -87,6 +87,7 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | Right stick ← / → | Snap turn (30° by default; 15/30/45/90° in the menu) |
 | Left stick click | Board the boat (at the helm) / back to the platform |
 | **X** | **Crouch** / stand up (drops your view and hands 0.6 m; desktop: C) |
+| **Trigger** on the red key on the yellow plate (aft wall, by the door) | **Battery master** on / off. The boat starts cold and dark: master on first (voltmeter by the helm, under the starboard window) |
 | **Trigger** on the green button on the stern davit (or Menu > Boat > Skiff) | Launch the skiff / recover her (she must be close under the stern and moving with you) |
 | **Grip** on the skiff's tiller, then **trigger** | Steer by swinging the tiller; the same hand's trigger is the throttle (let go = idle). Red button on the motor: on/off; yellow lever on its side: forward / neutral / reverse |
 | B | Debug/perf panel on your left wrist: FPS, cpu/gpu frame time, draw calls, XR resolution, boat readouts |

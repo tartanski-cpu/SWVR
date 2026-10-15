@@ -106,6 +106,18 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
     case 'anchor':
       s.controls.anchor = intent.value > 0.5 ? 1 : 0;
       break;
+    case 'master':
+      // Battery master switch: 1 on / 0 off.
+      if (s.electrics) s.electrics.master = intent.value > 0.5 ? 1 : 0;
+      break;
+    case 'debugElectrics':
+      // Debug: 0 = both batteries flat, 1 = fill both, 2 = power everything on (master on, full).
+      if (s.electrics) {
+        if (intent.value < 0.5) s.electrics.soc = [0, 0];
+        else s.electrics.soc = [1, 1];
+        if (intent.value > 1.5) s.electrics.master = 1;
+      }
+      break;
     case 'cabinLight':
       s.controls.cabinLight = intent.value > 0.5 ? 1 : 0;
       break;

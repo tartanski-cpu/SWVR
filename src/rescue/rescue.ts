@@ -19,6 +19,7 @@
  *
  * Random choices use a deterministic hash of a counter in the state, like the cargo code.
  */
+import { isPowered } from '../vessel/electrics';
 import { CONFIG } from '../config';
 import type { EntityId } from '../core/ids';
 import type { Intent } from '../core/intents';
@@ -414,7 +415,8 @@ export function applyRescueIntent(world: WorldState, intent: Intent): void {
   switch (intent.control) {
     case 'rescueHandset': {
       const inc = r.active;
-      if (intent.value > 0.5 && inc?.phase === 'calling') {
+      // The VHF needs 12 V: with the bridge dark the call just rings out unheard.
+      if (intent.value > 0.5 && inc?.phase === 'calling' && (!v || isPowered(v))) {
         inc.phase = 'accepted';
         const client = r.run ? ' Your cargo client has been told.' : '';
         say(r, 'reply', `Thanks, skipper.${client} Search area is on your chart.`, world.time);

@@ -75,15 +75,16 @@ export class DeckLights {
     this.root.add(railMesh);
   }
 
-  update(s: VesselState): void {
+  /** @param powered 12 V on the bus (vessel/electrics.ts) */
+  update(s: VesselState, powered = true): void {
     const c = this.def.deckLights;
-    const on = [s.controls.deckFore > 0, s.controls.deckAft > 0];
+    const on = [s.controls.deckFore > 0 && powered, s.controls.deckAft > 0 && powered];
     this.floods.forEach((f, i) => {
       f.light.intensity = on[i] ? c.intensity : 0;
       // Off = out of the scene's light list, so no shader pays for it.
       f.light.visible = on[i];
       f.lens.color.setHex(on[i] ? 0xfffbe8 : 0x333333);
     });
-    this.rail.color.setHex(s.controls.railLights > 0 ? c.railColor : 0x2a3036);
+    this.rail.color.setHex(s.controls.railLights > 0 && powered ? c.railColor : 0x2a3036);
   }
 }

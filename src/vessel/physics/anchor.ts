@@ -14,6 +14,7 @@
  * 3:1 scope (the chain lifts the shank), to 15 % at about 1.3:1.
  */
 import { clamp } from '../../core/math';
+import { isPowered } from '../electrics';
 import { groundHeight } from '../../world/terrain';
 import type { WorkboatDef } from '../vesselDef';
 import type { VesselState } from '../vesselState';
@@ -37,6 +38,8 @@ export function stepAnchor(
   a.tension = 0;
   a.dragging = false;
   const down = s.controls.anchor > 0.5;
+  // The windlass is electric: without 12 V the chain neither runs out nor comes in.
+  const windlass = isPowered(s);
 
   if (a.phase === 'stowed') {
     if (!down) return;
@@ -53,7 +56,7 @@ export function stepAnchor(
   if (down) {
     if (a.phase === 'weighing' || (a.phase === 'hanging' && a.rodeM < cfg.chainM)) a.phase = 'paying';
     const scope = Math.min(cfg.chainM, 4 * h + 5);
-    if (a.phase === 'paying') {
+    if (a.phase === 'paying' && windlass) {
       a.rodeM = Math.min(scope, a.rodeM + cfg.payOutRate * dt);
       if (a.rodeM >= scope) a.phase = 'set';
     }
@@ -75,7 +78,7 @@ export function stepAnchor(
       a.phase = a.rodeM >= cfg.chainM ? 'hanging' : 'paying';
     } else {
       a.phase = 'hanging';
-      a.rodeM = Math.max(0, a.rodeM - cfg.heaveRate * dt);
+      if (windlass) a.rodeM = Math.max(0, a.rodeM - cfg.heaveRate * dt);
       if (a.rodeM <= 0) a.phase = 'stowed';
     }
     return;
@@ -112,7 +115,7 @@ export function stepAnchor(
   }
 
   // Weighing: heave in unless the windlass stalls against the pull.
-  if (a.phase === 'weighing' && T < cfg.windlassPullN) a.rodeM = Math.max(0, a.rodeM - cfg.heaveRate * dt);
+  if (a.phase === 'weighing' && windlass && T < cfg.windlassPullN) a.rodeM = Math.max(0, a.rodeM - cfg.heaveRate * dt);
 
   // Force on the bow: horizontal towards the anchor plus the hanging chain's weight.
   const suspended = Math.min(L, Math.hypot(Math.min(x, xTaut), h));

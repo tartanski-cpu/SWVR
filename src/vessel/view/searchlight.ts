@@ -65,9 +65,10 @@ export class Searchlight {
   }
 
   /** @param darkness 0 (day) .. 1 (night) */
-  update(s: VesselState, darkness: number): void {
+  /** @param powered 12 V on the bus (vessel/electrics.ts) */
+  update(s: VesselState, darkness: number, powered = true): void {
     const c = s.controls;
-    const on = c.spotlight > 0;
+    const on = c.spotlight > 0 && powered;
     this.pan.rotation.y = (-c.spotPan * Math.PI) / 180;
     this.tilt.rotation.x = (c.spotTilt * Math.PI) / 180;
     this.light.intensity = on ? this.def.spotlight.intensity : 0;

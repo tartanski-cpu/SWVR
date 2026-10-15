@@ -11,6 +11,7 @@
  * All functions are pure with respect to their inputs (state is passed in and mutated
  * explicitly), so they run identically in the headless sim and tests.
  */
+import { isPowered, starterFactor } from '../electrics';
 import { CONFIG } from '../../config';
 import { clamp } from '../../core/math';
 import type { VesselDef, WorkboatDef } from '../vesselDef';
@@ -30,6 +31,7 @@ export function leverDemand(def: WorkboatDef, lever: number): { gear: -1 | 0 | 1
 export function toggleEngine(s: VesselState, def: WorkboatDef): void {
   const e = s.engine;
   if (e.phase === 'off') {
+    if (!isPowered(s)) return; // no 12 V: the starter doesn't turn
     if (def.engine.startOnlyInNeutral && leverDemand(def, s.controls.lever).gear !== 0) return;
     e.phase = 'cranking';
     e.crank = 0;
@@ -108,6 +110,9 @@ export function stepEngineAndPropeller(s: VesselState, def: WorkboatDef, speed: 
   const demand = leverDemand(def, s.controls.lever);
   const i = cfg.gearRatio;
   const propInertiaAtCrank = def.propeller.inertia / (i * i);
+  // No 12 V (master off, battery flat): the fuel solenoid closes and she stops.
+  if (e.phase !== 'off' && !isPowered(s)) e.phase = 'off';
+  const starter = cfg.starterTorque * starterFactor(s);
 
   // ── Clutch ──
   if (e.phase !== 'running') {
@@ -148,7 +153,7 @@ export function stepEngineAndPropeller(s: VesselState, def: WorkboatDef, speed: 
   for (let k = 0; k < steps; k++) {
     const rpm = Math.max(0, e.rpm);
     let q = e.rack * fullLoadTorque(def, rpm);
-    if (e.phase === 'cranking' && rpm < cfg.starterMaxRpm) q += cfg.starterTorque;
+    if (e.phase === 'cranking' && rpm < cfg.starterMaxRpm) q += starter;
     if (rpm > 0.5) q -= cfg.frictionTorque + cfg.frictionPerRpm * rpm;
     thrust = 0;
     if (e.gear !== 0) {

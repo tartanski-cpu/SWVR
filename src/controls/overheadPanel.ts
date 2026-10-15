@@ -1,3 +1,4 @@
+import { isPowered } from '../vessel/electrics';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { CONFIG } from '../config';
@@ -107,15 +108,20 @@ export class OverheadPanel {
 
   update(state: VesselState): void {
     const st = CONFIG.fmRadio.stations[state.controls.fmStation];
-    const text = state.controls.fmOn && st ? `FM ${st.freq}\n${st.name}${this.fmStatus ? `  ${this.fmStatus}` : ''}` : 'FM  OFF';
+    // No 12 V: the FM display is dark (an empty text draws a blank screen).
+    const text = !isPowered(state) ? '' : state.controls.fmOn && st ? `FM ${st.freq}\n${st.name}${this.fmStatus ? `  ${this.fmStatus}` : ''}` : 'FM  OFF';
     if (text !== this.text) this.draw(text);
   }
 
   private draw(text: string): void {
     this.text = text;
     const g = this.g;
-    g.fillStyle = '#0a1418';
+    g.fillStyle = text ? '#0a1418' : '#020303';
     g.fillRect(0, 0, W, H);
+    if (!text) {
+      this.texture.needsUpdate = true;
+      return;
+    }
     g.fillStyle = text.includes('OFF') ? '#3a5560' : '#7fe3ff';
     g.textBaseline = 'middle';
     const [a, b] = text.split('\n');

@@ -138,6 +138,21 @@ export interface VesselState {
   battery?: number;
   /** A ship's tender: whose davit she belongs to and where she is (vessel/davit.ts). */
   tender?: TenderState;
+  /** 12 V electrics, boats that have them (vessel/electrics.ts). */
+  electrics?: ElectricsState;
+}
+
+/** Batteries, master switch and the last tick's readings (vessel/electrics.ts). */
+export interface ElectricsState {
+  /** Battery master switch, 0 off / 1 on. */
+  master: number;
+  /** Battery selector: 1, 2, or 3 = both in parallel. */
+  selector: number;
+  /** State of charge of battery 1 and 2, 0 (flat) .. 1 (full). */
+  soc: [number, number];
+  /** Bus voltage and net battery current (A, + = discharging) on the last tick. */
+  volts: number;
+  amps: number;
 }
 
 /**
@@ -186,5 +201,8 @@ export function createVesselState(id: EntityId, defId: string): VesselState {
     refuelling: false,
     contact: { force: 0, slide: 0, impact: 0 },
     ...(VESSEL_DEFS[defId].outboard ? { battery: 1 } : {}),
+    // Warm by default (tests, trials): master on, both batteries full. The game itself
+    // starts cold and dark (createWorld `cold`).
+    ...(VESSEL_DEFS[defId].electrics ? { electrics: { master: 1, selector: 1, soc: [1, 1] as [number, number], volts: 12.7, amps: 0 } } : {}),
   };
 }

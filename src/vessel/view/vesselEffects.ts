@@ -1,3 +1,4 @@
+import { isPowered } from '../electrics';
 import type * as THREE from 'three';
 import { surfaceHeight, type PreparedWave } from '../../ocean/waves';
 import { isWorkboat, type VesselDef, type WorkboatDef } from '../vesselDef';
@@ -76,13 +77,15 @@ export class VesselEffects {
     const light = 1 - 0.8 * darkness;
     const e = this.equip;
     if (e) {
-      e.nav.update(s.controls.navLights > 0, darkness, viewer);
+      // Lights need 12 V (master on, battery not flat).
+      const p = isPowered(s);
+      e.nav.update(s.controls.navLights > 0 && p, darkness, viewer);
       e.smoke.setLight(light);
       e.smoke.update(dt, s, e.def, this.root, (x, z) => surfaceHeight(waves, x, z), viewer);
       e.chain.update(s, e.def, this.root);
-      e.cabin.update(s.controls.cabinLight > 0);
-      e.deckLights.update(s);
-      e.searchlight.update(s, darkness);
+      e.cabin.update(s.controls.cabinLight > 0 && p);
+      e.deckLights.update(s, p);
+      e.searchlight.update(s, darkness, p);
       e.lines.update(s, e.def, this.root);
     }
     // A tender hanging on the davit throws no wake or spray.

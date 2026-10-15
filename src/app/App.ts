@@ -19,6 +19,7 @@ import { SurfaceProbes } from '../debug/surfaceProbes';
 import { Buoys, createPlatform } from './testScene';
 import { HydroDebugView } from '../debug/hydroDebugView';
 import { onDavit, recoverCheck } from '../vessel/davit';
+import { isPowered } from '../vessel/electrics';
 import { DavitGear } from '../controls/DavitGear';
 import { asWorkboat, VESSEL_DEFS, type WorkboatDef } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
@@ -241,7 +242,7 @@ export class App {
       CONFIG.render.far,
     );
 
-    const created = createWorld(this.ids, undefined, { tender: true });
+    const created = createWorld(this.ids, undefined, { tender: true, cold: true });
     this.world = created.world;
     this.localPlayerId = created.localPlayerId;
     this.soloPlayerId = created.localPlayerId;
@@ -393,7 +394,7 @@ export class App {
       const submerged = this.exhaustSubmersion(testView.root, this.world.vessels[this.testVesselId], nowMs / 1000);
       this.engineAudio.update(this.world.vessels[this.testVesselId], distance, submerged);
       const v = this.world.vessels[this.testVesselId];
-      this.horn.update(v.controls.horn > 0, distance);
+      this.horn.update(v.controls.horn > 0 && isPowered(v), distance); // electric horn
       // Bridge buzzer: high temperature always, low fuel while the engine runs.
       const al = engineAlarms(v, this.testDef);
       const consoleDist = this.bridge ? this.bridge.dashAnchor.getWorldPosition(this.tmpV).distanceTo(this.focus) : 99;
@@ -403,7 +404,7 @@ export class App {
     const testVessel = this.world.vessels[this.testVesselId];
     if (this.bridge && testVessel) {
       this.bridge.update(testVessel, dt, this.dashInView());
-      this.bridge.radio.update(this.world.rescue, runStatus(this.world), dt);
+      this.bridge.radio.update(this.world.rescue, runStatus(this.world), dt, isPowered(testVessel));
       // Say so when the anchor is up or holding (the speed screen shows it all the time).
       const ap = testVessel.anchor.phase;
       if (ap !== this.lastAnchorPhase) {
@@ -464,7 +465,7 @@ export class App {
     }
     if (this.bridge && testVessel) {
       const c = testVessel.controls;
-      this.fmRadio.update(c.fmOn > 0, c.fmStation, this.bridge.overhead.root.getWorldPosition(this.tmpV).distanceTo(this.focus));
+      this.fmRadio.update(c.fmOn > 0 && isPowered(testVessel), c.fmStation, this.bridge.overhead.root.getWorldPosition(this.tmpV).distanceTo(this.focus));
       this.bridge.overhead.fmStatus = this.fmRadio.status;
     }
     if (this.world.rescue?.active) {
@@ -701,6 +702,12 @@ export class App {
     const alertT = r.active?.phase === 'calling' ? r.active.alertT : -1;
     this.radioAudio.setDistance(this.bridge.radio.root.getWorldPosition(this.tmpV).distanceTo(this.focus));
     if (!this.radioSeen) {
+      this.radioSeen = { id, alertT };
+      return;
+    }
+    // A dark VHF neither rings nor speaks: the message is simply missed.
+    const v = this.world.vessels[this.testVesselId];
+    if (v && !isPowered(v)) {
       this.radioSeen = { id, alertT };
       return;
     }
@@ -983,6 +990,13 @@ export class App {
         else this.overlay.notify('Come alongside a fuel berth (Calder Haven quay, Brannock pier head) and stop');
       },
       setFuelDebug: (l) => this.pushVesselIntent('debugFuel', l),
+      electricsStatus: () => {
+        const e = boat().electrics;
+        if (!e) return '-';
+        const pct = (x: number) => `${Math.round(x * 100)} %`;
+        return `${e.master ? 'Master ON' : 'Master off'} · ${e.volts.toFixed(1)} V · B1 ${pct(e.soc[0])} B2 ${pct(e.soc[1])}`;
+      },
+      electricsDebug: (m) => this.pushVesselIntent('debugElectrics', m),
       coolingFault: () => boat().engine.coolingFault,
       toggleCoolingFault: () => this.pushVesselIntent('debugCoolingFault', boat().engine.coolingFault ? 0 : 1),
       cargoStatus: () => {

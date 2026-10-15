@@ -1,3 +1,4 @@
+import { isPowered } from '../vessel/electrics';
 import * as THREE from 'three';
 import type { WorldState } from '../core/world';
 import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
@@ -30,6 +31,7 @@ export class ChartPlotter {
   private readonly g: CanvasRenderingContext2D;
   private readonly texture: THREE.CanvasTexture;
   private land: { canvas: HTMLCanvasElement; x0: number; z0: number } | null = null;
+  private dark = false;
   private since = Infinity;
   /** Debug: draw the targets too. */
   showTargets = false;
@@ -109,6 +111,17 @@ export class ChartPlotter {
     this.since = 0;
     const v = world.vessels[vesselId];
     if (!v) return;
+    // No 12 V: a black screen (drawn once).
+    if (!isPowered(v)) {
+      if (!this.dark) {
+        this.dark = true;
+        this.g.fillStyle = '#020303';
+        this.g.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        this.texture.needsUpdate = true;
+      }
+      return;
+    }
+    this.dark = false;
     if (!this.land) this.buildLand();
     const land = this.land!;
     const g = this.g;

@@ -78,7 +78,18 @@ export class RadioSet {
    * @param r      rescue state (latest message, active incident)
    * @param status one line about the cargo run / rescue, for the bottom of the screen
    */
-  update(r: RescueState | undefined, status: string, dt: number): void {
+  update(r: RescueState | undefined, status: string, dt: number, powered = true): void {
+    if (!powered) {
+      // No 12 V: dark screen, no lamp (drawn once).
+      (this.lamp.material as THREE.MeshBasicMaterial).color.setHex(0x200808);
+      if (this.signature !== 'off') {
+        this.signature = 'off';
+        this.g.fillStyle = '#020303';
+        this.g.fillRect(0, 0, W, H);
+        this.texture.needsUpdate = true;
+      }
+      return;
+    }
     const calling = r?.active?.phase === 'calling';
     this.flash += dt;
     const on = calling && this.flash % 0.8 < 0.4;

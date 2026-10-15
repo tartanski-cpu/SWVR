@@ -510,6 +510,46 @@ export const CONFIG = {
         catenarySoftness: 3,
       },
       /**
+       * 12 V electrics (vessel/electrics.ts). Two batteries (start and house in a real boat;
+       * here simply 1 and 2, picked by the selector), a battery master switch, and loads
+       * that draw a fixed current while switched on. The alternator charges while the engine
+       * runs. Resting voltage follows the charge (flat .. full); under load it sags by
+       * I x R (cranking pulls it down hard), on charge it rises toward `chargeVolts`.
+       * Below `cutoffSoc` a battery is flat: nothing works from it.
+       */
+      electrics: {
+        batteryAh: 100,
+        restVolts: [11.8, 12.7] as [number, number],
+        internalOhm: 0.012,
+        chargeVolts: 14.2,
+        alternatorAmps: 60,
+        cutoffSoc: 0.02,
+        /** Current drawn while on (A). `base`: master on, the panel itself. */
+        loads: {
+          base: 0.4,
+          instruments: 2.5,
+          chart: 2.0,
+          radio: 1.5,
+          fm: 1.0,
+          navLights: 2.0,
+          deckFlood: 8,
+          railLights: 1.0,
+          cabinLight: 1.0,
+          searchlight: 12,
+          windlass: 60,
+          horn: 10,
+          starter: 180,
+        },
+        /** Battery master (big red key) on the aft wall, starboard of the door, low down. */
+        masterSwitch: { position: [0.8, 1.75, 1.41] as [number, number, number] },
+        /**
+         * Panel by the helm: a small sloping console against the starboard wall just under
+         * the window sill (the side walls are windows above it), face tilted up toward you.
+         * Voltmeter now, breakers later.
+         */
+        panel: { position: [1.22, 1.84, -0.85] as [number, number, number], width: 0.4, height: 0.3, tiltDeg: 40 },
+      },
+      /**
        * Stern davit for the tender (the skiff), vessel axes. She hangs athwartships just aft
        * of the transom (`hang`: her origin; `yawDeg` 90 = her bow to port, outboard to
        * starboard), high enough that the transom stays clear for survivors coming aboard.

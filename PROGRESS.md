@@ -828,6 +828,39 @@ Owner: a completely calm sea is hard to see. In a flat calm every facet normal i
 - Slightly stronger in a flat calm (`calmBoost`, fading as the waves reach ~0.3 m), where they're the only texture there is.
 - **Cost:** two mipmapped texture reads per sea pixel within 260 m.
 
+## Duty board, electrics, weather, logbook and chart table (owner brief, 10 milestones)
+
+Owner decisions:
+- **The crew whiteboard stays as it is.** Game tasks go on a new **duty board**.
+- **Placement:** chart table on the port side aft. Duty board on the starboard side. Breakers and voltmeter by the helm. Master switch and battery selector low on the aft wall by the door.
+- **Ignition:** key ON/OFF plus HEAT and START buttons (not a twist key).
+- **Pencil marks** drawn as line geometry, not a canvas texture.
+- **Rain glass** shown only in rain. Radar redraws per sweep (or AIS targets on the plotter instead: to decide at milestone 5).
+- **Wind leeway** acts on the skiff too.
+- **The game starts cold.** Quick start (off) and "power on" are debug options.
+
+### E1: electrical spine (done, awaiting owner test)
+
+- **State** (`vessel/electrics.ts`, `VesselState.electrics`, `CONFIG.vessels.workboat.electrics`):
+  - Two batteries (charge 0..1, 100 Ah), the selector (1 / 2 / both; on 1 until milestone 3), and the battery master.
+  - The last tick's bus voltage and current.
+- **Model:**
+  - Loads draw a fixed current while on: instruments, chart, VHF, FM, nav lights, deck floods, rail LEDs, cabin lamp, searchlight, horn, windlass, and the starter (180 A).
+  - The alternator gives up to 60 A while the engine runs.
+  - Resting voltage follows the charge (11.8 → 12.7 V). It sags by I·R under load (cranking dips it to about 10.5 V) and rises toward 14.2 V on charge.
+  - Below 2 % a battery is flat.
+- **`isPowered()`** means master on and the selected battery not flat. Without it:
+  - Dash displays, chart plotter, VHF screen and FM display go black (each drawn once).
+  - Nav lights, deck floods, rail LEDs, cabin lamp and searchlight are off.
+  - Horn, FM and VHF are silent. Calls ring out unheard and the handset can't answer.
+  - The windlass doesn't move the chain.
+  - The starter won't turn. A running engine stops (fuel solenoid). A weak battery cranks slowly (starter torque scales with the voltage).
+- **Master switch:** a red key on a yellow "BATTERY MASTER" plate, low on the aft wall starboard of the door. Press to turn it a quarter turn: OFF across, ON up.
+- **Voltmeter:** an 8-16 V dial, printed once, with a moving needle (no texture uploads). It sits on a small sloping console under the starboard window sill by the helm, where the breakers go in milestone 2. It reads the bus, so 0 with the master off.
+- **Game starts cold:** master off, dark bridge (`createWorld(..., { cold: true })`). Tests and sea trials start warm.
+- **Menu → Tests → Electrics:** status (master, volts, battery charges), Power on, Fill, Flat.
+- **Tests (201):** cold start won't crank; master on gives power, cranking dips the volts, the alternator lifts them; loads drain and running charges; master off stops the engine; a flat battery gives no power; the windlass needs power; trials start warm.
+
 ## Planned next (owner requests, not started)
 
 1. ~~Fuel and oil temperature~~ **Done** (see above).
