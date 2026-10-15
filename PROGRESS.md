@@ -1211,6 +1211,18 @@ The brief's "no new physics bodies or ropes" rule was flagged; the owner approve
   - delivery, the mission count, the log and removal;
   - a client making fast over the network.
 
+## Free grab-the-world in VR (owner request)
+
+- **Grab-the-world** (`player/locomotion.ts`) now moves you in all three directions with no collisions. You can pull yourself up, down, through walls or out over the side.
+  - Once you've pulled, you're "free": no settling onto the floor. You stay at the height you pulled to, which squares seated and standing play without the crouch button.
+  - Being put somewhere else ends it, and the floor holds you again. That covers a teleport, boarding, landing a jump, and climbing out of the water. These are detected as a jump in your position or a change of frame between frames.
+- **The VR stick** slides without wall collisions too.
+- **Unchanged:**
+  - Desktop walking keeps wall collision and the ladder climb.
+  - Swimming strokes stay horizontal.
+  - The comfort fade still darkens the view while your head is inside a wall.
+- **Tests:** flying up and out through a wall; the height staying; the stick passing a wall; a teleport ending free flight. The older collision tests now run with fly off (desktop rules).
+
 ## Planned next (owner requests, not started)
 
 1. ~~Fuel and oil temperature~~ **Done** (see above).

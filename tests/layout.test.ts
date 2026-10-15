@@ -74,6 +74,7 @@ describe('locomotion', () => {
     moveStick: [0, 0],
     turnStick: 0,
     desktopDelta: null,
+    fly: false,
     ...extra,
   });
   const run = (loco: Locomotion, p: ReturnType<typeof createPlayerState>, seconds: number, extra: (i: number) => Partial<LocomotionInput>) => {
@@ -89,7 +90,7 @@ describe('locomotion', () => {
     expect(p.position[1]).toBeCloseTo(wh.floorY, 2);
   });
 
-  it('cannot walk through the side wall', () => {
+  it('cannot walk through the side wall (desktop rules)', () => {
     const p = createPlayerState('p', 'test');
     p.position = [0, wh.floorY, 0];
     const loco = new Locomotion();
@@ -97,7 +98,7 @@ describe('locomotion', () => {
     expect(p.position[0]).toBeLessThan(wh.halfWidth - wh.wall);
   });
 
-  it('grab-the-world: pulling the hand back moves the player forward; vertical pulls do nothing off a ladder', () => {
+  it('without fly (swimming, desktop): grab pulls move along the floor; vertical pulls do nothing off a ladder', () => {
     const p = createPlayerState('p', 'test');
     p.position = [0, DECK_AFT, 4.5];
     const loco = new Locomotion();
@@ -130,6 +131,44 @@ describe('locomotion', () => {
     expect(p.position[2]).toBeLessThan(wh.aft);
     expect(p.position[1]).toBeCloseTo(roofTop, 2);
     expect(area.walkable(p.position[0], p.position[2], p.position[1])).toBe(true);
+  });
+
+  it('VR grab-the-world flies: up, down and through walls, and the height stays', () => {
+    const p = createPlayerState('p', 'test');
+    p.position = [0, wh.floorY, 0];
+    const loco = new Locomotion();
+    run(loco, p, 1, () => ({ fly: true })); // standing in the wheelhouse
+    const y0 = p.position[1];
+    // Pull the hand down 0.5 m and in toward us 3 m sideways: up and out through the wall.
+    const hand = new THREE.Vector3(1, 1.5, 0);
+    loco.update(p, input(p, { fly: true, grabbing: { left: null, right: hand.clone() } }));
+    loco.update(p, input(p, { fly: true, grabbing: { left: null, right: hand.clone().add(new THREE.Vector3(-3, -0.5, 0)) } }));
+    expect(p.position[0]).toBeCloseTo(3, 5);
+    expect(p.position[1]).toBeCloseTo(y0 + 0.5, 5);
+    // Let go: we stay up there (no settling), and the stick glides us on, through anything.
+    run(loco, p, 1, () => ({ fly: true }));
+    expect(p.position[1]).toBeCloseTo(y0 + 0.5, 5);
+    p.position = [0, y0 + 0.5, 0];
+    run(loco, p, 0.1, () => ({ fly: true })); // put back inside: the floor has us again
+    run(loco, p, 4, () => ({ fly: true, moveStick: [1, 0] }));
+    expect(p.position[0]).toBeGreaterThan(wh.halfWidth);
+  });
+
+  it('being put somewhere else ends free flight: the floor holds us again', () => {
+    const p = createPlayerState('p', 'test');
+    p.position = [0, wh.floorY, 0];
+    const loco = new Locomotion();
+    run(loco, p, 1, () => ({ fly: true }));
+    const y0 = p.position[1];
+    const hand = new THREE.Vector3(0, 1.5, -0.5);
+    loco.update(p, input(p, { fly: true, grabbing: { left: null, right: hand.clone() } }));
+    loco.update(p, input(p, { fly: true, grabbing: { left: null, right: hand.clone().add(new THREE.Vector3(0, -0.3, 0)) } }));
+    run(loco, p, 0.5, () => ({ fly: true }));
+    expect(p.position[1]).toBeCloseTo(y0 + 0.3, 3);
+    // Teleported (the menu, boarding...) to a spot a little above the deck: it settles.
+    p.position = [0, DECK_AFT + 0.2, 4.5];
+    run(loco, p, 1, () => ({ fly: true }));
+    expect(p.position[1]).toBeCloseTo(Math.max(...area.floorsAt(0, 4.5)), 2);
   });
 
   it('snap turn rotates about the head by the configured step', () => {

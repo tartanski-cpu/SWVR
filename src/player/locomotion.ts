@@ -6,18 +6,22 @@
  * can roll, pitch and surge underneath without the player sliding or jittering, and the
  * moving-frame maths reduces to plain 2D movement on the deck plan.
  *
- * Collision works on the HEAD position (where the player's body actually is in room-scale
- * VR), against the WalkArea: blocked moves slide along walls by trying each axis alone.
+ * Desktop walking collides on the HEAD position (where the body is in room-scale VR)
+ * against the WalkArea: blocked moves slide along walls by trying each axis alone.
  *
  * Methods:
- *  - grab-the-world (default): squeeze a grip and pull - the world moves with your hand.
- *    Two hands: pull and twist to turn. Precise and nausea-free in tight spaces.
- *    On a ladder the vertical part of the pull climbs (pull down = go up); elsewhere
- *    vertical pulls are ignored (no flying). Off a ladder, gravity settles you onto the
- *    highest floor within a step below your feet - which is also how stairs and sills work.
- *  - smooth stick movement (optional), head-relative.
+ *  - grab-the-world (VR, default): squeeze a grip and pull - the world moves with your
+ *    hand, in all three directions, with no collisions (owner request): pull yourself up,
+ *    down, through a wall or out over the side. Two hands: pull and twist to turn.
+ *    Once you've grabbed you are "free": the height you pulled yourself to stays (no
+ *    settling onto the floor), which also squares seated and standing play without a
+ *    crouch button. Being put somewhere else (teleport, boarding, landing a jump, climbing
+ *    out) ends it: then the floor holds you again, settling onto the highest floor within
+ *    a step below your feet - which is how stairs and sills work. While swimming, grab
+ *    strokes stay horizontal (the swim code keeps you at the surface).
+ *  - smooth stick movement (VR, optional), head-relative, no wall collisions either.
  *  - snap turn about the head.
- *  - desktop walking (WASD) through the same collision.
+ *  - desktop walking (WASD) with wall collision and ladders.
  *
  * Player pose is client-authoritative (see PROGRESS.md: multiplayer notes), so the local
  * client writes it directly rather than via intents.
@@ -46,6 +50,8 @@ export interface LocomotionInput {
   turnStick: number;
   /** Desktop walking displacement already in the frame's axes (m), or null. y = climbing. */
   desktopDelta: { x: number; y?: number; z: number } | null;
+  /** VR on foot: grabs move freely in 3D and the stick ignores walls (false: swimming, desktop). */
+  fly: boolean;
 }
 
 const headL = new THREE.Vector3();
@@ -58,6 +64,12 @@ export class Locomotion {
   private snapFlash = 0;
   /** True on the frame a grab starts (for haptics). */
   readonly grabStarted: Record<Handedness, boolean> = { left: false, right: false };
+  /**
+   * Pulled ourselves somewhere with grab-the-world: no floor settling until we're put
+   * somewhere else. `left` is where we left the feet last frame (in `frame`), to notice that.
+   */
+  private free = false;
+  private left: { frame: THREE.Object3D; x: number; y: number; z: number } | null = null;
 
   /** Returns 0..1 "how much artificial motion" this frame, for the comfort vignette. */
   update(p: PlayerState, inp: LocomotionInput): number {
@@ -65,6 +77,16 @@ export class Locomotion {
     const { frame, area, dt } = inp;
     frame.worldToLocal(headL.copy(inp.head));
     let moved = 0;
+    // Teleported, boarded, landed, climbed out, swimming: the floor has us again.
+    const l = this.left;
+    const jumped = !l || l.frame !== frame || Math.hypot(p.position[0] - l.x, p.position[1] - l.y, p.position[2] - l.z) > 0.3;
+    if (!inp.fly || jumped) this.free = false;
+    // A grab move: free in 3D (fly) or along the floor with collisions (swimming).
+    const grabMove = (dx: number, dy: number, dz: number) => {
+      if (!inp.fly) return this.tryMove(p, area, headL, dx, dz) + this.climb(p, area, headL, dy);
+      this.free = true;
+      return this.moveFree(p, headL, dx, dy, dz);
+    };
 
     // ── Grab the world ──
     const handsL: Record<Handedness, THREE.Vector3 | null> = { left: null, right: null };
@@ -87,19 +109,15 @@ export class Locomotion {
       const now = angleXZ(handsL.right, handsL.left);
       const turn = wrapPi(this.twoHandAngle - now);
       const mid = handsL.left.clone().add(handsL.right).multiplyScalar(0.5);
-      if (Math.abs(turn) > 1e-4) this.rotateAbout(p, turn, mid.x, mid.z, area, headL);
+      if (Math.abs(turn) > 1e-4) this.rotateAbout(p, turn, mid.x, mid.z, area, headL, inp.fly);
       // The rotation pivots on the hands' midpoint, so the midpoint itself hasn't moved.
       const anchorMid = this.anchors.left.clone().add(this.anchors.right).multiplyScalar(0.5);
-      moved += this.tryMove(p, area, headL, anchorMid.x - mid.x, anchorMid.z - mid.z);
-      moved += this.climb(p, area, headL, anchorMid.y - mid.y);
+      moved += grabMove(anchorMid.x - mid.x, anchorMid.y - mid.y, anchorMid.z - mid.z);
     } else {
       for (const h of ['left', 'right'] as const) {
         const a = this.anchors[h];
         const c = handsL[h];
-        if (a && c) {
-          moved += this.tryMove(p, area, headL, a.x - c.x, a.z - c.z);
-          moved += this.climb(p, area, headL, a.y - c.y);
-        }
+        if (a && c) moved += grabMove(a.x - c.x, a.y - c.y, a.z - c.z);
       }
     }
 
@@ -113,7 +131,9 @@ export class Locomotion {
         const rx = -fwdL.z; // right = forward rotated -90° about Y
         const rz = fwdL.x;
         const step = cfg.smoothSpeed * dt;
-        moved += this.tryMove(p, area, headL, (fwdL.x * my + rx * mx) * step, (fwdL.z * my + rz * mx) * step);
+        const dx = (fwdL.x * my + rx * mx) * step;
+        const dz = (fwdL.z * my + rz * mx) * step;
+        moved += inp.fly ? this.moveFree(p, headL, dx, 0, dz) : this.tryMove(p, area, headL, dx, dz);
       }
     }
 
@@ -137,7 +157,9 @@ export class Locomotion {
     // ── Ladder or floor ──
     const ladder = area.ladderAt(headL.x, headL.z);
     const y = p.position[1];
-    if (ladder && y > ladder.bottom + 0.03) {
+    if (this.free) {
+      // Pulled ourselves here: stay at this height.
+    } else if (ladder && y > ladder.bottom + 0.03) {
       // Holding on to the ladder: stay at this height.
       p.position[1] = Math.min(y, ladder.top);
     } else {
@@ -150,6 +172,7 @@ export class Locomotion {
       }
     }
 
+    this.left = { frame, x: p.position[0], y: p.position[1], z: p.position[2] };
     const speed = dt > 0 ? moved / dt : 0;
     return Math.max(Math.min(1, speed / cfg.smoothSpeed), this.snapFlash > 0 ? 1 : 0);
   }
@@ -175,6 +198,17 @@ export class Locomotion {
     head.x += mx;
     head.z += mz;
     return Math.hypot(mx, mz);
+  }
+
+  /** Move by (dx, dy, dz) with no collisions at all (grab-the-world, the VR stick). */
+  private moveFree(p: PlayerState, head: THREE.Vector3, dx: number, dy: number, dz: number): number {
+    p.position[0] += dx;
+    p.position[1] += dy;
+    p.position[2] += dz;
+    head.x += dx;
+    head.y += dy;
+    head.z += dz;
+    return Math.hypot(dx, dy, dz);
   }
 
   /** Climb by dy (m) if the head is at a ladder; clamped to the ladder's ends. */

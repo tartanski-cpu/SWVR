@@ -75,7 +75,7 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | **Grip** with your hand on the throttle lever or wheel | Grab it; it follows your hand (not where the controller points). Two hands work on the wheel |
 | **Trigger** touching a button or switch | Press it (start/stop, horn, nav lights) |
 | Trigger pointing at a button or switch a little out of reach | Pointer-ray fallback for buttons and switches only (a blue line shows the target) |
-| **Grip** on empty air + pull | Move (grab the world). Two grips + twist: turn. In the water these are your swimming strokes |
+| **Grip** on empty air + pull | Move (grab the world) in any direction, up and down too, with no collisions. Wherever you pull yourself to, you stay at that height until you teleport, board or jump, so seated play works without crouching. Two grips + twist: turn. In the water these are your swimming strokes |
 | **A** | **Jump** (off the boat, onto a quay, into the sea) |
 | **Right stick click (hold)** | **Laser pointer** from the right controller; the crew sees the beam and dot |
 | **Grip** on a cargo item | Pick it up; it follows your hand. Items over 60 kg need both grips on them. Let go to set it down: on the deck over the boat, ashore over land, lost in the sea |

@@ -918,7 +918,7 @@ export class App {
       pulseBoth(0.4, 60);
       return true;
     }
-    this.runLocomotion(dt, inXR, this.scene, this.swimArea, CONFIG.body.swimSpeed / CONFIG.locomotion.smoothSpeed);
+    this.runLocomotion(dt, inXR, this.scene, this.swimArea, CONFIG.body.swimSpeed / CONFIG.locomotion.smoothSpeed, false);
     this.camera.getWorldPosition(this.headW);
     const ev = updateSwim(p, dt, this.bodyW.copy(this.headW).setY(p.position[1]), headHeight, this.bodyVessels(), this.worldArea, this.renderWaves);
     if (ev) this.keepViewOnReparent = true;
@@ -933,11 +933,12 @@ export class App {
     // Head from the camera's pose relative to the rig (fresh this frame; see syncRigToPlayer).
     this.camera.getWorldPosition(this.headW);
     this.camera.getWorldDirection(this.headFwd);
-    if (!this.updateBody(dt, inXR, area, frame)) this.runLocomotion(dt, inXR, frame, area, 1);
+    if (!this.updateBody(dt, inXR, area, frame)) this.runLocomotion(dt, inXR, frame, area, 1, inXR);
     this.placeDebugPanel(inXR);
   }
 
-  private runLocomotion(dt: number, inXR: boolean, frame: THREE.Object3D, area: WalkArea, speedScale: number): void {
+  /** `fly`: VR on foot - grab-the-world moves freely in 3D, nothing collides (see Locomotion). */
+  private runLocomotion(dt: number, inXR: boolean, frame: THREE.Object3D, area: WalkArea, speedScale: number, fly: boolean): void {
     const p = this.world.players[this.localPlayerId];
 
     const grabbing = { left: null as THREE.Vector3 | null, right: null as THREE.Vector3 | null };
@@ -969,6 +970,7 @@ export class App {
       moveStick: inXR ? [lx * speedScale, -ly * speedScale] : [0, 0],
       turnStick: inXR ? this.xrInput.hands.right.stick[0] : 0,
       desktopDelta,
+      fly,
     });
     for (const h of ['left', 'right'] as const) if (this.locomotion.grabStarted[h]) this.xrInput.pulse(h, 0.3, 30);
 
