@@ -3,7 +3,7 @@ import { CONFIG } from '../config';
 import type { WorldState } from '../core/world';
 import { surfaceHeight, type PreparedWave } from '../ocean/waves';
 import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
-import { buoyColor } from './potting';
+import { buoyColor, potReady } from './potting';
 
 const MAX = 32;
 const BUBBLES = 24;
@@ -16,6 +16,11 @@ const BUBBLES = 24;
  *
  * Shooting: a splash ring spreading where the pot went in, and a trail of bubbles while it
  * sinks (`sinkTime`); then the buoy pops up.
+ *
+ * The ready cue (milestone 2): the flag is red while the pot soaks and green when it's
+ * ready to haul, and at night a small light on the pole top blinks when it's ready - but
+ * only within `cueRange` of you; further off the flag is a dull grey, so you still have to
+ * go back to where you marked them.
  */
 export class PotView {
   readonly root = new THREE.Group();
@@ -24,6 +29,8 @@ export class PotView {
   private readonly flag: THREE.InstancedMesh;
   private readonly splash: THREE.InstancedMesh;
   private readonly bubbles: THREE.Points;
+  /** Night lights on ready buoys nearby (blinking). */
+  private readonly lamps: THREE.Points;
   private readonly m = new THREE.Matrix4();
   private readonly q = new THREE.Quaternion();
   private readonly e = new THREE.Euler();
@@ -44,6 +51,12 @@ export class PotView {
     bg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(BUBBLES * 8 * 3), 3));
     bg.setDrawRange(0, 0);
     this.bubbles = new THREE.Points(bg, new THREE.PointsMaterial({ color: 0xe8f4f8, size: 0.05, transparent: true, opacity: 0.8, depthWrite: false }));
+    const lg = new THREE.BufferGeometry();
+    lg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAX * 3), 3));
+    lg.setDrawRange(0, 0);
+    this.lamps = new THREE.Points(lg, new THREE.PointsMaterial({ color: 0xfff2a0, size: 7, sizeAttenuation: false, transparent: true, depthWrite: false, toneMapped: false }));
+    this.lamps.frustumCulled = false;
+    this.root.add(this.lamps);
     for (const o of [this.float, this.pole, this.flag, this.splash]) {
       o.frustumCulled = false;
       o.count = 0;
@@ -52,8 +65,15 @@ export class PotView {
     this.root.add(this.float, this.pole, this.flag, this.splash, this.bubbles);
   }
 
-  /** @param time world time (s): how long each pot has been in */
-  update(world: WorldState, waves: readonly PreparedWave[], time: number): void {
+  /**
+   * @param time     world time (s): how long each pot has been in
+   * @param viewer   where you are (the cue shows only close by)
+   * @param darkness 0 day .. 1 night (the ready light)
+   */
+  update(world: WorldState, waves: readonly PreparedWave[], time: number, viewer: THREE.Vector3, darkness: number): void {
+    let nl = 0;
+    const lampPos = this.lamps.geometry.getAttribute('position') as THREE.BufferAttribute;
+    const blink = (time % 2) < 0.35;
     const shot = world.potting?.shot ?? [];
     const sink = CONFIG.potting.sinkTime;
     let nb = 0;
@@ -88,7 +108,11 @@ export class PotView {
       this.pole.setMatrixAt(nb, this.m);
       this.flag.setMatrixAt(nb, this.m);
       this.float.setColorAt(nb, this.color.setHex(buoyColor(world, pot.owner)));
-      this.flag.setColorAt(nb, this.color.setHex(CONFIG.potting.flagSoaking));
+      // The cue, only from fairly close.
+      const near = Math.hypot(pot.x - viewer.x, pot.z - viewer.z) < CONFIG.potting.cueRange;
+      const ready = potReady(world, pot);
+      this.flag.setColorAt(nb, this.color.setHex(!near ? 0x6a6a66 : ready ? CONFIG.potting.flagReady : CONFIG.potting.flagSoaking));
+      if (near && ready && darkness > 0.4 && blink) lampPos.setXYZ(nl++, ...this.s.set(0, 1.03, 0).applyMatrix4(this.m).toArray());
       nb++;
     }
     for (const o of [this.float, this.pole, this.flag]) {
@@ -99,6 +123,8 @@ export class PotView {
     this.splash.count = ns;
     this.splash.instanceMatrix.needsUpdate = true;
     this.bubbles.geometry.setDrawRange(0, nbub);
+    this.lamps.geometry.setDrawRange(0, nl);
+    lampPos.needsUpdate = true;
     bubPos.needsUpdate = true;
     this.root.visible = shot.length > 0;
   }

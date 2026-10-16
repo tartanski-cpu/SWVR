@@ -5,7 +5,8 @@ import type { Intent } from '../src/core/intents';
 import { stepWorld } from '../src/core/simulation';
 import { createWorld } from '../src/core/world';
 import { GROUND, spawnCargo } from '../src/cargo/cargo';
-import { buoyUp, groundAt, isPot, potsOwned } from '../src/potting/potting';
+import { buoyUp, groundAt, isPot, potReady, potsOwned, soakFactor } from '../src/potting/potting';
+import { createWeather } from '../src/environment/weather';
 import { POTTING_GROUNDS } from '../src/world/archipelago';
 import { groundHeight } from '../src/world/terrain';
 import { standingHeight } from '../src/world/geography';
@@ -100,5 +101,65 @@ describe('potting, milestone 1: pots as cargo, shooting them', () => {
       expect(d).toBeGreaterThan(5);
       expect(d).toBeLessThan(30);
     }
+  });
+
+});
+
+describe('potting, milestone 2: soak, drift, the radio', () => {
+  /** A world with potting on and one pot shot at the middle of the Gull Rocks ground. */
+  function shotOne() {
+    const t = setup();
+    t.send('pottingOn');
+    const pot = t.pots()[0];
+    t.send('cargoTake', 1, pot.id, t.v.id);
+    const g = POTTING_GROUNDS[0];
+    t.send('cargoPlace', 1, pot.id, GROUND, [g.x, 0.5, g.z, 0]);
+    return { ...t, shot: t.world.potting!.shot[0], g };
+  }
+
+  it('ready to haul after the soak time; the catch improves until the best soak, then no more', () => {
+    const { world, run, shot, send } = shotOne();
+    expect(potReady(world, shot)).toBe(false);
+    // (World time follows the tick count, so wind the shot time back instead.)
+    shot.shotAt -= CONFIG.potting.sinkTime + CONFIG.potting.soakReady - 1;
+    expect(potReady(world, shot)).toBe(false);
+    run(1.1);
+    expect(potReady(world, shot)).toBe(true);
+    expect(soakFactor(world, shot)).toBeCloseTo(CONFIG.potting.soakReady / CONFIG.potting.soakBest, 2);
+    shot.shotAt -= CONFIG.potting.soakBest * 3;
+    expect(soakFactor(world, shot)).toBe(1);
+    // Debug: set ready.
+    const t2 = shotOne();
+    t2.send('potDebugReady');
+    expect(potReady(t2.world, t2.shot)).toBe(true);
+    void send;
+  });
+
+  it('in a squall the pot drags downwind; in a breeze it stays put', () => {
+    const { world, run, shot } = shotOne();
+    const w = (world.environment.weather = createWeather('Clear', 0));
+    w.fixed = true;
+    w.now = { ...w.now, wind: 8, windFrom: 270 };
+    w.target = { ...w.now };
+    run(5);
+    const x0 = shot.x;
+    run(30);
+    expect(shot.x).toBeCloseTo(x0, 6);
+    w.now = { ...w.now, wind: 17 };
+    w.target = { ...w.now };
+    run(60);
+    // From the west: east (+x), about dragRate x 6 m/s x 60 s.
+    const moved = shot.x - x0;
+    expect(moved).toBeGreaterThan(0.8 * CONFIG.potting.dragRate * 6 * 60);
+    expect(moved).toBeLessThan(1.2 * CONFIG.potting.dragRate * 6 * 60);
+  });
+
+  it('now and then a local potter tips a ground on the VHF', () => {
+    const { world, run } = setup();
+    stepWorld(world, [{ playerId: Object.keys(world.players)[0], targetId: Object.keys(world.vessels)[0], control: 'pottingOn', value: 1 } as Intent], DT);
+    run(CONFIG.potting.tipFirst + 1);
+    const msg = world.rescue?.radio;
+    expect(msg?.kind).toBe('info');
+    expect(POTTING_GROUNDS.some((g) => msg!.text.includes(g.name))).toBe(true);
   });
 });

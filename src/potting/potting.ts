@@ -11,6 +11,8 @@ import type { VesselState } from '../vessel/vesselState';
 import { POTTING_GROUNDS, type PottingGround } from '../world/archipelago';
 import { standingHeight } from '../world/geography';
 import { groundHeight } from '../world/terrain';
+import { windVector } from '../environment/weather';
+import { sayRadio } from '../rescue/rescue';
 
 /**
  * Lobster and crab potting (owner's feature; milestone 1: pots as cargo, and shooting them).
@@ -46,6 +48,8 @@ export interface PottingState {
   shot: ShotPot[];
   /** Pots lost (overboard loose, or never found). */
   lost: number;
+  /** When a local potter next comes on the VHF with a tip (world time, s). */
+  tipAt?: number;
 }
 
 /** Is this cargo item a pot? */
@@ -169,6 +173,65 @@ export function potLost(world: WorldState, item: CargoItem): void {
   stockPallet(world);
 }
 
+/** How long it's been fishing (s): from when it reached the bottom. */
+export function soakOf(world: WorldState, pot: ShotPot): number {
+  return Math.max(0, world.time - pot.shotAt - CONFIG.potting.sinkTime);
+}
+
+/** Soaked long enough to haul (the buoy's flag goes green). */
+export function potReady(world: WorldState, pot: ShotPot): boolean {
+  return soakOf(world, pot) >= CONFIG.potting.soakReady;
+}
+
+/** How far the soak has gone toward its best catch, 0..1 (milestone 3 uses it for the catch). */
+export function soakFactor(world: WorldState, pot: ShotPot): number {
+  return Math.min(1, soakOf(world, pot) / CONFIG.potting.soakBest);
+}
+
+/** Deterministic 0..1 from the state (the same on every peer). */
+function rand(n: number): number {
+  const s = Math.sin(n * 91.7 + 13.1) * 43758.5453;
+  return s - Math.floor(s);
+}
+
+const TIP_BOATS = ['Girl Isla', 'Morag', 'Bonnie Jean', 'Silver Spray', 'Kittiwake'];
+
+/**
+ * One tick (host): storm drift, and now and then a local potter on the VHF with a tip.
+ *   Drift: in wind over `dragFrom`, each pot drags along the bottom downwind, its buoy with
+ *   it, at `dragRate` m/s per m/s over; it stops where the water's under 1.5 m. Its ground
+ *   follows where it ends up.
+ */
+export function stepPotting(world: WorldState, dt: number): void {
+  const p = world.potting;
+  if (!p) return;
+  const c = CONFIG.potting;
+  const w = world.environment.weather?.now;
+  if (w && w.wind > c.dragFrom) {
+    const v = windVector(world.environment, { x: 0, z: 0 });
+    const len = Math.hypot(v.x, v.z) || 1;
+    const step = c.dragRate * (w.wind - c.dragFrom) * dt;
+    for (const pot of p.shot) {
+      if (!buoyUp(world, pot)) continue;
+      const nx = pot.x + (v.x / len) * step;
+      const nz = pot.z + (v.z / len) * step;
+      if (groundHeight(nx, nz) > -1.5) continue;
+      pot.x = nx;
+      pot.z = nz;
+      pot.ground = groundAt(nx, nz)?.id ?? null;
+    }
+  }
+  p.tipAt ??= world.time + c.tipFirst;
+  if (world.time >= p.tipAt) {
+    const n = p.seq + Math.floor(world.time);
+    p.tipAt = world.time + c.tipEvery[0] + rand(n) * (c.tipEvery[1] - c.tipEvery[0]);
+    const g = POTTING_GROUNDS[Math.floor(rand(n + 1) * POTTING_GROUNDS.length)];
+    const boat = TIP_BOATS[Math.floor(rand(n + 2) * TIP_BOATS.length)];
+    const what = rand(n + 3) < 0.5 ? 'crab' : 'lobster';
+    sayRadio(world, 'info', `All stations, ${boat}. Good ground for ${what} off ${g.name} just now, if anyone's potting. ${boat} out.`);
+  }
+}
+
 /** Its buoy is up (the pot's on the bottom). */
 export function buoyUp(world: WorldState, pot: ShotPot): boolean {
   return world.time - pot.shotAt >= CONFIG.potting.sinkTime;
@@ -179,6 +242,7 @@ export function buoyUp(world: WorldState, pot: ShotPot): boolean {
  *   pottingOn       switch potting on (Settings → Game → Potting, from the host's player)
  *   potDebugAboard  debug: the pots on the pallet onto the aft deck of the target vessel
  *   potDebugGround  debug: the target vessel to the middle of the nearest potting ground
+ *   potDebugReady   debug: every pot in the water soaked enough to haul
  */
 export function applyPottingIntent(world: WorldState, intent: Intent): void {
   if (intent.control === 'pottingOn') {
@@ -187,7 +251,9 @@ export function applyPottingIntent(world: WorldState, intent: Intent): void {
   }
   const v = world.vessels[intent.targetId];
   if (!v || !world.potting) return;
-  if (intent.control === 'potDebugAboard') {
+  if (intent.control === 'potDebugReady') {
+    for (const pot of world.potting.shot) pot.shotAt = Math.min(pot.shotAt, world.time - CONFIG.potting.sinkTime - CONFIG.potting.soakReady);
+  } else if (intent.control === 'potDebugAboard') {
     const z0 = hullPlan(VESSEL_DEFS[v.defId]).transom - 1.2;
     for (const c of Object.values(world.cargo)) {
       if (!isPot(c) || !('ground' in c.at)) continue;

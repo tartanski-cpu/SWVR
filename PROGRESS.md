@@ -1549,6 +1549,21 @@ How to come back to it:
 
 ### Fixes after V1.0 (on the dev branch; not in the `V1.0` tag)
 
+- **Lobster and crab potting, milestone 2 of 5: chart marking, soak, the ready cue, storm drift** (owner: keep it on the main game behind the setting).
+  - **Soak in play time, not the game's clock:** the time of day stands still by default (`environment.timeScale` 0), so "one in-game day" would never pass. Soak is world time from when the pot reaches the bottom (`potting.ts soakOf`): ready after `potting.soakReady` (1200 s, 20 min), improving to `soakBest` (2400 s), then flat (`soakFactor`, for milestone 3's catch). Tunable.
+  - **Ready cue** (`potView.ts`): the flag is red (`flagSoaking`) while soaking and green (`flagReady`) when ready, and a small light blinks on the pole top at night on a ready buoy. Both show only within `cueRange` (45 m); further off the flag is a dull grey.
+  - **Storm drift** (`stepPotting`): in wind over `dragFrom` (11 m/s) a pot drags downwind at `dragRate` (0.004 m/s per m/s over). A squall's 17 m/s is about 1.5 m a minute. It stops where the water's under 1.5 m, and its ground id follows it.
+  - **A local on the VHF** (`stepPotting`): every `tipEvery` (15-25 min, the first after `tipFirst` 4 min once potting is on), a potter (one of a few original boat names) says there's good crab or lobster off one of the grounds.
+  - **Grounds on the chartplotter** (`chartPlotter.ts`): hatched orange rings named "(pots)" while potting is on. Casual mode `potting.showOnPlotter` (default off) also shows your pots as dots; the debug **On plotter** toggles it.
+  - **Pot markers on the paper chart** (`chart/chartTools.ts`, `chart/marks.ts`):
+    - A tray of little red crab magnets sits by the pen holder. A marker shows a small number: the next free one when taken from the tray.
+    - **VR:** grip the tray to take one. Grip a marker on the chart to move it. Let it go over the chart and it snaps on; off the chart, it comes off.
+    - **Desktop:** click the tray, click the chart to put it down, click a marker to lift it, click the tray to put it back. The click that takes or places a marker never starts a pencil stroke.
+    - Markers are a new part of the shared chart marks: `ChartMarks.tokens`, with ops `token` (put or move) and `untoken`, at most `MAX_TOKENS` (40). They're relayed and joined like the pencil marks and saved with them in the browser. The eraser's clear-all leaves them: they're magnets.
+  - **Debug** (Missions → Potting): Ready (`potDebugReady`), On plotter.
+  - **Tests** (`tests/potting.test.ts`): ready after the soak, the catch factor capped at the best soak, debug ready; dragged downwind in a squall (about the expected distance) but not in a breeze; the local's tip names a ground.
+  - **Not yet:** hauling and the catch (milestone 3); selling, persistence across sessions, the lost-pot grace period and the propeller rule (4); duty board items, sounds and the multiplayer test (5).
+
 - **Lobster and crab potting, milestone 1 of 5: pots as cargo, and shooting them** (owner's feature brief: a slow-burn potting loop over several voyages; milestones 1 pots and shooting, 2 chart marking and soak, 3 hauling and catch, 4 selling, persistence and propeller rule, 5 multiplayer and polish).
   - **Where it's built:** the dev branch, behind a per-browser setting that's off by default (**Settings → Game → Potting**, `userSettings.potting`), not on `next`. `next` carries modular-boats commits that aren't on the dev branch, so pushing a potting milestone there would have overwritten them. With the setting on, the host (or a lone player) switches potting on in its game (intent `pottingOn`). With it off, the game is unchanged.
   - **Data** (`potting/potting.ts`, `WorldState.potting`, plain JSON, host-authoritative):

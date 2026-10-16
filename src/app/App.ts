@@ -681,7 +681,7 @@ export class App {
     this.painter.update(this.world, this.vesselRoots, this.renderWaves);
     this.logView.update(this.world, this.renderWaves, renderTime);
     this.trawlView.update(this.world, this.vesselRoots.get(this.testVesselId) ?? null, this.renderWaves, renderTime);
-    this.potView.update(this.world, this.renderWaves, this.world.time);
+    this.potView.update(this.world, this.renderWaves, this.world.time, this.focus, darkness);
     // Potting switched on in Settings: on in our game too, if it's ours (alone or hosting).
     if (userSettings.potting && !this.world.potting && (this.host || !this.client)) this.pushVesselIntent('pottingOn', 1);
     this.fireView.update(this.world, this.renderWaves, renderTime, dt);
@@ -1675,6 +1675,14 @@ export class App {
         if (this.world.players[this.localPlayerId].aboardVesselId !== this.testVesselId) this.toggleBoardTo(true);
         this.overlay.notify('On a potting ground: shoot the pots over the side', 3);
       },
+      potsReady: () => {
+        this.pushVesselIntent('potDebugReady', 1);
+        this.overlay.notify('Pots in the water: ready to haul', 2);
+      },
+      potsOnPlotter: () => !!this.bridge?.chart.showPots,
+      togglePotsOnPlotter: () => {
+        if (this.bridge) this.bridge.chart.showPots = !this.bridge.chart.showPots;
+      },
       debugMenu: () => userSettings.debugMenu,
       setDebugMenu: (on) => {
         userSettings.debugMenu = on;
@@ -1880,7 +1888,7 @@ export class App {
     client.onChart = (op) => applyChartOp(this.marks, op);
     client.onWelcome = (playerId, world, chart) => {
       // The host's chart: their marks replace ours while we're aboard their boat.
-      this.marks = chart ? { strokes: chart.strokes, seq: this.marks.seq + 1 } : createMarks();
+      this.marks = chart ? { strokes: chart.strokes, tokens: chart.tokens ?? [], seq: this.marks.seq + 1 } : createMarks();
       // Same boats on both sides (tows come and go, so they don't count).
       if (!Object.values(world.vessels).every((v) => this.vesselViews.has(v.id) || VESSEL_DEFS[v.defId]?.tow)) {
         this.netMessage = 'That game is a different version';

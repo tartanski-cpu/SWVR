@@ -391,14 +391,18 @@ The boat has a trawl: a red A-frame over the transom with a block each side on i
 
 ### Lobster and crab potting (new, being built)
 
-A slow-burn fishing job over several voyages. It's being built in stages, so it's **off unless you switch it on: Menu → Settings → Game → Potting → On**. So far (stage 1 of 5) you can collect the pots and shoot them; finding, hauling and selling come next.
+A slow-burn fishing job over several voyages. It's being built in stages, so it's **off unless you switch it on: Menu → Settings → Game → Potting → On**. So far (stages 1 and 2 of 5) you can collect the pots, shoot them, mark them on the chart and find them again when they're ready; hauling and selling come next.
 
-1. **Collect the pots:** five lobster pots wait on a pallet on the Calder Haven quay, by the fuel berth. Each is a creel: a dark netted frame with its line coiled on top and its orange marker buoy tied on. Carry them aboard one at a time (they're heavy-ish, 24 kg) and stow and lash them on the aft deck like any cargo. Five pots is a few trips: a job for two or three.
-2. **Steam to a potting ground:** rocky ground round headlands and islands: the south side of Gull Rocks, the east side of the Skerry, round Craig Bheag, and off Tarran's north point. They aren't on the chart yet (next stage).
-3. **Shoot the pots:** unlash a pot, carry it to the rail and let it go over the side. **VR:** hold it out past the gunwale and let go. **Desktop:** look out over the water from the rail and click, and it's thrown a little way out. It goes in with a splash and a trail of bubbles; a moment later its buoy pops up and stays there, bobbing on the waves, a red flag on a short pole. Shot off a ground, it'll catch little; in water too shallow to fish, it's lost.
-4. Pots lost (overboard loose, or let go in the shallows) are replaced on the pallet: pots are free for now.
+1. **Collect the pots:** five lobster pots wait on a pallet on the Calder Haven quay, by the fuel berth. Each is a creel: a dark netted frame with its line coiled on top and its orange marker buoy tied on. Carry them aboard one at a time (24 kg) and stow and lash them on the aft deck like any cargo. Five pots is a few trips: a job for two or three.
+2. **Steam to a potting ground:** rocky ground round headlands and islands, shown on the chartplotter as **hatched orange rings** ("(pots)"): the south side of Gull Rocks, the east side of the Skerry, round Craig Bheag, and off Tarran's north point. Now and then a local potter on the VHF mentions where the crab or lobster are.
+3. **Shoot the pots:** unlash a pot, carry it to the rail and let it go over the side. **VR:** hold it out past the gunwale and let go. **Desktop:** look out over the water from the rail and click, and it's thrown a little way out. It goes in with a splash and a trail of bubbles; a moment later its buoy pops up and stays there, bobbing on the waves. Shot off a ground, it'll catch little; in water too shallow to fish, it's lost.
+4. **Mark them on the chart:** the game doesn't track your pots for you: the crew marks them on the paper chart. There's a tray of little red **crab markers** by the pen holder on the chart table. **VR:** grip the tray to take one (it has the next free number), and let it go on the chart where you shot the pot; grip a marker on the chart to move it, or let it go off the chart to take it off. **Desktop:** click the tray, then click on the chart to put it down; click a marker to pick it up, the tray to put it back. Pencil marks work too. Everyone aboard sees the markers, and they're saved with the chart.
+5. **Let them soak:** pots need time in the water: about **20 minutes of play** before they're worth hauling, and they keep fishing better up to 40 minutes. (Play time, not the game's clock: the time of day stands still unless you speed it up.) A buoy's **flag is red while it soaks and green when it's ready**, and at night a small light blinks on top of a ready one, but you can only tell from close by (within about 45 m), so you still have to go back to your marks.
+6. **Weather:** in a strong blow (over 11 m/s) pots drag along the bottom downwind, buoy and all: a squall moves them a metre or two a minute. Mark carefully and look about when you come back.
 
-**Debug → Missions → Potting:** **Pots aboard** puts the pallet's pots on your aft deck; **To a ground** takes the boat to the nearest potting ground.
+No timers on screen: the chart marks, the buoy flags and your memory are all you have. Pots lost (overboard loose, or let go in the shallows) are replaced on the pallet: pots are free for now.
+
+**Debug → Missions → Potting:** **Pots aboard** puts the pallet's pots on your aft deck; **To a ground** takes the boat to the nearest potting ground; **Ready** makes every pot in the water ready to haul; **On plotter** shows your pots on the chartplotter (the casual-mode view).
 
 ### Wildlife
 

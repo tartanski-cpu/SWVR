@@ -2082,6 +2082,29 @@ export const CONFIG = {
     deskThrow: 1.4,
     buoyColors: [0xf26a1a, 0xf2d21a, 0xe0306a, 0x2ab0e0],
     flagSoaking: 0xd8281c,
+    /**
+     * Soak time (milestone 2). Measured in time played (world time, s), not the game's
+     * clock: the time of day stands still unless you speed it up in the menu, so "a day"
+     * wouldn't pass. A pot is ready to haul after `soakReady` (20 min) and its catch keeps
+     * improving until `soakBest` (40 min); after that, no better.
+     */
+    soakReady: 1200,
+    soakBest: 2400,
+    /** The ready cue: flag green instead of red, and a little light blinking on it at night; only within this distance (m), so you still have to find your marks. */
+    flagReady: 0x28c040,
+    cueRange: 45,
+    /**
+     * Storm drift: in wind over `dragFrom` (m/s) a pot drags along the bottom downwind, its
+     * buoy with it, at `dragRate` m/s for every m/s over (a squall's 17 m/s: about 1.5 m a
+     * minute). It stops where the water gets too shallow.
+     */
+    dragFrom: 11,
+    dragRate: 0.004,
+    /** A local potter on the VHF now and then, telling of good ground (s between, from first switched on). */
+    tipEvery: [900, 1500] as [number, number],
+    tipFirst: 240,
+    /** Casual mode: your pots shown on the chartplotter too (off: the crew's marks on the paper chart are all you have). */
+    showOnPlotter: false,
   },
 
   /**

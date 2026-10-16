@@ -174,6 +174,10 @@ export interface MenuHost {
   /** Debug: the pallet's pots onto our aft deck; our boat to the nearest potting ground. */
   potsAboard(): void;
   toPottingGround(): void;
+  /** Debug: every pot in the water ready to haul; our pots shown on the chartplotter. */
+  potsReady(): void;
+  potsOnPlotter(): boolean;
+  togglePotsOnPlotter(): void;
   /** The Debug tab is shown (a per-browser setting, off by default). */
   debugMenu(): boolean;
   setDebugMenu(on: boolean): void;
@@ -601,6 +605,8 @@ export function mainMenu(h: MenuHost): MainMenu {
           buttons: [
             { text: 'Pots aboard', press: () => h.potsAboard() },
             { text: 'To a ground', press: () => h.toPottingGround() },
+            { text: 'Ready', press: () => h.potsReady() },
+            { text: 'On plotter', active: () => h.potsOnPlotter(), press: () => h.togglePotsOnPlotter() },
           ],
         },
         {

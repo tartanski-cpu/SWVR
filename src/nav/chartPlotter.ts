@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import type { WorldState } from '../core/world';
 import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
 import { cargoPaused, portById } from '../rescue/rescue';
-import { ISLANDS, MARKS, PORTS, WRECKS } from '../world/archipelago';
+import { ISLANDS, MARKS, POTTING_GROUNDS, PORTS, WRECKS } from '../world/archipelago';
 import { groundHeight } from '../world/terrain';
 import { CONFIG } from '../config';
 import type { ChartMarks } from '../chart/marks';
@@ -39,6 +39,8 @@ export class ChartPlotter {
   private since = Infinity;
   /** Debug: draw the targets too. */
   showTargets = false;
+  /** Your pots shown too (casual mode, CONFIG.potting.showOnPlotter, or the debug toggle). */
+  showPots = CONFIG.potting.showOnPlotter;
   /** The crew's pencil marks, drawn faintly over the map (null: not shown). */
   marks: ChartMarks | null = null;
 
@@ -258,6 +260,45 @@ export class ChartPlotter {
       g.setLineDash([]);
       g.fillStyle = '#7fe8d8';
       g.fillText(`${fg.name} (fish)`, cx - 60, cy);
+    }
+    // Potting grounds (when potting's on): hatched rings, orange, with their names.
+    if (world.potting) {
+      for (const pg of POTTING_GROUNDS) {
+        const [cx, cy] = toPx(pg.x, pg.z);
+        const rad = Math.max(pg.radius / mpp, 8);
+        if (cx + rad < 0 || cx - rad > W || cy + rad < 0 || cy - rad > H) continue;
+        g.save();
+        g.beginPath();
+        g.arc(cx, cy, rad, 0, Math.PI * 2);
+        g.clip();
+        g.strokeStyle = 'rgba(240, 150, 60, 0.45)';
+        g.lineWidth = 1;
+        for (let d = -2 * rad; d <= 2 * rad; d += 7) {
+          g.beginPath();
+          g.moveTo(cx + d - rad, cy + rad);
+          g.lineTo(cx + d + rad, cy - rad);
+          g.stroke();
+        }
+        g.restore();
+        g.strokeStyle = 'rgba(240, 150, 60, 0.85)';
+        g.lineWidth = 1.5;
+        g.beginPath();
+        g.arc(cx, cy, rad, 0, Math.PI * 2);
+        g.stroke();
+        g.fillStyle = '#f2b070';
+        g.fillText(`${pg.name.split(',')[0]} (pots)`, cx - 50, cy - rad - 4);
+      }
+      // Casual mode / debug: the pots themselves, small orange dots.
+      if (this.showPots) {
+        g.fillStyle = '#ff9a3a';
+        for (const pot of world.potting.shot) {
+          const [px2, py2] = toPx(pot.x, pot.z);
+          if (px2 < 0 || px2 > W || py2 < 0 || py2 > H) continue;
+          g.beginPath();
+          g.arc(px2, py2, 3, 0, Math.PI * 2);
+          g.fill();
+        }
+      }
     }
     // Salvage logs washed up: brown bars, LOG.
     for (const l of world.salvage?.logs ?? []) {

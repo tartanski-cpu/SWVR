@@ -10,6 +10,11 @@
  *             wobble it. Hold the trigger for a straight line from where you started.
  *   eraser    rub it on the paper to rub marks out; hold its trigger 2 s to clear the chart.
  *   desktop   aim at the chart: drag to draw (Shift: straight line), right-drag to erase.
+ *   pot markers (potting): little numbered crab magnets in a tray by the pen holder. VR:
+ *             grip the tray to take one (the next free number), or grip one on the chart to
+ *             move it; let go over the chart and it snaps on, anywhere else and it comes
+ *             off. Desktop: click the tray to take one, click the chart to put it down,
+ *             click a marker to pick it up again, the tray to put it back.
  *
  * Everything here is in the chart table's frame (vessel axes); marks are converted to
  * chart coordinates (world metres) by the ChartTableView. Ops go out through ctx.send,
@@ -21,7 +26,7 @@ import type { HandFrame } from '../controls/InteractionSystem';
 import type { Handedness } from '../player/xrInput';
 import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
 import type { ChartTableView } from '../vessel/view/chartTable';
-import type { ChartMarks, ChartOp } from './marks';
+import type { ChartMarks, ChartOp, ChartToken } from './marks';
 
 export interface ChartToolsContext {
   marks: ChartMarks;
@@ -59,6 +64,16 @@ interface Drawing {
 }
 
 const GRAB_RANGE = 0.09;
+/** A pot marker: a disc this radius (m on the table). */
+const TOKEN_R = 0.011;
+
+/** A pot marker in a hand (new from the tray: id null). */
+interface HeldToken {
+  hand: Holder;
+  id: string | null;
+  n: number;
+  mesh: THREE.Object3D;
+}
 const DESK_REACH = 2.5;
 
 export class ChartTools {
@@ -80,6 +95,20 @@ export class ChartTools {
   private readonly q = new THREE.Quaternion();
   private readonly inv = new THREE.Matrix4();
   private readonly lray = new THREE.Ray();
+  /** Pot markers: the tray, the ones on the chart, and the one in a hand. */
+  private readonly tray: THREE.Mesh;
+  private readonly trayAt: THREE.Vector3;
+  private readonly tokens = new THREE.Group();
+  private shownTokens = '';
+  private heldToken: HeldToken | null = null;
+  private tokenN = 0;
+  private prevDown = false;
+  /** Desktop: the press that placed or took a marker isn't also a pencil stroke. */
+  private deskSuppress = false;
+  private readonly numberTex = new Map<number, THREE.Texture>();
+  private readonly tokenGeo: THREE.BufferGeometry;
+  private readonly tokenMat = flatVertexColorMaterial();
+  private readonly raycaster = new THREE.Raycaster();
 
   constructor(private readonly table: ChartTableView) {
     this.root.name = 'chartTools';
@@ -116,12 +145,125 @@ export class ChartTools {
       t.mesh.matrix.copy(t.home);
       this.root.add(t.mesh);
     }
+    // Pot markers: a red disc magnet with a little crab on it (claws forward).
+    this.tokenGeo = mergeParts([
+      part(new THREE.CylinderGeometry(TOKEN_R, TOKEN_R, 0.004, 14).translate(0, 0.002, 0), 0xc8281c),
+      part(new THREE.SphereGeometry(0.0055, 8, 5).scale(1.2, 0.5, 1).translate(0, 0.0055, 0.001), 0xe86a3a),
+      ...[-1, 1].map((sd) => part(new THREE.SphereGeometry(0.0028, 6, 4).scale(1, 0.6, 1.3).translate(sd * 0.0045, 0.005, -0.006), 0xe86a3a)),
+    ]);
+    // The tray beside the pen holder, a few markers lying in it.
+    this.trayAt = new THREE.Vector3(hx + 0.15, T, hz + 0.01);
+    this.tray = new THREE.Mesh(
+      mergeParts([
+        part(new THREE.BoxGeometry(0.075, 0.004, 0.055).translate(0, 0.002, 0), 0x5a3a20),
+        ...[-1, 1].map((sd) => part(new THREE.BoxGeometry(0.075, 0.012, 0.004).translate(0, 0.006, sd * 0.0255), 0x5a3a20)),
+        ...[-1, 1].map((sd) => part(new THREE.BoxGeometry(0.004, 0.012, 0.055).translate(sd * 0.0355, 0.006, 0), 0x5a3a20)),
+        ...[[-0.016, -0.008], [0.004, 0.01], [0.02, -0.006]].map(([x, z]) => part(new THREE.CylinderGeometry(TOKEN_R, TOKEN_R, 0.004, 12).translate(x, 0.006, z), 0xc8281c)),
+      ]),
+      flatVertexColorMaterial(),
+    );
+    this.tray.position.copy(this.trayAt);
+    this.tray.name = 'potMarkerTray';
+    this.tokens.name = 'potMarkers';
+    this.root.add(this.tray, this.tokens);
+  }
+
+  // ── Pot markers ──────────────────────────────────────────────────────────
+
+  /** A marker's mesh: the crab disc and its number on a tiny label beside it. */
+  private tokenMesh(n: number): THREE.Object3D {
+    const g = new THREE.Group();
+    g.add(new THREE.Mesh(this.tokenGeo, this.tokenMat));
+    let tex = this.numberTex.get(n);
+    if (!tex) {
+      const c = document.createElement('canvas');
+      c.width = 64;
+      c.height = 64;
+      const x = c.getContext('2d')!;
+      x.fillStyle = '#f4f0e2';
+      x.beginPath();
+      x.arc(32, 32, 30, 0, Math.PI * 2);
+      x.fill();
+      x.fillStyle = '#1a1a1a';
+      x.font = 'bold 40px system-ui, sans-serif';
+      x.textAlign = 'center';
+      x.textBaseline = 'middle';
+      x.fillText(String(n), 32, 34);
+      tex = new THREE.CanvasTexture(c);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      this.numberTex.set(n, tex);
+    }
+    const label = new THREE.Mesh(new THREE.PlaneGeometry(0.012, 0.012).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: tex, transparent: true }));
+    // Beside the disc on the inboard side (+x: toward you standing at the table), upright for you.
+    label.rotation.y = Math.PI / 2;
+    label.position.set(TOKEN_R + 0.006, 0.0045, 0);
+    g.add(label);
+    return g;
+  }
+
+  /** Rebuild the markers on the chart when they change (or one is lifted off). */
+  private redrawTokens(marks: ChartMarks): void {
+    const list = marks.tokens ?? [];
+    const key = `${marks.seq}|${this.heldToken?.id ?? ''}`;
+    if (key === this.shownTokens) return;
+    this.shownTokens = key;
+    this.tokens.clear();
+    const y = this.table.chartRect.y + 0.0004;
+    for (const t of list) {
+      if (t.id === this.heldToken?.id) continue;
+      const m = this.tokenMesh(t.n);
+      this.table.chartToTable(t.x, t.z, m.position).setY(y);
+      this.tokens.add(m);
+    }
+  }
+
+  /** The next free number for a new marker. */
+  private nextNumber(marks: ChartMarks): number {
+    const used = new Set((marks.tokens ?? []).map((t) => t.n));
+    let n = 1;
+    while (used.has(n)) n++;
+    return n;
+  }
+
+  /** The marker on the chart nearest a table point, within `r` (m). */
+  private tokenNear(marks: ChartMarks, at: THREE.Vector3, r: number): ChartToken | null {
+    let best: ChartToken | null = null;
+    let bd = r;
+    for (const t of marks.tokens ?? []) {
+      const p = this.table.chartToTable(t.x, t.z, this.tmp2);
+      const d = Math.hypot(p.x - at.x, p.z - at.z);
+      if (d < bd) [best, bd] = [t, d];
+    }
+    return best;
+  }
+
+  private takeToken(marks: ChartMarks, hand: Holder, existing: ChartToken | null): void {
+    const n = existing?.n ?? this.nextNumber(marks);
+    const mesh = this.tokenMesh(n);
+    this.root.add(mesh);
+    this.heldToken = { hand, id: existing?.id ?? null, n, mesh };
+  }
+
+  /** Let the marker go at `at` (table coords): on the chart it snaps on; elsewhere it comes off. */
+  private dropToken(ctx: ChartToolsContext, at: THREE.Vector3 | null): void {
+    const t = this.heldToken;
+    if (!t) return;
+    this.heldToken = null;
+    t.mesh.removeFromParent();
+    const plane = this.table.chartRect.y;
+    if (at && this.inChart(at) && at.y - plane < 0.08) {
+      const c = this.table.tableToChart(at.x, at.z);
+      const id = t.id ?? `${ctx.playerId}:pot${Date.now().toString(36)}${++this.tokenN}`;
+      ctx.send({ k: 'token', id, x: c.x, z: c.z, n: t.n });
+    } else if (t.id) ctx.send({ k: 'untoken', id: t.id });
+    this.shownTokens = '';
   }
 
   // ── Marks ────────────────────────────────────────────────────────────────
 
   /** Rebuild the lines when the marks changed (cheap: a few thousand vertices). */
   private redraw(marks: ChartMarks): void {
+    this.redrawTokens(marks);
     if (marks.seq === this.shownSeq) return;
     this.shownSeq = marks.seq;
     const pos = this.lineGeo.attributes.position as THREE.BufferAttribute;
@@ -233,6 +375,18 @@ export class ChartTools {
     let rubSound = 0;
     for (const h of ['right', 'left'] as const) {
       const f = hands[h];
+      // A pot marker in this hand: it follows the hand, just under the fingers.
+      if (this.heldToken?.hand === h) {
+        used[h] = true;
+        const at = this.tmp.copy(f.grip).applyMatrix4(this.inv);
+        if (!f.tracked || !f.gripDown) {
+          this.dropToken(ctx, at.add(new THREE.Vector3(0, -0.03, 0)));
+          ctx.pulse(h, 0.4, 25);
+          continue;
+        }
+        this.heldToken.mesh.position.copy(at).add(new THREE.Vector3(0, -0.03, 0));
+        continue;
+      }
       const held = (Object.keys(this.tools) as ToolName[]).find((k) => this.tools[k].held === h);
       if (held) {
         used[h] = true;
@@ -259,6 +413,19 @@ export class ChartTools {
       if (best) {
         this.tools[best].held = h;
         ctx.pulse(h, 0.5, 30);
+        used[h] = true;
+        continue;
+      }
+      // Else a pot marker: from the tray (a new one), or one on the chart (to move it).
+      if (this.heldToken) continue;
+      const onChart = this.tokenNear(ctx.marks, local, 0.04);
+      if (onChart && Math.abs(local.y - this.table.chartRect.y) < 0.08) {
+        this.takeToken(ctx.marks, h, onChart);
+        ctx.pulse(h, 0.4, 25);
+        used[h] = true;
+      } else if (local.distanceTo(this.trayAt) < GRAB_RANGE) {
+        this.takeToken(ctx.marks, h, null);
+        ctx.pulse(h, 0.4, 25);
         used[h] = true;
       }
     }
@@ -365,6 +532,31 @@ export class ChartTools {
   updateDesktop(ctx: ChartToolsContext, ray: THREE.Ray | null, b: { down: boolean; right: boolean; shift: boolean }, dt: number): { label: string | null; consumed: boolean } {
     this.redraw(ctx.marks);
     const hit = this.deskHit(ray);
+    // Pot markers first: a click on the tray, on a marker, or (holding one) on the chart.
+    const pressed = b.down && !this.prevDown;
+    this.prevDown = b.down;
+    if (!b.down) this.deskSuppress = false;
+    const onTray = this.trayHit(ray);
+    if (this.heldToken?.hand === 'desk') {
+      if (hit) this.heldToken.mesh.position.set(hit.x, hit.y + 0.006, hit.z);
+      else this.heldToken.mesh.position.copy(this.trayAt).setY(this.trayAt.y + 0.02);
+      if (pressed && (hit || onTray)) {
+        this.dropToken(ctx, hit ?? null);
+        this.deskSuppress = true;
+      }
+      return { label: 'pot marker\nclick on the chart to put it down · click the tray to put it back', consumed: true };
+    }
+    if (this.deskSuppress) return { label: null, consumed: true };
+    if (pressed && !this.deskTool) {
+      const tk = hit ? this.tokenNear(ctx.marks, hit, 0.02) : null;
+      if (tk || onTray) {
+        this.takeToken(ctx.marks, 'desk', tk);
+        this.deskSuppress = true;
+        return { label: 'pot marker', consumed: true };
+      }
+    }
+    if (!this.deskTool && onTray && !hit) return { label: 'pot markers\nclick to take one', consumed: false };
+    if (!this.deskTool && hit && this.tokenNear(ctx.marks, hit, 0.02)) return { label: 'pot marker\nclick to pick it up', consumed: false };
     let pencil = 0;
     let rub = 0;
     if (this.deskTool === 'pencil') {
@@ -400,6 +592,14 @@ export class ChartTools {
     return { label: 'chart\ndrag to draw · Shift: straight line · right-drag: erase', consumed: false };
   }
 
+  /** Is the reticle on the marker tray (within desk reach)? */
+  private trayHit(ray: THREE.Ray | null): boolean {
+    if (!ray) return false;
+    this.raycaster.ray.copy(ray);
+    this.raycaster.far = DESK_REACH;
+    return this.raycaster.intersectObject(this.tray, false).length > 0;
+  }
+
   private posePencilAt(p: THREE.Vector3): void {
     // Leaning back toward you (the inboard side, +x), tip on the paper.
     this.q.setFromEuler(new THREE.Euler(-Math.PI / 2 + 0.5, Math.PI / 2, 0, 'YXZ'));
@@ -424,9 +624,9 @@ export class ChartTools {
     }
   }
 
-  /** Is a tool in this hand (its grip is ours)? */
+  /** Is a tool (or a pot marker) in this hand (its grip is ours)? */
   holding(hand: Handedness): boolean {
-    return Object.values(this.tools).some((t) => t.held === hand);
+    return Object.values(this.tools).some((t) => t.held === hand) || this.heldToken?.hand === hand;
   }
 
   /** Redraw the marks when nothing else is updating the tools (e.g. a crewmate drew). */

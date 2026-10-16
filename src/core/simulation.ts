@@ -23,7 +23,7 @@ import { applyCraneIntent, onCrane, stepTender } from '../vessel/tenderCrane';
 import { applyPainterIntent, painterForces } from '../vessel/physics/painter';
 import { applyFireIntent, isFireIntent, stepFire } from '../fire/fire';
 import { stepExtinguisher } from '../fire/extinguisher';
-import { applyPottingIntent, isPottingIntent } from '../potting/potting';
+import { applyPottingIntent, isPottingIntent, stepPotting } from '../potting/potting';
 import { applyTowIntent, isTowIntent, stepTow, towlineForces } from '../tow/tow';
 import { applySalvageIntent, isSalvageIntent, stepSalvage } from '../salvage/salvage';
 import { stepFishing, trawlForces } from '../fishing/fishing';
@@ -126,6 +126,7 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
   stepRescue(world, dt, simWaves);
   stepTow(world, dt);
   stepExtinguisher(world, dt);
+  stepPotting(world, dt);
   stepFire(world, dt);
   stepSalvage(world, dt);
   stepFishing(world, dt);
