@@ -21,6 +21,11 @@ export interface UserSettings {
   hookAutoExtend: boolean;
   /** The menu's Debug tab (test and cheat tools) is shown. Off for players. */
   debugMenu: boolean;
+  /**
+   * Lobster and crab potting is switched on (potting/potting.ts; being built in milestones,
+   * so off unless you turn it on). Hosting or alone, it's switched on in your game.
+   */
+  potting: boolean;
 }
 
 /** Names to pick from in the menu (there's no comfortable way to type in VR). */
@@ -42,6 +47,7 @@ function load(): UserSettings {
     rainQuality: 'high',
     hookAutoExtend: true,
     debugMenu: false,
+    potting: false,
   };
   try {
     const raw = localStorage.getItem(KEY);
@@ -54,6 +60,7 @@ function load(): UserSettings {
       if (typeof saved.playerName === 'string' && saved.playerName) s.playerName = saved.playerName.slice(0, 24);
       if (typeof saved.hookAutoExtend === 'boolean') s.hookAutoExtend = saved.hookAutoExtend;
       if (typeof saved.debugMenu === 'boolean') s.debugMenu = saved.debugMenu;
+      if (typeof saved.potting === 'boolean') s.potting = saved.potting;
       if (saved.rainQuality === 'high' || saved.rainQuality === 'low' || saved.rainQuality === 'off') s.rainQuality = saved.rainQuality;
     } else {
       const legacy = localStorage.getItem(LEGACY_COUPLING_KEY);

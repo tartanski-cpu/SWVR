@@ -1536,7 +1536,15 @@ export const CONFIG = {
       { name: 'Sack', mass: 50, size: [0.55, 0.3, 0.85] as [number, number, number], shape: 'box' as const, slots: 1 },
       { name: 'Gas bottle', mass: 70, size: [0.32, 1.1, 0.32] as [number, number, number], shape: 'drum' as const, slots: 1 },
       { name: 'Oil drum', mass: 110, size: [0.58, 0.88, 0.58] as [number, number, number], shape: 'drum' as const, slots: 2 },
+      /**
+       * A lobster / crab pot (potting/potting.ts): not trade cargo (never spawned at the
+       * ports' goods stacks), but carried, stowed and lashed the same way. A creel: a
+       * boxy frame with netting, its line coiled on top and the marker buoy tied to it.
+       */
+      { name: 'Pot', mass: 24, size: [0.75, 0.42, 0.5] as [number, number, number], shape: 'pot' as const, slots: 2 },
     ],
+    /** How many of `kinds` (from the start) are trade cargo, spawned at the goods stacks. */
+    tradeKinds: 5,
     twoHandKg: 60,
     /**
      * Unlashed cargo on deck slides when the apparent gravity along the deck (heel, trim,
@@ -2052,6 +2060,28 @@ export const CONFIG = {
     grabRange: 0.2,
     eyeRange: 0.2,
     renderSize: 640,
+  },
+
+  /**
+   * Lobster and crab potting (potting/potting.ts; owner's feature, milestone 1: pots as
+   * cargo and shooting them). Off unless switched on (Settings → Game → Potting) while it's
+   * being built.
+   *   pallet     where the pots wait on the quay (world x, z, yaw deg) and how many: you
+   *              have `pots` of them; any lost are replaced there (pots are free for now)
+   *   maxShot    the most pots in the water at once, for everyone (cap on world records)
+   *   sinkTime   seconds from the splash until the pot's on the bottom and the marker buoy
+   *              pops up (s)
+   *   buoyColors each boat's buoy colour (by boat), flag colour while soaking
+   */
+  potting: {
+    pallet: { x: 719, z: 638, yawDeg: 90 },
+    pots: 5,
+    maxShot: 24,
+    sinkTime: 2.5,
+    /** Desktop: a pot set down from the rail is thrown this far out the way you look (m). */
+    deskThrow: 1.4,
+    buoyColors: [0xf26a1a, 0xf2d21a, 0xe0306a, 0x2ab0e0],
+    flagSoaking: 0xd8281c,
   },
 
   /**

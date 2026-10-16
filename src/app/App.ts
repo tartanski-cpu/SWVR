@@ -60,6 +60,7 @@ import { WorldView } from '../world/view/worldView';
 import { LaserPointer } from './laserPointer';
 import { SoundBoard } from './soundBoard';
 import { TowlineView } from '../tow/towlineView';
+import { PotView } from '../potting/potView';
 import { PainterView } from '../vessel/view/painterView';
 import { cleatName, painterPlan, skiffCleatLocal } from '../vessel/physics/painter';
 import { Cleat } from '../controls/deckGear';
@@ -205,6 +206,7 @@ export class App {
   private readonly painter = new PainterView();
   private readonly logView = new LogView();
   private readonly trawlView = new TrawlView();
+  private readonly potView = new PotView();
   private readonly targetsView = new TargetsView();
   private readonly desktopHand = new DesktopHand();
   private readonly deskHandW = new THREE.Vector3();
@@ -376,7 +378,7 @@ export class App {
     if (tugView) this.binoculars.stow(tugView.root);
     if (tugView) for (const g of this.gear) g.mount(tugView.root, CONFIG.handGear[g.kind].bracket);
     this.scene.add(this.handGearView.root);
-    this.scene.add(this.towline.root, this.painter.root, this.fireView.root, this.jetView.root, this.logView.root, this.trawlView.root);
+    this.scene.add(this.towline.root, this.painter.root, this.fireView.root, this.jetView.root, this.logView.root, this.trawlView.root, this.potView.root);
     this.setupBridge();
 
     setupXR(this.renderer, this.camera);
@@ -679,6 +681,9 @@ export class App {
     this.painter.update(this.world, this.vesselRoots, this.renderWaves);
     this.logView.update(this.world, this.renderWaves, renderTime);
     this.trawlView.update(this.world, this.vesselRoots.get(this.testVesselId) ?? null, this.renderWaves, renderTime);
+    this.potView.update(this.world, this.renderWaves, this.world.time);
+    // Potting switched on in Settings: on in our game too, if it's ours (alone or hosting).
+    if (userSettings.potting && !this.world.potting && (this.host || !this.client)) this.pushVesselIntent('pottingOn', 1);
     this.fireView.update(this.world, this.renderWaves, renderTime, dt);
     this.jetView.update(this.world, this.world.vessels[this.testVesselId], this.vesselRoots.get(this.testVesselId), renderTime);
     {
@@ -1654,6 +1659,22 @@ export class App {
       },
       probes: () => this.probes.mesh.visible,
       toggleProbes: () => this.probes.toggle(),
+      potting: () => userSettings.potting,
+      setPotting: (on) => {
+        userSettings.potting = on;
+        saveSettings();
+        this.overlay.notify(on ? 'Potting on: five pots wait on the pallet on the Calder Haven quay' : 'Potting off from your next game (pots already out stay out)', 4);
+      },
+      potsAboard: () => {
+        if (!this.world.potting) return this.overlay.notify('Switch potting on first (Settings → Game)', 3);
+        this.pushVesselIntent('potDebugAboard', 1);
+      },
+      toPottingGround: () => {
+        if (!this.world.potting) return this.overlay.notify('Switch potting on first (Settings → Game)', 3);
+        this.pushVesselIntent('potDebugGround', 1);
+        if (this.world.players[this.localPlayerId].aboardVesselId !== this.testVesselId) this.toggleBoardTo(true);
+        this.overlay.notify('On a potting ground: shoot the pots over the side', 3);
+      },
       debugMenu: () => userSettings.debugMenu,
       setDebugMenu: (on) => {
         userSettings.debugMenu = on;

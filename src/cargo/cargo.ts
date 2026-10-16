@@ -32,6 +32,7 @@ import { PORTS, type PortDef } from '../world/archipelago';
 import { standingHeight } from '../world/geography';
 import { deckSpot, onOpenDeck, type DeckFootprint } from './deck';
 import { cargoLost, earn, portName } from '../career/career';
+import { isPot, potLost, shootPot } from '../potting/potting';
 
 export type CargoAt =
   /** Ashore (world frame): `pos` is the middle of its base. */
@@ -95,7 +96,7 @@ export function portAtPoint(x: number, z: number): PortDef | null {
 }
 
 function waitingAt(world: WorldState, port: PortDef): CargoItem[] {
-  return Object.values(world.cargo).filter((c) => 'ground' in c.at && portAtPoint(c.at.ground[0], c.at.ground[2])?.id === port.id);
+  return Object.values(world.cargo).filter((c) => c.from !== 'pots' && 'ground' in c.at && portAtPoint(c.at.ground[0], c.at.ground[2])?.id === port.id);
 }
 
 export function aboard(world: WorldState, vesselId: EntityId): CargoItem[] {
@@ -121,7 +122,7 @@ export function spawnCargo(world: WorldState): CargoItem | null {
   const from = candidates[Math.floor(hash01(n) * candidates.length)];
   const others = PORTS.filter((p) => p.id !== from.id);
   const to = others[Math.floor(hash01(n + 0.5) * others.length)];
-  const kind = Math.floor(hash01(n + 0.25) * cfg.kinds.length);
+  const kind = Math.floor(hash01(n + 0.25) * cfg.tradeKinds); // trade cargo only (not pots)
   // First free place in the row (nothing within half a spacing of it).
   const items = Object.values(world.cargo).filter((c) => 'ground' in c.at);
   let pos = stackPoint(from, 0);
@@ -149,6 +150,8 @@ export function stockPorts(world: WorldState): void {
  * stock, it's charged.
  */
 function retire(world: WorldState, item: CargoItem, delivered: boolean, at?: string): void {
+  // A pot isn't trade cargo: lost overboard, it's just a lost pot (no penalty, no new cargo).
+  if (isPot(item)) return potLost(world, item);
   delete world.cargo[item.id];
   if (delivered) world.deliveries += 1;
   // A box of fish from the trawl, landed (fishing/fishing.ts).
@@ -259,6 +262,10 @@ export function applyCargoIntent(world: WorldState, intent: Intent): void {
         break;
       }
       const g = standingHeight(x, z);
+      if (isPot(item) && g < -0.3) {
+        shootPot(world, item, x, z); // a pot over the side: shot, its buoy pops up
+        break;
+      }
       if (g < -0.3 || y < g - 1) {
         retire(world, item, false); // into the sea
         break;
@@ -483,6 +490,8 @@ export function payloadOf(world: WorldState, vesselId: EntityId): { mass: number
 
 export function cargoLabel(item: CargoItem): string {
   const k = kindOf(item);
+  // A pot: no destination; you shoot it over the side on a potting ground.
+  if (isPot(item)) return `Lobster pot ${item.mass} kg: shoot it over the side on a potting ground`;
   const to = item.to === 'any' ? 'any harbour' : portById(item.to)?.name.replace(' (anchorage)', '');
   return `${k.name} ${item.mass} kg → ${to}`;
 }

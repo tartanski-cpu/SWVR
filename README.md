@@ -389,6 +389,17 @@ The boat has a trawl: a red A-frame over the transom with a block each side on i
 
 **Debug → Missions → Side jobs → Fishing ground** takes you to the nearest ground.
 
+### Lobster and crab potting (new, being built)
+
+A slow-burn fishing job over several voyages. It's being built in stages, so it's **off unless you switch it on: Menu → Settings → Game → Potting → On**. So far (stage 1 of 5) you can collect the pots and shoot them; finding, hauling and selling come next.
+
+1. **Collect the pots:** five lobster pots wait on a pallet on the Calder Haven quay, by the fuel berth. Each is a creel: a dark netted frame with its line coiled on top and its orange marker buoy tied on. Carry them aboard one at a time (they're heavy-ish, 24 kg) and stow and lash them on the aft deck like any cargo. Five pots is a few trips: a job for two or three.
+2. **Steam to a potting ground:** rocky ground round headlands and islands: the south side of Gull Rocks, the east side of the Skerry, round Craig Bheag, and off Tarran's north point. They aren't on the chart yet (next stage).
+3. **Shoot the pots:** unlash a pot, carry it to the rail and let it go over the side. **VR:** hold it out past the gunwale and let go. **Desktop:** look out over the water from the rail and click, and it's thrown a little way out. It goes in with a splash and a trail of bubbles; a moment later its buoy pops up and stays there, bobbing on the waves, a red flag on a short pole. Shot off a ground, it'll catch little; in water too shallow to fish, it's lost.
+4. Pots lost (overboard loose, or let go in the shallows) are replaced on the pallet: pots are free for now.
+
+**Debug → Missions → Potting:** **Pots aboard** puts the pallet's pots on your aft deck; **To a ground** takes the boat to the nearest potting ground.
+
 ### Wildlife
 
 Gulls wheel over the boat by day, gliding and now and then flapping, and calling. Under way in open, deep water, a pod of dolphins sometimes comes up from astern and rides off the bow for a minute or so, each one blowing as it surfaces. They're decoration: worked out from the time and the boat's position, so the whole crew sees the same animals.

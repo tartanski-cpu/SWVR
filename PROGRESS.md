@@ -1549,6 +1549,29 @@ How to come back to it:
 
 ### Fixes after V1.0 (on the dev branch; not in the `V1.0` tag)
 
+- **Lobster and crab potting, milestone 1 of 5: pots as cargo, and shooting them** (owner's feature brief: a slow-burn potting loop over several voyages; milestones 1 pots and shooting, 2 chart marking and soak, 3 hauling and catch, 4 selling, persistence and propeller rule, 5 multiplayer and polish).
+  - **Where it's built:** the dev branch, behind a per-browser setting that's off by default (**Settings → Game → Potting**, `userSettings.potting`), not on `next`. `next` carries modular-boats commits that aren't on the dev branch, so pushing a potting milestone there would have overwritten them. With the setting on, the host (or a lone player) switches potting on in its game (intent `pottingOn`). With it off, the game is unchanged.
+  - **Data** (`potting/potting.ts`, `WorldState.potting`, plain JSON, host-authoritative):
+    - **Pots** are cargo items of a new kind, `Pot`: 24 kg, 0.75 × 0.42 × 0.5 m, 2 skiff slots, `from: 'pots'`, `to: 'none'`. They carry, stow and lash like any cargo, are never trade cargo (`cargo.tradeKinds` limits what spawns at the goods stacks) and aren't counted against a port's stack.
+    - **The pallet** (`potting.pallet`) is on the Calder Haven quay by the fuel berth. Five pots (`potting.pots`), topped up there whenever pots are lost (pots are free for now).
+    - **Shooting:** a pot set down in the sea becomes a shot-pot record (owner boat, x, z, shot time, baited, ground id) and the cargo item goes. While it soaks there's no mesh, just the record. Capped at `potting.maxShot` (24) in the world. In water under 1 m, or past the cap, the pot is lost. Lost overboard loose, it's a lost pot with no career penalty, and a new one appears on the pallet.
+    - **Potting grounds** (`world/archipelago.ts POTTING_GROUNDS`): circles with a quality (0..1) on rocky edges in 6-25 m of water:
+      - the south side of Gull Rocks;
+      - the east side of the Skerry;
+      - Craig Bheag;
+      - Tarran north point.
+  - **Desktop throw** (`cargoHands.ts putDown`): a pot set down with a click while looking out over the water is thrown `potting.deskThrow` (1.4 m) out the way you look, so it can be shot from the rail. In VR you hold it out past the gunwale and let go, which is the existing set-down rule: outboard of the hull it goes in the sea.
+  - **Views:**
+    - **The pot** (`cargoView.ts potGeometry`, one instanced mesh): a creel with a base frame, a half-round netted body over three hoops, a rope bridle, the coiled line and an orange buoy with a pole.
+    - **Buoys** (`potting/potView.ts`): three instanced meshes for all buoys (float in the boat's colour `potting.buoyColors`, pole, flag `flagSoaking`), riding the drawn waves with a tilt from the slope, no physics body. Shooting shows a spreading splash ring and a bubble trail for `potting.sinkTime` (2.5 s); then the buoy pops up.
+  - **Debug** (Missions → Potting): Pots aboard (intent `potDebugAboard`), To a ground (`potDebugGround`).
+  - **Tests:** `tests/potting.test.ts`:
+    - off until switched on, five on the pallet, never trade cargo;
+    - carried, lashed and shot on a ground, with the buoy up after the sink time;
+    - let go in the shallows: lost and replaced;
+    - the grounds are in 5-30 m.
+  - **Not yet** (next milestones): the grounds on the chart display, chart marker tokens, soak time and the ready cue, storm drift, hauling and the catch, selling, persistence across sessions, the propeller rule, duty board items, sounds.
+
 - **Cargo crates flicker fixed; the trawl's catch in wooden fish boxes** (owner):
   - **Flicker:** the upper pale band on every crate had its top face flush with the crate's lid, so the two fought for the same pixels (z-fighting). The band now sits just below the lid (`cargo/cargoView.ts`).
   - **Fish boxes:** fish from the trawl (`from: 'trawl'`) are drawn as open wooden fish boxes: two slats a side, darker corner posts, a bed of ice only with the Ice machine upgrade (career upgrade `ice`; without it the fish lie on the bare boards; the boxes switch as soon as it's bought), and six fish filling its floor (three rows across, two head to tail in each; owner: they were bunched in the middle) as plain blocks with a tail, in cod grey, mackerel blue, haddock brown, gurnard red and whiting silver. One more instanced mesh, one draw call while there are any. They brighten when a hand is on them, as other cargo does. Port cargo of the "Fish box" kind still looks like a crate in its port's colour, so the colour-to-port cue isn't lost.

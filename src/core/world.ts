@@ -21,6 +21,7 @@ import { createFireState, type FireState } from '../fire/fire';
 import { createSalvageState, type SalvageState } from '../salvage/salvage';
 import { createFishingState, type FishingState } from '../fishing/fishing';
 import { createCareer, type CareerState } from '../career/career';
+import type { PottingState } from '../potting/potting';
 
 /**
  * The complete simulation state. Plain, JSON-serializable data only: no class
@@ -64,6 +65,8 @@ export interface WorldState {
   fire?: FireState;
   /** Log salvage: logs washed up on beaches (salvage/salvage.ts). */
   salvage?: SalvageState;
+  /** Lobster and crab potting: pots in the water (potting/potting.ts). Absent = off. */
+  potting?: PottingState;
   /** Fishing: the trawl and the catch (fishing/fishing.ts). */
   fishing?: FishingState;
   /** The career: money, ledger, reputation, contracts, upgrades (career/career.ts). */

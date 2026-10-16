@@ -308,6 +308,27 @@ export const MARKS: MarkDef[] = [
   { name: 'Calder No 2', kind: 'port', x: 525, z: 622 },
 ];
 
+/**
+ * Potting grounds (potting/potting.ts; owner's feature): where a potter would shoot creels -
+ * rocky ground round headlands and islands in 6-25 m of water, not sand. A circle (world
+ * x, z, radius m) and how good the ground is (0..1: more and better catch). Data, so free
+ * roam and procedural coasts can place them later.
+ */
+export interface PottingGround {
+  id: string;
+  name: string;
+  x: number;
+  z: number;
+  radius: number;
+  quality: number;
+}
+export const POTTING_GROUNDS: PottingGround[] = [
+  { id: 'gull', name: 'Gull Rocks, south side', x: 375, z: 482, radius: 55, quality: 0.8 },
+  { id: 'skerry', name: 'the Skerry, east side', x: -435, z: -350, radius: 50, quality: 0.7 },
+  { id: 'craig', name: 'Craig Bheag', x: 228, z: 895, radius: 45, quality: 0.9 },
+  { id: 'tarran', name: 'Tarran north point', x: 1400, z: -335, radius: 60, quality: 0.75 },
+];
+
 /** Wrecks drawn in the world (their solid part is a RIDGES entry with `drawn: false`). */
 export interface WreckDef {
   name: string;

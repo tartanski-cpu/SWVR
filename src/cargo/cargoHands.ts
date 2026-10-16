@@ -19,6 +19,9 @@ import type { Handedness } from '../player/xrInput';
 import { hullPlan } from '../vessel/layout';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 import { standingHeight } from '../world/geography';
+import { groundAt, isPot } from '../potting/potting';
+import { groundHeight } from '../world/terrain';
+import { CONFIG } from '../config';
 import { GROUND, cargoLabel, footprint, isHeavy, kindOf, lashPointFor, placeBlocker, takeBlocker, type CargoItem } from './cargo';
 
 export interface CargoHandsContext {
@@ -211,7 +214,7 @@ export class CargoHands {
    * Set the carried item down where it is: on a deck if it's over a hull (it slides off
    * the hand onto the deck), else ashore, else into the sea.
    */
-  putDown(ctx: CargoHandsContext): void {
+  putDown(ctx: CargoHandsContext, throwDir?: THREE.Vector3): void {
     const carry = this.carry;
     if (!carry) return;
     const c = ctx.world.cargo[carry.id];
@@ -219,6 +222,12 @@ export class CargoHands {
     if (!c) return;
     const pos = this.carryPos.clone();
     const quat = this.carryQuat.clone();
+    // Desktop, a pot: it's thrown a little way out the way you look, so you can shoot it
+    // over the side from the rail (in VR you hold it out over the side and let go).
+    if (throwDir && isPot(c)) {
+      const out = pos.clone().addScaledVector(this.tmp.set(throwDir.x, 0, throwDir.z).normalize(), CONFIG.potting.deskThrow);
+      if (!this.overHull(ctx, out) && standingHeight(out.x, out.z) < -0.3) pos.copy(out);
+    }
     // Over a hull: the one whose deck is nearest below. Not the skiff under her tarpaulin
     // in the cradle (it goes on the foredeck around her, or not at all).
     let best: { vid: string; root: THREE.Object3D; l: THREE.Vector3; plan: ReturnType<typeof hullPlan>; gap: number } | null = null;
@@ -253,7 +262,24 @@ export class CargoHands {
     const yaw = 2 * Math.atan2(quat.y, quat.w);
     ctx.push('cargoPlace', GROUND, c.id, 1, [pos.x, pos.y, pos.z, yaw]);
     if (g > -0.3) this.placed.set(c.id, { pos: new THREE.Vector3(pos.x, g, pos.z), quat, until: this.clock + 1.5 });
-    else ctx.notify(`${kindOf(c).name} lost in the sea`);
+    else if (isPot(c)) {
+      const ground = groundAt(pos.x, pos.z);
+      ctx.notify(groundHeight(pos.x, pos.z) > -1 ? 'Pot lost: no water to fish there' : ground ? `Pot away on ${ground.name}: its buoy will pop up` : 'Pot away (not on a potting ground: it will catch little)');
+    } else ctx.notify(`${kindOf(c).name} lost in the sea`);
+  }
+
+  /** Is this world point over a hull's deck (where a set-down lands on that deck)? */
+  private overHull(ctx: CargoHandsContext, pos: THREE.Vector3): boolean {
+    for (const [vid, root] of ctx.vesselRoots) {
+      const v = ctx.world.vessels[vid];
+      if (!v || v.tender?.phase === 'stowed') continue;
+      const l = root.worldToLocal(pos.clone());
+      const plan = hullPlan(VESSEL_DEFS[v.defId]);
+      if (l.z < plan.stem || l.z > plan.transom + 0.3 || Math.abs(l.x) > plan.halfBeam(Math.min(l.z, plan.transom)) + 0.3) continue;
+      if (l.y > plan.deckY(l.z) + 4 || l.y < plan.deckY(l.z) - 1.5) continue;
+      return true;
+    }
+    return false;
   }
 
   /** Toggle the lashing of an item on deck. */
@@ -357,7 +383,7 @@ export class CargoHands {
   /** Desktop click (not on a control or the menu): pick up the item under the reticle, or set down. */
   desktopClick(ctx: CargoHandsContext, ray: THREE.Ray | null): boolean {
     if (this.carry) {
-      this.putDown(ctx);
+      this.putDown(ctx, ray?.direction);
       return true;
     }
     if (!ray) return false;
