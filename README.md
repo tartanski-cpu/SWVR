@@ -253,8 +253,8 @@ Both hang on brackets inside the wheelhouse, low on the aft wall in the starboar
 
 - **VR:** grip one to take it off its bracket. It stays in that hand while you hold the grip: carry it out on deck, into the skiff or ashore. Let go and it goes back on its bracket. The same hand's **trigger** works it.
 - **Desktop:** click it to take it; you hold it low to your right, pointing where you look. The **left mouse button** works it (a click on a control still works the control). Click its bracket again, or press **U**, to hang it back.
-- **Extinguisher:** hold the trigger (or the left button) to spray. The spray carries 5-6 m, so get close: alongside a burning boat, or ashore at a burning shed. It knocks a fire down a bit slower than the fire monitor, and a charge lasts a minute of spraying. Empty, hang it back on its bracket and take it again for a full one.
-- **Torch:** trigger or left click: on / off. It's a real light, like the searchlight, for picking out people in the water close by or finding your way ashore at night. Crew-mates see your beam.
+- **Extinguisher:** hold the trigger (or the left button) to spray. The spray carries 5-6 m, so get close: alongside a burning boat, or ashore at a burning shed. You hear it hiss, and the fire sizzles and steams when you're on target. It knocks a fire down a bit slower than the fire monitor, and a charge lasts a minute of spraying. Empty, hang it back on its bracket and take it again for a full one.
+- **Torch:** trigger or left click: on / off. A narrow, real beam that lights the water and whatever it falls on, for picking out someone in the water 5-6 m off or finding your way ashore at night. Crew-mates see your beam.
 
 ### Fire missions
 

@@ -72,6 +72,10 @@ export class OceanView {
     uSpotDir: { value: new THREE.Vector3(0, -1, 0) },
     uSpotCos: { value: new THREE.Vector2(1, 1) },
     uSpotColor: { value: new THREE.Color(0, 0, 0) },
+    uTorchPos: { value: new THREE.Vector3() },
+    uTorchDir: { value: new THREE.Vector3(0, -1, 0) },
+    uTorchCos: { value: new THREE.Vector2(1, 1) },
+    uTorchColor: { value: new THREE.Color(0, 0, 0) },
     uFogColor: { value: new THREE.Color() },
     uFogNear: { value: 0 },
     uFogFar: { value: 1 },
@@ -107,6 +111,19 @@ export class OceanView {
     light.target.getWorldPosition(u.uSpotDir.value).sub(u.uSpotPos.value).normalize();
     u.uSpotCos.value.set(Math.cos(light.angle), Math.cos(light.angle * (1 - light.penumbra)));
     u.uSpotColor.value.copy(light.color).multiplyScalar(light.intensity > 0 ? 1.2 : 0);
+  }
+
+  /** Your hand torch's pool on the water (null or not lit: none). */
+  setTorch(light: THREE.SpotLight | null): void {
+    const u = this.uniforms;
+    if (!light?.visible) {
+      u.uTorchColor.value.setRGB(0, 0, 0);
+      return;
+    }
+    light.getWorldPosition(u.uTorchPos.value);
+    light.target.getWorldPosition(u.uTorchDir.value).sub(u.uTorchPos.value).normalize();
+    u.uTorchCos.value.set(Math.cos(light.angle), Math.cos(light.angle * (1 - light.penumbra)));
+    u.uTorchColor.value.copy(light.color).multiplyScalar(1.4);
   }
 
   /** The port floodlight's glints on the water (intensity 0 = off). */

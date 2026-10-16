@@ -1549,6 +1549,11 @@ How to come back to it:
 
 ### Fixes after V1.0 (on the dev branch; not in the `V1.0` tag)
 
+- **Torch on the water; extinguisher spray animated and heard** (owner testing):
+  - **Torch:** the sea now has its own pool for your torch (ocean shader `uTorch*`, `OceanView.setTorch`; it falls off over about 18 m). Before, it shared the searchlight's single slot and only got it while the searchlight was off. The beam is narrower, sized for a person 5-6 m off: `handGear.torch.angleDeg` 11 → 7 (a pool about 1.4 m across at 6 m), with a softer edge and a shorter visible cone.
+  - **Extinguisher spray animated** like the monitor's jet (`player/gearView.ts`): each segment's width pulses, droplets are scattered round the arc and re-scattered every frame so it shimmers (one small points cloud), and a splash pulses where it lands. The fire's smoke turns to white steam when the extinguisher hits it, as with the monitor.
+  - **Extinguisher sound** (`audio/fireAudio.ts`): a "pssht" as the valve opens, then a fluttering rush while it sprays. It's full loudness for your own and falls off with distance for a crew-mate's, and stops when it's empty. The steam sizzle, the "on target" cue, now sounds for extinguisher hits too.
+
 - **No fake radio voice on the Quest** (owner: the synthetic babble sounded fake). Where the browser can't speak (the Quest browser has no voices), the radio no longer babbles a voice-like sound. You hear the static burst as the call comes in and the squelch's click and hiss as it ends; the words are on the radio screen and in the notice. On desktop the browser's speech still reads the calls out (`audio/radioAudio.ts speak`). The survivors' shouts in the water still babble where there's no voice (`audio/rescueSounds.ts`); not changed.
 
 - **Hand gear: binoculars on the mouse, a fire extinguisher and a torch** (owner request):

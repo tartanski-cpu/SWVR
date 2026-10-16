@@ -137,7 +137,7 @@ export class HandGear {
     if (kind === 'torch' && CONFIG.handGear.torch.realLight) {
       const c = CONFIG.handGear.torch;
       // Not lit: invisible, so no shader includes it (one recompile when first switched on).
-      const light = new THREE.SpotLight(0xfff4dc, c.intensity, c.distance, (c.angleDeg * Math.PI) / 180, 0.45, 2);
+      const light = new THREE.SpotLight(0xfff4dc, c.intensity, c.distance, (c.angleDeg * Math.PI) / 180, 0.35, 2);
       light.visible = false;
       light.position.copy(this.tip);
       light.target.position.set(this.tip.x, this.tip.y, this.tip.z - 5);

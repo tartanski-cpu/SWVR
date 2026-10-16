@@ -2072,11 +2072,13 @@ export const CONFIG = {
     extinguisher: { bracket: [1.05, 1.62, 1.33] as [number, number, number], nozzleSpeed: 9, airDrag: 0.6, douse: 0.8, seconds: 60 },
     /**
      * A big rechargeable torch (trigger or left click: on / off). Lit, a real spotlight from
-     * its lens (`angleDeg` half-angle, `intensity`, `distance` m), only for your own torch:
-     * crew-mates' torches show as a beam. `realLight` false: a beam only for yours too (no
+     * its lens (`angleDeg` half-angle, `intensity`, `distance` m), only for your own torch.
+     * Sized for a person in the water 5-6 m off (owner): at 7 degrees the pool is about 1.4 m
+     * across at 6 m. It also has its own pool on the sea (ocean shader uTorch*). Crew-mates'
+     * torches show as a beam. `realLight` false: a beam only for yours too (no
      * extra light in the scene, for a cheaper frame on the Quest).
      */
-    torch: { bracket: [1.25, 1.72, 1.36] as [number, number, number], angleDeg: 11, intensity: 260, distance: 45, realLight: true },
+    torch: { bracket: [1.25, 1.72, 1.36] as [number, number, number], angleDeg: 7, intensity: 260, distance: 45, realLight: true },
   },
 
   /** Bridge-control interaction tuning. */

@@ -687,7 +687,8 @@ export class App {
       const burning = fj && fj.phase !== 'calling' ? fj.intensity : 0;
       const dist = fj ? Math.hypot(fj.x - this.focus.x, fj.z - this.focus.z) : 1e9;
       this.bridge?.fireGauge?.update(fj ?? null);
-      this.sound.fire.update(burning, dist, !!tv && jetOn(tv), this.insideHouse ? this.closed : 0, fj && fj.phase === 'accepted' ? fj.wetting : 0);
+      const wet = fj && fj.phase === 'accepted' ? Math.max(fj.wetting, fj.handWet ?? 0) : 0;
+      this.sound.fire.update(burning, dist, !!tv && jetOn(tv), this.insideHouse ? this.closed : 0, wet, this.extinguisherLoudness());
       // The anchor chain over the bow roller and the windlass.
       const root = this.vesselRoots.get(this.testVesselId);
       const hawse = this.testDef.anchor && root ? root.localToWorld(this.tmpV.fromArray(this.testDef.anchor.hawse)).distanceTo(this.focus) : 1e9;
@@ -776,18 +777,16 @@ export class App {
     this.worldView.portLighting.update(this.focus, darkness);
     this.ocean.setPortLight(this.worldView.portLighting.flood);
     const fxTest = this.effects.get(this.testVesselId);
-    // The sea has one spotlight pool: the searchlight's, or (with it off) your torch's.
-    const spot = fxTest?.searchlight?.light;
-    const torch = this.gear[1].light;
-    if (torch?.visible && !(spot && spot.intensity > 0)) this.ocean.setSpotlight(torch);
-    else if (spot) this.ocean.setSpotlight(spot);
+    if (fxTest?.searchlight) this.ocean.setSpotlight(fxTest.searchlight.light);
+    // Your torch has its own pool on the water.
+    this.ocean.setTorch(this.gear[1].light);
     this.cargoView.update(this.world, this.vesselRoots, (c) => this.carriedPose(c), this.cargoHands.hovered);
     const deskHand = inXR ? null : this.desktopHandWorld(this.deskHandW);
     if (deskHand) this.desktopHand.setColor(playerColor(this.localPlayerId));
     this.desktopHand.update(this.camera, deskHand, dt);
     this.updateNetPose(dt);
     this.avatars.update(this.world, this.localPlayerId, this.vesselRoots, dt);
-    this.updateGear(darkness);
+    this.updateGear(darkness, dt);
   }
 
   /** Hull contact and water past the hull: sound, and a jolt through the controllers aboard. */
@@ -1050,7 +1049,28 @@ export class App {
   }
 
   /** Hand gear as everyone sees it: sprays, beams, crew-mates' gear; the brackets' state. */
-  private updateGear(darkness: number): void {
+  /**
+   * How loud an extinguisher's hiss is where you are (0..1): yours in your hand, full;
+   * a crew-mate's, falling off with distance. Nothing once it's empty.
+   */
+  private extinguisherLoudness(): number {
+    if ((extinguisherShip(this.world)?.extCharge ?? 1) <= 0) return 0;
+    const mine = this.gear[0];
+    if (mine.held) return mine.on ? 1 : 0;
+    let best = 0;
+    const p = this.tmpV;
+    for (const pl of Object.values(this.world.players)) {
+      const g = pl.avatar?.gear;
+      if (pl.id === this.localPlayerId || g?.kind !== 'extinguisher' || !g.on) continue;
+      const frame = pl.aboardVesselId ? this.vesselRoots.get(pl.aboardVesselId) : null;
+      p.fromArray(g.p);
+      if (frame) frame.localToWorld(p);
+      best = Math.max(best, 1 / (1 + (p.distanceTo(this.focus) / 6) ** 2));
+    }
+    return best;
+  }
+
+  private updateGear(darkness: number, dt: number): void {
     const mine = this.gear.find((g) => g.held);
     let local: { kind: GearKind; on: boolean; p: THREE.Vector3; d: THREE.Vector3 } | null = null;
     if (mine) {
@@ -1059,7 +1079,7 @@ export class App {
       mine.tipWorld(p, d);
       local = { kind: mine.kind, on: mine.on, p, d };
     }
-    this.handGearView.update(this.world, this.localPlayerId, local, this.vesselRoots, darkness);
+    this.handGearView.update(this.world, this.localPlayerId, local, this.vesselRoots, darkness, dt);
     // On the bracket: hidden while a crew-mate has it (it's in their hand).
     for (const g of this.gear) if (!g.held) g.mesh.visible = !this.gearTakenByOther(g.kind);
     // Spraying an empty extinguisher: say so once.
