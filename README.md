@@ -182,6 +182,8 @@ Above it, a lamp on the wall with its own small switch on the wooden batten the 
 
   Nearly dry, the OIL lamp blinks while running.
 - **Wheelhouse door:** the aft door has a window and slides open or shut with the **green push button** on its starboard frame, inside and out (trigger in VR, click on the desktop). The door itself isn't a button any more, so it can't catch your hand at the whiteboard. It starts open, and when shut it blocks desktop walking.
+- **Side door:** a second sliding door in the port side of the wheelhouse, between the helm console and the chart table, out to the port side deck. Its green button is on the forward edge of the doorway, inside and out. It starts shut. The wheelhouse is only shut in (quieter, out of the wind) with both doors shut.
+- **Wheelhouse front:** pilot-house style, the front windows lean forward from the top of the instrument panel under a brow, and the side walls stand up to the console top beside it.
   - **Sound:** on deck the engine is at full noise. Inside the wheelhouse it's a little quieter and duller; with the door shut it's much quieter and duller. Shutting the door also muffles the wind, rain, hull wash and fires inside.
 
 ### Traffic and hazards

@@ -138,6 +138,7 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig): WalkArea {
   const int = { x: wh.halfWidth - wh.wall, z0: wh.front + wh.wall, z1: wh.aft - wh.wall };
   const consoleAft = int.z0 + wh.consoleDepth;
   const doorHalf = wh.doorWidth / 2;
+  const sd = wh.sideDoor;
   const inHouseFootprint = (x: number, z: number) => Math.abs(x) <= ext.x && z >= ext.z0 && z <= ext.z1;
   // Furniture on the wheelhouse floor: the chart table (if she has one), footprint and height
   // above the floor. Its leaf folded down against the wall, only a strip along the wall is
@@ -173,7 +174,9 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig): WalkArea {
       height: () => wh.floorY,
       contains: (x, z) =>
         (Math.abs(x) <= int.x - r && z >= consoleAft + r && z <= int.z1 - r && !atFurniture(x, z, r)) ||
-        (Math.abs(x) <= doorHalf - r * 0.6 && z > int.z1 - r - 0.02 && z < ext.z1 + r + 0.02),
+        (Math.abs(x) <= doorHalf - r * 0.6 && z > int.z1 - r - 0.02 && z < ext.z1 + r + 0.02) ||
+        // The port side door, out to the side deck.
+        (!!sd && x < -int.x + r + 0.02 && x > -ext.x - r - 0.02 && z > sd.z0 + r * 0.6 && z < sd.z1 - r * 0.6),
     },
     {
       // Wheelhouse roof inside its rail, around the mast, plus the landing at the ladder head.
@@ -233,8 +236,10 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig): WalkArea {
       // In a wall: the doorway and window band are open.
       const hy = y - wh.floorY;
       if (z >= int.z1 && ax < doorHalf && hy < wh.doorHeight) return false;
+      if (sd && x < 0 && z > sd.z0 && z < sd.z1 && hy < sd.height) return false; // the port side doorway
       // The front's glass starts higher (frontSill, level with the dash top).
-      const sillHere = z < int.z0 ? (wh.frontSill ?? wh.windowSill) : wh.windowSill;
+      const raise = wh.sideRaise;
+      const sillHere = z < int.z0 ? (wh.frontSill ?? wh.windowSill) : raise && z < raise.z1 ? raise.height : wh.windowSill;
       if (hy > sillHere && hy < wh.windowHead) return false;
       return true;
     },

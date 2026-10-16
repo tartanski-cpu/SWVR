@@ -61,6 +61,8 @@ export class Bridge {
   private oilCan: OilCan | null = null;
   /** The aft door (its push buttons on the frame open / shut it). */
   readonly door: WheelhouseDoor;
+  /** The port side door (boats whose wheelhouse has one). */
+  readonly sideDoor: WheelhouseDoor | null = null;
   /** The fenders over the side or stowed (boats that carry them). */
   private readonly fenders: FendersView | null = null;
 
@@ -215,6 +217,24 @@ export class Bridge {
     outside.root.position.set(db.x, wh.floorY + db.height, wh.aft);
     outside.root.rotation.set(-Math.PI / 2, Math.PI, 0, 'YXZ'); // the same, turned to face aft
     this.controls.push(inside, outside);
+    // The port side door, between the console and the chart table: slides aft outside the
+    // wall; its buttons on the forward jamb, inside and out.
+    const sd = wh.sideDoor;
+    if (sd) {
+      const door = new WheelhouseDoor(sd.z1 - sd.z0, sd.height, 'sideDoor');
+      door.root.position.set(-wh.halfWidth - 0.025, wh.floorY, (sd.z0 + sd.z1) / 2);
+      door.root.rotation.y = Math.PI / 2; // its slide (local -x) runs aft
+      this.root.add(door.root);
+      this.sideDoor = door;
+      const jz = sd.z0 - 0.04;
+      const sIn = new DoorButton('sideDoorIn', 'sideDoor');
+      sIn.root.position.set(-wh.halfWidth + wh.wall, wh.floorY + sd.buttonHeight, jz);
+      sIn.root.rotation.set(-Math.PI / 2, -Math.PI / 2, 0, 'YXZ'); // facing in (+x)
+      const sOut = new DoorButton('sideDoorOut', 'sideDoor');
+      sOut.root.position.set(-wh.halfWidth, wh.floorY + sd.buttonHeight, jz);
+      sOut.root.rotation.set(-Math.PI / 2, Math.PI / 2, 0, 'YXZ'); // facing out (-x)
+      this.controls.push(sIn, sOut);
+    }
     this.rainGlass = new RainGlass(def);
     this.root.add(this.rainGlass.root);
     // Mooring cleats on the bulwark tops, forward and aft each side (they replace the DOCK
@@ -380,6 +400,7 @@ export class Bridge {
     }
     if (displaysInView) this.instruments.update(state, this.def, dt, env);
     this.door.sync(state);
+    this.sideDoor?.sync(state);
     // Under the floor, the dipstick and the oil can are only within reach with the hatch open.
     const hatchOpen = (state.controls.engineHatch ?? 0) > 0.5;
     if (this.dipstick) this.dipstick.enabled = hatchOpen;

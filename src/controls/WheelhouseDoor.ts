@@ -9,6 +9,8 @@ import { Control } from './Control';
  * caught hands writing on it): a push button on the door frame, inside and out
  * (`DoorButton`), opens or shuts it.
  * Its root sits at the bottom centre of the doorway, on the aft face of the wall.
+ * The port side door (`sideDoor`) is the same panel, turned to slide aft along the outside
+ * of the port wall; `key` is the vessel control that opens it (1 open).
  */
 export class WheelhouseDoor {
   readonly root = new THREE.Group();
@@ -19,8 +21,10 @@ export class WheelhouseDoor {
   constructor(
     private readonly width: number,
     height: number,
+    private readonly key: 'door' | 'sideDoor' = 'door',
   ) {
-    this.root.name = 'wheelhouseDoor';
+    this.root.name = key === 'door' ? 'wheelhouseDoor' : 'sideDoor';
+    this.open = this.target = key === 'door' ? 1 : 0;
     const w = width;
     const t = 0.04;
     // The window: from waist height to near the top, most of the door's width.
@@ -48,7 +52,7 @@ export class WheelhouseDoor {
   }
 
   sync(state: VesselState): void {
-    this.target = state.controls.door > 0.5 ? 1 : 0;
+    this.target = (state.controls[this.key] ?? 0) > 0.5 ? 1 : 0;
   }
 
   /** Slide toward open / shut (call every frame). */
@@ -76,13 +80,15 @@ export class WheelhouseDoor {
  */
 export class DoorButton extends Control {
   readonly kind = 'press' as const;
-  readonly label = 'Wheelhouse door: open / shut';
+  readonly label: string;
   private readonly cap: THREE.Mesh;
-  private doorOpen = true;
+  private doorOpen: boolean;
   private pressed = false;
 
-  constructor(id: string) {
-    super(id, 'door');
+  constructor(id: string, private readonly key: 'door' | 'sideDoor' = 'door') {
+    super(id, key);
+    this.label = key === 'door' ? 'Wheelhouse door: open / shut' : 'Side door: open / shut';
+    this.doorOpen = key === 'door';
     const plate = this.fixed(new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.012, 0.14), new THREE.MeshLambertMaterial({ color: 0x2a2e33 })));
     plate.position.y = 0.006;
     this.cap = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.026, 0.02, 14), this.material(0x3a9a4a));
@@ -114,7 +120,7 @@ export class DoorButton extends Control {
   }
 
   sync(state: VesselState): void {
-    const open = state.controls.door > 0.5;
+    const open = (state.controls[this.key] ?? 0) > 0.5;
     if (this.awaiting(open === this.doorOpen)) return;
     this.doorOpen = open;
     if (!this.hovered) (this.cap.material as THREE.MeshLambertMaterial).emissive.setHex(open ? 0x1a4a1a : 0x000000);

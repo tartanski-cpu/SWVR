@@ -1091,13 +1091,18 @@ export class App {
     this.placeDebugPanel(inXR);
   }
 
-  /** Desktop walking on the workboat: a shut wheelhouse door blocks the doorway. */
+  /** Desktop walking on the workboat: a shut wheelhouse door (aft or port side) blocks its doorway. */
   private withDoor(area: WalkArea, vesselId: EntityId | null): WalkArea {
     const v = vesselId === this.testVesselId ? this.world.vessels[vesselId] : undefined;
-    if (!v || v.controls.door > 0.5) return area;
+    if (!v) return area;
     const wh = this.testDef.layout.wheelhouse;
-    const inDoor = (x: number, z: number, y: number) => Math.abs(x) < wh.doorWidth / 2 + 0.15 && Math.abs(z - wh.aft) < 0.3 && y < wh.floorY + 0.5;
-    return { ...area, walkable: (x, z, y) => area.walkable(x, z, y) && !inDoor(x, z, y) };
+    const sd = wh.sideDoor;
+    const aftShut = v.controls.door <= 0.5;
+    const sideShut = !!sd && (v.controls.sideDoor ?? 0) <= 0.5;
+    if (!aftShut && !sideShut) return area;
+    const inAft = (x: number, z: number, y: number) => aftShut && Math.abs(x) < wh.doorWidth / 2 + 0.15 && Math.abs(z - wh.aft) < 0.3 && y < wh.floorY + 0.5;
+    const inSide = (x: number, z: number, y: number) => sideShut && !!sd && Math.abs(x + wh.halfWidth) < 0.3 && z > sd.z0 - 0.15 && z < sd.z1 + 0.15 && y < wh.floorY + 0.5;
+    return { ...area, walkable: (x, z, y) => area.walkable(x, z, y) && !inAft(x, z, y) && !inSide(x, z, y) };
   }
 
   /** `fly`: VR on foot - grab-the-world moves freely in 3D, nothing collides (see Locomotion). */
@@ -2192,7 +2197,9 @@ export class App {
     // How shut-in the wheelhouse is: the aft door decides.
     if (this.bridge) {
       this.bridge.door.tick(dt);
-      this.closed = this.bridge.door.shut ? 1 : 0;
+      this.bridge.sideDoor?.tick(dt);
+      // Shut in only with both doors shut (the port side door, if she has one, too).
+      this.closed = this.bridge.door.shut && (this.bridge.sideDoor?.shut ?? true) ? 1 : 0;
     }
     this.sound.wind.update(Math.hypot(ax, az), inside, dt, this.closed);
   }

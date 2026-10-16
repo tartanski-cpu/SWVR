@@ -452,7 +452,21 @@ export const CONFIG = {
            * them lean; the front wall below the sill stays upright. A brow carries the roof
            * edge out over the raked glass. 0 for an upright front.
            */
-          frontRakeDeg: 12,
+          frontRakeDeg: 22,
+          /**
+           * The side windows' sill raised alongside the helm console (owner sketch): from the
+           * front back to `z1`, the side wall stands solid up to `height` above the floor
+           * (the console top), then slopes back down to the normal sill over `slope` m.
+           */
+          sideRaise: { height: 0.95, z1: -1.32, slope: 0.35 },
+          /**
+           * A sliding door in the port side wall, between the helm console and the chart
+           * table (owner request): opening z0..z1, `height` above the floor. Like the aft
+           * door it slides aft along the outside of the wall, worked by a push button on its
+           * forward jamb inside and out (`buttonHeight` above the floor). Vessel control
+           * `sideDoor` (1 open), shut at the start.
+           */
+          sideDoor: { z0: -1.12, z1: -0.37, height: 2.0, buttonHeight: 1.15 },
           /** Helm console across the front of the house. */
           consoleDepth: 0.5,
           consoleHeight: 0.95,

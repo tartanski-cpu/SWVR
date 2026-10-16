@@ -112,6 +112,17 @@ function box(x0: number, x1: number, y0: number, y1: number, z0: number, z1: num
 }
 
 /**
+ * A wedge (triangular prism) across x0..x1: in the (z, y) plane its corners are (zA, y0),
+ * (zA, y1) and (zB, y0) - a wall panel's sloping end.
+ */
+function wedge(x0: number, x1: number, zA: number, zB: number, y0: number, y1: number, color: number): THREE.BufferGeometry {
+  const shape = new THREE.Shape([new THREE.Vector2(zA, y0), new THREE.Vector2(zB, y0), new THREE.Vector2(zA, y1)]);
+  // Extruded along its own +z, then turned so that runs along -x and the shape's x is z.
+  const g = new THREE.ExtrudeGeometry(shape, { depth: x1 - x0, bevelEnabled: false }).rotateY(-Math.PI / 2).translate(x1, 0, 0);
+  return part(g, color);
+}
+
+/**
  * A thin bar of cross-section w x h running from p0 to p1 (any direction). Its h side is
  * kept as near vertical as the direction allows (a vertical bar keeps it fore-and-aft), so
  * consecutive segments of a rail or bulwark line up instead of each rolling its own way.
@@ -209,13 +220,39 @@ function buildWheelhouse(layout: HouseLayout): THREE.BufferGeometry[] {
   parts.push(box(-hw, hw, base, fSill, wh.front, wh.front + w, H));
   parts.push(raked(box(-hw, hw, head, roof, wh.front, wh.front + w, H)));
   for (const x of [-0.5, 0.5]) parts.push(raked(box(x - 0.04, x + 0.04, fSill, head, wh.front, wh.front + w, H)));
-  // Side walls, each with one mullion.
+  // Side walls, each with one mullion. Alongside the console the wall stands up to the
+  // console top (`sideRaise`, owner sketch), sloping back down to the sill aft of it. The
+  // port wall has a sliding door between the console and the chart table (`sideDoor`).
+  const raise = wh.sideRaise;
+  const raiseTop = raise ? wh.floorY + raise.height : sill;
+  const sd = wh.sideDoor;
+  const jamb = 0.08;
   for (const s of [-1, 1]) {
     const x0 = s > 0 ? hw - w : -hw;
     const x1 = s > 0 ? hw : -hw + w;
-    parts.push(box(x0, x1, base, sill, wh.front, wh.aft, H));
-    parts.push(box(x0, x1, head, roof, wh.front, wh.aft, H));
+    const door = s < 0 && sd ? sd : null;
+    if (door) {
+      // Below the window band and above it, round the door opening (floor to door head).
+      parts.push(box(x0, x1, base, sill, wh.front, door.z0, H));
+      parts.push(box(x0, x1, base, sill, door.z1, wh.aft, H));
+      parts.push(box(x0, x1, head, roof, wh.front, door.z0, H));
+      parts.push(box(x0, x1, head, roof, door.z1, wh.aft, H));
+      parts.push(box(x0, x1, wh.floorY + door.height, roof, door.z0, door.z1, H)); // header
+      parts.push(box(x0, x1, base, wh.floorY + 0.02, door.z0, door.z1, COLORS.floor)); // threshold
+      // Jambs: forward (the door buttons are on it), and aft, running back to the mullion.
+      parts.push(box(x0, x1, sill, wh.floorY + door.height, door.z0 - jamb, door.z0, H));
+      parts.push(box(x0, x1, sill, wh.floorY + door.height, door.z1, -0.12, H));
+    } else {
+      parts.push(box(x0, x1, base, sill, wh.front, wh.aft, H));
+      parts.push(box(x0, x1, head, roof, wh.front, wh.aft, H));
+    }
     parts.push(box(x0, x1, sill, head, -0.2, -0.12, H));
+    if (raise && raiseTop > sill) {
+      // Solid up to the console top beside it; on the port side it runs into the door jamb.
+      const zEnd = door ? door.z0 - jamb : raise.z1;
+      parts.push(box(x0, x1, sill, raiseTop, wh.front, zEnd, H));
+      if (!door) parts.push(wedge(x0, x1, raise.z1, raise.z1 + raise.slope, sill, raiseTop, H));
+    }
     // Front corner posts, raked with the front; deep enough at the foot that, leaning
     // forward, they still close onto the upright side wall behind (a solid cheek, widest at
     // the top). Above the head the same cheek runs up to the roof.
