@@ -20,7 +20,7 @@ import { DoorButton, WheelhouseDoor } from './WheelhouseDoor';
 import { MonitorView } from '../fire/monitorView';
 import { hullPlan } from '../vessel/layout';
 import { RainGlass } from '../vessel/view/rainGlass';
-import { Dipstick, FenderBasket, FendersView, OilCan } from './deckGear';
+import { Dipstick, FenderBasket, FendersView, OilCan, EngineHatch } from './deckGear';
 import { swimLadderOf } from '../player/body';
 import { aFrameOf } from '../fishing/fishing';
 
@@ -52,6 +52,10 @@ export class Bridge {
   private readonly winchDrum = new THREE.Group();
   /** The winch drum's motion this frame (+1 heaving in, -1 paying out, 0 still); set by App. */
   drumTurn = 0;
+  /** The engine hatch and what's under it (the oil gear works only with it open). */
+  engineHatch: EngineHatch | null = null;
+  private dipstick: Dipstick | null = null;
+  private oilCan: OilCan | null = null;
   /** The aft door (its push buttons on the frame open / shut it). */
   readonly door: WheelhouseDoor;
   /** The fenders over the side or stowed (boats that carry them). */
@@ -241,32 +245,56 @@ export class Bridge {
         extraFixed.push(part(new THREE.BoxGeometry(0.08, 0.025, lad.width).translate(lad.x + 0.02, y, lad.z), 0x9aa0a6));
       }
     }
-    // Engine oil: the engine casing (aft starboard), the dipstick, filler cap and oil can on
-    // its lid, at waist height.
+    // The engine, under the hatch in the wheelhouse floor (aft starboard): open the hatch to
+    // see it, pull the dipstick on its inboard side, top up from the can on the shelf.
     const mt = def.maintenance;
-    if (mt) {
+    const eh = def.layout.engineHatch;
+    if (mt && eh) {
       const fy = def.layout.wheelhouse.floorY;
-      const c = mt.casing;
-      const top = fy + c.height;
       const box = (ax: number, bx: number, ay: number, by: number, az: number, bz: number, col: number) =>
         part(new THREE.BoxGeometry(bx - ax, by - ay, bz - az).translate((ax + bx) / 2, (ay + by) / 2, (az + bz) / 2), col);
-      extraFixed.push(box(c.x0, c.x1, fy, top - 0.03, c.z0, c.z1, 0x46525a)); // casing
-      extraFixed.push(box(c.x0 - 0.012, c.x1, top - 0.03, top, c.z0 - 0.012, c.z1 + 0.012, 0x56626a)); // lid
-      extraFixed.push(box(c.x0 - 0.03, c.x0 - 0.012, top - 0.022, top - 0.006, (c.z0 + c.z1) / 2 - 0.1, (c.z0 + c.z1) / 2 + 0.1, 0x2a2e32)); // lid handle
-      // Air grilles low on the inboard face.
-      for (let i = 0; i < 5; i++) {
-        const y = fy + 0.12 + i * 0.05;
-        extraFixed.push(box(c.x0 - 0.006, c.x0, y, y + 0.018, c.z0 + 0.12, c.z1 - 0.12, 0x23292d));
-      }
-      // The filler cap (yellow, like the dipstick ring).
-      extraFixed.push(part(new THREE.CylinderGeometry(0.036, 0.04, 0.035, 12).translate(mt.filler[0], top + 0.0175, mt.filler[1]), 0xe8c020));
+      const e = mt.engine;
+      const top = fy - 0.12; // the rocker cover's top, just under the floor
+      const x0 = e.x - e.width / 2;
+      const x1 = e.x + e.width / 2;
+      const z0 = e.z - e.length / 2;
+      const z1 = e.z + e.length / 2;
+      const base = top - e.height;
+      const GREEN = 0x2f6b4a; // engine paint
+      // Bearers, sump, block, head, rocker cover.
+      for (const bx of [x0 + 0.04, x1 - 0.04]) extraFixed.push(box(bx - 0.03, bx + 0.03, fy - eh.pitDepth, base + 0.05, z0 - 0.08, z1 + 0.08, 0x3a3f44));
+      extraFixed.push(box(x0 + 0.05, x1 - 0.05, base, base + 0.12, z0 + 0.04, z1 - 0.04, 0x2a2e32));
+      extraFixed.push(box(x0, x1, base + 0.12, top - 0.16, z0, z1, GREEN));
+      extraFixed.push(box(x0 + 0.03, x1 - 0.03, top - 0.16, top - 0.07, z0 + 0.02, z1 - 0.02, GREEN));
+      extraFixed.push(box(x0 + 0.06, x1 - 0.06, top - 0.07, top, z0 + 0.06, z1 - 0.06, 0x3f8a5f)); // rocker cover
+      // The air filter on the forward end of the cover, and the fuel filter on the inboard side.
+      extraFixed.push(part(new THREE.CylinderGeometry(0.075, 0.075, 0.07, 14).translate(e.x, top - 0.035, z0 + 0.03), 0x2a2e32));
+      extraFixed.push(part(new THREE.CylinderGeometry(0.035, 0.035, 0.12, 10).translate(x0 - 0.035, top - 0.22, z1 - 0.15), 0xd8d8d0));
+      // Exhaust manifold along the outboard side, the riser going aft; the alternator and
+      // belt on the forward end; the flywheel housing aft.
+      extraFixed.push(box(x1, x1 + 0.06, top - 0.2, top - 0.12, z0 + 0.06, z1 - 0.06, 0x6a5a4a));
+      extraFixed.push(part(new THREE.CylinderGeometry(0.04, 0.04, 0.32, 10).translate(x1 + 0.03, top - 0.32, z1 + 0.02), 0x6a5a4a));
+      extraFixed.push(part(new THREE.CylinderGeometry(0.06, 0.06, 0.1, 12).rotateZ(Math.PI / 2).translate(x0 + 0.05, top - 0.24, z0 - 0.05), 0xb0b4b8));
+      extraFixed.push(part(new THREE.CylinderGeometry(0.07, 0.07, 0.03, 14).rotateX(Math.PI / 2).translate(e.x, base + 0.24, z0 - 0.015), 0x2a2e32));
+      extraFixed.push(part(new THREE.CylinderGeometry(0.17, 0.17, 0.08, 16).rotateX(Math.PI / 2).translate(e.x, base + 0.22, z1 + 0.04), 0x2a2e32));
+      // The oil filler cap on the rocker cover (yellow, like the dipstick ring).
+      extraFixed.push(part(new THREE.CylinderGeometry(0.03, 0.034, 0.03, 12).translate(mt.filler[0], top + 0.015, mt.filler[1]), 0xe8c020));
+      // The oil can's shelf on the engine space's outboard wall.
+      const shelfY = fy - mt.shelfDrop;
+      extraFixed.push(box(mt.oilCan[0] - 0.09, eh.x1, shelfY - 0.02, shelfY, mt.oilCan[1] - 0.1, mt.oilCan[1] + 0.1, 0x8a9096));
       const dip = new Dipstick();
-      dip.root.position.set(mt.dipstick[0], top, mt.dipstick[1]);
+      dip.root.position.set(mt.dipstick[0], top - 0.2, mt.dipstick[1]); // its ring well under the shut hatch
       const can = new OilCan();
-      can.root.position.set(mt.oilCan[0], top, mt.oilCan[1]);
-      can.root.rotation.y = Math.PI / 2 + 0.3; // spout toward the filler
-      this.controls.push(dip, can);
-      extraLabels.push(['ENGINE OIL', [mt.filler[0], top, mt.filler[1] - 0.13]]);
+      can.root.position.set(mt.oilCan[0], shelfY, mt.oilCan[1]);
+      can.root.rotation.y = Math.PI / 2; // spout inboard, toward the filler
+      can.root.scale.setScalar(0.85);
+      this.dipstick = dip;
+      this.oilCan = can;
+      const hatch = new EngineHatch(eh.x1 - eh.x0, eh.z1 - eh.z0);
+      hatch.root.position.set(eh.x1, fy, (eh.z0 + eh.z1) / 2);
+      this.engineHatch = hatch;
+      this.controls.push(hatch, dip, can);
+      extraLabels.push(['ENGINE', [eh.x0 + 0.2, fy + 0.002, eh.z1 - 0.1], false, -Math.PI / 2]);
     }
     // 12 V: battery master on the aft wall by the door, voltmeter panel by the helm.
     const el = def.electrics;
@@ -334,6 +362,10 @@ export class Bridge {
     }
     if (displaysInView) this.instruments.update(state, this.def, dt, env);
     this.door.sync(state);
+    // Under the floor, the dipstick and the oil can are only within reach with the hatch open.
+    const hatchOpen = (state.controls.engineHatch ?? 0) > 0.5;
+    if (this.dipstick) this.dipstick.enabled = hatchOpen;
+    if (this.oilCan) this.oilCan.enabled = hatchOpen;
     this.overhead.update(state);
     this.electrics?.update(state, dt);
     this.lamps.update(state, this.def);

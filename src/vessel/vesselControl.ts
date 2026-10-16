@@ -107,6 +107,9 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
     case 'netIn':
       s.controls[intent.control] = intent.value > 0.5 ? 1 : 0;
       break;
+    case 'engineHatch':
+      s.controls.engineHatch = intent.value > 0.5 ? 1 : 0;
+      break;
     case 'door':
       s.controls.door = intent.value > 0.5 ? 1 : 0;
       break;

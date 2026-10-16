@@ -243,7 +243,7 @@ function stepOilDuty(world: WorldState, d: DutiesState, v: VesselState): void {
       'oil',
       'Engine check: oil',
       [
-        { text: 'Pull the dipstick (engine casing, aft starboard)', done: false },
+        { text: 'Open the engine hatch (wheelhouse floor, aft starboard) and pull the dipstick', done: false },
         { text: 'Top up from the oil can if it reads low', done: false, optional: true },
       ],
       world.time,

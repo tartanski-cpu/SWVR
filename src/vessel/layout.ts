@@ -31,6 +31,8 @@ export interface WalkArea {
    * the boat, but you can move through the wheelhouse). Absent: no fence (ashore, swimming).
    */
   inBounds?(x: number, z: number): boolean;
+  /** Open or shut the engine hatch in the wheelhouse floor (open: its hole isn't walkable). */
+  setHatchOpen?(open: boolean): void;
 }
 
 /** How far inside the deck edge the VR fence stands (m): the bulwark and its rail. */
@@ -136,9 +138,14 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig): WalkArea {
   const consoleAft = int.z0 + wh.consoleDepth;
   const doorHalf = wh.doorWidth / 2;
   const inHouseFootprint = (x: number, z: number) => Math.abs(x) <= ext.x && z >= ext.z0 && z <= ext.z1;
-  // Furniture standing on the wheelhouse floor: the chart table and the engine casing (if
-  // she has them). Boxes: footprint and height above the floor.
-  const furniture = [def.chartTable, def.maintenance?.casing].filter((f): f is NonNullable<typeof f> => !!f);
+  // Furniture standing on the wheelhouse floor: the chart table (if she has one). Boxes:
+  // footprint and height above the floor.
+  const furniture = [def.chartTable].filter((f): f is NonNullable<typeof f> => !!f);
+  // The engine hatch in the floor: open, its hole can't be walked into (you can still stand
+  // where you were if it opened under you; you just can't step onto it).
+  const hatch = layout.engineHatch;
+  let hatchOpen = false;
+  const inHatch = (x: number, z: number) => !!hatch && hatchOpen && x > hatch.x0 - r * 0.3 && x < hatch.x1 + r * 0.3 && z > hatch.z0 - r * 0.3 && z < hatch.z1 + r * 0.3;
   const atFurniture = (x: number, z: number, pad: number, y = -Infinity) =>
     furniture.some((f) => x >= f.x0 - pad && x <= f.x1 + pad && z >= f.z0 - pad && z <= f.z1 + pad && y < wh.floorY + f.height);
 
@@ -185,7 +192,12 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig): WalkArea {
 
     walkable(x, z, y) {
       if (inLadder(x, z)) return true;
+      if (inHatch(x, z) && Math.abs(y - wh.floorY) <= STEP_HEIGHT) return false;
       return surfaces.some((s) => s.contains(x, z) && Math.abs(s.height(x, z) - y) <= STEP_HEIGHT);
+    },
+
+    setHatchOpen(open) {
+      hatchOpen = open;
     },
 
     ladderAt(x, z) {

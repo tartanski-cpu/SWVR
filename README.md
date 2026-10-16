@@ -176,8 +176,9 @@ The chart table stands along the port wall, behind the helm. On it:
   - Out of harbour with them still out gives "Under way: fenders in".
 - **Lash the cargo:** under way with loose cargo on deck, "Under way: lash the deck cargo" comes up.
 - **Engine oil:** the engine burns a little oil. Every 15 minutes of running, "Engine check: oil" comes up.
-  1. Pull the **dipstick** (yellow ring) on top of the **engine casing**, the waist-high box against the starboard wall at the aft end of the wheelhouse. It tells you whether the oil is fine or low.
-  2. If it's low, press the red **oil can** beside the filler cap on the casing to top up.
+  1. Open the **engine hatch** in the wheelhouse floor, aft on the starboard side: press its yellow lifting ring and it swings up against the wall. The engine is below. While it's open you can't step into the hole; press the ring again to shut it.
+  2. Pull the **dipstick** (yellow ring) on the engine's inboard side. It tells you whether the oil is fine or low. (The dipstick and the oil can only work with the hatch open.)
+  3. If it's low, press the red **oil can** on its shelf beside the engine to top up through the yellow filler cap.
 
   Nearly dry, the OIL lamp blinks while running.
 - **Wheelhouse door:** the aft door has a window and slides open or shut with the **green push button** on its starboard frame, inside and out (trigger in VR, click on the desktop). The door itself isn't a button any more, so it can't catch your hand at the whiteboard. It starts open, and when shut it blocks desktop walking.
@@ -248,7 +249,7 @@ Out of harbour, with no rescue on, a tow call comes over the VHF every few minut
 2. **Come alongside with your stern to her bow.** Our line leads from the tow winch aft over the **stern roller**, in a notch in the middle of the transom bulwark; her **bow eye** is the orange ring on her stem.
 3. **Make fast:** take the boat hook, then touch the bow eye with its tip (VR) or click the bow eye (desktop). The menu's Boat tab has a **Tow → Make fast** button too. Our stern must be within 16 m of her bow. To **cast off**, do the same again with the line fast (hook on the bow eye), or use **Tow → Cast off** on the menu.
 4. **Tow her into any harbour.** The line goes out 22 m and is stretchy. Take up the slack gently: snatching it at speed (or dragging her over rocks) parts it, and you have to go back and make fast again.
-   - **The tow winch** just forward of the stern roller works the line by hand (engine running and DECK HYD on): hold **HEAVE IN** (green) or **PAY OUT** (amber) on top of its gearbox housing (starboard end), standing forward of it facing aft. It comes in at 0.6 m/s and goes out at 1 m/s, from 4 m to 60 m, and stays where you leave it. Heaving in against a heavy pull (over 18 kN) stalls it: ease off or slow down. The status line shows the line out and its pull.
+   - **The tow winch** just forward of the stern roller works the line by hand (engine running and DECK HYD on). The line is made fast at the distance to the tow plus a metre, so heaving in starts bringing her closer at once: hold **HEAVE IN** (green) or **PAY OUT** (amber) on top of its gearbox housing (starboard end), standing forward of it facing aft. It comes in at 0.6 m/s and goes out at 1 m/s, from 4 m to 60 m, and stays where you leave it. Heaving in against a heavy pull (over 18 kN) stalls it: ease off or slow down. The status line shows the line out and its pull.
 5. **Slow down inside the port** for a few seconds and the harbour takes her over. The tow counts as a mission, and she is taken away a few seconds later.
 
 Unanswered calls go away after two minutes. The menu's Debug → Missions section has buttons that put a tow just astern (Cruiser, Logs, Barge), raise a call, or end the job.

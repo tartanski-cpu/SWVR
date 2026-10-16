@@ -181,6 +181,19 @@ export function lineFor(key: string): { length: number; attach: number } {
   return key.startsWith('l:') ? CONFIG.salvage.line : { length: CONFIG.tow.lineLength, attach: CONFIG.tow.attachRange };
 }
 
+/**
+ * A line just made fast: paid out to the distance between our stern roller and what it's on,
+ * plus a little slack (`tow.winch.makeFastSlack`), inside the winch's limits. (Made fast at
+ * the full default length, a tow 15-20 m off had metres of slack, and the winch spent its
+ * first many seconds just taking it up: owner feedback, "the winch doesn't pull".)
+ */
+function newLine(world: WorldState, key: string): TowLine {
+  const w = CONFIG.tow.winch;
+  const reach = towReach(world, key);
+  const length = Number.isFinite(reach) ? Math.min(w.maxLength, Math.max(w.minLength, reach + w.makeFastSlack)) : undefined;
+  return { target: key, tension: 0, length };
+}
+
 /** How much line is out now (m): as made fast, or as the tow winch has left it. */
 export function lineLength(line: TowLine): number {
   return line.length ?? lineFor(line.target).length;
@@ -581,7 +594,7 @@ export function applyTowIntent(world: WorldState, intent: Intent): void {
       if (!key || t.line || !towTargets(world).includes(key)) break;
       // A tow that's been handed over is the harbour's now.
       if (job && key === vesselKey(job.vesselId) && job.phase !== 'accepted') break;
-      if (towReach(world, key) <= lineFor(key).attach) t.line = { target: key, tension: 0 };
+      if (towReach(world, key) <= lineFor(key).attach) t.line = newLine(world, key);
       break;
     }
     case 'towToggle': {
@@ -589,7 +602,7 @@ export function applyTowIntent(world: WorldState, intent: Intent): void {
       if (t.line) t.line = null;
       else {
         const key = nearestTowTarget(world);
-        if (key) t.line = { target: key, tension: 0 };
+        if (key) t.line = newLine(world, key);
       }
       break;
     }

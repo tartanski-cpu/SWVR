@@ -45,6 +45,8 @@ export interface VesselControls {
   fenders: number;
   /** Wheelhouse aft door open (1) or shut (0); it starts open. */
   door: number;
+  /** The engine hatch in the wheelhouse floor open (1) or shut (0). */
+  engineHatch?: number;
   /** Fire monitor on the roof: pump on (0/1), and its pan (deg, + to starboard) and elevation (deg). */
   firePump: number;
   monPan: number;

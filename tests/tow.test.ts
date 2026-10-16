@@ -237,6 +237,11 @@ describe('towing missions', { timeout: 30000 }, () => {
   });
 });
 
+/** The tow job's vessel as a towline key. */
+function vesselKeyOfJob(world: { tow?: { job?: { vesselId: string } | null } }): string {
+  return `v:${world.tow!.job!.vesselId}`;
+}
+
 describe('the tow winch', { timeout: 30000 }, () => {
   it('heaves in and pays out the line while its buttons are held, within its limits; stalls under a heavy pull', () => {
     const { world, v, send, run } = setup();
@@ -244,16 +249,20 @@ describe('the tow winch', { timeout: 30000 }, () => {
     placeVessel(v, 0, 0, -400, 0);
     run(1);
     send('towDebugNear', 1, 'derelict');
+    const reach0 = towReach(world, world.tow!.line?.target ?? vesselKeyOfJob(world));
     send('towMake');
     const line = world.tow!.line!;
     const w = CONFIG.tow.winch;
-    expect(lineLength(line)).toBe(CONFIG.tow.lineLength); // as made fast
-    // Heave in for 5 s: 3 m less line out.
+    // Made fast at the distance to her plus a little slack (not the full default length).
+    const made = lineLength(line);
+    expect(made).toBeCloseTo(Math.max(w.minLength, reach0 + w.makeFastSlack), 0);
+    // Heave in for 5 s: 3 m less line out, and she comes towards us (the slack is short).
     send('winchHeave', 1);
     run(5);
     send('winchHeave', 0);
-    expect(lineLength(line)).toBeCloseTo(CONFIG.tow.lineLength - w.heaveSpeed * 5, 1);
-    expect(towStatus(world)).toMatch(/19 m out/);
+    expect(lineLength(line)).toBeCloseTo(made - w.heaveSpeed * 5, 1);
+    expect(towReach(world)).toBeLessThan(reach0 - 1);
+    expect(towStatus(world)).toMatch(new RegExp(`${Math.round(made - w.heaveSpeed * 5)} m out`));
     // Let go: it stays where it is.
     const held = lineLength(line);
     run(2);

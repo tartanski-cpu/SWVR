@@ -657,6 +657,8 @@ export class App {
       const hawse = this.testDef.anchor && root ? root.localToWorld(this.tmpV.fromArray(this.testDef.anchor.hawse)).distanceTo(this.focus) : 1e9;
       this.sound.anchor.update(tv?.anchor, hawse, this.insideHouse ? this.closed : 0, dt);
       if (tv && root) this.updateHydraulicsSound(tv, root);
+      // The engine hatch's hole isn't walkable while it's open.
+      if (tv) this.walkAreas.get(this.testVesselId)?.setHatchOpen?.((tv.controls.engineHatch ?? 0) > 0.5);
       // Gulls overhead; dolphins at the bow when she's under way in open, deep water.
       const wl = CONFIG.wildlife.dolphins;
       const open = !!tv && groundHeight(tv.position[0], tv.position[2]) < -wl.minDepth && nearestPort(tv.position[0], tv.position[2]).dist > wl.minPortDistance;

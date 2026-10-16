@@ -37,10 +37,17 @@ describe('vessel walk area (multi-level)', () => {
     expect(area.walkable(0, -3.5, 1.3)).toBe(false); // the cradle (the skiff in it)
     const tc = VESSEL_DEFS.workboat.tenderCrane!;
     expect(area.walkable(tc.column[0], tc.column[1], 1.22)).toBe(false); // the crane's column
-    const casing = VESSEL_DEFS.workboat.maintenance!.casing;
-    expect(area.walkable((casing.x0 + casing.x1) / 2, (casing.z0 + casing.z1) / 2, wh.floorY)).toBe(false); // the engine casing
-    expect(area.insideSolid((casing.x0 + casing.x1) / 2, wh.floorY + casing.height - 0.1, (casing.z0 + casing.z1) / 2)).toBe(true);
-    expect(area.walkable(0.3, 0.3, wh.floorY)).toBe(true); // the aisle beside it
+    // The engine hatch in the floor: shut, you walk over it; open, you can't step into the hole.
+    const eh = VESSEL_DEFS.workboat.layout.engineHatch!;
+    const hx = (eh.x0 + eh.x1) / 2;
+    const hz = (eh.z0 + eh.z1) / 2;
+    expect(area.walkable(hx, hz, wh.floorY)).toBe(true);
+    area.setHatchOpen!(true);
+    expect(area.walkable(hx, hz, wh.floorY)).toBe(false);
+    expect(area.walkable(0.1, 0.3, wh.floorY)).toBe(true); // the aisle beside it
+    expect(area.floorsAt(hx, hz)).toContain(wh.floorY); // standing on it as it opened: still held up
+    area.setHatchOpen!(false);
+    expect(area.walkable(hx, hz, wh.floorY)).toBe(true);
     const tw = VESSEL_DEFS.workboat.towWinch!;
     expect(area.walkable(0, tw.z, DECK_AFT)).toBe(false); // the tow winch
     expect(area.walkable(tw.drumWidth / 2 + 0.1 + tw.housing.width / 2, tw.z, DECK_AFT)).toBe(false); // its gearbox housing

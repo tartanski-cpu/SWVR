@@ -216,7 +216,30 @@ function buildWheelhouse(layout: HouseLayout): THREE.BufferGeometry[] {
   parts.push(box(-door, door, base, wh.floorY + 0.02, wh.aft - w, wh.aft, COLORS.floor));
 
   // Floor, roof, mast.
-  parts.push(box(-hw + w, hw - w, wh.floorY - 0.1, wh.floorY, wh.front + w, wh.aft - w, COLORS.floor));
+  // The floor, round the engine hatch's opening if she has one, and the engine space under it.
+  const eh = layout.engineHatch;
+  const fx0 = -hw + w;
+  const fx1 = hw - w;
+  const fz0 = wh.front + w;
+  const fz1 = wh.aft - w;
+  const fy0 = wh.floorY - 0.1;
+  if (eh) {
+    parts.push(box(fx0, eh.x0, fy0, wh.floorY, fz0, fz1, COLORS.floor));
+    parts.push(box(eh.x1, fx1, fy0, wh.floorY, fz0, fz1, COLORS.floor));
+    parts.push(box(eh.x0, eh.x1, fy0, wh.floorY, fz0, eh.z0, COLORS.floor));
+    parts.push(box(eh.x0, eh.x1, fy0, wh.floorY, eh.z1, fz1, COLORS.floor));
+    // Engine space: four walls and a floor, painted light grey (an engine room's white-ish paint).
+    const pit = wh.floorY - eh.pitDepth;
+    const t = 0.03;
+    parts.push(box(eh.x0 - t, eh.x1 + t, pit - t, pit, eh.z0 - t, eh.z1 + t, 0x5a6066));
+    parts.push(box(eh.x0 - t, eh.x0, pit, fy0, eh.z0, eh.z1, 0xb8bcb8));
+    parts.push(box(eh.x1, eh.x1 + t, pit, fy0, eh.z0, eh.z1, 0xb8bcb8));
+    parts.push(box(eh.x0 - t, eh.x1 + t, pit, fy0, eh.z0 - t, eh.z0, 0xb8bcb8));
+    parts.push(box(eh.x0 - t, eh.x1 + t, pit, fy0, eh.z1, eh.z1 + t, 0xb8bcb8));
+    // A steel coaming round the opening, flush with the floor.
+    parts.push(box(eh.x0 - 0.03, eh.x1 + 0.03, wh.floorY - 0.004, wh.floorY + 0.004, eh.z0 - 0.03, eh.z0, 0x8a9096));
+    parts.push(box(eh.x0 - 0.03, eh.x1 + 0.03, wh.floorY - 0.004, wh.floorY + 0.004, eh.z1, eh.z1 + 0.03, 0x8a9096));
+  } else parts.push(box(fx0, fx1, fy0, wh.floorY, fz0, fz1, COLORS.floor));
   const rf = layout.roof;
   const top = roof + rf.thickness;
   const ov = rf.overhang;

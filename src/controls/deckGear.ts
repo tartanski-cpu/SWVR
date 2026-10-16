@@ -3,9 +3,12 @@
  *   FenderBasket  a basket of fenders on the aft deck; a press puts all six out over the
  *                 side or takes them in (`fenders`). FendersView draws them (one instanced
  *                 draw call): hanging outside the hull when out, lying along the bulwark in.
- *   Dipstick      in the engine casing's lid (wheelhouse, aft starboard): a press pulls it
- *                 and reads the oil (`dipstick`; the App says what it shows).
- *   OilCan        on the lid by the filler cap: a press tops the sump up (`oilTopUp`).
+ *   EngineHatch   the hatch in the wheelhouse floor over the engine (aft starboard): a
+ *                 press on its lifting ring opens or shuts it (`engineHatch`).
+ *   Dipstick      on the engine's inboard side, under the hatch: a press pulls it and reads
+ *                 the oil (`dipstick`; the App says what it shows).
+ *   OilCan        on a shelf beside the engine: a press tops the sump up (`oilTopUp`).
+ * The dipstick and the can only work with the hatch open.
  */
 import * as THREE from 'three';
 import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
@@ -85,6 +88,73 @@ export class FendersView {
       this.mesh.setMatrixAt(i, m);
     });
     this.mesh.instanceMatrix.needsUpdate = true;
+  }
+}
+
+/**
+ * The engine hatch: a floor panel hinged along its outboard edge. A press on the lifting
+ * ring (or anywhere on it) swings it up to stand against the starboard wall, or down shut,
+ * over about half a second. Its root is the hinge: on the floor at the outboard edge,
+ * the panel running inboard (-x) from it, `length` fore-aft (z) centred on the root.
+ */
+export class EngineHatch extends Control {
+  readonly kind = 'press' as const;
+  readonly label = 'Engine hatch: open / shut';
+  private readonly lid = new THREE.Group();
+  private open = 0;
+  private target = 0;
+  private pressed = false;
+
+  constructor(width: number, length: number) {
+    super('engineHatch', 'engineHatch');
+    // The panel: chequer-plate grey, its top flush with the floor, with a flush lifting ring
+    // near the inboard edge (yellow, so you can find it).
+    const plate = new THREE.Mesh(new THREE.BoxGeometry(width, 0.035, length).translate(-width / 2, -0.0175, 0), this.material(0x8a9096));
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.035, 0.008, 6, 14).rotateX(Math.PI / 2).translate(-width + 0.09, 0.004, 0), this.material(0xe8c020));
+    // Two hinge knuckles on the outboard edge.
+    const hinges = new THREE.Mesh(
+      mergeParts([-1, 1].map((s) => part(new THREE.CylinderGeometry(0.014, 0.014, 0.1, 8).rotateX(Math.PI / 2).translate(0, 0, s * (length / 2 - 0.12)), 0x3a3f44))),
+      flatVertexColorMaterial(),
+    );
+    this.lid.add(plate, ring);
+    this.root.add(this.lid, hinges);
+    this.hitObjects.push(ring, plate);
+  }
+
+  distanceTo(world: THREE.Vector3): number {
+    return this.toLocal(world).distanceTo(new THREE.Vector3(-0.3, 0, 0));
+  }
+
+  pressStart(): void {
+    if (this.pressed) return;
+    this.pressed = true;
+    this.target = this.target > 0.5 ? 0 : 1;
+    this.markPending();
+    this.ctx?.haptic(0.6, 50);
+    this.ctx?.emit(this.channel, this.target);
+  }
+
+  pressEnd(): void {
+    this.pressed = false;
+  }
+
+  /** Open (or opening). */
+  get isOpen(): boolean {
+    return this.target > 0.5;
+  }
+
+  sync(state: VesselState): void {
+    const open = (state.controls.engineHatch ?? 0) > 0.5 ? 1 : 0;
+    if (this.awaiting(open === this.target)) return;
+    this.target = open;
+  }
+
+  tick(dt: number): void {
+    super.tick(dt);
+    if (this.open === this.target) return;
+    this.open += Math.sign(this.target - this.open) * Math.min(Math.abs(this.target - this.open), dt * 2);
+    // Up to just short of vertical, leaning a little inboard so it stays open against its stop.
+    this.lid.rotation.z = -this.open * (Math.PI / 2 - 0.05);
   }
 }
 

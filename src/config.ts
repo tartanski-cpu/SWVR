@@ -455,6 +455,12 @@ export const CONFIG = {
          * port, the ladder is further to starboard): x, and height above the wheelhouse floor.
          */
         doorButtons: { x: 0.48, height: 1.15 },
+        /**
+         * The engine hatch in the wheelhouse floor, aft to starboard (vessel x0..x1, z0..z1),
+         * hinged on its outboard edge, and how deep the engine space under it is (m below
+         * the floor). Open, the hole can't be walked into.
+         */
+        engineHatch: { x0: 0.42, x1: 1.2, z0: -0.18, z1: 0.76, pitDepth: 0.85 },
         /** Bulwark and rail heights above the deck, and how close a player may get to the deck edge. */
         bulwarkHeight: 0.3,
         railHeight: 1.0,
@@ -665,10 +671,12 @@ export const CONFIG = {
        * Engine oil (vessel/maintenance.ts): level 0..1 when the session starts; burnt at
        * `use` per second running (more under load); a check is due every `checkEvery` s of
        * running. Below `lowAt` the dipstick says top up; below `lampAt` the OIL lamp
-       * blinks. The engine comes up through the wheelhouse floor, aft to starboard, under a
-       * waist-high casing against the starboard wall (owner feedback: the floor hatch felt
-       * like an afterthought): its footprint (x0..x1 across, z0..z1 fore-aft) and height
-       * above the floor. On its top ([x, z]): the dipstick, the filler cap, the oil can.
+       * blinks. The engine sits in its own space under the wheelhouse floor, reached through
+       * a hatch in the floor (layout.engineHatch; owner request: the waist-high casing was in
+       * the way). `engine`: the block's centre (x, z) and size (fore-aft length, width,
+       * height), its top just under the floor. On it: the dipstick on its inboard side
+       * ([x, z]), the oil filler cap on the rocker cover ([x, z]); the oil can stands on a
+       * shelf on the engine space's outboard side ([x, z], `shelfDrop` below the floor).
        */
       maintenance: {
         oilStart: 0.72,
@@ -676,10 +684,11 @@ export const CONFIG = {
         checkEvery: 900,
         lowAt: 0.4,
         lampAt: 0.12,
-        casing: { x0: 0.8, x1: 1.37, z0: -0.1, z1: 0.68, height: 0.62 },
-        dipstick: [0.97, 0.06] as [number, number],
-        filler: [0.97, 0.3] as [number, number],
-        oilCan: [1.2, 0.46] as [number, number],
+        engine: { x: 0.8, z: 0.28, length: 0.72, width: 0.42, height: 0.56 },
+        dipstick: [0.56, 0.12] as [number, number],
+        filler: [0.8, 0.46] as [number, number],
+        oilCan: [1.16, 0.6] as [number, number],
+        shelfDrop: 0.32,
       },
       /**
        * Bilge (vessel/bilge.ts): a damaged hull leaks into it (wear.leakRate); the bilge pump
@@ -1154,10 +1163,12 @@ export const CONFIG = {
     lineLength: 22,
     attachRange: 16,
     /**
-     * The tow winch by the towing post (hold-to-run): heave in / pay out speeds (m/s), the
-     * shortest and longest line it allows (m), and the most it can pull in against (N).
+     * The tow winch by the stern roller (hold-to-run): heave in / pay out speeds (m/s), the
+     * shortest and longest line it allows (m), the most it can pull in against (N), and the
+     * slack left when a line is made fast (m: it's made fast at the distance to the tow plus
+     * this, so heaving in starts pulling her at once).
      */
-    winch: { heaveSpeed: 0.6, payOutSpeed: 1.0, minLength: 4, maxLength: 60, pullN: 18000 },
+    winch: { heaveSpeed: 0.6, payOutSpeed: 1.0, minLength: 4, maxLength: 60, pullN: 18000, makeFastSlack: 1.0 },
     /** Line stiffness (N/m) and damping as a fraction of critical. */
     stiffness: 6000,
     dampingRatio: 0.5,
