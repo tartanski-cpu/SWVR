@@ -1,3 +1,5 @@
+// The boats first: every vessel type is built from her recipe (modular boats M6a).
+import './boats/library';
 import { App } from './app/App';
 
 declare const __CHANNEL__: string | undefined;

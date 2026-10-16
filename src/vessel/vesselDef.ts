@@ -164,7 +164,7 @@ export function asWorkboat(def: VesselDef): WorkboatDef {
 }
 
 /** Wetted surface at the DWL: submerged girth of each station times its spacing. */
-function wettedSurfaceAtDWL(hull: HullForm): number {
+export function wettedSurfaceAtDWL(hull: HullForm): number {
   let s = 0;
   for (const st of hull.stations) {
     let girth = 0;
@@ -184,34 +184,17 @@ function wettedSurfaceAtDWL(hull: HullForm): number {
   return s;
 }
 
-export function fromConfig(id: string, c: VesselConfig): VesselDef {
-  const m = c.mass;
-  const hull = buildHullForm(c.hull);
+/** The equipment only some boats carry, from a vessel config block (until 6b). */
+export function equipmentOf(c: VesselConfig): Pick<VesselDef, EquipmentField> {
   return {
-    id,
-    hull,
-    mass: m,
-    cg: c.cg,
-    inertia: [m * c.gyradius.pitch ** 2, m * c.gyradius.yaw ** 2, m * c.gyradius.roll ** 2],
-    addedLinear: [c.addedMass.sway, c.addedMass.heave, c.addedMass.surge],
-    addedAngular: [c.addedMass.pitch, c.addedMass.yaw, c.addedMass.roll],
-    damping: c.damping,
-    designVolume: m / CONFIG.ocean.density,
-    wettedSurface: wettedSurfaceAtDWL(hull),
-    resistance: c.resistance,
     engine: c.engine,
     propeller: c.propeller,
     rudder: c.rudder,
     outboard: c.outboard,
-    boardingSpot: c.boardingSpot,
-    spawn: c.spawn,
-    windage: c.windage,
-    layout: c.layout,
     bridge: c.bridge,
     navLights: c.navLights,
     exhaust: c.exhaust,
     anchor: c.anchor,
-    cargo: c.cargo,
     rescueGear: c.rescueGear,
     cabinLight: c.cabinLight,
     overheadPanel: c.overheadPanel,
@@ -234,14 +217,68 @@ export function fromConfig(id: string, c: VesselConfig): VesselDef {
   };
 }
 
-/** Registry of vessel types. To add a boat: add a config block, then a line here. */
-export const VESSEL_DEFS: Record<string, VesselDef> = {
-  workboat: fromConfig('workboat', CONFIG.vessels.workboat),
-  skiff: fromConfig('skiff', CONFIG.vessels.skiff),
-  derelict: fromConfig('derelict', CONFIG.vessels.derelict),
-  logRaft: fromConfig('logRaft', CONFIG.vessels.logRaft),
-  barge: fromConfig('barge', CONFIG.vessels.barge),
-};
+type EquipmentField =
+  | 'engine' | 'propeller' | 'rudder' | 'outboard' | 'bridge' | 'navLights' | 'exhaust' | 'anchor' | 'rescueGear' | 'cabinLight'
+  | 'overheadPanel' | 'whiteboard' | 'dutyBoard' | 'deckLights' | 'spotlight' | 'mooring' | 'tenderCrane' | 'electrics' | 'swimLadder'
+  | 'fireMonitor' | 'fishing' | 'towWinch' | 'bilge' | 'chartTable' | 'fenders' | 'maintenance' | 'tow';
+
+/**
+ * A vessel type straight from its config block, the way every boat was built until M6a.
+ * Kept so a test can check the recipe-built definitions against it.
+ */
+export function fromConfig(id: string, c: VesselConfig): VesselDef {
+  const m = c.mass;
+  const hull = buildHullForm(c.hull);
+  return {
+    id,
+    hull,
+    mass: m,
+    cg: c.cg,
+    inertia: [m * c.gyradius.pitch ** 2, m * c.gyradius.yaw ** 2, m * c.gyradius.roll ** 2],
+    addedLinear: [c.addedMass.sway, c.addedMass.heave, c.addedMass.surge],
+    addedAngular: [c.addedMass.pitch, c.addedMass.yaw, c.addedMass.roll],
+    damping: c.damping,
+    designVolume: m / CONFIG.ocean.density,
+    wettedSurface: wettedSurfaceAtDWL(hull),
+    resistance: c.resistance,
+    boardingSpot: c.boardingSpot,
+    spawn: c.spawn,
+    windage: c.windage,
+    layout: c.layout,
+    cargo: c.cargo,
+    ...equipmentOf(c),
+  };
+}
+
+/** The vessel types, by def id (the ids live on in saves and snapshots: never rename). */
+export const VESSEL_IDS = ['workboat', 'skiff', 'derelict', 'logRaft', 'barge'] as const;
+
+let built: Record<string, VesselDef> | null = null;
+let builder: (() => Record<string, VesselDef>) | null = null;
+
+/**
+ * The boats' library (boats/library.ts) hands over how to build every vessel type from her
+ * recipe when it loads. (This file can't import it: the modules it holds import this file.)
+ */
+export function registerVesselDefs(build: () => Record<string, VesselDef>): void {
+  builder = build;
+  built = null;
+}
+
+function defs(): Record<string, VesselDef> {
+  if (!builder) throw new Error('VESSEL_DEFS used before the boats library (boats/library.ts) was loaded');
+  return (built ??= builder());
+}
+
+/**
+ * Registry of vessel types, each built from her recipe (modular boats M6a: the hull plus her
+ * modules, modular/vesselAssembly.ts). Built on first use. To add a boat: a hull, a recipe,
+ * and its id here.
+ */
+export const VESSEL_DEFS: Record<string, VesselDef> = Object.defineProperties(
+  {},
+  Object.fromEntries(VESSEL_IDS.map((id) => [id, { enumerable: true, get: () => defs()[id] }])),
+);
 
 /** The towable kinds (towing missions), by def id. */
 export const TOW_DEFS = ['derelict', 'logRaft', 'barge'] as const;

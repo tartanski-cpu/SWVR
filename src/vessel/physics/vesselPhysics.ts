@@ -50,13 +50,12 @@
 import * as THREE from 'three';
 import { CONFIG } from '../../config';
 import { sampleSurface, type PreparedWave, type SurfaceSample } from '../../ocean/waves';
-import { isWorkboat, type OutboardConfig, type VesselDef } from '../vesselDef';
+import { isWorkboat, type VesselDef } from '../vesselDef';
 import type { VesselState } from '../vesselState';
 import { calmWaterResistance } from './propulsion';
 import { submergedSection, type SubmergedSection } from './sectionClip';
 import { contactAt, hullContactPoints, type ContactResult } from './contacts';
 import { stepMooring } from './mooring';
-import { stepOutboard } from './outboard';
 import type { ExternalForce } from './vesselContact';
 import type { PhysicsPort } from '../../modular/module';
 import { gearOf, vesselRuntime } from '../../boats/sims';
@@ -136,13 +135,14 @@ const portS = new THREE.Vector3();
 const portV = new THREE.Vector3();
 const portF = new THREE.Vector3();
 const port: PhysicsPort = {
-  flowAt(local) {
+  flowAt(local, level = false) {
     const p = toWorld(local[0], local[1], local[2], portP);
     const sw = sampleSurface(portWaves, p.x, p.z);
     pointVelocity(p, portV);
     portV.x -= sw.velocity[0];
     portV.y -= sw.velocity[1];
     portV.z -= sw.velocity[2];
+    if (level) portV.y = 0;
     portV.applyQuaternion(qInv);
     return { x: portV.x, y: portV.y, z: portV.z };
   },
@@ -164,29 +164,6 @@ const port: PhysicsPort = {
     addForceAt(portF.set(fx, fy, fz), toWorld(local[0], local[1], local[2], portP));
   },
 };
-
-const obDir = { x: 0, z: -1 };
-
-/**
- * Outboard (the skiff): thrust along the swung motor at the propeller. Steering comes from
- * the thrust's sideways component at the stern (no rudder), so with no throttle there is no
- * steering - as with a real outboard.
- */
-function stepOutboardDrive(state: VesselState, def: VesselDef, ob: OutboardConfig, waves: readonly PreparedWave[], dt: number): void {
-  const propW = toWorld(...ob.position, stbdW);
-  const sP = sampleSurface(waves, propW.x, propW.z);
-  const wet = Math.min(1, Math.max(0, (sP.height - propW.y + 0.12) / 0.24));
-  pointVelocity(propW, tmp);
-  tmp.x -= sP.velocity[0];
-  tmp.z -= sP.velocity[2];
-  tmp.y = 0;
-  tmp.applyQuaternion(qInv);
-  const thrust = stepOutboard(state, def, -tmp.z, wet, dt, obDir);
-  state.thrust = thrust;
-  // For the views: the motor's swing, like a rudder angle.
-  state.rudder = (Math.max(-1, Math.min(1, state.controls.helm)) * ob.maxSteerDeg * Math.PI) / 180;
-  if (thrust !== 0) addForceAt(tmp.set(obDir.x * thrust, 0, obDir.z * thrust).applyQuaternion(q), propW);
-}
 
 export function stepVessel(
   state: VesselState,
@@ -307,12 +284,12 @@ export function stepVessel(
   const immersion = Math.min(1, submergedVolume / def.designVolume);
   if (debug) debug.submergedVolume = submergedVolume;
 
-  // ── Machinery: her modules (engine and propeller, rudder), or an outboard ──
+  // ── Machinery: her modules that push on the hull (engine and propeller, rudder; an outboard) ──
   const machinery = vesselRuntime(state);
   if (machinery) {
     portWaves = waves;
     machinery.physics(port, dt);
-  } else if (def.outboard) stepOutboardDrive(state, def, def.outboard, waves, dt);
+  }
 
   // Calm-water resistance at mid-draft at the LCG, against speed through the water.
   const resW = toWorld(0, def.resistance.y, cgL.z, centreW);

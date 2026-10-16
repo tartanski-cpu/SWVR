@@ -221,8 +221,12 @@ export interface EnvironmentReader {
  * engine and rudder sockets aren't turned. (Socket axes come with a module that is.)
  */
 export interface PhysicsPort {
-  /** A point of the hull's velocity through the water (m/s): its motion less the waves' orbital motion there. */
-  flowAt(local: readonly [number, number, number]): { x: number; y: number; z: number };
+  /**
+   * A point of the hull's velocity through the water (m/s, the boat's axes): its motion less
+   * the waves' orbital motion there. `level`: the vertical part dropped before turning it
+   * into her axes (an outboard's speed of advance, M6a).
+   */
+  flowAt(local: readonly [number, number, number], level?: boolean): { x: number; y: number; z: number };
   /** How far a point is under the sea surface (m, + under), the surface taken where `surfaceAt` is (default: the point). */
   depthAt(local: readonly [number, number, number], surfaceAt?: readonly [number, number, number]): number;
   /** Push on the hull at a point (N). */

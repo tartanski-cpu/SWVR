@@ -288,7 +288,7 @@ export const BUS_KEYS = {
   'fuel.flowLph': state('number', (s) => s.engine.fuelFlowLph, 'Fuel flow now.', { unit: 'L/h', writer: 'module' }),
   'fuel.refuelling': state('boolean', (s) => s.refuelling, 'Taking fuel at a fuel berth.'),
   'rudder.angle': state('number', (s) => s.rudder * RAD, 'Actual rudder angle (on an outboard boat, the motor swing), + trailing edge to starboard.', { unit: 'deg', writer: 'module' }),
-  'outboard.battery': state('number', (s) => s.battery, "The outboard's battery charge.", { unit: '0..1', range: [0, 1] }),
+  'outboard.battery': state('number', (s) => s.battery, "The outboard's battery charge.", { unit: '0..1', range: [0, 1], writer: 'module' }),
 
   // ── Deck gear and fittings ──
   'anchor.letGo': control('anchor', 'ANCHOR switch: let go / pay out (on), heave in and stow (off).', { aliases: ['anchor'] }),

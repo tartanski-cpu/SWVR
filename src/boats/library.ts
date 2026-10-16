@@ -4,6 +4,8 @@
  * a recipe JSON.
  */
 import { createHullLibrary } from '../modular/hull';
+import { vesselDefFrom } from '../modular/vesselAssembly';
+import { registerVesselDefs } from '../vessel/vesselDef';
 import { createModuleLibrary, parseRecipe, validateRecipe, type Recipe } from '../modular/recipe';
 import { A_FRAME } from '../modules/aFrame';
 import { ANCHOR_WINDLASS } from '../modules/anchorWindlass';
@@ -21,6 +23,7 @@ import { CONSUMER } from '../modules/consumer';
 import { DIESEL_INBOARD } from '../modules/dieselInboard';
 import { DIPSTICK } from '../modules/dipstick';
 import { DOOR_BUTTON } from '../modules/doorButton';
+import { ELECTRIC_OUTBOARD } from '../modules/electricOutboard';
 import { DUTY_BOARD } from '../modules/dutyBoard';
 import { FENDERS } from '../modules/fenders';
 import { FIRE_MONITOR } from '../modules/fireMonitor';
@@ -50,10 +53,16 @@ import { VHF } from '../modules/vhf';
 import { WARNING_LAMPS } from '../modules/warningLamps';
 import { WHEEL } from '../modules/wheel';
 import { WHITEBOARD } from '../modules/whiteboard';
+import skiff from './skiff.json';
+import { SKIFF_HULL } from './skiffHull';
 import starterWorkboat from './starterWorkboat.json';
+import towBarge from './tow-barge.json';
+import towDerelict from './tow-derelict.json';
+import towLogRaft from './tow-logRaft.json';
+import { BARGE_HULL, DERELICT_HULL, LOG_RAFT_HULL } from './towHulls';
 import { WORKBOAT_HULL } from './workboatHull';
 
-export const HULLS = createHullLibrary([WORKBOAT_HULL]);
+export const HULLS = createHullLibrary([WORKBOAT_HULL, SKIFF_HULL, DERELICT_HULL, LOG_RAFT_HULL, BARGE_HULL]);
 
 export const MODULES = createModuleLibrary([
   CONSOLE, WHEEL, THROTTLE_LEVER, TOGGLE, PUSH_BUTTON, KEY_SWITCH, JOYSTICK, WARNING_LAMPS, START_CARD, SCREEN,
@@ -62,6 +71,7 @@ export const MODULES = createModuleLibrary([
   DIESEL_INBOARD, RUDDER, FUEL_TANK, BATTERY_BANK, PTO_PUMP, BILGE_PUMP, CONSUMER,
   TENDER_CRANE, TOW_WINCH, STERN_ROLLER, A_FRAME, TRAWL, ANCHOR_WINDLASS,
   SEARCHLIGHT, FIRE_MONITOR, MAST, CLEAT, FENDERS, SWIM_LADDER, LIFE_RING_STATION, BOAT_HOOK_RACK,
+  ELECTRIC_OUTBOARD,
 ]);
 
 export const LIBRARY = { hulls: HULLS, modules: MODULES };
@@ -75,7 +85,14 @@ export function loadRecipe(json: unknown): Recipe {
   return parsed.recipe;
 }
 
-/** The recipes, by the vessel definition they're built on (until M6). */
+/** Every boat's recipe, by her vessel def id (VESSEL_DEFS is built from these, M6a). */
 export const RECIPES: Record<string, Recipe> = {
   workboat: loadRecipe(starterWorkboat),
+  skiff: loadRecipe(skiff),
+  derelict: loadRecipe(towDerelict),
+  logRaft: loadRecipe(towLogRaft),
+  barge: loadRecipe(towBarge),
 };
+
+// Every vessel type is built from her recipe (M6a): VESSEL_DEFS asks this when first used.
+registerVesselDefs(() => Object.fromEntries(Object.entries(RECIPES).map(([id, recipe]) => [id, vesselDefFrom(id, recipe, LIBRARY)])));

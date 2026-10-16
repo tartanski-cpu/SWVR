@@ -13,9 +13,8 @@ import * as THREE from 'three';
 import { CONFIG } from '../config';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 import { stepEnergyNetwork } from '../vessel/electrics';
-import { stepBilge, stepHullLeak } from '../vessel/bilge';
-import { stepOil } from '../vessel/maintenance';
-import { stepHullWear, stepWear } from '../vessel/wear';
+import { stepHullLeak } from '../vessel/bilge';
+import { stepHullWear } from '../vessel/wear';
 import { vesselRuntime } from '../boats/sims';
 import { stepForecast } from '../environment/forecast';
 import { applyTrafficIntent, stepTraffic } from '../traffic/traffic';
@@ -114,20 +113,13 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
     stepVessel(vessel, VESSEL_DEFS[vessel.defId], simWaves, dt, dbg, world.geography === 'archipelago', payload, external);
     stepDeckCargo(world, vessel, deckBefore, dt);
     stepRefuelling(vessel, VESSEL_DEFS[vessel.defId], dt, world.geography === 'archipelago');
-    const machinery = vesselRuntime(vessel);
-    if (machinery) {
-      // Her modules (modular boats M4a): the energy network, the hull's leak, the modules'
-      // upkeep (bilge pump, the engine's oil and wear), the hull's damage.
-      stepEnergyNetwork(vessel, machinery, dt);
-      stepHullLeak(vessel, dt);
-      machinery.tick(dt, world.time);
-      stepHullWear(vessel, dt);
-    } else {
-      // Boats without a recipe (the skiff, the tows): no 12 V network of their own.
-      stepBilge(vessel, dt);
-      stepOil(vessel, dt);
-      stepWear(vessel, VESSEL_DEFS[vessel.defId], dt);
-    }
+    // Her modules (every boat is built from a recipe since M6a): the energy network, the
+    // hull's leak, the modules' upkeep (bilge pump, the engine's oil and wear), the hull's damage.
+    const machinery = vesselRuntime(vessel)!;
+    stepEnergyNetwork(vessel, machinery, dt);
+    stepHullLeak(vessel, dt);
+    machinery.tick(dt, world.time);
+    stepHullWear(vessel, dt);
   }
   for (const vessel of Object.values(world.vessels)) if (onCrane(vessel)) stepTender(world, vessel, dt);
 

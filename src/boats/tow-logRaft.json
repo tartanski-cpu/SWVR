@@ -1,0 +1,7 @@
+{
+  "id": "vessel.log-raft",
+  "version": 1,
+  "name": "Log raft",
+  "hull": "hull.log-raft",
+  "modules": []
+}

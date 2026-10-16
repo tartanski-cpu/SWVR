@@ -889,6 +889,11 @@ Sizes: S is about a session, M two or three, L more.
   - Side-by-side screenshots of old and new from the four viewpoints (pixel difference reported).
   - Golden runs equal; frame rate and draw calls equal or better.
   - Load an old career; join a game from a second browser.
+- **In three stops:**
+  - **6a. Done; see PROGRESS.** The hulls hold their form, lightship, handling, layout, cargo deck, helm and spawn; every boat (the workboat, the skiff, the three tows) is built from her recipe; the engine and batteries declare their mass and the lightship makes room for them (2.6). The skiff's outboard is a module.
+    - **As built:** the hulls' numbers stay in `CONFIG.vessels` (the tunables' home) and the hull files take them from there. The rudder blade stays in the rudder module (`steering.rudder`), not the hull: it was converted that way in M4a and moves with the steering gear. Livery waits for the shipyard (M8). Until 6b the vessel definition still carries the equipment positions from the config the hull names (`legacyDef`). The vessel registry is built lazily: the boats' library registers the builder when it loads (src/main.ts and the tests' setup load it first), because the modules import the registry.
+  - **6b:** `WorkboatDef`, `asWorkboat`, `isWorkboat` and the hand-built `Bridge` deleted; `world.homeVesselId`; App's singletons per vessel; the equipment positions out of the vessel configs (`legacyDef` dropped); the skiff's tiller a module.
+  - **6c:** the bus's flat record; the new save shape with a migration (`next` gets its own save keys first); recipes in multiplayer's `welcome`, the join check by recipe ids and versions.
 
 ### M7: the proof, the landing craft (M)
 

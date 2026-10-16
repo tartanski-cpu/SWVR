@@ -1,0 +1,9 @@
+{
+  "id": "vessel.skiff",
+  "version": 1,
+  "name": "Skiff",
+  "hull": "hull.skiff-3.6",
+  "modules": [
+    { "socket": "outboard", "module": "propulsion.electric-outboard" }
+  ]
+}

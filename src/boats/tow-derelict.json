@@ -1,0 +1,7 @@
+{
+  "id": "vessel.derelict-cruiser",
+  "version": 1,
+  "name": "Motor cruiser (derelict)",
+  "hull": "hull.derelict-cruiser",
+  "modules": []
+}

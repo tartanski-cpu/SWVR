@@ -2302,6 +2302,31 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Checked:** typecheck, 450 tests (the dev branch's new ones among them: the gate, the painter, the extinguisher, potting, the nav marks), the build; in the browser, the helm by day and night, the console and the card, the gate shut and open, the midship cleat and the gear brackets against the dev branch's own build: the same. The gate opens by its new key and shuts by its old name; its buttons and all six cleats and the skiff's bow cleat are found by the pointer. No page errors.
 - **Draw calls** (day / night, the dev branch's own build in brackets): helm 62 / 64 (74 / 77), chart table 57 / 58 (59 / 60), aft deck facing forward 115 / 116 (140 / 141), facing aft 36 / 35 (41 / 40). Up on 5b's with the new features (the buoys, the hand gear, the gate), as on the dev branch; still cheaper there at every viewpoint.
 
+### M6a: the hulls hold their shape and mass; every boat from her recipe (done, on /next/ for the owner to test; nothing should look or handle differently)
+
+- **M6 in three stops** (the plan gave it as one; each stop leaves the game playable and the same):
+  - **6a (this):** the hulls hold their own shape, mass and handling; every boat, the skiff and the three tows too, is built from her recipe.
+  - **6b:** no more "the workboat": `WorkboatDef` / `isWorkboat` and the hand-built Bridge go; the world systems find the player's boat (`world.homeVesselId`); the app's one-boat singletons become per boat; the remaining equipment positions move out of the vessel configs.
+  - **6c:** the bus moves to its flat record in VesselState; the new save shape with a migration (with `next` on its own save keys first, so a test can't spoil your career); recipes in multiplayer's welcome.
+- **What changed:**
+  - **The hull definition holds the hull** (`modular/hull.ts`): her form (today's hard-chine generator and its parameters), her lightship, added mass, damping, resistance, windage, deck and wheelhouse layout, cargo deck, helm position and spawn. The numbers stay in `CONFIG.vessels` (the tunables' home); the hull files take them from there (`boats/hullData.ts`).
+  - **Five hulls, five recipes:** `hull.workboat-12m` (as before), `hull.skiff-3.6`, and the tows' `hull.derelict-cruiser`, `hull.log-raft`, `hull.work-barge`. The tows' recipes mount nothing: a tow is a hull with no modules.
+  - **VESSEL_DEFS is built from the recipes** (`modular/vesselAssembly.ts`): the hull's form and handling, plus her modules. Until 6b the positions of equipment only some boats carry (the bridge layout, lights...) still come from the vessel config the hull names.
+  - **Lightship and module masses** (`modular/massProperties.ts`, section 2.6 of the plan): the diesel declares its mass (1,300 kg with its gearbox, `CONFIG.modules.dieselInboard.massKg`), and so do the two house batteries (28 kg each, `CONFIG.modules.batteryBank.massKg`). The hull's lightship is the weighed boat (18.3 t, CG and radii of gyration as before) less those two, and the boat's mass, CG and inertia are summed back from her lightship and her modules (parallel-axis rule, as for deck cargo). So she weighs, trims and rolls exactly as before, and a recipe with a heavier battery bank makes an honestly heavier boat, her CG drawn toward it.
+  - **The skiff's outboard is a module,** `propulsion.electric-outboard` on a new `transom.mount` socket: the motor, its battery and its thrust through the physics port, inside the hull's step where it always was. Its arithmetic is unchanged (`vessel/physics/outboard.ts`). Her tiller is still the app's until 6b.
+  - Every boat now runs her modules' upkeep the same way (the old "no recipe" path in the simulation is gone; for the skiff and tows it did the same things).
+  - The boats' library is loaded first, by the game's entry (`src/main.ts`) and the tests' setup (`tests/setup.ts`): the modules import the vessel registry, so the registry can't import them; the library hands it how to build the boats.
+- **Config:** `CONFIG.modules.dieselInboard.massKg` (1300), `CONFIG.modules.batteryBank.massKg` (28 each). My estimates for a 400 kW six-cylinder with its gearbox and a 12 V 100 Ah battery; change them freely, the starter boat's total stays as weighed.
+- **Exactly as before:**
+  - Every vessel definition built from its recipe equals the one its config gave, field for field; the workboat's mass, CG and inertia to one part in a billion (they're now summed).
+  - All twelve golden runs match without re-recording (the skiff's among them); the sea-trials report is identical.
+  - Draw calls unchanged (62 / 57 / 115 / 36 by day).
+- **Tests (8 new, 461 in all, all pass):** a valid recipe on a known hull for every vessel type; each definition equals the old one; the tows mount nothing and the skiff her outboard; a heavier battery bank makes a heavier boat, her CG drawn toward it; the skiff drives and draws her battery with her outboard module and not at all without it; a lightship plus its parts is the weighed boat again; the workboat's hull is lighter by her engine and batteries and they put her back as weighed; a heavier part makes a heavier boat.
+- **Checked in the browser:** the workboat starts and makes way (her assembled mass 18,300 kg); the skiff, set afloat, drives on her outboard module and draws her battery; a tow appears; no errors apart from the dev server's favicon.
+- **Owner test** (at /SWVR/next/): she should handle exactly as before:
+  - **VR:** drive the workboat out and back, a crash stop and a hard turn; launch the skiff and drive her on the tiller; take a tow.
+  - **Desktop:** the same with the keys.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

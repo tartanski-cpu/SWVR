@@ -1,0 +1,7 @@
+{
+  "id": "vessel.work-barge",
+  "version": 1,
+  "name": "Work barge",
+  "hull": "hull.work-barge",
+  "modules": []
+}

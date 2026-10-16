@@ -33,7 +33,7 @@ Every value on a boat's bus (modular boats; `src/modular/busKeys.ts`). Generated
 |---|---|---|---|---|---|
 | `outboard.on` | on / off | player sets | legacy | `obOn` | The outboard's on/off button: motor on. |
 | `outboard.gear` | gear, -1 to 1, whole | player sets | legacy | `obGear` | The outboard's gear lever: -1 reverse, 0 neutral, +1 forward. |
-| `outboard.battery` | 0..1 | read only | legacy |  | The outboard's battery charge. |
+| `outboard.battery` | 0..1 | read only | module |  | The outboard's battery charge. |
 
 ## lights
 

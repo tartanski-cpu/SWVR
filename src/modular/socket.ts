@@ -38,7 +38,8 @@ export type SocketType =
   | 'bow.windlass' //    anchor windlass and hawse
   | 'tender.cradle' //   where a ship's boat stows (the skiff)
   | 'window.wiper' //    one per wiped windscreen pane
-  | 'hull.rudder'; //    a rudder stock and its steering gear
+  | 'hull.rudder' //     a rudder stock and its steering gear
+  | 'transom.mount'; //  an outboard motor's bracket on the transom (M6a: the skiff's)
 
 /** Position (m) and rotation (deg, applied in the order Y, X, Z) relative to the parent. */
 export interface Transform {
