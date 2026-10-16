@@ -14,13 +14,19 @@ function buildStamp(): string {
   return `${sha} ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`;
 }
 
+/**
+ * Which address this build is for: '' for the game, 'next' for the work-in-progress copy at
+ * /SWVR/next/ (the Pages workflow sets VITE_CHANNEL). Shown in the menu and the tab title.
+ */
+const CHANNEL = process.env.VITE_CHANNEL === 'next' ? 'next' : '';
+
 // HTTPS is required for WebXR on anything other than localhost. basicSsl generates
 // a self-signed certificate, so the Quest browser shows a one-time warning on the LAN.
 export default defineConfig({
   // Relative base so the same build works on GitHub Pages (/SWVR/) and locally.
   base: './',
   plugins: [basicSsl()],
-  define: { __BUILD__: JSON.stringify(buildStamp()) },
+  define: { __BUILD__: JSON.stringify((CHANNEL ? 'NEXT ' : '') + buildStamp()), __CHANNEL__: JSON.stringify(CHANNEL) },
   server: { host: true, port: 5173 },
   preview: { host: true, port: 4173 },
   build: {

@@ -1,5 +1,9 @@
 import { App } from './app/App';
 
+declare const __CHANNEL__: string | undefined;
+// The work-in-progress copy (/SWVR/next/) says so in the browser tab.
+if (typeof __CHANNEL__ === 'string' && __CHANNEL__ === 'next') document.title = 'Workboat World: NEXT';
+
 const app = new App(document.body);
 app.start();
 

@@ -1,11 +1,15 @@
-# Builds the game and publishes it to GitHub Pages on every push to the dev branch
-# (and main), giving a real HTTPS URL the Quest browser can open directly:
-#   https://tartanski-cpu.github.io/SWVR/
+# Builds the game and publishes it to GitHub Pages, giving real HTTPS URLs the Quest
+# browser can open directly:
+#   https://tartanski-cpu.github.io/SWVR/        the game: the dev branch
+#   https://tartanski-cpu.github.io/SWVR/next/   work in progress: the `next` branch
+# A push to either branch rebuilds both, so each address always shows its branch's latest.
+# The game must pass its tests to be published. If `next` fails its tests or build, the
+# game is still published and /next/ says what happened.
 name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [claude/admiring-dirac-v9wwih, main]
+    branches: [claude/admiring-dirac-v9wwih, next]
   workflow_dispatch:
 
 permissions:
@@ -21,18 +25,50 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - name: Check out the game (dev branch)
+        uses: actions/checkout@v5
+        with:
+          ref: claude/admiring-dirac-v9wwih
+          path: game
       - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
-      - run: npm test
-      - run: npm run build
+          cache-dependency-path: game/package-lock.json
+      - name: Test and build the game
+        working-directory: game
+        run: npm ci && npm test && npm run build
+
+      - name: Check out work in progress (next branch)
+        id: next
+        continue-on-error: true
+        uses: actions/checkout@v5
+        with:
+          ref: next
+          path: next
+      - name: Test and build work in progress
+        id: nextbuild
+        if: steps.next.outcome == 'success'
+        continue-on-error: true
+        working-directory: next
+        env:
+          VITE_CHANNEL: next
+        run: npm ci && npm test && npm run build
+
+      - name: Put the site together
+        run: |
+          mkdir site
+          cp -r game/dist/. site/
+          if [ "${{ steps.nextbuild.outcome }}" = "success" ]; then
+            cp -r next/dist site/next
+          else
+            mkdir -p site/next
+            echo '<!doctype html><meta charset="utf-8"><title>Workboat World: next</title><body style="font:18px system-ui;margin:2em;max-width:40em">The work-in-progress build (branch <b>next</b>) failed its tests or its build this time, so there is nothing new to try here. The game itself is at <a href="../">tartanski-cpu.github.io/SWVR</a>.</body>' > site/next/index.html
+          fi
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:
-          path: dist
+          path: site
 
   deploy:
     needs: build

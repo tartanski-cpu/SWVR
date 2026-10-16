@@ -29,7 +29,12 @@ SWVR (players see it as **Workboat World**; v1.0 is tagged) is a browser WebXR s
 - Leave no untracked files behind. Scratch scripts and screenshots go in the session's scratchpad, not the repo.
 - **Never put a model name or id** in commits, code or docs.
 - **Tag `v1.0`** marks Workboat World v1.0, the owner's restore point before modular boats. Never move or delete a release tag; see PROGRESS.md "Release: Workboat World v1.0".
-- The Pages workflow (`.github/workflows/pages.yml`) runs `npm test` and `npm run build` on every push. After a push, check the run succeeded before telling the owner it's live.
+- **Two addresses, one site** (`.github/workflows/pages.yml`, rebuilt on a push to either branch):
+  - the game at https://tartanski-cpu.github.io/SWVR/ from the dev branch;
+  - work in progress at https://tartanski-cpu.github.io/SWVR/next/ from the branch **`next`**. Its menu header and tab say NEXT.
+- Put a milestone on `next` first (`git push origin HEAD:next`) for the owner to try. Move it to the dev branch when the owner says it's good.
+- The workflow runs `npm test` and `npm run build` for both branches. A failing game build publishes nothing; a failing `next` build leaves a notice at /next/. After a push, check the run succeeded before telling the owner it's live.
+- **Both addresses share one browser storage** (same site), so they share career saves and settings. Before `next` changes a save format, give it its own save keys, or a test there could spoil the owner's real career.
 
 ## Commands
 
