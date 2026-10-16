@@ -102,6 +102,9 @@ export interface MenuHost {
   /** Debug: a survivor sitting aboard, to try landing. Rescues completed so far. */
   rescueAboard(): void;
   rescues(): number;
+  /** No new emergency calls (world.quietCalls). */
+  quietCalls(): boolean;
+  setQuietCalls(on: boolean): void;
   /** Towing missions: one-line status (or null), make fast / cast off, tows delivered; debug. */
   towStatus(): string | null;
   towFast(): boolean;
@@ -225,6 +228,8 @@ export function mainMenu(h: MenuHost): MainMenu {
     { label: '', buttons: [{ text: () => h.contractText(), weight: 3 }, { text: () => (h.contractText().startsWith('None') ? '' : 'Abandon'), press: () => h.abandonContract() }] },
     { label: '', buttons: [{ text: () => h.runStatus() }] },
     { label: 'Done', buttons: [{ text: () => `${h.rescues()} missions · ${h.towsDelivered()} tows · ${h.cargoStatus().delivered} cargo` }] },
+    // Owner request: a way to stop the VHF calling you out (rescues, tows, fires).
+    { label: 'Emergency calls', buttons: [choice('On', false, () => h.quietCalls(), (v) => h.setQuietCalls(v)), choice('Off (quiet)', true, () => h.quietCalls(), (v) => h.setQuietCalls(v))] },
     { heading: 'Weather' },
     { label: '', buttons: [{ text: weatherPart(0) }] },
     { label: '', buttons: [{ text: weatherPart(1) }] },

@@ -22,7 +22,7 @@
 import type { EntityId } from '../core/ids';
 import type { Intent } from '../core/intents';
 import type { WorldState } from '../core/world';
-import type { Vec3 } from '../core/math';
+import type { Quat, Vec3 } from '../core/math';
 import type { ChartMarks, ChartOp } from '../chart/marks';
 import type { HeldTool, LaserPose } from '../player/playerState';
 
@@ -37,6 +37,9 @@ export interface PlayerPose {
   head: [number, number, number, number, number, number, number];
   left: Vec3 | null;
   right: Vec3 | null;
+  /** VR hands' orientation (x, y, z, w), same frame; absent for desktop players. */
+  leftQ?: Quat | null;
+  rightQ?: Quat | null;
   /** A chart table tool in one hand (pencil, eraser, rule), if any. */
   tool?: HeldTool | null;
   /** Laser pointer: beam from, to (frame coordinates) and whether it hit something. */

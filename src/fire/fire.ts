@@ -51,6 +51,11 @@ export interface FireJob {
   alertT: number;
   /** World time it went out (s). */
   outT?: number;
+  /**
+   * Progress calls on the VHF so far (owner: better feedback while fighting it): 1 first
+   * water on it, 2 knocked down below half, 3 nearly out. Each said once.
+   */
+  said?: number;
 }
 
 export interface FireState {
@@ -269,7 +274,7 @@ export function stepFire(world: WorldState, dt: number): void {
   const job = f.job;
   if (!job) {
     const out = nearestPort(v.position[0], v.position[2]).dist > CONFIG.rescue.harbourRadius;
-    if (f.calls && world.time >= f.nextAt && out && !jobOn(world)) {
+    if (f.calls && !world.quietCalls && world.time >= f.nextAt && out && !jobOn(world)) {
       if (!startFireCall(world, v)) f.nextAt = world.time + 30;
     }
     return;
@@ -285,6 +290,7 @@ export function stepFire(world: WorldState, dt: number): void {
   if (job.phase === 'accepted') {
     job.wetting = wetting(world, v, job);
     job.intensity = Math.min(1, Math.max(0, job.intensity + (c.growth - c.douse * job.wetting) * dt));
+    progressCall(world, job);
     if (job.intensity < c.outBelow) {
       job.phase = 'out';
       job.intensity = 0;
@@ -303,6 +309,25 @@ export function stepFire(world: WorldState, dt: number): void {
   if (world.time - (job.outT ?? 0) > c.removeAfter) {
     f.job = null;
     f.nextAt = world.time + between(f, c.every);
+  }
+}
+
+/**
+ * The coastguard's running commentary as the fire is fought: once when the water first
+ * lands on it, once below `progressCalls[0]` of full and once below `progressCalls[1]`.
+ */
+function progressCall(world: WorldState, job: FireJob): void {
+  const said = job.said ?? 0;
+  const [half, nearly] = CONFIG.fire.progressCalls;
+  if (said < 1 && job.wetting > 0.05) {
+    job.said = 1;
+    sayRadio(world, 'info', "Coastguard: that's water on the fire, skipper. Keep it on the base of the flames.");
+  } else if (said < 2 && job.intensity < half) {
+    job.said = 2;
+    sayRadio(world, 'info', "Coastguard: you're knocking it down, it's under half now. Keep at it.");
+  } else if (said < 3 && job.intensity < nearly) {
+    job.said = 3;
+    sayRadio(world, 'info', 'Coastguard: nearly out, skipper. Hold the jet on it.');
   }
 }
 

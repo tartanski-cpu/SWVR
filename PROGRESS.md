@@ -1549,6 +1549,17 @@ How to come back to it:
 
 ### Fixes after V1.0 (on the dev branch; not in the `V1.0` tag)
 
+- **Fire missions: better feedback** (owner request). Four cues, where you look and listen while aiming:
+  - a **fire gauge** on the SEARCH · FIRE plate just ahead of the MONITOR joystick (`fire/fireGauge.ts`, `fireMonitor.gauge`): a FIRE bar as long as the fire is big (red, orange, yellow as it dies) and an **ON TARGET** lamp, green while the jet lands on it. Two small draw calls; the track is baked with the console.
+  - a **steam sizzle** where the jet lands (`audio/fireAudio.ts`), loud enough to hear from the helm (falls off far more gently than the roar);
+  - **coastguard progress calls** on the VHF: first water on it, under half, nearly out (`fire.progressCalls` [0.5, 0.2]; `FireJob.said`);
+  - the existing white steam and status line.
+- **Fewer calls and slower weather** (owner: too frequent), all in config:
+  - `tow.every` 480-1080 s (was 240-540), `fire.every` 600-1320 s (was 300-660), `rescue.chance` 0.35 per cargo run (was 0.5);
+  - an unanswered call rings every 20 s, not 10 (`callRepeat`, rescue / tow / fire);
+  - `weather.hold` 480-1200 s (was 240-600; squalls unchanged); `weather.forecast.every` 720 s (was 360).
+  - **Emergency calls: On / Off** in the menu's Voyage tab (`world.quietCalls`, intent `quietCalls`): off, no new rescue, tow or fire calls start; one already ringing runs its course. Shared with the crew (it's in the world). Per session, not saved. Test: `tests/quietCalls.test.ts`.
+- **Avatar hands you can read** (owner: so other players see the hands turn). The VR pose now sends each hand's orientation (`PlayerPose.leftQ/rightQ`, `avatar.leftQ/rightQ`; optional, so older versions still join). Other players' hands are a gloved fist with a thumb on top and a wrist cuff (`net/avatarView.ts` `handGeometry`), not a sphere, turned as the real hand is. Desktop players' hands face where they look.
 - **Desktop help panel off by default and trimmed** (owner request): it starts hidden (H or F1 shows it; `debug/helpPanel.ts`). It now lists only the playing keys: what the menu already does is left out (time of day N/M, weather L, motion coupling 9/0, sea trials T, drop R / heel K tests, buoyancy V and wave probes P; those keys still work). Added the keys it was missing: jump (Space), lash (Q), binoculars (Z). The VR line no longer mentions X + stick for motion coupling (it's in Settings → Comfort). Slightly tighter spacing so it fits a 720-px-high window.
 - **Trawling speed easier to hold** (owner: the trawl speed was hard to reach, she was too fast). Measured with the net out: she made 3.0 kn idling in gear and 4 kn by 23 % lever, so the 2-4 kn window was only 8-23 % of the lever (a quarter of a second on the desktop keys). The net was too light (3.5 kN at 3 kn). Now:
   - net drag tripled (`fishing.dragLinear` 1800, `dragQuad` 3000: ~10 kN at 3 kn, so the engine works when trawling); fouled drag raised to stay well above it (`foulDrag` 18000);

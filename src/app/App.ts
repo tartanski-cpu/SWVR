@@ -84,7 +84,7 @@ import { createRescueState, nearestPort, runStatus } from '../rescue/rescue';
 import { engineAlarms } from '../vessel/physics/engineThermal';
 import { VesselEffects } from '../vessel/view/vesselEffects';
 import { sunElevation } from '../environment/timeOfDay';
-import { clamp } from '../core/math';
+import { clamp, type Quat } from '../core/math';
 import { GpuTimer } from '../debug/gpuTimer';
 import { TrialsPanel } from '../debug/trialsPanel';
 import { vesselReadout } from '../debug/vesselReadout';
@@ -296,6 +296,7 @@ export class App {
   private poseTimer = 0;
   private readonly avatars = new AvatarsView(this.scene);
   private readonly poseQ = new THREE.Quaternion();
+  private readonly handQ = new THREE.Quaternion();
   private readonly invFrame = new THREE.Matrix4();
 
   constructor(container: HTMLElement) {
@@ -648,7 +649,8 @@ export class App {
       const tv = this.world.vessels[this.testVesselId];
       const burning = fj && fj.phase !== 'calling' ? fj.intensity : 0;
       const dist = fj ? Math.hypot(fj.x - this.focus.x, fj.z - this.focus.z) : 1e9;
-      this.sound.fire.update(burning, dist, !!tv && jetOn(tv), this.insideHouse ? this.closed : 0);
+      this.bridge?.fireGauge?.update(fj ?? null);
+      this.sound.fire.update(burning, dist, !!tv && jetOn(tv), this.insideHouse ? this.closed : 0, fj && fj.phase === 'accepted' ? fj.wetting : 0);
       // The anchor chain over the bow roller and the windlass.
       const root = this.vesselRoots.get(this.testVesselId);
       const hawse = this.testDef.anchor && root ? root.localToWorld(this.tmpV.fromArray(this.testDef.anchor.hawse)).distanceTo(this.focus) : 1e9;
@@ -1297,6 +1299,8 @@ export class App {
     return {
       timeOfDay: () => env().timeOfDay,
       shiftTime: (h) => this.pushEnvIntent('timeOfDayDelta', h),
+      quietCalls: () => !!this.world.quietCalls,
+      setQuietCalls: (on) => this.pushEnvIntent('quietCalls', on ? 1 : 0),
       timeScale: () => env().timeScale,
       setTimeScale: (v) => this.pushEnvIntent('timeScale', v),
       seaScale: () => env().seaScale,
@@ -1633,6 +1637,13 @@ export class App {
       const w = inXR ? this.controllers.worldPosition(h, this.gripW[h]) : h === 'right' ? this.desktopHandWorld(this.gripW[h]) : null;
       return w ? (w.clone().applyMatrix4(this.invFrame).toArray() as [number, number, number]) : null;
     };
+    // VR hands' orientation in the same frame, so crew-mates see the wrists turn.
+    const handQ = (h: 'left' | 'right'): Quat | null => {
+      const wq = inXR ? this.controllers.worldQuaternion(h, this.handQ) : null;
+      if (!wq) return null;
+      const lq = wq.premultiply(this.attQ.setFromRotationMatrix(this.invFrame));
+      return [r(lq.x), r(lq.y), r(lq.z), r(lq.w)];
+    };
     const r = (x: number) => Math.round(x * 1000) / 1000;
     const pose: PlayerPose = {
       name: userSettings.playerName,
@@ -1642,12 +1653,14 @@ export class App {
       head: [r(head.x), r(head.y), r(head.z), r(q.x), r(q.y), r(q.z), r(q.w)],
       left: hand('left'),
       right: hand('right'),
+      leftQ: handQ('left'),
+      rightQ: handQ('right'),
       tool: this.chartTools?.heldTool() ?? null,
       laser: this.laser.pose(this.invFrame),
     };
     if (this.host) {
       p.name = pose.name;
-      p.avatar = { head: pose.head, left: pose.left, right: pose.right, tool: pose.tool, laser: pose.laser };
+      p.avatar = { head: pose.head, left: pose.left, right: pose.right, leftQ: pose.leftQ, rightQ: pose.rightQ, tool: pose.tool, laser: pose.laser };
       return;
     }
     this.poseTimer += dt;

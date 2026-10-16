@@ -76,7 +76,9 @@ export class HostSession {
       p.yaw = pose.yaw;
       const tool = pose.tool && ['pencil', 'eraser'].includes(pose.tool.kind) && (pose.tool.hand === 'left' || pose.tool.hand === 'right') ? { kind: pose.tool.kind, hand: pose.tool.hand } : null;
       const laser = Array.isArray(pose.laser) && pose.laser.length === 7 && pose.laser.slice(0, 6).every(Number.isFinite) ? pose.laser : null;
-      p.avatar = { head: pose.head, left: pose.left, right: pose.right, tool, laser };
+      // Hand orientations: four finite numbers, or nothing (desktop players, older versions).
+      const quat = (q: unknown) => (Array.isArray(q) && q.length === 4 && q.every(Number.isFinite) ? (q as [number, number, number, number]) : null);
+      p.avatar = { head: pose.head, left: pose.left, right: pose.right, leftQ: quat(pose.leftQ), rightQ: quat(pose.rightQ), tool, laser };
     }
   }
 

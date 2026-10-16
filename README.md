@@ -194,9 +194,15 @@ Above it, a lamp on the wall with its own small switch on the wooden batten the 
 - **Hazards:** floating debris, the rocks at Gull Rocks and the Skerry, and yellow/red hazard buoys.
 - **Debug:** Menu → Debug → Missions → Traffic → **Spawn ship** / **Spawn debris** (close by).
 
+### Emergency calls
+
+Out of harbour, the VHF brings rescues (on cargo runs), tows and fires now and then: a tow call every 8 to 18 minutes, a fire every 10 to 22, and a rescue on about a third of cargo runs. An unanswered call rings every 20 seconds for two minutes, then goes to someone else.
+
+To work in peace, set **Menu → Voyage → Emergency calls → Off (quiet)**. No new calls come while it's off; one already ringing runs its course. Shipping forecasts and harbour messages still come. Turn the RADIO breaker off for silence altogether, or turn the VHF down in Settings → Sound.
+
 ### Weather work
 
-- **Shipping forecast:** the coastguard reads it out on the VHF every 6 minutes and soon after the weather turns: wind, sky, visibility, and what's coming and when. You only hear it with the RADIO breaker on. The last one received stays on the **duty board** (starboard wall) with its time.
+- **Shipping forecast:** the coastguard reads it out on the VHF every 12 minutes and soon after the weather turns: wind, sky, visibility, and what's coming and when. You only hear it with the RADIO breaker on. The last one received stays on the **duty board** (starboard wall) with its time.
 - **Rain:** drops build up on the front windows; the wipers clear them. They are pantograph wipers hung from the header above the glass, so each blade stays upright and clears a broad band at eye height, then parks upright by the window post. Rain drums on the roof inside and hisses outside.
 - **Squalls:** gloomy light, lightning flashes, and thunder after them (count the seconds: about 3 s per km).
 - **Deck hydraulics:** the skiff crane, the tow winch and the trawl's net drum are hydraulic, driven by a pump on the engine. They only work with the **engine running** and the **DECK HYD** breaker on. Without pressure a machine stops where it is and holds its load (the skiff hangs on the crane), and carries on when the pressure comes back. Press a machine's button without hydraulics and a note says what's missing. You hear each one working: the pump's whine, oil hissing through the valves, the drum or slewing gear rumbling, a clunk as the valve opens and closes, and the relief valve hissing when the winch stalls against too heavy a pull.
@@ -236,7 +242,13 @@ Out of harbour, with no other job on, a fire is reported on the VHF every 5–11
 
 1. **Engine running, FIRE PUMP on.** The switch is on the console, left of the wheel (SEARCH · FIRE group). The pump is engine-driven, so there's no water with the engine off.
 2. **Aim the fire monitor** on the wheelhouse roof with its joystick (red knob, on its own pedestal at the port end, beside the searchlight's). Sideways pans it, forward and back raises and lowers it. It's **stabilised**: as she rolls and pitches it holds its aim (you'll see the barrel move on its mount), so you only correct for your own heading and the drift. The jet flies a real arc, carried by the boat's way and blown a little by the wind.
-3. **Keep the jet on the fire.** The smoke turns to white steam when you're on target, and the radio line shows how much is left. Left alone, a fire grows. About a minute of steady hosing puts out a big one.
+3. **Keep the jet on the fire.** You know you're on target four ways:
+   - the **ON TARGET** lamp lights green on the console, just ahead of the monitor joystick;
+   - the **FIRE** bar beside it shrinks as the fire dies, from red through orange to yellow;
+   - you hear the steam **sizzle** where the water lands, even from the helm;
+   - the smoke turns to white steam, and the coastguard calls your progress on the VHF (first water on it, under half, nearly out).
+
+   Left alone, a fire grows. About a minute of steady hosing puts out a big one.
 4. **Out:** the coastguard thanks you, and it counts as a mission.
 
 The duty board walks you through it. The menu's Debug → Missions section has buttons that light one close by (Boat, Shore), raise a call, or end it.

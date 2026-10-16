@@ -931,6 +931,12 @@ export const CONFIG = {
         position: [0, 3.75, -0.55] as [number, number, number],
         joystick: [-0.85, 2.16, -1.15] as [number, number, number],
         pumpSwitch: [-0.82, 2.16, -1.52] as [number, number, number],
+        /**
+         * The fire gauge on the console ahead of the joystick (fire/fireGauge.ts; owner:
+         * better feedback): bar centre (vessel axes), bar length (m), and how far right of
+         * the bar's end the ON TARGET lamp sits (m).
+         */
+        gauge: { position: [-0.66, 2.162, -1.52] as [number, number, number], length: 0.12, lampX: 0.05 },
         panLimitDeg: 170,
         tiltMinDeg: -10,
         tiltMaxDeg: 55,
@@ -1166,8 +1172,11 @@ export const CONFIG = {
    * `breakForce`, or stretching it past `maxStretch`, parts it.
    */
   tow: {
-    /** Seconds between calls while she's out of harbour and free (first one too). */
-    every: [240, 540] as [number, number],
+    /**
+     * Seconds between calls while she's out of harbour and free (first one too). Doubled
+     * after V1.0 (owner: too many calls; was 240-540).
+     */
+    every: [480, 1080] as [number, number],
     /** Relative odds of each kind (def ids). */
     weights: { derelict: 1, logRaft: 1, barge: 0.7 } as Record<string, number>,
     /** Where it's adrift: this far ahead (m), this far off to one side (m), in open water. */
@@ -1177,7 +1186,8 @@ export const CONFIG = {
     minPortDistance: 400,
     /** An unanswered call goes away after this long (s); the alert repeats this often (s). */
     callTimeout: 120,
-    callRepeat: 10,
+    /** The radio's call alert repeats this often while unanswered (s; was 10, owner: too insistent). */
+    callRepeat: 20,
     /** Towline: length (m), and the most the bow eye may be from our towing post to make it fast (m). */
     lineLength: 22,
     attachRange: 16,
@@ -1398,7 +1408,8 @@ export const CONFIG = {
    * `hitRadius` m of it, up to the flames' height (`flameHeight` x 0.4..1 with intensity).
    */
   fire: {
-    every: [300, 660] as [number, number],
+    /** Seconds between fire calls (doubled after V1.0, owner: too many calls; was 300-660). */
+    every: [600, 1320] as [number, number],
     shoreChance: 0.5,
     ahead: [400, 800] as [number, number],
     offset: [100, 300] as [number, number],
@@ -1409,11 +1420,14 @@ export const CONFIG = {
     shoreReach: 45,
     shoreRange: 1500,
     callTimeout: 120,
-    callRepeat: 10,
+    /** The radio's call alert repeats this often while unanswered (s; was 10, owner: too insistent). */
+    callRepeat: 20,
     startIntensity: 0.6,
     growth: 0.004,
     douse: 0.02,
     outBelow: 0.03,
+    /** The coastguard calls the progress as the fire comes below these fractions of full (owner: better feedback). */
+    progressCalls: [0.5, 0.2] as [number, number],
     removeAfter: 40,
     hitRadius: { boat: 5, shore: 6 } as Record<'boat' | 'shore', number>,
     flameHeight: { boat: 5, shore: 7 } as Record<'boat' | 'shore', number>,
@@ -1497,7 +1511,8 @@ export const CONFIG = {
       Rain: { Overcast: 3, Squall: 1 },
       Squall: { Rain: 1 },
     },
-    hold: [240, 600] as [number, number],
+    /** How long each weather holds (s). Doubled after V1.0 (owner: the weather changed too often; was 240-600). */
+    hold: [480, 1200] as [number, number],
     squallHold: [90, 150] as [number, number],
     transition: 60,
     seaPerWind: 0.12,
@@ -1534,10 +1549,10 @@ export const CONFIG = {
      */
     lightning: { every: [10, 30] as [number, number], dist: [500, 4000] as [number, number], flashTime: 0.35 },
     /**
-     * Shipping forecast on the VHF: every `every` s, and `afterChange` s after the weather
+     * Shipping forecast on the VHF (every 12 min since V1.0, was 6): every `every` s, and `afterChange` s after the weather
      * turns (the plan for the next change is new). Received only with the radio on.
      */
-    forecast: { every: 360, afterChange: 30 },
+    forecast: { every: 720, afterChange: 30 },
   },
 
   /**
@@ -1780,7 +1795,8 @@ export const CONFIG = {
    * there's a `chance` of a call, somewhere between `triggerFraction` of the way along.
    */
   rescue: {
-    chance: 0.5,
+    /** Lowered after V1.0 (owner: too many calls; was 0.5). */
+    chance: 0.35,
     /** Out of harbour: further than this from every port (m). */
     harbourRadius: 300,
     /** The call comes this fraction of the way from the departure port to the destination. */
@@ -1794,7 +1810,8 @@ export const CONFIG = {
     minPortDistance: 350,
     /** An unanswered call goes away after this long (s), and repeats its alert this often (s). */
     callTimeout: 120,
-    callRepeat: 10,
+    /** The radio's call alert repeats this often while unanswered (s; was 10, owner: too insistent). */
+    callRepeat: 20,
     /** Targets lie within this fraction of the search radius from its centre. */
     targetSpread: 0.6,
     /** Lost crates float in a loose group: this far apart (m). */

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { EntityId } from '../core/ids';
 import type { WorldState } from '../core/world';
 import { LaserBeam } from '../player/laserBeam';
@@ -92,15 +93,18 @@ export class AvatarsView {
         a.tool = tool ? toolMesh(tool.kind) : null;
         if (a.tool && tool) (tool.hand === 'left' ? a.left : a.right).add(a.tool);
       }
-      for (const [mesh, arm, hand, s] of [
-        [a.left, a.leftArm, p.avatar?.left, -1],
-        [a.right, a.rightArm, p.avatar?.right, 1],
+      for (const [mesh, arm, hand, s, hq] of [
+        [a.left, a.leftArm, p.avatar?.left, -1, p.avatar?.leftQ],
+        [a.right, a.rightArm, p.avatar?.right, 1, p.avatar?.rightQ],
       ] as const) {
         mesh.visible = !!hand;
         arm.visible = !!hand;
         if (!hand) continue;
         // Hands snap fast toward a new grip ("magnet"), then follow it.
         mesh.position.lerp(this.tmpV.set(hand[0] - p.position[0], hand[1] - p.position[1], hand[2] - p.position[2]), Math.min(1, dt * 20));
+        // Turned as their real hand is (VR); a desktop player's hand faces where they look.
+        if (hq) mesh.quaternion.slerp(this.tmpQ.set(hq[0], hq[1], hq[2], hq[3]), Math.min(1, dt * 20));
+        else mesh.quaternion.copy(a.head.quaternion);
         this.shoulder.copy(a.head.position).addScaledVector(this.side, s);
         this.shoulder.y -= 0.3;
         const len = this.dir.copy(mesh.position).sub(this.shoulder).length();
@@ -133,9 +137,8 @@ export class AvatarsView {
     head.add(skull, visor);
     // Unit-height body, scaled to the neck each frame.
     const body = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.13, 1, 8).translate(0, 0, 0), mat);
-    const handGeo = new THREE.SphereGeometry(0.05, 8, 6);
-    const left = new THREE.Mesh(handGeo, mat);
-    const right = new THREE.Mesh(handGeo, mat);
+    const left = new THREE.Mesh(handGeometry(-1), mat);
+    const right = new THREE.Mesh(handGeometry(1), mat);
     // Name tag: a camera-facing sprite above the head, redrawn when the name changes.
     const canvas = document.createElement('canvas');
     canvas.width = 256;
@@ -154,6 +157,27 @@ export class AvatarsView {
     this.avatars.set(id, a);
     return a;
   }
+}
+
+/**
+ * A gloved hand, closed as it is round a controller (owner: the sphere hid how the hand
+ * was turned). In the controller's grip frame: fingers wrapped round the -z axis, the
+ * thumb on top (+y) on the inner side, the wrist and a cuff behind (+z). The flat-sided
+ * fist, the thumb and the cuff make roll, pitch and yaw all readable from across the deck.
+ * Built once per side (the thumb is on the inner side: +x for the left hand, -x for the right).
+ */
+const handGeos = new Map<number, THREE.BufferGeometry>();
+function handGeometry(side: -1 | 1): THREE.BufferGeometry {
+  const cached = handGeos.get(side);
+  if (cached) return cached;
+  const fist = new THREE.BoxGeometry(0.065, 0.08, 0.09);
+  const knuckles = new THREE.BoxGeometry(0.06, 0.03, 0.03).translate(0, -0.035, -0.04);
+  const thumb = new THREE.BoxGeometry(0.024, 0.024, 0.065).rotateY(side * 0.35).translate(-side * 0.022, 0.046, -0.025);
+  const cuff = new THREE.CylinderGeometry(0.032, 0.036, 0.05, 8).rotateX(Math.PI / 2).translate(0, -0.005, 0.065);
+  const g = mergeGeometries([fist, knuckles, thumb, cuff].map((x) => x.toNonIndexed()));
+  g.computeVertexNormals();
+  handGeos.set(side, g);
+  return g;
 }
 
 function snap(a: Avatar, feet: number[], av: WorldState['players'][string]['avatar']): void {

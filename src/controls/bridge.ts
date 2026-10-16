@@ -18,6 +18,7 @@ import { OverheadPanel } from './overheadPanel';
 import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
 import { DoorButton, WheelhouseDoor } from './WheelhouseDoor';
 import { MonitorView } from '../fire/monitorView';
+import { FireGauge } from '../fire/fireGauge';
 import { hullPlan } from '../vessel/layout';
 import { RainGlass } from '../vessel/view/rainGlass';
 import { Cleat, Dipstick, FenderBasket, FendersView, OilCan, EngineHatch } from './deckGear';
@@ -48,6 +49,8 @@ export class Bridge {
   readonly rainGlass: RainGlass;
   /** The fire monitor on the roof (boats that have one). */
   private monitor: MonitorView | null = null;
+  /** The fire gauge beside the monitor joystick (App feeds it the fire job). */
+  fireGauge: FireGauge | null = null;
   /** The tow winch's drum (it turns while the winch runs). */
   private readonly winchDrum = new THREE.Group();
   /** The winch drum's motion this frame (+1 heaving in, -1 paying out, 0 still); set by App. */
@@ -122,6 +125,13 @@ export class Bridge {
       this.monitor = new MonitorView(m);
       this.root.add(this.monitor.root);
       extraLabels.push(['FIRE PUMP', m.pumpSwitch], ['MONITOR', m.joystick]);
+      // The fire gauge: how big the fire is, and the ON TARGET lamp.
+      const gp = m.gauge;
+      this.fireGauge = new FireGauge(gp.length, gp.lampX);
+      this.fireGauge.root.position.fromArray(gp.position);
+      this.root.add(this.fireGauge.root);
+      extraFixed.push(part(FireGauge.track(gp.length).translate(gp.position[0], gp.position[1], gp.position[2]), 0x14171a));
+      extraLabels.push(['FIRE', [gp.position[0], gp.position[1], gp.position[2] - 0.03]], ['ON TARGET', [gp.position[0] + gp.length / 2 + gp.lampX, gp.position[1], gp.position[2] - 0.03]]);
     }
     // Fishing: the TRAWL switch (up: shoot the net; down: haul it).
     if (def.fishing) {
