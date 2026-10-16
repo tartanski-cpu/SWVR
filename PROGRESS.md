@@ -2065,7 +2065,7 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   - **Desktop:** the same with the keys.
   - **F3:** 56 modules.
 
-### M5a: the deck gear as modules (done, on /next/ for the owner to test; nothing should look or work differently)
+### M5a: the deck gear as modules (done; owner-tested in VR on /next/: all the modular work so far works)
 
 - **What changed:** the tender crane (with its cradle), the tow winch, the stern roller, the A-frame, the trawl and the anchor windlass are now modules in the boat's recipe (`starterWorkboat.json`, version 6), not hand-built parts of the bridge and the world's systems. The world's systems no longer read the vessel config for them: they ask the boat for her **gear** ("has she a tow point, and where?"). Take a module out of the recipe and its job goes with it.
 - **New modules** (`src/modules/`):
@@ -2123,6 +2123,8 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   - **F3:** 46 modules with something drawn (the trawl and the windlass have nothing of their own to draw).
 
 ### Merged: the pilot house and the post-V1.0 changes into the modular boat (owner request after M5a)
+
+- **Owner test (VR, /next/):** everything tested; all the modular work so far (M1 to M5a, with the merge) works. The owner's other feedback from that test goes to the dev branch through another session; it will be merged in here before the modular work moves to the dev branch.
 
 - **What came in** from the dev branch (built by another session; see its entries above): the raked pilot-house front and raised side wall, the port side door, the fire gauge on the console, fewer and quieter calls, longer weather, the crew-mate figures, the help panel hidden at start.
 - **Fitted to the modules** where the two met:
