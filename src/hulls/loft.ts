@@ -65,6 +65,8 @@ export interface HullDesign {
   name: string;
   /** What this type is and where it comes from, for the viewer. */
   blurb: string;
+  /** On the owner's shortlist for the modular-boat platform (shown first in the viewer). */
+  shortlist?: boolean;
   /** Length overall (m): transom at z = +L/2, stem at z = -L/2 (before rake). */
   length: number;
   /** Deck half-breadth along the length (m). */

@@ -92,7 +92,7 @@ function linesOverlay(h: LoftedHull): THREE.Object3D {
 const tabs = document.getElementById('tabs')!;
 for (const d of DESIGNS) {
   const b = document.createElement('button');
-  b.textContent = d.name.split(' (')[0];
+  b.textContent = (d.shortlist ? '★ ' : '') + d.name.split(' (')[0];
   b.dataset.id = d.id;
   b.onclick = () => show(d.id);
   tabs.appendChild(b);
