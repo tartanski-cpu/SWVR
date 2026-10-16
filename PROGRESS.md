@@ -1686,6 +1686,25 @@ The deck and wheelhouse floor are opaque and sit well above the DWL (freeboard a
 
 **Next big step: modular boats** (the owner's separate prompt; see "Direction: one engine, three games" above). The mobile and procedural games wait until the owner asks.
 
+- **Modular boats: plan written, waiting for the owner's go-ahead.** The owner's brief arrived. The plan is in [`docs/MODULAR_BOATS.md`](docs/MODULAR_BOATS.md):
+  - how the boat is built today and what's hard-coded to it;
+  - where the brief and the code disagree, with recommendations;
+  - the contracts as TypeScript interfaces;
+  - every current part as the module it becomes;
+  - milestones M1–M8 with test steps;
+  - five open questions.
+
+  Key departures from the brief, pending the owner's OK:
+  - a module has a simulation half (host only, headless) and a view half;
+  - the bus is polled, not notified;
+  - force-producing modules get a physics port;
+  - recipes can rebind module ports;
+  - the energy network is a service that modules declare roles to.
+
+  Found while reading: there is **no mechanism library** in the code (the brief assumed one).
+
+  No code yet.
+
 Everything on the lists above is done or noted as open below. What was open when last reviewed: the owner's VR test of the latest rounds; a moon (the night sea is very dark); whitecaps; harbour lights that don't grow as you near them; two upgrades suggested but not built (a bigger fuel tank, a second skiff motor). The older suggested order follows, kept for the record:
 
 1. **Owner VR test** of fuel and temperatures, harbours, anchoring and refuelling. Then tune contact stiffness, the shelter factors and the menu size and placement.
