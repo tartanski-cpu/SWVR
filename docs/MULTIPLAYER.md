@@ -5,7 +5,7 @@ Co-op crew on one shared boat, peer-to-peer: one player hosts, the others join w
 ## How to play
 
 1. **Host:** open the menu (Y in VR, O on desktop) → **Crew** tab → **Host a game**. The status line shows the game code, e.g. `Hosting, code 48213: 1 aboard`.
-2. **Join:** on the other headset or browser, **Crew** tab → type the code on the keypad → **Join**. You appear on the platform; board the boat as usual (left stick click / B).
+2. **Join:** on the other headset or browser, **Crew** tab → type the code on the keypad → **Join**. You join aboard the workboat, wherever she is.
 3. **Leave:** **Leave game** (or **Stop hosting**). Everyone carries on alone from where things were. If the host leaves, the crew get "The host left" and continue solo.
 
 Everyone can use every control. **Levers, the wheel and the searchlight joystick have one owner at a time:** the first hand on it keeps it until it lets go. If a crew-mate has it, the control glows red when you reach for it and your grip gets a firm bump instead of grabbing. Buttons and switches anyone can press.

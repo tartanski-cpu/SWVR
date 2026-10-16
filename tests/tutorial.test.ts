@@ -12,7 +12,7 @@ import { PORTS } from '../src/world/archipelago';
 const DT = 1 / 60;
 
 function setup() {
-  const { world, vesselId, localPlayerId } = createWorld(new IdFactory(), undefined, { cold: true });
+  const { world, vesselId, localPlayerId } = createWorld(new IdFactory(), undefined, { cold: true, harbour: true });
   world.environment.waves = [];
   world.career!.tutorial = { step: 0, base: 0, said: false };
   const v = world.vessels[vesselId];
@@ -25,12 +25,23 @@ function setup() {
 }
 
 describe('first voyage (tutorial)', { timeout: 60000 }, () => {
-  it('talks a new skipper through start-up, Calder Haven, docking and a delivery, then pays a welcome', () => {
+  it('a new game: moored in Calder Haven, you on the quay beside her', () => {
+    const { v, me } = setup();
+    expect(v.mooring.phase).toBe('moored');
+    expect(v.mooring.berthId).toBe(CONFIG.start.berthId);
+    const calder = PORTS.find((p) => p.id === 'calder')!;
+    expect(Math.hypot(v.position[0] - calder.x, v.position[2] - calder.z)).toBeLessThan(CONFIG.rescue.harbourRadius);
+    expect(me.aboardVesselId).toBeNull();
+    expect(Math.hypot(me.position[0] - v.position[0], me.position[2] - v.position[2])).toBeLessThan(6); // right beside her
+    expect(me.position[1]).toBeGreaterThan(1); // up on the quay, not in the water
+  });
+
+  it('talks a new skipper from the quay through start-up, loading, casting off and a delivery, then pays a welcome', () => {
     const { world, v, send, run, me } = setup();
     const t = world.career!.tutorial!;
     const duty = () => world.duties!.items.find((d) => d.kind === 'tutorial');
     run(0.2);
-    expect(world.rescue!.radio?.text).toMatch(/Step aboard/);
+    expect(world.rescue!.radio?.text).toMatch(/step aboard/);
     expect(duty()?.steps.length).toBe(TUTORIAL.length);
     expect(tutorialLine(world)).toMatch(/^First voyage 1\//);
     // 1. aboard
@@ -51,21 +62,20 @@ describe('first voyage (tutorial)', { timeout: 60000 }, () => {
     v.engine.rpm = 700;
     run(0.2);
     expect(t.step).toBe(4);
-    // 5. Calder Haven, 6. docked
-    send('teleportToPort', 1, 'calder');
-    run(0.5);
-    expect(t.step).toBe(5);
-    send('dock');
-    run(15);
-    expect(t.step).toBe(6);
-    expect(duty()!.steps.slice(0, 5).every((s) => s.done)).toBe(true);
-    // 7. cargo aboard
+    // 5. cargo aboard, still alongside
     const id = 'tut-crate';
     const item: CargoItem = { id, kind: 0, mass: 40, from: 'calder', to: 'brannock', at: { vessel: v.id, pos: [0, 1, 3], yaw: 0, vel: [0, 0], lashed: false } };
     world.cargo[id] = item;
     run(0.2);
-    expect(t.step).toBe(7);
-    // 8. delivered at Brannock
+    expect(t.step).toBe(5);
+    // 6. cast off and out of the harbour
+    send('dock');
+    expect(v.mooring.phase).toBe('free');
+    send('teleportToPort', 1, 'brannock');
+    run(0.5);
+    expect(t.step).toBe(6);
+    expect(duty()!.steps.slice(0, 5).every((s) => s.done)).toBe(true);
+    // 7. delivered at Brannock
     const m = world.career!.money;
     item.at = { carriedBy: me.id };
     const [x, y, z] = stackPoint(PORTS.find((p) => p.id === 'brannock')!, 0);

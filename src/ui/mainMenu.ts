@@ -514,7 +514,7 @@ export function mainMenu(h: MenuHost): MainMenu {
         },
         { heading: 'Move' },
         { label: 'To port', buttons: [0, 1, 2].map((i) => ({ text: () => h.ports()[i]?.name ?? '', press: () => h.teleportToPort(i) })) },
-        { label: '', buttons: [{ text: () => (h.aboard() ? 'Leave boat (to platform)' : 'Board boat (at the helm)'), press: () => h.toggleBoard() }] },
+        { label: '', buttons: [{ text: () => (h.aboard() ? 'Leave boat (to the quay)' : 'Board boat (at the helm)'), press: () => h.toggleBoard() }] },
       ],
     },
     {

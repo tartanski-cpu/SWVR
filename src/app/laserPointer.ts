@@ -9,7 +9,7 @@ const IDENTITY = new THREE.Matrix4();
 
 /** What the laser pointer needs from the app. */
 export interface LaserHost {
-  /** The groups the beam can hit (boats, islands and quays, cargo, the platform, traffic). */
+  /** The groups the beam can hit (boats, islands and quays, cargo, traffic). */
   targets(): THREE.Object3D[];
   /** The boats' roots: a hit on one is kept in her frame, so the dot rides along. */
   vesselRoots(): Iterable<THREE.Object3D>;
@@ -22,7 +22,7 @@ export interface LaserHost {
 /**
  * Our laser pointer (split out of App): a beam from the hand, or on desktop from a "hand"
  * below and to the right of the eyes, to whatever it meets - a boat, the islands and quays,
- * cargo, the platform, or the sea. What it hits is looked up a few times a second (the beam
+ * cargo, or the sea. What it hits is looked up a few times a second (the beam
  * itself follows the hand every frame); the hit point is kept in the frame of what it hit,
  * so on a boat it rides along. Crew-mates see it in our pose (`pose`).
  */

@@ -1554,6 +1554,12 @@ The brief's "no new particle effects" rule was flagged: the fire is drawn withou
   - Plot-it-yourself rescues moved to Settings → Game as **Rescue position: On plotter / Plot it yourself**.
   - **Tests (2 new):** sections and the hidden Debug tab; the weather line split. Existing menu tests now look buttons up by tab.
 
+- **v1.0 start: in harbour, no start platform** (owner request, near-final changes before v1.0):
+  - **Removed:** the pile-mounted start platform and its ring of floating buoys at the origin (`app/testScene.ts`, the platform walk area, `testScene.platformDeckHeight` / `platformHalfSize`). The hazard buoys (traffic) stay.
+  - **New game:** `createWorld(..., { harbour: true })` (the game; tests still start her at sea at her `spawn`) puts the workboat moored alongside the Calder Haven cargo berth, her lines already fast (`CONFIG.start.berthId`), and you on the quay beside her facing her (`CONFIG.start.quay`, `placeAshore`). B / left stick click "go ashore" puts you there too.
+  - **Crew joining** a game now come aboard the workboat at her boarding spot, wherever she is (they used to appear on the platform).
+  - **First voyage** reworked for it: step aboard from the quay, master on, INSTR breaker, start her, load a crate (you're at the cargo berth), cast off and go out between the breakwater lights, deliver it. Tests: the start, and the new walk-through.
+
 - **Stabilised fire monitor** (owner feedback: very hard to keep the jet on a fire as she rocks and rolls): `fireMonitor.stabilised`. The aim (fire.ts `monitorAim`) uses only her heading, not her roll and pitch: pan is still from the bow (turn her and the jet turns), elevation from the horizon. Only the nozzle's position moves with the roof. MonitorView draws the barrel at that held aim in the boat's axes (from her drawn pose each frame), so you see the mount working. Test: rolled 15 deg or pitched 8 deg, the jet lands within 3 m of where it does level.
 
 - **Fold-out chart table** (owner request: with the logbook gone the table was too big):
@@ -1659,7 +1665,7 @@ The deck and wheelhouse floor are opaque and sit well above the DWL (freeboard a
 
 **Next big step: modular boats** (the owner's separate prompt; see "Direction: one engine, three games" above). The mobile and procedural games wait until the owner asks.
 
-Everything on the lists above is done or noted as open below. What was open when last reviewed: the owner's VR test of the latest rounds; the boat passing through buoys and the start platform; a moon (the night sea is very dark); whitecaps; harbour lights that don't grow as you near them; two upgrades suggested but not built (a bigger fuel tank, a second skiff motor). The older suggested order follows, kept for the record:
+Everything on the lists above is done or noted as open below. What was open when last reviewed: the owner's VR test of the latest rounds; a moon (the night sea is very dark); whitecaps; harbour lights that don't grow as you near them; two upgrades suggested but not built (a bigger fuel tank, a second skiff motor). The older suggested order follows, kept for the record:
 
 1. **Owner VR test** of fuel and temperatures, harbours, anchoring and refuelling. Then tune contact stiffness, the shelter factors and the menu size and placement.
 2. **Weather** (wind, current), which gives the anchor and mooring lines something to do, plus mooring lines and walking ashore.
@@ -1674,7 +1680,7 @@ For performance on the Quest, read the debug panel's cpu/gpu lines in VR:
 ## Known issues / notes
 
 - **Water inside the hull:** the ocean is drawn wherever it is, so green water over the bulwark in big rolls can show "inside" the boat. Freeboard is 0.95–1.5 m, so it's rare in the current sea state. The fix is a hull-interior depth/stencil mask (see "Decision" above).
-- **Collisions** are with the terrain, quays and piers only. The boat still passes through the buoys and the pilot-station platform near the start.
+- **Collisions** are with the terrain, quays and piers only. The boat passes through the hazard buoys.
 - **Fixed-size lights:** harbour lights are constant pixel size, so they don't grow as you approach.
 - **No whitecaps or foam** beyond a faint crest tint.
 - **The ocean at night is very dark** (no moon yet).

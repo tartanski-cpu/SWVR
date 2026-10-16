@@ -14,7 +14,7 @@ import { sayRadio } from '../rescue/rescue';
 import { isPowered } from '../vessel/electrics';
 import { isWorkboat, VESSEL_DEFS } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
-import { BERTHS, PORTS } from '../world/archipelago';
+import { PORTS } from '../world/archipelago';
 import { createCareer } from './career';
 
 export interface TutorialState {
@@ -39,8 +39,8 @@ const meAboard = (world: WorldState, v: VesselState) => Object.values(world.play
 
 export const TUTORIAL: Step[] = [
   {
-    text: 'Step aboard the workboat (walk on, or B / left stick click)',
-    say: 'Good morning, skipper, Calder harbour master here. Welcome to the islands. Step aboard your boat and we will get her going.',
+    text: 'Step aboard the workboat from the quay (walk on, or B / left stick click)',
+    say: 'Good morning, skipper, Calder harbour master here. Welcome to the islands. That is your boat alongside the quay: step aboard and we will get her going.',
     done: (w, v) => meAboard(w, v),
   },
   {
@@ -59,19 +59,14 @@ export const TUTORIAL: Step[] = [
     done: (_w, v) => v.engine.phase === 'running',
   },
   {
-    text: 'Head for Calder Haven (east-south-east; the plotter shows the way)',
-    say: 'Lovely. Bring her round to Calder Haven, east-south-east of you. Mind Gull Rocks on the way, and come in between the breakwater lights.',
-    done: (_w, v) => Math.hypot(v.position[0] - calder().x, v.position[2] - calder().z) < CONFIG.rescue.harbourRadius,
-  },
-  {
-    text: 'Come alongside the cargo berth (yellow strip on the quay) and press DOCK',
-    say: 'Welcome in. Slow and steady to the cargo berth, the middle of the quay by the yellow strip, put the fenders out, and press DOCK.',
-    done: (_w, v) => v.mooring.phase === 'moored' && (BERTHS.find((b) => b.id === v.mooring.berthId)?.portId ?? '') === 'calder',
-  },
-  {
     text: 'Load a crate: carry one from the quay onto the deck (or menu Cargo, Load)',
-    say: 'There is cargo waiting on the quay. Carry a crate aboard, or use the Cargo page of the menu. The colour says where it is going.',
+    say: 'Lovely. You are lying at the cargo berth, and there is cargo waiting on the quay. Carry a crate aboard, or use the Cargo page of the menu. The colour says where it is going.',
     done: (w, v) => aboard(w, v.id).length > 0 || Object.values(w.players).some((p) => p.aboardVesselId === v.id && carriedBy(w, p.id).length > 0),
+  },
+  {
+    text: 'Cast off (DOCK button, or menu Boat, Cast off) and go out between the breakwater lights',
+    say: 'Now cast off: the DOCK button again lets the lines go. Fenders in, and out between the breakwater lights, slow in the harbour.',
+    done: (_w, v) => v.mooring.phase === 'free' && Math.hypot(v.position[0] - calder().x, v.position[2] - calder().z) > CONFIG.rescue.harbourRadius * 0.5,
   },
   {
     text: 'Deliver it: take her to its port and set it down by the goods stack',

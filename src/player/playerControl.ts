@@ -1,14 +1,16 @@
 import { CONFIG } from '../config';
+import { landFloor } from '../world/landWalkArea';
 import type { Intent } from '../core/intents';
 import type { WorldState } from '../core/world';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 import type { PlayerState } from './playerState';
 
-/** Where a player stands when not aboard anything (the test platform, until there's a quay). */
-export function placeOnPlatform(p: PlayerState): void {
+/** Put a player ashore on the quay where a new game starts (CONFIG.start), facing the boat. */
+export function placeAshore(p: PlayerState): void {
+  const q = CONFIG.start.quay;
   p.aboardVesselId = null;
-  p.position = [0, CONFIG.testScene.platformDeckHeight, 0];
-  p.yaw = 0;
+  p.position = [q.x, landFloor(q.x, q.z) ?? 1.6, q.z];
+  p.yaw = (q.yawDeg * Math.PI) / 180;
   p.mode = 'walk';
   delete p.velocity;
 }
@@ -24,7 +26,7 @@ export function applyPlayerIntent(world: WorldState, p: PlayerState, intent: Int
       p.mode = 'walk';
       delete p.velocity;
       if (!vessel) {
-        placeOnPlatform(p);
+        placeAshore(p);
         break;
       }
       p.aboardVesselId = vessel.id;

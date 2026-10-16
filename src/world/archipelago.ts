@@ -3,7 +3,7 @@
  * basins, breakwaters, quays/piers, buildings, lights, ports and sheltered water.
  *
  * World axes: +X east, -Z north, metres; heights above mean sea level (MSL = y 0).
- * The start (pilot-station platform and buoys) is at the origin, in open water.
+ * A new game starts in Calder Haven, the boat moored at the quay (CONFIG.start).
  *
  *   Port types (owner brief):
  *     Selkie Bay, Rona       - anchorage only: a horseshoe bay opening north, beach at its head

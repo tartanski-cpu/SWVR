@@ -16,7 +16,6 @@ import { SkyView } from '../environment/skyView';
 import { OceanView } from '../ocean/oceanView';
 import { prepareWaves, significantWaveHeight, surfaceHeight, type PreparedWave } from '../ocean/waves';
 import { SurfaceProbes } from '../debug/surfaceProbes';
-import { Buoys, createPlatform } from './testScene';
 import { HydroDebugView } from '../debug/hydroDebugView';
 import { onCrane, recoverCheck } from '../vessel/tenderCrane';
 import { hydraulicsOn, isPowered } from '../vessel/electrics';
@@ -139,7 +138,6 @@ export class App {
   private readonly environment: EnvironmentView;
   private readonly sky = new SkyView();
   private readonly ocean = new OceanView();
-  private readonly buoys = new Buoys();
   private readonly probes = new SurfaceProbes();
   private readonly vesselViews = new Map<EntityId, VesselView>();
   private readonly hydroViews = new Map<EntityId, HydroDebugView>();
@@ -150,7 +148,7 @@ export class App {
   /** Which vessel (if any) the local rig is currently parented to. */
   private rigParentId: EntityId | null | undefined = undefined;
   private readonly walkAreas = new Map<EntityId, WalkArea>();
-  /** Off the boat: islands, quays, piers and the platform. */
+  /** Off the boat: islands, quays and piers. */
   private readonly worldArea = worldWalkArea();
   private readonly swimArea = swimArea();
   private readonly hullPlans = new Map<EntityId, BodyVessel['plan']>();
@@ -172,10 +170,9 @@ export class App {
   private readonly worldView = new WorldView();
   private readonly cargoView = new CargoView();
   private readonly cargoHands = new CargoHands();
-  private readonly platform = createPlatform();
   /** Our laser pointer (others see it in our pose; laserPointer.ts). */
   private readonly laser = new LaserPointer({
-    targets: () => [...this.vesselRoots.values(), this.worldView.root, this.cargoView.root, this.platform, this.trafficView.root],
+    targets: () => [...this.vesselRoots.values(), this.worldView.root, this.cargoView.root, this.trafficView.root],
     vesselRoots: () => this.vesselRoots.values(),
     ignore: () => [this.rig.carrier, this.menu.root],
     waves: () => this.renderWaves,
@@ -316,7 +313,7 @@ export class App {
       CONFIG.render.far,
     );
 
-    const created = createWorld(this.ids, undefined, { tender: true, cold: true, weather: true, tows: true, fires: true, logs: true });
+    const created = createWorld(this.ids, undefined, { tender: true, cold: true, weather: true, tows: true, fires: true, logs: true, harbour: true });
     this.world = created.world;
     this.localPlayerId = created.localPlayerId;
     this.soloPlayerId = created.localPlayerId;
@@ -333,7 +330,7 @@ export class App {
 
     this.desktop = new DesktopController(this.camera, this.renderer.domElement, this.keyboard);
     this.environment = new EnvironmentView(this.scene);
-    this.scene.add(this.sky.mesh, this.ocean.mesh, this.buoys.mesh, this.probes.mesh, this.platform, this.worldView.root, this.cargoView.root);
+    this.scene.add(this.sky.mesh, this.ocean.mesh, this.probes.mesh, this.worldView.root, this.cargoView.root);
     this.scene.add(this.targetsView.root, this.gearView.root, this.desktopHand.root, this.rain.mesh, this.trafficView.root);
     this.rain.quality = userSettings.rainQuality;
     this.targetsView.onWhistle = (pos) => this.sound.whistle.blow(pos);
@@ -576,7 +573,6 @@ export class App {
     this.environment.update(this.world.environment, this.focus, this.world.time);
     this.sky.update(this.environment, this.focus);
     this.ocean.update(this.renderWaves, this.focus, this.environment, renderTime);
-    this.buoys.update(this.renderWaves);
     this.probes.update(this.renderWaves, this.camera);
   }
 
@@ -1168,7 +1164,7 @@ export class App {
     return (p.aboardVesselId && this.vesselViews.get(p.aboardVesselId)?.root) || this.scene;
   }
 
-  /** Board the test boat (at the helm), or go back to the platform. */
+  /** Board the boat (at the helm), or go ashore onto the quay where the game starts. */
   private toggleBoardTo(aboard: boolean): void {
     this.intents.push({ playerId: this.localPlayerId, targetId: this.localPlayerId, control: 'board', value: aboard ? 1 : 0, ref: aboard ? this.testVesselId : undefined });
   }

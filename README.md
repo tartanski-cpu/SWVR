@@ -53,7 +53,7 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | Q on cargo on deck | Lash it to the nearest D-ring / release it |
 | Right mouse button (hold) | **Laser pointer** to the reticle (the beam comes from your lower right); the crew sees the beam and dot |
 | Click the searchlight or fire monitor joystick, or the skiff's tiller or gear lever | Steer it with **W A S D** (you don't walk meanwhile) while the mouse still looks around; click again to let go. You don't walk while dragging a lever or the wheel either |
-| B | Board the boat (you appear at the helm) / back to the platform |
+| B | Board the boat (you appear at the helm) / go ashore onto the quay |
 | Aim **+** and click / drag | Operate the bridge controls (see below) |
 | E | Debug: engine start / stop |
 | ↑ / ↓ | Debug: throttle/gear lever ahead / astern |
@@ -86,7 +86,7 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | **Y** | **Menu** on your left wrist (see below) |
 | Left stick | Walk (head-relative; can be switched off in the menu). Push it right to the edge to **run** |
 | Right stick ← / → | Snap turn (30° by default; 15/30/45/90° in the menu) |
-| Left stick click | Board the boat (at the helm) / back to the platform |
+| Left stick click | Board the boat (at the helm) / go ashore onto the quay |
 | **Grip** the boat hook (port bulwark) | Take it; it points along your controller. Touch a floating crate or a tow's bow eye with the tip to hook it. With **auto-extend** (menu Comfort → Boat hook reach, on by default) it telescopes out to whatever you point it at, up to 8 m, then slides back in with the crate on it. Desktop: click the hook, then click the crate or bow eye |
 | **X** | **Crouch** / stand up (drops your view and hands 0.6 m; desktop: C) |
 | **Trigger** on the red key on the yellow plate (aft wall, by the door) | **Battery master** on / off. The boat starts cold and dark: master on first (voltmeter by the helm, under the starboard window) |
@@ -371,7 +371,7 @@ Gulls wheel over the boat by day, gliding and now and then flapping, and calling
 
 ## The archipelago
 
-From the start (the pilot-station platform), the ports are a few minutes away. Bearings and ranges are on the menu's Voyage tab.
+A new game starts in **Calder Haven**: your boat lies moored alongside the quay in the sheltered harbour, and you stand on the quay beside her. Walk aboard, power her up and start her; the harbour master talks you through your first voyage. The other ports are a few minutes away. Bearings and ranges are on the menu's Voyage tab.
 
 | Port | Type | What's there |
 |---|---|---|

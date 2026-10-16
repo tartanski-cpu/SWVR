@@ -28,19 +28,12 @@ export function landFloor(x: number, z: number): number | null {
 }
 
 export function worldWalkArea(): WalkArea {
-  const half = CONFIG.testScene.platformHalfSize - 0.3;
-  const ph = CONFIG.testScene.platformDeckHeight;
-  const onPlatform = (x: number, z: number) => Math.abs(x) <= half && Math.abs(z) <= half;
   return {
     floorsAt(x, z) {
-      const out: number[] = [];
-      if (onPlatform(x, z)) out.push(ph);
       const g = landFloor(x, z);
-      if (g !== null) out.push(g);
-      return out;
+      return g !== null ? [g] : [];
     },
     walkable(x, z, y) {
-      if (onPlatform(x, z) && Math.abs(y - ph) <= STEP_HEIGHT) return true;
       const g = landFloor(x, z);
       return g !== null && Math.abs(g - y) <= STEP_HEIGHT;
     },

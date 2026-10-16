@@ -3,8 +3,9 @@ import { CONFIG } from '../config';
 import { createEnvironment, type EnvironmentState } from '../environment/environmentState';
 import type { PlayerState } from '../player/playerState';
 import { createPlayerState } from '../player/playerState';
-import { placeOnPlatform } from '../player/playerControl';
-import { dropVessel } from '../vessel/vesselControl';
+import { placeAshore } from '../player/playerControl';
+import { dropVessel, placeVessel } from '../vessel/vesselControl';
+import { BERTHS } from '../world/archipelago';
 import { createVesselState, type VesselState } from '../vessel/vesselState';
 import { IdFactory, type EntityId } from './ids';
 import { stockPorts, type CargoItem } from '../cargo/cargo';
@@ -74,15 +75,17 @@ export function createWorld(
   /** Also give the workboat her tender (the skiff, in her cradle on the foredeck): the game does, tests may. */
   /** cold: the boat starts dark and cold, battery master off (the game; tests start warm). */
   /** tows / fires: towing and fire calls come by themselves (the game). */
-  opts: { tender?: boolean; cold?: boolean; weather?: boolean; tows?: boolean; fires?: boolean; logs?: boolean } = {},
+  /** harbour: she starts moored in Calder Haven and you on the quay (the game); else at sea at her spawn (tests). */
+  opts: { tender?: boolean; cold?: boolean; weather?: boolean; tows?: boolean; fires?: boolean; logs?: boolean; harbour?: boolean } = {},
 ): { world: WorldState; localPlayerId: EntityId; vesselId: EntityId } {
   const localPlayerId = ids.next('player');
   const vesselId = ids.next('vessel');
   const vessel = createVesselState(vesselId, vesselDefId);
-  dropVessel(vessel);
+  if (opts.harbour) mooredAtStart(vessel);
+  else dropVessel(vessel);
   const tender = opts.tender ? createVesselState(ids.next('vessel'), 'skiff') : null;
   const player = createPlayerState(localPlayerId, 'Player 1');
-  placeOnPlatform(player);
+  placeAshore(player);
   const world: WorldState = {
     tick: 0,
     time: 0,
@@ -117,4 +120,18 @@ export function createWorld(
   if (tender) stowTender(world, tender, vesselId);
   stockPorts(world);
   return { world, localPlayerId, vesselId };
+}
+
+/**
+ * The game's start: lying alongside her berth in Calder Haven (CONFIG.start), bow along the
+ * berth, afloat at her waterline, her mooring lines already fast (moored).
+ */
+function mooredAtStart(v: VesselState): void {
+  const b = BERTHS.find((x) => x.id === CONFIG.start.berthId);
+  if (!b) return dropVessel(v);
+  placeVessel(v, b.x, 0, b.z, b.headingDeg);
+  v.mooring.phase = 'moored';
+  v.mooring.berthId = b.id;
+  v.mooring.reversed = false;
+  v.mooring.t = 0;
 }

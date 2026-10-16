@@ -208,7 +208,7 @@ describe('main menu contents', () => {
     expect(state.coupling).toBeCloseTo(0.9);
     expect(findButton(rows, 'Board boat (at the helm)')).toBeTruthy();
     state.aboard = true;
-    expect(findButton(rows, 'Leave boat (to platform)')).toBeTruthy();
+    expect(findButton(rows, 'Leave boat (to the quay)')).toBeTruthy();
   });
 
   it('formats time of day, wrapping at midnight', () => {

@@ -1,6 +1,6 @@
 /**
  * The player's body when it leaves the deck: jumping, falling, swimming and climbing out.
- * Walking (on deck, ashore, on the platform) stays in Locomotion; this module handles the
+ * Walking (on deck, ashore) stays in Locomotion; this module handles the
  * moments between frames of reference.
  *
  * Moving frames: aboard, PlayerState.position is in the vessel's axes. A jump converts it
@@ -185,7 +185,7 @@ export function updateAir(
         }
       }
     }
-    // Land, quays, the platform.
+    // Land and quays.
     for (const f of world.floorsAt(body.x, body.z)) {
       if (before.y >= f - 0.3 && body.y <= f + 0.02) {
         p.position[1] = f;

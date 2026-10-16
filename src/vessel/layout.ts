@@ -12,7 +12,6 @@
  * The vessel version is derived from the hull stations and the layout block in the config,
  * the same numbers the geometry is built from.
  */
-import { CONFIG } from '../config';
 import type { VesselDef } from './vesselDef';
 
 export interface Ladder {
@@ -240,15 +239,3 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig): WalkArea {
   };
 }
 
-/** The pile-mounted test platform (world axes): a square deck with handrails. */
-export function platformWalkArea(): WalkArea {
-  const half = CONFIG.testScene.platformHalfSize - 0.3;
-  const h = CONFIG.testScene.platformDeckHeight;
-  const on = (x: number, z: number) => Math.abs(x) <= half && Math.abs(z) <= half;
-  return {
-    floorsAt: (x, z) => (on(x, z) ? [h] : []),
-    walkable: (x, z, y) => on(x, z) && Math.abs(y - h) <= STEP_HEIGHT,
-    ladderAt: () => null,
-    insideSolid: () => false,
-  };
-}

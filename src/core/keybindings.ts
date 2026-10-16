@@ -28,7 +28,7 @@ export const KEYS = {
   leverNeutral: { codes: ['KeyX'], description: 'Lever to neutral' },
   helmMidships: { codes: ['KeyG'], description: 'Wheel amidships' },
   engine: { codes: ['KeyE'], description: 'Engine start / stop (lever in neutral)' },
-  board: { codes: ['KeyB'], description: 'Board the boat / back to the platform' },
+  board: { codes: ['KeyB'], description: 'Board the boat / go ashore to the quay' },
   lash: { codes: ['KeyQ'], description: 'Lash / release the cargo under the reticle' },
   jump: { codes: ['Space'], description: 'Jump (ashore, aboard, into the sea); climb out when swimming' },
   seaTrials: { codes: ['KeyT'], description: 'Hydrostatics + sea trials report' },

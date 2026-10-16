@@ -1709,7 +1709,7 @@ export const CONFIG = {
     helmRate: 0.8,
   },
 
-  /** Player movement aboard and on the platform. */
+  /** Player movement aboard and ashore. */
   locomotion: {
     /**
      * Grab-the-world (grip + drag) is always on; smooth stick movement is optional.
@@ -2001,12 +2001,21 @@ export const CONFIG = {
     chartZoomRate: 5,
   },
 
-  /** Milestone 2 test scene: a pile-mounted observation platform above the waves. */
+  /** The boat the game is played in (a key of CONFIG.vessels / VESSEL_DEFS). */
   testScene: {
-    /** Vessel type spawned in the test scene (a key of CONFIG.vessels / VESSEL_DEFS). */
     vesselDefId: 'workboat',
-    platformDeckHeight: 3.0,
-    platformHalfSize: 3.0,
+  },
+
+  /**
+   * Where a new game starts (owner request for v1.0: no start platform or buoys out at sea).
+   * The workboat lies moored alongside `berthId` in Calder Haven, the sheltered harbour
+   * behind the breakwaters, and you stand on the quay beside her (`quay`: x, z; facing
+   * `yawDeg`, 90 = west, toward her). Crew joining a game come aboard her. Tests still
+   * start her in open water at the vessel's `spawn`.
+   */
+  start: {
+    berthId: 'calder-cargo',
+    quay: { x: 713, z: 661.5, yawDeg: 90 },
   },
 
   /**
