@@ -1108,6 +1108,8 @@ export const CONFIG = {
    */
   career: {
     startMoney: 500,
+    /** Paid when the first voyage (the tutorial) is done. */
+    tutorialBonus: 200,
     /** Radar upgrade: echoes on the plotter within this (m). */
     radarRange: 2800,
     ledgerKeep: 12,

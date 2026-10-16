@@ -270,7 +270,7 @@ One thing at a time on the line. The menu's **Tow → Make fast** picks the near
 
 ### Career: money, reputation, contracts, upgrades
 
-Everything you do now earns or costs money. The menu's **Office** tab is your harbour office; the **duty board** shows your balance (top right) and any contract on.
+Everything you do now earns or costs money. The menu's **Office** tab is your harbour office (contracts, repairs, upgrades), and the **Career** tab holds your balance, reputation and ledger; the **duty board** shows your balance (top right) and any contract on.
 
 - **Pay:**
 
@@ -305,6 +305,22 @@ Everything you do now earns or costs money. The menu's **Office** tab is your ha
 
 - **Saved:** your money, ledger, reputation and upgrades are kept in the host's browser between sessions; crew-mates see the host's career. You start with £500.
 - **Debug:** Tests → Side jobs → **+£5000, rep** (cash and +25 reputation everywhere).
+
+### First voyage, career slots, playing together
+
+- **First voyage:** a new career starts with the Calder harbour master talking you through one job over the VHF, step by step:
+  1. step aboard;
+  2. battery master on;
+  3. INSTR breaker on;
+  4. start the engine;
+  5. head to Calder Haven;
+  6. dock at the cargo berth;
+  7. load a crate;
+  8. deliver it.
+
+  The duty board ticks the steps off, and there's a £200 welcome at the end. **Menu → Career** shows the step you're on, with **Skip** (or **Again** to replay it).
+- **Career slots:** three careers per browser (Menu → Career → Slot 1 / 2 / 3), each with its money, reputation, upgrades, the boat's condition and the first-voyage step. **New career in this slot** asks you to press twice.
+- **Playing together:** when you host, the duty board shows the **game code** for your crew to read off the wall. Menu → Crew lists who's aboard, and the last code you joined is remembered. Crew-mates play the host's career.
 
 ### Damage, wear and weather
 
@@ -483,7 +499,7 @@ src/
   net/             multiplayer: messages, PeerJS / loopback transports, host and client sessions, avatars
   tow/             towing: tow jobs and the towline on anything afloat (tow.ts), tow models, towline view
   wildlife/        gulls and dolphins (poses from time; view)
-  career/          money, ledger, reputation, contracts, upgrades, repairs (career.ts)
+  career/          money, ledger, reputation, contracts, upgrades, repairs (career.ts); first voyage (tutorial.ts)
   salvage/         log salvage: beach spots, logs, their physics on the line; view
   fishing/         the trawl: net, grounds, catch, drag; gallows/warps/floats view
 tests/             vitest: run in plain Node, no browser

@@ -1331,6 +1331,22 @@ The brief's "no new particle effects" rule was flagged: the fire is drawn withou
   - The WINDOWS switch, the glass it showed and the `windows` control are gone (the "secure the boat" duty drops its windows step). The windscreen's rain and wipers stay.
   - How shut-in the wheelhouse is now depends on the aft door alone: shut, it fully muffles wind, rain, wash and fire inside.
   - The engine sound gets a wheelhouse low-pass and level (`CONFIG.wheelhouseSound`): full on deck; inside with the door open ×0.75 and 1200 Hz; door shut ×0.45 and 320 Hz.
+- **Phase 3: onboarding and sessions** (owner request).
+  - **First voyage** (`career/tutorial.ts`), kept with the career (`CareerState.tutorial`):
+    - **Steps:** 8 checks on the world (aboard, master, INSTR, engine running, in Calder Haven, moored at a Calder berth, cargo aboard or in hand, one more delivery).
+    - **Prompts:** each step is announced once on the VHF by the harbour master and ticked on the duty board as a 'tutorial' job. The end pays £200 (`career.tutorialBonus`).
+    - **Controls:** Skip and Again (intents `tutorialSkip` / `tutorialRestart`).
+    - **Who gets it:** a fresh career only. Tests and careers saved earlier have none (counted as experienced). The step is saved and re-announced on load.
+  - **Career slots** (App, host / solo):
+    - `swvr.career.1..3` plus the slot in use (`swvr.careerSlot`); the old single save moves into slot 1.
+    - Switching saves the current career and loads the other, or a new one with the first voyage, with the boat's condition.
+    - "New career in this slot" needs two presses within 4 s.
+  - **Menu:** the Office tab was too tall, so it's split: Office (contract, job board, repairs, chandlery) and Career (first voyage, balance, reputation, ledger, slots).
+  - **Playing together:**
+    - the host's game code on the duty board header (`DutyBoardView.update(world, note)`);
+    - a crew list on the Crew tab;
+    - the last joined code is remembered (`swvr.lastGameCode`) and prefilled.
+  - **Tests (2):** the whole first voyage (start-up, Calder, dock, load, deliver: radio, duty board, welcome bonus); skip, restart, the step saved and said again, and an old career without one.
 - **Phase 2: damage, wear and weather risk** (owner request). `vessel/wear.ts`, with repairs and danger money in `career/career.ts`.
   - **Hull damage** (`VesselState.damage`, 0..1), from the contact state the physics already keeps:
     - impacts faster than 1 m/s do (v − 1)² × 0.08;

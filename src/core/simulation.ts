@@ -26,6 +26,7 @@ import { applyTowIntent, isTowIntent, stepTow, towlineForces } from '../tow/tow'
 import { applySalvageIntent, isSalvageIntent, stepSalvage } from '../salvage/salvage';
 import { stepFishing, trawlForces } from '../fishing/fishing';
 import { applyCareerIntent, isCareerIntent, stepCareer } from '../career/career';
+import { applyTutorialIntent, isTutorialIntent, stepTutorial } from '../career/tutorial';
 import { ENVIRONMENT_ID, type EntityId } from './ids';
 import type { Intent } from './intents';
 import type { WorldState } from './world';
@@ -52,6 +53,8 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
       applyFireIntent(world, intent);
     } else if (isTowIntent(intent.control)) {
       applyTowIntent(world, intent);
+    } else if (isTutorialIntent(intent.control)) {
+      applyTutorialIntent(world, intent);
     } else if (isCareerIntent(intent.control)) {
       applyCareerIntent(world, intent);
     } else if (isSalvageIntent(intent.control)) {
@@ -119,6 +122,7 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
   stepSalvage(world, dt);
   stepFishing(world, dt);
   stepCareer(world);
+  stepTutorial(world);
   world.tick += 1;
   world.time = world.tick * dt;
 }

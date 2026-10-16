@@ -35,6 +35,7 @@ import { isPowered } from '../vessel/electrics';
 import { cargoDestination, nearestPort, portById } from '../rescue/rescue';
 import { jetOn } from '../fire/fire';
 import { towFast } from '../tow/tow';
+import { TUTORIAL } from '../career/tutorial';
 import { answerFogSignal } from '../traffic/traffic';
 import { PORTS } from '../world/archipelago';
 import { allBerths } from '../world/berths';
@@ -52,7 +53,7 @@ export interface DutyStep {
 
 export interface Duty {
   id: string;
-  kind: 'startup' | 'fogSignal' | 'secure' | 'bilge' | 'fendersOut' | 'fendersIn' | 'lash' | 'oil' | 'cargo' | 'rescue' | 'tow' | 'fire' | 'fishing' | 'salvage' | 'damage' | 'wear';
+  kind: 'startup' | 'fogSignal' | 'secure' | 'bilge' | 'fendersOut' | 'fendersIn' | 'lash' | 'oil' | 'cargo' | 'rescue' | 'tow' | 'fire' | 'fishing' | 'salvage' | 'damage' | 'wear' | 'tutorial';
   title: string;
   steps: DutyStep[];
   createdAt: number;
@@ -359,6 +360,13 @@ function stepSalvageDuty(world: WorldState, d: DutiesState): void {
   ], world.time);
 }
 
+/** Phase 3: the first voyage, step by step (career/tutorial.ts). */
+function stepTutorialDuty(world: WorldState, d: DutiesState): void {
+  const t = world.career?.tutorial;
+  const on = !!t && t.step < TUTORIAL.length;
+  syncJob(d, 'tutorial', on ? 'first-voyage' : null, 'First voyage (the harbour master talks you through it)', TUTORIAL.map((s, i) => ({ text: s.text, done: !!t && i < t.step })), world.time);
+}
+
 /** Phase 2: a damaged hull (it leaks) and a worn engine, until they're mended in port. */
 function stepDamageDuties(world: WorldState, d: DutiesState, v: VesselState | undefined): void {
   const dmg = v?.damage ?? 0;
@@ -418,6 +426,7 @@ export function stepDuties(world: WorldState): void {
   stepFireDuty(world, d, v);
   stepFishingDuty(world, d, v);
   stepSalvageDuty(world, d);
+  stepTutorialDuty(world, d);
   stepDamageDuties(world, d, v);
 
   for (const x of d.items) {

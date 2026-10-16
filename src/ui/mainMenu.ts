@@ -133,6 +133,19 @@ export interface MenuHost {
   repairStatus(i: number): string;
   repair(i: number): void;
   debugDamage(): void;
+  /**
+   * Phase 3: career save slots (1..3; host / solo), a new career in the slot (press twice),
+   * the first voyage (skip / restart), the crew aboard.
+   */
+  careerSlot(): number;
+  slotText(n: number): string;
+  switchSlot(n: number): void;
+  newCareer(): void;
+  newCareerText(): string;
+  tutorialText(): string;
+  tutorialSkip(): void;
+  tutorialRestart(): void;
+  crewList(): string;
   /** Debug side missions: a salvage log on the nearest beach; go to a fishing ground. */
   logNear(): void;
   goFishing(): void;
@@ -506,7 +519,6 @@ export function mainMenu(h: MenuHost): MainMenu {
 
   const office: MenuRow[] = [
     { label: 'Balance', buttons: [{ text: () => h.balance(), weight: 2 }] },
-    { label: 'Reputation', buttons: [{ text: () => h.reputation(), weight: 2 }] },
     { heading: 'Contract' },
     { label: '', buttons: [{ text: () => h.contractText(), weight: 3 }, { text: () => (h.contractText().startsWith('None') ? '' : 'Abandon'), press: () => h.abandonContract() }] },
     { heading: 'Job board' },
@@ -540,8 +552,23 @@ export function mainMenu(h: MenuHost): MainMenu {
         ],
       }),
     ),
+  ];
+
+  const career: MenuRow[] = [
+    {
+      label: '',
+      buttons: [
+        { text: () => h.tutorialText(), weight: 3 },
+        { text: () => (h.tutorialText().endsWith('done') ? 'Again' : 'Skip'), press: () => (h.tutorialText().endsWith('done') ? h.tutorialRestart() : h.tutorialSkip()) },
+      ],
+    },
+    { label: 'Balance', buttons: [{ text: () => h.balance(), weight: 2 }] },
+    { label: 'Reputation', buttons: [{ text: () => h.reputation(), weight: 2 }] },
     { heading: 'Ledger' },
     ...[0, 1, 2, 3, 4, 5].map((i): MenuRow => ({ label: '', buttons: [{ text: () => h.ledgerLine(i) }] })),
+    { heading: 'Career (saved in this browser)' },
+    { label: 'Slot', buttons: [1, 2, 3].map((n) => ({ text: () => h.slotText(n), active: () => h.careerSlot() === n, press: () => h.switchSlot(n) })) },
+    { label: '', buttons: [{ text: () => h.newCareerText(), press: () => h.newCareer() }] },
   ];
 
   const solo = () => h.netRole() === 'solo';
@@ -549,6 +576,7 @@ export function mainMenu(h: MenuHost): MainMenu {
   const crew: MenuRow[] = [
     { heading: 'Crew (multiplayer)' },
     { label: '', buttons: [{ text: () => h.netStatus() }] },
+    { label: '', buttons: [{ text: () => h.crewList() }] },
     { label: 'Your name', buttons: [{ text: () => h.playerName(), weight: 1.6 }, { text: 'Change', press: () => h.nextPlayerName() }] },
     {
       label: '',
@@ -577,6 +605,7 @@ export function mainMenu(h: MenuHost): MainMenu {
       { name: 'Boat', rows: boat },
       { name: 'Cargo', rows: cargo },
       { name: 'Office', rows: office },
+      { name: 'Career', rows: career },
       { name: 'Comfort', rows: comfort },
       { name: 'Sound', rows: sound },
       { name: 'Crew', rows: crew },

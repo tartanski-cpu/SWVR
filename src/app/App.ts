@@ -75,6 +75,8 @@ import { AnchorAudio } from '../audio/anchorAudio';
 import { WildlifeAudio } from '../audio/wildlifeAudio';
 import { WildlifeView } from '../wildlife/wildlifeView';
 import { LogView } from '../salvage/logView';
+import { createCareer, type CareerState } from '../career/career';
+import { tutorialLine } from '../career/tutorial';
 import { acceptBlocker, buyBlocker, contractText, money, officeAt, parseCareer, portName, repairBlocker, repairCost, repOf, serializeCareer, type Contract } from '../career/career';
 import { TrawlView } from '../fishing/trawlView';
 import { jetOn } from '../fire/fire';
@@ -122,6 +124,11 @@ const BOARD_KEY = 'swvr.board';
 /** ...and the ship's log (the last few voyages). */
 const LOG_KEY = 'swvr.log';
 const CAREER_KEY = 'swvr.career';
+/** Career save slots (phase 3): swvr.career.1..3, and which one is in use. */
+const CAREER_SLOTS = 3;
+const SLOT_KEY = 'swvr.careerSlot';
+const LAST_CODE_KEY = 'swvr.lastGameCode';
+const slotKey = (n: number) => `${CAREER_KEY}.${n}`;
 /** ...and the pencil marks on the paper chart. */
 const CHART_KEY = 'swvr.chart';
 /** ...and the batteries when we left (only with electrics.drainBetweenSessions). */
@@ -268,6 +275,9 @@ export class App {
   private logSaved = -1;
   /** The career as last saved (seq), and the newest ledger line seen (for the money pop-up). */
   private careerSaved = -1;
+  /** The career save slot in use (1..CAREER_SLOTS), and when "New career" was pressed once (ms). */
+  private careerSlot = 1;
+  private newCareerArmed = -1e9;
   private ledgerSeen: string | null = null;
   /** Pencil marks on the paper chart: this peer's copy (kept in step by ops; not in the world). */
   private marks = createMarks();
@@ -622,7 +632,7 @@ export class App {
     this.noteKeys.menu.refresh();
     if (this.board) {
       this.board.update(this.world);
-      this.dutyBoard?.update(this.world);
+      this.dutyBoard?.update(this.world, this.host ? `Game code ${this.host.code}` : '');
       // A duty ticked off: a small tick.
       const done = this.world.duties?.completed ?? 0;
       if (this.dutiesDone >= 0 && done > this.dutiesDone) this.rescueSounds.snap();
@@ -1357,6 +1367,7 @@ export class App {
       towCall: () => this.pushVesselIntent('towDebugCall', 1),
       logNear: () => this.pushEnvIntent('salvageDebugNear', 1),
       ...this.careerMenu(),
+      ...this.sessionMenu(),
       goFishing: () => {
         // Teleport (with the boat) to the nearest fishing ground's edge, like the port Go buttons.
         const v = this.world.vessels[this.testVesselId];
@@ -1534,7 +1545,96 @@ export class App {
       this.netMessage = 'Type the 5-digit game code first';
       return;
     }
+    try {
+      localStorage.setItem(LAST_CODE_KEY, this.joinCode);
+    } catch {
+      // Not remembered.
+    }
     this.connectClient(new PeerClientTransport(this.joinCode));
+  }
+
+  /**
+   * Put a saved career in play (host / solo): the slot's career, or a new one (with the
+   * first voyage) if it's empty; her damage and wear as they were left.
+   */
+  private loadCareerSlot(n: number): void {
+    let c: CareerState | null = null;
+    try {
+      c = parseCareer(localStorage.getItem(slotKey(n)));
+    } catch {
+      c = null;
+    }
+    if (!c) {
+      c = createCareer();
+      c.tutorial = { step: 0, base: 0, said: false };
+    }
+    this.world.career = c;
+    this.careerSaved = -1;
+    this.ledgerSeen = null;
+    const wb = this.world.vessels[this.testVesselId];
+    if (wb && wb.damage !== undefined) {
+      wb.damage = c.boat?.damage ?? 0;
+      if (wb.engine.wear !== undefined) wb.engine.wear = c.boat?.wear ?? 0;
+    }
+  }
+
+  /** A slot's one-line summary for the menu. */
+  private slotSummary(n: number): string {
+    let c: CareerState | null = null;
+    try {
+      c = parseCareer(localStorage.getItem(slotKey(n)));
+    } catch {
+      c = null;
+    }
+    if (n === this.careerSlot && this.world.career) c = this.world.career;
+    return c ? `${n}: ${money(c.money)}` : `${n}: empty`;
+  }
+
+  /** The career's slots and the crew, for the menu (host / solo; a crew-mate plays the host's career). */
+  private sessionMenu() {
+    const own = () => !this.client;
+    return {
+      careerSlot: () => this.careerSlot,
+      slotText: (n: number) => (own() ? this.slotSummary(n) : ''),
+      switchSlot: (n: number) => {
+        if (!own() || n === this.careerSlot) return;
+        const c = this.world.career;
+        try {
+          if (c) localStorage.setItem(slotKey(this.careerSlot), serializeCareer(c));
+          localStorage.setItem(SLOT_KEY, String(n));
+        } catch {
+          // Not saved.
+        }
+        this.careerSlot = n;
+        this.loadCareerSlot(n);
+        this.overlay.notify(`Career slot ${n}: ${this.slotSummary(n)}`, 3);
+      },
+      newCareer: () => {
+        if (!own()) return;
+        const now = performance.now();
+        if (now - this.newCareerArmed > 4000) {
+          this.newCareerArmed = now;
+          this.overlay.notify(`Press again to start a new career in slot ${this.careerSlot} (the old one is lost)`, 4);
+          return;
+        }
+        this.newCareerArmed = -1e9;
+        try {
+          localStorage.removeItem(slotKey(this.careerSlot));
+        } catch {
+          // Nothing saved.
+        }
+        this.loadCareerSlot(this.careerSlot);
+        this.overlay.notify('New career: the harbour master will talk you through your first voyage', 4);
+      },
+      newCareerText: () => (own() ? (performance.now() - this.newCareerArmed < 4000 ? 'Press again to confirm' : 'New career in this slot') : 'Playing the host\'s career'),
+      tutorialText: () => tutorialLine(this.world) ?? 'First voyage: done',
+      tutorialSkip: () => this.pushEnvIntent('tutorialSkip', 1),
+      tutorialRestart: () => this.pushEnvIntent('tutorialRestart', 1),
+      crewList: () => {
+        const names = Object.values(this.world.players).map((p) => (p.id === this.localPlayerId ? `${p.name} (you)` : p.name));
+        return names.length > 1 ? `Aboard: ${names.join(', ')}` : 'Just you';
+      },
+    };
   }
 
   /** Become a client over `transport` (PeerJS, or the in-memory loopback in tests). */
@@ -1680,15 +1780,17 @@ export class App {
     this.restoreBatteries();
     try {
       if (!this.client) this.world.log ??= parseLog(localStorage.getItem(LOG_KEY)) ?? undefined;
-      // The career (money, reputation, upgrades) carries on from the last session here.
-      if (!this.client) this.world.career = parseCareer(localStorage.getItem(CAREER_KEY)) ?? this.world.career;
-      // Her damage and wear carry over too.
-      const kept = this.world.career?.boat;
-      const wb = this.world.vessels[this.testVesselId];
-      if (kept && wb && wb.damage !== undefined) {
-        wb.damage = kept.damage;
-        if (wb.engine.wear !== undefined) wb.engine.wear = kept.wear;
+      // The career (money, reputation, upgrades, her condition) carries on from the last
+      // session here, in the slot last used. A first career starts with the first voyage.
+      if (!this.client) {
+        const n = Number(localStorage.getItem(SLOT_KEY));
+        this.careerSlot = n >= 1 && n <= CAREER_SLOTS ? n : 1;
+        // Saved before there were slots: that's slot 1.
+        const old = localStorage.getItem(CAREER_KEY);
+        if (old && !localStorage.getItem(slotKey(1))) localStorage.setItem(slotKey(1), old);
+        this.loadCareerSlot(this.careerSlot);
       }
+      this.joinCode = localStorage.getItem(LAST_CODE_KEY) ?? '';
       if (!this.client) this.marks = parseMarks(localStorage.getItem(CHART_KEY)) ?? this.marks;
       this.world.board ??= parseBoard(localStorage.getItem(BOARD_KEY)) ?? undefined;
       // Rescues completed in this browser so far (milestone 4).
@@ -1951,7 +2053,7 @@ export class App {
     if (career && !this.client && career.seq !== this.careerSaved) {
       this.careerSaved = career.seq;
       try {
-        localStorage.setItem(CAREER_KEY, serializeCareer(career));
+        localStorage.setItem(slotKey(this.careerSlot), serializeCareer(career));
       } catch {
         // Not saved.
       }

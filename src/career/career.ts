@@ -36,6 +36,7 @@ import type { VesselState } from '../vessel/vesselState';
 import { sayRadio } from '../rescue/rescue';
 import { cargoPortAt } from '../cargo/cargo';
 import { significantWaveHeight } from '../ocean/waves';
+import type { TutorialState } from './tutorial';
 
 export type JobKind = 'cargo' | 'fish' | 'log' | 'debris' | 'tow' | 'rescue' | 'fire' | 'crate';
 export type ContractKind = 'cargo' | 'fish' | 'logs';
@@ -82,6 +83,8 @@ export interface CareerState {
   contractsDone: number;
   /** The workboat's condition as last saved (phase 2: it carries over to the next session). */
   boat?: { damage: number; wear: number };
+  /** The guided first voyage (phase 3, career/tutorial.ts); absent: none. */
+  tutorial?: TutorialState;
 }
 
 export function createCareer(): CareerState {
@@ -418,6 +421,7 @@ export function parseCareer(raw: string | null): CareerState | null {
     c.rep = Object.fromEntries(Object.entries(o.rep ?? {}).filter(([k, v]) => PORTS.some((p) => p.id === k) && typeof v === 'number'));
     c.upgrades = o.upgrades.filter((u) => CONFIG.career.upgrades.some((x) => x.id === u));
     c.contractsDone = typeof o.contractsDone === 'number' ? o.contractsDone : 0;
+    if (o.tutorial && typeof o.tutorial.step === 'number') c.tutorial = { step: Math.max(0, Math.floor(o.tutorial.step)), base: 0, said: false };
     if (o.boat && typeof o.boat.damage === 'number' && typeof o.boat.wear === 'number') {
       c.boat = { damage: Math.max(0, Math.min(1, o.boat.damage)), wear: Math.max(0, Math.min(1, o.boat.wear)) };
     }
@@ -429,5 +433,5 @@ export function parseCareer(raw: string | null): CareerState | null {
 
 /** What's kept between sessions: money, ledger, reputation, upgrades (not offers or the contract). */
 export function serializeCareer(c: CareerState): string {
-  return JSON.stringify({ money: c.money, ledger: c.ledger, rep: c.rep, upgrades: c.upgrades, contractsDone: c.contractsDone, boat: c.boat });
+  return JSON.stringify({ money: c.money, ledger: c.ledger, rep: c.rep, upgrades: c.upgrades, contractsDone: c.contractsDone, boat: c.boat, tutorial: c.tutorial ? { step: c.tutorial.step } : undefined });
 }
