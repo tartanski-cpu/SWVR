@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { Locomotion, type LocomotionInput } from '../src/player/locomotion';
 import { createPlayerState } from '../src/player/playerState';
 import { vesselWalkArea } from '../src/vessel/layout';
+import { aFrameOf } from '../src/fishing/fishing';
 import { asWorkboat, VESSEL_DEFS } from '../src/vessel/vesselDef';
 
 const def = asWorkboat(VESSEL_DEFS.workboat);
@@ -42,7 +43,10 @@ describe('vessel walk area (multi-level)', () => {
     expect(area.walkable(0.3, 0.3, wh.floorY)).toBe(true); // the aisle beside it
     const tw = VESSEL_DEFS.workboat.towWinch!;
     expect(area.walkable(0, tw.z, DECK_AFT)).toBe(false); // the tow winch
-    expect(area.walkable(tw.stand[0], tw.stand[1], DECK_AFT)).toBe(false); // its control stand
+    expect(area.walkable(tw.drumWidth / 2 + 0.1 + tw.housing.width / 2, tw.z, DECK_AFT)).toBe(false); // its gearbox housing
+    const af = aFrameOf(VESSEL_DEFS.workboat)!;
+    expect(area.walkable(af.x - 0.25, af.footZ, DECK_AFT)).toBe(false); // beside an A-frame foot
+    expect(area.walkable(-af.x + 0.25, af.braceZ, DECK_AFT)).toBe(false); // beside a brace foot
     expect(area.walkable(wh.halfWidth - 0.04, 0, wh.floorY)).toBe(false); // in a wall
     expect(area.walkable(0, wh.front + 0.2, wh.floorY)).toBe(false); // in the console
     expect(area.walkable(2.5, 2, 1.0)).toBe(false); // over the side
@@ -143,25 +147,46 @@ describe('locomotion', () => {
     expect(area.walkable(p.position[0], p.position[2], p.position[1])).toBe(true);
   });
 
-  it('VR grab-the-world flies: up, down and through walls, and the height stays', () => {
+  it('VR grab-the-world flies: up, down and through walls (fenced at the boat\'s edge), and the height stays', () => {
     const p = createPlayerState('p', 'test');
     p.position = [0, wh.floorY, 0];
     const loco = new Locomotion();
     run(loco, p, 1, () => ({ fly: true })); // standing in the wheelhouse
     const y0 = p.position[1];
-    // Pull the hand down 0.5 m and in toward us 3 m sideways: up and out through the wall.
+    // Pull the hand down 0.5 m and in toward us 1.7 m sideways: up and out through the wall.
     const hand = new THREE.Vector3(1, 1.5, 0);
     loco.update(p, input(p, { fly: true, grabbing: { left: null, right: hand.clone() } }));
-    loco.update(p, input(p, { fly: true, grabbing: { left: null, right: hand.clone().add(new THREE.Vector3(-3, -0.5, 0)) } }));
-    expect(p.position[0]).toBeCloseTo(3, 5);
+    loco.update(p, input(p, { fly: true, grabbing: { left: null, right: hand.clone().add(new THREE.Vector3(-1.7, -0.5, 0)) } }));
+    expect(p.position[0]).toBeCloseTo(1.7, 5);
+    expect(p.position[0]).toBeGreaterThan(wh.halfWidth); // through the wheelhouse wall
     expect(p.position[1]).toBeCloseTo(y0 + 0.5, 5);
+    // Let go, take a fresh grab beside us and pull 3 m on out over the side: it stops at
+    // the boat's edge.
+    loco.update(p, input(p, { fly: true }));
+    const at = new THREE.Vector3(p.position[0] + 0.5, p.position[1] + 1.5, 0);
+    loco.update(p, input(p, { fly: true, grabbing: { left: null, right: at.clone() } }));
+    loco.update(p, input(p, { fly: true, grabbing: { left: null, right: at.clone().add(new THREE.Vector3(-3, 0, 0)) } }));
+    expect(area.inBounds!(p.position[0], p.position[2])).toBe(true);
+    expect(p.position[0]).toBeGreaterThan(2.0); // right up to it (the deck edge is at 2.28 here)
     // Let go: we stay up there (no settling), and the stick glides us on, through anything.
     run(loco, p, 1, () => ({ fly: true }));
     expect(p.position[1]).toBeCloseTo(y0 + 0.5, 5);
     p.position = [0, y0 + 0.5, 0];
     run(loco, p, 0.1, () => ({ fly: true })); // put back inside: the floor has us again
     run(loco, p, 4, () => ({ fly: true, moveStick: [1, 0] }));
-    expect(p.position[0]).toBeGreaterThan(wh.halfWidth);
+    expect(p.position[0]).toBeGreaterThan(wh.halfWidth); // the stick too: through the wall...
+    expect(area.inBounds!(p.position[0], p.position[2])).toBe(true); // ...but not over the side
+  });
+
+  it('desktop walking stops at the deck edge, even with the camera a little off the feet', () => {
+    const p = createPlayerState('p', 'test');
+    p.position = [-1.6, DECK_AFT, 3.0];
+    const loco = new Locomotion();
+    // The camera 0.5 m outboard of the feet (beyond the edge): walking to port must still stop.
+    const step = (): LocomotionInput => ({ ...input(p, { desktopDelta: { x: -0.05, z: 0 } }), head: new THREE.Vector3(p.position[0] - 0.5, p.position[1] + 1.7, p.position[2]) });
+    for (let i = 0; i < 200; i++) loco.update(p, step());
+    expect(area.walkable(p.position[0], p.position[2], p.position[1])).toBe(true);
+    expect(p.position[0]).toBeGreaterThan(-2.1); // on deck, not walked off over the side
   });
 
   it('being put somewhere else ends free flight: the floor holds us again', () => {

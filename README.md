@@ -45,7 +45,7 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | Click the view | Capture the mouse for looking (Esc releases it) |
 | O | Menu, floating in front of you: aim and click (same menu as in VR) |
 | Z (hold) | **Binoculars**: 7x zoom through two lens circles (the key left of X, so Y on a German keyboard) |
-| W A S D | Walk (with collision; hold Shift to **run**) |
+| W A S D | Walk (walls, furniture and the deck edge stop you; hold Shift to **run**) |
 | F | Toggle walk / free-fly camera (Space / C = up / down when flying) |
 | Space / C at the ladder | Climb up / down (walk forward off the top onto the roof) |
 | Space (elsewhere) | **Jump**: off the boat onto a quay, from a quay aboard, or into the sea. Swimming near the hull, the swim ladder or a quay: climb out |
@@ -76,7 +76,7 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | **Grip** with your hand on the throttle lever or wheel | Grab it; it follows your hand (not where the controller points). Two hands work on the wheel |
 | **Trigger** touching a button or switch | Press it (start/stop, horn, nav lights) |
 | Trigger pointing at a button or switch a little out of reach | Pointer-ray fallback for buttons and switches only (a blue line shows the target) |
-| **Grip** on empty air + pull | Move (grab the world) in any direction, up and down too, with no collisions. Wherever you pull yourself to, you stay at that height until you teleport, board or jump, so seated play works without crouching. Two grips + twist: turn. In the water these are your swimming strokes |
+| **Grip** on empty air + pull | Move (grab the world) in any direction, up and down too, through the wheelhouse walls, but not out over the side: a fence at the boat's edge stops you (and the stick) at the bulwarks. To go over the side, jump (A). Wherever you pull yourself to, you stay at that height until you teleport, board or jump, so seated play works without crouching. Two grips + twist: turn. In the water these are your swimming strokes |
 | **A** | **Jump** (off the boat, onto a quay, into the sea) |
 | **Right stick click (hold)** | **Laser pointer** from the right controller; the crew sees the beam and dot |
 | **Grip** on a cargo item | Pick it up; it follows your hand. Items over 60 kg need both grips on them. Let go to set it down: on the deck over the boat, ashore over land, lost in the sea |
@@ -92,7 +92,7 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | **Trigger** on the red key on the yellow plate (aft wall, by the door) | **Battery master** on / off. The boat starts cold and dark: master on first (voltmeter by the helm, under the starboard window) |
 | **Starting the engine** | Follow the card by the key: battery MASTER on (aft wall), INSTR breaker on, throttle in neutral, KEY on, hold HEAT until the GLOW lamp goes out (about 2.5 s cold, well under a second once the engine is warm), hold START until she runs. Stop: key off. Battery selector (1 / BOTH / 2) beside the master. The duty board on the starboard wall ticks off the start-up steps, and lists the jobs on: the cargo job, and any rescue or tow under way. Desktop E: hint (or quick start if enabled in config) |
 | **Trigger** on a breaker (panel by the helm, under the starboard window) | Breakers: Instruments, Chart, Radio, Nav lights, Deck lights, Bilge. A device works only with the master and its breaker on; a green lamp shows the circuit is live |
-| **Trigger** on a green **skiff crane** button: SKIFF CRANE on the helm console (DECK group), the crane's control box (outboard side of its post, from the starboard side deck), or the remote on a post in the skiff by the helmsman. Or Menu > Boat > Skiff | Launch the skiff / recover her (she must be alongside the starboard bow and moving with you). Its hover text says which, or why not yet. In the cradle the crane's wire and bridle are put away |
+| **Trigger** on a green **skiff crane** button: SKIFF CRANE on the helm console (DECK group), the crane's control box (outboard side of its post, from the starboard side deck), or the remote on a post in the skiff by the helmsman. Or Menu > Boat > Skiff | Launch the skiff / recover her (she must be alongside the starboard bow and moving with you). Its hover text says which, or why not yet. In the cradle she's under a tarpaulin (launch her before boarding) and the crane is folded down along the starboard foredeck; LAUNCH unfolds it, hooks on and lifts her out |
 | **Grip** on the skiff's tiller, then **trigger** | Steer by swinging the tiller; the same hand's trigger is the throttle (let go = idle). Red button on the motor: on/off; yellow lever on its side: forward / neutral / reverse |
 | B | Debug/perf panel on your left wrist (off at start): FPS, cpu/gpu frame time, draw calls, XR resolution, boat readouts |
 
@@ -243,7 +243,7 @@ Out of harbour, with no rescue on, a tow call comes over the VHF every few minut
 2. **Come alongside with your stern to her bow.** Our towing post is the black bollard on the aft deck, and her **bow eye** is the orange ring on her stem.
 3. **Make fast:** take the boat hook, then touch the bow eye with its tip (VR) or click the bow eye (desktop). The menu's Boat tab has a **Tow → Make fast** button too. Our stern must be within 16 m of her bow. To **cast off**, do the same again with the line fast (hook on the bow eye), or use **Tow → Cast off** on the menu.
 4. **Tow her into any harbour.** The line goes out 22 m and is stretchy. Take up the slack gently: snatching it at speed (or dragging her over rocks) parts it, and you have to go back and make fast again.
-   - **The tow winch** just forward of the towing post works the line by hand: hold **HEAVE IN** (green) or **PAY OUT** (amber) on its control stand, standing forward of it facing aft. It comes in at 0.6 m/s and goes out at 1 m/s, from 4 m to 60 m, and stays where you leave it. Heaving in against a heavy pull (over 18 kN) stalls it: ease off or slow down. The status line shows the line out and its pull.
+   - **The tow winch** just forward of the towing post works the line by hand: hold **HEAVE IN** (green) or **PAY OUT** (amber) on top of its gearbox housing (starboard end), standing forward of it facing aft. It comes in at 0.6 m/s and goes out at 1 m/s, from 4 m to 60 m, and stays where you leave it. Heaving in against a heavy pull (over 18 kN) stalls it: ease off or slow down. The status line shows the line out and its pull.
 5. **Slow down inside the port** for a few seconds and the harbour takes her over. The tow counts as a mission, and she is taken away a few seconds later.
 
 Unanswered calls go away after two minutes. The menu's Tests tab has debug buttons that put a tow just astern (Cruiser, Logs, Barge), raise a call, or end the job.
@@ -340,13 +340,13 @@ Logs nobody comes for go again after half an hour. The menu's Tests tab has **Si
 
 ### Fishing (side job)
 
-The boat has a trawl: quarter gallows with a block each side of the stern, its warps off the tow winch.
+The boat has a trawl: a red A-frame over the transom with a block each side on its crossbeam, its warps off the tow winch.
 
 1. **Find a fishing ground:** the dashed teal rings on the chartplotter (Skerry Ground near the start, Calder Bank east of Calder Holm, The Hollows to the north-west).
-2. **Shoot the net:** the **TRAWL** switch on the console, behind the throttle (DECK group), runs it all the way out; or work it by hand with the **PAY OUT** / **HAUL** buttons on either gallows post (hold to run; it stops where you let go, part way out it drags but doesn't fish). The warps run out astern and the net's orange floats show on the surface. You'll feel the drag: the engine has to work.
+2. **Shoot the net:** the **TRAWL** switch on the console, behind the throttle (DECK group), runs it all the way out; or work it by hand with the **PAY OUT** / **HAUL** buttons on the control box on the A-frame's starboard leg (hold to run; it stops where you let go, part way out it drags but doesn't fish). The warps run out astern and the net's orange floats show on the surface. You'll feel the drag: the engine has to work.
 3. **Tow at 2–4 knots** inside the ground. Every 30–50 s of good trawling a **box of fish** appears on the aft deck. The status line says why not if you're too slow, too fast or outside a ground.
 4. **Mind the shallows:** trawling where it's under 7 m deep fouls the net on the bottom. It holds her back hard and catches nothing until you haul it.
-5. **Haul the net** (TRAWL switch off, or hold HAUL on the gallows) and **carry the boxes ashore** to any port's goods stack to land them. If the deck's full, the catch waits in the net.
+5. **Haul the net** (TRAWL switch off, or hold HAUL on the A-frame) and **carry the boxes ashore** to any port's goods stack to land them. If the deck's full, the catch waits in the net.
 
 **Tests → Side jobs → Fishing ground** takes you to the nearest ground.
 
@@ -490,7 +490,7 @@ src/
   wildlife/        gulls and dolphins (poses from time; view)
   career/          money, ledger, reputation, contracts, upgrades, repairs (career.ts); first voyage (tutorial.ts)
   salvage/         log salvage: beach spots, logs, their physics on the line; view
-  fishing/         the trawl: net, grounds, catch, drag; gallows/warps/floats view
+  fishing/         the trawl: net, grounds, catch, drag; A-frame/warps/floats view
 tests/             vitest: run in plain Node, no browser
 docs/              TESTING_NEW_BOATS.md (sea-trials lab, adding a boat), MULTIPLAYER.md (co-op)
 ```

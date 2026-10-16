@@ -82,7 +82,7 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
   const touching = vesselContacts(Object.values(world.vessels), (v) => VESSEL_DEFS[v.defId], onCrane);
   // The towline (towing missions): its pull on us and on the tow.
   for (const [id, f] of towlineForces(world)) touching.set(id, [...(touching.get(id) ?? []), ...f]);
-  // The trawl (fishing): its drag at the stern gallows.
+  // The trawl (fishing): its drag at the A-frame's blocks.
   for (const [id, f] of trawlForces(world)) touching.set(id, [...(touching.get(id) ?? []), ...f]);
   for (const vessel of Object.values(world.vessels)) {
     if (onCrane(vessel)) continue;

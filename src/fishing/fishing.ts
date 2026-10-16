@@ -2,10 +2,10 @@
  * Fishing: a side mission (owner request) with a simple trawl. Plain shared state
  * (WorldState.fishing), stepped by the host. The net is worked two ways: the TRAWL switch
  * on the console (vessel control `trawl`) runs it all the way out or in when it's flipped;
- * the PAY OUT / HAUL buttons on the gallows (hold-to-run, `netOut` / `netIn`) move it by
+ * the PAY OUT / HAUL buttons on the A-frame's starboard leg (hold-to-run, `netOut` / `netIn`) move it by
  * hand while held and stop it where it is ('held').
  *
- *   net       stowed -> shooting (paid out over the quarter gallows, `shootTime` s) -> down
+ *   net       stowed -> shooting (paid out through the A-frame's blocks over the transom, `shootTime` s) -> down
  *             -> hauling (`haulTime` s) -> stowed. While it's out it drags on the boat:
  *             F = -(cL + cQ |v|) v at the stern, scaled by how far out it is (a trawl at
  *             3 kn is a few kN: you hear the engine work).
@@ -25,7 +25,7 @@ import type { WorldState } from '../core/world';
 import { aboard, footprint, deckHeightAt, type CargoItem } from '../cargo/cargo';
 import { deckSpot } from '../cargo/deck';
 import { hullPlan } from '../vessel/layout';
-import { isWorkboat, VESSEL_DEFS } from '../vessel/vesselDef';
+import { isWorkboat, VESSEL_DEFS, type VesselDef } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
 import type { ExternalForce } from '../vessel/physics/vesselContact';
 import { groundHeight } from '../world/terrain';
@@ -111,7 +111,7 @@ export function stepFishing(world: WorldState, dt: number): void {
     if (!sw && f.net !== 'stowed') f.net = 'hauling';
   }
   f.sw = sw;
-  // The gallows' buttons: out or in by hand while held, stopping where it is when let go.
+  // The A-frame's buttons: out or in by hand while held, stopping where it is when let go.
   const jog = (v.controls.netOut ?? 0) - (v.controls.netIn ?? 0);
   if (jog) {
     f.t = Math.min(1, Math.max(0, f.t + (jog * dt) / (jog > 0 ? c.shootTime : c.haulTime)));
@@ -168,10 +168,33 @@ export function stepFishing(world: WorldState, dt: number): void {
   }
 }
 
+/**
+ * The A-frame over the transom (vessel axes, CONFIG.vessels.workboat.fishing.aFrame): the starboard foot
+ * (x, z, deck height; port is -x) and head (x, z, height), the blocks' x on the crossbeam,
+ * and where each leg's brace meets the deck (z). Null on boats without a trawl.
+ */
+export function aFrameOf(def: VesselDef): { x: number; footZ: number; deck: number; headZ: number; top: number; blockX: number; braceZ: number; buttonY: number } | null {
+  const a = def.fishing?.aFrame;
+  if (!a) return null;
+  const plan = hullPlan(def);
+  const footZ = plan.transom - a.footFromTransom;
+  const deck = plan.deckY(footZ);
+  return {
+    x: plan.halfBeam(footZ) - a.footInset,
+    footZ,
+    deck,
+    headZ: plan.transom + a.headAft,
+    top: deck + a.height,
+    blockX: a.blockX,
+    braceZ: footZ - a.braceForward,
+    buttonY: deck + a.buttonHeight,
+  };
+}
+
 const vel = new THREE.Vector3();
 const q = new THREE.Quaternion();
 
-/** The net's drag on the boat this tick (an external force at the stern, where the warps lead). */
+/** The net's drag on the boat this tick (an external force at the A-frame's blocks, where the warps lead). */
 export function trawlForces(world: WorldState): Map<EntityId, ExternalForce[]> {
   const out = new Map<EntityId, ExternalForce[]>();
   const f = world.fishing;
@@ -188,9 +211,11 @@ export function trawlForces(world: WorldState): Map<EntityId, ExternalForce[]> {
     q.fromArray(v.orientation);
     force.add(new THREE.Vector3(0, 0, 1).applyQuaternion(q).setY(0).normalize().multiplyScalar(c.foulHold * f.t));
   }
-  const plan = hullPlan(VESSEL_DEFS[v.defId]);
-  const zs = plan.transom - 0.7;
-  const point = new THREE.Vector3(0, plan.deckY(zs) + 1.5, zs).applyQuaternion(q.fromArray(v.orientation)).add(new THREE.Vector3(...v.position));
+  const def = VESSEL_DEFS[v.defId];
+  const af = aFrameOf(def);
+  const plan = hullPlan(def);
+  const local = af ? new THREE.Vector3(0, af.top - 0.14, af.headZ) : new THREE.Vector3(0, plan.deckY(plan.transom) + 1.5, plan.transom);
+  const point = local.applyQuaternion(q.fromArray(v.orientation)).add(new THREE.Vector3(...v.position));
   out.set(v.id, [{ force, point }]);
   return out;
 }
@@ -207,7 +232,7 @@ export function fishingStatus(world: WorldState): string | null {
     case 'hauling':
       return 'Hauling the trawl...';
     case 'held':
-      return `Net ${Math.round(f.t * 100)} % out, stopped (PAY OUT / HAUL on the gallows, or the TRAWL switch)`;
+      return `Net ${Math.round(f.t * 100)} % out, stopped (PAY OUT / HAUL on the A-frame, or the TRAWL switch)`;
     case 'fishing':
       return `Trawling${where}: ${box}`;
     case 'slow':
@@ -217,7 +242,7 @@ export function fishingStatus(world: WorldState): string | null {
     case 'outside':
       return 'Trawling: no fish here - find a fishing ground (dashed on the plotter)';
     case 'fouled':
-      return 'Net fouled on the bottom! Haul it in (TRAWL switch off, or HAUL on the gallows)';
+      return 'Net fouled on the bottom! Haul it in (TRAWL switch off, or HAUL on the A-frame)';
     case 'rough':
       return 'Too rough to fish: the net jumps off the bottom - haul it and wait for better weather';
     case 'full':

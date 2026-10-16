@@ -53,7 +53,7 @@ export interface VesselControls {
   trawl: number;
   /**
    * Hold-to-run winch buttons (1 while held): the tow winch by the towing post (heave in /
-   * pay out the towline), and the trawl net's on the gallows (pay out / haul).
+   * pay out the towline), and the trawl net's on the A-frame (pay out / haul).
    */
   winchHeave?: number;
   winchPayOut?: number;

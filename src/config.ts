@@ -697,11 +697,15 @@ export const CONFIG = {
        *              clears the bow rail)
        *   outboard   her origin (x, z) over the side, alongside the starboard bow, where
        *              she's lowered to `waterY` and let go, and recovered from
-       * LAUNCH hoists (`hoistTime`), slews (`slewTime`), lowers (`lowerTime`). RECOVER (she
+       * LAUNCH first unfolds the crane and hooks on (`rigTime`, she stays in the cradle), then
+       * hoists (`hoistTime`), slews (`slewTime`), lowers (`lowerTime`). RECOVER (she
        * must be within `recoverRange` of the outboard spot, moving slower than
        * `recoverSpeed` relative to us) lines her up under the hook in `alignTime`, then runs
-       * it backwards. In the cradle her battery charges from the ship (`chargeMinutes` from
-       * flat to full).
+       * it backwards, ending with the crane unhooked and folded. In the cradle she's under a
+       * tarpaulin (her motor and fittings aren't drawn) and her battery charges from the ship
+       * (`chargeMinutes` from flat to full). `fold`: the crane's transport position while
+       * she's stowed or away (deg): slewed (`slewDeg`, -90 = forward), the boom just below
+       * level (`boomDeg`), the jib folded back over it (`jibDeg`, its direction).
        */
       tenderCrane: {
         column: [1.25, -2.25] as [number, number],
@@ -715,6 +719,7 @@ export const CONFIG = {
         clear: 1.1,
         outboard: [3.3, -2.6] as [number, number],
         waterY: 0.0,
+        rigTime: 2.5,
         hoistTime: 3,
         slewTime: 6,
         lowerTime: 6,
@@ -722,6 +727,7 @@ export const CONFIG = {
         recoverRange: 3.0,
         recoverSpeed: 1.2,
         chargeMinutes: 5,
+        fold: { slewDeg: -90, boomDeg: -8, jibDeg: 165 },
         /**
          * LAUNCH / RECOVER buttons: on the column's control box, on its outboard side facing
          * starboard (reached from the starboard side deck); a SKIFF CRANE button on the
@@ -772,8 +778,8 @@ export const CONFIG = {
         /** Cargo stays where it's put (true), or slides about the deck in a seaway (false). */
         fixed: false,
         lashPoints: [
-          [-1.95, 3.0], [-1.95, 4.2], [-1.95, 5.4],
-          [1.95, 3.0], [1.95, 4.2], [1.95, 5.4],
+          [-1.95, 3.0], [-1.95, 4.0], [-1.4, 5.3],
+          [1.95, 3.0], [1.95, 4.0], [1.4, 5.3],
           [0, 3.6], [0, 4.2],
         ] as [number, number][],
         lashRange: 1.1,
@@ -873,26 +879,31 @@ export const CONFIG = {
        * flows with the pump on AND the engine running (no pressure otherwise).
        */
       /**
-       * Fishing: the TRAWL switch on the console (the quarter gallows, where the warps lead
-       * and the net's drag acts, are placed from the hull: fishing/trawlView.ts, fishing.ts).
+       * Fishing: the TRAWL switch on the console, and the A-frame over the transom where the
+       * warps lead and the net's drag acts (fishing/fishing.ts, trawlView.ts).
        */
       fishing: {
         trawlSwitch: [0.52, 2.16, -1.52] as [number, number, number],
         /**
-         * By-hand net controls on each gallows post (hold-to-run PAY OUT / HAUL), on a small
-         * box on the post's inboard side: its height above the deck, how far in from the post.
+         * The A-frame over the transom (fishing/fishing.ts aFrameOf; owner request, now the
+         * stern is clear of the skiff): two legs from the quarters (`footInset` in from the
+         * deck edge, `footFromTransom` forward of it), raked aft to a crossbeam `height` above
+         * the deck, `headAft` beyond the transom, each leg braced from part way up down to the
+         * deck `braceForward` m forward of its foot. The warps run through a block on the beam
+         * each side (`blockX`). The by-hand PAY OUT / HAUL buttons (hold-to-run) are on a
+         * control box built onto the starboard leg, `buttonHeight` above the deck.
          */
-        netButtons: { height: 1.0, inset: 0.2 },
+        aFrame: { footInset: 0.2, footFromTransom: 0.55, height: 3.0, headAft: 0.3, braceForward: 0.8, blockX: 0.75, buttonHeight: 1.0 },
       },
       /**
        * The tow winch (tow/tow.ts stepTowWinch): a small drum on the aft deck centreline just
-       * forward of the towing post (`z`, drum radius and width), and its control stand
-       * (`stand` x, z: abreast of the drum, to starboard) with HEAVE IN / PAY OUT, hold-to-run,
-       * `buttonHeight` above the deck.
-       * You stand forward of it facing aft: the winch, the post and the tow beyond. The
-       * trawl warps lead off the same winch to the gallows blocks.
+       * forward of the towing post (`z`, drum radius and width), driven from a gearbox
+       * housing on its starboard end (`housing` width and height above the deck) with the
+       * HEAVE IN / PAY OUT buttons (hold-to-run) on its top. You stand forward of it facing
+       * aft: the winch, the post and the tow beyond. The trawl warps lead off the same
+       * winch to the A-frame's blocks.
        */
-      towWinch: { z: 4.95, drumRadius: 0.16, drumWidth: 0.5, stand: [0.85, 4.95] as [number, number], buttonHeight: 0.95 },
+      towWinch: { z: 4.95, drumRadius: 0.16, drumWidth: 0.5, housing: { width: 0.4, height: 0.8 } },
       fireMonitor: {
         position: [0, 3.75, -0.55] as [number, number, number],
         joystick: [-0.85, 2.16, -1.15] as [number, number, number],

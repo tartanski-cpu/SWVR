@@ -25,7 +25,16 @@ export interface WalkArea {
   walkable(x: number, z: number, y: number): boolean;
   ladderAt(x: number, z: number): Ladder | null;
   insideSolid(x: number, y: number, z: number): boolean;
+  /**
+   * Inside the boat's outer edge (the bulwarks, the stem, the transom) in plan: the fence
+   * for VR movement, which otherwise ignores walls (owner request: in VR you can't slide off
+   * the boat, but you can move through the wheelhouse). Absent: no fence (ashore, swimming).
+   */
+  inBounds?(x: number, z: number): boolean;
 }
+
+/** How far inside the deck edge the VR fence stands (m): the bulwark and its rail. */
+const FENCE = 0.15;
 
 /** Largest rise you can just step up (door sills, deck sheer) without climbing (m). */
 export const STEP_HEIGHT = 0.4;
@@ -63,7 +72,8 @@ export function hullPlan(def: VesselDef): { halfBeam(z: number): number; deckY(z
 /**
  * Gear standing on the open deck that you can't walk through or stand cargo on (vessel
  * axes): the tender's cradle (with her in it) and the crane's column on the foredeck, the
- * tow winch and its control stand on the aft deck. Is (x, z) within `pad` m of any of it?
+ * tow winch (with its gearbox housing) and the A-frame's feet on the aft deck. Is (x, z)
+ * within `pad` m of any of it?
  */
 export function onDeckGear(def: VesselDef, x: number, z: number, pad: number): boolean {
   const tc = def.tenderCrane;
@@ -73,8 +83,17 @@ export function onDeckGear(def: VesselDef, x: number, z: number, pad: number): b
   }
   const tw = def.towWinch;
   if (tw) {
-    if (Math.abs(x) < tw.drumWidth / 2 + 0.2 + pad && Math.abs(z - tw.z) < 0.25 + pad) return true;
-    if (Math.hypot(x - tw.stand[0], z - tw.stand[1]) < 0.12 + pad) return true;
+    // The drum between its cheeks, and the gearbox housing on its starboard end.
+    const hw = tw.drumWidth / 2;
+    if (x > -hw - 0.12 - pad && x < hw + 0.1 + tw.housing.width + pad && Math.abs(z - tw.z) < 0.25 + pad) return true;
+  }
+  const af = def.fishing?.aFrame;
+  if (af) {
+    // The A-frame's feet and its braces' feet on the quarters.
+    const plan = hullPlan(def);
+    const footZ = plan.transom - af.footFromTransom;
+    const x0 = plan.halfBeam(footZ) - af.footInset;
+    for (const fz of [footZ, footZ - af.braceForward]) if (Math.hypot(Math.abs(x) - x0, z - fz) < 0.12 + pad) return true;
   }
   return false;
 }
@@ -98,6 +117,7 @@ function openDeckWalkArea(def: VesselDef, layout: LayoutConfig): WalkArea {
     walkable: (x, z, y) => on(x, z) && Math.abs(deckY(z) - y) <= STEP_HEIGHT,
     ladderAt: () => null,
     insideSolid: (x, y, z) => z <= transom && z >= stem && Math.abs(x) <= deckHalfBeam(z) && y < deckY(z) - 0.15,
+    inBounds: (x, z) => z <= transom - FENCE && z >= stem + FENCE && Math.abs(x) <= deckHalfBeam(z) - FENCE,
   };
 }
 
@@ -170,6 +190,10 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig): WalkArea {
 
     ladderAt(x, z) {
       return inLadder(x, z) ? { bottom: deckY(ext.z1 + lad.depth / 2), top: roofTop } : null;
+    },
+
+    inBounds(x, z) {
+      return z <= transom - FENCE && z >= st[st.length - 1].z + FENCE && Math.abs(x) <= deckHalfBeam(z) - FENCE;
     },
 
     insideSolid(x, y, z) {

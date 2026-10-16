@@ -126,7 +126,7 @@ export interface VesselDef {
   swimLadder?: VesselConfig['swimLadder'];
   /** Fire monitor on the roof (optional: not part of WorkboatDef). */
   fireMonitor?: VesselConfig['fireMonitor'];
-  /** Trawl gallows and the TRAWL switch (fishing; optional: not part of WorkboatDef). */
+  /** The trawl's A-frame and the TRAWL switch (fishing; optional: not part of WorkboatDef). */
   fishing?: VesselConfig['fishing'];
   /** The tow winch by the towing post (optional: not part of WorkboatDef). */
   towWinch?: VesselConfig['towWinch'];

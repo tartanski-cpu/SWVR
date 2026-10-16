@@ -343,7 +343,7 @@ export class App {
     for (const vessel of Object.values(this.world.vessels)) {
       const hostDef = vessel.tender && VESSEL_DEFS[this.world.vessels[vessel.tender.hostId]?.defId];
       if (!vessel.tender || !hostDef?.tenderCrane || !hostDef.bridge) continue;
-      const gear = new TenderCraneView(vessel.id, hostDef.tenderCrane, hullPlan(hostDef).deckY, hostDef.bridge.craneButton);
+      const gear = new TenderCraneView(vessel.id, hostDef.tenderCrane, hullPlan(hostDef).deckY, hostDef.bridge.craneButton, VESSEL_DEFS[vessel.defId]);
       this.vesselViews.get(vessel.tender.hostId)?.root.add(gear.root);
       // The crane's remote rides in the skiff.
       this.vesselViews.get(vessel.id)?.root.add(gear.remote);
@@ -351,7 +351,7 @@ export class App {
     }
     const tugView = this.vesselViews.get(this.testVesselId);
     if (tugView) this.towline.attachPost(tugView.root, VESSEL_DEFS[this.world.vessels[this.testVesselId].defId]);
-    if (tugView) this.trawlView.attachGallows(tugView.root, VESSEL_DEFS[this.world.vessels[this.testVesselId].defId]);
+    if (tugView) this.trawlView.attachAFrame(tugView.root, VESSEL_DEFS[this.world.vessels[this.testVesselId].defId]);
     this.binoculars = new Binoculars(this.camera);
     if (tugView) this.binoculars.stow(tugView.root);
     this.scene.add(this.towline.root, this.fireView.root, this.jetView.root, this.logView.root, this.trawlView.root);
@@ -943,7 +943,8 @@ export class App {
     for (const [id, view] of this.vesselViews) {
       const state = this.world.vessels[id];
       const def = state && VESSEL_DEFS[state.defId];
-      if (!def) continue;
+      // Not the skiff under her tarpaulin in the cradle: you can't jump into her.
+      if (!def || state.tender?.phase === 'stowed') continue;
       let plan = this.hullPlans.get(id);
       if (!plan) this.hullPlans.set(id, (plan = hullPlan(def)));
       out.push({ id, root: view.root, area: this.walkAreas.get(id)!, plan, state });
@@ -1234,6 +1235,7 @@ export class App {
       toggleBoard: () => this.toggleBoard(),
       boardSkiff: () => {
         const skiff = this.skiff();
+        if (skiff?.tender?.phase === 'stowed') return this.overlay.notify('The skiff is under her cover in the cradle: launch her first (SKIFF CRANE)', 3);
         if (skiff) this.intents.push({ playerId: this.localPlayerId, targetId: this.localPlayerId, control: 'board', value: 1, ref: skiff.id });
       },
       skiffBattery: () => this.skiff()?.battery ?? 0,
@@ -1981,9 +1983,8 @@ export class App {
   }
 
   /**
-   * Performance: the wheelhouse's small parts only when you're in or at it, and the stowed
-   * skiff's outboard and tiller (18 draw calls) only when they can be seen: from the
-   * wheelhouse or the foredeck, or from close by off the boat (not from the aft deck).
+   * Performance: the wheelhouse's small parts only when you're in or at it, and the skiff's
+   * outboard and tiller (20 draw calls) not while she's under her tarpaulin in the cradle.
    */
   private updateDetail(): void {
     const root = this.vesselRoots.get(this.testVesselId);
@@ -1995,13 +1996,13 @@ export class App {
     const me = this.world.players[this.localPlayerId];
     const aboard = me?.aboardVesselId === this.testVesselId;
     const eye = this.camera.getWorldPosition(this.detailV);
-    const near = (id: string) => this.vesselRoots.get(id)?.position.distanceTo(eye) ?? Infinity;
     if (aboard) root.worldToLocal(eye);
     this.interior.update(aboard ? eye : null);
-    const forward = aboard && eye.z < this.testDef.layout.wheelhouse.aft + 0.5;
+    // The skiff's outboard and tiller: under her tarpaulin in the cradle (not drawn, not usable).
     for (const t of this.tillers) {
-      const phase = this.world.vessels[t.vesselId]?.tender?.phase;
-      t.root.visible = phase !== 'stowed' || forward || (!aboard && near(t.vesselId) < 25);
+      const covered = this.world.vessels[t.vesselId]?.tender?.phase === 'stowed';
+      t.root.visible = !covered;
+      for (const c of t.parts) c.enabled = !covered;
     }
   }
 

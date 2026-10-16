@@ -45,6 +45,12 @@ export abstract class Control {
   /** Objects the pointer ray / desktop reticle can hit. */
   readonly hitObjects: THREE.Object3D[] = [];
   hovered = false;
+  /**
+   * Off: nobody can touch, point at or click it (the skiff's tiller and the crane remote
+   * while she's covered in her cradle). Hidden controls otherwise stay usable on purpose:
+   * three's Raycaster ignores `visible` (the wheelhouse's small parts seen through a window).
+   */
+  enabled = true;
   private lockedShown = false;
   held = false;
   /** Whether two hands may hold it at once (the wheel). */

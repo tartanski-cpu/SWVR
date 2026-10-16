@@ -3,23 +3,19 @@ import type { WorldState } from '../core/world';
 import { surfaceHeight, type PreparedWave } from '../ocean/waves';
 import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
 import type { VesselDef } from '../vessel/vesselDef';
-import { hullPlan } from '../vessel/layout';
+import { aFrameOf } from './fishing';
 
 const FLOATS = 7;
 
-/** Where the gallows posts stand (vessel axes): x of the starboard one (port is -x), z, deck and top heights. */
-export function gallowsOf(def: VesselDef): { x: number; z: number; deck: number; top: number } {
-  const plan = hullPlan(def);
-  const z = plan.transom - 0.7;
-  const deck = plan.deckY(z);
-  return { x: plan.halfBeam(z) - 0.12, z, deck, top: deck + 1.5 };
-}
 
 /**
  * The trawl as seen from the boat (fishing.ts). Cheap and rope-free (the brief's rule):
- *   gallows  quarter gallows: a short red post with a block on each quarter (always there).
- *            The warps lead off the tow winch by the towing post, and the by-hand PAY OUT /
- *            HAUL buttons on the posts are bridge controls (controls/bridge.ts).
+ *   A-frame  over the transom (owner request, now the stern is clear of the skiff): two
+ *            legs from the quarters raked aft to a crossbeam beyond the transom, each leg
+ *            braced to the deck, a block each side on the beam (fishing.ts aFrameOf; one
+ *            merged mesh, always there). The warps lead off the tow winch by the towing
+ *            post; the by-hand PAY OUT / HAUL buttons on the starboard leg's control box are
+ *            bridge controls (controls/bridge.ts).
  *   warps    two straight dark lines from the blocks down into the water astern, longer
  *            as the net goes out (one line segment pair).
  *   floats   the headline's orange floats in an arc on the surface well astern, riding
@@ -30,7 +26,7 @@ export class TrawlView {
   readonly root = new THREE.Group();
   private readonly warps: THREE.LineSegments;
   private readonly floats: THREE.InstancedMesh;
-  /** The two blocks' x (±), height and z (vessel axes). */
+  /** The starboard block (port is -x): where the warp leaves it (vessel axes). */
   private readonly block = new THREE.Vector3();
   private readonly a = new THREE.Vector3();
   private readonly b = new THREE.Vector3();
@@ -48,20 +44,29 @@ export class TrawlView {
     this.root.visible = false;
   }
 
-  /** Put the gear on the boat (once): a post and block on each quarter. */
-  attachGallows(root: THREE.Object3D, def: VesselDef): void {
-    if (!def.fishing) return;
-    const { x, z, deck, top } = gallowsOf(def);
-    this.block.set(x, top, z);
+  /** Put the A-frame on the boat (once). */
+  attachAFrame(root: THREE.Object3D, def: VesselDef): void {
+    const af = aFrameOf(def);
+    if (!af) return;
+    this.block.set(af.blockX, af.top - 0.22, af.headZ);
+    const RED = 0xb8261a;
     const parts: THREE.BufferGeometry[] = [];
     for (const s of [-1, 1]) {
-      parts.push(part(new THREE.CylinderGeometry(0.06, 0.08, top - deck, 8).translate(s * x, (top + deck) / 2, z), 0xb8261a));
-      // An arm out over the side, the block hanging from its end.
-      parts.push(part(new THREE.BoxGeometry(0.4, 0.07, 0.07).translate(s * (x + 0.15), top, z), 0xb8261a));
-      parts.push(part(new THREE.CylinderGeometry(0.12, 0.12, 0.08, 10).rotateZ(Math.PI / 2).translate(s * (x + 0.32), top - 0.14, z), 0x30343a));
+      const foot = new THREE.Vector3(s * af.x, af.deck, af.footZ);
+      const head = new THREE.Vector3(s * af.x, af.top, af.headZ);
+      parts.push(bar(foot, head, 0.07, RED)); // the leg
+      parts.push(part(new THREE.CylinderGeometry(0.13, 0.13, 0.04, 10).translate(foot.x, foot.y + 0.02, foot.z), 0x30343a)); // its foot plate
+      // The brace: from a third of the way up the leg down to the deck forward of it.
+      const knee = foot.clone().lerp(head, 0.38);
+      parts.push(bar(new THREE.Vector3(s * af.x, af.deck, af.braceZ), knee, 0.045, RED));
+      // The block on the beam, and its shackle.
+      parts.push(part(new THREE.CylinderGeometry(0.14, 0.14, 0.08, 12).rotateZ(Math.PI / 2).translate(s * af.blockX, af.top - 0.22, af.headZ), 0x30343a));
+      parts.push(part(new THREE.BoxGeometry(0.03, 0.1, 0.03).translate(s * af.blockX, af.top - 0.08, af.headZ), 0x30343a));
     }
+    // The crossbeam.
+    parts.push(bar(new THREE.Vector3(-af.x - 0.05, af.top, af.headZ), new THREE.Vector3(af.x + 0.05, af.top, af.headZ), 0.08, RED));
     const mesh = new THREE.Mesh(mergeParts(parts), flatVertexColorMaterial());
-    mesh.name = 'trawlGallows';
+    mesh.name = 'trawlAFrame';
     root.add(mesh);
   }
 
@@ -78,7 +83,7 @@ export class TrawlView {
     const back = 6 + 34 * out;
     const down = 2 + 10 * out;
     [-1, 1].forEach((s, i) => {
-      boat.localToWorld(this.a.set(s * (this.block.x + 0.32), this.block.y - 0.14, this.block.z));
+      boat.localToWorld(this.a.set(s * this.block.x, this.block.y, this.block.z));
       boat.localToWorld(this.b.set(s * (this.block.x + 1.5 * out), -down, this.block.z + back));
       pos.setXYZ(2 * i, this.a.x, this.a.y, this.a.z);
       pos.setXYZ(2 * i + 1, this.b.x, this.b.y, this.b.z);
@@ -96,3 +101,12 @@ export class TrawlView {
     this.floats.instanceMatrix.needsUpdate = true;
   }
 }
+
+/** A round bar from `a` to `b` (radius r), for the A-frame's legs, braces and beam. */
+function bar(a: THREE.Vector3, b: THREE.Vector3, r: number, color: number): THREE.BufferGeometry {
+  const d = b.clone().sub(a);
+  const g = new THREE.CylinderGeometry(r, r, d.length(), 10).translate(0, d.length() / 2, 0);
+  g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()));
+  return part(g.translate(a.x, a.y, a.z), color);
+}
+

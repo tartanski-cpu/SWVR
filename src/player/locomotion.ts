@@ -6,20 +6,24 @@
  * can roll, pitch and surge underneath without the player sliding or jittering, and the
  * moving-frame maths reduces to plain 2D movement on the deck plan.
  *
- * Desktop walking collides on the HEAD position (where the body is in room-scale VR)
- * against the WalkArea: blocked moves slide along walls by trying each axis alone.
+ * Desktop walking collides on the FEET against the WalkArea (walls, furniture, the deck
+ * edge): blocked moves slide along walls by trying each axis alone. (It used to test the
+ * camera, which can sit a little off the feet: past an edge, the "let me out" escape then
+ * let you walk through anything.) Swimming strokes collide on the head (room-scale VR).
+ * VR on foot moves through walls but is fenced in at the boat's edge (WalkArea.inBounds).
  *
  * Methods:
  *  - grab-the-world (VR, default): squeeze a grip and pull - the world moves with your
- *    hand, in all three directions, with no collisions (owner request): pull yourself up,
- *    down, through a wall or out over the side. Two hands: pull and twist to turn.
+ *    hand, in all three directions, through walls (owner request): pull yourself up, down
+ *    or through the wheelhouse - but not out over the side (the fence at the boat's edge,
+ *    owner request: you can't slip off her). Two hands: pull and twist to turn.
  *    Once you've grabbed you are "free": the height you pulled yourself to stays (no
  *    settling onto the floor), which also squares seated and standing play without a
  *    crouch button. Being put somewhere else (teleport, boarding, landing a jump, climbing
  *    out) ends it: then the floor holds you again, settling onto the highest floor within
  *    a step below your feet - which is how stairs and sills work. While swimming, grab
  *    strokes stay horizontal (the swim code keeps you at the surface).
- *  - smooth stick movement (VR, optional), head-relative, no wall collisions either.
+ *  - smooth stick movement (VR, optional), head-relative: through walls, fenced at the edge.
  *  - snap turn about the head.
  *  - desktop walking (WASD) with wall collision and ladders.
  *
@@ -50,11 +54,12 @@ export interface LocomotionInput {
   turnStick: number;
   /** Desktop walking displacement already in the frame's axes (m), or null. y = climbing. */
   desktopDelta: { x: number; y?: number; z: number } | null;
-  /** VR on foot: grabs move freely in 3D and the stick ignores walls (false: swimming, desktop). */
+  /** VR on foot: grabs move in 3D and the stick ignores walls, fenced at the edge (false: swimming, desktop). */
   fly: boolean;
 }
 
 const headL = new THREE.Vector3();
+const feetL = new THREE.Vector3();
 const fwdL = new THREE.Vector3();
 
 export class Locomotion {
@@ -85,7 +90,7 @@ export class Locomotion {
     const grabMove = (dx: number, dy: number, dz: number) => {
       if (!inp.fly) return this.tryMove(p, area, headL, dx, dz) + this.climb(p, area, headL, dy);
       this.free = true;
-      return this.moveFree(p, headL, dx, dy, dz);
+      return this.moveFenced(p, area, headL, dx, dy, dz);
     };
 
     // ── Grab the world ──
@@ -109,7 +114,7 @@ export class Locomotion {
       const now = angleXZ(handsL.right, handsL.left);
       const turn = wrapPi(this.twoHandAngle - now);
       const mid = handsL.left.clone().add(handsL.right).multiplyScalar(0.5);
-      if (Math.abs(turn) > 1e-4) this.rotateAbout(p, turn, mid.x, mid.z, area, headL, inp.fly);
+      if (Math.abs(turn) > 1e-4) this.rotateAbout(p, turn, mid.x, mid.z, area, headL, false, inp.fly);
       // The rotation pivots on the hands' midpoint, so the midpoint itself hasn't moved.
       const anchorMid = this.anchors.left.clone().add(this.anchors.right).multiplyScalar(0.5);
       moved += grabMove(anchorMid.x - mid.x, anchorMid.y - mid.y, anchorMid.z - mid.z);
@@ -133,13 +138,18 @@ export class Locomotion {
         const step = cfg.smoothSpeed * dt;
         const dx = (fwdL.x * my + rx * mx) * step;
         const dz = (fwdL.z * my + rz * mx) * step;
-        moved += inp.fly ? this.moveFree(p, headL, dx, 0, dz) : this.tryMove(p, area, headL, dx, dz);
+        moved += inp.fly ? this.moveFenced(p, area, headL, dx, 0, dz) : this.tryMove(p, area, headL, dx, dz);
       }
     }
 
     // ── Desktop walking ──
     if (inp.desktopDelta) {
-      moved += this.tryMove(p, area, headL, inp.desktopDelta.x, inp.desktopDelta.z);
+      // On the feet (the head moves with them).
+      const fx = p.position[0];
+      const fz = p.position[2];
+      moved += this.tryMove(p, area, feetL.set(fx, p.position[1], fz), inp.desktopDelta.x, inp.desktopDelta.z);
+      headL.x += p.position[0] - fx;
+      headL.z += p.position[2] - fz;
       moved += this.climb(p, area, headL, inp.desktopDelta.y ?? 0);
     }
 
@@ -200,8 +210,36 @@ export class Locomotion {
     return Math.hypot(mx, mz);
   }
 
-  /** Move by (dx, dy, dz) with no collisions at all (grab-the-world, the VR stick). */
-  private moveFree(p: PlayerState, head: THREE.Vector3, dx: number, dy: number, dz: number): number {
+  /**
+   * VR on foot (grab-the-world, the stick): move by (dx, dy, dz) through walls, but keep the
+   * head inside the boat's edge (area.inBounds): a move that would cross it goes as far as
+   * the edge, and what's left of it slides along the edge (each axis alone). Already
+   * outside it (leaning out, put there): any move, so you can always get back in.
+   */
+  private moveFenced(p: PlayerState, area: WalkArea, head: THREE.Vector3, dx: number, dy: number, dz: number): number {
+    const fence = area.inBounds?.bind(area);
+    if (fence && fence(head.x, head.z) && !fence(head.x + dx, head.z + dz)) {
+      // How far along (dx, dz) we can go and stay inside (bisection: the fence is convex enough).
+      const reach = (ax: number, az: number) => {
+        let lo = 0;
+        let hi = 1;
+        for (let i = 0; i < 12; i++) {
+          const m = (lo + hi) / 2;
+          if (fence(head.x + ax * m, head.z + az * m)) lo = m;
+          else hi = m;
+        }
+        return lo;
+      };
+      const f = reach(dx, dz);
+      const [rx, rz] = [dx * (1 - f), dz * (1 - f)];
+      const sx = head.x + dx * f;
+      const sz = head.z + dz * f;
+      // Slide: the rest along whichever axis stays inside.
+      const slideX = fence(sx + rx, sz) ? rx : 0;
+      const slideZ = !slideX && fence(sx, sz + rz) ? rz : 0;
+      dx = dx * f + slideX;
+      dz = dz * f + slideZ;
+    }
     p.position[0] += dx;
     p.position[1] += dy;
     p.position[2] += dz;
@@ -231,6 +269,8 @@ export class Locomotion {
     area: WalkArea,
     head: THREE.Vector3,
     force = false,
+    /** VR: only the edge fence applies (not the walls). */
+    fenced = false,
   ): void {
     const c = Math.cos(angle);
     const s = Math.sin(angle);
@@ -241,7 +281,9 @@ export class Locomotion {
     const nhx = cx + hx * c + hz * s;
     const nhz = cz - hx * s + hz * c;
     const y = p.position[1];
-    if (!force && area.walkable(head.x, head.z, y) && !area.walkable(nhx, nhz, y)) return;
+    if (fenced) {
+      if (area.inBounds && area.inBounds(head.x, head.z) && !area.inBounds(nhx, nhz)) return;
+    } else if (!force && area.walkable(head.x, head.z, y) && !area.walkable(nhx, nhz, y)) return;
     p.position[0] = cx + px * c + pz * s;
     p.position[2] = cz - px * s + pz * c;
     p.yaw += angle;

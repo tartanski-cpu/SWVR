@@ -2,9 +2,11 @@
  * The workboat's tender crane and her tender (the skiff).
  *
  * The skiff lives in a cradle on the foredeck (owner request: on the stern davit she was
- * in the way of towing and trawling). A knuckle-boom crane on the starboard foredeck, as
- * yachts use for their tenders, puts her over the side and takes her back:
+ * in the way of towing and trawling), under a tarpaulin. A knuckle-boom crane on the
+ * starboard foredeck, as yachts use for their tenders, folded away while she's stowed,
+ * puts her over the side and takes her back:
  *
+ *   rig     the crane unfolds and the hook goes on her bridle (`rigTime`; she stays put)
  *   hoist   straight up out of the cradle, `clear` m: her keel clears the bow rail
  *   slew    the hook swings round the column, forward about through the bow sector, out
  *           to starboard (radius eased from the cradle's to the outboard spot's); a swivel
@@ -49,15 +51,18 @@ const ease = (t: number) => t * t * (3 - 2 * t);
 
 /** The whole launch path, cradle to water (s). */
 export function launchTime(c: TenderCrane): number {
-  return c.hoistTime + c.slewTime + c.lowerTime;
+  return c.rigTime + c.hoistTime + c.slewTime + c.lowerTime;
 }
 
 /**
  * Her origin (ship axes) `t` s along the launch path (0: in the cradle, launchTime: at the
  * water alongside). Her heading stays 0 (bow forward) throughout.
  */
-export function launchPoint(c: TenderCrane, t: number, out: THREE.Vector3): THREE.Vector3 {
+export function launchPoint(c: TenderCrane, time: number, out: THREE.Vector3): THREE.Vector3 {
   const [sx, sy, sz] = c.stow;
+  // Rigging (unfold, hook on): she's still in the cradle.
+  const t = time - c.rigTime;
+  if (t <= 0) return out.set(sx, sy, sz);
   const [ox, oz] = c.outboard;
   const raised = sy + c.clear;
   const t1 = c.hoistTime;

@@ -1331,6 +1331,31 @@ The brief's "no new particle effects" rule was flagged: the fire is drawn withou
   - The WINDOWS switch, the glass it showed and the `windows` control are gone (the "secure the boat" duty drops its windows step). The windscreen's rain and wipers stay.
   - How shut-in the wheelhouse is now depends on the aft door alone: shut, it fully muffles wind, rain, wash and fire inside.
   - The engine sound gets a wheelhouse low-pass and level (`CONFIG.wheelhouseSound`): full on deck; inside with the door open ×0.75 and 1200 Hz; door shut ×0.45 and 320 Hz.
+- **Tidier foredeck and stern; collisions sorted** (owner requests).
+  - **Crane folds away:** while the skiff is in her cradle (or away in the water) the crane folds into a transport position: slewed forward, the boom just below level along the starboard foredeck, the jib folded back over it, the hook at the jib head (`tenderCrane.fold`). The view blends the working pose and the folded one angle by angle.
+    - LAUNCH now starts with `rigTime` (2.5 s): the crane unfolds and hooks on while she stays in the cradle, then hoists. A recovery ends with the crane unhooking and folding.
+    - The launch is 17.5 s in all.
+  - **Tarpaulin over the stowed skiff** (`TenderCraneView.cover`): one canvas mesh over a low ridge, drawn down over her gunwale, closed at the transom, with a bag over the outboard. Her outboard and tiller (20 draw calls) and the crane remote (3) aren't drawn while she's covered.
+    - They're also disabled: three's Raycaster ignores `visible`, so a hidden control would still take clicks. There's a new `Control.enabled`, which the interaction system skips.
+    - While she's covered you can't board her from the menu (it says to launch her first), jump into her, or set cargo down in her.
+    - Her hull stays drawn below the cover.
+  - **Winch buttons built in:** HEAVE IN / PAY OUT now sit on the top of the winch's own gearbox housing (starboard end, 0.8 m high: `towWinch.housing`), which replaces the separate stand and the motor cylinder.
+  - **Trawl A-frame** (`fishing.aFrame`, `aFrameOf` in fishing.ts): the quarter gallows are gone; with the skiff off the stern there's room for an A-frame over the transom.
+    - Two legs from the quarters raked aft to a crossbeam 3 m up and 0.3 m beyond the transom, each braced to the deck, with a block each side on the beam where the warps run.
+    - The net's drag now acts at the blocks.
+    - PAY OUT / HAUL are on a control box built onto the starboard leg at waist height.
+    - The A-frame's and braces' feet are solid for walking and cargo. The aft lashing points moved inboard to make room.
+  - **Collisions:**
+    - **Desktop:** walking tested the CAMERA against the walk area, and the camera can sit about 10 cm off the feet. Once it was past an edge, the "already outside, let me out" escape let WASD walk through anything: on the aft deck it walked 6 m off the side in mid-air. It now tests the feet, so walls, furniture and the deck edge stop you.
+    - **VR** (owner request: don't slip off the boat, but move freely through the wheelhouse): grab-the-world and the stick are fenced at the boat's edge (`WalkArea.inBounds`: 0.15 m inside the deck edge, the stem and the transom) and nothing else. A move that would cross it goes as far as the edge, then slides along it; two-handed turns that would swing you out are refused.
+    - **Already outside the fence** (leaning out, put there): any move, so you can always get back in.
+    - **Over the side:** jump (A).
+  - **Tests (299):** the fence (through the wheelhouse wall, stopped at the edge, the stick too); desktop walking stops at the edge with the camera off the feet; the rigging pause before the hoist; the winch housing and the A-frame feet are solid.
+  - **Checked in the browser:**
+    - The helm view: the tarp dome ahead, the folded crane low along the starboard foredeck.
+    - The aft deck and the stern: the A-frame, the leg's control box, the winch housing.
+    - SKIFF CRANE launches (cover off, crane unfolds), and the remote in the skiff hovers RECOVER.
+    - HEAVE IN shortens the line, PAY OUT on the A-frame moves the net, and desktop walking stops at the port bulwark.
 - **Crane access, tow winch, trawl by hand** (owner requests after the layout round).
   - **Crane cables put away in the cradle:** with the skiff stowed, the wire and the 4-leg bridle are hidden and the hook hangs at the jib head (clearer view from the helm). They show from LAUNCH until she's back.
   - **Skiff crane buttons, three of them** (all send `<tender>:crane`, all with the same hover text):
@@ -1499,21 +1524,21 @@ The brief's "no new particle effects" rule was flagged: the fire is drawn withou
 
 1. ~~Fuel and oil temperature~~ **Done** (see above).
 2. ~~VR menu~~ **Done**. New settings go in `ui/mainMenu.ts` via `MenuHost`.
-3. **Missions and game loop.** On hold at the owner's request until asked for.
+3. ~~Missions and game loop~~ **Done**: rescues, tows, fires, salvage, fishing, cargo runs, the career layer (money, reputation, contracts, upgrades), damage and wear, and the first-voyage tutorial (see above).
 
 ## Future roadmap (owner notes, not started)
 
 3. ~~Archipelago with ports~~ **Done** (see above). Still open from the original notes:
    - ~~**Walking ashore**~~ **Done** (see above).
-   - **Mooring lines:** not needed until there's wind or current to hold against.
+   - ~~**Mooring lines**~~ **Done** (docking puts bow and stern lines ashore).
    - **Breaking waves** on beaches.
-4. **Dynamic weather.**
+4. ~~**Dynamic weather**~~ **Done** (presets that change, wind and leeway, fog, rain and squalls, forecasts). The original notes follow.
    - `EnvironmentState` already holds the sea state (wave components) and time of day. Add wind (speed, direction), visibility (fog density), cloud cover and rain intensity.
    - A slow weather simulation interpolates between weather presets, building and decaying the wave components, which are scaled from a target Hs and Tp. A JSONSWAP-style fit is possible later.
    - **Wind on the boat:** windage force and moment on the topsides and wheelhouse (projected areas from the layout).
    - **Visuals:** sky and fog palette darkened by cloud, rain particles (one draw call), whitecaps on the ocean shader.
    - Host-authoritative like the rest of the environment, so all players see the same weather.
-5. **Map and charts.**
+5. ~~**Map and charts**~~ **Done** (the chartplotter, the paper chart with pencil marks, the NAV / WIND display). The original notes follow.
    - A chart display (canvas atlas page) rendered from the world registry: coastlines, depth contours, ports, buoys, plus own-ship position, heading and track history. It could be a chartplotter screen on the dash, a paper chart on the chart table, or a page on the wrist menu.
    - GPS position in the vessel state (already known: world position). Waypoints and a course-to-steer readout could feed an autopilot later, which would just be another intent source driving `helm`.
 
@@ -1539,7 +1564,7 @@ The deck and wheelhouse floor are opaque and sit well above the DWL (freeboard a
 
 ## Next
 
-The MVP is done. Pick from "Planned next" and the "Future roadmap" above. Suggested order:
+Everything on the lists above is done or noted as open below. What was open when last reviewed: the owner's VR test of the latest rounds; the boat passing through buoys and the start platform; a moon (the night sea is very dark); whitecaps; harbour lights that don't grow as you near them; two upgrades suggested but not built (a bigger fuel tank, a second skiff motor). The older suggested order follows, kept for the record:
 
 1. **Owner VR test** of fuel and temperatures, harbours, anchoring and refuelling. Then tune contact stiffness, the shelter factors and the menu size and placement.
 2. **Weather** (wind, current), which gives the anchor and mooring lines something to do, plus mooring lines and walking ashore.
@@ -1556,7 +1581,6 @@ For performance on the Quest, read the debug panel's cpu/gpu lines in VR:
 - **Water inside the hull:** the ocean is drawn wherever it is, so green water over the bulwark in big rolls can show "inside" the boat. Freeboard is 0.95–1.5 m, so it's rare in the current sea state. The fix is a hull-interior depth/stencil mask (see "Decision" above).
 - **Collisions** are with the terrain, quays and piers only. The boat still passes through the buoys and the pilot-station platform near the start.
 - **Fixed-size lights:** harbour lights are constant pixel size, so they don't grow as you approach.
-- **Players can't walk ashore yet.** Boarding and leaving still go to the platform at the start.
 - **No whitecaps or foam** beyond a faint crest tint.
 - **The ocean at night is very dark** (no moon yet).
 - **Beam-sea roll** is near resonance: the roll period is 3.5 s and the sea has energy at 2–7 s. Roll damping was raised to 15 % of critical; bilge keels or a lower GM would be the naval-architecture levers if it's still too lively.

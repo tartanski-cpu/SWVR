@@ -43,7 +43,7 @@ describe('the tender crane', () => {
     expect(launchPoint(crane, 0, p).toArray()).toEqual(crane.stow);
     // Slewing, she stays high enough for her keel (0.14 m under her origin) to clear the rail
     // wherever she is over the hull, and never comes over the wheelhouse.
-    for (let t = crane.hoistTime; t <= crane.hoistTime + crane.slewTime; t += 0.1) {
+    for (let t = crane.rigTime + crane.hoistTime; t <= crane.rigTime + crane.hoistTime + crane.slewTime; t += 0.1) {
       launchPoint(crane, t, p);
       const overHull = p.z > plan.stem && p.z < plan.transom && Math.abs(p.x) < plan.halfBeam(p.z) + 0.8;
       if (overHull) expect(p.y - 0.14).toBeGreaterThan(plan.deckY(p.z) + VESSEL_DEFS.workboat.layout.railHeight);
@@ -63,7 +63,9 @@ describe('the tender crane', () => {
     run(1);
     send('crane', 1);
     expect(skiff.tender?.phase).toBe('lowering');
-    run(crane.hoistTime + 0.05);
+    run(crane.rigTime - 0.2);
+    expect(local(boat, skiff).distanceTo(new THREE.Vector3(...crane.stow))).toBeLessThan(1e-6); // rigging: still in the cradle
+    run(crane.hoistTime + 0.25);
     expect(local(boat, skiff).y).toBeGreaterThan(crane.stow[1] + crane.clear - 0.05); // up out of the cradle
     run(launchTime(crane) - crane.hoistTime + 0.2);
     expect(skiff.tender?.phase).toBe('free');

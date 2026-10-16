@@ -22,7 +22,7 @@ import { hullPlan } from '../vessel/layout';
 import { RainGlass } from '../vessel/view/rainGlass';
 import { Dipstick, FenderBasket, FendersView, OilCan } from './deckGear';
 import { swimLadderOf } from '../player/body';
-import { gallowsOf } from '../fishing/trawlView';
+import { aFrameOf } from '../fishing/fishing';
 
 /**
  * Builds a vessel's bridge from its config: controls, instrument dash, labels.
@@ -127,27 +127,30 @@ export class Bridge {
       trawl.root.position.fromArray(def.fishing.trawlSwitch);
       this.controls.push(trawl);
       extraLabels.push(['TRAWL', def.fishing.trawlSwitch]);
-      // By hand on the gallows: PAY OUT / HAUL (hold-to-run) on a bracket on each post's
-      // inboard side, read from inboard facing the post (PAY OUT forward, HAUL aft).
-      const gl = gallowsOf(def);
-      const nb = def.fishing.netButtons;
-      for (const s of [-1, 1]) {
-        const x = s * (gl.x - nb.inset);
-        const y = gl.deck + nb.height;
-        extraFixed.push(part(new THREE.BoxGeometry(nb.inset + 0.08, 0.06, 0.36).translate(s * (gl.x - (nb.inset + 0.08) / 2), y - 0.03, gl.z), 0xb8261a));
-        const side = s > 0 ? 'S' : 'P';
-        const out = new Button(`netOut${side}`, 'netOut', 'Trawl net: PAY OUT (hold)', 'momentary', 0xe0a020);
-        out.root.position.set(x, y, gl.z - 0.09);
-        const haul = new Button(`netIn${side}`, 'netIn', 'Trawl net: HAUL (hold)', 'momentary', 0x3a9a4a);
-        haul.root.position.set(x, y, gl.z + 0.09);
+      // By hand on the A-frame: PAY OUT / HAUL (hold-to-run) on a control box built onto
+      // the starboard leg's inboard side at waist height, read from inboard facing the leg
+      // (PAY OUT forward, HAUL aft).
+      const af = aFrameOf(def);
+      if (af) {
+        const t = (af.buttonY - af.deck) / (af.top - af.deck);
+        const legZ = af.footZ + (af.headZ - af.footZ) * t;
+        const x0 = af.x - 0.06; // the leg's inboard face
+        extraFixed.push(part(new THREE.BoxGeometry(0.32, 0.2, 0.4).translate(x0 - 0.16, af.buttonY - 0.1, legZ), 0xb8261a));
+        extraFixed.push(part(new THREE.BoxGeometry(0.3, 0.012, 0.38).translate(x0 - 0.16, af.buttonY + 0.006, legZ), 0x3a4148));
+        const bx = x0 - 0.21;
+        const y = af.buttonY + 0.012;
+        const out = new Button('netOut', 'netOut', 'Trawl net: PAY OUT (hold)', 'momentary', 0xe0a020);
+        out.root.position.set(bx, y, legZ - 0.09);
+        const haul = new Button('netIn', 'netIn', 'Trawl net: HAUL (hold)', 'momentary', 0x3a9a4a);
+        haul.root.position.set(bx, y, legZ + 0.09);
         this.controls.push(out, haul);
-        const yaw = s > 0 ? -Math.PI / 2 : Math.PI / 2;
-        extraLabels.push(['PAY OUT', [x, y, gl.z - 0.09], false, yaw], ['HAUL', [x, y, gl.z + 0.09], false, yaw]);
+        extraLabels.push(['PAY OUT', [bx, y, legZ - 0.09], false, -Math.PI / 2], ['HAUL', [bx, y, legZ + 0.09], false, -Math.PI / 2]);
       }
     }
     // The tow winch just forward of the towing post: a small drum (it turns while it runs)
-    // on a frame with its motor, and a control stand forward of it with HEAVE IN / PAY OUT
-    // (hold-to-run). You stand at the stand facing aft: the winch, the post and the tow.
+    // between two cheeks, driven from a gearbox housing on its starboard end, with HEAVE IN /
+    // PAY OUT (hold-to-run) on the housing's top. You stand forward of it facing aft: the
+    // winch, the post and the tow beyond.
     const tw = def.towWinch;
     if (tw) {
       const plan = hullPlan(def);
@@ -155,9 +158,13 @@ export class Bridge {
       const r = tw.drumRadius;
       const hw = tw.drumWidth / 2;
       const axle = dy + 0.1 + r + 0.08;
-      extraFixed.push(part(new THREE.BoxGeometry(tw.drumWidth + 0.3, 0.1, 0.5).translate(0, dy + 0.05, tw.z), 0x5a5f64));
+      const hs = tw.housing;
+      const hx0 = hw + 0.095;
+      const hx = hx0 + hs.width / 2;
+      extraFixed.push(part(new THREE.BoxGeometry(tw.drumWidth + 0.2 + hs.width, 0.1, 0.5).translate(hs.width / 2, dy + 0.05, tw.z), 0x5a5f64)); // bed
       for (const s of [-1, 1]) extraFixed.push(part(new THREE.BoxGeometry(0.05, axle + 0.12 - dy, 0.34).translate(s * (hw + 0.07), (axle + 0.12 + dy) / 2, tw.z), 0x5a5f64));
-      extraFixed.push(part(new THREE.CylinderGeometry(0.09, 0.09, 0.2, 10).rotateZ(Math.PI / 2).translate(hw + 0.2, axle, tw.z), 0x2a2e33)); // motor
+      extraFixed.push(part(new THREE.BoxGeometry(hs.width, hs.height, 0.4).translate(hx, dy + hs.height / 2, tw.z), 0x5a5f64)); // gearbox housing
+      extraFixed.push(part(new THREE.BoxGeometry(hs.width - 0.02, 0.012, 0.38).translate(hx, dy + hs.height + 0.006, tw.z), 0x3a4148)); // its control panel
       const drum = new THREE.Mesh(
         mergeParts([
           part(new THREE.CylinderGeometry(r, r, tw.drumWidth, 14).rotateZ(Math.PI / 2), 0x2a2a2a), // wire wound on it
@@ -170,18 +177,15 @@ export class Bridge {
       this.winchDrum.position.set(0, axle, tw.z);
       this.winchDrum.add(drum);
       this.root.add(this.winchDrum);
-      const [sx, sz] = tw.stand;
-      const sy = plan.deckY(sz);
-      const top = sy + tw.buttonHeight;
-      extraFixed.push(part(new THREE.CylinderGeometry(0.05, 0.06, top - 0.06 - sy, 8).translate(sx, (top - 0.06 + sy) / 2, sz), 0x5a5f64));
-      extraFixed.push(part(new THREE.BoxGeometry(0.36, 0.06, 0.24).translate(sx, top - 0.03, sz), 0x3a4148));
+      // Facing aft, HEAVE IN is on your left (outboard), PAY OUT on your right.
+      const top = dy + hs.height + 0.012;
       const heave = new Button('winchHeave', 'winchHeave', 'Tow winch: HEAVE IN (hold)', 'momentary', 0x3a9a4a);
-      heave.root.position.set(sx + 0.09, top, sz + 0.03);
+      heave.root.position.set(hx + 0.095, top, tw.z + 0.06);
       const payOut = new Button('winchPayOut', 'winchPayOut', 'Tow winch: PAY OUT (hold)', 'momentary', 0xe0a020);
-      payOut.root.position.set(sx - 0.09, top, sz + 0.03);
+      payOut.root.position.set(hx - 0.095, top, tw.z + 0.06);
       this.controls.push(heave, payOut);
       // Read facing aft: the labels lie forward of the buttons, toward you.
-      extraLabels.push(['HEAVE IN', [sx + 0.09, top, sz + 0.03], false, Math.PI], ['PAY OUT', [sx - 0.09, top, sz + 0.03], false, Math.PI]);
+      extraLabels.push(['HEAVE IN', [hx + 0.095, top, tw.z + 0.06], false, Math.PI], ['PAY OUT', [hx - 0.095, top, tw.z + 0.06], false, Math.PI]);
     }
     // The skiff crane's console button belongs to the crane (controls/TenderCraneView.ts);
     // its label goes with the others.

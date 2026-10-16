@@ -170,6 +170,7 @@ export class InteractionSystem {
       let best: Control | null = null;
       let bestScore = 1;
       for (const c of this.controls) {
+        if (!c.enabled) continue;
         if (c.kind === 'grab') {
           if (c.held && !c.multiGrab) continue;
           const s = c.distanceTo(f.grip) / cfg.grabRadius;
@@ -184,7 +185,7 @@ export class InteractionSystem {
       if (!best) {
         this.raycaster.set(f.ray.origin, f.ray.direction);
         this.raycaster.far = cfg.rayLength;
-        const hit = this.raycaster.intersectObjects(this.pressHitObjects, false)[0];
+        const hit = this.raycaster.intersectObjects(this.pressHitObjects, false).find((x) => this.owner.get(x.object)?.enabled);
         if (hit) {
           best = this.owner.get(hit.object) ?? null;
           byRay = true;
@@ -269,16 +270,17 @@ export class InteractionSystem {
     if (ray && !this.dragging) {
       this.raycaster.set(ray.origin, ray.direction);
       this.raycaster.far = CONFIG.interaction.desktopReach;
-      const hit = this.raycaster.intersectObjects(this.hitObjects, false)[0];
+      const hit = this.raycaster.intersectObjects(this.hitObjects, false).find((x) => this.owner.get(x.object)?.enabled);
       hover = hit ? (this.owner.get(hit.object) ?? null) : null;
       // Aim help, only when the ray hits nothing (a direct hit always wins): keep what we
       // were on while the reticle is still near it, else take the nearest control just
       // missed (see CONFIG.interaction.desktopStickyDeg / desktopAssistDeg).
       const prev = this.deskHover;
-      if (!hover && prev && this.offAim(prev, ray) < CONFIG.interaction.desktopStickyDeg) hover = prev;
+      if (!hover && prev?.enabled && this.offAim(prev, ray) < CONFIG.interaction.desktopStickyDeg) hover = prev;
       if (!hover) {
         let best = CONFIG.interaction.desktopAssistDeg;
         for (const c of this.controls) {
+          if (!c.enabled) continue;
           const off = this.offAim(c, ray);
           if (off < best) [hover, best] = [c, off];
         }

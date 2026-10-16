@@ -219,12 +219,12 @@ export class CargoHands {
     if (!c) return;
     const pos = this.carryPos.clone();
     const quat = this.carryQuat.clone();
-    // Over a hull: the one whose deck is nearest below (the skiff in her cradle sits above
-    // the workboat's foredeck).
+    // Over a hull: the one whose deck is nearest below. Not the skiff under her tarpaulin
+    // in the cradle (it goes on the foredeck around her, or not at all).
     let best: { vid: string; root: THREE.Object3D; l: THREE.Vector3; plan: ReturnType<typeof hullPlan>; gap: number } | null = null;
     for (const [vid, root] of ctx.vesselRoots) {
       const v = ctx.world.vessels[vid];
-      if (!v) continue;
+      if (!v || v.tender?.phase === 'stowed') continue;
       const l = root.worldToLocal(pos.clone());
       const plan = hullPlan(VESSEL_DEFS[v.defId]);
       if (l.z < plan.stem || l.z > plan.transom + 0.3 || Math.abs(l.x) > plan.halfBeam(Math.min(l.z, plan.transom)) + 0.3) continue;
