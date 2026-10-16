@@ -1,0 +1,58 @@
+import { AlarmAudio } from '../audio/alarmAudio';
+import { AnchorAudio } from '../audio/anchorAudio';
+import { watchVoices } from '../audio/babble';
+import { ContactAudio } from '../audio/contactAudio';
+import { ElectricMotorAudio } from '../audio/electricMotorAudio';
+import { EngineAudio } from '../audio/engineAudio';
+import { FireAudio } from '../audio/fireAudio';
+import { HornAudio } from '../audio/hornAudio';
+import { PaperAudio } from '../audio/paperAudio';
+import { RadioAudio } from '../audio/radioAudio';
+import { RescueSounds } from '../audio/rescueSounds';
+import { ShipHorn } from '../audio/shipHorn';
+import { WaterAudio } from '../audio/waterAudio';
+import { WhistleAudio } from '../audio/whistleAudio';
+import { WildlifeAudio } from '../audio/wildlifeAudio';
+import { WindAudio } from '../audio/windAudio';
+
+/**
+ * The game's sound systems in one place (split out of App). Each makes its own sounds; the
+ * engine's owns the shared AudioContext, which a browser only allows after a user gesture,
+ * so `unlock()` (first click, key press, or entering VR) starts it and hands it to the rest.
+ * Volumes go through the mixer (audio/mixer.ts); App feeds each one every frame.
+ */
+export class SoundBoard {
+  /** The diesel (and the shared AudioContext). */
+  readonly engine = new EngineAudio();
+  /** The electric horn and the console alarm. */
+  readonly horn = new HornAudio();
+  readonly alarm = new AlarmAudio();
+  /** Hull contact (bumps and grinding), water past the hull and bow slams, splashes. */
+  readonly contact = new ContactAudio();
+  readonly water = new WaterAudio();
+  /** The VHF (voice and squelch) and the survivors' whistle. */
+  readonly radio = new RadioAudio();
+  readonly whistle = new WhistleAudio();
+  /** Rescue cues: shouts, the cheer, the tick when a duty's done. */
+  readonly rescue = new RescueSounds();
+  /** The skiff's electric outboard. */
+  readonly motor = new ElectricMotorAudio();
+  /** Wind in the rigging, rain on the roof, thunder. */
+  readonly wind = new WindAudio();
+  /** The chart table: pencil, paper, dividers. */
+  readonly paper = new PaperAudio();
+  /** Passing ships' horns. */
+  readonly shipHorn = new ShipHorn();
+  /** A fire's roar and the monitor's jet; the anchor chain; birds and seals. */
+  readonly fire = new FireAudio();
+  readonly anchor = new AnchorAudio();
+  readonly wildlife = new WildlifeAudio();
+
+  /** On a user gesture: start audio (again harmless). */
+  unlock(): void {
+    this.engine.unlock();
+    const ctx = this.engine.context;
+    for (const s of [this.horn, this.alarm, this.contact, this.water, this.radio, this.whistle, this.shipHorn, this.rescue, this.motor, this.wind, this.paper, this.fire, this.anchor, this.wildlife]) s.attach(ctx);
+    watchVoices();
+  }
+}

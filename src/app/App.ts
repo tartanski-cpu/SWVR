@@ -21,15 +21,12 @@ import { HydroDebugView } from '../debug/hydroDebugView';
 import { onDavit, recoverCheck } from '../vessel/davit';
 import { isPowered } from '../vessel/electrics';
 import { beaufort, compass8, visibilityAt, windVector } from '../environment/weather';
-import { WindAudio } from '../audio/windAudio';
 import { RainView } from '../environment/rainView';
 import { ChartTableView } from '../vessel/view/chartTable';
 import { LogbookView, type LogbookContext } from '../log/logbookView';
 import { parseLog, serializeLog } from '../log/log';
-import { PaperAudio } from '../audio/paperAudio';
 import { dipstickReading } from '../vessel/maintenance';
 import { TrafficView } from '../traffic/trafficView';
-import { ShipHorn } from '../audio/shipHorn';
 import { SHIP_NAMES } from '../traffic/traffic';
 import { ChartTools, type ChartToolsContext } from '../chart/chartTools';
 import { applyChartOp, createMarks, parseMarks, pointCount, serializeMarks, type ChartOp } from '../chart/marks';
@@ -39,7 +36,6 @@ import { DavitGear } from '../controls/DavitGear';
 import { asWorkboat, VESSEL_DEFS, type WorkboatDef } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
 import { VesselView } from '../vessel/view/vesselView';
-import { EngineAudio } from '../audio/engineAudio';
 import { hullPlan, vesselWalkArea, type WalkArea } from '../vessel/layout';
 import { climbOut, jump, swimArea, updateAir, updateSwim, type BodyVessel } from '../player/body';
 import { worldWalkArea } from '../world/landWalkArea';
@@ -60,39 +56,27 @@ import { berthById } from '../vessel/physics/mooring';
 import { XRControllers } from '../player/xrControllers';
 import { Bridge } from '../controls/bridge';
 import { InteractionSystem, type HandFrame } from '../controls/InteractionSystem';
-import { HornAudio } from '../audio/hornAudio';
-import { AlarmAudio } from '../audio/alarmAudio';
-import { ContactAudio } from '../audio/contactAudio';
-import { WaterAudio } from '../audio/waterAudio';
 import { WorldView } from '../world/view/worldView';
-import { LaserBeam } from '../player/laserBeam';
+import { LaserPointer } from './laserPointer';
+import { SoundBoard } from './soundBoard';
 import { TowlineView } from '../tow/towlineView';
 import { Binoculars } from '../player/binoculars';
 import { fireAlertT } from '../fire/fire';
 import { FireView, JetView } from '../fire/fireView';
-import { FireAudio } from '../audio/fireAudio';
-import { AnchorAudio } from '../audio/anchorAudio';
-import { WildlifeAudio } from '../audio/wildlifeAudio';
 import { WildlifeView } from '../wildlife/wildlifeView';
 import { LogView } from '../salvage/logView';
-import { createCareer, type CareerState } from '../career/career';
-import { tutorialLine } from '../career/tutorial';
-import { acceptBlocker, buyBlocker, contractText, money, officeAt, parseCareer, portName, repairBlocker, repairCost, repOf, serializeCareer, type Contract } from '../career/career';
+import { CareerSession } from './careerSession';
 import { TrawlView } from '../fishing/trawlView';
 import { InteriorDetail } from './interiorDetail';
 import { jetOn } from '../fire/fire';
 import { nearestTowTarget, towAlertT, towStatus } from '../tow/tow';
-import { RadioAudio } from '../audio/radioAudio';
-import { WhistleAudio } from '../audio/whistleAudio';
 import { TargetsView } from '../rescue/targetView';
 import { RescueHands, type RescueHandsContext } from '../rescue/rescueHands';
 import { RescueGearView, type AvatarHands } from '../rescue/rescueGearView';
-import { RescueSounds } from '../audio/rescueSounds';
-import { lastSpeech, speechVoices, watchVoices } from '../audio/babble';
+import { lastSpeech, speechVoices } from '../audio/babble';
 import { mixer, type Bus } from '../audio/mixer';
 import { FmRadio } from '../audio/fmRadio';
 import { Tiller } from '../controls/Tiller';
-import { ElectricMotorAudio } from '../audio/electricMotorAudio';
 import { BoardView, type BoardContext } from '../board/boardView';
 import { NoteKeyboard } from '../board/noteKeyboard';
 import { parseBoard } from '../board/board';
@@ -124,12 +108,7 @@ import { AvatarsView } from '../net/avatarView';
 const BOARD_KEY = 'swvr.board';
 /** ...and the ship's log (the last few voyages). */
 const LOG_KEY = 'swvr.log';
-const CAREER_KEY = 'swvr.career';
-/** Career save slots (phase 3): swvr.career.1..3, and which one is in use. */
-const CAREER_SLOTS = 3;
-const SLOT_KEY = 'swvr.careerSlot';
 const LAST_CODE_KEY = 'swvr.lastGameCode';
-const slotKey = (n: number) => `${CAREER_KEY}.${n}`;
 /** ...and the pencil marks on the paper chart. */
 const CHART_KEY = 'swvr.chart';
 /** ...and the batteries when we left (only with electrics.drainBetweenSessions). */
@@ -138,8 +117,6 @@ const BATTERY_KEY = 'swvr.battery';
 const RESCUES_KEY = 'swvr.rescues';
 
 
-/** Things the laser beam passes through: glass, rain on it, the comfort vignette, beams. */
-const SEE_THROUGH = new Set(['laser', 'windowGlass', 'rainGlass', 'comfortOverlay']);
 export class App {
   readonly renderer: THREE.WebGLRenderer;
   readonly scene = new THREE.Scene();
@@ -170,7 +147,8 @@ export class App {
   private readonly vesselViews = new Map<EntityId, VesselView>();
   private readonly hydroViews = new Map<EntityId, HydroDebugView>();
   private readonly simDebug: SimDebug = new Map();
-  private readonly engineAudio = new EngineAudio();
+  /** Every sound system (soundBoard.ts). */
+  private readonly sound = new SoundBoard();
   private readonly trialsPanel = new TrialsPanel();
   /** Which vessel (if any) the local rig is currently parented to. */
   private rigParentId: EntityId | null | undefined = undefined;
@@ -194,42 +172,33 @@ export class App {
   private bridge: Bridge | null = null;
   private interaction: InteractionSystem | null = null;
   private readonly effects = new Map<EntityId, VesselEffects>();
-  private readonly horn = new HornAudio();
-  private readonly alarm = new AlarmAudio();
-  private readonly contactAudio = new ContactAudio();
-  private readonly waterAudio = new WaterAudio();
   private readonly worldView = new WorldView();
   private readonly cargoView = new CargoView();
   private readonly cargoHands = new CargoHands();
   private readonly platform = createPlatform();
-  /** Our laser pointer (others see it in our pose); where it hit, refreshed a few times a second. */
-  private readonly laser = new LaserBeam();
+  /** Our laser pointer (others see it in our pose; laserPointer.ts). */
+  private readonly laser = new LaserPointer({
+    targets: () => [...this.vesselRoots.values(), this.worldView.root, this.cargoView.root, this.platform, this.trafficView.root],
+    vesselRoots: () => this.vesselRoots.values(),
+    ignore: () => [this.rig.carrier, this.menu.root],
+    waves: () => this.renderWaves,
+  });
+  private readonly laserRay = new THREE.Ray();
   /** Binoculars on the dash (VR: pick up and raise to the eyes; desktop: hold Z). */
   private binoculars!: Binoculars;
   /** Fire missions: the fire, and the monitor's jet. */
   private readonly fireView = new FireView();
   private readonly jetView = new JetView();
-  private readonly fireAudio = new FireAudio();
-  private readonly anchorAudio = new AnchorAudio();
   private readonly wildlife = new WildlifeView();
-  private readonly wildlifeAudio = new WildlifeAudio();
   /** The towline and our towing post (towing missions). */
   private readonly towline = new TowlineView();
   private readonly logView = new LogView();
   private readonly trawlView = new TrawlView();
-  private laserHit: THREE.Vector3 | null = null;
-  private laserFrame: THREE.Object3D | null = null;
-  private laserT = 0;
-  private readonly laserFrom = new THREE.Vector3();
-  private readonly laserTo = new THREE.Vector3();
-  private readonly radioAudio = new RadioAudio();
   private readonly targetsView = new TargetsView();
   private readonly desktopHand = new DesktopHand();
   private readonly deskHandW = new THREE.Vector3();
-  private readonly whistleAudio = new WhistleAudio();
   private readonly rescueHands = new RescueHands();
   private readonly gearView = new RescueGearView();
-  private readonly rescueSounds = new RescueSounds();
   private readonly fmRadio = new FmRadio();
   /** Outboard tillers (the skiff's), one per outboard boat. */
   private readonly tillers: Tiller[] = [];
@@ -239,8 +208,6 @@ export class App {
   /** Stern davits, one per tender. */
   private readonly davits: DavitGear[] = [];
   private lastAnchorPhase: string | null = null;
-  private readonly motorAudio = new ElectricMotorAudio();
-  private readonly windAudio = new WindAudio();
   /** Rain streaks around the viewer (the one capped weather effect). */
   readonly rain = new RainView();
   private readonly rainHouse = { matrixWorld: new THREE.Matrix4(), min: new THREE.Vector3(), max: new THREE.Vector3() };
@@ -261,10 +228,8 @@ export class App {
   /** Chart table (paper chart, lamp) and the logbook on it. */
   private chartTable: ChartTableView | null = null;
   private logbook: LogbookView | null = null;
-  private readonly paperAudio = new PaperAudio();
   /** Passing ships, debris, hazard buoys; their horns; ships the lookout has called. */
   private readonly trafficView = new TrafficView();
-  private readonly shipHorn = new ShipHorn();
   private hornSeen = -1;
   private readonly shipsCalled = new Set<string>();
   private readonly tableRef = new THREE.Vector3();
@@ -277,12 +242,6 @@ export class App {
   private rainFrames = 0;
   private rainFrameSum = 0;
   private logSaved = -1;
-  /** The career as last saved (seq), and the newest ledger line seen (for the money pop-up). */
-  private careerSaved = -1;
-  /** The career save slot in use (1..CAREER_SLOTS), and when "New career" was pressed once (ms). */
-  private careerSlot = 1;
-  private newCareerArmed = -1e9;
-  private ledgerSeen: string | null = null;
   /** Pencil marks on the paper chart: this peer's copy (kept in step by ops; not in the world). */
   private marks = createMarks();
   private chartTools: ChartTools | null = null;
@@ -301,7 +260,6 @@ export class App {
   private readonly listenerUp = new THREE.Vector3();
   /** Last radio message / alert played here (null until the first frame: don't replay old ones). */
   private radioSeen: { id: number; alertT: number } | null = null;
-  private readonly laserCaster = new THREE.Raycaster();
   private readonly vesselRoots = new Map<string, THREE.Object3D>();
   private readonly hands: Record<'left' | 'right', HandFrame> = {
     left: { tracked: false, grip: new THREE.Vector3(), ray: new THREE.Ray(), quat: new THREE.Quaternion(), gripDown: false, gripPressed: false, triggerDown: false, triggerPressed: false },
@@ -322,6 +280,14 @@ export class App {
   /** Wave constants at the current *render* time (reused every frame). */
   private renderWaves: PreparedWave[] = [];
   private readonly overlay = new DebugOverlay();
+  /** The career's save slots, saving, money pop-up and menu parts (careerSession.ts). */
+  private readonly career = new CareerSession({
+    world: () => this.world,
+    vesselId: () => this.testVesselId,
+    isClient: () => !!this.client,
+    notify: (t, sec) => this.overlay.notify(t, sec),
+    pushEnv: (c, v, r) => this.pushEnvIntent(c, v, r),
+  });
   private readonly help = new HelpPanel();
   private readonly focus = new THREE.Vector3();
   private lastFrameMs = performance.now();
@@ -375,8 +341,8 @@ export class App {
     this.scene.add(this.sky.mesh, this.ocean.mesh, this.buoys.mesh, this.probes.mesh, this.platform, this.worldView.root, this.cargoView.root);
     this.scene.add(this.targetsView.root, this.gearView.root, this.desktopHand.root, this.rain.mesh, this.trafficView.root);
     this.rain.quality = userSettings.rainQuality;
-    this.targetsView.onWhistle = (pos) => this.whistleAudio.blow(pos);
-    this.scene.add(this.laser.root);
+    this.targetsView.onWhistle = (pos) => this.sound.whistle.blow(pos);
+    this.scene.add(this.laser.beam.root);
     this.scene.add(this.wildlife.root);
     for (const vessel of Object.values(this.world.vessels)) this.addVesselView(vessel);
     // A tender's davit (arms, falls, LAUNCH / RECOVER button) on her ship's stern.
@@ -398,24 +364,7 @@ export class App {
     setupXR(this.renderer, this.camera);
     window.addEventListener('resize', () => this.onResize());
     // Audio may only start after a user gesture.
-    const unlock = () => {
-      this.engineAudio.unlock();
-      this.horn.attach(this.engineAudio.context);
-      this.alarm.attach(this.engineAudio.context);
-      this.contactAudio.attach(this.engineAudio.context);
-      this.waterAudio.attach(this.engineAudio.context);
-      this.radioAudio.attach(this.engineAudio.context);
-      this.whistleAudio.attach(this.engineAudio.context);
-      this.shipHorn.attach(this.engineAudio.context);
-      watchVoices();
-      this.rescueSounds.attach(this.engineAudio.context);
-      this.motorAudio.attach(this.engineAudio.context);
-      this.windAudio.attach(this.engineAudio.context);
-      this.paperAudio.attach(this.engineAudio.context);
-      this.fireAudio.attach(this.engineAudio.context);
-      this.anchorAudio.attach(this.engineAudio.context);
-      this.wildlifeAudio.attach(this.engineAudio.context);
-    };
+    const unlock = () => this.sound.unlock();
     window.addEventListener('pointerdown', unlock);
     window.addEventListener('keydown', unlock);
     this.renderer.xr.addEventListener('sessionstart', unlock);
@@ -496,6 +445,51 @@ export class App {
     this.handleDebugInput(dt);
 
     // 2. Simulation: fixed steps here (alone or hosting), or the host's snapshots (client).
+    const renderTime = this.stepSimulation(dt);
+    const t1 = performance.now();
+
+    // 3. Views, in this order: each reads what the one before posed.
+    this.renderWaves = prepareWaves(this.world.environment.waves, renderTime, this.renderWaves);
+    this.updatePlayer(dt, inXR);
+    this.updateSurroundings(renderTime);
+    this.updateOwnBoat(dt, nowMs);
+    const darkness = Math.min(1, Math.max(0, (8 - sunElevation(this.world.environment.timeOfDay)) / 14));
+    const { slam, lap } = this.updateBoatsAndJobs(dt, renderTime, darkness);
+    this.updateSceneViews(dt, renderTime, darkness);
+    this.updateBoardsAndSaves(dt);
+    this.updateCrewViews(dt, inXR, darkness);
+    this.updateHullSounds(dt, slam, lap);
+    this.menu.refresh();
+    this.host?.tick(dt);
+    const t2 = performance.now();
+
+    // 4. Render
+    this.renderer.info.reset();
+    this.gpuTimer.begin();
+    if (inXR) this.binoculars.renderScope(this.renderer, this.scene);
+    this.renderer.render(this.scene, this.camera);
+    this.gpuTimer.end();
+    const t3 = performance.now();
+
+    this.overlay.frame(
+      frameMs,
+      {
+        drawCalls: this.renderer.info.render.calls,
+        triangles: this.renderer.info.render.triangles,
+        tick: this.world.tick,
+        timeOfDay: this.world.environment.timeOfDay,
+        xr: inXR ? xrSessionInfo(this.renderer) : this.desktop.pointerLocked ? 'desktop (mouse captured)' : 'desktop',
+        cpu: { sim: t1 - t0, views: t2 - t1, render: t3 - t2 },
+        gpuMs: this.gpuTimer.lastMs,
+        extra: vesselReadout(this.world.vessels[this.testVesselId], this.simDebug),
+      },
+      inXR,
+    );
+    this.keyboard.endFrame();
+  }
+
+  /** Fixed sim ticks (alone or hosting), or the host's snapshots (client); returns the render time. */
+  private stepSimulation(dt: number): number {
     let renderTime: number;
     const client = this.client?.status === 'connected' ? this.client : null;
     if (client) {
@@ -523,10 +517,11 @@ export class App {
         this.hydroViews.get(id)?.update(this.simDebug.get(id));
       }
     }
-    const t1 = performance.now();
+    return renderTime;
+  }
 
-    // 3. Views
-    this.renderWaves = prepareWaves(this.world.environment.waves, renderTime, this.renderWaves);
+  /** Us: carried gear, the desktop look, pointing and grabbing, walking, the laser; then the head. */
+  private updatePlayer(dt: number, inXR: boolean): void {
     this.syncRigToPlayer(dt);
     this.cargoHands.tick(this.cargoCtx(), dt);
     this.rescueHands.tick(this.rescueCtx(), dt);
@@ -545,11 +540,19 @@ export class App {
     this.syncRigToPlayer(0);
     this.updateLaser(dt);
     this.camera.getWorldPosition(this.focus);
+  }
+
+  /** Light, sky and sea around the head. */
+  private updateSurroundings(renderTime: number): void {
     this.environment.update(this.world.environment, this.focus, this.world.time);
     this.sky.update(this.environment, this.focus);
     this.ocean.update(this.renderWaves, this.focus, this.environment, renderTime);
     this.buoys.update(this.renderWaves);
     this.probes.update(this.renderWaves, this.camera);
+  }
+
+  /** The workboat's engine, horn and alarm sounds; her bridge, davits, tillers and wheelhouse. */
+  private updateOwnBoat(dt: number, nowMs: number): void {
     const testView = this.vesselViews.get(this.testVesselId);
     if (testView) {
       // Engine room sits roughly under the wheelhouse.
@@ -558,13 +561,13 @@ export class App {
       // In the wheelhouse the engine's quieter (more so with the door shut); full on deck.
       const ws = CONFIG.wheelhouseSound;
       const house = this.insideHouse ? (this.closed > 0 ? [ws.engineShut, ws.engineShutLp] : [ws.engineInside, ws.engineInsideLp]) : [1, 20000];
-      this.engineAudio.update(this.world.vessels[this.testVesselId], distance, submerged, house[0], house[1]);
+      this.sound.engine.update(this.world.vessels[this.testVesselId], distance, submerged, house[0], house[1]);
       const v = this.world.vessels[this.testVesselId];
-      this.horn.update(v.controls.horn > 0 && isPowered(v), distance); // electric horn
+      this.sound.horn.update(v.controls.horn > 0 && isPowered(v), distance); // electric horn
       // Bridge buzzer: high temperature always, low fuel while the engine runs.
       const al = engineAlarms(v, this.testDef);
       const consoleDist = this.bridge ? this.bridge.dashAnchor.getWorldPosition(this.tmpV).distanceTo(this.focus) : 99;
-      this.alarm.update(al.highTemp || (al.lowFuel && v.engine.phase === 'running'), consoleDist);
+      this.sound.alarm.update(al.highTemp || (al.lowFuel && v.engine.phase === 'running'), consoleDist);
     }
     // Bridge controls and displays read the (just-updated) vessel state.
     const testVessel = this.world.vessels[this.testVesselId];
@@ -592,13 +595,16 @@ export class App {
         if (!sv) continue;
         t.sync(sv);
         t.tick(dt);
-        this.motorAudio.update(sv.controls.obOn > 0 ? Math.sign(sv.controls.obGear) * sv.controls.lever : 0, sv.battery ?? 0, t.root.getWorldPosition(this.tmpV).distanceTo(this.focus));
+        this.sound.motor.update(sv.controls.obOn > 0 ? Math.sign(sv.controls.obGear) * sv.controls.lever : 0, sv.battery ?? 0, t.root.getWorldPosition(this.tmpV).distanceTo(this.focus));
       }
       this.bridge.chart.marks = CONFIG.chartMarks.showOnPlotter ? this.marks : null;
       this.bridge.chart.update(this.world, this.testVesselId, dt, this.dashInView());
       this.updateRadioSound();
     }
-    const darkness = Math.min(1, Math.max(0, (8 - sunElevation(this.world.environment.timeOfDay)) / 14));
+  }
+
+  /** Each boat's lights and spray (returns the workboat's slam and lap); the tow, logs, trawl, fire, wildlife. */
+  private updateBoatsAndJobs(dt: number, renderTime: number, darkness: number): { slam: number; lap: number } {
     let slam = 0;
     let lap = 0;
     for (const [id, fx] of this.effects) {
@@ -616,31 +622,41 @@ export class App {
       const tv = this.world.vessels[this.testVesselId];
       const burning = fj && fj.phase !== 'calling' ? fj.intensity : 0;
       const dist = fj ? Math.hypot(fj.x - this.focus.x, fj.z - this.focus.z) : 1e9;
-      this.fireAudio.update(burning, dist, !!tv && jetOn(tv), this.insideHouse ? this.closed : 0);
+      this.sound.fire.update(burning, dist, !!tv && jetOn(tv), this.insideHouse ? this.closed : 0);
       // The anchor chain over the bow roller and the windlass.
       const root = this.vesselRoots.get(this.testVesselId);
       const hawse = this.testDef.anchor && root ? root.localToWorld(this.tmpV.fromArray(this.testDef.anchor.hawse)).distanceTo(this.focus) : 1e9;
-      this.anchorAudio.update(tv?.anchor, hawse, this.insideHouse ? this.closed : 0, dt);
+      this.sound.anchor.update(tv?.anchor, hawse, this.insideHouse ? this.closed : 0, dt);
       // Gulls overhead; dolphins at the bow when she's under way in open, deep water.
       const wl = CONFIG.wildlife.dolphins;
       const open = !!tv && groundHeight(tv.position[0], tv.position[2]) < -wl.minDepth && nearestPort(tv.position[0], tv.position[2]).dist > wl.minPortDistance;
       const speed = tv ? Math.hypot(tv.linearVelocity[0], tv.linearVelocity[2]) : 0;
       this.wildlife.update(renderTime, root ?? null, speed, open, this.renderWaves, darkness, this.focus);
-      this.wildlifeAudio.update(this.wildlife.events, this.insideHouse ? this.closed : 0);
+      this.sound.wildlife.update(this.wildlife.events, this.insideHouse ? this.closed : 0);
     }
+    return { slam, lap };
+  }
+
+  /** Port lights, weather, the rescue's people and gear and their sounds. */
+  private updateSceneViews(dt: number, renderTime: number, darkness: number): void {
     this.worldView.lights.update(renderTime, darkness);
     this.targetsView.visibility = this.environment.visibility;
     this.updateWeatherViews(renderTime, darkness, dt);
     this.targetsView.update(this.world, this.renderWaves, this.focus, darkness, renderTime, dt, this.testVesselId, this.vesselRoots.get(this.testVesselId));
     this.gearView.update(this.world, this.testVesselId, this.vesselRoots.get(this.testVesselId), this.renderWaves, this.rescueHands, this.localPlayerId, this.avatarHands);
     this.updateRescueSounds();
+  }
+
+  /** The whiteboard and duty board, the chart table, what this browser keeps, the FM, the listener. */
+  private updateBoardsAndSaves(dt: number): void {
+    const testVessel = this.world.vessels[this.testVesselId];
     this.noteKeys.menu.refresh();
     if (this.board) {
       this.board.update(this.world);
       this.dutyBoard?.update(this.world, this.host ? `Game code ${this.host.code}` : '');
       // A duty ticked off: a small tick.
       const done = this.world.duties?.completed ?? 0;
-      if (this.dutiesDone >= 0 && done > this.dutiesDone) this.rescueSounds.snap();
+      if (this.dutiesDone >= 0 && done > this.dutiesDone) this.sound.rescue.snap();
       this.dutiesDone = done;
       // Host / solo: keep the notes in this browser, so they survive a reload.
       const b = this.world.board;
@@ -673,8 +689,12 @@ export class App {
       // Spatial sounds (the survivor's whistle) hear from the head.
       this.camera.getWorldDirection(this.listenerFwd);
       this.listenerUp.set(0, 1, 0).applyQuaternion(this.camera.getWorldQuaternion(this.attQ));
-      this.whistleAudio.setListener(this.focus, this.listenerFwd, this.listenerUp);
+      this.sound.whistle.setListener(this.focus, this.listenerFwd, this.listenerUp);
     }
+  }
+
+  /** Port floodlights, cargo, the desktop hand, our pose out and the crew's avatars in. */
+  private updateCrewViews(dt: number, inXR: boolean, darkness: number): void {
     this.worldView.portLighting.update(this.focus, darkness);
     this.ocean.setPortLight(this.worldView.portLighting.flood);
     const fxTest = this.effects.get(this.testVesselId);
@@ -685,10 +705,16 @@ export class App {
     this.desktopHand.update(this.camera, deskHand, dt);
     this.updateNetPose(dt);
     this.avatars.update(this.world, this.localPlayerId, this.vesselRoots, dt);
+  }
+
+  /** Hull contact and water past the hull: sound, and a jolt through the controllers aboard. */
+  private updateHullSounds(dt: number, slam: number, lap: number): void {
+    const testView = this.vesselViews.get(this.testVesselId);
+    const testVessel = this.world.vessels[this.testVesselId];
     if (testView && testVessel) {
       // Hull contact: thump and scrape, and a jolt through both controllers if you're aboard.
       const d = testView.root.position.distanceTo(this.focus);
-      const hit = this.contactAudio.update(testVessel.contact, d, dt);
+      const hit = this.sound.contact.update(testVessel.contact, d, dt);
       const aboard = this.world.players[this.localPlayerId].aboardVesselId === testVessel.id;
       if (hit > 0 && aboard) {
         this.xrInput.pulse('left', 0.3 + 0.7 * hit, 60 + 140 * hit);
@@ -700,39 +726,12 @@ export class App {
       const washBoat = inSkiff && inSkiff.id !== this.testVesselId && !onDavit(inSkiff) ? inSkiff : testVessel;
       const washD = washBoat === testVessel ? d : (this.vesselRoots.get(washBoat.id)?.position.distanceTo(this.focus) ?? d);
       const muffle = this.insideHouse ? this.closed * CONFIG.wheelhouseSound.washMuffle : 0;
-      this.waterAudio.update(Math.hypot(washBoat.linearVelocity[0], washBoat.linearVelocity[2]), washBoat === testVessel ? slam : 0, washBoat === testVessel ? lap : 0, washD, dt, muffle);
+      this.sound.water.update(Math.hypot(washBoat.linearVelocity[0], washBoat.linearVelocity[2]), washBoat === testVessel ? slam : 0, washBoat === testVessel ? lap : 0, washD, dt, muffle);
       if (slam > 0.1 && aboard) {
         this.xrInput.pulse('left', 0.15 + 0.35 * slam, 40 + 60 * slam);
         this.xrInput.pulse('right', 0.15 + 0.35 * slam, 40 + 60 * slam);
       }
     }
-    this.menu.refresh();
-    this.host?.tick(dt);
-    const t2 = performance.now();
-
-    // 4. Render
-    this.renderer.info.reset();
-    this.gpuTimer.begin();
-    if (inXR) this.binoculars.renderScope(this.renderer, this.scene);
-    this.renderer.render(this.scene, this.camera);
-    this.gpuTimer.end();
-    const t3 = performance.now();
-
-    this.overlay.frame(
-      frameMs,
-      {
-        drawCalls: this.renderer.info.render.calls,
-        triangles: this.renderer.info.render.triangles,
-        tick: this.world.tick,
-        timeOfDay: this.world.environment.timeOfDay,
-        xr: inXR ? xrSessionInfo(this.renderer) : this.desktop.pointerLocked ? 'desktop (mouse captured)' : 'desktop',
-        cpu: { sim: t1 - t0, views: t2 - t1, render: t3 - t2 },
-        gpuMs: this.gpuTimer.lastMs,
-        extra: vesselReadout(testVessel, this.simDebug),
-      },
-      inXR,
-    );
-    this.keyboard.endFrame();
   }
 
   /**
@@ -909,7 +908,7 @@ export class App {
     if (!r || !this.bridge) return;
     const id = r.radio?.id ?? 0;
     const alertT = r.active?.phase === 'calling' ? r.active.alertT : Math.max(towAlertT(this.world), fireAlertT(this.world));
-    this.radioAudio.setDistance(this.bridge.radio.root.getWorldPosition(this.tmpV).distanceTo(this.focus));
+    this.sound.radio.setDistance(this.bridge.radio.root.getWorldPosition(this.tmpV).distanceTo(this.focus));
     if (!this.radioSeen) {
       this.radioSeen = { id, alertT };
       return;
@@ -921,10 +920,10 @@ export class App {
       return;
     }
     if (id !== this.radioSeen.id && r.radio) {
-      this.radioAudio.message(r.radio.kind, r.radio.text);
+      this.sound.radio.message(r.radio.kind, r.radio.text);
       this.overlay.notify(`VHF: ${r.radio.text}`, 8);
     } else if (alertT !== this.radioSeen.alertT && alertT >= 0) {
-      this.radioAudio.alert();
+      this.sound.radio.alert();
     }
     this.radioSeen = { id, alertT };
   }
@@ -987,7 +986,7 @@ export class App {
       if (ev === 'landedDeck' || ev === 'landedLand') pulseBoth(0.5, 50);
       if (ev === 'splash') {
         pulseBoth(0.7, 120);
-        this.waterAudio.splash(1);
+        this.sound.water.splash(1);
         this.cargoHands.dropInSea(this.cargoCtx());
         this.rescueHands.dropAll(this.rescueCtx());
       }
@@ -1349,8 +1348,8 @@ export class App {
       setVolume: (id, v) => mixer.set(id as Bus, v),
       resetVolumes: () => mixer.reset(),
       voiceTest: () => {
-        this.radioAudio.crackle(0.3);
-        this.radioAudio.speak('Radio check. One, two, three. How do you read?', 0.3);
+        this.sound.radio.crackle(0.3);
+        this.sound.radio.speak('Radio check. One, two, three. How do you read?', 0.3);
         setTimeout(() => {
           const n = speechVoices();
           const speech = n < 0 ? 'no speech synthesis' : `${n} speech voices`;
@@ -1371,8 +1370,8 @@ export class App {
       towNear: (kind) => this.pushVesselIntent('towDebugNear', 1, kind),
       towCall: () => this.pushVesselIntent('towDebugCall', 1),
       logNear: () => this.pushEnvIntent('salvageDebugNear', 1),
-      ...this.careerMenu(),
-      ...this.sessionMenu(),
+      ...this.career.menu(),
+      ...this.crewMenu(),
       goFishing: () => {
         // Teleport (with the boat) to the nearest fishing ground's edge, like the port Go buttons.
         const v = this.world.vessels[this.testVesselId];
@@ -1507,7 +1506,7 @@ export class App {
       left: hand('left'),
       right: hand('right'),
       tool: this.chartTools?.heldTool() ?? null,
-      laser: this.laserPose(),
+      laser: this.laser.pose(this.invFrame),
     };
     if (this.host) {
       p.name = pose.name;
@@ -1558,83 +1557,9 @@ export class App {
     this.connectClient(new PeerClientTransport(this.joinCode));
   }
 
-  /**
-   * Put a saved career in play (host / solo): the slot's career, or a new one (with the
-   * first voyage) if it's empty; her damage and wear as they were left.
-   */
-  private loadCareerSlot(n: number): void {
-    let c: CareerState | null = null;
-    try {
-      c = parseCareer(localStorage.getItem(slotKey(n)));
-    } catch {
-      c = null;
-    }
-    if (!c) {
-      c = createCareer();
-      c.tutorial = { step: 0, base: 0, said: false };
-    }
-    this.world.career = c;
-    this.careerSaved = -1;
-    this.ledgerSeen = null;
-    const wb = this.world.vessels[this.testVesselId];
-    if (wb && wb.damage !== undefined) {
-      wb.damage = c.boat?.damage ?? 0;
-      if (wb.engine.wear !== undefined) wb.engine.wear = c.boat?.wear ?? 0;
-    }
-  }
-
-  /** A slot's one-line summary for the menu. */
-  private slotSummary(n: number): string {
-    let c: CareerState | null = null;
-    try {
-      c = parseCareer(localStorage.getItem(slotKey(n)));
-    } catch {
-      c = null;
-    }
-    if (n === this.careerSlot && this.world.career) c = this.world.career;
-    return c ? `${n}: ${money(c.money)}` : `${n}: empty`;
-  }
-
-  /** The career's slots and the crew, for the menu (host / solo; a crew-mate plays the host's career). */
-  private sessionMenu() {
-    const own = () => !this.client;
+  /** The crew, for the menu. */
+  private crewMenu() {
     return {
-      careerSlot: () => this.careerSlot,
-      slotText: (n: number) => (own() ? this.slotSummary(n) : ''),
-      switchSlot: (n: number) => {
-        if (!own() || n === this.careerSlot) return;
-        const c = this.world.career;
-        try {
-          if (c) localStorage.setItem(slotKey(this.careerSlot), serializeCareer(c));
-          localStorage.setItem(SLOT_KEY, String(n));
-        } catch {
-          // Not saved.
-        }
-        this.careerSlot = n;
-        this.loadCareerSlot(n);
-        this.overlay.notify(`Career slot ${n}: ${this.slotSummary(n)}`, 3);
-      },
-      newCareer: () => {
-        if (!own()) return;
-        const now = performance.now();
-        if (now - this.newCareerArmed > 4000) {
-          this.newCareerArmed = now;
-          this.overlay.notify(`Press again to start a new career in slot ${this.careerSlot} (the old one is lost)`, 4);
-          return;
-        }
-        this.newCareerArmed = -1e9;
-        try {
-          localStorage.removeItem(slotKey(this.careerSlot));
-        } catch {
-          // Nothing saved.
-        }
-        this.loadCareerSlot(this.careerSlot);
-        this.overlay.notify('New career: the harbour master will talk you through your first voyage', 4);
-      },
-      newCareerText: () => (own() ? (performance.now() - this.newCareerArmed < 4000 ? 'Press again to confirm' : 'New career in this slot') : 'Playing the host\'s career'),
-      tutorialText: () => tutorialLine(this.world) ?? 'First voyage: done',
-      tutorialSkip: () => this.pushEnvIntent('tutorialSkip', 1),
-      tutorialRestart: () => this.pushEnvIntent('tutorialRestart', 1),
       crewList: () => {
         const names = Object.values(this.world.players).map((p) => (p.id === this.localPlayerId ? `${p.name} (you)` : p.name));
         return names.length > 1 ? `Aboard: ${names.join(', ')}` : 'Just you';
@@ -1787,14 +1712,7 @@ export class App {
       if (!this.client) this.world.log ??= parseLog(localStorage.getItem(LOG_KEY)) ?? undefined;
       // The career (money, reputation, upgrades, her condition) carries on from the last
       // session here, in the slot last used. A first career starts with the first voyage.
-      if (!this.client) {
-        const n = Number(localStorage.getItem(SLOT_KEY));
-        this.careerSlot = n >= 1 && n <= CAREER_SLOTS ? n : 1;
-        // Saved before there were slots: that's slot 1.
-        const old = localStorage.getItem(CAREER_KEY);
-        if (old && !localStorage.getItem(slotKey(1))) localStorage.setItem(slotKey(1), old);
-        this.loadCareerSlot(this.careerSlot);
-      }
+      if (!this.client) this.career.restore();
       this.joinCode = localStorage.getItem(LAST_CODE_KEY) ?? '';
       if (!this.client) this.marks = parseMarks(localStorage.getItem(CHART_KEY)) ?? this.marks;
       this.world.board ??= parseBoard(localStorage.getItem(BOARD_KEY)) ?? undefined;
@@ -1907,86 +1825,19 @@ export class App {
   }
 
   /**
-   * The laser pointer: while the right stick is held in (VR) or the right mouse button is
-   * held (desktop), a beam from the hand or the eyes to whatever it meets - a boat, the
-   * islands and quays, cargo, the platform, or the sea. What it hits is looked up a few
-   * times a second (the beam itself follows the hand every frame); the hit point is kept
-   * in the frame of what it hit, so on a boat it rides along.
+   * The laser pointer (laserPointer.ts): while the right stick is held in (VR) or the right
+   * mouse button is held (desktop). Desktop: aimed from the eyes, drawn from a "hand" down
+   * and to the right of them.
    */
   private updateLaser(dt: number): void {
     const inXR = this.renderer.xr.isPresenting;
     const on = inXR ? this.xrInput.isDown('right', XR_BUTTON.stick) && this.hands.right.tracked : !!this.pointer?.laserDown;
-    if (!on) {
-      this.laser.hide();
-      this.laserHit = null;
-      this.laserT = 0; // look up at once when pressed again
-      return;
-    }
-    const ray = inXR ? this.hands.right.ray : new THREE.Ray(this.camera.getWorldPosition(new THREE.Vector3()), this.camera.getWorldDirection(new THREE.Vector3()));
-    // The hit is looked up a few times a second (also while it hits nothing: a whole-scene
-    // raycast every frame, aimed at the sky, stalls a desktop machine).
-    this.laserT -= dt;
-    if (this.laserT <= 0) {
-      this.laserT = 1 / CONFIG.laser.hitRate;
-      this.findLaserHit(ray);
-    }
-    // Desktop: the beam starts at a "hand" down and to the right of the eyes, so it's seen
-    // from the side as a line, not end-on as a dot.
-    this.laserFrom.copy(ray.origin);
-    if (!inXR) this.laserFrom.copy(this.tmpV.fromArray(CONFIG.laser.deskHand)).applyMatrix4(this.camera.matrixWorld);
-    const hit = !!this.laserHit;
-    if (hit) this.laserTo.copy(this.laserHit!).applyMatrix4(this.laserFrame?.matrixWorld ?? new THREE.Matrix4());
-    else ray.at(CONFIG.laser.reach * 0.2, this.laserTo);
-    // Aim follows the hand every frame; the hit distance comes from the last lookup.
-    if (hit) ray.at(this.laserTo.distanceTo(ray.origin), this.laserTo);
-    this.laser.set(this.laserFrom, this.laserTo, hit);
-  }
-
-  private findLaserHit(ray: THREE.Ray): void {
-    const reach = CONFIG.laser.reach;
-    this.laserCaster.set(ray.origin, ray.direction);
-    this.laserCaster.far = reach;
-    const targets = [...this.vesselRoots.values(), this.worldView.root, this.cargoView.root, this.platform, this.trafficView.root];
-    const skip = (o: THREE.Object3D | null): boolean => {
-      for (; o; o = o.parent) if (!o.visible || o === this.rig.carrier || o === this.menu.root || SEE_THROUGH.has(o.name) || o.name.startsWith('avatar:')) return true;
-      return false;
-    };
-    const hit = this.laserCaster.intersectObjects(targets, true).find((h) => (h.object as THREE.Mesh).isMesh && !skip(h.object));
-    // The sea: march along the ray to where it drops below the surface.
-    let sea: THREE.Vector3 | null = null;
-    if (ray.direction.y < -1e-3) {
-      let t = (0 - ray.origin.y) / ray.direction.y;
-      const p = new THREE.Vector3();
-      for (let i = 0; i < 4 && t > 0; i++) {
-        ray.at(t, p);
-        const dy = p.y - surfaceHeight(this.renderWaves, p.x, p.z);
-        t += dy / -ray.direction.y;
-      }
-      if (t > 0 && t < reach) sea = ray.at(t, new THREE.Vector3());
-    }
-    this.laserHit = null;
-    this.laserFrame = null;
-    if (hit && (!sea || hit.distance <= sea.distanceTo(ray.origin))) {
-      const point = hit.point.clone();
-      for (const root of this.vesselRoots.values()) {
-        let o: THREE.Object3D | null = hit.object;
-        while (o && o !== root) o = o.parent;
-        if (o === root) {
-          this.laserFrame = root;
-          root.worldToLocal(point);
-        }
-      }
-      this.laserHit = point;
-    } else if (sea) this.laserHit = sea;
-  }
-
-  /** Our laser beam for the pose (frame coordinates), or null. */
-  private laserPose(): [number, number, number, number, number, number, boolean] | null {
-    if (!this.laser.root.visible) return null;
-    const r = (x: number) => Math.round(x * 100) / 100;
-    const a = this.laserFrom.clone().applyMatrix4(this.invFrame);
-    const b = this.laserTo.clone().applyMatrix4(this.invFrame);
-    return [r(a.x), r(a.y), r(a.z), r(b.x), r(b.y), r(b.z), !!this.laserHit];
+    if (!on) return this.laser.off();
+    if (inXR) return this.laser.update(dt, this.hands.right.ray);
+    const ray = this.laserRay;
+    this.camera.getWorldPosition(ray.origin);
+    this.camera.getWorldDirection(ray.direction);
+    this.laser.update(dt, ray, this.tmpV.fromArray(CONFIG.laser.deskHand).applyMatrix4(this.camera.matrixWorld));
   }
 
   /** Desktop cargo: label under the reticle, and clicks (see DesktopPointer). */
@@ -2054,22 +1905,7 @@ export class App {
         // Not saved.
       }
     }
-    const career = this.world.career;
-    if (career && !this.client && career.seq !== this.careerSaved) {
-      this.careerSaved = career.seq;
-      try {
-        localStorage.setItem(slotKey(this.careerSlot), serializeCareer(career));
-      } catch {
-        // Not saved.
-      }
-    }
-    // Money in or out: a short pop-up (desktop; the duty board shows it in VR).
-    const top = career?.ledger[0];
-    const key = top ? `${top.clock}|${top.text}|${top.amount}|${career!.money}` : null;
-    if (key !== this.ledgerSeen) {
-      if (this.ledgerSeen !== null && top) this.overlay.notify(`${top.amount >= 0 ? '+' : ''}${money(top.amount)}  ${top.text}  ·  ${money(career!.money)}`, 3);
-      this.ledgerSeen = key;
-    }
+    this.career.tick();
     const log = this.world.log;
     if (log && !this.client && log.seq !== this.logSaved) {
       this.logSaved = log.seq;
@@ -2096,7 +1932,7 @@ export class App {
       send: (op) => this.sendChartOp(op),
       pulse: (h, i, ms) => this.xrInput.pulse(h, i, ms),
       notify: (text) => this.overlay.notify(text, 2.5),
-      scratch: (p, r) => this.paperAudio.setScratch(p, r),
+      scratch: (p, r) => this.sound.paper.setScratch(p, r),
     };
   }
 
@@ -2116,7 +1952,7 @@ export class App {
       pulse: (h, i, ms) => this.xrInput.pulse(h, i, ms),
       canRead: () => this.canReadLog(),
       notify: (text) => this.overlay.notify(text, 3),
-      sound: (kind) => this.paperAudio.play(kind),
+      sound: (kind) => this.sound.paper.play(kind),
     };
   }
 
@@ -2197,11 +2033,11 @@ export class App {
       );
     }
     if (now.cheer > was.cheer) {
-      this.rescueSounds.cheer();
+      this.sound.rescue.cheer();
       this.overlay.notify(r?.active?.phase === 'landed' ? 'Safely ashore. Rescue complete!' : 'Recovered! Everyone out of the water.', 4);
     }
     if (now.shout !== was.shout && r?.shout) {
-      this.rescueSounds.shout(r.shout.text);
+      this.sound.rescue.shout(r.shout.text);
       this.overlay.notify(`"${r.shout.text}"`, 4);
     }
   }
@@ -2240,7 +2076,7 @@ export class App {
       this.bridge.door.tick(dt);
       this.closed = this.bridge.door.shut ? 1 : 0;
     }
-    this.windAudio.update(Math.hypot(ax, az), inside, dt, this.closed);
+    this.sound.wind.update(Math.hypot(ax, az), inside, dt, this.closed);
   }
 
   /**
@@ -2268,18 +2104,18 @@ export class App {
     this.autoRainQuality(rain, dt);
     this.rain.update(rain, time, this.focus, this.windV, house, light);
     if (this.bridge && v) this.bridge.rainGlass.update(rain, v.controls.wipers > 0 && isPowered(v, 'instruments'), light, dt);
-    this.windAudio.setRain(rain, this.insideHouse, this.closed);
+    this.sound.wind.setRain(rain, this.insideHouse, this.closed);
     // Thunder: the flash is drawn by the environment view; the sound follows by distance.
     const L = w?.lightning;
     if (L) {
-      if (this.lightningSeen >= 0 && L.seq !== this.lightningSeen) this.windAudio.thunder(L.dist);
+      if (this.lightningSeen >= 0 && L.seq !== this.lightningSeen) this.sound.wind.thunder(L.dist);
       this.lightningSeen = L.seq;
     }
     // A new forecast received: the VHF reads it out (only if it's on - it was received).
     const fc = this.world.forecast;
     const fseq = fc?.seq ?? 0;
     if (this.forecastSeen >= 0 && fseq !== this.forecastSeen && fc && v && isPowered(v, 'radio')) {
-      this.radioAudio.message('info', `Shipping forecast. ${fc.text}`);
+      this.sound.radio.message('info', `Shipping forecast. ${fc.text}`);
       this.overlay.notify(`VHF shipping forecast: ${fc.text}`, 10);
     }
     this.forecastSeen = fseq;
@@ -2348,7 +2184,7 @@ export class App {
     if (this.hornSeen >= 0 && t.hornSeq !== this.hornSeen && t.hornFrom) {
       const pos = this.trafficView.shipPosition(t.hornFrom);
       const type = this.trafficView.shipType(t.hornFrom);
-      if (pos && type) this.shipHorn.blow(pos, type === 'cargo' ? 105 : type === 'fishing' ? 165 : 290, pos.distanceTo(this.focus));
+      if (pos && type) this.sound.shipHorn.blow(pos, type === 'cargo' ? 105 : type === 'fishing' ? 165 : 290, pos.distanceTo(this.focus));
     }
     this.hornSeen = t.hornSeq;
     if (!v) return;
@@ -2389,7 +2225,7 @@ export class App {
       const clock = Math.round((rel / (Math.PI * 2)) * 12) || 12;
       const what = t.kind === 'person' ? 'Person in the water' : 'Crate in the water';
       this.overlay.notify(`Lookout: ${what}, ${clock} o'clock, ${Math.round(d / 10) * 10} m!`, 5);
-      this.rescueSounds.snap();
+      this.sound.rescue.snap();
     }
   }
 
@@ -2472,7 +2308,7 @@ export class App {
       push: (control, targetId, ref, value, args) => this.intents.push({ playerId: this.localPlayerId, targetId, control, value, ref, args }),
       notify: (text) => this.overlay.notify(text, 2.5),
       pulse: (h, i, ms) => this.xrInput.pulse(h, i, ms),
-      placedOnDeck: () => this.rescueSounds.snap(),
+      placedOnDeck: () => this.sound.rescue.snap(),
     };
   }
 
@@ -2505,70 +2341,4 @@ export class App {
     this.intents.push({ playerId: this.localPlayerId, targetId: ENVIRONMENT_ID, control, value, ...(ref !== undefined ? { ref } : {}) });
   }
 
-  /** The harbour office's offers where she lies (none at sea). */
-  private officeOffers(): Contract[] {
-    const here = officeAt(this.world);
-    return here ? (this.world.career?.offers ?? []).filter((o) => o.port === here) : [];
-  }
-
-  /** The career's part of the menu (the Office tab). */
-  private careerMenu() {
-    const c = () => this.world.career;
-    return {
-      balance: () => (c() ? `${money(c()!.money)}  ·  ${c()!.contractsDone} contracts done  ·  ${c()!.upgrades.length} upgrades` : '-'),
-      reputation: () => PORTS.map((p) => `${p.name.replace(' (anchorage)', '').split(' ')[0]} ${repOf(c(), p.id)}`).join('  ·  '),
-      ledgerLine: (i: number) => {
-        const e = c()?.ledger[i];
-        return e ? `${e.clock}  ${e.amount >= 0 ? '+' : ''}${money(e.amount)}  ${e.text}` : '';
-      },
-      officeName: () => {
-        const here = officeAt(this.world);
-        return here ? `${portName(here)} harbour office` : 'At sea: come alongside a port (or anchor in its bay) to see its board';
-      },
-      offerText: (i: number) => {
-        const k = this.officeOffers()[i];
-        return k ? `${contractText(k)} · +${money(k.bonus)} · ${Math.round(k.allowed / 60)} min${k.minRep ? ` · rep ${k.minRep}` : ''}` : '';
-      },
-      offerBlocker: (i: number) => {
-        const k = this.officeOffers()[i];
-        return k ? (acceptBlocker(this.world, k) ?? '') : '';
-      },
-      acceptOffer: (i: number) => {
-        const k = this.officeOffers()[i];
-        if (k && !acceptBlocker(this.world, k)) this.pushEnvIntent('careerAccept', 1, k.id);
-      },
-      contractText: () => {
-        const k = c()?.active;
-        if (!k) return 'None: take one from a harbour office job board';
-        const left = Math.max(0, Math.round(((k.due ?? 0) - this.world.time) / 60));
-        return `${contractText(k)}: ${k.done}/${k.count}, ${left} min left, +${money(k.bonus)}`;
-      },
-      abandonContract: () => this.pushEnvIntent('careerAbandon', 1),
-      upgradeText: (i: number) => {
-        const u = CONFIG.career.upgrades[i];
-        return u ? `${u.name} (${money(u.price)}): ${u.desc}` : '';
-      },
-      upgradeStatus: (i: number) => {
-        const u = CONFIG.career.upgrades[i];
-        return u ? (buyBlocker(this.world, u.id) ?? '') : '';
-      },
-      buyUpgrade: (i: number) => {
-        const u = CONFIG.career.upgrades[i];
-        if (u && !buyBlocker(this.world, u.id)) this.pushEnvIntent('careerBuy', 1, u.id);
-      },
-      debugCash: () => this.pushEnvIntent('careerDebugCash', 1),
-      repairText: (i: number) => {
-        const v = this.world.vessels[this.testVesselId];
-        const what = i === 0 ? 'hull' : 'engine';
-        const pct = Math.round(((i === 0 ? v?.damage : v?.engine.wear) ?? 0) * 100);
-        return `${i === 0 ? 'Hull' : 'Engine'}: ${pct ? `${pct} % ${i === 0 ? 'damaged' : 'worn'} · ${money(repairCost(this.world, what))}` : i === 0 ? 'sound' : 'in good order'}`;
-      },
-      repairStatus: (i: number) => repairBlocker(this.world, i === 0 ? 'hull' : 'engine') ?? '',
-      repair: (i: number) => {
-        const what = i === 0 ? 'hull' : 'engine';
-        if (!repairBlocker(this.world, what)) this.pushEnvIntent('careerRepair', 1, what);
-      },
-      debugDamage: () => this.pushEnvIntent('careerDebugDamage', 1),
-    };
-  }
 }

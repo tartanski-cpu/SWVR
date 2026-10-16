@@ -480,7 +480,10 @@ There's a built-in "sea-trials lab". It covers hydrostatics, the GZ curve, an in
 ```
 src/
   config.ts        every tunable number (waves, mass, thrust, drag, comfort, perf)
-  app/             top-level wiring: renderer, frame loop, XR session setup, desktop mouse, test scene
+  app/             top-level wiring: App.ts (renderer, frame loop in named phases, XR session setup,
+                   desktop mouse, test scene); careerSession.ts (career save slots, saving, menu parts);
+                   laserPointer.ts; soundBoard.ts (every sound system, unlocked on the first gesture);
+                   interiorDetail.ts (hides small wheelhouse parts from outside)
   core/            fixed-step loop, ids, intents, WorldState, Simulation.step, math, keyboard
   environment/     time of day + sea state; sun direction, sky/fog/light palette; sky dome
   player/          player state, rig (moving-frame parenting), desktop controller, XR input
