@@ -24,6 +24,12 @@ uniform vec3 uSpotPos;
 uniform vec3 uSpotDir;
 uniform vec2 uSpotCos;          // cos(outer), cos(inner) half-angles
 uniform vec3 uSpotColor;        // colour x strength (0 when off)
+// Your hand torch (player/handGear.ts): its own pool, so it lights the water whatever the
+// searchlight is doing. Closer and narrower; it falls off faster.
+uniform vec3 uTorchPos;
+uniform vec3 uTorchDir;
+uniform vec2 uTorchCos;
+uniform vec3 uTorchColor;       // 0 when off
 uniform vec3 uFogColor;
 uniform float uFogNear;
 uniform float uFogFar;
@@ -99,6 +105,15 @@ void main() {
     float satten = cone / (1.0 + (ds / 45.0) * (ds / 45.0));
     float sglint = pow(max(dot(n, normalize(sdir + v)), 0.0), 50.0);
     col += uSpotColor * satten * (0.5 * max(dot(n, sdir), 0.0) + sglint * 1.5);
+  }
+  if (dot(uTorchColor, uTorchColor) > 0.0) {
+    vec3 toT = uTorchPos - vWorldPos;
+    float dt = length(toT);
+    vec3 tdir = toT / max(dt, 0.001);
+    float tcone = smoothstep(uTorchCos.x, uTorchCos.y, dot(-tdir, uTorchDir));
+    float tatten = tcone / (1.0 + (dt / 18.0) * (dt / 18.0));
+    float tglint = pow(max(dot(n, normalize(tdir + v)), 0.0), 50.0);
+    col += uTorchColor * tatten * (0.6 * max(dot(n, tdir), 0.0) + tglint * 1.5);
   }
 
   float fogF = clamp((dist - uFogNear) / (uFogFar - uFogNear), 0.0, 1.0);

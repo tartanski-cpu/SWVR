@@ -1,6 +1,6 @@
 {
   "id": "vessel.starter-workboat",
-  "version": 8,
+  "version": 9,
   "name": "Workboat",
   "hull": "hull.workboat-12m",
   "modules": [
@@ -67,6 +67,8 @@
     { "socket": "doorOut", "module": "control.door-button" },
     { "socket": "sideDoorIn", "module": "control.door-button", "config": { "label": "Side door: open / shut" }, "bind": { "door": "door.side.open" } },
     { "socket": "sideDoorOut", "module": "control.door-button", "config": { "label": "Side door: open / shut" }, "bind": { "door": "door.side.open" } },
+    { "socket": "sideGateIn", "module": "control.door-button", "config": { "label": "Deck gate: open / shut" }, "bind": { "door": "gate.side.open" } },
+    { "socket": "sideGateOut", "module": "control.door-button", "config": { "label": "Deck gate: open / shut" }, "bind": { "door": "gate.side.open" } },
     { "socket": "engineHatch", "module": "fitting.hatch-cover", "config": { "engrave": "ENGINE" }, "bind": { "open": "hatch.engine.open" } },
     { "socket": "dipstick", "module": "tool.dipstick" },
     { "socket": "oilCan", "module": "tool.oil-can" },
@@ -82,6 +84,8 @@
     { "socket": "cleatFwdStbd", "module": "deck.cleat", "config": { "end": "bow", "side": 1 } },
     { "socket": "cleatAftPort", "module": "deck.cleat", "config": { "end": "stern", "side": -1 } },
     { "socket": "cleatAftStbd", "module": "deck.cleat", "config": { "end": "stern", "side": 1 } },
+    { "socket": "cleatMidPort", "module": "deck.cleat", "config": { "end": "midship", "side": -1 } },
+    { "socket": "cleatMidStbd", "module": "deck.cleat", "config": { "end": "midship", "side": 1 } },
     { "socket": "fenders", "module": "deck.fenders" },
     { "socket": "swimLadder", "module": "deck.swim-ladder" },
     { "socket": "lifeRing", "module": "rescue.life-ring-station" },

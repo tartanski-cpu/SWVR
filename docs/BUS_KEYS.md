@@ -225,6 +225,12 @@ Every value on a boat's bus (modular boats; `src/modular/busKeys.ts`). Generated
 | `door.aft.open` | on / off | player sets | legacy | `door` | The wheelhouse aft door open (starts open). |
 | `door.side.open` | on / off | player sets | legacy | `sideDoor` | The wheelhouse port side door open (starts shut). |
 
+## gate
+
+| Key | Values | Use | Written by | Old names | What it is |
+|---|---|---|---|---|---|
+| `gate.side.open` | on / off | player sets | legacy | `sideGate` | The gate in the working-deck bulwark open (starts shut). |
+
 ## hatch
 
 | Key | Values | Use | Written by | Old names | What it is |

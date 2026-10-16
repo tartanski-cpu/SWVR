@@ -1,10 +1,11 @@
 /**
- * Drawing the traffic: passing ships, floating debris and the hazard buoys. Cheap:
+ * Drawing the traffic: passing ships and floating debris (the hazard buoys are
+ * world/view/navMarksView.ts). Cheap:
  *   - each ship type is ONE merged, vertex-coloured mesh (hull, superstructure, cargo,
  *     mast), built once and shared; its navigation lights are a few points (fixed pixel
  *     size, so they read far off) shown only in the dark;
  *   - ships bob, pitch and roll from three wave samples (big ships less);
- *   - debris and buoys share one small mesh each (the buoys instanced).
+ *   - debris share one small mesh.
  * Positions follow the shared state smoothly (they move on between snapshots).
  */
 import * as THREE from 'three';
@@ -87,10 +88,7 @@ export class TrafficView {
   private readonly ships = new Map<string, ShipMarker>();
   private readonly debris = new Map<string, THREE.Mesh>();
   private readonly debrisGeo: THREE.BufferGeometry;
-  private readonly buoys: THREE.InstancedMesh;
-  private readonly q = new THREE.Quaternion();
   private readonly e = new THREE.Euler(0, 0, 0, 'YXZ');
-  private readonly m = new THREE.Matrix4();
 
   constructor() {
     this.root.name = 'traffic';
@@ -100,14 +98,6 @@ export class TrafficView {
       part(new THREE.BoxGeometry(2.4, 0.25, 0.35).rotateY(0.7).translate(0.4, 0.1, 0.6), 0x7a5a40),
       part(new THREE.CylinderGeometry(0.35, 0.35, 0.9, 8).rotateZ(Math.PI / 2).translate(-0.6, 0.15, -0.7), 0x2a5a8a),
     ]);
-    // Hazard buoys: pillar buoys, instanced, tinted per instance.
-    const bgeo = mergeParts([part(new THREE.CylinderGeometry(0.7, 0.9, 1.6, 8).translate(0, 0.2, 0), 0xffffff), part(new THREE.CylinderGeometry(0.25, 0.4, 2.4, 6).translate(0, 2.2, 0), 0xffffff), part(new THREE.ConeGeometry(0.45, 0.8, 6).translate(0, 3.8, 0), 0x202020)]);
-    const list = CONFIG.traffic.buoys;
-    this.buoys = new THREE.InstancedMesh(bgeo, flatVertexColorMaterial(), list.length);
-    list.forEach((b, i) => this.buoys.setColorAt(i, new THREE.Color(b.color)));
-    this.buoys.frustumCulled = false;
-    this.buoys.name = 'hazardBuoys';
-    this.root.add(this.buoys);
   }
 
   private typeGeo(type: ShipType) {
@@ -186,12 +176,6 @@ export class TrafficView {
       mesh.removeFromParent();
       this.debris.delete(id);
     }
-    CONFIG.traffic.buoys.forEach((b, i) => {
-      const y = surfaceHeight(waves, b.x, b.z);
-      this.m.compose(new THREE.Vector3(b.x, y - 0.3, b.z), this.q.identity(), new THREE.Vector3(1, 1, 1));
-      this.buoys.setMatrixAt(i, this.m);
-    });
-    this.buoys.instanceMatrix.needsUpdate = true;
   }
 
   /** Where a ship is drawn (for its horn), or null. */

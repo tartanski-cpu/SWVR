@@ -1549,6 +1549,118 @@ How to come back to it:
 
 ### Fixes after V1.0 (on the dev branch; not in the `V1.0` tag)
 
+- **Lobster and crab potting, milestone 2 of 5: chart marking, soak, the ready cue, storm drift** (owner: keep it on the main game behind the setting).
+  - **Soak in play time, not the game's clock:** the time of day stands still by default (`environment.timeScale` 0), so "one in-game day" would never pass. Soak is world time from when the pot reaches the bottom (`potting.ts soakOf`): ready after `potting.soakReady` (1200 s, 20 min), improving to `soakBest` (2400 s), then flat (`soakFactor`, for milestone 3's catch). Tunable.
+  - **Ready cue** (`potView.ts`): the flag is red (`flagSoaking`) while soaking and green (`flagReady`) when ready, and a small light blinks on the pole top at night on a ready buoy. Both show only within `cueRange` (45 m); further off the flag is a dull grey.
+  - **Storm drift** (`stepPotting`): in wind over `dragFrom` (11 m/s) a pot drags downwind at `dragRate` (0.004 m/s per m/s over). A squall's 17 m/s is about 1.5 m a minute. It stops where the water's under 1.5 m, and its ground id follows it.
+  - **A local on the VHF** (`stepPotting`): every `tipEvery` (15-25 min, the first after `tipFirst` 4 min once potting is on), a potter (one of a few original boat names) says there's good crab or lobster off one of the grounds.
+  - **Grounds on the chartplotter** (`chartPlotter.ts`): hatched orange rings named "(pots)" while potting is on. Casual mode `potting.showOnPlotter` (default off) also shows your pots as dots; the debug **On plotter** toggles it.
+  - **Pot markers on the paper chart** (`chart/chartTools.ts`, `chart/marks.ts`):
+    - A tray of little red crab magnets sits by the pen holder. A marker shows a small number: the next free one when taken from the tray.
+    - **VR:** grip the tray to take one. Grip a marker on the chart to move it. Let it go over the chart and it snaps on; off the chart, it comes off.
+    - **Desktop:** click the tray, click the chart to put it down, click a marker to lift it, click the tray to put it back. The click that takes or places a marker never starts a pencil stroke.
+    - Markers are a new part of the shared chart marks: `ChartMarks.tokens`, with ops `token` (put or move) and `untoken`, at most `MAX_TOKENS` (40). They're relayed and joined like the pencil marks and saved with them in the browser. The eraser's clear-all leaves them: they're magnets.
+  - **Debug** (Missions → Potting): Ready (`potDebugReady`), On plotter.
+  - **Tests** (`tests/potting.test.ts`): ready after the soak, the catch factor capped at the best soak, debug ready; dragged downwind in a squall (about the expected distance) but not in a breeze; the local's tip names a ground.
+  - **Not yet:** hauling and the catch (milestone 3); selling, persistence across sessions, the lost-pot grace period and the propeller rule (4); duty board items, sounds and the multiplayer test (5).
+
+- **Lobster and crab potting, milestone 1 of 5: pots as cargo, and shooting them** (owner's feature brief: a slow-burn potting loop over several voyages; milestones 1 pots and shooting, 2 chart marking and soak, 3 hauling and catch, 4 selling, persistence and propeller rule, 5 multiplayer and polish).
+  - **Where it's built:** the dev branch, behind a per-browser setting that's off by default (**Settings → Game → Potting**, `userSettings.potting`), not on `next`. `next` carries modular-boats commits that aren't on the dev branch, so pushing a potting milestone there would have overwritten them. With the setting on, the host (or a lone player) switches potting on in its game (intent `pottingOn`). With it off, the game is unchanged.
+  - **Data** (`potting/potting.ts`, `WorldState.potting`, plain JSON, host-authoritative):
+    - **Pots** are cargo items of a new kind, `Pot`: 24 kg, 0.75 × 0.42 × 0.5 m, 2 skiff slots, `from: 'pots'`, `to: 'none'`. They carry, stow and lash like any cargo, are never trade cargo (`cargo.tradeKinds` limits what spawns at the goods stacks) and aren't counted against a port's stack.
+    - **The pallet** (`potting.pallet`) is on the Calder Haven quay by the fuel berth. Five pots (`potting.pots`), topped up there whenever pots are lost (pots are free for now).
+    - **Shooting:** a pot set down in the sea becomes a shot-pot record (owner boat, x, z, shot time, baited, ground id) and the cargo item goes. While it soaks there's no mesh, just the record. Capped at `potting.maxShot` (24) in the world. In water under 1 m, or past the cap, the pot is lost. Lost overboard loose, it's a lost pot with no career penalty, and a new one appears on the pallet.
+    - **Potting grounds** (`world/archipelago.ts POTTING_GROUNDS`): circles with a quality (0..1) on rocky edges in 6-25 m of water:
+      - the south side of Gull Rocks;
+      - the east side of the Skerry;
+      - Craig Bheag;
+      - Tarran north point.
+  - **Desktop throw** (`cargoHands.ts putDown`): a pot set down with a click while looking out over the water is thrown `potting.deskThrow` (1.4 m) out the way you look, so it can be shot from the rail. In VR you hold it out past the gunwale and let go, which is the existing set-down rule: outboard of the hull it goes in the sea.
+  - **Views:**
+    - **The pot** (`cargoView.ts potGeometry`, one instanced mesh): a creel with a base frame, a half-round netted body over three hoops, a rope bridle, the coiled line and an orange buoy with a pole.
+    - **Buoys** (`potting/potView.ts`): three instanced meshes for all buoys (float in the boat's colour `potting.buoyColors`, pole, flag `flagSoaking`), riding the drawn waves with a tilt from the slope, no physics body. Shooting shows a spreading splash ring and a bubble trail for `potting.sinkTime` (2.5 s); then the buoy pops up.
+  - **Debug** (Missions → Potting): Pots aboard (intent `potDebugAboard`), To a ground (`potDebugGround`).
+  - **Tests:** `tests/potting.test.ts`:
+    - off until switched on, five on the pallet, never trade cargo;
+    - carried, lashed and shot on a ground, with the buoy up after the sink time;
+    - let go in the shallows: lost and replaced;
+    - the grounds are in 5-30 m.
+  - **Not yet** (next milestones): the grounds on the chart display, chart marker tokens, soak time and the ready cue, storm drift, hauling and the catch, selling, persistence across sessions, the propeller rule, duty board items, sounds.
+
+- **Cargo crates flicker fixed; the trawl's catch in wooden fish boxes** (owner):
+  - **Flicker:** the upper pale band on every crate had its top face flush with the crate's lid, so the two fought for the same pixels (z-fighting). The band now sits just below the lid (`cargo/cargoView.ts`).
+  - **Fish boxes:** fish from the trawl (`from: 'trawl'`) are drawn as open wooden fish boxes: two slats a side, darker corner posts, a bed of ice only with the Ice machine upgrade (career upgrade `ice`; without it the fish lie on the bare boards; the boxes switch as soon as it's bought), and six fish filling its floor (three rows across, two head to tail in each; owner: they were bunched in the middle) as plain blocks with a tail, in cod grey, mackerel blue, haddock brown, gurnard red and whiting silver. One more instanced mesh, one draw call while there are any. They brighten when a hand is on them, as other cargo does. Port cargo of the "Fish box" kind still looks like a crate in its port's colour, so the colour-to-port cue isn't lost.
+
+- **Avatar hands as simple woollen mitts** (owner: the hands still looked bad; keep it simple and line it up with the VR controllers). The palm block, knuckles and thumb stick in `net/avatarOutfits.ts gloveGeometry` are replaced by three rounded parts, laid out in the controller's grip frame (WebXR grip space: the handle runs along z through the fist, -z forward, +x to the player's right):
+  - one mitt lump closed round the handle, a little toward the back of the hand;
+  - a thumb lobe on top on the inner side, lying forward along the handle;
+  - a darker ribbed cuff at the wrist, back and a little down, where the sleeve meets it.
+
+  Checked by rendering both mitts on a stand-in controller handle from the player's view, from the front and from the side.
+
+- **Night red automatic; start-up card moved; labels tilted** (owner):
+  - **Red at night by itself:** the panel lighting turns red as night falls, between darkness `panelLighting.redFrom` (0.55) and `redTo` (0.85). The NIGHT switch is gone (`panelRed` control and `bridge.nightPanelSwitch` removed). The Cabin and WIPERS switches are back where they were (x -1.14 and -0.99).
+  - **Start-up card** (`bridge.checklistCard`): moved from the dash top to the console's upright aft face below the ENGINE group, facing the helmsman. It's on the panel lighting now, so it dims and goes red at night like the voltmeter instead of glowing white.
+  - **Labels tilted 45 degrees toward the helmsman:** the dash switch and button labels (`bridge.ts buildLabels`) and the warning-lamp names (`ignition.ts`). Each stands on its near edge, with nothing behind it.
+
+- **No glass in the doors** (owner): the aft door and the port side door lose the faint pane in their window openings (`controls/WheelhouseDoor.ts`). The opening and frame stay. Shut, the doors still keep the wind, rain and engine noise muffled: that comes from whether the door is shut, not from the pane.
+
+- **Torch on the water; extinguisher spray animated and heard** (owner testing):
+  - **Torch:** the sea now has its own pool for your torch (ocean shader `uTorch*`, `OceanView.setTorch`; it falls off over about 18 m). Before, it shared the searchlight's single slot and only got it while the searchlight was off. The beam is narrower, sized for a person 5-6 m off: `handGear.torch.angleDeg` 11 → 7 (a pool about 1.4 m across at 6 m), with a softer edge and a shorter visible cone.
+  - **Extinguisher spray animated** like the monitor's jet (`player/gearView.ts`): each segment's width pulses, droplets are scattered round the arc and re-scattered every frame so it shimmers (one small points cloud), and a splash pulses where it lands. The fire's smoke turns to white steam when the extinguisher hits it, as with the monitor.
+  - **Extinguisher sound** (`audio/fireAudio.ts`): a "pssht" as the valve opens, then a fluttering rush while it sprays. It's full loudness for your own and falls off with distance for a crew-mate's, and stops when it's empty. The steam sizzle, the "on target" cue, now sounds for extinguisher hits too.
+
+- **No fake radio voice on the Quest** (owner: the synthetic babble sounded fake). Where the browser can't speak (the Quest browser has no voices), the radio no longer babbles a voice-like sound. You hear the static burst as the call comes in and the squelch's click and hiss as it ends; the words are on the radio screen and in the notice. On desktop the browser's speech still reads the calls out (`audio/radioAudio.ts speak`). The survivors' shouts in the water still babble where there's no voice (`audio/rescueSounds.ts`); not changed.
+
+- **Hand gear: binoculars on the mouse, a fire extinguisher and a torch** (owner request):
+  - **Binoculars (desktop):** hold the **right mouse button** to look through them (Z still works). Over the chart, a right-drag still erases. The **laser pointer moved to the middle button**. In VR they were already there (grip them on the dash, raise them to your eyes); the grab reach went from 14 to 20 cm (`binoculars.grabRange`) so they're easier to pick up.
+  - **One "hand gear" system for the extinguisher and torch** (`player/handGear.ts`):
+    - They hang on brackets low on the wheelhouse aft wall, starboard corner (`handGear.extinguisher.bracket`, `handGear.torch.bracket`).
+    - **VR:** grip to take; it stays in the hand while you hold the grip, and goes back when you let go. The trigger works it.
+    - **Desktop:** click to take; the left button works it; click the bracket or press U (`hangGear`) to hang it back.
+    - What it does is shared: the nozzle or lens and its direction go out with your pose (`PlayerState.avatar.gear`, `PlayerPose.gear`, checked by the host). Crew-mates see your gear, spray and beam (`player/gearView.ts`), and a crew-mate's gear is missing from its bracket.
+  - **Extinguisher** (`fire/extinguisher.ts`):
+    - The spray is modelled like the monitor's jet, smaller: it leaves at `nozzleSpeed` (9 m/s), with gravity and `airDrag` (0.6/s), and carries 5-6 m.
+    - Where it passes through the fire (the same hit test as the monitor, `fire.ts arcWetting`) it knocks the fire down at `douse` (0.8) × the monitor's rate. It works on boat fires alongside and on shed fires ashore.
+    - A charge lasts `seconds` (60) of spraying (`VesselState.extCharge`). Hung back on its bracket it's full again.
+    - Drawn as one small instanced arc, one draw call.
+    - In solo play the simulation now also reads your hand gear (it previously only read crew-mates' poses).
+    - Test: `tests/extinguisher.test.ts` (puts a shed fire out from 9 m; runs empty, refills on the bracket; falls short from 20 m).
+  - **Torch:**
+    - A real spotlight from the lens (`handGear.torch`: half-angle 11°, intensity 260, reach 45 m), only for your own torch. Crew-mates' torches show their beam cone only, so there's never more than one extra light.
+    - With the searchlight off, the torch also takes the sea's one spotlight pool, so it lights the water.
+    - **Cost:** the light is in no shader until first switched on (one recompile then, as with the searchlight). Lit, it costs roughly what the searchlight does. In headless software rendering, frame time went up 5-13 % with it on (noisy). Check it on the Quest with the perf panel's GPU ms. `handGear.torch.realLight: false` turns it into a beam only, at no lighting cost.
+
+- **Deck gate** (owner request: easier access to the skiff alongside with cargo; "at least the railing could open with a button press"):
+  - A gate in the starboard bulwark and rail at the fore end of the working deck (`layout.sideGate`: z 2.6 to 3.4, between the midship cleat and the swim ladder). It's hinged on its forward post and swings 90° inboard (`openDeg`) over about half a second, eased.
+  - Worked by green push buttons on the aft gatepost, one facing inboard and one outboard (`buttonHeight` 0.85 m above the deck). Vessel control `sideGate` (1 open); it starts shut.
+  - The bulwark and rail have a gap there, with a post at each end (`hullMesh.ts buildDeckFittings`). The gate is its own small mesh (`controls/SideGate.ts`). A fixed boarding step sits on the hull side `stepDrop` (0.55 m) below the deck.
+  - **Walking:** open, the gateway is walkable out to the deck edge, and the VR fence lets you through to it (`WalkArea.setGateOpen`). From there you jump down into the skiff.
+  - **Boarding:** jump at the open gate from the skiff (or from anywhere within `boardRange`, 1.8 m, outboard of it) and you land on deck just inside it (`player/body.ts updateAir`). Jumping out through it from the deck isn't pulled back.
+  - To clear its swing and the gateway, the fender basket moved forward (`fenders.basket` z 2.4 → 1.95) and the aft pair of fenders aft (`fenders.z` 3.4 → 3.9).
+  - Test: `tests/sideGate.test.ts`.
+
+- **Skiff painter and midship cleats** (owner: launched on a windy day, the skiff blew away):
+  - **The painter** (`vessel/physics/painter.ts`): a bow line from a cleat on the skiff's stem head to one of the ship's cleats. Modelled like the towline: a rope that only pulls, taut a spring-damper between the two cleats (`docking.painter.stiffness` 3000 N/m, damping 0.7 of critical on the two boats' reduced mass). It parts above `breakForce` (15 kN) or stretched `maxStretch` (2 m).
+  - **On launch** she's made fast to the nearer forward cleat (the starboard one: the crane sets her down off the starboard bow), at the distance plus `slack` (0.5 m), between `minLength` 2.5 m and `maxLength` 7 m. Hoisting her back lets it go.
+  - **Her bow cleat** (a clickable cleat on her stem head) lets go, or makes fast to the nearest of the ship's cleats within `reach` (6 m).
+  - **Midship cleats** (`mooring.cleatMidZ` 2.0, both sides, at the fore end of the working deck): for the painter only. Click one to lead the painter there (her bow within reach), click again to let go. The forward and aft cleats still work the mooring lines; they show the painter's turns when it's on them.
+  - Drawn as a sagging rope like the towline (one instanced mesh, one draw call; `vessel/view/painterView.ts`). Its state is on the tender (`TenderState.painter`), so crew see it too.
+  - Test: `tests/painter.test.ts` (held in a 14 m/s beam wind, blows away without it, led amidships, let go on hoisting).
+  - Not changed: launched alongside a quay on the starboard side, the skiff is set down under the quay edge, as before. Launch with the quay to port, or off the quay.
+
+- **Anchor scope** (owner: too much chain, ~30 m in 3 m; 5:1 minimum, 7:1 recommended): the windlass now pays out `anchor.scopeRatio` (5) × the water depth, never less than `anchor.minScopeFromRoller` (3) × the bow roller's height above the seabed, so it still holds in very shallow water. It was 4 × (bow roller height above the seabed) + 5 m. That counted the roller's 1.35 m and added a flat 5 m, and the echo sounder reads under the keel (keel 0.95 m down). So "3 m" on the display was about 4 m of water and 5.3 m from the roller: 26–30 m of chain. Now it's 20 m. Set `scopeRatio` to 7 for the heavy-weather figure. Test: `tests/anchor.test.ts`. **The golden run `tests/golden/fixtures/anchor.json` was re-recorded** (`GOLDEN_RECORD=1`) for this deliberate change; the other golden runs are unchanged.
+
+- **Charted hazards and IALA buoys; night instrument lighting; stabilisers only in use** (owner request):
+  - **Old buoys and rocks gone:** the yellow/red buoys and loose rocks the traffic system scattered about (unlit, marking nothing) are removed (`traffic.buoys`, `traffic.rocks` deleted).
+  - **Real dangers** (`world/archipelago.ts`):
+    - the wreck *Margaret Ann* (`WRECKS`): a 30 m coaster lying at 55° list, hull top 0.9 m above the water (wheelhouse, funnel and mast showing). Its seabed is a hidden ridge (`RidgeDef.drawn: false`), so she grounds you like rock and shows on the chart's depths;
+    - Dubh Sgeir, a reef awash (a ridge, crest 0.4 m);
+    - Craig Bheag, a 1.2 m rock (an islet).
+  - **Buoys** (`MARKS`), IALA region A: N and S cardinals on the wreck, W and E on Dubh Sgeir, W and S at Gull Rocks, W at the Skerry, an isolated danger mark on Craig Bheag, and a port/starboard pair at the Calder entrance. Shapes, colours and topmarks are the IALA ones. Lights flash the IALA characters (`world/navMarks.ts`), staggered so like buoys don't flash together. Drawn as one instanced mesh per kind plus one points cloud for the lamps (`world/view/navMarksView.ts`): a handful of draw calls for all of them. The paper chart and the plotter show the marks (with characters) and the wreck symbol.
+  - **Night panel lighting** (`controls/panelLighting.ts`): every dial, screen and label shares one brightness setting in its shader, so it costs nothing per frame. It dims with darkness to `panelLighting.nightLevel` (0.3). A new **NIGHT** switch on the console (`controls.panelRed`, `bridge.nightPanelSwitch`) turns it red at `panelLighting.redLevel` (0.6) of that. The Cabin and WIPERS switches shifted a little to port to make room; NIGHT sits where WIPERS was.
+  - **Stabilisation only in use:** the searchlight holds its aim only while lit, and the fire monitor only while the pump runs. Otherwise they ride with the boat and skip the per-frame correction.
+
 - **Wheelhouse sides and a port side door** (owner sketch):
   - **Raised side wall by the console:** from the front back to the console's aft edge the side windows' sill is raised to the console top (`wheelhouse.sideRaise` height 0.95 above the floor, to z -1.32), sloping back down to the normal sill over 0.35 m (a wedge). Both sides; on the port side it runs into the door's forward jamb.
   - **Sliding door in the port wall** between the console and the chart table (`wheelhouse.sideDoor` z -1.12..-0.37, 2.0 m high): the aft door's panel (`WheelhouseDoor`, now taking its control key) turned to slide aft along the outside of the wall, a threshold, a header and jambs. Green push buttons on the forward jamb inside and out (`DoorButton`, key `sideDoor`). Vessel control `sideDoor` (1 open, optional in the state: absent = shut), shut at the start. Walking: a doorway strip joins the wheelhouse floor to the port side deck (`layout.ts`); desktop walking is blocked while it's shut (`App.withDoor`); the collision test treats the doorway as open. The wheelhouse counts as shut-in (muffled engine, wind, rain) only with both doors shut.
@@ -2176,6 +2288,19 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
     - walk round the mast on the roof; the wind sock streams in the wind.
   - **Desktop:** the same by clicking.
   - **F3:** 57 modules with something drawn.
+
+### Merged: the post-5b changes from the dev branch into the modular boat (owner request)
+
+- **What came in** (built by another session; see its entries above): lobster and crab potting (milestones 1-2, behind Settings > Game > Potting), charted hazards and IALA buoys, night panel lighting (red by itself at night), the start-up card on the console's upright face, dash labels tilted 45 degrees, the deck gate, the skiff's painter and the midship cleats, the anchor's 5:1 scope, the extinguisher and torch on their brackets, binoculars on the right mouse button, no glass in the doors, wooden fish boxes, woollen mitts, no fake radio voice on the Quest.
+- **Fitted to the modules** where the two met:
+  - **The deck gate's buttons are door-button modules** on two new hull sockets on its aft post (`sideGateIn`, `sideGateOut`), bound to a new bus key **`gate.side.open`** (old name `sideGate` kept). The hull lists the gate as a feature; its swinging panel stays with the Bridge, like the doors'.
+  - **The midship cleats are two more cleat modules** (`end: 'midship'`, sockets `cleatMidPort`, `cleatMidStbd`): they take only the skiff's painter and give no mooring gear. The painter itself (vessel/physics/painter.ts) still reads the cleat stations from the vessel config until M6.
+  - **Panel lighting on the modules:** the console's screens (the shared display atlas), the warning lamps' names, the start-up card, the breaker panel's dial and engraving, the battery master and selector plates, the FM display, the VHF and chartplotter screens, the fire gauge and every engraved label (except the overhead's, read from below) dim with the dark and go red at night.
+  - **The start-up card's console slot** moved to the console's upright aft face (`helmConsole.slots.card`), where the dev branch put it.
+  - **The fire monitor holds its aim only while the pump runs** (the module reads 'firePump.on'); the searchlight only while lit.
+- **Recipe version 9.** Golden runs: all match except for the one new recorded value (`gate.side.open`, always shut) and the anchor run, which changes with the new scope rule; its 3,312 values shared with the dev branch's own re-recording are identical. Sea trials identical.
+- **Checked:** typecheck, 450 tests (the dev branch's new ones among them: the gate, the painter, the extinguisher, potting, the nav marks), the build; in the browser, the helm by day and night, the console and the card, the gate shut and open, the midship cleat and the gear brackets against the dev branch's own build: the same. The gate opens by its new key and shuts by its old name; its buttons and all six cleats and the skiff's bow cleat are found by the pointer. No page errors.
+- **Draw calls** (day / night, the dev branch's own build in brackets): helm 62 / 64 (74 / 77), chart table 57 / 58 (59 / 60), aft deck facing forward 115 / 116 (140 / 141), facing aft 36 / 35 (41 / 40). Up on 5b's with the new features (the buoys, the hand gear, the gate), as on the dev branch; still cheaper there at every viewpoint.
 
 ### Test address for work in progress (owner request)
 

@@ -63,12 +63,17 @@ const onDeck = (x: number, z: number): [number, number, number] => [x, hull.deck
 const tc = wb.tenderCrane;
 const mast = CONFIG.modules.mast;
 const mo = wb.mooring;
+const gt = wb.layout.sideGate;
+/** A deck-gate button on the gate's aft post, facing `face` (+1 starboard, -1 port). */
+const gateButton = (face: number): [number, number, number] => [gt.side * (hull.halfBeam(gt.z1) - 0.03) + face * 0.032, hull.deckY(gt.z1) + gt.buttonHeight, gt.z1 + 0.02];
 /** The mooring cleats' sockets: id, side, station, where. */
 const cleats: [string, number, number, string][] = [
   ['cleatFwdPort', -1, mo.cleatFwdZ, 'forward, port'],
   ['cleatFwdStbd', 1, mo.cleatFwdZ, 'forward, starboard'],
   ['cleatAftPort', -1, mo.cleatAftZ, 'aft, port'],
   ['cleatAftStbd', 1, mo.cleatAftZ, 'aft, starboard'],
+  ['cleatMidPort', -1, mo.cleatMidZ, 'amidships, port (the skiff\'s painter)'],
+  ['cleatMidStbd', 1, mo.cleatMidZ, 'amidships, starboard (the skiff\'s painter)'],
 ];
 
 export const WORKBOAT_HULL: HullDefinition = {
@@ -98,6 +103,9 @@ export const WORKBOAT_HULL: HullDefinition = {
     // The port side door's buttons, on its forward jamb (wheelhouse.sideDoor).
     { id: 'sideDoorIn', type: 'wall.panel', transform: { position: [-wh.halfWidth + wh.wall, wh.floorY + sd.buttonHeight, sd.z0 - 0.04], rotationDeg: [-90, -90, 0] }, label: 'Side door jamb, inside' },
     { id: 'sideDoorOut', type: 'wall.panel', transform: { position: [-wh.halfWidth, wh.floorY + sd.buttonHeight, sd.z0 - 0.04], rotationDeg: [-90, 90, 0] }, label: 'Side door jamb, outside' },
+    // The deck gate's buttons, on its aft post facing inboard and outboard (layout.sideGate).
+    { id: 'sideGateIn', type: 'wall.panel', transform: { position: gateButton(-gt.side), rotationDeg: [-90, gt.side * 90, 0] }, label: 'Deck gate post, inboard' },
+    { id: 'sideGateOut', type: 'wall.panel', transform: { position: gateButton(gt.side), rotationDeg: [-90, -gt.side * 90, 0] }, label: 'Deck gate post, outboard' },
     // The hatch's hinged (outboard) edge, mid-length, at floor level; its size is the opening's.
     { id: 'engineHatch', type: 'deck.fitting', transform: { position: [eh.x1, wh.floorY, (eh.z0 + eh.z1) / 2] }, capacity: { size: [eh.x1 - eh.x0, 0.035, eh.z1 - eh.z0] }, label: 'Wheelhouse floor, over the engine' },
     // On the engine's inboard side, the ring well under the shut hatch (the rocker cover is 0.12 m below the floor).
@@ -139,6 +147,7 @@ export const WORKBOAT_HULL: HullDefinition = {
   features: [
     { id: 'door.aft', kind: 'door', openKey: 'door.aft.open' },
     { id: 'door.side', kind: 'door', openKey: 'door.side.open' },
+    { id: 'gate.side', kind: 'door', openKey: 'gate.side.open' },
     { id: 'hatch.engine', kind: 'hatch', openKey: 'hatch.engine.open' },
   ],
 };

@@ -1,4 +1,5 @@
 import { isPowered } from '../vessel/electrics';
+import { panelLit } from './panelLighting';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { BreakerName } from '../vessel/vesselState';
@@ -96,7 +97,7 @@ export class DisplayAtlas {
   /** Merge the fitted screens into one mesh (after every screen is added). */
   finish(): THREE.Mesh | null {
     if (!this.planes.length) return null;
-    this.mesh = new THREE.Mesh(mergeGeometries(this.planes), new THREE.MeshBasicMaterial({ map: this.texture, toneMapped: false }));
+    this.mesh = new THREE.Mesh(mergeGeometries(this.planes), panelLit(new THREE.MeshBasicMaterial({ map: this.texture, toneMapped: false })));
     this.mesh.name = 'instruments';
     return this.mesh;
   }

@@ -13,6 +13,7 @@
  * the button cap are shared parts.
  */
 import * as THREE from 'three';
+import { panelLit } from '../../controls/panelLighting';
 import { CONFIG } from '../../config';
 import { Button } from '../../controls/Button';
 import { Toggle } from '../../controls/Toggle';
@@ -58,7 +59,7 @@ export const FM_RADIO: ModuleDefinition<FmRadioConfig> = {
       const g = canvas.getContext('2d')!;
       const texture = new THREE.CanvasTexture(canvas);
       texture.colorSpace = THREE.SRGBColorSpace;
-      const screen = new THREE.Mesh(new THREE.PlaneGeometry(c.display.width, c.display.height), new THREE.MeshBasicMaterial({ map: texture, toneMapped: false }));
+      const screen = new THREE.Mesh(new THREE.PlaneGeometry(c.display.width, c.display.height), panelLit(new THREE.MeshBasicMaterial({ map: texture, toneMapped: false })));
       screen.rotation.x = Math.PI / 2;
       screen.position.set(0, -0.002, 0);
 

@@ -132,7 +132,7 @@ export class FireView {
     (boat ? this.hulk : this.shed).position.set(job.x, base, job.z);
     (boat ? this.hulk : this.shed).rotation.y = (job.yawDeg * Math.PI) / 180;
     this.placeFlames(job, base, time);
-    this.steam += ((job.wetting > 0.05 ? 1 : 0) - this.steam) * Math.min(1, dt * 1.5);
+    this.steam += ((Math.max(job.wetting, job.handWet ?? 0) > 0.05 ? 1 : 0) - this.steam) * Math.min(1, dt * 1.5); // the monitor or an extinguisher
     this.placeSmoke(world, job, base, time);
   }
 

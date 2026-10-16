@@ -44,14 +44,14 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 |---|---|
 | Click the view | Capture the mouse for looking (Esc releases it) |
 | O | Menu, floating in front of you: aim and click (same menu as in VR) |
-| Z (hold) | **Binoculars**: 7x zoom through two lens circles (the key left of X, so Y on a German keyboard) |
+| Right mouse button or Z (hold) | **Binoculars**: 7x zoom through two lens circles (Z is the key left of X, so Y on a German keyboard). Over the chart, right-drag still erases |
 | W A S D | Walk (walls, furniture and the deck edge stop you; hold Shift to **run**) |
 | F | Toggle walk / free-fly camera (Space / C = up / down when flying) |
 | Space / C at the ladder | Climb up / down (walk forward off the top onto the roof) |
 | Space (elsewhere) | **Jump**: off the boat onto a quay, from a quay aboard, or into the sea. Swimming near the hull, the swim ladder or a quay: climb out |
 | Click a cargo item | Pick it up (carried in front of you); click again to set it down |
 | Q on cargo on deck | Lash it to the nearest D-ring / release it |
-| Right mouse button (hold) | **Laser pointer** to the reticle (the beam comes from your lower right); the crew sees the beam and dot |
+| Middle mouse button (hold) | **Laser pointer** to the reticle (the beam comes from your lower right); the crew sees the beam and dot |
 | Click the searchlight or fire monitor joystick, or the skiff's tiller or gear lever | Steer it with **W A S D** (you don't walk meanwhile) while the mouse still looks around; click again to let go. You don't walk while dragging a lever or the wheel either |
 | B | Board the boat (you appear at the helm) / go ashore onto the quay |
 | Aim **+** and click / drag | Operate the bridge controls (see below) |
@@ -93,6 +93,8 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | **Starting the engine** | Follow the card by the key: battery MASTER on (aft wall), INSTR breaker on, throttle in neutral, KEY on, hold HEAT until the GLOW lamp goes out (about 2.5 s cold, well under a second once the engine is warm), hold START until she runs. Stop: key off. Battery selector (1 / BOTH / 2) beside the master. The duty board on the starboard wall ticks off the start-up steps, and lists the jobs on: the cargo job, and any rescue or tow under way. Desktop E: hint (or quick start if enabled in config) |
 | **Trigger** on a breaker (panel by the helm, under the starboard window) | Breakers: Instruments, Chart, Radio, Nav lights, Deck lights, Bilge, Deck hydraulics (DECK HYD). A device works only with the master and its breaker on; a green lamp shows the circuit is live |
 | **Trigger** on a green **skiff crane** button: SKIFF CRANE on the helm console (DECK group), the crane's control box (outboard side of its post, from the starboard side deck), or the remote on a post in the skiff by the helmsman. Or Menu > Boat > Skiff | Launch the skiff / recover her (she must be alongside the starboard bow and moving with you). Its hover text says which, or why not yet. In the cradle she's under a tarpaulin (launch her before boarding) and the crane is folded down along the starboard foredeck; LAUNCH unfolds it, hooks on and lifts her out |
+| **Trigger** on the green button on the **deck gate**'s aft post (starboard side of the working deck, just aft of the wheelhouse; a button on each face) | Open / shut the gate in the bulwark and rail. Open, you can walk out to the deck edge in the gateway and jump down into the skiff alongside; from the skiff (there's a step on the hull side below it), jump at the open gate and you're up on deck |
+| **Trigger** on the skiff's **bow cleat** (on her stem head) | Her **painter** (bow line to the ship): let it go, or make it fast to the nearest of the ship's cleats within 6 m. She goes into the water already on it, made fast to the forward starboard cleat, so she can't blow away. Trigger on a **midship cleat** (just aft of the wheelhouse, each side) to lead the painter there while you work cargo over the side; again to let it go. A hard pull (towing her off at speed) parts it |
 | **Grip** on the skiff's tiller, then **trigger** | Steer by swinging the tiller; the same hand's trigger is the throttle (let go = idle). Red button on the motor: on/off; yellow lever on its side: forward / neutral / reverse |
 | B | Debug/perf panel on your left wrist (off at start): FPS, cpu/gpu frame time, draw calls, XR resolution, boat readouts |
 
@@ -122,15 +124,17 @@ The menu is laid out for playing. Some tabs have sections, picked from a second 
 At the helm, from left to right on the console:
 
 - **Nav lights** toggle switch.
-- **Anchor** switch: down = let go (the chain pays out to 4 × depth + 5 m), up = heave in and stow. You hear it: the chain rattles out over the bow roller and the anchor splashes in; heaving in, the windlass hums and the links clank in one by one, with a clunk as it stows.
+- **Anchor** switch: down = let go (the chain pays out 5 × the water depth: 20 m in 4 m of water; the echo sounder shows the depth *under the keel*, about 1 m less than the water depth), up = heave in and stow. You hear it: the chain rattles out over the bow roller and the anchor splashes in; heaving in, the windlass hums and the links clank in one by one, with a clunk as it stows.
 - **SPOT** switch (far left): the searchlight on the wheelhouse roof.
-- **Searchlight joystick:** on the pedestal to port of the wheel, under your left hand. Grip it and push sideways to pan, forward/back to raise/lower the beam. The further you push, the faster it moves; let go and the light stays put. On desktop, click and drag it. The lamp is **stabilised** like the fire monitor: it holds its aim as she rolls and pitches, so the beam stays on what you've found.
+- **Searchlight joystick:** on the pedestal to port of the wheel, under your left hand. Grip it and push sideways to pan, forward/back to raise/lower the beam. The further you push, the faster it moves; let go and the light stays put. On desktop, click and drag it. The lamp is **stabilised** like the fire monitor: it holds its aim as she rolls and pitches, so the beam stays on what you've found. It only does this while it's lit; switched off it sits still on its mount.
 - **Cabin** light switch: the wheelhouse ceiling lamp, three-way. Each press steps **off → white → red → off**: the bat is in the middle for off, forward for white, and aft for red. Red is dim, for night work: you can see the controls without losing your night vision.
 - **WIPERS** switch (far port end): the three pendulum wipers on the front windows. They need the INSTR breaker; switched off they finish the sweep and park.
 - **Horn** button (hold).
 - **Wheel**: 1.5 turns lock to lock. Hydraulic steering, so it stays where you leave it.
 - **Throttle/gear lever**, on a pedestal starboard of the wheel so it falls to hand: forward = ahead, back = astern, with a notch at neutral.
 - **Start/stop** button. The engine only starts with the lever in neutral.
+
+**Instrument lighting:** the dials, screens, labels and the start-up card dim by themselves as it gets dark, and at night turn a dim red, so you keep your night vision and still see out. The switch and button labels are tilted up toward you so they read from the helm.
 
 Warning lamps in front of the key: **OIL**, **CHARGE**, **GLOW**, **NEUTRAL** and **BILGE** (blinks with water in the bilge).
 
@@ -193,12 +197,18 @@ Above it, a lamp on the wall with its own small switch on the wooden batten the 
   - They carry navigation lights at night.
   - The lookout calls each one out with a clock bearing and range.
 - **In fog** ships sound a prolonged blast every 2 minutes, and the nearest one answers yours. Listen for where it comes from.
-- **Hazards:** floating debris, the rocks at Gull Rocks and the Skerry, and yellow/red hazard buoys.
+- **Hazards:** floating debris, and charted dangers marked with lit buoys (IALA region A, as round the UK):
+  - **the wreck of the *Margaret Ann***, west of Gull Rocks, lying on her side with her wheelhouse and mast showing; a north and a south cardinal;
+  - **Dubh Sgeir**, a reef awash further south-west; a west and an east cardinal;
+  - **Craig Bheag**, a lone rock south of Gull Rocks with an **isolated danger** mark (black and red, two black balls, Fl(2) 5s) on it;
+  - **Gull Rocks** (west and south cardinals) and **the Skerry** (west cardinal);
+  - a pair of **lateral** buoys at the Calder entrance: red can to port, green cone to starboard, coming in.
+  - Cardinals are yellow and black with two cone topmarks, and lie on the named side of the danger (pass north of a north cardinal). At night each flashes its own rhythm: N quick, E Q(3) 10s, S Q(6)+long 15s, W Q(9) 15s. All are on the paper chart and the plotter with their light characters.
 - **Debug:** Menu → Debug → Missions → Traffic → **Spawn ship** / **Spawn debris** (close by).
 
 ### Emergency calls
 
-Out of harbour, the VHF brings rescues (on cargo runs), tows and fires now and then: a tow call every 8 to 18 minutes, a fire every 10 to 22, and a rescue on about a third of cargo runs. An unanswered call rings every 20 seconds for two minutes, then goes to someone else.
+Out of harbour, the VHF brings rescues (on cargo runs), tows and fires now and then: a tow call every 8 to 18 minutes, a fire every 10 to 22, and a rescue on about a third of cargo runs. An unanswered call rings every 20 seconds for two minutes, then goes to someone else. On desktop the calls are read out by your browser's voice. On the Quest (its browser has no voices) you hear the radio's static and click; the words are on the radio screen and in the notice.
 
 To work in peace, set **Menu → Voyage → Emergency calls → Off (quiet)**. No new calls come while it's off; one already ringing runs its course. Shipping forecasts and harbour messages still come. Turn the RADIO breaker off for silence altogether, or turn the VHF down in Settings → Sound.
 
@@ -236,14 +246,23 @@ The dash shows:
   - speed and course over ground, heading;
   - the true wind (direction it blows from, knots, Beaufort force);
   - a dial with the apparent wind (what you feel on deck) relative to the bow.
-- **Binoculars** lie on top of the dash, port end. VR: grip them to pick them up and raise them to your eyes for a 7× view; let go and they go back. Desktop: hold Z.
+- **Binoculars** lie on top of the dash, port end. VR: grip them to pick them up and raise them to your eyes for a 7× view; let go and they go back. Desktop: hold the right mouse button (or Z).
+
+### Fire extinguisher and torch
+
+Both hang on brackets inside the wheelhouse, low on the aft wall in the starboard corner (by the battery master).
+
+- **VR:** grip one to take it off its bracket. It stays in that hand while you hold the grip: carry it out on deck, into the skiff or ashore. Let go and it goes back on its bracket. The same hand's **trigger** works it.
+- **Desktop:** click it to take it; you hold it low to your right, pointing where you look. The **left mouse button** works it (a click on a control still works the control). Click its bracket again, or press **U**, to hang it back.
+- **Extinguisher:** hold the trigger (or the left button) to spray. The spray carries 5-6 m, so get close: alongside a burning boat, or ashore at a burning shed. You hear it hiss, and the fire sizzles and steams when you're on target. It knocks a fire down a bit slower than the fire monitor, and a charge lasts a minute of spraying. Empty, hang it back on its bracket and take it again for a full one.
+- **Torch:** trigger or left click: on / off. A narrow, real beam that lights the water and whatever it falls on, for picking out someone in the water 5-6 m off or finding your way ashore at night. Crew-mates see your beam.
 
 ### Fire missions
 
 Out of harbour, with no other job on, a fire is reported on the VHF every 5–11 minutes. It's either a fishing boat burning at sea, or a shed ashore that you can reach from deep water. Pick up the handset to take it; the plotter marks it **FIRE**.
 
 1. **Engine running, FIRE PUMP on.** The switch is on the console, left of the wheel (SEARCH · FIRE group). The pump is engine-driven, so there's no water with the engine off.
-2. **Aim the fire monitor** on the wheelhouse roof with its joystick (red knob, on its own pedestal at the port end, beside the searchlight's). Sideways pans it, forward and back raises and lowers it. It's **stabilised**: as she rolls and pitches it holds its aim (you'll see the barrel move on its mount), so you only correct for your own heading and the drift. The jet flies a real arc, carried by the boat's way and blown a little by the wind.
+2. **Aim the fire monitor** on the wheelhouse roof with its joystick (red knob, on its own pedestal at the port end, beside the searchlight's). Sideways pans it, forward and back raises and lowers it. It's **stabilised** while the pump is running: as she rolls and pitches it holds its aim (you'll see the barrel move on its mount), so you only correct for your own heading and the drift. The jet flies a real arc, carried by the boat's way and blown a little by the wind.
 3. **Keep the jet on the fire.** You know you're on target four ways:
    - the **ON TARGET** lamp lights green on the console, just ahead of the monitor joystick;
    - the **FIRE** bar beside it shrinks as the fire dies, from red through orange to yellow;
@@ -364,11 +383,26 @@ The boat has a trawl: a red A-frame over the transom with a block each side on i
 
 1. **Find a fishing ground:** the dashed teal rings on the chartplotter (Skerry Ground near the start, Calder Bank east of Calder Holm, The Hollows to the north-west).
 2. **Shoot the net:** the **TRAWL** switch on the console, behind the throttle (DECK group), runs it all the way out; or work it by hand with the **PAY OUT** / **HAUL** buttons on the control box on the A-frame's starboard leg (hold to run; it stops where you let go, part way out it drags but doesn't fish). The warps run out astern and the net's orange floats show on the surface. You'll feel the drag: the engine has to work.
-3. **Tow at 2–4.5 knots** inside the ground. The net is a real load, so she needs some throttle: idle in gear makes just under 2 knots, and the window runs to about half ahead. Every 30–50 s of good trawling a **box of fish** appears on the aft deck. The status line says why not if you're too slow, too fast or outside a ground.
+3. **Tow at 2–4.5 knots** inside the ground. The net is a real load, so she needs some throttle: idle in gear makes just under 2 knots, and the window runs to about half ahead. Every 30–50 s of good trawling a **box of fish** (a wooden fish box; on ice once you've bought the ice machine) appears on the aft deck. The status line says why not if you're too slow, too fast or outside a ground.
 4. **Mind the shallows:** trawling where it's under 7 m deep fouls the net on the bottom. It holds her back hard and catches nothing until you haul it.
 5. **Haul the net** (TRAWL switch off, or hold HAUL on the A-frame) and **carry the boxes ashore** to any port's goods stack to land them. If the deck's full, the catch waits in the net.
 
 **Debug → Missions → Side jobs → Fishing ground** takes you to the nearest ground.
+
+### Lobster and crab potting (new, being built)
+
+A slow-burn fishing job over several voyages. It's being built in stages, so it's **off unless you switch it on: Menu → Settings → Game → Potting → On**. So far (stages 1 and 2 of 5) you can collect the pots, shoot them, mark them on the chart and find them again when they're ready; hauling and selling come next.
+
+1. **Collect the pots:** five lobster pots wait on a pallet on the Calder Haven quay, by the fuel berth. Each is a creel: a dark netted frame with its line coiled on top and its orange marker buoy tied on. Carry them aboard one at a time (24 kg) and stow and lash them on the aft deck like any cargo. Five pots is a few trips: a job for two or three.
+2. **Steam to a potting ground:** rocky ground round headlands and islands, shown on the chartplotter as **hatched orange rings** ("(pots)"): the south side of Gull Rocks, the east side of the Skerry, round Craig Bheag, and off Tarran's north point. Now and then a local potter on the VHF mentions where the crab or lobster are.
+3. **Shoot the pots:** unlash a pot, carry it to the rail and let it go over the side. **VR:** hold it out past the gunwale and let go. **Desktop:** look out over the water from the rail and click, and it's thrown a little way out. It goes in with a splash and a trail of bubbles; a moment later its buoy pops up and stays there, bobbing on the waves. Shot off a ground, it'll catch little; in water too shallow to fish, it's lost.
+4. **Mark them on the chart:** the game doesn't track your pots for you: the crew marks them on the paper chart. There's a tray of little red **crab markers** by the pen holder on the chart table. **VR:** grip the tray to take one (it has the next free number), and let it go on the chart where you shot the pot; grip a marker on the chart to move it, or let it go off the chart to take it off. **Desktop:** click the tray, then click on the chart to put it down; click a marker to pick it up, the tray to put it back. Pencil marks work too. Everyone aboard sees the markers, and they're saved with the chart.
+5. **Let them soak:** pots need time in the water: about **20 minutes of play** before they're worth hauling, and they keep fishing better up to 40 minutes. (Play time, not the game's clock: the time of day stands still unless you speed it up.) A buoy's **flag is red while it soaks and green when it's ready**, and at night a small light blinks on top of a ready one, but you can only tell from close by (within about 45 m), so you still have to go back to your marks.
+6. **Weather:** in a strong blow (over 11 m/s) pots drag along the bottom downwind, buoy and all: a squall moves them a metre or two a minute. Mark carefully and look about when you come back.
+
+No timers on screen: the chart marks, the buoy flags and your memory are all you have. Pots lost (overboard loose, or let go in the shallows) are replaced on the pallet: pots are free for now.
+
+**Debug → Missions → Potting:** **Pots aboard** puts the pallet's pots on your aft deck; **To a ground** takes the boat to the nearest potting ground; **Ready** makes every pot in the water ready to haul; **On plotter** shows your pots on the chartplotter (the casual-mode view).
 
 ### Wildlife
 

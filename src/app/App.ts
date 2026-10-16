@@ -7,6 +7,8 @@ import { FixedStepLoop } from '../core/loop';
 import { stepWorld, type SimDebug } from '../core/simulation';
 import { createWorld, type WorldState } from '../core/world';
 import { randomLook } from '../net/avatarOutfits';
+import { updatePanelLighting } from '../controls/panelLighting';
+import { NavMarksView } from '../world/view/navMarksView';
 import { HelpPanel } from '../debug/helpPanel';
 import { DebugOverlay } from '../debug/overlay';
 import { EnvironmentView } from '../environment/environmentView';
@@ -62,7 +64,14 @@ import { WorldView } from '../world/view/worldView';
 import { LaserPointer } from './laserPointer';
 import { SoundBoard } from './soundBoard';
 import { TowlineView } from '../tow/towlineView';
+import { PotView } from '../potting/potView';
+import { PainterView } from '../vessel/view/painterView';
+import { cleatName, painterPlan, skiffCleatLocal } from '../vessel/physics/painter';
+import { Cleat } from '../controls/deckGear';
 import { Binoculars } from '../player/binoculars';
+import { HandGear, type GearKind } from '../player/handGear';
+import { GearView } from '../player/gearView';
+import { extinguisherShip } from '../fire/extinguisher';
 import { fireAlertT } from '../fire/fire';
 import { FireView, JetView } from '../fire/fireView';
 import { WildlifeView } from '../wildlife/wildlifeView';
@@ -179,6 +188,8 @@ export class App {
   private interaction: InteractionSystem | null = null;
   private readonly effects = new Map<EntityId, VesselEffects>();
   private readonly worldView = new WorldView();
+  /** The hazard buoys, riding the swell with their lights (owner request). */
+  private readonly navMarks = new NavMarksView();
   private readonly cargoView = new CargoView();
   private readonly cargoHands = new CargoHands();
   /** Our laser pointer (others see it in our pose; laserPointer.ts). */
@@ -191,14 +202,20 @@ export class App {
   private readonly laserRay = new THREE.Ray();
   /** Binoculars on the dash (VR: pick up and raise to the eyes; desktop: hold Z). */
   private binoculars!: Binoculars;
+  /** Hand gear on brackets in the wheelhouse (player/handGear.ts). */
+  private readonly gear = [new HandGear('extinguisher'), new HandGear('torch')];
+  private readonly handGearView = new GearView();
+  private extEmptySaid = false;
   /** Fire missions: the fire, and the monitor's jet. */
   private readonly fireView = new FireView();
   private readonly jetView = new JetView();
   private readonly wildlife = new WildlifeView();
   /** The towline and our stern roller (towing missions). */
   private readonly towline = new TowlineView();
+  private readonly painter = new PainterView();
   private readonly logView = new LogView();
   private readonly trawlView = new TrawlView();
+  private readonly potView = new PotView();
   private readonly targetsView = new TargetsView();
   private readonly desktopHand = new DesktopHand();
   private readonly deskHandW = new THREE.Vector3();
@@ -350,7 +367,7 @@ export class App {
 
     this.desktop = new DesktopController(this.camera, this.renderer.domElement, this.keyboard);
     this.environment = new EnvironmentView(this.scene);
-    this.scene.add(this.sky.mesh, this.ocean.mesh, this.probes.mesh, this.worldView.root, this.cargoView.root);
+    this.scene.add(this.sky.mesh, this.ocean.mesh, this.probes.mesh, this.worldView.root, this.navMarks.root, this.cargoView.root);
     this.scene.add(this.targetsView.root, this.gearView.root, this.desktopHand.root, this.rain.mesh, this.trafficView.root);
     this.rain.quality = userSettings.rainQuality;
     this.targetsView.onWhistle = (pos) => this.sound.whistle.blow(pos);
@@ -364,7 +381,9 @@ export class App {
     this.trawlView.setBoat(this.world.vessels[this.testVesselId]);
     this.binoculars = new Binoculars(this.camera);
     if (tugView) this.binoculars.stow(tugView.root);
-    this.scene.add(this.towline.root, this.fireView.root, this.jetView.root, this.logView.root, this.trawlView.root);
+    if (tugView) for (const g of this.gear) g.mount(tugView.root, CONFIG.handGear[g.kind].bracket);
+    this.scene.add(this.handGearView.root);
+    this.scene.add(this.towline.root, this.painter.root, this.fireView.root, this.jetView.root, this.logView.root, this.trawlView.root, this.potView.root);
     this.setupBridge();
 
     setupXR(this.renderer, this.camera);
@@ -384,6 +403,8 @@ export class App {
     // Binoculars go back on the dash (and the desktop zoom ends) when switching modes.
     this.renderer.xr.addEventListener('sessionstart', () => this.binoculars.updateDesktop(false));
     this.renderer.xr.addEventListener('sessionend', () => this.binoculars.drop());
+    // Changing between VR and desktop, gear in hand goes back on its bracket.
+    for (const ev of ['sessionstart', 'sessionend'] as const) this.renderer.xr.addEventListener(ev, () => this.gear.forEach((g) => g.hangBack()));
   }
 
   /** A vessel's view, effects, walk area and debug view (at start, and for each new tow). */
@@ -404,6 +425,12 @@ export class App {
     if (def.outboard) {
       const tiller = new Tiller(vessel.id, def.outboard);
       view.root.add(tiller.root);
+      // Her bow cleat on the stem head, for the painter (clicked with the tiller's parts).
+      const bow = new Cleat(-1, { id: `painter:${vessel.id}`, channel: `${vessel.id}:painter`, label: "Skiff's painter (bow cleat): let go / make fast to the nearest cleat" });
+      const [bx, by, bz] = skiffCleatLocal(def);
+      bow.root.position.set(bx, by - 0.06, bz);
+      view.root.add(bow.root);
+      tiller.parts.push(bow);
       this.tillers.push(tiller);
     }
   }
@@ -534,7 +561,7 @@ export class App {
     this.frameDt = dt;
     if (!inXR) {
       // Binoculars (hold Z): zoomed in, the mouse look slows to match.
-      this.desktop.lookScale = this.binoculars.updateDesktop(this.keyboard.action('binoculars')) / this.camera.zoom;
+      this.desktop.lookScale = this.binoculars.updateDesktop(this.keyboard.action('binoculars') || !!this.pointer?.binocularsDown) / this.camera.zoom;
       this.desktop.update(dt);
     }
     // The boat we're on, posed for this frame before hit-testing its controls (else they're
@@ -609,6 +636,11 @@ export class App {
     // Bridge controls and displays read the (just-updated) vessel state.
     const testVessel = this.world.vessels[this.testVesselId];
     if (this.bridge && testVessel) {
+      {
+        const p = this.ourSkiff()?.tender;
+        const on = p?.phase === 'free' ? p.painter?.cleat : undefined;
+        for (const c of this.bridge.cleats) c.painterOn = c.index === on;
+      }
       this.bridge.update(testVessel, dt, this.dashInView(), this.world.environment);
       this.bridge.radio?.update(this.world.rescue, runStatus(this.world), dt, isPowered(testVessel, 'radio'), towAlertT(this.world) >= 0 || fireAlertT(this.world) >= 0);
       // Say so when the anchor is up or holding (the speed screen shows it all the time).
@@ -632,6 +664,7 @@ export class App {
         if (!sv) continue;
         t.sync(sv);
         t.tick(dt);
+        for (const c of t.parts) if (c instanceof Cleat) c.sync(sv);
         this.sound.motor.update(sv.controls.obOn > 0 ? Math.sign(sv.controls.obGear) * sv.controls.lever : 0, sv.battery ?? 0, t.root.getWorldPosition(this.tmpV).distanceTo(this.focus));
       }
       const plotter = this.bridge.chart;
@@ -653,8 +686,12 @@ export class App {
       if (id === this.testVesselId) ({ slam, lap } = hit);
     }
     this.towline.update(this.world, this.vesselRoots, this.testVesselId, this.renderWaves);
+    this.painter.update(this.world, this.vesselRoots, this.renderWaves);
     this.logView.update(this.world, this.renderWaves, renderTime);
     this.trawlView.update(this.world, this.vesselRoots.get(this.testVesselId) ?? null, this.renderWaves, renderTime);
+    this.potView.update(this.world, this.renderWaves, this.world.time, this.focus, darkness);
+    // Potting switched on in Settings: on in our game too, if it's ours (alone or hosting).
+    if (userSettings.potting && !this.world.potting && (this.host || !this.client)) this.pushVesselIntent('pottingOn', 1);
     this.fireView.update(this.world, this.renderWaves, renderTime, dt);
     this.jetView.update(this.world, this.world.vessels[this.testVesselId], this.vesselRoots.get(this.testVesselId), renderTime);
     {
@@ -663,7 +700,8 @@ export class App {
       const burning = fj && fj.phase !== 'calling' ? fj.intensity : 0;
       const dist = fj ? Math.hypot(fj.x - this.focus.x, fj.z - this.focus.z) : 1e9;
       this.fireGauge?.update(fj ?? null);
-      this.sound.fire.update(burning, dist, !!tv && jetOn(tv), this.insideHouse ? this.closed : 0, fj && fj.phase === 'accepted' ? fj.wetting : 0);
+      const wet = fj && fj.phase === 'accepted' ? Math.max(fj.wetting, fj.handWet ?? 0) : 0;
+      this.sound.fire.update(burning, dist, !!tv && jetOn(tv), this.insideHouse ? this.closed : 0, wet, this.extinguisherLoudness());
       // The anchor chain over the bow roller and the windlass.
       const root = this.vesselRoots.get(this.testVesselId);
       const anchor = tv && gearOf(tv, 'anchor');
@@ -675,6 +713,7 @@ export class App {
       if (tv) {
         const wa = this.walkAreas.get(this.testVesselId);
         wa?.setHatchOpen?.((tv.controls.engineHatch ?? 0) > 0.5);
+        wa?.setGateOpen?.((tv.controls.sideGate ?? 0) > 0.5);
         wa?.setChartLeafFolded?.((tv.controls.chartLeaf ?? 1) < 0.5);
       }
       // Gulls overhead; dolphins at the bow when she's under way in open, deep water.
@@ -690,6 +729,7 @@ export class App {
   /** Port lights, weather, the rescue's people and gear and their sounds. */
   private updateSceneViews(dt: number, renderTime: number, darkness: number): void {
     this.worldView.lights.update(renderTime, darkness);
+    this.navMarks.update(this.renderWaves, renderTime, darkness);
     this.targetsView.visibility = this.environment.visibility;
     this.updateWeatherViews(renderTime, darkness, dt);
     this.targetsView.update(this.world, this.renderWaves, this.focus, darkness, renderTime, dt, this.testVesselId, this.vesselRoots.get(this.testVesselId));
@@ -748,18 +788,23 @@ export class App {
 
   /** Port floodlights, cargo, the desktop hand, our pose out and the crew's avatars in. */
   private updateCrewViews(dt: number, inXR: boolean, darkness: number): void {
+    // Wheelhouse panel lighting: dims with the dark and turns red at night.
+    updatePanelLighting(darkness);
     this.worldView.portLighting.update(this.focus, darkness);
     this.ocean.setPortLight(this.worldView.portLighting.flood);
     if (this.searchlight) {
       this.searchlight.darkness = darkness;
       this.ocean.setSpotlight(this.searchlight.lamp.light);
     }
+    // Your torch has its own pool on the water.
+    this.ocean.setTorch(this.gear[1].light);
     this.cargoView.update(this.world, this.vesselRoots, (c) => this.carriedPose(c), this.cargoHands.hovered);
     const deskHand = inXR ? null : this.desktopHandWorld(this.deskHandW);
     if (deskHand) this.desktopHand.setColor(playerColor(this.localPlayerId));
     this.desktopHand.update(this.camera, deskHand, dt);
     this.updateNetPose(dt);
     this.avatars.update(this.world, this.localPlayerId, this.vesselRoots, dt);
+    this.updateGear(darkness, dt);
   }
 
   /** Hull contact and water past the hull: sound, and a jolt through the controllers aboard. */
@@ -1014,7 +1059,54 @@ export class App {
     if (c) return c.grabPoint(out);
     if (this.rescueHands.holdingRing) return out.copy(this.rescueHands.ringPos);
     if (this.rescueHands.holdingHook) return out.copy(this.rescueHands.hookBase);
+    for (const g of this.gear) if (g.handPoint(out)) return out;
     return this.cargoHands.handPoint(out);
+  }
+
+  /** Does a crew-mate hold this gear (it's off its bracket in their hand)? */
+  private gearTakenByOther(kind: GearKind): boolean {
+    return Object.values(this.world.players).some((p) => p.id !== this.localPlayerId && p.avatar?.gear?.kind === kind);
+  }
+
+  /** Hand gear as everyone sees it: sprays, beams, crew-mates' gear; the brackets' state. */
+  /**
+   * How loud an extinguisher's hiss is where you are (0..1): yours in your hand, full;
+   * a crew-mate's, falling off with distance. Nothing once it's empty.
+   */
+  private extinguisherLoudness(): number {
+    if ((extinguisherShip(this.world)?.extCharge ?? 1) <= 0) return 0;
+    const mine = this.gear[0];
+    if (mine.held) return mine.on ? 1 : 0;
+    let best = 0;
+    const p = this.tmpV;
+    for (const pl of Object.values(this.world.players)) {
+      const g = pl.avatar?.gear;
+      if (pl.id === this.localPlayerId || g?.kind !== 'extinguisher' || !g.on) continue;
+      const frame = pl.aboardVesselId ? this.vesselRoots.get(pl.aboardVesselId) : null;
+      p.fromArray(g.p);
+      if (frame) frame.localToWorld(p);
+      best = Math.max(best, 1 / (1 + (p.distanceTo(this.focus) / 6) ** 2));
+    }
+    return best;
+  }
+
+  private updateGear(darkness: number, dt: number): void {
+    const mine = this.gear.find((g) => g.held);
+    let local: { kind: GearKind; on: boolean; p: THREE.Vector3; d: THREE.Vector3 } | null = null;
+    if (mine) {
+      const p = new THREE.Vector3();
+      const d = new THREE.Vector3();
+      mine.tipWorld(p, d);
+      local = { kind: mine.kind, on: mine.on, p, d };
+    }
+    this.handGearView.update(this.world, this.localPlayerId, local, this.vesselRoots, darkness, dt);
+    // On the bracket: hidden while a crew-mate has it (it's in their hand).
+    for (const g of this.gear) if (!g.held) g.mesh.visible = !this.gearTakenByOther(g.kind);
+    // Spraying an empty extinguisher: say so once.
+    const ext = this.gear[0];
+    const empty = (extinguisherShip(this.world)?.extCharge ?? 1) <= 0;
+    if (ext.held && ext.on && empty && !this.extEmptySaid) this.overlay.notify('Extinguisher empty: hang it back on its bracket for a full one', 4);
+    this.extEmptySaid = !!ext.held && empty;
   }
 
   /** Vessels as the body module sees them (rendered roots, walk areas, hull plans). */
@@ -1259,6 +1351,19 @@ export class App {
    * nothing did (no berth in reach). Read from the shared state (`berthId` is the berth in
    * range while she's free), so it works for crew too.
    */
+  /** Our ship's skiff (the tender whose host is our boat), if she has one. */
+  private ourSkiff(): VesselState | undefined {
+    return Object.values(this.world.vessels).find((v) => v.tender?.hostId === this.testVesselId);
+  }
+
+  /** The painter clicked (at `cleat`, -1 her bow cleat): say what happens, or why not. */
+  private painterHint(skiff: VesselState, cleat: number): void {
+    const plan = painterPlan(this.world, skiff, cleat);
+    if (plan.action === 'castOff') this.overlay.notify(`Painter let go from the ${cleatName(plan.cleat)}`, 2.5);
+    else if (plan.action === 'makeFast') this.overlay.notify(`Painter made fast to the ${cleatName(plan.cleat)} (${plan.length.toFixed(1)} m)`, 3);
+    else this.overlay.notify(`Painter: ${plan.why}`, 3);
+  }
+
   private cleatHint(cleat: number): void {
     const v = this.world.vessels[this.testVesselId];
     if (!v) return;
@@ -1516,7 +1621,7 @@ export class App {
         setTimeout(() => {
           const n = speechVoices();
           const speech = n < 0 ? 'no speech synthesis' : `${n} speech voices`;
-          this.overlay.notify(`Voice test: ${speech}; spoken ${lastSpeech.started} of ${lastSpeech.tried}${n <= 0 || lastSpeech.started < lastSpeech.tried ? ' (using the radio babble)' : ''}`, 8);
+          this.overlay.notify(`Voice test: ${speech}; spoken ${lastSpeech.started} of ${lastSpeech.tried}${n <= 0 || lastSpeech.started < lastSpeech.tried ? ' (radio: squelch only, no voice)' : ''}`, 8);
         }, 2000);
       },
       rescueNear: (kind) => this.pushVesselIntent('rescueDebugNear', 1, kind),
@@ -1570,6 +1675,31 @@ export class App {
       },
       probes: () => this.probes.mesh.visible,
       toggleProbes: () => this.probes.toggle(),
+      potting: () => userSettings.potting,
+      setPotting: (on) => {
+        userSettings.potting = on;
+        saveSettings();
+        this.overlay.notify(on ? 'Potting on: five pots wait on the pallet on the Calder Haven quay' : 'Potting off from your next game (pots already out stay out)', 4);
+      },
+      potsAboard: () => {
+        if (!this.world.potting) return this.overlay.notify('Switch potting on first (Settings → Game)', 3);
+        this.pushVesselIntent('potDebugAboard', 1);
+      },
+      toPottingGround: () => {
+        if (!this.world.potting) return this.overlay.notify('Switch potting on first (Settings → Game)', 3);
+        this.pushVesselIntent('potDebugGround', 1);
+        if (this.world.players[this.localPlayerId].aboardVesselId !== this.testVesselId) this.toggleBoardTo(true);
+        this.overlay.notify('On a potting ground: shoot the pots over the side', 3);
+      },
+      potsReady: () => {
+        this.pushVesselIntent('potDebugReady', 1);
+        this.overlay.notify('Pots in the water: ready to haul', 2);
+      },
+      potsOnPlotter: () => !!this.bridge?.chart?.showPots,
+      togglePotsOnPlotter: () => {
+        const chart = this.bridge?.chart;
+        if (chart) chart.showPots = !chart.showPots;
+      },
       debugMenu: () => userSettings.debugMenu,
       setDebugMenu: (on) => {
         userSettings.debugMenu = on;
@@ -1650,7 +1780,19 @@ export class App {
    * NET_RATE times a second when a client.
    */
   private updateNetPose(dt: number): void {
-    if (!this.host && this.client?.status !== 'connected') return;
+    if (!this.host && this.client?.status !== 'connected') {
+      // Solo: no pose to send, but the simulation still needs your hand gear (the
+      // extinguisher on a fire), which it reads from your avatar like a crew-mate's.
+      const me = this.world.players[this.localPlayerId];
+      if (!me) return;
+      const frame = this.playerFrame();
+      frame.updateMatrixWorld();
+      this.invFrame.copy(frame.matrixWorld).invert();
+      const gear = this.gear.map((g) => g.pose(this.invFrame)).find((x) => x) ?? null;
+      if (gear) me.avatar = { ...(me.avatar ?? { head: [0, 0, 0, 0, 0, 0, 1], left: null, right: null }), gear };
+      else if (me.avatar) me.avatar.gear = null;
+      return;
+    }
     const p = this.world.players[this.localPlayerId];
     const frame = this.playerFrame();
     frame.updateMatrixWorld();
@@ -1694,10 +1836,11 @@ export class App {
       rightQ: handQ('right'),
       tool: this.chartTools?.heldTool() ?? null,
       laser: this.laser.pose(this.invFrame),
+      gear: this.gear.map((g) => g.pose(this.invFrame)).find((x) => x) ?? null,
     };
     if (this.host) {
       p.name = pose.name;
-      p.avatar = { head: pose.head, left: pose.left, right: pose.right, leftQ: pose.leftQ, rightQ: pose.rightQ, tool: pose.tool, laser: pose.laser };
+      p.avatar = { head: pose.head, left: pose.left, right: pose.right, leftQ: pose.leftQ, rightQ: pose.rightQ, tool: pose.tool, laser: pose.laser, gear: pose.gear };
       return;
     }
     this.poseTimer += dt;
@@ -1762,7 +1905,7 @@ export class App {
     client.onChart = (op) => applyChartOp(this.marks, op);
     client.onWelcome = (playerId, world, chart) => {
       // The host's chart: their marks replace ours while we're aboard their boat.
-      this.marks = chart ? { strokes: chart.strokes, seq: this.marks.seq + 1 } : createMarks();
+      this.marks = chart ? { strokes: chart.strokes, tokens: chart.tokens ?? [], seq: this.marks.seq + 1 } : createMarks();
       // Same boats on both sides (tows come and go, so they don't count).
       if (!Object.values(world.vessels).every((v) => this.vesselViews.has(v.id) || VESSEL_DEFS[v.defId]?.tow)) {
         this.netMessage = 'That game is a different version';
@@ -1903,13 +2046,31 @@ export class App {
       // No storage: an empty board, no count.
     }
     this.interaction = new InteractionSystem(
-      [...this.bridge.controls, ...this.tillers.flatMap((t) => t.parts), ...this.cranes.flatMap((d) => d.buttons)],
+      [...this.bridge.controls, ...this.tillers.flatMap((t) => t.parts), ...this.cranes.flatMap((d) => d.buttons), ...this.gear.map((g) => g.bracket)],
       (channel, value) => {
         if (channel === 'engineStartStop') return this.requestEngineStartStop();
         // Console modules send bus keys ('ignition.start'); older controls their old names.
         if ((channel === 'start' || channel === 'ignition.start') && value > 0) this.startInGearHint();
         if (channel === 'dipstick' || channel === 'propulsion.oilCheck') this.readDipstick();
         if (channel === 'cleat') this.cleatHint(value);
+        // A gear bracket (desktop): take the gear or hang it back. Local: no intent. In VR the
+        // grip takes it.
+        if (channel.startsWith('gear:')) {
+          const g = this.gear.find((x) => `gear:${x.kind}` === channel);
+          if (g && !this.renderer.xr.isPresenting) {
+            for (const o of this.gear) if (o !== g && o.held) o.hangBack(); // one at a time
+            if (!g.held && this.gearTakenByOther(g.kind)) this.overlay.notify('A crew-mate has it', 2);
+            g.toggleDesk(this.gearTakenByOther(g.kind));
+          }
+          return;
+        }
+        // A midship cleat: the painter's on the skiff (aimed at her), whichever cleat leads it.
+        if (channel === 'painterCleat' || channel.endsWith(':painter')) {
+          const skiff = this.ourSkiff();
+          if (!skiff) return;
+          this.painterHint(skiff, value);
+          return this.pushIntentTo(skiff.id, 'painter', value);
+        }
         if (value > 0) this.hydraulicsHint(channel);
         const { vesselId, control } = this.routeChannel(channel);
         this.pushIntentTo(vesselId, control, value);
@@ -1930,6 +2091,7 @@ export class App {
     );
     this.scene.add(this.interaction.rayLine('left'), this.interaction.rayLine('right'));
     this.pointer = new DesktopPointer(this.renderer.domElement, this.desktop, this.interaction, this.menu, this.desktopCargo());
+    this.pointer.gearHeld = () => this.gear.some((g) => g.held === 'desk');
     if (this.chartTools) {
       const tools = this.chartTools;
       // Drawing on the chart only with the leaf unfolded.
@@ -1973,6 +2135,17 @@ export class App {
         f.gripDown = f.gripPressed = f.triggerDown = f.triggerPressed = false;
         f.trigger = 0;
       }
+      // Hand gear (extinguisher, torch): the same.
+      for (const g of this.gear) {
+        const used = g.updateXR(this.hands, this.busyHands, this.gearTakenByOther(g.kind), (h, i, ms) => this.xrInput.pulse(h, i, ms));
+        for (const h of ['left', 'right'] as const) {
+          if (!used[h]) continue;
+          const f = this.hands[h];
+          f.gripDown = f.gripPressed = f.triggerDown = f.triggerPressed = false;
+          f.trigger = 0;
+          onBino[h] = true; // busy for the rest of the frame
+        }
+      }
       // The chart table's tools: a hand holding one gives its grip and trigger to the tool.
       const onTools = this.chartTools && this.chartTable?.isOpen ? this.chartTools.updateXR(this.chartCtx(), this.hands, this.busyHands, this.frameDt) : { left: false, right: false };
       for (const h of ['left', 'right'] as const) {
@@ -1995,11 +2168,13 @@ export class App {
       return;
     }
     this.pointer?.update(this.camera);
+    for (const g of this.gear) g.updateDesktop(this.camera, !!this.pointer?.gearDown, !!this.pointer?.gearPressed);
+    if (this.keyboard.actionPressed('hangGear')) for (const g of this.gear) if (g.held) g.hangBack();
   }
 
   /**
-   * The laser pointer (laserPointer.ts): while the right stick is held in (VR) or the right
-   * mouse button is held (desktop). Desktop: aimed from the eyes, drawn from a "hand" down
+   * The laser pointer (laserPointer.ts): while the right stick is held in (VR) or the middle
+   * mouse button is held (desktop; the right one is the binoculars). Desktop: aimed from the eyes, drawn from a "hand" down
    * and to the right of them.
    */
   private updateLaser(dt: number): void {
@@ -2201,7 +2376,10 @@ export class App {
     for (const t of this.tillers) {
       const covered = this.world.vessels[t.vesselId]?.tender?.phase === 'stowed';
       t.root.visible = !covered;
-      for (const c of t.parts) c.enabled = !covered;
+      for (const c of t.parts) {
+        c.enabled = !covered;
+        if (c instanceof Cleat) c.root.visible = !covered;
+      }
     }
   }
 
@@ -2219,6 +2397,7 @@ export class App {
     if (this.bridge) {
       this.bridge.door.tick(dt);
       this.bridge.sideDoor?.tick(dt);
+      this.bridge.sideGate?.tick(dt);
       // Shut in only with both doors shut (the port side door, if she has one, too).
       this.closed = this.bridge.door.shut && (this.bridge.sideDoor?.shut ?? true) ? 1 : 0;
     }

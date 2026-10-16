@@ -21,7 +21,10 @@ import { stepForecast } from '../environment/forecast';
 import { applyTrafficIntent, stepTraffic } from '../traffic/traffic';
 import { stepDuties } from '../duties/duties';
 import { applyCraneIntent, onCrane, stepTender } from '../vessel/tenderCrane';
+import { applyPainterIntent, painterForces } from '../vessel/physics/painter';
 import { applyFireIntent, isFireIntent, stepFire } from '../fire/fire';
+import { stepExtinguisher } from '../fire/extinguisher';
+import { applyPottingIntent, isPottingIntent, stepPotting } from '../potting/potting';
 import { applyTowIntent, isTowIntent, stepTow, towlineForces } from '../tow/tow';
 import { applySalvageIntent, isSalvageIntent, stepSalvage } from '../salvage/salvage';
 import { stepFishing, trawlForces } from '../fishing/fishing';
@@ -61,6 +64,10 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
       applyCareerIntent(world, intent);
     } else if (isSalvageIntent(intent.control)) {
       applySalvageIntent(world, intent.playerId, intent.control);
+    } else if (isPottingIntent(intent.control)) {
+      applyPottingIntent(world, intent);
+    } else if (intent.control === 'painter') {
+      applyPainterIntent(world, intent);
     } else if (intent.control === 'crane') {
       applyCraneIntent(world, intent);
     } else if (intent.control === 'trafficSpawn') {
@@ -87,6 +94,8 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
   for (const [id, f] of towlineForces(world)) touching.set(id, [...(touching.get(id) ?? []), ...f]);
   // The trawl (fishing): its drag at the A-frame's blocks.
   for (const [id, f] of trawlForces(world)) touching.set(id, [...(touching.get(id) ?? []), ...f]);
+  // The skiff's painter: her bow line to the ship's cleat.
+  for (const [id, f] of painterForces(world)) touching.set(id, [...(touching.get(id) ?? []), ...f]);
   for (const vessel of Object.values(world.vessels)) {
     if (onCrane(vessel)) continue;
     let dbg: HydroDebug | undefined;
@@ -127,6 +136,8 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
   stepDuties(world);
   stepRescue(world, dt, simWaves);
   stepTow(world, dt);
+  stepExtinguisher(world, dt);
+  stepPotting(world, dt);
   stepFire(world, dt);
   stepSalvage(world, dt);
   stepFishing(world, dt);

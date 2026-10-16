@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { panelLit } from '../controls/panelLighting';
 import type { FireJob } from './fire';
 
 /**
@@ -14,8 +15,8 @@ import type { FireJob } from './fire';
 export class FireGauge {
   readonly root = new THREE.Group();
   private readonly bar: THREE.Mesh;
-  private readonly barMat = new THREE.MeshBasicMaterial({ color: 0x401010 });
-  private readonly lampMat = new THREE.MeshBasicMaterial({ color: 0x173a1c });
+  private readonly barMat = panelLit(new THREE.MeshBasicMaterial({ color: 0x401010 }));
+  private readonly lampMat = panelLit(new THREE.MeshBasicMaterial({ color: 0x173a1c }));
   private shown = -1;
   private lit = false;
 

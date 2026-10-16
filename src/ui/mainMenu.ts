@@ -168,6 +168,16 @@ export interface MenuHost {
   toggleHydroView(): void;
   probes(): boolean;
   toggleProbes(): void;
+  /** Lobster and crab potting is on (a per-browser setting while it's being built). */
+  potting(): boolean;
+  setPotting(on: boolean): void;
+  /** Debug: the pallet's pots onto our aft deck; our boat to the nearest potting ground. */
+  potsAboard(): void;
+  toPottingGround(): void;
+  /** Debug: every pot in the water ready to haul; our pots shown on the chartplotter. */
+  potsReady(): void;
+  potsOnPlotter(): boolean;
+  togglePotsOnPlotter(): void;
   /** The Debug tab is shown (a per-browser setting, off by default). */
   debugMenu(): boolean;
   setDebugMenu(on: boolean): void;
@@ -478,6 +488,7 @@ export function mainMenu(h: MenuHost): MainMenu {
             choice('Plot it yourself', true, () => h.plotYourself(), (v) => h.setPlotYourself(v)),
           ],
         },
+        { label: 'Potting (new, in progress)', buttons: [choice('Off', false, () => h.potting(), (v) => h.setPotting(v)), choice('On', true, () => h.potting(), (v) => h.setPotting(v))] },
         { label: 'Debug tab', buttons: [choice('Hidden', false, () => h.debugMenu(), (v) => h.setDebugMenu(v)), choice('Shown', true, () => h.debugMenu(), (v) => h.setDebugMenu(v))] },
       ],
     },
@@ -587,6 +598,15 @@ export function mainMenu(h: MenuHost): MainMenu {
             { text: 'Barge', press: () => h.towNear('barge') },
             { text: 'Call', press: () => h.towCall() },
             { text: 'End', press: () => h.towEnd() },
+          ],
+        },
+        {
+          label: 'Potting',
+          buttons: [
+            { text: 'Pots aboard', press: () => h.potsAboard() },
+            { text: 'To a ground', press: () => h.toPottingGround() },
+            { text: 'Ready', press: () => h.potsReady() },
+            { text: 'On plotter', active: () => h.potsOnPlotter(), press: () => h.togglePotsOnPlotter() },
           ],
         },
         {

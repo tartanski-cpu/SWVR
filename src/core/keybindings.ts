@@ -48,7 +48,8 @@ export const KEYS = {
   toggleOverlay: { codes: ['F3', 'KeyI'], description: 'Debug overlay on/off' },
   toggleProbes: { codes: ['KeyP'], description: 'Wave surface probes on/off' },
   toggleHelp: { codes: ['F1', 'KeyH'], description: 'This help on/off' },
-  binoculars: { codes: ['KeyZ'], description: 'Binoculars: look through them (hold)' },
+  binoculars: { codes: ['KeyZ'], description: 'Binoculars: look through them (hold; or the right mouse button)' },
+  hangGear: { codes: ['KeyU'], description: 'Hang the extinguisher or torch back on its bracket' },
   menu: { codes: ['KeyO'], description: 'Menu (voyage, boat, cargo, office, crew, settings)' },
 } satisfies Record<string, KeyBinding>;
 

@@ -242,10 +242,20 @@ export class Cleat extends Control {
   private readonly turns: THREE.Mesh;
   private fast = false;
   private pressed = false;
+  /** The skiff's painter is on this cleat (set each frame from her state, before sync). */
+  painterOn = false;
 
-  constructor(readonly index: number) {
-    super(`cleat${index}`, 'cleat');
-    this.label = `${index < 2 ? 'Bow' : 'Stern'} line (${index % 2 === 0 ? 'port' : 'starboard'} cleat): make fast / let go`;
+  /**
+   * `index` 0-3: a mooring cleat (channel 'cleat'); 4-5: a midship cleat, for the skiff's
+   * painter only (channel 'painterCleat'); -1: the skiff's own bow cleat (channel
+   * `<skiffId>:painter`). Its value on press is its index.
+   */
+  constructor(
+    readonly index: number,
+    opts: { id?: string; channel?: string; label?: string } = {},
+  ) {
+    super(opts.id ?? `cleat${index}`, opts.channel ?? 'cleat');
+    this.label = opts.label ?? `${index < 2 ? 'Bow' : 'Stern'} line (${index % 2 === 0 ? 'port' : 'starboard'} cleat): make fast / let go`;
     const body = new THREE.Mesh(
       mergeParts([
         part(new THREE.BoxGeometry(0.09, 0.012, 0.16).translate(0, 0.006, 0), 0x6a7076), // base plate
@@ -280,9 +290,13 @@ export class Cleat extends Control {
   }
 
   sync(state: VesselState): void {
-    const m = state.mooring;
-    const end = this.index < 2 ? m.bow : m.stern;
-    const fast = m.phase !== 'free' && end === (this.index % 2 === 0 ? -1 : 1);
+    let fast = this.painterOn;
+    if (this.index < 0) fast = !!state.tender?.painter; // her bow cleat: the painter's on
+    else if (this.index < 4) {
+      const m = state.mooring;
+      const end = this.index < 2 ? m.bow : m.stern;
+      fast ||= m.phase !== 'free' && end === (this.index % 2 === 0 ? -1 : 1);
+    }
     if (fast !== this.fast) this.turns.visible = this.fast = fast;
   }
 }

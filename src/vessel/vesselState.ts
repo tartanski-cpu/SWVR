@@ -47,6 +47,8 @@ export interface VesselControls {
   door: number;
   /** The port side door (wheelhouse.sideDoor): 1 open. Absent (older saves, snapshots) = shut. */
   sideDoor?: number;
+  /** The gate in the working-deck bulwark (layout.sideGate): 1 open. Absent = shut. */
+  sideGate?: number;
   /** The engine hatch in the wheelhouse floor open (1) or shut (0). */
   engineHatch?: number;
   /** The chart table's drop leaf unfolded (1, or unset) or folded against the wall (0). */
@@ -176,6 +178,11 @@ export interface VesselState {
   thrust: number;
   anchor: AnchorState;
   mooring: MooringState;
+  /**
+   * The fire extinguisher on its wheelhouse bracket (player/handGear.ts, fire/extinguisher.ts):
+   * charge left, 0..1. Absent = full.
+   */
+  extCharge?: number;
   /** Taking fuel at a fuel berth. */
   refuelling: boolean;
   contact: ContactState;
@@ -228,6 +235,11 @@ export interface TenderState {
   t: number;
   /** Hoisting: her pose in the ship's axes when she was hooked on (x, y, z, yaw rad). */
   from?: [number, number, number, number];
+  /**
+   * The painter (her bow line to the ship), while it's fast: which of the ship's cleats it's
+   * on (vessel/physics/painter.ts cleatLocal order) and its length (m) from her bow cleat.
+   */
+  painter?: { cleat: number; length: number };
 }
 
 export function createVesselState(id: EntityId, defId: string): VesselState {

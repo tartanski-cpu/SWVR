@@ -80,7 +80,8 @@ export class Searchlight {
     const on = switchedOn && powered;
     let pan = panDeg;
     let tilt = tiltDeg;
-    if (this.c.stabilised && this.root.parent) {
+    // Stabilised only while it's lit (owner: no need otherwise); off, it rides with the boat.
+    if (this.c.stabilised && on && this.root.parent) {
       // Where the beam should point in the world (heading only, level against roll and
       // pitch), turned back into the boat's axes as she's drawn this frame.
       this.root.parent.getWorldQuaternion(this.q);

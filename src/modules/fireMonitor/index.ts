@@ -6,7 +6,7 @@
  * clutch. Stabilised, it holds its aim level against her roll and pitch. The gauge ahead
  * of the joystick shows how big the fire still is and lights ON TARGET while the jet lands
  * on it (the app feeds it the fire job, `api.gauge`: the fire is the world's, not the
- * boat's).
+ * boat's). It holds its aim level only while the pump is on; off, it rides with the boat.
  *
  * It gives the boat a fire monitor: where the nozzle is, how fast the water leaves it, its
  * aim limits; the world's fire system (fire/fire.ts) shoots the jet from it. Drawn in the
@@ -36,6 +36,7 @@ export const FIRE_MONITOR: ModuleDefinition<FireMonitorConfig> = {
   ports: {
     pan: { dir: 'read', key: 'monitor.pan' },
     tilt: { dir: 'read', key: 'monitor.tilt' },
+    pump: { dir: 'read', key: 'firePump.on' },
   },
   // The pump on the engine's power take-off, its clutch on 12 V.
   needs: () => [{ power: 'pto' }, { power: 'electrical' }],
@@ -57,7 +58,7 @@ export const FIRE_MONITOR: ModuleDefinition<FireMonitorConfig> = {
           { text: 'FIRE', at: [x, y, z - 0.03] },
           { text: 'ON TARGET', at: [x + gp.length / 2 + gp.lampX, y, z - 0.03] },
         ],
-        update: (read) => monitor.update(read.num(keys.pan), read.num(keys.tilt)),
+        update: (read) => monitor.update(read.num(keys.pan), read.num(keys.tilt), !!read.get(keys.pump)),
         api: { gauge } satisfies FireMonitorApi,
       };
     },

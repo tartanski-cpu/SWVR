@@ -10,7 +10,9 @@
  *   start  a new stroke with its first point(s)        add    more points on its end
  *   set    replace a stroke's points (straight lines while dragging)
  *   erase  rub out points within r of (x, z); strokes split where they're cut
- *   clear  everything
+ *   clear  every pencil mark (the pot markers stay: they're magnets, lifted off by hand)
+ *   token  a pot marker (a little crab magnet, numbered) put on the chart or moved
+ *   untoken  a pot marker taken off the chart
  */
 import { CONFIG } from '../config';
 
@@ -20,8 +22,22 @@ export interface Stroke {
   pts: number[];
 }
 
+/** A pot marker on the chart (potting: the crew marks where they shot their pots). */
+export interface ChartToken {
+  id: string;
+  x: number;
+  z: number;
+  /** The number on it (the crew's pot number). */
+  n: number;
+}
+
+/** At most this many pot markers on the chart. */
+export const MAX_TOKENS = 40;
+
 export interface ChartMarks {
   strokes: Stroke[];
+  /** Pot markers (absent in marks saved before them). */
+  tokens?: ChartToken[];
   /** Counts changes (views redraw, the host saves). */
   seq: number;
 }
@@ -31,10 +47,12 @@ export type ChartOp =
   | { k: 'add'; id: string; pts: number[] }
   | { k: 'set'; id: string; pts: number[] }
   | { k: 'erase'; x: number; z: number; r: number }
-  | { k: 'clear' };
+  | { k: 'clear' }
+  | { k: 'token'; id: string; x: number; z: number; n: number }
+  | { k: 'untoken'; id: string };
 
 export function createMarks(): ChartMarks {
-  return { strokes: [], seq: 0 };
+  return { strokes: [], tokens: [], seq: 0 };
 }
 
 const q = (v: number) => Math.round(v / CONFIG.chartMarks.quantM) * CONFIG.chartMarks.quantM;
@@ -96,6 +114,21 @@ export function applyChartOp(m: ChartMarks, op: ChartOp): void {
     case 'clear':
       m.strokes = [];
       break;
+    case 'token': {
+      if (typeof op.id !== 'string' || ![op.x, op.z, op.n].every(Number.isFinite)) return;
+      const t = (m.tokens ??= []);
+      const old = t.find((k) => k.id === op.id);
+      if (old) {
+        old.x = q(op.x);
+        old.z = q(op.z);
+      } else if (t.length < MAX_TOKENS) t.push({ id: op.id, x: q(op.x), z: q(op.z), n: Math.max(1, Math.min(99, Math.round(op.n))) });
+      else return;
+      break;
+    }
+    case 'untoken':
+      if (!m.tokens?.some((k) => k.id === op.id)) return;
+      m.tokens = m.tokens.filter((k) => k.id !== op.id);
+      break;
     default:
       return;
   }
@@ -109,10 +142,11 @@ export function applyChartOp(m: ChartMarks, op: ChartOp): void {
 export function parseMarks(raw: string | null): ChartMarks | null {
   if (!raw) return null;
   try {
-    const o = JSON.parse(raw) as { strokes?: unknown };
+    const o = JSON.parse(raw) as { strokes?: unknown; tokens?: unknown };
     if (!Array.isArray(o.strokes)) return null;
     const m = createMarks();
     for (const s of o.strokes as Stroke[]) if (s && typeof s.id === 'string') applyChartOp(m, { k: 'start', id: s.id, pts: s.pts });
+    if (Array.isArray(o.tokens)) for (const t of o.tokens as ChartToken[]) if (t) applyChartOp(m, { k: 'token', id: t.id, x: t.x, z: t.z, n: t.n });
     m.seq = 0;
     return m;
   } catch {
@@ -121,5 +155,5 @@ export function parseMarks(raw: string | null): ChartMarks | null {
 }
 
 export function serializeMarks(m: ChartMarks): string {
-  return JSON.stringify({ strokes: m.strokes });
+  return JSON.stringify({ strokes: m.strokes, tokens: m.tokens ?? [] });
 }

@@ -45,6 +45,9 @@ const tmpD = new THREE.Vector3();
 const fwd = new THREE.Vector3();
 const hit: BlockHit = { depth: 0, nx: 0, ny: 0, nz: 0, fendered: false };
 
+/** The vessel this player last jumped off (so the gate below doesn't pull you straight back). */
+let takeoffFrom: string | null = null;
+
 /** Heading of an object about world +Y (rad), consistent with a rig yaw rotation. */
 export function yawOf(q: THREE.Quaternion): number {
   fwd.set(0, 0, -1).applyQuaternion(q);
@@ -72,6 +75,7 @@ export function jump(p: PlayerState, frame: { root: THREE.Object3D; state: Vesse
   if (dir.lengthSq() > 1e-6) dir.normalize();
   vel.addScaledVector(dir, cfg.jumpForward);
   vel.y += cfg.jumpUp;
+  takeoffFrom = frame?.state.id ?? null;
   p.aboardVesselId = null;
   p.position = [feet.x, feet.y, feet.z];
   p.velocity = [vel.x, vel.y, vel.z];
@@ -80,6 +84,7 @@ export function jump(p: PlayerState, frame: { root: THREE.Object3D; state: Vesse
 
 /** Jump off whatever the player is on into the air, at an explicit world velocity (tests). */
 export function setAirborne(p: PlayerState, pos: THREE.Vector3, vel: THREE.Vector3): void {
+  takeoffFrom = null;
   p.aboardVesselId = null;
   p.position = [pos.x, pos.y, pos.z];
   p.velocity = [vel.x, vel.y, vel.z];
@@ -147,6 +152,30 @@ export function updateAir(
       v[0] = ves.state.linearVelocity[0];
       v[2] = ves.state.linearVelocity[2];
     }
+  }
+
+  // An open deck gate (layout.sideGate): jump at it from the skiff alongside (off its step)
+  // and you're up through it, onto the deck inside. Not from the boat it's in: jumping out
+  // through it, you go on down into the skiff.
+  for (const ves of vessels) {
+    if (ves.id === takeoffFrom) continue;
+    const g = VESSEL_DEFS[ves.state.defId].layout.sideGate;
+    if (!g || (ves.state.controls.sideGate ?? 0) <= 0.5) continue;
+    const l = ves.root.worldToLocal(tmpC.copy(body));
+    const z = Math.min(g.z1 - 0.3, Math.max(g.z0 + 0.3, l.z));
+    const hb = ves.plan.halfBeam(z);
+    const out = g.side * l.x - hb;
+    const deck = ves.plan.deckY(z);
+    if (l.z < g.z0 - 0.3 || l.z > g.z1 + 0.3 || out < -0.4 || out > g.boardRange || l.y < deck - 1.8 || l.y > deck + 0.8) continue;
+    const x = g.side * (hb - 0.5);
+    const floors = ves.area.floorsAt(x, z);
+    if (!floors.length) continue;
+    p.aboardVesselId = ves.id;
+    p.position = [x, Math.min(...floors), z];
+    p.yaw -= yawOf(ves.root.quaternion);
+    p.mode = 'walk';
+    delete p.velocity;
+    return 'landedDeck';
   }
 
   // Decks, in each vessel's (moving) frame.

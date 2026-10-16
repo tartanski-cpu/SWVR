@@ -17,6 +17,18 @@ export interface HeldTool {
   hand: 'left' | 'right';
 }
 
+/**
+ * Hand gear in a player's hand (player/handGear.ts): which, whether it's working (spraying,
+ * lit), and its nozzle / lens point and pointing direction, in the frame the player is
+ * aboard (or world). The host uses the extinguisher's to put fires out; everyone draws it.
+ */
+export interface GearPose {
+  kind: 'extinguisher' | 'torch';
+  on: boolean;
+  p: Vec3;
+  d: Vec3;
+}
+
 export interface PlayerState {
   id: EntityId;
   name: string;
@@ -51,6 +63,7 @@ export interface PlayerState {
     rightQ?: Quat | null;
     tool?: HeldTool | null;
     laser?: LaserPose | null;
+    gear?: GearPose | null;
   };
 }
 

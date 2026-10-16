@@ -3,7 +3,10 @@
  *
  * Windlass, driven by the bridge switch (controls.anchor):
  *   switch ON  : stowed -> "paying": the anchor drops under the bow roller to the seabed and
- *                chain runs out to the scope for the depth (4 × depth + 5 m), then "set".
+ *                chain runs out to the scope for the depth, then "set". Scope is
+ *                `scopeRatio` × the water depth (5:1, the usual minimum; 7:1 is the
+ *                recommended figure for heavy weather), but never under 3:1 measured from
+ *                the bow roller, below which the anchor can't hold properly.
  *   switch OFF : "weighing": chain comes in at `heaveRate` unless the pull exceeds the
  *                windlass's limit (it stalls); the boat is drawn up to the anchor. When the
  *                chain is up-and-down the anchor breaks out ("hanging") and is then stowed.
@@ -64,11 +67,12 @@ export function anchorStep(
 
   const seabed = groundHeight(a.x, a.z);
   const h = Math.max(0.5, hawse.y - seabed);
+  const depth = Math.max(0.5, -seabed);
 
   // ── Windlass ──
   if (down) {
     if (a.phase === 'weighing' || (a.phase === 'hanging' && a.rodeM < cfg.chainM)) a.phase = 'paying';
-    const scope = Math.min(cfg.chainM, 4 * h + 5);
+    const scope = Math.min(cfg.chainM, Math.max(cfg.scopeRatio * depth, cfg.minScopeFromRoller * h));
     if (a.phase === 'paying' && windlass) {
       a.rodeM = Math.min(scope, a.rodeM + cfg.payOutRate * dt);
       if (a.rodeM >= scope) a.phase = 'set';

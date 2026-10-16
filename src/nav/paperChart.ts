@@ -13,7 +13,8 @@
  * table): sized to be read from standing height on desktop without leaning in.
  */
 import { CONFIG } from '../config';
-import { ISLANDS, MAX_DEPTH, PORTS } from '../world/archipelago';
+import { ISLANDS, MARKS, MAX_DEPTH, PORTS, WRECKS, type MarkKind } from '../world/archipelago';
+import { LIGHT_CHARACTERS } from '../world/navMarks';
 import { groundHeight } from '../world/terrain';
 import { chartBounds, toLatLon } from './geo';
 
@@ -170,6 +171,32 @@ export function drawPaperChart(widthPx = 2048): PaperChart {
     } else label(p.name, px(p.x), pz(p.z) + Math.sign(dz) * 26 * u, font, '#7a1f1a');
   }
 
+  // Wrecks: the dangerous-wreck symbol (a hull line crossed by three short strokes) in a
+  // dotted danger line, with the name.
+  for (const w of WRECKS) {
+    const x = px(w.x);
+    const y = pz(w.z);
+    g.strokeStyle = INK;
+    g.lineWidth = 2 * u;
+    g.setLineDash([3 * u, 4 * u]);
+    g.beginPath();
+    g.arc(x, y, 13 * u, 0, Math.PI * 2);
+    g.stroke();
+    g.setLineDash([]);
+    g.beginPath();
+    g.moveTo(x - 9 * u, y);
+    g.lineTo(x + 9 * u, y);
+    for (const dx of [-5, 0, 5]) {
+      g.moveTo(x + dx * u, y - 4 * u);
+      g.lineTo(x + dx * u, y + 4 * u);
+    }
+    g.stroke();
+    label(`Wk ${w.name}`, x - 40 * u, y + 24 * u, `italic ${15 * u}px Georgia, serif`, INK);
+  }
+  // Buoys: a small pillar (can, cone) in the mark's colours with its topmark, the light's
+  // magenta flare and its character (as charted).
+  for (const m of MARKS) drawMark(g, m.kind, px(m.x), pz(m.z), u * 0.6, (text, tx, ty) => label(text, tx, ty, `italic ${13 * u}px Georgia, serif`, '#9a1f78'));
+
   // Compass rose, bottom left (open water there).
   const rose = Math.min(W, H) * 0.1;
   compassRose(g, W * 0.13, H * 0.79, rose, u);
@@ -247,6 +274,65 @@ export function drawPaperChart(widthPx = 2048): PaperChart {
 
   printFinish(g, W, H, u);
   return { canvas: c, bounds: b };
+}
+
+/** A buoy's chart symbol at (x, y) px: body in its colours, topmark, magenta flare, and the light's character. */
+function drawMark(g: CanvasRenderingContext2D, kind: MarkKind, x: number, y: number, u: number, text: (t: string, x: number, y: number) => void): void {
+  const Y = '#d8b018';
+  const B = INK;
+  const R = '#b8281c';
+  const G = '#1f7a36';
+  const [top, bottom] = kind === 'N' ? [B, Y] : kind === 'S' ? [Y, B] : kind === 'E' ? [B, B] : kind === 'W' ? [Y, Y] : kind === 'isolated' ? [B, B] : kind === 'port' ? [R, R] : [G, G];
+  const band = kind === 'E' ? Y : kind === 'W' ? B : kind === 'isolated' ? R : null;
+  // The body: a short slanted pillar on the position circle.
+  g.save();
+  g.translate(x, y);
+  g.lineWidth = 1.2 * u;
+  g.strokeStyle = INK;
+  g.beginPath();
+  g.arc(0, 0, 3 * u, 0, Math.PI * 2);
+  g.stroke();
+  g.rotate(0.35);
+  const w = 8 * u;
+  const h = 22 * u;
+  g.fillStyle = bottom;
+  g.fillRect(-w / 2, -h, w, h / 2);
+  g.fillStyle = top;
+  g.fillRect(-w / 2, -h, w, h / 2 - (band ? h / 6 : 0));
+  if (band) {
+    g.fillStyle = band;
+    g.fillRect(-w / 2, -h / 2 - h / 6, w, h / 3);
+  }
+  g.fillStyle = bottom;
+  g.fillRect(-w / 2, -h / 2 + (band ? h / 6 : 0), w, h / 2 - (band ? h / 6 : 0));
+  g.strokeRect(-w / 2, -h, w, h);
+  // Topmark: two cones (pointing as the mark's), two balls, a can or a cone.
+  g.fillStyle = kind === 'port' ? R : kind === 'stbd' ? G : B;
+  const cone = (cy: number, up: boolean) => {
+    g.beginPath();
+    g.moveTo(-5 * u, cy + (up ? 4 : -4) * u);
+    g.lineTo(5 * u, cy + (up ? 4 : -4) * u);
+    g.lineTo(0, cy + (up ? -4 : 4) * u);
+    g.fill();
+  };
+  const t0 = -h - 6 * u;
+  if (kind === 'N') (cone(t0, true), cone(t0 - 9 * u, true));
+  else if (kind === 'S') (cone(t0, false), cone(t0 - 9 * u, false));
+  else if (kind === 'E') (cone(t0, false), cone(t0 - 9 * u, true));
+  else if (kind === 'W') (cone(t0, true), cone(t0 - 9 * u, false));
+  else if (kind === 'stbd') cone(t0, true);
+  else if (kind === 'port') g.fillRect(-4 * u, t0 - 4 * u, 8 * u, 8 * u);
+  else for (const cy of [t0, t0 - 9 * u]) (g.beginPath(), g.arc(0, cy, 3.5 * u, 0, Math.PI * 2), g.fill());
+  g.restore();
+  // The light: a magenta flare off the top, and its character beside it.
+  g.fillStyle = 'rgba(190, 40, 150, 0.55)';
+  g.beginPath();
+  g.ellipse(x + 14 * u, y - 18 * u, 9 * u, 4 * u, -0.6, 0, Math.PI * 2);
+  g.fill();
+  g.textAlign = 'left';
+  const ch = LIGHT_CHARACTERS[kind];
+  text(`${ch.label}`, x + 22 * u, y - 4 * u);
+  g.textAlign = 'center';
 }
 
 /**

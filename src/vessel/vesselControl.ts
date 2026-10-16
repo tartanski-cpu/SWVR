@@ -125,6 +125,9 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
     case 'door':
       s.controls.door = intent.value > 0.5 ? 1 : 0;
       break;
+    case 'sideGate':
+      s.controls.sideGate = intent.value > 0.5 ? 1 : 0;
+      break;
     case 'sideDoor':
       s.controls.sideDoor = intent.value > 0.5 ? 1 : 0;
       break;

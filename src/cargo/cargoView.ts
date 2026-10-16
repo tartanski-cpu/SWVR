@@ -1,17 +1,94 @@
 import * as THREE from 'three';
 import type { WorldState } from '../core/world';
+import { CONFIG } from '../config';
 import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 import { kindOf, lashPointFor, portById, type CargoItem } from './cargo';
+import { hasUpgrade } from '../career/career';
 
 const MAX = 48;
 const STRAP = 0xe8641c;
+
+/**
+ * A fish box from the trawl (owner request), built at the fish box's real size (m): an open
+ * wooden box of two slats a side with darker corner posts, a bed of ice if she has the ice
+ * machine (career upgrade 'ice'; without, the fish lie on the bare boards), and a few fish
+ * lying in it - plain blocks with a tail, in different colours (cod grey, mackerel blue,
+ * haddock brown, red gurnard, silver whiting). Origin at the middle of its base.
+ */
+function fishBoxGeometry(size: readonly number[], ice: boolean): THREE.BufferGeometry {
+  const [L, H, W] = size;
+  const wood = 0xb07a40;
+  const post = 0x7a5028;
+  const t = 0.02;
+  const slatH = (H - 0.035) / 2;
+  const parts = [part(new THREE.BoxGeometry(L, 0.02, W).translate(0, 0.01, 0), post)]; // bottom
+  for (let k = 0; k < 2; k++) {
+    const y = 0.02 + slatH / 2 + k * (slatH + 0.012);
+    for (const s of [-1, 1]) {
+      parts.push(part(new THREE.BoxGeometry(L - 0.04, slatH, t).translate(0, y, s * (W / 2 - t / 2)), wood)); // long sides
+      parts.push(part(new THREE.BoxGeometry(t, slatH, W - 0.04).translate(s * (L / 2 - t / 2), y, 0), wood)); // ends
+    }
+  }
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) parts.push(part(new THREE.BoxGeometry(0.035, H, 0.035).translate(sx * (L / 2 - 0.0175), H / 2, sz * (W / 2 - 0.0175)), post));
+  if (ice) parts.push(part(new THREE.BoxGeometry(L - 0.05, 0.05, W - 0.05).translate(0, 0.045, 0), 0xe4eef2)); // ice
+  // The fish, filling the floor: three rows across the box, two head to tail in each
+  // (length, colour, position along and across the box (m), yaw), a slight skew each.
+  const fish: [number, number, number, number, number][] = [
+    [0.34, 0xa8b0b4, -0.19, -0.14, 0.05],
+    [0.32, 0x3e6e80, 0.18, -0.15, 3.1],
+    [0.36, 0x8a7a64, -0.17, 0.0, 3.2],
+    [0.3, 0xc4563c, 0.2, 0.01, -0.06],
+    [0.33, 0xc8d0d6, -0.18, 0.145, -0.04],
+    [0.34, 0x5a7a86, 0.18, 0.14, 3.18],
+  ];
+  fish.forEach(([len, c, x, z, yaw], i) => {
+    const y = (ice ? 0.095 : 0.045) + (i % 2) * 0.004;
+    const body = new THREE.BoxGeometry(len * 0.82, 0.05, len * 0.24).translate(-len * 0.09, 0, 0);
+    const tail = new THREE.BoxGeometry(len * 0.16, 0.035, len * 0.26).translate(len * 0.41, 0, 0);
+    parts.push(part(body.rotateY(yaw).translate(x, y, z), c));
+    parts.push(part(tail.rotateY(yaw).translate(x, y, z), new THREE.Color(c).multiplyScalar(0.75).getHex()));
+  });
+  return mergeParts(parts);
+}
+
+/**
+ * A lobster / crab pot (creel), built at its real size (m), origin at the middle of its
+ * base: a rectangular base frame, a half-round body of dark netting over three hoops, a
+ * rope bridle, the line coiled on top and the marker buoy (with its little flag) tied on.
+ */
+function potGeometry(size: readonly number[]): THREE.BufferGeometry {
+  const [L, , W] = size;
+  const frame = 0x3a4a3e;
+  const hoop = 0x8a9a7a;
+  const net = 0x2c3e34;
+  const rope = 0xe0b440;
+  const r = W / 2 - 0.02;
+  const parts = [
+    // Base frame: two long rails and two ends (weighted bars).
+    ...[-1, 1].map((s) => part(new THREE.BoxGeometry(L, 0.035, 0.035).translate(0, 0.018, s * (W / 2 - 0.018)), frame)),
+    ...[-1, 1].map((s) => part(new THREE.BoxGeometry(0.035, 0.035, W).translate(s * (L / 2 - 0.018), 0.018, 0), frame)),
+    // The netting: a half-round body along the pot (axis along x), and its ends.
+    part(new THREE.CylinderGeometry(r, r, L - 0.06, 12, 1, false, 0, Math.PI).rotateZ(Math.PI / 2).translate(0, 0.035, 0), net), // (theta 0..π: the upper half once laid along x)
+    // Three hoops over it.
+    ...[-0.3, 0, 0.3].map((f) => part(new THREE.TorusGeometry(r + 0.008, 0.009, 4, 12, Math.PI).rotateY(Math.PI / 2).translate(f * L, 0.035, 0), hoop)),
+    // The entrance eye on top (a ring in the netting).
+    part(new THREE.TorusGeometry(0.06, 0.012, 4, 10).rotateX(Math.PI / 2).translate(0, 0.035 + r + 0.005, 0), hoop),
+    // Bridle: two ropes from the ends up to a point above the middle.
+    ...[-1, 1].map((s) => part(new THREE.CylinderGeometry(0.006, 0.006, Math.hypot(L / 2, 0.08), 4).rotateZ(s * (Math.PI / 2 - Math.atan2(0.08, L / 2))).translate(s * L / 4, 0.035 + r + 0.04, 0), rope)),
+    // The line coiled on top, and the buoy with its pole and flag.
+    part(new THREE.TorusGeometry(0.09, 0.022, 5, 12).rotateX(Math.PI / 2).translate(-L * 0.18, 0.035 + r + 0.03, 0.02), rope),
+    part(new THREE.SphereGeometry(0.075, 10, 7).translate(L * 0.22, 0.035 + r + 0.07, 0.0), 0xf26a1a),
+    part(new THREE.CylinderGeometry(0.006, 0.006, 0.22, 4).rotateZ(-1.1).translate(L * 0.22 + 0.1, 0.035 + r + 0.12, 0), 0x2a2e33),
+  ];
+  return mergeParts(parts);
+}
 
 /** Where a carried item is drawn: the middle of its base, and its orientation (world). */
 export type CarriedPose = (item: CargoItem) => { pos: THREE.Vector3; quat: THREE.Quaternion } | null;
 
 /**
- * Every cargo item, one instanced draw call per shape (boxes, drums) plus one for the
+ * Every cargo item, one instanced draw call per shape (boxes, drums, the trawl's fish boxes) plus one for the
  * lashing straps: waiting ashore, riding a deck, or in someone's hands. Sized by kind,
  * coloured by destination (the port's colour), with pale bands so it reads as packaged
  * goods. The item a hand is on is drawn brighter. Lashing points (D-rings) are baked onto
@@ -22,6 +99,13 @@ export class CargoView {
   private readonly boxes: THREE.InstancedMesh;
   private readonly drums: THREE.InstancedMesh;
   private readonly straps: THREE.InstancedMesh;
+  /** The trawl's catch: wooden fish boxes (built at the fish box's real size), bare and iced. */
+  private readonly fishBoxes: THREE.InstancedMesh;
+  private readonly icedBoxes: THREE.InstancedMesh;
+  private readonly fishSize: readonly number[];
+  /** Lobster / crab pots (built at the pot's real size). */
+  private readonly pots: THREE.InstancedMesh;
+  private readonly potSize: readonly number[];
   private readonly m = new THREE.Matrix4();
   private readonly p = new THREE.Vector3();
   private readonly q = new THREE.Quaternion();
@@ -37,7 +121,8 @@ export class CargoView {
     const box = mergeParts([
       part(new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0), 0xffffff),
       part(new THREE.BoxGeometry(1.02, 0.08, 1.02).translate(0, 0.55, 0), 0xf2ead8),
-      part(new THREE.BoxGeometry(1.02, 0.06, 1.02).translate(0, 0.97, 0), 0xf2ead8),
+      // Just below the lid, not flush with it (a band flush with the lid flickered against it).
+      part(new THREE.BoxGeometry(1.02, 0.06, 1.02).translate(0, 0.95, 0), 0xf2ead8),
     ]);
     const drum = mergeParts([
       part(new THREE.CylinderGeometry(0.5, 0.5, 1, 12).translate(0, 0.5, 0), 0xffffff),
@@ -49,7 +134,12 @@ export class CargoView {
     this.drums = new THREE.InstancedMesh(drum, mat, MAX);
     // Strap: a unit box on its base; bands round an item and ties down to its D-ring.
     this.straps = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0), new THREE.MeshLambertMaterial({ color: STRAP }), MAX * 3);
-    for (const im of [this.boxes, this.drums, this.straps]) {
+    this.fishSize = CONFIG.cargo.kinds.find((k) => k.name === 'Fish box')?.size ?? [0.8, 0.3, 0.5];
+    this.fishBoxes = new THREE.InstancedMesh(fishBoxGeometry(this.fishSize, false), mat, MAX);
+    this.icedBoxes = new THREE.InstancedMesh(fishBoxGeometry(this.fishSize, true), mat, MAX);
+    this.potSize = CONFIG.cargo.kinds.find((k) => k.name === 'Pot')?.size ?? [0.75, 0.42, 0.5];
+    this.pots = new THREE.InstancedMesh(potGeometry(this.potSize), mat, MAX);
+    for (const im of [this.boxes, this.drums, this.straps, this.fishBoxes, this.icedBoxes, this.pots]) {
       im.frustumCulled = false;
       im.count = 0;
       this.root.add(im);
@@ -88,6 +178,11 @@ export class CargoView {
     let nb = 0;
     let nd = 0;
     let ns = 0;
+    let nf = 0;
+    let np = 0;
+    // With the ice machine the catch goes on ice (the boxes on deck show it as soon as it's bought).
+    const iced = hasUpgrade(world, 'ice');
+    const fishMesh = iced ? this.icedBoxes : this.fishBoxes;
     for (const c of Object.values(world.cargo)) {
       const kind = kindOf(c);
       const [sx, sy, sz] = kind.size;
@@ -106,16 +201,29 @@ export class CargoView {
         this.p.copy(pose.pos);
         this.q.copy(pose.quat);
       }
+      const fishBox = c.from === 'trawl';
+      const pot = kind.shape === 'pot';
       const drum = kind.shape === 'drum';
-      const im = drum ? this.drums : this.boxes;
-      const i = drum ? nd++ : nb++;
+      const im = pot ? this.pots : fishBox ? fishMesh : drum ? this.drums : this.boxes;
+      const i = pot ? np++ : fishBox ? nf++ : drum ? nd++ : nb++;
       if (i >= MAX) continue;
-      this.m.compose(this.p, this.q, this.scale.set(sx, sy, sz));
-      im.setMatrixAt(i, this.m);
-      // Cargo fished out of the sea (bound for 'any' harbour) stays rescue orange.
-      this.color.set(c.to === 'any' ? 0xff6a10 : (portById(c.to)?.cargo.color ?? 0x888888));
-      if (c.id === hovered) this.color.offsetHSL(0, 0, 0.18);
-      im.setColorAt(i, this.color);
+      if (pot) {
+        this.m.compose(this.p, this.q, this.scale.set(sx / this.potSize[0], sy / this.potSize[1], sz / this.potSize[2]));
+        im.setMatrixAt(i, this.m);
+        im.setColorAt(i, this.color.setScalar(c.id === hovered ? 1.4 : 1));
+      } else if (fishBox) {
+        // Its own colours (built in); brighter while a hand is on it.
+        this.m.compose(this.p, this.q, this.scale.set(sx / this.fishSize[0], sy / this.fishSize[1], sz / this.fishSize[2]));
+        im.setMatrixAt(i, this.m);
+        im.setColorAt(i, this.color.setScalar(c.id === hovered ? 1.35 : 1));
+      } else {
+        this.m.compose(this.p, this.q, this.scale.set(sx, sy, sz));
+        im.setMatrixAt(i, this.m);
+        // Cargo fished out of the sea (bound for 'any' harbour) stays rescue orange.
+        this.color.set(c.to === 'any' ? 0xff6a10 : (portById(c.to)?.cargo.color ?? 0x888888));
+        if (c.id === hovered) this.color.offsetHSL(0, 0, 0.18);
+        im.setColorAt(i, this.color);
+      }
 
       // Lashed: two bands round it and a tie down to its D-ring.
       if (root && 'vessel' in c.at && c.at.lashed && ns + 3 <= MAX * 3) {
@@ -143,7 +251,10 @@ export class CargoView {
     this.boxes.count = Math.min(nb, MAX);
     this.drums.count = Math.min(nd, MAX);
     this.straps.count = ns;
-    for (const im of [this.boxes, this.drums, this.straps]) {
+    fishMesh.count = Math.min(nf, MAX);
+    this.pots.count = Math.min(np, MAX);
+    (iced ? this.fishBoxes : this.icedBoxes).count = 0;
+    for (const im of [this.boxes, this.drums, this.straps, this.fishBoxes, this.icedBoxes, this.pots]) {
       im.instanceMatrix.needsUpdate = true;
       if (im.instanceColor) im.instanceColor.needsUpdate = true;
     }

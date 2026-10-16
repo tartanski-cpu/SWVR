@@ -494,6 +494,18 @@ export const CONFIG = {
         railHeight: 1.0,
         /** Notch in the transom bulwark on the centreline for the towline's stern roller (width, m; 0 none). */
         fairleadGap: 0.44,
+        /**
+         * A gate in the starboard bulwark and rail at the working deck (owner request: for
+         * getting into and out of the skiff alongside with cargo). Between z0 and z1 (m),
+         * clear of the midship cleat forward and the swim ladder aft. Hinged on its forward
+         * post, it swings inboard (`openDeg`) at a press of the green button on its aft post
+         * (inboard and outboard faces, `buttonHeight` above the deck). Vessel control
+         * `sideGate` (1 open), shut at the start. Open, you can walk out to the deck edge
+         * in the gateway and jump down; jump up from the skiff (or climb out of the water)
+         * within `boardRange` (m) outboard of it and you're aboard, helped by a fixed step on
+         * the hull side `stepDrop` (m) below the deck.
+         */
+        sideGate: { side: 1, z0: 2.6, z1: 3.4, openDeg: 90, buttonHeight: 0.85, boardRange: 1.8, stepDrop: 0.55 },
         deckEdgeMargin: 0.3,
         /** Player body radius used for collision with walls. */
         bodyRadius: 0.22,
@@ -552,7 +564,8 @@ export const CONFIG = {
        * horizontal distance bow -> anchor, h the bow height above the seabed, L the chain out:
        *   x < x_taut = sqrt(L² - h²):  T = w·h·exp((x - x_taut) / softness)   (catenary lifting)
        *   x ≥ x_taut:                  T = w·h + k·(x - x_taut) + c·dx/dt       (bar taut)
-       * Above `holdingN` the anchor drags. Scope paid out: 4 × depth + 5 m.
+       * Above `holdingN` the anchor drags. Scope paid out: `scopeRatio` × water depth, at least
+       * `minScopeFromRoller` × the bow roller's height above the seabed.
        */
       anchor: {
         /** Bow roller / hawse (vessel axes). */
@@ -562,6 +575,13 @@ export const CONFIG = {
         chainWeightNPerM: 16,
         /** Holding power in sand/mud of a ~25 kg anchor (N). */
         holdingN: 20000,
+        /**
+         * Chain paid out per metre of water depth (owner: 5:1 minimum, 7:1 recommended).
+         * 5 keeps her from swinging wide in shallow anchorages; 7 holds better in a blow.
+         */
+        scopeRatio: 5,
+        /** Never less than this ratio from the bow roller (below 3:1 the anchor holds poorly). */
+        minScopeFromRoller: 3,
         payOutRate: 2.0,
         heaveRate: 0.6,
         /** Windlass stalls above this pull (N). */
@@ -615,9 +635,10 @@ export const CONFIG = {
       /**
        * Fenders: three a side (vessel z), hung over the rail when out; stowed lying along
        * the bulwark. One press on the fender basket (aft deck, starboard) puts them all out
-       * or takes them in.
+       * or takes them in. The aft pair and the basket stand clear of the deck gate
+       * (layout.sideGate) and its swing (they were at z 3.4 and 2.4).
        */
-      fenders: { z: [-2.4, 0.6, 3.4], basket: [1.75, 2.4] as [number, number] },
+      fenders: { z: [-2.4, 0.6, 3.9], basket: [1.75, 1.95] as [number, number] },
       /**
        * Engine oil (vessel/maintenance.ts): level 0..1 when the session starts; burnt at
        * `use` per second running (more under load); a check is due every `checkEvery` s of
@@ -903,6 +924,11 @@ export const CONFIG = {
       mooring: {
         cleatFwdZ: -4.3,
         cleatAftZ: 4.4,
+        /**
+         * Midship cleats, just aft of the wheelhouse at the fore end of the working deck
+         * (owner request): for the skiff's painter while working cargo over the side.
+         */
+        cleatMidZ: 2.0,
         lineY: 1.2,
       },
       /**
@@ -1079,6 +1105,17 @@ export const CONFIG = {
    * she still heaves and rolls.
    */
   docking: {
+    /**
+     * The skiff's painter (vessel/physics/painter.ts): her bow line to one of the ship's cleats,
+     * so she doesn't blow away. Made fast to the forward starboard cleat as she touches the
+     * water off the crane; click her bow cleat to let go or make fast to the nearest cleat in
+     * `reach` (m, bow cleat to ship's cleat), or a midship cleat to lead it there. It's made
+     * fast with `slack` (m) more than the distance, at least `minLength`, at most `maxLength`.
+     * A rope only pulls: taut, a spring (`stiffness` N/m; 12 mm braid stretches a little) with
+     * damping at `dampingRatio` of critical so she doesn't bounce on it. It parts above
+     * `breakForce` (N) or stretched `maxStretch` (m), as if she's towed off at speed.
+     */
+    painter: { reach: 6, slack: 0.5, minLength: 2.5, maxLength: 7, stiffness: 3000, dampingRatio: 0.7, breakForce: 15000, maxStretch: 2.0 },
     /** Hot spot: boat origin within this distance of the berth (m)... */
     range: 18,
     /** ...below this speed (m/s)... */
@@ -1405,7 +1442,15 @@ export const CONFIG = {
       { name: 'Sack', mass: 50, size: [0.55, 0.3, 0.85] as [number, number, number], shape: 'box' as const, slots: 1 },
       { name: 'Gas bottle', mass: 70, size: [0.32, 1.1, 0.32] as [number, number, number], shape: 'drum' as const, slots: 1 },
       { name: 'Oil drum', mass: 110, size: [0.58, 0.88, 0.58] as [number, number, number], shape: 'drum' as const, slots: 2 },
+      /**
+       * A lobster / crab pot (potting/potting.ts): not trade cargo (never spawned at the
+       * ports' goods stacks), but carried, stowed and lashed the same way. A creel: a
+       * boxy frame with netting, its line coiled on top and the marker buoy tied to it.
+       */
+      { name: 'Pot', mass: 24, size: [0.75, 0.42, 0.5] as [number, number, number], shape: 'pot' as const, slots: 2 },
     ],
+    /** How many of `kinds` (from the start) are trade cargo, spawned at the goods stacks. */
+    tradeKinds: 5,
     twoHandKg: 60,
     /**
      * Unlashed cargo on deck slides when the apparent gravity along the deck (heel, trim,
@@ -1548,8 +1593,8 @@ export const CONFIG = {
    * as such a track exists (debris only out of harbour). Ship types:
    * length, beam, speed (m/s), AIS names. Sighted within min(`sightRange`, visibility x
    * `sightVis`). In restricted visibility they sound a prolonged blast every 2 min, and
-   * answer yours. Hazards: floating debris (spawned like ships, drifting), the rocks and
-   * these buoys.
+   * answer yours. Hazards: floating debris (spawned like ships, drifting). The fixed
+   * hazards (rocks, a reef, a wreck) and their buoys are world data (archipelago.ts MARKS).
    */
   traffic: {
     every: [20, 45] as [number, number],
@@ -1569,16 +1614,6 @@ export const CONFIG = {
       yacht: { length: 12, beam: 3.8, speed: 3, names: ['Kittiwake', 'Blue Moon', 'Saorsa'] },
     },
     debrisEvery: [300, 600] as [number, number],
-    rocks: [
-      { name: 'Gull Rocks', x: 380, z: 430 },
-      { name: 'Skerry', x: -470, z: -360 },
-    ],
-    /** Hazard marks (vessel-free buoys): position and colour. */
-    buoys: [
-      { x: 270, z: 430, color: 0xe8c020 },
-      { x: -580, z: -360, color: 0xe8c020 },
-      { x: 150, z: 980, color: 0xd0302a },
-    ],
   },
 
   /**
@@ -1845,10 +1880,18 @@ export const CONFIG = {
 
   /**
    * Laser pointer (replaces pings, owner request): VR, hold the right stick in; desktop,
-   * hold the right mouse button. Reach (m); what it hits is found `hitRate` times a second.
+   * hold the middle mouse button (the right one is the binoculars). Reach (m); what it hits is found `hitRate` times a second.
    * Desktop: the beam starts at a "hand" `deskHand` (m: right, up, forward of the eyes), so it's
    * seen from the side; started at the eyes it would be seen end-on, just a dot.
    */
+  /**
+   * Panel lighting (controls/panelLighting.ts): the wheelhouse's self-lit screens, labels
+   * and dials dim with the daylight to `nightLevel` of their daytime brightness at full
+   * dark. As night falls (darkness from `redFrom` to `redTo`, 0 day .. 1 night) they turn
+   * red by themselves (owner: automatic, no switch), dimmer still at `redLevel` of that.
+   */
+  panelLighting: { nightLevel: 0.3, redLevel: 0.6, redFrom: 0.55, redTo: 0.85 },
+
   /**
    * Other players' figures (net/avatarView.ts, looks in net/avatarOutfits.ts). Upper body
    * only (owner's choice): head, a torso hanging from the neck to the waist, two-part arms
@@ -1914,15 +1957,91 @@ export const CONFIG = {
    * Binoculars (player/binoculars.ts): 7x. They lie on top of the dash, port end (vessel
    * axes, `stowYawDeg` turned). VR: grip within `grabRange` to take them; held within
    * `eyeRange` of your eyes you look through them (a `renderSize` square view). Desktop:
-   * hold Z.
+   * hold the right mouse button (or Z).
    */
   binoculars: {
     magnification: 7,
     stow: [-1.05, 2.6, -1.74] as [number, number, number],
     stowYawDeg: 20,
-    grabRange: 0.14,
+    grabRange: 0.2,
     eyeRange: 0.2,
     renderSize: 640,
+  },
+
+  /**
+   * Lobster and crab potting (potting/potting.ts; owner's feature, milestone 1: pots as
+   * cargo and shooting them). Off unless switched on (Settings → Game → Potting) while it's
+   * being built.
+   *   pallet     where the pots wait on the quay (world x, z, yaw deg) and how many: you
+   *              have `pots` of them; any lost are replaced there (pots are free for now)
+   *   maxShot    the most pots in the water at once, for everyone (cap on world records)
+   *   sinkTime   seconds from the splash until the pot's on the bottom and the marker buoy
+   *              pops up (s)
+   *   buoyColors each boat's buoy colour (by boat), flag colour while soaking
+   */
+  potting: {
+    pallet: { x: 719, z: 638, yawDeg: 90 },
+    pots: 5,
+    maxShot: 24,
+    sinkTime: 2.5,
+    /** Desktop: a pot set down from the rail is thrown this far out the way you look (m). */
+    deskThrow: 1.4,
+    buoyColors: [0xf26a1a, 0xf2d21a, 0xe0306a, 0x2ab0e0],
+    flagSoaking: 0xd8281c,
+    /**
+     * Soak time (milestone 2). Measured in time played (world time, s), not the game's
+     * clock: the time of day stands still unless you speed it up in the menu, so "a day"
+     * wouldn't pass. A pot is ready to haul after `soakReady` (20 min) and its catch keeps
+     * improving until `soakBest` (40 min); after that, no better.
+     */
+    soakReady: 1200,
+    soakBest: 2400,
+    /** The ready cue: flag green instead of red, and a little light blinking on it at night; only within this distance (m), so you still have to find your marks. */
+    flagReady: 0x28c040,
+    cueRange: 45,
+    /**
+     * Storm drift: in wind over `dragFrom` (m/s) a pot drags along the bottom downwind, its
+     * buoy with it, at `dragRate` m/s for every m/s over (a squall's 17 m/s: about 1.5 m a
+     * minute). It stops where the water gets too shallow.
+     */
+    dragFrom: 11,
+    dragRate: 0.004,
+    /** A local potter on the VHF now and then, telling of good ground (s between, from first switched on). */
+    tipEvery: [900, 1500] as [number, number],
+    tipFirst: 240,
+    /** Casual mode: your pots shown on the chartplotter too (off: the crew's marks on the paper chart are all you have). */
+    showOnPlotter: false,
+  },
+
+  /**
+   * Hand gear on brackets inside the wheelhouse, on the aft wall in its starboard corner
+   * (player/handGear.ts; owner request). VR: grip within `grabRange` to take one off its
+   * bracket; it stays in the hand while you hold the grip and goes back when you let go.
+   * Desktop: click it to take it, click its bracket (or U) to put it back. `bracket`: where
+   * it hangs (vessel axes, its middle). `deskHold`: where a desktop player holds it (camera
+   * axes, m).
+   */
+  handGear: {
+    grabRange: 0.2,
+    deskHold: [0.22, -0.3, -0.5] as [number, number, number],
+    /**
+     * A 6 kg water-mist / foam extinguisher (hold the trigger, or the left mouse button, to
+     * spray). The spray leaves the nozzle at `nozzleSpeed` (m/s) and falls under gravity
+     * with `airDrag` (per s), reaching 5-6 m: get close. Where it passes through the fire
+     * it knocks it down at `douse` x the fire monitor's rate (CONFIG.fire.douse) - small,
+     * but a fire you're close to goes out. A charge lasts `seconds` of spraying; hung back
+     * on its bracket it's swapped for a full one.
+     */
+    extinguisher: { bracket: [1.05, 1.62, 1.33] as [number, number, number], nozzleSpeed: 9, airDrag: 0.6, douse: 0.8, seconds: 60 },
+    /**
+     * A big rechargeable torch (trigger or left click: on / off). Lit, a real spotlight from
+     * its lens (`angleDeg` half-angle, `intensity`, `distance` m), only for your own torch.
+     * Sized for a person in the water 5-6 m off (owner): at 7 degrees the pool is about 1.4 m
+     * across at 6 m. It also has its own pool on the sea (ocean shader uTorch*). Crew-mates'
+     * torches show as a beam. `realLight` false: a beam only for yours too (no
+     * extra light in the scene, for a cheaper frame on the Quest).
+     */
+    torch: { bracket: [1.25, 1.72, 1.36] as [number, number, number], angleDeg: 7, intensity: 260, distance: 45, realLight: true },
   },
 
   /** Bridge-control interaction tuning. */
@@ -2043,8 +2162,8 @@ export const CONFIG = {
      *                 the throttle)
      *   horn          on its own, just left of the wheel
      *   DECK          anchor, trawl (and SKIFF CRANE): behind the throttle
-     *   ENGINE        HEAT and START (hold), the key, the warning lamps ahead of them, the
-     *                 laminated start-up card at the starboard end
+     *   ENGINE        HEAT and START (hold), the key, the warning lamps ahead of them; the
+     *                 laminated start-up card below, on the console's upright face
      * Screens on the dash: speed, heading, rpm, rudder, and the engine monitor in the centre,
      * behind the wheel (read through the spokes). `instrumentsAmps`: the console's
      * instruments (screens, lamps, their electronics) on the INSTR circuit (M4a).
@@ -2076,7 +2195,12 @@ export const CONFIG = {
         start: { position: [0.94, 0.01, -0.18] },
         key: { position: [1.08, 0.01, -0.18] },
         lamps: { position: [0.95, 0.015, -0.28] },
-        card: { position: [1.25, 0.025, -0.15] },
+        /**
+         * The laminated start-up card: upright on the console's aft face below the ENGINE
+         * group, facing the helmsman (owner: on the dash top it glowed white at night; down
+         * here, on the panel lighting, it dims and goes red with the instruments).
+         */
+        card: { position: [1.12, -0.31, 0.005] },
         spotJoystick: { position: [-0.45, 0.01, 0.17] },
         monJoystick: { position: [-0.85, 0.01, 0.17] },
         speed: { position: [-0.95, 0.21, -0.34] },

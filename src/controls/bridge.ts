@@ -1,3 +1,5 @@
+import { panelLit } from './panelLighting';
+import { Cleat } from './deckGear';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { WorkboatDef } from '../vessel/vesselDef';
@@ -13,6 +15,8 @@ import type { BoardView } from '../board/boardView';
 import type { DutyBoardView } from '../duties/dutyBoardView';
 import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
 import { WheelhouseDoor } from './WheelhouseDoor';
+import { SideGate } from './SideGate';
+import { hullPlan } from '../vessel/layout';
 import { RainGlass } from '../vessel/view/rainGlass';
 
 /**
@@ -42,6 +46,10 @@ export class Bridge {
   readonly door: WheelhouseDoor;
   /** The port side door (boats whose wheelhouse has one). */
   readonly sideDoor: WheelhouseDoor | null = null;
+  /** The gate in the working-deck bulwark, if she has one (its buttons are door-button modules). */
+  readonly sideGate: SideGate | null = null;
+  /** The cleats on the bulwark tops (modules; the app shows the skiff's painter on them). */
+  readonly cleats: Cleat[];
 
   /**
    * @param modules the boat's modules, already built from her recipe (modular boats): their
@@ -62,6 +70,7 @@ export class Bridge {
     this.dutyBoard = modules.api<DutyBoardView>('furniture.duty-board');
     this.controls.push(...modules.controls);
     this.fmSet = modules.modules.find((m) => m.id === 'radio.fm')?.root ?? null;
+    this.cleats = modules.controls.filter((c): c is Cleat => c instanceof Cleat);
     // The modules' engraved labels, drawn with the bridge's own.
     const extraLabels: Label[] = [...modules.labels];
     const extraFixed: THREE.BufferGeometry[] = [];
@@ -84,6 +93,17 @@ export class Bridge {
       door.root.rotation.y = Math.PI / 2; // its slide (local -x) runs aft
       this.root.add(door.root);
       this.sideDoor = door;
+    }
+    // The gate in the working-deck bulwark: hinged on its forward post (a hull feature, like
+    // the doors).
+    const gt = def.layout.sideGate;
+    if (gt) {
+      const plan = hullPlan(def);
+      const at = (z: number) => new THREE.Vector3(gt.side * (plan.halfBeam(z) - 0.03), plan.deckY(z), z);
+      const gate = new SideGate(at(gt.z0), at(gt.z1), def.layout.bulwarkHeight, def.layout.railHeight, gt.side, (gt.openDeg * Math.PI) / 180);
+      this.root.add(gate.root);
+      this.sideGate = gate;
+      // Its push buttons on the aft post, inside and out, are door-button modules.
     }
     this.rainGlass = new RainGlass(def);
     this.root.add(this.rainGlass.root);
@@ -173,6 +193,7 @@ export class Bridge {
     this.modules.update(state, dt, { inView: displaysInView, def: this.def, env });
     this.door.sync(state);
     this.sideDoor?.sync(state);
+    this.sideGate?.sync(state);
   }
 }
 
@@ -235,12 +256,20 @@ function buildLabels(labels: Label[]): THREE.Mesh {
       const v0 = 1 - (i + 1) / labels.length;
       uv.setXY(k, 0.5 - across / 2 + uv.getX(k) * across, v0 + uv.getY(k) / labels.length);
     }
-    // Lying on top of a panel, read from above; or under one, read from below.
-    plane.rotateX(underside ? Math.PI / 2 : -Math.PI / 2).rotateY(yaw);
-    plane.translate(pos[0] + Math.sin(yaw) * offset, pos[1] + (underside ? -0.002 : 0.002), pos[2] + Math.cos(yaw) * offset);
+    if (underside) {
+      // Under a panel (the overhead's), read from below.
+      plane.rotateX(Math.PI / 2).rotateY(yaw);
+      plane.translate(pos[0] + Math.sin(yaw) * offset, pos[1] - 0.002, pos[2] + Math.cos(yaw) * offset);
+    } else {
+      // Tilted up 45 degrees toward whoever reads it (owner: flat on the dash they were hard
+      // to read), standing on its near edge.
+      plane.rotateX(-Math.PI / 4).rotateY(yaw);
+      const lift = (h / 2) * Math.SQRT1_2;
+      plane.translate(pos[0] + Math.sin(yaw) * (offset - lift), pos[1] + 0.002 + lift, pos[2] + Math.cos(yaw) * (offset - lift));
+    }
     return plane;
   });
-  const mesh = new THREE.Mesh(mergeGeometries(planes), new THREE.MeshBasicMaterial({ map: texture, transparent: true }));
+  const mesh = new THREE.Mesh(mergeGeometries(planes), panelLit(new THREE.MeshBasicMaterial({ map: texture, transparent: true })));
   mesh.name = 'bridgeLabels';
   return mesh;
 }

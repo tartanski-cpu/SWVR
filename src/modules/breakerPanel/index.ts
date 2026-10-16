@@ -16,6 +16,7 @@
  * bats are shared parts. No per-frame texture work.
  */
 import * as THREE from 'three';
+import { panelLit } from '../../controls/panelLighting';
 import { CONFIG } from '../../config';
 import { Toggle } from '../../controls/Toggle';
 import { clamp } from '../../core/math';
@@ -44,7 +45,7 @@ export const BREAKER_PANEL: ModuleDefinition<BreakerPanelConfig> = {
       const H = c.height;
       // A wedge-ish housing: the sloping face plus a block behind it down to the wall.
       const body = part(new THREE.BoxGeometry(W, H, 0.12).translate(0, 0, -0.06), 0x2a2f33);
-      const face = new THREE.Mesh(new THREE.CircleGeometry(c.dial.radius, 32), new THREE.MeshBasicMaterial({ map: dialFace() }));
+      const face = new THREE.Mesh(new THREE.CircleGeometry(c.dial.radius, 32), panelLit(new THREE.MeshBasicMaterial({ map: dialFace() })));
       face.position.set(-W / 2 + c.dial.x, c.dial.y, 0.001);
       const needleArm = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.06, 0.002).translate(0, 0.03, 0), new THREE.MeshBasicMaterial({ color: 0xff3a20 }));
       const needle = new THREE.Group();
@@ -71,7 +72,7 @@ export const BREAKER_PANEL: ModuleDefinition<BreakerPanelConfig> = {
         share(t.batMesh, 'toggleBat');
         return t;
       });
-      const labels = new THREE.Mesh(new THREE.PlaneGeometry(W, H), new THREE.MeshBasicMaterial({ map: panelLabels(W, H, spots, c.dial.x), transparent: true }));
+      const labels = new THREE.Mesh(new THREE.PlaneGeometry(W, H), panelLit(new THREE.MeshBasicMaterial({ map: panelLabels(W, H, spots, c.dial.x), transparent: true })));
       labels.position.z = 0.0015;
 
       const live = spots.map(({ name }) => `circuit.${name}.live` as BusKey);

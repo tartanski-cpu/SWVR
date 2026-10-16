@@ -73,11 +73,14 @@ describe('the helm console, as modules', () => {
     expect(e.x).toBeCloseTo((-22 * Math.PI) / 180, 6);
   });
 
-  it('the warning lamps and the start-up card stand where they stood', () => {
+  it('the warning lamps stand where they stood, and the start-up card on the console\'s upright face, facing the helmsman', () => {
     const a = build();
     const at = (path: string) => a.modules.find((m) => m.path === path)!.root.position.toArray() as [number, number, number];
     near(at('helm/lamps'), [0.95, 2.165, -1.6]);
-    near(at('helm/card'), [1.25, 2.175, -1.47]);
+    // Where the dev branch put it (bridge.checklistCard, owner: not on the dash top at night).
+    near(at('helm/card'), [1.12, 1.84, -1.315]);
+    const card = a.modules.find((m) => m.path === 'helm/card')!.root.getObjectByName('checklistCard')!;
+    expect(new THREE.Vector3(0, 0, 1).applyQuaternion(card.getWorldQuaternion(new THREE.Quaternion())).z).toBeCloseTo(1, 6);
   });
 
   it('each control keeps its engraved label beside it, and the group titles are there', () => {

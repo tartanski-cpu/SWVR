@@ -60,6 +60,8 @@ export interface RidgeDef {
   crest: number;
   halfWidth: number;
   slope: number;
+  /** Drawn as rubble (breakwaters, reefs); false for a shape something else draws (a wreck's hull). */
+  drawn?: boolean;
 }
 
 /**
@@ -193,6 +195,8 @@ export const ISLANDS: IslandDef[] = [
   { name: 'Gull Rocks', x: 402, z: 442, radius: 12, height: 5, shape: [[2, 0.2, 1.1]], beach: 1, seed: 5, trees: 0 },
   { name: 'Gull Rocks', x: 352, z: 448, radius: 9, height: 4, shape: [[3, 0.2, 2.0]], beach: 1, seed: 6, trees: 0 },
   { name: 'Tarran', x: 1400, z: -250, radius: 70, height: 14, shape: [[2, 0.12, 0.3], [3, 0.08, 1.9]], beach: 3, seed: 7, trees: 0.15 },
+  // Craig Bheag: a lone rock awash on the Calder - Selkie passage, an isolated danger mark on it.
+  { name: 'Craig Bheag', x: 240, z: 880, radius: 7, height: 1.2, shape: [[3, 0.25, 0.7]], beach: 0.5, seed: 11, trees: 0 },
   { name: 'Skerry', x: -470, z: -360, radius: 28, height: 6, shape: [[2, 0.18, 0.9]], beach: 2, seed: 8, trees: 0 },
   {
     name: 'Eilean Dubh',
@@ -231,6 +235,12 @@ export const FLATS: FlatDef[] = [
 ];
 
 export const RIDGES: RidgeDef[] = [
+  // Hazards (owner request: real dangers, buoyed to IALA region A; see MARKS, WRECKS).
+  // Dubh Sgeir: a drying reef across the Brannock - Selkie passage, rocks just awash.
+  { ax: -290, az: 735, bx: -215, bz: 750, crest: 0.4, halfWidth: 4, slope: 0.35 },
+  // The wreck of the coaster Margaret Ann, on her side across the Calder - Brannock track:
+  // her hull stands to just above the water (drawn as the wreck, not as rubble).
+  { ax: 30, az: 470, bx: 52, bz: 486, crest: 0.6, halfWidth: 3.5, slope: 0.6, drawn: false },
   // North breakwater: from the shore west, then hooking south to the entrance.
   { ax: 680, az: 560, bx: 600, bz: 585, crest: 3.2, halfWidth: 2.5, slope: 0.7 },
   { ax: 600, az: 585, bx: 578, bz: 628, crest: 3.2, halfWidth: 2.5, slope: 0.7 },
@@ -262,6 +272,75 @@ export const BUILDINGS: BuildingDef[] = [
   // Rona: a bothy above the beach at Selkie Bay.
   { x: -142, z: 1309, width: 6, depth: 5, height: 3, yawDeg: 5, wall: 0xd8d2c4, roof: 0x3a3a3a },
 ];
+
+/**
+ * Buoys marking the hazards (owner request), IALA region A (red to port entering):
+ *   N, E, S, W   cardinal marks: pass on the named side of the mark (a north cardinal has
+ *                safe water to its north). Pillar buoys, black and yellow, two cone topmarks.
+ *   isolated     isolated danger, moored on the danger itself: black with a red band, two
+ *                black balls.
+ *   port, stbd   lateral marks on the approach to Calder Haven: red can, green cone.
+ * Lights (navMarks.ts LIGHT_CHARACTERS) are the IALA characters for each kind.
+ */
+export type MarkKind = 'N' | 'E' | 'S' | 'W' | 'isolated' | 'port' | 'stbd';
+export interface MarkDef {
+  name: string;
+  kind: MarkKind;
+  x: number;
+  z: number;
+}
+export const MARKS: MarkDef[] = [
+  // The Margaret Ann wreck (x 30-52, z 470-486): pass north of the north mark or south of the south one.
+  { name: 'Margaret Ann N', kind: 'N', x: 41, z: 420 },
+  { name: 'Margaret Ann S', kind: 'S', x: 41, z: 536 },
+  // Dubh Sgeir reef (x -290 to -215, z ~740): pass west of the west mark or east of the east one.
+  { name: 'Dubh Sgeir W', kind: 'W', x: -345, z: 742 },
+  { name: 'Dubh Sgeir E', kind: 'E', x: -160, z: 745 },
+  // Craig Bheag: an isolated danger mark on the rock itself.
+  { name: 'Craig Bheag', kind: 'isolated', x: 240, z: 880 },
+  // Gull Rocks: west of them, and south (the Calder - Brannock track passes south).
+  { name: 'Gull Rocks W', kind: 'W', x: 300, z: 430 },
+  { name: 'Gull Rocks S', kind: 'S', x: 380, z: 500 },
+  // The Skerry: west of it.
+  { name: 'Skerry W', kind: 'W', x: -540, z: -360 },
+  // Calder Haven approach, entering eastward: red to port (north), green to starboard (south).
+  { name: 'Calder No 1', kind: 'stbd', x: 525, z: 670 },
+  { name: 'Calder No 2', kind: 'port', x: 525, z: 622 },
+];
+
+/**
+ * Potting grounds (potting/potting.ts; owner's feature): where a potter would shoot creels -
+ * rocky ground round headlands and islands in 6-25 m of water, not sand. A circle (world
+ * x, z, radius m) and how good the ground is (0..1: more and better catch). Data, so free
+ * roam and procedural coasts can place them later.
+ */
+export interface PottingGround {
+  id: string;
+  name: string;
+  x: number;
+  z: number;
+  radius: number;
+  quality: number;
+}
+export const POTTING_GROUNDS: PottingGround[] = [
+  { id: 'gull', name: 'Gull Rocks, south side', x: 375, z: 482, radius: 55, quality: 0.8 },
+  { id: 'skerry', name: 'the Skerry, east side', x: -435, z: -350, radius: 50, quality: 0.7 },
+  { id: 'craig', name: 'Craig Bheag', x: 228, z: 895, radius: 45, quality: 0.9 },
+  { id: 'tarran', name: 'Tarran north point', x: 1400, z: -335, radius: 60, quality: 0.75 },
+];
+
+/** Wrecks drawn in the world (their solid part is a RIDGES entry with `drawn: false`). */
+export interface WreckDef {
+  name: string;
+  x: number;
+  z: number;
+  /** Which way her bow points (deg, 0 north, clockwise). */
+  headingDeg: number;
+  length: number;
+  /** How far she lies over (deg, + to starboard). */
+  listDeg: number;
+}
+export const WRECKS: WreckDef[] = [{ name: 'Margaret Ann', x: 41, z: 478, headingDeg: 54, length: 30, listDeg: 55 }];
 
 export const LIGHTS: LightDef[] = [
   // Calder Haven entrance: IALA region A - red to port, green to starboard, entering.

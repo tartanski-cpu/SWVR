@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { panelLit } from './panelLighting';
 import type { VesselState } from '../vessel/vesselState';
 import { Control, type Wiring } from './Control';
 
@@ -68,7 +69,7 @@ export class SelectorSwitch extends Control {
     super(id, wiring.channel ?? 'batSelect');
     this.read = wiring.read ?? ((s) => s.electrics?.selector ?? 1);
     const plate = this.fixed(new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.2, 0.012), new THREE.MeshLambertMaterial({ color: 0xe8e4d8 })));
-    const label = new THREE.Mesh(new THREE.PlaneGeometry(0.15, 0.19), new THREE.MeshBasicMaterial({ map: selectorLabel(), transparent: true }));
+    const label = new THREE.Mesh(new THREE.PlaneGeometry(0.15, 0.19), panelLit(new THREE.MeshBasicMaterial({ map: selectorLabel(), transparent: true })));
     label.position.z = 0.007;
     const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.045, 0.02, 16).rotateX(Math.PI / 2), this.material(0x1c1f22));
     disc.position.z = 0.016;
@@ -157,8 +158,9 @@ export class WarningLamps {
     });
     this.root.add(this.lamps);
     const w = cfg.spacing * n;
-    const label = new THREE.Mesh(new THREE.PlaneGeometry(w, 0.03).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: lampLabels(n), transparent: true }));
-    label.position.set(0, 0.002, 0.028);
+    // Tilted up 45 degrees toward the helmsman, standing on its near edge, like the dash labels.
+    const label = new THREE.Mesh(new THREE.PlaneGeometry(w, 0.03).rotateX(-Math.PI / 4), panelLit(new THREE.MeshBasicMaterial({ map: lampLabels(n), transparent: true })));
+    label.position.set(0, 0.002 + 0.015 * Math.SQRT1_2, 0.028 - 0.015 * Math.SQRT1_2);
     this.root.add(label);
   }
 
@@ -227,10 +229,10 @@ export function checklistCard(cfg: { position: [number, number, number]; width: 
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 4;
-  const card = new THREE.Mesh(new THREE.PlaneGeometry(cfg.width, cfg.height), new THREE.MeshBasicMaterial({ map: tex }));
+  // On the panel lighting, like the dials: dims at dusk, red at night.
+  const card = new THREE.Mesh(new THREE.PlaneGeometry(cfg.width, cfg.height), panelLit(new THREE.MeshBasicMaterial({ map: tex })));
   card.position.fromArray(cfg.position);
-  // Lying on the console top, tilted up toward the helmsman a little.
-  card.rotation.set(-Math.PI / 2 + 0.35, 0, 0);
+  // Upright on the console's aft face, facing the helmsman (+z).
   card.name = 'checklistCard';
   return card;
 }

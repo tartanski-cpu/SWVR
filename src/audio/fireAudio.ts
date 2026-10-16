@@ -6,7 +6,10 @@ import { mixer } from './mixer';
  *         loudness with the fire's intensity and falling off with distance;
  *   jet   the monitor: a steady high hiss while water flows (near the boat, so it's loud
  *         on deck and muffled in the wheelhouse like everything outside).
- *   steam the jet landing on the fire: a sharp, sputtering sizzle, louder the more water
+ *   ext   a hand extinguisher spraying: a closer, rougher rush than the monitor's hiss,
+ *         with a flutter (the stream pulsing out of the nozzle), and a sharp "pssht" as
+ *         the valve opens;
+ *   steam the jet (or an extinguisher's spray) landing on the fire: a sharp, sputtering sizzle, louder the more water
  *         lands on it (owner: better feedback). It is the "you're on target" cue, so it
  *         falls off with distance much less than the roar does: you hear it from the helm.
  */
@@ -17,6 +20,11 @@ export class FireAudio {
   private jet: GainNode | null = null;
   private steam: GainNode | null = null;
   private sputter: GainNode | null = null;
+  private ext: GainNode | null = null;
+  private extFlutter: GainNode | null = null;
+  private extBand: BiquadFilterNode | null = null;
+  private extWas = 0;
+  private extBurstUntil = 0;
 
   attach(ctx: AudioContext | null): void {
     if (!ctx || this.ctx) return;
@@ -65,6 +73,16 @@ export class FireAudio {
     this.steam = ctx.createGain();
     this.steam.gain.value = 0;
     src().connect(sb).connect(this.sputter).connect(this.steam).connect(out);
+    // Extinguisher: broad band-passed rush, its level fluttered fast.
+    this.extBand = ctx.createBiquadFilter();
+    this.extBand.type = 'bandpass';
+    this.extBand.frequency.value = 1700;
+    this.extBand.Q.value = 0.6;
+    this.extFlutter = ctx.createGain();
+    this.extFlutter.gain.value = 1;
+    this.ext = ctx.createGain();
+    this.ext.gain.value = 0;
+    src().connect(this.extBand).connect(this.extFlutter).connect(this.ext).connect(out);
   }
 
   /**
@@ -72,11 +90,27 @@ export class FireAudio {
    * @param fireDist distance to it (m)
    * @param jet      water flowing from the monitor
    * @param muffle   0..1, shut in the wheelhouse
-   * @param wet      fraction of the jet landing on the fire (0..1)
+   * @param wet      fraction of the water landing on the fire (0..1)
+   * @param ext      a hand extinguisher spraying, how loud where you are (0..1)
    */
-  update(fire: number, fireDist: number, jet: boolean, muffle: number, wet = 0): void {
+  update(fire: number, fireDist: number, jet: boolean, muffle: number, wet = 0, ext = 0): void {
     const ctx = this.ctx;
     if (!ctx || !this.roar || !this.jet || !this.crackle || !this.steam || !this.sputter) return;
+    if (this.ext && this.extFlutter && this.extBand) {
+      const t0 = ctx.currentTime;
+      const level = ext * 0.22 * (1 - 0.5 * muffle);
+      if (ext > 0.05 && this.extWas <= 0.05) {
+        // The valve opening: a sharp burst, then settling to the steady rush.
+        this.ext.gain.cancelScheduledValues(t0);
+        this.ext.gain.setValueAtTime(0, t0);
+        this.ext.gain.linearRampToValueAtTime(level * 1.8, t0 + 0.03);
+        this.ext.gain.setTargetAtTime(level, t0 + 0.03, 0.12);
+        this.extBurstUntil = t0 + 0.2;
+      } else if (t0 >= this.extBurstUntil && (ext > 0.05 || this.extWas > 0.05)) this.ext.gain.setTargetAtTime(level, t0, ext > 0.05 ? 0.1 : 0.04);
+      this.extWas = ext;
+      this.extFlutter.gain.setTargetAtTime(0.65 + Math.random() * 0.35, t0, 0.02);
+      this.extBand.frequency.setTargetAtTime(1400 + Math.random() * 700, t0, 0.05);
+    }
     const t = ctx.currentTime;
     const near = 1 / (1 + fireDist / 25);
     this.roar.gain.setTargetAtTime(fire * near * 0.9 * (1 - 0.5 * muffle), t, 0.3);

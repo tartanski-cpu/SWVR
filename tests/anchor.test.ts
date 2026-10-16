@@ -5,6 +5,8 @@ import { stepWorld } from '../src/core/simulation';
 import { createWorld } from '../src/core/world';
 import { placeVessel } from '../src/vessel/vesselControl';
 import { PORTS } from '../src/world/archipelago';
+import { groundHeight } from '../src/world/terrain';
+import { CONFIG } from '../src/config';
 
 const DT = 1 / 60;
 
@@ -56,5 +58,18 @@ describe('anchor', () => {
     expect(v.anchor.tension).toBe(0);
     expect(v.anchor.phase).toBe('hanging');
     expect(v.anchor.rodeM).toBeLessThan(400);
+  });
+
+  it('pays out 5 × the water depth (the minimum scope), not more', () => {
+    const { v, send, run } = setup();
+    const a = PORTS.find((p) => p.id === 'selkie')!.cargo.anchorage!;
+    placeVessel(v, a.x, 0, a.z, 0);
+    send('anchor', 1);
+    run(60);
+    expect(v.anchor.phase).toBe('set');
+    const depth = -groundHeight(v.anchor.x, v.anchor.z);
+    const ratio = CONFIG.vessels.workboat.anchor.scopeRatio;
+    expect(v.anchor.rodeM).toBeGreaterThanOrEqual(ratio * depth - 0.5);
+    expect(v.anchor.rodeM).toBeLessThanOrEqual(Math.max(ratio * depth, 3 * (depth + 1.6)) + 0.5);
   });
 });

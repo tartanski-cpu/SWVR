@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { panelLit } from './panelLighting';
 import type { VesselState } from '../vessel/vesselState';
 import { Control, type Wiring } from './Control';
 
@@ -22,7 +23,7 @@ export class MasterSwitch extends Control {
     const plate = this.fixed(new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.2, 0.012), new THREE.MeshLambertMaterial({ color: 0xe0b020 })));
     const boss = this.fixed(new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.05, 0.025, 16).rotateX(Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0x1c1f22 })));
     boss.position.z = 0.018;
-    const label = new THREE.Mesh(new THREE.PlaneGeometry(0.15, 0.06), new THREE.MeshBasicMaterial({ map: plateLabel(), transparent: true }));
+    const label = new THREE.Mesh(new THREE.PlaneGeometry(0.15, 0.06), panelLit(new THREE.MeshBasicMaterial({ map: plateLabel(), transparent: true })));
     label.position.set(0, 0.068, 0.007);
     // The key: a red bar with a round grip, turning about the plate normal.
     const bar = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.028, 0.03), this.material(0xc0281c));

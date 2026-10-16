@@ -24,7 +24,7 @@ import type { Intent } from '../core/intents';
 import type { WorldState } from '../core/world';
 import type { Quat, Vec3 } from '../core/math';
 import type { ChartMarks, ChartOp } from '../chart/marks';
-import type { HeldTool, LaserPose } from '../player/playerState';
+import type { GearPose, HeldTool, LaserPose } from '../player/playerState';
 
 /** A player's body as others should see it, in the frame of what they're aboard. */
 export interface PlayerPose {
@@ -44,6 +44,8 @@ export interface PlayerPose {
   tool?: HeldTool | null;
   /** Laser pointer: beam from, to (frame coordinates) and whether it hit something. */
   laser?: LaserPose | null;
+  /** Hand gear (extinguisher, torch) in hand, if any. */
+  gear?: GearPose | null;
 }
 
 export type ClientMessage = { t: 'hello'; name: string } | { t: 'intents'; intents: Intent[] } | { t: 'pose'; pose: PlayerPose } | { t: 'chart'; op: ChartOp };
