@@ -187,7 +187,7 @@ export class App {
   private readonly fireView = new FireView();
   private readonly jetView = new JetView();
   private readonly wildlife = new WildlifeView();
-  /** The towline and our stern fairlead (towing missions). */
+  /** The towline and our stern roller (towing missions). */
   private readonly towline = new TowlineView();
   private readonly logView = new LogView();
   private readonly trawlView = new TrawlView();
@@ -1456,7 +1456,7 @@ export class App {
       towFast: () => !!this.world.tow?.line,
       towToggle: () => {
         // Cast off whatever's on the line, or make fast to the nearest thing in reach.
-        if (!this.world.tow?.line && !nearestTowTarget(this.world)) this.overlay.notify(`Nothing to tow within ${CONFIG.tow.attachRange} m of our stern fairlead: back our stern up to a bow eye or debris`);
+        if (!this.world.tow?.line && !nearestTowTarget(this.world)) this.overlay.notify(`Nothing to tow within ${CONFIG.tow.attachRange} m of our stern roller: back our stern up to a bow eye or debris`);
         else this.pushVesselIntent('towToggle', 1);
       },
       towsDelivered: () => this.world.tow?.delivered ?? 0,

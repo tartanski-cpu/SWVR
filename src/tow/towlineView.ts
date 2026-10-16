@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { WorldState } from '../core/world';
 import { VESSEL_DEFS, type VesselDef } from '../vessel/vesselDef';
+import { CONFIG } from '../config';
 import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
 import { hullPlan } from '../vessel/layout';
 import { surfaceHeight, type PreparedWave } from '../ocean/waves';
@@ -14,8 +15,8 @@ const SEGMENTS = 14;
  * geometry rebuilt per frame). Slack, it hangs in a parabola whose sag makes the curve
  * about the line's length (s = sqrt(3 d (L - d) / 8) for chord d, length L); taut, it's
  * straight. It's yellow polypropylene: it floats, so a slack bight lies on the surface.
- * Also the fairlead itself (a steel eye in the transom bulwark) and the short lead of line
- * from the winch drum to it.
+ * Also the stern roller itself (in a notch in the transom bulwark) and the short lead of line
+ * from the winch drum over it.
  */
 export class TowlineView {
   readonly root = new THREE.Group();
@@ -41,35 +42,32 @@ export class TowlineView {
   }
 
   /**
-   * The fairlead on the workboat (once): a closed steel chock set in the notch in the
-   * transom bulwark on the centreline (no towing post on deck: owner request), with a
-   * rounded lip round its eye fore and aft. And the length of line from the winch drum aft
-   * to it, shown while a tow is on. One mesh for the chock, one for the lead.
+   * The stern roller on the workboat (once): in the notch in the transom bulwark on the
+   * centreline (no towing post on deck: owner request), a steel roller across the notch that
+   * the towline runs over, between two upright cheeks that keep it in, on a short plate
+   * closing the notch below. The line leaves us from the top of the roller. And the length
+   * of line from the winch drum aft to it, shown while a tow is on. One mesh for the roller
+   * fitting, one for the lead.
    */
   attachPost(root: THREE.Object3D, def: VesselDef): void {
     if (this.post) return;
-    const [, y, z] = towPostLocal(def);
+    const [, y, z] = towPostLocal(def); // the top of the roller
     const plan = hullPlan(def);
     const deck = plan.deckY(z);
     const half = (def.layout.fairleadGap || 0.44) / 2;
-    const eyeHalfW = half - 0.1; // inside the cheeks
-    const eyeHalfH = Math.min(0.1, y - deck - 0.06);
+    const r = CONFIG.tow.fairlead.rollerRadius;
+    const axle = y - r;
     const zc = plan.transom - 0.03; // in the bulwark's line
+    const top = deck + (def.layout.bulwarkHeight ?? 0.3) + 0.04;
     const box = (x0: number, x1: number, y0: number, y1: number, d: number, c: number) => part(new THREE.BoxGeometry(x1 - x0, y1 - y0, d).translate((x0 + x1) / 2, (y0 + y1) / 2, zc), c);
-    const STEEL = 0x3a3f44;
     const parts = [
-      box(-half, half, deck, y - eyeHalfH, 0.12, STEEL), // sill
-      box(-half, -eyeHalfW, deck, y + eyeHalfH + 0.06, 0.12, STEEL), // cheeks
-      box(eyeHalfW, half, deck, y + eyeHalfH + 0.06, 0.12, STEEL),
-      box(-half, half, y + eyeHalfH, y + eyeHalfH + 0.06, 0.12, STEEL), // head
+      box(-half, half, deck, axle - r * 0.5, 0.05, 0x3a3f44), // plate closing the notch below the roller
+      box(-half, -half + 0.04, deck, top, 0.1, 0x3a3f44), // the cheeks
+      box(half - 0.04, half, deck, top, 0.1, 0x3a3f44),
+      part(new THREE.CylinderGeometry(r, r, 2 * half - 0.08, 12).rotateZ(Math.PI / 2).translate(0, axle, zc), 0x9aa0a6), // the roller
     ];
-    // Rounded lips round the eye, both faces (the line runs over them, not a sharp edge).
-    for (const dz of [-0.065, 0.065]) {
-      const lip = new THREE.TorusGeometry(1, 0.025 / Math.min(eyeHalfW, eyeHalfH), 6, 16).scale(eyeHalfW, eyeHalfH, 1).translate(0, y, zc + dz);
-      parts.push(part(lip, 0x9aa0a6));
-    }
     this.post = new THREE.Mesh(mergeParts(parts), flatVertexColorMaterial());
-    this.post.name = 'fairlead';
+    this.post.name = 'sternRoller';
     root.add(this.post);
     // The lead from the drum to the fairlead: a straight length of the same line.
     const from = winchLeadLocal(def);

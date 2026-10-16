@@ -14,7 +14,7 @@
  *              it's 'delivered': the harbour takes it over, the line is cast off, the job
  *              counts as a completed mission. The tow is taken away
  *              a few seconds later (CONFIG.tow.removeAfter).
- *   towline    one straight spring-damper between our stern fairlead and what it's made fast
+ *   towline    one straight spring-damper between our stern roller and what it's made fast
  *              to (see CONFIG.tow and towlineForces below). It parts if snatched too hard.
  *              It isn't only for the job (owner request: "tow anything in the water"): it
  *              goes on any vessel afloat - a tow, our own skiff - at her bow eye, or on a
@@ -107,8 +107,8 @@ function tug(world: WorldState): VesselState | undefined {
 }
 
 /**
- * Where the towline leaves us (vessel axes): the fairlead's eye in the transom bulwark on
- * the centreline. The tow's pull acts on the boat here.
+ * Where the towline leaves us (vessel axes): the top of the stern roller in the transom
+ * bulwark on the centreline. The tow's pull acts on the boat here.
  */
 export function towPostLocal(def: VesselDef): [number, number, number] {
   const plan = hullPlan(def);

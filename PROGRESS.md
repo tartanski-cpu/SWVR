@@ -1554,7 +1554,8 @@ The brief's "no new particle effects" rule was flagged: the fire is drawn withou
   - Plot-it-yourself rescues moved to Settings → Game as **Rescue position: On plotter / Plot it yourself**.
   - **Tests (2 new):** sections and the hidden Debug tab; the weather line split. Existing menu tests now look buttons up by tab.
 
-- **Stern fairlead instead of the towing post; winch drum only turns under pressure** (owner feedback):
+- **Stern roller instead of the towing post; winch drum only turns under pressure** (owner feedback):
+  - **Then simplified** (owner: the closed fairlead's eye looked like a long tube and the line didn't visibly pass through it): a **stern roller** instead. A steel roller across the notch between two upright cheeks, with a plate closing the notch below it. The line runs over the top of the roller (`tow.fairlead` height 0.24, inset 0.03, `rollerRadius` 0.06), so it always visibly bears on it, whichever way the tow lies.
   - **No towing post:** the black post on the aft deck is gone. The towline leads from the winch drum aft through a **fairlead**, a closed steel chock with rounded lips round its eye, set in a notch in the transom bulwark on the centreline (`layout.fairleadGap` 0.44 m; `tow.fairlead` height 0.2 m above the deck, 0.05 m in from the transom). The tow's pull now acts on the boat at the eye (`towPostLocal`), lower and 0.35 m further aft than the old post top. A short length of line from the top of the drum to the fairlead shows while a tow is on (`winchLeadLocal`).
   - **Winch moved aft** to `towWinch.z` 5.3 (was 4.95), into the space the post left.
   - **Drum animation:** it turned whenever a button was held, power or not. It now turns only while the line or the net is really moving: hydraulic pressure, no stall, and inside the winch's limits (App sets `bridge.drumTurn` from the same logic as the machinery sounds).

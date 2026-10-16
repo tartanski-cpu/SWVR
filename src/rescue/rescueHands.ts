@@ -25,7 +25,7 @@
  *     the hook back.
  * Towing: with the hook, touch (VR) or click (desktop) the bow eye of any boat afloat (a
  * tow's orange eye, our own skiff's stem) or a piece of drifting debris to make the
- * towline fast through our stern fairlead (towMake ref=<target>; the simulation checks the
+ * towline fast over our stern roller (towMake ref=<target>; the simulation checks the
  * range); the same again on what's on the line casts it off (towCast). In VR each touch
  * counts once: take the tip away and touch again to toggle back.
  * Auto-extend (menu option, on by default): point the hook at a floating crate or a bow
@@ -191,9 +191,9 @@ export class RescueHands {
       ctx.notify('Towline cast off.');
       return;
     }
-    // The line runs from our stern fairlead: what we tow must be near enough our stern.
+    // The line runs over our stern roller: what we tow must be near enough our stern.
     if (towReach(ctx.world, key) > lineFor(key).attach) {
-      ctx.notify(`Too far from our stern: bring the fairlead within ${lineFor(key).attach} m of it.`);
+      ctx.notify(`Too far from our stern: bring the stern roller within ${lineFor(key).attach} m of it.`);
       return;
     }
     ctx.push('towMake', key, 1);

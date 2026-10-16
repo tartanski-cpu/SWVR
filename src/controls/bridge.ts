@@ -149,7 +149,7 @@ export class Bridge {
         extraLabels.push(['PAY OUT', [bx, y, legZ - 0.09], false, -Math.PI / 2], ['HAUL', [bx, y, legZ + 0.09], false, -Math.PI / 2]);
       }
     }
-    // The tow winch just forward of the transom (the line leads aft through the fairlead): a small drum (it turns while it runs)
+    // The tow winch just forward of the transom (the line leads aft over the stern roller): a small drum (it turns while it runs)
     // between two cheeks, driven from a gearbox housing on its starboard end, with HEAVE IN /
     // PAY OUT (hold-to-run) on the housing's top. You stand forward of it facing aft: the
     // winch, the post and the tow beyond.

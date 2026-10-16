@@ -458,7 +458,7 @@ export const CONFIG = {
         /** Bulwark and rail heights above the deck, and how close a player may get to the deck edge. */
         bulwarkHeight: 0.3,
         railHeight: 1.0,
-        /** Notch in the transom bulwark on the centreline for the towline's fairlead (width, m; 0 none). */
+        /** Notch in the transom bulwark on the centreline for the towline's stern roller (width, m; 0 none). */
         fairleadGap: 0.44,
         deckEdgeMargin: 0.3,
         /** Player body radius used for collision with walls. */
@@ -904,10 +904,10 @@ export const CONFIG = {
       /**
        * The tow winch (tow/tow.ts stepTowWinch): a small drum on the aft deck centreline just
        * forward of the transom (`z`, drum radius and width), the line leading aft from it
-       * through the fairlead in the transom bulwark (CONFIG.tow.fairlead), driven from a
+       * over the stern roller in the transom bulwark (CONFIG.tow.fairlead), driven from a
        * gearbox housing on its starboard end (`housing` width and height above the deck) with
        * the HEAVE IN / PAY OUT buttons (hold-to-run) on its top. You stand forward of it
-       * facing aft: the winch, the fairlead and the tow beyond. The trawl warps lead off the
+       * facing aft: the winch, the stern roller and the tow beyond. The trawl warps lead off the
        * same winch to the A-frame's blocks.
        */
       towWinch: { z: 5.3, drumRadius: 0.16, drumWidth: 0.5, housing: { width: 0.4, height: 0.8 } },
@@ -1173,12 +1173,12 @@ export const CONFIG = {
     /** A delivered tow is taken over by the harbour (removed) this long after the hand-over (s). */
     removeAfter: 8,
     /**
-     * The towline leads from the winch drum aft through a closed fairlead (a steel eye) set
-     * in a notch in the transom bulwark on the centreline (owner request: no towing post on
-     * deck). The tow pulls on the boat at the eye: its height above the deck (m) and how far
-     * in from the transom (m).
+     * The towline leads from the winch drum aft over a stern roller in a notch in the
+     * transom bulwark on the centreline (owner request: no towing post on deck; a closed
+     * fairlead was too fussy). The tow pulls on the boat at the top of the roller: its height
+     * above the deck (m), how far in from the transom (m), and the roller's radius (m).
      */
-    fairlead: { height: 0.2, inset: 0.05 },
+    fairlead: { height: 0.24, inset: 0.03, rollerRadius: 0.06 },
     /** Debug "tow job alongside": this far astern of us (m). */
     debugDistance: 12,
     /**
