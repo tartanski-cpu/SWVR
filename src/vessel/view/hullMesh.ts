@@ -149,10 +149,19 @@ function buildDeckFittings(form: HullForm, layout: LayoutConfig): THREE.BufferGe
       parts.push(bar(edge(i, side, bh), edge(i, side, rh), 0.04, 0.04, COLORS.rail));
     }
   }
-  // Across the transom.
+  // Across the transom, with a notch on the centreline for the towline's fairlead (the
+  // fairlead itself is drawn with the towline: tow/towlineView.ts).
   const p = edge(0, -1, 0);
   const q = edge(0, 1, 0);
-  parts.push(bar(p.clone().setY(p.y + bh / 2), q.clone().setY(q.y + bh / 2), 0.05, bh, COLORS.topsides));
+  const gap = (layout.fairleadGap ?? 0) / 2;
+  if (gap > 0) {
+    const m = p.clone().lerp(q, 0.5);
+    for (const [a, b] of [
+      [p, m.clone().setX(-gap)],
+      [m.clone().setX(gap), q],
+    ] as const)
+      parts.push(bar(a.clone().setY(a.y + bh / 2), b.clone().setY(b.y + bh / 2), 0.05, bh, COLORS.topsides));
+  } else parts.push(bar(p.clone().setY(p.y + bh / 2), q.clone().setY(q.y + bh / 2), 0.05, bh, COLORS.topsides));
   if (rh > 0) parts.push(bar(p.clone().setY(p.y + rh), q.clone().setY(q.y + rh), 0.05, 0.05, COLORS.rail));
   return parts;
 }

@@ -1554,6 +1554,11 @@ The brief's "no new particle effects" rule was flagged: the fire is drawn withou
   - Plot-it-yourself rescues moved to Settings → Game as **Rescue position: On plotter / Plot it yourself**.
   - **Tests (2 new):** sections and the hidden Debug tab; the weather line split. Existing menu tests now look buttons up by tab.
 
+- **Stern fairlead instead of the towing post; winch drum only turns under pressure** (owner feedback):
+  - **No towing post:** the black post on the aft deck is gone. The towline leads from the winch drum aft through a **fairlead**, a closed steel chock with rounded lips round its eye, set in a notch in the transom bulwark on the centreline (`layout.fairleadGap` 0.44 m; `tow.fairlead` height 0.2 m above the deck, 0.05 m in from the transom). The tow's pull now acts on the boat at the eye (`towPostLocal`), lower and 0.35 m further aft than the old post top. A short length of line from the top of the drum to the fairlead shows while a tow is on (`winchLeadLocal`).
+  - **Winch moved aft** to `towWinch.z` 5.3 (was 4.95), into the space the post left.
+  - **Drum animation:** it turned whenever a button was held, power or not. It now turns only while the line or the net is really moving: hydraulic pressure, no stall, and inside the winch's limits (App sets `bridge.drumTurn` from the same logic as the machinery sounds).
+
 - **Deck hydraulics: crane, tow winch and net drum need the engine and a breaker; their sounds** (owner request):
   - **Model:** the three deck machines are hydraulic, driven by a pump on the engine's power take-off. `hydraulicsOn(v)` (vessel/electrics.ts) = engine running AND 12 V AND the new **DECK HYD** breaker (`hydraulics` in `BREAKERS`), which feeds the pump clutch and valve solenoids (`electrics.loads.hydraulics` 4 A while engaged).
   - **Without pressure** nothing moves, and a hydraulic machine holds its load on its valves:

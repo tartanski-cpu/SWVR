@@ -68,7 +68,7 @@ import { TrawlView } from '../fishing/trawlView';
 import { InteriorDetail } from './interiorDetail';
 import { jetOn } from '../fire/fire';
 import { aFrameOf } from '../fishing/fishing';
-import { nearestTowTarget, towAlertT, towStatus, winchStalled } from '../tow/tow';
+import { lineLength, nearestTowTarget, towAlertT, towStatus, winchStalled } from '../tow/tow';
 import { TargetsView } from '../rescue/targetView';
 import { RescueHands, type RescueHandsContext } from '../rescue/rescueHands';
 import { RescueGearView, type AvatarHands } from '../rescue/rescueGearView';
@@ -187,7 +187,7 @@ export class App {
   private readonly fireView = new FireView();
   private readonly jetView = new JetView();
   private readonly wildlife = new WildlifeView();
-  /** The towline and our towing post (towing missions). */
+  /** The towline and our stern fairlead (towing missions). */
   private readonly towline = new TowlineView();
   private readonly logView = new LogView();
   private readonly trawlView = new TrawlView();
@@ -1222,13 +1222,21 @@ export class App {
     const heave = (c.winchHeave ?? 0) > 0.5;
     const payOut = (c.winchPayOut ?? 0) > 0.5;
     const stalled = hyd && winchStalled(this.world);
-    const winchRun = hyd && line && heave !== payOut && !stalled ? (heave ? 0.8 : 1) : 0;
+    // The drum only turns while the line can still move (inside the winch's limits).
+    const w = CONFIG.tow.winch;
+    const L = line ? lineLength(line) : 0;
+    const canMove = heave ? L > w.minLength + 0.01 : L < w.maxLength - 0.01;
+    const winchRun = hyd && line && heave !== payOut && !stalled && canMove ? (heave ? 0.8 : 1) : 0;
     const tw = def.towWinch;
     // Net drum: shooting or hauling, by the switch or the A-frame's buttons.
     const f = this.world.fishing;
     // A button only turns the drum while there's net left to pay out or haul in.
     const jog = ((c.netOut ?? 0) > 0.5 && (f?.t ?? 0) < 1) || ((c.netIn ?? 0) > 0.5 && (f?.t ?? 0) > 0);
     const trawlRun = hyd && f && (f.net === 'shooting' || f.net === 'hauling' || jog) ? 1 : 0;
+    // The same drum takes the towline and the trawl warps: it turns only while one of them
+    // is really moving under pressure (+1 coming in, -1 going out).
+    const netIn = f?.net === 'hauling' || ((c.netIn ?? 0) > 0.5 && (f?.t ?? 0) > 0);
+    if (this.bridge) this.bridge.drumTurn = winchRun ? (heave ? 1 : -1) : trawlRun ? (netIn ? 1 : -1) : 0;
     const af = aFrameOf(def);
     this.sound.hydraulics.update(
       {
@@ -1448,7 +1456,7 @@ export class App {
       towFast: () => !!this.world.tow?.line,
       towToggle: () => {
         // Cast off whatever's on the line, or make fast to the nearest thing in reach.
-        if (!this.world.tow?.line && !nearestTowTarget(this.world)) this.overlay.notify(`Nothing to tow within ${CONFIG.tow.attachRange} m of our towing post: back our stern up to a bow eye or debris`);
+        if (!this.world.tow?.line && !nearestTowTarget(this.world)) this.overlay.notify(`Nothing to tow within ${CONFIG.tow.attachRange} m of our stern fairlead: back our stern up to a bow eye or debris`);
         else this.pushVesselIntent('towToggle', 1);
       },
       towsDelivered: () => this.world.tow?.delivered ?? 0,

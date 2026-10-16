@@ -50,6 +50,8 @@ export class Bridge {
   private monitor: MonitorView | null = null;
   /** The tow winch's drum (it turns while the winch runs). */
   private readonly winchDrum = new THREE.Group();
+  /** The winch drum's motion this frame (+1 heaving in, -1 paying out, 0 still); set by App. */
+  drumTurn = 0;
   /** The aft door (its push buttons on the frame open / shut it). */
   readonly door: WheelhouseDoor;
   /** The fenders over the side or stowed (boats that carry them). */
@@ -147,7 +149,7 @@ export class Bridge {
         extraLabels.push(['PAY OUT', [bx, y, legZ - 0.09], false, -Math.PI / 2], ['HAUL', [bx, y, legZ + 0.09], false, -Math.PI / 2]);
       }
     }
-    // The tow winch just forward of the towing post: a small drum (it turns while it runs)
+    // The tow winch just forward of the transom (the line leads aft through the fairlead): a small drum (it turns while it runs)
     // between two cheeks, driven from a gearbox housing on its starboard end, with HEAVE IN /
     // PAY OUT (hold-to-run) on the housing's top. You stand forward of it facing aft: the
     // winch, the post and the tow beyond.
@@ -157,7 +159,7 @@ export class Bridge {
       const dy = plan.deckY(tw.z);
       const r = tw.drumRadius;
       const hw = tw.drumWidth / 2;
-      const axle = dy + 0.1 + r + 0.08;
+      const axle = dy + 0.18 + r; // tow/tow.ts winchLeadLocal matches this
       const hs = tw.housing;
       const hx0 = hw + 0.095;
       const hx = hx0 + hs.width / 2;
@@ -336,9 +338,9 @@ export class Bridge {
     this.electrics?.update(state, dt);
     this.lamps.update(state, this.def);
     this.fenders?.update(state);
-    // The tow winch's drum turns while it runs: the towline, or the trawl warps.
-    const run = (state.controls.winchHeave ?? 0) - (state.controls.winchPayOut ?? 0) + (state.controls.netIn ?? 0) - (state.controls.netOut ?? 0);
-    if (run) this.winchDrum.rotation.x += Math.sign(run) * 2.5 * dt;
+    // The winch drum turns only while it really runs (hydraulic pressure, and line or net
+    // actually coming in or going out): App sets `drumTurn` each frame (+1 in, -1 out, 0 still).
+    if (this.drumTurn) this.winchDrum.rotation.x += this.drumTurn * 2.5 * dt;
     this.monitor?.update(state);
   }
 }

@@ -14,7 +14,7 @@
  *              it's 'delivered': the harbour takes it over, the line is cast off, the job
  *              counts as a completed mission. The tow is taken away
  *              a few seconds later (CONFIG.tow.removeAfter).
- *   towline    one straight spring-damper between our towing post and what it's made fast
+ *   towline    one straight spring-damper between our stern fairlead and what it's made fast
  *              to (see CONFIG.tow and towlineForces below). It parts if snatched too hard.
  *              It isn't only for the job (owner request: "tow anything in the water"): it
  *              goes on any vessel afloat - a tow, our own skiff - at her bow eye, or on a
@@ -106,11 +106,24 @@ function tug(world: WorldState): VesselState | undefined {
   return Object.values(world.vessels).find((v) => isWorkboat(VESSEL_DEFS[v.defId]));
 }
 
-/** Our towing post (vessel axes): on the centreline just in from the transom, above the deck. */
+/**
+ * Where the towline leaves us (vessel axes): the fairlead's eye in the transom bulwark on
+ * the centreline. The tow's pull acts on the boat here.
+ */
 export function towPostLocal(def: VesselDef): [number, number, number] {
   const plan = hullPlan(def);
-  const z = plan.transom - CONFIG.tow.postInset;
-  return [0, plan.deckY(z) + CONFIG.tow.postHeight, z];
+  const f = CONFIG.tow.fairlead;
+  const z = plan.transom - f.inset;
+  return [0, plan.deckY(z) + f.height, z];
+}
+
+/** Where the towline comes off the winch drum (vessel axes): the top of the drum, aft side. */
+export function winchLeadLocal(def: VesselDef): [number, number, number] | null {
+  const tw = def.towWinch;
+  if (!tw) return null;
+  const plan = hullPlan(def);
+  const axle = plan.deckY(tw.z) + 0.18 + tw.drumRadius; // as drawn in controls/bridge.ts
+  return [0, axle + tw.drumRadius * 0.7, tw.z + tw.drumRadius * 0.7];
 }
 
 /** The tow's bow eye (vessel axes): at the stem, just above the deck edge. */
