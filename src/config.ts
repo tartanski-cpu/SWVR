@@ -1906,6 +1906,8 @@ export const CONFIG = {
   },
 
   debug: {
+    /** Log how many wheelhouse parts the interior-detail culling took (performance pass). */
+    logDetail: false,
     overlayVisibleAtStart: false,
     surfaceProbesVisibleAtStart: false,
     hydroDebugVisibleAtStart: false,

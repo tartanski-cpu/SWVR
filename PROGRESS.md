@@ -1331,6 +1331,21 @@ The brief's "no new particle effects" rule was flagged: the fire is drawn withou
   - The WINDOWS switch, the glass it showed and the `windows` control are gone (the "secure the boat" duty drops its windows step). The windscreen's rain and wipers stay.
   - How shut-in the wheelhouse is now depends on the aft door alone: shut, it fully muffles wind, rain, wash and fire inside.
   - The engine sound gets a wheelhouse low-pass and level (`CONFIG.wheelhouseSound`): full on deck; inside with the door open ×0.75 and 1200 Hz; door shut ×0.45 and 320 Hz.
+- **Performance pass** (after the phases; headless Chromium with SwiftShader, so the CPU numbers are relative). Everything was on at once: squall, a fire with the monitor going, a barge on the towline, the trawl out, a salvage log, dolphins, the career.
+  - **Simulation:** 0.25 → 0.38–0.49 ms per tick against the milestone-10 baseline. The extra towed boat (a full hull simulation) is most of it. Fire, trawl, salvage and career are about 0.01–0.03 ms each. The fire's jet trace is ≤ 60 ground lookups at 0.7 µs.
+  - **Draw calls** (the Quest's main cost; WebXR draws each once per eye):
+
+    | View | Before | After |
+    |---|---|---|
+    | Aft deck, looking forward | 145 | 115 |
+    | Aft deck, looking aft | 70 | 52 |
+    | Plain scene, aft deck looking forward | 57 | 38 |
+
+    The saving comes from:
+    - **`app/interiorDetail.ts`:** the wheelhouse's small parts (20 here: switches, joysticks, gauges, the dipstick and oil can, the checklist card) are hidden while the viewer is outside and more than 1.2 m from the wheelhouse. Never hidden: the throttle lever, the binoculars, and anything with a light (a light's visibility change recompiles shaders). Hit tests still work, since three's Raycaster ignores `visible`.
+    - **The stowed skiff's tiller** (18 draw calls) is hidden while she hangs on the davit.
+  - **`money()`** no longer uses `toLocaleString` (Intl), which showed up in the profile because the duty board and pop-up call it each frame.
+  - **Still worth doing on the headset:** read the perf panel's cpu/gpu lines in VR with a fire and a tow on. If the GPU is the limit, `xr.framebufferScale` / `xr.foveation` are the levers (see Performance on the Quest).
 - **Phase 3: onboarding and sessions** (owner request).
   - **First voyage** (`career/tutorial.ts`), kept with the career (`CareerState.tutorial`):
     - **Steps:** 8 checks on the world (aboard, master, INSTR, engine running, in Calder Haven, moored at a Calder berth, cargo aboard or in hand, one more delivery).

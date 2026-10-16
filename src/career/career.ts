@@ -108,8 +108,10 @@ export const portName = (id: string | null | undefined): string => PORTS.find((p
 
 /** Format money: "£1,240" (negative: "-£80"). */
 export function money(n: number): string {
+  // Thousands by hand: toLocaleString goes through Intl, slow for something drawn each frame.
   const v = Math.round(n);
-  return `${v < 0 ? '-' : ''}£${Math.abs(v).toLocaleString('en-GB')}`;
+  const digits = String(Math.abs(v)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return `${v < 0 ? '-' : ''}£${digits}`;
 }
 
 export function repOf(c: CareerState | undefined, port: string | null | undefined): number {

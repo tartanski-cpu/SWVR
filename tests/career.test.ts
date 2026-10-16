@@ -5,7 +5,7 @@ import type { Intent } from '../src/core/intents';
 import { stepWorld } from '../src/core/simulation';
 import { createWorld } from '../src/core/world';
 import { GROUND, stackPoint, type CargoItem } from '../src/cargo/cargo';
-import { buyBlocker, hasUpgrade, officeAt, parseCareer, repOf, serializeCareer } from '../src/career/career';
+import { buyBlocker, hasUpgrade, money, officeAt, parseCareer, repOf, serializeCareer } from '../src/career/career';
 import { placeVessel } from '../src/vessel/vesselControl';
 import { PORTS } from '../src/world/archipelago';
 
@@ -132,6 +132,13 @@ describe('career', { timeout: 30000 }, () => {
     // Iced fish fetch more.
     send('careerBuy', 1, 'ice', 'env');
     expect(hasUpgrade(world, 'ice')).toBe(true);
+  });
+
+  it('money reads like money (thousands, minus, rounding)', () => {
+    expect(money(1234567)).toBe('£1,234,567');
+    expect(money(-80)).toBe('-£80');
+    expect(money(999.6)).toBe('£1,000');
+    expect(money(0)).toBe('£0');
   });
 
   it('saved and loaded: money, ledger, reputation, upgrades (junk is ignored)', () => {

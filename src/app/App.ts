@@ -79,6 +79,7 @@ import { createCareer, type CareerState } from '../career/career';
 import { tutorialLine } from '../career/tutorial';
 import { acceptBlocker, buyBlocker, contractText, money, officeAt, parseCareer, portName, repairBlocker, repairCost, repOf, serializeCareer, type Contract } from '../career/career';
 import { TrawlView } from '../fishing/trawlView';
+import { InteriorDetail } from './interiorDetail';
 import { jetOn } from '../fire/fire';
 import { nearestTowTarget, towAlertT, towStatus } from '../tow/tow';
 import { RadioAudio } from '../audio/radioAudio';
@@ -232,6 +233,9 @@ export class App {
   private readonly fmRadio = new FmRadio();
   /** Outboard tillers (the skiff's), one per outboard boat. */
   private readonly tillers: Tiller[] = [];
+  /** Small wheelhouse parts, hidden from outside (performance; app/interiorDetail.ts). */
+  private interior: InteriorDetail | null = null;
+  private readonly detailV = new THREE.Vector3();
   /** Stern davits, one per tender. */
   private readonly davits: DavitGear[] = [];
   private lastAnchorPhase: string | null = null;
@@ -576,6 +580,7 @@ export class App {
       }
       this.windSock?.update(testVessel, this.world.environment, dt);
       this.updateWindSound(dt);
+      this.updateDetail();
       for (const g of this.davits) {
         const tv = this.world.vessels[g.tenderId];
         if (!tv) continue;
@@ -2201,7 +2206,25 @@ export class App {
     }
   }
 
-  /** Engine start/stop with feedback when the neutral-start interlock refuses. */
+  /**
+   * Performance: the wheelhouse's small parts only when you're in or at it, and the stowed
+   * skiff's tiller (she can't be driven on the davit) not at all.
+   */
+  private updateDetail(): void {
+    const root = this.vesselRoots.get(this.testVesselId);
+    if (!root || !this.bridge) return;
+    if (!this.interior) {
+      this.interior = new InteriorDetail([this.bridge.root, root], root, this.testDef);
+      if (CONFIG.debug.logDetail) console.info(`interior detail: ${this.interior.count} parts`);
+    }
+    const me = this.world.players[this.localPlayerId];
+    this.interior.update(me?.aboardVesselId === this.testVesselId ? root.worldToLocal(this.camera.getWorldPosition(this.detailV)) : null);
+    for (const t of this.tillers) {
+      const phase = this.world.vessels[t.vesselId]?.tender?.phase;
+      t.root.visible = phase === undefined || phase === 'free';
+    }
+  }
+
   /** Wind noise: the apparent wind where you are (minus your boat's way), muffled inside. */
   private updateWindSound(dt: number): void {
     const p = this.world.players[this.localPlayerId];
