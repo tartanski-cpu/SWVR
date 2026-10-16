@@ -4,17 +4,19 @@ import { CONFIG } from '../config';
 import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 import { kindOf, lashPointFor, portById, type CargoItem } from './cargo';
+import { hasUpgrade } from '../career/career';
 
 const MAX = 48;
 const STRAP = 0xe8641c;
 
 /**
  * A fish box from the trawl (owner request), built at the fish box's real size (m): an open
- * wooden box of two slats a side with darker corner posts, a bed of ice, and a few fish
+ * wooden box of two slats a side with darker corner posts, a bed of ice if she has the ice
+ * machine (career upgrade 'ice'; without, the fish lie on the bare boards), and a few fish
  * lying in it - plain blocks with a tail, in different colours (cod grey, mackerel blue,
  * haddock brown, red gurnard, silver whiting). Origin at the middle of its base.
  */
-function fishBoxGeometry(size: readonly number[]): THREE.BufferGeometry {
+function fishBoxGeometry(size: readonly number[], ice: boolean): THREE.BufferGeometry {
   const [L, H, W] = size;
   const wood = 0xb07a40;
   const post = 0x7a5028;
@@ -29,7 +31,7 @@ function fishBoxGeometry(size: readonly number[]): THREE.BufferGeometry {
     }
   }
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) parts.push(part(new THREE.BoxGeometry(0.035, H, 0.035).translate(sx * (L / 2 - 0.0175), H / 2, sz * (W / 2 - 0.0175)), post));
-  parts.push(part(new THREE.BoxGeometry(L - 0.05, 0.05, W - 0.05).translate(0, 0.045, 0), 0xe4eef2)); // ice
+  if (ice) parts.push(part(new THREE.BoxGeometry(L - 0.05, 0.05, W - 0.05).translate(0, 0.045, 0), 0xe4eef2)); // ice
   // The fish: length, colour, position along / across, yaw; heads and tails alternating.
   const fish: [number, number, number, number, number][] = [
     [0.42, 0xa8b0b4, -0.1, -0.13, 0.08],
@@ -40,7 +42,7 @@ function fishBoxGeometry(size: readonly number[]): THREE.BufferGeometry {
     [0.38, 0x5a7a86, 0.05, 0.02, 3.2],
   ];
   fish.forEach(([len, c, x, z, yaw], i) => {
-    const y = 0.085 + (i % 3) * 0.018;
+    const y = (ice ? 0.095 : 0.045) + (i % 3) * 0.018;
     const body = new THREE.BoxGeometry(len * 0.82, 0.05, len * 0.24).translate(-len * 0.09, 0, 0);
     const tail = new THREE.BoxGeometry(len * 0.16, 0.035, len * 0.26).translate(len * 0.41, 0, 0);
     parts.push(part(body.rotateY(yaw).translate(x * L, y, z * W), c));
@@ -64,8 +66,9 @@ export class CargoView {
   private readonly boxes: THREE.InstancedMesh;
   private readonly drums: THREE.InstancedMesh;
   private readonly straps: THREE.InstancedMesh;
-  /** The trawl's catch: wooden fish boxes (built at the fish box's real size). */
+  /** The trawl's catch: wooden fish boxes (built at the fish box's real size), bare and iced. */
   private readonly fishBoxes: THREE.InstancedMesh;
+  private readonly icedBoxes: THREE.InstancedMesh;
   private readonly fishSize: readonly number[];
   private readonly m = new THREE.Matrix4();
   private readonly p = new THREE.Vector3();
@@ -96,8 +99,9 @@ export class CargoView {
     // Strap: a unit box on its base; bands round an item and ties down to its D-ring.
     this.straps = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0), new THREE.MeshLambertMaterial({ color: STRAP }), MAX * 3);
     this.fishSize = CONFIG.cargo.kinds.find((k) => k.name === 'Fish box')?.size ?? [0.8, 0.3, 0.5];
-    this.fishBoxes = new THREE.InstancedMesh(fishBoxGeometry(this.fishSize), mat, MAX);
-    for (const im of [this.boxes, this.drums, this.straps, this.fishBoxes]) {
+    this.fishBoxes = new THREE.InstancedMesh(fishBoxGeometry(this.fishSize, false), mat, MAX);
+    this.icedBoxes = new THREE.InstancedMesh(fishBoxGeometry(this.fishSize, true), mat, MAX);
+    for (const im of [this.boxes, this.drums, this.straps, this.fishBoxes, this.icedBoxes]) {
       im.frustumCulled = false;
       im.count = 0;
       this.root.add(im);
@@ -137,6 +141,9 @@ export class CargoView {
     let nd = 0;
     let ns = 0;
     let nf = 0;
+    // With the ice machine the catch goes on ice (the boxes on deck show it as soon as it's bought).
+    const iced = hasUpgrade(world, 'ice');
+    const fishMesh = iced ? this.icedBoxes : this.fishBoxes;
     for (const c of Object.values(world.cargo)) {
       const kind = kindOf(c);
       const [sx, sy, sz] = kind.size;
@@ -157,7 +164,7 @@ export class CargoView {
       }
       const fishBox = c.from === 'trawl';
       const drum = kind.shape === 'drum';
-      const im = fishBox ? this.fishBoxes : drum ? this.drums : this.boxes;
+      const im = fishBox ? fishMesh : drum ? this.drums : this.boxes;
       const i = fishBox ? nf++ : drum ? nd++ : nb++;
       if (i >= MAX) continue;
       if (fishBox) {
@@ -200,8 +207,9 @@ export class CargoView {
     this.boxes.count = Math.min(nb, MAX);
     this.drums.count = Math.min(nd, MAX);
     this.straps.count = ns;
-    this.fishBoxes.count = Math.min(nf, MAX);
-    for (const im of [this.boxes, this.drums, this.straps, this.fishBoxes]) {
+    fishMesh.count = Math.min(nf, MAX);
+    (iced ? this.fishBoxes : this.icedBoxes).count = 0;
+    for (const im of [this.boxes, this.drums, this.straps, this.fishBoxes, this.icedBoxes]) {
       im.instanceMatrix.needsUpdate = true;
       if (im.instanceColor) im.instanceColor.needsUpdate = true;
     }
