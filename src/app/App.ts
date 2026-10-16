@@ -772,8 +772,8 @@ export class App {
 
   /** Port floodlights, cargo, the desktop hand, our pose out and the crew's avatars in. */
   private updateCrewViews(dt: number, inXR: boolean, darkness: number): void {
-    // Wheelhouse panel lighting: dims with the dark; the NIGHT switch turns it red.
-    updatePanelLighting(darkness, (this.world.vessels[this.testVesselId]?.controls.panelRed ?? 0) > 0.5, dt);
+    // Wheelhouse panel lighting: dims with the dark and turns red at night.
+    updatePanelLighting(darkness);
     this.worldView.portLighting.update(this.focus, darkness);
     this.ocean.setPortLight(this.worldView.portLighting.flood);
     const fxTest = this.effects.get(this.testVesselId);

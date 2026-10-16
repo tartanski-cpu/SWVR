@@ -8,8 +8,8 @@ import { CONFIG } from '../config';
  *   - dimming: as it gets dark, everything registered here dims toward
  *     `panelLighting.nightLevel` of its daytime brightness (follows the daylight, like an
  *     auto-dimming backlight);
- *   - red: with the NIGHT switch on (vessel control `panelRed`) it all turns to shades of
- *     red (its brightness kept, its colour dropped), dimmer still (`redLevel`).
+ *   - red: as night falls it all turns to shades of red by itself (its brightness kept,
+ *     its colour dropped), dimmer still (`redLevel`). Automatic (owner: no switch needed).
  * One shared pair of uniforms drives every registered material (a few lines added to the
  * basic material's shader), so nothing is redrawn or re-uploaded per frame: the canvas
  * screens keep drawing in their daytime colours.
@@ -37,12 +37,11 @@ export function panelLit<T extends THREE.Material>(m: T): T {
 /**
  * Once a frame.
  * @param darkness 0 (day) .. 1 (night)
- * @param red      the NIGHT switch is on
  */
-export function updatePanelLighting(darkness: number, red: boolean, dt: number): void {
+export function updatePanelLighting(darkness: number): void {
   const c = CONFIG.panelLighting;
   const r = uniforms.uPanelRed;
-  r.value += ((red ? 1 : 0) - r.value) * Math.min(1, dt * 6);
+  r.value = THREE.MathUtils.smoothstep(darkness, c.redFrom, c.redTo);
   const dim = 1 - (1 - c.nightLevel) * Math.min(1, Math.max(0, darkness));
   uniforms.uPanelLevel.value = dim * (1 - (1 - c.redLevel) * r.value);
 }

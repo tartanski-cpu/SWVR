@@ -45,8 +45,6 @@ export interface VesselControls {
   fenders: number;
   /** Wheelhouse aft door open (1) or shut (0); it starts open. */
   door: number;
-  /** The NIGHT switch: the panel lighting red (1). Absent = off. */
-  panelRed?: number;
   /** The port side door (wheelhouse.sideDoor): 1 open. Absent (older saves, snapshots) = shut. */
   sideDoor?: number;
   /** The gate in the working-deck bulwark (layout.sideGate): 1 open. Absent = shut. */

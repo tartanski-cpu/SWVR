@@ -105,9 +105,6 @@ export class Bridge {
     const cabin = new Toggle('cabinLight', 'cabinLight', 'Cabin light: off / white / red (night)', (s) => s.controls.cabinLight, 3);
     cabin.root.position.fromArray(b.cabinLightSwitch.position);
 
-    const night = new Toggle('panelRed', 'panelRed', 'NIGHT: panel lighting red / normal', (s) => s.controls.panelRed ?? 0);
-    night.root.position.fromArray(b.nightPanelSwitch.position);
-
     const spot = new Toggle('spotlight', 'spotlight', 'Searchlight on/off', (s) => s.controls.spotlight);
     spot.root.position.fromArray(b.spotlightSwitch.position);
     const wipers = new Toggle('wipers', 'wipers', 'Windscreen wipers', (s) => s.controls.wipers);
@@ -121,7 +118,7 @@ export class Bridge {
     this.root.add(this.chart.root);
     this.overhead = new OverheadPanel(def);
     this.root.add(this.overhead.root);
-    this.controls.push(wheel, lever, start, heat, key, horn, nav, anchor, cabin, night, spot, wipers, joy, this.radio.handset, ...this.overhead.controls);
+    this.controls.push(wheel, lever, start, heat, key, horn, nav, anchor, cabin, spot, wipers, joy, this.radio.handset, ...this.overhead.controls);
     // Fire monitor (fire missions): the FIRE PUMP switch, its joystick (red knob) and the
     // monitor itself on the roof.
     const extraLabels: Label[] = [];
@@ -487,7 +484,6 @@ function buildLabels(b: WorkboatDef['bridge'], extra: Label[] = []): THREE.Mesh 
     ['NAV LIGHTS', b.navLightsSwitch.position],
     ['ANCHOR', b.anchorSwitch.position],
     ['CABIN', b.cabinLightSwitch.position],
-    ['NIGHT', b.nightPanelSwitch.position],
     ['SPOT', b.spotlightSwitch.position],
     ['WIPERS', b.wipersSwitch.position],
     ['SEARCHLIGHT', b.spotJoystick.position],
@@ -517,8 +513,11 @@ function buildLabels(b: WorkboatDef['bridge'], extra: Label[] = []): THREE.Mesh 
       const v0 = 1 - (i + 1) / labels.length;
       uv.setXY(k, uv.getX(k), v0 + uv.getY(k) / labels.length);
     }
-    plane.rotateX(-Math.PI / 2).rotateY(yaw);
-    plane.translate(pos[0] + Math.sin(yaw) * LABEL_OFFSET, pos[1] + 0.002, pos[2] + Math.cos(yaw) * LABEL_OFFSET);
+    // Tilted up 45 degrees toward the helmsman (owner: flat on the dash they were hard to
+    // read), standing on their near edge.
+    plane.rotateX(-Math.PI / 4).rotateY(yaw);
+    const lift = 0.01 * Math.SQRT1_2;
+    plane.translate(pos[0] + Math.sin(yaw) * (LABEL_OFFSET - lift), pos[1] + 0.002 + lift, pos[2] + Math.cos(yaw) * (LABEL_OFFSET - lift));
     return plane;
   });
   const mesh = new THREE.Mesh(mergeGeometries(planes), panelLit(new THREE.MeshBasicMaterial({ map: texture, transparent: true })));

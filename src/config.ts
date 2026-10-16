@@ -540,15 +540,13 @@ export const CONFIG = {
          *   horn          on its own, just left of the wheel
          *   DECK          anchor, trawl: behind the throttle, used with it in hand
          *   ENGINE        HEAT (glow plugs) and START (hold), the key, the warning lamps
-         *                 (oil, charge, glow, neutral, bilge) ahead of them and the laminated
-         *                 start-up card at the starboard end
+         *                 (oil, charge, glow, neutral, bilge) ahead of them; the laminated
+         *                 start-up card below, on the console's upright face
          */
         navLightsSwitch: { position: [-1.29, 2.16, -1.52] as [number, number, number] },
-        cabinLightSwitch: { position: [-1.185, 2.16, -1.52] as [number, number, number] },
-        /** NIGHT: the panel lighting red (controls/panelLighting.ts; owner request). */
-        nightPanelSwitch: { position: [-0.975, 2.16, -1.52] as [number, number, number] },
+        cabinLightSwitch: { position: [-1.14, 2.16, -1.52] as [number, number, number] },
         /** Windscreen wipers (Instruments breaker). */
-        wipersSwitch: { position: [-1.08, 2.16, -1.52] as [number, number, number] },
+        wipersSwitch: { position: [-0.99, 2.16, -1.52] as [number, number, number] },
         spotlightSwitch: { position: [-0.48, 2.16, -1.52] as [number, number, number] },
         hornButton: { position: [-0.28, 2.16, -1.52] as [number, number, number] },
         /** Windlass: up = heave in / stowed, down = let go. */
@@ -557,7 +555,12 @@ export const CONFIG = {
         startButton: { position: [0.94, 2.16, -1.5] as [number, number, number] },
         keySwitch: { position: [1.08, 2.16, -1.5] as [number, number, number] },
         warningLamps: { position: [0.95, 2.165, -1.6] as [number, number, number], spacing: 0.085 },
-        checklistCard: { position: [1.25, 2.175, -1.47] as [number, number, number], width: 0.19, height: 0.26 },
+        /**
+         * The laminated start-up card: on the console's upright aft face below the ENGINE
+         * group, facing the helmsman (owner: on the dash top it glowed white at night; down
+         * here, on the panel lighting, it dims and goes red with the instruments).
+         */
+        checklistCard: { position: [1.12, 1.84, -1.315] as [number, number, number], width: 0.19, height: 0.26 },
         /** Searchlight joystick on a pedestal to port of the wheel (mirrors the throttle's). */
         spotJoystick: { position: [-0.45, 2.16, -1.15] as [number, number, number] },
         /**
@@ -1970,9 +1973,10 @@ export const CONFIG = {
   /**
    * Panel lighting (controls/panelLighting.ts): the wheelhouse's self-lit screens, labels
    * and dials dim with the daylight to `nightLevel` of their daytime brightness at full
-   * dark; the NIGHT switch turns them red and dims them further to `redLevel` of that.
+   * dark. As night falls (darkness from `redFrom` to `redTo`, 0 day .. 1 night) they turn
+   * red by themselves (owner: automatic, no switch), dimmer still at `redLevel` of that.
    */
-  panelLighting: { nightLevel: 0.3, redLevel: 0.6 },
+  panelLighting: { nightLevel: 0.3, redLevel: 0.6, redFrom: 0.55, redTo: 0.85 },
 
   /**
    * Other players' figures (net/avatarView.ts, looks in net/avatarOutfits.ts). Upper body

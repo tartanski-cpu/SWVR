@@ -128,12 +128,13 @@ At the helm, from left to right on the console:
 - **SPOT** switch (far left): the searchlight on the wheelhouse roof.
 - **Searchlight joystick:** on the pedestal to port of the wheel, under your left hand. Grip it and push sideways to pan, forward/back to raise/lower the beam. The further you push, the faster it moves; let go and the light stays put. On desktop, click and drag it. The lamp is **stabilised** like the fire monitor: it holds its aim as she rolls and pitches, so the beam stays on what you've found. It only does this while it's lit; switched off it sits still on its mount.
 - **Cabin** light switch: the wheelhouse ceiling lamp, three-way. Each press steps **off → white → red → off**: the bat is in the middle for off, forward for white, and aft for red. Red is dim, for night work: you can see the controls without losing your night vision.
-- **NIGHT** switch (just to starboard of WIPERS): the instrument lighting. The dials, screens and labels dim by themselves as it gets dark; NIGHT turns them a dim red as well, so you can keep your night vision and still see out.
 - **WIPERS** switch (far port end): the three pendulum wipers on the front windows. They need the INSTR breaker; switched off they finish the sweep and park.
 - **Horn** button (hold).
 - **Wheel**: 1.5 turns lock to lock. Hydraulic steering, so it stays where you leave it.
 - **Throttle/gear lever**, on a pedestal starboard of the wheel so it falls to hand: forward = ahead, back = astern, with a notch at neutral.
 - **Start/stop** button. The engine only starts with the lever in neutral.
+
+**Instrument lighting:** the dials, screens, labels and the start-up card dim by themselves as it gets dark, and at night turn a dim red, so you keep your night vision and still see out. The switch and button labels are tilted up toward you so they read from the helm.
 
 Warning lamps in front of the key: **OIL**, **CHARGE**, **GLOW**, **NEUTRAL** and **BILGE** (blinks with water in the bilge).
 

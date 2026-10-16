@@ -1549,6 +1549,11 @@ How to come back to it:
 
 ### Fixes after V1.0 (on the dev branch; not in the `V1.0` tag)
 
+- **Night red automatic; start-up card moved; labels tilted** (owner):
+  - **Red at night by itself:** the panel lighting turns red as night falls, between darkness `panelLighting.redFrom` (0.55) and `redTo` (0.85). The NIGHT switch is gone (`panelRed` control and `bridge.nightPanelSwitch` removed). The Cabin and WIPERS switches are back where they were (x -1.14 and -0.99).
+  - **Start-up card** (`bridge.checklistCard`): moved from the dash top to the console's upright aft face below the ENGINE group, facing the helmsman. It's on the panel lighting now, so it dims and goes red at night like the voltmeter instead of glowing white.
+  - **Labels tilted 45 degrees toward the helmsman:** the dash switch and button labels (`bridge.ts buildLabels`) and the warning-lamp names (`ignition.ts`). Each stands on its near edge, with nothing behind it.
+
 - **No glass in the doors** (owner): the aft door and the port side door lose the faint pane in their window openings (`controls/WheelhouseDoor.ts`). The opening and frame stay. Shut, the doors still keep the wind, rain and engine noise muffled: that comes from whether the door is shut, not from the pane.
 
 - **Torch on the water; extinguisher spray animated and heard** (owner testing):
