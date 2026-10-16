@@ -1539,6 +1539,32 @@ The brief's "no new particle effects" rule was flagged: the fire is drawn withou
 2. ~~VR menu~~ **Done**. New settings go in `ui/mainMenu.ts` via `MenuHost`.
 3. ~~Missions and game loop~~ **Done**: rescues, tows, fires, salvage, fishing, cargo runs, the career layer (money, reputation, contracts, upgrades), damage and wear, and the first-voyage tutorial (see above).
 
+## Direction: one engine, three games (owner plan, not started)
+
+The owner plans for SWVR to grow into three games. Agreed approach: **one repository with a shared core** (physics, boats, sea, weather, tow and rescue rules), not three separate projects and not long-lived git branches, so a physics fix reaches every game at once. Each game is a thin layer on that core and gets its own page from the same build (for example `/SWVR/`, `/SWVR/mobile/`, `/SWVR/free/`).
+
+Order, as the owner set it:
+
+1. **Modular boats, in this game (SWVR), next.** The owner has a detailed technical plan from a separate chat and will bring it in as its own prompt. **Don't design or start this ahead of that prompt.** What is already agreed:
+   - It is built here, in the current VR/desktop game, not in a branch-off.
+   - Saved boat designs must be usable later in the procedural world (see 3). The saved design file is the one place the two meet, so keep it independent of the world.
+2. **Mobile / touchscreen version (later; wait for the owner).**
+   - A pure driving game on a phone, with one or two boats.
+   - One on-screen stick for the wheel, one for the throttle.
+   - Buttons for the deck jobs (connect a tow, recover people from the water), so you never walk outside.
+   - You can look around the boat; the joy is the boat physics.
+   - Reuses the core unchanged. New work: touch controls, a simpler camera and graphics cut down for phones.
+3. **Procedural free mode (later; wait for the owner).**
+   - An endless procedurally generated world to sail freely, including in saved modular boats.
+   - Bigger than it sounds: today's world is a fixed archipelago, and the paper chart, chartplotter, ports and missions all assume that fixed map. Land and sea floor would have to be generated as you sail, and dropped behind you.
+   - It may fit better as a mode inside SWVR ("Free sail") than as a separate page. Decide when it starts.
+
+Before the first branch-off (2 or 3):
+
+- Tag the last version before the split in git (for example `v1.0-before-mobile`).
+- Consider a `CLAUDE.md` holding the owner's standing rules and the core-versus-game layout, so every session follows them.
+- First round: separate the shared core from the VR/desktop-specific parts, plus an empty mobile page that drives the boat with two sticks. No visible change to SWVR.
+
 ## Future roadmap (owner notes, not started)
 
 3. ~~Archipelago with ports~~ **Done** (see above). Still open from the original notes:
@@ -1576,6 +1602,8 @@ The brief's "no new particle effects" rule was flagged: the fire is drawn withou
 The deck and wheelhouse floor are opaque and sit well above the DWL (freeboard about 0.95–1.5 m), so the sea can't show "through" the boat. The only remaining case is green water overtopping the bulwark in big rolls, which is physically what happens; it would need a "freeboard volume" mask to hide. I'll revisit in the polish pass if it's visible in practice. It matters for a future open well-deck or a low-freeboard rescue boat.
 
 ## Next
+
+**Next big step: modular boats** (the owner's separate prompt; see "Direction: one engine, three games" above). The mobile and procedural games wait until the owner asks.
 
 Everything on the lists above is done or noted as open below. What was open when last reviewed: the owner's VR test of the latest rounds; the boat passing through buoys and the start platform; a moon (the night sea is very dark); whitecaps; harbour lights that don't grow as you near them; two upgrades suggested but not built (a bigger fuel tank, a second skiff motor). The older suggested order follows, kept for the record:
 
