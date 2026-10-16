@@ -75,7 +75,7 @@ import { AnchorAudio } from '../audio/anchorAudio';
 import { WildlifeAudio } from '../audio/wildlifeAudio';
 import { WildlifeView } from '../wildlife/wildlifeView';
 import { LogView } from '../salvage/logView';
-import { acceptBlocker, buyBlocker, contractText, money, officeAt, parseCareer, portName, repOf, serializeCareer, type Contract } from '../career/career';
+import { acceptBlocker, buyBlocker, contractText, money, officeAt, parseCareer, portName, repairBlocker, repairCost, repOf, serializeCareer, type Contract } from '../career/career';
 import { TrawlView } from '../fishing/trawlView';
 import { jetOn } from '../fire/fire';
 import { nearestTowTarget, towAlertT, towStatus } from '../tow/tow';
@@ -1682,6 +1682,13 @@ export class App {
       if (!this.client) this.world.log ??= parseLog(localStorage.getItem(LOG_KEY)) ?? undefined;
       // The career (money, reputation, upgrades) carries on from the last session here.
       if (!this.client) this.world.career = parseCareer(localStorage.getItem(CAREER_KEY)) ?? this.world.career;
+      // Her damage and wear carry over too.
+      const kept = this.world.career?.boat;
+      const wb = this.world.vessels[this.testVesselId];
+      if (kept && wb && wb.damage !== undefined) {
+        wb.damage = kept.damage;
+        if (wb.engine.wear !== undefined) wb.engine.wear = kept.wear;
+      }
       if (!this.client) this.marks = parseMarks(localStorage.getItem(CHART_KEY)) ?? this.marks;
       this.world.board ??= parseBoard(localStorage.getItem(BOARD_KEY)) ?? undefined;
       // Rescues completed in this browser so far (milestone 4).
@@ -2425,6 +2432,18 @@ export class App {
         if (u && !buyBlocker(this.world, u.id)) this.pushEnvIntent('careerBuy', 1, u.id);
       },
       debugCash: () => this.pushEnvIntent('careerDebugCash', 1),
+      repairText: (i: number) => {
+        const v = this.world.vessels[this.testVesselId];
+        const what = i === 0 ? 'hull' : 'engine';
+        const pct = Math.round(((i === 0 ? v?.damage : v?.engine.wear) ?? 0) * 100);
+        return `${i === 0 ? 'Hull' : 'Engine'}: ${pct ? `${pct} % ${i === 0 ? 'damaged' : 'worn'} · ${money(repairCost(this.world, what))}` : i === 0 ? 'sound' : 'in good order'}`;
+      },
+      repairStatus: (i: number) => repairBlocker(this.world, i === 0 ? 'hull' : 'engine') ?? '',
+      repair: (i: number) => {
+        const what = i === 0 ? 'hull' : 'engine';
+        if (!repairBlocker(this.world, what)) this.pushEnvIntent('careerRepair', 1, what);
+      },
+      debugDamage: () => this.pushEnvIntent('careerDebugDamage', 1),
     };
   }
 }

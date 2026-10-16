@@ -128,6 +128,8 @@ export interface EngineState {
   /** Lube oil in the sump, 0..1, and running time since the last dipstick check (s). */
   oil?: number;
   sinceCheck?: number;
+  /** Engine wear, 0 (as new) .. 1, from running hot or dry; costs power (vessel/wear.ts). */
+  wear?: number;
 }
 
 /**
@@ -169,6 +171,8 @@ export interface VesselState {
   electrics?: ElectricsState;
   /** Water in the bilge, 0 (dry) .. 1 (full), boats with a hatch (vessel/bilge.ts). */
   bilge?: number;
+  /** Hull damage, 0 (sound) .. 1: it leaks into the bilge (vessel/wear.ts). */
+  damage?: number;
 }
 
 /** Batteries, master switch and the last tick's readings (vessel/electrics.ts). */
@@ -229,7 +233,7 @@ export function createVesselState(id: EntityId, defId: string): VesselState {
       coolingFault: false,
       key: 0,
       glow: 0,
-      ...(VESSEL_DEFS[defId].maintenance ? { oil: VESSEL_DEFS[defId].maintenance!.oilStart, sinceCheck: 0 } : {}),
+      ...(VESSEL_DEFS[defId].maintenance ? { oil: VESSEL_DEFS[defId].maintenance!.oilStart, sinceCheck: 0, wear: 0 } : {}),
     },
     holds: {},
     rudder: 0,
@@ -239,7 +243,7 @@ export function createVesselState(id: EntityId, defId: string): VesselState {
     refuelling: false,
     contact: { force: 0, slide: 0, impact: 0 },
     ...(VESSEL_DEFS[defId].outboard ? { battery: 1 } : {}),
-    ...(VESSEL_DEFS[defId].bilge ? { bilge: 0 } : {}),
+    ...(VESSEL_DEFS[defId].bilge ? { bilge: 0, damage: 0 } : {}),
     // Warm by default (tests, trials): master on, both batteries full. The game itself
     // starts cold and dark (createWorld `cold`).
     ...(VESSEL_DEFS[defId].electrics

@@ -1127,6 +1127,11 @@ export const CONFIG = {
       fire: 650,
     },
     costs: { fuelPerL: 1.6, oil: 35, lostCargo: 100 },
+    /** Repairs in port (phase 2): per % of hull damage, per % of engine wear (an overhaul). */
+    repairs: { hullPerPercent: 30, enginePerPercent: 25 },
+    /** Danger money: rescues, tows and fires in a squall or a sea over `stormHs` m pay this much more. */
+    stormBonus: 0.5,
+    stormHs: 1.8,
     rep: { cargo: 2, fish: 1, log: 3, debris: 1, tow: 6, rescue: 10, fire: 8, contract: 8, contractFail: -6, lostCargo: -3, max: 100 },
     contracts: {
       perPort: 2,
@@ -1144,6 +1149,30 @@ export const CONFIG = {
       { id: 'trawl', name: 'Bigger trawl', price: 1800, minRep: 10, desc: 'The net fills half as fast again' },
       { id: 'ice', name: 'Ice machine', price: 1200, minRep: 0, desc: 'Iced fish fetch 30 % more' },
     ],
+  },
+
+  /**
+   * Damage and wear (vessel/wear.ts). Hull: a hit faster than `impactSafe` m/s (about 2 kn:
+   * docking speed is fine) does (v - impactSafe)^2 x `impactDamage`; grinding over the
+   * bottom (sliding faster than `slideSafe` m/s under more than `grindForce` N) does
+   * `grindDamage` per metre. Damage leaks `leakRate` of the bilge per second at 1 (the pump
+   * clears 1/90 per s: it keeps up below ~0.45). A full bilge weighs `bilgeMassFull` kg.
+   * Engine: wear per s per °C over `hotC`, and per s with the sump under `lowOil`; at
+   * wear 1 the rack is capped at 1 - `powerLoss`.
+   */
+  wear: {
+    impactSafe: 1.0,
+    impactDamage: 0.08,
+    slideSafe: 0.4,
+    grindForce: 20000,
+    grindDamage: 0.02,
+    leakRate: 1 / 40,
+    bilgeMassFull: 3000,
+    hotC: 98,
+    hotWear: 0.0004,
+    lowOil: 0.15,
+    dryWear: 0.004,
+    powerLoss: 0.5,
   },
 
   /**
@@ -1197,6 +1226,8 @@ export const CONFIG = {
     shootTime: 10,
     haulTime: 12,
     snagDepth: 7,
+    /** No fishing in a sea bigger than this (Hs, m). */
+    maxHs: 2.2,
     dragLinear: 600,
     dragQuad: 1000,
     foulDrag: 9000,
@@ -1491,6 +1522,9 @@ export const CONFIG = {
   duties: {
     /** A finished duty stays up, ticked, this long (s), then drops off. */
     doneLinger: 15,
+    /** Hull damage and engine wear above which they go on the board (vessel/wear.ts). */
+    damageAt: 0.02,
+    wearAt: 0.1,
     /** Restricted visibility (COLREG rule 35): under way in visibility below `fogVis` (m)... */
     fogVis: 1000,
     /** ...until it clears above `fogClearVis`: a prolonged blast (>= `blastMin` s) every `blastEvery` s. */

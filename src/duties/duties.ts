@@ -52,7 +52,7 @@ export interface DutyStep {
 
 export interface Duty {
   id: string;
-  kind: 'startup' | 'fogSignal' | 'secure' | 'bilge' | 'fendersOut' | 'fendersIn' | 'lash' | 'oil' | 'cargo' | 'rescue' | 'tow' | 'fire' | 'fishing' | 'salvage';
+  kind: 'startup' | 'fogSignal' | 'secure' | 'bilge' | 'fendersOut' | 'fendersIn' | 'lash' | 'oil' | 'cargo' | 'rescue' | 'tow' | 'fire' | 'fishing' | 'salvage' | 'damage' | 'wear';
   title: string;
   steps: DutyStep[];
   createdAt: number;
@@ -359,6 +359,20 @@ function stepSalvageDuty(world: WorldState, d: DutiesState): void {
   ], world.time);
 }
 
+/** Phase 2: a damaged hull (it leaks) and a worn engine, until they're mended in port. */
+function stepDamageDuties(world: WorldState, d: DutiesState, v: VesselState | undefined): void {
+  const dmg = v?.damage ?? 0;
+  syncJob(d, 'damage', dmg > CONFIG.duties.damageAt ? 'hull' : null, 'Hull damaged: she is leaking', [
+    { text: 'BILGE breaker ON: keep her pumped (BILGE lamp)', done: !!v && isPowered(v, 'bilge') },
+    { text: 'Get her into port: Office tab, Repairs (hull)', done: false },
+  ], world.time);
+  const wear = v?.engine.wear ?? 0;
+  syncJob(d, 'wear', wear > CONFIG.duties.wearAt ? 'engine' : null, 'Engine worn: she has lost power', [
+    { text: 'Run her cooler: ease off when the TEMP lamp shows; keep the oil up', done: false, optional: true },
+    { text: 'In port, engine stopped: Office tab, Repairs (overhaul)', done: false },
+  ], world.time);
+}
+
 /** Advance the duties: add what's due, tick off steps, finish, drop old ones. */
 export function stepDuties(world: WorldState): void {
   const d = (world.duties ??= createDuties());
@@ -404,6 +418,7 @@ export function stepDuties(world: WorldState): void {
   stepFireDuty(world, d, v);
   stepFishingDuty(world, d, v);
   stepSalvageDuty(world, d);
+  stepDamageDuties(world, d, v);
 
   for (const x of d.items) {
     if (x.doneAt === undefined && !x.holdOpen && x.steps.length && x.steps.every((s) => s.done || s.optional)) {

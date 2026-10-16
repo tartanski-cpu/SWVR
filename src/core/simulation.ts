@@ -9,10 +9,13 @@ import { applyRescueIntent, isRescueIntent, stepRescue } from '../rescue/rescue'
 import { applyBoardIntent, isBoardIntent } from '../board/board';
 import { applyVesselIntent, stepRefuelling } from '../vessel/vesselControl';
 import { applyCargoIntent, deckVelocitiesBefore, isCargoIntent, payloadOf, stepDeckCargo } from '../cargo/cargo';
+import * as THREE from 'three';
+import { CONFIG } from '../config';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 import { stepElectrics } from '../vessel/electrics';
 import { stepBilge } from '../vessel/bilge';
 import { stepOil } from '../vessel/maintenance';
+import { stepWear } from '../vessel/wear';
 import { stepForecast } from '../environment/forecast';
 import { applyLogIntent, isLogIntent, stepLog } from '../log/log';
 import { applyTrafficIntent, stepTraffic } from '../traffic/traffic';
@@ -89,6 +92,8 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
       debug.set(vessel.id, dbg);
     }
     const payload = payloadOf(world, vessel.id);
+    // Water in the bilge is weight low in the hull (vessel/wear.ts).
+    if (vessel.bilge) payload.push({ mass: vessel.bilge * CONFIG.wear.bilgeMassFull, pos: new THREE.Vector3(0, VESSEL_DEFS[vessel.defId].hull.params.keelY + 0.35, 0) });
     const deckBefore = deckVelocitiesBefore(world, vessel);
     // External pushes: other boats (contact) and the wind (leeway).
     const wind = windForce(vessel, VESSEL_DEFS[vessel.defId], world.environment);
@@ -100,6 +105,7 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
     stepElectrics(vessel, dt);
     stepBilge(vessel, world.environment, dt);
     stepOil(vessel, dt);
+    stepWear(vessel, VESSEL_DEFS[vessel.defId], dt);
   }
   for (const vessel of Object.values(world.vessels)) if (onDavit(vessel)) stepTender(world, vessel, dt);
 

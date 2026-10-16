@@ -1331,6 +1331,23 @@ The brief's "no new particle effects" rule was flagged: the fire is drawn withou
   - The WINDOWS switch, the glass it showed and the `windows` control are gone (the "secure the boat" duty drops its windows step). The windscreen's rain and wipers stay.
   - How shut-in the wheelhouse is now depends on the aft door alone: shut, it fully muffles wind, rain, wash and fire inside.
   - The engine sound gets a wheelhouse low-pass and level (`CONFIG.wheelhouseSound`): full on deck; inside with the door open ×0.75 and 1200 Hz; door shut ×0.45 and 320 Hz.
+- **Phase 2: damage, wear and weather risk** (owner request). `vessel/wear.ts`, with repairs and danger money in `career/career.ts`.
+  - **Hull damage** (`VesselState.damage`, 0..1), from the contact state the physics already keeps:
+    - impacts faster than 1 m/s do (v − 1)² × 0.08;
+    - grinding (sliding faster than 0.4 m/s under more than 20 kN) does 0.02 per metre.
+    - Measured: the start drop, a teleport to a berth and DOCK do none; ramming the quay head-on at 3 m/s does between 5 % and 80 %.
+  - **Leaks:** damage × 1/40 of the bilge per second (`bilge.ts`). The pump clears 1/90 per second, so it can't keep up from about 45 % damage.
+  - **Bilge water is weight:** 3 t when full, added to the payload low in the hull (`simulation.ts`), so she sits about 10 cm or more deeper. This gives the bilge physics for the first time.
+  - **Engine wear** (`EngineState.wear`): coolant over 98 °C wears it at 0.0004 per °C per second; oil under 15 % at 0.004 per second. The governor's rack is capped at 1 − 0.5 × wear.
+  - **Repairs** in port (`careerRepair`):
+    - hull: £30 per %, clears the bilge;
+    - engine: £25 per %, engine off;
+    - on credit allowed.
+
+    The condition is kept with the career (`CareerState.boat`) and restored on load. Duty board jobs "Hull damaged" and "Engine worn" stay up until mended.
+  - **Weather:** trawling stops in a sea over Hs 2.2 m (status 'rough'). Rescues, tows and fires pay +50 % in a squall or over Hs 1.8 m (`heavyWeather`), marked "(heavy weather)" in the ledger.
+  - **Menu:** Office → Repairs (hull, overhaul), and Tests → Side jobs → Damage.
+  - **Tests (5):** routine harbour work does no damage; ramming the quay holes her, and she leaks and sits deeper with a full bilge; impact, grinding and engine-wear arithmetic and the power cap; repairs in port only, the engine stopped for an overhaul, the condition saved; no fishing in a big sea, and danger money.
 - **Phase 1: the career layer** (owner request, after the feature summary): money, port reputation, harbour office contracts and upgrades, in `career/career.ts`. It's plain shared state (`WorldState.career`), host-authoritative, in the snapshots, and saved in the host's browser (`swvr.career`).
   - **Pay** is reported where each job finishes:
     - `earn()` is called from `cargo.retire` (cargo by distance, fish, lost crates; lost overboard costs), salvage sold, debris cleared, tow delivered, the three rescue endings, and fire out.

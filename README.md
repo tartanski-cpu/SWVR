@@ -306,6 +306,25 @@ Everything you do now earns or costs money. The menu's **Office** tab is your ha
 - **Saved:** your money, ledger, reputation and upgrades are kept in the host's browser between sessions; crew-mates see the host's career. You start with £500.
 - **Debug:** Tests → Side jobs → **+£5000, rep** (cash and +25 reputation everywhere).
 
+### Damage, wear and weather
+
+- **Hull damage:**
+  - **What causes it:** hitting anything (rocks, a quay, the bottom) faster than about 2 knots, or grinding over the bottom under power. Normal docking does none.
+  - **What it does:** a damaged hull **leaks** into the bilge. At about half damage the leak is faster than the bilge pump. Water in the bilge is real weight (a full bilge is 3 t), so a flooding boat sits deeper and handles heavier.
+- **Engine wear:**
+  - **What causes it:** running hot (coolant over 98 °C) or with the sump nearly dry.
+  - **What it does:** a worn engine loses power, down to half at full wear.
+- **Repairs:** Office tab → **Repairs**, in port.
+  - Hull: £30 per % of damage, and the yard pumps her out.
+  - Engine overhaul: £25 per % of wear, with the engine stopped.
+  - Repairs can go on credit, so you can always get back out.
+
+  Damage and wear carry over between sessions with the career. The duty board lists both while they're there.
+- **Heavy weather:**
+  - **No trawling** in a sea over 2.2 m (Hs): the net jumps off the bottom.
+  - **Danger money:** rescues, tows and fires in a squall, or in a sea over 1.8 m, pay 50 % more.
+- **Debug:** Tests → Side jobs → **Damage** (30 % hull damage and 30 % engine wear).
+
 ### Log salvage (side job)
 
 Now and then timber washes up on a beach, and the VHF says where ("timber reported washed up on the north shore of Tarran"). Logs show on the chartplotter as brown **LOG** marks; there are up to three about at once.
@@ -464,7 +483,7 @@ src/
   net/             multiplayer: messages, PeerJS / loopback transports, host and client sessions, avatars
   tow/             towing: tow jobs and the towline on anything afloat (tow.ts), tow models, towline view
   wildlife/        gulls and dolphins (poses from time; view)
-  career/          money, ledger, reputation, contracts, upgrades (career.ts)
+  career/          money, ledger, reputation, contracts, upgrades, repairs (career.ts)
   salvage/         log salvage: beach spots, logs, their physics on the line; view
   fishing/         the trawl: net, grounds, catch, drag; gallows/warps/floats view
 tests/             vitest: run in plain Node, no browser

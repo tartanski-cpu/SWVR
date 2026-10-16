@@ -17,6 +17,7 @@ import { clamp } from '../../core/math';
 import type { VesselDef, WorkboatDef } from '../vesselDef';
 import type { VesselState } from '../vesselState';
 import { derateRackCap } from './engineThermal';
+import { wearRackCap } from '../wear';
 
 const NU = 1.19e-6; // kinematic viscosity of sea water at 15 °C (m²/s)
 
@@ -196,7 +197,7 @@ export function stepEngineAndPropeller(s: VesselState, def: WorkboatDef, speed: 
   if (e.phase === 'running') {
     const throttle = demand.gear === e.gear ? demand.throttle : 0;
     const set = cfg.idleRpm + throttle * (cfg.ratedRpm - cfg.idleRpm);
-    rackTarget = clamp((set - e.rpm) / cfg.droopRpm, 0, derateRackCap(def, e.coolantC));
+    rackTarget = clamp((set - e.rpm) / cfg.droopRpm, 0, derateRackCap(def, e.coolantC) * wearRackCap(s));
   }
   e.rack = rackTarget > e.rack ? Math.min(rackTarget, e.rack + cfg.rackRiseRate * dt) : rackTarget;
 

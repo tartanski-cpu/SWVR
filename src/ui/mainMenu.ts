@@ -128,6 +128,11 @@ export interface MenuHost {
   upgradeStatus(i: number): string;
   buyUpgrade(i: number): void;
   debugCash(): void;
+  /** Phase 2: the hull and engine (0 'hull', 1 'engine'): state and cost, why not, mend it. */
+  repairText(i: number): string;
+  repairStatus(i: number): string;
+  repair(i: number): void;
+  debugDamage(): void;
   /** Debug side missions: a salvage log on the nearest beach; go to a fishing ground. */
   logNear(): void;
   goFishing(): void;
@@ -476,6 +481,7 @@ export function mainMenu(h: MenuHost): MainMenu {
         { text: 'Log on beach', press: () => h.logNear() },
         { text: 'Fishing ground', press: () => h.goFishing() },
         { text: '+£5000, rep', press: () => h.debugCash() },
+        { text: 'Damage', press: () => h.debugDamage() },
       ],
     },
     {
@@ -511,6 +517,16 @@ export function mainMenu(h: MenuHost): MainMenu {
         buttons: [
           { text: () => h.offerText(i), weight: 3 },
           { text: () => (h.offerText(i) ? h.offerBlocker(i) || 'Accept' : ''), active: () => !!h.offerText(i) && !h.offerBlocker(i), press: () => h.acceptOffer(i) },
+        ],
+      }),
+    ),
+    { heading: 'Repairs (in port)' },
+    ...[0, 1].map(
+      (i): MenuRow => ({
+        label: '',
+        buttons: [
+          { text: () => h.repairText(i), weight: 3 },
+          { text: () => h.repairStatus(i) || (i === 0 ? 'Repair' : 'Overhaul'), active: () => !h.repairStatus(i), press: () => h.repair(i) },
         ],
       }),
     ),

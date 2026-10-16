@@ -20,6 +20,10 @@
  *               heavy towing post (the towline holds more), a bigger trawl (fills faster),
  *               an ice machine (fish fetch more). Some need reputation first.
  *
+ * Phase 2: damage and wear (vessel/wear.ts) are mended in port for money (careerRepair), and
+ * the boat's condition is kept with the career; rescues, tows and fires in heavy weather
+ * pay danger money (`stormBonus`).
+ *
  * Jobs report here through earn() from where they finish (cargo.ts, salvage.ts, tow.ts,
  * rescue.ts, fire.ts); refuelling and oil are noticed in stepCareer().
  */
@@ -31,6 +35,7 @@ import { isWorkboat, VESSEL_DEFS } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
 import { sayRadio } from '../rescue/rescue';
 import { cargoPortAt } from '../cargo/cargo';
+import { significantWaveHeight } from '../ocean/waves';
 
 export type JobKind = 'cargo' | 'fish' | 'log' | 'debris' | 'tow' | 'rescue' | 'fire' | 'crate';
 export type ContractKind = 'cargo' | 'fish' | 'logs';
@@ -75,6 +80,8 @@ export interface CareerState {
   lastFuel?: number;
   lastOil?: number;
   contractsDone: number;
+  /** The workboat's condition as last saved (phase 2: it carries over to the next session). */
+  boat?: { damage: number; wear: number };
 }
 
 export function createCareer(): CareerState {
@@ -179,8 +186,10 @@ const REP_GAIN: Record<JobKind, () => number> = {
 /** A job done: pay it, raise the port's reputation, count it toward the contract. */
 export function earn(world: WorldState, kind: JobKind, o: EarnOpts): void {
   const c = (world.career ??= createCareer());
-  const amount = Math.round(basePay(world, kind, o) * payFactor(c, o.port));
-  post(world, c, o.text, amount);
+  // Danger money: rescues, tows and fires in heavy weather pay more (phase 2).
+  const storm = (kind === 'rescue' || kind === 'tow' || kind === 'fire') && heavyWeather(world);
+  const amount = Math.round(basePay(world, kind, o) * payFactor(c, o.port) * (storm ? 1 + CONFIG.career.stormBonus : 1));
+  post(world, c, storm ? `${o.text} (heavy weather)` : o.text, amount);
   addRep(c, o.port, REP_GAIN[kind]());
   // The contract: the right kind of work, at its port.
   const k = c.active;
@@ -195,6 +204,28 @@ export function earn(world: WorldState, kind: JobKind, o: EarnOpts): void {
       sayRadio(world, 'info', `${portName(k.port)} harbour office: contract complete, skipper. ${money(k.bonus)} bonus paid to your account.`);
     }
   }
+}
+
+/** A squall, or a big sea: danger money for the crews that go out. */
+export function heavyWeather(world: WorldState): boolean {
+  return world.environment.weather?.preset === 'Squall' || significantWaveHeight(world.environment.waves) > CONFIG.career.stormHs;
+}
+
+/** What repairs cost now: the hull (by damage) and an engine overhaul (by wear). */
+export function repairCost(world: WorldState, what: 'hull' | 'engine'): number {
+  const v = workboat(world);
+  if (!v) return 0;
+  const r = CONFIG.career.repairs;
+  return what === 'hull' ? Math.round((v.damage ?? 0) * 100 * r.hullPerPercent) : Math.round((v.engine.wear ?? 0) * 100 * r.enginePerPercent);
+}
+
+/** Why a repair can't be done now, or null. */
+export function repairBlocker(world: WorldState, what: 'hull' | 'engine'): string | null {
+  const v = workboat(world);
+  if (!v || repairCost(world, what) < 1) return 'Nothing to do';
+  if (!officeAt(world)) return 'In port only';
+  if (what === 'engine' && v.engine.phase !== 'off') return 'Stop the engine first';
+  return null;
 }
 
 /** Money out (fuel, oil, losses). */
@@ -273,6 +304,13 @@ export function stepCareer(world: WorldState): void {
     const oil = v.engine.oil;
     if (oil !== undefined && c.lastOil !== undefined && oil - c.lastOil > 0.05) spend(world, CONFIG.career.costs.oil, 'Engine oil');
     c.lastOil = oil;
+    // Her condition, kept with the career (saved when it changes by a percent or more).
+    const damage = v.damage ?? 0;
+    const wear = v.engine.wear ?? 0;
+    if (!c.boat || Math.abs(c.boat.damage - damage) > 0.01 || Math.abs(c.boat.wear - wear) > 0.01 || (damage === 0 && c.boat.damage > 0) || (wear === 0 && c.boat.wear > 0)) {
+      c.boat = { damage, wear };
+      c.seq += 1;
+    }
   }
   const k = c.active;
   if (k?.due !== undefined && world.time > k.due) {
@@ -336,6 +374,27 @@ export function applyCareerIntent(world: WorldState, intent: Intent): void {
       post(world, c, `Fitted: ${u.name}`, -u.price);
       break;
     }
+    case 'careerRepair': {
+      // In port: the yard mends the hull (and pumps her out) or overhauls the engine. Repairs
+      // can go on credit - you have to be able to go back out.
+      const what = intent.ref === 'engine' ? 'engine' : 'hull';
+      const v = workboat(world);
+      if (!v || repairBlocker(world, what)) return;
+      const cost = repairCost(world, what);
+      if (what === 'hull') {
+        v.damage = 0;
+        if (v.bilge !== undefined) v.bilge = 0;
+      } else v.engine.wear = 0;
+      post(world, c, what === 'hull' ? 'Hull repaired' : 'Engine overhauled', -cost);
+      break;
+    }
+    case 'careerDebugDamage': {
+      const v = workboat(world);
+      if (v && v.damage !== undefined) v.damage = Math.min(1, v.damage + 0.3);
+      if (v && v.engine.wear !== undefined) v.engine.wear = Math.min(1, v.engine.wear + 0.3);
+      c.seq += 1;
+      break;
+    }
     case 'careerDebugCash':
       post(world, c, 'Debug: cash', 5000);
       for (const p of PORTS) addRep(c, p.id, 25);
@@ -359,6 +418,9 @@ export function parseCareer(raw: string | null): CareerState | null {
     c.rep = Object.fromEntries(Object.entries(o.rep ?? {}).filter(([k, v]) => PORTS.some((p) => p.id === k) && typeof v === 'number'));
     c.upgrades = o.upgrades.filter((u) => CONFIG.career.upgrades.some((x) => x.id === u));
     c.contractsDone = typeof o.contractsDone === 'number' ? o.contractsDone : 0;
+    if (o.boat && typeof o.boat.damage === 'number' && typeof o.boat.wear === 'number') {
+      c.boat = { damage: Math.max(0, Math.min(1, o.boat.damage)), wear: Math.max(0, Math.min(1, o.boat.wear)) };
+    }
     return c;
   } catch {
     return null;
@@ -367,5 +429,5 @@ export function parseCareer(raw: string | null): CareerState | null {
 
 /** What's kept between sessions: money, ledger, reputation, upgrades (not offers or the contract). */
 export function serializeCareer(c: CareerState): string {
-  return JSON.stringify({ money: c.money, ledger: c.ledger, rep: c.rep, upgrades: c.upgrades, contractsDone: c.contractsDone });
+  return JSON.stringify({ money: c.money, ledger: c.ledger, rep: c.rep, upgrades: c.upgrades, contractsDone: c.contractsDone, boat: c.boat });
 }

@@ -29,8 +29,9 @@ import type { ExternalForce } from '../vessel/physics/vesselContact';
 import { groundHeight } from '../world/terrain';
 import type { EntityId } from '../core/ids';
 import { hasUpgrade } from '../career/career';
+import { significantWaveHeight } from '../ocean/waves';
 
-export type FishStatus = 'stowed' | 'shooting' | 'hauling' | 'fishing' | 'slow' | 'fast' | 'outside' | 'fouled' | 'full';
+export type FishStatus = 'stowed' | 'shooting' | 'hauling' | 'fishing' | 'slow' | 'fast' | 'outside' | 'fouled' | 'full' | 'rough';
 
 export interface FishingState {
   net: 'stowed' | 'shooting' | 'down' | 'hauling';
@@ -127,7 +128,9 @@ export function stepFishing(world: WorldState, dt: number): void {
   }
   const g = groundAt(v.position[0], v.position[2]);
   const sp = speedOf(v);
-  if (!g) f.status = 'outside';
+  // Heavy weather: the net can't be worked in a big sea (phase 2).
+  if (significantWaveHeight(world.environment.waves) > c.maxHs) f.status = 'rough';
+  else if (!g) f.status = 'outside';
   else if (sp < c.minSpeed) f.status = 'slow';
   else if (sp > c.maxSpeed) f.status = 'fast';
   else {
@@ -192,6 +195,8 @@ export function fishingStatus(world: WorldState): string | null {
       return 'Trawling: no fish here - find a fishing ground (dashed on the plotter)';
     case 'fouled':
       return 'Net fouled on the bottom! Haul it in (TRAWL switch off)';
+    case 'rough':
+      return 'Too rough to fish: the net jumps off the bottom - haul it and wait for better weather';
     case 'full':
       return 'Deck full: land your catch before more comes aboard';
     default:
