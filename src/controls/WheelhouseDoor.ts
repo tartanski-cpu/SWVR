@@ -3,8 +3,8 @@ import type { VesselState } from '../vessel/vesselState';
 import { Control } from './Control';
 
 /**
- * The wheelhouse's aft door: a sliding panel with a big window in it (so you can see
- * astern from the helm with it shut), sliding to port behind the aft wall. It slides over
+ * The wheelhouse's aft door: a sliding panel with a big window opening in it, unglazed (so you
+ * can see astern from the helm with it shut), sliding to port behind the aft wall. It slides over
  * ~0.4 s. Not itself a control (owner feedback: open, it slid behind the whiteboard and
  * caught hands writing on it): a push button on the door frame, inside and out
  * (`DoorButton`), opens or shuts it.
@@ -37,13 +37,8 @@ export class WheelhouseDoor {
     box(w, height - head, 0, (head + height) / 2); // above
     box(side, head - sill, -(w - side) / 2, (sill + head) / 2); // either side
     box(side, head - sill, (w - side) / 2, (sill + head) / 2);
-    const glass = new THREE.Mesh(
-      new THREE.PlaneGeometry(w - 2 * side, head - sill).translate(0, (sill + head) / 2, 0),
-      new THREE.MeshBasicMaterial({ color: 0xbcd4e0, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false }),
-    );
-    glass.name = 'windowGlass'; // the laser passes through it
-    glass.renderOrder = 2;
-    this.panel.add(glass);
+    // No pane in the window opening (owner: not needed; it reads as open framing). Shut,
+    // the door still keeps the wind and rain noise out (App `closed`, from `shut`).
     // A recessed pull on each face.
     const handle = new THREE.MeshLambertMaterial({ color: 0x5a6066 });
     for (const z of [-t, t]) this.panel.add(new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.22, 0.012).translate(w / 2 - 0.08, 1.05, z * 0.6), handle));
