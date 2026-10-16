@@ -26,7 +26,7 @@ import { surfaceHeight, type PreparedWave } from '../ocean/waves';
 import { hullPlan } from '../vessel/layout';
 import { asWorkboat, VESSEL_DEFS } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
-import type { CargoItem } from '../cargo/cargo';
+import { quickDeckPoint, stowOnDeck, type CargoItem } from '../cargo/cargo';
 import type { RescueState, RescueTarget } from './rescue';
 
 export interface RingState {
@@ -273,6 +273,23 @@ export function applyRecoveryIntent(world: WorldState, v: VesselState | undefine
         t.x += dx * k;
         t.z += dz * k;
       }
+      return true;
+    }
+    case 'crateQuickLift': {
+      // The menu's quick version (no hook): every crate floating within quickLiftRange of
+      // the hull lifted aboard and lashed, while there's room on deck.
+      const inc = r.active;
+      if (!inc || !v) return true;
+      const [dx, dz] = quickDeckPoint(v);
+      for (const t of inc.targets) {
+        if (t.kind !== 'crate' || t.phase === 'aboard' || distanceToHull(v, t.x, t.z) > cfg.quickLiftRange) continue;
+        const item: CargoItem = { id: `rescued-${t.id}`, kind: 0, mass: 40, from: 'sea', to: 'any', at: { carriedBy: who } };
+        if (!stowOnDeck(world, v, item, dx, dz)) break;
+        world.cargo[item.id] = item;
+        t.phase = 'aboard';
+        t.cargoId = item.id;
+      }
+      checkRecovered(world, r);
       return true;
     }
     case 'crateLift': {

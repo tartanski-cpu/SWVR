@@ -1549,6 +1549,25 @@ How to come back to it:
 
 ### Fixes after V1.0 (on the dev branch; not in the `V1.0` tag)
 
+- **Every crate and pot job by hand, or by one click in the menu** (owner: all jobs with crates and pots should be either manual, carried to the place with friends to help, or quick by a menu button, which matters for a phone version one day).
+  - **The buttons** (menu → Cargo; `mainMenu.ts`, handler `App.quickJob`). The handler checks what would happen first: it says what's being done, or why not (not at a port, not stopped, nothing waiting, nothing in reach, potting off). Then it sends an intent and the host applies the same rules as by hand.
+    - **Load** (`cargoQuickLoad`): at a port (alongside its cargo berth or anchored in its bay, under `cargo.maxSpeed`; `cargo.ts quickPort`), everything waiting there for another port goes onto the aft deck, while the payload, slots and deck room allow (`stowOnDeck`). Each item is lashed where a D-ring is in reach.
+    - **Unload** (`cargoQuickUnload`): everything aboard for this port or any harbour is delivered and paid as if carried to the stack: port cargo, trawl fish boxes, crates fished out of the sea. Pots with a catch have it sold (`sellPotCatch`, shared with setting a pot down ashore) and stay aboard.
+    - **Lash all / Release all** (`cargoQuickLash` 1 / 0).
+    - **Lift crates** (`crateQuickLift`, `rescue/recovery.ts`): during a lost-cargo call, crates floating within `rescue.quickLiftRange` (15 m) of the hull come aboard, lashed, while there's room, with no boat hook. Bring her closer for the rest. All aboard ends the rescue as before.
+    - **Pots** (`potting.ts applyQuickPotting`):
+      - **Load pots** (`potQuickLoad`): the pallet's pots aboard, at Calder Haven only.
+      - **Bait all** (`potQuickBait`).
+      - **Shoot one** (`potQuickShoot`): a pot from the deck lands `potting.quickShootOff` (3 m) off the starboard side. It's shot and soaks like any other; the message reminds you to mark it on the chart.
+      - **Haul nearest** (`potQuickHaul`): the nearest buoy that's up within `potting.quickHaulRange` (25 m) of the hull. Its pot lands on deck with its catch.
+  - **Fair with the hand way:** a quick job takes no less boat handling. You still steam there, come alongside or anchor, stop, and find the buoy. Only the walking and carrying is skipped, and the pay is the same. The hand way stays the shared crew job it was.
+  - **Tests** (`tests/quickJobs.test.ts`):
+    - nothing loads at sea; at Calder everything waiting goes aboard lashed; release and lash all; unloaded at a destination it's delivered and paid;
+    - crates alongside lifted in one go but not one 60 m off, and the rescue ends once that one is brought close and lifted;
+    - pots loaded from the pallet, baited, two shot on a ground, nothing to haul while sinking, both hauled once soaked, the catch sold at Calder with the pots kept aboard.
+  - **Checked in headless Chromium:** at the Calder berth, Load, Load pots and Bait all from the menu handler put 5 cargo items and 5 pots on deck, all lashed; screenshot of the Cargo tab with the new rows.
+  - **Not covered yet:** the skiff (beach deliveries at anchorage ports, which the quick Load/Unload stand in for when anchored in the bay) and survivors in the water (not crate or pot jobs).
+
 - **Potting: the catch stays in the pot and is sold ashore** (owner, from the milestone 3 screenshots: no two-step of opening the pot and tipping it into a crate; haul it, take it back, sell it; and show the crabs inside the pot).
   - **No opening, no catch crate:** the intents `potOpen` and `potEmpty`, the catch crate (`from: 'potcatch'`) and the open-pot drawing are gone, and so is `PotContents.open`. A hauled pot lands on deck with its catch in it (and a note of what's in it for the player who hauled it, `potHands.ts announceLanded`).
   - **Seen through the netting** (`cargoView.ts potGeometry`): the pot's netting is now an open lattice of cords and hoops over a dark floor instead of a solid half-round, so the crabs, lobsters and bycatch drawn on its floor show through. This applies to every pot.

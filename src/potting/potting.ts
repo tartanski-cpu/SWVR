@@ -3,14 +3,14 @@ import type { EntityId } from '../core/ids';
 import type { Intent } from '../core/intents';
 import type { WorldState } from '../core/world';
 import * as THREE from 'three';
-import { aboard, deckHeightAt, footprint, type CargoItem, type PotContents } from '../cargo/cargo';
+import { aboard, deckHeightAt, footprint, quickDeckPoint, quickPort, stowOnDeck, type CargoItem, type PotContents } from '../cargo/cargo';
 import { significantWaveHeight } from '../ocean/waves';
 import { deckSpot } from '../cargo/deck';
 import { hullPlan } from '../vessel/layout';
 import { placeVessel } from '../vessel/vesselControl';
 import { VESSEL_DEFS, isWorkboat } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
-import { POTTING_GROUNDS, type PottingGround } from '../world/archipelago';
+import { PORTS, POTTING_GROUNDS, type PottingGround } from '../world/archipelago';
 import { standingHeight } from '../world/geography';
 import { groundHeight } from '../world/terrain';
 import { windVector } from '../environment/weather';
@@ -388,6 +388,10 @@ export function applyPottingIntent(world: WorldState, intent: Intent): void {
   if (applyHaulIntent(world, intent)) return;
   const v = world.vessels[intent.targetId];
   if (!v || !world.potting) return;
+  if (intent.control.startsWith('potQuick')) {
+    applyQuickPotting(world, v, intent);
+    return;
+  }
   if (intent.control === 'potDebugReady') {
     const full = intent.value > 1.5;
     for (const pot of world.potting.shot) {
@@ -419,7 +423,68 @@ export function applyPottingIntent(world: WorldState, intent: Intent): void {
 }
 
 export function isPottingIntent(control: string): boolean {
-  return control === 'pottingOn' || control.startsWith('potDebug') || HAUL_INTENTS.has(control);
+  return control === 'pottingOn' || control.startsWith('potDebug') || control.startsWith('potQuick') || HAUL_INTENTS.has(control);
+}
+
+// ── Quick potting (the menu's Potting buttons) ──
+// The same jobs as by hand, in a click (see cargo.ts "Quick jobs"): the same rules hold.
+
+/** Pots waiting on the pallet, if the vessel is at the pallet's harbour. */
+export function quickPalletPots(world: WorldState, v: VesselState): CargoItem[] {
+  const { x, z } = CONFIG.potting.pallet;
+  const port = quickPort(v);
+  // The pallet's harbour: the port nearest it.
+  const home = [...PORTS].sort((a, b) => Math.hypot(a.x - x, a.z - z) - Math.hypot(b.x - x, b.z - z))[0];
+  if (!port || port.id !== home?.id) return [];
+  return Object.values(world.cargo).filter((c) => isPot(c) && 'ground' in c.at && Math.hypot(c.at.ground[0] - x, c.at.ground[2] - z) < CONFIG.cargo.deliveryRadius);
+}
+
+/** The buoy nearest the vessel within `quickHaulRange` (up, not being hauled), or null. */
+export function quickHaulable(world: WorldState, v: VesselState): ShotPot | null {
+  let best: ShotPot | null = null;
+  let bd = CONFIG.potting.quickHaulRange;
+  for (const pot of world.potting?.shot ?? []) {
+    if (pot.haul || !buoyUp(world, pot)) continue;
+    const d = fromHull(v, pot.x, pot.z);
+    if (d < bd) [best, bd] = [pot, d];
+  }
+  return best;
+}
+
+/**
+ * Quick potting intents (targetId: the vessel):
+ *   potQuickLoad   the pallet's pots aboard (at the pallet's harbour), lashed
+ *   potQuickBait   every pot aboard not yet baited, baited
+ *   potQuickShoot  one pot from the deck over the side (starboard, a few metres off)
+ *   potQuickHaul   the nearest buoy within quickHaulRange hauled: its pot on deck with its catch
+ */
+function applyQuickPotting(world: WorldState, v: VesselState, intent: Intent): void {
+  switch (intent.control) {
+    case 'potQuickLoad': {
+      const [x, z] = quickDeckPoint(v);
+      for (const c of quickPalletPots(world, v)) if (!stowOnDeck(world, v, c, x, z)) break;
+      break;
+    }
+    case 'potQuickBait':
+      for (const c of aboard(world, v.id)) if (isPot(c) && !c.pot?.baited) c.pot = { crab: 0, lobster: 0, bycatch: null, ...c.pot, baited: true };
+      break;
+    case 'potQuickShoot': {
+      const c = aboard(world, v.id).find(isPot);
+      if (!c || !('vessel' in c.at)) break;
+      const plan = hullPlan(VESSEL_DEFS[v.defId]);
+      const z = c.at.pos[2];
+      const at = toWorldPt(v, [plan.halfBeam(Math.min(plan.transom, Math.max(plan.stem, z))) + CONFIG.potting.quickShootOff, 0, z]);
+      shootPot(world, c, at.x, at.z);
+      break;
+    }
+    case 'potQuickHaul': {
+      const pot = quickHaulable(world, v);
+      if (!pot) break;
+      pot.haul = { by: intent.playerId, phase: 'line', vessel: v.id, lead: leadFor(v, pot.x, pot.z), line: 0 };
+      landPot(world, pot, v);
+      break;
+    }
+  }
 }
 
 const HAUL_INTENTS = new Set(['potHook', 'potTow', 'potAboard', 'potHaul', 'potBait']);

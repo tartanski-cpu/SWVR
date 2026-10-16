@@ -49,7 +49,8 @@ import { placeInFront } from '../ui/placeInFront';
 import { canRefuel, releaseHolds } from '../vessel/vesselControl';
 import { PORTS } from '../world/archipelago';
 import { groundHeight } from '../world/terrain';
-import { aboard, carriedBy, dropCarried, cargoLabel, cargoPortAt, kindOf, payloadMass, slotsUsed, type CargoItem } from '../cargo/cargo';
+import { aboard, carriedBy, dropCarried, cargoLabel, cargoPortAt, kindOf, payloadMass, quickLoadable, quickPort, quickUnloadable, slotsUsed, type CargoItem } from '../cargo/cargo';
+import { groundAt, isPot, quickHaulable, quickPalletPots } from '../potting/potting';
 import { CargoHands, type CargoHandsContext } from '../cargo/cargoHands';
 import { CargoView } from '../cargo/cargoView';
 import { berthById } from '../vessel/physics/mooring';
@@ -1552,6 +1553,7 @@ export class App {
         const c = skiff && aboard(this.world, skiff.id)[i];
         return c ? cargoLabel(c) : null;
       },
+      quickJob: (what) => this.quickJob(what),
       skiffLoad: () => {
         const skiff = this.skiff();
         if (!skiff) return '-';
@@ -2605,6 +2607,73 @@ export class App {
       return;
     }
     this.pushVesselIntent('key', 0); // stop: key off
+  }
+
+  /**
+   * The menu's quick jobs: check what would happen (to say why not, or what's being done),
+   * then send the intent; the host applies the same rules (cargo.ts / potting.ts "quick").
+   */
+  private quickJob(what: string): void {
+    const v = this.world.vessels[this.testVesselId];
+    if (!v) return;
+    const say = (text: string) => this.overlay.notify(text, 3);
+    const port = quickPort(v);
+    const notAtPort = 'Come alongside a harbour berth, or anchor in its bay, and stop first';
+    const n = (k: number, one: string) => `${k} ${one}${k === 1 ? '' : 's'}`;
+    switch (what) {
+      case 'load': {
+        if (!port) return say(notAtPort);
+        const k = quickLoadable(this.world, v).length;
+        if (!k) return say('Nothing waiting here for another port');
+        this.pushVesselIntent('cargoQuickLoad', 1);
+        return say(`Loading ${n(k, 'item')} waiting here (as many as she has room for), lashed down`);
+      }
+      case 'unload': {
+        if (!port) return say(notAtPort);
+        const items = quickUnloadable(this.world, v);
+        if (!items.length) return say(`Nothing aboard to land at ${port.name.replace(' (anchorage)', '')}`);
+        this.pushVesselIntent('cargoQuickUnload', 1);
+        const pots = items.filter(isPot).length;
+        return say(`Landing ${n(items.length - pots, 'item')}${pots ? ` and selling the catch from ${n(pots, 'pot')}` : ''}`);
+      }
+      case 'lash':
+      case 'release':
+        this.pushVesselIntent('cargoQuickLash', what === 'lash' ? 1 : 0);
+        return say(what === 'lash' ? 'Everything on deck lashed down (where a D-ring is in reach)' : 'All lashings released');
+      case 'lift': {
+        const crates = (this.world.rescue?.active?.targets ?? []).filter((t) => t.kind === 'crate' && t.phase !== 'aboard');
+        if (!crates.length) return say('No crates in the water');
+        this.pushVesselIntent('crateQuickLift', 1);
+        return say(`Lifting aboard the crates within ${CONFIG.rescue.quickLiftRange} m of her side (bring her closer for the rest)`);
+      }
+    }
+    if (!this.world.potting) return say('Potting is off: Settings → Game → Potting');
+    const pots = aboard(this.world, v.id).filter(isPot);
+    switch (what) {
+      case 'potLoad': {
+        const k = quickPalletPots(this.world, v).length;
+        if (!k) return say(port ? 'No pots waiting on the pallet here (it is at Calder Haven)' : 'The pot pallet is at Calder Haven: come alongside there and stop');
+        this.pushVesselIntent('potQuickLoad', 1);
+        return say(`Loading ${n(k, 'pot')} from the pallet, lashed down`);
+      }
+      case 'potBait': {
+        const k = pots.filter((c) => !c.pot?.baited).length;
+        if (!k) return say(pots.length ? 'All the pots aboard are baited' : 'No pots aboard');
+        this.pushVesselIntent('potQuickBait', 1);
+        return say(`Baited ${n(k, 'pot')}`);
+      }
+      case 'potShoot': {
+        if (!pots.length) return say('No pots aboard');
+        this.pushVesselIntent('potQuickShoot', 1);
+        const on = groundAt(v.position[0], v.position[2]);
+        return say(`Pot over the side, starboard${on ? '' : ' (not on a potting ground: it will catch little)'}. ${n(pots.length - 1, 'pot')} left. Mark it on the chart`);
+      }
+      case 'potHaul': {
+        if (!quickHaulable(this.world, v)) return say(`No pot buoy within ${CONFIG.potting.quickHaulRange} m: bring her up to one`);
+        this.pushVesselIntent('potQuickHaul', 1);
+        return say('Hauling the nearest pot');
+      }
+    }
   }
 
   private pushVesselIntent(control: string, value: number, ref?: string): void {

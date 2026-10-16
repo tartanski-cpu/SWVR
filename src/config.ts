@@ -1931,6 +1931,8 @@ export const CONFIG = {
     hookExtendSpeed: 10,
     hookRetractSpeed: 1.5,
     liftRange: 2.5,
+    /** The menu's quick "Lift crates" (no hook): crates floating within this of the hull (m). */
+    quickLiftRange: 15,
     /**
      * Landing survivors (milestone 4): moored alongside any quay, or anchored at an
      * anchorage (the skiff takes them), they step off one every `landEvery` s, each taking
@@ -2128,6 +2130,12 @@ export const CONFIG = {
      * quay. Lobster is worth far more than crab.
      */
     price: { lobster: 40, crab: 8 },
+    /**
+     * Quick potting from the menu (no walking): haul the nearest buoy within `quickHaulRange`
+     * m of the hull; a pot shot from the deck lands `quickShootOff` m off her side.
+     */
+    quickHaulRange: 25,
+    quickShootOff: 3,
     /** The bait tub on deck (vessel x, z), outside the wheelhouse's aft wall, port side. */
     baitBox: [-0.95, 1.85] as [number, number],
   },

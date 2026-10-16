@@ -405,7 +405,9 @@ A slow-burn fishing job over several voyages. It's being built in stages, so it'
 9. **Haul the line, hand over hand:** **VR:** grip the line where it comes over the side and pull it up and in toward you; let go, take a new hold, pull again (each pull hauls in a bit more than your arm's travel). **Desktop:** look at the line and click, a couple of metres a click. Near the end the pot breaks the surface, swinging and dripping, comes up the side and over onto the deck. **In a swell** (over about 1 m), stop pulling for a moment and the pot's weight drags the line back out: keep at it.
 10. **What's in it:** you can see the catch through the netting: brown crabs, blue-black lobsters, maybe a little fish, a starfish or an old boot, or nothing. A good ground, a long soak, bait and calm weather all help. It stays in the pot.
 11. **Bait and go again:** grip the blue **bait tub** on deck outside the wheelhouse's aft wall (desktop: click it) for a piece of bait, and let it go over a pot (desktop: click the pot). A baited pot catches about three times as much. Shoot it again (any catch still in it goes back to the sea), or stack and lash the pots and head home.
-12. **Sell the catch:** carry a pot ashore and set it down on a harbour quay, by any port's goods stack or back by the pot pallet at Calder Haven. The fish buyer takes the crabs and lobsters and pays for each (a lobster about five times a crab; the bycatch goes in the bin), and the pot stays there, empty, to take back aboard.
+12. **Sell the catch:** carry a pot ashore and set it down on a harbour quay, by any port's goods stack or back by the pot pallet at Calder Haven, or, at a harbour, menu → Cargo → **Unload** sells the catch from every pot aboard. The fish buyer takes the crabs and lobsters and pays for each (a lobster about five times a crab; the bycatch goes in the bin), and the pot stays there, empty, to take back aboard.
+
+**All of it in clicks, too:** the menu's Cargo tab has **Load pots**, **Bait all**, **Shoot one** and **Haul nearest**, and **Unload** at a harbour sells the catch, for when you'd rather not walk it (or are playing alone).
 
 No timers on screen: the chart marks, the buoy flags and your memory are all you have. Pots lost (overboard loose, or let go in the shallows) are replaced on the pallet: pots are free for now.
 
@@ -443,8 +445,10 @@ Each port has three items waiting ashore, each bound for another port. The box c
    - **Calder Haven:** the middle/south of the quay. Fuel is at its north end.
    - **Brannock Pier:** the south-east end of the T-head. Fuel is at the north-west end.
    - **Selkie Bay:** anchor in the bay, since there's no quay; the goods come off the beach.
-2. **Stop**, open the menu's **Cargo** tab and **Load** what you want. There are four deck slots and a 5 t payload limit.
-3. **Take it to its destination** and **Unload** it there. That's a delivery. A replacement cargo then appears at one of the ports.
+2. **Stop and load it.** Either by hand: carry each item aboard (grip in VR, click on desktop; a job for the whole crew), set it on deck and lash it to a D-ring (trigger / Q). Or in one click: menu → **Cargo** → **Load**, which puts aboard everything waiting there for another port that she has room for, lashed down. There are four deck slots and a 5 t payload limit either way.
+3. **Take it to its destination and land it:** carry it ashore to the goods stack, or menu → Cargo → **Unload**. That's a delivery. A replacement cargo then appears at one of the ports.
+
+**Every crate and pot job works both ways** (by hand, or by a button in the menu's Cargo tab, with the same rules): **Load**, **Unload** (cargo for this port, fish boxes, crates fished out of the sea, and the catch in your pots), **Lash all** / **Release all**, **Lift crates** (floating crates within 15 m of her side come aboard, no boat hook needed), and for pots **Load pots** (from the pallet at Calder Haven), **Bait all**, **Shoot one** (a pot over the starboard side) and **Haul nearest** (the nearest buoy within 25 m). The buttons say why not when they can't: not at a port, not stopped, no room, nothing in reach.
 
 Cargo is real weight. A full load sits her about 10–15 cm deeper and down by the stern, and she'll feel heavier.
 

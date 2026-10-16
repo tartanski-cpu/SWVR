@@ -134,6 +134,7 @@ function fakeHost() {
     cargoAboard: () => null,
     skiffCargo: () => null,
     skiffLoad: () => '0 / 2',
+    quickJob: () => {},
     seaTrialsShown: () => state.trials,
     toggleSeaTrials: () => calls.push('trials'),
     debugPanel: () => state.dbg,
