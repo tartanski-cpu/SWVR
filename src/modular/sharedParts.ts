@@ -15,7 +15,7 @@
  * glow in the shader, exactly where three adds the material's own.
  */
 import * as THREE from 'three';
-import type { SharedPartKind } from './module';
+import { DECK_SHARED_KINDS, type SharedPartKind } from './module';
 
 interface Slot {
   mesh: THREE.Mesh;
@@ -41,8 +41,8 @@ class SharedKind {
     geometry.setAttribute('instanceEmissive', this.emissive);
     const mesh = new THREE.InstancedMesh(geometry, sharedMaterial(), this.slots.length);
     mesh.name = `shared:${this.kind}`;
-    // Hidden with the wheelhouse's other small parts while you're out on deck.
-    mesh.userData.interiorDetail = true;
+    // The wheelhouse's: hidden with its other small parts while you're out on deck.
+    mesh.userData.interiorDetail = !DECK_SHARED_KINDS.includes(this.kind);
     this.mesh = mesh;
     this.update(true);
     mesh.computeBoundingSphere();

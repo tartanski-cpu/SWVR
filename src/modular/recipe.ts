@@ -13,7 +13,7 @@
 import { allKeys, resolveKey, specOf, type BusReader } from './bus';
 import type { BusKey } from './busKeys';
 import type { HullLibrary } from './hull';
-import { mergeConfig, resolvePorts, type ModuleDefinition, type Provision, type Requirement } from './module';
+import { mergeConfig, resolvePorts, type GearKind, type ModuleDefinition, type Provision, type Requirement } from './module';
 import { fits, socketPath, type Socket } from './socket';
 
 export interface Recipe {
@@ -235,13 +235,24 @@ export function flattenMounts(recipe: Recipe, hulls: HullLibrary, modules: Modul
 /** Does a provision cover a requirement? */
 function covers(p: Provision, r: Requirement): boolean {
   if ('fuel' in r) return 'fuel' in p && p.fuel === r.fuel;
+  if ('gear' in r) return 'gear' in p && p.gear === r.gear;
   if (!('power' in p) || p.power !== r.power) return false;
   if (r.power === 'electrical' && r.circuit) return p.power === 'electrical' && !!p.circuits?.includes(r.circuit);
   return true;
 }
 
+const GEAR_WORDS: Record<GearKind, string> = {
+  tenderCrane: 'a tender crane',
+  towWinch: 'a tow winch',
+  towPoint: 'a tow point (a stern roller)',
+  trawlGantry: 'a trawl gantry (an A-frame)',
+  trawl: 'a trawl',
+  anchor: 'an anchor',
+};
+
 function describeNeed(r: Requirement): string {
   if ('fuel' in r) return `${r.fuel} fuel`;
+  if ('gear' in r) return GEAR_WORDS[r.gear];
   if (r.power === 'electrical') return r.circuit ? `12 V on the '${r.circuit}' circuit` : '12 V';
   if (r.power === 'hydraulic') return 'deck hydraulic pressure';
   return "the engine's power take-off";

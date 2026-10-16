@@ -3,7 +3,6 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { WorkboatDef } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
 import type { EnvironmentState } from '../environment/environmentState';
-import { Button } from './Button';
 import type { Control } from './Control';
 import type { AssembledView, PlacedLabel } from '../modular/assemble';
 import { LABEL_OFFSET } from '../modular/module';
@@ -19,7 +18,6 @@ import { hullPlan } from '../vessel/layout';
 import { RainGlass } from '../vessel/view/rainGlass';
 import { Cleat, FenderBasket, FendersView } from './deckGear';
 import { swimLadderOf } from '../player/body';
-import { aFrameOf } from '../fishing/fishing';
 
 /**
  * Builds a vessel's bridge from its config: controls, instrument dash, labels.
@@ -46,10 +44,6 @@ export class Bridge {
   readonly rainGlass: RainGlass;
   /** The fire monitor on the roof (boats that have one). */
   private monitor: MonitorView | null = null;
-  /** The tow winch's drum (it turns while the winch runs). */
-  private readonly winchDrum = new THREE.Group();
-  /** The winch drum's motion this frame (+1 heaving in, -1 paying out, 0 still); set by App. */
-  drumTurn = 0;
   /** The aft door (its push buttons on the frame open / shut it). */
   readonly door: WheelhouseDoor;
   /** The fenders over the side or stowed (boats that carry them). */
@@ -64,7 +58,6 @@ export class Bridge {
     private readonly def: WorkboatDef,
     private readonly modules: AssembledView,
   ) {
-    const b = def.bridge;
     this.root.name = 'bridge';
     for (const m of modules.modules) this.root.add(m.root);
 
@@ -83,71 +76,8 @@ export class Bridge {
       this.monitor = new MonitorView(def.fireMonitor);
       this.root.add(this.monitor.root);
     }
-    // Fishing: the trawl's by-hand buttons on the A-frame (the TRAWL switch is a module).
-    if (def.fishing) {
-      // By hand on the A-frame: PAY OUT / HAUL (hold-to-run) on a control box built onto
-      // the starboard leg's inboard side at waist height, read from inboard facing the leg
-      // (PAY OUT forward, HAUL aft).
-      const af = aFrameOf(def);
-      if (af) {
-        const t = (af.buttonY - af.deck) / (af.top - af.deck);
-        const legZ = af.footZ + (af.headZ - af.footZ) * t;
-        const x0 = af.x - 0.06; // the leg's inboard face
-        extraFixed.push(part(new THREE.BoxGeometry(0.32, 0.2, 0.4).translate(x0 - 0.16, af.buttonY - 0.1, legZ), 0xb8261a));
-        extraFixed.push(part(new THREE.BoxGeometry(0.3, 0.012, 0.38).translate(x0 - 0.16, af.buttonY + 0.006, legZ), 0x3a4148));
-        const bx = x0 - 0.21;
-        const y = af.buttonY + 0.012;
-        const out = new Button('netOut', 'netOut', 'Trawl net: PAY OUT (hold)', 'momentary', 0xe0a020);
-        out.root.position.set(bx, y, legZ - 0.09);
-        const haul = new Button('netIn', 'netIn', 'Trawl net: HAUL (hold)', 'momentary', 0x3a9a4a);
-        haul.root.position.set(bx, y, legZ + 0.09);
-        this.controls.push(out, haul);
-        extraLabels.push(label('PAY OUT', [bx, y, legZ - 0.09], false, -Math.PI / 2), label('HAUL', [bx, y, legZ + 0.09], false, -Math.PI / 2));
-      }
-    }
-    // The tow winch just forward of the transom (the line leads aft over the stern roller): a small drum (it turns while it runs)
-    // between two cheeks, driven from a gearbox housing on its starboard end, with HEAVE IN /
-    // PAY OUT (hold-to-run) on the housing's top. You stand forward of it facing aft: the
-    // winch, the post and the tow beyond.
-    const tw = def.towWinch;
-    if (tw) {
-      const plan = hullPlan(def);
-      const dy = plan.deckY(tw.z);
-      const r = tw.drumRadius;
-      const hw = tw.drumWidth / 2;
-      const axle = dy + 0.18 + r; // tow/tow.ts winchLeadLocal matches this
-      const hs = tw.housing;
-      const hx0 = hw + 0.095;
-      const hx = hx0 + hs.width / 2;
-      extraFixed.push(part(new THREE.BoxGeometry(tw.drumWidth + 0.2 + hs.width, 0.1, 0.5).translate(hs.width / 2, dy + 0.05, tw.z), 0x5a5f64)); // bed
-      for (const s of [-1, 1]) extraFixed.push(part(new THREE.BoxGeometry(0.05, axle + 0.12 - dy, 0.34).translate(s * (hw + 0.07), (axle + 0.12 + dy) / 2, tw.z), 0x5a5f64));
-      extraFixed.push(part(new THREE.BoxGeometry(hs.width, hs.height, 0.4).translate(hx, dy + hs.height / 2, tw.z), 0x5a5f64)); // gearbox housing
-      extraFixed.push(part(new THREE.BoxGeometry(hs.width - 0.02, 0.012, 0.38).translate(hx, dy + hs.height + 0.006, tw.z), 0x3a4148)); // its control panel
-      const drum = new THREE.Mesh(
-        mergeParts([
-          part(new THREE.CylinderGeometry(r, r, tw.drumWidth, 14).rotateZ(Math.PI / 2), 0x2a2a2a), // wire wound on it
-          ...[-1, 1].map((s) => part(new THREE.CylinderGeometry(r + 0.08, r + 0.08, 0.035, 14).rotateZ(Math.PI / 2).translate(s * hw, 0, 0), 0xb8261a)),
-          part(new THREE.BoxGeometry(tw.drumWidth, 0.03, 0.03).translate(0, r, 0), 0xd8d8d0), // a stripe: you see it turn
-        ]),
-        flatVertexColorMaterial(),
-      );
-      drum.name = 'towWinchDrum';
-      this.winchDrum.position.set(0, axle, tw.z);
-      this.winchDrum.add(drum);
-      this.root.add(this.winchDrum);
-      // Facing aft, HEAVE IN is on your left (outboard), PAY OUT on your right.
-      const top = dy + hs.height + 0.012;
-      const heave = new Button('winchHeave', 'winchHeave', 'Tow winch: HEAVE IN (hold)', 'momentary', 0x3a9a4a);
-      heave.root.position.set(hx + 0.095, top, tw.z + 0.06);
-      const payOut = new Button('winchPayOut', 'winchPayOut', 'Tow winch: PAY OUT (hold)', 'momentary', 0xe0a020);
-      payOut.root.position.set(hx - 0.095, top, tw.z + 0.06);
-      this.controls.push(heave, payOut);
-      // Read facing aft: the labels lie forward of the buttons, toward you.
-      extraLabels.push(label('HEAVE IN', [hx + 0.095, top, tw.z + 0.06], false, Math.PI), label('PAY OUT', [hx - 0.095, top, tw.z + 0.06], false, Math.PI));
-    }
-    // The skiff crane's console button belongs to the crane (controls/TenderCraneView.ts);
-    // its label goes with the others.
-    if (def.tenderCrane) extraLabels.push(label('SKIFF CRANE', b.craneButton));
+    // The deck gear (the tow winch, the stern roller, the A-frame and the trawl, the tender
+    // crane, the anchor windlass) are modules since M5a, drawn with the others above.
     const wh = def.layout.wheelhouse;
     this.door = new WheelhouseDoor(wh.doorWidth, wh.doorHeight);
     this.door.root.position.set(0, wh.floorY, wh.aft + 0.03);
@@ -263,6 +193,11 @@ export class Bridge {
    * @param displaysInView false when nobody can see the dash: the instrument canvas then
    *                       skips its redraw and texture upload (the costly part on Quest).
    */
+  /** A module's own handle (its `api`), by module id; null if she has none. */
+  api<T extends object>(moduleId: string): T | null {
+    return this.modules.api<T>(moduleId);
+  }
+
   update(state: VesselState, dt: number, displaysInView = true, env: EnvironmentState | null = null): void {
     for (const c of this.controls) {
       c.sync(state);
@@ -271,9 +206,6 @@ export class Bridge {
     this.modules.update(state, dt, { inView: displaysInView, def: this.def, env });
     this.door.sync(state);
     this.fenders?.update(state);
-    // The winch drum turns only while it really runs (hydraulic pressure, and line or net
-    // actually coming in or going out): App sets `drumTurn` each frame (+1 in, -1 out, 0 still).
-    if (this.drumTurn) this.winchDrum.rotation.x += this.drumTurn * 2.5 * dt;
     this.monitor?.update(state);
   }
 }
@@ -300,15 +232,6 @@ function bakeFixedParts(root: THREE.Object3D, extra: THREE.BufferGeometry[]): TH
 
 /** An engraved label (modular/module.ts, EngravedLabel), in vessel axes. */
 type Label = PlacedLabel;
-
-/**
- * A label: its text, the control it names (it lies just aft of it), dark-on-light (a group
- * title), and its yaw (rad; default 0: read facing forward. It is turned, and moved round
- * the control, to be read facing another way - PI: facing aft).
- */
-function label(text: string, at: [number, number, number], title = false, yaw = 0): Label {
-  return { text, at, title, yaw };
-}
 
 /** The labels size their letters by their height; this many pixels high in the texture. */
 const SLOT_W = 512;

@@ -24,9 +24,17 @@
  *       navLights, floodFore, floodAft, railLights, cabinLight, searchlight, horn, wipers
  *                        the 12 V devices (only their draw is simulated yet; where nothing
  *                        is drawn for them, their point is nominal)
+ *   M5a tenderCrane      the crane's column on the foredeck (the cradle comes with it)
+ *       anchor           the bow roller (hawse) and windlass
+ *       towWinch         the aft deck, forward of the transom
+ *       trawl            the aft deck (the net and its drum; nominal)
+ *       sternRoller, aFrame    the transom (two stern gantry sockets)
+ *                        Deck gear draws itself in the boat's axes from the hull (its frame
+ *                        is 'boat'), so these points say where it is, for the shipyard.
  */
 import { CONFIG } from '../config';
-import type { HullDefinition } from '../modular/hull';
+import { hullQueries, type HullDefinition } from '../modular/hull';
+import { VESSEL_DEFS } from '../vessel/vesselDef';
 import { BREAKERS } from '../vessel/vesselState';
 
 const wb = CONFIG.vessels.workboat;
@@ -38,6 +46,10 @@ const db = wb.layout.doorButtons;
 /** The middle of the engine space under the hatch (machinery not drawn yet: a nominal point). */
 const bay: [number, number, number] = [(eh.x0 + eh.x1) / 2, wh.floorY - eh.pitDepth / 2, (eh.z0 + eh.z1) / 2];
 const roofTop = wh.roofY + wb.layout.roof.thickness;
+/** Her deck line, for the deck gear's points. */
+const hull = hullQueries(VESSEL_DEFS.workboat);
+const onDeck = (x: number, z: number): [number, number, number] => [x, hull.deckY(z), z];
+const tc = wb.tenderCrane;
 
 export const WORKBOAT_HULL: HullDefinition = {
   id: 'hull.workboat-12m',
@@ -83,6 +95,12 @@ export const WORKBOAT_HULL: HullDefinition = {
     { id: 'horn', type: 'roof.mount', transform: { position: [0, roofTop, -0.5] }, label: 'Wheelhouse roof (nominal)' },
     { id: 'wipers', type: 'window.wiper', transform: { position: [0, wh.roofY - 0.2, wh.front] }, label: 'Over the front windows (nominal)' },
     { id: 'oilCan', type: 'deck.fitting', transform: { position: [mt.oilCan[0], wh.floorY - mt.shelfDrop, mt.oilCan[1]], rotationDeg: [0, 90, 0] }, label: 'Engine space, the shelf' },
+    { id: 'tenderCrane', type: 'deck.equipment', transform: { position: onDeck(tc.column[0], tc.column[1]) }, label: 'Foredeck, starboard: the crane column (and the cradle to port)' },
+    { id: 'anchor', type: 'bow.windlass', transform: { position: wb.anchor.hawse }, label: 'The bow roller and the windlass behind it' },
+    { id: 'towWinch', type: 'deck.equipment', transform: { position: onDeck(0, wb.towWinch.z) }, label: 'Aft deck, forward of the transom' },
+    { id: 'trawl', type: 'deck.equipment', transform: { position: onDeck(0, wb.towWinch.z) }, label: 'Aft deck: the net (nominal)' },
+    { id: 'sternRoller', type: 'stern.gantry', transform: { position: onDeck(0, hull.transom) }, label: 'Transom, centreline: the notch in the bulwark' },
+    { id: 'aFrame', type: 'stern.gantry', transform: { position: onDeck(0, hull.transom) }, label: 'Transom, across the quarters' },
   ],
   // Her wiring: the breakers' circuits. (The batteries, the engine's power take-off, the deck
   // hydraulics and the diesel are her modules', M4a.)

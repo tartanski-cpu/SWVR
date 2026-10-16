@@ -556,17 +556,10 @@ export const CONFIG = {
         internalOhm: 0.012,
         chargeVolts: 14.2,
         cutoffSoc: 0.02,
-        /**
-         * Current drawn while on (A), by what isn't a module yet: the anchor windlass (deck
-         * gear, M5). Everything else declares its own draw (modular boats M4a): the
-         * instruments, chartplotter, VHF, FM, chart lamp and the panel itself in
-         * CONFIG.modules; the starter, glow plugs and alternator in modules.dieselInboard;
-         * the bilge pump and the hydraulic pump in theirs; the lights, horn and wiper motor
-         * in the boat's recipe.
-         */
-        loads: {
-          windlass: 60,
-        },
+        // What each device draws is its module's (modular boats M4a, M5a): the instruments,
+        // chartplotter, VHF, FM, chart lamp, the panel itself and the windlass in
+        // CONFIG.modules; the starter, glow plugs and alternator in modules.dieselInboard; the
+        // bilge and hydraulic pumps in theirs; the lights, horn and wiper motor in the recipe.
         /** Battery master (big red key) on the aft wall, starboard of the door, low down. */
         masterSwitch: { position: [0.8, 1.75, 1.41] as [number, number, number] },
         /** Battery selector (1 / BOTH / 2) beside it. */
@@ -2160,6 +2153,9 @@ export const CONFIG = {
 
     /** hydraulics.pto-pump (M4a): its clutch and the machines' valve solenoids, while there's pressure (A, DECK HYD circuit). */
     ptoPump: { amps: 4 },
+
+    /** deck.anchor-windlass (M5a): the windlass's draw while it runs (A, on the master alone). */
+    anchorWindlass: { amps: 60 },
   },
 
   start: {

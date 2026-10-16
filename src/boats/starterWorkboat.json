@@ -1,6 +1,6 @@
 {
   "id": "vessel.starter-workboat",
-  "version": 5,
+  "version": 6,
   "name": "Workboat",
   "hull": "hull.workboat-12m",
   "modules": [
@@ -69,7 +69,13 @@
     { "socket": "doorOut", "module": "control.door-button" },
     { "socket": "engineHatch", "module": "fitting.hatch-cover", "config": { "engrave": "ENGINE" }, "bind": { "open": "hatch.engine.open" } },
     { "socket": "dipstick", "module": "tool.dipstick" },
-    { "socket": "oilCan", "module": "tool.oil-can" }
+    { "socket": "oilCan", "module": "tool.oil-can" },
+    { "socket": "tenderCrane", "module": "deck.tender-crane" },
+    { "socket": "anchor", "module": "deck.anchor-windlass" },
+    { "socket": "towWinch", "module": "deck.tow-winch" },
+    { "socket": "sternRoller", "module": "deck.stern-roller" },
+    { "socket": "aFrame", "module": "deck.a-frame" },
+    { "socket": "trawl", "module": "fishing.trawl" }
   ],
   "interlocks": [
     { "when": "hatch.engine.open == false", "disable": ["control:dipstick", "control:oilCan"], "message": "Open the engine hatch first." }

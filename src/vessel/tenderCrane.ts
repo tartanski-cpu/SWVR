@@ -37,6 +37,7 @@ import type { WorldState } from '../core/world';
 import { hydraulicsOn } from './electrics';
 import { hullPlan } from './layout';
 import { VESSEL_DEFS, type VesselDef } from './vesselDef';
+import { gearOf } from '../boats/sims';
 import type { TenderState, VesselState } from './vesselState';
 
 export type TenderCrane = NonNullable<VesselDef['tenderCrane']>;
@@ -92,9 +93,10 @@ export function launchPoint(c: TenderCrane, time: number, out: THREE.Vector3): T
   return out.set(ox, raised + (c.waterY - raised) * f, oz);
 }
 
+/** Her ship and its tender crane (modular boats M5: the ship's module deck.tender-crane), or null. */
 function craneOf(world: WorldState, t: TenderState): { host: VesselState; crane: TenderCrane } | null {
   const host = world.vessels[t.hostId];
-  const crane = host && VESSEL_DEFS[host.defId].tenderCrane;
+  const crane = host && gearOf(host, 'tenderCrane');
   return host && crane ? { host, crane } : null;
 }
 

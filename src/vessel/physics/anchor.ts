@@ -17,7 +17,7 @@ import { clamp } from '../../core/math';
 import { isPowered } from '../electrics';
 import { groundHeight } from '../../world/terrain';
 import type { WorkboatDef } from '../vesselDef';
-import type { VesselState } from '../vesselState';
+import type { AnchorState, VesselState } from '../vesselState';
 
 /**
  * Advance the windlass and return the chain force on the bow (world, N).
@@ -32,14 +32,27 @@ export function stepAnchor(
   dt: number,
   out: { x: number; y: number; z: number },
 ): void {
-  const a = s.anchor;
-  const cfg = def.anchor;
+  // The windlass is electric: without 12 V the chain neither runs out nor comes in.
+  anchorStep(s.anchor, def.anchor, s.controls.anchor > 0.5, isPowered(s), hawse, hawseVel, dt, out);
+}
+
+/**
+ * stepAnchor on the anchor's own state (the anchor-windlass module's, M5a): `down` the
+ * switch is on (let go), `windlass` there's 12 V for it.
+ */
+export function anchorStep(
+  a: AnchorState,
+  cfg: WorkboatDef['anchor'],
+  down: boolean,
+  windlass: boolean,
+  hawse: { x: number; y: number; z: number },
+  hawseVel: { x: number; y: number; z: number },
+  dt: number,
+  out: { x: number; y: number; z: number },
+): void {
   out.x = out.y = out.z = 0;
   a.tension = 0;
   a.dragging = false;
-  const down = s.controls.anchor > 0.5;
-  // The windlass is electric: without 12 V the chain neither runs out nor comes in.
-  const windlass = isPowered(s);
 
   if (a.phase === 'stowed') {
     if (!down) return;

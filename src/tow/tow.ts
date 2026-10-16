@@ -32,7 +32,8 @@ import type { EntityId } from '../core/ids';
 import type { Intent } from '../core/intents';
 import type { WorldState } from '../core/world';
 import { hullPlan } from '../vessel/layout';
-import { isWorkboat, TOW_DEFS, VESSEL_DEFS, type VesselDef } from '../vessel/vesselDef';
+import { TOW_DEFS, VESSEL_DEFS, type VesselDef } from '../vessel/vesselDef';
+import { gearOf } from '../boats/sims';
 import { createVesselState, type VesselState } from '../vessel/vesselState';
 import { placeVessel } from '../vessel/vesselControl';
 import { isPowered, hydraulicsOn } from '../vessel/electrics';
@@ -101,29 +102,29 @@ function rand(t: TowState): number {
 
 const between = (t: TowState, [a, b]: [number, number]) => a + (b - a) * rand(t);
 
-/** The towing boat: the workboat (the first fully equipped vessel). */
+/**
+ * The towing boat: the first with a tow point (a stern roller; modular boats M5). A boat
+ * without one can't take a tow.
+ */
 function tug(world: WorldState): VesselState | undefined {
-  return Object.values(world.vessels).find((v) => isWorkboat(VESSEL_DEFS[v.defId]));
+  return Object.values(world.vessels).find((v) => gearOf(v, 'towPoint'));
 }
 
 /**
- * Where the towline leaves us (vessel axes): the top of the stern roller in the transom
- * bulwark on the centreline. The tow's pull acts on the boat here.
+ * Where the towline leaves her (vessel axes): her tow point, the top of the stern roller
+ * (modules/sternRoller). The tow's pull acts on the boat here. Her stern, on a boat
+ * without one (nothing tows from it: tug() passes her by).
  */
-export function towPostLocal(def: VesselDef): [number, number, number] {
-  const plan = hullPlan(def);
-  const f = CONFIG.tow.fairlead;
-  const z = plan.transom - f.inset;
-  return [0, plan.deckY(z) + f.height, z];
+export function towPostLocal(v: { defId: string }): [number, number, number] {
+  const p = gearOf(v, 'towPoint')?.point;
+  if (p) return p;
+  const plan = hullPlan(VESSEL_DEFS[v.defId]);
+  return [0, plan.deckY(plan.transom), plan.transom];
 }
 
-/** Where the towline comes off the winch drum (vessel axes): the top of the drum, aft side. */
-export function winchLeadLocal(def: VesselDef): [number, number, number] | null {
-  const tw = def.towWinch;
-  if (!tw) return null;
-  const plan = hullPlan(def);
-  const axle = plan.deckY(tw.z) + 0.18 + tw.drumRadius; // as drawn in controls/bridge.ts
-  return [0, axle + tw.drumRadius * 0.7, tw.z + tw.drumRadius * 0.7];
+/** Where the towline comes off her tow winch's drum (vessel axes), or null: no winch. */
+export function winchLeadLocal(v: { defId: string }): [number, number, number] | null {
+  return gearOf(v, 'towWinch')?.lead ?? null;
 }
 
 /** The tow's bow eye (vessel axes): at the stem, just above the deck edge. */
@@ -209,8 +210,9 @@ function stepTowWinch(line: TowLine, v: VesselState, dt: number): void {
   const w = CONFIG.tow.winch;
   const heave = (v.controls.winchHeave ?? 0) > 0.5;
   const payOut = (v.controls.winchPayOut ?? 0) > 0.5;
-  // Hydraulic: no pressure (engine off or DECK HYD off), the drum holds where it is.
-  if (heave === payOut || !hydraulicsOn(v)) return;
+  // Hydraulic: no pressure (engine off or DECK HYD off), the drum holds where it is. No
+  // winch fitted: the line stays as made fast.
+  if (heave === payOut || !hydraulicsOn(v) || !gearOf(v, 'towWinch')) return;
   const L = lineLength(line);
   if (payOut) line.length = Math.min(w.maxLength, L + w.payOutSpeed * dt);
   else if (line.tension <= w.pullN) line.length = Math.max(w.minLength, L - w.heaveSpeed * dt);
@@ -268,7 +270,7 @@ export function towReach(world: WorldState, key?: string): number {
   const v = tug(world);
   const k = key ?? world.tow?.line?.target ?? (world.tow?.job ? vesselKey(world.tow.job.vesselId) : undefined);
   if (!v || !k) return Infinity;
-  const a = toWorld(v, towPostLocal(VESSEL_DEFS[v.defId]), new THREE.Vector3());
+  const a = toWorld(v, towPostLocal(v), new THREE.Vector3());
   const b = towPoint(world, k, new THREE.Vector3());
   return b ? a.distanceTo(b) : Infinity;
 }
@@ -314,7 +316,7 @@ export function towlineForces(world: WorldState): Map<EntityId, ExternalForce[]>
   if (!t && !d && !log) return out;
   const cfg = CONFIG.tow;
   const defV = VESSEL_DEFS[v.defId];
-  toWorld(v, towPostLocal(defV), pA);
+  toWorld(v, towPostLocal(v), pA);
   if (t) toWorld(t, bowEyeLocal(VESSEL_DEFS[t.defId]), pB);
   else if (d) pB.set(d.x, pA.y, d.z); // debris: the pull is horizontal (it floats at the surface)
   else towPoint(world, line.target, pB)?.setY(pA.y); // a log, by its near end
@@ -360,7 +362,7 @@ function stepTowedDebris(world: WorldState, line: TowLine, dt: number): void {
   const v = tug(world);
   if (!d || !v) return;
   const cfg = CONFIG.tow;
-  toWorld(v, towPostLocal(VESSEL_DEFS[v.defId]), pA);
+  toWorld(v, towPostLocal(v), pA);
   const ux = pA.x - d.x;
   const uz = pA.z - d.z;
   const ul = Math.hypot(ux, uz) || 1;
@@ -452,7 +454,7 @@ function stepTowedLog(world: WorldState, line: TowLine, dt: number): void {
   const log = logOf(world, line.target);
   const v = tug(world);
   if (!log || !v) return;
-  toWorld(v, towPostLocal(VESSEL_DEFS[v.defId]), pA);
+  toWorld(v, towPostLocal(v), pA);
   const ux = pA.x - log.x;
   const uz = pA.z - log.z;
   const ul = Math.hypot(ux, uz) || 1;

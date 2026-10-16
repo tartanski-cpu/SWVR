@@ -91,7 +91,7 @@ export class VesselEffects {
       e.nav.update(s.controls.navLights > 0 && isPowered(s, 'navLights'), darkness, viewer);
       e.smoke.setLight(light);
       e.smoke.update(dt, s, e.def, this.root, (x, z) => surfaceHeight(waves, x, z), viewer);
-      e.chain.update(s, e.def, this.root);
+      e.chain.update(s, this.root);
       e.cabin.update(deck ? s.controls.cabinLight : 0);
       e.deckLights.update(s, deck);
       e.searchlight.update(s, darkness, deck);

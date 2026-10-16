@@ -118,12 +118,13 @@ describe('the power controls, as modules', () => {
 });
 
 describe('shared parts: every switch bat one draw call, every button cap another', () => {
-  it('draws the 19 toggle bats (console 7, overhead 3 + FM 1, breakers 7, chart lamp 1) and 4 button caps of the modules as two instanced meshes', () => {
+  it('draws the 19 toggle bats (console 7, overhead 3 + FM 1, breakers 7, chart lamp 1) and 4 button caps as two instanced meshes; the deck gear\'s 4 button caps (tow winch 2, A-frame 2) as a third', () => {
     const { a } = build();
-    expect(a.sharedCounts).toEqual({ toggleBat: 7 + 3 + 1 + 7 + 1, buttonCap: 3 + 1 });
+    expect(a.sharedCounts).toEqual({ toggleBat: 7 + 3 + 1 + 7 + 1, buttonCap: 3 + 1, deckButtonCap: 2 + 2 });
     expect(a.shared.map((m) => [m.name, m.count])).toEqual([
       ['shared:toggleBat', 19],
       ['shared:buttonCap', 4],
+      ['shared:deckButtonCap', 4],
     ]);
   });
 
@@ -172,9 +173,13 @@ describe('shared parts: every switch bat one draw call, every button cap another
     expect(glow.getY(i)).toBeGreaterThan(0);
   });
 
-  it('the shared meshes hide with the wheelhouse\'s small parts from outside', () => {
+  it('the wheelhouse\'s shared meshes hide with its small parts from outside; the deck gear\'s do not', () => {
     const { a } = build();
-    for (const m of a.shared) expect(m.userData.interiorDetail).toBe(true);
+    expect(a.shared.map((m) => [m.name, m.userData.interiorDetail])).toEqual([
+      ['shared:toggleBat', true],
+      ['shared:buttonCap', true],
+      ['shared:deckButtonCap', false],
+    ]);
   });
 });
 

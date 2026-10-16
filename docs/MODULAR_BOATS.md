@@ -838,14 +838,21 @@ Sizes: S is about a session, M two or three, L more.
 
 ### M5: deck gear as modules (L, two stops)
 
-- The mechanism library (2.8): the arm solver, drum and line drawing, extracted from today's code.
-- **5a:**
+- The mechanism library (2.8): the arm solver, drum and line drawing, extracted from today's code. (Done with 5a: `src/mechanisms/`.)
+- **5a. Done; see PROGRESS.**
   - crane and cradle;
   - tow winch and stern roller;
   - A-frame and trawl;
   - anchor windlass.
 
   World systems ask for provisions ("has a tow point"), not `def.towWinch`.
+  - **As built:**
+    - Provisions of **gear**: a module's `gear(config, hull)` gives the facts about what it provides (the tow point's position, the winch's lead, the A-frame's blocks, the crane's geometry and path, the anchor's hawse and chain), worked out from the hull. `gearOf(boat, kind)` finds them, from the first module on her that gives that kind. Gear can be needed too (the trawl needs a trawl gantry).
+    - Deck gear draws in the boat's own axes (`view.frame: 'boat'`): it stands where the hull puts it (the transom, the deck line), so its socket's point only says where it is.
+    - The anchor's pull goes through a new physics-port hook, `mooring`, run after the hull's contacts near land, where the anchor always was. The chain is still drawn by the app in the world (it lies on the seabed), from the gear's hawse.
+    - The cradle is part of the crane module. The skiff the crane carries is handed to it by the app (`api.attach`), with her buttons, remote and tarpaulin: a recipe can't know which boat that is.
+    - The net in the water is drawn by the app (it lies astern); the trawl module itself draws nothing.
+    - Deck buttons share their own instanced cap mesh (`deckButtonCap`), which isn't hidden with the wheelhouse's small parts.
 - **5b:**
   - searchlight, fire monitor and mast;
   - cleats, fenders, swim ladder, life-ring station and boat-hook rack.

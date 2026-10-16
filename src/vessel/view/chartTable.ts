@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { bar } from '../../mechanisms/line';
 import { Control, type Wiring } from '../../controls/Control';
 import { Toggle } from '../../controls/Toggle';
 import type { VesselState } from '../vesselState';
@@ -73,7 +74,7 @@ export class ChartTableView {
       mergeParts([
         box(x0, x0 + 0.03, T - 0.09, T - 0.04, z0, z1, DARK), // batten
         box(x0, x0 + 0.02, mount.y - 0.08, mount.y + 0.06, mount.z - 0.05, mount.z + 0.05, 0x1f4a32), // lamp bracket
-        bar(mount, head.clone().setY(head.y + 0.03), 0.008, 0x9aa0a6),
+        bar(mount, head.clone().setY(head.y + 0.03), 0.008, 0x9aa0a6, 6),
         part(new THREE.CylinderGeometry(0.03, 0.085, 0.09, 16, 1, true).translate(head.x, head.y - 0.03, head.z), 0x1f4a32),
         part(new THREE.CylinderGeometry(0.03, 0.03, 0.01, 16).translate(head.x, head.y + 0.015, head.z), 0x1f4a32),
       ]),
@@ -196,16 +197,6 @@ export class ChartTableView {
 /** A part turned about the vertical by `yaw` and placed at (x, y, z). */
 function placed(geo: THREE.BufferGeometry, x: number, y: number, z: number, yaw: number, color: number): THREE.BufferGeometry {
   return part(geo.rotateY(yaw).translate(x, y, z), color);
-}
-
-/** A round bar from a to b. */
-function bar(a: THREE.Vector3, b: THREE.Vector3, r: number, color: number): THREE.BufferGeometry {
-  const len = a.distanceTo(b);
-  const geo = new THREE.CylinderGeometry(r, r, len, 6);
-  const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize());
-  geo.applyQuaternion(q);
-  const mid = a.clone().add(b).multiplyScalar(0.5);
-  return part(geo.translate(mid.x, mid.y, mid.z), color);
 }
 
 /**

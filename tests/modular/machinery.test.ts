@@ -57,7 +57,7 @@ describe('the machinery, as modules', () => {
 });
 
 describe('the energy network', () => {
-  /** v1.0's load list, its figures as they were (A; the windlass aside, still listed in the network). */
+  /** v1.0's load list, its figures as they were (A; the windlass aside: it runs only while the anchor moves, and it's stowed here; tests/modular/deckGear.test.ts checks its draw). */
   function v10Loads(s: VesselState): number {
     const c = s.controls;
     const b = s.electrics!.breakers;
@@ -135,9 +135,10 @@ describe('separate parts: take one out of the recipe and only its part goes', ()
     expect(bare.yawRate).toBeLessThan(withRudder.yawRate / 5); // ...barely without one (prop walk only)
   });
 
-  it('without the engine (and the hydraulic pump on its power take-off), the lever does nothing', () => {
+  it('without the engine (and the hydraulic pump on its power take-off, and the deck gear it drives), the lever does nothing', () => {
     const r = without('engine');
-    setVesselRecipe('workboat', { ...r, modules: r.modules.filter((m) => m.socket !== 'hydraulicPump') });
+    const hydraulic = ['hydraulicPump', 'tenderCrane', 'towWinch', 'trawl'];
+    setVesselRecipe('workboat', { ...r, modules: r.modules.filter((m) => !hydraulic.includes(m.socket)) });
     const { v, send, run } = boat();
     send('lever', 1);
     run(10);

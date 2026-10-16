@@ -109,7 +109,8 @@ export function assembleView(recipe: Recipe, def: VesselDef, lib: { hulls: HullL
   const v = new THREE.Vector3();
   for (const m of mounted) {
     const parent = m.path.includes('/') ? places.get(m.path.slice(0, m.path.lastIndexOf('/'))) : undefined;
-    const place = transformMatrix(m.socket.transform);
+    // A module drawing in the boat's axes is placed at her origin (see ModuleView.frame).
+    const place = m.def.view?.frame === 'boat' ? new THREE.Matrix4() : transformMatrix(m.socket.transform);
     if (parent) place.premultiply(parent);
     places.set(m.path, place);
     if (!m.def.view) continue;

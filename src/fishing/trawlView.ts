@@ -1,21 +1,15 @@
 import * as THREE from 'three';
 import type { WorldState } from '../core/world';
 import { surfaceHeight, type PreparedWave } from '../ocean/waves';
-import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
-import type { VesselDef } from '../vessel/vesselDef';
 import { aFrameOf } from './fishing';
 
 const FLOATS = 7;
 
 
 /**
- * The trawl as seen from the boat (fishing.ts). Cheap and rope-free (the brief's rule):
- *   A-frame  over the transom (owner request, now the stern is clear of the skiff): two
- *            legs from the quarters raked aft to a crossbeam beyond the transom, each leg
- *            braced to the deck, a block each side on the beam (fishing.ts aFrameOf; one
- *            merged mesh, always there). The warps lead off the tow winch by the towing
- *            post; the by-hand PAY OUT / HAUL buttons on the starboard leg's control box are
- *            bridge controls (controls/bridge.ts).
+ * The trawl in the water astern (fishing.ts). Cheap and rope-free (the brief's rule). The
+ * A-frame over the transom, with its blocks and the by-hand PAY OUT / HAUL buttons, is the
+ * boat's own module (modules/aFrame); the warps lead from its blocks.
  *   warps    two straight dark lines from the blocks down into the water astern, longer
  *            as the net goes out (one line segment pair).
  *   floats   the headline's orange floats in an arc on the surface well astern, riding
@@ -44,30 +38,10 @@ export class TrawlView {
     this.root.visible = false;
   }
 
-  /** Put the A-frame on the boat (once). */
-  attachAFrame(root: THREE.Object3D, def: VesselDef): void {
-    const af = aFrameOf(def);
-    if (!af) return;
-    this.block.set(af.blockX, af.top - 0.22, af.headZ);
-    const RED = 0xb8261a;
-    const parts: THREE.BufferGeometry[] = [];
-    for (const s of [-1, 1]) {
-      const foot = new THREE.Vector3(s * af.x, af.deck, af.footZ);
-      const head = new THREE.Vector3(s * af.x, af.top, af.headZ);
-      parts.push(bar(foot, head, 0.07, RED)); // the leg
-      parts.push(part(new THREE.CylinderGeometry(0.13, 0.13, 0.04, 10).translate(foot.x, foot.y + 0.02, foot.z), 0x30343a)); // its foot plate
-      // The brace: from a third of the way up the leg down to the deck forward of it.
-      const knee = foot.clone().lerp(head, 0.38);
-      parts.push(bar(new THREE.Vector3(s * af.x, af.deck, af.braceZ), knee, 0.045, RED));
-      // The block on the beam, and its shackle.
-      parts.push(part(new THREE.CylinderGeometry(0.14, 0.14, 0.08, 12).rotateZ(Math.PI / 2).translate(s * af.blockX, af.top - 0.22, af.headZ), 0x30343a));
-      parts.push(part(new THREE.BoxGeometry(0.03, 0.1, 0.03).translate(s * af.blockX, af.top - 0.08, af.headZ), 0x30343a));
-    }
-    // The crossbeam.
-    parts.push(bar(new THREE.Vector3(-af.x - 0.05, af.top, af.headZ), new THREE.Vector3(af.x + 0.05, af.top, af.headZ), 0.08, RED));
-    const mesh = new THREE.Mesh(mergeParts(parts), flatVertexColorMaterial());
-    mesh.name = 'trawlAFrame';
-    root.add(mesh);
+  /** Lead the warps from her trawl gantry's blocks (the A-frame is her module: deck.a-frame). */
+  setBoat(v: { defId: string }): void {
+    const af = aFrameOf(v);
+    if (af) this.block.set(af.blockX, af.top - 0.22, af.headZ);
   }
 
   update(world: WorldState, boat: THREE.Object3D | null, waves: readonly PreparedWave[], t: number): void {
@@ -101,12 +75,3 @@ export class TrawlView {
     this.floats.instanceMatrix.needsUpdate = true;
   }
 }
-
-/** A round bar from `a` to `b` (radius r), for the A-frame's legs, braces and beam. */
-function bar(a: THREE.Vector3, b: THREE.Vector3, r: number, color: number): THREE.BufferGeometry {
-  const d = b.clone().sub(a);
-  const g = new THREE.CylinderGeometry(r, r, d.length(), 10).translate(0, d.length() / 2, 0);
-  g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()));
-  return part(g.translate(a.x, a.y, a.z), color);
-}
-

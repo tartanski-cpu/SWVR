@@ -67,6 +67,8 @@ import { TrawlView } from '../fishing/trawlView';
 import { InteriorDetail } from './interiorDetail';
 import { jetOn } from '../fire/fire';
 import { aFrameOf } from '../fishing/fishing';
+import { gearOf } from '../boats/sims';
+import type { TowWinchApi } from '../modules/towWinch';
 import { lineLength, nearestTowTarget, towAlertT, towStatus, winchStalled } from '../tow/tow';
 import { TargetsView } from '../rescue/targetView';
 import { RescueHands, type RescueHandsContext } from '../rescue/rescueHands';
@@ -341,19 +343,11 @@ export class App {
     this.scene.add(this.laser.beam.root);
     this.scene.add(this.wildlife.root);
     for (const vessel of Object.values(this.world.vessels)) this.addVesselView(vessel);
-    // A tender's crane and cradle (LAUNCH / RECOVER button on the crane) on her ship's foredeck.
-    for (const vessel of Object.values(this.world.vessels)) {
-      const hostDef = vessel.tender && VESSEL_DEFS[this.world.vessels[vessel.tender.hostId]?.defId];
-      if (!vessel.tender || !hostDef?.tenderCrane || !hostDef.bridge) continue;
-      const gear = new TenderCraneView(vessel.id, hostDef.tenderCrane, hullPlan(hostDef).deckY, hostDef.bridge.craneButton, VESSEL_DEFS[vessel.defId]);
-      this.vesselViews.get(vessel.tender.hostId)?.root.add(gear.root);
-      // The crane's remote rides in the skiff.
-      this.vesselViews.get(vessel.id)?.root.add(gear.remote);
-      this.cranes.push(gear);
-    }
     const tugView = this.vesselViews.get(this.testVesselId);
-    if (tugView) this.towline.attachPost(tugView.root, VESSEL_DEFS[this.world.vessels[this.testVesselId].defId]);
-    if (tugView) this.trawlView.attachAFrame(tugView.root, VESSEL_DEFS[this.world.vessels[this.testVesselId].defId]);
+    // The towline's lead from the winch drum over the stern roller; the trawl's warps from
+    // the A-frame's blocks (the winch, roller and A-frame are her modules, on the bridge).
+    if (tugView) this.towline.attachLead(tugView.root, this.world.vessels[this.testVesselId]);
+    this.trawlView.setBoat(this.world.vessels[this.testVesselId]);
     this.binoculars = new Binoculars(this.camera);
     if (tugView) this.binoculars.stow(tugView.root);
     this.scene.add(this.towline.root, this.fireView.root, this.jetView.root, this.logView.root, this.trawlView.root);
@@ -657,7 +651,8 @@ export class App {
       this.sound.fire.update(burning, dist, !!tv && jetOn(tv), this.insideHouse ? this.closed : 0);
       // The anchor chain over the bow roller and the windlass.
       const root = this.vesselRoots.get(this.testVesselId);
-      const hawse = this.testDef.anchor && root ? root.localToWorld(this.tmpV.fromArray(this.testDef.anchor.hawse)).distanceTo(this.focus) : 1e9;
+      const anchor = tv && gearOf(tv, 'anchor');
+      const hawse = anchor && root ? root.localToWorld(this.tmpV.fromArray(anchor.hawse)).distanceTo(this.focus) : 1e9;
       this.sound.anchor.update(tv?.anchor, hawse, this.insideHouse ? this.closed : 0, dt);
       if (tv && root) this.updateHydraulicsSound(tv, root);
       // The engine hatch's hole isn't walkable while it's open; the chart table's floor space
@@ -1230,7 +1225,7 @@ export class App {
    * (the crane, the tow winch and the net drum need the engine running and DECK HYD on).
    */
   private hydraulicsHint(channel: string): void {
-    const machine = channel === 'crane' ? 'The crane' : channel === 'winchHeave' || channel === 'winchPayOut' ? 'The tow winch' : channel === 'netOut' || channel === 'netIn' || channel === 'trawl' || channel === 'trawl.shoot' ? 'The net drum' : null;
+    const machine = channel === 'crane' ? 'The crane' : ['winchHeave', 'winchPayOut', 'winch.heaveIn', 'winch.payOut'].includes(channel) ? 'The tow winch' : ['netOut', 'netIn', 'net.payOut', 'net.haul'].includes(channel) || channel === 'trawl' || channel === 'trawl.shoot' ? 'The net drum' : null;
     const v = this.world.vessels[this.testVesselId];
     if (!machine || !v || hydraulicsOn(v)) return;
     const why = v.engine.phase !== 'running' ? 'start the engine' : 'switch the DECK HYD breaker on';
@@ -1262,10 +1257,9 @@ export class App {
   private updateHydraulicsSound(v: VesselState, root: THREE.Object3D): void {
     const hyd = hydraulicsOn(v);
     const dist = (x: number, y: number, z: number) => root.localToWorld(this.tmpV.set(x, y, z)).distanceTo(this.focus);
-    const def = this.testDef;
     // Crane: on the move between cradle and water (unfolding, lifting, slewing, lowering).
     const tp = this.skiff()?.tender?.phase;
-    const cr = def.tenderCrane;
+    const cr = gearOf(v, 'tenderCrane');
     const craneRun = hyd && (tp === 'lowering' || tp === 'hoisting') ? 1 : 0;
     // Tow winch: a button held; stalled heaving against more pull than it has.
     const line = this.world.tow?.line;
@@ -1278,7 +1272,7 @@ export class App {
     const L = line ? lineLength(line) : 0;
     const canMove = heave ? L > w.minLength + 0.01 : L < w.maxLength - 0.01;
     const winchRun = hyd && line && heave !== payOut && !stalled && canMove ? (heave ? 0.8 : 1) : 0;
-    const tw = def.towWinch;
+    const tw = gearOf(v, 'towWinch');
     // Net drum: shooting or hauling, by the switch or the A-frame's buttons.
     const f = this.world.fishing;
     // A button only turns the drum while there's net left to pay out or haul in.
@@ -1287,12 +1281,13 @@ export class App {
     // The same drum takes the towline and the trawl warps: it turns only while one of them
     // is really moving under pressure (+1 coming in, -1 going out).
     const netIn = f?.net === 'hauling' || ((c.netIn ?? 0) > 0.5 && (f?.t ?? 0) > 0);
-    if (this.bridge) this.bridge.drumTurn = winchRun ? (heave ? 1 : -1) : trawlRun ? (netIn ? 1 : -1) : 0;
-    const af = aFrameOf(def);
+    const drum = this.bridge?.api<TowWinchApi>('deck.tow-winch');
+    if (drum) drum.drumTurn = winchRun ? (heave ? 1 : -1) : trawlRun ? (netIn ? 1 : -1) : 0;
+    const af = aFrameOf(v);
     this.sound.hydraulics.update(
       {
         crane: { run: craneRun, load: tp === 'hoisting' ? 0.7 : 0.5, distance: cr ? dist(cr.column[0], cr.shoulderY, cr.column[1]) : 1e9 },
-        winch: { run: winchRun, load: line ? Math.min(1, line.tension / CONFIG.tow.winch.pullN) : 0, stalled, distance: tw ? dist(0, 1.2, tw.z) : 1e9 },
+        winch: { run: winchRun, load: line ? Math.min(1, line.tension / CONFIG.tow.winch.pullN) : 0, stalled, distance: tw ? dist(0, 1.2, tw.lead[2]) : 1e9 },
         trawl: { run: trawlRun, load: f?.net === 'hauling' || (c.netIn ?? 0) > 0.5 ? 0.7 : 0.3, distance: af ? dist(0, af.top - 0.3, af.headZ) : 1e9 },
       },
       this.insideHouse ? this.closed : 0,
@@ -1470,7 +1465,7 @@ export class App {
           case 'weighing':
             return `Heaving in: ${a.rodeM.toFixed(0)} m out`;
           case 'hanging':
-            return a.rodeM >= this.testDef.anchor.chainM ? 'Too deep: not on the bottom' : `Off the bottom: ${a.rodeM.toFixed(0)} m out`;
+            return a.rodeM >= (gearOf(boat(), 'anchor')?.chainM ?? 0) ? 'Too deep: not on the bottom' : `Off the bottom: ${a.rodeM.toFixed(0)} m out`;
         }
       },
       ports: () => {
@@ -1824,6 +1819,15 @@ export class App {
     if (!recipe) throw new Error(`no recipe for vessel type '${v.defId}'`);
     this.bridge = new Bridge(this.testDef, assembleView(recipe, VESSEL_DEFS[v.defId], LIBRARY));
     view.root.add(this.bridge.root);
+    // Her tender crane (a module) is given the skiff it carries: its LAUNCH / RECOVER
+    // buttons, her tarpaulin, and the remote that rides in her.
+    const crane = this.bridge.api<TenderCraneView>('deck.tender-crane');
+    const tender = Object.values(this.world.vessels).find((t) => t.tender?.hostId === v.id);
+    if (crane && tender) {
+      crane.attach(tender.id, VESSEL_DEFS[tender.defId]);
+      this.vesselViews.get(tender.id)?.root.add(crane.remote);
+      this.cranes.push(crane);
+    }
     // The crew whiteboard, the duty board and the chart table are modules (M3c); the app
     // hands them what isn't the boat's: the notes, the game's tasks, the pencil and dividers.
     this.board = this.bridge.whiteboard;

@@ -22,7 +22,7 @@ import type { BreakerName } from '../vessel/vesselState';
 import { busOf } from './bus';
 import type { BusKey } from './busKeys';
 import type { HullLibrary } from './hull';
-import { portIO, type ModuleDefinition, type PhysicsPort, type PortIO, type PowerRole, type SimContext } from './module';
+import { portIO, type GearFacts, type GearKind, type HullQueries, type ModuleDefinition, type PhysicsPort, type PortIO, type PowerRole, type SimContext } from './module';
 import { flattenMounts, validateRecipe, type ModuleLibrary, type Recipe } from './recipe';
 import type { Socket } from './socket';
 
@@ -39,6 +39,8 @@ export interface SimMount {
 export interface VesselSimDef {
   recipe: string;
   mounts: SimMount[];
+  /** Her deck gear's facts, by kind (M5). */
+  gear: Partial<GearFacts>;
 }
 
 export type StoreRole = Extract<PowerRole, { role: 'store' }>;
@@ -47,6 +49,8 @@ export type StoreRole = Extract<PowerRole, { role: 'store' }>;
 export interface VesselRuntime {
   /** Inside the hull's rigid-body step: every module that pushes on the hull. */
   physics(port: PhysicsPort, dt: number): void;
+  /** Later in it, after the hull's contacts, near land: gear holding her to the ground (the anchor). */
+  mooring(port: PhysicsPort, dt: number): void;
   /** After the energy network: every module's upkeep. */
   tick(dt: number, time: number): void;
   /** Current drawn now by every load the modules declare, on circuits that are switched on (A). */
@@ -60,19 +64,23 @@ export interface VesselRuntime {
 }
 
 /** Which of a recipe's modules simulate, and how (checked first; a bad recipe throws). */
-export function buildSimDef(recipe: Recipe, lib: { hulls: HullLibrary; modules: ModuleLibrary }): VesselSimDef {
+export function buildSimDef(recipe: Recipe, lib: { hulls: HullLibrary; modules: ModuleLibrary }, hull: HullQueries): VesselSimDef {
   const errors = validateRecipe(recipe, lib);
   if (errors.length) throw new Error(`Recipe '${recipe.id}' has problems:\n  ${errors.join('\n  ')}`);
   const { mounted } = flattenMounts(recipe, lib.hulls, lib.modules);
   const mounts: SimMount[] = [];
+  const gear: Partial<GearFacts> = {};
   for (const m of mounted) {
+    // The first module giving each kind of gear tells the world about it.
+    const facts = m.def.gear?.(m.config, hull) ?? {};
+    for (const k of Object.keys(facts) as GearKind[]) if (!(k in gear)) Object.assign(gear, { [k]: facts[k] });
     const roles = m.def.power?.(m.config) ?? [];
     if (!m.def.sim && !roles.length) continue;
     mounts.push({ path: m.path, def: m.def, config: m.config, keys: m.keys, socket: m.socket, roles });
   }
   const stores = mounts.flatMap((m) => m.roles.filter((r) => r.role === 'store'));
   if (stores.length > 1) throw new Error(`Recipe '${recipe.id}': more than one battery bank (one house bank for now)`);
-  return { recipe: recipe.id, mounts };
+  return { recipe: recipe.id, mounts, gear };
 }
 
 const runtimes = new WeakMap<VesselState, VesselRuntime>();
@@ -110,11 +118,15 @@ function makeRuntime(sim: VesselSimDef, v: VesselState): VesselRuntime {
     }
   }
   const pushing = bound.filter((b) => b.def.sim!.physics);
+  const holding = bound.filter((b) => b.def.sim!.mooring);
   return {
     store,
     sim,
     physics(port, dt) {
       for (const b of pushing) b.def.sim!.physics!(port, b.ctx, b.state, dt);
+    },
+    mooring(port, dt) {
+      for (const b of holding) b.def.sim!.mooring!(port, b.ctx, b.state, dt);
     },
     tick(dt, time) {
       env.time = time;

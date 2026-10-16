@@ -55,7 +55,6 @@ import type { VesselState } from '../vesselState';
 import { calmWaterResistance } from './propulsion';
 import { submergedSection, type SubmergedSection } from './sectionClip';
 import { contactAt, hullContactPoints, type ContactResult } from './contacts';
-import { stepAnchor } from './anchor';
 import { stepMooring } from './mooring';
 import { stepOutboard } from './outboard';
 import type { ExternalForce } from './vesselContact';
@@ -92,7 +91,6 @@ const dq = new THREE.Quaternion();
 const ptV = new THREE.Vector3();
 const cf = new THREE.Vector3();
 const contact: ContactResult = { fx: 0, fy: 0, fz: 0, normal: 0, slide: 0, approach: 0 };
-const chain = { x: 0, y: 0, z: 0 };
 const lineBow = new THREE.Vector3();
 const lineBowV = new THREE.Vector3();
 const lineStern = new THREE.Vector3();
@@ -155,6 +153,15 @@ const port: PhysicsPort = {
   },
   addForce(local, fx, fy, fz) {
     addForceAt(portF.set(fx, fy, fz).applyQuaternion(q), toWorld(local[0], local[1], local[2], portP));
+  },
+  worldPoint(local) {
+    return toWorld(local[0], local[1], local[2], portP).clone();
+  },
+  worldVelocity(local) {
+    return pointVelocity(toWorld(local[0], local[1], local[2], portP), portV).clone();
+  },
+  addWorldForce(local, fx, fy, fz) {
+    addForceAt(portF.set(fx, fy, fz), toWorld(local[0], local[1], local[2], portP));
   },
 };
 
@@ -342,11 +349,9 @@ export function stepVessel(
       c.impact = Math.max(c.impact, contact.approach);
     }
     if (touching > 0) c.slide /= touching;
+    // Her anchor (a module, M5a): the chain's pull at the hawse.
+    machinery?.mooring(port, dt);
     if (isWorkboat(def)) {
-      toWorld(...def.anchor.hawse, pt);
-      pointVelocity(pt, ptV);
-      stepAnchor(state, def, pt, ptV, dt, chain);
-      if (chain.x !== 0 || chain.y !== 0 || chain.z !== 0) addForceAt(cf.set(chain.x, chain.y, chain.z), pt);
       // Mooring lines (docked), at the forward and aft cleats' stations.
       const mo = def.mooring;
       toWorld(0, mo.lineY, mo.cleatFwdZ, lineBow);

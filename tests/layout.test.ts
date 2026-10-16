@@ -60,7 +60,7 @@ describe('vessel walk area (multi-level)', () => {
     const tw = VESSEL_DEFS.workboat.towWinch!;
     expect(area.walkable(0, tw.z, DECK_AFT)).toBe(false); // the tow winch
     expect(area.walkable(tw.drumWidth / 2 + 0.1 + tw.housing.width / 2, tw.z, DECK_AFT)).toBe(false); // its gearbox housing
-    const af = aFrameOf(VESSEL_DEFS.workboat)!;
+    const af = aFrameOf({ defId: 'workboat' })!;
     expect(area.walkable(af.x - 0.25, af.footZ, DECK_AFT)).toBe(false); // beside an A-frame foot
     expect(area.walkable(-af.x + 0.25, af.braceZ, DECK_AFT)).toBe(false); // beside a brace foot
     expect(area.walkable(wh.halfWidth - 0.04, 0, wh.floorY)).toBe(false); // in a wall

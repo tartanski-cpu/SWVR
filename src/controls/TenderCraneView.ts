@@ -6,6 +6,8 @@ import { launchPoint, launchTime, type TenderCrane } from '../vessel/tenderCrane
 import type { VesselDef } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
 import { Button } from './Button';
+import { armJoints, foldToward, reachOver } from '../mechanisms/arm';
+import { stretchBetween } from '../mechanisms/line';
 
 const WHITE = 0xe6e6de;
 const STEEL = 0xb8bcc0;
@@ -56,8 +58,12 @@ const REACH_SPEED = 1.5;
  */
 export class TenderCraneView {
   readonly root = new THREE.Group();
-  /** The three buttons: column, console, the skiff's remote. */
-  readonly buttons: Button[];
+  /** The three buttons: column, console, the skiff's remote (once a tender is attached). */
+  buttons: Button[] = [];
+  /** The column, the cradle's saddles and the control box (ship axes), to be merged with the boat's other fixed parts. */
+  readonly fixedParts: THREE.BufferGeometry[];
+  /** The tender it carries (once attached). */
+  tenderId = '';
   /** The remote's post and button, in the skiff's axes (the App adds it to her view root). */
   readonly remote = new THREE.Group();
   private readonly boxes: THREE.InstancedMesh;
@@ -66,8 +72,8 @@ export class TenderCraneView {
   private hookSet = false;
   /** 0: working, 1: folded away (eased in between). */
   private fold = 1;
-  /** The tarpaulin over her in the cradle (ship axes). */
-  readonly cover: THREE.Mesh;
+  /** The tarpaulin over her in the cradle (ship axes; once attached). */
+  cover: THREE.Mesh | null = null;
   private moving = false;
   private readonly shoulder: THREE.Vector3;
   private readonly m = new THREE.Matrix4();
@@ -78,14 +84,15 @@ export class TenderCraneView {
   private readonly t = new THREE.Vector3();
   private readonly up = new THREE.Vector3(0, 1, 0);
 
+  /**
+   * The crane itself (the tender-crane module builds it); `attach` gives it the tender it
+   * carries (the app does: a recipe can't know which boat that is).
+   */
   constructor(
-    readonly tenderId: string,
     private readonly crane: TenderCrane,
     deckY: (z: number) => number,
     /** Where the SKIFF CRANE button stands on the helm console (ship axes). */
-    consoleAt: [number, number, number],
-    /** The tender (for the shape of her tarpaulin). */
-    tenderDef: VesselDef,
+    private readonly consoleAt: readonly [number, number, number],
   ) {
     const c = crane;
     const [cx, cz] = c.column;
@@ -109,8 +116,7 @@ export class TenderCraneView {
     // The control box on the column's outboard side, its face to starboard.
     const [bx, by, bz] = c.button;
     parts.push(part(new THREE.BoxGeometry(bx - (cx + c.columnRadius) + 0.01, 0.24, 0.2).translate((bx + cx + c.columnRadius) / 2, by, bz), 0x5a6268));
-    const fixed = new THREE.Mesh(mergeParts(parts), flatVertexColorMaterial());
-    fixed.name = 'tenderCraneFixed';
+    this.fixedParts = parts;
 
     // Moving: unit boxes (turret, boom, jib, hook block) and unit cylinders (rams, wire, legs).
     this.boxes = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial({ flatShading: true }), 4);
@@ -122,12 +128,20 @@ export class TenderCraneView {
       im.name = 'tenderCraneMoving';
     }
 
+    this.root.add(this.boxes, this.rods);
+  }
+
+  /** Give it the tender it carries: its buttons call her, her remote and her tarpaulin. */
+  attach(tenderId: string, tenderDef: VesselDef): void {
+    const c = this.crane;
+    const [bx, by, bz] = c.button;
+    this.tenderId = tenderId;
     const button = (id: string) => new Button(`${id}:${tenderId}`, `${tenderId}:crane`, 'Skiff crane: launch / recover', 'pulse', 0x2a8f3a, () => this.moving);
     const column = button('crane');
     column.root.position.set(bx, by, bz);
     column.root.rotation.z = -Math.PI / 2; // facing starboard, from the box's outboard face
     const helm = button('craneHelm');
-    helm.root.position.fromArray(consoleAt);
+    helm.root.position.fromArray(this.consoleAt);
     // The remote: a post by the skiff's helmsman, starboard of the tiller, the button on top.
     const rm = c.remote;
     const remote = button('craneRemote');
@@ -140,7 +154,7 @@ export class TenderCraneView {
     this.buttons = [column, helm, remote];
     this.cover = new THREE.Mesh(tarpaulin(tenderDef, c), flatVertexColorMaterial());
     this.cover.name = 'skiffCover';
-    this.root.add(fixed, this.boxes, this.rods, column.root, helm.root, this.cover);
+    this.root.add(column.root, helm.root, this.cover);
   }
 
   /**
@@ -169,9 +183,9 @@ export class TenderCraneView {
 
     // Under the tarpaulin in the cradle: her remote can't be reached either.
     const covered = phase === 'stowed';
-    this.cover.visible = covered;
+    if (this.cover) this.cover.visible = covered;
     this.remote.visible = !covered;
-    this.buttons[2].enabled = !covered;
+    if (this.buttons[2]) this.buttons[2].enabled = !covered;
     // Folded while she's stowed or away, and for the last of a recovery (unhooking).
     const c = this.crane;
     const tt = tender.tender?.t ?? 0;
@@ -209,38 +223,17 @@ export class TenderCraneView {
     const c = this.crane;
     const S = this.shoulder;
     const H = this.hook;
-    // Slew: the turret faces the hook; u is the horizontal unit vector toward it.
-    const psi = Math.atan2(H.z - S.z, H.x - S.x);
-    const u = new THREE.Vector3(Math.cos(psi), 0, Math.sin(psi));
-    const reach = Math.hypot(H.x - S.x, H.z - S.z);
-    // The jib head over the hook, a little above it (never below the shoulder much).
-    const tipY = Math.max(H.y + 0.45, S.y + 0.2);
-    let dv = tipY - S.y;
-    let d = Math.hypot(reach, dv);
-    const L1 = c.boom;
-    const L2 = c.jib;
-    const dMax = L1 + L2 - 0.02;
-    const dMin = Math.abs(L1 - L2) + 0.05;
-    const beta = Math.atan2(dv, reach);
-    d = Math.min(dMax, Math.max(dMin, d));
-    dv = d * Math.sin(beta);
-    // Two-link chain, knuckle up: the boom's elevation is the target's plus the angle the
-    // law of cosines gives between the boom and the line to the target.
-    const alpha = Math.acos(Math.min(1, Math.max(-1, (L1 * L1 + d * d - L2 * L2) / (2 * L1 * d))));
-    const thW = beta + alpha;
-    // The jib's direction in the same plane (elbow to head).
-    const phiW = Math.atan2(dv - L1 * Math.sin(thW), d * Math.cos(beta) - L1 * Math.cos(thW));
-    // Blend toward the folded pose, angle by angle (slew the short way round).
-    const f = this.fold * this.fold * (3 - 2 * this.fold);
+    // The working pose for the hook where it is (the jib head a little above it, never much
+    // below the shoulder), blended toward the folded one (mechanisms/arm.ts).
+    const links = { boom: c.boom, jib: c.jib };
     const rad = Math.PI / 180;
-    const psiF = c.fold.slewDeg * rad;
-    const slew = psi + Math.atan2(Math.sin(psiF - psi), Math.cos(psiF - psi)) * f;
-    const th = thW + (c.fold.boomDeg * rad - thW) * f;
-    const phi = phiW + (c.fold.jibDeg * rad - phiW) * f;
-    u.set(Math.cos(slew), 0, Math.sin(slew));
+    const angles = foldToward(reachOver(S, H, links, 0.45, 0.2), { slew: c.fold.slewDeg * rad, boom: c.fold.boomDeg * rad, jib: c.fold.jibDeg * rad }, this.fold);
+    const slew = angles.slew;
+    const u = new THREE.Vector3(Math.cos(slew), 0, Math.sin(slew));
     const at = (h: number, v: number, out: THREE.Vector3) => out.copy(S).addScaledVector(u, h).setY(S.y + v);
-    const E = at(L1 * Math.cos(th), L1 * Math.sin(th), new THREE.Vector3());
-    const T = at(L1 * Math.cos(th) + L2 * Math.cos(phi), L1 * Math.sin(th) + L2 * Math.sin(phi), new THREE.Vector3());
+    const E = new THREE.Vector3();
+    const T = new THREE.Vector3();
+    armJoints(S, angles, links, E, T);
     const stowed = this.fold > 0.02;
 
     // Boxes: turret, boom, jib, hook block.
@@ -283,11 +276,7 @@ export class TenderCraneView {
 
   /** Instance `i` of `mesh` (a unit box or cylinder along y) stretched from `a` to `b`. */
   private segment(mesh: THREE.InstancedMesh, i: number, a: THREE.Vector3, b: THREE.Vector3, w: number, depth: number): void {
-    const dir = this.s.subVectors(b, a);
-    const len = Math.max(1e-3, dir.length());
-    // Shortest arc from up: the arms lie in a vertical plane, so they come out unrolled.
-    this.q.setFromUnitVectors(this.up, dir.multiplyScalar(1 / len));
-    mesh.setMatrixAt(i, this.m.compose(this.a.addVectors(a, b).multiplyScalar(0.5), this.q, this.s.set(w, len, depth)));
+    stretchBetween(mesh, i, a, b, w, depth, this.m);
   }
 }
 

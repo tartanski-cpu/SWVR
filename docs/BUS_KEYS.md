@@ -160,10 +160,10 @@ Every value on a boat's bus (modular boats; `src/modular/busKeys.ts`). Generated
 | Key | Values | Use | Written by | Old names | What it is |
 |---|---|---|---|---|---|
 | `anchor.letGo` | on / off | player sets | legacy | `anchor` | ANCHOR switch: let go / pay out (on), heave in and stow (off). |
-| `anchor.phase` | stowed / paying / set / weighing / hanging | read only | legacy |  | Anchor: stowed, paying out, set, weighing, or hanging off the bottom. |
-| `anchor.chainOut` | m | read only | legacy |  | Chain paid out. |
-| `anchor.tension` | N | read only | legacy |  | Horizontal chain tension at the bow on the last tick. |
-| `anchor.dragging` | on / off | read only | legacy |  | The anchor is dragging (tension over its holding power). |
+| `anchor.phase` | stowed / paying / set / weighing / hanging | read only | module |  | Anchor: stowed, paying out, set, weighing, or hanging off the bottom. |
+| `anchor.chainOut` | m | read only | module |  | Chain paid out. |
+| `anchor.tension` | N | read only | module |  | Horizontal chain tension at the bow on the last tick. |
+| `anchor.dragging` | on / off | read only | module |  | The anchor is dragging (tension over its holding power). |
 
 ## mooring
 

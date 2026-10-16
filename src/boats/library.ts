@@ -5,6 +5,8 @@
  */
 import { createHullLibrary } from '../modular/hull';
 import { createModuleLibrary, parseRecipe, validateRecipe, type Recipe } from '../modular/recipe';
+import { A_FRAME } from '../modules/aFrame';
+import { ANCHOR_WINDLASS } from '../modules/anchorWindlass';
 import { BATTERY_BANK } from '../modules/batteryBank';
 import { BATTERY_MASTER } from '../modules/batteryMaster';
 import { BILGE_PUMP } from '../modules/bilgePump';
@@ -30,8 +32,12 @@ import { PUSH_BUTTON } from '../modules/pushButton';
 import { RUDDER } from '../modules/rudder';
 import { SCREEN } from '../modules/screen';
 import { START_CARD } from '../modules/startCard';
+import { STERN_ROLLER } from '../modules/sternRoller';
+import { TENDER_CRANE } from '../modules/tenderCrane';
 import { THROTTLE_LEVER } from '../modules/throttleLever';
 import { TOGGLE } from '../modules/toggle';
+import { TOW_WINCH } from '../modules/towWinch';
+import { TRAWL } from '../modules/trawl';
 import { VHF } from '../modules/vhf';
 import { WARNING_LAMPS } from '../modules/warningLamps';
 import { WHEEL } from '../modules/wheel';
@@ -46,6 +52,7 @@ export const MODULES = createModuleLibrary([
   OVERHEAD_PANEL, FM_RADIO, BREAKER_PANEL, BATTERY_MASTER, BATTERY_SELECTOR,
   VHF, CHARTPLOTTER, CHART_TABLE, DUTY_BOARD, WHITEBOARD, DOOR_BUTTON, HATCH_COVER, DIPSTICK, OIL_CAN,
   DIESEL_INBOARD, RUDDER, FUEL_TANK, BATTERY_BANK, PTO_PUMP, BILGE_PUMP, CONSUMER,
+  TENDER_CRANE, TOW_WINCH, STERN_ROLLER, A_FRAME, TRAWL, ANCHOR_WINDLASS,
 ]);
 
 export const LIBRARY = { hulls: HULLS, modules: MODULES };

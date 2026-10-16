@@ -16,15 +16,11 @@
  * glow plugs, the alternator), the batteries are the battery-bank module's; the master,
  * the selector and the breakers (the circuits) are the network's own. What counts as
  * powered (isPowered) is the same rule as before; it still reads the vessel's own battery
- * config (a test keeps it equal to the battery module's) until M6. Only the windlass's draw
- * is still listed here: it becomes the windlass module's in M5.
+ * config (a test keeps it equal to the battery module's) until M6.
  */
 import { clamp } from '../core/math';
-import type { VesselDef } from './vesselDef';
 import { VESSEL_DEFS } from './vesselDef';
 import type { BreakerName, ElectricsState, VesselState } from './vesselState';
-
-type Electrics = NonNullable<VesselDef['electrics']>;
 
 /** Charge of the battery (or batteries) the selector is on. */
 export function selectedSoc(e: ElectricsState): number {
@@ -81,19 +77,12 @@ interface Bank {
 
 /**
  * The energy network's tick on a boat built from a recipe: the loads and sources her
- * modules declare (only on circuits whose breaker is on), and the loads not yet modules
- * (the windlass: deck gear, M5), drawn from the battery bank module's batteries.
+ * modules declare (only on circuits whose breaker is on), drawn from the battery bank
+ * module's batteries.
  */
 export function stepEnergyNetwork(s: VesselState, net: { loadAmps(): number; sourceAmps(): number; store: Bank | null }, dt: number): void {
-  const cfg = VESSEL_DEFS[s.defId].electrics;
   if (!s.electrics || !net.store) return;
-  chargeAndVolts(s, net.store, () => net.loadAmps() + (cfg ? windlassAmps(s, cfg) : 0), () => net.sourceAmps(), dt);
-}
-
-/** The windlass's draw while it runs (on the master alone). */
-function windlassAmps(s: VesselState, cfg: Electrics): number {
-  const an = s.anchor.phase;
-  return an === 'paying' || an === 'weighing' || (an === 'hanging' && s.controls.anchor <= 0) ? cfg.loads.windlass : 0;
+  chargeAndVolts(s, net.store, () => net.loadAmps(), () => net.sourceAmps(), dt);
 }
 
 /** Charge and discharge the selected batteries, and the bus voltage. */

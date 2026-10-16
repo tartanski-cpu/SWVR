@@ -26,7 +26,9 @@ import type { WorldState } from '../core/world';
 import { aboard, footprint, deckHeightAt, type CargoItem } from '../cargo/cargo';
 import { deckSpot } from '../cargo/deck';
 import { hullPlan } from '../vessel/layout';
-import { isWorkboat, VESSEL_DEFS, type VesselDef } from '../vessel/vesselDef';
+import { VESSEL_DEFS } from '../vessel/vesselDef';
+import { gearOf } from '../boats/sims';
+import type { GearFacts } from '../modular/module';
 import type { VesselState } from '../vessel/vesselState';
 import type { ExternalForce } from '../vessel/physics/vesselContact';
 import { groundHeight } from '../world/terrain';
@@ -57,8 +59,9 @@ export function createFishingState(): FishingState {
   return { net: 'stowed', t: 0, fill: 0, status: 'stowed', ground: null, caught: 0, landed: 0, seq: 0 };
 }
 
+/** The fishing boat: the first with a trawl aboard (modular boats M5; modules/trawl). */
 function trawler(world: WorldState): VesselState | undefined {
-  return Object.values(world.vessels).find((v) => isWorkboat(VESSEL_DEFS[v.defId]));
+  return Object.values(world.vessels).find((v) => gearOf(v, 'trawl'));
 }
 
 /** The fishing ground at (x, z), if any. */
@@ -176,26 +179,12 @@ export function stepFishing(world: WorldState, dt: number): void {
 }
 
 /**
- * The A-frame over the transom (vessel axes, CONFIG.vessels.workboat.fishing.aFrame): the starboard foot
- * (x, z, deck height; port is -x) and head (x, z, height), the blocks' x on the crossbeam,
- * and where each leg's brace meets the deck (z). Null on boats without a trawl.
+ * Her trawl gantry (the A-frame over the transom, modules/aFrame; vessel axes): the
+ * starboard foot (x, z, deck height; port is -x) and head (x, z, height), the blocks' x on
+ * the crossbeam, and where each leg's brace meets the deck (z). Null on boats without one.
  */
-export function aFrameOf(def: VesselDef): { x: number; footZ: number; deck: number; headZ: number; top: number; blockX: number; braceZ: number; buttonY: number } | null {
-  const a = def.fishing?.aFrame;
-  if (!a) return null;
-  const plan = hullPlan(def);
-  const footZ = plan.transom - a.footFromTransom;
-  const deck = plan.deckY(footZ);
-  return {
-    x: plan.halfBeam(footZ) - a.footInset,
-    footZ,
-    deck,
-    headZ: plan.transom + a.headAft,
-    top: deck + a.height,
-    blockX: a.blockX,
-    braceZ: footZ - a.braceForward,
-    buttonY: deck + a.buttonHeight,
-  };
+export function aFrameOf(v: { defId: string }): GearFacts['trawlGantry'] | null {
+  return gearOf(v, 'trawlGantry');
 }
 
 const vel = new THREE.Vector3();
@@ -218,9 +207,8 @@ export function trawlForces(world: WorldState): Map<EntityId, ExternalForce[]> {
     q.fromArray(v.orientation);
     force.add(new THREE.Vector3(0, 0, 1).applyQuaternion(q).setY(0).normalize().multiplyScalar(c.foulHold * f.t));
   }
-  const def = VESSEL_DEFS[v.defId];
-  const af = aFrameOf(def);
-  const plan = hullPlan(def);
+  const af = aFrameOf(v);
+  const plan = hullPlan(VESSEL_DEFS[v.defId]);
   const local = af ? new THREE.Vector3(0, af.top - 0.14, af.headZ) : new THREE.Vector3(0, plan.deckY(plan.transom) + 1.5, plan.transom);
   const point = local.applyQuaternion(q.fromArray(v.orientation)).add(new THREE.Vector3(...v.position));
   out.set(v.id, [{ force, point }]);

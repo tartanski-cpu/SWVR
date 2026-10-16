@@ -21,6 +21,7 @@ import type * as THREE from 'three';
 import type { Control } from '../controls/Control';
 import type { Screen } from '../controls/instruments';
 import type { BreakerName, VesselState } from '../vessel/vesselState';
+import type { TenderCrane } from '../vessel/tenderCrane';
 import type { BusReader, BusValue } from './bus';
 import type { BusKey } from './busKeys';
 import type { Physical, Socket, SocketType } from './socket';
@@ -45,6 +46,8 @@ export interface ModuleDefinition<Config = unknown, State = unknown> {
   needs?(c: Config): Requirement[];
   /** What it gives the boat (a circuit, hydraulic pressure, fuel). */
   provides?(c: Config): Provision[];
+  /** Its gear's facts for the world's systems (M5), for each `{ gear }` it provides. */
+  gear?(c: Config, hull: HullQueries): Partial<GearFacts>;
   /** Mass, CG, size, power: checked against the socket, added to the boat's mass (2.6). */
   physical?(c: Config): Physical;
   /** Its part in the energy network (2.5). */
@@ -69,19 +72,43 @@ export interface PortSpec {
   required?: boolean;
 }
 
+/**
+ * Deck gear a boat has (modular boats M5): what the world's systems ask a boat for, rather
+ * than reading her vessel config. A boat tows if she has a tow point and a winch; fishes if
+ * she has a trawl gantry and a trawl; carries a tender if she has a tender crane.
+ */
+export type GearKind = 'tenderCrane' | 'towWinch' | 'towPoint' | 'trawlGantry' | 'trawl' | 'anchor';
+
+/** What the world's systems need to know about each kind of gear (the boat's axes, m). */
+export interface GearFacts {
+  /** Where the towline leaves her: the top of the stern roller. */
+  towPoint: { point: [number, number, number] };
+  /** Where the wire comes off the winch drum. */
+  towWinch: { lead: [number, number, number] };
+  /** The A-frame: the starboard foot (port is -x) and head, the blocks' x, the brace feet, the control box height. */
+  trawlGantry: { x: number; footZ: number; deck: number; headZ: number; top: number; blockX: number; braceZ: number; buttonY: number };
+  trawl: Record<string, never>;
+  /** The crane's geometry and its launch and recovery path (vessel/tenderCrane.ts). */
+  tenderCrane: TenderCrane;
+  /** The hawse (where the chain leaves her) and how much chain there is. */
+  anchor: { hawse: [number, number, number]; chainM: number };
+}
+
 /** Something a module can't work without. */
 export type Requirement =
   | { power: 'electrical'; circuit?: string } // 12 V, on that breaker's circuit
   | { power: 'hydraulic' } //                   deck hydraulic pressure
   | { power: 'pto' } //                         the engine's power take-off turning (the fire pump)
-  | { fuel: 'diesel' };
+  | { fuel: 'diesel' }
+  | { gear: GearKind }; //                      other deck gear (a trawl needs a gantry to hang from)
 
 /** Something a module (or the hull) gives the boat. */
 export type Provision =
   | { power: 'electrical'; circuits?: readonly string[] }
   | { power: 'hydraulic' }
   | { power: 'pto' }
-  | { fuel: 'diesel' };
+  | { fuel: 'diesel' }
+  | { gear: GearKind };
 
 /**
  * Its part in the energy network (2.5); summed by the network service, never by modules.
@@ -116,6 +143,11 @@ export interface ModuleSim<Config, State> {
    * where the engine and rudder are now, so the handling stays exactly the same.
    */
   physics?(port: PhysicsPort, ctx: SimContext<Config>, s: State, dt: number): void;
+  /**
+   * For gear that holds her to the ground (the anchor, M5): called later in the rigid-body
+   * step, after the hull's contacts and only near land, where the anchor always was.
+   */
+  mooring?(port: PhysicsPort, ctx: SimContext<Config>, s: State, dt: number): void;
 }
 
 export interface SimContext<Config> {
@@ -158,6 +190,13 @@ export interface PhysicsPort {
   depthAt(local: readonly [number, number, number], surfaceAt?: readonly [number, number, number]): number;
   /** Push on the hull at a point (N). */
   addForce(local: readonly [number, number, number], fx: number, fy: number, fz: number): void;
+  /**
+   * For gear that reaches outside the boat (the anchor's chain to the seabed): a point of
+   * hers in the world, its velocity there, and a push given in world axes (N).
+   */
+  worldPoint(local: readonly [number, number, number]): { x: number; y: number; z: number };
+  worldVelocity(local: readonly [number, number, number]): { x: number; y: number; z: number };
+  addWorldForce(local: readonly [number, number, number], fx: number, fy: number, fz: number): void;
 }
 
 // ── The view half ────────────────────────────────────────────────────────────
@@ -165,6 +204,12 @@ export interface PhysicsPort {
 /** Every machine. Built once when the boat is assembled; updated each frame. */
 export interface ModuleView<Config, State> {
   build(ctx: ViewContext<Config>): ModuleViewInstance<State>;
+  /**
+   * 'boat': it draws in the boat's own axes, from positions in its config (deck gear whose
+   * config is still the vessel's, until M6 puts those positions in the hull's sockets); its
+   * socket only says where it is fitted. Default 'socket': it draws from its socket.
+   */
+  frame?: 'socket' | 'boat';
 }
 
 export interface ViewContext<Config> {
@@ -215,8 +260,14 @@ export interface HullQueries {
 /**
  * Repeated moving parts drawn as one instanced mesh each (2.10). The warning lamps and the
  * breaker lamps are already one instanced mesh per panel, so they stay their modules' own.
+ * The wheelhouse's kinds are hidden with its other small parts from outside it
+ * (app/interiorDetail.ts); the deck gear's buttons ('deckButtonCap', M5a) are out on deck,
+ * so they are always drawn.
  */
-export type SharedPartKind = 'toggleBat' | 'buttonCap';
+export type SharedPartKind = 'toggleBat' | 'buttonCap' | 'deckButtonCap';
+
+/** Shared kinds that stand out on deck, not in the wheelhouse. */
+export const DECK_SHARED_KINDS: readonly SharedPartKind[] = ['deckButtonCap'];
 
 /** What a view gives the assembler. */
 export interface ModuleViewInstance<State> {

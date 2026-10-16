@@ -2023,6 +2023,63 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   - **Desktop:** the same with the keys.
   - **F3:** 56 modules.
 
+### M5a: the deck gear as modules (done, on /next/ for the owner to test; nothing should look or work differently)
+
+- **What changed:** the tender crane (with its cradle), the tow winch, the stern roller, the A-frame, the trawl and the anchor windlass are now modules in the boat's recipe (`starterWorkboat.json`, version 6), not hand-built parts of the bridge and the world's systems. The world's systems no longer read the vessel config for them: they ask the boat for her **gear** ("has she a tow point, and where?"). Take a module out of the recipe and its job goes with it.
+- **New modules** (`src/modules/`):
+  - `deck.tender-crane`: the knuckle-boom crane on the foredeck with the cradle. Its LAUNCH / RECOVER buttons (column, helm console, the skiff's remote) and the tarpaulin come with the skiff it carries, which the app hands it (a recipe can't know which boat that is). Gives a `tenderCrane`. Needs deck hydraulics.
+  - `deck.tow-winch`: the drum, cheeks, gearbox housing and its HEAVE IN / PAY OUT buttons. Gives a `towWinch` (where the line leaves the drum). Needs deck hydraulics.
+  - `deck.stern-roller`: the roller in the transom notch. Gives a `towPoint` (the top of the roller, where the tow pulls on her).
+  - `deck.a-frame`: the A-frame over the transom with its blocks, and the PAY OUT / HAUL box on the starboard leg. Gives a `trawlGantry`.
+  - `fishing.trawl`: the net and warps. Needs a trawl gantry and deck hydraulics; gives a `trawl`. (The net in the water is still drawn by the app: it lies astern, not on the boat.)
+  - `deck.anchor-windlass`: the anchor, chain and electric windlass. It holds her to the bottom through the physics port, after the hull's contacts (where the anchor always was), and declares the windlass's 60 A draw while it runs. Gives an `anchor` (the hawse, the chain's length). Nothing new is drawn for it: as before, the chain is drawn from the hawse by the app.
+- **Gear** (`modular/module.ts`, `boats/sims.ts` `gearOf(boat, kind)`): each module says what gear it gives and the facts about it, worked out from the hull: `towPoint`, `towWinch`, `trawlGantry`, `trawl`, `tenderCrane`, `anchor`. A module can also *need* gear: the trawl is refused without an A-frame, in words ("needs a trawl gantry (an A-frame), and nothing on this boat gives it").
+  - Towing (`tow/tow.ts`): the tug is the first boat with a tow point; the line leads from her tow point; the winch heaves only if she has one.
+  - Fishing (`fishing/fishing.ts`): the trawler is the first boat with a trawl; the warps and the net's drag act at the A-frame's blocks.
+  - The skiff (`vessel/tenderCrane.ts`): her crane is her ship's `tenderCrane` gear.
+  - The app: the sounds (crane, winch, net drum, anchor), the towline's lead, the anchor chain, and the menu's "too deep" all read the gear.
+- **Mechanism library** (`src/mechanisms/`), taken out of today's code with the same arithmetic:
+  - `arm.ts`: the crane's knuckle-boom solver (law of cosines, knuckle up) and the fold blend;
+  - `drum.ts`: a winch drum, where its wire leaves it, and turning it;
+  - `line.ts`: bars between two points, rope segments, and a slack line's sag.
+  The crane, the towline, the trawl and the chart table's dividers use it.
+- **Draw calls down** (the roller, the A-frame and the crane's fixed parts are baked into the boat's one merged mesh; the four deck buttons' caps are one shared mesh). Same four viewpoints as every milestone, M4a → M5a:
+
+  | | helm | chart table | aft deck, facing forward | aft deck, facing aft |
+  |---|---|---|---|---|
+  | day | 56 → 55 | 44 → 44 | 97 → 95 | 33 → 28 |
+  | night, everything lit | 57 → 56 | 45 → 45 | 98 → 96 | 32 → 27 |
+
+  Boat parts drawn: 114 → 108 from the wheelhouse, 89 → 83 from the aft deck.
+
+  The shared parts are now three kinds: `toggleBat`, `buttonCap` (the wheelhouse's, hidden from outside it with its other small parts) and `deckButtonCap` (the deck gear's, always drawn). On the first try the deck buttons shared the wheelhouse's caps and lost them on deck; the screenshots caught it.
+- **Bus keys:** `anchor.phase`, `anchor.chainOut`, `anchor.tension` and `anchor.dragging` are now written by the windlass module. The deck buttons send their bus keys (`winch.heaveIn`, `winch.payOut`, `net.payOut`, `net.haul`); the old names (`winchHeave`...) still work.
+- **Config:**
+  - `CONFIG.modules.anchorWindlass.amps` (60 A): the windlass's draw, moved from `vessels.workboat.electrics.loads`, which is gone. Every load is now a module's.
+  - The gear's own figures stay where they were, as the modules' defaults until M6: `vessels.workboat.tenderCrane`, `.towWinch`, `.fishing.aFrame`, `.anchor`, and `CONFIG.tow.fairlead`.
+- **Hull sockets:** 6 new: `tenderCrane`, `anchor` (bow windlass), `towWinch`, `trawl`, `sternRoller` and `aFrame` (two stern gantry sockets). The deck gear draws itself in the boat's own axes from the hull (a module "frame: boat"), so these points say where it is, for the shipyard later.
+- **Exactly as before:** all twelve golden runs (the anchor, crane, tow and trawl runs among them) reproduce their recordings; the sea-trials report is identical line for line.
+- **Until 5b / M6:**
+  - The walk area still keeps you out of the winch, the A-frame's feet and the crane's column and cradle from the vessel config (5b: from the modules' footprints).
+  - A boat built without the crane has no cradle: her skiff just floats. The shipyard (M8) will need to put a ship's boat only where there's a crane.
+- **Tests (12 new, 408 in all, all pass):**
+  - each gear fact equals v1.0's geometry (the tow point, the winch lead, the A-frame, the crane, the anchor);
+  - every module that gives gear says so in what it provides, and gives just that;
+  - take a module out and its job goes: no stern roller, no towing; no winch, the line stays as made fast; no trawl, no fishing; no A-frame, the trawl is refused; no windlass, the ANCHOR switch does nothing and draws nothing; no crane, LAUNCH does nothing;
+  - the mechanism library: the arm reaches its target with the right link lengths, knuckle up; the drum's lead; a slack line's sag makes its length.
+- **Checked in the browser:**
+  - screenshots of the aft deck, the A-frame, the winch, the stern and the crane mid-lift against the M4a build: identical (only the sky and water differ);
+  - in play: the crane lowers the skiff; a tow made fast and heaved in (the line shortens, the drum turns, the lead shows); the net jogged out from the A-frame; the anchor let go (chain drawn, the windlass drawing current); no errors apart from the dev server's favicon.
+- **Owner test** (at /SWVR/next/, menu header NEXT). Everything should look and work as before:
+  - **VR:**
+    - launch the skiff with the crane, drive her round, recover her (the remote in the skiff, or SKIFF CRANE at the helm);
+    - take the barge in tow: make fast over the stern roller, heave in and pay out on the winch (watch the drum turn), tow her in;
+    - shoot and haul the trawl with the TRAWL switch, and by hand with PAY OUT / HAUL on the A-frame;
+    - anchor and weigh with the ANCHOR switch: the voltmeter dips while the windlass runs;
+    - listen: the crane, winch and net drum's hydraulics, the anchor chain.
+  - **Desktop:** the same by clicking.
+  - **F3:** 46 modules with something drawn (the trawl and the windlass have nothing of their own to draw).
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

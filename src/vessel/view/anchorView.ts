@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { groundHeight } from '../../world/terrain';
-import type { WorkboatDef } from '../vesselDef';
+import { gearOf } from '../../boats/sims';
 import type { VesselState } from '../vesselState';
 
 const N = 24;
@@ -25,11 +25,13 @@ export class AnchorChainView {
     this.line.visible = false;
   }
 
-  update(s: VesselState, def: WorkboatDef, root: THREE.Object3D): void {
+  update(s: VesselState, root: THREE.Object3D): void {
     const a = s.anchor;
-    this.line.visible = a.phase !== 'stowed' && a.rodeM > 0.2;
-    if (!this.line.visible) return;
-    root.localToWorld(this.hawse.fromArray(def.anchor.hawse));
+    // Her anchor's hawse (the anchor and windlass are her module, deck.anchor-windlass).
+    const gear = gearOf(s, 'anchor');
+    this.line.visible = !!gear && a.phase !== 'stowed' && a.rodeM > 0.2;
+    if (!gear || !this.line.visible) return;
+    root.localToWorld(this.hawse.fromArray(gear.hawse));
     const hx = this.hawse.x;
     const hy = this.hawse.y;
     const hz = this.hawse.z;

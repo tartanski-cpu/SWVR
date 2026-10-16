@@ -123,9 +123,9 @@ describe('recipe check', () => {
     r2.modules[1].bind = { rpm: 'nav.speedKts' };
     expect(validateRecipe(r2, lib)).toContain("engineBay: engine.test writes 'nav.speedKts', which the boat works out from her own motion");
     const r3 = good();
-    r3.modules[1].bind = { rpm: 'anchor.chainOut' };
+    r3.modules[1].bind = { rpm: 'outboard.battery' };
     expect(validateRecipe(r3, lib)).toContain(
-      "engineBay: engine.test writes 'anchor.chainOut', but the registry says today's code still writes it (set its writer to 'module' when this module takes it over)",
+      "engineBay: engine.test writes 'outboard.battery', but the registry says today's code still writes it (set its writer to 'module' when this module takes it over)",
     );
   });
 
