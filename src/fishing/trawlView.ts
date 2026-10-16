@@ -9,8 +9,8 @@ const FLOATS = 7;
 
 /**
  * The trawl as seen from the boat (fishing.ts). Cheap and rope-free (the brief's rule):
- *   gallows  quarter gallows: a short red post with a block on each quarter, outboard of
- *            the skiff on her davit, and a winch drum on the aft deck (always there).
+ *   gallows  quarter gallows: a short red post with a block on each quarter, and a winch
+ *            drum on the aft deck (always there).
  *   warps    two straight dark lines from the blocks down into the water astern, longer
  *            as the net goes out (one line segment pair).
  *   floats   the headline's orange floats in an arc on the surface well astern, riding

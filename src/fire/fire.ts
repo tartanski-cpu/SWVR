@@ -8,8 +8,8 @@
  *             handset to take it; unanswered, another vessel is sent.
  *   the fire  `intensity` 0..1. Left alone it grows (`growth` per s) up to 1; water on it
  *             knocks it down (`douse` per s at full flow). Below `outBelow` it's out: the
- *             radio thanks you, it counts as a completed mission (and goes in the log), and
- *             the smouldering wreck is taken away a little later.
+ *             radio thanks you, it counts as a completed mission, and the smouldering wreck
+ *             is taken away a little later.
  *   the jet   from the fire monitor on the roof (CONFIG.vessels.workboat.fireMonitor),
  *             with the pump on and the engine running: a ballistic arc from the nozzle with
  *             the boat's own velocity, a little air drag and wind drift (jetPath). It wets
@@ -277,7 +277,6 @@ export function stepFire(world: WorldState, dt: number): void {
       f.out += 1;
       const r = (world.rescue ??= createRescueState());
       r.completed += 1;
-      r.lastDone = `Fire: ${job.kind === 'boat' ? 'a fishing boat' : 'a shed ashore'} put out with the monitor.`;
       const near = nearestPort(job.x, job.z).port;
       earn(world, 'fire', { port: near.id, text: `Fire put out near ${near.name.replace(' (anchorage)', '')}` });
       sayRadio(world, 'info', 'Coastguard: that fire is out. Thank you, skipper, well fought. You can shut down the pump.');

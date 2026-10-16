@@ -90,7 +90,6 @@ describe('fire missions', { timeout: 30000 }, () => {
     expect(job.phase).toBe('out');
     expect(world.fire!.out).toBe(1);
     expect(world.rescue!.completed).toBe(before + 1);
-    expect(world.rescue!.lastDone).toMatch(/Fire/);
     run(0.2);
     expect(duty.doneAt).toBeDefined();
     // The wreck smoulders a while, then the job is over.

@@ -10,14 +10,14 @@ type ChartTableConfig = NonNullable<VesselDef['chartTable']>;
  * The chart table along the port wall (vessel axes). One merged static mesh for the
  * table, cabinet, fiddle rails, pen holder, dividers
  * and the lamp's stand and shade; plus the paper chart (drawn once), the lamp's bulb and
- * its switch. The logbook lies at the aft end (log/logbookView.ts).
+ * its switch.
  *
  * You stand on its inboard side facing the wall, so the chart lies north to port: chart
  * east runs forward (-z), north outboard (-x). The chart covers the table's depth;
  * `chartToTable` maps world metres on the chart to table coordinates (milestone 7 draws
  * on it).
  *
- * Light: the chart and the book are unlit (basic) materials whose brightness follows the
+ * Light: the chart is unlit (basic) materials whose brightness follows the
  * daylight, the cabin lamp and this lamp (setLight) - the lamp costs no real light.
  */
 export class ChartTableView {
@@ -64,22 +64,16 @@ export class ChartTableView {
     const [hx, hz] = cfg.holder;
     parts.push(part(new THREE.CylinderGeometry(0.032, 0.03, 0.085, 12).translate(hx, T + 0.0425, hz), 0x2c3a44));
     for (const a of [-0.12, 0.12]) parts.push(placed(new THREE.BoxGeometry(0.005, 0.005, 0.16).translate(0, 0, -0.08), x0 + 0.12, T + 0.004, z0 + 0.58, 2.3 + a, 0x9aa0a6));
-    // Lamp: weighted base, stem, arm reaching over the book, shade.
+    // Lamp: weighted base, stem, arm reaching over the chart, shade.
     const lp = cfg.lamp;
     const [lx, lz] = lp.base;
-    const head = new THREE.Vector3(cfg.book.center[0] + 0.02, T + lp.height, (cfg.book.center[1] + lz) / 2);
+    const head = new THREE.Vector3(lp.head[0], T + lp.height, lp.head[1]);
     parts.push(part(new THREE.CylinderGeometry(0.06, 0.07, 0.025, 14).translate(lx, T + 0.0125, lz), 0x1f3a2a));
     parts.push(part(new THREE.CylinderGeometry(0.008, 0.008, lp.height).translate(lx, T + lp.height / 2, lz), 0x9aa0a6));
     parts.push(bar(new THREE.Vector3(lx, T + lp.height, lz), head, 0.008, 0x9aa0a6));
     parts.push(part(new THREE.CylinderGeometry(0.03, 0.085, 0.09, 16, 1, true).translate(head.x, head.y - 0.03, head.z), 0x1f4a32));
     parts.push(part(new THREE.CylinderGeometry(0.03, 0.03, 0.01, 16).translate(head.x, head.y + 0.015, head.z), 0x1f4a32));
     this.tableMat = flatVertexColorMaterial();
-    // The logbook's cover and page blocks (its pages are the logbook view's canvas).
-    const bm = new THREE.Matrix4().makeBasis(new THREE.Vector3(0, 0, -1), new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 1, 0)).setPosition(cfg.book.center[0], T + 0.001, cfg.book.center[1]);
-    const bw = cfg.book.width;
-    const bd = cfg.book.depth;
-    parts.push(part(new THREE.BoxGeometry(bw + 0.02, bd + 0.02, 0.012).translate(0, 0, 0.006).applyMatrix4(bm), 0x2a3550));
-    for (const sx of [-1, 1]) parts.push(part(new THREE.BoxGeometry(bw / 2 - 0.006, bd - 0.004, 0.012).translate((sx * bw) / 4, 0, 0.018).applyMatrix4(bm), 0xf2ecd8));
     const table = new THREE.Mesh(mergeParts(parts), this.tableMat);
     table.name = 'chartTableBody';
     this.bulbMat = new THREE.MeshBasicMaterial({ color: 0x4a463e });

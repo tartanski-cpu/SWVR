@@ -1,11 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { PlayerPose } from '../src/net/protocol';
-import { CONFIG } from '../src/config';
 import { IdFactory } from '../src/core/ids';
 import type { Intent } from '../src/core/intents';
 import { stepWorld } from '../src/core/simulation';
 import { createWorld } from '../src/core/world';
-import { LOG_TYPES } from '../src/log/log';
 import { ClientSession } from '../src/net/clientSession';
 import { HostSession } from '../src/net/hostSession';
 import { LoopbackHost } from '../src/net/transport';
@@ -71,37 +69,16 @@ describe('transit jobs', () => {
     expect(v.engine.oil!).toBeGreaterThan(0.9);
     expect(d.doneAt).toBeDefined();
   });
-
-  it('a received forecast becomes a log entry to sign, with its text', () => {
-    const { world, run, localPlayerId } = setup();
-    run(0.1);
-    world.forecast = { text: 'Wind south-west 4. Fair.', receivedAt: '10:40', seq: (world.forecast?.seq ?? 0) + 1, at: world.time, next: 'Rain' };
-    run(0.1);
-    expect(world.log!.events.some((e) => e.type === 'forecast')).toBe(true);
-    const t = LOG_TYPES.indexOf('forecast');
-    stepWorld(world, [{ playerId: localPlayerId, targetId: 'env', control: 'logBegin', value: 1, args: [t] } as Intent], DT);
-    stepWorld(world, [{ playerId: localPlayerId, targetId: 'env', control: 'logSign', value: 1 } as Intent], DT);
-    const e = world.log!.voyages.at(-1)!.entries.at(-1)!;
-    expect(e.type).toBe('forecast');
-    expect(e.remarks).toMatch(/10:40: Wind south-west 4/);
-  });
 });
 
-describe('multiplayer: log and tools', () => {
-  it('the log travels in its own message, not in every snapshot; a held tool reaches the others', async () => {
+describe('multiplayer: tools', () => {
+  it('a held tool reaches the others', async () => {
     const ids = new IdFactory();
-    const { world, localPlayerId } = createWorld(ids);
+    const { world } = createWorld(ids);
     const loop = new LoopbackHost();
-    const host = new HostSession(world, ids, loop, '1');
+    new HostSession(world, ids, loop, '1');
     const c = new ClientSession(loop.client(), 'Mate');
     await new Promise((r) => setTimeout(r, 0));
-    // The host writes a log entry.
-    stepWorld(world, [{ playerId: localPlayerId, targetId: 'env', control: 'logBegin', value: 1, args: [LOG_TYPES.indexOf('rescue')] } as Intent], DT);
-    stepWorld(world, [{ playerId: localPlayerId, targetId: 'env', control: 'logSign', value: 1 } as Intent], DT);
-    host.tick(1);
-    expect(c.latest!.log).toBeUndefined(); // not in the snapshot...
-    expect(c.log!.voyages[0].entries).toHaveLength(1); // ...but here
-    expect(world.log).toBeTruthy(); // the host's own world keeps it
     // The client holds the pencil: the host's world shows it in their hand.
     c.sendPose({ name: 'Mate', aboardVesselId: null, position: [0, 0, 0], yaw: 0, head: [0, 1.7, 0, 0, 0, 0, 1], left: null, right: [0.3, 1.2, 0], tool: { kind: 'pencil', hand: 'right' } });
     expect(world.players[c.playerId!].avatar!.tool).toEqual({ kind: 'pencil', hand: 'right' });
@@ -113,6 +90,5 @@ describe('multiplayer: log and tools', () => {
     expect(world.players[c.playerId!].avatar!.laser).toBeNull();
     c.sendPose({ ...pose, laser: null });
     expect(world.players[c.playerId!].avatar!.laser).toBeNull();
-    expect(CONFIG.log.keepVoyages).toBeGreaterThan(0);
   });
 });

@@ -17,10 +17,9 @@ import { stepBilge } from '../vessel/bilge';
 import { stepOil } from '../vessel/maintenance';
 import { stepWear } from '../vessel/wear';
 import { stepForecast } from '../environment/forecast';
-import { applyLogIntent, isLogIntent, stepLog } from '../log/log';
 import { applyTrafficIntent, stepTraffic } from '../traffic/traffic';
 import { stepDuties } from '../duties/duties';
-import { applyDavitIntent, onDavit, stepTender } from '../vessel/davit';
+import { applyCraneIntent, onCrane, stepTender } from '../vessel/tenderCrane';
 import { applyFireIntent, isFireIntent, stepFire } from '../fire/fire';
 import { applyTowIntent, isTowIntent, stepTow, towlineForces } from '../tow/tow';
 import { applySalvageIntent, isSalvageIntent, stepSalvage } from '../salvage/salvage';
@@ -59,10 +58,8 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
       applyCareerIntent(world, intent);
     } else if (isSalvageIntent(intent.control)) {
       applySalvageIntent(world, intent.playerId, intent.control);
-    } else if (intent.control === 'davit') {
-      applyDavitIntent(world, intent);
-    } else if (isLogIntent(intent.control)) {
-      applyLogIntent(world, intent);
+    } else if (intent.control === 'crane') {
+      applyCraneIntent(world, intent);
     } else if (intent.control === 'trafficSpawn') {
       applyTrafficIntent(world, intent);
     } else if (isCargoIntent(intent.control)) {
@@ -81,14 +78,14 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
   stepWeather(world.environment, world.time, dt);
   simWaves = prepareWaves(world.environment.waves, world.time, simWaves);
   // Boat against boat (the tender alongside), from the start-of-tick states.
-  // A tender hanging on the davit rides her ship instead (stepped below, after it).
-  const touching = vesselContacts(Object.values(world.vessels), (v) => VESSEL_DEFS[v.defId], onDavit);
+  // A tender in her cradle or on the crane rides her ship instead (stepped below, after it).
+  const touching = vesselContacts(Object.values(world.vessels), (v) => VESSEL_DEFS[v.defId], onCrane);
   // The towline (towing missions): its pull on us and on the tow.
   for (const [id, f] of towlineForces(world)) touching.set(id, [...(touching.get(id) ?? []), ...f]);
   // The trawl (fishing): its drag at the stern gallows.
   for (const [id, f] of trawlForces(world)) touching.set(id, [...(touching.get(id) ?? []), ...f]);
   for (const vessel of Object.values(world.vessels)) {
-    if (onDavit(vessel)) continue;
+    if (onCrane(vessel)) continue;
     let dbg: HydroDebug | undefined;
     if (debug) {
       dbg = debug.get(vessel.id) ?? { stations: [], upLocal: [0, 1, 0], submergedVolume: 0 };
@@ -106,14 +103,13 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
     stepDeckCargo(world, vessel, deckBefore, dt);
     stepRefuelling(vessel, VESSEL_DEFS[vessel.defId], dt, world.geography === 'archipelago');
     stepElectrics(vessel, dt);
-    stepBilge(vessel, world.environment, dt);
+    stepBilge(vessel, dt);
     stepOil(vessel, dt);
     stepWear(vessel, VESSEL_DEFS[vessel.defId], dt);
   }
-  for (const vessel of Object.values(world.vessels)) if (onDavit(vessel)) stepTender(world, vessel, dt);
+  for (const vessel of Object.values(world.vessels)) if (onCrane(vessel)) stepTender(world, vessel, dt);
 
   stepForecast(world);
-  stepLog(world);
   stepTraffic(world, dt);
   stepDuties(world);
   stepRescue(world, dt, simWaves);

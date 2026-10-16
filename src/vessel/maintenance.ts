@@ -1,7 +1,7 @@
 /**
  * Looking after the engine: lube oil. Running burns a little oil (more under load); every
  * so often an oil check falls due (a duty); the dipstick says whether it's fine or wants
- * topping up from the can by the engine hatch. Very low oil blinks the OIL lamp. No damage
+ * topping up from the can on the engine casing. Very low oil blinks the OIL lamp. No damage
  * - like the battery and the bilge, it's state for the crew to keep an eye on.
  *
  * Intents: dipstick (a check: resets the clock), oilTopUp (fills the sump).

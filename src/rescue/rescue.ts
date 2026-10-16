@@ -104,8 +104,6 @@ export interface Incident {
 
 export interface RescueState {
   seq: number;
-  /** A line for the log about the last rescue completed (log/log.ts writes it up). */
-  lastDone?: string;
   msgSeq: number;
   /** The port the boat was last in, and the run under way (if any). */
   lastPort: string | null;
@@ -268,15 +266,6 @@ function placeTargets(r: RescueState, def: RescueDef, cx: number, cz: number, co
   return out;
 }
 
-/** One line for the log: what it was, what came out of the water, where they were landed. */
-function summary(inc: Incident, landedAt?: string): string {
-  const people = inc.targets.filter((t) => t.kind === 'person').length;
-  const crates = inc.targets.length - people;
-  const what = inc.defId === 'manOverboard' ? 'Man overboard' : inc.defId === 'lostCargo' ? 'Lost deck cargo' : 'Rescue';
-  const got = [people ? `${people} person${people > 1 ? 's' : ''} recovered` : '', crates ? `${crates} crate${crates > 1 ? 's' : ''} recovered` : ''].filter(Boolean).join(', ');
-  return `${what}: ${got || 'search ended'}${landedAt ? `, landed at ${landedAt}` : ''}.`;
-}
-
 /** End the active rescue: closing message naming where to land what was recovered. */
 export function finishIncident(world: WorldState, v: VesselState): void {
   const r = world.rescue!;
@@ -286,7 +275,6 @@ export function finishIncident(world: WorldState, v: VesselState): void {
   const harbour = nearestPort(v.position[0], v.position[2]).port.name.replace(' (anchorage)', '');
   r.active = null;
   r.completed += 1;
-  r.lastDone = summary(inc);
   const np = nearestPort(v.position[0], v.position[2]).port;
   earn(world, 'rescue', { port: np.id, people: inc.targets.filter((t) => t.kind === 'person').length, text: `Rescue (${np.name.replace(' (anchorage)', '')})` });
   const run = r.run ? ` Carry on to ${portById(r.run.to)?.name.replace(' (anchorage)', '')} when you're ready.` : '';
@@ -346,7 +334,6 @@ function stepLanding(world: WorldState, r: RescueState, inc: Incident, v: Vessel
       inc.phase = 'landed';
       inc.endT = world.time + cfg.ashoreTime;
       r.completed += 1;
-      r.lastDone = summary(inc, inc.landedAt);
       const lp = PORTS.find((p) => p.name.replace(' (anchorage)', '') === inc.landedAt);
       earn(world, 'rescue', { port: lp?.id ?? null, people: people.length, text: `Rescue: survivors landed at ${inc.landedAt}` });
       r.cheer = (r.cheer ?? 0) + 1;
@@ -422,8 +409,7 @@ export function stepRescue(world: WorldState, dt: number, waves: readonly Prepar
     if (!inc.targets.some((t) => t.kind === 'person')) {
       r.active = null;
       r.completed += 1;
-      r.lastDone = summary(inc);
-      earn(world, 'rescue', { port: nearestPort(x, z).port.id, people: 0, text: 'Lost cargo recovered' });
+          earn(world, 'rescue', { port: nearestPort(x, z).port.id, people: 0, text: 'Lost cargo recovered' });
     }
   }
   if (inc?.phase === 'calling') {

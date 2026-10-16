@@ -1,6 +1,6 @@
 /**
- * The duty board's task list: everything the game asks of the crew (start-up, and later
- * log entries due, fog signal, close hatches, transit jobs). Plain data in WorldState, so
+ * The duty board's task list: everything the game asks of the crew (start-up, fog signal,
+ * weather, transit jobs). Plain data in WorldState, so
  * it is host-authoritative and shared like the rest; the board view only draws it. The
  * crew's own whiteboard (board/board.ts) is separate and never gets game tasks.
  *
@@ -15,8 +15,8 @@
  *   fogSignal   under way in restricted visibility (COLREG rule 35): nav lights on and a
  *               prolonged blast on the horn (4 s+) every two minutes. The blast step un-ticks
  *               when the next one is due. Done when the fog clears (if you sounded it).
- *   secure      rain or a squall forecast (or here): close the forepeak hatch, lash the deck
- *               cargo (wipers on, optional). Dropped if the weather turns fair first.
+ *   secure      rain or a squall forecast (or here) with loose cargo on deck: lash it
+ *               (wipers on, optional). Dropped if the weather turns fair first.
  *   bilge       water over the alarm level: bilge breaker on, pump her dry.
  *   fendersOut  coming up to a berth under way with the fenders in: put them out.
  *   fendersIn   out of harbour with them still hanging over the side: take them in.
@@ -26,7 +26,6 @@
  *   rescue      a distress call (answer it), the search and recovery, landing survivors.
  *   tow         a tow job: answer the call, make fast, bring her into a harbour.
  *   fire        a fire job: answer the call, pump on, put it out with the monitor.
- * The log is optional (owner request): writing entries never shows up here.
  */
 import { CONFIG } from '../config';
 import type { WorldState } from '../core/world';
@@ -147,10 +146,10 @@ function stepFogSignal(world: WorldState, d: DutiesState, v: VesselState): void 
   }
 }
 
-/** Heavy weather coming (forecast) or here: hatch shut, cargo lashed. */
+/** Heavy weather coming (forecast) or here: deck cargo lashed. */
 function stepSecure(world: WorldState, d: DutiesState, v: VesselState): void {
   const w = world.environment.weather;
-  if (!w || !VESSEL_DEFS[v.defId].hatch) return;
+  if (!w) return;
   const now = world.time;
   const wet = (p: string) => p === 'Rain' || p === 'Squall';
   const fc = world.forecast;
@@ -159,22 +158,20 @@ function stepSecure(world: WorldState, d: DutiesState, v: VesselState): void {
   const loose = Object.values(world.cargo).some((c) => 'vessel' in c.at && c.at.vessel === v.id && !c.at.lashed);
   let duty = open(d, 'secure');
   if (!duty) {
-    if (!heavy || (v.controls.hatch <= 0 && !loose)) return;
+    if (!heavy || !loose) return;
     duty = addDuty(
       d,
       'secure',
       `${w.preset === 'Squall' || fc?.next === 'Squall' ? 'Squall' : 'Rain'}${wet(w.preset) ? '' : ' coming'}: secure the boat`,
       [
-        { text: 'Close the forepeak hatch (foredeck)', done: false },
         { text: 'Lash all deck cargo', done: false },
         { text: 'Wipers ON (switch by the helm)', done: false, optional: true },
       ],
       now,
     );
   }
-  duty.steps[0].done = v.controls.hatch <= 0;
-  duty.steps[1].done = !loose;
-  duty.steps[2].done = v.controls.wipers > 0;
+  duty.steps[0].done = !loose;
+  duty.steps[1].done = v.controls.wipers > 0;
   if (!heavy) duty.expireAt = now; // fair again before it was done
 }
 
@@ -191,15 +188,13 @@ function stepBilgeDuty(world: WorldState, d: DutiesState, v: VesselState): void 
       'Bilge alarm: water below',
       [
         { text: 'BILGE breaker ON (the pump)', done: false },
-        { text: 'Close the forepeak hatch', done: false, optional: true },
         { text: 'Bilge pumped dry', done: false },
       ],
       world.time,
     );
   }
   duty.steps[0].done = isPowered(v, 'bilge');
-  duty.steps[1].done = v.controls.hatch <= 0;
-  duty.steps[2].done = v.bilge < 0.02;
+  duty.steps[1].done = v.bilge < 0.02;
 }
 
 /** Fenders: out coming alongside, in again once clear of the harbour. */
@@ -228,7 +223,7 @@ function stepFenders(world: WorldState, d: DutiesState, v: VesselState): void {
 /** Under way with loose cargo: lash it (a weather "secure" duty covers it when up). */
 function stepLash(world: WorldState, d: DutiesState, v: VesselState): void {
   const [x, , z] = v.position;
-  const away = PORTS.every((p) => Math.hypot(p.x - x, p.z - z) > CONFIG.log.harbourRadius);
+  const away = PORTS.every((p) => Math.hypot(p.x - x, p.z - z) > CONFIG.rescue.harbourRadius);
   const loose = Object.values(world.cargo).some((c) => 'vessel' in c.at && c.at.vessel === v.id && !c.at.lashed);
   let duty = open(d, 'lash');
   if (!duty && away && loose && v.engine.phase === 'running' && !open(d, 'secure')) {
@@ -248,7 +243,7 @@ function stepOilDuty(world: WorldState, d: DutiesState, v: VesselState): void {
       'oil',
       'Engine check: oil',
       [
-        { text: 'Pull the dipstick (engine hatch, aft starboard)', done: false },
+        { text: 'Pull the dipstick (engine casing, aft starboard)', done: false },
         { text: 'Top up from the oil can if it reads low', done: false, optional: true },
       ],
       world.time,

@@ -35,7 +35,7 @@ export function placeVessel(
   s.orientation = [q.x, q.y, q.z, q.w];
   s.linearVelocity = [0, 0, 0];
   s.angularVelocity = [0, 0, 0];
-  // A tender placed somewhere is off her davit and afloat.
+  // A tender placed somewhere is off the crane and afloat.
   if (s.tender) s.tender = { hostId: s.tender.hostId, phase: 'free', t: 0 };
 }
 
@@ -118,8 +118,6 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
         s.engine.sinceCheck = 1e6;
       }
       break;
-    case 'hatch':
-      s.controls.hatch = intent.value > 0.5 ? 1 : 0;
       break;
     case 'engineStartStop': {
       const def = VESSEL_DEFS[s.defId];

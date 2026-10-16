@@ -3,9 +3,9 @@
  *   FenderBasket  a basket of fenders on the aft deck; a press puts all six out over the
  *                 side or takes them in (`fenders`). FendersView draws them (one instanced
  *                 draw call): hanging outside the hull when out, lying along the bulwark in.
- *   Dipstick      in the engine hatch in the wheelhouse floor: a press pulls it and reads
- *                 the oil (`dipstick`; the App says what it shows).
- *   OilCan        by the hatch: a press tops the sump up (`oilTopUp`).
+ *   Dipstick      in the engine casing's lid (wheelhouse, aft starboard): a press pulls it
+ *                 and reads the oil (`dipstick`; the App says what it shows).
+ *   OilCan        on the lid by the filler cap: a press tops the sump up (`oilTopUp`).
  */
 import * as THREE from 'three';
 import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';

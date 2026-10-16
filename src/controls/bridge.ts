@@ -16,8 +16,7 @@ import { RadioSet } from '../rescue/radioView';
 import { ChartPlotter } from '../nav/chartPlotter';
 import { OverheadPanel } from './overheadPanel';
 import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
-import { Hatch } from './Hatch';
-import { WheelhouseDoor } from './WheelhouseDoor';
+import { DoorButton, WheelhouseDoor } from './WheelhouseDoor';
 import { MonitorView } from '../fire/monitorView';
 import { hullPlan } from '../vessel/layout';
 import { RainGlass } from '../vessel/view/rainGlass';
@@ -48,7 +47,7 @@ export class Bridge {
   readonly rainGlass: RainGlass;
   /** The fire monitor on the roof (boats that have one). */
   private monitor: MonitorView | null = null;
-  /** The aft door (press to open / shut). */
+  /** The aft door (its push buttons on the frame open / shut it). */
   readonly door: WheelhouseDoor;
   /** The fenders over the side or stowed (boats that carry them). */
   private readonly fenders: FendersView | null = null;
@@ -106,7 +105,7 @@ export class Bridge {
     this.controls.push(wheel, lever, start, heat, key, horn, nav, anchor, cabin, dock, spot, wipers, joy, this.radio.handset, ...this.overhead.controls);
     // Fire monitor (fire missions): the FIRE PUMP switch, its joystick (red knob) and the
     // monitor itself on the roof.
-    const extraLabels: [string, [number, number, number]][] = [];
+    const extraLabels: Label[] = [];
     if (def.fireMonitor) {
       const m = def.fireMonitor;
       const pump = new Toggle('firePump', 'firePump', 'FIRE PUMP (needs the engine running)', (s) => s.controls.firePump);
@@ -128,16 +127,18 @@ export class Bridge {
     const wh = def.layout.wheelhouse;
     this.door = new WheelhouseDoor(wh.doorWidth, wh.doorHeight);
     this.door.root.position.set(0, wh.floorY, wh.aft + 0.03);
-    this.controls.push(this.door);
+    this.root.add(this.door.root);
+    // Its push buttons, on the starboard door post inside and out (the panel slides to port).
+    const db = def.layout.doorButtons;
+    const inside = new DoorButton('doorIn');
+    inside.root.position.set(db.x, wh.floorY + db.height, wh.aft - wh.wall);
+    inside.root.rotation.x = -Math.PI / 2; // facing forward, into the wheelhouse
+    const outside = new DoorButton('doorOut');
+    outside.root.position.set(db.x, wh.floorY + db.height, wh.aft);
+    outside.root.rotation.set(-Math.PI / 2, Math.PI, 0, 'YXZ'); // the same, turned to face aft
+    this.controls.push(inside, outside);
     this.rainGlass = new RainGlass(def);
     this.root.add(this.rainGlass.root);
-    // Forepeak hatch on the foredeck (boats that have one).
-    if (def.hatch) {
-      const hatch = new Hatch(def.hatch.size);
-      const [hx, hz] = def.hatch.position;
-      hatch.root.position.set(hx, hullPlan(def).deckY(hz), hz);
-      this.controls.push(hatch);
-    }
     // Fenders: the basket on the aft deck, and the six fenders themselves.
     const extraFixed: THREE.BufferGeometry[] = [];
     if (def.fenders) {
@@ -173,18 +174,32 @@ export class Bridge {
         extraFixed.push(part(new THREE.BoxGeometry(0.08, 0.025, lad.width).translate(lad.x + 0.02, y, lad.z), 0x9aa0a6));
       }
     }
-    // Engine oil: the hatch in the wheelhouse floor, the dipstick and the oil can by it.
+    // Engine oil: the engine casing (aft starboard), the dipstick, filler cap and oil can on
+    // its lid, at waist height.
     const mt = def.maintenance;
     if (mt) {
       const fy = def.layout.wheelhouse.floorY;
-      extraFixed.push(part(new THREE.BoxGeometry(0.6, 0.012, 0.6).translate(mt.hatch[0], fy + 0.006, mt.hatch[1]), 0x6a6e72));
-      extraFixed.push(part(new THREE.BoxGeometry(0.12, 0.02, 0.03).translate(mt.hatch[0], fy + 0.016, mt.hatch[1] - 0.24), 0x2a2e32));
+      const c = mt.casing;
+      const top = fy + c.height;
+      const box = (ax: number, bx: number, ay: number, by: number, az: number, bz: number, col: number) =>
+        part(new THREE.BoxGeometry(bx - ax, by - ay, bz - az).translate((ax + bx) / 2, (ay + by) / 2, (az + bz) / 2), col);
+      extraFixed.push(box(c.x0, c.x1, fy, top - 0.03, c.z0, c.z1, 0x46525a)); // casing
+      extraFixed.push(box(c.x0 - 0.012, c.x1, top - 0.03, top, c.z0 - 0.012, c.z1 + 0.012, 0x56626a)); // lid
+      extraFixed.push(box(c.x0 - 0.03, c.x0 - 0.012, top - 0.022, top - 0.006, (c.z0 + c.z1) / 2 - 0.1, (c.z0 + c.z1) / 2 + 0.1, 0x2a2e32)); // lid handle
+      // Air grilles low on the inboard face.
+      for (let i = 0; i < 5; i++) {
+        const y = fy + 0.12 + i * 0.05;
+        extraFixed.push(box(c.x0 - 0.006, c.x0, y, y + 0.018, c.z0 + 0.12, c.z1 - 0.12, 0x23292d));
+      }
+      // The filler cap (yellow, like the dipstick ring).
+      extraFixed.push(part(new THREE.CylinderGeometry(0.036, 0.04, 0.035, 12).translate(mt.filler[0], top + 0.0175, mt.filler[1]), 0xe8c020));
       const dip = new Dipstick();
-      dip.root.position.set(mt.dipstick[0], fy, mt.dipstick[1]);
+      dip.root.position.set(mt.dipstick[0], top, mt.dipstick[1]);
       const can = new OilCan();
-      can.root.position.set(mt.oilCan[0], fy, mt.oilCan[1]);
-      can.root.rotation.y = 0.4;
+      can.root.position.set(mt.oilCan[0], top, mt.oilCan[1]);
+      can.root.rotation.y = Math.PI / 2 + 0.3; // spout toward the filler
       this.controls.push(dip, can);
+      extraLabels.push(['ENGINE OIL', [mt.filler[0], top, mt.filler[1] - 0.13]]);
     }
     // 12 V: battery master on the aft wall by the door, voltmeter panel by the helm.
     const el = def.electrics;
@@ -224,6 +239,19 @@ export class Bridge {
     if (def.fireMonitor) extraFixed.push(pedestalAt(def.fireMonitor.joystick[0]));
     this.instruments = new InstrumentPanel(b);
     this.dashAnchor.position.set(0, (d.top + d.bottom) / 2, d.aft);
+    // Group plates under the switch row (see consoleGroups), a coloured strip along the
+    // forward edge of each, its title on the strip.
+    // On the flat panel behind the console's raised front (vessel/view/hullMesh.ts).
+    const wh2 = def.layout.wheelhouse;
+    const top = floorY + wh2.consoleHeight + 0.005;
+    const plateFront = wh2.front + wh2.wall + wh2.consoleDepth * 0.45 + 0.005;
+    const plateAft = wh2.front + wh2.wall + wh2.consoleDepth - 0.05;
+    for (const g of b.consoleGroups) {
+      const [x0, x1] = g.x;
+      extraFixed.push(part(new THREE.BoxGeometry(x1 - x0, 0.004, plateAft - plateFront).translate((x0 + x1) / 2, top + 0.002, (plateFront + plateAft) / 2), 0x3b434a));
+      extraFixed.push(part(new THREE.BoxGeometry(x1 - x0, 0.005, 0.028).translate((x0 + x1) / 2, top + 0.0025, plateFront + 0.014), g.color));
+      extraLabels.push([g.title, [(x0 + x1) / 2, top + 0.004, plateFront + 0.014 - LABEL_OFFSET], true]);
+    }
     this.root.add(bakeFixedParts(this.root, [dash, pedestal, spotPedestal, this.overhead.body, ...extraFixed]), this.instruments.mesh, buildLabels(b, extraLabels), this.dashAnchor);
   }
 
@@ -238,6 +266,7 @@ export class Bridge {
       c.tick(dt);
     }
     if (displaysInView) this.instruments.update(state, this.def, dt, env);
+    this.door.sync(state);
     this.overhead.update(state);
     this.electrics?.update(state, dt);
     this.lamps.update(state, this.def);
@@ -266,9 +295,14 @@ function bakeFixedParts(root: THREE.Object3D, extra: THREE.BufferGeometry[]): TH
   return mesh;
 }
 
+/** A label: its text, the control it names (it lies just aft of it), and dark-on-light (a group title). */
+type Label = [string, [number, number, number]] | [string, [number, number, number], boolean];
+/** How far aft of its control a label lies (m). */
+const LABEL_OFFSET = 0.085;
+
 /** Small engraved labels on the console top in front of each control (one draw call). */
-function buildLabels(b: WorkboatDef['bridge'], extra: [string, [number, number, number]][] = []): THREE.Mesh {
-  const labels: [string, [number, number, number]][] = [
+function buildLabels(b: WorkboatDef['bridge'], extra: Label[] = []): THREE.Mesh {
+  const labels: Label[] = [
     ['AHEAD ▲  ▼ ASTERN', b.lever.position],
     ['START', b.startButton.position],
     ['HEAT', b.heatButton.position],
@@ -293,7 +327,10 @@ function buildLabels(b: WorkboatDef['bridge'], extra: [string, [number, number, 
   g.font = 'bold 40px system-ui, sans-serif';
   g.textAlign = 'center';
   g.textBaseline = 'middle';
-  labels.forEach(([text], i) => g.fillText(text, slotW / 2, slotH * i + slotH / 2));
+  labels.forEach(([text, , title], i) => {
+    g.fillStyle = title ? '#101418' : '#e8e2cc';
+    g.fillText(text, slotW / 2, slotH * i + slotH / 2);
+  });
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
 
@@ -305,7 +342,7 @@ function buildLabels(b: WorkboatDef['bridge'], extra: [string, [number, number, 
       uv.setXY(k, uv.getX(k), v0 + uv.getY(k) / labels.length);
     }
     plane.rotateX(-Math.PI / 2);
-    plane.translate(pos[0], pos[1] + 0.002, pos[2] + 0.085);
+    plane.translate(pos[0], pos[1] + 0.002, pos[2] + LABEL_OFFSET);
     return plane;
   });
   const mesh = new THREE.Mesh(mergeGeometries(planes), new THREE.MeshBasicMaterial({ map: texture, transparent: true }));

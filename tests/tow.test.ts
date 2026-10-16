@@ -140,7 +140,7 @@ describe('towing missions', { timeout: 30000 }, () => {
     expect(world.rescue!.radio?.text).toMatch(/parted/);
   });
 
-  it('slow in a port it is delivered, counted and logged; the harbour takes it away soon after', () => {
+  it('slow in a port it is delivered and counted; the harbour takes it away soon after', () => {
     const { world, v, send, run } = setup();
     placeVessel(v, 0, 0, -400, 0);
     run(1);
@@ -154,8 +154,6 @@ describe('towing missions', { timeout: 30000 }, () => {
     expect(job.phase).toBe('delivered');
     expect(world.tow!.delivered).toBe(1);
     expect(world.rescue!.completed).toBe(before + 1);
-    expect(world.rescue!.lastDone).toMatch(/Tow/);
-    expect(world.log?.events.some((e) => e.type === 'rescue')).toBe(true);
     // Still there for a moment (even with us right beside her), then gone, and the job is over.
     placeVessel(v, port.x + 30, 0, port.z, 0);
     run(1);
@@ -196,7 +194,7 @@ describe('towing missions', { timeout: 30000 }, () => {
     expect(world.tow!.cleared).toBe(1);
   });
 
-  it('tow anything: our skiff once she is afloat (not on her davit); the menu makes fast to the nearest', () => {
+  it('tow anything: our skiff once she is afloat (not in her cradle); the menu makes fast to the nearest', () => {
     const ids = new IdFactory();
     const { world, vesselId } = createWorld(ids, undefined, { tender: true });
     world.environment.waves = [];
@@ -205,7 +203,7 @@ describe('towing missions', { timeout: 30000 }, () => {
     const send = (control: string, ref?: string) => stepWorld(world, [{ playerId: 'player-1', targetId: v.id, control, value: 1, ref }], DT);
     placeVessel(v, 0, 0, -400, 0);
     stepWorld(world, [], DT);
-    expect(towTargets(world)).not.toContain(`v:${skiff.id}`); // on the davit
+    expect(towTargets(world)).not.toContain(`v:${skiff.id}`); // in her cradle
     send('towMake', `v:${skiff.id}`);
     expect(world.tow!.line ?? null).toBeNull();
     skiff.tender!.phase = 'free';

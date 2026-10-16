@@ -18,13 +18,11 @@ import { prepareWaves, significantWaveHeight, surfaceHeight, type PreparedWave }
 import { SurfaceProbes } from '../debug/surfaceProbes';
 import { Buoys, createPlatform } from './testScene';
 import { HydroDebugView } from '../debug/hydroDebugView';
-import { onDavit, recoverCheck } from '../vessel/davit';
+import { onCrane, recoverCheck } from '../vessel/tenderCrane';
 import { isPowered } from '../vessel/electrics';
 import { beaufort, compass8, visibilityAt, windVector } from '../environment/weather';
 import { RainView } from '../environment/rainView';
 import { ChartTableView } from '../vessel/view/chartTable';
-import { LogbookView, type LogbookContext } from '../log/logbookView';
-import { parseLog, serializeLog } from '../log/log';
 import { dipstickReading } from '../vessel/maintenance';
 import { TrafficView } from '../traffic/trafficView';
 import { SHIP_NAMES } from '../traffic/traffic';
@@ -32,7 +30,7 @@ import { ChartTools, type ChartToolsContext } from '../chart/chartTools';
 import { applyChartOp, createMarks, parseMarks, pointCount, serializeMarks, type ChartOp } from '../chart/marks';
 import { WindSock } from '../vessel/view/windSock';
 import { DutyBoardView } from '../duties/dutyBoardView';
-import { DavitGear } from '../controls/DavitGear';
+import { TenderCraneView } from '../controls/TenderCraneView';
 import { asWorkboat, VESSEL_DEFS, type WorkboatDef } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
 import { VesselView } from '../vessel/view/vesselView';
@@ -106,8 +104,6 @@ import { AvatarsView } from '../net/avatarView';
  */
 /** Where the host keeps the whiteboard's notes between visits. */
 const BOARD_KEY = 'swvr.board';
-/** ...and the ship's log (the last few voyages). */
-const LOG_KEY = 'swvr.log';
 const LAST_CODE_KEY = 'swvr.lastGameCode';
 /** ...and the pencil marks on the paper chart. */
 const CHART_KEY = 'swvr.chart';
@@ -205,8 +201,8 @@ export class App {
   /** Small wheelhouse parts, hidden from outside (performance; app/interiorDetail.ts). */
   private interior: InteriorDetail | null = null;
   private readonly detailV = new THREE.Vector3();
-  /** Stern davits, one per tender. */
-  private readonly davits: DavitGear[] = [];
+  /** Tender cranes, one per tender. */
+  private readonly cranes: TenderCraneView[] = [];
   private lastAnchorPhase: string | null = null;
   /** Rain streaks around the viewer (the one capped weather effect). */
   readonly rain = new RainView();
@@ -225,9 +221,8 @@ export class App {
   private crouchY = 0;
   private board: BoardView | null = null;
   private dutyBoard: DutyBoardView | null = null;
-  /** Chart table (paper chart, lamp) and the logbook on it. */
+  /** Chart table (paper chart, lamp). */
   private chartTable: ChartTableView | null = null;
-  private logbook: LogbookView | null = null;
   /** Passing ships, debris, hazard buoys; their horns; ships the lookout has called. */
   private readonly trafficView = new TrafficView();
   private hornSeen = -1;
@@ -241,7 +236,6 @@ export class App {
   private rainSlowT = 0;
   private rainFrames = 0;
   private rainFrameSum = 0;
-  private logSaved = -1;
   /** Pencil marks on the paper chart: this peer's copy (kept in step by ops; not in the world). */
   private marks = createMarks();
   private chartTools: ChartTools | null = null;
@@ -345,13 +339,13 @@ export class App {
     this.scene.add(this.laser.beam.root);
     this.scene.add(this.wildlife.root);
     for (const vessel of Object.values(this.world.vessels)) this.addVesselView(vessel);
-    // A tender's davit (arms, falls, LAUNCH / RECOVER button) on her ship's stern.
+    // A tender's crane and cradle (LAUNCH / RECOVER button on the crane) on her ship's foredeck.
     for (const vessel of Object.values(this.world.vessels)) {
-      const davit = vessel.tender && VESSEL_DEFS[this.world.vessels[vessel.tender.hostId]?.defId]?.davit;
-      if (!vessel.tender || !davit) continue;
-      const gear = new DavitGear(vessel.id, davit);
+      const hostDef = vessel.tender && VESSEL_DEFS[this.world.vessels[vessel.tender.hostId]?.defId];
+      if (!vessel.tender || !hostDef?.tenderCrane) continue;
+      const gear = new TenderCraneView(vessel.id, hostDef.tenderCrane, hullPlan(hostDef).deckY);
       this.vesselViews.get(vessel.tender.hostId)?.root.add(gear.root);
-      this.davits.push(gear);
+      this.cranes.push(gear);
     }
     const tugView = this.vesselViews.get(this.testVesselId);
     if (tugView) this.towline.attachPost(tugView.root, VESSEL_DEFS[this.world.vessels[this.testVesselId].defId]);
@@ -551,7 +545,7 @@ export class App {
     this.probes.update(this.renderWaves, this.camera);
   }
 
-  /** The workboat's engine, horn and alarm sounds; her bridge, davits, tillers and wheelhouse. */
+  /** The workboat's engine, horn and alarm sounds; her bridge, tender crane, tillers and wheelhouse. */
   private updateOwnBoat(dt: number, nowMs: number): void {
     const testView = this.vesselViews.get(this.testVesselId);
     if (testView) {
@@ -584,10 +578,10 @@ export class App {
       this.windSock?.update(testVessel, this.world.environment, dt);
       this.updateWindSound(dt);
       this.updateDetail();
-      for (const g of this.davits) {
+      for (const g of this.cranes) {
         const tv = this.world.vessels[g.tenderId];
         if (!tv) continue;
-        g.update(tv, recoverCheck(this.world, tv), this.vesselRoots.get(tv.id));
+        g.update(tv, recoverCheck(this.world, tv), this.vesselRoots.get(tv.id), dt);
         g.button.tick(dt);
       }
       for (const t of this.tillers) {
@@ -670,6 +664,7 @@ export class App {
       }
     }
     this.updateChartTable(testVessel, dt);
+    this.career.tick();
     // Host / solo: keep the rescue count in this browser too.
     const done = this.world.rescue?.completed ?? 0;
     if (!this.client && done !== this.rescuesSaved) {
@@ -723,7 +718,7 @@ export class App {
       // Water rushing past and bow slams: sound, and a light thud through the controllers.
       // The wash of the boat you're in (the skiff's, when you're in the skiff).
       const inSkiff = this.world.vessels[this.drivenVesselId()];
-      const washBoat = inSkiff && inSkiff.id !== this.testVesselId && !onDavit(inSkiff) ? inSkiff : testVessel;
+      const washBoat = inSkiff && inSkiff.id !== this.testVesselId && !onCrane(inSkiff) ? inSkiff : testVessel;
       const washD = washBoat === testVessel ? d : (this.vesselRoots.get(washBoat.id)?.position.distanceTo(this.focus) ?? d);
       const muffle = this.insideHouse ? this.closed * CONFIG.wheelhouseSound.washMuffle : 0;
       this.sound.water.update(Math.hypot(washBoat.linearVelocity[0], washBoat.linearVelocity[2]), washBoat === testVessel ? slam : 0, washBoat === testVessel ? lap : 0, washD, dt, muffle);
@@ -1196,7 +1191,7 @@ export class App {
       bilgeStatus: () => {
         const v = this.world.vessels[this.testVesselId];
         const b = v?.bilge ?? 0;
-        return `Bilge ${Math.round(b * 100)} % · hatch ${v?.controls.hatch ? 'OPEN' : 'shut'} · pump ${v && b > 0.01 && isPowered(v, 'bilge') ? 'running' : 'off'}`;
+        return `Bilge ${Math.round(b * 100)} % · pump ${v && b > 0.01 && isPowered(v, 'bilge') ? 'running' : 'off'}`;
       },
       floodBilge: () => this.pushVesselIntent('debugBilge', 0.6),
       chartStatus: () => `${this.marks.strokes.length} marks, ${pointCount(this.marks)} points`,
@@ -1240,18 +1235,18 @@ export class App {
         if (skiff) this.intents.push({ playerId: this.localPlayerId, targetId: this.localPlayerId, control: 'board', value: 1, ref: skiff.id });
       },
       skiffBattery: () => this.skiff()?.battery ?? 0,
-      davitAction: () => {
+      craneAction: () => {
         const skiff = this.skiff();
         const phase = skiff?.tender?.phase;
         if (!skiff || !phase) return '-';
         if (phase === 'stowed') return 'LAUNCH';
         if (phase !== 'free') return phase === 'lowering' ? 'Lowering...' : 'Hoisting...';
         const r = recoverCheck(this.world, skiff);
-        return r.ok ? 'RECOVER' : 'RECOVER: ' + (r.why.startsWith('bring') ? 'too far' : 'too fast');
+        return r.ok ? 'RECOVER' : 'RECOVER: ' + (r.why.startsWith('bring') ? 'bring her to the stbd bow' : 'too fast');
       },
-      davit: () => {
+      crane: () => {
         const skiff = this.skiff();
-        if (skiff) this.pushIntentTo(skiff.id, 'davit', 1);
+        if (skiff) this.pushIntentTo(skiff.id, 'crane', 1);
       },
       dropBoat: () => this.pushVesselIntent('debugDrop', 0),
       heelBoat: () => this.pushVesselIntent('debugHeel', 20),
@@ -1464,8 +1459,6 @@ export class App {
       w.salvage = snap.salvage;
       w.fishing = snap.fishing;
       w.career = snap.career;
-      // The log comes in its own messages when it changes (not in every snapshot).
-      w.log = client.log ?? snap.log;
       w.lost = snap.lost;
       w.geography = snap.geography;
       w.players = { ...snap.players, [this.localPlayerId]: me };
@@ -1689,7 +1682,7 @@ export class App {
       this.dutyBoard = new DutyBoardView(db);
       view.root.add(this.dutyBoard.root);
     }
-    // Chart table on the port side, aft half: the paper chart, its lamp, the logbook.
+    // Chart table on the port side, aft half: the paper chart and its lamp.
     const ct = this.testDef.chartTable;
     if (ct) {
       this.chartTable = new ChartTableView(ct, wh.floorY);
@@ -1697,19 +1690,9 @@ export class App {
       this.bridge.controls.push(this.chartTable.lampSwitch);
       this.chartTools = new ChartTools(this.chartTable);
       this.chartTable.root.add(this.chartTools.root);
-      // The book: its own frame has x across the pages (forward, -z), y up the page
-      // (outboard, -x) and z up, like the chart - you read it facing the wall.
-      const [bx, bz] = ct.book.center;
-      const top = this.chartTable.top;
-      this.logbook = new LogbookView(ct.book.width, ct.book.depth);
-      this.logbook.root.matrixAutoUpdate = false;
-      this.logbook.root.matrix.makeBasis(new THREE.Vector3(0, 0, -1), new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 1, 0)).setPosition(bx, top + 0.001, bz);
-      view.root.add(this.logbook.root);
-      this.scene.add(this.logbook.rayLine);
     }
     this.restoreBatteries();
     try {
-      if (!this.client) this.world.log ??= parseLog(localStorage.getItem(LOG_KEY)) ?? undefined;
       // The career (money, reputation, upgrades, her condition) carries on from the last
       // session here, in the slot last used. A first career starts with the first voyage.
       if (!this.client) this.career.restore();
@@ -1723,7 +1706,7 @@ export class App {
       // No storage: an empty board, no count.
     }
     this.interaction = new InteractionSystem(
-      [...this.bridge.controls, ...this.tillers.flatMap((t) => t.parts), ...this.davits.map((d) => d.button)],
+      [...this.bridge.controls, ...this.tillers.flatMap((t) => t.parts), ...this.cranes.map((d) => d.button)],
       (channel, value) => {
         if (channel === 'engineStartStop') return this.requestEngineStartStop();
         if (channel === 'start' && value > 0) this.startInGearHint();
@@ -1803,21 +1786,9 @@ export class App {
       this.rescueHands.updateXR(this.rescueCtx(), this.hands, this.busyHands, this.frameDt);
       for (const h of ['left', 'right'] as const) if (this.rescueHands.busy(h)) this.busyHands[h] = true;
       if (this.board && !this.noteKeys.isOpen) {
-        // The logbook lies right by the whiteboard: a ray on the book can carry on into the
-        // board behind it. The nearer of the two along the ray gets that hand.
-        const boardBusy = { ...this.busyHands };
-        for (const h of ['left', 'right'] as const) {
-          const lb = this.logbook?.rayDistance(this.hands[h].ray) ?? null;
-          const bd = this.board.rayDistance(this.hands[h].ray);
-          if (lb !== null && (bd === null || lb < bd)) boardBusy[h] = true;
-        }
-        const onBoard = this.board.updateXR(this.boardCtx(), this.hands, boardBusy);
+        const onBoard = this.board.updateXR(this.boardCtx(), this.hands, this.busyHands);
         for (const h of ['left', 'right'] as const) if (onBoard[h]) this.busyHands[h] = true;
       } else if (this.board) this.board.rayLine.visible = false;
-      if (this.logbook) {
-        const onBook = this.logbook.updateXR(this.logbookCtx(), this.hands, this.busyHands);
-        for (const h of ['left', 'right'] as const) if (onBook[h]) this.busyHands[h] = true;
-      }
       this.pointer?.hide();
       return;
     }
@@ -1851,15 +1822,12 @@ export class App {
         // The board first (the life ring hangs just behind it, outside the wall), unless
         // the mouse already holds rescue gear or cargo.
         const free = !this.cargoHands.carrying;
-        const book = free && !this.rescueHands.deskBusy && this.logbook ? this.logbook.label(this.logbookCtx(), ray) : null;
-        if (book) return book;
         const board = free && !this.rescueHands.deskBusy && this.board ? this.board.label(this.boardCtx(), ray) : null;
         const gear = free && !board ? this.rescueHands.updateDesktop(this.rescueCtx(), ray, this.headW, this.headFwd, this.frameDt) : null;
         return board ?? gear ?? this.cargoHands.updateDesktop(this.cargoCtx(), ray, this.headW, this.headFwd);
       },
       click: (ray: THREE.Ray | null) => {
         this.camera.getWorldDirection(this.headFwd);
-        if (!this.cargoHands.carrying && !this.rescueHands.deskBusy && this.logbook?.click(this.logbookCtx(), ray)) return true;
         if (!this.cargoHands.carrying && !this.rescueHands.deskBusy && this.board?.click(this.boardCtx(), ray)) return true;
         if (!this.cargoHands.carrying && this.rescueHands.desktopClick(this.rescueCtx(), ray, this.headFwd)) return true;
         return this.cargoHands.desktopClick(this.cargoCtx(), ray);
@@ -1868,25 +1836,23 @@ export class App {
   }
 
   /**
-   * The chart table: how much light falls on the chart and the book (daylight, the cabin
-   * lamp, the chart table lamp), the book's redraw and pen, and saving the log (host).
+   * The chart table: how much light falls on the chart (daylight, the cabin lamp, the chart
+   * table lamp), its tools, and saving the pencil marks (host).
    */
   private updateChartTable(v: VesselState | undefined, dt: number): void {
-    if (!this.chartTable || !this.logbook || !v) return;
+    if (!this.chartTable || !v) return;
     const lamp = v.controls.chartLamp > 0 && isPowered(v, 'deckLights');
     // The cabin lamp lights the chart; red (night) only faintly.
     const cabin = isPowered(v, 'deckLights') ? v.controls.cabinLight : 0;
     const level = Math.min(1, Math.max(0.04, this.environment.ambientIntensity * 1.1 + (cabin === 1 ? 0.45 : cabin === 2 ? 0.12 : 0) + (lamp ? 1 : 0)));
     this.chartTable.setLight(level, lamp);
-    // From outside the wheelhouse the chart, bulb, book pages, pen, tools and marks are too
+    // From outside the wheelhouse the chart, bulb, tools and marks are too
     // small to matter (and mostly behind the aft wall): skip their draw calls.
     const wh = this.testDef.layout.wheelhouse;
     const l = this.chartTable.root.worldToLocal(this.tableRef.copy(this.focus));
     const near = Math.abs(l.x) < wh.halfWidth + 0.3 && l.z > wh.front - 0.3 && l.z < wh.aft + 0.6 && l.y > wh.floorY - 0.5;
     this.chartTable.setDetail(near);
-    this.logbook.root.visible = near;
     if (this.chartTools) this.chartTools.root.visible = near;
-    this.logbook.update(this.world, this.localPlayerId, level, dt);
     this.chartTools?.refresh(this.marks);
     // Tools a crewmate is holding aren't lying on our table.
     if (this.chartTools) {
@@ -1903,16 +1869,6 @@ export class App {
         localStorage.setItem(CHART_KEY, serializeMarks(this.marks));
       } catch {
         // Not saved.
-      }
-    }
-    this.career.tick();
-    const log = this.world.log;
-    if (log && !this.client && log.seq !== this.logSaved) {
-      this.logSaved = log.seq;
-      try {
-        localStorage.setItem(LOG_KEY, serializeLog(log));
-      } catch {
-        // Not saved; still shared.
       }
     }
   }
@@ -1933,26 +1889,6 @@ export class App {
       pulse: (h, i, ms) => this.xrInput.pulse(h, i, ms),
       notify: (text) => this.overlay.notify(text, 2.5),
       scratch: (p, r) => this.sound.paper.setScratch(p, r),
-    };
-  }
-
-  /** Light enough to read the log: daylight, or the chart table lamp. */
-  private canReadLog(): boolean {
-    const v = this.world.vessels[this.testVesselId];
-    const lamp = !!v && v.controls.chartLamp > 0 && isPowered(v, 'deckLights');
-    return lamp || this.environment.ambientIntensity >= CONFIG.log.readLight;
-  }
-
-  /** The logbook's view of the app. */
-  private logbookCtx(): LogbookContext {
-    return {
-      world: this.world,
-      playerId: this.localPlayerId,
-      push: (control, ref, args) => this.intents.push({ playerId: this.localPlayerId, targetId: ENVIRONMENT_ID, control, value: 1, ref, args }),
-      pulse: (h, i, ms) => this.xrInput.pulse(h, i, ms),
-      canRead: () => this.canReadLog(),
-      notify: (text) => this.overlay.notify(text, 3),
-      sound: (kind) => this.sound.paper.play(kind),
     };
   }
 
@@ -2044,7 +1980,8 @@ export class App {
 
   /**
    * Performance: the wheelhouse's small parts only when you're in or at it, and the stowed
-   * skiff's tiller (she can't be driven on the davit) not at all.
+   * skiff's outboard and tiller (18 draw calls) only when they can be seen: from the
+   * wheelhouse or the foredeck, or from close by off the boat (not from the aft deck).
    */
   private updateDetail(): void {
     const root = this.vesselRoots.get(this.testVesselId);
@@ -2054,10 +1991,15 @@ export class App {
       if (CONFIG.debug.logDetail) console.info(`interior detail: ${this.interior.count} parts`);
     }
     const me = this.world.players[this.localPlayerId];
-    this.interior.update(me?.aboardVesselId === this.testVesselId ? root.worldToLocal(this.camera.getWorldPosition(this.detailV)) : null);
+    const aboard = me?.aboardVesselId === this.testVesselId;
+    const eye = this.camera.getWorldPosition(this.detailV);
+    const near = (id: string) => this.vesselRoots.get(id)?.position.distanceTo(eye) ?? Infinity;
+    if (aboard) root.worldToLocal(eye);
+    this.interior.update(aboard ? eye : null);
+    const forward = aboard && eye.z < this.testDef.layout.wheelhouse.aft + 0.5;
     for (const t of this.tillers) {
       const phase = this.world.vessels[t.vesselId]?.tender?.phase;
-      t.root.visible = phase === undefined || phase === 'free';
+      t.root.visible = phase !== 'stowed' || forward || (!aboard && near(t.vesselId) < 25);
     }
   }
 

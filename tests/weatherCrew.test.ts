@@ -4,6 +4,7 @@ import { IdFactory } from '../src/core/ids';
 import type { Intent } from '../src/core/intents';
 import { stepWorld } from '../src/core/simulation';
 import { createWorld } from '../src/core/world';
+import type { CargoItem } from '../src/cargo/cargo';
 import { forecastText } from '../src/environment/forecast';
 import { loadAmps } from '../src/vessel/electrics';
 import { placeVessel } from '../src/vessel/vesselControl';
@@ -78,18 +79,16 @@ describe('weather and the crew', () => {
     expect(L.dist).toBeGreaterThanOrEqual(CONFIG.weather.lightning.dist[0]);
   });
 
-  it('an open hatch in the rain fills the bilge; the pump (float switch) empties it', () => {
+  it('a damaged hull leaks into the bilge; the pump (float switch) empties it', () => {
     const { v, send, run } = setup('Rain');
     send('brk_bilge', 0);
-    expect(v.controls.hatch).toBe(1); // starts open
-    expect(loadAmps(v, EL)).toBeGreaterThan(0);
     const dry = loadAmps(v, EL);
     run(60);
-    expect(v.bilge!).toBeGreaterThan(0.05);
-    send('hatch', 0);
-    const level = v.bilge!;
-    run(30);
-    expect(v.bilge!).toBeCloseTo(level, 5); // shut: no more water in
+    expect(v.bilge!).toBe(0); // sound hull: rain doesn't get below
+    v.damage = 0.5;
+    run(20);
+    expect(v.bilge!).toBeGreaterThan(0.2);
+    v.damage = 0;
     send('brk_bilge', 1);
     run(0.1);
     expect(loadAmps(v, EL)).toBeCloseTo(dry + EL.loads.bilge, 5); // the pump runs...
@@ -112,19 +111,23 @@ describe('weather and the crew', () => {
     expect(d.doneAt).toBeDefined();
   });
 
-  it('rain forecast: a duty to secure the boat - hatch shut, cargo lashed', () => {
-    const { world, env, send, run, duty } = setup('Clear');
+  it('rain forecast with loose deck cargo: a duty to lash it', () => {
+    const { world, v, env, run, duty } = setup('Clear');
     env.weather!.next = { preset: 'Rain', at: world.time + 300 };
     env.weather!.forecastAt = world.time;
+    run(0.2);
+    expect(duty('secure')).toBeUndefined(); // nothing loose on deck: nothing to do
+    const item: CargoItem = { id: 'wx-crate', kind: 0, mass: 40, from: 'calder', to: 'brannock', at: { vessel: v.id, pos: [0, 1, 3], yaw: 0, vel: [0, 0], lashed: false } };
+    world.cargo[item.id] = item;
     run(0.2);
     const d = duty('secure')!;
     expect(d).toBeTruthy();
     expect(d.title).toMatch(/Rain coming/);
     expect(d.steps[0].done).toBe(false);
-    send('hatch', 0);
+    if ('vessel' in item.at) item.at.lashed = true;
     run(0.1);
     expect(d.steps[0].done).toBe(true);
-    expect(d.doneAt).toBeDefined(); // no cargo aboard: lashed by default
+    expect(d.doneAt).toBeDefined(); // the wipers are optional
   });
 
   it('fog under way: nav lights and a prolonged blast every two minutes', () => {

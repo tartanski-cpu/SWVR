@@ -15,7 +15,7 @@ export class Button extends Control {
   constructor(
     id: string,
     channel: string,
-    /** Hover text; may be changed (the davit button says what it will do). */
+    /** Hover text; may be changed (the tender crane's button says what it will do). */
     public label: string,
     private readonly mode: 'momentary' | 'pulse',
     capColor: number,

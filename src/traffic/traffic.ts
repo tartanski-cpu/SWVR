@@ -8,20 +8,15 @@
  *            `spawnDist` away, the whole track checked in deep water. It goes when it's
  *            `despawn` m off and opening. Each has an AIS name (the plotter shows them all,
  *            fog or not).
- *   sighted  the first time a ship comes within min(sightRange, visibility x sightVis), a
- *            "vessel sighted" log event with its true type and bearing (one at a time: a
- *            sighting waits while the last is still unlogged,
- *            and they're spaced `sightEvery` s so the log isn't a chore).
- *   hazards  floating debris (spawned now and then ahead of the boat, drifting downwind),
- *            the rocks and the hazard buoys (config). Passing within `hazardRange` with it
- *            in sight is a "hazard" log event (once until she's well clear again).
+ *   sighted  the first time a ship comes within min(sightRange, visibility x sightVis); the
+ *            lookout calls it out. Sightings are spaced `sightEvery` s apart.
+ *   debris   floating debris, spawned now and then ahead of the boat, drifting downwind.
  * Random choices use a deterministic hash of a counter in the state.
  */
 import { CONFIG } from '../config';
 import type { Intent } from '../core/intents';
 import type { WorldState } from '../core/world';
 import { visibilityAt, windVector } from '../environment/weather';
-import { addLogEvent, pendingEvent } from '../log/log';
 import { isWorkboat, VESSEL_DEFS } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
 import { PORTS } from '../world/archipelago';
@@ -58,17 +53,15 @@ export interface TrafficState {
   seq: number;
   nextShipAt: number;
   nextDebrisAt: number;
-  /** Hazards she's been close to (ids), until she's well clear again. */
-  near: string[];
   /** Counts fog-signal answers (views play a horn when it changes; see hornFrom). */
   hornSeq: number;
   hornFrom: string | null;
-  /** World time of the last sighting put in the log (s): sightings are spaced `sightEvery`. */
+  /** World time of the last sighting (s): sightings are spaced `sightEvery`. */
   sightAt?: number;
 }
 
 export function createTraffic(time = 0): TrafficState {
-  return { ships: [], debris: [], seq: 1, nextShipAt: time + CONFIG.traffic.firstShip, nextDebrisAt: time + 120, near: [], hornSeq: 0, hornFrom: null };
+  return { ships: [], debris: [], seq: 1, nextShipAt: time + CONFIG.traffic.firstShip, nextDebrisAt: time + 120, hornSeq: 0, hornFrom: null };
 }
 
 function hash01(n: number): number {
@@ -147,16 +140,6 @@ export function spawnDebris(t: TrafficState, v: VesselState, near = false): Debr
   return null;
 }
 
-/** The hazards near a point: debris, rocks and hazard buoys, with their log word. */
-export function hazards(t: TrafficState): { id: string; x: number; z: number; word: string }[] {
-  const c = CONFIG.traffic;
-  return [
-    ...t.debris.map((d) => ({ id: d.id, x: d.x, z: d.z, word: 'Debris' })),
-    ...c.rocks.map((r, i) => ({ id: `rocks${i}`, x: r.x, z: r.z, word: 'Rocks' })),
-    ...c.buoys.map((b, i) => ({ id: `buoy${i}`, x: b.x, z: b.z, word: 'Buoy' })),
-  ];
-}
-
 export function stepTraffic(world: WorldState, dt: number): void {
   const t = (world.traffic ??= createTraffic(world.time));
   const v = workboat(world);
@@ -180,13 +163,11 @@ export function stepTraffic(world: WorldState, dt: number): void {
     s.x += Math.sin(s.course) * s.speed * dt;
     s.z -= Math.cos(s.course) * s.speed * dt;
     const d = Math.hypot(s.x - bx, s.z - bz);
-    // Sighted: a log event, unless an earlier sighting is still waiting to be logged.
+    // Sighted (the lookout calls it), spaced out so calls don't pile up.
     const spaced = world.time - (t.sightAt ?? -Infinity) >= c.sightEvery;
-    if (!s.sighted && d < sight && spaced && !(world.log && pendingEvent(world.log, 'vessel'))) {
+    if (!s.sighted && d < sight && spaced) {
       s.sighted = true;
       t.sightAt = world.time;
-      const brg = bearingTo(bx, bz, s.x, s.z);
-      addLogEvent(world, { type: 'vessel', truth: { ship: SHIP_NAMES[s.type] }, bearing: brg });
     }
     // In restricted visibility: a prolonged blast every two minutes (COLREG rule 35).
     if (fog && d < c.hornRange && world.time - s.hornAt > 120) {
@@ -208,16 +189,6 @@ export function stepTraffic(world: WorldState, dt: number): void {
     d.z += (CONFIG.rescue.drift[1] + w.z * CONFIG.weather.driftPerWind) * dt;
   }
   t.debris = t.debris.filter((d) => Math.hypot(d.x - bx, d.z - bz) < c.despawn);
-  // Hazards passed close by (and in sight): log them, once until she's well clear.
-  for (const h of hazards(t)) {
-    const d = Math.hypot(h.x - bx, h.z - bz);
-    const was = t.near.includes(h.id);
-    if (!was && away && d < Math.min(c.hazardRange, vis)) {
-      t.near.push(h.id);
-      // One hazard waiting in the log at a time.
-      if (!(world.log && pendingEvent(world.log, 'hazard'))) addLogEvent(world, { type: 'hazard', truth: { hazard: h.word } });
-    } else if (was && d > c.hazardRange * 2.5) t.near = t.near.filter((id) => id !== h.id);
-  }
 }
 
 /** A prolonged blast from us in fog: the nearest ship in hearing answers with its own. */

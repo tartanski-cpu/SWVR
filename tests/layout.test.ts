@@ -32,7 +32,14 @@ describe('vessel walk area (multi-level)', () => {
   it('decks are walkable at deck level; walls, console and outboard are not', () => {
     expect(area.walkable(0, 4, DECK_AFT)).toBe(true); // aft deck
     expect(area.walkable(1.75, 0, 1.1)).toBe(true); // starboard side deck
-    expect(area.walkable(0, -3.5, 1.25)).toBe(true); // foredeck
+    expect(area.walkable(-1.3, -3.0, 1.26)).toBe(true); // foredeck, beside the skiff's cradle
+    expect(area.walkable(0, -3.5, 1.3)).toBe(false); // the cradle (the skiff in it)
+    const tc = VESSEL_DEFS.workboat.tenderCrane!;
+    expect(area.walkable(tc.column[0], tc.column[1], 1.22)).toBe(false); // the crane's column
+    const casing = VESSEL_DEFS.workboat.maintenance!.casing;
+    expect(area.walkable((casing.x0 + casing.x1) / 2, (casing.z0 + casing.z1) / 2, wh.floorY)).toBe(false); // the engine casing
+    expect(area.insideSolid((casing.x0 + casing.x1) / 2, wh.floorY + casing.height - 0.1, (casing.z0 + casing.z1) / 2)).toBe(true);
+    expect(area.walkable(0.3, 0.3, wh.floorY)).toBe(true); // the aisle beside it
     expect(area.walkable(wh.halfWidth - 0.04, 0, wh.floorY)).toBe(false); // in a wall
     expect(area.walkable(0, wh.front + 0.2, wh.floorY)).toBe(false); // in the console
     expect(area.walkable(2.5, 2, 1.0)).toBe(false); // over the side

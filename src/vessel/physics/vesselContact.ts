@@ -110,7 +110,7 @@ function pushOut(a: VesselState, defA: VesselDef, b: VesselState, defB: VesselDe
 
 /**
  * Contact forces between every pair of vessels that are close enough to touch, by vessel
- * id. `skip(id)`: vessels not in the water as free bodies (a tender stowed on its davit).
+ * id. `skip(id)`: vessels not in the water as free bodies (a tender in its cradle or on the crane).
  */
 export function vesselContacts(vessels: readonly VesselState[], defs: (s: VesselState) => VesselDef, skip: (s: VesselState) => boolean = () => false): Map<string, ExternalForce[]> {
   const out = new Map<string, ExternalForce[]>();

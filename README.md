@@ -92,7 +92,7 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | **Trigger** on the red key on the yellow plate (aft wall, by the door) | **Battery master** on / off. The boat starts cold and dark: master on first (voltmeter by the helm, under the starboard window) |
 | **Starting the engine** | Follow the card by the key: battery MASTER on (aft wall), INSTR breaker on, throttle in neutral, KEY on, hold HEAT until the GLOW lamp goes out (about 2.5 s cold, well under a second once the engine is warm), hold START until she runs. Stop: key off. Battery selector (1 / BOTH / 2) beside the master. The duty board on the starboard wall ticks off the start-up steps, and lists the jobs on: the cargo job, and any rescue or tow under way. Desktop E: hint (or quick start if enabled in config) |
 | **Trigger** on a breaker (panel by the helm, under the starboard window) | Breakers: Instruments, Chart, Radio, Nav lights, Deck lights, Bilge. A device works only with the master and its breaker on; a green lamp shows the circuit is live |
-| **Trigger** on the green button on the stern davit (or Menu > Boat > Skiff) | Launch the skiff / recover her (she must be close under the stern and moving with you) |
+| **Trigger** on the green button on the tender crane (foredeck, starboard, by the wheelhouse; or Menu > Boat > Skiff) | Launch the skiff / recover her (she must be alongside the starboard bow and moving with you) |
 | **Grip** on the skiff's tiller, then **trigger** | Steer by swinging the tiller; the same hand's trigger is the throttle (let go = idle). Red button on the motor: on/off; yellow lever on its side: forward / neutral / reverse |
 | B | Debug/perf panel on your left wrist (off at start): FPS, cpu/gpu frame time, draw calls, XR resolution, boat readouts |
 
@@ -113,7 +113,7 @@ The menu has six tabs along the top:
 | Boat | Board / leave; fuel and **Refuel** (at a fuel berth); anchor status; sea-trials report on a big panel in front of you (the game freezes for about a second while the trials run) |
 | Cargo | Where you are, payload, deliveries; cargo aboard (lashed or loose), and what's in the skiff (two crates or one drum) |
 | Comfort | Motion coupling ±10 %, stick walking on/off, snap-turn angle. Remembered on the device |
-| Tests | Engine oil (level, next check; **Low + check due**); traffic (spawn ship / debris); chart (clear marks, plot it yourself); electrics (power on, fill, flat); start-up (quick start, battery 1 flat); **Bilge**: level, hatch, pump, and **Flood (60 %)**; drop from 4 m, heel 20°; engine faults (fuel to 5 %, raw-water pump failure); perf panel, buoyancy view, wave probes |
+| Tests | Engine oil (level, next check; **Low + check due**); traffic (spawn ship / debris); chart (clear marks, plot it yourself); electrics (power on, fill, flat); start-up (quick start, battery 1 flat); **Bilge**: level, pump, and **Flood (60 %)**; drop from 4 m, heel 20°; engine faults (fuel to 5 %, raw-water pump failure); perf panel, buoyancy view, wave probes |
 
 ### Bridge
 
@@ -133,11 +133,17 @@ At the helm, from left to right on the console:
 
 Warning lamps in front of the key: **OIL**, **CHARGE**, **GLOW**, **NEUTRAL** and **BILGE** (blinks with water in the bilge).
 
-### Chart table and logbook
+**The console, port to starboard.** The switches are grouped on colour-coded plates:
+- **LIGHTS** (yellow): nav lights, cabin light, wipers.
+- **SEARCH · FIRE** (red): the fire pump and searchlight switches, each just ahead of its joystick. The fire monitor joystick (red knob) and the searchlight joystick (yellow knob) stand side by side on pedestals to port of the wheel: aim with the left hand, keep the throttle in the right.
+- The **horn**, just left of the wheel.
+- **DECK** (blue): DOCK, anchor, trawl, behind the throttle.
+- **ENGINE** (green): HEAT, START, the key, the warning lamps, and the start-up card.
+
+### Chart table
 
 The chart table stands along the port wall, behind the helm. On it:
 - a paper chart of the sound (north toward the wall);
-- the **logbook**, lying open;
 - a pen holder with the pen, a pencil and an eraser;
 - dividers;
 - a lamp with its own small switch (DECK LTS breaker).
@@ -157,27 +163,7 @@ The chart table stands along the port wall, behind the helm. On it:
 - In multiplayer, crewmates see the marks appear as you draw, and several people can draw at once.
 - **Plot it yourself** (Menu → Tests → Chart, or `rescue.plotYourself` in the config; off by default): rescue calls give only the last known position in latitude and longitude, and the chartplotter doesn't show the search area. Plot it on the paper chart, using the latitude and longitude scale on the chart's edges.
 
-- **Writing the log:** point at the right-hand page and pull the trigger (desktop: click).
-  1. Tick what happened: **Departure** or **Arrival**.
-  2. Read the fuel gauge and tick Full / ¾ / ½ / ¼.
-  3. Touch **Sign here**. The pen comes out of the holder and signs.
-
-  Time, position (latitude and longitude) and port fill in by themselves. A correct reading gets a green tick; a wrong one is still written (it's your log), and the arrival entry shows the voyage's score.
-- **Reading back:** use ◀ ▶ at the foot of the left page to turn back through earlier voyages. The last five voyages are kept in the browser.
-- **Entry types and what you record:**
-
-  | Entry | Comes up when | You record (checked against the truth) |
-  |---|---|---|
-  | Departure / Arrival | leaving a harbour / made fast alongside, or anchored in an anchorage | fuel from the gauge |
-  | Vessel sighted | a passing ship comes into sight | its type (cargo ship / fishing boat / yacht) and its direction from you (8 points; one point off still counts) |
-  | Hazard | passing within 200 m of floating debris, rocks or a hazard buoy | which |
-  | Weather change | the weather turns | sea (calm / moderate / rough) and visibility (good / poor), as they are when you sign |
-  | Weather forecast | a VHF forecast is received | nothing: the forecast is copied in, just sign |
-  | Rescue | a rescue is completed | nothing: the summary is filled in, just sign |
-
-  The log is **optional**: these show as "(due)" in the logbook, but never go on the duty board. One entry clears every waiting event of its type. Ship sightings come at most every 5 minutes, and unlogged events drop off after 5 minutes.
-- **One writer at a time:** while a crewmate writes an entry, the page says so. If they leave it for 90 s, you can take it over.
-- **At night** you need the chart table lamp to read or write.
+- **At night** you need the chart table lamp (or the cabin light) to read the chart.
 
 ### Transit jobs and closing up
 
@@ -186,13 +172,12 @@ The chart table stands along the port wall, behind the helm. On it:
   - Out of harbour with them still out gives "Under way: fenders in".
 - **Lash the cargo:** under way with loose cargo on deck, "Under way: lash the deck cargo" comes up.
 - **Engine oil:** the engine burns a little oil. Every 15 minutes of running, "Engine check: oil" comes up.
-  1. Pull the **dipstick** in the engine hatch (wheelhouse floor, aft, starboard). It tells you whether the oil is fine or low.
-  2. If it's low, press the red **oil can** to top up.
+  1. Pull the **dipstick** (yellow ring) on top of the **engine casing**, the waist-high box against the starboard wall at the aft end of the wheelhouse. It tells you whether the oil is fine or low.
+  2. If it's low, press the red **oil can** beside the filler cap on the casing to top up.
 
   Nearly dry, the OIL lamp blinks while running.
-- **Wheelhouse door:** the aft door has a window and opens or shuts by hand: trigger on it in VR, or click it on the desktop. It starts open, and when shut it blocks desktop walking.
+- **Wheelhouse door:** the aft door has a window and slides open or shut with the **green push button** on its starboard frame, inside and out (trigger in VR, click on the desktop). The door itself isn't a button any more, so it can't catch your hand at the whiteboard. It starts open, and when shut it blocks desktop walking.
   - **Sound:** on deck the engine is at full noise. Inside the wheelhouse it's a little quieter and duller; with the door shut it's much quieter and duller. Shutting the door also muffles the wind, rain, hull wash and fires inside.
-- **The pen:** pick it up from beside the logbook (grip) and touch a box, or the sign box, with its tip. Pointing and pulling the trigger still works too.
 
 ### Traffic and hazards
 
@@ -201,17 +186,17 @@ The chart table stands along the port wall, behind the helm. On it:
   - They carry navigation lights at night.
   - The lookout calls each one out with a clock bearing and range.
 - **In fog** ships sound a prolonged blast every 2 minutes, and the nearest one answers yours. Listen for where it comes from.
-- **Hazards:** floating debris, the rocks at Gull Rocks and the Skerry, and yellow/red hazard buoys. Pass within 200 m and it's a log entry.
+- **Hazards:** floating debris, the rocks at Gull Rocks and the Skerry, and yellow/red hazard buoys.
 - **Debug:** Menu → Tests → Traffic → **Spawn ship** / **Spawn debris** (close by).
 
 ### Weather work
 
 - **Shipping forecast:** the coastguard reads it out on the VHF every 6 minutes and soon after the weather turns: wind, sky, visibility, and what's coming and when. You only hear it with the RADIO breaker on. The last one received stays on the **duty board** (starboard wall) with its time.
-- **Rain:** drops build up on the front windows; the wipers clear them. Rain drums on the roof inside and hisses outside.
+- **Rain:** drops build up on the front windows; the wipers clear them. They are pantograph wipers hung from the header above the glass, so each blade stays upright and clears a broad band at eye height, then parks upright by the window post. Rain drums on the roof inside and hisses outside.
 - **Squalls:** gloomy light, lightning flashes, and thunder after them (count the seconds: about 3 s per km).
-- **Forepeak hatch** (foredeck, ahead of the wheelhouse; click / trigger to open or close). It starts open. Left open in the rain, water gets below: the BILGE lamp blinks and the bilge pump (BILGE breaker) pumps it out.
+- **Bilge:** a damaged hull leaks (see damage below): the BILGE lamp blinks and the bilge pump (BILGE breaker) pumps it out.
 - **Duties** the weather puts on the duty board:
-  - **Rain/Squall coming: secure the boat:** close the hatch and lash the deck cargo (wipers on is optional).
+  - **Rain/Squall coming: secure the boat:** with loose cargo on deck, lash it (wipers on is optional).
   - **Restricted visibility** (under way in fog): nav lights on, and a prolonged blast on the horn (4 s or more) every 2 minutes until it clears.
   - **Bilge alarm:** BILGE breaker on and pump her dry.
 - **Spotting:** the lookout calls out anything in the water as it comes within sight (900 m, or the visibility in fog), with a clock bearing. Survivors wave once they can see you; their strobe shows only a little beyond the visibility, but the whistle carries.
@@ -243,10 +228,10 @@ The dash shows:
 
 Out of harbour, with no other job on, a fire is reported on the VHF every 5–11 minutes. It's either a fishing boat burning at sea, or a shed ashore that you can reach from deep water. Pick up the handset to take it; the plotter marks it **FIRE**.
 
-1. **Engine running, FIRE PUMP on.** The switch is on the console, right of the wheel. The pump is engine-driven, so there's no water with the engine off.
-2. **Aim the fire monitor** on the wheelhouse roof with its joystick (red knob, on its own pedestal starboard of the throttle). Sideways pans it, forward and back raises and lowers it. The jet flies a real arc, carried by the boat's way and blown a little by the wind.
+1. **Engine running, FIRE PUMP on.** The switch is on the console, left of the wheel (SEARCH · FIRE group). The pump is engine-driven, so there's no water with the engine off.
+2. **Aim the fire monitor** on the wheelhouse roof with its joystick (red knob, on its own pedestal at the port end, beside the searchlight's). Sideways pans it, forward and back raises and lowers it. The jet flies a real arc, carried by the boat's way and blown a little by the wind.
 3. **Keep the jet on the fire.** The smoke turns to white steam when you're on target, and the radio line shows how much is left. Left alone, a fire grows. About a minute of steady hosing puts out a big one.
-4. **Out:** the coastguard thanks you, and it counts as a mission and goes in the log.
+4. **Out:** the coastguard thanks you, and it counts as a mission.
 
 The duty board walks you through it. The menu's Tests tab has debug buttons that light one close by (Boat, Shore), raise a call, or end it.
 
@@ -258,12 +243,12 @@ Out of harbour, with no rescue on, a tow call comes over the VHF every few minut
 2. **Come alongside with your stern to her bow.** Our towing post is the black bollard on the aft deck, and her **bow eye** is the orange ring on her stem.
 3. **Make fast:** take the boat hook, then touch the bow eye with its tip (VR) or click the bow eye (desktop). The menu's Boat tab has a **Tow → Make fast** button too. Our stern must be within 16 m of her bow. To **cast off**, do the same again with the line fast (hook on the bow eye), or use **Tow → Cast off** on the menu.
 4. **Tow her into any harbour.** The line is 22 m long and stretchy. Take up the slack gently: snatching it at speed (or dragging her over rocks) parts it, and you have to go back and make fast again.
-5. **Slow down inside the port** for a few seconds and the harbour takes her over. The tow counts as a mission and becomes a log event, and she is taken away a few seconds later.
+5. **Slow down inside the port** for a few seconds and the harbour takes her over. The tow counts as a mission, and she is taken away a few seconds later.
 
 Unanswered calls go away after two minutes. The menu's Tests tab has debug buttons that put a tow just astern (Cruiser, Logs, Barge), raise a call, or end the job.
 
 **Tow anything in the water.** The towline isn't only for tow jobs. Make it fast the same way (hook or menu) to:
-- **any boat afloat**, at her bow, e.g. our own skiff once she's off the davit;
+- **any boat afloat**, at her bow, e.g. our own skiff once she's off the crane;
 - **floating debris** (the planks-and-drum hazards). Towed slowly into a harbour, it's cleared away, and the harbour thanks you.
 
 One thing at a time on the line. The menu's **Tow → Make fast** picks the nearest thing within 16 m of the towing post. Floating crates from lost cargo still go on the boat hook, not the towline.
@@ -357,7 +342,7 @@ Logs nobody comes for go again after half an hour. The menu's Tests tab has **Si
 The boat has a trawl: quarter gallows with a block each side of the stern, and a winch on the aft deck.
 
 1. **Find a fishing ground:** the dashed teal rings on the chartplotter (Skerry Ground near the start, Calder Bank east of Calder Holm, The Hollows to the north-west).
-2. **Shoot the net:** the **TRAWL** switch on the console, left of the wheel. The warps run out astern and the net's orange floats show on the surface. You'll feel the drag: the engine has to work.
+2. **Shoot the net:** the **TRAWL** switch on the console, behind the throttle (DECK group). The warps run out astern and the net's orange floats show on the surface. You'll feel the drag: the engine has to work.
 3. **Tow at 2–4 knots** inside the ground. Every 30–50 s of good trawling a **box of fish** appears on the aft deck. The status line says why not if you're too slow, too fast or outside a ground.
 4. **Mind the shallows:** trawling where it's under 7 m deep fouls the net on the bottom. It holds her back hard and catches nothing until you haul it.
 5. **Haul the net** (TRAWL switch off) and **carry the boxes ashore** to any port's goods stack to land them. If the deck's full, the catch waits in the net.

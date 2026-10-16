@@ -12,7 +12,7 @@
  *              'accepted': go and get it, make the towline fast (the boat hook on its bow
  *              eye, or the menu), tow it into any port. Slow in port for a few seconds and
  *              it's 'delivered': the harbour takes it over, the line is cast off, the job
- *              counts as a completed mission (and goes in the log). The tow is taken away
+ *              counts as a completed mission. The tow is taken away
  *              a few seconds later (CONFIG.tow.removeAfter).
  *   towline    one straight spring-damper between our towing post and what it's made fast
  *              to (see CONFIG.tow and towlineForces below). It parts if snatched too hard.
@@ -147,7 +147,7 @@ export const vesselKey = (id: EntityId) => `v:${id}`;
 
 /**
  * Everything the towline can go on now: vessels afloat other than ours (a tender hanging
- * on her davit isn't afloat) and drifting debris.
+ * in her cradle or on the crane isn't afloat) and drifting debris.
  */
 export function towTargets(world: WorldState): string[] {
   const v = tug(world);
@@ -497,11 +497,9 @@ export function stepTow(world: WorldState, dt: number): void {
       job.port = name;
       job.doneT = world.time;
       t.delivered += 1;
-      // A completed mission: counted with the rescues, and the log picks it up from there.
+      // A completed mission: counted with the rescues.
       const r = (world.rescue ??= createRescueState());
       r.completed += 1;
-      const what = VESSEL_DEFS[job.defId].tow?.name ?? 'a tow';
-      r.lastDone = `Tow: ${what.replace(/^an? /, '')} brought into ${name}.`;
       earn(world, 'tow', { port: port.id, what: job.defId, text: `Tow into ${name}` });
       sayRadio(world, 'info', `${name} harbour: we have her, skipper, cast off your line. Thank you, a fine tow.`);
     }

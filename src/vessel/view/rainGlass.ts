@@ -9,20 +9,30 @@ import type { WorkboatDef } from '../vesselDef';
  *   - drops: a grid of cells (`glassCell`), each with a hashed chance of a drop; the share
  *     of cells with a drop rises with the rain and with the time since that spot was last
  *     wiped (back to full after `glassRefill` s at full rain);
- *   - wipers: one pendulum arm per pane, hanging from the window head (as on most
- *     workboats: it clears the part you look through, above the dash), sweeping +-`wiperSweepDeg`
- *     with a triangle wave of period `wiperPeriod`. For a point under the arm, when the arm
- *     last passed is worked out in the shader from the wiper's clock (two passes per
- *     sweep), so no texture is painted and nothing is uploaded per frame.
+ *   - wipers: one pantograph wiper per pane, pivoted on the header above the glass (owner
+ *     request: off the glass, for a wider clear area). Its arm swings +-`wiperSweepDeg`
+ *     with a triangle wave of period `wiperPeriod`; a parallel link keeps the blade
+ *     upright, so the blade (`wiperBlade` long, centred on the arm's tip) wipes a broad
+ *     band at eye height rather than a fan, and parks upright by the window post.
+ *     A point at (x, y) from the pivot is under the blade when the arm is at
+ *     asin(x / arm) and |y + arm cos(angle)| is within half the blade. When the blade last
+ *     passed is worked out in the shader from the wiper's clock (two passes per sweep), so
+ *     no texture is painted and nothing is uploaded per frame.
  *
  * The wipers run while switched on and powered (Instruments breaker); switched off they
  * finish the sweep and park.
  */
+/** Parts per wiper (two links, carrier, blade, boss), and the links' spacing (m). */
+const PARTS = 5;
+const LINK = 0.07;
+
 export class RainGlass {
   readonly root = new THREE.Group();
   private readonly glass: THREE.Mesh;
-  private readonly arms: THREE.InstancedMesh;
+  /** Every wiper part is a scaled unit box: one instanced draw call (PARTS per wiper). */
+  private readonly parts: THREE.InstancedMesh;
   private readonly material: THREE.ShaderMaterial;
+  /** The middle of each wiper's pair of pivots (the blade hangs below it at rest). */
   private readonly pivots: THREE.Vector3[];
   /** Wiper clock (s): runs while wiping; and time since they parked (s). */
   private clock = 0;
@@ -31,7 +41,9 @@ export class RainGlass {
   private readonly m = new THREE.Matrix4();
   private readonly q = new THREE.Quaternion();
   private readonly z = new THREE.Vector3(0, 0, 1);
-  private readonly one = new THREE.Vector3(1, 1, 1);
+  private readonly v = new THREE.Vector3();
+  private readonly s = new THREE.Vector3();
+  private readonly level = new THREE.Quaternion();
 
   constructor(def: WorkboatDef) {
     const wh = def.layout.wheelhouse;
@@ -42,8 +54,8 @@ export class RainGlass {
     const x1 = wh.halfWidth - wh.wall;
     // Pane centres between the corner posts and the mullions at x = +-0.5.
     const paneX = [(x0 + -0.5) / 2, 0, (x1 + 0.5) / 2];
-    const pivotY = head - 0.04;
-    this.pivots = paneX.map((x) => new THREE.Vector3(x, pivotY, wh.front - 0.012));
+    const pivotY = head + c.wiperPivotAbove;
+    this.pivots = paneX.map((x) => new THREE.Vector3(x, pivotY, wh.front - 0.015));
 
     const geo = new THREE.PlaneGeometry(x1 - x0, head - sill).translate((x0 + x1) / 2, (sill + head) / 2, wh.front + wh.wall * 0.5);
     this.material = new THREE.ShaderMaterial({
@@ -57,6 +69,7 @@ export class RainGlass {
         uPeriod: { value: c.wiperPeriod },
         uSweep: { value: (c.wiperSweepDeg * Math.PI) / 180 },
         uArm: { value: c.wiperArm },
+        uBlade: { value: c.wiperBlade },
         uRefill: { value: c.glassRefill },
         uCell: { value: c.glassCell },
         uPaneX: { value: new THREE.Vector3(...paneX) },
@@ -70,17 +83,18 @@ export class RainGlass {
           gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
         }`,
       fragmentShader: /* glsl */ `
-        uniform float uRain, uClock, uIdle, uPeriod, uSweep, uArm, uRefill, uCell, uPivotY, uLight;
+        uniform float uRain, uClock, uIdle, uPeriod, uSweep, uArm, uBlade, uRefill, uCell, uPivotY, uLight;
         uniform vec3 uPaneX;
         varying vec2 vPos;
         float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-        // Seconds since the wiper arm last passed this point (large if it doesn't reach it).
+        // Seconds since the upright blade last passed this point (large if it never does).
         float sinceWiped(vec2 p) {
           float px = p.x < -0.5 ? uPaneX.x : (p.x > 0.5 ? uPaneX.z : uPaneX.y);
           vec2 d = p - vec2(px, uPivotY);
-          float r = length(d);
-          float ang = atan(d.x, -d.y); // from hanging straight down, + to starboard
-          if (r < 0.08 || r > uArm || abs(ang) > uSweep) return 1000.0;
+          float s = d.x / uArm;
+          if (abs(s) > sin(uSweep)) return 1000.0;
+          float ang = asin(s); // the arm angle when the blade is over this x, + to starboard
+          if (abs(d.y + uArm * cos(ang)) > 0.5 * uBlade) return 1000.0;
           // Arm angle: a triangle wave, -A -> +A in the first half period, back in the second.
           float u = fract(uClock / uPeriod);
           float A = uSweep;
@@ -114,11 +128,10 @@ export class RainGlass {
     this.glass.visible = false;
     this.glass.renderOrder = 3;
 
-    // Wiper arms on the outside of the glass: arm and blade in one box, one instanced draw call.
-    const armGeo = new THREE.BoxGeometry(0.01, c.wiperArm, 0.01).translate(0, -c.wiperArm / 2, 0);
-    this.arms = new THREE.InstancedMesh(armGeo, new THREE.MeshLambertMaterial({ color: 0x15181a }), this.pivots.length);
-    this.arms.name = 'wipers';
-    this.root.add(this.glass, this.arms);
+    // Outside the glass: arm, parallel link, blade carrier, blade, and the boss on the header.
+    this.parts = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial({ color: 0x15181a }), this.pivots.length * PARTS);
+    this.parts.name = 'wipers';
+    this.root.add(this.glass, this.parts);
     this.pose(-(c.wiperSweepDeg * Math.PI) / 180);
   }
 
@@ -130,10 +143,27 @@ export class RainGlass {
     return u < 0.5 ? -A + 4 * A * u : A - 4 * A * (u - 0.5);
   }
 
+  /** Pose every wiper at arm angle `angle` (rad from hanging straight down, + to starboard). */
   private pose(angle: number): void {
-    this.q.setFromAxisAngle(this.z, angle); // hanging arm: + swings the tip to starboard
-    this.pivots.forEach((p, i) => this.arms.setMatrixAt(i, this.m.compose(p, this.q, this.one)));
-    this.arms.instanceMatrix.needsUpdate = true;
+    const c = CONFIG.rain;
+    const L = c.wiperArm;
+    const sin = Math.sin(angle);
+    const cos = Math.cos(angle);
+    this.q.setFromAxisAngle(this.z, angle);
+    let i = 0;
+    const put = (x: number, y: number, z: number, sx: number, sy: number, sz: number, turned: boolean) =>
+      this.parts.setMatrixAt(i++, this.m.compose(this.v.set(x, y, z), turned ? this.q : this.level, this.s.set(sx, sy, sz)));
+    for (const p of this.pivots) {
+      // The two links pivot LINK apart on the header and stay parallel (a parallelogram), so
+      // the carrier across their tips - and the blade on it - stays level and upright.
+      for (const [dx, w] of [[-LINK / 2, 0.016], [LINK / 2, 0.009]] as const) put(p.x + dx + (sin * L) / 2, p.y - (cos * L) / 2, p.z, w, L, 0.01, true);
+      const bx = p.x + sin * L;
+      const by = p.y - cos * L;
+      put(bx, by, p.z + 0.004, LINK + 0.03, 0.02, 0.014, false);
+      put(bx, by, p.z + 0.012, 0.012, c.wiperBlade, 0.012, false);
+      put(p.x, p.y, p.z, LINK + 0.05, 0.05, 0.03, false);
+    }
+    this.parts.instanceMatrix.needsUpdate = true;
   }
 
   /**

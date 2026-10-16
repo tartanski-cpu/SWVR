@@ -9,7 +9,7 @@ type WorkboatLayout = Workboat['layout'];
  * Deck layout: bulwarks, rails, walkable margins, and (on boats that have them) the
  * wheelhouse, its walkable roof and the ladder up to it.
  */
-export type LayoutConfig = Omit<WorkboatLayout, 'wheelhouse' | 'roof' | 'ladder'> & Partial<Pick<WorkboatLayout, 'wheelhouse' | 'roof' | 'ladder'>>;
+export type LayoutConfig = Omit<WorkboatLayout, 'wheelhouse' | 'roof' | 'ladder' | 'doorButtons'> & Partial<Pick<WorkboatLayout, 'wheelhouse' | 'roof' | 'ladder' | 'doorButtons'>>;
 
 /** Electric outboard (see CONFIG.vessels.skiff.outboard and physics/outboard.ts). */
 export type OutboardConfig = typeof CONFIG.vessels.skiff.outboard;
@@ -50,9 +50,8 @@ export interface VesselConfig {
   deckLights?: Workboat['deckLights'];
   spotlight?: Workboat['spotlight'];
   mooring?: Workboat['mooring'];
-  davit?: Workboat['davit'];
+  tenderCrane?: Workboat['tenderCrane'];
   electrics?: Workboat['electrics'];
-  hatch?: Workboat['hatch'];
   swimLadder?: Workboat['swimLadder'];
   fireMonitor?: Workboat['fireMonitor'];
   fishing?: Workboat['fishing'];
@@ -118,12 +117,11 @@ export interface VesselDef {
   deckLights?: VesselConfig['deckLights'];
   spotlight?: VesselConfig['spotlight'];
   mooring?: VesselConfig['mooring'];
-  /** Stern davit for a tender (optional: not part of WorkboatDef). */
-  davit?: VesselConfig['davit'];
+  /** Tender crane and cradle (optional: not part of WorkboatDef). */
+  tenderCrane?: VesselConfig['tenderCrane'];
   /** 12 V electrics (optional: not part of WorkboatDef; the skiff has its own battery). */
   electrics?: VesselConfig['electrics'];
-  /** Forepeak hatch and bilge (optional: not part of WorkboatDef). */
-  hatch?: VesselConfig['hatch'];
+  /** Bilge (optional: not part of WorkboatDef). */
   /** Swim ladder over the starboard side (optional: not part of WorkboatDef). */
   swimLadder?: VesselConfig['swimLadder'];
   /** Fire monitor on the roof (optional: not part of WorkboatDef). */
@@ -131,7 +129,7 @@ export interface VesselDef {
   /** Trawl gallows and the TRAWL switch (fishing; optional: not part of WorkboatDef). */
   fishing?: VesselConfig['fishing'];
   bilge?: VesselConfig['bilge'];
-  /** Chart table with the logbook (optional: not part of WorkboatDef). */
+  /** Chart table (optional: not part of WorkboatDef). */
   chartTable?: VesselConfig['chartTable'];
   /** Fenders and engine oil (optional: not part of WorkboatDef). */
   fenders?: VesselConfig['fenders'];
@@ -148,12 +146,12 @@ type Equipment = 'engine' | 'propeller' | 'rudder' | 'bridge' | 'navLights' | 'e
  * bridge controls, instruments, engine sound, anchor and mooring physics...) takes this.
  */
 export type WorkboatDef = VesselDef & { [K in Equipment]-?: NonNullable<VesselDef[K]> } & {
-  layout: LayoutConfig & Required<Pick<WorkboatLayout, 'wheelhouse' | 'roof' | 'ladder'>>;
+  layout: LayoutConfig & Required<Pick<WorkboatLayout, 'wheelhouse' | 'roof' | 'ladder' | 'doorButtons'>>;
 };
 
 /** Is this a fully equipped boat (see WorkboatDef)? */
 export function isWorkboat(def: VesselDef): def is WorkboatDef {
-  return !!(def.engine && def.propeller && def.rudder && def.bridge && def.navLights && def.exhaust && def.anchor && def.rescueGear && def.cabinLight && def.overheadPanel && def.whiteboard && def.deckLights && def.spotlight && def.mooring && def.layout.wheelhouse && def.layout.roof && def.layout.ladder);
+  return !!(def.engine && def.propeller && def.rudder && def.bridge && def.navLights && def.exhaust && def.anchor && def.rescueGear && def.cabinLight && def.overheadPanel && def.whiteboard && def.deckLights && def.spotlight && def.mooring && def.layout.wheelhouse && def.layout.roof && def.layout.ladder && def.layout.doorButtons);
 }
 
 /** The def as a fully equipped boat; throws if it isn't one (a programming error). */
@@ -219,9 +217,8 @@ export function fromConfig(id: string, c: VesselConfig): VesselDef {
     deckLights: c.deckLights,
     spotlight: c.spotlight,
     mooring: c.mooring,
-    davit: c.davit,
+    tenderCrane: c.tenderCrane,
     electrics: c.electrics,
-    hatch: c.hatch,
     swimLadder: c.swimLadder,
     fireMonitor: c.fireMonitor,
     fishing: c.fishing,

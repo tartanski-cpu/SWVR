@@ -37,9 +37,8 @@ export interface VesselControls {
   /** Diesel ignition: HEAT and START buttons, 1 while held (the key is in EngineState). */
   heat: number;
   start: number;
-  /** Windscreen wipers switch (0/1) and the forepeak hatch (1 open / 0 closed). */
+  /** Windscreen wipers switch (0/1). */
   wipers: number;
-  hatch: number;
   /** Chart table lamp switch (0/1; Deck lights breaker). */
   chartLamp: number;
   /** Fenders out over the side (1) or stowed (0). */
@@ -165,11 +164,11 @@ export interface VesselState {
   holds: Record<string, EntityId>;
   /** Outboard boats: battery charge, 0 (flat) .. 1 (full). */
   battery?: number;
-  /** A ship's tender: whose davit she belongs to and where she is (vessel/davit.ts). */
+  /** A ship's tender: whose crane she belongs to and where she is (vessel/tenderCrane.ts). */
   tender?: TenderState;
   /** 12 V electrics, boats that have them (vessel/electrics.ts). */
   electrics?: ElectricsState;
-  /** Water in the bilge, 0 (dry) .. 1 (full), boats with a hatch (vessel/bilge.ts). */
+  /** Water in the bilge, 0 (dry) .. 1 (full), boats with a bilge pump (vessel/bilge.ts). */
   bilge?: number;
   /** Hull damage, 0 (sound) .. 1: it leaks into the bilge (vessel/wear.ts). */
   damage?: number;
@@ -195,11 +194,11 @@ export const BREAKERS = ['instruments', 'chart', 'radio', 'navLights', 'deckLigh
 export type BreakerName = (typeof BREAKERS)[number];
 
 /**
- * A tender and her mother ship's davit.
+ * A tender and her mother ship's crane.
  *   free     - afloat, her own physics
- *   stowed   - hanging on the davit, riding the ship (kinematic), charging
+ *   stowed   - in the cradle on the foredeck, riding the ship (kinematic), charging
  *   lowering - on the falls, going down; let go at the water (`t` seconds in)
- *   hoisting - hooked on: lined up under the davit from `from`, then hoisted
+ *   hoisting - hooked on: lined up under the hook from `from`, then hoisted in
  */
 export interface TenderState {
   hostId: EntityId;
@@ -217,7 +216,7 @@ export function createVesselState(id: EntityId, defId: string): VesselState {
     orientation: [0, 0, 0, 1],
     linearVelocity: [0, 0, 0],
     angularVelocity: [0, 0, 0],
-    controls: { lever: 0, helm: 0, navLights: 0, horn: 0, anchor: 0, cabinLight: 0, spotlight: 0, spotPan: 0, spotTilt: -4, deckFore: 0, deckAft: 0, railLights: 0, fmOn: 0, fmStation: 0, obOn: 0, obGear: 0, heat: 0, start: 0, wipers: 0, chartLamp: 0, fenders: 0, door: 1, firePump: 0, monPan: 0, monTilt: 20, trawl: 0, hatch: VESSEL_DEFS[defId].hatch?.startOpen ? 1 : 0 },
+    controls: { lever: 0, helm: 0, navLights: 0, horn: 0, anchor: 0, cabinLight: 0, spotlight: 0, spotPan: 0, spotTilt: -4, deckFore: 0, deckAft: 0, railLights: 0, fmOn: 0, fmStation: 0, obOn: 0, obGear: 0, heat: 0, start: 0, wipers: 0, chartLamp: 0, fenders: 0, door: 1, firePump: 0, monPan: 0, monTilt: 20, trawl: 0 },
     engine: {
       phase: 'off',
       crank: 0,

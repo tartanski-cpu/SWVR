@@ -8,10 +8,9 @@ import { dropVessel } from '../vessel/vesselControl';
 import { createVesselState, type VesselState } from '../vessel/vesselState';
 import { IdFactory, type EntityId } from './ids';
 import { stockPorts, type CargoItem } from '../cargo/cargo';
-import { stowTender } from '../vessel/davit';
+import { stowTender } from '../vessel/tenderCrane';
 import { createWeather, rebuildWaves, seaForWind } from '../environment/weather';
 import type { Forecast } from '../environment/forecast';
-import type { LogState } from '../log/log';
 import type { TrafficState } from '../traffic/traffic';
 import type { DutiesState } from '../duties/duties';
 import { createRescueState, type RescueState } from '../rescue/rescue';
@@ -55,8 +54,6 @@ export interface WorldState {
   duties?: DutiesState;
   /** The last shipping forecast received by VHF (shown on the duty board; weather milestones). */
   forecast?: Forecast;
-  /** The ship's log: voyages, loggable events, the entry being written (log/log.ts). */
-  log?: LogState;
   /** Passing ships, floating debris (traffic/traffic.ts). */
   traffic?: TrafficState;
   /** Towing missions: the tow job and its towline (tow/tow.ts). */
@@ -74,7 +71,7 @@ export interface WorldState {
 export function createWorld(
   ids: IdFactory,
   vesselDefId: string = CONFIG.testScene.vesselDefId,
-  /** Also give the workboat her tender (the skiff, on the stern davit): the game does, tests may. */
+  /** Also give the workboat her tender (the skiff, in her cradle on the foredeck): the game does, tests may. */
   /** cold: the boat starts dark and cold, battery master off (the game; tests start warm). */
   /** tows / fires: towing and fire calls come by themselves (the game). */
   opts: { tender?: boolean; cold?: boolean; weather?: boolean; tows?: boolean; fires?: boolean; logs?: boolean } = {},
@@ -116,7 +113,7 @@ export function createWorld(
     vessel.electrics.master = 0;
     for (const k of Object.keys(vessel.electrics.breakers) as (keyof typeof vessel.electrics.breakers)[]) vessel.electrics.breakers[k] = 0;
   }
-  // The tender starts hanging on the ship's stern davit.
+  // The tender starts in her cradle on the ship's foredeck.
   if (tender) stowTender(world, tender, vesselId);
   stockPorts(world);
   return { world, localPlayerId, vesselId };

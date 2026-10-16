@@ -97,15 +97,22 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig): WalkArea {
   const consoleAft = int.z0 + wh.consoleDepth;
   const doorHalf = wh.doorWidth / 2;
   const inHouseFootprint = (x: number, z: number) => Math.abs(x) <= ext.x && z >= ext.z0 && z <= ext.z1;
-  // Furniture standing on the wheelhouse floor: the chart table (if she has one).
-  const ct = def.chartTable;
-  const atTable = (x: number, z: number, pad: number) => !!ct && x >= ct.x0 - pad && x <= ct.x1 + pad && z >= ct.z0 - pad && z <= ct.z1 + pad;
+  // Furniture standing on the wheelhouse floor: the chart table and the engine casing (if
+  // she has them). Boxes: footprint and height above the floor.
+  const furniture = [def.chartTable, def.maintenance?.casing].filter((f): f is NonNullable<typeof f> => !!f);
+  const atFurniture = (x: number, z: number, pad: number, y = -Infinity) =>
+    furniture.some((f) => x >= f.x0 - pad && x <= f.x1 + pad && z >= f.z0 - pad && z <= f.z1 + pad && y < wh.floorY + f.height);
 
   // Roof (walkable, railed) and the ladder up the aft face of the wheelhouse.
   const roof = layout.roof;
   const roofTop = wh.roofY + roof.thickness;
   const lad = layout.ladder;
   const inLadder = (x: number, z: number) => Math.abs(x - lad.x) <= lad.width / 2 && z >= ext.z1 + 0.02 && z <= ext.z1 + lad.depth;
+
+  // The tender's cradle on the foredeck and the crane's column (if she has them): solid.
+  const tc = def.tenderCrane;
+  const onCradle = (x: number, z: number) =>
+    !!tc && ((Math.abs(x - tc.stow[0]) < tc.cradle.halfWidth + r && z > tc.cradle.z0 - r && z < tc.cradle.z1 + r) || Math.hypot(x - tc.column[0], z - tc.column[1]) < tc.columnRadius + r);
 
   const surfaces: Surface[] = [
     {
@@ -114,14 +121,14 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig): WalkArea {
       contains: (x, z) => {
         const onDeck = z <= transom - layout.deckEdgeMargin && Math.abs(x) <= deckHalfBeam(z) - layout.deckEdgeMargin;
         const nearHouse = Math.abs(x) < ext.x + r && z > ext.z0 - r && z < ext.z1 + r;
-        return onDeck && !nearHouse;
+        return onDeck && !nearHouse && !onCradle(x, z);
       },
     },
     {
       // Wheelhouse floor, clear of walls and console, plus the aft doorway.
       height: () => wh.floorY,
       contains: (x, z) =>
-        (Math.abs(x) <= int.x - r && z >= consoleAft + r && z <= int.z1 - r && !atTable(x, z, r)) ||
+        (Math.abs(x) <= int.x - r && z >= consoleAft + r && z <= int.z1 - r && !atFurniture(x, z, r)) ||
         (Math.abs(x) <= doorHalf - r * 0.6 && z > int.z1 - r - 0.02 && z < ext.z1 + r + 0.02),
     },
     {
@@ -162,8 +169,8 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig): WalkArea {
       if (y > wh.roofY - 0.05) return true; // in the roof slab
       const inInterior = ax < int.x && z > int.z0 && z < int.z1;
       if (inInterior) {
-        // The helm console across the front, and the chart table.
-        if (ct && atTable(x, z, 0) && y < wh.floorY + ct.height) return true;
+        // The helm console across the front, and the furniture.
+        if (atFurniture(x, z, 0, y)) return true;
         return z < consoleAft && y < wh.floorY + wh.consoleHeight;
       }
       // In a wall: the doorway and window band are open.

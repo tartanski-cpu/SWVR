@@ -3,7 +3,7 @@ import { IdFactory } from '../src/core/ids';
 import type { Intent } from '../src/core/intents';
 import { stepWorld } from '../src/core/simulation';
 import { createWorld } from '../src/core/world';
-import { recoverCheck } from '../src/vessel/davit';
+import { launchPoint, launchTime, recoverCheck } from '../src/vessel/tenderCrane';
 import { placeVessel } from '../src/vessel/vesselControl';
 import { VESSEL_DEFS } from '../src/vessel/vesselDef';
 import { hullPlan } from '../src/vessel/layout';
@@ -30,63 +30,94 @@ function setup() {
   return { world, boat, skiff, send, run };
 }
 
-describe('the stern davit', () => {
-  const davit = VESSEL_DEFS.workboat.davit!;
+describe('the tender crane', () => {
+  const crane = VESSEL_DEFS.workboat.tenderCrane!;
+  /** Her origin in the workboat's axes. */
+  const local = (boat: { position: number[]; orientation: number[] }, skiff: { position: number[] }) =>
+    new THREE.Vector3(...(skiff.position as [number, number, number])).sub(new THREE.Vector3(...(boat.position as [number, number, number]))).applyQuaternion(new THREE.Quaternion(...(boat.orientation as [number, number, number, number])).invert());
 
-  it('one click launches her: lowered to the water, then afloat on her own', () => {
-    const { world, skiff, send, run } = setup();
+  it('the launch path: up out of the cradle clear of the rails, round over the bow, down alongside', () => {
+    const plan = hullPlan(VESSEL_DEFS.workboat);
+    const p = new THREE.Vector3();
+    const T = launchTime(crane);
+    expect(launchPoint(crane, 0, p).toArray()).toEqual(crane.stow);
+    // Slewing, she stays high enough for her keel (0.14 m under her origin) to clear the rail
+    // wherever she is over the hull, and never comes over the wheelhouse.
+    for (let t = crane.hoistTime; t <= crane.hoistTime + crane.slewTime; t += 0.1) {
+      launchPoint(crane, t, p);
+      const overHull = p.z > plan.stem && p.z < plan.transom && Math.abs(p.x) < plan.halfBeam(p.z) + 0.8;
+      if (overHull) expect(p.y - 0.14).toBeGreaterThan(plan.deckY(p.z) + VESSEL_DEFS.workboat.layout.railHeight);
+      // Her transom (1.8 m aft of her origin) stays forward of the wheelhouse unless she's
+      // already outboard of it (her inboard side, 0.8 m from her centreline, beyond its side).
+      const wh = VESSEL_DEFS.workboat.layout.wheelhouse!;
+      if (p.x - 0.8 < wh.halfWidth) expect(p.z + 1.8).toBeLessThan(wh.front);
+    }
+    // At the water: alongside the starboard bow, clear of the hull (her half-beam is 0.8 m).
+    launchPoint(crane, T, p);
+    expect(p.y).toBeCloseTo(crane.waterY, 6);
+    expect(p.x - 0.8).toBeGreaterThan(plan.halfBeam(p.z));
+  });
+
+  it('one press launches her: hoisted, slewed out, lowered to the water, then afloat on her own', () => {
+    const { world, boat, skiff, send, run } = setup();
     run(1);
-    send('davit', 1);
+    send('crane', 1);
     expect(skiff.tender?.phase).toBe('lowering');
-    run(davit.lowerTime + 0.2);
+    run(crane.hoistTime + 0.05);
+    expect(local(boat, skiff).y).toBeGreaterThan(crane.stow[1] + crane.clear - 0.05); // up out of the cradle
+    run(launchTime(crane) - crane.hoistTime + 0.2);
     expect(skiff.tender?.phase).toBe('free');
     run(4);
-    // Floating near her waterline, astern of the workboat.
+    // Floating near her waterline, off the starboard bow.
     expect(Math.abs(skiff.position[1])).toBeLessThan(0.2);
+    expect(local(boat, skiff).x).toBeGreaterThan(2.5);
     expect(world.vessels[skiff.id]).toBe(skiff);
   });
 
-  it('recovers her only when close under the stern and slow; the crew step off', () => {
+  it('recovers her only when alongside the starboard bow and slow; back in the cradle, the crew step out', () => {
     const { world, boat, skiff, send, run } = setup();
-    send('davit', 1);
-    run(davit.lowerTime + 2);
+    send('crane', 1);
+    run(launchTime(crane) + 2);
     // Far away: refused.
     const bx = boat.position[0];
     const bz = boat.position[2];
     placeVessel(skiff, bx + 30, 0, bz, 0);
     run(1);
-    send('davit', 1);
+    send('crane', 1);
     expect(skiff.tender?.phase).toBe('free');
-    // Back under the stern (the spot under the davit), with a player aboard.
-    // 1.5 m further aft than the spot under the davit, lying athwartships (she heads 90).
-    const spot = new THREE.Vector3(davit.hang[0], 0, davit.hang[2] + 1.5).applyQuaternion(new THREE.Quaternion(...boat.orientation)).add(new THREE.Vector3(...boat.position));
-    placeVessel(skiff, spot.x, 0, spot.z, 180);
+    // Back alongside, 1.5 m from the outboard spot, with a player aboard.
+    const spot = new THREE.Vector3(crane.outboard[0] + 1.5, 0, crane.outboard[1]).applyQuaternion(new THREE.Quaternion(...boat.orientation)).add(new THREE.Vector3(...boat.position));
+    placeVessel(skiff, spot.x, 0, spot.z, 90);
     run(0.5);
     const player = Object.values(world.players)[0];
     player.aboardVesselId = skiff.id;
     player.position = [0, 0.3, 0.5];
     expect(recoverCheck(world, skiff).ok).toBe(true);
-    send('davit', 1);
+    send('crane', 1);
     expect(skiff.tender?.phase).toBe('hoisting');
-    run(davit.alignTime + davit.hoistTime + 0.2);
+    run(crane.alignTime + launchTime(crane) + 0.2);
     expect(skiff.tender?.phase).toBe('stowed');
+    expect(local(boat, skiff).distanceTo(new THREE.Vector3(...crane.stow))).toBeLessThan(1e-6);
     expect(player.aboardVesselId).toBe(boat.id);
+    // Standing on the foredeck beside the cradle, on the deck.
+    const plan = hullPlan(VESSEL_DEFS.workboat);
+    expect(player.position[1]).toBeCloseTo(plan.deckY(player.position[2]), 6);
   });
 });
 
 describe('the skiff', () => {
-  it('comes hanging on the workboat\'s stern davit, riding with her, with a full battery', () => {
+  it('comes in her cradle on the workboat\'s foredeck, riding with her, with a full battery', () => {
     const { boat, skiff, run } = setup();
     expect(VESSEL_DEFS[skiff.defId].outboard).toBeTruthy();
     expect(skiff.battery).toBe(1);
     expect(skiff.tender?.phase).toBe('stowed');
     run(3);
-    const hang = VESSEL_DEFS[boat.defId].davit!.hang;
+    const stow = VESSEL_DEFS[boat.defId].tenderCrane!.stow;
     const local = new THREE.Vector3(...skiff.position).sub(new THREE.Vector3(...boat.position)).applyQuaternion(new THREE.Quaternion(...boat.orientation).invert());
-    expect(local.distanceTo(new THREE.Vector3(...hang))).toBeLessThan(1e-6);
+    expect(local.distanceTo(new THREE.Vector3(...stow))).toBeLessThan(1e-6);
   });
 
-  it('charges on the davit', () => {
+  it('charges in the cradle', () => {
     const { skiff, run } = setup();
     skiff.battery = 0.5;
     run(30);

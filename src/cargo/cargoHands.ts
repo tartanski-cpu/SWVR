@@ -219,8 +219,8 @@ export class CargoHands {
     if (!c) return;
     const pos = this.carryPos.clone();
     const quat = this.carryQuat.clone();
-    // Over a hull: the one whose deck is nearest below (the skiff on the davit hangs above
-    // the workboat's stern).
+    // Over a hull: the one whose deck is nearest below (the skiff in her cradle sits above
+    // the workboat's foredeck).
     let best: { vid: string; root: THREE.Object3D; l: THREE.Vector3; plan: ReturnType<typeof hullPlan>; gap: number } | null = null;
     for (const [vid, root] of ctx.vesselRoots) {
       const v = ctx.world.vessels[vid];

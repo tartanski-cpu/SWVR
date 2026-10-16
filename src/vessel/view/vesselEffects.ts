@@ -97,7 +97,7 @@ export class VesselEffects {
       e.searchlight.update(s, darkness, deck);
       e.lines.update(s, e.def, this.root);
     }
-    // A tender hanging on the davit throws no wake or spray.
+    // A tender in her cradle or on the crane throws no wake or spray.
     if (s.tender && s.tender.phase !== 'free') return { slam: 0, lap: 0 };
     this.wake.update(s, this.root, waves, time);
     return this.spray.update(dt, s, this.root, waves, viewer, light);

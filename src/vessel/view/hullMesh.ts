@@ -157,6 +157,9 @@ function buildDeckFittings(form: HullForm, layout: LayoutConfig): THREE.BufferGe
   return parts;
 }
 
+/** Width of the aft door's jambs (m): the door buttons sit on the starboard one. */
+export const JAMB = 0.16;
+
 /**
  * Walk-in wheelhouse: walls with a window band all round, an aft doorway, floor, helm
  * console, roof and mast. Dimensions come from the layout config (shared with layout.ts).
@@ -194,9 +197,10 @@ function buildWheelhouse(layout: HouseLayout): THREE.BufferGeometry[] {
     const x1 = s > 0 ? hw : -door;
     parts.push(box(x0, x1, base, sill, wh.aft - w, wh.aft, H));
     parts.push(box(x0, x1, head, roof, wh.aft - w, wh.aft, H));
-    // Door jambs carry the band between sill and head next to the opening.
-    const jx = s > 0 ? door : -door - 0.1;
-    parts.push(box(jx, jx + 0.1, sill, head, wh.aft - w, wh.aft, H));
+    // Door jambs carry the band between sill and head next to the opening (wide enough for
+    // the door's push buttons, inside and out).
+    const jx = s > 0 ? door : -door - JAMB;
+    parts.push(box(jx, jx + JAMB, sill, head, wh.aft - w, wh.aft, H));
   }
   parts.push(box(-door, door, wh.floorY + wh.doorHeight, roof, wh.aft - w, wh.aft, H));
   // Door sill.

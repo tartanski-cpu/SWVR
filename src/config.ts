@@ -450,6 +450,11 @@ export const CONFIG = {
          * width, and how far aft of the wall the climbing zone reaches.
          */
         ladder: { x: 0.92, width: 0.5, depth: 0.5 },
+        /**
+         * The door's push buttons, on its starboard jamb inside and out (the door slides to
+         * port, the ladder is further to starboard): x, and height above the wheelhouse floor.
+         */
+        doorButtons: { x: 0.48, height: 1.15 },
         /** Bulwark and rail heights above the deck, and how close a player may get to the deck edge. */
         bulwarkHeight: 0.3,
         railHeight: 1.0,
@@ -478,25 +483,43 @@ export const CONFIG = {
           pedestal: { halfWidth: 0.13, aft: -1.02 },
         },
         /**
-         * Diesel ignition on the console, starboard of the lever: HEAT (glow plugs) and START
-         * buttons (hold), the key, and a row of warning lamps (oil, charge, glow, neutral)
-         * in front of them. A laminated start-up card lies by them (starboard end).
+         * The console's switch row (owner request: group like with like), port to starboard,
+         * each group on its own colour-coded plate (`consoleGroups`):
+         *   LIGHTS        nav lights, cabin light, wipers (port end)
+         *   SEARCH · FIRE the fire pump and searchlight switches, each just ahead of its own
+         *                 joystick on the two port pedestals (left hand aims, right hand
+         *                 keeps the throttle)
+         *   horn          on its own, just left of the wheel
+         *   DECK          dock, anchor, trawl: behind the throttle, used with it in hand
+         *   ENGINE        HEAT (glow plugs) and START (hold), the key, the warning lamps
+         *                 (oil, charge, glow, neutral, bilge) ahead of them and the laminated
+         *                 start-up card at the starboard end
          */
-        startButton: { position: [0.78, 2.16, -1.52] as [number, number, number] },
-        heatButton: { position: [0.62, 2.16, -1.47] as [number, number, number] },
-        keySwitch: { position: [0.98, 2.16, -1.5] as [number, number, number] },
-        warningLamps: { position: [0.8, 2.165, -1.61] as [number, number, number], spacing: 0.085 },
-        checklistCard: { position: [1.17, 2.175, -1.47] as [number, number, number], width: 0.19, height: 0.26 },
-        hornButton: { position: [-0.42, 2.16, -1.52] as [number, number, number] },
-        navLightsSwitch: { position: [-0.78, 2.16, -1.52] as [number, number, number] },
+        navLightsSwitch: { position: [-1.29, 2.16, -1.52] as [number, number, number] },
+        cabinLightSwitch: { position: [-1.14, 2.16, -1.52] as [number, number, number] },
+        /** Windscreen wipers (Instruments breaker). */
+        wipersSwitch: { position: [-0.99, 2.16, -1.52] as [number, number, number] },
+        spotlightSwitch: { position: [-0.48, 2.16, -1.52] as [number, number, number] },
+        hornButton: { position: [-0.28, 2.16, -1.52] as [number, number, number] },
         /** Windlass: up = heave in / stowed, down = let go. */
-        anchorSwitch: { position: [-0.6, 2.16, -1.52] as [number, number, number] },
-        cabinLightSwitch: { position: [-0.96, 2.16, -1.52] as [number, number, number] },
-        spotlightSwitch: { position: [-1.14, 2.16, -1.52] as [number, number, number] },
-        /** Windscreen wipers (Instruments breaker), at the port end of the row. */
-        wipersSwitch: { position: [-1.3, 2.16, -1.52] as [number, number, number] },
+        anchorSwitch: { position: [0.45, 2.16, -1.52] as [number, number, number] },
+        heatButton: { position: [0.8, 2.16, -1.5] as [number, number, number] },
+        startButton: { position: [0.94, 2.16, -1.5] as [number, number, number] },
+        keySwitch: { position: [1.08, 2.16, -1.5] as [number, number, number] },
+        warningLamps: { position: [0.95, 2.165, -1.6] as [number, number, number], spacing: 0.085 },
+        checklistCard: { position: [1.25, 2.175, -1.47] as [number, number, number], width: 0.19, height: 0.26 },
         /** Searchlight joystick on a pedestal to port of the wheel (mirrors the throttle's). */
         spotJoystick: { position: [-0.45, 2.16, -1.15] as [number, number, number] },
+        /**
+         * Group plates under the switch row: title, x extent, colour of the strip along the
+         * forward edge (the title sits on it).
+         */
+        consoleGroups: [
+          { title: 'LIGHTS', x: [-1.32, -0.91] as [number, number], color: 0xd8b028 },
+          { title: 'SEARCH · FIRE', x: [-0.89, -0.38] as [number, number], color: 0xc0402a },
+          { title: 'DECK', x: [0.21, 0.69] as [number, number], color: 0x2f6fd0 },
+          { title: 'ENGINE', x: [0.71, 1.32] as [number, number], color: 0x3a9a4a },
+        ],
         /**
          * VHF radio hung close under the wheelhouse roof, out to port above the window head
          * (3.15 m) so it doesn't block the view (owner feedback), tilted down and turned
@@ -506,8 +529,8 @@ export const CONFIG = {
         radio: { position: [-1.0, 3.2, -1.45] as [number, number, number], tiltDeg: 35, yawDeg: 35 },
         /** Chartplotter, the same out to starboard (rescue/cargo chart). */
         chart: { position: [0.98, 3.17, -1.45] as [number, number, number], tiltDeg: 35, yawDeg: -35 },
-        /** DOCK / cast off (where the lever used to stand on the console top). */
-        dockButton: { position: [0.45, 2.16, -1.52] as [number, number, number] },
+        /** DOCK / cast off (DECK group). */
+        dockButton: { position: [0.3, 2.16, -1.52] as [number, number, number] },
         /** Instrument dash across the front of the console: displays on its aft face. */
         dash: { front: -1.82, aft: -1.66, bottom: 2.15, top: 2.56, halfWidth: 1.25, tiltDeg: 14 },
         /**
@@ -627,14 +650,6 @@ export const CONFIG = {
         panel: { position: [1.22, 1.84, -0.85] as [number, number, number], width: 0.54, height: 0.32, tiltDeg: 40 },
       },
       /**
-       * Forepeak hatch on the foredeck (vessel axes: centre x/z, side length m). Left open
-       * in rain, water gets below: the bilge fills (fraction/s at full rain, a squall's
-       * spray counts double); the bilge pump (BILGE breaker, float switch) empties it at
-       * `pumpRate`. The BILGE lamp lights above `alarmAt`. The game starts with it open,
-       * airing the forepeak.
-       */
-      hatch: { position: [0, -3.3] as [number, number], size: 0.62, startOpen: true },
-      /**
        * Fenders: three a side (vessel z), hung over the rail when out; stowed lying along
        * the bulwark. One press on the fender basket (aft deck, starboard) puts them all out
        * or takes them in.
@@ -644,42 +659,76 @@ export const CONFIG = {
        * Engine oil (vessel/maintenance.ts): level 0..1 when the session starts; burnt at
        * `use` per second running (more under load); a check is due every `checkEvery` s of
        * running. Below `lowAt` the dipstick says top up; below `lampAt` the OIL lamp
-       * blinks. The engine hatch is in the wheelhouse floor, aft to starboard, with the
-       * dipstick and an oil can by it ([x, z] on the floor).
+       * blinks. The engine comes up through the wheelhouse floor, aft to starboard, under a
+       * waist-high casing against the starboard wall (owner feedback: the floor hatch felt
+       * like an afterthought): its footprint (x0..x1 across, z0..z1 fore-aft) and height
+       * above the floor. On its top ([x, z]): the dipstick, the filler cap, the oil can.
        */
-      maintenance: { oilStart: 0.72, use: 0.00025, checkEvery: 900, lowAt: 0.4, lampAt: 0.12, hatch: [0.62, 0.85] as [number, number], dipstick: [0.98, 0.7] as [number, number], oilCan: [1.05, 1.08] as [number, number] },
-      bilge: { rainInflow: 1 / 400, pumpRate: 1 / 90, alarmAt: 0.3 },
+      maintenance: {
+        oilStart: 0.72,
+        use: 0.00025,
+        checkEvery: 900,
+        lowAt: 0.4,
+        lampAt: 0.12,
+        casing: { x0: 0.8, x1: 1.37, z0: -0.1, z1: 0.68, height: 0.62 },
+        dipstick: [0.97, 0.06] as [number, number],
+        filler: [0.97, 0.3] as [number, number],
+        oilCan: [1.2, 0.46] as [number, number],
+      },
       /**
-       * Stern davit for the tender (the skiff), vessel axes. She hangs athwartships just aft
-       * of the transom (`hang`: her origin; `yawDeg` 90 = her bow to port, outboard to
-       * starboard), high enough that the transom stays clear for survivors coming aboard.
-       * LAUNCH lowers her on the falls to `waterY` (her waterline level with ours) and lets
-       * go; RECOVER (she must be within `recoverRange` of that spot, moving slower than
-       * `recoverSpeed` relative to us) lines her up in `alignTime`, then hoists her.
-       * Stowed, her battery charges from the ship (`chargeMinutes` from flat to full).
+       * Bilge (vessel/bilge.ts): a damaged hull leaks into it (wear.leakRate); the bilge pump
+       * (BILGE breaker, float switch) empties it at `pumpRate` (fraction/s). The BILGE lamp
+       * lights above `alarmAt`.
        */
-      davit: {
-        hang: [0, 2.3, 7.0] as [number, number, number],
-        yawDeg: 90,
+      bilge: { pumpRate: 1 / 90, alarmAt: 0.3 },
+      /**
+       * Tender crane (vessel/tenderCrane.ts, controls/TenderCraneView.ts), vessel axes: the
+       * skiff in a cradle on the foredeck, bow forward, put over the side by a knuckle-boom
+       * crane on the starboard foredeck, as yachts carry their tenders (owner request: the
+       * stern davit was in the way of towing and trawling).
+       *   column     the crane's base (x, z) on deck; `shoulderY` the boom's pivot height
+       *              (absolute); `boom` and `jib` the two arms' lengths
+       *   stow       her origin in the cradle; `cradle` its footprint (half-width, z0..z1),
+       *              kept clear of walking and cargo
+       *   lift       the hook on her (her axes): the 4-leg bridle's apex, over her CG
+       *   clear      how high she's hoisted out of the cradle before slewing (her keel
+       *              clears the bow rail)
+       *   outboard   her origin (x, z) over the side, alongside the starboard bow, where
+       *              she's lowered to `waterY` and let go, and recovered from
+       * LAUNCH hoists (`hoistTime`), slews (`slewTime`), lowers (`lowerTime`). RECOVER (she
+       * must be within `recoverRange` of the outboard spot, moving slower than
+       * `recoverSpeed` relative to us) lines her up under the hook in `alignTime`, then runs
+       * it backwards. In the cradle her battery charges from the ship (`chargeMinutes` from
+       * flat to full).
+       */
+      tenderCrane: {
+        column: [1.25, -2.25] as [number, number],
+        columnRadius: 0.13,
+        shoulderY: 2.45,
+        boom: 1.55,
+        jib: 1.45,
+        stow: [0, 1.75, -3.95] as [number, number, number],
+        cradle: { halfWidth: 0.9, z0: -5.85, z1: -2.05 },
+        lift: [0, 1.1, 0.76] as [number, number, number],
+        clear: 1.1,
+        outboard: [3.3, -2.6] as [number, number],
         waterY: 0.0,
-        /** The two arms: posts on the quarters (x, base y, z), up to `topY`, reaching aft to `headZ`. */
-        armX: 1.3,
-        baseY: 1.0,
-        baseZ: 5.8,
-        topY: 3.45,
-        headZ: 7.0,
-        /** Lifting points on the skiff, her axes (she hangs from both ends). */
-        liftZ: 1.3,
-        lowerTime: 7,
+        hoistTime: 3,
+        slewTime: 6,
+        lowerTime: 6,
         alignTime: 2.5,
-        hoistTime: 7,
         recoverRange: 3.0,
         recoverSpeed: 1.2,
         chargeMinutes: 5,
-        /** LAUNCH / RECOVER button on the starboard davit post, facing forward. */
-        button: [1.3, 1.75, 5.72] as [number, number, number],
-        /** Crew still in her when she's stowed step off here (on our aft deck). */
-        stepOff: [0.6, 1.0, 4.9] as [number, number, number],
+        /** LAUNCH / RECOVER button on the column's control box, facing aft. */
+        button: [1.25, 2.2, -2.1] as [number, number, number],
+        /** Crew still in her when she's back in the cradle step out here (x, z on our foredeck). */
+        stepOff: [
+          [-1.25, -2.7],
+          [1.55, -2.9],
+          [-1.25, -3.4],
+          [1.45, -3.5],
+        ] as [number, number][],
       },
       /**
        * Rescue gear (vessel axes): the life ring hangs on the aft face of the wheelhouse,
@@ -752,8 +801,8 @@ export const CONFIG = {
        * Chart table along the port wall, aft half (vessel axes): its footprint (x0..x1
        * across, z0..z1 fore-aft) and top height above the wheelhouse floor. You stand on
        * its inboard side facing the wall (port), so north on the chart points to port.
-       * On it: the paper chart, the logbook (open, at the aft end), a pen holder (pen,
-       * pencil, eraser), dividers, and a lamp with its own switch
+       * On it: the paper chart, a pen holder (pencil, eraser), dividers, and a lamp (its
+       * shade over the chart at `head`) with its own switch
        * (Deck lights breaker). All positions are on the table top: [x, z].
        */
       // Pushed aft against the aft wall (owner feedback), under the whiteboard: more room
@@ -764,9 +813,8 @@ export const CONFIG = {
         z0: 0.08,
         z1: 1.4,
         height: 0.95,
-        book: { center: [-1.02, 1.12] as [number, number], width: 0.46, depth: 0.32 },
         holder: [-1.31, 0.74] as [number, number],
-        lamp: { base: [-1.29, 0.88] as [number, number], height: 0.42 },
+        lamp: { base: [-1.29, 0.88] as [number, number], height: 0.42, head: [-1.0, 0.7] as [number, number] },
         lampSwitch: [-0.79, 1.33] as [number, number],
       },
       /**
@@ -809,8 +857,8 @@ export const CONFIG = {
       /**
        * Fire monitor (fire missions, fire/fire.ts): a water cannon on the wheelhouse roof,
        * aft of the searchlight, fed by an engine-driven pump. In the wheelhouse: the FIRE
-       * PUMP switch on the console (right of the wheel) and the monitor joystick on its own
-       * pedestal starboard of the throttle (red knob): pan (+ to starboard) and elevation
+       * PUMP switch on the console and the monitor joystick on its own pedestal (red knob),
+       * both port of the searchlight's (SEARCH · FIRE group): pan (+ to starboard) and elevation
        * at a rate, like the searchlight's. The jet leaves the nozzle at `nozzleSpeed` m/s
        * (`flowLpm` L/min) and flies a ballistic arc, slowed a little by the air
        * (`airDrag`, 1/s) and blown downwind (`windDrift` of the wind's speed); it only
@@ -821,12 +869,12 @@ export const CONFIG = {
        * and the net's drag acts, are placed from the hull: fishing/trawlView.ts, fishing.ts).
        */
       fishing: {
-        trawlSwitch: [-0.25, 2.16, -1.52] as [number, number, number],
+        trawlSwitch: [0.6, 2.16, -1.52] as [number, number, number],
       },
       fireMonitor: {
         position: [0, 3.75, -0.55] as [number, number, number],
-        joystick: [0.85, 2.16, -1.15] as [number, number, number],
-        pumpSwitch: [0.27, 2.16, -1.52] as [number, number, number],
+        joystick: [-0.85, 2.16, -1.15] as [number, number, number],
+        pumpSwitch: [-0.82, 2.16, -1.52] as [number, number, number],
         panLimitDeg: 170,
         tiltMinDeg: -10,
         tiltMaxDeg: 55,
@@ -1429,10 +1477,16 @@ export const CONFIG = {
     autoLowSeconds: 3,
     glassRefill: 3.5,
     glassCell: 0.022,
-    /** Wipers: one sweep there and back (s), half-angle (deg), arm length (m). */
+    /**
+     * Pantograph wipers, pivoted on the header above each front pane: one sweep there and
+     * back (s), half-angle (deg), arm length and upright blade length (m), and the pivot's
+     * height above the window head (m).
+     */
     wiperPeriod: 1.7,
-    wiperSweepDeg: 42,
-    wiperArm: 0.7,
+    wiperSweepDeg: 45,
+    wiperArm: 0.6,
+    wiperBlade: 0.6,
+    wiperPivotAbove: 0.1,
   },
 
   /**
@@ -1449,12 +1503,11 @@ export const CONFIG = {
    * range; the first `firstShip` s in) on a straight course that crosses ahead of the
    * workboat `pass` m off at its closest, starting `spawnDist` m away, its whole track in
    * deep water; it goes when it's `despawn` m off and moving away. In harbour too, as long
-   * as such a track exists (debris only out of harbour). A "vessel sighted" log event
-   * waits while an earlier one is unlogged, so they don't pile up. Ship types:
+   * as such a track exists (debris only out of harbour). Ship types:
    * length, beam, speed (m/s), AIS names. Sighted within min(`sightRange`, visibility x
    * `sightVis`). In restricted visibility they sound a prolonged blast every 2 min, and
    * answer yours. Hazards: floating debris (spawned like ships, drifting), the rocks and
-   * these buoys; passed within `hazardRange` m (and in sight) they're loggable.
+   * these buoys.
    */
   traffic: {
     every: [20, 45] as [number, number],
@@ -1465,7 +1518,7 @@ export const CONFIG = {
     despawn: 3600,
     sightRange: 2500,
     sightVis: 1.1,
-    /** Shortest gap between two ship sightings put in the log (s). */
+    /** Shortest gap between two ship sightings the lookout calls (s). */
     sightEvery: 300,
     hornRange: 3000,
     ships: {
@@ -1474,7 +1527,6 @@ export const CONFIG = {
       yacht: { length: 12, beam: 3.8, speed: 3, names: ['Kittiwake', 'Blue Moon', 'Saorsa'] },
     },
     debrisEvery: [300, 600] as [number, number],
-    hazardRange: 200,
     rocks: [
       { name: 'Gull Rocks', x: 380, z: 430 },
       { name: 'Skerry', x: -470, z: -360 },
@@ -1494,13 +1546,6 @@ export const CONFIG = {
   nav: { originLat: 56.62, originLon: -5.95 },
 
   /**
-   * The ship's log (log/log.ts). A voyage runs from a departure to an arrival; the last
-   * `keepVoyages` are kept (in the browser). An event waits `eventLinger` s to be logged
-   * (its duty drops off after that). A draft left untouched for `draftIdle` s can be taken
-   * over by someone else. It's too dark to read the book below `readLight` daylight
-   * (0..1) unless the chart table lamp is on.
-   */
-  /**
    * Pencil marks on the paper chart (chart/marks.ts). Strokes are stored in world metres
    * (so they line up with the map), points kept at least `minStepM` m of chart apart and
    * rounded to `quantM`. Over `maxPoints` in all, the oldest strokes go (the oldest ones
@@ -1518,8 +1563,6 @@ export const CONFIG = {
     sendEvery: 0.1,
     showOnPlotter: true,
   },
-
-  log: { keepVoyages: 5, eventLinger: 300, draftIdle: 90, readLight: 0.35, harbourRadius: 300 },
 
   duties: {
     /** A finished duty stays up, ticked, this long (s), then drops off. */
