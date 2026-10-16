@@ -1539,6 +1539,8 @@ The brief's "no new particle effects" rule was flagged: the fire is drawn withou
 
 The owner declared this point **v1.0 of the game, "Workboat World"** (after the mooring cleats), before the next big step (modular boats). It is marked in git with the tag **`v1.0`**: a permanent bookmark on that exact commit, which later work doesn't move. The game code is that of commit `f630834` (the cleats). The owner creates the tag on GitHub as a Release (Claude's sessions can only push to their own branch, not tags); if it's ever missing, tag `f630834` or a later commit with only doc changes.
 
+Release notes (players' summary, also the text for the GitHub Release): `docs/RELEASE_NOTES_v1.0.md`.
+
 How to come back to it:
 - **Look at or download it:** on GitHub, the repo's Tags list has `v1.0`, with a zip of the code as it was.
 - **Work from it in a session:** ask Claude to "check out v1.0" (`git checkout v1.0`), or to start a branch from it (`git checkout -b <name> v1.0`), for example to fix a bug in v1.0 alone.

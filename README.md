@@ -2,7 +2,7 @@
 
 **Workboat World** (v1.0) is a browser-based VR sea rescue and operations game: chunky flat-shaded boats that you operate from the inside, with physical levers, wheels, switches and live instruments. It's built with TypeScript, Vite, Three.js and WebXR, and targets the Meta Quest 3 and desktop browsers.
 
-**Status:** v1.0 (tag `v1.0`). The MVP snapshot lives on the `mvp-1` branch. The code repository keeps its working name, SWVR. See [`PROGRESS.md`](PROGRESS.md) for what's done, what's next and known issues. Feature ideas and their status are in [`ideas.md`](ideas.md).
+**Status:** v1.0 (tag `v1.0`; [release notes](docs/RELEASE_NOTES_v1.0.md)). The MVP snapshot lives on the `mvp-1` branch. The code repository keeps its working name, SWVR. See [`PROGRESS.md`](PROGRESS.md) for what's done, what's next and known issues. Feature ideas and their status are in [`ideas.md`](ideas.md).
 
 What's in the MVP:
 
