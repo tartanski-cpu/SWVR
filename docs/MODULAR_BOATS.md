@@ -1,6 +1,19 @@
 # Modular boats: plan
 
-Status: **plan, waiting for the owner's go-ahead.** No code has been written for it.
+Status: **agreed; M1 under way.**
+
+**Owner's decisions:**
+- **The landing craft** is the 9 m landing-bow work skiff from the owner's photo (hull study `landingCraft`): a flattish single hull with a **single inboard** diesel, kept simple.
+  - This removes the catamaran items from the contracts: no demihull stations, no twin propulsors.
+  - Several engine bays stay possible in the socket design, but nothing is built for them yet.
+- **Saves stay as today:** only hull damage and engine wear carry over between sessions.
+- **Order:**
+  1. Prove the modular system on the existing workboat.
+  2. Then on the landing craft.
+  3. Only then add new parts.
+
+  Electric drive, shore power, generator, solar and hybrid (old M4b and M4c) move after M7.
+- The simulation/view split (2.1), the mechanism library (2.8) and instanced switches (2.10) went ahead as proposed, with no objection.
 
 The aim, in the owner's words: rebuild the boat as an assembly of reusable modules on a hull, so that a new boat is mostly a hull model plus a recipe, not new code. The first result is invisible. The starter workboat is assembled from a recipe at runtime and looks and plays exactly as it does in v1.0. The proof comes afterwards: the landing craft costs almost no new logic.
 
@@ -90,7 +103,7 @@ The brief asks for change notifications. Every view today *samples* state each f
 - No callbacks.
 - Views read the bus each frame (it's a property lookup).
 - Anything expensive keeps a "last seen" key, as the instruments do now.
-- The bus exposes `changedSince(tick)` for the few readers that want it.
+- A small `BusWatcher` says when any of a view's keys has changed by a visible amount.
 
 ### 2.3 Modules get a physics port, not just the bus
 
@@ -99,7 +112,7 @@ The engine, rudder, anchor, mooring lines, towline and trawl all push on the hul
 **Recommendation:**
 - Propulsion and other force-producing modules implement `physics(port, state, dt)`. The hull integrator calls it at the same moment it calls `stepEngineAndPropeller` now.
 - The port gives water velocity and immersion at a socket point, and takes forces at points.
-- This keeps the numbers identical, and it is what makes **twin engines** (a catamaran) just two modules in two engine bays.
+- This keeps the numbers identical, and it means a later twin-engine boat would just be two modules in two engine bays.
 
 ### 2.4 Ports: a module's connections are named, and the recipe can rewire them
 
@@ -204,7 +217,7 @@ The brief says "the bus is the save unit". Saving the whole bus would change the
 
 There is no ESLint in the project, and adding it is a large dev dependency. A vitest test can read the import lines under `src/modules/` and fail if one module imports another module's folder. It has no new dependency and runs with `npm test`, so the Pages build enforces it too.
 
-### 2.13 The landing craft decides how much "almost no new logic" means
+### 2.13 The landing craft (decided: the monohull skiff, one inboard)
 
 The hull study has two:
 - the **Catamaran landing craft** (15 m, shortlisted);
@@ -214,7 +227,9 @@ The catamaran needs two things the game's physics doesn't have:
 - stations made of **two demihull sections** (strip theory clips one polygon per station today);
 - **two propulsors** (one engine today).
 
-Both are generalisations that belong in the contracts, not hacks for one boat. If they are designed in now (a hull may have several bodies; propulsion is "any number of modules in engine bays"), the cat is a hull plus a recipe plus the ramp. If they are left out, the cat will "leak". The monohull skiff needs neither. **I need your choice (question 1).**
+**Decided:** the monohull landing-bow skiff with one inboard diesel, which needs neither.
+
+One thing to know: her design is a planing hull, and the game has no planing lift (agreed at the start: displacement physics). In the game she'll run as a semi-displacement boat, with the same levelled-off wave resistance the workboat has past hull speed. Her top speed will be set by her engine against that curve. She won't climb onto the plane.
 
 Either way, the new hull should come from the hull study's lofting (`src/hulls/loft.ts`): the same sections make the mesh and the physics stations, as they do now. The workboat keeps her current hull generator, so her shape and handling don't move by a millimetre.
 
@@ -224,11 +239,18 @@ From the brief's catalogue:
 - No **rotary switch** and no **radar display**: radar was replaced by AIS on the plotter; the "radar" upgrade adds echoes there.
 - No **generator, solar panels or shore power**.
 
-The convert-only milestones won't create them. Generator, solar and shore power are new features, covered in M4b/M4c.
+The convert-only milestones won't create them. Generator, solar and shore power are new features, covered in M9 and M10, after the proof.
 
 ---
 
 ## 3. The contracts (Part A)
+
+**As built in M1:** the files in `src/modular/` are the source of truth; the listings below are the design, cut down. Writing them changed a few details:
+- the bus has a `BusWatcher` instead of `changedAt` (2.2);
+- each key says who writes it (`writer`: a module, the boat's own motion, or not-yet-converted code), so the recipe check knows what is "always there" during the rebuild;
+- a socket's unit limit is `maxUnits` (not a `slots` table);
+- a hull carries `legacyDef` and `provides` until M6, standing on today's vessel definition;
+- no demihulls (the owner chose the monohull landing craft).
 
 Five files in `src/modular/`, plus the bus key registry, which the brief asks to keep in one file:
 
@@ -287,8 +309,8 @@ export interface BusKeySpec {
 export interface BusReader {
   get(key: BusKey): BusValue;
   num(key: BusKey): number;
-  /** Tick of the last change to this key (for readers that redraw only on change). */
-  changedAt(key: BusKey): number;
+  /** Does this boat carry this key at all? */
+  has(key: BusKey): boolean;
 }
 export interface Bus extends BusReader {
   set(key: BusKey, value: BusValue): void;
@@ -338,8 +360,8 @@ export interface SocketCapacity {
   size?: [number, number, number];
   /** Safe working load (kg) for lifting gear. */
   loadRatingKg?: number;
-  /** For an engine bay: how many battery banks, tanks... of each kind. */
-  slots?: Record<string, number>;
+  /** How many units (battery banks...) of one module it takes. */
+  maxUnits?: number;
 }
 
 export interface Socket {
@@ -483,8 +505,6 @@ export interface HullDefinition {
   version: number;
   /** Where the stations come from: today's chine generator (the workboat, unchanged), or the hull study's loft. */
   form: { kind: 'chine'; params: HullParams } | { kind: 'loft'; design: HullDesign };
-  /** Demihulls (a catamaran): each body's offset; one body if absent (2.13). */
-  bodies?: { offsetX: number }[];
   /** Lightship: WITHOUT modules that declare their own mass (2.6). */
   lightship: { massKg: number; cg: [number, number, number]; gyradius: { roll: number; pitch: number; yaw: number } };
   addedMass: AddedMass;
@@ -662,7 +682,7 @@ All six screens keep **one shared atlas** (2.10): each instrument module asks fo
 | Bilge pump (float switch) | `pump.bilge` (`engine.bay`) | load on `bilge` |
 | Horn | `signal.horn` (`roof.mount`) | load |
 | Deck hydraulics (PTO pump, clutch) | `hydraulics.pto-pump` (`engine.bay`), needs propulsion running and the `hydraulics` circuit | provides `hydraulic` |
-| Shore-power inlet, solar panels, generator, DC-DC | **new** (M4b/M4c): `shore.inlet`, `power.solar`, `power.genset`, `power.dcdc` | source / load |
+| Shore-power inlet, solar panels, generator, DC-DC | **new** (M9, M10): `shore.inlet`, `power.solar`, `power.genset`, `power.dcdc` | source / load |
 
 ### Propulsion and machinery
 
@@ -672,7 +692,7 @@ All six screens keep **one shared atlas** (2.10): each instrument module asks fo
 | Fuel tank (900 L) | `fuel.tank` (`engine.bay`), a store the engine and the future generator draw from |
 | Rudder and mechanical steering | The blade is the hull's (shape). `steering.mechanical` (rate `null`) or `steering.hydraulic` (a rate) turns `helm.demand` into `rudder.angle`. |
 | Skiff's electric outboard, tiller, gear lever, battery gauge, power button | `propulsion.electric-outboard`, `control.tiller`, `control.gear-selector`: the skiff's recipe |
-| Electric inboard motor | **new** `propulsion.electric-inboard` (M4b), the same `throttle.demand` → `propulsion.*` |
+| Electric inboard motor | **new** `propulsion.electric-inboard` (M9), the same `throttle.demand` → `propulsion.*` |
 
 ### Furniture
 
@@ -734,11 +754,11 @@ The rule throughout: **the game is playable and deployable after every milestone
 
 Sizes: S is about a session, M two or three, L more.
 
-### M1: contracts and the safety net (M). Nothing visible.
+### M1: contracts and the safety net (M). Nothing visible. **Done; see PROGRESS for the results.**
 
 - The five contract files and the bus registry, with the tests in 3.6.
 - The registry's first pass covers every `VesselState` field used by controls and displays. It works as a **facade over today's state** (3.1), so nothing else changes.
-- An empty assembler and recipe loader, and the validator.
+- The recipe loader (`parseRecipe`), the mount walker and the validator. The assembler itself comes with its first module in M2.
 - **Golden runs.** Scripted sessions on today's boat, recorded once as test fixtures:
   - cold start by the card;
   - full ahead and a hard turn;
@@ -749,11 +769,13 @@ Sizes: S is about a session, M two or three, L more.
   - make fast and tow the barge;
   - shoot and haul the trawl;
   - fire monitor on target;
-  - battery drain with lights on.
+  - battery drain with lights on;
+  - under way in a moderate sea;
+  - the skiff on her outboard.
 
   Each later milestone must reproduce them (to rounding). This is how "plays exactly the same" is proven, not just felt.
 - **Baseline measurements** in headless Chromium: draw calls and moving parts at four fixed viewpoints (helm, chart table, aft deck forward, aft deck aft), day and night. They go in PROGRESS as the numbers to beat.
-- **Debug overlay:** a "Modules" section (empty for now).
+- **Debug overlay:** a line with the boat's drawn parts (and how many are in the wheelhouse). The module list joins it in M2, when there is a module to list.
 - **Test:** play as usual for a few minutes in VR and on desktop. Nothing should be different.
 
 ### M2: one module end to end, the throttle lever (S)
@@ -804,29 +826,6 @@ Sizes: S is about a session, M two or three, L more.
   - Deck hydraulics need the engine and DECK HYD.
   - Sea trials and golden runs equal.
 
-### M4b: prove the abstraction with electric drive and shore power (L). First new feature.
-
-- New modules:
-  - `propulsion.electric-inboard`: silent, instant torque, strong reverse braking;
-  - a propulsion battery bank in kWh, and a DC-DC to the 12 V house bank (2.5);
-  - `shore.inlet`;
-  - new instruments: a power meter (kW in and out) and a state-of-charge and range gauge (`battery.rangeEstimateNm`).
-- A shore-power pedestal at Calder Haven. Its cable is a drawn line (the mechanism library's), not a physics rope. Grab it at the pedestal, plug it into the inlet, and she charges at the pedestal's rate. Leave with it plugged in and it pulls out with a bang and a warning. Duty-board tasks: "Connect shore power" and "Disconnect shore power".
-- Start-up: master, key, READY lamp, go.
-- **A recipe variant `vessel.starter-workboat-electric`** chosen in the Debug menu. It must need **no code changes outside the new modules**; that is the test of the architecture.
-- **Test:**
-  - Switch to electric in the Debug menu: she's silent, with instant torque.
-  - Watch the range fall at speed and recover at the quay on shore power.
-  - Pull away plugged in.
-  - Switch back to diesel: everything as before.
-
-### M4c: generator, hybrid, solar (M). Schedule at your choice; see question 4.
-
-- `power.genset`: a small diesel in an engine bay that starts and stops, charges at a set kW, burns fuel, makes noise, and auto-starts below a state of charge.
-- `power.solar` on `roof.mount` or `deck.panel`: output = rating × sun factor from the existing sun elevation, cloud and rain.
-- The hybrid recipe: silent on battery, and you hear the genset cut in.
-- Load shedding by priority (lights and comforts first, propulsion last).
-
 ### M5: deck gear as modules (L, two stops)
 
 - The mechanism library (2.8): the arm solver, drum and line drawing, extracted from today's code.
@@ -867,9 +866,9 @@ Sizes: S is about a session, M two or three, L more.
   - Golden runs equal; frame rate and draw calls equal or better.
   - Load an old career; join a game from a second browser.
 
-### M7: the proof, the landing craft (M; L if the catamaran)
+### M7: the proof, the landing craft (M)
 
-- A new hull from the hull study's design, with its own numbers and sockets.
+- A new hull from the hull study's `landingCraft` design (9 m, square landing bow, cabin aft of amidships), lofted into physics stations, with its own numbers and sockets. A single inboard diesel in her one engine bay: the workboat's engine module with a smaller engine and propeller in its config.
 - A recipe reusing the console, controls, instruments, engine(s), electrics, furniture and searchlight.
 - **One new module:** `deck.bow-ramp` (lower and raise on a hydraulic or electric drive, `ramp.state`). The recipe interlock: `ramp.state != 'lockedUp'` limits `throttle.max` to 0.2.
 - **The test of the architecture:** the second boat is a hull, a JSON file and one module. Anything more is a leak, and I'll stop and fix it in the shared code rather than work around it.
@@ -884,18 +883,37 @@ Sizes: S is about a session, M two or three, L more.
 - It adds no logic to any module.
 - **Test:** swap the engine for a bigger one within the bay's rating, and try one over it (refused, with the reason). Add a second searchlight on an empty roof mount. Save, reload, and join from a second browser.
 
+**After the proof (owner's order: existing boat, then landing craft, then new parts):**
+
+### M9 (after M7, owner's order): electric drive and shore power (L). The first new parts.
+
+- New modules:
+  - `propulsion.electric-inboard`: silent, instant torque, strong reverse braking;
+  - a propulsion battery bank in kWh, and a DC-DC to the 12 V house bank (2.5);
+  - `shore.inlet`;
+  - new instruments: a power meter (kW in and out) and a state-of-charge and range gauge (`battery.rangeEstimateNm`).
+- A shore-power pedestal at Calder Haven. Its cable is a drawn line (the mechanism library's), not a physics rope. Grab it at the pedestal, plug it into the inlet, and she charges at the pedestal's rate. Leave with it plugged in and it pulls out with a bang and a warning. Duty-board tasks: "Connect shore power" and "Disconnect shore power".
+- Start-up: master, key, READY lamp, go.
+- **A recipe variant `vessel.starter-workboat-electric`** chosen in the Debug menu. It must need **no code changes outside the new modules**; that is the test of the architecture.
+- **Test:**
+  - Switch to electric in the Debug menu: she's silent, with instant torque.
+  - Watch the range fall at speed and recover at the quay on shore power.
+  - Pull away plugged in.
+  - Switch back to diesel: everything as before.
+
+### M10: generator, hybrid, solar (M)
+
+- `power.genset`: a small diesel in an engine bay that starts and stops, charges at a set kW, burns fuel, makes noise, and auto-starts below a state of charge.
+- `power.solar` on `roof.mount` or `deck.panel`: output = rating × sun factor from the existing sun elevation, cloud and rain.
+- The hybrid recipe: silent on battery, and you hear the genset cut in.
+- Load shedding by priority (lights and comforts first, propulsion last).
+
 ---
 
-## 6. Questions for the owner
+## 6. Questions (answered)
 
-1. **Which landing craft?**
-   - The **catamaran landing craft** (15 m, shortlisted). The contracts then include demihull stations and any number of engines from the start, M7 is larger, and the result is a better test.
-   - The **9 m landing-bow work skiff** from your photo. This is the quickest proof.
-
-   And with which engine(s): inboard diesel(s) or outboards?
-2. **Sim and view halves (2.1).** Are you happy that a module is one definition with a simulation half and a drawing half? It's needed for multiplayer and the headless tests; it doesn't change what you'll see.
-3. **What carries over between sessions (2.11).** Keep exactly today (damage and wear only), or also save fuel, oil, battery charge and switch positions once the boat is a saved recipe?
-4. **New power features.** M4b (electric motor and shore power) stays where the brief puts it. Generator, solar and hybrid (M4c): straight after M4b, or after the landing craft (M7), so the invisible rebuild finishes first? I'd suggest after M7.
-5. **Two smaller confirmations:**
-   - a small mechanism library extracted in M5 (2.8);
-   - the switches drawn as shared instanced parts to meet the moving-part target (2.10).
+1. Landing craft: the 9 m landing-bow work skiff, a single hull, with a single inboard. See the decisions at the top.
+2. Simulation and view halves: no objection; going ahead.
+3. Saves: unchanged (damage and wear only).
+4. New power features: after the proof on both boats (M9, M10).
+5. Mechanism library and instanced switches: no objection; going ahead.

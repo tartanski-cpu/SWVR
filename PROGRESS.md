@@ -1682,28 +1682,88 @@ Before the first branch-off (2 or 3):
 
 The deck and wheelhouse floor are opaque and sit well above the DWL (freeboard about 0.95–1.5 m), so the sea can't show "through" the boat. The only remaining case is green water overtopping the bulwark in big rolls, which is physically what happens; it would need a "freeboard volume" mask to hide. I'll revisit in the polish pass if it's visible in practice. It matters for a future open well-deck or a low-freeboard rescue boat.
 
+## Modular boats (owner brief, in progress)
+
+The aim: rebuild the boat as reusable modules on a hull, so a new boat is mostly a hull plus a recipe. The first result is invisible: the starter boat assembled from a recipe and playing exactly as in v1.0. The proof is the landing craft costing almost no new logic. Plan, contracts and milestones: [`docs/MODULAR_BOATS.md`](docs/MODULAR_BOATS.md).
+
+**Owner decisions:**
+- **Landing craft:** the 9 m landing-bow work skiff from the owner's photo (hull study `landingCraft`), with a single inboard diesel.
+- **Saves:** only hull damage and engine wear carry over, as today.
+- **Order:** prove the system on the workboat, then on the landing craft, then add parts. Electric drive, shore power, generator, solar and hybrid come after M7.
+- No objection to the departures from the brief in the plan's section 2:
+  - a module has a simulation half and a view half;
+  - the bus is polled, not notified;
+  - force-producing modules get a physics port;
+  - recipes can rebind ports;
+  - the energy network is a service;
+  - a small mechanism library is extracted in M5 (none exists today);
+  - switches are drawn as instanced parts.
+
+### M1: contracts and the safety net (done, awaiting owner test; nothing visible)
+
+**The contracts,** in `src/modular/`:
+- `bus.ts`: the bus, its checks, and `BusWatcher`.
+- `busKeys.ts`: THE registry. 88 keys, each with type, unit, range and writer. Each is bound to the `VesselState` field where today's code keeps it (the facade), so nothing else changed. Old channel names are aliases: `lever` finds `throttle.demand`.
+- `socket.ts`: socket types and capacities, and `fits()`.
+- `module.ts`: the module definition with its sim and view halves; ports, needs and provides, power roles, state migration.
+- `hull.ts`: the hull definition, standing on today's vessel definition until M6.
+- `recipe.ts`: recipes, the interlock conditions (`"hatch.engine.open == false && ..."`), the JSON loader, and the validator. The validator answers in sentences such as "engineBay: engine.test is 600 kW; this engine.bay takes up to 450 kW".
+
+**Tests (30 new, `tests/modular/`)** cover:
+- the registry: documented, named, typed, sane defaults, unique names and aliases;
+- only `hull.damage` and `engine.wear` persist;
+- every key reading and writing today's field;
+- derived keys: heading, speed, circuits;
+- a boat without electrics;
+- player intents through the bus: clamped, held controls, refusals;
+- `BusWatcher`;
+- sockets: type, tags, power, mass, size, load rating;
+- every recipe-check error;
+- reads with no writer, two writers of one value, and writing a key the boat works out herself;
+- needs and provisions;
+- the interlock parser and evaluator;
+- module state: fresh, migrated, from a newer game;
+- port rebinding, a twin-engine boat, recipes from JSON;
+- the **module-boundary check**: no module may import another, enforced by a test rather than a lint tool, so there is no new dependency.
+
+**Golden runs (12, `tests/golden.test.ts`, fixtures in `tests/golden/fixtures/`).** Scripted sessions on today's boat, each recording the pose, velocities, every bus key and a few world values every 2.5–10 s:
+- cold start by the card;
+- full ahead and a hard turn;
+- crash stop;
+- docking at Calder Haven;
+- anchoring in Selkie Bay;
+- the crane launching and recovering the skiff;
+- towing the barge and heaving in on the winch;
+- trawling (a box of fish comes aboard);
+- a boat fire put out with the monitor;
+- battery drain with everything lit, then charging;
+- under way in a moderate sea;
+- the skiff on her outboard.
+
+Every later milestone must reproduce them to a millionth. A 0.1 % change to the engine's friction fails 10 of the 12 (checked). Re-record only for an intended change in behaviour: `GOLDEN_RECORD=1 npx vitest run tests/golden.test.ts`.
+
+**Baseline to beat** (headless Chromium, `scripts/measureDraws.mjs`; four viewpoints aboard; noise ±2 from passing ships and birds):
+
+| Viewpoint | Draw calls, day (cold boat) | Draw calls, night (all lit) | Boat parts drawn (in the wheelhouse) |
+|---|---|---|---|
+| Helm, looking forward | 67 | 66 | 144 (92) |
+| Chart table, facing port | 46 | 47 | 144 (92) |
+| Aft deck, looking forward through the door | 120 | 121 | 112 (61) |
+| Aft deck, looking aft | 33 | 32 | 112 (61) |
+
+"Boat parts drawn" is a new debug overlay line (`debug/boatParts.ts`): every separately drawn mesh, line or sprite on the boat. From outside, the wheelhouse's small parts are hidden, so it depends where you stand.
+
+**Measured: the moving-part target is well below today.** The brief's target is under ~15 on the bridge and ~40 on the whole boat. Today it is 92 in the wheelhouse and 144 on the whole boat. Every switch bat, button cap, lamp, label plate and gauge needle is its own object. Getting near the target is the instancing work in M3 (plan 2.10), and it will be measured there.
+
+**Other changes:** `tests/node.d.ts` holds a few lines of Node typings for the file-reading tests (the project has no `@types/node`).
+
+**Owner test:** nothing should be different. Play a few minutes in VR and on desktop. On desktop, F3 shows the new "boat parts drawn" line.
+
 ## Next
 
 **Next big step: modular boats** (the owner's separate prompt; see "Direction: one engine, three games" above). The mobile and procedural games wait until the owner asks.
 
-- **Modular boats: plan written, waiting for the owner's go-ahead.** The owner's brief arrived. The plan is in [`docs/MODULAR_BOATS.md`](docs/MODULAR_BOATS.md):
-  - how the boat is built today and what's hard-coded to it;
-  - where the brief and the code disagree, with recommendations;
-  - the contracts as TypeScript interfaces;
-  - every current part as the module it becomes;
-  - milestones M1–M8 with test steps;
-  - five open questions.
-
-  Key departures from the brief, pending the owner's OK:
-  - a module has a simulation half (host only, headless) and a view half;
-  - the bus is polled, not notified;
-  - force-producing modules get a physics port;
-  - recipes can rebind module ports;
-  - the energy network is a service that modules declare roles to.
-
-  Found while reading: there is **no mechanism library** in the code (the brief assumed one).
-
-  No code yet.
+- **Modular boats: under way.** See "Modular boats" below and the plan, [`docs/MODULAR_BOATS.md`](docs/MODULAR_BOATS.md).
 
 Everything on the lists above is done or noted as open below. What was open when last reviewed: the owner's VR test of the latest rounds; a moon (the night sea is very dark); whitecaps; harbour lights that don't grow as you near them; two upgrades suggested but not built (a bigger fuel tank, a second skiff motor). The older suggested order follows, kept for the record:
 

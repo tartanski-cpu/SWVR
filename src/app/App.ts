@@ -88,6 +88,7 @@ import { clamp } from '../core/math';
 import { GpuTimer } from '../debug/gpuTimer';
 import { TrialsPanel } from '../debug/trialsPanel';
 import { vesselReadout } from '../debug/vesselReadout';
+import { countBoatParts } from '../debug/boatParts';
 import { DesktopPointer } from './desktopPointer';
 import { setupXR, xrSessionInfo } from './xrSession';
 import { applyPlayerIntent } from '../player/playerControl';
@@ -475,7 +476,7 @@ export class App {
         xr: inXR ? xrSessionInfo(this.renderer) : this.desktop.pointerLocked ? 'desktop (mouse captured)' : 'desktop',
         cpu: { sim: t1 - t0, views: t2 - t1, render: t3 - t2 },
         gpuMs: this.gpuTimer.lastMs,
-        extra: vesselReadout(this.world.vessels[this.testVesselId], this.simDebug),
+        extra: vesselReadout(this.world.vessels[this.testVesselId], this.simDebug) + this.boatPartsLine(dt),
       },
       inXR,
     );
@@ -870,6 +871,26 @@ export class App {
    * the motion-decoupling comfort correction. `dt` > 0 advances the comfort filters; the
    * second call in a frame (after locomotion) passes 0 and reuses them.
    */
+  /**
+   * Debug overlay: how many separately drawn parts our boat has (the modular rebuild must
+   * not let it creep up; Part C), and how many of them are in the wheelhouse. Counted twice
+   * a second, only while the overlay is up.
+   */
+  private boatPartsLine(dt: number): string {
+    if (!this.overlay.visible) return '';
+    this.partsIn -= dt;
+    const root = this.vesselRoots.get(this.testVesselId);
+    if (this.partsIn <= 0 && root) {
+      this.partsIn = 0.5;
+      const wh = this.testDef.layout.wheelhouse;
+      const n = countBoatParts(root, (p) => Math.abs(p.x) < wh.halfWidth && p.z > wh.front && p.z < wh.aft && p.y > wh.floorY - 0.2 && p.y < wh.roofY);
+      this.partsText = `\nboat parts drawn ${n.drawn} (wheelhouse ${n.inside})`;
+    }
+    return this.partsText;
+  }
+  private partsIn = 0;
+  private partsText = '';
+
   private syncRigToPlayer(dt: number): void {
     const p = this.world.players[this.localPlayerId];
     const vesselView = p.aboardVesselId ? this.vesselViews.get(p.aboardVesselId) : undefined;
