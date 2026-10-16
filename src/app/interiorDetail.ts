@@ -17,7 +17,7 @@ import type { WorkboatDef } from '../vessel/vesselDef';
  * light's visibility recompiles every lit material (a hitch), and the cabin lamp lights the
  * wheelhouse seen through the windows.
  */
-const KEEP = new Set(['control:lever', 'binoculars']);
+const KEEP = new Set(['control:lever', 'binoculars', 'gear:extinguisher', 'gear:torch']);
 
 function hasLight(o: THREE.Object3D): boolean {
   let found = false;

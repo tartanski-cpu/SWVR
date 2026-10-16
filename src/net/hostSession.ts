@@ -80,7 +80,11 @@ export class HostSession {
       const laser = Array.isArray(pose.laser) && pose.laser.length === 7 && pose.laser.slice(0, 6).every(Number.isFinite) ? pose.laser : null;
       // Hand orientations: four finite numbers, or nothing (desktop players, older versions).
       const quat = (q: unknown) => (Array.isArray(q) && q.length === 4 && q.every(Number.isFinite) ? (q as [number, number, number, number]) : null);
-      p.avatar = { head: pose.head, left: pose.left, right: pose.right, leftQ: quat(pose.leftQ), rightQ: quat(pose.rightQ), tool, laser };
+      // Hand gear: a known kind, a finite point and direction (the host sprays with it).
+      const vec = (v: unknown) => Array.isArray(v) && v.length === 3 && v.every(Number.isFinite);
+      const g = pose.gear;
+      const gear = g && (g.kind === 'extinguisher' || g.kind === 'torch') && vec(g.p) && vec(g.d) ? { kind: g.kind, on: !!g.on, p: g.p, d: g.d } : null;
+      p.avatar = { head: pose.head, left: pose.left, right: pose.right, leftQ: quat(pose.leftQ), rightQ: quat(pose.rightQ), tool, laser, gear };
     }
   }
 

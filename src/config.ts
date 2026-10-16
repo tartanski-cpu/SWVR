@@ -1963,7 +1963,7 @@ export const CONFIG = {
 
   /**
    * Laser pointer (replaces pings, owner request): VR, hold the right stick in; desktop,
-   * hold the right mouse button. Reach (m); what it hits is found `hitRate` times a second.
+   * hold the middle mouse button (the right one is the binoculars). Reach (m); what it hits is found `hitRate` times a second.
    * Desktop: the beam starts at a "hand" `deskHand` (m: right, up, forward of the eyes), so it's
    * seen from the side; started at the eyes it would be seen end-on, just a dot.
    */
@@ -2039,15 +2039,44 @@ export const CONFIG = {
    * Binoculars (player/binoculars.ts): 7x. They lie on top of the dash, port end (vessel
    * axes, `stowYawDeg` turned). VR: grip within `grabRange` to take them; held within
    * `eyeRange` of your eyes you look through them (a `renderSize` square view). Desktop:
-   * hold Z.
+   * hold the right mouse button (or Z).
    */
   binoculars: {
     magnification: 7,
     stow: [-1.05, 2.6, -1.74] as [number, number, number],
     stowYawDeg: 20,
-    grabRange: 0.14,
+    grabRange: 0.2,
     eyeRange: 0.2,
     renderSize: 640,
+  },
+
+  /**
+   * Hand gear on brackets inside the wheelhouse, on the aft wall in its starboard corner
+   * (player/handGear.ts; owner request). VR: grip within `grabRange` to take one off its
+   * bracket; it stays in the hand while you hold the grip and goes back when you let go.
+   * Desktop: click it to take it, click its bracket (or U) to put it back. `bracket`: where
+   * it hangs (vessel axes, its middle). `deskHold`: where a desktop player holds it (camera
+   * axes, m).
+   */
+  handGear: {
+    grabRange: 0.2,
+    deskHold: [0.22, -0.3, -0.5] as [number, number, number],
+    /**
+     * A 6 kg water-mist / foam extinguisher (hold the trigger, or the left mouse button, to
+     * spray). The spray leaves the nozzle at `nozzleSpeed` (m/s) and falls under gravity
+     * with `airDrag` (per s), reaching 5-6 m: get close. Where it passes through the fire
+     * it knocks it down at `douse` x the fire monitor's rate (CONFIG.fire.douse) - small,
+     * but a fire you're close to goes out. A charge lasts `seconds` of spraying; hung back
+     * on its bracket it's swapped for a full one.
+     */
+    extinguisher: { bracket: [1.05, 1.62, 1.33] as [number, number, number], nozzleSpeed: 9, airDrag: 0.6, douse: 0.8, seconds: 60 },
+    /**
+     * A big rechargeable torch (trigger or left click: on / off). Lit, a real spotlight from
+     * its lens (`angleDeg` half-angle, `intensity`, `distance` m), only for your own torch:
+     * crew-mates' torches show as a beam. `realLight` false: a beam only for yours too (no
+     * extra light in the scene, for a cheaper frame on the Quest).
+     */
+    torch: { bracket: [1.25, 1.72, 1.36] as [number, number, number], angleDeg: 11, intensity: 260, distance: 45, realLight: true },
   },
 
   /** Bridge-control interaction tuning. */

@@ -1549,6 +1549,25 @@ How to come back to it:
 
 ### Fixes after V1.0 (on the dev branch; not in the `V1.0` tag)
 
+- **Hand gear: binoculars on the mouse, a fire extinguisher and a torch** (owner request):
+  - **Binoculars (desktop):** hold the **right mouse button** to look through them (Z still works). Over the chart, a right-drag still erases. The **laser pointer moved to the middle button**. In VR they were already there (grip them on the dash, raise them to your eyes); the grab reach went from 14 to 20 cm (`binoculars.grabRange`) so they're easier to pick up.
+  - **One "hand gear" system for the extinguisher and torch** (`player/handGear.ts`):
+    - They hang on brackets low on the wheelhouse aft wall, starboard corner (`handGear.extinguisher.bracket`, `handGear.torch.bracket`).
+    - **VR:** grip to take; it stays in the hand while you hold the grip, and goes back when you let go. The trigger works it.
+    - **Desktop:** click to take; the left button works it; click the bracket or press U (`hangGear`) to hang it back.
+    - What it does is shared: the nozzle or lens and its direction go out with your pose (`PlayerState.avatar.gear`, `PlayerPose.gear`, checked by the host). Crew-mates see your gear, spray and beam (`player/gearView.ts`), and a crew-mate's gear is missing from its bracket.
+  - **Extinguisher** (`fire/extinguisher.ts`):
+    - The spray is modelled like the monitor's jet, smaller: it leaves at `nozzleSpeed` (9 m/s), with gravity and `airDrag` (0.6/s), and carries 5-6 m.
+    - Where it passes through the fire (the same hit test as the monitor, `fire.ts arcWetting`) it knocks the fire down at `douse` (0.8) × the monitor's rate. It works on boat fires alongside and on shed fires ashore.
+    - A charge lasts `seconds` (60) of spraying (`VesselState.extCharge`). Hung back on its bracket it's full again.
+    - Drawn as one small instanced arc, one draw call.
+    - In solo play the simulation now also reads your hand gear (it previously only read crew-mates' poses).
+    - Test: `tests/extinguisher.test.ts` (puts a shed fire out from 9 m; runs empty, refills on the bracket; falls short from 20 m).
+  - **Torch:**
+    - A real spotlight from the lens (`handGear.torch`: half-angle 11°, intensity 260, reach 45 m), only for your own torch. Crew-mates' torches show their beam cone only, so there's never more than one extra light.
+    - With the searchlight off, the torch also takes the sea's one spotlight pool, so it lights the water.
+    - **Cost:** the light is in no shader until first switched on (one recompile then, as with the searchlight). Lit, it costs roughly what the searchlight does. In headless software rendering, frame time went up 5-13 % with it on (noisy). Check it on the Quest with the perf panel's GPU ms. `handGear.torch.realLight: false` turns it into a beam only, at no lighting cost.
+
 - **Deck gate** (owner request: easier access to the skiff alongside with cargo; "at least the railing could open with a button press"):
   - A gate in the starboard bulwark and rail at the fore end of the working deck (`layout.sideGate`: z 2.6 to 3.4, between the midship cleat and the swim ladder). It's hinged on its forward post and swings 90° inboard (`openDeg`) over about half a second, eased.
   - Worked by green push buttons on the aft gatepost, one facing inboard and one outboard (`buttonHeight` 0.85 m above the deck). Vessel control `sideGate` (1 open); it starts shut.

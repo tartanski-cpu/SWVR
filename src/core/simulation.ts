@@ -22,6 +22,7 @@ import { stepDuties } from '../duties/duties';
 import { applyCraneIntent, onCrane, stepTender } from '../vessel/tenderCrane';
 import { applyPainterIntent, painterForces } from '../vessel/physics/painter';
 import { applyFireIntent, isFireIntent, stepFire } from '../fire/fire';
+import { stepExtinguisher } from '../fire/extinguisher';
 import { applyTowIntent, isTowIntent, stepTow, towlineForces } from '../tow/tow';
 import { applySalvageIntent, isSalvageIntent, stepSalvage } from '../salvage/salvage';
 import { stepFishing, trawlForces } from '../fishing/fishing';
@@ -121,6 +122,7 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
   stepDuties(world);
   stepRescue(world, dt, simWaves);
   stepTow(world, dt);
+  stepExtinguisher(world, dt);
   stepFire(world, dt);
   stepSalvage(world, dt);
   stepFishing(world, dt);

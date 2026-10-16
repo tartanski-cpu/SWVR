@@ -44,14 +44,14 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 |---|---|
 | Click the view | Capture the mouse for looking (Esc releases it) |
 | O | Menu, floating in front of you: aim and click (same menu as in VR) |
-| Z (hold) | **Binoculars**: 7x zoom through two lens circles (the key left of X, so Y on a German keyboard) |
+| Right mouse button or Z (hold) | **Binoculars**: 7x zoom through two lens circles (Z is the key left of X, so Y on a German keyboard). Over the chart, right-drag still erases |
 | W A S D | Walk (walls, furniture and the deck edge stop you; hold Shift to **run**) |
 | F | Toggle walk / free-fly camera (Space / C = up / down when flying) |
 | Space / C at the ladder | Climb up / down (walk forward off the top onto the roof) |
 | Space (elsewhere) | **Jump**: off the boat onto a quay, from a quay aboard, or into the sea. Swimming near the hull, the swim ladder or a quay: climb out |
 | Click a cargo item | Pick it up (carried in front of you); click again to set it down |
 | Q on cargo on deck | Lash it to the nearest D-ring / release it |
-| Right mouse button (hold) | **Laser pointer** to the reticle (the beam comes from your lower right); the crew sees the beam and dot |
+| Middle mouse button (hold) | **Laser pointer** to the reticle (the beam comes from your lower right); the crew sees the beam and dot |
 | Click the searchlight or fire monitor joystick, or the skiff's tiller or gear lever | Steer it with **W A S D** (you don't walk meanwhile) while the mouse still looks around; click again to let go. You don't walk while dragging a lever or the wheel either |
 | B | Board the boat (you appear at the helm) / go ashore onto the quay |
 | Aim **+** and click / drag | Operate the bridge controls (see below) |
@@ -245,7 +245,16 @@ The dash shows:
   - speed and course over ground, heading;
   - the true wind (direction it blows from, knots, Beaufort force);
   - a dial with the apparent wind (what you feel on deck) relative to the bow.
-- **Binoculars** lie on top of the dash, port end. VR: grip them to pick them up and raise them to your eyes for a 7× view; let go and they go back. Desktop: hold Z.
+- **Binoculars** lie on top of the dash, port end. VR: grip them to pick them up and raise them to your eyes for a 7× view; let go and they go back. Desktop: hold the right mouse button (or Z).
+
+### Fire extinguisher and torch
+
+Both hang on brackets inside the wheelhouse, low on the aft wall in the starboard corner (by the battery master).
+
+- **VR:** grip one to take it off its bracket. It stays in that hand while you hold the grip: carry it out on deck, into the skiff or ashore. Let go and it goes back on its bracket. The same hand's **trigger** works it.
+- **Desktop:** click it to take it; you hold it low to your right, pointing where you look. The **left mouse button** works it (a click on a control still works the control). Click its bracket again, or press **U**, to hang it back.
+- **Extinguisher:** hold the trigger (or the left button) to spray. The spray carries 5-6 m, so get close: alongside a burning boat, or ashore at a burning shed. It knocks a fire down a bit slower than the fire monitor, and a charge lasts a minute of spraying. Empty, hang it back on its bracket and take it again for a full one.
+- **Torch:** trigger or left click: on / off. It's a real light, like the searchlight, for picking out people in the water close by or finding your way ashore at night. Crew-mates see your beam.
 
 ### Fire missions
 

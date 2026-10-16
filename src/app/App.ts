@@ -64,6 +64,9 @@ import { PainterView } from '../vessel/view/painterView';
 import { cleatName, painterPlan, skiffCleatLocal } from '../vessel/physics/painter';
 import { Cleat } from '../controls/deckGear';
 import { Binoculars } from '../player/binoculars';
+import { HandGear, type GearKind } from '../player/handGear';
+import { GearView } from '../player/gearView';
+import { extinguisherShip } from '../fire/extinguisher';
 import { fireAlertT } from '../fire/fire';
 import { FireView, JetView } from '../fire/fireView';
 import { WildlifeView } from '../wildlife/wildlifeView';
@@ -189,6 +192,10 @@ export class App {
   private readonly laserRay = new THREE.Ray();
   /** Binoculars on the dash (VR: pick up and raise to the eyes; desktop: hold Z). */
   private binoculars!: Binoculars;
+  /** Hand gear on brackets in the wheelhouse (player/handGear.ts). */
+  private readonly gear = [new HandGear('extinguisher'), new HandGear('torch')];
+  private readonly handGearView = new GearView();
+  private extEmptySaid = false;
   /** Fire missions: the fire, and the monitor's jet. */
   private readonly fireView = new FireView();
   private readonly jetView = new JetView();
@@ -367,6 +374,8 @@ export class App {
     if (tugView) this.trawlView.attachAFrame(tugView.root, VESSEL_DEFS[this.world.vessels[this.testVesselId].defId]);
     this.binoculars = new Binoculars(this.camera);
     if (tugView) this.binoculars.stow(tugView.root);
+    if (tugView) for (const g of this.gear) g.mount(tugView.root, CONFIG.handGear[g.kind].bracket);
+    this.scene.add(this.handGearView.root);
     this.scene.add(this.towline.root, this.painter.root, this.fireView.root, this.jetView.root, this.logView.root, this.trawlView.root);
     this.setupBridge();
 
@@ -387,6 +396,8 @@ export class App {
     // Binoculars go back on the dash (and the desktop zoom ends) when switching modes.
     this.renderer.xr.addEventListener('sessionstart', () => this.binoculars.updateDesktop(false));
     this.renderer.xr.addEventListener('sessionend', () => this.binoculars.drop());
+    // Changing between VR and desktop, gear in hand goes back on its bracket.
+    for (const ev of ['sessionstart', 'sessionend'] as const) this.renderer.xr.addEventListener(ev, () => this.gear.forEach((g) => g.hangBack()));
   }
 
   /** A vessel's view, effects, walk area and debug view (at start, and for each new tow). */
@@ -543,7 +554,7 @@ export class App {
     this.frameDt = dt;
     if (!inXR) {
       // Binoculars (hold Z): zoomed in, the mouse look slows to match.
-      this.desktop.lookScale = this.binoculars.updateDesktop(this.keyboard.action('binoculars')) / this.camera.zoom;
+      this.desktop.lookScale = this.binoculars.updateDesktop(this.keyboard.action('binoculars') || !!this.pointer?.binocularsDown) / this.camera.zoom;
       this.desktop.update(dt);
     }
     // The boat we're on, posed for this frame before hit-testing its controls (else they're
@@ -765,13 +776,18 @@ export class App {
     this.worldView.portLighting.update(this.focus, darkness);
     this.ocean.setPortLight(this.worldView.portLighting.flood);
     const fxTest = this.effects.get(this.testVesselId);
-    if (fxTest?.searchlight) this.ocean.setSpotlight(fxTest.searchlight.light);
+    // The sea has one spotlight pool: the searchlight's, or (with it off) your torch's.
+    const spot = fxTest?.searchlight?.light;
+    const torch = this.gear[1].light;
+    if (torch?.visible && !(spot && spot.intensity > 0)) this.ocean.setSpotlight(torch);
+    else if (spot) this.ocean.setSpotlight(spot);
     this.cargoView.update(this.world, this.vesselRoots, (c) => this.carriedPose(c), this.cargoHands.hovered);
     const deskHand = inXR ? null : this.desktopHandWorld(this.deskHandW);
     if (deskHand) this.desktopHand.setColor(playerColor(this.localPlayerId));
     this.desktopHand.update(this.camera, deskHand, dt);
     this.updateNetPose(dt);
     this.avatars.update(this.world, this.localPlayerId, this.vesselRoots, dt);
+    this.updateGear(darkness);
   }
 
   /** Hull contact and water past the hull: sound, and a jolt through the controllers aboard. */
@@ -1024,7 +1040,33 @@ export class App {
     if (c) return c.grabPoint(out);
     if (this.rescueHands.holdingRing) return out.copy(this.rescueHands.ringPos);
     if (this.rescueHands.holdingHook) return out.copy(this.rescueHands.hookBase);
+    for (const g of this.gear) if (g.handPoint(out)) return out;
     return this.cargoHands.handPoint(out);
+  }
+
+  /** Does a crew-mate hold this gear (it's off its bracket in their hand)? */
+  private gearTakenByOther(kind: GearKind): boolean {
+    return Object.values(this.world.players).some((p) => p.id !== this.localPlayerId && p.avatar?.gear?.kind === kind);
+  }
+
+  /** Hand gear as everyone sees it: sprays, beams, crew-mates' gear; the brackets' state. */
+  private updateGear(darkness: number): void {
+    const mine = this.gear.find((g) => g.held);
+    let local: { kind: GearKind; on: boolean; p: THREE.Vector3; d: THREE.Vector3 } | null = null;
+    if (mine) {
+      const p = new THREE.Vector3();
+      const d = new THREE.Vector3();
+      mine.tipWorld(p, d);
+      local = { kind: mine.kind, on: mine.on, p, d };
+    }
+    this.handGearView.update(this.world, this.localPlayerId, local, this.vesselRoots, darkness);
+    // On the bracket: hidden while a crew-mate has it (it's in their hand).
+    for (const g of this.gear) if (!g.held) g.mesh.visible = !this.gearTakenByOther(g.kind);
+    // Spraying an empty extinguisher: say so once.
+    const ext = this.gear[0];
+    const empty = (extinguisherShip(this.world)?.extCharge ?? 1) <= 0;
+    if (ext.held && ext.on && empty && !this.extEmptySaid) this.overlay.notify('Extinguisher empty: hang it back on its bracket for a full one', 4);
+    this.extEmptySaid = !!ext.held && empty;
   }
 
   /** Vessels as the body module sees them (rendered roots, walk areas, hull plans). */
@@ -1672,7 +1714,19 @@ export class App {
    * NET_RATE times a second when a client.
    */
   private updateNetPose(dt: number): void {
-    if (!this.host && this.client?.status !== 'connected') return;
+    if (!this.host && this.client?.status !== 'connected') {
+      // Solo: no pose to send, but the simulation still needs your hand gear (the
+      // extinguisher on a fire), which it reads from your avatar like a crew-mate's.
+      const me = this.world.players[this.localPlayerId];
+      if (!me) return;
+      const frame = this.playerFrame();
+      frame.updateMatrixWorld();
+      this.invFrame.copy(frame.matrixWorld).invert();
+      const gear = this.gear.map((g) => g.pose(this.invFrame)).find((x) => x) ?? null;
+      if (gear) me.avatar = { ...(me.avatar ?? { head: [0, 0, 0, 0, 0, 0, 1], left: null, right: null }), gear };
+      else if (me.avatar) me.avatar.gear = null;
+      return;
+    }
     const p = this.world.players[this.localPlayerId];
     const frame = this.playerFrame();
     frame.updateMatrixWorld();
@@ -1716,10 +1770,11 @@ export class App {
       rightQ: handQ('right'),
       tool: this.chartTools?.heldTool() ?? null,
       laser: this.laser.pose(this.invFrame),
+      gear: this.gear.map((g) => g.pose(this.invFrame)).find((x) => x) ?? null,
     };
     if (this.host) {
       p.name = pose.name;
-      p.avatar = { head: pose.head, left: pose.left, right: pose.right, leftQ: pose.leftQ, rightQ: pose.rightQ, tool: pose.tool, laser: pose.laser };
+      p.avatar = { head: pose.head, left: pose.left, right: pose.right, leftQ: pose.leftQ, rightQ: pose.rightQ, tool: pose.tool, laser: pose.laser, gear: pose.gear };
       return;
     }
     this.poseTimer += dt;
@@ -1923,12 +1978,23 @@ export class App {
       // No storage: an empty board, no count.
     }
     this.interaction = new InteractionSystem(
-      [...this.bridge.controls, ...this.tillers.flatMap((t) => t.parts), ...this.cranes.flatMap((d) => d.buttons)],
+      [...this.bridge.controls, ...this.tillers.flatMap((t) => t.parts), ...this.cranes.flatMap((d) => d.buttons), ...this.gear.map((g) => g.bracket)],
       (channel, value) => {
         if (channel === 'engineStartStop') return this.requestEngineStartStop();
         if (channel === 'start' && value > 0) this.startInGearHint();
         if (channel === 'dipstick') this.readDipstick();
         if (channel === 'cleat') this.cleatHint(value);
+        // A gear bracket (desktop): take the gear or hang it back. Local: no intent. In VR the
+        // grip takes it.
+        if (channel.startsWith('gear:')) {
+          const g = this.gear.find((x) => `gear:${x.kind}` === channel);
+          if (g && !this.renderer.xr.isPresenting) {
+            for (const o of this.gear) if (o !== g && o.held) o.hangBack(); // one at a time
+            if (!g.held && this.gearTakenByOther(g.kind)) this.overlay.notify('A crew-mate has it', 2);
+            g.toggleDesk(this.gearTakenByOther(g.kind));
+          }
+          return;
+        }
         // A midship cleat: the painter's on the skiff (aimed at her), whichever cleat leads it.
         if (channel === 'painterCleat' || channel.endsWith(':painter')) {
           const skiff = this.ourSkiff();
@@ -1955,6 +2021,7 @@ export class App {
     );
     this.scene.add(this.interaction.rayLine('left'), this.interaction.rayLine('right'));
     this.pointer = new DesktopPointer(this.renderer.domElement, this.desktop, this.interaction, this.menu, this.desktopCargo());
+    this.pointer.gearHeld = () => this.gear.some((g) => g.held === 'desk');
     if (this.chartTools) {
       const tools = this.chartTools;
       // Drawing on the chart only with the leaf unfolded.
@@ -1998,6 +2065,17 @@ export class App {
         f.gripDown = f.gripPressed = f.triggerDown = f.triggerPressed = false;
         f.trigger = 0;
       }
+      // Hand gear (extinguisher, torch): the same.
+      for (const g of this.gear) {
+        const used = g.updateXR(this.hands, this.busyHands, this.gearTakenByOther(g.kind), (h, i, ms) => this.xrInput.pulse(h, i, ms));
+        for (const h of ['left', 'right'] as const) {
+          if (!used[h]) continue;
+          const f = this.hands[h];
+          f.gripDown = f.gripPressed = f.triggerDown = f.triggerPressed = false;
+          f.trigger = 0;
+          onBino[h] = true; // busy for the rest of the frame
+        }
+      }
       // The chart table's tools: a hand holding one gives its grip and trigger to the tool.
       const onTools = this.chartTools && this.chartTable?.isOpen ? this.chartTools.updateXR(this.chartCtx(), this.hands, this.busyHands, this.frameDt) : { left: false, right: false };
       for (const h of ['left', 'right'] as const) {
@@ -2020,11 +2098,13 @@ export class App {
       return;
     }
     this.pointer?.update(this.camera);
+    for (const g of this.gear) g.updateDesktop(this.camera, !!this.pointer?.gearDown, !!this.pointer?.gearPressed);
+    if (this.keyboard.actionPressed('hangGear')) for (const g of this.gear) if (g.held) g.hangBack();
   }
 
   /**
-   * The laser pointer (laserPointer.ts): while the right stick is held in (VR) or the right
-   * mouse button is held (desktop). Desktop: aimed from the eyes, drawn from a "hand" down
+   * The laser pointer (laserPointer.ts): while the right stick is held in (VR) or the middle
+   * mouse button is held (desktop; the right one is the binoculars). Desktop: aimed from the eyes, drawn from a "hand" down
    * and to the right of them.
    */
   private updateLaser(dt: number): void {

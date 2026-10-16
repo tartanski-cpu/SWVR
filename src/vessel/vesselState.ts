@@ -178,6 +178,11 @@ export interface VesselState {
   thrust: number;
   anchor: AnchorState;
   mooring: MooringState;
+  /**
+   * The fire extinguisher on its wheelhouse bracket (player/handGear.ts, fire/extinguisher.ts):
+   * charge left, 0..1. Absent = full.
+   */
+  extCharge?: number;
   /** Taking fuel at a fuel berth. */
   refuelling: boolean;
   contact: ContactState;

@@ -46,6 +46,8 @@ export interface FireJob {
   intensity: number;
   /** Fraction of full flow landing on it on the last tick (0..1), for the views (steam). */
   wetting: number;
+  /** The same from hand extinguishers (fire/extinguisher.ts), 0..1. Absent = none. */
+  handWet?: number;
   phase: 'calling' | 'accepted' | 'out';
   callT: number;
   alertT: number;
@@ -158,10 +160,18 @@ const path = Array.from({ length: 60 }, () => new THREE.Vector3());
 /** How much of the jet lands on the fire (0..1): the arc passing through its volume. */
 function wetting(world: WorldState, v: VesselState, job: FireJob): number {
   if (!jetOn(v)) return 0;
+  return arcWetting(path, jetPath(world, v, path), job);
+}
+
+/**
+ * How much of a stream of water (its path, `n` world points) lands on the fire, 0..1: the
+ * first point inside the fire's volume (within `hitRadius` of it, no higher than a metre
+ * over the flames), more the nearer its middle. The monitor's jet and the extinguisher's.
+ */
+export function arcWetting(path: readonly THREE.Vector3[], n: number, job: FireJob): number {
   const c = CONFIG.fire;
   const r = c.hitRadius[job.kind];
   const top = job.y + c.flameHeight[job.kind] * (0.4 + 0.6 * job.intensity);
-  const n = jetPath(world, v, path);
   for (let i = 1; i < n; i++) {
     const a = path[i];
     if (a.y > top + 1) continue;
@@ -289,7 +299,9 @@ export function stepFire(world: WorldState, dt: number): void {
   }
   if (job.phase === 'accepted') {
     job.wetting = wetting(world, v, job);
-    job.intensity = Math.min(1, Math.max(0, job.intensity + (c.growth - c.douse * job.wetting) * dt));
+    // Plus any hand extinguishers on it (fire/extinguisher.ts, stepped just before).
+    const hand = CONFIG.handGear.extinguisher.douse * (job.handWet ?? 0);
+    job.intensity = Math.min(1, Math.max(0, job.intensity + (c.growth - c.douse * (job.wetting + hand)) * dt));
     progressCall(world, job);
     if (job.intensity < c.outBelow) {
       job.phase = 'out';
