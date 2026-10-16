@@ -207,7 +207,7 @@ Above it, a lamp on the wall with its own small switch on the wooden batten the 
 
 ### Emergency calls
 
-Out of harbour, the VHF brings rescues (on cargo runs), tows and fires now and then: a tow call every 8 to 18 minutes, a fire every 10 to 22, and a rescue on about a third of cargo runs. An unanswered call rings every 20 seconds for two minutes, then goes to someone else.
+Out of harbour, the VHF brings rescues (on cargo runs), tows and fires now and then: a tow call every 8 to 18 minutes, a fire every 10 to 22, and a rescue on about a third of cargo runs. An unanswered call rings every 20 seconds for two minutes, then goes to someone else. On desktop the calls are read out by your browser's voice. On the Quest (its browser has no voices) you hear the radio's static and click; the words are on the radio screen and in the notice.
 
 To work in peace, set **Menu → Voyage → Emergency calls → Off (quiet)**. No new calls come while it's off; one already ringing runs its course. Shipping forecasts and harbour messages still come. Turn the RADIO breaker off for silence altogether, or turn the VHF down in Settings → Sound.
 

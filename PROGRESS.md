@@ -1549,6 +1549,8 @@ How to come back to it:
 
 ### Fixes after V1.0 (on the dev branch; not in the `V1.0` tag)
 
+- **No fake radio voice on the Quest** (owner: the synthetic babble sounded fake). Where the browser can't speak (the Quest browser has no voices), the radio no longer babbles a voice-like sound. You hear the static burst as the call comes in and the squelch's click and hiss as it ends; the words are on the radio screen and in the notice. On desktop the browser's speech still reads the calls out (`audio/radioAudio.ts speak`). The survivors' shouts in the water still babble where there's no voice (`audio/rescueSounds.ts`); not changed.
+
 - **Hand gear: binoculars on the mouse, a fire extinguisher and a torch** (owner request):
   - **Binoculars (desktop):** hold the **right mouse button** to look through them (Z still works). Over the chart, a right-drag still erases. The **laser pointer moved to the middle button**. In VR they were already there (grip them on the dash, raise them to your eyes); the grab reach went from 14 to 20 cm (`binoculars.grabRange`) so they're easier to pick up.
   - **One "hand gear" system for the extinguisher and torch** (`player/handGear.ts`):

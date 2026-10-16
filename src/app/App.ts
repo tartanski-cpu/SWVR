@@ -1581,7 +1581,7 @@ export class App {
         setTimeout(() => {
           const n = speechVoices();
           const speech = n < 0 ? 'no speech synthesis' : `${n} speech voices`;
-          this.overlay.notify(`Voice test: ${speech}; spoken ${lastSpeech.started} of ${lastSpeech.tried}${n <= 0 || lastSpeech.started < lastSpeech.tried ? ' (using the radio babble)' : ''}`, 8);
+          this.overlay.notify(`Voice test: ${speech}; spoken ${lastSpeech.started} of ${lastSpeech.tried}${n <= 0 || lastSpeech.started < lastSpeech.tried ? ' (radio: squelch only, no voice)' : ''}`, 8);
         }, 2000);
       },
       rescueNear: (kind) => this.pushVesselIntent('rescueDebugNear', 1, kind),

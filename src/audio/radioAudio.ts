@@ -1,5 +1,5 @@
 import { mixer } from './mixer';
-import { babble, speakOrBabble } from './babble';
+import { speakOrBabble } from './babble';
 import { noiseBuffer } from './engineAudio';
 
 /**
@@ -74,8 +74,10 @@ export class RadioAudio {
   }
 
   /**
-   * Read a message out after `delay` seconds: with the browser's speech synthesis if it
-   * can, else (no voices, or it stays silent - the Quest browser) a radio-voice babble.
+   * Read a message out after `delay` seconds with the browser's speech synthesis, if it
+   * can. If not (no voices, or it stays silent: the Quest browser), no voice: just the
+   * squelch's click and hiss as the transmission ends (owner: the synthetic babble that
+   * stood in for a voice sounded fake). The words are on the radio screen and in the notice.
    */
   speak(text: string, delay = 0): void {
     const spoken = text.replace(/°/g, ' degrees').replace(/(\d)\.(\d)/g, '$1 point $2').replace(/MAYDAY RELAY/g, 'Mayday relay, Mayday relay').replace(/PAN-PAN/g, 'Pan-pan, pan-pan');
@@ -91,12 +93,7 @@ export class RadioAudio {
           if (en) u.voice = en;
           u.onend = () => this.crackle(0.2);
         },
-        () => {
-          const ctx = this.ctx;
-          if (!ctx) return;
-          const end = babble(ctx, this.out, spoken, ctx.currentTime + 0.05, 115, 0.45);
-          this.crackle(0.2, end - ctx.currentTime);
-        },
+        () => this.crackle(0.2, 0.6),
         true,
       );
     }, delay * 1000);
