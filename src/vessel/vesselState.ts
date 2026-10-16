@@ -228,6 +228,11 @@ export interface TenderState {
   t: number;
   /** Hoisting: her pose in the ship's axes when she was hooked on (x, y, z, yaw rad). */
   from?: [number, number, number, number];
+  /**
+   * The painter (her bow line to the ship), while it's fast: which of the ship's cleats it's
+   * on (vessel/physics/painter.ts cleatLocal order) and its length (m) from her bow cleat.
+   */
+  painter?: { cleat: number; length: number };
 }
 
 export function createVesselState(id: EntityId, defId: string): VesselState {

@@ -1549,6 +1549,15 @@ How to come back to it:
 
 ### Fixes after V1.0 (on the dev branch; not in the `V1.0` tag)
 
+- **Skiff painter and midship cleats** (owner: launched on a windy day, the skiff blew away):
+  - **The painter** (`vessel/physics/painter.ts`): a bow line from a cleat on the skiff's stem head to one of the ship's cleats. Modelled like the towline: a rope that only pulls, taut a spring-damper between the two cleats (`docking.painter.stiffness` 3000 N/m, damping 0.7 of critical on the two boats' reduced mass). It parts above `breakForce` (15 kN) or stretched `maxStretch` (2 m).
+  - **On launch** she's made fast to the nearer forward cleat (the starboard one: the crane sets her down off the starboard bow), at the distance plus `slack` (0.5 m), between `minLength` 2.5 m and `maxLength` 7 m. Hoisting her back lets it go.
+  - **Her bow cleat** (a clickable cleat on her stem head) lets go, or makes fast to the nearest of the ship's cleats within `reach` (6 m).
+  - **Midship cleats** (`mooring.cleatMidZ` 2.0, both sides, at the fore end of the working deck): for the painter only. Click one to lead the painter there (her bow within reach), click again to let go. The forward and aft cleats still work the mooring lines; they show the painter's turns when it's on them.
+  - Drawn as a sagging rope like the towline (one instanced mesh, one draw call; `vessel/view/painterView.ts`). Its state is on the tender (`TenderState.painter`), so crew see it too.
+  - Test: `tests/painter.test.ts` (held in a 14 m/s beam wind, blows away without it, led amidships, let go on hoisting).
+  - Not changed: launched alongside a quay on the starboard side, the skiff is set down under the quay edge, as before. Launch with the quay to port, or off the quay.
+
 - **Anchor scope** (owner: too much chain, ~30 m in 3 m; 5:1 minimum, 7:1 recommended): the windlass now pays out `anchor.scopeRatio` (5) × the water depth, never less than `anchor.minScopeFromRoller` (3) × the bow roller's height above the seabed, so it still holds in very shallow water. It was 4 × (bow roller height above the seabed) + 5 m. That counted the roller's 1.35 m and added a flat 5 m, and the echo sounder reads under the keel (keel 0.95 m down). So "3 m" on the display was about 4 m of water and 5.3 m from the roller: 26–30 m of chain. Now it's 20 m. Set `scopeRatio` to 7 for the heavy-weather figure. Test: `tests/anchor.test.ts`. **The golden run `tests/golden/fixtures/anchor.json` was re-recorded** (`GOLDEN_RECORD=1`) for this deliberate change; the other golden runs are unchanged.
 
 - **Charted hazards and IALA buoys; night instrument lighting; stabilisers only in use** (owner request):

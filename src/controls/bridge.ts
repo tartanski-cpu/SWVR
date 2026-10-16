@@ -65,6 +65,8 @@ export class Bridge {
   /** The port side door (boats whose wheelhouse has one). */
   readonly sideDoor: WheelhouseDoor | null = null;
   /** The fenders over the side or stowed (boats that carry them). */
+  /** The six cleats on the bulwark tops (vessel/physics/painter.ts cleatLocal order). */
+  readonly cleats: Cleat[] = [];
   private readonly fenders: FendersView | null = null;
 
   constructor(private readonly def: WorkboatDef) {
@@ -246,11 +248,14 @@ export class Bridge {
     {
       const plan = hullPlan(def);
       const mo = def.mooring;
-      [mo.cleatFwdZ, mo.cleatFwdZ, mo.cleatAftZ, mo.cleatAftZ].forEach((z, i) => {
+      // And a pair amidships at the fore end of the working deck, for the skiff's painter.
+      [mo.cleatFwdZ, mo.cleatFwdZ, mo.cleatAftZ, mo.cleatAftZ, mo.cleatMidZ, mo.cleatMidZ].forEach((z, i) => {
         const side = i % 2 === 0 ? -1 : 1;
-        const cleat = new Cleat(i);
+        const cleat =
+          i < 4 ? new Cleat(i) : new Cleat(i, { channel: 'painterCleat', label: `Skiff's painter (${side < 0 ? 'port' : 'starboard'} midship cleat): lead it here / let go` });
         cleat.root.position.set(side * (plan.halfBeam(z) - 0.03), plan.deckY(z) + def.layout.bulwarkHeight, z);
         this.controls.push(cleat);
+        this.cleats.push(cleat);
       });
     }
     // Fenders: the basket on the aft deck, and the six fenders themselves.

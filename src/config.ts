@@ -1002,6 +1002,11 @@ export const CONFIG = {
       mooring: {
         cleatFwdZ: -4.3,
         cleatAftZ: 4.4,
+        /**
+         * Midship cleats, just aft of the wheelhouse at the fore end of the working deck
+         * (owner request): for the skiff's painter while working cargo over the side.
+         */
+        cleatMidZ: 2.0,
         lineY: 1.2,
       },
       /**
@@ -1178,6 +1183,17 @@ export const CONFIG = {
    * she still heaves and rolls.
    */
   docking: {
+    /**
+     * The skiff's painter (vessel/physics/painter.ts): her bow line to one of the ship's cleats,
+     * so she doesn't blow away. Made fast to the forward starboard cleat as she touches the
+     * water off the crane; click her bow cleat to let go or make fast to the nearest cleat in
+     * `reach` (m, bow cleat to ship's cleat), or a midship cleat to lead it there. It's made
+     * fast with `slack` (m) more than the distance, at least `minLength`, at most `maxLength`.
+     * A rope only pulls: taut, a spring (`stiffness` N/m; 12 mm braid stretches a little) with
+     * damping at `dampingRatio` of critical so she doesn't bounce on it. It parts above
+     * `breakForce` (N) or stretched `maxStretch` (m), as if she's towed off at speed.
+     */
+    painter: { reach: 6, slack: 0.5, minLength: 2.5, maxLength: 7, stiffness: 3000, dampingRatio: 0.7, breakForce: 15000, maxStretch: 2.0 },
     /** Hot spot: boat origin within this distance of the berth (m)... */
     range: 18,
     /** ...below this speed (m/s)... */

@@ -31,6 +31,7 @@
  * mid-lift it stops and holds her where she is until it comes back.
  */
 import * as THREE from 'three';
+import { painterOnLaunch } from './physics/painter';
 import type { Intent } from '../core/intents';
 import { clamp } from '../core/math';
 import type { WorldState } from '../core/world';
@@ -146,6 +147,7 @@ export function applyCraneIntent(world: WorldState, intent: Intent): void {
     const yaw = Math.atan2(-fwd.x, -fwd.z); // her heading relative to ours (rad, + = bow to port)
     t.phase = 'hoisting';
     t.t = 0;
+    delete t.painter; // let go: she comes up on the hook
     t.from = [local.x, local.y, local.z, yaw];
     tender.controls.lever = 0;
     tender.controls.obOn = 0;
@@ -229,6 +231,8 @@ export function stepTender(world: WorldState, tender: VesselState, dt: number): 
   if (t.phase === 'lowering' && t.t >= T) {
     t.phase = 'free';
     t.t = 0;
+    // On her painter from the moment she's afloat (owner: launched in wind, she blew away).
+    painterOnLaunch(world, tender);
   }
 }
 

@@ -60,6 +60,9 @@ import { WorldView } from '../world/view/worldView';
 import { LaserPointer } from './laserPointer';
 import { SoundBoard } from './soundBoard';
 import { TowlineView } from '../tow/towlineView';
+import { PainterView } from '../vessel/view/painterView';
+import { cleatName, painterPlan, skiffCleatLocal } from '../vessel/physics/painter';
+import { Cleat } from '../controls/deckGear';
 import { Binoculars } from '../player/binoculars';
 import { fireAlertT } from '../fire/fire';
 import { FireView, JetView } from '../fire/fireView';
@@ -192,6 +195,7 @@ export class App {
   private readonly wildlife = new WildlifeView();
   /** The towline and our stern roller (towing missions). */
   private readonly towline = new TowlineView();
+  private readonly painter = new PainterView();
   private readonly logView = new LogView();
   private readonly trawlView = new TrawlView();
   private readonly targetsView = new TargetsView();
@@ -363,7 +367,7 @@ export class App {
     if (tugView) this.trawlView.attachAFrame(tugView.root, VESSEL_DEFS[this.world.vessels[this.testVesselId].defId]);
     this.binoculars = new Binoculars(this.camera);
     if (tugView) this.binoculars.stow(tugView.root);
-    this.scene.add(this.towline.root, this.fireView.root, this.jetView.root, this.logView.root, this.trawlView.root);
+    this.scene.add(this.towline.root, this.painter.root, this.fireView.root, this.jetView.root, this.logView.root, this.trawlView.root);
     this.setupBridge();
 
     setupXR(this.renderer, this.camera);
@@ -403,6 +407,12 @@ export class App {
     if (def.outboard) {
       const tiller = new Tiller(vessel.id, def.outboard);
       view.root.add(tiller.root);
+      // Her bow cleat on the stem head, for the painter (clicked with the tiller's parts).
+      const bow = new Cleat(-1, { id: `painter:${vessel.id}`, channel: `${vessel.id}:painter`, label: "Skiff's painter (bow cleat): let go / make fast to the nearest cleat" });
+      const [bx, by, bz] = skiffCleatLocal(def);
+      bow.root.position.set(bx, by - 0.06, bz);
+      view.root.add(bow.root);
+      tiller.parts.push(bow);
       this.tillers.push(tiller);
     }
   }
@@ -608,6 +618,11 @@ export class App {
     // Bridge controls and displays read the (just-updated) vessel state.
     const testVessel = this.world.vessels[this.testVesselId];
     if (this.bridge && testVessel) {
+      {
+        const p = this.ourSkiff()?.tender;
+        const on = p?.phase === 'free' ? p.painter?.cleat : undefined;
+        for (const c of this.bridge.cleats) c.painterOn = c.index === on;
+      }
       this.bridge.update(testVessel, dt, this.dashInView(), this.world.environment);
       this.bridge.radio.update(this.world.rescue, runStatus(this.world), dt, isPowered(testVessel, 'radio'), towAlertT(this.world) >= 0 || fireAlertT(this.world) >= 0);
       // Say so when the anchor is up or holding (the speed screen shows it all the time).
@@ -631,6 +646,7 @@ export class App {
         if (!sv) continue;
         t.sync(sv);
         t.tick(dt);
+        for (const c of t.parts) if (c instanceof Cleat) c.sync(sv);
         this.sound.motor.update(sv.controls.obOn > 0 ? Math.sign(sv.controls.obGear) * sv.controls.lever : 0, sv.battery ?? 0, t.root.getWorldPosition(this.tmpV).distanceTo(this.focus));
       }
       this.bridge.chart.marks = CONFIG.chartMarks.showOnPlotter ? this.marks : null;
@@ -649,6 +665,7 @@ export class App {
       if (id === this.testVesselId) ({ slam, lap } = hit);
     }
     this.towline.update(this.world, this.vesselRoots, this.testVesselId, this.renderWaves);
+    this.painter.update(this.world, this.vesselRoots, this.renderWaves);
     this.logView.update(this.world, this.renderWaves, renderTime);
     this.trawlView.update(this.world, this.vesselRoots.get(this.testVesselId) ?? null, this.renderWaves, renderTime);
     this.fireView.update(this.world, this.renderWaves, renderTime, dt);
@@ -1251,6 +1268,19 @@ export class App {
    * nothing did (no berth in reach). Read from the shared state (`berthId` is the berth in
    * range while she's free), so it works for crew too.
    */
+  /** Our ship's skiff (the tender whose host is our boat), if she has one. */
+  private ourSkiff(): VesselState | undefined {
+    return Object.values(this.world.vessels).find((v) => v.tender?.hostId === this.testVesselId);
+  }
+
+  /** The painter clicked (at `cleat`, -1 her bow cleat): say what happens, or why not. */
+  private painterHint(skiff: VesselState, cleat: number): void {
+    const plan = painterPlan(this.world, skiff, cleat);
+    if (plan.action === 'castOff') this.overlay.notify(`Painter let go from the ${cleatName(plan.cleat)}`, 2.5);
+    else if (plan.action === 'makeFast') this.overlay.notify(`Painter made fast to the ${cleatName(plan.cleat)} (${plan.length.toFixed(1)} m)`, 3);
+    else this.overlay.notify(`Painter: ${plan.why}`, 3);
+  }
+
   private cleatHint(cleat: number): void {
     const v = this.world.vessels[this.testVesselId];
     if (!v) return;
@@ -1898,6 +1928,13 @@ export class App {
         if (channel === 'start' && value > 0) this.startInGearHint();
         if (channel === 'dipstick') this.readDipstick();
         if (channel === 'cleat') this.cleatHint(value);
+        // A midship cleat: the painter's on the skiff (aimed at her), whichever cleat leads it.
+        if (channel === 'painterCleat' || channel.endsWith(':painter')) {
+          const skiff = this.ourSkiff();
+          if (!skiff) return;
+          this.painterHint(skiff, value);
+          return this.pushIntentTo(skiff.id, 'painter', value);
+        }
         if (value > 0) this.hydraulicsHint(channel);
         const { vesselId, control } = this.routeChannel(channel);
         this.pushIntentTo(vesselId, control, value);
@@ -2187,7 +2224,10 @@ export class App {
     for (const t of this.tillers) {
       const covered = this.world.vessels[t.vesselId]?.tender?.phase === 'stowed';
       t.root.visible = !covered;
-      for (const c of t.parts) c.enabled = !covered;
+      for (const c of t.parts) {
+        c.enabled = !covered;
+        if (c instanceof Cleat) c.root.visible = !covered;
+      }
     }
   }
 
