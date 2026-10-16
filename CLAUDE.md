@@ -28,6 +28,7 @@ SWVR is a browser WebXR sea rescue and operations game: chunky low-poly workboat
 - Work on the branch the session names; the long-running dev branch is `claude/admiring-dirac-v9wwih`. Push with `git push -u origin <branch>`. **Don't open pull requests** unless the owner asks.
 - Leave no untracked files behind. Scratch scripts and screenshots go in the session's scratchpad, not the repo.
 - **Never put a model name or id** in commits, code or docs.
+- **Tag `v1.0`** marks Workboat World v1.0, the owner's restore point before modular boats. Never move or delete a release tag; see PROGRESS.md "Release: Workboat World v1.0".
 - The Pages workflow (`.github/workflows/pages.yml`) runs `npm test` and `npm run build` on every push. After a push, check the run succeeded before telling the owner it's live.
 
 ## Commands

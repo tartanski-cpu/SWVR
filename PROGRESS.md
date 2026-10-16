@@ -1533,6 +1533,16 @@ The brief's "no new particle effects" rule was flagged: the fire is drawn withou
     - **Finish:** paper grain, two fold creases and edges darkened by handling.
   - **Cost:** about 180 ms to draw once at load, the same as before. The pixel finish was first written per pixel (7 s in a headless browser) and is now done with canvas compositing: a 256 px noise tile and gradients. Still one draw call.
 
+## Release: Workboat World v1.0
+
+The owner declared this point **v1.0 of the game, "Workboat World"** (after the mooring cleats), before the next big step (modular boats). It is marked in git with the tag **`v1.0`**: a permanent bookmark on that exact commit, which later work doesn't move.
+
+How to come back to it:
+- **Look at or download it:** on GitHub, the repo's Tags list has `v1.0`, with a zip of the code as it was.
+- **Work from it in a session:** ask Claude to "check out v1.0" (`git checkout v1.0`), or to start a branch from it (`git checkout -b <name> v1.0`), for example to fix a bug in v1.0 alone.
+- **Undo everything after it** on the dev branch: possible, but ask Claude first; it's a big step and it's better done as a new commit that restores v1.0's files than by rewriting history.
+- The live site follows the dev branch, so after later pushes it shows the newer game, not v1.0.
+
 ## Planned next (owner requests, not started)
 
 1. ~~Fuel and oil temperature~~ **Done** (see above).
@@ -1628,7 +1638,7 @@ Order, as the owner set it:
 
 Before the first branch-off (2 or 3):
 
-- Tag the last version before the split in git (for example `v1.0-before-mobile`).
+- ~~Tag the last version before the split in git~~ **Done**: tag `v1.0` (see "Release: Workboat World v1.0").
 - ~~Write a `CLAUDE.md`~~ **Done**: the owner's standing rules, commands, code layout and this direction, read by every session.
 - First round: separate the shared core from the VR/desktop-specific parts, plus an empty mobile page that drives the boat with two sticks. No visible change to SWVR.
 
