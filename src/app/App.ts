@@ -6,6 +6,7 @@ import { Keyboard } from '../core/keyboard';
 import { FixedStepLoop } from '../core/loop';
 import { stepWorld, type SimDebug } from '../core/simulation';
 import { createWorld, type WorldState } from '../core/world';
+import { randomLook } from '../net/avatarOutfits';
 import { HelpPanel } from '../debug/helpPanel';
 import { DebugOverlay } from '../debug/overlay';
 import { EnvironmentView } from '../environment/environmentView';
@@ -86,7 +87,7 @@ import { createRescueState, nearestPort, runStatus } from '../rescue/rescue';
 import { engineAlarms } from '../vessel/physics/engineThermal';
 import { VesselEffects } from '../vessel/view/vesselEffects';
 import { sunElevation } from '../environment/timeOfDay';
-import { clamp } from '../core/math';
+import { clamp, type Quat } from '../core/math';
 import { GpuTimer } from '../debug/gpuTimer';
 import { TrialsPanel } from '../debug/trialsPanel';
 import { vesselReadout } from '../debug/vesselReadout';
@@ -301,6 +302,9 @@ export class App {
   private poseTimer = 0;
   private readonly avatars = new AvatarsView(this.scene);
   private readonly poseQ = new THREE.Quaternion();
+  private readonly handQ = new THREE.Quaternion();
+  private readonly carrierQ = new THREE.Quaternion();
+  private readonly feetV = new THREE.Vector3();
   private readonly invFrame = new THREE.Matrix4();
 
   constructor(container: HTMLElement) {
@@ -324,6 +328,8 @@ export class App {
     this.localPlayerId = created.localPlayerId;
     this.soloPlayerId = created.localPlayerId;
     this.testVesselId = created.vesselId;
+    // Our own working clothes, as crew who join will see us (net/avatarOutfits.ts).
+    this.world.players[this.localPlayerId].look = randomLook();
 
     this.rig = new PlayerRig(this.localPlayerId, this.camera);
     this.scene.add(this.rig.carrier);
@@ -648,7 +654,8 @@ export class App {
       const tv = this.world.vessels[this.testVesselId];
       const burning = fj && fj.phase !== 'calling' ? fj.intensity : 0;
       const dist = fj ? Math.hypot(fj.x - this.focus.x, fj.z - this.focus.z) : 1e9;
-      this.sound.fire.update(burning, dist, !!tv && jetOn(tv), this.insideHouse ? this.closed : 0);
+      this.bridge?.fireGauge?.update(fj ?? null);
+      this.sound.fire.update(burning, dist, !!tv && jetOn(tv), this.insideHouse ? this.closed : 0, fj && fj.phase === 'accepted' ? fj.wetting : 0);
       // The anchor chain over the bow roller and the windlass.
       const root = this.vesselRoots.get(this.testVesselId);
       const anchor = tv && gearOf(tv, 'anchor');
@@ -1089,13 +1096,18 @@ export class App {
     this.placeDebugPanel(inXR);
   }
 
-  /** Desktop walking on the workboat: a shut wheelhouse door blocks the doorway. */
+  /** Desktop walking on the workboat: a shut wheelhouse door (aft or port side) blocks its doorway. */
   private withDoor(area: WalkArea, vesselId: EntityId | null): WalkArea {
     const v = vesselId === this.testVesselId ? this.world.vessels[vesselId] : undefined;
-    if (!v || v.controls.door > 0.5) return area;
+    if (!v) return area;
     const wh = this.testDef.layout.wheelhouse;
-    const inDoor = (x: number, z: number, y: number) => Math.abs(x) < wh.doorWidth / 2 + 0.15 && Math.abs(z - wh.aft) < 0.3 && y < wh.floorY + 0.5;
-    return { ...area, walkable: (x, z, y) => area.walkable(x, z, y) && !inDoor(x, z, y) };
+    const sd = wh.sideDoor;
+    const aftShut = v.controls.door <= 0.5;
+    const sideShut = !!sd && (v.controls.sideDoor ?? 0) <= 0.5;
+    if (!aftShut && !sideShut) return area;
+    const inAft = (x: number, z: number, y: number) => aftShut && Math.abs(x) < wh.doorWidth / 2 + 0.15 && Math.abs(z - wh.aft) < 0.3 && y < wh.floorY + 0.5;
+    const inSide = (x: number, z: number, y: number) => sideShut && !!sd && Math.abs(x + wh.halfWidth) < 0.3 && z > sd.z0 - 0.15 && z < sd.z1 + 0.15 && y < wh.floorY + 0.5;
+    return { ...area, walkable: (x, z, y) => area.walkable(x, z, y) && !inAft(x, z, y) && !inSide(x, z, y) };
   }
 
   /** `fly`: VR on foot - grab-the-world moves freely in 3D, nothing collides (see Locomotion). */
@@ -1302,6 +1314,8 @@ export class App {
     return {
       timeOfDay: () => env().timeOfDay,
       shiftTime: (h) => this.pushEnvIntent('timeOfDayDelta', h),
+      quietCalls: () => !!this.world.quietCalls,
+      setQuietCalls: (on) => this.pushEnvIntent('quietCalls', on ? 1 : 0),
       timeScale: () => env().timeScale,
       setTimeScale: (v) => this.pushEnvIntent('timeScale', v),
       seaScale: () => env().seaScale,
@@ -1631,13 +1645,31 @@ export class App {
     const frame = this.playerFrame();
     frame.updateMatrixWorld();
     this.invFrame.copy(frame.matrixWorld).invert();
-    const head = this.camera.getWorldPosition(this.tmpV).applyMatrix4(this.invFrame);
-    const q = this.camera.getWorldQuaternion(this.poseQ).premultiply(this.attQ.setFromRotationMatrix(this.invFrame));
+    // Head and VR hands as if the view were rigid with the deck. Our own view may float a
+    // little against the boat's roll and heave (comfort decoupling, `rig.carrier`); sent as
+    // seen, that drift showed others our head a few cm off our shoulders (owner bug). So
+    // take them relative to the carrier and put the carrier back on our feet, unrotated
+    // against the deck: rigid head = feet + (head in the carrier's axes).
+    const carrier = this.rig.carrier;
+    carrier.updateMatrixWorld();
+    const carrierQInv = carrier.getWorldQuaternion(this.carrierQ).invert();
+    const onDeck = (world: THREE.Vector3) => carrier.worldToLocal(world).add(this.feetV.fromArray(p.position));
+    const head = onDeck(this.camera.getWorldPosition(this.tmpV));
+    const q = this.camera.getWorldQuaternion(this.poseQ).premultiply(carrierQInv);
     const inXR = this.renderer.xr.isPresenting;
     const hand = (h: 'left' | 'right') => {
-      // Desktop players have one hand: on whatever the mouse holds (a rubber band to others).
-      const w = inXR ? this.controllers.worldPosition(h, this.gripW[h]) : h === 'right' ? this.desktopHandWorld(this.gripW[h]) : null;
-      return w ? (w.clone().applyMatrix4(this.invFrame).toArray() as [number, number, number]) : null;
+      // Desktop players have one hand: on whatever the mouse holds (a rubber band to others),
+      // so it's where that control really is on the deck.
+      if (!inXR) return h === 'right' && this.desktopHandWorld(this.gripW[h]) ? (this.gripW[h].clone().applyMatrix4(this.invFrame).toArray() as [number, number, number]) : null;
+      const w = this.controllers.worldPosition(h, this.gripW[h]);
+      return w ? (onDeck(w.clone()).toArray() as [number, number, number]) : null;
+    };
+    // VR hands' orientation in the same frame, so crew-mates see the wrists turn.
+    const handQ = (h: 'left' | 'right'): Quat | null => {
+      const wq = inXR ? this.controllers.worldQuaternion(h, this.handQ) : null;
+      if (!wq) return null;
+      const lq = wq.premultiply(carrierQInv);
+      return [r(lq.x), r(lq.y), r(lq.z), r(lq.w)];
     };
     const r = (x: number) => Math.round(x * 1000) / 1000;
     const pose: PlayerPose = {
@@ -1648,12 +1680,14 @@ export class App {
       head: [r(head.x), r(head.y), r(head.z), r(q.x), r(q.y), r(q.z), r(q.w)],
       left: hand('left'),
       right: hand('right'),
+      leftQ: handQ('left'),
+      rightQ: handQ('right'),
       tool: this.chartTools?.heldTool() ?? null,
       laser: this.laser.pose(this.invFrame),
     };
     if (this.host) {
       p.name = pose.name;
-      p.avatar = { head: pose.head, left: pose.left, right: pose.right, tool: pose.tool, laser: pose.laser };
+      p.avatar = { head: pose.head, left: pose.left, right: pose.right, leftQ: pose.leftQ, rightQ: pose.rightQ, tool: pose.tool, laser: pose.laser };
       return;
     }
     this.poseTimer += dt;
@@ -2173,7 +2207,9 @@ export class App {
     // How shut-in the wheelhouse is: the aft door decides.
     if (this.bridge) {
       this.bridge.door.tick(dt);
-      this.closed = this.bridge.door.shut ? 1 : 0;
+      this.bridge.sideDoor?.tick(dt);
+      // Shut in only with both doors shut (the port side door, if she has one, too).
+      this.closed = this.bridge.door.shut && (this.bridge.sideDoor?.shut ?? true) ? 1 : 0;
     }
     this.sound.wind.update(Math.hypot(ax, az), inside, dt, this.closed);
   }

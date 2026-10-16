@@ -1,5 +1,5 @@
 import type { EntityId } from '../core/ids';
-import type { Vec3 } from '../core/math';
+import type { Quat, Vec3 } from '../core/math';
 
 /**
  * Simulation-side description of a player. The local player is just one entry in
@@ -34,9 +34,24 @@ export interface PlayerState {
   velocity?: Vec3;
   /**
    * Head and hands as other players should see them (multiplayer), in the same frame as
-   * `position`: head (x, y, z, qx, qy, qz, qw), hands (x, y, z) or null if not tracked.
+   * `position`: head (x, y, z, qx, qy, qz, qw), hands (x, y, z) or null if not tracked, and
+   * each VR hand's orientation (absent for desktop players, and from older versions).
    */
-  avatar?: { head: [number, number, number, number, number, number, number]; left: Vec3 | null; right: Vec3 | null; tool?: HeldTool | null; laser?: LaserPose | null };
+  /**
+   * How others see you: a number the host picks when you join (net/avatarOutfits.ts
+   * decodes it into an outfit, skin tone and beard). Absent from older hosts: then it's
+   * derived from the player id.
+   */
+  look?: number;
+  avatar?: {
+    head: [number, number, number, number, number, number, number];
+    left: Vec3 | null;
+    right: Vec3 | null;
+    leftQ?: Quat | null;
+    rightQ?: Quat | null;
+    tool?: HeldTool | null;
+    laser?: LaserPose | null;
+  };
 }
 
 export function createPlayerState(id: EntityId, name: string): PlayerState {

@@ -112,6 +112,17 @@ function box(x0: number, x1: number, y0: number, y1: number, z0: number, z1: num
 }
 
 /**
+ * A wedge (triangular prism) across x0..x1: in the (z, y) plane its corners are (zA, y0),
+ * (zA, y1) and (zB, y0) - a wall panel's sloping end.
+ */
+function wedge(x0: number, x1: number, zA: number, zB: number, y0: number, y1: number, color: number): THREE.BufferGeometry {
+  const shape = new THREE.Shape([new THREE.Vector2(zA, y0), new THREE.Vector2(zB, y0), new THREE.Vector2(zA, y1)]);
+  // Extruded along its own +z, then turned so that runs along -x and the shape's x is z.
+  const g = new THREE.ExtrudeGeometry(shape, { depth: x1 - x0, bevelEnabled: false }).rotateY(-Math.PI / 2).translate(x1, 0, 0);
+  return part(g, color);
+}
+
+/**
  * A thin bar of cross-section w x h running from p0 to p1 (any direction). Its h side is
  * kept as near vertical as the direction allows (a vertical bar keeps it fore-and-aft), so
  * consecutive segments of a rail or bulwark line up instead of each rolling its own way.
@@ -170,6 +181,20 @@ function buildDeckFittings(form: HullForm, layout: LayoutConfig): THREE.BufferGe
 export const JAMB = 0.16;
 
 /**
+ * The pilot-house rake of the wheelhouse front (`wheelhouse.frontRakeDeg`): a shear that
+ * moves each point forward (-z) by (height above the front sill, `frontSill`) x tan(rake), keeping
+ * heights. Sill and head lines stay level, the glass and mullions lean forward. The rain
+ * glass and the wipers (rainGlass.ts) use the same matrix, so they sit on the raked panes.
+ */
+export function frontRake(wh: { floorY: number; windowSill: number; frontSill?: number; frontRakeDeg?: number }): { matrix: THREE.Matrix4; tan: number; sill: number } {
+  const sill = wh.floorY + (wh.frontSill ?? wh.windowSill);
+  const tan = Math.tan(((wh.frontRakeDeg ?? 0) * Math.PI) / 180);
+  // z' = z - tan * (y - sill)
+  const matrix = new THREE.Matrix4().set(1, 0, 0, 0, 0, 1, 0, 0, 0, -tan, 1, tan * sill, 0, 0, 0, 1);
+  return { matrix, tan, sill };
+}
+
+/**
  * Walk-in wheelhouse: walls with a window band all round, an aft doorway, floor, helm
  * console, roof and mast. Dimensions come from the layout config (shared with layout.ts).
  */
@@ -184,19 +209,58 @@ function buildWheelhouse(layout: HouseLayout): THREE.BufferGeometry[] {
   const roof = wh.roofY;
   const H = COLORS.house;
 
-  // Front wall (lower panel, upper panel, two mullions).
-  parts.push(box(-hw, hw, base, sill, wh.front, wh.front + w, H));
-  parts.push(box(-hw, hw, head, roof, wh.front, wh.front + w, H));
-  for (const x of [-0.5, 0.5]) parts.push(box(x - 0.04, x + 0.04, sill, head, wh.front, wh.front + w, H));
-  // Side walls, each with one mullion.
+  // Front wall: the lower panel upright; above the sill (the window band's two mullions and
+  // the panel above the glass) raked forward, pilot-house style (frontRake).
+  // The front glass starts higher than the sides' (`frontSill`, level with the dash top).
+  const rake = frontRake(wh);
+  const fSill = rake.sill;
+  const raked = (g: THREE.BufferGeometry) => g.applyMatrix4(rake.matrix);
+  const fwdAtHead = (head - fSill) * rake.tan;
+  const fwdAtRoof = (roof - fSill) * rake.tan;
+  parts.push(box(-hw, hw, base, fSill, wh.front, wh.front + w, H));
+  parts.push(raked(box(-hw, hw, head, roof, wh.front, wh.front + w, H)));
+  for (const x of [-0.5, 0.5]) parts.push(raked(box(x - 0.04, x + 0.04, fSill, head, wh.front, wh.front + w, H)));
+  // Side walls, each with one mullion. Alongside the console the wall stands up to the
+  // console top (`sideRaise`, owner sketch), sloping back down to the sill aft of it. The
+  // port wall has a sliding door between the console and the chart table (`sideDoor`).
+  const raise = wh.sideRaise;
+  const raiseTop = raise ? wh.floorY + raise.height : sill;
+  const sd = wh.sideDoor;
+  const jamb = 0.08;
   for (const s of [-1, 1]) {
     const x0 = s > 0 ? hw - w : -hw;
     const x1 = s > 0 ? hw : -hw + w;
-    parts.push(box(x0, x1, base, sill, wh.front, wh.aft, H));
-    parts.push(box(x0, x1, head, roof, wh.front, wh.aft, H));
+    const door = s < 0 && sd ? sd : null;
+    if (door) {
+      // Below the window band and above it, round the door opening (floor to door head).
+      parts.push(box(x0, x1, base, sill, wh.front, door.z0, H));
+      parts.push(box(x0, x1, base, sill, door.z1, wh.aft, H));
+      parts.push(box(x0, x1, head, roof, wh.front, door.z0, H));
+      parts.push(box(x0, x1, head, roof, door.z1, wh.aft, H));
+      parts.push(box(x0, x1, wh.floorY + door.height, roof, door.z0, door.z1, H)); // header
+      parts.push(box(x0, x1, base, wh.floorY + 0.02, door.z0, door.z1, COLORS.floor)); // threshold
+      // Jambs: forward (the door buttons are on it), and aft, running back to the mullion.
+      parts.push(box(x0, x1, sill, wh.floorY + door.height, door.z0 - jamb, door.z0, H));
+      parts.push(box(x0, x1, sill, wh.floorY + door.height, door.z1, -0.12, H));
+    } else {
+      parts.push(box(x0, x1, base, sill, wh.front, wh.aft, H));
+      parts.push(box(x0, x1, head, roof, wh.front, wh.aft, H));
+    }
     parts.push(box(x0, x1, sill, head, -0.2, -0.12, H));
-    // Corner posts.
-    parts.push(box(x0, x1, sill, head, wh.front, wh.front + 0.1, H));
+    if (raise && raiseTop > sill) {
+      // Solid up to the console top beside it; on the port side it runs into the door jamb.
+      const zEnd = door ? door.z0 - jamb : raise.z1;
+      parts.push(box(x0, x1, sill, raiseTop, wh.front, zEnd, H));
+      if (!door) parts.push(wedge(x0, x1, raise.z1, raise.z1 + raise.slope, sill, raiseTop, H));
+    }
+    // Front corner posts, raked with the front; deep enough at the foot that, leaning
+    // forward, they still close onto the upright side wall behind (a solid cheek, widest at
+    // the top). Above the head the same cheek runs up to the roof.
+    // Below the front sill the post is as deep as the raked cheek's foot, so the two meet
+    // flush and there's no slot of window beside the dash (owner feedback).
+    parts.push(box(x0, x1, sill, fSill, wh.front, wh.front + 0.1 + fwdAtHead, H));
+    parts.push(raked(box(x0, x1, fSill, head, wh.front, wh.front + 0.1 + fwdAtHead, H)));
+    if (fwdAtRoof > 0) parts.push(raked(box(x0, x1, head, roof, wh.front, wh.front + fwdAtRoof + 0.02, H)));
     parts.push(box(x0, x1, sill, head, wh.aft - 0.1, wh.aft, H));
   }
   // Aft wall: panels either side of the doorway, with the window band open, and a lintel.
@@ -244,6 +308,8 @@ function buildWheelhouse(layout: HouseLayout): THREE.BufferGeometry[] {
   const top = roof + rf.thickness;
   const ov = rf.overhang;
   parts.push(box(-hw - ov, hw + ov, roof, top, wh.front - ov, wh.aft + ov, COLORS.roof));
+  // The brow: the roof edge carried forward over the raked front glass (none if upright).
+  if (fwdAtRoof > 0) parts.push(box(-hw - ov, hw + ov, roof, top, wh.front - fwdAtRoof - ov, wh.front - ov, COLORS.roof));
   parts.push(box(-0.06, 0.06, top, roof + 1.7, 0.34, 0.46, COLORS.mast));
   parts.push(box(-0.45, 0.45, roof + 1.3, roof + 1.38, 0.36, 0.44, COLORS.mast));
 

@@ -45,7 +45,9 @@ let simWaves: PreparedWave[] = [];
 export function stepWorld(world: WorldState, intents: readonly Intent[], dt: number, debug?: SimDebug): void {
   // 1. Apply intents, routed by target entity.
   for (const intent of intents) {
-    if (isBoardIntent(intent.control)) {
+    if (intent.control === 'quietCalls') {
+      world.quietCalls = intent.value > 0.5;
+    } else if (isBoardIntent(intent.control)) {
       applyBoardIntent(world, intent);
     } else if (isRescueIntent(intent.control)) {
       applyRescueIntent(world, intent);

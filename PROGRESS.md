@@ -1549,6 +1549,37 @@ How to come back to it:
 
 ### Fixes after V1.0 (on the dev branch; not in the `V1.0` tag)
 
+- **Wheelhouse sides and a port side door** (owner sketch):
+  - **Raised side wall by the console:** from the front back to the console's aft edge the side windows' sill is raised to the console top (`wheelhouse.sideRaise` height 0.95 above the floor, to z -1.32), sloping back down to the normal sill over 0.35 m (a wedge). Both sides; on the port side it runs into the door's forward jamb.
+  - **Sliding door in the port wall** between the console and the chart table (`wheelhouse.sideDoor` z -1.12..-0.37, 2.0 m high): the aft door's panel (`WheelhouseDoor`, now taking its control key) turned to slide aft along the outside of the wall, a threshold, a header and jambs. Green push buttons on the forward jamb inside and out (`DoorButton`, key `sideDoor`). Vessel control `sideDoor` (1 open, optional in the state: absent = shut), shut at the start. Walking: a doorway strip joins the wheelhouse floor to the port side deck (`layout.ts`); desktop walking is blocked while it's shut (`App.withDoor`); the collision test treats the doorway as open. The wheelhouse counts as shut-in (muffled engine, wind, rain) only with both doors shut.
+  - Test: walking out through the side door onto the side deck; the doorway open, the wall beside it solid (`tests/layout.test.ts`).
+  - Fix (owner feedback): a slot of window showed beside the dash between the raised side wall and the raked corner post; the post below the front sill is now as deep as the raked cheek's foot, so they meet flush.
+- **Pilot-house front windows** (owner request): the front glass now starts level with the top of the instrument dash (`layout.wheelhouse.frontSill` 1.36 m above the floor; the side windows keep their 0.75 m sill) and leans forward 22 degrees from there (`frontRakeDeg`; first 12, raised on the owner's sketch; 0 gives an upright front). Owner feedback on the first try: starting the rake at the old sill made the glass long and it met the skiff's outboard; from the dash top it's shorter and clear.
+  - Done as a shear (`hullMesh.ts frontRake`: each point moves forward by its height above the front sill x tan(rake)), so the sill and head stay level and only the band above the sill leans: the two mullions, the panel above the glass and the front corner posts (deepened into a solid cheek so they still meet the upright side walls). The front wall below the new sill is solid and upright. A **brow** carries the roof edge forward over the raked glass (~0.32 m at 22 degrees).
+  - The **rain glass and wipers** take the same shear (`rainGlass.ts`); the wipers are shortened to the shorter panes (`rain.wiperArm` 0.42, `wiperBlade` 0.36, were 0.6).
+  - Walk/collision test (`layout.ts`): the front wall counts as solid up to the new front sill.
+  - Nothing else moved: console, dash, side and aft walls, roof, floor and walk areas are as before.
+- **Crew-mates as working figures** (owner: upper body only, with a random selection of fisherman and workboat clothing; steps B and C of the avatar plan):
+  - **Figure** (`net/avatarView.ts`, sizes in `CONFIG.avatar`): head; a torso hanging from the neck to the waist (no legs), turned toward where they look but lagging (`bodyTurnRate`) and never twisted more than `maxTwistDeg`, leaning when the head is off the feet (`lean`); two-part arms whose elbow is found from the shoulder and the hand (two fixed-length bones, law of cosines, bent down/out/back). A desktop hand on a far control stretches the forearm (the old rubber band). An untracked hand hangs relaxed.
+  - **Looks** (`net/avatarOutfits.ts`): six original outfits (yellow oilskins and sou'wester; orange float coat and beanie; navy jumper and flat cap; hi-vis vest, work blues and hard hat; green bib-and-brace over a check shirt; red crew jacket and cap), five skin tones, beards in four colours or none. The host picks a random `PlayerState.look` for each player as they join (and for itself); everyone decodes the same figure. The player's colour shows on the hat and collar. Older hosts send no look: it's derived from the id.
+  - **Faces** now have eyes and a nose instead of the dark visor, so you see which way someone looks.
+  - **Cost:** 8 meshes per crew-mate (head, torso, 2 upper arms, 2 forearms, 2 gloves), one shared vertex-colour material: about the same as the old figure. Not a single skinned mesh as first proposed: rigid parts were simpler and cost the same with a few players.
+  - Tests: `tests/avatarBody.test.ts` (torso on the neck, leaning; elbow joints and reach; untracked hands hang; far desktop reach stretches; every look decodes and builds).
+- **Avatar head no longer floats off the body** (owner bug; step A of the avatar plan). Two causes, both fixed:
+  - **The pose sent the comfort-softened view.** With motion coupling below 100 % (the desktop default on deck), our camera lags the boat's roll and heave a little; 2 degrees at 1.6 m is 5-6 cm, and that was sent as the head position. Now `updateNetPose` sends the head and VR hands relative to the rig's carrier, put back on our feet unrotated against the deck: what a rigid view would show. Our own view keeps its comfort. The desktop hand (on a control) is unchanged.
+  - **The body was placed on its own** (70 % of the head's sideways offset), so any offset left a gap. Now the torso runs from the feet to a neck right under the head (`NECK_DROP` 0.13 m), leaning with it, and the shoulders hang from the neck (`net/avatarView.ts`). Test: `tests/avatarBody.test.ts` (the old body left a 9.5 cm gap there).
+- **Fire missions: better feedback** (owner request). Four cues, where you look and listen while aiming:
+  - a **fire gauge** on the SEARCH · FIRE plate just ahead of the MONITOR joystick (`fire/fireGauge.ts`, `fireMonitor.gauge`): a FIRE bar as long as the fire is big (red, orange, yellow as it dies) and an **ON TARGET** lamp, green while the jet lands on it. Two small draw calls; the track is baked with the console.
+  - a **steam sizzle** where the jet lands (`audio/fireAudio.ts`), loud enough to hear from the helm (falls off far more gently than the roar);
+  - **coastguard progress calls** on the VHF: first water on it, under half, nearly out (`fire.progressCalls` [0.5, 0.2]; `FireJob.said`);
+  - the existing white steam and status line.
+- **Fewer calls and slower weather** (owner: too frequent), all in config:
+  - `tow.every` 480-1080 s (was 240-540), `fire.every` 600-1320 s (was 300-660), `rescue.chance` 0.35 per cargo run (was 0.5);
+  - an unanswered call rings every 20 s, not 10 (`callRepeat`, rescue / tow / fire);
+  - `weather.hold` 480-1200 s (was 240-600; squalls unchanged); `weather.forecast.every` 720 s (was 360).
+  - **Emergency calls: On / Off** in the menu's Voyage tab (`world.quietCalls`, intent `quietCalls`): off, no new rescue, tow or fire calls start; one already ringing runs its course. Shared with the crew (it's in the world). Per session, not saved. Test: `tests/quietCalls.test.ts`.
+- **Avatar hands you can read** (owner: so other players see the hands turn). The VR pose now sends each hand's orientation (`PlayerPose.leftQ/rightQ`, `avatar.leftQ/rightQ`; optional, so older versions still join). Other players' hands are a gloved fist with a thumb on top and a wrist cuff (`net/avatarView.ts` `handGeometry`), not a sphere, turned as the real hand is. Desktop players' hands face where they look.
+- **Desktop help panel off by default and trimmed** (owner request): it starts hidden (H or F1 shows it; `debug/helpPanel.ts`). It now lists only the playing keys: what the menu already does is left out (time of day N/M, weather L, motion coupling 9/0, sea trials T, drop R / heel K tests, buoyancy V and wave probes P; those keys still work). Added the keys it was missing: jump (Space), lash (Q), binoculars (Z). The VR line no longer mentions X + stick for motion coupling (it's in Settings → Comfort). Slightly tighter spacing so it fits a 720-px-high window.
 - **Trawling speed easier to hold** (owner: the trawl speed was hard to reach, she was too fast). Measured with the net out: she made 3.0 kn idling in gear and 4 kn by 23 % lever, so the 2-4 kn window was only 8-23 % of the lever (a quarter of a second on the desktop keys). The net was too light (3.5 kN at 3 kn). Now:
   - net drag tripled (`fishing.dragLinear` 1800, `dragQuad` 3000: ~10 kN at 3 kn, so the engine works when trawling); fouled drag raised to stay well above it (`foulDrag` 18000);
   - the window's top raised from 4 to 4.5 kn (`fishing.maxSpeed` 2.3 m/s); the status line now shows the window from the config (`trawlKnots`).
@@ -1628,6 +1659,17 @@ How to come back to it:
   - **Square bows:** a section that keeps its width at the stem is closed by a flat, raked bow plate with a bulwark across it (the work skiff, the landing cat's demihulls). Transom and bow-plate fans now close along the centreline at deck height (they left a wedge open).
   - **Owner's shortlist** (marked ★ in the viewer, `shortlist: true`): sjark netter, catamaran landing craft, pilot boat, harbour tug, limit seiner, crew transfer catamaran. The gillnetter, landing craft, pushboat and multicat stay as references.
   - Hull and houses only, by design: deck gear, masts, rails, ramps, push knees and controls come as modules later. The owner's modular-boat plan decides how the section format is used.
+
+## Reference-boat pipeline (owner brief; PAUSED by the owner)
+
+**Paused:** the owner has Claude Cowork doing the photo research and writing the module descriptions, to bring to Claude Code later. Don't build anything for it until then; the proposal's open points still apply when it resumes.
+
+A research side task that doesn't change the game. It turns photos and spec sheets of real boats into hull shells with sockets, and grows the module catalogue (`docs/PIPELINE_REFERENCE_BOATS.md`). The proposal is `docs/PIPELINE_PROPOSAL.md`: folder layout, brief schema, milestones P1-P6 lined up against the modular milestones (the shell generator after M6, modules after M5, recipes after M7). It raises five points for the owner before P1:
+- recognisable copies of named products versus the "original designs only" rule (recommended: references set type and proportions; our own names and details);
+- reference photos in a private repository (gitignored files don't survive between cloud sessions);
+- this environment's network blocks the builder and review sites (allow the domains, or gather by hand);
+- the development-only `yaml` dependency (ask-first rule);
+- the first boat (the 9 m work skiff would feed M7 directly).
 
 ## Direction: one engine, three games (owner plan, not started)
 
@@ -2079,6 +2121,18 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
     - listen: the crane, winch and net drum's hydraulics, the anchor chain.
   - **Desktop:** the same by clicking.
   - **F3:** 46 modules with something drawn (the trawl and the windlass have nothing of their own to draw).
+
+### Merged: the pilot house and the post-V1.0 changes into the modular boat (owner request after M5a)
+
+- **What came in** from the dev branch (built by another session; see its entries above): the raked pilot-house front and raised side wall, the port side door, the fire gauge on the console, fewer and quieter calls, longer weather, the crew-mate figures, the help panel hidden at start.
+- **Fitted to the modules** where the two met:
+  - **The side door's push buttons are door-button modules**, like the aft door's: two new hull sockets on its forward jamb (`sideDoorIn`, `sideDoorOut`), mounted in the recipe (version 7) with the button bound to a new bus key, **`door.side.open`** (old name `sideDoor` kept, so older clients still work). The hull lists the side door as a feature. The door-button module has a config now: its hover text (`label`); its door starts open or shut as its key does (the aft door open, the side door shut).
+  - The side door's sliding panel stays with the Bridge, as the aft door's does.
+  - **The fire gauge** stays with the Bridge, next to the fire monitor, and goes with it when the monitor becomes a module (5b). Its config is `vessels.workboat.fireMonitor.gauge`. The monitor joystick and FIRE PUMP switch keep their console slots (modules since M3a), so the old `fireMonitor.joystick` / `pumpSwitch` positions stay removed.
+- **Exactly as before:** all twelve golden runs match their recordings except for one new recorded value, `door.side.open` (always shut in them); they were re-recorded to add it. The sea-trials report is identical.
+- **Checked:** typecheck, 414 tests, the build; in the browser, the helm, the console, the side door from inside (shut and open) and out, and the pilot-house front, against the dev branch's own build: the same. The side door opens by its new key and shuts by its old name; its buttons are found by the pointer. No page errors.
+- **Draw calls** (day, M5a → merged; the live game's own build in brackets): helm 55 → 55 (67), chart table 44 → 51 (53), aft deck facing forward 95 → 105 (130), aft deck facing aft 28 → 28 (33). The rise is the new pilot house (the side door, its jamb, the raked glass and brow), which the live game pays for too.
+- **Owner test** (at /SWVR/next/): the side door's buttons inside and out, and that it's quiet inside only with both doors shut; the fire gauge during a fire; then the M5a deck-gear steps above.
 
 ### Test address for work in progress (owner request)
 

@@ -2,6 +2,7 @@ import type { IdFactory, EntityId } from '../core/ids';
 import type { Intent } from '../core/intents';
 import type { WorldState } from '../core/world';
 import { createPlayerState } from '../player/playerState';
+import { randomLook } from './avatarOutfits';
 import { placeAshore } from '../player/playerControl';
 import { isWorkboat, VESSEL_DEFS } from '../vessel/vesselDef';
 import { releaseHolds } from '../vessel/vesselControl';
@@ -42,6 +43,7 @@ export class HostSession {
       if (this.peers.has(link.id)) return;
       const playerId = this.ids.next('player');
       const p = createPlayerState(playerId, (msg.name || `Player ${this.peers.size + 2}`).slice(0, 24));
+      p.look = randomLook(); // a random set of working clothes (net/avatarOutfits.ts)
       // Crew join aboard the workboat (wherever she is), at her boarding spot.
       const boat = Object.values(this.world.vessels).find((v) => isWorkboat(VESSEL_DEFS[v.defId]));
       if (boat) {
@@ -76,7 +78,9 @@ export class HostSession {
       p.yaw = pose.yaw;
       const tool = pose.tool && ['pencil', 'eraser'].includes(pose.tool.kind) && (pose.tool.hand === 'left' || pose.tool.hand === 'right') ? { kind: pose.tool.kind, hand: pose.tool.hand } : null;
       const laser = Array.isArray(pose.laser) && pose.laser.length === 7 && pose.laser.slice(0, 6).every(Number.isFinite) ? pose.laser : null;
-      p.avatar = { head: pose.head, left: pose.left, right: pose.right, tool, laser };
+      // Hand orientations: four finite numbers, or nothing (desktop players, older versions).
+      const quat = (q: unknown) => (Array.isArray(q) && q.length === 4 && q.every(Number.isFinite) ? (q as [number, number, number, number]) : null);
+      p.avatar = { head: pose.head, left: pose.left, right: pose.right, leftQ: quat(pose.leftQ), rightQ: quat(pose.rightQ), tool, laser };
     }
   }
 

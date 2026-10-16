@@ -124,6 +124,9 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
     case 'door':
       s.controls.door = intent.value > 0.5 ? 1 : 0;
       break;
+    case 'sideDoor':
+      s.controls.sideDoor = intent.value > 0.5 ? 1 : 0;
+      break;
     case 'dipstick':
     case 'oilTopUp':
       // Oil checked / topped up (the rules are the 'propulsion.oilCheck' and 'propulsion.oilTopUp' keys').

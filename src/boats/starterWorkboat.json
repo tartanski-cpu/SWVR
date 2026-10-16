@@ -1,6 +1,6 @@
 {
   "id": "vessel.starter-workboat",
-  "version": 6,
+  "version": 7,
   "name": "Workboat",
   "hull": "hull.workboat-12m",
   "modules": [
@@ -67,6 +67,8 @@
     { "socket": "whiteboard", "module": "furniture.whiteboard" },
     { "socket": "doorIn", "module": "control.door-button" },
     { "socket": "doorOut", "module": "control.door-button" },
+    { "socket": "sideDoorIn", "module": "control.door-button", "config": { "label": "Side door: open / shut" }, "bind": { "door": "door.side.open" } },
+    { "socket": "sideDoorOut", "module": "control.door-button", "config": { "label": "Side door: open / shut" }, "bind": { "door": "door.side.open" } },
     { "socket": "engineHatch", "module": "fitting.hatch-cover", "config": { "engrave": "ENGINE" }, "bind": { "open": "hatch.engine.open" } },
     { "socket": "dipstick", "module": "tool.dipstick" },
     { "socket": "oilCan", "module": "tool.oil-can" },

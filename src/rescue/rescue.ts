@@ -378,7 +378,7 @@ export function stepRescue(world: WorldState, dt: number, waves: readonly Prepar
     }
     const run = r.run;
     // A tow job on: the call waits until it's over.
-    if (run && run.triggerAt !== null && !r.active && !world.tow?.job && !world.fire?.job) {
+    if (run && run.triggerAt !== null && !world.quietCalls && !r.active && !world.tow?.job && !world.fire?.job) {
       const a = portById(run.from)!;
       if (Math.hypot(x - a.x, z - a.z) >= run.triggerAt) {
         run.triggerAt = null; // one call per run

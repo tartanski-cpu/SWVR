@@ -120,6 +120,18 @@ describe('locomotion', () => {
     expect(p.position[1]).toBeCloseTo(wh.floorY, 2);
   });
 
+  it('walks out through the port side door onto the side deck (the starboard wall stays shut)', () => {
+    const sd = wh.sideDoor!;
+    const p = createPlayerState('p', 'test');
+    p.position = [-0.9, wh.floorY, (sd.z0 + sd.z1) / 2];
+    const loco = new Locomotion();
+    run(loco, p, 4, () => ({ moveStick: [-1, 0] }));
+    expect(p.position[0]).toBeLessThan(-wh.halfWidth - 0.1); // out on the port side deck
+    expect(p.position[1]).toBeLessThan(wh.floorY); // stepped down to the deck
+    expect(area.insideSolid(-wh.halfWidth + wh.wall / 2, wh.floorY + 1.0, (sd.z0 + sd.z1) / 2)).toBe(false); // the doorway is open
+    expect(area.insideSolid(-wh.halfWidth + wh.wall / 2, wh.floorY + 0.5, sd.z0 - 0.2)).toBe(true); // the wall forward of it isn't
+  });
+
   it('cannot walk through the side wall (desktop rules)', () => {
     const p = createPlayerState('p', 'test');
     p.position = [0, wh.floorY, 0];

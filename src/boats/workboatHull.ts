@@ -17,6 +17,8 @@
  *       chartTable           the floor along the port wall, aft half (the leaf's hinge corner)
  *       dutyBoard, whiteboard    the starboard wall aft; the aft wall, port of the door
  *       doorIn, doorOut      on the aft door's frame, inside and out
+ *       sideDoorIn, sideDoorOut    on the port side door's forward jamb (added with the
+ *                        side door, after M5a)
  *       engineHatch          the hatch in the floor over the engine (its opening's size)
  *       dipstick, oilCan     in the engine space under it
  *   M4a engine (tagged inboard), fuelTank, batteries, hydraulicPump, bilgePump
@@ -43,6 +45,7 @@ const ct = wb.chartTable;
 const eh = wb.layout.engineHatch;
 const mt = wb.maintenance;
 const db = wb.layout.doorButtons;
+const sd = wh.sideDoor;
 /** The middle of the engine space under the hatch (machinery not drawn yet: a nominal point). */
 const bay: [number, number, number] = [(eh.x0 + eh.x1) / 2, wh.floorY - eh.pitDepth / 2, (eh.z0 + eh.z1) / 2];
 const roofTop = wh.roofY + wb.layout.roof.thickness;
@@ -75,6 +78,9 @@ export const WORKBOAT_HULL: HullDefinition = {
     // Facing into the wheelhouse; and the same on the outside, turned to face aft.
     { id: 'doorIn', type: 'wall.panel', transform: { position: [db.x, wh.floorY + db.height, wh.aft - wh.wall], rotationDeg: [-90, 0, 0] }, label: 'Door frame, inside' },
     { id: 'doorOut', type: 'wall.panel', transform: { position: [db.x, wh.floorY + db.height, wh.aft], rotationDeg: [-90, 180, 0] }, label: 'Door frame, outside' },
+    // The port side door's buttons, on its forward jamb (wheelhouse.sideDoor).
+    { id: 'sideDoorIn', type: 'wall.panel', transform: { position: [-wh.halfWidth + wh.wall, wh.floorY + sd.buttonHeight, sd.z0 - 0.04], rotationDeg: [-90, -90, 0] }, label: 'Side door jamb, inside' },
+    { id: 'sideDoorOut', type: 'wall.panel', transform: { position: [-wh.halfWidth, wh.floorY + sd.buttonHeight, sd.z0 - 0.04], rotationDeg: [-90, 90, 0] }, label: 'Side door jamb, outside' },
     // The hatch's hinged (outboard) edge, mid-length, at floor level; its size is the opening's.
     { id: 'engineHatch', type: 'deck.fitting', transform: { position: [eh.x1, wh.floorY, (eh.z0 + eh.z1) / 2] }, capacity: { size: [eh.x1 - eh.x0, 0.035, eh.z1 - eh.z0] }, label: 'Wheelhouse floor, over the engine' },
     // On the engine's inboard side, the ring well under the shut hatch (the rocker cover is 0.12 m below the floor).
@@ -107,6 +113,7 @@ export const WORKBOAT_HULL: HullDefinition = {
   provides: [{ power: 'electrical', circuits: BREAKERS }],
   features: [
     { id: 'door.aft', kind: 'door', openKey: 'door.aft.open' },
+    { id: 'door.side', kind: 'door', openKey: 'door.side.open' },
     { id: 'hatch.engine', kind: 'hatch', openKey: 'hatch.engine.open' },
   ],
 };

@@ -68,6 +68,12 @@ export interface WorldState {
   fishing?: FishingState;
   /** The career: money, ledger, reputation, contracts, upgrades (career/career.ts). */
   career?: CareerState;
+  /**
+   * No new emergency calls (rescues, tows, fires) while set: the menu's Voyage tab,
+   * "Emergency calls: Off" (owner request: a way to quieten the VHF). A call already
+   * ringing still runs its course. Forecasts and harbour chatter carry on.
+   */
+  quietCalls?: boolean;
 }
 
 export function createWorld(

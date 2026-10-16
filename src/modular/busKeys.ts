@@ -318,6 +318,7 @@ export const BUS_KEYS = {
 
   // ── Wheelhouse ──
   'door.aft.open': control('door', 'The wheelhouse aft door open (starts open).', { aliases: ['door'], default: true }),
+  'door.side.open': control('sideDoor', 'The wheelhouse port side door open (starts shut).', { aliases: ['sideDoor'] }),
   'hatch.engine.open': control('engineHatch', 'The engine hatch in the wheelhouse floor open.', { aliases: ['engineHatch'] }),
   'chartTable.leafOpen': {
     ...control('chartLeaf', "The chart table's drop leaf unfolded (folded: against the wall).", { aliases: ['chartLeaf'], default: true }),

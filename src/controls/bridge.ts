@@ -14,6 +14,7 @@ import type { DutyBoardView } from '../duties/dutyBoardView';
 import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
 import { WheelhouseDoor } from './WheelhouseDoor';
 import { MonitorView } from '../fire/monitorView';
+import { FireGauge } from '../fire/fireGauge';
 import { hullPlan } from '../vessel/layout';
 import { RainGlass } from '../vessel/view/rainGlass';
 import { Cleat, FenderBasket, FendersView } from './deckGear';
@@ -44,8 +45,12 @@ export class Bridge {
   readonly rainGlass: RainGlass;
   /** The fire monitor on the roof (boats that have one). */
   private monitor: MonitorView | null = null;
+  /** The fire gauge beside the monitor joystick (App feeds it the fire job). */
+  fireGauge: FireGauge | null = null;
   /** The aft door (its push buttons on the frame open / shut it). */
   readonly door: WheelhouseDoor;
+  /** The port side door (boats whose wheelhouse has one). */
+  readonly sideDoor: WheelhouseDoor | null = null;
   /** The fenders over the side or stowed (boats that carry them). */
   private readonly fenders: FendersView | null = null;
 
@@ -75,6 +80,17 @@ export class Bridge {
     if (def.fireMonitor) {
       this.monitor = new MonitorView(def.fireMonitor);
       this.root.add(this.monitor.root);
+      // The fire gauge on the console beside the monitor joystick: how big the fire is,
+      // and the ON TARGET lamp. (It goes with the fire monitor when that is a module, 5b.)
+      const gp = def.fireMonitor.gauge;
+      this.fireGauge = new FireGauge(gp.length, gp.lampX);
+      this.fireGauge.root.position.fromArray(gp.position);
+      this.root.add(this.fireGauge.root);
+      extraFixed.push(part(FireGauge.track(gp.length).translate(gp.position[0], gp.position[1], gp.position[2]), 0x14171a));
+      extraLabels.push(
+        { text: 'FIRE', at: [gp.position[0], gp.position[1], gp.position[2] - 0.03], title: false, yaw: 0 },
+        { text: 'ON TARGET', at: [gp.position[0] + gp.length / 2 + gp.lampX, gp.position[1], gp.position[2] - 0.03], title: false, yaw: 0 },
+      );
     }
     // The deck gear (the tow winch, the stern roller, the A-frame and the trawl, the tender
     // crane, the anchor windlass) are modules since M5a, drawn with the others above.
@@ -83,6 +99,16 @@ export class Bridge {
     this.door.root.position.set(0, wh.floorY, wh.aft + 0.03);
     this.root.add(this.door.root);
     // Its push buttons on the door post, inside and out, are modules (control.door-button).
+    // The port side door, between the console and the chart table: slides aft outside the
+    // wall. Its buttons on the forward jamb, inside and out, are door-button modules too.
+    const sd = wh.sideDoor;
+    if (sd) {
+      const door = new WheelhouseDoor(sd.z1 - sd.z0, sd.height, 'sideDoor');
+      door.root.position.set(-wh.halfWidth - 0.025, wh.floorY, (sd.z0 + sd.z1) / 2);
+      door.root.rotation.y = Math.PI / 2; // its slide (local -x) runs aft
+      this.root.add(door.root);
+      this.sideDoor = door;
+    }
     this.rainGlass = new RainGlass(def);
     this.root.add(this.rainGlass.root);
     // Mooring cleats on the bulwark tops, forward and aft each side (they replace the DOCK
@@ -205,6 +231,7 @@ export class Bridge {
     }
     this.modules.update(state, dt, { inView: displaysInView, def: this.def, env });
     this.door.sync(state);
+    this.sideDoor?.sync(state);
     this.fenders?.update(state);
     this.monitor?.update(state);
   }

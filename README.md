@@ -67,7 +67,7 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | N / M | Time of day −/+ 30 min |
 | F3 or I | Debug overlay on/off (FPS, cpu/gpu frame time, draw calls, boat readouts); off at start |
 | P | Wave surface probes on/off |
-| F1 or H | Help panel on/off |
+| F1 or H | Help panel on/off (hidden at the start; it lists the playing keys, the rest is on the menu) |
 
 ### VR (Quest 3)
 
@@ -182,6 +182,8 @@ Above it, a lamp on the wall with its own small switch on the wooden batten the 
 
   Nearly dry, the OIL lamp blinks while running.
 - **Wheelhouse door:** the aft door has a window and slides open or shut with the **green push button** on its starboard frame, inside and out (trigger in VR, click on the desktop). The door itself isn't a button any more, so it can't catch your hand at the whiteboard. It starts open, and when shut it blocks desktop walking.
+- **Side door:** a second sliding door in the port side of the wheelhouse, between the helm console and the chart table, out to the port side deck. Its green button is on the forward edge of the doorway, inside and out. It starts shut. The wheelhouse is only shut in (quieter, out of the wind) with both doors shut.
+- **Wheelhouse front:** pilot-house style, the front windows lean forward from the top of the instrument panel under a brow, and the side walls stand up to the console top beside it.
   - **Sound:** on deck the engine is at full noise. Inside the wheelhouse it's a little quieter and duller; with the door shut it's much quieter and duller. Shutting the door also muffles the wind, rain, hull wash and fires inside.
 
 ### Traffic and hazards
@@ -194,9 +196,15 @@ Above it, a lamp on the wall with its own small switch on the wooden batten the 
 - **Hazards:** floating debris, the rocks at Gull Rocks and the Skerry, and yellow/red hazard buoys.
 - **Debug:** Menu → Debug → Missions → Traffic → **Spawn ship** / **Spawn debris** (close by).
 
+### Emergency calls
+
+Out of harbour, the VHF brings rescues (on cargo runs), tows and fires now and then: a tow call every 8 to 18 minutes, a fire every 10 to 22, and a rescue on about a third of cargo runs. An unanswered call rings every 20 seconds for two minutes, then goes to someone else.
+
+To work in peace, set **Menu → Voyage → Emergency calls → Off (quiet)**. No new calls come while it's off; one already ringing runs its course. Shipping forecasts and harbour messages still come. Turn the RADIO breaker off for silence altogether, or turn the VHF down in Settings → Sound.
+
 ### Weather work
 
-- **Shipping forecast:** the coastguard reads it out on the VHF every 6 minutes and soon after the weather turns: wind, sky, visibility, and what's coming and when. You only hear it with the RADIO breaker on. The last one received stays on the **duty board** (starboard wall) with its time.
+- **Shipping forecast:** the coastguard reads it out on the VHF every 12 minutes and soon after the weather turns: wind, sky, visibility, and what's coming and when. You only hear it with the RADIO breaker on. The last one received stays on the **duty board** (starboard wall) with its time.
 - **Rain:** drops build up on the front windows; the wipers clear them. They are pantograph wipers hung from the header above the glass, so each blade stays upright and clears a broad band at eye height, then parks upright by the window post. Rain drums on the roof inside and hisses outside.
 - **Squalls:** gloomy light, lightning flashes, and thunder after them (count the seconds: about 3 s per km).
 - **Deck hydraulics:** the skiff crane, the tow winch and the trawl's net drum are hydraulic, driven by a pump on the engine. They only work with the **engine running** and the **DECK HYD** breaker on. Without pressure a machine stops where it is and holds its load (the skiff hangs on the crane), and carries on when the pressure comes back. Press a machine's button without hydraulics and a note says what's missing. You hear each one working: the pump's whine, oil hissing through the valves, the drum or slewing gear rumbling, a clunk as the valve opens and closes, and the relief valve hissing when the winch stalls against too heavy a pull.
@@ -236,7 +244,13 @@ Out of harbour, with no other job on, a fire is reported on the VHF every 5–11
 
 1. **Engine running, FIRE PUMP on.** The switch is on the console, left of the wheel (SEARCH · FIRE group). The pump is engine-driven, so there's no water with the engine off.
 2. **Aim the fire monitor** on the wheelhouse roof with its joystick (red knob, on its own pedestal at the port end, beside the searchlight's). Sideways pans it, forward and back raises and lowers it. It's **stabilised**: as she rolls and pitches it holds its aim (you'll see the barrel move on its mount), so you only correct for your own heading and the drift. The jet flies a real arc, carried by the boat's way and blown a little by the wind.
-3. **Keep the jet on the fire.** The smoke turns to white steam when you're on target, and the radio line shows how much is left. Left alone, a fire grows. About a minute of steady hosing puts out a big one.
+3. **Keep the jet on the fire.** You know you're on target four ways:
+   - the **ON TARGET** lamp lights green on the console, just ahead of the monitor joystick;
+   - the **FIRE** bar beside it shrinks as the fire dies, from red through orange to yellow;
+   - you hear the steam **sizzle** where the water lands, even from the helm;
+   - the smoke turns to white steam, and the coastguard calls your progress on the VHF (first water on it, under half, nearly out).
+
+   Left alone, a fire grows. About a minute of steady hosing puts out a big one.
 4. **Out:** the coastguard thanks you, and it counts as a mission.
 
 The duty board walks you through it. The menu's Debug → Missions section has buttons that light one close by (Boat, Shore), raise a call, or end it.
@@ -465,7 +479,7 @@ Open the perf panel in VR with B (or from the menu). At 90 Hz the frame budget i
 
 ## Multiplayer
 
-Co-op crew on one boat, peer-to-peer (one player hosts). Menu → **Crew** → **Host a game** shows a 5-digit code; the others type it on the keypad and press **Join**. Everyone sees each other's head and hands and can use every control. Details and limits: [`docs/MULTIPLAYER.md`](docs/MULTIPLAYER.md).
+Co-op crew on one boat, peer-to-peer (one player hosts). Menu → **Crew** → **Host a game** shows a 5-digit code; the others type it on the keypad and press **Join**. Everyone can use every control. Crew-mates appear as an upper-body figure in working clothes (a random outfit each time you join: oilskins and sou'wester, float coat, fisherman's jumper, hi-vis and hard hat, bib-and-brace, crew jacket), with arms that bend at the elbow and gloved hands that turn as theirs do; their player colour is on the hat and collar. Details and limits: [`docs/MULTIPLAYER.md`](docs/MULTIPLAYER.md).
 
 ## Testing a new boat
 
