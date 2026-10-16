@@ -164,7 +164,7 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
       // One press does it all (quick-start option / debug): master, main breakers, start.
       if (s.electrics) {
         s.electrics.master = 1;
-        for (const k of ['instruments', 'chart', 'radio', 'navLights'] as const) s.electrics.breakers[k] = 1;
+        for (const k of ['instruments', 'chart', 'radio', 'navLights', 'hydraulics'] as const) s.electrics.breakers[k] = 1;
       }
       {
         const def = VESSEL_DEFS[s.defId];

@@ -21,6 +21,7 @@
  */
 import * as THREE from 'three';
 import { CONFIG } from '../config';
+import { hydraulicsOn } from '../vessel/electrics';
 import type { WorldState } from '../core/world';
 import { aboard, footprint, deckHeightAt, type CargoItem } from '../cargo/cargo';
 import { deckSpot } from '../cargo/deck';
@@ -33,7 +34,7 @@ import type { EntityId } from '../core/ids';
 import { hasUpgrade } from '../career/career';
 import { significantWaveHeight } from '../ocean/waves';
 
-export type FishStatus = 'stowed' | 'shooting' | 'hauling' | 'held' | 'fishing' | 'slow' | 'fast' | 'outside' | 'fouled' | 'full' | 'rough';
+export type FishStatus = 'stowed' | 'shooting' | 'hauling' | 'held' | 'noHydraulics' | 'fishing' | 'slow' | 'fast' | 'outside' | 'fouled' | 'full' | 'rough';
 
 export interface FishingState {
   net: 'stowed' | 'shooting' | 'down' | 'hauling' | 'held';
@@ -113,13 +114,19 @@ export function stepFishing(world: WorldState, dt: number): void {
   f.sw = sw;
   // The A-frame's buttons: out or in by hand while held, stopping where it is when let go.
   const jog = (v.controls.netOut ?? 0) - (v.controls.netIn ?? 0);
+  // The net drum is hydraulic: with no pressure (engine off, DECK HYD off) nothing moves; a
+  // shoot or haul asked for waits, and starts when the hydraulics come on.
+  f.ground = groundAt(v.position[0], v.position[2])?.name ?? null;
+  if (!hydraulicsOn(v) && (jog || f.net === 'shooting' || f.net === 'hauling')) {
+    if (f.status !== 'fouled') f.status = 'noHydraulics';
+    return;
+  }
   if (jog) {
     f.t = Math.min(1, Math.max(0, f.t + (jog * dt) / (jog > 0 ? c.shootTime : c.haulTime)));
     f.net = f.t >= 1 ? 'down' : f.t <= 0 ? 'stowed' : 'held';
     // The switch follows: on while any of the net is out (flip it off to haul it all in).
     v.controls.trawl = f.sw = f.t > 0 ? 1 : 0;
   }
-  f.ground = groundAt(v.position[0], v.position[2])?.name ?? null;
   if (f.net === 'held') {
     // Part out, stopped: it drags (by how far out it is) but doesn't fish. Still fouled if it was.
     if (f.status !== 'fouled') f.status = 'held';
@@ -233,6 +240,8 @@ export function fishingStatus(world: WorldState): string | null {
       return 'Hauling the trawl...';
     case 'held':
       return `Net ${Math.round(f.t * 100)} % out, stopped (PAY OUT / HAUL on the A-frame, or the TRAWL switch)`;
+    case 'noHydraulics':
+      return 'Net drum has no hydraulics: engine running and DECK HYD breaker on';
     case 'fishing':
       return `Trawling${where}: ${box}`;
     case 'slow':

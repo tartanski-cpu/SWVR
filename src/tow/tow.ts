@@ -35,7 +35,7 @@ import { hullPlan } from '../vessel/layout';
 import { isWorkboat, TOW_DEFS, VESSEL_DEFS, type VesselDef } from '../vessel/vesselDef';
 import { createVesselState, type VesselState } from '../vessel/vesselState';
 import { placeVessel } from '../vessel/vesselControl';
-import { isPowered } from '../vessel/electrics';
+import { isPowered, hydraulicsOn } from '../vessel/electrics';
 import { groundHeight } from '../world/terrain';
 import { PORTS } from '../world/archipelago';
 import type { ExternalForce } from '../vessel/physics/vesselContact';
@@ -183,7 +183,8 @@ function stepTowWinch(line: TowLine, v: VesselState, dt: number): void {
   const w = CONFIG.tow.winch;
   const heave = (v.controls.winchHeave ?? 0) > 0.5;
   const payOut = (v.controls.winchPayOut ?? 0) > 0.5;
-  if (heave === payOut) return;
+  // Hydraulic: no pressure (engine off or DECK HYD off), the drum holds where it is.
+  if (heave === payOut || !hydraulicsOn(v)) return;
   const L = lineLength(line);
   if (payOut) line.length = Math.min(w.maxLength, L + w.payOutSpeed * dt);
   else if (line.tension <= w.pullN) line.length = Math.max(w.minLength, L - w.heaveSpeed * dt);

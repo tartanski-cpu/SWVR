@@ -118,6 +118,8 @@ describe('damage and wear (phase 2)', { timeout: 60000 }, () => {
   it('heavy weather: no fishing in a big sea; rescues, tows and fires pay danger money', async () => {
     const { earn } = await import('../src/career/career');
     const { world, v, send } = setup();
+    const { startEngine } = await import('./helpers/engine');
+    startEngine(world, v); // the net drum is hydraulic
     const g = CONFIG.fishing.grounds[1];
     placeVessel(v, g.x, 0, g.z, 0);
     send('trawl', 1);

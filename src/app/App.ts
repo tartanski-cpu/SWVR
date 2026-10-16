@@ -19,7 +19,7 @@ import { SurfaceProbes } from '../debug/surfaceProbes';
 import { Buoys, createPlatform } from './testScene';
 import { HydroDebugView } from '../debug/hydroDebugView';
 import { onCrane, recoverCheck } from '../vessel/tenderCrane';
-import { isPowered } from '../vessel/electrics';
+import { hydraulicsOn, isPowered } from '../vessel/electrics';
 import { beaufort, compass8, visibilityAt, windVector } from '../environment/weather';
 import { RainView } from '../environment/rainView';
 import { ChartTableView } from '../vessel/view/chartTable';
@@ -67,7 +67,8 @@ import { CareerSession } from './careerSession';
 import { TrawlView } from '../fishing/trawlView';
 import { InteriorDetail } from './interiorDetail';
 import { jetOn } from '../fire/fire';
-import { nearestTowTarget, towAlertT, towStatus } from '../tow/tow';
+import { aFrameOf } from '../fishing/fishing';
+import { nearestTowTarget, towAlertT, towStatus, winchStalled } from '../tow/tow';
 import { TargetsView } from '../rescue/targetView';
 import { RescueHands, type RescueHandsContext } from '../rescue/rescueHands';
 import { RescueGearView, type AvatarHands } from '../rescue/rescueGearView';
@@ -655,6 +656,7 @@ export class App {
       const root = this.vesselRoots.get(this.testVesselId);
       const hawse = this.testDef.anchor && root ? root.localToWorld(this.tmpV.fromArray(this.testDef.anchor.hawse)).distanceTo(this.focus) : 1e9;
       this.sound.anchor.update(tv?.anchor, hawse, this.insideHouse ? this.closed : 0, dt);
+      if (tv && root) this.updateHydraulicsSound(tv, root);
       // Gulls overhead; dolphins at the bow when she's under way in open, deep water.
       const wl = CONFIG.wildlife.dolphins;
       const open = !!tv && groundHeight(tv.position[0], tv.position[2]) < -wl.minDepth && nearestPort(tv.position[0], tv.position[2]).dist > wl.minPortDistance;
@@ -1189,6 +1191,55 @@ export class App {
     placeInFront(this.trialsPanel.vrMesh, this.rig.carrier, this.camera, 1.4, -0.1);
   }
 
+  /**
+   * A deck machine's button pressed with no hydraulic pressure: say why nothing happens
+   * (the crane, the tow winch and the net drum need the engine running and DECK HYD on).
+   */
+  private hydraulicsHint(channel: string): void {
+    const machine = channel === 'crane' ? 'The crane' : channel === 'winchHeave' || channel === 'winchPayOut' ? 'The tow winch' : channel === 'netOut' || channel === 'netIn' || channel === 'trawl' ? 'The net drum' : null;
+    const v = this.world.vessels[this.testVesselId];
+    if (!machine || !v || hydraulicsOn(v)) return;
+    const why = v.engine.phase !== 'running' ? 'start the engine' : 'switch the DECK HYD breaker on';
+    this.overlay.notify(`${machine} is hydraulic: ${why} (DECK HYD breaker by the helm)`, 3);
+  }
+
+  /**
+   * The deck machinery's sounds: is each machine turning (under hydraulic pressure), how
+   * hard is it working, and how far is it from us. Read from the shared state, so crew
+   * hear the host's machines too.
+   */
+  private updateHydraulicsSound(v: VesselState, root: THREE.Object3D): void {
+    const hyd = hydraulicsOn(v);
+    const dist = (x: number, y: number, z: number) => root.localToWorld(this.tmpV.set(x, y, z)).distanceTo(this.focus);
+    const def = this.testDef;
+    // Crane: on the move between cradle and water (unfolding, lifting, slewing, lowering).
+    const tp = this.skiff()?.tender?.phase;
+    const cr = def.tenderCrane;
+    const craneRun = hyd && (tp === 'lowering' || tp === 'hoisting') ? 1 : 0;
+    // Tow winch: a button held; stalled heaving against more pull than it has.
+    const line = this.world.tow?.line;
+    const c = v.controls;
+    const heave = (c.winchHeave ?? 0) > 0.5;
+    const payOut = (c.winchPayOut ?? 0) > 0.5;
+    const stalled = hyd && winchStalled(this.world);
+    const winchRun = hyd && line && heave !== payOut && !stalled ? (heave ? 0.8 : 1) : 0;
+    const tw = def.towWinch;
+    // Net drum: shooting or hauling, by the switch or the A-frame's buttons.
+    const f = this.world.fishing;
+    // A button only turns the drum while there's net left to pay out or haul in.
+    const jog = ((c.netOut ?? 0) > 0.5 && (f?.t ?? 0) < 1) || ((c.netIn ?? 0) > 0.5 && (f?.t ?? 0) > 0);
+    const trawlRun = hyd && f && (f.net === 'shooting' || f.net === 'hauling' || jog) ? 1 : 0;
+    const af = aFrameOf(def);
+    this.sound.hydraulics.update(
+      {
+        crane: { run: craneRun, load: tp === 'hoisting' ? 0.7 : 0.5, distance: cr ? dist(cr.column[0], cr.shoulderY, cr.column[1]) : 1e9 },
+        winch: { run: winchRun, load: line ? Math.min(1, line.tension / CONFIG.tow.winch.pullN) : 0, stalled, distance: tw ? dist(0, 1.2, tw.z) : 1e9 },
+        trawl: { run: trawlRun, load: f?.net === 'hauling' || (c.netIn ?? 0) > 0.5 ? 0.7 : 0.3, distance: af ? dist(0, af.top - 0.3, af.headZ) : 1e9 },
+      },
+      this.insideHouse ? this.closed : 0,
+    );
+  }
+
   /** The menu's view of the app (see ui/mainMenu.ts). */
   private menuHost(): MenuHost {
     const env = () => this.world.environment;
@@ -1275,8 +1326,11 @@ export class App {
         const skiff = this.skiff();
         const phase = skiff?.tender?.phase;
         if (!skiff || !phase) return '-';
-        if (phase === 'stowed') return 'LAUNCH';
-        if (phase !== 'free') return phase === 'lowering' ? 'Lowering...' : 'Hoisting...';
+        const ship = this.world.vessels[this.testVesselId];
+        const hyd = !ship || hydraulicsOn(ship);
+        if (phase === 'stowed') return hyd ? 'LAUNCH' : 'LAUNCH: no hydraulics';
+        if (phase !== 'free') return !hyd ? 'Stopped: no hydraulics' : phase === 'lowering' ? 'Lowering...' : 'Hoisting...';
+        if (!hyd) return 'RECOVER: no hydraulics';
         const r = recoverCheck(this.world, skiff);
         return r.ok ? 'RECOVER' : 'RECOVER: ' + (r.why.startsWith('bring') ? 'bring her to the stbd bow' : 'too fast');
       },
@@ -1752,6 +1806,7 @@ export class App {
         if (channel === 'engineStartStop') return this.requestEngineStartStop();
         if (channel === 'start' && value > 0) this.startInGearHint();
         if (channel === 'dipstick') this.readDipstick();
+        if (value > 0) this.hydraulicsHint(channel);
         const { vesselId, control } = this.routeChannel(channel);
         this.pushIntentTo(vesselId, control, value);
       },

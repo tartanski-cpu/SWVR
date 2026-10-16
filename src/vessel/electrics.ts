@@ -31,6 +31,7 @@ export function selectedSoc(e: ElectricsState): number {
  *   navLights    navigation lights            deckLights  floods, rail LEDs, cabin lamp, searchlight,
  *                                                         chart table lamp
  *   bilge        the bilge pump (float switch: runs while there's water; vessel/bilge.ts)
+ *   hydraulics   the deck hydraulics' pump clutch and valve solenoids (see hydraulicsOn)
  * The starter, fuel solenoid, horn and windlass are on the master alone.
  */
 export function isPowered(s: VesselState, breaker?: BreakerName): boolean {
@@ -38,6 +39,17 @@ export function isPowered(s: VesselState, breaker?: BreakerName): boolean {
   if (!e) return true;
   const cfg = VESSEL_DEFS[s.defId].electrics;
   return e.master > 0 && !!cfg && selectedSoc(e) > cfg.cutoffSoc && (!breaker || e.breakers[breaker] > 0);
+}
+
+/**
+ * Deck hydraulics: the tender crane, the tow winch and the trawl's net drum are hydraulic,
+ * driven by a pump on the engine's power take-off. The pump only turns with the engine
+ * running, and its electric clutch (and the machines' valve solenoids) are on the DECK HYD
+ * breaker: no engine or no breaker, no pressure, and the machines stop where they are
+ * (a hydraulic machine holds its load on its valves; nothing runs back).
+ */
+export function hydraulicsOn(s: VesselState): boolean {
+  return s.engine.phase === 'running' && isPowered(s, 'hydraulics');
 }
 
 /** Resting (no load) voltage at a state of charge. */
@@ -65,6 +77,7 @@ export function loadAmps(s: VesselState, cfg: Electrics): number {
     if (c.spotlight > 0) a += L.searchlight;
   }
   if (on('bilge') && bilgePumping(s)) a += L.bilge;
+  if (hydraulicsOn(s)) a += L.hydraulics;
   if (c.horn > 0) a += L.horn;
   const an = s.anchor.phase;
   if (an === 'paying' || an === 'weighing' || (an === 'hanging' && c.anchor <= 0)) a += L.windlass;

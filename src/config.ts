@@ -623,6 +623,8 @@ export const CONFIG = {
           windlass: 60,
           horn: 10,
           bilge: 3,
+          /** The hydraulic pump's clutch and the valve solenoids (DECK HYD, engine running). */
+          hydraulics: 4,
           wipers: 4,
           chartLamp: 0.5,
           glowPlugs: 35,

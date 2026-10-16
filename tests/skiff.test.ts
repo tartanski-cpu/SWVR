@@ -8,6 +8,7 @@ import { placeVessel } from '../src/vessel/vesselControl';
 import { VESSEL_DEFS } from '../src/vessel/vesselDef';
 import { hullPlan } from '../src/vessel/layout';
 import * as THREE from 'three';
+import { startEngine } from './helpers/engine';
 
 const DT = 1 / 60;
 
@@ -17,6 +18,7 @@ function setup() {
   world.geography = 'openSea';
   const boat = world.vessels[vesselId];
   const skiff = Object.values(world.vessels).find((v) => v.defId === 'skiff')!;
+  startEngine(world, boat); // the crane is hydraulic
   const send = (control: string, value: number) => {
     const i: Intent = { playerId: 'p', targetId: skiff.id, control, value };
     stepWorld(world, [i], DT);

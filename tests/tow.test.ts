@@ -13,6 +13,7 @@ import { PORTS } from '../src/world/archipelago';
 import { ClientSession } from '../src/net/clientSession';
 import { HostSession } from '../src/net/hostSession';
 import { LoopbackHost } from '../src/net/transport';
+import { startEngine } from './helpers/engine';
 
 const DT = 1 / 60;
 
@@ -239,6 +240,7 @@ describe('towing missions', { timeout: 30000 }, () => {
 describe('the tow winch', { timeout: 30000 }, () => {
   it('heaves in and pays out the line while its buttons are held, within its limits; stalls under a heavy pull', () => {
     const { world, v, send, run } = setup();
+    startEngine(world, v); // the tow winch is hydraulic
     placeVessel(v, 0, 0, -400, 0);
     run(1);
     send('towDebugNear', 1, 'derelict');

@@ -6,6 +6,7 @@ import { ElectricMotorAudio } from '../audio/electricMotorAudio';
 import { EngineAudio } from '../audio/engineAudio';
 import { FireAudio } from '../audio/fireAudio';
 import { HornAudio } from '../audio/hornAudio';
+import { HydraulicsAudio } from '../audio/hydraulicsAudio';
 import { PaperAudio } from '../audio/paperAudio';
 import { RadioAudio } from '../audio/radioAudio';
 import { RescueSounds } from '../audio/rescueSounds';
@@ -46,13 +47,15 @@ export class SoundBoard {
   /** A fire's roar and the monitor's jet; the anchor chain; birds and seals. */
   readonly fire = new FireAudio();
   readonly anchor = new AnchorAudio();
+  /** The deck hydraulics: tender crane, tow winch, net drum. */
+  readonly hydraulics = new HydraulicsAudio();
   readonly wildlife = new WildlifeAudio();
 
   /** On a user gesture: start audio (again harmless). */
   unlock(): void {
     this.engine.unlock();
     const ctx = this.engine.context;
-    for (const s of [this.horn, this.alarm, this.contact, this.water, this.radio, this.whistle, this.shipHorn, this.rescue, this.motor, this.wind, this.paper, this.fire, this.anchor, this.wildlife]) s.attach(ctx);
+    for (const s of [this.horn, this.alarm, this.contact, this.water, this.radio, this.whistle, this.shipHorn, this.rescue, this.motor, this.wind, this.paper, this.fire, this.anchor, this.hydraulics, this.wildlife]) s.attach(ctx);
     watchVoices();
   }
 }

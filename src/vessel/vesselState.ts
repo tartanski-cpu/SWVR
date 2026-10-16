@@ -198,7 +198,7 @@ export interface ElectricsState {
 }
 
 /** The breakers, in panel order. */
-export const BREAKERS = ['instruments', 'chart', 'radio', 'navLights', 'deckLights', 'bilge'] as const;
+export const BREAKERS = ['instruments', 'chart', 'radio', 'navLights', 'deckLights', 'bilge', 'hydraulics'] as const;
 export type BreakerName = (typeof BREAKERS)[number];
 
 /**
@@ -254,7 +254,7 @@ export function createVesselState(id: EntityId, defId: string): VesselState {
     // Warm by default (tests, trials): master on, both batteries full. The game itself
     // starts cold and dark (createWorld `cold`).
     ...(VESSEL_DEFS[defId].electrics
-      ? { electrics: { master: 1, selector: 1, soc: [1, 1] as [number, number], volts: 12.7, amps: 0, breakers: { instruments: 1, chart: 1, radio: 1, navLights: 1, deckLights: 1, bilge: 1 } } }
+      ? { electrics: { master: 1, selector: 1, soc: [1, 1] as [number, number], volts: 12.7, amps: 0, breakers: { instruments: 1, chart: 1, radio: 1, navLights: 1, deckLights: 1, bilge: 1, hydraulics: 1 } } }
       : {}),
   };
 }

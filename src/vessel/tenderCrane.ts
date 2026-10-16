@@ -25,11 +25,16 @@
  * One intent drives it all (`crane`, aimed at the tender): in the cradle -> launch; afloat
  * close alongside the starboard bow, slow -> recover. In the cradle, the battery charges
  * from the ship.
+ *
+ * The crane is hydraulic (the deck hydraulics: engine running, DECK HYD breaker on;
+ * electrics.ts hydraulicsOn). Without pressure it won't start, and if the pressure goes
+ * mid-lift it stops and holds her where she is until it comes back.
  */
 import * as THREE from 'three';
 import type { Intent } from '../core/intents';
 import { clamp } from '../core/math';
 import type { WorldState } from '../core/world';
+import { hydraulicsOn } from './electrics';
 import { hullPlan } from './layout';
 import { VESSEL_DEFS, type VesselDef } from './vesselDef';
 import type { TenderState, VesselState } from './vesselState';
@@ -126,7 +131,8 @@ export function recoverCheck(world: WorldState, tender: VesselState): { ok: bool
 export function applyCraneIntent(world: WorldState, intent: Intent): void {
   const tender = world.vessels[intent.targetId];
   const t = tender?.tender;
-  if (!t || !craneOf(world, t)) return;
+  const d = t && craneOf(world, t);
+  if (!t || !d || !hydraulicsOn(d.host)) return;
   if (t.phase === 'stowed') {
     t.phase = 'lowering';
     t.t = 0;
@@ -184,7 +190,9 @@ export function stepTender(world: WorldState, tender: VesselState, dt: number): 
     return;
   }
   const { host, crane } = d;
-  t.t += dt;
+  // Moving only with hydraulic pressure; without it she hangs where she is.
+  const moving = t.phase !== 'stowed' && hydraulicsOn(host);
+  if (moving || t.phase === 'stowed') t.t += dt;
   const T = launchTime(crane);
   if (t.phase === 'hoisting' && t.t >= crane.alignTime + T) {
     t.phase = 'stowed';
@@ -197,7 +205,7 @@ export function stepTender(world: WorldState, tender: VesselState, dt: number): 
   const yaw = cranePose(crane, t, t.t, p0);
   cranePose(crane, t, t.t + 0.01, p1);
   const along = p1.sub(p0).multiplyScalar(1 / 0.01);
-  if (t.phase === 'stowed') along.set(0, 0, 0);
+  if (!moving) along.set(0, 0, 0);
 
   // Pose: ship pose x (point, heading) in the ship's axes.
   qHost.fromArray(host.orientation);

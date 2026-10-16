@@ -8,6 +8,7 @@ import { aboard, GROUND, stackPoint } from '../src/cargo/cargo';
 import { fishingStatus, trawlForces } from '../src/fishing/fishing';
 import { placeVessel } from '../src/vessel/vesselControl';
 import { PORTS } from '../src/world/archipelago';
+import { startEngine } from './helpers/engine';
 
 const DT = 1 / 60;
 const ground = CONFIG.fishing.grounds[1];
@@ -16,6 +17,7 @@ function setup() {
   const { world, vesselId, localPlayerId } = createWorld(new IdFactory());
   world.environment.waves = [];
   const v = world.vessels[vesselId];
+  startEngine(world, v); // the net drum is hydraulic
   const send = (control: string, value = 1, ref?: string, targetId = v.id, args?: number[]) =>
     stepWorld(world, [{ playerId: localPlayerId, targetId, control, value, ref, args } as Intent], DT);
   /** Run with her held at a speed northward (the test drives her, not the engine). */

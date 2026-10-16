@@ -82,13 +82,14 @@ const BREAKER_LABELS: Record<BreakerName, string> = {
   navLights: 'NAV LTS',
   deckLights: 'DECK LTS',
   bilge: 'BILGE',
+  hydraulics: 'DECK HYD',
 };
 
 /**
  * The electrics panel: a small sloping console under the starboard window sill by the helm.
  *   - Voltmeter: a dial (8-16 V, printed once) and a needle swinging to the bus voltage.
  *     Wired straight to the bus, not through a breaker: it reads 0 with the master off.
- *   - Breakers: a toggle per circuit (BREAKERS, two rows of three) with a green lamp that
+ *   - Breakers: a toggle per circuit (BREAKERS, two rows of four) with a green lamp that
  *     shows the circuit is live (master on, battery not flat, breaker on). Sends
  *     `brk_<name>` 1 / 0.
  * No per-frame texture work: the needle is a mesh, the lamps only change colour on change.
@@ -120,11 +121,11 @@ export class ElectricsPanel {
     this.needle.add(needle);
     this.root.add(body, face, this.needle);
 
-    // Breakers: two rows of three to the right of the dial.
-    const x0 = -W / 2 + 0.25;
-    const pitch = 0.1;
+    // Breakers: two rows of four to the right of the dial.
+    const x0 = -W / 2 + 0.235;
+    const pitch = 0.078;
     const rows = [0.075, -0.075];
-    const spots: { k: BreakerName; x: number; y: number }[] = BREAKERS.map((k, i) => ({ k, x: x0 + (i % 3) * pitch, y: rows[Math.floor(i / 3)] }));
+    const spots: { k: BreakerName; x: number; y: number }[] = BREAKERS.map((k, i) => ({ k, x: x0 + (i % 4) * pitch, y: rows[Math.floor(i / 4)] }));
     this.lamps = new THREE.InstancedMesh(new THREE.CircleGeometry(0.007, 12), new THREE.MeshBasicMaterial(), spots.length);
     const m = new THREE.Matrix4();
     const off = new THREE.Color(LAMP_OFF);
@@ -184,8 +185,8 @@ function panelLabels(W: number, H: number, spots: { k: BreakerName; x: number; y
   g.fillStyle = '#e8e2cc';
   g.textAlign = 'center';
   g.textBaseline = 'middle';
-  g.font = 'bold 36px system-ui, sans-serif';
-  for (const { k, x, y } of spots) g.fillText(BREAKER_LABELS[k], ...toC(x, y - 0.048));
+  g.font = 'bold 30px system-ui, sans-serif';
+  for (const { k, x, y } of spots) g.fillText(BREAKER_LABELS[k], ...toC(x, y - 0.048), 0.074 * px);
   g.font = 'bold 26px system-ui, sans-serif';
   g.fillText('BREAKERS', ...toC(spots[1].x, H / 2 - 0.012));
   g.fillText('BATTERY', ...toC(-W / 2 + 0.1, H / 2 - 0.022));
