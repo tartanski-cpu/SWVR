@@ -149,16 +149,51 @@ function buildDeckFittings(form: HullForm, layout: LayoutConfig): THREE.BufferGe
     const [x, y] = st[i].polygon[side > 0 ? 4 : 0];
     return new THREE.Vector3(x - side * 0.03, y + up, st[i].z);
   };
+  // The working-deck gate (layout.sideGate): its bulwark and rail section is a separate,
+  // moving part (controls/SideGate.ts); here the gap is left, with a post at each end.
+  const gate = layout.sideGate;
   for (const side of [-1, 1]) {
     for (let i = 0; i < st.length - 1; i++) {
-      // Bulwark plate (a thin bar standing on the deck edge).
-      const a = edge(i, side, bh / 2);
-      const b = edge(i + 1, side, bh / 2);
-      parts.push(bar(a, b, 0.05, bh, COLORS.topsides));
-      if (rh <= 0) continue;
-      parts.push(bar(edge(i, side, rh), edge(i + 1, side, rh), 0.05, 0.05, COLORS.rail));
-      parts.push(bar(edge(i, side, bh), edge(i, side, rh), 0.04, 0.04, COLORS.rail));
+      const a = edge(i, side, 0);
+      const b = edge(i + 1, side, 0);
+      // The parts of this segment outside the gateway, as fractions along it.
+      let pieces: [number, number][] = [[0, 1]];
+      if (gate && side === gate.side) {
+        const f = (z: number) => (z - a.z) / (b.z - a.z);
+        const lo = Math.max(0, Math.min(f(gate.z0), f(gate.z1)));
+        const hi = Math.min(1, Math.max(f(gate.z0), f(gate.z1)));
+        if (hi > lo) pieces = [[0, lo], [hi, 1]].filter(([u, v]) => v - u > 1e-3) as [number, number][];
+      }
+      for (const [u, v] of pieces) {
+        const p0 = a.clone().lerp(b, u);
+        const p1 = a.clone().lerp(b, v);
+        // Bulwark plate (a thin bar standing on the deck edge).
+        parts.push(bar(p0.clone().setY(p0.y + bh / 2), p1.clone().setY(p1.y + bh / 2), 0.05, bh, COLORS.topsides));
+        if (rh > 0) parts.push(bar(p0.clone().setY(p0.y + rh), p1.clone().setY(p1.y + rh), 0.05, 0.05, COLORS.rail));
+      }
+      const inGap = !!gate && side === gate.side && a.z > gate.z0 && a.z < gate.z1;
+      if (rh > 0 && !inGap) parts.push(bar(edge(i, side, bh), edge(i, side, rh), 0.04, 0.04, COLORS.rail));
     }
+  }
+  if (gate) {
+    const side = gate.side;
+    // Deck edge at z (between stations).
+    const edgeAt = (z: number, up: number) => {
+      let i = 0;
+      while (i < st.length - 2 && !((st[i].z - z) * (st[i + 1].z - z) <= 0)) i++;
+      const a = edge(i, side, up);
+      const b = edge(i + 1, side, up);
+      return a.lerp(b, (z - a.z) / (b.z - a.z));
+    };
+    // Gateposts, the full height from deck to rail.
+    for (const z of [gate.z0, gate.z1]) parts.push(bar(edgeAt(z, 0), edgeAt(z, Math.max(rh, bh) + 0.03), 0.06, 0.06, COLORS.rail));
+    // The boarding step on the hull side below the gateway, on two brackets. It reaches in
+    // past the flare so it meets the plating.
+    const mid = edgeAt((gate.z0 + gate.z1) / 2, -gate.stepDrop);
+    const len = Math.abs(gate.z1 - gate.z0) - 0.12;
+    const step = new THREE.BoxGeometry(0.5, 0.04, len).translate(mid.x + side * 0.08, mid.y, mid.z);
+    parts.push(part(step, COLORS.rail));
+    for (const dz of [-len / 2 + 0.04, len / 2 - 0.04]) parts.push(part(new THREE.BoxGeometry(0.3, 0.2, 0.03).translate(mid.x - side * 0.02, mid.y - 0.12, mid.z + dz), COLORS.rail));
   }
   // Across the transom, with a notch on the centreline for the towline's fairlead (the
   // fairlead itself is drawn with the towline: tow/towlineView.ts).

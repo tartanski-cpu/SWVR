@@ -9,7 +9,7 @@ type WorkboatLayout = Workboat['layout'];
  * Deck layout: bulwarks, rails, walkable margins, and (on boats that have them) the
  * wheelhouse, its walkable roof and the ladder up to it.
  */
-export type LayoutConfig = Omit<WorkboatLayout, 'wheelhouse' | 'roof' | 'ladder' | 'doorButtons' | 'fairleadGap' | 'engineHatch'> & Partial<Pick<WorkboatLayout, 'wheelhouse' | 'roof' | 'ladder' | 'doorButtons' | 'fairleadGap' | 'engineHatch'>>;
+export type LayoutConfig = Omit<WorkboatLayout, 'wheelhouse' | 'roof' | 'ladder' | 'doorButtons' | 'fairleadGap' | 'engineHatch' | 'sideGate'> & Partial<Pick<WorkboatLayout, 'wheelhouse' | 'roof' | 'ladder' | 'doorButtons' | 'fairleadGap' | 'engineHatch' | 'sideGate'>>;
 
 /** Electric outboard (see CONFIG.vessels.skiff.outboard and physics/outboard.ts). */
 export type OutboardConfig = typeof CONFIG.vessels.skiff.outboard;

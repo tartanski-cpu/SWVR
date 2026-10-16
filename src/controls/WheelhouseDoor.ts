@@ -85,9 +85,9 @@ export class DoorButton extends Control {
   private doorOpen: boolean;
   private pressed = false;
 
-  constructor(id: string, private readonly key: 'door' | 'sideDoor' = 'door') {
+  constructor(id: string, private readonly key: 'door' | 'sideDoor' | 'sideGate' = 'door') {
     super(id, key);
-    this.label = key === 'door' ? 'Wheelhouse door: open / shut' : 'Side door: open / shut';
+    this.label = key === 'door' ? 'Wheelhouse door: open / shut' : key === 'sideDoor' ? 'Side door: open / shut' : 'Deck gate: open / shut';
     this.doorOpen = key === 'door';
     const plate = this.fixed(new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.012, 0.14), new THREE.MeshLambertMaterial({ color: 0x2a2e33 })));
     plate.position.y = 0.006;

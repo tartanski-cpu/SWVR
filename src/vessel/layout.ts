@@ -34,6 +34,8 @@ export interface WalkArea {
   setHatchOpen?(open: boolean): void;
   /** The chart table's leaf folded against the wall (the floor in front of it is free). */
   setChartLeafFolded?(folded: boolean): void;
+  /** The working-deck gate open (layout.sideGate): you can walk out to the deck edge in it. */
+  setGateOpen?(open: boolean): void;
 }
 
 /** How far inside the deck edge the VR fence stands (m): the bulwark and its rail. */
@@ -153,6 +155,12 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig): WalkArea {
   const atFurniture = (x: number, z: number, pad: number, y = -Infinity) =>
     !!ct && x >= ct.x0 - pad && x <= (leafFolded ? ct.x0 + 0.1 : ct.x1) + pad && z >= ct.z0 - pad && z <= ct.z1 + pad && y < wh.floorY + ct.height;
 
+  // The working-deck gate: open, the gateway is walkable right out to the deck edge.
+  const gate = layout.sideGate;
+  let gateOpen = false;
+  const inGateway = (x: number, z: number, edge: number) =>
+    !!gate && gateOpen && Math.sign(x) === gate.side && z > gate.z0 + r * 0.6 && z < gate.z1 - r * 0.6 && Math.abs(x) <= deckHalfBeam(z) - edge;
+
   // Roof (walkable, railed) and the ladder up the aft face of the wheelhouse.
   const roof = layout.roof;
   const roofTop = wh.roofY + roof.thickness;
@@ -164,7 +172,7 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig): WalkArea {
       // Open deck: inside the bulwarks, aft of the bow, clear of the wheelhouse exterior.
       height: (_x, z) => deckY(z),
       contains: (x, z) => {
-        const onDeck = z <= transom - layout.deckEdgeMargin && Math.abs(x) <= deckHalfBeam(z) - layout.deckEdgeMargin;
+        const onDeck = (z <= transom - layout.deckEdgeMargin && Math.abs(x) <= deckHalfBeam(z) - layout.deckEdgeMargin) || inGateway(x, z, 0.08);
         const nearHouse = Math.abs(x) < ext.x + r && z > ext.z0 - r && z < ext.z1 + r;
         return onDeck && !nearHouse && !onDeckGear(def, x, z, r);
       },
@@ -210,11 +218,16 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig): WalkArea {
       leafFolded = folded;
     },
 
+    setGateOpen(open) {
+      gateOpen = open;
+    },
+
     ladderAt(x, z) {
       return inLadder(x, z) ? { bottom: deckY(ext.z1 + lad.depth / 2), top: roofTop } : null;
     },
 
     inBounds(x, z) {
+      if (inGateway(x, z, 0.02)) return true;
       return z <= transom - FENCE && z >= st[st.length - 1].z + FENCE && Math.abs(x) <= deckHalfBeam(z) - FENCE;
     },
 

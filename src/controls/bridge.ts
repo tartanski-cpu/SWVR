@@ -18,6 +18,7 @@ import { ChartPlotter } from '../nav/chartPlotter';
 import { OverheadPanel } from './overheadPanel';
 import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
 import { DoorButton, WheelhouseDoor } from './WheelhouseDoor';
+import { SideGate } from './SideGate';
 import { MonitorView } from '../fire/monitorView';
 import { FireGauge } from '../fire/fireGauge';
 import { hullPlan } from '../vessel/layout';
@@ -64,6 +65,8 @@ export class Bridge {
   readonly door: WheelhouseDoor;
   /** The port side door (boats whose wheelhouse has one). */
   readonly sideDoor: WheelhouseDoor | null = null;
+  /** The gate in the working-deck bulwark, if she has one. */
+  readonly sideGate: SideGate | null = null;
   /** The fenders over the side or stowed (boats that carry them). */
   /** The six cleats on the bulwark tops (vessel/physics/painter.ts cleatLocal order). */
   readonly cleats: Cleat[] = [];
@@ -241,6 +244,24 @@ export class Bridge {
       sOut.root.rotation.set(-Math.PI / 2, Math.PI / 2, 0, 'YXZ'); // facing out (-x)
       this.controls.push(sIn, sOut);
     }
+    // The gate in the working-deck bulwark: hinged on its forward post, its buttons on the
+    // aft post, facing inboard and outboard (for whoever's in the skiff).
+    const gt = def.layout.sideGate;
+    if (gt) {
+      const plan = hullPlan(def);
+      const at = (z: number) => new THREE.Vector3(gt.side * (plan.halfBeam(z) - 0.03), plan.deckY(z), z);
+      const gate = new SideGate(at(gt.z0), at(gt.z1), def.layout.bulwarkHeight, def.layout.railHeight, gt.side, (gt.openDeg * Math.PI) / 180);
+      this.root.add(gate.root);
+      this.sideGate = gate;
+      const post = at(gt.z1);
+      for (const out of [false, true]) {
+        const b = new DoorButton(out ? 'sideGateOut' : 'sideGateIn', 'sideGate');
+        const face = (out ? 1 : -1) * gt.side; // +x or -x
+        b.root.position.set(post.x + face * 0.032, post.y + gt.buttonHeight, post.z + 0.02);
+        b.root.rotation.set(-Math.PI / 2, -face * Math.PI / 2, 0, 'YXZ');
+        this.controls.push(b);
+      }
+    }
     this.rainGlass = new RainGlass(def);
     this.root.add(this.rainGlass.root);
     // Mooring cleats on the bulwark tops, forward and aft each side (they replace the DOCK
@@ -410,6 +431,7 @@ export class Bridge {
     if (displaysInView) this.instruments.update(state, this.def, dt, env);
     this.door.sync(state);
     this.sideDoor?.sync(state);
+    this.sideGate?.sync(state);
     // Under the floor, the dipstick and the oil can are only within reach with the hatch open.
     const hatchOpen = (state.controls.engineHatch ?? 0) > 0.5;
     if (this.dipstick) this.dipstick.enabled = hatchOpen;

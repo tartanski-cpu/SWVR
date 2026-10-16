@@ -1549,6 +1549,15 @@ How to come back to it:
 
 ### Fixes after V1.0 (on the dev branch; not in the `V1.0` tag)
 
+- **Deck gate** (owner request: easier access to the skiff alongside with cargo; "at least the railing could open with a button press"):
+  - A gate in the starboard bulwark and rail at the fore end of the working deck (`layout.sideGate`: z 2.6 to 3.4, between the midship cleat and the swim ladder). It's hinged on its forward post and swings 90° inboard (`openDeg`) over about half a second, eased.
+  - Worked by green push buttons on the aft gatepost, one facing inboard and one outboard (`buttonHeight` 0.85 m above the deck). Vessel control `sideGate` (1 open); it starts shut.
+  - The bulwark and rail have a gap there, with a post at each end (`hullMesh.ts buildDeckFittings`). The gate is its own small mesh (`controls/SideGate.ts`). A fixed boarding step sits on the hull side `stepDrop` (0.55 m) below the deck.
+  - **Walking:** open, the gateway is walkable out to the deck edge, and the VR fence lets you through to it (`WalkArea.setGateOpen`). From there you jump down into the skiff.
+  - **Boarding:** jump at the open gate from the skiff (or from anywhere within `boardRange`, 1.8 m, outboard of it) and you land on deck just inside it (`player/body.ts updateAir`). Jumping out through it from the deck isn't pulled back.
+  - To clear its swing and the gateway, the fender basket moved forward (`fenders.basket` z 2.4 → 1.95) and the aft pair of fenders aft (`fenders.z` 3.4 → 3.9).
+  - Test: `tests/sideGate.test.ts`.
+
 - **Skiff painter and midship cleats** (owner: launched on a windy day, the skiff blew away):
   - **The painter** (`vessel/physics/painter.ts`): a bow line from a cleat on the skiff's stem head to one of the ship's cleats. Modelled like the towline: a rope that only pulls, taut a spring-damper between the two cleats (`docking.painter.stiffness` 3000 N/m, damping 0.7 of critical on the two boats' reduced mass). It parts above `breakForce` (15 kN) or stretched `maxStretch` (2 m).
   - **On launch** she's made fast to the nearer forward cleat (the starboard one: the crane sets her down off the starboard bow), at the distance plus `slack` (0.5 m), between `minLength` 2.5 m and `maxLength` 7 m. Hoisting her back lets it go.

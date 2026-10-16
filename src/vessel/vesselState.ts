@@ -49,6 +49,8 @@ export interface VesselControls {
   panelRed?: number;
   /** The port side door (wheelhouse.sideDoor): 1 open. Absent (older saves, snapshots) = shut. */
   sideDoor?: number;
+  /** The gate in the working-deck bulwark (layout.sideGate): 1 open. Absent = shut. */
+  sideGate?: number;
   /** The engine hatch in the wheelhouse floor open (1) or shut (0). */
   engineHatch?: number;
   /** The chart table's drop leaf unfolded (1, or unset) or folded against the wall (0). */

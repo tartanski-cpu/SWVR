@@ -687,6 +687,7 @@ export class App {
       if (tv) {
         const wa = this.walkAreas.get(this.testVesselId);
         wa?.setHatchOpen?.((tv.controls.engineHatch ?? 0) > 0.5);
+        wa?.setGateOpen?.((tv.controls.sideGate ?? 0) > 0.5);
         wa?.setChartLeafFolded?.((tv.controls.chartLeaf ?? 1) < 0.5);
       }
       // Gulls overhead; dolphins at the bow when she's under way in open, deep water.
@@ -2245,6 +2246,7 @@ export class App {
     if (this.bridge) {
       this.bridge.door.tick(dt);
       this.bridge.sideDoor?.tick(dt);
+      this.bridge.sideGate?.tick(dt);
       // Shut in only with both doors shut (the port side door, if she has one, too).
       this.closed = this.bridge.door.shut && (this.bridge.sideDoor?.shut ?? true) ? 1 : 0;
     }

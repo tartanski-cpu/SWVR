@@ -494,6 +494,18 @@ export const CONFIG = {
         railHeight: 1.0,
         /** Notch in the transom bulwark on the centreline for the towline's stern roller (width, m; 0 none). */
         fairleadGap: 0.44,
+        /**
+         * A gate in the starboard bulwark and rail at the working deck (owner request: for
+         * getting into and out of the skiff alongside with cargo). Between z0 and z1 (m),
+         * clear of the midship cleat forward and the swim ladder aft. Hinged on its forward
+         * post, it swings inboard (`openDeg`) at a press of the green button on its aft post
+         * (inboard and outboard faces, `buttonHeight` above the deck). Vessel control
+         * `sideGate` (1 open), shut at the start. Open, you can walk out to the deck edge
+         * in the gateway and jump down; jump up from the skiff (or climb out of the water)
+         * within `boardRange` (m) outboard of it and you're aboard, helped by a fixed step on
+         * the hull side `stepDrop` (m) below the deck.
+         */
+        sideGate: { side: 1, z0: 2.6, z1: 3.4, openDeg: 90, buttonHeight: 0.85, boardRange: 1.8, stepDrop: 0.55 },
         deckEdgeMargin: 0.3,
         /** Player body radius used for collision with walls. */
         bodyRadius: 0.22,
@@ -700,9 +712,10 @@ export const CONFIG = {
       /**
        * Fenders: three a side (vessel z), hung over the rail when out; stowed lying along
        * the bulwark. One press on the fender basket (aft deck, starboard) puts them all out
-       * or takes them in.
+       * or takes them in. The aft pair and the basket stand clear of the deck gate
+       * (layout.sideGate) and its swing (they were at z 3.4 and 2.4).
        */
-      fenders: { z: [-2.4, 0.6, 3.4], basket: [1.75, 2.4] as [number, number] },
+      fenders: { z: [-2.4, 0.6, 3.9], basket: [1.75, 1.95] as [number, number] },
       /**
        * Engine oil (vessel/maintenance.ts): level 0..1 when the session starts; burnt at
        * `use` per second running (more under load); a check is due every `checkEvery` s of
