@@ -236,7 +236,7 @@ The dash shows:
 Out of harbour, with no other job on, a fire is reported on the VHF every 5–11 minutes. It's either a fishing boat burning at sea, or a shed ashore that you can reach from deep water. Pick up the handset to take it; the plotter marks it **FIRE**.
 
 1. **Engine running, FIRE PUMP on.** The switch is on the console, left of the wheel (SEARCH · FIRE group). The pump is engine-driven, so there's no water with the engine off.
-2. **Aim the fire monitor** on the wheelhouse roof with its joystick (red knob, on its own pedestal at the port end, beside the searchlight's). Sideways pans it, forward and back raises and lowers it. The jet flies a real arc, carried by the boat's way and blown a little by the wind.
+2. **Aim the fire monitor** on the wheelhouse roof with its joystick (red knob, on its own pedestal at the port end, beside the searchlight's). Sideways pans it, forward and back raises and lowers it. It's **stabilised**: as she rolls and pitches it holds its aim (you'll see the barrel move on its mount), so you only correct for your own heading and the drift. The jet flies a real arc, carried by the boat's way and blown a little by the wind.
 3. **Keep the jet on the fire.** The smoke turns to white steam when you're on target, and the radio line shows how much is left. Left alone, a fire grows. About a minute of steady hosing puts out a big one.
 4. **Out:** the coastguard thanks you, and it counts as a mission.
 

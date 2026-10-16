@@ -936,6 +936,13 @@ export const CONFIG = {
         flowLpm: 2400,
         airDrag: 0.12,
         windDrift: 0.35,
+        /**
+         * Stabilised (owner request: too hard to keep it on a fire as she rolls): the
+         * monitor holds its aim against the boat's roll and pitch, like a gyro-stabilised
+         * monitor. Pan is still from the bow (turn the boat and the jet turns with her),
+         * elevation from the horizon, not the roof.
+         */
+        stabilised: true,
       },
       /**
        * Docking (the DOCK button) and the mooring lines that hold her: bow and stern line

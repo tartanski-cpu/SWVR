@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { VesselDef } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
+import { monitorAim } from './fire';
 
 type MonitorConfig = NonNullable<VesselDef['fireMonitor']>;
 
@@ -33,11 +34,26 @@ export class MonitorView {
     this.barrel.add(tube, nozzle);
     this.yoke.add(this.barrel);
     this.root.add(post, this.yoke);
+    this.stabilised = m.stabilised;
   }
 
   update(s: VesselState): void {
+    let pan = s.controls.monPan;
+    let tilt = s.controls.monTilt;
+    if (this.stabilised && this.root.parent) {
+      // Stabilised: where the jet really points (held level against her roll and pitch,
+      // fire.ts monitorAim), back in the boat's axes, as she's drawn this frame.
+      this.root.parent.getWorldQuaternion(this.q);
+      const d = monitorAim(pan, tilt, this.q, true, this.d).applyQuaternion(this.q.invert());
+      pan = (Math.atan2(d.x, -d.z) * 180) / Math.PI;
+      tilt = (Math.asin(Math.max(-1, Math.min(1, d.y))) * 180) / Math.PI;
+    }
     // Pan: + to starboard (a turn to the right, about -y); elevation about x.
-    this.yoke.rotation.y = (-s.controls.monPan * Math.PI) / 180;
-    this.barrel.rotation.x = (s.controls.monTilt * Math.PI) / 180;
+    this.yoke.rotation.y = (-pan * Math.PI) / 180;
+    this.barrel.rotation.x = (tilt * Math.PI) / 180;
   }
+
+  private readonly stabilised: boolean;
+  private readonly q = new THREE.Quaternion();
+  private readonly d = new THREE.Vector3();
 }

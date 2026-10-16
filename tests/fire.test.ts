@@ -33,6 +33,25 @@ function landing(world: ReturnType<typeof setup>['world'], v: ReturnType<typeof 
 }
 
 describe('fire missions', { timeout: 30000 }, () => {
+  it('the monitor is stabilised: rolled 15 deg or pitched 8 deg, the jet lands where it does level', () => {
+    const { world, v, send, run } = setup();
+    send('firePump', 1);
+    send('engineStartStop');
+    run(3);
+    send('monPan', 60);
+    send('monTilt', 25);
+    v.angularVelocity = [0, 0, 0];
+    const level = landing(world, v);
+    const q0 = new THREE.Quaternion().fromArray(v.orientation);
+    for (const [axis, deg] of [[new THREE.Vector3(0, 0, 1), 15], [new THREE.Vector3(1, 0, 0), 8]] as const) {
+      const q = new THREE.Quaternion().setFromAxisAngle(axis, (deg * Math.PI) / 180).premultiply(q0);
+      v.orientation = [q.x, q.y, q.z, q.w];
+      // Only the nozzle's own position moves with her (it's on the roof): a metre or two.
+      expect(landing(world, v).distanceTo(level)).toBeLessThan(3);
+    }
+    v.orientation = [q0.x, q0.y, q0.z, q0.w];
+  });
+
   it('the monitor: water only with the pump on and the engine running; a ballistic arc ahead', () => {
     const { world, v, send, run } = setup();
     send('firePump', 1);

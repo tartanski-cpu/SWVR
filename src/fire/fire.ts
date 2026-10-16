@@ -101,15 +101,30 @@ export function jetOn(v: VesselState): boolean {
  *   p(t+dt) = p + v dt,  v += (g - airDrag (v - windDrift w)) dt
  * Returns the number of points used.
  */
+/**
+ * The monitor's aim (world direction) from its pan (+ to starboard from the bow) and
+ * elevation (deg), for a boat at attitude `boat`. Stabilised, only her heading is used: the
+ * aim is held level against her roll and pitch (the mount moves the barrel to cancel them;
+ * MonitorView draws that). Unstabilised, it moves with the roof.
+ */
+export function monitorAim(panDeg: number, tiltDeg: number, boat: THREE.Quaternion, stabilised: boolean, out: THREE.Vector3): THREE.Vector3 {
+  const pan = (panDeg * Math.PI) / 180;
+  const el = (tiltDeg * Math.PI) / 180;
+  // Bow is -z, starboard +x in vessel axes.
+  out.set(Math.sin(pan) * Math.cos(el), Math.sin(el), -Math.cos(pan) * Math.cos(el));
+  if (!stabilised) return out.applyQuaternion(boat);
+  // Her heading alone: the yaw of her bow direction.
+  const f = new THREE.Vector3(0, 0, -1).applyQuaternion(boat);
+  const yaw = Math.atan2(-f.x, -f.z);
+  return out.applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+}
+
 export function jetPath(world: WorldState, v: VesselState, out: THREE.Vector3[], step = 0.12): number {
   const m = VESSEL_DEFS[v.defId].fireMonitor;
   if (!m || !out.length) return 0;
   q.fromArray(v.orientation);
   const p = tmp.fromArray(m.position).applyQuaternion(q).add(new THREE.Vector3().fromArray(v.position));
-  const pan = (v.controls.monPan * Math.PI) / 180;
-  const el = (v.controls.monTilt * Math.PI) / 180;
-  // Bow is -z, starboard +x in vessel axes.
-  const dir = new THREE.Vector3(Math.sin(pan) * Math.cos(el), Math.sin(el), -Math.cos(pan) * Math.cos(el)).applyQuaternion(q);
+  const dir = monitorAim(v.controls.monPan, v.controls.monTilt, q, m.stabilised, new THREE.Vector3());
   const vel = dir.multiplyScalar(m.nozzleSpeed).add(new THREE.Vector3(v.linearVelocity[0], 0, v.linearVelocity[2]));
   const w = windVector(world.environment, { x: 0, z: 0 });
   const g = CONFIG.ocean.gravity;
