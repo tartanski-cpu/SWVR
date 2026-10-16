@@ -11,7 +11,7 @@
  *             3 kn is a few kN: you hear the engine work).
  *   catching  with the net down, in one of the fishing grounds (CONFIG.fishing.grounds,
  *             dashed rings on the chartplotter), at trawling speed (`minSpeed`..`maxSpeed`
- *             m/s, about 2-4 kn), the net fills at `richness / boxEvery` per s. Each time
+ *             m/s, about 2-4.5 kn), the net fills at `richness / boxEvery` per s. Each time
  *             it's full, a box of fish appears on the aft deck (a cargo item bound for
  *             'any' port: carry it ashore to any goods stack to land it). Too slow and the
  *             fish swim out; too fast and the net lifts off the bottom; outside a ground
@@ -227,6 +227,12 @@ export function trawlForces(world: WorldState): Map<EntityId, ExternalForce[]> {
   return out;
 }
 
+/** The trawling speed window in knots, for the status line (e.g. "2-4.5 kn"). */
+export function trawlKnots(): string {
+  const kn = (ms: number) => String(Math.round(ms * 1.9438 * 2) / 2);
+  return `${kn(CONFIG.fishing.minSpeed)}-${kn(CONFIG.fishing.maxSpeed)} kn`;
+}
+
 /** One line for displays while the net is out, else null. */
 export function fishingStatus(world: WorldState): string | null {
   const f = world.fishing;
@@ -245,9 +251,9 @@ export function fishingStatus(world: WorldState): string | null {
     case 'fishing':
       return `Trawling${where}: ${box}`;
     case 'slow':
-      return `Trawling${where}: too slow, the fish outswim the net (2-4 kn)`;
+      return `Trawling${where}: too slow, the fish outswim the net (${trawlKnots()})`;
     case 'fast':
-      return `Trawling${where}: too fast, the net lifts off the bottom (2-4 kn)`;
+      return `Trawling${where}: too fast, the net lifts off the bottom (${trawlKnots()})`;
     case 'outside':
       return 'Trawling: no fish here - find a fishing ground (dashed on the plotter)';
     case 'fouled':

@@ -1549,6 +1549,11 @@ How to come back to it:
 
 ### Fixes after V1.0 (on the dev branch; not in the `V1.0` tag)
 
+- **Trawling speed easier to hold** (owner: the trawl speed was hard to reach, she was too fast). Measured with the net out: she made 3.0 kn idling in gear and 4 kn by 23 % lever, so the 2-4 kn window was only 8-23 % of the lever (a quarter of a second on the desktop keys). The net was too light (3.5 kN at 3 kn). Now:
+  - net drag tripled (`fishing.dragLinear` 1800, `dragQuad` 3000: ~10 kN at 3 kn, so the engine works when trawling); fouled drag raised to stay well above it (`foulDrag` 18000);
+  - the window's top raised from 4 to 4.5 kn (`fishing.maxSpeed` 2.3 m/s); the status line now shows the window from the config (`trawlKnots`).
+  - Result: idle in gear ~1.9 kn, 2 kn at 12 % lever, 4.5 kn at ~65 %. Half the ahead travel is good trawling. The lever itself is unchanged (so driving feels the same).
+  - Test: with the engine driving and the net out, idle is at the bottom of the window and 20 %, 35 % and 50 % lever are all inside it.
 - **Stabilised searchlight** (owner: it needs the same motion compensation as the fire monitor): `spotlight.stabilised: true`. The lamp holds its aim against her roll and pitch: pan is still from the bow (turn her and the beam turns), elevation from the horizon. It uses the monitor's maths (fire.ts `monitorAim`), applied in the view (`vessel/view/searchlight.ts`, as MonitorView does), since nothing in the simulation depends on where the beam points. Test (`tests/searchlightStabilised.test.ts`): rolled 15 deg, pitched 8 deg or both, the beam points within half a degree of where it does level, and a change of heading turns it.
 
 ## Planned next (owner requests, not started)

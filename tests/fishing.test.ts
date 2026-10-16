@@ -130,5 +130,27 @@ describe('fishing', { timeout: 60000 }, () => {
     expect(f.net).toBe('stowed');
     expect(f.t).toBe(0);
   });
+  it('with the net out, a good part of the lever is trawling speed (not just a sliver past idle)', () => {
+    const { world, v, send } = setup();
+    const c = CONFIG.fishing;
+    placeVessel(v, ground.x, 0, ground.z + 100, 0);
+    send('trawl', 1);
+    /** Steady speed (m/s) at a lever setting, the engine driving her with the net held fully out. */
+    const steady = (lever: number) => {
+      v.controls.lever = lever;
+      for (let i = 0; i < 45 / DT; i++) {
+        world.fishing!.t = 1;
+        world.fishing!.net = 'down';
+        stepWorld(world, [], DT);
+      }
+      return Math.hypot(v.linearVelocity[0], v.linearVelocity[2]);
+    };
+    expect(steady(0.1)).toBeLessThan(c.minSpeed + 0.1); // idling in gear: about the bottom of the window
+    for (const lever of [0.2, 0.35, 0.5]) {
+      const sp = steady(lever);
+      expect(sp).toBeGreaterThan(c.minSpeed);
+      expect(sp).toBeLessThan(c.maxSpeed);
+    }
+  });
 });
 

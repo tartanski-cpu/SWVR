@@ -350,7 +350,7 @@ The boat has a trawl: a red A-frame over the transom with a block each side on i
 
 1. **Find a fishing ground:** the dashed teal rings on the chartplotter (Skerry Ground near the start, Calder Bank east of Calder Holm, The Hollows to the north-west).
 2. **Shoot the net:** the **TRAWL** switch on the console, behind the throttle (DECK group), runs it all the way out; or work it by hand with the **PAY OUT** / **HAUL** buttons on the control box on the A-frame's starboard leg (hold to run; it stops where you let go, part way out it drags but doesn't fish). The warps run out astern and the net's orange floats show on the surface. You'll feel the drag: the engine has to work.
-3. **Tow at 2–4 knots** inside the ground. Every 30–50 s of good trawling a **box of fish** appears on the aft deck. The status line says why not if you're too slow, too fast or outside a ground.
+3. **Tow at 2–4.5 knots** inside the ground. The net is a real load, so she needs some throttle: idle in gear makes just under 2 knots, and the window runs to about half ahead. Every 30–50 s of good trawling a **box of fish** appears on the aft deck. The status line says why not if you're too slow, too fast or outside a ground.
 4. **Mind the shallows:** trawling where it's under 7 m deep fouls the net on the bottom. It holds her back hard and catches nothing until you haul it.
 5. **Haul the net** (TRAWL switch off, or hold HAUL on the A-frame) and **carry the boxes ashore** to any port's goods stack to land them. If the deck's full, the catch waits in the net.
 
