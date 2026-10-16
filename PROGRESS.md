@@ -1773,7 +1773,7 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Two addresses, one site:**
   - https://tartanski-cpu.github.io/SWVR/ is the game, built from the dev branch, as before.
   - **https://tartanski-cpu.github.io/SWVR/next/** is work in progress, built from the new branch **`next`**.
-- A push to either branch rebuilds both (`.github/workflows/pages.yml`). Each must pass `npm test`. If `next` fails, the game is still published and /next/ shows a short notice instead.
+- A push to either branch rebuilds both (`.github/workflows/pages.yml`). A push to `next` goes through `next.yml`, which only wakes the Pages workflow. GitHub lets only the dev branch deploy the site; the first try, deploying straight from `next`, was refused. Each must pass `npm test`. If `next` fails, the game is still published and /next/ shows a short notice instead.
 - **Telling them apart:** the next build's menu header starts with **NEXT** (then its commit and date) and its browser tab reads "Workboat World: NEXT". The build sets `VITE_CHANNEL=next`, read in `vite.config.ts` as `__CHANNEL__` and `__BUILD__`.
 - **How milestones go out from now:** to `next` first for the owner to try, then to the dev branch when the owner is happy.
 - **Shared storage:** both addresses are one site to the browser, so they share career saves, settings, the chart and the whiteboard. That's harmless while the save format is the same. Before a milestone changes it (M6), `next` gets its own save keys.
