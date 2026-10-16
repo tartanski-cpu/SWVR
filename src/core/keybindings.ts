@@ -49,7 +49,7 @@ export const KEYS = {
   toggleProbes: { codes: ['KeyP'], description: 'Wave surface probes on/off' },
   toggleHelp: { codes: ['F1', 'KeyH'], description: 'This help on/off' },
   binoculars: { codes: ['KeyZ'], description: 'Binoculars: look through them (hold)' },
-  menu: { codes: ['KeyO'], description: 'Menu (time, sea, comfort, tests, debug views)' },
+  menu: { codes: ['KeyO'], description: 'Menu (voyage, boat, cargo, office, crew, settings)' },
 } satisfies Record<string, KeyBinding>;
 
 export type KeyAction = keyof typeof KEYS;

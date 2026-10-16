@@ -8,38 +8,34 @@ import { KEYS, type KeyAction } from '../core/keybindings';
  */
 type LayoutMap = Map<string, string>;
 
+// Playing keys only (owner request after V1.0): what the menu already does (time of day,
+// weather, motion coupling, sea trials, the drop/heel tests, debug views) is left out here.
+// Those keys still work; they're listed in keybindings.ts.
 const ROWS: (KeyAction | KeyAction[])[] = [
   'menu',
   ['forward', 'left', 'back', 'right'],
-  'crouch',
-  'flyMode',
-  ['up', 'down'],
   'fast',
+  'crouch',
+  'jump',
   'board',
+  'lash',
+  'binoculars',
   'engine',
   ['leverAhead', 'leverAstern'],
   ['helmPort', 'helmStarboard'],
   ['leverNeutral', 'helmMidships'],
-  'seaTrials',
-  'seaState',
-  ['couplingDown', 'couplingUp'],
-  ['timeEarlier', 'timeLater'],
-  'dropVessel',
-  'heelVessel',
-  'toggleHydro',
+  'flyMode',
+  ['up', 'down'],
   'toggleOverlay',
-  'toggleProbes',
   'toggleHelp',
 ];
 
 const ROW_TEXT: Partial<Record<KeyAction, string>> = {
   forward: 'Move',
   up: 'Up / down (free-fly)',
-  timeEarlier: 'Time of day − / + 30 min',
   leverAhead: 'Throttle lever ahead / astern',
   helmPort: 'Wheel to port / starboard',
   leverNeutral: 'Lever neutral / wheel amidships',
-  couplingDown: 'Motion coupling − / + (100 % = rigid)',
 };
 
 const SPECIAL: Record<string, string> = {
@@ -59,6 +55,8 @@ export class HelpPanel {
   constructor() {
     this.el = document.createElement('div');
     this.el.id = 'help';
+    // Hidden until asked for (owner request after V1.0): H or F1 shows it.
+    this.el.hidden = true;
     document.body.appendChild(this.el);
     this.render();
 
@@ -109,6 +107,6 @@ export class HelpPanel {
       <div class="hint">Press <b>Enter VR</b> · <b>Y</b>: menu on your left wrist (poke or point + trigger with the right hand) · <b>B</b>: debug panel<br>
       <b>Grip</b> a lever or the wheel to move it · <b>trigger</b> on buttons and switches (touch them, or point from a distance)<br>
       Grip on empty air + pull: move (two grips: turn) · Left stick: walk · Right stick ←/→: snap turn<br>
-      Left stick click: board / leave · hold <b>X</b> + left stick ↑/↓: motion coupling</div>`;
+      Left stick click: board / leave</div>`;
   }
 }

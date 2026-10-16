@@ -67,7 +67,7 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | N / M | Time of day −/+ 30 min |
 | F3 or I | Debug overlay on/off (FPS, cpu/gpu frame time, draw calls, boat readouts); off at start |
 | P | Wave surface probes on/off |
-| F1 or H | Help panel on/off |
+| F1 or H | Help panel on/off (hidden at the start; it lists the playing keys, the rest is on the menu) |
 
 ### VR (Quest 3)
 

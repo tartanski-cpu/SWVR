@@ -1549,6 +1549,7 @@ How to come back to it:
 
 ### Fixes after V1.0 (on the dev branch; not in the `V1.0` tag)
 
+- **Desktop help panel off by default and trimmed** (owner request): it starts hidden (H or F1 shows it; `debug/helpPanel.ts`). It now lists only the playing keys: what the menu already does is left out (time of day N/M, weather L, motion coupling 9/0, sea trials T, drop R / heel K tests, buoyancy V and wave probes P; those keys still work). Added the keys it was missing: jump (Space), lash (Q), binoculars (Z). The VR line no longer mentions X + stick for motion coupling (it's in Settings → Comfort). Slightly tighter spacing so it fits a 720-px-high window.
 - **Trawling speed easier to hold** (owner: the trawl speed was hard to reach, she was too fast). Measured with the net out: she made 3.0 kn idling in gear and 4 kn by 23 % lever, so the 2-4 kn window was only 8-23 % of the lever (a quarter of a second on the desktop keys). The net was too light (3.5 kN at 3 kn). Now:
   - net drag tripled (`fishing.dragLinear` 1800, `dragQuad` 3000: ~10 kN at 3 kn, so the engine works when trawling); fouled drag raised to stay well above it (`foulDrag` 18000);
   - the window's top raised from 4 to 4.5 kn (`fishing.maxSpeed` 2.3 m/s); the status line now shows the window from the config (`trawlKnots`).
