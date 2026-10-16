@@ -105,15 +105,17 @@ The menu stands above your left hand. Use the **right** controller on it in one 
 
 While your right hand is on the menu, its trigger doesn't reach the bridge controls behind it. If the left controller isn't tracked, the menu floats in front of you instead.
 
-The menu has six tabs along the top:
+The menu is laid out for playing. Some tabs have sections, picked from a second row under the tabs.
 
-| Tab | Settings |
+| Tab | What's on it |
 |---|---|
-| Sea & time | Time of day ±1 h / ±10 min; time flow stopped / ×60 / ×600; **weather**: what it is now and what's coming, presets Clear / Overcast / Fog / Rain / Squall, **Fixed weather** (stop the changes) and **Fast ×10** (changes come ten times sooner), **Rain effect** High / Low / None (remembered on the device); sea state Calm / Slight / Moderate / Rough / Storm, with ± for the wave height (Hs 0–3.6 m; the wind builds or calms it back over a few minutes); bearing and range to each port, with **Go** to move the boat (and you) to that port's cargo berth or anchorage |
-| Boat | Board / leave; fuel and **Refuel** (at a fuel berth); anchor status; sea-trials report on a big panel in front of you (the game freezes for about a second while the trials run) |
+| Voyage | The job you're on (contract, cargo run or rescue, with **Abandon**), what you've done; the **weather** now and what's coming; time of day ±1 h and time flow stopped / ×60 / ×600; bearing and range to each port; the paper chart's marks, with **Clear marks** |
+| Boat | **Deck:** tow (**Make fast** / **Cast off**), docking (**Dock** / **Cast off**), anchor status. **Skiff:** board, **LAUNCH** / **RECOVER**, battery. **Fuel** and **Refuel** (at a fuel berth). **FM radio:** power and station |
 | Cargo | Where you are, payload, deliveries; cargo aboard (lashed or loose), and what's in the skiff (two crates or one drum) |
-| Comfort | Motion coupling ±10 %, stick walking on/off, snap-turn angle. Remembered on the device |
-| Tests | Engine oil (level, next check; **Low + check due**); traffic (spawn ship / debris); chart (clear marks, plot it yourself); electrics (power on, fill, flat); start-up (quick start, battery 1 flat); **Bilge**: level, pump, and **Flood (60 %)**; drop from 4 m, heel 20°; engine faults (fuel to 5 %, raw-water pump failure); perf panel, buoyancy view, wave probes |
+| Office | **Jobs:** balance, the contract on, the harbour office's job board, the first voyage (**Skip** / **Again**). **Yard:** repairs and the chandlery (upgrades), in port. **Career:** balance, reputation, ledger, the three save slots |
+| Crew | Multiplayer: host or join a game, your name, who's aboard |
+| Settings | **Comfort:** motion coupling ±10 %, stick walking, snap-turn angle, boat hook reach. **Sound:** volumes. **Game:** rain effect, rescue position (on the plotter, or plot it yourself), and the **Debug tab** (hidden / shown). Remembered on the device |
+| Debug | Hidden until **Settings → Game → Debug tab → Shown**. **World:** time ±10 min, weather presets, **Fixed weather** / **Fast ×10**, sea state and wave height, move to a port, board / leave the boat. **Boat:** drop 4 m, heel 20°, damage, electrics, start-up, oil, bilge, engine faults, sea trials. **Missions:** rescue, tow, fire, side jobs and traffic on demand, +£5000. **Views:** perf panel, buoyancy, wave probes, targets on the chart, radio voice test |
 
 ### Bridge
 
@@ -156,12 +158,12 @@ The chart table stands along the port wall, behind the helm. On it:
 | Draw | Touch the chart with the pencil tip; lift it off to stop | Aim at the chart and drag |
 | Straight line | Hold the trigger while drawing (from where you started) | Hold Shift while dragging |
 | Erase | Rub the eraser on the chart | Right-drag |
-| Clear the chart | Hold the eraser's trigger 2 s | Menu → Tests → Chart → Clear marks |
+| Clear the chart | Hold the eraser's trigger 2 s | Menu → Voyage → Clear marks |
 
 - Marks are kept in chart coordinates, so a route you plot lines up with the real places. They show faintly on the chartplotter too.
 - Marks are saved in the browser, so a route plotted before leaving is still there after a reload.
 - In multiplayer, crewmates see the marks appear as you draw, and several people can draw at once.
-- **Plot it yourself** (Menu → Tests → Chart, or `rescue.plotYourself` in the config; off by default): rescue calls give only the last known position in latitude and longitude, and the chartplotter doesn't show the search area. Plot it on the paper chart, using the latitude and longitude scale on the chart's edges.
+- **Plot it yourself** (Menu → Settings → Game → Rescue position, or `rescue.plotYourself` in the config; off by default): rescue calls give only the last known position in latitude and longitude, and the chartplotter doesn't show the search area. Plot it on the paper chart, using the latitude and longitude scale on the chart's edges.
 
 - **Reading it on desktop:** aim the crosshair at the chart from the table and the view eases in, as if you leaned over it; look away and it eases back.
 - It's printed like a real chart: depth tints and contours, soundings in metres, a latitude and longitude scale in tenths of a minute around the edge, and a compass rose.
@@ -189,7 +191,7 @@ The chart table stands along the port wall, behind the helm. On it:
   - The lookout calls each one out with a clock bearing and range.
 - **In fog** ships sound a prolonged blast every 2 minutes, and the nearest one answers yours. Listen for where it comes from.
 - **Hazards:** floating debris, the rocks at Gull Rocks and the Skerry, and yellow/red hazard buoys.
-- **Debug:** Menu → Tests → Traffic → **Spawn ship** / **Spawn debris** (close by).
+- **Debug:** Menu → Debug → Missions → Traffic → **Spawn ship** / **Spawn debris** (close by).
 
 ### Weather work
 
@@ -235,7 +237,7 @@ Out of harbour, with no other job on, a fire is reported on the VHF every 5–11
 3. **Keep the jet on the fire.** The smoke turns to white steam when you're on target, and the radio line shows how much is left. Left alone, a fire grows. About a minute of steady hosing puts out a big one.
 4. **Out:** the coastguard thanks you, and it counts as a mission.
 
-The duty board walks you through it. The menu's Tests tab has debug buttons that light one close by (Boat, Shore), raise a call, or end it.
+The duty board walks you through it. The menu's Debug → Missions section has buttons that light one close by (Boat, Shore), raise a call, or end it.
 
 ### Towing missions
 
@@ -248,7 +250,7 @@ Out of harbour, with no rescue on, a tow call comes over the VHF every few minut
    - **The tow winch** just forward of the towing post works the line by hand: hold **HEAVE IN** (green) or **PAY OUT** (amber) on top of its gearbox housing (starboard end), standing forward of it facing aft. It comes in at 0.6 m/s and goes out at 1 m/s, from 4 m to 60 m, and stays where you leave it. Heaving in against a heavy pull (over 18 kN) stalls it: ease off or slow down. The status line shows the line out and its pull.
 5. **Slow down inside the port** for a few seconds and the harbour takes her over. The tow counts as a mission, and she is taken away a few seconds later.
 
-Unanswered calls go away after two minutes. The menu's Tests tab has debug buttons that put a tow just astern (Cruiser, Logs, Barge), raise a call, or end the job.
+Unanswered calls go away after two minutes. The menu's Debug → Missions section has buttons that put a tow just astern (Cruiser, Logs, Barge), raise a call, or end the job.
 
 **Tow anything in the water.** The towline isn't only for tow jobs. Make it fast the same way (hook or menu) to:
 - **any boat afloat**, at her bow, e.g. our own skiff once she's off the crane;
@@ -258,7 +260,7 @@ One thing at a time on the line. The menu's **Tow → Make fast** picks the near
 
 ### Career: money, reputation, contracts, upgrades
 
-Everything you do now earns or costs money. The menu's **Office** tab is your harbour office (contracts, repairs, upgrades), and the **Career** tab holds your balance, reputation and ledger; the **duty board** shows your balance (top right) and any contract on.
+Everything you do now earns or costs money. The menu's **Office** tab is your harbour office: **Jobs** (contracts), **Yard** (repairs, upgrades) and **Career** (balance, reputation, ledger, save slots); the **duty board** shows your balance (top right) and any contract on.
 
 - **Pay:**
 
@@ -292,7 +294,7 @@ Everything you do now earns or costs money. The menu's **Office** tab is your ha
   | Ice machine | £1,200 | — | Fish fetch 30 % more |
 
 - **Saved:** your money, ledger, reputation and upgrades are kept in the host's browser between sessions; crew-mates see the host's career. You start with £500.
-- **Debug:** Tests → Side jobs → **+£5000, rep** (cash and +25 reputation everywhere).
+- **Debug:** Debug → Missions → Career → **+£5000, rep** (cash and +25 reputation everywhere).
 
 ### First voyage, career slots, playing together
 
@@ -306,8 +308,8 @@ Everything you do now earns or costs money. The menu's **Office** tab is your ha
   7. load a crate;
   8. deliver it.
 
-  The duty board ticks the steps off, and there's a £200 welcome at the end. **Menu → Career** shows the step you're on, with **Skip** (or **Again** to replay it).
-- **Career slots:** three careers per browser (Menu → Career → Slot 1 / 2 / 3), each with its money, reputation, upgrades, the boat's condition and the first-voyage step. **New career in this slot** asks you to press twice.
+  The duty board ticks the steps off, and there's a £200 welcome at the end. **Menu → Office → Jobs** shows the step you're on, with **Skip** (or **Again** to replay it).
+- **Career slots:** three careers per browser (Menu → Office → Career → Slot 1 / 2 / 3), each with its money, reputation, upgrades, the boat's condition and the first-voyage step. **New career in this slot** asks you to press twice.
 - **Playing together:** when you host, the duty board shows the **game code** for your crew to read off the wall. Menu → Crew lists who's aboard, and the last code you joined is remembered. Crew-mates play the host's career.
 
 ### Damage, wear and weather
@@ -318,7 +320,7 @@ Everything you do now earns or costs money. The menu's **Office** tab is your ha
 - **Engine wear:**
   - **What causes it:** running hot (coolant over 98 °C) or with the sump nearly dry.
   - **What it does:** a worn engine loses power, down to half at full wear.
-- **Repairs:** Office tab → **Repairs**, in port.
+- **Repairs:** Office → Yard → **Repairs**, in port.
   - Hull: £30 per % of damage, and the yard pumps her out.
   - Engine overhaul: £25 per % of wear, with the engine stopped.
   - Repairs can go on credit, so you can always get back out.
@@ -327,7 +329,7 @@ Everything you do now earns or costs money. The menu's **Office** tab is your ha
 - **Heavy weather:**
   - **No trawling** in a sea over 2.2 m (Hs): the net jumps off the bottom.
   - **Danger money:** rescues, tows and fires in a squall, or in a sea over 1.8 m, pay 50 % more.
-- **Debug:** Tests → Side jobs → **Damage** (30 % hull damage and 30 % engine wear).
+- **Debug:** Debug → Boat → Hull → **Damage** (30 % hull damage and 30 % engine wear).
 
 ### Log salvage (side job)
 
@@ -338,7 +340,7 @@ Now and then timber washes up on a beach, and the VHF says where ("timber report
 3. **Pull it off.** A log on the sand doesn't move until the line pulls harder than its friction (about 8 kN), so ease ahead and then give her more power. It slides down the beach and floats.
 4. **Tow it into any harbour** and slow down there for a few seconds. The yard buys it and the radio keeps count.
 
-Logs nobody comes for go again after half an hour. The menu's Tests tab has **Side jobs → Log on beach** to put one on the nearest beach.
+Logs nobody comes for go again after half an hour. The menu's Debug → Missions section has **Side jobs → Log on beach** to put one on the nearest beach.
 
 ### Fishing (side job)
 
@@ -350,7 +352,7 @@ The boat has a trawl: a red A-frame over the transom with a block each side on i
 4. **Mind the shallows:** trawling where it's under 7 m deep fouls the net on the bottom. It holds her back hard and catches nothing until you haul it.
 5. **Haul the net** (TRAWL switch off, or hold HAUL on the A-frame) and **carry the boxes ashore** to any port's goods stack to land them. If the deck's full, the catch waits in the net.
 
-**Tests → Side jobs → Fishing ground** takes you to the nearest ground.
+**Debug → Missions → Side jobs → Fishing ground** takes you to the nearest ground.
 
 ### Wildlife
 
@@ -366,7 +368,7 @@ Gulls wheel over the boat by day, gliding and now and then flapping, and calling
 
 ## The archipelago
 
-From the start (the pilot-station platform), the ports are a few minutes away. Bearings and ranges are on the menu's Sea & time tab.
+From the start (the pilot-station platform), the ports are a few minutes away. Bearings and ranges are on the menu's Voyage tab.
 
 | Port | Type | What's there |
 |---|---|---|

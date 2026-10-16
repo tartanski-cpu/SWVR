@@ -39,7 +39,7 @@ export interface CareerHost {
 
 /**
  * The career as this browser keeps it (split out of App): the save slots, saving when it
- * changes, the money pop-up, and the career's parts of the menu (Office and Career tabs).
+ * changes, the money pop-up, and the career's parts of the menu (the Office tab: Jobs, Yard, Career).
  * The career itself is world state (career/career.ts); this is only its home in the browser.
  */
 export class CareerSession {
@@ -125,7 +125,7 @@ export class CareerSession {
     return here ? (w.career?.offers ?? []).filter((o) => o.port === here) : [];
   }
 
-  /** The career's parts of the menu host (Office and Career tabs; see MenuHost). */
+  /** The career's parts of the menu host (the Office tab; see MenuHost). */
   menu() {
     const h = this.h;
     const w = () => h.world();

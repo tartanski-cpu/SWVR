@@ -16,7 +16,7 @@ beforeAll(() => {
 
 function fakeHost() {
   const calls: string[] = [];
-  const state = { time: 10.5, scale: 0, sea: 1, coupling: 1, smooth: true, snap: 30, aboard: false, trials: false, dbg: false, hydro: false, probes: false, code: '', weather: 'Clear' };
+  const state = { time: 10.5, scale: 0, sea: 1, coupling: 1, smooth: true, snap: 30, aboard: false, trials: false, dbg: false, hydro: false, probes: false, code: '', weather: 'Clear', debugMenu: true };
   const host: MenuHost = {
     timeOfDay: () => state.time,
     shiftTime: (h) => calls.push(`shift ${h.toFixed(3)}`),
@@ -25,7 +25,7 @@ function fakeHost() {
     seaScale: () => state.sea,
     setSeaScale: (v) => (state.sea = v),
     waveHeight: () => 1.25 * state.sea,
-    weatherStatus: () => 'Clear',
+    weatherStatus: () => 'Clear · wind SW 4 (7 m/s) · vis good · Hs 1.2 m · next Fog in 12 min',
     weatherPreset: () => state.weather,
     setWeather: (n) => (state.weather = n),
     weatherFixed: () => false,
@@ -140,6 +140,8 @@ function fakeHost() {
     toggleHydroView: () => calls.push('hydro'),
     probes: () => state.probes,
     toggleProbes: () => calls.push('probes'),
+    debugMenu: () => state.debugMenu,
+    setDebugMenu: (on) => (state.debugMenu = on),
     netStatus: () => 'Playing alone',
     playerName: () => 'Mate',
     nextPlayerName: () => calls.push('name'),
@@ -157,9 +159,10 @@ function fakeHost() {
 
 const label = (b: MenuButton) => (typeof b.text === 'function' ? b.text() : b.text);
 
-/** Find a button by its label anywhere in the menu (header or any page). */
-function findButton(menu: MainMenu, text: string): MenuButton {
-  const rows = [...menu.header, ...menu.pages.flatMap((p) => p.rows)];
+/** Find a button by its label anywhere in the menu (header, any page or section), or only on the page named. */
+function findButton(menu: MainMenu, text: string, page?: string): MenuButton {
+  const pages = menu.pages.filter((p) => !page || p.name === page);
+  const rows = [...menu.header, ...pages.flatMap((p) => [...(p.rows ?? []), ...(p.sections ?? []).flatMap((s) => s.rows)])];
   for (const r of rows) if ('buttons' in r) for (const b of r.buttons) if (label(b) === text) return b;
   throw new Error(`no button "${text}"`);
 }
@@ -187,14 +190,14 @@ describe('main menu contents', () => {
     findButton(rows, 'Storm').press!();
     expect(state.sea).toBe(2.6);
     expect(findButton(rows, 'Storm').active!()).toBe(true);
-    findButton(rows, '−').press!();
+    findButton(rows, '−', 'Debug').press!();
     expect(state.sea).toBeCloseTo(2.5);
     findButton(rows, 'Fog').press!();
     expect(state.weather).toBe('Fog');
     expect(findButton(rows, 'Fog').active!()).toBe(true);
     findButton(rows, '45°').press!();
     expect(state.snap).toBe(45);
-    findButton(rows, 'Off').press!();
+    findButton(rows, 'Off', 'Settings').press!();
     expect(state.smooth).toBe(false);
   });
 
@@ -241,7 +244,7 @@ describe('wrist menu pointing and poking', () => {
     const { host, calls } = fakeHost();
     const def = mainMenu(host);
     const menu = new WristMenu(def);
-    menu.panel.showPage('Tests');
+    menu.panel.showPage('Debug', 'Boat');
     const frame = new THREE.Group();
     const camera = new THREE.PerspectiveCamera();
     camera.updateMatrixWorld(true);
@@ -314,12 +317,46 @@ describe('menu tabs', () => {
     const { host, calls } = fakeHost();
     const def = mainMenu(host);
     const menu = new WristMenu(def);
-    expect(menu.panel.localCentreOf(findButton(def, 'Drop 4 m'))).toBeNull(); // on 'Tests'
+    expect(menu.panel.localCentreOf(findButton(def, 'Drop 4 m'))).toBeNull(); // on Debug > Boat
     expect(menu.panel.localCentreOf(findButton(def, '+1 h'))).not.toBeNull(); // first page
-    menu.panel.showPage('Tests');
+    menu.panel.showPage('Debug', 'Boat');
     expect(menu.panel.localCentreOf(findButton(def, 'Drop 4 m'))).not.toBeNull();
     expect(menu.panel.localCentreOf(findButton(def, '+1 h'))).toBeNull();
     expect(calls).toEqual([]);
+  });
+});
+
+describe('menu sections and the Debug tab', () => {
+  it('sections switch from their own bar; the Debug tab hides until switched on in Settings', async () => {
+    const { WristMenu } = await import('../src/ui/wristMenu');
+    const { host, state } = fakeHost();
+    state.debugMenu = false;
+    const def = mainMenu(host);
+    const menu = new WristMenu(def);
+    const tab = (name: string) => menu.panel.localCentreOf(findButton(def, name)) !== null;
+    // Hidden: no Debug tab, and asking for it stays on a shown page.
+    expect(() => findButton(def, 'Debug')).toThrow(); // tab buttons belong to the panel, not the menu def
+    menu.panel.showPage('Debug', 'Boat');
+    expect(tab('Drop 4 m')).toBe(false);
+    expect(tab('+1 h')).toBe(true);
+    // Settings > Game: show it.
+    menu.panel.showPage('Settings', 'Game');
+    expect(tab('High')).toBe(true);
+    findButton(def, 'Shown', 'Settings').press!();
+    expect(state.debugMenu).toBe(true);
+    menu.panel.showPage('Debug', 'Missions');
+    expect(tab('Call now')).toBe(true);
+    expect(tab('Drop 4 m')).toBe(false); // other section
+    // Settings remembers its own section.
+    menu.panel.showPage('Settings');
+    expect(tab('Shown')).toBe(true);
+  });
+
+  it('the weather line is split over two rows', () => {
+    const { host } = fakeHost();
+    const def = mainMenu(host);
+    expect(findButton(def, 'Clear · wind SW 4 (7 m/s)', 'Voyage')).toBeTruthy();
+    expect(findButton(def, 'vis good · Hs 1.2 m · next Fog in 12 min', 'Voyage')).toBeTruthy();
   });
 });
 

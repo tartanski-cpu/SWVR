@@ -1,6 +1,6 @@
 import { BUSES } from '../audio/mixer';
 import { CONFIG } from '../config';
-import type { MenuPage, MenuRow } from './menuPanel';
+import type { MenuPage, MenuRow, MenuSection } from './menuPanel';
 
 /** What the menu can read and change. Implemented by the App; keeps the menu UI-only. */
 export interface MenuHost {
@@ -165,6 +165,9 @@ export interface MenuHost {
   toggleHydroView(): void;
   probes(): boolean;
   toggleProbes(): void;
+  /** The Debug tab is shown (a per-browser setting, off by default). */
+  debugMenu(): boolean;
+  setDebugMenu(on: boolean): void;
   /** Multiplayer: one-line status, and whether we're alone, hosting or in someone's game. */
   netStatus(): string;
   /** Your name over your head, and the next one from the list. */
@@ -205,98 +208,54 @@ export function mainMenu(h: MenuHost): MainMenu {
   });
   const header: MenuRow[] = [{ label: '', buttons: [{ text: `SWVR  ${BUILD}`, weight: 3 }, { text: 'Close ✕', press: () => h.close(), weight: 1.4 }] }];
 
-  const seaAndTime: MenuRow[] = [
-    { heading: 'Time' },
+  // ---------------------------------------------------------------------------------
+  // The menu is laid out for playing: Voyage, Boat, Cargo, Office and Crew are the game;
+  // Settings are yours (this browser); Debug holds the test and cheat tools and is hidden
+  // until switched on in Settings > Game.
+  // ---------------------------------------------------------------------------------
+
+  /** The weather line split in two (it's too long for one row): conditions, then the outlook. */
+  const weatherPart = (i: number) => () => {
+    const parts = h.weatherStatus().split(' · ');
+    return i === 0 ? parts.slice(0, 2).join(' · ') : parts.slice(2).join(' · ');
+  };
+
+  const voyage: MenuRow[] = [
+    { heading: 'Job' },
+    { label: '', buttons: [{ text: () => h.contractText(), weight: 3 }, { text: () => (h.contractText().startsWith('None') ? '' : 'Abandon'), press: () => h.abandonContract() }] },
+    { label: '', buttons: [{ text: () => h.runStatus() }] },
+    { label: 'Done', buttons: [{ text: () => `${h.rescues()} missions · ${h.towsDelivered()} tows · ${h.cargoStatus().delivered} cargo` }] },
+    { heading: 'Weather' },
+    { label: '', buttons: [{ text: weatherPart(0) }] },
+    { label: '', buttons: [{ text: weatherPart(1) }] },
     {
       label: 'Time of day',
       buttons: [
         { text: '−1 h', press: () => h.shiftTime(-1) },
-        { text: '−10′', press: () => h.shiftTime(-10 / 60) },
         { text: () => formatHours(h.timeOfDay()), weight: 1.3 },
-        { text: '+10′', press: () => h.shiftTime(10 / 60) },
         { text: '+1 h', press: () => h.shiftTime(1) },
       ],
     },
-    {
-      label: 'Time flow',
-      buttons: TIME_FLOW.map(([label, rate]) => choice(label, rate, () => h.timeScale(), (v) => h.setTimeScale(v))),
-    },
-    { heading: 'Weather' },
-    { label: '', buttons: [{ text: () => h.weatherStatus() }] },
-    {
-      label: '',
-      buttons: Object.keys(CONFIG.weather.presets).map((name) => ({
-        text: name,
-        active: () => h.weatherPreset() === name,
-        press: () => h.setWeather(name),
-      })),
-    },
-    {
-      label: 'Director',
-      buttons: [
-        { text: () => (h.weatherFixed() ? 'Fixed weather' : 'Changing'), active: () => h.weatherFixed(), press: () => h.setWeatherFixed(!h.weatherFixed()) },
-        { text: 'Fast ×10', active: () => h.weatherFast(), press: () => h.setWeatherFast(!h.weatherFast()) },
-      ],
-    },
-    {
-      label: 'Rain effect',
-      buttons: (['high', 'low', 'off'] as const).map((q) => ({ text: q === 'high' ? 'High' : q === 'low' ? 'Low' : 'None', active: () => h.rainQuality() === q, press: () => h.setRainQuality(q) })),
-    },
-    { heading: 'Sea (test: the wind takes it back)' },
-    {
-      label: '',
-      buttons: CONFIG.ocean.seaStates.map((st) => choice(st.name, st.scale, () => h.seaScale(), (v) => h.setSeaScale(v))),
-    },
-    {
-      label: 'Wave height',
-      buttons: [
-        { text: '−', press: () => h.setSeaScale(h.seaScale() - CONFIG.ocean.seaScaleStep) },
-        { text: () => `Hs ${h.waveHeight().toFixed(1)} m`, weight: 1.6 },
-        { text: '+', press: () => h.setSeaScale(h.seaScale() + CONFIG.ocean.seaScaleStep) },
-      ],
-    },
+    { label: 'Time flow', buttons: TIME_FLOW.map(([label, rate]) => choice(label, rate, () => h.timeScale(), (v) => h.setTimeScale(v))) },
     { heading: 'Ports (bearing, range)' },
-    ...[0, 1, 2].map((i) => ({
-      label: '',
-      buttons: [
-        {
-          text: () => {
-            const p = h.ports()[i];
-            return p ? `${p.name}   ${p.bearingDeg.toFixed(0).padStart(3, '0')}°  ${p.rangeNm.toFixed(2)} nm` : '';
+    ...[0, 1, 2].map(
+      (i): MenuRow => ({
+        label: '',
+        buttons: [
+          {
+            text: () => {
+              const p = h.ports()[i];
+              return p ? `${p.name}   ${p.bearingDeg.toFixed(0).padStart(3, '0')}°  ${p.rangeNm.toFixed(2)} nm` : '';
+            },
           },
-          weight: 4,
-        },
-        { text: () => (h.ports()[i] ? 'Go' : ''), press: () => h.teleportToPort(i) },
-      ],
-    })),
+        ],
+      }),
+    ),
+    { label: 'Paper chart', buttons: [{ text: () => h.chartStatus(), weight: 1.6 }, { text: 'Clear marks', press: () => h.clearChart() }] },
   ];
 
   const boat: MenuRow[] = [
-    { heading: 'Boat' },
-    {
-      label: '',
-      buttons: [{ text: () => (h.aboard() ? 'Leave boat (to platform)' : 'Board boat (at the helm)'), press: () => h.toggleBoard() }],
-    },
-    {
-      label: 'Skiff',
-      buttons: [
-        { text: 'Board', press: () => h.boardSkiff() },
-        { text: () => h.craneAction(), press: () => h.crane(), weight: 1.6 },
-        { text: () => `${Math.round(h.skiffBattery() * 100)} %`, weight: 0.6 },
-      ],
-    },
-    {
-      label: 'Fuel',
-      buttons: [
-        { text: () => `${h.fuel().litres.toFixed(0)} / ${h.fuel().tank} L`, weight: 1.1 },
-        {
-          text: () => (h.refuelling() ? 'Stop fuelling' : h.canRefuel() ? 'Refuel' : 'Refuel at a fuel berth'),
-          active: () => h.refuelling(),
-          press: () => h.toggleRefuel(),
-          weight: 1.5,
-        },
-      ],
-    },
+    { heading: 'Deck' },
     {
       label: 'Tow',
       buttons: [
@@ -308,18 +267,42 @@ export function mainMenu(h: MenuHost): MainMenu {
       label: 'Docking',
       buttons: [
         { text: () => h.dockStatus().text, weight: 2.4 },
-        {
-          text: () => (h.dockStatus().docked ? 'Cast off' : 'Dock'),
-          active: () => h.dockStatus().ready,
-          press: () => h.toggleDock(),
-        },
+        { text: () => (h.dockStatus().docked ? 'Cast off' : 'Dock'), active: () => h.dockStatus().ready, press: () => h.toggleDock() },
       ],
     },
     { label: 'Anchor', buttons: [{ text: () => h.anchorStatus() }] },
+    { heading: 'Skiff' },
     {
-      label: 'Sea trials',
-      buttons: [{ text: () => (h.seaTrialsShown() ? 'Hide report' : 'Run + show report'), active: () => h.seaTrialsShown(), press: () => h.toggleSeaTrials() }],
+      label: '',
+      buttons: [
+        { text: 'Board', press: () => h.boardSkiff() },
+        { text: () => h.craneAction(), press: () => h.crane(), weight: 1.6 },
+        { text: () => `${Math.round(h.skiffBattery() * 100)} %`, weight: 0.6 },
+      ],
     },
+    { heading: 'Fuel' },
+    {
+      label: '',
+      buttons: [
+        { text: () => `${h.fuel().litres.toFixed(0)} / ${h.fuel().tank} L`, weight: 1.1 },
+        {
+          text: () => (h.refuelling() ? 'Stop fuelling' : h.canRefuel() ? 'Refuel' : 'Refuel at a fuel berth'),
+          active: () => h.refuelling(),
+          press: () => h.toggleRefuel(),
+          weight: 1.5,
+        },
+      ],
+    },
+    { heading: 'FM radio (overhead panel)' },
+    { label: 'Power', buttons: [choice('On', true, () => h.fmOn(), (v) => h.setFmOn(v)), choice('Off', false, () => h.fmOn(), (v) => h.setFmOn(v))] },
+    ...[0, 3].map((from) => ({
+      label: from === 0 ? 'Station' : '',
+      buttons: CONFIG.fmRadio.stations.slice(from, from + 3).map((st, k) => ({
+        text: st.name,
+        active: () => h.fmOn() && h.fmStation() === from + k,
+        press: () => h.setFmStation(from + k),
+      })),
+    })),
   ];
 
   const aboardRow = (i: number): MenuRow => ({
@@ -339,8 +322,6 @@ export function mainMenu(h: MenuHost): MainMenu {
         { text: () => `Delivered ${h.cargoStatus().delivered}`, weight: 1.3 },
       ],
     },
-    { label: '', buttons: [{ text: () => h.runStatus() }] },
-    { label: 'Missions', buttons: [{ text: () => `${h.rescues()} completed (${h.towsDelivered()} tows)` }] },
     { label: '', buttons: [{ text: 'Carry by hand: grip (VR) / click. Lash: trigger / Q' }] },
     { heading: 'Aboard' },
     ...[0, 1, 2, 3, 4].map(aboardRow),
@@ -349,226 +330,72 @@ export function mainMenu(h: MenuHost): MainMenu {
     ...[0, 1].map(skiffRow),
   ];
 
-  const comfort: MenuRow[] = [
-    { heading: 'Comfort' },
+  const office: MenuSection[] = [
     {
-      label: 'Motion coupling',
-      buttons: [
-        { text: '−10 %', press: () => h.setCoupling(h.coupling() - 0.1) },
-        { text: () => `${Math.round(h.coupling() * 100)} %`, weight: 1.2 },
-        { text: '+10 %', press: () => h.setCoupling(h.coupling() + 0.1) },
+      name: 'Jobs',
+      rows: [
+        { label: 'Balance', buttons: [{ text: () => h.balance(), weight: 2 }] },
+        { heading: 'Contract' },
+        { label: '', buttons: [{ text: () => h.contractText(), weight: 3 }, { text: () => (h.contractText().startsWith('None') ? '' : 'Abandon'), press: () => h.abandonContract() }] },
+        { heading: 'Job board' },
+        { label: '', buttons: [{ text: () => h.officeName() }] },
+        ...[0, 1].map(
+          (i): MenuRow => ({
+            label: '',
+            buttons: [
+              { text: () => h.offerText(i), weight: 3 },
+              { text: () => (h.offerText(i) ? h.offerBlocker(i) || 'Accept' : ''), active: () => !!h.offerText(i) && !h.offerBlocker(i), press: () => h.acceptOffer(i) },
+            ],
+          }),
+        ),
+        { heading: 'First voyage' },
+        {
+          label: '',
+          buttons: [
+            { text: () => h.tutorialText(), weight: 3 },
+            { text: () => (h.tutorialText().endsWith('done') ? 'Again' : 'Skip'), press: () => (h.tutorialText().endsWith('done') ? h.tutorialRestart() : h.tutorialSkip()) },
+          ],
+        },
       ],
     },
     {
-      label: 'Stick walking',
-      buttons: [choice('On', true, () => h.smoothWalk(), (v) => h.setSmoothWalk(v)), choice('Off', false, () => h.smoothWalk(), (v) => h.setSmoothWalk(v))],
-    },
-    {
-      label: 'Boat hook reach',
-      buttons: [choice('Auto-extend', true, () => h.hookAutoExtend(), (v) => h.setHookAutoExtend(v)), choice('Fixed', false, () => h.hookAutoExtend(), (v) => h.setHookAutoExtend(v))],
-    },
-    {
-      label: 'Snap turn',
-      buttons: [15, 30, 45, 90].map((d) => choice(`${d}°`, d, () => h.snapTurnDeg(), (v) => h.setSnapTurnDeg(v))),
-    },
-  ];
-
-  const sound: MenuRow[] = [
-    { heading: 'Volume' },
-    ...BUSES.map((b) => ({
-      label: b.label,
-      buttons: [
-        { text: '−', press: () => h.setVolume(b.id, h.volume(b.id) - 0.1) },
-        { text: () => (h.volume(b.id) <= 0 ? 'off' : `${Math.round(h.volume(b.id) * 100)} %`), weight: 1.2 },
-        { text: '+', press: () => h.setVolume(b.id, h.volume(b.id) + 0.1) },
-      ],
-    })),
-    { label: '', buttons: [{ text: 'Reset to defaults', press: () => h.resetVolumes() }] },
-    { heading: 'FM radio (overhead panel in the wheelhouse)' },
-    {
-      label: 'Power',
-      buttons: [choice('On', true, () => h.fmOn(), (v) => h.setFmOn(v)), choice('Off', false, () => h.fmOn(), (v) => h.setFmOn(v))],
-    },
-    ...[0, 3].map((from) => ({
-      label: from === 0 ? 'Station' : '',
-      buttons: CONFIG.fmRadio.stations.slice(from, from + 3).map((st, k) => ({
-        text: st.name,
-        active: () => h.fmOn() && h.fmStation() === from + k,
-        press: () => h.setFmStation(from + k),
-      })),
-    })),
-  ];
-
-  const tests: MenuRow[] = [
-    { heading: 'Tests' },
-    {
-      label: 'Boat',
-      buttons: [
-        { text: 'Drop 4 m', press: () => h.dropBoat() },
-        { text: 'Heel 20°', press: () => h.heelBoat() },
+      name: 'Yard',
+      rows: [
+        { label: 'Balance', buttons: [{ text: () => h.balance(), weight: 2 }] },
+        { heading: 'Repairs (in port)' },
+        ...[0, 1].map(
+          (i): MenuRow => ({
+            label: '',
+            buttons: [
+              { text: () => h.repairText(i), weight: 3 },
+              { text: () => h.repairStatus(i) || (i === 0 ? 'Repair' : 'Overhaul'), active: () => !h.repairStatus(i), press: () => h.repair(i) },
+            ],
+          }),
+        ),
+        { heading: 'Chandlery (upgrades, in port)' },
+        ...CONFIG.career.upgrades.map(
+          (_, i): MenuRow => ({
+            label: '',
+            buttons: [
+              { text: () => h.upgradeText(i), weight: 3 },
+              { text: () => h.upgradeStatus(i) || 'Buy', active: () => !h.upgradeStatus(i), press: () => h.buyUpgrade(i) },
+            ],
+          }),
+        ),
       ],
     },
     {
-      label: 'Electrics',
-      buttons: [
-        { text: () => h.electricsStatus(), weight: 2.2 },
-        { text: 'Power on', press: () => h.electricsDebug(2) },
-        { text: 'Fill', press: () => h.electricsDebug(1) },
-        { text: 'Flat', press: () => h.electricsDebug(0) },
+      name: 'Career',
+      rows: [
+        { label: 'Balance', buttons: [{ text: () => h.balance(), weight: 2 }] },
+        { label: 'Reputation', buttons: [{ text: () => h.reputation(), weight: 2 }] },
+        { heading: 'Ledger' },
+        ...[0, 1, 2, 3, 4, 5].map((i): MenuRow => ({ label: '', buttons: [{ text: () => h.ledgerLine(i) }] })),
+        { heading: 'Saved in this browser' },
+        { label: 'Slot', buttons: [1, 2, 3].map((n) => ({ text: () => h.slotText(n), active: () => h.careerSlot() === n, press: () => h.switchSlot(n) })) },
+        { label: '', buttons: [{ text: () => h.newCareerText(), press: () => h.newCareer() }] },
       ],
     },
-    {
-      label: 'Start-up',
-      buttons: [
-        { text: 'Quick start (all in one)', press: () => h.electricsDebug(4), weight: 1.6 },
-        { text: 'Battery 1 flat', press: () => h.electricsDebug(3), weight: 1.2 },
-      ],
-    },
-    {
-      label: 'Chart',
-      buttons: [
-        { text: () => h.chartStatus(), weight: 1.4 },
-        { text: 'Clear marks', press: () => h.clearChart() },
-        { text: 'Plot it yourself', active: () => h.plotYourself(), press: () => h.setPlotYourself(!h.plotYourself()), weight: 1.3 },
-      ],
-    },
-    {
-      label: 'Traffic',
-      buttons: [
-        { text: () => h.trafficStatus(), weight: 1.4 },
-        { text: 'Spawn ship', press: () => h.spawnTraffic(0) },
-        { text: 'Spawn debris', press: () => h.spawnTraffic(1) },
-      ],
-    },
-    {
-      label: 'Engine oil',
-      buttons: [
-        { text: () => h.oilStatus(), weight: 2 },
-        { text: 'Low + check due', press: () => h.oilLow() },
-      ],
-    },
-    {
-      label: 'Bilge',
-      buttons: [
-        { text: () => h.bilgeStatus(), weight: 2 },
-        { text: 'Flood (60 %)', press: () => h.floodBilge() },
-      ],
-    },
-    {
-      label: 'Engine faults',
-      buttons: [
-        { text: 'Fuel to 5 %', press: () => h.setFuelDebug(0.05 * h.fuel().tank) },
-        { text: 'Pump failure', active: () => h.coolingFault(), press: () => h.toggleCoolingFault() },
-      ],
-    },
-    {
-      label: 'Rescue',
-      buttons: [
-        { text: 'Call now', press: () => h.rescueNow() },
-        { text: 'End rescue', press: () => h.rescueEnd() },
-        { text: 'Voice test', press: () => h.voiceTest() },
-      ],
-    },
-    {
-      label: 'Alongside',
-      buttons: [
-        { text: 'Person', press: () => h.rescueNear('manOverboard') },
-        { text: 'Crates', press: () => h.rescueNear('lostCargo') },
-        { text: 'On chart', active: () => h.showTargets(), press: () => h.toggleShowTargets() },
-        { text: 'Aboard', press: () => h.rescueAboard() },
-      ],
-    },
-    {
-      label: 'Tow',
-      buttons: [
-        { text: 'Cruiser', press: () => h.towNear('derelict') },
-        { text: 'Logs', press: () => h.towNear('logRaft') },
-        { text: 'Barge', press: () => h.towNear('barge') },
-        { text: 'Call', press: () => h.towCall() },
-        { text: 'End', press: () => h.towEnd() },
-      ],
-    },
-    {
-      label: 'Side jobs',
-      buttons: [
-        { text: 'Log on beach', press: () => h.logNear() },
-        { text: 'Fishing ground', press: () => h.goFishing() },
-        { text: '+£5000, rep', press: () => h.debugCash() },
-        { text: 'Damage', press: () => h.debugDamage() },
-      ],
-    },
-    {
-      label: 'Fire',
-      buttons: [
-        { text: 'Boat', press: () => h.fireNear('boat') },
-        { text: 'Shore', press: () => h.fireNear('shore') },
-        { text: 'Call', press: () => h.fireCall() },
-        { text: 'End', press: () => h.fireEnd() },
-      ],
-    },
-    { heading: 'Debug views' },
-    {
-      label: '',
-      buttons: [
-        { text: 'Perf panel', active: () => h.debugPanel(), press: () => h.toggleDebugPanel() },
-        { text: 'Buoyancy', active: () => h.hydroView(), press: () => h.toggleHydroView() },
-        { text: 'Wave probes', active: () => h.probes(), press: () => h.toggleProbes() },
-      ],
-    },
-  ];
-
-  const office: MenuRow[] = [
-    { label: 'Balance', buttons: [{ text: () => h.balance(), weight: 2 }] },
-    { heading: 'Contract' },
-    { label: '', buttons: [{ text: () => h.contractText(), weight: 3 }, { text: () => (h.contractText().startsWith('None') ? '' : 'Abandon'), press: () => h.abandonContract() }] },
-    { heading: 'Job board' },
-    { label: '', buttons: [{ text: () => h.officeName() }] },
-    ...[0, 1].map(
-      (i): MenuRow => ({
-        label: '',
-        buttons: [
-          { text: () => h.offerText(i), weight: 3 },
-          { text: () => (h.offerText(i) ? h.offerBlocker(i) || 'Accept' : ''), active: () => !!h.offerText(i) && !h.offerBlocker(i), press: () => h.acceptOffer(i) },
-        ],
-      }),
-    ),
-    { heading: 'Repairs (in port)' },
-    ...[0, 1].map(
-      (i): MenuRow => ({
-        label: '',
-        buttons: [
-          { text: () => h.repairText(i), weight: 3 },
-          { text: () => h.repairStatus(i) || (i === 0 ? 'Repair' : 'Overhaul'), active: () => !h.repairStatus(i), press: () => h.repair(i) },
-        ],
-      }),
-    ),
-    { heading: 'Chandlery (upgrades, in port)' },
-    ...CONFIG.career.upgrades.map(
-      (_, i): MenuRow => ({
-        label: '',
-        buttons: [
-          { text: () => h.upgradeText(i), weight: 3 },
-          { text: () => h.upgradeStatus(i) || 'Buy', active: () => !h.upgradeStatus(i), press: () => h.buyUpgrade(i) },
-        ],
-      }),
-    ),
-  ];
-
-  const career: MenuRow[] = [
-    {
-      label: '',
-      buttons: [
-        { text: () => h.tutorialText(), weight: 3 },
-        { text: () => (h.tutorialText().endsWith('done') ? 'Again' : 'Skip'), press: () => (h.tutorialText().endsWith('done') ? h.tutorialRestart() : h.tutorialSkip()) },
-      ],
-    },
-    { label: 'Balance', buttons: [{ text: () => h.balance(), weight: 2 }] },
-    { label: 'Reputation', buttons: [{ text: () => h.reputation(), weight: 2 }] },
-    { heading: 'Ledger' },
-    ...[0, 1, 2, 3, 4, 5].map((i): MenuRow => ({ label: '', buttons: [{ text: () => h.ledgerLine(i) }] })),
-    { heading: 'Career (saved in this browser)' },
-    { label: 'Slot', buttons: [1, 2, 3].map((n) => ({ text: () => h.slotText(n), active: () => h.careerSlot() === n, press: () => h.switchSlot(n) })) },
-    { label: '', buttons: [{ text: () => h.newCareerText(), press: () => h.newCareer() }] },
   ];
 
   const solo = () => h.netRole() === 'solo';
@@ -598,18 +425,219 @@ export function mainMenu(h: MenuHost): MainMenu {
     { label: '', buttons: [{ text: () => (solo() ? '⌫' : ''), press: () => h.backspace() }] },
   ];
 
+  const settings: MenuSection[] = [
+    {
+      name: 'Comfort',
+      rows: [
+        {
+          label: 'Motion coupling',
+          buttons: [
+            { text: '−10 %', press: () => h.setCoupling(h.coupling() - 0.1) },
+            { text: () => `${Math.round(h.coupling() * 100)} %`, weight: 1.2 },
+            { text: '+10 %', press: () => h.setCoupling(h.coupling() + 0.1) },
+          ],
+        },
+        { label: 'Stick walking', buttons: [choice('On', true, () => h.smoothWalk(), (v) => h.setSmoothWalk(v)), choice('Off', false, () => h.smoothWalk(), (v) => h.setSmoothWalk(v))] },
+        { label: 'Snap turn', buttons: [15, 30, 45, 90].map((d) => choice(`${d}°`, d, () => h.snapTurnDeg(), (v) => h.setSnapTurnDeg(v))) },
+        {
+          label: 'Boat hook reach',
+          buttons: [choice('Auto-extend', true, () => h.hookAutoExtend(), (v) => h.setHookAutoExtend(v)), choice('Fixed', false, () => h.hookAutoExtend(), (v) => h.setHookAutoExtend(v))],
+        },
+      ],
+    },
+    {
+      name: 'Sound',
+      rows: [
+        ...BUSES.map((b) => ({
+          label: b.label,
+          buttons: [
+            { text: '−', press: () => h.setVolume(b.id, h.volume(b.id) - 0.1) },
+            { text: () => (h.volume(b.id) <= 0 ? 'off' : `${Math.round(h.volume(b.id) * 100)} %`), weight: 1.2 },
+            { text: '+', press: () => h.setVolume(b.id, h.volume(b.id) + 0.1) },
+          ],
+        })),
+        { label: '', buttons: [{ text: 'Reset to defaults', press: () => h.resetVolumes() }] },
+      ],
+    },
+    {
+      name: 'Game',
+      rows: [
+        {
+          label: 'Rain effect',
+          buttons: (['high', 'low', 'off'] as const).map((q) => ({ text: q === 'high' ? 'High' : q === 'low' ? 'Low' : 'None', active: () => h.rainQuality() === q, press: () => h.setRainQuality(q) })),
+        },
+        {
+          label: 'Rescue position',
+          buttons: [
+            choice('On plotter', false, () => h.plotYourself(), (v) => h.setPlotYourself(v)),
+            choice('Plot it yourself', true, () => h.plotYourself(), (v) => h.setPlotYourself(v)),
+          ],
+        },
+        { label: 'Debug tab', buttons: [choice('Hidden', false, () => h.debugMenu(), (v) => h.setDebugMenu(v)), choice('Shown', true, () => h.debugMenu(), (v) => h.setDebugMenu(v))] },
+      ],
+    },
+  ];
+
+  const debug: MenuSection[] = [
+    {
+      name: 'World',
+      rows: [
+        {
+          label: 'Time of day',
+          buttons: [
+            { text: '−10′', press: () => h.shiftTime(-10 / 60) },
+            { text: () => formatHours(h.timeOfDay()), weight: 1.3 },
+            { text: '+10′', press: () => h.shiftTime(10 / 60) },
+          ],
+        },
+        { heading: 'Weather' },
+        {
+          label: '',
+          buttons: Object.keys(CONFIG.weather.presets).map((name) => ({ text: name, active: () => h.weatherPreset() === name, press: () => h.setWeather(name) })),
+        },
+        {
+          label: 'Director',
+          buttons: [
+            { text: () => (h.weatherFixed() ? 'Fixed weather' : 'Changing'), active: () => h.weatherFixed(), press: () => h.setWeatherFixed(!h.weatherFixed()) },
+            { text: 'Fast ×10', active: () => h.weatherFast(), press: () => h.setWeatherFast(!h.weatherFast()) },
+          ],
+        },
+        { heading: 'Sea (the wind takes it back)' },
+        { label: '', buttons: CONFIG.ocean.seaStates.map((st) => choice(st.name, st.scale, () => h.seaScale(), (v) => h.setSeaScale(v))) },
+        {
+          label: 'Wave height',
+          buttons: [
+            { text: '−', press: () => h.setSeaScale(h.seaScale() - CONFIG.ocean.seaScaleStep) },
+            { text: () => `Hs ${h.waveHeight().toFixed(1)} m`, weight: 1.6 },
+            { text: '+', press: () => h.setSeaScale(h.seaScale() + CONFIG.ocean.seaScaleStep) },
+          ],
+        },
+        { heading: 'Move' },
+        { label: 'To port', buttons: [0, 1, 2].map((i) => ({ text: () => h.ports()[i]?.name ?? '', press: () => h.teleportToPort(i) })) },
+        { label: '', buttons: [{ text: () => (h.aboard() ? 'Leave boat (to platform)' : 'Board boat (at the helm)'), press: () => h.toggleBoard() }] },
+      ],
+    },
+    {
+      name: 'Boat',
+      rows: [
+        {
+          label: 'Hull',
+          buttons: [
+            { text: 'Drop 4 m', press: () => h.dropBoat() },
+            { text: 'Heel 20°', press: () => h.heelBoat() },
+            { text: 'Damage', press: () => h.debugDamage() },
+          ],
+        },
+        {
+          label: 'Electrics',
+          buttons: [
+            { text: () => h.electricsStatus(), weight: 2.2 },
+            { text: 'Power on', press: () => h.electricsDebug(2) },
+            { text: 'Fill', press: () => h.electricsDebug(1) },
+            { text: 'Flat', press: () => h.electricsDebug(0) },
+          ],
+        },
+        {
+          label: 'Start-up',
+          buttons: [
+            { text: 'Quick start (all in one)', press: () => h.electricsDebug(4), weight: 1.6 },
+            { text: 'Battery 1 flat', press: () => h.electricsDebug(3), weight: 1.2 },
+          ],
+        },
+        { label: 'Engine oil', buttons: [{ text: () => h.oilStatus(), weight: 2 }, { text: 'Low + check due', press: () => h.oilLow() }] },
+        { label: 'Bilge', buttons: [{ text: () => h.bilgeStatus(), weight: 2 }, { text: 'Flood (60 %)', press: () => h.floodBilge() }] },
+        {
+          label: 'Engine faults',
+          buttons: [
+            { text: 'Fuel to 5 %', press: () => h.setFuelDebug(0.05 * h.fuel().tank) },
+            { text: 'Pump failure', active: () => h.coolingFault(), press: () => h.toggleCoolingFault() },
+          ],
+        },
+        { label: 'Sea trials', buttons: [{ text: () => (h.seaTrialsShown() ? 'Hide report' : 'Run + show report'), active: () => h.seaTrialsShown(), press: () => h.toggleSeaTrials() }] },
+      ],
+    },
+    {
+      name: 'Missions',
+      rows: [
+        {
+          label: 'Rescue',
+          buttons: [
+            { text: 'Call now', press: () => h.rescueNow() },
+            { text: 'End rescue', press: () => h.rescueEnd() },
+          ],
+        },
+        {
+          label: 'Alongside',
+          buttons: [
+            { text: 'Person', press: () => h.rescueNear('manOverboard') },
+            { text: 'Crates', press: () => h.rescueNear('lostCargo') },
+            { text: 'Aboard', press: () => h.rescueAboard() },
+          ],
+        },
+        {
+          label: 'Tow',
+          buttons: [
+            { text: 'Cruiser', press: () => h.towNear('derelict') },
+            { text: 'Logs', press: () => h.towNear('logRaft') },
+            { text: 'Barge', press: () => h.towNear('barge') },
+            { text: 'Call', press: () => h.towCall() },
+            { text: 'End', press: () => h.towEnd() },
+          ],
+        },
+        {
+          label: 'Fire',
+          buttons: [
+            { text: 'Boat', press: () => h.fireNear('boat') },
+            { text: 'Shore', press: () => h.fireNear('shore') },
+            { text: 'Call', press: () => h.fireCall() },
+            { text: 'End', press: () => h.fireEnd() },
+          ],
+        },
+        {
+          label: 'Side jobs',
+          buttons: [
+            { text: 'Log on beach', press: () => h.logNear() },
+            { text: 'Fishing ground', press: () => h.goFishing() },
+          ],
+        },
+        {
+          label: 'Traffic',
+          buttons: [
+            { text: () => h.trafficStatus(), weight: 1.4 },
+            { text: 'Spawn ship', press: () => h.spawnTraffic(0) },
+            { text: 'Spawn debris', press: () => h.spawnTraffic(1) },
+          ],
+        },
+        { label: 'Career', buttons: [{ text: '+£5000, rep', press: () => h.debugCash() }] },
+      ],
+    },
+    {
+      name: 'Views',
+      rows: [
+        {
+          label: '',
+          buttons: [
+            { text: 'Perf panel', active: () => h.debugPanel(), press: () => h.toggleDebugPanel() },
+            { text: 'Buoyancy', active: () => h.hydroView(), press: () => h.toggleHydroView() },
+            { text: 'Wave probes', active: () => h.probes(), press: () => h.toggleProbes() },
+          ],
+        },
+        { label: 'Chart', buttons: [{ text: 'Targets on chart', active: () => h.showTargets(), press: () => h.toggleShowTargets() }] },
+        { label: 'Radio voice', buttons: [{ text: 'Voice test', press: () => h.voiceTest() }] },
+      ],
+    },
+  ];
+
   return {
     header,
     pages: [
-      { name: 'Sea & time', rows: seaAndTime },
+      { name: 'Voyage', rows: voyage },
       { name: 'Boat', rows: boat },
       { name: 'Cargo', rows: cargo },
-      { name: 'Office', rows: office },
-      { name: 'Career', rows: career },
-      { name: 'Comfort', rows: comfort },
-      { name: 'Sound', rows: sound },
+      { name: 'Office', sections: office },
       { name: 'Crew', rows: crew },
-      { name: 'Tests', rows: tests },
+      { name: 'Settings', sections: settings },
+      { name: 'Debug', sections: debug, hidden: () => !h.debugMenu() },
     ],
   };
 }

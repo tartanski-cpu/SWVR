@@ -16,14 +16,25 @@ export interface MenuButton {
   press?: () => void;
   /** Relative width within the row (default 1). */
   weight?: number;
+  /** Drawn as a section tab (flat, underlined when active) rather than a raised button. */
+  tab?: boolean;
 }
 
 export type MenuRow = { heading: string } | { label: string; buttons: MenuButton[] };
 
-/** A tab of the menu. */
-export interface MenuPage {
+/** A section of a tab: its own rows, picked from a second, smaller tab bar. */
+export interface MenuSection {
   name: string;
   rows: MenuRow[];
+}
+
+/** A tab of the menu: rows, or sections of rows. */
+export interface MenuPage {
+  name: string;
+  rows?: MenuRow[];
+  sections?: MenuSection[];
+  /** Left out of the tab bar while this says so (e.g. Debug, until switched on in Settings). */
+  hidden?: () => boolean;
 }
 
 interface Placed {
@@ -62,9 +73,9 @@ const COLORS = {
 };
 
 /**
- * Layout: `header` rows (always shown), a tab bar when there is more than one page, then
- * the current page's rows. The quad is as tall as the tallest page, so it doesn't change
- * size when you switch tabs.
+ * Layout: `header` rows (always shown), a tab bar of the pages not hidden, a section bar
+ * when the page has sections, then the current page's (or section's) rows. The quad is as
+ * tall as the tallest page, so it doesn't change size when you switch tabs.
  */
 export class MenuPanel {
   readonly mesh: THREE.Mesh;
@@ -75,30 +86,47 @@ export class MenuPanel {
   private readonly g: CanvasRenderingContext2D;
   private readonly texture: THREE.CanvasTexture;
   private readonly fixed: Layout = { placed: [], headings: [], labels: [] };
-  private readonly pages: Layout[] = [];
-  private readonly pageNames: string[];
+  /** Per page: one layout per section (or one for a page of plain rows), and its section bar. */
+  private readonly layouts: { content: Layout[]; bar: Layout | null }[] = [];
+  private readonly pages: MenuPage[];
   private page = 0;
+  /** The section shown on each page (remembered when you switch tabs and back). */
+  private readonly section: number[];
+  private readonly tabsY: number;
+  private tabs: Layout = { placed: [], headings: [], labels: [] };
+  private tabsKey = '';
   private hover: MenuButton | null = null;
   private signature = '';
   private readonly raycaster = new THREE.Raycaster();
   private readonly local = new THREE.Vector3();
 
   constructor(header: MenuRow[], pages: MenuPage[], widthM: number) {
-    this.pageNames = pages.map((p) => p.name);
-    let y = this.layoutRows(header, PAD, this.fixed);
-    if (pages.length > 1) {
-      const tabs: MenuRow = {
-        label: '',
-        buttons: pages.map((p, i) => ({ text: p.name, active: () => this.page === i, press: () => (this.page = i) })),
-      };
-      y = this.layoutRows([tabs], y, this.fixed);
-    }
-    let bottom = y;
-    for (const p of pages) {
-      const layout: Layout = { placed: [], headings: [], labels: [] };
-      bottom = Math.max(bottom, this.layoutRows(p.rows, y + 6, layout));
-      this.pages.push(layout);
-    }
+    this.pages = pages;
+    this.section = pages.map(() => 0);
+    const y = this.layoutRows(header, PAD, this.fixed);
+    this.tabsY = y;
+    const top = y + (pages.length > 1 ? ROW_H : 0);
+    let bottom = top;
+    pages.forEach((p, i) => {
+      if (p.sections) {
+        const bar: Layout = { placed: [], headings: [], labels: [] };
+        const sectionRow: MenuRow = {
+          label: '',
+          buttons: p.sections.map((sec, k) => ({ text: sec.name, tab: true, active: () => this.section[i] === k, press: () => (this.section[i] = k) })),
+        };
+        const y0 = this.layoutRows([sectionRow], top, bar);
+        const content = p.sections.map((sec) => {
+          const l: Layout = { placed: [], headings: [], labels: [] };
+          bottom = Math.max(bottom, this.layoutRows(sec.rows, y0 + 6, l));
+          return l;
+        });
+        this.layouts.push({ content, bar });
+      } else {
+        const l: Layout = { placed: [], headings: [], labels: [] };
+        bottom = Math.max(bottom, this.layoutRows(p.rows ?? [], top + 6, l));
+        this.layouts.push({ content: [l], bar: null });
+      }
+    });
     const H = Math.ceil(bottom + PAD);
     this.canvas.width = W;
     this.canvas.height = H;
@@ -115,6 +143,23 @@ export class MenuPanel {
     );
     this.mesh.name = 'menuPanel';
     this.refresh(true);
+  }
+
+  /**
+   * The tab bar, laid out again whenever the set of shown pages changes (a hidden page's
+   * tab drops out and the others widen). If the page you're on is hidden, go to the first.
+   */
+  private tabBar(): Layout {
+    if (this.pages.length < 2) return this.tabs;
+    const shown = this.pages.map((p, i) => (p.hidden?.() ? -1 : i)).filter((i) => i >= 0);
+    const key = shown.join(',');
+    if (key !== this.tabsKey) {
+      this.tabsKey = key;
+      this.tabs = { placed: [], headings: [], labels: [] };
+      this.layoutRows([{ label: '', buttons: shown.map((i) => ({ text: this.pages[i].name, active: () => this.page === i, press: () => (this.page = i) })) }], this.tabsY, this.tabs);
+    }
+    if (!shown.includes(this.page)) this.page = shown[0] ?? 0;
+    return this.tabs;
   }
 
   private layoutRows(rows: MenuRow[], y: number, out: Layout): number {
@@ -139,10 +184,13 @@ export class MenuPanel {
     return y;
   }
 
-  /** Switch to the named tab (for code and tests; players press the tab buttons). */
-  showPage(name: string): void {
-    const i = this.pageNames.indexOf(name);
-    if (i >= 0) this.page = i;
+  /** Switch to the named tab, and section (for code and tests; players press the tabs). */
+  showPage(name: string, section?: string): void {
+    const i = this.pages.findIndex((p) => p.name === name);
+    if (i < 0) return;
+    this.page = i;
+    const k = this.pages[i].sections?.findIndex((s) => s.name === section) ?? -1;
+    if (k >= 0) this.section[i] = k;
   }
 
   /**
@@ -158,8 +206,18 @@ export class MenuPanel {
     };
   }
 
+  /** What's on screen now: header, tab bar, section bar, content. */
+  private current(): Layout[] {
+    const tabs = this.tabBar();
+    const l = this.layouts[this.page];
+    const out = [this.fixed, tabs];
+    if (l?.bar) out.push(l.bar);
+    if (l) out.push(l.content[this.section[this.page]] ?? l.content[0]);
+    return out;
+  }
+
   private visible(): Placed[] {
-    return [...this.fixed.placed, ...(this.pages[this.page]?.placed ?? [])];
+    return this.current().flatMap((l) => l.placed);
   }
 
   /** Button under a world ray within `far` metres, with the hit point and distance. */
@@ -190,7 +248,7 @@ export class MenuPanel {
 
   /** Redraw if anything shown changed (cheap check; call every frame while visible). */
   refresh(force = false): void {
-    const sig = `${this.page}#` + this.visible().map((p) => `${text(p.btn)}|${p.btn.active?.() ? 1 : 0}|${p.btn === this.hover ? 1 : 0}`).join(';');
+    const sig = `${this.page}.${this.section[this.page]}#` + this.visible().map((p) => `${text(p.btn)}|${p.btn.active?.() ? 1 : 0}|${p.btn === this.hover ? 1 : 0}`).join(';');
     if (!force && sig === this.signature) return;
     this.signature = sig;
     this.draw();
@@ -214,9 +272,16 @@ export class MenuPanel {
     g.lineWidth = 3;
     g.stroke();
 
-    const page = this.pages[this.page];
-    const headings = [...this.fixed.headings, ...(page?.headings ?? [])];
-    const labels = [...this.fixed.labels, ...(page?.labels ?? [])];
+    const shown = this.current();
+    const headings = shown.flatMap((l) => l.headings);
+    const labels = shown.flatMap((l) => l.labels);
+    // The section bar sits on a darker strip, so it reads as part of the tab above it.
+    const bar = this.layouts[this.page]?.bar;
+    if (bar?.placed.length) {
+      const y = bar.placed[0].y - 4;
+      g.fillStyle = COLORS.tab;
+      g.fillRect(PAD, y, W - 2 * PAD, ROW_H);
+    }
     g.textBaseline = 'middle';
     g.textAlign = 'left';
     g.font = 'bold 24px system-ui, sans-serif';
@@ -231,7 +296,18 @@ export class MenuPanel {
       if (text(p.btn) === '') continue;
       const hover = p.btn === this.hover;
       const active = p.btn.active?.() ?? false;
-      if (p.btn.press) {
+      if (p.btn.tab) {
+        // Section tab: flat text, underlined in the accent colour when it's the one shown.
+        g.fillStyle = hover ? COLORS.buttonHover : COLORS.tab;
+        roundRect(g, p.x, p.y, p.w, p.h, 8);
+        g.fill();
+        if (active) {
+          g.fillStyle = COLORS.active;
+          g.fillRect(p.x + 10, p.y + p.h - 6, p.w - 20, 4);
+        }
+        g.fillStyle = active ? COLORS.text : COLORS.label;
+        g.font = `${active ? 'bold ' : ''}22px system-ui, sans-serif`;
+      } else if (p.btn.press) {
         g.fillStyle = active ? (hover ? COLORS.activeHover : COLORS.active) : hover ? COLORS.buttonHover : COLORS.button;
         roundRect(g, p.x, p.y, p.w, p.h, 10);
         g.fill();

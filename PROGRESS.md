@@ -1539,6 +1539,21 @@ The brief's "no new particle effects" rule was flagged: the fire is drawn withou
 2. ~~VR menu~~ **Done**. New settings go in `ui/mainMenu.ts` via `MenuHost`.
 3. ~~Missions and game loop~~ **Done**: rescues, tows, fires, salvage, fishing, cargo runs, the career layer (money, reputation, contracts, upgrades), damage and wear, and the first-voyage tutorial (see above).
 
+- **Menu tidied for playing** (owner request: cluttered, debug tools mixed in with play):
+  - **Tabs:** Voyage · Boat · Cargo · Office · Crew · Settings, plus Debug, which is hidden until **Settings → Game → Debug tab → Shown** (`userSettings.debugMenu`, per browser, off by default).
+  - **Sections:** tabs can now hold sections, picked from a second, flatter bar under the tabs (`MenuPage.sections` in `ui/menuPanel.ts`). Each tab remembers its section. Hidden tabs drop out of the bar, and the others widen.
+    - Office: Jobs / Yard / Career (the old Office and Career tabs).
+    - Settings: Comfort / Sound / Game.
+    - Debug: World / Boat / Missions / Views (the old Tests tab, plus the cheats from Sea & time: weather presets, sea state, move to a port, board or leave).
+  - **Voyage** (new; replaces Sea & time):
+    - the job on (contract, run or rescue status, **Abandon**) and the totals done;
+    - the weather over two rows (it was one squeezed line) and time of day ±1 h with time flow;
+    - port bearings and ranges (no **Go**; that's in Debug);
+    - the chart's marks with **Clear marks**.
+  - **Boat:** the deck jobs together (tow make fast / cast off, docking, anchor), then skiff, fuel and the FM radio (moved from Sound).
+  - Plot-it-yourself rescues moved to Settings → Game as **Rescue position: On plotter / Plot it yourself**.
+  - **Tests (2 new):** sections and the hidden Debug tab; the weather line split. Existing menu tests now look buttons up by tab.
+
 ## Direction: one engine, three games (owner plan, not started)
 
 The owner plans for SWVR to grow into three games. Agreed approach: **one repository with a shared core** (physics, boats, sea, weather, tow and rescue rules), not three separate projects and not long-lived git branches, so a physics fix reaches every game at once. Each game is a thin layer on that core and gets its own page from the same build (for example `/SWVR/`, `/SWVR/mobile/`, `/SWVR/free/`).

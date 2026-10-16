@@ -1437,6 +1437,11 @@ export class App {
       },
       probes: () => this.probes.mesh.visible,
       toggleProbes: () => this.probes.toggle(),
+      debugMenu: () => userSettings.debugMenu,
+      setDebugMenu: (on) => {
+        userSettings.debugMenu = on;
+        saveSettings();
+      },
       netStatus: () => this.netStatus(),
       playerName: () => userSettings.playerName,
       nextPlayerName: () => {
