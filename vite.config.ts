@@ -27,6 +27,8 @@ export default defineConfig({
     target: 'es2022',
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
+      // Two pages: the game, and the hull study viewer (hulls.html; src/hulls/, not part of the game).
+      input: { main: 'index.html', hulls: 'hulls.html' },
       output: {
         // three.js in its own chunk: it only changes when we upgrade it, so the headset
         // browser keeps it cached across our (frequent) game-code deploys.
