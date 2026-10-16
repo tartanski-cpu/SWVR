@@ -821,15 +821,17 @@ export const CONFIG = {
        */
       // Pushed aft against the aft wall (owner feedback), under the whiteboard: more room
       // behind the helm.
+      // 10 cm deeper than it was (owner feedback: the chart was hard to read), so the chart
+      // covering its depth is bigger; the pen holder and lamp moved aft, clear of it.
       chartTable: {
         x0: -1.37,
-        x1: -0.72,
+        x1: -0.62,
         z0: 0.08,
         z1: 1.4,
         height: 0.95,
-        holder: [-1.31, 0.74] as [number, number],
-        lamp: { base: [-1.29, 0.88] as [number, number], height: 0.42, head: [-1.0, 0.7] as [number, number] },
-        lampSwitch: [-0.79, 1.33] as [number, number],
+        holder: [-1.31, 0.96] as [number, number],
+        lamp: { base: [-1.29, 1.12] as [number, number], height: 0.45, head: [-0.98, 0.62] as [number, number] },
+        lampSwitch: [-0.69, 1.33] as [number, number],
       },
       /**
        * The duty board (game tasks and the shipping forecast; duties/dutyBoardView.ts): on
@@ -1958,6 +1960,15 @@ export const CONFIG = {
     moveSpeed: 4,
     fastMultiplier: 5,
     lookSensitivity: 0.0022,
+    /**
+     * Reading the paper chart: while the crosshair is on it from standing at the table,
+     * the view eases in by this much (camera zoom; owner feedback: desktop players had to
+     * crouch or lean in to read it). The look slows to match. 1 = off.
+     */
+    chartZoom: 1.7,
+    /** How far from the eyes the chart counts as "at the table" (m), and the ease rate (1/s). */
+    chartZoomReach: 1.5,
+    chartZoomRate: 5,
   },
 
   /** Milestone 2 test scene: a pile-mounted observation platform above the waves. */

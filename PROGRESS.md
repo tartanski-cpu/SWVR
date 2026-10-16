@@ -1520,6 +1520,19 @@ The brief's "no new particle effects" rule was flagged: the fire is drawn withou
   - **Tests (2):** a client's switch doesn't bounce back, follows someone else's change at once, and gives up if its change never arrives; the aim help picks a near miss, is sticky, and lets go when well away.
 - **Twisted side rails** (workboat and skiff): `bar()` in `vessel/view/hullMesh.ts` turned each box onto its segment with a shortest-arc rotation. That leaves the roll arbitrary, and with the stations running aft-to-fore against the box's +z it came out near 180°, so each bulwark plate and rail segment lay rolled its own way. Bars now keep their height side vertical.
 
+- **Paper chart easier to read, printed-chart look** (owner request: desktop players had to crouch or lean in to read it):
+  - **Bigger type:** all text is sized in chart points (1/1280 of the chart's width, about 0.5 mm on the table) at roughly twice the old size. Names and labels carry a thin paper-coloured halo so they read over tints and grid lines. The texture is 2048 px wide (was 1280) with anisotropic filtering at the GPU's maximum.
+  - **Bigger chart:** the chart table is 10 cm deeper (`chartTable.x1` -0.72 → -0.62), so the chart is about 17 % larger (0.77 × 0.69 m). The pen holder and lamp moved aft, clear of it.
+  - **Desktop reading zoom:** with the crosshair on the chart from within 1.5 m, the view eases in ×1.7 (`desktop.chartZoom`, `chartZoomReach`, `chartZoomRate`), as if leaning over it, and back out when you look away. The look slows to match. It uses `camera.zoom`, so it doesn't fight the binoculars (field of view). There is no change in VR.
+  - **Printed look, same geometry:** the same terrain samples and the same `chartBounds()` mapping, so pencil marks stay where they were.
+    - Buff land with darker high ground, green drying banks at the tide line, blue depth tints (0–2, 2–5, 5–10 m) with a contour line at each tint edge.
+    - Soundings thinned over the even deep floor and kept off names.
+    - Port names on the water side of their island; small islands named beside them.
+    - A graduated neat-line border in tenths of a minute (black and white, for the dividers).
+    - A full compass rose numbered every 30°, and a double-ruled title block.
+    - **Finish:** paper grain, two fold creases and edges darkened by handling.
+  - **Cost:** about 180 ms to draw once at load, the same as before. The pixel finish was first written per pixel (7 s in a headless browser) and is now done with canvas compositing: a 256 px noise tile and gradients. Still one draw call.
+
 ## Planned next (owner requests, not started)
 
 1. ~~Fuel and oil temperature~~ **Done** (see above).

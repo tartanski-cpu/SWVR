@@ -163,6 +163,8 @@ The chart table stands along the port wall, behind the helm. On it:
 - In multiplayer, crewmates see the marks appear as you draw, and several people can draw at once.
 - **Plot it yourself** (Menu → Tests → Chart, or `rescue.plotYourself` in the config; off by default): rescue calls give only the last known position in latitude and longitude, and the chartplotter doesn't show the search area. Plot it on the paper chart, using the latitude and longitude scale on the chart's edges.
 
+- **Reading it on desktop:** aim the crosshair at the chart from the table and the view eases in, as if you leaned over it; look away and it eases back.
+- It's printed like a real chart: depth tints and contours, soundings in metres, a latitude and longitude scale in tenths of a minute around the edge, and a compass rose.
 - **At night** you need the chart table lamp (or the cabin light) to read the chart.
 
 ### Transit jobs and closing up

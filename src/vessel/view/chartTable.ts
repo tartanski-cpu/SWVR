@@ -89,7 +89,7 @@ export class ChartTableView {
     const ch = depth;
     const tex = new THREE.CanvasTexture(this.chart.canvas);
     tex.colorSpace = THREE.SRGBColorSpace;
-    tex.anisotropy = 8;
+    tex.anisotropy = 16; // clamped to what the GPU allows: crisp at a slant from standing height
     this.chartMat = new THREE.MeshBasicMaterial({ map: tex, toneMapped: false });
     const chart = new THREE.Mesh(new THREE.PlaneGeometry(cw, ch), this.chartMat);
     chart.name = 'paperChart';

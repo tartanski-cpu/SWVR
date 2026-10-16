@@ -524,7 +524,7 @@ export class App {
     this.frameDt = dt;
     if (!inXR) {
       // Binoculars (hold Z): zoomed in, the mouse look slows to match.
-      this.desktop.lookScale = this.binoculars.updateDesktop(this.keyboard.action('binoculars'));
+      this.desktop.lookScale = this.binoculars.updateDesktop(this.keyboard.action('binoculars')) / this.camera.zoom;
       this.desktop.update(dt);
     }
     // The boat we're on, posed for this frame before hit-testing its controls (else they're
@@ -536,7 +536,39 @@ export class App {
     this.syncRigToPlayer(0);
     this.updateLaser(dt);
     this.camera.getWorldPosition(this.focus);
+    this.updateChartZoom(dt, inXR);
   }
+
+  /**
+   * Desktop: ease the view in while the crosshair is on the paper chart from close by, as
+   * you'd lean over a chart to read it; out again when you look away. It uses the camera's
+   * zoom (the binoculars use its field of view, so the two don't fight); in VR the headset
+   * sets the projection, so it stays 1.
+   */
+  private updateChartZoom(dt: number, inXR: boolean): void {
+    const c = CONFIG.desktop;
+    let target = 1;
+    if (!inXR && this.chartTable?.root.visible) {
+      const root = this.chartTable.root;
+      const eye = root.worldToLocal(this.camera.getWorldPosition(this.tmpV));
+      const dir = this.camera.getWorldDirection(this.zoomDir).transformDirection(this.zoomInv.copy(root.matrixWorld).invert());
+      const R = this.chartTable.chartRect;
+      const t = (R.y - eye.y) / dir.y;
+      if (dir.y < -0.05 && t > 0 && t < c.chartZoomReach) {
+        const x = eye.x + dir.x * t;
+        const z = eye.z + dir.z * t;
+        if (x > R.x0 && x < R.x1 && z > R.z0 && z < R.z1) target = c.chartZoom;
+      }
+    }
+    if (this.camera.zoom === target) return;
+    const k = 1 - Math.exp(-c.chartZoomRate * dt);
+    let zoom = this.camera.zoom + (target - this.camera.zoom) * k;
+    if (Math.abs(zoom - target) < 0.01) zoom = target;
+    this.camera.zoom = zoom;
+    this.camera.updateProjectionMatrix();
+  }
+  private readonly zoomDir = new THREE.Vector3();
+  private readonly zoomInv = new THREE.Matrix4();
 
   /** Light, sky and sea around the head. */
   private updateSurroundings(renderTime: number): void {
