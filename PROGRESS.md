@@ -1549,6 +1549,10 @@ How to come back to it:
 
 ### Fixes after V1.0 (on the dev branch; not in the `V1.0` tag)
 
+- **Cargo crates flicker fixed; the trawl's catch in wooden fish boxes** (owner):
+  - **Flicker:** the upper pale band on every crate had its top face flush with the crate's lid, so the two fought for the same pixels (z-fighting). The band now sits just below the lid (`cargo/cargoView.ts`).
+  - **Fish boxes:** fish from the trawl (`from: 'trawl'`) are drawn as open wooden fish boxes: two slats a side, darker corner posts, a bed of ice, and six fish lying in it as plain blocks with a tail, in cod grey, mackerel blue, haddock brown, gurnard red and whiting silver. One more instanced mesh, one draw call while there are any. They brighten when a hand is on them, as other cargo does. Port cargo of the "Fish box" kind still looks like a crate in its port's colour, so the colour-to-port cue isn't lost.
+
 - **Avatar hands as simple woollen mitts** (owner: the hands still looked bad; keep it simple and line it up with the VR controllers). The palm block, knuckles and thumb stick in `net/avatarOutfits.ts gloveGeometry` are replaced by three rounded parts, laid out in the controller's grip frame (WebXR grip space: the handle runs along z through the fist, -z forward, +x to the player's right):
   - one mitt lump closed round the handle, a little toward the back of the hand;
   - a thumb lobe on top on the inner side, lying forward along the handle;
