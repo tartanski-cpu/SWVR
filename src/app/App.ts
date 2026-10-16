@@ -297,6 +297,8 @@ export class App {
   private readonly avatars = new AvatarsView(this.scene);
   private readonly poseQ = new THREE.Quaternion();
   private readonly handQ = new THREE.Quaternion();
+  private readonly carrierQ = new THREE.Quaternion();
+  private readonly feetV = new THREE.Vector3();
   private readonly invFrame = new THREE.Matrix4();
 
   constructor(container: HTMLElement) {
@@ -1629,19 +1631,30 @@ export class App {
     const frame = this.playerFrame();
     frame.updateMatrixWorld();
     this.invFrame.copy(frame.matrixWorld).invert();
-    const head = this.camera.getWorldPosition(this.tmpV).applyMatrix4(this.invFrame);
-    const q = this.camera.getWorldQuaternion(this.poseQ).premultiply(this.attQ.setFromRotationMatrix(this.invFrame));
+    // Head and VR hands as if the view were rigid with the deck. Our own view may float a
+    // little against the boat's roll and heave (comfort decoupling, `rig.carrier`); sent as
+    // seen, that drift showed others our head a few cm off our shoulders (owner bug). So
+    // take them relative to the carrier and put the carrier back on our feet, unrotated
+    // against the deck: rigid head = feet + (head in the carrier's axes).
+    const carrier = this.rig.carrier;
+    carrier.updateMatrixWorld();
+    const carrierQInv = carrier.getWorldQuaternion(this.carrierQ).invert();
+    const onDeck = (world: THREE.Vector3) => carrier.worldToLocal(world).add(this.feetV.fromArray(p.position));
+    const head = onDeck(this.camera.getWorldPosition(this.tmpV));
+    const q = this.camera.getWorldQuaternion(this.poseQ).premultiply(carrierQInv);
     const inXR = this.renderer.xr.isPresenting;
     const hand = (h: 'left' | 'right') => {
-      // Desktop players have one hand: on whatever the mouse holds (a rubber band to others).
-      const w = inXR ? this.controllers.worldPosition(h, this.gripW[h]) : h === 'right' ? this.desktopHandWorld(this.gripW[h]) : null;
-      return w ? (w.clone().applyMatrix4(this.invFrame).toArray() as [number, number, number]) : null;
+      // Desktop players have one hand: on whatever the mouse holds (a rubber band to others),
+      // so it's where that control really is on the deck.
+      if (!inXR) return h === 'right' && this.desktopHandWorld(this.gripW[h]) ? (this.gripW[h].clone().applyMatrix4(this.invFrame).toArray() as [number, number, number]) : null;
+      const w = this.controllers.worldPosition(h, this.gripW[h]);
+      return w ? (onDeck(w.clone()).toArray() as [number, number, number]) : null;
     };
     // VR hands' orientation in the same frame, so crew-mates see the wrists turn.
     const handQ = (h: 'left' | 'right'): Quat | null => {
       const wq = inXR ? this.controllers.worldQuaternion(h, this.handQ) : null;
       if (!wq) return null;
-      const lq = wq.premultiply(this.attQ.setFromRotationMatrix(this.invFrame));
+      const lq = wq.premultiply(carrierQInv);
       return [r(lq.x), r(lq.y), r(lq.z), r(lq.w)];
     };
     const r = (x: number) => Math.round(x * 1000) / 1000;

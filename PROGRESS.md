@@ -1549,6 +1549,10 @@ How to come back to it:
 
 ### Fixes after V1.0 (on the dev branch; not in the `V1.0` tag)
 
+- **Avatar head no longer floats off the body** (owner bug; step A of the avatar plan). Two causes, both fixed:
+  - **The pose sent the comfort-softened view.** With motion coupling below 100 % (the desktop default on deck), our camera lags the boat's roll and heave a little; 2 degrees at 1.6 m is 5-6 cm, and that was sent as the head position. Now `updateNetPose` sends the head and VR hands relative to the rig's carrier, put back on our feet unrotated against the deck: what a rigid view would show. Our own view keeps its comfort. The desktop hand (on a control) is unchanged.
+  - **The body was placed on its own** (70 % of the head's sideways offset), so any offset left a gap. Now the torso runs from the feet to a neck right under the head (`NECK_DROP` 0.13 m), leaning with it, and the shoulders hang from the neck (`net/avatarView.ts`). Test: `tests/avatarBody.test.ts` (the old body left a 9.5 cm gap there).
+  - Next (owner to decide): step B, a jointed figure (one skinned mesh, elbows, legs), and step C, workwear looks.
 - **Fire missions: better feedback** (owner request). Four cues, where you look and listen while aiming:
   - a **fire gauge** on the SEARCH · FIRE plate just ahead of the MONITOR joystick (`fire/fireGauge.ts`, `fireMonitor.gauge`): a FIRE bar as long as the fire is big (red, orange, yellow as it dies) and an **ON TARGET** lamp, green while the jet lands on it. Two small draw calls; the track is baked with the console.
   - a **steam sizzle** where the jet lands (`audio/fireAudio.ts`), loud enough to hear from the helm (falls off far more gently than the roar);

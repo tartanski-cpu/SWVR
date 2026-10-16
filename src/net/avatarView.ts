@@ -4,6 +4,10 @@ import type { EntityId } from '../core/ids';
 import type { WorldState } from '../core/world';
 import { LaserBeam } from '../player/laserBeam';
 
+/** The neck sits this far below the head's centre, the shoulders this far below the neck (m). */
+const NECK_DROP = 0.13;
+const SHOULDER_DROP = 0.12;
+
 const COLORS = [0xd8582a, 0x2a8ad8, 0x3aa84a, 0xc8a020, 0x9a4ad0, 0x20a8a0];
 
 /** A player's colour (avatar, name tag, laser): from the number in their id, the same for everyone. */
@@ -47,6 +51,7 @@ export class AvatarsView {
   private readonly dir = new THREE.Vector3();
   private readonly yUp = new THREE.Vector3(0, 1, 0);
   private readonly laserTo = new THREE.Vector3();
+  private readonly neck = new THREE.Vector3();
 
   constructor(private readonly scene: THREE.Object3D) {}
 
@@ -77,10 +82,17 @@ export class AvatarsView {
       else a.laser.hide();
       if (a.tagName !== p.name) drawTag(a, p.name);
       a.tag.position.set(a.head.position.x, a.head.position.y + 0.32, a.head.position.z);
-      const neck = Math.max(0.6, a.head.position.y - 0.18);
-      a.body.scale.set(1, neck, 1);
-      a.body.position.set(a.head.position.x * 0.7, neck / 2, a.head.position.z * 0.7);
-      // Shoulders: below the head, either side of where it faces.
+      // The body hangs from the head (owner bug: it was placed on its own and the head
+      // could float a few cm off it): a torso from the feet up to the neck, right under the
+      // head wherever the head is, leaning if the head is off to one side.
+      this.neck.copy(a.head.position);
+      this.neck.y = Math.max(0.6, this.neck.y - NECK_DROP);
+      const torso = this.dir.copy(this.neck);
+      const tall = torso.length();
+      a.body.position.copy(this.neck).multiplyScalar(0.5);
+      a.body.quaternion.setFromUnitVectors(this.yUp, torso.divideScalar(tall || 1));
+      a.body.scale.set(1, tall, 1);
+      // Shoulders: just below the neck, either side of where the head faces.
       this.side.set(1, 0, 0).applyQuaternion(a.head.quaternion).setY(0);
       if (this.side.lengthSq() < 1e-6) this.side.set(1, 0, 0);
       this.side.normalize().multiplyScalar(0.2);
@@ -105,8 +117,8 @@ export class AvatarsView {
         // Turned as their real hand is (VR); a desktop player's hand faces where they look.
         if (hq) mesh.quaternion.slerp(this.tmpQ.set(hq[0], hq[1], hq[2], hq[3]), Math.min(1, dt * 20));
         else mesh.quaternion.copy(a.head.quaternion);
-        this.shoulder.copy(a.head.position).addScaledVector(this.side, s);
-        this.shoulder.y -= 0.3;
+        this.shoulder.copy(this.neck).addScaledVector(this.side, s);
+        this.shoulder.y -= SHOULDER_DROP;
         const len = this.dir.copy(mesh.position).sub(this.shoulder).length();
         arm.position.copy(this.shoulder);
         arm.quaternion.setFromUnitVectors(this.yUp, this.dir.normalize());
