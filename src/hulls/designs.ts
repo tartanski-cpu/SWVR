@@ -12,7 +12,9 @@
  *   - Nordic sjark: ~11 x 4.4 m, wheelhouse forward, working deck aft, high flared bow.
  *   - Bristol Bay gillnetter: 32 ft limit, very beamy (B ~ 4.6-4.9 m), shallow (jets),
  *     the house right aft or raised so the net reel runs under it.
- *   - Pacific north-west landing craft: flat-bottomed aluminium, bow ramp, house aft.
+ *   - Coastal work skiff (landing bow): from an owner's reference photo of a ~9 m aluminium
+ *     outboard work skiff: raked square bow, hard chine, near-straight sheer, cabin aft of
+ *     amidships with walkaround side decks, open foredeck inside bulwarks.
  *   - Catamaran landing craft ("landing cat"): ~15 m x 4.6 m, twin hulls, bow ramp, house aft.
  *   - Pilot / crew boat: deep-V hard chine, spray chine, raked stem, fine entry.
  *   - Compact harbour tug: L/B about 2.2-2.4, B/T about 2.7-2.9, raised forecastle.
@@ -444,55 +446,56 @@ export const DESIGNS: HullDesign[] = [
   },
   {
     id: 'landingCraft',
-    name: 'Coastal landing craft',
-    blurb: 'Pacific north-west style aluminium landing craft: shallow flat-bottomed hull with a single hard chine, a square bow for the ramp, bulwarks round a clear cargo deck, house aft. 12.0 x 4.2 m, draught 0.7 m.',
-    length: 12.0,
+    name: 'Coastal work skiff (landing bow)',
+    blurb: 'Aluminium planing work skiff: a raked square landing bow for running up on beaches, hard chine with moderate deadrise, a near-straight sheer, a cabin aft of amidships with narrow walkaround side decks, an open foredeck inside bulwarks and a short cockpit aft (outboards on a transom bracket come as a module). 9.0 x 2.8 m, draught 0.45 m.',
+    length: 9.0,
     halfBeam: [
-      [0, 2.05],
-      [0.5, 2.1],
-      [0.88, 2.0],
-      [0.97, 1.75],
-      [1, 1.6],
+      [0, 1.32],
+      [0.5, 1.4],
+      [0.85, 1.36],
+      [1, 1.05],
     ],
     sheer: [
-      [0, 1.15],
-      [0.6, 1.15],
-      [1, 1.35],
+      [0, 0.95],
+      [0.5, 1.0],
+      [1, 1.3],
     ],
     keel: [
-      [0, -0.7],
-      [0.7, -0.7],
-      [0.9, -0.3],
-      [1, 0.75],
+      [0, -0.45],
+      [0.55, -0.48],
+      [0.8, -0.35],
+      [1, 0.12],
     ],
     rake: [
-      [0, 0.0],
-      [0.8, 0],
-      [1, -0.55],
+      [0, 0.05],
+      [0.75, 0],
+      [1, -0.95],
     ],
     section: {
       chineBeam: [
-        [0, 0.95],
+        [0, 0.93],
+        [0.7, 0.93],
         [1, 0.95],
       ],
       chineHeight: [
-        [0, 0.1],
-        [0.8, 0.1],
-        [1, 0.6],
+        [0, 0.12],
+        [0.6, 0.14],
+        [1, 0.05],
       ],
       flare: [
-        [0, 0.0],
-        [1, 0.02],
+        [0, 0.03],
+        [1, 0.03],
       ],
     },
     bulwark: [
-      [0, 0.0],
-      [0.2, 0.0],
-      [0.27, 0.9],
-      [1, 0.9],
+      [0, 0.32],
+      [0.45, 0.32],
+      [0.52, 0.6],
+      [1, 0.62],
     ],
-    wheelhouse: { z0: 5.9, z1: 3.6, halfWidth: 2.0, height: 2.1, frontRake: 0.15, sill: 1.0, head: 1.8, panesFront: 4, panesSide: 2, panesBack: 1 },
-    colours: { topsides: 0xa9b0b5, bulwark: 0xa9b0b5, bottom: 0x6e7479, boot: 0x6e7479, house: 0xdde0e2, deck: 0x7e858a },
+    // Cabin from about 18 % to 48 % of the length from the transom; 0.3 m side decks each side.
+    wheelhouse: { z0: 2.85, z1: 0.2, halfWidth: 1.05, height: 1.95, frontRake: 0.05, sill: 1.0, head: 1.65, panesFront: 3, panesSide: 2, panesBack: 1, overhang: 0.22 },
+    colours: { topsides: 0xb9bec2, bulwark: 0xb9bec2, bottom: 0x2f3438, boot: 0x2f3438, house: 0xc9cdcf, deck: 0x8a9096, roof: 0xd3d6d8, bulwarkIn: 0xaab0b4 },
   },
   {
     id: 'pushboat',

@@ -202,7 +202,8 @@ export function loft(d: HullDesign): LoftedHull {
     if (d.forecastle && t >= d.forecastle.from) deckY += d.forecastle.raise;
     const depth = Math.max(0.05, deckY - keelY);
     // The stem itself is a point; just before it the sections are narrow.
-    const hb = t >= 1 ? 0 : Math.max(0, curveAt(d.halfBeam, t));
+    // A pointed stem comes to nothing; a square (landing) bow keeps its width, closed by a bow plate.
+    const hb = Math.max(0, curveAt(d.halfBeam, t));
     const s = d.section;
     const cB = curveAt(s.chineBeam, t) * hb;
     const cY = keelY + curveAt(s.chineHeight, t) * depth;
@@ -432,10 +433,13 @@ function plateHull(b: Builder, h: LoftedHull, paint: typeof PAINT, which: number
   const T = S[0].pts;
   const Td = T[T.length - 1];
   const yMid = (T[0].y + Td.y) / 2;
-  const tc = new THREE.Vector3(0, yMid, T[0].z + ((Td.z - T[0].z) * (yMid - T[0].y)) / (Td.y - T[0].y || 1));
-  for (let k = 0; k < T.length - 1; k++) {
-    b.fan(tc, T[k], T[k + 1], paint.topsides, aft);
-    b.fan(tc, mirror(T[k]), mirror(T[k + 1]), paint.topsides, aft);
+  const tc = new THREE.Vector3(cx, yMid, T[0].z + ((Td.z - T[0].z) * (yMid - T[0].y)) / (Td.y - T[0].y || 1));
+  // The half-section is closed along the centreline at deck height (keel to deck centre),
+  // so the fan also covers the wedge between the deck edge and the centreline.
+  const Tc = [...T, new THREE.Vector3(cx, Td.y, Td.z)];
+  for (let k = 0; k < Tc.length - 1; k++) {
+    b.fan(tc, Tc[k], Tc[k + 1], paint.topsides, aft);
+    b.fan(tc, mirror(Tc[k]), mirror(Tc[k + 1]), paint.topsides, aft);
   }
   // Transom bulwark plate.
   if (which === 0 && S[0].bulwark > 0.01) {
@@ -444,6 +448,28 @@ function plateHull(b: Builder, h: LoftedHull, paint: typeof PAINT, which: number
     b.quad(d0, t0, mirror(t0), mirror(d0), paint.bulwark, aft);
     b.quad(d0.clone().setZ(d0.z - 0.08), t0.clone().setZ(t0.z - 0.08), mirror(t0).setZ(t0.z - 0.08), mirror(d0).setZ(d0.z - 0.08), paint.bulwarkIn, new THREE.Vector3(0, 0, -1));
     b.quad(t0, t0.clone().setZ(t0.z - 0.08), mirror(t0).setZ(t0.z - 0.08), mirror(t0), paint.bulwarkIn, up);
+  }
+  // Square bow: a flat (raked) bow plate over the forward section, like the transom, and a
+  // bulwark across the top of it.
+  const last = S[S.length - 1];
+  if (last.halfBeam > 0.05) {
+    const B = last.pts;
+    const Bd = B[B.length - 1];
+    const by = (B[0].y + Bd.y) / 2;
+    const bc = new THREE.Vector3(cx, by, B[0].z + ((Bd.z - B[0].z) * (by - B[0].y)) / (Bd.y - B[0].y || 1));
+    const fwd = new THREE.Vector3(0, 0, -1);
+    const Bc = [...B, new THREE.Vector3(cx, Bd.y, Bd.z)];
+    for (let k = 0; k < Bc.length - 1; k++) {
+      b.fan(bc, Bc[k], Bc[k + 1], paint.topsides, fwd);
+      b.fan(bc, mirror(Bc[k]), mirror(Bc[k + 1]), paint.topsides, fwd);
+    }
+    if (which === 0 && last.bulwark > 0.01) {
+      const tb = Bd.clone().setY(Bd.y + last.bulwark);
+      b.quad(Bd, tb, mirror(tb), mirror(Bd), paint.bulwark, fwd);
+      const inner = (v: THREE.Vector3) => v.clone().setZ(v.z + 0.08);
+      b.quad(inner(Bd), inner(tb), inner(mirror(tb)), inner(mirror(Bd)), paint.bulwarkIn, aft);
+      b.quad(tb, inner(tb), inner(mirror(tb)), mirror(tb), paint.bulwarkIn, up);
+    }
   }
   // Forecastle break: a vertical bulkhead at the step.
   const fc = h.design.forecastle;
