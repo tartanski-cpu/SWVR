@@ -13,12 +13,23 @@
  *       breakerPanel     the voltmeter and breakers, on the starboard wall by the helm
  *       batteryMaster    the battery master and selector, low on the aft wall by the door
  *       batterySelector
+ *       vhf, chartplotter    hung from the roof either side, turned toward the helm
+ *       chartTable           the floor along the port wall, aft half (the leaf's hinge corner)
+ *       dutyBoard, whiteboard    the starboard wall aft; the aft wall, port of the door
+ *       doorIn, doorOut      on the aft door's frame, inside and out
+ *       engineHatch          the hatch in the floor over the engine (its opening's size)
+ *       dipstick, oilCan     in the engine space under it
  */
 import { CONFIG } from '../config';
 import type { HullDefinition } from '../modular/hull';
 import { BREAKERS } from '../vessel/vesselState';
 
 const wb = CONFIG.vessels.workboat;
+const wh = wb.layout.wheelhouse;
+const ct = wb.chartTable;
+const eh = wb.layout.engineHatch;
+const mt = wb.maintenance;
+const db = wb.layout.doorButtons;
 
 export const WORKBOAT_HULL: HullDefinition = {
   id: 'hull.workboat-12m',
@@ -35,6 +46,21 @@ export const WORKBOAT_HULL: HullDefinition = {
     // Facing forward, into the wheelhouse.
     { id: 'batteryMaster', type: 'wall.panel', transform: { position: wb.electrics.masterSwitch.position, rotationDeg: [0, 180, 0] }, label: 'Aft wall, starboard of the door, low' },
     { id: 'batterySelector', type: 'wall.panel', transform: { position: wb.electrics.selectorSwitch.position, rotationDeg: [0, 180, 0] }, label: 'Aft wall, beside the battery master' },
+    { id: 'vhf', type: 'cabin.overhead', transform: { position: wb.bridge.radio.position, rotationDeg: [0, wb.bridge.radio.yawDeg, 0] }, label: 'Under the roof, out to port' },
+    { id: 'chartplotter', type: 'cabin.overhead', transform: { position: wb.bridge.chart.position, rotationDeg: [0, wb.bridge.chart.yawDeg, 0] }, label: 'Under the roof, out to starboard' },
+    // The floor along the port wall, aft half, from the wall out and up to the roof.
+    { id: 'chartTable', type: 'cabin.furniture', transform: { position: [ct.x0, wh.floorY, ct.z0] }, capacity: { size: [ct.x1 - ct.x0, wh.roofY - wh.floorY, ct.z1 - ct.z0] }, label: 'Port wall, aft half' },
+    { id: 'dutyBoard', type: 'wall.panel', transform: { position: wb.dutyBoard.position, rotationDeg: [0, -90, 0] }, label: 'Starboard wall, aft half of the window' },
+    { id: 'whiteboard', type: 'wall.panel', transform: { position: wb.whiteboard.position, rotationDeg: [0, 180, 0] }, label: 'Aft wall, port of the door' },
+    // Facing into the wheelhouse; and the same on the outside, turned to face aft.
+    { id: 'doorIn', type: 'wall.panel', transform: { position: [db.x, wh.floorY + db.height, wh.aft - wh.wall], rotationDeg: [-90, 0, 0] }, label: 'Door frame, inside' },
+    { id: 'doorOut', type: 'wall.panel', transform: { position: [db.x, wh.floorY + db.height, wh.aft], rotationDeg: [-90, 180, 0] }, label: 'Door frame, outside' },
+    // The hatch's hinged (outboard) edge, mid-length, at floor level; its size is the opening's.
+    { id: 'engineHatch', type: 'deck.fitting', transform: { position: [eh.x1, wh.floorY, (eh.z0 + eh.z1) / 2] }, capacity: { size: [eh.x1 - eh.x0, 0.035, eh.z1 - eh.z0] }, label: 'Wheelhouse floor, over the engine' },
+    // On the engine's inboard side, the ring well under the shut hatch (the rocker cover is 0.12 m below the floor).
+    { id: 'dipstick', type: 'deck.fitting', transform: { position: [mt.dipstick[0], wh.floorY - 0.12 - 0.2, mt.dipstick[1]] }, label: 'Engine space, the engine\'s inboard side' },
+    // On the shelf on the engine space's outboard wall, spout inboard toward the filler.
+    { id: 'oilCan', type: 'deck.fitting', transform: { position: [mt.oilCan[0], wh.floorY - mt.shelfDrop, mt.oilCan[1]], rotationDeg: [0, 90, 0] }, label: 'Engine space, the shelf' },
   ],
   // Until the electrics and the engine are modules (M4), the hull stands in for today's
   // code: 12 V on the existing circuits, deck hydraulics, the engine's power take-off, diesel.

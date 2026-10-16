@@ -11,7 +11,7 @@
  *   eraser    rub it on the paper to rub marks out; hold its trigger 2 s to clear the chart.
  *   desktop   aim at the chart: drag to draw (Shift: straight line), right-drag to erase.
  *
- * Everything here is in the chart table's frame (vessel axes); marks are converted to
+ * Everything here is in the chart table's frame (its root, placed by the chart-table module); marks are converted to
  * chart coordinates (world metres) by the ChartTableView. Ops go out through ctx.send,
  * which applies them here at once and shares them (chart/marks.ts).
  */
@@ -52,7 +52,7 @@ interface Drawing {
   last: { x: number; z: number };
   pending: number[];
   straight: boolean;
-  /** Smoothed tip on the table (vessel axes). */
+  /** Smoothed tip on the table (the table's frame). */
   tip: THREE.Vector3;
   since: number;
   setDirty: boolean;

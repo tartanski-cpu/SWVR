@@ -7,14 +7,17 @@ import { Button } from './Button';
 import type { Control } from './Control';
 import type { AssembledView, PlacedLabel } from '../modular/assemble';
 import { LABEL_OFFSET } from '../modular/module';
-import { RadioSet } from '../rescue/radioView';
-import { ChartPlotter } from '../nav/chartPlotter';
+import type { RadioSet } from '../rescue/radioView';
+import type { ChartPlotter } from '../nav/chartPlotter';
+import type { ChartTableView } from '../vessel/view/chartTable';
+import type { BoardView } from '../board/boardView';
+import type { DutyBoardView } from '../duties/dutyBoardView';
 import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
-import { DoorButton, WheelhouseDoor } from './WheelhouseDoor';
+import { WheelhouseDoor } from './WheelhouseDoor';
 import { MonitorView } from '../fire/monitorView';
 import { hullPlan } from '../vessel/layout';
 import { RainGlass } from '../vessel/view/rainGlass';
-import { Cleat, Dipstick, FenderBasket, FendersView, OilCan, EngineHatch } from './deckGear';
+import { Cleat, FenderBasket, FendersView } from './deckGear';
 import { swimLadderOf } from '../player/body';
 import { aFrameOf } from '../fishing/fishing';
 
@@ -27,10 +30,16 @@ export class Bridge {
   readonly controls: Control[] = [];
   /** Empty object at the centre of the instrument dash (for visibility checks; the console module's). */
   dashAnchor: THREE.Object3D = new THREE.Object3D();
-  /** Overhead VHF (rescue calls). */
-  readonly radio: RadioSet;
-  /** Overhead chartplotter (search area, destination). */
-  readonly chart: ChartPlotter;
+  /** The VHF (a module; the app feeds it the rescue and tow calls), if she has one. */
+  readonly radio: RadioSet | null;
+  /** The chartplotter (a module; the app feeds it the world), if she has one. */
+  readonly chart: ChartPlotter | null;
+  /** The chart table (a module; the app works its pencil and dividers), if she has one. */
+  readonly chartTable: ChartTableView | null;
+  /** The crew whiteboard (a module; the app writes the notes on it), if she has one. */
+  readonly whiteboard: BoardView | null;
+  /** The duty board (a module; the app feeds it the game's tasks), if she has one. */
+  readonly dutyBoard: DutyBoardView | null;
   /** The FM set (a module; the app plays its station near it), if the boat has one. */
   readonly fmSet: THREE.Object3D | null;
   /** Rain on the front windows and the wipers (the App feeds it the weather). */
@@ -41,10 +50,6 @@ export class Bridge {
   private readonly winchDrum = new THREE.Group();
   /** The winch drum's motion this frame (+1 heaving in, -1 paying out, 0 still); set by App. */
   drumTurn = 0;
-  /** The engine hatch and what's under it (the oil gear works only with it open). */
-  engineHatch: EngineHatch | null = null;
-  private dipstick: Dipstick | null = null;
-  private oilCan: OilCan | null = null;
   /** The aft door (its push buttons on the frame open / shut it). */
   readonly door: WheelhouseDoor;
   /** The fenders over the side or stowed (boats that carry them). */
@@ -63,11 +68,12 @@ export class Bridge {
     this.root.name = 'bridge';
     for (const m of modules.modules) this.root.add(m.root);
 
-    this.radio = new RadioSet(b.radio, def.layout.wheelhouse.roofY);
-    this.root.add(this.radio.root);
-    this.chart = new ChartPlotter(b.chart, def.layout.wheelhouse.roofY);
-    this.root.add(this.chart.root);
-    this.controls.push(...modules.controls, this.radio.handset);
+    this.radio = modules.api<RadioSet>('radio.vhf');
+    this.chart = modules.api<ChartPlotter>('nav.chartplotter');
+    this.chartTable = modules.api<ChartTableView>('furniture.chart-table');
+    this.whiteboard = modules.api<BoardView>('furniture.whiteboard');
+    this.dutyBoard = modules.api<DutyBoardView>('furniture.duty-board');
+    this.controls.push(...modules.controls);
     this.fmSet = modules.modules.find((m) => m.id === 'radio.fm')?.root ?? null;
     // The modules' engraved labels, drawn with the bridge's own.
     const extraLabels: Label[] = [...modules.labels];
@@ -146,15 +152,7 @@ export class Bridge {
     this.door = new WheelhouseDoor(wh.doorWidth, wh.doorHeight);
     this.door.root.position.set(0, wh.floorY, wh.aft + 0.03);
     this.root.add(this.door.root);
-    // Its push buttons, on the starboard door post inside and out (the panel slides to port).
-    const db = def.layout.doorButtons;
-    const inside = new DoorButton('doorIn');
-    inside.root.position.set(db.x, wh.floorY + db.height, wh.aft - wh.wall);
-    inside.root.rotation.x = -Math.PI / 2; // facing forward, into the wheelhouse
-    const outside = new DoorButton('doorOut');
-    outside.root.position.set(db.x, wh.floorY + db.height, wh.aft);
-    outside.root.rotation.set(-Math.PI / 2, Math.PI, 0, 'YXZ'); // the same, turned to face aft
-    this.controls.push(inside, outside);
+    // Its push buttons on the door post, inside and out, are modules (control.door-button).
     this.rainGlass = new RainGlass(def);
     this.root.add(this.rainGlass.root);
     // Mooring cleats on the bulwark tops, forward and aft each side (they replace the DOCK
@@ -195,7 +193,8 @@ export class Bridge {
       }
     }
     // The engine, under the hatch in the wheelhouse floor (aft starboard): open the hatch to
-    // see it, pull the dipstick on its inboard side, top up from the can on the shelf.
+    // see it. The hatch cover, the dipstick and the oil can are modules (M3c); the engine's
+    // look and the can's shelf stay here until the engine is a module (M4).
     const mt = def.maintenance;
     const eh = def.layout.engineHatch;
     if (mt && eh) {
@@ -231,19 +230,6 @@ export class Bridge {
       // The oil can's shelf on the engine space's outboard wall.
       const shelfY = fy - mt.shelfDrop;
       extraFixed.push(box(mt.oilCan[0] - 0.09, eh.x1, shelfY - 0.02, shelfY, mt.oilCan[1] - 0.1, mt.oilCan[1] + 0.1, 0x8a9096));
-      const dip = new Dipstick();
-      dip.root.position.set(mt.dipstick[0], top - 0.2, mt.dipstick[1]); // its ring well under the shut hatch
-      const can = new OilCan();
-      can.root.position.set(mt.oilCan[0], shelfY, mt.oilCan[1]);
-      can.root.rotation.y = Math.PI / 2; // spout inboard, toward the filler
-      can.root.scale.setScalar(0.85);
-      this.dipstick = dip;
-      this.oilCan = can;
-      const hatch = new EngineHatch(eh.x1 - eh.x0, eh.z1 - eh.z0);
-      hatch.root.position.set(eh.x1, fy, (eh.z0 + eh.z1) / 2);
-      this.engineHatch = hatch;
-      this.controls.push(hatch, dip, can);
-      extraLabels.push(label('ENGINE', [eh.x0 + 0.2, fy + 0.002, eh.z1 - 0.1], false, -Math.PI / 2));
     }
     for (const c of this.controls) if (!c.root.parent) this.root.add(c.root);
 
@@ -284,10 +270,6 @@ export class Bridge {
     }
     this.modules.update(state, dt, { inView: displaysInView, def: this.def, env });
     this.door.sync(state);
-    // Under the floor, the dipstick and the oil can are only within reach with the hatch open.
-    const hatchOpen = (state.controls.engineHatch ?? 0) > 0.5;
-    if (this.dipstick) this.dipstick.enabled = hatchOpen;
-    if (this.oilCan) this.oilCan.enabled = hatchOpen;
     this.fenders?.update(state);
     // The winch drum turns only while it really runs (hydraulic pressure, and line or net
     // actually coming in or going out): App sets `drumTurn` each frame (+1 in, -1 out, 0 still).

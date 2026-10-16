@@ -791,7 +791,7 @@ Sizes: S is about a session, M two or three, L more.
   - Desktop: drag the lever.
   - Automated: the lever's bus value round-trips through save and load; golden runs equal; draw calls equal.
 
-### M3: the bridge as modules (L, in three stops). **3a and 3b done.**
+### M3: the bridge as modules (L, in three stops). **Done; see PROGRESS.**
 
 - **3a, console and helm. Done; see PROGRESS.**
   - `console.standard` with nested slots, then the wheel, buttons, key, toggles, joysticks, lamps and placard.
@@ -803,9 +803,10 @@ Sizes: S is about a session, M two or three, L more.
   - Shared instanced parts for toggle bats, button caps and lamps (2.10), across the console, the overhead panel and the breakers.
   - Still the *views and controls* only: the electrical simulation stays as it is until M4.
   - **Test:** master off and on, every breaker and its lamp, the voltmeter dip on cranking, the deck lights and FM.
-- **3c, the rest of the wheelhouse.**
+- **3c, the rest of the wheelhouse. Done; see PROGRESS.**
   - VHF and handset, chartplotter, chart table (with its footprint), duty board, whiteboard, the door buttons, and the engine hatch with the dipstick and oil can.
   - The first **recipe interlock**: hatch shut blocks the dipstick and oil can.
+  - As built: modules whose contents come from the world, not the boat (the VHF's calls, the chartplotter's chart, the duty board's tasks, the whiteboard's notes, the chart table's pencil), hand the app an `api` it feeds, found by module id; the module never reaches out. The engine's look and the oil can's shelf stay with the Bridge until the engine is a module (M4). The chart table declares its footprint; the walk area still reads the vessel config's table until M6, and a test keeps the two equal.
   - **Test:** answer a call, draw on the chart, fold the leaf and walk past it, open the hatch and check the oil, post a note on the whiteboard.
 
 ### M4a: propulsion and the energy network as modules, diesel only (L). Nothing visible.

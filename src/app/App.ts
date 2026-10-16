@@ -602,7 +602,7 @@ export class App {
     const testVessel = this.world.vessels[this.testVesselId];
     if (this.bridge && testVessel) {
       this.bridge.update(testVessel, dt, this.dashInView(), this.world.environment);
-      this.bridge.radio.update(this.world.rescue, runStatus(this.world), dt, isPowered(testVessel, 'radio'), towAlertT(this.world) >= 0 || fireAlertT(this.world) >= 0);
+      this.bridge.radio?.update(this.world.rescue, runStatus(this.world), dt, isPowered(testVessel, 'radio'), towAlertT(this.world) >= 0 || fireAlertT(this.world) >= 0);
       // Say so when the anchor is up or holding (the speed screen shows it all the time).
       const ap = testVessel.anchor.phase;
       if (ap !== this.lastAnchorPhase) {
@@ -626,8 +626,11 @@ export class App {
         t.tick(dt);
         this.sound.motor.update(sv.controls.obOn > 0 ? Math.sign(sv.controls.obGear) * sv.controls.lever : 0, sv.battery ?? 0, t.root.getWorldPosition(this.tmpV).distanceTo(this.focus));
       }
-      this.bridge.chart.marks = CONFIG.chartMarks.showOnPlotter ? this.marks : null;
-      this.bridge.chart.update(this.world, this.testVesselId, dt, this.dashInView());
+      const plotter = this.bridge.chart;
+      if (plotter) {
+        plotter.marks = CONFIG.chartMarks.showOnPlotter ? this.marks : null;
+        plotter.update(this.world, this.testVesselId, dt, this.dashInView());
+      }
       this.updateRadioSound();
     }
   }
@@ -967,7 +970,7 @@ export class App {
   /** Play new radio traffic (and repeat the alert of an unanswered call); show it as a notice too. */
   private updateRadioSound(): void {
     const r = this.world.rescue;
-    if (!r || !this.bridge) return;
+    if (!r || !this.bridge?.radio) return;
     const id = r.radio?.id ?? 0;
     const alertT = r.active?.phase === 'calling' ? r.active.alertT : Math.max(towAlertT(this.world), fireAlertT(this.world));
     this.sound.radio.setDistance(this.bridge.radio.root.getWorldPosition(this.tmpV).distanceTo(this.focus));
@@ -1525,9 +1528,10 @@ export class App {
       fireNear: (kind) => this.pushVesselIntent('fireDebugNear', 1, kind),
       fireCall: () => this.pushVesselIntent('fireDebugCall', 1),
       fireEnd: () => this.pushVesselIntent('fireDebugEnd', 1),
-      showTargets: () => !!this.bridge?.chart.showTargets,
+      showTargets: () => !!this.bridge?.chart?.showTargets,
       toggleShowTargets: () => {
-        if (this.bridge) this.bridge.chart.showTargets = !this.bridge.chart.showTargets;
+        const plotter = this.bridge?.chart;
+        if (plotter) plotter.showTargets = !plotter.showTargets;
       },
       teleportToPort: (i) => {
         const port = PORTS[i];
@@ -1820,29 +1824,17 @@ export class App {
     if (!recipe) throw new Error(`no recipe for vessel type '${v.defId}'`);
     this.bridge = new Bridge(this.testDef, assembleView(recipe, VESSEL_DEFS[v.defId], LIBRARY));
     view.root.add(this.bridge.root);
-    // Crew whiteboard on the wheelhouse aft wall, facing forward.
-    const wb = this.testDef.whiteboard;
-    this.board = new BoardView(wb.width, wb.height);
-    this.board.root.position.fromArray(wb.position);
-    this.board.root.rotation.y = Math.PI;
-    view.root.add(this.board.root);
-    this.scene.add(this.board.rayLine);
+    // The crew whiteboard, the duty board and the chart table are modules (M3c); the app
+    // hands them what isn't the boat's: the notes, the game's tasks, the pencil and dividers.
+    this.board = this.bridge.whiteboard;
+    if (this.board) this.scene.add(this.board.rayLine);
     // Wind sock at the masthead.
     const wh = this.testDef.layout.wheelhouse;
     this.windSock = new WindSock([0, wh.roofY + 1.7, 0.4]);
     view.root.add(this.windSock.root);
-    // Duty board (game tasks, shipping forecast) on the starboard wall.
-    const db = this.testDef.dutyBoard;
-    if (db) {
-      this.dutyBoard = new DutyBoardView(db);
-      view.root.add(this.dutyBoard.root);
-    }
-    // Chart table on the port side, aft half: the paper chart and its lamp.
-    const ct = this.testDef.chartTable;
-    if (ct) {
-      this.chartTable = new ChartTableView(ct, wh.floorY);
-      view.root.add(this.chartTable.root);
-      this.bridge.controls.push(this.chartTable.lampSwitch, this.chartTable.leafHandle);
+    this.dutyBoard = this.bridge.dutyBoard;
+    this.chartTable = this.bridge.chartTable;
+    if (this.chartTable) {
       this.chartTools = new ChartTools(this.chartTable);
       // On the leaf: the marks and tools fold with it.
       this.chartTable.leafFrame.add(this.chartTools.root);
@@ -1867,7 +1859,7 @@ export class App {
         if (channel === 'engineStartStop') return this.requestEngineStartStop();
         // Console modules send bus keys ('ignition.start'); older controls their old names.
         if ((channel === 'start' || channel === 'ignition.start') && value > 0) this.startInGearHint();
-        if (channel === 'dipstick') this.readDipstick();
+        if (channel === 'dipstick' || channel === 'engine.oilCheck') this.readDipstick();
         if (channel === 'cleat') this.cleatHint(value);
         if (value > 0) this.hydraulicsHint(channel);
         const { vesselId, control } = this.routeChannel(channel);
@@ -2010,7 +2002,8 @@ export class App {
     // From outside the wheelhouse the chart, bulb, tools and marks are too
     // small to matter (and mostly behind the aft wall): skip their draw calls.
     const wh = this.testDef.layout.wheelhouse;
-    const l = this.chartTable.root.worldToLocal(this.tableRef.copy(this.focus));
+    const boat = this.vesselViews.get(this.testVesselId)?.root;
+    const l = boat ? boat.worldToLocal(this.tableRef.copy(this.focus)) : this.tableRef.set(0, wh.floorY, 0); // the wheelhouse's frame
     const near = Math.abs(l.x) < wh.halfWidth + 0.3 && l.z > wh.front - 0.3 && l.z < wh.aft + 0.6 && l.y > wh.floorY - 0.5;
     this.chartTable.setDetail(near);
     if (this.chartTools) this.chartTools.root.visible = near;

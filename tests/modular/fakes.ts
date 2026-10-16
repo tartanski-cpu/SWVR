@@ -125,7 +125,13 @@ export function withWriter<T>(key: BusKey, writer: BusWriter, fn: () => T): T {
  * every call (what is drawn isn't under test, where things go is).
  */
 export function fakeCanvas(): void {
-  const ctx = new Proxy({}, { get: () => () => {} });
+  // Every call returns something that answers anything: measureText(...).width is 0,
+  // createImageData(...).data is an array, and so on.
+  const anything: unknown = new Proxy(function () {}, {
+    get: (_t, k) => (k === 'width' || k === 'height' ? 0 : k === 'data' ? [] : typeof k === 'symbol' ? undefined : anything),
+    apply: () => anything,
+  });
+  const ctx = anything;
   (globalThis as { document?: unknown }).document ??= {
     createElement: () => ({ width: 0, height: 0, getContext: () => ctx }),
   };

@@ -79,5 +79,6 @@ export function hullQueries(def: VesselDef): HullQueries {
     bulwarkTop: (z) => plan.deckY(z) + bulwark,
     transom: plan.transom,
     stem: plan.stem,
+    cabinRoof: def.layout.wheelhouse?.roofY ?? null,
   };
 }

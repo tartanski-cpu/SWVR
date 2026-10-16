@@ -8,18 +8,27 @@ import { createModuleLibrary, parseRecipe, validateRecipe, type Recipe } from '.
 import { BATTERY_MASTER } from '../modules/batteryMaster';
 import { BATTERY_SELECTOR } from '../modules/batterySelector';
 import { BREAKER_PANEL } from '../modules/breakerPanel';
+import { CHART_TABLE } from '../modules/chartTable';
+import { CHARTPLOTTER } from '../modules/chartplotter';
 import { CONSOLE } from '../modules/console';
+import { DIPSTICK } from '../modules/dipstick';
+import { DOOR_BUTTON } from '../modules/doorButton';
+import { DUTY_BOARD } from '../modules/dutyBoard';
 import { FM_RADIO } from '../modules/fmRadio';
+import { HATCH_COVER } from '../modules/hatchCover';
 import { JOYSTICK } from '../modules/joystick';
 import { KEY_SWITCH } from '../modules/keySwitch';
+import { OIL_CAN } from '../modules/oilCan';
 import { OVERHEAD_PANEL } from '../modules/overheadPanel';
 import { PUSH_BUTTON } from '../modules/pushButton';
 import { SCREEN } from '../modules/screen';
 import { START_CARD } from '../modules/startCard';
 import { THROTTLE_LEVER } from '../modules/throttleLever';
 import { TOGGLE } from '../modules/toggle';
+import { VHF } from '../modules/vhf';
 import { WARNING_LAMPS } from '../modules/warningLamps';
 import { WHEEL } from '../modules/wheel';
+import { WHITEBOARD } from '../modules/whiteboard';
 import starterWorkboat from './starterWorkboat.json';
 import { WORKBOAT_HULL } from './workboatHull';
 
@@ -28,6 +37,7 @@ export const HULLS = createHullLibrary([WORKBOAT_HULL]);
 export const MODULES = createModuleLibrary([
   CONSOLE, WHEEL, THROTTLE_LEVER, TOGGLE, PUSH_BUTTON, KEY_SWITCH, JOYSTICK, WARNING_LAMPS, START_CARD, SCREEN,
   OVERHEAD_PANEL, FM_RADIO, BREAKER_PANEL, BATTERY_MASTER, BATTERY_SELECTOR,
+  VHF, CHARTPLOTTER, CHART_TABLE, DUTY_BOARD, WHITEBOARD, DOOR_BUTTON, HATCH_COVER, DIPSTICK, OIL_CAN,
 ]);
 
 export const LIBRARY = { hulls: HULLS, modules: MODULES };

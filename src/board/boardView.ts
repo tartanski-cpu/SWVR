@@ -13,7 +13,7 @@ import * as THREE from 'three';
 import type { HandFrame } from '../controls/InteractionSystem';
 import type { WorldState } from '../core/world';
 import type { Handedness } from '../player/xrInput';
-import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
+import { part } from '../render/geometryUtils';
 import { NOTE_COLOURS, type Note } from './board';
 
 const CW = 768;
@@ -53,6 +53,8 @@ export class BoardView {
   private readonly inv = new THREE.Matrix4();
   private readonly lray = new THREE.Ray();
   private readonly hitP = new THREE.Vector3();
+  /** Its frame and pen tray (root axes), to be merged with the boat's other fixed parts. */
+  readonly fixedParts: THREE.BufferGeometry[];
 
   constructor(
     private readonly w: number,
@@ -61,15 +63,10 @@ export class BoardView {
     this.root.name = 'whiteboard';
     // Frame (behind and around the surface) - the board faces +z.
     const t = 0.025;
-    this.root.add(
-      new THREE.Mesh(
-        mergeParts([
-          part(new THREE.BoxGeometry(w + 2 * t, h + 2 * t, 0.02).translate(0, 0, -0.012), 0x8a9096),
-          part(new THREE.BoxGeometry(w * 0.5, 0.025, 0.05).translate(0, -h / 2 - t - 0.012, 0.012), 0x8a9096), // pen tray
-        ]),
-        flatVertexColorMaterial(),
-      ),
-    );
+    this.fixedParts = [
+      part(new THREE.BoxGeometry(w + 2 * t, h + 2 * t, 0.02).translate(0, 0, -0.012), 0x8a9096),
+      part(new THREE.BoxGeometry(w * 0.5, 0.025, 0.05).translate(0, -h / 2 - t - 0.012, 0.012), 0x8a9096), // pen tray
+    ];
     this.ch = Math.round((CW * h) / w);
     this.canvas.width = CW;
     this.canvas.height = this.ch;

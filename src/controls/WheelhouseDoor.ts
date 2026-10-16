@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { VesselState } from '../vessel/vesselState';
-import { Control } from './Control';
+import { Control, type Wiring } from './Control';
 
 /**
  * The wheelhouse's aft door: a sliding panel with a big window in it (so you can see
@@ -81,8 +81,11 @@ export class DoorButton extends Control {
   private doorOpen = true;
   private pressed = false;
 
-  constructor(id: string) {
-    super(id, 'door');
+  private readonly read: (s: VesselState) => number;
+
+  constructor(id: string, wiring: Wiring = {}) {
+    super(id, wiring.channel ?? 'door');
+    this.read = wiring.read ?? ((s) => s.controls.door);
     const plate = this.fixed(new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.012, 0.14), new THREE.MeshLambertMaterial({ color: 0x2a2e33 })));
     plate.position.y = 0.006;
     this.cap = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.026, 0.02, 14), this.material(0x3a9a4a));
@@ -114,7 +117,7 @@ export class DoorButton extends Control {
   }
 
   sync(state: VesselState): void {
-    const open = state.controls.door > 0.5;
+    const open = this.read(state) > 0.5;
     if (this.awaiting(open === this.doorOpen)) return;
     this.doorOpen = open;
     if (!this.hovered) (this.cap.material as THREE.MeshLambertMaterial).emissive.setHex(open ? 0x1a4a1a : 0x000000);

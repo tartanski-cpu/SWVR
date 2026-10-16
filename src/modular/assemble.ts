@@ -10,6 +10,9 @@
  *   - their engraved labels, drawn together in one mesh;
  *   - their screens, on one display atlas: one texture, one draw call;
  *   - their shared moving parts (switch bats, button caps): one instanced mesh per kind.
+ * And it applies the recipe's interlocks that disable controls ("hatch shut: the dipstick
+ * can't be pulled"), each frame from the bus. Interlocks that limit a key act in the
+ * simulation, which joins in M4.
  *
  * The simulation side joins when the first module with a sim half is converted (M4).
  */
@@ -19,12 +22,12 @@ import { DisplayAtlas } from '../controls/instruments';
 import type { EnvironmentState } from '../environment/environmentState';
 import type { VesselDef, WorkboatDef } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
-import { busOf } from './bus';
+import { busOf, type BusReader } from './bus';
 import { hullQueries, type HullLibrary } from './hull';
-import type { ModuleViewInstance } from './module';
+import type { Footprint, ModuleViewInstance } from './module';
 import { PALETTE } from './palette';
 import { SharedParts } from './sharedParts';
-import { flattenMounts, validateRecipe, type ModuleLibrary, type Recipe } from './recipe';
+import { evalCondition, flattenMounts, parseCondition, validateRecipe, type ModuleLibrary, type Recipe } from './recipe';
 import type { Transform } from './socket';
 
 /** A socket transform as a matrix (rotation applied Y, then X, then Z, like the vessel's). */
@@ -74,6 +77,10 @@ export interface AssembledView {
   setLocal(name: string, value: string): void;
   /** Is there a module on this socket path? */
   has(path: string): boolean;
+  /** Where the modules' furniture stands (boat axes), with the boat as she is now (a leaf folded). */
+  footprints(read: BusReader): Footprint[];
+  /** The first module of this id's app-facing part (ModuleViewInstance.api), if any. */
+  api<T extends object>(moduleId: string): T | null;
   /**
    * Each frame: every module's view from the boat's state, and the screens (only when
    * someone could see them: the atlas upload is the costly part on the Quest).
@@ -120,8 +127,10 @@ export function assembleView(recipe: Recipe, def: VesselDef, lib: { hulls: HullL
     const root = new THREE.Group();
     root.name = `module:${m.path}`;
     place.decompose(root.position, root.quaternion, root.scale);
-    for (const c of instance.controls) root.add(c.root);
     for (const o of instance.movingParts) root.add(o);
+    // A control the module has already hung somewhere in its own parts (the VHF's handset
+    // on its clip) stays there.
+    for (const c of instance.controls) if (!c.root.parent) root.add(c.root);
     for (const g of instance.staticParts) staticParts.push(g.applyMatrix4(place));
     for (const l of instance.labels ?? []) {
       v.set(...l.at).applyMatrix4(place);
@@ -134,6 +143,17 @@ export function assembleView(recipe: Recipe, def: VesselDef, lib: { hulls: HullL
   // After every module is placed: the shared parts take their places from their modules.
   const sharedMeshes = shared.finish();
   const paths = new Set(mounted.map((m) => m.path));
+  // The recipe's interlocks that disable controls (checked by validateRecipe already).
+  const interlocks = (recipe.interlocks ?? []).flatMap((il) => {
+    const parsed = parseCondition(il.when);
+    if (!parsed.ok || !il.disable?.length) return [];
+    const ids = new Set(il.disable.map((d) => d.replace(/^control:/, '')));
+    const found = controls.filter((c) => ids.has(c.id));
+    const missing = [...ids].filter((id) => !found.some((c) => c.id === id));
+    if (missing.length) throw new Error(`Recipe '${recipe.id}': an interlock disables ${missing.map((id) => `'${id}'`).join(', ')}, and no module on her has a control by that id`);
+    return [{ cond: parsed.cond, controls: found }];
+  });
+  const disabled = new Set<Control>();
   return {
     modules,
     controls,
@@ -144,10 +164,31 @@ export function assembleView(recipe: Recipe, def: VesselDef, lib: { hulls: HullL
     sharedCounts: shared.counts(),
     setLocal: (name, value) => local.set(name, value),
     has: (path) => paths.has(path),
+    footprints: (read) =>
+      modules.flatMap((m) =>
+        (m.instance.footprints?.(read) ?? []).map((f) => {
+          // The box's corners onto the boat (axis-aligned around them: sockets turn by right angles).
+          m.root.updateMatrix();
+          const xs: number[] = [];
+          const zs: number[] = [];
+          for (const [x, z] of [[f.x0, f.z0], [f.x1, f.z0], [f.x0, f.z1], [f.x1, f.z1]]) {
+            v.set(x, 0, z).applyMatrix4(m.root.matrix);
+            xs.push(v.x);
+            zs.push(v.z);
+          }
+          return { x0: Math.min(...xs), x1: Math.max(...xs), z0: Math.min(...zs), z1: Math.max(...zs), top: m.root.position.y + f.top };
+        }),
+      ),
+    api: <T extends object>(id: string) => (modules.find((m) => m.id === id)?.instance.api as T | undefined) ?? null,
     update(state, dt, s) {
       if (modules.length) {
         const read = busOf(state);
         for (const m of modules) m.instance.update(read, undefined, dt);
+        if (interlocks.length) {
+          disabled.clear();
+          for (const il of interlocks) if (evalCondition(il.cond, read)) for (const c of il.controls) disabled.add(c);
+          for (const il of interlocks) for (const c of il.controls) c.enabled = !disabled.has(c);
+        }
       }
       shared.update();
       if (s?.inView) atlas.update(state, s.def, dt, s.env);

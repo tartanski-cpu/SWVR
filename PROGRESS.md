@@ -1903,6 +1903,57 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   - **Desktop:** the same by clicking.
   - **F3:** the "shared parts" line, and 32 modules.
 
+### M3c: the rest of the wheelhouse as modules, and the first recipe interlock (done, on /next/ for the owner to test; looks the same, fewer draw calls). M3 is complete.
+
+- **What changed:** the VHF and its handset, the chartplotter, the chart table, the duty board, the whiteboard, the door buttons, the engine hatch cover, the dipstick and the oil can now come from the recipe (`starterWorkboat.json`, version 4), on ten new hull sockets. The whole wheelhouse fit-out is now modules; what's left in the Bridge is the hull's (the door, the windows' rain, the cleats, fenders, swim ladder), the deck machinery (M5) and the engine's look (M4).
+- **New modules** (`src/modules/`):
+  - `radio.vhf`, `nav.chartplotter`: hung from the roof; their brackets reach the roof whatever the socket's height (a new hull query, `cabinRoof`). Their cases and brackets are now merged with the bridge's fixed parts: two draw calls fewer each.
+  - `furniture.chart-table`: the drop-leaf table, its lamp and switch, its leaf knob. It works `chartTable.leafOpen` and `chartTable.lamp`. It declares its **footprint** (the table, or a strip along the wall folded). The walk area still reads the vessel config's table until M6; a test keeps the two the same. Its lamp switch's bat is a shared part, and its plate is merged.
+  - `furniture.duty-board`, `furniture.whiteboard`: their frames are merged with the bridge's fixed parts.
+  - `control.door-button` (twice, inside and out): throws `door.aft.open`. The door itself is the hull's.
+  - `fitting.hatch-cover`: a hatch cover sized by its socket (the hull's opening: the socket now carries its size), throwing the key the recipe binds (`hatch.engine.open`). It engraves ENGINE on the floor.
+  - `tool.dipstick`, `tool.oil-can`: throw two new press keys, `engine.oilCheck` and `engine.oilTopUp`. The old names 'dipstick' and 'oilTopUp' now run the same rules.
+- **The first recipe interlock** (in the recipe, not in any module): `"hatch.engine.open == false"` disables `control:dipstick` and `control:oilCan`. The assembler applies it each frame from the bus. A recipe whose interlock names a control she hasn't got is refused, in words. (Interlocks that limit a key act in the simulation, from M4.)
+- **What the app feeds a module:** the VHF's calls, the chartplotter's chart, the duty board's tasks, the whiteboard's notes and the chart table's pencil are the world's, not the boat's. Such a module hands the app an `api` (`ModuleViewInstance.api`), which the app finds by module id (`AssembledView.api`) and feeds as before. The module never reaches out for it.
+- **Kept visible from the deck:** the VHF and the chartplotter still show through the windows from out on deck, as they always did (their screens are lit at night). With their brackets merged away they'd otherwise have counted as small parts and hidden.
+- **Unchanged on purpose:** the engine under the hatch and the oil can's shelf stay with the Bridge until the engine is a module (M4). The oil can's control id is now `oilCan` (was `oilTopUp`; nothing else used it).
+- **Config:** `CONFIG.modules.vhf` and `chartplotter` (tilt), `chartTable` (size, holder, lamp, switch, from its hinge corner), `dutyBoard` and `whiteboard` (face size), `oilCan` (scale). The vessel config keeps only where they go: `bridge.radio` / `bridge.chart` (position, yaw), `whiteboard.position`, `dutyBoard.position`; `chartTable` stays whole (the walk area reads it until M6).
+- **Tests (9 new, 387 in all, all pass):**
+  - the recipe mounts all ten kinds; the app finds the five it feeds;
+  - the VHF and chartplotter hang where they did, turned the same, their brackets up to the roof;
+  - the chart table's chart, pen holder, lamp switch and leaf knob stand exactly where they did (compared with the old table built the old way);
+  - its footprint is the walk area's table, open and folded;
+  - the boards hang where they did;
+  - the door buttons, hatch cover, dipstick and oil can stand where they did, and the floor's ENGINE engraving;
+  - the interlock disables the dipstick and can with the hatch shut, not with it open;
+  - a recipe whose interlock names a missing control is refused;
+  - the wheelhouse intents by bus key and by old name leave the boat byte-for-byte the same.
+  - The golden runs pass unchanged.
+- **Measured** (day / night lit, against the M3b build side by side; and against v1.0, before M1):
+
+  | View | v1.0 | M3b | M3c |
+  |---|---|---|---|
+  | Helm | 67 / 66 | 60 / 59 | **56 / 57** |
+  | Chart table | 46 / 47 | 47 / 48 | **44 / 45** |
+  | Aft deck, looking forward | 120 / 121 | 105 / 106 | **97 / 98** |
+  | Aft deck, looking aft | 33 / 32 | 33 / 32 | 33 / 32 |
+
+  Boat parts drawn aboard: 144 (v1.0) → 122 (M3b) → 114.
+- **Checked in the browser:**
+  - close-ups of the VHF, the chartplotter, the chart table, the aft wall (whiteboard, door button), the duty board and the open hatch with the engine, dipstick and can, against the M3b build: identical (only the scenery outside the windows differs, from drift);
+  - pressing each control: with the hatch shut the dipstick and can are disabled; open, the dipstick reads ("oil between MIN and MAX") and resets the oil-check clock, and the can tops the sump up; both door buttons work; the chart leaf folds and unfolds; the chart lamp lights; no page errors;
+  - the app found the whiteboard, the duty board, the chart table with its tools, the VHF and the chartplotter.
+- **Owner test** (at /SWVR/next/, menu header NEXT). Everything should look and work as before:
+  - **VR:**
+    - answer a call on the VHF handset;
+    - draw on the chart with the pencil, measure with the dividers, fold the leaf and walk past it, unfold it;
+    - the chart lamp;
+    - open the engine hatch: before it's open, the dipstick and oil can don't respond; open, pull the dipstick, top up from the can;
+    - post a note on the whiteboard; read the duty board;
+    - the door buttons inside and out.
+  - **Desktop:** the same by clicking (and the chart zooms in as you look down at it).
+  - **F3:** 43 modules.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

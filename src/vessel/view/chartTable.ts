@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Control } from '../../controls/Control';
+import { Control, type Wiring } from '../../controls/Control';
 import { Toggle } from '../../controls/Toggle';
 import type { VesselState } from '../vesselState';
 import { drawPaperChart, type PaperChart } from '../../nav/paperChart';
@@ -48,7 +48,11 @@ export class ChartTableView {
   private readonly chartCenter: THREE.Vector3;
   private lit = -1;
 
-  constructor(cfg: ChartTableConfig, floorY: number) {
+  /**
+   * @param keys what its lamp switch and leaf knob send and read (the chart-table module's
+   *             bus keys; by default the old channels)
+   */
+  constructor(cfg: ChartTableConfig, floorY: number, keys: { lamp?: Wiring; leaf?: Wiring } = {}) {
     this.root.name = 'chartTable';
     const T = floorY + cfg.height;
     this.top = T;
@@ -126,11 +130,11 @@ export class ChartTableView {
     pivot.position.set(x0, T - 0.02, 0);
     this.leafFrame.position.set(-x0, -(T - 0.02), 0);
     pivot.add(this.leafFrame);
-    this.leafHandle = new ChartLeafHandle(pivot, legPivot);
+    this.leafHandle = new ChartLeafHandle(pivot, legPivot, keys.leaf);
     this.leafHandle.root.position.set(x1, T - 0.02, (z0 + z1) / 2);
     this.leafFrame.add(leaf, chart, legPivot, this.leafHandle.root);
 
-    this.lampSwitch = new Toggle('chartLamp', 'chartLamp', 'Chart table lamp', (s) => s.controls.chartLamp);
+    this.lampSwitch = new Toggle('chartLamp', keys.lamp?.channel ?? 'chartLamp', 'Chart table lamp', keys.lamp?.read ?? ((s) => s.controls.chartLamp));
     // On the batten, aft end, its lever moving up and down the wall.
     this.lampSwitch.root.position.set(x0 + 0.03, T - 0.065, cfg.lampSwitch[1]);
     this.lampSwitch.root.rotation.z = -Math.PI / 2; // its "up" out of the wall (+x)
@@ -150,7 +154,7 @@ export class ChartTableView {
     for (const o of this.detail) o.visible = on;
   }
 
-  /** The chart's rectangle on the table (vessel axes) and its surface height. */
+  /** The chart's rectangle on the table (the table's own frame: its root) and its surface height. */
   get chartRect(): { x0: number; x1: number; z0: number; z1: number; y: number } {
     const b = this.chart.bounds;
     const hn = ((b.z1 - b.z0) * this.scale) / 2;
@@ -159,7 +163,7 @@ export class ChartTableView {
     return { x0: c.x - hn, x1: c.x + hn, z0: c.z - he, z1: c.z + he, y: c.y };
   }
 
-  /** Table (vessel axes) point -> world metres on the chart. */
+  /** Table point (its own frame) -> world metres on the chart. */
   tableToChart(x: number, z: number): { x: number; z: number } {
     const b = this.chart.bounds;
     const n = this.chartCenter.x - x; // outboard = north
@@ -167,7 +171,7 @@ export class ChartTableView {
     return { x: (b.x0 + b.x1) / 2 + e / this.scale, z: (b.z0 + b.z1) / 2 - n / this.scale };
   }
 
-  /** World metres on the chart -> table (vessel axes) point on the chart's surface. */
+  /** World metres on the chart -> table point (its own frame) on the chart's surface. */
   chartToTable(x: number, z: number, out: THREE.Vector3): THREE.Vector3 {
     const b = this.chart.bounds;
     const e = (x - (b.x0 + b.x1) / 2) * this.scale; // east -> -z
@@ -217,11 +221,15 @@ export class ChartLeafHandle extends Control {
   private target = 1;
   private pressed = false;
 
+  private readonly read: (s: VesselState) => number;
+
   constructor(
     private readonly pivot: THREE.Object3D,
     private readonly legPivot: THREE.Object3D,
+    wiring: Wiring = {},
   ) {
-    super('chartLeaf', 'chartLeaf');
+    super('chartLeaf', wiring.channel ?? 'chartLeaf');
+    this.read = wiring.read ?? ((s) => s.controls.chartLeaf ?? 1);
     const knob = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.018, 0.03, 10).rotateZ(Math.PI / 2).translate(0.015, 0, 0), this.material(0xb8a070));
     this.root.add(knob);
     this.hitObjects.push(knob);
@@ -249,7 +257,7 @@ export class ChartLeafHandle extends Control {
   }
 
   sync(state: VesselState): void {
-    const open = (state.controls.chartLeaf ?? 1) > 0.5 ? 1 : 0;
+    const open = this.read(state) > 0.5 ? 1 : 0;
     if (this.awaiting(open === this.target)) return;
     this.target = open;
   }

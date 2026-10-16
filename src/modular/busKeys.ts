@@ -72,6 +72,25 @@ function state(type: BusKeySpec['type'], get: (s: VesselState) => BusValue | und
   };
 }
 
+/** A press: setting it true does `act` once; it always reads false (see BusKeySpec.press). */
+function press(doc: string, aliases: string[], act: (s: VesselState) => void): BusKeySpec {
+  return {
+    type: 'boolean',
+    kind: 'intent',
+    writer: 'legacy',
+    default: false,
+    doc,
+    press: true,
+    aliases,
+    bind: {
+      get: () => false,
+      set: (s, v) => {
+        if (v) act(s);
+      },
+    },
+  };
+}
+
 /** The breaker switches on the panel by the helm. */
 function breakerKeys(): Record<`breaker.${BreakerName}`, BusKeySpec> {
   const out = {} as Record<`breaker.${BreakerName}`, BusKeySpec>;
@@ -190,23 +209,10 @@ export const BUS_KEYS = {
   // ── Radios ──
   'fm.on': control('fmOn', 'FM radio power.', { aliases: ['fmOn'] }),
   'fm.station': setting('fmStation', [0, CONFIG.fmRadio.stations.length - 1], 'index', 'FM station, an index into CONFIG.fmRadio.stations.', { integer: true, aliases: ['fmStation'] }),
-  'fm.tune': {
-    type: 'boolean',
-    kind: 'intent',
-    writer: 'legacy',
-    default: false,
-    doc: 'TUNE pressed: on to the next station, switching the set on if it was off.',
-    press: true,
-    aliases: ['fmTune'],
-    bind: {
-      get: () => false,
-      set: (s, v) => {
-        if (!v) return;
-        if (s.controls.fmOn) s.controls.fmStation = (s.controls.fmStation + 1) % CONFIG.fmRadio.stations.length;
-        s.controls.fmOn = 1;
-      },
-    },
-  },
+  'fm.tune': press('TUNE pressed: on to the next station, switching the set on if it was off.', ['fmTune'], (s) => {
+    if (s.controls.fmOn) s.controls.fmStation = (s.controls.fmStation + 1) % CONFIG.fmRadio.stations.length;
+    s.controls.fmOn = 1;
+  }),
 
   // ── Electrics (12 V) ──
   'electrical.master': {
@@ -262,6 +268,12 @@ export const BUS_KEYS = {
   'engine.coolingFault': state('boolean', (s) => s.engine.coolingFault, 'Raw-water pump impeller failed (debug fault).'),
   'engine.oilLevel': state('number', (s) => s.engine.oil, 'Lube oil in the sump.', { unit: '0..1', range: [0, 1] }),
   'engine.sinceOilCheckS': state('number', (s) => s.engine.sinceCheck, 'Running time since the dipstick was last pulled.', { unit: 's' }),
+  'engine.oilCheck': press('The dipstick pulled: the oil is checked, and the clock to the next check starts again.', ['dipstick'], (s) => {
+    if (s.engine.oil !== undefined) s.engine.sinceCheck = 0;
+  }),
+  'engine.oilTopUp': press('The oil can used: the sump topped up.', ['oilTopUp'], (s) => {
+    if (s.engine.oil !== undefined) s.engine.oil = 1;
+  }),
   'engine.wear': state('number', (s) => s.engine.wear, 'Engine wear from running hot or dry; costs power.', { unit: '0..1', range: [0, 1], persist: true }),
   'fuel.litres': state('number', (s) => s.engine.fuelL, 'Fuel in the tank.', { unit: 'L' }),
   'fuel.flowLph': state('number', (s) => s.engine.fuelFlowLph, 'Fuel flow now.', { unit: 'L/h' }),

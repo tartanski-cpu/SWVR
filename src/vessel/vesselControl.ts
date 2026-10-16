@@ -125,11 +125,9 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
       s.controls.door = intent.value > 0.5 ? 1 : 0;
       break;
     case 'dipstick':
-      // Oil checked: the clock to the next check starts again.
-      if (s.engine.oil !== undefined) s.engine.sinceCheck = 0;
-      break;
     case 'oilTopUp':
-      if (s.engine.oil !== undefined) s.engine.oil = 1;
+      // Oil checked / topped up (the rules are the 'engine.oilCheck' and 'engine.oilTopUp' keys').
+      applyBusIntent(s, intent.control, 1, intent.playerId);
       break;
     case 'debugOil':
       // Debug: oil level (0..1) and an oil check due now.

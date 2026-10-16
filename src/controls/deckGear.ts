@@ -17,7 +17,7 @@
 import * as THREE from 'three';
 import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
 import type { VesselState } from '../vessel/vesselState';
-import { Control } from './Control';
+import { Control, type Wiring } from './Control';
 
 export class FenderBasket extends Control {
   readonly kind = 'press' as const;
@@ -109,8 +109,11 @@ export class EngineHatch extends Control {
   private target = 0;
   private pressed = false;
 
-  constructor(width: number, length: number) {
-    super('engineHatch', 'engineHatch');
+  private readonly read: (s: VesselState) => number;
+
+  constructor(width: number, length: number, id = 'engineHatch', wiring: Wiring = {}) {
+    super(id, wiring.channel ?? 'engineHatch');
+    this.read = wiring.read ?? ((s) => s.controls.engineHatch ?? 0);
     // The panel: chequer-plate grey, its top flush with the floor, with a flush lifting ring
     // near the inboard edge (yellow, so you can find it).
     const plate = new THREE.Mesh(new THREE.BoxGeometry(width, 0.035, length).translate(-width / 2, -0.0175, 0), this.material(0x8a9096));
@@ -148,7 +151,7 @@ export class EngineHatch extends Control {
   }
 
   sync(state: VesselState): void {
-    const open = (state.controls.engineHatch ?? 0) > 0.5 ? 1 : 0;
+    const open = this.read(state) > 0.5 ? 1 : 0;
     if (this.awaiting(open === this.target)) return;
     this.target = open;
   }
@@ -168,8 +171,8 @@ export class Dipstick extends Control {
   private readonly stick = new THREE.Group();
   private pulled = 0;
 
-  constructor() {
-    super('dipstick', 'dipstick');
+  constructor(id = 'dipstick', wiring: Wiring = {}) {
+    super(id, wiring.channel ?? 'dipstick');
     const tube = this.fixed(new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.12).translate(0, 0.06, 0), new THREE.MeshLambertMaterial({ color: 0x2a2e32 })));
     const ring = new THREE.Mesh(new THREE.TorusGeometry(0.03, 0.008, 6, 12), this.material(0xe8c020));
     ring.position.y = 0.16;
@@ -202,8 +205,8 @@ export class OilCan extends Control {
   readonly kind = 'press' as const;
   readonly label = 'Oil can: top up the engine oil';
 
-  constructor() {
-    super('oilTopUp', 'oilTopUp');
+  constructor(id = 'oilTopUp', wiring: Wiring = {}) {
+    super(id, wiring.channel ?? 'oilTopUp');
     const can = new THREE.Mesh(
       mergeParts([part(new THREE.BoxGeometry(0.16, 0.24, 0.1).translate(0, 0.12, 0), 0xc0281c), part(new THREE.CylinderGeometry(0.02, 0.02, 0.05).translate(0.04, 0.265, 0), 0xe8c020), part(new THREE.BoxGeometry(0.03, 0.06, 0.08).translate(-0.05, 0.27, 0), 0x2a2a2a)]),
       flatVertexColorMaterial(),

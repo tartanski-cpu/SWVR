@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { WorldState } from '../core/world';
 import type { Duty } from './duties';
 import { contractText, money } from '../career/career';
+import { part } from '../render/geometryUtils';
 
 const CW = 1024;
 
@@ -19,8 +20,11 @@ export class DutyBoardView {
   private readonly texture: THREE.CanvasTexture;
   private readonly ch: number;
   private signature = '';
+  /** Its wooden frame (root axes), to be merged with the boat's other fixed parts. */
+  readonly fixedParts: THREE.BufferGeometry[];
 
-  constructor(cfg: { position: [number, number, number]; width: number; height: number }) {
+  /** Built at its root's origin, facing +z (the duty-board module hangs it on a wall). */
+  constructor(cfg: { width: number; height: number }) {
     this.ch = Math.round((CW * cfg.height) / cfg.width);
     this.canvas.width = CW;
     this.canvas.height = this.ch;
@@ -28,12 +32,9 @@ export class DutyBoardView {
     this.texture = new THREE.CanvasTexture(this.canvas);
     this.texture.colorSpace = THREE.SRGBColorSpace;
     this.texture.anisotropy = 4;
-    this.root.position.fromArray(cfg.position);
-    this.root.rotation.y = -Math.PI / 2; // on the starboard wall, facing inboard
-    const frame = new THREE.Mesh(new THREE.BoxGeometry(cfg.width + 0.04, cfg.height + 0.04, 0.02), new THREE.MeshLambertMaterial({ color: 0x5a3c22 }));
-    frame.position.z = -0.012;
+    this.fixedParts = [part(new THREE.BoxGeometry(cfg.width + 0.04, cfg.height + 0.04, 0.02).translate(0, 0, -0.012), 0x5a3c22)];
     const face = new THREE.Mesh(new THREE.PlaneGeometry(cfg.width, cfg.height), new THREE.MeshBasicMaterial({ map: this.texture }));
-    this.root.add(frame, face);
+    this.root.add(face);
     this.root.name = 'dutyBoard';
     this.draw([], null);
   }

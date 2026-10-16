@@ -29,6 +29,7 @@ const OLD_LEVER: [number, number, number] = [0.45, 2.16, -1.15];
 const withLever = (lever: Partial<Recipe['modules'][number]>): Recipe => ({
   ...(starter as Recipe),
   modules: [{ socket: 'helm', module: 'console.standard', modules: [{ socket: 'throttle', module: 'control.throttle-lever', ...lever }] }],
+  interlocks: [],
 });
 const leverOf = (a: ReturnType<typeof build>) => a.controls.find((c) => c.id === 'lever') as Lever;
 

@@ -188,6 +188,8 @@ export interface HullQueries {
   /** z of the transom and of the stem. */
   transom: number;
   stem: number;
+  /** Height of the wheelhouse roof's underside (null: no wheelhouse): sets hung from it reach it. */
+  cabinRoof: number | null;
 }
 
 /**
@@ -214,6 +216,13 @@ export interface ModuleViewInstance<State> {
   footprints?(read: BusReader): Footprint[];
   /** Each frame. `s` is the module's sim state as last received (undefined: none). */
   update(read: BusReader, s: State | undefined, dt: number): void;
+  /**
+   * What the app may hand this module beyond the bus: what isn't the boat's own state
+   * (the VHF's rescue calls, the duty board's game tasks, the crew's whiteboard notes, the
+   * chart table's pencil and dividers). The module never reaches out for it; the app finds
+   * the module by its id (AssembledView.api) and feeds it.
+   */
+  api?: object;
   dispose?(): void;
 }
 
@@ -237,7 +246,7 @@ export interface EngravedLabel {
   underside?: boolean;
 }
 
-/** A box you can't walk or stand cargo in (vessel axes, m). */
+/** A box you can't walk or stand cargo in (m; from a module in its socket's axes, from the assembler in the boat's). */
 export interface Footprint {
   x0: number;
   x1: number;

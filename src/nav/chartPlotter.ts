@@ -1,7 +1,7 @@
 import { isPowered } from '../vessel/electrics';
 import * as THREE from 'three';
 import type { WorldState } from '../core/world';
-import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
+import { part } from '../render/geometryUtils';
 import { cargoPaused, portById } from '../rescue/rescue';
 import { ISLANDS, PORTS } from '../world/archipelago';
 import { groundHeight } from '../world/terrain';
@@ -40,27 +40,26 @@ export class ChartPlotter {
   showTargets = false;
   /** The crew's pencil marks, drawn faintly over the map (null: not shown). */
   marks: ChartMarks | null = null;
+  /** Its case and its brackets to the roof (root axes), to be merged with the boat's other fixed parts. */
+  readonly fixedParts: THREE.BufferGeometry[];
 
-  constructor(cfg: { position: [number, number, number]; tiltDeg: number; yawDeg?: number }, roofY: number) {
+  /**
+   * Built at its root's origin (the chartplotter module places it, turned toward the helm).
+   * @param tiltDeg how far its screen is tilted down toward the helmsman
+   * @param drop    from its root up to the roof (its brackets' length, m)
+   */
+  constructor(tiltDeg: number, drop: number) {
     this.root.name = 'chartPlotter';
-    this.root.position.fromArray(cfg.position);
-    this.root.rotation.y = ((cfg.yawDeg ?? 0) * Math.PI) / 180;
     const set = new THREE.Group();
-    set.rotation.x = (cfg.tiltDeg * Math.PI) / 180;
+    set.rotation.x = (tiltDeg * Math.PI) / 180;
     this.root.add(set);
     const sw = 0.36;
     const sh = 0.27;
-    const drop = roofY - cfg.position[1];
-    const body = mergeParts([
-      part(new THREE.BoxGeometry(sw + 0.04, sh + 0.04, 0.05).translate(0, 0, -0.025), 0x24292d),
-    ]);
-    set.add(new THREE.Mesh(body, flatVertexColorMaterial()));
-    this.root.add(
-      new THREE.Mesh(
-        mergeParts([-0.12, 0.12].map((x) => part(new THREE.BoxGeometry(0.02, drop, 0.04).translate(x, drop / 2, -0.03), 0x3a3f44))),
-        flatVertexColorMaterial(),
-      ),
-    );
+    const tilt = new THREE.Matrix4().makeRotationX(set.rotation.x);
+    this.fixedParts = [
+      part(new THREE.BoxGeometry(sw + 0.04, sh + 0.04, 0.05).translate(0, 0, -0.025), 0x24292d).applyMatrix4(tilt),
+      ...[-0.12, 0.12].map((x) => part(new THREE.BoxGeometry(0.02, drop, 0.04).translate(x, drop / 2, -0.03), 0x3a3f44)),
+    ];
     this.canvas.width = W;
     this.canvas.height = H;
     this.g = this.canvas.getContext('2d')!;

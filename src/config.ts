@@ -487,14 +487,14 @@ export const CONFIG = {
         console: { position: [0, 2.15, -1.32] as [number, number, number] },
         navDisplay: { position: [0, 3.2, -1.32] as [number, number, number] },
         /**
-         * VHF radio hung close under the wheelhouse roof, out to port above the window head
-         * (3.15 m) so it doesn't block the view (owner feedback), tilted down and turned
-         * toward the helm (yaw: + turns its face toward starboard); its handset hangs on a
-         * clip on its starboard side.
+         * Where the VHF hangs (the hull's 'vhf' socket): close under the wheelhouse roof, out
+         * to port above the window head (3.15 m) so it doesn't block the view (owner
+         * feedback), turned toward the helm (yaw: + turns its face toward starboard). The set
+         * is a module: CONFIG.modules.vhf.
          */
-        radio: { position: [-1.0, 3.2, -1.45] as [number, number, number], tiltDeg: 35, yawDeg: 35 },
-        /** Chartplotter, the same out to starboard (rescue/cargo chart). */
-        chart: { position: [0.98, 3.17, -1.45] as [number, number, number], tiltDeg: 35, yawDeg: -35 },
+        radio: { position: [-1.0, 3.2, -1.45] as [number, number, number], yawDeg: 35 },
+        /** Where the chartplotter hangs ('chartplotter' socket): the same out to starboard. */
+        chart: { position: [0.98, 3.17, -1.45] as [number, number, number], yawDeg: -35 },
         /** SKIFF CRANE: launch / recover the skiff from the helm (DECK group; she's in view ahead). */
         craneButton: [0.65, 2.16, -1.52] as [number, number, number],
       },
@@ -754,10 +754,11 @@ export const CONFIG = {
         position: [0, 3.27, -1.05] as [number, number, number],
       },
       /**
-       * Crew whiteboard (board/boardView.ts): inside the wheelhouse on the aft wall, port of
-       * the door, facing forward (vessel axes: centre, width, height, m).
+       * Where the crew whiteboard hangs (the hull's 'whiteboard' socket): inside the
+       * wheelhouse on the aft wall, port of the door, facing forward (its centre). The board
+       * is a module: CONFIG.modules.whiteboard.
        */
-      whiteboard: { position: [-0.9, 2.5, 1.4] as [number, number, number], width: 0.85, height: 0.62 },
+      whiteboard: { position: [-0.9, 2.5, 1.4] as [number, number, number] },
       /**
        * Chart table along the port wall, aft half (vessel axes): its footprint (x0..x1
        * across, z0..z1 fore-aft) and top height above the wheelhouse floor. You stand on
@@ -784,11 +785,11 @@ export const CONFIG = {
         lampSwitch: [-1.34, 0.99] as [number, number],
       },
       /**
-       * The duty board (game tasks and the shipping forecast; duties/dutyBoardView.ts): on
-       * the starboard wall in the aft half of the side window (behind the helm, where it
-       * blocks the least of the view), facing inboard.
+       * Where the duty board hangs (the hull's 'dutyBoard' socket): on the starboard wall in
+       * the aft half of the side window (behind the helm, where it blocks the least of the
+       * view), facing inboard. The board is a module: CONFIG.modules.dutyBoard.
        */
-      dutyBoard: { position: [1.355, 2.5, 0.78] as [number, number, number], width: 0.72, height: 0.54 },
+      dutyBoard: { position: [1.355, 2.5, 0.78] as [number, number, number] },
       /**
        * Deck lights. Floods: a lamp on the wheelhouse roof edge aimed at a point on deck,
        * each ONE real SpotLight (cd, m, half-angle, penumbra), hidden when off (no per-pixel
@@ -2121,6 +2122,36 @@ export const CONFIG = {
         { name: 'hydraulics', engrave: 'DECK HYD' },
       ],
     },
+
+    /** radio.vhf (M3c): the VHF set hung from the roof; how far its face tilts down toward you. */
+    vhf: { tiltDeg: 35 },
+
+    /** nav.chartplotter (M3c): the chartplotter hung from the roof; its screen's tilt. */
+    chartplotter: { tiltDeg: 35 },
+
+    /**
+     * furniture.chart-table (M3c): the drop-leaf chart table on a wall. From its socket (the
+     * leaf's hinge corner on the floor, at the wall: x out from the wall, z aft): its size
+     * (m), the pen holder [x, z], the lamp (its wall bracket [x, z], height above the table,
+     * its head over the chart [x, z]) and the lamp switch on the batten [x, z].
+     */
+    chartTable: {
+      width: 0.75,
+      depth: 0.95,
+      height: 0.95,
+      holder: [0.07, 0.87] as [number, number],
+      lamp: { base: [0, 0.42] as [number, number], height: 0.5, head: [0.39, 0.42] as [number, number] },
+      lampSwitch: [0.03, 0.89] as [number, number],
+    },
+
+    /** furniture.duty-board (M3c): the duty board's face (m). */
+    dutyBoard: { width: 0.72, height: 0.54 },
+
+    /** furniture.whiteboard (M3c): the crew whiteboard's face (m). */
+    whiteboard: { width: 0.85, height: 0.62 },
+
+    /** tool.oil-can (M3c): the can drawn at this fraction of its model's size. */
+    oilCan: { scale: 0.85 },
   },
 
   start: {

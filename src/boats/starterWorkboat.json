@@ -1,6 +1,6 @@
 {
   "id": "vessel.starter-workboat",
-  "version": 3,
+  "version": 4,
   "name": "Workboat",
   "hull": "hull.workboat-12m",
   "modules": [
@@ -45,6 +45,19 @@
     },
     { "socket": "breakerPanel", "module": "panel.breakers" },
     { "socket": "batteryMaster", "module": "switch.battery-master" },
-    { "socket": "batterySelector", "module": "switch.battery-selector" }
+    { "socket": "batterySelector", "module": "switch.battery-selector" },
+    { "socket": "vhf", "module": "radio.vhf" },
+    { "socket": "chartplotter", "module": "nav.chartplotter" },
+    { "socket": "chartTable", "module": "furniture.chart-table" },
+    { "socket": "dutyBoard", "module": "furniture.duty-board" },
+    { "socket": "whiteboard", "module": "furniture.whiteboard" },
+    { "socket": "doorIn", "module": "control.door-button" },
+    { "socket": "doorOut", "module": "control.door-button" },
+    { "socket": "engineHatch", "module": "fitting.hatch-cover", "config": { "engrave": "ENGINE" }, "bind": { "open": "hatch.engine.open" } },
+    { "socket": "dipstick", "module": "tool.dipstick" },
+    { "socket": "oilCan", "module": "tool.oil-can" }
+  ],
+  "interlocks": [
+    { "when": "hatch.engine.open == false", "disable": ["control:dipstick", "control:oilCan"], "message": "Open the engine hatch first." }
   ]
 }

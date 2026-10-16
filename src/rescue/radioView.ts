@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { RescueState } from './rescue';
 import { Handset } from '../controls/Handset';
-import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
+import { part } from '../render/geometryUtils';
 
 const W = 512;
 const H = 256;
@@ -18,6 +18,8 @@ const H = 256;
 export class RadioSet {
   readonly root = new THREE.Group();
   readonly handset: Handset;
+  /** The set's case, bezel, grille, knobs and its brackets to the roof (root axes), to be merged with the boat's other fixed parts. */
+  readonly fixedParts: THREE.BufferGeometry[];
   private readonly canvas = document.createElement('canvas');
   private readonly g: CanvasRenderingContext2D;
   private readonly texture: THREE.CanvasTexture;
@@ -25,21 +27,23 @@ export class RadioSet {
   private signature = '';
   private flash = 0;
 
-  constructor(cfg: { position: [number, number, number]; tiltDeg: number; yawDeg?: number }, roofY: number) {
+  /**
+   * Built at its root's origin (the VHF module places it, turned toward the helm).
+   * @param tiltDeg how far its face is tilted down toward the helmsman
+   * @param drop    from its root up to the roof (its brackets' length, m)
+   */
+  constructor(tiltDeg: number, drop: number) {
     this.root.name = 'radio';
-    this.root.position.fromArray(cfg.position);
-    this.root.rotation.y = ((cfg.yawDeg ?? 0) * Math.PI) / 180;
     // The set itself, tilted so its face (+z, aft) looks down toward the helmsman.
     const set = new THREE.Group();
-    set.rotation.x = (cfg.tiltDeg * Math.PI) / 180;
+    set.rotation.x = (tiltDeg * Math.PI) / 180;
     this.root.add(set);
 
     const w = 0.34;
     const h = 0.13;
     const d = 0.2;
     // Brackets up to the roof (in the root frame, untilted).
-    const bracket = (x: number) =>
-      part(new THREE.BoxGeometry(0.02, roofY - cfg.position[1], 0.04).translate(x, (roofY - cfg.position[1]) / 2, -0.02), 0x3a3f44);
+    const bracket = (x: number) => part(new THREE.BoxGeometry(0.02, drop, 0.04).translate(x, drop / 2, -0.02), 0x3a3f44);
     const bodyParts = [
       part(new THREE.BoxGeometry(w, h, d), 0x2b3034),
       // Front bezel, speaker grille slats (left of the screen) and two knobs.
@@ -48,9 +52,8 @@ export class RadioSet {
       part(new THREE.CylinderGeometry(0.012, 0.012, 0.02, 10).rotateX(Math.PI / 2).translate(0.135, 0.03, d / 2 + 0.012), 0x8a8f94),
       part(new THREE.CylinderGeometry(0.012, 0.012, 0.02, 10).rotateX(Math.PI / 2).translate(0.135, -0.025, d / 2 + 0.012), 0x8a8f94),
     ];
-    const body = new THREE.Mesh(mergeParts(bodyParts), flatVertexColorMaterial());
-    set.add(body);
-    this.root.add(new THREE.Mesh(mergeParts([bracket(-0.12), bracket(0.12)]), flatVertexColorMaterial()));
+    const tilt = new THREE.Matrix4().makeRotationX(set.rotation.x);
+    this.fixedParts = [...bodyParts.map((g) => g.applyMatrix4(tilt)), bracket(-0.12), bracket(0.12)];
 
     this.canvas.width = W;
     this.canvas.height = H;
