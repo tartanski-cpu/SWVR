@@ -498,7 +498,7 @@ export const CONFIG = {
          *                 joystick on the two port pedestals (left hand aims, right hand
          *                 keeps the throttle)
          *   horn          on its own, just left of the wheel
-         *   DECK          dock, anchor, trawl: behind the throttle, used with it in hand
+         *   DECK          anchor, trawl: behind the throttle, used with it in hand
          *   ENGINE        HEAT (glow plugs) and START (hold), the key, the warning lamps
          *                 (oil, charge, glow, neutral, bilge) ahead of them and the laminated
          *                 start-up card at the starboard end
@@ -537,8 +537,6 @@ export const CONFIG = {
         radio: { position: [-1.0, 3.2, -1.45] as [number, number, number], tiltDeg: 35, yawDeg: 35 },
         /** Chartplotter, the same out to starboard (rescue/cargo chart). */
         chart: { position: [0.98, 3.17, -1.45] as [number, number, number], tiltDeg: 35, yawDeg: -35 },
-        /** DOCK / cast off (DECK group). */
-        dockButton: { position: [0.26, 2.16, -1.52] as [number, number, number] },
         /** SKIFF CRANE: launch / recover the skiff from the helm (DECK group; she's in view ahead). */
         craneButton: [0.65, 2.16, -1.52] as [number, number, number],
         /** Instrument dash across the front of the console: displays on its aft face. */
@@ -945,11 +943,15 @@ export const CONFIG = {
         stabilised: true,
       },
       /**
-       * Docking (the DOCK button) and the mooring lines that hold her: bow and stern line
-       * points (vessel axes, at the deck edge on the berth side are found automatically).
+       * Mooring cleats (owner request: they replace the DOCK button): a horn cleat on the
+       * bulwark top forward and aft on each side. Click one alongside a berth and its line
+       * goes to that berth's bollard; click it again to let go. `cleatFwdZ` / `cleatAftZ`:
+       * where they stand (vessel z, m; the bow line's and stern line's points on the boat).
+       * `lineY`: the height the lines pull at (m, vessel axes; they pull horizontally).
        */
       mooring: {
-        lineZ: 4.5,
+        cleatFwdZ: -4.3,
+        cleatAftZ: 4.4,
         lineY: 1.2,
       },
       /**
@@ -1121,8 +1123,9 @@ export const CONFIG = {
 
   /**
    * Docking: inside a berth's hot spot (close, slow, roughly lined up either way round),
-   * DOCK warps the boat in and the "lines" then hold her alongside. They are horizontal
-   * spring-dampers at bow and stern towards the berth, so she still heaves and rolls.
+   * making the lines fast at the cleats warps the boat in and the lines then hold her
+   * alongside. They are horizontal spring-dampers at bow and stern towards the berth, so
+   * she still heaves and rolls.
    */
   docking: {
     /** Hot spot: boat origin within this distance of the berth (m)... */

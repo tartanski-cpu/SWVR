@@ -127,7 +127,6 @@ At the helm, from left to right on the console:
 - **Searchlight joystick:** on the pedestal to port of the wheel, under your left hand. Grip it and push sideways to pan, forward/back to raise/lower the beam. The further you push, the faster it moves; let go and the light stays put. On desktop, click and drag it.
 - **Cabin** light switch: the wheelhouse ceiling lamp, three-way. Each press steps **off → white → red → off**: the bat is in the middle for off, forward for white, and aft for red. Red is dim, for night work: you can see the controls without losing your night vision.
 - **WIPERS** switch (far port end): the three pendulum wipers on the front windows. They need the INSTR breaker; switched off they finish the sweep and park.
-- **DOCK** button (blue, right of the wheel): lights up when you're in a berth's hot spot (any quay or pier face with water alongside). Press it to dock; press again to cast off.
 - **Horn** button (hold).
 - **Wheel**: 1.5 turns lock to lock. Hydraulic steering, so it stays where you leave it.
 - **Throttle/gear lever**, on a pedestal starboard of the wheel so it falls to hand: forward = ahead, back = astern, with a notch at neutral.
@@ -139,7 +138,7 @@ Warning lamps in front of the key: **OIL**, **CHARGE**, **GLOW**, **NEUTRAL** an
 - **LIGHTS** (yellow): nav lights, cabin light, wipers.
 - **SEARCH · FIRE** (red): the fire pump and searchlight switches, each just ahead of its joystick. The fire monitor joystick (red knob) and the searchlight joystick (yellow knob) stand side by side on pedestals to port of the wheel: aim with the left hand, keep the throttle in the right.
 - The **horn**, just left of the wheel.
-- **DECK** (blue): DOCK, anchor, trawl, behind the throttle.
+- **DECK** (blue): anchor and trawl, behind the throttle.
 - **ENGINE** (green): HEAT, START, the key, the warning lamps, and the start-up card.
 
 ### Chart table
@@ -404,9 +403,9 @@ You can dock along any quay or pier face with deep water alongside. The named be
 To dock:
 
 1. Come slowly alongside: within about 18 m, under 3 kn, roughly parallel to the quay (bow either way).
-2. The blue **DOCK** button lights. Press it, or use the menu's Boat tab.
-3. Bow and stern lines go ashore and warp her in over a few seconds. She's then held alongside but still moves with the swell.
-4. **Cast off** with the same button. A hard pull with the engine parts the lines.
+2. Go out on deck. There's a **mooring cleat** on the bulwark top forward and aft on each side. Click the forward cleat on the quay side: the bow line goes to the forward bollard. Click the aft one: the stern line goes to the aft bollard. (The menu's Boat tab, **Dock**, does both at once.)
+3. The lines come taut and warp her in over a few seconds. With both fast she's moored: held alongside, but still moving with the swell. With one line only, she hangs off it.
+4. **Cast off:** click each cleat again to let its line go (or **Cast off** on the menu). A hard pull with the engine parts the lines.
 
 **Night:** the ports have lamp posts. Near a port, its floodlight lights the quay, your boat and the water around you.
 

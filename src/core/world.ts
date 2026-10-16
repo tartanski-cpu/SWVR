@@ -6,6 +6,7 @@ import { createPlayerState } from '../player/playerState';
 import { placeAshore } from '../player/playerControl';
 import { dropVessel, placeVessel } from '../vessel/vesselControl';
 import { BERTHS } from '../world/archipelago';
+import { shoreSide } from '../vessel/physics/mooring';
 import { createVesselState, type VesselState } from '../vessel/vesselState';
 import { IdFactory, type EntityId } from './ids';
 import { stockPorts, type CargoItem } from '../cargo/cargo';
@@ -134,4 +135,5 @@ function mooredAtStart(v: VesselState): void {
   v.mooring.berthId = b.id;
   v.mooring.reversed = false;
   v.mooring.t = 0;
+  v.mooring.bow = v.mooring.stern = shoreSide(v, b);
 }

@@ -9,6 +9,10 @@
  *                 the oil (`dipstick`; the App says what it shows).
  *   OilCan        on a shelf beside the engine: a press tops the sump up (`oilTopUp`).
  * The dipstick and the can only work with the hatch open.
+ *   Cleat         a horn cleat on the bulwark top, forward and aft on each side (owner
+ *                 request: these replace the DOCK button). Alongside a berth, a press sends
+ *                 its line ashore to the nearest bollard; a press with the line fast lets it
+ *                 go (`cleat`, value = which cleat). A few turns of rope show on it while fast.
  */
 import * as THREE from 'three';
 import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
@@ -218,4 +222,61 @@ export class OilCan extends Control {
   }
 
   sync(): void {}
+}
+
+/**
+ * A mooring cleat: 0 forward port, 1 forward starboard, 2 aft port, 3 aft starboard (the
+ * order vessel/physics/mooring.ts toggleCleat uses). Its root sits on the bulwark top, the
+ * horns running fore and aft. Galvanised grey; the rope turns (line-coloured) show while its
+ * end's line is fast on this side.
+ */
+export class Cleat extends Control {
+  readonly kind = 'press' as const;
+  readonly label: string;
+  private readonly turns: THREE.Mesh;
+  private fast = false;
+  private pressed = false;
+
+  constructor(readonly index: number) {
+    super(`cleat${index}`, 'cleat');
+    this.label = `${index < 2 ? 'Bow' : 'Stern'} line (${index % 2 === 0 ? 'port' : 'starboard'} cleat): make fast / let go`;
+    const body = new THREE.Mesh(
+      mergeParts([
+        part(new THREE.BoxGeometry(0.09, 0.012, 0.16).translate(0, 0.006, 0), 0x6a7076), // base plate
+        ...[-1, 1].map((s) => part(new THREE.CylinderGeometry(0.018, 0.024, 0.05, 8).translate(0, 0.037, s * 0.045), 0x8a9096)), // the two legs
+        part(new THREE.CapsuleGeometry(0.017, 0.24, 3, 8).rotateX(Math.PI / 2).translate(0, 0.07, 0), 0x8a9096), // the horns
+      ]),
+      flatVertexColorMaterial(),
+    );
+    // A figure-of-eight of rope: two crossed turns round the horns and legs.
+    this.turns = new THREE.Mesh(
+      mergeParts([0.5, -0.5].map((a) => part(new THREE.TorusGeometry(0.075, 0.014, 5, 14).scale(0.45, 1, 1).rotateY(a).rotateX(Math.PI / 2).translate(0, 0.055, 0), 0xe0d2a0))),
+      flatVertexColorMaterial(),
+    );
+    this.turns.visible = false;
+    this.root.add(body, this.turns);
+    this.hitObjects.push(body, this.turns);
+  }
+
+  distanceTo(world: THREE.Vector3): number {
+    return this.toLocal(world).distanceTo(new THREE.Vector3(0, 0.05, 0));
+  }
+
+  pressStart(): void {
+    if (this.pressed) return;
+    this.pressed = true;
+    this.ctx?.haptic(0.5, 40);
+    this.ctx?.emit(this.channel, this.index);
+  }
+
+  pressEnd(): void {
+    this.pressed = false;
+  }
+
+  sync(state: VesselState): void {
+    const m = state.mooring;
+    const end = this.index < 2 ? m.bow : m.stern;
+    const fast = m.phase !== 'free' && end === (this.index % 2 === 0 ? -1 : 1);
+    if (fast !== this.fast) this.turns.visible = this.fast = fast;
+  }
 }

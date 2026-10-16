@@ -346,11 +346,11 @@ export function stepVessel(
       pointVelocity(pt, ptV);
       stepAnchor(state, def, pt, ptV, dt, chain);
       if (chain.x !== 0 || chain.y !== 0 || chain.z !== 0) addForceAt(cf.set(chain.x, chain.y, chain.z), pt);
-      // Mooring lines (docked) at bow and stern.
+      // Mooring lines (docked), at the forward and aft cleats' stations.
       const mo = def.mooring;
-      toWorld(0, mo.lineY, -mo.lineZ, lineBow);
+      toWorld(0, mo.lineY, mo.cleatFwdZ, lineBow);
       pointVelocity(lineBow, lineBowV);
-      toWorld(0, mo.lineY, mo.lineZ, lineStern);
+      toWorld(0, mo.lineY, mo.cleatAftZ, lineStern);
       pointVelocity(lineStern, lineSternV);
       stepMooring(state, def, lineBow, lineBowV, lineStern, lineSternV, dt, fBow, fStern);
       if (state.mooring.phase !== 'free') {

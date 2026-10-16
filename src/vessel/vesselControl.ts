@@ -4,7 +4,7 @@ import type { Intent } from '../core/intents';
 import { clamp } from '../core/math';
 import { CONFIG } from '../config';
 import { toggleEngine } from './physics/propulsion';
-import { toggleDock } from './physics/mooring';
+import { toggleCleat, toggleDock } from './physics/mooring';
 import { isWorkboat, VESSEL_DEFS, type VesselDef, type WorkboatDef } from './vesselDef';
 import { fuelBerthAt } from '../world/geography';
 import { BERTHS, PORTS } from '../world/archipelago';
@@ -273,8 +273,13 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
       break;
     }
     case 'dock':
-      // DOCK button: dock in a berth's hot spot, or cast off.
+      // The menu's Dock / Cast off: both lines at once.
       toggleDock(s);
+      break;
+    case 'cleat':
+      // A cleat (value 0-3: fwd port, fwd stbd, aft port, aft stbd): make that end's line
+      // fast to the nearest bollard, or cast it off.
+      toggleCleat(s, Math.round(intent.value));
       break;
     case 'refuel':
       // Start (1) or stop (0) taking fuel; stepRefuelling checks the berth each tick.
@@ -295,7 +300,7 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
       break;
     }
     case 'teleportToPort': {
-      // Menu shortcut (ref = port id): lie at the port's cargo berth, ready to DOCK, or in
+      // Menu shortcut (ref = port id): lie at the port's cargo berth, ready to make fast, or in
       // the middle of its anchorage. Lever to neutral, anchor stowed, lines off.
       const port = PORTS.find((p) => p.id === intent.ref);
       if (!port) break;

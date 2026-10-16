@@ -1,14 +1,19 @@
 /**
  * Docking and mooring lines (constants in CONFIG.docking).
  *
- *   free    : under way. Each tick we note whether she is in a berth's hot spot (close,
- *             slow, lined up with the berth either way round) so the DOCK button can light.
- *   docking : DOCK pressed in a hot spot. Bow and stern lines go ashore and come taut over
- *             `warpTime`, pulling her in gently (force capped at `warpForce`).
- *   moored  : made fast: stiff, well-damped lines (capped at `holdForce`) hold bow and stern
- *             on their marks. Lines act horizontally only, so she still heaves, pitches and
- *             rolls in the swell. Dragged more than `breakDist` off, they part.
- * Pressing DOCK again (or the lines parting) casts off.
+ *   free    : under way, no lines ashore. Each tick we note whether she is in a berth's hot
+ *             spot (close, slow, lined up with the berth either way round): then a line can
+ *             be made fast.
+ *   docking : a line is ashore. The crew make each end fast at a cleat (owner request: no
+ *             DOCK button): a forward cleat sends the bow line to the nearest bollard, an aft
+ *             cleat the stern line, each on its own (`bow` / `stern`: the cleat's side).
+ *             Lines come taut over `warpTime`, pulling her in gently (`warpForce`).
+ *   moored  : both ends fast and settled: stiff, well-damped lines (capped at `holdForce`)
+ *             hold bow and stern on their marks. Lines act horizontally only, so she still
+ *             heaves, pitches and rolls in the swell. Dragged more than `breakDist` off, they
+ *             part.
+ * A cleat with its line fast casts that end off; with neither end fast she's free. The menu's
+ * Dock / Cast off does both ends at once (toggleDock).
  */
 import * as THREE from 'three';
 import { CONFIG } from '../../config';
@@ -53,20 +58,60 @@ export function berthInRange(s: VesselState): { berth: BerthDef; reversed: boole
   return best;
 }
 
-/** DOCK button: start docking if in a hot spot; if docking or moored, cast off. */
+/** Cast off everything. */
+function castOff(m: VesselState['mooring']): void {
+  m.phase = 'free';
+  m.bow = 0;
+  m.stern = 0;
+  m.t = 0;
+}
+
+/**
+ * A cleat (0 forward port, 1 forward starboard, 2 aft port, 3 aft starboard): if its end's
+ * line is fast, cast that end off; else, in a berth's hot spot, make that end fast from this
+ * cleat to the berth's bollard. Returns false when there's nothing in reach to make fast to.
+ */
+export function toggleCleat(s: VesselState, cleat: number): boolean {
+  const m = s.mooring;
+  const end = cleat < 2 ? 'bow' : 'stern';
+  const side = cleat % 2 === 0 ? -1 : 1;
+  if (m[end]) {
+    m[end] = 0;
+    if (!m.bow && !m.stern) castOff(m);
+    return true;
+  }
+  if (m.phase === 'free') {
+    const r = berthInRange(s);
+    if (!r) return false;
+    m.berthId = r.berth.id;
+    m.reversed = r.reversed;
+    m.t = 0;
+  }
+  m[end] = side;
+  m.phase = 'docking';
+  return true;
+}
+
+/** The menu's Dock / Cast off: both lines at once (on the side facing the quay), or both off. */
 export function toggleDock(s: VesselState): void {
   const m = s.mooring;
-  if (m.phase !== 'free') {
-    m.phase = 'free';
-    m.t = 0;
-    return;
-  }
+  if (m.phase !== 'free') return castOff(m);
   const r = berthInRange(s);
   if (!r) return;
-  m.phase = 'docking';
   m.berthId = r.berth.id;
   m.reversed = r.reversed;
   m.t = 0;
+  const side = shoreSide(s, r.berth);
+  m.bow = side;
+  m.stern = side;
+  m.phase = 'docking';
+}
+
+/** Which side of the boat faces a berth's quay: -1 port, +1 starboard. */
+export function shoreSide(s: VesselState, b: BerthDef): number {
+  const bow = bowDirection(s);
+  // Starboard is the bow turned 90 degrees clockwise seen from above: (-bow.z, bow.x) in (x, z).
+  return -bow.z * b.shoreX + bow.x * b.shoreZ >= 0 ? 1 : -1;
 }
 
 export function berthById(id: string | null): BerthDef | undefined {
@@ -91,9 +136,12 @@ export function stepMooring(s: VesselState, def: WorkboatDef, bow: V, bowVel: V,
   }
   const b = berthById(m.berthId);
   if (!b) {
-    m.phase = 'free';
+    castOff(m);
     return;
   }
+  // Alongside with no ends recorded (a state from before the lines went to cleats, or one
+  // set straight to moored, e.g. the menu's port shortcut): both ends fast, on the quay side.
+  if (!m.bow && !m.stern) m.bow = m.stern = shoreSide(s, b);
   m.t += dt;
   const docking = m.phase === 'docking';
   const ramp = docking ? Math.min(1, m.t / c.warpTime) : 1;
@@ -101,7 +149,6 @@ export function stepMooring(s: VesselState, def: WorkboatDef, bow: V, bowVel: V,
   const damp = c.damping * ramp;
   const cap = docking ? c.warpForce : c.holdForce;
   const a = berthAxis(b, m.reversed);
-  const L = def.mooring.lineZ;
   let worst = 0;
   const line = (p: V, v: V, tx: number, tz: number, out: V) => {
     const dx = tx - p.x;
@@ -117,15 +164,21 @@ export function stepMooring(s: VesselState, def: WorkboatDef, bow: V, bowVel: V,
     out.x = fx;
     out.z = fz;
   };
-  line(bow, bowVel, b.x + a.x * L, b.z + a.z * L, outBow);
-  line(stern, sternVel, b.x - a.x * L, b.z - a.z * L, outStern);
+  // Each end only if its line is fast. The marks are where that cleat's station lies with
+  // her alongside, centred on the berth (vessel z is aft, the berth axis points her bow).
+  const fz = -def.mooring.cleatFwdZ;
+  const az = -def.mooring.cleatAftZ;
+  if (m.bow) line(bow, bowVel, b.x + a.x * fz, b.z + a.z * fz, outBow);
+  if (m.stern) line(stern, sternVel, b.x + a.x * az, b.z + a.z * az, outStern);
 
   if (worst > c.breakDist && !docking) {
     // Lines parted.
-    m.phase = 'free';
+    castOff(m);
     outBow.x = outBow.z = outStern.x = outStern.z = 0;
     return;
   }
   const speed = Math.hypot(s.linearVelocity[0], s.linearVelocity[2]);
-  if (docking && ((worst < 0.3 && speed < 0.3) || m.t > 25)) m.phase = 'moored';
+  // Moored once both ends are fast and she has settled; with one end only she stays 'docking'.
+  if (docking && m.bow && m.stern && ((worst < 0.3 && speed < 0.3) || m.t > 25)) m.phase = 'moored';
+  else if (!docking && !(m.bow && m.stern)) m.phase = 'docking';
 }

@@ -1560,6 +1560,13 @@ The brief's "no new particle effects" rule was flagged: the fire is drawn withou
   - **Crew joining** a game now come aboard the workboat at her boarding spot, wherever she is (they used to appear on the platform).
   - **First voyage** reworked for it: step aboard from the quay, master on, INSTR breaker, start her, load a crate (you're at the cargo berth), cast off and go out between the breakwater lights, deliver it. Tests: the start, and the new walk-through.
 
+- **Mooring cleats instead of the DOCK button** (owner request, last change before v1.0):
+  - **Four horn cleats** on the bulwark tops, forward and aft on each side (`vessels.workboat.mooring.cleatFwdZ` -4.3, `cleatAftZ` 4.4; controls/deckGear.ts `Cleat`, vessel control `cleat`, value = which cleat: 0 forward port, 1 forward starboard, 2 aft port, 3 aft starboard). The blue DOCK button, its label and `bridge.dockButton` are gone.
+  - **Each end on its own** (`MooringState.bow` / `stern`: 0 not fast, else the side of the cleat it's on). In a berth's hot spot, a forward cleat sends the bow line to the berth's forward bollard, an aft cleat the stern line to the aft one (`toggleCleat`). Click a fast cleat again to let that line go; with neither fast she's free. With one line only she stays "docking" and hangs off it; with both fast and settled she's moored (same spring-damper lines as before, now pulling at the cleats' stations).
+  - The cleat's rope turns show while its line is fast; the lines run from the cleat to the bollard (`MooringLines`, bollards at `BOLLARD_HALF_SPACING` either side of the berth). Out of reach of a berth, a click says "No bollard in reach".
+  - **Menu Dock / Cast off** still does both lines at once (on the quay side). A moored state with no ends recorded (old saves, the start at Calder, the port shortcut) means both lines fast on the quay side.
+  - Tutorial and README docking text updated. **Test (1 new):** one cleat, then the other, moored; let go one, then the other, free; out of reach, nothing.
+
 - **Stabilised fire monitor** (owner feedback: very hard to keep the jet on a fire as she rocks and rolls): `fireMonitor.stabilised`. The aim (fire.ts `monitorAim`) uses only her heading, not her roll and pitch: pan is still from the bow (turn her and the jet turns), elevation from the horizon. Only the nozzle's position moves with the roof. MonitorView draws the barrel at that held aim in the boat's axes (from her drawn pose each frame), so you see the mount working. Test: rolled 15 deg or pitched 8 deg, the jet lands within 3 m of where it does level.
 
 - **Fold-out chart table** (owner request: with the logbook gone the table was too big):

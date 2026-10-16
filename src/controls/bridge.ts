@@ -20,7 +20,7 @@ import { DoorButton, WheelhouseDoor } from './WheelhouseDoor';
 import { MonitorView } from '../fire/monitorView';
 import { hullPlan } from '../vessel/layout';
 import { RainGlass } from '../vessel/view/rainGlass';
-import { Dipstick, FenderBasket, FendersView, OilCan, EngineHatch } from './deckGear';
+import { Cleat, Dipstick, FenderBasket, FendersView, OilCan, EngineHatch } from './deckGear';
 import { swimLadderOf } from '../player/body';
 import { aFrameOf } from '../fishing/fishing';
 
@@ -94,10 +94,6 @@ export class Bridge {
     const cabin = new Toggle('cabinLight', 'cabinLight', 'Cabin light: off / white / red (night)', (s) => s.controls.cabinLight, 3);
     cabin.root.position.fromArray(b.cabinLightSwitch.position);
 
-    // Lit when there's a berth to dock at (hot spot) or while docking/moored.
-    const dock = new Button('dock', 'dock', 'Dock / cast off', 'pulse', 0x2f6fd0, (s) => s.mooring.phase !== 'free' || s.mooring.berthId !== null);
-    dock.root.position.fromArray(b.dockButton.position);
-
     const spot = new Toggle('spotlight', 'spotlight', 'Searchlight on/off', (s) => s.controls.spotlight);
     spot.root.position.fromArray(b.spotlightSwitch.position);
     const wipers = new Toggle('wipers', 'wipers', 'Windscreen wipers', (s) => s.controls.wipers);
@@ -111,7 +107,7 @@ export class Bridge {
     this.root.add(this.chart.root);
     this.overhead = new OverheadPanel(def);
     this.root.add(this.overhead.root);
-    this.controls.push(wheel, lever, start, heat, key, horn, nav, anchor, cabin, dock, spot, wipers, joy, this.radio.handset, ...this.overhead.controls);
+    this.controls.push(wheel, lever, start, heat, key, horn, nav, anchor, cabin, spot, wipers, joy, this.radio.handset, ...this.overhead.controls);
     // Fire monitor (fire missions): the FIRE PUMP switch, its joystick (red knob) and the
     // monitor itself on the roof.
     const extraLabels: Label[] = [];
@@ -211,6 +207,18 @@ export class Bridge {
     this.controls.push(inside, outside);
     this.rainGlass = new RainGlass(def);
     this.root.add(this.rainGlass.root);
+    // Mooring cleats on the bulwark tops, forward and aft each side (they replace the DOCK
+    // button): port forward, starboard forward, port aft, starboard aft.
+    {
+      const plan = hullPlan(def);
+      const mo = def.mooring;
+      [mo.cleatFwdZ, mo.cleatFwdZ, mo.cleatAftZ, mo.cleatAftZ].forEach((z, i) => {
+        const side = i % 2 === 0 ? -1 : 1;
+        const cleat = new Cleat(i);
+        cleat.root.position.set(side * (plan.halfBeam(z) - 0.03), plan.deckY(z) + def.layout.bulwarkHeight, z);
+        this.controls.push(cleat);
+      });
+    }
     // Fenders: the basket on the aft deck, and the six fenders themselves.
     if (def.fenders) {
       const plan = hullPlan(def);
@@ -417,7 +425,6 @@ function buildLabels(b: WorkboatDef['bridge'], extra: Label[] = []): THREE.Mesh 
     ['NAV LIGHTS', b.navLightsSwitch.position],
     ['ANCHOR', b.anchorSwitch.position],
     ['CABIN', b.cabinLightSwitch.position],
-    ['DOCK', b.dockButton.position],
     ['SPOT', b.spotlightSwitch.position],
     ['WIPERS', b.wipersSwitch.position],
     ['SEARCHLIGHT', b.spotJoystick.position],

@@ -64,8 +64,8 @@ export const TUTORIAL: Step[] = [
     done: (w, v) => aboard(w, v.id).length > 0 || Object.values(w.players).some((p) => p.aboardVesselId === v.id && carriedBy(w, p.id).length > 0),
   },
   {
-    text: 'Cast off (DOCK button, or menu Boat, Cast off) and go out between the breakwater lights',
-    say: 'Now cast off: the DOCK button again lets the lines go. Fenders in, and out between the breakwater lights, slow in the harbour.',
+    text: 'Cast off (click the cleats fore and aft, or menu Boat, Cast off) and go out between the breakwater lights',
+    say: 'Now cast off: click the cleats fore and aft on the quay side to let the lines go. Fenders in, and out between the breakwater lights, slow in the harbour.',
     done: (_w, v) => v.mooring.phase === 'free' && Math.hypot(v.position[0] - calder().x, v.position[2] - calder().z) > CONFIG.rescue.harbourRadius * 0.5,
   },
   {

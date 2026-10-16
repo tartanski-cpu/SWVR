@@ -1207,6 +1207,23 @@ export class App {
   }
 
   /**
+   * A mooring cleat pressed: say what happened (the line goes ashore or is let go), or why
+   * nothing did (no berth in reach). Read from the shared state (`berthId` is the berth in
+   * range while she's free), so it works for crew too.
+   */
+  private cleatHint(cleat: number): void {
+    const v = this.world.vessels[this.testVesselId];
+    if (!v) return;
+    const m = v.mooring;
+    const bow = cleat < 2;
+    const end = bow ? m.bow : m.stern;
+    const line = bow ? 'Bow line' : 'Stern line';
+    if (m.phase !== 'free' && end) this.overlay.notify(`${line} let go`, 2);
+    else if (m.phase === 'free' && !m.berthId) this.overlay.notify('No bollard in reach: come slowly alongside a quay berth, lined up with it', 3);
+    else this.overlay.notify(`${line} made fast to the ${bow ? 'forward' : 'aft'} bollard${(bow ? m.stern : m.bow) ? '' : `: now the ${bow ? 'stern' : 'bow'} line`}`, 3);
+  }
+
+  /**
    * The deck machinery's sounds: is each machine turning (under hydraulic pressure), how
    * hard is it working, and how far is it from us. Read from the shared state, so crew
    * hear the host's machines too.
@@ -1400,8 +1417,8 @@ export class App {
         const m = boat().mooring;
         const b = berthById(m.berthId);
         if (m.phase === 'moored') return { text: `Moored: ${b?.name}`, ready: true, docked: true };
-        if (m.phase === 'docking') return { text: `Docking: ${b?.name}`, ready: true, docked: true };
-        if (b) return { text: `In range: ${b.name}`, ready: true, docked: false };
+        if (m.phase === 'docking') return { text: `${m.bow && m.stern ? 'Lines coming taut' : m.bow ? 'Bow line fast' : 'Stern line fast'}: ${b?.name}`, ready: true, docked: true };
+        if (b) return { text: `In range: ${b.name} (click the cleats fore and aft, or menu Dock)`, ready: true, docked: false };
         return { text: 'No berth in range (come slowly alongside a yellow-marked berth)', ready: false, docked: false };
       },
       toggleDock: () => {
@@ -1490,7 +1507,7 @@ export class App {
         this.pushVesselIntent('teleportToPort', 1, port.id);
         // Off the boat (ashore, swimming): come along, at the helm.
         if (this.world.players[this.localPlayerId].aboardVesselId !== this.testVesselId) this.toggleBoardTo(true);
-        this.overlay.notify(port.cargo.berth ? `${port.name}: at the cargo berth, press DOCK` : `${port.name}: in the bay, let go the anchor`, 3);
+        this.overlay.notify(port.cargo.berth ? `${port.name}: at the cargo berth, make fast at the cleats` : `${port.name}: in the bay, let go the anchor`, 3);
       },
       seaTrialsShown: () => this.trialsPanel.shown,
       toggleSeaTrials: () => this.toggleSeaTrials(),
@@ -1818,6 +1835,7 @@ export class App {
         if (channel === 'engineStartStop') return this.requestEngineStartStop();
         if (channel === 'start' && value > 0) this.startInGearHint();
         if (channel === 'dipstick') this.readDipstick();
+        if (channel === 'cleat') this.cleatHint(value);
         if (value > 0) this.hydraulicsHint(channel);
         const { vesselId, control } = this.routeChannel(channel);
         this.pushIntentTo(vesselId, control, value);

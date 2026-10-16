@@ -3,7 +3,7 @@
  * owner feedback, one at each pair of bollards along every quay and pier face that has
  * deep water in front of it. The faces and their probe are the same ones the world view
  * uses to place fenders and bollards (worldView.buildBlock), so wherever there are bollards
- * on the water, DOCK works. Built once, on first use.
+ * on the water, the cleats can make fast. Built once, on first use.
  */
 import { BERTHS, BLOCKS, PORTS, type BerthDef, type BlockDef } from './archipelago';
 import { groundHeight } from './terrain';
@@ -68,6 +68,9 @@ function generate(): BerthDef[] {
   }
   return out;
 }
+
+/** A berth's bollards stand this far either side of its centre, along the face (half the 12 m spacing), and 0.5 m in from the edge. */
+export const BOLLARD_HALF_SPACING = 6;
 
 /** All dockable berths: named, and one per bollard pair on every seaward face. */
 export function allBerths(): BerthDef[] {

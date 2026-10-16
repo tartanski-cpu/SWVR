@@ -75,7 +75,7 @@ export interface MenuHost {
   skiffCargo(i: number): string | null;
   /** The skiff's load, e.g. "1 / 2 slots, 40 kg". */
   skiffLoad(): string;
-  /** Docking: status line, and whether DOCK would do something now (dock or cast off). */
+  /** Docking: status line, and whether Dock / Cast off would do something now (dock or cast off). */
   dockStatus(): { text: string; ready: boolean; docked: boolean };
   toggleDock(): void;
   /** One-line anchor/windlass status. */

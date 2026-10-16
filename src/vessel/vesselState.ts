@@ -73,8 +73,14 @@ export interface MooringState {
   berthId: string | null;
   /** Lying the berth's way (0) or the other way round (1), chosen when docking. */
   reversed: boolean;
-  /** Seconds since DOCK was pressed (lines come taut over warpTime). */
+  /** Seconds since the first line went ashore (lines come taut over warpTime). */
   t: number;
+  /**
+   * The bow line and the stern line: 0 not fast, else the side of the cleat it's made fast
+   * on (-1 port, +1 starboard). Each end is made fast or cast off on its own, at a cleat.
+   */
+  bow?: number;
+  stern?: number;
 }
 
 /** Anchor and windlass (see physics/anchor.ts). */
@@ -250,7 +256,7 @@ export function createVesselState(id: EntityId, defId: string): VesselState {
     rudder: 0,
     thrust: 0,
     anchor: { phase: 'stowed', x: 0, z: 0, rodeM: 0, tension: 0, dragging: false },
-    mooring: { phase: 'free', berthId: null, reversed: false, t: 0 },
+    mooring: { phase: 'free', berthId: null, reversed: false, t: 0, bow: 0, stern: 0 },
     refuelling: false,
     contact: { force: 0, slide: 0, impact: 0 },
     ...(VESSEL_DEFS[defId].outboard ? { battery: 1 } : {}),

@@ -3,7 +3,7 @@ import type { Intent } from '../src/core/intents';
 import { IdFactory } from '../src/core/ids';
 import { stepWorld } from '../src/core/simulation';
 import { createWorld } from '../src/core/world';
-import { berthAxis, berthInRange } from '../src/vessel/physics/mooring';
+import { berthAxis, berthInRange, shoreSide } from '../src/vessel/physics/mooring';
 import { placeVessel } from '../src/vessel/vesselControl';
 import { BERTHS } from '../src/world/archipelago';
 
@@ -40,7 +40,7 @@ describe('docking', () => {
     placeVessel(v, x, 0, z, berth.headingDeg + 15);
     run(1);
     expect(berthInRange(v)?.berth.id).toBe(berth.id);
-    expect(v.mooring.berthId).toBe(berth.id); // noted for the DOCK button light
+    expect(v.mooring.berthId).toBe(berth.id); // noted (the cleats can make fast)
     placeVessel(v, x, 0, z, berth.headingDeg + 180 - 20);
     run(1);
     const r = berthInRange(v);
@@ -55,7 +55,7 @@ describe('docking', () => {
     expect(berthInRange(v)).toBeNull();
   });
 
-  it('DOCK warps her alongside onto the berth and makes her fast', () => {
+  it('Dock (menu, both lines) warps her alongside onto the berth and makes her fast', () => {
     const { v, send, run } = boat();
     const [x, z] = near(7, -5);
     placeVessel(v, x, 0, z, berth.headingDeg + 12);
@@ -92,7 +92,7 @@ describe('docking', () => {
     expect(yMax - yMin).toBeGreaterThan(0.005); // not pinned vertically
   });
 
-  it('DOCK again casts off; DOCK outside a hot spot does nothing', () => {
+  it('Dock again casts off; Dock outside a hot spot does nothing', () => {
     const { v, send, run } = boat();
     placeVessel(v, berth.x, 0, berth.z, berth.headingDeg);
     run(1);
@@ -104,6 +104,40 @@ describe('docking', () => {
     run(1);
     send('dock');
     expect(v.mooring.phase).toBe('free');
+  });
+
+  it('the cleats: each makes its own end fast to the berth, or lets it go', () => {
+    const { v, send, run } = boat();
+    const [x, z] = near(7, -3);
+    placeVessel(v, x, 0, z, berth.headingDeg + 10);
+    run(1);
+    const side = shoreSide(v, berth);
+    const fwd = side < 0 ? 0 : 1; // the forward cleat on the quay side
+    const aft = fwd + 2;
+    send('cleat', fwd);
+    expect(v.mooring.phase).toBe('docking');
+    expect(v.mooring.bow).toBe(side);
+    expect(v.mooring.stern).toBe(0);
+    run(30);
+    expect(v.mooring.phase).toBe('docking'); // one line only: not moored
+    send('cleat', aft);
+    expect(v.mooring.stern).toBe(side);
+    run(30);
+    expect(v.mooring.phase).toBe('moored');
+    expect(Math.hypot(v.position[0] - berth.x, v.position[2] - berth.z)).toBeLessThan(0.6);
+    // Let the bow line go: she's on the stern line alone; let it go too and she's free.
+    send('cleat', fwd);
+    expect(v.mooring.bow).toBe(0);
+    run(0.5);
+    expect(v.mooring.phase).toBe('docking');
+    send('cleat', aft);
+    expect(v.mooring.phase).toBe('free');
+    // Out of reach of any berth, a cleat does nothing.
+    placeVessel(v, 0, 0, -22, 0);
+    run(1);
+    send('cleat', 1);
+    expect(v.mooring.phase).toBe('free');
+    expect(v.mooring.bow).toBe(0);
   });
 
   it('any pier face with water alongside is a berth: DOCK works on the Brannock pier too', async () => {

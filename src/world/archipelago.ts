@@ -306,7 +306,7 @@ export const MAX_DEPTH = 40;
 export const SHELF = 55;
 
 /**
- * Berths you can dock at (the DOCK button). Where the boat's origin lies when moored
+ * Berths you can dock at (the mooring cleats). Where the boat's origin lies when moored
  * (alongside, fenders touching), the berth's axis (compass bearing; the boat may lie
  * either way round), and the unit vector + distance from the boat's centreline to the
  * quay/pier edge, where the mooring lines go ashore. `deckY` is that edge's height.
