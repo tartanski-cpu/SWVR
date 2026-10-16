@@ -44,8 +44,9 @@
  */
 import { CONFIG } from '../config';
 import { hullQueries, type HullDefinition } from '../modular/hull';
-import { VESSEL_DEFS } from '../vessel/vesselDef';
+import { buildHullForm } from '../vessel/hullForm';
 import { BREAKERS } from '../vessel/vesselState';
+import { hullDataFrom } from './hullData';
 
 const wb = CONFIG.vessels.workboat;
 const wh = wb.layout.wheelhouse;
@@ -57,8 +58,10 @@ const sd = wh.sideDoor;
 /** The middle of the engine space under the hatch (machinery not drawn yet: a nominal point). */
 const bay: [number, number, number] = [(eh.x0 + eh.x1) / 2, wh.floorY - eh.pitDepth / 2, (eh.z0 + eh.z1) / 2];
 const roofTop = wh.roofY + wb.layout.roof.thickness;
-/** Her deck line, for the deck gear's points. */
-const hull = hullQueries(VESSEL_DEFS.workboat);
+/** Her deck line, for the deck gear's points (from her own form). */
+const hull = hullQueries({ hull: buildHullForm(wb.hull), layout: wb.layout });
+/** The engine's bed, under the wheelhouse floor: the block's centre. */
+const engineBed: [number, number, number] = [mt.engine.x, wh.floorY - 0.12 - mt.engine.height / 2, mt.engine.z];
 const onDeck = (x: number, z: number): [number, number, number] => [x, hull.deckY(z), z];
 const tc = wb.tenderCrane;
 const mast = CONFIG.modules.mast;
@@ -82,6 +85,12 @@ export const WORKBOAT_HULL: HullDefinition = {
   name: 'Workboat, 12 m',
   legacyDef: 'workboat',
   helm: { stand: wb.boardingSpot, yawDeg: 0 },
+  // Her shape and handling, and her lightship: the weighed boat less her engine and the
+  // house batteries, which count as modules (M6a; modular/massProperties.ts).
+  ...hullDataFrom(wb, [
+    { massKg: CONFIG.modules.dieselInboard.massKg, at: engineBed },
+    { massKg: 2 * CONFIG.modules.batteryBank.massKg, at: bay },
+  ]),
   sockets: [
     { id: 'helm', type: 'helm.console', transform: { position: wb.bridge.console.position }, label: 'Helm console, across the front of the wheelhouse' },
     { id: 'navDisplay', type: 'cabin.overhead', transform: { position: wb.bridge.navDisplay.position }, label: 'Overhead, on the centreline ahead of the helm' },
@@ -111,7 +120,7 @@ export const WORKBOAT_HULL: HullDefinition = {
     // On the engine's inboard side, the ring well under the shut hatch (the rocker cover is 0.12 m below the floor).
     { id: 'dipstick', type: 'deck.fitting', transform: { position: [mt.dipstick[0], wh.floorY - 0.12 - 0.2, mt.dipstick[1]] }, label: 'Engine space, the engine\'s inboard side' },
     // On the shelf on the engine space's outboard wall, spout inboard toward the filler.
-    { id: 'engine', type: 'engine.bay', transform: { position: [mt.engine.x, wh.floorY - 0.12 - mt.engine.height / 2, mt.engine.z] }, tags: ['inboard'], label: 'Engine bed, under the wheelhouse floor' },
+    { id: 'engine', type: 'engine.bay', transform: { position: engineBed }, tags: ['inboard'], label: 'Engine bed, under the wheelhouse floor' },
     { id: 'fuelTank', type: 'engine.bay', transform: { position: bay }, label: 'Engine space (nominal)' },
     { id: 'batteries', type: 'engine.bay', transform: { position: bay }, label: 'Engine space (nominal)' },
     { id: 'hydraulicPump', type: 'engine.bay', transform: { position: bay }, label: 'On the engine\'s power take-off (nominal)' },

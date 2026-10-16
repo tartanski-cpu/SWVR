@@ -4,6 +4,8 @@
  */
 import { specOf, type BusWriter } from '../../src/modular/bus';
 import type { BusKey } from '../../src/modular/busKeys';
+import { hullDataFrom } from '../../src/boats/hullData';
+import { CONFIG } from '../../src/config';
 import { createHullLibrary, type HullDefinition } from '../../src/modular/hull';
 import type { ModuleDefinition } from '../../src/modular/module';
 import { createModuleLibrary } from '../../src/modular/recipe';
@@ -15,7 +17,10 @@ export const TEST_HULL: HullDefinition = {
   id: 'hull.test',
   version: 1,
   name: 'Test hull',
+  legacyDef: 'workboat',
   helm: { stand: [0, 1.2, -0.75], yawDeg: 0 },
+  // Its shape and handling borrowed from the workboat's config (the tests here are about sockets).
+  ...hullDataFrom(CONFIG.vessels.workboat),
   sockets: [
     { id: 'helm', type: 'helm.console', transform: at(0, 2.15, -1.4) },
     { id: 'engineBay', type: 'engine.bay', transform: at(0.8, 0.2, 0.3), capacity: { maxPowerKw: 450, maxMassKg: 2000, size: [1.2, 1, 2] }, tags: ['inboard'] },

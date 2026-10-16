@@ -2336,7 +2336,20 @@ export const CONFIG = {
      * alone). Its engine, propeller and oil use are the workboat's (CONFIG.vessels.workboat:
      * engine, propeller, maintenance.use) until the boat is built entirely from JSON (M6).
      */
-    dieselInboard: { alternatorAmps: 60, starterAmps: 180, glowAmps: 35 },
+    dieselInboard: {
+      alternatorAmps: 60,
+      starterAmps: 180,
+      glowAmps: 35,
+      /**
+       * Dry mass with its gearbox (kg; M6): a 400 kW heavy-duty six. It counts at its bed;
+       * the hull's lightship is the weighed boat less this and the batteries (modular/
+       * massProperties.ts), so the starter boat weighs and trims as before.
+       */
+      massKg: 1300,
+    },
+
+    /** electrical.battery-bank (M6): each 12 V 100 Ah battery's mass (kg). */
+    batteryBank: { massKg: 28 },
 
     /** pump.bilge (M4a): it runs with water over its float switch (`floatAt`, 0..1), drawing `amps` (BILGE circuit). */
     bilgePump: { floatAt: 0.01, amps: 3 },

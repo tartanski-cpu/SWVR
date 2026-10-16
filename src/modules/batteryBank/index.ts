@@ -25,13 +25,15 @@ export interface BatteryBankConfig {
   chargeVolts: number;
   /** Below this charge a battery is flat: nothing works from it. */
   cutoffSoc: number;
+  /** Each battery's mass (kg). */
+  massKg: number;
 }
 
 export const BATTERY_BANK: ModuleDefinition<BatteryBankConfig> = {
   id: 'electrical.battery-bank',
   version: 1,
   fits: ['engine.bay'],
-  defaults: { batteries: 2, ah: el.batteryAh, restVolts: el.restVolts, internalOhm: el.internalOhm, chargeVolts: el.chargeVolts, cutoffSoc: el.cutoffSoc },
+  defaults: { batteries: 2, ah: el.batteryAh, restVolts: el.restVolts, internalOhm: el.internalOhm, chargeVolts: el.chargeVolts, cutoffSoc: el.cutoffSoc, ...CONFIG.modules.batteryBank },
   validateConfig: (c) => [
     ...(c.batteries === 2 ? [] : ['two batteries for now (the selector picks 1, 2 or both)']),
     ...(c.ah > 0 ? [] : ['ah should be more than 0']),
@@ -39,5 +41,7 @@ export const BATTERY_BANK: ModuleDefinition<BatteryBankConfig> = {
   ],
   ports: {},
   provides: () => [{ power: 'electrical' }],
+  // The batteries' mass, at the bank (M6).
+  physical: (c) => ({ massKg: c.batteries * c.massKg, units: c.batteries }),
   power: (c) => [{ role: 'store', ...c }],
 };

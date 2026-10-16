@@ -41,6 +41,8 @@ export interface DieselInboardConfig {
   /** What the starter and the glow plugs draw (A). */
   starterAmps: number;
   glowAmps: number;
+  /** Dry mass with its gearbox (kg), at its bed. */
+  massKg: number;
 }
 
 export const DIESEL_INBOARD: ModuleDefinition<DieselInboardConfig, EngineState> = {
@@ -74,7 +76,8 @@ export const DIESEL_INBOARD: ModuleDefinition<DieselInboardConfig, EngineState> 
   },
   needs: () => [{ fuel: 'diesel' }],
   provides: () => [{ power: 'pto' }],
-  physical: (c) => ({ powerKw: c.engine.powerKw }),
+  // Its mass at its bed (the socket): it's part of the boat's mass, CG and inertia (M6).
+  physical: (c) => ({ powerKw: c.engine.powerKw, massKg: c.massKg }),
   power: (c) => [
     // The alternator: full output from 600 rpm.
     { role: 'source', amps: (io) => (io.get('state') === 'running' ? c.alternatorAmps * clamp(io.num('rpm') / 600, 0, 1) : 0) },

@@ -11,13 +11,16 @@
  *   - its sockets: where modules go, and what each will take.
  * A hull has no behaviour beyond floating. Anything that does something is a module.
  *
- * Until M6 a hull stands on today's vessel definition (`legacyDef`): the physics, mesh and
- * walk area still come from VESSEL_DEFS, and the hull adds only its sockets. M6 moves the
- * shape and handling numbers in here and drops `legacyDef`.
+ * Since M6a the hull holds its shape and handling numbers, and the boat's vessel definition
+ * (VESSEL_DEFS) is built from it and her recipe (modular/vesselAssembly.ts). Until 6b the
+ * equipment only some boats carry (her bridge layout, lights, gear positions...) still comes
+ * from the vessel config named by `legacyDef`; 6b drops it.
  */
 import type { HullParams } from '../vessel/hullForm';
 import { hullPlan } from '../vessel/layout';
-import type { VesselDef } from '../vessel/vesselDef';
+import type { HullForm } from '../vessel/hullForm';
+import type { LayoutConfig, VesselConfig } from '../vessel/vesselDef';
+import type { MassProperties } from './massProperties';
 import type { BusKey } from './busKeys';
 import type { HullQueries, Provision } from './module';
 import type { Socket } from './socket';
@@ -28,26 +31,38 @@ export interface HullDefinition {
   version: number;
   /** For players and the shipyard: 'Workboat, 12 m'. */
   name: string;
-  /** Until M6: the vessel definition her physics, mesh and walk area still come from. */
-  legacyDef?: string;
+  /** Until 6b: the vessel config (CONFIG.vessels.<this>) her equipment's positions still come from. */
+  legacyDef: string;
   /** Where she's mounted things: every module goes on one of these, or on a module's own. */
   sockets: Socket[];
-  /**
-   * What the hull itself gives the boat. Until the electrics and engine are modules (M4),
-   * the hull stands in for today's code: 12 V on the existing circuits, deck hydraulics,
-   * the power take-off, diesel.
-   */
+  /** What the hull itself gives the boat (her wiring: the breakers' circuits). */
   provides?: Provision[];
   /** Where you stand at the helm (vessel axes) and which way you face (deg, 0 = forward). */
   helm: { stand: readonly [number, number, number]; yawDeg: number };
   /** Doors, hatches and windows that are part of the shape, each with the key that opens it. */
   features?: HullFeature[];
 
-  // ── Filled in M6 (until then from `legacyDef`) ──
-  /** Today's hard-chine generator (the workboat, unchanged) or a hull-study design, lofted. */
-  form?: { kind: 'chine'; params: HullParams } | { kind: 'loft'; designId: string };
-  /** Lightship: WITHOUT the modules that declare their own mass (2.6). */
-  lightship?: { massKg: number; cg: readonly [number, number, number]; gyradius: { roll: number; pitch: number; yaw: number } };
+  // ── The shape and handling (M6a) ──
+  /** Today's hard-chine generator (every boat in the game). A hull-study design, lofted, comes with M7. */
+  form: { kind: 'chine'; params: HullParams };
+  /**
+   * Lightship: WITHOUT the modules that declare their own mass (2.6; the engine, the
+   * batteries). The boat's mass, CG and inertia are this plus them (modular/massProperties.ts).
+   */
+  lightship: MassProperties;
+  /** Added mass as fractions of the rigid body's, per axis. */
+  addedMass: VesselConfig['addedMass'];
+  damping: VesselConfig['damping'];
+  /** Calm-water resistance. */
+  resistance: VesselConfig['resistance'];
+  /** Windage for leeway: areas and the centre of effort. */
+  windage: VesselConfig['windage'];
+  /** Deck, bulwarks, walkable margins; the wheelhouse, its roof and ladder where she has them. */
+  layout: LayoutConfig;
+  /** Her cargo deck: payload limits, clear areas, lashing points. */
+  cargo: VesselConfig['cargo'];
+  /** Debug spawn and drop test placement. */
+  spawn: VesselConfig['spawn'];
 }
 
 /** A door, hatch or window of the hull. */
@@ -69,8 +84,8 @@ export function createHullLibrary(hulls: readonly HullDefinition[]): HullLibrary
   return { get: (id) => byId.get(id) };
 }
 
-/** Read-only hull geometry for modules, from a vessel definition (2.7). */
-export function hullQueries(def: VesselDef): HullQueries {
+/** Read-only hull geometry for modules, from a hull's form and layout (2.7). */
+export function hullQueries(def: { hull: HullForm; layout: LayoutConfig }): HullQueries {
   const plan = hullPlan(def);
   const bulwark = def.layout.bulwarkHeight;
   return {

@@ -13,6 +13,7 @@
  * the same numbers the geometry is built from.
  */
 import type { GearFootprint } from '../modular/module';
+import type { HullForm } from './hullForm';
 import type { VesselDef } from './vesselDef';
 
 export interface Ladder {
@@ -49,7 +50,7 @@ import type { LayoutConfig } from './vesselDef';
 export type { LayoutConfig };
 
 /** Linear interpolation of a per-station quantity at longitudinal position z. */
-function stationLerp(def: VesselDef, z: number, get: (i: number) => number): number {
+function stationLerp(def: { hull: HullForm }, z: number, get: (i: number) => number): number {
   const st = def.hull.stations; // ordered transom (z max) -> stem (z min)
   if (z >= st[0].z) return get(0);
   for (let i = 0; i < st.length - 1; i++) {
@@ -65,7 +66,7 @@ function stationLerp(def: VesselDef, z: number, get: (i: number) => number): num
  * The hull in plan, vessel axes: half-beam at deck level and deck height at z, and the
  * transom and stem positions. Used for swimmers (pushed clear of the hull, climbing out).
  */
-export function hullPlan(def: VesselDef): { halfBeam(z: number): number; deckY(z: number): number; transom: number; stem: number } {
+export function hullPlan(def: { hull: HullForm }): { halfBeam(z: number): number; deckY(z: number): number; transom: number; stem: number } {
   const st = def.hull.stations;
   return {
     halfBeam: (z) => stationLerp(def, z, (i) => st[i].halfBeamDeck),
