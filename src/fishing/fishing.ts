@@ -28,6 +28,7 @@ import type { VesselState } from '../vessel/vesselState';
 import type { ExternalForce } from '../vessel/physics/vesselContact';
 import { groundHeight } from '../world/terrain';
 import type { EntityId } from '../core/ids';
+import { hasUpgrade } from '../career/career';
 
 export type FishStatus = 'stowed' | 'shooting' | 'hauling' | 'fishing' | 'slow' | 'fast' | 'outside' | 'fouled' | 'full';
 
@@ -131,7 +132,9 @@ export function stepFishing(world: WorldState, dt: number): void {
   else if (sp > c.maxSpeed) f.status = 'fast';
   else {
     f.status = 'fishing';
-    f.fill = Math.min(1, f.fill + (g.richness * dt) / c.boxEvery);
+    // The bigger trawl (a career upgrade) fills faster.
+    const every = c.boxEvery / (hasUpgrade(world, 'trawl') ? c.bigTrawlFactor : 1);
+    f.fill = Math.min(1, f.fill + (g.richness * dt) / every);
   }
   if (f.fill >= 1) {
     if (landBox(world, v, f)) {

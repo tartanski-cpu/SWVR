@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { WorldState } from '../core/world';
 import type { Duty } from './duties';
+import { contractText, money } from '../career/career';
 
 const CW = 1024;
 
@@ -40,13 +41,18 @@ export class DutyBoardView {
   update(world: WorldState): void {
     const items = world.duties?.items ?? [];
     const fc = world.forecast ?? null;
-    const sig = JSON.stringify([items.map((d) => [d.id, d.doneAt !== undefined, d.steps.map((s) => s.done)]), fc?.receivedAt ?? null]);
+    // The account and the contract on (the career), in the corner.
+    const c = world.career;
+    const k = c?.active;
+    const head = c ? money(c.money) : '';
+    const contract = k ? `Contract: ${contractText(k)} ${k.done}/${k.count}, ${Math.max(0, Math.round(((k.due ?? 0) - world.time) / 60))} min left` : '';
+    const sig = JSON.stringify([items.map((d) => [d.id, d.doneAt !== undefined, d.steps.map((s) => s.done)]), fc?.receivedAt ?? null, head, contract]);
     if (sig === this.signature) return;
     this.signature = sig;
-    this.draw(items, fc);
+    this.draw(items, fc, head, contract);
   }
 
-  private draw(items: Duty[], fc: { text: string; receivedAt: string } | null): void {
+  private draw(items: Duty[], fc: { text: string; receivedAt: string } | null, head = '', contract = ''): void {
     const g = this.g;
     const H = this.ch;
     // Board: dark green, chalky lettering.
@@ -57,7 +63,19 @@ export class DutyBoardView {
     g.textBaseline = 'top';
     g.font = 'bold 40px system-ui, sans-serif';
     g.fillText('DUTIES', 28, 18);
+    if (head) {
+      g.textAlign = 'right';
+      g.fillStyle = head.startsWith('-') ? '#ff9a8a' : '#ffe08a';
+      g.fillText(head, CW - 28, 18);
+      g.textAlign = 'left';
+    }
     let y = 76;
+    if (contract) {
+      g.font = 'bold 30px system-ui, sans-serif';
+      g.fillStyle = '#8ad8ff';
+      g.fillText(contract, 28, y);
+      y += 46;
+    }
     const bottom = forecastTop - 20;
     if (!items.length) {
       g.font = 'italic 30px system-ui, sans-serif';

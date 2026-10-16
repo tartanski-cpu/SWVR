@@ -268,6 +268,44 @@ Unanswered calls go away after two minutes. The menu's Tests tab has debug butto
 
 One thing at a time on the line. The menu's **Tow → Make fast** picks the nearest thing within 16 m of the towing post. Floating crates from lost cargo still go on the boat hook, not the towline.
 
+### Career: money, reputation, contracts, upgrades
+
+Everything you do now earns or costs money. The menu's **Office** tab is your harbour office; the **duty board** shows your balance (top right) and any contract on.
+
+- **Pay:**
+
+  | Job | Pays |
+  |---|---|
+  | Cargo | £60 + £50 per km between the ports |
+  | Fish | £45 a box |
+  | Salvage log | £180 |
+  | Debris cleared | £40 |
+  | Lost crate brought in | £80 |
+  | Tow | £450–800 |
+  | Rescue | £400 + £150 per survivor |
+  | Fire put out | £650 |
+
+  A pop-up on the desktop shows each payment.
+- **Costs:** fuel at £1.60 a litre (billed when you stop refuelling), a can of engine oil £35, and cargo lost overboard £100. You can go into the red, but you can't buy upgrades on credit.
+- **Reputation** at each port (0–100) grows with the work you do for it: deliveries to it, catch landed or logs sold there, tows, survivors and fires. Losing a port's cargo overboard, or failing a contract, costs some. Higher reputation pays better there, up to +50 % at 100.
+- **Job board:** lie alongside a port's berth (or anchor in Selkie Bay) and its office offers two contracts:
+  - deliver N cargo to it;
+  - land N boxes of fish there;
+  - sell N salvage logs there.
+
+  Each has a time limit and a bonus. Bigger ones need reputation at that port (15, 40). One contract at a time; late or abandoned, it's failed. The offers change every 10 minutes.
+- **Chandlery (upgrades, bought in port):**
+
+  | Upgrade | Price | Needs (best port reputation) | Effect |
+  |---|---|---|---|
+  | Radar | £2,400 | 20 | Debris and floating crates show on the chartplotter within 1.5 nm |
+  | Heavy towing post | £1,500 | 10 | The towline takes 75 % more before it parts |
+  | Bigger trawl | £1,800 | 10 | The net fills half as fast again |
+  | Ice machine | £1,200 | — | Fish fetch 30 % more |
+
+- **Saved:** your money, ledger, reputation and upgrades are kept in the host's browser between sessions; crew-mates see the host's career. You start with £500.
+- **Debug:** Tests → Side jobs → **+£5000, rep** (cash and +25 reputation everywhere).
+
 ### Log salvage (side job)
 
 Now and then timber washes up on a beach, and the VHF says where ("timber reported washed up on the north shore of Tarran"). Logs show on the chartplotter as brown **LOG** marks; there are up to three about at once.
@@ -426,6 +464,7 @@ src/
   net/             multiplayer: messages, PeerJS / loopback transports, host and client sessions, avatars
   tow/             towing: tow jobs and the towline on anything afloat (tow.ts), tow models, towline view
   wildlife/        gulls and dolphins (poses from time; view)
+  career/          money, ledger, reputation, contracts, upgrades (career.ts)
   salvage/         log salvage: beach spots, logs, their physics on the line; view
   fishing/         the trawl: net, grounds, catch, drag; gallows/warps/floats view
 tests/             vitest: run in plain Node, no browser

@@ -28,6 +28,7 @@ import type { Intent } from '../core/intents';
 import type { WorldState } from '../core/world';
 import type { VesselState } from '../vessel/vesselState';
 import { PORTS, type PortDef } from '../world/archipelago';
+import { earn } from '../career/career';
 import { berthById } from '../vessel/physics/mooring';
 import { isWorkboat, VESSEL_DEFS } from '../vessel/vesselDef';
 import { groundHeight } from '../world/terrain';
@@ -286,6 +287,8 @@ export function finishIncident(world: WorldState, v: VesselState): void {
   r.active = null;
   r.completed += 1;
   r.lastDone = summary(inc);
+  const np = nearestPort(v.position[0], v.position[2]).port;
+  earn(world, 'rescue', { port: np.id, people: inc.targets.filter((t) => t.kind === 'person').length, text: `Rescue (${np.name.replace(' (anchorage)', '')})` });
   const run = r.run ? ` Carry on to ${portById(r.run.to)?.name.replace(' (anchorage)', '')} when you're ready.` : '';
   say(r, 'info', (def?.done ?? 'Thank you, skipper.').replace('{harbour}', harbour) + run, world.time);
 }
@@ -344,6 +347,8 @@ function stepLanding(world: WorldState, r: RescueState, inc: Incident, v: Vessel
       inc.endT = world.time + cfg.ashoreTime;
       r.completed += 1;
       r.lastDone = summary(inc, inc.landedAt);
+      const lp = PORTS.find((p) => p.name.replace(' (anchorage)', '') === inc.landedAt);
+      earn(world, 'rescue', { port: lp?.id ?? null, people: people.length, text: `Rescue: survivors landed at ${inc.landedAt}` });
       r.cheer = (r.cheer ?? 0) + 1;
       const dest = r.run?.to ?? cargoDestination(world, v.id);
       r.quietTo = dest;
@@ -418,6 +423,7 @@ export function stepRescue(world: WorldState, dt: number, waves: readonly Prepar
       r.active = null;
       r.completed += 1;
       r.lastDone = summary(inc);
+      earn(world, 'rescue', { port: nearestPort(x, z).port.id, people: 0, text: 'Lost cargo recovered' });
     }
   }
   if (inc?.phase === 'calling') {

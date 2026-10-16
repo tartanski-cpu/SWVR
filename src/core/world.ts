@@ -19,6 +19,7 @@ import { createTowState, type TowState } from '../tow/tow';
 import { createFireState, type FireState } from '../fire/fire';
 import { createSalvageState, type SalvageState } from '../salvage/salvage';
 import { createFishingState, type FishingState } from '../fishing/fishing';
+import { createCareer, type CareerState } from '../career/career';
 
 /**
  * The complete simulation state. Plain, JSON-serializable data only: no class
@@ -66,6 +67,8 @@ export interface WorldState {
   salvage?: SalvageState;
   /** Fishing: the trawl and the catch (fishing/fishing.ts). */
   fishing?: FishingState;
+  /** The career: money, ledger, reputation, contracts, upgrades (career/career.ts). */
+  career?: CareerState;
 }
 
 export function createWorld(
@@ -101,6 +104,7 @@ export function createWorld(
     fire: createFireState(!!opts.fires),
     salvage: createSalvageState(!!opts.logs),
     fishing: createFishingState(),
+    career: createCareer(),
   };
   // Dynamic weather (the game): starting preset, the sea matching its wind.
   if (opts.weather) {

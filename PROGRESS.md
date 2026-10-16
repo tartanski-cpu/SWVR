@@ -1331,6 +1331,32 @@ The brief's "no new particle effects" rule was flagged: the fire is drawn withou
   - The WINDOWS switch, the glass it showed and the `windows` control are gone (the "secure the boat" duty drops its windows step). The windscreen's rain and wipers stay.
   - How shut-in the wheelhouse is now depends on the aft door alone: shut, it fully muffles wind, rain, wash and fire inside.
   - The engine sound gets a wheelhouse low-pass and level (`CONFIG.wheelhouseSound`): full on deck; inside with the door open ×0.75 and 1200 Hz; door shut ×0.45 and 320 Hz.
+- **Phase 1: the career layer** (owner request, after the feature summary): money, port reputation, harbour office contracts and upgrades, in `career/career.ts`. It's plain shared state (`WorldState.career`), host-authoritative, in the snapshots, and saved in the host's browser (`swvr.career`).
+  - **Pay** is reported where each job finishes:
+    - `earn()` is called from `cargo.retire` (cargo by distance, fish, lost crates; lost overboard costs), salvage sold, debris cleared, tow delivered, the three rescue endings, and fire out.
+    - Pay is scaled by the port's reputation factor (1 + 0.5 × rep/100).
+  - **Costs:** `stepCareer` watches the workboat. Fuel that flows in while refuelling is billed when the hose comes off, and an oil top-up is billed per can.
+  - **Reputation** per port, 0–100. Each kind of job gains some at the port it's for; lost cargo and failed contracts lose some.
+  - **Contracts:** two per port, renewed every 10 min, in three tiers by count:
+    - cargo to the port, fish landed there, or logs sold there;
+    - a bonus and a time allowed per item;
+    - tiers need reputation 0, 15 or 40 at that port.
+
+    Accept at that port's office (alongside its berth or anchored in its bay: `cargoPortAt`). One at a time; late or abandoned, it's failed (−6 reputation).
+  - **Upgrades:** each is a flag checked where it acts.
+    - Radar: plotter echoes of debris and floating crates within 2.8 km.
+    - Heavy towing post: break force ×1.75.
+    - Bigger trawl: fill ×1.5.
+    - Ice machine: fish ×1.3.
+
+    Bought in port, with the money (no credit) and the best port reputation.
+  - **UI:**
+    - The menu's new **Office** tab: balance, reputation, contract (abandon), job board (accept), chandlery (buy), ledger.
+    - The duty board: balance top right, the contract line under the title.
+    - A desktop pop-up per ledger entry.
+    - All actions are intents (`careerAccept` / `careerAbandon` / `careerBuy`), so crew-mates can use them too.
+  - **Tests (5):** cargo pay by distance and the reputation pay factor; fuel billing, oil and lost cargo; a contract taken only at its port, counting only matching work, the bonus, and failure when late; upgrades gated by port, reputation and money, then fitted; save/load round trip and junk rejected.
+  - **Not yet:** phase 2 (damage and wear) and phase 3 (tutorial, save slots). The money values are a first guess: tune them in `CONFIG.career` after playing.
 - **Cabin light: off / white / red** (owner: too bright at night). `Toggle` takes an optional third position: each press steps 0 → 1 → 2 → 0, and the bat sits middle, forward or aft. The cabin lamp's red mode is a dim red point light (`cabinLight.redIntensity` 0.45 against 3 for white) with a red diffuser. The chart table gets only a little light from it. Changing colour costs no shader recompile, only switching on or off does. **Tests:** the 3-way cycle; the red state through the intent.
 - **Desktop players walked off while working a control** (owner feedback: the skiff, searchlight, fire monitor):
   - Clicking a joystick or the tiller already hands WASD to that control, and in tests (host and crew-mate) the player stays put while steering.

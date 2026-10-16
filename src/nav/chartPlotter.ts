@@ -243,6 +243,21 @@ export class ChartPlotter {
       g.fillText('LOG', lx + 9, ly - 10);
     }
 
+    // Radar (a career upgrade): echoes of floating debris and lost crates near us.
+    if (world.career?.upgrades.includes('radar')) {
+      g.fillStyle = '#ffe14a';
+      const echo = (x: number, z: number) => {
+        if (Math.hypot(x - sx, z - sz) > CONFIG.career.radarRange) return;
+        const [px, py] = toPx(x, z);
+        g.beginPath();
+        g.arc(px, py, 4, 0, Math.PI * 2);
+        g.fill();
+      };
+      for (const d of world.traffic?.debris ?? []) echo(d.x, d.z);
+      for (const t of world.rescue?.active?.targets ?? []) if (t.kind === 'crate' && (!t.phase || t.phase === 'floating')) echo(t.x, t.z);
+      g.fillText('RADAR', W - 80, 22);
+    }
+
     // Search area.
     if (inc) {
       const [cx, cy] = toPx(inc.x, inc.z);

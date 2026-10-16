@@ -110,6 +110,24 @@ export interface MenuHost {
   towNear(kind: string): void;
   towCall(): void;
   towEnd(): void;
+  /**
+   * The career (Office tab): balance, reputation by port, the ledger; the harbour office's
+   * job board where she lies (offers by index), the contract on; upgrades (by index).
+   */
+  balance(): string;
+  reputation(): string;
+  ledgerLine(i: number): string;
+  officeName(): string;
+  offerText(i: number): string;
+  /** '' when it can be taken, else why not. */
+  offerBlocker(i: number): string;
+  acceptOffer(i: number): void;
+  contractText(): string;
+  abandonContract(): void;
+  upgradeText(i: number): string;
+  upgradeStatus(i: number): string;
+  buyUpgrade(i: number): void;
+  debugCash(): void;
   /** Debug side missions: a salvage log on the nearest beach; go to a fishing ground. */
   logNear(): void;
   goFishing(): void;
@@ -457,6 +475,7 @@ export function mainMenu(h: MenuHost): MainMenu {
       buttons: [
         { text: 'Log on beach', press: () => h.logNear() },
         { text: 'Fishing ground', press: () => h.goFishing() },
+        { text: '+£5000, rep', press: () => h.debugCash() },
       ],
     },
     {
@@ -477,6 +496,36 @@ export function mainMenu(h: MenuHost): MainMenu {
         { text: 'Wave probes', active: () => h.probes(), press: () => h.toggleProbes() },
       ],
     },
+  ];
+
+  const office: MenuRow[] = [
+    { label: 'Balance', buttons: [{ text: () => h.balance(), weight: 2 }] },
+    { label: 'Reputation', buttons: [{ text: () => h.reputation(), weight: 2 }] },
+    { heading: 'Contract' },
+    { label: '', buttons: [{ text: () => h.contractText(), weight: 3 }, { text: () => (h.contractText().startsWith('None') ? '' : 'Abandon'), press: () => h.abandonContract() }] },
+    { heading: 'Job board' },
+    { label: '', buttons: [{ text: () => h.officeName() }] },
+    ...[0, 1].map(
+      (i): MenuRow => ({
+        label: '',
+        buttons: [
+          { text: () => h.offerText(i), weight: 3 },
+          { text: () => (h.offerText(i) ? h.offerBlocker(i) || 'Accept' : ''), active: () => !!h.offerText(i) && !h.offerBlocker(i), press: () => h.acceptOffer(i) },
+        ],
+      }),
+    ),
+    { heading: 'Chandlery (upgrades, in port)' },
+    ...CONFIG.career.upgrades.map(
+      (_, i): MenuRow => ({
+        label: '',
+        buttons: [
+          { text: () => h.upgradeText(i), weight: 3 },
+          { text: () => h.upgradeStatus(i) || 'Buy', active: () => !h.upgradeStatus(i), press: () => h.buyUpgrade(i) },
+        ],
+      }),
+    ),
+    { heading: 'Ledger' },
+    ...[0, 1, 2, 3, 4, 5].map((i): MenuRow => ({ label: '', buttons: [{ text: () => h.ledgerLine(i) }] })),
   ];
 
   const solo = () => h.netRole() === 'solo';
@@ -511,6 +560,7 @@ export function mainMenu(h: MenuHost): MainMenu {
       { name: 'Sea & time', rows: seaAndTime },
       { name: 'Boat', rows: boat },
       { name: 'Cargo', rows: cargo },
+      { name: 'Office', rows: office },
       { name: 'Comfort', rows: comfort },
       { name: 'Sound', rows: sound },
       { name: 'Crew', rows: crew },

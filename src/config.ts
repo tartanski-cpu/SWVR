@@ -1070,6 +1070,8 @@ export const CONFIG = {
     dampingRatio: 0.5,
     /** It parts above this tension (N) or this stretch (m). */
     breakForce: 40000,
+    /** With the heavy towing post (career upgrade): this much more. */
+    heavyPostFactor: 1.75,
     maxStretch: 12,
     /** Delivered: the tow within this of a port (m), slower than this (m/s), for this long (s). */
     deliverRadius: 170,
@@ -1087,6 +1089,61 @@ export const CONFIG = {
      * (N; about 0.5 rho Cd A for a waterlogged tangle of planks and a drum: ~5 kN at 3.5 m/s).
      */
     debris: { mass: 900, dragLinear: 150, dragQuad: 350 },
+  },
+
+  /**
+   * The career (career/career.ts): money (£), reputation per port (0..100) and the harbour
+   * offices' contracts and upgrades.
+   *   pay       per job, before the port's reputation factor (1 .. 1 + repPayBonus at 100):
+   *             cargo `cargoBase` + `cargoPerKm` per km between the ports; a box of fish (x
+   *             `iceFactor` with the ice machine); a salvage log; debris cleared; a lost
+   *             crate brought in; tows by kind; a rescue plus per survivor; a fire put out.
+   *   costs     fuel per litre (a full 600 L tank from empty is ~£960), a can of oil, cargo
+   *             lost overboard (and reputation at its port).
+   *   rep       gained per job (or lost), at the port it's for.
+   *   contracts `perPort` offers at each office, renewed every `refresh` s. Per kind: the
+   *             item counts by tier (reputation `tierRep` at that port to take each tier),
+   *             the bonus per item and the time allowed per item (s).
+   *   upgrades  price and the best port reputation needed.
+   */
+  career: {
+    startMoney: 500,
+    /** Radar upgrade: echoes on the plotter within this (m). */
+    radarRange: 2800,
+    ledgerKeep: 12,
+    repPayBonus: 0.5,
+    pay: {
+      cargoBase: 60,
+      cargoPerKm: 50,
+      fishBox: 45,
+      iceFactor: 1.3,
+      log: 180,
+      debris: 40,
+      crate: 80,
+      tow: { derelict: 600, logRaft: 450, barge: 800 } as Record<string, number>,
+      towDefault: 500,
+      rescue: 400,
+      rescuePerPerson: 150,
+      fire: 650,
+    },
+    costs: { fuelPerL: 1.6, oil: 35, lostCargo: 100 },
+    rep: { cargo: 2, fish: 1, log: 3, debris: 1, tow: 6, rescue: 10, fire: 8, contract: 8, contractFail: -6, lostCargo: -3, max: 100 },
+    contracts: {
+      perPort: 2,
+      refresh: 600,
+      tierRep: [0, 15, 40],
+      kinds: {
+        cargo: { counts: [2, 4, 6], bonusPer: 90, secondsPer: 480 },
+        fish: { counts: [4, 8, 12], bonusPer: 35, secondsPer: 240 },
+        logs: { counts: [1, 2, 3], bonusPer: 160, secondsPer: 720 },
+      },
+    },
+    upgrades: [
+      { id: 'radar', name: 'Radar', price: 2400, minRep: 20, desc: 'Debris and floating crates on the plotter' },
+      { id: 'towPost', name: 'Heavy towing post', price: 1500, minRep: 10, desc: 'The towline holds 75 % more before it parts' },
+      { id: 'trawl', name: 'Bigger trawl', price: 1800, minRep: 10, desc: 'The net fills half as fast again' },
+      { id: 'ice', name: 'Ice machine', price: 1200, minRep: 0, desc: 'Iced fish fetch 30 % more' },
+    ],
   },
 
   /**
@@ -1135,6 +1192,8 @@ export const CONFIG = {
     minSpeed: 1.0,
     maxSpeed: 2.1,
     boxEvery: 40,
+    /** The bigger trawl (career upgrade) fills this much faster. */
+    bigTrawlFactor: 1.5,
     shootTime: 10,
     haulTime: 12,
     snagDepth: 7,

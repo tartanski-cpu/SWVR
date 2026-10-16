@@ -42,6 +42,7 @@ import type { ExternalForce } from '../vessel/physics/vesselContact';
 import { createRescueState, nearestPort, sayRadio } from '../rescue/rescue';
 import { formatPosition } from '../nav/geo';
 import { logOf, salvageStatus, stepLog } from '../salvage/salvage';
+import { earn, hasUpgrade } from '../career/career';
 
 export interface TowJob {
   /** The tow (a vessel in world.vessels while the job lasts) and its kind (def id). */
@@ -280,7 +281,8 @@ export function towlineForces(world: WorldState): Map<EntityId, ExternalForce[]>
   const c = 2 * cfg.dampingRatio * Math.sqrt(cfg.stiffness * m);
   const T = Math.max(0, cfg.stiffness * stretch + c * rate);
   line.tension = T;
-  if (T > cfg.breakForce || stretch > cfg.maxStretch) {
+  // The heavy towing post (an upgrade) holds more before the line parts.
+  if (T > cfg.breakForce * (hasUpgrade(world, 'towPost') ? cfg.heavyPostFactor : 1) || stretch > cfg.maxStretch) {
     world.tow!.line = null;
     sayRadio(world, 'info', 'The towline has parted! Come back round and make fast again.');
     return out;
@@ -320,6 +322,7 @@ function stepTowedDebris(world: WorldState, line: TowLine, dt: number): void {
     const t = world.tow!;
     t.line = null;
     t.cleared = (t.cleared ?? 0) + 1;
+    earn(world, 'debris', { port: port.id, text: `Debris cleared into ${port.name.replace(' (anchorage)', '')}` });
     world.traffic!.debris = world.traffic!.debris.filter((o) => o !== d);
     sayRadio(world, 'info', `${port.name.replace(' (anchorage)', '')} harbour: thank you for clearing that debris from the fairway, skipper. We'll take it from here.`);
   }
@@ -499,6 +502,7 @@ export function stepTow(world: WorldState, dt: number): void {
       r.completed += 1;
       const what = VESSEL_DEFS[job.defId].tow?.name ?? 'a tow';
       r.lastDone = `Tow: ${what.replace(/^an? /, '')} brought into ${name}.`;
+      earn(world, 'tow', { port: port.id, what: job.defId, text: `Tow into ${name}` });
       sayRadio(world, 'info', `${name} harbour: we have her, skipper, cast off your line. Thank you, a fine tow.`);
     }
     return;

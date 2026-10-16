@@ -75,6 +75,7 @@ import { AnchorAudio } from '../audio/anchorAudio';
 import { WildlifeAudio } from '../audio/wildlifeAudio';
 import { WildlifeView } from '../wildlife/wildlifeView';
 import { LogView } from '../salvage/logView';
+import { acceptBlocker, buyBlocker, contractText, money, officeAt, parseCareer, portName, repOf, serializeCareer, type Contract } from '../career/career';
 import { TrawlView } from '../fishing/trawlView';
 import { jetOn } from '../fire/fire';
 import { nearestTowTarget, towAlertT, towStatus } from '../tow/tow';
@@ -120,6 +121,7 @@ import { AvatarsView } from '../net/avatarView';
 const BOARD_KEY = 'swvr.board';
 /** ...and the ship's log (the last few voyages). */
 const LOG_KEY = 'swvr.log';
+const CAREER_KEY = 'swvr.career';
 /** ...and the pencil marks on the paper chart. */
 const CHART_KEY = 'swvr.chart';
 /** ...and the batteries when we left (only with electrics.drainBetweenSessions). */
@@ -264,6 +266,9 @@ export class App {
   private rainFrames = 0;
   private rainFrameSum = 0;
   private logSaved = -1;
+  /** The career as last saved (seq), and the newest ledger line seen (for the money pop-up). */
+  private careerSaved = -1;
+  private ledgerSeen: string | null = null;
   /** Pencil marks on the paper chart: this peer's copy (kept in step by ops; not in the world). */
   private marks = createMarks();
   private chartTools: ChartTools | null = null;
@@ -1351,6 +1356,7 @@ export class App {
       towNear: (kind) => this.pushVesselIntent('towDebugNear', 1, kind),
       towCall: () => this.pushVesselIntent('towDebugCall', 1),
       logNear: () => this.pushEnvIntent('salvageDebugNear', 1),
+      ...this.careerMenu(),
       goFishing: () => {
         // Teleport (with the boat) to the nearest fishing ground's edge, like the port Go buttons.
         const v = this.world.vessels[this.testVesselId];
@@ -1442,6 +1448,7 @@ export class App {
       w.fire = snap.fire;
       w.salvage = snap.salvage;
       w.fishing = snap.fishing;
+      w.career = snap.career;
       // The log comes in its own messages when it changes (not in every snapshot).
       w.log = client.log ?? snap.log;
       w.lost = snap.lost;
@@ -1673,6 +1680,8 @@ export class App {
     this.restoreBatteries();
     try {
       if (!this.client) this.world.log ??= parseLog(localStorage.getItem(LOG_KEY)) ?? undefined;
+      // The career (money, reputation, upgrades) carries on from the last session here.
+      if (!this.client) this.world.career = parseCareer(localStorage.getItem(CAREER_KEY)) ?? this.world.career;
       if (!this.client) this.marks = parseMarks(localStorage.getItem(CHART_KEY)) ?? this.marks;
       this.world.board ??= parseBoard(localStorage.getItem(BOARD_KEY)) ?? undefined;
       // Rescues completed in this browser so far (milestone 4).
@@ -1930,6 +1939,22 @@ export class App {
       } catch {
         // Not saved.
       }
+    }
+    const career = this.world.career;
+    if (career && !this.client && career.seq !== this.careerSaved) {
+      this.careerSaved = career.seq;
+      try {
+        localStorage.setItem(CAREER_KEY, serializeCareer(career));
+      } catch {
+        // Not saved.
+      }
+    }
+    // Money in or out: a short pop-up (desktop; the duty board shows it in VR).
+    const top = career?.ledger[0];
+    const key = top ? `${top.clock}|${top.text}|${top.amount}|${career!.money}` : null;
+    if (key !== this.ledgerSeen) {
+      if (this.ledgerSeen !== null && top) this.overlay.notify(`${top.amount >= 0 ? '+' : ''}${money(top.amount)}  ${top.text}  ·  ${money(career!.money)}`, 3);
+      this.ledgerSeen = key;
     }
     const log = this.world.log;
     if (log && !this.client && log.seq !== this.logSaved) {
@@ -2344,7 +2369,62 @@ export class App {
   }
 
 
-  private pushEnvIntent(control: string, value: number): void {
-    this.intents.push({ playerId: this.localPlayerId, targetId: ENVIRONMENT_ID, control, value });
+  private pushEnvIntent(control: string, value: number, ref?: string): void {
+    this.intents.push({ playerId: this.localPlayerId, targetId: ENVIRONMENT_ID, control, value, ...(ref !== undefined ? { ref } : {}) });
+  }
+
+  /** The harbour office's offers where she lies (none at sea). */
+  private officeOffers(): Contract[] {
+    const here = officeAt(this.world);
+    return here ? (this.world.career?.offers ?? []).filter((o) => o.port === here) : [];
+  }
+
+  /** The career's part of the menu (the Office tab). */
+  private careerMenu() {
+    const c = () => this.world.career;
+    return {
+      balance: () => (c() ? `${money(c()!.money)}  ·  ${c()!.contractsDone} contracts done  ·  ${c()!.upgrades.length} upgrades` : '-'),
+      reputation: () => PORTS.map((p) => `${p.name.replace(' (anchorage)', '').split(' ')[0]} ${repOf(c(), p.id)}`).join('  ·  '),
+      ledgerLine: (i: number) => {
+        const e = c()?.ledger[i];
+        return e ? `${e.clock}  ${e.amount >= 0 ? '+' : ''}${money(e.amount)}  ${e.text}` : '';
+      },
+      officeName: () => {
+        const here = officeAt(this.world);
+        return here ? `${portName(here)} harbour office` : 'At sea: come alongside a port (or anchor in its bay) to see its board';
+      },
+      offerText: (i: number) => {
+        const k = this.officeOffers()[i];
+        return k ? `${contractText(k)} · +${money(k.bonus)} · ${Math.round(k.allowed / 60)} min${k.minRep ? ` · rep ${k.minRep}` : ''}` : '';
+      },
+      offerBlocker: (i: number) => {
+        const k = this.officeOffers()[i];
+        return k ? (acceptBlocker(this.world, k) ?? '') : '';
+      },
+      acceptOffer: (i: number) => {
+        const k = this.officeOffers()[i];
+        if (k && !acceptBlocker(this.world, k)) this.pushEnvIntent('careerAccept', 1, k.id);
+      },
+      contractText: () => {
+        const k = c()?.active;
+        if (!k) return 'None: take one from a harbour office job board';
+        const left = Math.max(0, Math.round(((k.due ?? 0) - this.world.time) / 60));
+        return `${contractText(k)}: ${k.done}/${k.count}, ${left} min left, +${money(k.bonus)}`;
+      },
+      abandonContract: () => this.pushEnvIntent('careerAbandon', 1),
+      upgradeText: (i: number) => {
+        const u = CONFIG.career.upgrades[i];
+        return u ? `${u.name} (${money(u.price)}): ${u.desc}` : '';
+      },
+      upgradeStatus: (i: number) => {
+        const u = CONFIG.career.upgrades[i];
+        return u ? (buyBlocker(this.world, u.id) ?? '') : '';
+      },
+      buyUpgrade: (i: number) => {
+        const u = CONFIG.career.upgrades[i];
+        if (u && !buyBlocker(this.world, u.id)) this.pushEnvIntent('careerBuy', 1, u.id);
+      },
+      debugCash: () => this.pushEnvIntent('careerDebugCash', 1),
+    };
   }
 }

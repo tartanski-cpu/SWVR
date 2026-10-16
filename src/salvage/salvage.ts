@@ -27,6 +27,7 @@ import { windVector } from '../environment/weather';
 import { sayRadio } from '../rescue/rescue';
 import { ISLANDS, PORTS } from '../world/archipelago';
 import { isWorkboat, VESSEL_DEFS } from '../vessel/vesselDef';
+import { earn, portName } from '../career/career';
 import { groundHeight } from '../world/terrain';
 
 export interface SalvageLog {
@@ -225,6 +226,7 @@ export function stepSalvage(world: WorldState, dt: number): void {
       if (onLine(world, log)) world.tow!.line = null;
       s.logs = s.logs.filter((l) => l !== log);
       s.sold += 1;
+      earn(world, 'log', { port: port.id, text: `Salvage log sold at ${portName(port.id)}` });
       sayRadio(world, 'info', `${port.name.replace(' (anchorage)', '')} harbour: that's good timber, skipper - the yard will take it. ${s.sold} ${s.sold === 1 ? 'log' : 'logs'} salvaged so far.`);
       continue;
     }

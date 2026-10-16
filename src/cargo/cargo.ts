@@ -31,6 +31,7 @@ import type { VesselState } from '../vessel/vesselState';
 import { PORTS, type PortDef } from '../world/archipelago';
 import { standingHeight } from '../world/geography';
 import { deckSpot, onOpenDeck, type DeckFootprint } from './deck';
+import { cargoLost, earn, portName } from '../career/career';
 
 export type CargoAt =
   /** Ashore (world frame): `pos` is the middle of its base. */
@@ -142,13 +143,23 @@ export function stockPorts(world: WorldState): void {
   }
 }
 
-/** An item is gone (delivered or lost): remove it and restock somewhere. */
-function retire(world: WorldState, item: CargoItem, delivered: boolean): void {
+/**
+ * An item is gone (delivered or lost): remove it and restock somewhere. Delivered, it's
+ * paid (the career; `at`: the port it was set down at); lost overboard from a port's
+ * stock, it's charged.
+ */
+function retire(world: WorldState, item: CargoItem, delivered: boolean, at?: string): void {
   delete world.cargo[item.id];
   if (delivered) world.deliveries += 1;
   // A box of fish from the trawl, landed (fishing/fishing.ts).
   if (delivered && item.from === 'trawl' && world.fishing) world.fishing.landed += 1;
-  else world.lost = (world.lost ?? 0) + 1;
+  if (delivered && item.from === 'trawl') earn(world, 'fish', { port: at, text: `Fish landed at ${portName(at)}` });
+  else if (delivered && item.to === 'any') earn(world, 'crate', { port: at, text: `Lost cargo brought in to ${portName(at)}` });
+  else if (delivered) earn(world, 'cargo', { port: item.to, from: item.from, text: `Cargo ${portName(item.from)} → ${portName(item.to)}` });
+  else {
+    world.lost = (world.lost ?? 0) + 1;
+    cargoLost(world, item.from);
+  }
   spawnCargo(world);
 }
 
@@ -255,7 +266,7 @@ export function applyCargoIntent(world: WorldState, intent: Intent): void {
       item.at = { ground: [x, g, z], yaw };
       const port = portAtPoint(x, z);
       // Delivered: at its port, or anywhere for cargo fished out of the sea (to 'any').
-      if (port && (port.id === item.to || item.to === 'any')) retire(world, item, true);
+      if (port && (port.id === item.to || item.to === 'any')) retire(world, item, true, port.id);
       break;
     }
     case 'cargoLash':

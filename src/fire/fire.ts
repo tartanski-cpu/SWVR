@@ -29,6 +29,7 @@ import { isPowered } from '../vessel/electrics';
 import { isWorkboat, VESSEL_DEFS } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
 import { groundHeight } from '../world/terrain';
+import { earn } from '../career/career';
 import { createRescueState, nearestPort, sayRadio } from '../rescue/rescue';
 
 export type FireKind = 'boat' | 'shore';
@@ -277,6 +278,8 @@ export function stepFire(world: WorldState, dt: number): void {
       const r = (world.rescue ??= createRescueState());
       r.completed += 1;
       r.lastDone = `Fire: ${job.kind === 'boat' ? 'a fishing boat' : 'a shed ashore'} put out with the monitor.`;
+      const near = nearestPort(job.x, job.z).port;
+      earn(world, 'fire', { port: near.id, text: `Fire put out near ${near.name.replace(' (anchorage)', '')}` });
       sayRadio(world, 'info', 'Coastguard: that fire is out. Thank you, skipper, well fought. You can shut down the pump.');
     }
     return;
