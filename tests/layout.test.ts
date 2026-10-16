@@ -48,6 +48,15 @@ describe('vessel walk area (multi-level)', () => {
     expect(area.floorsAt(hx, hz)).toContain(wh.floorY); // standing on it as it opened: still held up
     area.setHatchOpen!(false);
     expect(area.walkable(hx, hz, wh.floorY)).toBe(true);
+    // The chart table's drop leaf: unfolded it takes the floor in front of the port wall;
+    // folded against the wall, that floor is free.
+    const ct = VESSEL_DEFS.workboat.chartTable!;
+    const cx = (ct.x0 + ct.x1) / 2 + 0.1;
+    const cz = (ct.z0 + ct.z1) / 2;
+    expect(area.walkable(cx, cz, wh.floorY)).toBe(false);
+    area.setChartLeafFolded!(true);
+    expect(area.walkable(cx, cz, wh.floorY)).toBe(true);
+    area.setChartLeafFolded!(false);
     const tw = VESSEL_DEFS.workboat.towWinch!;
     expect(area.walkable(0, tw.z, DECK_AFT)).toBe(false); // the tow winch
     expect(area.walkable(tw.drumWidth / 2 + 0.1 + tw.housing.width / 2, tw.z, DECK_AFT)).toBe(false); // its gearbox housing

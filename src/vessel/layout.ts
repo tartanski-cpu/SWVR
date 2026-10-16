@@ -33,6 +33,8 @@ export interface WalkArea {
   inBounds?(x: number, z: number): boolean;
   /** Open or shut the engine hatch in the wheelhouse floor (open: its hole isn't walkable). */
   setHatchOpen?(open: boolean): void;
+  /** The chart table's leaf folded against the wall (the floor in front of it is free). */
+  setChartLeafFolded?(folded: boolean): void;
 }
 
 /** How far inside the deck edge the VR fence stands (m): the bulwark and its rail. */
@@ -138,16 +140,18 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig): WalkArea {
   const consoleAft = int.z0 + wh.consoleDepth;
   const doorHalf = wh.doorWidth / 2;
   const inHouseFootprint = (x: number, z: number) => Math.abs(x) <= ext.x && z >= ext.z0 && z <= ext.z1;
-  // Furniture standing on the wheelhouse floor: the chart table (if she has one). Boxes:
-  // footprint and height above the floor.
-  const furniture = [def.chartTable].filter((f): f is NonNullable<typeof f> => !!f);
+  // Furniture on the wheelhouse floor: the chart table (if she has one), footprint and height
+  // above the floor. Its leaf folded down against the wall, only a strip along the wall is
+  // taken up.
+  const ct = def.chartTable;
+  let leafFolded = false;
   // The engine hatch in the floor: open, its hole can't be walked into (you can still stand
   // where you were if it opened under you; you just can't step onto it).
   const hatch = layout.engineHatch;
   let hatchOpen = false;
   const inHatch = (x: number, z: number) => !!hatch && hatchOpen && x > hatch.x0 - r * 0.3 && x < hatch.x1 + r * 0.3 && z > hatch.z0 - r * 0.3 && z < hatch.z1 + r * 0.3;
   const atFurniture = (x: number, z: number, pad: number, y = -Infinity) =>
-    furniture.some((f) => x >= f.x0 - pad && x <= f.x1 + pad && z >= f.z0 - pad && z <= f.z1 + pad && y < wh.floorY + f.height);
+    !!ct && x >= ct.x0 - pad && x <= (leafFolded ? ct.x0 + 0.1 : ct.x1) + pad && z >= ct.z0 - pad && z <= ct.z1 + pad && y < wh.floorY + ct.height;
 
   // Roof (walkable, railed) and the ladder up the aft face of the wheelhouse.
   const roof = layout.roof;
@@ -198,6 +202,10 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig): WalkArea {
 
     setHatchOpen(open) {
       hatchOpen = open;
+    },
+
+    setChartLeafFolded(folded) {
+      leafFolded = folded;
     },
 
     ladderAt(x, z) {

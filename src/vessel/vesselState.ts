@@ -47,6 +47,8 @@ export interface VesselControls {
   door: number;
   /** The engine hatch in the wheelhouse floor open (1) or shut (0). */
   engineHatch?: number;
+  /** The chart table's drop leaf unfolded (1, or unset) or folded against the wall (0). */
+  chartLeaf?: number;
   /** Fire monitor on the roof: pump on (0/1), and its pan (deg, + to starboard) and elevation (deg). */
   firePump: number;
   monPan: number;

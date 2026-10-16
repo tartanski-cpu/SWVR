@@ -834,17 +834,20 @@ export const CONFIG = {
        */
       // Pushed aft against the aft wall (owner feedback), under the whiteboard: more room
       // behind the helm.
-      // 10 cm deeper than it was (owner feedback: the chart was hard to read), so the chart
-      // covering its depth is bigger; the pen holder and lamp moved aft, clear of it.
+      // A drop leaf on the port wall (owner request: with the logbook gone the fixed table was
+      // too big): just long enough for the chart and the pen holder, 75 cm deep (the chart
+      // covers its depth). `lamp`: the wall bracket ([x, z]; x at the wall), the arm's height
+      // above the table and the shade over the chart's middle; the lamp switch on the batten
+      // at its aft end ([x, z]).
       chartTable: {
         x0: -1.37,
         x1: -0.62,
-        z0: 0.08,
-        z1: 1.4,
+        z0: 0.1,
+        z1: 1.05,
         height: 0.95,
-        holder: [-1.31, 0.96] as [number, number],
-        lamp: { base: [-1.29, 1.12] as [number, number], height: 0.45, head: [-0.98, 0.62] as [number, number] },
-        lampSwitch: [-0.69, 1.33] as [number, number],
+        holder: [-1.3, 0.97] as [number, number],
+        lamp: { base: [-1.37, 0.52] as [number, number], height: 0.5, head: [-0.98, 0.52] as [number, number] },
+        lampSwitch: [-1.34, 0.99] as [number, number],
       },
       /**
        * The duty board (game tasks and the shipping forecast; duties/dutyBoardView.ts): on

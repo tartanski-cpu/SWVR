@@ -549,7 +549,7 @@ export class App {
   private updateChartZoom(dt: number, inXR: boolean): void {
     const c = CONFIG.desktop;
     let target = 1;
-    if (!inXR && this.chartTable?.root.visible) {
+    if (!inXR && this.chartTable?.root.visible && this.chartTable.isOpen) {
       const root = this.chartTable.root;
       const eye = root.worldToLocal(this.camera.getWorldPosition(this.tmpV));
       const dir = this.camera.getWorldDirection(this.zoomDir).transformDirection(this.zoomInv.copy(root.matrixWorld).invert());
@@ -657,8 +657,13 @@ export class App {
       const hawse = this.testDef.anchor && root ? root.localToWorld(this.tmpV.fromArray(this.testDef.anchor.hawse)).distanceTo(this.focus) : 1e9;
       this.sound.anchor.update(tv?.anchor, hawse, this.insideHouse ? this.closed : 0, dt);
       if (tv && root) this.updateHydraulicsSound(tv, root);
-      // The engine hatch's hole isn't walkable while it's open.
-      if (tv) this.walkAreas.get(this.testVesselId)?.setHatchOpen?.((tv.controls.engineHatch ?? 0) > 0.5);
+      // The engine hatch's hole isn't walkable while it's open; the chart table's floor space
+      // is free while its leaf is folded.
+      if (tv) {
+        const wa = this.walkAreas.get(this.testVesselId);
+        wa?.setHatchOpen?.((tv.controls.engineHatch ?? 0) > 0.5);
+        wa?.setChartLeafFolded?.((tv.controls.chartLeaf ?? 1) < 0.5);
+      }
       // Gulls overhead; dolphins at the bow when she's under way in open, deep water.
       const wl = CONFIG.wildlife.dolphins;
       const open = !!tv && groundHeight(tv.position[0], tv.position[2]) < -wl.minDepth && nearestPort(tv.position[0], tv.position[2]).dist > wl.minPortDistance;
@@ -1792,9 +1797,10 @@ export class App {
     if (ct) {
       this.chartTable = new ChartTableView(ct, wh.floorY);
       view.root.add(this.chartTable.root);
-      this.bridge.controls.push(this.chartTable.lampSwitch);
+      this.bridge.controls.push(this.chartTable.lampSwitch, this.chartTable.leafHandle);
       this.chartTools = new ChartTools(this.chartTable);
-      this.chartTable.root.add(this.chartTools.root);
+      // On the leaf: the marks and tools fold with it.
+      this.chartTable.leafFrame.add(this.chartTools.root);
     }
     this.restoreBatteries();
     try {
@@ -1837,7 +1843,8 @@ export class App {
     this.pointer = new DesktopPointer(this.renderer.domElement, this.desktop, this.interaction, this.menu, this.desktopCargo());
     if (this.chartTools) {
       const tools = this.chartTools;
-      this.pointer.chart = (ray, b) => tools.updateDesktop(this.chartCtx(), ray, b, this.frameDt);
+      // Drawing on the chart only with the leaf unfolded.
+      this.pointer.chart = (ray, b) => (this.chartTable?.isOpen ? tools.updateDesktop(this.chartCtx(), ray, b, this.frameDt) : { label: null, consumed: false });
     }
   }
 
@@ -1878,7 +1885,7 @@ export class App {
         f.trigger = 0;
       }
       // The chart table's tools: a hand holding one gives its grip and trigger to the tool.
-      const onTools = this.chartTools ? this.chartTools.updateXR(this.chartCtx(), this.hands, this.busyHands, this.frameDt) : { left: false, right: false };
+      const onTools = this.chartTools && this.chartTable?.isOpen ? this.chartTools.updateXR(this.chartCtx(), this.hands, this.busyHands, this.frameDt) : { left: false, right: false };
       for (const h of ['left', 'right'] as const) {
         if (!onTools[h]) continue;
         const f = this.hands[h];

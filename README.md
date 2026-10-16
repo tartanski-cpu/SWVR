@@ -144,11 +144,12 @@ Warning lamps in front of the key: **OIL**, **CHARGE**, **GLOW**, **NEUTRAL** an
 
 ### Chart table
 
-The chart table stands along the port wall, behind the helm. On it:
+The chart table is a drop leaf on the port wall, behind the helm. Press the wooden **knob** on its front edge to fold it down flat against the wall (the leg swings up under it), out of the way; press it again to lift it back up. Folded, the chart still faces into the wheelhouse so you can read it, but you can only draw on it unfolded. On it:
 - a paper chart of the sound (north toward the wall);
 - a pen holder with the pen, a pencil and an eraser;
-- dividers;
-- a lamp with its own small switch (DECK LTS breaker).
+- dividers.
+
+Above it, a lamp on the wall with its own small switch on the wooden batten the leaf hangs from (DECK LTS breaker).
 
 **Drawing on the chart:**
 
