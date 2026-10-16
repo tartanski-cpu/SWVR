@@ -611,7 +611,8 @@ export const CONFIG = {
        * horizontal distance bow -> anchor, h the bow height above the seabed, L the chain out:
        *   x < x_taut = sqrt(L² - h²):  T = w·h·exp((x - x_taut) / softness)   (catenary lifting)
        *   x ≥ x_taut:                  T = w·h + k·(x - x_taut) + c·dx/dt       (bar taut)
-       * Above `holdingN` the anchor drags. Scope paid out: 4 × depth + 5 m.
+       * Above `holdingN` the anchor drags. Scope paid out: `scopeRatio` × water depth, at least
+       * `minScopeFromRoller` × the bow roller's height above the seabed.
        */
       anchor: {
         /** Bow roller / hawse (vessel axes). */
@@ -621,6 +622,13 @@ export const CONFIG = {
         chainWeightNPerM: 16,
         /** Holding power in sand/mud of a ~25 kg anchor (N). */
         holdingN: 20000,
+        /**
+         * Chain paid out per metre of water depth (owner: 5:1 minimum, 7:1 recommended).
+         * 5 keeps her from swinging wide in shallow anchorages; 7 holds better in a blow.
+         */
+        scopeRatio: 5,
+        /** Never less than this ratio from the bow roller (below 3:1 the anchor holds poorly). */
+        minScopeFromRoller: 3,
         payOutRate: 2.0,
         heaveRate: 0.6,
         /** Windlass stalls above this pull (N). */

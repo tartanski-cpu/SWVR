@@ -1549,6 +1549,8 @@ How to come back to it:
 
 ### Fixes after V1.0 (on the dev branch; not in the `V1.0` tag)
 
+- **Anchor scope** (owner: too much chain, ~30 m in 3 m; 5:1 minimum, 7:1 recommended): the windlass now pays out `anchor.scopeRatio` (5) × the water depth, never less than `anchor.minScopeFromRoller` (3) × the bow roller's height above the seabed, so it still holds in very shallow water. It was 4 × (bow roller height above the seabed) + 5 m. That counted the roller's 1.35 m and added a flat 5 m, and the echo sounder reads under the keel (keel 0.95 m down). So "3 m" on the display was about 4 m of water and 5.3 m from the roller: 26–30 m of chain. Now it's 20 m. Set `scopeRatio` to 7 for the heavy-weather figure. Test: `tests/anchor.test.ts`. **The golden run `tests/golden/fixtures/anchor.json` was re-recorded** (`GOLDEN_RECORD=1`) for this deliberate change; the other golden runs are unchanged.
+
 - **Charted hazards and IALA buoys; night instrument lighting; stabilisers only in use** (owner request):
   - **Old buoys and rocks gone:** the yellow/red buoys and loose rocks the traffic system scattered about (unlit, marking nothing) are removed (`traffic.buoys`, `traffic.rocks` deleted).
   - **Real dangers** (`world/archipelago.ts`):
@@ -1556,7 +1558,7 @@ How to come back to it:
     - Dubh Sgeir, a reef awash (a ridge, crest 0.4 m);
     - Craig Bheag, a 1.2 m rock (an islet).
   - **Buoys** (`MARKS`), IALA region A: N and S cardinals on the wreck, W and E on Dubh Sgeir, W and S at Gull Rocks, W at the Skerry, an isolated danger mark on Craig Bheag, and a port/starboard pair at the Calder entrance. Shapes, colours and topmarks are the IALA ones. Lights flash the IALA characters (`world/navMarks.ts`), staggered so like buoys don't flash together. Drawn as one instanced mesh per kind plus one points cloud for the lamps (`world/view/navMarksView.ts`): a handful of draw calls for all of them. The paper chart and the plotter show the marks (with characters) and the wreck symbol.
-  - **Night panel lighting** (`controls/panelLighting.ts`): every dial, screen and label shares one brightness setting in its shader, so it costs nothing per frame. It dims with darkness to `panelLighting.nightLevel` (0.3). A new **NIGHT** switch on the console (`controls.panelRed`, `bridge.nightPanelSwitch`) turns it red at `panelLighting.redLevel` (0.6) of that. The WIPERS switch moved one place to port to make room.
+  - **Night panel lighting** (`controls/panelLighting.ts`): every dial, screen and label shares one brightness setting in its shader, so it costs nothing per frame. It dims with darkness to `panelLighting.nightLevel` (0.3). A new **NIGHT** switch on the console (`controls.panelRed`, `bridge.nightPanelSwitch`) turns it red at `panelLighting.redLevel` (0.6) of that. The Cabin and WIPERS switches shifted a little to port to make room; NIGHT sits where WIPERS was.
   - **Stabilisation only in use:** the searchlight holds its aim only while lit, and the fire monitor only while the pump runs. Otherwise they ride with the boat and skip the per-frame correction.
 
 - **Wheelhouse sides and a port side door** (owner sketch):
