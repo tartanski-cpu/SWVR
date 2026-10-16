@@ -29,18 +29,27 @@ export class Joystick extends Control {
   private lastPan = 0;
   private lastTilt = 0;
 
+  /** Read the authoritative pan and tilt (deg). */
+  private readonly readPan: (s: VesselState) => number;
+  private readonly readTilt: (s: VesselState) => number;
+
   /**
-   * @param channels the pan / tilt intents it drives and reads back (the searchlight's by
-   *                 default; the fire monitor's joystick drives monPan / monTilt)
+   * @param channels the pan / tilt intents it drives (the searchlight's by default; the fire
+   *                 monitor's joystick drives monPan / monTilt; a module, its bus keys)
+   * @param read     how it reads them back (default: the same names in `controls`)
    */
   constructor(
     id: string,
     private readonly opts: { panRateDeg: number; tiltRateDeg: number; panLimitDeg: number; tiltMinDeg: number; tiltMaxDeg: number },
-    private readonly channels: { pan: 'spotPan' | 'monPan'; tilt: 'spotTilt' | 'monTilt' } = { pan: 'spotPan', tilt: 'spotTilt' },
+    private readonly channels: { pan: string; tilt: string } = { pan: 'spotPan', tilt: 'spotTilt' },
     label = 'Searchlight joystick',
     knobColor = 0xe0b020,
+    read?: { pan: (s: VesselState) => number; tilt: (s: VesselState) => number },
   ) {
     super(id, channels.pan);
+    const field = (name: string) => (s: VesselState) => (s.controls[name as keyof VesselState['controls']] as number | undefined) ?? 0;
+    this.readPan = read?.pan ?? field(channels.pan);
+    this.readTilt = read?.tilt ?? field(channels.tilt);
     this.label = label;
     const base = this.fixed(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.03, 12), new THREE.MeshLambertMaterial({ color: 0x23282c })));
     base.position.y = 0.015;
@@ -106,8 +115,8 @@ export class Joystick extends Control {
 
   sync(state: VesselState): void {
     if (this.held) return;
-    this.pan = state.controls[this.channels.pan];
-    this.tilt = state.controls[this.channels.tilt];
+    this.pan = this.readPan(state);
+    this.tilt = this.readTilt(state);
     this.lastPan = this.pan;
     this.lastTilt = this.tilt;
   }

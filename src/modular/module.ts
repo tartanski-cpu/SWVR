@@ -19,6 +19,8 @@
  */
 import type * as THREE from 'three';
 import type { Control } from '../controls/Control';
+import type { Screen } from '../controls/instruments';
+import type { BreakerName } from '../vessel/vesselState';
 import type { BusReader, BusValue } from './bus';
 import type { BusKey } from './busKeys';
 import type { Physical, Socket, SocketType } from './socket';
@@ -58,8 +60,11 @@ export interface ModuleDefinition<Config = unknown, State = unknown> {
 /** One connection to the bus. */
 export interface PortSpec {
   dir: 'read' | 'write';
-  /** Default key: the generic one ('propulsion.rpm'). A recipe's `bind` may change it. */
-  key: BusKey;
+  /**
+   * Default key: the generic one ('propulsion.rpm'). A recipe's `bind` may change it.
+   * None: the recipe must bind it (a generic switch: which key it throws is the boat's call).
+   */
+  key?: BusKey;
   /** Read ports: false = may go unconnected (a lamp with nothing to show stays dark). Default true. */
   required?: boolean;
 }
@@ -154,6 +159,11 @@ export interface ViewContext<Config> {
   palette: Readonly<Record<string, number>>;
   /** One instance of a shared moving part (Part C, 2.10): one draw call for all of them. */
   instance(part: SharedPartKind): InstanceHandle;
+  /**
+   * Fit a screen on the boat's shared display atlas (one texture, one draw call for every
+   * screen). `plane`: the screen's face in socket axes, UVs 0..1 across it.
+   */
+  display(screen: Screen, plane: THREE.BufferGeometry, circuit: BreakerName): void;
 }
 
 /** Read-only hull geometry (vessel axes, m). */
@@ -190,11 +200,27 @@ export interface ModuleViewInstance<State> {
   movingParts: THREE.Object3D[];
   /** The existing control components (Lever, Toggle, Button, Wheel, Joystick...). */
   controls: Control[];
+  /** Engraved labels, drawn with the bridge's others in one mesh. */
+  labels?: EngravedLabel[];
   /** Solid for walking and cargo (vessel axes); may change with the bus (a leaf folded). */
   footprints?(read: BusReader): Footprint[];
   /** Each frame. `s` is the module's sim state as last received (undefined: none). */
   update(read: BusReader, s: State | undefined, dt: number): void;
   dispose?(): void;
+}
+
+/** How far aft of what it names an engraved label lies (m). */
+export const LABEL_OFFSET = 0.085;
+
+/**
+ * A small engraved label lying on a panel, just aft of what it names (`at`, socket axes).
+ * `title`: dark on light, for a group's plate. `yaw`: read facing that way (rad; 0 forward).
+ */
+export interface EngravedLabel {
+  text: string;
+  at: readonly [number, number, number];
+  title?: boolean;
+  yaw?: number;
 }
 
 /** A box you can't walk or stand cargo in (vessel axes, m). */
@@ -236,10 +262,13 @@ export function mergeConfig<C>(def: ModuleDefinition<C>, overrides: Record<strin
   return overrides ? ({ ...(def.defaults as object), ...overrides } as C) : def.defaults;
 }
 
-/** Each port's bus key after a recipe's rebinding. */
+/** Each port's bus key after a recipe's rebinding (ports with no key at all are left out). */
 export function resolvePorts(def: ModuleDefinition, bind: Readonly<Record<string, BusKey>> | undefined): Record<string, BusKey> {
   const out: Record<string, BusKey> = {};
-  for (const [name, p] of Object.entries(def.ports)) out[name] = bind?.[name] ?? p.key;
+  for (const [name, p] of Object.entries(def.ports)) {
+    const key = bind?.[name] ?? p.key;
+    if (key) out[name] = key;
+  }
   return out;
 }
 

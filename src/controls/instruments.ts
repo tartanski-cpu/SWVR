@@ -1,6 +1,7 @@
 import { isPowered } from '../vessel/electrics';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import type { BreakerName } from '../vessel/vesselState';
 import { CONFIG } from '../config';
 import type { WorkboatDef } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
@@ -11,22 +12,29 @@ import { beaufort, windVector } from '../environment/weather';
 import { formatPosition } from '../nav/geo';
 
 /**
- * The bridge instrument displays: speed, heading, engine RPM (+ gear), rudder angle, and an
- * engine monitor (temperatures, fuel, alarms) behind the wheel, read through the spokes;
- * plus NAV / WIND under the roof between the radio and the chartplotter (owner request):
- * GPS position, speed and course over ground, heading, and the true and apparent wind with
- * a dial (apparent wind = true wind minus the boat's own way, relative to the bow).
+ * The bridge's screens (speed, heading, rpm, rudder, engine monitor, NAV / WIND) and the
+ * display atlas they share.
  *
- * All six screens share ONE canvas (an atlas, 2 x 3 regions) and ONE merged mesh whose
- * UVs map each screen to its region: one texture upload and one draw call, redrawn at a
- * modest rate (CONFIG.interaction.displayHz) - cheap on the headset.
+ * Modular boats (M3): each screen is its own instrument module (src/modules/screen), and
+ * the screens a boat carries all share ONE canvas (an atlas of 512 x 256 regions) and ONE
+ * merged mesh whose UVs map each screen to its region: one texture upload and one draw
+ * call, redrawn at a modest rate (CONFIG.interaction.displayHz), cheap on the headset.
+ * The assembler owns the atlas; a screen module claims a region with its painter.
  *
- * Displays only READ vessel state (they subscribe by sampling it), like any other view.
+ * The atlas repaints (and re-uploads) only when something shown has changed: each screen
+ * gives a key, its values rounded to what you could see change (a tenth of a knot, a
+ * degree of heading, 10 rpm...); equal keys mean identical screens. Without 12 V on its
+ * circuit a screen goes black.
+ *
+ * Until the engine is a module (M4) the painters read the boat's state and definition
+ * directly, as they always have. They only READ, like any other view.
  */
 const W = 1024;
 const H = 768;
 const RW = 512;
 const RH = 256;
+const COLS = W / RW;
+const MAX_REGIONS = (W / RW) * (H / RH);
 const AMBER = '#ffb340';
 const DIM = '#6b4a1a';
 const BG = '#0d1210';
@@ -34,17 +42,33 @@ const GREEN = '#6fe08a';
 const RED = '#ff5a45';
 
 type Painter = (g: CanvasRenderingContext2D, s: VesselState, def: WorkboatDef, env: EnvironmentState | null) => void;
+type ScreenKey = (s: VesselState, def: WorkboatDef, env: EnvironmentState | null) => string;
 
-export class InstrumentPanel {
-  readonly mesh: THREE.Mesh;
+/** One screen: how to draw it and what it shows. */
+export interface Screen {
+  paint: Painter;
+  key: ScreenKey;
+}
+
+/** A screen as fitted: its region, its circuit, its plane (vessel axes). */
+interface Region {
+  screen: Screen;
+  circuit: BreakerName;
+  index: number;
+}
+
+export class DisplayAtlas {
   private readonly canvas: HTMLCanvasElement;
   private readonly g: CanvasRenderingContext2D;
   private readonly texture: THREE.CanvasTexture;
+  private readonly regions: Region[] = [];
+  private readonly planes: THREE.BufferGeometry[] = [];
   private sinceDraw = Infinity;
   private lastKey = '';
-  private readonly painters: Painter[] = [paintSpeed, paintHeading, paintRpm, paintRudder, paintEngineMonitor, paintNav];
+  /** The merged screens (built by `finish()`). */
+  mesh: THREE.Mesh | null = null;
 
-  constructor(cfg: WorkboatDef['bridge']) {
+  constructor() {
     this.canvas = document.createElement('canvas');
     this.canvas.width = W;
     this.canvas.height = H;
@@ -52,65 +76,58 @@ export class InstrumentPanel {
     this.texture = new THREE.CanvasTexture(this.canvas);
     this.texture.colorSpace = THREE.SRGBColorSpace;
     this.texture.anisotropy = 4;
+  }
 
-    const d = cfg.displays;
-    const tilt = (-cfg.dash.tiltDeg * Math.PI) / 180;
-    /** A screen plane whose UVs map into atlas region i (canvas y grows down; texture v grows up). */
-    const screen = (i: number, w: number, h: number) => {
-      const plane = new THREE.PlaneGeometry(w, h);
-      const cx = (i % 2) * RW;
-      const cy = Math.floor(i / 2) * RH;
-      const uv = plane.attributes.uv as THREE.BufferAttribute;
-      for (let k = 0; k < uv.count; k++) {
-        uv.setXY(k, (cx + uv.getX(k) * RW) / W, 1 - (cy + (1 - uv.getY(k)) * RH) / H);
-      }
-      return plane;
-    };
-    const faces = d.x.map((x, i) => {
-      const plane = screen(i, d.width, d.height).rotateX(tilt);
-      // Tilted back, the screen's top edge leans toward the dash: stand it off the face
-      // far enough that the whole screen stays in front of it.
-      plane.translate(x, d.y, cfg.dash.aft + 0.006 + (d.height / 2) * Math.sin(-tilt));
-      return plane;
-    });
-    // NAV / WIND: hung under the roof, its face tilted down toward the helm (region 5; its
-    // housing is in the bridge's fixed mesh).
-    const n = cfg.navDisplay;
-    const nav = screen(5, n.width, n.height)
-      .rotateX((n.tiltDeg * Math.PI) / 180)
-      .translate(n.position[0], n.position[1], n.position[2]);
-    faces.push(nav);
-    this.mesh = new THREE.Mesh(mergeGeometries(faces), new THREE.MeshBasicMaterial({ map: this.texture, toneMapped: false }));
+  /**
+   * Fit a screen. `plane` is the screen's face in vessel axes, its UVs 0..1 across it;
+   * they are remapped into the screen's region of the atlas.
+   */
+  add(screen: Screen, plane: THREE.BufferGeometry, circuit: BreakerName): void {
+    const index = this.regions.length;
+    if (index >= MAX_REGIONS) throw new Error(`the display atlas holds ${MAX_REGIONS} screens`);
+    const cx = (index % COLS) * RW;
+    const cy = Math.floor(index / COLS) * RH;
+    const uv = plane.attributes.uv as THREE.BufferAttribute;
+    for (let k = 0; k < uv.count; k++) uv.setXY(k, (cx + uv.getX(k) * RW) / W, 1 - (cy + (1 - uv.getY(k)) * RH) / H);
+    this.regions.push({ screen, circuit, index });
+    this.planes.push(plane);
+  }
+
+  /** Merge the fitted screens into one mesh (after every screen is added). */
+  finish(): THREE.Mesh | null {
+    if (!this.planes.length) return null;
+    this.mesh = new THREE.Mesh(mergeGeometries(this.planes), new THREE.MeshBasicMaterial({ map: this.texture, toneMapped: false }));
     this.mesh.name = 'instruments';
+    return this.mesh;
   }
 
   update(state: VesselState, def: WorkboatDef, dt: number, env: EnvironmentState | null = null): void {
+    if (!this.regions.length) return;
     this.sinceDraw += dt;
     if (this.sinceDraw < 1 / CONFIG.interaction.displayHz) return;
     this.sinceDraw = 0;
     // Only repaint (and re-upload the 3 MB atlas) when something shown has changed: moored
-    // or drifting with the engine off, the screens cost nothing.
-    // No 12 V: the screens go black (drawn once).
-    const powered = isPowered(state, 'instruments');
-    const key = powered ? `${displayKey(state, def)}|${navKey(state, env)}` : 'off';
+    // or drifting with the engine off, the screens cost nothing. No 12 V: black (drawn once).
+    const powered = this.regions.map((r) => isPowered(state, r.circuit));
+    const key = this.regions.map((r, i) => (powered[i] ? r.screen.key(state, def, env) : 'off')).join('#');
     if (key === this.lastKey) return;
     this.lastKey = key;
     const g = this.g;
-    if (!powered) {
-      g.fillStyle = '#020303';
-      g.fillRect(0, 0, W, H);
-      this.texture.needsUpdate = true;
-      return;
-    }
-    this.painters.forEach((paint, i) => {
+    this.regions.forEach((r, i) => {
       g.save();
-      g.translate((i % 2) * RW, Math.floor(i / 2) * RH);
+      g.translate((r.index % COLS) * RW, Math.floor(r.index / COLS) * RH);
       g.beginPath();
       g.rect(0, 0, RW, RH);
       g.clip();
+      if (!powered[i]) {
+        g.fillStyle = '#020303';
+        g.fillRect(0, 0, RW, RH);
+        g.restore();
+        return;
+      }
       g.fillStyle = BG;
       g.fillRect(0, 0, RW, RH);
-      paint(g, state, def, env);
+      r.screen.paint(g, state, def, env);
       // Bezel.
       g.strokeStyle = '#2b2f2c';
       g.lineWidth = 10;
@@ -121,42 +138,18 @@ export class InstrumentPanel {
   }
 }
 
-/**
- * Everything the screens show, rounded to what you could see change (a tenth of a knot, a
- * degree of heading, 10 rpm...), plus the blink phases while something flashes. Equal keys
- * mean identical screens.
- */
-function displayKey(s: VesselState, def: WorkboatDef): string {
-  const e = s.engine;
+/** Speed screen: speed, the echo sounder and the anchor (flash phases while it moves). */
+function speedKey(s: VesselState, def: WorkboatDef): string {
   const a = s.anchor;
+  const anchorFlash = a.phase !== 'stowed' && (a.phase !== 'set' || a.dragging) ? Math.floor(performance.now() / 500) % 2 : 0;
+  return [knots(s).toFixed(1), Math.min(99.9, depthUnderKeel(s, def)).toFixed(1), a.phase, a.rodeM.toFixed(0), a.dragging ? 1 : 0, anchorFlash].join('|');
+}
+
+function engineKey(s: VesselState, def: WorkboatDef): string {
+  const e = s.engine;
   const al = engineAlarms(s, def);
-  const now = performance.now();
-  const anchorFlash = a.phase !== 'stowed' && (a.phase !== 'set' || a.dragging) ? Math.floor(now / 500) % 2 : 0;
-  const alarmBlink = al.highTemp || al.lowFuel ? Math.floor(now / 400) % 2 : 0;
-  const underKeel = depthUnderKeel(s, def);
-  return [
-    knots(s).toFixed(1),
-    Math.min(99.9, underKeel).toFixed(1),
-    a.phase,
-    a.rodeM.toFixed(0),
-    a.dragging ? 1 : 0,
-    anchorFlash,
-    Math.round(headingDeg(s)),
-    Math.round(e.rpm / 10),
-    e.phase,
-    e.gear,
-    Math.round(e.rack * 50),
-    Math.round((s.rudder * 180) / Math.PI * 2),
-    Math.round(s.controls.helm * 100),
-    e.coolantC.toFixed(0),
-    e.oilC.toFixed(0),
-    e.fuelL.toFixed(0),
-    e.fuelFlowLph.toFixed(1),
-    al.highTemp ? 1 : 0,
-    al.lowFuel ? 1 : 0,
-    alarmBlink,
-    e.coolingFault ? 1 : 0,
-  ].join('|');
+  const alarmBlink = al.highTemp || al.lowFuel ? Math.floor(performance.now() / 400) % 2 : 0;
+  return [e.coolantC.toFixed(0), e.oilC.toFixed(0), e.fuelL.toFixed(0), e.fuelFlowLph.toFixed(1), al.highTemp ? 1 : 0, al.lowFuel ? 1 : 0, alarmBlink, e.coolingFault ? 1 : 0].join('|');
 }
 
 function title(g: CanvasRenderingContext2D, text: string): void {
@@ -545,3 +538,15 @@ const paintNav: Painter = (g, s, _def, env) => {
   const side = Math.abs(w.appRel) < 2 || Math.abs(w.appRel) > 178 ? '' : w.appRel > 0 ? ' S' : ' P';
   g.fillText(`APP ${Math.abs(Math.round(w.appRel))}°${side} ${(w.appSpd * toKn).toFixed(0)} kn`, cx, 246);
 };
+
+/** The screens there are, for the screen module (modules/screen) to pick from. */
+export const SCREENS = {
+  speed: { paint: paintSpeed, key: speedKey },
+  heading: { paint: paintHeading, key: (s) => String(Math.round(headingDeg(s))) },
+  rpm: { paint: paintRpm, key: (s) => [Math.round(s.engine.rpm / 10), s.engine.phase, s.engine.gear, Math.round(s.engine.rack * 50)].join('|') },
+  rudder: { paint: paintRudder, key: (s) => [Math.round(((s.rudder * 180) / Math.PI) * 2), Math.round(s.controls.helm * 100)].join('|') },
+  engineMonitor: { paint: paintEngineMonitor, key: engineKey },
+  nav: { paint: paintNav, key: (s, _def, env) => navKey(s, env) },
+} satisfies Record<string, Screen>;
+
+export type ScreenName = keyof typeof SCREENS;

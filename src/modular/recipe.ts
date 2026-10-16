@@ -218,7 +218,9 @@ export function flattenMounts(recipe: Recipe, hulls: HullLibrary, modules: Modul
         if (!key) errors.push(`${path}: port '${port}' bound to unknown key '${name}'${suggest(name)}`);
         else bind[port] = key;
       }
-      mounted.push({ path, socket, def, config, keys: resolvePorts(def, bind) });
+      const keys = resolvePorts(def, bind);
+      for (const port of Object.keys(def.ports)) if (!keys[port]) errors.push(`${path}: ${def.id}'s '${port}' port must be bound to a key in the recipe ("bind": { "${port}": "..." })`);
+      mounted.push({ path, socket, def, config, keys });
       if (m.modules?.length) {
         const own = def.sockets?.(config) ?? [];
         if (own.length === 0) errors.push(`${path}: ${def.id} has no sockets for the ${m.modules.length} module(s) listed under it`);
@@ -265,8 +267,8 @@ export function validateRecipe(recipe: Recipe, lib: { hulls: HullLibrary; module
   const writers = new Map<BusKey, string[]>();
   for (const m of mounted) {
     for (const [port, p] of Object.entries(m.def.ports)) {
-      if (p.dir !== 'write') continue;
       const key = m.keys[port];
+      if (p.dir !== 'write' || !key) continue;
       const spec = specOf(key);
       if (spec.kind === 'state' && spec.writer === 'core') errors.push(`${m.path}: ${m.def.id} writes '${key}', which the boat works out from her own motion`);
       else if (spec.kind === 'state' && spec.writer === 'legacy') {
@@ -282,8 +284,8 @@ export function validateRecipe(recipe: Recipe, lib: { hulls: HullLibrary; module
   // Everything read must be written by something.
   for (const m of mounted) {
     for (const [port, p] of Object.entries(m.def.ports)) {
-      if (p.dir !== 'read' || p.required === false) continue;
       const key = m.keys[port];
+      if (p.dir !== 'read' || p.required === false || !key) continue;
       if (specOf(key).writer === 'module' && !writers.has(key)) errors.push(`${m.path}: ${m.def.id} reads '${key}', but nothing on this boat writes it`);
     }
   }

@@ -1224,7 +1224,7 @@ export class App {
    * (the crane, the tow winch and the net drum need the engine running and DECK HYD on).
    */
   private hydraulicsHint(channel: string): void {
-    const machine = channel === 'crane' ? 'The crane' : channel === 'winchHeave' || channel === 'winchPayOut' ? 'The tow winch' : channel === 'netOut' || channel === 'netIn' || channel === 'trawl' ? 'The net drum' : null;
+    const machine = channel === 'crane' ? 'The crane' : channel === 'winchHeave' || channel === 'winchPayOut' ? 'The tow winch' : channel === 'netOut' || channel === 'netIn' || channel === 'trawl' || channel === 'trawl.shoot' ? 'The net drum' : null;
     const v = this.world.vessels[this.testVesselId];
     if (!machine || !v || hydraulicsOn(v)) return;
     const why = v.engine.phase !== 'running' ? 'start the engine' : 'switch the DECK HYD breaker on';
@@ -1862,7 +1862,8 @@ export class App {
       [...this.bridge.controls, ...this.tillers.flatMap((t) => t.parts), ...this.cranes.flatMap((d) => d.buttons)],
       (channel, value) => {
         if (channel === 'engineStartStop') return this.requestEngineStartStop();
-        if (channel === 'start' && value > 0) this.startInGearHint();
+        // Console modules send bus keys ('ignition.start'); older controls their old names.
+        if ((channel === 'start' || channel === 'ignition.start') && value > 0) this.startInGearHint();
         if (channel === 'dipstick') this.readDipstick();
         if (channel === 'cleat') this.cleatHint(value);
         if (value > 0) this.hydraulicsHint(channel);

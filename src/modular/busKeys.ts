@@ -13,6 +13,8 @@
  */
 import { CONFIG } from '../config';
 import { hydraulicsOn, isPowered } from '../vessel/electrics';
+import { leverDemand, preheatNeeded } from '../vessel/physics/propulsion';
+import { isWorkboat, VESSEL_DEFS } from '../vessel/vesselDef';
 import { BREAKERS, type BreakerName, type VesselControls, type VesselState } from '../vessel/vesselState';
 import type { BusKeySpec, BusValue } from './bus';
 
@@ -99,6 +101,37 @@ function circuitKeys(): Record<`circuit.${BreakerName}.live`, BusKeySpec> {
     out[`circuit.${b}.live`] = state('boolean', (s) => isPowered(s, b), `12 V on the ${b} circuit: master on, battery not flat, breaker on.`, { default: true });
   }
   return out;
+}
+
+/**
+ * The engine panel's warning lamps (modular boats M3), as today's WarningLamps lit them:
+ * each is off, on, or blinking. The lamp module only draws what the key says; WHEN a lamp
+ * lights stays here (today's rules) until the engine is a module (M4). Undefined on a boat
+ * without the workboat's engine panel. All need 12 V on the Instruments circuit, except
+ * GLOW, which is wired with the glow plugs (12 V on the master).
+ */
+type Lamp = 'off' | 'on' | 'blink';
+const LAMP = ['off', 'on', 'blink'] as const;
+function lamp(s: VesselState, which: 'oil' | 'charge' | 'glow' | 'neutral' | 'bilge'): Lamp | undefined {
+  const def = VESSEL_DEFS[s.defId];
+  if (!isWorkboat(def)) return undefined;
+  const instr = isPowered(s, 'instruments');
+  const e = s.engine;
+  const running = e.phase === 'running';
+  switch (which) {
+    case 'oil':
+      // No oil pressure stopped; blinks running with the sump nearly dry.
+      return !instr ? 'off' : !running ? 'on' : (e.oil ?? 1) < (def.maintenance?.lampAt ?? 0) ? 'blink' : 'off';
+    case 'charge':
+      return instr && !running ? 'on' : 'off';
+    case 'glow':
+      return isPowered(s) && e.key > 0 && s.controls.heat > 0 && e.glow < preheatNeeded(s, def) ? 'on' : 'off';
+    case 'neutral':
+      // On in neutral (the start interlock); blinks while START is held in gear.
+      return !instr ? 'off' : leverDemand(def, s.controls.lever).gear === 0 ? 'on' : s.controls.start > 0 ? 'blink' : 'off';
+    case 'bilge':
+      return instr && (s.bilge ?? 0) >= (def.bilge?.alarmAt ?? 1) ? 'blink' : 'off';
+  }
 }
 
 /** Compass heading of the bow (deg, 0 = north = -Z, 90 = east), from the orientation. */
@@ -264,6 +297,13 @@ export const BUS_KEYS = {
   'contact.force': state('number', (s) => s.contact.force, 'Total contact force against ground or structures on the last tick.', { unit: 'N', writer: 'core' }),
   'contact.slide': state('number', (s) => s.contact.slide, 'Mean sliding speed of the touching points.', { unit: 'm/s', writer: 'core' }),
   'contact.impact': state('number', (s) => s.contact.impact, 'Largest approach speed of a point that touched this tick.', { unit: 'm/s', writer: 'core' }),
+
+  // ── Engine panel warning lamps ──
+  'lamp.oil': state('enum', (s) => lamp(s, 'oil'), 'OIL lamp: on with no oil pressure (engine stopped), blinking while running with the sump nearly dry.', { values: LAMP }),
+  'lamp.charge': state('enum', (s) => lamp(s, 'charge'), 'CHARGE lamp: on while the alternator isn\'t charging (engine stopped).', { values: LAMP }),
+  'lamp.glow': state('enum', (s) => lamp(s, 'glow'), 'GLOW lamp: on while HEAT is held, until the glow plugs are hot enough.', { values: LAMP }),
+  'lamp.neutral': state('enum', (s) => lamp(s, 'neutral'), 'NEUTRAL lamp: on with the lever in neutral; blinking while START is held in gear.', { values: LAMP }),
+  'lamp.bilge': state('enum', (s) => lamp(s, 'bilge'), 'BILGE lamp: blinking with the bilge over its alarm level.', { values: LAMP }),
 
   // ── Navigation (from her motion) ──
   'nav.speedKts': state('number', (s) => Math.hypot(s.linearVelocity[0], s.linearVelocity[2]) / KNOT, 'Speed over ground.', { unit: 'kn', writer: 'core' }),

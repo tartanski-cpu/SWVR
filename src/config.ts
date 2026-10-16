@@ -471,63 +471,21 @@ export const CONFIG = {
         bodyRadius: 0.22,
       },
       /**
-       * Bridge controls and displays (vessel axes, m). The helm console top is at
-       * floorY + consoleHeight = 2.15, its aft face at z = -1.32; the helmsman stands at
-       * z ~ -0.75. Controls are data, so another vessel can lay out its own bridge.
+       * Bridge (vessel axes, m). Since modular boats M3 the helm console and its controls and
+       * screens are modules (CONFIG.modules.helmConsole and friends, mounted by the recipe
+       * src/boats/starterWorkboat.json); here are only the places the hull offers them, and
+       * the overhead sets still built by the bridge.
+       *   console     the helm console's reference point: its top (floorY + consoleHeight =
+       *               2.15), on the centreline, at its aft face (z -1.32). The helmsman
+       *               stands at z ~ -0.75.
+       *   navDisplay  the NAV / WIND screen (owner request: position and wind data):
+       *               overhead on the centreline, just forward of the overhead panel, tilted
+       *               steeply down toward the helm, above the line of sight out of the
+       *               windscreen (which tops out at 3.15 m).
        */
       bridge: {
-        /** Wheel: centre, tilt of its plane back toward the helmsman, rim radius, turns lock-to-lock. */
-        wheel: { position: [0, 2.32, -1.2] as [number, number, number], tiltDeg: 22, radius: 0.22, turnsLockToLock: 1.5 },
-        /**
-         * Combined throttle/gear lever, pivoting fore-aft. It stands on a small pedestal
-         * jutting aft from the console (starboard of the wheel) so it falls to hand from the
-         * helm position (owner feedback: on the console top it was too far forward in VR).
-         * Pedestal: half-width (m) and its aft face (z); its top is level with the console.
-         * Since modular boats M2 the lever itself is a module (CONFIG.modules.throttleLever)
-         * on the hull's 'throttle' socket at `position`; the pedestal stays with the bridge.
-         */
-        lever: {
-          position: [0.45, 2.16, -1.15] as [number, number, number],
-          pedestal: { halfWidth: 0.13, aft: -1.02 },
-        },
-        /**
-         * The console's switch row (owner request: group like with like), port to starboard,
-         * each group on its own colour-coded plate (`consoleGroups`):
-         *   LIGHTS        nav lights, cabin light, wipers (port end)
-         *   SEARCH · FIRE the fire pump and searchlight switches, each just ahead of its own
-         *                 joystick on the two port pedestals (left hand aims, right hand
-         *                 keeps the throttle)
-         *   horn          on its own, just left of the wheel
-         *   DECK          anchor, trawl: behind the throttle, used with it in hand
-         *   ENGINE        HEAT (glow plugs) and START (hold), the key, the warning lamps
-         *                 (oil, charge, glow, neutral, bilge) ahead of them and the laminated
-         *                 start-up card at the starboard end
-         */
-        navLightsSwitch: { position: [-1.29, 2.16, -1.52] as [number, number, number] },
-        cabinLightSwitch: { position: [-1.14, 2.16, -1.52] as [number, number, number] },
-        /** Windscreen wipers (Instruments breaker). */
-        wipersSwitch: { position: [-0.99, 2.16, -1.52] as [number, number, number] },
-        spotlightSwitch: { position: [-0.48, 2.16, -1.52] as [number, number, number] },
-        hornButton: { position: [-0.28, 2.16, -1.52] as [number, number, number] },
-        /** Windlass: up = heave in / stowed, down = let go. */
-        anchorSwitch: { position: [0.39, 2.16, -1.52] as [number, number, number] },
-        heatButton: { position: [0.8, 2.16, -1.5] as [number, number, number] },
-        startButton: { position: [0.94, 2.16, -1.5] as [number, number, number] },
-        keySwitch: { position: [1.08, 2.16, -1.5] as [number, number, number] },
-        warningLamps: { position: [0.95, 2.165, -1.6] as [number, number, number], spacing: 0.085 },
-        checklistCard: { position: [1.25, 2.175, -1.47] as [number, number, number], width: 0.19, height: 0.26 },
-        /** Searchlight joystick on a pedestal to port of the wheel (mirrors the throttle's). */
-        spotJoystick: { position: [-0.45, 2.16, -1.15] as [number, number, number] },
-        /**
-         * Group plates under the switch row: title, x extent, colour of the strip along the
-         * forward edge (the title sits on it).
-         */
-        consoleGroups: [
-          { title: 'LIGHTS', x: [-1.32, -0.91] as [number, number], color: 0xd8b028 },
-          { title: 'SEARCH · FIRE', x: [-0.89, -0.38] as [number, number], color: 0xc0402a },
-          { title: 'DECK', x: [0.19, 0.72] as [number, number], color: 0x2f6fd0 },
-          { title: 'ENGINE', x: [0.74, 1.32] as [number, number], color: 0x3a9a4a },
-        ],
+        console: { position: [0, 2.15, -1.32] as [number, number, number] },
+        navDisplay: { position: [0, 3.2, -1.32] as [number, number, number] },
         /**
          * VHF radio hung close under the wheelhouse roof, out to port above the window head
          * (3.15 m) so it doesn't block the view (owner feedback), tilted down and turned
@@ -539,21 +497,6 @@ export const CONFIG = {
         chart: { position: [0.98, 3.17, -1.45] as [number, number, number], tiltDeg: 35, yawDeg: -35 },
         /** SKIFF CRANE: launch / recover the skiff from the helm (DECK group; she's in view ahead). */
         craneButton: [0.65, 2.16, -1.52] as [number, number, number],
-        /** Instrument dash across the front of the console: displays on its aft face. */
-        dash: { front: -1.82, aft: -1.66, bottom: 2.15, top: 2.56, halfWidth: 1.25, tiltDeg: 14 },
-        /**
-         * Display centres (x) on the dash, and their size (m). Order: speed, heading, rpm,
-         * rudder, engine monitor (centre, behind the wheel - read through the spokes).
-         */
-        displays: { x: [-0.95, -0.52, 0.52, 0.95, 0], y: 2.36, width: 0.38, height: 0.22 },
-        /**
-         * NAV / WIND display (owner request: position and wind data): overhead on the
-         * centreline, just forward of the overhead panel, tilted steeply down toward the helm:
-         * a glance up from the wheel reads it, and it sits above the line of sight out of
-         * the windscreen (which tops out at 3.15 m). Position (lat/lon), SOG, COG, heading,
-         * true wind and an apparent-wind dial.
-         */
-        navDisplay: { position: [0, 3.2, -1.32] as [number, number, number], width: 0.44, height: 0.22, tiltDeg: 58 },
       },
       /**
        * Wet exhaust: smoke and engine cooling water leave through one outlet in the transom,
@@ -881,8 +824,6 @@ export const CONFIG = {
         panLimitDeg: 170,
         tiltMinDeg: -35,
         tiltMaxDeg: 12,
-        panRateDeg: 50,
-        tiltRateDeg: 22,
         /**
          * Stabilised like the fire monitor (owner request): the lamp holds its aim against
          * her roll and pitch, so the beam stays on a target in a seaway. Pan is still from
@@ -905,7 +846,6 @@ export const CONFIG = {
        * warps lead and the net's drag acts (fishing/fishing.ts, trawlView.ts).
        */
       fishing: {
-        trawlSwitch: [0.52, 2.16, -1.52] as [number, number, number],
         /**
          * The A-frame over the transom (fishing/fishing.ts aFrameOf; owner request, now the
          * stern is clear of the skiff): two legs from the quarters (`footInset` in from the
@@ -929,13 +869,9 @@ export const CONFIG = {
       towWinch: { z: 5.3, drumRadius: 0.16, drumWidth: 0.5, housing: { width: 0.4, height: 0.8 } },
       fireMonitor: {
         position: [0, 3.75, -0.55] as [number, number, number],
-        joystick: [-0.85, 2.16, -1.15] as [number, number, number],
-        pumpSwitch: [-0.82, 2.16, -1.52] as [number, number, number],
         panLimitDeg: 170,
         tiltMinDeg: -10,
         tiltMaxDeg: 55,
-        panRateDeg: 40,
-        tiltRateDeg: 22,
         nozzleSpeed: 30,
         flowLpm: 2400,
         airDrag: 0.12,
@@ -2042,7 +1978,98 @@ export const CONFIG = {
      * side; 3/4 of the engine's neutral band (vessels.workboat.engine.neutralBand 0.08), so
      * the lever clicks into neutral before the gearbox would engage.
      */
-    throttleLever: { maxAngleDeg: 40, length: 0.2, detent: 0.06 },
+    throttleLever: { maxAngleDeg: 40, length: 0.2, detent: 0.06, engrave: 'AHEAD ▲  ▼ ASTERN' },
+
+    /**
+     * console.standard (modules/console): the helm console's dash, pedestals and group
+     * plates, and its SLOTS: where each control and screen sits. All positions are from the
+     * console's reference point (its top, on the centreline, at its aft face; on the
+     * workboat vessels.workboat.bridge.console): x to starboard, y up, -z forward (m).
+     * Which module goes in which slot is the recipe's business.
+     *   dash       the instrument dash across the front: a box, screens on its aft face
+     *              (tilted back `tiltDeg`)
+     *   pedestals  small pedestals jutting aft from the console under the throttle and the
+     *              two joysticks, so they fall to hand from the helm (owner feedback: on the
+     *              console top the throttle was too far forward in VR): their x, half-width,
+     *              fore-aft extent and how far down the floor is
+     *   groups     the switch row's colour-coded plates (owner request: group like with
+     *              like): title, x extent, the colour of the strip along the forward edge
+     *              (the title sits on it); `plates` their fore-aft extent
+     * The workboat's switch row, port to starboard:
+     *   LIGHTS        nav lights, cabin light, wipers (port end)
+     *   SEARCH · FIRE the fire pump and searchlight switches, each just ahead of its own
+     *                 joystick on the two port pedestals (left hand aims, right hand keeps
+     *                 the throttle)
+     *   horn          on its own, just left of the wheel
+     *   DECK          anchor, trawl (and SKIFF CRANE): behind the throttle
+     *   ENGINE        HEAT and START (hold), the key, the warning lamps ahead of them, the
+     *                 laminated start-up card at the starboard end
+     * Screens on the dash: speed, heading, rpm, rudder, and the engine monitor in the centre,
+     * behind the wheel (read through the spokes).
+     */
+    helmConsole: {
+      dash: { front: -0.5, aft: -0.34, bottom: 0, top: 0.41, halfWidth: 1.25 },
+      pedestals: { x: [0.45, -0.45, -0.85], halfWidth: 0.13, front: -0.08, aft: 0.3, floor: -0.95 },
+      groups: [
+        { title: 'LIGHTS', x: [-1.32, -0.91] as [number, number], color: 0xd8b028 },
+        { title: 'SEARCH · FIRE', x: [-0.89, -0.38] as [number, number], color: 0xc0402a },
+        { title: 'DECK', x: [0.19, 0.72] as [number, number], color: 0x2f6fd0 },
+        { title: 'ENGINE', x: [0.74, 1.32] as [number, number], color: 0x3a9a4a },
+      ],
+      plates: { front: -0.27, aft: -0.05 },
+      slots: {
+        /** The wheel: its centre, its plane tilted back toward the helmsman. */
+        wheel: { position: [0, 0.17, 0.12], rotationDeg: [-22, 0, 0] },
+        throttle: { position: [0.45, 0.01, 0.17] },
+        navLights: { position: [-1.29, 0.01, -0.2] },
+        cabinLight: { position: [-1.14, 0.01, -0.2] },
+        wipers: { position: [-0.99, 0.01, -0.2] },
+        firePump: { position: [-0.82, 0.01, -0.2] },
+        spotlight: { position: [-0.48, 0.01, -0.2] },
+        horn: { position: [-0.28, 0.01, -0.2] },
+        anchor: { position: [0.39, 0.01, -0.2] },
+        trawl: { position: [0.52, 0.01, -0.2] },
+        heat: { position: [0.8, 0.01, -0.18] },
+        start: { position: [0.94, 0.01, -0.18] },
+        key: { position: [1.08, 0.01, -0.18] },
+        lamps: { position: [0.95, 0.015, -0.28] },
+        card: { position: [1.25, 0.025, -0.15] },
+        spotJoystick: { position: [-0.45, 0.01, 0.17] },
+        monJoystick: { position: [-0.85, 0.01, 0.17] },
+        speed: { position: [-0.95, 0.21, -0.34] },
+        heading: { position: [-0.52, 0.21, -0.34] },
+        rpm: { position: [0.52, 0.21, -0.34] },
+        rudder: { position: [0.95, 0.21, -0.34] },
+        engineMonitor: { position: [0, 0.21, -0.34] },
+      } as Record<string, { position: [number, number, number]; rotationDeg?: [number, number, number] }>,
+    },
+
+    /** control.wheel: rim radius (m) and turns lock to lock (direct steering: no lag). */
+    wheel: { radius: 0.22, turnsLockToLock: 1.5 },
+
+    /**
+     * control.joystick: a spring-centred stick driving something at a RATE (the searchlight,
+     * the fire monitor): deg/s at full deflection. Its travel limits are its keys' ranges.
+     * The workboat's fire-monitor joystick pans at 40 deg/s (her recipe).
+     */
+    joystick: { panRateDeg: 50, tiltRateDeg: 22 },
+
+    /** instrument.warning-lamps: the lamps' spacing (m). */
+    warningLamps: { spacing: 0.085 },
+
+    /** furniture.start-card: the laminated start-up card (m). */
+    startCard: { width: 0.19, height: 0.26 },
+
+    /**
+     * instrument.screen: a screen on the shared display atlas (controls/instruments.ts).
+     *   dash  on a dash face, tilted back `tiltDeg`, standing just proud of it
+     *   hung  hung from the roof on a bracket `bracket` m long, its face tilted down
+     *         toward the helm `tiltDeg`, in a housing (the workboat's NAV / WIND)
+     */
+    screen: {
+      dash: { width: 0.38, height: 0.22, tiltDeg: 14 },
+      hung: { width: 0.44, height: 0.22, tiltDeg: 58, bracket: 0.15 },
+    },
   },
 
   start: {

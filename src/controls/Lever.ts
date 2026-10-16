@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { clamp } from '../core/math';
 import type { VesselState } from '../vessel/vesselState';
-import { Control, type Pointer } from './Control';
+import { Control, type Pointer, type Wiring } from './Control';
 
 /**
  * Single-lever throttle/gear control. Pivots about its local X axis (athwartships):
@@ -38,7 +38,7 @@ export class Lever extends Control {
     id: string,
     opts: { maxAngleDeg: number; length: number },
     private readonly detent = 0.06,
-    wiring: { channel?: string; read?: (s: VesselState) => number } = {},
+    wiring: Wiring = {},
   ) {
     super(id, wiring.channel ?? 'lever');
     this.read = wiring.read ?? ((s) => s.controls.lever);

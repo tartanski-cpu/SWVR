@@ -1,9 +1,6 @@
 import * as THREE from 'three';
-import { isPowered } from '../vessel/electrics';
-import { leverDemand, preheatNeeded } from '../vessel/physics/propulsion';
-import type { WorkboatDef } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
-import { Control } from './Control';
+import { Control, type Wiring } from './Control';
 
 /**
  * Ignition key in its lock on the console: a press turns it OFF <-> ON (a quarter turn
@@ -15,8 +12,12 @@ export class KeySwitch extends Control {
   private readonly key = new THREE.Group();
   private on = false;
 
-  constructor() {
-    super('key', 'key');
+  /** Reads the key, 0 / 1 (default: today's `engine.key`). */
+  private readonly read: (s: VesselState) => number;
+
+  constructor(id = 'key', wiring: Wiring = {}) {
+    super(id, wiring.channel ?? 'key');
+    this.read = wiring.read ?? ((s) => s.engine.key);
     const bezel = this.fixed(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.034, 0.012, 16), new THREE.MeshLambertMaterial({ color: 0xa8acb0 })));
     bezel.position.y = 0.006;
     // The key: a thin blade in the barrel and a flat bow you'd hold.
@@ -47,7 +48,7 @@ export class KeySwitch extends Control {
   }
 
   sync(state: VesselState): void {
-    const on = state.engine.key > 0;
+    const on = this.read(state) > 0;
     if (on !== this.on) this.show(on);
   }
 }
@@ -131,14 +132,10 @@ const LAMPS = [
 ] as const;
 
 /**
- * The engine's warning lamps, as on a real panel (on the Instruments breaker):
- *   OIL, CHARGE  lit whenever the engine isn't running (no oil pressure, no alternator):
- *                they go out as she starts; OIL blinks running with the sump nearly dry;
- *   GLOW         lit while HEAT is held, until the plugs are hot enough (then go!);
- *   NEUTRAL      lit with the lever in neutral (the start interlock); blinks if START is
- *                held in gear.
- *   BILGE        blinks with water in the bilge over the alarm level (bilge.ts).
- * Colours change only when a lamp changes.
+ * The engine's warning lamps, as on a real panel: OIL, CHARGE, GLOW, NEUTRAL, BILGE. Each
+ * is shown off, on or blinking (`show`); when each lights is decided by whoever writes its
+ * bus key (modular/busKeys.ts, the lamp.* keys), not here. Colours change only when a lamp
+ * changes. One instanced draw call.
  */
 export class WarningLamps {
   readonly root = new THREE.Group();
@@ -147,8 +144,8 @@ export class WarningLamps {
   private readonly tmpColor = new THREE.Color();
   private shown = '';
 
-  constructor(cfg: { position: [number, number, number]; spacing: number }) {
-    this.root.position.fromArray(cfg.position);
+  constructor(cfg: { spacing: number; position?: [number, number, number] }) {
+    if (cfg.position) this.root.position.fromArray(cfg.position);
     const n = LAMPS.length;
     this.lamps = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.017, 0.017, 0.01, 14), new THREE.MeshBasicMaterial(), n);
     const m = new THREE.Matrix4();
@@ -163,20 +160,10 @@ export class WarningLamps {
     this.root.add(label);
   }
 
-  update(s: VesselState, def: WorkboatDef): void {
-    const instr = isPowered(s, 'instruments');
-    const e = s.engine;
-    const running = e.phase === 'running';
-    const neutral = leverDemand(def, s.controls.lever).gear === 0;
+  /** Each lamp 'off', 'on' or 'blink' (blinking at 2 Hz), left to right. */
+  show(states: readonly string[]): void {
     const blink = Math.floor(performance.now() / 250) % 2 === 0;
-    const dry = (s.engine.oil ?? 1) < (def.maintenance?.lampAt ?? 0);
-    const lit = [
-      instr && (!running || (dry && blink)),
-      instr && !running,
-      isPowered(s) && e.key > 0 && s.controls.heat > 0 && e.glow < preheatNeeded(s, def),
-      instr && (neutral || (s.controls.start > 0 && blink)),
-      instr && (s.bilge ?? 0) >= (def.bilge?.alarmAt ?? 1) && blink,
-    ];
+    const lit = LAMPS.map((_, i) => states[i] === 'on' || (states[i] === 'blink' && blink));
     const key = lit.map((x) => (x ? 1 : 0)).join('');
     if (key === this.shown) return;
     this.shown = key;

@@ -5,13 +5,22 @@
  */
 import { createHullLibrary } from '../modular/hull';
 import { createModuleLibrary, parseRecipe, validateRecipe, type Recipe } from '../modular/recipe';
+import { CONSOLE } from '../modules/console';
+import { JOYSTICK } from '../modules/joystick';
+import { KEY_SWITCH } from '../modules/keySwitch';
+import { PUSH_BUTTON } from '../modules/pushButton';
+import { SCREEN } from '../modules/screen';
+import { START_CARD } from '../modules/startCard';
 import { THROTTLE_LEVER } from '../modules/throttleLever';
+import { TOGGLE } from '../modules/toggle';
+import { WARNING_LAMPS } from '../modules/warningLamps';
+import { WHEEL } from '../modules/wheel';
 import starterWorkboat from './starterWorkboat.json';
 import { WORKBOAT_HULL } from './workboatHull';
 
 export const HULLS = createHullLibrary([WORKBOAT_HULL]);
 
-export const MODULES = createModuleLibrary([THROTTLE_LEVER]);
+export const MODULES = createModuleLibrary([CONSOLE, WHEEL, THROTTLE_LEVER, TOGGLE, PUSH_BUTTON, KEY_SWITCH, JOYSTICK, WARNING_LAMPS, START_CARD, SCREEN]);
 
 export const LIBRARY = { hulls: HULLS, modules: MODULES };
 

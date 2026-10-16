@@ -6,7 +6,9 @@
  * adds the SOCKETS, one milestone at a time, each at the place today's hand-built part
  * stands (read from the same config, so there is one source of truth for where it is).
  *
- *   M2  throttle   the throttle lever's place, on its pedestal starboard of the wheel
+ *   M2  throttle    the throttle lever's place (M3: moved into the console's slots)
+ *   M3  helm        the helm console (its own slots hold the controls and dash screens)
+ *       navDisplay  the NAV / WIND screen hung under the roof
  */
 import { CONFIG } from '../config';
 import type { HullDefinition } from '../modular/hull';
@@ -21,12 +23,8 @@ export const WORKBOAT_HULL: HullDefinition = {
   legacyDef: 'workboat',
   helm: { stand: wb.boardingSpot, yawDeg: 0 },
   sockets: [
-    {
-      id: 'throttle',
-      type: 'panel.slot',
-      transform: { position: wb.bridge.lever.position },
-      label: 'Throttle, on its pedestal starboard of the wheel',
-    },
+    { id: 'helm', type: 'helm.console', transform: { position: wb.bridge.console.position }, label: 'Helm console, across the front of the wheelhouse' },
+    { id: 'navDisplay', type: 'cabin.overhead', transform: { position: wb.bridge.navDisplay.position }, label: 'Overhead, on the centreline ahead of the helm' },
   ],
   // Until the electrics and the engine are modules (M4), the hull stands in for today's
   // code: 12 V on the existing circuits, deck hydraulics, the engine's power take-off, diesel.

@@ -3,7 +3,7 @@
  * her recipe. It must behave exactly as the hand-built lever did.
  */
 import * as THREE from 'three';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { LIBRARY, RECIPES } from '../../src/boats/library';
 import starter from '../../src/boats/starterWorkboat.json';
 import { CONFIG } from '../../src/config';
@@ -17,9 +17,20 @@ import { assembleView } from '../../src/modular/assemble';
 import { holdGroup } from '../../src/modular/bus';
 import { validateRecipe, type Recipe } from '../../src/modular/recipe';
 import { VESSEL_DEFS } from '../../src/vessel/vesselDef';
+import { fakeCanvas } from './fakes';
+
+beforeAll(fakeCanvas);
 
 const DT = 1 / 60;
 const build = (recipe: Recipe = RECIPES.workboat) => assembleView(recipe, VESSEL_DEFS.workboat, LIBRARY);
+/** Where the hand-built lever stood, before the modules (vessel axes, m). */
+const OLD_LEVER: [number, number, number] = [0.45, 2.16, -1.15];
+/** The starter recipe with only a console and its lever, configured / wired as given. */
+const withLever = (lever: Partial<Recipe['modules'][number]>): Recipe => ({
+  ...(starter as Recipe),
+  modules: [{ socket: 'helm', module: 'console.standard', modules: [{ socket: 'throttle', module: 'control.throttle-lever', ...lever }] }],
+});
+const leverOf = (a: ReturnType<typeof build>) => a.controls.find((c) => c.id === 'lever') as Lever;
 
 function world() {
   const { world, vesselId } = createWorld(new IdFactory());
@@ -30,16 +41,16 @@ function world() {
 }
 
 describe('the starter workboat recipe', () => {
-  it('is valid, and mounts the throttle lever on the hull\'s throttle socket', () => {
+  it('is valid, and mounts the throttle lever on the console\'s throttle slot', () => {
     expect(validateRecipe(RECIPES.workboat, LIBRARY)).toEqual([]);
     const a = build();
-    expect(a.has('throttle')).toBe(true);
-    expect(a.modules.map((m) => `${m.path}: ${m.id}`)).toEqual(['throttle: control.throttle-lever']);
+    expect(a.has('helm/throttle')).toBe(true);
+    expect(a.modules.find((m) => m.path === 'helm/throttle')?.id).toBe('control.throttle-lever');
   });
 
   it('a bad lever config is caught with a readable message', () => {
-    const bad = { ...(starter as Recipe), modules: [{ socket: 'throttle', module: 'control.throttle-lever', config: { maxAngleDeg: 100 } }] };
-    expect(validateRecipe(bad, LIBRARY)).toEqual(['throttle: control.throttle-lever: maxAngleDeg should be between 0 and 80']);
+    const bad = withLever({ config: { maxAngleDeg: 100 } });
+    expect(validateRecipe(bad, LIBRARY)).toEqual(['helm/throttle: control.throttle-lever: maxAngleDeg should be between 0 and 80']);
     expect(() => build(bad)).toThrow(/maxAngleDeg should be between 0 and 80/);
   });
 });
@@ -47,23 +58,23 @@ describe('the starter workboat recipe', () => {
 describe('the throttle lever module', () => {
   it('stands where the hand-built lever stood, and is still "the lever" to everything else', () => {
     const a = build();
-    const lever = a.controls[0] as Lever;
+    const lever = leverOf(a);
     expect(lever.id).toBe('lever');
     expect(lever.channel).toBe('throttle.demand');
     expect(lever.root.name).toBe('control:lever'); // the wheelhouse never hides it
     const p = lever.root.getWorldPosition(new THREE.Vector3());
-    expect(p.toArray()).toEqual(CONFIG.vessels.workboat.bridge.lever.position);
+    p.toArray().forEach((x, i) => expect(x).toBeCloseTo(OLD_LEVER[i], 6));
   });
 
   it('pushed forward it sends throttle.demand, with the same feel and detent', () => {
     const a = build();
-    const lever = a.controls[0] as Lever;
-    a.modules[0].root.updateMatrixWorld(true);
+    const lever = leverOf(a);
+    for (const m of a.modules) m.root.updateMatrixWorld(true);
     const sent: [string, number][] = [];
     const ctx: ControlContext = { emit: (c, v) => sent.push([c, v]), haptic: () => {} };
     lever.bind(ctx);
     // The hand on the knob, moved forward by the arc for 20 deg of a 40 deg travel: half ahead.
-    const at = new THREE.Vector3(...CONFIG.vessels.workboat.bridge.lever.position);
+    const at = new THREE.Vector3(...OLD_LEVER);
     const hand = (deg: number) => ({ position: at.clone().add(new THREE.Vector3(0, 0.24, CONFIG.modules.throttleLever.length * ((deg * Math.PI) / 180))) });
     lever.grabStart(hand(0));
     lever.grabMove(hand(-20));
@@ -120,14 +131,14 @@ describe('the throttle lever module', () => {
     const back = JSON.parse(JSON.stringify(w)) as WorldState;
     const restored = back.vessels[v.id];
     expect(restored.controls.lever).toBe(0.55);
-    const lever = build().controls[0] as Lever;
+    const lever = leverOf(build());
     lever.sync(restored);
     expect(lever.value).toBeCloseTo(0.55, 6);
   });
 
   it('a recipe can wire it to another key (a second engine, say): it sends that instead', () => {
-    const r: Recipe = { ...RECIPES.workboat, modules: [{ socket: 'throttle', module: 'control.throttle-lever', bind: { demand: 'helm.demand' } }] };
+    const r = withLever({ bind: { demand: 'helm.demand' } });
     expect(validateRecipe(r, LIBRARY)).toEqual([]);
-    expect(build(r).controls[0].channel).toBe('helm.demand');
+    expect(leverOf(build(r)).channel).toBe('helm.demand');
   });
 });

@@ -27,6 +27,16 @@ export interface ControlContext {
   haptic(intensity: number, durationMs: number): void;
 }
 
+/**
+ * Which channel a control sends and how it reads its value back from the state. Today's
+ * bridge uses the defaults (the old channel names, `controls.*`); a module wires a control
+ * to its bus keys (modular boats).
+ */
+export interface Wiring {
+  channel?: string;
+  read?: (s: VesselState) => number;
+}
+
 /** A hand (or the desktop mouse) as seen by a control: a point and, optionally, a ray. */
 export interface Pointer {
   /** World position of the hand (grip) or controller tip. */

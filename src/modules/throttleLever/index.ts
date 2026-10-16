@@ -26,6 +26,8 @@ export interface ThrottleLeverConfig {
   length: number;
   /** The neutral notch, as a fraction of full travel either side. */
   detent: number;
+  /** Engraved beside it ('' for none). */
+  engrave: string;
 }
 
 export const THROTTLE_LEVER: ModuleDefinition<ThrottleLeverConfig> = {
@@ -45,7 +47,7 @@ export const THROTTLE_LEVER: ModuleDefinition<ThrottleLeverConfig> = {
       // Its id stays 'lever': the interaction system, the desktop hand and the wheelhouse's
       // hide-from-outside rule know the throttle by it.
       const lever = new Lever('lever', ctx.config, ctx.config.detent, { channel: key, read: (s) => busOf(s).num(key) });
-      return { staticParts: [], movingParts: [], controls: [lever], update: () => {} };
+      return { staticParts: [], movingParts: [], controls: [lever], labels: ctx.config.engrave ? [{ text: ctx.config.engrave, at: [0, 0, 0] }] : [], update: () => {} };
     },
   },
 };

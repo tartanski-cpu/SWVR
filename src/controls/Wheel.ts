@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { clamp } from '../core/math';
 import type { VesselState } from '../vessel/vesselState';
-import { Control, type Pointer } from './Control';
+import { Control, type Pointer, type Wiring } from './Control';
 
 /**
  * Steering wheel (hydraulic steering: it stays where you leave it, the rudder follows at
@@ -30,8 +30,12 @@ export class Wheel extends Control {
   private lastSent = 0; // matches the initial (neutral / amidships) state
   private clickAccum = 0;
 
-  constructor(id: string, opts: { radius: number; turnsLockToLock: number }) {
-    super(id, 'helm');
+  /** Reads the authoritative helm, -1..1 (default: today's `controls.helm`). */
+  private readonly read: (s: VesselState) => number;
+
+  constructor(id: string, opts: { radius: number; turnsLockToLock: number }, wiring: Wiring = {}) {
+    super(id, wiring.channel ?? 'helm');
+    this.read = wiring.read ?? ((s) => s.controls.helm);
     this.radius = opts.radius;
     this.maxAngle = opts.turnsLockToLock * Math.PI; // half the lock-to-lock travel, in rad
 
@@ -125,10 +129,11 @@ export class Wheel extends Control {
 
   sync(state: VesselState): void {
     if (this.held) return;
-    if (this.awaiting(Math.abs(state.controls.helm + this.angle / this.maxAngle) < 0.01)) return;
-    this.angle = -state.controls.helm * this.maxAngle;
+    const helm = this.read(state);
+    if (this.awaiting(Math.abs(helm + this.angle / this.maxAngle) < 0.01)) return;
+    this.angle = -helm * this.maxAngle;
     this.spinner.rotation.z = this.angle;
-    this.lastSent = state.controls.helm;
+    this.lastSent = helm;
   }
 }
 

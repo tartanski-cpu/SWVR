@@ -119,3 +119,14 @@ export function withWriter<T>(key: BusKey, writer: BusWriter, fn: () => T): T {
     spec.writer = was;
   }
 }
+
+/**
+ * Screens and labels draw on a canvas; in Node, give them one whose 2D context ignores
+ * every call (what is drawn isn't under test, where things go is).
+ */
+export function fakeCanvas(): void {
+  const ctx = new Proxy({}, { get: () => () => {} });
+  (globalThis as { document?: unknown }).document ??= {
+    createElement: () => ({ width: 0, height: 0, getContext: () => ctx }),
+  };
+}

@@ -1811,6 +1811,45 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   - **Desktop:** click-drag the lever (mouse up = ahead), and the arrow keys.
   - F3 shows "modules 1: throttle: control.throttle-lever".
 
+### M3a: the helm console as modules (done, on /next/ for the owner to test; nothing should look different)
+
+- **What changed:** the helm console and everything on it now come from the boat's recipe instead of being hand-built in `controls/bridge.ts`. The recipe (`src/boats/starterWorkboat.json`, version 2) mounts a console on the hull's `helm` socket, and 22 modules in the console's slots.
+- **New modules** (one folder each in `src/modules/`):
+  - `console.standard`: the dash, the three pedestals, the coloured group plates and their titles (LIGHTS, SEARCH · FIRE, DECK, ENGINE). Its slots are where the controls stand.
+  - `control.wheel`, `control.toggle`, `control.push-button`, `control.key-switch`, `control.joystick`: the existing controls, each told by the recipe which bus key it works ('lights.nav', 'ignition.start', 'monitor.pan'...). One toggle module serves all seven console switches; the recipe gives each its label and key.
+  - `instrument.warning-lamps`: reads five new bus keys, `lamp.oil`, `lamp.charge`, `lamp.glow`, `lamp.neutral`, `lamp.bilge` (off / on / blink), worked out exactly as the old lamps were. A boat with another engine can light them her own way.
+  - `furniture.start-card`: the laminated start-up card.
+  - `instrument.screen`: one module per screen (speed, heading, rpm, rudder, engine monitor on the dash; the NAV / WIND display hung overhead). All six still paint one shared texture, one draw call (`DisplayAtlas`, in `controls/instruments.ts`, replaces the fixed `InstrumentPanel`). A screen is dark when its breaker is off, as before.
+  - The throttle lever (M2) now sits in the console's throttle slot instead of a socket of its own.
+- **Config:** the console layout moved from `vessels.workboat.bridge` to `CONFIG.modules`:
+  - `helmConsole` (`dash`, `pedestals`, `groups`, `plates`, and `slots`: each part's place on the console);
+  - `wheel` (rim radius, turns lock to lock), `joystick` (pan and tilt rates; the fire monitor's stick pans at 40°/s, set in the recipe), `warningLamps` (spacing), `startCard` (size), `screen` (dash and hung sizes and tilts).
+  - Removed, as now in the modules: `bridge.wheel`, `bridge.lever`, every `bridge.*Switch` and `*Button`, `bridge.keySwitch`, `bridge.warningLamps`, `bridge.checklistCard`, `bridge.spotJoystick`, `bridge.consoleGroups`, `bridge.dash`, `bridge.displays`, the navDisplay's size; `spotlight.panRateDeg` / `tiltRateDeg`; `fireMonitor.joystick` / `pumpSwitch` / `panRateDeg` / `tiltRateDeg`; `fishing.trawlSwitch`.
+- **Unchanged on purpose:** every control keeps its id, so multiplayer, the desktop hand, the tutorial and the wheelhouse's hide-from-outside rule know them as before. The keyboard and menus still send the old names; both names do the same thing.
+- **App:** the start-in-gear and hydraulics hints also answer to the new key names (`ignition.start`, `trawl.shoot`).
+- **Not done here, and why:**
+  - The binoculars are a tool the App hands to the player, not a bridge part; they wait for the deck gear (M5).
+  - The shared instanced switches move to 3b. Most of the bridge's toggles are on the overhead panel and breaker panel, so that's where instancing saves the most (17 toggle bats into one draw call, once they're all modules).
+- **Tests (8 new, 369 in all, all pass):**
+  - the recipe is valid and mounts the console with its 22 parts and the nav display;
+  - every control stands exactly where it stood (to a micrometre), under the same id, sending a key that means its old channel; the wheel still leans back 22°;
+  - the lamps and the card stand where they stood;
+  - every engraved label lies by its control as before, and the four group titles are there;
+  - the six screens are one mesh;
+  - the two joysticks drive their own keys at their own rates;
+  - a sequence of console intents by bus key and by old name leave the boat byte-for-byte the same;
+  - the lamps read as before (key on, engine stopped: oil, charge, neutral lit).
+  - The golden runs were re-recorded only to add the five lamp keys; checked key by key, every other number is identical to the M2 recordings.
+- **Measured:** draw calls and drawn parts identical to M2 at all eight viewpoints, measured side by side against an M2 build: 67 / 46 / 120 / 33 by day; 68 / 47 / 121 / 32 lit at night (M2 also reads 68 at the helm at night today; the 66 noted earlier was the same scene at a different moment).
+- **Checked in the browser:**
+  - close-up screenshots of the console from port, centre and starboard, against the M2 build: the console is pixel-identical (only the rail outside the window differs, as the boat drifts between runs);
+  - every switch toggles the boat (key, nav lights, cabin, wipers, searchlight, anchor); the searchlight stick pans it; HEAT and START crank the engine, the same as on M2 (headless runs too slowly for the cold diesel to catch; the cold-start golden run covers a real start); no page errors.
+- **Owner test** (at /SWVR/next/, menu header NEXT). Everything on the helm console should look and work exactly as in v1.0:
+  - **VR:** a cold start by the card (key, HEAT held, START held; the lamps go out as she runs, START lights green). Every switch on the console, and the labels by them. Searchlight and fire-monitor joysticks (the monitor's turns a little slower, as before). At night, the six screens lit; switch the Instruments breaker off and they go dark. Drive out of Calder Haven on the wheel and lever.
+  - **Desktop:** the same by clicking; WASD on a clicked joystick.
+  - **Outside:** from the deck or the quay, the console detail is hidden through the windows except the lever, as before.
+  - F3 lists "modules 24: helm: console.standard, helm/wheel: control.wheel, ...".
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

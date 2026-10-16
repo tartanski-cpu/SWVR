@@ -1,5 +1,5 @@
 import { ElectricsPanel, MasterSwitch } from './electricsPanel';
-import { checklistCard, KeySwitch, SelectorSwitch, WarningLamps } from './ignition';
+import { SelectorSwitch } from './ignition';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { WorkboatDef } from '../vessel/vesselDef';
@@ -7,11 +7,8 @@ import type { VesselState } from '../vessel/vesselState';
 import type { EnvironmentState } from '../environment/environmentState';
 import { Button } from './Button';
 import type { Control } from './Control';
-import { InstrumentPanel } from './instruments';
 import type { AssembledView } from '../modular/assemble';
-import { Toggle } from './Toggle';
-import { Wheel } from './Wheel';
-import { Joystick } from './Joystick';
+import { LABEL_OFFSET } from '../modular/module';
 import { RadioSet } from '../rescue/radioView';
 import { ChartPlotter } from '../nav/chartPlotter';
 import { OverheadPanel } from './overheadPanel';
@@ -31,13 +28,10 @@ import { aFrameOf } from '../fishing/fishing';
 export class Bridge {
   readonly root = new THREE.Group();
   readonly controls: Control[] = [];
-  /** Engine warning lamps by the ignition. */
-  private readonly lamps: WarningLamps;
   /** Voltmeter (and, later, the breakers), on boats with 12 V electrics. */
   readonly electrics: ElectricsPanel | null = null;
-  /** Empty object at the centre of the instrument dash (for visibility checks). */
-  readonly dashAnchor = new THREE.Object3D();
-  private readonly instruments: InstrumentPanel;
+  /** Empty object at the centre of the instrument dash (for visibility checks; the console module's). */
+  dashAnchor: THREE.Object3D = new THREE.Object3D();
   /** Overhead VHF (rescue calls). */
   readonly radio: RadioSet;
   /** Overhead chartplotter (search area, destination). */
@@ -74,67 +68,23 @@ export class Bridge {
     this.root.name = 'bridge';
     for (const m of modules.modules) this.root.add(m.root);
 
-    const wheel = new Wheel('wheel', b.wheel);
-    wheel.root.position.fromArray(b.wheel.position);
-    wheel.root.rotation.x = (-b.wheel.tiltDeg * Math.PI) / 180;
-
-    // Diesel ignition: hold HEAT (glow plugs), hold START; the key switches it all on/off.
-    const start = new Button('start', 'start', 'START (hold)', 'momentary', 0x3aa04a, (s) => s.engine.phase === 'running');
-    start.root.position.fromArray(b.startButton.position);
-    const heat = new Button('heat', 'heat', 'HEAT: glow plugs (hold)', 'momentary', 0xe07020);
-    heat.root.position.fromArray(b.heatButton.position);
-    const key = new KeySwitch();
-    key.root.position.fromArray(b.keySwitch.position);
-    this.lamps = new WarningLamps(b.warningLamps);
-    this.root.add(this.lamps.root, checklistCard(b.checklistCard));
-
-    const horn = new Button('horn', 'horn', 'Horn', 'momentary', 0xe0b020);
-    horn.root.position.fromArray(b.hornButton.position);
-
-    const nav = new Toggle('navLights', 'navLights', 'Navigation lights', (s) => s.controls.navLights);
-    nav.root.position.fromArray(b.navLightsSwitch.position);
-
-    const anchor = new Toggle('anchor', 'anchor', 'Anchor: let go / heave in', (s) => s.controls.anchor);
-    anchor.root.position.fromArray(b.anchorSwitch.position);
-
-    const cabin = new Toggle('cabinLight', 'cabinLight', 'Cabin light: off / white / red (night)', (s) => s.controls.cabinLight, 3);
-    cabin.root.position.fromArray(b.cabinLightSwitch.position);
-
-    const spot = new Toggle('spotlight', 'spotlight', 'Searchlight on/off', (s) => s.controls.spotlight);
-    spot.root.position.fromArray(b.spotlightSwitch.position);
-    const wipers = new Toggle('wipers', 'wipers', 'Windscreen wipers', (s) => s.controls.wipers);
-    wipers.root.position.fromArray(b.wipersSwitch.position);
-    const joy = new Joystick('spotJoystick', def.spotlight);
-    joy.root.position.fromArray(b.spotJoystick.position);
-
     this.radio = new RadioSet(b.radio, def.layout.wheelhouse.roofY);
     this.root.add(this.radio.root);
     this.chart = new ChartPlotter(b.chart, def.layout.wheelhouse.roofY);
     this.root.add(this.chart.root);
     this.overhead = new OverheadPanel(def);
     this.root.add(this.overhead.root);
-    this.controls.push(wheel, ...modules.controls, start, heat, key, horn, nav, anchor, cabin, spot, wipers, joy, this.radio.handset, ...this.overhead.controls);
-    // Fire monitor (fire missions): the FIRE PUMP switch, its joystick (red knob) and the
-    // monitor itself on the roof.
-    const extraLabels: Label[] = [];
+    this.controls.push(...modules.controls, this.radio.handset, ...this.overhead.controls);
+    // The modules' engraved labels, drawn with the bridge's own.
+    const extraLabels: Label[] = modules.labels.map((l) => [l.text, l.at, l.title, l.yaw]);
     const extraFixed: THREE.BufferGeometry[] = [];
+    // The fire monitor on the roof (its FIRE PUMP switch and joystick are modules on the console).
     if (def.fireMonitor) {
-      const m = def.fireMonitor;
-      const pump = new Toggle('firePump', 'firePump', 'FIRE PUMP (needs the engine running)', (s) => s.controls.firePump);
-      pump.root.position.fromArray(m.pumpSwitch);
-      const monJoy = new Joystick('monJoystick', m, { pan: 'monPan', tilt: 'monTilt' }, 'Fire monitor joystick', 0xd8301a);
-      monJoy.root.position.fromArray(m.joystick);
-      this.controls.push(pump, monJoy);
-      this.monitor = new MonitorView(m);
+      this.monitor = new MonitorView(def.fireMonitor);
       this.root.add(this.monitor.root);
-      extraLabels.push(['FIRE PUMP', m.pumpSwitch], ['MONITOR', m.joystick]);
     }
-    // Fishing: the TRAWL switch (up: shoot the net; down: haul it).
+    // Fishing: the trawl's by-hand buttons on the A-frame (the TRAWL switch is a module).
     if (def.fishing) {
-      const trawl = new Toggle('trawl', 'trawl', 'TRAWL: shoot / haul the net', (s) => s.controls.trawl);
-      trawl.root.position.fromArray(def.fishing.trawlSwitch);
-      this.controls.push(trawl);
-      extraLabels.push(['TRAWL', def.fishing.trawlSwitch]);
       // By hand on the A-frame: PAY OUT / HAUL (hold-to-run) on a control box built onto
       // the starboard leg's inboard side at waist height, read from inboard facing the leg
       // (PAY OUT forward, HAUL aft).
@@ -235,15 +185,6 @@ export class Bridge {
       this.fenders = new FendersView(def.fenders.z, plan);
       this.root.add(this.fenders.mesh);
     }
-    // The NAV / WIND display's housing (its screen is in the instrument mesh) and the
-    // bracket up to the roof.
-    {
-      const n = b.navDisplay;
-      const t = (n.tiltDeg * Math.PI) / 180;
-      extraFixed.push(part(new THREE.BoxGeometry(n.width + 0.04, n.height + 0.04, 0.05).translate(0, 0, -0.03).rotateX(t).translate(n.position[0], n.position[1], n.position[2]), 0x1a1d1c));
-      const roof = def.layout.wheelhouse.roofY;
-      extraFixed.push(part(new THREE.BoxGeometry(0.04, roof - n.position[1], 0.04).translate(n.position[0], (roof + n.position[1]) / 2, n.position[2] - 0.06), 0x2a2d2c));
-    }
     // Swim ladder over the starboard side: two stainless rails hooked over the bulwark top,
     // down past the waterline, with flat treads (see player/body.ts climbOut).
     if (def.swimLadder) {
@@ -326,42 +267,12 @@ export class Bridge {
     }
     for (const c of this.controls) if (!c.root.parent) this.root.add(c.root);
 
-    // Instrument dash: a box across the front of the console with the displays on its face.
-    const d = b.dash;
-    const dash = part(
-      new THREE.BoxGeometry(d.halfWidth * 2, d.top - d.bottom, d.aft - d.front).translate(0, (d.top + d.bottom) / 2, (d.front + d.aft) / 2),
-      0x30363b,
-    );
-    // Throttle pedestal: from the console's aft face back to under the lever, floor to console top.
-    const ped = b.lever.pedestal;
-    const lp = b.lever.position;
-    const floorY = def.layout.wheelhouse.floorY;
-    const pedFront = lp[2] - 0.25; // overlaps into the console body
-    const pedestalAt = (x: number) =>
-      part(
-        new THREE.BoxGeometry(ped.halfWidth * 2, lp[1] - 0.01 - floorY, ped.aft - pedFront).translate(x, (lp[1] - 0.01 + floorY) / 2, (ped.aft + pedFront) / 2),
-        0x3c4248,
-      );
-    // The throttle's pedestal, and its mirror image to port for the searchlight joystick.
-    const pedestal = pedestalAt(lp[0]);
-    const spotPedestal = pedestalAt(b.spotJoystick.position[0]);
-    if (def.fireMonitor) extraFixed.push(pedestalAt(def.fireMonitor.joystick[0]));
-    this.instruments = new InstrumentPanel(b);
-    this.dashAnchor.position.set(0, (d.top + d.bottom) / 2, d.aft);
-    // Group plates under the switch row (see consoleGroups), a coloured strip along the
-    // forward edge of each, its title on the strip.
-    // On the flat panel behind the console's raised front (vessel/view/hullMesh.ts).
-    const wh2 = def.layout.wheelhouse;
-    const top = floorY + wh2.consoleHeight + 0.005;
-    const plateFront = wh2.front + wh2.wall + wh2.consoleDepth * 0.45 + 0.005;
-    const plateAft = wh2.front + wh2.wall + wh2.consoleDepth - 0.05;
-    for (const g of b.consoleGroups) {
-      const [x0, x1] = g.x;
-      extraFixed.push(part(new THREE.BoxGeometry(x1 - x0, 0.004, plateAft - plateFront).translate((x0 + x1) / 2, top + 0.002, (plateFront + plateAft) / 2), 0x3b434a));
-      extraFixed.push(part(new THREE.BoxGeometry(x1 - x0, 0.005, 0.028).translate((x0 + x1) / 2, top + 0.0025, plateFront + 0.014), g.color));
-      extraLabels.push([g.title, [(x0 + x1) / 2, top + 0.004, plateFront + 0.014 - LABEL_OFFSET], true]);
-    }
-    this.root.add(bakeFixedParts(this.root, [dash, pedestal, spotPedestal, this.overhead.body, ...extraFixed, ...modules.staticParts]), this.instruments.mesh, buildLabels(b, extraLabels), this.dashAnchor);
+    // The console's dash, pedestals and plates, the screens and their housings are modules
+    // now (modules/console, modules/screen): their fixed parts are baked in here with the
+    // bridge's, their screens are one mesh, their labels go with the bridge's.
+    this.dashAnchor = this.root.getObjectByName('dashAnchor') ?? this.dashAnchor;
+    this.root.add(bakeFixedParts(this.root, [this.overhead.body, ...extraFixed, ...modules.staticParts]), buildLabels(extraLabels));
+    if (modules.screens) this.root.add(modules.screens);
   }
 
   /** The mounted modules, as "socket: module id" (debug overlay). */
@@ -379,8 +290,7 @@ export class Bridge {
       c.sync(state);
       c.tick(dt);
     }
-    this.modules.update(state, dt);
-    if (displaysInView) this.instruments.update(state, this.def, dt, env);
+    this.modules.update(state, dt, { inView: displaysInView, def: this.def, env });
     this.door.sync(state);
     // Under the floor, the dipstick and the oil can are only within reach with the hatch open.
     const hatchOpen = (state.controls.engineHatch ?? 0) > 0.5;
@@ -388,7 +298,6 @@ export class Bridge {
     if (this.oilCan) this.oilCan.enabled = hatchOpen;
     this.overhead.update(state);
     this.electrics?.update(state, dt);
-    this.lamps.update(state, this.def);
     this.fenders?.update(state);
     // The winch drum turns only while it really runs (hydraulic pressure, and line or net
     // actually coming in or going out): App sets `drumTurn` each frame (+1 in, -1 out, 0 still).
@@ -423,25 +332,9 @@ function bakeFixedParts(root: THREE.Object3D, extra: THREE.BufferGeometry[]): TH
  * the control, to be read facing another way - PI: facing aft).
  */
 type Label = [string, [number, number, number], boolean?, number?];
-/** How far aft of its control a label lies (m). */
-const LABEL_OFFSET = 0.085;
 
 /** Small engraved labels on the console top in front of each control (one draw call). */
-function buildLabels(b: WorkboatDef['bridge'], extra: Label[] = []): THREE.Mesh {
-  const labels: Label[] = [
-    ['AHEAD ▲  ▼ ASTERN', b.lever.position],
-    ['START', b.startButton.position],
-    ['HEAT', b.heatButton.position],
-    ['KEY', b.keySwitch.position],
-    ['HORN', b.hornButton.position],
-    ['NAV LIGHTS', b.navLightsSwitch.position],
-    ['ANCHOR', b.anchorSwitch.position],
-    ['CABIN', b.cabinLightSwitch.position],
-    ['SPOT', b.spotlightSwitch.position],
-    ['WIPERS', b.wipersSwitch.position],
-    ['SEARCHLIGHT', b.spotJoystick.position],
-    ...extra,
-  ];
+function buildLabels(labels: Label[]): THREE.Mesh {
   const slotW = 512;
   const slotH = 64;
   const canvas = document.createElement('canvas');

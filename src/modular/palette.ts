@@ -19,3 +19,13 @@ export const PALETTE = {
 } as const;
 
 export type PaletteColour = keyof typeof PALETTE;
+
+/**
+ * A colour from a recipe or config: a number (0x3aa04a) or a CSS-style string ('#3aa04a';
+ * JSON has no hex numbers). Junk gives `fallback`.
+ */
+export function colourOf(c: unknown, fallback: number): number {
+  if (typeof c === 'number' && Number.isFinite(c)) return c;
+  if (typeof c === 'string' && /^#[0-9a-fA-F]{6}$/.test(c)) return parseInt(c.slice(1), 16);
+  return fallback;
+}

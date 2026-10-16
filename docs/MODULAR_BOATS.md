@@ -789,15 +789,16 @@ Sizes: S is about a session, M two or three, L more.
   - Desktop: drag the lever.
   - Automated: the lever's bus value round-trips through save and load; golden runs equal; draw calls equal.
 
-### M3: the bridge as modules (L, in three stops)
+### M3: the bridge as modules (L, in three stops). **3a done.**
 
-- **3a, console and helm.**
-  - `console.standard` with nested slots, then the wheel, buttons, key, toggles, joysticks, lamps, placard and binoculars.
+- **3a, console and helm. Done; see PROGRESS.**
+  - `console.standard` with nested slots, then the wheel, buttons, key, toggles, joysticks, lamps and placard.
   - The six screens as instrument modules on the shared atlas.
-  - Shared instanced parts for toggle bats, button caps and lamps (2.10).
+  - Moved: the binoculars are a tool the App hands to the player, not a bridge part; they stay as they are until the deck gear (M5). The shared instanced parts move to 3b, where they pay off: most of the bridge's toggles are on the overhead panel and the breaker panel.
   - **Test:** a cold start by the card; every switch; searchlight and monitor joysticks; the screens at night. Draw calls at the helm not up; moving parts counted.
 - **3b, power controls.**
   - The overhead panel, `panel.breakers` with the voltmeter, the battery master and selector, and the lamps.
+  - Shared instanced parts for toggle bats, button caps and lamps (2.10), across the console, the overhead panel and the breakers.
   - Still the *views and controls* only: the electrical simulation stays as it is until M4.
   - **Test:** master off and on, every breaker and its lamp, the voltmeter dip on cranking, the deck lights and FM.
 - **3c, the rest of the wheelhouse.**

@@ -8,7 +8,8 @@ import { createWorld } from '../src/core/world';
 import { CONFIG } from '../src/config';
 import { createVesselState } from '../src/vessel/vesselState';
 
-const opts = CONFIG.vessels.workboat.spotlight;
+// The light's travel (its own config) and the stick's rates (the joystick module's).
+const opts = { ...CONFIG.vessels.workboat.spotlight, ...CONFIG.modules.joystick };
 
 function joystick() {
   const sent: Record<string, number> = {};
