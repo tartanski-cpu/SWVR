@@ -22,6 +22,7 @@ import { hullPlan } from '../vessel/layout';
 import { RainGlass } from '../vessel/view/rainGlass';
 import { Dipstick, FenderBasket, FendersView, OilCan } from './deckGear';
 import { swimLadderOf } from '../player/body';
+import { gallowsOf } from '../fishing/trawlView';
 
 /**
  * Builds a vessel's bridge from its config: controls, instrument dash, labels.
@@ -47,6 +48,8 @@ export class Bridge {
   readonly rainGlass: RainGlass;
   /** The fire monitor on the roof (boats that have one). */
   private monitor: MonitorView | null = null;
+  /** The tow winch's drum (it turns while the winch runs). */
+  private readonly winchDrum = new THREE.Group();
   /** The aft door (its push buttons on the frame open / shut it). */
   readonly door: WheelhouseDoor;
   /** The fenders over the side or stowed (boats that carry them). */
@@ -106,6 +109,7 @@ export class Bridge {
     // Fire monitor (fire missions): the FIRE PUMP switch, its joystick (red knob) and the
     // monitor itself on the roof.
     const extraLabels: Label[] = [];
+    const extraFixed: THREE.BufferGeometry[] = [];
     if (def.fireMonitor) {
       const m = def.fireMonitor;
       const pump = new Toggle('firePump', 'firePump', 'FIRE PUMP (needs the engine running)', (s) => s.controls.firePump);
@@ -123,7 +127,65 @@ export class Bridge {
       trawl.root.position.fromArray(def.fishing.trawlSwitch);
       this.controls.push(trawl);
       extraLabels.push(['TRAWL', def.fishing.trawlSwitch]);
+      // By hand on the gallows: PAY OUT / HAUL (hold-to-run) on a bracket on each post's
+      // inboard side, read from inboard facing the post (PAY OUT forward, HAUL aft).
+      const gl = gallowsOf(def);
+      const nb = def.fishing.netButtons;
+      for (const s of [-1, 1]) {
+        const x = s * (gl.x - nb.inset);
+        const y = gl.deck + nb.height;
+        extraFixed.push(part(new THREE.BoxGeometry(nb.inset + 0.08, 0.06, 0.36).translate(s * (gl.x - (nb.inset + 0.08) / 2), y - 0.03, gl.z), 0xb8261a));
+        const side = s > 0 ? 'S' : 'P';
+        const out = new Button(`netOut${side}`, 'netOut', 'Trawl net: PAY OUT (hold)', 'momentary', 0xe0a020);
+        out.root.position.set(x, y, gl.z - 0.09);
+        const haul = new Button(`netIn${side}`, 'netIn', 'Trawl net: HAUL (hold)', 'momentary', 0x3a9a4a);
+        haul.root.position.set(x, y, gl.z + 0.09);
+        this.controls.push(out, haul);
+        const yaw = s > 0 ? -Math.PI / 2 : Math.PI / 2;
+        extraLabels.push(['PAY OUT', [x, y, gl.z - 0.09], false, yaw], ['HAUL', [x, y, gl.z + 0.09], false, yaw]);
+      }
     }
+    // The tow winch just forward of the towing post: a small drum (it turns while it runs)
+    // on a frame with its motor, and a control stand forward of it with HEAVE IN / PAY OUT
+    // (hold-to-run). You stand at the stand facing aft: the winch, the post and the tow.
+    const tw = def.towWinch;
+    if (tw) {
+      const plan = hullPlan(def);
+      const dy = plan.deckY(tw.z);
+      const r = tw.drumRadius;
+      const hw = tw.drumWidth / 2;
+      const axle = dy + 0.1 + r + 0.08;
+      extraFixed.push(part(new THREE.BoxGeometry(tw.drumWidth + 0.3, 0.1, 0.5).translate(0, dy + 0.05, tw.z), 0x5a5f64));
+      for (const s of [-1, 1]) extraFixed.push(part(new THREE.BoxGeometry(0.05, axle + 0.12 - dy, 0.34).translate(s * (hw + 0.07), (axle + 0.12 + dy) / 2, tw.z), 0x5a5f64));
+      extraFixed.push(part(new THREE.CylinderGeometry(0.09, 0.09, 0.2, 10).rotateZ(Math.PI / 2).translate(hw + 0.2, axle, tw.z), 0x2a2e33)); // motor
+      const drum = new THREE.Mesh(
+        mergeParts([
+          part(new THREE.CylinderGeometry(r, r, tw.drumWidth, 14).rotateZ(Math.PI / 2), 0x2a2a2a), // wire wound on it
+          ...[-1, 1].map((s) => part(new THREE.CylinderGeometry(r + 0.08, r + 0.08, 0.035, 14).rotateZ(Math.PI / 2).translate(s * hw, 0, 0), 0xb8261a)),
+          part(new THREE.BoxGeometry(tw.drumWidth, 0.03, 0.03).translate(0, r, 0), 0xd8d8d0), // a stripe: you see it turn
+        ]),
+        flatVertexColorMaterial(),
+      );
+      drum.name = 'towWinchDrum';
+      this.winchDrum.position.set(0, axle, tw.z);
+      this.winchDrum.add(drum);
+      this.root.add(this.winchDrum);
+      const [sx, sz] = tw.stand;
+      const sy = plan.deckY(sz);
+      const top = sy + tw.buttonHeight;
+      extraFixed.push(part(new THREE.CylinderGeometry(0.05, 0.06, top - 0.06 - sy, 8).translate(sx, (top - 0.06 + sy) / 2, sz), 0x5a5f64));
+      extraFixed.push(part(new THREE.BoxGeometry(0.36, 0.06, 0.24).translate(sx, top - 0.03, sz), 0x3a4148));
+      const heave = new Button('winchHeave', 'winchHeave', 'Tow winch: HEAVE IN (hold)', 'momentary', 0x3a9a4a);
+      heave.root.position.set(sx + 0.09, top, sz + 0.03);
+      const payOut = new Button('winchPayOut', 'winchPayOut', 'Tow winch: PAY OUT (hold)', 'momentary', 0xe0a020);
+      payOut.root.position.set(sx - 0.09, top, sz + 0.03);
+      this.controls.push(heave, payOut);
+      // Read facing aft: the labels lie forward of the buttons, toward you.
+      extraLabels.push(['HEAVE IN', [sx + 0.09, top, sz + 0.03], false, Math.PI], ['PAY OUT', [sx - 0.09, top, sz + 0.03], false, Math.PI]);
+    }
+    // The skiff crane's console button belongs to the crane (controls/TenderCraneView.ts);
+    // its label goes with the others.
+    if (def.tenderCrane) extraLabels.push(['SKIFF CRANE', b.craneButton]);
     const wh = def.layout.wheelhouse;
     this.door = new WheelhouseDoor(wh.doorWidth, wh.doorHeight);
     this.door.root.position.set(0, wh.floorY, wh.aft + 0.03);
@@ -140,7 +202,6 @@ export class Bridge {
     this.rainGlass = new RainGlass(def);
     this.root.add(this.rainGlass.root);
     // Fenders: the basket on the aft deck, and the six fenders themselves.
-    const extraFixed: THREE.BufferGeometry[] = [];
     if (def.fenders) {
       const plan = hullPlan(def);
       const basket = new FenderBasket();
@@ -271,6 +332,9 @@ export class Bridge {
     this.electrics?.update(state, dt);
     this.lamps.update(state, this.def);
     this.fenders?.update(state);
+    // The tow winch's drum turns while it runs: the towline, or the trawl warps.
+    const run = (state.controls.winchHeave ?? 0) - (state.controls.winchPayOut ?? 0) + (state.controls.netIn ?? 0) - (state.controls.netOut ?? 0);
+    if (run) this.winchDrum.rotation.x += Math.sign(run) * 2.5 * dt;
     this.monitor?.update(state);
   }
 }
@@ -295,8 +359,12 @@ function bakeFixedParts(root: THREE.Object3D, extra: THREE.BufferGeometry[]): TH
   return mesh;
 }
 
-/** A label: its text, the control it names (it lies just aft of it), and dark-on-light (a group title). */
-type Label = [string, [number, number, number]] | [string, [number, number, number], boolean];
+/**
+ * A label: its text, the control it names (it lies just aft of it), dark-on-light (a group
+ * title), and its yaw (rad; default 0: read facing forward. It is turned, and moved round
+ * the control, to be read facing another way - PI: facing aft).
+ */
+type Label = [string, [number, number, number], boolean?, number?];
 /** How far aft of its control a label lies (m). */
 const LABEL_OFFSET = 0.085;
 
@@ -334,15 +402,15 @@ function buildLabels(b: WorkboatDef['bridge'], extra: Label[] = []): THREE.Mesh 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
 
-  const planes = labels.map(([, pos], i) => {
+  const planes = labels.map(([, pos, , yaw = 0], i) => {
     const plane = new THREE.PlaneGeometry(0.16, 0.02);
     const uv = plane.attributes.uv as THREE.BufferAttribute;
     for (let k = 0; k < uv.count; k++) {
       const v0 = 1 - (i + 1) / labels.length;
       uv.setXY(k, uv.getX(k), v0 + uv.getY(k) / labels.length);
     }
-    plane.rotateX(-Math.PI / 2);
-    plane.translate(pos[0], pos[1] + 0.002, pos[2] + LABEL_OFFSET);
+    plane.rotateX(-Math.PI / 2).rotateY(yaw);
+    plane.translate(pos[0] + Math.sin(yaw) * LABEL_OFFSET, pos[1] + 0.002, pos[2] + Math.cos(yaw) * LABEL_OFFSET);
     return plane;
   });
   const mesh = new THREE.Mesh(mergeGeometries(planes), new THREE.MeshBasicMaterial({ map: texture, transparent: true }));

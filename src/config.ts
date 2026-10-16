@@ -502,7 +502,7 @@ export const CONFIG = {
         spotlightSwitch: { position: [-0.48, 2.16, -1.52] as [number, number, number] },
         hornButton: { position: [-0.28, 2.16, -1.52] as [number, number, number] },
         /** Windlass: up = heave in / stowed, down = let go. */
-        anchorSwitch: { position: [0.45, 2.16, -1.52] as [number, number, number] },
+        anchorSwitch: { position: [0.39, 2.16, -1.52] as [number, number, number] },
         heatButton: { position: [0.8, 2.16, -1.5] as [number, number, number] },
         startButton: { position: [0.94, 2.16, -1.5] as [number, number, number] },
         keySwitch: { position: [1.08, 2.16, -1.5] as [number, number, number] },
@@ -517,8 +517,8 @@ export const CONFIG = {
         consoleGroups: [
           { title: 'LIGHTS', x: [-1.32, -0.91] as [number, number], color: 0xd8b028 },
           { title: 'SEARCH · FIRE', x: [-0.89, -0.38] as [number, number], color: 0xc0402a },
-          { title: 'DECK', x: [0.21, 0.69] as [number, number], color: 0x2f6fd0 },
-          { title: 'ENGINE', x: [0.71, 1.32] as [number, number], color: 0x3a9a4a },
+          { title: 'DECK', x: [0.19, 0.72] as [number, number], color: 0x2f6fd0 },
+          { title: 'ENGINE', x: [0.74, 1.32] as [number, number], color: 0x3a9a4a },
         ],
         /**
          * VHF radio hung close under the wheelhouse roof, out to port above the window head
@@ -530,7 +530,9 @@ export const CONFIG = {
         /** Chartplotter, the same out to starboard (rescue/cargo chart). */
         chart: { position: [0.98, 3.17, -1.45] as [number, number, number], tiltDeg: 35, yawDeg: -35 },
         /** DOCK / cast off (DECK group). */
-        dockButton: { position: [0.3, 2.16, -1.52] as [number, number, number] },
+        dockButton: { position: [0.26, 2.16, -1.52] as [number, number, number] },
+        /** SKIFF CRANE: launch / recover the skiff from the helm (DECK group; she's in view ahead). */
+        craneButton: [0.65, 2.16, -1.52] as [number, number, number],
         /** Instrument dash across the front of the console: displays on its aft face. */
         dash: { front: -1.82, aft: -1.66, bottom: 2.15, top: 2.56, halfWidth: 1.25, tiltDeg: 14 },
         /**
@@ -720,8 +722,14 @@ export const CONFIG = {
         recoverRange: 3.0,
         recoverSpeed: 1.2,
         chargeMinutes: 5,
-        /** LAUNCH / RECOVER button on the column's control box, facing aft. */
-        button: [1.25, 2.2, -2.1] as [number, number, number],
+        /**
+         * LAUNCH / RECOVER buttons: on the column's control box, on its outboard side facing
+         * starboard (reached from the starboard side deck); a SKIFF CRANE button on the
+         * console (bridge.craneButton); and a remote on a post in the skiff by the helmsman
+         * (`remote`: x, z in her axes, and its height), to call a recovery from the water.
+         */
+        button: [1.47, 2.25, -2.25] as [number, number, number],
+        remote: { x: 0.55, z: 1.3, height: 0.95 },
         /** Crew still in her when she's back in the cradle step out here (x, z on our foredeck). */
         stepOff: [
           [-1.25, -2.7],
@@ -766,7 +774,7 @@ export const CONFIG = {
         lashPoints: [
           [-1.95, 3.0], [-1.95, 4.2], [-1.95, 5.4],
           [1.95, 3.0], [1.95, 4.2], [1.95, 5.4],
-          [0, 3.6], [0, 5.0],
+          [0, 3.6], [0, 4.2],
         ] as [number, number][],
         lashRange: 1.1,
       },
@@ -869,8 +877,22 @@ export const CONFIG = {
        * and the net's drag acts, are placed from the hull: fishing/trawlView.ts, fishing.ts).
        */
       fishing: {
-        trawlSwitch: [0.6, 2.16, -1.52] as [number, number, number],
+        trawlSwitch: [0.52, 2.16, -1.52] as [number, number, number],
+        /**
+         * By-hand net controls on each gallows post (hold-to-run PAY OUT / HAUL), on a small
+         * box on the post's inboard side: its height above the deck, how far in from the post.
+         */
+        netButtons: { height: 1.0, inset: 0.2 },
       },
+      /**
+       * The tow winch (tow/tow.ts stepTowWinch): a small drum on the aft deck centreline just
+       * forward of the towing post (`z`, drum radius and width), and its control stand
+       * (`stand` x, z: abreast of the drum, to starboard) with HEAVE IN / PAY OUT, hold-to-run,
+       * `buttonHeight` above the deck.
+       * You stand forward of it facing aft: the winch, the post and the tow beyond. The
+       * trawl warps lead off the same winch to the gallows blocks.
+       */
+      towWinch: { z: 4.95, drumRadius: 0.16, drumWidth: 0.5, stand: [0.85, 4.95] as [number, number], buttonHeight: 0.95 },
       fireMonitor: {
         position: [0, 3.75, -0.55] as [number, number, number],
         joystick: [-0.85, 2.16, -1.15] as [number, number, number],
@@ -1113,6 +1135,11 @@ export const CONFIG = {
     /** Towline: length (m), and the most the bow eye may be from our towing post to make it fast (m). */
     lineLength: 22,
     attachRange: 16,
+    /**
+     * The tow winch by the towing post (hold-to-run): heave in / pay out speeds (m/s), the
+     * shortest and longest line it allows (m), and the most it can pull in against (N).
+     */
+    winch: { heaveSpeed: 0.6, payOutSpeed: 1.0, minLength: 4, maxLength: 60, pullN: 18000 },
     /** Line stiffness (N/m) and damping as a fraction of critical. */
     stiffness: 6000,
     dampingRatio: 0.5,

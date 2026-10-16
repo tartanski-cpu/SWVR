@@ -7,7 +7,7 @@ import { createWorld } from '../src/core/world';
 import { placeVessel } from '../src/vessel/vesselControl';
 import { TOW_DEFS, VESSEL_DEFS } from '../src/vessel/vesselDef';
 import { createVesselState } from '../src/vessel/vesselState';
-import { towFast, towReach, towStatus, towTargets, towVessel } from '../src/tow/tow';
+import { lineLength, towFast, towReach, towStatus, towTargets, towVessel, winchStalled } from '../src/tow/tow';
 import { runStatus } from '../src/rescue/rescue';
 import { PORTS } from '../src/world/archipelago';
 import { ClientSession } from '../src/net/clientSession';
@@ -235,3 +235,37 @@ describe('towing missions', { timeout: 30000 }, () => {
     expect(c.latest!.vessels[job.vesselId].defId).toBe('barge');
   });
 });
+
+describe('the tow winch', { timeout: 30000 }, () => {
+  it('heaves in and pays out the line while its buttons are held, within its limits; stalls under a heavy pull', () => {
+    const { world, v, send, run } = setup();
+    placeVessel(v, 0, 0, -400, 0);
+    run(1);
+    send('towDebugNear', 1, 'derelict');
+    send('towMake');
+    const line = world.tow!.line!;
+    const w = CONFIG.tow.winch;
+    expect(lineLength(line)).toBe(CONFIG.tow.lineLength); // as made fast
+    // Heave in for 5 s: 3 m less line out.
+    send('winchHeave', 1);
+    run(5);
+    send('winchHeave', 0);
+    expect(lineLength(line)).toBeCloseTo(CONFIG.tow.lineLength - w.heaveSpeed * 5, 1);
+    expect(towStatus(world)).toMatch(/19 m out/);
+    // Let go: it stays where it is.
+    const held = lineLength(line);
+    run(2);
+    expect(lineLength(line)).toBe(held);
+    // Pay out to the end of the wire, and no further.
+    send('winchPayOut', 1);
+    run((w.maxLength - held) / w.payOutSpeed + 3);
+    send('winchPayOut', 0);
+    expect(lineLength(line)).toBe(w.maxLength);
+    // Heaving in against more than the winch can pull: it stalls (and says so).
+    line.tension = w.pullN * 2;
+    v.controls.winchHeave = 1;
+    expect(winchStalled(world)).toBe(true);
+    expect(towStatus(world)).toMatch(/winch stalled/);
+  });
+});
+

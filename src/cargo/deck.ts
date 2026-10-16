@@ -1,11 +1,11 @@
 /**
  * Where cargo can stand on a vessel's open deck (vessel axes): inside the bulwarks, clear
- * of the wheelhouse and of the tender's cradle and crane, aft of the narrow bow
+ * of the wheelhouse and of the gear on deck (tender cradle and crane, tow winch), aft of the narrow bow
  * (`cargo.bowClear`), forward of `cargo.aftClear`. Shared by the simulation (placing, sliding) and
  * the hands (choosing where a crate will go). Footprints are treated as squares of their
  * larger half-size, so an item's yaw on deck doesn't matter.
  */
-import { hullPlan } from '../vessel/layout';
+import { hullPlan, onDeckGear } from '../vessel/layout';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 
 export interface DeckFootprint {
@@ -31,9 +31,7 @@ function openPoint(defId: string, x: number, z: number): boolean {
   if (z > plan.transom - Math.max(EDGE, def.cargo.aftClear) || z < plan.stem + def.cargo.bowClear) return false;
   if (Math.abs(x) > plan.halfBeam(z) - EDGE) return false;
   if (wh && Math.abs(x) < wh.halfWidth + 0.05 && z > wh.front - 0.05 && z < wh.aft + 0.05) return false;
-  const tc = def.tenderCrane;
-  if (tc && Math.abs(x - tc.stow[0]) < tc.cradle.halfWidth && z > tc.cradle.z0 && z < tc.cradle.z1) return false;
-  if (tc && Math.hypot(x - tc.column[0], z - tc.column[1]) < tc.columnRadius + 0.05) return false;
+  if (onDeckGear(def, x, z, 0.05)) return false;
   return true;
 }
 

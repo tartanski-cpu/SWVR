@@ -51,6 +51,14 @@ export interface VesselControls {
   monTilt: number;
   /** Trawl: shoot (1) / haul (0) the net (fishing/fishing.ts). */
   trawl: number;
+  /**
+   * Hold-to-run winch buttons (1 while held): the tow winch by the towing post (heave in /
+   * pay out the towline), and the trawl net's on the gallows (pay out / haul).
+   */
+  winchHeave?: number;
+  winchPayOut?: number;
+  netOut?: number;
+  netIn?: number;
 }
 
 /** Docking and mooring lines (physics/mooring.ts). */

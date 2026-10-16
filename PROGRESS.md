@@ -1331,6 +1331,22 @@ The brief's "no new particle effects" rule was flagged: the fire is drawn withou
   - The WINDOWS switch, the glass it showed and the `windows` control are gone (the "secure the boat" duty drops its windows step). The windscreen's rain and wipers stay.
   - How shut-in the wheelhouse is now depends on the aft door alone: shut, it fully muffles wind, rain, wash and fire inside.
   - The engine sound gets a wheelhouse low-pass and level (`CONFIG.wheelhouseSound`): full on deck; inside with the door open ×0.75 and 1200 Hz; door shut ×0.45 and 320 Hz.
+- **Crane access, tow winch, trawl by hand** (owner requests after the layout round).
+  - **Crane cables put away in the cradle:** with the skiff stowed, the wire and the 4-leg bridle are hidden and the hook hangs at the jib head (clearer view from the helm). They show from LAUNCH until she's back.
+  - **Skiff crane buttons, three of them** (all send `<tender>:crane`, all with the same hover text):
+    - **SKIFF CRANE** on the helm console, DECK group (`bridge.craneButton`): she's in view ahead. DOCK, ANCHOR and TRAWL close up to make room.
+    - the crane's control box moved to the **outboard side of its post, facing starboard** (`tenderCrane.button`): reached from the starboard side deck, not squeezed between the post and the wheelhouse;
+    - a **remote on a post in the skiff**, starboard of the tiller by the helmsman (`tenderCrane.remote`, in her axes; `TenderCraneView.remote` goes in her view root): call the recovery from the water when she's alongside the starboard bow.
+  - **Tow winch** (`CONFIG.vessels.workboat.towWinch`, `CONFIG.tow.winch`): the trawl's big drum mid-deck is gone. A small drum (0.5 m wide) on a frame with its motor now sits just forward of the towing post, with a control stand beside it: hold-to-run **HEAVE IN** / **PAY OUT** (vessel controls `winchHeave` / `winchPayOut`; named so the tow intents' `tow*` prefix doesn't catch them).
+    - The towline now has a paid-out length (`TowLine.length`, `lineLength()`; unset = as made fast). The winch heaves in at 0.6 m/s and pays out at 1.0 m/s, between 4 and 60 m.
+    - Heaving in stalls while the line pulls over 18 kN (`winchStalled`).
+    - The towline's stretch, sag and the status line ("19 m out, 3.2 kN") use it.
+    - The drum turns while the winch runs (the towline or the trawl warps).
+    - Labels on the stand read facing aft (bridge labels can now be turned: `Label` yaw).
+    - The winch and its stand are solid for walking and cargo (`onDeckGear` in layout.ts, shared with the crane's cradle and post). The centre lashing point moved forward to z 4.2.
+  - **Trawl by hand** (`fishing.netButtons`): **PAY OUT** / **HAUL** hold-to-run buttons on a bracket on each gallows post's inboard side (vessel controls `netOut` / `netIn`). While held the net moves at the shoot / haul rate. Let go part way and it stops ('held': it drags in proportion but doesn't fish). The console TRAWL switch now acts on a flip (all the way out, or all the way in) and follows the hand controls (on while any net is out).
+  - **Tests (298):** the winch heaves in / holds / pays out to its limit / stalls under a heavy pull; the net by hand stops part way, drags, doesn't fish, goes on out to fishing, and the switch then hauls it all in; the winch and stand are solid.
+  - **Checked in the browser** (desktop clicks): SKIFF CRANE on the console launches her; the remote in the skiff recovers her; HEAVE IN shortens the line; PAY OUT on the gallows moves the net out and holds it. Screenshots: the helm view with no cables, the winch and stand, the gallows buttons, the crane's control box.
 - **Wheelhouse and deck layout** (owner request: a round of refactoring the wheelhouse and the gear on deck).
   - **Ship's log removed** (owner: redundant). Gone: `log/` (state, logbook view), `WorldState.log` and its own net message, the logbook on the chart table, the log events from traffic, rescues, tows and fires (`RescueState.lastDone`), and its tests. The chart table keeps the chart, its tools and the lamp (its shade now over the chart). Ship sightings stay, for the lookout.
   - **Forepeak hatch removed** (owner: redundant). The bilge now fills only from hull damage (`wear.leakRate`); rain no longer gets below. The "secure the boat" duty comes up only with loose cargo on deck (lash it; wipers optional), and the bilge duty drops its hatch step.

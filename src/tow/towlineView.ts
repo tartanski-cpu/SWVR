@@ -3,7 +3,7 @@ import type { WorldState } from '../core/world';
 import { VESSEL_DEFS, type VesselDef } from '../vessel/vesselDef';
 import { CONFIG } from '../config';
 import { surfaceHeight, type PreparedWave } from '../ocean/waves';
-import { bowEyeLocal, lineFor, towPoint, towPostLocal } from './tow';
+import { bowEyeLocal, lineLength, towPoint, towPostLocal } from './tow';
 
 const SEGMENTS = 14;
 
@@ -72,7 +72,7 @@ export class TowlineView {
     }
     tug.localToWorld(this.a.fromArray(towPostLocal(VESSEL_DEFS[tugS.defId])));
     const d = this.a.distanceTo(this.b);
-    const L = lineFor(line.target).length;
+    const L = lineLength(line);
     const sag = d < L ? Math.sqrt((3 * d * (L - d)) / 8) : 0;
     const point = (t: number, out: THREE.Vector3) => {
       out.lerpVectors(this.a, this.b, t);

@@ -7,10 +7,19 @@ import { hullPlan } from '../vessel/layout';
 
 const FLOATS = 7;
 
+/** Where the gallows posts stand (vessel axes): x of the starboard one (port is -x), z, deck and top heights. */
+export function gallowsOf(def: VesselDef): { x: number; z: number; deck: number; top: number } {
+  const plan = hullPlan(def);
+  const z = plan.transom - 0.7;
+  const deck = plan.deckY(z);
+  return { x: plan.halfBeam(z) - 0.12, z, deck, top: deck + 1.5 };
+}
+
 /**
  * The trawl as seen from the boat (fishing.ts). Cheap and rope-free (the brief's rule):
- *   gallows  quarter gallows: a short red post with a block on each quarter, and a winch
- *            drum on the aft deck (always there).
+ *   gallows  quarter gallows: a short red post with a block on each quarter (always there).
+ *            The warps lead off the tow winch by the towing post, and the by-hand PAY OUT /
+ *            HAUL buttons on the posts are bridge controls (controls/bridge.ts).
  *   warps    two straight dark lines from the blocks down into the water astern, longer
  *            as the net goes out (one line segment pair).
  *   floats   the headline's orange floats in an arc on the surface well astern, riding
@@ -39,14 +48,10 @@ export class TrawlView {
     this.root.visible = false;
   }
 
-  /** Put the gear on the boat (once): a post and block on each quarter, a winch drum. */
+  /** Put the gear on the boat (once): a post and block on each quarter. */
   attachGallows(root: THREE.Object3D, def: VesselDef): void {
     if (!def.fishing) return;
-    const plan = hullPlan(def);
-    const z = plan.transom - 0.7;
-    const deck = plan.deckY(z);
-    const x = plan.halfBeam(z) - 0.12;
-    const top = deck + 1.5;
+    const { x, z, deck, top } = gallowsOf(def);
     this.block.set(x, top, z);
     const parts: THREE.BufferGeometry[] = [];
     for (const s of [-1, 1]) {
@@ -55,12 +60,6 @@ export class TrawlView {
       parts.push(part(new THREE.BoxGeometry(0.4, 0.07, 0.07).translate(s * (x + 0.15), top, z), 0xb8261a));
       parts.push(part(new THREE.CylinderGeometry(0.12, 0.12, 0.08, 10).rotateZ(Math.PI / 2).translate(s * (x + 0.32), top - 0.14, z), 0x30343a));
     }
-    // The trawl winch: a red drum with dark warp wound on it, forward on the aft deck.
-    const wz = plan.transom - 3.2;
-    const wy = plan.deckY(wz);
-    parts.push(part(new THREE.CylinderGeometry(0.28, 0.28, 0.9, 12).rotateZ(Math.PI / 2).translate(0, wy + 0.45, wz), 0x2a2a2a));
-    for (const s of [-1, 1]) parts.push(part(new THREE.CylinderGeometry(0.38, 0.38, 0.06, 12).rotateZ(Math.PI / 2).translate(s * 0.47, wy + 0.45, wz), 0xb8261a));
-    parts.push(part(new THREE.BoxGeometry(1.2, 0.18, 0.5).translate(0, wy + 0.09, wz), 0x5a5f64));
     const mesh = new THREE.Mesh(mergeParts(parts), flatVertexColorMaterial());
     mesh.name = 'trawlGallows';
     root.add(mesh);

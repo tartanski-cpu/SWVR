@@ -81,6 +81,8 @@ export interface TowLine {
   target: string;
   /** Tension on the last tick (N). */
   tension: number;
+  /** Line paid out from the tow winch (m); unset: as made fast (lineFor(target).length). */
+  length?: number;
   /** Debris: its velocity on the line (world x, z; m/s), and seconds lain slow in a port. */
   vel?: [number, number];
   inPort?: number;
@@ -166,6 +168,34 @@ export function lineFor(key: string): { length: number; attach: number } {
   return key.startsWith('l:') ? CONFIG.salvage.line : { length: CONFIG.tow.lineLength, attach: CONFIG.tow.attachRange };
 }
 
+/** How much line is out now (m): as made fast, or as the tow winch has left it. */
+export function lineLength(line: TowLine): number {
+  return line.length ?? lineFor(line.target).length;
+}
+
+/**
+ * The tow winch by our towing post (hold-to-run HEAVE IN / PAY OUT, vessel controls
+ * `winchHeave` / `winchPayOut`): the line comes in at `heaveSpeed` and goes out at `payOutSpeed`,
+ * between `minLength` and `maxLength`. Heaving in stalls while the line pulls harder than
+ * the winch can (`pullN`): ease off, or slow down, and it comes in.
+ */
+function stepTowWinch(line: TowLine, v: VesselState, dt: number): void {
+  const w = CONFIG.tow.winch;
+  const heave = (v.controls.winchHeave ?? 0) > 0.5;
+  const payOut = (v.controls.winchPayOut ?? 0) > 0.5;
+  if (heave === payOut) return;
+  const L = lineLength(line);
+  if (payOut) line.length = Math.min(w.maxLength, L + w.payOutSpeed * dt);
+  else if (line.tension <= w.pullN) line.length = Math.max(w.minLength, L - w.heaveSpeed * dt);
+}
+
+/** The tow winch is stalled: heaving in against more pull than it has. */
+export function winchStalled(world: WorldState): boolean {
+  const line = world.tow?.line;
+  const v = tug(world);
+  return !!line && !!v && (v.controls.winchHeave ?? 0) > 0.5 && line.tension > CONFIG.tow.winch.pullN;
+}
+
 function debrisOf(world: WorldState, key: string) {
   return key.startsWith('d:') ? world.traffic?.debris.find((d) => d.id === key.slice(2)) : undefined;
 }
@@ -239,7 +269,7 @@ const dir = new THREE.Vector3();
  * The towline's pull this tick, as external forces on the two boats (evaluated from the
  * start-of-tick states, before the vessels are stepped, like boat-to-boat contact).
  *
- *   stretch e = |B - A| - L          (A: our towing post, B: the tow's bow eye, L: lineLength)
+ *   stretch e = |B - A| - L          (A: our towing post, B: the tow's bow eye, L: the line out)
  *   T = k e + c de/dt  for e > 0, never below zero (a slack rope doesn't push)
  *   c = 2 * zeta * sqrt(k * m),  m = m_tug m_tow / (m_tug + m_tow)  (the two-body "reduced" mass)
  *
@@ -265,7 +295,7 @@ export function towlineForces(world: WorldState): Map<EntityId, ExternalForce[]>
   const len = dir.length();
   if (len < 1e-6) return out;
   dir.divideScalar(len);
-  const stretch = len - lineFor(line.target).length;
+  const stretch = len - lineLength(line);
   if (stretch <= 0) {
     line.tension = 0;
     return out;
@@ -458,6 +488,7 @@ export function stepTow(world: WorldState, dt: number): void {
   if (line && !vesselOf(world, line.target) && !debrisOf(world, line.target) && !logOf(world, line.target)) t.line = null;
   else if (line?.target.startsWith('d:')) stepTowedDebris(world, line, dt);
   else if (line?.target.startsWith('l:')) stepTowedLog(world, line, dt);
+  if (t.line) stepTowWinch(t.line, v, dt);
   const job = t.job;
   const tow = job ? world.vessels[job.vesselId] : undefined;
   // The tow vanished (a snapshot from an older host, a debug reset): no job.
@@ -582,7 +613,7 @@ export function isTowIntent(control: string): boolean {
 export function towStatus(world: WorldState): string | null {
   const job = world.tow?.job;
   const line = world.tow?.line;
-  const kN = `line ${((line?.tension ?? 0) / 1000).toFixed(1)} kN`;
+  const kN = `${line ? Math.round(lineLength(line)) : 0} m out, ${((line?.tension ?? 0) / 1000).toFixed(1)} kN${winchStalled(world) ? ', winch stalled: ease off' : ''}`;
   if (line?.target.startsWith('l:')) return salvageStatus(world);
   if (line && !towFast(world)) {
     return line.target.startsWith('d:') ? `Towing debris: bring it into a harbour to clear it (${kN})` : `Towing ${towName(world, line.target)} (${kN})`;

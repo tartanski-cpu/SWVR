@@ -33,12 +33,21 @@ const REACH_SPEED = 1.5;
  * it, a little above (`tipAbove`), and the two arms are a two-link chain from the boom's
  * pivot on the turret to the jib head, knuckle up (law of cosines).
  *
- * The control box's button sends `<tenderId>:crane` (one press: launch if she's in the
- * cradle, recover if she's alongside); its hover text says which, or why not yet.
+ * In the cradle the wire and bridle are put away (hidden: they'd clutter the view from the
+ * helm) and the hook hangs at the jib head; they're on her from LAUNCH until she's back.
+ *
+ * Three buttons send `<tenderId>:crane` (one press: launch if she's in the cradle, recover
+ * if she's alongside), each with hover text saying which, or why not yet: on the column's
+ * control box (outboard side, from the starboard side deck), SKIFF CRANE on the helm
+ * console (DECK group), and a remote on a post in the skiff by the helmsman (`remote`, in
+ * her axes: the App puts it in her view) to call a recovery from the water.
  */
 export class TenderCraneView {
   readonly root = new THREE.Group();
-  readonly button: Button;
+  /** The three buttons: column, console, the skiff's remote. */
+  readonly buttons: Button[];
+  /** The remote's post and button, in the skiff's axes (the App adds it to her view root). */
+  readonly remote = new THREE.Group();
   private readonly boxes: THREE.InstancedMesh;
   private readonly rods: THREE.InstancedMesh;
   private readonly hook = new THREE.Vector3();
@@ -57,6 +66,8 @@ export class TenderCraneView {
     readonly tenderId: string,
     private readonly crane: TenderCrane,
     deckY: (z: number) => number,
+    /** Where the SKIFF CRANE button stands on the helm console (ship axes). */
+    consoleAt: [number, number, number],
   ) {
     const c = crane;
     const [cx, cz] = c.column;
@@ -77,8 +88,9 @@ export class TenderCraneView {
       parts.push(part(new THREE.BoxGeometry(1.1, keel - y0, 0.12).translate(sx, (keel + y0) / 2, z), 0x4a5258));
       parts.push(part(new THREE.BoxGeometry(1.0, 0.03, 0.14).translate(sx, keel - 0.012, z), DARK)); // rubber pad
     }
+    // The control box on the column's outboard side, its face to starboard.
     const [bx, by, bz] = c.button;
-    parts.push(part(new THREE.BoxGeometry(0.2, 0.24, 0.08).translate(bx, by, bz - 0.04), 0x5a6268));
+    parts.push(part(new THREE.BoxGeometry(bx - (cx + c.columnRadius) + 0.01, 0.24, 0.2).translate((bx + cx + c.columnRadius) / 2, by, bz), 0x5a6268));
     const fixed = new THREE.Mesh(mergeParts(parts), flatVertexColorMaterial());
     fixed.name = 'tenderCraneFixed';
 
@@ -92,10 +104,23 @@ export class TenderCraneView {
       im.name = 'tenderCraneMoving';
     }
 
-    this.button = new Button(`crane:${tenderId}`, `${tenderId}:crane`, 'Skiff crane: launch / recover', 'pulse', 0x2a8f3a, () => this.moving);
-    this.button.root.position.set(bx, by, bz);
-    this.button.root.rotation.x = Math.PI / 2; // facing aft, from the box's aft face
-    this.root.add(fixed, this.boxes, this.rods, this.button.root);
+    const button = (id: string) => new Button(`${id}:${tenderId}`, `${tenderId}:crane`, 'Skiff crane: launch / recover', 'pulse', 0x2a8f3a, () => this.moving);
+    const column = button('crane');
+    column.root.position.set(bx, by, bz);
+    column.root.rotation.z = -Math.PI / 2; // facing starboard, from the box's outboard face
+    const helm = button('craneHelm');
+    helm.root.position.fromArray(consoleAt);
+    // The remote: a post by the skiff's helmsman, starboard of the tiller, the button on top.
+    const rm = c.remote;
+    const remote = button('craneRemote');
+    remote.root.position.set(rm.x, rm.height, rm.z);
+    const post = new THREE.Mesh(
+      mergeParts([part(new THREE.CylinderGeometry(0.025, 0.03, rm.height - 0.3, 8).translate(rm.x, (rm.height + 0.3) / 2 - 0.03, rm.z), STEEL), part(new THREE.BoxGeometry(0.12, 0.05, 0.12).translate(rm.x, rm.height - 0.025, rm.z), 0x5a6268)]),
+      flatVertexColorMaterial(),
+    );
+    this.remote.add(post, remote.root);
+    this.buttons = [column, helm, remote];
+    this.root.add(fixed, this.boxes, this.rods, column.root, helm.root);
   }
 
   /**
@@ -107,7 +132,7 @@ export class TenderCraneView {
     const phase = tender.tender?.phase ?? 'free';
     this.moving = phase === 'lowering' || phase === 'hoisting';
     const charge = Math.round((tender.battery ?? 0) * 100);
-    this.button.label =
+    const label =
       phase === 'stowed'
         ? `Skiff crane: LAUNCH (battery ${charge} %)`
         : phase === 'lowering'
@@ -117,7 +142,10 @@ export class TenderCraneView {
             : recover.ok
               ? 'Skiff crane: RECOVER'
               : `Skiff crane: RECOVER - ${recover.why}`;
-    this.button.sync(tender);
+    for (const b of this.buttons) {
+      b.label = label;
+      b.sync(tender);
+    }
 
     // The hook: on her lifting point while she's on the crane, else parked over the cradle.
     const c = this.crane;
@@ -138,11 +166,11 @@ export class TenderCraneView {
     if (gap <= step || (onHook && phase !== 'hoisting')) this.hook.copy(this.t);
     else this.hook.lerp(this.t, step / gap);
     const attached = onHook && this.hook.distanceTo(this.t) < 0.05;
-    this.pose(attached ? tenderRoot! : null);
+    this.pose(attached ? tenderRoot! : null, phase === 'stowed');
   }
 
-  /** Pose the turret, arms, rams, wire and bridle for the hook where it is now. */
-  private pose(tenderRoot: THREE.Object3D | null): void {
+  /** Pose the turret, arms, rams, wire and bridle for the hook where it is now (`stowed`: wire and bridle away). */
+  private pose(tenderRoot: THREE.Object3D | null, stowed: boolean): void {
     const c = this.crane;
     const S = this.shoulder;
     const H = this.hook;
@@ -182,11 +210,15 @@ export class TenderCraneView {
     const r2b = new THREE.Vector3().lerpVectors(E, T, 0.25).addScaledVector(this.up, 0.06);
     this.ram(0, r1a, r1b, 0.07);
     this.ram(2, r2a, r2b, 0.055);
-    // The wire, jib head to hook.
-    this.segment(this.rods, 4, T, this.b.copy(H).setY(H.y + 0.13), 0.012, 0.012);
+    // The wire, jib head to hook; stowed, the hook is up at the jib head and no wire shows.
+    if (stowed) {
+      this.rods.setMatrixAt(4, this.m.makeScale(0, 0, 0));
+      this.q.setFromAxisAngle(this.up, -psi);
+      this.boxes.setMatrixAt(3, this.m.compose(this.a.copy(T).setY(T.y - 0.12), this.q, this.s.set(0.1, 0.14, 0.08)));
+    } else this.segment(this.rods, 4, T, this.b.copy(H).setY(H.y + 0.13), 0.012, 0.012);
     // The bridle: hook to her four lifting points while she's on it; else hidden.
     for (let i = 0; i < 4; i++) {
-      if (tenderRoot) {
+      if (tenderRoot && !stowed) {
         tenderRoot.localToWorld(this.b.fromArray(LEGS[i]));
         this.root.worldToLocal(this.b);
         this.segment(this.rods, 5 + i, H, this.b, 0.012, 0.012);

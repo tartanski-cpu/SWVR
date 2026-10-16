@@ -1,7 +1,9 @@
 /**
  * Fishing: a side mission (owner request) with a simple trawl. Plain shared state
- * (WorldState.fishing), stepped by the host; the net is worked from the TRAWL switch on
- * the console (vessel control `trawl`).
+ * (WorldState.fishing), stepped by the host. The net is worked two ways: the TRAWL switch
+ * on the console (vessel control `trawl`) runs it all the way out or in when it's flipped;
+ * the PAY OUT / HAUL buttons on the gallows (hold-to-run, `netOut` / `netIn`) move it by
+ * hand while held and stop it where it is ('held').
  *
  *   net       stowed -> shooting (paid out over the quarter gallows, `shootTime` s) -> down
  *             -> hauling (`haulTime` s) -> stowed. While it's out it drags on the boat:
@@ -31,10 +33,12 @@ import type { EntityId } from '../core/ids';
 import { hasUpgrade } from '../career/career';
 import { significantWaveHeight } from '../ocean/waves';
 
-export type FishStatus = 'stowed' | 'shooting' | 'hauling' | 'fishing' | 'slow' | 'fast' | 'outside' | 'fouled' | 'full' | 'rough';
+export type FishStatus = 'stowed' | 'shooting' | 'hauling' | 'held' | 'fishing' | 'slow' | 'fast' | 'outside' | 'fouled' | 'full' | 'rough';
 
 export interface FishingState {
-  net: 'stowed' | 'shooting' | 'down' | 'hauling';
+  net: 'stowed' | 'shooting' | 'down' | 'hauling' | 'held';
+  /** The TRAWL switch as last seen (a flip starts a full shoot or haul). */
+  sw?: number;
   /** How far out the net is, 0 (aboard) .. 1 (fishing). */
   t: number;
   /** The net's fill toward the next box, 0..1. */
@@ -100,10 +104,27 @@ export function stepFishing(world: WorldState, dt: number): void {
   const v = trawler(world);
   if (!v) return;
   const c = CONFIG.fishing;
-  const want = (v.controls.trawl ?? 0) > 0.5;
-  if (want && (f.net === 'stowed' || f.net === 'hauling')) f.net = 'shooting';
-  if (!want && (f.net === 'down' || f.net === 'shooting')) f.net = 'hauling';
+  // The console switch: a flip runs the net all the way out, or all the way in.
+  const sw = (v.controls.trawl ?? 0) > 0.5 ? 1 : 0;
+  if (sw !== (f.sw ?? 0)) {
+    if (sw && f.net !== 'down') f.net = 'shooting';
+    if (!sw && f.net !== 'stowed') f.net = 'hauling';
+  }
+  f.sw = sw;
+  // The gallows' buttons: out or in by hand while held, stopping where it is when let go.
+  const jog = (v.controls.netOut ?? 0) - (v.controls.netIn ?? 0);
+  if (jog) {
+    f.t = Math.min(1, Math.max(0, f.t + (jog * dt) / (jog > 0 ? c.shootTime : c.haulTime)));
+    f.net = f.t >= 1 ? 'down' : f.t <= 0 ? 'stowed' : 'held';
+    // The switch follows: on while any of the net is out (flip it off to haul it all in).
+    v.controls.trawl = f.sw = f.t > 0 ? 1 : 0;
+  }
   f.ground = groundAt(v.position[0], v.position[2])?.name ?? null;
+  if (f.net === 'held') {
+    // Part out, stopped: it drags (by how far out it is) but doesn't fish. Still fouled if it was.
+    if (f.status !== 'fouled') f.status = 'held';
+    return;
+  }
   if (f.net === 'shooting') {
     f.t = Math.min(1, f.t + dt / c.shootTime);
     if (f.t >= 1) f.net = 'down';
@@ -185,6 +206,8 @@ export function fishingStatus(world: WorldState): string | null {
       return 'Shooting the trawl...';
     case 'hauling':
       return 'Hauling the trawl...';
+    case 'held':
+      return `Net ${Math.round(f.t * 100)} % out, stopped (PAY OUT / HAUL on the gallows, or the TRAWL switch)`;
     case 'fishing':
       return `Trawling${where}: ${box}`;
     case 'slow':
@@ -194,7 +217,7 @@ export function fishingStatus(world: WorldState): string | null {
     case 'outside':
       return 'Trawling: no fish here - find a fishing ground (dashed on the plotter)';
     case 'fouled':
-      return 'Net fouled on the bottom! Haul it in (TRAWL switch off)';
+      return 'Net fouled on the bottom! Haul it in (TRAWL switch off, or HAUL on the gallows)';
     case 'rough':
       return 'Too rough to fish: the net jumps off the bottom - haul it and wait for better weather';
     case 'full':

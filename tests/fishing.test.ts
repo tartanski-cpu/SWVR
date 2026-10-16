@@ -96,4 +96,37 @@ describe('fishing', { timeout: 60000 }, () => {
     expect(world.fishing!.landed).toBe(1);
     void localPlayerId;
   });
+
+  it('by hand on the gallows: out or in while held, stopping part way; the TRAWL switch then hauls it all in', () => {
+    const { world, v, send, run } = setup();
+    placeVessel(v, ground.x, 0, ground.z + 100, 0);
+    const c = CONFIG.fishing;
+    send('netOut', 1);
+    run(c.shootTime / 2, 1.5);
+    send('netOut', 0);
+    const f = world.fishing!;
+    expect(f.net).toBe('held');
+    expect(f.t).toBeCloseTo(0.5, 1);
+    expect(v.controls.trawl).toBe(1); // the switch follows: net out
+    run(5, 1.5);
+    expect(f.t).toBeCloseTo(0.5, 1); // stopped where it was
+    expect(fishingStatus(world)).toMatch(/50 % out, stopped/);
+    expect(trawlForces(world).get(v.id)).toBeTruthy(); // part out, it drags
+    expect(f.caught).toBe(0); // and doesn't fish
+    // All the way out by hand: fishing.
+    send('netOut', 1);
+    run(c.shootTime / 2 + 0.5, 1.5);
+    send('netOut', 0);
+    expect(f.net).toBe('down');
+    // A bit back in by hand, then the console switch off: hauled all the way in.
+    send('netIn', 1);
+    run(1, 1.5);
+    send('netIn', 0);
+    expect(f.net).toBe('held');
+    send('trawl', 0);
+    run(c.haulTime + 0.5, 1.5);
+    expect(f.net).toBe('stowed');
+    expect(f.t).toBe(0);
+  });
 });
+

@@ -101,6 +101,12 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
     case 'trawl':
       s.controls.trawl = intent.value > 0.5 ? 1 : 0;
       break;
+    case 'winchHeave':
+    case 'winchPayOut':
+    case 'netOut':
+    case 'netIn':
+      s.controls[intent.control] = intent.value > 0.5 ? 1 : 0;
+      break;
     case 'door':
       s.controls.door = intent.value > 0.5 ? 1 : 0;
       break;

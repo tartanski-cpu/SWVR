@@ -60,6 +60,25 @@ export function hullPlan(def: VesselDef): { halfBeam(z: number): number; deckY(z
   };
 }
 
+/**
+ * Gear standing on the open deck that you can't walk through or stand cargo on (vessel
+ * axes): the tender's cradle (with her in it) and the crane's column on the foredeck, the
+ * tow winch and its control stand on the aft deck. Is (x, z) within `pad` m of any of it?
+ */
+export function onDeckGear(def: VesselDef, x: number, z: number, pad: number): boolean {
+  const tc = def.tenderCrane;
+  if (tc) {
+    if (Math.abs(x - tc.stow[0]) < tc.cradle.halfWidth + pad && z > tc.cradle.z0 - pad && z < tc.cradle.z1 + pad) return true;
+    if (Math.hypot(x - tc.column[0], z - tc.column[1]) < tc.columnRadius + pad) return true;
+  }
+  const tw = def.towWinch;
+  if (tw) {
+    if (Math.abs(x) < tw.drumWidth / 2 + 0.2 + pad && Math.abs(z - tw.z) < 0.25 + pad) return true;
+    if (Math.hypot(x - tw.stand[0], z - tw.stand[1]) < 0.12 + pad) return true;
+  }
+  return false;
+}
+
 interface Surface {
   height(x: number, z: number): number;
   contains(x: number, z: number): boolean;
@@ -109,11 +128,6 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig): WalkArea {
   const lad = layout.ladder;
   const inLadder = (x: number, z: number) => Math.abs(x - lad.x) <= lad.width / 2 && z >= ext.z1 + 0.02 && z <= ext.z1 + lad.depth;
 
-  // The tender's cradle on the foredeck and the crane's column (if she has them): solid.
-  const tc = def.tenderCrane;
-  const onCradle = (x: number, z: number) =>
-    !!tc && ((Math.abs(x - tc.stow[0]) < tc.cradle.halfWidth + r && z > tc.cradle.z0 - r && z < tc.cradle.z1 + r) || Math.hypot(x - tc.column[0], z - tc.column[1]) < tc.columnRadius + r);
-
   const surfaces: Surface[] = [
     {
       // Open deck: inside the bulwarks, aft of the bow, clear of the wheelhouse exterior.
@@ -121,7 +135,7 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig): WalkArea {
       contains: (x, z) => {
         const onDeck = z <= transom - layout.deckEdgeMargin && Math.abs(x) <= deckHalfBeam(z) - layout.deckEdgeMargin;
         const nearHouse = Math.abs(x) < ext.x + r && z > ext.z0 - r && z < ext.z1 + r;
-        return onDeck && !nearHouse && !onCradle(x, z);
+        return onDeck && !nearHouse && !onDeckGear(def, x, z, r);
       },
     },
     {

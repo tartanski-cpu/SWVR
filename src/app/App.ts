@@ -342,9 +342,11 @@ export class App {
     // A tender's crane and cradle (LAUNCH / RECOVER button on the crane) on her ship's foredeck.
     for (const vessel of Object.values(this.world.vessels)) {
       const hostDef = vessel.tender && VESSEL_DEFS[this.world.vessels[vessel.tender.hostId]?.defId];
-      if (!vessel.tender || !hostDef?.tenderCrane) continue;
-      const gear = new TenderCraneView(vessel.id, hostDef.tenderCrane, hullPlan(hostDef).deckY);
+      if (!vessel.tender || !hostDef?.tenderCrane || !hostDef.bridge) continue;
+      const gear = new TenderCraneView(vessel.id, hostDef.tenderCrane, hullPlan(hostDef).deckY, hostDef.bridge.craneButton);
       this.vesselViews.get(vessel.tender.hostId)?.root.add(gear.root);
+      // The crane's remote rides in the skiff.
+      this.vesselViews.get(vessel.id)?.root.add(gear.remote);
       this.cranes.push(gear);
     }
     const tugView = this.vesselViews.get(this.testVesselId);
@@ -582,7 +584,7 @@ export class App {
         const tv = this.world.vessels[g.tenderId];
         if (!tv) continue;
         g.update(tv, recoverCheck(this.world, tv), this.vesselRoots.get(tv.id), dt);
-        g.button.tick(dt);
+        for (const b of g.buttons) b.tick(dt);
       }
       for (const t of this.tillers) {
         const sv = this.world.vessels[t.vesselId];
@@ -1706,7 +1708,7 @@ export class App {
       // No storage: an empty board, no count.
     }
     this.interaction = new InteractionSystem(
-      [...this.bridge.controls, ...this.tillers.flatMap((t) => t.parts), ...this.cranes.map((d) => d.button)],
+      [...this.bridge.controls, ...this.tillers.flatMap((t) => t.parts), ...this.cranes.flatMap((d) => d.buttons)],
       (channel, value) => {
         if (channel === 'engineStartStop') return this.requestEngineStartStop();
         if (channel === 'start' && value > 0) this.startInGearHint();

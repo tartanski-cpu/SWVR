@@ -40,6 +40,9 @@ describe('vessel walk area (multi-level)', () => {
     expect(area.walkable((casing.x0 + casing.x1) / 2, (casing.z0 + casing.z1) / 2, wh.floorY)).toBe(false); // the engine casing
     expect(area.insideSolid((casing.x0 + casing.x1) / 2, wh.floorY + casing.height - 0.1, (casing.z0 + casing.z1) / 2)).toBe(true);
     expect(area.walkable(0.3, 0.3, wh.floorY)).toBe(true); // the aisle beside it
+    const tw = VESSEL_DEFS.workboat.towWinch!;
+    expect(area.walkable(0, tw.z, DECK_AFT)).toBe(false); // the tow winch
+    expect(area.walkable(tw.stand[0], tw.stand[1], DECK_AFT)).toBe(false); // its control stand
     expect(area.walkable(wh.halfWidth - 0.04, 0, wh.floorY)).toBe(false); // in a wall
     expect(area.walkable(0, wh.front + 0.2, wh.floorY)).toBe(false); // in the console
     expect(area.walkable(2.5, 2, 1.0)).toBe(false); // over the side
@@ -173,9 +176,9 @@ describe('locomotion', () => {
     run(loco, p, 0.5, () => ({ fly: true }));
     expect(p.position[1]).toBeCloseTo(y0 + 0.3, 3);
     // Teleported (the menu, boarding...) to a spot a little above the deck: it settles.
-    p.position = [0, DECK_AFT + 0.2, 4.5];
+    p.position = [0, DECK_AFT + 0.2, 3.9];
     run(loco, p, 1, () => ({ fly: true }));
-    expect(p.position[1]).toBeCloseTo(Math.max(...area.floorsAt(0, 4.5)), 2);
+    expect(p.position[1]).toBeCloseTo(Math.max(...area.floorsAt(0, 3.9)), 2);
   });
 
   it('snap turn rotates about the head by the configured step', () => {

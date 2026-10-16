@@ -55,6 +55,7 @@ export interface VesselConfig {
   swimLadder?: Workboat['swimLadder'];
   fireMonitor?: Workboat['fireMonitor'];
   fishing?: Workboat['fishing'];
+  towWinch?: Workboat['towWinch'];
   bilge?: Workboat['bilge'];
   chartTable?: Workboat['chartTable'];
   fenders?: Workboat['fenders'];
@@ -121,13 +122,15 @@ export interface VesselDef {
   tenderCrane?: VesselConfig['tenderCrane'];
   /** 12 V electrics (optional: not part of WorkboatDef; the skiff has its own battery). */
   electrics?: VesselConfig['electrics'];
-  /** Bilge (optional: not part of WorkboatDef). */
   /** Swim ladder over the starboard side (optional: not part of WorkboatDef). */
   swimLadder?: VesselConfig['swimLadder'];
   /** Fire monitor on the roof (optional: not part of WorkboatDef). */
   fireMonitor?: VesselConfig['fireMonitor'];
   /** Trawl gallows and the TRAWL switch (fishing; optional: not part of WorkboatDef). */
   fishing?: VesselConfig['fishing'];
+  /** The tow winch by the towing post (optional: not part of WorkboatDef). */
+  towWinch?: VesselConfig['towWinch'];
+  /** Bilge (optional: not part of WorkboatDef). */
   bilge?: VesselConfig['bilge'];
   /** Chart table (optional: not part of WorkboatDef). */
   chartTable?: VesselConfig['chartTable'];
@@ -222,6 +225,7 @@ export function fromConfig(id: string, c: VesselConfig): VesselDef {
     swimLadder: c.swimLadder,
     fireMonitor: c.fireMonitor,
     fishing: c.fishing,
+    towWinch: c.towWinch,
     bilge: c.bilge,
     chartTable: c.chartTable,
     fenders: c.fenders,
