@@ -32,21 +32,22 @@ function fishBoxGeometry(size: readonly number[], ice: boolean): THREE.BufferGeo
   }
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) parts.push(part(new THREE.BoxGeometry(0.035, H, 0.035).translate(sx * (L / 2 - 0.0175), H / 2, sz * (W / 2 - 0.0175)), post));
   if (ice) parts.push(part(new THREE.BoxGeometry(L - 0.05, 0.05, W - 0.05).translate(0, 0.045, 0), 0xe4eef2)); // ice
-  // The fish: length, colour, position along / across, yaw; heads and tails alternating.
+  // The fish, filling the floor: three rows across the box, two head to tail in each
+  // (length, colour, position along and across the box (m), yaw), a slight skew each.
   const fish: [number, number, number, number, number][] = [
-    [0.42, 0xa8b0b4, -0.1, -0.13, 0.08],
-    [0.36, 0x3e6e80, 0.12, -0.04, -0.1],
-    [0.4, 0x8a7a64, -0.06, 0.06, 0.05],
-    [0.3, 0xc4563c, 0.16, 0.14, 0.2],
-    [0.34, 0xc8d0d6, -0.14, 0.15, -0.06],
-    [0.38, 0x5a7a86, 0.05, 0.02, 3.2],
+    [0.34, 0xa8b0b4, -0.19, -0.14, 0.05],
+    [0.32, 0x3e6e80, 0.18, -0.15, 3.1],
+    [0.36, 0x8a7a64, -0.17, 0.0, 3.2],
+    [0.3, 0xc4563c, 0.2, 0.01, -0.06],
+    [0.33, 0xc8d0d6, -0.18, 0.145, -0.04],
+    [0.34, 0x5a7a86, 0.18, 0.14, 3.18],
   ];
   fish.forEach(([len, c, x, z, yaw], i) => {
-    const y = (ice ? 0.095 : 0.045) + (i % 3) * 0.018;
+    const y = (ice ? 0.095 : 0.045) + (i % 2) * 0.004;
     const body = new THREE.BoxGeometry(len * 0.82, 0.05, len * 0.24).translate(-len * 0.09, 0, 0);
     const tail = new THREE.BoxGeometry(len * 0.16, 0.035, len * 0.26).translate(len * 0.41, 0, 0);
-    parts.push(part(body.rotateY(yaw).translate(x * L, y, z * W), c));
-    parts.push(part(tail.rotateY(yaw).translate(x * L, y, z * W), new THREE.Color(c).multiplyScalar(0.75).getHex()));
+    parts.push(part(body.rotateY(yaw).translate(x, y, z), c));
+    parts.push(part(tail.rotateY(yaw).translate(x, y, z), new THREE.Color(c).multiplyScalar(0.75).getHex()));
   });
   return mergeParts(parts);
 }
