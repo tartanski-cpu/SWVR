@@ -33,6 +33,11 @@ export const TENDER_CRANE: ModuleDefinition<TenderCraneConfig> = {
   needs: () => [{ power: 'hydraulic' }],
   provides: () => [{ gear: 'tenderCrane' }],
   gear: (c) => ({ tenderCrane: c }),
+  // The cradle (with her in it) and the column: you walk round them, and cargo can't stand there.
+  footprints: (c) => [
+    { x0: c.stow[0] - c.cradle.halfWidth, x1: c.stow[0] + c.cradle.halfWidth, z0: c.cradle.z0, z1: c.cradle.z1, top: c.stow[1] + 0.6 },
+    { x: c.column[0], z: c.column[1], r: c.columnRadius, top: c.shoulderY },
+  ],
   view: {
     frame: 'boat',
     build({ config, hull }) {

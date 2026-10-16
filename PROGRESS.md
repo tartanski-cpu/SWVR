@@ -2136,6 +2136,47 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Draw calls** (day, M5a → merged; the live game's own build in brackets): helm 55 → 55 (67), chart table 44 → 51 (53), aft deck facing forward 95 → 105 (130), aft deck facing aft 28 → 28 (33). The rise is the new pilot house (the side door, its jamb, the raked glass and brow), which the live game pays for too.
 - **Owner test** (at /SWVR/next/): the side door's buttons inside and out, and that it's quiet inside only with both doors shut; the fire gauge during a fire; then the M5a deck-gear steps above.
 
+### M5b: the roof gear and deck fittings as modules (done, on /next/ for the owner to test; nothing should look or work differently)
+
+- **What changed:** the rest of the deck gear is now modules in the recipe (`starterWorkboat.json`, version 8): the searchlight, the fire monitor, the mast, the four mooring cleats, the fenders, the swim ladder, the life ring station and the boat-hook rack. As with 5a, the world's systems ask the boat for her gear instead of reading the vessel config, and taking a module out takes its job with it. What you can't walk through on deck and roof now comes from the modules too. With this, M5 is done.
+- **New modules** (`src/modules/`):
+  - `deck.searchlight`: the roof lamp, its aim and its light. It declares its own 12 A draw on the deck lights' circuit (it was a generic 12 V consumer in M4a). The app tells it how dark it is and gives its light to the ocean.
+  - `deck.fire-monitor`: the monitor on the roof and its fire gauge on the console (FIRE / ON TARGET), like the crane's console button. It needs the engine's power take-off (the pump) and 12 V. The fire system shoots the jet from its gear.
+  - `mount.mast`: the signal mast's pole and yard (they were part of the hull mesh), the wind sock at its head, and a **socket of its own** at the masthead (`masthead`), where the navigation lights' 12 V consumer now hangs: the first module mounted on another module's socket outside the console.
+  - `deck.cleat`, four of them (forward and aft, each side; config `end`, `side`). Each gives a bow or stern cleat: where the mooring lines act on her. She moors only with both; without them neither Dock nor a cleat makes a line fast.
+  - `deck.fenders`: the basket and the six fenders. The fenders duty asks for them only if she has them.
+  - `deck.swim-ladder`: the ladder over the starboard side, and where you climb it.
+  - `rescue.life-ring-station` and `rescue.boat-hook-rack`: where the ring hangs and its line is made fast, and where the hook's clips are. They draw nothing of their own: the ring and hook are drawn by the rescue gear view, as they fly, float and are held. Without them there's no ring to take, no hook.
+- **Footprints:** a module can now declare where it stands solid (`footprints(config, hull)`): boxes and discs in the boat's axes, with a height band so gear on the roof doesn't block the deck below. The walk area and cargo placement read them (`footprintsOf`). The crane and cradle, the winch, the A-frame's feet and the mast declare theirs, the same shapes as before: a test checks over 40,000 points of the deck that you're kept out exactly where v1.0 kept you out.
+- **Gear facts added:** `searchlight`, `fireMonitor`, `bowCleat`, `sternCleat`, `fenders`, `swimLadder`, `lifeRing`, `boatHook`.
+- **Config:**
+  - `CONFIG.modules.searchlight.amps` (12 A; was in the recipe).
+  - `CONFIG.modules.mast`: the mast's position, size, yard and how much roof round its foot you can't walk on (was hard-coded in the hull mesh and the walk area).
+  - The rest stay where they were, as the modules' defaults until M6: `vessels.workboat.spotlight`, `.fireMonitor` (with `.gauge`), `.mooring`, `.fenders`, `.swimLadder`, `.rescueGear`.
+- **Hull sockets:** 11 new: `fireMonitor` and `mast` on the roof; `cleatFwdPort`, `cleatFwdStbd`, `cleatAftPort`, `cleatAftStbd` on the bulwark tops; `fenders`, `swimLadder`, `lifeRing`, `boatHook`. The hull's `navLights` socket moved onto the mast.
+- **Exactly as before:**
+  - All twelve golden runs match (docking, the fire, the crane, the tow and the trawl among them), without re-recording.
+  - The sea-trials report is identical.
+  - **Draw calls unchanged** at all eight viewpoints: helm 55 / 57, chart table 51 / 52, aft deck facing forward 105 / 106, facing aft 28 / 27 (day / night). The mast's pole and yard moved from the hull's mesh to the boat's shared one, the ladder stays merged, the rest are drawn as before.
+- **Tests (13 new, 427 in all, all pass):**
+  - the footprints keep you out exactly where v1.0 did, on deck and round the mast on the roof; the walk area follows the recipe (no mast: you can walk where it stood);
+  - each gear fact equals v1.0's figures; the navigation lights hang on the mast's masthead socket;
+  - take a module out and its job goes: no cleats, she can't moor (Dock or cleat); no ladder, none to climb; no life ring or hook, none to take; no searchlight, no lamp and no draw; no fire monitor, no water; no fenders, no fenders duty.
+- **Checked in the browser,** against the build before 5b:
+  - screenshots of the roof from aft and from the bow, the console, the forward cleat, the aft quarter, the aft wall with the life ring, the port bulwark with the boat hook, and the searchlight at night: the same;
+  - in play: from moored at Calder Haven, the bow and stern cleats each let their line go and she's free; fenders out; the ring and the hook taken; the searchlight lit at night and its pan clamped at 170°; the monitor's yoke turns with its joystick; the mast's foot can't be walked on, the floor below it can; the wind sock is on the mast. No errors apart from the dev server's favicon.
+- **Owner test** (at /SWVR/next/, menu header NEXT). Everything should look and work as before:
+  - **VR:**
+    - the searchlight at night: switch it on, aim it with its joystick;
+    - the fire monitor on a shore fire: the gauge on the console, ON TARGET, the fire going down;
+    - dock at a berth with the cleats, bow and stern; cast off;
+    - fenders out from the basket, and in;
+    - throw the life ring and pull someone in; hook a crate with the boat hook;
+    - go for a swim and climb back up the swim ladder;
+    - walk round the mast on the roof; the wind sock streams in the wind.
+  - **Desktop:** the same by clicking.
+  - **F3:** 57 modules with something drawn.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

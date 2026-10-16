@@ -46,6 +46,11 @@ export const A_FRAME: ModuleDefinition<AFrameConfig> = {
   },
   provides: () => [{ gear: 'trawlGantry' }],
   gear: (c, hull) => ({ trawlGantry: aFrameGeometry(c, hull) }),
+  // The legs' feet and the braces' feet on the quarters, both sides.
+  footprints: (c, hull) => {
+    const af = aFrameGeometry(c, hull);
+    return [af.footZ, af.braceZ].flatMap((z) => [-1, 1].map((s) => ({ x: s * af.x, z, r: 0.12, top: af.top })));
+  },
   view: {
     frame: 'boat',
     build({ config, keys, hull, share }) {

@@ -2220,6 +2220,17 @@ export const CONFIG = {
     /** hydraulics.pto-pump (M4a): its clutch and the machines' valve solenoids, while there's pressure (A, DECK HYD circuit). */
     ptoPump: { amps: 4 },
 
+    /** deck.searchlight (M5b): its draw while on (A, deck lights' circuit). */
+    searchlight: { amps: 12 },
+
+    /**
+     * mount.mast (M5b): the signal mast on the wheelhouse roof (its look was the hull's).
+     * A square pole at (x, z) from the roof up to `height` above the roof's underside, a
+     * yard across it `yardHeight` up, `yardSpan` wide; the wind sock at its head.
+     * `keepClear`: the half-size of the square round its foot you can't walk into.
+     */
+    mast: { x: 0, z: 0.4, size: 0.12, height: 1.7, yardHeight: 1.3, yardSpan: 0.9, yardDepth: 0.08, keepClear: 0.25 },
+
     /** deck.anchor-windlass (M5a): the windlass's draw while it runs (A, on the master alone). */
     anchorWindlass: { amps: 60 },
   },

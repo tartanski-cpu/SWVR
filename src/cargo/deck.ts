@@ -5,7 +5,8 @@
  * the hands (choosing where a crate will go). Footprints are treated as squares of their
  * larger half-size, so an item's yaw on deck doesn't matter.
  */
-import { hullPlan, onDeckGear } from '../vessel/layout';
+import { footprintsOf } from '../boats/sims';
+import { hullPlan, onGear } from '../vessel/layout';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 
 export interface DeckFootprint {
@@ -31,7 +32,7 @@ function openPoint(defId: string, x: number, z: number): boolean {
   if (z > plan.transom - Math.max(EDGE, def.cargo.aftClear) || z < plan.stem + def.cargo.bowClear) return false;
   if (Math.abs(x) > plan.halfBeam(z) - EDGE) return false;
   if (wh && Math.abs(x) < wh.halfWidth + 0.05 && z > wh.front - 0.05 && z < wh.aft + 0.05) return false;
-  if (onDeckGear(def, x, z, 0.05)) return false;
+  if (onGear(footprintsOf({ defId }), x, z, 0.05, plan.deckY(z))) return false;
   return true;
 }
 

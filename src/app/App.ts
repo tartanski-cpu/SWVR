@@ -28,7 +28,11 @@ import { TrafficView } from '../traffic/trafficView';
 import { SHIP_NAMES } from '../traffic/traffic';
 import { ChartTools, type ChartToolsContext } from '../chart/chartTools';
 import { applyChartOp, createMarks, parseMarks, pointCount, serializeMarks, type ChartOp } from '../chart/marks';
-import { WindSock } from '../vessel/view/windSock';
+import type { WindSock } from '../vessel/view/windSock';
+import type { MastApi } from '../modules/mast';
+import type { SearchlightApi } from '../modules/searchlight';
+import type { FireMonitorApi } from '../modules/fireMonitor';
+import type { FireGauge } from '../fire/fireGauge';
 import { DutyBoardView } from '../duties/dutyBoardView';
 import { TenderCraneView } from '../controls/TenderCraneView';
 import { asWorkboat, VESSEL_DEFS, type WorkboatDef } from '../vessel/vesselDef';
@@ -68,7 +72,7 @@ import { TrawlView } from '../fishing/trawlView';
 import { InteriorDetail } from './interiorDetail';
 import { jetOn } from '../fire/fire';
 import { aFrameOf } from '../fishing/fishing';
-import { gearOf } from '../boats/sims';
+import { footprintsOf, gearOf } from '../boats/sims';
 import type { TowWinchApi } from '../modules/towWinch';
 import { lineLength, nearestTowTarget, towAlertT, towStatus, winchStalled } from '../tow/tow';
 import { TargetsView } from '../rescue/targetView';
@@ -220,6 +224,10 @@ export class App {
   private readonly spotted = new Set<string>();
   private readonly lookQ = new THREE.Quaternion();
   private windSock: WindSock | null = null;
+  /** The searchlight module's handle (the app tells it how dark it is). */
+  private searchlight: SearchlightApi | null = null;
+  /** The fire monitor's gauge on the console (the app feeds it the fire job). */
+  private fireGauge: FireGauge | null = null;
   private readonly windV = { x: 0, z: 0 };
   /** Crouching (X / C), and the current crouch drop (m, eased). */
   private crouched = false;
@@ -388,7 +396,7 @@ export class App {
     this.scene.add(view.root);
     this.vesselViews.set(vessel.id, view);
     this.hydroViews.set(vessel.id, hydro);
-    this.walkAreas.set(vessel.id, vesselWalkArea(def, def.layout));
+    this.walkAreas.set(vessel.id, vesselWalkArea(def, def.layout, footprintsOf(vessel)));
     this.effects.set(vessel.id, new VesselEffects(def, view.root, this.scene, this.ocean.sharedUniforms));
     this.vesselRoots.set(vessel.id, view.root);
     if (!def.tow) this.cargoView.attachVessel(view.root, vessel.defId);
@@ -654,7 +662,7 @@ export class App {
       const tv = this.world.vessels[this.testVesselId];
       const burning = fj && fj.phase !== 'calling' ? fj.intensity : 0;
       const dist = fj ? Math.hypot(fj.x - this.focus.x, fj.z - this.focus.z) : 1e9;
-      this.bridge?.fireGauge?.update(fj ?? null);
+      this.fireGauge?.update(fj ?? null);
       this.sound.fire.update(burning, dist, !!tv && jetOn(tv), this.insideHouse ? this.closed : 0, fj && fj.phase === 'accepted' ? fj.wetting : 0);
       // The anchor chain over the bow roller and the windlass.
       const root = this.vesselRoots.get(this.testVesselId);
@@ -742,8 +750,10 @@ export class App {
   private updateCrewViews(dt: number, inXR: boolean, darkness: number): void {
     this.worldView.portLighting.update(this.focus, darkness);
     this.ocean.setPortLight(this.worldView.portLighting.flood);
-    const fxTest = this.effects.get(this.testVesselId);
-    if (fxTest?.searchlight) this.ocean.setSpotlight(fxTest.searchlight.light);
+    if (this.searchlight) {
+      this.searchlight.darkness = darkness;
+      this.ocean.setSpotlight(this.searchlight.lamp.light);
+    }
     this.cargoView.update(this.world, this.vesselRoots, (c) => this.carriedPose(c), this.cargoHands.hovered);
     const deskHand = inXR ? null : this.desktopHandWorld(this.deskHandW);
     if (deskHand) this.desktopHand.setColor(playerColor(this.localPlayerId));
@@ -1866,10 +1876,11 @@ export class App {
     // hands them what isn't the boat's: the notes, the game's tasks, the pencil and dividers.
     this.board = this.bridge.whiteboard;
     if (this.board) this.scene.add(this.board.rayLine);
-    // Wind sock at the masthead.
-    const wh = this.testDef.layout.wheelhouse;
-    this.windSock = new WindSock([0, wh.roofY + 1.7, 0.4]);
-    view.root.add(this.windSock.root);
+    // The roof's modules the app feeds: the mast's wind sock (the weather), the searchlight
+    // (how dark it is; its light goes to the ocean), the fire monitor's gauge (the fire job).
+    this.windSock = this.bridge.api<MastApi>('mount.mast')?.windSock ?? null;
+    this.searchlight = this.bridge.api<SearchlightApi>('deck.searchlight');
+    this.fireGauge = this.bridge.api<FireMonitorApi>('deck.fire-monitor')?.gauge ?? null;
     this.dutyBoard = this.bridge.dutyBoard;
     this.chartTable = this.bridge.chartTable;
     if (this.chartTable) {

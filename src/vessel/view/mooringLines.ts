@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { BOLLARD_HALF_SPACING } from '../../world/berths';
 import { hullPlan } from '../layout';
 import { berthAxis, berthById, shoreSide } from '../physics/mooring';
+import { gearOf } from '../../boats/sims';
 import type { WorkboatDef } from '../vesselDef';
 import type { VesselState } from '../vesselState';
 
@@ -42,11 +43,12 @@ export class MooringLines {
     let n = 0;
     // No ends recorded (the sim fills them in on its next tick): both on the quay side.
     const legacy = !m.bow && !m.stern ? shoreSide(s, berth) : 0;
+    // From her cleats (modules/cleat).
     for (const [side, z, along] of [
-      [m.bow || legacy, def.mooring.cleatFwdZ, BOLLARD_HALF_SPACING], // the bow line leads forward to the forward bollard
-      [m.stern || legacy, def.mooring.cleatAftZ, -BOLLARD_HALF_SPACING], // the stern line aft
+      [m.bow || legacy, gearOf(s, 'bowCleat')?.z, BOLLARD_HALF_SPACING], // the bow line leads forward to the forward bollard
+      [m.stern || legacy, gearOf(s, 'sternCleat')?.z, -BOLLARD_HALF_SPACING], // the stern line aft
     ] as const) {
-      if (!side) continue;
+      if (!side || z === undefined) continue;
       // From the cleat on the bulwark top...
       root.localToWorld(this.a.set(side * (plan.halfBeam(z) - 0.03), plan.deckY(z) + top, z));
       // ...to the bollard's head on the quay.

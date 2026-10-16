@@ -7,6 +7,7 @@ import { createHullLibrary } from '../modular/hull';
 import { createModuleLibrary, parseRecipe, validateRecipe, type Recipe } from '../modular/recipe';
 import { A_FRAME } from '../modules/aFrame';
 import { ANCHOR_WINDLASS } from '../modules/anchorWindlass';
+import { BOAT_HOOK_RACK } from '../modules/boatHookRack';
 import { BATTERY_BANK } from '../modules/batteryBank';
 import { BATTERY_MASTER } from '../modules/batteryMaster';
 import { BILGE_PUMP } from '../modules/bilgePump';
@@ -14,25 +15,32 @@ import { BATTERY_SELECTOR } from '../modules/batterySelector';
 import { BREAKER_PANEL } from '../modules/breakerPanel';
 import { CHART_TABLE } from '../modules/chartTable';
 import { CHARTPLOTTER } from '../modules/chartplotter';
+import { CLEAT } from '../modules/cleat';
 import { CONSOLE } from '../modules/console';
 import { CONSUMER } from '../modules/consumer';
 import { DIESEL_INBOARD } from '../modules/dieselInboard';
 import { DIPSTICK } from '../modules/dipstick';
 import { DOOR_BUTTON } from '../modules/doorButton';
 import { DUTY_BOARD } from '../modules/dutyBoard';
+import { FENDERS } from '../modules/fenders';
+import { FIRE_MONITOR } from '../modules/fireMonitor';
 import { FM_RADIO } from '../modules/fmRadio';
 import { FUEL_TANK } from '../modules/fuelTank';
 import { HATCH_COVER } from '../modules/hatchCover';
 import { JOYSTICK } from '../modules/joystick';
 import { KEY_SWITCH } from '../modules/keySwitch';
+import { LIFE_RING_STATION } from '../modules/lifeRingStation';
+import { MAST } from '../modules/mast';
 import { OIL_CAN } from '../modules/oilCan';
 import { OVERHEAD_PANEL } from '../modules/overheadPanel';
 import { PTO_PUMP } from '../modules/ptoPump';
 import { PUSH_BUTTON } from '../modules/pushButton';
 import { RUDDER } from '../modules/rudder';
 import { SCREEN } from '../modules/screen';
+import { SEARCHLIGHT } from '../modules/searchlight';
 import { START_CARD } from '../modules/startCard';
 import { STERN_ROLLER } from '../modules/sternRoller';
+import { SWIM_LADDER } from '../modules/swimLadder';
 import { TENDER_CRANE } from '../modules/tenderCrane';
 import { THROTTLE_LEVER } from '../modules/throttleLever';
 import { TOGGLE } from '../modules/toggle';
@@ -53,6 +61,7 @@ export const MODULES = createModuleLibrary([
   VHF, CHARTPLOTTER, CHART_TABLE, DUTY_BOARD, WHITEBOARD, DOOR_BUTTON, HATCH_COVER, DIPSTICK, OIL_CAN,
   DIESEL_INBOARD, RUDDER, FUEL_TANK, BATTERY_BANK, PTO_PUMP, BILGE_PUMP, CONSUMER,
   TENDER_CRANE, TOW_WINCH, STERN_ROLLER, A_FRAME, TRAWL, ANCHOR_WINDLASS,
+  SEARCHLIGHT, FIRE_MONITOR, MAST, CLEAT, FENDERS, SWIM_LADDER, LIFE_RING_STATION, BOAT_HOOK_RACK,
 ]);
 
 export const LIBRARY = { hulls: HULLS, modules: MODULES };

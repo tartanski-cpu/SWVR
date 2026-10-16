@@ -836,7 +836,7 @@ Sizes: S is about a session, M two or three, L more.
   - Until M6 a converted machine keeps its state where VesselState did (`legacyState`), so saves and snapshots are unchanged; and some numbers are still read from the vessel config by code that isn't a module yet (isPowered's battery cutoff, the quick start's engine data, the windlass's draw). Tests keep each pair equal.
   - Deck hydraulic pressure is still worked out on demand by the old rule (the machines ask mid-tick); the PTO pump module declares its draw and that the boat has hydraulics.
 
-### M5: deck gear as modules (L, two stops)
+### M5: deck gear as modules (L, two stops). **Done; see PROGRESS.**
 
 - The mechanism library (2.8): the arm solver, drum and line drawing, extracted from today's code. (Done with 5a: `src/mechanisms/`.)
 - **5a. Done; see PROGRESS.**
@@ -853,11 +853,18 @@ Sizes: S is about a session, M two or three, L more.
     - The cradle is part of the crane module. The skiff the crane carries is handed to it by the app (`api.attach`), with her buttons, remote and tarpaulin: a recipe can't know which boat that is.
     - The net in the water is drawn by the app (it lies astern); the trawl module itself draws nothing.
     - Deck buttons share their own instanced cap mesh (`deckButtonCap`), which isn't hidden with the wheelhouse's small parts.
-- **5b:**
+- **5b. Done; see PROGRESS.**
   - searchlight, fire monitor and mast;
   - cleats, fenders, swim ladder, life-ring station and boat-hook rack.
 
   The walk-area obstacles come from module footprints.
+  - **As built:**
+    - Footprints are declared on the module definition (`footprints(config, hull)`), not only on the view: cargo placement is simulated and needs them headless. Boxes and discs in the boat's axes, with an optional foot height; a footprint blocks floors from a step below its foot up to its top. The chart table's leaf, which moves with the bus, keeps its view-side footprint.
+    - Four `deck.cleat` modules each give a `bowCleat` or `sternCleat` (the station and the line's height); the mooring lines act at those. A boat moors only with both.
+    - The fire monitor's gauge sits on the console but is the monitor's own (drawn in the boat's axes, like the crane's console button).
+    - The mast offers the `masthead` socket; the navigation lights' consumer is mounted there. The wind sock is the mast's (the app feeds it the weather through its `api`).
+    - The life ring and the boat hook are drawn by the rescue gear view (they leave the boat); their station and rack modules give only where they're stowed and made fast.
+    - The searchlight's old control names (`spotPan`) are clamped to the lamp's gear; its bus keys keep their registry ranges.
 - **Test:**
   - Launch and recover the skiff.
   - Tow the barge in on the winch.

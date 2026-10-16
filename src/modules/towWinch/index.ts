@@ -36,6 +36,8 @@ export const TOW_WINCH: ModuleDefinition<TowWinchConfig> = {
   needs: () => [{ power: 'hydraulic' }],
   provides: () => [{ gear: 'towWinch' }],
   gear: (c, hull) => ({ towWinch: { lead: drumLead(drumAxleY(hull.deckY(c.z), c.drumRadius), c.z, c.drumRadius) } }),
+  // The drum between its cheeks, and the gearbox housing on its starboard end.
+  footprints: (c, hull) => [{ x0: -c.drumWidth / 2 - 0.12, x1: c.drumWidth / 2 + 0.1 + c.housing.width, z0: c.z - 0.25, z1: c.z + 0.25, top: hull.deckY(c.z) + c.housing.height }],
   view: {
     frame: 'boat',
     build({ config: tw, keys, hull, share }) {

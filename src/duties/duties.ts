@@ -42,6 +42,7 @@ import { oilCheckDue } from '../vessel/maintenance';
 import { leverDemand, preheatNeeded } from '../vessel/physics/propulsion';
 import { isWorkboat, VESSEL_DEFS, type WorkboatDef } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
+import { gearOf } from '../boats/sims';
 
 export interface DutyStep {
   text: string;
@@ -199,7 +200,7 @@ function stepBilgeDuty(world: WorldState, d: DutiesState, v: VesselState): void 
 
 /** Fenders: out coming alongside, in again once clear of the harbour. */
 function stepFenders(world: WorldState, d: DutiesState, v: VesselState): void {
-  if (!VESSEL_DEFS[v.defId].fenders) return;
+  if (!gearOf(v, 'fenders')) return;
   const now = world.time;
   const [x, , z] = v.position;
   const berth = Math.min(...allBerths().map((b) => Math.hypot(b.x - x, b.z - z)));

@@ -12,7 +12,7 @@ import { CONFIG } from '../config';
 import type { WorldState } from '../core/world';
 import { surfaceHeight, type PreparedWave } from '../ocean/waves';
 import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
-import { asWorkboat, VESSEL_DEFS } from '../vessel/vesselDef';
+import { gearOf } from '../boats/sims';
 import type { RescueHands } from './rescueHands';
 
 export const ROPE_POINTS = 24;
@@ -121,7 +121,11 @@ export class RescueGearView {
     const r = world.rescue;
     this.root.visible = !!(v && vesselRoot);
     if (!v || !vesselRoot) return;
-    const gear = asWorkboat(VESSEL_DEFS[v.defId]).rescueGear;
+    // Her life ring station and boat-hook rack (modules): without one, nothing of it shows.
+    const station = gearOf(v, 'lifeRing');
+    const rack = gearOf(v, 'boatHook');
+    this.ring.visible = !!station;
+    this.hook.visible = !!rack;
     vesselRoot.getWorldQuaternion(this.q);
     const ring = r?.ring;
     const state = ring?.state ?? 'stowed';
@@ -141,15 +145,15 @@ export class RescueGearView {
       if (state === 'water') this.ring.position.y = surfaceHeight(waves, ring!.pos[0], ring!.pos[2]) + 0.02;
     } else {
       // On its hook on the wheelhouse aft wall.
-      vesselRoot.localToWorld(this.ring.position.fromArray(gear.ringStow));
+      if (station) vesselRoot.localToWorld(this.ring.position.fromArray(station.stow));
       this.ring.quaternion.copy(this.q);
     }
 
     // ── Line: from the cleat to the ring, sagging by its slack ──
-    const out = state !== 'stowed' || local.holdingRing;
+    const out = !!station && (state !== 'stowed' || local.holdingRing);
     this.line.visible = out;
     if (out) {
-      const cleat = vesselRoot.localToWorld(this.b.fromArray(gear.ringCleat));
+      const cleat = vesselRoot.localToWorld(this.b.fromArray(station.cleat));
       ropePoints(cleat, this.ring.position, ring?.line ?? 0, state === 'water', waves, this.linePos);
       (this.line.material as THREE.MeshLambertMaterial).color.setHex(local.lineHover || local.pulling ? ROPE_LIT : ROPE);
       for (let i = 0; i + 1 < ROPE_POINTS; i++) {
@@ -182,7 +186,7 @@ export class RescueGearView {
     } else {
       this.telescope(CONFIG.rescue.hookLength);
       // In its clips along the port bulwark.
-      const [x, y, z0] = gear.hookStow;
+      const [x, y, z0] = rack?.stow ?? [0, 0, 0];
       vesselRoot.localToWorld(this.hook.position.set(x, y, z0));
       this.hook.quaternion.copy(this.q);
     }

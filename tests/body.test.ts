@@ -4,6 +4,7 @@ import { IdFactory } from '../src/core/ids';
 import { createWorld } from '../src/core/world';
 import { climbOut, jump, setAirborne, swimArea, swimLadderOf, updateAir, updateSwim, type BodyVessel } from '../src/player/body';
 import { createPlayerState } from '../src/player/playerState';
+import { footprintsOf } from '../src/boats/sims';
 import { hullPlan, vesselWalkArea } from '../src/vessel/layout';
 import { placeVessel } from '../src/vessel/vesselControl';
 import { VESSEL_DEFS } from '../src/vessel/vesselDef';
@@ -23,7 +24,7 @@ function boat(x: number, z: number, headingDeg = 0) {
   root.position.fromArray(s.position);
   root.quaternion.fromArray(s.orientation);
   root.updateMatrixWorld(true);
-  const v: BodyVessel = { id: s.id, root, area: vesselWalkArea(def, def.layout), plan: hullPlan(def), state: s };
+  const v: BodyVessel = { id: s.id, root, area: vesselWalkArea(def, def.layout, footprintsOf(s)), plan: hullPlan(def), state: s };
   return v;
 }
 

@@ -41,6 +41,8 @@ import { surfaceHeight, type PreparedWave } from '../ocean/waves';
 import type { Handedness } from '../player/xrInput';
 import { hullPlan } from '../vessel/layout';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
+import { gearOf } from '../boats/sims';
+import type { GearFacts } from '../modular/module';
 import type { CargoHands } from '../cargo/cargoHands';
 import { userSettings } from '../player/userSettings';
 import { distanceToHull } from './recovery';
@@ -126,9 +128,10 @@ export class RescueHands {
 
   // ── Where the gear is ──
 
-  private gear(ctx: RescueHandsContext) {
+  /** Her life ring station and boat-hook rack (modules; null where she has none). */
+  private gear(ctx: RescueHandsContext): { ring: GearFacts['lifeRing'] | null; hook: GearFacts['boatHook'] | null } | null {
     const v = ctx.world.vessels[ctx.vesselId];
-    return v ? VESSEL_DEFS[v.defId].rescueGear : null;
+    return v ? { ring: gearOf(v, 'lifeRing'), hook: gearOf(v, 'boatHook') } : null;
   }
 
   /**
@@ -211,18 +214,18 @@ export class RescueHands {
   }
 
   private ringStowW(ctx: RescueHandsContext, out: THREE.Vector3): THREE.Vector3 | null {
-    const g = this.gear(ctx);
-    return g && ctx.vesselRoot ? ctx.vesselRoot.localToWorld(out.fromArray(g.ringStow)) : null;
+    const g = this.gear(ctx)?.ring;
+    return g && ctx.vesselRoot ? ctx.vesselRoot.localToWorld(out.fromArray(g.stow)) : null;
   }
 
   private cleatW(ctx: RescueHandsContext, out: THREE.Vector3): THREE.Vector3 | null {
-    const g = this.gear(ctx);
-    return g && ctx.vesselRoot ? ctx.vesselRoot.localToWorld(out.fromArray(g.ringCleat)) : null;
+    const g = this.gear(ctx)?.ring;
+    return g && ctx.vesselRoot ? ctx.vesselRoot.localToWorld(out.fromArray(g.cleat)) : null;
   }
 
   /** The resting hook's pole (in its clips, or laid on deck), as a segment (world). */
   private hookRestW(ctx: RescueHandsContext): THREE.Line3 | null {
-    const g = this.gear(ctx);
+    const g = this.gear(ctx)?.hook;
     if (!g || !ctx.vesselRoot) return null;
     const deck = ctx.world.rescue?.hook?.deck;
     if (deck) {
@@ -233,15 +236,15 @@ export class RescueHands {
         ctx.vesselRoot.localToWorld(new THREE.Vector3(x + Math.sin(yaw) * L, y, z + Math.cos(yaw) * L)),
       );
     }
-    const [x, y, z0, z1] = g.hookStow;
+    const [x, y, z0, z1] = g.stow;
     return new THREE.Line3(ctx.vesselRoot.localToWorld(new THREE.Vector3(x, y, z0)), ctx.vesselRoot.localToWorld(new THREE.Vector3(x, y, z1)));
   }
 
   /** The clips' segment (world), whether the hook is in them or not. */
   private clipsW(ctx: RescueHandsContext): THREE.Line3 | null {
-    const g = this.gear(ctx);
+    const g = this.gear(ctx)?.hook;
     if (!g || !ctx.vesselRoot) return null;
-    const [x, y, z0, z1] = g.hookStow;
+    const [x, y, z0, z1] = g.stow;
     return new THREE.Line3(ctx.vesselRoot.localToWorld(new THREE.Vector3(x, y, z0)), ctx.vesselRoot.localToWorld(new THREE.Vector3(x, y, z1)));
   }
 

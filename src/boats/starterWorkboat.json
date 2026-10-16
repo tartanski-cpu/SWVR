@@ -1,6 +1,6 @@
 {
   "id": "vessel.starter-workboat",
-  "version": 7,
+  "version": 8,
   "name": "Workboat",
   "hull": "hull.workboat-12m",
   "modules": [
@@ -10,12 +10,10 @@
     { "socket": "batteries", "module": "electrical.battery-bank" },
     { "socket": "hydraulicPump", "module": "hydraulics.pto-pump" },
     { "socket": "bilgePump", "module": "pump.bilge" },
-    { "socket": "navLights", "module": "electrical.consumer", "config": { "label": "Navigation lights", "amps": 2, "circuit": "navLights" }, "bind": { "on": "lights.nav" } },
     { "socket": "floodFore", "module": "electrical.consumer", "config": { "label": "Foredeck floodlight", "amps": 8, "circuit": "deckLights" }, "bind": { "on": "lights.deckFore" } },
     { "socket": "floodAft", "module": "electrical.consumer", "config": { "label": "Aft deck floodlight", "amps": 8, "circuit": "deckLights" }, "bind": { "on": "lights.deckAft" } },
     { "socket": "railLights", "module": "electrical.consumer", "config": { "label": "Rail LED strips", "amps": 1, "circuit": "deckLights" }, "bind": { "on": "lights.rail" } },
     { "socket": "cabinLight", "module": "electrical.consumer", "config": { "label": "Cabin lamp", "amps": 1, "circuit": "deckLights" }, "bind": { "on": "lights.cabin" } },
-    { "socket": "searchlight", "module": "electrical.consumer", "config": { "label": "Searchlight", "amps": 12, "circuit": "deckLights" }, "bind": { "on": "searchlight.on" } },
     { "socket": "horn", "module": "electrical.consumer", "config": { "label": "Horn", "amps": 10, "circuit": null }, "bind": { "on": "horn.sound" } },
     { "socket": "wipers", "module": "electrical.consumer", "config": { "label": "Wiper motor", "amps": 4, "circuit": "instruments" }, "bind": { "on": "wipers.on" } },
     {
@@ -77,7 +75,24 @@
     { "socket": "towWinch", "module": "deck.tow-winch" },
     { "socket": "sternRoller", "module": "deck.stern-roller" },
     { "socket": "aFrame", "module": "deck.a-frame" },
-    { "socket": "trawl", "module": "fishing.trawl" }
+    { "socket": "trawl", "module": "fishing.trawl" },
+    { "socket": "searchlight", "module": "deck.searchlight" },
+    { "socket": "fireMonitor", "module": "deck.fire-monitor" },
+    { "socket": "cleatFwdPort", "module": "deck.cleat", "config": { "end": "bow", "side": -1 } },
+    { "socket": "cleatFwdStbd", "module": "deck.cleat", "config": { "end": "bow", "side": 1 } },
+    { "socket": "cleatAftPort", "module": "deck.cleat", "config": { "end": "stern", "side": -1 } },
+    { "socket": "cleatAftStbd", "module": "deck.cleat", "config": { "end": "stern", "side": 1 } },
+    { "socket": "fenders", "module": "deck.fenders" },
+    { "socket": "swimLadder", "module": "deck.swim-ladder" },
+    { "socket": "lifeRing", "module": "rescue.life-ring-station" },
+    { "socket": "boatHook", "module": "rescue.boat-hook-rack" },
+    {
+      "socket": "mast",
+      "module": "mount.mast",
+      "modules": [
+        { "socket": "masthead", "module": "electrical.consumer", "config": { "label": "Navigation lights", "amps": 2, "circuit": "navLights" }, "bind": { "on": "lights.nav" } }
+      ]
+    }
   ],
   "interlocks": [
     { "when": "hatch.engine.open == false", "disable": ["control:dipstick", "control:oilCan"], "message": "Open the engine hatch first." }

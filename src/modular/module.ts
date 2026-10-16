@@ -21,6 +21,7 @@ import type * as THREE from 'three';
 import type { Control } from '../controls/Control';
 import type { Screen } from '../controls/instruments';
 import type { BreakerName, VesselState } from '../vessel/vesselState';
+import type { CONFIG } from '../config';
 import type { TenderCrane } from '../vessel/tenderCrane';
 import type { BusReader, BusValue } from './bus';
 import type { BusKey } from './busKeys';
@@ -52,6 +53,13 @@ export interface ModuleDefinition<Config = unknown, State = unknown> {
   physical?(c: Config): Physical;
   /** Its part in the energy network (2.5). */
   power?(c: Config): PowerRole[];
+  /**
+   * Where it stands solid on the boat, for walking and cargo (M5b): fixed boxes and discs in
+   * the boat's axes, worked out from its config and the hull (deck gear draws in the boat's
+   * axes too). Read by the simulation as well as the view (cargo placement is simulated).
+   * What moves with the bus (a table's leaf) is the view's `footprints` instead.
+   */
+  footprints?(c: Config, hull: HullQueries): GearFootprint[];
   /** Sockets it offers its own children (a console's slots, a mast's light). */
   sockets?(c: Config): Socket[];
   sim?: ModuleSim<Config, State>;
@@ -77,7 +85,22 @@ export interface PortSpec {
  * than reading her vessel config. A boat tows if she has a tow point and a winch; fishes if
  * she has a trawl gantry and a trawl; carries a tender if she has a tender crane.
  */
-export type GearKind = 'tenderCrane' | 'towWinch' | 'towPoint' | 'trawlGantry' | 'trawl' | 'anchor';
+export type GearKind =
+  | 'tenderCrane'
+  | 'towWinch'
+  | 'towPoint'
+  | 'trawlGantry'
+  | 'trawl'
+  | 'anchor'
+  // M5b
+  | 'searchlight'
+  | 'fireMonitor'
+  | 'bowCleat'
+  | 'sternCleat'
+  | 'fenders'
+  | 'swimLadder'
+  | 'lifeRing'
+  | 'boatHook';
 
 /** What the world's systems need to know about each kind of gear (the boat's axes, m). */
 export interface GearFacts {
@@ -92,6 +115,20 @@ export interface GearFacts {
   tenderCrane: TenderCrane;
   /** The hawse (where the chain leaves her) and how much chain there is. */
   anchor: { hawse: [number, number, number]; chainM: number };
+  /** The searchlight: where it stands, its aim limits, its light (the controls clamp to the limits). */
+  searchlight: typeof CONFIG.vessels.workboat.spotlight;
+  /** The fire monitor: the nozzle's pivot, its aim limits, the water's speed and drift (fire/fire.ts shoots the jet from it). */
+  fireMonitor: typeof CONFIG.vessels.workboat.fireMonitor;
+  /** A cleat the mooring lines are made fast to, forward (bow line) or aft (stern line): its station (z) and the line's height on her. */
+  bowCleat: { z: number; lineY: number };
+  sternCleat: { z: number; lineY: number };
+  fenders: Record<string, never>;
+  /** The swim ladder: its outboard line (x, z), foot and head heights, where you step aboard (deckX), the desktop's jump range, its width. */
+  swimLadder: { x: number; z: number; bottom: number; top: number; deckX: number; range: number; width: number };
+  /** The life ring: where it hangs stowed, and the cleat its line is made fast to. */
+  lifeRing: { stow: [number, number, number]; cleat: [number, number, number] };
+  /** The boat hook: in its clips at (x, y), from z0 to z1. */
+  boatHook: { stow: [number, number, number, number] };
 }
 
 /** Something a module can't work without. */
@@ -325,7 +362,21 @@ export interface Footprint {
   z1: number;
   /** Its top: you can't walk through it below this height. */
   top: number;
+  /** Its foot (default: anywhere below): floors more than a step below it are clear (a mast on the roof doesn't block the deck). */
+  base?: number;
 }
+
+/** A round footprint (a crane's column, an A-frame's foot): centre (x, z) and radius (m, the boat's axes). */
+export interface DiscFootprint {
+  x: number;
+  z: number;
+  r: number;
+  top: number;
+  base?: number;
+}
+
+/** What a module's gear takes up on deck (ModuleDefinition.footprints). */
+export type GearFootprint = Footprint | DiscFootprint;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 

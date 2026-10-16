@@ -23,9 +23,11 @@ export class FenderBasket extends Control {
   readonly kind = 'press' as const;
   readonly label = 'Fenders: out / in';
   private out = false;
+  private readonly read: (s: VesselState) => number;
 
-  constructor() {
-    super('fenders', 'fenders');
+  constructor(id = 'fenders', wiring: Wiring = {}) {
+    super(id, wiring.channel ?? 'fenders');
+    this.read = wiring.read ?? ((s) => s.controls.fenders);
     const basket = this.fixed(new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.18, 0.35, 10, 1, true).translate(0, 0.175, 0), new THREE.MeshLambertMaterial({ color: 0x3a3f44, side: THREE.DoubleSide })));
     // A couple of fenders poking out of it (while they're in).
     const f = new THREE.Mesh(
@@ -54,7 +56,7 @@ export class FenderBasket extends Control {
   }
 
   sync(state: VesselState): void {
-    const out = state.controls.fenders > 0;
+    const out = this.read(state) > 0;
     if (out !== this.out) this.show(out);
   }
 }
@@ -73,8 +75,9 @@ export class FendersView {
     this.mesh.name = 'fenders';
   }
 
-  update(state: VesselState): void {
-    const out = state.controls.fenders > 0 ? 1 : 0;
+  /** @param over  the fenders are out over the side */
+  update(over: boolean): void {
+    const out = over ? 1 : 0;
     if (out === this.shown) return;
     this.shown = out;
     const m = new THREE.Matrix4();

@@ -26,6 +26,7 @@ import { surfaceHeight, type PreparedWave } from '../ocean/waves';
 import { hullPlan } from '../vessel/layout';
 import { asWorkboat, VESSEL_DEFS } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
+import { gearOf } from '../boats/sims';
 import type { CargoItem } from '../cargo/cargo';
 import type { RescueState, RescueTarget } from './rescue';
 
@@ -114,10 +115,13 @@ export function stepRecovery(world: WorldState, v: VesselState, waves: readonly 
   const r = world.rescue!;
   const ring = (r.ring ??= createRing());
   const gear = asWorkboat(VESSEL_DEFS[v.defId]).rescueGear;
-  const cleat = vesselToWorld(v, gear.ringCleat);
+  // The ring's line is made fast at her life ring station's cleat (a module); a boat
+  // without one has no ring to throw.
+  const station = gearOf(v, 'lifeRing');
+  const cleat = vesselToWorld(v, station?.cleat ?? [0, 0, 0]);
 
   const wind = windVector(world.environment, { x: 0, z: 0 });
-  if (ring.state === 'flying') {
+  if (station && ring.state === 'flying') {
     ring.vel[1] -= CONFIG.ocean.gravity * dt;
     // The wind pushes it off line a little in flight.
     ring.vel[0] += wind.x * CONFIG.weather.ringPushPerWind * dt;
@@ -133,7 +137,7 @@ export function stepRecovery(world: WorldState, v: VesselState, waves: readonly 
       ring.line = Math.min(cfg.maxLine, Math.max(dist, 1));
     }
   }
-  if (ring.state === 'water') {
+  if (station && ring.state === 'water') {
     ring.pos[0] += (cfg.drift[0] + wind.x * CONFIG.weather.driftPerWind) * dt;
     ring.pos[2] += (cfg.drift[1] + wind.z * CONFIG.weather.driftPerWind) * dt;
     // The line: no longer than paid out. Taut, it drags the ring toward the cleat.
@@ -202,6 +206,7 @@ export function applyRecoveryIntent(world: WorldState, v: VesselState | undefine
   const cfg = CONFIG.rescue;
   switch (intent.control) {
     case 'ringTake':
+      if (v && !gearOf(v, 'lifeRing')) return true; // no life ring aboard
       if (ring.state === 'stowed' || (ring.state === 'water' && !persons(r).some((t) => t.phase === 'onLine'))) {
         ring.state = 'held';
         ring.holder = who;
@@ -224,13 +229,14 @@ export function applyRecoveryIntent(world: WorldState, v: VesselState | undefine
       return true;
     }
     case 'ringPull':
-      if (ring.state === 'water' && v) {
-        const cleat = vesselToWorld(v, asWorkboat(VESSEL_DEFS[v.defId]).rescueGear.ringCleat);
+      if (ring.state === 'water' && v && gearOf(v, 'lifeRing')) {
+        const cleat = vesselToWorld(v, gearOf(v, 'lifeRing')!.cleat);
         const d = Math.hypot(ring.pos[0] - cleat.x, ring.pos[2] - cleat.z);
         ring.line = Math.max(0.5, Math.min(ring.line, d) - Math.max(0, Math.min(5, intent.value)));
       }
       return true;
     case 'hookTake':
+      if (v && !gearOf(v, 'boatHook')) return true; // no boat hook aboard
       if (!hook.holder) {
         hook.holder = who;
         delete hook.deck;

@@ -5,6 +5,7 @@ import { clamp } from '../core/math';
 import { CONFIG } from '../config';
 import { toggleEngine } from './physics/propulsion';
 import { toggleCleat, toggleDock } from './physics/mooring';
+import { gearOf } from '../boats/sims';
 import { isWorkboat, VESSEL_DEFS, type VesselDef, type WorkboatDef } from './vesselDef';
 import { fuelBerthAt } from '../world/geography';
 import { BERTHS, PORTS } from '../world/archipelago';
@@ -252,13 +253,13 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
       break;
     }
     case 'spotPan': {
-      const sp = VESSEL_DEFS[s.defId].spotlight;
+      const sp = gearOf(s, 'searchlight');
       if (!sp) break;
       s.controls.spotPan = clamp(intent.value, -sp.panLimitDeg, sp.panLimitDeg);
       break;
     }
     case 'spotTilt': {
-      const sp = VESSEL_DEFS[s.defId].spotlight;
+      const sp = gearOf(s, 'searchlight');
       if (!sp) break;
       s.controls.spotTilt = clamp(intent.value, sp.tiltMinDeg, sp.tiltMaxDeg);
       break;
@@ -267,13 +268,13 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
       s.controls.firePump = intent.value > 0.5 ? 1 : 0;
       break;
     case 'monPan': {
-      const m = VESSEL_DEFS[s.defId].fireMonitor;
+      const m = gearOf(s, 'fireMonitor');
       if (!m) break;
       s.controls.monPan = clamp(intent.value, -m.panLimitDeg, m.panLimitDeg);
       break;
     }
     case 'monTilt': {
-      const m = VESSEL_DEFS[s.defId].fireMonitor;
+      const m = gearOf(s, 'fireMonitor');
       if (!m) break;
       s.controls.monTilt = clamp(intent.value, m.tiltMinDeg, m.tiltMaxDeg);
       break;

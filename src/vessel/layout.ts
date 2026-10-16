@@ -12,6 +12,7 @@
  * The vessel version is derived from the hull stations and the layout block in the config,
  * the same numbers the geometry is built from.
  */
+import type { GearFootprint } from '../modular/module';
 import type { VesselDef } from './vesselDef';
 
 export interface Ladder {
@@ -73,30 +74,18 @@ export function hullPlan(def: VesselDef): { halfBeam(z: number): number; deckY(z
 }
 
 /**
- * Gear standing on the open deck that you can't walk through or stand cargo on (vessel
- * axes): the tender's cradle (with her in it) and the crane's column on the foredeck, the
- * tow winch (with its gearbox housing) and the A-frame's feet on the aft deck. Is (x, z)
- * within `pad` m of any of it?
+ * Is (x, z) within `pad` m of any of a boat's gear (its modules' footprints, vessel axes:
+ * the tender's cradle and the crane's column, the tow winch, the A-frame's feet, the mast)?
+ * With a floor height `y`, only gear standing at that level counts: a footprint blocks
+ * floors from a step below its foot up to its top (the mast on the roof leaves the deck
+ * below clear).
  */
-export function onDeckGear(def: VesselDef, x: number, z: number, pad: number): boolean {
-  const tc = def.tenderCrane;
-  if (tc) {
-    if (Math.abs(x - tc.stow[0]) < tc.cradle.halfWidth + pad && z > tc.cradle.z0 - pad && z < tc.cradle.z1 + pad) return true;
-    if (Math.hypot(x - tc.column[0], z - tc.column[1]) < tc.columnRadius + pad) return true;
-  }
-  const tw = def.towWinch;
-  if (tw) {
-    // The drum between its cheeks, and the gearbox housing on its starboard end.
-    const hw = tw.drumWidth / 2;
-    if (x > -hw - 0.12 - pad && x < hw + 0.1 + tw.housing.width + pad && Math.abs(z - tw.z) < 0.25 + pad) return true;
-  }
-  const af = def.fishing?.aFrame;
-  if (af) {
-    // The A-frame's feet and its braces' feet on the quarters.
-    const plan = hullPlan(def);
-    const footZ = plan.transom - af.footFromTransom;
-    const x0 = plan.halfBeam(footZ) - af.footInset;
-    for (const fz of [footZ, footZ - af.braceForward]) if (Math.hypot(Math.abs(x) - x0, z - fz) < 0.12 + pad) return true;
+export function onGear(gear: readonly GearFootprint[], x: number, z: number, pad: number, y?: number): boolean {
+  for (const f of gear) {
+    if (y !== undefined && !(y < f.top && y >= (f.base ?? -Infinity) - STEP_HEIGHT)) continue;
+    if ('r' in f) {
+      if (Math.hypot(x - f.x, z - f.z) < f.r + pad) return true;
+    } else if (x > f.x0 - pad && x < f.x1 + pad && z > f.z0 - pad && z < f.z1 + pad) return true;
   }
   return false;
 }
@@ -124,7 +113,11 @@ function openDeckWalkArea(def: VesselDef, layout: LayoutConfig): WalkArea {
   };
 }
 
-export function vesselWalkArea(def: VesselDef, layout: LayoutConfig): WalkArea {
+/**
+ * @param gear  where her gear stands solid (her modules' footprints, boats/sims footprintsOf):
+ *              kept clear of on deck and roof
+ */
+export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: readonly GearFootprint[] = []): WalkArea {
   if (!layout.wheelhouse || !layout.roof || !layout.ladder) return openDeckWalkArea(def, layout);
   const wh = layout.wheelhouse;
   const r = layout.bodyRadius;
@@ -166,7 +159,7 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig): WalkArea {
       contains: (x, z) => {
         const onDeck = z <= transom - layout.deckEdgeMargin && Math.abs(x) <= deckHalfBeam(z) - layout.deckEdgeMargin;
         const nearHouse = Math.abs(x) < ext.x + r && z > ext.z0 - r && z < ext.z1 + r;
-        return onDeck && !nearHouse && !onDeckGear(def, x, z, r);
+        return onDeck && !nearHouse && !onGear(gear, x, z, r, deckY(z));
       },
     },
     {
@@ -179,14 +172,14 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig): WalkArea {
         (!!sd && x < -int.x + r + 0.02 && x > -ext.x - r - 0.02 && z > sd.z0 + r * 0.6 && z < sd.z1 - r * 0.6),
     },
     {
-      // Wheelhouse roof inside its rail, around the mast, plus the landing at the ladder head.
+      // Wheelhouse roof inside its rail, around what stands on it (the mast), plus the
+      // landing at the ladder head.
       height: () => roofTop,
       contains: (x, z) => {
         const m = roof.edgeMargin;
         const onRoof = Math.abs(x) <= ext.x + roof.overhang - m && z >= ext.z0 - roof.overhang + m && z <= ext.z1 - m;
-        const atMast = Math.abs(x) < 0.25 && Math.abs(z - 0.4) < 0.25;
         const landing = Math.abs(x - lad.x) <= lad.width / 2 && z > ext.z1 - 0.5 && z <= ext.z1 + 0.05;
-        return (onRoof && !atMast) || landing;
+        return (onRoof && !onGear(gear, x, z, 0, roofTop)) || landing;
       },
     },
   ];

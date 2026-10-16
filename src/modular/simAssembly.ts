@@ -22,7 +22,7 @@ import type { BreakerName } from '../vessel/vesselState';
 import { busOf } from './bus';
 import type { BusKey } from './busKeys';
 import type { HullLibrary } from './hull';
-import { portIO, type GearFacts, type GearKind, type HullQueries, type ModuleDefinition, type PhysicsPort, type PortIO, type PowerRole, type SimContext } from './module';
+import { portIO, type GearFacts, type GearFootprint, type GearKind, type HullQueries, type ModuleDefinition, type PhysicsPort, type PortIO, type PowerRole, type SimContext } from './module';
 import { flattenMounts, validateRecipe, type ModuleLibrary, type Recipe } from './recipe';
 import type { Socket } from './socket';
 
@@ -41,6 +41,8 @@ export interface VesselSimDef {
   mounts: SimMount[];
   /** Her deck gear's facts, by kind (M5). */
   gear: Partial<GearFacts>;
+  /** Where her modules stand solid on deck and roof (M5b; the boat's axes). */
+  footprints: GearFootprint[];
 }
 
 export type StoreRole = Extract<PowerRole, { role: 'store' }>;
@@ -70,7 +72,9 @@ export function buildSimDef(recipe: Recipe, lib: { hulls: HullLibrary; modules: 
   const { mounted } = flattenMounts(recipe, lib.hulls, lib.modules);
   const mounts: SimMount[] = [];
   const gear: Partial<GearFacts> = {};
+  const footprints: GearFootprint[] = [];
   for (const m of mounted) {
+    footprints.push(...(m.def.footprints?.(m.config, hull) ?? []));
     // The first module giving each kind of gear tells the world about it.
     const facts = m.def.gear?.(m.config, hull) ?? {};
     for (const k of Object.keys(facts) as GearKind[]) if (!(k in gear)) Object.assign(gear, { [k]: facts[k] });
@@ -80,7 +84,7 @@ export function buildSimDef(recipe: Recipe, lib: { hulls: HullLibrary; modules: 
   }
   const stores = mounts.flatMap((m) => m.roles.filter((r) => r.role === 'store'));
   if (stores.length > 1) throw new Error(`Recipe '${recipe.id}': more than one battery bank (one house bank for now)`);
-  return { recipe: recipe.id, mounts, gear };
+  return { recipe: recipe.id, mounts, gear, footprints };
 }
 
 const runtimes = new WeakMap<VesselState, VesselRuntime>();

@@ -45,7 +45,10 @@ describe('the machinery, as modules', () => {
     // The rudder needs this tick's thrust: it pushes after the engine.
     const pushing = sim.mounts.filter((m) => m.def.sim?.physics).map((m) => m.path);
     expect(pushing).toEqual(['engine', 'rudder']);
-    expect(sim.mounts.filter((m) => m.def.id === 'electrical.consumer')).toHaveLength(8);
+    // The navigation lights, floods, rail lights, cabin lamp, horn and wiper motor (the
+    // searchlight is its own module since M5b; the nav lights hang on the mast).
+    expect(sim.mounts.filter((m) => m.def.id === 'electrical.consumer')).toHaveLength(7);
+    expect(sim.mounts.find((m) => m.path === 'mast/masthead')?.def.id).toBe('electrical.consumer');
   });
 
   it('the battery module and the vessel\'s battery config agree (isPowered reads the latter until M6)', () => {
@@ -137,7 +140,7 @@ describe('separate parts: take one out of the recipe and only its part goes', ()
 
   it('without the engine (and the hydraulic pump on its power take-off, and the deck gear it drives), the lever does nothing', () => {
     const r = without('engine');
-    const hydraulic = ['hydraulicPump', 'tenderCrane', 'towWinch', 'trawl'];
+    const hydraulic = ['hydraulicPump', 'tenderCrane', 'towWinch', 'trawl', 'fireMonitor']; // (the fire pump is on the take-off too)
     setVesselRecipe('workboat', { ...r, modules: r.modules.filter((m) => !hydraulic.includes(m.socket)) });
     const { v, send, run } = boat();
     send('lever', 1);

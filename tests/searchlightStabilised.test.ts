@@ -15,10 +15,10 @@ function beam(roll: number, pitch: number, yaw: number): THREE.Vector3 {
   v.controls.spotTilt = -6;
   const boat = new THREE.Group();
   boat.rotation.set(pitch, yaw, roll, 'YXZ');
-  const light = new Searchlight(def);
+  const light = new Searchlight(def.spotlight);
   boat.add(light.root);
   boat.updateMatrixWorld(true);
-  light.update(v, 1);
+  light.update(v.controls.spotlight > 0, v.controls.spotPan, v.controls.spotTilt, 1);
   boat.updateMatrixWorld(true);
   const a = light.light.getWorldPosition(new THREE.Vector3());
   return light.light.target.getWorldPosition(new THREE.Vector3()).sub(a).normalize();

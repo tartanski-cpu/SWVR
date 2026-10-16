@@ -13,12 +13,7 @@ import type { BoardView } from '../board/boardView';
 import type { DutyBoardView } from '../duties/dutyBoardView';
 import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
 import { WheelhouseDoor } from './WheelhouseDoor';
-import { MonitorView } from '../fire/monitorView';
-import { FireGauge } from '../fire/fireGauge';
-import { hullPlan } from '../vessel/layout';
 import { RainGlass } from '../vessel/view/rainGlass';
-import { Cleat, FenderBasket, FendersView } from './deckGear';
-import { swimLadderOf } from '../player/body';
 
 /**
  * Builds a vessel's bridge from its config: controls, instrument dash, labels.
@@ -43,16 +38,10 @@ export class Bridge {
   readonly fmSet: THREE.Object3D | null;
   /** Rain on the front windows and the wipers (the App feeds it the weather). */
   readonly rainGlass: RainGlass;
-  /** The fire monitor on the roof (boats that have one). */
-  private monitor: MonitorView | null = null;
-  /** The fire gauge beside the monitor joystick (App feeds it the fire job). */
-  fireGauge: FireGauge | null = null;
   /** The aft door (its push buttons on the frame open / shut it). */
   readonly door: WheelhouseDoor;
   /** The port side door (boats whose wheelhouse has one). */
   readonly sideDoor: WheelhouseDoor | null = null;
-  /** The fenders over the side or stowed (boats that carry them). */
-  private readonly fenders: FendersView | null = null;
 
   /**
    * @param modules the boat's modules, already built from her recipe (modular boats): their
@@ -77,23 +66,10 @@ export class Bridge {
     const extraLabels: Label[] = [...modules.labels];
     const extraFixed: THREE.BufferGeometry[] = [];
     // The fire monitor on the roof (its FIRE PUMP switch and joystick are modules on the console).
-    if (def.fireMonitor) {
-      this.monitor = new MonitorView(def.fireMonitor);
-      this.root.add(this.monitor.root);
-      // The fire gauge on the console beside the monitor joystick: how big the fire is,
-      // and the ON TARGET lamp. (It goes with the fire monitor when that is a module, 5b.)
-      const gp = def.fireMonitor.gauge;
-      this.fireGauge = new FireGauge(gp.length, gp.lampX);
-      this.fireGauge.root.position.fromArray(gp.position);
-      this.root.add(this.fireGauge.root);
-      extraFixed.push(part(FireGauge.track(gp.length).translate(gp.position[0], gp.position[1], gp.position[2]), 0x14171a));
-      extraLabels.push(
-        { text: 'FIRE', at: [gp.position[0], gp.position[1], gp.position[2] - 0.03], title: false, yaw: 0 },
-        { text: 'ON TARGET', at: [gp.position[0] + gp.length / 2 + gp.lampX, gp.position[1], gp.position[2] - 0.03], title: false, yaw: 0 },
-      );
-    }
     // The deck gear (the tow winch, the stern roller, the A-frame and the trawl, the tender
-    // crane, the anchor windlass) are modules since M5a, drawn with the others above.
+    // crane, the anchor windlass) are modules since M5a, and the roof's (the searchlight,
+    // the fire monitor with its console gauge, the mast) since M5b, drawn with the others
+    // above.
     const wh = def.layout.wheelhouse;
     this.door = new WheelhouseDoor(wh.doorWidth, wh.doorHeight);
     this.door.root.position.set(0, wh.floorY, wh.aft + 0.03);
@@ -111,43 +87,8 @@ export class Bridge {
     }
     this.rainGlass = new RainGlass(def);
     this.root.add(this.rainGlass.root);
-    // Mooring cleats on the bulwark tops, forward and aft each side (they replace the DOCK
-    // button): port forward, starboard forward, port aft, starboard aft.
-    {
-      const plan = hullPlan(def);
-      const mo = def.mooring;
-      [mo.cleatFwdZ, mo.cleatFwdZ, mo.cleatAftZ, mo.cleatAftZ].forEach((z, i) => {
-        const side = i % 2 === 0 ? -1 : 1;
-        const cleat = new Cleat(i);
-        cleat.root.position.set(side * (plan.halfBeam(z) - 0.03), plan.deckY(z) + def.layout.bulwarkHeight, z);
-        this.controls.push(cleat);
-      });
-    }
-    // Fenders: the basket on the aft deck, and the six fenders themselves.
-    if (def.fenders) {
-      const plan = hullPlan(def);
-      const basket = new FenderBasket();
-      const [fx, fz] = def.fenders.basket;
-      basket.root.position.set(fx, plan.deckY(fz), fz);
-      this.controls.push(basket);
-      this.fenders = new FendersView(def.fenders.z, plan);
-      this.root.add(this.fenders.mesh);
-    }
-    // Swim ladder over the starboard side: two stainless rails hooked over the bulwark top,
-    // down past the waterline, with flat treads (see player/body.ts climbOut).
-    if (def.swimLadder) {
-      const lad = swimLadderOf({ plan: hullPlan(def), state: { defId: def.id } as VesselState })!;
-      const steel = 0xc8ccd0;
-      const len = lad.top - lad.bottom;
-      for (const dz of [-lad.width / 2, lad.width / 2]) {
-        extraFixed.push(part(new THREE.CylinderGeometry(0.016, 0.016, len, 6).translate(lad.x, lad.bottom + len / 2, lad.z + dz), steel));
-        // The hook over the bulwark top, back to the deck side.
-        extraFixed.push(part(new THREE.BoxGeometry(lad.x - lad.deckX - 0.45, 0.03, 0.03).translate((lad.x + lad.deckX + 0.45) / 2, lad.top + 0.02, lad.z + dz), steel));
-      }
-      for (let y = lad.bottom + 0.15; y < lad.top - 0.1; y += 0.3) {
-        extraFixed.push(part(new THREE.BoxGeometry(0.08, 0.025, lad.width).translate(lad.x + 0.02, y, lad.z), 0x9aa0a6));
-      }
-    }
+    // The cleats, the fenders, the swim ladder, the life ring station and the boat-hook rack
+    // are modules since M5b.
     // The engine, under the hatch in the wheelhouse floor (aft starboard): open the hatch to
     // see it. The hatch cover, the dipstick and the oil can are modules (M3c); the engine's
     // look and the can's shelf stay here until the engine is a module (M4).
@@ -232,8 +173,6 @@ export class Bridge {
     this.modules.update(state, dt, { inView: displaysInView, def: this.def, env });
     this.door.sync(state);
     this.sideDoor?.sync(state);
-    this.fenders?.update(state);
-    this.monitor?.update(state);
   }
 }
 

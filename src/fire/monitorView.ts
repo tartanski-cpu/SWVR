@@ -1,14 +1,14 @@
 import * as THREE from 'three';
 import type { VesselDef } from '../vessel/vesselDef';
-import type { VesselState } from '../vessel/vesselState';
 import { monitorAim } from './fire';
 
 type MonitorConfig = NonNullable<VesselDef['fireMonitor']>;
 
 /**
  * The fire monitor on the wheelhouse roof: a red pedestal, a yoke that pans and a barrel
- * that elevates, set every frame from the vessel's controls (monPan, monTilt). Its origin
- * is the nozzle's pivot (CONFIG fireMonitor.position); the barrel points along -z at pan 0.
+ * that elevates, set every frame from its pan and elevation (the fire monitor module reads
+ * them off the bus, 'monitor.pan' / 'monitor.tilt'). Its origin is the nozzle's pivot
+ * (CONFIG fireMonitor.position); the barrel points along -z at pan 0.
  */
 export class MonitorView {
   readonly root = new THREE.Group();
@@ -37,9 +37,9 @@ export class MonitorView {
     this.stabilised = m.stabilised;
   }
 
-  update(s: VesselState): void {
-    let pan = s.controls.monPan;
-    let tilt = s.controls.monTilt;
+  update(panDeg: number, tiltDeg: number): void {
+    let pan = panDeg;
+    let tilt = tiltDeg;
     if (this.stabilised && this.root.parent) {
       // Stabilised: where the jet really points (held level against her roll and pitch,
       // fire.ts monitorAim), back in the boat's axes, as she's drawn this frame.

@@ -22,6 +22,8 @@ import { surfaceHeight } from '../ocean/waves';
 import type { WalkArea } from '../vessel/layout';
 import type { VesselState } from '../vessel/vesselState';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
+import { gearOf } from '../boats/sims';
+import type { GearFacts } from '../modular/module';
 import { blockContact, blockTop, nearestBlockEdge, type BlockHit } from '../world/geography';
 import type { PlayerState } from './playerState';
 
@@ -342,12 +344,9 @@ export function climbOut(p: PlayerState, body: THREE.Vector3, hand: THREE.Vector
 /**
  * A vessel's swim ladder (vessel axes), if it has one: its outboard line (x, z), foot and
  * head heights, where you step aboard (deckX, inboard of the bulwark) and the desktop's
- * jump range. It hangs over the starboard side (see CONFIG.vessels.workboat.swimLadder).
+ * jump range. It's her swim ladder module's (modules/swimLadder; the workboat's hangs over
+ * the starboard side).
  */
-export function swimLadderOf(ves: { plan: BodyVessel['plan']; state: VesselState }): { x: number; z: number; bottom: number; top: number; deckX: number; range: number; width: number } | null {
-  const def = VESSEL_DEFS[ves.state.defId];
-  const c = def?.swimLadder;
-  if (!c) return null;
-  const hb = ves.plan.halfBeam(c.z);
-  return { x: hb + 0.08, z: c.z, bottom: c.bottom, top: ves.plan.deckY(c.z) + def.layout.bulwarkHeight, deckX: hb - 0.6, range: c.range, width: c.width };
+export function swimLadderOf(ves: { state: VesselState }): GearFacts['swimLadder'] | null {
+  return gearOf(ves.state, 'swimLadder');
 }

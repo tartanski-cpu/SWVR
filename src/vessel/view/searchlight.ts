@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { monitorAim } from '../../fire/fire';
-import type { WorkboatDef } from '../vesselDef';
-import type { VesselState } from '../vesselState';
+import type { CONFIG } from '../../config';
+
+export type SearchlightLook = typeof CONFIG.vessels.workboat.spotlight;
 
 /**
  * The roof searchlight: a lamp housing that pans and tilts with the controls, one real
@@ -9,7 +10,8 @@ import type { VesselState } from '../vesselState';
  * water via `light`), and a faint additive beam cone that shows at night.
  * Off, the light is hidden (left out of every shader; switching costs one recompile).
  * Stabilised (`spotlight.stabilised`): the lamp holds its aim level against her roll and
- * pitch, the same way as the fire monitor (fire.ts monitorAim).
+ * pitch, the same way as the fire monitor (fire.ts monitorAim). Drawn by the searchlight
+ * module (modules/searchlight), which feeds it its switch, aim and 12 V from the bus.
  */
 export class Searchlight {
   readonly root = new THREE.Group();
@@ -21,8 +23,7 @@ export class Searchlight {
   private readonly q = new THREE.Quaternion();
   private readonly d = new THREE.Vector3();
 
-  constructor(private readonly def: WorkboatDef) {
-    const c = def.spotlight;
+  constructor(private readonly c: SearchlightLook) {
     this.root.position.fromArray(c.position);
     // Yoke on a short post, lamp drum pointing forward (-Z).
     const post = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 0.25, 8).translate(0, -0.12, 0), new THREE.MeshLambertMaterial({ color: 0x3c4248 }));
@@ -69,14 +70,17 @@ export class Searchlight {
     this.tilt.add(beam);
   }
 
-  /** @param darkness 0 (day) .. 1 (night) */
-  /** @param powered 12 V on the bus (vessel/electrics.ts) */
-  update(s: VesselState, darkness: number, powered = true): void {
-    const c = s.controls;
-    const on = c.spotlight > 0 && powered;
-    let pan = c.spotPan;
-    let tilt = c.spotTilt;
-    if (this.def.spotlight.stabilised && this.root.parent) {
+  /**
+   * @param switchedOn  its SPOT switch
+   * @param panDeg, tiltDeg  its aim (+ starboard, + up)
+   * @param darkness 0 (day) .. 1 (night)
+   * @param powered 12 V on its circuit
+   */
+  update(switchedOn: boolean, panDeg: number, tiltDeg: number, darkness: number, powered = true): void {
+    const on = switchedOn && powered;
+    let pan = panDeg;
+    let tilt = tiltDeg;
+    if (this.c.stabilised && this.root.parent) {
       // Where the beam should point in the world (heading only, level against roll and
       // pitch), turned back into the boat's axes as she's drawn this frame.
       this.root.parent.getWorldQuaternion(this.q);
@@ -86,7 +90,7 @@ export class Searchlight {
     }
     this.pan.rotation.y = (-pan * Math.PI) / 180;
     this.tilt.rotation.x = (tilt * Math.PI) / 180;
-    this.light.intensity = on ? this.def.spotlight.intensity : 0;
+    this.light.intensity = on ? this.c.intensity : 0;
     this.light.visible = on; // off: not in any shader (one recompile when switched)
     this.lens.color.setHex(on ? 0xffffff : 0x333333);
     this.beamMat.opacity = on ? 0.02 + 0.07 * darkness : 0;

@@ -59,7 +59,7 @@ import { stepMooring } from './mooring';
 import { stepOutboard } from './outboard';
 import type { ExternalForce } from './vesselContact';
 import type { PhysicsPort } from '../../modular/module';
-import { vesselRuntime } from '../../boats/sims';
+import { gearOf, vesselRuntime } from '../../boats/sims';
 
 /** Optional per-tick diagnostics for the debug view (vessel-local coordinates). */
 export interface HydroDebug {
@@ -351,14 +351,15 @@ export function stepVessel(
     if (touching > 0) c.slide /= touching;
     // Her anchor (a module, M5a): the chain's pull at the hawse.
     machinery?.mooring(port, dt);
-    if (isWorkboat(def)) {
-      // Mooring lines (docked), at the forward and aft cleats' stations.
-      const mo = def.mooring;
-      toWorld(0, mo.lineY, mo.cleatFwdZ, lineBow);
+    // Mooring lines (docked), at her forward and aft cleats' stations (modules/cleat).
+    const bowCleat = gearOf(state, 'bowCleat');
+    const sternCleat = gearOf(state, 'sternCleat');
+    if (isWorkboat(def) && bowCleat && sternCleat) {
+      toWorld(0, bowCleat.lineY, bowCleat.z, lineBow);
       pointVelocity(lineBow, lineBowV);
-      toWorld(0, mo.lineY, mo.cleatAftZ, lineStern);
+      toWorld(0, sternCleat.lineY, sternCleat.z, lineStern);
       pointVelocity(lineStern, lineSternV);
-      stepMooring(state, def, lineBow, lineBowV, lineStern, lineSternV, dt, fBow, fStern);
+      stepMooring(state, { bow: bowCleat.z, stern: sternCleat.z }, lineBow, lineBowV, lineStern, lineSternV, dt, fBow, fStern);
       if (state.mooring.phase !== 'free') {
         addForceAt(cf.set(fBow.x, 0, fBow.z), lineBow);
         addForceAt(cf.set(fStern.x, 0, fStern.z), lineStern);

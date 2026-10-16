@@ -19,7 +19,7 @@ import * as THREE from 'three';
 import { CONFIG } from '../../config';
 import type { BerthDef } from '../../world/archipelago';
 import { allBerths } from '../../world/berths';
-import type { WorkboatDef } from '../vesselDef';
+import { gearOf } from '../../boats/sims';
 import type { VesselState } from '../vesselState';
 
 const q = new THREE.Quaternion();
@@ -80,6 +80,8 @@ export function toggleCleat(s: VesselState, cleat: number): boolean {
     if (!m.bow && !m.stern) castOff(m);
     return true;
   }
+  // A line goes out only from a cleat she has (modules/cleat), and she moors only with both ends.
+  if (!gearOf(s, 'bowCleat') || !gearOf(s, 'sternCleat')) return false;
   if (m.phase === 'free') {
     const r = berthInRange(s);
     if (!r) return false;
@@ -96,6 +98,7 @@ export function toggleCleat(s: VesselState, cleat: number): boolean {
 export function toggleDock(s: VesselState): void {
   const m = s.mooring;
   if (m.phase !== 'free') return castOff(m);
+  if (!gearOf(s, 'bowCleat') || !gearOf(s, 'sternCleat')) return;
   const r = berthInRange(s);
   if (!r) return;
   m.berthId = r.berth.id;
@@ -122,10 +125,11 @@ type V = { x: number; y: number; z: number };
 
 /**
  * Advance docking/mooring and return the line forces at the bow and stern line points.
+ * @param cleats             the stations (vessel z) of her bow and stern cleats
  * @param bow, stern          line points on the boat (world) and their velocities
  * @param outBow, outStern    horizontal forces (world, N)
  */
-export function stepMooring(s: VesselState, def: WorkboatDef, bow: V, bowVel: V, stern: V, sternVel: V, dt: number, outBow: V, outStern: V): void {
+export function stepMooring(s: VesselState, cleats: { bow: number; stern: number }, bow: V, bowVel: V, stern: V, sternVel: V, dt: number, outBow: V, outStern: V): void {
   const c = CONFIG.docking;
   const m = s.mooring;
   outBow.x = outBow.y = outBow.z = 0;
@@ -166,8 +170,8 @@ export function stepMooring(s: VesselState, def: WorkboatDef, bow: V, bowVel: V,
   };
   // Each end only if its line is fast. The marks are where that cleat's station lies with
   // her alongside, centred on the berth (vessel z is aft, the berth axis points her bow).
-  const fz = -def.mooring.cleatFwdZ;
-  const az = -def.mooring.cleatAftZ;
+  const fz = -cleats.bow;
+  const az = -cleats.stern;
   if (m.bow) line(bow, bowVel, b.x + a.x * fz, b.z + a.z * fz, outBow);
   if (m.stern) line(stern, sternVel, b.x + a.x * az, b.z + a.z * az, outStern);
 

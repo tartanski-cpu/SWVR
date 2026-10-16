@@ -25,12 +25,20 @@
  *                        in the engine space; rudder at the rudder stock
  *       navLights, floodFore, floodAft, railLights, cabinLight, searchlight, horn, wipers
  *                        the 12 V devices (only their draw is simulated yet; where nothing
- *                        is drawn for them, their point is nominal)
+ *                        is drawn for them, their point is nominal). M5b: the searchlight's
+ *                        socket takes the searchlight module; the navigation lights moved to
+ *                        the mast's masthead socket.
  *   M5a tenderCrane      the crane's column on the foredeck (the cradle comes with it)
  *       anchor           the bow roller (hawse) and windlass
  *       towWinch         the aft deck, forward of the transom
  *       trawl            the aft deck (the net and its drum; nominal)
  *       sternRoller, aFrame    the transom (two stern gantry sockets)
+ *   M5b fireMonitor, mast    on the wheelhouse roof (the mast offers 'masthead' for the
+ *                        navigation lights)
+ *       cleatFwdPort, cleatFwdStbd, cleatAftPort, cleatAftStbd    on the bulwark tops
+ *       fenders, swimLadder, lifeRing, boatHook    the fender basket on the aft deck, the
+ *                        ladder over the starboard side, the ring on the aft wall, the
+ *                        hook's clips on the port bulwark
  *                        Deck gear draws itself in the boat's axes from the hull (its frame
  *                        is 'boat'), so these points say where it is, for the shipyard.
  */
@@ -53,6 +61,15 @@ const roofTop = wh.roofY + wb.layout.roof.thickness;
 const hull = hullQueries(VESSEL_DEFS.workboat);
 const onDeck = (x: number, z: number): [number, number, number] => [x, hull.deckY(z), z];
 const tc = wb.tenderCrane;
+const mast = CONFIG.modules.mast;
+const mo = wb.mooring;
+/** The mooring cleats' sockets: id, side, station, where. */
+const cleats: [string, number, number, string][] = [
+  ['cleatFwdPort', -1, mo.cleatFwdZ, 'forward, port'],
+  ['cleatFwdStbd', 1, mo.cleatFwdZ, 'forward, starboard'],
+  ['cleatAftPort', -1, mo.cleatAftZ, 'aft, port'],
+  ['cleatAftStbd', 1, mo.cleatAftZ, 'aft, starboard'],
+];
 
 export const WORKBOAT_HULL: HullDefinition = {
   id: 'hull.workboat-12m',
@@ -92,12 +109,20 @@ export const WORKBOAT_HULL: HullDefinition = {
     { id: 'hydraulicPump', type: 'engine.bay', transform: { position: bay }, label: 'On the engine\'s power take-off (nominal)' },
     { id: 'bilgePump', type: 'engine.bay', transform: { position: [bay[0], wh.floorY - eh.pitDepth, bay[2]] }, label: 'Bottom of the engine space (nominal)' },
     { id: 'rudder', type: 'hull.rudder', transform: { position: wb.rudder.position }, label: 'Rudder stock, aft' },
-    { id: 'navLights', type: 'hull.light', transform: { position: wb.navLights.masthead }, label: 'Masthead (and the sidelights and stern light)' },
     { id: 'floodFore', type: 'hull.light', transform: { position: wb.deckLights.fore.position }, label: 'Roof edge, forward' },
     { id: 'floodAft', type: 'hull.light', transform: { position: wb.deckLights.aft.position }, label: 'Roof edge, aft' },
     { id: 'railLights', type: 'hull.light', transform: { position: [0, roofTop, 0] }, label: 'Along the bulwark tops (nominal)' },
     { id: 'cabinLight', type: 'cabin.overhead', transform: { position: wb.cabinLight.position }, label: 'Wheelhouse ceiling' },
     { id: 'searchlight', type: 'roof.mount', transform: { position: wb.spotlight.position }, label: 'Wheelhouse roof, forward' },
+    { id: 'fireMonitor', type: 'roof.mount', transform: { position: wb.fireMonitor.position }, label: 'Wheelhouse roof, forward of the mast' },
+    // The navigation lights hang on the mast's own masthead socket.
+    { id: 'mast', type: 'roof.mount', transform: { position: [mast.x, roofTop, mast.z] }, label: 'Wheelhouse roof, the signal mast' },
+    // M5b: the deck fittings.
+    ...cleats.map(([id, side, z, where]) => ({ id, type: 'deck.fitting' as const, transform: { position: [side * (hull.halfBeam(z) - 0.03), hull.bulwarkTop(z), z] as [number, number, number] }, label: `Bulwark top, ${where}` })),
+    { id: 'fenders', type: 'deck.fitting', transform: { position: onDeck(wb.fenders.basket[0], wb.fenders.basket[1]) }, label: 'Aft deck, starboard: the fender basket' },
+    { id: 'swimLadder', type: 'deck.fitting', transform: { position: onDeck(hull.halfBeam(wb.swimLadder.z), wb.swimLadder.z) }, label: 'Starboard side, aft: over the bulwark' },
+    { id: 'lifeRing', type: 'deck.fitting', transform: { position: wb.rescueGear.ringStow }, label: 'Wheelhouse aft wall: the life ring (its line on the starboard quarter cleat)' },
+    { id: 'boatHook', type: 'deck.fitting', transform: { position: [wb.rescueGear.hookStow[0], wb.rescueGear.hookStow[1], wb.rescueGear.hookStow[2]] }, label: 'Port bulwark, aft: the boat-hook clips' },
     { id: 'horn', type: 'roof.mount', transform: { position: [0, roofTop, -0.5] }, label: 'Wheelhouse roof (nominal)' },
     { id: 'wipers', type: 'window.wiper', transform: { position: [0, wh.roofY - 0.2, wh.front] }, label: 'Over the front windows (nominal)' },
     { id: 'oilCan', type: 'deck.fitting', transform: { position: [mt.oilCan[0], wh.floorY - mt.shelfDrop, mt.oilCan[1]], rotationDeg: [0, 90, 0] }, label: 'Engine space, the shelf' },

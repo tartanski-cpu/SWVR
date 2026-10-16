@@ -10,7 +10,7 @@
  *             knocks it down (`douse` per s at full flow). Below `outBelow` it's out: the
  *             radio thanks you, it counts as a completed mission, and the smouldering wreck
  *             is taken away a little later.
- *   the jet   from the fire monitor on the roof (CONFIG.vessels.workboat.fireMonitor),
+ *   the jet   from the fire monitor on the roof (the boat's fireMonitor gear: modules/fireMonitor),
  *             with the pump on and the engine running: a ballistic arc from the nozzle with
  *             the boat's own velocity, a little air drag and wind drift (jetPath). It wets
  *             the fire if the arc passes through the fire's volume (its hit radius, up to
@@ -28,6 +28,7 @@ import { formatPosition } from '../nav/geo';
 import { isPowered } from '../vessel/electrics';
 import { isWorkboat, VESSEL_DEFS } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
+import { gearOf } from '../boats/sims';
 import { groundHeight } from '../world/terrain';
 import { earn } from '../career/career';
 import { createRescueState, nearestPort, sayRadio } from '../rescue/rescue';
@@ -95,7 +96,7 @@ const tmp = new THREE.Vector3();
 
 /** Is water coming out of the monitor (pump on, engine running, 12 V for the pump clutch)? */
 export function jetOn(v: VesselState): boolean {
-  return !!VESSEL_DEFS[v.defId].fireMonitor && v.controls.firePump > 0 && v.engine.phase === 'running' && isPowered(v);
+  return !!gearOf(v, 'fireMonitor') && v.controls.firePump > 0 && v.engine.phase === 'running' && isPowered(v);
 }
 
 /**
@@ -125,7 +126,7 @@ export function monitorAim(panDeg: number, tiltDeg: number, boat: THREE.Quaterni
 }
 
 export function jetPath(world: WorldState, v: VesselState, out: THREE.Vector3[], step = 0.12): number {
-  const m = VESSEL_DEFS[v.defId].fireMonitor;
+  const m = gearOf(v, 'fireMonitor');
   if (!m || !out.length) return 0;
   q.fromArray(v.orientation);
   const p = tmp.fromArray(m.position).applyQuaternion(q).add(new THREE.Vector3().fromArray(v.position));

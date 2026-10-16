@@ -10,12 +10,11 @@ import { WakeTrail } from './wakeTrail';
 import { Spray } from './spray';
 import { CabinLight } from './cabinLight';
 import { MooringLines } from './mooringLines';
-import { Searchlight } from './searchlight';
 import { DeckLights } from './deckLights';
 
 /**
  * Per-vessel visual effects driven by its state: navigation lights, cabin and deck lights,
- * searchlight, exhaust smoke, anchor chain, wake and spray.
+ * exhaust smoke, anchor chain, wake and spray.
  */
 /** What only a fully equipped boat (the workboat) shows. */
 class Equipment {
@@ -25,7 +24,6 @@ class Equipment {
   readonly cabin: CabinLight;
   readonly deckLights: DeckLights;
   readonly lines = new MooringLines();
-  readonly searchlight: Searchlight;
 
   constructor(
     readonly def: WorkboatDef,
@@ -35,8 +33,7 @@ class Equipment {
     this.nav = new NavLightsView(def);
     this.cabin = new CabinLight(def);
     this.deckLights = new DeckLights(def);
-    this.searchlight = new Searchlight(def);
-    root.add(this.nav.root, this.cabin.root, this.deckLights.root, this.searchlight.root);
+    root.add(this.nav.root, this.cabin.root, this.deckLights.root);
     world.add(this.smoke.root, this.chain.line, this.lines.mesh);
   }
 }
@@ -72,11 +69,6 @@ export class VesselEffects {
     }
   }
 
-  /** The searchlight, on boats that have one (the ocean shader lights the water with it). */
-  get searchlight(): Searchlight | null {
-    return this.equip?.searchlight ?? null;
-  }
-
   /**
    * @param darkness 0 (day) .. 1 (night)
    * @param time     render time (s), the waves' clock
@@ -94,7 +86,6 @@ export class VesselEffects {
       e.chain.update(s, this.root);
       e.cabin.update(deck ? s.controls.cabinLight : 0);
       e.deckLights.update(s, deck);
-      e.searchlight.update(s, darkness, deck);
       e.lines.update(s, e.def, this.root);
     }
     // A tender in her cradle or on the crane throws no wake or spray.

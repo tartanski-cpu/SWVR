@@ -279,7 +279,7 @@ function buildWheelhouse(layout: HouseLayout): THREE.BufferGeometry[] {
   // Door sill.
   parts.push(box(-door, door, base, wh.floorY + 0.02, wh.aft - w, wh.aft, COLORS.floor));
 
-  // Floor, roof, mast.
+  // Floor and roof.
   // The floor, round the engine hatch's opening if she has one, and the engine space under it.
   const eh = layout.engineHatch;
   const fx0 = -hw + w;
@@ -310,8 +310,7 @@ function buildWheelhouse(layout: HouseLayout): THREE.BufferGeometry[] {
   parts.push(box(-hw - ov, hw + ov, roof, top, wh.front - ov, wh.aft + ov, COLORS.roof));
   // The brow: the roof edge carried forward over the raked front glass (none if upright).
   if (fwdAtRoof > 0) parts.push(box(-hw - ov, hw + ov, roof, top, wh.front - fwdAtRoof - ov, wh.front - ov, COLORS.roof));
-  parts.push(box(-0.06, 0.06, top, roof + 1.7, 0.34, 0.46, COLORS.mast));
-  parts.push(box(-0.45, 0.45, roof + 1.3, roof + 1.38, 0.36, 0.44, COLORS.mast));
+  // The mast is a module since M5b (modules/mast).
 
   // Roof rail (posts + top rail), open at the ladder head on the aft edge.
   const lad = layout.ladder;

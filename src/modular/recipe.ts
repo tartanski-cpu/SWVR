@@ -248,6 +248,14 @@ const GEAR_WORDS: Record<GearKind, string> = {
   trawlGantry: 'a trawl gantry (an A-frame)',
   trawl: 'a trawl',
   anchor: 'an anchor',
+  searchlight: 'a searchlight',
+  fireMonitor: 'a fire monitor',
+  bowCleat: 'a bow cleat',
+  sternCleat: 'a stern cleat',
+  fenders: 'fenders',
+  swimLadder: 'a swim ladder',
+  lifeRing: 'a life ring',
+  boatHook: 'a boat hook',
 };
 
 function describeNeed(r: Requirement): string {

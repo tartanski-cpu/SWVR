@@ -6,7 +6,7 @@
 import { buildSimDef, runtimeFor, type VesselRuntime, type VesselSimDef } from '../modular/simAssembly';
 import type { VesselState } from '../vessel/vesselState';
 import { hullQueries } from '../modular/hull';
-import type { GearFacts, GearKind } from '../modular/module';
+import type { GearFacts, GearFootprint, GearKind } from '../modular/module';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 import type { Recipe } from '../modular/recipe';
 import { LIBRARY, RECIPES } from './library';
@@ -40,6 +40,14 @@ function simOf(defId: string): VesselSimDef | null {
  */
 export function gearOf<K extends GearKind>(v: { defId: string }, kind: K): GearFacts[K] | null {
   return simOf(v.defId)?.gear[kind] ?? null;
+}
+
+/**
+ * Where her modules stand solid (M5b; the boat's axes): the walk area and cargo placement
+ * keep out of these. None for a boat without a recipe.
+ */
+export function footprintsOf(v: { defId: string }): readonly GearFootprint[] {
+  return simOf(v.defId)?.footprints ?? [];
 }
 
 /** The boat's machinery, bound to her (null: she has no recipe). */
