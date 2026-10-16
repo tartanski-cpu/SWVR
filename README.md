@@ -391,7 +391,7 @@ The boat has a trawl: a red A-frame over the transom with a block each side on i
 
 ### Lobster and crab potting (new, being built)
 
-A slow-burn fishing job over several voyages. It's being built in stages, so it's **off unless you switch it on: Menu → Settings → Game → Potting → On**. So far (stages 1 and 2 of 5) you can collect the pots, shoot them, mark them on the chart and find them again when they're ready; hauling and selling come next.
+A slow-burn fishing job over several voyages. It's being built in stages, so it's **off unless you switch it on: Menu → Settings → Game → Potting → On**. So far (stages 1 to 3 of 5) you can collect the pots, shoot them, mark them on the chart, find them again when they're ready, haul them and work the catch; proper prices and selling come next.
 
 1. **Collect the pots:** five lobster pots wait on a pallet on the Calder Haven quay, by the fuel berth. Each is a creel: a dark netted frame with its line coiled on top and its orange marker buoy tied on. Carry them aboard one at a time (24 kg) and stow and lash them on the aft deck like any cargo. Five pots is a few trips: a job for two or three.
 2. **Steam to a potting ground:** rocky ground round headlands and islands, shown on the chartplotter as **hatched orange rings** ("(pots)"): the south side of Gull Rocks, the east side of the Skerry, round Craig Bheag, and off Tarran's north point. Now and then a local potter on the VHF mentions where the crab or lobster are.
@@ -400,9 +400,16 @@ A slow-burn fishing job over several voyages. It's being built in stages, so it'
 5. **Let them soak:** pots need time in the water: about **20 minutes of play** before they're worth hauling, and they keep fishing better up to 40 minutes. (Play time, not the game's clock: the time of day stands still unless you speed it up.) A buoy's **flag is red while it soaks and green when it's ready**, and at night a small light blinks on top of a ready one, but you can only tell from close by (within about 45 m), so you still have to go back to your marks.
 6. **Weather:** in a strong blow (over 11 m/s) pots drag along the bottom downwind, buoy and all: a squall moves them a metre or two a minute. Mark carefully and look about when you come back.
 
+7. **Hook the buoy:** take the boat hook from its clips and touch the buoy with its tip; it's on the hook. Draw it in alongside (it can't come through the boat). **Desktop:** with the hook in hand, click the buoy, then look at the water by the side to draw it in.
+8. **Bring it aboard:** once it's alongside, **VR:** reach over it with your other hand and grip; **desktop:** click. The buoy comes over the gunwale and the line leads in there.
+9. **Haul the line, hand over hand:** **VR:** grip the line where it comes over the side and pull it up and in toward you; let go, take a new hold, pull again (each pull hauls in a bit more than your arm's travel). **Desktop:** look at the line and click, a couple of metres a click. Near the end the pot breaks the surface, swinging and dripping, comes up the side and over onto the deck. **In a swell** (over about 1 m), stop pulling for a moment and the pot's weight drags the line back out: keep at it.
+10. **Open the pot:** **VR:** put your hand on it and pull the trigger; **desktop:** click it. The door folds down and you see what's in it: brown crabs, blue-black lobsters, maybe a little fish, a starfish or an old boot, or nothing. A good ground, a long soak, bait and calm weather all help.
+11. **Into the catch crate:** trigger (or click) again: the crabs and lobsters go into a catch crate on deck (a wooden fish box; a new one beside the pot when the last is full at 12), and the bycatch goes back over the side.
+12. **Bait and go again:** grip the blue **bait tub** on deck outside the wheelhouse's aft wall (desktop: click it) for a piece of bait, and let it go over the open, empty pot (desktop: click the pot). A baited pot catches about three times as much. Then shoot it again, or stack and lash the pots and head home. For now a catch crate landed at any harbour pays as a box of fish; proper prices come next.
+
 No timers on screen: the chart marks, the buoy flags and your memory are all you have. Pots lost (overboard loose, or let go in the shallows) are replaced on the pallet: pots are free for now.
 
-**Debug → Missions → Potting:** **Pots aboard** puts the pallet's pots on your aft deck; **To a ground** takes the boat to the nearest potting ground; **Ready** makes every pot in the water ready to haul; **On plotter** shows your pots on the chartplotter (the casual-mode view).
+**Debug → Missions → Potting:** **Pots aboard** puts the pallet's pots on your aft deck; **To a ground** takes the boat to the nearest potting ground; **Ready** makes every pot in the water ready to haul; **Full** makes them baited and soaked their best (the best catch the ground gives); **On plotter** shows your pots on the chartplotter (the casual-mode view).
 
 ### Wildlife
 

@@ -175,7 +175,7 @@ export interface MenuHost {
   potsAboard(): void;
   toPottingGround(): void;
   /** Debug: every pot in the water ready to haul; our pots shown on the chartplotter. */
-  potsReady(): void;
+  potsReady(full?: boolean): void;
   potsOnPlotter(): boolean;
   togglePotsOnPlotter(): void;
   /** The Debug tab is shown (a per-browser setting, off by default). */
@@ -606,6 +606,7 @@ export function mainMenu(h: MenuHost): MainMenu {
             { text: 'Pots aboard', press: () => h.potsAboard() },
             { text: 'To a ground', press: () => h.toPottingGround() },
             { text: 'Ready', press: () => h.potsReady() },
+            { text: 'Full', press: () => h.potsReady(true) },
             { text: 'On plotter', active: () => h.potsOnPlotter(), press: () => h.togglePotsOnPlotter() },
           ],
         },

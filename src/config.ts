@@ -2105,6 +2105,28 @@ export const CONFIG = {
     tipFirst: 240,
     /** Casual mode: your pots shown on the chartplotter too (off: the crew's marks on the paper chart are all you have). */
     showOnPlotter: false,
+    /**
+     * Hauling (milestone 3): hook the buoy with the boat hook (its tip within `hookReach`
+     * m of the buoy), bring it alongside and aboard (within `liftRange` m of the hull),
+     * then haul the line hand over hand: each pull takes in the hand's travel x
+     * `pullScale` (desktop: `deskPull` m a click). The line is the depth plus `slack` (m).
+     * In a swell over `slipFrom` m (significant height), stop pulling for `slipAfter` s and
+     * the pot's weight drags the line back out at `slipRate` m/s per m of swell over.
+     */
+    haul: { hookReach: 0.95, liftRange: 2.5, pullScale: 1.6, deskPull: 2.5, slack: 1.5, slipFrom: 1.0, slipAfter: 1.5, slipRate: 0.6 },
+    /**
+     * The catch, worked out when the pot comes up (a seeded random, the same for everyone):
+     * the expected haul is the ground's quality x the soak (0..1, potting.ts soakFactor) x
+     * the bait (`unbaited` without) x the weather (`roughFactor` if it's blowing over
+     * `roughWind` m/s). Up to `lobsterMax` lobsters and `crabMax` crabs at best. Off any
+     * ground the quality is `offGround`. A `bycatch` chance of a small fish, a starfish or
+     * (`bootChance` of those) an old boot.
+     */
+    catch: { lobsterMax: 2, crabMax: 6, offGround: 0.15, unbaited: 0.35, roughWind: 11, roughFactor: 0.7, bycatch: 0.25, bootChance: 0.12 },
+    /** A catch crate (a fish box of crab and lobster) holds this many. */
+    crateCapacity: 12,
+    /** The bait tub on deck (vessel x, z), outside the wheelhouse's aft wall, port side. */
+    baitBox: [-0.95, 1.85] as [number, number],
   },
 
   /**

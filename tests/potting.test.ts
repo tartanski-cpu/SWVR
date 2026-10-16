@@ -5,7 +5,9 @@ import type { Intent } from '../src/core/intents';
 import { stepWorld } from '../src/core/simulation';
 import { createWorld } from '../src/core/world';
 import { GROUND, spawnCargo } from '../src/cargo/cargo';
-import { buoyUp, groundAt, isPot, potReady, potsOwned, soakFactor } from '../src/potting/potting';
+import { buoyUp, catchFor, depthAt, groundAt, isPot, potReady, potsOwned, soakFactor } from '../src/potting/potting';
+import { placeVessel } from '../src/vessel/vesselControl';
+import * as THREE from 'three';
 import { createWeather } from '../src/environment/weather';
 import { POTTING_GROUNDS } from '../src/world/archipelago';
 import { groundHeight } from '../src/world/terrain';
@@ -161,5 +163,108 @@ describe('potting, milestone 2: soak, drift, the radio', () => {
     const msg = world.rescue?.radio;
     expect(msg?.kind).toBe('info');
     expect(POTTING_GROUNDS.some((g) => msg!.text.includes(g.name))).toBe(true);
+  });
+});
+
+describe('potting, milestone 3: hauling and the catch', () => {
+  /** Potting on, a ready pot shot just off the boat's starboard side at Gull Rocks, the hook in hand. */
+  function readyPot() {
+    const t = setup();
+    const { world, v, send, run, pots } = t;
+    const g = POTTING_GROUNDS[0];
+    placeVessel(v, g.x, 0, g.z, 0);
+    send('pottingOn');
+    const pot = pots()[0];
+    send('cargoTake', 1, pot.id, v.id);
+    // 5 m off the starboard side (heading north: starboard is +x).
+    const off = (dx: number, dz: number) => new THREE.Vector3(dx, 0, dz).applyQuaternion(new THREE.Quaternion().fromArray(v.orientation)).add(new THREE.Vector3().fromArray(v.position));
+    const at = off(7, 0);
+    send('cargoPlace', 1, pot.id, GROUND, [at.x, 0.5, at.z, 0]);
+    const shot = world.potting!.shot[0];
+    shot.shotAt -= CONFIG.potting.sinkTime + CONFIG.potting.soakBest;
+    send('hookTake', 1, undefined, v.id);
+    run(0.1);
+    return { ...t, shot, off, pid: Object.keys(world.players)[0] };
+  }
+
+  it('hooked, drawn alongside, aboard, hauled hand over hand: the pot comes over onto the deck with its catch', () => {
+    const { world, v, send, shot, off } = readyPot();
+    expect(potReady(world, shot)).toBe(true);
+    // Not aboard while it's still out there.
+    send('potHook', 1, shot.id, v.id);
+    expect(shot.haul?.phase).toBe('hooked');
+    send('potAboard', 1, shot.id, v.id);
+    expect(shot.haul?.phase).toBe('hooked');
+    // Draw it in to the side.
+    const side = off(3, 0);
+    for (let i = 0; i < 5; i++) send('potTow', 1, shot.id, v.id, [side.x, side.z]);
+    send('potAboard', 1, shot.id, v.id);
+    expect(shot.haul?.phase).toBe('line');
+    const line0 = shot.haul!.line!;
+    expect(line0).toBeCloseTo(depthAt(shot) + CONFIG.potting.haul.slack, 0);
+    // Hand over hand.
+    let pulls = 0;
+    while (world.potting!.shot.length && pulls < 100) {
+      send('potHaul', 1.5, shot.id, v.id);
+      pulls++;
+    }
+    expect(pulls).toBeGreaterThan(3);
+    const item = world.cargo[shot.id];
+    expect(item).toBeTruthy();
+    expect('vessel' in item.at).toBe(true);
+    expect(item.pot).toBeTruthy();
+    expect(item.pot!.open).toBe(false);
+  });
+
+  it('drawn in with the hook, the buoy stays outside the hull on its own side', () => {
+    const { v, send, shot, off } = readyPot();
+    send('potHook', 1, shot.id, v.id);
+    // The hook tip swung right across the deck to the far side.
+    const across = off(-3, 0);
+    for (let i = 0; i < 8; i++) send('potTow', 1, shot.id, v.id, [across.x, across.z]);
+    const local = new THREE.Vector3(shot.x - v.position[0], 0, shot.z - v.position[2]).applyQuaternion(new THREE.Quaternion().fromArray(v.orientation).invert());
+    expect(local.x).toBeGreaterThan(1.5);
+  });
+
+  it('opened, tipped into a catch crate; baited, it fishes better', () => {
+    const { world, v, send, shot } = readyPot();
+    send('potHook', 1, shot.id, v.id);
+    shot.haul = { by: Object.keys(world.players)[0], phase: 'line', vessel: v.id, lead: [2.2, 1.3, 3], line: 0.5, lastPull: world.time };
+    send('potHaul', 1, shot.id, v.id);
+    const item = world.cargo[shot.id];
+    // Force a good haul to check the crate.
+    item.pot = { crab: 3, lobster: 1, bycatch: 'boot', open: false, baited: false };
+    send('potEmpty', 1, item.id, v.id);
+    expect(Object.values(world.cargo).some((c) => c.from === 'potcatch')).toBe(false); // shut: nothing
+    send('potOpen', 1, item.id, v.id);
+    send('potEmpty', 1, item.id, v.id);
+    const crate = Object.values(world.cargo).find((c) => c.from === 'potcatch')!;
+    expect(crate.catch).toEqual({ crab: 3, lobster: 1 });
+    expect(item.pot).toMatchObject({ crab: 0, lobster: 0, bycatch: null });
+    send('potBait', 1, item.id, v.id);
+    expect(item.pot!.baited).toBe(true);
+    // Baited vs not, same everything else: more on average.
+    const base = { id: 'p', owner: v.id, x: 0, z: 0, shotAt: world.time - 1e5, ground: POTTING_GROUNDS[2].id };
+    let baited = 0;
+    let plain = 0;
+    for (let i = 0; i < 200; i++) {
+      const b = catchFor(world, { ...base, id: `p${i}`, baited: true });
+      const n = catchFor(world, { ...base, id: `p${i}`, baited: false });
+      baited += b.crab + b.lobster;
+      plain += n.crab + n.lobster;
+    }
+    expect(baited).toBeGreaterThan(plain * 1.8);
+  });
+
+  it('let the hook go and the buoy comes off it; in a heavy swell an idle line slips back', () => {
+    const { world, v, send, run, shot } = readyPot();
+    send('potHook', 1, shot.id, v.id);
+    send('hookStow', 1, undefined, v.id);
+    run(0.1);
+    expect(shot.haul).toBeUndefined();
+    shot.haul = { by: 'x', phase: 'line', vessel: v.id, lead: [2.2, 1.3, 3], line: 3, lastPull: world.time };
+    world.environment.waves = [{ amplitude: 1.2, period: 8, directionDeg: 0, steepness: 0.2, phase: 0 }]; // Hs 3.4 m
+    run(5);
+    expect(shot.haul!.line!).toBeGreaterThan(3);
   });
 });

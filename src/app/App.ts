@@ -61,6 +61,7 @@ import { LaserPointer } from './laserPointer';
 import { SoundBoard } from './soundBoard';
 import { TowlineView } from '../tow/towlineView';
 import { PotView } from '../potting/potView';
+import { PotHands, type PotHandsContext } from '../potting/potHands';
 import { PainterView } from '../vessel/view/painterView';
 import { cleatName, painterPlan, skiffCleatLocal } from '../vessel/physics/painter';
 import { Cleat } from '../controls/deckGear';
@@ -207,6 +208,7 @@ export class App {
   private readonly logView = new LogView();
   private readonly trawlView = new TrawlView();
   private readonly potView = new PotView();
+  private readonly potHands = new PotHands();
   private readonly targetsView = new TargetsView();
   private readonly desktopHand = new DesktopHand();
   private readonly deskHandW = new THREE.Vector3();
@@ -377,6 +379,7 @@ export class App {
     this.binoculars = new Binoculars(this.camera);
     if (tugView) this.binoculars.stow(tugView.root);
     if (tugView) for (const g of this.gear) g.mount(tugView.root, CONFIG.handGear[g.kind].bracket);
+    if (tugView) this.potHands.mount(tugView.root, this.scene);
     this.scene.add(this.handGearView.root);
     this.scene.add(this.towline.root, this.painter.root, this.fireView.root, this.jetView.root, this.logView.root, this.trawlView.root, this.potView.root);
     this.setupBridge();
@@ -681,7 +684,9 @@ export class App {
     this.painter.update(this.world, this.vesselRoots, this.renderWaves);
     this.logView.update(this.world, this.renderWaves, renderTime);
     this.trawlView.update(this.world, this.vesselRoots.get(this.testVesselId) ?? null, this.renderWaves, renderTime);
-    this.potView.update(this.world, this.renderWaves, this.world.time, this.focus, darkness);
+    this.potView.update(this.world, this.renderWaves, this.world.time, this.focus, darkness, this.vesselRoots);
+    // The bait tub only while potting's on.
+    this.potHands.tub.visible = !!this.world.potting;
     // Potting switched on in Settings: on in our game too, if it's ours (alone or hosting).
     if (userSettings.potting && !this.world.potting && (this.host || !this.client)) this.pushVesselIntent('pottingOn', 1);
     this.fireView.update(this.world, this.renderWaves, renderTime, dt);
@@ -1675,9 +1680,9 @@ export class App {
         if (this.world.players[this.localPlayerId].aboardVesselId !== this.testVesselId) this.toggleBoardTo(true);
         this.overlay.notify('On a potting ground: shoot the pots over the side', 3);
       },
-      potsReady: () => {
-        this.pushVesselIntent('potDebugReady', 1);
-        this.overlay.notify('Pots in the water: ready to haul', 2);
+      potsReady: (full) => {
+        this.pushVesselIntent('potDebugReady', full ? 2 : 1);
+        this.overlay.notify(full ? 'Pots in the water: baited and soaked their best (a full catch on a good ground)' : 'Pots in the water: ready to haul', 2.5);
       },
       potsOnPlotter: () => !!this.bridge?.chart.showPots,
       togglePotsOnPlotter: () => {
@@ -2139,6 +2144,10 @@ export class App {
       for (const h of ['left', 'right'] as const) if (this.cargoHands.busy(h)) this.busyHands[h] = true;
       this.rescueHands.updateXR(this.rescueCtx(), this.hands, this.busyHands, this.frameDt);
       for (const h of ['left', 'right'] as const) if (this.rescueHands.busy(h)) this.busyHands[h] = true;
+      if (this.world.potting) {
+        const onPots = this.potHands.updateXR(this.potCtx(), this.hands, this.busyHands, this.frameDt);
+        for (const h of ['left', 'right'] as const) if (onPots[h] || this.potHands.busy(h)) this.busyHands[h] = true;
+      }
       if (this.board && !this.noteKeys.isOpen) {
         const onBoard = this.board.updateXR(this.boardCtx(), this.hands, this.busyHands);
         for (const h of ['left', 'right'] as const) if (onBoard[h]) this.busyHands[h] = true;
@@ -2179,14 +2188,23 @@ export class App {
         // the mouse already holds rescue gear or cargo.
         const free = !this.cargoHands.carrying;
         const board = free && !this.rescueHands.deskBusy && this.board ? this.board.label(this.boardCtx(), ray) : null;
+        // Pot work (the buoy on the hook, the line, the bait tub) before the rescue gear's own label.
+        const pots = free && !board && this.world.potting ? this.potHands.updateDesktop(this.potCtx(), ray, this.frameDt) : null;
         const gear = free && !board ? this.rescueHands.updateDesktop(this.rescueCtx(), ray, this.headW, this.headFwd, this.frameDt) : null;
-        return board ?? gear ?? this.cargoHands.updateDesktop(this.cargoCtx(), ray, this.headW, this.headFwd);
+        return board ?? pots ?? gear ?? this.cargoHands.updateDesktop(this.cargoCtx(), ray, this.headW, this.headFwd);
       },
       click: (ray: THREE.Ray | null) => {
         this.camera.getWorldDirection(this.headFwd);
         if (!this.cargoHands.carrying && !this.rescueHands.deskBusy && this.board?.click(this.boardCtx(), ray)) return true;
+        if (!this.cargoHands.carrying && this.world.potting && this.potHands.desktopClick(this.potCtx(), ray)) return true;
         if (!this.cargoHands.carrying && this.rescueHands.desktopClick(this.rescueCtx(), ray, this.headFwd)) return true;
-        return this.cargoHands.desktopClick(this.cargoCtx(), ray);
+        const took = this.cargoHands.desktopClick(this.cargoCtx(), ray);
+        // Bait in hand goes into a pot (above) or is dropped by any other click.
+        if (this.potHands.bait === 'desk') {
+          this.potHands.dropBait();
+          if (!took) this.overlay.notify('Bait dropped', 2);
+        }
+        return took;
       },
     };
   }
@@ -2269,6 +2287,22 @@ export class App {
 
   private pushBoardIntent(control: string, ref: string, args?: number[]): void {
     this.intents.push({ playerId: this.localPlayerId, targetId: ENVIRONMENT_ID, control, value: 1, ref, args });
+  }
+
+  /** The pot hands' view of the app (pots are worked from the workboat). */
+  private potCtx(): PotHandsContext {
+    return {
+      world: this.world,
+      playerId: this.localPlayerId,
+      vesselId: this.testVesselId,
+      vesselRoot: this.vesselRoots.get(this.testVesselId),
+      waves: this.renderWaves,
+      rescue: this.rescueHands,
+      push: (control, ref, value, args) => this.intents.push({ playerId: this.localPlayerId, targetId: this.testVesselId, control, value, ref, args }),
+      notify: (text) => this.overlay.notify(text, 2.5),
+      pulse: (h, i, ms) => this.xrInput.pulse(h, i, ms),
+      stowHook: () => this.rescueHands.stowHook(this.rescueCtx()),
+    };
   }
 
   /** The rescue hands' view of the app. */
@@ -2612,6 +2646,7 @@ export class App {
       notify: (text) => this.overlay.notify(text, 2.5),
       pulse: (h, i, ms) => this.xrInput.pulse(h, i, ms),
       placedOnDeck: () => this.sound.rescue.snap(),
+      potAction: this.world.potting ? (c, doIt) => this.potHands.potAction(this.potCtx(), c, doIt) : undefined,
     };
   }
 
