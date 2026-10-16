@@ -1630,7 +1630,9 @@ How to come back to it:
   - **Owner's shortlist** (marked ★ in the viewer, `shortlist: true`): sjark netter, catamaran landing craft, pilot boat, harbour tug, limit seiner, crew transfer catamaran. The gillnetter, landing craft, pushboat and multicat stay as references.
   - Hull and houses only, by design: deck gear, masts, rails, ramps, push knees and controls come as modules later. The owner's modular-boat plan decides how the section format is used.
 
-## Reference-boat pipeline (owner brief; proposal only, waiting for go-ahead)
+## Reference-boat pipeline (owner brief; PAUSED by the owner)
+
+**Paused:** the owner has Claude Cowork doing the photo research and writing the module descriptions, to bring to Claude Code later. Don't build anything for it until then; the proposal's open points still apply when it resumes.
 
 A research side task that doesn't change the game. It turns photos and spec sheets of real boats into hull shells with sockets, and grows the module catalogue (`docs/PIPELINE_REFERENCE_BOATS.md`). The proposal is `docs/PIPELINE_PROPOSAL.md`: folder layout, brief schema, milestones P1-P6 lined up against the modular milestones (the shell generator after M6, modules after M5, recipes after M7). It raises five points for the owner before P1:
 - recognisable copies of named products versus the "original designs only" rule (recommended: references set type and proportions; our own names and details);

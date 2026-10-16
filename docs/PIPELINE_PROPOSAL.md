@@ -1,6 +1,6 @@
 # Reference-boat pipeline: proposal
 
-Status: **proposal, waiting for the owner's go-ahead.** No code yet. The owner's brief is `docs/PIPELINE_REFERENCE_BOATS.md`. The contracts it outputs to are in `docs/MODULAR_BOATS.md` (on the `next` branch; that work is at M3a).
+Status: **paused by the owner.** Claude Cowork is doing the photo research and writing the module descriptions; they'll be brought to Claude Code later. No code yet. The owner's brief is `docs/PIPELINE_REFERENCE_BOATS.md`. The contracts it outputs to are in `docs/MODULAR_BOATS.md` (on the `next` branch; that work is at M3a).
 
 This document has four parts:
 
