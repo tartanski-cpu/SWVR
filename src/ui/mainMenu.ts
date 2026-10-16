@@ -206,7 +206,7 @@ export function mainMenu(h: MenuHost): MainMenu {
     active: () => get() === value,
     press: () => set(value),
   });
-  const header: MenuRow[] = [{ label: '', buttons: [{ text: `SWVR  ${BUILD}`, weight: 3 }, { text: 'Close ✕', press: () => h.close(), weight: 1.4 }] }];
+  const header: MenuRow[] = [{ label: '', buttons: [{ text: `Workboat World  ${BUILD}`, weight: 3 }, { text: 'Close ✕', press: () => h.close(), weight: 1.4 }] }];
 
   // ---------------------------------------------------------------------------------
   // The menu is laid out for playing: Voyage, Boat, Cargo, Office and Crew are the game;

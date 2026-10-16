@@ -1535,6 +1535,8 @@ The brief's "no new particle effects" rule was flagged: the fire is drawn withou
 
 ## Release: Workboat World v1.0
 
+**Renamed for players:** the game is now **Workboat World** wherever players see a name: the browser tab (`index.html`), the menu header (`ui/mainMenu.ts`), the README title, and the hull study page. Kept as SWVR on purpose: the repository and live URL (renaming the repo changes the address), the browser save keys (`swvr.*`: career, settings, chart marks, volumes; renaming would lose everyone's saves) and the multiplayer room ids (`swvr-room-*`; old and new builds couldn't meet).
+
 The owner declared this point **v1.0 of the game, "Workboat World"** (after the mooring cleats), before the next big step (modular boats). It is marked in git with the tag **`v1.0`**: a permanent bookmark on that exact commit, which later work doesn't move. The game code is that of commit `f630834` (the cleats). The owner creates the tag on GitHub as a Release (Claude's sessions can only push to their own branch, not tags); if it's ever missing, tag `f630834` or a later commit with only doc changes.
 
 How to come back to it:

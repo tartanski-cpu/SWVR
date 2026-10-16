@@ -4,10 +4,10 @@ Standing instructions for every Claude Code session on SWVR. Read this first, th
 
 ## The project
 
-SWVR is a browser WebXR sea rescue and operations game: chunky low-poly workboats you operate from the inside, with physical controls. It is played on a Meta Quest 3 (90 Hz target) and on desktop, solo or in peer-to-peer multiplayer.
+SWVR (players see it as **Workboat World**; v1.0 is tagged) is a browser WebXR sea rescue and operations game: chunky low-poly workboats you operate from the inside, with physical controls. It is played on a Meta Quest 3 (90 Hz target) and on desktop, solo or in peer-to-peer multiplayer.
 
 - TypeScript, Vite, Three.js. The only runtime dependencies are `three` and `peerjs`.
-- Live at https://tartanski-cpu.github.io/SWVR/. Every push to the dev branch deploys it.
+- Live at https://tartanski-cpu.github.io/SWVR/. The repo, URL, save keys (`swvr.*`) and multiplayer room ids (`swvr-room-*`) keep the old name on purpose: renaming them would lose players' saves and split multiplayer between versions. Every push to the dev branch deploys it.
 - **The owner is a naval architect and doesn't write code.** Naval-architecture terms are welcome. Explain everything else in plain words. The owner tests in VR on the Quest 3 and on desktop.
 
 ## Standing rules (agreed with the owner)
