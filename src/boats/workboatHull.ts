@@ -9,6 +9,10 @@
  *   M2  throttle    the throttle lever's place (M3: moved into the console's slots)
  *   M3  helm        the helm console (its own slots hold the controls and dash screens)
  *       navDisplay  the NAV / WIND screen hung under the roof
+ *       overhead    the overhead switch panel (its slots: deck light switches, the FM set)
+ *       breakerPanel     the voltmeter and breakers, on the starboard wall by the helm
+ *       batteryMaster    the battery master and selector, low on the aft wall by the door
+ *       batterySelector
  */
 import { CONFIG } from '../config';
 import type { HullDefinition } from '../modular/hull';
@@ -25,6 +29,12 @@ export const WORKBOAT_HULL: HullDefinition = {
   sockets: [
     { id: 'helm', type: 'helm.console', transform: { position: wb.bridge.console.position }, label: 'Helm console, across the front of the wheelhouse' },
     { id: 'navDisplay', type: 'cabin.overhead', transform: { position: wb.bridge.navDisplay.position }, label: 'Overhead, on the centreline ahead of the helm' },
+    { id: 'overhead', type: 'cabin.overhead', transform: { position: wb.overheadPanel.position }, label: 'Under the roof, above and ahead of the helm' },
+    // Facing inboard (-x) from the starboard wall, tilted back so its face looks up at you.
+    { id: 'breakerPanel', type: 'wall.panel', transform: { position: wb.electrics.panel.position, rotationDeg: [-wb.electrics.panel.tiltDeg, -90, 0] }, label: 'Starboard wall, under the sill by the helm' },
+    // Facing forward, into the wheelhouse.
+    { id: 'batteryMaster', type: 'wall.panel', transform: { position: wb.electrics.masterSwitch.position, rotationDeg: [0, 180, 0] }, label: 'Aft wall, starboard of the door, low' },
+    { id: 'batterySelector', type: 'wall.panel', transform: { position: wb.electrics.selectorSwitch.position, rotationDeg: [0, 180, 0] }, label: 'Aft wall, beside the battery master' },
   ],
   // Until the electrics and the engine are modules (M4), the hull stands in for today's
   // code: 12 V on the existing circuits, deck hydraulics, the engine's power take-off, diesel.

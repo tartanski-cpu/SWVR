@@ -61,6 +61,11 @@ export interface BusKeySpec {
   persist?: boolean;
   /** An intent key the named system may also set: a switch that follows its machine. */
   followedBy?: string;
+  /**
+   * A press, not a position (TUNE: next station): setting it does something once, and it
+   * always reads its default. Not recorded by the golden runs (it has nothing to show).
+   */
+  press?: boolean;
   /** Old names that still find this key. Never removed. */
   aliases?: readonly string[];
   /** One plain sentence: what it is, for the debug viewer and the key table. */

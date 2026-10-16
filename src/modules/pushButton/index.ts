@@ -31,11 +31,13 @@ export const PUSH_BUTTON: ModuleDefinition<PushButtonConfig> = {
   ],
   ports: { press: { dir: 'write' } },
   view: {
-    build({ config, keys, socket }) {
+    build({ config, keys, socket, share }) {
       const litKey = config.lit ? resolveKey(config.lit.key) : null;
       const is = config.lit?.is ?? true;
       const litWhen = litKey ? (s: VesselState) => busOf(s).get(litKey) === is : undefined;
       const button = new Button(socket.id, keys.press, config.label, config.mode, colourOf(config.color, 0xd0d0d0), litWhen);
+      // Drawn with every other module's button cap as one shared part (its colour and glow too).
+      share(button.cap, 'buttonCap');
       return { staticParts: [], movingParts: [], controls: [button], labels: config.engrave ? [{ text: config.engrave, at: [0, 0, 0] }] : [], update: () => {} };
     },
   },

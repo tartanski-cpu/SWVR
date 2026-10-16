@@ -205,6 +205,8 @@ Today the bridge has about 35 separately drawn moving controls: every toggle bat
 
 Each control owns one instance slot, and its hit test uses the invisible proxy it already keeps. This changes `Toggle`, `Button` and friends internally, with no visible difference. I recommend it, and the milestones measure it.
 
+**As built in M3b** (`modular/sharedParts.ts`): a module hands the assembler its control's own moving mesh (`ctx.share(toggle.batMesh, 'toggleBat')`). The mesh is hidden but kept, so the control still moves it and the pointer still hits it; each frame its place, colour and glow are copied to its instance (uploaded only on change). The glow (hover, a lit button) needs a per-instance emissive, which three doesn't have, so the shared material adds one in its shader. The breaker bats are toggle bats like any other. The lamps stay their own panels' instanced meshes (already one draw each). Controls not yet modules (the trawl and winch buttons, the door buttons) keep their own meshes until they are converted.
+
 **One deviation from Part C:** the six dash screens already share **one** canvas atlas (one texture, one draw call), which is better than "one texture each". I'll keep the shared atlas: each display module paints its own region of it.
 
 ### 2.11 Which bus keys are saved
@@ -789,14 +791,14 @@ Sizes: S is about a session, M two or three, L more.
   - Desktop: drag the lever.
   - Automated: the lever's bus value round-trips through save and load; golden runs equal; draw calls equal.
 
-### M3: the bridge as modules (L, in three stops). **3a done.**
+### M3: the bridge as modules (L, in three stops). **3a and 3b done.**
 
 - **3a, console and helm. Done; see PROGRESS.**
   - `console.standard` with nested slots, then the wheel, buttons, key, toggles, joysticks, lamps and placard.
   - The six screens as instrument modules on the shared atlas.
   - Moved: the binoculars are a tool the App hands to the player, not a bridge part; they stay as they are until the deck gear (M5). The shared instanced parts move to 3b, where they pay off: most of the bridge's toggles are on the overhead panel and the breaker panel.
   - **Test:** a cold start by the card; every switch; searchlight and monitor joysticks; the screens at night. Draw calls at the helm not up; moving parts counted.
-- **3b, power controls.**
+- **3b, power controls. Done; see PROGRESS.**
   - The overhead panel, `panel.breakers` with the voltmeter, the battery master and selector, and the lamps.
   - Shared instanced parts for toggle bats, button caps and lamps (2.10), across the console, the overhead panel and the breakers.
   - Still the *views and controls* only: the electrical simulation stays as it is until M4.

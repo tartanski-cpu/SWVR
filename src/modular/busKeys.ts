@@ -190,6 +190,23 @@ export const BUS_KEYS = {
   // ── Radios ──
   'fm.on': control('fmOn', 'FM radio power.', { aliases: ['fmOn'] }),
   'fm.station': setting('fmStation', [0, CONFIG.fmRadio.stations.length - 1], 'index', 'FM station, an index into CONFIG.fmRadio.stations.', { integer: true, aliases: ['fmStation'] }),
+  'fm.tune': {
+    type: 'boolean',
+    kind: 'intent',
+    writer: 'legacy',
+    default: false,
+    doc: 'TUNE pressed: on to the next station, switching the set on if it was off.',
+    press: true,
+    aliases: ['fmTune'],
+    bind: {
+      get: () => false,
+      set: (s, v) => {
+        if (!v) return;
+        if (s.controls.fmOn) s.controls.fmStation = (s.controls.fmStation + 1) % CONFIG.fmRadio.stations.length;
+        s.controls.fmOn = 1;
+      },
+    },
+  },
 
   // ── Electrics (12 V) ──
   'electrical.master': {

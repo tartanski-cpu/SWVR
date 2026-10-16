@@ -718,10 +718,12 @@ export class App {
         // Not saved.
       }
     }
-    if (this.bridge && testVessel) {
+    if (this.bridge?.fmSet && testVessel) {
+      // The station plays near the FM set (a module in the overhead panel); its display shows
+      // what the player is doing (tuning, no signal).
       const c = testVessel.controls;
-      this.fmRadio.update(c.fmOn > 0 && isPowered(testVessel, 'radio'), c.fmStation, this.bridge.overhead.root.getWorldPosition(this.tmpV).distanceTo(this.focus));
-      this.bridge.overhead.fmStatus = this.fmRadio.status;
+      this.fmRadio.update(c.fmOn > 0 && isPowered(testVessel, 'radio'), c.fmStation, this.bridge.fmSet.getWorldPosition(this.tmpV).distanceTo(this.focus));
+      this.bridge.setLocal('fm.status', this.fmRadio.status);
     }
     if (this.world.rescue?.active) {
       // Spatial sounds (the survivor's whistle) hear from the head.
@@ -888,7 +890,8 @@ export class App {
       const wh = this.testDef.layout.wheelhouse;
       const n = countBoatParts(root, (p) => Math.abs(p.x) < wh.halfWidth && p.z > wh.front && p.z < wh.aft && p.y > wh.floorY - 0.2 && p.y < wh.roofY);
       const mods = this.bridge?.moduleList ?? [];
-      this.partsText = `\nboat parts drawn ${n.drawn} (wheelhouse ${n.inside})\nmodules ${mods.length}: ${mods.join(', ') || 'none'}`;
+      const shared = Object.entries(this.bridge?.sharedCounts ?? {}).map(([k, c]) => `${c} ${k}`);
+      this.partsText = `\nboat parts drawn ${n.drawn} (wheelhouse ${n.inside})${shared.length ? `\nshared parts (one draw each): ${shared.join(', ')}` : ''}\nmodules ${mods.length}: ${mods.join(', ') || 'none'}`;
     }
     return this.partsText;
   }

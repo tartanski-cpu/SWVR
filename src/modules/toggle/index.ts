@@ -2,7 +2,8 @@
  * Module control.toggle: a toggle switch (modular boats M3), two- or three-way. It throws
  * whatever key the recipe binds it to ("bind": { "value": "lights.nav" }); it has no
  * default, because which switch it is is the boat's business. The existing Toggle control
- * does the rest. Its engraved label lies just aft of it.
+ * does the rest. Its engraved label lies just aft of it. Its bat is drawn with every other
+ * toggle bat on the boat, as one shared part (one draw call).
  */
 import { Toggle } from '../../controls/Toggle';
 import { busOf } from '../../modular/bus';
@@ -25,9 +26,10 @@ export const TOGGLE: ModuleDefinition<ToggleConfig> = {
   validateConfig: (c) => (c.positions === 2 || c.positions === 3 ? [] : ['positions should be 2 or 3']),
   ports: { value: { dir: 'write' } },
   view: {
-    build({ config, keys, socket }) {
+    build({ config, keys, socket, share }) {
       const key = keys.value;
       const toggle = new Toggle(socket.id, key, config.label, (s) => busOf(s).num(key), config.positions);
+      share(toggle.batMesh, 'toggleBat');
       return { staticParts: [], movingParts: [], controls: [toggle], labels: config.engrave ? [{ text: config.engrave, at: [0, 0, 0] }] : [], update: () => {} };
     },
   },

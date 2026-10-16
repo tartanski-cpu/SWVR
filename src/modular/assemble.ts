@@ -8,7 +8,8 @@
  *   - their fixed parts, to be merged into the boat's shared mesh (for now by the Bridge,
  *     which bakes every part marked fixed into its one draw call, as before);
  *   - their engraved labels, drawn together in one mesh;
- *   - their screens, on one display atlas: one texture, one draw call.
+ *   - their screens, on one display atlas: one texture, one draw call;
+ *   - their shared moving parts (switch bats, button caps): one instanced mesh per kind.
  *
  * The simulation side joins when the first module with a sim half is converted (M4).
  */
@@ -22,6 +23,7 @@ import { busOf } from './bus';
 import { hullQueries, type HullLibrary } from './hull';
 import type { ModuleViewInstance } from './module';
 import { PALETTE } from './palette';
+import { SharedParts } from './sharedParts';
 import { flattenMounts, validateRecipe, type ModuleLibrary, type Recipe } from './recipe';
 import type { Transform } from './socket';
 
@@ -41,12 +43,15 @@ export interface BuiltModule {
   instance: ModuleViewInstance<unknown>;
 }
 
-/** An engraved label, placed on the boat (vessel axes). */
+/** An engraved label, placed on the boat (vessel axes). See EngravedLabel. */
 export interface PlacedLabel {
   text: string;
   at: [number, number, number];
   title: boolean;
   yaw: number;
+  size?: readonly [number, number];
+  offset?: number;
+  underside?: boolean;
 }
 
 /** A boat's modules, drawn. */
@@ -61,6 +66,12 @@ export interface AssembledView {
   labels: PlacedLabel[];
   /** Their screens, merged (one draw call), or null if none. */
   screens: THREE.Mesh | null;
+  /** Their shared moving parts: one instanced mesh per kind (hang them with the modules). */
+  shared: THREE.InstancedMesh[];
+  /** How many parts each shared mesh draws (debug overlay). */
+  sharedCounts: Record<string, number>;
+  /** What only this machine knows, for the modules' views ('fm.status'). */
+  setLocal(name: string, value: string): void;
   /** Is there a module on this socket path? */
   has(path: string): boolean;
   /**
@@ -86,6 +97,8 @@ export function assembleView(recipe: Recipe, def: VesselDef, lib: { hulls: HullL
   const staticParts: THREE.BufferGeometry[] = [];
   const labels: PlacedLabel[] = [];
   const atlas = new DisplayAtlas();
+  const shared = new SharedParts();
+  const local = new Map<string, string>();
   const v = new THREE.Vector3();
   for (const m of mounted) {
     const parent = m.path.includes('/') ? places.get(m.path.slice(0, m.path.lastIndexOf('/'))) : undefined;
@@ -100,9 +113,8 @@ export function assembleView(recipe: Recipe, def: VesselDef, lib: { hulls: HullL
       keys: m.keys,
       hull,
       palette: PALETTE,
-      instance: () => {
-        throw new Error('shared instanced parts are not built yet');
-      },
+      share: (mesh, kind) => shared.share(mesh, kind),
+      local: (name) => local.get(name) ?? '',
       display: (screen, plane, circuit) => atlas.add(screen, plane.applyMatrix4(place), circuit),
     });
     const root = new THREE.Group();
@@ -113,12 +125,14 @@ export function assembleView(recipe: Recipe, def: VesselDef, lib: { hulls: HullL
     for (const g of instance.staticParts) staticParts.push(g.applyMatrix4(place));
     for (const l of instance.labels ?? []) {
       v.set(...l.at).applyMatrix4(place);
-      labels.push({ text: l.text, at: [v.x, v.y, v.z], title: !!l.title, yaw: l.yaw ?? 0 });
+      labels.push({ text: l.text, at: [v.x, v.y, v.z], title: !!l.title, yaw: l.yaw ?? 0, size: l.size, offset: l.offset, underside: l.underside });
     }
     controls.push(...instance.controls);
     modules.push({ path: m.path, id: m.def.id, root, instance });
   }
   const screens = atlas.finish();
+  // After every module is placed: the shared parts take their places from their modules.
+  const sharedMeshes = shared.finish();
   const paths = new Set(mounted.map((m) => m.path));
   return {
     modules,
@@ -126,12 +140,16 @@ export function assembleView(recipe: Recipe, def: VesselDef, lib: { hulls: HullL
     staticParts,
     labels,
     screens,
+    shared: sharedMeshes,
+    sharedCounts: shared.counts(),
+    setLocal: (name, value) => local.set(name, value),
     has: (path) => paths.has(path),
     update(state, dt, s) {
       if (modules.length) {
         const read = busOf(state);
         for (const m of modules) m.instance.update(read, undefined, dt);
       }
+      shared.update();
       if (s?.inView) atlas.update(state, s.def, dt, s.env);
     },
   };

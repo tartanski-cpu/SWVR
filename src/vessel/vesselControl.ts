@@ -238,13 +238,10 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
       s.controls.obGear = g;
       break;
     }
-    case 'fmTune': {
-      // TUNE: on to the next station (switching the set on if it was off).
-      const n = CONFIG.fmRadio.stations.length;
-      if (s.controls.fmOn) s.controls.fmStation = (s.controls.fmStation + 1) % n;
-      s.controls.fmOn = 1;
+    case 'fmTune':
+      // TUNE: on to the next station (the rule is the 'fm.tune' bus key's).
+      applyBusIntent(s, 'fm.tune', 1, intent.playerId);
       break;
-    }
     case 'fmStation': {
       const n = CONFIG.fmRadio.stations.length;
       if (Number.isInteger(intent.value) && intent.value >= 0 && intent.value < n) {

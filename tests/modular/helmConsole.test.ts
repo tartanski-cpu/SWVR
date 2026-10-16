@@ -60,7 +60,8 @@ describe('the helm console, as modules', () => {
   it('every control stands where it stood, under the same id, sending a key that means its old channel', () => {
     const a = build();
     for (const m of a.modules) m.root.updateMatrixWorld(true);
-    expect(a.controls.map((c) => c.id).sort()).toEqual(BEFORE.map(([id]) => id).sort());
+    const onConsole = a.modules.filter((m) => m.path.startsWith('helm/')).flatMap((m) => m.instance.controls);
+    expect(onConsole.map((c) => c.id).sort()).toEqual(BEFORE.map(([id]) => id).sort());
     for (const [id, at, channel] of BEFORE) {
       const c = a.controls.find((x) => x.id === id) as Control;
       near(c.root.getWorldPosition(new THREE.Vector3()), at);

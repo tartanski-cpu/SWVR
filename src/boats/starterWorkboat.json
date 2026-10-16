@@ -1,6 +1,6 @@
 {
   "id": "vessel.starter-workboat",
-  "version": 2,
+  "version": 3,
   "name": "Workboat",
   "hull": "hull.workboat-12m",
   "modules": [
@@ -32,6 +32,19 @@
         { "socket": "engineMonitor", "module": "instrument.screen", "config": { "screen": "engineMonitor" } }
       ]
     },
-    { "socket": "navDisplay", "module": "instrument.screen", "config": { "screen": "nav", "mount": "hung" } }
+    { "socket": "navDisplay", "module": "instrument.screen", "config": { "screen": "nav", "mount": "hung" } },
+    {
+      "socket": "overhead",
+      "module": "panel.overhead",
+      "modules": [
+        { "socket": "deckFore", "module": "control.toggle", "config": { "label": "Foredeck floodlight" }, "bind": { "value": "lights.deckFore" } },
+        { "socket": "deckAft", "module": "control.toggle", "config": { "label": "Aft deck floodlight" }, "bind": { "value": "lights.deckAft" } },
+        { "socket": "railLights", "module": "control.toggle", "config": { "label": "Rail lights" }, "bind": { "value": "lights.rail" } },
+        { "socket": "fm", "module": "radio.fm" }
+      ]
+    },
+    { "socket": "breakerPanel", "module": "panel.breakers" },
+    { "socket": "batteryMaster", "module": "switch.battery-master" },
+    { "socket": "batterySelector", "module": "switch.battery-selector" }
   ]
 }

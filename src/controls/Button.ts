@@ -9,7 +9,8 @@ import { Control } from './Control';
  */
 export class Button extends Control {
   readonly kind = 'press' as const;
-  private readonly cap: THREE.Mesh;
+  /** The cap (modules draw it as a shared part: modular/sharedParts.ts). */
+  readonly cap: THREE.Mesh;
   private pressed = false;
 
   constructor(

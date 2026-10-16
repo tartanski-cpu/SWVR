@@ -5,9 +5,14 @@
  */
 import { createHullLibrary } from '../modular/hull';
 import { createModuleLibrary, parseRecipe, validateRecipe, type Recipe } from '../modular/recipe';
+import { BATTERY_MASTER } from '../modules/batteryMaster';
+import { BATTERY_SELECTOR } from '../modules/batterySelector';
+import { BREAKER_PANEL } from '../modules/breakerPanel';
 import { CONSOLE } from '../modules/console';
+import { FM_RADIO } from '../modules/fmRadio';
 import { JOYSTICK } from '../modules/joystick';
 import { KEY_SWITCH } from '../modules/keySwitch';
+import { OVERHEAD_PANEL } from '../modules/overheadPanel';
 import { PUSH_BUTTON } from '../modules/pushButton';
 import { SCREEN } from '../modules/screen';
 import { START_CARD } from '../modules/startCard';
@@ -20,7 +25,10 @@ import { WORKBOAT_HULL } from './workboatHull';
 
 export const HULLS = createHullLibrary([WORKBOAT_HULL]);
 
-export const MODULES = createModuleLibrary([CONSOLE, WHEEL, THROTTLE_LEVER, TOGGLE, PUSH_BUTTON, KEY_SWITCH, JOYSTICK, WARNING_LAMPS, START_CARD, SCREEN]);
+export const MODULES = createModuleLibrary([
+  CONSOLE, WHEEL, THROTTLE_LEVER, TOGGLE, PUSH_BUTTON, KEY_SWITCH, JOYSTICK, WARNING_LAMPS, START_CARD, SCREEN,
+  OVERHEAD_PANEL, FM_RADIO, BREAKER_PANEL, BATTERY_MASTER, BATTERY_SELECTOR,
+]);
 
 export const LIBRARY = { hulls: HULLS, modules: MODULES };
 

@@ -59,6 +59,11 @@ export class InteriorDetail {
       for (const o of root.children) {
         if (!o.visible) continue; // already hidden (baked fixed parts)
         if (holdsKept(o) || hasLight(o)) continue;
+        // The shared switch bats and button caps span the wheelhouse, but each is small.
+        if (o.userData.interiorDetail) {
+          this.small.push(o);
+          continue;
+        }
         this.box.setFromObject(o);
         if (this.box.isEmpty()) continue;
         this.box.applyMatrix4(inv);

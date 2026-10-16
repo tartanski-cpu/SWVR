@@ -46,7 +46,7 @@ describe('bus key registry', () => {
       const [lo, hi] = spec.range ?? [-10, 10];
       return now === hi ? lo : hi;
     };
-    const keys = allKeys().filter((k) => specOf(k).bind.set);
+    const keys = allKeys().filter((k) => specOf(k).bind.set && !specOf(k).press);
     expect(keys.length).toBeGreaterThan(40);
     for (const k of keys) {
       const v = other(k);
@@ -57,6 +57,16 @@ describe('bus key registry', () => {
     expect(s.controls.lever).toBe(1);
     expect(s.engine.key).toBe(1);
     expect(s.electrics!.breakers.radio).toBe(0);
+  });
+
+  it('a press key does its thing once and reads its default: TUNE steps the station', () => {
+    const s = createVesselState('v', 'workboat');
+    const bus = busOf(s);
+    bus.set('fm.tune', true); // off: switches the set on, on the same station
+    expect([s.controls.fmOn, s.controls.fmStation]).toEqual([1, 0]);
+    bus.set('fm.tune', true);
+    expect(s.controls.fmStation).toBe(1);
+    expect(bus.get('fm.tune')).toBe(false);
   });
 
   it('derived keys follow the boat: heading, speed, circuits', () => {

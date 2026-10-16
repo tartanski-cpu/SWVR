@@ -17,7 +17,7 @@ import type { Intent } from '../../src/core/intents';
 import { stepWorld } from '../../src/core/simulation';
 import { createWorld, type WorldState } from '../../src/core/world';
 import { jetPath } from '../../src/fire/fire';
-import { allKeys, busOf } from '../../src/modular/bus';
+import { allKeys, busOf, specOf } from '../../src/modular/bus';
 import { berthAxis } from '../../src/vessel/physics/mooring';
 import { placeVessel } from '../../src/vessel/vesselControl';
 import { VESSEL_DEFS } from '../../src/vessel/vesselDef';
@@ -61,7 +61,7 @@ function snapshot(v: VesselState, extra: Record<string, Value>): Checkpoint {
   v.linearVelocity.forEach((x, i) => (cp[`vel.${'xyz'[i]}`] = round(x)));
   v.angularVelocity.forEach((x, i) => (cp[`rot.${'xyz'[i]}`] = round(x)));
   const bus = busOf(v);
-  for (const k of allKeys()) if (bus.has(k)) cp[k] = round(bus.get(k));
+  for (const k of allKeys()) if (bus.has(k) && !specOf(k).press) cp[k] = round(bus.get(k));
   for (const [k, x] of Object.entries(extra)) cp[`x.${k}`] = round(x);
   return cp;
 }

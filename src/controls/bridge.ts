@@ -1,5 +1,3 @@
-import { ElectricsPanel, MasterSwitch } from './electricsPanel';
-import { SelectorSwitch } from './ignition';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { WorkboatDef } from '../vessel/vesselDef';
@@ -7,11 +5,10 @@ import type { VesselState } from '../vessel/vesselState';
 import type { EnvironmentState } from '../environment/environmentState';
 import { Button } from './Button';
 import type { Control } from './Control';
-import type { AssembledView } from '../modular/assemble';
+import type { AssembledView, PlacedLabel } from '../modular/assemble';
 import { LABEL_OFFSET } from '../modular/module';
 import { RadioSet } from '../rescue/radioView';
 import { ChartPlotter } from '../nav/chartPlotter';
-import { OverheadPanel } from './overheadPanel';
 import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
 import { DoorButton, WheelhouseDoor } from './WheelhouseDoor';
 import { MonitorView } from '../fire/monitorView';
@@ -28,16 +25,14 @@ import { aFrameOf } from '../fishing/fishing';
 export class Bridge {
   readonly root = new THREE.Group();
   readonly controls: Control[] = [];
-  /** Voltmeter (and, later, the breakers), on boats with 12 V electrics. */
-  readonly electrics: ElectricsPanel | null = null;
   /** Empty object at the centre of the instrument dash (for visibility checks; the console module's). */
   dashAnchor: THREE.Object3D = new THREE.Object3D();
   /** Overhead VHF (rescue calls). */
   readonly radio: RadioSet;
   /** Overhead chartplotter (search area, destination). */
   readonly chart: ChartPlotter;
-  /** Overhead switch panel: deck lights and the FM radio. */
-  readonly overhead: OverheadPanel;
+  /** The FM set (a module; the app plays its station near it), if the boat has one. */
+  readonly fmSet: THREE.Object3D | null;
   /** Rain on the front windows and the wipers (the App feeds it the weather). */
   readonly rainGlass: RainGlass;
   /** The fire monitor on the roof (boats that have one). */
@@ -72,11 +67,10 @@ export class Bridge {
     this.root.add(this.radio.root);
     this.chart = new ChartPlotter(b.chart, def.layout.wheelhouse.roofY);
     this.root.add(this.chart.root);
-    this.overhead = new OverheadPanel(def);
-    this.root.add(this.overhead.root);
-    this.controls.push(...modules.controls, this.radio.handset, ...this.overhead.controls);
+    this.controls.push(...modules.controls, this.radio.handset);
+    this.fmSet = modules.modules.find((m) => m.id === 'radio.fm')?.root ?? null;
     // The modules' engraved labels, drawn with the bridge's own.
-    const extraLabels: Label[] = modules.labels.map((l) => [l.text, l.at, l.title, l.yaw]);
+    const extraLabels: Label[] = [...modules.labels];
     const extraFixed: THREE.BufferGeometry[] = [];
     // The fire monitor on the roof (its FIRE PUMP switch and joystick are modules on the console).
     if (def.fireMonitor) {
@@ -102,7 +96,7 @@ export class Bridge {
         const haul = new Button('netIn', 'netIn', 'Trawl net: HAUL (hold)', 'momentary', 0x3a9a4a);
         haul.root.position.set(bx, y, legZ + 0.09);
         this.controls.push(out, haul);
-        extraLabels.push(['PAY OUT', [bx, y, legZ - 0.09], false, -Math.PI / 2], ['HAUL', [bx, y, legZ + 0.09], false, -Math.PI / 2]);
+        extraLabels.push(label('PAY OUT', [bx, y, legZ - 0.09], false, -Math.PI / 2), label('HAUL', [bx, y, legZ + 0.09], false, -Math.PI / 2));
       }
     }
     // The tow winch just forward of the transom (the line leads aft over the stern roller): a small drum (it turns while it runs)
@@ -143,11 +137,11 @@ export class Bridge {
       payOut.root.position.set(hx - 0.095, top, tw.z + 0.06);
       this.controls.push(heave, payOut);
       // Read facing aft: the labels lie forward of the buttons, toward you.
-      extraLabels.push(['HEAVE IN', [hx + 0.095, top, tw.z + 0.06], false, Math.PI], ['PAY OUT', [hx - 0.095, top, tw.z + 0.06], false, Math.PI]);
+      extraLabels.push(label('HEAVE IN', [hx + 0.095, top, tw.z + 0.06], false, Math.PI), label('PAY OUT', [hx - 0.095, top, tw.z + 0.06], false, Math.PI));
     }
     // The skiff crane's console button belongs to the crane (controls/TenderCraneView.ts);
     // its label goes with the others.
-    if (def.tenderCrane) extraLabels.push(['SKIFF CRANE', b.craneButton]);
+    if (def.tenderCrane) extraLabels.push(label('SKIFF CRANE', b.craneButton));
     const wh = def.layout.wheelhouse;
     this.door = new WheelhouseDoor(wh.doorWidth, wh.doorHeight);
     this.door.root.position.set(0, wh.floorY, wh.aft + 0.03);
@@ -249,30 +243,28 @@ export class Bridge {
       hatch.root.position.set(eh.x1, fy, (eh.z0 + eh.z1) / 2);
       this.engineHatch = hatch;
       this.controls.push(hatch, dip, can);
-      extraLabels.push(['ENGINE', [eh.x0 + 0.2, fy + 0.002, eh.z1 - 0.1], false, -Math.PI / 2]);
-    }
-    // 12 V: battery master on the aft wall by the door, voltmeter panel by the helm.
-    const el = def.electrics;
-    if (el) {
-      const master = new MasterSwitch();
-      master.root.position.fromArray(el.masterSwitch.position);
-      master.root.rotation.y = Math.PI; // face forward, into the wheelhouse
-      const selector = new SelectorSwitch();
-      selector.root.position.fromArray(el.selectorSwitch.position);
-      selector.root.rotation.y = Math.PI;
-      this.controls.push(master, selector);
-      this.electrics = new ElectricsPanel(el.panel);
-      this.root.add(this.electrics.root);
-      this.controls.push(...this.electrics.controls);
+      extraLabels.push(label('ENGINE', [eh.x0 + 0.2, fy + 0.002, eh.z1 - 0.1], false, -Math.PI / 2));
     }
     for (const c of this.controls) if (!c.root.parent) this.root.add(c.root);
 
-    // The console's dash, pedestals and plates, the screens and their housings are modules
-    // now (modules/console, modules/screen): their fixed parts are baked in here with the
-    // bridge's, their screens are one mesh, their labels go with the bridge's.
+    // The console, the overhead panel, the breaker panel and what's on them are modules now
+    // (src/modules/): their fixed parts are baked in here with the bridge's, their screens
+    // are one mesh, their switch bats and button caps are shared instanced meshes, and
+    // their labels go with the bridge's.
     this.dashAnchor = this.root.getObjectByName('dashAnchor') ?? this.dashAnchor;
-    this.root.add(bakeFixedParts(this.root, [this.overhead.body, ...extraFixed, ...modules.staticParts]), buildLabels(extraLabels));
+    this.root.add(bakeFixedParts(this.root, [...extraFixed, ...modules.staticParts]), buildLabels(extraLabels));
     if (modules.screens) this.root.add(modules.screens);
+    for (const m of modules.shared) this.root.add(m);
+  }
+
+  /** What only this machine knows, for the modules' views ('fm.status': the FM player's). */
+  setLocal(name: string, value: string): void {
+    this.modules.setLocal(name, value);
+  }
+
+  /** How many parts each shared instanced mesh draws ('toggleBat': 18; debug overlay). */
+  get sharedCounts(): Record<string, number> {
+    return this.modules.sharedCounts;
   }
 
   /** The mounted modules, as "socket: module id" (debug overlay). */
@@ -296,8 +288,6 @@ export class Bridge {
     const hatchOpen = (state.controls.engineHatch ?? 0) > 0.5;
     if (this.dipstick) this.dipstick.enabled = hatchOpen;
     if (this.oilCan) this.oilCan.enabled = hatchOpen;
-    this.overhead.update(state);
-    this.electrics?.update(state, dt);
     this.fenders?.update(state);
     // The winch drum turns only while it really runs (hydraulic pressure, and line or net
     // actually coming in or going out): App sets `drumTurn` each frame (+1 in, -1 out, 0 still).
@@ -326,41 +316,57 @@ function bakeFixedParts(root: THREE.Object3D, extra: THREE.BufferGeometry[]): TH
   return mesh;
 }
 
+/** An engraved label (modular/module.ts, EngravedLabel), in vessel axes. */
+type Label = PlacedLabel;
+
 /**
  * A label: its text, the control it names (it lies just aft of it), dark-on-light (a group
  * title), and its yaw (rad; default 0: read facing forward. It is turned, and moved round
  * the control, to be read facing another way - PI: facing aft).
  */
-type Label = [string, [number, number, number], boolean?, number?];
+function label(text: string, at: [number, number, number], title = false, yaw = 0): Label {
+  return { text, at, title, yaw };
+}
 
-/** Small engraved labels on the console top in front of each control (one draw call). */
+/** The labels size their letters by their height; this many pixels high in the texture. */
+const SLOT_W = 512;
+const SLOT_H = 64;
+/** The usual label (m): on a console top. */
+const LABEL_SIZE = [0.16, 0.02] as const;
+
+/**
+ * Every small engraved label on the bridge, in one mesh (one draw call). Each has a slot in
+ * the texture, its text centred; a label narrower for its height than the usual one uses
+ * only the middle of its slot, so the letters keep the same size for the label's height.
+ */
 function buildLabels(labels: Label[]): THREE.Mesh {
-  const slotW = 512;
-  const slotH = 64;
   const canvas = document.createElement('canvas');
-  canvas.width = slotW;
-  canvas.height = slotH * labels.length;
+  canvas.width = SLOT_W;
+  canvas.height = SLOT_H * labels.length;
   const g = canvas.getContext('2d')!;
-  g.fillStyle = '#e8e2cc';
   g.font = 'bold 40px system-ui, sans-serif';
   g.textAlign = 'center';
   g.textBaseline = 'middle';
-  labels.forEach(([text, , title], i) => {
+  labels.forEach(({ text, title }, i) => {
     g.fillStyle = title ? '#101418' : '#e8e2cc';
-    g.fillText(text, slotW / 2, slotH * i + slotH / 2);
+    g.fillText(text, SLOT_W / 2, SLOT_H * i + SLOT_H / 2);
   });
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
 
-  const planes = labels.map(([, pos, , yaw = 0], i) => {
-    const plane = new THREE.PlaneGeometry(0.16, 0.02);
+  const planes = labels.map(({ at: pos, yaw, size = LABEL_SIZE, offset = LABEL_OFFSET, underside }, i) => {
+    const [w, h] = size;
+    const plane = new THREE.PlaneGeometry(w, h);
+    // The middle `across` of its slot: as wide (in pixels) as the label is for its height.
+    const across = Math.min(1, ((w / h) * SLOT_H) / SLOT_W);
     const uv = plane.attributes.uv as THREE.BufferAttribute;
     for (let k = 0; k < uv.count; k++) {
       const v0 = 1 - (i + 1) / labels.length;
-      uv.setXY(k, uv.getX(k), v0 + uv.getY(k) / labels.length);
+      uv.setXY(k, 0.5 - across / 2 + uv.getX(k) * across, v0 + uv.getY(k) / labels.length);
     }
-    plane.rotateX(-Math.PI / 2).rotateY(yaw);
-    plane.translate(pos[0] + Math.sin(yaw) * LABEL_OFFSET, pos[1] + 0.002, pos[2] + Math.cos(yaw) * LABEL_OFFSET);
+    // Lying on top of a panel, read from above; or under one, read from below.
+    plane.rotateX(underside ? Math.PI / 2 : -Math.PI / 2).rotateY(yaw);
+    plane.translate(pos[0] + Math.sin(yaw) * offset, pos[1] + (underside ? -0.002 : 0.002), pos[2] + Math.cos(yaw) * offset);
     return plane;
   });
   const mesh = new THREE.Mesh(mergeGeometries(planes), new THREE.MeshBasicMaterial({ map: texture, transparent: true }));

@@ -62,9 +62,11 @@ export class SelectorSwitch extends Control {
   readonly label = 'Battery selector: 1 / BOTH / 2';
   private readonly knob = new THREE.Group();
   private pos = 1;
+  private readonly read: (s: VesselState) => number;
 
-  constructor() {
-    super('batSelect', 'batSelect');
+  constructor(id = 'batSelect', wiring: Wiring = {}) {
+    super(id, wiring.channel ?? 'batSelect');
+    this.read = wiring.read ?? ((s) => s.electrics?.selector ?? 1);
     const plate = this.fixed(new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.2, 0.012), new THREE.MeshLambertMaterial({ color: 0xe8e4d8 })));
     const label = new THREE.Mesh(new THREE.PlaneGeometry(0.15, 0.19), new THREE.MeshBasicMaterial({ map: selectorLabel(), transparent: true }));
     label.position.z = 0.007;
@@ -97,7 +99,7 @@ export class SelectorSwitch extends Control {
   }
 
   sync(state: VesselState): void {
-    const p = state.electrics?.selector ?? 1;
+    const p = this.read(state);
     if (p !== this.pos) this.show(p);
   }
 }

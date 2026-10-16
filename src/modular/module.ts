@@ -157,8 +157,19 @@ export interface ViewContext<Config> {
   hull: HullQueries;
   /** The shared paint colours (Part C): static parts use these so they merge. */
   palette: Readonly<Record<string, number>>;
-  /** One instance of a shared moving part (Part C, 2.10): one draw call for all of them. */
-  instance(part: SharedPartKind): InstanceHandle;
+  /**
+   * Draw this moving part as one instance of the boat's shared mesh of its kind (Part C,
+   * 2.10): every toggle bat on the boat is one draw call, every button cap another. The
+   * mesh itself is hidden but kept, so the pointer still hits it and the control still
+   * moves it; each frame its place, colour and glow (hover, lit) are copied to its instance.
+   * Every mesh shared as one kind must have the same shape (the first one's is drawn).
+   */
+  share(mesh: THREE.Mesh, kind: SharedPartKind): void;
+  /**
+   * What only this player's machine knows, set by the app ('fm.status': the FM set
+   * tuning, or no signal). Not on the bus: it isn't the boat's state, and isn't sent.
+   */
+  local(name: string): string;
   /**
    * Fit a screen on the boat's shared display atlas (one texture, one draw call for every
    * screen). `plane`: the screen's face in socket axes, UVs 0..1 across it.
@@ -179,14 +190,11 @@ export interface HullQueries {
   stem: number;
 }
 
-/** Repeated moving parts drawn as one instanced mesh each (2.10). Grows in M3. */
-export type SharedPartKind = 'toggleBat' | 'buttonCap' | 'lamp';
-
-export interface InstanceHandle {
-  /** Where the part is, in the boat's axes. */
-  setMatrix(m: THREE.Matrix4): void;
-  setColor(hex: number): void;
-}
+/**
+ * Repeated moving parts drawn as one instanced mesh each (2.10). The warning lamps and the
+ * breaker lamps are already one instanced mesh per panel, so they stay their modules' own.
+ */
+export type SharedPartKind = 'toggleBat' | 'buttonCap';
 
 /** What a view gives the assembler. */
 export interface ModuleViewInstance<State> {
@@ -221,6 +229,12 @@ export interface EngravedLabel {
   at: readonly [number, number, number];
   title?: boolean;
   yaw?: number;
+  /** Width and height (m); the letters scale with the height. Default 0.16 x 0.02. */
+  size?: readonly [number, number];
+  /** How far from what it names (m). Default LABEL_OFFSET. */
+  offset?: number;
+  /** On the underside of a panel, read from below (the overhead panel). */
+  underside?: boolean;
 }
 
 /** A box you can't walk or stand cargo in (vessel axes, m). */

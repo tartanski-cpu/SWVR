@@ -1850,6 +1850,59 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   - **Outside:** from the deck or the quay, the console detail is hidden through the windows except the lever, as before.
   - F3 lists "modules 24: helm: console.standard, helm/wheel: control.wheel, ...".
 
+### M3b: the power controls as modules, and shared switch parts (done, on /next/ for the owner to test; looks the same, fewer draw calls)
+
+- **What changed:** the overhead switch panel, the FM set, the breaker panel with its voltmeter, and the battery master and selector now come from the recipe (`starterWorkboat.json`, version 3), on four new hull sockets: `overhead`, `breakerPanel`, `batteryMaster`, `batterySelector`. Only their views and controls: what the electrics do is unchanged (`vessel/electrics.ts`) until M4.
+- **New modules** (`src/modules/`):
+  - `panel.overhead`: the box under the roof and its slots. The three deck-light switches in it are ordinary `control.toggle` modules, hung upside down. Its legends (FOREDECK, AFT DECK, RAIL, FM, TUNE) are engraved on its underside and now drawn with the bridge's other labels: one draw call fewer, and pixel-identical in the screenshots.
+  - `radio.fm`: the FM set (display, power switch, TUNE), in the overhead panel's `fm` slot. The app's player tells the display what it's doing ("NO SIGNAL", tuning) through a new local value, `fm.status`: this player's own, so not on the bus or sent to the crew. The station now plays from the set itself rather than the middle of the panel (11 cm along).
+  - `panel.breakers`: the voltmeter, a breaker per circuit and its lamp. Which circuits, where, and their engraving are its config. Its housing is now merged with the bridge's fixed parts: one draw call fewer.
+  - `switch.battery-master`, `switch.battery-selector`: the existing controls, wired to `electrical.master` and `electrical.selector`. Their ids are now `batteryMaster` and `batterySelector` (nothing else used the old ones).
+- **Shared switch parts** (Part C, 2.10; `src/modular/sharedParts.ts`): every module's toggle bat is drawn as one instanced mesh (18: console 7, overhead 4, breakers 7), and every button cap as another (4: HORN, HEAT, START, TUNE).
+  - Each control keeps its own bat, hidden, so it still moves it and your hand or pointer still finds it. Each frame the bat's place, colour and glow are copied to its instance; the upload only happens when something changed.
+  - The glow: the hover highlight and the lit START / TUNE buttons. three.js has no per-instance glow, so the shared material adds one in its shader where three adds the material's own.
+  - The two shared meshes hide with the wheelhouse's other small parts while you're out on deck.
+- **New bus key:** `fm.tune`, the TUNE press: next station, switching the set on if it was off. The old intent name 'fmTune' now runs the same rule. Keys marked `press` do something once and always read their default, so the golden runs don't record them.
+- **Labels:** an engraved label can now have its own size, distance from its control, and lie under a panel (`EngravedLabel.size / offset / underside`).
+- **Config:** `CONFIG.modules.overheadPanel` (size, `drop` from the roof, slots, legends), `CONFIG.modules.fmRadio` (display size, where its switch and button are), `CONFIG.modules.breakerPanel` (face size, dial, breaker layout, circuits and engravings). The vessel config keeps only where they go: `overheadPanel.position`, `electrics.panel` (position, tilt), `electrics.masterSwitch` and `selectorSwitch`.
+- **Removed:** `controls/overheadPanel.ts`. `controls/electricsPanel.ts` became `controls/batteryMaster.ts`, holding only the master switch.
+- **Debug overlay:** a "shared parts" line: "18 toggleBat, 4 buttonCap".
+- **Tests (9 new, 378 in all, all pass):**
+  - the recipe mounts all eight new modules;
+  - all 14 power controls stand, face and scale exactly as the v1.0 code placed them (checked against the old construction rebuilt in the test), under their ids, sending keys that mean their old channels;
+  - the overhead legends lie where and how they did;
+  - 18 bats and 4 caps in two instanced meshes;
+  - each instance stands exactly where its hidden bat is, and follows it when a breaker is thrown;
+  - the hover glow and START's glow while running reach their instances;
+  - the shared meshes hide from outside;
+  - the power intents by bus key and by old name leave the boat byte-for-byte the same;
+  - a TUNE press steps the station and reads false.
+  - The golden runs pass unchanged; no re-recording.
+- **Measured** (day / night lit, against the M3a build side by side):
+
+  | View | M3a | M3b |
+  |---|---|---|
+  | Helm | 67 / 66 | **60 / 59** |
+  | Chart table | 46 / 47 | 47 / 47 |
+  | Aft deck, looking forward | 120 / 121 | **105 / 106** |
+  | Aft deck, looking aft | 33 / 32 | 33 / 32 |
+
+  Boat parts drawn aboard: 144 → 122 (wheelhouse 92 → 70). The chart table gains one by day: the shared bats are drawn whenever any of them is in view. The overhead and breaker panels were never fully in view from the helm, so the gain there is mostly the console's.
+- **Checked in the browser:**
+  - close-ups of the overhead panel, breaker panel, battery switches and console against the M3a build: identical (only the rail outside the window differs, from drift);
+  - the FM display shows its station and "NO SIGNAL"; TUNE glows while the set is on;
+  - pressing each control works: master on (12.7 V), selector to BOTH, a breaker on and off, the three deck lights, FM on, TUNE to the next station; no page errors.
+- **One visible change, on purpose:** from out on deck, the overhead switches and the FM display, a few pixels through the windows, now hide with the wheelhouse's other small parts, as the console's switches always have.
+- **Owner test** (at /SWVR/next/, menu header NEXT). Everything should look and work as before:
+  - **VR:**
+    - walk to the aft wall: battery master on (the voltmeter needle rises), the selector through 1 / BOTH / 2;
+    - at the breaker panel: each breaker off and on, its green lamp going out and coming back; the Instruments breaker darkens the screens;
+    - start her: the needle dips while cranking;
+    - overhead: the three deck-light switches (the floods and rail lights come on), FM on, TUNE through the stations;
+    - hover over any switch or button: it glows green as before; START glows once she runs.
+  - **Desktop:** the same by clicking.
+  - **F3:** the "shared parts" line, and 32 modules.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

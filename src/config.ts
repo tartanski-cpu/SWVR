@@ -596,11 +596,12 @@ export const CONFIG = {
         drainBetweenSessions: false,
         drainPerHour: 0.05,
         /**
-         * Panel by the helm: a small sloping console against the starboard wall just under
-         * the window sill (the side walls are windows above it), face tilted up toward you.
-         * Voltmeter and the breakers (a toggle and an indicator lamp each).
+         * Where the breaker panel goes (the hull's 'breakerPanel' socket): against the
+         * starboard wall just under the window sill (the side walls are windows above it),
+         * its face tilted up toward you by `tiltDeg`. The panel itself (the voltmeter and the
+         * breakers) is a module: CONFIG.modules.breakerPanel.
          */
-        panel: { position: [1.22, 1.84, -0.85] as [number, number, number], width: 0.54, height: 0.32, tiltDeg: 40 },
+        panel: { position: [1.22, 1.84, -0.85] as [number, number, number], tiltDeg: 40 },
       },
       /**
        * Fenders: three a side (vessel z), hung over the rail when out; stowed lying along
@@ -745,20 +746,12 @@ export const CONFIG = {
       /** Ceiling lamp: white `intensity`, or red at `redIntensity` (night: enough to see the controls, not to dazzle). */
       cabinLight: { position: [0, 3.22, -0.2] as [number, number, number], intensity: 3, redIntensity: 0.45, distance: 6 },
       /**
-       * Overhead switch panel under the wheelhouse roof, just ahead of and above the helm
-       * (well above the windscreen sightline): deck light switches and the FM radio.
-       * Item x offsets along the panel (m) from its centre.
+       * Where the overhead switch panel goes (the hull's 'overhead' socket): under the
+       * wheelhouse roof, just ahead of and above the helm (well above the windscreen
+       * sightline); the centre of its face. The panel is a module: CONFIG.modules.overheadPanel.
        */
       overheadPanel: {
         position: [0, 3.27, -1.05] as [number, number, number],
-        width: 0.82,
-        depth: 0.2,
-        deckFore: -0.32,
-        deckAft: -0.21,
-        railLights: -0.1,
-        fmDisplay: 0.11,
-        fmPower: 0.27,
-        fmTune: 0.36,
       },
       /**
        * Crew whiteboard (board/boardView.ts): inside the wheelhouse on the aft wall, port of
@@ -2069,6 +2062,64 @@ export const CONFIG = {
     screen: {
       dash: { width: 0.38, height: 0.22, tiltDeg: 14 },
       hung: { width: 0.44, height: 0.22, tiltDeg: 58, bracket: 0.15 },
+    },
+
+    /**
+     * panel.overhead (M3b): the switch panel hung under the wheelhouse roof. Its box hangs
+     * `drop` m from the roof down to its face (where its socket is). Its `slots` are along
+     * the face (x, m from its centre): switches hang upside down from it (`hang`), pressed
+     * from below; the FM set's display lies flat on it. Its `legends` are engraved on the
+     * underside just aft of each control (`legend`: their size and how far aft, m),
+     * readable from the helm looking up.
+     */
+    overheadPanel: {
+      width: 0.82,
+      depth: 0.2,
+      drop: 0.08,
+      slots: {
+        deckFore: { x: -0.32, hang: true },
+        deckAft: { x: -0.21, hang: true },
+        railLights: { x: -0.1, hang: true },
+        fm: { x: 0.11, hang: false },
+      },
+      legends: [
+        { text: 'FOREDECK', x: -0.32 },
+        { text: 'AFT DECK', x: -0.21 },
+        { text: 'RAIL', x: -0.1 },
+        { text: 'FM', x: 0.27 },
+        { text: 'TUNE', x: 0.36 },
+      ],
+      legend: { size: [0.09, 0.0225] as [number, number], offset: 0.07 },
+    },
+
+    /**
+     * radio.fm (M3b): the FM set in the overhead panel. Its display (m) faces down; its
+     * power switch and TUNE button hang beside it (x from the display's centre, m). The
+     * stations are CONFIG.fmRadio's.
+     */
+    fmRadio: { display: { width: 0.17, height: 0.064 }, power: 0.16, tune: 0.25, tuneColor: 0xd88a2a },
+
+    /**
+     * panel.breakers (M3b): the voltmeter and a breaker for each circuit, with a green lamp
+     * that shows the circuit is live. Panel face size (m); the dial's centre (from the
+     * panel's left edge and centre line) and radius; breakers in rows of `perRow`, the first
+     * `x0` from the left edge, `pitch` apart, rows at `rows` (y), drawn at `scale` of a
+     * console switch. `circuits`: which breaker in which place, and its engraving.
+     */
+    breakerPanel: {
+      width: 0.54,
+      height: 0.32,
+      dial: { x: 0.1, y: 0.02, radius: 0.075 },
+      breakers: { x0: 0.235, pitch: 0.078, rows: [0.075, -0.075], perRow: 4, scale: 0.8 },
+      circuits: [
+        { name: 'instruments', engrave: 'INSTR' },
+        { name: 'chart', engrave: 'CHART' },
+        { name: 'radio', engrave: 'RADIO' },
+        { name: 'navLights', engrave: 'NAV LTS' },
+        { name: 'deckLights', engrave: 'DECK LTS' },
+        { name: 'bilge', engrave: 'BILGE' },
+        { name: 'hydraulics', engrave: 'DECK HYD' },
+      ],
     },
   },
 

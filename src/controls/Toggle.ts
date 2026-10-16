@@ -12,6 +12,8 @@ import { Control } from './Control';
 export class Toggle extends Control {
   readonly kind = 'press' as const;
   private readonly bat = new THREE.Group();
+  /** The bat lever (modules draw it as a shared part: modular/sharedParts.ts). */
+  readonly batMesh: THREE.Mesh;
   private pos = 0;
 
   constructor(
@@ -30,6 +32,7 @@ export class Toggle extends Control {
       this.material(0xd8dadc),
     );
     this.bat.position.y = 0.012;
+    this.batMesh = bat;
     this.bat.add(bat);
     this.root.add(plate, this.bat);
     this.hitObjects.push(bat, plate);
