@@ -1562,7 +1562,7 @@ Order, as the owner set it:
 Before the first branch-off (2 or 3):
 
 - Tag the last version before the split in git (for example `v1.0-before-mobile`).
-- Consider a `CLAUDE.md` holding the owner's standing rules and the core-versus-game layout, so every session follows them.
+- ~~Write a `CLAUDE.md`~~ **Done**: the owner's standing rules, commands, code layout and this direction, read by every session.
 - First round: separate the shared core from the VR/desktop-specific parts, plus an empty mobile page that drives the boat with two sticks. No visible change to SWVR.
 
 ## Future roadmap (owner notes, not started)
