@@ -256,7 +256,9 @@ function buildWheelhouse(layout: HouseLayout): THREE.BufferGeometry[] {
     // Front corner posts, raked with the front; deep enough at the foot that, leaning
     // forward, they still close onto the upright side wall behind (a solid cheek, widest at
     // the top). Above the head the same cheek runs up to the roof.
-    parts.push(box(x0, x1, sill, fSill, wh.front, wh.front + 0.1, H));
+    // Below the front sill the post is as deep as the raked cheek's foot, so the two meet
+    // flush and there's no slot of window beside the dash (owner feedback).
+    parts.push(box(x0, x1, sill, fSill, wh.front, wh.front + 0.1 + fwdAtHead, H));
     parts.push(raked(box(x0, x1, fSill, head, wh.front, wh.front + 0.1 + fwdAtHead, H)));
     if (fwdAtRoof > 0) parts.push(raked(box(x0, x1, head, roof, wh.front, wh.front + fwdAtRoof + 0.02, H)));
     parts.push(box(x0, x1, sill, head, wh.aft - 0.1, wh.aft, H));
