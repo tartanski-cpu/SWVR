@@ -1549,6 +1549,14 @@ How to come back to it:
 
 ### Fixes after V1.0 (on the dev branch; not in the `V1.0` tag)
 
+- **Potting: the catch stays in the pot and is sold ashore** (owner, from the milestone 3 screenshots: no two-step of opening the pot and tipping it into a crate; haul it, take it back, sell it; and show the crabs inside the pot).
+  - **No opening, no catch crate:** the intents `potOpen` and `potEmpty`, the catch crate (`from: 'potcatch'`) and the open-pot drawing are gone, and so is `PotContents.open`. A hauled pot lands on deck with its catch in it (and a note of what's in it for the player who hauled it, `potHands.ts announceLanded`).
+  - **Seen through the netting** (`cargoView.ts potGeometry`): the pot's netting is now an open lattice of cords and hoops over a dark floor instead of a solid half-round, so the crabs, lobsters and bycatch drawn on its floor show through. This applies to every pot.
+  - **Selling** (`cargo.ts cargoPlace`): set a pot down ashore at a harbour, either within `cargo.deliveryRadius` of a port's goods stack (where trawl fish boxes are landed) or of the pot pallet. The catch is sold and the pot stays there empty. Pay is new career job kind `catch`, priced per animal (`potting.price`: lobster 40, crab 8), times the port's usual reputation pay factor, with fish-landing reputation. The bycatch is thrown away. `potting.crateCapacity` is gone.
+  - **Bait** works on any pot not yet baited, catch in it or not. Shooting a pot that still has a catch in it lets the catch go (the pot is a fresh record in the water).
+  - **Tests:** the crate test is now "the catch stays in the pot; set down on the Calder quay it's sold, the pot stays there empty, and the ledger line reads '1 lobster, 3 crabs sold at Calder…'".
+  - **Checked:** typecheck and all tests; screenshots of a hauled pot on deck with two lobsters, four crabs and a starfish showing through the netting, from above and from the side.
+
 - **Lobster and crab potting, milestone 3 of 5: hauling and the catch** (owner: "go ahead with milestone 3").
   - **Hook** (`potting/potHands.ts`, intents in `potting.ts applyHaulIntent`): with the boat hook in hand, its tip within `potting.haul.hookReach` (0.95 m) of a buoy hooks it (`potHook`; desktop: click the buoy). The buoy follows the hook tip in (`potTow`, sent every 0.1 s as hooked crates are). It's kept 0.25 m outside the hull, on the side it started (`outsideHull`), so a hook tip swung over the deck can't drag it through the boat. Let go of the hook and it comes off (`stepPotting`).
   - **Aboard** (`potAboard`): within `haul.liftRange` (2.5 m) of the hull, the other hand gripping over the buoy (desktop: a click, which also puts the hook back in its clips) brings it over the gunwale. The line now leads in at the nearest point of the gunwale (`leadFor`), with the depth plus `haul.slack` (1.5 m) of line out. The pot stays on the bottom, dragged along under the boat if she moves.

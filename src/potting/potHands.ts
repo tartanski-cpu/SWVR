@@ -21,10 +21,10 @@ import { buoyUp, isPot, type ShotPot } from './potting';
  *            click again): the buoy comes aboard, the line leading in over the gunwale.
  *   haul     grip the line (VR) and pull it in toward you, hand over hand, as the life
  *            ring's line; desktop: click on it. At the end the pot comes over onto the deck.
- *   the pot  trigger with your hand at it (desktop: click): open it; again, tip the catch
- *            into a catch crate (bycatch back over the side); holding bait, bait it.
+ *   the pot  lands on deck with its catch inside, in sight through the netting; it stays
+ *            there until the pot is set down on a harbour quay and sold (cargo.ts).
  *   bait     grip the bait tub on deck (desktop: click it) for a piece of bait; let go of it
- *            over an open, empty pot (desktop: click the pot) to bait it.
+ *            over a pot (desktop: click the pot) to bait it.
  */
 export interface PotHandsContext {
   world: WorldState;
@@ -54,6 +54,8 @@ export class PotHands {
   bait: Holder = null;
   private line: { hand: Handedness; pot: string; last: THREE.Vector3; acc: number } | null = null;
   private towT = 0;
+  /** The pot we're hauling: told what's in it when it lands. */
+  private landing: string | null = null;
   private hinted = '';
   private hoverWas: Record<Handedness, boolean> = { left: false, right: false };
   private readonly tmp = new THREE.Vector3();
@@ -136,26 +138,34 @@ export class PotHands {
   // ── The pot on deck ──
 
   /**
-   * What working this pot would do now, if anything (and do it if `doIt`): open it, tip the
-   * catch into a crate, or bait it (with bait in hand).
+   * With bait in hand, a pot not yet baited takes it (`doIt`: bait it). Returns what it
+   * would do, or null. The catch stays in the pot (you can see it through the netting)
+   * until the pot is set down on a harbour quay, where it's sold.
    */
   potAction(ctx: PotHandsContext, c: CargoItem, doIt: boolean): string | null {
-    if (!isPot(c) || !('vessel' in c.at)) return null;
+    if (!this.bait || !isPot(c) || !('vessel' in c.at) || c.pot?.baited) return null;
+    if (doIt) {
+      ctx.push('potBait', c.id, 1);
+      this.bait = null;
+      ctx.notify('Baited');
+    }
+    return 'bait it';
+  }
+
+  /** A pot we hauled has come aboard: say what's in it (once). */
+  private announceLanded(ctx: PotHandsContext): void {
+    if (!this.landing) return;
+    const c = ctx.world.cargo[this.landing];
+    if (!c) {
+      if (!ctx.world.potting?.shot.some((p) => p.id === this.landing)) this.landing = null;
+      return;
+    }
+    this.landing = null;
     const p = c.pot;
-    let act: string | null = null;
-    let control = '';
-    // Holding bait, a pot is only for baiting (one with a catch in it has to be emptied first).
-    if (this.bait) {
-      if (p?.baited || (p && (p.crab || p.lobster || p.bycatch || !p.open))) return null;
-      [act, control] = ['bait it', 'potBait'];
-    } else if (p && !p.open && (p.crab || p.lobster || p.bycatch !== undefined)) [act, control] = ['open the pot', 'potOpen'];
-    else if (p && p.open && (p.crab || p.lobster)) [act, control] = ['tip the catch into a crate', 'potEmpty'];
-    else if (p && p.open && p.bycatch) [act, control] = [`throw the ${p.bycatch === 'fish' ? 'little fish' : p.bycatch} back`, 'potEmpty'];
-    if (!act || !doIt) return act;
-    ctx.push(control, c.id, 1);
-    if (control === 'potBait') this.bait = null;
-    if (control === 'potOpen') ctx.notify(p && (p.crab || p.lobster) ? `In the pot: ${[p.lobster ? `${p.lobster} lobster${p.lobster > 1 ? 's' : ''}` : '', p.crab ? `${p.crab} crab${p.crab > 1 ? 's' : ''}` : ''].filter(Boolean).join(', ')}${p.bycatch ? ` and ${p.bycatch === 'boot' ? 'an old boot!' : p.bycatch === 'fish' ? 'a little fish' : 'a starfish'}` : ''}` : p?.bycatch === 'boot' ? 'Nothing but an old boot!' : p?.bycatch ? `Nothing but ${p.bycatch === 'fish' ? 'a little fish' : 'a starfish'}` : 'Empty. Bait it and try again');
-    return act;
+    if (!p) return;
+    const extra = p.bycatch === 'boot' ? 'an old boot' : p.bycatch === 'fish' ? 'a little fish' : p.bycatch === 'starfish' ? 'a starfish' : '';
+    const catchText = [p.lobster ? `${p.lobster} lobster${p.lobster > 1 ? 's' : ''}` : '', p.crab ? `${p.crab} crab${p.crab > 1 ? 's' : ''}` : ''].filter(Boolean).join(', ');
+    ctx.notify(catchText ? `Pot aboard: ${catchText}${extra ? ` and ${extra}` : ''}` : extra ? `Pot aboard: nothing but ${extra}` : 'Pot aboard: empty. Bait it and shoot it again');
   }
 
   // ── VR ──
@@ -164,6 +174,7 @@ export class PotHands {
   updateXR(ctx: PotHandsContext, hands: Record<Handedness, HandFrame>, busy: Record<Handedness, boolean>, dt: number): Record<Handedness, boolean> {
     const used = { left: false, right: false };
     const cfg = CONFIG.potting.haul;
+    this.announceLanded(ctx);
     // Hook: the boat hook's tip on a buoy.
     const hooked = this.myHooked(ctx);
     if (ctx.rescue.holdingHook && !hooked) {
@@ -213,6 +224,7 @@ export class PotHands {
         this.line.last.copy(f.grip);
         if (this.line.acc >= PULL_CHUNK) {
           ctx.push('potHaul', l.pot.id, this.line.acc * cfg.pullScale);
+          this.landing = l.pot.id;
           ctx.pulse(this.line.hand, 0.25, 15);
           this.line.acc = 0;
         }
@@ -292,10 +304,11 @@ export class PotHands {
   updateDesktop(ctx: PotHandsContext, ray: THREE.Ray | null, dt: number): string | null {
     const hooked = this.myHooked(ctx);
     if (hooked) this.towHooked(ctx, hooked, dt);
+    this.announceLanded(ctx);
     this.lineHover = false;
     if (this.bait === 'desk') {
       this.baitMesh.visible = false;
-      return 'bait in hand\nclick an open, empty pot to bait it';
+      return 'bait in hand\nclick a pot to bait it';
     }
     if (!ray) return null;
     if (ctx.rescue.deskBusy && !ctx.rescue.holdingRing) {
@@ -339,6 +352,7 @@ export class PotHands {
     const l = this.lineOnRay(ctx, ray);
     if (l) {
       ctx.push('potHaul', l.pot.id, CONFIG.potting.haul.deskPull);
+      this.landing = l.pot.id;
       return true;
     }
     if (this.tubOnRay(ray)) {

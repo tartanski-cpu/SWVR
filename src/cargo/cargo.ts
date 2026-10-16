@@ -50,10 +50,8 @@ export interface CargoItem {
   from: string;
   to: string;
   at: CargoAt;
-  /** A pot hauled up (potting): what's in it, whether it's open, whether it's baited. */
+  /** A pot hauled up (potting): what's in it, whether it's baited. */
   pot?: PotContents;
-  /** A catch crate (potting, from 'potcatch'): the crabs and lobsters in it. */
-  catch?: { crab: number; lobster: number };
 }
 
 /** What's in a hauled pot (potting/potting.ts catchFor). */
@@ -61,8 +59,6 @@ export interface PotContents {
   crab: number;
   lobster: number;
   bycatch: 'fish' | 'starfish' | 'boot' | null;
-  /** Its door's been opened (the catch shows). */
-  open: boolean;
   /** Bait in it (from the bait tub): it'll fish better next time it's shot. */
   baited: boolean;
 }
@@ -108,6 +104,13 @@ export function stackPoint(port: PortDef, i: number): Vec3 {
 export function portAtPoint(x: number, z: number): PortDef | null {
   for (const p of PORTS) if (Math.hypot(x - p.cargo.stackX, z - p.cargo.stackZ) < CONFIG.cargo.deliveryRadius) return p;
   return null;
+}
+
+/** By the pot pallet (potting): the harbour it's in, or null. */
+function potQuayAt(x: number, z: number): PortDef | null {
+  const { x: px, z: pz } = CONFIG.potting.pallet;
+  if (Math.hypot(x - px, z - pz) > CONFIG.cargo.deliveryRadius) return null;
+  return PORTS.reduce((a, b) => (Math.hypot(a.x - px, a.z - pz) <= Math.hypot(b.x - px, b.z - pz) ? a : b));
 }
 
 function waitingAt(world: WorldState, port: PortDef): CargoItem[] {
@@ -172,8 +175,6 @@ function retire(world: WorldState, item: CargoItem, delivered: boolean, at?: str
   // A box of fish from the trawl, landed (fishing/fishing.ts).
   if (delivered && item.from === 'trawl' && world.fishing) world.fishing.landed += 1;
   if (delivered && item.from === 'trawl') earn(world, 'fish', { port: at, text: `Fish landed at ${portName(at)}` });
-  // A crate of crab and lobster from the pots (paid as a fish box until milestone 4's prices).
-  else if (delivered && item.from === 'potcatch') earn(world, 'fish', { port: at, text: `Crab and lobster landed at ${portName(at)}` });
   else if (delivered && item.to === 'any') earn(world, 'crate', { port: at, text: `Lost cargo brought in to ${portName(at)}` });
   else if (delivered) earn(world, 'cargo', { port: item.to, from: item.from, text: `Cargo ${portName(item.from)} → ${portName(item.to)}` });
   else {
@@ -289,6 +290,16 @@ export function applyCargoIntent(world: WorldState, intent: Intent): void {
       }
       item.at = { ground: [x, g, z], yaw };
       const port = portAtPoint(x, z);
+      // A pot set down on a harbour quay (by a goods stack, or back by the pot pallet): the
+      // fish buyer takes its catch (the bycatch is thrown away) and the pot stays there,
+      // empty, for you to take back aboard.
+      const buyer = isPot(item) && item.pot ? (port ?? potQuayAt(x, z)) : null;
+      if (buyer && item.pot) {
+        const { crab, lobster } = item.pot;
+        if (crab || lobster) earn(world, 'catch', { port: buyer.id, crab, lobster, text: `${catchText(crab, lobster)} sold at ${portName(buyer.id)}` });
+        item.pot = { ...item.pot, crab: 0, lobster: 0, bycatch: null };
+        break;
+      }
       // Delivered: at its port, or anywhere for cargo fished out of the sea (to 'any').
       if (port && (port.id === item.to || item.to === 'any')) retire(world, item, true, port.id);
       break;
@@ -518,12 +529,10 @@ export function cargoLabel(item: CargoItem): string {
   // A pot: no destination; you shoot it over the side on a potting ground.
   if (isPot(item)) {
     const p = item.pot;
-    if (p && !p.open && (p.crab || p.lobster || p.bycatch)) return 'Lobster pot, hauled: open it to see what you have';
-    if (p && p.open && (p.crab || p.lobster)) return `Lobster pot: ${catchText(p.crab, p.lobster)}: tip it into a catch crate`;
+    if (p && (p.crab || p.lobster)) return `Lobster pot: ${catchText(p.crab, p.lobster)}: set it down on a harbour quay to sell`;
     if (p?.baited) return 'Lobster pot, baited: shoot it over the side on a potting ground';
     return `Lobster pot ${item.mass} kg: bait it, then shoot it over the side on a potting ground`;
   }
-  if (item.from === 'potcatch' && item.catch) return `Catch crate: ${catchText(item.catch.crab, item.catch.lobster)} → any harbour`;
   const to = item.to === 'any' ? 'any harbour' : portById(item.to)?.name.replace(' (anchorage)', '');
   return `${k.name} ${item.mass} kg → ${to}`;
 }

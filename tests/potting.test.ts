@@ -213,7 +213,6 @@ describe('potting, milestone 3: hauling and the catch', () => {
     expect(item).toBeTruthy();
     expect('vessel' in item.at).toBe(true);
     expect(item.pot).toBeTruthy();
-    expect(item.pot!.open).toBe(false);
   });
 
   it('drawn in with the hook, the buoy stays outside the hull on its own side', () => {
@@ -226,21 +225,27 @@ describe('potting, milestone 3: hauling and the catch', () => {
     expect(local.x).toBeGreaterThan(1.5);
   });
 
-  it('opened, tipped into a catch crate; baited, it fishes better', () => {
+  it('the catch stays in the pot; set down on a harbour quay it is sold, lobster for more than crab; baited, it fishes better', () => {
     const { world, v, send, shot } = readyPot();
     send('potHook', 1, shot.id, v.id);
     shot.haul = { by: Object.keys(world.players)[0], phase: 'line', vessel: v.id, lead: [2.2, 1.3, 3], line: 0.5, lastPull: world.time };
     send('potHaul', 1, shot.id, v.id);
     const item = world.cargo[shot.id];
-    // Force a good haul to check the crate.
-    item.pot = { crab: 3, lobster: 1, bycatch: 'boot', open: false, baited: false };
-    send('potEmpty', 1, item.id, v.id);
-    expect(Object.values(world.cargo).some((c) => c.from === 'potcatch')).toBe(false); // shut: nothing
-    send('potOpen', 1, item.id, v.id);
-    send('potEmpty', 1, item.id, v.id);
-    const crate = Object.values(world.cargo).find((c) => c.from === 'potcatch')!;
-    expect(crate.catch).toEqual({ crab: 3, lobster: 1 });
+    // Force a known haul to check the sale.
+    item.pot = { crab: 3, lobster: 1, bycatch: 'boot', baited: false };
+    const money0 = world.career?.money ?? 0;
+    // Carried ashore and set down on the Calder Haven quay (by the pallet).
+    send('cargoTake', 1, item.id, v.id);
+    const { x, z } = CONFIG.potting.pallet;
+    send('cargoPlace', 1, item.id, GROUND, [x + 2, standingHeight(x + 2, z), z, 0]);
+    expect('ground' in item.at).toBe(true);
+    expect(world.cargo[item.id]).toBe(item); // the pot stays, empty, to take back aboard
     expect(item.pot).toMatchObject({ crab: 0, lobster: 0, bycatch: null });
+    const paid = (world.career?.money ?? 0) - money0;
+    expect(paid).toBeGreaterThan(0);
+    expect(paid).toBe(Math.round(paid)); // a whole sum
+    expect(world.career!.ledger[0].text).toMatch(/1 lobster, 3 crabs sold at Calder/);
+    expect(CONFIG.potting.price.lobster).toBeGreaterThan(CONFIG.potting.price.crab * 3);
     send('potBait', 1, item.id, v.id);
     expect(item.pot!.baited).toBe(true);
     // Baited vs not, same everything else: more on average.

@@ -18,7 +18,7 @@ const STRAP = 0xe8641c;
  * lying in it - plain blocks with a tail, in different colours (cod grey, mackerel blue,
  * haddock brown, red gurnard, silver whiting). Origin at the middle of its base.
  */
-function fishBoxGeometry(size: readonly number[], ice: boolean, withFish = true): THREE.BufferGeometry {
+function fishBoxGeometry(size: readonly number[], ice: boolean): THREE.BufferGeometry {
   const [L, H, W] = size;
   const wood = 0xb07a40;
   const post = 0x7a5028;
@@ -44,7 +44,7 @@ function fishBoxGeometry(size: readonly number[], ice: boolean, withFish = true)
     [0.33, 0xc8d0d6, -0.18, 0.145, -0.04],
     [0.34, 0x5a7a86, 0.18, 0.14, 3.18],
   ];
-  if (withFish) fish.forEach(([len, c, x, z, yaw], i) => {
+  fish.forEach(([len, c, x, z, yaw], i) => {
     const y = (ice ? 0.095 : 0.045) + (i % 2) * 0.004;
     const body = new THREE.BoxGeometry(len * 0.82, 0.05, len * 0.24).translate(-len * 0.09, 0, 0);
     const tail = new THREE.BoxGeometry(len * 0.16, 0.035, len * 0.26).translate(len * 0.41, 0, 0);
@@ -56,40 +56,48 @@ function fishBoxGeometry(size: readonly number[], ice: boolean, withFish = true)
 
 /**
  * A lobster / crab pot (creel), built at its real size (m), origin at the middle of its
- * base: a rectangular base frame, a half-round body of dark netting over three hoops, a
- * rope bridle, the line coiled on top and the marker buoy (with its little flag) tied on.
- * Open (`open`): the netting on one side (+z) is the door, folded down flat onto the deck,
- * so you can see in. Unrigged (`rigged` false): no line coil or buoy on top (a pot coming
- * up on its line, its buoy already aboard).
+ * base: a rectangular base frame, a half-round body of netting over hoops, a rope bridle,
+ * the line coiled on top and the marker buoy (with its little flag) tied on. The netting is
+ * drawn as an open lattice of cords (owner: you should see the crabs inside), with a solid
+ * dark floor. Unrigged (`rigged` false): no coil or buoy on top (a pot coming up on its
+ * line, its buoy already aboard).
  */
-export function potGeometry(size: readonly number[], open = false, rigged = true): THREE.BufferGeometry {
+export function potGeometry(size: readonly number[], rigged = true): THREE.BufferGeometry {
   const [L, , W] = size;
   const frame = 0x3a4a3e;
   const hoop = 0x8a9a7a;
-  const net = 0x2c3e34;
+  const net = 0x24342c;
   const rope = 0xe0b440;
   const r = W / 2 - 0.02;
+  const body = L - 0.06;
   const parts = [
-    // Base frame: two long rails and two ends (weighted bars).
+    // Base frame: two long rails and two ends (weighted bars), and the floor.
     ...[-1, 1].map((s) => part(new THREE.BoxGeometry(L, 0.035, 0.035).translate(0, 0.018, s * (W / 2 - 0.018)), frame)),
     ...[-1, 1].map((s) => part(new THREE.BoxGeometry(0.035, 0.035, W).translate(s * (L / 2 - 0.018), 0.018, 0), frame)),
-    // The netting: a half-round body along the pot (axis along x), and its ends.
-    // (theta 0..π: the upper half once laid along x; π/2..π alone leaves the +z side open.)
-    part(new THREE.CylinderGeometry(r, r, L - 0.06, 12, 1, false, open ? Math.PI / 2 : 0, open ? Math.PI / 2 : Math.PI).rotateZ(Math.PI / 2).translate(0, 0.035, 0), net),
-    // Three hoops over it.
+    part(new THREE.BoxGeometry(L - 0.04, 0.01, W - 0.04).translate(0, 0.012, 0), net),
+    // Hoops over it: three stout ones, and lighter cords of netting between.
     ...[-0.3, 0, 0.3].map((f) => part(new THREE.TorusGeometry(r + 0.008, 0.009, 4, 12, Math.PI).rotateY(Math.PI / 2).translate(f * L, 0.035, 0), hoop)),
+    ...[-0.46, -0.15, 0.15, 0.46].map((f) => part(new THREE.TorusGeometry(r, 0.004, 3, 10, Math.PI).rotateY(Math.PI / 2).translate(f * body, 0.035, 0), net)),
+    // Cords along the pot, round the half-round.
+    ...[1, 2, 3, 4, 5, 6].map((k) => {
+      const a = (k * Math.PI) / 7;
+      return part(new THREE.BoxGeometry(body, 0.006, 0.006).translate(0, 0.035 + Math.sin(a) * r, Math.cos(a) * r), net);
+    }),
+    // The ends: a few cords up each.
+    ...[-1, 1].flatMap((s) => [-0.5, 0, 0.5].map((f) => part(new THREE.BoxGeometry(0.006, r * Math.sqrt(1 - f * f), 0.006).translate(s * body / 2, 0.035 + (r * Math.sqrt(1 - f * f)) / 2, f * r), net))),
     // The entrance eye on top (a ring in the netting).
     part(new THREE.TorusGeometry(0.06, 0.012, 4, 10).rotateX(Math.PI / 2).translate(0, 0.035 + r + 0.005, 0), hoop),
     // Bridle: two ropes from the ends up to a point above the middle.
     ...[-1, 1].map((s) => part(new THREE.CylinderGeometry(0.006, 0.006, Math.hypot(L / 2, 0.08), 4).rotateZ(s * (Math.PI / 2 - Math.atan2(0.08, L / 2))).translate(s * L / 4, 0.035 + r + 0.04, 0), rope)),
-    // The line coiled on top, and the buoy with its pole and flag.
-    part(new THREE.TorusGeometry(0.09, 0.022, 5, 12).rotateX(Math.PI / 2).translate(-L * 0.18, 0.035 + r + 0.03, 0.02), rope),
-    part(new THREE.SphereGeometry(0.075, 10, 7).translate(L * 0.22, 0.035 + r + 0.07, 0.0), 0xf26a1a),
-    part(new THREE.CylinderGeometry(0.006, 0.006, 0.22, 4).rotateZ(-1.1).translate(L * 0.22 + 0.1, 0.035 + r + 0.12, 0), 0x2a2e33),
   ];
-  if (!rigged) parts.splice(parts.length - 3, 3);
-  // The door, folded down flat beside it (a quarter-round of netting laid out).
-  if (open) parts.push(part(new THREE.BoxGeometry(L - 0.08, 0.012, r * 1.4).translate(0, 0.006, W / 2 + r * 0.7), net));
+  if (rigged) {
+    // The line coiled on top, and the buoy with its pole.
+    parts.push(
+      part(new THREE.TorusGeometry(0.09, 0.022, 5, 12).rotateX(Math.PI / 2).translate(-L * 0.18, 0.035 + r + 0.03, 0.02), rope),
+      part(new THREE.SphereGeometry(0.075, 10, 7).translate(L * 0.22, 0.035 + r + 0.07, 0.0), 0xf26a1a),
+      part(new THREE.CylinderGeometry(0.006, 0.006, 0.22, 4).rotateZ(-1.1).translate(L * 0.22 + 0.1, 0.035 + r + 0.12, 0), 0x2a2e33),
+    );
+  }
   return mergeParts(parts);
 }
 
@@ -115,9 +123,7 @@ export class CargoView {
   /** Lobster / crab pots (built at the pot's real size). */
   private readonly pots: THREE.InstancedMesh;
   private readonly potSize: readonly number[];
-  private readonly openPots: THREE.InstancedMesh;
-  /** The potting catch crate (an empty fish box), and the catch shown in it and in open pots. */
-  private readonly catchBoxes: THREE.InstancedMesh;
+  /** The catch in hauled pots, seen through the netting. */
   private readonly crabs: THREE.InstancedMesh;
   private readonly lobsters: THREE.InstancedMesh;
   private readonly bycatch: Record<'fish' | 'starfish' | 'boot', THREE.InstancedMesh>;
@@ -155,9 +161,6 @@ export class CargoView {
     this.icedBoxes = new THREE.InstancedMesh(fishBoxGeometry(this.fishSize, true), mat, MAX);
     this.potSize = CONFIG.cargo.kinds.find((k) => k.name === 'Pot')?.size ?? [0.75, 0.42, 0.5];
     this.pots = new THREE.InstancedMesh(potGeometry(this.potSize), mat, MAX);
-    // Open: unrigged too (the coil and buoy set aside), so you can see the catch.
-    this.openPots = new THREE.InstancedMesh(potGeometry(this.potSize, true, false), mat, 12);
-    this.catchBoxes = new THREE.InstancedMesh(fishBoxGeometry(this.fishSize, false, false), mat, 12);
     this.crabs = new THREE.InstancedMesh(crabGeometry(), mat, MAX_ANIMALS);
     this.lobsters = new THREE.InstancedMesh(lobsterGeometry(), mat, MAX_ANIMALS / 2);
     this.bycatch = { fish: new THREE.InstancedMesh(smallFishGeometry(), mat, 8), starfish: new THREE.InstancedMesh(starfishGeometry(), mat, 8), boot: new THREE.InstancedMesh(bootGeometry(), mat, 8) };
@@ -170,15 +173,15 @@ export class CargoView {
   }
 
   private meshes(): THREE.InstancedMesh[] {
-    return [this.boxes, this.drums, this.straps, this.fishBoxes, this.icedBoxes, this.pots, this.openPots, this.catchBoxes, this.crabs, this.lobsters, ...Object.values(this.bycatch)];
+    return [this.boxes, this.drums, this.straps, this.fishBoxes, this.icedBoxes, this.pots, this.crabs, this.lobsters, ...Object.values(this.bycatch)];
   }
 
   /**
    * Animals on a floor (an open pot's base, a catch crate's boards): `p`/`q` the container's
-   * base pose, `y` the floor's height in it, L x W its size (centred `dz` across). Lobsters
-   * first, then crabs, then any bycatch.
+   * base pose, `y` the floor's height in it, L x W its size. Lobsters first, then crabs,
+   * then any bycatch.
    */
-  private drawCatch(crab: number, lobster: number, extra: 'fish' | 'starfish' | 'boot' | null, y: number, L: number, W: number, dz: number, n: { crab: number; lobster: number; extra: Record<string, number> }): void {
+  private drawCatch(crab: number, lobster: number, extra: 'fish' | 'starfish' | 'boot' | null, y: number, L: number, W: number, n: { crab: number; lobster: number; extra: Record<string, number> }): void {
     const total = crab + lobster + (extra ? 1 : 0);
     for (let i = 0; i < total; i++) {
       const im = i < lobster ? this.lobsters : i < lobster + crab ? this.crabs : this.bycatch[extra!];
@@ -186,7 +189,7 @@ export class CargoView {
       const k = key ? n[key] : (n.extra[extra!] ?? 0);
       if (k >= im.instanceMatrix.count) continue;
       const [x, z, yaw] = floorSlot(i, total, L, W);
-      this.floor.set(x, y + (i % 3) * 0.004, z + dz).applyQuaternion(this.q).add(this.p);
+      this.floor.set(x, y + (i % 3) * 0.004, z).applyQuaternion(this.q).add(this.p);
       this.m.compose(this.floor, this.qYaw.setFromAxisAngle(this.up, yaw).premultiply(this.q), this.scale.set(1, 1, 1));
       im.setMatrixAt(k, this.m);
       if (key) n[key]++;
@@ -227,8 +230,6 @@ export class CargoView {
     let ns = 0;
     let nf = 0;
     let np = 0;
-    let no = 0;
-    let nc = 0;
     const n = { crab: 0, lobster: 0, extra: {} as Record<string, number> };
     // With the ice machine the catch goes on ice (the boxes on deck show it as soon as it's bought).
     const iced = hasUpgrade(world, 'ice');
@@ -252,18 +253,15 @@ export class CargoView {
         this.q.copy(pose.quat);
       }
       const fishBox = c.from === 'trawl';
-      const catchBox = c.from === 'potcatch';
       const pot = kind.shape === 'pot';
-      const open = pot && !!c.pot?.open && no < 12;
       const drum = kind.shape === 'drum';
-      const im = open ? this.openPots : pot ? this.pots : catchBox && nc < 12 ? this.catchBoxes : fishBox || catchBox ? fishMesh : drum ? this.drums : this.boxes;
-      const i = open ? no++ : pot ? np++ : im === this.catchBoxes ? nc++ : im === fishMesh ? nf++ : drum ? nd++ : nb++;
+      const im = pot ? this.pots : fishBox ? fishMesh : drum ? this.drums : this.boxes;
+      const i = pot ? np++ : fishBox ? nf++ : drum ? nd++ : nb++;
       if (i >= MAX) continue;
-      if (open && c.pot) this.drawCatch(c.pot.crab, c.pot.lobster, c.pot.bycatch, 0.035, this.potSize[0] - 0.12, this.potSize[2] * 0.6, this.potSize[2] * 0.12, n);
-      if (im === this.catchBoxes && c.catch) this.drawCatch(c.catch.crab, c.catch.lobster, null, 0.02, this.fishSize[0] - 0.08, this.fishSize[2] - 0.08, 0, n);
-      if (pot || im === this.catchBoxes) {
-        const size = pot ? this.potSize : this.fishSize;
-        this.m.compose(this.p, this.q, this.scale.set(sx / size[0], sy / size[1], sz / size[2]));
+      // A hauled pot's catch, on its floor (seen through the netting).
+      if (pot && c.pot) this.drawCatch(c.pot.crab, c.pot.lobster, c.pot.bycatch, 0.018, this.potSize[0] - 0.14, this.potSize[2] - 0.16, n);
+      if (pot) {
+        this.m.compose(this.p, this.q, this.scale.set(sx / this.potSize[0], sy / this.potSize[1], sz / this.potSize[2]));
         im.setMatrixAt(i, this.m);
         im.setColorAt(i, this.color.setScalar(c.id === hovered ? 1.4 : 1));
       } else if (im === fishMesh) {
@@ -308,8 +306,6 @@ export class CargoView {
     this.straps.count = ns;
     fishMesh.count = Math.min(nf, MAX);
     this.pots.count = Math.min(np, MAX);
-    this.openPots.count = no;
-    this.catchBoxes.count = nc;
     this.crabs.count = n.crab;
     this.lobsters.count = n.lobster;
     for (const [k, im] of Object.entries(this.bycatch)) im.count = n.extra[k] ?? 0;

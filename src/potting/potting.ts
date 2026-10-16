@@ -296,7 +296,7 @@ export function catchFor(world: WorldState, pot: ShotPot): PotContents {
   for (let i = 0; i < c.crabMax; i++) if (r(i + 11) < expect) crab++;
   let bycatch: PotContents['bycatch'] = null;
   if (r(30) < c.bycatch) bycatch = r(31) < c.bootChance ? 'boot' : r(32) < 0.55 ? 'fish' : 'starfish';
-  return { crab, lobster, bycatch, open: false, baited: false };
+  return { crab, lobster, bycatch, baited: false };
 }
 
 /** The gunwale point (vessel axes) nearest a world point: where a line comes aboard. */
@@ -367,39 +367,6 @@ function landPot(world: WorldState, pot: ShotPot, v: VesselState): void {
   world.cargo[item.id] = item;
 }
 
-/** Put a pot's catch into a catch crate on its deck: one with room, or a new one beside it. */
-function crateCatch(world: WorldState, item: CargoItem): boolean {
-  const pot = item.pot;
-  if (!pot || !('vessel' in item.at)) return false;
-  const v = world.vessels[item.at.vessel];
-  if (!v) return false;
-  const n = pot.crab + pot.lobster;
-  const cap = CONFIG.potting.crateCapacity;
-  if (n > 0) {
-    let crate = aboard(world, v.id).find((c) => c.from === 'potcatch' && c.catch && c.catch.crab + c.catch.lobster + n <= cap);
-    if (!crate) {
-      const kind = CONFIG.cargo.kinds.findIndex((k) => k.name === 'Fish box');
-      const others = aboard(world, v.id).map((o) => {
-        const at = o.at as Extract<CargoItem['at'], { vessel: string }>;
-        const fp = footprint(o);
-        return { x: at.pos[0], z: at.pos[2], r: Math.max(fp.hx, fp.hz) };
-      });
-      const proto = { kind, mass: 20 } as CargoItem;
-      const spot = deckSpot(v.defId, footprint(proto), item.at.pos[0], item.at.pos[2], others);
-      if (!spot) return false;
-      const p = world.potting!;
-      crate = { id: `catch-${++p.seq}`, kind, mass: 20, from: 'potcatch', to: 'any', at: { vessel: v.id, pos: [spot.x, deckHeightAt(v.defId, spot.z), spot.z], yaw: 0, vel: [0, 0], lashed: false }, catch: { crab: 0, lobster: 0 } };
-      world.cargo[crate.id] = crate;
-    }
-    crate.catch!.crab += pot.crab;
-    crate.catch!.lobster += pot.lobster;
-    crate.mass = 20 + crate.catch!.crab * 0.6 + crate.catch!.lobster * 0.8;
-  }
-  // The bycatch goes back over the side.
-  item.pot = { ...pot, crab: 0, lobster: 0, bycatch: null };
-  return true;
-}
-
 /** Its buoy is up (the pot's on the bottom). */
 export function buoyUp(world: WorldState, pot: ShotPot): boolean {
   return world.time - pot.shotAt >= CONFIG.potting.sinkTime;
@@ -455,7 +422,7 @@ export function isPottingIntent(control: string): boolean {
   return control === 'pottingOn' || control.startsWith('potDebug') || HAUL_INTENTS.has(control);
 }
 
-const HAUL_INTENTS = new Set(['potHook', 'potTow', 'potAboard', 'potHaul', 'potOpen', 'potEmpty', 'potBait']);
+const HAUL_INTENTS = new Set(['potHook', 'potTow', 'potAboard', 'potHaul', 'potBait']);
 
 /**
  * Hauling and the catch (milestone 3). ref: the pot (a shot pot's id, or the pot cargo item
@@ -464,9 +431,8 @@ const HAUL_INTENTS = new Set(['potHook', 'potTow', 'potAboard', 'potHaul', 'potO
  *   potTow     args [x, z]: the hooked buoy drawn toward your hook tip (at most 3 m a go)
  *   potAboard  the buoy over the gunwale (within liftRange of the hull): the line leads in there
  *   potHaul    value m: line hauled in; at nothing left the pot comes over onto the deck
- *   potOpen    open the pot's door: the catch shows
- *   potEmpty   tip the catch into a catch crate (bycatch back over the side)
- *   potBait    bait from the tub into an open, empty pot
+ *   potBait    bait from the tub into a pot not yet baited (the catch, if any, stays in it
+ *              until it's sold ashore)
  */
 function applyHaulIntent(world: WorldState, intent: Intent): boolean {
   if (!HAUL_INTENTS.has(intent.control)) return false;
@@ -511,20 +477,10 @@ function applyHaulIntent(world: WorldState, intent: Intent): boolean {
       if (shot.haul.line <= 0) landPot(world, shot, hv);
       break;
     }
-    case 'potOpen': {
-      const item = intent.ref ? world.cargo[intent.ref] : undefined;
-      if (item?.pot && !item.pot.open) item.pot.open = true;
-      break;
-    }
-    case 'potEmpty': {
-      const item = intent.ref ? world.cargo[intent.ref] : undefined;
-      if (item?.pot?.open) crateCatch(world, item);
-      break;
-    }
     case 'potBait': {
       const item = intent.ref ? world.cargo[intent.ref] : undefined;
       const pc = item?.pot;
-      if (item && isPot(item) && (!pc || (pc.open && pc.crab + pc.lobster === 0))) item.pot = { crab: 0, lobster: 0, bycatch: null, open: false, ...pc, baited: true };
+      if (item && isPot(item) && !pc?.baited) item.pot = { crab: 0, lobster: 0, bycatch: null, ...pc, baited: true };
       break;
     }
   }

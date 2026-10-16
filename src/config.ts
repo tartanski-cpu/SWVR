@@ -2123,8 +2123,11 @@ export const CONFIG = {
      * (`bootChance` of those) an old boot.
      */
     catch: { lobsterMax: 2, crabMax: 6, offGround: 0.15, unbaited: 0.35, roughWind: 11, roughFactor: 0.7, bycatch: 0.25, bootChance: 0.12 },
-    /** A catch crate (a fish box of crab and lobster) holds this many. */
-    crateCapacity: 12,
+    /**
+     * What the fish buyer pays (career money) for each animal in a pot set down on a harbour
+     * quay. Lobster is worth far more than crab.
+     */
+    price: { lobster: 40, crab: 8 },
     /** The bait tub on deck (vessel x, z), outside the wheelhouse's aft wall, port side. */
     baitBox: [-0.95, 1.85] as [number, number],
   },

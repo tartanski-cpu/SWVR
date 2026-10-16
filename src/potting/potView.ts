@@ -85,7 +85,7 @@ export class PotView {
     this.lines = new THREE.LineSegments(ln, new THREE.LineBasicMaterial({ color: 0xe0b440 }));
     this.lines.frustumCulled = false;
     const size = CONFIG.cargo.kinds.find((k) => k.name === 'Pot')?.size ?? [0.75, 0.42, 0.5];
-    this.hanging = new THREE.InstancedMesh(potGeometry(size, false, false), flatVertexColorMaterial(), HAULING);
+    this.hanging = new THREE.InstancedMesh(potGeometry(size, false), flatVertexColorMaterial(), HAULING);
     this.hanging.frustumCulled = false;
     this.hanging.count = 0;
     const dg = new THREE.BufferGeometry();
