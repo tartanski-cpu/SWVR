@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { flatVertexColorMaterial, mergeParts, part } from '../../render/geometryUtils';
-import { BERTHS, BLOCKS, BUILDINGS, ISLANDS, LAMPS, LIGHTS, PORT_FLOODS, PORTS, RIDGES, type BlockDef } from '../archipelago';
+import { BERTHS, BLOCKS, BUILDINGS, ISLANDS, LAMPS, LIGHTS, PORT_FLOODS, PORTS, RIDGES, WRECKS, type BlockDef, type WreckDef } from '../archipelago';
 import { CONFIG } from '../../config';
 import { groundHeight } from '../terrain';
 import { standingHeight } from '../geography';
@@ -138,9 +138,10 @@ const BOLLARD = 0x2a2c30;
 function buildStructures(): THREE.BufferGeometry[] {
   const parts: THREE.BufferGeometry[] = [];
   for (const b of BLOCKS) buildBlock(b, parts);
-  for (const r of RIDGES) buildBreakwater(r.ax, r.az, r.bx, r.bz, r.crest, r.halfWidth, r.slope, parts);
+  for (const r of RIDGES) if (r.drawn !== false) buildBreakwater(r.ax, r.az, r.bx, r.bz, r.crest, r.halfWidth, r.slope, parts);
   for (const bd of BUILDINGS) buildBuilding(bd, parts);
   for (const l of LIGHTS) buildLightTower(l.x, l.z, l.y, l.color, l.tower, parts);
+  for (const w of WRECKS) buildWreck(w, parts);
   // Lamp posts: a slim pole with a downward-facing head.
   for (const l of LAMPS) {
     const base = standingHeight(l.x, l.z);
@@ -378,6 +379,38 @@ function buildTrees(): THREE.InstancedMesh {
   return mesh;
 }
 
+/**
+ * A wreck (archipelago.ts WRECKS): a small coaster on her side, sunk until only the top of
+ * her hull, the edge of her wheelhouse and her mast lie above the water. Rust and old paint,
+ * flat-shaded, merged with the rest of the world's static parts. Her solid part, for running
+ * into, is a ridge in RIDGES (`drawn: false`) along her length.
+ */
+function buildWreck(w: WreckDef, parts: THREE.BufferGeometry[]): void {
+  const L = w.length;
+  const B = L * 0.23;
+  const D = L * 0.14;
+  const hull = 0x5a3424;
+  const rust = 0x8a4a28;
+  const paint = 0x3a4a52;
+  const local: THREE.BufferGeometry[] = [
+    part(new THREE.BoxGeometry(B, D, L * 0.86).translate(0, D / 2, 0.02 * L), hull), // hull
+    part(new THREE.CylinderGeometry(B / 2, B / 2, D, 3).rotateY(Math.PI).scale(1, 1, 0.9).translate(0, D / 2, -L * 0.47), hull), // bow
+    part(new THREE.BoxGeometry(B * 1.01, D * 0.25, L * 0.87).translate(0, D * 0.88, 0.02 * L), rust), // a rust band along the top
+    part(new THREE.BoxGeometry(B * 0.7, D * 0.9, L * 0.16).translate(0, D * 1.45, L * 0.3), paint), // wheelhouse aft
+    part(new THREE.CylinderGeometry(0.5, 0.6, D * 0.8, 8).translate(0, D * 1.4, L * 0.4), rust), // funnel
+    part(new THREE.CylinderGeometry(0.18, 0.25, L * 0.32, 6).translate(0, D + L * 0.16, -L * 0.22), rust), // mast
+    part(new THREE.BoxGeometry(0.12, 0.12, L * 0.18).translate(0, D + L * 0.26, -L * 0.22), rust), // a cross-tree
+  ];
+  // Lie her over, turn her to her heading, then sink her until the top of her hull (her
+  // upper side, lying over) is 0.9 m above the water; the wheelhouse and mast stick out.
+  const lay = new THREE.Matrix4().makeRotationY((-w.headingDeg * Math.PI) / 180).multiply(new THREE.Matrix4().makeRotationZ((-w.listDeg * Math.PI) / 180));
+  const hullTop = local[0].clone().applyMatrix4(lay);
+  hullTop.computeBoundingBox();
+  const g = mergeParts(local).applyMatrix4(lay);
+  g.translate(w.x, 0.9 - hullTop.boundingBox!.max.y, w.z);
+  parts.push(g);
+}
+
 // ── Lights ───────────────────────────────────────────────────────────────────────
 
 const LIGHT_COLORS = { red: 0xff3020, green: 0x30ff60, white: 0xfff4d8 };
@@ -434,7 +467,7 @@ export class HarbourLights {
   }
 }
 
-function glowTexture(): THREE.Texture {
+export function glowTexture(): THREE.Texture {
   const s = 64;
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = s;

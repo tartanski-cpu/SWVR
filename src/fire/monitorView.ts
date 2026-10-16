@@ -40,7 +40,9 @@ export class MonitorView {
   update(s: VesselState): void {
     let pan = s.controls.monPan;
     let tilt = s.controls.monTilt;
-    if (this.stabilised && this.root.parent) {
+    // Stabilised only while the FIRE PUMP is switched on (owner: no need otherwise); off,
+    // the monitor rides with the boat. The jet itself (fire.ts) only flows with the pump on.
+    if (this.stabilised && s.controls.firePump > 0 && this.root.parent) {
       // Stabilised: where the jet really points (held level against her roll and pitch,
       // fire.ts monitorAim), back in the boat's axes, as she's drawn this frame.
       this.root.parent.getWorldQuaternion(this.q);

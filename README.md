@@ -124,8 +124,9 @@ At the helm, from left to right on the console:
 - **Nav lights** toggle switch.
 - **Anchor** switch: down = let go (the chain pays out to 4 × depth + 5 m), up = heave in and stow. You hear it: the chain rattles out over the bow roller and the anchor splashes in; heaving in, the windlass hums and the links clank in one by one, with a clunk as it stows.
 - **SPOT** switch (far left): the searchlight on the wheelhouse roof.
-- **Searchlight joystick:** on the pedestal to port of the wheel, under your left hand. Grip it and push sideways to pan, forward/back to raise/lower the beam. The further you push, the faster it moves; let go and the light stays put. On desktop, click and drag it. The lamp is **stabilised** like the fire monitor: it holds its aim as she rolls and pitches, so the beam stays on what you've found.
+- **Searchlight joystick:** on the pedestal to port of the wheel, under your left hand. Grip it and push sideways to pan, forward/back to raise/lower the beam. The further you push, the faster it moves; let go and the light stays put. On desktop, click and drag it. The lamp is **stabilised** like the fire monitor: it holds its aim as she rolls and pitches, so the beam stays on what you've found. It only does this while it's lit; switched off it sits still on its mount.
 - **Cabin** light switch: the wheelhouse ceiling lamp, three-way. Each press steps **off → white → red → off**: the bat is in the middle for off, forward for white, and aft for red. Red is dim, for night work: you can see the controls without losing your night vision.
+- **NIGHT** switch (next to Cabin): the instrument lighting. The dials, screens and labels dim by themselves as it gets dark; NIGHT turns them a dim red as well, so you can keep your night vision and still see out.
 - **WIPERS** switch (far port end): the three pendulum wipers on the front windows. They need the INSTR breaker; switched off they finish the sweep and park.
 - **Horn** button (hold).
 - **Wheel**: 1.5 turns lock to lock. Hydraulic steering, so it stays where you leave it.
@@ -193,7 +194,13 @@ Above it, a lamp on the wall with its own small switch on the wooden batten the 
   - They carry navigation lights at night.
   - The lookout calls each one out with a clock bearing and range.
 - **In fog** ships sound a prolonged blast every 2 minutes, and the nearest one answers yours. Listen for where it comes from.
-- **Hazards:** floating debris, the rocks at Gull Rocks and the Skerry, and yellow/red hazard buoys.
+- **Hazards:** floating debris, and charted dangers marked with lit buoys (IALA region A, as round the UK):
+  - **the wreck of the *Margaret Ann***, west of Gull Rocks, lying on her side with her wheelhouse and mast showing; a north and a south cardinal;
+  - **Dubh Sgeir**, a reef awash further south-west; a west and an east cardinal;
+  - **Craig Bheag**, a lone rock south of Gull Rocks with an **isolated danger** mark (black and red, two black balls, Fl(2) 5s) on it;
+  - **Gull Rocks** (west and south cardinals) and **the Skerry** (west cardinal);
+  - a pair of **lateral** buoys at the Calder entrance: red can to port, green cone to starboard, coming in.
+  - Cardinals are yellow and black with two cone topmarks, and lie on the named side of the danger (pass north of a north cardinal). At night each flashes its own rhythm: N quick, E Q(3) 10s, S Q(6)+long 15s, W Q(9) 15s. All are on the paper chart and the plotter with their light characters.
 - **Debug:** Menu → Debug → Missions → Traffic → **Spawn ship** / **Spawn debris** (close by).
 
 ### Emergency calls
@@ -243,7 +250,7 @@ The dash shows:
 Out of harbour, with no other job on, a fire is reported on the VHF every 5–11 minutes. It's either a fishing boat burning at sea, or a shed ashore that you can reach from deep water. Pick up the handset to take it; the plotter marks it **FIRE**.
 
 1. **Engine running, FIRE PUMP on.** The switch is on the console, left of the wheel (SEARCH · FIRE group). The pump is engine-driven, so there's no water with the engine off.
-2. **Aim the fire monitor** on the wheelhouse roof with its joystick (red knob, on its own pedestal at the port end, beside the searchlight's). Sideways pans it, forward and back raises and lowers it. It's **stabilised**: as she rolls and pitches it holds its aim (you'll see the barrel move on its mount), so you only correct for your own heading and the drift. The jet flies a real arc, carried by the boat's way and blown a little by the wind.
+2. **Aim the fire monitor** on the wheelhouse roof with its joystick (red knob, on its own pedestal at the port end, beside the searchlight's). Sideways pans it, forward and back raises and lowers it. It's **stabilised** while the pump is running: as she rolls and pitches it holds its aim (you'll see the barrel move on its mount), so you only correct for your own heading and the drift. The jet flies a real arc, carried by the boat's way and blown a little by the wind.
 3. **Keep the jet on the fire.** You know you're on target four ways:
    - the **ON TARGET** lamp lights green on the console, just ahead of the monitor joystick;
    - the **FIRE** bar beside it shrinks as the fire dies, from red through orange to yellow;

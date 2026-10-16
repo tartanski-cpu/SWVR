@@ -1,4 +1,5 @@
 import { isPowered } from '../vessel/electrics';
+import { panelLit } from './panelLighting';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { CONFIG } from '../config';
@@ -80,7 +81,7 @@ export class InstrumentPanel {
       .rotateX((n.tiltDeg * Math.PI) / 180)
       .translate(n.position[0], n.position[1], n.position[2]);
     faces.push(nav);
-    this.mesh = new THREE.Mesh(mergeGeometries(faces), new THREE.MeshBasicMaterial({ map: this.texture, toneMapped: false }));
+    this.mesh = new THREE.Mesh(mergeGeometries(faces), panelLit(new THREE.MeshBasicMaterial({ map: this.texture, toneMapped: false })));
     this.mesh.name = 'instruments';
   }
 

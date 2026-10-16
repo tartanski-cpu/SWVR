@@ -1,9 +1,10 @@
 import { isPowered } from '../vessel/electrics';
+import { panelLit } from '../controls/panelLighting';
 import * as THREE from 'three';
 import type { WorldState } from '../core/world';
 import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
 import { cargoPaused, portById } from '../rescue/rescue';
-import { ISLANDS, PORTS } from '../world/archipelago';
+import { ISLANDS, MARKS, PORTS, WRECKS } from '../world/archipelago';
 import { groundHeight } from '../world/terrain';
 import { CONFIG } from '../config';
 import type { ChartMarks } from '../chart/marks';
@@ -66,7 +67,7 @@ export class ChartPlotter {
     this.g = this.canvas.getContext('2d')!;
     this.texture = new THREE.CanvasTexture(this.canvas);
     this.texture.colorSpace = THREE.SRGBColorSpace;
-    const screen = new THREE.Mesh(new THREE.PlaneGeometry(sw, sh), new THREE.MeshBasicMaterial({ map: this.texture, toneMapped: false }));
+    const screen = new THREE.Mesh(new THREE.PlaneGeometry(sw, sh), panelLit(new THREE.MeshBasicMaterial({ map: this.texture, toneMapped: false })));
     screen.position.z = 0.002;
     set.add(screen);
   }
@@ -188,6 +189,37 @@ export class ChartPlotter {
           else g.lineTo(px, py);
         }
       }
+      g.stroke();
+    }
+
+    // Hazards: wrecks (a cross in a red ring) and their buoys (small diamonds in the mark's
+    // colours: yellow/black cardinals, black-red isolated danger, red and green laterals).
+    for (const w of WRECKS) {
+      const [px, py] = toPx(w.x, w.z);
+      if (px < -20 || px > W + 20 || py < -20 || py > H + 20) continue;
+      g.strokeStyle = '#ff5040';
+      g.lineWidth = 2;
+      g.beginPath();
+      g.arc(px, py, 8, 0, Math.PI * 2);
+      g.moveTo(px - 5, py - 5);
+      g.lineTo(px + 5, py + 5);
+      g.moveTo(px + 5, py - 5);
+      g.lineTo(px - 5, py + 5);
+      g.stroke();
+    }
+    for (const m of MARKS) {
+      const [px, py] = toPx(m.x, m.z);
+      if (px < -10 || px > W + 10 || py < -10 || py > H + 10) continue;
+      g.fillStyle = m.kind === 'port' ? '#ff4030' : m.kind === 'stbd' ? '#30d060' : m.kind === 'isolated' ? '#ff4030' : '#ffd23a';
+      g.strokeStyle = '#101010';
+      g.lineWidth = 1.5;
+      g.beginPath();
+      g.moveTo(px, py - 6);
+      g.lineTo(px + 5, py);
+      g.lineTo(px, py + 6);
+      g.lineTo(px - 5, py);
+      g.closePath();
+      g.fill();
       g.stroke();
     }
 

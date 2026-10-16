@@ -532,9 +532,11 @@ export const CONFIG = {
          *                 start-up card at the starboard end
          */
         navLightsSwitch: { position: [-1.29, 2.16, -1.52] as [number, number, number] },
-        cabinLightSwitch: { position: [-1.14, 2.16, -1.52] as [number, number, number] },
+        cabinLightSwitch: { position: [-1.185, 2.16, -1.52] as [number, number, number] },
+        /** NIGHT: the panel lighting red (controls/panelLighting.ts; owner request). */
+        nightPanelSwitch: { position: [-0.975, 2.16, -1.52] as [number, number, number] },
         /** Windscreen wipers (Instruments breaker). */
-        wipersSwitch: { position: [-0.99, 2.16, -1.52] as [number, number, number] },
+        wipersSwitch: { position: [-1.08, 2.16, -1.52] as [number, number, number] },
         spotlightSwitch: { position: [-0.48, 2.16, -1.52] as [number, number, number] },
         hornButton: { position: [-0.28, 2.16, -1.52] as [number, number, number] },
         /** Windlass: up = heave in / stowed, down = let go. */
@@ -1637,8 +1639,8 @@ export const CONFIG = {
    * as such a track exists (debris only out of harbour). Ship types:
    * length, beam, speed (m/s), AIS names. Sighted within min(`sightRange`, visibility x
    * `sightVis`). In restricted visibility they sound a prolonged blast every 2 min, and
-   * answer yours. Hazards: floating debris (spawned like ships, drifting), the rocks and
-   * these buoys.
+   * answer yours. Hazards: floating debris (spawned like ships, drifting). The fixed
+   * hazards (rocks, a reef, a wreck) and their buoys are world data (archipelago.ts MARKS).
    */
   traffic: {
     every: [20, 45] as [number, number],
@@ -1658,16 +1660,6 @@ export const CONFIG = {
       yacht: { length: 12, beam: 3.8, speed: 3, names: ['Kittiwake', 'Blue Moon', 'Saorsa'] },
     },
     debrisEvery: [300, 600] as [number, number],
-    rocks: [
-      { name: 'Gull Rocks', x: 380, z: 430 },
-      { name: 'Skerry', x: -470, z: -360 },
-    ],
-    /** Hazard marks (vessel-free buoys): position and colour. */
-    buoys: [
-      { x: 270, z: 430, color: 0xe8c020 },
-      { x: -580, z: -360, color: 0xe8c020 },
-      { x: 150, z: 980, color: 0xd0302a },
-    ],
   },
 
   /**
@@ -1938,6 +1930,13 @@ export const CONFIG = {
    * Desktop: the beam starts at a "hand" `deskHand` (m: right, up, forward of the eyes), so it's
    * seen from the side; started at the eyes it would be seen end-on, just a dot.
    */
+  /**
+   * Panel lighting (controls/panelLighting.ts): the wheelhouse's self-lit screens, labels
+   * and dials dim with the daylight to `nightLevel` of their daytime brightness at full
+   * dark; the NIGHT switch turns them red and dims them further to `redLevel` of that.
+   */
+  panelLighting: { nightLevel: 0.3, redLevel: 0.6 },
+
   /**
    * Other players' figures (net/avatarView.ts, looks in net/avatarOutfits.ts). Upper body
    * only (owner's choice): head, a torso hanging from the neck to the waist, two-part arms

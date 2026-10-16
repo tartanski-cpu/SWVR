@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { panelLit } from './panelLighting';
 import { isPowered } from '../vessel/electrics';
 import { leverDemand, preheatNeeded } from '../vessel/physics/propulsion';
 import type { WorkboatDef } from '../vessel/vesselDef';
@@ -65,7 +66,7 @@ export class SelectorSwitch extends Control {
   constructor() {
     super('batSelect', 'batSelect');
     const plate = this.fixed(new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.2, 0.012), new THREE.MeshLambertMaterial({ color: 0xe8e4d8 })));
-    const label = new THREE.Mesh(new THREE.PlaneGeometry(0.15, 0.19), new THREE.MeshBasicMaterial({ map: selectorLabel(), transparent: true }));
+    const label = new THREE.Mesh(new THREE.PlaneGeometry(0.15, 0.19), panelLit(new THREE.MeshBasicMaterial({ map: selectorLabel(), transparent: true })));
     label.position.z = 0.007;
     const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.045, 0.02, 16).rotateX(Math.PI / 2), this.material(0x1c1f22));
     disc.position.z = 0.016;
@@ -158,7 +159,7 @@ export class WarningLamps {
     });
     this.root.add(this.lamps);
     const w = cfg.spacing * n;
-    const label = new THREE.Mesh(new THREE.PlaneGeometry(w, 0.03).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: lampLabels(n), transparent: true }));
+    const label = new THREE.Mesh(new THREE.PlaneGeometry(w, 0.03).rotateX(-Math.PI / 2), panelLit(new THREE.MeshBasicMaterial({ map: lampLabels(n), transparent: true })));
     label.position.set(0, 0.002, 0.028);
     this.root.add(label);
   }

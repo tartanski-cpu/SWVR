@@ -1,4 +1,5 @@
 import { isPowered } from '../vessel/electrics';
+import { panelLit } from './panelLighting';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { CONFIG } from '../config';
@@ -63,7 +64,7 @@ export class OverheadPanel {
     this.g = this.canvas.getContext('2d')!;
     this.texture = new THREE.CanvasTexture(this.canvas);
     this.texture.colorSpace = THREE.SRGBColorSpace;
-    const screen = new THREE.Mesh(new THREE.PlaneGeometry(0.17, 0.064), new THREE.MeshBasicMaterial({ map: this.texture, toneMapped: false }));
+    const screen = new THREE.Mesh(new THREE.PlaneGeometry(0.17, 0.064), panelLit(new THREE.MeshBasicMaterial({ map: this.texture, toneMapped: false })));
     // Facing down, top edge toward the bow, so it reads from the helm looking up.
     screen.rotation.x = Math.PI / 2;
     screen.position.set(c.fmDisplay, -0.002, 0);
@@ -101,7 +102,7 @@ export class OverheadPanel {
       p.translate(x, -0.002, 0.07);
       return p;
     });
-    const merged = new THREE.Mesh(mergeGeometries(geos), new THREE.MeshBasicMaterial({ map: tex, transparent: true }));
+    const merged = new THREE.Mesh(mergeGeometries(geos), panelLit(new THREE.MeshBasicMaterial({ map: tex, transparent: true })));
     merged.name = 'overheadLabels';
     return merged;
   }

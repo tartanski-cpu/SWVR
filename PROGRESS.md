@@ -1549,6 +1549,16 @@ How to come back to it:
 
 ### Fixes after V1.0 (on the dev branch; not in the `V1.0` tag)
 
+- **Charted hazards and IALA buoys; night instrument lighting; stabilisers only in use** (owner request):
+  - **Old buoys and rocks gone:** the yellow/red buoys and loose rocks the traffic system scattered about (unlit, marking nothing) are removed (`traffic.buoys`, `traffic.rocks` deleted).
+  - **Real dangers** (`world/archipelago.ts`):
+    - the wreck *Margaret Ann* (`WRECKS`): a 30 m coaster lying at 55° list, hull top 0.9 m above the water (wheelhouse, funnel and mast showing). Its seabed is a hidden ridge (`RidgeDef.drawn: false`), so she grounds you like rock and shows on the chart's depths;
+    - Dubh Sgeir, a reef awash (a ridge, crest 0.4 m);
+    - Craig Bheag, a 1.2 m rock (an islet).
+  - **Buoys** (`MARKS`), IALA region A: N and S cardinals on the wreck, W and E on Dubh Sgeir, W and S at Gull Rocks, W at the Skerry, an isolated danger mark on Craig Bheag, and a port/starboard pair at the Calder entrance. Shapes, colours and topmarks are the IALA ones. Lights flash the IALA characters (`world/navMarks.ts`), staggered so like buoys don't flash together. Drawn as one instanced mesh per kind plus one points cloud for the lamps (`world/view/navMarksView.ts`): a handful of draw calls for all of them. The paper chart and the plotter show the marks (with characters) and the wreck symbol.
+  - **Night panel lighting** (`controls/panelLighting.ts`): every dial, screen and label shares one brightness setting in its shader, so it costs nothing per frame. It dims with darkness to `panelLighting.nightLevel` (0.3). A new **NIGHT** switch on the console (`controls.panelRed`, `bridge.nightPanelSwitch`) turns it red at `panelLighting.redLevel` (0.6) of that. The WIPERS switch moved one place to port to make room.
+  - **Stabilisation only in use:** the searchlight holds its aim only while lit, and the fire monitor only while the pump runs. Otherwise they ride with the boat and skip the per-frame correction.
+
 - **Wheelhouse sides and a port side door** (owner sketch):
   - **Raised side wall by the console:** from the front back to the console's aft edge the side windows' sill is raised to the console top (`wheelhouse.sideRaise` height 0.95 above the floor, to z -1.32), sloping back down to the normal sill over 0.35 m (a wedge). Both sides; on the port side it runs into the door's forward jamb.
   - **Sliding door in the port wall** between the console and the chart table (`wheelhouse.sideDoor` z -1.12..-0.37, 2.0 m high): the aft door's panel (`WheelhouseDoor`, now taking its control key) turned to slide aft along the outside of the wall, a threshold, a header and jambs. Green push buttons on the forward jamb inside and out (`DoorButton`, key `sideDoor`). Vessel control `sideDoor` (1 open, optional in the state: absent = shut), shut at the start. Walking: a doorway strip joins the wheelhouse floor to the port side deck (`layout.ts`); desktop walking is blocked while it's shut (`App.withDoor`); the collision test treats the doorway as open. The wheelhouse counts as shut-in (muffled engine, wind, rain) only with both doors shut.

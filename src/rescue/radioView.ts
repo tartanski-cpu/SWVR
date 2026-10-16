@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { panelLit } from '../controls/panelLighting';
 import type { RescueState } from './rescue';
 import { Handset } from '../controls/Handset';
 import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
@@ -57,7 +58,7 @@ export class RadioSet {
     this.g = this.canvas.getContext('2d')!;
     this.texture = new THREE.CanvasTexture(this.canvas);
     this.texture.colorSpace = THREE.SRGBColorSpace;
-    const screen = new THREE.Mesh(new THREE.PlaneGeometry(0.19, 0.095), new THREE.MeshBasicMaterial({ map: this.texture, toneMapped: false }));
+    const screen = new THREE.Mesh(new THREE.PlaneGeometry(0.19, 0.095), panelLit(new THREE.MeshBasicMaterial({ map: this.texture, toneMapped: false })));
     screen.position.set(0.01, 0.002, d / 2 + 0.0065);
     set.add(screen);
 

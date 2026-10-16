@@ -7,6 +7,8 @@ import { FixedStepLoop } from '../core/loop';
 import { stepWorld, type SimDebug } from '../core/simulation';
 import { createWorld, type WorldState } from '../core/world';
 import { randomLook } from '../net/avatarOutfits';
+import { updatePanelLighting } from '../controls/panelLighting';
+import { NavMarksView } from '../world/view/navMarksView';
 import { HelpPanel } from '../debug/helpPanel';
 import { DebugOverlay } from '../debug/overlay';
 import { EnvironmentView } from '../environment/environmentView';
@@ -170,6 +172,8 @@ export class App {
   private interaction: InteractionSystem | null = null;
   private readonly effects = new Map<EntityId, VesselEffects>();
   private readonly worldView = new WorldView();
+  /** The hazard buoys, riding the swell with their lights (owner request). */
+  private readonly navMarks = new NavMarksView();
   private readonly cargoView = new CargoView();
   private readonly cargoHands = new CargoHands();
   /** Our laser pointer (others see it in our pose; laserPointer.ts). */
@@ -337,7 +341,7 @@ export class App {
 
     this.desktop = new DesktopController(this.camera, this.renderer.domElement, this.keyboard);
     this.environment = new EnvironmentView(this.scene);
-    this.scene.add(this.sky.mesh, this.ocean.mesh, this.probes.mesh, this.worldView.root, this.cargoView.root);
+    this.scene.add(this.sky.mesh, this.ocean.mesh, this.probes.mesh, this.worldView.root, this.navMarks.root, this.cargoView.root);
     this.scene.add(this.targetsView.root, this.gearView.root, this.desktopHand.root, this.rain.mesh, this.trafficView.root);
     this.rain.quality = userSettings.rainQuality;
     this.targetsView.onWhistle = (pos) => this.sound.whistle.blow(pos);
@@ -681,6 +685,7 @@ export class App {
   /** Port lights, weather, the rescue's people and gear and their sounds. */
   private updateSceneViews(dt: number, renderTime: number, darkness: number): void {
     this.worldView.lights.update(renderTime, darkness);
+    this.navMarks.update(this.renderWaves, renderTime, darkness);
     this.targetsView.visibility = this.environment.visibility;
     this.updateWeatherViews(renderTime, darkness, dt);
     this.targetsView.update(this.world, this.renderWaves, this.focus, darkness, renderTime, dt, this.testVesselId, this.vesselRoots.get(this.testVesselId));
@@ -737,6 +742,8 @@ export class App {
 
   /** Port floodlights, cargo, the desktop hand, our pose out and the crew's avatars in. */
   private updateCrewViews(dt: number, inXR: boolean, darkness: number): void {
+    // Wheelhouse panel lighting: dims with the dark; the NIGHT switch turns it red.
+    updatePanelLighting(darkness, (this.world.vessels[this.testVesselId]?.controls.panelRed ?? 0) > 0.5, dt);
     this.worldView.portLighting.update(this.focus, darkness);
     this.ocean.setPortLight(this.worldView.portLighting.flood);
     const fxTest = this.effects.get(this.testVesselId);
