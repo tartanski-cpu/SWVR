@@ -52,6 +52,7 @@ Headless browser checks: Chromium is pre-installed for Playwright. Launch it wit
 - `src/app/`: the app shell (`App.ts` and the pieces split out of it: career session, laser pointer, sound board, desktop pointer, XR session).
 - Gameplay systems each have a folder: `rescue/`, `tow/`, `fire/`, `fishing/`, `salvage/`, `cargo/`, `career/`, `duties/`, `traffic/`, `wildlife/`, `environment/`, `ocean/`, `world/`, `nav/`, `chart/`, `net/` (multiplayer), `audio/`, `ui/`.
 - `tests/`: vitest tests, mostly against the plain-JSON simulation.
+- `src/hulls/` + `hulls.html`: the hull study (lines-plan hull generator, type designs, viewer). Separate from the game; groundwork for modular boats.
 
 ## Docs
 

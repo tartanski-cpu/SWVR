@@ -66,6 +66,7 @@ function show(id: string): void {
     .join('');
   for (const b of document.querySelectorAll<HTMLButtonElement>('#tabs button')) b.classList.toggle('on', b.dataset.id === d.id);
   location.hash = d.id;
+  view('bow');
 }
 
 /** Stations as thin lines (both sides), the deck edge and the keel, in dark ink. */
@@ -105,15 +106,18 @@ document.getElementById('sea')!.onclick = () => {
   showSea = !showSea;
   sea.visible = showSea;
 };
-const views: Record<string, [number, number, number]> = { bow: [-12, 5, -14], side: [-20, 3, 0], stern: [10, 5, 15], top: [0.01, 26, 0] };
-for (const [k, p] of Object.entries(views)) {
-  document.getElementById(`view-${k}`)!.onclick = () => {
-    camera.position.set(...p);
-    controls.update();
-  };
+// Standard views, as multiples of the boat's length so a 26 m hull frames like a 10 m one.
+const views: Record<string, [number, number, number]> = { bow: [-1.0, 0.42, -1.17], side: [-1.7, 0.25, 0], stern: [0.85, 0.42, 1.25], top: [0.001, 2.2, 0] };
+function view(k: string): void {
+  const L = current?.design.length ?? 12;
+  const [x, y, z] = views[k];
+  camera.position.set(x * L, y * L, z * L);
+  controls.target.set(0, (current ? hydrostatics(current).depth * 0.3 : 0.8), 0);
+  controls.update();
 }
+for (const k of Object.keys(views)) document.getElementById(`view-${k}`)!.onclick = () => view(k);
 // Exposed for the screenshot harness.
-(window as unknown as { hullViewer: unknown }).hullViewer = { show, camera, controls, views, scene, group };
+(window as unknown as { hullViewer: unknown }).hullViewer = { show, view, camera, controls, scene, group };
 
 show(location.hash.slice(1) || DESIGNS[0].id);
 window.addEventListener('resize', () => {

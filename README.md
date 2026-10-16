@@ -457,6 +457,10 @@ Open the perf panel in VR with B (or from the menu). At 90 Hz the frame budget i
 - **cpu near the budget:** the main thread is the limit. The sim / views / render split shows which part.
 - **gpu:** shown only where the browser exposes the timer extension; otherwise it reads "n/a".
 
+## Hull study (work in progress)
+
+`hulls.html` (live at [tartanski-cpu.github.io/SWVR/hulls.html](https://tartanski-cpu.github.io/SWVR/hulls.html)) shows ten workboat hull types, from a 10 m gillnetter to a 26 m multicat, generated from design curves, with their hydrostatics. It is groundwork for modular boats and not part of the game yet.
+
 ## Multiplayer
 
 Co-op crew on one boat, peer-to-peer (one player hosts). Menu → **Crew** → **Host a game** shows a 5-digit code; the others type it on the keypad and press **Join**. Everyone sees each other's head and hands and can use every control. Details and limits: [`docs/MULTIPLAYER.md`](docs/MULTIPLAYER.md).

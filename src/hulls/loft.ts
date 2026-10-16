@@ -56,6 +56,8 @@ export interface WheelhouseDesign {
   overhang?: number;
   /** Set to raise the house on a plinth / trunk this much above the deck. */
   plinth?: number;
+  /** Base height above the deck (m): a wheelhouse on top of a deckhouse sits at the deckhouse's height. */
+  above?: number;
 }
 
 export interface HullDesign {
@@ -82,6 +84,14 @@ export interface HullDesign {
   /** Number of stations lofted. */
   stations?: number;
   wheelhouse?: WheelhouseDesign;
+  /** More deckhouse blocks (a lower deckhouse under a wheelhouse, an engine casing, a tower). */
+  houses?: WheelhouseDesign[];
+  /**
+   * Catamaran: the design's curves describe ONE demihull about its own centreline; two are
+   * placed `spacing` apart (centre to centre) under a bridge deck whose underside is
+   * `tunnel` m above the DWL.
+   */
+  catamaran?: { spacing: number; tunnel: number };
   /** Optional raised foredeck break (forecastle): a second deck from t to the stem, this much higher. */
   forecastle?: { from: number; raise: number };
   colours?: Partial<typeof PAINT>;
@@ -278,13 +288,96 @@ class Builder {
   }
 }
 
-const mirror = (v: THREE.Vector3) => new THREE.Vector3(-v.x, v.y, v.z);
-
 /** Panel the lofted sections into one mesh (both sides, deck, transom, bulwarks, wheelhouse). */
 export function buildHullMesh(h: LoftedHull): THREE.Mesh {
   const paint = { ...PAINT, ...(h.design.colours ?? {}) };
   const b = new Builder();
+  const cat = h.design.catamaran;
+  if (cat) {
+    // Two demihulls, each plated like a monohull about its own centreline, then the bridge deck.
+    for (const side of [-1, 1]) {
+      const shifted: LoftedHull = {
+        design: h.design,
+        sections: h.sections.map((s) => ({ ...s, pts: s.pts.map((p) => new THREE.Vector3(p.x + (side * cat.spacing) / 2, p.y, p.z)) })),
+      };
+      plateHull(b, shifted, paint, side);
+    }
+    bridgeDeck(b, h, cat, paint);
+  } else plateHull(b, h, paint, 0);
+  for (const w of [...(h.design.wheelhouse ? [h.design.wheelhouse] : []), ...(h.design.houses ?? [])]) wheelhouse(b, h, w, paint);
+
+  const mesh = new THREE.Mesh(b.geometry(), new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }));
+  mesh.name = `hull:${h.design.id}`;
+  return mesh;
+}
+
+/**
+ * The bridge deck of a catamaran: the deck between the demihulls' inner edges, its wet
+ * underside at tunnel height, the bulwarks along the outer edges and a transom plate
+ * (the demihulls' own bulwarks are left off).
+ */
+function bridgeDeck(b: Builder, h: LoftedHull, cat: { spacing: number; tunnel: number }, paint: typeof PAINT): void {
   const S = h.sections;
+  const up = new THREE.Vector3(0, 1, 0);
+  const down = new THREE.Vector3(0, -1, 0);
+  const aft = new THREE.Vector3(0, 0, 1);
+  const half = cat.spacing / 2;
+  const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
+  for (let i = 0; i < S.length - 1; i++) {
+    const a = S[i].pts[S[i].pts.length - 1];
+    const c = S[i + 1].pts[S[i + 1].pts.length - 1];
+    // a.x <= 0 is the demihull's half-beam: inner edges at half - hb, outer at half + hb.
+    const inA = Math.max(0, half + a.x);
+    const inC = Math.max(0, half + c.x);
+    const outA = half - a.x;
+    const outC = half - c.x;
+    b.quad(V(-outA, a.y, a.z), V(outA, a.y, a.z), V(outC, c.y, c.z), V(-outC, c.y, c.z), paint.deck, up);
+    b.quad(V(-inA, cat.tunnel, a.z), V(inA, cat.tunnel, a.z), V(inC, cat.tunnel, c.z), V(-inC, cat.tunnel, c.z), paint.bottom, down);
+    const bw0 = S[i].bulwark;
+    const bw1 = S[i + 1].bulwark;
+    if (bw0 > 0.01 || bw1 > 0.01) {
+      for (const side of [-1, 1]) {
+        const o = V(side, 0, 0);
+        const p0 = V(side * outA, a.y, a.z);
+        const p1 = V(side * outC, c.y, c.z);
+        const t0 = p0.clone().setY(a.y + bw0);
+        const t1 = p1.clone().setY(c.y + bw1);
+        b.quad(p0, t0, t1, p1, paint.bulwark, o);
+        const q0 = p0.clone().setX(side * (outA - 0.08));
+        const q1 = p1.clone().setX(side * (outC - 0.08));
+        b.quad(q0, q0.clone().setY(t0.y), q1.clone().setY(t1.y), q1, paint.bulwarkIn, o.clone().negate());
+        b.quad(t0, t0.clone().setX(q0.x), t1.clone().setX(q1.x), t1, paint.bulwarkIn, up);
+      }
+    }
+  }
+  // Transom plate across the tunnel (wet deck to deck), and the bulwark above it.
+  const t0 = S[0].pts[S[0].pts.length - 1];
+  const inner = half + t0.x;
+  const outer = half - t0.x;
+  b.quad(V(-inner, cat.tunnel, t0.z), V(inner, cat.tunnel, t0.z), V(inner, t0.y, t0.z), V(-inner, t0.y, t0.z), paint.topsides, aft);
+  if (S[0].bulwark > 0.01) {
+    const y1 = t0.y + S[0].bulwark;
+    b.quad(V(-outer, t0.y, t0.z), V(outer, t0.y, t0.z), V(outer, y1, t0.z), V(-outer, y1, t0.z), paint.bulwark, aft);
+  }
+  // Forward end of the tunnel: a plate across where the wet deck meets the bows (square bow)
+  // or where the demihulls' inner sides meet on the centreline (fine bows).
+  let i = S.length - 1;
+  while (i > 0 && half + S[i].pts[S[i].pts.length - 1].x <= 0.02) i--;
+  const e = S[i].pts[S[i].pts.length - 1];
+  const inE = Math.max(0, half + e.x);
+  b.quad(V(-inE, cat.tunnel, e.z), V(inE, cat.tunnel, e.z), V(inE, e.y, e.z), V(-inE, e.y, e.z), paint.topsides, V(0, 0, -1));
+}
+
+/**
+ * Plate one hull: both sides, deck, bulwarks, transom, forecastle break. `which` is 0 for
+ * a monohull; for a catamaran demihull it is -1 (port) or 1 (starboard), the sections are
+ * already shifted off the centreline, mirroring is about the demihull's own centreline,
+ * and the bulwarks are left to the bridge deck.
+ */
+function plateHull(b: Builder, h: LoftedHull, paint: typeof PAINT, which: number): void {
+  const S = h.sections;
+  const cx = which === 0 ? 0 : (which * (h.design.catamaran?.spacing ?? 0)) / 2;
+  const mirror = (v: THREE.Vector3) => new THREE.Vector3(2 * cx - v.x, v.y, v.z);
   const outPort = new THREE.Vector3(-1, 0, 0);
   const outStbd = new THREE.Vector3(1, 0, 0);
   const up = new THREE.Vector3(0, 1, 0);
@@ -316,7 +409,7 @@ export function buildHullMesh(h: LoftedHull): THREE.Mesh {
     // Bulwark: outer face continues the topsides up, inner face set in, with a cap.
     const bw0 = S[i].bulwark;
     const bw1 = S[i + 1].bulwark;
-    if (bw0 > 0.01 || bw1 > 0.01) {
+    if (which === 0 && (bw0 > 0.01 || bw1 > 0.01)) {
       const inset = 0.08;
       const tp = dp.clone().setY(dp.y + bw0);
       const tq = dq.clone().setY(dq.y + bw1);
@@ -343,7 +436,7 @@ export function buildHullMesh(h: LoftedHull): THREE.Mesh {
     b.fan(tc, mirror(T[k]), mirror(T[k + 1]), paint.topsides, aft);
   }
   // Transom bulwark plate.
-  if (S[0].bulwark > 0.01) {
+  if (which === 0 && S[0].bulwark > 0.01) {
     const d0 = T[T.length - 1];
     const t0 = d0.clone().setY(d0.y + S[0].bulwark);
     b.quad(d0, t0, mirror(t0), mirror(d0), paint.bulwark, aft);
@@ -352,7 +445,7 @@ export function buildHullMesh(h: LoftedHull): THREE.Mesh {
   }
   // Forecastle break: a vertical bulkhead at the step.
   const fc = h.design.forecastle;
-  if (fc) {
+  if (fc && which === 0) {
     const i = S.findIndex((s) => s.t >= fc.from);
     if (i > 0) {
       const dl = S[i - 1].pts[S[i - 1].pts.length - 1];
@@ -360,11 +453,6 @@ export function buildHullMesh(h: LoftedHull): THREE.Mesh {
       b.quad(dl, mirror(dl), mirror(dh), dh, paint.house, aft);
     }
   }
-  if (h.design.wheelhouse) wheelhouse(b, h, h.design.wheelhouse, paint);
-
-  const mesh = new THREE.Mesh(b.geometry(), new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }));
-  mesh.name = `hull:${h.design.id}`;
-  return mesh;
 }
 
 /** Deck height at vessel z (interpolated between stations). */
@@ -386,7 +474,7 @@ export function deckYAt(h: LoftedHull, z: number): number {
  * little proud of each face in the band sill..head, a roof slab with an overhang.
  */
 function wheelhouse(b: Builder, h: LoftedHull, w: WheelhouseDesign, paint: typeof PAINT): void {
-  const base = deckYAt(h, (w.z0 + w.z1) / 2) + (w.plinth ?? 0);
+  const base = deckYAt(h, (w.z0 + w.z1) / 2) + (w.plinth ?? 0) + (w.above ?? 0);
   const top = base + w.height;
   const rake = w.frontRake ?? 0;
   const hw = w.halfWidth;
@@ -524,8 +612,25 @@ export function hydrostatics(h: LoftedHull): HydroSummary {
     }
   }
   const lwl = Math.max(0.1, zWet0 - zWet1);
+  // Form coefficients are per hull: for a catamaran they describe one demihull.
+  const cb = vol / (lwl * 2 * bwlMax * -Math.min(...S.map((s) => s.keelY)) || 1);
+  const cp = vol / (amax * lwl || 1);
+  const cm = amax / (2 * bwlMax * -Math.min(...S.map((s) => s.keelY)) || 1);
+  const cwp = awp / (lwl * 2 * bwlMax || 1);
+  const cat = h.design.catamaran;
+  if (cat) {
+    // Two demihulls: twice everything, and the waterplane inertia about the centreline
+    // picks up the parallel-axis term for each demihull's area at +-spacing/2.
+    iwp = 2 * (iwp + awp * (cat.spacing / 2) ** 2);
+    vol *= 2;
+    mz *= 2;
+    my *= 2;
+    awp *= 2;
+    mzwp *= 2;
+    amax *= 2;
+  }
   const draught = -Math.min(...S.map((s) => s.keelY));
-  const beam = 2 * Math.max(...S.map((s) => s.halfBeam));
+  const beam = (cat ? cat.spacing : 0) + 2 * Math.max(...S.map((s) => s.halfBeam));
   const depth = Math.max(...S.map((s) => s.deckY)) + draught;
   const kb = draught + (vol > 0 ? my / vol : 0);
   const bm = vol > 0 ? iwp / vol : 0;
@@ -533,7 +638,7 @@ export function hydrostatics(h: LoftedHull): HydroSummary {
     loa: h.design.length,
     lwl,
     beam,
-    beamWl: 2 * bwlMax,
+    beamWl: (cat ? cat.spacing : 0) + 2 * bwlMax,
     draught,
     depth,
     volume: vol,
@@ -541,10 +646,10 @@ export function hydrostatics(h: LoftedHull): HydroSummary {
     lcb: vol > 0 ? mz / vol : 0,
     lcf: awp > 0 ? mzwp / awp : 0,
     waterplane: awp,
-    cb: vol / (lwl * 2 * bwlMax * draught || 1),
-    cp: vol / (amax * lwl || 1),
-    cm: amax / (2 * bwlMax * draught || 1),
-    cwp: awp / (lwl * 2 * bwlMax || 1),
+    cb,
+    cp,
+    cm,
+    cwp,
     km: kb + bm,
   };
 }

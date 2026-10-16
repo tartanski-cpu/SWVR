@@ -1,16 +1,25 @@
 /**
- * Hull study designs: five workboat types, each an original design that takes its
- * proportions and character from the type (no real boat's lines are copied). Numbers are
- * metres; see loft.ts for what each curve means. Draught is set by the keel curve: the
- * design waterline is y = 0.
+ * Hull study designs: ten workboat types, small to large, monohull and catamaran. Each is
+ * an original design that takes its proportions and character from the type (no real
+ * boat's lines are copied). Numbers are metres; see loft.ts for what each curve means.
+ * Draught is set by the keel curve: the design waterline is y = 0.
  *
  * Proportions came from the type's usual range, read off builders' and trade-press figures:
+ *   - Nordic sjark: ~11 x 4.4 m, wheelhouse forward, working deck aft, high flared bow.
  *   - Bristol Bay gillnetter: 32 ft limit, very beamy (B ~ 4.6-4.9 m), shallow (jets),
- *     wheelhouse right aft or raised so the net reel runs under it.
- *   - Norwegian sjark: ~11 x 4.4 m, wheelhouse forward, working deck aft, high flared bow.
- *   - Pacific north-west landing craft: flat-bottomed aluminium hull, bow ramp, house aft.
+ *     the house right aft or raised so the net reel runs under it.
+ *   - Pacific north-west landing craft: flat-bottomed aluminium, bow ramp, house aft.
+ *   - Catamaran landing craft ("landing cat"): ~15 m x 4.6 m, twin hulls, bow ramp, house aft.
+ *   - Pilot / crew boat: deep-V hard chine, spray chine, raked stem, fine entry.
  *   - Compact harbour tug: L/B about 2.2-2.4, B/T about 2.7-2.9, raised forecastle.
- *   - Pilot / crew boat: deep-V hard chine with a spray chine, raked stem, fine entry.
+ *   - Alaskan limit seiner: 58 ft (17.7 m) with a 26 ft (7.9 m) beam and 13 ft depth,
+ *     deep hard-chine hull, house forward, big aft working deck.
+ *   - Inland pushboat: ~20 x 7 m, square bow with push knees, raised wheelhouse for
+ *     the view over the barges, flat bottom.
+ *   - Wind-farm crew transfer catamaran: ~24 x 8 m, draught 1.5-2 m, slim demihulls,
+ *     the house amidships on the bridge deck.
+ *   - Multicat: ~26 x 11.5 m, draught 2.4 m, rectangular pontoon hull, house aft,
+ *     open foredeck for the cranes.
  */
 import type { HullDesign } from './loft';
 
@@ -76,7 +85,7 @@ export const DESIGNS: HullDesign[] = [
   {
     id: 'gillnetter',
     name: 'Bay gillnetter (bowpicker type)',
-    blurb: 'Alaskan-style bowpicker: hard chine, very beamy and shallow for its length (jet drives), a flat open foredeck for the net reel, and the house right aft. 9.75 x 4.6 m, draught 0.6 m.',
+    blurb: 'Alaskan-style bowpicker: hard chine, very beamy and shallow for its length (jet drives), a flat open foredeck for the net reel, and the house right aft on a raised trunk. 9.75 x 4.6 m, draught 0.6 m.',
     length: 9.75,
     halfBeam: [
       [0, 2.25],
@@ -176,8 +185,125 @@ export const DESIGNS: HullDesign[] = [
       [0.27, 0.9],
       [1, 0.9],
     ],
-    wheelhouse: { z0: 5.9, z1: 3.6, halfWidth: 2.0, height: 2.1, frontRake: 0.15, sill: 1.0, head: 1.8, panesFront: 4, panesSide: 2, panesBack: 1, plinth: 0.0 },
+    wheelhouse: { z0: 5.9, z1: 3.6, halfWidth: 2.0, height: 2.1, frontRake: 0.15, sill: 1.0, head: 1.8, panesFront: 4, panesSide: 2, panesBack: 1 },
     colours: { topsides: 0xa9b0b5, bulwark: 0xa9b0b5, bottom: 0x6e7479, boot: 0x6e7479, house: 0xdde0e2, deck: 0x7e858a },
+  },
+  {
+    id: 'landingCat',
+    name: 'Catamaran landing craft',
+    blurb: 'Alaskan-style aluminium "landing cat": two slim planing demihulls under a wide bridge deck, a square bow for the ramp, a clear foredeck for cargo, the house aft across the full beam. 15.0 x 5.6 m, draught 0.8 m.',
+    length: 15.0,
+    catamaran: { spacing: 3.6, tunnel: 0.55 },
+    halfBeam: [
+      [0, 0.95],
+      [0.5, 1.0],
+      [0.9, 0.95],
+      [0.97, 0.8],
+      [1, 0.7],
+    ],
+    sheer: [
+      [0, 1.35],
+      [0.6, 1.35],
+      [1, 1.6],
+    ],
+    keel: [
+      [0, -0.8],
+      [0.6, -0.8],
+      [0.85, -0.5],
+      [1, 0.6],
+    ],
+    rake: [
+      [0, 0.0],
+      [0.8, 0],
+      [1, -0.6],
+    ],
+    section: {
+      chineBeam: [
+        [0, 0.92],
+        [1, 0.9],
+      ],
+      chineHeight: [
+        [0, 0.28],
+        [0.7, 0.28],
+        [1, 0.55],
+      ],
+      flare: [
+        [0, 0.0],
+        [1, 0.05],
+      ],
+    },
+    bulwark: [
+      [0, 0.0],
+      [0.3, 0.0],
+      [0.36, 0.95],
+      [1, 0.95],
+    ],
+    wheelhouse: { z0: 7.3, z1: 4.2, halfWidth: 2.7, height: 2.2, frontRake: 0.2, sill: 1.0, head: 1.9, panesFront: 5, panesSide: 3, panesBack: 2 },
+    colours: { topsides: 0xb8bec2, bulwark: 0xb8bec2, bottom: 0x4a5055, boot: 0x4a5055, house: 0xe4e7e8, deck: 0x80878c },
+  },
+  {
+    id: 'pilot',
+    name: 'Pilot / crew boat',
+    blurb: 'Fast hard-chine pilot boat: deep-V forward easing aft, a spray chine, a well-raked stem with a fine entry, the house amidships with forward-raked windows and a low aft cockpit. 14.0 x 4.5 m, draught 1.1 m.',
+    length: 14.0,
+    halfBeam: [
+      [0, 1.9],
+      [0.3, 2.2],
+      [0.55, 2.25],
+      [0.8, 1.7],
+      [0.95, 0.7],
+      [1, 0],
+    ],
+    sheer: [
+      [0, 1.1],
+      [0.5, 1.3],
+      [1, 2.1],
+    ],
+    keel: [
+      [0, -0.95],
+      [0.4, -1.1],
+      [0.75, -0.85],
+      [0.92, -0.2],
+      [1, 0.9],
+    ],
+    rake: [
+      [0, 0.15],
+      [0.6, 0],
+      [1, -0.75],
+    ],
+    section: {
+      chineBeam: [
+        [0, 0.88],
+        [0.5, 0.88],
+        [1, 0.5],
+      ],
+      chineHeight: [
+        [0, 0.32],
+        [0.5, 0.4],
+        [1, 0.62],
+      ],
+      chine2Beam: [
+        [0, 0.95],
+        [0.5, 0.96],
+        [1, 0.7],
+      ],
+      chine2Height: [
+        [0, 0.6],
+        [0.5, 0.62],
+        [1, 0.78],
+      ],
+      flare: [
+        [0, 0.0],
+        [0.6, 0.02],
+        [1, 0.2],
+      ],
+    },
+    bulwark: [
+      [0, 0.0],
+      [1, 0.0],
+    ],
+    wheelhouse: { z0: 2.3, z1: -2.4, halfWidth: 1.8, height: 2.1, frontRake: 0.35, sill: 0.9, head: 1.8, panesFront: 5, panesSide: 3, panesBack: 2, overhang: 0.25 },
+    colours: { topsides: 0xd9622b, bulwark: 0xd9622b, bottom: 0x1f2a30, boot: 0xe8e4d8, house: 0xf2f2ec, deck: 0x6a7470 },
   },
   {
     id: 'tug',
@@ -239,67 +365,233 @@ export const DESIGNS: HullDesign[] = [
     colours: { topsides: 0x1f2a30, bulwark: 0x1f2a30, bottom: 0x8c2a22, boot: 0xe8e4d8, house: 0xf1ead6, deck: 0x5d6a5e, roof: 0x8d9790 },
   },
   {
-    id: 'pilot',
-    name: 'Pilot / crew boat',
-    blurb: 'Fast hard-chine pilot boat: deep-V forward easing aft, a spray chine, a well-raked stem with a fine entry, the house amidships with reverse-raked front windows and a low aft cockpit. 14.0 x 4.5 m, draught 1.1 m.',
-    length: 14.0,
+    id: 'seiner',
+    name: 'Limit seiner (58 ft type)',
+    blurb: 'Alaskan-style limit seiner: deep hard-chine steel hull, very beamy for its length, a long deckhouse forward with the wheelhouse on top, and a big open working deck aft inside high bulwarks. 17.7 x 7.9 m, draught 2.6 m.',
+    length: 17.7,
     halfBeam: [
-      [0, 1.9],
-      [0.3, 2.2],
-      [0.55, 2.25],
-      [0.8, 1.7],
-      [0.95, 0.7],
+      [0, 3.3],
+      [0.25, 3.9],
+      [0.5, 3.95],
+      [0.75, 3.4],
+      [0.92, 1.8],
       [1, 0],
     ],
     sheer: [
-      [0, 1.1],
-      [0.5, 1.3],
-      [1, 2.1],
+      [0, 1.4],
+      [0.4, 1.5],
+      [0.7, 1.9],
+      [1, 2.9],
     ],
     keel: [
-      [0, -0.95],
-      [0.4, -1.1],
-      [0.75, -0.85],
-      [0.92, -0.2],
-      [1, 0.9],
+      [0, -2.0],
+      [0.3, -2.6],
+      [0.65, -2.5],
+      [0.88, -1.6],
+      [1, 0.5],
     ],
     rake: [
-      [0, 0.15],
+      [0, 0.2],
       [0.6, 0],
-      [1, -0.75],
+      [1, -0.45],
     ],
     section: {
       chineBeam: [
-        [0, 0.88],
-        [0.5, 0.88],
-        [1, 0.5],
+        [0, 0.8],
+        [0.5, 0.85],
+        [1, 0.3],
       ],
       chineHeight: [
-        [0, 0.32],
-        [0.5, 0.4],
-        [1, 0.62],
-      ],
-      chine2Beam: [
-        [0, 0.95],
-        [0.5, 0.96],
-        [1, 0.7],
-      ],
-      chine2Height: [
-        [0, 0.6],
-        [0.5, 0.62],
-        [1, 0.78],
+        [0, 0.3],
+        [0.5, 0.32],
+        [1, 0.5],
       ],
       flare: [
-        [0, 0.0],
-        [0.6, 0.02],
-        [1, 0.2],
+        [0, 0.02],
+        [0.6, 0.05],
+        [1, 0.45],
+      ],
+    },
+    bulwark: [
+      [0, 1.1],
+      [0.5, 1.1],
+      [0.7, 0.9],
+      [1, 0.8],
+    ],
+    // The lower deckhouse (galley, bunks) with the wheelhouse set back on top of it.
+    houses: [
+      { z0: 0.5, z1: -5.5, halfWidth: 3.0, height: 2.3, frontRake: 0.1, sill: 1.1, head: 1.7, panesFront: 0, panesSide: 4, panesBack: 0, overhang: 0.05 },
+      { z0: -0.5, z1: -4.2, halfWidth: 2.4, height: 2.2, frontRake: 0.35, sill: 0.9, head: 1.85, panesFront: 5, panesSide: 3, panesBack: 3, overhang: 0.25, above: 2.3 },
+    ],
+    colours: { topsides: 0x1c3550, bulwark: 0x1c3550, bottom: 0x8c2a22, boot: 0xe8e4d8, house: 0xf1f0ea, deck: 0x5f6a62 },
+  },
+  {
+    id: 'pushboat',
+    name: 'Inland pushboat',
+    blurb: 'River pushboat: flat-bottomed box hull with a square bow for the push knees and a bluff raked stern over the propellers, a two-tier house with the wheelhouse raised to see over the barges. 20.0 x 7.0 m, draught 1.6 m.',
+    length: 20.0,
+    halfBeam: [
+      [0, 3.4],
+      [0.1, 3.5],
+      [0.9, 3.5],
+      [1, 3.45],
+    ],
+    sheer: [
+      [0, 1.3],
+      [1, 1.4],
+    ],
+    keel: [
+      [0, -0.4],
+      [0.15, -1.6],
+      [0.85, -1.6],
+      [1, -1.4],
+    ],
+    rake: [
+      [0, 0.9],
+      [0.2, 0],
+      [0.9, 0],
+      [1, -0.08],
+    ],
+    section: {
+      chineBeam: [
+        [0, 0.9],
+        [1, 0.96],
+      ],
+      chineHeight: [
+        [0, 0.15],
+        [1, 0.08],
+      ],
+      flare: [
+        [0, 0],
+        [1, 0],
       ],
     },
     bulwark: [
       [0, 0.0],
       [1, 0.0],
     ],
-    wheelhouse: { z0: 2.3, z1: -2.4, halfWidth: 1.8, height: 2.1, frontRake: 0.35, sill: 0.9, head: 1.8, panesFront: 5, panesSide: 3, panesBack: 2, overhang: 0.25 },
-    colours: { topsides: 0xd9622b, bulwark: 0xd9622b, bottom: 0x1f2a30, boot: 0xe8e4d8, house: 0xf2f2ec, deck: 0x6a7470 },
+    houses: [
+      { z0: 7.0, z1: -6.5, halfWidth: 3.0, height: 2.4, sill: 1.1, head: 1.8, panesFront: 3, panesSide: 5, panesBack: 2, overhang: 0.1 },
+      { z0: 1.5, z1: -3.5, halfWidth: 2.2, height: 2.4, sill: 1.0, head: 1.9, panesFront: 4, panesSide: 3, panesBack: 3, overhang: 0.1, above: 2.4 },
+      { z0: -0.4, z1: -3.2, halfWidth: 1.7, height: 2.3, frontRake: 0.25, sill: 0.8, head: 1.95, panesFront: 4, panesSide: 3, panesBack: 3, overhang: 0.3, above: 4.8 },
+    ],
+    colours: { topsides: 0x7a1f1a, bulwark: 0x7a1f1a, bottom: 0x2a2a2a, boot: 0x2a2a2a, house: 0xf3efe2, deck: 0x6b6f6a, roof: 0x9aa09a },
+  },
+  {
+    id: 'ctv',
+    name: 'Crew transfer catamaran',
+    blurb: 'Wind-farm crew transfer vessel: two slim, deep demihulls with fine raked bows under a high bridge deck, a long low house amidships with the wheelhouse forward, an open working deck aft and a fendered bow for pushing onto turbine ladders. 24.0 x 8.0 m, draught 1.6 m.',
+    length: 24.0,
+    catamaran: { spacing: 5.4, tunnel: 1.1 },
+    halfBeam: [
+      [0, 1.1],
+      [0.3, 1.3],
+      [0.6, 1.3],
+      [0.85, 0.9],
+      [0.96, 0.4],
+      [1, 0],
+    ],
+    sheer: [
+      [0, 2.3],
+      [0.5, 2.4],
+      [1, 3.1],
+    ],
+    keel: [
+      [0, -1.4],
+      [0.3, -1.6],
+      [0.7, -1.5],
+      [0.92, -0.6],
+      [1, 1.2],
+    ],
+    rake: [
+      [0, 0.1],
+      [0.6, 0],
+      [1, -0.55],
+    ],
+    section: {
+      chineBeam: [
+        [0, 0.85],
+        [0.5, 0.85],
+        [1, 0.5],
+      ],
+      chineHeight: [
+        [0, 0.25],
+        [0.5, 0.3],
+        [1, 0.5],
+      ],
+      round: 2,
+      flare: [
+        [0, 0.02],
+        [1, 0.1],
+      ],
+    },
+    bulwark: [
+      [0, 0.9],
+      [0.75, 0.9],
+      [1, 0.5],
+    ],
+    houses: [
+      { z0: 2.5, z1: -7.5, halfWidth: 3.6, height: 2.5, frontRake: 0.4, sill: 1.0, head: 1.9, panesFront: 6, panesSide: 6, panesBack: 2, overhang: 0.2 },
+      { z0: -2.0, z1: -6.5, halfWidth: 2.6, height: 2.3, frontRake: 0.45, sill: 0.8, head: 1.9, panesFront: 5, panesSide: 3, panesBack: 2, overhang: 0.3, above: 2.5 },
+    ],
+    colours: { topsides: 0xe8e6df, bulwark: 0xe8e6df, bottom: 0x1f2a30, boot: 0xd9622b, house: 0xf4f4f0, deck: 0x6c7673 },
+  },
+  {
+    id: 'multicat',
+    name: 'Multicat workboat',
+    blurb: 'Shallow-draught multipurpose workboat: a rectangular pontoon hull with a raked, slightly rounded bow, a big open foredeck for the cranes and anchor gear, the house aft over the engine room, low bulwarks. 26.0 x 11.5 m, draught 2.4 m.',
+    length: 26.0,
+    halfBeam: [
+      [0, 5.5],
+      [0.1, 5.75],
+      [0.85, 5.75],
+      [0.95, 5.4],
+      [1, 4.6],
+    ],
+    sheer: [
+      [0, 1.1],
+      [0.7, 1.15],
+      [1, 1.6],
+    ],
+    keel: [
+      [0, -2.4],
+      [0.8, -2.4],
+      [0.92, -1.6],
+      [1, 0.4],
+    ],
+    rake: [
+      [0, 0.2],
+      [0.2, 0],
+      [0.85, 0],
+      [1, -0.45],
+    ],
+    section: {
+      chineBeam: [
+        [0, 0.9],
+        [0.9, 0.92],
+        [1, 0.8],
+      ],
+      chineHeight: [
+        [0, 0.15],
+        [0.85, 0.12],
+        [1, 0.55],
+      ],
+      round: 1,
+      flare: [
+        [0, 0],
+        [1, 0.05],
+      ],
+    },
+    bulwark: [
+      [0, 0.0],
+      [0.22, 0.0],
+      [0.26, 0.5],
+      [1, 0.6],
+    ],
+    houses: [
+      { z0: 11.5, z1: 5.0, halfWidth: 4.6, height: 2.6, sill: 1.1, head: 1.9, panesFront: 4, panesSide: 3, panesBack: 2, overhang: 0.1 },
+      { z0: 10.0, z1: 6.0, halfWidth: 2.6, height: 2.5, frontRake: 0.4, sill: 0.8, head: 2.0, panesFront: 5, panesSide: 3, panesBack: 3, overhang: 0.35, above: 2.6 },
+    ],
+    colours: { topsides: 0xd9622b, bulwark: 0xd9622b, bottom: 0x2a2a2a, boot: 0x2a2a2a, house: 0xf3efe2, deck: 0x5e6660, roof: 0x9aa09a },
   },
 ];
