@@ -1549,6 +1549,13 @@ How to come back to it:
 
 ### Fixes after V1.0 (on the dev branch; not in the `V1.0` tag)
 
+- **Avatar hands as simple woollen mitts** (owner: the hands still looked bad; keep it simple and line it up with the VR controllers). The palm block, knuckles and thumb stick in `net/avatarOutfits.ts gloveGeometry` are replaced by three rounded parts, laid out in the controller's grip frame (WebXR grip space: the handle runs along z through the fist, -z forward, +x to the player's right):
+  - one mitt lump closed round the handle, a little toward the back of the hand;
+  - a thumb lobe on top on the inner side, lying forward along the handle;
+  - a darker ribbed cuff at the wrist, back and a little down, where the sleeve meets it.
+
+  Checked by rendering both mitts on a stand-in controller handle from the player's view, from the front and from the side.
+
 - **Night red automatic; start-up card moved; labels tilted** (owner):
   - **Red at night by itself:** the panel lighting turns red as night falls, between darkness `panelLighting.redFrom` (0.55) and `redTo` (0.85). The NIGHT switch is gone (`panelRed` control and `bridge.nightPanelSwitch` removed). The Cabin and WIPERS switches are back where they were (x -1.14 and -0.99).
   - **Start-up card** (`bridge.checklistCard`): moved from the dash top to the console's upright aft face below the ENGINE group, facing the helmsman. It's on the panel lighting now, so it dims and goes red at night like the voltmeter instead of glowing white.

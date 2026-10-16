@@ -157,16 +157,22 @@ export function armGeometry(l: Look, length: number, cuff: boolean): THREE.Buffe
 }
 
 /**
- * A gloved hand, closed as round a controller, in the controller's grip frame: fingers
- * wrapped round -z, the thumb on top (+y) on the inner side (+x for the left hand, -x for
- * the right), the wrist behind (+z). Shape shows roll, pitch and yaw from across the deck.
+ * A woollen mitt (owner: keep it simple, no fingers), closed round the controller, in the
+ * controller's grip frame (WebXR grip space: origin in the palm, the handle running along
+ * z through the fist, -z forward; +x is to the player's right for both hands):
+ *   - the mitt: one rounded lump round the handle, a little toward the back of the hand
+ *     (outboard: +x for the right hand, -x for the left);
+ *   - the thumb: a lobe on top on the inner side, lying forward along the handle;
+ *   - the cuff: a ribbed band at the wrist, where the forearm leaves the fist (back and a
+ *     little down), a shade darker, hiding the join with the sleeve.
+ * Its shape shows the hand's roll, pitch and yaw from across the deck.
  */
 export function gloveGeometry(l: Look, side: -1 | 1): THREE.BufferGeometry {
   const g = l.outfit.gloves;
+  const cuff = new THREE.Color(g).multiplyScalar(0.7).getHex();
   return mergeParts([
-    part(new THREE.BoxGeometry(0.065, 0.08, 0.09), g),
-    part(new THREE.BoxGeometry(0.06, 0.03, 0.03).translate(0, -0.035, -0.04), g), // knuckles
-    part(new THREE.BoxGeometry(0.024, 0.024, 0.065).rotateY(side * 0.35).translate(-side * 0.022, 0.046, -0.025), g), // thumb
-    part(new THREE.CylinderGeometry(0.036, 0.04, 0.05, 8).rotateX(Math.PI / 2).translate(0, -0.005, 0.065), g), // gauntlet
+    part(new THREE.SphereGeometry(1, 10, 8).scale(0.042, 0.05, 0.056).translate(side * 0.006, -0.004, -0.006), g), // the mitt
+    part(new THREE.CapsuleGeometry(0.017, 0.03, 3, 8).rotateX(-1.21).translate(-side * 0.03, 0.03, -0.03), g), // thumb lobe
+    part(new THREE.CylinderGeometry(0.036, 0.04, 0.045, 10).rotateX(-1.1).translate(0, -0.024, 0.052), cuff), // cuff
   ]);
 }
