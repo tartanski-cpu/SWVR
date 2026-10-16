@@ -146,6 +146,8 @@ export interface ViewContext<Config> {
   config: Config;
   socket: Socket;
   path: string;
+  /** Each port's bus key on this boat (after the recipe's rebinding): what controls send. */
+  keys: Readonly<Record<string, BusKey>>;
   /** The hull's shape, for modules that span it (2.7). */
   hull: HullQueries;
   /** The shared paint colours (Part C): static parts use these so they merge. */

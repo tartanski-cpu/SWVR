@@ -10,7 +10,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { SCENARIOS, type Checkpoint, type Value } from './golden/scenarios';
+import { crashStop, fullAheadTurn, SCENARIOS, type Checkpoint, type Value } from './golden/scenarios';
 
 const DIR = join(dirname(fileURLToPath(import.meta.url)), 'golden', 'fixtures');
 const RECORD = process.env.GOLDEN_RECORD === '1';
@@ -46,6 +46,16 @@ describe('golden runs: today\'s boat, reproduced exactly', { timeout: 60000 }, (
       const want = JSON.parse(readFileSync(file, 'utf8')) as Checkpoint[];
       const diff = differences(got, want);
       expect(diff.slice(0, 20), `${diff.length} differences`).toEqual([]);
+    });
+  }
+
+  // Modular boats M2: the throttle-lever module sends the bus key 'throttle.demand'; driven
+  // that way she must do exactly what she does on the old 'lever' channel.
+  for (const [name, run] of [['full-ahead-turn', fullAheadTurn], ['crash-stop', crashStop]] as const) {
+    it(`${name}, driven through the bus key throttle.demand`, () => {
+      if (RECORD) return;
+      const want = JSON.parse(readFileSync(join(DIR, `${name}.json`), 'utf8')) as Checkpoint[];
+      expect(differences(run('throttle.demand'), want).slice(0, 20)).toEqual([]);
     });
   }
 });

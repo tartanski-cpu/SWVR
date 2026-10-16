@@ -103,6 +103,25 @@ export function resolveKey(name: string): BusKey | null {
   return ALIASES.get(name) ?? null;
 }
 
+/**
+ * Is this exactly a key's own name (not an alias)? Controls converted to modules send
+ * their key's own name ('throttle.demand'); not-yet-converted code sends the old channel
+ * names ('lever'), which still go through vessel/vesselControl.ts as before.
+ */
+export function isKeyName(name: string): name is BusKey {
+  return name in BUS_KEYS;
+}
+
+/**
+ * The hold group (multiplayer ownership) of a control channel: a key's `hold`, found by
+ * its name or alias ('throttle.demand' and 'lever' are both held as 'lever'). Null: not a
+ * held control.
+ */
+export function holdGroup(name: string): string | null {
+  const key = resolveKey(name);
+  return key ? (specOf(key).hold ?? null) : null;
+}
+
 /** The registry entry for a key. */
 export function specOf(key: BusKey): BusKeySpec {
   return BUS_KEYS[key] as BusKeySpec;

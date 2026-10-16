@@ -483,11 +483,11 @@ export const CONFIG = {
          * jutting aft from the console (starboard of the wheel) so it falls to hand from the
          * helm position (owner feedback: on the console top it was too far forward in VR).
          * Pedestal: half-width (m) and its aft face (z); its top is level with the console.
+         * Since modular boats M2 the lever itself is a module (CONFIG.modules.throttleLever)
+         * on the hull's 'throttle' socket at `position`; the pedestal stays with the bridge.
          */
         lever: {
           position: [0.45, 2.16, -1.15] as [number, number, number],
-          maxAngleDeg: 40,
-          length: 0.2,
           pedestal: { halfWidth: 0.13, aft: -1.02 },
         },
         /**
@@ -2030,6 +2030,21 @@ export const CONFIG = {
    * `yawDeg`, 90 = west, toward her). Crew joining a game come aboard her. Tests still
    * start her in open water at the vessel's `spawn`.
    */
+  /**
+   * Modular boats: each module's own tunables (its defaults; a boat's recipe may override
+   * them). docs/MODULAR_BOATS.md.
+   */
+  modules: {
+    /**
+     * control.throttle-lever (modules/throttleLever): the combined throttle/gear lever.
+     * Travel either side of upright (deg), and the handle's length from its pivot to the
+     * knob (m). `detent`: the magnetic neutral notch, as a fraction of full travel either
+     * side; 3/4 of the engine's neutral band (vessels.workboat.engine.neutralBand 0.08), so
+     * the lever clicks into neutral before the gearbox would engage.
+     */
+    throttleLever: { maxAngleDeg: 40, length: 0.2, detent: 0.06 },
+  },
+
   start: {
     berthId: 'calder-cargo',
     quay: { x: 713, z: 661.5, yawDeg: 90 },

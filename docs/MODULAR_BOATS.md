@@ -778,7 +778,7 @@ Sizes: S is about a session, M two or three, L more.
 - **Debug overlay:** a line with the boat's drawn parts (and how many are in the wheelhouse). The module list joins it in M2, when there is a module to list.
 - **Test:** play as usual for a few minutes in VR and on desktop. Nothing should be different.
 
-### M2: one module end to end, the throttle lever (S)
+### M2: one module end to end, the throttle lever (S). **Done; see PROGRESS.**
 
 - The hull definition stub `hull.workboat-12m` gets one `panel.slot` socket at the lever's position, and the recipe `vessel.starter-workboat.json` gets one mount.
 - The assembler mounts `control.throttle-lever`. The Bridge skips its own lever. The lever writes `throttle.demand` through the bus; the hold still works.

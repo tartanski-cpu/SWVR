@@ -1,0 +1,9 @@
+{
+  "id": "vessel.starter-workboat",
+  "version": 1,
+  "name": "Workboat",
+  "hull": "hull.workboat-12m",
+  "modules": [
+    { "socket": "throttle", "module": "control.throttle-lever" }
+  ]
+}

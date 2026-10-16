@@ -27,8 +27,21 @@ export class Lever extends Control {
   private lastSent = 0; // matches the initial (neutral / amidships) state
   private inDetent = true;
 
-  constructor(id: string, opts: { maxAngleDeg: number; length: number }, private readonly detent = 0.06) {
-    super(id, 'lever');
+  /** Reads the authoritative position, -1..1 (default: today's `controls.lever`). */
+  private readonly read: (s: VesselState) => number;
+
+  /**
+   * @param wiring  which channel it sends (default 'lever'; a module sends its bus key,
+   *                'throttle.demand') and how it reads its position back from the state
+   */
+  constructor(
+    id: string,
+    opts: { maxAngleDeg: number; length: number },
+    private readonly detent = 0.06,
+    wiring: { channel?: string; read?: (s: VesselState) => number } = {},
+  ) {
+    super(id, wiring.channel ?? 'lever');
+    this.read = wiring.read ?? ((s) => s.controls.lever);
     this.max = (opts.maxAngleDeg * Math.PI) / 180;
     this.length = opts.length;
 
@@ -127,10 +140,11 @@ export class Lever extends Control {
 
   sync(state: VesselState): void {
     if (this.held) return;
-    if (this.awaiting(Math.abs(state.controls.lever - this.value) < 0.01)) return;
-    this.theta = -state.controls.lever * this.max;
+    const v = this.read(state);
+    if (this.awaiting(Math.abs(v - this.value) < 0.01)) return;
+    this.theta = -v * this.max;
     this.arm.rotation.x = this.theta;
-    this.lastSent = state.controls.lever;
-    this.inDetent = Math.abs(state.controls.lever) < this.detent;
+    this.lastSent = v;
+    this.inDetent = Math.abs(v) < this.detent;
   }
 }

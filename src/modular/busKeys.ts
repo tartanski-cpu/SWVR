@@ -118,6 +118,9 @@ export const BUS_KEYS = {
   'throttle.demand': setting('lever', [-1, 1], '-1..1', 'Throttle / gear lever: -1 full astern, 0 neutral, +1 full ahead. On an outboard boat, the twist-grip throttle 0..1 in the selected gear.', {
     hold: 'lever',
     aliases: ['lever'],
+    // Modular boats M2: the throttle-lever module writes it (debug keys, menus and old
+    // tests still send 'lever').
+    writer: 'module',
   }),
   'helm.demand': setting('helm', [-1, 1], '-1..1', 'Wheel (or tiller) position: -1 hard to port, +1 hard to starboard.', { hold: 'helm', aliases: ['helm'] }),
   'ignition.key': {

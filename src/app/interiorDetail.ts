@@ -19,6 +19,15 @@ import type { WorkboatDef } from '../vessel/vesselDef';
  */
 const KEEP = new Set(['control:lever', 'binoculars']);
 
+/** Is it, or does it hold, one of the KEEP parts? (A module's group holds its controls.) */
+function holdsKept(o: THREE.Object3D): boolean {
+  let found = false;
+  o.traverse((c) => {
+    if (KEEP.has(c.name)) found = true;
+  });
+  return found;
+}
+
 function hasLight(o: THREE.Object3D): boolean {
   let found = false;
   o.traverse((c) => {
@@ -49,7 +58,7 @@ export class InteriorDetail {
     for (const root of roots) {
       for (const o of root.children) {
         if (!o.visible) continue; // already hidden (baked fixed parts)
-        if (KEEP.has(o.name) || hasLight(o)) continue;
+        if (holdsKept(o) || hasLight(o)) continue;
         this.box.setFromObject(o);
         if (this.box.isEmpty()) continue;
         this.box.applyMatrix4(inv);

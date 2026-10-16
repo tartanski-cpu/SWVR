@@ -1768,6 +1768,49 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 
 **Owner test:** nothing should be different. Play a few minutes in VR and on desktop. On desktop, F3 shows the new "boat parts drawn" line.
 
+### M2: the throttle lever, the first module (done, on /next/ for the owner to test; nothing visible)
+
+- **The module:** `src/modules/throttleLever/` (`control.throttle-lever`).
+  - It is the existing `Lever` control; `controls/Lever.ts` now takes its channel and how it reads its position.
+  - It writes one bus key, `throttle.demand`, and doesn't know an engine exists.
+  - Its tunables moved to `CONFIG.modules.throttleLever` (travel 40°, length 0.2 m, neutral notch 0.06). `bridge.lever` keeps only where it stands and its pedestal.
+- **The boat files:** `src/boats/`.
+  - `workboatHull.ts` is the hull `hull.workboat-12m`. It still stands on today's vessel definition and has one socket, `throttle`, at the lever's old place.
+  - `starterWorkboat.json` is the recipe, with one mount.
+  - `library.ts` lists the hulls and modules, and loads and checks recipes (a bad one throws with every problem listed).
+- **The assembler:** `src/modular/assemble.ts` builds each module's view at its socket. The Bridge takes the result:
+  - the module's controls join the bridge's;
+  - its fixed parts (the lever's quadrant) are baked into the bridge's one merged mesh as before;
+  - the Bridge no longer builds a lever of its own.
+- **The intent path:**
+  - An intent named by a bus key ('throttle.demand') goes through the bus (`applyBusIntent`: range clamp, holds).
+  - The old names ('lever' from the keyboard, menus and tests) still go through `applyVesselIntent`'s switch.
+  - Holds map to their group, so a hand on the lever holds 'lever' whichever name is used (`holdGroup`, in vesselControl.ts and App's hold rules).
+  - The registry marks `throttle.demand` as written by a module.
+- **Wheelhouse detail:** `app/interiorDetail.ts` never hides anything that holds the throttle lever. The lever now sits inside its module's group, and stays visible through the windows as before.
+- **Debug overlay:** a "modules" line lists what's mounted ("throttle: control.throttle-lever").
+- **Tests (10 new):**
+  - the recipe is valid and mounts the lever;
+  - a bad config is caught in words;
+  - the lever stands where it stood, keeps its id and name;
+  - it sends `throttle.demand` with the same feel and detent;
+  - its intents drive the boat exactly like 'lever' (same rpm and position after 10 s);
+  - multiplayer holds by either name;
+  - the position round-trips through JSON (save / snapshot);
+  - a recipe can wire it to another key;
+  - two golden runs (full ahead and turn, crash stop) driven through `throttle.demand` match the recordings exactly.
+- **Measured** (headless Chromium, `scripts/measureDraws.mjs`): draw calls and drawn parts **identical to M1** at all eight viewpoints (67 / 46 / 120 / 33 by day, 66 / 47 / 121 / 32 lit at night).
+- **Checked in the browser:**
+  - the lever works through the game's own interaction path (sends `throttle.demand`, moves the throttle);
+  - another player is locked out while we hold it;
+  - hold and release work by both names;
+  - a screenshot shows it on its pedestal, quadrant drawn, pushed half ahead.
+- **Owner test** (at /SWVR/next/, where the menu header says NEXT):
+  - **VR:** start her up and drive out of Calder Haven. The lever should feel exactly as before: the neutral click, ahead and astern, grabbing it anywhere on the handle.
+  - **Two players:** while one holds the lever, the other's hand glows red on it and can't move it.
+  - **Desktop:** click-drag the lever (mouse up = ahead), and the arrow keys.
+  - F3 shows "modules 1: throttle: control.throttle-lever".
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

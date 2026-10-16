@@ -8,7 +8,7 @@ import type { EnvironmentState } from '../environment/environmentState';
 import { Button } from './Button';
 import type { Control } from './Control';
 import { InstrumentPanel } from './instruments';
-import { Lever } from './Lever';
+import type { AssembledView } from '../modular/assemble';
 import { Toggle } from './Toggle';
 import { Wheel } from './Wheel';
 import { Joystick } from './Joystick';
@@ -61,16 +61,22 @@ export class Bridge {
   /** The fenders over the side or stowed (boats that carry them). */
   private readonly fenders: FendersView | null = null;
 
-  constructor(private readonly def: WorkboatDef) {
+  /**
+   * @param modules the boat's modules, already built from her recipe (modular boats): their
+   *                controls join the bridge's, and their fixed parts are baked with the
+   *                bridge's into its one merged mesh. Since M2 the throttle lever is one.
+   */
+  constructor(
+    private readonly def: WorkboatDef,
+    private readonly modules: AssembledView,
+  ) {
     const b = def.bridge;
     this.root.name = 'bridge';
+    for (const m of modules.modules) this.root.add(m.root);
 
     const wheel = new Wheel('wheel', b.wheel);
     wheel.root.position.fromArray(b.wheel.position);
     wheel.root.rotation.x = (-b.wheel.tiltDeg * Math.PI) / 180;
-
-    const lever = new Lever('lever', b.lever, def.engine.neutralBand * 0.75);
-    lever.root.position.fromArray(b.lever.position);
 
     // Diesel ignition: hold HEAT (glow plugs), hold START; the key switches it all on/off.
     const start = new Button('start', 'start', 'START (hold)', 'momentary', 0x3aa04a, (s) => s.engine.phase === 'running');
@@ -107,7 +113,7 @@ export class Bridge {
     this.root.add(this.chart.root);
     this.overhead = new OverheadPanel(def);
     this.root.add(this.overhead.root);
-    this.controls.push(wheel, lever, start, heat, key, horn, nav, anchor, cabin, spot, wipers, joy, this.radio.handset, ...this.overhead.controls);
+    this.controls.push(wheel, ...modules.controls, start, heat, key, horn, nav, anchor, cabin, spot, wipers, joy, this.radio.handset, ...this.overhead.controls);
     // Fire monitor (fire missions): the FIRE PUMP switch, its joystick (red knob) and the
     // monitor itself on the roof.
     const extraLabels: Label[] = [];
@@ -355,7 +361,12 @@ export class Bridge {
       extraFixed.push(part(new THREE.BoxGeometry(x1 - x0, 0.005, 0.028).translate((x0 + x1) / 2, top + 0.0025, plateFront + 0.014), g.color));
       extraLabels.push([g.title, [(x0 + x1) / 2, top + 0.004, plateFront + 0.014 - LABEL_OFFSET], true]);
     }
-    this.root.add(bakeFixedParts(this.root, [dash, pedestal, spotPedestal, this.overhead.body, ...extraFixed]), this.instruments.mesh, buildLabels(b, extraLabels), this.dashAnchor);
+    this.root.add(bakeFixedParts(this.root, [dash, pedestal, spotPedestal, this.overhead.body, ...extraFixed, ...modules.staticParts]), this.instruments.mesh, buildLabels(b, extraLabels), this.dashAnchor);
+  }
+
+  /** The mounted modules, as "socket: module id" (debug overlay). */
+  get moduleList(): string[] {
+    return this.modules.modules.map((m) => `${m.path}: ${m.id}`);
   }
 
   /**
@@ -368,6 +379,7 @@ export class Bridge {
       c.sync(state);
       c.tick(dt);
     }
+    this.modules.update(state, dt);
     if (displaysInView) this.instruments.update(state, this.def, dt, env);
     this.door.sync(state);
     // Under the floor, the dipstick and the oil can are only within reach with the hatch open.

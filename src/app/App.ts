@@ -89,6 +89,9 @@ import { GpuTimer } from '../debug/gpuTimer';
 import { TrialsPanel } from '../debug/trialsPanel';
 import { vesselReadout } from '../debug/vesselReadout';
 import { countBoatParts } from '../debug/boatParts';
+import { assembleView } from '../modular/assemble';
+import { holdGroup } from '../modular/bus';
+import { LIBRARY, RECIPES } from '../boats/library';
 import { DesktopPointer } from './desktopPointer';
 import { setupXR, xrSessionInfo } from './xrSession';
 import { applyPlayerIntent } from '../player/playerControl';
@@ -884,7 +887,8 @@ export class App {
       this.partsIn = 0.5;
       const wh = this.testDef.layout.wheelhouse;
       const n = countBoatParts(root, (p) => Math.abs(p.x) < wh.halfWidth && p.z > wh.front && p.z < wh.aft && p.y > wh.floorY - 0.2 && p.y < wh.roofY);
-      this.partsText = `\nboat parts drawn ${n.drawn} (wheelhouse ${n.inside})`;
+      const mods = this.bridge?.moduleList ?? [];
+      this.partsText = `\nboat parts drawn ${n.drawn} (wheelhouse ${n.inside})\nmodules ${mods.length}: ${mods.join(', ') || 'none'}`;
     }
     return this.partsText;
   }
@@ -1807,7 +1811,11 @@ export class App {
     const v = this.world.vessels[this.testVesselId];
     const view = this.vesselViews.get(this.testVesselId);
     if (!v || !view) return;
-    this.bridge = new Bridge(this.testDef);
+    // Her modules (modular boats), built from her recipe; the rest of the bridge is still
+    // hand-built around them.
+    const recipe = RECIPES[v.defId];
+    if (!recipe) throw new Error(`no recipe for vessel type '${v.defId}'`);
+    this.bridge = new Bridge(this.testDef, assembleView(recipe, VESSEL_DEFS[v.defId], LIBRARY));
     view.root.add(this.bridge.root);
     // Crew whiteboard on the wheelhouse aft wall, facing forward.
     const wb = this.testDef.whiteboard;
@@ -1865,7 +1873,8 @@ export class App {
       {
         lockedByOther: (c) => {
           const { vesselId, control } = this.routeChannel(c.channel);
-          const who = this.world.vessels[vesselId]?.holds[control];
+          // A module's channel is its bus key, held in its key's group ('throttle.demand': 'lever').
+          const who = this.world.vessels[vesselId]?.holds[holdGroup(control) ?? control];
           return !!who && who !== this.localPlayerId;
         },
         holdChanged: (c, held) => {

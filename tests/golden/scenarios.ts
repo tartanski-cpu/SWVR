@@ -127,6 +127,32 @@ const towLine = (world: WorldState): Record<string, Value> => {
   };
 };
 
+/**
+ * The lever scenarios take the throttle's channel: 'lever' (today's name) or the bus key
+ * 'throttle.demand' that the throttle-lever module sends (M2). Both must give the same run.
+ */
+export const fullAheadTurn = (throttle = 'lever') =>
+  play({}, 5, (h) => {
+    h.send('engineStartStop');
+    h.run(3);
+    h.send(throttle, 1);
+    h.run(40);
+    h.send('helm', 1);
+    h.run(30);
+  });
+
+export const crashStop = (throttle = 'lever') =>
+  play({}, 5, (h) => {
+    h.send('engineStartStop');
+    h.run(3);
+    h.send(throttle, 1);
+    h.run(40);
+    h.send(throttle, -1);
+    h.run(20);
+    h.send(throttle, 0);
+    h.run(10);
+  });
+
 /** The scenarios, by fixture name. */
 export const SCENARIOS: Record<string, () => Checkpoint[]> = {
   /** Stone cold, started by the card: master, INSTR, key, HEAT, START; then idling. */
@@ -146,28 +172,10 @@ export const SCENARIOS: Record<string, () => Checkpoint[]> = {
     }),
 
   /** Full ahead from rest, then hard over to starboard. */
-  'full-ahead-turn': () =>
-    play({}, 5, (h) => {
-      h.send('engineStartStop');
-      h.run(3);
-      h.send('lever', 1);
-      h.run(40);
-      h.send('helm', 1);
-      h.run(30);
-    }),
+  'full-ahead-turn': () => fullAheadTurn(),
 
   /** Full ahead, then full astern (crash stop), then neutral. */
-  'crash-stop': () =>
-    play({}, 5, (h) => {
-      h.send('engineStartStop');
-      h.run(3);
-      h.send('lever', 1);
-      h.run(40);
-      h.send('lever', -1);
-      h.run(20);
-      h.send('lever', 0);
-      h.run(10);
-    }),
+  'crash-stop': () => crashStop(),
 
   /** Alongside Calder Haven's cargo berth: Dock (both lines), warp in, then cast off. */
   docking: () => {

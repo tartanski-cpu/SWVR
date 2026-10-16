@@ -9,6 +9,7 @@ import { isWorkboat, VESSEL_DEFS, type VesselDef, type WorkboatDef } from './ves
 import { fuelBerthAt } from '../world/geography';
 import { BERTHS, PORTS } from '../world/archipelago';
 import type { VesselState } from './vesselState';
+import { applyBusIntent, holdGroup, isKeyName } from '../modular/bus';
 
 const q = new THREE.Quaternion();
 const e = new THREE.Euler();
@@ -60,14 +61,21 @@ export function releaseHolds(s: VesselState, playerId?: string): void {
  * Values are absolute (lever at 0.6, not "+0.1") so a repeated or late intent is harmless.
  */
 export function applyVesselIntent(s: VesselState, intent: Intent): void {
+  // Controls converted to modules (modular boats) send a bus key's own name, e.g.
+  // 'throttle.demand': checked and written by the bus (range, holds), as the cases below do.
+  if (isKeyName(intent.control)) {
+    applyBusIntent(s, intent.control, intent.value, intent.playerId);
+    return;
+  }
   // A grab control someone else has a hand on only answers to them.
   const guard = HOLD_KEY[intent.control];
   const holder = guard ? s.holds[guard] : undefined;
   if (holder && holder !== intent.playerId) return;
   switch (intent.control) {
     case 'hold': {
-      // ref = the control's channel; value 1 = hand on, 0 = hand off.
-      const key = intent.ref ?? '';
+      // ref = the control's channel; value 1 = hand on, 0 = hand off. A module's channel is
+      // its bus key ('throttle.demand'), held in the same group as the old name ('lever').
+      const key = holdGroup(intent.ref ?? '') ?? intent.ref ?? '';
       if (!(key in HOLDABLE)) break;
       const current = s.holds[key];
       if (intent.value > 0.5) {
