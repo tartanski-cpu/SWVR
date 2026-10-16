@@ -3,13 +3,18 @@
 #   https://tartanski-cpu.github.io/SWVR/        the game: the dev branch
 #   https://tartanski-cpu.github.io/SWVR/next/   work in progress: the `next` branch
 # A push to either branch rebuilds both, so each address always shows its branch's latest.
+# A push to `next` comes in through next.yml (workflow_run), so that this always runs on
+# the dev branch: GitHub lets only the dev branch deploy the site.
 # The game must pass its tests to be published. If `next` fails its tests or build, the
 # game is still published and /next/ says what happened.
 name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [claude/admiring-dirac-v9wwih, next]
+    branches: [claude/admiring-dirac-v9wwih]
+  workflow_run:
+    workflows: ['Next branch pushed']
+    types: [completed]
   workflow_dispatch:
 
 permissions:
