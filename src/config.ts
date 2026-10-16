@@ -883,6 +883,12 @@ export const CONFIG = {
         tiltMaxDeg: 12,
         panRateDeg: 50,
         tiltRateDeg: 22,
+        /**
+         * Stabilised like the fire monitor (owner request): the lamp holds its aim against
+         * her roll and pitch, so the beam stays on a target in a seaway. Pan is still from
+         * the bow (turn her and the beam turns), elevation from the horizon.
+         */
+        stabilised: true,
       },
       /**
        * Fire monitor (fire missions, fire/fire.ts): a water cannon on the wheelhouse roof,

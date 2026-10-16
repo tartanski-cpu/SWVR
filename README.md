@@ -2,7 +2,7 @@
 
 **Workboat World** (v1.0) is a browser-based VR sea rescue and operations game: chunky flat-shaded boats that you operate from the inside, with physical levers, wheels, switches and live instruments. It's built with TypeScript, Vite, Three.js and WebXR, and targets the Meta Quest 3 and desktop browsers.
 
-**Status:** v1.0 (tag `v1.0`; [release notes](docs/RELEASE_NOTES_v1.0.md)). The MVP snapshot lives on the `mvp-1` branch. The code repository keeps its working name, SWVR. See [`PROGRESS.md`](PROGRESS.md) for what's done, what's next and known issues. Feature ideas and their status are in [`ideas.md`](ideas.md).
+**Status:** v1.0 (tag `V1.0`; fixes since then are listed in PROGRESS.md; [release notes](docs/RELEASE_NOTES_v1.0.md)). The MVP snapshot lives on the `mvp-1` branch. The code repository keeps its working name, SWVR. See [`PROGRESS.md`](PROGRESS.md) for what's done, what's next and known issues. Feature ideas and their status are in [`ideas.md`](ideas.md).
 
 What's in the MVP:
 
@@ -124,7 +124,7 @@ At the helm, from left to right on the console:
 - **Nav lights** toggle switch.
 - **Anchor** switch: down = let go (the chain pays out to 4 × depth + 5 m), up = heave in and stow. You hear it: the chain rattles out over the bow roller and the anchor splashes in; heaving in, the windlass hums and the links clank in one by one, with a clunk as it stows.
 - **SPOT** switch (far left): the searchlight on the wheelhouse roof.
-- **Searchlight joystick:** on the pedestal to port of the wheel, under your left hand. Grip it and push sideways to pan, forward/back to raise/lower the beam. The further you push, the faster it moves; let go and the light stays put. On desktop, click and drag it.
+- **Searchlight joystick:** on the pedestal to port of the wheel, under your left hand. Grip it and push sideways to pan, forward/back to raise/lower the beam. The further you push, the faster it moves; let go and the light stays put. On desktop, click and drag it. The lamp is **stabilised** like the fire monitor: it holds its aim as she rolls and pitches, so the beam stays on what you've found.
 - **Cabin** light switch: the wheelhouse ceiling lamp, three-way. Each press steps **off → white → red → off**: the bat is in the middle for off, forward for white, and aft for red. Red is dim, for night work: you can see the controls without losing your night vision.
 - **WIPERS** switch (far port end): the three pendulum wipers on the front windows. They need the INSTR breaker; switched off they finish the sweep and park.
 - **Horn** button (hold).

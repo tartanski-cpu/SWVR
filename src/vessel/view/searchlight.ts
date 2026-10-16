@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { monitorAim } from '../../fire/fire';
 import type { WorkboatDef } from '../vesselDef';
 import type { VesselState } from '../vesselState';
 
@@ -7,6 +8,8 @@ import type { VesselState } from '../vesselState';
  * SpotLight (it lights islands, quays and other boats; the ocean shader adds its pool on the
  * water via `light`), and a faint additive beam cone that shows at night.
  * Off, the light is hidden (left out of every shader; switching costs one recompile).
+ * Stabilised (`spotlight.stabilised`): the lamp holds its aim level against her roll and
+ * pitch, the same way as the fire monitor (fire.ts monitorAim).
  */
 export class Searchlight {
   readonly root = new THREE.Group();
@@ -15,6 +18,8 @@ export class Searchlight {
   private readonly tilt = new THREE.Group();
   private readonly lens: THREE.MeshBasicMaterial;
   private readonly beamMat: THREE.MeshBasicMaterial;
+  private readonly q = new THREE.Quaternion();
+  private readonly d = new THREE.Vector3();
 
   constructor(private readonly def: WorkboatDef) {
     const c = def.spotlight;
@@ -69,8 +74,18 @@ export class Searchlight {
   update(s: VesselState, darkness: number, powered = true): void {
     const c = s.controls;
     const on = c.spotlight > 0 && powered;
-    this.pan.rotation.y = (-c.spotPan * Math.PI) / 180;
-    this.tilt.rotation.x = (c.spotTilt * Math.PI) / 180;
+    let pan = c.spotPan;
+    let tilt = c.spotTilt;
+    if (this.def.spotlight.stabilised && this.root.parent) {
+      // Where the beam should point in the world (heading only, level against roll and
+      // pitch), turned back into the boat's axes as she's drawn this frame.
+      this.root.parent.getWorldQuaternion(this.q);
+      const d = monitorAim(pan, tilt, this.q, true, this.d).applyQuaternion(this.q.invert());
+      pan = (Math.atan2(d.x, -d.z) * 180) / Math.PI;
+      tilt = (Math.asin(Math.max(-1, Math.min(1, d.y))) * 180) / Math.PI;
+    }
+    this.pan.rotation.y = (-pan * Math.PI) / 180;
+    this.tilt.rotation.x = (tilt * Math.PI) / 180;
     this.light.intensity = on ? this.def.spotlight.intensity : 0;
     this.light.visible = on; // off: not in any shader (one recompile when switched)
     this.lens.color.setHex(on ? 0xffffff : 0x333333);
