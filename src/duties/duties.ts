@@ -339,7 +339,7 @@ function stepFishingDuty(world: WorldState, d: DutiesState, v: VesselState | und
   const live = f && (f.net !== 'stowed' || fishAboard) ? 'fishing' : null;
   syncJob(d, 'fishing', live, 'Fishing: trawl', [
     { text: 'Shoot the net: TRAWL switch (console, behind the throttle) or PAY OUT on the A-frame', done: !!f && (f.net !== 'stowed' || f.caught > 0) },
-    { text: 'Tow it on a fishing ground (dashed on the plotter) at 2-4 kn', done: !!f && f.caught > 0 },
+    { text: 'Tow it on a fishing ground (dashed on the plotter) at 2-4.5 kn', done: !!f && f.caught > 0 },
     { text: 'Haul the net; carry the fish boxes ashore to any goods stack', done: false },
   ], world.time);
 }

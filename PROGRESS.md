@@ -1537,15 +1537,24 @@ The brief's "no new particle effects" rule was flagged: the fire is drawn withou
 
 **Renamed for players:** the game is now **Workboat World** wherever players see a name: the browser tab (`index.html`), the menu header (`ui/mainMenu.ts`), the README title, and the hull study page. Kept as SWVR on purpose: the repository and live URL (renaming the repo changes the address), the browser save keys (`swvr.*`: career, settings, chart marks, volumes; renaming would lose everyone's saves) and the multiplayer room ids (`swvr-room-*`; old and new builds couldn't meet).
 
-The owner declared this point **v1.0 of the game, "Workboat World"** (after the mooring cleats), before the next big step (modular boats). It is marked in git with the tag **`v1.0`**: a permanent bookmark on that exact commit, which later work doesn't move. The game code is that of commit `f630834` (the cleats). The owner creates the tag on GitHub as a Release (Claude's sessions can only push to their own branch, not tags); if it's ever missing, tag `f630834` or a later commit with only doc changes.
+The owner declared this point **v1.0 of the game, "Workboat World"** (after the mooring cleats), before the next big step (modular boats). It is marked in git with the tag **`V1.0`** (capital V; the owner made it on GitHub, on commit `7859f27`, the release notes): a permanent bookmark that later work doesn't move. Its game code is that of commit `f630834` (the cleats) plus the player-visible rename. Claude's sessions can only push to their own branch, not tags, so the owner makes any later tags (e.g. `V1.0.1` for fixes).
 
 Release notes (players' summary, also the text for the GitHub Release): `docs/RELEASE_NOTES_v1.0.md`.
 
 How to come back to it:
-- **Look at or download it:** on GitHub, the repo's Tags list has `v1.0`, with a zip of the code as it was.
-- **Work from it in a session:** ask Claude to "check out v1.0" (`git checkout v1.0`), or to start a branch from it (`git checkout -b <name> v1.0`), for example to fix a bug in v1.0 alone.
+- **Look at or download it:** on GitHub, the repo's Tags list has `V1.0`, with a zip of the code as it was.
+- **Work from it in a session:** ask Claude to "check out V1.0" (`git checkout V1.0`), or to start a branch from it (`git checkout -b <name> V1.0`), for example to fix a bug in v1.0 alone.
 - **Undo everything after it** on the dev branch: possible, but ask Claude first; it's a big step and it's better done as a new commit that restores v1.0's files than by rewriting history.
 - The live site follows the dev branch, so after later pushes it shows the newer game, not v1.0.
+
+### Fixes after V1.0 (on the dev branch; not in the `V1.0` tag)
+
+- **Trawling speed easier to hold** (owner: the trawl speed was hard to reach, she was too fast). Measured with the net out: she made 3.0 kn idling in gear and 4 kn by 23 % lever, so the 2-4 kn window was only 8-23 % of the lever (a quarter of a second on the desktop keys). The net was too light (3.5 kN at 3 kn). Now:
+  - net drag tripled (`fishing.dragLinear` 1800, `dragQuad` 3000: ~10 kN at 3 kn, so the engine works when trawling); fouled drag raised to stay well above it (`foulDrag` 18000);
+  - the window's top raised from 4 to 4.5 kn (`fishing.maxSpeed` 2.3 m/s); the status line now shows the window from the config (`trawlKnots`).
+  - Result: idle in gear ~1.9 kn, 2 kn at 12 % lever, 4.5 kn at ~65 %. Half the ahead travel is good trawling. The lever itself is unchanged (so driving feels the same).
+  - Test: with the engine driving and the net out, idle is at the bottom of the window and 20 %, 35 % and 50 % lever are all inside it.
+- **Stabilised searchlight** (owner: it needs the same motion compensation as the fire monitor): `spotlight.stabilised: true`. The lamp holds its aim against her roll and pitch: pan is still from the bow (turn her and the beam turns), elevation from the horizon. It uses the monitor's maths (fire.ts `monitorAim`), applied in the view (`vessel/view/searchlight.ts`, as MonitorView does), since nothing in the simulation depends on where the beam points. Test (`tests/searchlightStabilised.test.ts`): rolled 15 deg, pitched 8 deg or both, the beam points within half a degree of where it does level, and a change of heading turns it.
 
 ## Planned next (owner requests, not started)
 
@@ -1642,7 +1651,7 @@ Order, as the owner set it:
 
 Before the first branch-off (2 or 3):
 
-- ~~Tag the last version before the split in git~~ **Done**: tag `v1.0` (see "Release: Workboat World v1.0").
+- ~~Tag the last version before the split in git~~ **Done**: tag `V1.0` (see "Release: Workboat World v1.0").
 - ~~Write a `CLAUDE.md`~~ **Done**: the owner's standing rules, commands, code layout and this direction, read by every session.
 - First round: separate the shared core from the VR/desktop-specific parts, plus an empty mobile page that drives the boat with two sticks. No visible change to SWVR.
 
@@ -1740,7 +1749,7 @@ The aim: rebuild the boat as reusable modules on a hull, so a new boat is mostly
 - under way in a moderate sea;
 - the skiff on her outboard.
 
-Every later milestone must reproduce them to a millionth. A 0.1 % change to the engine's friction fails 10 of the 12 (checked). Re-record only for an intended change in behaviour: `GOLDEN_RECORD=1 npx vitest run tests/golden.test.ts`.
+Every later milestone must reproduce them to a millionth. The trawl run was re-recorded after merging the dev branch's trawl change (heavier net drag, 2–4.5 kn window); she now tows at about 2.6 kn. A 0.1 % change to the engine's friction fails 10 of the 12 (checked). Re-record only for an intended change in behaviour: `GOLDEN_RECORD=1 npx vitest run tests/golden.test.ts`.
 
 **Baseline to beat** (headless Chromium, `scripts/measureDraws.mjs`; four viewpoints aboard; noise ±2 from passing ships and birds):
 
@@ -1768,7 +1777,6 @@ Every later milestone must reproduce them to a millionth. A 0.1 % change to the 
 - **Telling them apart:** the next build's menu header starts with **NEXT** (then its commit and date) and its browser tab reads "Workboat World: NEXT". The build sets `VITE_CHANNEL=next`, read in `vite.config.ts` as `__CHANNEL__` and `__BUILD__`.
 - **How milestones go out from now:** to `next` first for the owner to try, then to the dev branch when the owner is happy.
 - **Shared storage:** both addresses are one site to the browser, so they share career saves, settings, the chart and the whiteboard. That's harmless while the save format is the same. Before a milestone changes it (M6), `next` gets its own save keys.
-- **Release tag:** on GitHub it's named `V1.0` (capital V); this file and CLAUDE.md call it `v1.0`.
 
 ## Next
 

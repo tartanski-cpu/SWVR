@@ -883,6 +883,12 @@ export const CONFIG = {
         tiltMaxDeg: 12,
         panRateDeg: 50,
         tiltRateDeg: 22,
+        /**
+         * Stabilised like the fire monitor (owner request): the lamp holds its aim against
+         * her roll and pitch, so the beam stays on a target in a seaway. Pan is still from
+         * the bow (turn her and the beam turns), elevation from the horizon.
+         */
+        stabilised: true,
       },
       /**
        * Fire monitor (fire missions, fire/fire.ts): a water cannon on the wheelhouse roof,
@@ -1330,9 +1336,9 @@ export const CONFIG = {
 
   /**
    * Fishing (fishing/fishing.ts): the grounds (centre, radius m, richness), trawling speed
-   * (m/s; 1.0-2.1 is 2-4 kn), seconds of good trawling per box at richness 1, how long the
+   * (m/s; 1.0-2.3 is 2-4.5 kn), seconds of good trawling per box at richness 1, how long the
    * net takes out and in (s), where it fouls (shallower than m), and its drag on the boat:
-   * (dragLinear + dragQuad |v|) v N (~3.5 kN at 3 kn), fouled `foulDrag` |v| and a
+   * (dragLinear + dragQuad |v|) v N (~10 kN at 3 kn), fouled `foulDrag` |v| and a
    * `foulHold` N pull astern. Boxes appear `boxInset` m in from the transom.
    */
   fishing: {
@@ -1342,7 +1348,13 @@ export const CONFIG = {
       { name: 'The Hollows', x: -1100, z: 1000, radius: 320, richness: 1.0 },
     ],
     minSpeed: 1.0,
-    maxSpeed: 2.1,
+    /**
+     * Raised from 2.1 (4 kn) with the drag below (owner feedback after V1.0: the trawling
+     * speed was hard to hold, too fast). With the net out she now makes about 1.9 kn idling
+     * in gear, 2 kn at 12 % lever, 4 kn at ~55 % and 4.5 kn at ~65 %: half the lever's
+     * ahead travel is good trawling, where before it was 8-23 %.
+     */
+    maxSpeed: 2.3,
     boxEvery: 40,
     /** The bigger trawl (career upgrade) fills this much faster. */
     bigTrawlFactor: 1.5,
@@ -1351,9 +1363,11 @@ export const CONFIG = {
     snagDepth: 7,
     /** No fishing in a sea bigger than this (Hs, m). */
     maxHs: 2.2,
-    dragLinear: 600,
-    dragQuad: 1000,
-    foulDrag: 9000,
+    /** Tripled after V1.0: the old net (3.5 kN at 3 kn) let her make 3 kn idling in gear. */
+    dragLinear: 1800,
+    dragQuad: 3000,
+    /** Fouled on the bottom: well above the net's normal drag (27 kN at 1.5 m/s). */
+    foulDrag: 18000,
     foulHold: 6000,
     boxInset: 2.2,
   },
