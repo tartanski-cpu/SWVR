@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { CONFIG } from '../../config';
 import type { WorkboatDef } from '../vesselDef';
+import { frontRake } from './hullMesh';
 
 /**
  * Rain on the wheelhouse front windows, and the wipers. The windows are open frames until
@@ -20,7 +21,7 @@ import type { WorkboatDef } from '../vesselDef';
  *     no texture is painted and nothing is uploaded per frame.
  *
  * The wipers run while switched on and powered (Instruments breaker); switched off they
- * finish the sweep and park.
+ * finish the sweep and park. Everything here leans with the raked (pilot-house) front.
  */
 /** Parts per wiper (two links, carrier, blade, boss), and the links' spacing (m). */
 const PARTS = 5;
@@ -48,7 +49,7 @@ export class RainGlass {
   constructor(def: WorkboatDef) {
     const wh = def.layout.wheelhouse;
     const c = CONFIG.rain;
-    const sill = wh.floorY + wh.windowSill;
+    const sill = wh.floorY + (wh.frontSill ?? wh.windowSill); // the front panes' sill
     const head = wh.floorY + wh.windowHead;
     const x0 = -wh.halfWidth + wh.wall;
     const x1 = wh.halfWidth - wh.wall;
@@ -132,6 +133,11 @@ export class RainGlass {
     this.parts = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial({ color: 0x15181a }), this.pivots.length * PARTS);
     this.parts.name = 'wipers';
     this.root.add(this.glass, this.parts);
+    // Raked with the pilot-house front (hullMesh.ts frontRake): built upright as before, the
+    // whole set (glass, wipers on the header) is sheared forward with the panes. Heights are
+    // unchanged, so the shader's pane coordinates (x across, y up) still hold.
+    this.root.matrixAutoUpdate = false;
+    this.root.matrix.copy(frontRake(wh).matrix);
     this.pose(-(c.wiperSweepDeg * Math.PI) / 180);
   }
 

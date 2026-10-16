@@ -233,7 +233,9 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig): WalkArea {
       // In a wall: the doorway and window band are open.
       const hy = y - wh.floorY;
       if (z >= int.z1 && ax < doorHalf && hy < wh.doorHeight) return false;
-      if (hy > wh.windowSill && hy < wh.windowHead) return false;
+      // The front's glass starts higher (frontSill, level with the dash top).
+      const sillHere = z < int.z0 ? (wh.frontSill ?? wh.windowSill) : wh.windowSill;
+      if (hy > sillHere && hy < wh.windowHead) return false;
       return true;
     },
   };

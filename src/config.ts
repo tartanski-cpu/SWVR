@@ -439,6 +439,20 @@ export const CONFIG = {
           /** Window band, heights above the wheelhouse floor. */
           windowSill: 0.75,
           windowHead: 1.95,
+          /**
+           * The front windows' sill (above the floor), higher than the sides': level with
+           * the top of the instrument dash (`bridge.dash.top`), so the front glass starts
+           * where the view over the dash does (owner request).
+           */
+          frontSill: 1.36,
+          /**
+           * Pilot-house front (owner request): the front from its window sill up leans
+           * forward this many degrees (reverse rake: the glass top is forward of its foot,
+           * so it sheds spray and cuts glare). The windows, mullions and the panel above
+           * them lean; the front wall below the sill stays upright. A brow carries the roof
+           * edge out over the raked glass. 0 for an upright front.
+           */
+          frontRakeDeg: 12,
           /** Helm console across the front of the house. */
           consoleDepth: 0.5,
           consoleHeight: 0.95,
@@ -1586,8 +1600,9 @@ export const CONFIG = {
      */
     wiperPeriod: 1.7,
     wiperSweepDeg: 45,
-    wiperArm: 0.6,
-    wiperBlade: 0.6,
+    /** Sized to the shorter front panes (raised front sill): the blade stays on the glass across the sweep. */
+    wiperArm: 0.42,
+    wiperBlade: 0.36,
     wiperPivotAbove: 0.1,
   },
 
