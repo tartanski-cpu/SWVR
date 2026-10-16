@@ -1909,6 +1909,26 @@ export const CONFIG = {
    * Desktop: the beam starts at a "hand" `deskHand` (m: right, up, forward of the eyes), so it's
    * seen from the side; started at the eyes it would be seen end-on, just a dot.
    */
+  /**
+   * Other players' figures (net/avatarView.ts, looks in net/avatarOutfits.ts). Upper body
+   * only (owner's choice): head, a torso hanging from the neck to the waist, two-part arms
+   * with elbows reaching to the hands. The torso turns toward where the head looks but lags
+   * (`bodyTurnRate` 1/s) and never twists more than `maxTwistDeg` from it; its waist sits
+   * `lean` of the way back toward the feet, so leaning the head leans the body.
+   * Lengths in m. Arms hang relaxed when a hand isn't tracked (desktop's left hand).
+   */
+  avatar: {
+    neckDrop: 0.13,
+    torsoLength: 0.55,
+    shoulderHalf: 0.18,
+    shoulderDrop: 0.07,
+    upperArm: 0.3,
+    forearm: 0.29,
+    bodyTurnRate: 4,
+    maxTwistDeg: 50,
+    lean: 0.5,
+  },
+
   laser: { reach: 600, hitRate: 15, deskHand: [0.2, -0.25, -0.35] as [number, number, number] },
 
   comfort: {

@@ -6,6 +6,7 @@ import { Keyboard } from '../core/keyboard';
 import { FixedStepLoop } from '../core/loop';
 import { stepWorld, type SimDebug } from '../core/simulation';
 import { createWorld, type WorldState } from '../core/world';
+import { randomLook } from '../net/avatarOutfits';
 import { HelpPanel } from '../debug/helpPanel';
 import { DebugOverlay } from '../debug/overlay';
 import { EnvironmentView } from '../environment/environmentView';
@@ -322,6 +323,8 @@ export class App {
     this.localPlayerId = created.localPlayerId;
     this.soloPlayerId = created.localPlayerId;
     this.testVesselId = created.vesselId;
+    // Our own working clothes, as crew who join will see us (net/avatarOutfits.ts).
+    this.world.players[this.localPlayerId].look = randomLook();
 
     this.rig = new PlayerRig(this.localPlayerId, this.camera);
     this.scene.add(this.rig.carrier);

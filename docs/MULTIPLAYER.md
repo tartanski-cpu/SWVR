@@ -66,7 +66,8 @@ Everything a player sends is in the frame they stand in: on deck, that's the ves
 | `net/transport.ts` | `PeerHostTransport` / `PeerClientTransport` (PeerJS), `LoopbackHost` (in memory, JSON round trip, for tests) |
 | `net/hostSession.ts` | Accepts players, queues their intents, writes their poses, broadcasts snapshots |
 | `net/clientSession.ts` | Snapshot buffer, host clock, interpolation brackets |
-| `net/avatarView.ts` | Remote players: head with visor, gloved hands turned as the real ones are, body |
+| `net/avatarView.ts` | Remote players: an upper-body figure (head, torso, elbowed arms, gloved hands turned as the real ones are) |
+| `net/avatarOutfits.ts` | Their working clothes: a random look per player, picked by the host when they join |
 | `app/App.ts` | `hostGame`, `joinGame`, `connectClient`, `leaveGame`, `followHost` (client frame), `updateNetPose` |
 | `ui/mainMenu.ts` | **Crew** tab with keypad |
 

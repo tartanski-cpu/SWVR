@@ -1,12 +1,10 @@
 import * as THREE from 'three';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { CONFIG } from '../config';
+import { flatVertexColorMaterial } from '../render/geometryUtils';
+import { armGeometry, decodeLook, gloveGeometry, headGeometry, lookFromId, torsoGeometry } from './avatarOutfits';
 import type { EntityId } from '../core/ids';
 import type { WorldState } from '../core/world';
 import { LaserBeam } from '../player/laserBeam';
-
-/** The neck sits this far below the head's centre, the shoulders this far below the neck (m). */
-const NECK_DROP = 0.13;
-const SHOULDER_DROP = 0.12;
 
 const COLORS = [0xd8582a, 0x2a8ad8, 0x3aa84a, 0xc8a020, 0x9a4ad0, 0x20a8a0];
 
@@ -18,13 +16,20 @@ export function playerColor(id: EntityId): number {
 
 interface Avatar {
   root: THREE.Group;
+  /** Head position and orientation (eased toward the pose); `face` hangs in it. */
   head: THREE.Group;
-  body: THREE.Mesh;
+  face: THREE.Mesh;
+  /** Hangs from the neck, turned to `bodyYaw` and leaning toward the waist. */
+  torso: THREE.Mesh;
+  /** Arms: upper arm from the shoulder to the elbow, forearm from the elbow to the hand. */
+  upper: [THREE.Mesh, THREE.Mesh];
+  fore: [THREE.Mesh, THREE.Mesh];
   left: THREE.Mesh;
   right: THREE.Mesh;
-  /** Arms: stretchy cylinders from the shoulders to the hands (a rubber band for desktop players). */
-  leftArm: THREE.Mesh;
-  rightArm: THREE.Mesh;
+  /** The torso's heading (rad): follows the head's, lagging. */
+  bodyYaw: number;
+  /** The look the figure was built for (PlayerState.look). */
+  look: number;
   frame: THREE.Object3D | null;
   tag: THREE.Sprite;
   tagName: string;
@@ -35,32 +40,57 @@ interface Avatar {
   laser: LaserBeam;
 }
 
+/** One vertex-coloured material for every figure (their colours are in the geometry). */
+let figureMat: THREE.Material | null = null;
+const DOWN = new THREE.Vector3(0, -1, 0);
+const FWD = new THREE.Vector3(0, 0, -1);
+const Y = new THREE.Vector3(0, 1, 0);
+
 /**
- * Other players, drawn from their PlayerState (pose + avatar): a head with a visor facing
- * where they look, two hands, and a simple body from their feet up to the neck. Everything
- * is placed in the frame of what they're aboard (vessel root or scene), so a crew-mate
- * stays put on the deck however the boat moves. Positions ease toward each new update, so
- * 20 Hz network poses look smooth.
+ * Other players, drawn from their PlayerState (pose + avatar) as an upper-body figure in
+ * working clothes (owner request; looks in avatarOutfits.ts, sizes in CONFIG.avatar):
+ *   - the head where their head is, turned as it is;
+ *   - the torso hanging from the neck right under the head (so the head can't come off
+ *     it), turned toward where they look but lagging, leaning when the head is off the feet;
+ *   - two-part arms: the elbow is worked out from the shoulder and the hand (two bones of
+ *     fixed length: the law of cosines gives how far along and how far out the elbow sits,
+ *     bent down, out and back like a real one). A hand beyond reach (a desktop player
+ *     working a control metres away) stretches the forearm like a rubber band, as before;
+ *   - an untracked hand (desktop's left) hangs relaxed at the side.
+ * Everything is placed in the frame of what they're aboard (vessel root or scene), so a
+ * crew-mate stays put on the deck however the boat moves. Positions ease toward each new
+ * update, so 20 Hz network poses look smooth.
  */
 export class AvatarsView {
   private readonly avatars = new Map<EntityId, Avatar>();
   private readonly tmpV = new THREE.Vector3();
   private readonly tmpQ = new THREE.Quaternion();
-  private readonly side = new THREE.Vector3();
-  private readonly shoulder = new THREE.Vector3();
-  private readonly dir = new THREE.Vector3();
-  private readonly yUp = new THREE.Vector3(0, 1, 0);
-  private readonly laserTo = new THREE.Vector3();
+  private readonly yawQ = new THREE.Quaternion();
+  private readonly bodyQ = new THREE.Quaternion();
   private readonly neck = new THREE.Vector3();
+  private readonly waist = new THREE.Vector3();
+  private readonly shoulder = new THREE.Vector3();
+  private readonly hand = new THREE.Vector3();
+  private readonly elbow = new THREE.Vector3();
+  private readonly dir = new THREE.Vector3();
+  private readonly bend = new THREE.Vector3();
+  private readonly laserTo = new THREE.Vector3();
 
   constructor(private readonly scene: THREE.Object3D) {}
 
   update(world: WorldState, localId: EntityId, vesselRoots: Map<string, THREE.Object3D>, dt: number): void {
+    const c = CONFIG.avatar;
     const seen = new Set<EntityId>();
     for (const p of Object.values(world.players)) {
       if (p.id === localId) continue;
       seen.add(p.id);
-      const a = this.avatars.get(p.id) ?? this.create(p.id);
+      const look = p.look ?? lookFromId(p.id);
+      let a = this.avatars.get(p.id);
+      if (a && a.look !== look) {
+        this.remove(p.id, a);
+        a = undefined;
+      }
+      a ??= this.create(p.id, look);
       const frame = (p.aboardVesselId && vesselRoots.get(p.aboardVesselId)) || this.scene;
       if (a.frame !== frame) {
         frame.add(a.root, a.laser.root);
@@ -81,21 +111,26 @@ export class AvatarsView {
       if (laser) a.laser.set(this.tmpV.set(laser[0], laser[1], laser[2]), this.laserTo.set(laser[3], laser[4], laser[5]), laser[6]);
       else a.laser.hide();
       if (a.tagName !== p.name) drawTag(a, p.name);
-      a.tag.position.set(a.head.position.x, a.head.position.y + 0.32, a.head.position.z);
-      // The body hangs from the head (owner bug: it was placed on its own and the head
-      // could float a few cm off it): a torso from the feet up to the neck, right under the
-      // head wherever the head is, leaning if the head is off to one side.
+      a.tag.position.set(a.head.position.x, a.head.position.y + 0.34, a.head.position.z);
+
+      // The torso's heading: toward the head's, lagging, never twisted more than maxTwistDeg.
+      const f = this.dir.copy(FWD).applyQuaternion(a.head.quaternion);
+      const headYaw = Math.atan2(-f.x, -f.z);
+      let d = wrap(headYaw - a.bodyYaw);
+      a.bodyYaw += d * Math.min(1, dt * c.bodyTurnRate);
+      d = wrap(headYaw - a.bodyYaw);
+      const max = (c.maxTwistDeg * Math.PI) / 180;
+      if (Math.abs(d) > max) a.bodyYaw = headYaw - Math.sign(d) * max;
+      // Hung from the neck, right under the head; the waist part way back over the feet.
       this.neck.copy(a.head.position);
-      this.neck.y = Math.max(0.6, this.neck.y - NECK_DROP);
-      const torso = this.dir.copy(this.neck);
-      const tall = torso.length();
-      a.body.position.copy(this.neck).multiplyScalar(0.5);
-      a.body.quaternion.setFromUnitVectors(this.yUp, torso.divideScalar(tall || 1));
-      a.body.scale.set(1, tall, 1);
-      // Shoulders: just below the neck, either side of where the head faces.
-      this.side.set(1, 0, 0).applyQuaternion(a.head.quaternion).setY(0);
-      if (this.side.lengthSq() < 1e-6) this.side.set(1, 0, 0);
-      this.side.normalize().multiplyScalar(0.2);
+      this.neck.y -= c.neckDrop;
+      this.waist.set(this.neck.x * (1 - c.lean), this.neck.y - c.torsoLength, this.neck.z * (1 - c.lean));
+      this.dir.subVectors(this.waist, this.neck).normalize();
+      this.yawQ.setFromAxisAngle(Y, a.bodyYaw);
+      this.bodyQ.setFromUnitVectors(DOWN, this.dir).multiply(this.yawQ);
+      a.torso.position.copy(this.neck);
+      a.torso.quaternion.copy(this.bodyQ);
+
       // A chart tool in hand (pencil, eraser): a small copy of it at that hand.
       const tool = p.avatar?.tool ?? null;
       const tk = tool ? `${tool.kind}:${tool.hand}` : '';
@@ -105,52 +140,76 @@ export class AvatarsView {
         a.tool = tool ? toolMesh(tool.kind) : null;
         if (a.tool && tool) (tool.hand === 'left' ? a.left : a.right).add(a.tool);
       }
-      for (const [mesh, arm, hand, s, hq] of [
-        [a.left, a.leftArm, p.avatar?.left, -1, p.avatar?.leftQ],
-        [a.right, a.rightArm, p.avatar?.right, 1, p.avatar?.rightQ],
+      const L1 = c.upperArm;
+      const L2 = c.forearm;
+      for (const [i, mesh, hand, s, hq] of [
+        [0, a.left, p.avatar?.left, -1, p.avatar?.leftQ],
+        [1, a.right, p.avatar?.right, 1, p.avatar?.rightQ],
       ] as const) {
-        mesh.visible = !!hand;
-        arm.visible = !!hand;
-        if (!hand) continue;
-        // Hands snap fast toward a new grip ("magnet"), then follow it.
-        mesh.position.lerp(this.tmpV.set(hand[0] - p.position[0], hand[1] - p.position[1], hand[2] - p.position[2]), Math.min(1, dt * 20));
-        // Turned as their real hand is (VR); a desktop player's hand faces where they look.
-        if (hq) mesh.quaternion.slerp(this.tmpQ.set(hq[0], hq[1], hq[2], hq[3]), Math.min(1, dt * 20));
-        else mesh.quaternion.copy(a.head.quaternion);
-        this.shoulder.copy(this.neck).addScaledVector(this.side, s);
-        this.shoulder.y -= SHOULDER_DROP;
-        const len = this.dir.copy(mesh.position).sub(this.shoulder).length();
-        arm.position.copy(this.shoulder);
-        arm.quaternion.setFromUnitVectors(this.yUp, this.dir.normalize());
-        // Thinner as it stretches, like a rubber band.
-        const w = Math.max(0.4, Math.min(1, 0.7 / Math.max(0.01, len)));
-        arm.scale.set(w, Math.max(0.01, len), w);
+        this.shoulder.set(s * c.shoulderHalf, -c.shoulderDrop, 0).applyQuaternion(this.bodyQ).add(this.neck);
+        if (hand) {
+          // Hands snap fast toward a new grip ("magnet"), then follow it.
+          mesh.position.lerp(this.tmpV.set(hand[0] - p.position[0], hand[1] - p.position[1], hand[2] - p.position[2]), Math.min(1, dt * 20));
+        } else {
+          // Not tracked: hanging relaxed at the side, a little forward.
+          mesh.position.copy(this.tmpV.set(s * 0.03, -(L1 + L2) * 0.97, -0.06).applyQuaternion(this.bodyQ).add(this.shoulder));
+        }
+        this.hand.copy(mesh.position);
+        // The elbow (two-bone reach): along the shoulder-hand line by a, out from it by h.
+        this.dir.subVectors(this.hand, this.shoulder);
+        const dist = this.dir.length();
+        this.dir.divideScalar(dist || 1);
+        const reach = Math.min(Math.max(dist, Math.abs(L1 - L2) + 0.01), (L1 + L2) * 0.999);
+        const along = (L1 * L1 - L2 * L2 + reach * reach) / (2 * reach);
+        const out = Math.sqrt(Math.max(0, L1 * L1 - along * along));
+        // Elbows bend down, out to the side and back, in the body's axes.
+        this.bend.set(s * 0.5, -1, 0.4).applyQuaternion(this.bodyQ);
+        this.bend.addScaledVector(this.dir, -this.bend.dot(this.dir));
+        if (this.bend.lengthSq() < 1e-6) this.bend.set(s, 0, 0).applyQuaternion(this.bodyQ);
+        this.bend.normalize();
+        this.elbow.copy(this.shoulder).addScaledVector(this.dir, along).addScaledVector(this.bend, out);
+        const up = a.upper[i];
+        up.position.copy(this.shoulder);
+        up.quaternion.setFromUnitVectors(DOWN, this.tmpV.subVectors(this.elbow, this.shoulder).normalize());
+        // The forearm runs to the hand itself; beyond reach it stretches (a rubber band).
+        const fore = a.fore[i];
+        this.tmpV.subVectors(this.hand, this.elbow);
+        const fl = this.tmpV.length();
+        fore.position.copy(this.elbow);
+        fore.quaternion.setFromUnitVectors(DOWN, this.tmpV.divideScalar(fl || 1));
+        fore.scale.set(1, Math.max(0.2, fl / L2), 1);
+        // Turned as their real hand is (VR); otherwise along the forearm.
+        if (hq && hand) mesh.quaternion.slerp(this.tmpQ.set(hq[0], hq[1], hq[2], hq[3]), Math.min(1, dt * 20));
+        else mesh.quaternion.setFromUnitVectors(FWD, this.tmpV);
       }
     }
-    for (const [id, a] of this.avatars) {
-      if (seen.has(id)) continue;
-      a.root.removeFromParent();
-      a.laser.root.removeFromParent();
-      (a.tag.material.map as THREE.Texture).dispose();
-      a.tag.material.dispose();
-      this.avatars.delete(id);
-    }
+    for (const [id, a] of this.avatars) if (!seen.has(id)) this.remove(id, a);
   }
 
-  private create(id: EntityId): Avatar {
+  private remove(id: EntityId, a: Avatar): void {
+    a.root.removeFromParent();
+    a.laser.root.removeFromParent();
+    (a.tag.material.map as THREE.Texture).dispose();
+    a.tag.material.dispose();
+    for (const m of [a.face, a.torso, ...a.upper, ...a.fore, a.left, a.right]) m.geometry.dispose();
+    this.avatars.delete(id);
+  }
+
+  private create(id: EntityId, look: number): Avatar {
     const color = playerColor(id);
-    const mat = new THREE.MeshLambertMaterial({ color, flatShading: true });
+    const l = decodeLook(look);
+    const mat = (figureMat ??= flatVertexColorMaterial());
     const root = new THREE.Group();
     root.name = `avatar:${id}`;
     const head = new THREE.Group();
-    const skull = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.24, 0.24), mat);
-    const visor = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.07, 0.02), new THREE.MeshLambertMaterial({ color: 0x15181c }));
-    visor.position.set(0, 0.02, -0.125);
-    head.add(skull, visor);
-    // Unit-height body, scaled to the neck each frame.
-    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.13, 1, 8).translate(0, 0, 0), mat);
-    const left = new THREE.Mesh(handGeometry(-1), mat);
-    const right = new THREE.Mesh(handGeometry(1), mat);
+    const face = new THREE.Mesh(headGeometry(l, color), mat);
+    head.add(face);
+    const torso = new THREE.Mesh(torsoGeometry(l, color), mat);
+    const c = CONFIG.avatar;
+    const upper: [THREE.Mesh, THREE.Mesh] = [new THREE.Mesh(armGeometry(l, c.upperArm, false), mat), new THREE.Mesh(armGeometry(l, c.upperArm, false), mat)];
+    const fore: [THREE.Mesh, THREE.Mesh] = [new THREE.Mesh(armGeometry(l, c.forearm, true), mat), new THREE.Mesh(armGeometry(l, c.forearm, true), mat)];
+    const left = new THREE.Mesh(gloveGeometry(l, -1), mat);
+    const right = new THREE.Mesh(gloveGeometry(l, 1), mat);
     // Name tag: a camera-facing sprite above the head, redrawn when the name changes.
     const canvas = document.createElement('canvas');
     canvas.width = 256;
@@ -160,36 +219,16 @@ export class AvatarsView {
     const tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, fog: false, toneMapped: false }));
     tag.scale.set(0.6, 0.15, 1);
     tag.userData.color = color;
-    const armGeo = new THREE.CylinderGeometry(0.03, 0.03, 1, 6).translate(0, 0.5, 0);
-    const leftArm = new THREE.Mesh(armGeo, mat);
-    const rightArm = new THREE.Mesh(armGeo, mat);
-    leftArm.visible = rightArm.visible = false;
-    root.add(head, body, left, right, leftArm, rightArm, tag);
-    const a: Avatar = { root, head, body, left, right, leftArm, rightArm, frame: null, tag, tagName: '', tool: null, toolKey: '', laser: new LaserBeam(color) };
+    root.add(head, torso, ...upper, ...fore, left, right, tag);
+    const a: Avatar = { root, head, face, torso, upper, fore, left, right, bodyYaw: 0, look, frame: null, tag, tagName: '', tool: null, toolKey: '', laser: new LaserBeam(color) };
     this.avatars.set(id, a);
     return a;
   }
 }
 
-/**
- * A gloved hand, closed as it is round a controller (owner: the sphere hid how the hand
- * was turned). In the controller's grip frame: fingers wrapped round the -z axis, the
- * thumb on top (+y) on the inner side, the wrist and a cuff behind (+z). The flat-sided
- * fist, the thumb and the cuff make roll, pitch and yaw all readable from across the deck.
- * Built once per side (the thumb is on the inner side: +x for the left hand, -x for the right).
- */
-const handGeos = new Map<number, THREE.BufferGeometry>();
-function handGeometry(side: -1 | 1): THREE.BufferGeometry {
-  const cached = handGeos.get(side);
-  if (cached) return cached;
-  const fist = new THREE.BoxGeometry(0.065, 0.08, 0.09);
-  const knuckles = new THREE.BoxGeometry(0.06, 0.03, 0.03).translate(0, -0.035, -0.04);
-  const thumb = new THREE.BoxGeometry(0.024, 0.024, 0.065).rotateY(side * 0.35).translate(-side * 0.022, 0.046, -0.025);
-  const cuff = new THREE.CylinderGeometry(0.032, 0.036, 0.05, 8).rotateX(Math.PI / 2).translate(0, -0.005, 0.065);
-  const g = mergeGeometries([fist, knuckles, thumb, cuff].map((x) => x.toNonIndexed()));
-  g.computeVertexNormals();
-  handGeos.set(side, g);
-  return g;
+/** An angle wrapped to -pi..pi. */
+function wrap(a: number): number {
+  return Math.atan2(Math.sin(a), Math.cos(a));
 }
 
 function snap(a: Avatar, feet: number[], av: WorldState['players'][string]['avatar']): void {
@@ -197,6 +236,8 @@ function snap(a: Avatar, feet: number[], av: WorldState['players'][string]['avat
   if (av) {
     a.head.position.set(av.head[0] - feet[0], av.head[1] - feet[1], av.head[2] - feet[2]);
     a.head.quaternion.set(av.head[3], av.head[4], av.head[5], av.head[6]);
+    const f = new THREE.Vector3(0, 0, -1).applyQuaternion(a.head.quaternion);
+    a.bodyYaw = Math.atan2(-f.x, -f.z);
   }
 }
 

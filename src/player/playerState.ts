@@ -37,6 +37,12 @@ export interface PlayerState {
    * `position`: head (x, y, z, qx, qy, qz, qw), hands (x, y, z) or null if not tracked, and
    * each VR hand's orientation (absent for desktop players, and from older versions).
    */
+  /**
+   * How others see you: a number the host picks when you join (net/avatarOutfits.ts
+   * decodes it into an outfit, skin tone and beard). Absent from older hosts: then it's
+   * derived from the player id.
+   */
+  look?: number;
   avatar?: {
     head: [number, number, number, number, number, number, number];
     left: Vec3 | null;

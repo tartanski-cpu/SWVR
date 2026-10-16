@@ -2,6 +2,7 @@ import type { IdFactory, EntityId } from '../core/ids';
 import type { Intent } from '../core/intents';
 import type { WorldState } from '../core/world';
 import { createPlayerState } from '../player/playerState';
+import { randomLook } from './avatarOutfits';
 import { placeAshore } from '../player/playerControl';
 import { isWorkboat, VESSEL_DEFS } from '../vessel/vesselDef';
 import { releaseHolds } from '../vessel/vesselControl';
@@ -42,6 +43,7 @@ export class HostSession {
       if (this.peers.has(link.id)) return;
       const playerId = this.ids.next('player');
       const p = createPlayerState(playerId, (msg.name || `Player ${this.peers.size + 2}`).slice(0, 24));
+      p.look = randomLook(); // a random set of working clothes (net/avatarOutfits.ts)
       // Crew join aboard the workboat (wherever she is), at her boarding spot.
       const boat = Object.values(this.world.vessels).find((v) => isWorkboat(VESSEL_DEFS[v.defId]));
       if (boat) {

@@ -477,7 +477,7 @@ Open the perf panel in VR with B (or from the menu). At 90 Hz the frame budget i
 
 ## Multiplayer
 
-Co-op crew on one boat, peer-to-peer (one player hosts). Menu → **Crew** → **Host a game** shows a 5-digit code; the others type it on the keypad and press **Join**. Everyone sees each other's head and hands and can use every control. Details and limits: [`docs/MULTIPLAYER.md`](docs/MULTIPLAYER.md).
+Co-op crew on one boat, peer-to-peer (one player hosts). Menu → **Crew** → **Host a game** shows a 5-digit code; the others type it on the keypad and press **Join**. Everyone can use every control. Crew-mates appear as an upper-body figure in working clothes (a random outfit each time you join: oilskins and sou'wester, float coat, fisherman's jumper, hi-vis and hard hat, bib-and-brace, crew jacket), with arms that bend at the elbow and gloved hands that turn as theirs do; their player colour is on the hat and collar. Details and limits: [`docs/MULTIPLAYER.md`](docs/MULTIPLAYER.md).
 
 ## Testing a new boat
 
