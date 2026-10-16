@@ -37,7 +37,8 @@ export type SocketType =
   | 'deck.fitting' //    small deck gear: cleats, fender basket, life ring, boat-hook clips, swim ladder
   | 'bow.windlass' //    anchor windlass and hawse
   | 'tender.cradle' //   where a ship's boat stows (the skiff)
-  | 'window.wiper'; //   one per wiped windscreen pane
+  | 'window.wiper' //    one per wiped windscreen pane
+  | 'hull.rudder'; //    a rudder stock and its steering gear
 
 /** Position (m) and rotation (deg, applied in the order Y, X, Z) relative to the parent. */
 export interface Transform {

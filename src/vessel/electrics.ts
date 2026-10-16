@@ -10,6 +10,14 @@
  *             each). Charge changes by I dt / capacity.
  *   voltage   resting voltage from the charge (flat .. full); discharging it sags by I R,
  *             charging it rises toward the alternator's regulated voltage.
+ *
+ * Modular boats (M4a): this is the ENERGY NETWORK (`stepEnergyNetwork`). The loads and
+ * the sources are declared by the boat's modules (each light, pump, radio, the starter and
+ * glow plugs, the alternator), the batteries are the battery-bank module's; the master,
+ * the selector and the breakers (the circuits) are the network's own. What counts as
+ * powered (isPowered) is the same rule as before; it still reads the vessel's own battery
+ * config (a test keeps it equal to the battery module's) until M6. Only the windlass's draw
+ * is still listed here: it becomes the windlass module's in M5.
  */
 import { clamp } from '../core/math';
 import type { VesselDef } from './vesselDef';
@@ -53,37 +61,8 @@ export function hydraulicsOn(s: VesselState): boolean {
 }
 
 /** Resting (no load) voltage at a state of charge. */
-export function restVolts(cfg: Electrics, soc: number): number {
+export function restVolts(cfg: { restVolts: readonly [number, number] }, soc: number): number {
   return cfg.restVolts[0] + (cfg.restVolts[1] - cfg.restVolts[0]) * clamp(soc, 0, 1);
-}
-
-/** Current (A) drawn by what's switched on, the starter included. */
-export function loadAmps(s: VesselState, cfg: Electrics): number {
-  const c = s.controls;
-  const L = cfg.loads;
-  const b = s.electrics?.breakers;
-  const on = (k: BreakerName) => !b || b[k] > 0;
-  let a = L.base;
-  if (on('instruments')) a += L.instruments + (c.wipers > 0 ? L.wipers : 0);
-  if (on('chart')) a += L.chart;
-  if (on('radio')) a += L.radio + (c.fmOn > 0 ? L.fm : 0);
-  if (on('navLights') && c.navLights > 0) a += L.navLights;
-  if (on('deckLights')) {
-    if (c.deckFore > 0) a += L.deckFlood;
-    if (c.deckAft > 0) a += L.deckFlood;
-    if (c.railLights > 0) a += L.railLights;
-    if (c.cabinLight > 0) a += L.cabinLight;
-    if (c.chartLamp > 0) a += L.chartLamp;
-    if (c.spotlight > 0) a += L.searchlight;
-  }
-  if (on('bilge') && bilgePumping(s)) a += L.bilge;
-  if (hydraulicsOn(s)) a += L.hydraulics;
-  if (c.horn > 0) a += L.horn;
-  const an = s.anchor.phase;
-  if (an === 'paying' || an === 'weighing' || (an === 'hanging' && c.anchor <= 0)) a += L.windlass;
-  if (s.engine.phase === 'cranking') a += L.starter;
-  if (s.engine.key > 0 && c.heat > 0) a += L.glowPlugs;
-  return a;
 }
 
 /** Is the bilge pump running: its breaker live and water over the float switch? */
@@ -91,20 +70,44 @@ export function bilgePumping(s: VesselState): boolean {
   return (s.bilge ?? 0) > 0.01 && isPowered(s, 'bilge');
 }
 
-/** Advance the electrics by dt: charge and discharge, and the bus voltage. */
-export function stepElectrics(s: VesselState, dt: number): void {
-  const e = s.electrics;
+/** The batteries, as the network needs them. */
+interface Bank {
+  ah: number;
+  restVolts: readonly [number, number];
+  internalOhm: number;
+  chargeVolts: number;
+  cutoffSoc: number;
+}
+
+/**
+ * The energy network's tick on a boat built from a recipe: the loads and sources her
+ * modules declare (only on circuits whose breaker is on), and the loads not yet modules
+ * (the windlass: deck gear, M5), drawn from the battery bank module's batteries.
+ */
+export function stepEnergyNetwork(s: VesselState, net: { loadAmps(): number; sourceAmps(): number; store: Bank | null }, dt: number): void {
   const cfg = VESSEL_DEFS[s.defId].electrics;
-  if (!e || !cfg) return;
+  if (!s.electrics || !net.store) return;
+  chargeAndVolts(s, net.store, () => net.loadAmps() + (cfg ? windlassAmps(s, cfg) : 0), () => net.sourceAmps(), dt);
+}
+
+/** The windlass's draw while it runs (on the master alone). */
+function windlassAmps(s: VesselState, cfg: Electrics): number {
+  const an = s.anchor.phase;
+  return an === 'paying' || an === 'weighing' || (an === 'hanging' && s.controls.anchor <= 0) ? cfg.loads.windlass : 0;
+}
+
+/** Charge and discharge the selected batteries, and the bus voltage. */
+function chargeAndVolts(s: VesselState, cfg: Bank, load: () => number, charge: () => number, dt: number): void {
+  const e = s.electrics!;
   if (e.master <= 0 || selectedSoc(e) <= cfg.cutoffSoc) {
     // Master off (or the battery flat): nothing drawn; the voltmeter, on the bus, reads 0.
     e.amps = 0;
     e.volts = 0;
     return;
   }
-  const charging = s.engine.phase === 'running' ? cfg.alternatorAmps * clamp(s.engine.rpm / 600, 0, 1) : 0;
-  const net = loadAmps(s, cfg) - charging; // + = discharging
-  const dSoc = (net * dt) / 3600 / cfg.batteryAh;
+  const charging = charge();
+  const net = load() - charging; // + = discharging
+  const dSoc = (net * dt) / 3600 / cfg.ah;
   if (e.selector === 1) e.soc[0] = clamp(e.soc[0] - dSoc, 0, 1);
   else if (e.selector === 2) e.soc[1] = clamp(e.soc[1] - dSoc, 0, 1);
   else {

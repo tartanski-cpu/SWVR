@@ -5,14 +5,17 @@
 import { CONFIG } from '../../config';
 import { clamp } from '../../core/math';
 import type { WorkboatDef } from '../vesselDef';
-import type { VesselState } from '../vesselState';
+import type { EngineState, VesselState } from '../vesselState';
 import { fullLoadTorque } from './propulsion';
 
 const TWO_PI = Math.PI * 2;
 
 /** Fuel mass flow (kg/s) for the engine's current rack and RPM (0 unless running). */
 export function fuelFlowKgPerS(s: VesselState, def: WorkboatDef): number {
-  const e = s.engine;
+  return fuelFlowFor(s.engine, def);
+}
+
+export function fuelFlowFor(e: EngineState, def: Pick<WorkboatDef, 'engine'>): number {
   if (e.phase !== 'running' || e.rack <= 0) return 0;
   const f = def.engine.fuel;
   const indicatedKw = (e.rack * fullLoadTorque(def, e.rpm) * ((e.rpm * TWO_PI) / 60)) / 1000;
@@ -21,7 +24,7 @@ export function fuelFlowKgPerS(s: VesselState, def: WorkboatDef): number {
 }
 
 /** Highest fuel rack the governor may use at this coolant temperature (overheat derate). */
-export function derateRackCap(def: WorkboatDef, coolantC: number): number {
+export function derateRackCap(def: Pick<WorkboatDef, 'engine'>, coolantC: number): number {
   const th = def.engine.thermal;
   const t = clamp((coolantC - th.derateStartC) / (th.derateFullC - th.derateStartC), 0, 1);
   return 1 - t * (1 - th.derateRack);
@@ -29,16 +32,23 @@ export function derateRackCap(def: WorkboatDef, coolantC: number): number {
 
 /** Burn fuel, heat and cool the engine, and stop it if it runs dry or overheats. */
 export function stepFuelAndHeat(s: VesselState, def: WorkboatDef, dt: number): void {
-  const e = s.engine;
+  s.engine.fuelL = fuelAndHeatStep(s.engine, def, s.engine.fuelL, dt);
+}
+
+/**
+ * stepFuelAndHeat on the engine's own state, drawing from a tank holding `fuelL`; returns
+ * what's left in the tank.
+ */
+export function fuelAndHeatStep(e: EngineState, def: Pick<WorkboatDef, 'engine'>, fuelL: number, dt: number): number {
   const f = def.engine.fuel;
   const th = def.engine.thermal;
   const seaC = CONFIG.environment.seaTempC;
 
   // ── Fuel ──
-  const kgPerS = fuelFlowKgPerS(s, def);
+  const kgPerS = fuelFlowFor(e, def);
   e.fuelFlowLph = (kgPerS / f.densityKgPerL) * 3600;
-  e.fuelL = Math.max(0, e.fuelL - (kgPerS / f.densityKgPerL) * dt);
-  if (e.phase === 'running' && e.fuelL <= 0) e.phase = 'off'; // ran dry
+  const left = Math.max(0, fuelL - (kgPerS / f.densityKgPerL) * dt);
+  if (e.phase === 'running' && left <= 0) e.phase = 'off'; // ran dry
 
   // ── Heat ──
   const qIn = kgPerS * th.lhvMJPerKg * 1000 * th.heatToCoolant; // kW
@@ -53,6 +63,7 @@ export function stepFuelAndHeat(s: VesselState, def: WorkboatDef, dt: number): v
   e.oilC += (oilTarget - e.oilC) * Math.min(1, dt / th.oilLagS);
 
   if (e.phase === 'running' && e.coolantC > th.shutdownC) e.phase = 'off'; // engine protection
+  return left;
 }
 
 /** Alarms for displays and audio. */

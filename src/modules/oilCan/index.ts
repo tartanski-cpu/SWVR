@@ -1,6 +1,6 @@
 /**
  * Module tool.oil-can: a can of engine oil on a shelf (modular boats M3c). A press tops
- * the sump up ('engine.oilTopUp'). Out of reach with the engine hatch shut: the recipe's
+ * the sump up ('propulsion.oilTopUp'). Out of reach with the engine hatch shut: the recipe's
  * interlock.
  */
 import { CONFIG } from '../../config';
@@ -15,7 +15,7 @@ export const OIL_CAN: ModuleDefinition<OilCanConfig> = {
   fits: ['deck.fitting'],
   defaults: CONFIG.modules.oilCan,
   validateConfig: (c) => (c.scale > 0 ? [] : ['scale should be more than 0']),
-  ports: { topUp: { dir: 'write', key: 'engine.oilTopUp' } },
+  ports: { topUp: { dir: 'write', key: 'propulsion.oilTopUp' } },
   view: {
     build({ config, keys, socket }) {
       const can = new OilCan(socket.id, { channel: keys.topUp });

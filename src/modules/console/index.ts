@@ -25,6 +25,8 @@ export const CONSOLE: ModuleDefinition<ConsoleConfig> = {
   fits: ['helm.console'],
   defaults: CONFIG.modules.helmConsole,
   ports: {},
+  // Its instruments' draw on the INSTR circuit.
+  power: (c) => [{ role: 'load', circuit: 'instruments', amps: () => c.instrumentsAmps }],
   sockets: (c) =>
     Object.entries(c.slots).map(([id, s]): Socket => ({ id, type: 'panel.slot', transform: { position: s.position, rotationDeg: s.rotationDeg } })),
   view: {

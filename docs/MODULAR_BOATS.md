@@ -809,7 +809,7 @@ Sizes: S is about a session, M two or three, L more.
   - As built: modules whose contents come from the world, not the boat (the VHF's calls, the chartplotter's chart, the duty board's tasks, the whiteboard's notes, the chart table's pencil), hand the app an `api` it feeds, found by module id; the module never reaches out. The engine's look and the oil can's shelf stay with the Bridge until the engine is a module (M4). The chart table declares its footprint; the walk area still reads the vessel config's table until M6, and a test keeps the two equal.
   - **Test:** answer a call, draw on the chart, fold the leaf and walk past it, open the hatch and check the oil, post a note on the whiteboard.
 
-### M4a: propulsion and the energy network as modules, diesel only (L). Nothing visible.
+### M4a: propulsion and the energy network as modules, diesel only (L). Nothing visible. **Done; see PROGRESS.**
 
 - The energy-network service.
 - Modules:
@@ -829,6 +829,12 @@ Sizes: S is about a session, M two or three, L more.
   - Running dry.
   - Deck hydraulics need the engine and DECK HYD.
   - Sea trials and golden runs equal.
+- **As built:**
+  - The simulation side of the assembler (`modular/simAssembly.ts`) builds each boat type's machinery from her recipe; each boat gets a runtime bound to her state. Each tick: modules that push on the hull (the diesel, then the rudder) inside the rigid-body step through the physics port; then the energy network; then the hull's leak; then the modules' upkeep; then the hull's damage.
+  - Power roles are in amps for the 12 V house system (the model always was); kW banks and DC-DC converters wait for electric drive (M9).
+  - The steering gear is in the rudder module (`steering.rudder`). The lights, horn and wiper motor are one generic module (`electrical.consumer`) mounted eight times, their draw in the recipe.
+  - Until M6 a converted machine keeps its state where VesselState did (`legacyState`), so saves and snapshots are unchanged; and some numbers are still read from the vessel config by code that isn't a module yet (isPowered's battery cutoff, the quick start's engine data, the windlass's draw). Tests keep each pair equal.
+  - Deck hydraulic pressure is still worked out on demand by the old rule (the machines ask mid-tick); the PTO pump module declares its draw and that the boat has hydraulics.
 
 ### M5: deck gear as modules (L, two stops)
 

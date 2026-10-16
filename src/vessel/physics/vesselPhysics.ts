@@ -50,16 +50,17 @@
 import * as THREE from 'three';
 import { CONFIG } from '../../config';
 import { sampleSurface, type PreparedWave, type SurfaceSample } from '../../ocean/waves';
-import { isWorkboat, type OutboardConfig, type VesselDef, type WorkboatDef } from '../vesselDef';
+import { isWorkboat, type OutboardConfig, type VesselDef } from '../vesselDef';
 import type { VesselState } from '../vesselState';
-import { calmWaterResistance, rudderForce, stepEngineAndPropeller, stepSteering } from './propulsion';
+import { calmWaterResistance } from './propulsion';
 import { submergedSection, type SubmergedSection } from './sectionClip';
-import { stepFuelAndHeat } from './engineThermal';
 import { contactAt, hullContactPoints, type ContactResult } from './contacts';
 import { stepAnchor } from './anchor';
 import { stepMooring } from './mooring';
 import { stepOutboard } from './outboard';
 import type { ExternalForce } from './vesselContact';
+import type { PhysicsPort } from '../../modular/module';
+import { vesselRuntime } from '../../boats/sims';
 
 /** Optional per-tick diagnostics for the debug view (vessel-local coordinates). */
 export interface HydroDebug {
@@ -88,7 +89,6 @@ const centreW = new THREE.Vector3();
 const sub: SubmergedSection = { area: 0, cx: 0, cy: 0, maxDepth: 0 };
 const depths: number[] = [];
 const dq = new THREE.Quaternion();
-const rud = { x: 0, z: 0 };
 const ptV = new THREE.Vector3();
 const cf = new THREE.Vector3();
 const contact: ContactResult = { fx: 0, fy: 0, fz: 0, normal: 0, slide: 0, approach: 0 };
@@ -127,38 +127,36 @@ function pointVelocity(p: THREE.Vector3, out: THREE.Vector3): THREE.Vector3 {
 }
 
 /**
- * Inboard drive (the workboat): steering gear, diesel and shaft, propeller thrust along the
- * shaft, prop walk, and the rudder in the propeller's slipstream.
+ * The physics port (modular boats M4a): what a machine module (the diesel and its propeller,
+ * the rudder) gets during the rigid-body step, where the inboard drive was worked out
+ * before. It does the same sums the old code did, in the same order, so the handling is
+ * unchanged (the golden runs and the sea trials match to the last recorded digit).
  */
-function stepInboard(state: VesselState, def: WorkboatDef, waves: readonly PreparedWave[], dt: number): void {
-  stepSteering(state, def, dt);
-  const rudderW = toWorld(...def.rudder.position, portW);
-  const propW = toWorld(...def.propeller.position, stbdW);
-  const sR = sampleSurface(waves, rudderW.x, rudderW.z);
-  // Propeller immersion: full thrust when the disc is under water, fading as it emerges.
-  const D = def.propeller.diameter;
-  const propWet = Math.min(1, Math.max(0, (sR.height - propW.y + D / 2) / D));
-  // Rudder's velocity relative to the water, in vessel axes.
-  pointVelocity(rudderW, tmp);
-  tmp.x -= sR.velocity[0];
-  tmp.y -= sR.velocity[1];
-  tmp.z -= sR.velocity[2];
-  tmp.applyQuaternion(qInv);
-  const relRx = tmp.x;
-  const relRz = tmp.z;
-  const thrust = stepEngineAndPropeller(state, def, -relRz, propWet, dt);
-  stepFuelAndHeat(state, def, dt);
-  // Net propulsive force T(1 - t) along the shaft (forward is -z).
-  addForceAt(tmp.set(0, 0, -thrust * (1 - def.propeller.thrustDeduction)).applyQuaternion(q), propW);
-  // Prop walk: sideways force at the prop from the blades' asymmetric bite (strongest at low
-  // speed and going astern). Right-handed: stern to starboard ahead, to port astern.
-  const pp = def.propeller;
-  const walkFrac = thrust >= 0 ? pp.propWalkAhead : -pp.propWalkAstern;
-  const walk = Math.abs(thrust) * walkFrac * (pp.rightHanded ? 1 : -1) / (1 + (relRz / pp.propWalkFadeSpeed) ** 2);
-  addForceAt(tmp.set(walk, 0, 0).applyQuaternion(q), propW);
-  rudderForce(state, def, relRx, relRz, thrust, rud);
-  addForceAt(tmp.set(rud.x * propWet, 0, rud.z * propWet).applyQuaternion(q), rudderW);
-}
+let portWaves: readonly PreparedWave[] = [];
+const portP = new THREE.Vector3();
+const portS = new THREE.Vector3();
+const portV = new THREE.Vector3();
+const portF = new THREE.Vector3();
+const port: PhysicsPort = {
+  flowAt(local) {
+    const p = toWorld(local[0], local[1], local[2], portP);
+    const sw = sampleSurface(portWaves, p.x, p.z);
+    pointVelocity(p, portV);
+    portV.x -= sw.velocity[0];
+    portV.y -= sw.velocity[1];
+    portV.z -= sw.velocity[2];
+    portV.applyQuaternion(qInv);
+    return { x: portV.x, y: portV.y, z: portV.z };
+  },
+  depthAt(local, surfaceAt = local) {
+    const at = toWorld(surfaceAt[0], surfaceAt[1], surfaceAt[2], portS);
+    const height = sampleSurface(portWaves, at.x, at.z).height;
+    return height - toWorld(local[0], local[1], local[2], portP).y;
+  },
+  addForce(local, fx, fy, fz) {
+    addForceAt(portF.set(fx, fy, fz).applyQuaternion(q), toWorld(local[0], local[1], local[2], portP));
+  },
+};
 
 const obDir = { x: 0, z: -1 };
 
@@ -302,9 +300,12 @@ export function stepVessel(
   const immersion = Math.min(1, submergedVolume / def.designVolume);
   if (debug) debug.submergedVolume = submergedVolume;
 
-  // ── Machinery: inboard (engine, propeller, rudder) or an outboard ──
-  if (isWorkboat(def)) stepInboard(state, def, waves, dt);
-  else if (def.outboard) stepOutboardDrive(state, def, def.outboard, waves, dt);
+  // ── Machinery: her modules (engine and propeller, rudder), or an outboard ──
+  const machinery = vesselRuntime(state);
+  if (machinery) {
+    portWaves = waves;
+    machinery.physics(port, dt);
+  } else if (def.outboard) stepOutboardDrive(state, def, def.outboard, waves, dt);
 
   // Calm-water resistance at mid-draft at the LCG, against speed through the water.
   const resW = toWorld(0, def.resistance.y, cgL.z, centreW);

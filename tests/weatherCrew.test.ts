@@ -6,12 +6,16 @@ import { stepWorld } from '../src/core/simulation';
 import { createWorld } from '../src/core/world';
 import type { CargoItem } from '../src/cargo/cargo';
 import { forecastText } from '../src/environment/forecast';
-import { loadAmps } from '../src/vessel/electrics';
+import { RECIPES } from '../src/boats/library';
+import { vesselRuntime } from '../src/boats/sims';
+import type { VesselState } from '../src/vessel/vesselState';
 import { placeVessel } from '../src/vessel/vesselControl';
-import { VESSEL_DEFS } from '../src/vessel/vesselDef';
 
 const DT = 1 / 60;
-const EL = VESSEL_DEFS.workboat.electrics!;
+/** What her modules draw now (A): the energy network's loads (modular boats M4a). */
+const loadAmps = (v: VesselState) => vesselRuntime(v)!.loadAmps();
+/** The wiper motor's draw, from her recipe. */
+const WIPERS = RECIPES.workboat.modules.find((m) => m.socket === 'wipers')!.config!.amps as number;
 
 /** A warm boat, dynamic weather fixed at `preset` (instant), flat water. */
 function setup(preset: WeatherPresetName = 'Clear') {
@@ -82,7 +86,7 @@ describe('weather and the crew', () => {
   it('a damaged hull leaks into the bilge; the pump (float switch) empties it', () => {
     const { v, send, run } = setup('Rain');
     send('brk_bilge', 0);
-    const dry = loadAmps(v, EL);
+    const dry = loadAmps(v);
     run(60);
     expect(v.bilge!).toBe(0); // sound hull: rain doesn't get below
     v.damage = 0.5;
@@ -91,10 +95,10 @@ describe('weather and the crew', () => {
     v.damage = 0;
     send('brk_bilge', 1);
     run(0.1);
-    expect(loadAmps(v, EL)).toBeCloseTo(dry + EL.loads.bilge, 5); // the pump runs...
+    expect(loadAmps(v)).toBeCloseTo(dry + CONFIG.modules.bilgePump.amps, 5); // the pump runs...
     run(60);
     expect(v.bilge!).toBeLessThan(0.011); // down to the float switch
-    expect(loadAmps(v, EL)).toBeCloseTo(dry, 5); // ...and stops
+    expect(loadAmps(v)).toBeCloseTo(dry, 5); // ...and stops
   });
 
   it('bilge alarm: a duty to pump her dry', () => {
@@ -161,10 +165,10 @@ describe('weather and the crew', () => {
 
   it('wipers draw current on the Instruments breaker', () => {
     const { v, send } = setup('Rain');
-    const before = loadAmps(v, EL);
+    const before = loadAmps(v);
     send('wipers', 1);
-    expect(loadAmps(v, EL)).toBeCloseTo(before + EL.loads.wipers, 5);
+    expect(loadAmps(v)).toBeCloseTo(before + WIPERS, 5);
     send('brk_instruments', 0);
-    expect(loadAmps(v, EL)).toBeCloseTo(before - EL.loads.instruments, 5);
+    expect(loadAmps(v)).toBeCloseTo(before - CONFIG.modules.helmConsole.instrumentsAmps, 5);
   });
 });

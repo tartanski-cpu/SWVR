@@ -7,13 +7,17 @@
  * Intents: dipstick (a check: resets the clock), oilTopUp (fills the sump).
  */
 import { VESSEL_DEFS } from './vesselDef';
-import type { VesselState } from './vesselState';
+import type { EngineState, VesselState } from './vesselState';
 
 export function stepOil(s: VesselState, dt: number): void {
   const cfg = VESSEL_DEFS[s.defId].maintenance;
-  const e = s.engine;
-  if (!cfg || e.oil === undefined || e.phase !== 'running') return;
-  e.oil = Math.max(0, e.oil - cfg.use * (0.5 + e.rack) * dt);
+  if (cfg) oilStep(s.engine, cfg.use, dt);
+}
+
+/** Oil burnt while running (`use` of the sump per second at no load), and the time since the last check (the diesel module's, M4a). */
+export function oilStep(e: EngineState, use: number, dt: number): void {
+  if (e.oil === undefined || e.phase !== 'running') return;
+  e.oil = Math.max(0, e.oil - use * (0.5 + e.rack) * dt);
   e.sinceCheck = (e.sinceCheck ?? 0) + dt;
 }
 

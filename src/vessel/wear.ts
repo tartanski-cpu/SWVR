@@ -19,9 +19,15 @@
  */
 import { CONFIG } from '../config';
 import type { VesselDef } from './vesselDef';
-import type { VesselState } from './vesselState';
+import type { EngineState, VesselState } from './vesselState';
 
 export function stepWear(s: VesselState, def: VesselDef, dt: number): void {
+  stepHullWear(s, dt);
+  if (def.engine) engineWearStep(s.engine, dt);
+}
+
+/** The hull's damage from hard hits and grinding (on a recipe boat the engine's wear is its module's). */
+export function stepHullWear(s: VesselState, dt: number): void {
   const c = CONFIG.wear;
   if (s.damage !== undefined) {
     const k = s.contact;
@@ -30,8 +36,12 @@ export function stepWear(s: VesselState, def: VesselDef, dt: number): void {
     if (k.force > c.grindForce && k.slide > c.slideSafe) d += k.slide * dt * c.grindDamage;
     s.damage = Math.min(1, s.damage + d);
   }
-  const e = s.engine;
-  if (e.wear !== undefined && def.engine && e.phase === 'running') {
+}
+
+/** Engine wear from running hot or with the sump nearly dry (the diesel module's, M4a). */
+export function engineWearStep(e: EngineState, dt: number): void {
+  const c = CONFIG.wear;
+  if (e.wear !== undefined && e.phase === 'running') {
     let w = 0;
     if (e.coolantC > c.hotC) w += (e.coolantC - c.hotC) * c.hotWear * dt;
     if (e.oil !== undefined && e.oil < c.lowOil) w += c.dryWear * dt;
@@ -41,5 +51,9 @@ export function stepWear(s: VesselState, def: VesselDef, dt: number): void {
 
 /** The worn engine's cap on the fuel rack (1: as new). */
 export function wearRackCap(s: VesselState): number {
-  return 1 - (s.engine.wear ?? 0) * CONFIG.wear.powerLoss;
+  return wearRackCapFor(s.engine.wear);
+}
+
+export function wearRackCapFor(wear: number | undefined): number {
+  return 1 - (wear ?? 0) * CONFIG.wear.powerLoss;
 }

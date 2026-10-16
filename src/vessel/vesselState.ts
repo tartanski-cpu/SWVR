@@ -147,6 +147,8 @@ export interface EngineState {
   sinceCheck?: number;
   /** Engine wear, 0 (as new) .. 1, from running hot or dry; costs power (vessel/wear.ts). */
   wear?: number;
+  /** How much of the propeller disc is under water, 0..1, this tick (the rudder reads it). */
+  immersion?: number;
 }
 
 /**

@@ -72,6 +72,14 @@ function state(type: BusKeySpec['type'], get: (s: VesselState) => BusValue | und
   };
 }
 
+/**
+ * A value a module keeps (modular boats M4a): read like a state key, and written by the
+ * module through its port (never by a player).
+ */
+function kept(type: BusKeySpec['type'], get: (s: VesselState) => BusValue | undefined, set: (s: VesselState, v: BusValue) => void, doc: string, extra: Partial<BusKeySpec> = {}): BusKeySpec {
+  return { ...state(type, get, doc, extra), writer: 'module', bind: { get, set } };
+}
+
 /** A press: setting it true does `act` once; it always reads false (see BusKeySpec.press). */
 function press(doc: string, aliases: string[], act: (s: VesselState) => void): BusKeySpec {
   return {
@@ -117,7 +125,7 @@ function breakerKeys(): Record<`breaker.${BreakerName}`, BusKeySpec> {
 function circuitKeys(): Record<`circuit.${BreakerName}.live`, BusKeySpec> {
   const out = {} as Record<`circuit.${BreakerName}.live`, BusKeySpec>;
   for (const b of BREAKERS) {
-    out[`circuit.${b}.live`] = state('boolean', (s) => isPowered(s, b), `12 V on the ${b} circuit: master on, battery not flat, breaker on.`, { default: true });
+    out[`circuit.${b}.live`] = state('boolean', (s) => isPowered(s, b), `12 V on the ${b} circuit: master on, battery not flat, breaker on.`, { default: true, writer: 'core' });
   }
   return out;
 }
@@ -248,37 +256,38 @@ export const BUS_KEYS = {
   },
   ...breakerKeys(),
   ...circuitKeys(),
-  'electrical.powered': state('boolean', (s) => isPowered(s), '12 V on the bus: master on and the selected battery not flat (boats without electrics: always).', { default: true }),
-  'electrical.busVoltage': state('number', (s) => s.electrics?.volts, 'Bus voltage on the last tick (0 with the master off).', { unit: 'V' }),
-  'electrical.amps': state('number', (s) => s.electrics?.amps, 'Net battery current on the last tick, + discharging.', { unit: 'A' }),
-  'battery.1.soc': state('number', (s) => s.electrics?.soc[0], 'Battery 1 state of charge.', { unit: '0..1', range: [0, 1] }),
-  'battery.2.soc': state('number', (s) => s.electrics?.soc[1], 'Battery 2 state of charge.', { unit: '0..1', range: [0, 1] }),
+  'electrical.powered': state('boolean', (s) => isPowered(s), '12 V on the bus: master on and the selected battery not flat (boats without electrics: always).', { default: true, writer: 'core' }),
+  'electrical.busVoltage': state('number', (s) => s.electrics?.volts, 'Bus voltage on the last tick (0 with the master off).', { unit: 'V', writer: 'core' }),
+  'electrical.amps': state('number', (s) => s.electrics?.amps, 'Net battery current on the last tick, + discharging.', { unit: 'A', writer: 'core' }),
+  'battery.1.soc': state('number', (s) => s.electrics?.soc[0], 'Battery 1 state of charge.', { unit: '0..1', range: [0, 1], writer: 'core' }),
+  'battery.2.soc': state('number', (s) => s.electrics?.soc[1], 'Battery 2 state of charge.', { unit: '0..1', range: [0, 1], writer: 'core' }),
   'hydraulics.on': state('boolean', (s) => hydraulicsOn(s), 'Deck hydraulic pressure: engine running and the DECK HYD breaker on.'),
 
   // ── Engine and propulsion ──
-  'propulsion.state': state('enum', (s) => s.engine.phase, 'The engine: off, cranking or running.', { values: ['off', 'cranking', 'running'], aliases: ['engine.phase'] }),
-  'propulsion.rpm': state('number', (s) => s.engine.rpm, 'Engine (crankshaft) speed.', { unit: 'rpm', aliases: ['engine.rpm'] }),
-  'propulsion.load': state('number', (s) => s.engine.rack, 'Fuel rack position as set by the governor: the engine load.', { unit: '0..1', aliases: ['engine.rack'] }),
-  'propulsion.gear': state('number', (s) => s.engine.gear, 'Gearbox engaged: -1 astern, 0 neutral, +1 ahead.', { unit: 'gear', integer: true, range: [-1, 1], aliases: ['engine.gear'] }),
-  'propulsion.thrust': state('number', (s) => s.thrust, 'Propeller (or outboard) thrust on the last tick.', { unit: 'N' }),
-  'engine.crankS': state('number', (s) => s.engine.crank, 'Seconds cranked so far this start.', { unit: 's' }),
-  'engine.glowS': state('number', (s) => s.engine.glow, 'Glow-plug preheat accumulated.', { unit: 's' }),
-  'engine.coolantC': state('number', (s) => s.engine.coolantC, 'Coolant (block) temperature.', { unit: '°C' }),
-  'engine.oilC': state('number', (s) => s.engine.oilC, 'Lube oil temperature.', { unit: '°C' }),
-  'engine.coolingFault': state('boolean', (s) => s.engine.coolingFault, 'Raw-water pump impeller failed (debug fault).'),
-  'engine.oilLevel': state('number', (s) => s.engine.oil, 'Lube oil in the sump.', { unit: '0..1', range: [0, 1] }),
-  'engine.sinceOilCheckS': state('number', (s) => s.engine.sinceCheck, 'Running time since the dipstick was last pulled.', { unit: 's' }),
-  'engine.oilCheck': press('The dipstick pulled: the oil is checked, and the clock to the next check starts again.', ['dipstick'], (s) => {
+  'propulsion.state': state('enum', (s) => s.engine.phase, 'The engine: off, cranking or running.', { values: ['off', 'cranking', 'running'], aliases: ['engine.phase'], writer: 'module' }),
+  'propulsion.rpm': state('number', (s) => s.engine.rpm, 'Engine (crankshaft) speed.', { unit: 'rpm', aliases: ['engine.rpm'], writer: 'module' }),
+  'propulsion.load': state('number', (s) => s.engine.rack, 'Fuel rack position as set by the governor: the engine load.', { unit: '0..1', aliases: ['engine.rack'], writer: 'module' }),
+  'propulsion.gear': state('number', (s) => s.engine.gear, 'Gearbox engaged: -1 astern, 0 neutral, +1 ahead.', { unit: 'gear', integer: true, range: [-1, 1], aliases: ['engine.gear'], writer: 'module' }),
+  'propulsion.thrust': kept('number', (s) => s.thrust, (s, v) => (s.thrust = v as number), 'Propeller (or outboard) thrust on the last tick.', { unit: 'N' }),
+  'propulsion.immersion': kept('number', (s) => s.engine.immersion ?? 1, (s, v) => (s.engine.immersion = v as number), 'How much of the propeller disc is under water (the rudder in its slipstream works as much).', { unit: '0..1', range: [0, 1] }),
+  'propulsion.crankS': state('number', (s) => s.engine.crank, 'Seconds cranked so far this start.', { unit: 's', aliases: ['engine.crankS'], writer: 'module' }),
+  'propulsion.glowS': state('number', (s) => s.engine.glow, 'Glow-plug preheat accumulated.', { unit: 's', aliases: ['engine.glowS'], writer: 'module' }),
+  'propulsion.coolantC': state('number', (s) => s.engine.coolantC, 'Coolant (block) temperature.', { unit: '°C', aliases: ['engine.coolantC'], writer: 'module' }),
+  'propulsion.oilC': state('number', (s) => s.engine.oilC, 'Lube oil temperature.', { unit: '°C', aliases: ['engine.oilC'], writer: 'module' }),
+  'propulsion.coolingFault': state('boolean', (s) => s.engine.coolingFault, 'Raw-water pump impeller failed (debug fault).', { aliases: ['engine.coolingFault'], writer: 'module' }),
+  'propulsion.oilLevel': state('number', (s) => s.engine.oil, 'Lube oil in the sump.', { unit: '0..1', range: [0, 1], aliases: ['engine.oilLevel'], writer: 'module' }),
+  'propulsion.sinceOilCheckS': state('number', (s) => s.engine.sinceCheck, 'Running time since the dipstick was last pulled.', { unit: 's', aliases: ['engine.sinceOilCheckS'], writer: 'module' }),
+  'propulsion.oilCheck': press('The dipstick pulled: the oil is checked, and the clock to the next check starts again.', ['dipstick', 'engine.oilCheck'], (s) => {
     if (s.engine.oil !== undefined) s.engine.sinceCheck = 0;
   }),
-  'engine.oilTopUp': press('The oil can used: the sump topped up.', ['oilTopUp'], (s) => {
+  'propulsion.oilTopUp': press('The oil can used: the sump topped up.', ['oilTopUp', 'engine.oilTopUp'], (s) => {
     if (s.engine.oil !== undefined) s.engine.oil = 1;
   }),
-  'engine.wear': state('number', (s) => s.engine.wear, 'Engine wear from running hot or dry; costs power.', { unit: '0..1', range: [0, 1], persist: true }),
-  'fuel.litres': state('number', (s) => s.engine.fuelL, 'Fuel in the tank.', { unit: 'L' }),
-  'fuel.flowLph': state('number', (s) => s.engine.fuelFlowLph, 'Fuel flow now.', { unit: 'L/h' }),
+  'propulsion.wear': state('number', (s) => s.engine.wear, 'Engine wear from running hot or dry; costs power.', { unit: '0..1', range: [0, 1], persist: true, aliases: ['engine.wear'], writer: 'module' }),
+  'fuel.litres': kept('number', (s) => s.engine.fuelL, (s, v) => (s.engine.fuelL = v as number), 'Fuel in the tank (the engine draws from it; a fuel berth fills it).', { unit: 'L' }),
+  'fuel.flowLph': state('number', (s) => s.engine.fuelFlowLph, 'Fuel flow now.', { unit: 'L/h', writer: 'module' }),
   'fuel.refuelling': state('boolean', (s) => s.refuelling, 'Taking fuel at a fuel berth.'),
-  'rudder.angle': state('number', (s) => s.rudder * RAD, 'Actual rudder angle (on an outboard boat, the motor swing), + trailing edge to starboard.', { unit: 'deg' }),
+  'rudder.angle': state('number', (s) => s.rudder * RAD, 'Actual rudder angle (on an outboard boat, the motor swing), + trailing edge to starboard.', { unit: 'deg', writer: 'module' }),
   'outboard.battery': state('number', (s) => s.battery, "The outboard's battery charge.", { unit: '0..1', range: [0, 1] }),
 
   // ── Deck gear and fittings ──
@@ -321,7 +330,7 @@ export const BUS_KEYS = {
   'chartTable.lamp': control('chartLamp', 'Chart table lamp switch.', { aliases: ['chartLamp'] }),
 
   // ── Hull ──
-  'bilge.level': state('number', (s) => s.bilge, 'Water in the bilge.', { unit: '0..1', range: [0, 1] }),
+  'bilge.level': kept('number', (s) => s.bilge, (s, v) => (s.bilge = v as number), 'Water in the bilge (a damaged hull leaks in; the bilge pump takes it out).', { unit: '0..1', range: [0, 1] }),
   'hull.damage': state('number', (s) => s.damage, 'Hull damage; it leaks into the bilge.', { unit: '0..1', range: [0, 1], persist: true }),
   'contact.force': state('number', (s) => s.contact.force, 'Total contact force against ground or structures on the last tick.', { unit: 'N', writer: 'core' }),
   'contact.slide': state('number', (s) => s.contact.slide, 'Mean sliding speed of the touching points.', { unit: 'm/s', writer: 'core' }),

@@ -31,7 +31,7 @@ describe('bus key registry', () => {
   });
 
   it('saves only hull damage and engine wear (owner: as today)', () => {
-    expect(allKeys().filter((k) => specOf(k).persist).sort()).toEqual(['engine.wear', 'hull.damage']);
+    expect(allKeys().filter((k) => specOf(k).persist).sort()).toEqual(['hull.damage', 'propulsion.wear']);
   });
 
   it('every key reads the same value as today\'s field, and writable keys write it back', () => {

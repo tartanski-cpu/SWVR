@@ -36,6 +36,8 @@ export const BREAKER_PANEL: ModuleDefinition<BreakerPanelConfig> = {
   defaults: CONFIG.modules.breakerPanel,
   validateConfig: (c) => c.circuits.flatMap((k) => (resolveKey(`breaker.${k.name}`) && resolveKey(`circuit.${k.name}.live`) ? [] : [`'${k.name}' isn't a circuit this game knows`])),
   ports: { volts: { dir: 'read', key: 'electrical.busVoltage' } },
+  // The panel itself, with the master on.
+  power: (c) => [{ role: 'load', amps: () => c.amps }],
   view: {
     build({ config: c, keys, share }) {
       const W = c.width;

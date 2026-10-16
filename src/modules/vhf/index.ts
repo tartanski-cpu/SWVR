@@ -20,6 +20,7 @@ export const VHF: ModuleDefinition<VhfConfig> = {
   defaults: CONFIG.modules.vhf,
   ports: { live: { dir: 'read', key: 'circuit.radio.live' } },
   needs: () => [{ power: 'electrical', circuit: 'radio' }],
+  power: (c) => [{ role: 'load', circuit: 'radio', amps: () => c.amps }],
   view: {
     build({ config, socket, hull }) {
       // Its brackets reach up to the roof.

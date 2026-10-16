@@ -1859,7 +1859,7 @@ export class App {
         if (channel === 'engineStartStop') return this.requestEngineStartStop();
         // Console modules send bus keys ('ignition.start'); older controls their old names.
         if ((channel === 'start' || channel === 'ignition.start') && value > 0) this.startInGearHint();
-        if (channel === 'dipstick' || channel === 'engine.oilCheck') this.readDipstick();
+        if (channel === 'dipstick' || channel === 'propulsion.oilCheck') this.readDipstick();
         if (channel === 'cleat') this.cleatHint(value);
         if (value > 0) this.hydraulicsHint(channel);
         const { vesselId, control } = this.routeChannel(channel);

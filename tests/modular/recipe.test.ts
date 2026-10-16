@@ -104,9 +104,8 @@ describe('recipe check', () => {
   it('whatever is read must be written by something on the boat', () => {
     const r = good();
     r.modules.splice(1, 1); // no engine
-    asModule(() => expect(validateRecipe(r, lib)).toContain("helm/slot2: instrument.rpm reads 'propulsion.rpm', but nothing on this boat writes it"));
-    // Until the engine is converted, today's code writes it: fine.
-    expect(validateRecipe(r, lib)).toEqual([]);
+    // (Since M4a the engine is a module, so the registry already says a module writes it.)
+    expect(validateRecipe(r, lib)).toContain("helm/slot2: instrument.rpm reads 'propulsion.rpm', but nothing on this boat writes it");
   });
 
   it("one writer per value; none for what the boat works out herself, or what today's code still writes", () => {
@@ -123,8 +122,10 @@ describe('recipe check', () => {
     const r2 = good();
     r2.modules[1].bind = { rpm: 'nav.speedKts' };
     expect(validateRecipe(r2, lib)).toContain("engineBay: engine.test writes 'nav.speedKts', which the boat works out from her own motion");
-    expect(validateRecipe(good(), lib)).toContain(
-      "engineBay: engine.test writes 'propulsion.rpm', but the registry says today's code still writes it (set its writer to 'module' when this module takes it over)",
+    const r3 = good();
+    r3.modules[1].bind = { rpm: 'anchor.chainOut' };
+    expect(validateRecipe(r3, lib)).toContain(
+      "engineBay: engine.test writes 'anchor.chainOut', but the registry says today's code still writes it (set its writer to 'module' when this module takes it over)",
     );
   });
 

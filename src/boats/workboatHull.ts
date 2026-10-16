@@ -19,6 +19,11 @@
  *       doorIn, doorOut      on the aft door's frame, inside and out
  *       engineHatch          the hatch in the floor over the engine (its opening's size)
  *       dipstick, oilCan     in the engine space under it
+ *   M4a engine (tagged inboard), fuelTank, batteries, hydraulicPump, bilgePump
+ *                        in the engine space; rudder at the rudder stock
+ *       navLights, floodFore, floodAft, railLights, cabinLight, searchlight, horn, wipers
+ *                        the 12 V devices (only their draw is simulated yet; where nothing
+ *                        is drawn for them, their point is nominal)
  */
 import { CONFIG } from '../config';
 import type { HullDefinition } from '../modular/hull';
@@ -30,6 +35,9 @@ const ct = wb.chartTable;
 const eh = wb.layout.engineHatch;
 const mt = wb.maintenance;
 const db = wb.layout.doorButtons;
+/** The middle of the engine space under the hatch (machinery not drawn yet: a nominal point). */
+const bay: [number, number, number] = [(eh.x0 + eh.x1) / 2, wh.floorY - eh.pitDepth / 2, (eh.z0 + eh.z1) / 2];
+const roofTop = wh.roofY + wb.layout.roof.thickness;
 
 export const WORKBOAT_HULL: HullDefinition = {
   id: 'hull.workboat-12m',
@@ -60,11 +68,25 @@ export const WORKBOAT_HULL: HullDefinition = {
     // On the engine's inboard side, the ring well under the shut hatch (the rocker cover is 0.12 m below the floor).
     { id: 'dipstick', type: 'deck.fitting', transform: { position: [mt.dipstick[0], wh.floorY - 0.12 - 0.2, mt.dipstick[1]] }, label: 'Engine space, the engine\'s inboard side' },
     // On the shelf on the engine space's outboard wall, spout inboard toward the filler.
+    { id: 'engine', type: 'engine.bay', transform: { position: [mt.engine.x, wh.floorY - 0.12 - mt.engine.height / 2, mt.engine.z] }, tags: ['inboard'], label: 'Engine bed, under the wheelhouse floor' },
+    { id: 'fuelTank', type: 'engine.bay', transform: { position: bay }, label: 'Engine space (nominal)' },
+    { id: 'batteries', type: 'engine.bay', transform: { position: bay }, label: 'Engine space (nominal)' },
+    { id: 'hydraulicPump', type: 'engine.bay', transform: { position: bay }, label: 'On the engine\'s power take-off (nominal)' },
+    { id: 'bilgePump', type: 'engine.bay', transform: { position: [bay[0], wh.floorY - eh.pitDepth, bay[2]] }, label: 'Bottom of the engine space (nominal)' },
+    { id: 'rudder', type: 'hull.rudder', transform: { position: wb.rudder.position }, label: 'Rudder stock, aft' },
+    { id: 'navLights', type: 'hull.light', transform: { position: wb.navLights.masthead }, label: 'Masthead (and the sidelights and stern light)' },
+    { id: 'floodFore', type: 'hull.light', transform: { position: wb.deckLights.fore.position }, label: 'Roof edge, forward' },
+    { id: 'floodAft', type: 'hull.light', transform: { position: wb.deckLights.aft.position }, label: 'Roof edge, aft' },
+    { id: 'railLights', type: 'hull.light', transform: { position: [0, roofTop, 0] }, label: 'Along the bulwark tops (nominal)' },
+    { id: 'cabinLight', type: 'cabin.overhead', transform: { position: wb.cabinLight.position }, label: 'Wheelhouse ceiling' },
+    { id: 'searchlight', type: 'roof.mount', transform: { position: wb.spotlight.position }, label: 'Wheelhouse roof, forward' },
+    { id: 'horn', type: 'roof.mount', transform: { position: [0, roofTop, -0.5] }, label: 'Wheelhouse roof (nominal)' },
+    { id: 'wipers', type: 'window.wiper', transform: { position: [0, wh.roofY - 0.2, wh.front] }, label: 'Over the front windows (nominal)' },
     { id: 'oilCan', type: 'deck.fitting', transform: { position: [mt.oilCan[0], wh.floorY - mt.shelfDrop, mt.oilCan[1]], rotationDeg: [0, 90, 0] }, label: 'Engine space, the shelf' },
   ],
-  // Until the electrics and the engine are modules (M4), the hull stands in for today's
-  // code: 12 V on the existing circuits, deck hydraulics, the engine's power take-off, diesel.
-  provides: [{ power: 'electrical', circuits: BREAKERS }, { power: 'hydraulic' }, { power: 'pto' }, { fuel: 'diesel' }],
+  // Her wiring: the breakers' circuits. (The batteries, the engine's power take-off, the deck
+  // hydraulics and the diesel are her modules', M4a.)
+  provides: [{ power: 'electrical', circuits: BREAKERS }],
   features: [
     { id: 'door.aft', kind: 'door', openKey: 'door.aft.open' },
     { id: 'hatch.engine', kind: 'hatch', openKey: 'hatch.engine.open' },

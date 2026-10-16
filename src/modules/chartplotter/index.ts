@@ -19,6 +19,7 @@ export const CHARTPLOTTER: ModuleDefinition<ChartplotterConfig> = {
   defaults: CONFIG.modules.chartplotter,
   ports: { live: { dir: 'read', key: 'circuit.chart.live' } },
   needs: () => [{ power: 'electrical', circuit: 'chart' }],
+  power: (c) => [{ role: 'load', circuit: 'chart', amps: () => c.amps }],
   view: {
     build({ config, socket, hull }) {
       const y = socket.transform.position[1];

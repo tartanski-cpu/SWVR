@@ -1952,7 +1952,76 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
     - post a note on the whiteboard; read the duty board;
     - the door buttons inside and out.
   - **Desktop:** the same by clicking (and the chart zooms in as you look down at it).
-  - **F3:** 43 modules.
+  - **F3:** 42 modules (corrected; 43 was a miscount).
+
+### M4a: the engine, propulsion and the energy network as modules (done, on /next/ for the owner to test; nothing visible, she should handle exactly as before)
+
+- **What changed:** the boat's machinery is now simulated from her recipe (`starterWorkboat.json`, version 5), not from hard-wired code. Nothing looks different; the point is that the engine, the rudder, the batteries and every electrical device are now separate parts a recipe can swap, which the landing craft (M7) and electric drive (M9) need.
+- **New modules** (`src/modules/`, simulation only, nothing drawn yet):
+  - `propulsion.diesel-inboard`: the diesel, gearbox, shaft and propeller.
+    - It handles ignition (key, glow plugs, starter from the bus voltage), the governor and clutch, propeller thrust and torque, fuel and engine temperatures (overheat derate and shutdown, running dry), lube oil use, and engine wear.
+    - It declares the alternator (a source) and the starter and glow plugs (loads).
+    - It pushes on the hull through the **physics port**, inside the rigid-body step, where the engine always was.
+  - `steering.rudder`: the steering gear and the rudder force in the propeller's slipstream, after the engine (it needs this tick's thrust).
+  - `fuel.tank`: gives the boat diesel; the engine draws from it, a fuel berth fills it.
+  - `electrical.battery-bank`: the two house batteries behind the selector and master.
+  - `hydraulics.pto-pump`: the deck hydraulics' pump on the engine's power take-off; its draw on DECK HYD.
+  - `pump.bilge`: the float-switch bilge pump; it pumps out what the damaged hull leaks in.
+  - `electrical.consumer`: one generic 12 V device, mounted eight times in the recipe (navigation lights, the two floods, rail lights, cabin lamp, searchlight, horn, wiper motor), each with its switch, circuit and draw.
+- **The energy network** (`vessel/electrics.ts`, `stepEnergyNetwork`): sums the loads and sources the modules declare (a load counts only with its breaker on), and charges and drains the battery bank. The master, selector and breakers (the circuits) are the network's. The console's instruments, the chartplotter, VHF, FM, chart lamp and the breaker panel itself now declare their own draw too. Only the anchor windlass is still listed in the network, until it's a module (M5).
+- **How a tick runs now** (`modular/simAssembly.ts`):
+  1. the modules that push on the hull (the engine, then the rudder), inside the hull's step;
+  2. the energy network;
+  3. the hull's leak into the bilge;
+  4. the modules' upkeep (the bilge pump; the engine's oil and wear);
+  5. the hull's damage.
+- **Exactly as before:**
+  - All twelve golden runs reproduce the pre-M4a recordings to the last recorded digit (9 significant figures). The only change is one new value recorded, `propulsion.immersion`.
+  - The sea-trials report is identical line for line.
+  - The module's loads add up to v1.0's load list exactly, checked over 200 combinations of switches, breakers and engine states.
+- **One small change of order, on purpose:** the bilge pump now pumps after the hull's leak, deciding on the level it finds (before, one combined step). It differs only in the tick the water crosses the float switch or the bilge is brimful. No recorded run has water in the bilge.
+- **Bus keys:**
+  - `engine.*` became `propulsion.*` (`propulsion.coolantC`, `propulsion.wear`, `propulsion.oilCheck`...), the old names kept as aliases.
+  - New: `propulsion.immersion` (how much of the propeller is in the water; the rudder reads it).
+  - The engine's values, the fuel level, the rudder angle and the bilge level are now marked as written by a module, and the network's values (`electrical.*`, `battery.*`, `circuit.*.live`) as the game's own.
+  - Keys that are a press (TUNE, the dipstick, the oil can) are marked so.
+- **The key table:** `docs/BUS_KEYS.md` lists every key (values, who sets it, old names, what it is). It is generated from the registry, and a test fails if it goes stale (`KEY_TABLE_WRITE=1 npx vitest run tests/modular/keyTable.test.ts` rewrites it).
+- **Config:**
+  - The load figures moved from `vessels.workboat.electrics.loads` to the modules that draw them: `CONFIG.modules.helmConsole.instrumentsAmps`, `vhf.amps`, `chartplotter.amps`, `fmRadio.amps`, `chartTable.lampAmps`, `breakerPanel.amps`, `bilgePump`, `ptoPump`, and `dieselInboard` (alternator, starter, glow plugs; `electrics.alternatorAmps` went too). The lights, horn and wiper motor have theirs in the recipe.
+  - `electrics.loads` keeps only the windlass.
+  - The engine, propeller and rudder data stay in `vessels.workboat` (the modules' defaults) until the boat is built entirely from JSON (M6).
+- **Hull sockets:** 14 new ones: the engine bed (tagged inboard), fuel tank, batteries, hydraulic pump, bilge pump, rudder stock, and the eight devices' places. Where nothing is drawn yet, the point is nominal, and labelled so.
+- **Until M6:**
+  - A converted machine keeps its state where VesselState did (the diesel's is `engine`), so saves and snapshots are unchanged.
+  - A few numbers are still also read by code that isn't a module yet: whether the bus is powered (the battery cutoff), the quick start (the engine data) and the windlass's draw. Tests keep each pair equal.
+  - The hydraulic pressure rule is still worked out on demand where it was, because the machines ask mid-tick.
+- **Removed:** the old hard-wired inboard drive (`stepInboard`), the old load list (`loadAmps`) and the old electrics step; the old `(state, def)` engine functions remain as wrappers for the quick start and the tests.
+- **Tests (8 new, 396 in all, all pass):**
+  - the recipe mounts the machinery, engine before rudder;
+  - the battery module agrees with the vessel's battery config;
+  - the network's loads equal v1.0's list over 200 states;
+  - the alternator is full from 600 rpm;
+  - the separability checks: take a part out of the recipe and only its part goes:
+    - no searchlight module, no searchlight draw;
+    - no rudder, and she drives ahead but the wheel does nothing;
+    - no engine, and the lever does nothing;
+    - an engine without a fuel tank is refused, in words.
+  - The M4a test list runs on the new modules through the existing tests: the cold start by the card, battery 1 flat and the selector, the pump-failure overheat chain, running dry, deck hydraulics needing the engine and DECK HYD, plus the golden runs and the sea trials.
+- **Checked in the browser:**
+  - quick start, then lever ahead: 1430 rpm, 43 kN of thrust, gathering way;
+  - helm over: rudder 35°, turning;
+  - the alternator charging at 14.2 V;
+  - no errors (apart from the dev server's missing favicon, as before).
+  - Draw calls unchanged from M3c (56 / 44 / 97 / 33 by day).
+- **Owner test** (at /SWVR/next/, menu header NEXT). She should feel exactly as before:
+  - **VR:**
+    - a cold start by the card;
+    - drive out of Calder Haven: the lever, the wheel, a crash stop astern;
+    - the voltmeter dips while cranking and reads about 14 V running;
+    - the crane, tow winch or net drum need the engine running and DECK HYD;
+    - with the debug menu: the cooling-pump fault overheats her under load (alarm, derate), and idling saves her.
+  - **Desktop:** the same with the keys.
+  - **F3:** 56 modules.
 
 ### Test address for work in progress (owner request)
 

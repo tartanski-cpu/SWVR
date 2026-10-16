@@ -37,6 +37,7 @@ export const FM_RADIO: ModuleDefinition<FmRadioConfig> = {
     live: { dir: 'read', key: 'circuit.radio.live' },
   },
   needs: () => [{ power: 'electrical', circuit: 'radio' }],
+  power: (c) => [{ role: 'load', circuit: 'radio', amps: (io) => (io.num('on') > 0 ? c.amps : 0) }],
   view: {
     build({ config: c, keys, socket, share, local }) {
       // Hang a control upside down beside the display.

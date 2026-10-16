@@ -126,7 +126,7 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
       break;
     case 'dipstick':
     case 'oilTopUp':
-      // Oil checked / topped up (the rules are the 'engine.oilCheck' and 'engine.oilTopUp' keys').
+      // Oil checked / topped up (the rules are the 'propulsion.oilCheck' and 'propulsion.oilTopUp' keys').
       applyBusIntent(s, intent.control, 1, intent.playerId);
       break;
     case 'debugOil':

@@ -21,3 +21,12 @@ export function stepBilge(s: VesselState, dt: number): void {
   if (bilgePumping(s)) level -= cfg.pumpRate * dt;
   s.bilge = clamp(level, 0, 1);
 }
+
+/**
+ * The hull's part on a boat built from a recipe (M4a): a damaged hull leaks into the
+ * bilge. Pumping it out is the bilge pump module's, straight after.
+ */
+export function stepHullLeak(s: VesselState, dt: number): void {
+  if (s.bilge === undefined) return;
+  s.bilge = clamp(s.bilge + (s.damage ?? 0) * CONFIG.wear.leakRate * dt, 0, 1);
+}

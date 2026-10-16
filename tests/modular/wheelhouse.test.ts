@@ -188,7 +188,7 @@ describe('the wheelhouse\'s intents, by bus key and by old name', () => {
       return v;
     };
     const old = run([['engineHatch', 1], ['dipstick', 1], ['oilTopUp', 1], ['door', 0], ['chartLeaf', 0], ['chartLamp', 1]]);
-    const now = run([['hatch.engine.open', 1], ['engine.oilCheck', 1], ['engine.oilTopUp', 1], ['door.aft.open', 0], ['chartTable.leafOpen', 0], ['chartTable.lamp', 1]]);
+    const now = run([['hatch.engine.open', 1], ['propulsion.oilCheck', 1], ['propulsion.oilTopUp', 1], ['door.aft.open', 0], ['chartTable.leafOpen', 0], ['chartTable.lamp', 1]]);
     expect([now.engine.oil, (now.engine.sinceCheck ?? 1e9) < 1, now.controls.door, now.controls.chartLeaf]).toEqual([1, true, 0, 0]);
     expect(JSON.stringify(now)).toBe(JSON.stringify(old));
   });

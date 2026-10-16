@@ -5,22 +5,29 @@
  */
 import { createHullLibrary } from '../modular/hull';
 import { createModuleLibrary, parseRecipe, validateRecipe, type Recipe } from '../modular/recipe';
+import { BATTERY_BANK } from '../modules/batteryBank';
 import { BATTERY_MASTER } from '../modules/batteryMaster';
+import { BILGE_PUMP } from '../modules/bilgePump';
 import { BATTERY_SELECTOR } from '../modules/batterySelector';
 import { BREAKER_PANEL } from '../modules/breakerPanel';
 import { CHART_TABLE } from '../modules/chartTable';
 import { CHARTPLOTTER } from '../modules/chartplotter';
 import { CONSOLE } from '../modules/console';
+import { CONSUMER } from '../modules/consumer';
+import { DIESEL_INBOARD } from '../modules/dieselInboard';
 import { DIPSTICK } from '../modules/dipstick';
 import { DOOR_BUTTON } from '../modules/doorButton';
 import { DUTY_BOARD } from '../modules/dutyBoard';
 import { FM_RADIO } from '../modules/fmRadio';
+import { FUEL_TANK } from '../modules/fuelTank';
 import { HATCH_COVER } from '../modules/hatchCover';
 import { JOYSTICK } from '../modules/joystick';
 import { KEY_SWITCH } from '../modules/keySwitch';
 import { OIL_CAN } from '../modules/oilCan';
 import { OVERHEAD_PANEL } from '../modules/overheadPanel';
+import { PTO_PUMP } from '../modules/ptoPump';
 import { PUSH_BUTTON } from '../modules/pushButton';
+import { RUDDER } from '../modules/rudder';
 import { SCREEN } from '../modules/screen';
 import { START_CARD } from '../modules/startCard';
 import { THROTTLE_LEVER } from '../modules/throttleLever';
@@ -38,6 +45,7 @@ export const MODULES = createModuleLibrary([
   CONSOLE, WHEEL, THROTTLE_LEVER, TOGGLE, PUSH_BUTTON, KEY_SWITCH, JOYSTICK, WARNING_LAMPS, START_CARD, SCREEN,
   OVERHEAD_PANEL, FM_RADIO, BREAKER_PANEL, BATTERY_MASTER, BATTERY_SELECTOR,
   VHF, CHARTPLOTTER, CHART_TABLE, DUTY_BOARD, WHITEBOARD, DOOR_BUTTON, HATCH_COVER, DIPSTICK, OIL_CAN,
+  DIESEL_INBOARD, RUDDER, FUEL_TANK, BATTERY_BANK, PTO_PUMP, BILGE_PUMP, CONSUMER,
 ]);
 
 export const LIBRARY = { hulls: HULLS, modules: MODULES };

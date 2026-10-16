@@ -20,7 +20,7 @@
 import type * as THREE from 'three';
 import type { Control } from '../controls/Control';
 import type { Screen } from '../controls/instruments';
-import type { BreakerName } from '../vessel/vesselState';
+import type { BreakerName, VesselState } from '../vessel/vesselState';
 import type { BusReader, BusValue } from './bus';
 import type { BusKey } from './busKeys';
 import type { Physical, Socket, SocketType } from './socket';
@@ -83,11 +83,19 @@ export type Provision =
   | { power: 'pto' }
   | { fuel: 'diesel' };
 
-/** Its part in the energy network (2.5); summed by the network service, never by modules. */
+/**
+ * Its part in the energy network (2.5); summed by the network service, never by modules.
+ * As built in M4a, for the 12 V house system: currents in amps (the voltmeter, the battery
+ * model and the loads were always amps). A high-voltage propulsion bank in kW, and DC-DC
+ * converters between banks, come with electric drive (M9).
+ */
 export type PowerRole =
-  | { role: 'source'; bank?: string; kw: (bus: BusReader) => number } // alternator, genset, solar, shore
-  | { role: 'store'; bank: string; kWh: number; maxChargeKw: number; maxDischargeKw: number; nominalV: number }
-  | { role: 'load'; bank?: string; circuit?: string; priority: number; kw: (bus: BusReader) => number };
+  /** Charges the bank (the alternator; later shore power, solar). */
+  | { role: 'source'; amps: (io: PortIO) => number }
+  /** Draws from the bank while `amps` says so; on a breaker's circuit, or the master alone. */
+  | { role: 'load'; circuit?: BreakerName; amps: (io: PortIO) => number }
+  /** The batteries themselves. */
+  | { role: 'store'; batteries: number; ah: number; restVolts: readonly [number, number]; internalOhm: number; chargeVolts: number; cutoffSoc: number };
 
 // ── The sim half ─────────────────────────────────────────────────────────────
 
@@ -95,7 +103,13 @@ export type PowerRole =
 export interface ModuleSim<Config, State> {
   /** Its state when first fitted (plain JSON). */
   init(c: Config): State;
-  /** Each fixed tick, after the intents, beside today's stepElectrics / stepBilge. */
+  /**
+   * Until the boat is built entirely from JSON (M6), a converted machine's state stays where
+   * today's VesselState keeps it (the diesel's is `engine`), so saves, snapshots and every
+   * reader stay as they are. This says where; without it the state is the module's own.
+   */
+  legacyState?(v: VesselState): State;
+  /** Each fixed tick, after the energy network and the hull's leak (see simAssembly.ts for the order). */
   tick(ctx: SimContext<Config>, s: State, dt: number): void;
   /**
    * For anything that pushes on the hull (2.3): called inside the hull's rigid-body step,
@@ -118,26 +132,32 @@ export interface SimContext<Config> {
 export interface PortIO {
   get(port: string): BusValue;
   num(port: string): number;
+  /** Does this boat carry the port's key at all (a boat without electrics has no bus voltage)? */
+  has(port: string): boolean;
   set(port: string, value: BusValue): void;
 }
 
-/** Read-only facts about the world around the boat. Filled in as modules need them (M4+). */
+/**
+ * Read-only facts about the world around the boat, added as modules need them (water depth
+ * for the anchor in M5, sun and cloud for solar in M10).
+ */
 export interface EnvironmentReader {
   /** Simulated time (s). */
   time: number;
-  /** Water depth under a point of the boat (m, socket axes). */
-  depthAt(local: readonly [number, number, number]): number;
-  /** Sun elevation (deg) and cloud cover (0..1), for solar later. */
-  sunElevationDeg: number;
-  cloud: number;
 }
 
-/** The hull's water, for force-producing modules (2.3). */
+/**
+ * The hull's water, for force-producing modules (2.3), during the hull's rigid-body step.
+ * Points and directions are in the boat's axes (x starboard, y up, z aft) for now: the
+ * engine and rudder sockets aren't turned. (Socket axes come with a module that is.)
+ */
 export interface PhysicsPort {
-  /** Water velocity past a point (m/s, socket axes) and how deep the point is (m, + under). */
-  flowAt(local: readonly [number, number, number]): { x: number; y: number; z: number; depth: number };
-  /** Push on the hull at a point (N, socket axes). */
-  addForce(local: readonly [number, number, number], force: readonly [number, number, number]): void;
+  /** A point of the hull's velocity through the water (m/s): its motion less the waves' orbital motion there. */
+  flowAt(local: readonly [number, number, number]): { x: number; y: number; z: number };
+  /** How far a point is under the sea surface (m, + under), the surface taken where `surfaceAt` is (default: the point). */
+  depthAt(local: readonly [number, number, number], surfaceAt?: readonly [number, number, number]): number;
+  /** Push on the hull at a point (N). */
+  addForce(local: readonly [number, number, number], fx: number, fy: number, fz: number): void;
 }
 
 // ── The view half ────────────────────────────────────────────────────────────
@@ -296,7 +316,7 @@ export function resolvePorts(def: ModuleDefinition, bind: Readonly<Record<string
 }
 
 /** Port reads and writes for one mounted module, through its (possibly rebound) keys. */
-export function portIO(bus: { get(k: BusKey): BusValue; num(k: BusKey): number; set(k: BusKey, v: BusValue): void }, keys: Readonly<Record<string, BusKey>>): PortIO {
+export function portIO(bus: { get(k: BusKey): BusValue; num(k: BusKey): number; has(k: BusKey): boolean; set(k: BusKey, v: BusValue): void }, keys: Readonly<Record<string, BusKey>>): PortIO {
   const key = (port: string): BusKey => {
     const k = keys[port];
     if (!k) throw new Error(`no port '${port}'`);
@@ -305,6 +325,7 @@ export function portIO(bus: { get(k: BusKey): BusValue; num(k: BusKey): number; 
   return {
     get: (port) => bus.get(key(port)),
     num: (port) => bus.num(key(port)),
+    has: (port) => !!keys[port] && bus.has(key(port)),
     set: (port, v) => bus.set(key(port), v),
   };
 }

@@ -555,29 +555,17 @@ export const CONFIG = {
         restVolts: [11.8, 12.7] as [number, number],
         internalOhm: 0.012,
         chargeVolts: 14.2,
-        alternatorAmps: 60,
         cutoffSoc: 0.02,
-        /** Current drawn while on (A). `base`: master on, the panel itself. */
+        /**
+         * Current drawn while on (A), by what isn't a module yet: the anchor windlass (deck
+         * gear, M5). Everything else declares its own draw (modular boats M4a): the
+         * instruments, chartplotter, VHF, FM, chart lamp and the panel itself in
+         * CONFIG.modules; the starter, glow plugs and alternator in modules.dieselInboard;
+         * the bilge pump and the hydraulic pump in theirs; the lights, horn and wiper motor
+         * in the boat's recipe.
+         */
         loads: {
-          base: 0.4,
-          instruments: 2.5,
-          chart: 2.0,
-          radio: 1.5,
-          fm: 1.0,
-          navLights: 2.0,
-          deckFlood: 8,
-          railLights: 1.0,
-          cabinLight: 1.0,
-          searchlight: 12,
           windlass: 60,
-          horn: 10,
-          bilge: 3,
-          /** The hydraulic pump's clutch and the valve solenoids (DECK HYD, engine running). */
-          hydraulics: 4,
-          wipers: 4,
-          chartLamp: 0.5,
-          glowPlugs: 35,
-          starter: 180,
         },
         /** Battery master (big red key) on the aft wall, starboard of the door, low down. */
         masterSwitch: { position: [0.8, 1.75, 1.41] as [number, number, number] },
@@ -1999,9 +1987,11 @@ export const CONFIG = {
      *   ENGINE        HEAT and START (hold), the key, the warning lamps ahead of them, the
      *                 laminated start-up card at the starboard end
      * Screens on the dash: speed, heading, rpm, rudder, and the engine monitor in the centre,
-     * behind the wheel (read through the spokes).
+     * behind the wheel (read through the spokes). `instrumentsAmps`: the console's
+     * instruments (screens, lamps, their electronics) on the INSTR circuit (M4a).
      */
     helmConsole: {
+      instrumentsAmps: 2.5,
       dash: { front: -0.5, aft: -0.34, bottom: 0, top: 0.41, halfWidth: 1.25 },
       pedestals: { x: [0.45, -0.45, -0.85], halfWidth: 0.13, front: -0.08, aft: 0.3, floor: -0.95 },
       groups: [
@@ -2098,16 +2088,18 @@ export const CONFIG = {
      * power switch and TUNE button hang beside it (x from the display's centre, m). The
      * stations are CONFIG.fmRadio's.
      */
-    fmRadio: { display: { width: 0.17, height: 0.064 }, power: 0.16, tune: 0.25, tuneColor: 0xd88a2a },
+    fmRadio: { display: { width: 0.17, height: 0.064 }, power: 0.16, tune: 0.25, tuneColor: 0xd88a2a, amps: 1.0 },
 
     /**
      * panel.breakers (M3b): the voltmeter and a breaker for each circuit, with a green lamp
      * that shows the circuit is live. Panel face size (m); the dial's centre (from the
      * panel's left edge and centre line) and radius; breakers in rows of `perRow`, the first
      * `x0` from the left edge, `pitch` apart, rows at `rows` (y), drawn at `scale` of a
-     * console switch. `circuits`: which breaker in which place, and its engraving.
+     * console switch. `circuits`: which breaker in which place, and its engraving. `amps`:
+     * the panel itself, with the master on (M4a).
      */
     breakerPanel: {
+      amps: 0.4,
       width: 0.54,
       height: 0.32,
       dial: { x: 0.1, y: 0.02, radius: 0.075 },
@@ -2123,19 +2115,21 @@ export const CONFIG = {
       ],
     },
 
-    /** radio.vhf (M3c): the VHF set hung from the roof; how far its face tilts down toward you. */
-    vhf: { tiltDeg: 35 },
+    /** radio.vhf (M3c): the VHF set hung from the roof; how far its face tilts down toward you; its draw (A, RADIO circuit). */
+    vhf: { tiltDeg: 35, amps: 1.5 },
 
-    /** nav.chartplotter (M3c): the chartplotter hung from the roof; its screen's tilt. */
-    chartplotter: { tiltDeg: 35 },
+    /** nav.chartplotter (M3c): the chartplotter hung from the roof; its screen's tilt; its draw (A, CHART circuit). */
+    chartplotter: { tiltDeg: 35, amps: 2.0 },
 
     /**
      * furniture.chart-table (M3c): the drop-leaf chart table on a wall. From its socket (the
      * leaf's hinge corner on the floor, at the wall: x out from the wall, z aft): its size
      * (m), the pen holder [x, z], the lamp (its wall bracket [x, z], height above the table,
-     * its head over the chart [x, z]) and the lamp switch on the batten [x, z].
+     * its head over the chart [x, z]) and the lamp switch on the batten [x, z]. `lampAmps`:
+     * the lamp's draw (A, DECK LTS circuit; M4a).
      */
     chartTable: {
+      lampAmps: 0.5,
       width: 0.75,
       depth: 0.95,
       height: 0.95,
@@ -2152,6 +2146,20 @@ export const CONFIG = {
 
     /** tool.oil-can (M3c): the can drawn at this fraction of its model's size. */
     oilCan: { scale: 0.85 },
+
+    /**
+     * propulsion.diesel-inboard (M4a): the 12 V side of the engine (A): the alternator's full
+     * output (from 600 rpm), and what the starter and the glow plugs draw (on the master
+     * alone). Its engine, propeller and oil use are the workboat's (CONFIG.vessels.workboat:
+     * engine, propeller, maintenance.use) until the boat is built entirely from JSON (M6).
+     */
+    dieselInboard: { alternatorAmps: 60, starterAmps: 180, glowAmps: 35 },
+
+    /** pump.bilge (M4a): it runs with water over its float switch (`floatAt`, 0..1), drawing `amps` (BILGE circuit). */
+    bilgePump: { floatAt: 0.01, amps: 3 },
+
+    /** hydraulics.pto-pump (M4a): its clutch and the machines' valve solenoids, while there's pressure (A, DECK HYD circuit). */
+    ptoPump: { amps: 4 },
   },
 
   start: {

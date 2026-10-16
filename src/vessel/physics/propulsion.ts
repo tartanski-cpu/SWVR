@@ -10,19 +10,53 @@
  *
  * All functions are pure with respect to their inputs (state is passed in and mutated
  * explicitly), so they run identically in the headless sim and tests.
+ *
+ * Modular boats (M4a): the engine and the rudder are modules (modules/dieselInboard,
+ * modules/rudder). Their simulation is the `...For` / `...Step` functions here, which take
+ * the machine's own state, its configuration and what it reads from the rest of the boat
+ * (`DieselInputs`, through the module's ports). The older (vessel state, vessel def)
+ * functions remain as wrappers for code that isn't a module yet (the quick start, tests).
  */
 import { isPowered, starterFactor } from '../electrics';
 import { CONFIG } from '../../config';
 import { clamp } from '../../core/math';
 import type { VesselDef, WorkboatDef } from '../vesselDef';
-import type { VesselState } from '../vesselState';
+import type { EngineState, VesselState } from '../vesselState';
 import { derateRackCap } from './engineThermal';
-import { wearRackCap } from '../wear';
+import { wearRackCapFor } from '../wear';
+
+/** A diesel and its propeller as configured: a vessel's, or the diesel module's. */
+export type DieselSpec = Pick<WorkboatDef, 'engine' | 'propeller'>;
+/** A rudder as configured, and the propeller it stands behind (its wake and slipstream). */
+export interface RudderSpec {
+  rudder: WorkboatDef['rudder'];
+  propeller: Pick<WorkboatDef['propeller'], 'wake' | 'diameter'>;
+}
+
+/** What the diesel reads from the rest of the boat each tick (its module's ports). */
+export interface DieselInputs {
+  /** Throttle / gear lever, -1..1. */
+  lever: number;
+  /** HEAT and START held (1) or not (0). */
+  heat: number;
+  start: number;
+  /** 12 V on the bus: the fuel solenoid and the starter work. */
+  powered: boolean;
+  /** How well the starter turns at the bus voltage (0..1; 1 with no electrics). */
+  starterFactor: number;
+  /** Fuel in the tank (L). */
+  fuelL: number;
+}
+
+/** The inputs as today's VesselState holds them (the wrappers below). */
+export function dieselInputsOf(s: VesselState): DieselInputs {
+  return { lever: s.controls.lever, heat: s.controls.heat, start: s.controls.start, powered: isPowered(s), starterFactor: starterFactor(s), fuelL: s.engine.fuelL };
+}
 
 const NU = 1.19e-6; // kinematic viscosity of sea water at 15 °C (m²/s)
 
 /** Gear the lever is asking for, and the throttle fraction beyond the neutral detent. */
-export function leverDemand(def: WorkboatDef, lever: number): { gear: -1 | 0 | 1; throttle: number } {
+export function leverDemand(def: Pick<WorkboatDef, 'engine'>, lever: number): { gear: -1 | 0 | 1; throttle: number } {
   const nb = def.engine.neutralBand;
   const gear = lever > nb ? 1 : lever < -nb ? -1 : 0;
   return { gear, throttle: gear === 0 ? 0 : clamp((Math.abs(lever) - nb) / (1 - nb), 0, 1) };
@@ -59,21 +93,25 @@ export function toggleEngine(s: VesselState, def: WorkboatDef): void {
  *     she catches and the starter stops.
  */
 export function stepIgnition(s: VesselState, def: WorkboatDef, dt: number): void {
-  const e = s.engine;
-  const cfg = def.engine;
-  const keyOn = e.key > 0 && isPowered(s);
+  ignitionStep(s.engine, def, dieselInputsOf(s), dt);
+}
+
+/** stepIgnition on the engine's own state, with its inputs given. */
+export function ignitionStep(e: EngineState, spec: DieselSpec, inp: DieselInputs, dt: number): void {
+  const cfg = spec.engine;
+  const keyOn = e.key > 0 && inp.powered;
   if (!keyOn && e.phase !== 'off') {
     e.phase = 'off';
     e.autoCrank = false;
   }
-  if (keyOn && s.controls.heat > 0) e.glow = Math.min(preheatNeeded(s, def) * 1.5, e.glow + dt);
+  if (keyOn && inp.heat > 0) e.glow = Math.min(preheatNeededFor(e, spec) * 1.5, e.glow + dt);
   // The plugs stay hot while she cranks (they're powered with the starter); they cool after.
   else if (e.phase !== 'cranking') e.glow = Math.max(0, e.glow - cfg.glowCoolRate * dt);
-  const neutral = !cfg.startOnlyInNeutral || leverDemand(def, s.controls.lever).gear === 0;
-  if (e.phase === 'off' && keyOn && s.controls.start > 0 && neutral) {
+  const neutral = !cfg.startOnlyInNeutral || leverDemand(spec, inp.lever).gear === 0;
+  if (e.phase === 'off' && keyOn && inp.start > 0 && neutral) {
     e.phase = 'cranking';
     e.crank = 0;
-  } else if (e.phase === 'cranking' && s.controls.start <= 0 && !e.autoCrank) {
+  } else if (e.phase === 'cranking' && inp.start <= 0 && !e.autoCrank) {
     e.phase = 'off';
   }
 }
@@ -82,25 +120,33 @@ export function stepIgnition(s: VesselState, def: WorkboatDef, dt: number): void
  * Seconds of glow-plug preheat the engine needs now: preheatTime stone cold (coolant at
  * sea temperature), falling linearly to preheatHotTime at coldBelowC and above.
  */
-export function preheatNeeded(s: VesselState, def: WorkboatDef): number {
-  const cfg = def.engine;
+export function preheatNeeded(s: VesselState, def: Pick<WorkboatDef, 'engine'>): number {
+  return preheatNeededFor(s.engine, def);
+}
+
+export function preheatNeededFor(e: Pick<EngineState, 'coolantC'>, spec: Pick<WorkboatDef, 'engine'>): number {
+  const cfg = spec.engine;
   const sea = CONFIG.environment.seaTempC;
-  const warm = clamp((s.engine.coolantC - sea) / Math.max(1, cfg.coldBelowC - sea), 0, 1);
+  const warm = clamp((e.coolantC - sea) / Math.max(1, cfg.coldBelowC - sea), 0, 1);
   return cfg.preheatTime + (cfg.preheatHotTime - cfg.preheatTime) * warm;
 }
 
 /** Seconds of cranking she needs to catch: longer cold and unheated. */
 export function crankNeeded(s: VesselState, def: WorkboatDef): number {
-  const cfg = def.engine;
-  const cold = s.engine.coolantC < cfg.coldBelowC ? 1 : 0;
-  const heated = Math.min(1, s.engine.glow / preheatNeeded(s, def));
+  return crankNeededFor(s.engine, def);
+}
+
+export function crankNeededFor(e: EngineState, spec: Pick<WorkboatDef, 'engine'>): number {
+  const cfg = spec.engine;
+  const cold = e.coolantC < cfg.coldBelowC ? 1 : 0;
+  const heated = Math.min(1, e.glow / preheatNeededFor(e, spec));
   return cfg.crankTime + cold * (1 - heated) * cfg.unheatedExtraCrank;
 }
 
 const TWO_PI = Math.PI * 2;
 
 /** Full-load torque (N*m) at `rpm`, linear interpolation of the configured curve. */
-export function fullLoadTorque(def: WorkboatDef, rpm: number): number {
+export function fullLoadTorque(def: Pick<WorkboatDef, 'engine'>, rpm: number): number {
   const c = def.engine.torqueCurve;
   if (rpm <= c[0][0]) return c[0][1];
   for (let i = 0; i < c.length - 1; i++) {
@@ -116,7 +162,7 @@ export function fullLoadTorque(def: WorkboatDef, rpm: number): number {
  * Propeller thrust (N, + = ahead) and shaft torque (N*m, opposing rotation, >= 0) at prop
  * speed n (rev/s, signed: + = ahead rotation) and vessel speed through the water (m/s).
  */
-export function propellerForces(def: WorkboatDef, n: number, speed: number): { thrust: number; torque: number } {
+export function propellerForces(def: Pick<WorkboatDef, 'propeller'>, n: number, speed: number): { thrust: number; torque: number } {
   const p = def.propeller;
   const an = Math.abs(n);
   if (an < 0.02) return { thrust: 0, torque: 0 };
@@ -138,15 +184,17 @@ export function propellerForces(def: WorkboatDef, n: number, speed: number): { t
  * wheel puts it. Hydraulic: it follows the helm at a fixed rate.
  */
 export function stepSteering(s: VesselState, def: WorkboatDef, dt: number): void {
-  const maxA = (def.rudder.maxAngleDeg * Math.PI) / 180;
-  const want = clamp(s.controls.helm, -1, 1) * maxA;
-  const rate = def.rudder.rateDegPerS;
-  if (rate === null) {
-    s.rudder = want;
-    return;
-  }
+  s.rudder = steeringStep(s.rudder, s.controls.helm, def.rudder, dt);
+}
+
+/** The rudder angle (rad) after dt, from where it is and the helm (-1..1). */
+export function steeringStep(angle: number, helm: number, rudder: WorkboatDef['rudder'], dt: number): number {
+  const maxA = (rudder.maxAngleDeg * Math.PI) / 180;
+  const want = clamp(helm, -1, 1) * maxA;
+  const rate = rudder.rateDegPerS;
+  if (rate === null) return want;
   const step = ((rate * Math.PI) / 180) * dt;
-  s.rudder += clamp(want - s.rudder, -step, step);
+  return angle + clamp(want - angle, -step, step);
 }
 
 /**
@@ -162,13 +210,19 @@ export function stepSteering(s: VesselState, def: WorkboatDef, dt: number): void
  * @param immersion 0..1 how much of the propeller disc is under water
  */
 export function stepEngineAndPropeller(s: VesselState, def: WorkboatDef, speed: number, immersion: number, dt: number): number {
-  const e = s.engine;
+  const thrust = engineStep(s.engine, def, dieselInputsOf(s), speed, immersion, dt);
+  s.thrust = thrust;
+  return thrust;
+}
+
+/** stepEngineAndPropeller on the engine's own state, with its inputs given. */
+export function engineStep(e: EngineState, def: DieselSpec, inp: DieselInputs, speed: number, immersion: number, dt: number): number {
   const cfg = def.engine;
-  const demand = leverDemand(def, s.controls.lever);
+  const demand = leverDemand(def, inp.lever);
   const i = cfg.gearRatio;
   const propInertiaAtCrank = def.propeller.inertia / (i * i);
-  stepIgnition(s, def, dt);
-  const starter = cfg.starterTorque * starterFactor(s);
+  ignitionStep(e, def, inp, dt);
+  const starter = cfg.starterTorque * inp.starterFactor;
 
   // ── Clutch ──
   if (e.phase !== 'running') {
@@ -197,7 +251,7 @@ export function stepEngineAndPropeller(s: VesselState, def: WorkboatDef, speed: 
   if (e.phase === 'running') {
     const throttle = demand.gear === e.gear ? demand.throttle : 0;
     const set = cfg.idleRpm + throttle * (cfg.ratedRpm - cfg.idleRpm);
-    rackTarget = clamp((set - e.rpm) / cfg.droopRpm, 0, derateRackCap(def, e.coolantC) * wearRackCap(s));
+    rackTarget = clamp((set - e.rpm) / cfg.droopRpm, 0, derateRackCap(def, e.coolantC) * wearRackCapFor(e.wear));
   }
   e.rack = rackTarget > e.rack ? Math.min(rackTarget, e.rack + cfg.rackRiseRate * dt) : rackTarget;
 
@@ -226,15 +280,13 @@ export function stepEngineAndPropeller(s: VesselState, def: WorkboatDef, speed: 
   if (e.phase === 'cranking') {
     e.crank += dt;
     // It fires once the starter has it spinning, if there is fuel to burn.
-    if (e.crank >= crankNeeded(s, def) && e.rpm > cfg.starterMaxRpm * 0.6 && e.fuelL > 0) {
+    if (e.crank >= crankNeededFor(e, def) && e.rpm > cfg.starterMaxRpm * 0.6 && inp.fuelL > 0) {
       e.phase = 'running';
       e.autoCrank = false;
       e.rack = 0.3; // fuel on: catches and runs up to idle
     }
   }
   if (e.phase === 'off' && e.rpm < 1) e.rpm = 0;
-
-  s.thrust = thrust;
   return thrust;
 }
 
@@ -252,6 +304,11 @@ export function rudderForce(
   thrust: number,
   out: { x: number; z: number },
 ): void {
+  rudderForceAt(s.rudder, def, relVx, relVz, thrust, out);
+}
+
+/** rudderForce for a rudder at `angle` (rad). */
+export function rudderForceAt(angle: number, def: RudderSpec, relVx: number, relVz: number, thrust: number, out: { x: number; z: number }): void {
   const r = def.rudder;
   // Flow seen by the rudder from the hull's motion (water moving aft = +z going ahead).
   const fx = -relVx * (1 - r.flowStraightening);
@@ -260,29 +317,29 @@ export function rudderForce(
   // Normal force without slipstream; coasting (little or no thrust), the skeg helps it
   // (coastSteer, fading out as thrust builds)...
   const coast = 1 + (r.coastSteer - 1) * Math.max(0, 1 - Math.abs(thrust) / r.coastFadeThrust);
-  let N = rudderNormal(s, def, fx, fz) * coast;
+  let N = rudderNormal(angle, def, fx, fz) * coast;
   if (thrust > 0) {
     // ...plus the slipstream's contribution. Momentum theory gives the far-wake speed
     // increase; part of it is developed at the rudder. The extra force can't exceed what
     // deflecting the slipstream's momentum (~T) can give, so it is capped at washMaxFraction*T.
     const d = def.propeller.diameter;
     const extra = (r.washFactor * 8 * thrust) / (CONFIG.ocean.density * Math.PI * d * d);
-    const withWash = rudderNormal(s, def, fx, Math.sqrt(Math.max(fz, 0) ** 2 + extra)) * coast;
+    const withWash = rudderNormal(angle, def, fx, Math.sqrt(Math.max(fz, 0) ** 2 + extra)) * coast;
     const cap = r.washMaxFraction * thrust;
     N += clamp(withWash - N, -cap, cap);
   }
-  out.x = N * Math.cos(s.rudder);
-  out.z = -N * Math.sin(s.rudder);
+  out.x = N * Math.cos(angle);
+  out.z = -N * Math.sin(angle);
 }
 
 /** Signed normal force (N) on the rudder plate for inflow (fx, fz) in vessel axes. */
-function rudderNormal(s: VesselState, def: WorkboatDef, fx: number, fz: number): number {
+function rudderNormal(angle: number, def: RudderSpec, fx: number, fz: number): number {
   const r = def.rudder;
   const u2 = fx * fx + fz * fz;
   if (u2 < 1e-6) return 0;
   // Plate normal (perpendicular to the chord; chord runs aft at angle `rudder`).
-  const nx = Math.cos(s.rudder);
-  const nz = -Math.sin(s.rudder);
+  const nx = Math.cos(angle);
+  const nz = -Math.sin(angle);
   const alpha = Math.asin(clamp((fx * nx + fz * nz) / Math.sqrt(u2), -1, 1));
   const stall = (r.stallDeg * Math.PI) / 180;
   const cn = r.liftSlope * Math.sign(alpha) * Math.min(Math.abs(alpha), stall);
