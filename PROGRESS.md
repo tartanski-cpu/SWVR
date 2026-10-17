@@ -2935,6 +2935,15 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Checked:** typecheck; all tests (the bow test still finds the keel unchanged aft of the forefoot); side profiles of the pilot at 0, 25 and 50 deg; the landing craft and gillnetter at their defaults.
 - **Owner test:** on the Shipyard page, pick the pilot boat, turn the water off, look from the side and move the Bow rake from plumb to 50 deg.
 
+### Shipyard: the pilot boat's forefoot and chines (owner)
+
+- **Owner:** a nick just aft of the bottom of the stem; the bottom paint and the spray chine kicked up at the bow.
+- **The nick:** the keel was held level forward of 75 % of her length, but her own rocker still rises there, so the slope jumped where the two met. Now forward of 60 % the keel runs straight on at the rocker's own slope, and the curved stem (a parabola added to that line) runs into it with no change of slope (`bowKeel`, `shipyard/build.ts`). The bow test still holds: the keel aft of the forefoot is the same at every rake.
+- **The kick-up:** chine heights are a share of the depth from keel to deck (the hull study's loft). As the keel swept up the stem, the depth shrank and both chines were dragged up with it.
+  - New optional `chineKeel` (`hulls/loft.ts`): the line the chine heights are measured from. The pilot boat uses her uncut keel line, so her chine and spray chine run on smoothly to the stem, closing in where the forefoot rises within a fifth of the depth of them.
+  - The landing craft and gillnetter keep chines that sweep up with the forefoot. With her chine closed in, the landing craft's square bow lost its buoyancy (GM fell to 0.22 m, and the stability test caught it).
+- **Checked:** typecheck; all tests; side and bow views of the pilot at 0, 25 and 50 deg.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

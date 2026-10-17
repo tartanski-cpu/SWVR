@@ -68,43 +68,51 @@ const UPRIGHT: [number, number][] = [
  * Lofted from the hull study, scaled (lengths along, half-breadths across, heights up), with
  * her bow reshaped: the game's stations are upright sections, so a bow's rake is its stem
  * line in profile, the keel meeting a raked stem under a deck that keeps its length (bowKeel).
+ * `chinesRunOn`: her chines are measured from the uncut keel line, so they run on smoothly to
+ * the stem and close in where the forefoot rises to them (a V hull: the pilot boat, owner).
+ * A flat-bottomed hull's chine sweeps up with her forefoot instead (the landing craft's
+ * square bow keeps its buoyancy that way).
  */
-function scaledStudy(d: HullDesign, L: number, B: number, D: number, bow: number): HullDesign {
+function scaledStudy(d: HullDesign, L: number, B: number, D: number, bow: number, chinesRunOn = false): HullDesign {
   const by = (c: [number, number][], k: number) => c.map(([t, v]) => [t, v * k] as [number, number]);
   const sheer = by(d.sheer, D);
-  return { ...d, length: d.length * L, halfBeam: by(d.halfBeam, B), sheer, keel: bowKeel(by(d.keel, D), curveAt(sheer, 1), d.length * L, SCALES.bow(bow)), rake: UPRIGHT, wheelhouse: undefined, houses: undefined };
+  const bowed = bowKeel(by(d.keel, D), curveAt(sheer, 1), d.length * L, SCALES.bow(bow));
+  return { ...d, length: d.length * L, halfBeam: by(d.halfBeam, B), sheer, keel: bowed.keel, ...(chinesRunOn ? { chineKeel: bowed.base } : {}), rake: UPRIGHT, wheelhouse: undefined, houses: undefined };
 }
 
 /**
- * Her keel line with her bow reshaped (the Shipyard's bow choice, SCALES.bow): her stem runs
- * from 0.15 m under the stem head down to her keel, raked `deg` from vertical overall (stem
- * head to forefoot), and curved (owner, after the straight stem read as too raked): full
- * forward, like the hull study's pilot boat, steeper at the deck (atan(tan deg / 2): 31 deg
- * at 50) and sweeping round into the keel with no knuckle. In profile it's a parabola, the
- * keel line its tangent at the forefoot. 0 deg is a plumb stem.
- * Her keel runs at full depth to it (her own keel line, held at its depth forward of 75 % of
- * her length: her rocker is kept, owner). A 50 deg stem on a 2 m deep bow reaches back
- * ~2.4 m; the keel isn't cut away further aft than the straight stem did (owner).
+ * Her keel line with her bow reshaped (the Shipyard's bow choice, SCALES.bow), and the
+ * uncut keel line her chines are measured from (`base`).
+ * - Her keel: her own keel line (her rocker, owner) aft of 60 % of her length; forward of
+ *   that, straight on along its slope there, at full depth to the stem (the study's own
+ *   forefoot is replaced). No change of slope anywhere (owner: a nick behind the forefoot,
+ *   when it was held level from 75 %).
+ * - Her stem runs from 0.15 m under the stem head down to that line, raked `deg` from
+ *   vertical overall (stem head to forefoot), and curved (owner, after a straight stem read
+ *   as too raked): full forward, like the hull study's pilot boat, steeper at the deck
+ *   (atan(tan deg / 2): 31 deg at 50) and running into the keel along it, with no knuckle.
+ *   In profile it's a parabola added to the keel line. 0 deg is a plumb stem. A 50 deg stem
+ *   on a 2 m deep bow reaches back ~2.4 m (owner: the keel not cut away further back).
  * Drawn through samples every 1.25 % of her length.
  */
-export function bowKeel(keel: [number, number][], stemDeckY: number, lengthM: number, deg: number): [number, number][] {
+export function bowKeel(keel: [number, number][], stemDeckY: number, lengthM: number, deg: number): { keel: [number, number][]; base: [number, number][] } {
   const own = (t: number) => curveAt(keel, t);
-  // Her own keel line (her rocker), held at its depth over the forward quarter, where her
-  // stem is: at 50 deg a stem reaches back about that far, so only the forefoot is reshaped.
-  const deep = (t: number) => (t < 0.75 ? own(t) : Math.min(own(t), own(0.75)));
+  const from = 0.6;
+  const slope = (own(from + 1e-4) - own(from - 1e-4)) / 2e-4;
+  const line = (t: number) => (t < from ? own(t) : own(from) + slope * (t - from));
   const top = stemDeckY - 0.15;
-  const bottom = deep(1);
+  const rise = top - line(1);
   // How far back from the stem head the stem meets the keel (m).
-  const reach = deg > 0.1 ? (top - bottom) * Math.tan((deg * Math.PI) / 180) : 0;
-  const stem = (t: number) => {
+  const reach = deg > 0.1 ? rise * Math.tan((deg * Math.PI) / 180) : 0;
+  const at = (t: number) => {
     const d = (1 - t) * lengthM;
-    return reach > 0 && d < reach ? bottom + (top - bottom) * (1 - d / reach) ** 2 : -Infinity;
+    return reach > 0 && d < reach ? line(t) + rise * (1 - d / reach) ** 2 : line(t);
   };
-  const at = (t: number) => (reach > 0 ? Math.max(deep(t), stem(t)) : deep(t));
   const ts = Array.from({ length: 81 }, (_, i) => i / 80);
   // The forefoot, where the stem runs into the keel: sampled too.
   if (reach > 0 && reach < lengthM) ts.push(1 - reach / lengthM);
-  return ts.sort((a, b) => a - b).map((t) => [t, at(t)] as [number, number]);
+  ts.sort((a, b) => a - b);
+  return { keel: ts.map((t) => [t, at(t)]), base: ts.map((t) => [t, line(t)]) };
 }
 
 export const DESIGN_HULLS: DesignHull[] = [
@@ -146,7 +154,7 @@ export const DESIGN_HULLS: DesignHull[] = [
   // New hull types go on the end: a design's code holds its hull's place in this list.
   {
     name: 'Pilot boat: 14 m deep-V, spray chine, fine entry, well-raked stem',
-    form: (L, B, D, bow) => ({ kind: 'lofted', design: scaledStudy(study('pilot'), L, B, D, bow) }),
+    form: (L, B, D, bow) => ({ kind: 'lofted', design: scaledStudy(study('pilot'), L, B, D, bow, true) }),
     planing: true,
     ramp: false,
     cockpit: 1.6,

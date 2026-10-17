@@ -76,6 +76,12 @@ export interface HullDesign {
   /** Keel height (m, negative below the DWL): rocker, and the forefoot rising to the stem. */
   keel: Curve;
   /**
+   * The keel line the chine heights are measured from, where it isn't the keel itself (the
+   * Shipyard's reshaped forefoot): the chines run on as if the forefoot weren't cut away, and
+   * close in where the keel rises up to them, rather than being dragged up the stem with it.
+   */
+  chineKeel?: Curve;
+  /**
    * Rake: how far the section leans fore-aft per metre of height above the keel (dz/dy).
    * Negative at the stem leans it forward; positive at the transom leans the transom aft.
    */
@@ -200,18 +206,24 @@ export function loft(d: HullDesign): LoftedHull {
     const keelY = curveAt(d.keel, t);
     let deckY = curveAt(d.sheer, t);
     if (d.forecastle && t >= d.forecastle.from) deckY += d.forecastle.raise;
-    const depth = Math.max(0.05, deckY - keelY);
     // The stem itself is a point; just before it the sections are narrow.
     // A pointed stem comes to nothing; a square (landing) bow keeps its width, closed by a bow plate.
     const hb = Math.max(0, curveAt(d.halfBeam, t));
     const s = d.section;
-    const cB = curveAt(s.chineBeam, t) * hb;
-    const cY = keelY + curveAt(s.chineHeight, t) * depth;
+    // The chines' heights, from the keel (or the line given for them, chineKeel). Where the
+    // keel rises to within a fifth of that depth of a chine, the chine closes in to it.
+    const refY = d.chineKeel ? curveAt(d.chineKeel, t) : keelY;
+    const refDepth = Math.max(0.05, deckY - refY);
+    const chine = (frac: number, beam: number): [number, number] => {
+      const y = refY + frac * refDepth;
+      const close = Math.min(1, Math.max(0, (y - keelY) / (0.2 * refDepth)));
+      return [beam * (d.chineKeel ? close : 1), Math.max(y, keelY)];
+    };
+    const [cB, cY] = chine(curveAt(s.chineHeight, t), curveAt(s.chineBeam, t) * hb);
     const flare = s.flare ? curveAt(s.flare, t) : 0;
     const prof: [number, number][] = [[0, keelY]];
     if (s.chine2Beam && s.chine2Height) {
-      const c2B = curveAt(s.chine2Beam, t) * hb;
-      const c2Y = keelY + curveAt(s.chine2Height, t) * depth;
+      const [c2B, c2Y] = chine(curveAt(s.chine2Height, t), curveAt(s.chine2Beam, t) * hb);
       // Order the two chines bottom-up.
       const lo = c2Y < cY ? [c2B, c2Y] : [cB, cY];
       const hi = c2Y < cY ? [cB, cY] : [c2B, c2Y];
