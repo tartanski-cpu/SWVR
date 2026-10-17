@@ -34,12 +34,15 @@ export interface HullParams {
    */
   deckParallel?: number;
   /**
-   * The forefoot (the Shipyard's bow slider): the keel starts sweeping up into the stem at
-   * `from` (fraction of the length from the transom; default 0.55) and reaches `rise` of the
-   * way from its depth to 0.3 m under the stem's deck edge (default 1). `rise` 0 keeps the
-   * keel deep to the stem: a plumb stem.
+   * The forefoot: the keel sweeps up into the stem from `from` (fraction of the length from
+   * the transom; default 0.55), `rise` of the way from its depth to 0.3 m under the stem's
+   * deck edge (default 1: the workboat's). Or, with `stemDeg` (the Shipyard's bow choice), a
+   * straight stem raked that many degrees from vertical, from 0.15 m under the stem head
+   * down until it meets the keel, which runs at full depth to it (0: a plumb stem). The chine
+   * closes in to the keel as the keel rises within 0.6 m of it (a vee entry, not a flat
+   * bottom at the stem).
    */
-  forefoot?: { from: number; rise: number };
+  forefoot?: { from: number; rise: number; stemDeg?: number };
 }
 
 /** One transverse station. Polygon vertex order: port deck, port chine, keel, stbd chine, stbd deck. */
@@ -73,14 +76,25 @@ export function buildHullForm(p: HullParams): HullForm {
     const deckTaper = t < tp ? 1 - 0.04 * (1 - t / tp) : Math.pow(Math.cos(((t - tp) / (1 - tp)) * (Math.PI / 2)), 0.75);
     const chineTaper = t < 0.4 ? 1 : Math.pow(Math.cos(((t - 0.4) / 0.6) * (Math.PI / 2)), 0.7);
     const bD = Math.max(0.03, (p.beamDeck / 2) * deckTaper);
-    const bC = Math.min(bD, Math.max(0.02, (p.beamChine / 2) * chineTaper));
+    let bC = Math.min(bD, Math.max(0.02, (p.beamChine / 2) * chineTaper));
 
     // Profile: sheer rises forward; keel sweeps up into the stem (forefoot) over the forward 45 %.
     const yD = p.deckYAft + (p.deckYBow - p.deckYAft) * t * t;
     const ff = p.forefoot ?? { from: 0.55, rise: 1 };
-    const forefoot = t > ff.from ? smooth((t - ff.from) / (1 - ff.from)) : 0;
-    const yK = p.keelY + (p.deckYBow - 0.3 - p.keelY) * forefoot * ff.rise;
-    const yC = Math.min(yD - 0.05, Math.max(yK + 0.01, p.chineYAft + (p.chineYBow - p.chineYAft) * t * t));
+    const chineLine = p.chineYAft + (p.chineYBow - p.chineYAft) * t * t;
+    let yK: number;
+    if (ff.stemDeg !== undefined) {
+      // A straight stem at `stemDeg` from vertical: its height above the keel line falls by
+      // 1 / tan(rake) per metre aft of the stem. The keel runs deep until it meets it.
+      const aftOfStem = (1 - t) * p.length;
+      const stemY = ff.stemDeg > 0.1 ? p.deckYBow - 0.15 - aftOfStem / Math.tan((ff.stemDeg * Math.PI) / 180) : -Infinity;
+      yK = Math.max(p.keelY, stemY);
+      bC = Math.max(0.02, bC * Math.min(1, Math.max(0, (chineLine - yK) / 0.6)));
+    } else {
+      const forefoot = t > ff.from ? smooth((t - ff.from) / (1 - ff.from)) : 0;
+      yK = p.keelY + (p.deckYBow - 0.3 - p.keelY) * forefoot * ff.rise;
+    }
+    const yC = Math.min(yD - 0.05, Math.max(yK + 0.01, chineLine));
 
     stations.push({
       z,

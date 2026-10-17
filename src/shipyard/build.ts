@@ -41,7 +41,7 @@ const study = (id: string): HullDesign => {
 /** A base hull the Shipyard starts from: its form (scaled) and the kind of boat she is. */
 export interface DesignHull {
   name: string;
-  /** Her form, scaled (length, beam and depth factors), with her bow (0 plumb .. 2 as designed .. 4 well raked). */
+  /** Her form, scaled (length, beam and depth factors), with her bow (its step: SCALES.bow, the stem's rake). */
   form(L: number, B: number, D: number, bow: number): HullDefinition['form'];
   /** A planing hull (she banks into turns, a fast boat's propeller), or a displacement one. */
   planing: boolean;
@@ -54,44 +54,52 @@ export interface DesignHull {
 
 /**
  * Lofted from the hull study, scaled (lengths along, half-breadths across, heights up), with
- * her bow reshaped: the game's stations are upright sections, so a bow's rake is its forefoot,
- * the keel sweeping up to the stem under a deck that keeps its length (bowKeel).
+ * her bow reshaped: the game's stations are upright sections, so a bow's rake is its stem
+ * line in profile, the keel meeting a raked stem under a deck that keeps its length (bowKeel).
  */
 function scaledStudy(d: HullDesign, L: number, B: number, D: number, bow: number): HullDesign {
   const by = (c: [number, number][], k: number) => c.map(([t, v]) => [t, v * k] as [number, number]);
   const sheer = by(d.sheer, D);
-  return { ...d, length: d.length * L, halfBeam: by(d.halfBeam, B), sheer, keel: bowKeel(by(d.keel, D), curveAt(sheer, 1), bow), rake: by(d.rake, L / D), wheelhouse: undefined, houses: undefined };
+  return { ...d, length: d.length * L, halfBeam: by(d.halfBeam, B), sheer, keel: bowKeel(by(d.keel, D), curveAt(sheer, 1), d.length * L, SCALES.bow(bow)), rake: by(d.rake, L / D), wheelhouse: undefined, houses: undefined };
 }
 
 /**
- * Her keel line with her bow reshaped (the Shipyard's bow choice, SCALES.bow):
- *   0 plumb: the keel held at its depth from 55 % of her length to the stem (an upright stem);
- *   2 as designed: her own keel line;
- *   4 well raked: cut away from 35 % forward, rising to 0.3 m under the stem's deck edge
- *     (3, raked: from 45 %); never deeper than her own;
- *   1: halfway between plumb and her own.
- * Drawn through samples every 2.5 % of her length (the study's smooth curve through them).
+ * A study design with one chine: the game's stations take one hard chine a side, so a
+ * second (spray) chine is left out; the main chine, deep-V and flare stay.
  */
-export function bowKeel(keel: [number, number][], stemDeckY: number, bow: number): [number, number][] {
-  if (bow === 2) return keel;
-  const own = (t: number) => curveAt(keel, t);
-  const t0 = 0.55;
-  const plumb = (t: number) => (t < t0 ? own(t) : Math.min(own(t), own(t0)));
-  const from = bow >= 4 ? 0.35 : 0.45;
-  const stemY = Math.max(own(1), stemDeckY - 0.3);
-  const raked = (t: number) => (t < from ? own(t) : Math.max(own(t), own(from) + (stemY - own(from)) * ((t - from) / (1 - from)) ** 1.5));
-  const at = (t: number) => (bow < 2 ? plumb(t) + (own(t) - plumb(t)) * (bow / 2) : raked(t));
-  return Array.from({ length: 41 }, (_, i) => [i / 40, at(i / 40)] as [number, number]);
+function oneChine(d: HullDesign): HullDesign {
+  const { chine2Beam: _b, chine2Height: _h, ...section } = d.section;
+  return { ...d, section };
 }
 
-/** The workboat's chine generator's forefoot (vessel/hullForm.ts `forefoot`) for each bow step. */
-const CHINE_FOREFOOT = [
-  { from: 0.55, rise: 0 },
-  { from: 0.55, rise: 0.5 },
-  { from: 0.55, rise: 1 },
-  { from: 0.45, rise: 1 },
-  { from: 0.35, rise: 1 },
-];
+/**
+ * Her keel line with her bow reshaped (the Shipyard's bow choice: her stem's rake from
+ * vertical, SCALES.bow): a straight stem from 0.15 m under the stem head, raked `deg`, down
+ * until it meets her keel, which runs at full depth to it (her own keel held at its depth
+ * forward of 55 % of her length). 0 deg is a plumb stem. A 50 deg stem on a 2 m deep bow cuts
+ * the forefoot back ~2.4 m; the keel isn't cut away further aft than that (owner).
+ * Drawn through samples every 2.5 % of her length, and at the knuckle (the study's smooth
+ * curve through them).
+ */
+export function bowKeel(keel: [number, number][], stemDeckY: number, lengthM: number, deg: number): [number, number][] {
+  const own = (t: number) => curveAt(keel, t);
+  const deep = (t: number) => (t < 0.55 ? own(t) : Math.min(own(t), own(0.55)));
+  const stem = (t: number) => (deg > 0.1 ? stemDeckY - 0.15 - ((1 - t) * lengthM) / Math.tan((deg * Math.PI) / 180) : -Infinity);
+  const at = (t: number) => Math.max(deep(t), stem(t));
+  const ts = Array.from({ length: 41 }, (_, i) => i / 40);
+  // The knuckle, where the stem meets the keel: sampled too, so the corner stays sharp.
+  if (deg > 0.1) {
+    let lo = 0.55;
+    let hi = 1;
+    for (let k = 0; k < 30; k++) {
+      const m = (lo + hi) / 2;
+      if (stem(m) > deep(m)) hi = m;
+      else lo = m;
+    }
+    ts.push(hi);
+  }
+  return ts.sort((a, b) => a - b).map((t) => [t, at(t)] as [number, number]);
+}
 
 export const DESIGN_HULLS: DesignHull[] = [
   {
@@ -111,18 +119,27 @@ export const DESIGN_HULLS: DesignHull[] = [
     foredeck: 1.5,
   },
   {
-    name: 'Workboat: 12 m steel displacement hull',
+    name: 'Workboat: 12 m semi-displacement, hard chine, fine entry',
     form: (L, B, D, bow) => {
       const h = CONFIG.vessels.workboat.hull;
       return {
         kind: 'chine',
-        params: { ...h, length: h.length * L, beamDeck: h.beamDeck * B, beamChine: h.beamChine * B, keelY: h.keelY * D, chineYAft: h.chineYAft * D, chineYBow: h.chineYBow * D, deckYAft: h.deckYAft * D, deckYBow: h.deckYBow * D, forefoot: CHINE_FOREFOOT[bow] },
+        params: { ...h, length: h.length * L, beamDeck: h.beamDeck * B, beamChine: h.beamChine * B, keelY: h.keelY * D, chineYAft: h.chineYAft * D, chineYBow: h.chineYBow * D, deckYAft: h.deckYAft * D, deckYBow: h.deckYBow * D, forefoot: { from: 0.55, rise: 1, stemDeg: SCALES.bow(bow) } },
       };
     },
     planing: false,
     ramp: false,
     cockpit: 1.5,
     foredeck: 2.0,
+  },
+  // New hull types go on the end: a design's code holds its hull's place in this list.
+  {
+    name: 'Pilot boat: 14 m deep-V, fine entry, well-raked stem',
+    form: (L, B, D, bow) => ({ kind: 'lofted', design: scaledStudy(oneChine(study('pilot')), L, B, D, bow) }),
+    planing: true,
+    ramp: false,
+    cockpit: 1.6,
+    foredeck: 2.6,
   },
 ];
 
@@ -198,6 +215,22 @@ function clippedBelow(poly: readonly (readonly [number, number])[]): { area: num
   return Math.abs(a) < 1e-9 ? { area: 0, cy: 0 } : { area: Math.abs(a), cy: cy / (6 * a) };
 }
 
+/** A station's half-breadth at height y (0 below her keel; her deck half-breadth above her deck). */
+function halfBreadthAt(poly: readonly (readonly [number, number])[], y: number): number {
+  const [[xd, yd], [xc, yc], [, yk]] = [poly[4], poly[3], poly[2]];
+  if (y <= yk) return 0;
+  if (y >= yd) return xd;
+  if (y <= yc) return (xc * (y - yk)) / Math.max(yc - yk, 1e-6);
+  return xc + ((xd - xc) * (y - yc)) / Math.max(yd - yc, 1e-6);
+}
+
+/** Her bottom's height at half-breadth x in a station (keel to chine, chine to deck edge). */
+function bottomAt(poly: readonly (readonly [number, number])[], x: number): number {
+  const [[xd, yd], [xc, yc], [, yk]] = [poly[4], poly[3], poly[2]];
+  if (x <= xc) return yk + ((yc - yk) * x) / Math.max(xc, 1e-6);
+  return x >= xd ? yd : yc + ((yd - yc) * (x - xc)) / Math.max(xd - xc, 1e-6);
+}
+
 /** Half-breadth where a section crosses the waterline (0 if it doesn't). */
 function waterlineHalf(poly: readonly (readonly [number, number])[]): number {
   let half = 0;
@@ -249,14 +282,30 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   const deckHi = Math.max(...along(8).map((z) => q.deckY(z)));
   const deckLo = Math.min(...along(8).map((z) => q.deckY(z)));
   const headroom = SCALES.headroom(d.headroom);
-  const floorY = d.sunk ? deckLo - 0.19 : deckHi + 0.03;
+  // A step-down floor needs her hull at least as wide as the house down at that floor (its
+  // walls go down to it); in a fine entry it isn't, and the floor stays level.
+  let sunk = !!d.sunk;
+  if (sunk) {
+    const y = deckLo - 0.19 - 0.15;
+    const tightest = Math.min(...along(8).map((z) => halfBreadthAt(st.reduce((a, s) => (Math.abs(s.z - z) < Math.abs(a.z - z) ? s : a)).polygon, y)));
+    if (tightest < hw + 0.02) {
+      sunk = false;
+      warnings.push('Her hull is too fine under the wheelhouse to step down into it: its floor is kept level with the deck.');
+    }
+  }
+  const floorY = sunk ? deckLo - 0.19 : deckHi + 0.03;
   const roofY = floorY + headroom;
   const wall = 0.06;
   // The engine under a hatch in the cabin floor, aft to starboard.
   const eh = { x0: 0.15, x1: Math.min(0.85, hw - 0.2), z0: aft - 1.125, z1: aft - 0.325, pitDepth: 0.75 };
   const hatchZ = (eh.z0 + eh.z1) / 2;
-  const keelUnder = st.reduce((a, s) => (Math.abs(s.z - hatchZ) < Math.abs(a.z - hatchZ) ? s : a)).polygon[2][1];
-  eh.pitDepth = Math.min(0.75, floorY - keelUnder - 0.2);
+  // The engine space goes no deeper than her bottom allows under the whole hatch: her vee
+  // rises from the keel out to the chine, so its corners (out at the hatch's sides) are
+  // what touch first, most of all in a fine entry (it showed through the bottom, owner).
+  const bottomUnder = Math.max(
+    ...st.filter((s) => s.z >= eh.z0 - 0.4 && s.z <= eh.z1 + 0.4).flatMap((s) => [eh.x0, eh.x1].map((x) => bottomAt(s.polygon, x))),
+  );
+  eh.pitDepth = Math.min(0.75, floorY - bottomUnder - 0.08);
   if (eh.pitDepth < 0.55) warnings.push(`There's only ${(eh.pitDepth * 100).toFixed(0)} cm under the cabin floor for the engine (it wants 55): raise the floor or deepen her.`);
   const F = floorY;
   const roofTop = roofY + 0.1;

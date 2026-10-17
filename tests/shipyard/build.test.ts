@@ -55,7 +55,7 @@ describe('Shipyard: the boats it builds', () => {
     }
   });
 
-  it('the bow choice: plumb to well raked, each hull; a more raked bow cuts away her forefoot (less displacement, a shorter waterline)', () => {
+  it('the bow choice, a stem raked 0 (plumb) to 50 deg, each hull: more rake cuts away more forefoot, but only near the stem', () => {
     for (let hull = 0; hull < DESIGN_HULLS.length; hull++) {
       const mass: number[] = [];
       const lwl: number[] = [];
@@ -72,10 +72,18 @@ describe('Shipyard: the boats it builds', () => {
         expect(lwl[i], `hull ${hull} bow ${i}`).toBeLessThanOrEqual(lwl[i - 1] + 1e-9);
       }
       expect(mass[4], `hull ${hull}`).toBeLessThan(mass[0]);
+      // Even at 50 deg the keel is at full depth from 75 % of her length aft (owner: the
+      // forefoot isn't cut away far back).
+      const at = (t: number) => {
+        const st = VESSEL_DEFS.design.hull.stations;
+        const z = st[0].z - t * (st[0].z - st[st.length - 1].z);
+        return st.reduce((a, b) => (Math.abs(b.z - z) < Math.abs(a.z - z) ? b : a));
+      };
+      useDesign({ ...DEFAULT_DESIGN, hull, bow: 0 });
+      const plumbKeel = at(0.7).polygon[2][1];
+      useDesign({ ...DEFAULT_DESIGN, hull, bow: 4 });
+      expect(at(0.7).polygon[2][1], `hull ${hull}`).toBeCloseTo(plumbKeel, 6);
     }
-    // As designed, she's exactly the hull she was: the landing craft's 7.85 t.
-    useDesign({ ...DEFAULT_DESIGN, bow: 2 });
-    expect(VESSEL_DEFS.design.mass).toBe(VESSEL_DEFS.landingCraft.mass);
   });
 
   it('only the landing craft hull has the bow ramp', () => {

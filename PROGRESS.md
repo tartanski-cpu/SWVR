@@ -2828,6 +2828,42 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   - Shipyard views of the landing craft, a workboat-hull design with the house forward (the owner's case) and the gillnetter: no stray posts;
   - all tests pass.
 
+### Shipyard: the pilot boat hull, the bow as a stem angle (0-50 deg), fine-entry fixes (owner; on /next/)
+
+- **The owner asked:**
+  - add the pilot boat style of hull;
+  - call the workboat hull semi-displacement (a fine entry with a chine; geometry unchanged);
+  - fix her raked bow, which looked weird.
+  
+  Then, seeing the tests: the rake should go from plumb (0 deg) to 50 deg and no further. The keel was being cut away far too far back, and that's why the shape didn't resolve.
+- **The bow choice is now the stem's rake from vertical:** 0 (plumb), 12.5, 25, 37.5 or 50 deg (`SCALES.bow`).
+  - The stem is a straight line from 0.15 m under the stem head down at that angle until it meets the keel. The keel runs at full depth to it: the hull's own keel, held at its depth forward of 55 % of her length.
+  - So at 50 deg a 2 m deep bow's forefoot is cut back about 2.4 m: on the 12 m hull about 2.9 m, where the old "well raked" cut it back up to 7.8 m.
+  - The same rule on all four hulls (`shipyard/build.ts bowKeel`; for the workboat's chine generator, `HullParams.forefoot.stemDeg`).
+  - "As designed" is no longer a step. Version 1 codes read with the middle step (25 deg), so their bows differ a little from before.
+- **Fine entries drawn properly:**
+  - **The vee:** where the keel rises within 0.6 m of the chine, the chine closes in to it, so the bottom fines into a vee instead of staying a wide flat plank (which folded over one station and left a gap).
+  - **The wheelhouse walls** reach 0.15 m under the deck, no further (`hullMesh.ts`): lower down, a fine entry's hull is narrower than the house and the walls showed through her topsides. A sunk floor's walls go down to the floor, so the Shipyard keeps a step-down floor only where her hull is wide enough down there; otherwise the floor stays level and the page says why.
+  - **The engine space** is no deeper than her bottom allows under the hatch's sides, not just at her keel.
+  - The workboat and landing craft themselves are unchanged (golden runs equal).
+- **The pilot boat** (4th hull type): the hull study's 14 m pilot / crew boat, deep-V, fine entry, well-raked stem.
+  - The game's stations take one chine, so her spray chine is left out; her main chine, deep-V and flare stay.
+  - She's added at the end of the hull list. The hull choice is the leading part of the code, so **every earlier code still means the same boat**.
+  - **Flag:** floating on the study's design waterline (draught 1.1 m) she displaces 28.6 t, so even the 400 kW engine gives only 12.2 kn (9.0 / 10.9 / 12.2 kn on 150 / 280 / 400 kW). A real 14 m pilot boat (~20 t) has twin engines of ~450 kW or more.
+    - **Options:** a bigger engine package (changes the code layout: a new version), twin engines (a modules job), or a lighter, shallower pilot hull (a shallower design waterline).
+- **The workboat hull's description:** "12 m semi-displacement, hard chine, fine entry".
+- **Tests (500, all pass):**
+  - every bow angle on every hull builds and floats level;
+  - more rake never adds displacement or waterline;
+  - even at 50 deg her keel is at full depth from 70 % of her length aft.
+  
+  Workboat golden runs unchanged.
+- **Checked in the browser:** side and bow views of all four hulls at every bow angle: straight raked stems, no gaps.
+- **Owner test:** on the Shipyard page:
+  1. Pick the pilot boat and the workboat hull.
+  2. Move the Bow rake from plumb to 50 deg and look from the side and the bow, with the water off.
+  3. Run the pilot boat's trial on each engine.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

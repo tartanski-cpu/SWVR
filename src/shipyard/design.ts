@@ -15,9 +15,11 @@
  * Each version owns a range of the 45-bit numbers, so a code says which rules it was made
  * with by where it falls:
  *   - version 1 (the first Shipyard, no bow choice; each choice in whole bits): 2^42 .. 2^43;
- *   - version 2 (the bow choice): from 2^43, its ~1.24 x 10^13 combinations (to ~4.8 x 2^42);
+ *   - version 2 (the bow choice): from 2^43, its ~1.65 x 10^13 combinations (to ~5.8 x 2^42;
+ *     the 4th hull type, the pilot boat, added ~0.41 x 10^13 at the top of it);
  *   - the rest, up to 8 x 2^42, is left for later versions.
- * Version 1 codes still read, as the same boats (bow 2: each hull's own bow).
+ * Version 1 codes still read, with the bow at the middle step (a 25 deg stem); before the bow
+ * became a stem angle, that step was each hull's own bow, so their bows differ a little.
  */
 
 /** The building rules this code was made with (2: the bow choice, mixed-radix packing). */
@@ -33,7 +35,7 @@ export interface ShipDesign {
   depth: number;
   /** Bulwark height. */
   bulwark: number;
-  /** Bow: 0 plumb .. 2 the hull's own (as designed) .. 4 well raked (BOW_STEPS). */
+  /** Bow: the stem's rake, 0 plumb .. 4 raked 50 deg (SCALES.bow). */
   bow: number;
   /** Wheelhouse: where along the deck (aft .. forward), its length, its width, its headroom. */
   housePos: number;
@@ -53,7 +55,9 @@ export interface ShipDesign {
 
 /** Each choice's number of steps, in the code's order. */
 export const FIELDS: { key: keyof ShipDesign; steps: number }[] = [
-  { key: 'hull', steps: 3 },
+  // The hull type first (most significant): its range grows at the top, so adding a type
+  // (the pilot boat, the 4th) leaves every earlier code meaning the same boat.
+  { key: 'hull', steps: 4 },
   { key: 'length', steps: 16 },
   { key: 'beam', steps: 16 },
   { key: 'depth', steps: 16 },
@@ -102,8 +106,8 @@ export const SCALES = {
   houseWidth: (i: number) => 0.65 + 0.05 * i,
   /** Headroom, floor to roof (m): 1.9 .. 2.6. */
   headroom: (i: number) => 1.9 + 0.1 * i,
-  /** Bow: 0 plumb, 1 near plumb, 2 as the hull was designed, 3 raked, 4 well raked. */
-  bow: (i: number) => ['plumb', 'near plumb', 'as designed', 'raked', 'well raked'][i],
+  /** Bow: the stem's rake from vertical (deg), 0 (plumb) .. 50 (owner: no further). */
+  bow: (i: number) => 12.5 * i,
   /** Gearbox ratio: 1.0 .. 4.18, each step 10 % more than the last (rounded to 0.01). */
   gear: (i: number) => Math.round(100 * 1.1 ** i) / 100,
 };
@@ -184,7 +188,7 @@ export function decodeDesign(code: string): { design: ShipDesign } | { error: st
   return { design: d };
 }
 
-/** A version 1 code (each choice in whole bits, no bow choice): the same boat, bow as designed. */
+/** A version 1 code (each choice in whole bits, no bow choice): the same boat, its stem raked 25 deg (the middle step). */
 function decodeV1(all: bigint): { design: ShipDesign } | { error: string } {
   let shift = 42;
   const d = { bow: 2 } as ShipDesign;

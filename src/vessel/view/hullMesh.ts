@@ -152,7 +152,17 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
   // Wet-exhaust outlet: a short pipe stub through the transom.
   const ex = exhaustOutlet;
   if (ex) parts.push(bar(new THREE.Vector3(ex[0], ex[1], ex[2] - 0.12), new THREE.Vector3(ex[0], ex[1], ex[2]), 0.13, 0.13, col.mast));
-  if (hasHouse(layout)) parts.push(...buildWheelhouse(layout, col));
+  if (hasHouse(layout)) {
+    // Its walls start below the deck so there's never a gap there, but no lower than 0.06 m
+    // under it, where the hull's sides are still wider than the house: on a fine entry the
+    // hull narrows fast below the deck and lower walls showed through her topsides. A sunk
+    // house's walls go down to its floor (the Shipyard keeps those where her hull is wide).
+    const wh = layout.wheelhouse;
+    const plan = hullPlan({ hull: form });
+    const deckLo = Math.min(...Array.from({ length: 9 }, (_, i) => plan.deckY(wh.front + ((wh.aft - wh.front) * i) / 8)));
+    const low = Math.min(0.9, wh.floorY - 0.15);
+    parts.push(...buildWheelhouse(layout, col, sunk ? low : Math.max(low, deckLo - 0.06)));
+  }
   // Stepping down into a sunken cabin: the step's face, from the deck down to the door sill.
   if (sunk && layout.wheelhouse) {
     const wh = layout.wheelhouse;
@@ -321,13 +331,12 @@ export function frontRake(wh: { floorY: number; windowSill: number; frontSill?: 
  * Walk-in wheelhouse: walls with a window band all round, an aft doorway, floor, helm
  * console, roof and mast. Dimensions come from the layout config (shared with layout.ts).
  */
-function buildWheelhouse(layout: HouseLayout, col: Paint): THREE.BufferGeometry[] {
+function buildWheelhouse(layout: HouseLayout, col: Paint, base: number): THREE.BufferGeometry[] {
   const wh = layout.wheelhouse;
   const parts: THREE.BufferGeometry[] = [];
   const hw = wh.halfWidth;
   const w = wh.wall;
-  // Walls start below the deck (and the floor) so there's never a gap.
-  const base = Math.min(0.9, wh.floorY - 0.15);
+  // Walls start at `base`: below the deck (and the floor), so there's never a gap.
   const sill = wh.floorY + wh.windowSill;
   const head = wh.floorY + wh.windowHead;
   const roof = wh.roofY;
