@@ -136,7 +136,7 @@ describe('pins and marks', () => {
     ben.note({ ...pin, done: true, doneBy: 'Ben' });
     await tick();
     expect(amy.notes[0]).toMatchObject({ done: true, doneBy: 'Ben' });
-    keeper.note({ id: 'k-1', kind: 'mark', by: 'Simon', colour: '#d9622b', t: 2, pts: [[0.1, 0.5, 0.5], [0.2, 0.5, 0.6]] });
+    keeper.note({ id: 'k-1', kind: 'ink', sheet: 's1', by: 'Simon', colour: '#d9622b', t: 2, pts: [[0.1, 0.5], [0.2, 0.6]] });
     await tick();
     expect(ben.notes.map((n) => n.id)).toEqual(['a-1', 'k-1']);
     const late = new Member({ ...DEFAULT_DESIGN }, 'Cat', host.client(), recorder().events);
@@ -152,8 +152,38 @@ describe('pins and marks', () => {
   it('bad notes are refused', async () => {
     const { keeper, amy } = await session();
     amy.note({ id: 'x', kind: 'pin', by: 'A', colour: 'red', t: 1, at: [NaN, 0, 0], text: 'x', done: false });
-    amy.note({ id: 'y', kind: 'mark', by: 'A', colour: '#000000', t: 1, pts: [[0, 0, 0]] });
+    amy.note({ id: 'y', kind: 'ink', sheet: 's1', by: 'A', colour: '#000000', t: 1, pts: [[0, 0]] });
     await tick();
     expect(keeper.notes).toHaveLength(0);
+  });
+});
+
+import { chunkedClient, chunkedHost, CHUNK, Joiner, pieces } from '../../src/shipyard/chunked';
+
+describe('big messages in pieces', () => {
+  it('a message over the size goes as pieces and comes back whole; small ones go as they are', () => {
+    const big = { t: 'note', image: 'x'.repeat(CHUNK * 3 + 17) };
+    const parts = pieces(big);
+    expect(parts.length).toBe(4);
+    const j = new Joiner();
+    const out = [...parts].reverse().map((p) => j.take(p)); // in any order
+    expect(out.filter((x) => x !== undefined)).toEqual([big]);
+    expect(pieces({ t: 'small' })).toEqual([{ t: 'small' }]);
+  });
+
+  it('a session over chunked links carries a big sketch both ways, and a joiner gets it in the welcome', async () => {
+    const host = new LoopbackHost();
+    const keeper = new Keeper({ ...DEFAULT_DESIGN }, 'Simon', chunkedHost(host), recorder().events);
+    const amy = new Member({ ...DEFAULT_DESIGN }, 'Amy', chunkedClient(host.client()), recorder().events);
+    await tick();
+    await tick();
+    const image = `data:image/jpeg;base64,${'A'.repeat(150_000)}`;
+    amy.note({ id: 'sh1', kind: 'sheet', by: 'Amy', colour: '#2f8a4a', t: 1, title: 'Main', image, aspect: 1.6 });
+    await tick();
+    expect(keeper.notes.find((n) => n.id === 'sh1')).toBeTruthy();
+    const cat = new Member({ ...DEFAULT_DESIGN }, 'Cat', chunkedClient(host.client()), recorder().events);
+    await tick();
+    await tick();
+    expect((cat.notes.find((n) => n.id === 'sh1') as { image: string }).image.length).toBe(image.length);
   });
 });

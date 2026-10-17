@@ -7,6 +7,7 @@
  */
 import { DEFAULT_DESIGN, FIELDS, type ShipDesign } from './design';
 import { cleanNotes, type Note } from './notes';
+import { cleanBrief, type Brief } from './brief';
 
 export interface Variant {
   id: string;
@@ -24,6 +25,8 @@ export interface Variant {
 export interface YardDoc {
   v: 2;
   variants: Variant[];
+  /** What she's for and her targets (brief.ts): one for the design and all its variants. */
+  brief?: Brief;
 }
 
 export const MAIN = 'main';
@@ -75,7 +78,8 @@ export function cleanDoc(raw: unknown): YardDoc | null {
   // Main first; no repeated ids.
   const seen = new Set<string>();
   const rest = list.filter((v) => v.id !== MAIN && !seen.has(v.id) && seen.add(v.id)).slice(0, MAX_VARIANTS - 1);
-  return { v: 2, variants: [{ ...main, parent: null }, ...rest] };
+  const brief = cleanBrief(o.brief);
+  return { v: 2, variants: [{ ...main, parent: null }, ...rest], ...(brief ? { brief } : {}) };
 }
 
 /** A fork of `from`: a full copy of its design and notes, with a parent link. */

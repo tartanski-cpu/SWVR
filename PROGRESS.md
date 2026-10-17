@@ -3348,6 +3348,72 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   3. Press Compare, tick a value or two and copy them across.
   4. Try Make it the main design, then find the old main kept as a variant.
 
+### Shipyard: a designer's workflow, the brief, sketch to boat, flat sketches (owner)
+
+- **The owner asked:**
+  - The marks were overcomplicated, drawn in 3D on the model, so a line drawn in plan view showed up odd from other angles. Draw on a flat picture instead, like a screenshot.
+  - A design pass over the whole Shipyard: it was a sandbox; make it a tool for designers with a workflow. Start from what kind of boat you want, or from a sketch, and have it suggest a boat. "Maximum effort."
+- **The workflow** (`shipyard.html`, `page.ts`). The page is now three parts under a header:
+  - **The header:** her name (shared), the **steps** (Brief, Hull, Wheelhouse, Engine, Deck gear, Controls, Paint, Trials & handover), undo / redo, who's here, and **👥 Design together** (a pop-over: your name, start a session, the link, leave).
+  - **The left panel** shows only the step you're on, each with a line of guidance (`STEP_GUIDE`), and **Back / Next** at its foot. The choices' steps are made from the existing groups (`section()` now starts a step), so new choices land in a step by themselves. The step you're on is remembered for the browser tab.
+  - **The middle:** her 3D view, the variants' tabs, the views, the tools (📍 Pin, ✏ Sketch) and her key figures.
+  - **The right:** **the brief** checked line by line, her sea trial, her figures and warnings, **to do** (pins) and **sketches**.
+  - Narrower screens put the right column under the view. On a phone it's one column with the view pinned at the top, and the steps wrap onto their own line.
+- **The brief** (`src/shipyard/brief.ts`):
+  - **The jobs** (`MISSIONS`): harbour workboat, landing craft, inshore fishing, pilot / crew transfer, or something else. Each has a line on what she's for, usual **targets** (top speed ≥, range flat out ≥, price ≤, GM ≥, a crane wanted) and a suggested hull type with its layout and deck gear.
+  - **The targets** were set from trials of each type's engine fits (measured Oct 2026 in the browser), so a suggested boat meets its own brief with a little in hand:
+
+    | Job | Speed | Range | Price | Best fit |
+    |---|---|---|---|---|
+    | Workboat (with crane) | ≥ 10 kn | ≥ 50 nm | ≤ £200k | 280 kW single: 10.0 kn |
+    | Landing craft | ≥ 18 kn | ≥ 90 nm | ≤ £120k | 280 kW: 19.5 kn, £101k |
+    | Fishing | ≥ 15 kn | ≥ 70 nm | ≤ £140k | twin 150 kW: 15.6 kn, £130k |
+    | Pilot | ≥ 22 kn | ≥ 110 nm | ≤ £280k | twin 400 kW: 24.1 kn, 126 nm, £264k |
+
+    The game's GM figures for these types are 0.9-2.5 m, so the GM targets (0.5-0.6 m) are a floor.
+  - **Shared:** the brief is one for the design and all its variants (the client's requirement; variants are ways of meeting it). It's carried in the session (op `brief`; `YardDoc.brief`) and in saved copies.
+  - **Suggest a boat for this brief:** the job's hull type and layout, then every engine fit (`engineOptions`: three engines, single and twin) is tried on her in the background trial worker. `pickEngine` fits the cheapest that meets speed, range and budget; failing that, the cheapest meeting speed and range; failing that, the fastest. Progress shows ("Trying her engines on trial: 3 of 6…") and the result says what was fitted and why. If she's changed meanwhile, it says so rather than overwrite.
+  - **The check** (`checkBrief`): each line met ✓, not met ✗ (with a hint and a "Go to <step>" button), or … while her trial runs. The step bar marks Trials & handover ✓ or ✗; the last step opens with the verdict.
+- **Start from a sketch** (`src/shipyard/sketchFit.ts`):
+  - A squared sheet (20 x 8 m, 1 m squares, bolder every 5 m, the waterline marked, "bow →"). Two pens: **hull** (blue) and **house** (orange).
+  - **Suggest a boat** reads the drawing as a naval architect reads a first sketch (`readSketch`):
+    - length overall;
+    - freeboard (the sheer amidships);
+    - draught (the lowest line);
+    - stem rake: from the forward-most point near the sheer down to the forward-most point near the keel, from the vertical;
+    - a ramp bow: a long run (over a fifth of her length) at over 55°;
+    - the house: its length, its place along her, its height over the sheer, and its front's lean.
+  - **Matching to a type** (`fitSketch`): each hull type's own profile is read **the same way**, off its stations' sheer and keel at standard size (`hullProfiles` in page.ts), so sketch and type compare like for like. The nearest type is scored on shape: depth/length, the stem, the draught's share of the depth, the ramp, and a little on size. The sliders are then set to the drawing: length and depth scale, stem rake, house length, place, headroom, window rake.
+  - It says what it read and picked, and the next nearest type. **Use this boat** applies it (shared, undoable) and goes to the Hull step. The sketch stays in the design's sketches.
+- **Flat sketches replace the 3D marks** (`notes.ts` kinds `sheet` and `ink`; `src/shipyard/sheetEditor.ts`):
+  - **✏ Sketch** takes a snapshot of the 3D view as it is (720 px JPEG) and opens it in the sheet editor. Draw with your pen in your colour; **Undo my last stroke**, **Clear mine**, **Done**.
+  - Each stroke is its own note in the sheet's 0..1 coordinates, so several people can draw on one sheet at once and see each other's strokes as they land.
+  - Sketches are listed on the right (thumbnail, author, strokes); click to open, ✕ to delete (with their strokes). At most `MAX_SHEETS` (12) a tab.
+  - The old 3D marks are no longer read: any saved ones are dropped.
+- **Fix found while testing: big messages broke a session.** A data channel between browsers cuts messages off at about 16 KB between some browsers (PeerJS's own piece size is 16 300 bytes). So a sketch's snapshot (about 30 KB), or the welcome to someone joining a session with sketches in it, closed the link. The session's link now sends anything over 15 000 characters in numbered pieces and joins them on arrival (`src/shipyard/chunked.ts`, wrapping the game's transports without changing them).
+- **Tests:**
+  - `tests/shipyard/sketchFit.test.ts`:
+    - drawn profiles read right;
+    - a deep near-plumb 12 m hull is a workboat, a long low ramp a landing craft, a fast raked 14 m one a pilot boat, a short beamy shallow one a gillnetter;
+    - the sliders are sized to the sketch, and the house is read;
+    - too little drawn gives no reading;
+    - the brief: a job's targets and suggestion; picking the engine fit; each line's check.
+  - `session.test.ts`: big messages in pieces, any order; a session over chunked links carries a 150 KB sketch both ways, and a late joiner gets it.
+- **Checked in headless Chromium:**
+  - **The walk-through** (screenshots at 1600 px and a 390 px phone):
+    - Pilot / crew transfer, named "Calder pilot", then Suggest: twin 400 kW fitted after six trials, meeting every line (24.1 kn, 126 nm, £264,000).
+    - The Hull step, and a snapshot sketch drawn on.
+    - Start from a sketch: a 14 m hull with a raked stem and a 4.5 m house, read as a pilot boat at 100 % ("next nearest: gillnetter"). Use this boat took it to the Hull step.
+    - Trials & handover with the verdict and her code.
+  - **Two browsers over the real PeerJS broker:**
+    - Simon set the brief (landing craft, "Island ferry") and Amy got it on joining.
+    - Amy sketched on a snapshot, which reached Simon; his stroke on it reached her (screenshot of both colours).
+    - Earlier checks rerun: the shared session with takeover, and variants with compare and merge.
+- **Not yet:**
+  - the sketch reads a profile only (beam stays the type's: a plan-view sketch could set it);
+  - suggestion from the brief doesn't size the hull (it fits the engine);
+  - pins don't link to module sockets (stop 3).
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

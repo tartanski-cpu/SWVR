@@ -28,6 +28,7 @@ import type { ClientTransport, HostTransport, Link } from '../net/transport';
 import type { ShipDesign } from './design';
 import { cleanNote, dropNote, putNote, type Note } from './notes';
 import { cleanDoc, cleanVariant, dropVariant, MAIN, newDoc, putVariant, type Variant, type YardDoc } from './variants';
+import { cleanBrief, type Brief } from './brief';
 
 export type { YardDoc } from './variants';
 
@@ -54,7 +55,8 @@ type Op =
   | { t: 'note'; v: string; note: Note }
   | { t: 'unnote'; v: string; id: string }
   | { t: 'variant'; variant: Variant }
-  | { t: 'unvariant'; id: string };
+  | { t: 'unvariant'; id: string }
+  | { t: 'brief'; brief: Brief };
 type Presence = { cursor?: Person['cursor']; holding?: Person['holding']; name?: string; variant?: string };
 type ToKeeper = { t: 'hello'; name: string } | Op | ({ t: 'me' } & Presence);
 type FromKeeper = { t: 'welcome'; you: string; doc: YardDoc; people: Person[] } | (Op & { by: string }) | { t: 'people'; people: Person[] };
@@ -91,17 +93,23 @@ export interface SessionEvents {
   onNotes?: (notes: Note[], variant: string) => void;
   /** Variants were made, renamed, promoted or deleted (or the lot, on joining). */
   onVariants?: (variants: Variant[], by: string | null) => void;
+  /** The brief changed (or arrived, on joining). */
+  onBrief?: (brief: Brief | null, by: string | null) => void;
 }
 
 /** Common to both sides: the session's copy of everything, and the people. */
 abstract class Side {
   variants: Variant[];
+  /** What she's for (brief.ts), once someone has set it. */
+  brief: Brief | null;
   people: Person[] = [];
   /** This browser's person id. */
   me = '';
 
   constructor(start: ShipDesign | YardDoc, protected readonly events: SessionEvents) {
-    this.variants = ('variants' in start ? cleanDoc(start) : null)?.variants ?? newDoc(start as ShipDesign).variants;
+    const doc = 'variants' in start ? cleanDoc(start) : null;
+    this.variants = doc?.variants ?? newDoc(start as ShipDesign).variants;
+    this.brief = doc?.brief ?? null;
   }
 
   /** The main design and its notes (the first tab). */
@@ -116,7 +124,12 @@ abstract class Side {
   }
 
   doc(): YardDoc {
-    return { v: 2, variants: this.variants };
+    return { v: 2, variants: this.variants, ...(this.brief ? { brief: this.brief } : {}) };
+  }
+
+  /** Set the brief (shared, whole). */
+  setBrief(brief: Brief): void {
+    this.act({ t: 'brief', brief });
   }
 
   /** Change a variant's design here and share it. */
@@ -157,6 +170,13 @@ abstract class Side {
       if (!this.variant(v.id)) return null; // the list is full
       this.events.onVariants?.(this.variants, by);
       return { t: 'variant', variant: v };
+    }
+    if (op.t === 'brief') {
+      const b = cleanBrief(op.brief);
+      if (!b) return null;
+      this.brief = b;
+      this.events.onBrief?.(b, by);
+      return { t: 'brief', brief: b };
     }
     if (op.t === 'unvariant') {
       if (op.id === MAIN || !this.variant(op.id)) return null;
@@ -298,6 +318,8 @@ export class Member extends Side {
       this.joined = true;
       this.people = msg.people;
       this.variants = doc.variants;
+      this.brief = doc.brief ?? null;
+      this.events.onBrief?.(this.brief, null);
       this.events.onVariants?.(this.variants, null);
       for (const v of this.variants) this.events.onNotes?.(v.notes, v.id);
       this.events.onDesign(this.design, cleanPatch(this.design, this.design), null, MAIN);

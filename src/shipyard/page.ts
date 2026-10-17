@@ -1,6 +1,14 @@
 /**
  * The Shipyard page (shipyard.html; owner, Oct 2026): design a boat and get her code.
  *
+ * A designer's workflow (owner: a tool, not a sandbox), in steps along the top:
+ *   Brief       what she's for and her targets (brief.ts); a suggested boat for it, or a
+ *               first sketch of her profile read into one (sketchFit.ts)
+ *   Hull … Paint  one step per group of choices, each with a line of guidance
+ *   Trials & handover  the brief checked against her trials, her code, the game, favourites
+ * The brief is checked line by line all the way (right-hand column), with where to go when a
+ * line isn't met. Designing together, variants, pins and sketches sit across all the steps.
+ *
  *   1. hull type, and sliders for her length, beam, depth and bulwarks;
  *   2. the wheelhouse: where it sits, its length, width and headroom, a step-down floor;
  *   3. the engine (her gearbox is matched to it by trial, in the background);
@@ -26,7 +34,11 @@ import { YardLink } from './yardLink';
 import { Keeper, newSessionId, sessionIdFrom, type DesignPatch, type Person, type SessionEvents } from './session';
 import { cleanDoc, diffFields, fork, MAIN, mergePatch, newDoc, promote, type Variant, type YardDoc } from './variants';
 import { LoopbackHost } from '../net/transport';
-import { fromFrac, noteId, toFrac, todo, type Frac, type Mark, type Note, type Pin } from './notes';
+import { fromFrac, inkOf, MAX_SHEETS, noteId, sheetsOf, toFrac, todo, type Frac, type Ink, type Note, type Pin, type Sheet } from './notes';
+import { checkBrief, engineOptions, missionOf, MISSIONS, newBrief, pickEngine, suggestFor, type Brief, type Tried } from './brief';
+import { fitSketch, readSketch, type HullProfile, type Pt } from './sketchFit';
+import { SheetEditor } from './sheetEditor';
+import { hullFormOf } from '../modular/hull';
 import { addFavourite, cleanName, readFavourites, removeFavourite, writeFavourites, type Favourite, type Store } from './favourites';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -148,12 +160,29 @@ let hullMin = [0, 0, 0];
 let hullMax = [1, 1, 1];
 
 // ── The controls ──
-const controls = $('controls');
+/** A line of guidance for each step of choices (by its title). */
+const STEP_GUIDE: Record<string, string> = {
+  Hull: 'Her type and proportions. Length and beam set her size and stability; depth her freeboard; a raked bow throws spray aside and takes a head sea more softly.',
+  Wheelhouse: 'Where the crew stand and what they can see. Forward gives a long working deck aft; aft, a foredeck to work over. Keep it low and light for stability.',
+  Engine: 'Power for the speed in the brief. The propeller and gearbox are matched to her by trial each time; twin engines add power and handling, and cost.',
+  'Deck gear': 'Working gear on deck. A crane lifts cargo and gear aboard; its weight is designed in.',
+  Controls: 'What the skipper has at the helm.',
+  Paint: 'Her colours, hull and roof.',
+};
+const stepBody = $('stepBody');
+const handoverStep = stepBody.querySelector<HTMLElement>('[data-step=handover]')!;
+/** Where the choices being made go: the current step's panel (section() starts a new step). */
+let controls: HTMLElement = stepBody;
 function section(title: string): HTMLElement {
-  const h = document.createElement('h2');
-  h.textContent = title;
-  controls.appendChild(h);
-  return controls;
+  const name = title.replace(/^\d+\.\s*/, '');
+  const el = document.createElement('div');
+  el.className = 'step';
+  el.dataset.step = name.toLowerCase();
+  el.dataset.title = name;
+  el.innerHTML = `<h1>${name}</h1>${STEP_GUIDE[name] ? `<p class="guide">${STEP_GUIDE[name]}</p>` : ''}`;
+  stepBody.insertBefore(el, handoverStep);
+  controls = el;
+  return el;
 }
 function choices(key: keyof ShipDesign, items: { name: string; note?: string }[], patch: (i: number) => Partial<ShipDesign> = () => ({})): void {
   const box = document.createElement('div');
@@ -320,6 +349,7 @@ function showFigures(): void {
   ]);
   $('warnings').innerHTML = boat.warnings.map((w) => `<div>${w}</div>`).join('');
   showQuick();
+  if (typeof showBriefCheck === 'function' && $('briefCheck')) showBriefCheck();
 }
 
 /**
@@ -344,6 +374,7 @@ function showQuick(): void {
 function showTrial(): void {
   const t = trial;
   showQuick();
+  showBriefCheck();
   if (!t) {
     $('trial').innerHTML = '';
     return;
@@ -456,7 +487,7 @@ function storage(): Store | null {
   }
 }
 /** Her hull type and length: the name a favourite gets if you don't give one. */
-const defaultName = () => `${DESIGN_HULLS[design.hull].name.split(':')[0].trim()} ${boat.figures.lengthM.toFixed(1)} m`;
+const defaultName = () => brief.name || `${DESIGN_HULLS[design.hull].name.split(':')[0].trim()} ${boat.figures.lengthM.toFixed(1)} m`;
 /** A small picture of her from the bow quarter (the view put back after). */
 function picture(): string {
   const keep = { eye: camera.position.clone(), at: orbit.target.clone() };
@@ -605,7 +636,8 @@ function startLink(id: string): void {
   showSession();
 }
 function showSession(): void {
-  $('together').classList.toggle('on', !!sessionId);
+  $('togetherPop').classList.toggle('on', !!sessionId);
+  $('togetherBtn').textContent = sessionId ? '👥 Session' : '👥 Design together';
   if (!sessionId) return;
   ($('sessionLink') as HTMLInputElement).value = `${location.origin}${location.pathname}?s=${sessionId}`;
 }
@@ -747,6 +779,7 @@ function dropMyNote(id: string): void {
 function notesChanged(): void {
   drawNotes();
   showTodo();
+  sheetEditor.refresh();
   saveSessionCopy();
 }
 const notesGroup = new THREE.Group();
@@ -778,12 +811,6 @@ function drawNotes(): void {
     g.add(stalk, dot, head);
     notesGroup.add(g);
   });
-  for (const n of notes) {
-    if (n.kind !== 'mark') continue;
-    const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(n.pts.map(fracToVec)), new THREE.LineBasicMaterial({ color: n.colour, depthTest: false }));
-    line.renderOrder = 11;
-    notesGroup.add(line);
-  }
 }
 /** A round pin head with its number. */
 function pinHead(label: string, colour: string, opacity: number): THREE.Sprite {
@@ -806,10 +833,9 @@ function pinHead(label: string, colour: string, opacity: number): THREE.Sprite {
   s.scale.set(0.42, 0.42, 1);
   return s;
 }
-/** The to-do list: open pins, then done ones; and the marks' count. */
+/** The to-do list: open pins, then done ones; and the sketches. */
 function showTodo(): void {
   const list = todo(notes);
-  const marks = notes.filter((n): n is Mark => n.kind === 'mark');
   const open = list.filter((p) => !p.done).length;
   $('todoCount').textContent = list.length ? `${open} open, ${list.length - open} done` : '';
   const box = $('todo');
@@ -826,14 +852,7 @@ function showTodo(): void {
     };
     box.appendChild(row);
   });
-  $('marksLine').innerHTML = marks.length ? `${marks.length} mark${marks.length > 1 ? 's' : ''} drawn on her. <button id="undoMark">Remove my last</button> <button id="clearMarks">Clear all</button>` : '';
-  $('marksLine').querySelector<HTMLElement>('#undoMark')?.addEventListener('click', () => {
-    const mine = marks.filter((m) => m.by === author().by).sort((a, b) => a.t - b.t).pop();
-    if (mine) dropMyNote(mine.id);
-  });
-  $('marksLine').querySelector<HTMLElement>('#clearMarks')?.addEventListener('click', () => {
-    if (confirm('Clear everyone’s marks on her? (Pins stay.)')) for (const m of marks) dropMyNote(m.id);
-  });
+  showSketches();
 }
 /** Turn the view to look at a point on her, from where you are. */
 function lookAt(p: THREE.Vector3): void {
@@ -842,23 +861,32 @@ function lookAt(p: THREE.Vector3): void {
   camera.position.copy(p).add(back);
   orbit.update();
 }
-// The tools on the view: 📍 Pin (click her, type a note) and ✏ Mark (draw on her).
-let tool: 'pin' | 'mark' | null = null;
+// The tools on the view: 📍 Pin (click her, type a note) and ✏ Sketch (a snapshot of the view to draw on, in 2D).
+let tool: 'pin' | null = null;
 const toolBtns: Record<string, HTMLButtonElement> = {};
-for (const [t, label] of [['pin', '📍 Pin'], ['mark', '✏ Mark']] as const) {
+{
+  const gap = document.createElement('span');
+  gap.className = 'sep';
+  $('views').appendChild(gap);
   const b = document.createElement('button');
-  b.textContent = label;
+  b.textContent = '📍 Pin';
   b.className = 'tool';
-  b.onclick = () => setTool(tool === t ? null : t);
-  toolBtns[t] = b;
-  $('views').appendChild(b);
+  b.title = 'Put a pin on her with a note (a to-do)';
+  b.onclick = () => setTool(tool === 'pin' ? null : 'pin');
+  toolBtns.pin = b;
+  const k = document.createElement('button');
+  k.textContent = '✏ Sketch';
+  k.className = 'tool';
+  k.title = 'Take a snapshot of this view and draw on it';
+  k.onclick = () => snapshotSheet();
+  $('views').append(b, k);
 }
 function setTool(t: typeof tool): void {
   tool = t;
   orbit.enabled = !t;
   for (const [k, b] of Object.entries(toolBtns)) b.classList.toggle('on', k === t);
   renderer.domElement.style.cursor = t ? 'crosshair' : '';
-  $('toolHint').textContent = t === 'pin' ? 'Click on her where the pin goes' : t === 'mark' ? 'Draw on her; press ✏ Mark again to stop' : '';
+  $('toolHint').textContent = t === 'pin' ? 'Click on her where the pin goes' : '';
   if (t !== 'pin') ($('pinEditor') as HTMLElement).hidden = true;
 }
 const noteRay = new THREE.Raycaster();
@@ -869,8 +897,6 @@ function hitBoat(e: PointerEvent): THREE.Vector3 | null {
   return noteRay.intersectObject(boatRoot, true)[0]?.point ?? null;
 }
 let pendingPin: Frac | null = null;
-let stroke: THREE.Vector3[] | null = null;
-let strokeLine: THREE.Line | null = null;
 let downAt: { x: number; y: number } | null = null;
 renderer.domElement.addEventListener('pointerdown', (e) => {
   downAt = { x: e.clientX, y: e.clientY };
@@ -886,31 +912,9 @@ renderer.domElement.addEventListener('pointerdown', (e) => {
     ed.hidden = false;
     ($('pinText') as HTMLInputElement).value = '';
     ($('pinText') as HTMLInputElement).focus();
-  } else if (tool === 'mark' && hit) {
-    stroke = [hit];
-    strokeLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints(stroke), new THREE.LineBasicMaterial({ color: author().colour, depthTest: false }));
-    strokeLine.renderOrder = 11;
-    scene.add(strokeLine);
-    renderer.domElement.setPointerCapture(e.pointerId);
   }
-});
-renderer.domElement.addEventListener('pointermove', (e) => {
-  if (!stroke || !strokeLine) return;
-  const hit = hitBoat(e);
-  if (!hit || hit.distanceTo(stroke[stroke.length - 1]) < 0.04 || stroke.length >= 300) return;
-  stroke.push(hit);
-  strokeLine.geometry.dispose();
-  strokeLine.geometry = new THREE.BufferGeometry().setFromPoints(stroke);
 });
 renderer.domElement.addEventListener('pointerup', (e) => {
-  if (stroke && strokeLine) {
-    scene.remove(strokeLine);
-    strokeLine.geometry.dispose();
-    if (stroke.length >= 2) putMyNote({ id: noteId(link?.side?.me ?? ''), kind: 'mark', ...author(), t: Date.now(), pts: stroke.map((p) => toFrac(p.toArray(), hullMin, hullMax)) });
-    stroke = null;
-    strokeLine = null;
-    return;
-  }
   // A click (not a drag) on a pin: show it on the list.
   if (!tool && downAt && Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) < 5) {
     const r = renderer.domElement.getBoundingClientRect();
@@ -944,6 +948,259 @@ $('pinCancel').onclick = () => setTool(null);
 // would otherwise hold it for up to a minute).
 window.addEventListener('pagehide', () => link?.close());
 
+// ── Sketches (notes.ts sheets and ink; sheetEditor.ts): flat pictures to draw on ──
+const sheetEditor = new SheetEditor({
+  sheet: (id) => notes.find((n): n is Sheet => n.kind === 'sheet' && n.id === id),
+  ink: (id) => inkOf(notes, id),
+  author: () => author(),
+  addInk: (sheet, pts, tag) => putMyNote({ id: noteId(side().me), kind: 'ink', ...author(), t: Date.now(), sheet, pts, ...(tag ? { tag } : {}) } satisfies Ink),
+  dropInk: (id) => dropMyNote(id),
+  suggest: (sheet) => suggestFromSketch(sheet),
+});
+function newSheet(fields: Pick<Sheet, 'title' | 'image' | 'aspect' | 'grid'>): string | null {
+  if (sheetsOf(notes).length >= MAX_SHEETS) {
+    alert(`That’s ${MAX_SHEETS} sketches on this tab: delete one first (Sketches, on the right).`);
+    return null;
+  }
+  const id = noteId(side().me);
+  putMyNote({ id, kind: 'sheet', ...author(), t: Date.now(), ...fields });
+  return id;
+}
+/** ✏ Sketch: a snapshot of the view as it is (pins and all), to draw on. */
+function snapshotSheet(): void {
+  renderer.render(scene, camera);
+  const src = renderer.domElement;
+  const w = Math.min(720, src.width);
+  const h = Math.round((w * src.height) / src.width);
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  c.getContext('2d')!.drawImage(src, 0, 0, w, h);
+  const tab = side().variant(active)?.name ?? 'Main';
+  const id = newSheet({ title: `${tab}: ${new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`, image: c.toDataURL('image/jpeg', 0.72), aspect: w / h });
+  if (id) sheetEditor.show(id);
+}
+/** The list of sketches (right-hand column): a thumbnail each; click to open. */
+function showSketches(): void {
+  const box = $('sketches');
+  const list = sheetsOf(notes);
+  box.innerHTML = list.length ? '' : '<div class="meta">Press ✏ Sketch on the view to draw on a snapshot of her, or start from a sketch in the Brief.</div>';
+  for (const sh of list) {
+    const row = document.createElement('div');
+    row.className = 'sketch';
+    const strokes = inkOf(notes, sh.id).length;
+    row.innerHTML = `${sh.image ? `<img alt="" src="${sh.image}">` : '<div class="gridPic"></div>'}<div><b>${esc(sh.title || 'Sketch')}</b><div class="meta">${esc(sh.by)} · ${strokes} stroke${strokes === 1 ? '' : 's'}</div></div><button title="Delete">✕</button>`;
+    row.onclick = (e) => {
+      if ((e.target as HTMLElement).tagName === 'BUTTON') {
+        if (confirm(`Delete the sketch “${sh.title}” and what’s drawn on it?`)) dropMyNote(sh.id);
+        return;
+      }
+      sheetEditor.show(sh.id);
+    };
+    box.appendChild(row);
+  }
+}
+
+// ── The workflow: steps along the top ──
+const STEP_KEY = 'swvr.yard.step';
+let seen = new Set<string>();
+function stepEls(): HTMLElement[] {
+  return [...stepBody.querySelectorAll<HTMLElement>(':scope > .step')];
+}
+let stepAt = 0;
+function goStep(to: number | string): void {
+  const els = stepEls();
+  const i = typeof to === 'number' ? to : els.findIndex((e) => e.dataset.step === to);
+  if (i < 0 || i >= els.length) return;
+  stepAt = i;
+  seen.add(els[i].dataset.step!);
+  els.forEach((e, k) => e.classList.toggle('on', k === i));
+  stepBody.scrollTop = 0;
+  ($('stepBack') as HTMLButtonElement).disabled = i === 0;
+  const next = $('stepNext') as HTMLButtonElement;
+  next.disabled = i === els.length - 1;
+  next.textContent = i === els.length - 2 ? 'Trials & handover →' : 'Next →';
+  try {
+    sessionStorage.setItem(STEP_KEY, els[i].dataset.step!);
+  } catch {
+    /* fine */
+  }
+  showStepNav();
+}
+function showStepNav(): void {
+  const nav = $('stepNav');
+  nav.innerHTML = '';
+  const verdict = briefVerdict();
+  stepEls().forEach((e, i) => {
+    const b = document.createElement('button');
+    b.className = `${i === stepAt ? 'on' : ''} ${seen.has(e.dataset.step!) ? 'seen' : ''}`;
+    const flag = e.dataset.step === 'handover' && verdict !== null ? `<span class="flag">${verdict ? '✓' : '✗'}</span>` : '';
+    b.innerHTML = `<span class="n">${i + 1}</span>${e.dataset.title}${flag}`;
+    b.onclick = () => goStep(i);
+    nav.appendChild(b);
+  });
+}
+$('stepBack').onclick = () => goStep(stepAt - 1);
+$('stepNext').onclick = () => goStep(stepAt + 1);
+
+// ── The brief (brief.ts): what she's for, her targets, checked all the way ──
+let brief: Brief = startDoc.brief ?? newBrief();
+function setBrief(patch: Partial<Brief>): void {
+  side().setBrief({ ...brief, ...patch });
+}
+{
+  const box = $('missions');
+  for (const m of MISSIONS) {
+    const c = document.createElement('div');
+    c.className = 'mission';
+    c.dataset.mission = m.id;
+    c.innerHTML = `<b>${m.name}</b><div>${m.what}</div>`;
+    c.onclick = () => setBrief({ mission: m.id, ...m.targets });
+    box.appendChild(c);
+  }
+  document.querySelectorAll<HTMLInputElement>('[data-brief]').forEach((el) => {
+    el.addEventListener('change', () => {
+      const k = el.dataset.brief as keyof Brief;
+      setBrief({ [k]: el.type === 'checkbox' ? el.checked : Math.max(0, Number(el.value) || 0) } as Partial<Brief>);
+    });
+  });
+  $('designName').addEventListener('change', () => setBrief({ name: ($('designName') as HTMLInputElement).value }));
+}
+function showBrief(): void {
+  document.querySelectorAll<HTMLElement>('.mission').forEach((el) => el.classList.toggle('on', el.dataset.mission === brief.mission));
+  document.querySelectorAll<HTMLInputElement>('[data-brief]').forEach((el) => {
+    const v = brief[el.dataset.brief as keyof Brief];
+    if (document.activeElement === el) return;
+    if (el.type === 'checkbox') el.checked = !!v;
+    else el.value = String(v);
+  });
+  const name = $('designName') as HTMLInputElement;
+  if (document.activeElement !== name) name.value = brief.name;
+  document.title = `${brief.name ? `${brief.name} · ` : ''}Workboat World Shipyard`;
+  showBriefCheck();
+}
+/** What her trial says now, if it's for the design as she is (null while a new one runs). */
+function currentTrial(): SeaTrialResults | null {
+  return trial && trialFor === matchKey(design) ? trial : null;
+}
+function measured() {
+  const t = currentTrial();
+  return { topSpeedKn: t?.topSpeedKn ?? null, rangeNm: t?.speedTable.at(-1)?.rangeNm ?? null, price: boat.figures.price, gmM: boat.figures.gmM, crane: (design.deckCrane ?? 0) > 0 };
+}
+/** True if she meets every line of the brief, false if not, null while her trial runs (or there's no brief). */
+function briefVerdict(): boolean | null {
+  const lines = checkBrief(brief, measured());
+  if (!lines.length) return null;
+  if (lines.some((l) => l.ok === false)) return false;
+  return lines.some((l) => l.ok === null) ? null : true;
+}
+/** The brief, line by line (right-hand column), and the verdict on the last step. */
+function showBriefCheck(): void {
+  const lines = checkBrief(brief, measured());
+  const box = $('briefCheck');
+  const m = missionOf(brief.mission);
+  const met = lines.filter((l) => l.ok).length;
+  const verdict = briefVerdict();
+  const head = lines.length ? `${m.name}: ${verdict === true ? 'meets the brief' : verdict === false ? `${met} of ${lines.length} met` : 'checking…'}` : 'No targets yet: set them in the Brief (step 1).';
+  box.innerHTML = `<div class="verdict">${esc(head)}</div>`;
+  for (const l of lines) {
+    const row = document.createElement('div');
+    row.className = `line ${l.ok === null ? 'wait' : l.ok ? 'ok' : 'bad'}`;
+    row.innerHTML = `<span class="mark">${l.ok === null ? '…' : l.ok ? '✓' : '✗'}</span><span>${l.label} <span class="meta">${esc(l.target)}</span></span><span class="val">${l.value ?? 'trial running'}</span>${l.fix ? `<div class="fix">${esc(l.fix.hint)}<button>Go to ${esc(l.fix.step)}</button></div>` : ''}`;
+    const go = row.querySelector('button');
+    if (go && l.fix) go.onclick = () => goStep(l.fix!.step);
+    box.appendChild(row);
+  }
+  const hv = $('handoverVerdict');
+  hv.className = verdict === true ? 'ok' : verdict === false ? 'bad' : 'wait';
+  hv.textContent = !lines.length ? 'No brief set: she’s checked against nothing. (Step 1, Brief.)' : verdict === true ? `She meets the brief: ${m.name.toLowerCase()}, every line.` : verdict === false ? `Not yet: ${lines.length - met} line${lines.length - met === 1 ? '' : 's'} of the brief not met (see the right-hand column).` : 'Her sea trials are running…';
+  showStepNav();
+}
+// Suggest: the job's hull type, then every engine fit tried on her by trial (in the
+// background), and the best one fitted (brief.ts pickEngine).
+const searchWorker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
+let searchRun = 0;
+function trialOf(d: ShipDesign, id: number): Promise<SeaTrialResults | null> {
+  return new Promise((resolve) => {
+    const on = (e: MessageEvent<{ id: number; trials?: SeaTrialResults }>) => {
+      if (e.data.id !== id) return;
+      searchWorker.removeEventListener('message', on);
+      resolve(e.data.trials ?? null);
+    };
+    searchWorker.addEventListener('message', on);
+    searchWorker.postMessage({ id, design: d, match: true });
+  });
+}
+$('suggestBrief').onclick = async () => {
+  const run = ++searchRun;
+  const patch = suggestFor(brief, (i) => DESIGN_HULLS[i].defaults);
+  change(patch);
+  const h = DESIGN_HULLS[design.hull].name.split(':')[0].toLowerCase();
+  const msg = $('suggestMsg');
+  const base = { ...design };
+  const tried: Tried[] = [];
+  const fits = engineOptions();
+  for (const [k, fit] of fits.entries()) {
+    msg.innerHTML = `<b>Suggested:</b> a ${esc(h)}${patch.deckCrane ? ' with a deck crane' : ''}. Trying her engines on trial: ${k + 1} of ${fits.length}…`;
+    const d = { ...base, ...fit };
+    const t = await trialOf(d, run * 100 + k);
+    if (run !== searchRun) return; // asked again
+    if (t) tried.push({ fit, topSpeedKn: t.topSpeedKn, rangeNm: t.speedTable.at(-1)?.rangeNm ?? 0, price: boatFor(d).boat.figures.price });
+  }
+  const best = pickEngine(brief, tried);
+  // Only if she's still the boat the trials were for (nobody has changed her hull since).
+  if (!best || diffFields(design, base).some((k) => k !== 'engine' && k !== 'twin')) {
+    msg.innerHTML = `<b>Suggested:</b> a ${esc(h)}. She was changed while her engines were tried: press Suggest again to fit one.`;
+    return;
+  }
+  change(best.fit);
+  const name = `${best.fit.twin ? 'twin ' : ''}${ENGINES[best.fit.engine ?? 0].name}`;
+  msg.innerHTML = `<b>Suggested:</b> a ${esc(h)}${patch.deckCrane ? ' with a deck crane' : ''}, ${esc(name)}: ${best.topSpeedKn.toFixed(1)} kn, ${best.rangeNm.toFixed(0)} nm, £${best.price.toLocaleString('en-GB')}. ${tried.length} engine fits tried; the cheapest that does the job fitted. Now shape her in the next steps: the brief on the right keeps score.`;
+};
+$('openSaved').onclick = () => goStep('handover');
+
+// From a sketch: squared paper, her profile drawn, read into a boat (sketchFit.ts).
+$('startSketch').onclick = () => {
+  const existing = sheetsOf(notes).find((s) => s.grid);
+  const id = existing?.id ?? newSheet({ title: 'Profile sketch', image: '', aspect: 20 / 8, grid: { wM: 20, hM: 8, waterY: 2.5 } });
+  if (id) sheetEditor.show(id);
+};
+let profiles: HullProfile[] | null = null;
+/** Each hull type at its standard size, measured from the build (for reading sketches). */
+function hullProfiles(): HullProfile[] {
+  if (profiles) return profiles;
+  // Each type's profile is read the same way as a sketch (sketchFit.ts readSketch): her
+  // stations' sheer and keel, bow to the right, so a sketch and a type are compared like for like.
+  profiles = DESIGN_HULLS.map((h, i) => {
+    const d = { ...DEFAULT_DESIGN, ...h.defaults, hull: i, length: 8, beam: 8, depth: 8 };
+    const st = hullFormOf(useDesign(d).hull.form).stations;
+    const top = st.map((s) => [-s.z, Math.max(...s.polygon.map((p) => p[1]))] as Pt);
+    const bottom = st.map((s) => [-s.z, Math.min(...s.polygon.map((p) => p[1]))] as Pt).reverse();
+    const r = readSketch([[...top, ...bottom, top[0]]], [])!;
+    return { name: h.name.split(':')[0], lengthM: r.lengthM, depthM: r.freeboardM + r.draughtM, draughtM: r.draughtM, stemDeg: r.stemDeg, rampBow: !!h.ramp, defaults: h.defaults };
+  });
+  boat = useDesign(design); // put her back
+  return profiles;
+}
+function suggestFromSketch(sheet: Sheet): void {
+  const g = sheet.grid;
+  if (!g) return;
+  const toM = (i: Ink): Pt[] => i.pts.map(([x, y]) => [x * g.wM, (1 - y) * g.hM - g.waterY]);
+  const ink = inkOf(notes, sheet.id);
+  const reading = readSketch(ink.filter((i) => i.tag !== 'house').map(toM), ink.filter((i) => i.tag === 'house').map(toM));
+  if (!reading) return sheetEditor.showResult('<p>Draw a bit more of her first: her hull’s outline at least (deck edge, stem, bottom, transom), at least 2 m long.</p>', () => {});
+  const fit = fitSketch(reading, hullProfiles());
+  const order = fit.scores.map((sc, i) => [sc, i]).sort((a, b) => a[0] - b[0]);
+  const second = order[1] ? hullProfiles()[order[1][1]].name : '';
+  sheetEditor.showResult(`${fit.says.map((t) => `<p>${esc(t)}</p>`).join('')}${second ? `<p class="meta">Next nearest: ${esc(second)}.</p>` : ''}`, () => {
+    change(fit.patch);
+    goStep('hull');
+  });
+}
+
+// The together box opens from the header.
+$('togetherBtn').onclick = () => ($('togetherPop').hidden = !$('togetherPop').hidden);
+
 // ── Working alone or together: one set of handlers (session.ts) ──
 const handlers: SessionEvents = {
   onDesign: (_d, patch, by, v) => {
@@ -973,6 +1230,11 @@ const handlers: SessionEvents = {
     people = p;
     showPeople();
     showTabs();
+  },
+  onBrief: (b) => {
+    brief = b ?? newBrief();
+    showBrief();
+    saveSessionCopy();
   },
   onLost: () => {},
 };
@@ -1219,6 +1481,17 @@ $('cmpPromote').onclick = () => {
 };
 
 // ── Start ──
+showBrief();
+{
+  let first = 0;
+  try {
+    const saved = sessionStorage.getItem(STEP_KEY);
+    first = Math.max(0, stepEls().findIndex((e) => e.dataset.step === saved));
+  } catch {
+    /* fine */
+  }
+  goStep(first);
+}
 showTabs();
 showTodo();
 drawNotes();
@@ -1247,4 +1520,4 @@ function look(eye: [number, number, number], at: [number, number, number]): void
   orbit.target.set(...at);
   orbit.update();
 }
-(window as unknown as { shipyard: unknown }).shipyard = { get design() { return design; }, get boat() { return boat; }, get trial() { return trial; }, get people() { return people; }, get notes() { return notes; }, putMyNote, hullFrac: () => [hullMin, hullMax], get link() { return link; }, change, setView, look, undo: () => undoRedo(false), redo: () => undoRedo(true) };
+(window as unknown as { shipyard: unknown }).shipyard = { get design() { return design; }, get boat() { return boat; }, get trial() { return trial; }, get people() { return people; }, get brief() { return brief; }, goStep, sheetEditor, get profiles() { return hullProfiles(); }, get notes() { return notes; }, putMyNote, hullFrac: () => [hullMin, hullMax], get link() { return link; }, change, setView, look, undo: () => undoRedo(false), redo: () => undoRedo(true) };
