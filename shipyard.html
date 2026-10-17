@@ -5,66 +5,178 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Workboat World Shipyard</title>
     <style>
-      html, body { margin: 0; height: 100%; background: #9fb8c8; font: 14px/1.4 system-ui, sans-serif; color: #10202a; }
       /*
-       * Three columns on a wide screen: the choices, her 3D view, and the results (sea trial
-       * first, then figures, code, favourites), each scrolling on its own, so the trial
-       * stays in sight while the sliders move (owner). Narrower, the results go under a
-       * shorter view; on a phone the view stays pinned at the top with a line of her key
-       * figures on it.
+       * The Shipyard as a designer's tool (owner, Oct 2026): a workflow, not a sandbox.
+       *
+       *   header   her name, the steps (Brief → Hull → … → Trials & handover), undo, and
+       *            designing together (who's here, the link)
+       *   left     the step you're on: only its choices, with a line of guidance, Back / Next
+       *   middle   her 3D view, the variants as tabs over it, the views, the pin and sketch
+       *            tools, and a line of her key figures
+       *   right    the brief checked line by line (with where to go when a line isn't met),
+       *            her sea trial, her figures, and the to-do: pins and sketches
+       *
+       * Narrower, the right column goes under a shorter view; on a phone it's one column with
+       * the view pinned at the top.
        */
-      body { display: grid; grid-template-columns: 360px minmax(0, 1fr) 360px; grid-template-rows: 100%; grid-template-areas: 'side view results'; }
-      #side, #results { overflow-y: auto; background: #f6f9fa; padding: 12px 16px 24px; box-sizing: border-box; z-index: 1; min-height: 0; }
-      #side { grid-area: side; box-shadow: 2px 0 10px rgba(0,0,0,0.12); }
-      #results { grid-area: results; box-shadow: -2px 0 10px rgba(0,0,0,0.12); }
-      #results h2:first-child { border-top: none; margin-top: 0; padding-top: 0; }
-      #view { grid-area: view; position: relative; min-width: 0; min-height: 0; overflow: hidden; }
-      #quick { position: absolute; left: 10px; right: 10px; bottom: 10px; background: rgba(246,249,250,0.92); border-radius: 8px; padding: 6px 10px; font-size: 13px; font-variant-numeric: tabular-nums; display: flex; flex-wrap: wrap; gap: 4px 14px; pointer-events: none; }
-      #quick b { color: #2f5d8a; }
-      #quick .busy { color: #8a9aa4; }
-      #view canvas { display: block; }
-      h1 { font-size: 16px; margin: 0 0 2px; color: #2f5d8a; letter-spacing: 0.05em; text-transform: uppercase; }
-      .sub { color: #567; font-size: 12px; margin-bottom: 10px; }
-      h2 { font-size: 13px; margin: 16px 0 6px; color: #456; letter-spacing: 0.04em; text-transform: uppercase; border-top: 1px solid #d6dfe3; padding-top: 10px; }
-      .choice { display: block; padding: 6px 8px; margin: 4px 0; border: 1px solid #c4d2d8; border-radius: 6px; cursor: pointer; background: #fff; }
-      .choice.on { border-color: #2f5d8a; background: #e6eff7; box-shadow: inset 3px 0 0 #2f5d8a; }
-      .row { display: grid; grid-template-columns: 110px 1fr 86px; align-items: center; gap: 6px; margin: 6px 0; }
+      :root {
+        --ink: #10202a; --muted: #567; --line: #d6dfe3; --paper: #f6f9fa; --card: #fff;
+        --accent: #2f5d8a; --accent-soft: #e6eff7; --ok: #2f8a4a; --bad: #c0392b; --wait: #8a9aa4;
+      }
+      html, body { margin: 0; height: 100%; background: #9fb8c8; font: 14px/1.4 system-ui, sans-serif; color: var(--ink); }
+      body { display: grid; grid-template-columns: 380px minmax(0, 1fr) 340px; grid-template-rows: auto minmax(0, 1fr); grid-template-areas: 'top top top' 'side view results'; }
+      button { font: inherit; padding: 5px 10px; border-radius: 6px; border: 1px solid #8aa; background: #eef3f5; cursor: pointer; color: var(--ink); }
+      button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+      button:disabled { opacity: 0.4; cursor: default; }
+      h2 { font-size: 12px; margin: 16px 0 6px; color: #456; letter-spacing: 0.05em; text-transform: uppercase; border-top: 1px solid var(--line); padding-top: 10px; }
+      .meta { font-size: 12px; color: var(--muted); }
+
+      /* ── Header ── */
+      #top { grid-area: top; display: flex; align-items: center; gap: 14px; padding: 8px 14px; background: #10202a; color: #e8f0f4; flex-wrap: wrap; z-index: 5; }
+      #top .brand { font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; font-size: 13px; color: #9fc4e4; white-space: nowrap; }
+      #designName { background: transparent; border: 1px solid transparent; border-radius: 6px; color: #fff; font: 600 16px system-ui, sans-serif; padding: 3px 6px; width: 220px; }
+      #designName:hover, #designName:focus { border-color: #456; outline: none; background: #1a3040; }
+      #stepNav { display: flex; gap: 2px; flex: 1; overflow-x: auto; min-width: 0; }
+      #stepNav button { background: transparent; border: none; color: #b8c8d2; border-radius: 16px; padding: 4px 10px; white-space: nowrap; font-size: 13px; }
+      #stepNav button .n { display: inline-block; width: 18px; height: 18px; line-height: 18px; text-align: center; border-radius: 50%; background: #2a4252; color: #cfe0ea; font-size: 11px; margin-right: 5px; }
+      #stepNav button.on { background: #e8f0f4; color: var(--ink); }
+      #stepNav button.on .n { background: var(--accent); color: #fff; }
+      #stepNav button.seen .n { background: #3f6f55; }
+      #stepNav button .flag { margin-left: 4px; }
+      #top .topRight { display: flex; gap: 6px; align-items: center; }
+      #top .topRight button { background: #1f3646; color: #e8f0f4; border-color: #2f4a5c; }
+      #people { display: flex; gap: 4px; }
+      .chip { font-size: 12px; padding: 1px 8px 1px 6px; border-radius: 10px; background: color-mix(in srgb, var(--c) 15%, #fff); border: 1px solid var(--c); color: var(--ink); white-space: nowrap; }
+      .chip::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--c); margin-right: 5px; }
+      #togetherPop { position: absolute; right: 14px; top: 52px; width: 330px; background: var(--paper); color: var(--ink); border-radius: 10px; box-shadow: 0 6px 24px rgba(0,0,0,0.3); padding: 12px; z-index: 20; }
+      #togetherPop[hidden] { display: none; }
+      #togetherPop .row2 { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
+      #togetherPop input { font: inherit; padding: 4px 6px; min-width: 0; flex: 1; }
+      #togetherPop .inSession { display: none; }
+      #togetherPop.on .inSession { display: block; }
+      #togetherPop.on #startSession { display: none; }
+      #sessionLink { font: 12px ui-monospace, monospace; }
+      #sessionState { font-size: 12px; color: var(--muted); min-height: 16px; }
+
+      /* ── Left: the step ── */
+      #side { grid-area: side; display: flex; flex-direction: column; min-height: 0; background: var(--paper); box-shadow: 2px 0 10px rgba(0,0,0,0.12); z-index: 1; }
+      #stepBody { flex: 1; overflow-y: auto; padding: 12px 16px 16px; }
+      .step { display: none; }
+      .step.on { display: block; }
+      .step > h1 { font-size: 20px; margin: 2px 0 4px; }
+      .step > .guide { color: var(--muted); margin: 0 0 10px; font-size: 13px; }
+      #stepFoot { display: flex; justify-content: space-between; gap: 8px; padding: 10px 16px; border-top: 1px solid var(--line); background: var(--paper); }
+      .choice { display: block; padding: 6px 8px; margin: 4px 0; border: 1px solid #c4d2d8; border-radius: 6px; cursor: pointer; background: var(--card); }
+      .choice.on { border-color: var(--accent); background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+      .row { display: grid; grid-template-columns: 110px 1fr 86px; align-items: center; gap: 6px; margin: 6px 0; position: relative; border-radius: 6px; }
       .opts { grid-template-columns: 110px 1fr; }
       .opts .choice { display: inline-block; margin: 0 4px 0 0; padding: 3px 9px; }
       .row output { text-align: right; font-variant-numeric: tabular-nums; color: #234; }
       input[type=range] { width: 100%; }
       .swatches { display: flex; flex-wrap: wrap; gap: 6px; }
       .swatch { width: 30px; height: 30px; border-radius: 6px; border: 2px solid #fff; box-shadow: 0 0 0 1px #9ab; cursor: pointer; }
-      .swatch.on { box-shadow: 0 0 0 3px #2f5d8a; }
+      .swatch.on { box-shadow: 0 0 0 3px var(--accent); }
       .swatch.likeHull { color: #fff; font-weight: 700; text-align: center; line-height: 30px; text-shadow: 0 0 2px #000; }
-      button { font: inherit; padding: 5px 10px; border-radius: 6px; border: 1px solid #8aa; background: #eef3f5; cursor: pointer; }
-      button.primary { background: #2f5d8a; color: #fff; border-color: #2f5d8a; }
+      .row.held { box-shadow: inset 4px 0 0 var(--c); background: color-mix(in srgb, var(--c) 10%, transparent); }
+      .row.held::after { content: attr(data-who); position: absolute; right: 0; top: -9px; font-size: 10px; line-height: 14px; padding: 0 5px; border-radius: 7px; color: #fff; background: var(--c); }
+      @keyframes flash { from { box-shadow: 0 0 0 3px var(--c); } to { box-shadow: 0 0 0 3px transparent; } }
+      .flash { animation: flash 1.5s ease-out; }
+      .tools { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+
+      /* The brief step. */
+      .missions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+      .mission { border: 1px solid #c4d2d8; border-radius: 8px; background: var(--card); padding: 8px; cursor: pointer; }
+      .mission b { display: block; margin-bottom: 2px; }
+      .mission div { font-size: 12px; color: var(--muted); }
+      .mission.on { border-color: var(--accent); background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+      .targets .row { grid-template-columns: 1fr 120px; }
+      .targets input[type=number] { font: inherit; padding: 4px 6px; width: 100%; box-sizing: border-box; }
+      .start { display: grid; gap: 6px; margin-top: 8px; }
+      .start button { padding: 9px 10px; text-align: left; }
+      .start button small { display: block; font-size: 12px; opacity: 0.8; }
+      #suggestMsg { font-size: 13px; margin-top: 8px; }
+
+      /* ── Middle: the view ── */
+      #view { grid-area: view; position: relative; min-width: 0; min-height: 0; overflow: hidden; }
+      #view canvas { display: block; }
+      #tabs { position: absolute; top: 10px; left: 10px; right: 10px; display: flex; flex-wrap: wrap; gap: 4px; z-index: 2; }
+      .tab { background: rgba(246,249,250,0.75); border-radius: 8px 8px 0 0; border-bottom: 2px solid transparent; }
+      .tab.on { background: #fff; border-color: #8aa; border-bottom-color: var(--accent); font-weight: 600; }
+      .tab i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-left: 5px; }
+      .tab b { margin-left: 8px; color: #a33; font-weight: 700; }
+      .tab.add { border-radius: 8px; background: rgba(246,249,250,0.9); color: var(--accent); }
+      #views { position: absolute; top: 48px; left: 10px; right: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+      #views button { background: rgba(246,249,250,0.9); }
+      #views button.tool { margin-left: 0; }
+      #views .sep { width: 10px; }
+      #views button.tool.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+      #toolHint { position: absolute; top: 90px; left: 10px; font-size: 12px; color: #fff; text-shadow: 0 0 3px #000; pointer-events: none; }
+      #pinEditor { position: absolute; width: 240px; background: var(--paper); border-radius: 8px; padding: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.25); z-index: 3; }
+      #pinEditor input { width: 100%; box-sizing: border-box; font: inherit; padding: 5px; }
+      #quick { position: absolute; left: 10px; right: 10px; bottom: 10px; background: rgba(246,249,250,0.92); border-radius: 8px; padding: 6px 10px; font-size: 13px; font-variant-numeric: tabular-nums; display: flex; flex-wrap: wrap; gap: 4px 14px; pointer-events: none; }
+      #quick b { color: var(--accent); }
+      #quick .busy { color: var(--wait); }
+
+      /* ── Right: the brief, the trial, the to-do ── */
+      #results { grid-area: results; overflow-y: auto; background: var(--paper); padding: 12px 16px 24px; box-sizing: border-box; box-shadow: -2px 0 10px rgba(0,0,0,0.12); z-index: 1; min-height: 0; }
+      #results h2:first-child { border-top: none; margin-top: 0; padding-top: 0; }
+      #briefCheck .verdict { font-weight: 600; margin-bottom: 4px; }
+      #briefCheck .line { display: grid; grid-template-columns: 18px 1fr auto; gap: 6px; padding: 4px 0; border-top: 1px solid #e1e8eb; align-items: baseline; }
+      #briefCheck .mark { font-weight: 700; }
+      #briefCheck .ok .mark { color: var(--ok); }
+      #briefCheck .bad .mark { color: var(--bad); }
+      #briefCheck .wait .mark { color: var(--wait); }
+      #briefCheck .val { font-variant-numeric: tabular-nums; white-space: nowrap; }
+      #briefCheck .fix { grid-column: 2 / 4; font-size: 12px; color: var(--muted); }
+      #briefCheck .fix button { padding: 1px 6px; font-size: 12px; margin-left: 4px; }
       table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
       td { padding: 2px 6px 2px 0; border-top: 1px solid #e1e8eb; }
       td:last-child { text-align: right; white-space: nowrap; }
       #warnings div { background: #fff4d6; border: 1px solid #e0b020; border-radius: 6px; padding: 5px 8px; margin: 4px 0; font-size: 13px; }
-      #code { font: 700 24px/1.2 ui-monospace, monospace; letter-spacing: 0.08em; color: #10202a; background: #fff; border: 2px solid #2f5d8a; border-radius: 8px; padding: 8px 10px; text-align: center; margin: 6px 0; }
+      #status { color: var(--muted); font-size: 12px; min-height: 16px; }
+      #todoCount { font-weight: 400; color: var(--muted); text-transform: none; letter-spacing: 0; }
+      .todo { display: grid; grid-template-columns: 24px 1fr auto; gap: 8px; align-items: start; padding: 6px; margin: 4px 0; border: 1px solid #c4d2d8; border-radius: 8px; background: var(--card); }
+      .todo .badge { width: 22px; height: 22px; border-radius: 50%; color: #fff; font-weight: 700; font-size: 12px; text-align: center; line-height: 22px; }
+      .todo .text { cursor: pointer; }
+      .todo .text:hover { text-decoration: underline; }
+      .todo .acts { display: flex; gap: 4px; }
+      .todo .acts button { padding: 2px 7px; font-size: 12px; }
+      .todo.done { opacity: 0.5; }
+      .todo.done .text { text-decoration: line-through; }
+      .sketch { display: grid; grid-template-columns: 84px 1fr auto; gap: 8px; align-items: center; padding: 6px; margin: 4px 0; border: 1px solid #c4d2d8; border-radius: 8px; background: var(--card); cursor: pointer; }
+      .sketch img, .sketch .gridPic { width: 84px; height: 52px; object-fit: cover; border-radius: 4px; background: #fbfcfd; display: block; }
+      .sketch .gridPic { background-image: linear-gradient(#e3e9ee 1px, transparent 1px), linear-gradient(90deg, #e3e9ee 1px, transparent 1px); background-size: 8px 8px; border: 1px solid #d6dfe3; box-sizing: border-box; }
+      .sketch button { padding: 2px 7px; font-size: 12px; }
+
+      /* The last step: her code, the game, favourites. */
+      #code { font: 700 24px/1.2 ui-monospace, monospace; letter-spacing: 0.08em; color: var(--ink); background: #fff; border: 2px solid var(--accent); border-radius: 8px; padding: 8px 10px; text-align: center; margin: 6px 0; }
       #code.pending { color: #8a9aa4; border-color: #9ab; }
-      .tools { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
       #load { width: 190px; font: 600 14px ui-monospace, monospace; padding: 5px; text-transform: uppercase; }
       #loadMsg { color: #a33; font-size: 12px; min-height: 16px; }
-      #status { color: #567; font-size: 12px; min-height: 16px; }
-      #views { position: absolute; top: 48px; left: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
-      #tabs { position: absolute; top: 10px; left: 10px; right: 10px; display: flex; flex-wrap: wrap; gap: 4px; z-index: 2; }
-      .tab { background: rgba(246,249,250,0.75); border-radius: 8px 8px 0 0; border-bottom: 2px solid transparent; }
-      .tab.on { background: #fff; border-color: #8aa; border-bottom-color: #2f5d8a; font-weight: 600; }
-      .tab i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-left: 5px; }
-      .tab b { margin-left: 8px; color: #a33; font-weight: 700; }
-      .tab.add { border-radius: 8px; background: rgba(246,249,250,0.9); color: #2f5d8a; }
-      #compare { position: fixed; inset: 0; background: rgba(16,32,42,0.5); z-index: 10; display: flex; align-items: center; justify-content: center; }
-      #compare[hidden] { display: none; }
-      .cmpBox { background: #f6f9fa; border-radius: 10px; width: min(1180px, 96vw); max-height: 94vh; overflow: auto; padding: 12px 16px; box-sizing: border-box; }
-      .cmpHead { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-      .cmpHead #cmpClose { margin-left: auto; }
+      #handoverVerdict { padding: 10px; border-radius: 8px; margin: 6px 0 10px; font-weight: 600; }
+      #handoverVerdict.ok { background: #e3f3e8; color: #1d5e33; }
+      #handoverVerdict.bad { background: #fbe8e5; color: #8a2a1e; }
+      #handoverVerdict.wait { background: #eef3f5; color: var(--muted); }
+      #favName { flex: 1; min-width: 120px; font: inherit; padding: 5px; }
+      #favMsg { color: var(--muted); font-size: 12px; min-height: 16px; }
+      .fav { display: grid; grid-template-columns: 96px 1fr; gap: 8px; align-items: center; padding: 6px; margin: 6px 0; border: 1px solid #c4d2d8; border-radius: 8px; background: #fff; }
+      .fav img, .fav .nopic { width: 96px; height: 60px; border-radius: 5px; object-fit: cover; background: #c9d6dd; display: block; }
+      .fav b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .fav .code { font: 600 12px ui-monospace, monospace; color: #234; }
+      .fav .acts { display: flex; gap: 6px; margin-top: 4px; }
+      .fav .acts button { padding: 2px 8px; font-size: 12px; }
+      .fav.current { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+
+      /* Overlays: compare, the sketch sheet. */
+      #compare, #sheetEditor { position: fixed; inset: 0; background: rgba(16,32,42,0.55); z-index: 30; display: flex; align-items: center; justify-content: center; }
+      #compare[hidden], #sheetEditor[hidden] { display: none; }
+      .cmpBox, .sheetBox { background: var(--paper); border-radius: 10px; width: min(1180px, 96vw); max-height: 94vh; overflow: auto; padding: 12px 16px; box-sizing: border-box; }
+      .cmpHead, .sheetHead { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+      .cmpHead #cmpClose, .sheetHead .closeSheet { margin-left: auto; }
       .cmpBody { display: grid; grid-template-columns: minmax(0, 640px) 1fr; gap: 16px; margin-top: 10px; }
       #cmpPics img { display: block; width: 100%; max-width: 640px; border-radius: 6px; margin-bottom: 4px; }
       #cmpPics .lbl { font-size: 12px; font-weight: 600; margin: 6px 0 2px; }
-      .lbl.a, .key .a, td.a { color: #2f5d8a; }
+      .lbl.a, .key .a, td.a { color: var(--accent); }
       .lbl.b, .key .b, td.b { color: #c0551f; }
       #cmpDiff table td { padding: 3px 6px 3px 0; }
       .metric { margin: 6px 0; }
@@ -75,82 +187,110 @@
       .bar.a span { background: #9fbad6; }
       .bar.b span { background: #f0b994; }
       .bar em { position: relative; font-style: normal; padding-left: 6px; line-height: 16px; }
-      .bar.wait { color: #8a9aa4; padding-left: 6px; line-height: 16px; }
-      @media (max-width: 860px) { .cmpBody { grid-template-columns: 1fr; } }
-      #views button { background: rgba(246,249,250,0.9); }
-      #favName { flex: 1; min-width: 120px; font: inherit; padding: 5px; }
-      #favMsg { color: #567; font-size: 12px; min-height: 16px; }
-      .fav { display: grid; grid-template-columns: 96px 1fr; gap: 8px; align-items: center; padding: 6px; margin: 6px 0; border: 1px solid #c4d2d8; border-radius: 8px; background: #fff; }
-      .fav img, .fav .nopic { width: 96px; height: 60px; border-radius: 5px; object-fit: cover; background: #c9d6dd; display: block; }
-      .fav b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      .fav .meta { font-size: 12px; color: #567; }
-      .fav .code { font: 600 12px ui-monospace, monospace; color: #234; }
-      .fav .acts { display: flex; gap: 6px; margin-top: 4px; }
-      .fav .acts button { padding: 2px 8px; font-size: 12px; }
-      #together { border: 1px solid #c4d2d8; border-radius: 8px; background: #fff; padding: 8px; margin: 8px 0 4px; }
-      #together .row2 { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-      #together input { font: inherit; padding: 4px 6px; min-width: 0; }
-      #myName { flex: 1; }
-      #together .inSession { display: none; margin-top: 6px; }
-      #together.on .inSession { display: block; }
-      #together.on #startSession { display: none; }
-      #sessionLink { flex: 1; font: 12px ui-monospace, monospace; }
-      #sessionState { font-size: 12px; color: #567; min-height: 16px; margin-top: 4px; }
-      #people { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
-      .chip { font-size: 12px; padding: 1px 8px 1px 6px; border-radius: 10px; background: color-mix(in srgb, var(--c) 15%, #fff); border: 1px solid var(--c); }
-      .chip::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--c); margin-right: 5px; }
-      .undoRow { display: flex; gap: 6px; margin-top: 6px; }
-      .undoRow button:disabled { opacity: 0.4; cursor: default; }
-      .row { position: relative; border-radius: 6px; }
-      .row.held { box-shadow: inset 4px 0 0 var(--c); background: color-mix(in srgb, var(--c) 10%, transparent); }
-      .row.held::after { content: attr(data-who); position: absolute; right: 0; top: -9px; font-size: 10px; line-height: 14px; padding: 0 5px; border-radius: 7px; color: #fff; background: var(--c); }
-      @keyframes flash { from { box-shadow: 0 0 0 3px var(--c); } to { box-shadow: 0 0 0 3px transparent; } }
-      .flash { animation: flash 1.5s ease-out; }
-      #views button.tool.on { background: #2f5d8a; color: #fff; border-color: #2f5d8a; }
-      #toolHint { position: absolute; top: 90px; left: 10px; font-size: 12px; color: #fff; text-shadow: 0 0 3px #000; pointer-events: none; }
-      #pinEditor { position: absolute; width: 240px; background: #f6f9fa; border-radius: 8px; padding: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.25); z-index: 3; }
-      #pinEditor input { width: 100%; box-sizing: border-box; font: inherit; padding: 5px; }
-      #todoCount { font-weight: 400; color: #567; text-transform: none; letter-spacing: 0; }
-      .todo { display: grid; grid-template-columns: 24px 1fr auto; gap: 8px; align-items: start; padding: 6px; margin: 4px 0; border: 1px solid #c4d2d8; border-radius: 8px; background: #fff; }
-      .todo .badge { width: 22px; height: 22px; border-radius: 50%; color: #fff; font-weight: 700; font-size: 12px; text-align: center; line-height: 22px; }
-      .todo .text { cursor: pointer; }
-      .todo .text:hover { text-decoration: underline; }
-      .todo .acts { display: flex; gap: 4px; }
-      .todo .acts button { padding: 2px 7px; font-size: 12px; }
-      .todo.done { opacity: 0.5; }
-      .todo.done .text { text-decoration: line-through; }
-      .meta { font-size: 12px; color: #567; }
-      #marksLine button { padding: 1px 6px; font-size: 12px; }
-      .fav.current { border-color: #2f5d8a; box-shadow: inset 3px 0 0 #2f5d8a; }
+      .bar.wait { color: var(--wait); padding-left: 6px; line-height: 16px; }
+      .sheetHint { font-size: 12px; color: var(--muted); margin: 6px 0; }
+      .sheetArea { display: flex; justify-content: center; }
+      .sheetArea canvas { border-radius: 6px; box-shadow: 0 1px 6px rgba(0,0,0,0.2); touch-action: none; cursor: crosshair; background: #fff; }
+      .pens { display: flex; gap: 4px; }
+      .pens[hidden], .suggestBtn[hidden] { display: none; }
+      .pen.on { outline: 2px solid var(--accent); }
+      .pen[data-pen=hull] { color: #1f4e79; font-weight: 600; }
+      .pen[data-pen=house] { color: #c0551f; font-weight: 600; }
+      .sheetResult { margin-top: 10px; background: #fff; border: 1px solid var(--accent); border-radius: 8px; padding: 10px; }
+      .sheetResult p { margin: 3px 0; }
+
       @media (max-width: 1199px) {
-        body { grid-template-columns: 340px minmax(0, 1fr); grid-template-rows: 46% 54%; grid-template-areas: 'side view' 'side results'; }
+        body { grid-template-columns: 360px minmax(0, 1fr); grid-template-rows: auto 48% minmax(0, 1fr); grid-template-areas: 'top top' 'side view' 'side results'; }
         #results { box-shadow: 0 -2px 10px rgba(0,0,0,0.12); }
       }
       @media (max-width: 760px) {
         html, body { height: auto; }
         body { display: flex; flex-direction: column; }
+        #top { order: -2; gap: 6px 10px; }
+        #designName { width: 150px; }
+        #stepNav { order: 3; flex-basis: 100%; }
+        #togetherPop { right: 8px; left: 8px; width: auto; }
         #view { order: -1; position: sticky; top: 0; height: 40vh; flex: none; z-index: 2; }
-        #quick { font-size: 12px; gap: 2px 10px; }
         #side, #results { overflow: visible; }
+        #stepBody { overflow: visible; }
+        .cmpBody { grid-template-columns: 1fr; }
+        #quick { font-size: 12px; gap: 2px 10px; }
       }
     </style>
   </head>
   <body>
-    <div id="side">
-      <h1>Workboat World Shipyard</h1>
-      <div class="sub">Design a boat, then take her code to the game.</div>
-      <div id="together">
-        <div class="row2"><input id="myName" placeholder="Your name" maxlength="20" /><button id="startSession">Design together</button></div>
-        <div class="inSession">
-          <div class="row2"><input id="sessionLink" readonly /><button id="copyLink">Copy link</button><button id="leaveSession">Leave</button></div>
-          <div id="people"></div>
-        </div>
-        <div id="sessionState">Send friends a link and design her together, live.</div>
+    <header id="top">
+      <span class="brand">Shipyard</span>
+      <input id="designName" placeholder="Name her" maxlength="60" title="Her name (shared)" />
+      <nav id="stepNav"></nav>
+      <div class="topRight">
+        <button id="undo" title="Undo (Ctrl+Z)">↶</button><button id="redo" title="Redo (Ctrl+Shift+Z)">↷</button>
+        <span id="people"></span>
+        <button id="togetherBtn">👥 Design together</button>
       </div>
-      <div class="undoRow"><button id="undo" title="Ctrl+Z">↶ Undo</button><button id="redo" title="Ctrl+Shift+Z">↷ Redo</button></div>
-      <div id="controls"></div>
-    </div>
-    <div id="view">
+      <div id="togetherPop" hidden>
+        <div class="row2"><input id="myName" placeholder="Your name" maxlength="20" /><button id="startSession" class="primary">Start a session</button></div>
+        <div class="inSession">
+          <div class="row2"><input id="sessionLink" readonly /><button id="copyLink">Copy link</button></div>
+          <div class="row2"><button id="leaveSession">Leave the session</button></div>
+        </div>
+        <div id="sessionState">Send friends a link and design her together, live: everyone edits the same boat.</div>
+      </div>
+    </header>
+
+    <section id="side">
+      <div id="stepBody">
+        <div class="step" data-step="brief" data-title="Brief">
+          <h1>What’s she for?</h1>
+          <p class="guide">Start from the job. Pick what she’s for and set what she has to do: the Shipyard suggests a boat, and checks every change against the brief (on the right).</p>
+          <div class="missions" id="missions"></div>
+          <h2>Her targets</h2>
+          <div class="targets">
+            <div class="row"><label>Top speed at least (kn)</label><input type="number" min="0" max="60" step="0.5" data-brief="speedKn" /></div>
+            <div class="row"><label>Range flat out at least (nm)</label><input type="number" min="0" max="2000" step="10" data-brief="rangeNm" /></div>
+            <div class="row"><label>Price at most (£)</label><input type="number" min="0" max="5000000" step="5000" data-brief="budget" /></div>
+            <div class="row"><label>Stability, GM at least (m)</label><input type="number" min="0" max="5" step="0.05" data-brief="gmM" /></div>
+            <label class="choice"><input type="checkbox" data-brief="crane" /> A deck crane is wanted</label>
+            <div class="meta">0 means no target.</div>
+          </div>
+          <h2>Start her</h2>
+          <div class="start">
+            <button id="suggestBrief" class="primary">Suggest a boat for this brief<small>The usual hull for the job, sized and powered for the targets.</small></button>
+            <button id="startSketch">Start from a sketch<small>Draw her profile on squared paper; the Shipyard reads it and suggests a boat.</small></button>
+            <button id="openSaved">Open a saved design or a code<small>Your favourites, or a code from a friend.</small></button>
+          </div>
+          <div id="suggestMsg"></div>
+        </div>
+        <!-- The choices' steps go here (page.ts: one per section). -->
+        <div class="step" data-step="handover" data-title="Trials & handover">
+          <h1>Trials &amp; handover</h1>
+          <p class="guide">Her sea trials against the brief, then her code: take her into the game, or keep her in your favourites.</p>
+          <div id="handoverVerdict" class="wait"></div>
+          <h2>Her code</h2>
+          <div id="code" class="pending">-----</div>
+          <div class="tools">
+            <a id="play" href="./"><button class="primary">Try her in the game</button></a>
+            <button id="copy">Copy code</button>
+          </div>
+          <h2>Favourites</h2>
+          <div class="tools">
+            <input id="favName" placeholder="Name her" maxlength="40" />
+            <button id="favSave" class="primary">Save to favourites</button>
+          </div>
+          <div id="favMsg"></div>
+          <div id="favs"></div>
+          <h2>Open a code</h2>
+          <div class="tools">
+            <input id="load" placeholder="XXXXX-XXXXX-XXXXX" maxlength="20" />
+            <button id="loadBtn">Open</button>
+          </div>
+          <div id="loadMsg"></div>
+        </div>
+      </div>
+      <div id="stepFoot"><button id="stepBack">← Back</button><button id="stepNext" class="primary">Next →</button></div>
+    </section>
+
+    <section id="view">
       <div id="tabs"></div>
       <div id="views"></div>
       <div id="quick"></div>
@@ -159,8 +299,11 @@
         <input id="pinText" placeholder="Note, e.g. searchlight here" maxlength="140" />
         <div class="tools"><button id="pinAdd" class="primary">Add pin</button><button id="pinCancel">Cancel</button></div>
       </div>
-    </div>
-    <div id="results">
+    </section>
+
+    <aside id="results">
+      <h2>The brief</h2>
+      <div id="briefCheck"></div>
       <h2>Sea trial</h2>
       <div id="status"></div>
       <table id="trial"></table>
@@ -169,26 +312,10 @@
       <div id="warnings"></div>
       <h2>To do <span id="todoCount"></span></h2>
       <div id="todo"></div>
-      <div id="marksLine" class="meta"></div>
-      <h2>Her code</h2>
-      <div id="code" class="pending">-----</div>
-      <div class="tools">
-        <button id="copy">Copy code</button>
-        <a id="play" href="./"><button class="primary">Try her in the game</button></a>
-      </div>
-      <div class="tools" style="margin-top: 10px">
-        <input id="load" placeholder="XXXXX-XXXXX-XXXXX" maxlength="20" />
-        <button id="loadBtn">Load a code</button>
-      </div>
-      <div id="loadMsg"></div>
-      <h2>Favourites</h2>
-      <div class="tools">
-        <input id="favName" placeholder="Name her" maxlength="40" />
-        <button id="favSave" class="primary">Save to favourites</button>
-      </div>
-      <div id="favMsg"></div>
-      <div id="favs"></div>
-    </div>
+      <h2>Sketches</h2>
+      <div id="sketches"></div>
+    </aside>
+
     <div id="compare" hidden>
       <div class="cmpBox">
         <div class="cmpHead">

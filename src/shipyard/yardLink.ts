@@ -7,6 +7,7 @@
 import { PeerClientTransport, PeerHostTransport } from '../net/transport';
 import { Keeper, Member, peerIdForSession, type SessionEvents } from './session';
 import type { YardDoc } from './variants';
+import { chunkedClient, chunkedHost } from './chunked';
 
 /** How long to wait for the keeper to answer before keeping the session ourselves (ms). */
 const JOIN_WAIT = 6000;
@@ -59,7 +60,7 @@ export class YardLink {
         if (!ok) member.close();
         resolve(ok);
       };
-      const member: Member = new Member(this.doc(), this.name, transport, {
+      const member: Member = new Member(this.doc(), this.name, chunkedClient(transport), {
         onDesign: (d, p, by, v) => {
           if (member.joined && !settled) {
             this.side = member;
@@ -71,6 +72,7 @@ export class YardLink {
         onPeople: (p) => this.events.onPeople(p),
         onNotes: (n, v) => this.events.onNotes?.(n, v),
         onVariants: (list, by) => this.events.onVariants?.(list, by),
+        onBrief: (b, by) => this.events.onBrief?.(b, by),
         onLost: (reason) => {
           if (!settled) return done(false);
           if (this.side !== member) return;
@@ -93,7 +95,7 @@ export class YardLink {
       transport.close();
       return false;
     }
-    const keeper = new Keeper(this.doc(), this.name, transport, this.events);
+    const keeper = new Keeper(this.doc(), this.name, chunkedHost(transport), this.events);
     this.side = keeper;
     this.setState('keeping');
     this.events.onPeople(keeper.people);
