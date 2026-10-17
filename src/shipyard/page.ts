@@ -23,8 +23,10 @@ import { DESIGN_HULLS, ENGINES, LIVERIES, ROOF_PAINTS, type DesignedBoat } from 
 import { decodeDesign, DEFAULT_DESIGN, encodeDesign, FIELDS, SCALES, type ShipDesign } from './design';
 import { UndoStack } from './undo';
 import { YardLink } from './yardLink';
-import { newSessionId, sessionIdFrom, type DesignPatch, type Person } from './session';
-import { cleanNotes, dropNote, fromFrac, noteId, putNote, toFrac, todo, type Frac, type Mark, type Note, type Pin } from './notes';
+import { Keeper, newSessionId, sessionIdFrom, type DesignPatch, type Person, type SessionEvents } from './session';
+import { cleanDoc, diffFields, fork, MAIN, mergePatch, newDoc, promote, type Variant, type YardDoc } from './variants';
+import { LoopbackHost } from '../net/transport';
+import { fromFrac, noteId, toFrac, todo, type Frac, type Mark, type Note, type Pin } from './notes';
 import { addFavourite, cleanName, readFavourites, removeFavourite, writeFavourites, type Favourite, type Store } from './favourites';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -34,8 +36,21 @@ const stepsOf = (k: keyof ShipDesign) => FIELDS.find((f) => f.key === k)!.steps;
 const fromHash = decodeDesign(decodeURIComponent(location.hash.slice(1)));
 /** A shared session's id (?s=...), and this browser's last copy of it (designing together, session.ts). */
 let sessionId = sessionIdFrom(location.search);
-const savedSession = sessionId ? readSessionCopy(sessionId) : null;
-let design: ShipDesign = savedSession ?? ('design' in fromHash ? fromHash.design : { ...DEFAULT_DESIGN });
+/**
+ * Everything this browser holds: the main design and its variants, each with its pins and
+ * marks (variants.ts). On your own it lives in `solo`, a session keeper with nobody else
+ * connected, so working alone and together go through the same code; in a session, in the
+ * session's copy (link.side). `active` is the tab you're on.
+ */
+const startDoc: YardDoc = readDocCopy(sessionId ?? 'solo') ?? newDoc('design' in fromHash ? fromHash.design : { ...DEFAULT_DESIGN });
+let active = MAIN;
+if (!sessionId && 'design' in fromHash) {
+  // Opened with a code: the variant that is that design, or else the code becomes the main design.
+  const same = startDoc.variants.find((v) => !diffFields(v.design, fromHash.design).length);
+  if (same) active = same.id;
+  else startDoc.variants[0] = { ...startDoc.variants[0], design: fromHash.design };
+}
+let design: ShipDesign = { ...startDoc.variants.find((v) => v.id === active)!.design };
 let boat: DesignedBoat = useDesign(design);
 /** The choices her gearbox was matched for (not the paint or the controls, which don't change it). */
 const matchKey = (d: ShipDesign) => JSON.stringify({ ...d, gear: 0, paint: 0, controls: 0 });
@@ -117,10 +132,17 @@ function drawBoat(): void {
   scene.add(root);
   boatRoot = root;
   // Her extent: the frame for pins and marks (hull fractions, notes.ts).
-  const box = new THREE.Box3().setFromObject(root);
+  const box = hullBox(root);
   hullMin = box.min.toArray();
   hullMax = box.max.toArray();
   if (typeof drawNotes === 'function') drawNotes();
+}
+/**
+ * Her hull and house's extent (the hull mesh: the first child), not the whole view: lights'
+ * glows and the searchlight's beam reach far beyond her and would throw the frame out.
+ */
+function hullBox(root: THREE.Object3D): THREE.Box3 {
+  return new THREE.Box3().setFromObject(root.children[0] ?? root);
 }
 let hullMin = [0, 0, 0];
 let hullMax = [1, 1, 1];
@@ -147,7 +169,11 @@ function choices(key: keyof ShipDesign, items: { name: string; note?: string }[]
   controls.appendChild(box);
 }
 const outputs: Partial<Record<keyof ShipDesign, (v: number) => string>> = {};
+/** Each field's label and, for a few set options, their names (the compare list shows them). */
+const labels: Partial<Record<keyof ShipDesign, string>> = { hull: 'Hull', engine: 'Engine', twin: 'Engines', controls: 'Controls', paint: 'Paint', roofPaint: 'Roof colour' };
+const optionNames: Partial<Record<keyof ShipDesign, string[]>> = {};
 function slider(key: keyof ShipDesign, label: string, show: (v: number) => string): void {
+  labels[key] ??= label;
   const row = document.createElement('div');
   row.className = 'row';
   row.innerHTML = `<label>${label}</label><input type="range" min="0" max="${stepsOf(key) - 1}" step="1" data-key="${key}"><output data-key="${key}"></output>`;
@@ -162,6 +188,8 @@ function slider(key: keyof ShipDesign, label: string, show: (v: number) => strin
 const pct = (k: number) => `${Math.round(k * 100)} %`;
 /** A few set options in a row, as buttons (for choices with only a handful of settings). */
 function options(key: keyof ShipDesign, label: string, names: string[]): void {
+  labels[key] ??= label;
+  optionNames[key] = names;
   const row = document.createElement('div');
   row.className = 'row opts';
   row.innerHTML = `<label>${label}</label><div></div>`;
@@ -499,11 +527,11 @@ function markCurrent(): void {
 $('load').addEventListener('keydown', (e) => e.key === 'Enter' && loadCode());
 
 // ── Undo (undo.ts) ──
-const undo = new UndoStack();
+let undo = new UndoStack();
 /** A change of yours: onto your undo stack, and to the others if designing together. */
 function share(patch: DesignPatch): void {
   undo.record(design, patch, Date.now());
-  link?.side?.edit(patch);
+  side().edit(patch, active);
   showUndo();
 }
 function showUndo(): void {
@@ -513,7 +541,7 @@ function showUndo(): void {
 function undoRedo(redo: boolean): void {
   const patch = redo ? undo.redo() : undo.undo();
   if (!patch) return;
-  link?.side?.edit(patch);
+  side().edit(patch, active);
   change(patch, null);
   showUndo();
 }
@@ -534,14 +562,10 @@ function SESSION_KEY(id: string): string {
   return `swvr.yard.session.${id}`;
 }
 const NAME_KEY = 'swvr.yard.name';
-/** This browser's last copy of a session's design (null if none, or unreadable). */
-function readSessionCopy(id: string): ShipDesign | null {
+/** This browser's last copy of a session, or of working alone ('solo'): null if none, or unreadable. */
+function readDocCopy(id: string): YardDoc | null {
   try {
-    const raw = JSON.parse(storage()?.getItem(SESSION_KEY(id)) ?? 'null');
-    if (!raw || raw.v !== 1 || !raw.design) return null;
-    const d = { ...DEFAULT_DESIGN };
-    for (const k of Object.keys(d) as (keyof ShipDesign)[]) if (typeof raw.design[k] === 'number') d[k] = raw.design[k];
-    return d;
+    return cleanDoc(JSON.parse(storage()?.getItem(SESSION_KEY(id)) ?? 'null'));
   } catch {
     return null;
   }
@@ -549,12 +573,12 @@ function readSessionCopy(id: string): ShipDesign | null {
 let saveTimer = 0;
 /** Keep this browser's copy of the session (so a session with nobody in it is still there). */
 function saveSessionCopy(): void {
-  // On your own (no session), the pins and marks are kept too, under 'solo'.
+  // On your own (no session), the variants and notes are kept too, under 'solo'.
   const id = sessionId ?? 'solo';
   clearTimeout(saveTimer);
   saveTimer = window.setTimeout(() => {
     try {
-      storage()?.setItem(SESSION_KEY(id), JSON.stringify({ v: 1, design, notes, savedAt: Date.now() }));
+      storage()?.setItem(SESSION_KEY(id), JSON.stringify({ ...side().doc(), savedAt: Date.now() }));
     } catch {
       /* storage full or off: the session still works, it just isn't kept here */
     }
@@ -572,16 +596,9 @@ let people: Person[] = [];
 const STATE_TEXT = { connecting: 'Connecting…', keeping: 'Open: you’re keeping this session', joined: 'Joined', offline: 'Can’t connect (check your internet); your changes are kept in this browser' };
 function startLink(id: string): void {
   link?.close();
-  link = new YardLink(id, ($('myName') as HTMLInputElement).value || 'Designer', () => design, () => notes, {
-    onDesign: (_d, patch, by) => change(patch, people.find((p) => p.id === by) ?? null),
-    onPeople: (p) => {
-      people = p;
-      showPeople();
-    },
-    onNotes: (n) => {
-      notes = n;
-      notesChanged();
-    },
+  const from = side().doc();
+  link = new YardLink(id, ($('myName') as HTMLInputElement).value || 'Designer', () => link?.side?.doc() ?? from, {
+    ...handlers,
     onLost: () => ($('sessionState').textContent = 'The session’s keeper left: taking over…'),
     onState: (st) => ($('sessionState').textContent = STATE_TEXT[st]),
   });
@@ -601,7 +618,7 @@ function showPeople(): void {
     r.removeAttribute('data-who');
   });
   for (const p of people) {
-    if (p.id === me || !p.holding) continue;
+    if (p.id === me || !p.holding || p.variant !== active) continue;
     const row = document.querySelector<HTMLElement>(`input[data-key="${p.holding}"]`)?.closest<HTMLElement>('.row');
     if (!row) continue;
     row.classList.add('held');
@@ -647,7 +664,7 @@ function showCursors(): void {
   }
   const me = link?.side?.me;
   for (const p of people) {
-    if (p.id === me || !p.cursor) continue;
+    if (p.id === me || !p.cursor || p.variant !== active) continue;
     const g = new THREE.Group();
     g.position.set(...p.cursor);
     g.add(new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 8), new THREE.MeshBasicMaterial({ color: p.colour, depthTest: false })));
@@ -700,6 +717,8 @@ $('startSession').onclick = () => {
 };
 $('copyLink').onclick = () => void navigator.clipboard?.writeText(($('sessionLink') as HTMLInputElement).value);
 $('leaveSession').onclick = () => {
+  // The session's variants and notes stay with you, on your own.
+  solo = soloKeeper(side().doc());
   link?.close();
   link = null;
   people = [];
@@ -712,15 +731,7 @@ $('leaveSession').onclick = () => {
 };
 
 // ── Pins and marks (notes.ts): anyone's notes on her, and the to-do list ──
-/** This browser's copy of the notes kept under `id` ('solo' when designing alone). */
-function readNotesCopy(id: string): Note[] {
-  try {
-    return cleanNotes(JSON.parse(storage()?.getItem(SESSION_KEY(id)) ?? 'null')?.notes);
-  } catch {
-    return [];
-  }
-}
-let notes: Note[] = readNotesCopy(sessionId ?? 'solo');
+let notes: Note[] = startDoc.variants.find((v) => v.id === active)!.notes;
 /** Who I am on a note: my name and colour (my session colour, or the first). */
 function author(): { by: string; colour: string } {
   const me = people.find((p) => p.id === link?.side?.me);
@@ -728,18 +739,10 @@ function author(): { by: string; colour: string } {
 }
 /** Put or change a note: shared in a session, else just here. */
 function putMyNote(n: Note): void {
-  if (link?.side) link.side.note(n);
-  else {
-    notes = putNote(notes, n);
-    notesChanged();
-  }
+  side().note(n, active);
 }
 function dropMyNote(id: string): void {
-  if (link?.side) link.side.unnote(id);
-  else {
-    notes = dropNote(notes, id);
-    notesChanged();
-  }
+  side().unnote(id, active);
 }
 function notesChanged(): void {
   drawNotes();
@@ -941,7 +944,282 @@ $('pinCancel').onclick = () => setTool(null);
 // would otherwise hold it for up to a minute).
 window.addEventListener('pagehide', () => link?.close());
 
+// ── Working alone or together: one set of handlers (session.ts) ──
+const handlers: SessionEvents = {
+  onDesign: (_d, patch, by, v) => {
+    if (by && by === side().me) return; // our own: already applied
+    if (v === active) change(patch, people.find((p) => p.id === by) ?? null);
+    showTabs();
+    saveSessionCopy();
+  },
+  onNotes: (n, v) => {
+    if (v !== active) return saveSessionCopy();
+    notes = n;
+    notesChanged();
+  },
+  onVariants: () => {
+    const v = side().variant(active);
+    if (!v) return switchTo(MAIN);
+    // Replaced whole (joining, a promotion): take its design and notes.
+    if (diffFields(design, v.design).length) loadVariant(v);
+    else if (v.notes !== notes) {
+      notes = v.notes;
+      notesChanged();
+    }
+    showTabs();
+    saveSessionCopy();
+  },
+  onPeople: (p) => {
+    people = p;
+    showPeople();
+    showTabs();
+  },
+  onLost: () => {},
+};
+function soloKeeper(doc: YardDoc): Keeper {
+  // A keeper with nobody connected: working alone goes through the same code as together.
+  return new Keeper(doc, 'Me', new LoopbackHost(), handlers);
+}
+let solo = soloKeeper(startDoc);
+/** Where the variants live now: the session's copy, or this browser's own. */
+function side(): Keeper | NonNullable<YardLink['side']> {
+  return link?.side ?? solo;
+}
+
+// ── Variants (variants.ts): tabs, fork, compare, merge, promote ──
+/** Show a variant: its design (her gearbox matched again here) and its notes. */
+function loadVariant(v: Variant): void {
+  const before = matchKey(design);
+  design = { ...v.design };
+  if (matchKey(design) !== before) matchedFor = null;
+  notes = v.notes;
+  change({}, null);
+  if (matchKey(design) !== before) runTrial();
+  notesChanged();
+}
+function switchTo(id: string): void {
+  const v = side().variant(id) ?? side().variant(MAIN)!;
+  active = v.id;
+  undo = new UndoStack(); // undo is per tab
+  showUndo();
+  loadVariant(v);
+  link?.side?.presence({ variant: active });
+  showTabs();
+  showPeople();
+}
+/** The tabs over the view: one per variant, with who's on it; then Fork and Compare. */
+function showTabs(): void {
+  const box = $('tabs');
+  box.innerHTML = '';
+  for (const v of side().variants) {
+    const t = document.createElement('button');
+    t.className = `tab${v.id === active ? ' on' : ''}`;
+    const here = people.filter((p) => p.variant === v.id && p.id !== link?.side?.me);
+    t.innerHTML = `${esc(v.name)}${here.map((p) => `<i style="background:${p.colour}" title="${esc(p.name)}"></i>`).join('')}${v.id !== MAIN ? '<b title="Delete this variant">×</b>' : ''}`;
+    t.title = v.id === MAIN ? 'The main design' : `Forked by ${v.by || 'someone'} from ${side().variant(v.parent ?? MAIN)?.name ?? 'Main'}. Double-click to rename.`;
+    t.onclick = (e) => {
+      if ((e.target as HTMLElement).tagName === 'B') {
+        if (confirm(`Delete the variant “${v.name}” (and its pins)?`)) side().dropVariant(v.id);
+        return;
+      }
+      if (v.id !== active) switchTo(v.id);
+    };
+    t.ondblclick = () => {
+      if (v.id === MAIN) return;
+      const name = prompt('Rename this variant', v.name);
+      if (name && name.trim()) side().putVariant({ ...v, name: name.trim() });
+    };
+    box.appendChild(t);
+  }
+  const f = document.createElement('button');
+  f.className = 'tab add';
+  f.textContent = '+ Fork';
+  f.title = 'A copy of this tab to try something else';
+  f.onclick = forkActive;
+  box.appendChild(f);
+  if (side().variants.length > 1) {
+    const c = document.createElement('button');
+    c.className = 'tab add';
+    c.textContent = 'Compare';
+    c.onclick = () => openCompare();
+    box.appendChild(c);
+  }
+}
+function forkActive(): void {
+  const from = side().variant(active)!;
+  const who = author().by;
+  const name = prompt('Name the new variant', `${who}’s version`);
+  if (name === null) return;
+  const v = fork({ ...from, design: { ...design }, notes }, `v${noteId(side().me).replace(/[^\w]/g, '')}`, name, who, Date.now());
+  side().putVariant(v);
+  if (side().variant(v.id)) switchTo(v.id);
+  else alert('That’s as many variants as a design can hold. Delete one first.');
+}
+
+// Compare: two variants side by side, profile and plan at the same scale, what differs, their trials.
+let cmpRenderer: THREE.WebGLRenderer | null = null;
+const cmpWorker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
+let cmpRun = 0;
+/** Build a variant's boat on its own (the page's boat is put back after). */
+function boatFor(d: ShipDesign): { root: THREE.Group; boat: DesignedBoat } {
+  const b = useDesign(d);
+  const def = VESSEL_DEFS.design;
+  const root = new THREE.Group();
+  root.add(buildVesselMesh(def.hull, def.layout, def.exhaust?.position, def.livery));
+  root.add(new BoatView('design', def, assembleView(RECIPES.design, def, LIBRARY), true).root);
+  boat = useDesign(design);
+  return { root, boat: b };
+}
+/**
+ * Her profile (from starboard, bow to the right) and plan, at `mpp` metres a pixel, framed
+ * by `frame` (both boats' extent together) with her transom at the same place: the two
+ * pictures line up, so a longer hull reaches further right.
+ */
+function snapshots(root: THREE.Object3D, mpp: number, frame: THREE.Box3): [string, string] {
+  const W = 640;
+  const H = 210;
+  const stern = hullBox(root).max.z;
+  // The middle of the picture along her: the transom 4 % in from the left edge.
+  const midZ = stern - (0.5 - 0.04) * W * mpp;
+  const midY = (frame.min.y + frame.max.y) / 2;
+  const midX = (frame.min.x + frame.max.x) / 2;
+  cmpRenderer ??= new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+  cmpRenderer.setSize(W, H);
+  const sc = new THREE.Scene();
+  sc.background = new THREE.Color(0xeef3f5);
+  sc.add(new THREE.HemisphereLight(0xe8f0f8, 0x55606a, 1.6));
+  const sunC = new THREE.DirectionalLight(0xffffff, 1.4);
+  sunC.position.set(8, 14, -6);
+  sc.add(sunC, root);
+  const cam = new THREE.OrthographicCamera((-W / 2) * mpp, (W / 2) * mpp, (H / 2) * mpp, (-H / 2) * mpp, 0.1, 200);
+  const shots: string[] = [];
+  const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
+  for (const [pos, up, at] of [
+    [V(60, midY, midZ), V(0, 1, 0), V(0, midY, midZ)],
+    [V(midX, 60, midZ), V(-1, 0, 0), V(midX, 0, midZ)],
+  ]) {
+    cam.position.copy(pos);
+    cam.up.copy(up);
+    cam.lookAt(at);
+    cmpRenderer.render(sc, cam);
+    shots.push(cmpRenderer.domElement.toDataURL('image/png'));
+  }
+  sc.remove(root);
+  root.traverse((o) => (o as THREE.Mesh).geometry?.dispose());
+  return [shots[0], shots[1]];
+}
+/** What a field's value reads as, for the compare list (the sliders' own wording). */
+function describe(k: keyof ShipDesign, d: ShipDesign, b: DesignedBoat): string {
+  const v = d[k];
+  if (k === 'hull') return DESIGN_HULLS[v].name.split(':')[0];
+  if (k === 'engine') return ENGINES[v].name;
+  if (k === 'twin') return v ? 'Twin' : 'Single';
+  if (k === 'controls') return v ? 'Advanced' : 'Basic';
+  if (k === 'paint') return LIVERIES[v]?.name ?? String(v);
+  if (k === 'roofPaint') return ROOF_PAINTS[v]?.name ?? String(v);
+  if (optionNames[k]) return optionNames[k]![v] || String(v);
+  const show = outputs[k];
+  if (!show) return String(v);
+  const keep = boat;
+  boat = b; // the wording of some (length, beam, floor) reads her figures
+  try {
+    return show(v);
+  } finally {
+    boat = keep;
+  }
+}
+function openCompare(a = MAIN, b = active === MAIN ? side().variants[1]?.id : active): void {
+  if (!b) return;
+  $('compare').hidden = false;
+  const opts = side().variants.map((v) => `<option value="${v.id}">${esc(v.name)}</option>`).join('');
+  ($('cmpA') as HTMLSelectElement).innerHTML = opts;
+  ($('cmpB') as HTMLSelectElement).innerHTML = opts;
+  ($('cmpA') as HTMLSelectElement).value = a;
+  ($('cmpB') as HTMLSelectElement).value = b;
+  showCompare();
+}
+function showCompare(): void {
+  const A = side().variant(($('cmpA') as HTMLSelectElement).value);
+  const B = side().variant(($('cmpB') as HTMLSelectElement).value);
+  if (!A || !B) return;
+  const a = boatFor(A.id === active ? design : A.design);
+  const b = boatFor(B.id === active ? design : B.design);
+  // One scale for both: room for the longer and the taller (and the beamier, in plan).
+  const frame = hullBox(a.root).union(hullBox(b.root));
+  const size = frame.getSize(new THREE.Vector3());
+  const mpp = Math.max((size.z * 1.1) / 640, (size.y * 1.12) / 210, (size.x * 1.15) / 210);
+  const [pa, qa] = snapshots(a.root, mpp, frame);
+  const [pb, qb] = snapshots(b.root, mpp, frame);
+  ($('cmpPics') as HTMLElement).innerHTML = `<div class="lbl a">${esc(A.name)}</div><img src="${pa}"><div class="lbl b">${esc(B.name)}</div><img src="${pb}"><div class="lbl">Plan: ${esc(A.name)}, then ${esc(B.name)}</div><img src="${qa}"><img src="${qb}">`;
+  const keys = diffFields(A.design, B.design);
+  $('cmpDiff').innerHTML = keys.length
+    ? `<table>${keys.map((k) => `<tr><td>${esc(labels[k] ?? k)}</td><td class="a">${esc(describe(k, A.design, a.boat))}</td><td>→</td><td class="b">${esc(describe(k, B.design, b.boat))}</td><td><label><input type="checkbox" data-k="${k}"> take</label></td></tr>`).join('')}</table>`
+    : '<div class="meta">The two are the same design (their notes may differ).</div>';
+  ($('cmpMerge') as HTMLButtonElement).textContent = `Copy ticked values from “${B.name}” into “${A.name}”`;
+  ($('cmpMerge') as HTMLButtonElement).disabled = !keys.length;
+  ($('cmpPromote') as HTMLButtonElement).hidden = B.id === MAIN;
+  ($('cmpPromote') as HTMLButtonElement).textContent = `Make “${B.name}” the main design`;
+  // Their sea trials (each matched by trial, in the background).
+  const run = ++cmpRun;
+  const results: Record<string, SeaTrialResults | undefined> = {};
+  const bars = () => showBars(A, a.boat, results.a, B, b.boat, results.b);
+  bars();
+  cmpWorker.onmessage = (e: MessageEvent<{ id: number; trials?: SeaTrialResults }>) => {
+    if (Math.floor(e.data.id / 10) !== run) return;
+    results[e.data.id % 10 === 1 ? 'a' : 'b'] = e.data.trials;
+    bars();
+  };
+  cmpWorker.postMessage({ id: run * 10 + 1, design: A.id === active ? design : A.design, match: true });
+  cmpWorker.postMessage({ id: run * 10 + 2, design: B.id === active ? design : B.design, match: true });
+}
+/** The verdict bars: each figure for both, as bars to the larger of the two. */
+function showBars(A: Variant, a: DesignedBoat, ta: SeaTrialResults | undefined, B: Variant, b: DesignedBoat, tb: SeaTrialResults | undefined): void {
+  const rowsOf: [string, number | undefined, number | undefined, (x: number) => string, string][] = [
+    ['Top speed', ta?.topSpeedKn, tb?.topSpeedKn, (x) => `${x.toFixed(1)} kn`, 'more is faster'],
+    ['Turning circle', ta?.tacticalDiameter, tb?.tacticalDiameter, (x) => `${x.toFixed(0)} m`, 'less turns tighter'],
+    ['Crash stop', ta?.crashStopDistance, tb?.crashStopDistance, (x) => `${x.toFixed(0)} m`, 'less stops shorter'],
+    ['Range flat out', ta?.speedTable.at(-1)?.rangeNm, tb?.speedTable.at(-1)?.rangeNm, (x) => `${x.toFixed(0)} nm`, ''],
+    ['Stability (GM)', a.figures.gmM, b.figures.gmM, (x) => `${x.toFixed(2)} m`, 'more is stiffer'],
+    ['Displacement', a.figures.massT, b.figures.massT, (x) => `${x.toFixed(1)} t`, ''],
+    ['Roll period', ta?.motions.rollPeriod, tb?.motions.rollPeriod, (x) => `${x.toFixed(1)} s`, 'longer is gentler'],
+    ['Price', a.figures.price, b.figures.price, (x) => `£${Math.round(x).toLocaleString('en-GB')}`, ''],
+  ];
+  $('cmpBars').innerHTML =
+    `<div class="key"><span class="a">${esc(A.name)}</span> <span class="b">${esc(B.name)}</span></div>` +
+    rowsOf
+      .map(([name, x, y, fmt, hint]) => {
+        const max = Math.max(x ?? 0, y ?? 0) || 1;
+        const bar = (v: number | undefined, c: string) => (v === undefined ? '<div class="bar wait">trial running…</div>' : `<div class="bar ${c}"><span style="width:${(100 * v) / max}%"></span><em>${fmt(v)}</em></div>`);
+        return `<div class="metric"><div class="name">${name}${hint ? ` <small>${hint}</small>` : ''}</div>${bar(x, 'a')}${bar(y, 'b')}</div>`;
+      })
+      .join('');
+}
+$('cmpA').onchange = showCompare;
+$('cmpB').onchange = showCompare;
+$('cmpClose').onclick = () => ($('compare').hidden = true);
+$('cmpMerge').onclick = () => {
+  const A = side().variant(($('cmpA') as HTMLSelectElement).value);
+  const B = side().variant(($('cmpB') as HTMLSelectElement).value);
+  if (!A || !B) return;
+  const ticked = [...document.querySelectorAll<HTMLInputElement>('#cmpDiff input:checked')].map((i) => i.dataset.k as keyof ShipDesign);
+  if (!ticked.length) return alert('Tick the values to take first.');
+  const patch = mergePatch(B.design, ticked);
+  if (A.id === active) change(patch); // yours: on your undo, and shared
+  else side().edit(patch, A.id);
+  showCompare();
+};
+$('cmpPromote').onclick = () => {
+  const B = side().variant(($('cmpB') as HTMLSelectElement).value);
+  if (!B || !confirm(`Make “${B.name}” the main design? The main design as it is now is kept as a variant.`)) return;
+  const swap = promote(side().variants, B.id, Date.now());
+  if (!swap) return;
+  for (const v of swap) side().putVariant(v);
+  switchTo(MAIN);
+  openCompare(MAIN, B.id);
+};
+
 // ── Start ──
+showTabs();
 showTodo();
 drawNotes();
 showUndo();

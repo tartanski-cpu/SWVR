@@ -49,7 +49,34 @@
       #load { width: 190px; font: 600 14px ui-monospace, monospace; padding: 5px; text-transform: uppercase; }
       #loadMsg { color: #a33; font-size: 12px; min-height: 16px; }
       #status { color: #567; font-size: 12px; min-height: 16px; }
-      #views { position: absolute; top: 10px; left: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+      #views { position: absolute; top: 48px; left: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+      #tabs { position: absolute; top: 10px; left: 10px; right: 10px; display: flex; flex-wrap: wrap; gap: 4px; z-index: 2; }
+      .tab { background: rgba(246,249,250,0.75); border-radius: 8px 8px 0 0; border-bottom: 2px solid transparent; }
+      .tab.on { background: #fff; border-color: #8aa; border-bottom-color: #2f5d8a; font-weight: 600; }
+      .tab i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-left: 5px; }
+      .tab b { margin-left: 8px; color: #a33; font-weight: 700; }
+      .tab.add { border-radius: 8px; background: rgba(246,249,250,0.9); color: #2f5d8a; }
+      #compare { position: fixed; inset: 0; background: rgba(16,32,42,0.5); z-index: 10; display: flex; align-items: center; justify-content: center; }
+      #compare[hidden] { display: none; }
+      .cmpBox { background: #f6f9fa; border-radius: 10px; width: min(1180px, 96vw); max-height: 94vh; overflow: auto; padding: 12px 16px; box-sizing: border-box; }
+      .cmpHead { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+      .cmpHead #cmpClose { margin-left: auto; }
+      .cmpBody { display: grid; grid-template-columns: minmax(0, 640px) 1fr; gap: 16px; margin-top: 10px; }
+      #cmpPics img { display: block; width: 100%; max-width: 640px; border-radius: 6px; margin-bottom: 4px; }
+      #cmpPics .lbl { font-size: 12px; font-weight: 600; margin: 6px 0 2px; }
+      .lbl.a, .key .a, td.a { color: #2f5d8a; }
+      .lbl.b, .key .b, td.b { color: #c0551f; }
+      #cmpDiff table td { padding: 3px 6px 3px 0; }
+      .metric { margin: 6px 0; }
+      .metric .name { font-size: 12px; color: #234; }
+      .metric small { color: #789; }
+      .bar { position: relative; height: 16px; background: #e1e8eb; border-radius: 4px; margin: 2px 0; overflow: hidden; font-size: 11px; }
+      .bar span { position: absolute; left: 0; top: 0; bottom: 0; }
+      .bar.a span { background: #9fbad6; }
+      .bar.b span { background: #f0b994; }
+      .bar em { position: relative; font-style: normal; padding-left: 6px; line-height: 16px; }
+      .bar.wait { color: #8a9aa4; padding-left: 6px; line-height: 16px; }
+      @media (max-width: 860px) { .cmpBody { grid-template-columns: 1fr; } }
       #views button { background: rgba(246,249,250,0.9); }
       #favName { flex: 1; min-width: 120px; font: inherit; padding: 5px; }
       #favMsg { color: #567; font-size: 12px; min-height: 16px; }
@@ -80,7 +107,7 @@
       @keyframes flash { from { box-shadow: 0 0 0 3px var(--c); } to { box-shadow: 0 0 0 3px transparent; } }
       .flash { animation: flash 1.5s ease-out; }
       #views button.tool.on { background: #2f5d8a; color: #fff; border-color: #2f5d8a; }
-      #toolHint { position: absolute; top: 52px; left: 10px; font-size: 12px; color: #fff; text-shadow: 0 0 3px #000; pointer-events: none; }
+      #toolHint { position: absolute; top: 90px; left: 10px; font-size: 12px; color: #fff; text-shadow: 0 0 3px #000; pointer-events: none; }
       #pinEditor { position: absolute; width: 240px; background: #f6f9fa; border-radius: 8px; padding: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.25); z-index: 3; }
       #pinEditor input { width: 100%; box-sizing: border-box; font: inherit; padding: 5px; }
       #todoCount { font-weight: 400; color: #567; text-transform: none; letter-spacing: 0; }
@@ -124,6 +151,7 @@
       <div id="controls"></div>
     </div>
     <div id="view">
+      <div id="tabs"></div>
       <div id="views"></div>
       <div id="quick"></div>
       <div id="toolHint"></div>
@@ -160,6 +188,25 @@
       </div>
       <div id="favMsg"></div>
       <div id="favs"></div>
+    </div>
+    <div id="compare" hidden>
+      <div class="cmpBox">
+        <div class="cmpHead">
+          <b>Compare</b>
+          <select id="cmpA"></select> <span>with</span> <select id="cmpB"></select>
+          <button id="cmpClose">Close</button>
+        </div>
+        <div class="cmpBody">
+          <div id="cmpPics"></div>
+          <div class="cmpSide">
+            <h2>What differs</h2>
+            <div id="cmpDiff"></div>
+            <div class="tools"><button id="cmpMerge" class="primary">Copy ticked values</button><button id="cmpPromote">Make it the main design</button></div>
+            <h2>How they compare</h2>
+            <div id="cmpBars"></div>
+          </div>
+        </div>
+      </div>
     </div>
     <script type="module" src="/src/shipyard/page.ts"></script>
   </body>

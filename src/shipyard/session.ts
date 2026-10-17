@@ -1,5 +1,5 @@
 /**
- * Designing a boat together (owner, Oct 2026; collaboration, part 1): a shared session.
+ * Designing a boat together (owner, Oct 2026; collaboration): a shared session.
  *
  * Everyone who opens a session's link edits the same design. There's no server of our own:
  * the browsers talk directly, over the same PeerJS link as the game's multiplayer
@@ -13,16 +13,23 @@
  * change it receives wins. A few friends rarely collide, and undo (undo.ts) makes a
  * collision cheap to put right.
  *
+ * What's shared (part 2, notes.ts; part 3, variants.ts): the main design and its variants,
+ * each with its own pins and marks. Every change says which variant it's for; each person
+ * works on one at a time (their tab).
+ *
  * Presence: each person has a name and a colour (given by the keeper), and shares where
- * their pointer is on the boat and which control they're holding, so a slider being dragged
- * shows that person's colour to the others.
+ * their pointer is on the boat, which control they're holding and which tab they're on, so
+ * a slider being dragged shows that person's colour to the others.
  *
  * This file is the protocol only, with no page or network code, so it's tested with the
  * in-memory transport. The page (page.ts) and the link (yardLink.ts) sit on top of it.
  */
 import type { ClientTransport, HostTransport, Link } from '../net/transport';
 import type { ShipDesign } from './design';
-import { cleanNote, cleanNotes, dropNote, putNote, type Note } from './notes';
+import { cleanNote, dropNote, putNote, type Note } from './notes';
+import { cleanDoc, cleanVariant, dropVariant, MAIN, newDoc, putVariant, type Variant, type YardDoc } from './variants';
+
+export type { YardDoc } from './variants';
 
 /** One person in the session. */
 export interface Person {
@@ -34,31 +41,23 @@ export interface Person {
   cursor: [number, number, number] | null;
   /** The control they're holding (a design field, e.g. 'length'), or null. */
   holding: keyof ShipDesign | null;
-}
-
-/** What a session holds (saved in each browser, sent to anyone who joins). */
-export interface YardDoc {
-  v: 1;
-  design: ShipDesign;
-  /** Pins and marks on her (notes.ts); missing in copies saved before part 2. */
-  notes?: Note[];
+  /** The variant they're looking at (its tab). */
+  variant: string;
 }
 
 /** A change to the design: some of its fields. The gearbox isn't shared (each browser matches its own). */
 export type DesignPatch = Partial<ShipDesign>;
 
-type ToKeeper =
-  | { t: 'hello'; name: string }
-  | { t: 'set'; patch: DesignPatch }
-  | { t: 'note'; note: Note }
-  | { t: 'unnote'; id: string }
-  | { t: 'me'; cursor?: Person['cursor']; holding?: Person['holding']; name?: string };
-type FromKeeper =
-  | { t: 'welcome'; you: string; doc: YardDoc; people: Person[] }
-  | { t: 'patch'; patch: DesignPatch; by: string }
-  | { t: 'note'; note: Note; by: string }
-  | { t: 'unnote'; id: string; by: string }
-  | { t: 'people'; people: Person[] };
+/** A change to what the session holds (each says which variant, `v`, it's for). */
+type Op =
+  | { t: 'set'; v: string; patch: DesignPatch }
+  | { t: 'note'; v: string; note: Note }
+  | { t: 'unnote'; v: string; id: string }
+  | { t: 'variant'; variant: Variant }
+  | { t: 'unvariant'; id: string };
+type Presence = { cursor?: Person['cursor']; holding?: Person['holding']; name?: string; variant?: string };
+type ToKeeper = { t: 'hello'; name: string } | Op | ({ t: 'me' } & Presence);
+type FromKeeper = { t: 'welcome'; you: string; doc: YardDoc; people: Person[] } | (Op & { by: string }) | { t: 'people'; people: Person[] };
 
 /** Colours handed out in turn: clear on the page's pale blue and on the boat. */
 export const COLOURS = ['#d9622b', '#2f8a4a', '#7a3fb0', '#c0392b', '#1f7fb8', '#b8860b', '#d63384', '#3d5a80'];
@@ -82,65 +81,116 @@ export function cleanPatch(patch: unknown, design: ShipDesign): DesignPatch {
 }
 
 export interface SessionEvents {
-  /** The design changed (from someone else, or from joining): `by` is who changed it. */
-  onDesign: (design: ShipDesign, patch: DesignPatch, by: string | null) => void;
-  /** Who's here changed (joined, left, moved their pointer, picked up a control). */
+  /** A variant's design changed (from someone else, or from joining): `by` is who changed it. */
+  onDesign: (design: ShipDesign, patch: DesignPatch, by: string | null, variant: string) => void;
+  /** Who's here changed (joined, left, moved their pointer, picked up a control, changed tab). */
   onPeople: (people: Person[]) => void;
   /** The link to the keeper is gone (they left): the page takes over or reconnects. */
   onLost: (reason: string) => void;
-  /** The pins and marks changed (anyone's, or from joining). */
-  onNotes?: (notes: Note[]) => void;
+  /** A variant's pins and marks changed (anyone's, or from joining). */
+  onNotes?: (notes: Note[], variant: string) => void;
+  /** Variants were made, renamed, promoted or deleted (or the lot, on joining). */
+  onVariants?: (variants: Variant[], by: string | null) => void;
 }
 
-/** Common to both sides: the copy of the design and the people. */
+/** Common to both sides: the session's copy of everything, and the people. */
 abstract class Side {
-  design: ShipDesign;
+  variants: Variant[];
   people: Person[] = [];
-  /** Pins and marks on her (notes.ts). */
-  notes: Note[];
   /** This browser's person id. */
   me = '';
 
-  constructor(design: ShipDesign, protected readonly events: SessionEvents, notes: Note[] = []) {
-    this.design = { ...design };
-    this.notes = cleanNotes(notes);
+  constructor(start: ShipDesign | YardDoc, protected readonly events: SessionEvents) {
+    this.variants = ('variants' in start ? cleanDoc(start) : null)?.variants ?? newDoc(start as ShipDesign).variants;
   }
 
-  /** Put a pin or mark (new, or changed: done, new text). */
-  abstract note(n: Note): void;
-  /** Take a pin or mark off. */
-  abstract unnote(id: string): void;
-
-  protected setNote(n: unknown): Note | null {
-    const clean = cleanNote(n);
-    if (!clean) return null;
-    this.notes = putNote(this.notes, clean);
-    this.events.onNotes?.(this.notes);
-    return clean;
+  /** The main design and its notes (the first tab). */
+  get design(): ShipDesign {
+    return this.variant(MAIN)!.design;
   }
-
-  protected removeNote(id: unknown): boolean {
-    if (typeof id !== 'string' || !this.notes.some((x) => x.id === id)) return false;
-    this.notes = dropNote(this.notes, id);
-    this.events.onNotes?.(this.notes);
-    return true;
+  get notes(): Note[] {
+    return this.variant(MAIN)!.notes;
   }
-
-  /** Change the design here and share it. */
-  abstract edit(patch: DesignPatch): void;
-  /** Share where this person's pointer is / what they're holding / their name. */
-  abstract presence(update: { cursor?: Person['cursor']; holding?: Person['holding']; name?: string }): void;
-  abstract close(): void;
+  variant(id: string): Variant | undefined {
+    return this.variants.find((v) => v.id === id);
+  }
 
   doc(): YardDoc {
-    return { v: 1, design: { ...this.design }, notes: this.notes };
+    return { v: 2, variants: this.variants };
   }
 
-  protected apply(patch: DesignPatch, by: string | null): void {
-    const clean = cleanPatch(patch, this.design);
-    if (!Object.keys(clean).length) return;
-    this.design = { ...this.design, ...clean };
-    this.events.onDesign(this.design, clean, by);
+  /** Change a variant's design here and share it. */
+  edit(patch: DesignPatch, v = MAIN): void {
+    this.act({ t: 'set', v, patch });
+  }
+  /** Put a pin or mark on a variant (new, or changed: done, new text). */
+  note(n: Note, v = MAIN): void {
+    this.act({ t: 'note', v, note: n });
+  }
+  /** Take a pin or mark off. */
+  unnote(id: string, v = MAIN): void {
+    this.act({ t: 'unnote', v, id });
+  }
+  /** Make or replace a variant whole (a fork, a rename, a promotion). */
+  putVariant(variant: Variant): void {
+    this.act({ t: 'variant', variant });
+  }
+  /** Delete a variant (never the main design). */
+  dropVariant(id: string): void {
+    this.act({ t: 'unvariant', id });
+  }
+
+  /** An op of ours: applied here, then shared. */
+  protected abstract act(op: Op): void;
+  /** Share where this person's pointer is / what they're holding / their name / their tab. */
+  abstract presence(update: Presence): void;
+  abstract close(): void;
+
+  /** Apply an op (anyone's) to this copy. The cleaned op if it changed anything, else null. */
+  protected apply(op: Op, by: string | null): Op | null {
+    if (!op || typeof op !== 'object') return null;
+    if (op.t === 'variant') {
+      const v = cleanVariant(op.variant);
+      if (!v) return null;
+      if (v.id === MAIN) v.parent = null;
+      this.variants = putVariant(this.variants, v);
+      if (!this.variant(v.id)) return null; // the list is full
+      this.events.onVariants?.(this.variants, by);
+      return { t: 'variant', variant: v };
+    }
+    if (op.t === 'unvariant') {
+      if (op.id === MAIN || !this.variant(op.id)) return null;
+      this.variants = dropVariant(this.variants, op.id);
+      this.events.onVariants?.(this.variants, by);
+      return { t: 'unvariant', id: op.id };
+    }
+    const target = typeof op.v === 'string' ? this.variant(op.v) : undefined;
+    if (!target) return null;
+    if (op.t === 'set') {
+      const patch = cleanPatch(op.patch, target.design);
+      if (!Object.keys(patch).length) return null;
+      this.replace({ ...target, design: { ...target.design, ...patch } });
+      this.events.onDesign(this.variant(target.id)!.design, patch, by, target.id);
+      return { t: 'set', v: target.id, patch };
+    }
+    if (op.t === 'note') {
+      const n = cleanNote(op.note);
+      if (!n) return null;
+      this.replace({ ...target, notes: putNote(target.notes, n) });
+      this.events.onNotes?.(this.variant(target.id)!.notes, target.id);
+      return { t: 'note', v: target.id, note: n };
+    }
+    if (op.t === 'unnote') {
+      if (typeof op.id !== 'string' || !target.notes.some((x) => x.id === op.id)) return null;
+      this.replace({ ...target, notes: dropNote(target.notes, op.id) });
+      this.events.onNotes?.(this.variant(target.id)!.notes, target.id);
+      return { t: 'unnote', v: target.id, id: op.id };
+    }
+    return null;
+  }
+
+  private replace(v: Variant): void {
+    this.variants = this.variants.map((x) => (x.id === v.id ? v : x));
   }
 }
 
@@ -149,10 +199,10 @@ export class Keeper extends Side {
   private readonly links = new Map<string, { link: Link; person: Person }>();
   private n = 0;
 
-  constructor(design: ShipDesign, name: string, private readonly transport: HostTransport, events: SessionEvents, notes: Note[] = []) {
-    super(design, events, notes);
+  constructor(start: ShipDesign | YardDoc, name: string, private readonly transport: HostTransport, events: SessionEvents) {
+    super(start, events);
     this.me = 'p0';
-    this.people = [{ id: this.me, name: cleanPersonName(name, 'Person 1'), colour: COLOURS[0], cursor: null, holding: null }];
+    this.people = [{ id: this.me, name: cleanPersonName(name, 'Person 1'), colour: COLOURS[0], cursor: null, holding: null, variant: MAIN }];
     transport.onMessage = (link, msg) => this.receive(link, msg as ToKeeper);
     transport.onDisconnect = (link) => {
       const gone = this.links.get(link.id)?.person.id;
@@ -172,7 +222,7 @@ export class Keeper extends Side {
       // The next colour nobody here has.
       const used = new Set(this.people.map((p) => p.colour));
       const colour = COLOURS.find((c) => !used.has(c)) ?? COLOURS[this.n % COLOURS.length];
-      const person: Person = { id, name: cleanPersonName(msg.name, `Person ${this.people.length + 1}`), colour, cursor: null, holding: null };
+      const person: Person = { id, name: cleanPersonName(msg.name, `Person ${this.people.length + 1}`), colour, cursor: null, holding: null, variant: MAIN };
       this.links.set(link.id, { link, person });
       this.people = [...this.people, person];
       link.send({ t: 'welcome', you: id, doc: this.doc(), people: this.people } satisfies FromKeeper);
@@ -181,28 +231,19 @@ export class Keeper extends Side {
       return;
     }
     if (!entry) return;
-    if (msg.t === 'set') {
-      const clean = cleanPatch(msg.patch, this.design);
-      if (!Object.keys(clean).length) return;
-      this.apply(clean, entry.person.id);
-      this.broadcast({ t: 'patch', patch: clean, by: entry.person.id });
-    } else if (msg.t === 'note') {
-      const n = this.setNote(msg.note);
-      if (n) this.broadcast({ t: 'note', note: n, by: entry.person.id });
-    } else if (msg.t === 'unnote') {
-      if (this.removeNote(msg.id)) this.broadcast({ t: 'unnote', id: msg.id, by: entry.person.id });
-    } else if (msg.t === 'me') {
-      this.update(entry.person.id, msg);
-    }
+    if (msg.t === 'me') return this.update(entry.person.id, msg);
+    const done = this.apply(msg, entry.person.id);
+    if (done) this.broadcast({ ...done, by: entry.person.id });
   }
 
-  private update(id: string, u: { cursor?: Person['cursor']; holding?: Person['holding']; name?: string }): void {
+  private update(id: string, u: Presence): void {
     this.people = this.people.map((p) => {
       if (p.id !== id) return p;
       const q = { ...p };
       if (u.cursor !== undefined) q.cursor = Array.isArray(u.cursor) && u.cursor.length === 3 && u.cursor.every(Number.isFinite) ? [u.cursor[0], u.cursor[1], u.cursor[2]] : null;
       if (u.holding !== undefined) q.holding = typeof u.holding === 'string' && u.holding in this.design ? u.holding : null;
       if (u.name !== undefined) q.name = cleanPersonName(u.name, p.name);
+      if (u.variant !== undefined) q.variant = typeof u.variant === 'string' && this.variant(u.variant) ? u.variant : MAIN;
       return q;
     });
     this.sharePeople();
@@ -217,24 +258,13 @@ export class Keeper extends Side {
     this.events.onPeople(this.people);
   }
 
-  edit(patch: DesignPatch): void {
-    const clean = cleanPatch(patch, this.design);
-    if (!Object.keys(clean).length) return;
-    this.design = { ...this.design, ...clean };
-    this.broadcast({ t: 'patch', patch: clean, by: this.me });
+  protected act(op: Op): void {
+    const done = this.apply(op, this.me);
+    if (done) this.broadcast({ ...done, by: this.me });
   }
 
-  presence(update: { cursor?: Person['cursor']; holding?: Person['holding']; name?: string }): void {
+  presence(update: Presence): void {
     this.update(this.me, update);
-  }
-
-  note(n: Note): void {
-    const clean = this.setNote(n);
-    if (clean) this.broadcast({ t: 'note', note: clean, by: this.me });
-  }
-
-  unnote(id: string): void {
-    if (this.removeNote(id)) this.broadcast({ t: 'unnote', id, by: this.me });
   }
 
   get count(): number {
@@ -251,9 +281,9 @@ export class Member extends Side {
   /** Joined (the keeper's welcome has come). */
   joined = false;
 
-  constructor(design: ShipDesign, name: string, private readonly transport: ClientTransport, events: SessionEvents) {
-    super(design, events);
-    // Until welcomed, no notes: the session's replace this browser's own.
+  constructor(start: ShipDesign | YardDoc, name: string, private readonly transport: ClientTransport, events: SessionEvents) {
+    // Until welcomed, this browser's own copy; the session's then replaces it.
+    super(start, events);
     transport.onOpen = () => transport.send({ t: 'hello', name } satisfies ToKeeper);
     transport.onMessage = (msg) => this.receive(msg as FromKeeper);
     transport.onClose = (reason) => events.onLost(reason);
@@ -262,47 +292,32 @@ export class Member extends Side {
   private receive(msg: FromKeeper): void {
     if (!msg || typeof msg !== 'object') return;
     if (msg.t === 'welcome') {
+      const doc = cleanDoc(msg.doc);
+      if (!doc) return;
       this.me = msg.you;
       this.joined = true;
       this.people = msg.people;
-      // The session's design replaces whatever this browser had.
-      this.design = { ...this.design, ...cleanPatch(msg.doc?.design, this.design) };
-      this.events.onDesign(this.design, cleanPatch(msg.doc?.design, this.design), null);
-      this.notes = cleanNotes(msg.doc?.notes);
-      this.events.onNotes?.(this.notes);
+      this.variants = doc.variants;
+      this.events.onVariants?.(this.variants, null);
+      for (const v of this.variants) this.events.onNotes?.(v.notes, v.id);
+      this.events.onDesign(this.design, cleanPatch(this.design, this.design), null, MAIN);
       this.events.onPeople(this.people);
-    } else if (msg.t === 'patch') {
-      // Our own change coming back: already applied here.
-      if (msg.by === this.me) return;
-      this.apply(msg.patch, msg.by);
-    } else if (msg.t === 'note') {
-      if (msg.by !== this.me) this.setNote(msg.note);
-    } else if (msg.t === 'unnote') {
-      if (msg.by !== this.me) this.removeNote(msg.id);
     } else if (msg.t === 'people') {
       this.people = msg.people;
       this.events.onPeople(this.people);
+    } else if (msg.by !== this.me) {
+      // Someone else's change (our own come back already applied).
+      this.apply(msg, msg.by);
     }
   }
 
-  edit(patch: DesignPatch): void {
-    const clean = cleanPatch(patch, this.design);
-    if (!Object.keys(clean).length) return;
-    this.design = { ...this.design, ...clean };
-    this.transport.send({ t: 'set', patch: clean } satisfies ToKeeper);
+  protected act(op: Op): void {
+    const done = this.apply(op, this.me);
+    if (done) this.transport.send(done satisfies ToKeeper);
   }
 
-  presence(update: { cursor?: Person['cursor']; holding?: Person['holding']; name?: string }): void {
+  presence(update: Presence): void {
     this.transport.send({ t: 'me', ...update } satisfies ToKeeper);
-  }
-
-  note(n: Note): void {
-    const clean = this.setNote(n);
-    if (clean) this.transport.send({ t: 'note', note: clean } satisfies ToKeeper);
-  }
-
-  unnote(id: string): void {
-    if (this.removeNote(id)) this.transport.send({ t: 'unnote', id } satisfies ToKeeper);
   }
 
   close(): void {

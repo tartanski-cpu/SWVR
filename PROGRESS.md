@@ -3303,6 +3303,51 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **The listener now follows your head every frame**, not only during a rescue, so ships' horns are placed right too.
 - **Checked** (on the `next` build, the workboat): typecheck, all 542 tests; in headless Chromium, a live station playing through the new route (signal measured after the level stage), full level at the helm, 0.085 against 0.2 with the 2500 Hz cut 2.5 m forward of the wheelhouse on the foredeck, and full again back inside; no page errors. **Not checked:** how it sounds (no speakers here), the doors-shut case in the browser, the plain fallback with a real refusing station, and the Quest browser.
 
+### Shipyard: designing together, part 3: variants, compare, merge, promote (owner)
+
+- **The brief:**
+  - Any design can be forked into a variant: a full copy with a parent link.
+  - The session lists its variants as tabs.
+  - Compare mode shows two side by side in profile and plan at the same scale, with a list of what differs and the verdict bars for both.
+  - A variant can be promoted to the main design, or merged field by field by ticking which values to keep.
+  - Variants carry their own pins.
+- **Data** (`src/shipyard/variants.ts`):
+  - A **variant** is `{ id, name, parent, by, t, design, notes }`. A design's **doc** is `{ v: 2, variants }`: the main design (id `main`, never deleted) first, then up to 11 variants.
+  - **Helpers:** `fork` (a full copy, parent link), `putVariant`, `dropVariant` (its children then hang from its parent), `promote`, `diffFields`, `mergePatch`, and `cleanDoc` / `cleanVariant` / `cleanDesign`. Every field is checked as a whole step in range.
+  - **Promote:** the main takes the variant's design and notes, and the variant keeps the old main's, renamed "Main before …", so nothing is lost.
+  - **Saved copies** from parts 1 and 2 (`{ v: 1, design, notes }`) read as a main design.
+- **Shared** (`session.ts`, rewritten around one op list):
+  - The ops are `set` (patch), `note` and `unnote`, each for a variant `v`, and `variant` (a fork, rename or promotion, put whole) and `unvariant`.
+  - Both sides apply ops with the same code (`Side.apply`). The keeper's order is the order of record; the last write wins per field or per whole variant.
+  - Presence adds which tab each person is on. Pointers and held sliders show only to people on the same tab.
+  - The old single-design calls (`edit(patch)`, `note(n)`, `design`, `notes`) mean the main design, so parts 1-2's tests run unchanged.
+- **Working alone goes through the same code:** without a session, the page keeps its variants in a keeper with nobody connected (`solo`, on the in-memory transport). It's saved under `swvr.yard.session.solo`, and starting or leaving a session carries everything across.
+- **On the page** (`page.ts`, `shipyard.html`):
+  - **Tabs** over the 3D view: one per variant, with coloured dots for who's on it. Double-click to rename, × to delete (asks first). **+ Fork** names and makes a copy of the tab you're on and switches to it. **Compare** appears once there are two.
+  - **Undo** is per tab (switching clears it).
+  - **Opened with a code** (`#CODE`, alone): it shows the variant that is that design, or else becomes the main design.
+- **Compare** (a panel over the page):
+  - Pick any two. Each boat's profile (from starboard, bow right) and plan are drawn by a second, small renderer (made only when Compare is first opened). Both are at one scale chosen to fit the longer, taller and beamier of the two, and their transoms line up, so a longer hull reaches further right.
+  - **What differs:** each differing field with both values in the sliders' own wording (Length 9.00 m → 10.13 m, Engines Single → Twin), each with a "take" tick. **Copy ticked values** merges them into the first (onto your undo if it's your tab, shared either way). **Make it the main design** promotes the second.
+  - **How they compare:** bars for both, each to the larger of the two. Top speed, turning circle, crash stop and range flat out come from each one's own sea trial, run in the background (gearbox matched); GM, displacement and price from her figures. A short hint says which way is better.
+- **Fix found while testing:** the frame for pins and marks was the whole 3D view's extent, and the lights' glows and the searchlight's beam made that tens of metres too big. It's now the hull and house mesh's extent (`hullBox`), as meant. Pins placed earlier today (part 2) may sit a little off.
+- **Tests** (`tests/shipyard/variants.test.ts`):
+  - a fork copies the design and notes with a parent link;
+  - diff ignores the gearbox; merge and promote;
+  - the main design is never deleted, children re-parent, and the cap holds;
+  - old copies read, and bad docs are refused;
+  - in a session, a fork, its edits and its pins reach everyone, edits to one variant leave the others, a latecomer gets the lot, deleting reaches everyone, and tab presence is checked.
+- **Checked in headless Chromium over the real PeerJS broker:**
+  - Amy forked "Amy's twin-engine version" and made it twin-engined and longer; Simon saw the tab appear while his main stayed 9 m.
+  - Simon opened Compare: the list showed Length and Engines, the trials filled in (32.4 kn against 19.5), and the profiles and plans were lined up at one scale (screenshot).
+  - He ticked Engines and copied it into Main: main went twin-engined, still 9 m, and Amy's copy showed the same.
+  - With the frame fixed, a pin on the house moves in proportion when she's lengthened.
+- **Owner test:**
+  1. In a session, press + Fork and name it. Change her on that tab.
+  2. Switch tabs on the other device.
+  3. Press Compare, tick a value or two and copy them across.
+  4. Try Make it the main design, then find the old main kept as a variant.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

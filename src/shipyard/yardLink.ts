@@ -5,9 +5,8 @@
  * and if they do, the second finds the first and joins it).
  */
 import { PeerClientTransport, PeerHostTransport } from '../net/transport';
-import type { ShipDesign } from './design';
 import { Keeper, Member, peerIdForSession, type SessionEvents } from './session';
-import type { Note } from './notes';
+import type { YardDoc } from './variants';
 
 /** How long to wait for the keeper to answer before keeping the session ourselves (ms). */
 const JOIN_WAIT = 6000;
@@ -23,10 +22,8 @@ export class YardLink {
   constructor(
     readonly id: string,
     private name: string,
-    /** The design to start from (this browser's copy) if we end up keeping the session. */
-    private design: () => ShipDesign,
-    /** The pins and marks to start from if we end up keeping the session. */
-    private notes: () => Note[],
+    /** What to start from (this browser's copy: designs, variants, notes) if we end up keeping the session. */
+    private doc: () => YardDoc,
     private readonly events: SessionEvents & { onState: (s: YardLink['state']) => void },
   ) {
     void this.connect();
@@ -62,17 +59,18 @@ export class YardLink {
         if (!ok) member.close();
         resolve(ok);
       };
-      const member: Member = new Member(this.design(), this.name, transport, {
-        onDesign: (d, p, by) => {
+      const member: Member = new Member(this.doc(), this.name, transport, {
+        onDesign: (d, p, by, v) => {
           if (member.joined && !settled) {
             this.side = member;
             this.setState('joined');
             done(true);
           }
-          this.events.onDesign(d, p, by);
+          this.events.onDesign(d, p, by, v);
         },
         onPeople: (p) => this.events.onPeople(p),
-        onNotes: (n) => this.events.onNotes?.(n),
+        onNotes: (n, v) => this.events.onNotes?.(n, v),
+        onVariants: (list, by) => this.events.onVariants?.(list, by),
         onLost: (reason) => {
           if (!settled) return done(false);
           if (this.side !== member) return;
@@ -95,7 +93,7 @@ export class YardLink {
       transport.close();
       return false;
     }
-    const keeper = new Keeper(this.design(), this.name, transport, this.events, this.notes());
+    const keeper = new Keeper(this.doc(), this.name, transport, this.events);
     this.side = keeper;
     this.setState('keeping');
     this.events.onPeople(keeper.people);

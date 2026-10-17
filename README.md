@@ -512,6 +512,8 @@ The page shows her in 3D (around her and at the helm), her figures and her sea t
 
 **Pins and marks:** press **📍 Pin** on the 3D view, click on her and type a note ("searchlight here"); or press **✏ Mark** and draw on her. Everyone in the session sees them, in each person's colour. Pins are the design's **To do** list (right-hand column, under her figures): click a note to look at its pin, **Done** when it's sorted (done pins fade), ✕ to delete. Pins and marks are stuck to her, not to the screen: stretch her and they stay on the same part of the boat. On your own (no session) they're kept in your browser.
 
+**Variants:** **+ Fork** (in the tabs over the 3D view) copies the tab you're on into a new variant you name ("Amy's twin-engine version"), with its own pins and marks; then try things there without touching the main design. Each variant is a tab (double-click to rename, × to delete); coloured dots show who's on which. **Compare** shows two side by side: her profile and plan at the same scale (sterns lined up), a list of what differs, and bars for their sea trials and figures. Tick values in the list and **Copy ticked values** to merge them into the first, or **Make it the main design** (the old main is kept as a variant). Works on your own too.
+
 **Favourites:** name a design and **Save to favourites** to keep her in a list on the page, with a small picture and her figures: **Open** her again, **Try in game**, or **Delete**. Saving again under the same name updates it. The list is kept in this browser on this device (the Quest's browser and your desktop each have their own); to move a design between them, use its code.
 
 ## Local development
