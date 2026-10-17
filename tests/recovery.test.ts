@@ -323,7 +323,8 @@ describe('recovery: boat hook laid down', () => {
 });
 
 describe('recovery: VR hands', () => {
-  it('a hooked crate alongside is lifted by the other hand reaching over it from the deck', async () => {
+  /** The right hand at the port rail takes the hook and hooks a crate at its tip, alongside. */
+  async function hooked() {
     const { RescueHands } = await import('../src/rescue/rescueHands');
     const { CargoHands } = await import('../src/cargo/cargoHands');
     const s = setup('lostCargo');
@@ -367,12 +368,46 @@ describe('recovery: VR hands', () => {
     hr.updateXR(ctx, hands, free, DT);
     flush();
     expect(crate.phase).toBe('hooked');
-    // Left hand over the side, well above the water (it can't reach the waterline): grip lifts it.
-    hands.left.grip.copy(new THREE.Vector3(crate.x, 1.5, crate.z));
+    return { hands, hr, ctx, free, flush, crate, pushed, v };
+  }
+
+  it('a hooked crate alongside is lifted by the other hand reaching over the side towards it', async () => {
+    const { hands, hr, ctx, free, flush, crate, pushed, v } = await hooked();
+    // Left hand beside the right at the rail (owner VR test: the crate is out at the end of
+    // the 2.2 m pole, well beyond an arm's reach; reaching that way is enough).
+    hands.left.grip.copy(vesselToWorld(v, [-1.85, 1.95, 3.3]));
+    expect(Math.hypot(hands.left.grip.x - crate.x, hands.left.grip.z - crate.z)).toBeGreaterThan(1.5);
     hands.left.gripPressed = true;
     hr.updateXR(ctx, hands, free, DT);
     flush();
     expect(pushed).toContain('crateLift');
     expect(crate.phase).toBe('aboard');
+  });
+
+  it('or by the other hand taking hold of the hook\'s pole', async () => {
+    const { hands, hr, ctx, free, flush, crate } = await hooked();
+    hands.left.grip.copy(hr.hookBase).lerp(hr.hookTip, 0.4);
+    hands.left.gripPressed = true;
+    hr.updateXR(ctx, hands, free, DT);
+    flush();
+    expect(crate.phase).toBe('aboard');
+  });
+
+  it('but not from across the deck, nor while the crate is still out', async () => {
+    const { hands, hr, ctx, free, flush, crate, v } = await hooked();
+    hands.left.grip.copy(vesselToWorld(v, [1.6, 1.95, 3.3]));
+    hands.left.gripPressed = true;
+    hr.updateXR(ctx, hands, free, DT);
+    flush();
+    expect(crate.phase).toBe('hooked');
+    // Out beyond lifting range from her side, even with a hand on the pole.
+    hands.left.gripPressed = false;
+    hr.updateXR(ctx, hands, free, DT);
+    crate.x -= 4;
+    hands.left.grip.copy(hr.hookBase).lerp(hr.hookTip, 0.4);
+    hands.left.gripPressed = true;
+    hr.updateXR(ctx, hands, free, DT);
+    flush();
+    expect(crate.phase).toBe('hooked');
   });
 });

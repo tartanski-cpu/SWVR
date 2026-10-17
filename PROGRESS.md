@@ -1549,6 +1549,18 @@ How to come back to it:
 
 ### Fixes after V1.0 (on the dev branch; not in the `V1.0` tag)
 
+- **Lifting a hooked crate aboard in VR; no strobes on crates** (owner test):
+  - **The bug:** you could hook a floating crate and bring it alongside, but not lift it aboard. The lift needed your free hand within 1 m (horizontally) of the crate, but the crate rides at the end of the 2.2 m pole, well out from the rail, out of any arm's reach. The old test only passed by putting the hand 2 m outboard of the rail.
+  - **Now** (`rescue/rescueHands.ts`), with the crate alongside, either works:
+    - grip the hook's **pole** with your other hand, anywhere along it;
+    - or reach over the side towards the crate and grip: within `CONFIG.rescue.liftHandReach` (new, 2.2 m) of it horizontally, and above it. A hand across the deck doesn't count.
+    
+    The alongside hint says so. Desktop, and the menu's **Lift crates**, unchanged.
+  - **No strobes on crates** (owner: too easy to find). Survivors keep theirs; `rescue.strobe*` now apply to survivors only.
+  - Tests (`tests/recovery.test.ts`):
+    - the VR lift with a hand a player can reach beside the hook hand (it fails with the old rule);
+    - a hand on the pole;
+    - nothing from across the deck, or with the crate still out.
 - **Every crate and pot job by hand, or by one click in the menu** (owner: all jobs with crates and pots should be either manual, carried to the place with friends to help, or quick by a menu button, which matters for a phone version one day).
   - **The buttons** (menu → Cargo; `mainMenu.ts`, handler `App.quickJob`). The handler checks what would happen first: it says what's being done, or why not (not at a port, not stopped, nothing waiting, nothing in reach, potting off). Then it sends an intent and the host applies the same rules as by hand.
     - **Load** (`cargoQuickLoad`): at a port (alongside its cargo berth or anchored in its bay, under `cargo.maxSpeed`; `cargo.ts quickPort`), everything waiting there for another port goes onto the aft deck, while the payload, slots and deck room allow (`stowOnDeck`). Each item is lashed where a D-ring is in reach.

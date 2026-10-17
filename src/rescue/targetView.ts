@@ -15,7 +15,8 @@ interface Marker {
   arm: THREE.Object3D | null;
   /** Legs, shown once a survivor stands up (landing, ashore). */
   legs: THREE.Object3D | null;
-  strobe: THREE.Sprite;
+  /** A survivor's lifejacket strobe (crates have none: owner request, they were too easy to find). */
+  strobe: THREE.Sprite | null;
   kind: RescueTarget['kind'];
   phase: number;
   /** Smoothed horizontal position (snapshots and tows arrive in steps). */
@@ -29,9 +30,9 @@ interface Marker {
  *     boat; waves an arm when you're within CONFIG.rescue.waveRange and blows the
  *     lifejacket whistle (spatial sound, via onWhistle) every few seconds;
  *   - crates: bright orange, banded, floating low and tilting with the waves.
- * Both ride the wave surface (sampled at their position; no physics body) and carry a
- * flashing strobe at night: a glowing sprite, not a real light, kept a readable size at
- * any distance.
+ * Both ride the wave surface (sampled at their position; no physics body). A survivor's
+ * lifejacket carries a flashing strobe at night: a glowing sprite, not a real light, kept a
+ * readable size at any distance. Crates have none (owner request: too easy to find).
  *
  * Recovery (see recovery.ts): a survivor on the line hangs on to the ring (no more
  * waving); climbing, they come up over the stern to their seat on deck, and aboard they
@@ -122,10 +123,14 @@ export class TargetsView {
     } else {
       root.add(new THREE.Mesh(this.crateGeo, this.mat));
     }
-    const strobe = new THREE.Sprite(this.strobeMat);
-    strobe.position.set(t.kind === 'person' ? -0.15 : 0, t.kind === 'person' ? 0.32 : 0.4, 0);
-    strobe.visible = false;
-    root.add(strobe);
+    // Survivors' lifejackets carry a strobe; crates don't (you find them by looking).
+    let strobe: THREE.Sprite | null = null;
+    if (t.kind === 'person') {
+      strobe = new THREE.Sprite(this.strobeMat);
+      strobe.position.set(-0.15, 0.32, 0);
+      strobe.visible = false;
+      root.add(strobe);
+    }
     this.root.add(root);
     const m: Marker = { root, arm, legs, strobe, kind: t.kind, phase: t.id.length * 0.37, x: t.x, z: t.z };
     this.markers.set(t.id, m);
@@ -185,8 +190,10 @@ export class TargetsView {
       // Fog swallows it beyond a little more than the visibility.
       const inSight = dist < this.visibility * CONFIG.spotting.strobeVisFactor;
       const flash = inSight && darkness > cfg.strobeDarkness && (time + m.phase) % cfg.strobePeriod < cfg.strobeOn;
-      m.strobe.visible = flash;
-      if (flash) m.strobe.scale.setScalar(Math.max(0.35, dist / 45));
+      if (m.strobe) {
+        m.strobe.visible = flash;
+        if (flash) m.strobe.scale.setScalar(Math.max(0.35, dist / 45));
+      }
     }
     for (const [id, m] of this.markers) {
       if (seen.has(id)) continue;
@@ -208,7 +215,7 @@ export class TargetsView {
     const STAND = 1.15; // bust origin above the feet
     const ground = standingHeight(shore[0], shore[1]);
     const end = this.endV.set(shore[0], ground + STAND, shore[1]);
-    m.strobe.visible = false;
+    if (m.strobe) m.strobe.visible = false;
     if (t.phase === 'landing' && root) {
       const s = Math.min(1, (t.t ?? 0) / CONFIG.rescue.landTime);
       const seat = t.seat ?? [0, 1, 3];
@@ -247,6 +254,6 @@ export class TargetsView {
     root.getWorldQuaternion(m.root.quaternion);
     if (t.phase === 'climbing') m.root.rotateY(Math.PI);
     if (m.arm) m.arm.rotation.z = t.phase === 'climbing' ? -0.4 : -1.35;
-    m.strobe.visible = false;
+    if (m.strobe) m.strobe.visible = false;
   }
 }
