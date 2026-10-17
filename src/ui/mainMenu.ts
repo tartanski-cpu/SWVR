@@ -73,6 +73,12 @@ export interface MenuHost {
   /** Cargo on the workboat's deck (row i), and in the skiff (row i), as labels. */
   cargoAboard(i: number): string | null;
   skiffCargo(i: number): string | null;
+  /**
+   * Quick jobs (one click instead of carrying; the same rules): cargo 'load' / 'unload' /
+   * 'lash' / 'release' / 'lift' (floating crates aboard), and pots 'potLoad' / 'potBait' /
+   * 'potShoot' / 'potHaul'. Says why not when it can't.
+   */
+  quickJob(what: string): void;
   /** The skiff's load, e.g. "1 / 2 slots, 40 kg". */
   skiffLoad(): string;
   /** Docking: status line, and whether Dock / Cast off would do something now (dock or cast off). */
@@ -178,7 +184,7 @@ export interface MenuHost {
   potsAboard(): void;
   toPottingGround(): void;
   /** Debug: every pot in the water ready to haul; our pots shown on the chartplotter. */
-  potsReady(): void;
+  potsReady(full?: boolean): void;
   potsOnPlotter(): boolean;
   togglePotsOnPlotter(): void;
   /** The Debug tab is shown (a per-browser setting, off by default). */
@@ -340,7 +346,26 @@ export function mainMenu(h: MenuHost): MainMenu {
         { text: () => `Delivered ${h.cargoStatus().delivered}`, weight: 1.3 },
       ],
     },
-    { label: '', buttons: [{ text: 'Carry by hand: grip (VR) / click. Lash: trigger / Q' }] },
+    { label: '', buttons: [{ text: 'Carry and lash by hand, or in one click:', weight: 2.4 }, { text: 'Lift crates', press: () => h.quickJob('lift') }] },
+    {
+      label: '',
+      buttons: [
+        { text: 'Load', press: () => h.quickJob('load') },
+        { text: 'Unload', press: () => h.quickJob('unload') },
+        { text: 'Lash all', press: () => h.quickJob('lash') },
+        { text: 'Release all', press: () => h.quickJob('release') },
+      ],
+    },
+    { heading: 'Pots' },
+    {
+      label: '',
+      buttons: [
+        { text: 'Load pots', press: () => h.quickJob('potLoad') },
+        { text: 'Bait all', press: () => h.quickJob('potBait') },
+        { text: 'Shoot one', press: () => h.quickJob('potShoot') },
+        { text: 'Haul nearest', press: () => h.quickJob('potHaul') },
+      ],
+    },
     { heading: 'Aboard' },
     ...[0, 1, 2, 3, 4].map(aboardRow),
     { heading: 'In the skiff' },
@@ -610,6 +635,7 @@ export function mainMenu(h: MenuHost): MainMenu {
             { text: 'Pots aboard', press: () => h.potsAboard() },
             { text: 'To a ground', press: () => h.toPottingGround() },
             { text: 'Ready', press: () => h.potsReady() },
+            { text: 'Full', press: () => h.potsReady(true) },
             { text: 'On plotter', active: () => h.potsOnPlotter(), press: () => h.togglePotsOnPlotter() },
           ],
         },

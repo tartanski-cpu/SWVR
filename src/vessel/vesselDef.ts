@@ -183,9 +183,10 @@ export interface HullFittings {
   /**
    * Where the hand gear lives aboard (M7: it was always the workboat's places): the
    * extinguisher's and the torch's wall brackets, the binoculars' spot on the dash (vessel
-   * axes; the binoculars turned `yawDeg`). Gear she has no place for isn't aboard.
+   * axes; the binoculars turned `yawDeg`), and the potting bait tub's spot on deck (vessel
+   * x, z; it stands on the deck). Gear she has no place for isn't aboard.
    */
-  stowage?: { extinguisher?: Vec3; torch?: Vec3; binoculars?: { at: Vec3; yawDeg: number } };
+  stowage?: { extinguisher?: Vec3; torch?: Vec3; binoculars?: { at: Vec3; yawDeg: number }; baitTub?: [number, number] };
   /** Her paint (unset: the workboat's orange and white). */
   livery?: Livery;
   tow?: TowLook;
