@@ -49,6 +49,10 @@ export const JOBS: Job[] = [
 export const FITTABLE: Partial<Record<GearKind, { field: keyof ShipDesign; value: number; step: string }>> = {
   searchlight: { field: 'searchlight', value: 1, step: 'deck gear' },
   fireMonitor: { field: 'fireMonitor', value: 1, step: 'deck gear' },
+  towPoint: { field: 'sternRoller', value: 1, step: 'deck gear' },
+  trawlGantry: { field: 'aFrame', value: 1, step: 'deck gear' },
+  lifeRing: { field: 'lifeRing', value: 2, step: 'deck gear' },
+  boatHook: { field: 'lifeRing', value: 2, step: 'deck gear' },
 };
 
 /** Bollard pull a towing boat needs (t): the barge is the heaviest tow; the game's own workboat pulls 3.9 t. */

@@ -10,7 +10,7 @@ import { RECIPES } from '../../src/boats/library';
 import { validateRecipe } from '../../src/modular/recipe';
 import { LIBRARY } from '../../src/boats/library';
 import { DESIGN_HULLS, ENGINES } from '../../src/shipyard/build';
-import { DEFAULT_DESIGN, FIELDS, type ShipDesign } from '../../src/shipyard/design';
+import { DEFAULT_DESIGN, FIELDS, placeValue, type ShipDesign } from '../../src/shipyard/design';
 import { fullAhead, matchGear } from '../../src/shipyard/trial';
 import { uprightHydrostatics } from '../../src/vessel/hydrostatics';
 import { VESSEL_DEFS } from '../../src/vessel/vesselDef';
@@ -293,5 +293,61 @@ describe('Shipyard: the boats it builds', () => {
         }
         expect(Math.abs(VESSEL_DEFS.design.cg[0]), `hull ${hull} crane ${deckCrane} list`).toBeLessThan(0.002);
       }
+  });
+
+  it('gear placed by hand stands on its pinned 25 cm cell: on deck, on the roof, turned; nudged off a clash; else its usual place', () => {
+    const wb = { ...DEFAULT_DESIGN, ...DESIGN_HULLS[2].defaults, hull: 2 };
+    const sockOf = (id: string) => LIBRARY.hulls.get(RECIPES.design.hull)!.sockets.find((x) => x.id === id)!;
+    const transom = () => hullPlan(VESSEL_DEFS.design).transom;
+    // The crane on the aft deck, 1.5 m from the transom and 0.75 m to port, turned to face starboard.
+    let b = useDesign({ ...wb, deckCrane: 2, craneAt: placeValue('craneAt', -0.75, 1.5, 1) });
+    expect(b.placed.craneAt).toMatchObject({ x: -0.75, moved: false });
+    expect(b.placed.craneAt!.z).toBeCloseTo(transom() - 1.5, 6);
+    const crane = sockOf('deckCrane');
+    expect(crane.transform.position[0]).toBeCloseTo(-0.75, 6);
+    expect(crane.transform.rotationDeg).toEqual([0, -90, 0]);
+    expect(new THREE.Vector3().setFromMatrixPosition(cranesOf({ defId: 'design' })[0].place).x).toBeCloseTo(-0.75, 6); // the module keeps it there
+    expect(Math.abs(VESSEL_DEFS.design.cg[0])).toBeLessThan(0.002); // still upright
+    // The searchlight pinned on the roof: mounted there, worked from the helm.
+    const wh = () => VESSEL_DEFS.design.layout.wheelhouse!;
+    useDesign(wb);
+    const roofZ = (wh().front + wh().aft) / 2 + 0.5;
+    b = useDesign({ ...wb, searchlight: 2, lampAt: placeValue('lampAt', 0.5, transom() - roofZ) });
+    expect(b.placed.lampAt).toMatchObject({ onRoof: true, x: 0.5 });
+    expect(sockOf('searchlight').type).toBe('roof.mount');
+    expect(sockOf('searchlight').transform.position[0]).toBeCloseTo(0.5, 6);
+    // The monitor on a pole on the foredeck, where pinned.
+    const foreZ = wh().front - 1.5;
+    b = useDesign({ ...wb, fireMonitor: 1, monitorAt: placeValue('monitorAt', 0.5, transom() - foreZ) });
+    expect(b.placed.monitorAt).toMatchObject({ onRoof: false, moved: false });
+    expect(sockOf('fireMonitor').type).toBe('deck.equipment');
+    // Pinned on the house's side (a pole can't stand in the house): nudged to the nearest cell that's clear.
+    b = useDesign({ ...wb, fireMonitor: 1, monitorAt: placeValue('monitorAt', wh().halfWidth + 0.1, transom() - wh().front - 0.4) });
+    expect(b.placed.monitorAt === null || b.placed.monitorAt!.moved).toBe(true);
+    // Pinned in the sea, far off her side: its usual place, with a warning.
+    b = useDesign({ ...wb, towWinch: 1, winchAt: placeValue('winchAt', 3, 0.25) });
+    expect(b.placed.winchAt).toBeNull();
+    expect(b.warnings.join(' ')).toMatch(/tow winch won't stand where it's pinned/);
+    expect(sockOf('towWinch').transform.position[0]).toBe(0); // its usual place on the centreline
+    // Two pieces pinned on the same cell: the second moves off the first.
+    b = useDesign({ ...wb, towWinch: 1, fireMonitor: 1, winchAt: placeValue('winchAt', 0, 2), monitorAt: placeValue('monitorAt', 0, 2) });
+    expect(b.placed.winchAt!.moved).toBe(false);
+    expect(b.placed.monitorAt === null || b.placed.monitorAt!.moved).toBe(true);
+  });
+
+  it('the working deck gear: winch, stern roller, A-frame and trawl, life ring and boat hook, side door; she tows and trawls', () => {
+    const wb = { ...DEFAULT_DESIGN, ...DESIGN_HULLS[2].defaults, hull: 2 };
+    // A narrower house than her usual, for a side deck outside the side door.
+    const b = useDesign({ ...wb, houseWidth: 3, towWinch: 1, sternRoller: 1, aFrame: 1, lifeRing: 2, sideDoor: 1 });
+    expect(validateRecipe(RECIPES.design, LIBRARY)).toEqual([]);
+    expect(b.warnings.filter((w) => /left off/.test(w))).toEqual([]);
+    for (const k of ['towWinch', 'towPoint', 'trawlGantry', 'trawl', 'lifeRing', 'boatHook'] as const) expect(gearOf({ defId: 'design' }, k), k).toBeTruthy();
+    expect(gearOf({ defId: 'design' }, 'lifeRing')!.stow[0]).toBeGreaterThan(0); // starboard
+    expect(VESSEL_DEFS.design.layout.wheelhouse!.sideDoor).toBeTruthy();
+    expect(VESSEL_DEFS.design.layout.fairleadGap).toBeGreaterThan(0); // the notch for the roller
+    // And priced in.
+    expect(b.figures.price).toBeGreaterThan(useDesign({ ...wb, houseWidth: 3 }).figures.price + 30_000);
+    // Without room for a side deck, the door's left off and says why.
+    expect(useDesign({ ...wb, sideDoor: 1 }).warnings.join(' ')).toMatch(/narrower house/);
   });
 });

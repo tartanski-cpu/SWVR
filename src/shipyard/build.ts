@@ -29,7 +29,7 @@ import type { Socket } from '../modular/socket';
 import type { HullForm } from '../vessel/hullForm';
 import type { DoorStep, HouseShape, LayoutConfig, Livery } from '../vessel/vesselDef';
 import { BREAKERS } from '../vessel/vesselState';
-import { SCALES, type ShipDesign } from './design';
+import { PLACE_GRID, placeOf, SCALES, type PlaceKey, type ShipDesign } from './design';
 
 type V3 = [number, number, number];
 const study = (id: string): HullDesign => {
@@ -206,6 +206,12 @@ export interface DesignedBoat {
   /** floorM: the cabin floor about the deck under the house (as built: a fine hull can bring a low one up). */
   figures: { lengthM: number; beamM: number; massT: number; draughtM: number; gmM: number; propellerM: number; gear: number; engine: string; price: number; floorM: number };
   warnings: string[];
+  /**
+   * Where the gear placed by hand stands (boat axes, m), whether it had to move off its
+   * pinned cell to stand there (`moved`), and on the roof or not; null if it couldn't stand
+   * within a metre of its pin and is in its usual place.
+   */
+  placed: Partial<Record<PlaceKey, { x: number; z: number; moved: boolean; onRoof?: boolean } | null>>;
 }
 
 /** Her displaced volume, LCB, KB and waterplane inertia at the DWL (y = 0), from her stations. */
@@ -392,7 +398,8 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     ...(bowRamp ? { bowRamp } : {}),
     bulwarkHeight,
     railHeight: bulwarkHeight + 0.4,
-    fairleadGap: 0,
+    // The notch in the transom bulwark for a stern roller (set below if she has one).
+    fairleadGap: d.sternRoller ? CONFIG.vessels.workboat.layout.fairleadGap : 0,
     deckEdgeMargin: 0.25,
     bodyRadius: 0.22,
   } as LayoutConfig;
@@ -478,52 +485,175 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   // ── Hull definition ──
   const weighed = { massKg: mass, cg, inertia: inertiaFromGyradius(mass, gyradius) };
   const freeboard = deckMid;
-  // The deck crane (owner: placeable, for cargo; and at the deck edge, to keep the working
-  // deck clear): on the foredeck at the starboard edge, clear of the house's front; or on the
-  // aft deck at the port edge, clear of the door and its steps. Its control post stands
-  // inboard of it. Its socket is put where the column stands (`edgeInset` in from the deck
-  // edge), so the crane module keeps it there (its 'auto' side: a socket already off to one
-  // side stays), and the builder's clash checks and designed-in weight are where it really is.
+  // ── Deck gear: where each piece stands (owner) ──
+  // In this order, each kept clear of what's already placed (`taken`, in plan):
+  //   1. the stern gear at its fixed places (the stern roller, the A-frame's feet);
+  //   2. the gear placed by hand (design.ts PLACE_FIELDS: a pin puts it on the 25 cm grid):
+  //      the tow winch, the crane, the searchlight and the fire monitor, each on its pinned
+  //      cell if it stands there, else the nearest cell within a metre that does, else (with
+  //      a warning) its usual place;
+  //   3. the rest at their usual places: the winch forward of the transom, the crane at the
+  //      deck edge (the foredeck's to starboard, the aft deck's to port), the searchlight's
+  //      and monitor's poles off the house (the searchlight to starboard, the monitor to port),
+  //      or on the roof.
   const cr = CONFIG.modules.deckCrane;
-  let craneAt: V3 | null = null;
-  if (d.deckCrane === 1) {
-    const z = front - 0.9;
-    if (z - cr.plinthRadius - 0.3 > stem + (bowRamp ? 1.8 : 1.0)) craneAt = [q.halfBeam(z) - cr.edgeInset, q.deckY(z), z];
-    else warnings.push('There\'s no room on her foredeck for the deck crane: left off.');
-  } else if (d.deckCrane === 2) {
-    const z = aft + 0.9;
-    if (z + 0.4 < transom - 0.3) craneAt = [-(q.halfBeam(z) - cr.edgeInset), q.deckY(z), z];
-    else warnings.push('There\'s no room on her aft deck for the deck crane: left off.');
-  }
-  // The searchlight and the fire monitor (owner): on the wheelhouse roof, or each on a pole
-  // on the foredeck or the aft deck (CONFIG.modules.deckPole), the searchlight to starboard
-  // and the monitor to port, a little off the house, with room aft of the pole to stand at
-  // its control box. A pole goes where it's clear of the crane and the other pole: its own
-  // side first, then the other, then a step further from the house; else it's left off.
   const dp = CONFIG.modules.deckPole;
+  const dg = CONFIG.shipyard.deckGear;
+  const twc = CONFIG.vessels.workboat.towWinch;
+  const afc = CONFIG.vessels.workboat.fishing.aFrame;
   type Rect = { x0: number; x1: number; z0: number; z1: number };
   const taken: Rect[] = [];
-  if (craneAt) {
-    // The crane's plinth, and its control post (inboard of it; aft of it, or forward for a
-    // crane on the aft deck, which faces aft) with room to stand at it.
-    const r = cr.plinthRadius + 0.1;
-    taken.push({ x0: craneAt[0] - r, x1: craneAt[0] + r, z0: craneAt[2] - r, z1: craneAt[2] + r });
-    const s = d.deckCrane === 2 ? -1 : 1;
-    const [px, pz] = [craneAt[0] - Math.sign(craneAt[0]) * Math.abs(cr.post.x), craneAt[2] + s * cr.post.z];
-    taken.push({ x0: px - 0.3, x1: px + 0.3, z0: pz - 0.5, z1: pz + 0.5 });
-  }
   const overlaps = (a: Rect, b: Rect) => a.x0 < b.x1 && b.x0 < a.x1 && a.z0 < b.z1 && b.z0 < a.z1;
   const r2 = (v: number) => Math.round(v * 100) / 100;
+  const bowClear = stem + (bowRamp ? 1.8 : 1.0);
+
+  // 1. The stern gear.
+  const sternRoller = !!d.sternRoller;
+  if (sternRoller) taken.push({ x0: -0.3, x1: 0.3, z0: transom - 0.3, z1: transom }); // the roller in the transom bulwark
+  const wantWinch = !!(d.towWinch || d.aFrame);
+  const aFrameFeet: Rect[] = [];
+  if (d.aFrame) {
+    const fz = transom - afc.footFromTransom;
+    const fx = q.halfBeam(fz) - afc.footInset;
+    for (const sd of [-1, 1]) aFrameFeet.push({ x0: sd * fx - 0.2, x1: sd * fx + 0.2, z0: fz - 0.25, z1: fz + 0.25 });
+    taken.push(...aFrameFeet);
+  }
+
+  // Plan shapes, in a piece's own axes (x to its starboard, z aft), turned by its facing
+  // (quarter turns, as the socket's yaw: -90 deg each) and set at (x, z).
+  const turn = (lx: number, lz: number, face: number): [number, number] => {
+    const a = (-Math.PI / 2) * face;
+    return [lx * Math.cos(a) + lz * Math.sin(a), -lx * Math.sin(a) + lz * Math.cos(a)];
+  };
+  const placeRect = (r: Rect, x: number, z: number, face: number): Rect => {
+    const pts = [turn(r.x0, r.z0, face), turn(r.x1, r.z0, face), turn(r.x0, r.z1, face), turn(r.x1, r.z1, face)];
+    return { x0: x + Math.min(...pts.map((p) => p[0])), x1: x + Math.max(...pts.map((p) => p[0])), z0: z + Math.min(...pts.map((p) => p[1])), z1: z + Math.max(...pts.map((p) => p[1])) };
+  };
+  // Each piece's plan: the winch (drum, cheeks, housing; room to stand forward of it, the
+  // side away from its lead), the crane (plinth; its post on its starboard side, aft, with
+  // room to stand), a pole (the pole, its box aft, room to stand aft of that).
+  const winchShape: Rect[] = [{ x0: -twc.drumWidth / 2 - 0.12, x1: twc.drumWidth / 2 + 0.1 + twc.housing.width, z0: -0.25 - dg.standRoom, z1: 0.25 }];
+  const cranePlinth = cr.plinthRadius + 0.1;
+  const craneShape = (postX: number, postZ: number): Rect[] => [
+    { x0: -cranePlinth, x1: cranePlinth, z0: -cranePlinth, z1: cranePlinth },
+    { x0: postX - 0.3, x1: postX + 0.3, z0: postZ - 0.5, z1: postZ + 0.5 },
+  ];
+  const poleShape: Rect[] = [{ x0: -dp.box.width / 2 - 0.05, x1: dp.box.width / 2 + 0.05, z0: -0.12, z1: dp.box.depth + 0.45 }];
+  // The house in plan with a margin, and its door's steps aft.
+  const houseRect: Rect = { x0: -hw - 0.3, x1: hw + 0.3, z0: front - 0.3, z1: aft + 0.7 };
+  const onDeck = (r: Rect) => r.z0 > bowClear && r.z1 < transom - 0.15 && [r.z0, r.z1].every((z) => Math.max(Math.abs(r.x0), Math.abs(r.x1)) <= q.halfBeam(z) - 0.15);
+  const standsOnDeck = (rects: Rect[]) => rects.every((r) => onDeck(r) && !overlaps(r, houseRect) && !taken.some((o) => overlaps(o, r)));
+  // The roof: its edges, the masthead light's pole and the horn, and what's already on it.
+  const roofTaken: [number, number, number][] = [
+    [0, roofFront + 0.475, 0.45],
+    [0, roofFront + 0.775, 0.3],
+  ];
+  const onRoof = (x: number, z: number) => Math.abs(x) < hw && z > front && z < aft;
+  const standsOnRoof = (x: number, z: number) => Math.abs(x) <= hw - 0.2 && z >= roofFront + 0.2 && z <= aft - 0.2 && roofTaken.every(([ox, oz, r]) => Math.hypot(x - ox, z - oz) >= r);
+  /** The pinned cell, or the nearest within a metre where `stands` (x, z: boat axes); null if none. */
+  const seat = (key: PlaceKey, stands: (x: number, z: number, face: number) => boolean): { x: number; z: number; face: number; moved: boolean } | null => {
+    const p = placeOf(key, d[key]);
+    if (!p) return null;
+    const ring: [number, number][] = [];
+    for (let i = -4; i <= 4; i++) for (let j = -4; j <= 4; j++) ring.push([i, j]);
+    ring.sort((a, b) => Math.hypot(...a) - Math.hypot(...b));
+    for (const [i, j] of ring) {
+      const x = p.x + i * PLACE_GRID.step;
+      const z = transom - (p.fromTransom + j * PLACE_GRID.step);
+      if (stands(x, z, p.face)) return { x: r2(x), z: r2(z), face: p.face, moved: i !== 0 || j !== 0 };
+    }
+    return null;
+  };
+  const placed: DesignedBoat['placed'] = {};
+  const usual = (key: PlaceKey, what: string) => {
+    placed[key] = null;
+    warnings.push(`The ${what} won't stand where it's pinned (nor within a metre of it): it's in its usual place.`);
+  };
+
+  // 2 and 3: the tow winch.
+  let winchAt: V3 | null = null;
+  let winchFace = 0;
+  if (wantWinch && d.winchAt) {
+    const s = seat('winchAt', (x, z, f) => standsOnDeck(winchShape.map((r) => placeRect(r, x, z, f))));
+    if (s) {
+      winchAt = [s.x, q.deckY(s.z), s.z];
+      winchFace = s.face;
+      placed.winchAt = { x: s.x, z: s.z, moved: s.moved };
+    } else usual('winchAt', 'tow winch');
+  }
+  if (wantWinch && !winchAt) {
+    // Its usual place: on the centreline just forward of the transom, room forward of it to
+    // stand at its buttons, clear of the house's door.
+    const z = transom - dg.winchFromTransom;
+    if (standsOnDeck(winchShape.map((r) => placeRect(r, 0, z, 0)))) winchAt = [0, q.deckY(z), r2(z)];
+    else warnings.push(`Her aft deck is too short for the tow winch${d.aFrame ? ' (the A-frame’s warps lead off it, so the A-frame is left off too)' : ''}: left off.`);
+  }
+  if (winchAt) taken.push(...winchShape.map((r) => placeRect(r, winchAt![0], winchAt![2], winchFace)));
+  const aFrame = !!d.aFrame && !!winchAt;
+
+  // The deck crane: its socket where its column stands, so the crane module keeps it there
+  // (placed by hand: 'socket'; at the deck edge: its 'auto' keeps an off-centre socket), and
+  // the clash checks and its designed-in weight are where it really is. Its control post
+  // stands inboard of it at the edge; placed by hand, on its own starboard side.
+  let craneAt: V3 | null = null;
+  let craneYaw = 0;
+  let cranePlaced = false;
+  if (d.deckCrane && d.craneAt) {
+    const s = seat('craneAt', (x, z, f) => standsOnDeck(craneShape(cr.post.x, cr.post.z).map((r) => placeRect(r, x, z, f))));
+    if (s) {
+      craneAt = [s.x, q.deckY(s.z), s.z];
+      craneYaw = -90 * s.face;
+      cranePlaced = true;
+      taken.push(...craneShape(cr.post.x, cr.post.z).map((r) => placeRect(r, s.x, s.z, s.face)));
+      placed.craneAt = { x: s.x, z: s.z, moved: s.moved };
+    } else usual('craneAt', 'deck crane');
+  }
+  if (d.deckCrane && !craneAt) {
+    const fore = d.deckCrane === 1;
+    const z = fore ? front - 0.9 : aft + 0.9;
+    const x = (fore ? 1 : -1) * (q.halfBeam(z) - cr.edgeInset);
+    // At the edge its post stands inboard; the aft one faces aft (its boom resting over the aft deck, not the house).
+    const shape = craneShape(-Math.sign(x) * Math.abs(cr.post.x), (fore ? 1 : -1) * cr.post.z).map((r) => placeRect(r, x, z, 0));
+    const room = fore ? z - cr.plinthRadius - 0.3 > bowClear : z + 0.4 < transom - 0.3;
+    if (!room) warnings.push(`There's no room on her ${fore ? 'foredeck' : 'aft deck'} for the deck crane: left off.`);
+    else if (shape.some((r) => taken.some((o) => overlaps(o, r)))) warnings.push(`The deck crane would stand on her ${fore ? 'foredeck' : 'aft deck'} gear: left off.`);
+    else {
+      craneAt = [x, q.deckY(z), z];
+      craneYaw = fore ? 0 : 180;
+      taken.push(...shape);
+    }
+  }
+
+  // The searchlight and the fire monitor: placed by hand, on the roof if the pin's on it
+  // (clear of the masthead light, the horn and each other), else on a pole on deck; at their
+  // usual places, on the roof (choice 1) or a pole a little off the house (2 fore, 3 aft).
+  const roofOrPole = (key: 'lampAt' | 'monitorAt', what: string): { pole: V3 | null; roof: [number, number] | null } => {
+    const s = seat(key, (x, z) => (onRoof(x, z) ? standsOnRoof(x, z) : standsOnDeck(poleShape.map((r) => placeRect(r, x, z, 0)))));
+    if (!s) {
+      usual(key, what);
+      return { pole: null, roof: null };
+    }
+    placed[key] = { x: s.x, z: s.z, moved: s.moved, onRoof: onRoof(s.x, s.z) };
+    if (onRoof(s.x, s.z)) {
+      roofTaken.push([s.x, s.z, 0.6]);
+      return { pole: null, roof: [s.x, s.z] };
+    }
+    taken.push(...poleShape.map((r) => placeRect(r, s.x, s.z, 0)));
+    return { pole: [s.x, q.deckY(s.z), s.z], roof: null };
+  };
+  const lampHand = d.searchlight && d.lampAt ? roofOrPole('lampAt', 'searchlight') : { pole: null, roof: null };
+  const monitorHand = d.fireMonitor && d.monitorAt ? roofOrPole('monitorAt', 'fire monitor') : { pole: null, roof: null };
+  const lampByHand = !!(lampHand.pole || lampHand.roof);
+  const monitorByHand = !!(monitorHand.pole || monitorHand.roof);
   /** A pole's foot on deck 1 (fore) or 2 (aft), starting on `side`; null (and a warning) if there's no room. */
   const poleFoot = (deck: number, side: number, what: string): V3 | null => {
     for (const step of [0, 1])
       for (const sd of [side, -side]) {
         const z = deck === 1 ? front - dp.fromHouse - 0.85 * step : aft + dp.fromHouse + 0.85 * step;
-        const room = deck === 1 ? z - 0.2 > stem + (bowRamp ? 1.8 : 1.0) : z + dp.box.depth + 0.5 < transom - 0.2;
+        const room = deck === 1 ? z - 0.2 > bowClear : z + dp.box.depth + 0.5 < transom - 0.2;
         const x = sd * (q.halfBeam(z) - dp.inset);
         if (!room || Math.abs(x) < 0.5) continue;
-        // The pole, its box aft of it, and room to stand aft of the box.
-        const rect = { x0: x - dp.box.width / 2 - 0.05, x1: x + dp.box.width / 2 + 0.05, z0: z - 0.12, z1: z + dp.box.depth + 0.45 };
+        const rect = placeRect(poleShape[0], x, z, 0);
         if (taken.some((o) => overlaps(o, rect))) continue;
         taken.push(rect);
         return [r2(x), q.deckY(z), r2(z)];
@@ -531,12 +661,18 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     warnings.push(`There's no room on her ${deck === 1 ? 'foredeck' : 'aft deck'} for the ${what}'s pole: left off.`);
     return null;
   };
-  const lampFoot = d.searchlight >= 2 ? poleFoot(d.searchlight - 1, 1, 'searchlight') : null;
-  const monitorFoot = d.fireMonitor >= 2 ? poleFoot(d.fireMonitor - 1, -1, 'fire monitor') : null;
-  const hasLamp = d.searchlight === 1 || !!lampFoot;
-  const hasMonitor = d.fireMonitor === 1 || !!monitorFoot;
-  // On the roof: the monitor centred aft of the masthead light's pole, clear of its barrel's swing.
-  const monitorRoof: V3 = [0, roofTopAt(0) + 0.38, r2(Math.min(roofFront + 1.25, aft - 0.3))];
+  const lampFoot = lampByHand ? lampHand.pole : d.searchlight >= 2 ? poleFoot(d.searchlight - 1, 1, 'searchlight') : null;
+  const monitorFoot = monitorByHand ? monitorHand.pole : d.fireMonitor >= 2 ? poleFoot(d.fireMonitor - 1, -1, 'fire monitor') : null;
+  const lampOnRoof = lampByHand ? !!lampHand.roof : d.searchlight === 1;
+  const monitorOnRoof = monitorByHand ? !!monitorHand.roof : d.fireMonitor === 1;
+  const hasLamp = lampOnRoof || !!lampFoot;
+  const hasMonitor = monitorOnRoof || !!monitorFoot;
+  // On the roof: the searchlight forward on the centreline, the monitor centred aft of the
+  // masthead light's pole, clear of its barrel's swing; or where they're placed.
+  const lampRoof: V3 = lampHand.roof ? [lampHand.roof[0], r2(roofTopAt(lampHand.roof[1]) + 0.13), lampHand.roof[1]] : at.searchlight;
+  const monitorRoof: V3 = monitorHand.roof ? [monitorHand.roof[0], r2(roofTopAt(monitorHand.roof[1]) + 0.38), monitorHand.roof[1]] : [0, roofTopAt(0) + 0.38, r2(Math.min(roofFront + 1.25, aft - 0.3))];
+  /** Where a deck piece is, in words: "Foredeck, port", "Aft deck, centreline". */
+  const deckWords = (p: V3) => `${p[2] < front ? 'Foredeck' : p[2] > aft ? 'Aft deck' : 'Side deck'}, ${Math.abs(p[0]) < 0.2 ? 'centreline' : p[0] < 0 ? 'port' : 'starboard'}`;
 
   // The chart table (owner: its own choice): along the port wall at the aft end, its hinge
   // corner forward, if her house is wide enough to pass inboard of it and long enough to
@@ -548,6 +684,34 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     if (hw - wall - ctab.width >= 0.35 && z0 >= front + 1.0) chartTableAt = [-(hw - wall), F, Math.round(z0 * 1000) / 1000];
     else warnings.push(`Her wheelhouse is too ${hw - wall - ctab.width < 0.35 ? 'narrow' : 'short'} for the chart table along its port wall: left off.`);
   }
+  // The side door (owner): a sliding door in the port wall, aft of the console with room to
+  // stand at the helm, forward of the chart table, onto a side deck wide enough to step out on.
+  // The house itself is drawn with the opening (vessel/view/hullMesh.ts), and the door slides
+  // and is walked through as the starting workboat's does.
+  let sideDoor: { z0: number; z1: number; height: number; buttonHeight: number } | null = null;
+  if (d.sideDoor) {
+    const sdc = dg.sideDoor;
+    const z0 = Math.max(front + wall + 0.5 + sdc.fromConsole, bowRamp ? at.rampButton[2] + 0.15 : -Infinity);
+    const zEnd = chartTableAt ? chartTableAt[2] - 0.05 : aft - wall - 0.15;
+    // Up to the window band's top edge (the door's opening runs up through the band).
+    const height = Math.min(2.0, windowHead - 0.04, roofY - F - 0.12);
+    const deckOutside = q.halfBeam(z0 + sdc.width / 2) - hw;
+    if (zEnd - z0 < sdc.width) warnings.push(`Her wheelhouse is too short for a side door between the helm and ${chartTableAt ? 'the chart table' : 'the aft wall'}: left off.`);
+    else if (deckOutside < sdc.sideDeck) warnings.push('There\'s no side deck outside her wheelhouse to step out onto (a narrower house leaves one): the side door is left off.');
+    else if (height < 1.7) warnings.push('Her wheelhouse is too low inside for a side door: left off.');
+    else sideDoor = { z0: r2(z0), z1: r2(z0 + sdc.width), height: r2(height), buttonHeight: sdc.buttonHeight };
+  }
+  if (sideDoor) layout.wheelhouse!.sideDoor = sideDoor;
+  // The life ring on the house's aft wall at the chosen side, its line made fast to that
+  // quarter's cleat; the boat-hook clips along that bulwark, aft.
+  const ringSide = d.lifeRing === 1 ? -1 : d.lifeRing === 2 ? 1 : 0;
+  const ring = ringSide
+    ? {
+        stow: [r2(ringSide * Math.max(0.75, hw - dg.ringFromCorner)), r2(F + 1.15), r2(aft + 0.06)] as V3,
+        cleat: cleat(ringSide, sternCleat),
+        hook: [r2(ringSide * (q.halfBeam(sternCleat - 1.2) - 0.08)), r2(q.deckY(sternCleat - 1.2) + bulwarkHeight - 0.05), r2(Math.max(aft + 0.2, sternCleat - 2.6)), r2(sternCleat - 0.3)] as [number, number, number, number],
+      }
+    : null;
   const sockets: Socket[] = [
     { id: 'helm', type: 'helm.console', transform: { position: at.console }, capacity: { size: [2 * (hw - wall) - 0.04, 1.6, 1.0] }, label: 'Helm console, across the front of the cabin' },
     { id: 'breakerPanel', type: 'wall.panel', transform: { position: at.breakerPanel, rotationDeg: [-40, -90, 0] }, label: 'Starboard wall, by the helm' },
@@ -578,12 +742,12 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     { id: 'rudder', type: 'hull.rudder', transform: { position: rudderPos }, label: 'Rudder stock, under the transom' },
     { id: 'cabinLight', type: 'cabin.overhead', transform: { position: at.cabinLight }, label: 'Cabin ceiling' },
     lampFoot
-      ? { id: 'searchlight', type: 'deck.equipment', transform: { position: lampFoot }, label: `${d.searchlight === 2 ? 'Foredeck' : 'Aft deck'}, starboard: the searchlight's pole` }
-      : { id: 'searchlight', type: 'roof.mount', transform: { position: at.searchlight }, label: 'Cabin roof, forward' },
+      ? { id: 'searchlight', type: 'deck.equipment', transform: { position: lampFoot }, label: `${deckWords(lampFoot)}: the searchlight's pole` }
+      : { id: 'searchlight', type: 'roof.mount', transform: { position: lampRoof }, label: lampHand.roof ? 'Cabin roof: the searchlight' : 'Cabin roof, forward' },
     ...(hasMonitor
       ? [
           monitorFoot
-            ? { id: 'fireMonitor', type: 'deck.equipment' as const, transform: { position: monitorFoot }, label: `${d.fireMonitor === 2 ? 'Foredeck' : 'Aft deck'}, port: the fire monitor's pole` }
+            ? { id: 'fireMonitor', type: 'deck.equipment' as const, transform: { position: monitorFoot }, label: `${deckWords(monitorFoot)}: the fire monitor's pole` }
             : { id: 'fireMonitor', type: 'roof.mount' as const, transform: { position: monitorRoof }, label: 'Cabin roof, aft of the masthead light: the fire monitor' },
         ]
       : []),
@@ -594,14 +758,35 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     { id: 'cleatFwdStbd', type: 'deck.fitting', transform: { position: cleat(1, bowCleat) }, label: 'Bulwark top, forward, starboard' },
     { id: 'cleatAftPort', type: 'deck.fitting', transform: { position: cleat(-1, sternCleat) }, label: 'Bulwark top, aft, port' },
     { id: 'cleatAftStbd', type: 'deck.fitting', transform: { position: cleat(1, sternCleat) }, label: 'Bulwark top, aft, starboard' },
+    // The working deck gear (version 10).
+    ...(winchAt ? [{ id: 'towWinch', type: 'deck.equipment' as const, transform: { position: winchAt, ...(winchFace ? { rotationDeg: [0, -90 * winchFace, 0] as V3 } : {}) }, label: `${deckWords(winchAt)}: the tow winch` }] : []),
+    ...(sternRoller ? [{ id: 'sternRoller', type: 'stern.gantry' as const, transform: { position: [0, q.deckY(transom), transom] as V3 }, label: 'Transom, centreline: the notch in the bulwark' }] : []),
+    ...(aFrame
+      ? [
+          { id: 'aFrame', type: 'stern.gantry' as const, transform: { position: [0, q.deckY(transom), transom] as V3 }, label: 'Transom, across the quarters: the A-frame' },
+          { id: 'trawl', type: 'deck.equipment' as const, transform: { position: winchAt! }, label: 'Aft deck: the net (nominal)' },
+        ]
+      : []),
+    ...(ring
+      ? [
+          { id: 'lifeRing', type: 'deck.fitting' as const, transform: { position: ring.stow }, label: `Wheelhouse aft wall, ${ringSide < 0 ? 'port' : 'starboard'}: the life ring (its line on that quarter's cleat)` },
+          { id: 'boatHook', type: 'deck.fitting' as const, transform: { position: [ring.hook[0], ring.hook[1], ring.hook[2]] as V3 }, label: `${ringSide < 0 ? 'Port' : 'Starboard'} bulwark, aft: the boat-hook clips` },
+        ]
+      : []),
+    ...(sideDoor
+      ? ([
+          { id: 'sideDoorIn', type: 'wall.panel', transform: { position: [r2(-hw + wall), r2(F + sideDoor.buttonHeight), r2(sideDoor.z0 - 0.04)], rotationDeg: [-90, -90, 0] }, label: 'Side door jamb, inside' },
+          { id: 'sideDoorOut', type: 'wall.panel', transform: { position: [-hw, r2(F + sideDoor.buttonHeight), r2(sideDoor.z0 - 0.04)], rotationDeg: [-90, 90, 0] }, label: 'Side door jamb, outside' },
+        ] as Socket[])
+      : []),
     ...(craneAt
       ? [
           // The aft one faces aft (its boom rests over the aft deck, not the house).
-          { id: 'deckCrane', type: 'deck.equipment' as const, transform: { position: craneAt, ...(d.deckCrane === 2 ? { rotationDeg: [0, 180, 0] as V3 } : {}) }, capacity: { loadRatingKg: 1000 }, label: d.deckCrane === 1 ? 'Foredeck, starboard edge: the deck crane' : 'Aft deck, port edge: the deck crane' },
-          // Its hydraulic pump on the engine's power take-off.
-          { id: 'hydraulicPump', type: 'engine.bay' as const, transform: { position: at.engineSpace }, label: 'On the engine\'s power take-off (nominal)' },
+          { id: 'deckCrane', type: 'deck.equipment' as const, transform: { position: craneAt, ...(craneYaw ? { rotationDeg: [0, craneYaw, 0] as V3 } : {}) }, capacity: { loadRatingKg: 1000 }, label: cranePlaced ? `${deckWords(craneAt)}: the deck crane` : d.deckCrane === 1 ? 'Foredeck, starboard edge: the deck crane' : 'Aft deck, port edge: the deck crane' },
         ]
       : []),
+    // The deck hydraulics' pump on the engine's power take-off, for the crane and the winch.
+    ...(craneAt || winchAt ? [{ id: 'hydraulicPump', type: 'engine.bay' as const, transform: { position: at.engineSpace }, label: 'On the engine\'s power take-off (nominal)' }] : []),
   ];
   // Lashing points along the longer stretch of open deck (fore or aft of the house).
   const fore = front - (stem + 0.8);
@@ -652,6 +837,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     provides: [{ power: 'electrical', circuits: BREAKERS }],
     features: [
       { id: 'door.aft', kind: 'door', openKey: 'door.aft.open' },
+      ...(sideDoor ? [{ id: 'door.side', kind: 'door' as const, openKey: 'door.side.open' as const }] : []),
       { id: 'hatch.engine', kind: 'hatch', openKey: 'hatch.engine.open' },
       ...(bowRamp ? [{ id: 'ramp.bow', kind: 'door' as const, openKey: 'ramp.bow.down' as const }] : []),
     ],
@@ -696,7 +882,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   }
   // The searchlight on the roof or its pole (or none), and the fire monitor.
   if (lampFoot) bySocket(recipe.modules, 'searchlight')!.config = { position: [lampFoot[0], r2(lampFoot[1] + dp.lampHeight), lampFoot[2]], pole: { deckY: lampFoot[1] } };
-  else if (hasLamp) bySocket(recipe.modules, 'searchlight')!.config = { position: at.searchlight };
+  else if (hasLamp) bySocket(recipe.modules, 'searchlight')!.config = { position: lampRoof };
   else recipe.modules = recipe.modules.filter((m) => m.socket !== 'searchlight');
   if (monitorFoot) recipe.modules.push({ socket: 'fireMonitor', module: 'deck.fire-monitor', config: { position: [monitorFoot[0], r2(monitorFoot[1] + dp.nozzleHeight), monitorFoot[2]], pole: { deckY: monitorFoot[1] } } });
   else if (hasMonitor) recipe.modules.push({ socket: 'fireMonitor', module: 'deck.fire-monitor', config: { position: monitorRoof } }); // its gauge: on the console, below
@@ -715,8 +901,8 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   const cc = consoleMount.config as Record<string, any>;
   // The helm's searchlight and monitor controls: always for a unit on the roof (the only
   // place to work it from); for one on a pole (which has its own) with the advanced controls.
-  const lampAtHelm = d.searchlight === 1 || (!!lampFoot && !!d.controls);
-  const monitorAtHelm = d.fireMonitor === 1 || (!!monitorFoot && !!d.controls);
+  const lampAtHelm = lampOnRoof || (!!lampFoot && !!d.controls);
+  const monitorAtHelm = monitorOnRoof || (!!monitorFoot && !!d.controls);
   const searchGroup = cc.groups.find((gp: { title: string }) => gp.title === 'SEARCH');
   if (!lampAtHelm) {
     consoleMount.modules = consoleMount.modules!.filter((m) => m.socket !== 'spotlight' && m.socket !== 'spotJoystick');
@@ -770,14 +956,28 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   if (!bowRamp) recipe.modules = recipe.modules.filter((m) => m.socket !== 'rampCabin' && m.socket !== 'rampBow');
   if (craneAt) {
     // Its control post goes inboard of it by itself (the module's seat), whichever way it faces.
-    recipe.modules.push({ socket: 'deckCrane', module: 'deck.crane' }, { socket: 'hydraulicPump', module: 'hydraulics.pto-pump' });
+    recipe.modules.push({ socket: 'deckCrane', module: 'deck.crane', ...(cranePlaced ? { config: { side: 'socket' } } : {}) });
   }
+  // The working deck gear (version 10), and a hydraulic pump for whatever needs one.
+  if (winchAt) recipe.modules.push({ socket: 'towWinch', module: 'deck.tow-winch' });
+  if (sternRoller) recipe.modules.push({ socket: 'sternRoller', module: 'deck.stern-roller' });
+  if (aFrame) recipe.modules.push({ socket: 'aFrame', module: 'deck.a-frame' }, { socket: 'trawl', module: 'fishing.trawl' });
+  if (ring) recipe.modules.push({ socket: 'lifeRing', module: 'rescue.life-ring-station', config: { stow: ring.stow, cleat: ring.cleat } }, { socket: 'boatHook', module: 'rescue.boat-hook-rack', config: { stow: ring.hook } });
+  if (sideDoor)
+    recipe.modules.push(
+      { socket: 'sideDoorIn', module: 'control.door-button', config: { label: 'Side door: open / shut' }, bind: { door: 'door.side.open' } },
+      { socket: 'sideDoorOut', module: 'control.door-button', config: { label: 'Side door: open / shut' }, bind: { door: 'door.side.open' } },
+    );
+  if (craneAt || winchAt) recipe.modules.push({ socket: 'hydraulicPump', module: 'hydraulics.pto-pump' });
 
-  const price = Math.round((mass * 6 + kw * n * 120 + (d.controls ? 18000 : 6000) + (craneAt ? 25000 : 0) + (hasMonitor ? 15000 : 0)) / 1000) * 1000;
+  const gp = dg.price;
+  const gearPrice = (winchAt ? gp.towWinch : 0) + (sternRoller ? gp.sternRoller : 0) + (aFrame ? gp.aFrame : 0) + (ring ? gp.lifeRing : 0) + (sideDoor ? gp.sideDoor : 0);
+  const price = Math.round((mass * 6 + kw * n * 120 + (d.controls ? 18000 : 6000) + (craneAt ? 25000 : 0) + (hasMonitor ? 15000 : 0) + gearPrice) / 1000) * 1000;
   return {
     hull,
     recipe,
     figures: { lengthM, beamM: beamDeck, massT: mass / 1000, draughtM: -Math.min(...st.map((s) => s.polygon[2][1])), gmM: gm, propellerM: propD, gear, engine: twin ? `Twin ${eng.name}` : eng.name, price, floorM: Math.round((floorY - level) * 100) / 100 },
     warnings,
+    placed,
   };
 }

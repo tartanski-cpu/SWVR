@@ -29,7 +29,8 @@ import type { SeaTrialResults } from '../vessel/seaTrials';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 import { buildVesselMesh } from '../vessel/view/hullMesh';
 import { DESIGN_HULLS, ENGINES, LIVERIES, ROOF_PAINTS, type DesignedBoat } from './build';
-import { decodeDesign, DEFAULT_DESIGN, encodeDesign, FIELDS, SCALES, type ShipDesign } from './design';
+import { decodeDesign, DEFAULT_DESIGN, encodeDesign, FIELDS, placeOf, placeValue, SCALES, type PlaceKey, type ShipDesign } from './design';
+import { hullPlan } from '../vessel/layout';
 import { UndoStack } from './undo';
 import { YardLink } from './yardLink';
 import { Keeper, newSessionId, sessionIdFrom, type DesignPatch, type Person, type SessionEvents } from './session';
@@ -41,7 +42,7 @@ import { rankTypes } from './typeFit';
 import { deckRoom, sizeForDeck, type DeckRoom } from './deckRoom';
 import { trialCharts } from './trialCharts';
 import type { GearKind } from '../modular/module';
-import { EQUIPMENT, equipmentOf, placeGear, SPOT_NAMES } from './pinGear';
+import { EQUIPMENT, equipmentOf, placeGear, removeGear, type Equipment } from './pinGear';
 import { SheetEditor } from './sheetEditor';
 import { addFavourite, cleanName, readFavourites, removeFavourite, writeFavourites, type Favourite, type Store } from './favourites';
 
@@ -234,11 +235,14 @@ function options(key: keyof ShipDesign, label: string, names: string[]): void {
     c.dataset.key = key;
     c.dataset.i = String(i);
     c.textContent = name;
-    c.onclick = () => change({ [key]: i });
+    // Gear placed by hand goes back to its usual place when chosen here.
+    c.onclick = () => change({ [key]: i, ...(PLACED_BY[key] ? { [PLACED_BY[key]!]: 0 } : {}) });
     box.appendChild(c);
   });
   controls.appendChild(row);
 }
+/** The choices whose gear can also be placed by hand (pinGear.ts), and where that's kept. */
+const PLACED_BY: Partial<Record<keyof ShipDesign, PlaceKey>> = { deckCrane: 'craneAt', searchlight: 'lampAt', fireMonitor: 'monitorAt', towWinch: 'winchAt' };
 
 section('1. Hull');
 {
@@ -290,8 +294,7 @@ section('3. Deck gear');
     const b = document.createElement('button');
     b.textContent = e.name;
     b.dataset.gear = e.id;
-    b.title = e.field ? `Click, then click on her where the ${e.name.toLowerCase()} goes: it’s placed there` : 'Not in the Shipyard yet: pinned as a to-do';
-    if (!e.field) b.classList.add('later');
+    b.title = `Click, then click on her where the ${e.name.toLowerCase()} goes: it’s placed there`;
     b.onclick = () => pinGearTool(e.id);
     pal.appendChild(b);
   }
@@ -304,6 +307,11 @@ section('3. Deck gear');
 options('deckCrane', 'Deck crane', ['None', 'Foredeck', 'Aft deck']);
 options('searchlight', 'Searchlight', ['None', 'Roof', 'Foredeck pole', 'Aft deck pole']);
 options('fireMonitor', 'Fire monitor', ['None', 'Roof', 'Foredeck pole', 'Aft deck pole']);
+options('towWinch', 'Tow winch', ['None', 'Aft deck']);
+options('sternRoller', 'Stern roller', ['None', 'In the transom']);
+options('aFrame', 'Trawl A-frame', ['None', 'Over the transom (with the net and a winch)']);
+options('lifeRing', 'Life ring & boat hook', ['None', 'Port', 'Starboard']);
+options('sideDoor', 'Side door', ['None', 'Port wall']);
 section('4. Engine');
 choices('engine', ENGINES.map((e) => ({ name: e.name, note: `${e.kg} kg with its gearbox. Propeller and gearbox matched to her by trial.` })));
 {
@@ -922,7 +930,7 @@ function showTodo(): void {
     row.querySelector<HTMLElement>('[data-act=done]')!.onclick = () => putMyNote({ ...p, done: !p.done, ...(p.done ? { doneBy: undefined } : { doneBy: author().by }) });
     row.querySelector<HTMLElement>('[data-act=del]')!.onclick = () => {
       const eq = equipmentOf(p.gear);
-      const off = eq?.field && p.placed && p.placed !== MOVED ? ` Its ${eq.name.toLowerCase()} comes off too.` : '';
+      const off = holds(p, eq) ? ` Its ${eq.name.toLowerCase()} comes off too.` : '';
       if (confirm(`Delete pin ${i + 1}${p.text ? `, “${p.text}”` : eq ? ` (${eq.name})` : ''}?${off}`)) dropPin(p);
     };
     box.appendChild(row);
@@ -1013,16 +1021,14 @@ renderer.domElement.addEventListener('pointerup', (e) => {
   }
 });
 {
-  // The pin's equipment list: what the Shipyard can place, then what's still to come.
+  // The pin's equipment list (pinGear.ts): placed where the pin is, at once.
   const sel = $('pinGear') as HTMLSelectElement;
   const opt = (value: string, text: string) => Object.assign(document.createElement('option'), { value, textContent: text });
   sel.append(opt('', 'Just a note'));
-  const now = document.createElement('optgroup');
-  now.label = 'Placed for you at Deck gear';
-  const later = document.createElement('optgroup');
-  later.label = 'Not in the Shipyard yet (a to-do)';
-  for (const e of EQUIPMENT) (e.field ? now : later).append(opt(e.id, e.name));
-  sel.append(now, later);
+  const gear = document.createElement('optgroup');
+  gear.label = 'Equipment: placed here';
+  for (const e of EQUIPMENT) gear.append(opt(e.id, e.name));
+  sel.append(gear);
 }
 function pinGearTool(id: string): void {
   setTool('pin');
@@ -1043,32 +1049,62 @@ function addPin(gearPicked?: string): void {
 }
 /**
  * Put the equipment asked for on pins where the pins are (pinGear.ts), each once: a pin it's
- * done for is marked with where it went and ticked done. A piece pinned again somewhere else
- * moves there (the earlier pin is marked as moved). Run as a pin is added, and on coming to
- * the Deck gear step (for pins from before). Gear the Shipyard can't fit stays a to-do.
+ * done for is marked with where it went and ticked done. Gear on the grid stands on the
+ * pin's 25 cm cell, or the nearest that's clear (the builder's `placed`: the design is then
+ * set to the cell it took, so it stays there). A piece pinned again somewhere else moves
+ * there (the earlier pin is marked as moved). Run as a pin is added, and on coming to the
+ * Deck gear step (for pins from before).
  */
 function placeFromPins(): void {
   const wh = VESSEL_DEFS.design.layout.wheelhouse;
-  const house = wh ? { front: wh.front, aft: wh.aft, halfWidth: wh.halfWidth, roofY: wh.roofY } : undefined;
+  const house = wh ? { front: wh.front, aft: wh.aft, halfWidth: wh.halfWidth } : undefined;
   for (const p of todo(notes)) {
     const eq = equipmentOf(p.gear);
     if (!eq || p.placed || p.done) continue;
-    const put = placeGear(eq, fromFrac(p.at, hullMin, hullMax), house);
-    if (!put) continue;
+    const put = placeGear(eq, fromFrac(p.at, hullMin, hullMax), house, hullPlan(VESSEL_DEFS.design).transom);
     change(put.patch);
-    for (const o of notes) if (o.kind === 'pin' && o.id !== p.id && o.gear === p.gear && o.placed && o.placed !== MOVED) putMyNote({ ...o, placed: MOVED });
-    putMyNote({ ...p, placed: SPOT_NAMES[put.spot], done: true, doneBy: 'the Shipyard' });
+    let words = put.words;
+    if (eq.key) {
+      const at = boat.placed[eq.key];
+      if (at === null) words = 'in its usual place: it won’t stand where the pin is (nor within a metre of it)';
+      else if (at?.moved) {
+        // Keep it on the cell it took (and its facing).
+        const face = placeOf(eq.key, design[eq.key])?.face ?? 0;
+        change({ [eq.key]: placeValue(eq.key, at.x, hullPlan(VESSEL_DEFS.design).transom - at.z, face) } as Partial<ShipDesign>);
+        words += `, moved ${Math.hypot(...pinOffset(p, at)).toFixed(2)} m from the pin to stand clear`;
+      }
+    }
+    for (const o of notes) if (o.kind === 'pin' && o.id !== p.id && equipmentOf(o.gear) === eq && o.placed && o.placed !== MOVED) putMyNote({ ...o, placed: MOVED });
+    putMyNote({ ...p, placed: words, done: true, doneBy: 'the Shipyard' });
   }
   showFromPins();
 }
+/** How far a placed piece stands from its pin (x, z, m). */
+function pinOffset(p: Pin, at: { x: number; z: number }): [number, number] {
+  const [x, , z] = fromFrac(p.at, hullMin, hullMax);
+  return [at.x - x, at.z - z];
+}
 /** A pin whose equipment was pinned again elsewhere since. */
 const MOVED = 'moved';
+/** Is this pin's equipment standing where it put it (not moved to a later pin)? */
+const holds = (p: Pin, eq: Equipment | undefined): eq is Equipment => !!eq && !!p.placed && p.placed !== MOVED;
 /** Delete a pin; if its equipment stands where it put it, that comes off too. */
 function dropPin(p: Pin): void {
   const eq = equipmentOf(p.gear);
-  if (eq?.field && p.placed && p.placed !== MOVED) change({ [eq.field]: 0 } as Partial<ShipDesign>);
+  if (holds(p, eq)) change(removeGear(eq));
   dropMyNote(p.id);
 }
+/** Turn a placed crane or winch a quarter turn on its spot. */
+function turnGear(eq: Equipment): void {
+  if (!eq.key) return;
+  const at = placeOf(eq.key, design[eq.key]);
+  if (at) change({ [eq.key]: placeValue(eq.key, at.x, at.fromTransom, at.face + 1) } as Partial<ShipDesign>);
+  showFromPins();
+}
+const FACINGS: Record<string, string[]> = {
+  craneAt: ['facing forward', 'facing to starboard', 'facing aft', 'facing to port'],
+  winchAt: ['its wire leading aft', 'its wire leading to port', 'its wire leading forward', 'its wire leading to starboard'],
+};
 /** The Deck gear step's list of what pins asked for, and what became of it. */
 function showFromPins(): void {
   const box = document.getElementById('fromPins');
@@ -1080,7 +1116,17 @@ function showFromPins(): void {
     const n = todo(notes).indexOf(p) + 1;
     const row = document.createElement('div');
     row.className = 'item';
-    row.innerHTML = `<span class="badge" style="background:${p.colour}">${n}</span><span><b>${esc(eq.name)}</b>${p.text ? ` <span class="meta">“${esc(p.text)}”</span>` : ''}<span class="meta">${p.placed === MOVED ? 'Moved to a later pin.' : p.placed ? `Placed ${esc(p.placed)}.${p.placed === SPOT_NAMES.roof ? '' : eq.id === 'searchlight' ? ' (Its pole stands to starboard.)' : eq.id === 'fireMonitor' ? ' (Its pole stands to port.)' : ''}` : eq.field ? 'Not placed yet.' : 'Not in the Shipyard yet: kept on the to-do list.'}</span></span>`;
+    const at = eq.key && holds(p, eq) ? placeOf(eq.key, design[eq.key]) : null;
+    const facing = at && eq.turns ? `, ${FACINGS[eq.key!][at.face]}` : '';
+    const status = p.placed === MOVED ? 'Moved to a later pin.' : p.placed ? `Placed ${esc(p.placed)}${esc(facing)}.` : 'Not placed yet.';
+    row.innerHTML = `<span class="badge" style="background:${p.colour}">${n}</span><span><b>${esc(eq.name)}</b>${p.text ? ` <span class="meta">“${esc(p.text)}”</span>` : ''}<span class="meta">${status}</span></span>`;
+    if (at && eq.turns) {
+      const b = document.createElement('button');
+      b.textContent = 'Turn ↻';
+      b.title = 'A quarter turn on its spot';
+      b.onclick = () => turnGear(eq);
+      row.querySelector('span:last-child')!.appendChild(b);
+    }
     box.appendChild(row);
   }
 }

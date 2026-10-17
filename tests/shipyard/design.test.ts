@@ -1,16 +1,16 @@
 /** Shipyard designs: the choices round-trip through their 15-character code, typos are caught, older 10-, 11-, 13- and 14-character codes still read. */
 import { describe, expect, it } from 'vitest';
 import { cleanDesign } from '../../src/shipyard/variants';
-import { COMBINATIONS, decodeDesign, DEFAULT_DESIGN, encodeDesign, encodeDesignV2, encodeDesignV3, encodeDesignV4, encodeDesignV5, encodeDesignV6, encodeDesignV7, encodeDesignV8, FIELDS, type OldDesign, type ShipDesign } from '../../src/shipyard/design';
+import { COMBINATIONS, decodeDesign, DEFAULT_DESIGN, encodeDesign, encodeDesignV2, encodeDesignV3, encodeDesignV4, encodeDesignV5, encodeDesignV6, encodeDesignV7, encodeDesignV8, encodeDesignV9, FIELDS, PLACE_GRID, placeOf, placeValue, type OldDesign, type ShipDesign } from '../../src/shipyard/design';
 
 /** The starting design as versions 1-3 held it (a step-down floor, the house a box). */
 const { floor: _f, visor: _v, roofThickness: _t, roofEdge: _e, roofPaint: _p, windowRake: _w, lowerFront: _l, searchlight: _s, fireMonitor: _m, ...rest } = DEFAULT_DESIGN;
 const OLD: OldDesign = { ...rest, sunk: 1 };
 
 describe('Shipyard design codes', () => {
-  it('are 15 characters (in fives, with dashes), and read back to the same choices', () => {
+  it('are 17 characters (in fives, with dashes), and read back to the same choices', () => {
     const code = encodeDesign(DEFAULT_DESIGN);
-    expect(code).toMatch(/^[0-9A-Z]{5}-[0-9A-Z]{5}-[0-9A-Z]{5}$/);
+    expect(code).toMatch(/^[0-9A-Z]{5}-[0-9A-Z]{5}-[0-9A-Z]{5}-[0-9A-Z]{2}$/);
     expect(decodeDesign(code)).toEqual({ design: DEFAULT_DESIGN });
   });
 
@@ -21,14 +21,54 @@ describe('Shipyard design codes', () => {
         // The front below the windows isn't offered now: any code reads it as upright.
         expect(decodeDesign(encodeDesign(d))).toEqual({ design: { ...d, lowerFront: 0, roofEdge: Math.max(1, d.roofEdge) } });
       }
-    const max = Object.fromEntries(FIELDS.map((f) => [f.key, f.steps - 1])) as unknown as ShipDesign;
-    const min = Object.fromEntries(FIELDS.map((f) => [f.key, 0])) as unknown as ShipDesign;
+    const max = { ...DEFAULT_DESIGN, ...Object.fromEntries(FIELDS.map((f) => [f.key, f.steps - 1])) } as ShipDesign;
+    const min = { ...DEFAULT_DESIGN, ...Object.fromEntries(FIELDS.map((f) => [f.key, 0])) } as ShipDesign;
     for (const d of [max, min]) expect(decodeDesign(encodeDesign(d))).toEqual({ design: { ...d, lowerFront: 0, roofEdge: Math.max(1, d.roofEdge) } });
   });
 
-  it('fits: every combination of the choices in 70 bits (14 characters)', () => {
+  it('fits: every combination of the choices in 80 bits (16 characters)', () => {
     expect(COMBINATIONS).toBe(FIELDS.reduce((a, f) => a * BigInt(f.steps), 1n));
-    expect(COMBINATIONS < 1n << 70n).toBe(true);
+    expect(COMBINATIONS < 1n << 80n).toBe(true);
+  });
+
+  it('gear placed by hand: no longer than 17 characters without, a few more with, and back to the same places', () => {
+    expect(encodeDesign(DEFAULT_DESIGN).replace(/-/g, '')).toHaveLength(17);
+    const one = { ...DEFAULT_DESIGN, searchlight: 2, lampAt: placeValue('lampAt', -0.5, 9.25) };
+    const c1 = encodeDesign(one);
+    expect(c1.replace(/-/g, '').length).toBeGreaterThan(17);
+    expect(c1.replace(/-/g, '').length).toBeLessThanOrEqual(21);
+    expect(decodeDesign(c1)).toEqual({ design: one });
+    expect(placeOf('lampAt', one.lampAt)).toEqual({ x: -0.5, fromTransom: 9.25, face: 0 });
+    // All four placed, at the grid's corners, facings too.
+    const g = PLACE_GRID;
+    const all = {
+      ...DEFAULT_DESIGN,
+      deckCrane: 1, searchlight: 3, fireMonitor: 1, towWinch: 1,
+      craneAt: placeValue('craneAt', g.halfX * g.step, (g.nz - 1) * g.step, 3),
+      lampAt: placeValue('lampAt', -g.halfX * g.step, 0),
+      monitorAt: placeValue('monitorAt', 0.25, 4),
+      winchAt: placeValue('winchAt', 0, 0.75, 2),
+    };
+    const c4 = encodeDesign(all);
+    expect(decodeDesign(c4)).toEqual({ design: all });
+    expect(c4.replace(/-/g, '').length).toBeLessThanOrEqual(30);
+    expect(placeOf('craneAt', all.craneAt)).toEqual({ x: 3, fromTransom: 17.75, face: 3 });
+    // Snapped to the 25 cm grid, and kept on it.
+    expect(placeOf('winchAt', placeValue('winchAt', 0.13, 1.37, 1))).toEqual({ x: 0.25, fromTransom: 1.25, face: 1 });
+    expect(placeOf('lampAt', placeValue('lampAt', 9, -2))!.x).toBe(3);
+    // A mistyped character in the extension is caught too.
+    const bare = c4.replace(/-/g, '');
+    const bad = bare.slice(0, 18) + (bare[18] === 'A' ? 'B' : 'A') + bare.slice(19);
+    expect('error' in decodeDesign(bad)).toBe(true);
+  });
+
+  it('reads version 9 codes (before the working deck gear) as the same boats, without it', () => {
+    const { towWinch: _a, sternRoller: _b, aFrame: _c, lifeRing: _d, sideDoor: _e2, ...v9 } = { ...DEFAULT_DESIGN, chartTable: 1, deckCrane: 2 };
+    const code = encodeDesignV9(v9);
+    expect(code.replace(/-/g, '')).toHaveLength(15);
+    expect(decodeDesign(code)).toEqual({ design: { ...v9, towWinch: 0, sternRoller: 0, aFrame: 0, lifeRing: 0, sideDoor: 0 } });
+    const gear = { ...DEFAULT_DESIGN, towWinch: 1, sternRoller: 1, aFrame: 1, lifeRing: 2, sideDoor: 1 };
+    expect(decodeDesign(encodeDesign(gear))).toEqual({ design: gear });
   });
 
   it('reads version 8 codes (before the chart table) as the same boats, without one', () => {
@@ -114,7 +154,7 @@ describe('Shipyard design codes', () => {
         const bad = code.slice(0, i) + ch + code.slice(i + 1);
         expect('error' in decodeDesign(bad), bad).toBe(true);
       }
-    expect(decodeDesign('ABC')).toEqual({ error: 'a design code has 15 characters (this has 3)' });
+    expect(decodeDesign('ABC')).toEqual({ error: 'a design code has 17 characters (this has 3)' });
     expect('error' in decodeDesign('UUUUU-UUUUU')).toBe(true);
   });
 });

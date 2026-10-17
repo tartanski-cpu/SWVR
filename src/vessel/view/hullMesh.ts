@@ -413,6 +413,8 @@ function prism(x0: number, x1: number, pts: [number, number][], color: number): 
  * slab (owner) reaching forward of the windows' head as a visor, its front face raked back
  * as it rises (`roofEdgeDeg`), like the windows below it.
  * The side walls follow that profile at their front ends, so their windows are trapezoids.
+ * A side door (`sideDoor`, in the port wall) is an opening from the floor up through the
+ * window band, with jambs, a header up to the band's top and a threshold.
  * The side and aft windows start lower (windowSill) than the front's (frontSill, the dash
  * top); between them at each front corner a black post. No roof rail or ladder: the roof
  * isn't walked.
@@ -455,13 +457,25 @@ function buildShapedHouse(layout: HouseLayout, col: Paint, base: number): THREE.
   // Side walls: below the band, following the front's lower lean; the band's posts (the
   // front one raked with the windows) and a mullion; above it, up to the raked roof.
   const bandMid = ((zS + zH) / 2 + 0.1 + zA) / 2;
+  const sd = wh.sideDoor;
   for (const s of [-1, 1]) {
     const x0 = s > 0 ? hw - w : -hw;
     const x1 = s > 0 ? hw : -hw + w;
     const top = sideS - FW;
-    const low: [number, number][] = [[zA, base], [zA, top], [zLow(top), top], ...(top > L0 ? [[zF, L0] as [number, number]] : []), ...(L0 > base + 0.01 ? [[zF, base] as [number, number]] : [])];
+    const door = s < 0 && sd ? sd : null;
+    // Below the band: forward of the door (or the whole wall), and aft of it.
+    const fore = door ? door.z0 : zA;
+    const low: [number, number][] = [[fore, base], [fore, top], [zLow(top), top], ...(top > L0 ? [[zF, L0] as [number, number]] : []), ...(L0 > base + 0.01 ? [[zF, base] as [number, number]] : [])];
     parts.push(prism(x0, x1, low, H));
-    parts.push(fbox(x0, x1, top, sideS, zLow(sideS) + 0.1, zA));
+    parts.push(fbox(x0, x1, top, sideS, zLow(sideS) + 0.1, fore));
+    if (door) {
+      const jamb = 0.08;
+      const doorTop = wh.floorY + door.height;
+      parts.push(box(x0, x1, base, top, door.z1, zA, H), fbox(x0, x1, top, sideS, door.z1, zA));
+      parts.push(fbox(x0, x1, base, doorTop, door.z0 - jamb, door.z0), fbox(x0, x1, base, doorTop, door.z1, door.z1 + jamb)); // the jambs
+      if (head - doorTop > 0.01) parts.push(box(x0, x1, doorTop, head, door.z0, door.z1, H)); // the header, up to the band's top
+      parts.push(box(x0, x1, base, wh.floorY + 0.02, door.z0, door.z1, col.floor)); // the threshold
+    }
     // The front corner post: from the side windows' sill up to the front's, following the lean.
     // Proud of the walls all round, the front too: its face in the front wall's plane flickered (owner).
     if (S > sideS + 0.01) {
@@ -470,7 +484,8 @@ function buildShapedHouse(layout: HouseLayout, col: Paint, base: number): THREE.
     }
     parts.push(raked(fbox(x0, x1, S, head, zF, zF + 0.1)));
     parts.push(fbox(x0, x1, sideS, head, zA - 0.1, zA));
-    parts.push(fbox(x0, x1, sideS, head, bandMid - 0.04, bandMid + 0.04));
+    // The band's mullion (not in a doorway).
+    if (!door || bandMid < door.z0 - 0.15 || bandMid > door.z1 + 0.15) parts.push(fbox(x0, x1, sideS, head, bandMid - 0.04, bandMid + 0.04));
     parts.push(fbox(x0, x1, head, head + FW, zH, zA));
     // Wall above the band, if the glass stops short of the roof (the Shipyard's runs up to it).
     if (roofY + 0.02 - (head + FW) > 0.01) parts.push(box(x0, x1, head + FW, roofY + 0.02, zH, zA, H));

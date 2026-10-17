@@ -5,7 +5,7 @@
  * the main design and its variants. Any two can be compared, a variant can be promoted to
  * the main design, and one's values can be merged into another field by field.
  */
-import { DEFAULT_DESIGN, FIELDS, type ShipDesign } from './design';
+import { ALL_FIELDS, DEFAULT_DESIGN, type ShipDesign } from './design';
 import { cleanNotes, type Note } from './notes';
 import { cleanBrief, type Brief } from './brief';
 
@@ -40,7 +40,7 @@ export function cleanDesign(d: unknown): ShipDesign {
   const o = d as Record<string, unknown>;
   for (const k of Object.keys(out) as (keyof ShipDesign)[]) {
     const v = o[k];
-    const steps = FIELDS.find((f) => f.key === k)?.steps ?? 64;
+    const steps = ALL_FIELDS.find((f) => f.key === k)?.steps ?? 64;
     if (typeof v === 'number' && Number.isInteger(v) && v >= 0 && v < steps) out[k] = v;
   }
   // Saved before the searchlight was its own choice: it came with the advanced controls.
@@ -120,7 +120,7 @@ export function promote(list: readonly Variant[], id: string, now: number): [Var
 
 /** The fields where two designs differ (in the order of the code's fields; never the gearbox, which follows the rest). */
 export function diffFields(a: ShipDesign, b: ShipDesign): (keyof ShipDesign)[] {
-  return FIELDS.map((f) => f.key).filter((k) => k !== 'gear' && a[k] !== b[k]);
+  return ALL_FIELDS.map((f) => f.key).filter((k) => k !== 'gear' && a[k] !== b[k]);
 }
 
 /** A merge: the patch that gives `into` the values of `from` for the ticked fields. */

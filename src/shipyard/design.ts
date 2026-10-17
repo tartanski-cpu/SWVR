@@ -11,8 +11,16 @@
  * (digits and letters without I, L, O and U, so nothing looks like anything else), with a
  * check character after them (a weighted sum: any one mistyped character is caught).
  *
- * Version 9 (a chart table; this one): 14 characters of choices (70 bits) and the check:
- * 15 characters, shown as K7P4Q-2ZX9D-MR3XA. Its number is 2^69 + the choices' number.
+ * Version 10 (the working deck gear: tow winch, stern roller, A-frame and trawl, life ring
+ * and boat hook, a side door; and gear placed by hand; this one): 16 characters of choices
+ * (80 bits) and the check: 17 characters, shown as K7P4Q-2ZX9D-MR3XA-7Q. Its number is the
+ * choices' number. Gear placed by hand (PLACE_FIELDS: a pin puts it where you click, on a
+ * 25 cm grid) follows those 16 characters as one more number, only when there is some:
+ * which pieces are placed (4 bits), then each one's grid cell and facing. So a boat with
+ * nothing placed by hand keeps a 17-character code; each placed piece adds 2 to 3 characters.
+ *
+ * Version 9 (a chart table): 14 characters of choices (70 bits) and the check:
+ * 15 characters. Its number is 2^69 + the choices' number. Read with none of version 10's gear.
  *
  * Version 8 (the searchlight and the fire monitor, each on the roof or on a deck pole): 15
  * characters too, its number the choices' number (below 2^67). Read with no chart table.
@@ -45,8 +53,8 @@
  * Twin engines didn't fit in what was left of the 45 bits, so version 3 went to 11.
  */
 
-/** The building rules this code was made with (9: a chart table, 15 characters). */
-export const DESIGN_VERSION = 9;
+/** The building rules this code was made with (10: the working deck gear, 17 characters). */
+export const DESIGN_VERSION = 10;
 
 /** One choice: its index on its scale, 0 .. steps-1. */
 export interface ShipDesign {
@@ -80,6 +88,33 @@ export interface ShipDesign {
   fireMonitor: number;
   /** A drop-leaf chart table along the wheelhouse's port wall, aft (owner: its own choice, not in the advanced package): 0 none, 1 fitted. */
   chartTable: number;
+  /**
+   * The working deck gear (owner: placeable in the Shipyard, version 10):
+   *   towWinch     0 none, 1 on the aft deck centreline, forward of the transom;
+   *   sternRoller  0 none, 1 in the transom bulwark: her tow point;
+   *   aFrame       0 none, 1 the trawl A-frame over the transom, with the net (its warps lead
+   *                off the tow winch, so it brings the winch with it);
+   *   lifeRing     0 none, 1 port, 2 starboard: the life ring on the house's aft wall, its
+   *                line on that quarter's cleat, and the boat-hook clips on that bulwark;
+   *   sideDoor     0 none, 1 a sliding door in the wheelhouse's port wall (the game's side
+   *                door is a port one).
+   * (Pots are hauled by hand: no pot hauler, owner.)
+   */
+  towWinch: number;
+  sternRoller: number;
+  aFrame: number;
+  lifeRing: number;
+  sideDoor: number;
+  /**
+   * Gear placed by hand (owner: put exactly where the pin is, snapped to a 25 cm grid), each
+   * 0 for its usual place (the choice above), else its grid cell and facing (`placeOf`):
+   * the deck crane, the searchlight and the fire monitor (on a pole on deck, or on the
+   * wheelhouse roof if the cell's on it), the tow winch.
+   */
+  craneAt: number;
+  lampAt: number;
+  monitorAt: number;
+  winchAt: number;
   /** Front windows' rake (SCALES.windowRake): leaning aft (a fast patrol boat) .. upright .. leaning forward (a pilot house). */
   windowRake: number;
   /**
@@ -99,18 +134,64 @@ export interface ShipDesign {
   paint: number;
 }
 
+/**
+ * The grid gear is placed on by hand: `step` m squares, measured from the transom forward
+ * (cells 0 .. nz-1) and from the centreline out (-halfX .. halfX), so a piece stays where
+ * it was put, in metres from her stern, when her hull is stretched. Part of the code's format.
+ */
+export const PLACE_GRID = { step: 0.25, halfX: 12, nz: 72 };
+const CELLS = (2 * PLACE_GRID.halfX + 1) * PLACE_GRID.nz;
+export type PlaceKey = 'craneAt' | 'lampAt' | 'monitorAt' | 'winchAt';
+/** The placed-by-hand fields, in the code's order: a cell each, and a facing (4 ways) for the crane and the winch. */
+export const PLACE_FIELDS: { key: PlaceKey; steps: number; faces: number }[] = [
+  { key: 'craneAt', steps: 1 + CELLS * 4, faces: 4 },
+  { key: 'lampAt', steps: 1 + CELLS, faces: 1 },
+  { key: 'monitorAt', steps: 1 + CELLS, faces: 1 },
+  { key: 'winchAt', steps: 1 + CELLS * 4, faces: 4 },
+];
+
+/**
+ * A placed-by-hand field's value as where it is: `x` m from the centreline (+ starboard),
+ * `fromTransom` m forward of the transom, and its facing in quarter turns (0: as usual).
+ * Null for 0 (its usual place).
+ */
+export function placeOf(key: PlaceKey, v: number): { x: number; fromTransom: number; face: number } | null {
+  if (!v) return null;
+  const faces = PLACE_FIELDS.find((f) => f.key === key)!.faces;
+  const n = v - 1;
+  const face = n % faces;
+  const cell = Math.floor(n / faces);
+  const nx = 2 * PLACE_GRID.halfX + 1;
+  return { x: ((cell % nx) - PLACE_GRID.halfX) * PLACE_GRID.step, fromTransom: Math.floor(cell / nx) * PLACE_GRID.step, face };
+}
+
+/** Where a point is (m from the centreline, m forward of the transom) as a placed-by-hand value, snapped to the grid and kept on it. */
+export function placeValue(key: PlaceKey, x: number, fromTransom: number, face = 0): number {
+  const faces = PLACE_FIELDS.find((f) => f.key === key)!.faces;
+  const xi = Math.max(-PLACE_GRID.halfX, Math.min(PLACE_GRID.halfX, Math.round(x / PLACE_GRID.step)));
+  const zi = Math.max(0, Math.min(PLACE_GRID.nz - 1, Math.round(fromTransom / PLACE_GRID.step)));
+  return 1 + ((zi * (2 * PLACE_GRID.halfX + 1) + xi + PLACE_GRID.halfX) * faces + (((face % faces) + faces) % faces));
+}
+
+/** Version 10's choices, which earlier versions read as none. */
+type V10Gear = 'towWinch' | 'sternRoller' | 'aFrame' | 'lifeRing' | 'sideDoor' | PlaceKey;
+/** None of version 10's gear (what an older code reads as). */
+const NO_V10_GEAR: Pick<ShipDesign, V10Gear> = { towWinch: 0, sternRoller: 0, aFrame: 0, lifeRing: 0, sideDoor: 0, craneAt: 0, lampAt: 0, monitorAt: 0, winchAt: 0 };
+
 /** A design as earlier versions held it: a step-down floor or not, rather than its height and the house's shape. */
-export type OldDesign = Omit<ShipDesign, 'chartTable' | 'searchlight' | 'fireMonitor' | 'floor' | 'visor' | 'roofThickness' | 'roofEdge' | 'roofPaint' | 'deckCrane' | 'windowRake' | 'lowerFront'> & { sunk: number };
+export type OldDesign = Omit<ShipDesign, V10Gear | 'chartTable' | 'searchlight' | 'fireMonitor' | 'floor' | 'visor' | 'roofThickness' | 'roofEdge' | 'roofPaint' | 'deckCrane' | 'windowRake' | 'lowerFront'> & { sunk: number };
 /** A design as version 4 held it: a raked roof rather than its thickness and front edge. */
-export type V4Design = Omit<ShipDesign, 'chartTable' | 'searchlight' | 'fireMonitor' | 'roofThickness' | 'roofEdge' | 'roofPaint' | 'deckCrane'> & { roofRake: number };
+export type V4Design = Omit<ShipDesign, V10Gear | 'chartTable' | 'searchlight' | 'fireMonitor' | 'roofThickness' | 'roofEdge' | 'roofPaint' | 'deckCrane'> & { roofRake: number };
 /** A design as version 5 held it: no roof colour. */
-export type V5Design = Omit<ShipDesign, 'chartTable' | 'searchlight' | 'fireMonitor' | 'roofPaint' | 'deckCrane'>;
+export type V5Design = Omit<ShipDesign, V10Gear | 'chartTable' | 'searchlight' | 'fireMonitor' | 'roofPaint' | 'deckCrane'>;
 /** A design as version 6 held it: no deck crane. */
-export type V6Design = Omit<ShipDesign, 'chartTable' | 'searchlight' | 'fireMonitor' | 'deckCrane'>;
+export type V6Design = Omit<ShipDesign, V10Gear | 'chartTable' | 'searchlight' | 'fireMonitor' | 'deckCrane'>;
 /** A design as version 7 held it: the searchlight with the advanced controls, no fire monitor. */
-export type V7Design = Omit<ShipDesign, 'searchlight' | 'fireMonitor' | 'chartTable'>;
+export type V7Design = Omit<ShipDesign, V10Gear | 'searchlight' | 'fireMonitor' | 'chartTable'>;
+/** A design as version 9 held it: none of the working deck gear. */
+export type V9Design = Omit<ShipDesign, V10Gear>;
 /** A design as version 8 held it: no chart table. */
-export type V8Design = Omit<ShipDesign, 'chartTable'>;
+export type V8Design = Omit<ShipDesign, V10Gear | 'chartTable'>;
 
 /** Version 2's choices, in its code's order (the hull type first, most significant). */
 const V2_FIELDS: { key: keyof OldDesign; steps: number }[] = [
@@ -194,8 +275,21 @@ const V7_FIELDS: { key: keyof V7Design; steps: number }[] = [...V6_FIELDS, { key
 /** Version 8's choices: version 7's, then the searchlight and the fire monitor. */
 const V8_FIELDS: { key: keyof V8Design; steps: number }[] = [...V7_FIELDS, { key: 'searchlight', steps: 4 }, { key: 'fireMonitor', steps: 4 }];
 
-/** Each choice's number of steps, in the code's order (version 9: version 8's, then the chart table). */
-export const FIELDS: { key: keyof ShipDesign; steps: number }[] = [...V8_FIELDS, { key: 'chartTable', steps: 2 }];
+/** Version 9's choices: version 8's, then the chart table. */
+const V9_FIELDS: { key: keyof V9Design; steps: number }[] = [...V8_FIELDS, { key: 'chartTable', steps: 2 }];
+
+/** Each choice's number of steps, in the code's order (version 10: version 9's, then the working deck gear). */
+export const FIELDS: { key: keyof ShipDesign; steps: number }[] = [
+  ...V9_FIELDS,
+  { key: 'towWinch', steps: 2 },
+  { key: 'sternRoller', steps: 2 },
+  { key: 'aFrame', steps: 2 },
+  { key: 'lifeRing', steps: 3 },
+  { key: 'sideDoor', steps: 2 },
+];
+
+/** Every choice with its number of steps, the placed-by-hand ones too (for checking and merging designs). */
+export const ALL_FIELDS: { key: keyof ShipDesign; steps: number }[] = [...FIELDS, ...PLACE_FIELDS];
 
 /** Version 1's choices, each in whole bits (for reading its codes). */
 const V1_FIELDS: { key: keyof OldDesign; bits: number; steps: number }[] = [
@@ -271,6 +365,7 @@ export const DEFAULT_DESIGN: ShipDesign = {
   searchlight: 1,
   fireMonitor: 0,
   chartTable: 0,
+  ...NO_V10_GEAR,
   windowRake: 4,
   lowerFront: 0,
   twin: 0,
@@ -281,8 +376,9 @@ export const DEFAULT_DESIGN: ShipDesign = {
 };
 
 const ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
-/** Every combination of version 9's choices: its codes are the numbers V9_BASE .. V9_BASE + this - 1. */
+/** Every combination of version 10's choices: its codes are the numbers 0 .. this - 1. */
 export const COMBINATIONS = FIELDS.reduce((a, f) => a * BigInt(f.steps), 1n);
+const V9_COMBINATIONS = V9_FIELDS.reduce((a, f) => a * BigInt(f.steps), 1n);
 const V9_BASE = 1n << 69n;
 const V8_COMBINATIONS = V8_FIELDS.reduce((a, f) => a * BigInt(f.steps), 1n);
 const V7_COMBINATIONS = V7_FIELDS.reduce((a, f) => a * BigInt(f.steps), 1n);
@@ -317,9 +413,45 @@ function write(all: bigint, count: number): string {
   return s.match(/.{1,5}/g)!.join('-');
 }
 
-/** The design as its code, e.g. 'K7P4Q-2ZX9D-MR3XA' (version 9, 15 characters). */
+/** The design as its code, e.g. 'K7P4Q-2ZX9D-MR3XA-7Q' (version 10, 17 characters; longer with gear placed by hand). */
 export function encodeDesign(d: ShipDesign): string {
-  return write(V9_BASE + pack(d, FIELDS), 14);
+  const base = pack(d, FIELDS);
+  // Gear placed by hand: each placed piece's value, then which are placed (least significant).
+  let ext = 0n;
+  let which = 0;
+  PLACE_FIELDS.forEach((f, i) => {
+    const v = d[f.key] ?? 0;
+    if (!Number.isInteger(v) || v < 0 || v >= f.steps) throw new Error(`design ${f.key} ${v} is off its scale (0..${f.steps - 1})`);
+    if (!v) return;
+    ext = ext * BigInt(f.steps) + BigInt(v);
+    which |= 1 << i;
+  });
+  if (!which) return write(base, 16);
+  ext = (ext << BigInt(PLACE_FIELDS.length)) | BigInt(which);
+  let count = 1;
+  while (ext >> BigInt(5 * count) > 0n) count++;
+  return write((base << BigInt(5 * count)) | ext, 16 + count);
+}
+
+/** The placed-by-hand gear from a code's extension (the number after its first 16 characters). */
+function unpackPlaces(ext: bigint): Pick<ShipDesign, PlaceKey> | { error: string } {
+  const out = { craneAt: 0, lampAt: 0, monitorAt: 0, winchAt: 0 };
+  const which = Number(ext & BigInt((1 << PLACE_FIELDS.length) - 1));
+  let n = ext >> BigInt(PLACE_FIELDS.length);
+  if (!which) return { error: 'that code is off the scales (no design has it)' };
+  for (let i = PLACE_FIELDS.length - 1; i >= 0; i--) {
+    if (!(which & (1 << i))) continue;
+    const f = PLACE_FIELDS[i];
+    out[f.key] = Number(n % BigInt(f.steps));
+    n /= BigInt(f.steps);
+    if (!out[f.key]) return { error: 'that code is off the scales (no design has it)' };
+  }
+  return n === 0n ? out : { error: 'that code is off the scales (no design has it)' };
+}
+
+/** A version 9 design as its code: for checking old codes still read. */
+export function encodeDesignV9(d: V9Design): string {
+  return write(V9_BASE + pack(d, V9_FIELDS), 14);
 }
 
 /** A version 8 design as its code: for checking old codes still read. */
@@ -369,7 +501,7 @@ function upgrade(d: OldDesign): V7Design {
 
 /**
  * A code back to its design, or why it can't be read. Forgiving as typed: any case, with
- * or without the dashes or spaces, and I / L read as 1, O as 0. 15 characters (versions 8 and 9), 14 (versions 6 and 7),
+ * or without the dashes or spaces, and I / L read as 1, O as 0. 17 characters (version 10), 15 (versions 8 and 9), 14 (versions 6 and 7),
  * 13 (versions 4 and 5), 11 (version 3), or 10 (versions 1 and 2: single engines).
  */
 export function decodeDesign(code: string): { design: ShipDesign } | { error: string } {
@@ -378,23 +510,36 @@ export function decodeDesign(code: string): { design: ShipDesign } | { error: st
     .replace(/[\s-]/g, '')
     .replace(/[IL]/g, '1')
     .replace(/O/g, '0');
+  const tidy = <D extends { roofEdge: number }>(d: D) => ({ ...d, lowerFront: 0, roofEdge: Math.max(1, d.roofEdge) });
+  if (s.length >= 17) {
+    // Version 10: 16 characters of choices, then (if longer) the gear placed by hand.
+    const all = readCode(s);
+    if (typeof all !== 'bigint') return all;
+    const extBits = BigInt(5 * (s.length - 17));
+    const base = all >> extBits;
+    if (base >= COMBINATIONS) return { error: `that code is from a newer Shipyard than this game (it reads versions 1 to ${DESIGN_VERSION})` };
+    const places = s.length > 17 ? unpackPlaces(all & ((1n << extBits) - 1n)) : { craneAt: 0, lampAt: 0, monitorAt: 0, winchAt: 0 };
+    if ('error' in places) return places;
+    type Base = Omit<ShipDesign, PlaceKey>;
+    const v10 = unpack<Base>(base, FIELDS as { key: keyof Base; steps: number }[]);
+    return 'design' in v10 ? { design: { ...tidy(v10.design), ...places } } : v10;
+  }
   if (s.length !== 15) {
     // Before version 8: the searchlight came with the advanced controls, on the roof; no monitor.
     const old = decodeBefore8(s);
-    return 'design' in old ? { design: { ...old.design, searchlight: old.design.controls ? 1 : 0, fireMonitor: 0, chartTable: 0 } } : old;
+    return 'design' in old ? { design: { ...old.design, searchlight: old.design.controls ? 1 : 0, fireMonitor: 0, chartTable: 0, ...NO_V10_GEAR } } : old;
   }
   const all = readCode(s);
   if (typeof all !== 'bigint') return all;
-  const tidy = <D extends { roofEdge: number }>(d: D) => ({ ...d, lowerFront: 0, roofEdge: Math.max(1, d.roofEdge) });
   if (all >= V9_BASE) {
-    if (all - V9_BASE >= COMBINATIONS) return { error: `that code is from a newer Shipyard than this game (it reads versions 1 to ${DESIGN_VERSION})` };
-    const v9 = unpack<ShipDesign>(all - V9_BASE, FIELDS);
-    return 'design' in v9 ? { design: tidy(v9.design) } : v9;
+    if (all - V9_BASE >= V9_COMBINATIONS) return { error: 'that isn’t a Shipyard code' };
+    const v9 = unpack<V9Design>(all - V9_BASE, V9_FIELDS);
+    return 'design' in v9 ? { design: { ...tidy(v9.design), ...NO_V10_GEAR } } : v9;
   }
   // Version 8: no chart table.
   if (all >= V8_COMBINATIONS) return { error: 'that isn’t a Shipyard code' };
   const v8 = unpack<V8Design>(all, V8_FIELDS);
-  return 'design' in v8 ? { design: { ...tidy(v8.design), chartTable: 0 } } : v8;
+  return 'design' in v8 ? { design: { ...tidy(v8.design), chartTable: 0, ...NO_V10_GEAR } } : v8;
 }
 
 /** A code's characters (tidied, as typed) as its number, its check checked. */
@@ -414,7 +559,7 @@ function readCode(s: string): bigint | { error: string } {
 
 /** A code from before version 8: 14 characters (versions 6 and 7), 13 (4 and 5), 11 (3) or 10 (1 and 2). */
 function decodeBefore8(s: string): { design: V7Design } | { error: string } {
-  if (![14, 13, 11, 10].includes(s.length)) return { error: `a design code has 15 characters (this has ${s.length})` };
+  if (![14, 13, 11, 10].includes(s.length)) return { error: `a design code has 17 characters (this has ${s.length})` };
   const all = readCode(s);
   if (typeof all !== 'bigint') return all;
   if (s.length === 14) {

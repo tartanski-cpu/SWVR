@@ -1924,7 +1924,29 @@ export const CONFIG = {
    * should settle at this share of the engine's rated rpm (the landing craft's: 1696 of
    * 1800); `runSeconds`: how long each full-throttle trial runs before it's read.
    */
-  shipyard: { matchRpm: 0.93, runSeconds: 45 },
+  shipyard: {
+    matchRpm: 0.93,
+    runSeconds: 45,
+    /**
+     * The working deck gear a design can carry (shipyard/build.ts; owner, version 10), where
+     * it goes and what it adds to her price (GBP):
+     *   winchFromTransom  the tow winch's drum this far forward of the transom, on the
+     *                     centreline (the starting workboat's: 0.75 m);
+     *   standRoom         clear deck forward of the winch to stand at it (m);
+     *   sideDoor          the sliding door in the wheelhouse's port wall: its width, how far
+     *                     aft of the console it starts, its buttons' height above the floor,
+     *                     and the side deck it needs outside to step onto (m: room to stand
+     *                     clear of the deck edge, layout deckEdgeMargin + bodyRadius);
+     *   ringFromCorner    the life ring this far in from the house's aft corner (m).
+     */
+    deckGear: {
+      winchFromTransom: 0.75,
+      standRoom: 0.6,
+      sideDoor: { width: 0.75, fromConsole: 0.35, buttonHeight: 1.1, sideDeck: 0.5 },
+      ringFromCorner: 0.4,
+      price: { towWinch: 12_000, sternRoller: 2_000, aFrame: 18_000, lifeRing: 600, sideDoor: 3_000 },
+    },
+  },
 
   /**
    * Touchscreen controls (ui/touchControls.ts), shown on a phone or tablet (a coarse pointer

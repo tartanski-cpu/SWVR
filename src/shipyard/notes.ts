@@ -87,7 +87,7 @@ export function cleanNote(n: unknown): Note | null {
       done: !!o.done,
       ...(o.doneBy ? { doneBy: str(o.doneBy, 20) } : {}),
       ...(o.gear ? { gear: str(o.gear, 20) } : {}),
-      ...(o.placed ? { placed: str(o.placed, 40) } : {}),
+      ...(o.placed ? { placed: str(o.placed, 160) } : {}),
     };
   }
   if (o.kind === 'sheet') {

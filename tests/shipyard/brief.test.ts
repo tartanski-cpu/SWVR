@@ -54,7 +54,7 @@ describe('the brief', () => {
     expect(by('Stability (GM)').ok).toBe(true);
   });
 
-  it('adds each job’s lines: deck room, bollard pull, its gear; gear the Shipyard can’t fit yet is shown, not counted', () => {
+  it('adds each job’s lines: deck room, bollard pull, the gear the game’s job asks for', () => {
     const b = brief({ gmM: 0, jobs: ['cargo', 'potting', 'towing', 'fire', 'rescue', 'trawl'], crates: 6, pots: 5 });
     const lines = checkBrief(b, { ...MEASURED, crates: 4, pots: 5, bollardT: TOW_BOLLARD_T - 0.5, has: (k) => k === 'searchlight' });
     const by = (l: string) => lines.find((x) => x.label === l)!;
@@ -62,12 +62,13 @@ describe('the brief', () => {
     expect(by('Cargo runs: crates on deck').fix!.step).toBe('hull');
     expect(by('Lobster & crab pots: pots on deck').ok).toBe(true);
     expect(by('Towing: bollard pull').ok).toBe(false);
-    expect(by('Towing: tow point').na).toBe(true);
+    expect(by('Towing: tow point')).toMatchObject({ ok: false, fix: { step: 'deck gear' } });
     expect(by('Fire fighting: fire monitor').ok).toBe(false);
     expect(by('Fire fighting: fire monitor').fix!.step).toBe('deck gear');
     expect(by('Search & rescue: searchlight').ok).toBe(true);
-    expect(by('Search & rescue: life ring').na).toBe(true);
-    expect(by('Trawling: trawl gantry and net').na).toBe(true);
+    expect(by('Search & rescue: life ring').ok).toBe(false);
+    expect(by('Trawling: trawl gantry and net').ok).toBe(false);
+    expect(lines.some((l) => l.na)).toBe(false); // every job's gear can be fitted now
     // Too little payload for the crates: the hull is the fix.
     const light = checkBrief({ ...b, jobs: ['cargo'] }, { ...MEASURED, crates: 4, payloadKg: 160 });
     expect(light[0].fix!.step).toBe('hull');

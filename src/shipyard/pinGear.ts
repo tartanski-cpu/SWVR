@@ -2,66 +2,84 @@
  * Pins that ask for equipment (owner, Oct 2026: "you say, this is the location, and then you
  * pull down from a drop-down menu of equipment that you'd like there"). Sketches are for
  * talking it over; once the crew agree, a pin goes on her with the equipment picked from
- * this list, and at the Deck gear step the Shipyard puts each piece it can fit at the place
- * it offers nearest the pin: on the wheelhouse roof, on the foredeck, or on the aft deck.
+ * this list, and it's put there at once:
  *
- * Equipment the Shipyard can't fit yet (a door, a tow winch...) can still be pinned: it
- * stays on the to-do list, marked as not in the Shipyard yet, for when its module comes.
- * Pure: the page gives the pin's point and her wheelhouse.
+ *   on the grid     the deck crane, the searchlight, the fire monitor and the tow winch stand
+ *                   where the pin is, snapped to the 25 cm grid (owner; design.ts PLACE_GRID):
+ *                   on deck, or (the searchlight and monitor) on the wheelhouse roof if the
+ *                   pin's on it. The builder checks it stands there, and moves it to the
+ *                   nearest cell that does if not (shipyard/build.ts);
+ *   at the transom  the stern roller and the trawl A-frame, wherever on her the pin is;
+ *   by side         the life ring and boat hook, on the side of the house the pin's on;
+ *   in the wall     the side door, in the wheelhouse's port wall.
+ *
+ * Pure: the page gives the pin's point, her wheelhouse and her transom.
  */
-import type { ShipDesign } from './design';
-
-export type Spot = 'roof' | 'fore' | 'aft';
+import { placeValue, type PlaceKey, type ShipDesign } from './design';
 
 export interface Equipment {
   id: string;
   name: string;
-  /** The design field that places it, and its value at each place it can go (none: not in the Shipyard yet). */
-  field?: keyof ShipDesign;
-  spots?: Partial<Record<Spot, number>>;
+  /** How a pin places it (see above). */
+  how: 'grid' | 'transom' | 'side' | 'wall';
+  /** The design choice that fits it, and (on the grid) where it's placed by hand. */
+  field: keyof ShipDesign;
+  key?: PlaceKey;
+  /** It can be turned on its spot (quarter turns). */
+  turns?: boolean;
 }
 
-/** The list on the pin, the gear the Shipyard can place first (design.ts fields; page.ts Deck gear options). */
+/** The list on the pin. */
 export const EQUIPMENT: Equipment[] = [
-  { id: 'fireMonitor', name: 'Fire monitor', field: 'fireMonitor', spots: { roof: 1, fore: 2, aft: 3 } },
-  { id: 'searchlight', name: 'Searchlight', field: 'searchlight', spots: { roof: 1, fore: 2, aft: 3 } },
-  { id: 'deckCrane', name: 'Deck crane', field: 'deckCrane', spots: { fore: 1, aft: 2 } },
-  { id: 'towWinch', name: 'Tow winch' },
-  { id: 'towPost', name: 'Tow post / stern roller' },
-  { id: 'aFrame', name: 'Trawl A-frame' },
-  { id: 'potHauler', name: 'Pot hauler' },
-  { id: 'lifeRing', name: 'Life ring' },
-  { id: 'door', name: 'Door' },
+  { id: 'fireMonitor', name: 'Fire monitor', how: 'grid', field: 'fireMonitor', key: 'monitorAt' },
+  { id: 'searchlight', name: 'Searchlight', how: 'grid', field: 'searchlight', key: 'lampAt' },
+  { id: 'deckCrane', name: 'Deck crane', how: 'grid', field: 'deckCrane', key: 'craneAt', turns: true },
+  { id: 'towWinch', name: 'Tow winch', how: 'grid', field: 'towWinch', key: 'winchAt', turns: true },
+  { id: 'sternRoller', name: 'Stern roller (tow point)', how: 'transom', field: 'sternRoller' },
+  { id: 'aFrame', name: 'Trawl A-frame and net', how: 'transom', field: 'aFrame' },
+  { id: 'lifeRing', name: 'Life ring and boat hook', how: 'side', field: 'lifeRing' },
+  { id: 'sideDoor', name: 'Side door (port wall)', how: 'wall', field: 'sideDoor' },
 ];
 
+/** Ids pins had before these were placeable (they still read). */
+const OLD_IDS: Record<string, string> = { towPost: 'sternRoller', door: 'sideDoor' };
+
 export function equipmentOf(id: string | undefined): Equipment | undefined {
-  return id ? EQUIPMENT.find((e) => e.id === id) : undefined;
+  if (!id) return undefined;
+  const real = OLD_IDS[id] ?? id;
+  return EQUIPMENT.find((e) => e.id === real);
 }
 
-export const SPOT_NAMES: Record<Spot, string> = { roof: 'on the wheelhouse roof', fore: 'on the foredeck', aft: 'on the aft deck' };
-
-/** Her wheelhouse in the boat's axes (z forward negative): its ends, half width, roof height (m). */
+/** Her wheelhouse in the boat's axes (z forward negative): its ends, half width. */
 export interface HouseBox {
   front: number;
   aft: number;
   halfWidth: number;
-  roofY: number;
 }
 
 /**
- * Where a piece of equipment goes for a pin at `p` (boat axes, m): the roof if the pin is on
- * or just over the house's roof, else the deck forward or aft of the house, whichever side
- * of it the pin is (beside the house: the nearer end). If the gear can't go on the roof (the
- * crane), the nearer deck. Null if the Shipyard can't fit it.
+ * The design change that puts a piece of equipment where a pin is (`p`: boat axes, m), and
+ * where that is, in words. On the grid: its choice set (for the searchlight and monitor:
+ * the roof if the pin's on it, else a pole on that deck; for the crane, that deck, facing
+ * forward on the foredeck and aft on the aft deck) and its cell from the transom.
  */
-export function placeGear(eq: Equipment, p: readonly number[], house: HouseBox | undefined): { patch: Partial<ShipDesign>; spot: Spot } | null {
-  if (!eq.field || !eq.spots) return null;
-  const [x, y, z] = p;
+export function placeGear(eq: Equipment, p: readonly number[], house: HouseBox | undefined, transom: number): { patch: Partial<ShipDesign>; words: string } {
+  const [x, , z] = p;
   const mid = house ? (house.front + house.aft) / 2 : 0;
-  const onRoof = !!house && z > house.front - 0.3 && z < house.aft + 0.3 && Math.abs(x) < house.halfWidth + 0.3 && y > house.roofY - 0.4;
-  let spot: Spot = onRoof ? 'roof' : z < mid ? 'fore' : 'aft';
-  if (eq.spots[spot] === undefined) spot = z < mid ? 'fore' : 'aft';
-  const value = eq.spots[spot];
-  if (value === undefined) return null;
-  return { patch: { [eq.field]: value } as Partial<ShipDesign>, spot };
+  const fore = z < mid;
+  const roof = !!house && Math.abs(x) < house.halfWidth && z > house.front && z < house.aft;
+  if (eq.how === 'grid' && eq.key) {
+    const base = eq.field === 'deckCrane' ? (fore ? 1 : 2) : eq.field === 'towWinch' ? 1 : roof ? 1 : fore ? 2 : 3;
+    const face = eq.field === 'deckCrane' && !fore ? 2 : 0;
+    const words = roof ? 'on the wheelhouse roof' : house && z < house.front ? 'on the foredeck' : house && z > house.aft ? 'on the aft deck' : 'beside the wheelhouse';
+    return { patch: { [eq.field]: base, [eq.key]: placeValue(eq.key, x, transom - z, face) } as Partial<ShipDesign>, words };
+  }
+  if (eq.how === 'side') return { patch: { [eq.field]: x < 0 ? 1 : 2 } as Partial<ShipDesign>, words: `on the ${x < 0 ? 'port' : 'starboard'} side of the wheelhouse's aft wall, its line on that quarter's cleat` };
+  if (eq.how === 'wall') return { patch: { [eq.field]: 1 } as Partial<ShipDesign>, words: "in the wheelhouse's port wall" };
+  return { patch: { [eq.field]: 1 } as Partial<ShipDesign>, words: 'at the transom' };
+}
+
+/** The design change that takes a piece of equipment off again. */
+export function removeGear(eq: Equipment): Partial<ShipDesign> {
+  return { [eq.field]: 0, ...(eq.key ? { [eq.key]: 0 } : {}) } as Partial<ShipDesign>;
 }
