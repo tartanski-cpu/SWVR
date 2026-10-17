@@ -46,6 +46,9 @@ export function buildVesselMesh(form: HullForm, layout: LayoutConfig, exhaustOut
   return mesh;
 }
 
+/** How far the window frames stand proud of the walls (m): enough not to flicker against them. */
+const FRAME_PROUD = 0.004;
+
 /** A bow this wide at the stem (half-beam, m) is square (a landing bow): plated across, with a bulwark. */
 const SQUARE_BOW = 0.2;
 
@@ -400,17 +403,26 @@ function buildWheelhouse(layout: HouseLayout, col: Paint, base: number): THREE.B
   const FW = CONFIG.pixelPaint.frameWidth;
   /** A wall panel with the frame along its top edge (under the glass) or its bottom (over it); `solid` is a stretch of z with wall, not glass, beside that edge. */
   const framed = (x0: number, x1: number, y0: number, y1: number, z0: number, z1: number, edge: 'top' | 'bottom', solid?: [number, number]): THREE.BufferGeometry[] => {
-    if (y1 - y0 <= 2 * FW) return [box(x0, x1, y0, y1, z0, z1, F)];
+    if (y1 - y0 <= 2 * FW) return [fbox(x0, x1, y0, y1, z0, z1)];
     const [b0, b1] = edge === 'top' ? [y1 - FW, y1] : [y0, y0 + FW];
     const out = [edge === 'top' ? box(x0, x1, y0, b0, z0, z1, H) : box(x0, x1, b1, y1, z0, z1, H)];
     // The band, in H where there's wall beside it instead of glass.
     const s0 = solid ? Math.max(z0, Math.min(z1, solid[0])) : z0;
     const s1 = solid ? Math.max(z0, Math.min(z1, solid[1])) : z0;
-    if (s0 > z0) out.push(box(x0, x1, b0, b1, z0, s0, F));
+    if (s0 > z0) out.push(fbox(x0, x1, b0, b1, z0, s0));
     if (s1 > s0) out.push(box(x0, x1, b0, b1, s0, s1, H));
-    if (z1 > s1) out.push(box(x0, x1, b0, b1, s1, z1, F));
+    if (z1 > s1) out.push(fbox(x0, x1, b0, b1, s1, z1));
     return out;
   };
+  /**
+   * A frame piece: 4 mm proud of the wall all round. Where it overlaps a wall panel (a corner
+   * post over the front wall's end) their faces would otherwise share a plane and flicker
+   * between black and white (z-fighting, owner).
+   */
+  function fbox(x0: number, x1: number, y0: number, y1: number, z0: number, z1: number): THREE.BufferGeometry {
+    const e = FRAME_PROUD;
+    return box(Math.min(x0, x1) - e, Math.max(x0, x1) + e, y0 - e, y1 + e, Math.min(z0, z1) - e, Math.max(z0, z1) + e, F);
+  }
   // Everything from here to the floor is the house's walls: lined with wood inside (below).
   const wallsFrom = parts.length;
 
@@ -424,7 +436,7 @@ function buildWheelhouse(layout: HouseLayout, col: Paint, base: number): THREE.B
   const fwdAtRoof = (roof - fSill) * rake.tan;
   parts.push(...framed(-hw, hw, base, fSill, wh.front, wh.front + w, 'top'));
   parts.push(...framed(-hw, hw, head, roof, wh.front, wh.front + w, 'bottom').map(raked));
-  for (const x of [-0.5, 0.5]) parts.push(raked(box(x - 0.04, x + 0.04, fSill, head, wh.front, wh.front + w, F)));
+  for (const x of [-0.5, 0.5]) parts.push(raked(fbox(x - 0.04, x + 0.04, fSill, head, wh.front, wh.front + w)));
   // Side walls, each with one mullion. Alongside the console the wall stands up to the
   // console top (`sideRaise`, owner sketch), sloping back down to the sill aft of it. The
   // port wall has a sliding door between the console and the chart table (`sideDoor`).
@@ -456,7 +468,7 @@ function buildWheelhouse(layout: HouseLayout, col: Paint, base: number): THREE.B
       parts.push(...framed(x0, x1, base, sill, wh.front, wh.aft, 'top', solid));
       parts.push(...framed(x0, x1, head, roof, wh.front, wh.aft, 'bottom'));
     }
-    parts.push(box(x0, x1, sill, head, mullion - 0.04, mullion + 0.04, F));
+    parts.push(fbox(x0, x1, sill, head, mullion - 0.04, mullion + 0.04));
     if (raise && raiseTop > sill) {
       // Solid up to the console top beside it; on the port side it runs into the door jamb.
       const zEnd = door ? door.z0 - jamb : raise.z1;
@@ -468,10 +480,10 @@ function buildWheelhouse(layout: HouseLayout, col: Paint, base: number): THREE.B
     // the top). Above the head the same cheek runs up to the roof.
     // Below the front sill the post is as deep as the raked cheek's foot, so the two meet
     // flush and there's no slot of window beside the dash (owner feedback).
-    parts.push(box(x0, x1, sill, fSill, wh.front, wh.front + 0.1 + fwdAtHead, F));
-    parts.push(raked(box(x0, x1, fSill, head, wh.front, wh.front + 0.1 + fwdAtHead, F)));
+    parts.push(fbox(x0, x1, sill, fSill, wh.front, wh.front + 0.1 + fwdAtHead));
+    parts.push(raked(fbox(x0, x1, fSill, head, wh.front, wh.front + 0.1 + fwdAtHead)));
     if (fwdAtRoof > 0) parts.push(raked(box(x0, x1, head, roof, wh.front, wh.front + fwdAtRoof + 0.02, H)));
-    parts.push(box(x0, x1, sill, head, wh.aft - 0.1, wh.aft, F));
+    parts.push(fbox(x0, x1, sill, head, wh.aft - 0.1, wh.aft));
   }
   // Aft wall: panels either side of the doorway, with the window band open, and a lintel.
   const door = wh.doorWidth / 2;
@@ -480,14 +492,14 @@ function buildWheelhouse(layout: HouseLayout, col: Paint, base: number): THREE.B
     const x1 = s > 0 ? hw : -door;
     // (The aft wall's panels run across, x, so their band is a box across too.)
     const [p0, p1] = [Math.min(x0, x1), Math.max(x0, x1)];
-    if (sill - base > 2 * FW) parts.push(box(p0, p1, base, sill - FW, wh.aft - w, wh.aft, H), box(p0, p1, sill - FW, sill, wh.aft - w, wh.aft, F));
-    else parts.push(box(p0, p1, base, sill, wh.aft - w, wh.aft, F));
-    if (roof - head > 2 * FW) parts.push(box(p0, p1, head + FW, roof, wh.aft - w, wh.aft, H), box(p0, p1, head, head + FW, wh.aft - w, wh.aft, F));
-    else parts.push(box(p0, p1, head, roof, wh.aft - w, wh.aft, F));
+    if (sill - base > 2 * FW) parts.push(box(p0, p1, base, sill - FW, wh.aft - w, wh.aft, H), fbox(p0, p1, sill - FW, sill, wh.aft - w, wh.aft));
+    else parts.push(fbox(p0, p1, base, sill, wh.aft - w, wh.aft));
+    if (roof - head > 2 * FW) parts.push(box(p0, p1, head + FW, roof, wh.aft - w, wh.aft, H), fbox(p0, p1, head, head + FW, wh.aft - w, wh.aft));
+    else parts.push(fbox(p0, p1, head, roof, wh.aft - w, wh.aft));
     // Door jambs carry the band between sill and head next to the opening (wide enough for
     // the door's push buttons, inside and out).
     const jx = s > 0 ? door : -door - JAMB;
-    parts.push(box(jx, jx + JAMB, sill, head, wh.aft - w, wh.aft, F));
+    parts.push(fbox(jx, jx + JAMB, sill, head, wh.aft - w, wh.aft));
   }
   parts.push(box(-door, door, wh.floorY + wh.doorHeight, roof, wh.aft - w, wh.aft, H));
   // The walls' inside faces: wood lining (pixel painting, owner).

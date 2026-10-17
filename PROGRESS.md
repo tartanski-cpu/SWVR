@@ -2921,6 +2921,8 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Owner test:**
   - **In VR:** look at the window frames, the wood lining and the hatch up close. Then walk the deck and look along it and at the hull from the quay. Watch for shimmer or crawling as you move your head. Note the frame rate on the debug panel.
   - **On desktop:** the same views. Tell me what's too strong or too faint; each tile's size and the overall strength are config numbers.
+- **Fix (owner, desktop):** the window pillars flickered (z-fighting): where a black frame piece overlapped a white wall panel (a front corner post over the front wall's end, or over the raised wall beside the console), their faces shared a plane. Frame pieces now stand 4 mm proud of the walls all round (`FRAME_PROUD`, `hullMesh.ts`). Checked in close screenshots of the front corners of the workboat and the landing craft.
+- **The owner saw no painting on the Quest:** most likely that tab had loaded the build before this one (the desktop, later, had it). The Quest draws the boats with the same material as the desktop, with no VR-only path. To check which build is loaded, look at the commit in the NEXT menu header.
 - **Step 2 (not started):** weathering (rust streaks under scuppers and fittings, grime at the waterline), perhaps a wear setting.
 
 ### Test address for work in progress (owner request)
