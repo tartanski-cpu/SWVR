@@ -146,6 +146,7 @@ slider('length', 'Length', () => `${boat.figures.lengthM.toFixed(2)} m`);
 slider('beam', 'Beam', () => `${boat.figures.beamM.toFixed(2)} m`);
 slider('depth', 'Depth', (v) => pct(SCALES.scale(v)));
 slider('bulwark', 'Bulwarks', (v) => `${SCALES.bulwark(v).toFixed(1)} m`);
+slider('bow', 'Bow', (v) => SCALES.bow(v));
 section('2. Wheelhouse');
 slider('housePos', 'Position', (v) => (v === 0 ? 'right aft' : v === 15 ? 'right forward' : `${pct(SCALES.housePos(v))} fwd`));
 slider('houseLength', 'Length', (v) => `${SCALES.houseLength(v).toFixed(1)} m`);

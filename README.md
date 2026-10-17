@@ -482,7 +482,7 @@ On desktop, aim the **+** reticle at a control. Click buttons and switches. Clic
 
 Design your own boat at https://tartanski-cpu.github.io/SWVR/next/shipyard.html (work in progress):
 
-1. Pick a hull type (landing craft, gillnetter or workboat) and size her with the sliders.
+1. Pick a hull type (landing craft, gillnetter or workboat), size her with the sliders, and shape her bow from plumb to well raked.
 2. Place and size the wheelhouse (a step-down floor gives more headroom).
 3. Choose an engine (its propeller is matched by trial), basic or advanced controls, and a paint.
 

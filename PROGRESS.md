@@ -2794,6 +2794,32 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   5. In VR, open https://tartanski-cpu.github.io/SWVR/next/?design= followed by the code, on the Quest, and drive her.
   6. Your eye: the shapes, the weight and CG assumptions, the speeds.
 
+### Shipyard, stop 1b: the bow choice, plumb to raked (owner; done, on /next/, not yet tested by the owner)
+
+- **The owner asked:** in the Shipyard's first version, a simple slider for how raked the bow is, or plumb. The transom stays as it is for now. Control-point hull editing is parked: a limited set of variants keeps the codes short enough to carry into the 3D game.
+- **The slider** (Hull section, "Bow"), five steps: **plumb, near plumb, as designed, raked, well raked**.
+  - **How the game makes rake:** its stations are upright sections (the same ones float her and draw her), so a raked bow is her forefoot: the keel line sweeps up to the stem from further aft while the deck keeps its length and overhangs it. Plumb keeps the keel deep to the stem.
+  - **The steps** (`shipyard/build.ts bowKeel`):
+    - **plumb:** the keel held at its depth from 55 % of her length to the stem;
+    - **as designed:** her own keel line, exactly;
+    - **raked / well raked:** cut away from 45 % / 35 % of her length forward, rising to 0.3 m under the stem's deck edge (never deeper than her own);
+    - **near plumb:** halfway between plumb and her own.
+  - **On the 12 m workboat hull:** her chine generator's forefoot is now a setting (`HullParams.forefoot {from, rise}`). Its default is the old rule exactly, so the workboat herself is unchanged (golden runs equal).
+  - **Her weight and handling follow,** since the builder works them out from her stations: a more raked bow is a little less displacement and a shorter waterline, and her sea trial shows it.
+- **The code stays 10 characters, with a 5-step bow:**
+  - **Correction:** my earlier count (that packing tighter frees ~1.8 bits) was wrong: I'd dropped a factor of 16. The choices with a 5-step bow come to ~1.24 x 10^13 combinations, more than 42 bits after a 3-bit version label.
+  - **What's done instead:** the code is one 45-bit number, and each version owns a range of it. Version 1's codes are 2^42 to 2^43. Version 2 (the bow) takes ~1.24 x 10^13 from 2^43. The rest, up to 8 x 2^42, is left for later versions.
+  - The choices are packed mixed-radix: each uses exactly its own number of steps, a 3-way choice 1.6 bits rather than 2.
+  - **Version 1 codes still read,** as the same boats with the bow as designed. The two real codes from the first test (`4H228-BQ98A`, `6H22N-3QNJ7`) are in the tests.
+- **Tests (3 new, 500 in all, all pass):**
+  - the choices fit version 2's range;
+  - version 1 codes read back;
+  - every bow step builds on every hull and floats level, displacement and waterline never grow as she gets more raked, and "as designed" is exactly the landing craft's 7.85 t.
+  
+  Workboat golden runs unchanged.
+- **Checked in the browser:** side views of all three hulls plumb / as designed / well raked: the plumb stems are upright with the forefoot carried full depth; the raked ones cut away from further aft.
+- **Owner test:** on the Shipyard page, move the Bow slider on each hull and look at her from the side, with the water off. Watch her displacement and her sea trial change. Then take her code into the game.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

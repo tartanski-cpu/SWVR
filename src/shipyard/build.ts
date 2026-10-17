@@ -21,7 +21,7 @@
 import { CONFIG } from '../config';
 import landingCraftRecipe from '../boats/landingCraft.json';
 import { DESIGNS } from '../hulls/designs';
-import type { HullDesign } from '../hulls/loft';
+import { curveAt, type HullDesign } from '../hulls/loft';
 import { hullFormOf, hullQueries, type HullDefinition } from '../modular/hull';
 import { inertiaFromGyradius, lightshipOf } from '../modular/massProperties';
 import type { Mount, Recipe } from '../modular/recipe';
@@ -41,8 +41,8 @@ const study = (id: string): HullDesign => {
 /** A base hull the Shipyard starts from: its form (scaled) and the kind of boat she is. */
 export interface DesignHull {
   name: string;
-  /** Her form, scaled: length, beam and depth factors. */
-  form(L: number, B: number, D: number): HullDefinition['form'];
+  /** Her form, scaled (length, beam and depth factors), with her bow (0 plumb .. 2 as designed .. 4 well raked). */
+  form(L: number, B: number, D: number, bow: number): HullDefinition['form'];
   /** A planing hull (she banks into turns, a fast boat's propeller), or a displacement one. */
   planing: boolean;
   /** A square landing bow with its ramp (the landing craft's). */
@@ -52,16 +52,51 @@ export interface DesignHull {
   foredeck: number;
 }
 
-/** Lofted from the hull study, scaled: lengths along, half-breadths across, heights up. */
-function scaledStudy(d: HullDesign, L: number, B: number, D: number): HullDesign {
+/**
+ * Lofted from the hull study, scaled (lengths along, half-breadths across, heights up), with
+ * her bow reshaped: the game's stations are upright sections, so a bow's rake is its forefoot,
+ * the keel sweeping up to the stem under a deck that keeps its length (bowKeel).
+ */
+function scaledStudy(d: HullDesign, L: number, B: number, D: number, bow: number): HullDesign {
   const by = (c: [number, number][], k: number) => c.map(([t, v]) => [t, v * k] as [number, number]);
-  return { ...d, length: d.length * L, halfBeam: by(d.halfBeam, B), sheer: by(d.sheer, D), keel: by(d.keel, D), rake: by(d.rake, L / D), wheelhouse: undefined, houses: undefined };
+  const sheer = by(d.sheer, D);
+  return { ...d, length: d.length * L, halfBeam: by(d.halfBeam, B), sheer, keel: bowKeel(by(d.keel, D), curveAt(sheer, 1), bow), rake: by(d.rake, L / D), wheelhouse: undefined, houses: undefined };
 }
+
+/**
+ * Her keel line with her bow reshaped (the Shipyard's bow choice, SCALES.bow):
+ *   0 plumb: the keel held at its depth from 55 % of her length to the stem (an upright stem);
+ *   2 as designed: her own keel line;
+ *   4 well raked: cut away from 35 % forward, rising to 0.3 m under the stem's deck edge
+ *     (3, raked: from 45 %); never deeper than her own;
+ *   1: halfway between plumb and her own.
+ * Drawn through samples every 2.5 % of her length (the study's smooth curve through them).
+ */
+export function bowKeel(keel: [number, number][], stemDeckY: number, bow: number): [number, number][] {
+  if (bow === 2) return keel;
+  const own = (t: number) => curveAt(keel, t);
+  const t0 = 0.55;
+  const plumb = (t: number) => (t < t0 ? own(t) : Math.min(own(t), own(t0)));
+  const from = bow >= 4 ? 0.35 : 0.45;
+  const stemY = Math.max(own(1), stemDeckY - 0.3);
+  const raked = (t: number) => (t < from ? own(t) : Math.max(own(t), own(from) + (stemY - own(from)) * ((t - from) / (1 - from)) ** 1.5));
+  const at = (t: number) => (bow < 2 ? plumb(t) + (own(t) - plumb(t)) * (bow / 2) : raked(t));
+  return Array.from({ length: 41 }, (_, i) => [i / 40, at(i / 40)] as [number, number]);
+}
+
+/** The workboat's chine generator's forefoot (vessel/hullForm.ts `forefoot`) for each bow step. */
+const CHINE_FOREFOOT = [
+  { from: 0.55, rise: 0 },
+  { from: 0.55, rise: 0.5 },
+  { from: 0.55, rise: 1 },
+  { from: 0.45, rise: 1 },
+  { from: 0.35, rise: 1 },
+];
 
 export const DESIGN_HULLS: DesignHull[] = [
   {
     name: 'Landing craft: 9 m aluminium, square landing bow with a ramp',
-    form: (L, B, D) => ({ kind: 'lofted', design: scaledStudy(study('landingCraft'), L, B, D) }),
+    form: (L, B, D, bow) => ({ kind: 'lofted', design: scaledStudy(study('landingCraft'), L, B, D, bow) }),
     planing: true,
     ramp: true,
     cockpit: 1.0,
@@ -69,7 +104,7 @@ export const DESIGN_HULLS: DesignHull[] = [
   },
   {
     name: 'Gillnetter: 9.75 m, beamy and shallow, flat open foredeck',
-    form: (L, B, D) => ({ kind: 'lofted', design: scaledStudy(study('gillnetter'), L, B, D) }),
+    form: (L, B, D, bow) => ({ kind: 'lofted', design: scaledStudy(study('gillnetter'), L, B, D, bow) }),
     planing: true,
     ramp: false,
     cockpit: 1.0,
@@ -77,11 +112,11 @@ export const DESIGN_HULLS: DesignHull[] = [
   },
   {
     name: 'Workboat: 12 m steel displacement hull',
-    form: (L, B, D) => {
+    form: (L, B, D, bow) => {
       const h = CONFIG.vessels.workboat.hull;
       return {
         kind: 'chine',
-        params: { ...h, length: h.length * L, beamDeck: h.beamDeck * B, beamChine: h.beamChine * B, keelY: h.keelY * D, chineYAft: h.chineYAft * D, chineYBow: h.chineYBow * D, deckYAft: h.deckYAft * D, deckYBow: h.deckYBow * D },
+        params: { ...h, length: h.length * L, beamDeck: h.beamDeck * B, beamChine: h.beamChine * B, keelY: h.keelY * D, chineYAft: h.chineYAft * D, chineYBow: h.chineYBow * D, deckYAft: h.deckYAft * D, deckYBow: h.deckYBow * D, forefoot: CHINE_FOREFOOT[bow] },
       };
     },
     planing: false,
@@ -185,7 +220,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   const L = SCALES.scale(d.length);
   const B = SCALES.scale(d.beam);
   const D = SCALES.scale(d.depth);
-  const form = base.form(L, B, D);
+  const form = base.form(L, B, D, d.bow);
   const shape = hullFormOf(form);
   const st = shape.stations;
   const transom = st[0].z;

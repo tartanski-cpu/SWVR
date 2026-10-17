@@ -55,6 +55,29 @@ describe('Shipyard: the boats it builds', () => {
     }
   });
 
+  it('the bow choice: plumb to well raked, each hull; a more raked bow cuts away her forefoot (less displacement, a shorter waterline)', () => {
+    for (let hull = 0; hull < DESIGN_HULLS.length; hull++) {
+      const mass: number[] = [];
+      const lwl: number[] = [];
+      for (let bow = 0; bow < 5; bow++) {
+        useDesign({ ...DEFAULT_DESIGN, hull, bow });
+        expect(validateRecipe(RECIPES.design, LIBRARY)).toEqual([]);
+        const h = uprightHydrostatics(VESSEL_DEFS.design);
+        expect(Math.abs(h.lcgMinusLcb), `${hull}/${bow} trim`).toBeLessThan(0.02);
+        mass.push(VESSEL_DEFS.design.mass);
+        lwl.push(VESSEL_DEFS.design.resistance.lwl);
+      }
+      for (let i = 1; i < 5; i++) {
+        expect(mass[i], `hull ${hull} bow ${i}`).toBeLessThanOrEqual(mass[i - 1]);
+        expect(lwl[i], `hull ${hull} bow ${i}`).toBeLessThanOrEqual(lwl[i - 1] + 1e-9);
+      }
+      expect(mass[4], `hull ${hull}`).toBeLessThan(mass[0]);
+    }
+    // As designed, she's exactly the hull she was: the landing craft's 7.85 t.
+    useDesign({ ...DEFAULT_DESIGN, bow: 2 });
+    expect(VESSEL_DEFS.design.mass).toBe(VESSEL_DEFS.landingCraft.mass);
+  });
+
   it('only the landing craft hull has the bow ramp', () => {
     expect(useDesign({ ...DEFAULT_DESIGN, hull: 0 }).hull.layout.bowRamp).toBeDefined();
     expect(useDesign({ ...DEFAULT_DESIGN, hull: 1 }).hull.layout.bowRamp).toBeUndefined();

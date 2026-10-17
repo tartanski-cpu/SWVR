@@ -5,17 +5,23 @@
  * server. A code is tied to its `version` of the building rules: when the rules change,
  * the version goes up and older codes are upgraded (or refused with a reason).
  *
- * Every choice is a whole number on a fixed scale (its `steps`), so the code is exact:
- *   version 3 bits, base hull 2, length 4, beam 4, depth 4, bulwark 3,
- *   wheelhouse position 4, length 4, width 3, headroom 3, sunk floor 1,
- *   engine 2, gearbox 4, controls 1, paint 3                   = 45 bits
+ * Every choice is a whole number on a fixed scale (its `steps`), so the code is exact. The
+ * choices are packed as one number in mixed radix (each choice uses exactly its own number
+ * of steps: a 3-way choice takes log2 3 = 1.6 bits, not 2). The code is a 45-bit number
  * = 9 characters of Crockford base 32 (digits and letters without I, L, O and U, so
  * nothing looks like anything else), and a 10th, a check character (a weighted sum of the
  * nine: any one mistyped character is caught). Shown as two groups of five: K7P4Q-2ZX9D.
+ *
+ * Each version owns a range of the 45-bit numbers, so a code says which rules it was made
+ * with by where it falls:
+ *   - version 1 (the first Shipyard, no bow choice; each choice in whole bits): 2^42 .. 2^43;
+ *   - version 2 (the bow choice): from 2^43, its ~1.24 x 10^13 combinations (to ~4.8 x 2^42);
+ *   - the rest, up to 8 x 2^42, is left for later versions.
+ * Version 1 codes still read, as the same boats (bow 2: each hull's own bow).
  */
 
-/** The building rules this code was made with. */
-export const DESIGN_VERSION = 1;
+/** The building rules this code was made with (2: the bow choice, mixed-radix packing). */
+export const DESIGN_VERSION = 2;
 
 /** One choice: its index on its scale, 0 .. steps-1. */
 export interface ShipDesign {
@@ -27,6 +33,8 @@ export interface ShipDesign {
   depth: number;
   /** Bulwark height. */
   bulwark: number;
+  /** Bow: 0 plumb .. 2 the hull's own (as designed) .. 4 well raked (BOW_STEPS). */
+  bow: number;
   /** Wheelhouse: where along the deck (aft .. forward), its length, its width, its headroom. */
   housePos: number;
   houseLength: number;
@@ -43,8 +51,27 @@ export interface ShipDesign {
   paint: number;
 }
 
-/** Each choice's number of steps (its bits: steps <= 2^bits) and what a step means. */
-export const FIELDS: { key: keyof ShipDesign; bits: number; steps: number }[] = [
+/** Each choice's number of steps, in the code's order. */
+export const FIELDS: { key: keyof ShipDesign; steps: number }[] = [
+  { key: 'hull', steps: 3 },
+  { key: 'length', steps: 16 },
+  { key: 'beam', steps: 16 },
+  { key: 'depth', steps: 16 },
+  { key: 'bulwark', steps: 8 },
+  { key: 'bow', steps: 5 },
+  { key: 'housePos', steps: 16 },
+  { key: 'houseLength', steps: 16 },
+  { key: 'houseWidth', steps: 8 },
+  { key: 'headroom', steps: 8 },
+  { key: 'sunk', steps: 2 },
+  { key: 'engine', steps: 3 },
+  { key: 'gear', steps: 16 },
+  { key: 'controls', steps: 2 },
+  { key: 'paint', steps: 8 },
+];
+
+/** Version 1's choices, each in whole bits (for reading its codes). */
+const V1_FIELDS: { key: keyof ShipDesign; bits: number; steps: number }[] = [
   { key: 'hull', bits: 2, steps: 3 },
   { key: 'length', bits: 4, steps: 16 },
   { key: 'beam', bits: 4, steps: 16 },
@@ -75,6 +102,8 @@ export const SCALES = {
   houseWidth: (i: number) => 0.65 + 0.05 * i,
   /** Headroom, floor to roof (m): 1.9 .. 2.6. */
   headroom: (i: number) => 1.9 + 0.1 * i,
+  /** Bow: 0 plumb, 1 near plumb, 2 as the hull was designed, 3 raked, 4 well raked. */
+  bow: (i: number) => ['plumb', 'near plumb', 'as designed', 'raked', 'well raked'][i],
   /** Gearbox ratio: 1.0 .. 4.18, each step 10 % more than the last (rounded to 0.01). */
   gear: (i: number) => Math.round(100 * 1.1 ** i) / 100,
 };
@@ -86,6 +115,7 @@ export const DEFAULT_DESIGN: ShipDesign = {
   beam: 8,
   depth: 8,
   bulwark: 2,
+  bow: 2,
   housePos: 4,
   houseLength: 2,
   houseWidth: 7,
@@ -98,21 +128,23 @@ export const DEFAULT_DESIGN: ShipDesign = {
 };
 
 const ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+/** Where version 2's codes start, and how many there are (every combination of the choices). */
+const V2_BASE = 1n << 43n;
+export const COMBINATIONS = FIELDS.reduce((a, f) => a * BigInt(f.steps), 1n);
 
 /** The design as its code, e.g. 'K7P4Q-2ZX9D'. */
 export function encodeDesign(d: ShipDesign): string {
-  const bits: number[] = [];
-  const put = (v: number, n: number) => {
-    for (let b = n - 1; b >= 0; b--) bits.push((v >> b) & 1);
-  };
-  put(DESIGN_VERSION, 3);
+  // The choices as one mixed-radix number, the first choice most significant.
+  let n = 0n;
   for (const f of FIELDS) {
     const v = d[f.key];
     if (!Number.isInteger(v) || v < 0 || v >= f.steps) throw new Error(`design ${f.key} ${v} is off its scale (0..${f.steps - 1})`);
-    put(v, f.bits);
+    n = n * BigInt(f.steps) + BigInt(v);
   }
+  // Version 2's range starts at 2^43: nine 5-bit characters.
+  const all = V2_BASE + n;
   const syms: number[] = [];
-  for (let i = 0; i < bits.length; i += 5) syms.push(bits.slice(i, i + 5).reduce((a, b) => a * 2 + b, 0));
+  for (let k = 8; k >= 0; k--) syms.push(Number((all >> BigInt(5 * k)) & 31n));
   syms.push(check(syms));
   const s = syms.map((v) => ALPHABET[v]).join('');
   return `${s.slice(0, 5)}-${s.slice(5)}`;
@@ -136,19 +168,29 @@ export function decodeDesign(code: string): { design: ShipDesign } | { error: st
     syms.push(v);
   }
   if (check(syms.slice(0, 9)) !== syms[9]) return { error: 'that code has a mistyped character (its check doesn’t match)' };
-  const body: number[] = [];
-  for (const v of syms.slice(0, 9)) for (let b = 4; b >= 0; b--) body.push((v >> b) & 1);
-  let i = 0;
-  const take = (n: number) => {
-    let v = 0;
-    for (let k = 0; k < n; k++) v = v * 2 + body[i++];
-    return v;
-  };
-  const version = take(3);
-  if (version !== DESIGN_VERSION) return { error: `that code is from Shipyard version ${version}; this game reads version ${DESIGN_VERSION}` };
+  let all = 0n;
+  for (const v of syms.slice(0, 9)) all = (all << 5n) | BigInt(v);
+  if (all >> 42n === 1n) return decodeV1(all);
+  if (all < V2_BASE) return { error: 'that isn’t a Shipyard code' };
+  if (all - V2_BASE >= COMBINATIONS) return { error: `that code is from a newer Shipyard than this game (it reads versions 1 to ${DESIGN_VERSION})` };
+  // Unpack the mixed-radix choices, the last choice least significant.
+  let n = all - V2_BASE;
   const d = {} as ShipDesign;
-  for (const f of FIELDS) {
-    const v = take(f.bits);
+  for (const f of [...FIELDS].reverse()) {
+    d[f.key] = Number(n % BigInt(f.steps));
+    n /= BigInt(f.steps);
+  }
+  if (n !== 0n) return { error: 'that code is off the scales (no design has it)' };
+  return { design: d };
+}
+
+/** A version 1 code (each choice in whole bits, no bow choice): the same boat, bow as designed. */
+function decodeV1(all: bigint): { design: ShipDesign } | { error: string } {
+  let shift = 42;
+  const d = { bow: 2 } as ShipDesign;
+  for (const f of V1_FIELDS) {
+    shift -= f.bits;
+    const v = Number((all >> BigInt(shift)) & BigInt((1 << f.bits) - 1));
     if (v >= f.steps) return { error: `that code's ${f.key} is off its scale` };
     d[f.key] = v;
   }

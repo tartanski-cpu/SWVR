@@ -33,6 +33,13 @@ export interface HullParams {
    * forward keeps the side decks wide past a wheelhouse.
    */
   deckParallel?: number;
+  /**
+   * The forefoot (the Shipyard's bow slider): the keel starts sweeping up into the stem at
+   * `from` (fraction of the length from the transom; default 0.55) and reaches `rise` of the
+   * way from its depth to 0.3 m under the stem's deck edge (default 1). `rise` 0 keeps the
+   * keel deep to the stem: a plumb stem.
+   */
+  forefoot?: { from: number; rise: number };
 }
 
 /** One transverse station. Polygon vertex order: port deck, port chine, keel, stbd chine, stbd deck. */
@@ -70,8 +77,9 @@ export function buildHullForm(p: HullParams): HullForm {
 
     // Profile: sheer rises forward; keel sweeps up into the stem (forefoot) over the forward 45 %.
     const yD = p.deckYAft + (p.deckYBow - p.deckYAft) * t * t;
-    const forefoot = t > 0.55 ? smooth((t - 0.55) / 0.45) : 0;
-    const yK = p.keelY + (p.deckYBow - 0.3 - p.keelY) * forefoot;
+    const ff = p.forefoot ?? { from: 0.55, rise: 1 };
+    const forefoot = t > ff.from ? smooth((t - ff.from) / (1 - ff.from)) : 0;
+    const yK = p.keelY + (p.deckYBow - 0.3 - p.keelY) * forefoot * ff.rise;
     const yC = Math.min(yD - 0.05, Math.max(yK + 0.01, p.chineYAft + (p.chineYBow - p.chineYAft) * t * t));
 
     stations.push({
