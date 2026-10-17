@@ -2,10 +2,10 @@ import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { Tiller } from '../src/controls/Tiller';
 import type { Pointer } from '../src/controls/Control';
-import { VESSEL_DEFS } from '../src/vessel/vesselDef';
+import { CONFIG } from '../src/config';
 
 function setup() {
-  const t = new Tiller('s', VESSEL_DEFS.skiff.outboard!);
+  const t = new Tiller('s', CONFIG.vessels.skiff.outboard);
   t.root.updateMatrixWorld(true);
   const sent: Record<string, number> = {};
   t.bind({ emit: (ch, v) => (sent[ch] = v), haptic: () => {} });
@@ -53,7 +53,7 @@ describe('outboard tiller (VR)', () => {
 describe('outboard tiller (desktop)', () => {
   it("a click on the gear lever takes the whole outboard into keyboard steering (so WASD doesn't walk)", async () => {
     const { InteractionSystem } = await import('../src/controls/InteractionSystem');
-    const t = new Tiller('s', VESSEL_DEFS.skiff.outboard!);
+    const t = new Tiller('s', CONFIG.vessels.skiff.outboard);
     t.root.position.set(0, 0, -1);
     t.root.updateMatrixWorld(true);
     const sys = new InteractionSystem(t.parts, () => {}, () => {});

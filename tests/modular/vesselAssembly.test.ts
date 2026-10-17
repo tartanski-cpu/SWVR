@@ -2,11 +2,11 @@
  * Modular boats M6a: every boat is built from her recipe (a hull plus modules). The vessel
  * definitions must be the ones the vessel configs gave before, field for field; the mass
  * properties to rounding (the workboat's are summed from her lightship, engine and
- * batteries).
+ * batteries). M6b: her machinery's settings are her modules' (gearOf), the same figures.
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { HULLS, LIBRARY, RECIPES } from '../../src/boats/library';
-import { setVesselRecipe, vesselRuntime } from '../../src/boats/sims';
+import { gearOf, setVesselRecipe, vesselRuntime } from '../../src/boats/sims';
 import { CONFIG } from '../../src/config';
 import { IdFactory } from '../../src/core/ids';
 import type { Intent } from '../../src/core/intents';
@@ -46,6 +46,25 @@ describe('every boat from her recipe', () => {
     }
   });
 
+  it('her machinery and fittings are where her vessel config had them (M6b)', () => {
+    const wb = CONFIG.vessels.workboat;
+    const boat = { defId: 'workboat' };
+    expect(gearOf(boat, 'diesel')).toEqual({ engine: wb.engine, propeller: wb.propeller, maintenance: wb.maintenance });
+    expect(gearOf(boat, 'rudder')).toEqual(wb.rudder);
+    expect(gearOf(boat, 'bilgePump')).toEqual(wb.bilge);
+    const el = wb.electrics;
+    expect(gearOf(boat, 'batteries')).toEqual({ ah: el.batteryAh, restVolts: el.restVolts, internalOhm: el.internalOhm, chargeVolts: el.chargeVolts, cutoffSoc: el.cutoffSoc });
+    expect(gearOf(boat, 'midCleat')).toEqual({ z: wb.mooring.cleatMidZ, lineY: wb.mooring.lineY });
+    const ct = gearOf(boat, 'chartTable')!;
+    [ct.x0, ct.x1, ct.z0, ct.z1, ct.height].forEach((x, i) => expect(x).toBeCloseTo([wb.chartTable.x0, wb.chartTable.x1, wb.chartTable.z0, wb.chartTable.z1, wb.chartTable.height][i], 12));
+    expect(gearOf({ defId: 'skiff' }, 'outboard')).toEqual(CONFIG.vessels.skiff.outboard);
+    for (const id of ['skiff', 'derelict', 'logRaft', 'barge']) for (const k of ['diesel', 'rudder', 'batteries', 'bilgePump', 'chartTable'] as const) expect(gearOf({ defId: id }, k), `${id} ${k}`).toBeNull();
+    // What's built into the hulls: the workboat's lights, exhaust, rescue places, bridge; the tows' look.
+    const def = VESSEL_DEFS.workboat;
+    for (const k of ['bridge', 'navLights', 'exhaust', 'rescueGear', 'cabinLight', 'deckLights'] as const) expect(def[k], k).toBe(wb[k]);
+    expect(VESSEL_DEFS.barge.tow).toEqual(CONFIG.vessels.barge.tow);
+  });
+
   it('the tows are hulls with no modules; the skiff has her outboard', () => {
     for (const id of ['derelict', 'logRaft', 'barge']) expect(RECIPES[id].modules, id).toEqual([]);
     expect(RECIPES.skiff.modules.map((m) => m.module)).toEqual(['propulsion.electric-outboard']);
@@ -77,7 +96,7 @@ describe('the skiff\'s outboard is her module', () => {
     send('outboard.gear', 1);
     send('throttle.demand', 1);
     for (let i = 0; i < 10 / DT; i++) stepWorld(world, [], DT);
-    return { speed: Math.hypot(v.linearVelocity[0], v.linearVelocity[2]), battery: v.battery ?? 0, runtime: vesselRuntime(v)! };
+    return { speed: Math.hypot(v.linearVelocity[0], v.linearVelocity[2]), battery: v.battery, runtime: vesselRuntime(v)! };
   }
 
   it('with it she drives and draws her battery; without it, nothing', () => {
@@ -87,6 +106,7 @@ describe('the skiff\'s outboard is her module', () => {
     expect(fitted.battery).toBeLessThan(1);
     const bare = skiffRun({ ...RECIPES.skiff, modules: [] });
     expect(bare.speed).toBeLessThan(0.05);
-    expect(bare.battery).toBe(1);
+    // No outboard, no outboard battery (M6b: her state follows her modules).
+    expect(bare.battery).toBeUndefined();
   });
 });

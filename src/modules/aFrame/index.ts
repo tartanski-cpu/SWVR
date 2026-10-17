@@ -5,8 +5,8 @@
  * PAY OUT and HAUL (hold to run) for working the net by hand. It gives the boat a trawl
  * gantry: where the blocks are, where the net's drag acts on her.
  *
- * Drawn in the boat's axes from the hull's beam, deck and transom (its config is the
- * vessel's, CONFIG.vessels.workboat.fishing.aFrame, until M6); the frame and the box are
+ * Drawn in the boat's axes from the hull's beam, deck and transom (its defaults: the
+ * figures in CONFIG.vessels.workboat.fishing.aFrame); the frame and the box are
  * merged with the bridge's fixed parts, the button caps are shared parts.
  */
 import * as THREE from 'three';

@@ -3,7 +3,7 @@ import { BOLLARD_HALF_SPACING } from '../../world/berths';
 import { hullPlan } from '../layout';
 import { berthAxis, berthById, shoreSide } from '../physics/mooring';
 import { gearOf } from '../../boats/sims';
-import type { WorkboatDef } from '../vesselDef';
+import type { VesselDef } from '../vesselDef';
 import type { VesselState } from '../vesselState';
 
 /**
@@ -32,7 +32,7 @@ export class MooringLines {
     this.mesh.visible = false;
   }
 
-  update(s: VesselState, def: WorkboatDef, root: THREE.Object3D): void {
+  update(s: VesselState, def: VesselDef, root: THREE.Object3D): void {
     const m = s.mooring;
     const berth = m.phase !== 'free' ? berthById(m.berthId) : undefined;
     this.mesh.visible = !!berth;

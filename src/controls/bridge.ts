@@ -1,8 +1,9 @@
+import { gearOf } from '../boats/sims';
 import { panelLit } from './panelLighting';
 import { Cleat } from './deckGear';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import type { WorkboatDef } from '../vessel/vesselDef';
+import type { WheelhouseDef } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
 import type { EnvironmentState } from '../environment/environmentState';
 import type { Control } from './Control';
@@ -57,7 +58,7 @@ export class Bridge {
    *                bridge's into its one merged mesh. Since M2 the throttle lever is one.
    */
   constructor(
-    private readonly def: WorkboatDef,
+    private readonly def: WheelhouseDef,
     private readonly modules: AssembledView,
   ) {
     this.root.name = 'bridge';
@@ -111,8 +112,8 @@ export class Bridge {
     // are modules since M5b.
     // The engine, under the hatch in the wheelhouse floor (aft starboard): open the hatch to
     // see it. The hatch cover, the dipstick and the oil can are modules (M3c); the engine's
-    // look and the can's shelf stay here until the engine is a module (M4).
-    const mt = def.maintenance;
+    // look and the can's shelf stay here (from the diesel module's config) until 6c.
+    const mt = gearOf({ defId: def.id }, 'diesel')?.maintenance;
     const eh = def.layout.engineHatch;
     if (mt && eh) {
       const fy = def.layout.wheelhouse.floorY;

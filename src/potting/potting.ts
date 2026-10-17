@@ -1,12 +1,12 @@
 import { CONFIG } from '../config';
 import type { EntityId } from '../core/ids';
 import type { Intent } from '../core/intents';
-import type { WorldState } from '../core/world';
+import { homeVessel, type WorldState } from '../core/world';
 import { aboard, deckHeightAt, footprint, type CargoItem } from '../cargo/cargo';
 import { deckSpot } from '../cargo/deck';
 import { hullPlan } from '../vessel/layout';
 import { placeVessel } from '../vessel/vesselControl';
-import { VESSEL_DEFS, isWorkboat } from '../vessel/vesselDef';
+import { TOW_DEFS, VESSEL_DEFS } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
 import { POTTING_GROUNDS, type PottingGround } from '../world/archipelago';
 import { standingHeight } from '../world/geography';
@@ -69,13 +69,14 @@ export function groundAt(x: number, z: number): PottingGround | null {
 
 /** The boat pots belong to (the first workboat: the player's boat). */
 function potBoat(world: WorldState): VesselState | undefined {
-  return Object.values(world.vessels).find((v) => isWorkboat(VESSEL_DEFS[v.defId]));
+  return homeVessel(world);
 }
 
 /** A boat's buoy colour. */
 export function buoyColor(world: WorldState, owner: EntityId): number {
   const boats = Object.values(world.vessels)
-    .filter((v) => isWorkboat(VESSEL_DEFS[v.defId]))
+    // The crews' boats: not a tow adrift, not a ship's boat.
+    .filter((v) => !v.tender && !(TOW_DEFS as readonly string[]).includes(v.defId))
     .map((v) => v.id)
     .sort();
   const i = Math.max(0, boats.indexOf(owner));

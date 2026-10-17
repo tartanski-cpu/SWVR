@@ -1,8 +1,9 @@
 /**
  * Hull 'hull.workboat-12m': the starter workboat's hull (modular boats).
  *
- * For now (until M6) it stands on today's vessel definition, VESSEL_DEFS.workboat: her
- * shape, physics, mesh and walk area still come from CONFIG.vessels.workboat. This file
+ * Her shape, handling and lightship (M6a) and what's built into her (her `fittings`, M6b)
+ * come from CONFIG.vessels.workboat, the tunables' home; VESSEL_DEFS.workboat is built
+ * from this hull and her recipe. This file
  * adds the SOCKETS, one milestone at a time, each at the place today's hand-built part
  * stands (read from the same config, so there is one source of truth for where it is).
  *
@@ -83,7 +84,6 @@ export const WORKBOAT_HULL: HullDefinition = {
   id: 'hull.workboat-12m',
   version: 1,
   name: 'Workboat, 12 m',
-  legacyDef: 'workboat',
   helm: { stand: wb.boardingSpot, yawDeg: 0 },
   // Her shape and handling, and her lightship: the weighed boat less her engine and the
   // house batteries, which count as modules (M6a; modular/massProperties.ts).
@@ -91,6 +91,9 @@ export const WORKBOAT_HULL: HullDefinition = {
     { massKg: CONFIG.modules.dieselInboard.massKg, at: engineBed },
     { massKg: 2 * CONFIG.modules.batteryBank.massKg, at: bay },
   ]),
+  // Built into her (6b): the wheelhouse fit-out the bridge places its controls by (6c makes
+  // them modules), her lights, the exhaust outlet, where a rescued casualty is put.
+  fittings: { bridge: wb.bridge, navLights: wb.navLights, exhaust: wb.exhaust, rescueGear: wb.rescueGear, cabinLight: wb.cabinLight, deckLights: wb.deckLights },
   sockets: [
     { id: 'helm', type: 'helm.console', transform: { position: wb.bridge.console.position }, label: 'Helm console, across the front of the wheelhouse' },
     { id: 'navDisplay', type: 'cabin.overhead', transform: { position: wb.bridge.navDisplay.position }, label: 'Overhead, on the centreline ahead of the helm' },

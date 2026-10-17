@@ -50,7 +50,7 @@
 import * as THREE from 'three';
 import { CONFIG } from '../../config';
 import { sampleSurface, type PreparedWave, type SurfaceSample } from '../../ocean/waves';
-import { isWorkboat, type VesselDef } from '../vesselDef';
+import type { VesselDef } from '../vesselDef';
 import type { VesselState } from '../vesselState';
 import { calmWaterResistance } from './propulsion';
 import { submergedSection, type SubmergedSection } from './sectionClip';
@@ -331,7 +331,7 @@ export function stepVessel(
     // Mooring lines (docked), at her forward and aft cleats' stations (modules/cleat).
     const bowCleat = gearOf(state, 'bowCleat');
     const sternCleat = gearOf(state, 'sternCleat');
-    if (isWorkboat(def) && bowCleat && sternCleat) {
+    if (bowCleat && sternCleat) {
       toWorld(0, bowCleat.lineY, bowCleat.z, lineBow);
       pointVelocity(lineBow, lineBowV);
       toWorld(0, sternCleat.lineY, sternCleat.z, lineStern);

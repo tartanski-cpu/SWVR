@@ -9,7 +9,7 @@
  *                   is in the water ('propulsion.immersion'): physics/propulsion.ts
  *
  * It pushes on the hull through the physics port, after the propeller (it needs this
- * tick's thrust). Its state is the rudder angle, today's VesselState.rudder (until M6).
+ * tick's thrust). Its state is the rudder angle, today's VesselState.rudder (until 6d).
  */
 import { CONFIG } from '../../config';
 import type { ModuleDefinition } from '../../modular/module';
@@ -30,6 +30,8 @@ export const RUDDER: ModuleDefinition<RudderConfig, RudderState> = {
   fits: ['hull.rudder'],
   defaults: { rudder: wb.rudder, propeller: { wake: wb.propeller.wake, diameter: wb.propeller.diameter } },
   validateConfig: (c) => (c.rudder.area > 0 ? [] : ['the rudder needs an area']),
+  provides: () => [{ gear: 'rudder' }],
+  gear: (c) => ({ rudder: c.rudder }),
   ports: {
     helm: { dir: 'read', key: 'helm.demand' },
     // No propeller ahead of it (a sailing boat): no slipstream, fully in the water.

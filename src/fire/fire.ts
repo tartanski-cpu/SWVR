@@ -22,11 +22,10 @@
 import * as THREE from 'three';
 import { CONFIG } from '../config';
 import type { Intent } from '../core/intents';
-import type { WorldState } from '../core/world';
+import { homeVessel, type WorldState } from '../core/world';
 import { windVector } from '../environment/weather';
 import { formatPosition } from '../nav/geo';
 import { isPowered } from '../vessel/electrics';
-import { isWorkboat, VESSEL_DEFS } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
 import { gearOf } from '../boats/sims';
 import { groundHeight } from '../world/terrain';
@@ -83,7 +82,7 @@ function rand(f: FireState): number {
 const between = (f: FireState, [a, b]: readonly [number, number]) => a + (b - a) * rand(f);
 
 function tug(world: WorldState): VesselState | undefined {
-  return Object.values(world.vessels).find((v) => isWorkboat(VESSEL_DEFS[v.defId]));
+  return homeVessel(world);
 }
 
 /** Is any job (rescue, tow, fire) on? Only one at a time. */

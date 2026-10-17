@@ -6,7 +6,7 @@
  *
  * It gives the boat a swim ladder: its outboard line, foot and head, where you step aboard,
  * how near you must be. Drawn in the boat's axes at its station (`z`) from the hull's beam
- * and bulwark (the vessel's config, CONFIG.vessels.workboat.swimLadder, until M6); merged
+ * and bulwark (defaults: CONFIG.vessels.workboat.swimLadder); merged
  * with the boat's fixed parts.
  */
 import * as THREE from 'three';

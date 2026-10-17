@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { WorkboatDef } from '../vessel/vesselDef';
+import type { WheelhouseDef } from '../vessel/vesselDef';
 
 /**
  * Draw-call saving (performance pass): the wheelhouse's small parts - switches, knobs,
@@ -51,7 +51,7 @@ export class InteriorDetail {
   constructor(
     roots: THREE.Object3D[],
     vesselRoot: THREE.Object3D,
-    private readonly def: WorkboatDef,
+    private readonly def: WheelhouseDef,
     maxRadius = 0.3,
   ) {
     const wh = def.layout.wheelhouse;

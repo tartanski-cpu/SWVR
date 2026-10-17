@@ -5,6 +5,8 @@ import { stepWorld } from '../src/core/simulation';
 import { createWorld } from '../src/core/world';
 import { launchPoint, launchTime, recoverCheck } from '../src/vessel/tenderCrane';
 import { placeVessel } from '../src/vessel/vesselControl';
+import { CONFIG } from '../src/config';
+import { gearOf } from '../src/boats/sims';
 import { VESSEL_DEFS } from '../src/vessel/vesselDef';
 import { hullPlan } from '../src/vessel/layout';
 import * as THREE from 'three';
@@ -33,7 +35,7 @@ function setup() {
 }
 
 describe('the tender crane', () => {
-  const crane = VESSEL_DEFS.workboat.tenderCrane!;
+  const crane = CONFIG.vessels.workboat.tenderCrane;
   /** Her origin in the workboat's axes. */
   const local = (boat: { position: number[]; orientation: number[] }, skiff: { position: number[] }) =>
     new THREE.Vector3(...(skiff.position as [number, number, number])).sub(new THREE.Vector3(...(boat.position as [number, number, number]))).applyQuaternion(new THREE.Quaternion(...(boat.orientation as [number, number, number, number])).invert());
@@ -112,11 +114,11 @@ describe('the tender crane', () => {
 describe('the skiff', () => {
   it('comes in her cradle on the workboat\'s foredeck, riding with her, with a full battery', () => {
     const { boat, skiff, run } = setup();
-    expect(VESSEL_DEFS[skiff.defId].outboard).toBeTruthy();
+    expect(gearOf(skiff, 'outboard')).toBeTruthy();
     expect(skiff.battery).toBe(1);
     expect(skiff.tender?.phase).toBe('stowed');
     run(3);
-    const stow = VESSEL_DEFS[boat.defId].tenderCrane!.stow;
+    const stow = CONFIG.vessels.workboat.tenderCrane.stow;
     const local = new THREE.Vector3(...skiff.position).sub(new THREE.Vector3(...boat.position)).applyQuaternion(new THREE.Quaternion(...boat.orientation).invert());
     expect(local.distanceTo(new THREE.Vector3(...stow))).toBeLessThan(1e-6);
   });

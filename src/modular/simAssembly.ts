@@ -17,6 +17,7 @@
  *             recipe's order.
  * Modules never see each other: each reads and writes the bus through its own ports.
  */
+import * as THREE from 'three';
 import type { VesselState } from '../vessel/vesselState';
 import type { BreakerName } from '../vessel/vesselState';
 import { busOf } from './bus';
@@ -25,6 +26,7 @@ import type { HullLibrary } from './hull';
 import { portIO, type GearFacts, type GearFootprint, type GearKind, type HullQueries, type ModuleDefinition, type PhysicsPort, type PortIO, type PowerRole, type SimContext } from './module';
 import { flattenMounts, validateRecipe, type ModuleLibrary, type Recipe } from './recipe';
 import type { Socket } from './socket';
+import { mountPlaces } from './vesselAssembly';
 
 /** One module with a simulation half or an energy role, as mounted on this boat type. */
 export interface SimMount {
@@ -73,10 +75,16 @@ export function buildSimDef(recipe: Recipe, lib: { hulls: HullLibrary; modules: 
   const mounts: SimMount[] = [];
   const gear: Partial<GearFacts> = {};
   const footprints: GearFootprint[] = [];
+  const places = mountPlaces(mounted);
   for (const m of mounted) {
     footprints.push(...(m.def.footprints?.(m.config, hull) ?? []));
     // The first module giving each kind of gear tells the world about it.
-    const facts = m.def.gear?.(m.config, hull) ?? {};
+    const place = places.get(m.path)!;
+    const at = (p: readonly [number, number, number]): [number, number, number] => {
+      const w = new THREE.Vector3(...p).applyMatrix4(place);
+      return [w.x, w.y, w.z];
+    };
+    const facts = m.def.gear?.(m.config, hull, at) ?? {};
     for (const k of Object.keys(facts) as GearKind[]) if (!(k in gear)) Object.assign(gear, { [k]: facts[k] });
     const roles = m.def.power?.(m.config) ?? [];
     if (!m.def.sim && !roles.length) continue;

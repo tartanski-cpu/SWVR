@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { ParticlePool } from '../../render/particlePool';
-import type { WorkboatDef } from '../vesselDef';
+import type { VesselDef } from '../vesselDef';
 import type { VesselState } from '../vesselState';
 
 const SMOKE_MAX = 200;
@@ -40,15 +40,17 @@ export class ExhaustSmoke {
   }
 
   /**
+   * @param exhaust   the outlet (built into her hull) and which way it blows
+   * @param ratedRpm  her diesel's rated speed
    * @param root      the vessel's interpolated root (outlet position and direction)
    * @param surfaceAt sea surface height at a world (x, z)
    * @param viewer    world position of the viewer's head
    */
-  update(dt: number, s: VesselState, def: WorkboatDef, root: THREE.Object3D, surfaceAt: (x: number, z: number) => number, viewer: THREE.Vector3): void {
+  update(dt: number, s: VesselState, exhaust: NonNullable<VesselDef['exhaust']>, ratedRpm: number, root: THREE.Object3D, surfaceAt: (x: number, z: number) => number, viewer: THREE.Vector3): void {
     const e = s.engine;
-    root.localToWorld(this.outlet.fromArray(def.exhaust.position));
+    root.localToWorld(this.outlet.fromArray(exhaust.position));
     root.getWorldQuaternion(this.q);
-    this.dir.fromArray(def.exhaust.direction).normalize().applyQuaternion(this.q);
+    this.dir.fromArray(exhaust.direction).normalize().applyQuaternion(this.q);
     const running = e.phase === 'running';
     const surface = surfaceAt(this.outlet.x, this.outlet.z);
     const submerged = this.outlet.y < surface;
@@ -57,7 +59,7 @@ export class ExhaustSmoke {
     const rackRate = dt > 0 ? Math.max(0, (e.rack - this.lastRack) / dt) : 0;
     this.lastRack = e.rack;
     const puff = Math.min(1, rackRate / 0.4);
-    const labour = running && e.rack > 0.9 && e.rpm < 0.85 * def.engine.ratedRpm ? 1 : 0;
+    const labour = running && e.rack > 0.9 && e.rpm < 0.85 * ratedRpm ? 1 : 0;
     const darkness = Math.min(1, 0.35 + 0.4 * e.rack + 0.5 * puff + 0.4 * labour);
     // Cold engine: unburnt fuel and condensing water vapour give white smoke, fading as the
     // block warms through 25-60 °C (thicker at light load, where combustion is coolest).
@@ -65,7 +67,7 @@ export class ExhaustSmoke {
     let burst = 0;
     if (running && this.lastPhase === 'cranking') burst = 25;
     this.lastPhase = e.phase;
-    const rpmFrac = Math.min(1, e.rpm / def.engine.ratedRpm);
+    const rpmFrac = Math.min(1, e.rpm / ratedRpm);
     const [vx, vy, vz] = s.linearVelocity;
 
     // ── Smoke ──

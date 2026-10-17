@@ -20,7 +20,6 @@ import { jetPath } from '../../src/fire/fire';
 import { allKeys, busOf, specOf } from '../../src/modular/bus';
 import { berthAxis } from '../../src/vessel/physics/mooring';
 import { placeVessel } from '../../src/vessel/vesselControl';
-import { VESSEL_DEFS } from '../../src/vessel/vesselDef';
 import type { VesselState } from '../../src/vessel/vesselState';
 import { BERTHS, PORTS } from '../../src/world/archipelago';
 
@@ -110,7 +109,7 @@ export function play(
   return out;
 }
 
-const preheat = VESSEL_DEFS.workboat.engine!.preheatTime;
+const preheat = CONFIG.vessels.workboat.engine.preheatTime;
 const berth = BERTHS.find((b) => b.id === 'calder-cargo')!;
 const selkie = PORTS.find((p) => p.id === 'selkie')!.cargo.anchorage!;
 const ground = CONFIG.fishing.grounds[1];

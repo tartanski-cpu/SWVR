@@ -18,8 +18,9 @@ export type OutboardConfig = typeof CONFIG.vessels.skiff.outboard;
  * Shape of a vessel's config block. Every boat has a hull, mass properties, resistance, a
  * deck layout and a cargo deck, and EITHER an inboard drive (engine + propeller + rudder)
  * OR an outboard. The rest is equipment only some boats carry (the workboat's bridge,
- * lights, anchor, mooring lines, rescue gear...). Adding a boat = a config block + a line
- * in VESSEL_DEFS.
+ * lights, anchor, mooring lines, rescue gear...). It's where the tunable figures live: the
+ * hulls (boats/*Hull.ts) and the modules' defaults read them from here, and the boats are
+ * built from their recipes (boats/library.ts).
  */
 export interface VesselConfig {
   hull: Workboat['hull'];
@@ -90,11 +91,6 @@ export interface VesselDef {
   /** Wetted surface (m^2) at the DWL, from the stations. */
   wettedSurface: number;
   resistance: VesselConfig['resistance'];
-  /** Inboard drive (diesel, shaft, propeller, rudder), or an outboard. */
-  engine?: VesselConfig['engine'];
-  propeller?: VesselConfig['propeller'];
-  rudder?: VesselConfig['rudder'];
-  outboard?: OutboardConfig;
   /** Where players stand after boarding (vessel axes). */
   boardingSpot: Vec3;
   /** Debug spawn / drop test placement. */
@@ -104,63 +100,44 @@ export interface VesselDef {
   /** Deck layout: wheelhouse, bulwarks, walkable margins. */
   layout: LayoutConfig;
   cargo: VesselConfig['cargo'];
-  /** Equipment only some boats have. */
-  bridge?: VesselConfig['bridge'];
-  navLights?: VesselConfig['navLights'];
-  exhaust?: VesselConfig['exhaust'];
-  anchor?: VesselConfig['anchor'];
-  rescueGear?: VesselConfig['rescueGear'];
-  cabinLight?: VesselConfig['cabinLight'];
-  overheadPanel?: VesselConfig['overheadPanel'];
-  whiteboard?: VesselConfig['whiteboard'];
-  /** Duty board (optional: not part of WorkboatDef). */
-  dutyBoard?: VesselConfig['dutyBoard'];
-  deckLights?: VesselConfig['deckLights'];
-  spotlight?: VesselConfig['spotlight'];
-  mooring?: VesselConfig['mooring'];
-  /** Tender crane and cradle (optional: not part of WorkboatDef). */
-  tenderCrane?: VesselConfig['tenderCrane'];
-  /** 12 V electrics (optional: not part of WorkboatDef; the skiff has its own battery). */
-  electrics?: VesselConfig['electrics'];
-  /** Swim ladder over the starboard side (optional: not part of WorkboatDef). */
-  swimLadder?: VesselConfig['swimLadder'];
-  /** Fire monitor on the roof (optional: not part of WorkboatDef). */
-  fireMonitor?: VesselConfig['fireMonitor'];
-  /** The trawl's A-frame and the TRAWL switch (fishing; optional: not part of WorkboatDef). */
-  fishing?: VesselConfig['fishing'];
-  /** The tow winch by the towing post (optional: not part of WorkboatDef). */
-  towWinch?: VesselConfig['towWinch'];
-  /** Bilge (optional: not part of WorkboatDef). */
-  bilge?: VesselConfig['bilge'];
-  /** Chart table (optional: not part of WorkboatDef). */
-  chartTable?: VesselConfig['chartTable'];
-  /** Fenders and engine oil (optional: not part of WorkboatDef). */
-  fenders?: VesselConfig['fenders'];
-  maintenance?: VesselConfig['maintenance'];
-  /** Towable (towing missions; optional: not part of WorkboatDef). */
+  /**
+   * What's built into her hull (modular boats M6b; the hull's `fittings`): the wheelhouse
+   * fit-out the bridge places its controls by (until 6c makes them modules), her lights, the
+   * exhaust outlet, the places a rescued casualty is put, and a tow's look. Her machinery and
+   * deck gear are her modules': ask them (boats/sims.ts gearOf).
+   */
+  bridge?: HullFittings['bridge'];
+  navLights?: HullFittings['navLights'];
+  exhaust?: HullFittings['exhaust'];
+  rescueGear?: HullFittings['rescueGear'];
+  cabinLight?: HullFittings['cabinLight'];
+  deckLights?: HullFittings['deckLights'];
   tow?: TowLook;
 }
 
-type Equipment = 'engine' | 'propeller' | 'rudder' | 'bridge' | 'navLights' | 'exhaust' | 'anchor' | 'rescueGear' | 'cabinLight' | 'overheadPanel' | 'whiteboard' | 'deckLights' | 'spotlight' | 'mooring';
-
 /**
- * A fully equipped vessel like the workboat: inboard drive, wheelhouse and bridge, lights,
- * anchor, mooring lines, rescue gear. Code that only makes sense on such a boat (the
- * bridge controls, instruments, engine sound, anchor and mooring physics...) takes this.
+ * A vessel type whose hull has a wheelhouse, its walkable roof and the ladder up to it (the
+ * workboat's). The bridge, the wheelhouse interior and the app's wheelhouse views are built
+ * for one (6c makes them per boat). A fact of her shape: what's fitted in it is her modules'.
  */
-export type WorkboatDef = VesselDef & { [K in Equipment]-?: NonNullable<VesselDef[K]> } & {
+export type WheelhouseDef = VesselDef & {
   layout: LayoutConfig & Required<Pick<WorkboatLayout, 'wheelhouse' | 'roof' | 'ladder' | 'doorButtons'>>;
 };
 
-/** Is this a fully equipped boat (see WorkboatDef)? */
-export function isWorkboat(def: VesselDef): def is WorkboatDef {
-  return !!(def.engine && def.propeller && def.rudder && def.bridge && def.navLights && def.exhaust && def.anchor && def.rescueGear && def.cabinLight && def.overheadPanel && def.whiteboard && def.deckLights && def.spotlight && def.mooring && def.layout.wheelhouse && def.layout.roof && def.layout.ladder && def.layout.doorButtons);
+/** Has her hull a wheelhouse (see WheelhouseDef)? */
+export function hasWheelhouse(def: VesselDef): def is WheelhouseDef {
+  return !!(def.layout.wheelhouse && def.layout.roof && def.layout.ladder && def.layout.doorButtons);
 }
 
-/** The def as a fully equipped boat; throws if it isn't one (a programming error). */
-export function asWorkboat(def: VesselDef): WorkboatDef {
-  if (!isWorkboat(def)) throw new Error(`${def.id} is not a fully equipped vessel`);
-  return def;
+/** What's built into a hull (see VesselDef). */
+export interface HullFittings {
+  bridge?: Workboat['bridge'];
+  navLights?: Workboat['navLights'];
+  exhaust?: Workboat['exhaust'];
+  rescueGear?: Workboat['rescueGear'];
+  cabinLight?: Workboat['cabinLight'];
+  deckLights?: Workboat['deckLights'];
+  tow?: TowLook;
 }
 
 /** Wetted surface at the DWL: submerged girth of each station times its spacing. */
@@ -184,43 +161,10 @@ export function wettedSurfaceAtDWL(hull: HullForm): number {
   return s;
 }
 
-/** The equipment only some boats carry, from a vessel config block (until 6b). */
-export function equipmentOf(c: VesselConfig): Pick<VesselDef, EquipmentField> {
-  return {
-    engine: c.engine,
-    propeller: c.propeller,
-    rudder: c.rudder,
-    outboard: c.outboard,
-    bridge: c.bridge,
-    navLights: c.navLights,
-    exhaust: c.exhaust,
-    anchor: c.anchor,
-    rescueGear: c.rescueGear,
-    cabinLight: c.cabinLight,
-    overheadPanel: c.overheadPanel,
-    whiteboard: c.whiteboard,
-    dutyBoard: c.dutyBoard,
-    deckLights: c.deckLights,
-    spotlight: c.spotlight,
-    mooring: c.mooring,
-    tenderCrane: c.tenderCrane,
-    electrics: c.electrics,
-    swimLadder: c.swimLadder,
-    fireMonitor: c.fireMonitor,
-    fishing: c.fishing,
-    towWinch: c.towWinch,
-    bilge: c.bilge,
-    chartTable: c.chartTable,
-    fenders: c.fenders,
-    maintenance: c.maintenance,
-    tow: c.tow,
-  };
+/** What's built into a hull, from a vessel config block (for fromConfig). */
+export function fittingsOf(c: VesselConfig): HullFittings {
+  return { bridge: c.bridge, navLights: c.navLights, exhaust: c.exhaust, rescueGear: c.rescueGear, cabinLight: c.cabinLight, deckLights: c.deckLights, tow: c.tow };
 }
-
-type EquipmentField =
-  | 'engine' | 'propeller' | 'rudder' | 'outboard' | 'bridge' | 'navLights' | 'exhaust' | 'anchor' | 'rescueGear' | 'cabinLight'
-  | 'overheadPanel' | 'whiteboard' | 'dutyBoard' | 'deckLights' | 'spotlight' | 'mooring' | 'tenderCrane' | 'electrics' | 'swimLadder'
-  | 'fireMonitor' | 'fishing' | 'towWinch' | 'bilge' | 'chartTable' | 'fenders' | 'maintenance' | 'tow';
 
 /**
  * A vessel type straight from its config block, the way every boat was built until M6a.
@@ -246,7 +190,7 @@ export function fromConfig(id: string, c: VesselConfig): VesselDef {
     windage: c.windage,
     layout: c.layout,
     cargo: c.cargo,
-    ...equipmentOf(c),
+    ...fittingsOf(c),
   };
 }
 

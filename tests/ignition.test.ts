@@ -1,10 +1,11 @@
+import { gearOf } from '../src/boats/sims';
 import { describe, expect, it } from 'vitest';
 import { IdFactory } from '../src/core/ids';
 import type { Intent } from '../src/core/intents';
 import { stepWorld } from '../src/core/simulation';
 import { createWorld } from '../src/core/world';
 import { placeVessel } from '../src/vessel/vesselControl';
-import { VESSEL_DEFS } from '../src/vessel/vesselDef';
+import { CONFIG } from '../src/config';
 
 const DT = 1 / 60;
 
@@ -21,7 +22,7 @@ function setup() {
   const startup = () => world.duties?.items.find((d) => d.kind === 'startup');
   return { world, v, send, run, startup };
 }
-const preheat = VESSEL_DEFS.workboat.engine!.preheatTime;
+const preheat = CONFIG.vessels.workboat.engine.preheatTime;
 
 describe('diesel start procedure', () => {
   it('from cold by the card: master, INSTR, neutral, key, HEAT, START - and the duty ticks off', () => {
@@ -95,9 +96,8 @@ describe('diesel start procedure', () => {
 
   it('a warm engine needs much less preheat than a cold one (glow lamp goes out sooner)', async () => {
     const { preheatNeeded } = await import('../src/vessel/physics/propulsion');
-    const { asWorkboat } = await import('../src/vessel/vesselDef');
     const { v } = setup();
-    const def = asWorkboat(VESSEL_DEFS.workboat);
+    const def = gearOf(v, 'diesel')!;
     const cold = preheatNeeded(v, def);
     expect(cold).toBeCloseTo(def.engine.preheatTime, 5);
     v.engine.coolantC = 80;

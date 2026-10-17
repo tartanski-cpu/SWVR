@@ -8,8 +8,8 @@
  *
  * It gives the boat a searchlight: its aim limits, which the controls clamp to. Its draw
  * (12 A while on) is its own (it was a generic 12 V consumer in M4a). Drawn by
- * vessel/view/searchlight.ts, in the boat's axes from its config (the vessel's,
- * CONFIG.vessels.workboat.spotlight, until M6); the app hands it how dark it is and gives
+ * vessel/view/searchlight.ts, in the boat's axes from its config (defaults:
+ * CONFIG.vessels.workboat.spotlight); the app hands it how dark it is and gives
  * its light to the ocean (`api`).
  */
 import { CONFIG } from '../../config';

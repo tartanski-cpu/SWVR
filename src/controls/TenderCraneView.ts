@@ -1,3 +1,4 @@
+import { gearOf } from '../boats/sims';
 import * as THREE from 'three';
 import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
 import { clamp } from '../core/math';
@@ -322,7 +323,7 @@ function tarpaulin(def: VesselDef, c: TenderCrane): THREE.BufferGeometry {
   sheet.computeVertexNormals();
   const parts = [part(sheet, CANVAS)];
   // The bag over the outboard, on her transom.
-  const ob = def.outboard;
+  const ob = gearOf({ defId: def.id }, 'outboard');
   if (ob) parts.push(part(new THREE.BoxGeometry(0.32, 0.5, 0.36).translate(ox, oy + ob.tiller.pivot[1] - 0.05, oz + ob.position[2]), CANVAS));
   return mergeParts(parts);
 }

@@ -9,11 +9,11 @@ import { HostSession } from '../src/net/hostSession';
 import { LoopbackHost } from '../src/net/transport';
 import { dipstickReading } from '../src/vessel/maintenance';
 import { placeVessel } from '../src/vessel/vesselControl';
-import { VESSEL_DEFS } from '../src/vessel/vesselDef';
+import { CONFIG } from '../src/config';
 import { BERTHS } from '../src/world/archipelago';
 
 const DT = 1 / 60;
-const MT = VESSEL_DEFS.workboat.maintenance!;
+const MT = CONFIG.vessels.workboat.maintenance;
 
 function setup(x = 0, z = -2600) {
   const { world, vesselId, localPlayerId } = createWorld(new IdFactory());

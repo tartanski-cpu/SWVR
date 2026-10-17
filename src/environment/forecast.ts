@@ -6,9 +6,8 @@
  * Missed (radio off), the board keeps showing the last one received, with its time.
  */
 import { CONFIG, type WeatherPresetName } from '../config';
-import type { WorldState } from '../core/world';
+import { homeVessel, type WorldState } from '../core/world';
 import { isPowered } from '../vessel/electrics';
-import { isWorkboat, VESSEL_DEFS } from '../vessel/vesselDef';
 import { beaufort, compass8, type WeatherState } from './weather';
 
 export interface Forecast {
@@ -72,7 +71,7 @@ export function stepForecast(world: WorldState): void {
   const w = world.environment.weather;
   if (!w || world.time < w.forecastAt) return;
   w.forecastAt = world.time + CONFIG.weather.forecast.every / w.speed;
-  const v = Object.values(world.vessels).find((x) => isWorkboat(VESSEL_DEFS[x.defId]));
+  const v = homeVessel(world);
   if (!v || !isPowered(v, 'radio')) return; // nobody listening
   world.forecast = {
     text: forecastText(w, world.time),

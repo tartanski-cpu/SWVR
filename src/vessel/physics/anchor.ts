@@ -17,35 +17,21 @@
  * 3:1 scope (the chain lifts the shank), to 15 % at about 1.3:1.
  */
 import { clamp } from '../../core/math';
-import { isPowered } from '../electrics';
 import { groundHeight } from '../../world/terrain';
-import type { WorkboatDef } from '../vesselDef';
-import type { AnchorState, VesselState } from '../vesselState';
+import type { CONFIG } from '../../config';
+import type { AnchorState } from '../vesselState';
 
 /**
- * Advance the windlass and return the chain force on the bow (world, N).
+ * Advance the windlass and return the chain force on the bow (world, N), on the anchor's
+ * own state (the anchor-windlass module's, M5a): `down` the switch is on (let go),
+ * `windlass` there's 12 V for it (the windlass is electric: without it the chain neither
+ * runs out nor comes in).
  * @param hawse     bow roller, world position
  * @param hawseVel  its world velocity
  */
-export function stepAnchor(
-  s: VesselState,
-  def: WorkboatDef,
-  hawse: { x: number; y: number; z: number },
-  hawseVel: { x: number; y: number; z: number },
-  dt: number,
-  out: { x: number; y: number; z: number },
-): void {
-  // The windlass is electric: without 12 V the chain neither runs out nor comes in.
-  anchorStep(s.anchor, def.anchor, s.controls.anchor > 0.5, isPowered(s), hawse, hawseVel, dt, out);
-}
-
-/**
- * stepAnchor on the anchor's own state (the anchor-windlass module's, M5a): `down` the
- * switch is on (let go), `windlass` there's 12 V for it.
- */
 export function anchorStep(
   a: AnchorState,
-  cfg: WorkboatDef['anchor'],
+  cfg: typeof CONFIG.vessels.workboat.anchor,
   down: boolean,
   windlass: boolean,
   hawse: { x: number; y: number; z: number },

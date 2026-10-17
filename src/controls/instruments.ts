@@ -4,7 +4,8 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { BreakerName } from '../vessel/vesselState';
 import { CONFIG } from '../config';
-import type { WorkboatDef } from '../vessel/vesselDef';
+import { gearOf } from '../boats/sims';
+import type { VesselDef } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
 import { engineAlarms } from '../vessel/physics/engineThermal';
 import { groundHeight } from '../world/terrain';
@@ -42,8 +43,9 @@ const BG = '#0d1210';
 const GREEN = '#6fe08a';
 const RED = '#ff5a45';
 
-type Painter = (g: CanvasRenderingContext2D, s: VesselState, def: WorkboatDef, env: EnvironmentState | null) => void;
-type ScreenKey = (s: VesselState, def: WorkboatDef, env: EnvironmentState | null) => string;
+/** Each screen reads her state and her vessel definition; her engine and rudder are her modules' (gearOf). */
+type Painter = (g: CanvasRenderingContext2D, s: VesselState, def: VesselDef, env: EnvironmentState | null) => void;
+type ScreenKey = (s: VesselState, def: VesselDef, env: EnvironmentState | null) => string;
 
 /** One screen: how to draw it and what it shows. */
 export interface Screen {
@@ -102,7 +104,7 @@ export class DisplayAtlas {
     return this.mesh;
   }
 
-  update(state: VesselState, def: WorkboatDef, dt: number, env: EnvironmentState | null = null): void {
+  update(state: VesselState, def: VesselDef, dt: number, env: EnvironmentState | null = null): void {
     if (!this.regions.length) return;
     this.sinceDraw += dt;
     if (this.sinceDraw < 1 / CONFIG.interaction.displayHz) return;
@@ -140,15 +142,17 @@ export class DisplayAtlas {
 }
 
 /** Speed screen: speed, the echo sounder and the anchor (flash phases while it moves). */
-function speedKey(s: VesselState, def: WorkboatDef): string {
+function speedKey(s: VesselState, def: VesselDef): string {
   const a = s.anchor;
   const anchorFlash = a.phase !== 'stowed' && (a.phase !== 'set' || a.dragging) ? Math.floor(performance.now() / 500) % 2 : 0;
   return [knots(s).toFixed(1), Math.min(99.9, depthUnderKeel(s, def)).toFixed(1), a.phase, a.rodeM.toFixed(0), a.dragging ? 1 : 0, anchorFlash].join('|');
 }
 
-function engineKey(s: VesselState, def: WorkboatDef): string {
+function engineKey(s: VesselState): string {
+  const diesel = gearOf(s, 'diesel');
+  if (!diesel) return '';
   const e = s.engine;
-  const al = engineAlarms(s, def);
+  const al = engineAlarms(s, diesel);
   const alarmBlink = al.highTemp || al.lowFuel ? Math.floor(performance.now() / 400) % 2 : 0;
   return [e.coolantC.toFixed(0), e.oilC.toFixed(0), e.fuelL.toFixed(0), e.fuelFlowLph.toFixed(1), al.highTemp ? 1 : 0, al.lowFuel ? 1 : 0, alarmBlink, e.coolingFault ? 1 : 0].join('|');
 }
@@ -172,7 +176,7 @@ function big(g: CanvasRenderingContext2D, text: string, x: number, y: number, si
  * Echo sounder: water under the keel, from the still waterline (like a real sounder's
  * smoothing, it doesn't jump with every wave's heave).
  */
-function depthUnderKeel(s: VesselState, def: WorkboatDef): number {
+function depthUnderKeel(s: VesselState, def: VesselDef): number {
   return -groundHeight(s.position[0], s.position[2]) + def.hull.params.keelY;
 }
 
@@ -282,7 +286,9 @@ const paintHeading: Painter = (g, s) => {
   g.fill();
 };
 
-const paintRpm: Painter = (g, s, def) => {
+const paintRpm: Painter = (g, s) => {
+  const diesel = gearOf(s, 'diesel');
+  if (!diesel) return;
   title(g, 'ENGINE RPM');
   const e = s.engine;
   const max = 2000;
@@ -300,7 +306,7 @@ const paintRpm: Painter = (g, s, def) => {
   g.stroke();
   g.strokeStyle = RED;
   g.beginPath();
-  g.arc(cx, cy, r, ang(def.engine.ratedRpm + 50), a1);
+  g.arc(cx, cy, r, ang(diesel.engine.ratedRpm + 50), a1);
   g.stroke();
   g.strokeStyle = AMBER;
   g.lineWidth = 3;
@@ -342,9 +348,11 @@ const paintRpm: Painter = (g, s, def) => {
   g.fillText('LOAD', 290, 198);
 };
 
-const paintRudder: Painter = (g, s, def) => {
+const paintRudder: Painter = (g, s) => {
+  const rudder = gearOf(s, 'rudder');
+  if (!rudder) return;
   title(g, 'RUDDER');
-  const max = def.rudder.maxAngleDeg;
+  const max = rudder.maxAngleDeg;
   const deg = (s.rudder * 180) / Math.PI;
   const cx = 256;
   const cy = 70;
@@ -391,11 +399,13 @@ const paintRudder: Painter = (g, s, def) => {
 };
 
 /** Engine monitor: coolant and oil temperature, fuel, consumption, alarm lamps. */
-const paintEngineMonitor: Painter = (g, s, def) => {
+const paintEngineMonitor: Painter = (g, s) => {
+  const diesel = gearOf(s, 'diesel');
+  if (!diesel) return;
   title(g, 'ENGINE MONITOR');
   const e = s.engine;
-  const th = def.engine.thermal;
-  const al = engineAlarms(s, def);
+  const th = diesel.engine.thermal;
+  const al = engineAlarms(s, diesel);
   const blink = Math.floor(performance.now() / 400) % 2 === 0;
   // Two horizontal bar gauges: coolant 40-120 °C, fuel 0-100 %.
   const bar = (y: number, label: string, frac: number, value: string, color: string, marks: number[] = []) => {
@@ -417,8 +427,8 @@ const paintEngineMonitor: Painter = (g, s, def) => {
   const tempColor = e.coolantC > th.alarmC ? RED : e.coolantC < 60 ? '#7fb8ff' : GREEN;
   bar(78, 'TEMP', tFrac(e.coolantC), `${e.coolantC.toFixed(0)}°C`, tempColor, [tFrac(th.alarmC)]);
   bar(118, 'OIL', tFrac(e.oilC), `${e.oilC.toFixed(0)}°C`, e.oilC > th.alarmC + 10 ? RED : AMBER);
-  const fuelFrac = e.fuelL / def.engine.fuel.tankL;
-  bar(158, 'FUEL', fuelFrac, `${e.fuelL.toFixed(0)} L`, al.lowFuel ? RED : AMBER, [def.engine.fuel.lowFraction]);
+  const fuelFrac = e.fuelL / diesel.engine.fuel.tankL;
+  bar(158, 'FUEL', fuelFrac, `${e.fuelL.toFixed(0)} L`, al.lowFuel ? RED : AMBER, [diesel.engine.fuel.lowFraction]);
   g.fillStyle = DIM;
   g.font = 'bold 22px ui-monospace, Menlo, Consolas, monospace';
   g.textAlign = 'left';

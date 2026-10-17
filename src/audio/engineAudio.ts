@@ -1,5 +1,5 @@
+import { gearOf } from '../boats/sims';
 import { mixer } from './mixer';
-import { VESSEL_DEFS } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
 import { loadDieselWorklet } from './dieselWorklet';
 
@@ -236,7 +236,7 @@ export class EngineAudio {
     if (!this.sound || !v) return;
     const e = v.engine;
     this.sound.set(
-      { rpm: e.rpm, load: e.rack, ratedRpm: VESSEL_DEFS[v.defId].engine?.ratedRpm ?? 1800, running: e.phase === 'running', cranking: e.phase === 'cranking', submerged },
+      { rpm: e.rpm, load: e.rack, ratedRpm: gearOf(v, 'diesel')?.engine.ratedRpm ?? 1800, running: e.phase === 'running', cranking: e.phase === 'cranking', submerged },
       (0.42 / (1 + distance / 8)) * house,
       lp,
     );

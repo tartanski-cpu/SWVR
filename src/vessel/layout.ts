@@ -12,6 +12,7 @@
  * The vessel version is derived from the hull stations and the layout block in the config,
  * the same numbers the geometry is built from.
  */
+import { gearOf } from '../boats/sims';
 import type { GearFootprint } from '../modular/module';
 import type { HullForm } from './hullForm';
 import type { VesselDef } from './vesselDef';
@@ -136,10 +137,10 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: reado
   const doorHalf = wh.doorWidth / 2;
   const sd = wh.sideDoor;
   const inHouseFootprint = (x: number, z: number) => Math.abs(x) <= ext.x && z >= ext.z0 && z <= ext.z1;
-  // Furniture on the wheelhouse floor: the chart table (if she has one), footprint and height
-  // above the floor. Its leaf folded down against the wall, only a strip along the wall is
-  // taken up.
-  const ct = def.chartTable;
+  // Furniture on the wheelhouse floor: the chart table (if she has one: a module, its plan in
+  // her axes), footprint and height above the floor. Its leaf folded down against the wall,
+  // only a strip along the wall is taken up.
+  const ct = gearOf({ defId: def.id }, 'chartTable');
   let leafFolded = false;
   // The engine hatch in the floor: open, its hole can't be walked into (you can still stand
   // where you were if it opened under you; you just can't step onto it).

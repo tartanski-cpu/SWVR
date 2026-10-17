@@ -17,7 +17,6 @@ export const TEST_HULL: HullDefinition = {
   id: 'hull.test',
   version: 1,
   name: 'Test hull',
-  legacyDef: 'workboat',
   helm: { stand: [0, 1.2, -0.75], yawDeg: 0 },
   // Its shape and handling borrowed from the workboat's config (the tests here are about sockets).
   ...hullDataFrom(CONFIG.vessels.workboat),

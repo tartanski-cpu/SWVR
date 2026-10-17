@@ -8,8 +8,8 @@
  * through the physics port, inside the hull's step, where the outboard always was.
  *
  * Its state is today's VesselState (the battery is `battery`; its thrust and swing are
- * `thrust` and `rudder`, read by the views) until M6c. Its config is the vessel's,
- * CONFIG.vessels.skiff.outboard, until 6b; its tiller is still the app's.
+ * `thrust` and `rudder`, read by the views) until 6d. Its defaults are CONFIG.vessels.skiff.outboard; the world reads it as
+ * her 'outboard' gear (M6b). Its tiller is still the app's until 6c.
  */
 import { CONFIG } from '../../config';
 import type { ModuleDefinition } from '../../modular/module';
@@ -25,6 +25,8 @@ export const ELECTRIC_OUTBOARD: ModuleDefinition<OutboardConfig, VesselState> = 
   fits: ['transom.mount'],
   defaults: CONFIG.vessels.skiff.outboard,
   validateConfig: (c) => (c.staticThrustN > 0 && c.batteryKWh > 0 ? [] : ['the outboard needs thrust and a battery']),
+  provides: () => [{ gear: 'outboard' }],
+  gear: (c) => ({ outboard: c }),
   ports: {
     on: { dir: 'read', key: 'outboard.on' },
     gear: { dir: 'read', key: 'outboard.gear' },
@@ -40,7 +42,7 @@ export const ELECTRIC_OUTBOARD: ModuleDefinition<OutboardConfig, VesselState> = 
   physical: (c) => ({ powerKw: c.powerKw }),
   sim: {
     init: () => {
-      throw new Error('the outboard keeps its state in VesselState until M6c');
+      throw new Error('the outboard keeps its state in VesselState until 6d');
     },
     legacyState: (v) => v,
     tick: () => {},

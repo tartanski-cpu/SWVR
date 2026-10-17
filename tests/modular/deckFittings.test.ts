@@ -20,11 +20,11 @@ import { hullPlan, onGear, STEP_HEIGHT, vesselWalkArea } from '../../src/vessel/
 import { berthAxis } from '../../src/vessel/physics/mooring';
 import { placeVessel } from '../../src/vessel/vesselControl';
 import { BERTHS } from '../../src/world/archipelago';
-import { asWorkboat, VESSEL_DEFS } from '../../src/vessel/vesselDef';
+import { VESSEL_DEFS, type WheelhouseDef } from '../../src/vessel/vesselDef';
 import { startEngine } from '../helpers/engine';
 
 const DT = 1 / 60;
-const def = asWorkboat(VESSEL_DEFS.workboat);
+const def = (VESSEL_DEFS.workboat as WheelhouseDef);
 const plan = hullPlan(def);
 const boat = { defId: 'workboat' };
 const berth = BERTHS.find((b) => b.id === 'calder-cargo')!;
@@ -47,13 +47,13 @@ afterEach(() => setVesselRecipe('workboat', null));
 
 /** v1.0's deck gear check (vessel/layout.ts onDeckGear, as it was). */
 function v10OnDeckGear(x: number, z: number, pad: number): boolean {
-  const tc = def.tenderCrane!;
+  const tc = CONFIG.vessels.workboat.tenderCrane;
   if (Math.abs(x - tc.stow[0]) < tc.cradle.halfWidth + pad && z > tc.cradle.z0 - pad && z < tc.cradle.z1 + pad) return true;
   if (Math.hypot(x - tc.column[0], z - tc.column[1]) < tc.columnRadius + pad) return true;
-  const tw = def.towWinch!;
+  const tw = CONFIG.vessels.workboat.towWinch;
   const hw = tw.drumWidth / 2;
   if (x > -hw - 0.12 - pad && x < hw + 0.1 + tw.housing.width + pad && Math.abs(z - tw.z) < 0.25 + pad) return true;
-  const af = def.fishing!.aFrame;
+  const af = CONFIG.vessels.workboat.fishing.aFrame;
   const footZ = plan.transom - af.footFromTransom;
   const x0 = plan.halfBeam(footZ) - af.footInset;
   for (const fz of [footZ, footZ - af.braceForward]) if (Math.hypot(Math.abs(x) - x0, z - fz) < 0.12 + pad) return true;
@@ -100,21 +100,21 @@ describe('footprints: what you walk round comes from the modules', () => {
 
 describe('the gear\'s facts are where v1.0 had them', () => {
   it('the searchlight and the fire monitor: the vessel\'s own figures', () => {
-    expect(gearOf(boat, 'searchlight')).toMatchObject(def.spotlight);
-    expect(gearOf(boat, 'fireMonitor')).toEqual(def.fireMonitor);
+    expect(gearOf(boat, 'searchlight')).toMatchObject(CONFIG.vessels.workboat.spotlight);
+    expect(gearOf(boat, 'fireMonitor')).toEqual(CONFIG.vessels.workboat.fireMonitor);
   });
 
   it('the cleats: the bow and stern lines\' stations and height', () => {
-    expect(gearOf(boat, 'bowCleat')).toEqual({ z: def.mooring.cleatFwdZ, lineY: def.mooring.lineY });
-    expect(gearOf(boat, 'sternCleat')).toEqual({ z: def.mooring.cleatAftZ, lineY: def.mooring.lineY });
+    expect(gearOf(boat, 'bowCleat')).toEqual({ z: CONFIG.vessels.workboat.mooring.cleatFwdZ, lineY: CONFIG.vessels.workboat.mooring.lineY });
+    expect(gearOf(boat, 'sternCleat')).toEqual({ z: CONFIG.vessels.workboat.mooring.cleatAftZ, lineY: CONFIG.vessels.workboat.mooring.lineY });
   });
 
   it('the swim ladder, the life ring and the boat hook', () => {
-    const c = def.swimLadder!;
+    const c = CONFIG.vessels.workboat.swimLadder;
     const hb = plan.halfBeam(c.z);
     expect(gearOf(boat, 'swimLadder')).toEqual({ x: hb + 0.08, z: c.z, bottom: c.bottom, top: plan.deckY(c.z) + def.layout.bulwarkHeight, deckX: hb - 0.6, range: c.range, width: c.width });
-    expect(gearOf(boat, 'lifeRing')).toEqual({ stow: def.rescueGear.ringStow, cleat: def.rescueGear.ringCleat });
-    expect(gearOf(boat, 'boatHook')).toEqual({ stow: def.rescueGear.hookStow });
+    expect(gearOf(boat, 'lifeRing')).toEqual({ stow: CONFIG.vessels.workboat.rescueGear.ringStow, cleat: CONFIG.vessels.workboat.rescueGear.ringCleat });
+    expect(gearOf(boat, 'boatHook')).toEqual({ stow: CONFIG.vessels.workboat.rescueGear.hookStow });
     expect(gearOf(boat, 'fenders')).toEqual({});
   });
 
@@ -122,7 +122,7 @@ describe('the gear\'s facts are where v1.0 had them', () => {
     const { v } = setup();
     const lights = vesselRuntime(v)!.sim.mounts.find((m) => m.path === 'mast/masthead')!;
     expect(lights.def.id).toBe('electrical.consumer');
-    expect(lights.socket.transform.position).toEqual(def.navLights.masthead);
+    expect(lights.socket.transform.position).toEqual(CONFIG.vessels.workboat.navLights.masthead);
   });
 });
 

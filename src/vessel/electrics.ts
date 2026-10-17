@@ -15,11 +15,11 @@
  * the sources are declared by the boat's modules (each light, pump, radio, the starter and
  * glow plugs, the alternator), the batteries are the battery-bank module's; the master,
  * the selector and the breakers (the circuits) are the network's own. What counts as
- * powered (isPowered) is the same rule as before; it still reads the vessel's own battery
- * config (a test keeps it equal to the battery module's) until M6.
+ * powered (isPowered) is the same rule as before, reading the battery bank's 'batteries'
+ * gear (M6b).
  */
 import { clamp } from '../core/math';
-import { VESSEL_DEFS } from './vesselDef';
+import { gearOf } from '../boats/sims';
 import type { BreakerName, ElectricsState, VesselState } from './vesselState';
 
 /** Charge of the battery (or batteries) the selector is on. */
@@ -41,7 +41,7 @@ export function selectedSoc(e: ElectricsState): number {
 export function isPowered(s: VesselState, breaker?: BreakerName): boolean {
   const e = s.electrics;
   if (!e) return true;
-  const cfg = VESSEL_DEFS[s.defId].electrics;
+  const cfg = gearOf(s, 'batteries');
   return e.master > 0 && !!cfg && selectedSoc(e) > cfg.cutoffSoc && (!breaker || e.breakers[breaker] > 0);
 }
 
@@ -59,11 +59,6 @@ export function hydraulicsOn(s: VesselState): boolean {
 /** Resting (no load) voltage at a state of charge. */
 export function restVolts(cfg: { restVolts: readonly [number, number] }, soc: number): number {
   return cfg.restVolts[0] + (cfg.restVolts[1] - cfg.restVolts[0]) * clamp(soc, 0, 1);
-}
-
-/** Is the bilge pump running: its breaker live and water over the float switch? */
-export function bilgePumping(s: VesselState): boolean {
-  return (s.bilge ?? 0) > 0.01 && isPowered(s, 'bilge');
 }
 
 /** The batteries, as the network needs them. */

@@ -6,7 +6,7 @@
  *
  * It gives the boat fenders. Drawn in the boat's axes: the basket at `basket` (x, z) on
  * the deck, the fenders at the stations `z`, each side, hung from the hull's beam and deck
- * (the vessel's config until M6). One instanced draw call for the six.
+ * (defaults: CONFIG.vessels.workboat.fenders). One instanced draw call for the six.
  */
 import { CONFIG } from '../../config';
 import { FenderBasket, FendersView } from '../../controls/deckGear';

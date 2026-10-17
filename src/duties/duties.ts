@@ -28,7 +28,7 @@
  *   fire        a fire job: answer the call, pump on, put it out with the monitor.
  */
 import { CONFIG } from '../config';
-import type { WorldState } from '../core/world';
+import { homeVessel, type WorldState } from '../core/world';
 import { visibilityAt } from '../environment/weather';
 import { isPowered } from '../vessel/electrics';
 import { cargoDestination, nearestPort, portById } from '../rescue/rescue';
@@ -39,8 +39,8 @@ import { answerFogSignal } from '../traffic/traffic';
 import { PORTS } from '../world/archipelago';
 import { allBerths } from '../world/berths';
 import { oilCheckDue } from '../vessel/maintenance';
-import { leverDemand, preheatNeeded } from '../vessel/physics/propulsion';
-import { isWorkboat, VESSEL_DEFS, type WorkboatDef } from '../vessel/vesselDef';
+import { leverDemand, preheatNeeded, type EngineSpec } from '../vessel/physics/propulsion';
+import { VESSEL_DEFS } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
 import { gearOf } from '../boats/sims';
 
@@ -81,18 +81,18 @@ export function createDuties(): DutiesState {
 }
 
 /** The boat's start-up steps, in order, with how to tell each is done. */
-const STARTUP: { text: string; check: (v: VesselState, def: WorkboatDef) => boolean; optional?: boolean }[] = [
+const STARTUP: { text: string; check: (v: VesselState, diesel: EngineSpec) => boolean; optional?: boolean }[] = [
   { text: 'Battery master ON (aft wall, by the door)', check: (v) => (v.electrics?.master ?? 1) > 0 },
   { text: 'INSTR breaker ON (panel by the helm)', check: (v) => (v.electrics?.breakers.instruments ?? 1) > 0 },
-  { text: 'Throttle in NEUTRAL', check: (v, def) => leverDemand(def, v.controls.lever).gear === 0 },
-  { text: 'Key ON, hold HEAT until the glow lamp goes out', check: (v, def) => v.engine.key > 0 && v.engine.glow >= preheatNeeded(v, def) },
+  { text: 'Throttle in NEUTRAL', check: (v, diesel) => leverDemand(diesel, v.controls.lever).gear === 0 },
+  { text: 'Key ON, hold HEAT until the glow lamp goes out', check: (v, diesel) => v.engine.key > 0 && v.engine.glow >= preheatNeeded(v, diesel) },
   { text: 'Hold START until she runs', check: (v) => v.engine.phase === 'running' },
   { text: 'Breakers as needed: CHART, RADIO, NAV LTS', check: (v) => !!v.electrics && v.electrics.breakers.chart > 0 && v.electrics.breakers.radio > 0, optional: true },
 ];
 
 /** Is the boat cold: engine off and below the cold-start temperature? */
-function isCold(v: VesselState, def: WorkboatDef): boolean {
-  return v.engine.phase === 'off' && v.engine.coolantC < def.engine.coldBelowC;
+function isCold(v: VesselState, diesel: EngineSpec): boolean {
+  return v.engine.phase === 'off' && v.engine.coolantC < diesel.engine.coldBelowC;
 }
 
 function addDuty(d: DutiesState, kind: Duty['kind'], title: string, steps: DutyStep[], now: number): Duty {
@@ -178,7 +178,7 @@ function stepSecure(world: WorldState, d: DutiesState, v: VesselState): void {
 
 /** Water in the bilge over the alarm level: pump her dry. */
 function stepBilgeDuty(world: WorldState, d: DutiesState, v: VesselState): void {
-  const cfg = VESSEL_DEFS[v.defId].bilge;
+  const cfg = gearOf(v, 'bilgePump');
   if (!cfg || v.bilge === undefined) return;
   let duty = open(d, 'bilge');
   if (!duty) {
@@ -235,7 +235,7 @@ function stepLash(world: WorldState, d: DutiesState, v: VesselState): void {
 
 /** Engine oil: a check falls due every so often; top up if the dipstick says low. */
 function stepOilDuty(world: WorldState, d: DutiesState, v: VesselState): void {
-  const cfg = VESSEL_DEFS[v.defId].maintenance;
+  const cfg = gearOf(v, 'diesel')?.maintenance;
   if (!cfg || v.engine.oil === undefined) return;
   let duty = open(d, 'oil');
   if (!duty && oilCheckDue(v)) {
@@ -382,13 +382,14 @@ export function stepDuties(world: WorldState): void {
   const d = (world.duties ??= createDuties());
   const now = world.time;
   const cfg = CONFIG.duties;
-  const v = Object.values(world.vessels).find((x) => isWorkboat(VESSEL_DEFS[x.defId]));
-  const def = v && (VESSEL_DEFS[v.defId] as WorkboatDef);
+  const v = homeVessel(world);
+  // Her start-up and upkeep duties are for a boat with a diesel (M6b: her modules' gear).
+  const diesel = v && gearOf(v, 'diesel');
 
-  if (v && def) {
+  if (v && diesel) {
     // Start-up: up while the boat is cold and not yet started.
     let startup = d.items.find((x) => x.kind === 'startup' && x.doneAt === undefined);
-    if (!startup && isCold(v, def)) {
+    if (!startup && isCold(v, diesel)) {
       startup = {
         id: `duty-${++d.seq}`,
         kind: 'startup',
@@ -400,7 +401,7 @@ export function stepDuties(world: WorldState): void {
     }
     if (startup) {
       STARTUP.forEach((s, i) => {
-        if (!startup!.steps[i].done && s.check(v, def)) startup!.steps[i].done = true;
+        if (!startup!.steps[i].done && s.check(v, diesel)) startup!.steps[i].done = true;
       });
       // Running (however she was started): the duty is done.
       if (v.engine.phase === 'running') {

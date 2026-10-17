@@ -15,7 +15,7 @@
  * engine always was: the shaft-line thrust and the prop walk at the propeller. The
  * propeller's inflow and its immersion are taken just aft of it, at the rudder (as always).
  *
- * Its state is today's VesselState.engine (until M6). Its defaults are the workboat's
+ * Its state is today's VesselState.engine (until 6d). Its defaults are the workboat's
  * 400 kW engine and propeller; another boat gives her own in her recipe.
  */
 import { CONFIG } from '../../config';
@@ -43,6 +43,8 @@ export interface DieselInboardConfig {
   glowAmps: number;
   /** Dry mass with its gearbox (kg), at its bed. */
   massKg: number;
+  /** Its upkeep: oil at the start, the checks, the OIL lamp; the block's place under the floor, its dipstick and filler. */
+  maintenance: typeof wb.maintenance;
 }
 
 export const DIESEL_INBOARD: ModuleDefinition<DieselInboardConfig, EngineState> = {
@@ -55,6 +57,7 @@ export const DIESEL_INBOARD: ModuleDefinition<DieselInboardConfig, EngineState> 
     propeller: wb.propeller,
     sampleAt: wb.rudder.position,
     oilUse: wb.maintenance.use,
+    maintenance: wb.maintenance,
     ...CONFIG.modules.dieselInboard,
   },
   validateConfig: (c) => [...(c.propeller.diameter > 0 ? [] : ['the propeller needs a diameter']), ...(c.alternatorAmps >= 0 ? [] : ['alternatorAmps should be 0 or more'])],
@@ -75,7 +78,8 @@ export const DIESEL_INBOARD: ModuleDefinition<DieselInboardConfig, EngineState> 
     gear: { dir: 'write', key: 'propulsion.gear' },
   },
   needs: () => [{ fuel: 'diesel' }],
-  provides: () => [{ power: 'pto' }],
+  provides: () => [{ power: 'pto' }, { gear: 'diesel' }],
+  gear: (c) => ({ diesel: { engine: c.engine, propeller: c.propeller, maintenance: c.maintenance } }),
   // Its mass at its bed (the socket): it's part of the boat's mass, CG and inertia (M6).
   physical: (c) => ({ powerKw: c.engine.powerKw, massKg: c.massKg }),
   power: (c) => [
@@ -87,7 +91,7 @@ export const DIESEL_INBOARD: ModuleDefinition<DieselInboardConfig, EngineState> 
   ],
   sim: {
     init: () => {
-      throw new Error('the diesel keeps its state in VesselState.engine until M6');
+      throw new Error('the diesel keeps its state in VesselState.engine until 6d');
     },
     legacyState: (v) => v.engine,
     physics(port, { config: c, io }, e, dt) {

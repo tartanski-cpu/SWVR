@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { CONFIG } from '../../config';
-import type { WorkboatDef } from '../vesselDef';
+import type { WheelhouseDef } from '../vesselDef';
 import { frontRake } from './hullMesh';
 
 /**
@@ -46,7 +46,7 @@ export class RainGlass {
   private readonly s = new THREE.Vector3();
   private readonly level = new THREE.Quaternion();
 
-  constructor(def: WorkboatDef) {
+  constructor(def: WheelhouseDef) {
     const wh = def.layout.wheelhouse;
     const c = CONFIG.rain;
     const sill = wh.floorY + (wh.frontSill ?? wh.windowSill); // the front panes' sill

@@ -7,7 +7,6 @@ import { createWorld } from '../src/core/world';
 import { parseCareer, repairBlocker, repairCost, serializeCareer } from '../src/career/career';
 import { stepWear, wearRackCap } from '../src/vessel/wear';
 import { placeVessel } from '../src/vessel/vesselControl';
-import { VESSEL_DEFS } from '../src/vessel/vesselDef';
 import { BERTHS } from '../src/world/archipelago';
 
 const DT = 1 / 60;
@@ -68,24 +67,23 @@ describe('damage and wear (phase 2)', { timeout: 60000 }, () => {
 
   it('impacts and grinding by the numbers; a hot or dry engine wears and loses power', () => {
     const { v } = setup();
-    const def = VESSEL_DEFS[v.defId];
     v.damage = 0;
     v.contact = { force: 0, slide: 0, impact: 2 };
-    stepWear(v, def, DT);
+    stepWear(v, DT);
     expect(v.damage).toBeCloseTo((2 - CONFIG.wear.impactSafe) ** 2 * CONFIG.wear.impactDamage, 6);
     v.contact = { force: 0, slide: 0, impact: 0.8 }; // docking speed: nothing
-    stepWear(v, def, DT);
+    stepWear(v, DT);
     expect(v.damage).toBeCloseTo((2 - CONFIG.wear.impactSafe) ** 2 * CONFIG.wear.impactDamage, 6);
     v.engine.phase = 'running';
     v.engine.coolantC = 110;
     v.engine.wear = 0;
-    for (let i = 0; i < 60 * 60; i++) stepWear(v, def, DT);
+    for (let i = 0; i < 60 * 60; i++) stepWear(v, DT);
     expect(v.engine.wear!).toBeCloseTo(60 * (110 - CONFIG.wear.hotC) * CONFIG.wear.hotWear, 3);
     expect(wearRackCap(v)).toBeLessThan(1);
     v.engine.coolantC = 85;
     v.engine.oil = 0.05;
     const w0 = v.engine.wear!;
-    stepWear(v, def, 1);
+    stepWear(v, 1);
     expect(v.engine.wear! - w0).toBeCloseTo(CONFIG.wear.dryWear, 6);
   });
 

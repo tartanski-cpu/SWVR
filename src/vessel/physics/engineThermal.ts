@@ -4,18 +4,13 @@
  */
 import { CONFIG } from '../../config';
 import { clamp } from '../../core/math';
-import type { WorkboatDef } from '../vesselDef';
 import type { EngineState, VesselState } from '../vesselState';
-import { fullLoadTorque } from './propulsion';
+import { fullLoadTorque, type EngineSpec } from './propulsion';
 
 const TWO_PI = Math.PI * 2;
 
 /** Fuel mass flow (kg/s) for the engine's current rack and RPM (0 unless running). */
-export function fuelFlowKgPerS(s: VesselState, def: WorkboatDef): number {
-  return fuelFlowFor(s.engine, def);
-}
-
-export function fuelFlowFor(e: EngineState, def: Pick<WorkboatDef, 'engine'>): number {
+export function fuelFlowFor(e: EngineState, def: EngineSpec): number {
   if (e.phase !== 'running' || e.rack <= 0) return 0;
   const f = def.engine.fuel;
   const indicatedKw = (e.rack * fullLoadTorque(def, e.rpm) * ((e.rpm * TWO_PI) / 60)) / 1000;
@@ -24,22 +19,17 @@ export function fuelFlowFor(e: EngineState, def: Pick<WorkboatDef, 'engine'>): n
 }
 
 /** Highest fuel rack the governor may use at this coolant temperature (overheat derate). */
-export function derateRackCap(def: Pick<WorkboatDef, 'engine'>, coolantC: number): number {
+export function derateRackCap(def: EngineSpec, coolantC: number): number {
   const th = def.engine.thermal;
   const t = clamp((coolantC - th.derateStartC) / (th.derateFullC - th.derateStartC), 0, 1);
   return 1 - t * (1 - th.derateRack);
 }
 
-/** Burn fuel, heat and cool the engine, and stop it if it runs dry or overheats. */
-export function stepFuelAndHeat(s: VesselState, def: WorkboatDef, dt: number): void {
-  s.engine.fuelL = fuelAndHeatStep(s.engine, def, s.engine.fuelL, dt);
-}
-
 /**
- * stepFuelAndHeat on the engine's own state, drawing from a tank holding `fuelL`; returns
- * what's left in the tank.
+ * Burn fuel, heat and cool the engine, and stop it if it runs dry or overheats: on the
+ * engine's own state, drawing from a tank holding `fuelL`; returns what's left in the tank.
  */
-export function fuelAndHeatStep(e: EngineState, def: Pick<WorkboatDef, 'engine'>, fuelL: number, dt: number): number {
+export function fuelAndHeatStep(e: EngineState, def: EngineSpec, fuelL: number, dt: number): number {
   const f = def.engine.fuel;
   const th = def.engine.thermal;
   const seaC = CONFIG.environment.seaTempC;
@@ -67,7 +57,7 @@ export function fuelAndHeatStep(e: EngineState, def: Pick<WorkboatDef, 'engine'>
 }
 
 /** Alarms for displays and audio. */
-export function engineAlarms(s: VesselState, def: WorkboatDef): { highTemp: boolean; lowFuel: boolean } {
+export function engineAlarms(s: VesselState, def: EngineSpec): { highTemp: boolean; lowFuel: boolean } {
   return {
     highTemp: s.engine.coolantC > def.engine.thermal.alarmC,
     lowFuel: s.engine.fuelL < def.engine.fuel.lowFraction * def.engine.fuel.tankL,

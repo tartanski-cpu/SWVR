@@ -12,14 +12,14 @@
  * A hull has no behaviour beyond floating. Anything that does something is a module.
  *
  * Since M6a the hull holds its shape and handling numbers, and the boat's vessel definition
- * (VESSEL_DEFS) is built from it and her recipe (modular/vesselAssembly.ts). Until 6b the
- * equipment only some boats carry (her bridge layout, lights, gear positions...) still comes
- * from the vessel config named by `legacyDef`; 6b drops it.
+ * (VESSEL_DEFS) is built from it and her recipe (modular/vesselAssembly.ts). Since 6b it
+ * also holds what's still built into her (`fittings`: lights, exhaust outlet, rescue places,
+ * the wheelhouse fit-out the bridge reads until 6c); her machinery and gear are modules.
  */
 import type { HullParams } from '../vessel/hullForm';
 import { hullPlan } from '../vessel/layout';
 import type { HullForm } from '../vessel/hullForm';
-import type { LayoutConfig, VesselConfig } from '../vessel/vesselDef';
+import type { HullFittings, LayoutConfig, VesselConfig } from '../vessel/vesselDef';
 import type { MassProperties } from './massProperties';
 import type { BusKey } from './busKeys';
 import type { HullQueries, Provision } from './module';
@@ -31,8 +31,6 @@ export interface HullDefinition {
   version: number;
   /** For players and the shipyard: 'Workboat, 12 m'. */
   name: string;
-  /** Until 6b: the vessel config (CONFIG.vessels.<this>) her equipment's positions still come from. */
-  legacyDef: string;
   /** Where she's mounted things: every module goes on one of these, or on a module's own. */
   sockets: Socket[];
   /** What the hull itself gives the boat (her wiring: the breakers' circuits). */
@@ -63,6 +61,8 @@ export interface HullDefinition {
   cargo: VesselConfig['cargo'];
   /** Debug spawn and drop test placement. */
   spawn: VesselConfig['spawn'];
+  /** What's built into her (6b): lights, exhaust outlet, rescue places, the bridge's fit-out, a tow's look. */
+  fittings?: HullFittings;
 }
 
 /** A door, hatch or window of the hull. */

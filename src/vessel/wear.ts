@@ -18,12 +18,13 @@
  *            1 - wear x `powerLoss`.
  */
 import { CONFIG } from '../config';
-import type { VesselDef } from './vesselDef';
+import { gearOf } from '../boats/sims';
 import type { EngineState, VesselState } from './vesselState';
 
-export function stepWear(s: VesselState, def: VesselDef, dt: number): void {
+/** The hull's wear and, if she has a diesel, the engine's (for tests: on a boat the engine's is its module's). */
+export function stepWear(s: VesselState, dt: number): void {
   stepHullWear(s, dt);
-  if (def.engine) engineWearStep(s.engine, dt);
+  if (gearOf(s, 'diesel')) engineWearStep(s.engine, dt);
 }
 
 /** The hull's damage from hard hits and grinding (on a recipe boat the engine's wear is its module's). */

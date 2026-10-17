@@ -1869,7 +1869,7 @@ The aim: rebuild the boat as reusable modules on a hull, so a new boat is mostly
 - `busKeys.ts`: THE registry. 88 keys, each with type, unit, range and writer. Each is bound to the `VesselState` field where today's code keeps it (the facade), so nothing else changed. Old channel names are aliases: `lever` finds `throttle.demand`.
 - `socket.ts`: socket types and capacities, and `fits()`.
 - `module.ts`: the module definition with its sim and view halves; ports, needs and provides, power roles, state migration.
-- `hull.ts`: the hull definition, standing on today's vessel definition until M6.
+- `hull.ts`: the hull definition, its shape, handling and lightship (M6a) and what's built into her, its `fittings` (M6b).
 - `recipe.ts`: recipes, the interlock conditions (`"hatch.engine.open == false && ..."`), the JSON loader, and the validator. The validator answers in sentences such as "engineBay: engine.test is 600 kW; this engine.bay takes up to 450 kW".
 
 **Tests (30 new, `tests/modular/`)** cover:
@@ -2311,7 +2311,7 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **What changed:**
   - **The hull definition holds the hull** (`modular/hull.ts`): her form (today's hard-chine generator and its parameters), her lightship, added mass, damping, resistance, windage, deck and wheelhouse layout, cargo deck, helm position and spawn. The numbers stay in `CONFIG.vessels` (the tunables' home); the hull files take them from there (`boats/hullData.ts`).
   - **Five hulls, five recipes:** `hull.workboat-12m` (as before), `hull.skiff-3.6`, and the tows' `hull.derelict-cruiser`, `hull.log-raft`, `hull.work-barge`. The tows' recipes mount nothing: a tow is a hull with no modules.
-  - **VESSEL_DEFS is built from the recipes** (`modular/vesselAssembly.ts`): the hull's form and handling, plus her modules. Until 6b the positions of equipment only some boats carry (the bridge layout, lights...) still come from the vessel config the hull names.
+  - **VESSEL_DEFS is built from the recipes** (`modular/vesselAssembly.ts`): the hull's form and handling, plus her modules. Until 6b the positions of equipment only some boats carry (the bridge layout, lights...) still came from the vessel config the hull named.
   - **Lightship and module masses** (`modular/massProperties.ts`, section 2.6 of the plan): the diesel declares its mass (1,300 kg with its gearbox, `CONFIG.modules.dieselInboard.massKg`), and so do the two house batteries (28 kg each, `CONFIG.modules.batteryBank.massKg`). The hull's lightship is the weighed boat (18.3 t, CG and radii of gyration as before) less those two, and the boat's mass, CG and inertia are summed back from her lightship and her modules (parallel-axis rule, as for deck cargo). So she weighs, trims and rolls exactly as before, and a recipe with a heavier battery bank makes an honestly heavier boat, her CG drawn toward it.
   - **The skiff's outboard is a module,** `propulsion.electric-outboard` on a new `transom.mount` socket: the motor, its battery and its thrust through the physics port, inside the hull's step where it always was. Its arithmetic is unchanged (`vessel/physics/outboard.ts`). Her tiller is still the app's until 6b.
   - Every boat now runs her modules' upkeep the same way (the old "no recipe" path in the simulation is gone; for the skiff and tows it did the same things).
@@ -2326,6 +2326,30 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Owner test** (at /SWVR/next/): she should handle exactly as before:
   - **VR:** drive the workboat out and back, a crash stop and a hard turn; launch the skiff and drive her on the tiller; take a tow.
   - **Desktop:** the same with the keys.
+
+### M6b: no more "the workboat": the home boat, and each setting where it belongs (done, on /next/ for the owner to test; nothing should look or handle differently)
+
+- **M6 is now four stops, not three.** What was left of 6b turned out to be two jobs of quite different kinds, so it's split to keep each stop small enough to test properly:
+  - **6b (this):** the simulation side. The world knows which boat is yours; nothing asks "is this the workboat?" any more; every machinery setting is read from the module that owns it.
+  - **6c (next):** the drawing side. The hand-built Bridge (the doors and gate, the engine under the hatch, the rain on the glass, the lights) becomes a view put together from each boat's recipe; the app's one-boat pieces become per boat; the skiff's tiller becomes a module.
+  - **6d:** the bus's flat record in the boat's state, the new save shape with a migration (with `next` on its own save keys first, so a test there can't spoil your career), and recipes in multiplayer's welcome. (This was "6c" before.)
+- **What changed:**
+  - **The home boat** (`world.homeVesselId`, `homeVessel(world)` in `core/world.ts`): the rescues, tows, fires, salvage, cargo duties, potting, forecasts, the tutorial, the career and multiplayer find your boat by it, instead of "the first workboat". A world saved or sent before this still works (it falls back to the first workboat).
+  - **`WorkboatDef`, `isWorkboat` and `asWorkboat` are gone.** They meant "a boat with everything": engine, bridge, lights, anchor, mooring and rescue gear all at once. Each place that used them now asks for just what it needs.
+  - **Machinery settings come from the module that owns them** (`gearOf(boat, kind)`), no longer from the vessel definition. New gear kinds: `diesel` (engine, propeller, and its upkeep: oil, checks, where the block and dipstick are), `rudder`, `outboard`, `batteries`, `bilgePump` (with the BILGE lamp's level), `chartTable` (its plan on the floor, for the walk area, worked out from its socket) and `midCleat`. The engine sound, the dash screens, the warning lamps, the duties, refuelling, the walk area, the skiff's painter and the sea trials all read these. A boat without a diesel simply has no engine duties, lamps or smoke, rather than breaking.
+  - **What's built into a hull is the hull's** (`fittings` on the hull definition): her lights' positions, the exhaust outlet, the places a rescued casualty is put, and (until 6c) the wheelhouse fit-out the Bridge places its controls by; a tow's look and radio name. The old link to the vessel config (`legacyDef`) is gone: a boat is her hull plus her modules.
+  - **A hull with a wheelhouse** is now the one remaining "kind of boat" in the code (`WheelhouseDef`): a fact of her shape. The Bridge, the wheelhouse interior and the app's wheelhouse views need one until 6c.
+  - **The lights, smoke, anchor chain and mooring lines are drawn where the boat has them,** each on its own, instead of all-or-nothing for "the workboat".
+  - Dead code removed: the old (vessel, workboat) wrappers for the engine, steering, ignition, fuel, anchor and bilge, which nothing called since the engine became a module.
+- **Config:** no new tunables. The diesel module's defaults now include the workboat's `maintenance` block, and the bilge pump's its `bilge.alarmAt` (the same figures). The quick-start and battery-drain switches are session settings and stay where they were, `CONFIG.vessels.workboat.electrics.quickStart` / `drainBetweenSessions`.
+- **Exactly as before:**
+  - All twelve golden runs match without re-recording; the sea-trials report is identical.
+  - Draw calls unchanged: 62 / 57 / 115 / 36 by day, 65 / 58 / 116 / 35 at night.
+- **Tests (1 new, 459 in all, all pass):** her machinery and fittings are where her vessel config had them (each gear kind equals the old figures; the skiff and tows have no diesel, rudder, batteries, bilge pump or chart table; the hull's fittings are the workboat's). One test changed its expectation: a skiff with her outboard taken off now has no outboard battery at all (her state follows her modules).
+- **Checked in the browser:** the workboat quick-starts and makes way; the skiff drives on her outboard and draws her battery; a tow appears; the home boat is set; at night the deck floods, rail and cabin lights, nav lights and the engine, RPM and rudder screens all draw. No errors apart from the dev server's favicon.
+- **Owner test** (at /SWVR/next/): she should look and handle exactly as before:
+  - **VR:** start her properly (master, breakers, key, HEAT, START) and check the warning lamps and the engine screens; drive out, a hard turn, a crash stop; dock with the mooring lines; let the anchor go and weigh it; launch the skiff, drive her, make her painter fast to a midship cleat; at night, the nav lights, floods and cabin light; take a tow; open the chart table's leaf and walk round it.
+  - **Desktop:** the same with the keys, plus the E key (quick start, if it's on) and Menu > Tests > Quick start; refuel at a fuel berth.
 
 ### Test address for work in progress (owner request)
 

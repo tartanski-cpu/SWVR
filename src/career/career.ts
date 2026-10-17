@@ -29,9 +29,8 @@
  */
 import { CONFIG } from '../config';
 import type { Intent } from '../core/intents';
-import type { WorldState } from '../core/world';
+import { homeVessel, type WorldState } from '../core/world';
 import { PORTS } from '../world/archipelago';
-import { isWorkboat, VESSEL_DEFS } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
 import { sayRadio } from '../rescue/rescue';
 import { cargoPortAt } from '../cargo/cargo';
@@ -282,7 +281,7 @@ function refreshOffers(world: WorldState, c: CareerState): void {
 }
 
 function workboat(world: WorldState): VesselState | undefined {
-  return Object.values(world.vessels).find((v) => isWorkboat(VESSEL_DEFS[v.defId]));
+  return homeVessel(world);
 }
 
 /** The port whose office she's at: alongside its berth or anchored in its bay (cargo.ts's test). */

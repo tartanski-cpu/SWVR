@@ -5,9 +5,10 @@ import { Toggle } from '../../controls/Toggle';
 import type { VesselState } from '../vesselState';
 import { drawPaperChart, type PaperChart } from '../../nav/paperChart';
 import { flatVertexColorMaterial, mergeParts, part } from '../../render/geometryUtils';
-import type { VesselDef } from '../vesselDef';
+import type { CONFIG } from '../../config';
 
-type ChartTableConfig = NonNullable<VesselDef['chartTable']>;
+/** Its plan from its own corner, its lamp and switch (the chart-table module gives them). */
+type ChartTableConfig = typeof CONFIG.vessels.workboat.chartTable;
 
 /**
  * The chart table: a drop-leaf on the port wall (owner request: with the logbook gone the

@@ -1,8 +1,7 @@
 import * as THREE from 'three';
 import { CONFIG } from '../config';
-import type { WorldState } from '../core/world';
+import { homeVessel, type WorldState } from '../core/world';
 import type { PlayerState } from '../player/playerState';
-import { VESSEL_DEFS, isWorkboat } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
 import { groundHeight } from '../world/terrain';
 import { arcWetting } from './fire';
@@ -29,7 +28,7 @@ const path = Array.from({ length: 40 }, () => new THREE.Vector3());
 
 /** The ship that carries the extinguisher (the first workboat). */
 export function extinguisherShip(world: WorldState): VesselState | undefined {
-  return Object.values(world.vessels).find((v) => isWorkboat(VESSEL_DEFS[v.defId]));
+  return homeVessel(world);
 }
 
 /** A player's hand-gear nozzle and direction in the world (from their pose's frame), or false. */

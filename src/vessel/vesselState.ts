@@ -1,7 +1,7 @@
 import type { EntityId } from '../core/ids';
 import { CONFIG } from '../config';
 import type { Quat, Vec3 } from '../core/math';
-import { VESSEL_DEFS } from './vesselDef';
+import { gearOf } from '../boats/sims';
 
 /** Control positions as set by players (via intents). */
 export interface VesselControls {
@@ -243,6 +243,9 @@ export interface TenderState {
 }
 
 export function createVesselState(id: EntityId, defId: string): VesselState {
+  // What she carries decides what state she has (modular boats M6b: her modules' gear).
+  const v = { defId };
+  const diesel = gearOf(v, 'diesel');
   return {
     id,
     defId,
@@ -258,7 +261,7 @@ export function createVesselState(id: EntityId, defId: string): VesselState {
       rack: 0,
       gear: 0,
       shift: 0,
-      fuelL: VESSEL_DEFS[defId].engine?.fuel.startL ?? 0,
+      fuelL: diesel?.engine.fuel.startL ?? 0,
       fuelFlowLph: 0,
       // A cold engine: everything at sea temperature.
       coolantC: CONFIG.environment.seaTempC,
@@ -266,7 +269,7 @@ export function createVesselState(id: EntityId, defId: string): VesselState {
       coolingFault: false,
       key: 0,
       glow: 0,
-      ...(VESSEL_DEFS[defId].maintenance ? { oil: VESSEL_DEFS[defId].maintenance!.oilStart, sinceCheck: 0, wear: 0 } : {}),
+      ...(diesel ? { oil: diesel.maintenance.oilStart, sinceCheck: 0, wear: 0 } : {}),
     },
     holds: {},
     rudder: 0,
@@ -275,11 +278,11 @@ export function createVesselState(id: EntityId, defId: string): VesselState {
     mooring: { phase: 'free', berthId: null, reversed: false, t: 0, bow: 0, stern: 0 },
     refuelling: false,
     contact: { force: 0, slide: 0, impact: 0 },
-    ...(VESSEL_DEFS[defId].outboard ? { battery: 1 } : {}),
-    ...(VESSEL_DEFS[defId].bilge ? { bilge: 0, damage: 0 } : {}),
+    ...(gearOf(v, 'outboard') ? { battery: 1 } : {}),
+    ...(gearOf(v, 'bilgePump') ? { bilge: 0, damage: 0 } : {}),
     // Warm by default (tests, trials): master on, both batteries full. The game itself
     // starts cold and dark (createWorld `cold`).
-    ...(VESSEL_DEFS[defId].electrics
+    ...(gearOf(v, 'batteries')
       ? { electrics: { master: 1, selector: 1, soc: [1, 1] as [number, number], volts: 12.7, amps: 0, breakers: { instruments: 1, chart: 1, radio: 1, navLights: 1, deckLights: 1, bilge: 1, hydraulics: 1 } } }
       : {}),
   };

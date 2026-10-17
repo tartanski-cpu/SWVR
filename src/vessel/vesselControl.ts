@@ -6,7 +6,7 @@ import { CONFIG } from '../config';
 import { toggleEngine } from './physics/propulsion';
 import { toggleCleat, toggleDock } from './physics/mooring';
 import { gearOf } from '../boats/sims';
-import { isWorkboat, VESSEL_DEFS, type VesselDef, type WorkboatDef } from './vesselDef';
+import { VESSEL_DEFS } from './vesselDef';
 import { fuelBerthAt } from '../world/geography';
 import { BERTHS, PORTS } from '../world/archipelago';
 import type { VesselState } from './vesselState';
@@ -145,13 +145,13 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
       break;
       break;
     case 'engineStartStop': {
-      const def = VESSEL_DEFS[s.defId];
-      if (isWorkboat(def)) toggleEngine(s, def);
+      const diesel = gearOf(s, 'diesel');
+      if (diesel) toggleEngine(s, diesel);
       break;
     }
     case 'debugFuel': {
       // Set the tank to `value` litres (debug/test, e.g. to try running dry).
-      const tank = VESSEL_DEFS[s.defId].engine?.fuel.tankL ?? 0;
+      const tank = gearOf(s, 'diesel')?.engine.fuel.tankL ?? 0;
       s.engine.fuelL = clamp(intent.value, 0, tank);
       break;
     }
@@ -186,8 +186,8 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
         for (const k of ['instruments', 'chart', 'radio', 'navLights', 'hydraulics'] as const) s.electrics.breakers[k] = 1;
       }
       {
-        const def = VESSEL_DEFS[s.defId];
-        if (s.engine.phase === 'off' && isWorkboat(def)) toggleEngine(s, def as WorkboatDef);
+        const diesel = gearOf(s, 'diesel');
+        if (s.engine.phase === 'off' && diesel) toggleEngine(s, diesel);
       }
       break;
     case 'master':
@@ -345,9 +345,10 @@ export function canRefuel(s: VesselState): boolean {
 }
 
 /** Fuel flows while `refuelling` is on, the boat stays at the berth and the tank isn't full. */
-export function stepRefuelling(s: VesselState, def: VesselDef, dt: number, archipelago: boolean): void {
-  if (!s.refuelling || !def.engine) return;
-  const f = def.engine.fuel;
+export function stepRefuelling(s: VesselState, dt: number, archipelago: boolean): void {
+  const diesel = gearOf(s, 'diesel');
+  if (!s.refuelling || !diesel) return;
+  const f = diesel.engine.fuel;
   if (!archipelago || !canRefuel(s) || s.engine.fuelL >= f.tankL) {
     s.refuelling = false;
     return;

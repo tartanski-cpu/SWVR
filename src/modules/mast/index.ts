@@ -5,7 +5,7 @@
  * navigation lights ('masthead', a hull.light). On the roof you walk round its foot.
  *
  * Drawn in the boat's axes from its config (CONFIG.modules.mast) and the roof's height
- * (the hull's cabinRoof, plus the roof's thickness: the vessel's layout until M6); its pole
+ * (the hull's cabinRoof, plus the roof's thickness from the hull's layout); its pole
  * and yard are merged with the boat's fixed parts (they were the hull mesh's).
  */
 import * as THREE from 'three';

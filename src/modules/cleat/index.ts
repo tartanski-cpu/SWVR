@@ -8,8 +8,8 @@
  *
  * It gives the boat a bow or a stern cleat: where on her the line acts (vessel/physics/
  * mooring.ts pulls her in to the berth by them). She moors only with both. Drawn in the
- * boat's axes on the bulwark top at its station (`stations`, the vessel's mooring config
- * until M6), the rope turns showing while its line is fast.
+ * boat's axes on the bulwark top at its station (`stations`, defaults from the vessel's
+ * mooring config), the rope turns showing while its line is fast.
  */
 import { CONFIG } from '../../config';
 import { Cleat } from '../../controls/deckGear';
@@ -38,8 +38,8 @@ export const CLEAT: ModuleDefinition<CleatConfig> = {
   validateConfig: (c) => [...(['bow', 'stern', 'midship'].includes(c.end) ? [] : ["end is 'bow', 'stern' or 'midship'"]), ...(c.side === -1 || c.side === 1 ? [] : ['side is -1 (port) or 1 (starboard)'])],
   ports: {},
   // The mooring lines' cleats give the boat a bow or stern cleat; the midship ones only take the painter.
-  provides: (c) => (c.end === 'midship' ? [] : [{ gear: c.end === 'bow' ? 'bowCleat' : 'sternCleat' }]),
-  gear: (c) => (c.end === 'bow' ? { bowCleat: { z: c.stations.bow, lineY: c.lineY } } : c.end === 'stern' ? { sternCleat: { z: c.stations.stern, lineY: c.lineY } } : {}),
+  provides: (c) => [{ gear: c.end === 'bow' ? 'bowCleat' : c.end === 'stern' ? 'sternCleat' : 'midCleat' }],
+  gear: (c) => ({ [c.end === 'bow' ? 'bowCleat' : c.end === 'stern' ? 'sternCleat' : 'midCleat']: { z: c.stations[c.end], lineY: c.lineY } }),
   view: {
     frame: 'boat',
     build({ config: c, hull }) {

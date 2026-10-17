@@ -5,7 +5,8 @@ import type { Intent } from '../../core/intents';
 import type { WorldState } from '../../core/world';
 import { bowEyeLocal } from '../../tow/tow';
 import { hullPlan } from '../layout';
-import { VESSEL_DEFS, isWorkboat, type VesselDef } from '../vesselDef';
+import { gearOf } from '../../boats/sims';
+import { VESSEL_DEFS, type VesselDef } from '../vesselDef';
 import type { VesselState } from '../vesselState';
 import type { ExternalForce } from './vesselContact';
 
@@ -32,9 +33,10 @@ export function cleatName(i: number): string {
 
 /** Cleat `i` on the ship (vessel axes): the point the line pulls from. */
 export function cleatLocal(def: VesselDef, i: number): [number, number, number] | null {
-  if (!isWorkboat(def)) return null;
-  const mo = def.mooring;
-  const z = i < 2 ? mo.cleatFwdZ : i < 4 ? mo.cleatAftZ : mo.cleatMidZ;
+  // Her cleats are modules (M5b): no cleat there, nothing to make fast to.
+  const cleat = gearOf({ defId: def.id }, i < 2 ? 'bowCleat' : i < 4 ? 'sternCleat' : 'midCleat');
+  if (!cleat) return null;
+  const z = cleat.z;
   const side = i % 2 === 0 ? -1 : 1;
   const plan = hullPlan(def);
   return [side * (plan.halfBeam(z) - 0.03), plan.deckY(z) + def.layout.bulwarkHeight + 0.06, z];

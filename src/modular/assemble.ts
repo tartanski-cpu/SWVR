@@ -20,7 +20,7 @@ import * as THREE from 'three';
 import type { Control } from '../controls/Control';
 import { DisplayAtlas } from '../controls/instruments';
 import type { EnvironmentState } from '../environment/environmentState';
-import type { VesselDef, WorkboatDef } from '../vessel/vesselDef';
+import type { VesselDef } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
 import { busOf, type BusReader } from './bus';
 import { hullQueries, type HullLibrary } from './hull';
@@ -85,7 +85,7 @@ export interface AssembledView {
    * Each frame: every module's view from the boat's state, and the screens (only when
    * someone could see them: the atlas upload is the costly part on the Quest).
    */
-  update(state: VesselState, dt: number, screens: { inView: boolean; def: WorkboatDef; env: EnvironmentState | null } | null): void;
+  update(state: VesselState, dt: number, screens: { inView: boolean; def: VesselDef; env: EnvironmentState | null } | null): void;
 }
 
 /**

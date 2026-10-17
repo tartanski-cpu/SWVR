@@ -3,6 +3,7 @@
  * The printed report is the useful part when designing a new boat; the hydrostatic checks
  * apply to every boat, the trials expectations are per type (workboat, skiff).
  */
+import { gearOf } from '../src/boats/sims';
 import { describe, expect, it } from 'vitest';
 import { formatHydrostatics, gzCurve, uprightHydrostatics } from '../src/vessel/hydrostatics';
 import { formatSeaTrials, runSeaTrials } from '../src/vessel/seaTrials';
@@ -65,7 +66,7 @@ for (const id of ids) {
           expect(r.crashStopDistance / L).toBeLessThan(5);
         });
         it('slow-revving inboard: reaches 85-100 % of rated RPM at full ahead', () => {
-          const rated = def.engine?.ratedRpm ?? 1;
+          const rated = gearOf({ defId: id }, 'diesel')?.engine.ratedRpm ?? 1;
           const full = r.speedTable[r.speedTable.length - 1].rpm;
           expect(full / rated).toBeGreaterThan(0.85);
           expect(full / rated).toBeLessThan(1.02);

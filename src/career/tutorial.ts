@@ -8,11 +8,10 @@
  */
 import { CONFIG } from '../config';
 import type { Intent } from '../core/intents';
-import type { WorldState } from '../core/world';
+import { homeVessel, type WorldState } from '../core/world';
 import { aboard, carriedBy } from '../cargo/cargo';
 import { sayRadio } from '../rescue/rescue';
 import { isPowered } from '../vessel/electrics';
-import { isWorkboat, VESSEL_DEFS } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
 import { PORTS } from '../world/archipelago';
 import { createCareer } from './career';
@@ -76,7 +75,7 @@ export const TUTORIAL: Step[] = [
 ];
 
 function workboat(world: WorldState): VesselState | undefined {
-  return Object.values(world.vessels).find((v) => isWorkboat(VESSEL_DEFS[v.defId]));
+  return homeVessel(world);
 }
 
 /** One tick: announce the step, check it, move on. */

@@ -57,13 +57,13 @@ describe('the gear\'s facts are where v1.0 had them', () => {
   });
 
   it('the tow winch\'s lead: off the top of the drum, aft side', () => {
-    const tw = def.towWinch!;
+    const tw = CONFIG.vessels.workboat.towWinch;
     const axle = plan.deckY(tw.z) + 0.18 + tw.drumRadius;
     expect(gearOf(boat, 'towWinch')!.lead).toEqual([0, axle + tw.drumRadius * 0.7, tw.z + tw.drumRadius * 0.7]);
   });
 
   it('the trawl gantry: the A-frame\'s feet, head and blocks', () => {
-    const a = def.fishing!.aFrame;
+    const a = CONFIG.vessels.workboat.fishing.aFrame;
     const footZ = plan.transom - a.footFromTransom;
     const deck = plan.deckY(footZ);
     expect(gearOf(boat, 'trawlGantry')).toEqual({
@@ -80,9 +80,9 @@ describe('the gear\'s facts are where v1.0 had them', () => {
 
   it('the tender crane and the anchor: the vessel\'s own figures', () => {
     const { consoleButton, ...crane } = gearOf(boat, 'tenderCrane') as NonNullable<ReturnType<typeof gearOf<'tenderCrane'>>> & { consoleButton: unknown };
-    expect(crane).toEqual(def.tenderCrane);
+    expect(crane).toEqual(CONFIG.vessels.workboat.tenderCrane);
     expect(consoleButton).toEqual(def.bridge!.craneButton);
-    expect(gearOf(boat, 'anchor')).toEqual({ hawse: def.anchor!.hawse, chainM: def.anchor!.chainM });
+    expect(gearOf(boat, 'anchor')).toEqual({ hawse: CONFIG.vessels.workboat.anchor.hawse, chainM: CONFIG.vessels.workboat.anchor.chainM });
     expect(gearOf(boat, 'trawl')).toEqual({});
   });
 
@@ -90,7 +90,7 @@ describe('the gear\'s facts are where v1.0 had them', () => {
     const hull = hullQueries(def);
     for (const m of MODULES.all()) {
       const said = (m.provides?.(m.defaults) ?? []).flatMap((p) => ('gear' in p && p.gear ? [p.gear] : []));
-      const given = Object.keys(m.gear?.(m.defaults, hull) ?? {});
+      const given = Object.keys(m.gear?.(m.defaults, hull, (q) => [q[0], q[1], q[2]]) ?? {});
       expect(given.sort(), m.id).toEqual(said.sort());
     }
   });

@@ -47,8 +47,11 @@ export interface ModuleDefinition<Config = unknown, State = unknown> {
   needs?(c: Config): Requirement[];
   /** What it gives the boat (a circuit, hydraulic pressure, fuel). */
   provides?(c: Config): Provision[];
-  /** Its gear's facts for the world's systems (M5), for each `{ gear }` it provides. */
-  gear?(c: Config, hull: HullQueries): Partial<GearFacts>;
+  /**
+   * Its gear's facts for the world's systems (M5), for each `{ gear }` it provides. `at`
+   * takes a point in its own axes to the boat's (for gear placed by its socket).
+   */
+  gear?(c: Config, hull: HullQueries, at: (local: readonly [number, number, number]) => [number, number, number]): Partial<GearFacts>;
   /** Mass, CG, size, power: checked against the socket, added to the boat's mass (2.6). */
   physical?(c: Config): Physical;
   /** Its part in the energy network (2.5). */
@@ -100,7 +103,15 @@ export type GearKind =
   | 'fenders'
   | 'swimLadder'
   | 'lifeRing'
-  | 'boatHook';
+  | 'boatHook'
+  // M6b: the machinery and fittings the vessel definition used to carry
+  | 'midCleat'
+  | 'diesel'
+  | 'rudder'
+  | 'outboard'
+  | 'batteries'
+  | 'bilgePump'
+  | 'chartTable';
 
 /** What the world's systems need to know about each kind of gear (the boat's axes, m). */
 export interface GearFacts {
@@ -129,7 +140,23 @@ export interface GearFacts {
   lifeRing: { stow: [number, number, number]; cleat: [number, number, number] };
   /** The boat hook: in its clips at (x, y), from z0 to z1. */
   boatHook: { stow: [number, number, number, number] };
+  /** A midship cleat (the skiff's painter): its station and the line's height. */
+  midCleat: { z: number; lineY: number };
+  /** The inboard diesel: the engine, its propeller, and its upkeep (oil, and where the engine and its dipstick are). */
+  diesel: { engine: Workboat['engine']; propeller: Workboat['propeller']; maintenance: Workboat['maintenance'] };
+  /** The rudder and its steering gear. */
+  rudder: Workboat['rudder'];
+  /** An electric outboard: motor, battery and tiller. */
+  outboard: typeof CONFIG.vessels.skiff.outboard;
+  /** The house batteries: each one's capacity, voltages, internal resistance, and the charge below which it's flat. */
+  batteries: { ah: number; restVolts: readonly [number, number]; internalOhm: number; chargeVolts: number; cutoffSoc: number };
+  /** The bilge pump: how fast it empties the bilge, and the level that lights the BILGE lamp. */
+  bilgePump: { pumpRate: number; alarmAt: number };
+  /** The chart table: its plan on the wheelhouse floor (the boat's axes) and its height. */
+  chartTable: { x0: number; x1: number; z0: number; z1: number; height: number };
 }
+
+type Workboat = typeof CONFIG.vessels.workboat;
 
 /** Something a module can't work without. */
 export type Requirement =
@@ -247,7 +274,7 @@ export interface ModuleView<Config, State> {
   build(ctx: ViewContext<Config>): ModuleViewInstance<State>;
   /**
    * 'boat': it draws in the boat's own axes, from positions in its config (deck gear whose
-   * config is still the vessel's, until M6 puts those positions in the hull's sockets); its
+   * config holds its positions on the boat); its
    * socket only says where it is fitted. Default 'socket': it draws from its socket.
    */
   frame?: 'socket' | 'boat';

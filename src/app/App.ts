@@ -37,7 +37,7 @@ import type { FireMonitorApi } from '../modules/fireMonitor';
 import type { FireGauge } from '../fire/fireGauge';
 import { DutyBoardView } from '../duties/dutyBoardView';
 import { TenderCraneView } from '../controls/TenderCraneView';
-import { asWorkboat, VESSEL_DEFS, type WorkboatDef } from '../vessel/vesselDef';
+import { hasWheelhouse, VESSEL_DEFS, type WheelhouseDef } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
 import { VesselView } from '../vessel/view/vesselView';
 import { hullPlan, vesselWalkArea, type WalkArea } from '../vessel/layout';
@@ -422,8 +422,9 @@ export class App {
     this.vesselRoots.set(vessel.id, view.root);
     if (!def.tow) this.cargoView.attachVessel(view.root, vessel.defId);
     // An outboard boat (the skiff): its tiller, with the motor it swings.
-    if (def.outboard) {
-      const tiller = new Tiller(vessel.id, def.outboard);
+    const outboard = gearOf(vessel, 'outboard');
+    if (outboard) {
+      const tiller = new Tiller(vessel.id, outboard);
       view.root.add(tiller.root);
       // Her bow cleat on the stem head, for the painter (clicked with the tiller's parts).
       const bow = new Cleat(-1, { id: `painter:${vessel.id}`, channel: `${vessel.id}:painter`, label: "Skiff's painter (bow cleat): let go / make fast to the nearest cleat" });
@@ -629,7 +630,8 @@ export class App {
       const v = this.world.vessels[this.testVesselId];
       this.sound.horn.update(v.controls.horn > 0 && isPowered(v), distance); // electric horn
       // Bridge buzzer: high temperature always, low fuel while the engine runs.
-      const al = engineAlarms(v, this.testDef);
+      const diesel = gearOf(v, 'diesel');
+      const al = diesel ? engineAlarms(v, diesel) : { highTemp: false, lowFuel: false };
       const consoleDist = this.bridge ? this.bridge.dashAnchor.getWorldPosition(this.tmpV).distanceTo(this.focus) : 99;
       this.sound.alarm.update(al.highTemp || (al.lowFuel && v.engine.phase === 'running'), consoleDist);
     }
@@ -905,7 +907,7 @@ export class App {
     const leverIn = (k.action('leverAhead') ? 1 : 0) - (k.action('leverAstern') ? 1 : 0);
     const helmIn = (k.action('helmStarboard') ? 1 : 0) - (k.action('helmPort') ? 1 : 0);
 
-    const outboard = !!VESSEL_DEFS[v.defId]?.outboard;
+    const outboard = !!gearOf(v, 'outboard');
     // An outboard's throttle is the gear (sign) times the twist grip (0..1); the keys drive
     // that as one signed command, switching the motor on if needed.
     let lever = outboard ? Math.sign(v.controls.obGear) * v.controls.lever : v.controls.lever;
@@ -1009,7 +1011,8 @@ export class App {
    * astern the water piles up against the transom. Prop wash makes it come and go.
    */
   private exhaustSubmersion(root: THREE.Object3D, v: VesselState, t: number): number {
-    const def = asWorkboat(VESSEL_DEFS[v.defId]);
+    const def = VESSEL_DEFS[v.defId];
+    if (!def.exhaust) return 0;
     const ex = root.localToWorld(this.tmpV.fromArray(def.exhaust.position));
     let depth = surfaceHeight(this.renderWaves, ex.x, ex.z) - ex.y;
     // Speed through the water along the bow (vessel -z is forward).
@@ -1468,7 +1471,7 @@ export class App {
       spawnTraffic: (what) => this.intents.push({ playerId: this.localPlayerId, targetId: ENVIRONMENT_ID, control: 'trafficSpawn', value: what }),
       oilStatus: () => {
         const e = this.world.vessels[this.testVesselId]?.engine;
-        const due = Math.max(0, (this.testDef.maintenance?.checkEvery ?? 0) - (e?.sinceCheck ?? 0));
+        const due = Math.max(0, (gearOf({ defId: this.testDef.id }, 'diesel')?.maintenance.checkEvery ?? 0) - (e?.sinceCheck ?? 0));
         return `Oil ${Math.round((e?.oil ?? 0) * 100)} % · next check in ${Math.ceil(due / 60)} min running`;
       },
       oilLow: () => this.pushVesselIntent('debugOil', 0.3),
@@ -1523,7 +1526,7 @@ export class App {
       },
       dropBoat: () => this.pushVesselIntent('debugDrop', 0),
       heelBoat: () => this.pushVesselIntent('debugHeel', 20),
-      fuel: () => ({ litres: boat().engine.fuelL, tank: this.testDef.engine.fuel.tankL }),
+      fuel: () => ({ litres: boat().engine.fuelL, tank: gearOf(boat(), 'diesel')?.engine.fuel.tankL ?? 0 }),
       canRefuel: () => canRefuel(boat()),
       refuelling: () => boat().refuelling,
       toggleRefuel: () => {
@@ -1990,9 +1993,14 @@ export class App {
     this.overlay.vrPanel.scale.setScalar(1);
   }
 
-  /** The test vessel's type: the fully equipped workboat (bridge, engine, lights...). */
-  private get testDef(): WorkboatDef {
-    return asWorkboat(VESSEL_DEFS[this.world.vessels[this.testVesselId].defId]);
+  /**
+   * The home boat's type. The app's bridge, wheelhouse interior and views are built for a
+   * hull with a wheelhouse (6c makes them per boat); her machinery is her modules' (gearOf).
+   */
+  private get testDef(): WheelhouseDef {
+    const def = VESSEL_DEFS[this.world.vessels[this.testVesselId].defId];
+    if (!hasWheelhouse(def)) throw new Error(`the home boat (${def.id}) has no wheelhouse: the app's bridge needs one until 6c`);
+    return def;
   }
 
   /** Bridge controls for the test vessel, the interaction system and desktop mouse/reticle. */
@@ -2476,8 +2484,9 @@ export class App {
    */
   private restoreBatteries(): void {
     const v = this.world.vessels[this.testVesselId];
-    const cfg = this.testDef.electrics;
-    if (!v?.electrics || !cfg?.drainBetweenSessions || this.client) return;
+    // A session setting (with the battery config until the boat's settings move, 6d).
+    const cfg = CONFIG.vessels.workboat.electrics;
+    if (!v?.electrics || !cfg.drainBetweenSessions || this.client) return;
     try {
       const saved = JSON.parse(localStorage.getItem(BATTERY_KEY) ?? 'null') as { soc: [number, number]; master: number; t: number } | null;
       if (saved && Array.isArray(saved.soc) && saved.soc.length === 2) {
@@ -2565,7 +2574,8 @@ export class App {
   /** START pressed with the lever in gear: the neutral-safety switch says no. */
   private startInGearHint(): void {
     const v = this.world.vessels[this.testVesselId];
-    if (v && leverDemand(this.testDef, v.controls.lever).gear !== 0) {
+    const diesel = v && gearOf(v, 'diesel');
+    if (v && diesel && leverDemand(diesel, v.controls.lever).gear !== 0) {
       this.overlay.notify('Neutral safety: the lever must be in neutral to start', 2.5);
       this.xrInput.pulse('right', 0.8, 150);
     }
@@ -2578,14 +2588,15 @@ export class App {
   private requestEngineStartStop(): void {
     const v = this.world.vessels[this.testVesselId];
     if (!v) return;
-    const def = this.testDef;
-    if (!def.electrics?.quickStart) {
+    const diesel = gearOf(v, 'diesel');
+    // Quick start is a session setting (CONFIG.vessels.workboat.electrics.quickStart), for a boat with batteries and a diesel.
+    if (!diesel || !gearOf(v, 'batteries') || !CONFIG.vessels.workboat.electrics.quickStart) {
       if (v.engine.phase === 'off') this.overlay.notify('Start her properly: master, INSTR breaker, key, HEAT, START (see the card). Menu > Tests > Quick start does it all.', 5);
       else this.pushVesselIntent('key', 0);
       return;
     }
     if (v.engine.phase === 'off') {
-      if (def.engine.startOnlyInNeutral && leverDemand(def, v.controls.lever).gear !== 0) {
+      if (diesel.engine.startOnlyInNeutral && leverDemand(diesel, v.controls.lever).gear !== 0) {
         this.overlay.notify('Engine won\'t start: lever not in neutral');
         this.xrInput.pulse('right', 0.8, 150);
       }
@@ -2614,7 +2625,7 @@ export class App {
 
   /** The workboat's tender (the first outboard boat), if any. */
   private skiff(): VesselState | undefined {
-    return Object.values(this.world.vessels).find((v) => VESSEL_DEFS[v.defId].outboard);
+    return Object.values(this.world.vessels).find((v) => gearOf(v, 'outboard'));
   }
 
   /** The boat the driving keys steer: the one you're standing in, else the workboat. */

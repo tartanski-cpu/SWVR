@@ -1,10 +1,10 @@
 import type { IdFactory, EntityId } from '../core/ids';
 import type { Intent } from '../core/intents';
-import type { WorldState } from '../core/world';
+import { homeVessel, type WorldState } from '../core/world';
 import { createPlayerState } from '../player/playerState';
 import { randomLook } from './avatarOutfits';
 import { placeAshore } from '../player/playerControl';
-import { isWorkboat, VESSEL_DEFS } from '../vessel/vesselDef';
+import { VESSEL_DEFS } from '../vessel/vesselDef';
 import { releaseHolds } from '../vessel/vesselControl';
 import { dropCarried } from '../cargo/cargo';
 import { NET_RATE, type ClientMessage, type HostMessage } from './protocol';
@@ -45,7 +45,7 @@ export class HostSession {
       const p = createPlayerState(playerId, (msg.name || `Player ${this.peers.size + 2}`).slice(0, 24));
       p.look = randomLook(); // a random set of working clothes (net/avatarOutfits.ts)
       // Crew join aboard the workboat (wherever she is), at her boarding spot.
-      const boat = Object.values(this.world.vessels).find((v) => isWorkboat(VESSEL_DEFS[v.defId]));
+      const boat = homeVessel(this.world);
       if (boat) {
         p.aboardVesselId = boat.id;
         p.position = [...VESSEL_DEFS[boat.defId].boardingSpot];

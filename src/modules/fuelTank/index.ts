@@ -1,7 +1,7 @@
 /**
  * Module fuel.tank: the diesel tank (modular boats M4a). It provides the boat's diesel; the
  * engine draws from it and a fuel berth fills it, both through 'fuel.litres'. It has no
- * upkeep of its own (no sim tick). Its level is kept in today's engine state until M6, so
+ * upkeep of its own (no sim tick). Its level is kept in today's engine state until 6d, so
  * saves and snapshots stay as they are; its capacity and starting level are the vessel's
  * fuel config (CONFIG.vessels.workboat.engine.fuel) until then.
  */

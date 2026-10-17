@@ -11,6 +11,8 @@ import type { PortIO } from '../../modular/module';
 export interface BilgePumpConfig {
   /** Of a full bilge per second. */
   pumpRate: number;
+  /** The high-water alarm: the BILGE lamp lights above this level (0..1). */
+  alarmAt: number;
   /** The float switch: it runs above this level (0..1). */
   floatAt: number;
   amps: number;
@@ -23,14 +25,15 @@ export const BILGE_PUMP: ModuleDefinition<BilgePumpConfig, undefined> = {
   id: 'pump.bilge',
   version: 1,
   fits: ['engine.bay'],
-  // Its pumping rate is the workboat's bilge config until M6 (the hull's old bilge step reads it too).
-  defaults: { pumpRate: CONFIG.vessels.workboat.bilge.pumpRate, ...CONFIG.modules.bilgePump },
+  defaults: { ...CONFIG.vessels.workboat.bilge, ...CONFIG.modules.bilgePump },
   validateConfig: (c) => (c.pumpRate > 0 ? [] : ['pumpRate should be more than 0']),
   ports: {
     level: { dir: 'write', key: 'bilge.level' },
     live: { dir: 'read', key: 'circuit.bilge.live' },
   },
   needs: () => [{ power: 'electrical', circuit: 'bilge' }],
+  provides: () => [{ gear: 'bilgePump' }],
+  gear: (c) => ({ bilgePump: { pumpRate: c.pumpRate, alarmAt: c.alarmAt } }),
   power: (c) => [{ role: 'load', circuit: 'bilge', amps: (io) => (running(io, c) ? c.amps : 0) }],
   sim: {
     init: () => undefined,

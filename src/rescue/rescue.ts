@@ -19,18 +19,18 @@
  *
  * Random choices use a deterministic hash of a counter in the state, like the cargo code.
  */
+import { VESSEL_DEFS } from '../vessel/vesselDef';
 import { isPowered } from '../vessel/electrics';
 import { formatPosition } from '../nav/geo';
 import { windVector } from '../environment/weather';
 import { CONFIG } from '../config';
 import type { EntityId } from '../core/ids';
 import type { Intent } from '../core/intents';
-import type { WorldState } from '../core/world';
+import { homeVessel, type WorldState } from '../core/world';
 import type { VesselState } from '../vessel/vesselState';
 import { PORTS, type PortDef } from '../world/archipelago';
 import { earn } from '../career/career';
 import { berthById } from '../vessel/physics/mooring';
-import { isWorkboat, VESSEL_DEFS } from '../vessel/vesselDef';
 import { groundHeight } from '../world/terrain';
 import { RESCUE_DEFS, type RescueDef } from './rescueDefs';
 import type { Vec3 } from '../core/math';
@@ -346,9 +346,10 @@ function stepLanding(world: WorldState, r: RescueState, inc: Incident, v: Vessel
   if (inc.phase === 'landed' && world.time >= (inc.endT ?? 0)) r.active = null;
 }
 
-/** The vessel the rescues follow: the cargo boat (the first fully equipped one, not its tender). */
+/** The vessel the rescues follow: the home boat, if she has places to take survivors aboard (her hull's fittings). */
 function rescueVessel(world: WorldState): VesselState | undefined {
-  return Object.values(world.vessels).find((v) => isWorkboat(VESSEL_DEFS[v.defId]));
+  const v = homeVessel(world);
+  return v && VESSEL_DEFS[v.defId].rescueGear ? v : undefined;
 }
 
 /** One tick: track cargo runs, roll and raise calls, time out unanswered ones, drift targets, recovery. */

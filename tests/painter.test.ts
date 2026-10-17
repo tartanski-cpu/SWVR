@@ -35,7 +35,7 @@ function setup(wind: number) {
   };
   const launch = () => {
     send(skiff.id, 'crane', 1);
-    run(launchTime(VESSEL_DEFS.workboat.tenderCrane!) + 1);
+    run(launchTime(CONFIG.vessels.workboat.tenderCrane) + 1);
   };
   return { world, boat, skiff, send, run, launch };
 }

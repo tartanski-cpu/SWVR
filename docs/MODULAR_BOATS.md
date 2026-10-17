@@ -251,7 +251,7 @@ The convert-only milestones won't create them. Generator, solar and shore power 
 - the bus has a `BusWatcher` instead of `changedAt` (2.2);
 - each key says who writes it (`writer`: a module, the boat's own motion, or not-yet-converted code), so the recipe check knows what is "always there" during the rebuild;
 - a socket's unit limit is `maxUnits` (not a `slots` table);
-- a hull carries `legacyDef` and `provides` until M6, standing on today's vessel definition;
+- a hull carried `legacyDef` until M6b, standing on today's vessel definition (since 6b it holds its own `fittings`), and `provides` (her wiring);
 - no demihulls (the owner chose the monohull landing craft).
 
 Five files in `src/modular/`, plus the bus key registry, which the brief asks to keep in one file:
@@ -889,11 +889,13 @@ Sizes: S is about a session, M two or three, L more.
   - Side-by-side screenshots of old and new from the four viewpoints (pixel difference reported).
   - Golden runs equal; frame rate and draw calls equal or better.
   - Load an old career; join a game from a second browser.
-- **In three stops:**
+- **In four stops** (6b was split in two when it was reached, so each stop stays small enough to test):
   - **6a. Done; see PROGRESS.** The hulls hold their form, lightship, handling, layout, cargo deck, helm and spawn; every boat (the workboat, the skiff, the three tows) is built from her recipe; the engine and batteries declare their mass and the lightship makes room for them (2.6). The skiff's outboard is a module.
-    - **As built:** the hulls' numbers stay in `CONFIG.vessels` (the tunables' home) and the hull files take them from there. The rudder blade stays in the rudder module (`steering.rudder`), not the hull: it was converted that way in M4a and moves with the steering gear. Livery waits for the shipyard (M8). Until 6b the vessel definition still carries the equipment positions from the config the hull names (`legacyDef`). The vessel registry is built lazily: the boats' library registers the builder when it loads (src/main.ts and the tests' setup load it first), because the modules import the registry.
-  - **6b:** `WorkboatDef`, `asWorkboat`, `isWorkboat` and the hand-built `Bridge` deleted; `world.homeVesselId`; App's singletons per vessel; the equipment positions out of the vessel configs (`legacyDef` dropped); the skiff's tiller a module.
-  - **6c:** the bus's flat record; the new save shape with a migration (`next` gets its own save keys first); recipes in multiplayer's `welcome`, the join check by recipe ids and versions.
+    - **As built:** the hulls' numbers stay in `CONFIG.vessels` (the tunables' home) and the hull files take them from there. The rudder blade stays in the rudder module (`steering.rudder`), not the hull: it was converted that way in M4a and moves with the steering gear. Livery waits for the shipyard (M8). The vessel registry is built lazily: the boats' library registers the builder when it loads (src/main.ts and the tests' setup load it first), because the modules import the registry.
+  - **6b. Done; see PROGRESS.** `world.homeVesselId` (the world's systems find the player's boat by it); `WorkboatDef`, `asWorkboat` and `isWorkboat` deleted; every machinery setting read from the module that owns it (new gear kinds `diesel`, `rudder`, `outboard`, `batteries`, `bilgePump`, `chartTable`, `midCleat`); what's built into a hull (lights, exhaust outlet, rescue places, the bridge's fit-out, a tow's look) in the hull's `fittings`; `legacyDef` dropped.
+    - **As built:** a hull with a wheelhouse is a type of its own (`WheelhouseDef`, a fact of her shape): the Bridge, the wheelhouse interior and the app's wheelhouse views take one until 6c. The light and exhaust views are built only where the boat has them. The quick-start and battery-drain switches are session settings and stay in `CONFIG.vessels.workboat.electrics`.
+  - **6c:** the hand-built `Bridge` dissolved into a per-boat view assembled from her recipe (the doors and gate, the engine under the hatch, the rain on the glass, the lights drawn by modules); App's one-boat singletons per vessel; the skiff's tiller a module.
+  - **6d:** the bus's flat record; the new save shape with a migration (`next` gets its own save keys first); recipes in multiplayer's `welcome`, the join check by recipe ids and versions.
 
 ### M7: the proof, the landing craft (M)
 

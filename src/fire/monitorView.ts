@@ -1,8 +1,8 @@
 import * as THREE from 'three';
-import type { VesselDef } from '../vessel/vesselDef';
+import type { CONFIG } from '../config';
 import { monitorAim } from './fire';
 
-type MonitorConfig = NonNullable<VesselDef['fireMonitor']>;
+type MonitorConfig = typeof CONFIG.vessels.workboat.fireMonitor;
 
 /**
  * The fire monitor on the wheelhouse roof: a red pedestal, a yoke that pans and a barrel

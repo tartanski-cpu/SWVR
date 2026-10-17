@@ -1,3 +1,4 @@
+import { gearOf } from '../src/boats/sims';
 import { describe, expect, it } from 'vitest';
 import type { Intent } from '../src/core/intents';
 import { IdFactory } from '../src/core/ids';
@@ -5,7 +6,7 @@ import { stepWorld } from '../src/core/simulation';
 import { createWorld } from '../src/core/world';
 import { engineAlarms } from '../src/vessel/physics/engineThermal';
 import { placeVessel } from '../src/vessel/vesselControl';
-import { asWorkboat, VESSEL_DEFS } from '../src/vessel/vesselDef';
+import { CONFIG } from '../src/config';
 
 const DT = 1 / 60;
 
@@ -14,7 +15,7 @@ function boat() {
   world.environment.waves = [];
   const v = world.vessels[vesselId];
   placeVessel(v, 0, 0, 0, 0);
-  const def = asWorkboat(VESSEL_DEFS[v.defId]);
+  const def = gearOf(v, 'diesel')!;
   const send = (control: string, value: number) => {
     const intent: Intent = { playerId: 't', targetId: v.id, control, value };
     stepWorld(world, [intent], DT);
@@ -128,7 +129,7 @@ describe('engine temperature', { timeout: 30000 }, () => {
 describe('steering', () => {
   it('coasting in neutral she still answers the helm, better than with the bare rudder', () => {
     const turnRate = (coastSteer: number) => {
-      const cfg = VESSEL_DEFS.workboat.rudder!;
+      const cfg = CONFIG.vessels.workboat.rudder;
       const was = cfg.coastSteer;
       (cfg as { coastSteer: number }).coastSteer = coastSteer;
       const b = boat();
@@ -150,7 +151,7 @@ describe('steering', () => {
       return Math.abs(turned);
     };
     const bare = turnRate(1);
-    const now = turnRate(VESSEL_DEFS.workboat.rudder!.coastSteer);
+    const now = turnRate(CONFIG.vessels.workboat.rudder.coastSteer);
     expect(now).toBeGreaterThan(bare * 1.2);
   });
 });

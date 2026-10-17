@@ -3,7 +3,7 @@ import { CONFIG } from '../config';
 import type { WorldState } from '../core/world';
 import { sampleSurface, type PreparedWave } from '../ocean/waves';
 import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
-import { asWorkboat, VESSEL_DEFS } from '../vessel/vesselDef';
+import { rescuePlaces } from './recovery';
 import { standingHeight } from '../world/geography';
 import type { RescueTarget } from './rescue';
 
@@ -232,7 +232,7 @@ export class TargetsView {
   /** Climbing over the stern (an arc from the waterline to the seat), or sitting there. */
   private poseAboard(m: Marker, t: RescueTarget, defId: string, root: THREE.Object3D, climbTime: number): void {
     const seat = t.seat ?? [0, 1, 3];
-    const stern = asWorkboat(VESSEL_DEFS[defId]).rescueGear.stern;
+    const stern = rescuePlaces(defId).stern;
     // Sitting: the bust's lifejacket hem on the deck.
     const sit = this.tmp.set(seat[0], seat[1] + 0.35, seat[2]);
     if (t.phase === 'climbing') {

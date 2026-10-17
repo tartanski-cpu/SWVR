@@ -5,8 +5,8 @@
  *
  * It gives the boat a life ring: where it hangs and where its line is made fast. The ring
  * and its line are drawn by the app (rescue/rescueGearView.ts: they fly, float and are held
- * in hands, not only on the boat); this module draws nothing of its own. Its config is the
- * vessel's (CONFIG.vessels.workboat.rescueGear) until M6.
+ * in hands, not only on the boat); this module draws nothing of its own. Its defaults are the
+ * vessel config's figures (CONFIG.vessels.workboat.rescueGear, the tunables' home).
  */
 import { CONFIG } from '../../config';
 import type { ModuleDefinition } from '../../modular/module';

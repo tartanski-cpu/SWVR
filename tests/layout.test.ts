@@ -5,9 +5,10 @@ import { createPlayerState } from '../src/player/playerState';
 import { footprintsOf } from '../src/boats/sims';
 import { vesselWalkArea } from '../src/vessel/layout';
 import { aFrameOf } from '../src/fishing/fishing';
-import { asWorkboat, VESSEL_DEFS } from '../src/vessel/vesselDef';
+import { CONFIG } from '../src/config';
+import { VESSEL_DEFS, type WheelhouseDef } from '../src/vessel/vesselDef';
 
-const def = asWorkboat(VESSEL_DEFS.workboat);
+const def = (VESSEL_DEFS.workboat as WheelhouseDef);
 const area = vesselWalkArea(def, def.layout, footprintsOf({ defId: 'workboat' }));
 const L = def.layout;
 const wh = L.wheelhouse;
@@ -36,7 +37,7 @@ describe('vessel walk area (multi-level)', () => {
     expect(area.walkable(1.75, 0, 1.1)).toBe(true); // starboard side deck
     expect(area.walkable(-1.3, -3.0, 1.26)).toBe(true); // foredeck, beside the skiff's cradle
     expect(area.walkable(0, -3.5, 1.3)).toBe(false); // the cradle (the skiff in it)
-    const tc = VESSEL_DEFS.workboat.tenderCrane!;
+    const tc = CONFIG.vessels.workboat.tenderCrane;
     expect(area.walkable(tc.column[0], tc.column[1], 1.22)).toBe(false); // the crane's column
     // The engine hatch in the floor: shut, you walk over it; open, you can't step into the hole.
     const eh = VESSEL_DEFS.workboat.layout.engineHatch!;
@@ -51,14 +52,14 @@ describe('vessel walk area (multi-level)', () => {
     expect(area.walkable(hx, hz, wh.floorY)).toBe(true);
     // The chart table's drop leaf: unfolded it takes the floor in front of the port wall;
     // folded against the wall, that floor is free.
-    const ct = VESSEL_DEFS.workboat.chartTable!;
+    const ct = CONFIG.vessels.workboat.chartTable;
     const cx = (ct.x0 + ct.x1) / 2 + 0.1;
     const cz = (ct.z0 + ct.z1) / 2;
     expect(area.walkable(cx, cz, wh.floorY)).toBe(false);
     area.setChartLeafFolded!(true);
     expect(area.walkable(cx, cz, wh.floorY)).toBe(true);
     area.setChartLeafFolded!(false);
-    const tw = VESSEL_DEFS.workboat.towWinch!;
+    const tw = CONFIG.vessels.workboat.towWinch;
     expect(area.walkable(0, tw.z, DECK_AFT)).toBe(false); // the tow winch
     expect(area.walkable(tw.drumWidth / 2 + 0.1 + tw.housing.width / 2, tw.z, DECK_AFT)).toBe(false); // its gearbox housing
     const af = aFrameOf({ defId: 'workboat' })!;

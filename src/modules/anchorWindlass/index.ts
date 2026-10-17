@@ -6,7 +6,7 @@
  * the hull's contacts (where it always did): soft while the chain lifts off the bottom,
  * stiff once it's bar taut; over its holding power the anchor drags (physics/anchor.ts).
  *
- * Its state is today's VesselState.anchor (until M6); its config is the vessel's
+ * Its state is today's VesselState.anchor (until 6d); its config is the vessel's
  * (CONFIG.vessels.workboat.anchor) plus the windlass's draw. The chain is drawn by the app
  * in the world (it lies on the seabed), from that state.
  */
@@ -52,7 +52,7 @@ export const ANCHOR_WINDLASS: ModuleDefinition<AnchorWindlassConfig, AnchorState
   ],
   sim: {
     init: () => {
-      throw new Error('the anchor keeps its state in VesselState.anchor until M6');
+      throw new Error('the anchor keeps its state in VesselState.anchor until 6d');
     },
     legacyState: (v) => v.anchor,
     tick: () => {},

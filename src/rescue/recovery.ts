@@ -24,7 +24,7 @@ import type { Vec3 } from '../core/math';
 import type { WorldState } from '../core/world';
 import { surfaceHeight, type PreparedWave } from '../ocean/waves';
 import { hullPlan } from '../vessel/layout';
-import { asWorkboat, VESSEL_DEFS } from '../vessel/vesselDef';
+import { VESSEL_DEFS, type VesselDef } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
 import { gearOf } from '../boats/sims';
 import type { CargoItem } from '../cargo/cargo';
@@ -90,9 +90,19 @@ function persons(r: RescueState): RescueTarget[] {
   return (r.active?.targets ?? []).filter((t) => t.kind === 'person');
 }
 
+/**
+ * Where she takes survivors aboard: the seats, the stern they climb over (built into her
+ * hull, its fittings). Only the home boat works a rescue; one without them is a mistake.
+ */
+export function rescuePlaces(defId: string): NonNullable<VesselDef['rescueGear']> {
+  const places = VESSEL_DEFS[defId].rescueGear;
+  if (!places) throw new Error(`${defId} has no rescue places (her hull's fittings)`);
+  return places;
+}
+
 /** The free seat for the next survivor aboard (vessel axes). */
 export function freeSeat(r: RescueState, v: VesselState): Vec3 {
-  const seats = asWorkboat(VESSEL_DEFS[v.defId]).rescueGear.seats;
+  const seats = rescuePlaces(v.defId).seats;
   const taken = persons(r).filter((t) => t.phase === 'aboard').length;
   const [x, z] = seats[Math.min(taken, seats.length - 1)];
   return [x, hullPlan(VESSEL_DEFS[v.defId]).deckY(z), z];
@@ -114,7 +124,7 @@ export function stepRecovery(world: WorldState, v: VesselState, waves: readonly 
   const cfg = CONFIG.rescue;
   const r = world.rescue!;
   const ring = (r.ring ??= createRing());
-  const gear = asWorkboat(VESSEL_DEFS[v.defId]).rescueGear;
+  const gear = rescuePlaces(v.defId);
   // The ring's line is made fast at her life ring station's cleat (a module); a boat
   // without one has no ring to throw.
   const station = gearOf(v, 'lifeRing');

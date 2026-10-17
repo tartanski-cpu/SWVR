@@ -26,6 +26,13 @@ export const CHART_TABLE: ModuleDefinition<ChartTableConfig> = {
   defaults: CONFIG.modules.chartTable,
   validateConfig: (c) => (c.width > 0.2 && c.depth > 0.2 && c.height > 0.3 ? [] : ['width and depth should be over 0.2 m, height over 0.3 m']),
   physical: (c) => ({ size: [c.width, c.height, c.depth] }),
+  // Its plan on the floor, for the walk area (the leaf folded or not is the view's).
+  provides: () => [{ gear: 'chartTable' }],
+  gear: (c, _hull, at) => {
+    const [ax, , az] = at([0, 0, 0]);
+    const [bx, , bz] = at([c.width, 0, c.depth]);
+    return { chartTable: { x0: Math.min(ax, bx), x1: Math.max(ax, bx), z0: Math.min(az, bz), z1: Math.max(az, bz), height: c.height } };
+  },
   // The lamp, on the DECK LTS circuit.
   power: (c) => [{ role: 'load', circuit: 'deckLights', amps: (io) => (io.num('lamp') > 0 ? c.lampAmps : 0) }],
   ports: {

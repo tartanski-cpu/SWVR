@@ -15,9 +15,8 @@
  */
 import { CONFIG } from '../config';
 import type { Intent } from '../core/intents';
-import type { WorldState } from '../core/world';
+import { homeVessel, type WorldState } from '../core/world';
 import { visibilityAt, windVector } from '../environment/weather';
-import { isWorkboat, VESSEL_DEFS } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
 import { PORTS } from '../world/archipelago';
 import { groundHeight } from '../world/terrain';
@@ -72,7 +71,7 @@ function hash01(n: number): number {
 const between = (r: number, [a, b]: readonly [number, number]) => a + (b - a) * r;
 
 function workboat(world: WorldState): VesselState | undefined {
-  return Object.values(world.vessels).find((x) => isWorkboat(VESSEL_DEFS[x.defId]));
+  return homeVessel(world);
 }
 
 function inHarbour(x: number, z: number): boolean {

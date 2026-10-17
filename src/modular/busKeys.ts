@@ -14,7 +14,7 @@
 import { CONFIG } from '../config';
 import { hydraulicsOn, isPowered } from '../vessel/electrics';
 import { leverDemand, preheatNeeded } from '../vessel/physics/propulsion';
-import { isWorkboat, VESSEL_DEFS } from '../vessel/vesselDef';
+import { gearOf } from '../boats/sims';
 import { BREAKERS, type BreakerName, type VesselControls, type VesselState } from '../vessel/vesselState';
 import type { BusKeySpec, BusValue } from './bus';
 
@@ -133,31 +133,30 @@ function circuitKeys(): Record<`circuit.${BreakerName}.live`, BusKeySpec> {
 /**
  * The engine panel's warning lamps (modular boats M3), as today's WarningLamps lit them:
  * each is off, on, or blinking. The lamp module only draws what the key says; WHEN a lamp
- * lights stays here (today's rules) until the engine is a module (M4). Undefined on a boat
- * without the workboat's engine panel. All need 12 V on the Instruments circuit, except
+ * lights stays here (today's rules). Undefined on a boat without an inboard diesel. All need 12 V on the Instruments circuit, except
  * GLOW, which is wired with the glow plugs (12 V on the master).
  */
 type Lamp = 'off' | 'on' | 'blink';
 const LAMP = ['off', 'on', 'blink'] as const;
 function lamp(s: VesselState, which: 'oil' | 'charge' | 'glow' | 'neutral' | 'bilge'): Lamp | undefined {
-  const def = VESSEL_DEFS[s.defId];
-  if (!isWorkboat(def)) return undefined;
+  const diesel = gearOf(s, 'diesel');
+  if (!diesel) return undefined;
   const instr = isPowered(s, 'instruments');
   const e = s.engine;
   const running = e.phase === 'running';
   switch (which) {
     case 'oil':
       // No oil pressure stopped; blinks running with the sump nearly dry.
-      return !instr ? 'off' : !running ? 'on' : (e.oil ?? 1) < (def.maintenance?.lampAt ?? 0) ? 'blink' : 'off';
+      return !instr ? 'off' : !running ? 'on' : (e.oil ?? 1) < diesel.maintenance.lampAt ? 'blink' : 'off';
     case 'charge':
       return instr && !running ? 'on' : 'off';
     case 'glow':
-      return isPowered(s) && e.key > 0 && s.controls.heat > 0 && e.glow < preheatNeeded(s, def) ? 'on' : 'off';
+      return isPowered(s) && e.key > 0 && s.controls.heat > 0 && e.glow < preheatNeeded(s, diesel) ? 'on' : 'off';
     case 'neutral':
       // On in neutral (the start interlock); blinks while START is held in gear.
-      return !instr ? 'off' : leverDemand(def, s.controls.lever).gear === 0 ? 'on' : s.controls.start > 0 ? 'blink' : 'off';
+      return !instr ? 'off' : leverDemand(diesel, s.controls.lever).gear === 0 ? 'on' : s.controls.start > 0 ? 'blink' : 'off';
     case 'bilge':
-      return instr && (s.bilge ?? 0) >= (def.bilge?.alarmAt ?? 1) ? 'blink' : 'off';
+      return instr && (s.bilge ?? 0) >= (gearOf(s, 'bilgePump')?.alarmAt ?? 1) ? 'blink' : 'off';
   }
 }
 

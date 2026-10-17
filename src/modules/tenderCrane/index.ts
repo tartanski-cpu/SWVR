@@ -10,8 +10,7 @@
  * carries is given to it by the app (`api.attach`): a recipe can't know which boat that is;
  * her buttons, remote and tarpaulin come with her.
  *
- * Drawn in the boat's axes from its config (the vessel's, CONFIG.vessels.workboat.tenderCrane,
- * until M6); the column, saddles and control box are merged with the bridge's fixed parts.
+ * Drawn in the boat's axes from its config (defaults: CONFIG.vessels.workboat.tenderCrane); the column, saddles and control box are merged with the bridge's fixed parts.
  */
 import { CONFIG } from '../../config';
 import { TenderCraneView } from '../../controls/TenderCraneView';

@@ -8,7 +8,7 @@ import { createWorld } from '../src/core/world';
 import { cargoPaused } from '../src/rescue/rescue';
 import { distanceToHull, stepRecovery, vesselToWorld } from '../src/rescue/recovery';
 import { placeVessel } from '../src/vessel/vesselControl';
-import { asWorkboat, VESSEL_DEFS } from '../src/vessel/vesselDef';
+import { VESSEL_DEFS } from '../src/vessel/vesselDef';
 
 const DT = 1 / 60;
 
@@ -26,7 +26,7 @@ function setup(defId: 'manOverboard' | 'lostCargo') {
   };
   send('rescueDebugNear', { ref: defId });
   const inc = world.rescue!.active!;
-  const gear = asWorkboat(VESSEL_DEFS[v.defId]).rescueGear;
+  const gear = VESSEL_DEFS[v.defId].rescueGear!;
   return { world, v, send, run, inc, gear };
 }
 

@@ -256,6 +256,13 @@ const GEAR_WORDS: Record<GearKind, string> = {
   swimLadder: 'a swim ladder',
   lifeRing: 'a life ring',
   boatHook: 'a boat hook',
+  midCleat: 'a midship cleat',
+  diesel: 'an inboard diesel',
+  rudder: 'a rudder',
+  outboard: 'an outboard',
+  batteries: 'house batteries',
+  bilgePump: 'a bilge pump',
+  chartTable: 'a chart table',
 };
 
 function describeNeed(r: Requirement): string {

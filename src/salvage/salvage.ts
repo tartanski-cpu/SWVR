@@ -22,11 +22,10 @@
  *             we're far off.
  */
 import { CONFIG } from '../config';
-import type { WorldState } from '../core/world';
+import { homeVessel, type WorldState } from '../core/world';
 import { windVector } from '../environment/weather';
 import { sayRadio } from '../rescue/rescue';
 import { ISLANDS, PORTS } from '../world/archipelago';
-import { isWorkboat, VESSEL_DEFS } from '../vessel/vesselDef';
 import { earn, portName } from '../career/career';
 import { groundHeight } from '../world/terrain';
 
@@ -122,7 +121,7 @@ export function washUp(world: WorldState, nearX?: number, nearZ?: number): Salva
   const spots = beachSpots();
   if (!spots.length) return null;
   const c = CONFIG.salvage;
-  const boat = Object.values(world.vessels).find((v) => isWorkboat(VESSEL_DEFS[v.defId]));
+  const boat = homeVessel(world);
   const start = Math.floor(rand(s) * spots.length);
   for (let k = 0; k < spots.length; k++) {
     const b = spots[(start + k * 7) % spots.length];
@@ -204,7 +203,7 @@ export function stepLog(world: WorldState, log: SalvageLog, T: number, ux: numbe
 export function stepSalvage(world: WorldState, dt: number): void {
   const s = (world.salvage ??= createSalvageState());
   const c = CONFIG.salvage;
-  const boat = Object.values(world.vessels).find((v) => isWorkboat(VESSEL_DEFS[v.defId]));
+  const boat = homeVessel(world);
   if (s.nextAt === null) s.nextAt = world.time + c.firstAfter;
   if (s.spawn && world.time >= s.nextAt) {
     s.nextAt = world.time + c.every[0] + rand(s) * (c.every[1] - c.every[0]);

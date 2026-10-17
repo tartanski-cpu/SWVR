@@ -9,6 +9,7 @@ import type { Intent } from '../core/intents';
 import { stepWorld } from '../core/simulation';
 import { createWorld, type WorldState } from '../core/world';
 import { placeVessel } from './vesselControl';
+import { gearOf } from '../boats/sims';
 import { VESSEL_DEFS } from './vesselDef';
 import type { VesselState } from './vesselState';
 
@@ -109,7 +110,7 @@ class Trial {
 
   /** Start the diesel, or switch the electric outboard on. */
   startEngine(): void {
-    if (VESSEL_DEFS[this.v.defId].outboard) {
+    if (gearOf(this.v, 'outboard')) {
       if (!this.v.controls.obOn) this.send('obPower', 1);
       return;
     }
@@ -123,7 +124,7 @@ class Trial {
    * gear lever and twist grip.
    */
   throttle(value: number): void {
-    if (!VESSEL_DEFS[this.v.defId].outboard) {
+    if (!gearOf(this.v, 'outboard')) {
       this.send('lever', value);
       return;
     }
@@ -236,9 +237,10 @@ export function runSeaTrials(defId = 'workboat'): SeaTrialResults {
     const t = new Trial(defId);
     t.startEngine();
     t.settle(lever);
-    const def = VESSEL_DEFS[defId];
+    const diesel = gearOf(t.v, 'diesel');
+    const ob = gearOf(t.v, 'outboard');
     // Range on a full tank, or (electric outboard) on a full battery.
-    const hours = def.engine ? def.engine.fuel.tankL / t.v.engine.fuelFlowLph : def.outboard ? def.outboard.batteryKWh / (def.outboard.powerKw * lever ** 1.5) : 0;
+    const hours = diesel ? diesel.engine.fuel.tankL / t.v.engine.fuelFlowLph : ob ? ob.batteryKWh / (ob.powerKw * lever ** 1.5) : 0;
     speedTable.push({ lever, knots: t.speed * KN, rpm: t.v.engine.rpm, fuelLph: t.v.engine.fuelFlowLph, rangeNm: hours * t.speed * KN });
   }
   const top = speedTable[speedTable.length - 1].knots / KN;
@@ -347,8 +349,7 @@ export function runSeaTrials(defId = 'workboat'): SeaTrialResults {
       b.v.linearVelocity[0] = 0;
       b.v.linearVelocity[2] = 0;
     });
-    const def = VESSEL_DEFS[defId];
-    return { kN: (Math.abs(b.v.thrust) * (1 - (def.propeller?.thrustDeduction ?? 0))) / 1000, rpm: b.v.engine.rpm };
+    return { kN: (Math.abs(b.v.thrust) * (1 - (gearOf(b.v, 'diesel')?.propeller.thrustDeduction ?? 0))) / 1000, rpm: b.v.engine.rpm };
   };
   const bAhead = bollardAt(1);
   const bAstern = bollardAt(-1);
@@ -381,7 +382,7 @@ export function formatSeaTrials(r: SeaTrialResults): string {
     `SEA TRIALS: ${r.vesselDefId} (calm water)`,
     ...r.speedTable.map(
       (s) =>
-        VESSEL_DEFS[r.vesselDefId].outboard
+        gearOf({ defId: r.vesselDefId }, 'outboard')
           ? `  throttle ${(s.lever * 100).toFixed(0).padStart(3)} %: ${s.knots.toFixed(1)} kn, range ${s.rangeNm.toFixed(1)} nm (full battery)`
           : `  lever ${(s.lever * 100).toFixed(0).padStart(3)} %: ${s.knots.toFixed(1)} kn @ ${s.rpm.toFixed(0)} rpm, ${s.fuelLph.toFixed(1)} L/h, range ${s.rangeNm.toFixed(0)} nm (full tank)`,
     ),

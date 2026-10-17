@@ -37,11 +37,13 @@ import { clamp } from '../core/math';
 import type { WorldState } from '../core/world';
 import { hydraulicsOn } from './electrics';
 import { hullPlan } from './layout';
-import { VESSEL_DEFS, type VesselDef } from './vesselDef';
+import { CONFIG } from '../config';
+import { VESSEL_DEFS } from './vesselDef';
 import { gearOf } from '../boats/sims';
 import type { TenderState, VesselState } from './vesselState';
 
-export type TenderCrane = NonNullable<VesselDef['tenderCrane']>;
+/** The crane's geometry and its launch and recovery path (the tender-crane module's config). */
+export type TenderCrane = typeof CONFIG.vessels.workboat.tenderCrane;
 
 const qHost = new THREE.Quaternion();
 const qYaw = new THREE.Quaternion();

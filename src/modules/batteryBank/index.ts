@@ -5,9 +5,8 @@
  * the voltage rests on the charge, sags by I R discharging and rises toward the
  * alternator's regulated voltage charging; below `cutoffSoc` a battery is flat.
  *
- * Its state is today's VesselState.electrics (until M6); its defaults are the workboat's
- * batteries. (Until M6, whether the bus is powered still reads the vessel's own battery
- * config; a test keeps the two the same.)
+ * Its state is today's VesselState.electrics (until 6d); its defaults are the workboat's
+ * batteries. Whether the bus is powered reads its 'batteries' gear (M6b).
  */
 import { CONFIG } from '../../config';
 import type { ModuleDefinition } from '../../modular/module';
@@ -40,7 +39,8 @@ export const BATTERY_BANK: ModuleDefinition<BatteryBankConfig> = {
     ...(c.restVolts[1] > c.restVolts[0] ? [] : ['restVolts: flat should be below full']),
   ],
   ports: {},
-  provides: () => [{ power: 'electrical' }],
+  provides: () => [{ power: 'electrical' }, { gear: 'batteries' }],
+  gear: (c) => ({ batteries: { ah: c.ah, restVolts: c.restVolts, internalOhm: c.internalOhm, chargeVolts: c.chargeVolts, cutoffSoc: c.cutoffSoc } }),
   // The batteries' mass, at the bank (M6).
   physical: (c) => ({ massKg: c.batteries * c.massKg, units: c.batteries }),
   power: (c) => [{ role: 'store', ...c }],

@@ -5,8 +5,8 @@
  *
  * It gives the boat a boat hook: where its clips are (x, y, from z0 to z1). The hook is drawn
  * by the app (rescue/rescueGearView.ts: it's held in hands and laid on deck, not only in its
- * clips); this module draws nothing of its own. Its config is the vessel's
- * (CONFIG.vessels.workboat.rescueGear.hookStow) until M6.
+ * clips); this module draws nothing of its own. Its defaults are the
+ * vessel config's figures (CONFIG.vessels.workboat.rescueGear.hookStow).
  */
 import { CONFIG } from '../../config';
 import type { ModuleDefinition } from '../../modular/module';

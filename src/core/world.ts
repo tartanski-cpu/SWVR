@@ -37,6 +37,12 @@ export interface WorldState {
   players: Record<EntityId, PlayerState>;
   vessels: Record<EntityId, VesselState>;
   /**
+   * The players' own boat, the one the game gives them (modular boats M6b): the world's
+   * systems (rescue, tows, fires, duties, the career...) work for her. Absent in a snapshot
+   * from a host older than M6b (homeVessel() then falls back to the workboat).
+   */
+  homeVesselId?: EntityId;
+  /**
    * 'archipelago': vessels collide with the islands, seabed and harbour structures and can
    * anchor; 'openSea': deep water everywhere (sea trials, tests).
    */
@@ -104,6 +110,7 @@ export function createWorld(
       [localPlayerId]: player,
     },
     vessels: { [vesselId]: vessel, ...(tender ? { [tender.id]: tender } : {}) },
+    homeVesselId: vesselId,
     geography: 'archipelago',
     cargo: {},
     cargoSeq: 0,
@@ -145,4 +152,13 @@ function mooredAtStart(v: VesselState): void {
   v.mooring.reversed = false;
   v.mooring.t = 0;
   v.mooring.bow = v.mooring.stern = shoreSide(v, b);
+}
+
+/**
+ * The players' own boat (WorldState.homeVesselId), or none. A world from a host older than
+ * M6b has no home boat recorded: then the workboat, as the systems found it before.
+ */
+export function homeVessel(world: WorldState): VesselState | undefined {
+  const v = world.homeVesselId ? world.vessels[world.homeVesselId] : undefined;
+  return v ?? Object.values(world.vessels).find((x) => x.defId === 'workboat');
 }

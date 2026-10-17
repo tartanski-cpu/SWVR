@@ -7,7 +7,7 @@
  * Its buttons throw 'winch.heaveIn' / 'winch.payOut'; the towing system (tow/tow.ts) heaves
  * and pays out the line while there's hydraulic pressure. The drum turns as the app says
  * through its `api` (it turns for the trawl's net too). Drawn in the boat's axes from its
- * config (the vessel's, CONFIG.vessels.workboat.towWinch, until M6).
+ * config (defaults: CONFIG.vessels.workboat.towWinch).
  */
 import * as THREE from 'three';
 import { CONFIG } from '../../config';

@@ -112,7 +112,7 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
     const external = wind ? [...(ext ?? []), wind] : ext;
     stepVessel(vessel, VESSEL_DEFS[vessel.defId], simWaves, dt, dbg, world.geography === 'archipelago', payload, external);
     stepDeckCargo(world, vessel, deckBefore, dt);
-    stepRefuelling(vessel, VESSEL_DEFS[vessel.defId], dt, world.geography === 'archipelago');
+    stepRefuelling(vessel, dt, world.geography === 'archipelago');
     // Her modules (every boat is built from a recipe since M6a): the energy network, the
     // hull's leak, the modules' upkeep (bilge pump, the engine's oil and wear), the hull's damage.
     const machinery = vesselRuntime(vessel)!;
