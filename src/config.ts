@@ -39,8 +39,15 @@ export const CONFIG = {
   pixelPaint: {
     /** How strongly the detail shows: 0 off (plain colours, as before) .. 1 full. */
     strength: 1,
-    /** How much surface one repeat of each image covers (m, square). Each image is 64 x 64 pixels, so wood at 2 m is 32 pixels a metre. */
-    tileMetres: { nonSlip: 1, wood: 2, mat: 1, chequer: 0.5 },
+    /**
+     * How much surface one repeat of each image covers (m, square). Each image is 64 x 64
+     * pixels, so wood at 2 m is 32 pixels a metre. `crate` and `window` are whole pictures
+     * stretched to one face each (keep them at 1). Step 2 (cargo, harbours, sea marks):
+     * sacking on sacks, worn paint on drums, buoys and posts, weatherboarding, render,
+     * corrugated sheet and slates on the houses and sheds, concrete on the quays, stone on
+     * the breakwaters.
+     */
+    tileMetres: { nonSlip: 1, wood: 2, mat: 1, chequer: 0.5, crate: 1, sacking: 2, worn: 1.5, boards: 2, render: 2, sheet: 2, slates: 2, concrete: 4, stone: 3, window: 1 },
     /** Width of the black window frames round the wheelhouse glass (m). */
     frameWidth: 0.06,
   },

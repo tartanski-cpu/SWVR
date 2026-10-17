@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { WorldState } from '../core/world';
 import { CONFIG } from '../config';
-import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
+import { fitPaint, flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 import { kindOf, lashPointFor, portById, type CargoItem } from './cargo';
 import { hasUpgrade } from '../career/career';
@@ -106,16 +106,18 @@ export function potGeometry(size: readonly number[], rigged = true): THREE.Buffe
 export type CarriedPose = (item: CargoItem) => { pos: THREE.Vector3; quat: THREE.Quaternion } | null;
 
 /**
- * Every cargo item, one instanced draw call per shape (boxes, drums, the trawl's fish boxes) plus one for the
- * lashing straps: waiting ashore, riding a deck, or in someone's hands. Sized by kind,
- * coloured by destination (the port's colour), with pale bands so it reads as packaged
- * goods. The item a hand is on is drawn brighter. Lashing points (D-rings) are baked onto
+ * Every cargo item, one instanced draw call per shape (crates, sacks, drums, the trawl's fish
+ * boxes) plus one for the lashing straps: waiting ashore, riding a deck, or in someone's
+ * hands. Sized by kind, coloured by destination (the port's colour), with the detail painted
+ * on (pixel paint: a crate's boards, sacking, a drum's worn paint). The item a hand is on is drawn brighter. Lashing points (D-rings) are baked onto
  * each vessel once (`attachVessel`).
  */
 export class CargoView {
   readonly root = new THREE.Group();
   private readonly boxes: THREE.InstancedMesh;
   private readonly drums: THREE.InstancedMesh;
+  /** Sacks: drawn only when there are some (an empty instanced mesh costs nothing). */
+  private readonly sacks: THREE.InstancedMesh;
   private readonly straps: THREE.InstancedMesh;
   /** The trawl's catch: wooden fish boxes (built at the fish box's real size), bare and iced. */
   private readonly fishBoxes: THREE.InstancedMesh;
@@ -140,20 +142,19 @@ export class CargoView {
   private readonly b = new THREE.Vector3();
 
   constructor() {
-    // Unit shapes (1 m) standing on their base, with pale bands.
-    const box = mergeParts([
-      part(new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0), 0xffffff),
-      part(new THREE.BoxGeometry(1.02, 0.08, 1.02).translate(0, 0.55, 0), 0xf2ead8),
-      // Just below the lid, not flush with it (a band flush with the lid flickered against it).
-      part(new THREE.BoxGeometry(1.02, 0.06, 1.02).translate(0, 0.95, 0), 0xf2ead8),
-    ]);
+    // Unit shapes (1 m) standing on their base. A box is a crate, each face painted as one
+    // whole crate side (frame, planks, brace: pixel painting, step 2); a sack is a box of
+    // sacking; a drum's paint is worn.
+    const box = mergeParts([fitPaint(part(new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0), 0xffffff, 'crate'))]);
+    const sack = mergeParts([part(new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0), 0xffffff, 'sacking')]);
     const drum = mergeParts([
-      part(new THREE.CylinderGeometry(0.5, 0.5, 1, 12).translate(0, 0.5, 0), 0xffffff),
+      part(new THREE.CylinderGeometry(0.5, 0.5, 1, 12).translate(0, 0.5, 0), 0xffffff, 'worn'),
       part(new THREE.CylinderGeometry(0.515, 0.515, 0.05, 12).translate(0, 0.33, 0), 0xf2ead8),
       part(new THREE.CylinderGeometry(0.515, 0.515, 0.05, 12).translate(0, 0.67, 0), 0xf2ead8),
     ]);
     const mat = flatVertexColorMaterial();
     this.boxes = new THREE.InstancedMesh(box, mat, MAX);
+    this.sacks = new THREE.InstancedMesh(sack, mat, MAX);
     this.drums = new THREE.InstancedMesh(drum, mat, MAX);
     // Strap: a unit box on its base; bands round an item and ties down to its D-ring.
     this.straps = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0), new THREE.MeshLambertMaterial({ color: STRAP }), MAX * 3);
@@ -174,7 +175,7 @@ export class CargoView {
   }
 
   private meshes(): THREE.InstancedMesh[] {
-    return [this.boxes, this.drums, this.straps, this.fishBoxes, this.icedBoxes, this.pots, this.crabs, this.lobsters, ...Object.values(this.bycatch)];
+    return [this.boxes, this.sacks, this.drums, this.straps, this.fishBoxes, this.icedBoxes, this.pots, this.crabs, this.lobsters, ...Object.values(this.bycatch)];
   }
 
   /**
@@ -227,6 +228,7 @@ export class CargoView {
    */
   update(world: WorldState, vesselRoots: Map<string, THREE.Object3D>, carried: CarriedPose, hovered: string | null): void {
     let nb = 0;
+    let nk = 0;
     let nd = 0;
     let ns = 0;
     let nf = 0;
@@ -264,8 +266,9 @@ export class CargoView {
       const fishBox = c.from === 'trawl';
       const pot = kind.shape === 'pot';
       const drum = kind.shape === 'drum';
-      const im = pot ? this.pots : fishBox ? fishMesh : drum ? this.drums : this.boxes;
-      const i = pot ? np++ : fishBox ? nf++ : drum ? nd++ : nb++;
+      const sack = kind.name === 'Sack';
+      const im = pot ? this.pots : fishBox ? fishMesh : drum ? this.drums : sack ? this.sacks : this.boxes;
+      const i = pot ? np++ : fishBox ? nf++ : drum ? nd++ : sack ? nk++ : nb++;
       if (i >= MAX) continue;
       // A hauled pot's catch, on its floor (seen through the netting).
       if (pot && c.pot) this.drawCatch(c.pot.crab, c.pot.lobster, c.pot.bycatch, 0.018, this.potSize[0] - 0.14, this.potSize[2] - 0.16, n);
@@ -311,6 +314,7 @@ export class CargoView {
       }
     }
     this.boxes.count = Math.min(nb, MAX);
+    this.sacks.count = Math.min(nk, MAX);
     this.drums.count = Math.min(nd, MAX);
     this.straps.count = ns;
     fishMesh.count = Math.min(nf, MAX);

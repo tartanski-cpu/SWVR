@@ -470,6 +470,8 @@ Each port has three items waiting ashore, each bound for another port. The box c
 
 **Every crate and pot job works both ways** (by hand, or by a button in the menu's Cargo tab, with the same rules): **Load**, **Unload** (cargo for this port, fish boxes, crates fished out of the sea, and the catch in your pots), **Lash all** / **Release all**, **Lift crates** (floating crates within 15 m of her side come aboard, no boat hook needed), and for pots **Load pots** (from the pallet at Calder Haven), **Bait all**, **Shoot one** (a pot over the starboard side) and **Haul nearest** (the nearest buoy within 25 m). The buttons say why not when they can't: not at a port, not stopped, no room, nothing in reach.
 
+Cargo looks the part: crates are boarded and braced, sacks woven, drums scuffed, all in the colour of the port they're bound for.
+
 Cargo is real weight. A full load sits her about 10–15 cm deeper and down by the stern, and she'll feel heavier.
 
 ### Docking

@@ -19,8 +19,13 @@ import { CONFIG } from '../config';
  *   crawl in VR as the head moves.
  */
 
-/** The tiles, in their order in the texture (0 is no paint). */
-export const PAINTS = ['nonSlip', 'wood', 'mat', 'chequer'] as const;
+/**
+ * The tiles, in their order in the texture (0 is no paint). The first four are the boats';
+ * the rest dress the cargo, the harbours and the sea marks (step 2, owner: the crates, the
+ * houses, the buoys and nav marks). `crate` and `window` are whole pictures, one to a face
+ * (`fitPaint`, render/geometryUtils); the others repeat every `tileMetres`.
+ */
+export const PAINTS = ['nonSlip', 'wood', 'mat', 'chequer', 'crate', 'sacking', 'worn', 'boards', 'render', 'sheet', 'slates', 'concrete', 'stone', 'window'] as const;
 export type PaintName = (typeof PAINTS)[number];
 
 /** A tile's index in the texture (0: none). */
@@ -38,6 +43,24 @@ function rng(seed: number): () => number {
     t = Math.imul(t ^ (t >>> 15), t | 1);
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** Seamless value noise over the tile: random values on a grid every `cell` pixels, blended smoothly between. */
+function noise(seed: number, cell: number): (x: number, y: number) => number {
+  const r = rng(seed);
+  const n = TILE / cell;
+  const g = Array.from({ length: n * n }, () => r());
+  const at = (i: number, j: number) => g[((j + n) % n) * n + ((i + n) % n)];
+  const s = (t: number) => t * t * (3 - 2 * t);
+  return (x, y) => {
+    const fx = x / cell;
+    const fy = y / cell;
+    const i = Math.floor(fx);
+    const j = Math.floor(fy);
+    const u = s(fx - i);
+    const v = s(fy - j);
+    return (at(i, j) * (1 - u) + at(i + 1, j) * u) * (1 - v) + (at(i, j + 1) * (1 - u) + at(i + 1, j + 1) * u) * v;
   };
 }
 
@@ -86,6 +109,138 @@ const PAINTERS: Record<PaintName, () => (x: number, y: number) => number> = {
       const edge = across === 5 && along >= 1 && along <= 6;
       return (bar ? 0.64 : edge ? 0.4 : 0.48) + speck[y * TILE + x];
     };
+  },
+  /**
+   * A cargo crate's side, the whole face (one to a face): a frame of boards round the edge,
+   * planks across inside, a diagonal brace, and nail heads at the frame's corners.
+   */
+  crate: () => {
+    const r = rng(61);
+    const grain = Array.from({ length: TILE * TILE }, () => (r() - 0.5) * 0.05);
+    const plankTone = Array.from({ length: 8 }, () => 0.44 + 0.1 * r());
+    const F = 7; // the frame boards' width (pixels)
+    return (x, y) => {
+      const g = grain[y * TILE + x];
+      if (x === 0 || y === 0 || x === TILE - 1 || y === TILE - 1) return 0.36; // the face's edge
+      const inFrame = x < F || y < F || x >= TILE - F || y >= TILE - F;
+      if (inFrame) {
+        // Nail heads: two at each corner of the frame.
+        const cx = x < F ? 3 : x >= TILE - F ? TILE - 4 : -9;
+        const cy = y < F ? 3 : y >= TILE - F ? TILE - 4 : -9;
+        if (cx > 0 && cy > 0 && (Math.abs(x - cx) + Math.abs(y - cy) === 0 || (Math.abs(x - cx) === 0 && Math.abs(y - cy) === 2))) return 0.2;
+        if (x === F - 1 || y === F - 1 || x === TILE - F || y === TILE - F) return 0.38; // the frame's inner edge
+        return 0.6 + g;
+      }
+      // The brace, corner to corner across the planks.
+      const d = Math.abs(x - y);
+      if (d <= 3) return d === 3 ? 0.36 : 0.62 + g;
+      // Planks across, 7 pixels each with a dark gap.
+      const row = Math.floor((y - F) / 7);
+      if ((y - F) % 7 === 6) return 0.3;
+      return plankTone[row % 8] + g;
+    };
+  },
+  /** Sacking: a coarse weave of 2-pixel threads, a little uneven. */
+  sacking: () => {
+    const r = rng(67);
+    const fuzz = Array.from({ length: TILE * TILE }, () => (r() - 0.5) * 0.08);
+    return (x, y) => (((x >> 1) + (y >> 1)) % 2 ? 0.56 : 0.44) + fuzz[y * TILE + x];
+  },
+  /**
+   * Worn paint, for drums, buoys, posts and fittings: the paint mottled, scuffed in short
+   * streaks, a few rust spots each with a run down from it.
+   */
+  worn: () => {
+    const r = rng(71);
+    const mottle = noise(72, 8);
+    const px = Array.from({ length: TILE * TILE }, (_, i) => 0.47 + 0.07 * mottle(i % TILE, Math.floor(i / TILE)) + (r() - 0.5) * 0.03);
+    // Scuffs: short light streaks along the face.
+    for (let k = 0; k < 14; k++) {
+      const x0 = Math.floor(r() * TILE);
+      const y0 = Math.floor(r() * TILE);
+      const len = 3 + Math.floor(r() * 6);
+      for (let i = 0; i < len; i++) px[y0 * TILE + ((x0 + i) % TILE)] = 0.6;
+    }
+    // Rust: a spot and a run down the face from it.
+    for (let k = 0; k < 6; k++) {
+      const x0 = Math.floor(r() * TILE);
+      const y0 = Math.floor(r() * TILE);
+      px[y0 * TILE + x0] = 0.24;
+      px[y0 * TILE + ((x0 + 1) % TILE)] = 0.3;
+      const run = 4 + Math.floor(r() * 10);
+      for (let i = 1; i <= run; i++) px[((y0 - i + TILE) % TILE) * TILE + x0] = 0.34 + (0.12 * i) / run;
+    }
+    return (x, y) => px[y * TILE + x];
+  },
+  /** Weatherboarding: boards lapped 25 cm apart (8 pixels at 2 m), a shadow under each lap, staggered butt joints. */
+  boards: () => {
+    const r = rng(79);
+    const rows = TILE / 8;
+    const board = Array.from({ length: rows }, () => ({ tone: 0.5 + 0.06 * r(), joint: Math.floor(r() * TILE) }));
+    const grain = Array.from({ length: TILE * TILE }, () => (r() - 0.5) * 0.03);
+    return (x, y) => {
+      const b = board[Math.floor(y / 8)];
+      const k = y % 8;
+      if (k === 0) return 0.28; // the shadow under the board above
+      if (k === 1) return 0.4;
+      if (x === b.joint) return 0.36;
+      return b.tone + (k === 7 ? 0.05 : 0) + grain[y * TILE + x];
+    };
+  },
+  /** Render (harled or rendered masonry): a rough speckle with soft patches. */
+  render: () => {
+    const r = rng(83);
+    const patch = noise(84, 16);
+    const px = Array.from({ length: TILE * TILE }, (_, i) => 0.46 + 0.06 * patch(i % TILE, Math.floor(i / TILE)) + (r() < 0.12 ? -0.06 : r() < 0.1 ? 0.06 : 0) + (r() - 0.5) * 0.03);
+    return (x, y) => px[y * TILE + x];
+  },
+  /** Corrugated sheet: ribs every 4 pixels (12.5 cm at 2 m) running up the face, a lap between sheets. */
+  sheet: () => {
+    const r = rng(89);
+    const profile = [0.62, 0.54, 0.38, 0.46];
+    const streak = noise(90, 8);
+    return (x, y) => {
+      if (y === 0) return 0.34; // where one sheet laps the next
+      return profile[x % 4] + 0.06 * (streak(x, y) - 0.5) + (r() - 0.5) * 0.02;
+    };
+  },
+  /** Slates: courses 25 cm deep (8 pixels at 2 m), each slate its own shade, staggered course to course, a shadow under each. */
+  slates: () => {
+    const r = rng(97);
+    const tone = Array.from({ length: (TILE / 8) * (TILE / 8) }, () => 0.49 + 0.1 * r());
+    return (x, y) => {
+      const course = Math.floor(y / 8);
+      const xs = (x + (course % 2) * 4) % TILE;
+      const k = y % 8;
+      if (k === 0) return 0.28;
+      if (xs % 8 === 0) return 0.34;
+      return tone[course * (TILE / 8) + Math.floor(xs / 8)] + (k === 7 ? 0.04 : 0);
+    };
+  },
+  /** Concrete: slabs 2 m square (32 pixels at 4 m) with their joints, a fine speckle, darker stains. */
+  concrete: () => {
+    const r = rng(101);
+    const stain = noise(102, 16);
+    const px = Array.from({ length: TILE * TILE }, (_, i) => 0.49 + 0.07 * (stain(i % TILE, Math.floor(i / TILE)) - 0.5) + (r() - 0.5) * 0.05);
+    return (x, y) => (x % 32 === 0 || y % 32 === 0 ? 0.33 : px[y * TILE + x]);
+  },
+  /** Rock armour: blotches of lighter and darker stone, finely grained. */
+  stone: () => {
+    const r = rng(107);
+    const big = noise(108, 8);
+    const small = noise(109, 2);
+    return (x, y) => 0.36 + 0.18 * big(x, y) + 0.1 * small(x, y) + (r() - 0.5) * 0.04;
+  },
+  /**
+   * A window, the whole face (one to a face): a light frame and a cross of glazing bars over
+   * four dark panes, with a pale glint across the glass.
+   */
+  window: () => (x, y) => {
+    const F = 5;
+    if (x < F || y < F || x >= TILE - F || y >= TILE - F) return 0.86; // the frame
+    if (Math.abs(x - 31.5) < 2 || Math.abs(y - 31.5) < 2) return 0.86; // glazing bars
+    const glint = Math.abs(x + y - 70) < 5 || Math.abs(x + y - 84) < 2;
+    return glint ? 0.5 : 0.3;
   },
 };
 

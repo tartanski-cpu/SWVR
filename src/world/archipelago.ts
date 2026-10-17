@@ -92,6 +92,11 @@ export interface BuildingDef {
   yawDeg: number;
   wall: number;
   roof: number;
+  /**
+   * What the walls are clad in, painted on (pixel paint): weatherboard, render, or corrugated
+   * sheet (a shed: its roof is sheet too; the others are slated). Unset: render.
+   */
+  cladding?: 'boards' | 'render' | 'sheet';
 }
 
 export interface LightDef {
@@ -260,15 +265,15 @@ export const BLOCKS: BlockDef[] = [
 
 export const BUILDINGS: BuildingDef[] = [
   // Calder Haven waterfront.
-  { x: 742, z: 622, width: 8, depth: 6, height: 3.5, yawDeg: 0, wall: 0xe8e2d0, roof: 0x8a3a2a }, // harbour office (on the quay)
-  { x: 762, z: 645, width: 16, depth: 11, height: 6, yawDeg: 0, wall: 0x9fa7ad, roof: 0x4d555b }, // fish shed
-  { x: 760, z: 676, width: 8, depth: 7, height: 4, yawDeg: 0, wall: 0xd9c9a3, roof: 0x5a3a2a },
+  { x: 742, z: 622, width: 8, depth: 6, height: 3.5, yawDeg: 0, wall: 0xe8e2d0, roof: 0x8a3a2a, cladding: 'render' }, // harbour office (on the quay)
+  { x: 762, z: 645, width: 16, depth: 11, height: 6, yawDeg: 0, wall: 0x9fa7ad, roof: 0x4d555b, cladding: 'sheet' }, // fish shed
+  { x: 760, z: 676, width: 8, depth: 7, height: 4, yawDeg: 0, wall: 0xd9c9a3, roof: 0x5a3a2a, cladding: 'boards' },
   { x: 778, z: 602, width: 9, depth: 7, height: 4.5, yawDeg: 10, wall: 0xf1ede2, roof: 0x2f4f6f },
-  { x: 784, z: 700, width: 9, depth: 8, height: 4.5, yawDeg: -8, wall: 0xe8d6b8, roof: 0x8a3a2a },
+  { x: 784, z: 700, width: 9, depth: 8, height: 4.5, yawDeg: -8, wall: 0xe8d6b8, roof: 0x8a3a2a, cladding: 'boards' },
   { x: 805, z: 650, width: 12, depth: 8, height: 5, yawDeg: 4, wall: 0xf4f0e6, roof: 0x3e3e3e },
   // Brannock: shed and cottage at the pier root.
-  { x: -680, z: 440, width: 14, depth: 9, height: 5, yawDeg: 45, wall: 0x8c9aa3, roof: 0x3e4a52 },
-  { x: -705, z: 470, width: 8, depth: 6, height: 4, yawDeg: 30, wall: 0xf0ebe0, roof: 0x7a2e22 },
+  { x: -680, z: 440, width: 14, depth: 9, height: 5, yawDeg: 45, wall: 0x8c9aa3, roof: 0x3e4a52, cladding: 'sheet' },
+  { x: -705, z: 470, width: 8, depth: 6, height: 4, yawDeg: 30, wall: 0xf0ebe0, roof: 0x7a2e22, cladding: 'boards' },
   // Rona: a bothy above the beach at Selkie Bay.
   { x: -142, z: 1309, width: 6, depth: 5, height: 3, yawDeg: 5, wall: 0xd8d2c4, roof: 0x3a3a3a },
 ];

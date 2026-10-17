@@ -3663,6 +3663,30 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Tests:** `deckRoom.test.ts` (30 crates on a landing craft: met, stretched, proportions kept; already enough: unchanged; 200: as big as she goes, not met), `brief.test.ts` (cards: stretched, standard, at most).
 - **Checked in headless Chromium:** Cargo runs, 30 crates: the landing craft first ("30 crates, stretched"); Start from this hull: stretched to 10.13 x 3.15 m, 31 crates, then 150 kW fitted; the brief met on every line. No page errors. **Not checked:** the Quest, a phone.
 
+### Pixel painting, step 2: cargo, harbours and sea marks (owner)
+
+- **The owner:** the painting works well in the cabin; add it, selectively, to other things in the game: the cargo crates first, maybe the houses, some buoys and nav marks.
+- **Ten new images** (`render/pixelPaint.ts`, 64 x 64, made in code like the first four, each mid-grey on average so it adds detail without changing a colour):
+  - `crate`: a whole crate side, one to a face: frame boards, planks, a diagonal brace, nail heads;
+  - `sacking`: a coarse weave;
+  - `worn`: mottled paint, scuffs, rust spots with runs below them;
+  - `boards`: lapped weatherboarding with staggered joints;
+  - `render`: rough render;
+  - `sheet`: corrugated sheet, with laps;
+  - `slates`: staggered courses of slates;
+  - `concrete`: 2 m slabs with their joints, stains;
+  - `stone`: rock armour;
+  - `window`: a whole window, one to a face: frame, glazing bars, four panes, a glint.
+- **Where they're used:**
+  - **cargo:** crates (port-coloured as before; the two pale bands are gone, the painted frame does their job), sacks (now their own instanced mesh), oil drums and gas bottles (worn); the floating rescue crates are boarded too;
+  - **buildings:** each has a `cladding` in `archipelago.ts` BUILDINGS: render (the harbour office and others), weatherboard (three cottages), or corrugated sheet (the two sheds, roof too). Other roofs are slated. Doors are planked, and the window is painted;
+  - **harbours:** quays in concrete slabs, pier decks in planks laid across, bollards, lamp posts and fuel pumps worn;
+  - **sea marks:** the buoys' floats and columns (cardinals, isolated danger, port and starboard), the light posts and the lighthouse's red band worn; the lighthouse tower rendered; the reef's rock in stone; the wreck rusted.
+- **Two helpers** (`render/geometryUtils.ts`): `paintLocal` sets a part's pixels in its own frame before it's turned into place, so a house at 45 degrees still gets level boards (with `swap` for roofs: slates and corrugations run down the slope); `fitPaint` stretches a whole picture (crate side, window) onto each face once.
+- **Config:** `pixelPaint.tileMetres` has a size for each new image (sacking 2, worn 1.5, boards / render / sheet / slates 2, concrete 4, stone 3; crate and window stay 1, as they're fitted). `pixelPaint.strength` still turns all of it down or off.
+- **Cost** (headless browser): one draw call more (the sacks, drawn only while a sack is in the world: 27 to 28 at the start view, 125 to 126 over Calder harbour) and about 200 triangles fewer (the crate bands). One texture read per pixel on painted surfaces, as before; the texture grows to about 0.2 MB.
+- **Checked:** typecheck; all tests (new: a fitted picture fills each face once; paint set in a part's own frame stays square to it once turned, and a roof's turns a quarter); screenshots of crates, a sack and drums on the Calder quay, the harbour office, the fish shed, a weatherboarded cottage, the Brannock pier, a north cardinal buoy, the lighthouse, the reef and the wreck. No page errors. **Not checked:** the Quest (shimmer at a distance, frame rate in the harbour).
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

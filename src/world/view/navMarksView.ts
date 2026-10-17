@@ -21,9 +21,10 @@ const GREEN = 0x1f8a3a;
 /** A pillar buoy: float, two column bands (lower, upper), a mast, topmark parts, a lamp. */
 function pillar(float: number, lower: number, upper: number, topmark: THREE.BufferGeometry[]): THREE.BufferGeometry {
   return mergeParts([
-    part(new THREE.CylinderGeometry(0.85, 1.0, 1.0, 10).translate(0, 0.1, 0), float),
-    part(new THREE.CylinderGeometry(0.42, 0.5, 1.0, 10).translate(0, 1.1, 0), lower),
-    part(new THREE.CylinderGeometry(0.36, 0.42, 1.0, 10).translate(0, 2.1, 0), upper),
+    // The float and the column in weathered paint (pixel paint: scuffs and rust runs).
+    part(new THREE.CylinderGeometry(0.85, 1.0, 1.0, 10).translate(0, 0.1, 0), float, 'worn'),
+    part(new THREE.CylinderGeometry(0.42, 0.5, 1.0, 10).translate(0, 1.1, 0), lower, 'worn'),
+    part(new THREE.CylinderGeometry(0.36, 0.42, 1.0, 10).translate(0, 2.1, 0), upper, 'worn'),
     part(new THREE.CylinderGeometry(0.04, 0.04, 1.2, 5).translate(0, 3.1, 0), BLACK), // mast
     ...topmark,
     part(new THREE.CylinderGeometry(0.09, 0.11, 0.2, 8).translate(0, 3.8, 0), 0x3a3e42), // lamp housing
@@ -48,7 +49,7 @@ const SHAPES: Record<MarkKind, () => THREE.BufferGeometry> = {
   // Port hand: a red can, can topmark.
   port: () =>
     mergeParts([
-      part(new THREE.CylinderGeometry(0.75, 0.8, 1.6, 10).translate(0, 0.4, 0), RED),
+      part(new THREE.CylinderGeometry(0.75, 0.8, 1.6, 10).translate(0, 0.4, 0), RED, 'worn'),
       part(new THREE.CylinderGeometry(0.04, 0.04, 0.9, 5).translate(0, 1.6, 0), BLACK),
       part(new THREE.CylinderGeometry(0.2, 0.2, 0.36, 10).translate(0, 2.0, 0), RED),
       part(new THREE.CylinderGeometry(0.09, 0.11, 0.2, 8).translate(0, 2.45, 0), 0x3a3e42),
@@ -56,8 +57,8 @@ const SHAPES: Record<MarkKind, () => THREE.BufferGeometry> = {
   // Starboard hand: a green cone, cone topmark.
   stbd: () =>
     mergeParts([
-      part(new THREE.CylinderGeometry(0.85, 0.85, 0.5, 10).translate(0, -0.15, 0), GREEN),
-      part(new THREE.ConeGeometry(0.8, 1.8, 10).translate(0, 1.0, 0), GREEN),
+      part(new THREE.CylinderGeometry(0.85, 0.85, 0.5, 10).translate(0, -0.15, 0), GREEN, 'worn'),
+      part(new THREE.ConeGeometry(0.8, 1.8, 10).translate(0, 1.0, 0), GREEN, 'worn'),
       part(new THREE.CylinderGeometry(0.04, 0.04, 0.6, 5).translate(0, 2.1, 0), BLACK),
       cone(2.4, true, GREEN),
       part(new THREE.CylinderGeometry(0.09, 0.11, 0.2, 8).translate(0, 2.75, 0), 0x3a3e42),

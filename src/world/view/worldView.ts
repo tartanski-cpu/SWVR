@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { flatVertexColorMaterial, mergeParts, part } from '../../render/geometryUtils';
+import { fitPaint, flatVertexColorMaterial, mergeParts, paintLocal, part } from '../../render/geometryUtils';
+import type { PaintName } from '../../render/pixelPaint';
 import { BERTHS, BLOCKS, BUILDINGS, ISLANDS, LAMPS, LIGHTS, PORT_FLOODS, PORTS, RIDGES, WRECKS, type BlockDef, type WreckDef } from '../archipelago';
 import { CONFIG } from '../../config';
 import { groundHeight } from '../terrain';
@@ -146,7 +147,7 @@ function buildStructures(): THREE.BufferGeometry[] {
   for (const l of LAMPS) {
     const base = standingHeight(l.x, l.z);
     const h = l.y - base;
-    parts.push(part(new THREE.CylinderGeometry(0.07, 0.1, h, 6).translate(l.x, base + h / 2, l.z), 0x50565c));
+    parts.push(part(new THREE.CylinderGeometry(0.07, 0.1, h, 6).translate(l.x, base + h / 2, l.z), 0x50565c, 'worn'));
     parts.push(part(new THREE.BoxGeometry(0.5, 0.14, 0.28).translate(l.x, l.y + 0.05, l.z), 0x3a3f44));
     parts.push(part(new THREE.BoxGeometry(0.42, 0.04, 0.22).translate(l.x, l.y - 0.04, l.z), 0xfff1c8));
   }
@@ -162,7 +163,7 @@ function buildStructures(): THREE.BufferGeometry[] {
   for (const p of PORTS) {
     if (!p.fuel) continue;
     const top = standingHeight(p.fuel.pumpX, p.fuel.pumpZ);
-    parts.push(part(new THREE.BoxGeometry(0.7, 1.5, 0.5).translate(p.fuel.pumpX, top + 0.75, p.fuel.pumpZ), 0xc8281e));
+    parts.push(part(new THREE.BoxGeometry(0.7, 1.5, 0.5).translate(p.fuel.pumpX, top + 0.75, p.fuel.pumpZ), 0xc8281e, 'worn'));
     parts.push(part(new THREE.BoxGeometry(0.72, 0.25, 0.52).translate(p.fuel.pumpX, top + 1.62, p.fuel.pumpZ), 0xf0f0f0));
   }
   return parts;
@@ -181,12 +182,14 @@ function buildBlock(b: BlockDef, parts: THREE.BufferGeometry[]): void {
   const local: THREE.BufferGeometry[] = [];
   const L = b.halfLength;
   const W = b.halfWidth;
-  const add = (g: THREE.BufferGeometry, color: number) => local.push(part(g, color));
+  // Painted parts take their pixels in the block's own frame, square to its edges (pixel paint).
+  const add = (g: THREE.BufferGeometry, color: number, paint?: PaintName) => local.push(paint ? paintLocal(part(g, color, paint)) : part(g, color));
 
   if (b.kind === 'quay') {
-    add(new THREE.BoxGeometry(2 * W, b.top + 6, 2 * L).translate(0, (b.top - 6) / 2, 0), CONCRETE);
+    add(new THREE.BoxGeometry(2 * W, b.top + 6, 2 * L).translate(0, (b.top - 6) / 2, 0), CONCRETE, 'concrete');
   } else {
-    add(new THREE.BoxGeometry(2 * W, 0.45, 2 * L).translate(0, b.top - 0.225, 0), TIMBER);
+    // Deck planks laid across the pier.
+    add(new THREE.BoxGeometry(2 * W, 0.45, 2 * L).translate(0, b.top - 0.225, 0), TIMBER, 'wood');
     for (let s = -L + 2; s <= L - 2; s += 6) {
       for (const side of [-1, 1]) add(new THREE.CylinderGeometry(0.28, 0.28, b.top + 9, 7).translate(side * (W - 0.4), (b.top - 9) / 2 - 0.4, s), PILE);
     }
@@ -211,7 +214,7 @@ function buildBlock(b: BlockDef, parts: THREE.BufferGeometry[]): void {
     for (let s = -f.half + 3; s <= f.half - 3; s += 12) {
       const x = f.alongX ? s : f.nx * (f.offset - 0.5);
       const z = f.alongX ? f.nz * (f.offset - 0.5) : s;
-      add(new THREE.CylinderGeometry(0.16, 0.2, 0.5, 8).translate(x, b.top + 0.25, z), BOLLARD);
+      add(new THREE.CylinderGeometry(0.16, 0.2, 0.5, 8).translate(x, b.top + 0.25, z), BOLLARD, 'worn');
       add(new THREE.CylinderGeometry(0.24, 0.24, 0.08, 8).translate(x, b.top + 0.52, z), BOLLARD);
     }
   }
@@ -264,7 +267,7 @@ function buildBreakwater(ax: number, az: number, bx: number, bz: number, crest: 
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   g.computeVertexNormals(); // merging needs the same attributes as the other parts
-  parts.push(part(g, 0x7d7a74));
+  parts.push(part(g, 0x7d7a74, 'stone'));
   // Round heads at both ends.
   for (const [x, z] of [
     [ax, az],
@@ -272,7 +275,7 @@ function buildBreakwater(ax: number, az: number, bx: number, bz: number, crest: 
   ]) {
     const head = new THREE.IcosahedronGeometry(1, 1);
     head.scale(baseHalf, crest - base, baseHalf).translate(x, base, z);
-    parts.push(part(head, 0x75726c));
+    parts.push(part(head, 0x75726c, 'stone'));
   }
 }
 
@@ -299,17 +302,19 @@ function buildBuilding(bd: (typeof BUILDINGS)[number], parts: THREE.BufferGeomet
   const shape = new THREE.Shape([new THREE.Vector2(-hw - 0.4, 0), new THREE.Vector2(hw + 0.4, 0), new THREE.Vector2(0, rh)]);
   const roof = new THREE.ExtrudeGeometry(shape, { depth: bd.depth + 0.8, bevelEnabled: false });
   roof.translate(0, bd.height, -hd - 0.4);
-  // Door and windows as dark inset panels on the front (+z) face.
+  // Door and window on the front (+z) face: a planked door, and a window painted with its
+  // frame, glazing bars and panes (one picture to its face).
   const door = new THREE.BoxGeometry(1.1, 2.1, 0.1).translate(-hw * 0.4, 1.05, hd + 0.03);
   const win = new THREE.BoxGeometry(1.2, 1.0, 0.1).translate(hw * 0.35, bd.height * 0.55, hd + 0.03);
-  for (const [g, c] of [
-    [walls, bd.wall],
-    [roof, bd.roof],
-    [door, 0x3a2a22],
-    [win, 0x2a3a48],
-  ] as const) {
-    parts.push(part(g.applyMatrix4(m), c));
-  }
+  // Pixel paint, set in the building's own frame before it's turned to its bearing: the
+  // cladding on the walls; slates on the roof, or sheet on a shed's (turned to run down the slope).
+  const cladding = bd.cladding ?? 'render';
+  parts.push(
+    paintLocal(part(walls, bd.wall, cladding)).applyMatrix4(m),
+    paintLocal(part(roof, bd.roof, cladding === 'sheet' ? 'sheet' : 'slates'), true).applyMatrix4(m),
+    paintLocal(part(door, 0x3a2a22, 'wood')).applyMatrix4(m),
+    fitPaint(part(win, 0x6a7a88, 'window')).applyMatrix4(m),
+  );
 }
 
 function buildLightTower(x: number, z: number, lampY: number, color: string, tower: string, parts: THREE.BufferGeometry[]): void {
@@ -318,12 +323,12 @@ function buildLightTower(x: number, z: number, lampY: number, color: string, tow
   if (tower === 'post') {
     const c = color === 'red' ? 0xc8281e : color === 'green' ? 0x1f8a3a : 0xe8e8e0;
     const h = lampY - ground - 0.4;
-    parts.push(part(new THREE.CylinderGeometry(0.45, 0.6, h, 8).translate(x, ground + h / 2, z), c));
+    parts.push(part(new THREE.CylinderGeometry(0.45, 0.6, h, 8).translate(x, ground + h / 2, z), c, 'worn'));
     parts.push(part(new THREE.CylinderGeometry(0.3, 0.3, 0.6, 8).translate(x, lampY, z), 0xf0f0e8));
   } else {
     const h = lampY - ground - 1.5;
-    parts.push(part(new THREE.CylinderGeometry(1.4, 2.2, h, 10).translate(x, ground + h / 2, z), 0xf2f0ea));
-    parts.push(part(new THREE.CylinderGeometry(1.75, 1.9, 1.6, 10).translate(x, ground + h * 0.55, z), 0xb8241c));
+    parts.push(part(new THREE.CylinderGeometry(1.4, 2.2, h, 10).translate(x, ground + h / 2, z), 0xf2f0ea, 'render'));
+    parts.push(part(new THREE.CylinderGeometry(1.75, 1.9, 1.6, 10).translate(x, ground + h * 0.55, z), 0xb8241c, 'worn'));
     parts.push(part(new THREE.CylinderGeometry(1.0, 1.0, 1.6, 10).translate(x, lampY, z), 0xfff0c0));
     parts.push(part(new THREE.ConeGeometry(1.3, 1.4, 10).translate(x, lampY + 1.5, z), 0x2a2a2a));
     parts.push(part(new THREE.CylinderGeometry(1.8, 1.8, 0.2, 10).translate(x, lampY - 0.9, z), 0x2a2a2a));
@@ -393,10 +398,10 @@ function buildWreck(w: WreckDef, parts: THREE.BufferGeometry[]): void {
   const rust = 0x8a4a28;
   const paint = 0x3a4a52;
   const local: THREE.BufferGeometry[] = [
-    part(new THREE.BoxGeometry(B, D, L * 0.86).translate(0, D / 2, 0.02 * L), hull), // hull
+    part(new THREE.BoxGeometry(B, D, L * 0.86).translate(0, D / 2, 0.02 * L), hull, 'worn'), // hull
     part(new THREE.CylinderGeometry(B / 2, B / 2, D, 3).rotateY(Math.PI).scale(1, 1, 0.9).translate(0, D / 2, -L * 0.47), hull), // bow
-    part(new THREE.BoxGeometry(B * 1.01, D * 0.25, L * 0.87).translate(0, D * 0.88, 0.02 * L), rust), // a rust band along the top
-    part(new THREE.BoxGeometry(B * 0.7, D * 0.9, L * 0.16).translate(0, D * 1.45, L * 0.3), paint), // wheelhouse aft
+    part(new THREE.BoxGeometry(B * 1.01, D * 0.25, L * 0.87).translate(0, D * 0.88, 0.02 * L), rust, 'worn'), // a rust band along the top
+    part(new THREE.BoxGeometry(B * 0.7, D * 0.9, L * 0.16).translate(0, D * 1.45, L * 0.3), paint, 'worn'), // wheelhouse aft
     part(new THREE.CylinderGeometry(0.5, 0.6, D * 0.8, 8).translate(0, D * 1.4, L * 0.4), rust), // funnel
     part(new THREE.CylinderGeometry(0.18, 0.25, L * 0.32, 6).translate(0, D + L * 0.16, -L * 0.22), rust), // mast
     part(new THREE.BoxGeometry(0.12, 0.12, L * 0.18).translate(0, D + L * 0.26, -L * 0.22), rust), // a cross-tree
@@ -406,7 +411,9 @@ function buildWreck(w: WreckDef, parts: THREE.BufferGeometry[]): void {
   const lay = new THREE.Matrix4().makeRotationY((-w.headingDeg * Math.PI) / 180).multiply(new THREE.Matrix4().makeRotationZ((-w.listDeg * Math.PI) / 180));
   const hullTop = local[0].clone().applyMatrix4(lay);
   hullTop.computeBoundingBox();
-  const g = mergeParts(local).applyMatrix4(lay);
+  const g = mergeParts(local);
+  g.userData.paintUvFixed = true; // her paint stays where it fell in her own frame
+  g.applyMatrix4(lay);
   g.translate(w.x, 0.9 - hullTop.boundingBox!.max.y, w.z);
   parts.push(g);
 }

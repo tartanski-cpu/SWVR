@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { CONFIG } from '../config';
 import type { WorldState } from '../core/world';
 import { sampleSurface, type PreparedWave } from '../ocean/waves';
-import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
+import { fitPaint, flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
 import { rescuePlaces } from './recovery';
 import { standingHeight } from '../world/geography';
 import type { RescueTarget } from './rescue';
@@ -89,7 +89,7 @@ export class TargetsView {
     ]);
     // Crate: origin at the waterline, a third of it below.
     this.crateGeo = mergeParts([
-      part(new THREE.BoxGeometry(0.7, 0.5, 0.6).translate(0, 0.08, 0), ORANGE),
+      fitPaint(part(new THREE.BoxGeometry(0.7, 0.5, 0.6).translate(0, 0.08, 0), ORANGE, 'crate')), // each face a crate side (pixel paint)
       part(new THREE.BoxGeometry(0.72, 0.06, 0.62).translate(0, 0.2, 0), 0x3a2a1a),
       part(new THREE.BoxGeometry(0.72, 0.06, 0.62).translate(0, -0.06, 0), 0x3a2a1a),
       part(new THREE.BoxGeometry(0.5, 0.01, 0.4).translate(0, 0.335, 0), 0xe8e8e0), // reflective top patch
