@@ -37,7 +37,7 @@ import { cargoPortAt } from '../cargo/cargo';
 import { significantWaveHeight } from '../ocean/waves';
 import type { TutorialState } from './tutorial';
 
-export type JobKind = 'cargo' | 'fish' | 'log' | 'debris' | 'tow' | 'rescue' | 'fire' | 'crate';
+export type JobKind = 'cargo' | 'fish' | 'log' | 'debris' | 'tow' | 'rescue' | 'fire' | 'crate' | 'catch';
 export type ContractKind = 'cargo' | 'fish' | 'logs';
 
 export interface LedgerEntry {
@@ -162,6 +162,9 @@ function basePay(world: WorldState, kind: JobKind, o: EarnOpts): number {
       return p.rescue + p.rescuePerPerson * (o.people ?? 0);
     case 'fire':
       return p.fire;
+    case 'catch':
+      // A pot's crab and lobster, by the animal (lobster fetches far more).
+      return (o.lobster ?? 0) * CONFIG.potting.price.lobster + (o.crab ?? 0) * CONFIG.potting.price.crab;
   }
 }
 
@@ -172,6 +175,9 @@ export interface EarnOpts {
   from?: string;
   what?: string;
   people?: number;
+  /** A pot's catch sold: how many of each. */
+  lobster?: number;
+  crab?: number;
   /** The ledger line. */
   text: string;
 }
@@ -185,6 +191,7 @@ const REP_GAIN: Record<JobKind, () => number> = {
   tow: () => CONFIG.career.rep.tow,
   rescue: () => CONFIG.career.rep.rescue,
   fire: () => CONFIG.career.rep.fire,
+  catch: () => CONFIG.career.rep.fish,
 };
 
 /** A job done: pay it, raise the port's reputation, count it toward the contract. */

@@ -30,6 +30,7 @@ import type { Intent } from '../core/intents';
 import type { Vec3 } from '../core/math';
 import type { WorldState } from '../core/world';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
+import { hullPlan } from '../vessel/layout';
 import type { VesselState } from '../vessel/vesselState';
 import { PORTS, type PortDef } from '../world/archipelago';
 import { standingHeight } from '../world/geography';
@@ -56,6 +57,17 @@ export interface CargoItem {
   from: string;
   to: string;
   at: CargoAt;
+  /** A pot hauled up (potting): what's in it, whether it's baited. */
+  pot?: PotContents;
+}
+
+/** What's in a hauled pot (potting/potting.ts catchFor). */
+export interface PotContents {
+  crab: number;
+  lobster: number;
+  bycatch: 'fish' | 'starfish' | 'boot' | null;
+  /** Bait in it (from the bait tub): it'll fish better next time it's shot. */
+  baited: boolean;
 }
 
 /** Placement target for 'cargoPlace' meaning "ashore / in the sea" rather than a vessel. */
@@ -99,6 +111,13 @@ export function stackPoint(port: PortDef, i: number): Vec3 {
 export function portAtPoint(x: number, z: number): PortDef | null {
   for (const p of PORTS) if (Math.hypot(x - p.cargo.stackX, z - p.cargo.stackZ) < CONFIG.cargo.deliveryRadius) return p;
   return null;
+}
+
+/** By the pot pallet (potting): the harbour it's in, or null. */
+function potQuayAt(x: number, z: number): PortDef | null {
+  const { x: px, z: pz } = CONFIG.potting.pallet;
+  if (Math.hypot(x - px, z - pz) > CONFIG.cargo.deliveryRadius) return null;
+  return PORTS.reduce((a, b) => (Math.hypot(a.x - px, a.z - pz) <= Math.hypot(b.x - px, b.z - pz) ? a : b));
 }
 
 function waitingAt(world: WorldState, port: PortDef): CargoItem[] {
@@ -247,6 +266,7 @@ export function lashPointFor(v: VesselState, item: CargoItem): [number, number] 
  *   cargoLash   value 1/0   strap down / release (on deck, near a lashing point)
  */
 export function applyCargoIntent(world: WorldState, intent: Intent): void {
+  if (applyQuickIntent(world, intent)) return;
   const item = intent.ref ? world.cargo[intent.ref] : undefined;
   if (!item) return;
   const v = world.vessels[intent.targetId];
@@ -293,10 +313,19 @@ export function applyCargoIntent(world: WorldState, intent: Intent): void {
   }
 }
 
-/** Set an item down ashore; at its port (or anywhere, for cargo fished out of the sea), it's delivered. */
+/** Set an item down ashore (by hand or by a deck crane): a pot's catch sold, or cargo delivered. */
 function landAshore(world: WorldState, item: CargoItem, x: number, g: number, z: number, yaw: number): void {
   item.at = { ground: [x, g, z], yaw };
   const port = portAtPoint(x, z);
+  // A pot set down on a harbour quay (by a goods stack, or back by the pot pallet): the
+  // fish buyer takes its catch (the bycatch is thrown away) and the pot stays there,
+  // empty, for you to take back aboard.
+  const buyer = isPot(item) && item.pot ? (port ?? potQuayAt(x, z)) : null;
+  if (buyer) {
+    sellPotCatch(world, item, buyer.id);
+    return;
+  }
+  // Delivered: at its port, or anywhere for cargo fished out of the sea (to 'any').
   if (port && (port.id === item.to || item.to === 'any')) retire(world, item, true, port.id);
 }
 
@@ -410,6 +439,92 @@ export function dropCarried(world: WorldState, playerId: EntityId): void {
     if (p && !v && g > -0.3) c.at = { ground: [p.position[0], g, p.position[2]], yaw: 0 };
     else retire(world, c, false);
   }
+}
+
+/** A pot's catch sold to the fish buyer at a port (bycatch thrown away); the pot is kept, empty. */
+function sellPotCatch(world: WorldState, item: CargoItem, portId: string): void {
+  if (!item.pot) return;
+  const { crab, lobster } = item.pot;
+  if (crab || lobster) earn(world, 'catch', { port: portId, crab, lobster, text: `${catchText(crab, lobster)} sold at ${portName(portId)}` });
+  item.pot = { ...item.pot, crab: 0, lobster: 0, bycatch: null };
+}
+
+// ── Quick jobs ──
+//
+// Every crate and pot job can be done by hand (carried, lashed, set down), or in one click
+// from the menu (owner: quick for those who want it, and the way a phone version would
+// play). The quick versions follow the same rules - the boat has to be at the port, the
+// deck has to have room, the payload limit holds - they just skip the walking.
+
+/** The port a vessel can work cargo at right now: alongside its berth or anchored in its bay, nearly stopped. */
+export function quickPort(v: VesselState): PortDef | null {
+  if (Math.hypot(v.linearVelocity[0], v.linearVelocity[2]) > CONFIG.cargo.maxSpeed) return null;
+  return cargoPortAt(v);
+}
+
+/** Items waiting at the port she's at that could be loaded (bound somewhere else). */
+export function quickLoadable(world: WorldState, v: VesselState): CargoItem[] {
+  const port = quickPort(v);
+  if (!port) return [];
+  return waitingAt(world, port)
+    .filter((c) => c.to !== port.id)
+    .sort((a, b) => (a.id < b.id ? -1 : 1));
+}
+
+/** Items aboard that would be landed here (bound for this port, or any harbour), and pots with a catch to sell. */
+export function quickUnloadable(world: WorldState, v: VesselState): CargoItem[] {
+  const port = quickPort(v);
+  if (!port) return [];
+  return aboard(world, v.id).filter((c) => (isPot(c) ? !!(c.pot && (c.pot.crab || c.pot.lobster || c.pot.bycatch)) : c.to === port.id || c.to === 'any'));
+}
+
+/**
+ * Put an item on a vessel's deck in the first free spot near (x, z) (vessel axes), lashed
+ * if a D-ring is in reach. False if it won't go (payload, slots, or no room).
+ */
+export function stowOnDeck(world: WorldState, v: VesselState, item: CargoItem, x: number, z: number): boolean {
+  if (placeBlocker(world, v, item)) return false;
+  const spot = deckSpot(v.defId, footprint(item), x, z, aboard(world, v.id).filter((o) => o.id !== item.id).map(deckDisc));
+  if (!spot) return false;
+  item.at = { vessel: v.id, pos: [spot.x, deckHeight(v.defId, spot.z), spot.z], yaw: 0, vel: [0, 0], lashed: false };
+  if (lashPointFor(v, item)) item.at.lashed = true;
+  return true;
+}
+
+/** Where quick-loaded cargo goes: the middle of the aft working deck. */
+export function quickDeckPoint(v: VesselState): [number, number] {
+  return [0, hullPlan(VESSEL_DEFS[v.defId]).transom - 1.2];
+}
+
+/**
+ * Quick cargo intents (targetId: the vessel):
+ *   cargoQuickLoad    everything waiting at this port for elsewhere that fits, onto the deck, lashed
+ *   cargoQuickUnload  everything aboard for this port (or any harbour) landed; pots' catch sold
+ *   cargoQuickLash    value 1: lash everything on deck that has a D-ring in reach; 0: release all
+ */
+function applyQuickIntent(world: WorldState, intent: Intent): boolean {
+  if (!intent.control.startsWith('cargoQuick')) return false;
+  const v = world.vessels[intent.targetId];
+  if (!v) return true;
+  const port = quickPort(v);
+  if (intent.control === 'cargoQuickLoad' && port) {
+    const [x, z] = quickDeckPoint(v);
+    for (const c of quickLoadable(world, v)) if (!stowOnDeck(world, v, c, x, z)) break;
+  } else if (intent.control === 'cargoQuickUnload' && port) {
+    for (const c of quickUnloadable(world, v)) {
+      if (isPot(c)) sellPotCatch(world, c, port.id);
+      else retire(world, c, true, port.id);
+    }
+  } else if (intent.control === 'cargoQuickLash') {
+    for (const c of aboard(world, v.id)) {
+      if (!('vessel' in c.at)) continue;
+      if (intent.value > 0.5 && lashPointFor(v, c)) {
+        c.at.lashed = true;
+        c.at.vel = [0, 0];
+      } else if (intent.value <= 0.5) c.at.lashed = false;
+    }
+  }
+  return true;
 }
 
 /** Is this one of the cargo intents? */
@@ -595,10 +710,23 @@ export function payloadOf(world: WorldState, vesselId: EntityId): { mass: number
   return out;
 }
 
+/** "2 lobsters, 3 crabs" / "empty". */
+export function catchText(crab: number, lobster: number): string {
+  const parts: string[] = [];
+  if (lobster) parts.push(`${lobster} lobster${lobster > 1 ? 's' : ''}`);
+  if (crab) parts.push(`${crab} crab${crab > 1 ? 's' : ''}`);
+  return parts.join(', ') || 'empty';
+}
+
 export function cargoLabel(item: CargoItem): string {
   const k = kindOf(item);
   // A pot: no destination; you shoot it over the side on a potting ground.
-  if (isPot(item)) return `Lobster pot ${item.mass} kg: shoot it over the side on a potting ground`;
+  if (isPot(item)) {
+    const p = item.pot;
+    if (p && (p.crab || p.lobster)) return `Lobster pot: ${catchText(p.crab, p.lobster)}: set it down on a harbour quay to sell`;
+    if (p?.baited) return 'Lobster pot, baited: shoot it over the side on a potting ground';
+    return `Lobster pot ${item.mass} kg: bait it, then shoot it over the side on a potting ground`;
+  }
   const to = item.to === 'any' ? 'any harbour' : portById(item.to)?.name.replace(' (anchorage)', '');
   return `${k.name} ${item.mass} kg → ${to}`;
 }

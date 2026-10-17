@@ -1549,6 +1549,66 @@ How to come back to it:
 
 ### Fixes after V1.0 (on the dev branch; not in the `V1.0` tag)
 
+- **Lifting a hooked crate aboard in VR; no strobes on crates** (owner test):
+  - **The bug:** you could hook a floating crate and bring it alongside, but not lift it aboard. The lift needed your free hand within 1 m (horizontally) of the crate, but the crate rides at the end of the 2.2 m pole, well out from the rail, out of any arm's reach. The old test only passed by putting the hand 2 m outboard of the rail.
+  - **Now** (`rescue/rescueHands.ts`), with the crate alongside, either works:
+    - grip the hook's **pole** with your other hand, anywhere along it;
+    - or reach over the side towards the crate and grip: within `CONFIG.rescue.liftHandReach` (new, 2.2 m) of it horizontally, and above it. A hand across the deck doesn't count.
+    
+    The alongside hint says so. Desktop, and the menu's **Lift crates**, unchanged.
+  - **No strobes on crates** (owner: too easy to find). Survivors keep theirs; `rescue.strobe*` now apply to survivors only.
+  - Tests (`tests/recovery.test.ts`):
+    - the VR lift with a hand a player can reach beside the hook hand (it fails with the old rule);
+    - a hand on the pole;
+    - nothing from across the deck, or with the crate still out.
+- **Every crate and pot job by hand, or by one click in the menu** (owner: all jobs with crates and pots should be either manual, carried to the place with friends to help, or quick by a menu button, which matters for a phone version one day).
+  - **The buttons** (menu → Cargo; `mainMenu.ts`, handler `App.quickJob`). The handler checks what would happen first: it says what's being done, or why not (not at a port, not stopped, nothing waiting, nothing in reach, potting off). Then it sends an intent and the host applies the same rules as by hand.
+    - **Load** (`cargoQuickLoad`): at a port (alongside its cargo berth or anchored in its bay, under `cargo.maxSpeed`; `cargo.ts quickPort`), everything waiting there for another port goes onto the aft deck, while the payload, slots and deck room allow (`stowOnDeck`). Each item is lashed where a D-ring is in reach.
+    - **Unload** (`cargoQuickUnload`): everything aboard for this port or any harbour is delivered and paid as if carried to the stack: port cargo, trawl fish boxes, crates fished out of the sea. Pots with a catch have it sold (`sellPotCatch`, shared with setting a pot down ashore) and stay aboard.
+    - **Lash all / Release all** (`cargoQuickLash` 1 / 0).
+    - **Lift crates** (`crateQuickLift`, `rescue/recovery.ts`): during a lost-cargo call, crates floating within `rescue.quickLiftRange` (15 m) of the hull come aboard, lashed, while there's room, with no boat hook. Bring her closer for the rest. All aboard ends the rescue as before.
+    - **Pots** (`potting.ts applyQuickPotting`):
+      - **Load pots** (`potQuickLoad`): the pallet's pots aboard, at Calder Haven only.
+      - **Bait all** (`potQuickBait`).
+      - **Shoot one** (`potQuickShoot`): a pot from the deck lands `potting.quickShootOff` (3 m) off the starboard side. It's shot and soaks like any other; the message reminds you to mark it on the chart.
+      - **Haul nearest** (`potQuickHaul`): the nearest buoy that's up within `potting.quickHaulRange` (25 m) of the hull. Its pot lands on deck with its catch.
+  - **Fair with the hand way:** a quick job takes no less boat handling. You still steam there, come alongside or anchor, stop, and find the buoy. Only the walking and carrying is skipped, and the pay is the same. The hand way stays the shared crew job it was.
+  - **Tests** (`tests/quickJobs.test.ts`):
+    - nothing loads at sea; at Calder everything waiting goes aboard lashed; release and lash all; unloaded at a destination it's delivered and paid;
+    - crates alongside lifted in one go but not one 60 m off, and the rescue ends once that one is brought close and lifted;
+    - pots loaded from the pallet, baited, two shot on a ground, nothing to haul while sinking, both hauled once soaked, the catch sold at Calder with the pots kept aboard.
+  - **Checked in headless Chromium:** at the Calder berth, Load, Load pots and Bait all from the menu handler put 5 cargo items and 5 pots on deck, all lashed; screenshot of the Cargo tab with the new rows.
+  - **Not covered yet:** the skiff (beach deliveries at anchorage ports, which the quick Load/Unload stand in for when anchored in the bay) and survivors in the water (not crate or pot jobs).
+
+- **Potting: the catch stays in the pot and is sold ashore** (owner, from the milestone 3 screenshots: no two-step of opening the pot and tipping it into a crate; haul it, take it back, sell it; and show the crabs inside the pot).
+  - **No opening, no catch crate:** the intents `potOpen` and `potEmpty`, the catch crate (`from: 'potcatch'`) and the open-pot drawing are gone, and so is `PotContents.open`. A hauled pot lands on deck with its catch in it (and a note of what's in it for the player who hauled it, `potHands.ts announceLanded`).
+  - **Seen through the netting** (`cargoView.ts potGeometry`): the pot's netting is now an open lattice of cords and hoops over a dark floor instead of a solid half-round, so the crabs, lobsters and bycatch drawn on its floor show through. This applies to every pot.
+  - **Selling** (`cargo.ts cargoPlace`): set a pot down ashore at a harbour, either within `cargo.deliveryRadius` of a port's goods stack (where trawl fish boxes are landed) or of the pot pallet. The catch is sold and the pot stays there empty. Pay is new career job kind `catch`, priced per animal (`potting.price`: lobster 40, crab 8), times the port's usual reputation pay factor, with fish-landing reputation. The bycatch is thrown away. `potting.crateCapacity` is gone.
+  - **Bait** works on any pot not yet baited, catch in it or not. Shooting a pot that still has a catch in it lets the catch go (the pot is a fresh record in the water).
+  - **Tests:** the crate test is now "the catch stays in the pot; set down on the Calder quay it's sold, the pot stays there empty, and the ledger line reads '1 lobster, 3 crabs sold at Calder…'".
+  - **Checked:** typecheck and all tests; screenshots of a hauled pot on deck with two lobsters, four crabs and a starfish showing through the netting, from above and from the side.
+
+- **Lobster and crab potting, milestone 3 of 5: hauling and the catch** (owner: "go ahead with milestone 3").
+  - **Hook** (`potting/potHands.ts`, intents in `potting.ts applyHaulIntent`): with the boat hook in hand, its tip within `potting.haul.hookReach` (0.95 m) of a buoy hooks it (`potHook`; desktop: click the buoy). The buoy follows the hook tip in (`potTow`, sent every 0.1 s as hooked crates are). It's kept 0.25 m outside the hull, on the side it started (`outsideHull`), so a hook tip swung over the deck can't drag it through the boat. Let go of the hook and it comes off (`stepPotting`).
+  - **Aboard** (`potAboard`): within `haul.liftRange` (2.5 m) of the hull, the other hand gripping over the buoy (desktop: a click, which also puts the hook back in its clips) brings it over the gunwale. The line now leads in at the nearest point of the gunwale (`leadFor`), with the depth plus `haul.slack` (1.5 m) of line out. The pot stays on the bottom, dragged along under the boat if she moves.
+  - **Haul** (`potHaul`): grip the line (VR: near where it comes over the side, a haptic tick when your hand is on it) and pull. Any stroke away from where the line leaves the water, up or in, counts in full, times `haul.pullScale` (1.6). It's sent in 0.15 m chunks, and the rest of a stroke when you let go. Desktop: `haul.deskPull` (2.5 m) a click, so about eight clicks from 20 m. At no line left the pot lands on deck next to where it came in (`landPot`), as a pot cargo item carrying its catch. With no room on deck it goes back down.
+  - **The swell rule:** with significant wave height over `haul.slipFrom` (1 m), stop pulling for `haul.slipAfter` (1.5 s) and the line slips back out at `haul.slipRate` (0.6 m/s per metre of swell over), up to the full depth. This is the brief's "let go at the wrong moment and the pot drops back", made gradual so it reads as weight on the line, not a reset.
+  - **The catch** (`catchFor`, fixed when the pot comes up): expected = ground quality (`offGround` 0.15 off any ground) x soak factor x bait (`catch.unbaited` 0.35 without) x weather (`catch.roughFactor` 0.7 in wind over `roughWind` 11 m/s). Each of up to `lobsterMax` (2) lobsters (at 0.8 of that) and `crabMax` (6) crabs is there with that chance. A `catch.bycatch` (0.25) chance adds a small fish, a starfish or, `bootChance` (0.12) of those, an old boot. The random draw is seeded from the pot's id and shot time, so every peer agrees.
+  - **Working the pot** (`cargoHands.ts` via a new `potAction` callback; VR trigger with a hand on the pot, desktop click):
+    - **open** (`potOpen`): the door shows the catch, with a note of what's in it;
+    - **tip it out** (`potEmpty`): crabs and lobsters go into a catch crate (`from: 'potcatch'`, a Fish box kind, `item.catch`), one with room for `potting.crateCapacity` (12) or a new one beside the pot; bycatch goes back;
+    - **bait** (`potBait`): from the **bait tub** at `potting.baitBox`. VR: grip the tub for a piece of bait and let go over an open, empty pot. Desktop: click the tub, then the pot; any other click drops it. A baited pot catches more next time (`ShotPot.baited`, carried through `shootPot`).
+    - While a pot has work to do, the VR trigger does that work instead of lashing it and the desktop click does it instead of picking the pot up. Once it's emptied (and baited, if you have bait in hand), the trigger lashes and the click picks it up as before. Desktop lashing stays on Q throughout.
+  - **Selling, for now:** a catch crate is `to: 'any'` and pays as a box of fish (`earn 'fish'`) at any harbour. Lobster and crab prices are milestone 4.
+  - **Views:**
+    - **The line being hauled** (`potView.ts`): the buoy sits on the gunwale where the line comes in; the line runs out to the water and down. The pot shows for the last metres: under the surface, then out, hanging from its bridle, swinging and dripping (a few points falling) on its way up the side. One extra instanced pot mesh, one line and one points object, all drawn only while a line is in.
+    - **Open pots and the catch** (`cargoView.ts`, `potting/catchGeometry.ts`): an open pot with one side of the netting folded down flat and its coil and buoy set aside, so you see in. Brown crabs (about 0.15 m across), blue-black lobsters (about 0.3 m) and the bycatch (a small fish, a starfish, a boot) lie on its floor, and the crabs and lobsters in the catch crates (an empty wooden fish box). Each kind is one instanced mesh, drawn only when there's some to show.
+    - **The bait tub:** a blue tub with its lid half off, merged into one mesh on the workboat's deck.
+  - **Debug** (Missions → Potting): **Full** (`potDebugReady` value 2) makes every pot in the water baited and soaked its best.
+  - **Tests** (`tests/potting.test.ts`): hooked, drawn alongside, aboard, hauled hand over hand onto the deck with its catch; can't be drawn through the hull; opened, tipped into a catch crate, baited and catching more; the hook let go unhooks it, and in a heavy swell an idle line slips back.
+  - **Checked in headless Chromium:** the desktop path end to end (hook, draw in, aboard, eight clicks of hauling, open, tip out, bait), the VR line pull with simulated hand frames (0.5 m strokes haul 0.8 m), and screenshots of the pot hanging on its line at the side, the open pot with crabs, a lobster and a boot, the catch crate and the bait tub. **Not checked:** VR hooking and the over-the-side grip with real controllers. Those need the owner's Quest.
+  - **Not yet:** prices and selling at the fish quay, pots saved across sessions, the lost-pot grace period and the propeller rule (milestone 4); duty board items, sounds and the multiplayer test (5).
+
 - **Lobster and crab potting, milestone 2 of 5: chart marking, soak, the ready cue, storm drift** (owner: keep it on the main game behind the setting).
   - **Soak in play time, not the game's clock:** the time of day stands still by default (`environment.timeScale` 0), so "one in-game day" would never pass. Soak is world time from when the pot reaches the bottom (`potting.ts soakOf`): ready after `potting.soakReady` (1200 s, 20 min), improving to `soakBest` (2400 s), then flat (`soakFactor`, for milestone 3's catch). Tunable.
   - **Ready cue** (`potView.ts`): the flag is red (`flagSoaking`) while soaking and green (`flagReady`) when ready, and a small light blinks on the pole top at night on a ready buoy. Both show only within `cueRange` (45 m); further off the flag is a dull grey.
@@ -3118,6 +3178,48 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
     - version 6 codes still read;
   - in the headless browser, in a design moored at Calder Haven: started the engine, raised the boom, hooked a crate off the foredeck, swung it to starboard (she heeled about 1°), and landed it on the quay.
 - **Not done yet:** the tow winch, A-frame, net drum, windlass and tender crane are modules but drawn at the workboat's fixed places. Making them placeable is next.
+
+### Shipyard: favourites (owner)
+
+- **The owner asked:** a way to save favourite designs in the Shipyard.
+- **On the page** (`shipyard.html`, `src/shipyard/page.ts`), under Her code, a **Favourites** section:
+  - a name box and **Save to favourites**. With no name, she's called after her hull type and length, e.g. "Pilot boat 11.0 m". Saving needs her code ready (gearbox matched); until then the page says to wait.
+  - the list, newest first. Each card has a small picture of her from the bow quarter (192 x 120 JPEG, taken from the page's own 3D view, the view put back after), a line of figures (length, displacement, top speed if her trial has run, engine), her code and the date. Buttons: **Open** (loads her, like typing her code), **Try in game**, **Delete** (asks first). The design on show, if it's a favourite, is marked.
+- **What's kept** (`src/shipyard/favourites.ts`): just the code, the name, the time, the picture and the summary. A favourite is exactly the boat whose code it holds, and still opens after the code format grows, since older codes read as the same boats. Saving under an existing name (any case) replaces it. At most `MAX_FAVOURITES` (40); the oldest drop off. Bad or unreadable entries are skipped, never an error.
+- **Where:** the browser's storage, key `swvr.shipyard.favourites` (a new key: no existing save is touched). It's per browser and device: the Quest and the desktop keep separate lists, and a design moves between them by its code. If the storage is full the pictures are dropped and the designs kept. In a private window, where nothing can be saved, the page says so.
+- **Safe for the game:** the page is separate from the 3D game. Nothing in the game reads the favourites (yet: buying at the boatyard could offer them later).
+- **Tests** (`tests/shipyard/favourites.test.ts`):
+  - saved and read back newest first;
+  - same name replaces, delete;
+  - the cap;
+  - bad storage, bad JSON and bad codes read as nothing; a full store reports failure;
+  - names tidied.
+- **Checked in headless Chromium:** saved the default design (unnamed) and a renamed landing-craft variant, reloaded the page (both still listed), opened one (marked as the current design, its code shown), deleted one; screenshot of the list with pictures.
+- **Owner test (desktop or phone, and the Quest's browser):**
+  1. On the Shipyard page, make a design, type a name and press Save to favourites.
+  2. Change her and save under another name.
+  3. Reload the page: both are listed. Open each.
+  4. Delete one.
+
+### Shipyard: the sea trial in sight while the sliders move (owner)
+
+- **The owner asked:** use the page's space better, so the effect on the sea trial shows while moving the sliders. It was below the bottom of the screen, under the choices, and the 3D view could be smaller.
+- **Layout** (`shipyard.html`, CSS grid):
+  - **Wide screens (1200 px and up):** three columns: the choices (360 px) on the left, her 3D view in the middle, and the results (360 px) on the right. The results are, in order, the sea trial, her figures and warnings, her code and the favourites. Each side scrolls on its own, so the trial stays put while you scroll the choices.
+  - **761-1199 px:** the choices on the left; the view over the results on the right, at 46 % of the height.
+  - **Phones:** one column, with the 3D view pinned at the top (40 % of the screen) above the choices, then the results.
+- **A line of key figures on the 3D view** (`page.ts showQuick`, on every layout): GM, displacement, draught, and from the trial top speed, turning circle, crash-stop distance and roll period. While a new trial runs, the old trial's numbers (in the line and in the table) are greyed and "trial running…" shows, so it's clear which numbers are current. The trial's own run time (0.5 s wait, then the background worker) is unchanged.
+- **Checked:** typecheck; all tests; screenshots at 1920 x 1080, 1366 x 768 (also mid-trial, greyed), 1024 x 768 and a 390 px phone.
+- **Owner test:** open the Shipyard on the desktop and drag the Length slider: the trial column on the right greys, then fills in again a moment later. Try it on the phone too: the view and its line of figures stay at the top while you scroll the choices.
+
+### Merged: potting milestone 3 and the quick crate and pot jobs from the dev branch (owner request)
+
+- **What came in** (built on the dev branch; see its entries under "Fixes after V1.0"): potting milestone 3 (hook the buoy, bring it aboard, haul the line hand over hand, the catch drawn in the pot, the bait tub), the follow-up where the catch stays in the pot and is sold by setting it down on a harbour quay (career job kind `catch`, `potting.price`), and every crate and pot job by one click in the menu's Cargo tab (Load, Unload, Lash all / Release all, Lift crates, Load pots, Bait all, Shoot one, Haul nearest). Still behind Settings > Game > Potting. The crate-lift fix was on both branches already; its config entry (`rescue.liftHandReach`) came in twice and is kept once.
+- **Fitted to the modular boats:**
+  - **The bait tub is a stowage place on the hull**, like the extinguisher, torch and binoculars (`stowage.baitTub`, vessel x and z; it stands on the deck). The workboat's is `potting.baitBox` (unchanged, outside the wheelhouse's aft wall, port side). The landing craft and Shipyard boats have none yet, so they carry no tub; the menu's **Bait all** baits their pots.
+  - The hand gear and binoculars keep the modular boat's per-hull places; the pot hands mount on the home boat beside them.
+- **No save format change:** pots are still not saved between sessions (milestone 4). The new career job kind `catch` only adds ledger lines.
+- **Checked:** typecheck, all 523 tests (the dev branch's new potting and quick-job tests among them; golden runs unchanged), the build. In headless Chromium on the workboat: potting on, the pots aboard, Bait all, Shoot one on a ground, soaked full, Haul nearest: the pot came back aboard with 6 crabs and 2 lobsters, no page errors; screenshots of the aft deck with the pots and of the bait tub in its place. **Not checked:** the hand-over-hand haul in VR with real controllers, and potting from the landing craft or a Shipyard boat.
 
 ### Test address for work in progress (owner request)
 

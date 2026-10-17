@@ -6,9 +6,22 @@
     <title>Workboat World Shipyard</title>
     <style>
       html, body { margin: 0; height: 100%; background: #9fb8c8; font: 14px/1.4 system-ui, sans-serif; color: #10202a; }
-      body { display: flex; }
-      #side { width: 380px; flex: none; height: 100%; overflow-y: auto; background: #f6f9fa; box-shadow: 2px 0 10px rgba(0,0,0,0.12); padding: 12px 16px 24px; box-sizing: border-box; z-index: 1; }
-      #view { flex: 1; position: relative; min-width: 0; }
+      /*
+       * Three columns on a wide screen: the choices, her 3D view, and the results (sea trial
+       * first, then figures, code, favourites), each scrolling on its own, so the trial
+       * stays in sight while the sliders move (owner). Narrower, the results go under a
+       * shorter view; on a phone the view stays pinned at the top with a line of her key
+       * figures on it.
+       */
+      body { display: grid; grid-template-columns: 360px minmax(0, 1fr) 360px; grid-template-rows: 100%; grid-template-areas: 'side view results'; }
+      #side, #results { overflow-y: auto; background: #f6f9fa; padding: 12px 16px 24px; box-sizing: border-box; z-index: 1; min-height: 0; }
+      #side { grid-area: side; box-shadow: 2px 0 10px rgba(0,0,0,0.12); }
+      #results { grid-area: results; box-shadow: -2px 0 10px rgba(0,0,0,0.12); }
+      #results h2:first-child { border-top: none; margin-top: 0; padding-top: 0; }
+      #view { grid-area: view; position: relative; min-width: 0; min-height: 0; overflow: hidden; }
+      #quick { position: absolute; left: 10px; right: 10px; bottom: 10px; background: rgba(246,249,250,0.92); border-radius: 8px; padding: 6px 10px; font-size: 13px; font-variant-numeric: tabular-nums; display: flex; flex-wrap: wrap; gap: 4px 14px; pointer-events: none; }
+      #quick b { color: #2f5d8a; }
+      #quick .busy { color: #8a9aa4; }
       #view canvas { display: block; }
       h1 { font-size: 16px; margin: 0 0 2px; color: #2f5d8a; letter-spacing: 0.05em; text-transform: uppercase; }
       .sub { color: #567; font-size: 12px; margin-bottom: 10px; }
@@ -38,7 +51,27 @@
       #status { color: #567; font-size: 12px; min-height: 16px; }
       #views { position: absolute; top: 10px; left: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
       #views button { background: rgba(246,249,250,0.9); }
-      @media (max-width: 760px) { body { flex-direction: column; } #side { width: 100%; height: auto; order: 2; } #view { height: 55vh; flex: none; } }
+      #favName { flex: 1; min-width: 120px; font: inherit; padding: 5px; }
+      #favMsg { color: #567; font-size: 12px; min-height: 16px; }
+      .fav { display: grid; grid-template-columns: 96px 1fr; gap: 8px; align-items: center; padding: 6px; margin: 6px 0; border: 1px solid #c4d2d8; border-radius: 8px; background: #fff; }
+      .fav img, .fav .nopic { width: 96px; height: 60px; border-radius: 5px; object-fit: cover; background: #c9d6dd; display: block; }
+      .fav b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .fav .meta { font-size: 12px; color: #567; }
+      .fav .code { font: 600 12px ui-monospace, monospace; color: #234; }
+      .fav .acts { display: flex; gap: 6px; margin-top: 4px; }
+      .fav .acts button { padding: 2px 8px; font-size: 12px; }
+      .fav.current { border-color: #2f5d8a; box-shadow: inset 3px 0 0 #2f5d8a; }
+      @media (max-width: 1199px) {
+        body { grid-template-columns: 340px minmax(0, 1fr); grid-template-rows: 46% 54%; grid-template-areas: 'side view' 'side results'; }
+        #results { box-shadow: 0 -2px 10px rgba(0,0,0,0.12); }
+      }
+      @media (max-width: 760px) {
+        html, body { height: auto; }
+        body { display: flex; flex-direction: column; }
+        #view { order: -1; position: sticky; top: 0; height: 40vh; flex: none; z-index: 2; }
+        #quick { font-size: 12px; gap: 2px 10px; }
+        #side, #results { overflow: visible; }
+      }
     </style>
   </head>
   <body>
@@ -46,12 +79,18 @@
       <h1>Workboat World Shipyard</h1>
       <div class="sub">Design a boat, then take her code to the game.</div>
       <div id="controls"></div>
-      <h2>Her figures</h2>
-      <table id="figures"></table>
-      <div id="warnings"></div>
+    </div>
+    <div id="view">
+      <div id="views"></div>
+      <div id="quick"></div>
+    </div>
+    <div id="results">
       <h2>Sea trial</h2>
       <div id="status"></div>
       <table id="trial"></table>
+      <h2>Her figures</h2>
+      <table id="figures"></table>
+      <div id="warnings"></div>
       <h2>Her code</h2>
       <div id="code" class="pending">-----</div>
       <div class="tools">
@@ -63,9 +102,13 @@
         <button id="loadBtn">Load a code</button>
       </div>
       <div id="loadMsg"></div>
-    </div>
-    <div id="view">
-      <div id="views"></div>
+      <h2>Favourites</h2>
+      <div class="tools">
+        <input id="favName" placeholder="Name her" maxlength="40" />
+        <button id="favSave" class="primary">Save to favourites</button>
+      </div>
+      <div id="favMsg"></div>
+      <div id="favs"></div>
     </div>
     <script type="module" src="/src/shipyard/page.ts"></script>
   </body>

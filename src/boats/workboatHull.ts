@@ -92,11 +92,12 @@ export const WORKBOAT_HULL: HullDefinition = {
     { massKg: 2 * CONFIG.modules.batteryBank.massKg, at: bay },
   ]),
   // Built into her (6b): the exhaust outlet, where a rescued casualty is put.
-  // Her hand gear's places (M7): the extinguisher and torch brackets, the binoculars on the dash.
+  // Her hand gear's places (M7): the extinguisher and torch brackets, the binoculars on the dash,
+  // the potting bait tub on the aft deck.
   fittings: {
     exhaust: wb.exhaust,
     rescueGear: wb.rescueGear,
-    stowage: { extinguisher: CONFIG.handGear.extinguisher.bracket, torch: CONFIG.handGear.torch.bracket, binoculars: { at: CONFIG.binoculars.stow, yawDeg: CONFIG.binoculars.stowYawDeg } },
+    stowage: { extinguisher: CONFIG.handGear.extinguisher.bracket, torch: CONFIG.handGear.torch.bracket, binoculars: { at: CONFIG.binoculars.stow, yawDeg: CONFIG.binoculars.stowYawDeg }, baitTub: CONFIG.potting.baitBox },
   },
   sockets: [
     { id: 'helm', type: 'helm.console', transform: { position: wb.bridge.console.position }, label: 'Helm console, across the front of the wheelhouse' },

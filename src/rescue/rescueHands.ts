@@ -304,7 +304,7 @@ export class RescueHands {
     ctx.push('hookTake', undefined, 1);
   }
 
-  private stowHook(ctx: RescueHandsContext): void {
+  stowHook(ctx: RescueHandsContext): void {
     this.hook = null;
     ctx.push('hookStow', undefined, 1);
   }

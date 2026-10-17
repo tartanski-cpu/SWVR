@@ -53,7 +53,8 @@ import { placeInFront } from '../ui/placeInFront';
 import { canRefuel, releaseHolds } from '../vessel/vesselControl';
 import { PORTS } from '../world/archipelago';
 import { groundHeight } from '../world/terrain';
-import { aboard, carriedBy, dropCarried, cargoLabel, cargoPortAt, kindOf, payloadMass, slotsUsed, type CargoItem } from '../cargo/cargo';
+import { aboard, carriedBy, dropCarried, cargoLabel, cargoPortAt, kindOf, payloadMass, quickLoadable, quickPort, quickUnloadable, slotsUsed, type CargoItem } from '../cargo/cargo';
+import { groundAt, isPot, quickHaulable, quickPalletPots } from '../potting/potting';
 import { CargoHands, type CargoHandsContext } from '../cargo/cargoHands';
 import { CargoView } from '../cargo/cargoView';
 import { berthById } from '../vessel/physics/mooring';
@@ -67,6 +68,7 @@ import { SoundBoard } from './soundBoard';
 import { TouchControls, wantsTouchControls } from '../ui/touchControls';
 import { TowlineView } from '../tow/towlineView';
 import { PotView } from '../potting/potView';
+import { PotHands, type PotHandsContext } from '../potting/potHands';
 import { PainterView } from '../vessel/view/painterView';
 import { cleatName, painterPlan, skiffCleatLocal } from '../vessel/physics/painter';
 import { Cleat } from '../controls/deckGear';
@@ -259,6 +261,7 @@ export class App {
   private readonly logView = new LogView();
   private readonly trawlView = new TrawlView();
   private readonly potView = new PotView();
+  private readonly potHands = new PotHands();
   private readonly targetsView = new TargetsView();
   private readonly desktopHand = new DesktopHand();
   private readonly deskHandW = new THREE.Vector3();
@@ -440,6 +443,7 @@ export class App {
     const stowage = VESSEL_DEFS[this.world.vessels[this.testVesselId].defId].stowage;
     if (tugView && stowage?.binoculars) this.binoculars.stow(tugView.root, stowage.binoculars.at, stowage.binoculars.yawDeg);
     if (tugView) for (const g of this.gear) if (stowage?.[g.kind]) g.mount(tugView.root, stowage[g.kind]!);
+    if (tugView) this.potHands.mount(tugView.root, this.scene, this.world.vessels[this.testVesselId].defId);
     this.scene.add(this.handGearView.root);
     this.scene.add(this.towline.root, this.painter.root, this.fireView.root, this.jetView.root, this.logView.root, this.trawlView.root, this.potView.root);
     this.setupBridge();
@@ -763,7 +767,9 @@ export class App {
     this.painter.update(this.world, this.vesselRoots, this.renderWaves);
     this.logView.update(this.world, this.renderWaves, renderTime);
     this.trawlView.update(this.world, this.vesselRoots.get(this.testVesselId) ?? null, this.renderWaves, renderTime);
-    this.potView.update(this.world, this.renderWaves, this.world.time, this.focus, darkness);
+    this.potView.update(this.world, this.renderWaves, this.world.time, this.focus, darkness, this.vesselRoots);
+    // The bait tub only while potting's on.
+    this.potHands.tub.visible = !!this.world.potting && this.potHands.hasTub;
     // Potting switched on in Settings: on in our game too, if it's ours (alone or hosting).
     if (userSettings.potting && !this.world.potting && (this.host || !this.client)) this.pushVesselIntent('pottingOn', 1);
     this.fireView.update(this.world, this.renderWaves, renderTime, dt);
@@ -1656,6 +1662,7 @@ export class App {
         const c = skiff && aboard(this.world, skiff.id)[i];
         return c ? cargoLabel(c) : null;
       },
+      quickJob: (what) => this.quickJob(what),
       skiffLoad: () => {
         const skiff = this.skiff();
         if (!skiff) return '-';
@@ -1787,9 +1794,9 @@ export class App {
         if (this.world.players[this.localPlayerId].aboardVesselId !== this.testVesselId) this.toggleBoardTo(true);
         this.overlay.notify('On a potting ground: shoot the pots over the side', 3);
       },
-      potsReady: () => {
-        this.pushVesselIntent('potDebugReady', 1);
-        this.overlay.notify('Pots in the water: ready to haul', 2);
+      potsReady: (full) => {
+        this.pushVesselIntent('potDebugReady', full ? 2 : 1);
+        this.overlay.notify(full ? 'Pots in the water: baited and soaked their best (a full catch on a good ground)' : 'Pots in the water: ready to haul', 2.5);
       },
       potsOnPlotter: () => !!this.homeView?.chart?.showPots,
       togglePotsOnPlotter: () => {
@@ -2261,6 +2268,10 @@ export class App {
       for (const h of ['left', 'right'] as const) if (this.cargoHands.busy(h)) this.busyHands[h] = true;
       this.rescueHands.updateXR(this.rescueCtx(), this.hands, this.busyHands, this.frameDt);
       for (const h of ['left', 'right'] as const) if (this.rescueHands.busy(h)) this.busyHands[h] = true;
+      if (this.world.potting) {
+        const onPots = this.potHands.updateXR(this.potCtx(), this.hands, this.busyHands, this.frameDt);
+        for (const h of ['left', 'right'] as const) if (onPots[h] || this.potHands.busy(h)) this.busyHands[h] = true;
+      }
       if (this.board && !this.noteKeys.isOpen) {
         const onBoard = this.board.updateXR(this.boardCtx(), this.hands, this.busyHands);
         for (const h of ['left', 'right'] as const) if (onBoard[h]) this.busyHands[h] = true;
@@ -2301,14 +2312,23 @@ export class App {
         // the mouse already holds rescue gear or cargo.
         const free = !this.cargoHands.carrying;
         const board = free && !this.rescueHands.deskBusy && this.board ? this.board.label(this.boardCtx(), ray) : null;
+        // Pot work (the buoy on the hook, the line, the bait tub) before the rescue gear's own label.
+        const pots = free && !board && this.world.potting ? this.potHands.updateDesktop(this.potCtx(), ray, this.frameDt) : null;
         const gear = free && !board ? this.rescueHands.updateDesktop(this.rescueCtx(), ray, this.headW, this.headFwd, this.frameDt) : null;
-        return board ?? gear ?? this.cargoHands.updateDesktop(this.cargoCtx(), ray, this.headW, this.headFwd);
+        return board ?? pots ?? gear ?? this.cargoHands.updateDesktop(this.cargoCtx(), ray, this.headW, this.headFwd);
       },
       click: (ray: THREE.Ray | null) => {
         this.camera.getWorldDirection(this.headFwd);
         if (!this.cargoHands.carrying && !this.rescueHands.deskBusy && this.board?.click(this.boardCtx(), ray)) return true;
+        if (!this.cargoHands.carrying && this.world.potting && this.potHands.desktopClick(this.potCtx(), ray)) return true;
         if (!this.cargoHands.carrying && this.rescueHands.desktopClick(this.rescueCtx(), ray, this.headFwd)) return true;
-        return this.cargoHands.desktopClick(this.cargoCtx(), ray);
+        const took = this.cargoHands.desktopClick(this.cargoCtx(), ray);
+        // Bait in hand goes into a pot (above) or is dropped by any other click.
+        if (this.potHands.bait === 'desk') {
+          this.potHands.dropBait();
+          if (!took) this.overlay.notify('Bait dropped', 2);
+        }
+        return took;
       },
     };
   }
@@ -2392,6 +2412,22 @@ export class App {
 
   private pushBoardIntent(control: string, ref: string, args?: number[]): void {
     this.intents.push({ playerId: this.localPlayerId, targetId: ENVIRONMENT_ID, control, value: 1, ref, args });
+  }
+
+  /** The pot hands' view of the app (pots are worked from the workboat). */
+  private potCtx(): PotHandsContext {
+    return {
+      world: this.world,
+      playerId: this.localPlayerId,
+      vesselId: this.testVesselId,
+      vesselRoot: this.vesselRoots.get(this.testVesselId),
+      waves: this.renderWaves,
+      rescue: this.rescueHands,
+      push: (control, ref, value, args) => this.intents.push({ playerId: this.localPlayerId, targetId: this.testVesselId, control, value, ref, args }),
+      notify: (text) => this.overlay.notify(text, 2.5),
+      pulse: (h, i, ms) => this.xrInput.pulse(h, i, ms),
+      stowHook: () => this.rescueHands.stowHook(this.rescueCtx()),
+    };
   }
 
   /** The rescue hands' view of the app. */
@@ -2694,6 +2730,73 @@ export class App {
     this.pushVesselIntent('key', 0); // stop: key off
   }
 
+  /**
+   * The menu's quick jobs: check what would happen (to say why not, or what's being done),
+   * then send the intent; the host applies the same rules (cargo.ts / potting.ts "quick").
+   */
+  private quickJob(what: string): void {
+    const v = this.world.vessels[this.testVesselId];
+    if (!v) return;
+    const say = (text: string) => this.overlay.notify(text, 3);
+    const port = quickPort(v);
+    const notAtPort = 'Come alongside a harbour berth, or anchor in its bay, and stop first';
+    const n = (k: number, one: string) => `${k} ${one}${k === 1 ? '' : 's'}`;
+    switch (what) {
+      case 'load': {
+        if (!port) return say(notAtPort);
+        const k = quickLoadable(this.world, v).length;
+        if (!k) return say('Nothing waiting here for another port');
+        this.pushVesselIntent('cargoQuickLoad', 1);
+        return say(`Loading ${n(k, 'item')} waiting here (as many as she has room for), lashed down`);
+      }
+      case 'unload': {
+        if (!port) return say(notAtPort);
+        const items = quickUnloadable(this.world, v);
+        if (!items.length) return say(`Nothing aboard to land at ${port.name.replace(' (anchorage)', '')}`);
+        this.pushVesselIntent('cargoQuickUnload', 1);
+        const pots = items.filter(isPot).length;
+        return say(`Landing ${n(items.length - pots, 'item')}${pots ? ` and selling the catch from ${n(pots, 'pot')}` : ''}`);
+      }
+      case 'lash':
+      case 'release':
+        this.pushVesselIntent('cargoQuickLash', what === 'lash' ? 1 : 0);
+        return say(what === 'lash' ? 'Everything on deck lashed down (where a D-ring is in reach)' : 'All lashings released');
+      case 'lift': {
+        const crates = (this.world.rescue?.active?.targets ?? []).filter((t) => t.kind === 'crate' && t.phase !== 'aboard');
+        if (!crates.length) return say('No crates in the water');
+        this.pushVesselIntent('crateQuickLift', 1);
+        return say(`Lifting aboard the crates within ${CONFIG.rescue.quickLiftRange} m of her side (bring her closer for the rest)`);
+      }
+    }
+    if (!this.world.potting) return say('Potting is off: Settings → Game → Potting');
+    const pots = aboard(this.world, v.id).filter(isPot);
+    switch (what) {
+      case 'potLoad': {
+        const k = quickPalletPots(this.world, v).length;
+        if (!k) return say(port ? 'No pots waiting on the pallet here (it is at Calder Haven)' : 'The pot pallet is at Calder Haven: come alongside there and stop');
+        this.pushVesselIntent('potQuickLoad', 1);
+        return say(`Loading ${n(k, 'pot')} from the pallet, lashed down`);
+      }
+      case 'potBait': {
+        const k = pots.filter((c) => !c.pot?.baited).length;
+        if (!k) return say(pots.length ? 'All the pots aboard are baited' : 'No pots aboard');
+        this.pushVesselIntent('potQuickBait', 1);
+        return say(`Baited ${n(k, 'pot')}`);
+      }
+      case 'potShoot': {
+        if (!pots.length) return say('No pots aboard');
+        this.pushVesselIntent('potQuickShoot', 1);
+        const on = groundAt(v.position[0], v.position[2]);
+        return say(`Pot over the side, starboard${on ? '' : ' (not on a potting ground: it will catch little)'}. ${n(pots.length - 1, 'pot')} left. Mark it on the chart`);
+      }
+      case 'potHaul': {
+        if (!quickHaulable(this.world, v)) return say(`No pot buoy within ${CONFIG.potting.quickHaulRange} m: bring her up to one`);
+        this.pushVesselIntent('potQuickHaul', 1);
+        return say('Hauling the nearest pot');
+      }
+    }
+  }
+
   private pushVesselIntent(control: string, value: number, ref?: string): void {
     this.pushIntentTo(this.testVesselId, control, value, ref);
   }
@@ -2806,6 +2909,7 @@ export class App {
       notify: (text) => this.overlay.notify(text, 2.5),
       pulse: (h, i, ms) => this.xrInput.pulse(h, i, ms),
       placedOnDeck: () => this.sound.rescue.snap(),
+      potAction: this.world.potting ? (c, doIt) => this.potHands.potAction(this.potCtx(), c, doIt) : undefined,
     };
   }
 

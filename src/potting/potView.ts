@@ -3,10 +3,13 @@ import { CONFIG } from '../config';
 import type { WorldState } from '../core/world';
 import { surfaceHeight, type PreparedWave } from '../ocean/waves';
 import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
-import { buoyColor, potReady } from './potting';
+import { potGeometry } from '../cargo/cargoView';
+import { buoyColor, potReady, type ShotPot } from './potting';
 
 const MAX = 32;
 const BUBBLES = 24;
+const HAULING = 4;
+const DRIPS = 14;
 
 /**
  * Shot pots as seen from the boat (potting/potting.ts): only their marker buoys - the pot
@@ -21,6 +24,11 @@ const BUBBLES = 24;
  * ready to haul, and at night a small light on the pole top blinks when it's ready - but
  * only within `cueRange` of you; further off the flag is a dull grey, so you still have to
  * go back to where you marked them.
+ *
+ * Hauling (milestone 3): once the buoy's aboard it sits on the gunwale where the line comes
+ * in, and the line runs from there over the side and down. The last couple of metres the
+ * pot itself shows: a shape under the water, then breaking the surface swinging on its
+ * line and dripping, up the side to the gunwale.
  */
 export class PotView {
   readonly root = new THREE.Group();
@@ -37,6 +45,14 @@ export class PotView {
   private readonly p = new THREE.Vector3();
   private readonly s = new THREE.Vector3();
   private readonly color = new THREE.Color();
+  /** Lines being hauled: lead → water → pot (two segments each). */
+  private readonly lines: THREE.LineSegments;
+  private readonly hanging: THREE.InstancedMesh;
+  private readonly drips: THREE.Points;
+  private readonly lead = new THREE.Vector3();
+  private readonly water = new THREE.Vector3();
+  private readonly top = new THREE.Vector3();
+  private readonly qv = new THREE.Quaternion();
 
   constructor() {
     this.root.name = 'potBuoys';
@@ -63,14 +79,30 @@ export class PotView {
     }
     this.bubbles.frustumCulled = false;
     this.root.add(this.float, this.pole, this.flag, this.splash, this.bubbles);
+    const ln = new THREE.BufferGeometry();
+    ln.setAttribute('position', new THREE.BufferAttribute(new Float32Array(HAULING * 4 * 3), 3));
+    ln.setDrawRange(0, 0);
+    this.lines = new THREE.LineSegments(ln, new THREE.LineBasicMaterial({ color: 0xe0b440 }));
+    this.lines.frustumCulled = false;
+    const size = CONFIG.cargo.kinds.find((k) => k.name === 'Pot')?.size ?? [0.75, 0.42, 0.5];
+    this.hanging = new THREE.InstancedMesh(potGeometry(size, false), flatVertexColorMaterial(), HAULING);
+    this.hanging.frustumCulled = false;
+    this.hanging.count = 0;
+    const dg = new THREE.BufferGeometry();
+    dg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(HAULING * DRIPS * 3), 3));
+    dg.setDrawRange(0, 0);
+    this.drips = new THREE.Points(dg, new THREE.PointsMaterial({ color: 0xdcecf2, size: 0.03, transparent: true, opacity: 0.85, depthWrite: false }));
+    this.drips.frustumCulled = false;
+    this.root.add(this.lines, this.hanging, this.drips);
   }
 
   /**
    * @param time     world time (s): how long each pot has been in
    * @param viewer   where you are (the cue shows only close by)
    * @param darkness 0 day .. 1 night (the ready light)
+   * @param vesselRoots each vessel's drawn root (lines being hauled lead in over their gunwales)
    */
-  update(world: WorldState, waves: readonly PreparedWave[], time: number, viewer: THREE.Vector3, darkness: number): void {
+  update(world: WorldState, waves: readonly PreparedWave[], time: number, viewer: THREE.Vector3, darkness: number, vesselRoots: Map<string, THREE.Object3D>): void {
     let nl = 0;
     const lampPos = this.lamps.geometry.getAttribute('position') as THREE.BufferAttribute;
     const blink = (time % 2) < 0.35;
@@ -80,7 +112,24 @@ export class PotView {
     let ns = 0;
     let nbub = 0;
     const bubPos = this.bubbles.geometry.getAttribute('position') as THREE.BufferAttribute;
+    let nh = 0;
     for (const pot of shot) {
+      if (pot.haul?.phase === 'line') {
+        // Aboard: the buoy on the gunwale (no pole or flag drawn), the line and the pot.
+        const root = vesselRoots.get(pot.haul.vessel ?? '');
+        if (!root || !pot.haul.lead || nb >= MAX) continue;
+        root.localToWorld(this.lead.fromArray(pot.haul.lead));
+        this.m.compose(this.p.copy(this.lead).add(this.s.set(0, 0.12, 0)), root.getWorldQuaternion(this.q), this.s.set(1, 1, 1));
+        this.float.setMatrixAt(nb, this.m);
+        this.float.setColorAt(nb, this.color.setHex(buoyColor(world, pot.owner)));
+        this.m.makeScale(0, 0, 0);
+        this.pole.setMatrixAt(nb, this.m);
+        this.flag.setMatrixAt(nb, this.m);
+        this.flag.setColorAt(nb, this.color.setHex(0x6a6a66));
+        nb++;
+        if (nh < HAULING) this.drawHaul(nh++, pot, root, waves, time);
+        continue;
+      }
       const t = time - pot.shotAt;
       const h = surfaceHeight(waves, pot.x, pot.z);
       if (t < sink + 1.2 && ns < 8) {
@@ -126,6 +175,55 @@ export class PotView {
     this.lamps.geometry.setDrawRange(0, nl);
     lampPos.needsUpdate = true;
     bubPos.needsUpdate = true;
+    this.hanging.count = nh;
+    this.hanging.instanceMatrix.needsUpdate = true;
+    this.lines.geometry.setDrawRange(0, nh * 4);
+    (this.lines.geometry.getAttribute('position') as THREE.BufferAttribute).needsUpdate = true;
+    this.drips.geometry.setDrawRange(0, nh * DRIPS);
+    (this.drips.geometry.getAttribute('position') as THREE.BufferAttribute).needsUpdate = true;
     this.root.visible = shot.length > 0;
+  }
+
+  /**
+   * One line being hauled: from the gunwale out to the water (0.6 m outboard, as the hands
+   * see it) and down to the pot. With `line` m still out and d0 from the gunwale to the
+   * water, the pot is (line - d0) under the surface; once line < d0 it's out, hanging on the
+   * line part way up the side - swinging a little with the boat, and dripping.
+   */
+  private drawHaul(k: number, pot: ShotPot, root: THREE.Object3D, waves: readonly PreparedWave[], time: number): void {
+    const h = pot.haul!;
+    const lead = h.lead!;
+    root.localToWorld(this.water.set(lead[0] + Math.sign(lead[0]) * 0.6, 0, lead[2]));
+    this.water.y = surfaceHeight(waves, this.water.x, this.water.z);
+    const d0 = this.lead.distanceTo(this.water);
+    const line = Math.max(0, h.line ?? 0);
+    const out = line < d0;
+    if (out) this.top.lerpVectors(this.lead, this.water, line / Math.max(0.01, d0));
+    else this.top.copy(this.water).setY(this.water.y - (line - d0));
+    // Swing: a small pendulum with the boat's motion (two slow sines; bigger once it's out).
+    const sw = out ? 0.1 : 0.03;
+    const ax = Math.sin(time * 2.1 + k) * sw;
+    const az = Math.sin(time * 1.6 + k * 2) * sw;
+    const potH = CONFIG.cargo.kinds.find((x) => x.name === 'Pot')?.size[1] ?? 0.42;
+    root.getWorldQuaternion(this.qv);
+    this.q.setFromEuler(this.e.set(az, 0, -ax)).premultiply(this.qv);
+    // The pot hangs from its bridle, its base potH + a little below the line's end.
+    this.p.set(0, -(potH + 0.08), 0).applyQuaternion(this.q).add(this.top);
+    this.hanging.setMatrixAt(k, this.m.compose(this.p, this.q, this.s.set(1, 1, 1)));
+    // The line: gunwale → water point (or the pot, once it's out) → the pot.
+    const lp = this.lines.geometry.getAttribute('position') as THREE.BufferAttribute;
+    const mid = out ? this.top : this.water;
+    lp.setXYZ(k * 4, this.lead.x, this.lead.y, this.lead.z);
+    lp.setXYZ(k * 4 + 1, mid.x, mid.y, mid.z);
+    lp.setXYZ(k * 4 + 2, mid.x, mid.y, mid.z);
+    lp.setXYZ(k * 4 + 3, this.top.x, this.top.y, this.top.z);
+    // Drips off the pot's base while it's out of the water: each falls 0.5 m in a loop.
+    const dp = this.drips.geometry.getAttribute('position') as THREE.BufferAttribute;
+    for (let i = 0; i < DRIPS; i++) {
+      const ph = (time * 1.8 + i * 0.37) % 1;
+      const fall = out && this.p.y > this.water.y - 0.1 ? 0.5 * ph * ph : 1e4;
+      const a = i * 2.39996;
+      dp.setXYZ(k * DRIPS + i, this.p.x + Math.cos(a) * 0.25 * ((i % 3) / 2), this.p.y - fall, this.p.z + Math.sin(a) * 0.18 * (((i + 1) % 3) / 2));
+    }
   }
 }
