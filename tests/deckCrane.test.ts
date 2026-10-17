@@ -5,6 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { useDesign } from '../src/boats/sims';
+import { LIBRARY, RECIPES } from '../src/boats/library';
 import { deckHeightAt, payloadOf, type CargoItem } from '../src/cargo/cargo';
 import { craneStateOf, cranesOf, hookOnBoat } from '../src/cargo/craneHook';
 import { craneRadius, craneSeatAt, safeLoadAt } from '../src/modules/deckCrane';
@@ -284,9 +285,12 @@ describe('deck crane', { timeout: 30000 }, () => {
     expect(seat).toEqual({ dx: 0, postX: crane.post.x });
   });
 
-  it('its weight is where it stands: at the starboard edge it heels her a little that way', () => {
+  it('its weight is where it stands; a Shipyard boat is designed for it, so she floats upright', () => {
     useDesign({ ...DEFAULT_DESIGN, deckCrane: 1 });
-    const withCrane = VESSEL_DEFS.design.cg[0];
-    expect(withCrane).toBeGreaterThan(0.005);
+    // The crane stands at the starboard edge...
+    expect(new THREE.Vector3().setFromMatrixPosition(cranesOf({ defId: 'design' })[0].place).x).toBeGreaterThan(0.4);
+    // ...and her hull and ballast are trimmed against it: the boat as a whole has no list.
+    expect(LIBRARY.hulls.get(RECIPES.design.hull)!.lightship.cg[0]).toBeLessThan(-0.005);
+    expect(Math.abs(VESSEL_DEFS.design.cg[0])).toBeLessThan(0.002);
   });
 });

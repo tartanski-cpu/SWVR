@@ -3687,6 +3687,17 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Cost** (headless browser): one draw call more (the sacks, drawn only while a sack is in the world: 27 to 28 at the start view, 125 to 126 over Calder harbour) and about 200 triangles fewer (the crate bands). One texture read per pixel on painted surfaces, as before; the texture grows to about 0.2 MB.
 - **Checked:** typecheck; all tests (new: a fitted picture fills each face once; paint set in a part's own frame stays square to it once turned, and a roof's turns a quarter); screenshots of crates, a sack and drums on the Calder quay, the harbour office, the fish shed, a weatherboarded cottage, the Brannock pier, a north cardinal buoy, the lighthouse, the reef and the wreck. No page errors. **Not checked:** the Quest (shimmer at a distance, frame rate in the harbour).
 
+### Shipyard: the builder plans the deck crane at the deck edge (owner)
+
+- **The owner asked:** the crane module now stands at the deck edge (see "Deck crane: stands at the deck edge"); integrate it into the Shipyard, following that entry's note: the builder still planned the foredeck crane on the centreline, so its clash checks and its designed-in weight were wrong.
+- **The fix** (`build.ts`): the crane's socket is put where its column stands, `edgeInset` (0.55 m) in from the deck edge: the foredeck crane at the starboard edge, the aft deck one at the port edge (was 0.6 m in; now the module's own inset). On a socket already off to one side the module's 'auto' keeps it there, so the builder and the module agree on where it is.
+  - **Clash checks:** its plinth and its control post (inboard of it) are kept clear, so a pole now goes elsewhere. Before, a foredeck searchlight pole stood 0.29 m from the crane's column on every hull, inside its plinth; now the foredeck poles go to port.
+  - **Weight:** designed in where it stands. The builder's weight sum (`lightshipOf`) already takes the crane's weight and moment out of the hull's, so her hull and ballast are trimmed against it (their centre of gravity a little to port) and **she floats upright**: no list from the crane, as a real design would be ballasted.
+  - The aft crane's control-post flip in the recipe is gone: the module puts the post inboard by itself.
+- **Not done (a question for the owner):** choosing the crane's side (port or starboard), for instance from a pin's side, needs a new design choice, and so a new code version. The foredeck crane is always starboard and the aft deck one port for now.
+- **Tests:** `tests/shipyard/build.test.ts` (on every hull, crane fore or aft with both poles on the same deck: the socket is the column's place, the poles are over 0.5 m from it, no list); `tests/deckCrane.test.ts` changed: the crane's weight at the starboard edge, the hull trimmed against it, the boat upright (it used to expect a slight list).
+- **Checked:** typecheck, all tests; a plan-view screenshot of a workboat with the crane and both poles on the foredeck (crane at the starboard edge with its post inboard, both poles to port).
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

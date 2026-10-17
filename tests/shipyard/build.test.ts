@@ -252,4 +252,23 @@ describe('Shipyard: the boats it builds', () => {
     // One step lower and she can't reach it: the lowest that does.
     if (m.gear > 0) expect(fullAhead({ ...DEFAULT_DESIGN, gear: m.gear - 1 }).rpm).toBeLessThan(m.rpm);
   });
+
+  it('the crane at the deck edge: the builder plans it there, so a pole never lands on it and she floats upright', () => {
+    for (let hull = 0; hull < DESIGN_HULLS.length; hull++)
+      for (const deckCrane of [1, 2]) {
+        useDesign({ ...DEFAULT_DESIGN, hull, deckCrane, searchlight: deckCrane + 1, fireMonitor: deckCrane + 1 });
+        const crane = cranesOf({ defId: 'design' })[0];
+        if (!crane) continue; // no room for it on this deck: left off, with a warning
+        const c = new THREE.Vector3().setFromMatrixPosition(crane.place);
+        // Its socket is where the column stands: the module keeps it there.
+        const socket = flattenMounts(RECIPES.design, LIBRARY.hulls, LIBRARY.modules).mounted.find((m) => m.def.id === 'deck.crane')!.socket.transform.position;
+        expect(Math.abs(socket[0] - c.x), `hull ${hull} crane ${deckCrane} socket`).toBeLessThan(0.01);
+        // The poles on the same deck stand clear of its plinth.
+        for (const m of flattenMounts(RECIPES.design, LIBRARY.hulls, LIBRARY.modules).mounted.filter((x) => x.def.id === 'deck.searchlight' || x.def.id === 'deck.fire-monitor')) {
+          const [px, , pz] = m.socket.transform.position;
+          expect(Math.hypot(px - c.x, pz - c.z), `hull ${hull} crane ${deckCrane} ${m.def.id}`).toBeGreaterThan(0.5);
+        }
+        expect(Math.abs(VESSEL_DEFS.design.cg[0]), `hull ${hull} crane ${deckCrane} list`).toBeLessThan(0.002);
+      }
+  });
 });
