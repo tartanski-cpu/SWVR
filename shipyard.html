@@ -60,6 +60,25 @@
       .fav .code { font: 600 12px ui-monospace, monospace; color: #234; }
       .fav .acts { display: flex; gap: 6px; margin-top: 4px; }
       .fav .acts button { padding: 2px 8px; font-size: 12px; }
+      #together { border: 1px solid #c4d2d8; border-radius: 8px; background: #fff; padding: 8px; margin: 8px 0 4px; }
+      #together .row2 { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+      #together input { font: inherit; padding: 4px 6px; min-width: 0; }
+      #myName { flex: 1; }
+      #together .inSession { display: none; margin-top: 6px; }
+      #together.on .inSession { display: block; }
+      #together.on #startSession { display: none; }
+      #sessionLink { flex: 1; font: 12px ui-monospace, monospace; }
+      #sessionState { font-size: 12px; color: #567; min-height: 16px; margin-top: 4px; }
+      #people { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+      .chip { font-size: 12px; padding: 1px 8px 1px 6px; border-radius: 10px; background: color-mix(in srgb, var(--c) 15%, #fff); border: 1px solid var(--c); }
+      .chip::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--c); margin-right: 5px; }
+      .undoRow { display: flex; gap: 6px; margin-top: 6px; }
+      .undoRow button:disabled { opacity: 0.4; cursor: default; }
+      .row { position: relative; border-radius: 6px; }
+      .row.held { box-shadow: inset 4px 0 0 var(--c); background: color-mix(in srgb, var(--c) 10%, transparent); }
+      .row.held::after { content: attr(data-who); position: absolute; right: 0; top: -9px; font-size: 10px; line-height: 14px; padding: 0 5px; border-radius: 7px; color: #fff; background: var(--c); }
+      @keyframes flash { from { box-shadow: 0 0 0 3px var(--c); } to { box-shadow: 0 0 0 3px transparent; } }
+      .flash { animation: flash 1.5s ease-out; }
       .fav.current { border-color: #2f5d8a; box-shadow: inset 3px 0 0 #2f5d8a; }
       @media (max-width: 1199px) {
         body { grid-template-columns: 340px minmax(0, 1fr); grid-template-rows: 46% 54%; grid-template-areas: 'side view' 'side results'; }
@@ -78,6 +97,15 @@
     <div id="side">
       <h1>Workboat World Shipyard</h1>
       <div class="sub">Design a boat, then take her code to the game.</div>
+      <div id="together">
+        <div class="row2"><input id="myName" placeholder="Your name" maxlength="20" /><button id="startSession">Design together</button></div>
+        <div class="inSession">
+          <div class="row2"><input id="sessionLink" readonly /><button id="copyLink">Copy link</button><button id="leaveSession">Leave</button></div>
+          <div id="people"></div>
+        </div>
+        <div id="sessionState">Send friends a link and design her together, live.</div>
+      </div>
+      <div class="undoRow"><button id="undo" title="Ctrl+Z">↶ Undo</button><button id="redo" title="Ctrl+Shift+Z">↷ Redo</button></div>
       <div id="controls"></div>
     </div>
     <div id="view">

@@ -21,6 +21,9 @@ import { VESSEL_DEFS } from '../vessel/vesselDef';
 import { buildVesselMesh } from '../vessel/view/hullMesh';
 import { DESIGN_HULLS, ENGINES, LIVERIES, ROOF_PAINTS, type DesignedBoat } from './build';
 import { decodeDesign, DEFAULT_DESIGN, encodeDesign, FIELDS, SCALES, type ShipDesign } from './design';
+import { UndoStack } from './undo';
+import { YardLink } from './yardLink';
+import { newSessionId, sessionIdFrom, type DesignPatch, type Person } from './session';
 import { addFavourite, cleanName, readFavourites, removeFavourite, writeFavourites, type Favourite, type Store } from './favourites';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -28,7 +31,10 @@ const stepsOf = (k: keyof ShipDesign) => FIELDS.find((f) => f.key === k)!.steps;
 
 // ── State ──
 const fromHash = decodeDesign(decodeURIComponent(location.hash.slice(1)));
-let design: ShipDesign = 'design' in fromHash ? fromHash.design : { ...DEFAULT_DESIGN };
+/** A shared session's id (?s=...), and this browser's last copy of it (designing together, session.ts). */
+let sessionId = sessionIdFrom(location.search);
+const savedSession = sessionId ? readSessionCopy(sessionId) : null;
+let design: ShipDesign = savedSession ?? ('design' in fromHash ? fromHash.design : { ...DEFAULT_DESIGN });
 let boat: DesignedBoat = useDesign(design);
 /** The choices her gearbox was matched for (not the paint or the controls, which don't change it). */
 const matchKey = (d: ShipDesign) => JSON.stringify({ ...d, gear: 0, paint: 0, controls: 0 });
@@ -139,6 +145,9 @@ function slider(key: keyof ShipDesign, label: string, show: (v: number) => strin
   row.innerHTML = `<label>${label}</label><input type="range" min="0" max="${stepsOf(key) - 1}" step="1" data-key="${key}"><output data-key="${key}"></output>`;
   const input = row.querySelector('input')!;
   input.oninput = () => change({ [key]: Number(input.value) });
+  // While you hold it, the others see your colour on it (session.ts presence).
+  input.addEventListener('pointerdown', () => link?.side?.presence({ holding: key }));
+  input.addEventListener('change', () => link?.side?.presence({ holding: null }));
   outputs[key] = show;
   controls.appendChild(row);
 }
@@ -363,9 +372,12 @@ function runTrial(): void {
 }
 
 /** A choice changed: rebuild and redraw her, then re-run her trials. */
-function change(patch: Partial<ShipDesign>): void {
+function change(patch: Partial<ShipDesign>, by: 'me' | Person | null = 'me'): void {
   const before = matchKey(design);
+  if (by === 'me') share(patch);
+  else if (by) flash(patch, by);
   design = { ...design, ...patch };
+  saveSessionCopy();
   boat = useDesign(design);
   syncControls();
   drawBoat();
@@ -387,6 +399,7 @@ function openCode(code: string, msg: HTMLElement): boolean {
     return false;
   }
   msg.textContent = '';
+  share(read.design);
   design = read.design;
   matchedFor = matchKey(design);
   trial = null;
@@ -477,7 +490,225 @@ function markCurrent(): void {
 }
 $('load').addEventListener('keydown', (e) => e.key === 'Enter' && loadCode());
 
+// ── Undo (undo.ts) ──
+const undo = new UndoStack();
+/** A change of yours: onto your undo stack, and to the others if designing together. */
+function share(patch: DesignPatch): void {
+  undo.record(design, patch, Date.now());
+  link?.side?.edit(patch);
+  showUndo();
+}
+function showUndo(): void {
+  ($('undo') as HTMLButtonElement).disabled = !undo.canUndo;
+  ($('redo') as HTMLButtonElement).disabled = !undo.canRedo;
+}
+function undoRedo(redo: boolean): void {
+  const patch = redo ? undo.redo() : undo.undo();
+  if (!patch) return;
+  link?.side?.edit(patch);
+  change(patch, null);
+  showUndo();
+}
+$('undo').onclick = () => undoRedo(false);
+$('redo').onclick = () => undoRedo(true);
+window.addEventListener('keydown', (e) => {
+  if (!(e.ctrlKey || e.metaKey) || (e.target as HTMLElement).tagName === 'INPUT' && (e.target as HTMLInputElement).type !== 'range') return;
+  const k = e.key.toLowerCase();
+  if (k === 'z' || k === 'y') {
+    e.preventDefault();
+    undoRedo(k === 'y' || e.shiftKey);
+  }
+});
+
+// ── Designing together (session.ts, yardLink.ts) ──
+/** Where this browser keeps its copy of a session (a function: it's needed before this point). */
+function SESSION_KEY(id: string): string {
+  return `swvr.yard.session.${id}`;
+}
+const NAME_KEY = 'swvr.yard.name';
+/** This browser's last copy of a session's design (null if none, or unreadable). */
+function readSessionCopy(id: string): ShipDesign | null {
+  try {
+    const raw = JSON.parse(storage()?.getItem(SESSION_KEY(id)) ?? 'null');
+    if (!raw || raw.v !== 1 || !raw.design) return null;
+    const d = { ...DEFAULT_DESIGN };
+    for (const k of Object.keys(d) as (keyof ShipDesign)[]) if (typeof raw.design[k] === 'number') d[k] = raw.design[k];
+    return d;
+  } catch {
+    return null;
+  }
+}
+let saveTimer = 0;
+/** Keep this browser's copy of the session (so a session with nobody in it is still there). */
+function saveSessionCopy(): void {
+  if (!sessionId) return;
+  const id = sessionId;
+  clearTimeout(saveTimer);
+  saveTimer = window.setTimeout(() => {
+    try {
+      storage()?.setItem(SESSION_KEY(id), JSON.stringify({ v: 1, design, savedAt: Date.now() }));
+    } catch {
+      /* storage full or off: the session still works, it just isn't kept here */
+    }
+  }, 800);
+}
+function myName(): string {
+  try {
+    return storage()?.getItem(NAME_KEY) || '';
+  } catch {
+    return '';
+  }
+}
+let link: YardLink | null = null;
+let people: Person[] = [];
+const STATE_TEXT = { connecting: 'Connecting…', keeping: 'Open: you’re keeping this session', joined: 'Joined', offline: 'Can’t connect (check your internet); your changes are kept in this browser' };
+function startLink(id: string): void {
+  link?.close();
+  link = new YardLink(id, ($('myName') as HTMLInputElement).value || 'Designer', () => design, {
+    onDesign: (_d, patch, by) => change(patch, people.find((p) => p.id === by) ?? null),
+    onPeople: (p) => {
+      people = p;
+      showPeople();
+    },
+    onLost: () => ($('sessionState').textContent = 'The session’s keeper left: taking over…'),
+    onState: (st) => ($('sessionState').textContent = STATE_TEXT[st]),
+  });
+  showSession();
+}
+function showSession(): void {
+  $('together').classList.toggle('on', !!sessionId);
+  if (!sessionId) return;
+  ($('sessionLink') as HTMLInputElement).value = `${location.origin}${location.pathname}?s=${sessionId}`;
+}
+/** The people here, as coloured name chips; and their hands on the controls. */
+function showPeople(): void {
+  const me = link?.side?.me;
+  $('people').innerHTML = people.map((p) => `<span class="chip" style="--c:${p.colour}">${esc(p.name)}${p.id === me ? ' (you)' : ''}</span>`).join('');
+  document.querySelectorAll<HTMLElement>('.row.held').forEach((r) => {
+    r.classList.remove('held');
+    r.removeAttribute('data-who');
+  });
+  for (const p of people) {
+    if (p.id === me || !p.holding) continue;
+    const row = document.querySelector<HTMLElement>(`input[data-key="${p.holding}"]`)?.closest<HTMLElement>('.row');
+    if (!row) continue;
+    row.classList.add('held');
+    row.dataset.who = p.name;
+    row.style.setProperty('--c', p.colour);
+  }
+  showCursors();
+}
+/** Someone else changed these fields: their controls flash in that person's colour. */
+function flash(patch: DesignPatch, p: Person): void {
+  for (const k of Object.keys(patch)) {
+    document.querySelectorAll<HTMLElement>(`[data-key="${k}"]`).forEach((el) => {
+      const box = el.closest<HTMLElement>('.row') ?? el;
+      box.style.setProperty('--c', p.colour);
+      box.classList.remove('flash');
+      void box.offsetWidth; // restart the animation
+      box.classList.add('flash');
+    });
+  }
+}
+// Pointers on the boat: yours shared ten times a second; the others' drawn as a coloured dot and name.
+const cursorRay = new THREE.Raycaster();
+let cursorAt = 0;
+renderer.domElement.addEventListener('pointermove', (e) => {
+  if (!link?.side || !boatRoot || performance.now() - cursorAt < 100) return;
+  cursorAt = performance.now();
+  const r = renderer.domElement.getBoundingClientRect();
+  cursorRay.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), camera);
+  const hit = cursorRay.intersectObject(boatRoot, true)[0];
+  link.side.presence({ cursor: hit ? [hit.point.x, hit.point.y, hit.point.z] : null });
+});
+renderer.domElement.addEventListener('pointerleave', () => link?.side?.presence({ cursor: null }));
+const cursors = new THREE.Group();
+scene.add(cursors);
+function showCursors(): void {
+  for (const c of [...cursors.children]) {
+    cursors.remove(c);
+    c.traverse((o) => {
+      const m = o as THREE.Mesh & THREE.Sprite;
+      m.geometry?.dispose();
+      (m.material as THREE.SpriteMaterial | undefined)?.map?.dispose();
+    });
+  }
+  const me = link?.side?.me;
+  for (const p of people) {
+    if (p.id === me || !p.cursor) continue;
+    const g = new THREE.Group();
+    g.position.set(...p.cursor);
+    g.add(new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 8), new THREE.MeshBasicMaterial({ color: p.colour, depthTest: false })));
+    const label = nameTag(p.name, p.colour);
+    label.position.y = 0.35;
+    g.add(label);
+    g.renderOrder = 10;
+    cursors.add(g);
+  }
+}
+/** A name on a small coloured tag, always facing you. */
+function nameTag(name: string, colour: string): THREE.Sprite {
+  const c = document.createElement('canvas');
+  c.width = 256;
+  c.height = 64;
+  const g = c.getContext('2d')!;
+  g.fillStyle = colour;
+  g.beginPath();
+  g.roundRect(0, 8, 256, 48, 12);
+  g.fill();
+  g.fillStyle = '#fff';
+  g.font = '600 30px system-ui, sans-serif';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText(name, 128, 33, 240);
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), depthTest: false, toneMapped: false }));
+  s.scale.set(1.2, 0.3, 1);
+  return s;
+}
+($('myName') as HTMLInputElement).value = myName();
+$('myName').addEventListener('change', () => {
+  const n = ($('myName') as HTMLInputElement).value.trim();
+  try {
+    storage()?.setItem(NAME_KEY, n);
+  } catch {
+    /* not kept: fine */
+  }
+  link?.rename(n || 'Designer');
+});
+$('startSession').onclick = () => {
+  if (!($('myName') as HTMLInputElement).value.trim()) {
+    ($('myName') as HTMLInputElement).focus();
+    $('sessionState').textContent = 'Type your name first, so the others know who you are.';
+    return;
+  }
+  sessionId = newSessionId();
+  history.pushState(null, '', `?s=${sessionId}${location.hash}`);
+  saveSessionCopy();
+  startLink(sessionId);
+};
+$('copyLink').onclick = () => void navigator.clipboard?.writeText(($('sessionLink') as HTMLInputElement).value);
+$('leaveSession').onclick = () => {
+  link?.close();
+  link = null;
+  people = [];
+  sessionId = null;
+  history.pushState(null, '', `${location.pathname}${location.hash}`);
+  $('sessionState').textContent = 'Left the session. Your copy of her stays here.';
+  showPeople();
+  showSession();
+};
+
+// Leaving the page frees the session's id at once, so someone else can take over (PeerJS
+// would otherwise hold it for up to a minute).
+window.addEventListener('pagehide', () => link?.close());
+
 // ── Start ──
+showUndo();
+showSession();
+if (sessionId) {
+  if (!($('myName') as HTMLInputElement).value) ($('myName') as HTMLInputElement).value = 'Designer';
+  startLink(sessionId);
+}
 showFavourites();
 resize();
 syncControls();
@@ -497,4 +728,4 @@ function look(eye: [number, number, number], at: [number, number, number]): void
   orbit.target.set(...at);
   orbit.update();
 }
-(window as unknown as { shipyard: unknown }).shipyard = { get design() { return design; }, get boat() { return boat; }, get trial() { return trial; }, change, setView, look };
+(window as unknown as { shipyard: unknown }).shipyard = { get design() { return design; }, get boat() { return boat; }, get trial() { return trial; }, get people() { return people; }, get link() { return link; }, change, setView, look, undo: () => undoRedo(false), redo: () => undoRedo(true) };

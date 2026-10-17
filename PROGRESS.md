@@ -3221,6 +3221,45 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **No save format change:** pots are still not saved between sessions (milestone 4). The new career job kind `catch` only adds ledger lines.
 - **Checked:** typecheck, all 523 tests (the dev branch's new potting and quick-job tests among them; golden runs unchanged), the build. In headless Chromium on the workboat: potting on, the pots aboard, Bait all, Shoot one on a ground, soaked full, Haul nearest: the pot came back aboard with 6 crabs and 2 lobsters, no page errors; screenshots of the aft deck with the pots and of the bait tub in its place. **Not checked:** the hand-over-hand haul in VR with real controllers, and potting from the landing craft or a Shipyard boat.
 
+### Shipyard: designing together, part 1: the shared session (owner)
+
+- **The owner's brief:** three collaboration features, in order:
+  1. a live shared design with presence;
+  2. annotation pins that become tasks;
+  3. variants with compare and merge.
+
+  This is part 1. Backend: the owner chose option B, the game's own direct browser-to-browser link (PeerJS), with no server of our own and no account.
+- **How a session works** (`src/shipyard/session.ts`, protocol only, tested in memory; `src/shipyard/yardLink.ts`, the PeerJS side):
+  - **Starting one:** **Design together** makes a session id (6 letters and digits) and the link `shipyard.html?s=<id>`.
+  - **Who keeps it:** the first browser to open the link registers the PeerJS id `swvr-yard-<id>` (apart from the game's `swvr-room-*`) and keeps the session. The others connect to it. Nobody sees roles or locks.
+  - **Changes:** each change is a patch of design fields (`{ length: 9 }`), sent to the keeper, applied, and passed to everyone. The keeper's order is the order of record, so for one field the last change wins. The gearbox isn't shared: each browser matches its own by trial, which gives the same answer.
+  - **Joining:** a joiner gets the session's design, which replaces their own copy.
+  - **If the keeper leaves:** each member waits a random 0.3-1.8 s, then tries to join and, if nobody answers, keeps the session itself. The second browser to try finds the first and joins it. Leaving the page frees the id at once (`pagehide`). If a browser vanished without leaving, PeerJS holds the id for up to a minute, so the takeover keeps trying, a little longer each time, for about a minute and a half.
+  - **A session with nobody in it:** each browser keeps its last copy (`swvr.yard.session.<id>`, saved 0.8 s after a change), so the link still opens the boat later. Copies made apart can differ; whoever keeps the session next starts from their own.
+- **Presence:**
+  - each person has a name (`swvr.yard.name`, kept in the browser) and a colour from the keeper (8 colours, no two alike while there's room);
+  - chips list who's here;
+  - your pointer on the boat (a raycast on her 3D view, sent 10 times a second) shows to the others as a dot with a name tag;
+  - a slider someone is holding shows their colour and name on its row;
+  - a control someone else just changed flashes in their colour.
+- **Undo** (`src/shipyard/undo.ts`): your own changes only. A slider dragged through several steps within 1.2 s is one step. Undo puts your fields back and shares that like any change. Undo / Redo buttons, or Ctrl+Z and Ctrl+Shift+Z (Ctrl+Y). It works on your own too.
+- **Shared code:** `PeerHostTransport` / `PeerClientTransport` (`net/transport.ts`) take an optional peer id. The game's calls are unchanged.
+- **Tests** (`tests/shipyard/session.test.ts`):
+  - joiners get the session's design and their own colours;
+  - changes reach everyone, and the last received wins;
+  - the gearbox and stray fields stay out of patches;
+  - pointers and held controls are shared, and leavers drop off the list;
+  - the keeper leaving tells the members;
+  - session ids;
+  - undo merges a drag, undoes and redoes, and a new change clears redo.
+- **Checked in headless Chromium, over the real PeerJS broker:** two separate browsers. Simon started a session, and Amy opened the link and joined. Her length change showed on Simon's page. While she held the beam slider, Simon saw her colour and name on it and her pointer on the boat (screenshot). Her undo reached Simon. Simon closed his page, and Amy took over and kept the session.
+- **Not yet:** pins and freehand marks (part 2), variants (part 3).
+- **Owner test:**
+  1. Type your name and press Design together. Copy the link to a second device, or send it to a friend; the Quest's browser works too.
+  2. Change things on both. Hold a slider on one and look at the other.
+  3. Close the first page: the second keeps going.
+  4. Later, open the link again: the boat is there.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

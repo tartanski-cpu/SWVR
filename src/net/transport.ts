@@ -41,8 +41,9 @@ export class PeerHostTransport implements HostTransport {
   readonly ready: Promise<void>;
   private readonly peer: Peer;
 
-  constructor(code: string) {
-    this.peer = new Peer(peerIdForRoom(code));
+  /** `peerId`: the id to register (default: the game's room id for `code`; the Shipyard has its own). */
+  constructor(code: string, peerId = peerIdForRoom(code)) {
+    this.peer = new Peer(peerId);
     this.ready = new Promise((resolve, reject) => {
       this.peer.on('open', () => resolve());
       this.peer.on('error', (e) => reject(e));
@@ -69,10 +70,10 @@ export class PeerClientTransport implements ClientTransport {
   private readonly peer: Peer;
   private conn: DataConnection | null = null;
 
-  constructor(code: string) {
+  constructor(code: string, peerId = peerIdForRoom(code)) {
     this.peer = new Peer();
     this.peer.on('open', () => {
-      const conn = this.peer.connect(peerIdForRoom(code), { reliable: true, serialization: 'json' });
+      const conn = this.peer.connect(peerId, { reliable: true, serialization: 'json' });
       this.conn = conn;
       conn.on('open', () => this.onOpen());
       conn.on('data', (d) => this.onMessage(d));
