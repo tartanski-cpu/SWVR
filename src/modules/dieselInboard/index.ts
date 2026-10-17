@@ -47,6 +47,8 @@ export interface DieselInboardConfig {
   massKg: number;
   /** Its upkeep: oil at the start, the checks, the OIL lamp; the block's place under the floor, its dipstick and filler. */
   maintenance: typeof wb.maintenance;
+  /** How it sounds (CONFIG.engineVoices); unset, the workboat's straight six. */
+  voice?: keyof typeof CONFIG.engineVoices;
 }
 
 export const DIESEL_INBOARD: ModuleDefinition<DieselInboardConfig, EngineState> = {
@@ -62,7 +64,11 @@ export const DIESEL_INBOARD: ModuleDefinition<DieselInboardConfig, EngineState> 
     maintenance: wb.maintenance,
     ...CONFIG.modules.dieselInboard,
   },
-  validateConfig: (c) => [...(c.propeller.diameter > 0 ? [] : ['the propeller needs a diameter']), ...(c.alternatorAmps >= 0 ? [] : ['alternatorAmps should be 0 or more'])],
+  validateConfig: (c) => [
+    ...(c.propeller.diameter > 0 ? [] : ['the propeller needs a diameter']),
+    ...(c.alternatorAmps >= 0 ? [] : ['alternatorAmps should be 0 or more']),
+    ...(c.voice === undefined || c.voice in CONFIG.engineVoices ? [] : [`no engine voice '${c.voice}' (${Object.keys(CONFIG.engineVoices).join(', ')})`]),
+  ],
   ports: {
     throttle: { dir: 'read', key: 'throttle.demand' },
     key: { dir: 'read', key: 'ignition.key' },
@@ -81,7 +87,7 @@ export const DIESEL_INBOARD: ModuleDefinition<DieselInboardConfig, EngineState> 
   },
   needs: () => [{ fuel: 'diesel' }],
   provides: () => [{ power: 'pto' }, { gear: 'diesel' }],
-  gear: (c) => ({ diesel: { engine: c.engine, propeller: c.propeller, maintenance: c.maintenance } }),
+  gear: (c) => ({ diesel: { engine: c.engine, propeller: c.propeller, maintenance: c.maintenance, voice: c.voice } }),
   // Its mass at its bed (the socket): it's part of the boat's mass, CG and inertia (M6).
   physical: (c) => ({ powerKw: c.engine.powerKw, massKg: c.massKg }),
   power: (c) => [

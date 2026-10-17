@@ -88,6 +88,10 @@ describe('the landing craft: her recipe', () => {
   it('her machinery: a 280 kW diesel, its rudder, her batteries; no crane, no tow point, no fire monitor', () => {
     const v = { defId: 'landingCraft' };
     expect(gearOf(v, 'diesel')!.engine.powerKw).toBe(280);
+    // Her own engine sound (a turbo V8); the workboat keeps her straight six.
+    expect(gearOf(v, 'diesel')!.voice).toBe('v8');
+    expect(gearOf({ defId: 'workboat' }, 'diesel')!.voice).toBeUndefined();
+    expect(CONFIG.engineVoices.v8.cylinders).toBe(8);
     expect(gearOf(v, 'rudder')).not.toBeNull();
     expect(gearOf(v, 'batteries')).not.toBeNull();
     for (const k of ['tenderCrane', 'towPoint', 'fireMonitor', 'trawl'] as const) expect(gearOf(v, k), k).toBeNull();

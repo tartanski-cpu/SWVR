@@ -80,6 +80,7 @@
           "oilCan": [0.77, 2.9],
           "shelfDrop": 0.3
         },
+        "voice": "v8",
         "massKg": 800
       }
     },

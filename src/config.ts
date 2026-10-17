@@ -2542,6 +2542,67 @@ export const CONFIG = {
   },
 
   /**
+   * Engine voices: how each kind of diesel sounds (audio/engineAudio.ts, audio/dieselWorklet.ts).
+   * A boat's diesel module names one in its config (`voice`); without one it's `inlineSix`.
+   *   cylinders      a four-stroke fires cylinders/2 times a revolution: the beat's pitch
+   *   strength       each firing's loudness, in firing order (the cycle's lumpy rhythm)
+   *   jitter         +- random spread on each firing's loudness
+   *   pulseTau       how long each exhaust pulse rings (s), + pulseTauLow more at idle
+   *   body, stack    the exhaust's two resonances (peaking filters: Hz, Q, dB)
+   *   lp             the tone's low-pass: base + rpm * (rpm / rated) + load * load (Hz)
+   *   thump          its level: base + rpm * (rpm / rated) + load * load
+   *   drive          soft-clip saturation (grit under load)
+   *   hiss           intake / exhaust rush: base + load * load * rpm fraction
+   *   turbo          a turbocharger's whine (a sine, Hz from idle to full boost) at `gain`
+   *                  under full boost; null if naturally aspirated
+   */
+  engineVoices: {
+    /**
+     * The workboat's 400 kW engine: a worn, naturally aspirated straight six, dark and
+     * round, its cylinders noticeably unequal so it lopes once a cycle. Tuned with the owner
+     * against a recording of a similar boat: nothing above a few hundred Hz.
+     */
+    inlineSix: {
+      cylinders: 6,
+      strength: [1.0, 0.48, 1.1, 0.55, 1.03, 0.46],
+      jitter: 0.1,
+      pulseTau: 0.013,
+      pulseTauLow: 0.006,
+      body: { freq: 110, q: 0.9, gain: 4 },
+      stack: { freq: 150, q: 2.2, gain: 3 },
+      lp: { base: 150, rpm: 120, load: 180 },
+      thump: { base: 0.65, rpm: 0.25, load: 0.35 },
+      drive: 1.25,
+      hiss: { base: 0.002, load: 0.008 },
+      turbo: null as { idleHz: number; boostHz: number; gain: number } | null,
+    },
+    /**
+     * The landing craft's 280 kW engine: a turbocharged V8, newer and evener than the
+     * workboat's six. Eight cylinders fire four times a revolution (40 Hz at idle, 120 Hz
+     * flat out, against the six's 30 / 90 Hz), so it's busier; what keeps it deep is the
+     * V8 burble: in its firing order (1-5-4-2-6-3-7-8, odd cylinders on the port bank)
+     * the banks take turns unevenly (P P S S S P P S), and the louder port bank's pulses
+     * bunch up, so a low lope runs under the beat. A bigger exhaust: both resonances a
+     * little lower, a touch more saturation under load. Its turbo whines faintly with boost
+     * (set `turbo.gain` to 0 to lose it).
+     */
+    v8: {
+      cylinders: 8,
+      strength: [1.0, 0.94, 0.58, 0.55, 0.6, 1.03, 0.97, 0.56],
+      jitter: 0.12,
+      pulseTau: 0.011,
+      pulseTauLow: 0.005,
+      body: { freq: 85, q: 0.9, gain: 5 },
+      stack: { freq: 132, q: 2.0, gain: 3 },
+      lp: { base: 160, rpm: 140, load: 200 },
+      thump: { base: 0.55, rpm: 0.3, load: 0.4 },
+      drive: 1.4,
+      hiss: { base: 0.002, load: 0.01 },
+      turbo: { idleHz: 1400, boostHz: 3200, gain: 0.006 } as { idleHz: number; boostHz: number; gain: number } | null,
+    },
+  },
+
+  /**
    * How shut-in the wheelhouse is, for sound (0 open .. 1 shut): the aft door is the big
    * opening, so shutting it counts `door` (the windows the rest). Inside, wind, rain and the
    * hull wash are muffled by that much (the wash by up to `washMuffle`).

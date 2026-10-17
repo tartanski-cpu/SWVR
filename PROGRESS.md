@@ -2571,6 +2571,38 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
     4. Try a hard-over turn at speed, and tell me how the heel feels.
   - **Desktop:** the same.
 
+### Landing craft: her own engine sound, a turbocharged V8 (owner request; done, on /next/ for the owner to test)
+
+- **The owner asked:** keep the workboat's engine sound exactly as it is ("as close to perfect as I could imagine"), and give the landing craft's bigger engine (since the 20 kn change) its own, maybe with more cylinders.
+- **Engine voices** (`CONFIG.engineVoices`): the sound model's settings are now a voice per kind of engine, and the diesel module names its engine's voice in the recipe (`voice`). The settings are:
+  - the number of cylinders and each firing's strength in firing order (the rhythm);
+  - the jitter and the pulse length;
+  - the two exhaust resonances;
+  - how the tone opens up and gets louder with revs and load;
+  - the saturation, the intake rush, and a turbo.
+  
+  The sound engine was generalised to take them (`audio/dieselWorklet.ts`, `audio/engineAudio.ts`). It rebuilds itself if you're in a boat with a different engine.
+- **The workboat: unchanged.** Her voice, `inlineSix`, is today's numbers, and her diesel names none, so she gets it by default. Rendered offline, before and after differ by 0.4 %, exactly what the old code differs from itself between two renders (the intake hiss is random noise).
+- **The landing craft: `v8`, a turbocharged V8:**
+  - **Eight cylinders** fire four times a revolution: 40 Hz at idle, 113 Hz flat out (the six: 30 / 85 Hz). So it's a busier, slightly higher beat flat out. That's what a V8 is.
+  - **The burble:** in a V8's firing order (1-5-4-2-6-3-7-8) the two banks take turns unevenly (port, port, starboard, starboard, starboard, port, port, starboard). The port bank, nearer the exhaust, is louder, so a low lope runs under the beat. That's the V8 burble, and it keeps the sound deep: up to three-quarter lever about 90 % of it is below 100 Hz.
+  - **A bigger exhaust:** its two resonances are lower (85 and 132 Hz, against 110 and 150), with a little more saturation under load.
+  - **Turbo:** a faint whine that spools up with boost (1.4 to 3.2 kHz). It's the only sound above a few hundred Hz, kept about 35 dB down. `turbo.gain` 0 removes it.
+  - **Level:** about 3 dB louder than the six at idle, about the same flat out.
+  - **The wet exhaust** muffles it under water just like the workboat's, and the turbo whine with it.
+- **Checked:**
+  - rendered both engines offline in headless Chromium at idle, 1,100 rpm, 1,450 rpm, flat out, and flat out with the exhaust under. Levels and frequency bands are above; listening samples were sent to the owner;
+  - in the game, the landing craft builds the V8 voice and the workboat the six, with no errors.
+- **Not checked:** how it sounds on the Quest's speakers. That's the owner's test.
+- **Config:** `CONFIG.engineVoices` (`inlineSix`, `v8`); her recipe's diesel `voice: "v8"`.
+- **Tests (483, all pass):** her diesel's voice is the V8, and the workboat's is unset (the six).
+- **Owner test:** at /SWVR/next/, start in the landing craft (Debug > Boat > Start in). In VR and on desktop:
+  1. Listen at idle on deck and in the cabin.
+  2. Rev her through the range.
+  3. Flat out, listen from the cockpit by the exhaust.
+  
+  Then go back to the workboat and check she sounds as before.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

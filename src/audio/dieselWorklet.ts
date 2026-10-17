@@ -1,9 +1,12 @@
 /**
- * AudioWorklet that synthesises a six-cylinder four-stroke diesel's firing events, sample by
- * sample. Loaded from a Blob URL, so it needs no separate file or bundler setup.
+ * AudioWorklet that synthesises a four-stroke diesel's firing events, sample by sample.
+ * Loaded from a Blob URL, so it needs no separate file or bundler setup. Its engine's voice
+ * (CONFIG.engineVoices) comes in its processorOptions: the cylinders, each firing's
+ * strength, the jitter and the pulse length; without them, the workboat's six.
  *
- * A 6-cylinder four-stroke fires 3 times per revolution: firing frequency = rpm / 20 Hz
- * (30 Hz at 600 rpm idle, 90 Hz at 1800 rated). At each firing event:
+ * A four-stroke fires cylinders / 2 times per revolution: firing frequency = rpm x
+ * cylinders / 120 Hz (a six: 30 Hz at 600 rpm idle, 90 Hz at 1800 rated; a V8: 40 / 120 Hz).
+ * At each firing event:
  *   - channel 0, the exhaust pressure pulse: a smooth bump (1.5 ms rise, 13-19 ms decay,
  *     longer at low rpm), strong with load; a soft compression puff when not firing
  *     (cranking). Only a touch of noise rides on it: a pressure pulse through a silencer
@@ -25,8 +28,9 @@ class DieselProcessor extends AudioWorkletProcessor {
       { name: 'firing', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
     ];
   }
-  constructor() {
+  constructor(options) {
     super();
+    const v = (options && options.processorOptions) || {};
     this.phase = 0;
     this.cyl = 0;
     this.env = 0;
@@ -35,7 +39,12 @@ class DieselProcessor extends AudioWorkletProcessor {
     // A worn fishing-boat engine: cylinders noticeably unequal, alternating strong / weak
     // (the reference recording's half-order lines at 1.5x, 2.5x, 3.5x firing/2 are only
     // 7-14 dB under the firing line), so the beat is a lumpy chug that lopes once a cycle.
-    this.strength = [1.0, 0.48, 1.1, 0.55, 1.03, 0.46];
+    this.strength = v.strength || [1.0, 0.48, 1.1, 0.55, 1.03, 0.46];
+    this.cylinders = v.cylinders || 6;
+    this.jitter = v.jitter === undefined ? 0.1 : v.jitter;
+    this.tau = v.pulseTau || 0.013;
+    this.tauLow = v.pulseTauLow === undefined ? 0.006 : v.pulseTauLow;
+    this.rated = v.ratedRpm || 1800;
   }
   rand() {
     this.seed = (this.seed * 16807) % 2147483647;
@@ -47,18 +56,18 @@ class DieselProcessor extends AudioWorkletProcessor {
     const rpm = p.rpm[0];
     const load = p.load[0];
     const firing = p.firing[0] > 0.5;
-    const step = rpm / 20 / sampleRate;
+    const step = rpm / (120 / this.cylinders) / sampleRate;
     // Pulse decay: long enough that the beats run into each other (a rumble, not separate
     // thumps: the reference's level pulses ~40 %, not 70 %).
-    const tau = 0.013 + 0.006 * (1 - Math.min(1, rpm / 1800));
+    const tau = this.tau + this.tauLow * (1 - Math.min(1, rpm / this.rated));
     const dEnv = Math.exp(-1 / (tau * sampleRate));
     const dRise = Math.exp(-1 / (0.0015 * sampleRate));
     for (let i = 0; i < a.length; i++) {
       this.phase += step;
       if (this.phase >= 1) {
         this.phase -= 1;
-        this.cyl = (this.cyl + 1) % 6;
-        const s = this.strength[this.cyl] * (0.9 + 0.2 * this.rand());
+        this.cyl = (this.cyl + 1) % this.strength.length;
+        const s = this.strength[this.cyl] * (1 - this.jitter + 2 * this.jitter * this.rand());
         this.env += s * (firing ? 0.45 + 0.55 * load : 0.2);
       }
       // Smooth pulse: the attack follows the envelope with a 1.5 ms lag (no click edge).

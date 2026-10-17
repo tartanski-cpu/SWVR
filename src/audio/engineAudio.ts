@@ -1,7 +1,12 @@
 import { gearOf } from '../boats/sims';
+import { CONFIG } from '../config';
 import { mixer } from './mixer';
 import type { VesselState } from '../vessel/vesselState';
 import { loadDieselWorklet } from './dieselWorklet';
+
+/** How a kind of diesel sounds (CONFIG.engineVoices). */
+export type EngineVoice = (typeof CONFIG.engineVoices)['inlineSix'];
+export type EngineVoiceId = keyof typeof CONFIG.engineVoices;
 
 /** What the engine is doing, for the sound. */
 export interface EngineSoundInput {
@@ -27,9 +32,13 @@ export interface EngineSoundInput {
  *   starter motor whine (while cranking) ─────────────────────────────────────────────────────────────────────┤
  *   noise ─► band-pass (intake rush, with load) ─────────────────────────────────────────────────────────────┼─► master
  *
- * Voiced as a working fishing boat's naturally aspirated diesel: no turbo whistle, a dark,
- * round exhaust note with a resonant stack "pop", lumpy uneven beats, no clatter or rasp:
- * nothing above a few hundred Hz (that reads as a tinny lawnmower; owner feedback).
+ * Each kind of engine has its voice (CONFIG.engineVoices: its cylinders and their rhythm,
+ * its exhaust resonances, how it opens up with revs and load, a turbo or not). The
+ * workboat's, the default, is a working fishing boat's naturally aspirated diesel: no turbo
+ * whistle, a dark, round exhaust note with a resonant stack "pop", lumpy uneven beats, no
+ * clatter or rasp: nothing above a few hundred Hz (that reads as a tinny lawnmower; owner
+ * feedback). The landing craft's is a turbocharged V8: busier, with a low burble under it
+ * and a faint turbo whine (the only sound above a few hundred Hz, kept very quiet).
  *
  * Wet exhaust: the outlet is in the transom just above the waterline. When it dips under
  * (stern squat, a passing wave, pitching), the note goes dull: the dry path fades and a
@@ -54,9 +63,12 @@ export class EngineSound {
     private readonly dry: GainNode,
     private readonly muffled: GainNode,
     private readonly houseLp: BiquadFilterNode,
+    private readonly voice: EngineVoice,
+    private readonly turbo: { osc: OscillatorNode; gain: GainNode } | null,
   ) {}
 
-  static async create(ctx: BaseAudioContext, destination: AudioNode): Promise<EngineSound> {
+  /** @param ratedRpm the engine's rated speed (its pulses lengthen below it) */
+  static async create(ctx: BaseAudioContext, destination: AudioNode, voice: EngineVoice = CONFIG.engineVoices.inlineSix, ratedRpm = 1800): Promise<EngineSound> {
     const master = ctx.createGain();
     master.gain.value = 0;
     // Heard from inside the wheelhouse: the high end goes first (see set's `lp`).
@@ -81,21 +93,21 @@ export class EngineSound {
     dcBlock2.Q.value = 0.7;
     const body = ctx.createBiquadFilter();
     body.type = 'peaking';
-    body.frequency.value = 110;
-    body.Q.value = 0.9;
-    body.gain.value = 4;
+    body.frequency.value = voice.body.freq;
+    body.Q.value = voice.body.q;
+    body.gain.value = voice.body.gain;
     const body2 = ctx.createBiquadFilter();
     body2.type = 'peaking';
     // Exhaust stack resonance: the hollow "pop" of each beat.
-    body2.frequency.value = 150;
-    body2.Q.value = 2.2;
-    body2.gain.value = 3;
+    body2.frequency.value = voice.stack.freq;
+    body2.Q.value = voice.stack.q;
+    body2.gain.value = voice.stack.gain;
     const bodyLp = ctx.createBiquadFilter();
     bodyLp.type = 'lowpass';
     bodyLp.Q.value = 0.7;
     bodyLp.frequency.value = 300;
     const shaper = ctx.createWaveShaper();
-    shaper.curve = softClip(1.25);
+    shaper.curve = softClip(voice.drive);
     shaper.oversample = '2x';
     const thump = ctx.createGain();
     thump.gain.value = 0;
@@ -115,7 +127,12 @@ export class EngineSound {
     let worklet: AudioWorkletNode | null = null;
     let fallback: { osc1: OscillatorNode; osc2: OscillatorNode } | null = null;
     if (await loadDieselWorklet(ctx)) {
-      worklet = new AudioWorkletNode(ctx, 'diesel', { numberOfInputs: 0, outputChannelCount: [1] });
+      const { cylinders, strength, jitter, pulseTau, pulseTauLow } = voice;
+      worklet = new AudioWorkletNode(ctx, 'diesel', {
+        numberOfInputs: 0,
+        outputChannelCount: [1],
+        processorOptions: { cylinders, strength, jitter, pulseTau, pulseTauLow, ratedRpm },
+      });
       worklet.connect(dcBlock);
     } else {
       const osc1 = ctx.createOscillator();
@@ -157,10 +174,32 @@ export class EngineSound {
     noise.connect(band).connect(hiss).connect(master);
     noise.start();
 
-    return new EngineSound(ctx, master, worklet, fallback, bodyLp, thump, starter, starterGain, hiss, dry, muffled, houseLp);
+    // ── Turbocharger whine (a turbo engine's voice only): a soft sine, pitch with boost ──
+    let turbo: { osc: OscillatorNode; gain: GainNode } | null = null;
+    if (voice.turbo) {
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = voice.turbo.idleHz;
+      const gain = ctx.createGain();
+      gain.gain.value = 0;
+      osc.connect(gain).connect(master);
+      osc.start();
+      turbo = { osc, gain };
+    }
+
+    return new EngineSound(ctx, master, worklet, fallback, bodyLp, thump, starter, starterGain, hiss, dry, muffled, houseLp, voice, turbo);
+  }
+
+  /** Stop it and unhook it (the boat changed engines). */
+  dispose(): void {
+    this.master.disconnect();
+    this.worklet?.disconnect();
+    this.turbo?.osc.stop();
+    this.starter.stop();
   }
 
   private lastSub = 0;
+  private lastBoost = 0;
 
   /**
    * @param level overall level (distance attenuation, the wheelhouse etc.)
@@ -181,13 +220,15 @@ export class EngineSound {
       p.get('load')!.setTargetAtTime(load, t, 0.1);
       p.get('firing')!.setValueAtTime(e.running ? 1 : 0, t);
     } else if (this.fallback) {
-      this.fallback.osc1.frequency.setTargetAtTime(Math.max(1, rpm / 20), t, smooth);
-      this.fallback.osc2.frequency.setTargetAtTime(Math.max(1, rpm / 40), t, smooth);
+      const fire = (rpm * this.voice.cylinders) / 120;
+      this.fallback.osc1.frequency.setTargetAtTime(Math.max(1, fire), t, smooth);
+      this.fallback.osc2.frequency.setTargetAtTime(Math.max(1, fire / 2), t, smooth);
     }
     // Brighter and harder as it revs and digs in.
     // Darker than before (it topped out near 900 Hz): the bark stays under ~450 Hz.
-    this.bodyLp.frequency.setTargetAtTime(150 + 120 * rpmFrac + 180 * load, t, smooth);
-    this.thump.gain.setTargetAtTime(turning ? 0.65 + 0.25 * rpmFrac + 0.35 * load : 0, t, 0.1);
+    const v = this.voice;
+    this.bodyLp.frequency.setTargetAtTime(v.lp.base + v.lp.rpm * rpmFrac + v.lp.load * load, t, smooth);
+    this.thump.gain.setTargetAtTime(turning ? v.thump.base + v.thump.rpm * rpmFrac + v.thump.load * load : 0, t, 0.1);
     // Wet exhaust: dry bark in the air, dull under water. Under goes fast (the
     // outlet floods), back out a little slower (the water has to clear).
     const sub = Math.min(1, Math.max(0, e.submerged ?? 0));
@@ -197,7 +238,16 @@ export class EngineSound {
     this.muffled.gain.setTargetAtTime(1.1 * sub, t, k);
     this.starter.frequency.setTargetAtTime(120 + rpm * 1.4, t, 0.05);
     this.starterGain.gain.setTargetAtTime(e.cranking ? 0.06 : 0, t, 0.04);
-    this.hiss.gain.setTargetAtTime(e.running ? 0.002 + 0.008 * load * rpmFrac : 0, t, 0.2);
+    this.hiss.gain.setTargetAtTime(e.running ? v.hiss.base + v.hiss.load * load * rpmFrac : 0, t, 0.2);
+    // The turbo spools up with boost (load at revs) and down slowly (its rotor's inertia).
+    if (this.turbo && v.turbo) {
+      const boost = e.running ? Math.sqrt(load * rpmFrac) : 0;
+      const k2 = boost > this.lastBoost ? 0.5 : 1.2;
+      this.lastBoost = boost;
+      this.turbo.osc.frequency.setTargetAtTime(v.turbo.idleHz + (v.turbo.boostHz - v.turbo.idleHz) * boost, t, k2);
+      // Under water, the exhaust side's whine goes too.
+      this.turbo.gain.gain.setTargetAtTime(e.running ? v.turbo.gain * (0.15 + 0.85 * boost) * (1 - 0.7 * sub) : 0, t, k2);
+    }
     this.master.gain.setTargetAtTime(level, t, 0.1);
   }
 }
@@ -209,6 +259,11 @@ export class EngineSound {
 export class EngineAudio {
   private ctx: AudioContext | null = null;
   private sound: EngineSound | null = null;
+  /** The voice the sound was built with, and the one wanted (her engine's). */
+  private built: EngineVoiceId | null = null;
+  private wanted: EngineVoiceId = 'inlineSix';
+  private ratedRpm = 1800;
+  private building = false;
 
   /** The shared AudioContext (null until a user gesture has unlocked audio). */
   get context(): AudioContext | null {
@@ -223,7 +278,21 @@ export class EngineAudio {
     const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     if (!AC) return;
     this.ctx = new AC();
-    void EngineSound.create(this.ctx, mixer.bus(this.ctx, 'engine')).then((s) => (this.sound = s));
+    this.build();
+  }
+
+  /** (Re)build the sound in the wanted voice; the old one is stopped once the new is ready. */
+  private build(): void {
+    const ctx = this.ctx;
+    if (!ctx || this.building) return;
+    this.building = true;
+    const voice = this.wanted;
+    void EngineSound.create(ctx, mixer.bus(ctx, 'engine'), CONFIG.engineVoices[voice], this.ratedRpm).then((s) => {
+      this.sound?.dispose();
+      this.sound = s;
+      this.built = voice;
+      this.building = false;
+    });
   }
 
   /**
@@ -233,10 +302,16 @@ export class EngineAudio {
    *                  less inside the wheelhouse (CONFIG.wheelhouseSound)
    */
   update(v: VesselState | undefined, distance: number, submerged = 0, house = 1, lp = 20000): void {
-    if (!this.sound || !v) return;
+    if (!v) return;
+    // Her engine's voice: a boat with another kind of engine gets its own sound.
+    const diesel = gearOf(v, 'diesel');
+    this.wanted = diesel?.voice ?? 'inlineSix';
+    this.ratedRpm = diesel?.engine.ratedRpm ?? 1800;
+    if (this.sound && this.built !== this.wanted) this.build();
+    if (!this.sound) return;
     const e = v.engine;
     this.sound.set(
-      { rpm: e.rpm, load: e.rack, ratedRpm: gearOf(v, 'diesel')?.engine.ratedRpm ?? 1800, running: e.phase === 'running', cranking: e.phase === 'cranking', submerged },
+      { rpm: e.rpm, load: e.rack, ratedRpm: this.ratedRpm, running: e.phase === 'running', cranking: e.phase === 'cranking', submerged },
       (0.42 / (1 + distance / 8)) * house,
       lp,
     );
