@@ -28,6 +28,13 @@ export interface HullParams {
   /** Number of stations, evenly spaced from transom to stem. */
   stations: number;
   /**
+   * Fewer stations for the physics (buoyancy, heave and pitch damping, hydrostatics), the
+   * drawn hull keeping all of them: each physics station samples the sea three times a
+   * tick. Owner: the towed boats needn't float as finely as the boats you drive. Unset:
+   * the physics uses every station.
+   */
+  physicsStations?: number;
+  /**
    * How far forward the deck edge runs parallel, as a fraction of the length from the
    * transom (default 0.45); forward of it the deck fines to the stem. Carrying it further
    * forward keeps the side decks wide past a wheelhouse.
@@ -64,7 +71,12 @@ export interface Station {
 export interface HullForm {
   params: HullParams;
   stations: Station[];
+  /** The stations the physics floats her on, when fewer than `stations` (HullParams.physicsStations). */
+  physics?: Station[];
 }
+
+/** The stations a hull's physics (and hydrostatics) use: the coarser set if she has one. */
+export const physicsStations = (hull: HullForm): Station[] => hull.physics ?? hull.stations;
 
 const smooth = (t: number) => t * t * (3 - 2 * t);
 
@@ -116,6 +128,8 @@ export function buildHullForm(p: HullParams): HullForm {
       halfBeamDeck: bD,
     });
   }
+  const np = p.physicsStations;
+  if (np && np >= 2 && np < n) return { params: p, stations, physics: buildHullForm({ ...p, stations: np, physicsStations: undefined }).stations };
   return { params: p, stations };
 }
 

@@ -4,13 +4,15 @@
  */
 export type WeatherPresetName = 'Clear' | 'Overcast' | 'Fog' | 'Rain' | 'Squall';
 
-// Towable hulls (CONFIG.vessels.derelict / logRaft / barge): displacement at the DWL (kg) and LCB (m aft).
-const DERELICT_MASS = 2750;
+// Towable hulls (CONFIG.vessels.derelict / logRaft / barge): displacement at the DWL (kg) and
+// LCB (m aft), as their physics stations (`physicsStations`: 6, 5 and 5 of the 11 drawn)
+// integrate them, so they float level on their DWL.
+const DERELICT_MASS = 2800;
 const DERELICT_LCB = 1.29;
-const LOGRAFT_MASS = 6400;
-const LOGRAFT_LCB = 1.0;
-const BARGE_MASS = 10500;
-const BARGE_LCB = 1.39;
+const LOGRAFT_MASS = 6490;
+const LOGRAFT_LCB = 1.02;
+const BARGE_MASS = 10540;
+const BARGE_LCB = 1.43;
 /**
  * The landing craft's cabin floor (m, vessel axes): 0.19-0.23 m below the deck around the
  * cabin, so you step down into it for the headroom (2.2 m to the roof). Everything in her
@@ -1247,14 +1249,16 @@ export const CONFIG = {
 
     /**
      * Things to tow (towing missions, tow/tow.ts): no engine, no controls, the same boat
-     * physics as everything else. Masses are what their hulls displace at the DWL and the
+     * physics as everything else, floated on fewer stations than they're drawn with
+     * (`hull.physicsStations`, owner: nobody watches a tow that closely; each station samples
+     * the sea three times a tick, so 15-18 samples instead of 33). Masses are what their hulls displace at the DWL and the
      * CG is over the LCB, so they float level (tests/tow.test.ts checks). Angular damping
      * is scaled from the workboat's and the skiff's by mass x size^2.
      * `tow.look` picks the model drawn over the hull (tow/towLook.ts).
      */
     derelict: {
       tow: { look: 'derelict' as const, name: 'a motor cruiser with engine failure' },
-      hull: { length: 7, beamDeck: 2.5, beamChine: 2.1, keelY: -0.45, chineYAft: -0.15, chineYBow: 0.15, deckYAft: 0.7, deckYBow: 1.0, stations: 11, deckParallel: 0.5 },
+      hull: { length: 7, beamDeck: 2.5, beamChine: 2.1, keelY: -0.45, chineYAft: -0.15, chineYBow: 0.15, deckYAft: 0.7, deckYBow: 1.0, stations: 11, physicsStations: 6, deckParallel: 0.5 },
       mass: DERELICT_MASS,
       cg: [0, 0.25, DERELICT_LCB] as [number, number, number],
       gyradius: { roll: 0.9, pitch: 1.8, yaw: 1.9 },
@@ -1269,7 +1273,7 @@ export const CONFIG = {
     },
     logRaft: {
       tow: { look: 'logs' as const, name: 'a raft of logs broken loose from a timber tow' },
-      hull: { length: 8, beamDeck: 3.0, beamChine: 2.9, keelY: -0.45, chineYAft: -0.3, chineYBow: -0.15, deckYAft: 0.2, deckYBow: 0.3, stations: 11, deckParallel: 0.85 },
+      hull: { length: 8, beamDeck: 3.0, beamChine: 2.9, keelY: -0.45, chineYAft: -0.3, chineYBow: -0.15, deckYAft: 0.2, deckYBow: 0.3, stations: 11, physicsStations: 5, deckParallel: 0.85 },
       mass: LOGRAFT_MASS,
       cg: [0, -0.1, LOGRAFT_LCB] as [number, number, number],
       gyradius: { roll: 1.0, pitch: 2.2, yaw: 2.3 },
@@ -1284,7 +1288,7 @@ export const CONFIG = {
     },
     barge: {
       tow: { look: 'barge' as const, name: 'a work barge adrift from her moorings' },
-      hull: { length: 9, beamDeck: 3.6, beamChine: 3.4, keelY: -0.55, chineYAft: -0.45, chineYBow: -0.15, deckYAft: 0.5, deckYBow: 0.6, stations: 11, deckParallel: 0.85 },
+      hull: { length: 9, beamDeck: 3.6, beamChine: 3.4, keelY: -0.55, chineYAft: -0.45, chineYBow: -0.15, deckYAft: 0.5, deckYBow: 0.6, stations: 11, physicsStations: 5, deckParallel: 0.85 },
       mass: BARGE_MASS,
       cg: [0, 0.1, BARGE_LCB] as [number, number, number],
       gyradius: { roll: 1.2, pitch: 2.5, yaw: 2.6 },

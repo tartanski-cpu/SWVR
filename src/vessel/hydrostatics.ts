@@ -13,6 +13,7 @@
  */
 import { CONFIG } from '../config';
 import { submergedSection, type SubmergedSection } from './physics/sectionClip';
+import { physicsStations } from './hullForm';
 import type { VesselDef } from './vesselDef';
 
 const out: SubmergedSection = { area: 0, cx: 0, cy: 0, maxDepth: 0 };
@@ -37,7 +38,7 @@ function immersion(def: VesselDef, s: number, h: number): Immersion {
   let mx = 0;
   let my = 0;
   let mz = 0;
-  for (const st of def.hull.stations) {
+  for (const st of physicsStations(def.hull)) {
     const depths = st.polygon.map(([x, y]) => s + x * sin - y * cos);
     submergedSection(st.polygon, depths, out);
     const v = out.area * st.weight;
@@ -62,7 +63,7 @@ function sinkageFor(def: VesselDef, volume: number, h: number): number {
 }
 
 function keelY(def: VesselDef): number {
-  return Math.min(...def.hull.stations.flatMap((s) => s.polygon.map((p) => p[1])));
+  return Math.min(...physicsStations(def.hull).flatMap((s) => s.polygon.map((p) => p[1])));
 }
 
 export interface UprightHydrostatics {
@@ -98,7 +99,7 @@ export function uprightHydrostatics(def: VesselDef): UprightHydrostatics {
   let awp = 0;
   let mAwp = 0;
   let it = 0;
-  for (const st of def.hull.stations) {
+  for (const st of physicsStations(def.hull)) {
     let half = 0;
     const p = st.polygon;
     for (let i = 0; i < p.length; i++) {
@@ -155,7 +156,7 @@ export function formatHydrostatics(def: VesselDef): string {
   const vanish = gz.find((p) => p.deg > max.deg && p.gz <= 0);
   const f = (v: number, d = 2) => v.toFixed(d);
   return [
-    `HYDROSTATICS: ${def.id} (from ${def.hull.stations.length} stations, calm water)`,
+    `HYDROSTATICS: ${def.id} (from ${physicsStations(def.hull).length} stations, calm water)`,
     `  displacement ${f(h.displacementT, 2)} t   volume ${f(h.volume)} m3   draft ${f(h.draft)} m (sinkage ${f(h.sinkage, 3)} m vs DWL)`,
     `  LCB ${f(h.lcb)} m aft   LCF ${f(h.lcf)} m aft   LCG-LCB ${f(h.lcgMinusLcb, 3)} m ${Math.abs(h.lcgMinusLcb) > 0.05 ? '<- will trim' : '(floats level)'}`,
     `  Awp ${f(h.awp, 1)} m2   wetted surface ${f(h.wettedSurface, 1)} m2`,

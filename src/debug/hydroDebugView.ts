@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { HydroDebug } from '../vessel/physics/vesselPhysics';
 import type { VesselDef } from '../vessel/vesselDef';
+import { physicsStations } from '../vessel/hullForm';
 
 /** Metres of arrow per newton (10 kN = 1 m). */
 const FORCE_SCALE = 1 / 10000;
@@ -27,7 +28,7 @@ export class HydroDebugView {
 
     // Station outlines (static).
     const outline: number[] = [];
-    for (const s of def.hull.stations) {
+    for (const s of physicsStations(def.hull)) {
       for (let k = 0; k < s.polygon.length; k++) {
         const a = s.polygon[k];
         const b = s.polygon[(k + 1) % s.polygon.length];
@@ -38,7 +39,7 @@ export class HydroDebugView {
     outlineGeo.setAttribute('position', new THREE.Float32BufferAttribute(outline, 3));
     const outlines = new THREE.LineSegments(outlineGeo, new THREE.LineBasicMaterial({ color: 0x66ccff, opacity: 0.45, ...onTop }));
 
-    const n = def.hull.stations.length;
+    const n = physicsStations(def.hull).length;
     const arrowGeo = new THREE.BufferGeometry();
     arrowGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 6), 3));
     this.arrows = new THREE.LineSegments(arrowGeo, new THREE.LineBasicMaterial({ color: 0xffe14d, ...onTop }));

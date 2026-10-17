@@ -54,6 +54,7 @@ import type { VesselDef } from '../vesselDef';
 import type { VesselState } from '../vesselState';
 import { calmWaterResistance } from './propulsion';
 import { submergedSection, type SubmergedSection } from './sectionClip';
+import { physicsStations } from '../hullForm';
 import { contactAt, hullContactPoints, type ContactResult } from './contacts';
 import { stepMooring } from './mooring';
 import type { ExternalForce } from './vesselContact';
@@ -215,7 +216,7 @@ export function stepVessel(
   }
 
   let submergedVolume = 0;
-  for (const st of def.hull.stations) {
+  for (const st of physicsStations(def.hull)) {
     const b = Math.max(st.halfBeamChine, 0.05);
     // Water surface at port chine, centreline and starboard chine (at DWL height).
     toWorld(-b, 0, st.z, portW);

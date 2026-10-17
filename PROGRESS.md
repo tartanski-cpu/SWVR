@@ -3768,6 +3768,17 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Tests** (`trollingAndDolphins.test.ts`): the lever map (slip, then throttle; the workboat unchanged); the landing craft under 3.5 kn just into gear with the engine at idle, over 5.5 kn at the lock-up, over 19 kn flat out; a pod at the bow at 7.8 kn, gone after falling back at 11 kn, back once she slows. All tests pass, golden runs unchanged.
 - **Not checked:** the feel on the Quest's lever.
 
+### Towed boats float on fewer stations (owner: save CPU)
+
+- **The owner:** the things you tow seemed to have as many buoyancy stations as the boats you drive; nobody watches a tow that closely, so cut them down.
+- **Before:** the derelict, the log raft and the barge each floated on all 11 of their drawn stations (the workboat has 17), each sampling the sea three times a tick: 33 samples. (The salvage logs off the beaches were already cheap: a point on the water, no stations.)
+- **Now:** a hull can float on fewer stations than it's drawn with: `hull.physicsStations` (`vessel/hullForm.ts`, `physicsStations()`); buoyancy, heave and pitch damping (`vesselPhysics.ts`), the hydrostatics and the debug view's buoyancy display use those; the drawn hull, deck heights and everything else keep all of them.
+  - **derelict 6** (her fine bow needs one more: with 5 her centre of buoyancy moved 0.2 m), **log raft 5**, **barge 5**: 15 to 18 sea samples instead of 33.
+  - **Masses and LCBs** set to what the physics stations integrate at the DWL, so they float level: derelict 2800 kg / 1.29 m, log raft 6490 / 1.02, barge 10540 / 1.43 (were 2750 / 1.29, 6400 / 1.0, 10500 / 1.39). GM within 0.06 m of the 11-station figure.
+- **Cost:** one physics step per towed boat, in a sea, measured here: derelict 70 to 39 microseconds, log raft 63 to 29, barge 65 to 30 (the workboat 111, unchanged). Roughly half, more in absolute terms on the Quest.
+- **Golden runs:** the barge tow re-recorded (the tug's speed after 10 s 4.452 to 4.469 kn, everything else by similar fractions); the others unchanged.
+- **Checked:** typecheck, all tests (each towed boat still floats at its DWL, level, stable). **Not checked:** how they look riding a sea on the Quest (they should look the same).
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**
