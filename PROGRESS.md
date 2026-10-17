@@ -3058,6 +3058,18 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Side views from starboard (owner):** a profile is always drawn with the bow to the right. The Shipyard's Side view and the hull study's side view now look from starboard. The 2D sketch mode, when it comes, should do the same.
 - **Checked:** typecheck; all 511 tests; screenshots from the side (bow right), bow 3/4 and helm of a white pilot boat with a 30 cm roof and a 45 deg edge, and of a navy workboat with an orange roof.
 
+### Test: an outside 3D model (the dirt bike) on the quay (owner)
+
+- **The owner asked** to test importing a .glb model (a dirt bike, exported from Godot) and placing it on the pier where the game starts.
+- **The file as given** was too heavy for the Quest: 10.9 MB, 120,568 triangles, 101 pieces (about 101 draw calls), 80 realistic materials with normal maps.
+- **Slimmed (owner: fewer triangles, the design kept):** with the glTF Transform command-line tool, run with npx (not a dependency of the game): weld, simplify (meshoptimizer: ratio 0.1, error 0.006), quantize. That gives 19,508 triangles (-84 %) and 0.96 MB, at `public/models/mx_gold_dirt.glb`. Compared side by side with the original close up, the spokes, tyre tread, number board and frame survive; 30 % and 15 % versions were also tried.
+- **Loading (`world/view/glbProp.ts`, `loadFlatProp`):** with three's GLTFLoader (part of three, no new dependency), loaded only with `?bike` in the address, in its own small code chunk. Every part is merged into one flat-shaded mesh, each in its material's base colour (textures and normal maps dropped): **one draw call**. Positions are converted to plain floats first, because quantized ones clipped when moved into place.
+- **Placing it (`App.ts`):** on the Calder Haven quay top (y 1.6) at (712.8, 657.5), by the edge a few metres to the left of where you start, side-on to you.
+- **Not done:** no collision (you walk through it), and it isn't in multiplayer or saves; it's a view-only test.
+- **Licence:** the owner supplied the model; its source and licence aren't recorded here (the standing rule is original designs only). It's a test asset, to be removed or replaced if it can't be shared.
+- **Checked:** typecheck; all tests; production build (the loader is a separate 0.8 kB chunk); in the headless browser it loads with no errors; measured with the original file in view, +1 draw call and +120,568 triangles.
+- **Owner test:** open https://tartanski-cpu.github.io/SWVR/next/?bike, on the Quest or desktop, and turn left from where you start on the quay.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

@@ -410,6 +410,21 @@ export class App {
     this.environment = new EnvironmentView(this.scene);
     this.scene.add(this.sky.mesh, this.ocean.mesh, this.probes.mesh, this.worldView.root, this.navMarks.root, this.cargoView.root);
     this.scene.add(this.targetsView.root, this.gearView.root, this.desktopHand.root, this.rain.mesh, this.trafficView.root);
+    // A test (owner): an outside model, the dirt bike, on the Calder Haven quay by where you
+    // start, only with `?bike` in the address (public/models/mx_gold_dirt.glb: the owner's
+    // file slimmed with glTF Transform, weld + simplify + quantize, 120,568 -> 19,508
+    // triangles, 10.9 -> 0.96 MB).
+    if (new URLSearchParams(location.search).has('bike')) {
+      import('../world/view/glbProp')
+        .then(({ loadFlatProp }) => loadFlatProp('models/mx_gold_dirt.glb'))
+        .then((bike) => {
+          // On its wheels on the quay top (1.6 m), by the edge a few metres to your left, side-on
+          // to you as you start (facing the boat, west), its length along the quay.
+          bike.position.set(712.8, 1.6 + 0.013, 657.5);
+          this.scene.add(bike);
+        })
+        .catch((e) => console.warn('bike model not loaded:', e));
+    }
     this.rain.quality = userSettings.rainQuality;
     this.targetsView.onWhistle = (pos) => this.sound.whistle.blow(pos);
     this.scene.add(this.laser.beam.root);
