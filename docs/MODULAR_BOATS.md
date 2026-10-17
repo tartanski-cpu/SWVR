@@ -937,7 +937,8 @@ Sizes: S is about a session, M two or three, L more.
       - (c) trim another choice.
       
       Suggested: (a) for version one, (b) when more shape choices come. Either way the rules version goes up.
-  - **Long term (owner): a hull editor with control points** for finer control of the shape. The hull study already describes hulls as curves through control points (sheer, half-breadth, keel, rake, section shape), so the editor would move those.
+  - **Parked (owner, Oct 2026): a hull editor with control points.** The Shipyard keeps a limited set of variants (sliders and choices on fixed steps), so every design has a short code that carries into the 3D game. The notes stay for reference:
+  - **The idea was a hull editor with control points** for finer control of the shape. The hull study already describes hulls as curves through control points (sheer, half-breadth, keel, rake, section shape), so the editor would move those.
     - Free control points don't fit a short typed code (each point is two or three numbers). The choices:
       - slider-built boats keep codes, and control-point hulls are saved files;
       - a small server keeps designs under a short name (paid: ask first);
