@@ -3865,6 +3865,53 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Checked in headless Chromium:** a pilot boat with a 3 m, 1.2 m high, full-width, 30°-raked deckhouse, and set in with 0.5 m side decks, upright: views from the bow, stern and port; the wheelhouse on top, the steps up aft, no warnings. Found and fixed on the way: its faces wound inside out (invisible from outside), and its foot showing through her topsides at the bow. **Not checked:** the Quest, a phone, walking up the steps into a raised helm in the game.
 - **Next, for bigger boats (tugs), noted:** the deckhouse top walkable with rails and a ladder or stairs (the walk area's floors and ladders already do this for the workboat's roof), and an interior with a door into it.
 
+### Shipyard: projects (owner)
+
+- **The owner found** no way to start afresh: the Shipyard always came back with the last design, its brief and its pins.
+  - Why: it keeps one working copy per browser (`swvr.yard.session.solo`, the YardDoc) and reloads it every time. Favourites keep only a design's code, not the brief, pins or sketches.
+- **Projects** (`src/shipyard/projects.ts`, under `swvr.yard.projects`, at most 20): the whole YardDoc by name, with a picture of the main design and a line (type and length, variants, pins, sketches).
+  - The **📁 Projects** button in the header opens **Save**, **New design** and the list (**Open**, **Delete**). The project open now is marked; `swvr.yard.project` remembers which it is.
+- **Saving uses her name** (or the type-and-length name). If another project already has that name, the new one is numbered "(2)", so nothing is overwritten by accident. Saving again under the open project's name updates it.
+- **New design and Open save the work on show first** (unless it's the untouched default), then write the chosen doc as the working copy and start the page again on it. The address's design code is dropped, since it would replace her design.
+  - Starting the page again is the simplest sure way to swap everything: the variants, the undo, the trial and the views.
+  - Not allowed while designing together: it would swap the session for everyone. Save still works there.
+- **Storage:** sketches are pictures, so a project can be a few hundred kB. If the browser's storage is full:
+  - Save drops older projects' pictures, then keeps only the newest five, before saying it can't;
+  - New and Open refuse rather than lose the work on show.
+- New save key, so `next` and the game don't clash; the old working copy still reads.
+- **Checked:**
+  - typecheck and tests (634; `tests/shipyard/projects.test.ts`);
+  - a headless run: a named design with a pin → New → blank (no name, default hull, no pins) → the list shows it → Open → name, hull, length and pin back, marked "open now";
+  - a screenshot of the panel.
+- **Not checked:** the Quest's browser, and a full storage.
+
+### Shipyard: deck gear by pin only (owner)
+
+- **The owner found** the Deck gear step's "Or set by hand" choices redundant next to the pins. They're gone: pins are the one way to put gear on.
+- **In their place, "On her now"** (`page.ts showOnHer`, under the pinned list): every piece she carries and where. That's either "where pinned" with its offset from the centreline, or its usual place.
+- **Take off** comes with each piece (`takeOff`): with its pin if a pin put it there, else just the design choice. This is still needed because gear can come without a pin: a hull type's own fit, an older code, a variant.
+- **Checked:** typecheck, tests, and a headless run that pins, lists, and takes gear off (see below).
+
+### Shipyard: deckhouse heights for big boats too (owner)
+
+- **After trying the deckhouse on bigger boats**, the owner wanted the taller heights back, plus a low one. It's now **0.5, 0.8, 1.0, 1.2 or 1.5 m** (`SCALES.dhHeight`; `dhHeight` has 5 steps).
+- Deckhouse codes from the last two changes read with a different height (only on `next`).
+
+### Shipyard: lower deckhouses, and the cabin sunk into one (owner)
+
+- **The owner said** the deckhouse was too tall for these small boats: its heights are now **0.4, 0.8 or 1.0 m** (`SCALES.dhHeight`; `dhHeight` has 3 steps, it had 4 from 0.8 to 1.4 m). A code with a deckhouse made before this reads with a different one: those were only a day old, on `next`.
+- **The floor height now works with a deckhouse.** The owner moved the wheelhouse floor and nothing happened: it was set aside, the house standing on the deckhouse's top. Now the same slider is measured from the deckhouse's top:
+  - level with it;
+  - raised above it;
+  - or sunk into it (the slider reads "0.4 m into the deckhouse").
+  Sunk below the deck, the usual check applies: is her hull wide enough down there?
+- **Sunk, the deckhouse's top is open over the cabin** (`DeckhouseLayout.well`, `vessel/deckhouse.ts`). Its top and aft face are drawn only beside the wheelhouse (`hullMesh.ts buildDeckhouse`); the wheelhouse's own walls go down inside it to the floor, and its aft door and steps work as before. The plate left out comes off its weight and price.
+- `figures.floorOnDeckhouseM` (build.ts) gives the page the floor's height from the deckhouse's top.
+- **Checked:**
+  - typecheck and tests (630; `tests/shipyard/deckhouse.test.ts` adds the heights, and a sunk floor: open top, floor walked, not solid inside);
+  - headless screenshots of a 14 m pilot boat with a 0.8 m deckhouse, floor level with it and 0.4 m into it (side, stern ¾, at the helm).
+- **Not checked:** walking in through the door in the game.
+
 ### Shipyard: dark mode (owner)
 
 - **The owner asked** for "the dark mode makeover" of the Shipyard page.

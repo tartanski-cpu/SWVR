@@ -208,7 +208,7 @@ export interface DesignedBoat {
   hull: HullDefinition;
   recipe: Recipe;
   /** floorM: the cabin floor about the deck under the house (as built: a fine hull can bring a low one up). */
-  figures: { lengthM: number; beamM: number; massT: number; draughtM: number; gmM: number; propellerM: number; gear: number; engine: string; price: number; floorM: number };
+  figures: { lengthM: number; beamM: number; massT: number; draughtM: number; gmM: number; propellerM: number; gear: number; engine: string; price: number; floorM: number; floorOnDeckhouseM?: number };
   warnings: string[];
   /**
    * Where the gear placed by hand stands (boat axes, m), whether it had to move off its
@@ -334,14 +334,10 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   // highest deck under the house, or sunk from the lowest (a step down in, for headroom).
   // A floor below the deck needs her hull at least as wide as the house down there (its
   // walls go down to it); in a fine entry it isn't, and the floor comes up until it is.
+  // (Set after the deckhouse, below: with one, the floor is measured from its top.)
   const lift = SCALES.floor(d.floor);
   const level = deckHi + 0.03;
-  let floorY = lift >= 0 ? level + lift : Math.min(level, deckLo + 0.01 + lift);
   const tightAt = (y: number) => Math.min(...along(8).map((z) => halfBreadthAt(st.reduce((a, s) => (Math.abs(s.z - z) < Math.abs(a.z - z) ? s : a)).polygon, y)));
-  if (floorY < level && tightAt(floorY - 0.15) < hw + 0.02) {
-    while (floorY < level && tightAt(floorY - 0.15) < hw + 0.02) floorY = Math.min(level, floorY + 0.2);
-    warnings.push(`Her hull is too fine under the wheelhouse for its floor that low: raised to ${(floorY - level).toFixed(1)} m about the deck.`);
-  }
   // ── The deckhouse (owner: pilot and rescue boats; vessel/deckhouse.ts) ──
   // From the wheelhouse's aft wall (just inside it, so the house's own aft wall shows)
   // forward past its front, out to her sides less any side deck (but at least as wide as
@@ -371,8 +367,20 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     const h = SCALES.dhHeight(d.dhHeight);
     for (let i = 1; i < plan.length; i++) dhArea += (plan[i][0] - plan[i - 1][0]) * (2 * h + plan[i][1] + plan[i - 1][1]);
     dhArea += 2 * plan[0][1] * h + 2 * plan[plan.length - 1][1] * h;
-    // (The floor choice is set aside: the house stands on the deckhouse. The page says so.)
-    floorY = top + 0.02;
+  }
+  // The floor: with a deckhouse, from its top (owner, Oct 2026: level with it, raised, or
+  // sunk into it, the house's walls going down inside it and its top open over the cabin);
+  // without, from the deck. Below the deck it needs her hull at least as wide as the house.
+  const onTop = deckhouse ? deckhouse.top + 0.02 : level;
+  let floorY = deckhouse || lift >= 0 ? onTop + lift : Math.min(level, deckLo + 0.01 + lift);
+  if (floorY < level && tightAt(floorY - 0.15) < hw + 0.02) {
+    while (floorY < level && tightAt(floorY - 0.15) < hw + 0.02) floorY = Math.min(level, floorY + 0.2);
+    warnings.push(`Her hull is too fine under the wheelhouse for its floor that low: raised to ${(floorY - level).toFixed(1)} m about the deck.`);
+  }
+  if (deckhouse && floorY < deckhouse.top - 0.01) {
+    // Sunk into it: no top over the cabin (inside the house's walls), less plate.
+    deckhouse.well = { halfWidth: rnd(hw - 0.03), z0: rnd(front + 0.03) };
+    dhArea -= 2 * (hw - 0.03) * (deckhouse.z1 - front - 0.03);
   }
   const roofY = floorY + headroom;
   const wall = 0.06;
@@ -1062,7 +1070,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   return {
     hull,
     recipe,
-    figures: { lengthM, beamM: beamDeck, massT: mass / 1000, draughtM: -Math.min(...st.map((s) => s.polygon[2][1])), gmM: gm, propellerM: propD, gear, engine: twin ? `Twin ${eng.name}` : eng.name, price, floorM: Math.round((floorY - level) * 100) / 100 },
+    figures: { lengthM, beamM: beamDeck, massT: mass / 1000, draughtM: -Math.min(...st.map((s) => s.polygon[2][1])), gmM: gm, propellerM: propD, gear, engine: twin ? `Twin ${eng.name}` : eng.name, price, floorM: Math.round((floorY - level) * 100) / 100, floorOnDeckhouseM: deckhouse ? Math.round((floorY - onTop) * 100) / 100 : undefined },
     warnings,
     placed,
   };
