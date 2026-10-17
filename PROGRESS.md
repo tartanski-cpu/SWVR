@@ -3865,6 +3865,20 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Checked in headless Chromium:** a pilot boat with a 3 m, 1.2 m high, full-width, 30°-raked deckhouse, and set in with 0.5 m side decks, upright: views from the bow, stern and port; the wheelhouse on top, the steps up aft, no warnings. Found and fixed on the way: its faces wound inside out (invisible from outside), and its foot showing through her topsides at the bow. **Not checked:** the Quest, a phone, walking up the steps into a raised helm in the game.
 - **Next, for bigger boats (tugs), noted:** the deckhouse top walkable with rails and a ladder or stairs (the walk area's floors and ladders already do this for the workboat's roof), and an interior with a door into it.
 
+### Shipyard: dark mode (owner)
+
+- **The owner asked** for "the dark mode makeover" of the Shipyard page.
+- **Every colour on the page is now a named token** at the top of `shipyard.html`'s style (`:root`, with `color-scheme: dark`): panels (`--paper`, `--card`, `--raised`), ink (`--ink`, `--ink-2`, `--muted`), lines (`--line`, `--edge`), the accent (`--accent` for text and borders, `--accent-strong` behind white text on buttons), the header (`--top…`), warnings, the handover verdicts, the compare bars, the glass behind the tabs and the key-figures line. Before, about 55 light colours were written in by hand. A later light theme, or a tweak, is one block to edit.
+- **Drawn in code to match:**
+  - the sea-trial charts (`trialCharts.ts`, `C`): a dark chart surface, light ink, the data blue lifted to `#4b93e8` and checked against the dark surface for lightness, chroma and 3:1 contrast;
+  - the 3D view's backdrop (`page.ts`): dusk blue `0x24394a`, light enough that dark paints still stand out;
+  - the compare pictures: a dark backdrop.
+- **Left as they were:**
+  - the person colours on pins and badges, and the white text on them;
+  - the lighting of the boat.
+- **Checked:** typecheck and 628 tests pass. Headless screenshots at 1600 px (the Brief, Hull, Deck gear, and Trials & handover steps) and at 390 px (phone).
+- **Not looked at:** the compare overlay, the sketch editor and the Design-together pop-up. They use the same tokens.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

@@ -17,8 +17,11 @@
  */
 import type { SeaTrialResults } from '../vessel/seaTrials';
 
-/** The data colour (one series a chart), the ink, and the hairlines. */
-const C = { data: '#2a78d6', wash: 'rgba(42,120,214,0.10)', ink: '#10202a', muted: '#567', grid: '#e1e8eb', surface: '#fcfcfb' };
+/**
+ * The data colour (one series a chart), the ink, and the hairlines, for the dark page. The blue
+ * is checked against the chart's dark surface (lightness band, chroma, 3:1 contrast).
+ */
+const C = { data: '#4b93e8', wash: 'rgba(75,147,232,0.16)', ink: '#e3ecf1', muted: '#93a8b5', grid: '#2b3d49', surface: '#111c24' };
 const W = 150;
 const H = 120;
 /** Plot margins: left for the y ticks, bottom for the x labels. */

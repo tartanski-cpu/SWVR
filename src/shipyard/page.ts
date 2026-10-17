@@ -82,7 +82,9 @@ const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(2, devicePixelRatio));
 view.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x9fb8c8);
+// A dusk-blue backdrop to go with the dark page (shipyard.html), light enough that her dark
+// paints still stand out against it.
+scene.background = new THREE.Color(0x24394a);
 scene.add(new THREE.HemisphereLight(0xe8f0f8, 0x55606a, 1.6));
 const sun = new THREE.DirectionalLight(0xffffff, 1.6);
 sun.position.set(-8, 14, -6);
@@ -196,7 +198,7 @@ function choices(key: keyof ShipDesign, items: { name: string; note?: string }[]
     c.className = 'choice';
     c.dataset.key = key;
     c.dataset.i = String(i);
-    c.innerHTML = `<b>${it.name}</b>${it.note ? `<div style="font-size:12px;color:#567">${it.note}</div>` : ''}`;
+    c.innerHTML = `<b>${it.name}</b>${it.note ? `<div style="font-size:12px;color:var(--muted)">${it.note}</div>` : ''}`;
     c.onclick = () => change({ [key]: i, ...patch(i) });
     box.appendChild(c);
   });
@@ -1028,7 +1030,7 @@ renderer.domElement.addEventListener('pointerup', (e) => {
       row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
       row.classList.remove('flash');
       void row.offsetWidth;
-      row.style.setProperty('--c', '#2f5d8a');
+      row.style.setProperty('--c', '#6aa8e6');
       row.classList.add('flash');
     }
   }
@@ -1585,7 +1587,7 @@ function snapshots(root: THREE.Object3D, mpp: number, frame: THREE.Box3): [strin
   cmpRenderer ??= new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
   cmpRenderer.setSize(W, H);
   const sc = new THREE.Scene();
-  sc.background = new THREE.Color(0xeef3f5);
+  sc.background = new THREE.Color(0x1c2a34);
   sc.add(new THREE.HemisphereLight(0xe8f0f8, 0x55606a, 1.6));
   const sunC = new THREE.DirectionalLight(0xffffff, 1.4);
   sunC.position.set(8, 14, -6);
