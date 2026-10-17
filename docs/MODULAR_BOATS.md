@@ -929,6 +929,19 @@ Sizes: S is about a session, M two or three, L more.
   - The saved design file stays the one meeting point between the Shipyard, the game and (later) the free-sail world.
 - **Agreed plan (owner, Oct 2026), three stops:**
   1. **Done; see PROGRESS "Shipyard, stop 1".** The Shipyard page (`shipyard.html`, `src/shipyard/`): three hull types with sliders, a wheelhouse with sliders, engine packages with the gearbox matched by trial, basic or advanced controls, paint; a live 3D view, figures, warnings and the game's sea trials; a 10-character code holding the choices (with a check character); `?design=CODE` starts the game in her.
+  - **1b (owner, Oct 2026; to build when the owner says): a bow shape slider, plumb to raked.** The transom stays as it is for version one.
+    - **How the game makes rake:** its stations are upright sections, and the same stations float and draw her, so a raked bow can't lean them. Rake is the forefoot cut away: the keel line sweeps up to the stem from further aft while the deck keeps its length, overhanging it. Plumb keeps the forefoot deep to the stem. That's how the landing craft's study rake already comes into the game. The builder already works her weight, buoyancy and handling from her stations, so the sea trial shows what the rake does (a little less displacement, a shorter waterline).
+    - **The code is full:** 45 bits of choices plus the check character. Choices:
+      - (a) pack the choices tighter (mixed-radix: several use 3 of their 4 values), which frees ~1.8 bits, enough for a 3-step bow at 10 characters;
+      - (b) 11 characters, with an 8-step bow and room to spare;
+      - (c) trim another choice.
+      
+      Suggested: (a) for version one, (b) when more shape choices come. Either way the rules version goes up.
+  - **Long term (owner): a hull editor with control points** for finer control of the shape. The hull study already describes hulls as curves through control points (sheer, half-breadth, keel, rake, section shape), so the editor would move those.
+    - Free control points don't fit a short typed code (each point is two or three numbers). The choices:
+      - slider-built boats keep codes, and control-point hulls are saved files;
+      - a small server keeps designs under a short name (paid: ask first);
+      - points snap to a coarse grid, and the codes grow to ~20-30 characters.
   2. Buying her at the boatyard in the game: enter the code, see the price, pay from the career, and she becomes your boat (the career save remembers her code; `next` gets its own save keys first).
   3. Placing controls by hand: plan / side / inside views of her wheelhouse and deck, slots marked, drag modules on (the code grows a little).
 - **Idea for later (owner, Oct 2026; not planned in detail, nothing built): a collaborative Shipyard.** Building boats together:
