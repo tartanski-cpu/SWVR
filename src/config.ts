@@ -1866,6 +1866,19 @@ export const CONFIG = {
   },
 
   /** Desktop debug driving with the arrow keys (in VR you use the bridge controls). */
+  /**
+   * Touchscreen controls (ui/touchControls.ts), shown on a phone or tablet (a coarse pointer
+   * and no mouse), or with ?touch=1 in the address (?touch=0 hides them). No multiplayer
+   * from a phone yet (owner). `leverDetent`: within this of the middle, the throttle slider
+   * snaps to neutral. `lookSensitivity`: radians of view per pixel dragged.
+   * `startAboard`: board at the helm as the game starts.
+   */
+  touch: {
+    leverDetent: 0.08,
+    lookSensitivity: 0.005,
+    startAboard: true,
+  },
+
   debugDriving: {
     /** Lever travel per second while the key is held (full range is -1..1). */
     leverRate: 0.6,

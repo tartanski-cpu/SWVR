@@ -64,6 +64,7 @@ import { InteractionSystem, type HandFrame } from '../controls/InteractionSystem
 import { WorldView } from '../world/view/worldView';
 import { LaserPointer } from './laserPointer';
 import { SoundBoard } from './soundBoard';
+import { TouchControls, wantsTouchControls } from '../ui/touchControls';
 import { TowlineView } from '../tow/towlineView';
 import { PotView } from '../potting/potView';
 import { PainterView } from '../vessel/view/painterView';
@@ -174,6 +175,10 @@ export class App {
   private readonly simDebug: SimDebug = new Map();
   /** Every sound system (soundBoard.ts). */
   private readonly sound = new SoundBoard();
+  /** On-screen controls for a phone or tablet (ui/touchControls.ts), if shown. */
+  private touch: TouchControls | null = null;
+  /** Board at the helm on the first frame (touch controls, CONFIG.touch.startAboard). */
+  private boardOnStart = false;
   private readonly trialsPanel = new TrialsPanel();
   /** Which vessel (if any) the local rig is currently parented to. */
   private rigParentId: EntityId | null | undefined = undefined;
@@ -399,6 +404,7 @@ export class App {
 
     setupXR(this.renderer, this.camera);
     window.addEventListener('resize', () => this.onResize());
+    if (wantsTouchControls()) this.setupTouch();
     // Audio may only start after a user gesture.
     const unlock = () => this.sound.unlock();
     window.addEventListener('pointerdown', unlock);
@@ -889,6 +895,11 @@ export class App {
     }
     this.handleDebugDriving(dt);
     if (k.actionPressed('engine')) this.requestEngineStartStop();
+    if (this.boardOnStart) {
+      this.boardOnStart = false;
+      if (!this.world.players[this.localPlayerId]?.aboardVesselId) this.toggleBoardTo(true);
+    }
+    this.touch?.update(this.renderer.xr.isPresenting);
     // Crouch: X (VR) or C (desktop, walking) toggles it.
     if (this.xrInput.wasPressed('left', XR_BUTTON.primary) || (k.actionPressed('crouch') && this.desktop.mode === 'walk' && !this.interaction?.steering)) {
       this.crouched = !this.crouched;
@@ -928,30 +939,44 @@ export class App {
     const leverIn = (k.action('leverAhead') ? 1 : 0) - (k.action('leverAstern') ? 1 : 0);
     const helmIn = (k.action('helmStarboard') ? 1 : 0) - (k.action('helmPort') ? 1 : 0);
 
-    const outboard = !!gearOf(v, 'outboard');
-    // An outboard's throttle is the gear (sign) times the twist grip (0..1); the keys drive
-    // that as one signed command, switching the motor on if needed.
-    let lever = outboard ? Math.sign(v.controls.obGear) * v.controls.lever : v.controls.lever;
-    const before = lever;
-    if (outboard && leverIn !== 0 && v.controls.obOn <= 0) this.pushIntentTo(id, 'obPower', 1);
+    let lever = this.signedLever(v);
     if (leverIn !== 0) {
       const next = clamp(lever + leverIn * cfg.leverRate * dt, -1, 1);
       // Stop briefly at the neutral detent when passing through it.
       lever = Math.sign(next) !== Math.sign(lever) && lever !== 0 ? 0 : next;
     }
     if (k.actionPressed('leverNeutral')) lever = 0;
-    if (outboard) {
-      if (lever !== before) {
-        const g = Math.sign(lever);
-        if (g !== Math.sign(v.controls.obGear)) this.pushIntentTo(id, 'obGear', g);
-        this.pushIntentTo(id, 'lever', Math.abs(lever));
-      }
-    } else if (lever !== v.controls.lever) this.pushIntentTo(id, 'lever', lever);
-
     let helm = v.controls.helm;
     if (helmIn !== 0) helm = clamp(helm + helmIn * cfg.helmRate * dt, -1, 1);
     if (k.actionPressed('helmMidships')) helm = 0;
-    if (helm !== v.controls.helm) this.pushIntentTo(id, 'helm', helm);
+    this.driveTo(id, lever, helm, leverIn !== 0);
+  }
+
+  /** Her throttle as one signed command, -1 astern .. 1 ahead (an outboard's: gear x twist grip). */
+  private signedLever(v: VesselState): number {
+    return gearOf(v, 'outboard') ? Math.sign(v.controls.obGear) * v.controls.lever : v.controls.lever;
+  }
+
+  /**
+   * Set a boat's throttle (signed, -1..1) and helm (-1..1), as intents (the same path the
+   * physical controls use); null leaves one as it is. The driving keys and the touch
+   * controls both drive through here. An outboard's throttle is the gear (sign) times the
+   * twist grip (0..1); working it (`working`) switches the motor on if needed.
+   */
+  private driveTo(id: string, lever: number | null, helm: number | null, working = lever !== null): void {
+    const v = this.world.vessels[id];
+    if (!v) return;
+    if (lever !== null) {
+      if (gearOf(v, 'outboard')) {
+        if (working && v.controls.obOn <= 0) this.pushIntentTo(id, 'obPower', 1);
+        if (lever !== this.signedLever(v)) {
+          const g = Math.sign(lever);
+          if (g !== Math.sign(v.controls.obGear)) this.pushIntentTo(id, 'obGear', g);
+          this.pushIntentTo(id, 'lever', Math.abs(lever));
+        }
+      } else if (lever !== v.controls.lever) this.pushIntentTo(id, 'lever', lever);
+    }
+    if (helm !== null && helm !== v.controls.helm) this.pushIntentTo(id, 'helm', helm);
   }
 
   /**
@@ -2650,6 +2675,55 @@ export class App {
   private routeChannel(channel: string): { vesselId: string; control: string } {
     const i = channel.indexOf(':');
     return i < 0 ? { vesselId: this.testVesselId, control: channel } : { vesselId: channel.slice(0, i), control: channel.slice(i + 1) };
+  }
+
+  /**
+   * The touch controls: the boat you're driving, started in one press (whatever the
+   * quick-start setting), driven through the same intents as the keys. Your own boat only.
+   */
+  private setupTouch(): void {
+    const boat = () => this.world.vessels[this.drivenVesselId()];
+    this.touch = new TouchControls(
+      {
+        aboard: () => !!this.world.players[this.localPlayerId]?.aboardVesselId,
+        toggleBoard: () => this.toggleBoard(),
+        engine: () => {
+          const v = boat();
+          if (!v) return;
+          if (gearOf(v, 'outboard')) this.pushIntentTo(v.id, 'obPower', 1);
+          else if (v.engine.phase !== 'off') this.pushIntentTo(v.id, 'key', 0);
+          else {
+            // The lever to neutral first (she only starts in neutral), then everything at once.
+            if (v.controls.lever !== 0) this.pushIntentTo(v.id, 'lever', 0);
+            this.pushIntentTo(v.id, 'quickStart', 1);
+          }
+        },
+        running: () => {
+          const v = boat();
+          return !!v && (gearOf(v, 'outboard') ? v.controls.obOn > 0 : v.engine.phase !== 'off');
+        },
+        menu: () => this.toggleMenu(),
+        dockLabel: () => {
+          const m = boat()?.mooring;
+          if (!m) return null;
+          return m.phase !== 'free' ? 'Cast off' : m.berthId ? 'Moor here' : null;
+        },
+        dock: () => {
+          const v = boat();
+          if (v) this.pushIntentTo(v.id, 'dock', 1);
+        },
+        drive: (lever, helm) => this.driveTo(this.drivenVesselId(), lever, helm),
+        reading: () => {
+          const v = boat();
+          if (!v) return { lever: 0, helm: 0, knots: 0, rpm: null };
+          const knots = Math.hypot(v.linearVelocity[0], v.linearVelocity[2]) / 0.5144;
+          return { lever: this.signedLever(v), helm: v.controls.helm, knots, rpm: gearOf(v, 'diesel') ? v.engine.rpm : null };
+        },
+        look: (dx, dy) => this.desktop.look(dx, dy, CONFIG.touch.lookSensitivity),
+      },
+      this.renderer.domElement,
+    );
+    this.boardOnStart = CONFIG.touch.startAboard;
   }
 
   /** The workboat's tender (the first outboard boat), if any. */

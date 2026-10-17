@@ -69,6 +69,21 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | P | Wave surface probes on/off |
 | F1 or H | Help panel on/off (hidden at the start; it lists the playing keys, the rest is on the menu) |
 
+### Phone or tablet (touchscreen, first version)
+
+On a touchscreen the game puts you at the helm with on-screen controls (hold the phone sideways):
+
+- **Throttle:** the slider on the left. Up is ahead, down is astern, with a neutral notch in the middle.
+- **Steering:** the slider along the bottom right. It stays where you leave it; **MID** centres it.
+- **Buttons, top right:**
+  - **Board / Go ashore;**
+  - **Start engine / Stop engine** (one press does the whole start-up);
+  - **Cast off / Moor here;**
+  - **Menu.**
+- **Looking round:** drag a finger anywhere else.
+
+Tap once for sound. Add `?touch=1` to the address to try these controls on a computer, or `?touch=0` to hide them. Single player only on a phone for now.
+
 ### VR (Quest 3)
 
 | Input | Action |

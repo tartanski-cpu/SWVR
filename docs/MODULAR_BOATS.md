@@ -915,6 +915,20 @@ Sizes: S is about a session, M two or three, L more.
 
 ### M8: the shipyard (M)
 
+**Owner's direction (Oct 2026; notes only, nothing built yet).** Two separate things:
+
+- **The Shipyard: a separate web app** (its own page, beside the game and the hull study, like `hulls.html`). It's where boats are designed:
+  - take an existing hull form and stretch or modify it;
+  - put different wheelhouses on it;
+  - change the engine and so on.
+  
+  Start small: a few hull forms from the parametric library, with some parameters to change for variety.
+  
+  **Later:** upload a photo of a boat, and AI works out her length, proportions, angles and hull type, then picks a form from the parametric library or writes a recipe for it to build one.
+  - Flag for when it starts: that needs a paid image-understanding AI service (the standing rule: ask first). A key can't sit in a public GitHub Pages site, so it needs either a small server of our own or the player's own key.
+  - The saved design file stays the one meeting point between the Shipyard, the game and (later) the free-sail world.
+- **The boat shop in the 3D game** (what this M8 section describes below): at a harbour, it only upgrades and fits out *your existing boat*: modules into her sockets, within what her hull allows. Designing a new hull happens in the Shipyard, not in the game.
+
 - At a harbour with a yard, a VR-friendly panel shows the boat's sockets. Empty ones glow.
 - Each socket lists the modules that fit, with a thumbnail rendered once from the module itself.
 - Select to mount. The validator runs, and a refusal says why in one sentence.

@@ -35,9 +35,18 @@ export class DesktopController {
     });
   }
 
-  /** Back to standing at the rig origin, looking forward (used when boarding/leaving). */
   /** Mouse-look speed factor (slower through the binoculars). */
   lookScale = 1;
+
+  /** Turn the view by a drag of (dx, dy) screen pixels (a finger on a touchscreen: ui/touchControls.ts). */
+  look(dx: number, dy: number, sensitivity: number): void {
+    if (this.lookFrozen) return;
+    const s = sensitivity * this.lookScale;
+    this.yaw -= dx * s;
+    this.pitch = THREE.MathUtils.clamp(this.pitch - dy * s, -1.5, 1.5);
+  }
+
+  /** Back to standing at the rig origin, looking forward (used when boarding/leaving). */
 
   resetPose(): void {
     this.position.set(0, CONFIG.desktop.eyeHeight, 0);

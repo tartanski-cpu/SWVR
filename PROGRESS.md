@@ -1792,7 +1792,10 @@ Order, as the owner set it:
 1. **Modular boats, in this game (SWVR), next.** The owner has a detailed technical plan from a separate chat and will bring it in as its own prompt. **Don't design or start this ahead of that prompt.** What is already agreed:
    - It is built here, in the current VR/desktop game, not in a branch-off.
    - Saved boat designs must be usable later in the procedural world (see 3). The saved design file is the one place the two meet, so keep it independent of the world.
-2. **Mobile / touchscreen version (later; wait for the owner).**
+2. **Mobile / touchscreen version.** First step done (Oct 2026): touch controls in this app (see "Touchscreen controls"), so the owner can test driving on a phone. No multiplayer from a phone at first (owner). The plan below still stands for the full version.
+   - **Shipyard (owner, Oct 2026):** boats will be designed in a separate Shipyard web app (hull forms stretched and modified, wheelhouses, engines; later, AI reading a photo). The game's boat shop only upgrades your existing boat. See docs/MODULAR_BOATS.md, M8.
+   
+   The original notes for the full mobile version:
    - A pure driving game on a phone, with one or two boats.
    - One on-screen stick for the wheel, one for the throttle.
    - Buttons for the deck jobs (connect a tow, recover people from the water), so you never walk outside.
@@ -2602,6 +2605,46 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   3. Flat out, listen from the cockpit by the exhaust.
   
   Then go back to the workboat and check she sounds as before.
+
+### Touchscreen controls: a first step toward the phone version (owner request; done, on /next/ for the owner to test)
+
+- **The owner asked:** to try the game on a phone now: get in the boat at the helm (or start there on a touchscreen), start the engine with one button, and two touch controls to steer and for the throttle. It's the first step toward a version the owner's children can play on their phones. No multiplayer from a phone at first (owner).
+- **One app or two?** Built into this app, not a separate one. The touch controls are a thin layer that sends the same commands as the keyboard and the bridge controls, so the boats, physics and sounds are shared, as "one engine, three games" intends. A separate page (`/SWVR/mobile/`) with cut-down graphics can come later from the same code if phones need it.
+- **What you get** (`src/ui/touchControls.ts`), plain on-screen controls over the 3D view:
+  - **Throttle slider, left:** ahead at the top, astern at the bottom, and a neutral notch in the middle you can't miss. Touch where you want it.
+  - **Helm slider, bottom right:** port to starboard. It stays where you leave it, as a wheel does; **MID** centres it.
+  - **Buttons, top right:**
+    - **Board / Go ashore** (boarding puts you at the helm);
+    - **Start engine / Stop engine:** one press does master, breakers, key, heat and start, putting the lever to neutral first. On the skiff it switches her motor;
+    - **Cast off / Moor here:** casting off lets her lines go; mooring needs a berth in range;
+    - **Menu.**
+  - **Readout, top left:** speed and rpm.
+  - **Looking round:** drag a finger anywhere else on the screen.
+  - **On a touchscreen you start aboard at the helm.**
+- **When they show:** on a device with a touchscreen and no mouse. Add `?touch=1` to the address to force them on (to try on a desktop), or `?touch=0` to hide them. They hide in VR. On a phone, the "VR NOT SUPPORTED" badge is hidden too, as it sat under the helm slider.
+- **Shared code tidied:** the arrow-key driving and the touch sliders now share one routine (`App.driveTo`): throttle and helm sent as commands, including the skiff's outboard (gear times twist grip). The keys drive exactly as before.
+- **Config:** `CONFIG.touch` (`leverDetent` 0.08, `lookSensitivity`, `startAboard`).
+- **Checked:**
+  - in headless Chromium as a phone, landscape (844 x 390) and upright (390 x 844), with real touch events. It started aboard at the helm. Cast off, started her, throttle to 80 %, helm to starboard, a look-round drag, MID: she got under way and made 10 kn;
+  - as an ordinary desktop: no touch controls, and the arrow keys still drive;
+  - typecheck and all 483 tests pass; the workboat's golden runs are unchanged.
+- **Not checked:** a real phone (speed, the feel of the sliders, the sound). That's the owner's test.
+- **Known limits:**
+  - landscape is much better than upright (the view is narrow upright);
+  - no walking on a phone yet (you stay where you stand);
+  - you can't tap the 3D controls on the dash reliably;
+  - the menu is the 3D menu, opened in front of you;
+  - the graphics aren't cut down for phones, so an older phone may be slow.
+- **Owner test:**
+  - **Phone:** open https://tartanski-cpu.github.io/SWVR/next/ held sideways. Tap once for sound. You should be at the helm. Then:
+    1. Cast off, then Start engine.
+    2. Push the throttle up and steer with the slider.
+    3. Drag on the view to look round.
+    4. Pull the throttle through neutral to astern.
+    5. Stop the engine.
+    
+    Try the landing craft too (Menu > Debug > Boat > Start in, if the menu works for you on the phone, or start it on a computer first: both addresses share the setting).
+  - **Desktop:** add `?touch=1` to the address to see the same controls and drive with the mouse.
 
 ### Test address for work in progress (owner request)
 
