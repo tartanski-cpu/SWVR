@@ -210,18 +210,18 @@ export function checkBrief(brief: Brief, m: Measured): Check[] {
   if (brief.crane) {
     out.push({ label: 'Deck crane', target: 'wanted', value: m.crane ? 'fitted' : 'none', ok: m.crane, fix: m.crane ? null : { step: 'deck gear', hint: 'Pin one on her foredeck or aft deck (Deck gear).' } });
   }
-  const room = 'More deck: a longer or beamier hull (Hull), a shorter house or one further forward or aft (Wheelhouse), gear off the open deck (Deck gear).';
+  const room = 'More deck: “Size her for the brief’s deck cargo” (Hull) makes her longer and beamier until it fits; or a shorter house (Wheelhouse), or gear off the open deck (Deck gear).';
   for (const id of brief.jobs) {
     const job = jobOf(id);
     if (!job) continue;
     if (id === 'cargo' && brief.crates > 0) {
       const ok = m.crates >= brief.crates;
       const short = m.payloadKg < brief.crates * CRATE_KG;
-      out.push({ label: `${job.name}: crates on deck`, target: `≥ ${brief.crates}`, value: `${m.crates}`, ok, fix: ok ? null : { step: short ? 'hull' : 'wheelhouse', hint: short ? `She can carry only ${m.payloadKg} kg: a bigger, heavier hull carries more (Hull).` : room } });
+      out.push({ label: `${job.name}: crates on deck`, target: `≥ ${brief.crates}`, value: `${m.crates}`, ok, fix: ok ? null : { step: 'hull', hint: short ? `She can carry only ${m.payloadKg} kg: a bigger, heavier hull carries more (Hull).` : room } });
     }
     if (id === 'potting' && brief.pots > 0) {
       const ok = m.pots >= brief.pots;
-      out.push({ label: `${job.name}: pots on deck`, target: `≥ ${brief.pots}`, value: `${m.pots}`, ok, fix: ok ? null : { step: 'wheelhouse', hint: room } });
+      out.push({ label: `${job.name}: pots on deck`, target: `≥ ${brief.pots}`, value: `${m.pots}`, ok, fix: ok ? null : { step: 'hull', hint: room } });
     }
     if (id === 'towing') {
       const ok = m.bollardT === null ? null : m.bollardT >= TOW_BOLLARD_T;

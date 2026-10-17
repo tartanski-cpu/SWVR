@@ -59,7 +59,7 @@ describe('the brief', () => {
     const lines = checkBrief(b, { ...MEASURED, crates: 4, pots: 5, bollardT: TOW_BOLLARD_T - 0.5, has: (k) => k === 'searchlight' });
     const by = (l: string) => lines.find((x) => x.label === l)!;
     expect(by('Cargo runs: crates on deck').ok).toBe(false);
-    expect(by('Cargo runs: crates on deck').fix!.step).toBe('wheelhouse');
+    expect(by('Cargo runs: crates on deck').fix!.step).toBe('hull');
     expect(by('Lobster & crab pots: pots on deck').ok).toBe(true);
     expect(by('Towing: bollard pull').ok).toBe(false);
     expect(by('Towing: tow point').na).toBe(true);
@@ -104,6 +104,14 @@ describe('hull types for a brief', () => {
   it('rescue at speed with money to spend: the pilot boat', () => {
     const r = rankTypes(brief({ jobs: ['rescue'], speedKn: 22, rangeNm: 110, budget: 280_000 }));
     expect(r[0].hull).toBe(PILOT);
+  });
+
+  it('deck room: a type that can be stretched to it passes, sized; one that can’t even at her largest doesn’t', () => {
+    const r = rankTypes(brief({ jobs: ['cargo'], crates: 30 }));
+    const deck = (h: number) => r.find((t) => t.hull === h)!.lines.find((l) => l.label === 'Deck')!;
+    expect(deck(LANDING)).toMatchObject({ ok: true, value: '30 crates, stretched' });
+    expect(deck(WORKBOAT)).toMatchObject({ ok: true, value: '54 crates' });
+    expect(rankTypes(brief({ jobs: ['cargo'], crates: 40 })).find((t) => t.hull === LANDING)!.lines[0]).toMatchObject({ ok: false, value: '35 crates at most' });
   });
 
   it('one engine fit has to meet the numbers together: fast and cheap can’t be had from different fits', () => {

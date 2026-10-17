@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { useDesign } from '../../src/boats/sims';
 import { deckCapacity } from '../../src/cargo/deck';
 import { DESIGN_HULLS } from '../../src/shipyard/build';
-import { deckRoom } from '../../src/shipyard/deckRoom';
+import { deckRoom, sizeForDeck } from '../../src/shipyard/deckRoom';
 import { DEFAULT_DESIGN, type ShipDesign } from '../../src/shipyard/design';
 
 const typed = (hull: number, patch: Partial<ShipDesign> = {}) => {
@@ -38,5 +38,20 @@ describe('deck room', () => {
       expect(r.crates).toBeLessThanOrEqual(r.crateRoom);
       expect(r.crates * 40).toBeLessThanOrEqual(r.payloadKg);
     }
+  });
+
+  it('sizes her for the brief’s deck: longer and beamier together until it fits, never smaller', () => {
+    const lc = { ...DEFAULT_DESIGN, ...DESIGN_HULLS[0].defaults, hull: 0, deckCrane: 0, searchlight: 0, fireMonitor: 0 };
+    const s = sizeForDeck(lc, { crates: 30, pots: 0 });
+    expect(s.met).toBe(true);
+    expect(s.room.crates).toBeGreaterThanOrEqual(30);
+    expect(s.patch.length! - lc.length).toBe(s.patch.beam! - lc.beam); // her proportions kept
+    expect(s.patch.length!).toBeGreaterThan(lc.length);
+    // Already enough: left as she is.
+    expect(sizeForDeck(lc, { crates: 10, pots: 0 }).patch).toEqual({ length: lc.length, beam: lc.beam });
+    // More than she can ever take: as big as she goes, and says so.
+    const big = sizeForDeck(lc, { crates: 200, pots: 0 });
+    expect(big.met).toBe(false);
+    expect(big.patch.length).toBe(15);
   });
 });

@@ -9,7 +9,10 @@
  * every engine fit, gearbox matched, the game's own sea trials (Oct 2026, the trial worker;
  * PROGRESS.md has the table). A type passes a line if ONE of its engine fits meets speed,
  * range, price and bollard pull together, so the ranking doesn't promise a boat that can't
- * be built. Re-measure if the hulls or the engines change.
+ * be built. Deck room passes if she can be made big enough for it (starting from her sizes
+ * her to it: deckRoom.ts `sizeForDeck`); her speed, range and price are at standard size,
+ * so a stretched boat's own trial has the last word. Re-measure if the hulls or the engines
+ * change.
  */
 import { TOW_BOLLARD_T, type Brief, type JobId } from './brief';
 
@@ -27,9 +30,11 @@ export interface TypeFacts {
   what: string;
   /** The game's jobs she's built for (breaks ties between types that can all do the brief). */
   goodFor: JobId[];
-  /** Deck room, bare, at standard size (deckRoom.ts). */
+  /** Deck room, bare, at standard size and at her largest (length and beam sliders full; deckRoom.ts). */
   crates: number;
   pots: number;
+  maxCrates: number;
+  maxPots: number;
   fits: FitTrial[];
 }
 
@@ -42,6 +47,8 @@ export const TYPE_FACTS: TypeFacts[] = [
     goodFor: ['cargo'],
     crates: 21,
     pots: 10,
+    maxCrates: 35,
+    maxPots: 23,
     fits: [fit(0, 0, 10.5, 60, 1.34, 86_000), fit(0, 1, 22.8, 116, 1.15, 104_000), fit(1, 0, 19.5, 94, 2.02, 101_000), fit(1, 1, 33.5, 159, 1.63, 135_000), fit(2, 0, 26.6, 130, 2.44, 116_000), fit(2, 1, 34.2, 225, 2.44, 164_000)],
   },
   {
@@ -49,6 +56,8 @@ export const TYPE_FACTS: TypeFacts[] = [
     goodFor: ['potting'],
     crates: 34,
     pots: 18,
+    maxCrates: 59,
+    maxPots: 34,
     fits: [fit(0, 0, 8.4, 55, 1.56, 124_000), fit(0, 1, 15.6, 75, 1.42, 142_000), fit(1, 0, 11.9, 52, 2.36, 139_000), fit(1, 1, 26.2, 118, 1.94, 173_000), fit(2, 0, 18.8, 85, 2.91, 154_000), fit(2, 1, 33.6, 153, 2.18, 202_000)],
   },
   {
@@ -56,6 +65,8 @@ export const TYPE_FACTS: TypeFacts[] = [
     goodFor: ['cargo', 'towing', 'fire', 'trawl'],
     crates: 54,
     pots: 31,
+    maxCrates: 83,
+    maxPots: 49,
     fits: [fit(0, 0, 8.4, 52, 1.56, 162_000), fit(0, 1, 10.9, 52, 1.51, 180_000), fit(1, 0, 10.0, 52, 2.87, 178_000), fit(1, 1, 19.6, 91, 2.55, 212_000), fit(2, 0, 13.2, 64, 3.99, 192_000), fit(2, 1, 25.8, 130, 3.27, 240_000)],
   },
   {
@@ -63,6 +74,8 @@ export const TYPE_FACTS: TypeFacts[] = [
     goodFor: ['rescue'],
     crates: 49,
     pots: 29,
+    maxCrates: 80,
+    maxPots: 49,
     fits: [fit(0, 0, 8.6, 56, 1.56, 186_000), fit(0, 1, 10.8, 53, 1.5, 204_000), fit(1, 0, 10.6, 46, 2.74, 202_000), fit(1, 1, 17.8, 84, 2.57, 235_000), fit(2, 0, 12.2, 61, 3.98, 216_000), fit(2, 1, 24.1, 126, 3.27, 264_000)],
   },
 ];
@@ -102,8 +115,11 @@ export function rankTypes(brief: Brief, facts: TypeFacts[] = TYPE_FACTS): TypeFi
     if (brief.rangeNm) lines.push({ label: 'Range', ok: best.rangeNm >= brief.rangeNm, value: `${best.rangeNm.toFixed(0)} nm` });
     if (brief.budget) lines.push({ label: 'Price', ok: best.price <= brief.budget, value: `£${Math.round(best.price / 1000)}k` });
     if (tows) lines.push({ label: 'Pull', ok: best.bollardT >= TOW_BOLLARD_T, value: `${best.bollardT.toFixed(1)} t` });
-    if (brief.jobs.includes('cargo') && brief.crates) lines.push({ label: 'Deck', ok: f.crates >= brief.crates, value: `${f.crates} crates` });
-    if (brief.jobs.includes('potting') && brief.pots) lines.push({ label: 'Pots', ok: f.pots >= brief.pots, value: `${f.pots} pots` });
+    // Deck room: as she is, or stretched to it, or not even at her largest.
+    const room = (label: string, need: number, std: number, max: number, unit: string) =>
+      lines.push({ label, ok: max >= need, value: std >= need ? `${std} ${unit}` : max >= need ? `${need} ${unit}, stretched` : `${max} ${unit} at most` });
+    if (brief.jobs.includes('cargo') && brief.crates) room('Deck', brief.crates, f.crates, f.maxCrates, 'crates');
+    if (brief.jobs.includes('potting') && brief.pots) room('Pots', brief.pots, f.pots, f.maxPots, 'pots');
     return { hull, facts: f, lines, misses: lines.filter((l) => !l.ok).length, suits: brief.jobs.filter((j) => f.goodFor.includes(j)), best };
   });
   return out.sort((a, b) => a.misses - b.misses || b.suits.length - a.suits.length || a.best.price - b.best.price);

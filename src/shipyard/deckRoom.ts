@@ -11,6 +11,8 @@
 import { deckCapacity } from '../cargo/deck';
 import { CONFIG } from '../config';
 import { VESSEL_DEFS, type VesselDef } from '../vessel/vesselDef';
+import { useDesign } from '../boats/sims';
+import { FIELDS, type ShipDesign } from './design';
 
 export interface DeckRoom {
   /** Crates she takes: room on deck, within her payload. */
@@ -40,4 +42,25 @@ export function deckRoom(): DeckRoom {
     rooms.set(def, r);
   }
   return r;
+}
+
+/**
+ * Size her for the deck the brief asks for (owner, Oct 2026: set 30 crates, start from a
+ * type, and she should come with room for 30): her length and beam grown together, a slider
+ * step at a time from where they are, so she keeps her proportions, until the crates and pots
+ * fit (or she's as big as the type goes). Never made smaller. Builds each size to measure it
+ * (`useDesign`), so the caller puts her own boat back after.
+ */
+export function sizeForDeck(d: ShipDesign, need: { crates: number; pots: number }): { patch: Partial<ShipDesign>; room: DeckRoom; met: boolean } {
+  const top = FIELDS.find((f) => f.key === 'length')!.steps - 1;
+  const meets = (r: DeckRoom) => r.crates >= need.crates && r.pots >= need.pots;
+  let patch: Partial<ShipDesign> = { length: d.length, beam: d.beam };
+  useDesign(d);
+  let room = deckRoom();
+  for (let k = 1; !meets(room) && (d.length + k <= top || d.beam + k <= top); k++) {
+    patch = { length: Math.min(top, d.length + k), beam: Math.min(top, d.beam + k) };
+    useDesign({ ...d, ...patch });
+    room = deckRoom();
+  }
+  return { patch, room, met: meets(room) };
 }

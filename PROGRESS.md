@@ -3629,6 +3629,15 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Tests:** `brief.test.ts` rewritten (an empty brief; a bare hull; engine choice incl. towing; the line checks; older briefs' missions read as types) with the ranking: cargo + towing + fire at harbour speed is the workboat (the only one pulling 3 t); pots the gillnetter; fast cheap cargo the landing craft; fast rescue the pilot boat; one engine fit must meet speed and price together.
 - **Checked in headless Chromium** (1600 px): cargo + towing + fire, 10 kn, 50 nm, £230k: the workboat ranked first ("Best fit", 13 kn, 64 nm, £192k, 4.0 t, 54 crates), Start from this hull: a bare workboat, 400 kW fitted after six trials. Deck gear: Fire monitor from the palette, clicked on her in plan view: placed on the wheelhouse roof, pin ticked, the brief then met on every line (tow point "not in the Shipyard yet"). Deleting the pin took the monitor off. No page errors. **Not checked:** the Quest, a phone, two browsers pinning the same piece at once.
 
+### Shipyard: a hull sized for the brief's deck cargo (owner)
+
+- **The owner asked:** with 30 crates in the brief, starting from a type should size her deck for it; instead she came at standard size, "deck cargo 21".
+- **`sizeForDeck`** (`src/shipyard/deckRoom.ts`): her length and beam grown together a slider step at a time from where they are (her proportions kept), each size built and measured (`deckRoom`, about 10 ms), until the crates and pots in the brief fit, or she's as big as the type goes (then it says she's still short). Never made smaller.
+- **Start from this hull** sizes her before her engine trials, so the engine is found for the boat she'll be ("stretched to 10.1 x 3.1 m for 31 crates on deck"). The Hull step has **Size her for the brief's deck cargo** to do it again; the brief's "crates/pots on deck" line now points there.
+- **The type cards** count deck room as met if the type can be stretched to it: "30 crates, stretched", or "35 crates at most" (✗). Measured at her largest (length and beam sliders full), bare: landing craft 35 crates / 23 pots, gillnetter 59 / 34, workboat 83 / 49, pilot boat 80 / 49 (`TYPE_FACTS.maxCrates`, `maxPots`). Her speed, range and price on the card are still at standard size; the stretched boat's own trial has the last word.
+- **Tests:** `deckRoom.test.ts` (30 crates on a landing craft: met, stretched, proportions kept; already enough: unchanged; 200: as big as she goes, not met), `brief.test.ts` (cards: stretched, standard, at most).
+- **Checked in headless Chromium:** Cargo runs, 30 crates: the landing craft first ("30 crates, stretched"); Start from this hull: stretched to 10.13 x 3.15 m, 31 crates, then 150 kW fitted; the brief met on every line. No page errors. **Not checked:** the Quest, a phone.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

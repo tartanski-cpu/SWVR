@@ -38,7 +38,7 @@ import { LoopbackHost } from '../net/transport';
 import { fromFrac, inkOf, MAX_SHEETS, noteId, sheetsOf, toFrac, todo, type Frac, type Ink, type Note, type Pin, type Sheet } from './notes';
 import { bareHull, checkBrief, engineOptions, JOBS, jobOf, newBrief, pickEngine, type Brief, type JobId, type Tried } from './brief';
 import { rankTypes } from './typeFit';
-import { deckRoom, type DeckRoom } from './deckRoom';
+import { deckRoom, sizeForDeck, type DeckRoom } from './deckRoom';
 import { trialCharts } from './trialCharts';
 import type { GearKind } from '../modular/module';
 import { EQUIPMENT, equipmentOf, placeGear, SPOT_NAMES } from './pinGear';
@@ -241,6 +241,21 @@ function options(key: keyof ShipDesign, label: string, names: string[]): void {
 }
 
 section('1. Hull');
+{
+  // Size her for the brief's deck cargo again, after the brief or her house has changed.
+  const b = document.createElement('button');
+  b.id = 'sizeDeck';
+  b.textContent = 'Size her for the brief’s deck cargo';
+  b.title = 'Longer and beamier together, a step at a time, until the crates and pots in the brief fit on her deck';
+  b.onclick = () => {
+    const need = deckNeed();
+    $('sizeMsg').textContent = !need.crates && !need.pots ? 'The brief asks for no deck cargo (tick Cargo runs or Lobster & crab pots in the Brief).' : sizeDeck() || 'She already has room for it.';
+  };
+  const m = document.createElement('div');
+  m.id = 'sizeMsg';
+  m.className = 'meta';
+  controls.append(b, m);
+}
 // Picking a hull starts her in her type's usual layout (the sliders then move it all).
 choices('hull', DESIGN_HULLS.map((h) => ({ name: h.name.split(':')[0], note: h.name.split(':')[1]?.trim() })), (i) => DESIGN_HULLS[i].defaults);
 slider('length', 'Length', () => `${boat.figures.lengthM.toFixed(2)} m`);
@@ -1306,8 +1321,27 @@ function showTypes(): void {
     box.appendChild(c);
   }
 }
+/** What the brief wants on deck (0: nothing asked). */
+function deckNeed(): { crates: number; pots: number } {
+  return { crates: brief.jobs.includes('cargo') ? brief.crates : 0, pots: brief.jobs.includes('potting') ? brief.pots : 0 };
+}
 /**
- * Start from a hull type: her bare hull (no deck gear: owner, pin it on her), then every
+ * Size her for the brief's deck cargo (deckRoom.ts sizeForDeck): longer and beamier together
+ * until it fits. Returns what was done, in words, or '' if nothing was needed.
+ */
+function sizeDeck(): string {
+  const need = deckNeed();
+  if (!need.crates && !need.pots) return '';
+  const r = sizeForDeck(design, need);
+  boat = useDesign(design); // put her back before changing her
+  if (r.patch.length === design.length && r.patch.beam === design.beam) return '';
+  change(r.patch);
+  const what = [need.crates ? `${r.room.crates} crates` : '', need.pots ? `${r.room.pots} pots` : ''].filter(Boolean).join(' and ');
+  return r.met ? `stretched to ${boat.figures.lengthM.toFixed(1)} x ${boat.figures.beamM.toFixed(1)} m for ${what} on deck` : `stretched as far as she goes (${boat.figures.lengthM.toFixed(1)} m) and still short: ${what} on deck`;
+}
+/**
+ * Start from a hull type: her bare hull (no deck gear: owner, pin it on her), sized for the
+ * brief's deck cargo, then every
  * engine fit tried on her by trial in the background, and the best for the brief fitted
  * (brief.ts pickEngine).
  */
@@ -1315,7 +1349,8 @@ async function startFrom(hull: number): Promise<void> {
   const run = ++searchRun;
   setBrief({ hull });
   change(bareHull(hull, (i) => DESIGN_HULLS[i].defaults));
-  const h = DESIGN_HULLS[hull].name.split(':')[0].toLowerCase();
+  const sized = sizeDeck();
+  const h = `${DESIGN_HULLS[hull].name.split(':')[0].toLowerCase()}${sized ? `, ${sized}` : ''}`;
   const msg = $('suggestMsg');
   const base = { ...design };
   const tried: Tried[] = [];
