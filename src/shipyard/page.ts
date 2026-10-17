@@ -21,6 +21,7 @@ import { VESSEL_DEFS } from '../vessel/vesselDef';
 import { buildVesselMesh } from '../vessel/view/hullMesh';
 import { DESIGN_HULLS, ENGINES, LIVERIES, ROOF_PAINTS, type DesignedBoat } from './build';
 import { decodeDesign, DEFAULT_DESIGN, encodeDesign, FIELDS, SCALES, type ShipDesign } from './design';
+import { addFavourite, cleanName, readFavourites, removeFavourite, writeFavourites, type Favourite, type Store } from './favourites';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const stepsOf = (k: keyof ShipDesign) => FIELDS.find((f) => f.key === k)!.steps;
@@ -301,6 +302,7 @@ function showCode(): void {
   el.textContent = code;
   ($('play') as HTMLAnchorElement).href = `./?design=${code}`;
   history.replaceState(null, '', `#${code}`);
+  markCurrent();
 }
 
 // ── Trials in the background (worker.ts) ──
@@ -347,23 +349,106 @@ function change(patch: Partial<ShipDesign>): void {
 $('copy').onclick = () => {
   if (matchedFor === matchKey(design)) void navigator.clipboard?.writeText(encodeDesign(design));
 };
-const loadCode = () => {
-  const read = decodeDesign(($('load') as HTMLInputElement).value);
+/** Open a design by its code (typed in, or a favourite). False, with the reason shown, if it won't read. */
+function openCode(code: string, msg: HTMLElement): boolean {
+  const read = decodeDesign(code);
   if ('error' in read) {
-    $('loadMsg').textContent = read.error;
-    return;
+    msg.textContent = read.error;
+    return false;
   }
-  $('loadMsg').textContent = '';
+  msg.textContent = '';
   design = read.design;
   matchedFor = matchKey(design);
   trial = null;
   change({});
   runTrial();
-};
+  return true;
+}
+const loadCode = () => openCode(($('load') as HTMLInputElement).value, $('loadMsg'));
 $('loadBtn').onclick = loadCode;
+
+// ── Favourites (favourites.ts): kept in this browser, by name ──
+/** The browser's storage, if it lets us have it (it can refuse: private windows, blocked sites). */
+function storage(): Store | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+/** Her hull type and length: the name a favourite gets if you don't give one. */
+const defaultName = () => `${DESIGN_HULLS[design.hull].name.split(':')[0].trim()} ${boat.figures.lengthM.toFixed(1)} m`;
+/** A small picture of her from the bow quarter (the view put back after). */
+function picture(): string {
+  const keep = { eye: camera.position.clone(), at: orbit.target.clone() };
+  setView('Bow ¾');
+  renderer.render(scene, camera);
+  const small = document.createElement('canvas');
+  small.width = 192;
+  small.height = 120;
+  const src = renderer.domElement;
+  // Cropped to the small picture's shape, from the middle.
+  const k = Math.min(src.width / small.width, src.height / small.height);
+  const w = small.width * k;
+  const h = small.height * k;
+  small.getContext('2d')?.drawImage(src, (src.width - w) / 2, (src.height - h) / 2, w, h, 0, 0, small.width, small.height);
+  camera.position.copy(keep.eye);
+  orbit.target.copy(keep.at);
+  orbit.update();
+  return small.toDataURL('image/jpeg', 0.7);
+}
+function saveFavourite(): void {
+  const msg = $('favMsg');
+  if (matchedFor !== matchKey(design)) {
+    msg.textContent = 'Wait a moment: her gearbox is still being matched (her code isn’t ready).';
+    return;
+  }
+  const nameBox = $('favName') as HTMLInputElement;
+  const name = cleanName(nameBox.value, defaultName());
+  const f = boat.figures;
+  const summary = [`${f.lengthM.toFixed(1)} m`, `${f.massT.toFixed(1)} t`, trial ? `${trial.topSpeedKn.toFixed(1)} kn` : '', f.engine].filter(Boolean).join(' · ');
+  const fav: Favourite = { name, code: encodeDesign(design), savedAt: Date.now(), picture: picture(), summary };
+  const list = addFavourite(readFavourites(storage()), fav);
+  // If the browser's storage is full, keep the designs and drop the pictures.
+  const ok = writeFavourites(storage(), list) || writeFavourites(storage(), list.map((x) => ({ ...x, picture: '' })));
+  msg.textContent = ok ? `Saved as “${name}”.` : 'This browser won’t save (private window, or storage switched off). Copy her code instead.';
+  if (ok) nameBox.value = '';
+  showFavourites();
+}
+$('favSave').onclick = saveFavourite;
+$('favName').addEventListener('keydown', (e) => e.key === 'Enter' && saveFavourite());
+const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+/** The list, newest first; the one you're looking at now marked. */
+function showFavourites(): void {
+  const box = $('favs');
+  const list = readFavourites(storage());
+  box.innerHTML = list.length ? '' : '<div class="meta">None yet. Name her and save her to keep her here (in this browser).</div>';
+  for (const f of list) {
+    const card = document.createElement('div');
+    card.className = 'fav';
+    card.dataset.code = f.code;
+    const when = new Date(f.savedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    card.innerHTML = `${f.picture ? `<img alt="" src="${f.picture}">` : '<div class="nopic"></div>'}<div><b title="${esc(f.name)}">${esc(f.name)}</b><div class="meta">${esc(f.summary)}</div><div class="code">${esc(f.code)} · ${when}</div><div class="acts"><button data-act="open">Open</button><button data-act="play">Try in game</button><button data-act="del">Delete</button></div></div>`;
+    card.querySelector<HTMLElement>('[data-act=open]')!.onclick = () => openCode(f.code, $('favMsg'));
+    card.querySelector<HTMLElement>('[data-act=play]')!.onclick = () => (location.href = `./?design=${encodeURIComponent(f.code)}`);
+    card.querySelector<HTMLElement>('[data-act=del]')!.onclick = () => {
+      if (!confirm(`Delete “${f.name}” from your favourites?`)) return;
+      writeFavourites(storage(), removeFavourite(readFavourites(storage()), f.name, f.savedAt));
+      showFavourites();
+    };
+    box.appendChild(card);
+  }
+  markCurrent();
+}
+/** Mark the favourite that is the design on show now (if any). */
+function markCurrent(): void {
+  const now = matchedFor === matchKey(design) ? encodeDesign(design) : '';
+  document.querySelectorAll<HTMLElement>('.fav').forEach((el) => el.classList.toggle('current', el.dataset.code === now));
+}
 $('load').addEventListener('keydown', (e) => e.key === 'Enter' && loadCode());
 
 // ── Start ──
+showFavourites();
 resize();
 syncControls();
 drawBoat();

@@ -3077,6 +3077,28 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Also checked:** the shaped house's other overlaps (roof and lining, console, floor, door sill). None put two colours in one plane.
 - **Checked:** typecheck; all tests; a close render of the front corner.
 
+### Shipyard: favourites (owner)
+
+- **The owner asked:** a way to save favourite designs in the Shipyard.
+- **On the page** (`shipyard.html`, `src/shipyard/page.ts`), under Her code, a **Favourites** section:
+  - a name box and **Save to favourites**. With no name, she's called after her hull type and length, e.g. "Pilot boat 11.0 m". Saving needs her code ready (gearbox matched); until then the page says to wait.
+  - the list, newest first. Each card has a small picture of her from the bow quarter (192 x 120 JPEG, taken from the page's own 3D view, the view put back after), a line of figures (length, displacement, top speed if her trial has run, engine), her code and the date. Buttons: **Open** (loads her, like typing her code), **Try in game**, **Delete** (asks first). The design on show, if it's a favourite, is marked.
+- **What's kept** (`src/shipyard/favourites.ts`): just the code, the name, the time, the picture and the summary. A favourite is exactly the boat whose code it holds, and still opens after the code format grows, since older codes read as the same boats. Saving under an existing name (any case) replaces it. At most `MAX_FAVOURITES` (40); the oldest drop off. Bad or unreadable entries are skipped, never an error.
+- **Where:** the browser's storage, key `swvr.shipyard.favourites` (a new key: no existing save is touched). It's per browser and device: the Quest and the desktop keep separate lists, and a design moves between them by its code. If the storage is full the pictures are dropped and the designs kept. In a private window, where nothing can be saved, the page says so.
+- **Safe for the game:** the page is separate from the 3D game. Nothing in the game reads the favourites (yet: buying at the boatyard could offer them later).
+- **Tests** (`tests/shipyard/favourites.test.ts`):
+  - saved and read back newest first;
+  - same name replaces, delete;
+  - the cap;
+  - bad storage, bad JSON and bad codes read as nothing; a full store reports failure;
+  - names tidied.
+- **Checked in headless Chromium:** saved the default design (unnamed) and a renamed landing-craft variant, reloaded the page (both still listed), opened one (marked as the current design, its code shown), deleted one; screenshot of the list with pictures.
+- **Owner test (desktop or phone, and the Quest's browser):**
+  1. On the Shipyard page, make a design, type a name and press Save to favourites.
+  2. Change her and save under another name.
+  3. Reload the page: both are listed. Open each.
+  4. Delete one.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

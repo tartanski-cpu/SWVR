@@ -489,6 +489,8 @@ Design your own boat at https://tartanski-cpu.github.io/SWVR/next/shipyard.html 
 
 The page shows her in 3D (around her and at the helm), her figures and her sea trials, then gives her **code**: 14 characters, like `XXXXX-XXXXX-XXXX` (older 10-, 11- and 13-character codes still work). **Try her in the game** opens the game in her. Or add `?design=` and the code to the game's address, also on the Quest. Buying her at the boatyard in the game comes next.
 
+**Favourites:** name a design and **Save to favourites** to keep her in a list on the page, with a small picture and her figures: **Open** her again, **Try in game**, or **Delete**. Saving again under the same name updates it. The list is kept in this browser on this device (the Quest's browser and your desktop each have their own); to move a design between them, use its code.
+
 ## Local development
 
 You need Node 20+ (22 recommended).
