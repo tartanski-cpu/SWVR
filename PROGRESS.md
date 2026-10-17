@@ -3865,6 +3865,15 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Checked in headless Chromium:** a pilot boat with a 3 m, 1.2 m high, full-width, 30°-raked deckhouse, and set in with 0.5 m side decks, upright: views from the bow, stern and port; the wheelhouse on top, the steps up aft, no warnings. Found and fixed on the way: its faces wound inside out (invisible from outside), and its foot showing through her topsides at the bow. **Not checked:** the Quest, a phone, walking up the steps into a raised helm in the game.
 - **Next, for bigger boats (tugs), noted:** the deckhouse top walkable with rails and a ladder or stairs (the walk area's floors and ladders already do this for the workboat's roof), and an interior with a door into it.
 
+### Shipyard: a true side view, and less sheer on the pilot boat (owner)
+
+- **Side view:** its eye was a quarter of her length above what it looked at, so it looked down a little and wasn't a true elevation. It's level with it now, and stood back further (2.3 L, was 1.5 L) so a 14 m boat fits across the view, most of all in the flat view.
+- **The pilot boat's sheer** (`src/hulls/designs.ts`, the 'pilot' study, which the Shipyard's pilot boat type is scaled from) rose 0.8 m from amidships to the stem.
+  - Now 0.5 m, fair, with most of it in the last fifth: 1.1 m aft, 1.25 m amidships, 1.45 m at 80 %, 1.75 m at the stem (was 1.1 / 1.3 / 2.1, heights over her base line, scaled with Depth).
+  - The hull study page (hulls.html) shows the same change.
+  - Her underwater body is unchanged, so her trials and deck room (49 crates) are as before.
+- **Checked:** typecheck, tests, and flat and perspective side views of the pilot boat.
+
 ### Shipyard: no handrails, and a flat view (owner)
 
 - **Rails** (Hull step, under Protection): **Handrails** (as every design had, 0.4 m over the bulwarks) or **None** (bulwarks only: `layout.railHeight` 0, which the hull drawing already supported for the towed boats).

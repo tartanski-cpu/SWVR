@@ -109,7 +109,8 @@ new ResizeObserver(resize).observe(view);
 const VIEWS: Record<string, () => { eye: [number, number, number]; at: [number, number, number] }> = {
   'Bow ¾': () => ({ eye: [-0.65 * L(), 0.45 * L(), -0.9 * L()], at: [0, 1, 0] }),
   // From starboard, so her bow is to the right, as a profile is always drawn (owner).
-  Side: () => ({ eye: [1.5 * L(), 0.25 * L(), 0], at: [0, 1, 0] }),
+  // Level with what it looks at, so it's a true elevation (owner: it looked down a little).
+  Side: () => ({ eye: [2.3 * L(), 1, 0], at: [0, 1, 0] }),
   'Stern ¾': () => ({ eye: [0.65 * L(), 0.45 * L(), 0.9 * L()], at: [0, 1, 0] }),
   Plan: () => ({ eye: [0, 1.7 * L(), 0.01], at: [0, 0, 0] }),
   'At the helm': () => {

@@ -157,10 +157,13 @@ export const DESIGNS: HullDesign[] = [
       [0.95, 0.7],
       [1, 0],
     ],
+    // A modest sheer (owner, Oct 2026: it rose 0.8 m from amidships to the stem, too much):
+    // 0.5 m forward of amidships, fair, most of it in the last fifth.
     sheer: [
       [0, 1.1],
-      [0.5, 1.3],
-      [1, 2.1],
+      [0.5, 1.25],
+      [0.8, 1.45],
+      [1, 1.75],
     ],
     keel: [
       [0, -0.95],
