@@ -53,8 +53,8 @@ export const TUTORIAL: Step[] = [
     done: (_w, v) => isPowered(v, 'instruments'),
   },
   {
-    text: 'Start the engine: throttle neutral, KEY on, hold HEAT, then hold START',
-    say: 'Start her up. Throttle in neutral, key on, hold HEAT until the glow lamp goes out, then hold START until she runs.',
+    text: 'Start the engine: throttle neutral, KEY on, wait for the GLOW lamp, then hold START',
+    say: 'Start her up. Throttle in neutral, key on: the oil alarm sounds and the glow lamp lights. Wait for the glow lamp to go out, then hold START until she runs.',
     done: (_w, v) => v.engine.phase === 'running',
   },
   {

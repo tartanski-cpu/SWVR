@@ -24,7 +24,7 @@ Every value on a boat's bus (modular boats; `src/modular/busKeys.ts`). Generated
 | Key | Values | Use | Written by | Old names | What it is |
 |---|---|---|---|---|---|
 | `ignition.key` | on / off | player sets | legacy | `key` | Ignition key on / off. Off closes the fuel solenoid: a running diesel stops. |
-| `ignition.heat` | on / off | player sets | legacy | `heat` | HEAT button held: the glow plugs heat (key on). |
+| `ignition.heat` | on / off | player sets | legacy | `heat` | HEAT button held: extra glow-plug heat (key on). The boats have no HEAT button now: the plugs preheat on their own with the key. |
 | `ignition.start` | on / off | player sets | legacy | `start` | START button held: the starter cranks (key on, lever in neutral). |
 
 ## outboard
@@ -274,9 +274,9 @@ Every value on a boat's bus (modular boats; `src/modular/busKeys.ts`). Generated
 
 | Key | Values | Use | Written by | Old names | What it is |
 |---|---|---|---|---|---|
-| `lamp.oil` | off / on / blink | read only | legacy |  | OIL lamp: on with no oil pressure (engine stopped), blinking while running with the sump nearly dry. |
-| `lamp.charge` | off / on / blink | read only | legacy |  | CHARGE lamp: on while the alternator isn't charging (engine stopped). |
-| `lamp.glow` | off / on / blink | read only | legacy |  | GLOW lamp: on while HEAT is held, until the glow plugs are hot enough. |
+| `lamp.oil` | off / on / blink | read only | legacy |  | OIL lamp: on with no oil pressure (key on, engine stopped), blinking while running with the sump nearly dry. |
+| `lamp.charge` | off / on / blink | read only | legacy |  | CHARGE lamp: on while the alternator isn't charging (key on, engine stopped). |
+| `lamp.glow` | off / on / blink | read only | legacy |  | GLOW lamp: on from the key going on until the glow plugs are hot enough (wait for it to go out, then START). |
 | `lamp.neutral` | off / on / blink | read only | legacy |  | NEUTRAL lamp: on with the lever in neutral; blinking while START is held in gear. |
 | `lamp.bilge` | off / on / blink | read only | legacy |  | BILGE lamp: blinking with the bilge over its alarm level. |
 

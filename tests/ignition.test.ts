@@ -25,7 +25,7 @@ function setup() {
 const preheat = CONFIG.vessels.workboat.engine.preheatTime;
 
 describe('diesel start procedure', () => {
-  it('from cold by the card: master, INSTR, neutral, key, HEAT, START - and the duty ticks off', () => {
+  it('from cold by the card: master, INSTR, neutral, key (wait for the GLOW lamp), START - and the duty ticks off', () => {
     const { v, send, run, startup } = setup();
     run(0.2);
     const d = startup()!;
@@ -36,9 +36,7 @@ describe('diesel start procedure', () => {
     run(0.2);
     expect(d.steps[0].done && d.steps[1].done && d.steps[2].done).toBe(true); // lever already in neutral
     send('key', 1);
-    send('heat', 1);
     run(preheat + 0.2);
-    send('heat', 0);
     expect(d.steps[3].done).toBe(true);
     send('start', 1);
     run(3);
@@ -86,12 +84,32 @@ describe('diesel start procedure', () => {
     const b = setup();
     b.send('master', 1);
     b.send('key', 1);
-    b.send('heat', 1);
     b.run(preheat + 0.2);
-    b.send('heat', 0);
     b.send('start', 1);
     b.run(3);
     expect(b.v.engine.phase).toBe('running');
+  });
+
+  it('key on: the glow plugs preheat on their own, GLOW lit until they are hot enough; OIL and CHARGE lit with the key (owner)', async () => {
+    const { busOf } = await import('../src/modular/bus');
+    const { v, send, run } = setup();
+    send('master', 1);
+    send('brk_instruments', 1);
+    run(0.2);
+    const lamp = (l: string) => busOf(v).get(`lamp.${l}` as never);
+    expect([lamp('oil'), lamp('charge'), lamp('glow')]).toEqual(['off', 'off', 'off']); // key off
+    expect(v.engine.glow).toBe(0);
+    send('key', 1);
+    run(0.5);
+    expect([lamp('oil'), lamp('charge'), lamp('glow')]).toEqual(['on', 'on', 'on']);
+    run(preheat);
+    expect(lamp('glow')).toBe('off');
+    const hot = v.engine.glow;
+    run(5);
+    expect(v.engine.glow).toBeCloseTo(hot, 6); // held hot while she waits
+    send('key', 0);
+    run(2);
+    expect(v.engine.glow).toBeLessThan(hot); // key off: they cool
   });
 
   it('a warm engine needs much less preheat than a cold one (glow lamp goes out sooner)', async () => {
@@ -125,9 +143,7 @@ describe('diesel start procedure', () => {
     expect(v.engine.phase).toBe('off');
     send('start', 0);
     send('batSelect', 2);
-    send('heat', 1);
     run(preheat + 0.2);
-    send('heat', 0);
     send('start', 1);
     run(3);
     expect(v.engine.phase).toBe('running');

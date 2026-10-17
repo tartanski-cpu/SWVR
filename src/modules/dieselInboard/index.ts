@@ -4,7 +4,7 @@
  * vessel/view/engineLook.ts: fixed parts, in the boat's axes from its upkeep config) where
  * the hull has an engine space there.
  *
- *   ignition   key, HEAT (glow plugs), START (the starter, from the bus voltage), the fuel
+ *   ignition   key (the glow plugs preheat with it), START (the starter, from the bus voltage), the fuel
  *              solenoid (12 V on the bus)
  *   shaft      governor, clutch, torque curve, propeller thrust and torque (physics/propulsion.ts)
  *   fuel/heat  fuel drawn from the tank, coolant and oil temperatures, overheat derate and
@@ -82,6 +82,8 @@ export const DIESEL_INBOARD: ModuleDefinition<DieselInboardConfig, EngineState> 
     throttle: { dir: 'read', key: 'throttle.demand' },
     key: { dir: 'read', key: 'ignition.key' },
     heat: { dir: 'read', key: 'ignition.heat' },
+    // The GLOW lamp is wired with the glow plugs: lit while they draw.
+    glowLamp: { dir: 'read', key: 'lamp.glow', required: false },
     start: { dir: 'read', key: 'ignition.start' },
     powered: { dir: 'read', key: 'electrical.powered' },
     volts: { dir: 'read', key: 'electrical.busVoltage', required: false },
@@ -104,7 +106,7 @@ export const DIESEL_INBOARD: ModuleDefinition<DieselInboardConfig, EngineState> 
     { role: 'source', amps: (io) => (io.get('state') === 'running' ? c.alternatorAmps * clamp(io.num('rpm') / 600, 0, 1) : 0) },
     // The starter and the glow plugs are on the master alone.
     { role: 'load', amps: (io) => (io.get('state') === 'cranking' ? c.starterAmps : 0) },
-    { role: 'load', amps: (io) => (io.num('key') > 0 && io.num('heat') > 0 ? c.glowAmps : 0) },
+    { role: 'load', amps: (io) => (io.has('glowLamp') && io.get('glowLamp') === 'on' ? c.glowAmps : 0) },
   ],
   sim: {
     init: () => {

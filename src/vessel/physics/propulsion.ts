@@ -67,7 +67,8 @@ export function leverDemand(def: EngineSpec, lever: number): { gear: -1 | 0 | 1;
 /**
  * Quick start / stop (tests, trials, the quick-start option): stopped, it turns the key on,
  * counts the plugs as preheated and cranks until she catches (only in neutral, with 12 V);
- * running, it turns the key off. The real procedure is key, HEAT, START (stepIgnition).
+ * running, it turns the key off. The real procedure is key on, wait for the GLOW lamp to go
+ * out, START (ignitionStep).
  */
 export function toggleEngine(s: VesselState, def: EngineSpec): void {
   const e = s.engine;
@@ -89,8 +90,11 @@ export function toggleEngine(s: VesselState, def: EngineSpec): void {
 /**
  * Diesel ignition, before the engine dynamics each tick:
  *   - no 12 V or the key off: the fuel solenoid closes - she stops (or never starts);
- *   - HEAT held with the key on: the glow plugs heat (lamp lit until preheatNeeded: shorter warm); they
- *     cool again when released;
+ *   - key on with her stopped: the glow plugs heat on their own (the preheat timer, owner:
+ *     the way most small diesels start: key on, the GLOW lamp lights, wait for it to go
+ *     out, then START). They heat until preheatNeeded (shorter warm), then are held hot
+ *     until she starts or the key goes off; then they cool. HEAT, on a boat that still has
+ *     the button, heats them further while held;
  *   - START held, key on, lever in neutral (neutral-safety switch): crank; let go before
  *     she catches and the starter stops.
  */
@@ -101,9 +105,12 @@ export function ignitionStep(e: EngineState, spec: DieselSpec, inp: DieselInputs
     e.phase = 'off';
     e.autoCrank = false;
   }
-  if (keyOn && inp.heat > 0) e.glow = Math.min(preheatNeededFor(e, spec) * 1.5, e.glow + dt);
-  // The plugs stay hot while she cranks (they're powered with the starter); they cool after.
-  else if (e.phase !== 'cranking') e.glow = Math.max(0, e.glow - cfg.glowCoolRate * dt);
+  const need = preheatNeededFor(e, spec);
+  const waiting = keyOn && e.phase === 'off';
+  if (waiting && e.glow < need) e.glow = Math.min(need, e.glow + dt); // the preheat timer
+  else if (keyOn && inp.heat > 0) e.glow = Math.min(need * 1.5, e.glow + dt);
+  // Held hot while she waits, and while she cranks (powered with the starter); they cool after.
+  else if (!waiting && e.phase !== 'cranking') e.glow = Math.max(0, e.glow - cfg.glowCoolRate * dt);
   const neutral = !cfg.startOnlyInNeutral || leverDemand(spec, inp.lever).gear === 0;
   if (e.phase === 'off' && keyOn && inp.start > 0 && neutral) {
     e.phase = 'cranking';

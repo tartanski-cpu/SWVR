@@ -36,7 +36,6 @@ const BEFORE: [id: string, at: [number, number, number], channel: string, label:
   ['horn', [-0.28, 2.16, -1.52], 'horn', 'HORN'],
   ['anchor', [0.39, 2.16, -1.52], 'anchor', 'ANCHOR'],
   ['trawl', [0.52, 2.16, -1.52], 'trawl', 'TRAWL'],
-  ['heat', [0.8, 2.16, -1.5], 'heat', 'HEAT'],
   ['start', [0.94, 2.16, -1.5], 'start', 'START'],
   ['key', [1.08, 2.16, -1.5], 'key', 'KEY'],
   ['spotJoystick', [-0.45, 2.16, -1.15], 'spotPan', 'SEARCHLIGHT'],
@@ -49,11 +48,11 @@ const near = (got: THREE.Vector3 | [number, number, number], want: [number, numb
 };
 
 describe('the helm console, as modules', () => {
-  it('the recipe is valid and mounts the console with its 22 parts, and the nav display', () => {
+  it('the recipe is valid and mounts the console with its 21 parts (no HEAT button since the glow plugs preheat with the key), and the nav display', () => {
     expect(validateRecipe(RECIPES.workboat, LIBRARY)).toEqual([]);
     const a = build();
     expect(a.modules.find((m) => m.path === 'helm')?.id).toBe('console.standard');
-    expect(a.modules.filter((m) => m.path.startsWith('helm/'))).toHaveLength(22);
+    expect(a.modules.filter((m) => m.path.startsWith('helm/'))).toHaveLength(21);
     expect(a.has('navDisplay')).toBe(true);
   });
 
@@ -158,10 +157,10 @@ describe('the console\'s intents, by bus key and by old name', () => {
     expect(JSON.stringify(b.v)).toBe(JSON.stringify(a.v));
   });
 
-  it('the warning lamps read as the old lamps did: key on, engine stopped -> oil, charge, neutral lit', () => {
+  it('the warning lamps read as the old lamps did: key on, engine stopped -> oil, charge, neutral lit, and glow while the plugs preheat', () => {
     const { v, send } = world();
     send('ignition.key', 1);
     const bus = busOf(v);
-    expect(['oil', 'charge', 'glow', 'neutral', 'bilge'].map((l) => bus.get(`lamp.${l}` as never))).toEqual(['on', 'on', 'off', 'on', 'off']);
+    expect(['oil', 'charge', 'glow', 'neutral', 'bilge'].map((l) => bus.get(`lamp.${l}` as never))).toEqual(['on', 'on', 'on', 'on', 'off']);
   });
 });

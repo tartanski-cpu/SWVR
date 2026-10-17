@@ -75,7 +75,9 @@ describe('the energy network', () => {
     if (s.engine.phase === 'running' && on('hydraulics')) a += 4;
     if (c.horn > 0) a += 10;
     if (s.engine.phase === 'cranking') a += 180;
-    if (s.engine.key > 0 && c.heat > 0) a += 35;
+    // The glow plugs preheat on their own with the key on and the engine stopped (owner, after
+    // v1.0's HEAT button); here they're cold (glow 0), so they draw.
+    if (s.engine.key > 0 && s.engine.phase !== 'running') a += 35;
     return a;
   }
 

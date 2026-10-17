@@ -118,12 +118,12 @@ describe('the power controls, as modules', () => {
 });
 
 describe('shared parts: every switch bat one draw call, every button cap another', () => {
-  it('draws the 19 toggle bats (console 7, overhead 3 + FM 1, breakers 7, chart lamp 1) and 4 button caps as two instanced meshes; the deck gear\'s 4 button caps (tow winch 2, A-frame 2) as a third', () => {
+  it('draws the 19 toggle bats (console 7, overhead 3 + FM 1, breakers 7, chart lamp 1) and 3 button caps (2 on the console since HEAT went, 1 more) as two instanced meshes; the deck gear\'s 4 button caps (tow winch 2, A-frame 2) as a third', () => {
     const { a } = build();
-    expect(a.sharedCounts).toEqual({ toggleBat: 7 + 3 + 1 + 7 + 1, buttonCap: 3 + 1, deckButtonCap: 2 + 2 });
+    expect(a.sharedCounts).toEqual({ toggleBat: 7 + 3 + 1 + 7 + 1, buttonCap: 2 + 1, deckButtonCap: 2 + 2 });
     expect(a.shared.map((m) => [m.name, m.count])).toEqual([
       ['shared:toggleBat', 19],
-      ['shared:buttonCap', 4],
+      ['shared:buttonCap', 3],
       ['shared:deckButtonCap', 4],
     ]);
   });

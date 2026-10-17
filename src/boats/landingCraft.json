@@ -182,12 +182,6 @@
           "bind": {"press": "horn.sound"}
         },
         {
-          "socket": "heat",
-          "module": "control.push-button",
-          "config": {"label": "HEAT: glow plugs (hold)", "engrave": "HEAT", "color": "#e07020"},
-          "bind": {"press": "ignition.heat"}
-        },
-        {
           "socket": "start",
           "module": "control.push-button",
           "config": {"label": "START (hold)", "engrave": "START", "color": "#3aa04a", "lit": {"key": "propulsion.state", "is": "running"}},

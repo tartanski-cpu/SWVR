@@ -684,11 +684,13 @@ export class App {
       this.sound.engine.update(this.world.vessels[this.testVesselId], distance, submerged, house[0], house[1]);
       const v = this.world.vessels[this.testVesselId];
       this.sound.horn.update(v.controls.horn > 0 && isPowered(v), distance); // electric horn
-      // Bridge buzzer: high temperature always, low fuel while the engine runs.
+      // Bridge buzzer: high temperature always, low fuel while the engine runs, and no oil
+      // pressure with the key on and the engine stopped (it stops when she runs, owner).
       const diesel = gearOf(v, 'diesel');
       const al = diesel ? engineAlarms(v, diesel) : { highTemp: false, lowFuel: false };
+      const noOilPressure = !!diesel && v.engine.key > 0 && v.engine.phase !== 'running' && isPowered(v, 'instruments');
       const consoleDist = this.homeView?.dashAnchor ? this.homeView.dashAnchor.getWorldPosition(this.tmpV).distanceTo(this.focus) : 99;
-      this.sound.alarm.update(al.highTemp || (al.lowFuel && v.engine.phase === 'running'), consoleDist);
+      this.sound.alarm.update(al.highTemp || (al.lowFuel && v.engine.phase === 'running') || noOilPressure, consoleDist);
     }
     // Bridge controls and displays read the (just-updated) vessel state.
     const testVessel = this.world.vessels[this.testVesselId];
@@ -2662,7 +2664,7 @@ export class App {
     const diesel = gearOf(v, 'diesel');
     // Quick start is a session setting (CONFIG.vessels.workboat.electrics.quickStart), for a boat with batteries and a diesel.
     if (!diesel || !gearOf(v, 'batteries') || !CONFIG.vessels.workboat.electrics.quickStart) {
-      if (v.engine.phase === 'off') this.overlay.notify('Start her properly: master, INSTR breaker, key, HEAT, START (see the card). Menu > Tests > Quick start does it all.', 5);
+      if (v.engine.phase === 'off') this.overlay.notify('Start her properly: master, INSTR breaker, key, wait for the GLOW lamp, START (see the card). Menu > Tests > Quick start does it all.', 5);
       else this.pushVesselIntent('key', 0);
       return;
     }

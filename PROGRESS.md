@@ -2944,6 +2944,25 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   - The landing craft and gillnetter keep chines that sweep up with the forefoot. With her chine closed in, the landing craft's square bow lost its buoyancy (GM fell to 0.22 m, and the stability test caught it).
 - **Checked:** typecheck; all tests; side and bow views of the pilot at 0, 25 and 50 deg.
 
+### Engine start: the glow plugs preheat with the key; an oil-pressure buzzer (owner)
+
+- **The owner's procedure** (as on most small diesels): master, breakers, key on. The oil-pressure alarm sounds and the GLOW lamp lights by itself. Wait a few seconds for it to go out, then START. There's no HEAT button any more.
+- **Ignition (`ignitionStep`, `vessel/physics/propulsion.ts`):**
+  - With the key on and the engine stopped, the glow plugs heat on their own (a preheat timer) until they're hot enough (`preheatTime` cold, `preheatHotTime` warm). They're then held hot until she starts or the key goes off, and cool after.
+  - The `ignition.heat` key still works (extra heat while held), but no boat has the button.
+- **Lamps (`busKeys.ts`):**
+  - GLOW is lit from key-on until the plugs are hot.
+  - OIL and CHARGE are now fed through the key, as on a real panel. They light when the key goes on, not just with the INSTR breaker.
+  - The glow plugs' 35 A draw follows the GLOW lamp (`dieselInboard`).
+- **Buzzer (`App.ts`):** it sounds with the key on and the engine stopped (no oil pressure), with the INSTR breaker on, and stops when she runs.
+- **Removed:** the HEAT button from the workboat and landing craft recipes, and from the Shipyard's basic controls.
+- **Wording updated:** the start card, the start-up checklist step ("Key ON, wait for the GLOW lamp to go out"), the tutorial line, the desktop hint and the README.
+- **Golden runs re-recorded,** with only these changes: OIL and CHARGE off with the key off, one tick more preheat in the cold start, and battery charge differing in the 5th decimal place from the plugs' draw.
+- **Tests:** the console has 21 parts and 3 button caps; the load list draws the plugs with the key on and the engine stopped; a new ignition test covers the lamps, preheat, the held heat and the cool-down; the bus key table is regenerated. 507 tests pass.
+- **Owner test:**
+  - **In VR:** master on, INSTR on, key on. You should hear the buzzer and see the GLOW lamp lit. When it goes out, hold START: she runs and the buzzer stops.
+  - **On desktop:** the same with the mouse.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

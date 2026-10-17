@@ -305,7 +305,7 @@ export const CONFIG = {
         /** The engine will only start with the lever in neutral (like a real neutral-safety switch). */
         startOnlyInNeutral: true,
         /**
-         * Ignition (diesel): key ON, hold HEAT until the glow lamp goes out, then hold START.
+         * Ignition (diesel): key ON (the glow plugs preheat on their own, GLOW lamp lit), wait for the lamp to go out, then hold START.
          * The preheat needed is `preheatTime` stone cold (coolant at sea temperature),
          * falling to `preheatHotTime` once the coolant is at `coldBelowC` and above (a warm
          * engine barely needs it). Unheated, a cold engine needs up to `unheatedExtraCrank`

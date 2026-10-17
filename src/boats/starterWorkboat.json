@@ -30,7 +30,6 @@
         { "socket": "horn", "module": "control.push-button", "config": { "label": "Horn", "engrave": "HORN", "color": "#e0b020" }, "bind": { "press": "horn.sound" } },
         { "socket": "anchor", "module": "control.toggle", "config": { "label": "Anchor: let go / heave in", "engrave": "ANCHOR" }, "bind": { "value": "anchor.letGo" } },
         { "socket": "trawl", "module": "control.toggle", "config": { "label": "TRAWL: shoot / haul the net", "engrave": "TRAWL" }, "bind": { "value": "trawl.shoot" } },
-        { "socket": "heat", "module": "control.push-button", "config": { "label": "HEAT: glow plugs (hold)", "engrave": "HEAT", "color": "#e07020" }, "bind": { "press": "ignition.heat" } },
         { "socket": "start", "module": "control.push-button", "config": { "label": "START (hold)", "engrave": "START", "color": "#3aa04a", "lit": { "key": "propulsion.state", "is": "running" } }, "bind": { "press": "ignition.start" } },
         { "socket": "key", "module": "control.key-switch" },
         { "socket": "lamps", "module": "instrument.warning-lamps" },

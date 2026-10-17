@@ -85,7 +85,7 @@ const STARTUP: { text: string; check: (v: VesselState, diesel: EngineSpec) => bo
   { text: 'Battery master ON (aft wall, by the door)', check: (v) => (v.electrics?.master ?? 1) > 0 },
   { text: 'INSTR breaker ON (panel by the helm)', check: (v) => (v.electrics?.breakers.instruments ?? 1) > 0 },
   { text: 'Throttle in NEUTRAL', check: (v, diesel) => leverDemand(diesel, v.controls.lever).gear === 0 },
-  { text: 'Key ON, hold HEAT until the glow lamp goes out', check: (v, diesel) => v.engine.key > 0 && v.engine.glow >= preheatNeeded(v, diesel) },
+  { text: 'Key ON, wait for the GLOW lamp to go out', check: (v, diesel) => v.engine.key > 0 && v.engine.glow >= preheatNeeded(v, diesel) },
   { text: 'Hold START until she runs', check: (v) => v.engine.phase === 'running' },
   { text: 'Breakers as needed: CHART, RADIO, NAV LTS', check: (v) => !!v.electrics && v.electrics.breakers.chart > 0 && v.electrics.breakers.radio > 0, optional: true },
 ];

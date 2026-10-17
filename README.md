@@ -107,7 +107,7 @@ Tap once for sound. Add `?touch=1` to the address to try these controls on a com
 | **Grip** the boat hook (port bulwark) | Take it; it points along your controller. Touch a floating crate or a tow's bow eye with the tip to hook it. With **auto-extend** (menu Comfort → Boat hook reach, on by default) it telescopes out to whatever you point it at, up to 8 m, then slides back in with the crate on it. Bring the crate alongside, then **grip the hook's pole with your other hand** (or reach over the side towards the crate and grip) to lift it aboard; set it down on deck. Lost crates carry no light: at night, look for them with the searchlight. Desktop: click the hook, then click the crate or bow eye; click again once it's alongside to lift it |
 | **X** | **Crouch** / stand up (drops your view and hands 0.6 m; desktop: C) |
 | **Trigger** on the red key on the yellow plate (aft wall, by the door) | **Battery master** on / off. The boat starts cold and dark: master on first (voltmeter by the helm, under the starboard window) |
-| **Starting the engine** | Follow the card by the key: battery MASTER on (aft wall), INSTR breaker on, throttle in neutral, KEY on, hold HEAT until the GLOW lamp goes out (about 2.5 s cold, well under a second once the engine is warm), hold START until she runs. Stop: key off. Battery selector (1 / BOTH / 2) beside the master. The duty board on the starboard wall ticks off the start-up steps, and lists the jobs on: the cargo job, and any rescue or tow under way. Desktop E: hint (or quick start if enabled in config) |
+| **Starting the engine** | Follow the card by the key: battery MASTER on (aft wall), INSTR breaker on, throttle in neutral, KEY on: the oil-pressure buzzer sounds and the GLOW lamp lights while the glow plugs preheat on their own. Wait for the GLOW lamp to go out (about 2.5 s cold, well under a second once the engine is warm), then hold START until she runs; the buzzer stops when she does. Stop: key off. Battery selector (1 / BOTH / 2) beside the master. The duty board on the starboard wall ticks off the start-up steps, and lists the jobs on: the cargo job, and any rescue or tow under way. Desktop E: hint (or quick start if enabled in config) |
 | **Trigger** on a breaker (panel by the helm, under the starboard window) | Breakers: Instruments, Chart, Radio, Nav lights, Deck lights, Bilge, Deck hydraulics (DECK HYD). A device works only with the master and its breaker on; a green lamp shows the circuit is live |
 | **Trigger** on a green **skiff crane** button: SKIFF CRANE on the helm console (DECK group), the crane's control box (outboard side of its post, from the starboard side deck), or the remote on a post in the skiff by the helmsman. Or Menu > Boat > Skiff | Launch the skiff / recover her (she must be alongside the starboard bow and moving with you). Its hover text says which, or why not yet. In the cradle she's under a tarpaulin (launch her before boarding) and the crane is folded down along the starboard foredeck; LAUNCH unfolds it, hooks on and lifts her out |
 | **Trigger** on the green button on the **deck gate**'s aft post (starboard side of the working deck, just aft of the wheelhouse; a button on each face) | Open / shut the gate in the bulwark and rail. Open, you can walk out to the deck edge in the gateway and jump down into the skiff alongside; from the skiff (there's a step on the hull side below it), jump at the open gate and you're up on deck |
@@ -153,14 +153,14 @@ At the helm, from left to right on the console:
 
 **Instrument lighting:** the dials, screens, labels and the start-up card dim by themselves as it gets dark, and at night turn a dim red, so you keep your night vision and still see out. The switch and button labels are tilted up toward you so they read from the helm.
 
-Warning lamps in front of the key: **OIL**, **CHARGE**, **GLOW**, **NEUTRAL** and **BILGE** (blinks with water in the bilge).
+Warning lamps in front of the key: **OIL** and **CHARGE** (lit with the key on until she runs), **GLOW** (lit while the glow plugs preheat), **NEUTRAL** and **BILGE** (blinks with water in the bilge).
 
 **The console, port to starboard.** The switches are grouped on colour-coded plates:
 - **LIGHTS** (yellow): nav lights, cabin light, wipers.
 - **SEARCH · FIRE** (red): the fire pump and searchlight switches, each just ahead of its joystick. The fire monitor joystick (red knob) and the searchlight joystick (yellow knob) stand side by side on pedestals to port of the wheel: aim with the left hand, keep the throttle in the right.
 - The **horn**, just left of the wheel.
 - **DECK** (blue): anchor and trawl, behind the throttle.
-- **ENGINE** (green): HEAT, START, the key, the warning lamps, and the start-up card.
+- **ENGINE** (green): START, the key, the warning lamps, and the start-up card.
 
 ### Chart table
 

@@ -134,7 +134,8 @@ function circuitKeys(): Record<`circuit.${BreakerName}.live`, BusKeySpec> {
  * The engine panel's warning lamps (modular boats M3), as today's WarningLamps lit them:
  * each is off, on, or blinking. The lamp module only draws what the key says; WHEN a lamp
  * lights stays here (today's rules). Undefined on a boat without an inboard diesel. All need 12 V on the Instruments circuit, except
- * GLOW, which is wired with the glow plugs (12 V on the master).
+ * GLOW, which is wired with the glow plugs (12 V on the master). OIL and CHARGE are fed
+ * through the key, as on most engine panels: they light when the key goes on.
  */
 type Lamp = 'off' | 'on' | 'blink';
 const LAMP = ['off', 'on', 'blink'] as const;
@@ -147,11 +148,12 @@ function lamp(s: VesselState, which: 'oil' | 'charge' | 'glow' | 'neutral' | 'bi
   switch (which) {
     case 'oil':
       // No oil pressure stopped; blinks running with the sump nearly dry.
-      return !instr ? 'off' : !running ? 'on' : (e.oil ?? 1) < diesel.maintenance.lampAt ? 'blink' : 'off';
+      return !instr || e.key <= 0 ? 'off' : !running ? 'on' : (e.oil ?? 1) < diesel.maintenance.lampAt ? 'blink' : 'off';
     case 'charge':
-      return instr && !running ? 'on' : 'off';
+      return instr && e.key > 0 && !running ? 'on' : 'off';
     case 'glow':
-      return isPowered(s) && e.key > 0 && s.controls.heat > 0 && e.glow < preheatNeeded(s, diesel) ? 'on' : 'off';
+      // Lit while the glow plugs preheat: from the key going on until they're hot enough.
+      return isPowered(s) && e.key > 0 && !running && e.glow < preheatNeeded(s, diesel) ? 'on' : 'off';
     case 'neutral':
       // On in neutral (the start interlock); blinks while START is held in gear.
       return !instr ? 'off' : leverDemand(diesel, s.controls.lever).gear === 0 ? 'on' : s.controls.start > 0 ? 'blink' : 'off';
@@ -196,7 +198,7 @@ export const BUS_KEYS = {
       },
     },
   },
-  'ignition.heat': control('heat', 'HEAT button held: the glow plugs heat (key on).', { aliases: ['heat'] }),
+  'ignition.heat': control('heat', 'HEAT button held: extra glow-plug heat (key on). The boats have no HEAT button now: the plugs preheat on their own with the key.', { aliases: ['heat'] }),
   'ignition.start': control('start', 'START button held: the starter cranks (key on, lever in neutral).', { aliases: ['start'] }),
   'outboard.on': control('obOn', "The outboard's on/off button: motor on.", { aliases: ['obOn'] }),
   'outboard.gear': setting('obGear', [-1, 1], 'gear', "The outboard's gear lever: -1 reverse, 0 neutral, +1 forward.", { integer: true, aliases: ['obGear'] }),
@@ -340,9 +342,9 @@ export const BUS_KEYS = {
   'contact.impact': state('number', (s) => s.contact.impact, 'Largest approach speed of a point that touched this tick.', { unit: 'm/s', writer: 'core' }),
 
   // ── Engine panel warning lamps ──
-  'lamp.oil': state('enum', (s) => lamp(s, 'oil'), 'OIL lamp: on with no oil pressure (engine stopped), blinking while running with the sump nearly dry.', { values: LAMP }),
-  'lamp.charge': state('enum', (s) => lamp(s, 'charge'), 'CHARGE lamp: on while the alternator isn\'t charging (engine stopped).', { values: LAMP }),
-  'lamp.glow': state('enum', (s) => lamp(s, 'glow'), 'GLOW lamp: on while HEAT is held, until the glow plugs are hot enough.', { values: LAMP }),
+  'lamp.oil': state('enum', (s) => lamp(s, 'oil'), 'OIL lamp: on with no oil pressure (key on, engine stopped), blinking while running with the sump nearly dry.', { values: LAMP }),
+  'lamp.charge': state('enum', (s) => lamp(s, 'charge'), 'CHARGE lamp: on while the alternator isn\'t charging (key on, engine stopped).', { values: LAMP }),
+  'lamp.glow': state('enum', (s) => lamp(s, 'glow'), 'GLOW lamp: on from the key going on until the glow plugs are hot enough (wait for it to go out, then START).', { values: LAMP }),
   'lamp.neutral': state('enum', (s) => lamp(s, 'neutral'), 'NEUTRAL lamp: on with the lever in neutral; blinking while START is held in gear.', { values: LAMP }),
   'lamp.bilge': state('enum', (s) => lamp(s, 'bilge'), 'BILGE lamp: blinking with the bilge over its alarm level.', { values: LAMP }),
 

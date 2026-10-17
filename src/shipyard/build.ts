@@ -552,9 +552,9 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   cc.groups = cc.groups.map((gp: { x: [number, number] }) => ({ ...gp, x: gp.x.map((x) => Math.round(x * sx * 1000) / 1000) }));
   for (const slot of Object.values(cc.slots) as { position: V3 }[]) slot.position = [Math.round(slot.position[0] * sx * 1000) / 1000, slot.position[1], slot.position[2]];
   if (!d.controls) {
-    // Basic: wheel, throttle, starting (key, HEAT, START, the lamps and the card), speed with
+    // Basic: wheel, throttle, starting (key, START, the lamps and the card), speed with
     // depth, rpm. No lights, searchlight, horn, wipers, heading, engine monitor or VHF.
-    const keep = ['wheel', 'throttle', 'heat', 'start', 'key', 'lamps', 'card', 'speed', 'rpm'];
+    const keep = ['wheel', 'throttle', 'start', 'key', 'lamps', 'card', 'speed', 'rpm'];
     consoleMount.modules = consoleMount.modules!.filter((m) => keep.includes(m.socket));
     cc.groups = cc.groups.filter((gp: { title: string }) => gp.title === 'ENGINE');
     recipe.modules = recipe.modules.filter((m) => !['cabinLight', 'horn', 'wipers', 'vhf', 'searchlight', 'navLights'].includes(m.socket));
