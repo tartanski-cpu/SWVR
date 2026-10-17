@@ -408,8 +408,9 @@ function prism(x0: number, x1: number, pts: [number, number][], color: number): 
 /**
  * A shaped wheelhouse (the Shipyard's, owner; its layout's `shape`): in profile, the front
  * below the windows leans forward from `lowerFromY` up to the window band; the front windows
- * rake either way (`frontRakeDeg`) from there; above them a header up to the roof, which
- * rakes about the middle of the house and reaches forward of the windows' head as a visor.
+ * rake either way (`frontRakeDeg`) from there; above them a header up to the roof: one flat
+ * slab (owner) reaching forward of the windows' head as a visor, its front edge cut back
+ * underneath (`roofEdgeDeg`).
  * The side walls follow that profile at their front ends, so their windows are trapezoids.
  * The side and aft windows start lower (windowSill) than the front's (frontSill, the dash
  * top); between them at each front corner a black post. No roof rail or ladder: the roof
@@ -427,9 +428,7 @@ function buildShapedHouse(layout: HouseLayout, col: Paint, base: number): THREE.
   const zF = wh.front;
   const zA = wh.aft;
   const mid = (zF + zA) / 2;
-  const tanR = Math.tan((sh.roofRakeDeg * Math.PI) / 180);
-  /** The roof's underside at z (+ rake: rising forward). */
-  const roofAt = (z: number) => wh.roofY + (mid - z) * tanR;
+  const roofY = wh.roofY;
   const rake = frontRake(wh);
   const raked = (g: THREE.BufferGeometry) => g.applyMatrix4(rake.matrix);
   const S = rake.sill;
@@ -450,7 +449,7 @@ function buildShapedHouse(layout: HouseLayout, col: Paint, base: number): THREE.
   if (L0 > base + 0.01) parts.push(box(-hw, hw, base, L0, zF, zF + w, H));
   parts.push(...framed(-hw, hw, L0, S, zF, zF + w, 'top').map((g) => g.applyMatrix4(lean)));
   for (const x of [-0.5, 0.5]) parts.push(raked(fbox(x - 0.04, x + 0.04, S, head, zF, zF + w)));
-  parts.push(...framed(-hw, hw, head, roofAt(zH) + 0.02, zH, zH + w, 'bottom'));
+  parts.push(...framed(-hw, hw, head, roofY + 0.02, zH, zH + w, 'bottom'));
 
   // Side walls: below the band, following the front's lower lean; the band's posts (the
   // front one raked with the windows) and a mullion; above it, up to the raked roof.
@@ -468,12 +467,12 @@ function buildShapedHouse(layout: HouseLayout, col: Paint, base: number): THREE.
     parts.push(fbox(x0, x1, sideS, head, zA - 0.1, zA));
     parts.push(fbox(x0, x1, sideS, head, bandMid - 0.04, bandMid + 0.04));
     parts.push(fbox(x0, x1, head, head + FW, zH, zA));
-    parts.push(prism(x0, x1, [[zH, head + FW], [zA, head + FW], [zA, roofAt(zA) + 0.02], [zH, roofAt(zH) + 0.02]], H));
+    parts.push(box(x0, x1, head + FW, roofY + 0.02, zH, zA, H));
   }
 
   // Aft wall: panels either side of the doorway, the band open, and a lintel up to the roof.
   const door = wh.doorWidth / 2;
-  const roofAft = roofAt(zA) + 0.02;
+  const roofAft = roofY + 0.02;
   for (const s of [-1, 1]) {
     const [p0, p1] = s > 0 ? [door, hw] : [-hw, -door];
     parts.push(box(p0, p1, base, sideS - FW, zA - w, zA, H), fbox(p0, p1, sideS - FW, sideS, zA - w, zA));
@@ -490,13 +489,16 @@ function buildShapedHouse(layout: HouseLayout, col: Paint, base: number): THREE.
   buildFloor(layout, col, parts);
   buildConsole(wh, col, parts);
 
-  // Roof: a slab from the visor's edge to aft of the house, raked about the middle; the wood
-  // ceiling just under it.
+  // Roof: one flat slab from the visor's edge to aft of the house, its front edge cut back
+  // underneath at roofEdgeDeg, no further back than the visor reaches (not into the header);
+  // the wood ceiling under it.
   const rf = layout.roof;
-  const roofShear = new THREE.Matrix4().set(1, 0, 0, 0, 0, 1, -tanR, tanR * mid, 0, 0, 1, 0, 0, 0, 0, 1);
   const ov = rf.overhang;
-  parts.push(box(-hw - ov, hw + ov, wh.roofY, wh.roofY + rf.thickness, zH - sh.visor, zA + ov, col.roof).applyMatrix4(roofShear));
-  parts.push(box(-hw + w, hw - w, wh.roofY - 0.012, wh.roofY, Math.max(zF, zH) + w, zA - w, col.lining, 'wood').applyMatrix4(roofShear));
+  const t = rf.thickness;
+  const zV = zH - sh.visor;
+  const cut = Math.min(t * Math.tan((sh.roofEdgeDeg * Math.PI) / 180), sh.visor);
+  parts.push(prism(-hw - ov, hw + ov, [[zV, roofY + t], [zA + ov, roofY + t], [zA + ov, roofY], [zV + cut, roofY]], col.roof));
+  parts.push(box(-hw + w, hw - w, roofY - 0.012, roofY, Math.max(zF, zH) + w, zA - w, col.lining, 'wood'));
   return parts;
 }
 

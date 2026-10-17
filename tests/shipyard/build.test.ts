@@ -147,11 +147,11 @@ describe('Shipyard: the boats it builds', () => {
       }
   });
 
-  it('the house\'s shape at its extremes builds cleanly: windows raked either way, the front below leaning, the visor, the roof raked', () => {
+  it('the house\'s shape at its extremes builds cleanly: windows raked either way, the front below leaning, the visor, the roof\'s thickness and edge', () => {
     for (const hull of [0, 3])
       for (const windowRake of [0, 8])
-        for (const [lowerFront, visor, roofRake] of [[0, 0, 0], [4, 4, 4]]) {
-          const boat = useDesign({ ...DEFAULT_DESIGN, ...DESIGN_HULLS[hull].defaults, hull, windowRake, lowerFront, visor, roofRake });
+        for (const [lowerFront, visor, roofThickness, roofEdge] of [[0, 0, 0, 0], [4, 4, 2, 3], [4, 0, 2, 3]]) {
+          const boat = useDesign({ ...DEFAULT_DESIGN, ...DESIGN_HULLS[hull].defaults, hull, windowRake, lowerFront, visor, roofThickness, roofEdge });
           const wh = boat.hull.layout.wheelhouse!;
           expect(wh.shape).toBeDefined();
           expect(boat.hull.layout.ladder).toBeUndefined();

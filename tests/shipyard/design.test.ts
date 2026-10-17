@@ -1,9 +1,9 @@
 /** Shipyard designs: the choices round-trip through their 13-character code, typos are caught, older 10- and 11-character codes still read. */
 import { describe, expect, it } from 'vitest';
-import { COMBINATIONS, decodeDesign, DEFAULT_DESIGN, encodeDesign, encodeDesignV2, encodeDesignV3, FIELDS, type OldDesign, type ShipDesign } from '../../src/shipyard/design';
+import { COMBINATIONS, decodeDesign, DEFAULT_DESIGN, encodeDesign, encodeDesignV2, encodeDesignV3, encodeDesignV4, FIELDS, type OldDesign, type ShipDesign } from '../../src/shipyard/design';
 
 /** The starting design as versions 1-3 held it (a step-down floor, the house a box). */
-const { floor: _f, visor: _v, roofRake: _r, windowRake: _w, lowerFront: _l, ...rest } = DEFAULT_DESIGN;
+const { floor: _f, visor: _v, roofThickness: _t, roofEdge: _e, windowRake: _w, lowerFront: _l, ...rest } = DEFAULT_DESIGN;
 const OLD: OldDesign = { ...rest, sunk: 1 };
 
 describe('Shipyard design codes', () => {
@@ -24,9 +24,17 @@ describe('Shipyard design codes', () => {
     for (const d of [max, min]) expect(decodeDesign(encodeDesign(d))).toEqual({ design: d });
   });
 
-  it('fits: every combination of the choices in 60 bits (12 characters), with room left', () => {
+  it('fits: every combination of the choices in the top half of 60 bits (12 characters), above version 4\'s', () => {
     expect(COMBINATIONS).toBe(FIELDS.reduce((a, f) => a * BigInt(f.steps), 1n));
-    expect(COMBINATIONS * 4n < 1n << 60n).toBe(true);
+    expect(COMBINATIONS < 1n << 59n).toBe(true);
+  });
+
+  it('reads version 4 codes (the raked roof) as the same boats, the roof the thinnest slab, square at the front', () => {
+    const { roofThickness: _t2, roofEdge: _e2, ...v4rest } = DEFAULT_DESIGN;
+    for (const roofRake of [0, 2, 4]) {
+      const code = encodeDesignV4({ ...v4rest, windowRake: 1, roofRake });
+      expect(decodeDesign(code)).toEqual({ design: { ...DEFAULT_DESIGN, windowRake: 1, roofThickness: 0, roofEdge: 0 } });
+    }
   });
 
   it('reads version 2 (10-character) and version 3 (11-character) codes as the same boats, the house a box', () => {

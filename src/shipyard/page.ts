@@ -139,6 +139,23 @@ function slider(key: keyof ShipDesign, label: string, show: (v: number) => strin
   controls.appendChild(row);
 }
 const pct = (k: number) => `${Math.round(k * 100)} %`;
+/** A few set options in a row, as buttons (for choices with only a handful of settings). */
+function options(key: keyof ShipDesign, label: string, names: string[]): void {
+  const row = document.createElement('div');
+  row.className = 'row opts';
+  row.innerHTML = `<label>${label}</label><div></div>`;
+  const box = row.querySelector('div')!;
+  names.forEach((name, i) => {
+    const c = document.createElement('span');
+    c.className = 'choice';
+    c.dataset.key = key;
+    c.dataset.i = String(i);
+    c.textContent = name;
+    c.onclick = () => change({ [key]: i });
+    box.appendChild(c);
+  });
+  controls.appendChild(row);
+}
 
 section('1. Hull');
 // Picking a hull starts her in her type's usual layout (the sliders then move it all).
@@ -164,10 +181,8 @@ slider('windowRake', 'Windows', (v) => {
   return a === 0 ? 'upright' : a > 0 ? `${a}\u00b0 reverse` : `${-a}\u00b0 raked`;
 });
 slider('visor', 'Roof visor', (v) => (v === 0 ? 'none' : `${SCALES.visor(v).toFixed(2)} m`));
-slider('roofRake', 'Roof rake', (v) => {
-  const a = SCALES.roofRake(v);
-  return a === 0 ? 'level' : a > 0 ? `${a}\u00b0 up fwd` : `${-a}\u00b0 down fwd`;
-});
+options('roofThickness', 'Roof', [0, 1, 2].map((i) => `${Math.round(SCALES.roofThickness(i) * 100)} cm`));
+options('roofEdge', 'Roof edge', [0, 1, 2, 3].map((i) => (i === 0 ? 'square' : `${SCALES.roofEdge(i)}\u00b0`)));
 section('3. Engine');
 choices('engine', ENGINES.map((e) => ({ name: e.name, note: `${e.kg} kg with its gearbox. Propeller and gearbox matched to her by trial.` })));
 {

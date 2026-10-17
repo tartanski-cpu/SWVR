@@ -3012,6 +3012,19 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   - **Desktop or phone:** on the Shipyard page, try the five new sliders on each hull, from the side, the bow and At the helm. Raise the floor to +0.8 and look at the steps from Stern 3/4.
   - **In VR:** open a design (`?design=` and its code), walk up the steps into the house, and check the view over the bow from the helm.
 
+### Shipyard: the roof as one slab (owner)
+
+- **The owner said:** the roof should be one flat slab, not raked. The "rake" he wants is only the slab's forward edge, cut back underneath steeply or less, and with a few set options rather than sliders. Thickness also as two or three settings.
+- **Now (`design.ts` version 5, still 13 characters):**
+  - `roofThickness` (0.1 / 0.2 / 0.3 m) and `roofEdge` (square / 30 / 45 / 60 deg from vertical) replace `roofRake`; the visor slider stays.
+  - Version 5 codes sit above 2^59; version 4 codes (below it) still read, with the roof 0.1 m and square.
+- **Drawing (`buildShapedHouse`):** the roof is one prism, flat at `roofY`, `roof.thickness` thick, from the visor's edge to aft of the house. Its front face runs from the top edge back to the underside at `roofEdgeDeg`, cut no further back than the visor reaches, so not into the header. The header and the side walls above the windows are flat-topped boxes again. `HouseShape.roofRakeDeg` became `roofEdgeDeg`.
+- **Roof fittings** (searchlight, horn, masthead) stand on the slab's top, whatever its thickness.
+- **Starting roofs:** landing craft and gillnetter 10 cm, square; workboat 20 cm, 30 deg; pilot boat 20 cm, 45 deg.
+- **Page:** Roof and Roof edge are rows of option buttons (`options()` in page.ts).
+- **Checked:** typecheck; all tests (new: version 4 codes read with the default roof; the shape's extremes now include the thickest roof with a 60 deg edge, with and without a visor); screenshots of a patrol shape (30 cm, 45 deg, visor 0.45 m) and the pilot's default from the side, bow, stern and helm; the page's option rows.
+- **Owner test:** on the Shipyard page, try Roof and Roof edge with the visor at 0.3 m or more, from the side.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**
