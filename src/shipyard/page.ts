@@ -318,18 +318,12 @@ section('3. Deck gear');
   }
   const box = document.createElement('div');
   box.id = 'fromPins';
-  const by = document.createElement('h2');
-  by.textContent = 'Or set by hand';
-  controls.append(pal, box, by);
+  // What's on her now, pinned or not (a type's own fit, an older code), each with a way off
+  // (owner, Oct 2026: the choices "set by hand" that were here repeated the pins).
+  const onHer = document.createElement('div');
+  onHer.id = 'onHer';
+  controls.append(pal, box, onHer);
 }
-options('deckCrane', 'Deck crane', ['None', 'Foredeck', 'Aft deck']);
-options('searchlight', 'Searchlight', ['None', 'Roof', 'Foredeck pole', 'Aft deck pole']);
-options('fireMonitor', 'Fire monitor', ['None', 'Roof', 'Foredeck pole', 'Aft deck pole']);
-options('towWinch', 'Tow winch', ['None', 'Aft deck']);
-options('sternRoller', 'Stern roller', ['None', 'In the transom']);
-options('aFrame', 'Trawl A-frame', ['None', 'Over the transom (with the net and a winch)']);
-options('lifeRing', 'Life ring & boat hook', ['None', 'Port', 'Starboard']);
-options('sideDoor', 'Side door', ['None', 'Port wall']);
 section('4. Engine');
 choices('engine', ENGINES.map((e) => ({ name: e.name, note: `${e.kg} kg with its gearbox. Propeller and gearbox matched to her by trial.` })));
 {
@@ -395,6 +389,7 @@ function syncControls(): void {
     el.textContent = outputs[k]!(design[k]);
   });
   (document.querySelector('input[data-key=twin]') as HTMLInputElement).checked = !!design.twin;
+  showOnHer();
 }
 
 // ── Figures, warnings, trial, code ──
@@ -1123,8 +1118,47 @@ const FACINGS: Record<string, string[]> = {
   craneAt: ['facing forward', 'facing to starboard', 'facing aft', 'facing to port'],
   winchAt: ['its wire leading aft', 'its wire leading to port', 'its wire leading forward', 'its wire leading to starboard'],
 };
+/** Where each piece stands when it's in its usual place (by its design choice). */
+const USUAL: Record<string, string[]> = {
+  deckCrane: ['', 'on the foredeck', 'on the aft deck'],
+  searchlight: ['', 'on the wheelhouse roof', 'on a foredeck pole', 'on an aft deck pole'],
+  fireMonitor: ['', 'on the wheelhouse roof', 'on a foredeck pole', 'on an aft deck pole'],
+  towWinch: ['', 'on the aft deck'],
+  sternRoller: ['', 'in the transom'],
+  aFrame: ['', 'over the transom, with the net and a winch'],
+  lifeRing: ['', 'port side of the wheelhouse', 'starboard side of the wheelhouse'],
+  sideDoor: ['', "in the wheelhouse's port wall"],
+};
+/** Take a piece off her: with its pin, if a pin put it there. */
+function takeOff(eq: Equipment): void {
+  const pin = todo(notes).find((p): p is Pin => p.kind === 'pin' && equipmentOf(p.gear) === eq && holds(p, eq));
+  if (pin) dropPin(pin);
+  else change(removeGear(eq));
+}
+/** The Deck gear step's list of what's on her now. */
+function showOnHer(): void {
+  const box = document.getElementById('onHer');
+  if (!box) return;
+  const on = EQUIPMENT.filter((e) => (design[e.field] ?? 0) > 0);
+  box.innerHTML = `<h2>On her now</h2>${on.length ? '' : '<div class="meta">No deck gear yet.</div>'}`;
+  for (const eq of on) {
+    const v = design[eq.field] ?? 0;
+    const at = eq.key ? boat.placed[eq.key] : undefined;
+    const where = eq.key && design[eq.key] && at ? `${USUAL[eq.id]?.[v] ?? ''}, where pinned: ${at.x === 0 ? 'on the centreline' : `${Math.abs(at.x).toFixed(2)} m to ${at.x < 0 ? 'port' : 'starboard'}`}` : USUAL[eq.id]?.[v] ?? '';
+    const row = document.createElement('div');
+    row.className = 'item';
+    row.innerHTML = `<span><b>${esc(eq.name)}</b> <span class="meta">${esc(where)}</span></span>`;
+    const b = document.createElement('button');
+    b.textContent = 'Take off';
+    b.title = 'Take it off her (and its pin, if it has one)';
+    b.onclick = () => takeOff(eq);
+    row.appendChild(b);
+    box.appendChild(row);
+  }
+}
 /** The Deck gear step's list of what pins asked for, and what became of it. */
 function showFromPins(): void {
+  showOnHer();
   const box = document.getElementById('fromPins');
   if (!box) return;
   const list = todo(notes).filter((p) => equipmentOf(p.gear));

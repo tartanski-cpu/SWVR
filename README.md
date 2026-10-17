@@ -541,7 +541,7 @@ The page shows her in 3D (around her and at the helm), her figures and her sea t
   - The **deck crane, searchlight, fire monitor and tow winch** stand **where you clicked**, snapped to a 25 cm grid: on deck, or (the searchlight and monitor) on the wheelhouse roof if you clicked the roof. If it can't stand right there (on the house, over the side, on other gear), it goes to the nearest spot within a metre that's clear and says so; failing that, to its usual place. The crane and the winch have a **Turn ↻** button to turn them a quarter at a time.
   - The **stern roller** and the **A-frame** go at the transom, the **life ring and boat hook** on the side of the house you clicked, the **side door** in the port wall.
   - The pin is ticked done, saying where it went. Pin a piece again somewhere else and it moves there; delete its pin and it comes off. Placed gear stays where it was put, measured from the transom, when you stretch her.
-  - "Or set by hand" below still works: choosing there puts a piece back in its usual place.
+  - **On her now** (below the pins) lists every piece she carries and where, pinned or not (a hull type's own gear, or an older code), with **Take off** for each.
 - **📍 Pin** (on the view, any step): click on her, pick equipment from the list (placed at once, as above) or "Just a note", and add a note if you like.
 - Pins are the design's **To do** list (right-hand column): click one to look at it, **Done** when it's sorted (done pins fade), ✕ to delete. They're stuck to her, not to the screen: stretch her and they stay on the same part of the boat. On your own (no session) all of it is kept in your browser.
 

@@ -3865,6 +3865,13 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Checked in headless Chromium:** a pilot boat with a 3 m, 1.2 m high, full-width, 30°-raked deckhouse, and set in with 0.5 m side decks, upright: views from the bow, stern and port; the wheelhouse on top, the steps up aft, no warnings. Found and fixed on the way: its faces wound inside out (invisible from outside), and its foot showing through her topsides at the bow. **Not checked:** the Quest, a phone, walking up the steps into a raised helm in the game.
 - **Next, for bigger boats (tugs), noted:** the deckhouse top walkable with rails and a ladder or stairs (the walk area's floors and ladders already do this for the workboat's roof), and an interior with a door into it.
 
+### Shipyard: deck gear by pin only (owner)
+
+- **The owner found** the Deck gear step's "Or set by hand" choices redundant next to the pins. They're gone: pins are the one way to put gear on.
+- **In their place, "On her now"** (`page.ts showOnHer`, under the pinned list): every piece she carries and where. That's either "where pinned" with its offset from the centreline, or its usual place.
+- **Take off** comes with each piece (`takeOff`): with its pin if a pin put it there, else just the design choice. This is still needed because gear can come without a pin: a hull type's own fit, an older code, a variant.
+- **Checked:** typecheck, tests, and a headless run that pins, lists, and takes gear off (see below).
+
 ### Shipyard: deckhouse heights for big boats too (owner)
 
 - **After trying the deckhouse on bigger boats**, the owner wanted the taller heights back, plus a low one. It's now **0.5, 0.8, 1.0, 1.2 or 1.5 m** (`SCALES.dhHeight`; `dhHeight` has 5 steps).
