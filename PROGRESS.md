@@ -3865,6 +3865,20 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Checked in headless Chromium:** a pilot boat with a 3 m, 1.2 m high, full-width, 30°-raked deckhouse, and set in with 0.5 m side decks, upright: views from the bow, stern and port; the wheelhouse on top, the steps up aft, no warnings. Found and fixed on the way: its faces wound inside out (invisible from outside), and its foot showing through her topsides at the bow. **Not checked:** the Quest, a phone, walking up the steps into a raised helm in the game.
 - **Next, for bigger boats (tugs), noted:** the deckhouse top walkable with rails and a ladder or stairs (the walk area's floors and ladders already do this for the workboat's roof), and an interior with a door into it.
 
+### Shipyard: a deckhouse as wide as the wheelhouse, so a side door (owner)
+
+- **Width "As the wheelhouse"**, the fifth choice: the deckhouse runs forward of the wheelhouse only, no wider than the house (narrower only where her bow is), and the house stands on it.
+  - The house's own walls come down to the deck as usual, so her side decks alongside the house stay clear.
+  - The floor height still counts from the deckhouse's top.
+  - The other widths switch it off again.
+- **The side door** is now allowed with it. With a full-width deckhouse it's still left off, and the warning now says how to have one.
+  - **No steps outside it** (owner: the crew jump in and out; if it's too high, that's a bad design). Steps were built, then taken out at the owner's word before anything was pushed.
+- **Code:** `design.dhNarrow`, version 14. It rides above the rails in the code's extension, so 0 leaves every earlier code as it was.
+- **Checked:**
+  - typecheck and tests (647; deckhouse.test.ts: the codes; the layout, forward of the house only and no wider; the side door fitted; the side deck clear);
+  - a headless run: choosing it, then another width;
+  - screenshots from the port bow.
+
 ### Shipyard: a true side view, and less sheer on the pilot boat (owner)
 
 - **Side view:** its eye was a quarter of her length above what it looked at, so it looked down a little and wasn't a true elevation. It's level with it now, and stood back further (2.3 L, was 1.5 L) so a 14 m boat fits across the view, most of all in the flat view.

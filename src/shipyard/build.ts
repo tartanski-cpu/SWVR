@@ -354,9 +354,12 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
       z0 = minZ;
       warnings.push('The deckhouse reaches further forward than her bow allows: cut short.');
     }
-    const z1 = aft - 0.02;
+    // As wide as the house (owner: leaves her side decks clear, for a side door): only forward
+    // of it, the house's own walls coming down to the deck. Else from its aft wall.
+    const narrow = !!d.dhNarrow;
+    const z1 = narrow ? front + 0.03 : aft - 0.02;
     const side = SCALES.dhWidth(d.dhWidth);
-    const halfAt = (z: number) => Math.max(z >= front - 0.01 ? hw : 0.3, q.halfBeam(z) - Math.max(dhc.edge, side));
+    const halfAt = (z: number) => (narrow ? Math.max(0.3, Math.min(hw, q.halfBeam(z) - dhc.edge)) : Math.max(z >= front - 0.01 ? hw : 0.3, q.halfBeam(z) - Math.max(dhc.edge, side)));
     const zs: number[] = [];
     for (let z = z0; z < z1 - 0.05; z += 0.25) zs.push(z);
     zs.push(z1);
@@ -377,7 +380,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     while (floorY < level && tightAt(floorY - 0.15) < hw + 0.02) floorY = Math.min(level, floorY + 0.2);
     warnings.push(`Her hull is too fine under the wheelhouse for its floor that low: raised to ${(floorY - level).toFixed(1)} m about the deck.`);
   }
-  if (deckhouse && floorY < deckhouse.top - 0.01) {
+  if (deckhouse && floorY < deckhouse.top - 0.01 && !d.dhNarrow) {
     // Sunk into it: no top over the cabin (inside the house's walls), less plate.
     deckhouse.well = { halfWidth: rnd(hw - 0.03), z0: rnd(front + 0.03) };
     dhArea -= 2 * (hw - 0.03) * (deckhouse.z1 - front - 0.03);
@@ -782,7 +785,9 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     // Up to the window band's top edge (the door's opening runs up through the band).
     const height = Math.min(2.0, windowHead - 0.04, roofY - F - 0.12);
     const deckOutside = q.halfBeam(z0 + sdc.width / 2) - hw;
-    if (deckhouse) warnings.push('The side door would open onto the deckhouse’s top, which isn’t walked yet: left off.');
+    // On a house raised on a deckhouse as wide as it, the door opens onto the side deck below
+    // with no steps (owner: the crew jump in and out; if that's too high it's a bad design).
+    if (deckhouse && !d.dhNarrow) warnings.push('The side door would open onto the deckhouse’s top, which isn’t walked yet (make the deckhouse as wide as the wheelhouse for one): left off.');
     else if (zEnd - z0 < sdc.width) warnings.push(`Her wheelhouse is too short for a side door between the helm and ${chartTableAt ? 'the chart table' : 'the aft wall'}: left off.`);
     else if (deckOutside < sdc.sideDeck) warnings.push('There\'s no side deck outside her wheelhouse to step out onto (a narrower house leaves one): the side door is left off.');
     else if (height < 1.7) warnings.push('Her wheelhouse is too low inside for a side door: left off.');

@@ -347,6 +347,22 @@ options('chartTable', 'Chart table', ['None', 'Port wall, aft']);
 slider('dhLength', 'Forward of the house', (v) => (v ? `${SCALES.dhLength(v).toFixed(1)} m` : 'none'));
 options('dhHeight', 'Height', [0, 1, 2, 3, 4].map((i) => `${SCALES.dhHeight(i).toFixed(1)} m`));
 options('dhWidth', 'Width', ['To her sides', '0.3 m side decks', '0.5 m', '0.7 m']);
+{
+  // A fifth width (owner): only as wide as the wheelhouse, forward of it, leaving her side
+  // decks clear (so she can have a side door). Its own choice in the code (dhNarrow); the
+  // other widths turn it off again.
+  const box = [...controls.querySelectorAll<HTMLElement>('[data-key="dhWidth"]')].at(-1)!.parentElement!;
+  const c = document.createElement('span');
+  c.className = 'choice';
+  c.dataset.key = 'dhNarrow';
+  c.dataset.i = '1';
+  c.textContent = 'As the wheelhouse';
+  labels.dhNarrow = 'Deckhouse width';
+  optionNames.dhNarrow = ['Set by Width', 'As the wheelhouse'];
+  c.onclick = () => change({ dhNarrow: 1 });
+  box.appendChild(c);
+  box.querySelectorAll<HTMLElement>('[data-key="dhWidth"]').forEach((el) => el.addEventListener('click', () => design.dhNarrow && change({ dhNarrow: 0 })));
+}
 options('dhRake', 'Front', ['Upright', 'Raked 30°', 'Raked 50°']);
 section('3. Deck gear');
 {
@@ -434,6 +450,8 @@ function syncControls(): void {
     el.textContent = outputs[k]!(design[k]);
   });
   (document.querySelector('input[data-key=twin]') as HTMLInputElement).checked = !!design.twin;
+  // The deckhouse as wide as the house: its width's other buttons aren't the one chosen.
+  if (design.dhNarrow) document.querySelectorAll<HTMLElement>('[data-key="dhWidth"]').forEach((el) => el.classList.remove('on'));
   showOnHer();
 }
 

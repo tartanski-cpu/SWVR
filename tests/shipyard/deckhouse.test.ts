@@ -98,3 +98,34 @@ describe('the deckhouse', () => {
     expect(useDesign({ ...WITH, sideDoor: 1 }).warnings.join(' ')).toMatch(/deckhouse’s top/);
   });
 });
+
+describe('a deckhouse as wide as the wheelhouse', () => {
+  const NARROW = { ...WITH, dhNarrow: 1, dhHeight: 0 };
+  it('codes: none keeps codes as they were; it reads back, with rails, protection and placed gear', () => {
+    expect(decodeDesign(encodeDesign(NARROW))).toEqual({ design: NARROW });
+    const more = { ...NARROW, rails: 1, guard: 4, towWinch: 1, winchAt: placeValue('winchAt', 0, 1, 2) };
+    expect(decodeDesign(encodeDesign(more))).toEqual({ design: more });
+    expect(decodeDesign(encodeDesign({ ...more, dhNarrow: 0 }))).toEqual({ design: { ...more, dhNarrow: 0 } });
+  });
+
+  it('stands forward of the house only, no wider; the house on it; a side door onto the side deck (no steps: jumped)', () => {
+    const b = useDesign({ ...NARROW, houseWidth: 3, sideDoor: 1 });
+    const def = VESSEL_DEFS.design;
+    const dh = def.layout.deckhouse!;
+    const wh = def.layout.wheelhouse!;
+    const plan = hullPlan(def);
+    expect(dh.z1).toBeLessThan(wh.front + 0.1);
+    for (const [, w] of dh.plan) expect(w).toBeLessThanOrEqual(wh.halfWidth + 0.001);
+    expect(wh.floorY).toBeCloseTo(dh.top + 0.02, 6);
+    expect(b.warnings.join(' ')).not.toMatch(/side door/);
+    expect(wh.sideDoor).toBeDefined();
+    // The side deck alongside the house is clear of the deckhouse.
+    const walk = vesselWalkArea(def, def.layout, footprintsOf({ defId: 'design' }));
+    const z = (wh.sideDoor!.z0 + wh.sideDoor!.z1) / 2;
+    expect(walk.insideSolid(-wh.halfWidth - 0.3, plan.deckY(z) + 0.3, z)).toBe(false);
+  });
+
+  it('full width still leaves the side door off, saying how to have one', () => {
+    expect(useDesign({ ...WITH, sideDoor: 1 }).warnings.join(' ')).toMatch(/as wide as the wheelhouse/);
+  });
+});
