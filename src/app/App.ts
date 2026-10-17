@@ -85,6 +85,7 @@ import { RescueHands, type RescueHandsContext } from '../rescue/rescueHands';
 import { RescueGearView, type AvatarHands } from '../rescue/rescueGearView';
 import { lastSpeech, speechVoices } from '../audio/babble';
 import { mixer, type Bus } from '../audio/mixer';
+import { FmRadio } from '../audio/fmRadio';
 import { Tiller } from '../controls/Tiller';
 import { BoardView, type BoardContext } from '../board/boardView';
 import { NoteKeyboard } from '../board/noteKeyboard';
@@ -214,6 +215,7 @@ export class App {
   private readonly deskHandW = new THREE.Vector3();
   private readonly rescueHands = new RescueHands();
   private readonly gearView = new RescueGearView();
+  private readonly fmRadio = new FmRadio();
   /** Outboard tillers (the skiff's), one per outboard boat. */
   private readonly tillers: Tiller[] = [];
   /** Small wheelhouse parts, hidden from outside (performance; app/interiorDetail.ts). */
@@ -768,16 +770,15 @@ export class App {
     }
     if (this.bridge && testVessel) {
       const c = testVessel.controls;
-      // From the set under the roof; outside the wheelhouse, through its walls (more so with the doors shut).
-      const set = this.bridge.overhead.root.getWorldPosition(this.tmpV);
-      const walls = this.insideHouse ? 0 : this.closed > 0 ? 2 : 1;
-      this.sound.fm.update(c.fmOn > 0 && isPowered(testVessel, 'radio'), c.fmStation, set, set.distanceTo(this.focus), walls);
-      this.bridge.overhead.fmStatus = this.sound.fm.status;
+      this.fmRadio.update(c.fmOn > 0 && isPowered(testVessel, 'radio'), c.fmStation, this.bridge.overhead.root.getWorldPosition(this.tmpV).distanceTo(this.focus));
+      this.bridge.overhead.fmStatus = this.fmRadio.status;
     }
-    // Spatial sounds (the survivor's whistle, ships' horns, the FM set) hear from the head.
-    this.camera.getWorldDirection(this.listenerFwd);
-    this.listenerUp.set(0, 1, 0).applyQuaternion(this.camera.getWorldQuaternion(this.attQ));
-    this.sound.whistle.setListener(this.focus, this.listenerFwd, this.listenerUp);
+    if (this.world.rescue?.active) {
+      // Spatial sounds (the survivor's whistle) hear from the head.
+      this.camera.getWorldDirection(this.listenerFwd);
+      this.listenerUp.set(0, 1, 0).applyQuaternion(this.camera.getWorldQuaternion(this.attQ));
+      this.sound.whistle.setListener(this.focus, this.listenerFwd, this.listenerUp);
+    }
   }
 
   /** Port floodlights, cargo, the desktop hand, our pose out and the crew's avatars in. */

@@ -13,7 +13,6 @@ import { RescueSounds } from '../audio/rescueSounds';
 import { ShipHorn } from '../audio/shipHorn';
 import { WaterAudio } from '../audio/waterAudio';
 import { WhistleAudio } from '../audio/whistleAudio';
-import { FmRadio } from '../audio/fmRadio';
 import { WildlifeAudio } from '../audio/wildlifeAudio';
 import { WindAudio } from '../audio/windAudio';
 
@@ -51,14 +50,12 @@ export class SoundBoard {
   /** The deck hydraulics: tender crane, tow winch, net drum. */
   readonly hydraulics = new HydraulicsAudio();
   readonly wildlife = new WildlifeAudio();
-  /** The FM set's stream, from the set under the wheelhouse roof. */
-  readonly fm = new FmRadio();
 
   /** On a user gesture: start audio (again harmless). */
   unlock(): void {
     this.engine.unlock();
     const ctx = this.engine.context;
-    for (const s of [this.horn, this.alarm, this.contact, this.water, this.radio, this.whistle, this.shipHorn, this.rescue, this.motor, this.wind, this.paper, this.fire, this.anchor, this.hydraulics, this.wildlife, this.fm]) s.attach(ctx);
+    for (const s of [this.horn, this.alarm, this.contact, this.water, this.radio, this.whistle, this.shipHorn, this.rescue, this.motor, this.wind, this.paper, this.fire, this.anchor, this.hydraulics, this.wildlife]) s.attach(ctx);
     watchVoices();
   }
 }

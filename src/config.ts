@@ -1966,8 +1966,7 @@ export const CONFIG = {
    */
   fmRadio: {
     // Owner: pop and 90s, English-speaking, no German stations. Streams are plain HTTPS MP3
-    // or AAC. Each must allow cross-origin use to be placed at the set (all these do); one
-    // that doesn't plays without direction. A dead one just shows NO SIGNAL.
+    // (played in an <audio> element, so no CORS needed); a dead one just shows NO SIGNAL.
     stations: [
       { freq: '88.6', name: 'TruckersFM', url: 'https://live.truckers.fm/' },
       { freq: '91.2', name: 'Heart 90s', url: 'https://media-ssl.musicradio.com/Heart90s' },
@@ -1976,20 +1975,10 @@ export const CONFIG = {
       { freq: '101.5', name: 'Smooth', url: 'https://media-ssl.musicradio.com/SmoothUK' },
       { freq: '104.8', name: 'Radio Paradise', url: 'https://stream.radioparadise.com/mp3-128' },
     ],
-    /** Full level within `fullRange` of the set (m), fading to silence at `range`. */
     fullRange: 3,
     range: 16,
     /** Streams are mastered loud: their level at 100 % on the FM volume setting (owner: too loud). */
     gain: 0.2,
-    /**
-     * Heard from outside the wheelhouse (owner: quieter out on deck), through its walls:
-     * the level times `outsideLevel` and the tone cut above `outsideLp` (Hz) with its door
-     * open; `outsideShutLevel` and `outsideShutLp` with the doors shut.
-     */
-    outsideLevel: 0.45,
-    outsideLp: 2500,
-    outsideShutLevel: 0.22,
-    outsideShutLp: 700,
   },
 
   /**

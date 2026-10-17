@@ -1549,14 +1549,6 @@ How to come back to it:
 
 ### Fixes after V1.0 (on the dev branch; not in the `V1.0` tag)
 
-- **The FM radio comes from the set, and is quieter outside the wheelhouse** (owner: heard the same everywhere; wanted it at the box under the roof, quieter out on the foredeck).
-  - **Before:** the stream played in a plain `<audio>` element: no direction, and a gentle fade with distance (full within 3 m, silent at 16 m), so the foredeck, only a few metres from the set, sounded nearly the same as the helm.
-  - **Now** (`audio/fmRadio.ts`, moved into the sound board as `sound.fm`): the `<audio>` element is routed into the game's WebAudio graph: stream → low-pass → level → HRTF panner at the overhead set → the FM volume bus. The panner gives only the direction; the level by distance is still `fmRadio.fullRange` / `range`.
-  - **Through the walls:** outside the wheelhouse the level is times `fmRadio.outsideLevel` (0.45, about 7 dB down) and the tone is cut above `outsideLp` (2500 Hz) with the door open; `outsideShutLevel` (0.22) and `outsideShutLp` (700 Hz) with the doors shut. Smoothed, so stepping through the door doesn't click. Uses the same inside / doors-shut test as the wind and engine muffling.
-  - **Needs the station's permission:** WebAudio can only take a stream whose server allows cross-origin use. All six listed stations do (checked). If a station ever stops, its load fails once and it's played the old way for the rest of the session (plain element, level and walls by volume, no direction or tone change), so it doesn't go silent.
-  - **The listener now follows your head every frame**, not only during a rescue, so ships' horns are placed right too.
-  - **Checked:** typecheck, all tests; in headless Chromium, a live station playing through the new route (signal measured after the level stage), full level at the helm, 0.085 against 0.2 with the 2500 Hz cut 2.5 m forward of the wheelhouse on the foredeck, and full again back inside; no page errors. **Not checked:** how it sounds (no speakers here), the doors-shut case in the browser, the plain fallback with a real refusing station, and the Quest browser.
-
 - **Lifting a hooked crate aboard in VR; no strobes on crates** (owner test):
   - **The bug:** you could hook a floating crate and bring it alongside, but not lift it aboard. The lift needed your free hand within 1 m (horizontally) of the crate, but the crate rides at the end of the 2.2 m pole, well out from the rail, out of any arm's reach. The old test only passed by putting the hand 2 m outboard of the rail.
   - **Now** (`rescue/rescueHands.ts`), with the crate alongside, either works:
