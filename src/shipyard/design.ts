@@ -304,7 +304,7 @@ export const FIELDS: { key: keyof ShipDesign; steps: number }[] = [
 export type DeckhouseKey = 'dhLength' | 'dhHeight' | 'dhWidth' | 'dhRake';
 export const DECKHOUSE_FIELDS: { key: DeckhouseKey; steps: number }[] = [
   { key: 'dhLength', steps: 8 },
-  { key: 'dhHeight', steps: 3 },
+  { key: 'dhHeight', steps: 5 },
   { key: 'dhWidth', steps: 4 },
   { key: 'dhRake', steps: 3 },
 ];
@@ -337,9 +337,9 @@ export const SCALES = {
   scale: (i: number) => 0.8 + 0.025 * i,
   /** The deckhouse: forward of the wheelhouse (m; 0 none), height over the deck (m), the side deck left beside it (m; 0 out to her sides), front rake (deg from the vertical). */
   dhLength: (i: number) => [0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5][i],
-  // Height: low, for small boats (owner, Oct 2026: 0.4, 0.8 or 1 m; it was 0.8 to 1.4 m, so a
-  // deckhouse code from before then reads with a different deckhouse).
-  dhHeight: (i: number) => [0.4, 0.8, 1.0][i],
+  // Height: low for small boats, taller for big ones (owner, Oct 2026). It was 0.8 to 1.4 m,
+  // then 0.4 to 1 m, so a deckhouse code from before then reads with a different deckhouse.
+  dhHeight: (i: number) => [0.5, 0.8, 1.0, 1.2, 1.5][i],
   dhWidth: (i: number) => [0, 0.3, 0.5, 0.7][i],
   dhRake: (i: number) => [0, 30, 50][i],
   /** Bulwark height (m): 0.3 .. 1.0. */

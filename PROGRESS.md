@@ -3865,6 +3865,11 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Checked in headless Chromium:** a pilot boat with a 3 m, 1.2 m high, full-width, 30°-raked deckhouse, and set in with 0.5 m side decks, upright: views from the bow, stern and port; the wheelhouse on top, the steps up aft, no warnings. Found and fixed on the way: its faces wound inside out (invisible from outside), and its foot showing through her topsides at the bow. **Not checked:** the Quest, a phone, walking up the steps into a raised helm in the game.
 - **Next, for bigger boats (tugs), noted:** the deckhouse top walkable with rails and a ladder or stairs (the walk area's floors and ladders already do this for the workboat's roof), and an interior with a door into it.
 
+### Shipyard: deckhouse heights for big boats too (owner)
+
+- **After trying the deckhouse on bigger boats**, the owner wanted the taller heights back, plus a low one. It's now **0.5, 0.8, 1.0, 1.2 or 1.5 m** (`SCALES.dhHeight`; `dhHeight` has 5 steps).
+- Deckhouse codes from the last two changes read with a different height (only on `next`).
+
 ### Shipyard: lower deckhouses, and the cabin sunk into one (owner)
 
 - **The owner said** the deckhouse was too tall for these small boats: its heights are now **0.4, 0.8 or 1.0 m** (`SCALES.dhHeight`; `dhHeight` has 3 steps, it had 4 from 0.8 to 1.4 m). A code with a deckhouse made before this reads with a different one: those were only a day old, on `next`.

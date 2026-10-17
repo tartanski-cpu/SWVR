@@ -300,7 +300,7 @@ options('chartTable', 'Chart table', ['None', 'Port wall, aft']);
   controls.append(h, p);
 }
 slider('dhLength', 'Forward of the house', (v) => (v ? `${SCALES.dhLength(v).toFixed(1)} m` : 'none'));
-options('dhHeight', 'Height', [0, 1, 2].map((i) => `${SCALES.dhHeight(i).toFixed(1)} m`));
+options('dhHeight', 'Height', [0, 1, 2, 3, 4].map((i) => `${SCALES.dhHeight(i).toFixed(1)} m`));
 options('dhWidth', 'Width', ['To her sides', '0.3 m side decks', '0.5 m', '0.7 m']);
 options('dhRake', 'Front', ['Upright', 'Raked 30°', 'Raked 50°']);
 section('3. Deck gear');

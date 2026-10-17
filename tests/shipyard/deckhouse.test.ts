@@ -68,8 +68,8 @@ describe('the deckhouse', () => {
     expect(roomB.crateRoom).toBeLessThan(roomA.crateRoom);
   });
 
-  it('heights for small boats: 0.4, 0.8 or 1 m', () => {
-    expect([0, 1, 2].map((i) => SCALES.dhHeight(i))).toEqual([0.4, 0.8, 1.0]);
+  it('heights for small boats and big: 0.5 to 1.5 m', () => {
+    expect([0, 1, 2, 3, 4].map((i) => SCALES.dhHeight(i))).toEqual([0.5, 0.8, 1.0, 1.2, 1.5]);
   });
 
   it('the floor height counts from its top: sunk into it, the top is open over the cabin, and the floor is walked', () => {
