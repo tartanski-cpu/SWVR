@@ -1,19 +1,19 @@
 /**
  * The brief (owner, Oct 2026: the Shipyard as a designer's tool with a workflow, not a
  * sandbox): what she's for and what she has to do, set at the start and checked all the way
- * through. A designer starts from the job, not from the sliders: pick the mission, set the
- * targets (speed, range, budget, stability, a crane), and the Shipyard suggests a boat for it.
- * From then on every change is measured against the brief, line by line, with a hint of
- * which step to go to when a line isn't met.
+ * through. A designer starts from the jobs, not from the sliders: tick the game's jobs she's
+ * for and set the targets (speed, range, budget, stability, a crane, deck room); the hull
+ * types are then ranked against it (typeFit.ts; owner, Oct 2026: the type is a result of the
+ * jobs, a second step) and you start from one, a bare hull: her equipment is pinned on her
+ * where it's wanted (pinGear.ts). From then on every change is measured against the brief,
+ * line by line, with a hint of which step to go to when a line isn't met.
  *
  * Shared by everyone in a session, and the same for all the variants (it's the client's
  * requirement; the variants are ways of meeting it).
  */
 import { CONFIG } from '../config';
 import type { GearKind } from '../modular/module';
-import { DEFAULT_DESIGN, type ShipDesign } from './design';
-
-export type MissionId = 'workboat' | 'landing' | 'fishing' | 'pilot' | 'own';
+import type { ShipDesign } from './design';
 
 /**
  * The game's jobs she can be wanted for (owner, Oct 2026: "do you want to do lobster missions?
@@ -64,7 +64,8 @@ export function jobOf(id: JobId): Job | undefined {
 export interface Brief {
   /** The design's name ("Calder Haven harbour workboat"). */
   name: string;
-  mission: MissionId;
+  /** The hull type she was started from (build.ts DESIGN_HULLS), or null before one's picked. */
+  hull: number | null;
   /** Top speed at least (kn), range flat out at least (nm), price at most (GBP), GM at least (m). 0: no target. */
   speedKn: number;
   rangeNm: number;
@@ -79,85 +80,27 @@ export interface Brief {
   pots: number;
 }
 
-export interface Mission {
-  id: MissionId;
-  name: string;
-  /** What she's for, in a line. */
-  what: string;
-  /** The usual targets for the job. */
-  targets: Pick<Brief, 'speedKn' | 'rangeNm' | 'budget' | 'gmM' | 'crane' | 'jobs'>;
-  /** The boat the Shipyard suggests for it: a hull type and its layout (design.ts fields). */
-  suggest: Partial<ShipDesign>;
-}
-
-/**
- * The jobs, each with its usual targets and a suggested starting boat. The suggestions are
- * the hull types' own layouts (build.ts DESIGN_HULLS defaults) with deck gear for the job;
- * the engine is then found by trial (`engineOptions`, run by the page). The targets are set
- * from those trials (Oct 2026: each type's best fit meets its job's targets with a little
- * in hand), so a suggested boat meets its brief. The workboat's towing needs the 400 kW
- * engine for its bollard pull (TOW_BOLLARD_T), so her budget allows for it (£217k with a crane).
- */
-export const MISSIONS: Mission[] = [
-  {
-    id: 'workboat',
-    name: 'Harbour workboat',
-    what: 'Towing, moorings, cargo and odd jobs round the harbour: deck space, a crane, a steady platform.',
-    targets: { speedKn: 10, rangeNm: 50, budget: 230_000, gmM: 0.6, crane: true, jobs: ['cargo', 'towing'] },
-    suggest: { hull: 2, deckCrane: 2, controls: 1 },
-  },
-  {
-    id: 'landing',
-    name: 'Landing craft',
-    what: 'Cargo and vehicles to beaches and islands with no quay: a ramp bow, a flat bottom, a big open deck.',
-    targets: { speedKn: 18, rangeNm: 90, budget: 120_000, gmM: 0.6, crane: false, jobs: ['cargo'] },
-    suggest: { hull: 0, controls: 1 },
-  },
-  {
-    id: 'fishing',
-    name: 'Inshore fishing',
-    what: 'Gillnets and creels close inshore: a beamy, stable boat with an open foredeck to work over.',
-    targets: { speedKn: 15, rangeNm: 70, budget: 140_000, gmM: 0.6, crane: false, jobs: ['potting'] },
-    suggest: { hull: 1, controls: 0 },
-  },
-  {
-    id: 'pilot',
-    name: 'Pilot / crew transfer',
-    what: 'Fast runs out to ships in any weather: a deep-V, a fine raked bow, twin engines, a long house.',
-    targets: { speedKn: 22, rangeNm: 110, budget: 280_000, gmM: 0.5, crane: false, jobs: ['rescue'] },
-    suggest: { hull: 3, controls: 1, twin: 1 },
-  },
-  {
-    id: 'own',
-    name: 'Something else',
-    what: 'Your own brief: pick her jobs and set the targets yourself.',
-    targets: { speedKn: 0, rangeNm: 0, budget: 0, gmM: 0.5, crane: false, jobs: [] },
-    suggest: {},
-  },
-];
-
 /** A cargo run's biggest load (career cargo jobs: 2, 4 or 6 crates), and a string of pots (the pallet's 5). */
 export const DEFAULT_CRATES = 6;
 export const DEFAULT_POTS = 5;
 
-export function missionOf(id: MissionId): Mission {
-  return MISSIONS.find((m) => m.id === id) ?? MISSIONS[MISSIONS.length - 1];
+/** An empty brief: no jobs, no targets but a floor on stability. */
+export function newBrief(): Brief {
+  return { name: '', hull: null, speedKn: 0, rangeNm: 0, budget: 0, gmM: 0.5, crane: false, jobs: [], crates: DEFAULT_CRATES, pots: DEFAULT_POTS };
 }
 
-export function newBrief(mission: MissionId = 'own'): Brief {
-  const t = missionOf(mission).targets;
-  return { name: '', mission, ...t, jobs: [...t.jobs], crates: DEFAULT_CRATES, pots: DEFAULT_POTS };
-}
+/** The hull type each of the first briefs' "missions" stood for (older saved briefs). */
+const OLD_MISSION_HULL: Record<string, number> = { landing: 0, fishing: 1, workboat: 2, pilot: 3 };
 
 /** A brief from storage or the wire, checked (null if it isn't one). */
 export function cleanBrief(b: unknown): Brief | null {
   if (!b || typeof b !== 'object') return null;
   const o = b as Record<string, unknown>;
   const num = (v: unknown, max: number) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? Math.min(max, v) : 0);
-  const mission = MISSIONS.some((m) => m.id === o.mission) ? (o.mission as MissionId) : 'own';
+  const hull = typeof o.hull === 'number' && Number.isInteger(o.hull) && o.hull >= 0 && o.hull < 16 ? o.hull : (OLD_MISSION_HULL[String(o.mission)] ?? null);
   return {
     name: String(o.name ?? '').replace(/\s+/g, ' ').trim().slice(0, 60),
-    mission,
+    hull,
     speedKn: num(o.speedKn, 60),
     rangeNm: num(o.rangeNm, 2000),
     budget: num(o.budget, 5_000_000),
@@ -170,20 +113,14 @@ export function cleanBrief(b: unknown): Brief | null {
 }
 
 /**
- * The boat suggested for a brief: the mission's hull type in its usual layout, with a crane
- * if one's wanted. Its engine is a first guess (the type's own); the page then tries every
- * engine fit on her by trial (`engineOptions`, `pickEngine`) and fits the best.
+ * A bare boat of a hull type to start from (owner: "you start with a raw hull and you pin
+ * things"): the type in its usual layout, with no deck gear; the equipment is pinned on her
+ * where it's wanted (pinGear.ts), and the brief's check lists what her jobs still need. Her
+ * engine is a first guess (the type's own); the page then tries every engine fit on her by
+ * trial (`engineOptions`, `pickEngine`) and fits the best.
  */
-export function suggestFor(brief: Brief, hullDefaults: (hull: number) => Partial<ShipDesign>): Partial<ShipDesign> {
-  const m = missionOf(brief.mission);
-  const hull = m.suggest.hull ?? DEFAULT_DESIGN.hull;
-  const gear: Partial<ShipDesign> = {};
-  // The gear her jobs need, where the Shipyard can fit it (on the cabin roof).
-  for (const id of brief.jobs) for (const g of jobOf(id)?.gear ?? []) {
-    const f = FITTABLE[g.kind];
-    if (f) (gear as Record<string, number>)[f.field] = f.value;
-  }
-  return { ...hullDefaults(hull), ...m.suggest, ...gear, hull, deckCrane: brief.crane ? (m.suggest.deckCrane ?? 2) : 0 };
+export function bareHull(hull: number, hullDefaults: (hull: number) => Partial<ShipDesign>): Partial<ShipDesign> {
+  return { ...hullDefaults(hull), hull, deckCrane: 0, searchlight: 0, fireMonitor: 0 };
 }
 
 /** Every engine fit to try: each engine, single and twin. */
@@ -271,24 +208,24 @@ export function checkBrief(brief: Brief, m: Measured): Check[] {
     out.push({ label: 'Stability (GM)', target: `≥ ${brief.gmM.toFixed(2)} m`, value: `${m.gmM.toFixed(2)} m`, ok, fix: ok ? null : { step: 'hull', hint: 'More beam (Hull), a lower or lighter house (Wheelhouse), less weight up high.' } });
   }
   if (brief.crane) {
-    out.push({ label: 'Deck crane', target: 'wanted', value: m.crane ? 'fitted' : 'none', ok: m.crane, fix: m.crane ? null : { step: 'deck gear', hint: 'Add one on the foredeck or the aft deck (Deck gear).' } });
+    out.push({ label: 'Deck crane', target: 'wanted', value: m.crane ? 'fitted' : 'none', ok: m.crane, fix: m.crane ? null : { step: 'deck gear', hint: 'Pin one on her foredeck or aft deck (Deck gear).' } });
   }
-  const room = 'More deck: a longer or beamier hull (Hull), a shorter house or one further forward or aft (Wheelhouse), gear off the open deck (Deck gear).';
+  const room = 'More deck: “Size her for the brief’s deck cargo” (Hull) makes her longer and beamier until it fits; or a shorter house (Wheelhouse), or gear off the open deck (Deck gear).';
   for (const id of brief.jobs) {
     const job = jobOf(id);
     if (!job) continue;
     if (id === 'cargo' && brief.crates > 0) {
       const ok = m.crates >= brief.crates;
       const short = m.payloadKg < brief.crates * CRATE_KG;
-      out.push({ label: `${job.name}: crates on deck`, target: `≥ ${brief.crates}`, value: `${m.crates}`, ok, fix: ok ? null : { step: short ? 'hull' : 'wheelhouse', hint: short ? `She can carry only ${m.payloadKg} kg: a bigger, heavier hull carries more (Hull).` : room } });
+      out.push({ label: `${job.name}: crates on deck`, target: `≥ ${brief.crates}`, value: `${m.crates}`, ok, fix: ok ? null : { step: 'hull', hint: short ? `She can carry only ${m.payloadKg} kg: a bigger, heavier hull carries more (Hull).` : room } });
     }
     if (id === 'potting' && brief.pots > 0) {
       const ok = m.pots >= brief.pots;
-      out.push({ label: `${job.name}: pots on deck`, target: `≥ ${brief.pots}`, value: `${m.pots}`, ok, fix: ok ? null : { step: 'wheelhouse', hint: room } });
+      out.push({ label: `${job.name}: pots on deck`, target: `≥ ${brief.pots}`, value: `${m.pots}`, ok, fix: ok ? null : { step: 'hull', hint: room } });
     }
     if (id === 'towing') {
       const ok = m.bollardT === null ? null : m.bollardT >= TOW_BOLLARD_T;
-      out.push({ label: `${job.name}: bollard pull`, target: `≥ ${TOW_BOLLARD_T.toFixed(1)} t`, value: m.bollardT === null ? null : `${m.bollardT.toFixed(1)} t`, ok, fix: ok === false ? { step: 'engine', hint: 'More power, or twin engines (Engine).' } : null });
+      out.push({ label: `${job.name}: bollard pull`, target: `≥ ${TOW_BOLLARD_T.toFixed(1)} t`, value: m.bollardT === null ? null : `${m.bollardT.toFixed(1)} t`, ok, fix: ok === false ? { step: 'engine', hint: 'A single big engine pulls hardest (Engine): on trial a twin installation pulls less, its smaller propellers slipping more.' } : null });
     }
     for (const g of job.gear) {
       const fit = FITTABLE[g.kind];
@@ -297,7 +234,7 @@ export function checkBrief(brief: Brief, m: Measured): Check[] {
         out.push({ label: `${job.name}: ${g.name.toLowerCase()}`, target: 'needed', value: 'not in the Shipyard yet', ok: null, na: true, fix: null });
         continue;
       }
-      out.push({ label: `${job.name}: ${g.name.toLowerCase()}`, target: 'needed', value: has ? 'fitted' : 'none', ok: has, fix: has || !fit ? null : { step: fit.step, hint: `Fit one (${fit.step[0].toUpperCase()}${fit.step.slice(1)}): on the cabin roof, or on a pole on deck.` } });
+      out.push({ label: `${job.name}: ${g.name.toLowerCase()}`, target: 'needed', value: has ? 'fitted' : 'none', ok: has, fix: has || !fit ? null : { step: fit.step, hint: 'Pin one on her where you want it (Deck gear).' } });
     }
   }
   return out;

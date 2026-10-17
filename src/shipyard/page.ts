@@ -36,8 +36,9 @@ import { Keeper, newSessionId, sessionIdFrom, type DesignPatch, type Person, typ
 import { cleanDoc, diffFields, fork, MAIN, mergePatch, newDoc, promote, type Variant, type YardDoc } from './variants';
 import { LoopbackHost } from '../net/transport';
 import { fromFrac, inkOf, MAX_SHEETS, noteId, sheetsOf, toFrac, todo, type Frac, type Ink, type Note, type Pin, type Sheet } from './notes';
-import { checkBrief, engineOptions, JOBS, missionOf, MISSIONS, newBrief, pickEngine, suggestFor, type Brief, type JobId, type Tried } from './brief';
-import { deckRoom, type DeckRoom } from './deckRoom';
+import { bareHull, checkBrief, engineOptions, JOBS, jobOf, newBrief, pickEngine, type Brief, type JobId, type Tried } from './brief';
+import { rankTypes } from './typeFit';
+import { deckRoom, sizeForDeck, type DeckRoom } from './deckRoom';
 import { trialCharts } from './trialCharts';
 import type { GearKind } from '../modular/module';
 import { EQUIPMENT, equipmentOf, placeGear, SPOT_NAMES } from './pinGear';
@@ -168,7 +169,7 @@ const STEP_GUIDE: Record<string, string> = {
   Hull: 'Her type and proportions. Length and beam set her size and stability; depth her freeboard; a raked bow throws spray aside and takes a head sea more softly.',
   Wheelhouse: 'Where the crew stand and what they can see. Forward gives a long working deck aft; aft, a foredeck to work over. Keep it low and light for stability.',
   Engine: 'Power for the speed in the brief. The propeller and gearbox are matched to her by trial each time; twin engines add power and handling, and cost.',
-  'Deck gear': 'Working gear on deck. A crane lifts cargo and gear aboard; its weight is designed in. The searchlight and fire monitor go on the wheelhouse roof, or on a pole on deck with their own controls at it.',
+  'Deck gear': 'Pin her equipment on her: pick a piece, then click on her where it goes, and it’s placed there (on the wheelhouse roof, the foredeck or the aft deck, whichever is nearest). Its weight is designed in. Delete its pin to take it off again.',
   Controls: 'What the skipper has at the helm.',
   Paint: 'Her colours, hull and roof.',
 };
@@ -240,6 +241,21 @@ function options(key: keyof ShipDesign, label: string, names: string[]): void {
 }
 
 section('1. Hull');
+{
+  // Size her for the brief's deck cargo again, after the brief or her house has changed.
+  const b = document.createElement('button');
+  b.id = 'sizeDeck';
+  b.textContent = 'Size her for the brief’s deck cargo';
+  b.title = 'Longer and beamier together, a step at a time, until the crates and pots in the brief fit on her deck';
+  b.onclick = () => {
+    const need = deckNeed();
+    $('sizeMsg').textContent = !need.crates && !need.pots ? 'The brief asks for no deck cargo (tick Cargo runs or Lobster & crab pots in the Brief).' : sizeDeck() || 'She already has room for it.';
+  };
+  const m = document.createElement('div');
+  m.id = 'sizeMsg';
+  m.className = 'meta';
+  controls.append(b, m);
+}
 // Picking a hull starts her in her type's usual layout (the sliders then move it all).
 choices('hull', DESIGN_HULLS.map((h) => ({ name: h.name.split(':')[0], note: h.name.split(':')[1]?.trim() })), (i) => DESIGN_HULLS[i].defaults);
 slider('length', 'Length', () => `${boat.figures.lengthM.toFixed(2)} m`);
@@ -264,7 +280,30 @@ slider('windowRake', 'Windows', (v) => {
 slider('visor', 'Roof visor', (v) => `${SCALES.visor(v).toFixed(2)} m`);
 options('roofThickness', 'Roof', [0, 1, 2].map((i) => `${Math.round(SCALES.roofThickness(i) * 100)} cm`));
 options('roofEdge', 'Roof edge', ['', '30\u00b0', '45\u00b0', '60\u00b0']);
-section('3. Engine');
+section('3. Deck gear');
+{
+  // Pin her equipment where it's wanted (pinGear.ts): a button a piece, then click on her.
+  const pal = document.createElement('div');
+  pal.className = 'palette';
+  for (const e of EQUIPMENT) {
+    const b = document.createElement('button');
+    b.textContent = e.name;
+    b.dataset.gear = e.id;
+    b.title = e.field ? `Click, then click on her where the ${e.name.toLowerCase()} goes: it’s placed there` : 'Not in the Shipyard yet: pinned as a to-do';
+    if (!e.field) b.classList.add('later');
+    b.onclick = () => pinGearTool(e.id);
+    pal.appendChild(b);
+  }
+  const box = document.createElement('div');
+  box.id = 'fromPins';
+  const by = document.createElement('h2');
+  by.textContent = 'Or set by hand';
+  controls.append(pal, box, by);
+}
+options('deckCrane', 'Deck crane', ['None', 'Foredeck', 'Aft deck']);
+options('searchlight', 'Searchlight', ['None', 'Roof', 'Foredeck pole', 'Aft deck pole']);
+options('fireMonitor', 'Fire monitor', ['None', 'Roof', 'Foredeck pole', 'Aft deck pole']);
+section('4. Engine');
 choices('engine', ENGINES.map((e) => ({ name: e.name, note: `${e.kg} kg with its gearbox. Propeller and gearbox matched to her by trial.` })));
 {
   const row = document.createElement('label');
@@ -274,16 +313,6 @@ choices('engine', ENGINES.map((e) => ({ name: e.name, note: `${e.kg} kg with its
   box.onchange = () => change({ twin: box.checked ? 1 : 0 });
   controls.appendChild(row);
 }
-section('4. Deck gear');
-{
-  // Equipment asked for on pins, placed when you come to this step (pinGear.ts).
-  const box = document.createElement('div');
-  box.id = 'fromPins';
-  controls.appendChild(box);
-}
-options('deckCrane', 'Deck crane', ['None', 'Foredeck', 'Aft deck']);
-options('searchlight', 'Searchlight', ['None', 'Roof', 'Foredeck pole', 'Aft deck pole']);
-options('fireMonitor', 'Fire monitor', ['None', 'Roof', 'Foredeck pole', 'Aft deck pole']);
 section('5. Controls');
 choices('controls', [
   { name: 'Basic', note: 'Wheel, throttle, key and start, speed and depth, rpm.' },
@@ -891,7 +920,9 @@ function showTodo(): void {
     row.querySelector<HTMLElement>('.text')!.onclick = () => lookAt(fracToVec(p.at));
     row.querySelector<HTMLElement>('[data-act=done]')!.onclick = () => putMyNote({ ...p, done: !p.done, ...(p.done ? { doneBy: undefined } : { doneBy: author().by }) });
     row.querySelector<HTMLElement>('[data-act=del]')!.onclick = () => {
-      if (confirm(`Delete pin ${i + 1}${p.text ? `, “${p.text}”` : ''}?`)) dropMyNote(p.id);
+      const eq = equipmentOf(p.gear);
+      const off = eq?.field && p.placed && p.placed !== MOVED ? ` Its ${eq.name.toLowerCase()} comes off too.` : '';
+      if (confirm(`Delete pin ${i + 1}${p.text ? `, “${p.text}”` : eq ? ` (${eq.name})` : ''}?${off}`)) dropPin(p);
     };
     box.appendChild(row);
   });
@@ -906,6 +937,8 @@ function lookAt(p: THREE.Vector3): void {
 }
 // The tools on the view: 📍 Pin (click her, type a note) and ✏ Sketch (a snapshot of the view to draw on, in 2D).
 let tool: 'pin' | null = null;
+/** Equipment picked on the Deck gear palette: the next click on her pins it there. */
+let presetGear: string | null = null;
 const toolBtns: Record<string, HTMLButtonElement> = {};
 {
   const gap = document.createElement('span');
@@ -926,6 +959,8 @@ const toolBtns: Record<string, HTMLButtonElement> = {};
 }
 function setTool(t: typeof tool): void {
   tool = t;
+  presetGear = null;
+  document.querySelectorAll<HTMLElement>('.palette button').forEach((b) => b.classList.remove('on'));
   orbit.enabled = !t;
   for (const [k, b] of Object.entries(toolBtns)) b.classList.toggle('on', k === t);
   renderer.domElement.style.cursor = t ? 'crosshair' : '';
@@ -948,13 +983,15 @@ renderer.domElement.addEventListener('pointerdown', (e) => {
   if (tool === 'pin') {
     if (!hit) return;
     pendingPin = toFrac(hit.toArray(), hullMin, hullMax);
+    // From the Deck gear palette: the equipment's chosen already, so it's pinned and placed at once.
+    if (presetGear) return addPin(presetGear);
     const ed = $('pinEditor');
     const r = $('view').getBoundingClientRect();
     ed.style.left = `${Math.min(r.width - 250, Math.max(8, e.clientX - r.left - 20))}px`;
     ed.style.top = `${Math.min(r.height - 90, e.clientY - r.top + 14)}px`;
     ed.hidden = false;
     ($('pinText') as HTMLInputElement).value = '';
-    ($('pinGear') as HTMLSelectElement).value = '';
+    ($('pinGear') as HTMLSelectElement).value = presetGear ?? '';
     ($('pinGear') as HTMLSelectElement).focus();
   }
 });
@@ -986,21 +1023,28 @@ renderer.domElement.addEventListener('pointerup', (e) => {
   for (const e of EQUIPMENT) (e.field ? now : later).append(opt(e.id, e.name));
   sel.append(now, later);
 }
-function addPin(): void {
+function pinGearTool(id: string): void {
+  setTool('pin');
+  presetGear = id;
+  document.querySelectorAll<HTMLElement>('.palette button').forEach((b) => b.classList.toggle('on', b.dataset.gear === id));
+  $('toolHint').textContent = `Click on her where the ${equipmentOf(id)!.name.toLowerCase()} goes`;
+}
+function addPin(gearPicked?: string): void {
   if (!pendingPin) return;
-  const text = ($('pinText') as HTMLInputElement).value.replace(/\s+/g, ' ').trim().slice(0, 140);
-  const gear = ($('pinGear') as HTMLSelectElement).value;
+  const text = gearPicked ? '' : ($('pinText') as HTMLInputElement).value.replace(/\s+/g, ' ').trim().slice(0, 140);
+  const gear = gearPicked ?? ($('pinGear') as HTMLSelectElement).value;
   if (!text && !gear) return void ($('pinText') as HTMLInputElement).focus();
   putMyNote({ id: noteId(link?.side?.me ?? ''), kind: 'pin', ...author(), t: Date.now(), at: pendingPin, text, done: false, ...(gear ? { gear } : {}) } satisfies Pin);
   pendingPin = null;
   setTool(null);
-  if (gear && onDeckGearStep()) placeFromPins();
+  // Equipment is placed as soon as it's pinned (owner: pin it, and it's placed for you).
+  if (gear) placeFromPins();
 }
-const onDeckGearStep = () => document.querySelector('.step.on')?.getAttribute('data-step') === 'deck gear';
 /**
  * Put the equipment asked for on pins where the pins are (pinGear.ts), each once: a pin it's
- * done for is marked with where it went and ticked done. Run on coming to the Deck gear
- * step, and for a new pin while you're on it. Gear the Shipyard can't fit stays a to-do.
+ * done for is marked with where it went and ticked done. A piece pinned again somewhere else
+ * moves there (the earlier pin is marked as moved). Run as a pin is added, and on coming to
+ * the Deck gear step (for pins from before). Gear the Shipyard can't fit stays a to-do.
  */
 function placeFromPins(): void {
   const wh = VESSEL_DEFS.design.layout.wheelhouse;
@@ -1011,26 +1055,35 @@ function placeFromPins(): void {
     const put = placeGear(eq, fromFrac(p.at, hullMin, hullMax), house);
     if (!put) continue;
     change(put.patch);
+    for (const o of notes) if (o.kind === 'pin' && o.id !== p.id && o.gear === p.gear && o.placed && o.placed !== MOVED) putMyNote({ ...o, placed: MOVED });
     putMyNote({ ...p, placed: SPOT_NAMES[put.spot], done: true, doneBy: 'the Shipyard' });
   }
   showFromPins();
+}
+/** A pin whose equipment was pinned again elsewhere since. */
+const MOVED = 'moved';
+/** Delete a pin; if its equipment stands where it put it, that comes off too. */
+function dropPin(p: Pin): void {
+  const eq = equipmentOf(p.gear);
+  if (eq?.field && p.placed && p.placed !== MOVED) change({ [eq.field]: 0 } as Partial<ShipDesign>);
+  dropMyNote(p.id);
 }
 /** The Deck gear step's list of what pins asked for, and what became of it. */
 function showFromPins(): void {
   const box = document.getElementById('fromPins');
   if (!box) return;
   const list = todo(notes).filter((p) => equipmentOf(p.gear));
-  box.innerHTML = list.length ? '<div class="meta">From the pins:</div>' : '<div class="meta">Put a pin on her (📍 Pin) and pick the equipment you want there: it’s placed here for you.</div>';
+  box.innerHTML = list.length ? '<div class="meta">Pinned:</div>' : '<div class="meta">Nothing pinned yet. Pick a piece above, then click on her where it goes.</div>';
   for (const p of list) {
     const eq = equipmentOf(p.gear)!;
     const n = todo(notes).indexOf(p) + 1;
     const row = document.createElement('div');
     row.className = 'item';
-    row.innerHTML = `<span class="badge" style="background:${p.colour}">${n}</span><span><b>${esc(eq.name)}</b>${p.text ? ` <span class="meta">“${esc(p.text)}”</span>` : ''}<span class="meta">${p.placed ? `Placed ${esc(p.placed)}.${eq.id === 'searchlight' ? ' (Its pole stands to starboard.)' : eq.id === 'fireMonitor' ? ' (Its pole stands to port.)' : ''}` : eq.field ? 'Placed when you come to this step.' : 'Not in the Shipyard yet: kept on the to-do list.'}</span></span>`;
+    row.innerHTML = `<span class="badge" style="background:${p.colour}">${n}</span><span><b>${esc(eq.name)}</b>${p.text ? ` <span class="meta">“${esc(p.text)}”</span>` : ''}<span class="meta">${p.placed === MOVED ? 'Moved to a later pin.' : p.placed ? `Placed ${esc(p.placed)}.${p.placed === SPOT_NAMES.roof ? '' : eq.id === 'searchlight' ? ' (Its pole stands to starboard.)' : eq.id === 'fireMonitor' ? ' (Its pole stands to port.)' : ''}` : eq.field ? 'Not placed yet.' : 'Not in the Shipyard yet: kept on the to-do list.'}</span></span>`;
     box.appendChild(row);
   }
 }
-$('pinAdd').onclick = addPin;
+$('pinAdd').onclick = () => addPin();
 $('pinText').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') addPin();
   if (e.key === 'Escape') setTool(null);
@@ -1142,15 +1195,6 @@ function setBrief(patch: Partial<Brief>): void {
   side().setBrief({ ...brief, ...patch });
 }
 {
-  const box = $('missions');
-  for (const m of MISSIONS) {
-    const c = document.createElement('div');
-    c.className = 'mission';
-    c.dataset.mission = m.id;
-    c.innerHTML = `<b>${m.name}</b><div>${m.what}</div>`;
-    c.onclick = () => setBrief({ mission: m.id, ...m.targets, jobs: [...m.targets.jobs] });
-    box.appendChild(c);
-  }
   const jobs = $('jobs');
   for (const j of JOBS) {
     const c = document.createElement('label');
@@ -1173,7 +1217,7 @@ function setBrief(patch: Partial<Brief>): void {
   $('designName').addEventListener('change', () => setBrief({ name: ($('designName') as HTMLInputElement).value }));
 }
 function showBrief(): void {
-  document.querySelectorAll<HTMLElement>('.mission').forEach((el) => el.classList.toggle('on', el.dataset.mission === brief.mission));
+  showTypes();
   document.querySelectorAll<HTMLInputElement>('[data-brief]').forEach((el) => {
     const v = brief[el.dataset.brief as keyof Brief];
     if (document.activeElement === el) return;
@@ -1224,10 +1268,10 @@ function showBriefCheck(): void {
   // Lines for gear the Shipyard can't fit yet are shown, but not counted.
   const lines = all.filter((l) => !l.na);
   const box = $('briefCheck');
-  const m = missionOf(brief.mission);
+  const title = brief.name || 'Her brief';
   const met = lines.filter((l) => l.ok).length;
   const verdict = briefVerdict();
-  const head = lines.length ? `${m.name}: ${verdict === true ? 'meets the brief' : verdict === false ? `${met} of ${lines.length} met` : 'checking…'}` : 'No targets yet: set them in the Brief (step 1).';
+  const head = lines.length ? `${esc(title)}: ${verdict === true ? 'every line met' : verdict === false ? `${met} of ${lines.length} met` : 'checking…'}` : 'No targets yet: set them in the Brief (step 1).';
   box.innerHTML = `<div class="verdict">${esc(head)}</div>`;
   for (const l of all) {
     const row = document.createElement('div');
@@ -1239,7 +1283,7 @@ function showBriefCheck(): void {
   }
   const hv = $('handoverVerdict');
   hv.className = verdict === true ? 'ok' : verdict === false ? 'bad' : 'wait';
-  hv.textContent = !lines.length ? 'No brief set: she’s checked against nothing. (Step 1, Brief.)' : verdict === true ? `She meets the brief: ${m.name.toLowerCase()}, every line.` : verdict === false ? `Not yet: ${lines.length - met} line${lines.length - met === 1 ? '' : 's'} of the brief not met (see the right-hand column).` : 'Her sea trials are running…';
+  hv.textContent = !lines.length ? 'No brief set: she’s checked against nothing. (Step 1, Brief.)' : verdict === true ? 'She meets the brief, every line.' : verdict === false ? `Not yet: ${lines.length - met} line${lines.length - met === 1 ? '' : 's'} of the brief not met (see the right-hand column).` : 'Her sea trials are running…';
   showStepNav();
 }
 // Suggest: the job's hull type, then every engine fit tried on her by trial (in the
@@ -1257,17 +1301,62 @@ function trialOf(d: ShipDesign, id: number): Promise<SeaTrialResults | null> {
     searchWorker.postMessage({ id, design: d, match: true });
   });
 }
-$('suggestBrief').onclick = async () => {
+/** The hull types ranked against the brief (typeFit.ts), each with what it can manage and a start button. */
+function showTypes(): void {
+  const box = $('types');
+  box.innerHTML = '';
+  const any = brief.jobs.length || brief.speedKn || brief.rangeNm || brief.budget;
+  for (const [k, t] of rankTypes(brief).entries()) {
+    const c = document.createElement('div');
+    c.className = `type${brief.hull === t.hull ? ' on' : ''}`;
+    const name = DESIGN_HULLS[t.hull].name.split(':')[0];
+    const verdict = !any ? '' : t.misses ? `${t.misses} line${t.misses === 1 ? '' : 's'} short` : k === 0 ? 'Best fit' : 'Can do it';
+    const suits = t.suits.length ? ` Built for ${t.suits.map((j) => jobOf(j)!.name.toLowerCase()).join(', ')}.` : '';
+    c.innerHTML = `<div class="head"><b>${esc(name)}</b><span class="verdict">${verdict}</span></div><div class="what">${esc(t.facts.what)}${esc(suits)}</div><div class="lines">${t.lines.map((l) => `<span class="${l.ok ? 'ok' : 'bad'}">${l.label} ${esc(l.value)}</span>`).join('')}</div>`;
+    const b = document.createElement('button');
+    b.className = k === 0 && any ? 'primary' : '';
+    b.textContent = brief.hull === t.hull ? 'Start again from this hull' : 'Start from this hull';
+    b.onclick = () => void startFrom(t.hull);
+    c.appendChild(b);
+    box.appendChild(c);
+  }
+}
+/** What the brief wants on deck (0: nothing asked). */
+function deckNeed(): { crates: number; pots: number } {
+  return { crates: brief.jobs.includes('cargo') ? brief.crates : 0, pots: brief.jobs.includes('potting') ? brief.pots : 0 };
+}
+/**
+ * Size her for the brief's deck cargo (deckRoom.ts sizeForDeck): longer and beamier together
+ * until it fits. Returns what was done, in words, or '' if nothing was needed.
+ */
+function sizeDeck(): string {
+  const need = deckNeed();
+  if (!need.crates && !need.pots) return '';
+  const r = sizeForDeck(design, need);
+  boat = useDesign(design); // put her back before changing her
+  if (r.patch.length === design.length && r.patch.beam === design.beam) return '';
+  change(r.patch);
+  const what = [need.crates ? `${r.room.crates} crates` : '', need.pots ? `${r.room.pots} pots` : ''].filter(Boolean).join(' and ');
+  return r.met ? `stretched to ${boat.figures.lengthM.toFixed(1)} x ${boat.figures.beamM.toFixed(1)} m for ${what} on deck` : `stretched as far as she goes (${boat.figures.lengthM.toFixed(1)} m) and still short: ${what} on deck`;
+}
+/**
+ * Start from a hull type: her bare hull (no deck gear: owner, pin it on her), sized for the
+ * brief's deck cargo, then every
+ * engine fit tried on her by trial in the background, and the best for the brief fitted
+ * (brief.ts pickEngine).
+ */
+async function startFrom(hull: number): Promise<void> {
   const run = ++searchRun;
-  const patch = suggestFor(brief, (i) => DESIGN_HULLS[i].defaults);
-  change(patch);
-  const h = DESIGN_HULLS[design.hull].name.split(':')[0].toLowerCase();
+  setBrief({ hull });
+  change(bareHull(hull, (i) => DESIGN_HULLS[i].defaults));
+  const sized = sizeDeck();
+  const h = `${DESIGN_HULLS[hull].name.split(':')[0].toLowerCase()}${sized ? `, ${sized}` : ''}`;
   const msg = $('suggestMsg');
   const base = { ...design };
   const tried: Tried[] = [];
   const fits = engineOptions();
   for (const [k, fit] of fits.entries()) {
-    msg.innerHTML = `<b>Suggested:</b> a ${esc(h)}${patch.deckCrane ? ' with a deck crane' : ''}. Trying her engines on trial: ${k + 1} of ${fits.length}…`;
+    msg.innerHTML = `<b>Started:</b> a bare ${esc(h)}. Trying her engines on trial: ${k + 1} of ${fits.length}…`;
     const d = { ...base, ...fit };
     const t = await trialOf(d, run * 100 + k);
     if (run !== searchRun) return; // asked again
@@ -1276,13 +1365,13 @@ $('suggestBrief').onclick = async () => {
   const best = pickEngine(brief, tried);
   // Only if she's still the boat the trials were for (nobody has changed her hull since).
   if (!best || diffFields(design, base).some((k) => k !== 'engine' && k !== 'twin')) {
-    msg.innerHTML = `<b>Suggested:</b> a ${esc(h)}. She was changed while her engines were tried: press Suggest again to fit one.`;
+    msg.innerHTML = `<b>Started:</b> a bare ${esc(h)}. She was changed while her engines were tried: start again to fit one.`;
     return;
   }
   change(best.fit);
   const name = `${best.fit.twin ? 'twin ' : ''}${ENGINES[best.fit.engine ?? 0].name}`;
-  msg.innerHTML = `<b>Suggested:</b> a ${esc(h)}${patch.deckCrane ? ' with a deck crane' : ''}, ${esc(name)}: ${best.topSpeedKn.toFixed(1)} kn, ${best.rangeNm.toFixed(0)} nm, £${best.price.toLocaleString('en-GB')}. ${tried.length} engine fits tried; the cheapest that does the job fitted. Now shape her in the next steps: the brief on the right keeps score.`;
-};
+  msg.innerHTML = `<b>Started:</b> a bare ${esc(h)}, ${esc(name)}: ${best.topSpeedKn.toFixed(1)} kn, ${best.rangeNm.toFixed(0)} nm, £${best.price.toLocaleString('en-GB')} (${tried.length} engine fits tried; the cheapest that does the job). Next: shape her hull and wheelhouse, then pin her equipment where you want it (Deck gear).`;
+}
 $('openSaved').onclick = () => goStep('handover');
 
 // The together box opens from the header.
