@@ -63,7 +63,8 @@ new ResizeObserver(resize).observe(view);
 
 const VIEWS: Record<string, () => { eye: [number, number, number]; at: [number, number, number] }> = {
   'Bow ¾': () => ({ eye: [-0.65 * L(), 0.45 * L(), -0.9 * L()], at: [0, 1, 0] }),
-  Side: () => ({ eye: [-1.5 * L(), 0.25 * L(), 0], at: [0, 1, 0] }),
+  // From starboard, so her bow is to the right, as a profile is always drawn (owner).
+  Side: () => ({ eye: [1.5 * L(), 0.25 * L(), 0], at: [0, 1, 0] }),
   'Stern ¾': () => ({ eye: [0.65 * L(), 0.45 * L(), 0.9 * L()], at: [0, 1, 0] }),
   Plan: () => ({ eye: [0, 1.7 * L(), 0.01], at: [0, 0, 0] }),
   'At the helm': () => {
@@ -180,7 +181,7 @@ slider('windowRake', 'Windows', (v) => {
   const a = SCALES.windowRake(v);
   return a === 0 ? 'upright' : a > 0 ? `${a}\u00b0 reverse` : `${-a}\u00b0 raked`;
 });
-slider('visor', 'Roof visor', (v) => (v === 0 ? 'none' : `${SCALES.visor(v).toFixed(2)} m`));
+slider('visor', 'Roof visor', (v) => `${SCALES.visor(v).toFixed(2)} m`);
 options('roofThickness', 'Roof', [0, 1, 2].map((i) => `${Math.round(SCALES.roofThickness(i) * 100)} cm`));
 options('roofEdge', 'Roof edge', ['', '30\u00b0', '45\u00b0', '60\u00b0']);
 section('3. Engine');

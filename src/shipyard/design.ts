@@ -201,8 +201,8 @@ export const SCALES = {
   bow: (i: number) => 12.5 * i,
   /** Floor height about the deck (m): -0.6 (sunk) .. +0.8 (raised), in 0.2 m steps (index 3 = level with the deck). */
   floor: (i: number) => -0.6 + 0.2 * i,
-  /** Roof visor: how far the roof reaches forward of the top of the front windows (m): 0 .. 0.6. */
-  visor: (i: number) => 0.15 * i,
+  /** Roof visor: how far the roof reaches forward of the top of the front windows (m): 0.15 .. 0.75 (owner: always overhanging, hiding the wipers' works). */
+  visor: (i: number) => 0.15 + 0.15 * i,
   /** Roof thickness (m): 0.1, 0.2, 0.3. */
   roofThickness: (i: number) => [0.1, 0.2, 0.3][i],
   /**

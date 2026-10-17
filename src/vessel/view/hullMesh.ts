@@ -468,7 +468,8 @@ function buildShapedHouse(layout: HouseLayout, col: Paint, base: number): THREE.
     parts.push(fbox(x0, x1, sideS, head, zA - 0.1, zA));
     parts.push(fbox(x0, x1, sideS, head, bandMid - 0.04, bandMid + 0.04));
     parts.push(fbox(x0, x1, head, head + FW, zH, zA));
-    parts.push(box(x0, x1, head + FW, roofY + 0.02, zH, zA, H));
+    // Wall above the band, if the glass stops short of the roof (the Shipyard's runs up to it).
+    if (roofY + 0.02 - (head + FW) > 0.01) parts.push(box(x0, x1, head + FW, roofY + 0.02, zH, zA, H));
   }
 
   // Aft wall: panels either side of the doorway, the band open, and a lintel up to the roof.
@@ -477,7 +478,8 @@ function buildShapedHouse(layout: HouseLayout, col: Paint, base: number): THREE.
   for (const s of [-1, 1]) {
     const [p0, p1] = s > 0 ? [door, hw] : [-hw, -door];
     parts.push(box(p0, p1, base, sideS - FW, zA - w, zA, H), fbox(p0, p1, sideS - FW, sideS, zA - w, zA));
-    parts.push(box(p0, p1, head + FW, roofAft, zA - w, zA, H), fbox(p0, p1, head, head + FW, zA - w, zA));
+    parts.push(fbox(p0, p1, head, head + FW, zA - w, zA));
+    if (roofAft - (head + FW) > 0.01) parts.push(box(p0, p1, head + FW, roofAft, zA - w, zA, H));
     const jx = s > 0 ? door : -door - JAMB;
     parts.push(fbox(jx, jx + JAMB, sideS, head, zA - w, zA));
   }

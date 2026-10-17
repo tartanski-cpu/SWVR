@@ -107,7 +107,8 @@ document.getElementById('sea')!.onclick = () => {
   sea.visible = showSea;
 };
 // Standard views, as multiples of the boat's length so a 26 m hull frames like a 10 m one.
-const views: Record<string, [number, number, number]> = { bow: [-1.0, 0.42, -1.17], side: [-1.7, 0.25, 0], stern: [0.85, 0.42, 1.25], top: [0.001, 2.2, 0] };
+// The side view from starboard: her bow to the right, as a profile is always drawn (owner).
+const views: Record<string, [number, number, number]> = { bow: [-1.0, 0.42, -1.17], side: [1.7, 0.25, 0], stern: [0.85, 0.42, 1.25], top: [0.001, 2.2, 0] };
 function view(k: string): void {
   const L = current?.design.length ?? 12;
   const [x, y, z] = views[k];

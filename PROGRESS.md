@@ -3049,6 +3049,15 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Noted for the boatyard step:** carrying a code into VR. Today it's the `?design=` address; better would be an in-game keypad, or scanning it from the Shipyard page.
 - **Checked:** typecheck; all 511 tests (new: version 5 codes read with the roof the hull's colour); screenshots of an orange roof on a navy pilot boat, "Like hull" on a grey landing craft, and the game's workboat, its hull now plain.
 
+### Shipyard: the roof sits on the windows; side views bow to the right (owner)
+
+- **The owner, with a photo of a Targa-style boat:** the roof shouldn't be two parts. The roof *is* the visor: one slab that always overhangs the windows and hides the wipers' works.
+- **Windows to the roof:** the white band of wall above the windows is gone. The windows now run up to the roof's underside, with only their black frame between (`windowHead = headroom - frameWidth` in `shipyard/build.ts`). The wall pieces above the band are drawn only if there's room for them (`buildShapedHouse`).
+- **Visor:** it always overhangs: 0.15 .. 0.75 m (`SCALES.visor`, was 0 .. 0.6), so any code's visor index now reaches 0.15 m further.
+- **Sidelights:** they move onto the roof slab's edges, since there's no wall above the windows now.
+- **Side views from starboard (owner):** a profile is always drawn with the bow to the right. The Shipyard's Side view and the hull study's side view now look from starboard. The 2D sketch mode, when it comes, should do the same.
+- **Checked:** typecheck; all 511 tests; screenshots from the side (bow right), bow 3/4 and helm of a white pilot boat with a 30 cm roof and a 45 deg edge, and of a navy workboat with an orange roof.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

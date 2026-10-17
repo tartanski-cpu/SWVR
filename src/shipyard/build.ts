@@ -338,7 +338,9 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   // visor), its front edge cut back underneath; the front windows raked either way.
   const roofThickness = SCALES.roofThickness(d.roofThickness);
   const sill = 1.31; // the front glass's, level with the dash top; the sides' and aft's 1.0
-  const windowHead = Math.min(1.95, headroom - 0.2);
+  // The windows run up to the roof's underside, only their frame between (owner: the roof is
+  // one piece, overhanging them, no band of wall above the glass).
+  const windowHead = headroom - CONFIG.pixelPaint.frameWidth;
   const doorHeight = Math.min(1.95, headroom - 0.1);
   // The front below the windows stays upright (its choice isn't offered now, owner).
   const house: HouseShape = { lowerRakeDeg: 0, lowerFromY: Math.min(q.deckY(front), floorY), roofEdgeDeg: SCALES.roofEdge(d.roofEdge), visor: SCALES.visor(d.visor) };
@@ -587,8 +589,9 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     lights: {
       masthead: [0, roofTopAt(roofFront + 0.475) + 1.1, roofFront + 0.475],
       // The sidelights on the house sides, above the windows, just aft of the header.
-      port: [-(hw + 0.03), roofY - 0.15, Math.max(front, zHead) + 0.175],
-      starboard: [hw + 0.03, roofY - 0.15, Math.max(front, zHead) + 0.175],
+      // The sidelights on the roof's edges (the windows run up to it), just aft of the front glass.
+      port: [-(hw + 0.15 + 0.03), roofY + roofThickness / 2, Math.max(front, zHead) + 0.175],
+      starboard: [hw + 0.15 + 0.03, roofY + roofThickness / 2, Math.max(front, zHead) + 0.175],
       stern: [0, q.deckY(transom) + 0.6, transom - 0.05],
     },
   };
