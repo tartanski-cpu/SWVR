@@ -73,6 +73,12 @@ Every value on a boat's bus (modular boats; `src/modular/busKeys.ts`). Generated
 | `fm.station` | index, 0 to 5, whole | player sets | legacy | `fmStation` | FM station, an index into CONFIG.fmRadio.stations. |
 | `fm.tune` | on / off | press | legacy | `fmTune` | TUNE pressed: on to the next station, switching the set on if it was off. |
 
+## whiteboard
+
+| Key | Values | Use | Written by | Old names | What it is |
+|---|---|---|---|---|---|
+| `whiteboard.down` | on / off | player sets | module |  | The pull-down whiteboard pulled down (it rolls up into its box under the roof when not). |
+
 ## electrical
 
 | Key | Values | Use | Written by | Old names | What it is |

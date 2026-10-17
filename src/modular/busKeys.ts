@@ -236,6 +236,10 @@ export const BUS_KEYS = {
 
   // ── Radios ──
   'fm.on': control('fmOn', 'FM radio power.', { aliases: ['fmOn'] }),
+  // (Absent until a pull-down board is first pulled: boats without one read as before.)
+  'whiteboard.down': ((spec) => ({ ...spec, bind: { ...spec.bind, get: (s: VesselState) => (s.controls.boardDown === undefined ? undefined : s.controls.boardDown > 0.5) } }))(
+    control('boardDown', 'The pull-down whiteboard pulled down (it rolls up into its box under the roof when not).', { writer: 'module' }),
+  ),
   'fm.station': setting('fmStation', [0, CONFIG.fmRadio.stations.length - 1], 'index', 'FM station, an index into CONFIG.fmRadio.stations.', { integer: true, aliases: ['fmStation'] }),
   'fm.tune': press('TUNE pressed: on to the next station, switching the set on if it was off.', ['fmTune'], (s) => {
     if (s.controls.fmOn) s.controls.fmStation = (s.controls.fmStation + 1) % CONFIG.fmRadio.stations.length;

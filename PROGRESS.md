@@ -3179,6 +3179,23 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   - in the headless browser, in a design moored at Calder Haven: started the engine, raised the boom, hooked a crate off the foredeck, swung it to starboard (she heeled about 1°), and landed it on the quay.
 - **Not done yet:** the tow winch, A-frame, net drum, windlass and tender crane are modules but drawn at the workboat's fixed places. Making them placeable is next.
 
+### The pull-down whiteboard (owner)
+
+- **The owner didn't like** the whiteboard low on the wall on designs, and asked for one you pull down from the ceiling like a projector screen, a little bigger.
+- **The module (`furniture.whiteboard`)** now also fits a `cabin.overhead` socket.
+  - **The roller:** it hangs in a roller box under the roof (`CONFIG.modules.whiteboard.roller`).
+  - **The board:** 1.1 × 0.8 m (was 0.85 × 0.62), or as wide as there's room for.
+  - **The handle:** a wooden grip on a cord below the board's bottom bar. A pull unrolls it over `rollS` (1 s); pull again and it rolls back up.
+  - **Shared:** whether it's down is the boat's (`whiteboard.down`, `controls.boardDown`), so the crew see the same.
+  - **Writing:** only when it's down (`BoardView` ignores pointing while it's rolled up).
+  - **The key** exists only on a boat with a pull-down board (it starts rolled up), so the other boats' golden runs are unchanged.
+- **On a wall** it's as before (the workboat's).
+- **Designs** hang it from the roof just forward of the aft wall, port of the door, facing forward: pulled down it's at eye height in front of the aft window.
+- **Checked:**
+  - typecheck and all tests (598), including new ones: rolled up at first; the handle asks for it down; it unrolls in its time, from just under the roof; it rolls back up and takes no pointing; golden runs unchanged;
+  - in the game, headless, on a design: rolled up (the box and its handle under the roof), then pulled down (at eye height, ready for notes). Screenshots of both.
+- **Not checked:** pulling it in VR. Walking through it pulled down isn't stopped: it has no footprint.
+
 ### Chartplotter, NAV / WIND screen, task board, whiteboard and chart table on designs (owner)
 
 - **The owner asked** for the chartplotter, whiteboard, task board, chart table and weather instrument to be modules, and shown in the Shipyard: all but the chart table in the advanced package.

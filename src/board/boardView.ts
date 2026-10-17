@@ -85,6 +85,7 @@ export class BoardView {
 
   /** Where a ray meets the board: (x, y) from the top-left (may be outside 0..1). */
   private hit(ray: THREE.Ray): { x: number; y: number; point: THREE.Vector3 } | null {
+    if (!this.root.visible) return null; // a pull-down board rolled up
     this.root.updateWorldMatrix(true, false);
     this.inv.copy(this.root.matrixWorld).invert();
     this.lray.copy(ray).applyMatrix4(this.inv);

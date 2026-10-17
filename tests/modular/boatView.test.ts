@@ -128,3 +128,38 @@ describe('the FM set on its own under a cabin roof (the landing craft)', () => {
     for (const id of ['fmOn', 'fmTune']) expect(ids).toContain(id);
   });
 });
+
+describe('the pull-down whiteboard (a design with the advanced controls)', () => {
+  it('rolled up in its box under the roof; its handle pulls it down, and again rolls it up; written on only when down', async () => {
+    const { useDesign } = await import('../../src/boats/sims');
+    const { DEFAULT_DESIGN } = await import('../../src/shipyard/design');
+    const { createVesselState } = await import('../../src/vessel/vesselState');
+    useDesign({ ...DEFAULT_DESIGN, hull: 2, controls: 1 });
+    const view = assembleView(RECIPES.design, VESSEL_DEFS.design, LIBRARY);
+    const wb = view.modules.find((m) => m.id === 'furniture.whiteboard')!;
+    const board = view.api<import('../../src/board/boardView').BoardView>('furniture.whiteboard')!;
+    const s = createVesselState('v', 'design');
+    const handle = view.controls.find((c) => c.id === 'whiteboardPull')!;
+    expect(handle).toBeDefined();
+    view.update(s, 0.1, null);
+    expect(board.root.visible).toBe(false); // rolled up
+    // Pull: the handle asks for it down; the state says so; it unrolls over its roll time.
+    const sent: [string, number][] = [];
+    handle.bind({ emit: (c: string, v: number) => sent.push([c, v]), haptic: () => {} } as never);
+    handle.pressStart();
+    expect(sent).toEqual([['whiteboard.down', 1]]);
+    s.controls.boardDown = 1;
+    for (let i = 0; i < 12; i++) view.update(s, 0.1, null);
+    expect(board.root.visible).toBe(true);
+    expect(board.root.scale.y).toBe(1);
+    // Hanging from the roof: its top just under it, its face toward her bow (the board faces +z, turned).
+    wb.root.updateMatrixWorld(true);
+    const top = new THREE.Vector3(0, 0, 0).applyMatrix4(wb.root.matrixWorld);
+    expect(top.y).toBeCloseTo(VESSEL_DEFS.design.layout.wheelhouse!.roofY, 6);
+    // And back up.
+    s.controls.boardDown = 0;
+    for (let i = 0; i < 12; i++) view.update(s, 0.1, null);
+    expect(board.root.visible).toBe(false);
+    expect(board.rayDistance(new THREE.Ray(new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, 1)))).toBeNull();
+  });
+});

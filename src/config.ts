@@ -2705,8 +2705,13 @@ export const CONFIG = {
     /** furniture.duty-board (M3c): the duty board's face (m). */
     dutyBoard: { width: 0.72, height: 0.54 },
 
-    /** furniture.whiteboard (M3c): the crew whiteboard's face (m). */
-    whiteboard: { width: 0.85, height: 0.62 },
+    /**
+     * furniture.whiteboard (M3c): the crew whiteboard's face (m). Hung from a cabin roof
+     * (owner: not low on a wall) it's a pull-down board, like a projector screen: rolled up
+     * in a `roller` box (`box` deep) under the roof, unrolled (`width` x `height`, a little
+     * bigger) by its handle in `rollS` seconds.
+     */
+    whiteboard: { width: 0.85, height: 0.62, roller: { width: 1.1, height: 0.8, box: 0.09, rollS: 1.0 } },
 
     /** tool.oil-can (M3c): the can drawn at this fraction of its model's size. */
     oilCan: { scale: 0.85 },

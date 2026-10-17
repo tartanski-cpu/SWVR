@@ -457,11 +457,12 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     chartplotter: [hw - 0.35, roofY - 0.17, front + 0.5] as V3,
     navDisplay: [0, roofY - 0.15, front + 0.42] as V3,
     fm: [hw - 0.35, roofY - 0.11, front + 1.3] as V3,
-    // The boards, on solid wall below the window sill (her walls are glass above it): the
-    // whiteboard on the aft wall, port of the door; the task board on the starboard wall, aft
-    // (their faces' middles).
-    // (2 cm off the wall's inside face, clear of its frames: no flicker between them.)
-    whiteboard: [(-(hw - wall) + 0.1) / 2, F + 1.0 - CONFIG.modules.whiteboard.height / 2 - 0.04, aft - wall - 0.02] as V3,
+    // The task board, on solid wall below the window sill (her walls are glass above it), on
+    // the starboard wall, aft (its face's middle; 2 cm off the wall's inside face, clear of
+    // its frames: no flicker between them).
+    // The whiteboard: a pull-down board hung from the roof just forward of the aft wall
+    // (owner: not low on the wall), port of the door, as wide as fits there.
+    whiteboard: [(-(hw - wall) + 0.1) / 2, roofY, aft - wall - 0.1] as V3,
     dutyBoard: [hw - wall - 0.02, F + 1.0 - CONFIG.modules.dutyBoard.height / 2 - 0.04, aft - wall - 0.5] as V3,
     engineBed: [(eh.x0 + eh.x1) / 2, F - 0.35, hatchZ] as V3,
     engineSpace: [-0.2, F - 0.47, hatchZ] as V3,
@@ -556,7 +557,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     { id: 'fm', type: 'cabin.overhead', transform: { position: at.fm, rotationDeg: [0, -20, 0] }, label: 'Under the roof, out to starboard: the FM set' },
     { id: 'chartplotter', type: 'cabin.overhead', transform: { position: at.chartplotter, rotationDeg: [0, -35, 0] }, label: 'Under the roof, out to starboard ahead of the helm' },
     { id: 'navDisplay', type: 'cabin.overhead', transform: { position: at.navDisplay }, label: 'Overhead, on the centreline ahead of the helm' },
-    { id: 'whiteboard', type: 'wall.panel', transform: { position: at.whiteboard, rotationDeg: [0, 180, 0] }, label: 'Aft wall, port of the door' },
+    { id: 'whiteboard', type: 'cabin.overhead', transform: { position: at.whiteboard, rotationDeg: [0, 180, 0] }, label: 'Under the roof by the aft wall, port of the door: the pull-down whiteboard' },
     { id: 'dutyBoard', type: 'wall.panel', transform: { position: at.dutyBoard, rotationDeg: [0, -90, 0] }, label: 'Starboard wall, aft' },
     ...(chartTableAt ? [{ id: 'chartTable', type: 'cabin.furniture' as const, transform: { position: chartTableAt }, capacity: { size: [ctab.width, roofY - F, ctab.depth] as V3 }, label: 'Port wall, aft: the chart table' }] : []),
     { id: 'doorIn', type: 'wall.panel', transform: { position: [0.45, F + 1.1, aft - wall], rotationDeg: [-90, 0, 0] }, label: 'Door frame, inside' },
@@ -745,7 +746,8 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   recipe.modules.push(
     { socket: 'chartplotter', module: 'nav.chartplotter' },
     { socket: 'navDisplay', module: 'instrument.screen', config: { screen: 'nav', mount: 'hung' } },
-    { socket: 'whiteboard', module: 'furniture.whiteboard' },
+    // (As wide as fits port of the door, up to its own width.)
+    { socket: 'whiteboard', module: 'furniture.whiteboard', config: { roller: { ...CONFIG.modules.whiteboard.roller, width: Math.round(Math.min(CONFIG.modules.whiteboard.roller.width, hw - wall - 0.1 - 0.2) * 100) / 100 } } },
     { socket: 'dutyBoard', module: 'furniture.duty-board' },
   );
   if (chartTableAt) recipe.modules.push({ socket: 'chartTable', module: 'furniture.chart-table' });
