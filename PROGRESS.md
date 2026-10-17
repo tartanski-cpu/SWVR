@@ -3865,6 +3865,26 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Checked in headless Chromium:** a pilot boat with a 3 m, 1.2 m high, full-width, 30°-raked deckhouse, and set in with 0.5 m side decks, upright: views from the bow, stern and port; the wheelhouse on top, the steps up aft, no warnings. Found and fixed on the way: its faces wound inside out (invisible from outside), and its foot showing through her topsides at the bow. **Not checked:** the Quest, a phone, walking up the steps into a raised helm in the game.
 - **Next, for bigger boats (tugs), noted:** the deckhouse top walkable with rails and a ladder or stairs (the walk area's floors and ladders already do this for the workboat's roof), and an interior with a door into it.
 
+### Shipyard: projects (owner)
+
+- **The owner found** no way to start afresh: the Shipyard always came back with the last design, its brief and its pins.
+  - Why: it keeps one working copy per browser (`swvr.yard.session.solo`, the YardDoc) and reloads it every time. Favourites keep only a design's code, not the brief, pins or sketches.
+- **Projects** (`src/shipyard/projects.ts`, under `swvr.yard.projects`, at most 20): the whole YardDoc by name, with a picture of the main design and a line (type and length, variants, pins, sketches).
+  - The **📁 Projects** button in the header opens **Save**, **New design** and the list (**Open**, **Delete**). The project open now is marked; `swvr.yard.project` remembers which it is.
+- **Saving uses her name** (or the type-and-length name). If another project already has that name, the new one is numbered "(2)", so nothing is overwritten by accident. Saving again under the open project's name updates it.
+- **New design and Open save the work on show first** (unless it's the untouched default), then write the chosen doc as the working copy and start the page again on it. The address's design code is dropped, since it would replace her design.
+  - Starting the page again is the simplest sure way to swap everything: the variants, the undo, the trial and the views.
+  - Not allowed while designing together: it would swap the session for everyone. Save still works there.
+- **Storage:** sketches are pictures, so a project can be a few hundred kB. If the browser's storage is full:
+  - Save drops older projects' pictures, then keeps only the newest five, before saying it can't;
+  - New and Open refuse rather than lose the work on show.
+- New save key, so `next` and the game don't clash; the old working copy still reads.
+- **Checked:**
+  - typecheck and tests (634; `tests/shipyard/projects.test.ts`);
+  - a headless run: a named design with a pin → New → blank (no name, default hull, no pins) → the list shows it → Open → name, hull, length and pin back, marked "open now";
+  - a screenshot of the panel.
+- **Not checked:** the Quest's browser, and a full storage.
+
 ### Shipyard: deck gear by pin only (owner)
 
 - **The owner found** the Deck gear step's "Or set by hand" choices redundant next to the pins. They're gone: pins are the one way to put gear on.

@@ -69,6 +69,11 @@
       .chip::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--c); margin-right: 5px; }
       #togetherPop { position: absolute; right: 14px; top: 52px; width: 330px; background: var(--paper); color: var(--ink); border-radius: 10px; box-shadow: 0 6px 24px rgba(0,0,0,0.5); border: 1px solid var(--line); padding: 12px; z-index: 20; }
       #togetherPop[hidden] { display: none; }
+      #projectsPop { position: absolute; right: 14px; top: 52px; width: 360px; max-height: 75vh; overflow-y: auto; background: var(--paper); color: var(--ink); border-radius: 10px; box-shadow: 0 6px 24px rgba(0,0,0,0.5); border: 1px solid var(--line); padding: 12px; z-index: 20; box-sizing: border-box; }
+      #projectsPop .row2 { display: flex; gap: 6px; margin-bottom: 6px; }
+      #projMsg { margin-bottom: 6px; }
+      #projList .fav { margin: 6px 0; }
+      #projList .fav.current { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
       #togetherPop .row2 { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
       #togetherPop input { font: inherit; padding: 4px 6px; min-width: 0; flex: 1; }
       #togetherPop .inSession { display: none; }
@@ -249,7 +254,7 @@
         #top { order: -2; gap: 6px 10px; }
         #designName { width: 150px; }
         #stepNav { order: 3; flex-basis: 100%; }
-        #togetherPop { right: 8px; left: 8px; width: auto; }
+        #togetherPop, #projectsPop { right: 8px; left: 8px; width: auto; }
         #view { order: -1; position: sticky; top: 0; height: 40vh; flex: none; z-index: 2; }
         #side, #results { overflow: visible; }
         #stepBody { overflow: visible; }
@@ -266,7 +271,13 @@
       <div class="topRight">
         <button id="undo" title="Undo (Ctrl+Z)">↶</button><button id="redo" title="Redo (Ctrl+Shift+Z)">↷</button>
         <span id="people"></span>
+        <button id="projectsBtn" title="Save this design work, start a new one, or open a saved one">📁 Projects</button>
         <button id="togetherBtn">👥 Design together</button>
+      </div>
+      <div id="projectsPop" hidden>
+        <div class="row2"><button id="projSave" class="primary">Save</button><button id="projNew">New design</button></div>
+        <div id="projMsg" class="meta">A project is all of this work: the brief, the design and its variants, their pins and sketches. Kept in this browser.</div>
+        <div id="projList"></div>
       </div>
       <div id="togetherPop" hidden>
         <div class="row2"><input id="myName" placeholder="Your name" maxlength="20" /><button id="startSession" class="primary">Start a session</button></div>

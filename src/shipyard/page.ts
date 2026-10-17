@@ -44,6 +44,7 @@ import { trialCharts } from './trialCharts';
 import type { GearKind } from '../modular/module';
 import { EQUIPMENT, equipmentOf, placeGear, removeGear, type Equipment } from './pinGear';
 import { SheetEditor } from './sheetEditor';
+import { addProject, readProjects, removeProject, writeProjects, type Project } from './projects';
 import { addFavourite, cleanName, readFavourites, removeFavourite, writeFavourites, type Favourite, type Store } from './favourites';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -1474,7 +1475,109 @@ async function startFrom(hull: number): Promise<void> {
 $('openSaved').onclick = () => goStep('handover');
 
 // The together box opens from the header.
-$('togetherBtn').onclick = () => ($('togetherPop').hidden = !$('togetherPop').hidden);
+$('togetherBtn').onclick = () => {
+  $('togetherPop').hidden = !$('togetherPop').hidden;
+  $('projectsPop').hidden = true;
+};
+
+// ── Projects (projects.ts): all of this work, kept by name; a new design; a saved one again ──
+/** The project name this work was last saved or opened as (this browser), to mark it in the list. */
+const PROJECT_KEY = 'swvr.yard.project';
+function currentProject(): string {
+  try {
+    return storage()?.getItem(PROJECT_KEY) ?? '';
+  } catch {
+    return '';
+  }
+}
+/** Nothing worth keeping: the default design, a fresh brief, no variants, pins or sketches. */
+function isBlank(doc: YardDoc): boolean {
+  const fresh = newBrief();
+  return doc.variants.length === 1 && !doc.variants[0].notes.length && !diffFields(doc.variants[0].design, DEFAULT_DESIGN).length && (!doc.brief || JSON.stringify(doc.brief) === JSON.stringify(fresh));
+}
+/** Save this work as a project, under her name. Returns the name, or null if it wouldn't save. */
+function saveProject(): string | null {
+  const doc = side().doc();
+  // Her name; if another project has it (not the one this work came from), numbered, so it isn't overwritten.
+  const base = cleanName(brief.name ?? '', defaultName());
+  const taken = new Set(readProjects(storage()).map((x) => x.name.toLowerCase()));
+  let name = base;
+  for (let k = 2; taken.has(name.toLowerCase()) && name !== currentProject(); k++) name = `${base} (${k})`;
+  const pins = doc.variants.reduce((n, v) => n + v.notes.filter((x) => x.kind === 'pin').length, 0);
+  const sketches = doc.variants.reduce((n, v) => n + v.notes.filter((x) => x.kind === 'sheet').length, 0);
+  const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`;
+  const summary = [`${DESIGN_HULLS[doc.variants[0].design.hull].name.split(':')[0].trim()} ${boat.figures.lengthM.toFixed(1)} m`, doc.variants.length > 1 ? plural(doc.variants.length - 1, 'variant') : '', pins ? plural(pins, 'pin') : '', sketches ? plural(sketches, 'sketch').replace('sketchs', 'sketches') : ''].filter(Boolean).join(' · ');
+  const p: Project = { name, savedAt: Date.now(), picture: active === MAIN ? picture() : (readProjects(storage()).find((x) => x.name === name)?.picture ?? ''), summary, doc };
+  const list = addProject(readProjects(storage()), p);
+  // Storage full: drop the oldest projects' pictures, then the oldest projects, before giving up.
+  const ok = writeProjects(storage(), list) || writeProjects(storage(), list.map((x, i) => (i ? { ...x, picture: '' } : x))) || writeProjects(storage(), list.slice(0, 5));
+  if (!ok) return null;
+  try {
+    storage()?.setItem(PROJECT_KEY, name);
+  } catch {
+    /* only the mark in the list */
+  }
+  return name;
+}
+/** Leave this work for `doc` (a new design, or a saved project): this work saved first, then the page starts again on `doc`. */
+function switchProject(doc: YardDoc, name: string): void {
+  const msg = $('projMsg');
+  if (sessionId) {
+    msg.textContent = 'You’re designing together: leave the session first (👥), then start a new design or open another.';
+    return;
+  }
+  if (!isBlank(side().doc())) {
+    const kept = saveProject();
+    if (!kept) {
+      msg.textContent = 'This browser won’t save (storage full or switched off), so this work would be lost: delete an old project, or copy her code first.';
+      return;
+    }
+  }
+  clearTimeout(saveTimer);
+  try {
+    storage()?.setItem(SESSION_KEY('solo'), JSON.stringify({ ...doc, savedAt: Date.now() }));
+    storage()?.setItem(PROJECT_KEY, name);
+    sessionStorage.removeItem(STEP_KEY);
+  } catch {
+    msg.textContent = 'This browser won’t save, so it can’t switch designs.';
+    return;
+  }
+  // Start the page again on it (no code in the address, which would replace her design).
+  location.replace(location.pathname);
+}
+function showProjects(): void {
+  const box = $('projList');
+  const list = readProjects(storage());
+  const now = currentProject();
+  box.innerHTML = list.length ? '' : '<div class="meta">No projects saved yet.</div>';
+  for (const p of list) {
+    const card = document.createElement('div');
+    card.className = `fav${p.name === now ? ' current' : ''}`;
+    const when = new Date(p.savedAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+    card.innerHTML = `${p.picture ? `<img alt="" src="${p.picture}">` : '<div class="nopic"></div>'}<div><b title="${esc(p.name)}">${esc(p.name)}</b><div class="meta">${esc(p.summary)}</div><div class="meta">${when}${p.name === now ? ' · open now' : ''}</div><div class="acts"><button data-act="open">Open</button><button data-act="del">Delete</button></div></div>`;
+    card.querySelector<HTMLElement>('[data-act=open]')!.onclick = () => switchProject(p.doc, p.name);
+    card.querySelector<HTMLElement>('[data-act=del]')!.onclick = () => {
+      if (!confirm(`Delete the project “${p.name}”? Its pins, sketches and variants go with it.`)) return;
+      writeProjects(storage(), removeProject(readProjects(storage()), p.name, p.savedAt));
+      showProjects();
+    };
+    box.appendChild(card);
+  }
+}
+$('projectsBtn').onclick = () => {
+  $('projectsPop').hidden = !$('projectsPop').hidden;
+  $('togetherPop').hidden = true;
+  if (!$('projectsPop').hidden) showProjects();
+};
+$('projSave').onclick = () => {
+  const name = saveProject();
+  $('projMsg').textContent = name ? `Saved as “${name}” (her name, at the top; saving again updates it).` : 'This browser won’t save (storage full or switched off): delete an old project, or copy her code.';
+  showProjects();
+};
+$('projNew').onclick = () => {
+  if (!confirm('Start a new design? This one is saved to Projects first.')) return;
+  switchProject(newDoc({ ...DEFAULT_DESIGN }), '');
+};
 
 // ── Working alone or together: one set of handlers (session.ts) ──
 const handlers: SessionEvents = {
