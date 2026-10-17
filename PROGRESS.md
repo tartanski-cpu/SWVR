@@ -3070,6 +3070,13 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Checked:** typecheck; all tests; production build (the loader is a separate 0.8 kB chunk); in the headless browser it loads with no errors; measured with the original file in view, +1 draw call and +120,568 triangles.
 - **Owner test:** open https://tartanski-cpu.github.io/SWVR/next/?bike, on the Quest or desktop, and turn left from where you start on the quay.
 
+### Fix: flicker on the front of a Shipyard wheelhouse (owner)
+
+- **What it was:** the black corner post between the side windows' sill (1.0 m) and the front glass's (1.31 m) stood proud of the side wall but not of the front. Its front face lay in the white front wall's plane and z-fought.
+- **Fix:** it now stands `FRAME_PROUD` (4 mm) proud all round, forward and up and down too (`buildShapedHouse`).
+- **Also checked:** the shaped house's other overlaps (roof and lining, console, floor, door sill). None put two colours in one plane.
+- **Checked:** typecheck; all tests; a close render of the front corner.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

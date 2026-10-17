@@ -463,7 +463,11 @@ function buildShapedHouse(layout: HouseLayout, col: Paint, base: number): THREE.
     parts.push(prism(x0, x1, low, H));
     parts.push(fbox(x0, x1, top, sideS, zLow(sideS) + 0.1, zA));
     // The front corner post: from the side windows' sill up to the front's, following the lean.
-    if (S > sideS + 0.01) parts.push(prism(x0 - FRAME_PROUD, x1 + FRAME_PROUD, [[zLow(top), top], [zLow(S), S], [zLow(S) + 0.1, S], [zLow(top) + 0.1, top]], col.frame));
+    // Proud of the walls all round, the front too: its face in the front wall's plane flickered (owner).
+    if (S > sideS + 0.01) {
+      const e = FRAME_PROUD;
+      parts.push(prism(x0 - e, x1 + e, [[zLow(top) - e, top - e], [zLow(S) - e, S + e], [zLow(S) + 0.1, S + e], [zLow(top) + 0.1, top - e]], col.frame));
+    }
     parts.push(raked(fbox(x0, x1, S, head, zF, zF + 0.1)));
     parts.push(fbox(x0, x1, sideS, head, zA - 0.1, zA));
     parts.push(fbox(x0, x1, sideS, head, bandMid - 0.04, bandMid + 0.04));
