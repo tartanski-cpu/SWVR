@@ -1838,6 +1838,13 @@ export const CONFIG = {
     hookRetractSpeed: 1.5,
     liftRange: 2.5,
     /**
+     * VR: lifting a hooked crate aboard (alongside). The crate floats at the waterline at the
+     * end of the pole, beyond a hand's reach, so your free hand either takes hold of the
+     * pole, or reaches over the side within this of the crate horizontally (m, about the
+     * pole's length; owner VR test: it was 1 m, which no arm reaches).
+     */
+    liftHandReach: 2.2,
+    /**
      * Landing survivors (milestone 4): moored alongside any quay, or anchored at an
      * anchorage (the skiff takes them), they step off one every `landEvery` s, each taking
      * `landTime` s; they stand ashore `quayInset` m in from the quay edge, `ashoreSpacing`
@@ -1848,7 +1855,7 @@ export const CONFIG = {
     quayInset: 1.6,
     ashoreSpacing: 0.9,
     ashoreTime: 12,
-    /** Night strobe on lifejacket and crates: flash period and length (s); shown when it's this dark (0..1). */
+    /** Night strobe on survivors' lifejackets (crates have none): flash period and length (s); shown when it's this dark (0..1). */
     strobePeriod: 1.0,
     strobeOn: 0.08,
     strobeDarkness: 0.25,

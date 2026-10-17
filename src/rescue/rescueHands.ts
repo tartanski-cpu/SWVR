@@ -102,6 +102,8 @@ export class RescueHands {
   readonly ringPos = new THREE.Vector3();
   readonly hookBase = new THREE.Vector3();
   readonly hookTip = new THREE.Vector3();
+  /** The hook's pole, butt to tip (a hand on it can lift the crate on it). */
+  private readonly pole = new THREE.Line3();
   private readonly tmp = new THREE.Vector3();
   private readonly tmp2 = new THREE.Vector3();
   private readonly closest = new THREE.Vector3();
@@ -429,16 +431,19 @@ export class RescueHands {
   }
 
   /**
-   * Can this hand take the hooked crate? It floats at the waterline, a metre or more below
-   * the rail, out of reach of a hand on deck - so reaching over it is enough: the hand
-   * within a metre of it horizontally (and above it), the crate alongside.
+   * Can this hand take the hooked crate aboard? The crate must be alongside. It floats at
+   * the waterline, a metre or more below the rail, at the end of the hook's pole: out of
+   * reach of a hand on deck. So either the hand takes hold of the pole (hand over hand, to
+   * haul it up), or it reaches over the side towards it: within `liftHandReach` of it
+   * horizontally, and above it.
    */
   private inLiftReach(ctx: RescueHandsContext, t: RescueTarget, grip: THREE.Vector3): boolean {
     const v = ctx.world.vessels[ctx.vesselId];
     if (!v || distanceToHull(v, t.x, t.z) > CONFIG.rescue.liftRange) return false;
+    if (this.pole.set(this.hookBase, this.hookTip).closestPointToPoint(grip, true, this.closest).distanceTo(grip) < GRAB) return true;
     const c = this.crateCentre(ctx, t, this.tmp2);
     const above = grip.y - c.y;
-    return Math.hypot(grip.x - c.x, grip.z - c.z) < 1.0 && above > -0.5 && above < 2.8;
+    return Math.hypot(grip.x - c.x, grip.z - c.z) < CONFIG.rescue.liftHandReach && above > -0.5 && above < 3;
   }
 
   /** Is a hand at the cleat or on the line? */
@@ -470,7 +475,7 @@ export class RescueHands {
       const v = ctx.world.vessels[ctx.vesselId];
       if (hand !== 'desk' && v && this.liftHinted !== on.id && distanceToHull(v, on.x, on.z) <= cfg.liftRange) {
         this.liftHinted = on.id;
-        ctx.notify('Crate alongside: reach over the side above it and grip with your other hand to lift it aboard.');
+        ctx.notify('Crate alongside: grip the hook\'s pole with your other hand, or reach over the side towards it, to lift it aboard.');
       }
       this.towT -= dt;
       if (this.towT <= 0) {

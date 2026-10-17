@@ -2395,6 +2395,24 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
     5. Recover her: covered in the cradle, her tiller can't be touched.
   - **Desktop:** the same; on the skiff, click the tiller and drive with W / S / A / D.
 
+### Fix: lifting a hooked crate aboard in VR; no strobes on crates (owner test)
+
+- **The bug:** in VR you could hook a floating crate and bring it alongside, but not lift it aboard. The lift needed your free hand within 1 m (horizontally) of the crate. But the crate rides at the end of the 2.2 m pole, well out from the rail, so no arm could get there. The test for it passed only because it put the hand 2 m outboard of the rail.
+- **Now** (`rescue/rescueHands.ts`), with the crate alongside, either works:
+  - grip the hook's **pole** with your other hand, anywhere along it (hand over hand, to haul it up);
+  - or reach over the side towards the crate and grip: within `CONFIG.rescue.liftHandReach` (2.2 m, about the pole's length) of it horizontally, and above it. A hand across the deck doesn't count.
+  
+  The hint when it comes alongside says so. Desktop unchanged: click it once it's alongside.
+- **No strobes on crates** (owner request: they made lost cargo too easy to find). Survivors' lifejackets keep theirs. At night you find crates with the searchlight.
+- **Config:** `CONFIG.rescue.liftHandReach` (new, 2.2 m). `rescue.strobePeriod` / `strobeOn` / `strobeDarkness` now apply to survivors only.
+- **Tests (2 new, 468 in all, all pass):**
+  - The VR lift test now uses a hand beside the hook hand at the rail. It fails with the old 1 m rule and passes now.
+  - A hand on the pole lifts the crate.
+  - Neither a hand across the deck nor a crate still out of range lifts it.
+- **Owner test:**
+  - **VR:** take a lost-cargo call, hook a crate and bring it alongside. Grip the pole with your other hand: the crate comes into that hand. Next time try reaching over the side towards it instead. At night, check the crates no longer flash; survivors still do.
+  - **Desktop:** unchanged (click the crate on the hook once it's alongside).
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**
