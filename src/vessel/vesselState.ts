@@ -49,6 +49,8 @@ export interface VesselControls {
   sideDoor?: number;
   /** The gate in the working-deck bulwark (layout.sideGate): 1 open. Absent = shut. */
   sideGate?: number;
+  /** The bow ramp (layout.bowRamp, the landing craft's): 1 lowered. Absent = raised. */
+  bowRamp?: number;
   /** The engine hatch in the wheelhouse floor open (1) or shut (0). */
   engineHatch?: number;
   /** The chart table's drop leaf unfolded (1, or unset) or folded against the wall (0). */

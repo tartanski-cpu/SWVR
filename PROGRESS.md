@@ -2474,6 +2474,53 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   - **Desktop:** the same.
   - **Your eye on her:** her lines, the 0.5 m bulwark, the console layout, where things sit. All her numbers are in `CONFIG.vessels.landingCraft` and her recipe.
 
+### M7a+: the landing craft in aluminium grey, and her bow ramp (owner request; done, on /next/ for the owner to test)
+
+- **The owner asked:** paint her the aluminium grey of the reference pictures, and give her an animated bow ramp worked by a button. The ramp isn't a module: no other boat would carry it, so it's part of her hull. The button can be a module.
+- **Her paint:**
+  - A hull can now carry its own **livery** (a hull fitting, `livery`), which the hull mesh draws her in. A part it doesn't name keeps the workboat's colour.
+  - Hers is the hull study's paint for her design (`src/hulls/designs.ts`): grey topsides (0xb9bec2), dark grey bottom, a darker grey deck and a light grey cabin and roof. Her rails take the study's inner-bulwark grey.
+  - The workboat has no livery and keeps her orange and white.
+- **Her bow ramp** (`src/controls/BowRamp.ts`; numbers in `CONFIG.vessels.landingCraft.layout.bowRamp`):
+  - **Size and swing:** a 1.9 x 1.2 m aluminium plate, hinged across the top of her bow plate. Raised, it leans forward at 60° and closes the bow in place of the bow bulwark. Lowered, it hangs 35° below the horizontal, ready to put its lip on a beach.
+  - **Movement:** it takes 6 s either way, easing in and out as a hydraulic valve opens and closes.
+  - **What it looks like:** turned-up side edges, grip bars across the walking face, a bevelled lip, and hinge knuckles.
+  - **Rams:** two hydraulic rams work it. Their cylinders pivot on posts on the foredeck (drawn with the hull) and their rods on lugs on the ramp's edges. Each frame they turn to stay joined, so the rods slide in and out as it swings.
+  - **Draw calls:** three (the ramp, the two cylinders, the two rods).
+  - **Why only 1.2 m long:** her bow deck is 1.3 m above the water, so a longer ramp would reach a beach better. But raised, a longer one would stand above the helmsman's eye and hide the water ahead. At 1.2 m its top is about 1 m above the deck, roughly the rail's height, and you can see over it from the helm. Tune `length` and `raisedDeg` if you'd like a different trade.
+  - **Bus key and state:** `ramp.bow.down` (`controls.bowRamp`, 1 = lowered; it starts raised). It's a hull feature (`ramp.bow`), as the cabin door is.
+- **The buttons:** two of the existing door-button modules, bound in her recipe to `ramp.bow.down`, labelled "Bow ramp: lower / raise":
+  - one on the cabin's port wall by the helm;
+  - one on the inboard face of the port bulwark by the bow (new sockets `rampCabin` and `rampBow`).
+  
+  Their caps glow green while the ramp is down. No new module was needed.
+- **For now (7b):**
+  - the ramp is only drawn: she floats, steers and walks the same with it up or down;
+  - there's no throttle limit with it down (the plan's interlock);
+  - you can't walk out onto it yet; beaching and walking off come in 7b.
+- **Config:** `CONFIG.vessels.landingCraft.layout.bowRamp` (`width`, `length`, `raisedDeg`, `loweredDeg`, `travelSec`, `ram {x, aft, height, along}`, `button {z, y}`), `places.rampButton`.
+- **Exactly as before for the workboat:**
+  - Golden runs: the only difference is the new key, always "raised", now in each snapshot; they were re-recorded for that alone.
+  - Draw calls unchanged: 62 / 57 / 115 / 36 by day, 65 / 58 / 116 / 35 at night.
+  - The landing craft's helm view: 56 by day (was 52).
+- **Tests (3 new, 483 in all, all pass):**
+  - she's painted grey and the workboat isn't;
+  - two buttons on the ramp's key; it starts raised and goes down and up;
+  - the rams reach from raised to lowered without coming apart, and the ramp swings all the way.
+- **Checked in the browser:**
+  - started in her;
+  - pressed the bow button through the game's own control path: the ramp went down;
+  - pressed the cabin button: it came back up;
+  - screenshots raised, halfway and lowered, from the quarter, the side, the foredeck, the helm and the cabin. Both buttons' caps face out.
+- **Owner test** (at /SWVR/next/, Debug > Boat > Start in > Landing craft):
+  - **VR:**
+    1. Look at her from the pontoon: grey all over.
+    2. Walk forward on the foredeck. Press the green button on the port bulwark by the bow: the ramp lowers over 6 s, with the rams sliding out. Press it again: it rises.
+    3. In the cabin, press the button on the port wall by the helm, and watch the ramp through the windscreen.
+    4. At the helm, raised: check you can see the water ahead over it.
+  - **Desktop:** the same, clicking the buttons.
+  - **Your eye on it:** its length, angles and speed, and the rams' look. The numbers are all in `bowRamp`.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

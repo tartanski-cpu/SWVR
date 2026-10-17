@@ -5,17 +5,19 @@
  * can be walked and worked like the workboat. (Her hydrostatics and sea trials are in
  * seaTrials.test.ts, which runs every vessel type.)
  */
+import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { HULLS, LIBRARY, RECIPES } from '../src/boats/library';
 import { footprintsOf, gearOf } from '../src/boats/sims';
 import { CONFIG } from '../src/config';
+import { BowRamp } from '../src/controls/BowRamp';
 import { IdFactory } from '../src/core/ids';
 import type { Intent } from '../src/core/intents';
 import { stepWorld } from '../src/core/simulation';
 import { createWorld } from '../src/core/world';
 import { fits } from '../src/modular/socket';
 import { validateRecipe } from '../src/modular/recipe';
-import { vesselWalkArea } from '../src/vessel/layout';
+import { hullPlan, vesselWalkArea } from '../src/vessel/layout';
 import { placeVessel } from '../src/vessel/vesselControl';
 import { hasWheelhouse, VESSEL_DEFS } from '../src/vessel/vesselDef';
 
@@ -118,3 +120,43 @@ describe('the landing craft: aboard', () => {
     expect(Math.hypot(v.linearVelocity[0], v.linearVelocity[2]) / 0.5144).toBeGreaterThan(9);
   });
 });
+
+describe('the landing craft: her paint and her bow ramp', () => {
+  it('she is painted in the study\'s aluminium grey; the workboat keeps her orange', () => {
+    expect(def.livery?.topsides).toBe(0xb9bec2);
+    expect(def.livery?.bottom).toBe(0x2f3438);
+    expect(VESSEL_DEFS.workboat.livery).toBeUndefined();
+  });
+
+  it('two door buttons work it, on its own key; it starts raised and goes down and up', () => {
+    const buttons = RECIPES.landingCraft.modules.filter((m) => m.bind?.door === 'ramp.bow.down');
+    expect(buttons.map((m) => m.socket).sort()).toEqual(['rampBow', 'rampCabin']);
+    expect(hull.features?.find((f) => f.id === 'ramp.bow')?.openKey).toBe('ramp.bow.down');
+    const { world, vesselId } = createWorld(new IdFactory(), 'landingCraft');
+    const v = world.vessels[vesselId];
+    expect(v.controls.bowRamp ?? 0).toBe(0);
+    const press = (value: number) => stepWorld(world, [{ playerId: 'p', targetId: v.id, control: 'ramp.bow.down', value } as Intent], DT);
+    press(1);
+    expect(v.controls.bowRamp).toBe(1);
+    press(0);
+    expect(v.controls.bowRamp).toBe(0);
+  });
+
+  it('its rams reach from raised to lowered without coming apart, and swing it all the way', () => {
+    const plan = hullPlan(def);
+    const br = lc.layout.bowRamp;
+    const ramp = new BowRamp(new THREE.Vector3(0, plan.deckY(plan.stem), plan.stem), plan.deckY(plan.stem + br.ram.aft), br, { plate: 0, grip: 0, fittings: 0 });
+    const [shortest, longest] = ramp.ramSpan();
+    expect(longest).toBeGreaterThan(shortest);
+    // Each half (cylinder, rod) is shorter than the shortest span and together they reach the longest.
+    const cyl = ramp.root.children[1] as THREE.Mesh;
+    cyl.geometry.computeBoundingBox();
+    const each = cyl.geometry.boundingBox!.max.z - cyl.geometry.boundingBox!.min.z;
+    expect(each).toBeLessThan(shortest);
+    expect(2 * each).toBeGreaterThan(longest);
+    ramp.sync({ controls: { bowRamp: 1 } } as never);
+    for (let i = 0; i < (br.travelSec + 1) / DT; i++) ramp.tick(DT);
+    expect(ramp.lowered).toBe(1);
+  });
+});
+

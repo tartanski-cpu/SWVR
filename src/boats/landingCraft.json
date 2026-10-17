@@ -212,6 +212,8 @@
     {"socket": "vhf", "module": "radio.vhf"},
     {"socket": "doorIn", "module": "control.door-button", "config": {"label": "Cabin door: open / shut"}},
     {"socket": "doorOut", "module": "control.door-button", "config": {"label": "Cabin door: open / shut"}},
+    {"socket": "rampCabin", "module": "control.door-button", "config": {"label": "Bow ramp: lower / raise"}, "bind": {"door": "ramp.bow.down"}},
+    {"socket": "rampBow", "module": "control.door-button", "config": {"label": "Bow ramp: lower / raise"}, "bind": {"door": "ramp.bow.down"}},
     {"socket": "engineHatch", "module": "fitting.hatch-cover", "config": {"engrave": "ENGINE"}, "bind": {"open": "hatch.engine.open"}},
     {"socket": "dipstick", "module": "tool.dipstick"},
     {"socket": "oilCan", "module": "tool.oil-can"},

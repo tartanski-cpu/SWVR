@@ -1,9 +1,10 @@
 import * as THREE from 'three';
 import type { HullForm } from '../hullForm';
-import type { LayoutConfig } from '../layout';
+import { hullPlan, type LayoutConfig } from '../layout';
+import type { Livery } from '../vesselDef';
 import { flatVertexColorMaterial, mergeParts, part } from '../../render/geometryUtils';
 
-/** Placeholder livery; the vessel definition will own colours once there are several types. */
+/** The workboat's livery, and every hull's for the parts her own (`Livery`) doesn't give. */
 const COLORS = {
   bottom: 0x8c2a22, // antifouling
   topsides: 0xd9622b,
@@ -18,13 +19,23 @@ const COLORS = {
   panel: 0x22272b,
 };
 
+/** Every part's colour, for a hull's livery. */
+type Paint = typeof COLORS;
+
+/** A hull's colours: her livery over the workboat's. */
+export function paintOf(livery?: Livery): Paint {
+  const paint = { ...COLORS };
+  for (const [k, v] of Object.entries(livery ?? {})) if (v !== undefined) paint[k as keyof Paint] = v;
+  return paint;
+}
+
 /**
  * Lofts the hull stations into flat panels (one quad per polygon edge between adjacent
  * stations), closes the transom, and adds bulwarks, rails and the walk-in wheelhouse.
  * Everything static is merged into one vertex-coloured, flat-shaded mesh: one draw call.
  */
-export function buildVesselMesh(form: HullForm, layout: LayoutConfig, exhaustOutlet?: [number, number, number]): THREE.Mesh {
-  const mesh = new THREE.Mesh(mergeParts(buildParts(form, layout, exhaustOutlet)), flatVertexColorMaterial());
+export function buildVesselMesh(form: HullForm, layout: LayoutConfig, exhaustOutlet?: [number, number, number], livery?: Livery): THREE.Mesh {
+  const mesh = new THREE.Mesh(mergeParts(buildParts(form, layout, exhaustOutlet, paintOf(livery))), flatVertexColorMaterial());
   mesh.name = 'hull';
   return mesh;
 }
@@ -39,7 +50,7 @@ function hasHouse(layout: LayoutConfig): layout is HouseLayout {
   return !!(layout.wheelhouse && layout.roof && layout.ladder);
 }
 
-function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet?: [number, number, number]): THREE.BufferGeometry[] {
+function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number, number, number] | undefined, col: Paint): THREE.BufferGeometry[] {
   const positions: number[] = [];
   const colors: number[] = [];
   const c = new THREE.Color();
@@ -74,11 +85,11 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet?: [numbe
     // Interior reference midway between the two stations.
     const mid = inside(i).add(inside(i + 1)).multiplyScalar(0.5);
     const edges: [number, number, number][] = [
-      [0, 1, COLORS.topsides], // port topside
-      [1, 2, COLORS.bottom], // port bottom
-      [2, 3, COLORS.bottom], // starboard bottom
-      [3, 4, COLORS.topsides], // starboard topside
-      [4, 0, COLORS.deck], // deck
+      [0, 1, col.topsides], // port topside
+      [1, 2, col.bottom], // port bottom
+      [2, 3, col.bottom], // starboard bottom
+      [3, 4, col.topsides], // starboard topside
+      [4, 0, col.deck], // deck
     ];
     for (const [a, b, color] of edges) {
       const a0 = P(i, a);
@@ -92,14 +103,14 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet?: [numbe
   // Transom (station 0) as a fan around its centre.
   const tIn = inside(0).add(new THREE.Vector3(0, 0, -1));
   const tC = new THREE.Vector3(0, (st[0].polygon[2][1] + st[0].polygon[0][1]) / 2, st[0].z);
-  for (let k = 0; k < 5; k++) tri(tC, P(0, k), P(0, (k + 1) % 5), tIn, COLORS.topsides);
+  for (let k = 0; k < 5; k++) tri(tC, P(0, k), P(0, (k + 1) % 5), tIn, col.topsides);
   // A square bow (a landing bow: the last station still has width) is closed the same way,
   // by a bow plate.
   const e = st.length - 1;
   if (st[e].halfBeamDeck > SQUARE_BOW) {
     const bIn = inside(e).add(new THREE.Vector3(0, 0, 1));
     const bC = new THREE.Vector3(0, (st[e].polygon[2][1] + st[e].polygon[0][1]) / 2, st[e].z);
-    for (let k = 0; k < 5; k++) tri(bC, P(e, k), P(e, (k + 1) % 5), bIn, COLORS.topsides);
+    for (let k = 0; k < 5; k++) tri(bC, P(e, k), P(e, (k + 1) % 5), bIn, col.topsides);
   }
 
   const hull = new THREE.BufferGeometry();
@@ -107,11 +118,11 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet?: [numbe
   hull.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
   hull.computeVertexNormals();
 
-  const parts = [hull, ...buildDeckFittings(form, layout)];
+  const parts = [hull, ...buildDeckFittings(form, layout, col)];
   // Wet-exhaust outlet: a short pipe stub through the transom.
   const ex = exhaustOutlet;
-  if (ex) parts.push(bar(new THREE.Vector3(ex[0], ex[1], ex[2] - 0.12), new THREE.Vector3(ex[0], ex[1], ex[2]), 0.13, 0.13, COLORS.mast));
-  if (hasHouse(layout)) parts.push(...buildWheelhouse(layout));
+  if (ex) parts.push(bar(new THREE.Vector3(ex[0], ex[1], ex[2] - 0.12), new THREE.Vector3(ex[0], ex[1], ex[2]), 0.13, 0.13, col.mast));
+  if (hasHouse(layout)) parts.push(...buildWheelhouse(layout, col));
   return parts;
 }
 
@@ -151,7 +162,7 @@ function bar(p0: THREE.Vector3, p1: THREE.Vector3, w: number, h: number, color: 
 }
 
 /** Bulwarks, and (if `railHeight` > 0) handrails and stanchions, along the deck edge and across the transom. */
-function buildDeckFittings(form: HullForm, layout: LayoutConfig): THREE.BufferGeometry[] {
+function buildDeckFittings(form: HullForm, layout: LayoutConfig, col: Paint): THREE.BufferGeometry[] {
   const parts: THREE.BufferGeometry[] = [];
   const st = form.stations;
   const bh = layout.bulwarkHeight;
@@ -179,11 +190,11 @@ function buildDeckFittings(form: HullForm, layout: LayoutConfig): THREE.BufferGe
         const p0 = a.clone().lerp(b, u);
         const p1 = a.clone().lerp(b, v);
         // Bulwark plate (a thin bar standing on the deck edge).
-        parts.push(bar(p0.clone().setY(p0.y + bh / 2), p1.clone().setY(p1.y + bh / 2), 0.05, bh, COLORS.topsides));
-        if (rh > 0) parts.push(bar(p0.clone().setY(p0.y + rh), p1.clone().setY(p1.y + rh), 0.05, 0.05, COLORS.rail));
+        parts.push(bar(p0.clone().setY(p0.y + bh / 2), p1.clone().setY(p1.y + bh / 2), 0.05, bh, col.topsides));
+        if (rh > 0) parts.push(bar(p0.clone().setY(p0.y + rh), p1.clone().setY(p1.y + rh), 0.05, 0.05, col.rail));
       }
       const inGap = !!gate && side === gate.side && a.z > gate.z0 && a.z < gate.z1;
-      if (rh > 0 && !inGap) parts.push(bar(edge(i, side, bh), edge(i, side, rh), 0.04, 0.04, COLORS.rail));
+      if (rh > 0 && !inGap) parts.push(bar(edge(i, side, bh), edge(i, side, rh), 0.04, 0.04, col.rail));
     }
   }
   if (gate) {
@@ -197,14 +208,14 @@ function buildDeckFittings(form: HullForm, layout: LayoutConfig): THREE.BufferGe
       return a.lerp(b, (z - a.z) / (b.z - a.z));
     };
     // Gateposts, the full height from deck to rail.
-    for (const z of [gate.z0, gate.z1]) parts.push(bar(edgeAt(z, 0), edgeAt(z, Math.max(rh, bh) + 0.03), 0.06, 0.06, COLORS.rail));
+    for (const z of [gate.z0, gate.z1]) parts.push(bar(edgeAt(z, 0), edgeAt(z, Math.max(rh, bh) + 0.03), 0.06, 0.06, col.rail));
     // The boarding step on the hull side below the gateway, on two brackets. It reaches in
     // past the flare so it meets the plating.
     const mid = edgeAt((gate.z0 + gate.z1) / 2, -gate.stepDrop);
     const len = Math.abs(gate.z1 - gate.z0) - 0.12;
     const step = new THREE.BoxGeometry(0.5, 0.04, len).translate(mid.x + side * 0.08, mid.y, mid.z);
-    parts.push(part(step, COLORS.rail));
-    for (const dz of [-len / 2 + 0.04, len / 2 - 0.04]) parts.push(part(new THREE.BoxGeometry(0.3, 0.2, 0.03).translate(mid.x - side * 0.02, mid.y - 0.12, mid.z + dz), COLORS.rail));
+    parts.push(part(step, col.rail));
+    for (const dz of [-len / 2 + 0.04, len / 2 - 0.04]) parts.push(part(new THREE.BoxGeometry(0.3, 0.2, 0.03).translate(mid.x - side * 0.02, mid.y - 0.12, mid.z + dz), col.rail));
   }
   // Across the transom, with a notch on the centreline for the towline's fairlead (the
   // fairlead itself is drawn with the towline: tow/towlineView.ts).
@@ -217,16 +228,25 @@ function buildDeckFittings(form: HullForm, layout: LayoutConfig): THREE.BufferGe
       [p, m.clone().setX(-gap)],
       [m.clone().setX(gap), q],
     ] as const)
-      parts.push(bar(a.clone().setY(a.y + bh / 2), b.clone().setY(b.y + bh / 2), 0.05, bh, COLORS.topsides));
-  } else parts.push(bar(p.clone().setY(p.y + bh / 2), q.clone().setY(q.y + bh / 2), 0.05, bh, COLORS.topsides));
-  if (rh > 0) parts.push(bar(p.clone().setY(p.y + rh), q.clone().setY(q.y + rh), 0.05, 0.05, COLORS.rail));
-  // Across a square bow, the same.
+      parts.push(bar(a.clone().setY(a.y + bh / 2), b.clone().setY(b.y + bh / 2), 0.05, bh, col.topsides));
+  } else parts.push(bar(p.clone().setY(p.y + bh / 2), q.clone().setY(q.y + bh / 2), 0.05, bh, col.topsides));
+  if (rh > 0) parts.push(bar(p.clone().setY(p.y + rh), q.clone().setY(q.y + rh), 0.05, 0.05, col.rail));
+  // Across a square bow, the same; unless she has a bow ramp, which closes it (it's drawn
+  // apart, moving: controls/BowRamp.ts). Its rams pivot on a post each side.
   const e = st.length - 1;
-  if (st[e].halfBeamDeck > SQUARE_BOW) {
+  const ramp = layout.bowRamp;
+  if (ramp) {
+    const z = st[e].z + ramp.ram.aft;
+    const deck = hullPlan({ hull: form }).deckY(z);
+    for (const side of [-1, 1]) {
+      const x = side * ramp.ram.x;
+      parts.push(bar(new THREE.Vector3(x, deck, z), new THREE.Vector3(x, deck + ramp.ram.height + 0.04, z), 0.09, 0.09, col.rail));
+    }
+  } else if (st[e].halfBeamDeck > SQUARE_BOW) {
     const pb = edge(e, -1, 0);
     const qb = edge(e, 1, 0);
-    parts.push(bar(pb.clone().setY(pb.y + bh / 2), qb.clone().setY(qb.y + bh / 2), 0.05, bh, COLORS.topsides));
-    if (rh > 0) parts.push(bar(pb.clone().setY(pb.y + rh), qb.clone().setY(qb.y + rh), 0.05, 0.05, COLORS.rail));
+    parts.push(bar(pb.clone().setY(pb.y + bh / 2), qb.clone().setY(qb.y + bh / 2), 0.05, bh, col.topsides));
+    if (rh > 0) parts.push(bar(pb.clone().setY(pb.y + rh), qb.clone().setY(qb.y + rh), 0.05, 0.05, col.rail));
   }
   return parts;
 }
@@ -252,7 +272,7 @@ export function frontRake(wh: { floorY: number; windowSill: number; frontSill?: 
  * Walk-in wheelhouse: walls with a window band all round, an aft doorway, floor, helm
  * console, roof and mast. Dimensions come from the layout config (shared with layout.ts).
  */
-function buildWheelhouse(layout: HouseLayout): THREE.BufferGeometry[] {
+function buildWheelhouse(layout: HouseLayout, col: Paint): THREE.BufferGeometry[] {
   const wh = layout.wheelhouse;
   const parts: THREE.BufferGeometry[] = [];
   const hw = wh.halfWidth;
@@ -261,7 +281,7 @@ function buildWheelhouse(layout: HouseLayout): THREE.BufferGeometry[] {
   const sill = wh.floorY + wh.windowSill;
   const head = wh.floorY + wh.windowHead;
   const roof = wh.roofY;
-  const H = COLORS.house;
+  const H = col.house;
 
   // Front wall: the lower panel upright; above the sill (the window band's two mullions and
   // the panel above the glass) raked forward, pilot-house style (frontRake).
@@ -292,7 +312,7 @@ function buildWheelhouse(layout: HouseLayout): THREE.BufferGeometry[] {
       parts.push(box(x0, x1, head, roof, wh.front, door.z0, H));
       parts.push(box(x0, x1, head, roof, door.z1, wh.aft, H));
       parts.push(box(x0, x1, wh.floorY + door.height, roof, door.z0, door.z1, H)); // header
-      parts.push(box(x0, x1, base, wh.floorY + 0.02, door.z0, door.z1, COLORS.floor)); // threshold
+      parts.push(box(x0, x1, base, wh.floorY + 0.02, door.z0, door.z1, col.floor)); // threshold
       // Jambs: forward (the door buttons are on it), and aft, running back to the mullion.
       parts.push(box(x0, x1, sill, wh.floorY + door.height, door.z0 - jamb, door.z0, H));
       parts.push(box(x0, x1, sill, wh.floorY + door.height, door.z1, -0.12, H));
@@ -331,7 +351,7 @@ function buildWheelhouse(layout: HouseLayout): THREE.BufferGeometry[] {
   }
   parts.push(box(-door, door, wh.floorY + wh.doorHeight, roof, wh.aft - w, wh.aft, H));
   // Door sill.
-  parts.push(box(-door, door, base, wh.floorY + 0.02, wh.aft - w, wh.aft, COLORS.floor));
+  parts.push(box(-door, door, base, wh.floorY + 0.02, wh.aft - w, wh.aft, col.floor));
 
   // Floor and roof.
   // The floor, round the engine hatch's opening if she has one, and the engine space under it.
@@ -342,10 +362,10 @@ function buildWheelhouse(layout: HouseLayout): THREE.BufferGeometry[] {
   const fz1 = wh.aft - w;
   const fy0 = wh.floorY - 0.1;
   if (eh) {
-    parts.push(box(fx0, eh.x0, fy0, wh.floorY, fz0, fz1, COLORS.floor));
-    parts.push(box(eh.x1, fx1, fy0, wh.floorY, fz0, fz1, COLORS.floor));
-    parts.push(box(eh.x0, eh.x1, fy0, wh.floorY, fz0, eh.z0, COLORS.floor));
-    parts.push(box(eh.x0, eh.x1, fy0, wh.floorY, eh.z1, fz1, COLORS.floor));
+    parts.push(box(fx0, eh.x0, fy0, wh.floorY, fz0, fz1, col.floor));
+    parts.push(box(eh.x1, fx1, fy0, wh.floorY, fz0, fz1, col.floor));
+    parts.push(box(eh.x0, eh.x1, fy0, wh.floorY, fz0, eh.z0, col.floor));
+    parts.push(box(eh.x0, eh.x1, fy0, wh.floorY, eh.z1, fz1, col.floor));
     // Engine space: four walls and a floor, painted light grey (an engine room's white-ish paint).
     const pit = wh.floorY - eh.pitDepth;
     const t = 0.03;
@@ -357,13 +377,13 @@ function buildWheelhouse(layout: HouseLayout): THREE.BufferGeometry[] {
     // A steel coaming round the opening, flush with the floor.
     parts.push(box(eh.x0 - 0.03, eh.x1 + 0.03, wh.floorY - 0.004, wh.floorY + 0.004, eh.z0 - 0.03, eh.z0, 0x8a9096));
     parts.push(box(eh.x0 - 0.03, eh.x1 + 0.03, wh.floorY - 0.004, wh.floorY + 0.004, eh.z1, eh.z1 + 0.03, 0x8a9096));
-  } else parts.push(box(fx0, fx1, fy0, wh.floorY, fz0, fz1, COLORS.floor));
+  } else parts.push(box(fx0, fx1, fy0, wh.floorY, fz0, fz1, col.floor));
   const rf = layout.roof;
   const top = roof + rf.thickness;
   const ov = rf.overhang;
-  parts.push(box(-hw - ov, hw + ov, roof, top, wh.front - ov, wh.aft + ov, COLORS.roof));
+  parts.push(box(-hw - ov, hw + ov, roof, top, wh.front - ov, wh.aft + ov, col.roof));
   // The brow: the roof edge carried forward over the raked front glass (none if upright).
-  if (fwdAtRoof > 0) parts.push(box(-hw - ov, hw + ov, roof, top, wh.front - fwdAtRoof - ov, wh.front - ov, COLORS.roof));
+  if (fwdAtRoof > 0) parts.push(box(-hw - ov, hw + ov, roof, top, wh.front - fwdAtRoof - ov, wh.front - ov, col.roof));
   // The mast is a module since M5b (modules/mast).
 
   // Roof rail (posts + top rail), open at the ladder head on the aft edge.
@@ -372,9 +392,9 @@ function buildWheelhouse(layout: HouseLayout): THREE.BufferGeometry[] {
   const z0 = wh.front - ov + 0.04;
   const z1 = wh.aft + ov - 0.04;
   const rail = (a: THREE.Vector3, b: THREE.Vector3) => {
-    parts.push(bar(a.clone().setY(top + rf.railHeight), b.clone().setY(top + rf.railHeight), 0.045, 0.045, COLORS.rail));
-    parts.push(bar(a.clone().setY(top + rf.railHeight / 2), b.clone().setY(top + rf.railHeight / 2), 0.035, 0.035, COLORS.rail));
-    for (const p of [a, b]) parts.push(bar(p.clone().setY(top), p.clone().setY(top + rf.railHeight), 0.04, 0.04, COLORS.rail));
+    parts.push(bar(a.clone().setY(top + rf.railHeight), b.clone().setY(top + rf.railHeight), 0.045, 0.045, col.rail));
+    parts.push(bar(a.clone().setY(top + rf.railHeight / 2), b.clone().setY(top + rf.railHeight / 2), 0.035, 0.035, col.rail));
+    for (const p of [a, b]) parts.push(bar(p.clone().setY(top), p.clone().setY(top + rf.railHeight), 0.04, 0.04, col.rail));
   };
   const V = (x: number, z: number) => new THREE.Vector3(x, top, z);
   rail(V(-rx, z0), V(rx, z0)); // front
@@ -388,19 +408,19 @@ function buildWheelhouse(layout: HouseLayout): THREE.BufferGeometry[] {
   const sx = lad.width / 2 - 0.04;
   const footY = 0.9;
   for (const s of [-1, 1]) {
-    parts.push(bar(new THREE.Vector3(lad.x + s * sx, footY, lz), new THREE.Vector3(lad.x + s * sx, top + 1.0, lz), 0.045, 0.045, COLORS.rail));
+    parts.push(bar(new THREE.Vector3(lad.x + s * sx, footY, lz), new THREE.Vector3(lad.x + s * sx, top + 1.0, lz), 0.045, 0.045, col.rail));
   }
   for (let y = footY + 0.32; y < top; y += 0.3) {
-    parts.push(bar(new THREE.Vector3(lad.x - sx, y, lz), new THREE.Vector3(lad.x + sx, y, lz), 0.035, 0.035, COLORS.rail));
+    parts.push(bar(new THREE.Vector3(lad.x - sx, y, lz), new THREE.Vector3(lad.x + sx, y, lz), 0.035, 0.035, col.rail));
   }
 
   // Helm console across the front: body, sloping top (approximated by a step), panel face.
   const c0 = wh.front + w;
   const c1 = c0 + wh.consoleDepth;
   const cTop = wh.floorY + wh.consoleHeight;
-  parts.push(box(-hw + w, hw - w, wh.floorY, cTop, c0, c1, COLORS.console));
-  parts.push(box(-hw + w, hw - w, cTop, cTop + 0.12, c0, c0 + wh.consoleDepth * 0.45, COLORS.console));
-  parts.push(box(-hw + w + 0.05, hw - w - 0.05, cTop - 0.01, cTop + 0.005, c0 + wh.consoleDepth * 0.45, c1 - 0.03, COLORS.panel));
+  parts.push(box(-hw + w, hw - w, wh.floorY, cTop, c0, c1, col.console));
+  parts.push(box(-hw + w, hw - w, cTop, cTop + 0.12, c0, c0 + wh.consoleDepth * 0.45, col.console));
+  parts.push(box(-hw + w + 0.05, hw - w - 0.05, cTop - 0.01, cTop + 0.005, c0 + wh.consoleDepth * 0.45, c1 - 0.03, col.panel));
   return parts;
 }
 

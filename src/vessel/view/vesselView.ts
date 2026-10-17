@@ -29,7 +29,7 @@ export class VesselView {
   ) {
     this.root.name = `vessel:${vesselId}`;
     // A towable hull (towing missions) has its own model: a cruiser, logs, a barge.
-    this.root.add(def.tow ? buildTowModel(def) : buildVesselMesh(def.hull, def.layout, def.exhaust?.position));
+    this.root.add(def.tow ? buildTowModel(def) : buildVesselMesh(def.hull, def.layout, def.exhaust?.position, def.livery));
   }
 
   snapshot(state: VesselState): void {

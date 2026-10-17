@@ -16,6 +16,8 @@ import type { DutyBoardView } from '../duties/dutyBoardView';
 import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
 import { WheelhouseDoor } from '../controls/WheelhouseDoor';
 import { SideGate } from '../controls/SideGate';
+import { BowRamp } from '../controls/BowRamp';
+import { paintOf } from '../vessel/view/hullMesh';
 import { hullPlan } from '../vessel/layout';
 import { RainGlass } from '../vessel/view/rainGlass';
 
@@ -55,6 +57,8 @@ export class BoatView {
   readonly sideDoor: WheelhouseDoor | null = null;
   /** The gate in the working-deck bulwark, if she has one (its buttons are door-button modules). */
   readonly sideGate: SideGate | null = null;
+  /** The bow ramp, if her hull has one (the landing craft; its buttons are door-button modules). */
+  readonly bowRamp: BowRamp | null = null;
   /** The cleats on the bulwark tops (modules; the app shows the skiff's painter on them). */
   readonly cleats: Cleat[];
 
@@ -108,6 +112,15 @@ export class BoatView {
       const gate = new SideGate(at(gt.z0), at(gt.z1), layout.bulwarkHeight, layout.railHeight, gt.side, (gt.openDeg * Math.PI) / 180);
       this.root.add(gate.root);
       this.sideGate = gate;
+    }
+    // The bow ramp: hinged across the top of her bow plate.
+    const br = layout.bowRamp;
+    if (br) {
+      const plan = hullPlan(def);
+      const paint = paintOf(def.livery);
+      const ramp = new BowRamp(new THREE.Vector3(0, plan.deckY(plan.stem), plan.stem), plan.deckY(plan.stem + br.ram.aft), br, { plate: paint.topsides, grip: paint.deck, fittings: paint.mast });
+      this.root.add(ramp.root);
+      this.bowRamp = ramp;
     }
     if (hasWheelhouse(def)) {
       this.rainGlass = new RainGlass(def);
@@ -179,6 +192,8 @@ export class BoatView {
     this.door?.sync(state);
     this.sideDoor?.sync(state);
     this.sideGate?.sync(state);
+    this.bowRamp?.sync(state);
+    this.bowRamp?.tick(dt);
   }
 }
 

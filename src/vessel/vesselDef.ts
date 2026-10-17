@@ -10,7 +10,16 @@ type WorkboatLayout = Workboat['layout'];
  * wheelhouse, its walkable roof and the ladder up to it.
  */
 export type LayoutConfig = Omit<WorkboatLayout, 'wheelhouse' | 'roof' | 'ladder' | 'doorButtons' | 'fairleadGap' | 'engineHatch' | 'sideGate'> &
-  Partial<Pick<WorkboatLayout, 'roof' | 'ladder' | 'doorButtons' | 'fairleadGap' | 'engineHatch' | 'sideGate'>> & { wheelhouse?: WheelhouseLayout };
+  Partial<Pick<WorkboatLayout, 'roof' | 'ladder' | 'doorButtons' | 'fairleadGap' | 'engineHatch' | 'sideGate'>> & { wheelhouse?: WheelhouseLayout; bowRamp?: BowRampLayout };
+
+/** A bow ramp across a square bow (the landing craft's: CONFIG.vessels.landingCraft.layout.bowRamp). */
+export type BowRampLayout = (typeof CONFIG.vessels.landingCraft.layout)['bowRamp'];
+
+/**
+ * A hull's paint, by part (vessel/view/hullMesh.ts draws her in it); a part not given keeps
+ * the workboat's colour. 0xRRGGBB.
+ */
+export type Livery = Partial<Record<'bottom' | 'topsides' | 'deck' | 'house' | 'windows' | 'roof' | 'mast' | 'rail' | 'floor' | 'console' | 'panel', number>>;
 
 /**
  * A wheelhouse: the workboat's, with what not every house has optional (M7): a port side
@@ -116,6 +125,7 @@ export interface VesselDef {
   exhaust?: HullFittings['exhaust'];
   rescueGear?: HullFittings['rescueGear'];
   stowage?: HullFittings['stowage'];
+  livery?: HullFittings['livery'];
   tow?: TowLook;
 }
 
@@ -143,6 +153,8 @@ export interface HullFittings {
    * axes; the binoculars turned `yawDeg`). Gear she has no place for isn't aboard.
    */
   stowage?: { extinguisher?: Vec3; torch?: Vec3; binoculars?: { at: Vec3; yawDeg: number } };
+  /** Her paint (unset: the workboat's orange and white). */
+  livery?: Livery;
   tow?: TowLook;
 }
 

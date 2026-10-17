@@ -1010,6 +1010,29 @@ export const CONFIG = {
         doorButtons: { x: 0.45, height: 1.1 },
         /** The engine under a hatch in the cabin floor, aft to starboard. */
         engineHatch: { x0: 0.15, x1: 0.85, z0: 2.25, z1: 3.05, pitDepth: 0.75 },
+        /**
+         * The bow ramp (her hull's own, not a module: controls/BowRamp.ts). A plate `width` x
+         * `length` m hinged across the top of the bow plate. Raised, it leans forward at
+         * `raisedDeg` above the horizontal and closes the bow in place of a bulwark; lowered,
+         * it hangs `loweredDeg` below it, ready to put its lip on a beach. It takes
+         * `travelSec` either way. Two hydraulic rams work it, one each side: their cylinders
+         * pivot on posts `ram.aft` m aft of the hinge and `ram.height` m above the deck,
+         * `ram.x` m off the centreline; their rods on lugs `ram.along` m up the ramp. Kept
+         * short (top ~1 m above the deck raised) so the helm can still see the water ahead
+         * over it: a longer ramp reaches a beach better and blinds the helm more.
+         * Its push buttons are door-button modules bound to 'ramp.bow.down': one in the cabin
+         * (places.rampButton), one on the inboard face of the port bulwark by the bow, at
+         * `button.z`, `button.y` above the deck there.
+         */
+        bowRamp: {
+          width: 1.9,
+          length: 1.2,
+          raisedDeg: 60,
+          loweredDeg: -35,
+          travelSec: 6,
+          ram: { x: 0.98, aft: 1.0, height: 0.9, along: 0.8 },
+          button: { z: -4.3, y: 0.42 },
+        },
         bulwarkHeight: 0.5,
         railHeight: 0.9,
         fairleadGap: 0,
@@ -1052,6 +1075,8 @@ export const CONFIG = {
       places: {
         console: [0, 1.92, 1.285] as [number, number, number],
         breakerPanel: [0.98, 1.62, 1.6] as [number, number, number],
+        /** The bow ramp's button in the cabin: the port wall by the helm (the breaker panel's mirror). */
+        rampButton: [-0.98, 1.75, 1.5] as [number, number, number],
         batteryMaster: [0.6, 1.5, 3.31] as [number, number, number],
         batterySelector: [0.85, 1.5, 3.31] as [number, number, number],
         vhf: [-0.75, 2.8, 1.25] as [number, number, number],

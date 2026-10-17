@@ -231,6 +231,12 @@ Every value on a boat's bus (modular boats; `src/modular/busKeys.ts`). Generated
 |---|---|---|---|---|---|
 | `gate.side.open` | on / off | player sets | legacy | `sideGate` | The gate in the working-deck bulwark open (starts shut). |
 
+## ramp
+
+| Key | Values | Use | Written by | Old names | What it is |
+|---|---|---|---|---|---|
+| `ramp.bow.down` | on / off | player sets | legacy | `bowRamp` | The bow ramp lowered (starts raised; the landing craft). |
+
 ## hatch
 
 | Key | Values | Use | Written by | Old names | What it is |
