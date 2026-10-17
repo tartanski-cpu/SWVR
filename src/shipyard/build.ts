@@ -320,13 +320,13 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   const roofY = floorY + headroom;
   const wall = 0.06;
   // The house's shape (owner): the roof one flat slab reaching forward over the windows (the
-  // visor), its front edge cut back underneath; the front windows raked either way; the
-  // front below them leaning forward.
+  // visor), its front edge cut back underneath; the front windows raked either way.
   const roofThickness = SCALES.roofThickness(d.roofThickness);
   const sill = 1.31; // the front glass's, level with the dash top; the sides' and aft's 1.0
   const windowHead = Math.min(1.95, headroom - 0.2);
   const doorHeight = Math.min(1.95, headroom - 0.1);
-  const house: HouseShape = { lowerRakeDeg: SCALES.lowerFront(d.lowerFront), lowerFromY: Math.min(q.deckY(front), floorY), roofEdgeDeg: SCALES.roofEdge(d.roofEdge), visor: SCALES.visor(d.visor) };
+  // The front below the windows stays upright (its choice isn't offered now, owner).
+  const house: HouseShape = { lowerRakeDeg: 0, lowerFromY: Math.min(q.deckY(front), floorY), roofEdgeDeg: SCALES.roofEdge(d.roofEdge), visor: SCALES.visor(d.visor) };
   const windowRake = SCALES.windowRake(d.windowRake);
   // Where the front windows' foot and head stand (z), as hullMesh draws them.
   const ahead = Math.max(0, floorY + sill - house.lowerFromY) * Math.tan((house.lowerRakeDeg * Math.PI) / 180);

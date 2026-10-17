@@ -17,11 +17,12 @@ describe('Shipyard design codes', () => {
     for (const f of FIELDS)
       for (let v = 0; v < f.steps; v++) {
         const d: ShipDesign = { ...DEFAULT_DESIGN, [f.key]: v };
-        expect(decodeDesign(encodeDesign(d))).toEqual({ design: d });
+        // The front below the windows isn't offered now: any code reads it as upright.
+        expect(decodeDesign(encodeDesign(d))).toEqual({ design: { ...d, lowerFront: 0 } });
       }
     const max = Object.fromEntries(FIELDS.map((f) => [f.key, f.steps - 1])) as unknown as ShipDesign;
     const min = Object.fromEntries(FIELDS.map((f) => [f.key, 0])) as unknown as ShipDesign;
-    for (const d of [max, min]) expect(decodeDesign(encodeDesign(d))).toEqual({ design: d });
+    for (const d of [max, min]) expect(decodeDesign(encodeDesign(d))).toEqual({ design: { ...d, lowerFront: 0 } });
   });
 
   it('fits: every combination of the choices in the top half of 60 bits (12 characters), above version 4\'s', () => {

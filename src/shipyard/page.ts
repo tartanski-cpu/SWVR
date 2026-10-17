@@ -175,7 +175,6 @@ slider('floor', 'Floor height', () => {
   const f = boat.figures.floorM;
   return Math.abs(f) < 0.05 ? 'at the deck' : `${signed(f, ' m', 1)}${f < 0 ? ' (sunk)' : ''}`;
 });
-slider('lowerFront', 'Front below', (v) => (v === 0 ? 'upright' : `${SCALES.lowerFront(v)}\u00b0 fwd`));
 slider('windowRake', 'Windows', (v) => {
   const a = SCALES.windowRake(v);
   return a === 0 ? 'upright' : a > 0 ? `${a}\u00b0 reverse` : `${-a}\u00b0 raked`;

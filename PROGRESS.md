@@ -3025,6 +3025,13 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Checked:** typecheck; all tests (new: version 4 codes read with the default roof; the shape's extremes now include the thickest roof with a 60 deg edge, with and without a visor); screenshots of a patrol shape (30 cm, 45 deg, visor 0.45 m) and the pilot's default from the side, bow, stern and helm; the page's option rows.
 - **Owner test:** on the Shipyard page, try Roof and Roof edge with the visor at 0.3 m or more, from the side.
 
+### Shipyard: the "front below" choice withdrawn (owner)
+
+- **The owner:** the lean of the front below the windows wasn't doing what he wanted. Leave it for now.
+- **Removed:** its slider is gone from the page, and the build always draws that front upright (`lowerRakeDeg: 0`).
+- **Kept:** its place in the code (`lowerFront`), so codes stay 13 characters and version 5. Any code reads it as 0, so an older code with a lean comes in upright. The lean's drawing (`buildShapedHouse`, `frontRake`'s `ahead`) and the walk area's allowance stay, ready if it comes back.
+- **Checked:** typecheck; all 510 tests (the round-trip test now expects the lean read as 0); a screenshot of a design that had a lean, now upright, and of the page.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

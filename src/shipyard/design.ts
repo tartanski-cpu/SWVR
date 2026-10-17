@@ -59,7 +59,11 @@ export interface ShipDesign {
   roofEdge: number;
   /** Front windows' rake (SCALES.windowRake): leaning aft (a fast patrol boat) .. upright .. leaning forward (a pilot house). */
   windowRake: number;
-  /** The front below the windows: upright .. leaning forward at the top (SCALES.lowerFront). */
+  /**
+   * The front below the windows: upright .. leaning forward at the top (SCALES.lowerFront).
+   * Not offered now (owner: not what he wanted; left for later): always 0, and read as 0
+   * from any code, its place in the code kept.
+   */
   lowerFront: number;
   /** Twin engines (two of the engine package, side by side, in lockstep): 0 single, 1 twin. */
   twin: number;
@@ -310,14 +314,15 @@ export function decodeDesign(code: string): { design: ShipDesign } | { error: st
   if (s.length === 13) {
     if (all >= V5_BASE) {
       if (all - V5_BASE >= COMBINATIONS) return { error: `that code is from a newer Shipyard than this game (it reads versions 1 to ${DESIGN_VERSION})` };
-      return unpack<ShipDesign>(all - V5_BASE, FIELDS);
+      const v5 = unpack<ShipDesign>(all - V5_BASE, FIELDS);
+      return 'design' in v5 ? { design: { ...v5.design, lowerFront: 0 } } : v5;
     }
     if (all >= V4_COMBINATIONS) return { error: 'that isn’t a Shipyard code' };
     // Version 4: its raked roof becomes the thinnest flat slab, square at the front.
     const v4 = unpack<V4Design>(all, V4_FIELDS);
     if (!('design' in v4)) return v4;
     const { roofRake: _r, ...rest } = v4.design;
-    return { design: { ...rest, roofThickness: 0, roofEdge: 0 } };
+    return { design: { ...rest, lowerFront: 0, roofThickness: 0, roofEdge: 0 } };
   }
   const old = s.length === 11 ? (all >= V3_COMBINATIONS ? { error: 'that isn’t a Shipyard code' } : unpack<OldDesign>(all, V3_FIELDS)) : decodeV12(all);
   return 'design' in old ? { design: upgrade(old.design) } : old;
