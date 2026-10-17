@@ -7,6 +7,10 @@
  * vertical). For now it's solid: not walked on, nothing inside (a walkable top with rails,
  * and an interior, come with bigger boats).
  *
+ * If the wheelhouse's floor is sunk into it (the Shipyard's floor height, measured from its
+ * top), its top is left open over the cabin (`well`): the wheelhouse's own walls go down
+ * inside it to the floor, and its aft door is in the wheelhouse's aft wall as usual.
+ *
  * Used by the hull's drawing (vessel/view/hullMesh.ts), walking (vessel/layout.ts: the deck
  * under it is closed, and it's solid below its top), and cargo (cargo/deck.ts).
  */
@@ -17,6 +21,8 @@ export interface DeckhouseLayout {
   rakeDeg: number;
   /** Its half width along her, [z, half width] from front to aft. */
   plan: [number, number][];
+  /** Where its top is open for a wheelhouse sunk into it: inside the house's walls, from its front aft to `z1`. */
+  well?: { halfWidth: number; z0: number };
 }
 
 /** Its half width at z (interpolated along its plan; 0 outside it). */

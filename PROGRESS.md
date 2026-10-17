@@ -3865,6 +3865,21 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Checked in headless Chromium:** a pilot boat with a 3 m, 1.2 m high, full-width, 30°-raked deckhouse, and set in with 0.5 m side decks, upright: views from the bow, stern and port; the wheelhouse on top, the steps up aft, no warnings. Found and fixed on the way: its faces wound inside out (invisible from outside), and its foot showing through her topsides at the bow. **Not checked:** the Quest, a phone, walking up the steps into a raised helm in the game.
 - **Next, for bigger boats (tugs), noted:** the deckhouse top walkable with rails and a ladder or stairs (the walk area's floors and ladders already do this for the workboat's roof), and an interior with a door into it.
 
+### Shipyard: lower deckhouses, and the cabin sunk into one (owner)
+
+- **The owner said** the deckhouse was too tall for these small boats: its heights are now **0.4, 0.8 or 1.0 m** (`SCALES.dhHeight`; `dhHeight` has 3 steps, it had 4 from 0.8 to 1.4 m). A code with a deckhouse made before this reads with a different one: those were only a day old, on `next`.
+- **The floor height now works with a deckhouse.** The owner moved the wheelhouse floor and nothing happened: it was set aside, the house standing on the deckhouse's top. Now the same slider is measured from the deckhouse's top:
+  - level with it;
+  - raised above it;
+  - or sunk into it (the slider reads "0.4 m into the deckhouse").
+  Sunk below the deck, the usual check applies: is her hull wide enough down there?
+- **Sunk, the deckhouse's top is open over the cabin** (`DeckhouseLayout.well`, `vessel/deckhouse.ts`). Its top and aft face are drawn only beside the wheelhouse (`hullMesh.ts buildDeckhouse`); the wheelhouse's own walls go down inside it to the floor, and its aft door and steps work as before. The plate left out comes off its weight and price.
+- `figures.floorOnDeckhouseM` (build.ts) gives the page the floor's height from the deckhouse's top.
+- **Checked:**
+  - typecheck and tests (630; `tests/shipyard/deckhouse.test.ts` adds the heights, and a sunk floor: open top, floor walked, not solid inside);
+  - headless screenshots of a 14 m pilot boat with a 0.8 m deckhouse, floor level with it and 0.4 m into it (side, stern ¾, at the helm).
+- **Not checked:** walking in through the door in the game.
+
 ### Shipyard: dark mode (owner)
 
 - **The owner asked** for "the dark mode makeover" of the Shipyard page.

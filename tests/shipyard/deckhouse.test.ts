@@ -37,7 +37,8 @@ describe('the deckhouse', () => {
     expect(deckhouseHalfWidth(dh, mid)).toBeCloseTo(plan.halfBeam(mid) - 0.12, 2);
     expect(deckhouseHalfWidth(dh, mid)).toBeGreaterThanOrEqual(wh.halfWidth);
     expect(wh.floorY).toBeCloseTo(dh.top + 0.02, 6);
-    expect(dh.top - plan.deckY(wh.aft)).toBeGreaterThan(1.0);
+    expect(dh.top - plan.deckY(wh.aft)).toBeGreaterThan(0.99);
+    expect(dh.well).toBeUndefined();
     expect(wh.steps!.length).toBeGreaterThanOrEqual(2);
     expect(b.warnings.filter((w) => /left off|cut/.test(w))).toEqual([]);
   });
@@ -65,6 +66,32 @@ describe('the deckhouse', () => {
     expect(b.figures.gmM).toBeGreaterThan(0.5);
     expect(b.figures.price).toBeGreaterThan(a.figures.price);
     expect(roomB.crateRoom).toBeLessThan(roomA.crateRoom);
+  });
+
+  it('heights for small boats: 0.4, 0.8 or 1 m', () => {
+    expect([0, 1, 2].map((i) => SCALES.dhHeight(i))).toEqual([0.4, 0.8, 1.0]);
+  });
+
+  it('the floor height counts from its top: sunk into it, the top is open over the cabin, and the floor is walked', () => {
+    const level = useDesign({ ...WITH, floor: 3 });
+    const top = VESSEL_DEFS.design.layout.deckhouse!.top;
+    expect(level.figures.floorOnDeckhouseM).toBeCloseTo(0, 6);
+    const sunk = useDesign({ ...WITH, floor: 1 }); // 0.4 m down
+    const def = VESSEL_DEFS.design;
+    const dh = def.layout.deckhouse!;
+    const wh = def.layout.wheelhouse!;
+    expect(dh.top).toBeCloseTo(top, 6);
+    expect(sunk.figures.floorOnDeckhouseM).toBeCloseTo(-0.4, 6);
+    expect(wh.floorY).toBeCloseTo(dh.top + 0.02 - 0.4, 6);
+    expect(dh.well).toBeDefined();
+    expect(dh.well!.halfWidth).toBeLessThan(wh.halfWidth);
+    const walk = vesselWalkArea(def, def.layout, footprintsOf({ defId: 'design' }));
+    const z = (wh.front + wh.aft) / 2 + 0.3;
+    expect(walk.walkable(0, z, wh.floorY)).toBe(true);
+    expect(walk.insideSolid(0, wh.floorY + 0.5, z)).toBe(false);
+    // Raised, it stands higher on it.
+    useDesign({ ...WITH, floor: 4 });
+    expect(VESSEL_DEFS.design.layout.wheelhouse!.floorY).toBeCloseTo(top + 0.22, 6);
   });
 
   it('the side door is left off with one (it would open onto its top), saying why', () => {

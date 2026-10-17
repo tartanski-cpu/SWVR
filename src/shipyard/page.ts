@@ -277,6 +277,9 @@ slider('headroom', 'Headroom', (v) => `${SCALES.headroom(v).toFixed(1)} m`);
 const signed = (x: number, unit: string, digits = 0) => `${x > 0 ? '+' : ''}${x.toFixed(digits)}${unit}`;
 slider('floor', 'Floor height', () => {
   const f = boat.figures.floorM;
+  // With a deckhouse, from its top (the house stands on it, or sunk into it).
+  const g = boat.figures.floorOnDeckhouseM;
+  if (g !== undefined) return Math.abs(g) < 0.05 ? 'on the deckhouse' : `${Math.abs(g).toFixed(1)} m ${g < 0 ? 'into' : 'above'} the deckhouse`;
   return Math.abs(f) < 0.05 ? 'at the deck' : `${signed(f, ' m', 1)}${f < 0 ? ' (sunk)' : ''}`;
 });
 slider('windowRake', 'Windows', (v) => {
@@ -293,11 +296,11 @@ options('chartTable', 'Chart table', ['None', 'Port wall, aft']);
   h.textContent = 'Deckhouse';
   const p = document.createElement('p');
   p.className = 'meta';
-  p.textContent = 'A lower deckhouse that the wheelhouse stands on, as on pilot and rescue boats: from the wheelhouse’s aft wall forward, the helm raised onto it with steps up to the door. Solid for now (no way in, its top not walked).';
+  p.textContent = 'A lower deckhouse that the wheelhouse stands on, as on pilot and rescue boats: from the wheelhouse’s aft wall forward, the helm raised onto it with steps up to the door. Its floor height (above) is then from the deckhouse’s top: lower it to sink the cabin into the deckhouse. Solid for now (no way in but the wheelhouse, its top not walked).';
   controls.append(h, p);
 }
 slider('dhLength', 'Forward of the house', (v) => (v ? `${SCALES.dhLength(v).toFixed(1)} m` : 'none'));
-options('dhHeight', 'Height', [0, 1, 2, 3].map((i) => `${SCALES.dhHeight(i).toFixed(1)} m`));
+options('dhHeight', 'Height', [0, 1, 2].map((i) => `${SCALES.dhHeight(i).toFixed(1)} m`));
 options('dhWidth', 'Width', ['To her sides', '0.3 m side decks', '0.5 m', '0.7 m']);
 options('dhRake', 'Front', ['Upright', 'Raked 30°', 'Raked 50°']);
 section('3. Deck gear');

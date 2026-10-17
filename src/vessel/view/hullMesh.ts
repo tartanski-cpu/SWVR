@@ -545,6 +545,9 @@ function buildDeckhouse(dh: DeckhouseLayout, baseAt: (z: number) => number, colo
   const zs = new Set<number>([dh.z0, dh.z1, ...dh.plan.map(([z]) => z)]);
   for (let z = dh.z0; z < dh.z1; z += 0.25) zs.add(z);
   if (shift > 0 && dh.z0 + shift < dh.z1) zs.add(dh.z0 + shift);
+  // A wheelhouse sunk into it: no top over the cabin, nor aft face across its door (see deckhouse.ts).
+  const well = dh.well;
+  if (well) zs.add(well.z0);
   const sec = [...zs].sort((a, b) => a - b).map((z) => {
     const b = baseAt(z);
     const y = shift > 0 && z < dh.z0 + shift ? foot + ((z - dh.z0) / shift) * (dh.top - foot) : dh.top;
@@ -558,12 +561,25 @@ function buildDeckhouse(dh: DeckhouseLayout, baseAt: (z: number) => number, colo
     const q = sec[i + 1];
     quad([q.w, q.b, q.z], [q.w, q.y, q.z], [p.w, p.y, p.z], [p.w, p.b, p.z]); // starboard side
     quad([-p.w, p.b, p.z], [-p.w, p.y, p.z], [-q.w, q.y, q.z], [-q.w, q.b, q.z]); // port side
-    quad([-p.w, p.y, p.z], [p.w, p.y, p.z], [q.w, q.y, q.z], [-q.w, q.y, q.z]); // the top (and the raked front)
+    if (well && p.z >= well.z0 - 1e-6) {
+      // Beside the well only.
+      const ww = well.halfWidth;
+      if (p.w > ww) {
+        quad([ww, p.y, p.z], [p.w, p.y, p.z], [q.w, q.y, q.z], [ww, q.y, q.z]);
+        quad([-p.w, p.y, p.z], [-ww, p.y, p.z], [-ww, q.y, q.z], [-q.w, q.y, q.z]);
+      }
+    } else quad([-p.w, p.y, p.z], [p.w, p.y, p.z], [q.w, q.y, q.z], [-q.w, q.y, q.z]); // the top (and the raked front)
   }
   const f = sec[0];
   const a = sec[sec.length - 1];
   quad([-f.w, f.b, f.z], [f.w, f.b, f.z], [f.w, f.y, f.z], [-f.w, f.y, f.z]); // the front's foot
-  quad([a.w, a.b, a.z], [-a.w, a.b, a.z], [-a.w, a.y, a.z], [a.w, a.y, a.z]); // the aft face
+  if (!well) quad([a.w, a.b, a.z], [-a.w, a.b, a.z], [-a.w, a.y, a.z], [a.w, a.y, a.z]); // the aft face
+  else if (a.w > well.halfWidth) {
+    // Either side of the wheelhouse's aft wall.
+    const ww = well.halfWidth;
+    quad([a.w, a.b, a.z], [ww, a.b, a.z], [ww, a.y, a.z], [a.w, a.y, a.z]);
+    quad([-ww, a.b, a.z], [-a.w, a.b, a.z], [-a.w, a.y, a.z], [-ww, a.y, a.z]);
+  }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3));
   g.computeVertexNormals();
