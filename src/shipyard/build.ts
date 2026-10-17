@@ -76,15 +76,6 @@ function scaledStudy(d: HullDesign, L: number, B: number, D: number, bow: number
 }
 
 /**
- * A study design with one chine: the game's stations take one hard chine a side, so a
- * second (spray) chine is left out; the main chine, deep-V and flare stay.
- */
-function oneChine(d: HullDesign): HullDesign {
-  const { chine2Beam: _b, chine2Height: _h, ...section } = d.section;
-  return { ...d, section };
-}
-
-/**
  * Her keel line with her bow reshaped (the Shipyard's bow choice: her stem's rake from
  * vertical, SCALES.bow): a straight stem from 0.15 m under the stem head, raked `deg`, down
  * until it meets her keel, which runs at full depth to it (her own keel line, held at its
@@ -153,8 +144,8 @@ export const DESIGN_HULLS: DesignHull[] = [
   },
   // New hull types go on the end: a design's code holds its hull's place in this list.
   {
-    name: 'Pilot boat: 14 m deep-V, fine entry, well-raked stem',
-    form: (L, B, D, bow) => ({ kind: 'lofted', design: scaledStudy(oneChine(study('pilot')), L, B, D, bow) }),
+    name: 'Pilot boat: 14 m deep-V, spray chine, fine entry, well-raked stem',
+    form: (L, B, D, bow) => ({ kind: 'lofted', design: scaledStudy(study('pilot'), L, B, D, bow) }),
     planing: true,
     ramp: false,
     cockpit: 1.6,

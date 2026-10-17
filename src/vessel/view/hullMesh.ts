@@ -75,7 +75,20 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
   };
 
   const st = form.stations;
-  const P = (i: number, k: number) => new THREE.Vector3(st[i].polygon[k][0], st[i].polygon[k][1], st[i].z);
+  // Each station's outline as drawn: her section (port deck, port chine, keel, starboard
+  // chine, starboard deck), with a spray chine between each chine and deck edge where she
+  // has one (drawn only; a station without it takes the midpoint, so the panels still join).
+  const sprayed = st.some((s) => s.spray);
+  const outlines = st.map((s): [number, number][] => {
+    const p = s.polygon;
+    if (!sprayed) return p;
+    const [x, y] = s.spray ?? [(p[3][0] + p[4][0]) / 2, (p[3][1] + p[4][1]) / 2];
+    return [p[0], [-x, y], p[1], p[2], p[3], [x, y], p[4]];
+  });
+  /** Outline points: deck edges first and last, the keel in the middle, chines `chine` in from each end. */
+  const last = outlines[0].length - 1;
+  const chine = sprayed ? 2 : 1;
+  const P = (i: number, k: number) => new THREE.Vector3(outlines[i][k][0], outlines[i][k][1], st[i].z);
   const inside = (i: number) => {
     const poly = st[i].polygon;
     return new THREE.Vector3(0, (poly[2][1] + poly[0][1]) / 2, st[i].z);
@@ -88,13 +101,10 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
     // Interior reference midway between the two stations.
     const mid = inside(i).add(inside(i + 1)).multiplyScalar(0.5);
     const cut = !!sunk && Math.min(st[i].z, st[i + 1].z) < sunk.aft && Math.max(st[i].z, st[i + 1].z) > sunk.front;
-    const edges: [number, number, number][] = [
-      [0, 1, col.topsides], // port topside
-      [1, 2, col.bottom], // port bottom
-      [2, 3, col.bottom], // starboard bottom
-      [3, 4, col.topsides], // starboard topside
-    ];
-    if (!cut) edges.push([4, 0, col.deck]); // deck
+    // Topsides from each deck edge down to its chine, bottom from the chines to the keel.
+    const edges: [number, number, number][] = [];
+    for (let k = 0; k < last; k++) edges.push([k, k + 1, k < chine || k >= last - chine ? col.topsides : col.bottom]);
+    if (!cut) edges.push([last, 0, col.deck]); // deck
     else {
       // The deck in pieces between the stations and the house's ends; across the house, only
       // its strips outside the walls.
@@ -106,7 +116,7 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
         const z0 = breaks[j];
         const z1 = breaks[j + 1];
         if (z0 - z1 < 1e-6) continue;
-        const p0 = at(z0, 0), p1 = at(z1, 0), s0 = at(z0, 4), s1 = at(z1, 4);
+        const p0 = at(z0, 0), p1 = at(z1, 0), s0 = at(z0, last), s1 = at(z1, last);
         const zm = (z0 + z1) / 2;
         if (zm > sunk.front && zm < sunk.aft) {
           for (const [e0, e1, x] of [[p0, p1, -sunk.halfWidth], [s0, s1, sunk.halfWidth]] as const) {
@@ -133,14 +143,14 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
   // Transom (station 0) as a fan around its centre.
   const tIn = inside(0).add(new THREE.Vector3(0, 0, -1));
   const tC = new THREE.Vector3(0, (st[0].polygon[2][1] + st[0].polygon[0][1]) / 2, st[0].z);
-  for (let k = 0; k < 5; k++) tri(tC, P(0, k), P(0, (k + 1) % 5), tIn, col.topsides);
+  for (let k = 0; k <= last; k++) tri(tC, P(0, k), P(0, (k + 1) % (last + 1)), tIn, col.topsides);
   // A square bow (a landing bow: the last station still has width) is closed the same way,
   // by a bow plate.
   const e = st.length - 1;
   if (st[e].halfBeamDeck > SQUARE_BOW) {
     const bIn = inside(e).add(new THREE.Vector3(0, 0, 1));
     const bC = new THREE.Vector3(0, (st[e].polygon[2][1] + st[e].polygon[0][1]) / 2, st[e].z);
-    for (let k = 0; k < 5; k++) tri(bC, P(e, k), P(e, (k + 1) % 5), bIn, col.topsides);
+    for (let k = 0; k <= last; k++) tri(bC, P(e, k), P(e, (k + 1) % (last + 1)), bIn, col.topsides);
   }
 
   const hull = new THREE.BufferGeometry();

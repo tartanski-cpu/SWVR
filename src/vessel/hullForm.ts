@@ -53,6 +53,12 @@ export interface Station {
   polygon: [number, number][];
   halfBeamChine: number;
   halfBeamDeck: number;
+  /**
+   * A spray chine (a second, upper chine on her topsides, between the chine and the deck
+   * edge): its starboard half-breadth and height. Drawn only (owner: decorative): her
+   * buoyancy, stability and seakeeping use the five-point section, from the main chine.
+   */
+  spray?: [number, number];
 }
 
 export interface HullForm {
@@ -118,8 +124,9 @@ export function buildHullForm(p: HullParams): HullForm {
  * as the game's stations, so the study's lines float and are drawn like any other hull.
  *
  * The game's stations are upright sections with one hard chine a side (five points: port
- * deck, port chine, keel, starboard chine, starboard deck), so the design must have one chine
- * and no rounding. A raked section (the study leans each section fore and aft, `rake`) is set
+ * deck, port chine, keel, starboard chine, starboard deck), so the design must have no
+ * rounding. A second chine is taken as a spray chine: the lower of the two is her hard chine,
+ * the upper is drawn on her topsides (`Station.spray`) but left out of her hydrostatics. A raked section (the study leans each section fore and aft, `rake`) is set
  * upright at its deck edge: the deck, the bulwarks and the walk area stand where the design
  * puts them, and the rake goes into the run of the bottom up to the bow, where it's out of
  * the water (on the landing craft the forefoot is above the waterline). The whole form is
@@ -128,7 +135,7 @@ export function buildHullForm(p: HullParams): HullForm {
  * game's own, from these stations: the boat's mass is set to float her at her design waterline.
  */
 export function hullFormFromDesign(d: HullDesign): HullForm {
-  if (d.section.chine2Beam || d.section.round || d.catamaran || d.forecastle) throw new Error(`hull design '${d.id}': the game's stations take one hard chine (no second chine, rounding, forecastle or second hull)`);
+  if (d.section.round || d.catamaran || d.forecastle) throw new Error(`hull design '${d.id}': the game's stations take hard chines (no rounding, forecastle or second hull)`);
   const sections = loft(d).sections;
   // Each section's z where its deck edge is (the last point: keel, chine, deck edge), moved
   // so the deck's ends are at +-length/2, as the game has it (origin amidships).
@@ -136,7 +143,10 @@ export function hullFormFromDesign(d: HullDesign): HullForm {
   const mid = (raw[0] + raw[raw.length - 1]) / 2;
   const zs = raw.map((z) => z - mid);
   const stations: Station[] = sections.map((s, i) => {
-    const [keel, chine, deck] = s.pts;
+    // Keel, chine(s) bottom-up, deck edge: with two chines the upper one is the spray chine.
+    const [keel, chine] = s.pts;
+    const deck = s.pts[s.pts.length - 1];
+    const spray = s.pts.length === 4 ? s.pts[2] : undefined;
     const bC = Math.abs(chine.x);
     const bD = Math.max(0.03, Math.abs(deck.x));
     const dz = i === 0 ? zs[0] - zs[1] : i === sections.length - 1 ? zs[i - 1] - zs[i] : (zs[i - 1] - zs[i + 1]) / 2;
@@ -152,6 +162,7 @@ export function hullFormFromDesign(d: HullDesign): HullForm {
       ],
       halfBeamChine: bC,
       halfBeamDeck: bD,
+      ...(spray ? { spray: [Math.abs(spray.x), spray.y] as [number, number] } : {}),
     };
   });
   const first = stations[0].polygon;

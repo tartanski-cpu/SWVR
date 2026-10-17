@@ -2874,9 +2874,17 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Codes are now 11 characters** (version 3, e.g. `0W7ZK-EPD4SN`): twin engines didn't fit in what was left of the 10-character range. Old 10-character codes still read, with a single engine (`design.ts`, tests for v1 and v2 codes).
 - **Each hull type starts from her own layout** (`DESIGN_HULLS[i].defaults`), applied when you pick her: the landing craft as in the game; the gillnetter with her house aft; the workboat with her house forward.
 - **The pilot boat now follows the hull study's pilot:** her keel rocker is kept (only held deep forward of 75 % of her length), her sections are set upright so her deck length doesn't change with the bow rake, and she starts with a long wheelhouse amidships (Targa / Safehaven style), bow 50 deg, twin 400 kW. About 27 kn, 24.3 t, GM 1.18 m.
-  - Her spray chine (the study's second chine) is still left out: the game's sections take one chine. The owner wants it; that's the next change.
+  - Her spray chine: see the next entry.
 - **Checked:** typecheck; all 503 tests; side and bow screenshots of all four hulls with their starting layouts.
 - **Owner test (desktop or phone):** on the Shipyard page, pick each hull type and see her starting layout. Pick the pilot boat, run her trial with and without Twin engines, then **Try her in the game** and check she runs and sounds right. Type an old 10-character code into **Load a code**: it should still open. **In VR:** start the game with `?design=` and an 11-character code.
+
+### Shipyard: the pilot boat's spray chine, drawn only (owner)
+
+- **The owner asked** for the study pilot's double-chine hull form, with the second (spray) chine decorative: buoyancy and seakeeping are worked on the main chine.
+- **How:** a lofted hull with two chines takes the lower as her hard chine and the upper as her spray chine (`hullFormFromDesign`). Her sections stay five-point outlines, so her hydrostatics, planing and damping are as before. Each station carries the spray chine's half-breadth and height (`Station.spray`); the hull mesh draws her topsides through it, and her transom outline with it (`hullMesh.ts`). It's still one draw call, with a few dozen more triangles.
+- **Other boats:** they have no spray chine, and their hulls are drawn exactly as before.
+- **Checked:** typecheck; all 504 tests (a new one: the spray chine sits between the chine and the deck edge, outboard of the chine, and the sections keep five points); screenshots of the pilot from the bow and the stern, with the water on and off.
+- **Owner test:** on the Shipyard page, pick the pilot boat, turn the water off and look along her side and at her transom: a second knuckle runs above the chine. It's drawn in the topside colour, so it shows as a change of light on her side, not a coloured line.
 
 ### Test address for work in progress (owner request)
 

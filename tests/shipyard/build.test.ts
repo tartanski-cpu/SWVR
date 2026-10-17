@@ -109,6 +109,21 @@ describe('Shipyard: the boats it builds', () => {
     expect(two.knots).toBeGreaterThan(one.knots + 2);
   });
 
+  it('the pilot boat\'s spray chine is drawn on her topsides, above her chine, but her sections (buoyancy) keep one chine', () => {
+    useDesign({ ...DEFAULT_DESIGN, ...DESIGN_HULLS[3].defaults, hull: 3 });
+    const mid = VESSEL_DEFS.design.hull.stations.filter((s) => s.halfBeamDeck > 1);
+    expect(mid.length).toBeGreaterThan(5);
+    for (const s of mid) {
+      expect(s.polygon.length).toBe(5);
+      const [x, y] = s.spray!;
+      expect(y).toBeGreaterThan(s.polygon[3][1]);
+      expect(y).toBeLessThan(s.polygon[4][1]);
+      expect(x).toBeGreaterThan(s.polygon[3][0]);
+    }
+    useDesign({ ...DEFAULT_DESIGN, hull: 2 });
+    expect(VESSEL_DEFS.design.hull.stations.some((s) => s.spray)).toBe(false);
+  });
+
   it('only the landing craft hull has the bow ramp', () => {
     expect(useDesign({ ...DEFAULT_DESIGN, hull: 0 }).hull.layout.bowRamp).toBeDefined();
     expect(useDesign({ ...DEFAULT_DESIGN, hull: 1 }).hull.layout.bowRamp).toBeUndefined();
