@@ -622,9 +622,10 @@ export function mainMenu(h: MenuHost): MainMenu {
         {
           label: 'Tow',
           buttons: [
-            { text: 'Cruiser', press: () => h.towNear('derelict') },
-            { text: 'Logs', press: () => h.towNear('logRaft') },
-            { text: 'Barge', press: () => h.towNear('barge') },
+            // A tow of that size, its kind at random (owner: small, medium or large).
+            { text: 'Small', press: () => h.towNear('small') },
+            { text: 'Medium', press: () => h.towNear('medium') },
+            { text: 'Large', press: () => h.towNear('large') },
             { text: 'Call', press: () => h.towCall() },
             { text: 'End', press: () => h.towEnd() },
           ],

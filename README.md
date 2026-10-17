@@ -296,7 +296,11 @@ The duty board walks you through it. The menu's Debug → Missions section has b
 
 ### Towing missions
 
-Out of harbour, with no rescue on, a tow call comes over the VHF every few minutes: something adrift a few hundred metres ahead. It's a broken-down motor cruiser, a raft of logs, or a work barge.
+Out of harbour, with no rescue on, a tow call comes over the VHF every few minutes: something adrift a few hundred metres ahead. It comes in three sizes:
+
+- **Small:** a broken-down motor cruiser, or an open fishing boat with a fouled propeller.
+- **Medium:** a raft of logs, a work barge, or a dismasted 11 m sailing yacht.
+- **Large:** an 18 m fishing trawler with her nets round her propeller (70 t), or a 20 m crane pontoon (123 t). These are slow, heavy work: they pass you their own heavy hawser (twice as strong as your line), but take up the strain gently and give yourself room to stop. Bigger tows pay more.
 
 1. **Pick up the handset** to take the job. The tow shows as an orange **TOW** diamond on the chartplotter.
 2. **Come alongside with your stern to her bow.** Our line leads from the tow winch aft over the **stern roller**, in a notch in the middle of the transom bulwark; her **bow eye** is the orange ring on her stem.
@@ -305,7 +309,7 @@ Out of harbour, with no rescue on, a tow call comes over the VHF every few minut
    - **The tow winch** just forward of the stern roller works the line by hand (engine running and DECK HYD on). The line is made fast at the distance to the tow plus a metre, so heaving in starts bringing her closer at once: hold **HEAVE IN** (green) or **PAY OUT** (amber) on top of its gearbox housing (starboard end), standing forward of it facing aft. It comes in at 0.6 m/s and goes out at 1 m/s, from 4 m to 60 m, and stays where you leave it. Heaving in against a heavy pull (over 18 kN) stalls it: ease off or slow down. The status line shows the line out and its pull.
 5. **Slow down inside the port** for a few seconds and the harbour takes her over. The tow counts as a mission, and she is taken away a few seconds later.
 
-Unanswered calls go away after two minutes. The menu's Debug → Missions section has buttons that put a tow just astern (Cruiser, Logs, Barge), raise a call, or end the job.
+Unanswered calls go away after two minutes. The menu's Debug → Missions section has buttons that put a tow just astern (**Small**, **Medium** or **Large**: a kind of that size at random), raise a call, or end the job.
 
 **Tow anything in the water.** The towline isn't only for tow jobs. Make it fast the same way (hook or menu) to:
 - **any boat afloat**, at her bow, e.g. our own skiff once she's off the crane;

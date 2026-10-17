@@ -340,8 +340,10 @@ export function towlineForces(world: WorldState): Map<EntityId, ExternalForce[]>
   const c = 2 * cfg.dampingRatio * Math.sqrt(cfg.stiffness * m);
   const T = Math.max(0, cfg.stiffness * stretch + c * rate);
   line.tension = T;
-  // The heavy towing post (an upgrade) holds more before the line parts.
-  if (T > cfg.breakForce * (hasUpgrade(world, 'towPost') ? cfg.heavyPostFactor : 1) || stretch > cfg.maxStretch) {
+  // The heavy towing post (an upgrade) holds more before the line parts, and so does a large
+  // tow's own heavy hawser (`tow.lineFactor`).
+  const hawser = t ? (VESSEL_DEFS[t.defId].tow?.lineFactor ?? 1) : 1;
+  if (T > cfg.breakForce * hawser * (hasUpgrade(world, 'towPost') ? cfg.heavyPostFactor : 1) || stretch > cfg.maxStretch) {
     world.tow!.line = null;
     sayRadio(world, 'info', 'The towline has parted! Come back round and make fast again.');
     return out;
@@ -441,7 +443,8 @@ export function startTowCall(world: WorldState, v: VesselState, defId?: string):
   const where = CONFIG.rescue.plotYourself
     ? `in position ${formatPosition(x, z)}`
     : `bearing ${bearing(bx, bz, x, z).toFixed(0).padStart(3, '0')}°, ${(Math.hypot(x - bx, z - bz) / 1852).toFixed(1)} miles from you`;
-  sayRadio(world, 'distress', `SÉCURITÉ. Tow wanted: ${name}, adrift ${where}. Can you take her in tow to any harbour?`);
+  const heavy = (VESSEL_DEFS[kind].tow?.lineFactor ?? 1) > 1 ? ' She is a big one: she will pass you her own heavy hawser. Take up the strain gently.' : '';
+  sayRadio(world, 'distress', `SÉCURITÉ. Tow wanted: ${name}, adrift ${where}. Can you take her in tow to any harbour?${heavy}`);
   return job;
 }
 
@@ -618,7 +621,9 @@ export function applyTowIntent(world: WorldState, intent: Intent): void {
       const fx = -(2 * (qx * qz + qw * qy));
       const fz = -(1 - 2 * (qx * qx + qy * qy));
       const len = Math.hypot(fx, fz) || 1;
-      const kind = TOW_DEFS.includes(intent.ref as (typeof TOW_DEFS)[number]) ? intent.ref! : TOW_DEFS[0];
+      // A kind by name, or one of a size (the debug menu's Small / Medium / Large, owner), at random.
+      const ofSize = TOW_DEFS.filter((d) => VESSEL_DEFS[d].tow?.size === intent.ref);
+      const kind = TOW_DEFS.includes(intent.ref as (typeof TOW_DEFS)[number]) ? intent.ref! : ofSize.length ? ofSize[Math.floor(rand(t) * ofSize.length)] : TOW_DEFS[0];
       const back = CONFIG.tow.debugDistance + hullPlan(VESSEL_DEFS[v.defId]).transom - hullPlan(VESSEL_DEFS[kind]).stem;
       const nj = spawnTow(world, kind, v.position[0] - (fx / len) * back, v.position[2] - (fz / len) * back, 'accepted');
       placeVessel(world.vessels[nj.vesselId], world.vessels[nj.vesselId].position[0], 0, world.vessels[nj.vesselId].position[2], (Math.atan2(fx, -fz) * 180) / Math.PI);

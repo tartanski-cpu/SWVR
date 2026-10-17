@@ -5,14 +5,22 @@
 export type WeatherPresetName = 'Clear' | 'Overcast' | 'Fog' | 'Rain' | 'Squall';
 
 // Towable hulls (CONFIG.vessels.derelict / logRaft / barge): displacement at the DWL (kg) and
-// LCB (m aft), as their physics stations (`physicsStations`: 6, 5 and 5 of the 11 drawn)
-// integrate them, so they float level on their DWL.
+// LCB (m aft), as their physics stations (`physicsStations`) integrate them, so they float
+// level on their DWL.
 const DERELICT_MASS = 2800;
 const DERELICT_LCB = 1.29;
 const LOGRAFT_MASS = 6490;
 const LOGRAFT_LCB = 1.02;
 const BARGE_MASS = 10540;
 const BARGE_LCB = 1.43;
+const DORY_MASS = 1310;
+const DORY_LCB = 1.04;
+const YACHT_MASS = 11010;
+const YACHT_LCB = 2.05;
+const TRAWLER_MASS = 70110;
+const TRAWLER_LCB = 3.26;
+const PONTOON_MASS = 123240;
+const PONTOON_LCB = 3.17;
 /**
  * The landing craft's cabin floor (m, vessel axes): 0.19-0.23 m below the deck around the
  * cabin, so you step down into it for the headroom (2.2 m to the roof). Everything in her
@@ -1257,7 +1265,7 @@ export const CONFIG = {
      * `tow.look` picks the model drawn over the hull (tow/towLook.ts).
      */
     derelict: {
-      tow: { look: 'derelict' as const, name: 'a motor cruiser with engine failure' },
+      tow: { look: 'derelict' as const, name: 'a motor cruiser with engine failure', size: 'small' as const },
       hull: { length: 7, beamDeck: 2.5, beamChine: 2.1, keelY: -0.45, chineYAft: -0.15, chineYBow: 0.15, deckYAft: 0.7, deckYBow: 1.0, stations: 11, physicsStations: 6, deckParallel: 0.5 },
       mass: DERELICT_MASS,
       cg: [0, 0.25, DERELICT_LCB] as [number, number, number],
@@ -1272,7 +1280,7 @@ export const CONFIG = {
       spawn: { x: 0, z: 0, dropHeight: 0.2, headingDeg: 0 },
     },
     logRaft: {
-      tow: { look: 'logs' as const, name: 'a raft of logs broken loose from a timber tow' },
+      tow: { look: 'logs' as const, name: 'a raft of logs broken loose from a timber tow', size: 'medium' as const },
       hull: { length: 8, beamDeck: 3.0, beamChine: 2.9, keelY: -0.45, chineYAft: -0.3, chineYBow: -0.15, deckYAft: 0.2, deckYBow: 0.3, stations: 11, physicsStations: 5, deckParallel: 0.85 },
       mass: LOGRAFT_MASS,
       cg: [0, -0.1, LOGRAFT_LCB] as [number, number, number],
@@ -1287,7 +1295,7 @@ export const CONFIG = {
       spawn: { x: 0, z: 0, dropHeight: 0.2, headingDeg: 0 },
     },
     barge: {
-      tow: { look: 'barge' as const, name: 'a work barge adrift from her moorings' },
+      tow: { look: 'barge' as const, name: 'a work barge adrift from her moorings', size: 'medium' as const },
       hull: { length: 9, beamDeck: 3.6, beamChine: 3.4, keelY: -0.55, chineYAft: -0.45, chineYBow: -0.15, deckYAft: 0.5, deckYBow: 0.6, stations: 11, physicsStations: 5, deckParallel: 0.85 },
       mass: BARGE_MASS,
       cg: [0, 0.1, BARGE_LCB] as [number, number, number],
@@ -1299,6 +1307,76 @@ export const CONFIG = {
       cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true, lashPoints: [] as [number, number][], lashRange: 0.8 },
       windage: { side: 5, front: 3, center: [0, 0.8, 0] as [number, number, number] },
       boardingSpot: [0, 0.55, 1] as [number, number, number],
+      spawn: { x: 0, z: 0, dropHeight: 0.2, headingDeg: 0 },
+    },
+    /**
+     * More things to tow, small to large (owner: to test the Shipyard's more powerful boats).
+     * As the three above: masses are what the physics stations displace at the DWL, the CG
+     * over the LCB; angular damping scaled from the workboat's by mass x size^2 (roll by
+     * the beam, pitch and yaw by the length). The large ones pass you their own heavy hawser
+     * (`tow.lineFactor`: the line parts at that many times CONFIG.tow.breakForce).
+     */
+    dory: {
+      tow: { look: 'dory' as const, name: 'an open fishing boat with a fouled propeller', size: 'small' as const },
+      hull: { length: 5.5, beamDeck: 2.0, beamChine: 1.7, keelY: -0.35, chineYAft: -0.1, chineYBow: 0.15, deckYAft: 0.5, deckYBow: 0.75, stations: 9, physicsStations: 4, deckParallel: 0.45 },
+      mass: DORY_MASS,
+      cg: [0, 0.1, DORY_LCB] as [number, number, number],
+      gyradius: { roll: 0.7, pitch: 1.4, yaw: 1.45 },
+      addedMass: { surge: 0.05, sway: 0.4, heave: 0.6, roll: 0.25, pitch: 0.6, yaw: 0.3 },
+      damping: { vertical: 800, verticalCd: 1.5, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 20, roll: 950, pitch: 600, yaw: 300 },
+      resistance: { lwl: 5.2, formFactor: 0.25, waveA: 1.5, waveB: 1.2, waveKnee: 0.28, waveCap: 0.15, asternFactor: 2.0, y: -0.15 },
+      layout: { bulwarkHeight: 0.15, railHeight: 0, deckEdgeMargin: 0.12, bodyRadius: 0.22 },
+      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true, lashPoints: [] as [number, number][], lashRange: 0.8 },
+      windage: { side: 3, front: 1.5, center: [0, 0.5, 0] as [number, number, number] },
+      boardingSpot: [0, 0.45, 1] as [number, number, number],
+      spawn: { x: 0, z: 0, dropHeight: 0.2, headingDeg: 0 },
+    },
+    yacht: {
+      tow: { look: 'yacht' as const, name: 'a sailing yacht, dismasted', size: 'medium' as const },
+      hull: { length: 11, beamDeck: 3.5, beamChine: 2.6, keelY: -1.1, chineYAft: -0.1, chineYBow: 0.25, deckYAft: 0.8, deckYBow: 1.2, stations: 11, physicsStations: 5, deckParallel: 0.4 },
+      mass: YACHT_MASS,
+      // Low: her ballast keel.
+      cg: [0, -0.3, YACHT_LCB] as [number, number, number],
+      gyradius: { roll: 1.25, pitch: 2.75, yaw: 2.85 },
+      addedMass: { surge: 0.05, sway: 0.4, heave: 0.6, roll: 0.25, pitch: 0.6, yaw: 0.3 },
+      damping: { vertical: 800, verticalCd: 1.5, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 20, roll: 24000, pitch: 20000, yaw: 10000 },
+      resistance: { lwl: 10.2, formFactor: 0.15, waveA: 1.0, waveB: 0.9, waveKnee: 0.3, waveCap: 0.12, asternFactor: 2.5, y: -0.4 },
+      layout: { bulwarkHeight: 0.06, railHeight: 0, deckEdgeMargin: 0.15, bodyRadius: 0.22 },
+      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true, lashPoints: [] as [number, number][], lashRange: 0.8 },
+      windage: { side: 12, front: 5, center: [0, 1.2, 0] as [number, number, number] },
+      boardingSpot: [0, 0.9, 2.5] as [number, number, number],
+      spawn: { x: 0, z: 0, dropHeight: 0.2, headingDeg: 0 },
+    },
+    trawler: {
+      tow: { look: 'trawler' as const, name: 'a fishing trawler with her nets round her propeller', size: 'large' as const, lineFactor: 2 },
+      hull: { length: 18, beamDeck: 6.0, beamChine: 5.0, keelY: -1.8, chineYAft: -0.6, chineYBow: 0.4, deckYAft: 1.3, deckYBow: 2.2, stations: 13, physicsStations: 6, deckParallel: 0.55 },
+      mass: TRAWLER_MASS,
+      cg: [0, 0.3, TRAWLER_LCB] as [number, number, number],
+      gyradius: { roll: 2.2, pitch: 4.5, yaw: 4.7 },
+      addedMass: { surge: 0.05, sway: 0.4, heave: 0.6, roll: 0.25, pitch: 0.6, yaw: 0.3 },
+      damping: { vertical: 800, verticalCd: 1.5, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 20, roll: 460000, pitch: 345000, yaw: 172000 },
+      // Her nets round the propeller and the locked shaft drag (the form factor, ~3x a clean hull's).
+      resistance: { lwl: 17, formFactor: 1.0, waveA: 1.2, waveB: 1.0, waveKnee: 0.28, waveCap: 0.15, asternFactor: 2.0, y: -0.8 },
+      layout: { bulwarkHeight: 0.8, railHeight: 0, deckEdgeMargin: 0.2, bodyRadius: 0.22 },
+      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true, lashPoints: [] as [number, number][], lashRange: 0.8 },
+      windage: { side: 55, front: 25, center: [0, 3, 0] as [number, number, number] },
+      boardingSpot: [0, 1.4, 6] as [number, number, number],
+      spawn: { x: 0, z: 0, dropHeight: 0.2, headingDeg: 0 },
+    },
+    pontoon: {
+      tow: { look: 'pontoon' as const, name: 'a crane pontoon broken from her tug', size: 'large' as const, lineFactor: 2 },
+      hull: { length: 20, beamDeck: 8.0, beamChine: 7.9, keelY: -1.2, chineYAft: -1.1, chineYBow: -0.6, deckYAft: 0.9, deckYBow: 1.0, stations: 9, physicsStations: 5, deckParallel: 0.85 },
+      mass: PONTOON_MASS,
+      cg: [0, -0.2, PONTOON_LCB] as [number, number, number],
+      gyradius: { roll: 2.8, pitch: 5.0, yaw: 5.4 },
+      addedMass: { surge: 0.05, sway: 0.4, heave: 0.6, roll: 0.25, pitch: 0.6, yaw: 0.3 },
+      damping: { vertical: 800, verticalCd: 1.5, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 20, roll: 1430000, pitch: 750000, yaw: 375000 },
+      // Bluff, square-ended: a big form factor and an early wave rise.
+      resistance: { lwl: 19.5, formFactor: 2.5, waveA: 4, waveB: 3.5, waveKnee: 0.15, waveCap: 0.3, asternFactor: 1.5, y: -0.5 },
+      layout: { bulwarkHeight: 0.1, railHeight: 0, deckEdgeMargin: 0.2, bodyRadius: 0.22 },
+      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true, lashPoints: [] as [number, number][], lashRange: 0.8 },
+      windage: { side: 45, front: 20, center: [0, 2.5, 0] as [number, number, number] },
+      boardingSpot: [0, 1.0, 4] as [number, number, number],
       spawn: { x: 0, z: 0, dropHeight: 0.2, headingDeg: 0 },
     },
   },
@@ -1359,7 +1437,7 @@ export const CONFIG = {
      */
     every: [480, 1080] as [number, number],
     /** Relative odds of each kind (def ids). */
-    weights: { derelict: 1, logRaft: 1, barge: 0.7 } as Record<string, number>,
+    weights: { derelict: 1, dory: 0.8, logRaft: 1, barge: 0.7, yacht: 0.8, trawler: 0.5, pontoon: 0.4 } as Record<string, number>,
     /** Where it's adrift: this far ahead (m), this far off to one side (m), in open water. */
     ahead: [450, 850] as [number, number],
     offset: [80, 260] as [number, number],
@@ -1441,7 +1519,7 @@ export const CONFIG = {
       log: 180,
       debris: 40,
       crate: 80,
-      tow: { derelict: 600, logRaft: 450, barge: 800 } as Record<string, number>,
+      tow: { dory: 350, derelict: 600, logRaft: 450, barge: 800, yacht: 900, trawler: 1600, pontoon: 2000 } as Record<string, number>,
       towDefault: 500,
       rescue: 400,
       rescuePerPerson: 150,

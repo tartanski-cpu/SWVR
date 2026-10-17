@@ -1,0 +1,7 @@
+{
+  "id": "vessel.fishing-trawler",
+  "version": 1,
+  "name": "Fishing trawler (nets round her propeller)",
+  "hull": "hull.fishing-trawler",
+  "modules": []
+}

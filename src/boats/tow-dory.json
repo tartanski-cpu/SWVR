@@ -1,0 +1,7 @@
+{
+  "id": "vessel.open-fishing-boat",
+  "version": 1,
+  "name": "Open fishing boat (fouled propeller)",
+  "hull": "hull.open-fishing-boat",
+  "modules": []
+}

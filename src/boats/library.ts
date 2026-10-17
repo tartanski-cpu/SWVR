@@ -69,10 +69,14 @@ import starterWorkboat from './starterWorkboat.json';
 import towBarge from './tow-barge.json';
 import towDerelict from './tow-derelict.json';
 import towLogRaft from './tow-logRaft.json';
-import { BARGE_HULL, DERELICT_HULL, LOG_RAFT_HULL } from './towHulls';
+import towDory from './tow-dory.json';
+import towYacht from './tow-yacht.json';
+import towTrawler from './tow-trawler.json';
+import towPontoon from './tow-pontoon.json';
+import { BARGE_HULL, DERELICT_HULL, DORY_HULL, LOG_RAFT_HULL, PONTOON_HULL, TRAWLER_HULL, YACHT_HULL } from './towHulls';
 import { WORKBOAT_HULL } from './workboatHull';
 
-const FIXED_HULLS = createHullLibrary([WORKBOAT_HULL, SKIFF_HULL, DERELICT_HULL, LOG_RAFT_HULL, BARGE_HULL, LANDING_CRAFT_HULL]);
+const FIXED_HULLS = createHullLibrary([WORKBOAT_HULL, SKIFF_HULL, DERELICT_HULL, LOG_RAFT_HULL, BARGE_HULL, DORY_HULL, YACHT_HULL, TRAWLER_HULL, PONTOON_HULL, LANDING_CRAFT_HULL]);
 
 /**
  * The Shipyard's designed boat (shipyard/build.ts): one at a time, the vessel type 'design',
@@ -112,6 +116,10 @@ export const RECIPES: Record<string, Recipe> = {
   derelict: loadRecipe(towDerelict),
   logRaft: loadRecipe(towLogRaft),
   barge: loadRecipe(towBarge),
+  dory: loadRecipe(towDory),
+  yacht: loadRecipe(towYacht),
+  trawler: loadRecipe(towTrawler),
+  pontoon: loadRecipe(towPontoon),
   landingCraft: loadRecipe(landingCraft),
   design: loadRecipe(designed.recipe),
 };

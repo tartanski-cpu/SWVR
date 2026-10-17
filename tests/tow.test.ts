@@ -141,6 +141,53 @@ describe('towing missions', { timeout: 30000 }, () => {
     expect(world.rescue!.radio?.text).toMatch(/parted/);
   });
 
+  it('tows come in three sizes (debug: small, medium, large), each kind at random; a large one passes a heavy hawser', () => {
+    const sizes = { small: new Set<string>(), medium: new Set<string>(), large: new Set<string>() };
+    for (const id of TOW_DEFS) sizes[VESSEL_DEFS[id].tow!.size].add(id);
+    expect([...sizes.small].sort()).toEqual(['derelict', 'dory']);
+    expect([...sizes.medium].sort()).toEqual(['barge', 'logRaft', 'yacht']);
+    expect([...sizes.large].sort()).toEqual(['pontoon', 'trawler']);
+    // Heavier as they go: every large tow outweighs every medium, every medium every small.
+    const heaviest = (k: keyof typeof sizes) => Math.max(...[...sizes[k]].map((id) => VESSEL_DEFS[id].mass));
+    const lightest = (k: keyof typeof sizes) => Math.min(...[...sizes[k]].map((id) => VESSEL_DEFS[id].mass));
+    expect(lightest('medium')).toBeGreaterThan(heaviest('small'));
+    expect(lightest('large')).toBeGreaterThan(heaviest('medium'));
+    for (const size of ['small', 'medium', 'large'] as const) {
+      const { world, v, send } = setup();
+      placeVessel(v, 0, 0, -400, 0);
+      send('towDebugNear', 1, size);
+      const job = world.tow!.job!;
+      expect(sizes[size].has(job.defId), `${size}: ${job.defId}`).toBe(true);
+    }
+    // A pull that parts an ordinary line holds on a large tow's hawser.
+    const { world, v, send, run } = setup();
+    placeVessel(v, 0, 0, -400, 0);
+    run(1);
+    send('towDebugNear', 1, 'trawler');
+    send('towMake');
+    expect(towFast(world)).toBe(true);
+    expect(world.rescue!.radio?.text ?? '').not.toMatch(/parted/);
+    const tow = towVessel(world)!;
+    // Stretch it to 1.5x the ordinary breaking load (under twice), and hold it there a moment.
+    const stretch = (1.5 * CONFIG.tow.breakForce) / CONFIG.tow.stiffness;
+    const reach = towReach(world);
+    placeVessel(tow, tow.position[0], 0, tow.position[2] + (lineLength(world.tow!.line!) - reach) + stretch, 0);
+    run(0.1);
+    expect(towFast(world)).toBe(true);
+    expect(world.tow!.line!.tension).toBeGreaterThan(CONFIG.tow.breakForce);
+    // The same on a medium tow (an ordinary line) parts it.
+    const b = setup();
+    placeVessel(b.v, 0, 0, -400, 0);
+    b.run(1);
+    b.send('towDebugNear', 1, 'barge');
+    b.send('towMake');
+    const barge = towVessel(b.world)!;
+    const bReach = towReach(b.world);
+    placeVessel(barge, barge.position[0], 0, barge.position[2] + (lineLength(b.world.tow!.line!) - bReach) + stretch, 0);
+    b.run(0.1);
+    expect(towFast(b.world)).toBe(false);
+  });
+
   it('slow in a port it is delivered and counted; the harbour takes it away soon after', () => {
     const { world, v, send, run } = setup();
     placeVessel(v, 0, 0, -400, 0);

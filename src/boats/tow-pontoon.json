@@ -1,0 +1,7 @@
+{
+  "id": "vessel.crane-pontoon",
+  "version": 1,
+  "name": "Crane pontoon (adrift)",
+  "hull": "hull.crane-pontoon",
+  "modules": []
+}

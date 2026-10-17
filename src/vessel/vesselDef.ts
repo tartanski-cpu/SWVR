@@ -115,9 +115,15 @@ export interface VesselConfig {
 
 /** A towable hull: the model drawn over it (tow/towLook.ts) and what the radio calls it. */
 export interface TowLook {
-  look: 'derelict' | 'logs' | 'barge';
+  look: 'derelict' | 'logs' | 'barge' | 'dory' | 'yacht' | 'trawler' | 'pontoon';
   name: string;
+  /** Small, medium or large: the debug menu's choice (owner) and roughly the pay. */
+  size: TowSize;
+  /** A large tow passes you her own heavy hawser: the line parts at this many times CONFIG.tow.breakForce (unset: 1). */
+  lineFactor?: number;
 }
+
+export type TowSize = 'small' | 'medium' | 'large';
 
 /**
  * Static description of a vessel type (shared by every vessel of that type).
@@ -247,7 +253,7 @@ export function fromConfig(id: string, c: VesselConfig): VesselDef {
 }
 
 /** The vessel types, by def id (the ids live on in saves and snapshots: never rename). */
-export const VESSEL_IDS = ['workboat', 'skiff', 'derelict', 'logRaft', 'barge', 'landingCraft', 'design'] as const;
+export const VESSEL_IDS = ['workboat', 'skiff', 'derelict', 'logRaft', 'barge', 'dory', 'yacht', 'trawler', 'pontoon', 'landingCraft', 'design'] as const;
 
 let built: Record<string, VesselDef> | null = null;
 let builder: (() => Record<string, VesselDef>) | null = null;
@@ -277,4 +283,4 @@ export const VESSEL_DEFS: Record<string, VesselDef> = Object.defineProperties(
 );
 
 /** The towable kinds (towing missions), by def id. */
-export const TOW_DEFS = ['derelict', 'logRaft', 'barge'] as const;
+export const TOW_DEFS = ['derelict', 'dory', 'logRaft', 'barge', 'yacht', 'trawler', 'pontoon'] as const;

@@ -1,0 +1,7 @@
+{
+  "id": "vessel.sailing-yacht",
+  "version": 1,
+  "name": "Sailing yacht (dismasted)",
+  "hull": "hull.sailing-yacht",
+  "modules": []
+}
