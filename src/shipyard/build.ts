@@ -466,18 +466,21 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   // ── Hull definition ──
   const weighed = { massKg: mass, cg, inertia: inertiaFromGyradius(mass, gyradius) };
   const freeboard = deckMid;
-  // The deck crane (owner: placeable, for cargo): on the foredeck on the centreline, clear
-  // of the house's front, its control post toward the house; or on the aft deck to port,
-  // clear of the door and its steps, its post inboard.
+  // The deck crane (owner: placeable, for cargo; and at the deck edge, to keep the working
+  // deck clear): on the foredeck at the starboard edge, clear of the house's front; or on the
+  // aft deck at the port edge, clear of the door and its steps. Its control post stands
+  // inboard of it. Its socket is put where the column stands (`edgeInset` in from the deck
+  // edge), so the crane module keeps it there (its 'auto' side: a socket already off to one
+  // side stays), and the builder's clash checks and designed-in weight are where it really is.
   const cr = CONFIG.modules.deckCrane;
   let craneAt: V3 | null = null;
   if (d.deckCrane === 1) {
     const z = front - 0.9;
-    if (z - cr.plinthRadius - 0.3 > stem + (bowRamp ? 1.8 : 1.0)) craneAt = [0, q.deckY(z), z];
+    if (z - cr.plinthRadius - 0.3 > stem + (bowRamp ? 1.8 : 1.0)) craneAt = [q.halfBeam(z) - cr.edgeInset, q.deckY(z), z];
     else warnings.push('There\'s no room on her foredeck for the deck crane: left off.');
   } else if (d.deckCrane === 2) {
     const z = aft + 0.9;
-    if (z + 0.4 < transom - 0.3) craneAt = [-(q.halfBeam(z) - 0.6), q.deckY(z), z];
+    if (z + 0.4 < transom - 0.3) craneAt = [-(q.halfBeam(z) - cr.edgeInset), q.deckY(z), z];
     else warnings.push('There\'s no room on her aft deck for the deck crane: left off.');
   }
   // The searchlight and the fire monitor (owner): on the wheelhouse roof, or each on a pole
@@ -489,11 +492,12 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   type Rect = { x0: number; x1: number; z0: number; z1: number };
   const taken: Rect[] = [];
   if (craneAt) {
-    // The crane's plinth, and its control post with room to stand at it (a crane on the aft deck faces aft).
+    // The crane's plinth, and its control post (inboard of it; aft of it, or forward for a
+    // crane on the aft deck, which faces aft) with room to stand at it.
     const r = cr.plinthRadius + 0.1;
     taken.push({ x0: craneAt[0] - r, x1: craneAt[0] + r, z0: craneAt[2] - r, z1: craneAt[2] + r });
     const s = d.deckCrane === 2 ? -1 : 1;
-    const [px, pz] = [craneAt[0] + s * (d.deckCrane === 2 ? -cr.post.x : cr.post.x), craneAt[2] + s * cr.post.z];
+    const [px, pz] = [craneAt[0] - Math.sign(craneAt[0]) * Math.abs(cr.post.x), craneAt[2] + s * cr.post.z];
     taken.push({ x0: px - 0.3, x1: px + 0.3, z0: pz - 0.5, z1: pz + 0.5 });
   }
   const overlaps = (a: Rect, b: Rect) => a.x0 < b.x1 && b.x0 < a.x1 && a.z0 < b.z1 && b.z0 < a.z1;
@@ -566,7 +570,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     ...(craneAt
       ? [
           // The aft one faces aft (its boom rests over the aft deck, not the house).
-          { id: 'deckCrane', type: 'deck.equipment' as const, transform: { position: craneAt, ...(d.deckCrane === 2 ? { rotationDeg: [0, 180, 0] as V3 } : {}) }, capacity: { loadRatingKg: 1000 }, label: d.deckCrane === 1 ? 'Foredeck, centreline: the deck crane' : 'Aft deck, port: the deck crane' },
+          { id: 'deckCrane', type: 'deck.equipment' as const, transform: { position: craneAt, ...(d.deckCrane === 2 ? { rotationDeg: [0, 180, 0] as V3 } : {}) }, capacity: { loadRatingKg: 1000 }, label: d.deckCrane === 1 ? 'Foredeck, starboard edge: the deck crane' : 'Aft deck, port edge: the deck crane' },
           // Its hydraulic pump on the engine's power take-off.
           { id: 'hydraulicPump', type: 'engine.bay' as const, transform: { position: at.engineSpace }, label: 'On the engine\'s power take-off (nominal)' },
         ]
@@ -591,8 +595,9 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     lightship: lightshipOf(weighed, [
       { massKg: eng.kg * n, at: at.engineBed },
       { massKg: batteriesKg, at: at.engineSpace },
-      // The deck crane, if she has one: designed in, so she still floats on her lines with it
-      // (her hull and ballast lighter by its weight, as with the engine).
+      // The deck crane, if she has one: designed in where its column stands, so she still
+      // floats on her lines and upright with it (her hull and ballast lighter by its weight,
+      // and trimmed against it: a crane at the starboard edge, her ballast a little to port).
       ...(craneAt ? [{ massKg: cr.massKg, at: [craneAt[0], craneAt[1] + cr.columnHeight / 2, craneAt[2]] as V3 }] : []),
     ]),
     addedMass: lc.addedMass,
@@ -728,9 +733,8 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   }
   if (!bowRamp) recipe.modules = recipe.modules.filter((m) => m.socket !== 'rampCabin' && m.socket !== 'rampBow');
   if (craneAt) {
-    // Turned to face aft, the aft crane's control post goes to its other side, so it stays inboard.
-    const post = d.deckCrane === 2 ? { config: { post: { ...cr.post, x: -cr.post.x } } } : {};
-    recipe.modules.push({ socket: 'deckCrane', module: 'deck.crane', ...post }, { socket: 'hydraulicPump', module: 'hydraulics.pto-pump' });
+    // Its control post goes inboard of it by itself (the module's seat), whichever way it faces.
+    recipe.modules.push({ socket: 'deckCrane', module: 'deck.crane' }, { socket: 'hydraulicPump', module: 'hydraulics.pto-pump' });
   }
 
   const price = Math.round((mass * 6 + kw * n * 120 + (d.controls ? 18000 : 6000) + (craneAt ? 25000 : 0) + (hasMonitor ? 15000 : 0)) / 1000) * 1000;
