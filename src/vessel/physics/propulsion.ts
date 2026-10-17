@@ -57,11 +57,32 @@ export interface DieselInputs {
 
 const NU = 1.19e-6; // kinematic viscosity of sea water at 15 °C (m²/s)
 
-/** Gear the lever is asking for, and the throttle fraction beyond the neutral detent. */
-export function leverDemand(def: EngineSpec, lever: number): { gear: -1 | 0 | 1; throttle: number } {
-  const nb = def.engine.neutralBand;
+/**
+ * Gear the lever is asking for, the throttle fraction, and how fast the propeller shaft
+ * turns against the gearbox (`shaft`, 1 locked up).
+ *
+ * Trolling valve (owner: a big engine in gear at idle is too fast to handle): if the engine
+ * has one (`trollingLever` past the neutral detent), the first part of the lever's travel
+ * keeps the engine at idle and lets the gearbox clutch slip, the propeller turning from
+ * `trollingMinShaft` of its locked-up speed at the detent to all of it at `trollingLever`.
+ * Past that the clutch is locked and the throttle opens over the rest of the travel.
+ * Without one, the throttle opens from the detent, as before.
+ */
+export function leverDemand(def: EngineSpec, lever: number): { gear: -1 | 0 | 1; throttle: number; shaft: number } {
+  const cfg = def.engine;
+  const nb = cfg.neutralBand;
   const gear = lever > nb ? 1 : lever < -nb ? -1 : 0;
-  return { gear, throttle: gear === 0 ? 0 : clamp((Math.abs(lever) - nb) / (1 - nb), 0, 1) };
+  if (gear === 0) return { gear, throttle: 0, shaft: 1 };
+  const a = Math.abs(lever);
+  const troll = cfg.trollingLever ?? 0;
+  if (troll > nb) {
+    if (a < troll) {
+      const min = cfg.trollingMinShaft ?? 1;
+      return { gear, throttle: 0, shaft: min + ((1 - min) * (a - nb)) / (troll - nb) };
+    }
+    return { gear, throttle: clamp((a - troll) / (1 - troll), 0, 1), shaft: 1 };
+  }
+  return { gear, throttle: clamp((a - nb) / (1 - nb), 0, 1), shaft: 1 };
 }
 
 /**
@@ -198,6 +219,9 @@ export function steeringStep(angle: number, helm: number, rudder: Workboat['rudd
  *
  *   engine torque  Q_e = rack * Q_max(rpm) - (a + b*rpm)          (+ starter while cranking)
  *   prop load      Q_l = Q_prop / (i * eta)                         (only when a gear is in)
+ *   propeller      n = s * rpm / i, s < 1 while a trolling valve lets the clutch slip: the
+ *                  clutch passes the propeller's torque and turns the difference in speed
+ *                  into heat
  *   shaft          (I_e + I_p / i^2) * dw/dt = Q_e - Q_l
  *   governor       rack = clamp((rpm_set - rpm) / droop, 0, 1), rising no faster than
  *                  the turbo/smoke limiter allows
@@ -244,6 +268,9 @@ export function engineStep(e: EngineState, def: DieselSpec, inp: DieselInputs, s
   }
   e.rack = rackTarget > e.rack ? Math.min(rackTarget, e.rack + cfg.rackRiseRate * dt) : rackTarget;
 
+  // The clutch's slip (trolling valve) for the gear that's in: 1 locked up.
+  const slip = e.gear !== 0 && demand.gear === e.gear ? demand.shaft : 1;
+
   // ── Shaft dynamics (substepped: the governor loop is stiff) ──
   const inertia = cfg.inertia + (e.gear !== 0 ? propInertiaAtCrank : 0);
   const steps = 4;
@@ -256,7 +283,7 @@ export function engineStep(e: EngineState, def: DieselSpec, inp: DieselInputs, s
     if (rpm > 0.5) q -= cfg.frictionTorque + cfg.frictionPerRpm * rpm;
     thrust = 0;
     if (e.gear !== 0) {
-      const n = (e.gear * rpm) / i / 60; // prop rev/s, signed
+      const n = (e.gear * rpm * slip) / i / 60; // prop rev/s, signed
       const f = propellerForces(def, n, speed);
       thrust = f.thrust * immersion;
       q -= (f.torque * immersion) / (i * cfg.gearEfficiency);

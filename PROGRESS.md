@@ -3715,6 +3715,17 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Tests:** `tests/shipyard/build.test.ts` (on every hull, crane fore or aft with both poles on the same deck: the socket is the column's place, the poles are over 0.5 m from it, no list); `tests/deckCrane.test.ts` changed: the crane's weight at the starboard edge, the hull trimmed against it, the boat upright (it used to expect a slight list).
 - **Checked:** typecheck, all tests; a plan-view screenshot of a workboat with the crane and both poles on the foredeck (crane at the starboard edge with its post inboard, both poles to port).
 
+### Dolphins keep up only to 9 kn; a trolling valve for the big engines (owner)
+
+- **Dolphins** (owner: they shouldn't be at the bow when she's going faster than they swim, say 9 kn): `wildlife.dolphins.maxSpeed` (4.6 m/s, 9 kn). Above it no pod comes, and a pod already at the bow drops back astern over `fallBack` (5 s) and is gone; if she slows while the visit lasts, it comes up again from astern. (`wildlifeView.ts`, a per-frame "fallen back" amount that adds to the pod's distance astern.) Real dolphins can bow-ride faster than this for a while; the number is a setting.
+- **Trolling valve** (owner: clicking a powerful boat into forward is "a bit tasty", too fast at 600 rpm to handle):
+  - **Measured first**, steady speed with the lever just into forward (engine at idle): workboat 5.4 kn, landing craft 6.2 kn, Shipyard boats with one 400 kW V8 5.5 to 6.8 kn, with twin V8s 7.5 to 7.9 kn.
+  - **The fix is in the engine module** (`propulsion.ts leverDemand` and `engineStep`), as on real boats with big engines: over the first part of the lever's travel the engine stays at idle and the gearbox clutch slips, so the propeller turns from `trollingMinShaft` (0.3) of its locked-up speed at the detent to all of it at `trollingLever` (0.3 of the lever's travel). Past that the clutch locks and the throttle opens over the rest. The clutch passes the propeller's torque; the difference in speed is lost as heat. Works ahead and astern.
+  - **Who has one:** the landing craft (`landingCraft.json`), and so every Shipyard boat (built from her recipe). Not the workboat (`trollingLever: 0`, her lever as before); she can have one if the owner wants.
+  - **Now** (lever 0.1 / 0.2 / 0.3 / 1): landing craft 2.4 / 4.5 / 6.1 / 20.0 kn; Shipyard pilot boat with twin 400 kW V8s 3.1 / 5.6 / 7.4 / 24.1 kn. Top speeds unchanged; the engine stays at idle through the slip.
+- **Tests** (`trollingAndDolphins.test.ts`): the lever map (slip, then throttle; the workboat unchanged); the landing craft under 3.5 kn just into gear with the engine at idle, over 5.5 kn at the lock-up, over 19 kn flat out; a pod at the bow at 7.8 kn, gone after falling back at 11 kn, back once she slows. All tests pass, golden runs unchanged.
+- **Not checked:** the feel on the Quest's lever.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

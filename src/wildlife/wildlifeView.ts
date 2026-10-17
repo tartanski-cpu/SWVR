@@ -24,6 +24,9 @@ export class WildlifeView {
   private readonly dolphins: THREE.InstancedMesh;
   private readonly g: GullPose = { x: 0, y: 0, z: 0, yaw: 0, bank: 0, wing: 0 };
   private readonly d: DolphinPose = { x: 0, z: 0, y: 0, pitch: 0, up: false, sinceBreath: 0 };
+  /** How far the pod has dropped back because she's too fast for them: 0 with her .. 1 gone. */
+  private fell = 0;
+  private lastT = 0;
   private readonly m = new THREE.Matrix4();
   private readonly w = new THREE.Matrix4();
   private readonly q = new THREE.Quaternion();
@@ -107,7 +110,15 @@ export class WildlifeView {
 
     // Dolphins: in the boat's heading frame (her yaw only), at the sea surface.
     const c = CONFIG.wildlife.dolphins;
-    const into = open && speed > c.minSpeed ? podVisit(t) : null;
+    // Too fast for them: the pod drops back astern (`fell` 0 with her .. 1 gone), and comes
+    // up again if she slows. Kept frame to frame; it follows the shared boat's speed, so the
+    // crew all see much the same.
+    const dt = Math.min(0.1, Math.max(0, t - this.lastT));
+    this.lastT = t;
+    this.fell = Math.min(1, Math.max(0, this.fell + (speed > c.maxSpeed ? dt : -dt) / c.fallBack));
+    const visit = open && speed > c.minSpeed ? podVisit(t) : null;
+    // A pod that's fallen right back is gone; a new one won't come while she's too fast.
+    const into = visit !== null && this.fell < 1 ? visit : null;
     this.e.setFromQuaternion(boat.quaternion, 'YXZ');
     const yaw = this.e.y;
     const cy = Math.cos(yaw);
@@ -119,6 +130,7 @@ export class WildlifeView {
         continue;
       }
       const d = dolphinPose(j, into, t, -7, this.d);
+      d.z += 45 * this.fell * this.fell; // dropping back astern (vessel axes: +z is aft)
       const x = bx + d.x * cy + d.z * sy;
       const z = bz - d.x * sy + d.z * cy;
       const y = surfaceHeight(waves, x, z) + d.y;

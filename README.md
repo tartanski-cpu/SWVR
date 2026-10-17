@@ -150,6 +150,7 @@ At the helm, from left to right on the console:
 - **Horn** button (hold).
 - **Wheel**: 1.5 turns lock to lock. Hydraulic steering, so it stays where you leave it.
 - **Throttle/gear lever**, on a pedestal starboard of the wheel so it falls to hand: forward = ahead, back = astern, with a notch at neutral.
+  - **Big engines (the landing craft and Shipyard boats) have a trolling valve:** the first part of the lever's travel either side of neutral keeps the engine at idle and lets the gearbox slip, from dead slow (2 to 3 knots) up to her idle speed in gear; past about a third of the travel the throttle opens. The workboat's lever opens the throttle straight from the notch.
 - **Start/stop** button. The engine only starts with the lever in neutral.
 
 **Instrument lighting:** the dials, screens, labels and the start-up card dim by themselves as it gets dark, and at night turn a dim red, so you keep your night vision and still see out. The switch and button labels are tilted up toward you so they read from the helm.
@@ -435,7 +436,7 @@ No timers on screen: the chart marks, the buoy flags and your memory are all you
 
 ### Wildlife
 
-Gulls wheel over the boat by day, gliding and now and then flapping, and calling. Under way in open, deep water, a pod of dolphins sometimes comes up from astern and rides off the bow for a minute or so, each one blowing as it surfaces. They're decoration: worked out from the time and the boat's position, so the whole crew sees the same animals.
+Gulls wheel over the boat by day, gliding and now and then flapping, and calling. Under way in open, deep water, a pod of dolphins sometimes comes up from astern and rides off the bow for a minute or so, each one blowing as it surfaces. They keep up to about 9 knots: go faster and they drop back astern (slow down and they may come up again). They're decoration: worked out from the time and the boat's position, so the whole crew sees the same animals.
 
 ## Off the boat, and cargo by hand
 

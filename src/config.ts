@@ -331,6 +331,15 @@ export const CONFIG = {
         /** Lever travel either side of centre that counts as neutral (detent). */
         neutralBand: 0.08,
         /**
+         * Trolling valve (propulsion.ts leverDemand): lever travel (from centre) over which
+         * the engine stays at idle and the clutch slips, the propeller turning from
+         * `trollingMinShaft` of its speed at the detent up to all of it here. 0: none (the
+         * workboat). The landing craft and the Shipyard's boats have one (owner: their big
+         * engines idling in gear were too fast to handle).
+         */
+        trollingLever: 0,
+        trollingMinShaft: 0.3,
+        /**
          * Fuel. The rack sets fuel per stroke and strokes per second follow RPM, so fuel flow
          * follows indicated power:  m_dot = sfc(rack) * rack * Q_max(rpm) * omega,
          * sfc(rack) = sfc * (1 + partLoadPenalty * (1 - rack)^2)  (worse at light load).
@@ -1558,11 +1567,14 @@ export const CONFIG = {
    * (rad/s) of their circles, how far their centres wander about the boat (m). Dolphins: a
    * pod of `count` in most (`chance`) slots of `every` s, staying `stay` s, if she's doing
    * more than `minSpeed` m/s in water deeper than `minDepth` m, `minPortDistance` m from a
-   * port. Neither come out after dark (darkness above `night`, 0 day .. 1 night).
+   * port. Faster than `maxSpeed` m/s (owner: about 9 kn, what they can keep up with) they
+   * don't come, and a pod already at the bow drops back astern over `fallBack` s (and comes
+   * up again if she slows while the visit lasts). Neither come out after dark (darkness
+   * above `night`, 0 day .. 1 night).
    */
   wildlife: {
     gulls: { count: 6, radius: [12, 35] as [number, number], height: [7, 18] as [number, number], turnRate: [0.15, 0.32] as [number, number], wander: 12 },
-    dolphins: { count: 4, every: 300, chance: 0.6, stay: 70, minSpeed: 2, minDepth: 12, minPortDistance: 500 },
+    dolphins: { count: 4, every: 300, chance: 0.6, stay: 70, minSpeed: 2, maxSpeed: 4.6, fallBack: 5, minDepth: 12, minPortDistance: 500 },
     night: 0.6,
     /** Seconds between gull calls (when gulls are about). */
     gullCallEvery: [4, 12] as [number, number],

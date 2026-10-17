@@ -31,6 +31,8 @@
           "gearEfficiency": 0.97,
           "shiftDelay": 0.6,
           "neutralBand": 0.08,
+          "trollingLever": 0.3,
+          "trollingMinShaft": 0.3,
           "fuel": {"tankL": 300, "startL": 210, "sfcGPerKWh": 205, "partLoadPenalty": 0.3, "densityKgPerL": 0.84, "lowFraction": 0.1, "refuelRateLps": 2.5},
           "thermal": {
             "heatToCoolant": 0.3,
