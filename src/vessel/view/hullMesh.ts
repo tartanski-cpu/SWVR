@@ -29,6 +29,9 @@ export function buildVesselMesh(form: HullForm, layout: LayoutConfig, exhaustOut
   return mesh;
 }
 
+/** A bow this wide at the stem (half-beam, m) is square (a landing bow): plated across, with a bulwark. */
+const SQUARE_BOW = 0.2;
+
 /** A layout with a wheelhouse (and its roof and ladder). */
 type HouseLayout = LayoutConfig & Required<Pick<LayoutConfig, 'wheelhouse' | 'roof' | 'ladder'>>;
 
@@ -90,6 +93,14 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet?: [numbe
   const tIn = inside(0).add(new THREE.Vector3(0, 0, -1));
   const tC = new THREE.Vector3(0, (st[0].polygon[2][1] + st[0].polygon[0][1]) / 2, st[0].z);
   for (let k = 0; k < 5; k++) tri(tC, P(0, k), P(0, (k + 1) % 5), tIn, COLORS.topsides);
+  // A square bow (a landing bow: the last station still has width) is closed the same way,
+  // by a bow plate.
+  const e = st.length - 1;
+  if (st[e].halfBeamDeck > SQUARE_BOW) {
+    const bIn = inside(e).add(new THREE.Vector3(0, 0, 1));
+    const bC = new THREE.Vector3(0, (st[e].polygon[2][1] + st[e].polygon[0][1]) / 2, st[e].z);
+    for (let k = 0; k < 5; k++) tri(bC, P(e, k), P(e, (k + 1) % 5), bIn, COLORS.topsides);
+  }
 
   const hull = new THREE.BufferGeometry();
   hull.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
@@ -209,6 +220,14 @@ function buildDeckFittings(form: HullForm, layout: LayoutConfig): THREE.BufferGe
       parts.push(bar(a.clone().setY(a.y + bh / 2), b.clone().setY(b.y + bh / 2), 0.05, bh, COLORS.topsides));
   } else parts.push(bar(p.clone().setY(p.y + bh / 2), q.clone().setY(q.y + bh / 2), 0.05, bh, COLORS.topsides));
   if (rh > 0) parts.push(bar(p.clone().setY(p.y + rh), q.clone().setY(q.y + rh), 0.05, 0.05, COLORS.rail));
+  // Across a square bow, the same.
+  const e = st.length - 1;
+  if (st[e].halfBeamDeck > SQUARE_BOW) {
+    const pb = edge(e, -1, 0);
+    const qb = edge(e, 1, 0);
+    parts.push(bar(pb.clone().setY(pb.y + bh / 2), qb.clone().setY(qb.y + bh / 2), 0.05, bh, COLORS.topsides));
+    if (rh > 0) parts.push(bar(pb.clone().setY(pb.y + rh), qb.clone().setY(qb.y + rh), 0.05, 0.05, COLORS.rail));
+  }
   return parts;
 }
 

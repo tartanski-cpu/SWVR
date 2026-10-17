@@ -82,7 +82,9 @@ function rand(f: FireState): number {
 const between = (f: FireState, [a, b]: readonly [number, number]) => a + (b - a) * rand(f);
 
 function tug(world: WorldState): VesselState | undefined {
-  return homeVessel(world);
+  // The home boat, if she has a fire monitor to fight a fire with (M7: not every boat does).
+  const v = homeVessel(world);
+  return v && gearOf(v, 'fireMonitor') ? v : undefined;
 }
 
 /** Is any job (rescue, tow, fire) on? Only one at a time. */

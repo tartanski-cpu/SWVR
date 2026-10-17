@@ -900,6 +900,11 @@ Sizes: S is about a session, M two or three, L more.
 
 ### M7: the proof, the landing craft (M)
 
+- **Order changed (owner, after 6c):** M7 comes before 6d (saves, the flat bus record, recipes in multiplayer), which the landing craft doesn't need to prove the builder. In two stops:
+  - **7a. Done; see PROGRESS.** Her hull lofted from the study's design into the game's stations, her hull definition and recipe reusing the workboat's modules, a Debug-menu start in her, and the shared-code leaks she turned up fixed (the ledger in PROGRESS).
+    - **As built:** the game's stations are upright with one chine a side, so the study's raked bow is set upright at its deck edge (her deck runs 10.2 m; the rake goes into the run of the bottom up to the bow, out of the water). One bulwark height (0.5 m). The workboat's livery (M8). Her machinery's settings are in her recipe JSON; her hull's numbers in `CONFIG.vessels.landingCraft`.
+  - **7b:** the bow ramp module and its interlock; beach her at Selkie and walk off.
+
 - A new hull from the hull study's `landingCraft` design (9 m, square landing bow, cabin aft of amidships), lofted into physics stations, with its own numbers and sockets. A single inboard diesel in her one engine bay: the workboat's engine module with a smaller engine and propeller in its config.
 - A recipe reusing the console, controls, instruments, engine(s), electrics, furniture and searchlight.
 - **One new module:** `deck.bow-ramp` (lower and raise on a hydraulic or electric drive, `ramp.state`). The recipe interlock: `ramp.state != 'lockedUp'` limits `throttle.max` to 0.2.

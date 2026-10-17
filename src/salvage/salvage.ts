@@ -21,6 +21,7 @@
  *             (radio, `sold` counted). Beached logs nobody wants go after `expire` s if
  *             we're far off.
  */
+import { gearOf } from '../boats/sims';
 import { CONFIG } from '../config';
 import { homeVessel, type WorldState } from '../core/world';
 import { windVector } from '../environment/weather';
@@ -204,6 +205,8 @@ export function stepSalvage(world: WorldState, dt: number): void {
   const s = (world.salvage ??= createSalvageState());
   const c = CONFIG.salvage;
   const boat = homeVessel(world);
+  // Timber is salvaged with a tow point (M7: a boat without one gets no calls about it).
+  if (boat && !gearOf(boat, 'towPoint')) return;
   if (s.nextAt === null) s.nextAt = world.time + c.firstAfter;
   if (s.spawn && world.time >= s.nextAt) {
     s.nextAt = world.time + c.every[0] + rand(s) * (c.every[1] - c.every[0]);

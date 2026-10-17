@@ -1,3 +1,4 @@
+import { gearOf } from '../boats/sims';
 import type { BoardState } from '../board/board';
 import { CONFIG } from '../config';
 import { createEnvironment, type EnvironmentState } from '../environment/environmentState';
@@ -99,7 +100,8 @@ export function createWorld(
   const vessel = createVesselState(vesselId, vesselDefId);
   if (opts.harbour) mooredAtStart(vessel);
   else dropVessel(vessel);
-  const tender = opts.tender ? createVesselState(ids.next('vessel'), 'skiff') : null;
+  // Her tender only if she has a crane to carry it (the workboat; M7: not every boat does).
+  const tender = opts.tender && gearOf({ defId: vesselDefId }, 'tenderCrane') ? createVesselState(ids.next('vessel'), 'skiff') : null;
   const player = createPlayerState(localPlayerId, 'Player 1');
   placeAshore(player);
   const world: WorldState = {

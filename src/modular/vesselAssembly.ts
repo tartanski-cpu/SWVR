@@ -14,9 +14,8 @@
 import * as THREE from 'three';
 import { CONFIG } from '../config';
 import type { Vec3 } from '../core/math';
-import { buildHullForm } from '../vessel/hullForm';
 import { wettedSurfaceAtDWL, type VesselDef } from '../vessel/vesselDef';
-import type { HullLibrary } from './hull';
+import { hullFormOf, type HullLibrary } from './hull';
 import { combine, type PointMass } from './massProperties';
 import { flattenMounts, type ModuleLibrary, type MountedModule, type Recipe } from './recipe';
 import type { Transform } from './socket';
@@ -58,7 +57,7 @@ export function vesselDefFrom(id: string, recipe: Recipe, lib: { hulls: HullLibr
   const { mounted, errors } = flattenMounts(recipe, lib.hulls, lib.modules);
   if (errors.length) throw new Error(`Recipe '${recipe.id}' has problems:\n  ${errors.join('\n  ')}`);
   const mass = combine(hull.lightship, moduleMasses(mounted));
-  const form = buildHullForm(hull.form.params);
+  const form = hullFormOf(hull.form);
   const a = hull.addedMass;
   return {
     id,

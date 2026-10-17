@@ -162,6 +162,9 @@ export interface MenuHost {
   teleportToPort(i: number): void;
   seaTrialsShown(): boolean;
   toggleSeaTrials(): void;
+  /** Which boat you start in (modular boats M7: the workboat, or the landing craft); choosing one restarts the game in her. */
+  homeBoat(): string;
+  setHomeBoat(defId: string): void;
   debugPanel(): boolean;
   toggleDebugPanel(): void;
   hydroView(): boolean;
@@ -536,6 +539,7 @@ export function mainMenu(h: MenuHost): MainMenu {
     {
       name: 'Boat',
       rows: [
+        { label: 'Start in', buttons: [choice('Workboat', 'workboat', () => h.homeBoat(), (v) => h.setHomeBoat(v)), choice('Landing craft', 'landingCraft', () => h.homeBoat(), (v) => h.setHomeBoat(v))] },
         {
           label: 'Hull',
           buttons: [

@@ -146,7 +146,12 @@ export class HandGear {
     }
   }
 
-  /** Hang it on its bracket in `parent` (the workboat's root), at `pos` (its axes). */
+  /** On a boat (mounted on its bracket): a boat with no place for it hasn't got one aboard. */
+  get aboard(): boolean {
+    return !!this.home;
+  }
+
+  /** Hang it on its bracket in `parent` (the home boat's root), at `pos` (its axes). */
   mount(parent: THREE.Object3D, pos: readonly number[]): void {
     this.home = parent;
     // The bracket's root is the gear's hanging point (the handle).

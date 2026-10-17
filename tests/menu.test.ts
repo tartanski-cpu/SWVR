@@ -19,6 +19,8 @@ function fakeHost() {
   const state = { time: 10.5, scale: 0, sea: 1, coupling: 1, smooth: true, snap: 30, aboard: false, trials: false, dbg: false, hydro: false, probes: false, code: '', weather: 'Clear', debugMenu: true };
   const host: MenuHost = {
     timeOfDay: () => state.time,
+    homeBoat: () => 'workboat',
+    setHomeBoat: (id) => calls.push(`boat ${id}`),
     shiftTime: (h) => calls.push(`shift ${h.toFixed(3)}`),
     timeScale: () => state.scale,
     setTimeScale: (v) => (state.scale = v),

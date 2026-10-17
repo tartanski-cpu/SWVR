@@ -58,6 +58,8 @@ import { VHF } from '../modules/vhf';
 import { WARNING_LAMPS } from '../modules/warningLamps';
 import { WHEEL } from '../modules/wheel';
 import { WHITEBOARD } from '../modules/whiteboard';
+import landingCraft from './landingCraft.json';
+import { LANDING_CRAFT_HULL } from './landingCraftHull';
 import skiff from './skiff.json';
 import { SKIFF_HULL } from './skiffHull';
 import starterWorkboat from './starterWorkboat.json';
@@ -67,7 +69,7 @@ import towLogRaft from './tow-logRaft.json';
 import { BARGE_HULL, DERELICT_HULL, LOG_RAFT_HULL } from './towHulls';
 import { WORKBOAT_HULL } from './workboatHull';
 
-export const HULLS = createHullLibrary([WORKBOAT_HULL, SKIFF_HULL, DERELICT_HULL, LOG_RAFT_HULL, BARGE_HULL]);
+export const HULLS = createHullLibrary([WORKBOAT_HULL, SKIFF_HULL, DERELICT_HULL, LOG_RAFT_HULL, BARGE_HULL, LANDING_CRAFT_HULL]);
 
 export const MODULES = createModuleLibrary([
   CONSOLE, WHEEL, THROTTLE_LEVER, TOGGLE, PUSH_BUTTON, KEY_SWITCH, JOYSTICK, WARNING_LAMPS, START_CARD, SCREEN,
@@ -98,6 +100,7 @@ export const RECIPES: Record<string, Recipe> = {
   derelict: loadRecipe(towDerelict),
   logRaft: loadRecipe(towLogRaft),
   barge: loadRecipe(towBarge),
+  landingCraft: loadRecipe(landingCraft),
 };
 
 // Every vessel type is built from her recipe (M6a): VESSEL_DEFS asks this when first used.

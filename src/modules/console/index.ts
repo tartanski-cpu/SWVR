@@ -25,6 +25,12 @@ export const CONSOLE: ModuleDefinition<ConsoleConfig> = {
   fits: ['helm.console'],
   defaults: CONFIG.modules.helmConsole,
   ports: {},
+  // Its size, for the space its socket gives (M7): across its dash and group plates, from the
+  // floor to the dash top, from the dash's front to its pedestals' aft ends.
+  physical: (c) => {
+    const half = Math.max(c.dash.halfWidth, ...c.groups.map((g) => Math.max(Math.abs(g.x[0]), Math.abs(g.x[1]))));
+    return { size: [2 * half, c.dash.top - c.pedestals.floor, Math.max(c.pedestals.aft, c.plates.aft) - c.dash.front] };
+  },
   // Its instruments' draw on the INSTR circuit.
   power: (c) => [{ role: 'load', circuit: 'instruments', amps: () => c.instrumentsAmps }],
   sockets: (c) =>

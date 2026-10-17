@@ -16,7 +16,8 @@
  * also holds what's still built into her (`fittings`: the exhaust outlet, rescue places, a
  * tow's look); her machinery, lights and gear are modules.
  */
-import type { HullParams } from '../vessel/hullForm';
+import { buildHullForm, hullFormFromDesign, type HullParams } from '../vessel/hullForm';
+import type { HullDesign } from '../hulls/loft';
 import { hullPlan } from '../vessel/layout';
 import type { HullForm } from '../vessel/hullForm';
 import type { HullFittings, LayoutConfig, VesselConfig } from '../vessel/vesselDef';
@@ -41,8 +42,11 @@ export interface HullDefinition {
   features?: HullFeature[];
 
   // ── The shape and handling (M6a) ──
-  /** Today's hard-chine generator (every boat in the game). A hull-study design, lofted, comes with M7. */
-  form: { kind: 'chine'; params: HullParams };
+  /**
+   * Her shape: today's hard-chine generator (the workboat, the skiff, the tows), or a
+   * hull-study design lofted into stations (M7: src/hulls/designs.ts, vessel/hullForm.ts).
+   */
+  form: { kind: 'chine'; params: HullParams } | { kind: 'lofted'; design: HullDesign };
   /**
    * Lightship: WITHOUT the modules that declare their own mass (2.6; the engine, the
    * batteries). The boat's mass, CG and inertia are this plus them (modular/massProperties.ts).
@@ -72,6 +76,11 @@ export interface HullFeature {
   kind: 'door' | 'hatch' | 'window';
   /** The bus key that says it's open. */
   openKey: BusKey;
+}
+
+/** The stations her form gives (the same ones float her and draw her). */
+export function hullFormOf(form: HullDefinition['form']): HullForm {
+  return form.kind === 'chine' ? buildHullForm(form.params) : hullFormFromDesign(form.design);
 }
 
 /** Hulls by id. */

@@ -33,10 +33,12 @@ describe('every boat from her recipe', () => {
   });
 
   it('each vessel definition is the one her config gave before (mass properties to rounding)', () => {
-    for (const id of VESSEL_IDS) {
-      const old = fromConfig(id, (CONFIG.vessels as Record<string, VesselConfig>)[id]);
+    // The boats that had a vessel config before M6 (the landing craft never did).
+    for (const id of ['workboat', 'skiff', 'derelict', 'logRaft', 'barge']) {
+      const old = fromConfig(id, (CONFIG.vessels as unknown as Record<string, VesselConfig>)[id]);
       const now = VESSEL_DEFS[id];
-      const { mass, cg, inertia, designVolume, ...rest } = now;
+      // (Her hand gear's places, `stowage`, are new with M7: before, the app had them.)
+      const { mass, cg, inertia, designVolume, stowage: _s, ...rest } = now;
       const { mass: m0, cg: cg0, inertia: i0, designVolume: v0, ...rest0 } = old;
       expect(rest, id).toEqual(rest0);
       relClose(mass, m0);

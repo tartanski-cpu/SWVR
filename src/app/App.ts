@@ -130,6 +130,15 @@ const LAST_CODE_KEY = 'swvr.lastGameCode';
 const CHART_KEY = 'swvr.chart';
 /** ...and the batteries when we left (only with electrics.drainBetweenSessions). */
 const BATTERY_KEY = 'swvr.battery';
+
+/**
+ * The boat the game starts in: the page's `?boat=` (Debug > Boat > Start in, modular boats
+ * M7), a vessel type with a recipe and a cabin to work her from; else the workboat.
+ */
+function startBoat(): string | undefined {
+  const id = new URLSearchParams(location.search).get('boat');
+  return id && RECIPES[id] && VESSEL_DEFS[id] && hasWheelhouse(VESSEL_DEFS[id]) ? id : undefined;
+}
 /** ...and the number of rescues completed. */
 const RESCUES_KEY = 'swvr.rescues';
 
@@ -348,7 +357,7 @@ export class App {
       CONFIG.render.far,
     );
 
-    const created = createWorld(this.ids, undefined, { tender: true, cold: true, weather: true, tows: true, fires: true, logs: true, harbour: true });
+    const created = createWorld(this.ids, startBoat(), { tender: true, cold: true, weather: true, tows: true, fires: true, logs: true, harbour: true });
     this.world = created.world;
     this.localPlayerId = created.localPlayerId;
     this.soloPlayerId = created.localPlayerId;
@@ -380,8 +389,10 @@ export class App {
     if (tugView) this.towline.attachLead(tugView.root, this.world.vessels[this.testVesselId]);
     this.trawlView.setBoat(this.world.vessels[this.testVesselId]);
     this.binoculars = new Binoculars(this.camera);
-    if (tugView) this.binoculars.stow(tugView.root);
-    if (tugView) for (const g of this.gear) g.mount(tugView.root, CONFIG.handGear[g.kind].bracket);
+    // The hand gear's places aboard are her hull's (M7): gear she has no place for isn't aboard.
+    const stowage = VESSEL_DEFS[this.world.vessels[this.testVesselId].defId].stowage;
+    if (tugView && stowage?.binoculars) this.binoculars.stow(tugView.root, stowage.binoculars.at, stowage.binoculars.yawDeg);
+    if (tugView) for (const g of this.gear) if (stowage?.[g.kind]) g.mount(tugView.root, stowage[g.kind]!);
     this.scene.add(this.handGearView.root);
     this.scene.add(this.towline.root, this.painter.root, this.fireView.root, this.jetView.root, this.logView.root, this.trawlView.root, this.potView.root);
     this.setupBridge();
@@ -1678,6 +1689,14 @@ export class App {
         if (this.world.players[this.localPlayerId].aboardVesselId !== this.testVesselId) this.toggleBoardTo(true);
         this.overlay.notify(port.cargo.berth ? `${port.name}: at the cargo berth, make fast at the cleats` : `${port.name}: in the bay, let go the anchor`, 3);
       },
+      homeBoat: () => this.world.vessels[this.testVesselId]?.defId ?? 'workboat',
+      setHomeBoat: (defId) => {
+        // A fresh start in her (the page's `?boat=`): a new world, her views and controls.
+        const url = new URL(location.href);
+        if (defId === 'workboat') url.searchParams.delete('boat');
+        else url.searchParams.set('boat', defId);
+        location.assign(url.toString());
+      },
       seaTrialsShown: () => this.trialsPanel.shown,
       toggleSeaTrials: () => this.toggleSeaTrials(),
       debugPanel: () => this.overlay.visible,
@@ -2063,7 +2082,7 @@ export class App {
     this.interaction = new InteractionSystem(
       // Every boat's controls (the home boat's first), the crane's buttons, the gear brackets.
       // (Boats that come later, the tows, have none.)
-      [...[...this.boats.values()].flatMap((b) => b.controls), ...this.cranes.flatMap((d) => d.buttons), ...this.gear.map((g) => g.bracket)],
+      [...[...this.boats.values()].flatMap((b) => b.controls), ...this.cranes.flatMap((d) => d.buttons), ...this.gear.filter((g) => g.aboard).map((g) => g.bracket)],
       (channel, value) => {
         if (channel === 'engineStartStop') return this.requestEngineStartStop();
         // Console modules send bus keys ('ignition.start'); older controls their old names.
@@ -2154,6 +2173,7 @@ export class App {
       }
       // Hand gear (extinguisher, torch): the same.
       for (const g of this.gear) {
+        if (!g.aboard) continue;
         const used = g.updateXR(this.hands, this.busyHands, this.gearTakenByOther(g.kind), (h, i, ms) => this.xrInput.pulse(h, i, ms));
         for (const h of ['left', 'right'] as const) {
           if (!used[h]) continue;
@@ -2185,7 +2205,7 @@ export class App {
       return;
     }
     this.pointer?.update(this.camera);
-    for (const g of this.gear) g.updateDesktop(this.camera, !!this.pointer?.gearDown, !!this.pointer?.gearPressed);
+    for (const g of this.gear) if (g.aboard) g.updateDesktop(this.camera, !!this.pointer?.gearDown, !!this.pointer?.gearPressed);
     if (this.keyboard.actionPressed('hangGear')) for (const g of this.gear) if (g.held) g.hangBack();
   }
 

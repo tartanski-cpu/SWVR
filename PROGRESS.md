@@ -2413,6 +2413,67 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   - **VR:** take a lost-cargo call, hook a crate and bring it alongside. Grip the pole with your other hand: the crate comes into that hand. Next time try reaching over the side towards it instead. At night, check the crates no longer flash; survivors still do.
   - **Desktop:** unchanged (click the crate on the hook once it's alongside).
 
+### M7a: the landing craft, the second boat built from modules (done, on /next/ for the owner to test)
+
+- **Why now:** the owner wants to reach the test of the architecture: build a new boat from modules and see whether they fit and the process is efficient. 6d (saves, the flat bus record, recipes in multiplayer) isn't needed for that and comes after. M7 is in two stops: **7a** (this: the boat), **7b** (the bow ramp module, beaching, walking off).
+- **What she is:** the hull study's `landingCraft` design, a 9 m aluminium work boat with a square landing bow, a cabin aft of amidships and an open foredeck (her cargo deck), with one small inboard diesel. Start the game in her from **Debug > Boat > Start in > Landing craft**; the game restarts in her, alongside in Calder Haven.
+- **What it took** (the plan's test: "a hull, a JSON file and one module"):
+  - **Her lines:** the study's design as it was (`src/hulls/designs.ts`), lofted into the game's stations (`vessel/hullForm.ts hullFormFromDesign`). The same stations float her and draw her. The game's stations are upright with one chine a side, so the study's raked bow is set upright at its deck edge. Her deck runs 10.2 m, the deck plan and walk area are the design's, and the rake goes into the run of the bottom up to the bow, which is out of the water.
+  - **Her hull** (`src/boats/landingCraftHull.ts`, numbers in `CONFIG.vessels.landingCraft`):
+    - **Mass:** 7,850 kg, what her stations displace at the design waterline, so she floats on it; CG over her LCB.
+    - **Handling:** the workboat's per-area damping and resistance curve, with the angular damping scaled to her size.
+    - **Layout:** the cabin, its walkable roof and ladder, the engine hatch.
+    - **Her 25 sockets.**
+  - **Her recipe** (`src/boats/landingCraft.json`): 35 modules, every one the workboat's. A 150 kW diesel (the workboat's engine module with a scaled torque curve, a 0.55 m propeller and a 1.42:1 gearbox), a 0.3 m² rudder, a 300 L tank, batteries, bilge pump. A compact console with 17 controls and screens; breakers, master, selector, VHF, cabin door buttons, engine hatch, dipstick and oil can; cabin lamp, searchlight, navigation lights, four cleats. Her machinery's settings live in this file, as any boat's modules' do.
+  - **Does it fit?** The workboat's console is 2.6 m across; her cabin is 2.0 m inside. The fit check now knows the console's size, so her helm socket **refuses** the standard console ("doesn't fit the space"). Her recipe gives the same console module a compact layout, 1.8 m across, which fits. That's the shipyard's check (M8) working for real.
+- **The ledger: shared code she showed up**, all fixed in the shared code, not worked round:
+  - Expected (the plan's own steps): the lofted hull form; hulls carrying either kind of form; the Debug-menu start.
+  - **Leaks** (things that assumed the workboat):
+    - the hull mesh closed only a transom, so a square bow is now plated across with its bulwark;
+    - a wheelhouse's side door, raised sills and raked front were typed as always present;
+    - the console never declared its size, so the fit check couldn't refuse it;
+    - every game made a skiff, even for a boat without a crane to carry it;
+    - the extinguisher, torch and binoculars were hung at the workboat's places. They're now the hull's `stowage` fittings; gear a hull has no place for isn't aboard.
+    - fire calls and timber-salvage calls came whatever the boat carried. They now need a fire monitor or a tow point, as towing and fishing have since M5.
+  - **Verdict:** her data is one hull file (85 lines), one config block (about 130 lines, mostly comments) and one recipe. The shared code needed six small fixes, each now true for any boat.
+- **Her numbers, from her sea trials:**
+  - Afloat: 7.85 t, draught 0.48 m, floats level, GMt 1.12 m, max GZ 0.37 m at 40°.
+  - Speed: 10.2 kn flat out at 1680 rpm, 36.8 L/h (83 nm on 300 L); 5.6 kn at quarter lever.
+  - Manoeuvring: tactical diameter 25 m (2.4 L); crash stop 15 m in 5.7 s.
+  - Motions: roll period 2.4 s, 28 % damped.
+- **For now:**
+  - one bulwark height, 0.5 m (the design's runs 0.32 m aft to 0.62 m forward);
+  - the workboat's paint (livery is the shipyard's, M8);
+  - no anchor, no life ring or boat hook, no rescue places, so no rescue, tow or fire calls come for her; cargo runs do;
+  - multiplayer with her isn't supported yet: a crew-mate would still see the workboat until recipes go in the welcome (6d).
+- **Config:** `CONFIG.vessels.landingCraft` (new: mass, `engineKg`, CG, radii of gyration, added mass, damping, resistance, windage, layout, cargo deck, boarding spot, spawn, exhaust, hand gear `stowage`, module `places`).
+- **Exactly as before for the workboat:**
+  - All twelve golden runs match without re-recording; her sea trials are unchanged (the report gains the landing craft's).
+  - Draw calls unchanged: 62 / 57 / 115 / 36 by day, 64 / 58 / 116 / 35 at night.
+  - The landing craft at her helm: 52 by day.
+- **Tests (9 new, 480 in all, all pass):**
+  - her stations run transom to bow, with a square bow, and she has a cabin;
+  - the cabin floor is above the deck;
+  - assembled she weighs what she displaces;
+  - her recipe is valid and uses only existing modules;
+  - the workboat's console is refused and her compact one fits;
+  - her machinery is right, with no crane, tow point or fire monitor;
+  - you can stand at her helm, on her foredeck and in her cockpit, but not through the cabin walls;
+  - a game started in her has no skiff and no fire or timber calls;
+  - she starts and makes over 9 kn.
+  
+  The crane test now expects a workboat without her crane to carry no skiff.
+- **Checked in the browser:** started in her at Calder Haven, boarded at the helm, quick-started, cast off and got under way. Her four dash screens are live, her mooring lines are made fast to her own cleats, and there are no errors. Screenshots from the quarter, bow, side and top look right: cabin aft, open foredeck, square bow with its bulwark.
+- **Owner test** (at /SWVR/next/):
+  - **VR:** Settings > Game > Debug tab shown, then Debug > Boat > Start in > Landing craft (the page reloads; enter VR again). Then:
+    1. Walk aboard and look her over: cabin, roof (by the ladder on the cabin's aft face), foredeck, cockpit, the square bow.
+    2. Start her properly: master and breakers on the cabin's aft and starboard walls, key, HEAT, START.
+    3. Drive her: turns, a crash stop. Open the engine hatch and check the oil.
+    4. Moor her alongside.
+    5. Back to the workboat: Start in > Workboat.
+  - **Desktop:** the same.
+  - **Your eye on her:** her lines, the 0.5 m bulwark, the console layout, where things sit. All her numbers are in `CONFIG.vessels.landingCraft` and her recipe.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

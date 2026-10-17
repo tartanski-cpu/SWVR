@@ -1,3 +1,5 @@
+import { loft, type HullDesign } from '../hulls/loft';
+
 /**
  * Procedural hard-chine hull form, described the way a lines plan is: a set of transverse
  * stations, each a closed section polygon. The same stations are used for
@@ -87,4 +89,63 @@ export function buildHullForm(p: HullParams): HullForm {
     });
   }
   return { params: p, stations };
+}
+
+/**
+ * A hull form from a hull-study design (modular boats M7, src/hulls/): its lofted sections
+ * as the game's stations, so the study's lines float and are drawn like any other hull.
+ *
+ * The game's stations are upright sections with one hard chine a side (five points: port
+ * deck, port chine, keel, starboard chine, starboard deck), so the design must have one chine
+ * and no rounding. A raked section (the study leans each section fore and aft, `rake`) is set
+ * upright at its deck edge: the deck, the bulwarks and the walk area stand where the design
+ * puts them, and the rake goes into the run of the bottom up to the bow, where it's out of
+ * the water (on the landing craft the forefoot is above the waterline). The whole form is
+ * then moved fore or aft so her deck runs from +length/2 (transom) to -length/2 (bow), the
+ * game's convention, which a raked bow lengthens. Hydrostatics are the
+ * game's own, from these stations: the boat's mass is set to float her at her design waterline.
+ */
+export function hullFormFromDesign(d: HullDesign): HullForm {
+  if (d.section.chine2Beam || d.section.round || d.catamaran || d.forecastle) throw new Error(`hull design '${d.id}': the game's stations take one hard chine (no second chine, rounding, forecastle or second hull)`);
+  const sections = loft(d).sections;
+  // Each section's z where its deck edge is (the last point: keel, chine, deck edge), moved
+  // so the deck's ends are at +-length/2, as the game has it (origin amidships).
+  const raw = sections.map((s) => s.pts[s.pts.length - 1].z);
+  const mid = (raw[0] + raw[raw.length - 1]) / 2;
+  const zs = raw.map((z) => z - mid);
+  const stations: Station[] = sections.map((s, i) => {
+    const [keel, chine, deck] = s.pts;
+    const bC = Math.abs(chine.x);
+    const bD = Math.max(0.03, Math.abs(deck.x));
+    const dz = i === 0 ? zs[0] - zs[1] : i === sections.length - 1 ? zs[i - 1] - zs[i] : (zs[i - 1] - zs[i + 1]) / 2;
+    return {
+      z: zs[i],
+      weight: i === 0 || i === sections.length - 1 ? dz / 2 : dz,
+      polygon: [
+        [-bD, deck.y],
+        [-bC, chine.y],
+        [0, keel.y],
+        [bC, chine.y],
+        [bD, deck.y],
+      ],
+      halfBeamChine: bC,
+      halfBeamDeck: bD,
+    };
+  });
+  const first = stations[0].polygon;
+  const last = stations[stations.length - 1].polygon;
+  // The chine generator's parameters, as a summary of the form: length, beams, keel, the
+  // chine and deck heights at the ends (what the rest of the game reads from `params`).
+  const params: HullParams = {
+    length: zs[0] - zs[zs.length - 1],
+    beamDeck: 2 * Math.max(...stations.map((s) => s.halfBeamDeck)),
+    beamChine: 2 * Math.max(...stations.map((s) => s.halfBeamChine)),
+    keelY: Math.min(...stations.map((s) => s.polygon[2][1])),
+    chineYAft: first[1][1],
+    chineYBow: last[1][1],
+    deckYAft: first[0][1],
+    deckYBow: last[0][1],
+    stations: stations.length,
+  };
+  return { params, stations };
 }

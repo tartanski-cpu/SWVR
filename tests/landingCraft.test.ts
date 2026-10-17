@@ -1,0 +1,120 @@
+/**
+ * Modular boats M7: the landing craft, the second boat built from modules: the hull study's
+ * design lofted into stations, her hull definition, her recipe. The test of the
+ * architecture: she's a hull, a recipe and (7b) one new module, and she floats, drives and
+ * can be walked and worked like the workboat. (Her hydrostatics and sea trials are in
+ * seaTrials.test.ts, which runs every vessel type.)
+ */
+import { describe, expect, it } from 'vitest';
+import { HULLS, LIBRARY, RECIPES } from '../src/boats/library';
+import { footprintsOf, gearOf } from '../src/boats/sims';
+import { CONFIG } from '../src/config';
+import { IdFactory } from '../src/core/ids';
+import type { Intent } from '../src/core/intents';
+import { stepWorld } from '../src/core/simulation';
+import { createWorld } from '../src/core/world';
+import { fits } from '../src/modular/socket';
+import { validateRecipe } from '../src/modular/recipe';
+import { vesselWalkArea } from '../src/vessel/layout';
+import { placeVessel } from '../src/vessel/vesselControl';
+import { hasWheelhouse, VESSEL_DEFS } from '../src/vessel/vesselDef';
+
+const DT = 1 / 60;
+const def = VESSEL_DEFS.landingCraft;
+const lc = CONFIG.vessels.landingCraft;
+const hull = HULLS.get('hull.landing-craft-9m')!;
+
+describe('the landing craft: her hull', () => {
+  it('her stations run transom to bow, the deck +-length/2, and she has a wheelhouse (her cabin)', () => {
+    const st = def.hull.stations;
+    for (let i = 1; i < st.length; i++) expect(st[i].z).toBeLessThan(st[i - 1].z);
+    expect(st[0].z).toBeCloseTo(def.hull.params.length / 2, 6);
+    expect(st[st.length - 1].z).toBeCloseTo(-def.hull.params.length / 2, 6);
+    // A square landing bow: still 2 m wide at the stem.
+    expect(st[st.length - 1].halfBeamDeck).toBeGreaterThan(1);
+    expect(hasWheelhouse(def)).toBe(true);
+  });
+
+  it('the cabin floor stands above the deck everywhere under the cabin', () => {
+    const wh = lc.layout.wheelhouse;
+    for (const s of def.hull.stations) if (s.z <= wh.aft && s.z >= wh.front) expect(wh.floorY).toBeGreaterThan(s.polygon[0][1]);
+  });
+
+  it('assembled from her recipe she weighs what she displaces at her waterline, her engine and batteries in', () => {
+    expect(def.mass).toBeCloseTo(lc.mass, 6);
+    expect(def.cg[2]).toBeCloseTo(lc.cg[2], 6);
+  });
+});
+
+describe('the landing craft: her recipe', () => {
+  it('is valid, and reuses the workboat\'s modules: one new hull, no new module yet', () => {
+    expect(validateRecipe(RECIPES.landingCraft, LIBRARY)).toEqual([]);
+    const used = new Set<string>();
+    const walk = (ms: typeof RECIPES.landingCraft.modules) => ms.forEach((m) => (used.add(m.module), walk(m.modules ?? [])));
+    walk(RECIPES.landingCraft.modules);
+    const workboat = new Set<string>();
+    const walkW = (ms: typeof RECIPES.workboat.modules) => ms.forEach((m) => (workboat.add(m.module), walkW(m.modules ?? [])));
+    walkW(RECIPES.workboat.modules);
+    expect([...used].filter((id) => !workboat.has(id))).toEqual([]);
+  });
+
+  it('the workboat\'s console doesn\'t fit her cabin (and says why); her compact one does', () => {
+    const helm = hull.sockets.find((s) => s.id === 'helm')!;
+    const console = LIBRARY.modules.get('console.standard')!;
+    const standard = fits(console, helm, console.defaults);
+    expect(standard.ok).toBe(false);
+    expect(!standard.ok && standard.why).toMatch(/doesn't fit the space/);
+    const hers = RECIPES.landingCraft.modules.find((m) => m.socket === 'helm')!;
+    expect(fits(console, helm, { ...(console.defaults as Record<string, unknown>), ...(hers.config as Record<string, unknown>) }).ok).toBe(true);
+  });
+
+  it('her machinery: a 150 kW diesel, its rudder, her batteries; no crane, no tow point, no fire monitor', () => {
+    const v = { defId: 'landingCraft' };
+    expect(gearOf(v, 'diesel')!.engine.powerKw).toBe(150);
+    expect(gearOf(v, 'rudder')).not.toBeNull();
+    expect(gearOf(v, 'batteries')).not.toBeNull();
+    for (const k of ['tenderCrane', 'towPoint', 'fireMonitor', 'trawl'] as const) expect(gearOf(v, k), k).toBeNull();
+  });
+});
+
+describe('the landing craft: aboard', () => {
+  const area = vesselWalkArea(def, def.layout, footprintsOf({ defId: 'landingCraft' }));
+  const wh = lc.layout.wheelhouse;
+
+  it('you can stand at her helm, on her foredeck and in her cockpit; not through the cabin walls', () => {
+    const [hx, hy, hz] = lc.boardingSpot;
+    expect(area.walkable(hx, hz, hy)).toBe(true);
+    const deckAt = (z: number) => Math.max(...area.floorsAt(0, z).filter((y) => y < wh.floorY + 0.5));
+    expect(area.walkable(0, -2.5, deckAt(-2.5))).toBe(true);
+    expect(area.walkable(0, 4.2, deckAt(4.2))).toBe(true);
+    // The cabin's side wall, from the side deck.
+    expect(area.walkable(wh.halfWidth, (wh.front + wh.aft) / 2, deckAt(2))).toBe(false);
+  });
+
+  it('a game started in her has no skiff, and no fire or timber calls for gear she hasn\'t got', () => {
+    const { world, vesselId } = createWorld(new IdFactory(), 'landingCraft', { tender: true, fires: true, logs: true, tows: true });
+    expect(Object.values(world.vessels).map((v) => v.defId)).toEqual(['landingCraft']);
+    const v = world.vessels[vesselId];
+    placeVessel(v, 0, 0, 0, 0);
+    world.environment.waves = [];
+    world.geography = 'openSea';
+    for (let i = 0; i < 30 / DT; i++) stepWorld(world, [], DT);
+    expect(world.fire?.job ?? null).toBeNull();
+    expect(world.salvage?.logs.length ?? 0).toBe(0);
+  });
+
+  it('she starts and drives on her own machinery', () => {
+    const { world, vesselId } = createWorld(new IdFactory(), 'landingCraft');
+    const v = world.vessels[vesselId];
+    placeVessel(v, 0, 0, 0, 0);
+    world.environment.waves = [];
+    world.geography = 'openSea';
+    const send = (control: string, value: number) => stepWorld(world, [{ playerId: 'p', targetId: v.id, control, value } as Intent], DT);
+    send('engineStartStop', 1);
+    for (let i = 0; i < 4 / DT; i++) stepWorld(world, [], DT);
+    expect(v.engine.phase).toBe('running');
+    send('lever', 1);
+    for (let i = 0; i < 40 / DT; i++) stepWorld(world, [], DT);
+    expect(Math.hypot(v.linearVelocity[0], v.linearVelocity[2]) / 0.5144).toBeGreaterThan(9);
+  });
+});

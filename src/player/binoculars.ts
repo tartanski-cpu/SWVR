@@ -100,10 +100,11 @@ export class Binoculars {
   }
 
   /** Put them on the dash: `parent` (the workboat's root) at `pos` (its axes). */
-  stow(parent: THREE.Object3D): void {
+  /** Their place aboard (vessel axes, on the dash), turned `yawDeg`. */
+  stow(parent: THREE.Object3D, at: readonly number[], yawDeg: number): void {
     this.home = parent;
-    this.stowPos.fromArray(CONFIG.binoculars.stow);
-    this.stowQuat.setFromEuler(new THREE.Euler(0, CONFIG.binoculars.stowYawDeg * (Math.PI / 180), 0));
+    this.stowPos.fromArray(at);
+    this.stowQuat.setFromEuler(new THREE.Euler(0, yawDeg * (Math.PI / 180), 0));
     this.toStow();
   }
 

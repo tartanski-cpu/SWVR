@@ -949,6 +949,123 @@ export const CONFIG = {
     },
 
     /**
+     * The landing craft (modular boats M7): the hull study's `landingCraft` design (src/hulls/
+     * designs.ts: her lines), lofted into the game's stations (vessel/hullForm.ts
+     * hullFormFromDesign). A 9 m aluminium work boat with a square landing bow, a cabin aft
+     * of amidships and an open foredeck; one small inboard diesel. Lofted upright at the deck
+     * edge, her deck runs 10.2 m from transom to bow (the raked bow lengthens it); axes as
+     * always: origin amidships at the DWL, z = +5.1 the transom, -5.1 the bow.
+     * Here: her mass, handling, deck layout and where her modules go. Her machinery's
+     * settings (the engine, propeller and rudder) are her recipe's (src/boats/landingCraft.json),
+     * as any boat's modules' are.
+     */
+    landingCraft: {
+      /**
+       * kg, as weighed (engine and batteries in): the displacement of her stations at the
+       * DWL (7.66 m3 of sea water), so she floats on her design waterline. CG: z = her LCB
+       * (level trim), height about 0.45 m above the DWL (the cabin and the engine high in a
+       * shallow hull). Radii of gyration as for the workboat: roll ~0.4 B, pitch / yaw ~0.25 L.
+       */
+      mass: 7850,
+      /** Of which her engine with its gearbox (her recipe's diesel declares the same), at its bed. */
+      engineKg: 600,
+      cg: [0, 0.45, 1.025] as [number, number, number],
+      gyradius: { roll: 1.1, pitch: 2.5, yaw: 2.6 },
+      addedMass: { surge: 0.05, sway: 0.4, heave: 0.6, roll: 0.25, pitch: 0.6, yaw: 0.3 },
+      /**
+       * The workboat's per-area damping (it scales with her waterplane by itself); the angular
+       * damping scaled to her size: roll ~30 % of critical (critical ~57 kN*m*s for 7.85 t,
+       * GM ~1.1 m, I_roll from the gyradius), pitch and yaw likewise.
+       */
+      damping: { vertical: 1300, verticalCd: 1.5, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 20, roll: 17000, pitch: 12000, yaw: 5000 },
+      /** As the workboat's curve (a displacement boat; no planing lift modelled), on her 8.8 m waterline. */
+      resistance: { lwl: 8.8, formFactor: 0.2, waveA: 1.0, waveB: 0.94, waveKnee: 0.3, waveCap: 0.115, asternFactor: 3.6, y: -0.25 },
+      /** Side-on: hull ~10 x 1.2 m plus the cabin ~2.7 x 2.0; end-on 2.8 x 1.2 plus 2.1 x 2.0 (m2). */
+      windage: { side: 17, front: 7.5, center: [0, 1.3, 0.6] as [number, number, number] },
+      /**
+       * Deck layout (as the workboat's: these numbers drive the drawn cabin and the walk
+       * area). The cabin (the design's wheelhouse, aft of amidships) with 0.3 m side decks;
+       * its roof walkable, by a ladder on its aft face. One bulwark height all round, 0.5 m
+       * (the design's runs 0.32 m aft to 0.62 m forward: the game takes one height for now).
+       */
+      layout: {
+        wheelhouse: {
+          halfWidth: 1.05,
+          front: 0.725,
+          aft: 3.375,
+          floorY: 1.02,
+          roofY: 2.97,
+          wall: 0.06,
+          doorWidth: 0.7,
+          doorHeight: 1.8,
+          windowSill: 0.95,
+          windowHead: 1.75,
+          /** The front sill level with the dash top (console 0.9 + dash 0.41). */
+          frontSill: 1.31,
+          consoleDepth: 0.5,
+          consoleHeight: 0.9,
+        },
+        roof: { thickness: 0.1, overhang: 0.15, railHeight: 0.6, edgeMargin: 0.25 },
+        ladder: { x: 0.72, width: 0.4, depth: 0.45 },
+        doorButtons: { x: 0.45, height: 1.1 },
+        /** The engine under a hatch in the cabin floor, aft to starboard. */
+        engineHatch: { x0: 0.15, x1: 0.85, z0: 2.25, z1: 3.05, pitDepth: 0.75 },
+        bulwarkHeight: 0.5,
+        railHeight: 0.9,
+        fairleadGap: 0,
+        deckEdgeMargin: 0.25,
+        bodyRadius: 0.22,
+      },
+      /** The open foredeck is her cargo deck: lashing points along both sides. */
+      cargo: {
+        maxPayloadKg: 2500,
+        slots: 0,
+        bowClear: 0.4,
+        aftClear: 0.25,
+        fixed: false,
+        lashPoints: [
+          [-1.1, -0.5], [-1.1, -2.0], [-1.1, -3.5],
+          [1.1, -0.5], [1.1, -2.0], [1.1, -3.5],
+        ] as [number, number][],
+        lashRange: 1.1,
+      },
+      /** At the helm, facing forward. */
+      boardingSpot: [0, 1.02, 1.85] as [number, number, number],
+      spawn: { x: 0, z: -22, dropHeight: 3, headingDeg: 90 },
+      /** Wet exhaust through the transom, starboard of the centreline, and which way it blows. */
+      exhaust: { position: [0.55, 0.2, 5.15] as [number, number, number], direction: [0, -0.12, 1] as [number, number, number] },
+      /**
+       * Her hand gear's places (vessel axes): the extinguisher and torch brackets on the
+       * cabin's aft wall, port of the door; the binoculars on the dash top, port end.
+       */
+      stowage: {
+        extinguisher: [-0.85, 1.6, 3.225] as [number, number, number],
+        torch: [-0.6, 1.7, 3.255] as [number, number, number],
+        binoculars: { at: [-0.7, 2.37, 0.865] as [number, number, number], yawDeg: 20 },
+      },
+      /**
+       * Where her modules go (vessel axes, m): the helm console's top at its aft face; the
+       * breaker panel, battery master and selector, the VHF; the engine space under the
+       * hatch; the rudder stock; the cabin lamp; the roof (searchlight, nav lights); her
+       * cleats' stations, fore and aft.
+       */
+      places: {
+        console: [0, 1.92, 1.285] as [number, number, number],
+        breakerPanel: [0.98, 1.62, 1.6] as [number, number, number],
+        batteryMaster: [0.6, 1.5, 3.31] as [number, number, number],
+        batterySelector: [0.85, 1.5, 3.31] as [number, number, number],
+        vhf: [-0.75, 2.8, 1.25] as [number, number, number],
+        engineBed: [0.5, 0.67, 2.65] as [number, number, number],
+        engineSpace: [-0.2, 0.55, 2.65] as [number, number, number],
+        rudder: [0, -0.3, 4.85] as [number, number, number],
+        cabinLight: [0, 2.85, 2.2] as [number, number, number],
+        searchlight: [0, 3.2, 1.0] as [number, number, number],
+        navLights: [0, 3.07, 2.0] as [number, number, number],
+        cleats: { bow: -4.6, stern: 4.7 },
+      },
+    },
+
+    /**
      * The workboat's tender: a 3.6 m flat-decked aluminium skiff (a punt with a low coaming)
      * with a small electric outboard. Same axes and physics as the workboat; no wheelhouse,
      * engine room, anchor or mooring - just a hull, a deck, an outboard and a tiller.

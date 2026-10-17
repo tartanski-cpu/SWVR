@@ -9,7 +9,15 @@ type WorkboatLayout = Workboat['layout'];
  * Deck layout: bulwarks, rails, walkable margins, and (on boats that have them) the
  * wheelhouse, its walkable roof and the ladder up to it.
  */
-export type LayoutConfig = Omit<WorkboatLayout, 'wheelhouse' | 'roof' | 'ladder' | 'doorButtons' | 'fairleadGap' | 'engineHatch' | 'sideGate'> & Partial<Pick<WorkboatLayout, 'wheelhouse' | 'roof' | 'ladder' | 'doorButtons' | 'fairleadGap' | 'engineHatch' | 'sideGate'>>;
+export type LayoutConfig = Omit<WorkboatLayout, 'wheelhouse' | 'roof' | 'ladder' | 'doorButtons' | 'fairleadGap' | 'engineHatch' | 'sideGate'> &
+  Partial<Pick<WorkboatLayout, 'roof' | 'ladder' | 'doorButtons' | 'fairleadGap' | 'engineHatch' | 'sideGate'>> & { wheelhouse?: WheelhouseLayout };
+
+/**
+ * A wheelhouse: the workboat's, with what not every house has optional (M7): a port side
+ * door, side sills raised alongside the console, a higher front sill, a raked front.
+ */
+export type WheelhouseLayout = Omit<WorkboatLayout['wheelhouse'], 'sideDoor' | 'sideRaise' | 'frontSill' | 'frontRakeDeg'> &
+  Partial<Pick<WorkboatLayout['wheelhouse'], 'sideDoor' | 'sideRaise' | 'frontSill' | 'frontRakeDeg'>>;
 
 /** Electric outboard (see CONFIG.vessels.skiff.outboard and physics/outboard.ts). */
 export type OutboardConfig = typeof CONFIG.vessels.skiff.outboard;
@@ -107,6 +115,7 @@ export interface VesselDef {
    */
   exhaust?: HullFittings['exhaust'];
   rescueGear?: HullFittings['rescueGear'];
+  stowage?: HullFittings['stowage'];
   tow?: TowLook;
 }
 
@@ -116,7 +125,7 @@ export interface VesselDef {
  * for one (6c makes them per boat). A fact of her shape: what's fitted in it is her modules'.
  */
 export type WheelhouseDef = VesselDef & {
-  layout: LayoutConfig & Required<Pick<WorkboatLayout, 'wheelhouse' | 'roof' | 'ladder' | 'doorButtons'>>;
+  layout: LayoutConfig & { wheelhouse: WheelhouseLayout } & Required<Pick<WorkboatLayout, 'roof' | 'ladder' | 'doorButtons'>>;
 };
 
 /** Has her hull a wheelhouse (see WheelhouseDef)? */
@@ -128,6 +137,12 @@ export function hasWheelhouse(def: VesselDef): def is WheelhouseDef {
 export interface HullFittings {
   exhaust?: Workboat['exhaust'];
   rescueGear?: Workboat['rescueGear'];
+  /**
+   * Where the hand gear lives aboard (M7: it was always the workboat's places): the
+   * extinguisher's and the torch's wall brackets, the binoculars' spot on the dash (vessel
+   * axes; the binoculars turned `yawDeg`). Gear she has no place for isn't aboard.
+   */
+  stowage?: { extinguisher?: Vec3; torch?: Vec3; binoculars?: { at: Vec3; yawDeg: number } };
   tow?: TowLook;
 }
 
@@ -186,7 +201,7 @@ export function fromConfig(id: string, c: VesselConfig): VesselDef {
 }
 
 /** The vessel types, by def id (the ids live on in saves and snapshots: never rename). */
-export const VESSEL_IDS = ['workboat', 'skiff', 'derelict', 'logRaft', 'barge'] as const;
+export const VESSEL_IDS = ['workboat', 'skiff', 'derelict', 'logRaft', 'barge', 'landingCraft'] as const;
 
 let built: Record<string, VesselDef> | null = null;
 let builder: (() => Record<string, VesselDef>) | null = null;

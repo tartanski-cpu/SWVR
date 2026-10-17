@@ -161,15 +161,14 @@ describe('take a module out and its job goes with it', { timeout: 30000 }, () =>
     expect(fitted.amps - bare.amps).toBeCloseTo(CONFIG.modules.anchorWindlass.amps, 9);
   });
 
-  it('without the crane (and its cradle) her skiff is just afloat; LAUNCH / RECOVER does nothing', () => {
+  it('without the crane (and its cradle) she carries no skiff (M7); LAUNCH / RECOVER does nothing', () => {
     setVesselRecipe('workboat', without('tenderCrane'));
     const { world, v, send, run } = setup();
-    const skiff = Object.values(world.vessels).find((x) => x.defId === 'skiff')!;
-    expect(skiff.tender!.phase).toBe('free');
+    expect(Object.values(world.vessels).some((x) => x.defId === 'skiff')).toBe(false);
     startEngine(world, v);
-    send('crane', 1, skiff.id);
+    send('crane', 1);
     run(2);
-    expect(skiff.tender!.phase).toBe('free');
+    expect(Object.keys(world.vessels)).toEqual([v.id]);
   });
 });
 
