@@ -219,7 +219,7 @@
     {
       "socket": "navLights",
       "module": "light.navigation",
-      "config": {"lights": {"masthead": [0, 4.17, 1.2], "port": [-1.08, 2.82, 0.9], "starboard": [1.08, 2.82, 0.9], "stern": [0, 1.55, 5.05]}}
+      "config": {"mast": {"footY": 3.07}, "lights": {"masthead": [0, 4.17, 1.2], "port": [-1.08, 2.82, 0.9], "starboard": [1.08, 2.82, 0.9], "stern": [0, 1.55, 5.05]}}
     },
     {"socket": "cleatFwdPort", "module": "deck.cleat", "config": {"end": "bow", "side": -1, "stations": {"bow": -4.6, "stern": 4.7, "midship": 0}}},
     {"socket": "cleatFwdStbd", "module": "deck.cleat", "config": {"end": "bow", "side": 1, "stations": {"bow": -4.6, "stern": 4.7, "midship": 0}}},

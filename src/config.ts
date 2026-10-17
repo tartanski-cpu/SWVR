@@ -2921,6 +2921,13 @@ export const CONFIG = {
     mast: { x: 0, z: 0.4, size: 0.12, height: 1.7, yardHeight: 1.3, yardSpan: 0.9, yardDepth: 0.08, keepClear: 0.25 },
 
     /**
+     * light.navigation's light mast (owner, Oct 2026: the masthead light hung in the air above
+     * the roof on boats without the workboat's signal mast): a slim square pole `size` wide
+     * from the roof up to the masthead light; `keepClear` as the mast's.
+     */
+    lightMast: { size: 0.06, keepClear: 0.15 },
+
+    /**
      * deck.anchor-windlass (M5a): the windlass's draw while it runs (A, on the master alone).
      * Placeable (owner): its socket is the bow roller (the hawse, where the chain leaves
      * her), the chain leading out along the socket's forward (-z); on a socket turned to

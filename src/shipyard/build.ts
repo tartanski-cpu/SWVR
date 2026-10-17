@@ -978,6 +978,8 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   if (monitorFoot) recipe.modules.push({ socket: 'fireMonitor', module: 'deck.fire-monitor', config: { position: [monitorFoot[0], r2(monitorFoot[1] + dp.nozzleHeight), monitorFoot[2]], pole: { deckY: monitorFoot[1] } } });
   else if (hasMonitor) recipe.modules.push({ socket: 'fireMonitor', module: 'deck.fire-monitor', config: { position: monitorRoof } }); // its gauge: on the console, below
   bySocket(recipe.modules, 'navLights')!.config = {
+    // The masthead light on its own pole from the roof (no signal mast on her).
+    mast: { footY: roofTopAt(roofFront + 0.475) },
     lights: {
       masthead: [0, roofTopAt(roofFront + 0.475) + 1.1, roofFront + 0.475],
       // The sidelights on the house sides, above the windows, just aft of the header.

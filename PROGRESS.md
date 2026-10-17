@@ -3865,6 +3865,15 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Checked in headless Chromium:** a pilot boat with a 3 m, 1.2 m high, full-width, 30°-raked deckhouse, and set in with 0.5 m side decks, upright: views from the bow, stern and port; the wheelhouse on top, the steps up aft, no warnings. Found and fixed on the way: its faces wound inside out (invisible from outside), and its foot showing through her topsides at the bow. **Not checked:** the Quest, a phone, walking up the steps into a raised helm in the game.
 - **Next, for bigger boats (tugs), noted:** the deckhouse top walkable with rails and a ladder or stairs (the walk area's floors and ladders already do this for the workboat's roof), and an interior with a door into it.
 
+### A light mast under the masthead light (owner)
+
+- **The owner noticed** the masthead light floating over the wheelhouse roof on every boat but the starting workboat, which has its signal mast. This was the landing craft and every Shipyard design: about 1.1 m up, on nothing.
+- **Fix:** the navigation lights module (`light.navigation`) takes an optional `mast: { footY }` and draws a slim square pole from there (the roof's top) up to the masthead lamp. The pole is merged with her fixed parts, so it costs no extra draw call. On a roof you walk on (the landing craft's), you walk round its foot.
+- **Config:** `CONFIG.modules.lightMast` (`size` 0.06 m, `keepClear` 0.15 m).
+- **Where it's used:** Shipyard designs (`build.ts`, from the roof's top) and the landing craft (`landingCraft.json`, roof top 3.07 m). The workboat keeps its own mast and the skiff has no masthead light, so neither changes.
+- **Checked:** typecheck, tests, and Shipyard screenshots from the side (landing-craft type and pilot boat).
+- **Not looked at in the game:** the landing craft.
+
 ### Shipyard: projects (owner)
 
 - **The owner found** no way to start afresh: the Shipyard always came back with the last design, its brief and its pins.
