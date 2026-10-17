@@ -53,7 +53,7 @@ describe('Shipyard: the boats it builds', () => {
     const advanced = ids(1);
     for (const id of ['control.wheel', 'control.throttle-lever', 'control.key-switch', 'propulsion.diesel-inboard']) expect(basic).toContain(id);
     expect(basic.filter((id) => id === 'instrument.screen').length).toBe(2);
-    for (const id of ['radio.vhf', 'radio.fm', 'light.navigation']) {
+    for (const id of ['radio.vhf', 'radio.fm', 'light.navigation', 'nav.chartplotter', 'furniture.whiteboard', 'furniture.duty-board']) {
       expect(basic).not.toContain(id);
       expect(advanced).toContain(id);
     }
@@ -237,6 +237,29 @@ describe('Shipyard: the boats it builds', () => {
       const none = helm({ controls, searchlight: 0, fireMonitor: 0 });
       for (const id of ['spotlight', 'spotJoystick', 'firePump', 'monJoystick']) expect(none).not.toContain(id);
     }
+  });
+
+  it('the advanced instruments (chartplotter, NAV / WIND screen, task board, whiteboard) on every hull; the chart table its own choice, with room to walk past it', () => {
+    for (let hull = 0; hull < DESIGN_HULLS.length; hull++) {
+      const boat = useDesign({ ...DEFAULT_DESIGN, ...DESIGN_HULLS[hull].defaults, hull, controls: 1, chartTable: 1 });
+      expect(validateRecipe(RECIPES.design, LIBRARY), `${hull}`).toEqual([]);
+      const mounted = flattenMounts(RECIPES.design, LIBRARY.hulls, LIBRARY.modules).mounted;
+      const ids = mounted.map((m) => m.def.id);
+      for (const id of ['nav.chartplotter', 'furniture.whiteboard', 'furniture.duty-board']) expect(ids, `${hull} ${id}`).toContain(id);
+      expect(mounted.some((m) => m.def.id === 'instrument.screen' && (m.config as { screen: string }).screen === 'nav'), `${hull} nav`).toBe(true);
+      const table = mounted.find((m) => m.def.id === 'furniture.chart-table');
+      if (!table) {
+        expect(boat.warnings.join(' '), `${hull}`).toMatch(/too (narrow|short) for the chart table/);
+        continue;
+      }
+      // You can still walk past it: the house's centreline beside it is free.
+      const def = VESSEL_DEFS.design;
+      const [, , z0] = table.socket.transform.position;
+      const walk = vesselWalkArea(def, def.layout, footprintsOf({ defId: 'design' }));
+      expect(walk.walkable(0, z0 + 0.5, def.layout.wheelhouse!.floorY), `${hull} past the table`).toBe(true);
+    }
+    useDesign({ ...DEFAULT_DESIGN, chartTable: 0 });
+    expect(flattenMounts(RECIPES.design, LIBRARY.hulls, LIBRARY.modules).mounted.map((m) => m.def.id)).not.toContain('furniture.chart-table');
   });
 
   it('only the landing craft hull has the bow ramp', () => {

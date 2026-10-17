@@ -451,7 +451,18 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     batteryMaster: [hw - 0.45, F + 0.48, aft - 0.065] as V3,
     batterySelector: [hw - 0.2, F + 0.48, aft - 0.065] as V3,
     vhf: [-(hw - 0.3), roofY - 0.17, front + 0.525] as V3,
-    fm: [hw - 0.5, roofY - 0.11, front + 0.525] as V3,
+    // The advanced package's instruments (owner): the chartplotter hung out to starboard
+    // ahead of the helm, turned toward it (the VHF's mirror); the NAV / WIND screen hung on
+    // the centreline ahead of the helm; the FM set further aft to starboard, over your head.
+    chartplotter: [hw - 0.35, roofY - 0.17, front + 0.5] as V3,
+    navDisplay: [0, roofY - 0.15, front + 0.42] as V3,
+    fm: [hw - 0.35, roofY - 0.11, front + 1.3] as V3,
+    // The boards, on solid wall below the window sill (her walls are glass above it): the
+    // whiteboard on the aft wall, port of the door; the task board on the starboard wall, aft
+    // (their faces' middles).
+    // (2 cm off the wall's inside face, clear of its frames: no flicker between them.)
+    whiteboard: [(-(hw - wall) + 0.1) / 2, F + 1.0 - CONFIG.modules.whiteboard.height / 2 - 0.04, aft - wall - 0.02] as V3,
+    dutyBoard: [hw - wall - 0.02, F + 1.0 - CONFIG.modules.dutyBoard.height / 2 - 0.04, aft - wall - 0.5] as V3,
     engineBed: [(eh.x0 + eh.x1) / 2, F - 0.35, hatchZ] as V3,
     engineSpace: [-0.2, F - 0.47, hatchZ] as V3,
     cabinLight: [0, roofY - 0.12, (front + aft) / 2 + 0.15] as V3,
@@ -526,6 +537,16 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   // On the roof: the monitor centred aft of the masthead light's pole, clear of its barrel's swing.
   const monitorRoof: V3 = [0, roofTopAt(0) + 0.38, r2(Math.min(roofFront + 1.25, aft - 0.3))];
 
+  // The chart table (owner: its own choice): along the port wall at the aft end, its hinge
+  // corner forward, if her house is wide enough to pass inboard of it and long enough to
+  // leave the helm clear.
+  const ctab = CONFIG.modules.chartTable;
+  let chartTableAt: V3 | null = null;
+  if (d.chartTable) {
+    const z0 = aft - wall - 0.3 - ctab.depth;
+    if (hw - wall - ctab.width >= 0.35 && z0 >= front + 1.0) chartTableAt = [-(hw - wall), F, Math.round(z0 * 1000) / 1000];
+    else warnings.push(`Her wheelhouse is too ${hw - wall - ctab.width < 0.35 ? 'narrow' : 'short'} for the chart table along its port wall: left off.`);
+  }
   const sockets: Socket[] = [
     { id: 'helm', type: 'helm.console', transform: { position: at.console }, capacity: { size: [2 * (hw - wall) - 0.04, 1.6, 1.0] }, label: 'Helm console, across the front of the cabin' },
     { id: 'breakerPanel', type: 'wall.panel', transform: { position: at.breakerPanel, rotationDeg: [-40, -90, 0] }, label: 'Starboard wall, by the helm' },
@@ -533,6 +554,11 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     { id: 'batterySelector', type: 'wall.panel', transform: { position: at.batterySelector, rotationDeg: [0, 180, 0] }, label: 'Aft wall, beside the battery master' },
     { id: 'vhf', type: 'cabin.overhead', transform: { position: at.vhf, rotationDeg: [0, 20, 0] }, label: 'Under the roof, out to port' },
     { id: 'fm', type: 'cabin.overhead', transform: { position: at.fm, rotationDeg: [0, -20, 0] }, label: 'Under the roof, out to starboard: the FM set' },
+    { id: 'chartplotter', type: 'cabin.overhead', transform: { position: at.chartplotter, rotationDeg: [0, -35, 0] }, label: 'Under the roof, out to starboard ahead of the helm' },
+    { id: 'navDisplay', type: 'cabin.overhead', transform: { position: at.navDisplay }, label: 'Overhead, on the centreline ahead of the helm' },
+    { id: 'whiteboard', type: 'wall.panel', transform: { position: at.whiteboard, rotationDeg: [0, 180, 0] }, label: 'Aft wall, port of the door' },
+    { id: 'dutyBoard', type: 'wall.panel', transform: { position: at.dutyBoard, rotationDeg: [0, -90, 0] }, label: 'Starboard wall, aft' },
+    ...(chartTableAt ? [{ id: 'chartTable', type: 'cabin.furniture' as const, transform: { position: chartTableAt }, capacity: { size: [ctab.width, roofY - F, ctab.depth] as V3 }, label: 'Port wall, aft: the chart table' }] : []),
     { id: 'doorIn', type: 'wall.panel', transform: { position: [0.45, F + 1.1, aft - wall], rotationDeg: [-90, 0, 0] }, label: 'Door frame, inside' },
     { id: 'doorOut', type: 'wall.panel', transform: { position: [0.45, F + 1.1, aft], rotationDeg: [-90, 180, 0] }, label: 'Door frame, outside' },
     ...(rampBow
@@ -715,6 +741,14 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   cc.pedestals.x = cc.pedestals.x.map((x: number) => Math.round(x * sx * 1000) / 1000);
   cc.groups = cc.groups.map((gp: { x: [number, number] }) => ({ ...gp, x: gp.x.map((x) => Math.round(x * sx * 1000) / 1000) }));
   for (const slot of Object.values(cc.slots) as { position: V3 }[]) slot.position = [Math.round(slot.position[0] * sx * 1000) / 1000, slot.position[1], slot.position[2]];
+  // The advanced instruments (taken off again below for the basic controls), and the chart table.
+  recipe.modules.push(
+    { socket: 'chartplotter', module: 'nav.chartplotter' },
+    { socket: 'navDisplay', module: 'instrument.screen', config: { screen: 'nav', mount: 'hung' } },
+    { socket: 'whiteboard', module: 'furniture.whiteboard' },
+    { socket: 'dutyBoard', module: 'furniture.duty-board' },
+  );
+  if (chartTableAt) recipe.modules.push({ socket: 'chartTable', module: 'furniture.chart-table' });
   if (!d.controls) {
     // Basic: wheel, throttle, starting (key, START, the lamps and the card), speed with
     // depth, rpm. No lights, searchlight, horn, wipers, heading, engine monitor, VHF or FM radio.
@@ -722,8 +756,8 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     const keep = ['wheel', 'throttle', 'start', 'key', 'lamps', 'card', 'speed', 'rpm', 'spotlight', 'spotJoystick', 'firePump', 'monJoystick'];
     consoleMount.modules = consoleMount.modules!.filter((m) => keep.includes(m.socket));
     cc.groups = cc.groups.filter((gp: { title: string }) => ['ENGINE', 'SEARCH', 'FIRE', 'SEARCH · FIRE'].includes(gp.title));
-    // (The FM set comes with the advanced controls, owner.)
-    recipe.modules = recipe.modules.filter((m) => !['cabinLight', 'horn', 'wipers', 'vhf', 'fm', 'navLights'].includes(m.socket));
+    // (The FM set and the advanced instruments come with the advanced controls, owner.)
+    recipe.modules = recipe.modules.filter((m) => !['cabinLight', 'horn', 'wipers', 'vhf', 'fm', 'navLights', 'chartplotter', 'navDisplay', 'whiteboard', 'dutyBoard'].includes(m.socket));
   }
   if (hasMonitor && !monitorFoot) {
     // The roof monitor's FIRE gauge on the console, between the two joysticks.

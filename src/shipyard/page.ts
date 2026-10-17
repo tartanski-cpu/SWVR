@@ -280,6 +280,7 @@ slider('windowRake', 'Windows', (v) => {
 slider('visor', 'Roof visor', (v) => `${SCALES.visor(v).toFixed(2)} m`);
 options('roofThickness', 'Roof', [0, 1, 2].map((i) => `${Math.round(SCALES.roofThickness(i) * 100)} cm`));
 options('roofEdge', 'Roof edge', ['', '30\u00b0', '45\u00b0', '60\u00b0']);
+options('chartTable', 'Chart table', ['None', 'Port wall, aft']);
 section('3. Deck gear');
 {
   // Pin her equipment where it's wanted (pinGear.ts): a button a piece, then click on her.
@@ -316,7 +317,7 @@ choices('engine', ENGINES.map((e) => ({ name: e.name, note: `${e.kg} kg with its
 section('5. Controls');
 choices('controls', [
   { name: 'Basic', note: 'Wheel, throttle, key and start, speed and depth, rpm.' },
-  { name: 'Advanced', note: 'Adds lights, wipers, horn, heading, engine monitor, the VHF and an FM radio, and the searchlight and fire monitor controls at the helm when they’re on poles.' },
+  { name: 'Advanced', note: 'Adds lights, wipers, horn, heading, engine monitor, the VHF, an FM radio, the chartplotter, the NAV / WIND screen, the task board and the whiteboard, and the searchlight and fire monitor controls at the helm when they’re on poles.' },
 ]);
 const hex = (c: number) => `#${c.toString(16).padStart(6, '0')}`;
 section('6. Paint');

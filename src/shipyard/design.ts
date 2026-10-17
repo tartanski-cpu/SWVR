@@ -11,9 +11,11 @@
  * (digits and letters without I, L, O and U, so nothing looks like anything else), with a
  * check character after them (a weighted sum: any one mistyped character is caught).
  *
- * Version 8 (the searchlight and the fire monitor, each on the roof or on a deck pole; this
- * one): 14 characters of choices (70 bits) and the check: 15 characters, shown as
- * K7P4Q-2ZX9D-MR3XA. Its number is the choices' number.
+ * Version 9 (a chart table; this one): 14 characters of choices (70 bits) and the check:
+ * 15 characters, shown as K7P4Q-2ZX9D-MR3XA. Its number is 2^69 + the choices' number.
+ *
+ * Version 8 (the searchlight and the fire monitor, each on the roof or on a deck pole): 15
+ * characters too, its number the choices' number (below 2^67). Read with no chart table.
  *
  * Version 7 (a deck crane): 13 characters of choices (65 bits) and the check: 14
  * characters. Its number is 2^64 + the choices' number. Read with the searchlight on the
@@ -43,8 +45,8 @@
  * Twin engines didn't fit in what was left of the 45 bits, so version 3 went to 11.
  */
 
-/** The building rules this code was made with (8: the searchlight and the fire monitor placed, 15 characters). */
-export const DESIGN_VERSION = 8;
+/** The building rules this code was made with (9: a chart table, 15 characters). */
+export const DESIGN_VERSION = 9;
 
 /** One choice: its index on its scale, 0 .. steps-1. */
 export interface ShipDesign {
@@ -76,6 +78,8 @@ export interface ShipDesign {
   /** The searchlight and the fire monitor (owner): 0 none, 1 on the wheelhouse roof, 2 on a pole on the foredeck, 3 on a pole on the aft deck. */
   searchlight: number;
   fireMonitor: number;
+  /** A drop-leaf chart table along the wheelhouse's port wall, aft (owner: its own choice, not in the advanced package): 0 none, 1 fitted. */
+  chartTable: number;
   /** Front windows' rake (SCALES.windowRake): leaning aft (a fast patrol boat) .. upright .. leaning forward (a pilot house). */
   windowRake: number;
   /**
@@ -96,15 +100,17 @@ export interface ShipDesign {
 }
 
 /** A design as earlier versions held it: a step-down floor or not, rather than its height and the house's shape. */
-export type OldDesign = Omit<ShipDesign, 'searchlight' | 'fireMonitor' | 'floor' | 'visor' | 'roofThickness' | 'roofEdge' | 'roofPaint' | 'deckCrane' | 'windowRake' | 'lowerFront'> & { sunk: number };
+export type OldDesign = Omit<ShipDesign, 'chartTable' | 'searchlight' | 'fireMonitor' | 'floor' | 'visor' | 'roofThickness' | 'roofEdge' | 'roofPaint' | 'deckCrane' | 'windowRake' | 'lowerFront'> & { sunk: number };
 /** A design as version 4 held it: a raked roof rather than its thickness and front edge. */
-export type V4Design = Omit<ShipDesign, 'searchlight' | 'fireMonitor' | 'roofThickness' | 'roofEdge' | 'roofPaint' | 'deckCrane'> & { roofRake: number };
+export type V4Design = Omit<ShipDesign, 'chartTable' | 'searchlight' | 'fireMonitor' | 'roofThickness' | 'roofEdge' | 'roofPaint' | 'deckCrane'> & { roofRake: number };
 /** A design as version 5 held it: no roof colour. */
-export type V5Design = Omit<ShipDesign, 'searchlight' | 'fireMonitor' | 'roofPaint' | 'deckCrane'>;
+export type V5Design = Omit<ShipDesign, 'chartTable' | 'searchlight' | 'fireMonitor' | 'roofPaint' | 'deckCrane'>;
 /** A design as version 6 held it: no deck crane. */
-export type V6Design = Omit<ShipDesign, 'searchlight' | 'fireMonitor' | 'deckCrane'>;
+export type V6Design = Omit<ShipDesign, 'chartTable' | 'searchlight' | 'fireMonitor' | 'deckCrane'>;
 /** A design as version 7 held it: the searchlight with the advanced controls, no fire monitor. */
-export type V7Design = Omit<ShipDesign, 'searchlight' | 'fireMonitor'>;
+export type V7Design = Omit<ShipDesign, 'searchlight' | 'fireMonitor' | 'chartTable'>;
+/** A design as version 8 held it: no chart table. */
+export type V8Design = Omit<ShipDesign, 'chartTable'>;
 
 /** Version 2's choices, in its code's order (the hull type first, most significant). */
 const V2_FIELDS: { key: keyof OldDesign; steps: number }[] = [
@@ -185,8 +191,11 @@ const V6_FIELDS: { key: keyof V6Design; steps: number }[] = [...V5_FIELDS, { key
 /** Version 7's choices: version 6's, then the deck crane. */
 const V7_FIELDS: { key: keyof V7Design; steps: number }[] = [...V6_FIELDS, { key: 'deckCrane', steps: 3 }];
 
-/** Each choice's number of steps, in the code's order (version 8: version 7's, then the searchlight and the fire monitor). */
-export const FIELDS: { key: keyof ShipDesign; steps: number }[] = [...V7_FIELDS, { key: 'searchlight', steps: 4 }, { key: 'fireMonitor', steps: 4 }];
+/** Version 8's choices: version 7's, then the searchlight and the fire monitor. */
+const V8_FIELDS: { key: keyof V8Design; steps: number }[] = [...V7_FIELDS, { key: 'searchlight', steps: 4 }, { key: 'fireMonitor', steps: 4 }];
+
+/** Each choice's number of steps, in the code's order (version 9: version 8's, then the chart table). */
+export const FIELDS: { key: keyof ShipDesign; steps: number }[] = [...V8_FIELDS, { key: 'chartTable', steps: 2 }];
 
 /** Version 1's choices, each in whole bits (for reading its codes). */
 const V1_FIELDS: { key: keyof OldDesign; bits: number; steps: number }[] = [
@@ -261,6 +270,7 @@ export const DEFAULT_DESIGN: ShipDesign = {
   deckCrane: 0,
   searchlight: 1,
   fireMonitor: 0,
+  chartTable: 0,
   windowRake: 4,
   lowerFront: 0,
   twin: 0,
@@ -271,8 +281,10 @@ export const DEFAULT_DESIGN: ShipDesign = {
 };
 
 const ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
-/** Every combination of version 8's choices: its codes are the numbers 0 .. this - 1. */
+/** Every combination of version 9's choices: its codes are the numbers V9_BASE .. V9_BASE + this - 1. */
 export const COMBINATIONS = FIELDS.reduce((a, f) => a * BigInt(f.steps), 1n);
+const V9_BASE = 1n << 69n;
+const V8_COMBINATIONS = V8_FIELDS.reduce((a, f) => a * BigInt(f.steps), 1n);
 const V7_COMBINATIONS = V7_FIELDS.reduce((a, f) => a * BigInt(f.steps), 1n);
 const V7_BASE = 1n << 64n;
 const V6_COMBINATIONS = V6_FIELDS.reduce((a, f) => a * BigInt(f.steps), 1n);
@@ -305,9 +317,14 @@ function write(all: bigint, count: number): string {
   return s.match(/.{1,5}/g)!.join('-');
 }
 
-/** The design as its code, e.g. 'K7P4Q-2ZX9D-MR3XA' (version 8, 15 characters). */
+/** The design as its code, e.g. 'K7P4Q-2ZX9D-MR3XA' (version 9, 15 characters). */
 export function encodeDesign(d: ShipDesign): string {
-  return write(pack(d, FIELDS), 14);
+  return write(V9_BASE + pack(d, FIELDS), 14);
+}
+
+/** A version 8 design as its code: for checking old codes still read. */
+export function encodeDesignV8(d: V8Design): string {
+  return write(pack(d, V8_FIELDS), 14);
 }
 
 /** A version 7 design as its code: for checking old codes still read. */
@@ -352,7 +369,7 @@ function upgrade(d: OldDesign): V7Design {
 
 /**
  * A code back to its design, or why it can't be read. Forgiving as typed: any case, with
- * or without the dashes or spaces, and I / L read as 1, O as 0. 15 characters (version 8), 14 (versions 6 and 7),
+ * or without the dashes or spaces, and I / L read as 1, O as 0. 15 characters (versions 8 and 9), 14 (versions 6 and 7),
  * 13 (versions 4 and 5), 11 (version 3), or 10 (versions 1 and 2: single engines).
  */
 export function decodeDesign(code: string): { design: ShipDesign } | { error: string } {
@@ -364,13 +381,20 @@ export function decodeDesign(code: string): { design: ShipDesign } | { error: st
   if (s.length !== 15) {
     // Before version 8: the searchlight came with the advanced controls, on the roof; no monitor.
     const old = decodeBefore8(s);
-    return 'design' in old ? { design: { ...old.design, searchlight: old.design.controls ? 1 : 0, fireMonitor: 0 } } : old;
+    return 'design' in old ? { design: { ...old.design, searchlight: old.design.controls ? 1 : 0, fireMonitor: 0, chartTable: 0 } } : old;
   }
   const all = readCode(s);
   if (typeof all !== 'bigint') return all;
-  if (all >= COMBINATIONS) return { error: `that code is from a newer Shipyard than this game (it reads versions 1 to ${DESIGN_VERSION})` };
-  const v8 = unpack<ShipDesign>(all, FIELDS);
-  return 'design' in v8 ? { design: { ...v8.design, lowerFront: 0, roofEdge: Math.max(1, v8.design.roofEdge) } } : v8;
+  const tidy = <D extends { roofEdge: number }>(d: D) => ({ ...d, lowerFront: 0, roofEdge: Math.max(1, d.roofEdge) });
+  if (all >= V9_BASE) {
+    if (all - V9_BASE >= COMBINATIONS) return { error: `that code is from a newer Shipyard than this game (it reads versions 1 to ${DESIGN_VERSION})` };
+    const v9 = unpack<ShipDesign>(all - V9_BASE, FIELDS);
+    return 'design' in v9 ? { design: tidy(v9.design) } : v9;
+  }
+  // Version 8: no chart table.
+  if (all >= V8_COMBINATIONS) return { error: 'that isn’t a Shipyard code' };
+  const v8 = unpack<V8Design>(all, V8_FIELDS);
+  return 'design' in v8 ? { design: { ...tidy(v8.design), chartTable: 0 } } : v8;
 }
 
 /** A code's characters (tidied, as typed) as its number, its check checked. */

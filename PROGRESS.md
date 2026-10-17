@@ -3179,6 +3179,31 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   - in the headless browser, in a design moored at Calder Haven: started the engine, raised the boom, hooked a crate off the foredeck, swung it to starboard (she heeled about 1°), and landed it on the quay.
 - **Not done yet:** the tow winch, A-frame, net drum, windlass and tender crane are modules but drawn at the workboat's fixed places. Making them placeable is next.
 
+### Chartplotter, NAV / WIND screen, task board, whiteboard and chart table on designs (owner)
+
+- **The owner asked** for the chartplotter, whiteboard, task board, chart table and weather instrument to be modules, and shown in the Shipyard: all but the chart table in the advanced package.
+- **They were all modules already:** `nav.chartplotter`, `furniture.whiteboard`, `furniture.duty-board` (the task board), `furniture.chart-table`, and the weather instrument, which is the NAV / WIND screen (`instrument.screen`, screen 'nav', hung). Only the workboat carried them.
+- **Shipyard designs now carry them** (the builder places them from the house's size; the modules are unchanged):
+  - **with the advanced controls:**
+    - the chartplotter hung out to starboard ahead of the helm, turned toward it (the VHF's mirror);
+    - the NAV / WIND screen hung on the centreline ahead of the helm;
+    - the task board on the starboard wall, aft;
+    - the whiteboard on the aft wall, port of the door;
+    - the FM set moves aft to starboard, over the helmsman's head, to make room for the plotter.
+    - The boards sit below the window sill, on solid wall (a design's walls are glass above it), 2 cm off the wall so they don't flicker against its frames.
+  - **Chart table (its own choice, not in the package):**
+    - "Chart table: None / Port wall, aft" in the wheelhouse step;
+    - along the port wall, its aft end 0.3 m from the aft wall;
+    - fitted only if you can still pass inboard of it (0.35 m) and it leaves the helm clear, else left off with a warning (the landing craft hull's narrow default house, for one);
+    - design codes go to **version 9**, still 15 characters; older codes read as before, without a chart table.
+- **Checked:**
+  - typecheck and all tests, including new ones:
+    - the advanced package's four on every hull type;
+    - the chart table, or its warning, on each, with the walk past it clear;
+    - version 8 codes read as before;
+  - in the game, headless, in a workboat-type design with the advanced controls and the chart table: views of each in place, the plotter and NAV / WIND screen live, the task board listing the duties, the whiteboard clean, the chart table with its lamp.
+- **Not checked:** using them in VR on a design.
+
 ### FM radio on the landing craft and on designs (owner)
 
 - **The owner noticed** the FM radio hadn't made it onto the other boats, and wanted it to come with the advanced interior.

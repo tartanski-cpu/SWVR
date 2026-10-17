@@ -1,7 +1,7 @@
 /** Shipyard designs: the choices round-trip through their 15-character code, typos are caught, older 10-, 11-, 13- and 14-character codes still read. */
 import { describe, expect, it } from 'vitest';
 import { cleanDesign } from '../../src/shipyard/variants';
-import { COMBINATIONS, decodeDesign, DEFAULT_DESIGN, encodeDesign, encodeDesignV2, encodeDesignV3, encodeDesignV4, encodeDesignV5, encodeDesignV6, encodeDesignV7, FIELDS, type OldDesign, type ShipDesign } from '../../src/shipyard/design';
+import { COMBINATIONS, decodeDesign, DEFAULT_DESIGN, encodeDesign, encodeDesignV2, encodeDesignV3, encodeDesignV4, encodeDesignV5, encodeDesignV6, encodeDesignV7, encodeDesignV8, FIELDS, type OldDesign, type ShipDesign } from '../../src/shipyard/design';
 
 /** The starting design as versions 1-3 held it (a step-down floor, the house a box). */
 const { floor: _f, visor: _v, roofThickness: _t, roofEdge: _e, roofPaint: _p, windowRake: _w, lowerFront: _l, searchlight: _s, fireMonitor: _m, ...rest } = DEFAULT_DESIGN;
@@ -29,6 +29,14 @@ describe('Shipyard design codes', () => {
   it('fits: every combination of the choices in 70 bits (14 characters)', () => {
     expect(COMBINATIONS).toBe(FIELDS.reduce((a, f) => a * BigInt(f.steps), 1n));
     expect(COMBINATIONS < 1n << 70n).toBe(true);
+  });
+
+  it('reads version 8 codes (before the chart table) as the same boats, without one', () => {
+    const { chartTable: _t8, ...v8 } = { ...DEFAULT_DESIGN, searchlight: 3, fireMonitor: 2 };
+    const code = encodeDesignV8(v8);
+    expect(code.replace(/-/g, '')).toHaveLength(15);
+    expect(decodeDesign(code)).toEqual({ design: { ...v8, chartTable: 0 } });
+    expect(encodeDesign({ ...DEFAULT_DESIGN, chartTable: 1 })).not.toBe(encodeDesign(DEFAULT_DESIGN));
   });
 
   it('reads version 7 codes (before the searchlight and monitor were placed) as the same boats: the searchlight on the roof with the advanced controls, no monitor', () => {
