@@ -3066,7 +3066,7 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Loading (`world/view/glbProp.ts`, `loadFlatProp`):** with three's GLTFLoader (part of three, no new dependency), loaded only with `?bike` in the address, in its own small code chunk. Every part is merged into one flat-shaded mesh, each in its material's base colour (textures and normal maps dropped): **one draw call**. Positions are converted to plain floats first, because quantized ones clipped when moved into place.
 - **Placing it (`App.ts`):** on the Calder Haven quay top (y 1.6) at (712.8, 657.5), by the edge a few metres to the left of where you start, side-on to you.
 - **Not done:** no collision (you walk through it), and it isn't in multiplayer or saves; it's a view-only test.
-- **Licence:** the owner supplied the model; its source and licence aren't recorded here (the standing rule is original designs only). It's a test asset, to be removed or replaced if it can't be shared.
+- **Source (owner):** a model from a friend's game, and fine to keep. The long-term idea is to connect the two games: bikes imported from it and shipped around this world as cargo. That's an agreed exception to "original designs only" for models from that game.
 - **Checked:** typecheck; all tests; production build (the loader is a separate 0.8 kB chunk); in the headless browser it loads with no errors; measured with the original file in view, +1 draw call and +120,568 triangles.
 - **Owner test:** open https://tartanski-cpu.github.io/SWVR/next/?bike, on the Quest or desktop, and turn left from where you start on the quay.
 
