@@ -246,6 +246,7 @@ The dash shows:
   - speed and course over ground, heading;
   - the true wind (direction it blows from, knots, Beaufort force);
   - a dial with the apparent wind (what you feel on deck) relative to the bow.
+- **FM radio** (the overhead set; or menu → Boat): the music comes from the set, so you hear which way it is. Step out of the wheelhouse and it's quieter and duller through the walls, more so with the doors shut.
 - **Binoculars** lie on top of the dash, port end. VR: grip them to pick them up and raise them to your eyes for a 7× view; let go and they go back. Desktop: hold the right mouse button (or Z).
 
 ### Fire extinguisher and torch
