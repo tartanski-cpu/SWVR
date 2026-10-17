@@ -61,6 +61,7 @@ export class TenderCraneView {
   readonly root = new THREE.Group();
   /** The three buttons: column, console, the skiff's remote (once a tender is attached). */
   buttons: Button[] = [];
+  private remoteButton: Button | null = null;
   /** The column, the cradle's saddles and the control box (ship axes), to be merged with the boat's other fixed parts. */
   readonly fixedParts: THREE.BufferGeometry[];
   /** The tender it carries (once attached). */
@@ -92,8 +93,8 @@ export class TenderCraneView {
   constructor(
     private readonly crane: TenderCrane,
     deckY: (z: number) => number,
-    /** Where the SKIFF CRANE button stands on the helm console (ship axes). */
-    private readonly consoleAt: readonly [number, number, number],
+    /** Where the SKIFF CRANE button stands on the helm console (ship axes); null: none. */
+    private readonly consoleAt: readonly [number, number, number] | null,
   ) {
     const c = crane;
     const [cx, cz] = c.column;
@@ -114,9 +115,12 @@ export class TenderCraneView {
       parts.push(part(new THREE.BoxGeometry(1.1, keel - y0, 0.12).translate(sx, (keel + y0) / 2, z), 0x4a5258));
       parts.push(part(new THREE.BoxGeometry(1.0, 0.03, 0.14).translate(sx, keel - 0.012, z), DARK)); // rubber pad
     }
-    // The control box on the column's outboard side, its face to starboard.
+    // The control box on the column's outboard side, its face outboard (to starboard, or
+    // to port on a crane mirrored there).
     const [bx, by, bz] = c.button;
-    parts.push(part(new THREE.BoxGeometry(bx - (cx + c.columnRadius) + 0.01, 0.24, 0.2).translate((bx + cx + c.columnRadius) / 2, by, bz), 0x5a6268));
+    const out = Math.sign(bx - cx) || 1;
+    const inner = cx + out * c.columnRadius;
+    parts.push(part(new THREE.BoxGeometry(Math.abs(bx - inner) + 0.01, 0.24, 0.2).translate((bx + inner) / 2, by, bz), 0x5a6268));
     this.fixedParts = parts;
 
     // Moving: unit boxes (turret, boom, jib, hook block) and unit cylinders (rams, wire, legs).
@@ -140,9 +144,9 @@ export class TenderCraneView {
     const button = (id: string) => new Button(`${id}:${tenderId}`, `${tenderId}:crane`, 'Skiff crane: launch / recover', 'pulse', 0x2a8f3a, () => this.moving);
     const column = button('crane');
     column.root.position.set(bx, by, bz);
-    column.root.rotation.z = -Math.PI / 2; // facing starboard, from the box's outboard face
-    const helm = button('craneHelm');
-    helm.root.position.fromArray(this.consoleAt);
+    column.root.rotation.z = (-Math.sign(bx - c.column[0]) || -1) * (Math.PI / 2); // facing outboard, from the box's outboard face
+    const helm = this.consoleAt ? button('craneHelm') : null;
+    helm?.root.position.fromArray(this.consoleAt!);
     // The remote: a post by the skiff's helmsman, starboard of the tiller, the button on top.
     const rm = c.remote;
     const remote = button('craneRemote');
@@ -152,10 +156,12 @@ export class TenderCraneView {
       flatVertexColorMaterial(),
     );
     this.remote.add(post, remote.root);
-    this.buttons = [column, helm, remote];
+    this.buttons = helm ? [column, helm, remote] : [column, remote];
+    this.remoteButton = remote;
     this.cover = new THREE.Mesh(tarpaulin(tenderDef, c), flatVertexColorMaterial());
     this.cover.name = 'skiffCover';
-    this.root.add(column.root, helm.root, this.cover);
+    this.root.add(column.root, this.cover);
+    if (helm) this.root.add(helm.root);
   }
 
   /**
@@ -186,7 +192,7 @@ export class TenderCraneView {
     const covered = phase === 'stowed';
     if (this.cover) this.cover.visible = covered;
     this.remote.visible = !covered;
-    if (this.buttons[2]) this.buttons[2].enabled = !covered;
+    if (this.remoteButton) this.remoteButton.enabled = !covered;
     // Folded while she's stowed or away, and for the last of a recovery (unhooking).
     const c = this.crane;
     const tt = tender.tender?.t ?? 0;

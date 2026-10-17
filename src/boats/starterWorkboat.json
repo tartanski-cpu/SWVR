@@ -72,7 +72,7 @@
     { "socket": "dipstick", "module": "tool.dipstick" },
     { "socket": "oilCan", "module": "tool.oil-can" },
     { "socket": "tenderCrane", "module": "deck.tender-crane" },
-    { "socket": "anchor", "module": "deck.anchor-windlass" },
+    { "socket": "anchor", "module": "deck.anchor-windlass", "config": { "draw": false } },
     { "socket": "towWinch", "module": "deck.tow-winch" },
     { "socket": "sternRoller", "module": "deck.stern-roller" },
     { "socket": "aFrame", "module": "deck.a-frame" },

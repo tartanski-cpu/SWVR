@@ -58,6 +58,31 @@ const p1 = new THREE.Vector3();
 /** Smooth start and stop for each move (no jerk at either end). */
 const ease = (t: number) => t * t * (3 - 2 * t);
 
+/**
+ * The crane (its config in the starting workboat's axes) stood where its socket is (`at`,
+ * boat axes: the socket is the foot of its column): everything moved with the column, its
+ * heights with the deck there (`deckAtColumn` is the workboat's); her height in the water
+ * (`waterY`) stays. On a socket to port of the centreline it's mirrored: the cradle to
+ * starboard of the column and she goes over the port side. On the workboat it's unchanged.
+ */
+export function placeTenderCrane<C extends TenderCrane>(c: C, at: readonly [number, number, number]): C {
+  const [cx, cz] = c.column;
+  const side = at[0] < 0 ? -1 : 1;
+  const dy = at[1] - c.deckAtColumn;
+  const x = (bx: number) => at[0] + side * (bx - cx);
+  const z = (bz: number) => at[2] + (bz - cz);
+  return {
+    ...c,
+    column: [at[0], at[2]],
+    shoulderY: c.shoulderY + dy,
+    stow: [x(c.stow[0]), c.stow[1] + dy, z(c.stow[2])],
+    cradle: { ...c.cradle, z0: z(c.cradle.z0), z1: z(c.cradle.z1) },
+    outboard: [x(c.outboard[0]), z(c.outboard[1])],
+    button: [x(c.button[0]), c.button[1] + dy, z(c.button[2])],
+    stepOff: c.stepOff.map(([sx, sz]) => [x(sx), z(sz)]),
+  };
+}
+
 /** The whole launch path, cradle to water (s). */
 export function launchTime(c: TenderCrane): number {
   return c.rigTime + c.hoistTime + c.slewTime + c.lowerTime;
@@ -83,8 +108,10 @@ export function launchPoint(c: TenderCrane, time: number, out: THREE.Vector3): T
     const [lx, , lz] = c.lift;
     const a0 = Math.atan2(sz + lz - cz, sx + lx - cx);
     let a1 = Math.atan2(oz + lz - cz, ox + lx - cx);
-    // Forward about (through -z, the bow sector): the angle increases from cradle to outboard.
-    if (a1 < a0) a1 += Math.PI * 2;
+    // Forward about (through -z, the bow sector): out to starboard the angle increases from
+    // cradle to outboard; a crane mirrored to port (outboard to port of its column) the other way.
+    if (ox >= cx && a1 < a0) a1 += Math.PI * 2;
+    if (ox < cx && a1 > a0) a1 -= Math.PI * 2;
     const r0 = Math.hypot(sx + lx - cx, sz + lz - cz);
     const r1 = Math.hypot(ox + lx - cx, oz + lz - cz);
     const f = ease((t - t1) / c.slewTime);
@@ -116,7 +143,8 @@ export function onCrane(v: VesselState): boolean {
 
 /**
  * Can she be recovered now? Afloat, within `recoverRange` of the outboard spot (alongside
- * the starboard bow) and moving with the ship (relative speed under `recoverSpeed`).
+ * under the crane: the starboard bow on the workboat) and moving with the ship (relative
+ * speed under `recoverSpeed`).
  */
 export function recoverCheck(world: WorldState, tender: VesselState): { ok: boolean; why: string } {
   const t = tender.tender;
@@ -126,7 +154,7 @@ export function recoverCheck(world: WorldState, tender: VesselState): { ok: bool
   const { host, crane } = d;
   const spot = v1.set(crane.outboard[0], crane.waterY, crane.outboard[1]).applyQuaternion(qHost.fromArray(host.orientation)).add(v2.fromArray(host.position));
   const dist = Math.hypot(tender.position[0] - spot.x, tender.position[2] - spot.z);
-  if (dist > crane.recoverRange) return { ok: false, why: `bring her alongside the starboard bow (${dist.toFixed(0)} m)` };
+  if (dist > crane.recoverRange) return { ok: false, why: `bring her alongside, under the crane (${dist.toFixed(0)} m)` };
   const rel = Math.hypot(tender.linearVelocity[0] - host.linearVelocity[0], tender.linearVelocity[2] - host.linearVelocity[2]);
   if (rel > crane.recoverSpeed) return { ok: false, why: 'too fast: match speed' };
   return { ok: true, why: '' };

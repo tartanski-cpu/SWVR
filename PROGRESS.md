@@ -3179,6 +3179,35 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   - in the headless browser, in a design moored at Calder Haven: started the engine, raised the boom, hooked a crate off the foredeck, swung it to starboard (she heeled about 1°), and landed it on the quay.
 - **Not done yet:** the tow winch, A-frame, net drum, windlass and tender crane are modules but drawn at the workboat's fixed places. Making them placeable is next.
 
+### The skiff crane and the anchor windlass made placeable (owner)
+
+- **The owner found** the skiff (with her crane) and the anchor still couldn't be placed in the Shipyard. On the module side the reason was that both were fixed to the workboat's own coordinates. Both now stand wherever their socket is, like the deck crane, tow winch and stern gear.
+- **The skiff crane (`deck.tender-crane`)** fits any `deck.equipment` socket; the socket is the foot of its column.
+  - **What moves with the column:** the cradle, the launch and recovery path, the control box, its LAUNCH / RECOVER button and where the crew step off (`placeTenderCrane`, `src/vessel/tenderCrane.ts`).
+  - **Heights** move with the deck at the socket (`tenderCrane.deckAtColumn`: the workboat's deck height at her column, 1.21 m). She is still lowered to the water.
+  - **To port of the centreline it's mirrored:** the cradle is to starboard of the column and she goes over the port side, still swung round over the bow.
+  - **The SKIFF CRANE button on the helm** is where the recipe puts it (`consoleButton`), or left off (`null`) on a boat whose console has no place for it.
+  - **Any boat with the crane carries the skiff**, as before.
+  - **For the Shipyard:** the crane is hydraulic, so a design with it needs the PTO pump (the builder adds it today only for the deck crane and tow winch). The column wants to stand off the centreline, with the cradle's 1.8 m width clear on the side toward the centreline.
+- **The anchor windlass (`deck.anchor-windlass`)** fits a `bow.windlass` or any `deck.equipment` socket; the socket is the bow roller, the hawse, where the chain leaves her.
+  - **The chain** leads out along the socket's forward direction, so a socket turned to face aft makes it a stern (kedge) anchor.
+  - **Its pull, the chain and the windlass sound** all work from the socket.
+  - **It now draws itself:** the roller in its cheeks, and the windlass (motor housing and gypsy wheel) `aft` 0.75 m behind it on the deck, with the chain between (`CONFIG.modules.anchorWindlass`: `draw`, `roller`, `aft`, `box`, `gypsy`).
+  - **The workboat's recipe turns the drawing off** (`draw: false`): her skiff in its cradle covers that part of her foredeck.
+  - **For the Shipyard:** it still needs the ANCHOR switch on the console (`control.toggle` bound to `anchor.letGo`), as on the workboat.
+- **On the workboat nothing changes:** both are where they were, and the golden runs are unchanged.
+- **Checked:**
+  - typecheck and all tests (623), including new ones:
+    - at the workboat's socket the crane is exactly as before;
+    - mirrored to port, every point of the path is the workboat's mirrored about the column;
+    - on another socket the skiff is carried, launched and let go under it;
+    - the anchor's hawse is its socket, and on an aft deck socket it lets go;
+  - in the game, headless, with both fitted to the landing craft for the test only (not kept):
+    - the crane to port, with the cradle and skiff to starboard of it;
+    - the skiff swung over the bow and lowered on the port side;
+    - a stern anchor's roller and windlass at the transom.
+- **Not checked:** on a Shipyard design, because they aren't Shipyard choices yet; that's for the Shipyard chat. VR not tried.
+
 ### The pull-down whiteboard (owner)
 
 - **The owner didn't like** the whiteboard low on the wall on designs, and asked for one you pull down from the ceiling like a projector screen, a little bigger.

@@ -745,6 +745,11 @@ export const CONFIG = {
         shoulderY: 2.45,
         boom: 1.55,
         jib: 1.45,
+        /**
+         * The workboat's deck height at the column (m). Placed elsewhere (its socket is the
+         * foot of the column), its heights move with the deck there.
+         */
+        deckAtColumn: 1.2099609375,
         stow: [0, 1.75, -3.95] as [number, number, number],
         cradle: { halfWidth: 0.9, z0: -5.85, z1: -2.05 },
         lift: [0, 1.1, 0.76] as [number, number, number],
@@ -2858,8 +2863,16 @@ export const CONFIG = {
      */
     mast: { x: 0, z: 0.4, size: 0.12, height: 1.7, yardHeight: 1.3, yardSpan: 0.9, yardDepth: 0.08, keepClear: 0.25 },
 
-    /** deck.anchor-windlass (M5a): the windlass's draw while it runs (A, on the master alone). */
-    anchorWindlass: { amps: 60 },
+    /**
+     * deck.anchor-windlass (M5a): the windlass's draw while it runs (A, on the master alone).
+     * Placeable (owner): its socket is the bow roller (the hawse, where the chain leaves
+     * her), the chain leading out along the socket's forward (-z); on a socket turned to
+     * face aft it's a stern (kedge) anchor. `draw`: draw the roller and the windlass (the
+     * starting workboat's are part of her bow, so her recipe turns it off). The roller
+     * `roller` m long in its cheeks; the windlass `aft` m behind it on the deck: a motor
+     * housing `box` (w, h, d) and the gypsy wheel on it, radius `gypsy`.
+     */
+    anchorWindlass: { amps: 60, draw: true, roller: 0.32, aft: 0.75, box: [0.34, 0.26, 0.3] as [number, number, number], gypsy: 0.11 },
   },
 
   start: {
