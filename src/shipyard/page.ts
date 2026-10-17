@@ -146,6 +146,7 @@ function options(key: keyof ShipDesign, label: string, names: string[]): void {
   row.innerHTML = `<label>${label}</label><div></div>`;
   const box = row.querySelector('div')!;
   names.forEach((name, i) => {
+    if (!name) return; // a step no longer offered
     const c = document.createElement('span');
     c.className = 'choice';
     c.dataset.key = key;
@@ -181,7 +182,7 @@ slider('windowRake', 'Windows', (v) => {
 });
 slider('visor', 'Roof visor', (v) => (v === 0 ? 'none' : `${SCALES.visor(v).toFixed(2)} m`));
 options('roofThickness', 'Roof', [0, 1, 2].map((i) => `${Math.round(SCALES.roofThickness(i) * 100)} cm`));
-options('roofEdge', 'Roof edge', [0, 1, 2, 3].map((i) => (i === 0 ? 'square' : `${SCALES.roofEdge(i)}\u00b0`)));
+options('roofEdge', 'Roof edge', ['', '30\u00b0', '45\u00b0', '60\u00b0']);
 section('3. Engine');
 choices('engine', ENGINES.map((e) => ({ name: e.name, note: `${e.kg} kg with its gearbox. Propeller and gearbox matched to her by trial.` })));
 {

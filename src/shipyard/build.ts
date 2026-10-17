@@ -123,7 +123,7 @@ export const DESIGN_HULLS: DesignHull[] = [
     ramp: true,
     cockpit: 1.0,
     foredeck: 1.6,
-    defaults: { length: 8, beam: 8, depth: 8, bulwark: 2, bow: 2, housePos: 4, houseLength: 2, houseWidth: 7, headroom: 3, floor: 2, visor: 1, roofThickness: 0, roofEdge: 0, windowRake: 4, lowerFront: 0, engine: 1, twin: 0 },
+    defaults: { length: 8, beam: 8, depth: 8, bulwark: 2, bow: 2, housePos: 4, houseLength: 2, houseWidth: 7, headroom: 3, floor: 2, visor: 1, roofThickness: 0, roofEdge: 1, windowRake: 4, lowerFront: 0, engine: 1, twin: 0 },
   },
   {
     name: 'Gillnetter: 9.75 m, beamy and shallow, flat open foredeck',
@@ -133,7 +133,7 @@ export const DESIGN_HULLS: DesignHull[] = [
     cockpit: 1.0,
     foredeck: 1.5,
     // A bowpicker: the house right aft, the open foredeck for the net reel.
-    defaults: { length: 8, beam: 8, depth: 8, bulwark: 3, bow: 2, housePos: 0, houseLength: 6, houseWidth: 7, headroom: 3, floor: 3, visor: 1, roofThickness: 0, roofEdge: 0, windowRake: 4, lowerFront: 0, engine: 1, twin: 0 },
+    defaults: { length: 8, beam: 8, depth: 8, bulwark: 3, bow: 2, housePos: 0, houseLength: 6, houseWidth: 7, headroom: 3, floor: 3, visor: 1, roofThickness: 0, roofEdge: 1, windowRake: 4, lowerFront: 0, engine: 1, twin: 0 },
   },
   {
     name: 'Workboat: 12 m semi-displacement, hard chine, fine entry',
@@ -358,8 +358,8 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   const F = floorY;
   /** The roof's top (flat: the same all along). */
   const roofTopAt = (_z: number) => roofY + roofThickness;
-  // On the roof, forward: clear of its front edge (the visor's) whichever way the windows rake.
-  const roofFront = Math.max(front, zHead - house.visor);
+  // On the roof, forward: clear of its front edge (the visor's top, set back by its rake) whichever way the windows rake.
+  const roofFront = Math.max(front, zHead - house.visor + roofThickness * Math.tan((house.roofEdgeDeg * Math.PI) / 180));
 
   // Her bow ramp (the landing craft's), across her square bow.
   const bowHalf = st[st.length - 1].halfBeamDeck;

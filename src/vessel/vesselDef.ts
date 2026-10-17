@@ -40,13 +40,13 @@ export type WheelhouseLayout = Omit<WorkboatLayout['wheelhouse'], 'sideDoor' | '
  * A shaped wheelhouse (owner, the Shipyard): the front below the windows leaning forward,
  * the windows raked either way (frontRakeDeg: + leaning forward at the top), and the roof
  * one flat slab (its thickness is roof.thickness) reaching forward over the windows as a
- * visor, its front edge cut back underneath.
+ * visor, its front face raked back as it rises.
  */
 export interface HouseShape {
   /** The front below the windows: its lean from vertical (deg, + top forward), from `lowerFromY` (the deck, or the floor if lower) up to the windows. */
   lowerRakeDeg: number;
   lowerFromY: number;
-  /** The roof's front edge, cut back underneath from its top (deg from vertical; 0 square). */
+  /** The roof's front face, raked back as it rises from the underside's edge (deg from vertical). */
   roofEdgeDeg: number;
   /** How far the roof reaches forward of the top of the front windows (m). */
   visor: number;

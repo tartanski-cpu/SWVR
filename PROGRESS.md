@@ -3032,6 +3032,15 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Kept:** its place in the code (`lowerFront`), so codes stay 13 characters and version 5. Any code reads it as 0, so an older code with a lean comes in upright. The lean's drawing (`buildShapedHouse`, `frontRake`'s `ahead`) and the walk area's allowance stay, ready if it comes back.
 - **Checked:** typecheck; all 510 tests (the round-trip test now expects the lean read as 0); a screenshot of a design that had a lean, now upright, and of the page.
 
+### Shipyard: the roof's front edge rakes back; no square edge (owner)
+
+- **The owner, with a marked-up screenshot:** the roof's front face should always go back as it rises, like a raked windscreen. The edge is never square.
+- **Now (`buildShapedHouse`):** the slab's underside reaches furthest forward, to the visor's edge. Its top is set back by `thickness x tan(roofEdgeDeg)`. That's the opposite of the undercut it had.
+- **Options:** the page offers 30, 45 and 60 deg. `roofEdge` keeps its 4 steps in the code, so codes are unchanged; index 0, square before, reads as 30 (`SCALES.roofEdge`, and decoding lifts 0 to 1).
+- **Starting roofs:** the landing craft and gillnetter now start at 30 deg.
+- **Roof fittings** forward (searchlight, horn, masthead) stand clear of the set-back top edge.
+- **Checked:** typecheck; all 510 tests (round trips now expect a square edge read as 30 deg); screenshots of a 30 cm roof with a 60 deg edge on the landing craft, the pilot's default, and the page's buttons.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

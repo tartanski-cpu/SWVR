@@ -18,11 +18,11 @@ describe('Shipyard design codes', () => {
       for (let v = 0; v < f.steps; v++) {
         const d: ShipDesign = { ...DEFAULT_DESIGN, [f.key]: v };
         // The front below the windows isn't offered now: any code reads it as upright.
-        expect(decodeDesign(encodeDesign(d))).toEqual({ design: { ...d, lowerFront: 0 } });
+        expect(decodeDesign(encodeDesign(d))).toEqual({ design: { ...d, lowerFront: 0, roofEdge: Math.max(1, d.roofEdge) } });
       }
     const max = Object.fromEntries(FIELDS.map((f) => [f.key, f.steps - 1])) as unknown as ShipDesign;
     const min = Object.fromEntries(FIELDS.map((f) => [f.key, 0])) as unknown as ShipDesign;
-    for (const d of [max, min]) expect(decodeDesign(encodeDesign(d))).toEqual({ design: { ...d, lowerFront: 0 } });
+    for (const d of [max, min]) expect(decodeDesign(encodeDesign(d))).toEqual({ design: { ...d, lowerFront: 0, roofEdge: Math.max(1, d.roofEdge) } });
   });
 
   it('fits: every combination of the choices in the top half of 60 bits (12 characters), above version 4\'s', () => {
@@ -34,7 +34,7 @@ describe('Shipyard design codes', () => {
     const { roofThickness: _t2, roofEdge: _e2, ...v4rest } = DEFAULT_DESIGN;
     for (const roofRake of [0, 2, 4]) {
       const code = encodeDesignV4({ ...v4rest, windowRake: 1, roofRake });
-      expect(decodeDesign(code)).toEqual({ design: { ...DEFAULT_DESIGN, windowRake: 1, roofThickness: 0, roofEdge: 0 } });
+      expect(decodeDesign(code)).toEqual({ design: { ...DEFAULT_DESIGN, windowRake: 1, roofThickness: 0, roofEdge: 1 } });
     }
   });
 

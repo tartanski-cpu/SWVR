@@ -409,8 +409,8 @@ function prism(x0: number, x1: number, pts: [number, number][], color: number): 
  * A shaped wheelhouse (the Shipyard's, owner; its layout's `shape`): in profile, the front
  * below the windows leans forward from `lowerFromY` up to the window band; the front windows
  * rake either way (`frontRakeDeg`) from there; above them a header up to the roof: one flat
- * slab (owner) reaching forward of the windows' head as a visor, its front edge cut back
- * underneath (`roofEdgeDeg`).
+ * slab (owner) reaching forward of the windows' head as a visor, its front face raked back
+ * as it rises (`roofEdgeDeg`), like the windows below it.
  * The side walls follow that profile at their front ends, so their windows are trapezoids.
  * The side and aft windows start lower (windowSill) than the front's (frontSill, the dash
  * top); between them at each front corner a black post. No roof rail or ladder: the roof
@@ -489,15 +489,15 @@ function buildShapedHouse(layout: HouseLayout, col: Paint, base: number): THREE.
   buildFloor(layout, col, parts);
   buildConsole(wh, col, parts);
 
-  // Roof: one flat slab from the visor's edge to aft of the house, its front edge cut back
-  // underneath at roofEdgeDeg, no further back than the visor reaches (not into the header);
-  // the wood ceiling under it.
+  // Roof: one flat slab from the visor's edge to aft of the house. Its front face rakes back
+  // as it rises (owner: never square, always back): the underside reaches furthest forward,
+  // the top is set back by roofEdgeDeg. The wood ceiling under it.
   const rf = layout.roof;
   const ov = rf.overhang;
   const t = rf.thickness;
   const zV = zH - sh.visor;
-  const cut = Math.min(t * Math.tan((sh.roofEdgeDeg * Math.PI) / 180), sh.visor);
-  parts.push(prism(-hw - ov, hw + ov, [[zV, roofY + t], [zA + ov, roofY + t], [zA + ov, roofY], [zV + cut, roofY]], col.roof));
+  const back = t * Math.tan((sh.roofEdgeDeg * Math.PI) / 180);
+  parts.push(prism(-hw - ov, hw + ov, [[zV + back, roofY + t], [zA + ov, roofY + t], [zA + ov, roofY], [zV, roofY]], col.roof));
   parts.push(box(-hw + w, hw - w, roofY - 0.012, roofY, Math.max(zF, zH) + w, zA - w, col.lining, 'wood'));
   return parts;
 }

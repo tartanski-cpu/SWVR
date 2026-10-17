@@ -194,8 +194,11 @@ export const SCALES = {
   visor: (i: number) => 0.15 * i,
   /** Roof thickness (m): 0.1, 0.2, 0.3. */
   roofThickness: (i: number) => [0.1, 0.2, 0.3][i],
-  /** The roof's front edge, cut back underneath from the top (deg from vertical): square, 30, 45, 60. */
-  roofEdge: (i: number) => [0, 30, 45, 60][i],
+  /**
+   * The roof's front face, raked back as it rises (deg from vertical): 30, 45, 60. Index 0
+   * was square until the owner dropped it (never square): it reads as 30.
+   */
+  roofEdge: (i: number) => [30, 30, 45, 60][i],
   /** Front windows' rake from vertical (deg): -30 (leaning aft at the top: a fast patrol boat) .. 0 .. +30 (leaning forward: a pilot house's reverse rake). */
   windowRake: (i: number) => -30 + 7.5 * i,
   /** The front below the windows, its lean from vertical (deg): 0 (upright) .. 30 (leaning forward at the top, under the windows). */
@@ -219,7 +222,7 @@ export const DEFAULT_DESIGN: ShipDesign = {
   floor: 2,
   visor: 1,
   roofThickness: 0,
-  roofEdge: 0,
+  roofEdge: 1,
   windowRake: 4,
   lowerFront: 0,
   twin: 0,
@@ -286,7 +289,7 @@ export function encodeDesignV3(d: OldDesign): string {
  */
 function upgrade(d: OldDesign): ShipDesign {
   const { sunk, ...rest } = d;
-  return { ...rest, floor: sunk ? 2 : 3, visor: 1, roofThickness: 0, roofEdge: 0, windowRake: 4, lowerFront: 0 };
+  return { ...rest, floor: sunk ? 2 : 3, visor: 1, roofThickness: 0, roofEdge: 1, windowRake: 4, lowerFront: 0 };
 }
 
 /**
@@ -315,14 +318,14 @@ export function decodeDesign(code: string): { design: ShipDesign } | { error: st
     if (all >= V5_BASE) {
       if (all - V5_BASE >= COMBINATIONS) return { error: `that code is from a newer Shipyard than this game (it reads versions 1 to ${DESIGN_VERSION})` };
       const v5 = unpack<ShipDesign>(all - V5_BASE, FIELDS);
-      return 'design' in v5 ? { design: { ...v5.design, lowerFront: 0 } } : v5;
+      return 'design' in v5 ? { design: { ...v5.design, lowerFront: 0, roofEdge: Math.max(1, v5.design.roofEdge) } } : v5;
     }
     if (all >= V4_COMBINATIONS) return { error: 'that isn’t a Shipyard code' };
     // Version 4: its raked roof becomes the thinnest flat slab, square at the front.
     const v4 = unpack<V4Design>(all, V4_FIELDS);
     if (!('design' in v4)) return v4;
     const { roofRake: _r, ...rest } = v4.design;
-    return { design: { ...rest, lowerFront: 0, roofThickness: 0, roofEdge: 0 } };
+    return { design: { ...rest, lowerFront: 0, roofThickness: 0, roofEdge: 1 } };
   }
   const old = s.length === 11 ? (all >= V3_COMBINATIONS ? { error: 'that isn’t a Shipyard code' } : unpack<OldDesign>(all, V3_FIELDS)) : decodeV12(all);
   return 'design' in old ? { design: upgrade(old.design) } : old;
