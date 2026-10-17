@@ -34,6 +34,8 @@ let boat: DesignedBoat = useDesign(design);
 const matchKey = (d: ShipDesign) => JSON.stringify({ ...d, gear: 0, paint: 0, controls: 0 });
 let matchedFor: string | null = matchKey(design); // a loaded code (or the default) comes matched
 let trial: SeaTrialResults | null = null;
+/** The choices `trial` was run for: while they differ from now, its figures are greyed (a new run is coming). */
+let trialFor = '';
 
 // ── The 3D view ──
 const view = $('view');
@@ -270,13 +272,37 @@ function showFigures(): void {
     ['Price', `£${f.price.toLocaleString('en-GB')}`],
   ]);
   $('warnings').innerHTML = boat.warnings.map((w) => `<div>${w}</div>`).join('');
+  showQuick();
+}
+
+/**
+ * The line of key figures on the 3D view (always in sight, also on a phone): her
+ * stability, displacement and the trial's headline numbers, greyed while a new trial runs.
+ */
+function showQuick(): void {
+  const f = boat.figures;
+  const t = trial;
+  const stale = trialFor !== matchKey(design);
+  const items: [string, string][] = [
+    ['GM', `${f.gmM.toFixed(2)} m`],
+    ['Disp.', `${f.massT.toFixed(1)} t`],
+    ['Draught', `${f.draughtM.toFixed(2)} m`],
+  ];
+  if (t) {
+    items.push(['Top', `${t.topSpeedKn.toFixed(1)} kn`], ['Turn', `${t.tacticalDiameter.toFixed(0)} m`], ['Stop', `${t.crashStopDistance.toFixed(0)} m`], ['Roll', `${t.motions.rollPeriod.toFixed(1)} s`]);
+  }
+  $('quick').innerHTML =
+    items.map(([k, v], i) => `<span${i >= 3 && stale ? ' class="busy"' : ''}>${k} <b>${v}</b></span>`).join('') + (stale || !t ? '<span class="busy">trial running…</span>' : '');
 }
 function showTrial(): void {
   const t = trial;
+  showQuick();
   if (!t) {
     $('trial').innerHTML = '';
     return;
   }
+  // Greyed while it's the last design's trial and a new one is running.
+  $('trial').style.opacity = trialFor === matchKey(design) ? '1' : '0.45';
   const top = t.speedTable[t.speedTable.length - 1];
   const three = t.speedTable[2];
   rows($('trial'), [
@@ -320,6 +346,7 @@ worker.onmessage = (e: MessageEvent<{ id: number; design: ShipDesign; trials?: S
   matchedFor = matchKey(design);
   boat = useDesign(design);
   trial = e.data.trials ?? null;
+  trialFor = matchKey(design);
   $('status').textContent = 'Calm water, flat out, hard over, crash stop: the game’s own physics.';
   showFigures();
   showTrial();
@@ -343,6 +370,7 @@ function change(patch: Partial<ShipDesign>): void {
   showFigures();
   showCode();
   if (matchKey(design) !== before || !trial) runTrial();
+  showTrial();
 }
 
 // ── Code tools ──

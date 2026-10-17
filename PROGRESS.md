@@ -3099,6 +3099,17 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   3. Reload the page: both are listed. Open each.
   4. Delete one.
 
+### Shipyard: the sea trial in sight while the sliders move (owner)
+
+- **The owner asked:** use the page's space better, so the effect on the sea trial shows while moving the sliders. It was below the bottom of the screen, under the choices, and the 3D view could be smaller.
+- **Layout** (`shipyard.html`, CSS grid):
+  - **Wide screens (1200 px and up):** three columns: the choices (360 px) on the left, her 3D view in the middle, and the results (360 px) on the right. The results are, in order, the sea trial, her figures and warnings, her code and the favourites. Each side scrolls on its own, so the trial stays put while you scroll the choices.
+  - **761-1199 px:** the choices on the left; the view over the results on the right, at 46 % of the height.
+  - **Phones:** one column, with the 3D view pinned at the top (40 % of the screen) above the choices, then the results.
+- **A line of key figures on the 3D view** (`page.ts showQuick`, on every layout): GM, displacement, draught, and from the trial top speed, turning circle, crash-stop distance and roll period. While a new trial runs, the old trial's numbers (in the line and in the table) are greyed and "trial running…" shows, so it's clear which numbers are current. The trial's own run time (0.5 s wait, then the background worker) is unchanged.
+- **Checked:** typecheck; all tests; screenshots at 1920 x 1080, 1366 x 768 (also mid-trial, greyed), 1024 x 768 and a 390 px phone.
+- **Owner test:** open the Shipyard on the desktop and drag the Length slider: the trial column on the right greys, then fills in again a moment later. Try it on the phone too: the view and its line of figures stay at the top while you scroll the choices.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**
