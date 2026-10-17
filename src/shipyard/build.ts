@@ -50,7 +50,19 @@ export interface DesignHull {
   /** Minimum open deck (m) aft of the house (cockpit) and forward of it. */
   cockpit: number;
   foredeck: number;
+  /** Where the Shipyard page starts her when you pick her (her type's usual layout); the sliders move it all. */
+  defaults: Partial<ShipDesign>;
 }
+
+/**
+ * Sections upright (no study rake): the game puts each station at its section's deck edge,
+ * so a leaning section with a deep keel pushed the deck forward and the bow choice changed
+ * her length. Her stem's rake is her keel's profile (bowKeel); her deck runs her length.
+ */
+const UPRIGHT: [number, number][] = [
+  [0, 0],
+  [1, 0],
+];
 
 /**
  * Lofted from the hull study, scaled (lengths along, half-breadths across, heights up), with
@@ -60,7 +72,7 @@ export interface DesignHull {
 function scaledStudy(d: HullDesign, L: number, B: number, D: number, bow: number): HullDesign {
   const by = (c: [number, number][], k: number) => c.map(([t, v]) => [t, v * k] as [number, number]);
   const sheer = by(d.sheer, D);
-  return { ...d, length: d.length * L, halfBeam: by(d.halfBeam, B), sheer, keel: bowKeel(by(d.keel, D), curveAt(sheer, 1), d.length * L, SCALES.bow(bow)), rake: by(d.rake, L / D), wheelhouse: undefined, houses: undefined };
+  return { ...d, length: d.length * L, halfBeam: by(d.halfBeam, B), sheer, keel: bowKeel(by(d.keel, D), curveAt(sheer, 1), d.length * L, SCALES.bow(bow)), rake: UPRIGHT, wheelhouse: undefined, houses: undefined };
 }
 
 /**
@@ -75,21 +87,23 @@ function oneChine(d: HullDesign): HullDesign {
 /**
  * Her keel line with her bow reshaped (the Shipyard's bow choice: her stem's rake from
  * vertical, SCALES.bow): a straight stem from 0.15 m under the stem head, raked `deg`, down
- * until it meets her keel, which runs at full depth to it (her own keel held at its depth
- * forward of 55 % of her length). 0 deg is a plumb stem. A 50 deg stem on a 2 m deep bow cuts
+ * until it meets her keel, which runs at full depth to it (her own keel line, held at its
+ * depth forward of 75 % of her length: her rocker is kept, owner). 0 deg is a plumb stem. A 50 deg stem on a 2 m deep bow cuts
  * the forefoot back ~2.4 m; the keel isn't cut away further aft than that (owner).
  * Drawn through samples every 2.5 % of her length, and at the knuckle (the study's smooth
  * curve through them).
  */
 export function bowKeel(keel: [number, number][], stemDeckY: number, lengthM: number, deg: number): [number, number][] {
   const own = (t: number) => curveAt(keel, t);
-  const deep = (t: number) => (t < 0.55 ? own(t) : Math.min(own(t), own(0.55)));
+  // Her own keel line (her rocker), held at its depth over the forward quarter, where her
+  // stem is: at 50 deg a stem reaches back about that far, so only the forefoot is reshaped.
+  const deep = (t: number) => (t < 0.75 ? own(t) : Math.min(own(t), own(0.75)));
   const stem = (t: number) => (deg > 0.1 ? stemDeckY - 0.15 - ((1 - t) * lengthM) / Math.tan((deg * Math.PI) / 180) : -Infinity);
   const at = (t: number) => Math.max(deep(t), stem(t));
   const ts = Array.from({ length: 41 }, (_, i) => i / 40);
   // The knuckle, where the stem meets the keel: sampled too, so the corner stays sharp.
   if (deg > 0.1) {
-    let lo = 0.55;
+    let lo = 0.75;
     let hi = 1;
     for (let k = 0; k < 30; k++) {
       const m = (lo + hi) / 2;
@@ -109,6 +123,7 @@ export const DESIGN_HULLS: DesignHull[] = [
     ramp: true,
     cockpit: 1.0,
     foredeck: 1.6,
+    defaults: { length: 8, beam: 8, depth: 8, bulwark: 2, bow: 2, housePos: 4, houseLength: 2, houseWidth: 7, headroom: 3, sunk: 1, engine: 1, twin: 0 },
   },
   {
     name: 'Gillnetter: 9.75 m, beamy and shallow, flat open foredeck',
@@ -117,6 +132,8 @@ export const DESIGN_HULLS: DesignHull[] = [
     ramp: false,
     cockpit: 1.0,
     foredeck: 1.5,
+    // A bowpicker: the house right aft, the open foredeck for the net reel.
+    defaults: { length: 8, beam: 8, depth: 8, bulwark: 3, bow: 2, housePos: 0, houseLength: 6, houseWidth: 7, headroom: 3, sunk: 0, engine: 1, twin: 0 },
   },
   {
     name: 'Workboat: 12 m semi-displacement, hard chine, fine entry',
@@ -131,6 +148,8 @@ export const DESIGN_HULLS: DesignHull[] = [
     ramp: false,
     cockpit: 1.5,
     foredeck: 2.0,
+    // As the game's workboat: the house a little forward of amidships, her working deck aft.
+    defaults: { length: 8, beam: 8, depth: 8, bulwark: 2, bow: 1, housePos: 9, houseLength: 5, houseWidth: 7, headroom: 3, sunk: 0, engine: 2, twin: 0 },
   },
   // New hull types go on the end: a design's code holds its hull's place in this list.
   {
@@ -140,6 +159,9 @@ export const DESIGN_HULLS: DesignHull[] = [
     ramp: false,
     cockpit: 1.6,
     foredeck: 2.6,
+    // A pilot / crew boat: a long house amidships with walkaround side decks (the Targa and
+    // Safehaven types), low bulwarks, a well-raked stem, twin engines.
+    defaults: { length: 8, beam: 8, depth: 8, bulwark: 0, bow: 4, housePos: 9, houseLength: 12, houseWidth: 6, headroom: 3, sunk: 0, engine: 2, twin: 1, paint: 1 },
   },
 ];
 
@@ -356,17 +378,23 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   // ── Machinery ──
   const eng = ENGINES[d.engine];
   const kw = eng.kw;
+  // Twin engines: two of the package, their propellers set out ~28 % of her deck beam either
+  // side of the centreline (under her bottom, clear of each other), twin rudders behind them.
+  const twin = !!d.twin;
+  const n = twin ? 2 : 1;
   const keelAft = st[0].polygon[2][1];
   const draughtAft = -keelAft;
   // The propeller: as big as her draught aft allows (tip clear below her keel by ~1/4 of
   // it), and no bigger than her engine can turn (0.675 m at 150 kW .. 1.05 m at 400 kW).
-  const propD = Math.round(Math.max(0.45, Math.min(1.25 * draughtAft, 0.45 + 0.0015 * kw, 1.05)) * 100) / 100;
+  const twinX = Math.round(0.28 * 2 * Math.max(...st.map((s) => s.halfBeamDeck)) * 100) / 100;
+  const propD = Math.round(Math.max(0.45, Math.min(1.25 * draughtAft, 0.45 + 0.0015 * kw, 1.05, twin ? 2 * twinX - 0.15 : 9)) * 100) / 100;
   const gear = Math.round(SCALES.gear(d.gear) * 100) / 100;
   const propPos: V3 = [0, keelAft + 0.1, transom - 0.65];
   const rudderPos: V3 = [0, keelAft + 0.15, transom - 0.25];
   const prop = base.planing ? { kt0: 0.6, j0: 1.35, kq0: 0.1, jq0: 1.45, wake: 0.06, thrustDeduction: 0.08 } : { kt0: 0.57, j0: 1.15, kq0: 0.077, jq0: 1.25, wake: 0.18, thrustDeduction: 0.18 };
-  const rudderArea = Math.round(0.07 * h.lwl * Math.max(0.3, draughtAft) * 100) / 100;
-  const tankL = Math.max(200, Math.round((kw * 1.1) / 50) * 50);
+  // One rudder (or twin rudders, as one of twice the area, each in its own propeller's wash).
+  const rudderArea = Math.round(0.07 * h.lwl * Math.max(0.3, draughtAft) * n * 100) / 100;
+  const tankL = Math.max(200, Math.round((kw * n * 1.1) / 50) * 50);
   const batteriesKg = 2 * CONFIG.modules.batteryBank.massKg;
 
   // ── Places (vessel axes), as the landing craft's are from her cabin ──
@@ -408,7 +436,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     { id: 'engineHatch', type: 'deck.fitting', transform: { position: [eh.x1, F, hatchZ] }, capacity: { size: [eh.x1 - eh.x0, 0.035, eh.z1 - eh.z0] }, label: 'Cabin floor, over the engine' },
     { id: 'dipstick', type: 'deck.fitting', transform: { position: [eh.x0 + 0.15, F - 0.32, eh.z0 + 0.2] }, label: "Engine space, the engine's inboard side" },
     { id: 'oilCan', type: 'deck.fitting', transform: { position: [eh.x1 - 0.08, F - 0.3, eh.z1 - 0.15], rotationDeg: [0, 90, 0] }, label: 'Engine space, the shelf' },
-    { id: 'engine', type: 'engine.bay', transform: { position: at.engineBed }, tags: ['inboard'], capacity: { maxPowerKw: 400 }, label: 'Engine bed, under the cabin floor' },
+    { id: 'engine', type: 'engine.bay', transform: { position: at.engineBed }, tags: ['inboard'], capacity: { maxPowerKw: 800 }, label: 'Engine bed, under the cabin floor' },
     { id: 'fuelTank', type: 'engine.bay', transform: { position: at.engineSpace }, label: 'Engine space (nominal)' },
     { id: 'batteries', type: 'engine.bay', transform: { position: at.engineSpace }, label: 'Engine space (nominal)' },
     { id: 'bilgePump', type: 'engine.bay', transform: { position: [at.engineSpace[0], F - eh.pitDepth, at.engineSpace[2]] }, label: 'Bottom of the engine space (nominal)' },
@@ -440,7 +468,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     helm: { stand: [0, F, front + 1.125], yawDeg: 0 },
     form,
     lightship: lightshipOf(weighed, [
-      { massKg: eng.kg, at: at.engineBed },
+      { massKg: eng.kg * n, at: at.engineBed },
       { massKg: batteriesKg, at: at.engineSpace },
     ]),
     addedMass: lc.addedMass,
@@ -496,6 +524,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   engine.sampleAt = rudderPos;
   engine.voice = eng.voice;
   engine.massKg = eng.kg;
+  if (twin) engine.twin = { x: twinX };
   Object.assign(engine.maintenance, {
     engine: { ...engine.maintenance.engine, x: at.engineBed[0], z: hatchZ },
     dipstick: [eh.x0 + 0.15, eh.z0 + 0.2],
@@ -532,11 +561,11 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   }
   if (!bowRamp) recipe.modules = recipe.modules.filter((m) => m.socket !== 'rampCabin' && m.socket !== 'rampBow');
 
-  const price = Math.round((mass * 6 + kw * 120 + (d.controls ? 18000 : 6000)) / 1000) * 1000;
+  const price = Math.round((mass * 6 + kw * n * 120 + (d.controls ? 18000 : 6000)) / 1000) * 1000;
   return {
     hull,
     recipe,
-    figures: { lengthM, beamM: beamDeck, massT: mass / 1000, draughtM: -Math.min(...st.map((s) => s.polygon[2][1])), gmM: gm, propellerM: propD, gear, engine: eng.name, price },
+    figures: { lengthM, beamM: beamDeck, massT: mass / 1000, draughtM: -Math.min(...st.map((s) => s.polygon[2][1])), gmM: gm, propellerM: propD, gear, engine: twin ? `Twin ${eng.name}` : eng.name, price },
     warnings,
   };
 }

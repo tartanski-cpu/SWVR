@@ -86,6 +86,29 @@ describe('Shipyard: the boats it builds', () => {
     }
   });
 
+  it('each hull type\'s own starting layout builds cleanly (no warnings), floating level', () => {
+    for (const h of DESIGN_HULLS) {
+      const boat = useDesign({ ...DEFAULT_DESIGN, ...h.defaults, hull: DESIGN_HULLS.indexOf(h) });
+      expect(boat.warnings, h.name).toEqual([]);
+      expect(Math.abs(uprightHydrostatics(VESSEL_DEFS.design).lcgMinusLcb), h.name).toBeLessThan(0.02);
+    }
+  });
+
+  it('twin engines: two engines\' weight and power, a propeller each side, and more speed than one', () => {
+    const single = { ...DEFAULT_DESIGN, ...DESIGN_HULLS[3].defaults, hull: 3, twin: 0 };
+    const twin = { ...single, twin: 1 };
+    useDesign(single);
+    const m1 = VESSEL_DEFS.design.mass;
+    const boat = useDesign(twin);
+    expect(VESSEL_DEFS.design.mass).toBe(m1); // she floats on her lines either way: her lightship gives way
+    const diesel = gearOf({ defId: 'design' }, 'diesel')!;
+    expect(diesel.twin).toBe(true);
+    expect(boat.figures.engine).toMatch(/^Twin /);
+    const one = matchGear(single);
+    const two = matchGear(twin);
+    expect(two.knots).toBeGreaterThan(one.knots + 2);
+  });
+
   it('only the landing craft hull has the bow ramp', () => {
     expect(useDesign({ ...DEFAULT_DESIGN, hull: 0 }).hull.layout.bowRamp).toBeDefined();
     expect(useDesign({ ...DEFAULT_DESIGN, hull: 1 }).hull.layout.bowRamp).toBeUndefined();

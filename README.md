@@ -484,9 +484,9 @@ Design your own boat at https://tartanski-cpu.github.io/SWVR/next/shipyard.html 
 
 1. Pick a hull type (landing craft, gillnetter, workboat or pilot boat), size her with the sliders, and rake her stem from plumb to 50°.
 2. Place and size the wheelhouse (a step-down floor gives more headroom).
-3. Choose an engine (its propeller is matched by trial), basic or advanced controls, and a paint.
+3. Choose an engine, single or twin (its propeller is matched by trial), basic or advanced controls, and a paint.
 
-The page shows her in 3D (around her and at the helm), her figures and her sea trials, then gives her **code**: 10 characters, like `4H228-BQ98A`. **Try her in the game** opens the game in her. Or add `?design=` and the code to the game's address, also on the Quest. Buying her at the boatyard in the game comes next.
+The page shows her in 3D (around her and at the helm), her figures and her sea trials, then gives her **code**: 11 characters, like `0W7ZK-EPD4SN` (older 10-character codes still work). **Try her in the game** opens the game in her. Or add `?design=` and the code to the game's address, also on the Quest. Buying her at the boatyard in the game comes next.
 
 ## Local development
 

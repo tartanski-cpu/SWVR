@@ -332,7 +332,8 @@ export class EngineAudio {
     const e = v.engine;
     this.sound.set(
       { rpm: e.rpm, load: e.rack, ratedRpm: this.ratedRpm, running: e.phase === 'running', cranking: e.phase === 'cranking', submerged },
-      (0.42 / (1 + distance / 8)) * house,
+      // Twin engines in lockstep: the same note, louder (two sources, ~+3 dB).
+      ((0.42 * (diesel?.twin ? CONFIG.engineTwinLevel : 1)) / (1 + distance / 8)) * house,
       lp,
     );
   }

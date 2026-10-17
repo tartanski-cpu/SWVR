@@ -47,6 +47,15 @@ export interface DieselInboardConfig {
   massKg: number;
   /** Its upkeep: oil at the start, the checks, the OIL lamp; the block's place under the floor, its dipstick and filler. */
   maintenance: typeof wb.maintenance;
+  /**
+   * Twin engines (the Shipyard): two of this engine, each with its own gearbox and propeller,
+   * the propellers `x` m either side of the centreline (the `propeller.position` x is then
+   * ignored) and counter-rotating, so their prop walk cancels. Worked from one lever and one
+   * key, they run in lockstep: one engine's revs and thrust are worked out, and each shaft
+   * gives that thrust; fuel, mass and power are doubled. (Separate levers, twin-screw
+   * manoeuvring, need an engine state each: modular boats 6d.)
+   */
+  twin?: { x: number };
   /** How it sounds (CONFIG.engineVoices); unset, the workboat's straight six. */
   voice?: keyof typeof CONFIG.engineVoices;
 }
@@ -87,9 +96,9 @@ export const DIESEL_INBOARD: ModuleDefinition<DieselInboardConfig, EngineState> 
   },
   needs: () => [{ fuel: 'diesel' }],
   provides: () => [{ power: 'pto' }, { gear: 'diesel' }],
-  gear: (c) => ({ diesel: { engine: c.engine, propeller: c.propeller, maintenance: c.maintenance, voice: c.voice } }),
+  gear: (c) => ({ diesel: { engine: c.engine, propeller: c.propeller, maintenance: c.maintenance, voice: c.voice, ...(c.twin ? { twin: true } : {}) } }),
   // Its mass at its bed (the socket): it's part of the boat's mass, CG and inertia (M6).
-  physical: (c) => ({ powerKw: c.engine.powerKw, massKg: c.massKg }),
+  physical: (c) => ({ powerKw: c.engine.powerKw * (c.twin ? 2 : 1), massKg: c.massKg * (c.twin ? 2 : 1) }),
   power: (c) => [
     // The alternator: full output from 600 rpm.
     { role: 'source', amps: (io) => (io.get('state') === 'running' ? c.alternatorAmps * clamp(io.num('rpm') / 600, 0, 1) : 0) },
@@ -118,11 +127,21 @@ export const DIESEL_INBOARD: ModuleDefinition<DieselInboardConfig, EngineState> 
         fuelL,
       };
       const thrust = engineStep(e, c, inputs, -flow.z, wet, dt);
+      // One shaft's thrust (the rudder sees one propeller's wash: twin rudders, each behind its own).
       io.set('thrust', thrust);
       io.set('immersion', wet);
-      io.set('fuel', fuelAndHeatStep(e, c, fuelL, dt));
-      // Net propulsive force T(1 - t) along the shaft (forward is -z).
+      const left = fuelAndHeatStep(e, c, fuelL, dt);
       const p = c.propeller;
+      if (c.twin) {
+        // The other engine burns as much.
+        io.set('fuel', Math.max(0, left - (fuelL - left)));
+        e.fuelFlowLph *= 2;
+        // Net propulsive force T(1 - t) along each shaft (forward is -z); counter-rotating, no walk.
+        for (const side of [-1, 1]) port.addForce([side * c.twin.x, p.position[1], p.position[2]], 0, 0, -thrust * (1 - p.thrustDeduction));
+        return;
+      }
+      io.set('fuel', left);
+      // Net propulsive force T(1 - t) along the shaft (forward is -z).
       port.addForce(p.position, 0, 0, -thrust * (1 - p.thrustDeduction));
       // Prop walk: sideways at the prop from the blades' uneven bite (strongest slow and
       // going astern). Right-handed: stern to starboard ahead, to port astern.

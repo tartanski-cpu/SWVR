@@ -2651,6 +2651,9 @@ export const CONFIG = {
    * are lifted (`presenceDb` at `presenceHz`) and the tone opened up (`lpLiftHz` on its
    * low-pass); the ear hears the deep beat from them. VR and desktop are untouched.
    */
+  /** Twin engines (the Shipyard's): the engine sound's level times this (two sources, ~+3 dB). */
+  engineTwinLevel: 1.4,
+
   engineSmallSpeakers: { presenceHz: 240, presenceDb: 9, lpLiftHz: 160 },
 
   /**

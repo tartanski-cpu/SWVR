@@ -143,7 +143,7 @@ export interface GearFacts {
   /** A midship cleat (the skiff's painter): its station and the line's height. */
   midCleat: { z: number; lineY: number };
   /** The inboard diesel: the engine, its propeller, and its upkeep (oil, and where the engine and its dipstick are). */
-  diesel: { engine: Workboat['engine']; propeller: Workboat['propeller']; maintenance: Workboat['maintenance']; voice?: keyof typeof CONFIG.engineVoices };
+  diesel: { engine: Workboat['engine']; propeller: Workboat['propeller']; maintenance: Workboat['maintenance']; voice?: keyof typeof CONFIG.engineVoices; twin?: boolean };
   /** The rudder and its steering gear. */
   rudder: Workboat['rudder'];
   /** An electric outboard: motor, battery and tiller. */

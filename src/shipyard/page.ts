@@ -115,7 +115,7 @@ function section(title: string): HTMLElement {
   controls.appendChild(h);
   return controls;
 }
-function choices(key: keyof ShipDesign, items: { name: string; note?: string }[]): void {
+function choices(key: keyof ShipDesign, items: { name: string; note?: string }[], patch: (i: number) => Partial<ShipDesign> = () => ({})): void {
   const box = document.createElement('div');
   items.forEach((it, i) => {
     const c = document.createElement('div');
@@ -123,7 +123,7 @@ function choices(key: keyof ShipDesign, items: { name: string; note?: string }[]
     c.dataset.key = key;
     c.dataset.i = String(i);
     c.innerHTML = `<b>${it.name}</b>${it.note ? `<div style="font-size:12px;color:#567">${it.note}</div>` : ''}`;
-    c.onclick = () => change({ [key]: i });
+    c.onclick = () => change({ [key]: i, ...patch(i) });
     box.appendChild(c);
   });
   controls.appendChild(box);
@@ -141,7 +141,8 @@ function slider(key: keyof ShipDesign, label: string, show: (v: number) => strin
 const pct = (k: number) => `${Math.round(k * 100)} %`;
 
 section('1. Hull');
-choices('hull', DESIGN_HULLS.map((h) => ({ name: h.name.split(':')[0], note: h.name.split(':')[1]?.trim() })));
+// Picking a hull starts her in her type's usual layout (the sliders then move it all).
+choices('hull', DESIGN_HULLS.map((h) => ({ name: h.name.split(':')[0], note: h.name.split(':')[1]?.trim() })), (i) => DESIGN_HULLS[i].defaults);
 slider('length', 'Length', () => `${boat.figures.lengthM.toFixed(2)} m`);
 slider('beam', 'Beam', () => `${boat.figures.beamM.toFixed(2)} m`);
 slider('depth', 'Depth', (v) => pct(SCALES.scale(v)));
@@ -162,6 +163,14 @@ slider('headroom', 'Headroom', (v) => `${SCALES.headroom(v).toFixed(1)} m`);
 }
 section('3. Engine');
 choices('engine', ENGINES.map((e) => ({ name: e.name, note: `${e.kg} kg with its gearbox. Propeller and gearbox matched to her by trial.` })));
+{
+  const row = document.createElement('label');
+  row.className = 'choice';
+  row.innerHTML = '<input type="checkbox" data-key="twin"> Twin engines: two of these, a propeller and rudder each, worked together from one lever';
+  const box = row.querySelector('input')!;
+  box.onchange = () => change({ twin: box.checked ? 1 : 0 });
+  controls.appendChild(row);
+}
 section('4. Controls');
 choices('controls', [
   { name: 'Basic', note: 'Wheel, throttle, key / heat / start, speed and depth, rpm.' },
@@ -193,6 +202,7 @@ function syncControls(): void {
     el.textContent = outputs[k]!(design[k]);
   });
   (document.querySelector('input[data-key=sunk]') as HTMLInputElement).checked = !!design.sunk;
+  (document.querySelector('input[data-key=twin]') as HTMLInputElement).checked = !!design.twin;
 }
 
 // ── Figures, warnings, trial, code ──

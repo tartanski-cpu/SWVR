@@ -1,11 +1,11 @@
-/** Shipyard designs: the choices round-trip through their 10-character code, and typos are caught. */
+/** Shipyard designs: the choices round-trip through their 11-character code, typos are caught, older 10-character codes still read. */
 import { describe, expect, it } from 'vitest';
-import { COMBINATIONS, decodeDesign, DEFAULT_DESIGN, encodeDesign, FIELDS, type ShipDesign } from '../../src/shipyard/design';
+import { COMBINATIONS, decodeDesign, DEFAULT_DESIGN, encodeDesign, encodeDesignV2, FIELDS, type ShipDesign } from '../../src/shipyard/design';
 
 describe('Shipyard design codes', () => {
-  it('are 10 characters in two groups of five, and read back to the same choices', () => {
+  it('are 11 characters (five, a dash, six), and read back to the same choices', () => {
     const code = encodeDesign(DEFAULT_DESIGN);
-    expect(code).toMatch(/^[0-9A-Z]{5}-[0-9A-Z]{5}$/);
+    expect(code).toMatch(/^[0-9A-Z]{5}-[0-9A-Z]{6}$/);
     expect(decodeDesign(code)).toEqual({ design: DEFAULT_DESIGN });
   });
 
@@ -20,10 +20,18 @@ describe('Shipyard design codes', () => {
     for (const d of [max, min]) expect(decodeDesign(encodeDesign(d))).toEqual({ design: d });
   });
 
-  it('fits: version 2\'s range (from 2^43) holds every combination of the choices within the 45 bits, with room left', () => {
+  it('fits: every combination of the choices in 50 bits (10 characters), with plenty of room left', () => {
     expect(COMBINATIONS).toBe(FIELDS.reduce((a, f) => a * BigInt(f.steps), 1n));
-    expect((1n << 43n) + COMBINATIONS < 1n << 45n).toBe(true);
-    expect((1n << 43n) + COMBINATIONS < 6n << 42n).toBe(true);
+    expect(COMBINATIONS * 16n < 1n << 50n).toBe(true);
+  });
+
+  it('reads version 2 (10-character) codes as the same single-engine boats', () => {
+    for (const hull of [0, 1, 2, 3]) {
+      const d: ShipDesign = { ...DEFAULT_DESIGN, hull, twin: 0 };
+      const old = encodeDesignV2(d);
+      expect(old).toMatch(/^[0-9A-Z]{5}-[0-9A-Z]{5}$/);
+      expect(decodeDesign(old)).toEqual({ design: d });
+    }
   });
 
   it('reads the first Shipyard\'s (version 1) codes as the same boats, with their bow as designed', () => {
@@ -43,13 +51,13 @@ describe('Shipyard design codes', () => {
   it('catches any one mistyped character, and says why it can\'t read a bad code', () => {
     const code = encodeDesign(DEFAULT_DESIGN).replace('-', '');
     const ALPHA = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
-    for (let i = 0; i < 10; i++)
+    for (let i = 0; i < code.length; i++)
       for (const ch of ALPHA) {
         if (ch === code[i]) continue;
         const bad = code.slice(0, i) + ch + code.slice(i + 1);
         expect('error' in decodeDesign(bad), bad).toBe(true);
       }
-    expect(decodeDesign('ABC')).toEqual({ error: 'a design code has 10 characters (this has 3)' });
+    expect(decodeDesign('ABC')).toEqual({ error: 'a design code has 11 characters (this has 3)' });
     expect('error' in decodeDesign('UUUUU-UUUUU')).toBe(true);
   });
 });

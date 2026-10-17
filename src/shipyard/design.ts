@@ -7,23 +7,26 @@
  *
  * Every choice is a whole number on a fixed scale (its `steps`), so the code is exact. The
  * choices are packed as one number in mixed radix (each choice uses exactly its own number
- * of steps: a 3-way choice takes log2 3 = 1.6 bits, not 2). The code is a 45-bit number
- * = 9 characters of Crockford base 32 (digits and letters without I, L, O and U, so
- * nothing looks like anything else), and a 10th, a check character (a weighted sum of the
- * nine: any one mistyped character is caught). Shown as two groups of five: K7P4Q-2ZX9D.
+ * of steps: a 3-way choice takes log2 3 = 1.6 bits, not 2), written in Crockford base 32
+ * (digits and letters without I, L, O and U, so nothing looks like anything else), with a
+ * check character after them (a weighted sum: any one mistyped character is caught).
  *
- * Each version owns a range of the 45-bit numbers, so a code says which rules it was made
- * with by where it falls:
- *   - version 1 (the first Shipyard, no bow choice; each choice in whole bits): 2^42 .. 2^43;
- *   - version 2 (the bow choice): from 2^43, its ~1.65 x 10^13 combinations (to ~5.8 x 2^42;
- *     the 4th hull type, the pilot boat, added ~0.41 x 10^13 at the top of it);
- *   - the rest, up to 8 x 2^42, is left for later versions.
- * Version 1 codes still read, with the bow at the middle step (a 25 deg stem); before the bow
- * became a stem angle, that step was each hull's own bow, so their bows differ a little.
+ * Version 3 (twin engines; this one): 10 characters of choices (50 bits; its ~3.3 x 10^13
+ * combinations use ~3 % of them, the rest is room for later choices) and the check: 11
+ * characters, shown as K7P4Q-2ZX9DM. Its number is the choices' number as it stands.
+ *
+ * The 10-character codes of earlier versions (9 characters and the check) still read, with
+ * single engines. Each owned a range of their 45-bit numbers:
+ *   - version 1 (the first Shipyard, no bow choice; each choice in whole bits): 2^42 .. 2^43.
+ *     Read with the bow at the middle step (a 25 deg stem); before the bow became a stem
+ *     angle that step was each hull's own bow, so their bows differ a little;
+ *   - version 2 (the bow choice): from 2^43, its ~1.65 x 10^13 combinations (the 4th hull
+ *     type, the pilot boat, added ~0.41 x 10^13 at the top of it).
+ * Twin engines didn't fit in what was left of the 45 bits, so version 3 went to 11.
  */
 
-/** The building rules this code was made with (2: the bow choice, mixed-radix packing). */
-export const DESIGN_VERSION = 2;
+/** The building rules this code was made with (3: twin engines, 11 characters). */
+export const DESIGN_VERSION = 3;
 
 /** One choice: its index on its scale, 0 .. steps-1. */
 export interface ShipDesign {
@@ -44,6 +47,8 @@ export interface ShipDesign {
   headroom: number;
   /** Its floor sunk below the deck (a step down into it, for headroom). */
   sunk: number;
+  /** Twin engines (two of the engine package, side by side, in lockstep): 0 single, 1 twin. */
+  twin: number;
   /** Engine package (ENGINES), and the gearbox ratio matched to it (by sea trial in the Shipyard). */
   engine: number;
   gear: number;
@@ -53,8 +58,8 @@ export interface ShipDesign {
   paint: number;
 }
 
-/** Each choice's number of steps, in the code's order. */
-export const FIELDS: { key: keyof ShipDesign; steps: number }[] = [
+/** Version 2's choices, in its code's order (the hull type first, most significant). */
+const V2_FIELDS: { key: keyof ShipDesign; steps: number }[] = [
   // The hull type first (most significant): its range grows at the top, so adding a type
   // (the pilot boat, the 4th) leaves every earlier code meaning the same boat.
   { key: 'hull', steps: 4 },
@@ -73,6 +78,9 @@ export const FIELDS: { key: keyof ShipDesign; steps: number }[] = [
   { key: 'controls', steps: 2 },
   { key: 'paint', steps: 8 },
 ];
+
+/** Each choice's number of steps, in the code's order (version 3: twin engines, then version 2's). */
+export const FIELDS: { key: keyof ShipDesign; steps: number }[] = [{ key: 'twin', steps: 2 }, ...V2_FIELDS];
 
 /** Version 1's choices, each in whole bits (for reading its codes). */
 const V1_FIELDS: { key: keyof ShipDesign; bits: number; steps: number }[] = [
@@ -125,6 +133,7 @@ export const DEFAULT_DESIGN: ShipDesign = {
   houseWidth: 7,
   headroom: 3,
   sunk: 1,
+  twin: 0,
   engine: 1,
   gear: 2,
   controls: 1,
@@ -132,31 +141,46 @@ export const DEFAULT_DESIGN: ShipDesign = {
 };
 
 const ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
-/** Where version 2's codes start, and how many there are (every combination of the choices). */
-const V2_BASE = 1n << 43n;
+/** Every combination of version 3's choices: its codes are the numbers 0 .. this - 1. */
 export const COMBINATIONS = FIELDS.reduce((a, f) => a * BigInt(f.steps), 1n);
+/** Where version 2's codes start, and how many there are. */
+const V2_BASE = 1n << 43n;
+const V2_COMBINATIONS = V2_FIELDS.reduce((a, f) => a * BigInt(f.steps), 1n);
 
-/** The design as its code, e.g. 'K7P4Q-2ZX9D'. */
-export function encodeDesign(d: ShipDesign): string {
-  // The choices as one mixed-radix number, the first choice most significant.
+/** The choices as one mixed-radix number, the first choice most significant. */
+function pack(d: ShipDesign, fields: readonly { key: keyof ShipDesign; steps: number }[]): bigint {
   let n = 0n;
-  for (const f of FIELDS) {
+  for (const f of fields) {
     const v = d[f.key];
     if (!Number.isInteger(v) || v < 0 || v >= f.steps) throw new Error(`design ${f.key} ${v} is off its scale (0..${f.steps - 1})`);
     n = n * BigInt(f.steps) + BigInt(v);
   }
-  // Version 2's range starts at 2^43: nine 5-bit characters.
-  const all = V2_BASE + n;
+  return n;
+}
+
+/** A number as `count` base-32 characters and the check, grouped 5 and the rest. */
+function write(all: bigint, count: number): string {
   const syms: number[] = [];
-  for (let k = 8; k >= 0; k--) syms.push(Number((all >> BigInt(5 * k)) & 31n));
+  for (let k = count - 1; k >= 0; k--) syms.push(Number((all >> BigInt(5 * k)) & 31n));
   syms.push(check(syms));
   const s = syms.map((v) => ALPHABET[v]).join('');
   return `${s.slice(0, 5)}-${s.slice(5)}`;
 }
 
+/** The design as its code, e.g. 'K7P4Q-2ZX9DM' (version 3, 11 characters). */
+export function encodeDesign(d: ShipDesign): string {
+  return write(pack(d, FIELDS), 10);
+}
+
+/** A single-engine design as a version 2 code (10 characters): for checking that old codes still read. */
+export function encodeDesignV2(d: ShipDesign): string {
+  return write(V2_BASE + pack(d, V2_FIELDS), 9);
+}
+
 /**
  * A code back to its design, or why it can't be read. Forgiving as typed: any case, with
- * or without the dash or spaces, and I / L read as 1, O as 0.
+ * or without the dash or spaces, and I / L read as 1, O as 0. 11 characters (version 3), or
+ * 10 (versions 1 and 2: single engines).
  */
 export function decodeDesign(code: string): { design: ShipDesign } | { error: string } {
   const s = code
@@ -164,23 +188,31 @@ export function decodeDesign(code: string): { design: ShipDesign } | { error: st
     .replace(/[\s-]/g, '')
     .replace(/[IL]/g, '1')
     .replace(/O/g, '0');
-  if (s.length !== 10) return { error: `a design code has 10 characters (this has ${s.length})` };
+  if (s.length !== 11 && s.length !== 10) return { error: `a design code has 11 characters (this has ${s.length})` };
   const syms: number[] = [];
   for (const ch of s) {
     const v = ALPHABET.indexOf(ch);
     if (v < 0) return { error: `'${ch}' isn't used in design codes` };
     syms.push(v);
   }
-  if (check(syms.slice(0, 9)) !== syms[9]) return { error: 'that code has a mistyped character (its check doesn’t match)' };
+  const body = syms.slice(0, -1);
+  if (check(body) !== syms[syms.length - 1]) return { error: 'that code has a mistyped character (its check doesn’t match)' };
   let all = 0n;
-  for (const v of syms.slice(0, 9)) all = (all << 5n) | BigInt(v);
+  for (const v of body) all = (all << 5n) | BigInt(v);
+  if (s.length === 11) {
+    if (all >= COMBINATIONS) return { error: `that code is from a newer Shipyard than this game (it reads versions 1 to ${DESIGN_VERSION})` };
+    return unpack(all, FIELDS);
+  }
   if (all >> 42n === 1n) return decodeV1(all);
-  if (all < V2_BASE) return { error: 'that isn’t a Shipyard code' };
-  if (all - V2_BASE >= COMBINATIONS) return { error: `that code is from a newer Shipyard than this game (it reads versions 1 to ${DESIGN_VERSION})` };
-  // Unpack the mixed-radix choices, the last choice least significant.
-  let n = all - V2_BASE;
+  if (all < V2_BASE || all - V2_BASE >= V2_COMBINATIONS) return { error: 'that isn’t a Shipyard code' };
+  const v2 = unpack(all - V2_BASE, V2_FIELDS);
+  return 'design' in v2 ? { design: { ...v2.design, twin: 0 } } : v2;
+}
+
+/** A mixed-radix number back to its choices, the last choice least significant. */
+function unpack(n: bigint, fields: readonly { key: keyof ShipDesign; steps: number }[]): { design: ShipDesign } | { error: string } {
   const d = {} as ShipDesign;
-  for (const f of [...FIELDS].reverse()) {
+  for (const f of [...fields].reverse()) {
     d[f.key] = Number(n % BigInt(f.steps));
     n /= BigInt(f.steps);
   }
@@ -191,7 +223,7 @@ export function decodeDesign(code: string): { design: ShipDesign } | { error: st
 /** A version 1 code (each choice in whole bits, no bow choice): the same boat, its stem raked 25 deg (the middle step). */
 function decodeV1(all: bigint): { design: ShipDesign } | { error: string } {
   let shift = 42;
-  const d = { bow: 2 } as ShipDesign;
+  const d = { bow: 2, twin: 0 } as ShipDesign;
   for (const f of V1_FIELDS) {
     shift -= f.bits;
     const v = Number((all >> BigInt(shift)) & BigInt((1 << f.bits) - 1));
@@ -202,7 +234,7 @@ function decodeV1(all: bigint): { design: ShipDesign } | { error: string } {
 }
 
 /**
- * The check character: the nine weighted 1, 3, 5 ... 17, summed mod 32. Odd weights have an
+ * The check character: the characters weighted 1, 3, 5 ..., summed mod 32. Odd weights have an
  * inverse mod 32, so changing any one character always changes the sum.
  */
 function check(syms: number[]): number {

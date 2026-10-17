@@ -2864,6 +2864,20 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   2. Move the Bow rake from plumb to 50 deg and look from the side and the bow, with the water off.
   3. Run the pilot boat's trial on each engine.
 
+### Shipyard: twin engines, 11-character codes, the pilot boat's own layout (owner)
+
+- **Twin engines** (a tick box under the engine): two of the chosen engine package side by side, worked together from the one throttle and gear lever.
+  - Modelled as two identical engines in lockstep, so one engine state drives both (`dieselInboard`, `engine.twin = { x }`). Each propeller pushes at its own shaft line, ±x off the centreline (28 % of her deck beam either side). They turn opposite ways, so no prop walk.
+  - Doubled: fuel burn, engine mass, physical power, the fuel tank. The rudders' area is doubled; each rudder sees one propeller's wash. The propeller diameter is also limited by the shaft spacing.
+  - Sound: one engine voice, louder by `CONFIG.engineTwinLevel` (1.4).
+  - Not modelled: separate port and starboard levers (no twin-screw manoeuvring yet), or one engine failing alone.
+- **Codes are now 11 characters** (version 3, e.g. `0W7ZK-EPD4SN`): twin engines didn't fit in what was left of the 10-character range. Old 10-character codes still read, with a single engine (`design.ts`, tests for v1 and v2 codes).
+- **Each hull type starts from her own layout** (`DESIGN_HULLS[i].defaults`), applied when you pick her: the landing craft as in the game; the gillnetter with her house aft; the workboat with her house forward.
+- **The pilot boat now follows the hull study's pilot:** her keel rocker is kept (only held deep forward of 75 % of her length), her sections are set upright so her deck length doesn't change with the bow rake, and she starts with a long wheelhouse amidships (Targa / Safehaven style), bow 50 deg, twin 400 kW. About 27 kn, 24.3 t, GM 1.18 m.
+  - Her spray chine (the study's second chine) is still left out: the game's sections take one chine. The owner wants it; that's the next change.
+- **Checked:** typecheck; all 503 tests; side and bow screenshots of all four hulls with their starting layouts.
+- **Owner test (desktop or phone):** on the Shipyard page, pick each hull type and see her starting layout. Pick the pilot boat, run her trial with and without Twin engines, then **Try her in the game** and check she runs and sounds right. Type an old 10-character code into **Load a code**: it should still open. **In VR:** start the game with `?design=` and an 11-character code.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**
