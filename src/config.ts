@@ -1878,6 +1878,13 @@ export const CONFIG = {
 
   /** Desktop debug driving with the arrow keys (in VR you use the bridge controls). */
   /**
+   * The Shipyard (shipyard/): matching a design's gearbox by trial. `matchRpm`: flat out
+   * should settle at this share of the engine's rated rpm (the landing craft's: 1696 of
+   * 1800); `runSeconds`: how long each full-throttle trial runs before it's read.
+   */
+  shipyard: { matchRpm: 0.93, runSeconds: 45 },
+
+  /**
    * Touchscreen controls (ui/touchControls.ts), shown on a phone or tablet (a coarse pointer
    * and no mouse), or with ?touch=1 in the address (?touch=0 hides them). No multiplayer
    * from a phone yet (owner). `leverDetent`: within this of the middle, the throttle slider

@@ -9,7 +9,9 @@ import { hullQueries } from '../modular/hull';
 import type { GearFacts, GearFootprint, GearKind } from '../modular/module';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 import type { Recipe } from '../modular/recipe';
-import { LIBRARY, RECIPES } from './library';
+import { LIBRARY, RECIPES, setDesignBoat } from './library';
+import type { DesignedBoat } from '../shipyard/build';
+import type { ShipDesign } from '../shipyard/design';
 
 const sims = new Map<string, VesselSimDef | null>();
 
@@ -20,6 +22,17 @@ const sims = new Map<string, VesselSimDef | null>();
 export function setVesselRecipe(defId: string, recipe: Recipe | null): void {
   if (recipe) sims.set(defId, buildSimDef(recipe, LIBRARY, hullQueries(VESSEL_DEFS[defId])));
   else sims.delete(defId);
+}
+
+/**
+ * Make the Shipyard's 'design' vessel type this design (shipyard/build.ts): her hull,
+ * recipe and vessel def, and her machinery here. For a new world: boats already afloat keep
+ * what they were built with until they're made again.
+ */
+export function useDesign(d: ShipDesign): DesignedBoat {
+  const boat = setDesignBoat(d);
+  sims.delete('design');
+  return boat;
 }
 
 /** Her recipe's simulation side (null: she has none). */

@@ -2711,6 +2711,88 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   2. Flat out, put the helm over halfway, then hard: she should lean into the turn.
   3. In VR, the workboat should sound and handle as before.
 
+### Shipyard, stop 1: the design page and the code (owner plan; done, on /next/ for the owner to test)
+
+- **The owner's plan:** a separate Shipyard web page. Pick a hull type, add a wheelhouse, size and place things with sliders, add a controls package (basic or advanced) and an engine. When she's complete, the page gives a code; in the 3D game you enter the code at the boatyard, pay, and she's spawned fully built.
+- **Agreed:**
+  - the code holds the choices, not the boat, and is kept short enough to type in VR;
+  - old codes may have to be redone if the rules change a lot;
+  - three stops:
+    1. this page, the code, and a temporary "try her in the game";
+    2. buying her at the boatyard in the game;
+    3. placing controls by hand on 2D plan / side / inside views.
+- **The page:** https://tartanski-cpu.github.io/SWVR/next/shipyard.html (`shipyard.html`, `src/shipyard/page.ts`).
+  1. **Hull type**, three the game can float and drive today:
+     - the landing craft (9 m, with her bow ramp);
+     - the hull study's gillnetter (9.75 m, beamy and shallow);
+     - the workboat's 12 m displacement hull.
+     
+     Sliders: length, beam, depth (each 80 to 117.5 % in 2.5 % steps) and bulwark height (0.3 to 1.0 m).
+  2. **Wheelhouse:** its position along the free deck (right aft to right forward), length (2.4 to 5.4 m), width (65 to 100 % of what the side decks leave), headroom (1.9 to 2.6 m), and a step-down floor.
+  3. **Engine:** 150 kW straight six, 280 kW V8 or 400 kW V8, each with its own sound.
+  4. **Controls:**
+     - **Basic:** wheel, throttle, key / heat / start, speed with depth, rpm.
+     - **Advanced:** adds lights, wipers, horn, searchlight, heading, engine monitor and the VHF.
+  5. **Paint:** eight liveries.
+  
+  As you go:
+  - **a 3D view** drawn by the game's own hull and module code: bow, side, stern, plan and **at the helm**, with the water on or off;
+  - **her figures:** length x beam, displacement, draught, GM, propeller, gearbox, price;
+  - **plain-language warnings;**
+  - **the game's own sea trials, run on her:** top speed and rpm, three-quarter speed, fuel and range, acceleration, turning circle, crash stop, bollard pull, roll period.
+- **The code:** 10 characters, like `4H228-BQ98A` (`src/shipyard/design.ts`).
+  - Every choice is a step on a fixed scale: 45 bits, 9 characters of Crockford base 32, which has no I, L, O or U, so nothing looks like anything else.
+  - The 10th is a check character, so **any one mistyped character is caught** rather than giving the wrong boat.
+  - Forgiving as typed: any case, the dash optional, I/L read as 1, O as 0.
+  - It carries a rules version (1), so a later change can upgrade or refuse old codes with a reason.
+- **How a design becomes a boat** (`src/shipyard/build.ts`, used by both the page and the game, so the code gives exactly the boat designed):
+  - **Shape:** the base hull scaled: the study's curves (length along, half-breadths across, sheer and keel up), or the workboat's chine parameters.
+  - **Weight:** what her stations displace at the design waterline, so she floats on her lines. The CG is over her LCB (level trim), at 63 % of her depth amidships (a little higher with a taller house).
+  - **Radii of gyration:** roll 0.39 B, pitch 0.28 L, yaw 0.29 L.
+  - **Damping:** the planing hulls take the landing craft's per-area figures, the displacement hull the workboat's. Roll is 28 % of critical, from her own GM. The resistance curve is on her own waterline length. The planing hulls bank into turns.
+  - **Wheelhouse and fit-out:** placed within the free deck. Its insides (console, panels, buttons, hatch, engine) are placed from it as on the landing craft. The console's dash is widened or narrowed to the cabin.
+  - **Machinery:** the engine's torque curve scaled from the landing craft's (all rated 1,800 rpm). The propeller is as big as her draught aft allows and her engine can turn (0.68 m at 150 kW to 1.05 m at 400 kW). The rudder is 0.07 x waterline length x draught; the tank is sized to the engine.
+  - **Her recipe** is the landing craft's, with all that put in.
+- **Matching the propeller by trial** (`src/shipyard/trial.ts`): the gearbox is chosen so flat out settles just under rated rpm (93 %), by a halving search over 16 gearbox steps (1.0 to 4.18, 10 % apart): four or five 45-second full-throttle runs.
+  - It and the sea trials run in a background worker, so the page never freezes: about 3 s after a change.
+  - Matched examples:
+    - landing craft: 11.0 / 19.9 / 26.9 kn on 150 / 280 / 400 kW;
+    - gillnetter (15 t): 8.6 / 11.8 / 15.3 kn;
+    - 12 m workboat hull (18.5 t): 8.0 / 9.7 / 14.7 kn.
+- **Trying her in the game:** the page's "Try her in the game" opens the game with `?design=CODE`. She's the vessel type `design` (one designed boat at a time), built at startup. A bad code says why and starts in the workboat.
+- **Shared code:**
+  - the boat library has the `design` type (`useDesign` in `boats/sims.ts` rebuilds her and her machinery);
+  - `VESSEL_IDS` gains `design`;
+  - Vite builds a third page and an ES module worker.
+  - Nothing changes for the existing boats: workboat golden runs and draw calls are unchanged (62 / 57 / 115 / 36 by day, 65 / 58 / 116 / 35 at night).
+- **Config:** `CONFIG.shipyard` (`matchRpm` 0.93, `runSeconds` 45). The base hulls, engine packages and liveries are in `src/shipyard/build.ts`; the scales in `src/shipyard/design.ts`.
+- **Tests (9 new, 497 in all, all pass):**
+  - codes: round trips for every choice at every step, forgiving typing, every single-character typo caught;
+  - every hull with every engine floats level (sinkage and trim under 2 cm), GM over 0.5 m, valid recipe, no warnings;
+  - the slider ends build;
+  - the packages hold what they should;
+  - only the landing craft has the ramp;
+  - the gearbox matches by trial and she drives.
+- **Checked in the browser:**
+  - the page loads; its trial finishes in ~3 s;
+  - switching to the workboat hull with 400 kW re-matched her gearbox (2.85:1) and gave 14.7 kn;
+  - screenshots of the default and the workboat design, and the helm view;
+  - her code in the game: she starts in the designed boat (navy, basic dash), casts off, starts and gets under way.
+- **Known limits:**
+  - the round-bilge hulls, catamarans and forecastle hulls can't be chosen until the game's stations take them;
+  - the weight comes from her lines, not a weight estimate;
+  - no deck gear (crane, winch) yet;
+  - one designed boat at a time in the game;
+  - not in multiplayer (6d);
+  - she isn't saved with a career until stop 2.
+- **Owner test** (desktop or tablet, then VR):
+  1. Open the Shipyard page and try each hull, the sliders and the step-down floor. Watch the figures and trial change.
+  2. Pick an engine and see the gearbox match.
+  3. Look at her at the helm.
+  4. Copy the code, then press "Try her in the game".
+  5. In VR, open https://tartanski-cpu.github.io/SWVR/next/?design= followed by the code, on the Quest, and drive her.
+  6. Your eye: the shapes, the weight and CG assumptions, the speeds.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

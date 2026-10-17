@@ -927,6 +927,10 @@ Sizes: S is about a session, M two or three, L more.
   **Later:** upload a photo of a boat, and AI works out her length, proportions, angles and hull type, then picks a form from the parametric library or writes a recipe for it to build one.
   - Flag for when it starts: that needs a paid image-understanding AI service (the standing rule: ask first). A key can't sit in a public GitHub Pages site, so it needs either a small server of our own or the player's own key.
   - The saved design file stays the one meeting point between the Shipyard, the game and (later) the free-sail world.
+- **Agreed plan (owner, Oct 2026), three stops:**
+  1. **Done; see PROGRESS "Shipyard, stop 1".** The Shipyard page (`shipyard.html`, `src/shipyard/`): three hull types with sliders, a wheelhouse with sliders, engine packages with the gearbox matched by trial, basic or advanced controls, paint; a live 3D view, figures, warnings and the game's sea trials; a 10-character code holding the choices (with a check character); `?design=CODE` starts the game in her.
+  2. Buying her at the boatyard in the game: enter the code, see the price, pay from the career, and she becomes your boat (the career save remembers her code; `next` gets its own save keys first).
+  3. Placing controls by hand: plan / side / inside views of her wheelhouse and deck, slots marked, drag modules on (the code grows a little).
 - **The boat shop in the 3D game** (what this M8 section describes below): at a harbour, it only upgrades and fits out *your existing boat*: modules into her sockets, within what her hull allows. Designing a new hull happens in the Shipyard, not in the game.
 
 - At a harbour with a yard, a VR-friendly panel shows the boat's sockets. Empty ones glow.

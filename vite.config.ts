@@ -29,12 +29,15 @@ export default defineConfig({
   define: { __BUILD__: JSON.stringify((CHANNEL ? 'NEXT ' : '') + buildStamp()), __CHANNEL__: JSON.stringify(CHANNEL) },
   server: { host: true, port: 5173 },
   preview: { host: true, port: 4173 },
+  // The Shipyard's trials run in a worker that imports the game's modules: an ES module worker.
+  worker: { format: 'es' },
   build: {
     target: 'es2022',
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
-      // Two pages: the game, and the hull study viewer (hulls.html; src/hulls/, not part of the game).
-      input: { main: 'index.html', hulls: 'hulls.html' },
+      // Three pages: the game, the hull study viewer (hulls.html; src/hulls/, not part of the
+      // game) and the Shipyard (shipyard.html; src/shipyard/, which builds boats for it).
+      input: { main: 'index.html', hulls: 'hulls.html', shipyard: 'shipyard.html' },
       output: {
         // three.js in its own chunk: it only changes when we upgrade it, so the headset
         // browser keeps it cached across our (frequent) game-code deploys.

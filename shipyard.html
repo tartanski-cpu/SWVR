@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Workboat World Shipyard</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #9fb8c8; font: 14px/1.4 system-ui, sans-serif; color: #10202a; }
+      body { display: flex; }
+      #side { width: 380px; flex: none; height: 100%; overflow-y: auto; background: #f6f9fa; box-shadow: 2px 0 10px rgba(0,0,0,0.12); padding: 12px 16px 24px; box-sizing: border-box; z-index: 1; }
+      #view { flex: 1; position: relative; min-width: 0; }
+      #view canvas { display: block; }
+      h1 { font-size: 16px; margin: 0 0 2px; color: #2f5d8a; letter-spacing: 0.05em; text-transform: uppercase; }
+      .sub { color: #567; font-size: 12px; margin-bottom: 10px; }
+      h2 { font-size: 13px; margin: 16px 0 6px; color: #456; letter-spacing: 0.04em; text-transform: uppercase; border-top: 1px solid #d6dfe3; padding-top: 10px; }
+      .choice { display: block; padding: 6px 8px; margin: 4px 0; border: 1px solid #c4d2d8; border-radius: 6px; cursor: pointer; background: #fff; }
+      .choice.on { border-color: #2f5d8a; background: #e6eff7; box-shadow: inset 3px 0 0 #2f5d8a; }
+      .row { display: grid; grid-template-columns: 110px 1fr 86px; align-items: center; gap: 6px; margin: 6px 0; }
+      .row output { text-align: right; font-variant-numeric: tabular-nums; color: #234; }
+      input[type=range] { width: 100%; }
+      .swatches { display: flex; flex-wrap: wrap; gap: 6px; }
+      .swatch { width: 30px; height: 30px; border-radius: 6px; border: 2px solid #fff; box-shadow: 0 0 0 1px #9ab; cursor: pointer; }
+      .swatch.on { box-shadow: 0 0 0 3px #2f5d8a; }
+      button { font: inherit; padding: 5px 10px; border-radius: 6px; border: 1px solid #8aa; background: #eef3f5; cursor: pointer; }
+      button.primary { background: #2f5d8a; color: #fff; border-color: #2f5d8a; }
+      table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+      td { padding: 2px 6px 2px 0; border-top: 1px solid #e1e8eb; }
+      td:last-child { text-align: right; white-space: nowrap; }
+      #warnings div { background: #fff4d6; border: 1px solid #e0b020; border-radius: 6px; padding: 5px 8px; margin: 4px 0; font-size: 13px; }
+      #code { font: 700 26px/1.2 ui-monospace, monospace; letter-spacing: 0.08em; color: #10202a; background: #fff; border: 2px solid #2f5d8a; border-radius: 8px; padding: 8px 10px; text-align: center; margin: 6px 0; }
+      #code.pending { color: #8a9aa4; border-color: #9ab; }
+      .tools { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+      #load { width: 130px; font: 600 14px ui-monospace, monospace; padding: 5px; text-transform: uppercase; }
+      #loadMsg { color: #a33; font-size: 12px; min-height: 16px; }
+      #status { color: #567; font-size: 12px; min-height: 16px; }
+      #views { position: absolute; top: 10px; left: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+      #views button { background: rgba(246,249,250,0.9); }
+      @media (max-width: 760px) { body { flex-direction: column; } #side { width: 100%; height: auto; order: 2; } #view { height: 55vh; flex: none; } }
+    </style>
+  </head>
+  <body>
+    <div id="side">
+      <h1>Workboat World Shipyard</h1>
+      <div class="sub">Design a boat, then take her code to the game.</div>
+      <div id="controls"></div>
+      <h2>Her figures</h2>
+      <table id="figures"></table>
+      <div id="warnings"></div>
+      <h2>Sea trial</h2>
+      <div id="status"></div>
+      <table id="trial"></table>
+      <h2>Her code</h2>
+      <div id="code" class="pending">-----</div>
+      <div class="tools">
+        <button id="copy">Copy code</button>
+        <a id="play" href="./"><button class="primary">Try her in the game</button></a>
+      </div>
+      <div class="tools" style="margin-top: 10px">
+        <input id="load" placeholder="XXXXX-XXXXX" maxlength="12" />
+        <button id="loadBtn">Load a code</button>
+      </div>
+      <div id="loadMsg"></div>
+    </div>
+    <div id="view">
+      <div id="views"></div>
+    </div>
+    <script type="module" src="/src/shipyard/page.ts"></script>
+  </body>
+</html>

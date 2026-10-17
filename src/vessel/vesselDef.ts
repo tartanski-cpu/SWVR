@@ -218,7 +218,7 @@ export function fromConfig(id: string, c: VesselConfig): VesselDef {
 }
 
 /** The vessel types, by def id (the ids live on in saves and snapshots: never rename). */
-export const VESSEL_IDS = ['workboat', 'skiff', 'derelict', 'logRaft', 'barge', 'landingCraft'] as const;
+export const VESSEL_IDS = ['workboat', 'skiff', 'derelict', 'logRaft', 'barge', 'landingCraft', 'design'] as const;
 
 let built: Record<string, VesselDef> | null = null;
 let builder: (() => Record<string, VesselDef>) | null = null;

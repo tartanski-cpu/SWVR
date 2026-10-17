@@ -478,6 +478,16 @@ To dock:
 
 On desktop, aim the **+** reticle at a control. Click buttons and switches. Click and drag the lever (mouse up/down) and the wheel (mouse left/right).
 
+## Shipyard (being built)
+
+Design your own boat at https://tartanski-cpu.github.io/SWVR/next/shipyard.html (work in progress):
+
+1. Pick a hull type (landing craft, gillnetter or workboat) and size her with the sliders.
+2. Place and size the wheelhouse (a step-down floor gives more headroom).
+3. Choose an engine (its propeller is matched by trial), basic or advanced controls, and a paint.
+
+The page shows her in 3D (around her and at the helm), her figures and her sea trials, then gives her **code**: 10 characters, like `4H228-BQ98A`. **Try her in the game** opens the game in her. Or add `?design=` and the code to the game's address, also on the Quest. Buying her at the boatyard in the game comes next.
+
 ## Local development
 
 You need Node 20+ (22 recommended).

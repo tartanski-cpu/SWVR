@@ -3,7 +3,9 @@
  * in its own folder under src/modules/, then list it here. Adding a boat: a hull here and
  * a recipe JSON.
  */
-import { createHullLibrary } from '../modular/hull';
+import { createHullLibrary, type HullLibrary } from '../modular/hull';
+import { buildDesign, type DesignedBoat } from '../shipyard/build';
+import { DEFAULT_DESIGN, encodeDesign, type ShipDesign } from '../shipyard/design';
 import { vesselDefFrom } from '../modular/vesselAssembly';
 import { registerVesselDefs } from '../vessel/vesselDef';
 import { createModuleLibrary, parseRecipe, validateRecipe, type Recipe } from '../modular/recipe';
@@ -69,7 +71,16 @@ import towLogRaft from './tow-logRaft.json';
 import { BARGE_HULL, DERELICT_HULL, LOG_RAFT_HULL } from './towHulls';
 import { WORKBOAT_HULL } from './workboatHull';
 
-export const HULLS = createHullLibrary([WORKBOAT_HULL, SKIFF_HULL, DERELICT_HULL, LOG_RAFT_HULL, BARGE_HULL, LANDING_CRAFT_HULL]);
+const FIXED_HULLS = createHullLibrary([WORKBOAT_HULL, SKIFF_HULL, DERELICT_HULL, LOG_RAFT_HULL, BARGE_HULL, LANDING_CRAFT_HULL]);
+
+/**
+ * The Shipyard's designed boat (shipyard/build.ts): one at a time, the vessel type 'design',
+ * built from a design's choices (by default the Shipyard's starting design). `useDesign`
+ * swaps her for another: a game started in her, or the Shipyard page trying one out.
+ */
+let designed: DesignedBoat = buildDesign(DEFAULT_DESIGN, encodeDesign(DEFAULT_DESIGN));
+
+export const HULLS: HullLibrary = { get: (id) => (id === designed.hull.id ? designed.hull : FIXED_HULLS.get(id)) };
 
 export const MODULES = createModuleLibrary([
   CONSOLE, WHEEL, THROTTLE_LEVER, TOGGLE, PUSH_BUTTON, KEY_SWITCH, JOYSTICK, WARNING_LAMPS, START_CARD, SCREEN,
@@ -101,7 +112,27 @@ export const RECIPES: Record<string, Recipe> = {
   logRaft: loadRecipe(towLogRaft),
   barge: loadRecipe(towBarge),
   landingCraft: loadRecipe(landingCraft),
+  design: loadRecipe(designed.recipe),
 };
 
+/**
+ * Make the 'design' vessel type this design (her hull, recipe and vessel def rebuilt). Use
+ * boats/sims.ts `useDesign`, which also refits her machinery.
+ */
+export function setDesignBoat(d: ShipDesign): DesignedBoat {
+  designed = buildDesign(d, encodeDesign(d));
+  RECIPES.design = loadRecipe(designed.recipe);
+  registerVesselDefs(buildDefs);
+  return designed;
+}
+
+/** The design the 'design' vessel type is now. */
+export function currentDesign(): DesignedBoat {
+  return designed;
+}
+
 // Every vessel type is built from her recipe (M6a): VESSEL_DEFS asks this when first used.
-registerVesselDefs(() => Object.fromEntries(Object.entries(RECIPES).map(([id, recipe]) => [id, vesselDefFrom(id, recipe, LIBRARY)])));
+function buildDefs() {
+  return Object.fromEntries(Object.entries(RECIPES).map(([id, recipe]) => [id, vesselDefFrom(id, recipe, LIBRARY)]));
+}
+registerVesselDefs(buildDefs);

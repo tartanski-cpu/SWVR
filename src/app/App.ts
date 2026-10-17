@@ -83,7 +83,7 @@ import { TrawlView } from '../fishing/trawlView';
 import { InteriorDetail } from './interiorDetail';
 import { jetOn } from '../fire/fire';
 import { aFrameOf } from '../fishing/fishing';
-import { footprintsOf, gearOf } from '../boats/sims';
+import { footprintsOf, gearOf, useDesign } from '../boats/sims';
 import type { TowWinchApi } from '../modules/towWinch';
 import { lineLength, nearestTowTarget, towAlertT, towStatus, winchStalled } from '../tow/tow';
 import { TargetsView } from '../rescue/targetView';
@@ -110,6 +110,7 @@ import { countBoatParts } from '../debug/boatParts';
 import { assembleView } from '../modular/assemble';
 import { holdGroup } from '../modular/bus';
 import { HULLS, LIBRARY, RECIPES } from '../boats/library';
+import { decodeDesign } from '../shipyard/design';
 import { DesktopPointer } from './desktopPointer';
 import { setupXR, xrSessionInfo } from './xrSession';
 import { applyPlayerIntent } from '../player/playerControl';
@@ -136,9 +137,13 @@ const BATTERY_KEY = 'swvr.battery';
  * The boat the game starts in: the page's `?boat=` (Debug > Boat > Start in, modular boats
  * M7), a vessel type with a recipe and a cabin to work her from; else the workboat.
  */
+/** Why the page's ?design= code couldn't be read (shown once the game is up), if it couldn't. */
+let designCodeError: string | null = null;
+
 /** A fresh start in another boat (the page's `?boat=`, the rest of the address kept): a new world, her views and controls. */
 function restartIn(defId: string): void {
   const url = new URL(location.href);
+  url.searchParams.delete('design');
   if (defId === 'workboat') url.searchParams.delete('boat');
   else url.searchParams.set('boat', defId);
   location.assign(url.toString());
@@ -148,6 +153,17 @@ function restartIn(defId: string): void {
 const START_BOATS = ['workboat', 'landingCraft'];
 
 function startBoat(): string | undefined {
+  // A Shipyard design (?design=CODE, shipyard/design.ts): the 'design' vessel type made her.
+  const code = new URLSearchParams(location.search).get('design');
+  if (code) {
+    const read = decodeDesign(code);
+    if ('design' in read) {
+      useDesign(read.design);
+      return 'design';
+    }
+    console.warn(`Shipyard code ${code}: ${read.error}`);
+    designCodeError = read.error;
+  }
   const id = new URLSearchParams(location.search).get('boat');
   return id && RECIPES[id] && VESSEL_DEFS[id] && hasWheelhouse(VESSEL_DEFS[id]) ? id : undefined;
 }
@@ -416,6 +432,7 @@ export class App {
     setupXR(this.renderer, this.camera);
     window.addEventListener('resize', () => this.onResize());
     if (wantsTouchControls()) this.setupTouch();
+    if (designCodeError) this.overlay.notify(`Shipyard code not read: ${designCodeError}. Starting in the workboat.`, 8);
     // Audio may only start after a user gesture.
     const unlock = () => this.sound.unlock();
     window.addEventListener('pointerdown', unlock);
