@@ -2009,8 +2009,8 @@ export const CONFIG = {
      * applies on top). A softer guard lets her lean in further, and soaks up more of the knock.
      *   fenders  the crew's air-filled fenders, hung on their lines (only while out):
      *            softest, slippery;
-     *   strake   a solid rubber rubbing strake along her sheer: firm, takes a glancing
-     *            rub but little of a hard knock; it's thin, so a hard push reaches the plating;
+     *   strake   a solid rubber rubbing strake along her sheer: firm, takes a rub or a
+     *            moderate knock; it's thin, so a hard push reaches the plating;
      *   tyres    old lorry tyres in a close row (a tug's or a pushboat's): soft and grippy,
      *            they hold her against a quay or a hull she's pushing.
      */

@@ -276,7 +276,7 @@ slider('bow', 'Bow rake', (v) => (v === 0 ? 'plumb' : `${SCALES.bow(v)}\u00b0`))
   h.textContent = 'Hull protection';
   const p = document.createElement('p');
   p.className = 'meta';
-  p.textContent = 'What keeps her sides off a quay. Fenders are the cheapest, but the crew must put them over the side coming alongside (the basket on deck) and take them in again. A rubber rubbing strake round her sheer, or tyres along her sides, are always there: the strake is firm and thin (a glancing rub, little of a hard knock); tyres are soft and grippy, and add a little weight and drag.';
+  p.textContent = 'What keeps her sides off a quay. Fenders are the cheapest, but the crew must put them over the side coming alongside (the basket on deck) and take them in again. A rubber rubbing strake round her sheer, or tyres along her sides, are always there: the strake is firm, good for a rub or a moderate knock; tyres are soft and grippy, the best at a hard knock and for pushing, and add a little weight and drag.';
   controls.append(h, p);
 }
 options('guard', 'Protection', [...GUARDS]);
