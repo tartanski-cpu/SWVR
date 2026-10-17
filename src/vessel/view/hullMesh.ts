@@ -6,6 +6,7 @@ import { flatVertexColorMaterial, mergeParts, part } from '../../render/geometry
 import { CONFIG } from '../../config';
 import { paintIndex, type PaintName } from '../../render/pixelPaint';
 import type { HouseShape } from '../vesselDef';
+import { deckhouseHalfWidth, type DeckhouseLayout } from '../deckhouse';
 
 /** The workboat's livery, and every hull's for the parts her own (`Livery`) doesn't give. */
 const COLORS = {
@@ -178,6 +179,12 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
   // Wet-exhaust outlet: a short pipe stub through the transom.
   const ex = exhaustOutlet;
   if (ex) parts.push(bar(new THREE.Vector3(ex[0], ex[1], ex[2] - 0.12), new THREE.Vector3(ex[0], ex[1], ex[2]), 0.13, 0.13, col.mast));
+  // A deckhouse under the wheelhouse (vessel/deckhouse.ts), from a little below the deck
+  // under each part of it (her sides tuck in below the deck: lower, it showed through them).
+  if (layout.deckhouse) {
+    const plan = hullPlan({ hull: form });
+    parts.push(buildDeckhouse(layout.deckhouse, (z) => plan.deckY(z) - 0.06, col.house));
+  }
   if (hasHouse(layout)) {
     // Its walls start below the deck so there's never a gap there, but no lower than 0.06 m
     // under it, where the hull's sides are still wider than the house: on a fine entry the
@@ -522,6 +529,45 @@ function buildShapedHouse(layout: HouseLayout, col: Paint, base: number): THREE.
   parts.push(prism(-hw - ov, hw + ov, [[zV + back, roofY + t], [zA + ov, roofY + t], [zA + ov, roofY], [zV, roofY]], col.roof));
   parts.push(box(-hw + w, hw - w, roofY - 0.012, roofY, Math.max(zF, zH) + w, zA - w, col.lining, 'wood'));
   return parts;
+}
+
+/**
+ * A deckhouse (vessel/deckhouse.ts): lofted along her from front to aft through its plan's
+ * half widths, from its foot (`baseAt` z: just below the deck there) up to its top; through
+ * the front's rake (the first stretch aft of its foot) the top comes down to the deck, so
+ * the front is one sloping face that follows her sides. One geometry: its sides, top, front
+ * and aft faces.
+ */
+function buildDeckhouse(dh: DeckhouseLayout, baseAt: (z: number) => number, color: number): THREE.BufferGeometry {
+  const foot = baseAt(dh.z0);
+  const shift = (dh.top - foot) * Math.tan((dh.rakeDeg * Math.PI) / 180);
+  // Sections every 0.25 m, and where the rake ends.
+  const zs = new Set<number>([dh.z0, dh.z1, ...dh.plan.map(([z]) => z)]);
+  for (let z = dh.z0; z < dh.z1; z += 0.25) zs.add(z);
+  if (shift > 0 && dh.z0 + shift < dh.z1) zs.add(dh.z0 + shift);
+  const sec = [...zs].sort((a, b) => a - b).map((z) => {
+    const b = baseAt(z);
+    const y = shift > 0 && z < dh.z0 + shift ? foot + ((z - dh.z0) / shift) * (dh.top - foot) : dh.top;
+    return { z, w: deckhouseHalfWidth(dh, z), y: Math.max(b, y), b };
+  });
+  const v: number[] = [];
+  // Each quad's corners in order round it; its outside face the one they go clockwise round, seen from outside.
+  const quad = (a: number[], b: number[], c: number[], d: number[]) => v.push(...a, ...c, ...b, ...a, ...d, ...c);
+  for (let i = 0; i + 1 < sec.length; i++) {
+    const p = sec[i];
+    const q = sec[i + 1];
+    quad([q.w, q.b, q.z], [q.w, q.y, q.z], [p.w, p.y, p.z], [p.w, p.b, p.z]); // starboard side
+    quad([-p.w, p.b, p.z], [-p.w, p.y, p.z], [-q.w, q.y, q.z], [-q.w, q.b, q.z]); // port side
+    quad([-p.w, p.y, p.z], [p.w, p.y, p.z], [q.w, q.y, q.z], [-q.w, q.y, q.z]); // the top (and the raked front)
+  }
+  const f = sec[0];
+  const a = sec[sec.length - 1];
+  quad([-f.w, f.b, f.z], [f.w, f.b, f.z], [f.w, f.y, f.z], [-f.w, f.y, f.z]); // the front's foot
+  quad([a.w, a.b, a.z], [-a.w, a.b, a.z], [-a.w, a.y, a.z], [a.w, a.y, a.z]); // the aft face
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3));
+  g.computeVertexNormals();
+  return part(g, color);
 }
 
 /**

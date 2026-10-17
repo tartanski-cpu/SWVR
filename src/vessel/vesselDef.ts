@@ -1,3 +1,4 @@
+import type { DeckhouseLayout } from './deckhouse';
 import { CONFIG } from '../config';
 import type { Vec3 } from '../core/math';
 import { buildHullForm, type HullForm } from './hullForm';
@@ -10,7 +11,7 @@ type WorkboatLayout = Workboat['layout'];
  * wheelhouse, its walkable roof and the ladder up to it.
  */
 export type LayoutConfig = Omit<WorkboatLayout, 'wheelhouse' | 'roof' | 'ladder' | 'doorButtons' | 'fairleadGap' | 'engineHatch' | 'sideGate'> &
-  Partial<Pick<WorkboatLayout, 'roof' | 'ladder' | 'doorButtons' | 'fairleadGap' | 'engineHatch' | 'sideGate'>> & { wheelhouse?: WheelhouseLayout; bowRamp?: BowRampLayout };
+  Partial<Pick<WorkboatLayout, 'roof' | 'ladder' | 'doorButtons' | 'fairleadGap' | 'engineHatch' | 'sideGate'>> & { wheelhouse?: WheelhouseLayout; bowRamp?: BowRampLayout; deckhouse?: DeckhouseLayout };
 
 /** A planing hull's banking in turns (CONFIG.vessels.landingCraft.planing). */
 export type PlaningConfig = (typeof CONFIG.vessels.landingCraft)['planing'];

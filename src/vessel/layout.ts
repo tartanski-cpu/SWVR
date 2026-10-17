@@ -12,6 +12,7 @@
  * The vessel version is derived from the hull stations and the layout block in the config,
  * the same numbers the geometry is built from.
  */
+import { inDeckhouse } from './deckhouse';
 import { gearOf } from '../boats/sims';
 import type { GearFootprint } from '../modular/module';
 import type { HullForm } from './hullForm';
@@ -139,6 +140,8 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: reado
   const consoleAft = int.z0 + wh.consoleDepth;
   const doorHalf = wh.doorWidth / 2;
   const sd = wh.sideDoor;
+  // A deckhouse under the wheelhouse (vessel/deckhouse.ts): solid, and not walked on, for now.
+  const dh = layout.deckhouse;
   const inHouseFootprint = (x: number, z: number) => Math.abs(x) <= ext.x && z >= ext.z0 && z <= ext.z1;
   // A floor sunk more than a step below the deck at the door (a Shipyard design's): steps inside.
   const deepSunk = deckY(ext.z1) - wh.floorY > 0.35;
@@ -175,7 +178,8 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: reado
       contains: (x, z) => {
         const onDeck = (z <= transom - layout.deckEdgeMargin && Math.abs(x) <= deckHalfBeam(z) - layout.deckEdgeMargin) || inGateway(x, z, 0.08);
         const nearHouse = Math.abs(x) < ext.x + r && z > ext.z0 - r && z < ext.z1 + r;
-        return onDeck && !nearHouse && !onGear(gear, x, z, r, deckY(z));
+        const nearDeckhouse = !!dh && inDeckhouse(dh, x, z, r);
+        return onDeck && !nearHouse && !nearDeckhouse && !onGear(gear, x, z, r, deckY(z));
       },
     },
     {
@@ -250,6 +254,8 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: reado
     insideSolid(x, y, z) {
       const ax = Math.abs(x);
       if (!inHouseFootprint(x, z)) {
+        // The deckhouse (solid, for now) up to its top.
+        if (dh && inDeckhouse(dh, x, z) && y < dh.top) return true;
         // Below the open deck, within the hull.
         return z <= transom && ax <= deckHalfBeam(z) && y < deckY(z) - 0.15;
       }
