@@ -3179,6 +3179,23 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   - in the headless browser, in a design moored at Calder Haven: started the engine, raised the boom, hooked a crate off the foredeck, swung it to starboard (she heeled about 1°), and landed it on the quay.
 - **Not done yet:** the tow winch, A-frame, net drum, windlass and tender crane are modules but drawn at the workboat's fixed places. Making them placeable is next.
 
+### FM radio on the landing craft and on designs (owner)
+
+- **The owner noticed** the FM radio hadn't made it onto the other boats, and wanted it to come with the advanced interior.
+- **The module (`radio.fm`)** already existed, but it fitted only a slot in the workboat's overhead panel. Now it also fits a `cabin.overhead` socket, under a cabin roof like the VHF:
+  - it hangs there in a small box of its own (`CONFIG.modules.fmRadio.housing`, `housingX`) on a strap up to the roof's underside;
+  - the display faces down and the switch and TUNE hang below, as in the workboat's panel;
+  - the music already found the set by its module, so it plays from wherever the set is.
+- **The landing craft** has one under her roof to starboard, opposite the VHF (`places.fm`).
+- **Shipyard designs** carry the landing craft's fit-out, so they get a matching socket: a small builder edit, made here because without the socket every design would break. The set comes with the **advanced** controls only, as the owner said (the page's note says so).
+- **Checked:**
+  - typecheck and all tests, including new ones:
+    - the landing craft's set hangs to starboard under her roof with its controls;
+    - basic designs have no FM set, advanced ones do;
+    - golden runs unchanged;
+  - in the game, headless, in the landing craft: master and radio breaker on, FM on, its display lit ("FM 88.6 TruckersFM", asking for a click to play).
+- **Not checked:** listening to it in VR.
+
 ### Deck crane: stands at the deck edge (owner)
 
 - **The owner asked** for the deck crane to always stand off to port or starboard, to leave the working deck as free as possible.

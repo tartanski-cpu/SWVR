@@ -451,6 +451,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     batteryMaster: [hw - 0.45, F + 0.48, aft - 0.065] as V3,
     batterySelector: [hw - 0.2, F + 0.48, aft - 0.065] as V3,
     vhf: [-(hw - 0.3), roofY - 0.17, front + 0.525] as V3,
+    fm: [hw - 0.5, roofY - 0.11, front + 0.525] as V3,
     engineBed: [(eh.x0 + eh.x1) / 2, F - 0.35, hatchZ] as V3,
     engineSpace: [-0.2, F - 0.47, hatchZ] as V3,
     cabinLight: [0, roofY - 0.12, (front + aft) / 2 + 0.15] as V3,
@@ -527,6 +528,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     { id: 'batteryMaster', type: 'wall.panel', transform: { position: at.batteryMaster, rotationDeg: [0, 180, 0] }, label: 'Aft wall, starboard of the door, low' },
     { id: 'batterySelector', type: 'wall.panel', transform: { position: at.batterySelector, rotationDeg: [0, 180, 0] }, label: 'Aft wall, beside the battery master' },
     { id: 'vhf', type: 'cabin.overhead', transform: { position: at.vhf, rotationDeg: [0, 20, 0] }, label: 'Under the roof, out to port' },
+    { id: 'fm', type: 'cabin.overhead', transform: { position: at.fm, rotationDeg: [0, -20, 0] }, label: 'Under the roof, out to starboard: the FM set' },
     { id: 'doorIn', type: 'wall.panel', transform: { position: [0.45, F + 1.1, aft - wall], rotationDeg: [-90, 0, 0] }, label: 'Door frame, inside' },
     { id: 'doorOut', type: 'wall.panel', transform: { position: [0.45, F + 1.1, aft], rotationDeg: [-90, 180, 0] }, label: 'Door frame, outside' },
     ...(rampBow
@@ -710,12 +712,13 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   for (const slot of Object.values(cc.slots) as { position: V3 }[]) slot.position = [Math.round(slot.position[0] * sx * 1000) / 1000, slot.position[1], slot.position[2]];
   if (!d.controls) {
     // Basic: wheel, throttle, starting (key, START, the lamps and the card), speed with
-    // depth, rpm. No lights, searchlight, horn, wipers, heading, engine monitor or VHF.
+    // depth, rpm. No lights, searchlight, horn, wipers, heading, engine monitor, VHF or FM radio.
     // The searchlight's and monitor's controls stay if they're worked from here.
     const keep = ['wheel', 'throttle', 'start', 'key', 'lamps', 'card', 'speed', 'rpm', 'spotlight', 'spotJoystick', 'firePump', 'monJoystick'];
     consoleMount.modules = consoleMount.modules!.filter((m) => keep.includes(m.socket));
     cc.groups = cc.groups.filter((gp: { title: string }) => ['ENGINE', 'SEARCH', 'FIRE', 'SEARCH · FIRE'].includes(gp.title));
-    recipe.modules = recipe.modules.filter((m) => !['cabinLight', 'horn', 'wipers', 'vhf', 'navLights'].includes(m.socket));
+    // (The FM set comes with the advanced controls, owner.)
+    recipe.modules = recipe.modules.filter((m) => !['cabinLight', 'horn', 'wipers', 'vhf', 'fm', 'navLights'].includes(m.socket));
   }
   if (hasMonitor && !monitorFoot) {
     // The roof monitor's FIRE gauge on the console, between the two joysticks.

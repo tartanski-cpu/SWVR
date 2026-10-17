@@ -1128,6 +1128,8 @@ export const CONFIG = {
         batteryMaster: [0.6, LC_FLOOR + 0.48, 3.31] as [number, number, number],
         batterySelector: [0.85, LC_FLOOR + 0.48, 3.31] as [number, number, number],
         vhf: [-0.75, 2.8, 1.25] as [number, number, number],
+        /** The FM set, under the roof to starboard, the VHF's mirror. */
+        fm: [0.5, 2.86, 1.25] as [number, number, number],
         engineBed: [0.5, LC_FLOOR - 0.35, 2.65] as [number, number, number],
         engineSpace: [-0.2, LC_FLOOR - 0.47, 2.65] as [number, number, number],
         rudder: [0, -0.3, 4.85] as [number, number, number],
@@ -2633,7 +2635,12 @@ export const CONFIG = {
      * power switch and TUNE button hang beside it (x from the display's centre, m). The
      * stations are CONFIG.fmRadio's.
      */
-    fmRadio: { display: { width: 0.17, height: 0.064 }, power: 0.16, tune: 0.25, tuneColor: 0xd88a2a, amps: 1.0 },
+    /**
+     * radio.fm: the FM set. On its own under a cabin roof (not in a panel), it hangs in a
+     * small `housing` box (width, height, depth; centred `housingX` along it to cover the
+     * display and controls), on a strap up to the roof.
+     */
+    fmRadio: { display: { width: 0.17, height: 0.064 }, power: 0.16, tune: 0.25, tuneColor: 0xd88a2a, amps: 1.0, housing: { width: 0.44, height: 0.07, depth: 0.12 }, housingX: 0.08 },
 
     /**
      * panel.breakers (M3b): the voltmeter and a breaker for each circuit, with a green lamp

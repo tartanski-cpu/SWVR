@@ -205,6 +205,7 @@
     {"socket": "batteryMaster", "module": "switch.battery-master"},
     {"socket": "batterySelector", "module": "switch.battery-selector"},
     {"socket": "vhf", "module": "radio.vhf"},
+    {"socket": "fm", "module": "radio.fm"},
     {"socket": "doorIn", "module": "control.door-button", "config": {"label": "Cabin door: open / shut"}},
     {"socket": "doorOut", "module": "control.door-button", "config": {"label": "Cabin door: open / shut"}},
     {"socket": "rampCabin", "module": "control.door-button", "config": {"label": "Bow ramp: lower / raise"}, "bind": {"door": "ramp.bow.down"}},

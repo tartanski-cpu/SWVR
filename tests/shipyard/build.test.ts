@@ -53,7 +53,7 @@ describe('Shipyard: the boats it builds', () => {
     const advanced = ids(1);
     for (const id of ['control.wheel', 'control.throttle-lever', 'control.key-switch', 'propulsion.diesel-inboard']) expect(basic).toContain(id);
     expect(basic.filter((id) => id === 'instrument.screen').length).toBe(2);
-    for (const id of ['radio.vhf', 'light.navigation']) {
+    for (const id of ['radio.vhf', 'radio.fm', 'light.navigation']) {
       expect(basic).not.toContain(id);
       expect(advanced).toContain(id);
     }

@@ -10,6 +10,7 @@
  *   breakerPanel,        the starboard wall by the helm; the aft wall, starboard of the door
  *   batteryMaster/Selector
  *   vhf                  under the cabin roof, out to port
+ *   fm                   under the cabin roof, out to starboard (the FM set)
  *   doorIn / doorOut     the cabin door's jamb, inside and out
  *   rampCabin, rampBow   the bow ramp's buttons: the cabin's port wall by the helm, the port
  *                        bulwark by the bow (the ramp itself is her hull's: layout.bowRamp)
@@ -74,6 +75,7 @@ export const LANDING_CRAFT_HULL: HullDefinition = {
     { id: 'batteryMaster', type: 'wall.panel', transform: { position: at.batteryMaster, rotationDeg: [0, 180, 0] }, label: 'Aft wall, starboard of the door, low' },
     { id: 'batterySelector', type: 'wall.panel', transform: { position: at.batterySelector, rotationDeg: [0, 180, 0] }, label: 'Aft wall, beside the battery master' },
     { id: 'vhf', type: 'cabin.overhead', transform: { position: at.vhf, rotationDeg: [0, 20, 0] }, label: 'Under the roof, out to port' },
+    { id: 'fm', type: 'cabin.overhead', transform: { position: at.fm, rotationDeg: [0, -20, 0] }, label: 'Under the roof, out to starboard' },
     { id: 'doorIn', type: 'wall.panel', transform: { position: [db.x, wh.floorY + db.height, wh.aft - wh.wall], rotationDeg: [-90, 0, 0] }, label: 'Door frame, inside' },
     { id: 'doorOut', type: 'wall.panel', transform: { position: [db.x, wh.floorY + db.height, wh.aft], rotationDeg: [-90, 180, 0] }, label: 'Door frame, outside' },
     { id: 'rampCabin', type: 'wall.panel', transform: { position: at.rampButton, rotationDeg: [-90, -90, 0] }, label: 'Port wall, by the helm' },

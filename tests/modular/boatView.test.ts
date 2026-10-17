@@ -114,3 +114,17 @@ describe('the skiff as drawn from her recipe', () => {
     expect(view.controls.every((c) => c.enabled)).toBe(true);
   });
 });
+
+describe('the FM set on its own under a cabin roof (the landing craft)', () => {
+  it('hangs under her roof to starboard, in its own box on a strap up to the roof, its switch and TUNE there to work', async () => {
+    const view = assembleView(RECIPES.landingCraft, VESSEL_DEFS.landingCraft, LIBRARY);
+    const fm = view.modules.find((m) => m.id === 'radio.fm')!;
+    expect(fm).toBeDefined();
+    fm.root.updateMatrixWorld(true);
+    const at = new THREE.Vector3().setFromMatrixPosition(fm.root.matrixWorld);
+    expect(at.x).toBeGreaterThan(0.2); // to starboard, opposite the VHF
+    expect(at.y).toBeLessThan(VESSEL_DEFS.landingCraft.layout.wheelhouse!.roofY);
+    const ids = view.controls.map((c) => c.id);
+    for (const id of ['fmOn', 'fmTune']) expect(ids).toContain(id);
+  });
+});

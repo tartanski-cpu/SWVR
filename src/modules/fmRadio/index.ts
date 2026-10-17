@@ -2,7 +2,9 @@
  * Module radio.fm: the FM set (modular boats M3b). A small display, a power switch and a
  * TUNE button that steps through the stations; it mounts in a panel slot (the workboat's
  * is in the overhead panel, so its display faces down and its controls hang upside down,
- * read and pressed from the helm below).
+ * read and pressed from the helm below), or on its own under a cabin roof (a
+ * cabin.overhead socket, like the VHF: the landing craft's, a design's), in a small box of
+ * its own on a strap up to the roof, read and worked the same way.
  *
  * The set's state is on the bus: 'fm.on', 'fm.station' and the 'fm.tune' press. Its
  * display is dark without 12 V on its circuit. The music itself is the app's (it plays the
@@ -20,6 +22,7 @@ import { Toggle } from '../../controls/Toggle';
 import { busOf } from '../../modular/bus';
 import type { ModuleDefinition } from '../../modular/module';
 import { colourOf } from '../../modular/palette';
+import { part } from '../../render/geometryUtils';
 
 export type FmRadioConfig = typeof CONFIG.modules.fmRadio;
 
@@ -29,7 +32,7 @@ const H = 96;
 export const FM_RADIO: ModuleDefinition<FmRadioConfig> = {
   id: 'radio.fm',
   version: 1,
-  fits: ['panel.slot'],
+  fits: ['panel.slot', 'cabin.overhead'],
   defaults: CONFIG.modules.fmRadio,
   ports: {
     on: { dir: 'write', key: 'fm.on' },
@@ -40,7 +43,7 @@ export const FM_RADIO: ModuleDefinition<FmRadioConfig> = {
   needs: () => [{ power: 'electrical', circuit: 'radio' }],
   power: (c) => [{ role: 'load', circuit: 'radio', amps: (io) => (io.num('on') > 0 ? c.amps : 0) }],
   view: {
-    build({ config: c, keys, socket, share, local }) {
+    build({ config: c, keys, socket, share, local, hull }) {
       // Hang a control upside down beside the display.
       const hang = <T extends Toggle | Button>(ctl: T, x: number): T => {
         ctl.root.position.set(x, 0, 0);
@@ -83,8 +86,17 @@ export const FM_RADIO: ModuleDefinition<FmRadioConfig> = {
       };
       draw('FM  OFF');
 
+      // On its own under a roof: its box above the display and controls, and a strap up to
+      // the roof's underside (in a panel slot, the panel is its box).
+      const staticParts: THREE.BufferGeometry[] = [];
+      if (socket.type === 'cabin.overhead') {
+        const hs = c.housing;
+        staticParts.push(part(new THREE.BoxGeometry(hs.width, hs.height, hs.depth).translate(c.housingX, hs.height / 2, 0), 0x23282c));
+        const drop = (hull.cabinRoof ?? socket.transform.position[1]) - socket.transform.position[1] - hs.height;
+        if (drop > 0.005) staticParts.push(part(new THREE.BoxGeometry(0.05, drop, 0.04).translate(c.housingX, hs.height + drop / 2, 0), 0x5a6066));
+      }
       return {
-        staticParts: [],
+        staticParts,
         movingParts: [screen],
         controls: [power, tune],
         update(read) {
