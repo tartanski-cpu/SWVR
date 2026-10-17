@@ -27,6 +27,7 @@ export type SocketType =
   | 'bow.ramp' //        bow door / ramp
   | 'roof.mount' //      searchlight, mast, horn, fire monitor
   | 'hull.light' //      nav lights, deck lights
+  | 'outboard.tiller' // an outboard's tiller arm (M6c)
   | 'engine.bay' //      propulsion unit, batteries, tank, pumps (power / mass / size limits)
   | 'deck.panel' //      solar panels
   | 'shore.inlet' //     shore-power connection

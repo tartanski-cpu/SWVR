@@ -11,7 +11,7 @@
  * electrics.ts) until the energy network is a module (M4). Its circuits are its config,
  * not ports: each circuit's two keys are the energy network's own, named after it.
  *
- * Draw calls: the housing is merged with the bridge's fixed parts; the dial, the needle,
+ * Draw calls: the housing is merged with the boat's fixed parts; the dial, the needle,
  * the lamps (one instanced mesh) and the engraving (drawn once) are one each; the breaker
  * bats are shared parts. No per-frame texture work.
  */

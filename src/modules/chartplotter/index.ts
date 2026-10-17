@@ -4,7 +4,7 @@
  *
  * What it draws (the world's islands, missions, the crew's pencil marks) is the world's:
  * the app feeds it through its `api` (the ChartPlotter), as it always has. Its case and
- * brackets are merged with the bridge's fixed parts.
+ * brackets are merged with the boat's fixed parts.
  */
 import { CONFIG } from '../../config';
 import type { ModuleDefinition } from '../../modular/module';

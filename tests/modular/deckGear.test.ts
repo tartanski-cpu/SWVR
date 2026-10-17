@@ -81,7 +81,7 @@ describe('the gear\'s facts are where v1.0 had them', () => {
   it('the tender crane and the anchor: the vessel\'s own figures', () => {
     const { consoleButton, ...crane } = gearOf(boat, 'tenderCrane') as NonNullable<ReturnType<typeof gearOf<'tenderCrane'>>> & { consoleButton: unknown };
     expect(crane).toEqual(CONFIG.vessels.workboat.tenderCrane);
-    expect(consoleButton).toEqual(def.bridge!.craneButton);
+    expect(consoleButton).toEqual(CONFIG.vessels.workboat.bridge.craneButton);
     expect(gearOf(boat, 'anchor')).toEqual({ hawse: CONFIG.vessels.workboat.anchor.hawse, chainM: CONFIG.vessels.workboat.anchor.chainM });
     expect(gearOf(boat, 'trawl')).toEqual({});
   });

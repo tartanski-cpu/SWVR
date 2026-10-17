@@ -10,7 +10,7 @@
  * The control itself is the existing Lever (controls/Lever.ts): grab maths, the magnetic
  * neutral detent, desktop drag, multiplayer hold. It sends the bus key as its channel, and
  * reads its position back through the bus. Its quadrant base is a fixed part, baked into
- * the bridge's one merged mesh as before, so the lever costs exactly the draw calls it did.
+ * the boat's one merged mesh as before, so the lever costs exactly the draw calls it did.
  *
  * No simulation half: a lever only has a position, and that is on the bus.
  */

@@ -52,7 +52,7 @@ describe('the helm console, as modules', () => {
   it('the recipe is valid and mounts the console with its 22 parts, and the nav display', () => {
     expect(validateRecipe(RECIPES.workboat, LIBRARY)).toEqual([]);
     const a = build();
-    expect(a.modules[0].id).toBe('console.standard');
+    expect(a.modules.find((m) => m.path === 'helm')?.id).toBe('console.standard');
     expect(a.modules.filter((m) => m.path.startsWith('helm/'))).toHaveLength(22);
     expect(a.has('navDisplay')).toBe(true);
   });

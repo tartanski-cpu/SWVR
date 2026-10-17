@@ -13,8 +13,8 @@
  *
  * Since M6a the hull holds its shape and handling numbers, and the boat's vessel definition
  * (VESSEL_DEFS) is built from it and her recipe (modular/vesselAssembly.ts). Since 6b it
- * also holds what's still built into her (`fittings`: lights, exhaust outlet, rescue places,
- * the wheelhouse fit-out the bridge reads until 6c); her machinery and gear are modules.
+ * also holds what's still built into her (`fittings`: the exhaust outlet, rescue places, a
+ * tow's look); her machinery, lights and gear are modules.
  */
 import type { HullParams } from '../vessel/hullForm';
 import { hullPlan } from '../vessel/layout';
@@ -61,7 +61,7 @@ export interface HullDefinition {
   cargo: VesselConfig['cargo'];
   /** Debug spawn and drop test placement. */
   spawn: VesselConfig['spawn'];
-  /** What's built into her (6b): lights, exhaust outlet, rescue places, the bridge's fit-out, a tow's look. */
+  /** What's built into her (6b): the exhaust outlet, rescue places, a tow's look. */
   fittings?: HullFittings;
 }
 
@@ -95,5 +95,7 @@ export function hullQueries(def: { hull: HullForm; layout: LayoutConfig }): Hull
     transom: plan.transom,
     stem: plan.stem,
     cabinRoof: def.layout.wheelhouse?.roofY ?? null,
+    cabinFloor: def.layout.wheelhouse?.floorY ?? null,
+    engineSpace: def.layout.engineHatch ? { depth: def.layout.engineHatch.pitDepth, outboardX: def.layout.engineHatch.x1 } : null,
   };
 }

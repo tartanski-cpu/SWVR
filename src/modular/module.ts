@@ -323,6 +323,10 @@ export interface HullQueries {
   stem: number;
   /** Height of the wheelhouse roof's underside (null: no wheelhouse): sets hung from it reach it. */
   cabinRoof: number | null;
+  /** Height of the wheelhouse floor (null: no wheelhouse). */
+  cabinFloor: number | null;
+  /** The engine space under the hatch in the wheelhouse floor: its depth below the floor and its outboard side (x); null: none. */
+  engineSpace: { depth: number; outboardX: number } | null;
 }
 
 /**
@@ -349,12 +353,15 @@ export interface ModuleViewInstance<State> {
   movingParts: THREE.Object3D[];
   /** The existing control components (Lever, Toggle, Button, Wheel, Joystick...). */
   controls: Control[];
-  /** Engraved labels, drawn with the bridge's others in one mesh. */
+  /** Engraved labels, drawn with the boat's others in one mesh. */
   labels?: EngravedLabel[];
   /** Solid for walking and cargo (vessel axes); may change with the bus (a leaf folded). */
   footprints?(read: BusReader): Footprint[];
-  /** Each frame. `s` is the module's sim state as last received (undefined: none). */
-  update(read: BusReader, s: State | undefined, dt: number): void;
+  /**
+   * Each frame. `s` is the module's sim state as last received (undefined: none); `frame`
+   * what the scene is like this frame (how dark, where the viewer is), for lights.
+   */
+  update(read: BusReader, s: State | undefined, dt: number, frame: ViewFrame): void;
   /**
    * What the app may hand this module beyond the bus: what isn't the boat's own state
    * (the VHF's rescue calls, the duty board's game tasks, the crew's whiteboard notes, the
@@ -363,6 +370,14 @@ export interface ModuleViewInstance<State> {
    */
   api?: object;
   dispose?(): void;
+}
+
+/** What a module's view may want to know about the scene each frame (M6c). */
+export interface ViewFrame {
+  /** 0 (noon) .. 1 (night). */
+  darkness: number;
+  /** The viewer's head, world axes (the nav lights' arcs of visibility). */
+  viewer: THREE.Vector3;
 }
 
 /** How far aft of what it names an engraved label lies (m). */

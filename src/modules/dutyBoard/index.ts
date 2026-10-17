@@ -2,7 +2,7 @@
  * Module furniture.duty-board: the board on the wall listing the game's tasks and the
  * shipping forecast (modular boats M3c). Its contents are the world's (duties, the career,
  * the forecast), handed in by the app through its `api` (the DutyBoardView). Its frame is
- * merged with the bridge's fixed parts; its face is one canvas (redrawn only on change).
+ * merged with the boat's fixed parts; its face is one canvas (redrawn only on change).
  */
 import { CONFIG } from '../../config';
 import { DutyBoardView } from '../../duties/dutyBoardView';

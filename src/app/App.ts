@@ -58,7 +58,8 @@ import { CargoHands, type CargoHandsContext } from '../cargo/cargoHands';
 import { CargoView } from '../cargo/cargoView';
 import { berthById } from '../vessel/physics/mooring';
 import { XRControllers } from '../player/xrControllers';
-import { Bridge } from '../controls/bridge';
+import { BoatView } from './boatView';
+import type { Control } from '../controls/Control';
 import { InteractionSystem, type HandFrame } from '../controls/InteractionSystem';
 import { WorldView } from '../world/view/worldView';
 import { LaserPointer } from './laserPointer';
@@ -90,7 +91,7 @@ import { RescueGearView, type AvatarHands } from '../rescue/rescueGearView';
 import { lastSpeech, speechVoices } from '../audio/babble';
 import { mixer, type Bus } from '../audio/mixer';
 import { FmRadio } from '../audio/fmRadio';
-import { Tiller } from '../controls/Tiller';
+import type { TillerApi } from '../modules/tiller';
 import { BoardView, type BoardContext } from '../board/boardView';
 import { NoteKeyboard } from '../board/noteKeyboard';
 import { parseBoard } from '../board/board';
@@ -184,7 +185,8 @@ export class App {
   private readonly comfortOverlay = new ComfortOverlay();
   private readonly controllers: XRControllers;
   private readonly decoupler = new MotionDecoupler();
-  private bridge: Bridge | null = null;
+  /** Each boat with modules, drawn and worked (her boat view, M6c): the workboat, the skiff. */
+  private readonly boats = new Map<EntityId, BoatView>();
   private interaction: InteractionSystem | null = null;
   private readonly effects = new Map<EntityId, VesselEffects>();
   private readonly worldView = new WorldView();
@@ -222,8 +224,6 @@ export class App {
   private readonly rescueHands = new RescueHands();
   private readonly gearView = new RescueGearView();
   private readonly fmRadio = new FmRadio();
-  /** Outboard tillers (the skiff's), one per outboard boat. */
-  private readonly tillers: Tiller[] = [];
   /** Small wheelhouse parts, hidden from outside (performance; app/interiorDetail.ts). */
   private interior: InteriorDetail | null = null;
   private readonly detailV = new THREE.Vector3();
@@ -421,18 +421,22 @@ export class App {
     this.effects.set(vessel.id, new VesselEffects(def, view.root, this.scene, this.ocean.sharedUniforms));
     this.vesselRoots.set(vessel.id, view.root);
     if (!def.tow) this.cargoView.attachVessel(view.root, vessel.defId);
-    // An outboard boat (the skiff): its tiller, with the motor it swings.
-    const outboard = gearOf(vessel, 'outboard');
-    if (outboard) {
-      const tiller = new Tiller(vessel.id, outboard);
-      view.root.add(tiller.root);
-      // Her bow cleat on the stem head, for the painter (clicked with the tiller's parts).
-      const bow = new Cleat(-1, { id: `painter:${vessel.id}`, channel: `${vessel.id}:painter`, label: "Skiff's painter (bow cleat): let go / make fast to the nearest cleat" });
-      const [bx, by, bz] = skiffCleatLocal(def);
-      bow.root.position.set(bx, by - 0.06, bz);
-      view.root.add(bow.root);
-      tiller.parts.push(bow);
-      this.tillers.push(tiller);
+    // Her modules, drawn and worked: her boat view, built from her recipe (M6c). The home
+    // boat's controls send plain channels; another boat's go to her (the skiff's tiller). A
+    // tow, a hull with no modules, has none.
+    const recipe = RECIPES[vessel.defId];
+    const modules = recipe ? assembleView(recipe, def, LIBRARY) : null;
+    if (modules?.modules.length) {
+      const boat = new BoatView(vessel.id, def, modules, vessel.id === this.testVesselId);
+      view.root.add(boat.root);
+      this.boats.set(vessel.id, boat);
+      // An outboard boat (the skiff): her bow cleat on the stem head, for the painter.
+      if (gearOf(vessel, 'outboard')) {
+        const bow = new Cleat(-1, { id: 'painter', channel: 'painter', label: "Skiff's painter (bow cleat): let go / make fast to the nearest cleat" });
+        const [bx, by, bz] = skiffCleatLocal(def);
+        bow.root.position.set(bx, by - 0.06, bz);
+        boat.addControl(bow);
+      }
     }
   }
 
@@ -451,7 +455,7 @@ export class App {
         if (m.isMesh) m.geometry.dispose();
       });
       this.effects.get(id)?.dispose();
-      for (const map of [this.vesselViews, this.hydroViews, this.walkAreas, this.effects, this.vesselRoots, this.hullPlans] as Map<EntityId, unknown>[]) map.delete(id);
+      for (const map of [this.vesselViews, this.hydroViews, this.walkAreas, this.effects, this.vesselRoots, this.hullPlans, this.boats] as Map<EntityId, unknown>[]) map.delete(id);
     }
   }
 
@@ -486,8 +490,8 @@ export class App {
     this.renderWaves = prepareWaves(this.world.environment.waves, renderTime, this.renderWaves);
     this.updatePlayer(dt, inXR);
     this.updateSurroundings(renderTime);
-    this.updateOwnBoat(dt, nowMs);
     const darkness = Math.min(1, Math.max(0, (8 - sunElevation(this.world.environment.timeOfDay)) / 14));
+    this.updateOwnBoat(dt, nowMs, darkness);
     const { slam, lap } = this.updateBoatsAndJobs(dt, renderTime, darkness);
     this.updateSceneViews(dt, renderTime, darkness);
     this.updateBoardsAndSaves(dt);
@@ -616,8 +620,14 @@ export class App {
     this.probes.update(this.renderWaves, this.camera);
   }
 
-  /** The workboat's engine, horn and alarm sounds; her bridge, tender crane, tillers and wheelhouse. */
-  private updateOwnBoat(dt: number, nowMs: number): void {
+  /** The home boat's boat view (her modules, doors and gate, rain on the glass). */
+  private get homeView(): BoatView | null {
+    return this.boats.get(this.testVesselId) ?? null;
+  }
+
+  /** The workboat's engine, horn and alarm sounds; her boat view, tender crane and wheelhouse; the other boats' views (the skiff's tiller). */
+  private updateOwnBoat(dt: number, nowMs: number, darkness: number): void {
+    const frame = { darkness, viewer: this.focus };
     const testView = this.vesselViews.get(this.testVesselId);
     if (testView) {
       // Engine room sits roughly under the wheelhouse.
@@ -632,19 +642,19 @@ export class App {
       // Bridge buzzer: high temperature always, low fuel while the engine runs.
       const diesel = gearOf(v, 'diesel');
       const al = diesel ? engineAlarms(v, diesel) : { highTemp: false, lowFuel: false };
-      const consoleDist = this.bridge ? this.bridge.dashAnchor.getWorldPosition(this.tmpV).distanceTo(this.focus) : 99;
+      const consoleDist = this.homeView?.dashAnchor ? this.homeView.dashAnchor.getWorldPosition(this.tmpV).distanceTo(this.focus) : 99;
       this.sound.alarm.update(al.highTemp || (al.lowFuel && v.engine.phase === 'running'), consoleDist);
     }
     // Bridge controls and displays read the (just-updated) vessel state.
     const testVessel = this.world.vessels[this.testVesselId];
-    if (this.bridge && testVessel) {
+    if (this.homeView && testVessel) {
       {
         const p = this.ourSkiff()?.tender;
         const on = p?.phase === 'free' ? p.painter?.cleat : undefined;
-        for (const c of this.bridge.cleats) c.painterOn = c.index === on;
+        for (const c of this.homeView.cleats) c.painterOn = c.index === on;
       }
-      this.bridge.update(testVessel, dt, this.dashInView(), this.world.environment);
-      this.bridge.radio?.update(this.world.rescue, runStatus(this.world), dt, isPowered(testVessel, 'radio'), towAlertT(this.world) >= 0 || fireAlertT(this.world) >= 0);
+      this.homeView.update(testVessel, dt, this.dashInView(), this.world.environment, frame);
+      this.homeView.radio?.update(this.world.rescue, runStatus(this.world), dt, isPowered(testVessel, 'radio'), towAlertT(this.world) >= 0 || fireAlertT(this.world) >= 0);
       // Say so when the anchor is up or holding (the speed screen shows it all the time).
       const ap = testVessel.anchor.phase;
       if (ap !== this.lastAnchorPhase) {
@@ -661,15 +671,15 @@ export class App {
         g.update(tv, recoverCheck(this.world, tv), this.vesselRoots.get(tv.id), dt);
         for (const b of g.buttons) b.tick(dt);
       }
-      for (const t of this.tillers) {
-        const sv = this.world.vessels[t.vesselId];
-        if (!sv) continue;
-        t.sync(sv);
-        t.tick(dt);
-        for (const c of t.parts) if (c instanceof Cleat) c.sync(sv);
-        this.sound.motor.update(sv.controls.obOn > 0 ? Math.sign(sv.controls.obGear) * sv.controls.lever : 0, sv.battery ?? 0, t.root.getWorldPosition(this.tmpV).distanceTo(this.focus));
+      // The other boats' views (the skiff's tiller and painter cleat), and her motor's sound.
+      for (const [id, boat] of this.boats) {
+        const sv = this.world.vessels[id];
+        if (id === this.testVesselId || !sv) continue;
+        boat.update(sv, dt, false, null, frame);
+        const tiller = boat.api<TillerApi>('control.tiller')?.tiller;
+        if (tiller) this.sound.motor.update(sv.controls.obOn > 0 ? Math.sign(sv.controls.obGear) * sv.controls.lever : 0, sv.battery ?? 0, tiller.root.getWorldPosition(this.tmpV).distanceTo(this.focus));
       }
-      const plotter = this.bridge.chart;
+      const plotter = this.homeView.chart;
       if (plotter) {
         plotter.marks = CONFIG.chartMarks.showOnPlotter ? this.marks : null;
         plotter.update(this.world, this.testVesselId, dt, this.dashInView());
@@ -773,12 +783,12 @@ export class App {
         // Not saved.
       }
     }
-    if (this.bridge?.fmSet && testVessel) {
+    if (this.homeView?.fmSet && testVessel) {
       // The station plays near the FM set (a module in the overhead panel); its display shows
       // what the player is doing (tuning, no signal).
       const c = testVessel.controls;
-      this.fmRadio.update(c.fmOn > 0 && isPowered(testVessel, 'radio'), c.fmStation, this.bridge.fmSet.getWorldPosition(this.tmpV).distanceTo(this.focus));
-      this.bridge.setLocal('fm.status', this.fmRadio.status);
+      this.fmRadio.update(c.fmOn > 0 && isPowered(testVessel, 'radio'), c.fmStation, this.homeView.fmSet.getWorldPosition(this.tmpV).distanceTo(this.focus));
+      this.homeView.setLocal('fm.status', this.fmRadio.status);
     }
     if (this.world.rescue?.active) {
       // Spatial sounds (the survivor's whistle) hear from the head.
@@ -841,7 +851,7 @@ export class App {
    * When it can't, the displays skip their canvas redraw and texture upload.
    */
   private dashInView(): boolean {
-    const anchor = this.bridge?.dashAnchor;
+    const anchor = this.homeView?.dashAnchor;
     if (!anchor) return false;
     const toDash = anchor.getWorldPosition(this.tmpV).sub(this.focus);
     const dist = toDash.length();
@@ -951,8 +961,8 @@ export class App {
       this.partsIn = 0.5;
       const wh = this.testDef.layout.wheelhouse;
       const n = countBoatParts(root, (p) => Math.abs(p.x) < wh.halfWidth && p.z > wh.front && p.z < wh.aft && p.y > wh.floorY - 0.2 && p.y < wh.roofY);
-      const mods = this.bridge?.moduleList ?? [];
-      const shared = Object.entries(this.bridge?.sharedCounts ?? {}).map(([k, c]) => `${c} ${k}`);
+      const mods = this.homeView?.moduleList ?? [];
+      const shared = Object.entries(this.homeView?.sharedCounts ?? {}).map(([k, c]) => `${c} ${k}`);
       this.partsText = `\nboat parts drawn ${n.drawn} (wheelhouse ${n.inside})${shared.length ? `\nshared parts (one draw each): ${shared.join(', ')}` : ''}\nmodules ${mods.length}: ${mods.join(', ') || 'none'}`;
     }
     return this.partsText;
@@ -1030,10 +1040,10 @@ export class App {
   /** Play new radio traffic (and repeat the alert of an unanswered call); show it as a notice too. */
   private updateRadioSound(): void {
     const r = this.world.rescue;
-    if (!r || !this.bridge?.radio) return;
+    if (!r || !this.homeView?.radio) return;
     const id = r.radio?.id ?? 0;
     const alertT = r.active?.phase === 'calling' ? r.active.alertT : Math.max(towAlertT(this.world), fireAlertT(this.world));
-    this.sound.radio.setDistance(this.bridge.radio.root.getWorldPosition(this.tmpV).distanceTo(this.focus));
+    this.sound.radio.setDistance(this.homeView.radio.root.getWorldPosition(this.tmpV).distanceTo(this.focus));
     if (!this.radioSeen) {
       this.radioSeen = { id, alertT };
       return;
@@ -1411,7 +1421,7 @@ export class App {
     // The same drum takes the towline and the trawl warps: it turns only while one of them
     // is really moving under pressure (+1 coming in, -1 going out).
     const netIn = f?.net === 'hauling' || ((c.netIn ?? 0) > 0.5 && (f?.t ?? 0) > 0);
-    const drum = this.bridge?.api<TowWinchApi>('deck.tow-winch');
+    const drum = this.homeView?.api<TowWinchApi>('deck.tow-winch');
     if (drum) drum.drumTurn = winchRun ? (heave ? 1 : -1) : trawlRun ? (netIn ? 1 : -1) : 0;
     const af = aFrameOf(v);
     this.sound.hydraulics.update(
@@ -1655,9 +1665,9 @@ export class App {
       fireNear: (kind) => this.pushVesselIntent('fireDebugNear', 1, kind),
       fireCall: () => this.pushVesselIntent('fireDebugCall', 1),
       fireEnd: () => this.pushVesselIntent('fireDebugEnd', 1),
-      showTargets: () => !!this.bridge?.chart?.showTargets,
+      showTargets: () => !!this.homeView?.chart?.showTargets,
       toggleShowTargets: () => {
-        const plotter = this.bridge?.chart;
+        const plotter = this.homeView?.chart;
         if (plotter) plotter.showTargets = !plotter.showTargets;
       },
       teleportToPort: (i) => {
@@ -1698,9 +1708,9 @@ export class App {
         this.pushVesselIntent('potDebugReady', 1);
         this.overlay.notify('Pots in the water: ready to haul', 2);
       },
-      potsOnPlotter: () => !!this.bridge?.chart?.showPots,
+      potsOnPlotter: () => !!this.homeView?.chart?.showPots,
       togglePotsOnPlotter: () => {
-        const chart = this.bridge?.chart;
+        const chart = this.homeView?.chart;
         if (chart) chart.showPots = !chart.showPots;
       },
       debugMenu: () => userSettings.debugMenu,
@@ -2003,20 +2013,17 @@ export class App {
     return def;
   }
 
-  /** Bridge controls for the test vessel, the interaction system and desktop mouse/reticle. */
+  /** What the app feeds the home boat's modules, the interaction system (every boat's controls) and desktop mouse/reticle. */
   private setupBridge(): void {
     const v = this.world.vessels[this.testVesselId];
     const view = this.vesselViews.get(this.testVesselId);
     if (!v || !view) return;
-    // Her modules (modular boats), built from her recipe; the rest of the bridge is still
-    // hand-built around them.
-    const recipe = RECIPES[v.defId];
-    if (!recipe) throw new Error(`no recipe for vessel type '${v.defId}'`);
-    this.bridge = new Bridge(this.testDef, assembleView(recipe, VESSEL_DEFS[v.defId], LIBRARY));
-    view.root.add(this.bridge.root);
+    // Her boat view (her modules, from her recipe) was built with her vessel view.
+    const home = this.homeView;
+    if (!home) throw new Error(`the home boat (${v.defId}) has no modules to work her by`);
     // Her tender crane (a module) is given the skiff it carries: its LAUNCH / RECOVER
     // buttons, her tarpaulin, and the remote that rides in her.
-    const crane = this.bridge.api<TenderCraneView>('deck.tender-crane');
+    const crane = home.api<TenderCraneView>('deck.tender-crane');
     const tender = Object.values(this.world.vessels).find((t) => t.tender?.hostId === v.id);
     if (crane && tender) {
       crane.attach(tender.id, VESSEL_DEFS[tender.defId]);
@@ -2025,15 +2032,15 @@ export class App {
     }
     // The crew whiteboard, the duty board and the chart table are modules (M3c); the app
     // hands them what isn't the boat's: the notes, the game's tasks, the pencil and dividers.
-    this.board = this.bridge.whiteboard;
+    this.board = home.whiteboard;
     if (this.board) this.scene.add(this.board.rayLine);
     // The roof's modules the app feeds: the mast's wind sock (the weather), the searchlight
     // (how dark it is; its light goes to the ocean), the fire monitor's gauge (the fire job).
-    this.windSock = this.bridge.api<MastApi>('mount.mast')?.windSock ?? null;
-    this.searchlight = this.bridge.api<SearchlightApi>('deck.searchlight');
-    this.fireGauge = this.bridge.api<FireMonitorApi>('deck.fire-monitor')?.gauge ?? null;
-    this.dutyBoard = this.bridge.dutyBoard;
-    this.chartTable = this.bridge.chartTable;
+    this.windSock = home.api<MastApi>('mount.mast')?.windSock ?? null;
+    this.searchlight = home.api<SearchlightApi>('deck.searchlight');
+    this.fireGauge = home.api<FireMonitorApi>('deck.fire-monitor')?.gauge ?? null;
+    this.dutyBoard = home.dutyBoard;
+    this.chartTable = home.chartTable;
     if (this.chartTable) {
       this.chartTools = new ChartTools(this.chartTable);
       // On the leaf: the marks and tools fold with it.
@@ -2054,7 +2061,9 @@ export class App {
       // No storage: an empty board, no count.
     }
     this.interaction = new InteractionSystem(
-      [...this.bridge.controls, ...this.tillers.flatMap((t) => t.parts), ...this.cranes.flatMap((d) => d.buttons), ...this.gear.map((g) => g.bracket)],
+      // Every boat's controls (the home boat's first), the crane's buttons, the gear brackets.
+      // (Boats that come later, the tows, have none.)
+      [...[...this.boats.values()].flatMap((b) => b.controls), ...this.cranes.flatMap((d) => d.buttons), ...this.gear.map((g) => g.bracket)],
       (channel, value) => {
         if (channel === 'engineStartStop') return this.requestEngineStartStop();
         // Console modules send bus keys ('ignition.start'); older controls their old names.
@@ -2086,13 +2095,13 @@ export class App {
       (hand, i, ms) => this.xrInput.pulse(hand, i, ms),
       {
         lockedByOther: (c) => {
-          const { vesselId, control } = this.routeChannel(c.channel);
+          const { vesselId, control } = this.routeControl(c);
           // A module's channel is its bus key, held in its key's group ('throttle.demand': 'lever').
           const who = this.world.vessels[vesselId]?.holds[holdGroup(control) ?? control];
           return !!who && who !== this.localPlayerId;
         },
         holdChanged: (c, held) => {
-          const { vesselId, control } = this.routeChannel(c.channel);
+          const { vesselId, control } = this.routeControl(c);
           this.pushIntentTo(vesselId, 'hold', held ? 1 : 0, control);
         },
       },
@@ -2370,9 +2379,9 @@ export class App {
    */
   private updateDetail(): void {
     const root = this.vesselRoots.get(this.testVesselId);
-    if (!root || !this.bridge) return;
+    if (!root || !this.homeView) return;
     if (!this.interior) {
-      this.interior = new InteriorDetail([this.bridge.root, root], root, this.testDef);
+      this.interior = new InteriorDetail([this.homeView.root, root], root, this.testDef);
       if (CONFIG.debug.logDetail) console.info(`interior detail: ${this.interior.count} parts`);
     }
     const me = this.world.players[this.localPlayerId];
@@ -2380,15 +2389,9 @@ export class App {
     const eye = this.camera.getWorldPosition(this.detailV);
     if (aboard) root.worldToLocal(eye);
     this.interior.update(aboard ? eye : null);
-    // The skiff's outboard and tiller: under her tarpaulin in the cradle (not drawn, not usable).
-    for (const t of this.tillers) {
-      const covered = this.world.vessels[t.vesselId]?.tender?.phase === 'stowed';
-      t.root.visible = !covered;
-      for (const c of t.parts) {
-        c.enabled = !covered;
-        if (c instanceof Cleat) c.root.visible = !covered;
-      }
-    }
+    // The skiff's outboard and tiller, her painter cleat: under her tarpaulin in the cradle
+    // (not drawn, not usable).
+    for (const [id, boat] of this.boats) if (id !== this.testVesselId) boat.setCovered(this.world.vessels[id]?.tender?.phase === 'stowed');
   }
 
   /** Wind noise: the apparent wind where you are (minus your boat's way), muffled inside. */
@@ -2402,12 +2405,13 @@ export class App {
     const inside = !!v && v.id === this.testVesselId && Math.abs(p.position[0]) < wh.halfWidth && p.position[2] > wh.front && p.position[2] < wh.aft && p.position[1] > wh.floorY - 0.3;
     this.insideHouse = inside;
     // How shut-in the wheelhouse is: the aft door decides.
-    if (this.bridge) {
-      this.bridge.door.tick(dt);
-      this.bridge.sideDoor?.tick(dt);
-      this.bridge.sideGate?.tick(dt);
+    const home = this.homeView;
+    if (home) {
+      home.door?.tick(dt);
+      home.sideDoor?.tick(dt);
+      home.sideGate?.tick(dt);
       // Shut in only with both doors shut (the port side door, if she has one, too).
-      this.closed = this.bridge.door.shut && (this.bridge.sideDoor?.shut ?? true) ? 1 : 0;
+      this.closed = home.door?.shut && (home.sideDoor?.shut ?? true) ? 1 : 0;
     }
     this.sound.wind.update(Math.hypot(ax, az), inside, dt, this.closed);
   }
@@ -2436,7 +2440,7 @@ export class App {
     windVector(env, this.windV);
     this.autoRainQuality(rain, dt);
     this.rain.update(rain, time, this.focus, this.windV, house, light);
-    if (this.bridge && v) this.bridge.rainGlass.update(rain, v.controls.wipers > 0 && isPowered(v, 'instruments'), light, dt);
+    if (this.homeView?.rainGlass && v) this.homeView.rainGlass.update(rain, v.controls.wipers > 0 && isPowered(v, 'instruments'), light, dt);
     this.sound.wind.setRain(rain, this.insideHouse, this.closed);
     // Thunder: the flash is drawn by the environment view; the sound follows by distance.
     const L = w?.lightning;
@@ -2614,9 +2618,14 @@ export class App {
     this.intents.push({ playerId: this.localPlayerId, targetId: vesselId, control, value, ref });
   }
 
+  /** Which vessel a control works (Control.route; none: the home boat), and its channel. */
+  private routeControl(c: Control): { vesselId: string; control: string } {
+    return c.route ? { vesselId: c.route, control: c.channel } : this.routeChannel(c.channel);
+  }
+
   /**
-   * Which vessel a control channel belongs to: "<vesselId>:<control>" (the skiff's tiller),
-   * or a plain control name (the workboat's bridge).
+   * Which vessel a control channel belongs to: "<vesselId>:<control>" (a control routed to
+   * another boat: the skiff's tiller), or a plain control name (the home boat's).
    */
   private routeChannel(channel: string): { vesselId: string; control: string } {
     const i = channel.indexOf(':');

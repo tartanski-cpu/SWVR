@@ -54,8 +54,8 @@ Headless browser checks: Chromium is pre-installed for Playwright. Launch it wit
 - **Simulation is separate from drawing.** The world is plain JSON (`WorldState`, `src/core/`), advanced on a fixed tick by `stepWorld`. The host is authoritative: players send *intents* (`{playerId, targetId, control, value, …}`), and crew receive snapshots. Simulation code never touches Three.js scenes or the DOM. Views (`*/view/`, `src/render/`) read state and draw it.
 - `src/config.ts`: every tunable, including each vessel's layout (`vessels.workboat`, `vessels.skiff`).
 - `src/vessel/`: vessel definitions, hydrostatics and hydrodynamics, engine, layout and walk areas, tender crane.
-- `src/controls/`: interactive controls (the `Control` base class: levers, toggles, buttons, wheel) and the bridge that places them.
-- `src/app/`: the app shell (`App.ts` and the pieces split out of it: career session, laser pointer, sound board, desktop pointer, XR session).
+- `src/controls/`: interactive controls (the `Control` base class: levers, toggles, buttons, wheel, tiller). Each boat's modules and controls are put together from her recipe by her boat view (`src/app/boatView.ts`).
+- `src/app/`: the app shell (`App.ts` and the pieces split out of it: each boat's view, career session, laser pointer, sound board, desktop pointer, XR session).
 - Gameplay systems each have a folder: `rescue/`, `tow/`, `fire/`, `fishing/`, `salvage/`, `cargo/`, `career/`, `duties/`, `traffic/`, `wildlife/`, `environment/`, `ocean/`, `world/`, `nav/`, `chart/`, `net/` (multiplayer), `audio/`, `ui/`.
 - `tests/`: vitest tests, mostly against the plain-JSON simulation.
 - `src/hulls/` + `hulls.html`: the hull study (lines-plan hull generator, type designs, viewer). Separate from the game; groundwork for modular boats.

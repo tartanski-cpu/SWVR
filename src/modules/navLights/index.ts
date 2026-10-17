@@ -1,0 +1,48 @@
+/**
+ * Module light.navigation: the navigation lights (modular boats M6c): masthead light,
+ * sidelights and stern light, worked as one set by the NAV LIGHTS switch ('lights.nav') on
+ * its own breaker. Mounted on the mast's masthead socket; the sidelights and the stern
+ * light stand where its config puts them (the boat's axes: they're wired with the set, not
+ * hung on the mast). Drawn by vessel/view/navLights.ts: each glow shows only inside its
+ * arc of visibility from where you are, brighter at night. It draws 2 A while on.
+ */
+import { CONFIG } from '../../config';
+import type { ModuleDefinition } from '../../modular/module';
+import { NavLightsView } from '../../vessel/view/navLights';
+import { BREAKERS, type BreakerName } from '../../vessel/vesselState';
+
+export interface NavLightsConfig {
+  /** Each lamp, the boat's axes. */
+  lights: typeof CONFIG.vessels.workboat.navLights;
+  amps: number;
+  circuit: BreakerName;
+}
+
+export const NAV_LIGHTS: ModuleDefinition<NavLightsConfig> = {
+  id: 'light.navigation',
+  version: 1,
+  fits: ['hull.light'],
+  defaults: { lights: CONFIG.vessels.workboat.navLights, amps: 2, circuit: 'navLights' },
+  validateConfig: (c) => [
+    ...(c.amps >= 0 ? [] : ['amps should be 0 or more']),
+    ...((BREAKERS as readonly string[]).includes(c.circuit) ? [] : [`'${c.circuit}' isn't a circuit (${BREAKERS.join(', ')})`]),
+  ],
+  ports: {
+    on: { dir: 'read', key: 'lights.nav' },
+    live: { dir: 'read', key: 'circuit.navLights.live' },
+  },
+  needs: (c) => [{ power: 'electrical', circuit: c.circuit }],
+  power: (c) => [{ role: 'load', circuit: c.circuit, amps: (io) => (io.num('on') > 0 ? c.amps : 0) }],
+  view: {
+    frame: 'boat',
+    build({ config, keys }) {
+      const lights = new NavLightsView(config.lights);
+      return {
+        staticParts: [],
+        movingParts: [lights.root],
+        controls: [],
+        update: (read, _s, _dt, frame) => lights.update(read.num(keys.on) > 0 && !!read.get(keys.live), frame.darkness, frame.viewer),
+      };
+    },
+  },
+};

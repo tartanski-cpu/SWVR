@@ -121,7 +121,7 @@ describe('the gear\'s facts are where v1.0 had them', () => {
   it('the navigation lights hang on the mast\'s masthead socket', () => {
     const { v } = setup();
     const lights = vesselRuntime(v)!.sim.mounts.find((m) => m.path === 'mast/masthead')!;
-    expect(lights.def.id).toBe('electrical.consumer');
+    expect(lights.def.id).toBe('light.navigation');
     expect(lights.socket.transform.position).toEqual(CONFIG.vessels.workboat.navLights.masthead);
   });
 });

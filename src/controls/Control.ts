@@ -61,6 +61,12 @@ export abstract class Control {
    * three's Raycaster ignores `visible` (the wheelhouse's small parts seen through a window).
    */
   enabled = true;
+  /**
+   * The boat this control works (her vessel id), or null for the home boat. Set by her
+   * boat view (app/boatView.ts): the interaction system sends its intents to that boat
+   * (`<vesselId>:<channel>`).
+   */
+  route: string | null = null;
   private lockedShown = false;
   held = false;
   /** Whether two hands may hold it at once (the wheel). */
@@ -161,8 +167,8 @@ export abstract class Control {
   }
 
   /**
-   * Mark a part that never moves relative to the boat (a base, housing or plate). The
-   * Bridge bakes all such parts into one draw call and hides the originals, which stay
+   * Mark a part that never moves relative to the boat (a base, housing or plate). Her boat
+   * view (app/boatView.ts) bakes all such parts into one draw call and hides the originals, which stay
    * in the scene (invisible) so the pointer ray can still hit them.
    */
   protected fixed<T extends THREE.Mesh>(mesh: T): T {

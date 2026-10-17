@@ -91,9 +91,8 @@ export const WORKBOAT_HULL: HullDefinition = {
     { massKg: CONFIG.modules.dieselInboard.massKg, at: engineBed },
     { massKg: 2 * CONFIG.modules.batteryBank.massKg, at: bay },
   ]),
-  // Built into her (6b): the wheelhouse fit-out the bridge places its controls by (6c makes
-  // them modules), her lights, the exhaust outlet, where a rescued casualty is put.
-  fittings: { bridge: wb.bridge, navLights: wb.navLights, exhaust: wb.exhaust, rescueGear: wb.rescueGear, cabinLight: wb.cabinLight, deckLights: wb.deckLights },
+  // Built into her (6b): the exhaust outlet, where a rescued casualty is put.
+  fittings: { exhaust: wb.exhaust, rescueGear: wb.rescueGear },
   sockets: [
     { id: 'helm', type: 'helm.console', transform: { position: wb.bridge.console.position }, label: 'Helm console, across the front of the wheelhouse' },
     { id: 'navDisplay', type: 'cabin.overhead', transform: { position: wb.bridge.navDisplay.position }, label: 'Overhead, on the centreline ahead of the helm' },

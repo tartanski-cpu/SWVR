@@ -15,7 +15,7 @@ import type { WheelhouseDef } from '../vessel/vesselDef';
  * Never hidden: the throttle lever (it reads through the windows), the binoculars (carried
  * about, they'd vanish in your hand on deck), the chartplotter and the VHF (their lit
  * screens read through the windows; they were never hidden while their brackets made them
- * big, and since M3c the brackets are merged into the bridge's fixed parts). Nor anything
+ * big, and since M3c the brackets are merged into the boat's fixed parts). Nor anything
  * holding a light: switching a light's visibility recompiles every lit material (a hitch),
  * and the cabin lamp lights the wheelhouse seen through the windows.
  */

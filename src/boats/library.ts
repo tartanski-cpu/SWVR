@@ -13,6 +13,7 @@ import { BOAT_HOOK_RACK } from '../modules/boatHookRack';
 import { BATTERY_BANK } from '../modules/batteryBank';
 import { BATTERY_MASTER } from '../modules/batteryMaster';
 import { BILGE_PUMP } from '../modules/bilgePump';
+import { CABIN_LIGHT } from '../modules/cabinLight';
 import { BATTERY_SELECTOR } from '../modules/batterySelector';
 import { BREAKER_PANEL } from '../modules/breakerPanel';
 import { CHART_TABLE } from '../modules/chartTable';
@@ -27,6 +28,7 @@ import { ELECTRIC_OUTBOARD } from '../modules/electricOutboard';
 import { DUTY_BOARD } from '../modules/dutyBoard';
 import { FENDERS } from '../modules/fenders';
 import { FIRE_MONITOR } from '../modules/fireMonitor';
+import { FLOODLIGHT } from '../modules/floodlight';
 import { FM_RADIO } from '../modules/fmRadio';
 import { FUEL_TANK } from '../modules/fuelTank';
 import { HATCH_COVER } from '../modules/hatchCover';
@@ -34,10 +36,12 @@ import { JOYSTICK } from '../modules/joystick';
 import { KEY_SWITCH } from '../modules/keySwitch';
 import { LIFE_RING_STATION } from '../modules/lifeRingStation';
 import { MAST } from '../modules/mast';
+import { NAV_LIGHTS } from '../modules/navLights';
 import { OIL_CAN } from '../modules/oilCan';
 import { OVERHEAD_PANEL } from '../modules/overheadPanel';
 import { PTO_PUMP } from '../modules/ptoPump';
 import { PUSH_BUTTON } from '../modules/pushButton';
+import { RAIL_LIGHTS } from '../modules/railLights';
 import { RUDDER } from '../modules/rudder';
 import { SCREEN } from '../modules/screen';
 import { SEARCHLIGHT } from '../modules/searchlight';
@@ -46,6 +50,7 @@ import { STERN_ROLLER } from '../modules/sternRoller';
 import { SWIM_LADDER } from '../modules/swimLadder';
 import { TENDER_CRANE } from '../modules/tenderCrane';
 import { THROTTLE_LEVER } from '../modules/throttleLever';
+import { TILLER } from '../modules/tiller';
 import { TOGGLE } from '../modules/toggle';
 import { TOW_WINCH } from '../modules/towWinch';
 import { TRAWL } from '../modules/trawl';
@@ -72,6 +77,7 @@ export const MODULES = createModuleLibrary([
   TENDER_CRANE, TOW_WINCH, STERN_ROLLER, A_FRAME, TRAWL, ANCHOR_WINDLASS,
   SEARCHLIGHT, FIRE_MONITOR, MAST, CLEAT, FENDERS, SWIM_LADDER, LIFE_RING_STATION, BOAT_HOOK_RACK,
   ELECTRIC_OUTBOARD,
+  NAV_LIGHTS, CABIN_LIGHT, FLOODLIGHT, RAIL_LIGHTS, TILLER,
 ]);
 
 export const LIBRARY = { hulls: HULLS, modules: MODULES };

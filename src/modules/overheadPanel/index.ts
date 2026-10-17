@@ -4,9 +4,9 @@
  * switches (the deck lights) and the FM set, each another module. The switches hang upside
  * down from its face, pressed from below.
  *
- * Its box (from the roof down to its face) is a fixed part, merged with the bridge's into
+ * Its box (from the roof down to its face) is a fixed part, merged with the boat's other fixed parts into
  * one draw call. Its legends are engraved on its underside, just aft of each control and
- * read from the helm looking up; they're drawn with the bridge's other labels (one draw
+ * read from the helm looking up; they're drawn with the boat's other labels (one draw
  * call). Layout: CONFIG.modules.overheadPanel; its socket is the middle of its face.
  */
 import * as THREE from 'three';

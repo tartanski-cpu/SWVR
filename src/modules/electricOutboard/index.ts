@@ -9,7 +9,7 @@
  *
  * Its state is today's VesselState (the battery is `battery`; its thrust and swing are
  * `thrust` and `rudder`, read by the views) until 6d. Its defaults are CONFIG.vessels.skiff.outboard; the world reads it as
- * her 'outboard' gear (M6b). Its tiller is still the app's until 6c.
+ * her 'outboard' gear (M6b). Its tiller is a module of its own, on its 'tiller' socket (M6c).
  */
 import { CONFIG } from '../../config';
 import type { ModuleDefinition } from '../../modular/module';
@@ -30,8 +30,8 @@ export const ELECTRIC_OUTBOARD: ModuleDefinition<OutboardConfig, VesselState> = 
   ports: {
     on: { dir: 'read', key: 'outboard.on' },
     gear: { dir: 'read', key: 'outboard.gear' },
-    // Her tiller's twist grip and swing: the tiller is still the app's (not a module) until
-    // 6b, so nothing in her recipe writes these yet.
+    // Her tiller's twist grip and swing (the tiller module, on its own socket; without one
+    // the motor just sits in neutral, straight).
     throttle: { dir: 'read', key: 'throttle.demand', required: false },
     helm: { dir: 'read', key: 'helm.demand', required: false },
     // Its own outputs (kept in its state; declared so a reader knows who keeps them).
@@ -40,6 +40,8 @@ export const ELECTRIC_OUTBOARD: ModuleDefinition<OutboardConfig, VesselState> = 
     swing: { dir: 'write', key: 'rudder.angle' },
   },
   physical: (c) => ({ powerKw: c.powerKw }),
+  // Its tiller arm: the tiller module goes here (M6c).
+  sockets: () => [{ id: 'tiller', type: 'outboard.tiller', transform: { position: [0, 0, 0] }, label: 'The tiller arm on the motor' }],
   sim: {
     init: () => {
       throw new Error('the outboard keeps its state in VesselState until 6d');

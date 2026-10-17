@@ -1,12 +1,12 @@
 /**
  * Module electrical.consumer: a 12 V device that draws its current while its switch is on
- * (modular boats M4a): the navigation lights, the deck floods, the rail lights, the cabin
- * lamp, the searchlight, the horn, the wiper motor. The recipe says which switch
- * ("bind": { "on": "lights.nav" }), on which circuit, and how much it draws; with no circuit
+ * (modular boats M4a): today the horn and the wiper motor (the lights and the searchlight
+ * are modules of their own that draw themselves, M5b and M6c). The recipe says which switch
+ * ("bind": { "on": "horn.sound" }), on which circuit, and how much it draws; with no circuit
  * it is on the battery master alone (the horn).
  *
- * Only its draw on the energy network for now; the lights and the horn are still drawn and
- * sounded by the app from their switches, and become this module's views later.
+ * Only its draw on the energy network: the horn is sounded and the wipers drawn by the app
+ * from their switches.
  */
 import type { ModuleDefinition } from '../../modular/module';
 import type { BreakerName } from '../../vessel/vesselState';

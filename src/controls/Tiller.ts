@@ -28,8 +28,9 @@ const MAX_HAND_STEP = 0.25;
  * you), A / D swing the tiller (it springs back to the middle when you let go of the keys),
  * and the mouse still looks around; click again to let go.
  *
- * It sends absolute values (`helm`, `lever`) on channels prefixed with its vessel's id
- * (`<vesselId>:helm`), so the App sends them to the skiff, not the workboat.
+ * It sends absolute values on the helm and throttle keys (the tiller module's ports), the
+ * gear and the motor's button on their own channels; its boat view routes them all to the
+ * skiff, not the workboat (Control.route).
  * The motor's battery charge shows as five green-to-red bars on its cowl.
  */
 export class Tiller extends Control {
@@ -58,11 +59,15 @@ export class Tiller extends Control {
   private readonly maxSteer: number;
   private gear = 0;
 
+  /**
+   * @param ob     the outboard: its pivot, its leg down to the propeller, its tiller, how far it swings
+   * @param wiring the helm and throttle channels (bus keys)
+   */
   constructor(
-    readonly vesselId: string,
     ob: OutboardConfig,
+    private readonly wiring: { helm: string; throttle: string },
   ) {
-    super(`tiller:${vesselId}`, `${vesselId}:helm`);
+    super('tiller', wiring.helm);
     this.maxSteer = (ob.maxSteerDeg * Math.PI) / 180;
     const t = ob.tiller;
     this.root.position.fromArray(t.pivot);
@@ -99,12 +104,15 @@ export class Tiller extends Control {
     hit.visible = false;
     this.arm.add(hit);
     // On the motor: the gear lever on its starboard side, the on/off button on top, aft.
-    this.gearLever = new GearSelector(vesselId);
+    this.gearLever = new GearSelector();
     this.gearLever.root.position.set(0.138, 0.0, 0.08);
-    this.power = new Button(`power:${vesselId}`, `${vesselId}:obPower`, 'Motor on / off', 'pulse', 0xd03020, (st) => st.controls.obOn > 0);
+    this.power = new Button('outboardPower', 'obPower', 'Motor on / off', 'pulse', 0xd03020, (st) => st.controls.obOn > 0);
     this.power.root.position.set(0, 0.13, 0.22);
     this.arm.add(this.gearLever.root, this.power.root);
     this.root.add(this.arm);
+    // The gear lever's gate and the button's housing swing with the motor: never baked into
+    // the boat's fixed mesh.
+    this.arm.traverse((o) => delete o.userData.fixed);
     this.hitObjects.push(this.grip, handle, hit);
     this.parts = [this, this.gearLever, this.power];
     // Desktop: a click on the gear lever takes the whole outboard (W/S work the gear too).
@@ -169,9 +177,8 @@ export class Tiller extends Control {
     this.keys.y = clamp(y, -1, 1);
   }
 
+  /** (The gear lever and the button are ticked and synced as controls of their own.) */
   tick(dt: number): void {
-    this.gearLever.tick(dt);
-    this.power.tick(dt);
     if (!this.keySteering) return;
     // W / S: one signed command through neutral (forward -> neutral -> reverse), sent as the
     // gear lever and the trigger would send it.
@@ -182,7 +189,7 @@ export class Tiller extends Control {
       const g = c > 0 ? 1 : c < 0 ? -1 : 0;
       if (g !== this.gear) {
         this.gear = g;
-        this.ctx?.emit(`${this.vesselId}:obGear`, g);
+        this.ctx?.emit(this.gearLever.channel, g);
       }
       this.setThrottle(Math.abs(c));
     }
@@ -194,8 +201,6 @@ export class Tiller extends Control {
 
   /** From the authoritative state (another crew member may be steering), unless held here. */
   sync(state: VesselState): void {
-    this.gearLever.sync(state);
-    this.power.sync(state);
     this.motorOn = state.controls.obOn > 0;
     this.gear = state.controls.obGear;
     if (!this.held) {
@@ -214,7 +219,7 @@ export class Tiller extends Control {
     this.helm = v;
     this.arm.rotation.y = this.helm * this.maxSteer;
     if (Math.abs(v - this.sentHelm) > 0.01) {
-      this.ctx?.emit(`${this.vesselId}:helm`, v);
+      this.ctx?.emit(this.channel, v);
       this.sentHelm = v;
     }
   }
@@ -225,7 +230,7 @@ export class Tiller extends Control {
     if (t === 0 && this.throttle !== 0) this.ctx?.haptic(0.4, 25);
     this.throttle = t;
     if (Math.abs(t - this.sentThrottle) > 0.01 || (t === 0 && this.sentThrottle !== 0)) {
-      this.ctx?.emit(`${this.vesselId}:lever`, t);
+      this.ctx?.emit(this.wiring.throttle, t);
       this.sentThrottle = t;
     }
   }

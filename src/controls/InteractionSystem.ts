@@ -113,9 +113,10 @@ export class InteractionSystem {
     return this.hands[hand].rayLine;
   }
 
-  private context(hand: Handedness | null): ControlContext {
+  /** What a control in use sends through: its channels go to its boat (Control.route). */
+  private context(hand: Handedness | null, c: Control): ControlContext {
     return {
-      emit: this.emit,
+      emit: c.route ? (channel, value) => this.emit(`${c.route}:${channel}`, value) : this.emit,
       haptic: (i, ms) => {
         if (hand) this.pulse(hand, i, ms);
       },
@@ -205,13 +206,13 @@ export class InteractionSystem {
         if (f.gripPressed && this.rules.lockedByOther(best)) {
           this.pulse(hand, 0.8, 80); // someone else has it: a firm bump, no grab
         } else if (f.gripPressed) {
-          best.bind(this.context(hand));
+          best.bind(this.context(hand, best));
           best.grabStart(p);
           h.held = best;
           this.pulse(hand, 0.4, 25);
         }
       } else if (best?.kind === 'press' && f.triggerPressed && !h.pressing) {
-        best.bind(this.context(hand));
+        best.bind(this.context(hand, best));
         best.pressStart();
         h.pressing = best;
       }
@@ -296,7 +297,7 @@ export class InteractionSystem {
     }
     const steer = hover?.keySteerable ? hover : hover?.steerOwner;
     if (pressed && steer?.keySteerable && !this.rules.lockedByOther(steer)) {
-      steer.bind(this.context(null));
+      steer.bind(this.context(null, steer));
       steer.keySteer(0, 0);
       this.steering = steer;
       this.pressConsumed = true;
@@ -304,7 +305,7 @@ export class InteractionSystem {
     }
     // Press before release: on a slow frame both can arrive together (a quick click).
     if (pressed && hover && !(hover.kind === 'grab' && this.rules.lockedByOther(hover))) {
-      hover.bind(this.context(null));
+      hover.bind(this.context(null, hover));
       if (hover.kind === 'grab') {
         hover.held = true;
         this.dragging = hover;

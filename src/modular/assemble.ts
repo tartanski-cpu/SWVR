@@ -5,8 +5,8 @@
  * place is in its parent's axes (the hull's, or the parent module's), so a module's place
  * on the boat is its parents' transforms in turn. Each module gets a group at that place;
  * its controls and moving parts go in it. What the boat's modules share is gathered here:
- *   - their fixed parts, to be merged into the boat's shared mesh (for now by the Bridge,
- *     which bakes every part marked fixed into its one draw call, as before);
+ *   - their fixed parts, to be merged into the boat's shared mesh (by her boat view,
+ *     app/boatView.ts, which bakes every part marked fixed into its one draw call);
  *   - their engraved labels, drawn together in one mesh;
  *   - their screens, on one display atlas: one texture, one draw call;
  *   - their shared moving parts (switch bats, button caps): one instanced mesh per kind.
@@ -24,7 +24,7 @@ import type { VesselDef } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
 import { busOf, type BusReader } from './bus';
 import { hullQueries, type HullLibrary } from './hull';
-import type { Footprint, ModuleViewInstance } from './module';
+import type { Footprint, ModuleViewInstance, ViewFrame } from './module';
 import { PALETTE } from './palette';
 import { SharedParts } from './sharedParts';
 import { evalCondition, flattenMounts, parseCondition, validateRecipe, type ModuleLibrary, type Recipe } from './recipe';
@@ -36,6 +36,9 @@ export function transformMatrix(t: Transform, out = new THREE.Matrix4()): THREE.
   const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, rz, 'YXZ'));
   return out.compose(new THREE.Vector3(...t.position), q, new THREE.Vector3(1, 1, 1));
 }
+
+/** Noon, seen from the origin: for a view updated without a scene (tests). */
+const NO_FRAME: ViewFrame = { darkness: 0, viewer: new THREE.Vector3() };
 
 /** One module as built on this boat. */
 export interface BuiltModule {
@@ -85,7 +88,7 @@ export interface AssembledView {
    * Each frame: every module's view from the boat's state, and the screens (only when
    * someone could see them: the atlas upload is the costly part on the Quest).
    */
-  update(state: VesselState, dt: number, screens: { inView: boolean; def: VesselDef; env: EnvironmentState | null } | null): void;
+  update(state: VesselState, dt: number, screens: { inView: boolean; def: VesselDef; env: EnvironmentState | null } | null, frame?: ViewFrame): void;
 }
 
 /**
@@ -109,9 +112,11 @@ export function assembleView(recipe: Recipe, def: VesselDef, lib: { hulls: HullL
   const v = new THREE.Vector3();
   for (const m of mounted) {
     const parent = m.path.includes('/') ? places.get(m.path.slice(0, m.path.lastIndexOf('/'))) : undefined;
-    // A module drawing in the boat's axes is placed at her origin (see ModuleView.frame).
-    const place = m.def.view?.frame === 'boat' ? new THREE.Matrix4() : transformMatrix(m.socket.transform);
-    if (parent) place.premultiply(parent);
+    // A module drawing in the boat's axes is placed at her origin, wherever it's fitted (see
+    // ModuleView.frame); any other at its socket, through its parents' places.
+    const boatFrame = m.def.view?.frame === 'boat';
+    const place = boatFrame ? new THREE.Matrix4() : transformMatrix(m.socket.transform);
+    if (parent && !boatFrame) place.premultiply(parent);
     places.set(m.path, place);
     if (!m.def.view) continue;
     const instance = m.def.view.build({
@@ -181,10 +186,10 @@ export function assembleView(recipe: Recipe, def: VesselDef, lib: { hulls: HullL
         }),
       ),
     api: <T extends object>(id: string) => (modules.find((m) => m.id === id)?.instance.api as T | undefined) ?? null,
-    update(state, dt, s) {
+    update(state, dt, s, frame = NO_FRAME) {
       if (modules.length) {
         const read = busOf(state);
-        for (const m of modules) m.instance.update(read, undefined, dt);
+        for (const m of modules) m.instance.update(read, undefined, dt, frame);
         if (interlocks.length) {
           disabled.clear();
           for (const il of interlocks) if (evalCondition(il.cond, read)) for (const c of il.controls) disabled.add(c);

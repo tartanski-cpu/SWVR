@@ -4,8 +4,10 @@ import { Tiller } from '../src/controls/Tiller';
 import type { Pointer } from '../src/controls/Control';
 import { CONFIG } from '../src/config';
 
+const WIRING = { helm: 'helm.demand', throttle: 'throttle.demand' };
+
 function setup() {
-  const t = new Tiller('s', CONFIG.vessels.skiff.outboard);
+  const t = new Tiller(CONFIG.vessels.skiff.outboard, WIRING);
   t.root.updateMatrixWorld(true);
   const sent: Record<string, number> = {};
   t.bind({ emit: (ch, v) => (sent[ch] = v), haptic: () => {} });
@@ -21,13 +23,13 @@ describe('outboard tiller (VR)', () => {
     t.grabStart(p);
     p.trigger = 1;
     for (let i = 0; i < 60; i++) t.grabMove(p);
-    expect(sent['s:lever']).toBe(1);
+    expect(sent['throttle.demand']).toBe(1);
     p.trigger = 0.5;
     for (let i = 0; i < 60; i++) t.grabMove(p);
-    expect(sent['s:lever']).toBeCloseTo(0.5, 1);
+    expect(sent['throttle.demand']).toBeCloseTo(0.5, 1);
     p.trigger = 0;
     t.grabMove(p);
-    expect(sent['s:lever']).toBe(0);
+    expect(sent['throttle.demand']).toBe(0);
   });
 
   it('letting go of the tiller closes the throttle', () => {
@@ -36,24 +38,24 @@ describe('outboard tiller (VR)', () => {
     p.trigger = 1;
     for (let i = 0; i < 60; i++) t.grabMove(p);
     t.grabEnd(p);
-    expect(sent['s:lever']).toBe(0);
+    expect(sent['throttle.demand']).toBe(0);
   });
 
   it('ignores a tracking jump of the hand when steering', () => {
     const { t, sent, p, grip } = setup();
     t.grabStart(p);
     t.grabMove(p);
-    const before = sent['s:helm'] ?? 0;
+    const before = sent['helm.demand'] ?? 0;
     p.position = grip.clone().add(new THREE.Vector3(2, 0, 0));
     t.grabMove(p);
-    expect(sent['s:helm'] ?? 0).toBe(before);
+    expect(sent['helm.demand'] ?? 0).toBe(before);
   });
 });
 
 describe('outboard tiller (desktop)', () => {
   it("a click on the gear lever takes the whole outboard into keyboard steering (so WASD doesn't walk)", async () => {
     const { InteractionSystem } = await import('../src/controls/InteractionSystem');
-    const t = new Tiller('s', CONFIG.vessels.skiff.outboard);
+    const t = new Tiller(CONFIG.vessels.skiff.outboard, WIRING);
     t.root.position.set(0, 0, -1);
     t.root.updateMatrixWorld(true);
     const sys = new InteractionSystem(t.parts, () => {}, () => {});

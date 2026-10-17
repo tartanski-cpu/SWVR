@@ -41,17 +41,17 @@ describe('the machinery, as modules', () => {
     const { v } = boat();
     const sim = vesselRuntime(v)!.sim;
     const ids = sim.mounts.map((m) => m.def.id);
-    for (const id of ['propulsion.diesel-inboard', 'steering.rudder', 'electrical.battery-bank', 'hydraulics.pto-pump', 'pump.bilge', 'electrical.consumer']) expect(ids).toContain(id);
+    for (const id of ['propulsion.diesel-inboard', 'steering.rudder', 'electrical.battery-bank', 'hydraulics.pto-pump', 'pump.bilge', 'electrical.consumer', 'light.navigation', 'light.flood', 'light.rail', 'light.cabin']) expect(ids).toContain(id);
     // The rudder needs this tick's thrust: it pushes after the engine.
     const pushing = sim.mounts.filter((m) => m.def.sim?.physics).map((m) => m.path);
     expect(pushing).toEqual(['engine', 'rudder']);
-    // The navigation lights, floods, rail lights, cabin lamp, horn and wiper motor (the
-    // searchlight is its own module since M5b; the nav lights hang on the mast).
-    expect(sim.mounts.filter((m) => m.def.id === 'electrical.consumer')).toHaveLength(7);
-    expect(sim.mounts.find((m) => m.path === 'mast/masthead')?.def.id).toBe('electrical.consumer');
+    // The horn and the wiper motor (the searchlight is its own module since M5b; the lights
+    // since M6c, the nav lights on the mast's masthead).
+    expect(sim.mounts.filter((m) => m.def.id === 'electrical.consumer').map((m) => m.path)).toEqual(['horn', 'wipers']);
+    expect(sim.mounts.filter((m) => m.def.id.startsWith('light.')).map((m) => m.path)).toEqual(['floodFore', 'floodAft', 'railLights', 'cabinLight', 'mast/masthead']);
   });
 
-  it('the battery module and the vessel\'s battery config agree (isPowered reads the latter until M6)', () => {
+  it('the battery module and the vessel\'s battery config agree (isPowered reads the module\'s batteries gear since M6b)', () => {
     const { v } = boat();
     const store = vesselRuntime(v)!.store!;
     const el = CONFIG.vessels.workboat.electrics;

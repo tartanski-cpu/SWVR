@@ -101,17 +101,12 @@ export interface VesselDef {
   layout: LayoutConfig;
   cargo: VesselConfig['cargo'];
   /**
-   * What's built into her hull (modular boats M6b; the hull's `fittings`): the wheelhouse
-   * fit-out the bridge places its controls by (until 6c makes them modules), her lights, the
-   * exhaust outlet, the places a rescued casualty is put, and a tow's look. Her machinery and
-   * deck gear are her modules': ask them (boats/sims.ts gearOf).
+   * What's built into her hull (modular boats M6b; the hull's `fittings`): the exhaust
+   * outlet, the places a rescued casualty is put, and a tow's look. Her machinery, lights
+   * and deck gear are her modules': ask them (boats/sims.ts gearOf).
    */
-  bridge?: HullFittings['bridge'];
-  navLights?: HullFittings['navLights'];
   exhaust?: HullFittings['exhaust'];
   rescueGear?: HullFittings['rescueGear'];
-  cabinLight?: HullFittings['cabinLight'];
-  deckLights?: HullFittings['deckLights'];
   tow?: TowLook;
 }
 
@@ -131,12 +126,8 @@ export function hasWheelhouse(def: VesselDef): def is WheelhouseDef {
 
 /** What's built into a hull (see VesselDef). */
 export interface HullFittings {
-  bridge?: Workboat['bridge'];
-  navLights?: Workboat['navLights'];
   exhaust?: Workboat['exhaust'];
   rescueGear?: Workboat['rescueGear'];
-  cabinLight?: Workboat['cabinLight'];
-  deckLights?: Workboat['deckLights'];
   tow?: TowLook;
 }
 
@@ -163,7 +154,7 @@ export function wettedSurfaceAtDWL(hull: HullForm): number {
 
 /** What's built into a hull, from a vessel config block (for fromConfig). */
 export function fittingsOf(c: VesselConfig): HullFittings {
-  return { bridge: c.bridge, navLights: c.navLights, exhaust: c.exhaust, rescueGear: c.rescueGear, cabinLight: c.cabinLight, deckLights: c.deckLights, tow: c.tow };
+  return { exhaust: c.exhaust, rescueGear: c.rescueGear, tow: c.tow };
 }
 
 /**

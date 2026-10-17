@@ -7,7 +7,7 @@
  *
  * Drawn in the boat's axes from the hull's beam, deck and transom (its defaults: the
  * figures in CONFIG.vessels.workboat.fishing.aFrame); the frame and the box are
- * merged with the bridge's fixed parts, the button caps are shared parts.
+ * merged with the boat's fixed parts, the button caps are shared parts.
  */
 import * as THREE from 'three';
 import { CONFIG } from '../../config';

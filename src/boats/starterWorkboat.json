@@ -1,6 +1,6 @@
 {
   "id": "vessel.starter-workboat",
-  "version": 9,
+  "version": 10,
   "name": "Workboat",
   "hull": "hull.workboat-12m",
   "modules": [
@@ -10,10 +10,10 @@
     { "socket": "batteries", "module": "electrical.battery-bank" },
     { "socket": "hydraulicPump", "module": "hydraulics.pto-pump" },
     { "socket": "bilgePump", "module": "pump.bilge" },
-    { "socket": "floodFore", "module": "electrical.consumer", "config": { "label": "Foredeck floodlight", "amps": 8, "circuit": "deckLights" }, "bind": { "on": "lights.deckFore" } },
-    { "socket": "floodAft", "module": "electrical.consumer", "config": { "label": "Aft deck floodlight", "amps": 8, "circuit": "deckLights" }, "bind": { "on": "lights.deckAft" } },
-    { "socket": "railLights", "module": "electrical.consumer", "config": { "label": "Rail LED strips", "amps": 1, "circuit": "deckLights" }, "bind": { "on": "lights.rail" } },
-    { "socket": "cabinLight", "module": "electrical.consumer", "config": { "label": "Cabin lamp", "amps": 1, "circuit": "deckLights" }, "bind": { "on": "lights.cabin" } },
+    { "socket": "floodFore", "module": "light.flood", "config": { "end": "fore" }, "bind": { "on": "lights.deckFore" } },
+    { "socket": "floodAft", "module": "light.flood", "config": { "end": "aft" }, "bind": { "on": "lights.deckAft" } },
+    { "socket": "railLights", "module": "light.rail" },
+    { "socket": "cabinLight", "module": "light.cabin" },
     { "socket": "horn", "module": "electrical.consumer", "config": { "label": "Horn", "amps": 10, "circuit": null }, "bind": { "on": "horn.sound" } },
     { "socket": "wipers", "module": "electrical.consumer", "config": { "label": "Wiper motor", "amps": 4, "circuit": "instruments" }, "bind": { "on": "wipers.on" } },
     {
@@ -94,7 +94,7 @@
       "socket": "mast",
       "module": "mount.mast",
       "modules": [
-        { "socket": "masthead", "module": "electrical.consumer", "config": { "label": "Navigation lights", "amps": 2, "circuit": "navLights" }, "bind": { "on": "lights.nav" } }
+        { "socket": "masthead", "module": "light.navigation" }
       ]
     }
   ],

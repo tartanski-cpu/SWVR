@@ -2351,6 +2351,50 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   - **VR:** start her properly (master, breakers, key, HEAT, START) and check the warning lamps and the engine screens; drive out, a hard turn, a crash stop; dock with the mooring lines; let the anchor go and weigh it; launch the skiff, drive her, make her painter fast to a midship cleat; at night, the nav lights, floods and cabin light; take a tow; open the chart table's leaf and walk round it.
   - **Desktop:** the same with the keys, plus the E key (quick start, if it's on) and Menu > Tests > Quick start; refuel at a fuel berth.
 
+### M6c: every boat drawn and worked from her recipe; the skiff's tiller a module (done, on /next/ for the owner to test; nothing should look or handle differently)
+
+- **What changed:**
+  - **The hand-built Bridge is gone.** Each boat with modules now has a *boat view* (`app/boatView.ts`), put together from her recipe: her modules, the parts of her hull that move (the wheelhouse doors and the deck gate, where she has them) and the rain on the front windows (with a wheelhouse). Her modules' fixed parts are still baked into one mesh, their labels into another, their screens onto one display atlas: the same draw calls as before. The workboat and the skiff each have one; a tow (a hull with no modules) needs none.
+  - **The lights are modules that draw themselves**, replacing the plain "consumer" entries in the recipe:
+    - `light.navigation` on the mast's masthead socket (the masthead light, sidelights and stern light, worked as one set);
+    - `light.cabin` (the ceiling lamp, white or red);
+    - `light.flood`, twice (`end: fore` and `end: aft`);
+    - `light.rail` (the LED strips along the bulwark tops).
+    
+    Each draws the same current on the same breaker as before and lights only with 12 V on its circuit. A module's view now gets the scene each frame (how dark it is, where you are), which the nav lights need for their arcs of visibility.
+  - **The engine under the hatch is the diesel module's own view** (`vessel/view/engineLook.ts`), drawn where the hull has an engine space under the wheelhouse floor.
+  - **The skiff's tiller is a module** (`control.tiller`) on her outboard's own `tiller` socket: the handle, the motor it swings, the gear lever, the on/off button and the battery bars. Its helm and throttle are the bus keys the outboard reads.
+  - **Each control knows which boat it works** (`route`): the skiff's tiller and painter cleat send to the skiff, the workboat's controls to the home boat. The app keeps one boat view per vessel instead of "the bridge" plus a list of tillers.
+  - **Recipes:** the workboat's is version 10 (the four light modules), the skiff's version 2 (the tiller).
+- **Config:** no new tunables. The light modules take their defaults from the figures they always used: `CONFIG.vessels.workboat.navLights`, `.cabinLight` and `.deckLights`; the tiller from `CONFIG.vessels.skiff.outboard`. These no longer ride on the hull: the hull's fittings are now just the exhaust outlet and the rescue places (and a tow's look).
+- **Exactly as before:**
+  - All twelve golden runs match without re-recording; the sea-trials report is identical.
+  - Draw calls unchanged: 62 / 57 / 115 / 36 by day, 65 / 58 / 116 / 35 at night.
+  - Screenshots from the eight viewpoints look the same as 6b's; the only pixel differences are the sea's motion and a radio notice.
+- **Tests (7 new, 466 in all, all pass):**
+  - The floods light only when switched on with 12 V.
+  - The cabin lamp goes red, and the nav lights glow only when on.
+  - The engine's parts go in the boat's one fixed mesh.
+  - The workboat's doors, gate and rain glass are built, and her controls go to the home boat.
+  - The skiff's tiller is a module on her outboard, at the motor's pivot, with no doors and no glass.
+  - The skiff's motor button sends to the skiff.
+  - Under her tarpaulin the skiff is neither drawn nor usable.
+- **Checked in the browser:**
+  - The workboat starts and makes way.
+  - The skiff, set afloat in open water, drives at 5.4 kn on her outboard.
+  - Working the skiff's motor button and tiller changes the skiff and not the workboat.
+  - In her cradle the skiff is covered.
+  - At night the floods, rail lights, cabin light and nav lights show.
+  - No errors apart from the dev server's favicon.
+- **Owner test** (at /SWVR/next/): she should look and work exactly as before:
+  - **VR:**
+    1. At night, switch each light: nav lights (walk round her: red to port, green to starboard), cabin (white, then red), both floods and the rail lights from the overhead panel; then pull the DECK LTS breaker.
+    2. Open the engine hatch and look at the engine.
+    3. Open and shut both doors and the gate; watch the wipers in the rain.
+    4. Launch the skiff: grab the tiller, steer, throttle on the trigger; work the gear lever and the motor button; make her painter fast.
+    5. Recover her: covered in the cradle, her tiller can't be touched.
+  - **Desktop:** the same; on the skiff, click the tiller and drive with W / S / A / D.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

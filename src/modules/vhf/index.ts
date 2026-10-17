@@ -5,7 +5,7 @@
  *
  * What it shows (distress and tow calls, the run's status) comes from the world, not the
  * boat: the app feeds the set through its `api` (the RadioSet), as it always has. Its case
- * and brackets are merged with the bridge's fixed parts.
+ * and brackets are merged with the boat's fixed parts.
  */
 import { CONFIG } from '../../config';
 import type { ModuleDefinition } from '../../modular/module';

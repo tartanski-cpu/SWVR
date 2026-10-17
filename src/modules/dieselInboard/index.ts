@@ -1,7 +1,8 @@
 /**
  * Module propulsion.diesel-inboard: the diesel, its gearbox and shaft, and the propeller
- * (modular boats M4a). Simulation only; nothing of it is drawn yet (the engine under the
- * hatch is still the Bridge's).
+ * (modular boats M4a). Drawn under the hatch in the wheelhouse floor (M6c,
+ * vessel/view/engineLook.ts: fixed parts, in the boat's axes from its upkeep config) where
+ * the hull has an engine space there.
  *
  *   ignition   key, HEAT (glow plugs), START (the starter, from the bus voltage), the fuel
  *              solenoid (12 V on the bus)
@@ -25,6 +26,7 @@ import { fuelAndHeatStep } from '../../vessel/physics/engineThermal';
 import { engineStep, type DieselInputs } from '../../vessel/physics/propulsion';
 import { oilStep } from '../../vessel/maintenance';
 import { engineWearStep } from '../../vessel/wear';
+import { engineParts } from '../../vessel/view/engineLook';
 import type { EngineState } from '../../vessel/vesselState';
 
 const wb = CONFIG.vessels.workboat;
@@ -125,6 +127,13 @@ export const DIESEL_INBOARD: ModuleDefinition<DieselInboardConfig, EngineState> 
     tick({ config: c }, e, dt) {
       oilStep(e, c.oilUse, dt);
       engineWearStep(e, dt);
+    },
+  },
+  view: {
+    frame: 'boat',
+    build({ config: c, hull }) {
+      const parts = hull.cabinFloor !== null && hull.engineSpace ? engineParts(c.maintenance, hull.cabinFloor, hull.engineSpace) : [];
+      return { staticParts: parts, movingParts: [], controls: [], update: () => {} };
     },
   },
 };

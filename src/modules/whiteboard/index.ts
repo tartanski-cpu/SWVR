@@ -2,7 +2,7 @@
  * Module furniture.whiteboard: the crew's whiteboard (modular boats M3c), for sticky notes
  * written in the game. The notes are the world's (shared between the crew), and writing
  * on it is the app's: both go through its `api` (the BoardView). Its frame and pen tray are
- * merged with the bridge's fixed parts.
+ * merged with the boat's fixed parts.
  */
 import { BoardView } from '../../board/boardView';
 import { CONFIG } from '../../config';

@@ -5,7 +5,7 @@
  * bridge layout is a sub-recipe (the console, and what goes in which slot).
  *
  * Its fixed parts (the dash box, the pedestals, the plates with their coloured strips) are
- * merged with the bridge's into one draw call. Positions are from its socket: the console's
+ * merged with the boat's other fixed parts into one draw call. Positions are from its socket: the console's
  * top, on the centreline, at its aft face (CONFIG.modules.helmConsole).
  */
 import * as THREE from 'three';

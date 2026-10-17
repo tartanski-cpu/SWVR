@@ -9,8 +9,8 @@ import { Control, type Pointer } from './Control';
  * the bow) for forward, pull it back for reverse; it snaps to the nearest gear. Desktop:
  * drag it the same way.
  *
- * Sends `<vesselId>:obGear` = +1 / 0 / -1 when the gear changes (the simulation closes the
- * throttle on a shift).
+ * Sends `obGear` = +1 / 0 / -1 when the gear changes (the simulation closes the throttle on
+ * a shift), to the boat it's on (Control.route).
  */
 export class GearSelector extends Control {
   readonly kind = 'grab' as const;
@@ -24,8 +24,8 @@ export class GearSelector extends Control {
   private grabZ = 0;
   private gear = 0;
 
-  constructor(readonly vesselId: string) {
-    super(`gear:${vesselId}`, `${vesselId}:obGear`);
+  constructor() {
+    super('outboardGear', 'obGear');
     // Gate plate with green (forward) and red (reverse) ends.
     const plate = this.fixed(new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.03, 0.1), new THREE.MeshLambertMaterial({ color: 0x15181a })));
     const fwd = this.fixed(new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.032, 0.025), new THREE.MeshLambertMaterial({ color: 0x2f8f3a })));
@@ -70,7 +70,7 @@ export class GearSelector extends Control {
     if (g !== this.gear) {
       this.gear = g;
       this.ctx?.haptic(0.7, 40);
-      this.ctx?.emit(`${this.vesselId}:obGear`, g);
+      this.ctx?.emit(this.channel, g);
     }
     this.show(this.theta);
   }

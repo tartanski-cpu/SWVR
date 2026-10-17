@@ -59,9 +59,9 @@ describe('every boat from her recipe', () => {
     [ct.x0, ct.x1, ct.z0, ct.z1, ct.height].forEach((x, i) => expect(x).toBeCloseTo([wb.chartTable.x0, wb.chartTable.x1, wb.chartTable.z0, wb.chartTable.z1, wb.chartTable.height][i], 12));
     expect(gearOf({ defId: 'skiff' }, 'outboard')).toEqual(CONFIG.vessels.skiff.outboard);
     for (const id of ['skiff', 'derelict', 'logRaft', 'barge']) for (const k of ['diesel', 'rudder', 'batteries', 'bilgePump', 'chartTable'] as const) expect(gearOf({ defId: id }, k), `${id} ${k}`).toBeNull();
-    // What's built into the hulls: the workboat's lights, exhaust, rescue places, bridge; the tows' look.
+    // What's built into the hulls: the workboat's exhaust and rescue places; the tows' look.
     const def = VESSEL_DEFS.workboat;
-    for (const k of ['bridge', 'navLights', 'exhaust', 'rescueGear', 'cabinLight', 'deckLights'] as const) expect(def[k], k).toBe(wb[k]);
+    for (const k of ['exhaust', 'rescueGear'] as const) expect(def[k], k).toBe(wb[k]);
     expect(VESSEL_DEFS.barge.tow).toEqual(CONFIG.vessels.barge.tow);
   });
 

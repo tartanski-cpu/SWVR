@@ -5,7 +5,7 @@
  * boat her tow point: the top of the roller, where the tow's pull acts on her.
  *
  * Drawn in the boat's axes from the hull's transom and deck (its config is the fairlead's,
- * CONFIG.tow.fairlead, and the notch's width); merged with the bridge's fixed parts.
+ * CONFIG.tow.fairlead, and the notch's width); merged with the boat's fixed parts.
  */
 import * as THREE from 'three';
 import { CONFIG } from '../../config';
