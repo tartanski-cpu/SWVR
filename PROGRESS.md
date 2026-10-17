@@ -2820,6 +2820,14 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Checked in the browser:** side views of all three hulls plumb / as designed / well raked: the plumb stems are upright with the forefoot carried full depth; the raked ones cut away from further aft.
 - **Owner test:** on the Shipyard page, move the Bow slider on each hull and look at her from the side, with the water off. Watch her displacement and her sea trial change. Then take her code into the game.
 
+### Fix: stray window posts standing on the deck (owner, from a Shipyard screenshot)
+
+- **What it was:** each wheelhouse side wall's window mullion was placed at a fixed spot, z -0.16 m. That's right for the workboat's wheelhouse, which spans it, but on the landing craft and most Shipyard designs the two posts stood on the open deck, detached from the house.
+- **Fix** (`vessel/view/hullMesh.ts`): the mullion stays at -0.16 where the house spans it (the workboat, unchanged), and is otherwise halfway along the side.
+- **Checked:**
+  - Shipyard views of the landing craft, a workboat-hull design with the house forward (the owner's case) and the gillnetter: no stray posts;
+  - all tests pass.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

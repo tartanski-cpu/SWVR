@@ -351,6 +351,9 @@ function buildWheelhouse(layout: HouseLayout, col: Paint): THREE.BufferGeometry[
   const raiseTop = raise ? wh.floorY + raise.height : sill;
   const sd = wh.sideDoor;
   const jamb = 0.08;
+  // Each side's window mullion: at z -0.16 where the house spans it (the workboat's, aft of
+  // her chart table), else halfway along the side (it stood out on the deck before, owner).
+  const mullion = wh.front < -0.5 && wh.aft > 0.2 ? -0.16 : (wh.front + wh.aft) / 2;
   for (const s of [-1, 1]) {
     const x0 = s > 0 ? hw - w : -hw;
     const x1 = s > 0 ? hw : -hw + w;
@@ -365,12 +368,12 @@ function buildWheelhouse(layout: HouseLayout, col: Paint): THREE.BufferGeometry[
       parts.push(box(x0, x1, base, wh.floorY + 0.02, door.z0, door.z1, col.floor)); // threshold
       // Jambs: forward (the door buttons are on it), and aft, running back to the mullion.
       parts.push(box(x0, x1, sill, wh.floorY + door.height, door.z0 - jamb, door.z0, H));
-      parts.push(box(x0, x1, sill, wh.floorY + door.height, door.z1, -0.12, H));
+      parts.push(box(x0, x1, sill, wh.floorY + door.height, door.z1, mullion + 0.04, H));
     } else {
       parts.push(box(x0, x1, base, sill, wh.front, wh.aft, H));
       parts.push(box(x0, x1, head, roof, wh.front, wh.aft, H));
     }
-    parts.push(box(x0, x1, sill, head, -0.2, -0.12, H));
+    parts.push(box(x0, x1, sill, head, mullion - 0.04, mullion + 0.04, H));
     if (raise && raiseTop > sill) {
       // Solid up to the console top beside it; on the port side it runs into the door jamb.
       const zEnd = door ? door.z0 - jamb : raise.z1;
