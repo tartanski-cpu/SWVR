@@ -2029,6 +2029,13 @@ export const CONFIG = {
       ringFromCorner: 0.4,
       price: { towWinch: 12_000, sternRoller: 2_000, aFrame: 18_000, lifeRing: 600, sideDoor: 3_000 },
     },
+    /**
+     * The deckhouse a design can have under her wheelhouse (shipyard/build.ts): its walls and
+     * top weigh `kgPerM2` (welded aluminium plate and stiffening) and cost `pricePerM2`
+     * (GBP); it stops `fromStem` m short of her stem (the narrow bow) and `edge` m inside her
+     * deck edge (the bulwark), when it's full width.
+     */
+    deckhouse: { kgPerM2: 35, pricePerM2: 450, fromStem: 1.2, edge: 0.12 },
   },
 
   /**

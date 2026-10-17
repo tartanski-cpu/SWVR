@@ -29,7 +29,7 @@ import type { SeaTrialResults } from '../vessel/seaTrials';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 import { buildVesselMesh } from '../vessel/view/hullMesh';
 import { DESIGN_HULLS, ENGINES, LIVERIES, ROOF_PAINTS, type DesignedBoat } from './build';
-import { decodeDesign, DEFAULT_DESIGN, encodeDesign, FIELDS, placeOf, placeValue, SCALES, type PlaceKey, type ShipDesign } from './design';
+import { ALL_FIELDS, decodeDesign, DEFAULT_DESIGN, encodeDesign, placeOf, placeValue, SCALES, type PlaceKey, type ShipDesign } from './design';
 import { hullPlan } from '../vessel/layout';
 import { UndoStack } from './undo';
 import { YardLink } from './yardLink';
@@ -47,7 +47,7 @@ import { SheetEditor } from './sheetEditor';
 import { addFavourite, cleanName, readFavourites, removeFavourite, writeFavourites, type Favourite, type Store } from './favourites';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
-const stepsOf = (k: keyof ShipDesign) => FIELDS.find((f) => f.key === k)!.steps;
+const stepsOf = (k: keyof ShipDesign) => ALL_FIELDS.find((f) => f.key === k)!.steps;
 
 // ── State ──
 const fromHash = decodeDesign(decodeURIComponent(location.hash.slice(1)));
@@ -285,6 +285,19 @@ slider('visor', 'Roof visor', (v) => `${SCALES.visor(v).toFixed(2)} m`);
 options('roofThickness', 'Roof', [0, 1, 2].map((i) => `${Math.round(SCALES.roofThickness(i) * 100)} cm`));
 options('roofEdge', 'Roof edge', ['', '30\u00b0', '45\u00b0', '60\u00b0']);
 options('chartTable', 'Chart table', ['None', 'Port wall, aft']);
+{
+  // The deckhouse (owner: pilot and rescue boats): the wheelhouse stands on it.
+  const h = document.createElement('h2');
+  h.textContent = 'Deckhouse';
+  const p = document.createElement('p');
+  p.className = 'meta';
+  p.textContent = 'A lower deckhouse that the wheelhouse stands on, as on pilot and rescue boats: from the wheelhouse’s aft wall forward, the helm raised onto it with steps up to the door. Solid for now (no way in, its top not walked).';
+  controls.append(h, p);
+}
+slider('dhLength', 'Forward of the house', (v) => (v ? `${SCALES.dhLength(v).toFixed(1)} m` : 'none'));
+options('dhHeight', 'Height', [0, 1, 2, 3].map((i) => `${SCALES.dhHeight(i).toFixed(1)} m`));
+options('dhWidth', 'Width', ['To her sides', '0.3 m side decks', '0.5 m', '0.7 m']);
+options('dhRake', 'Front', ['Upright', 'Raked 30°', 'Raked 50°']);
 section('3. Deck gear');
 {
   // Pin her equipment where it's wanted (pinGear.ts): a button a piece, then click on her.

@@ -28,6 +28,7 @@ import type { Mount, Recipe } from '../modular/recipe';
 import type { Socket } from '../modular/socket';
 import type { HullForm } from '../vessel/hullForm';
 import type { DoorStep, HouseShape, LayoutConfig, Livery } from '../vessel/vesselDef';
+import type { DeckhouseLayout } from '../vessel/deckhouse';
 import { BREAKERS } from '../vessel/vesselState';
 import { PLACE_GRID, placeOf, SCALES, type PlaceKey, type ShipDesign } from './design';
 
@@ -338,6 +339,38 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     while (floorY < level && tightAt(floorY - 0.15) < hw + 0.02) floorY = Math.min(level, floorY + 0.2);
     warnings.push(`Her hull is too fine under the wheelhouse for its floor that low: raised to ${(floorY - level).toFixed(1)} m about the deck.`);
   }
+  // ── The deckhouse (owner: pilot and rescue boats; vessel/deckhouse.ts) ──
+  // From the wheelhouse's aft wall (just inside it, so the house's own aft wall shows)
+  // forward past its front, out to her sides less any side deck (but at least as wide as
+  // the house it carries), its top flat over the highest deck under it. The wheelhouse then
+  // stands on it: its floor at the deckhouse's top, steps up to its aft door from the deck.
+  const dhc = CONFIG.shipyard.deckhouse;
+  const rnd = (v: number) => Math.round(v * 1000) / 1000;
+  let deckhouse: DeckhouseLayout | null = null;
+  let dhArea = 0;
+  if (d.dhLength) {
+    let z0 = front - SCALES.dhLength(d.dhLength);
+    const minZ = stem + (base.ramp ? 1.8 : dhc.fromStem);
+    if (z0 < minZ) {
+      z0 = minZ;
+      warnings.push('The deckhouse reaches further forward than her bow allows: cut short.');
+    }
+    const z1 = aft - 0.02;
+    const side = SCALES.dhWidth(d.dhWidth);
+    const halfAt = (z: number) => Math.max(z >= front - 0.01 ? hw : 0.3, q.halfBeam(z) - Math.max(dhc.edge, side));
+    const zs: number[] = [];
+    for (let z = z0; z < z1 - 0.05; z += 0.25) zs.push(z);
+    zs.push(z1);
+    const plan = zs.map((z): [number, number] => [rnd(z), rnd(halfAt(z))]);
+    const top = rnd(Math.max(...zs.map((z) => q.deckY(z))) + SCALES.dhHeight(d.dhHeight));
+    deckhouse = { z0: rnd(z0), z1: rnd(z1), top, rakeDeg: SCALES.dhRake(d.dhRake), plan };
+    // Its plate: the two sides, the top, the front and the aft face (m²), for its weight and price.
+    const h = SCALES.dhHeight(d.dhHeight);
+    for (let i = 1; i < plan.length; i++) dhArea += (plan[i][0] - plan[i - 1][0]) * (2 * h + plan[i][1] + plan[i - 1][1]);
+    dhArea += 2 * plan[0][1] * h + 2 * plan[plan.length - 1][1] * h;
+    // (The floor choice is set aside: the house stands on the deckhouse. The page says so.)
+    floorY = top + 0.02;
+  }
   const roofY = floorY + headroom;
   const wall = 0.06;
   // The house's shape (owner): the roof one flat slab reaching forward over the windows (the
@@ -396,6 +429,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     doorButtons: { x: 0.45, height: 1.1 },
     engineHatch: eh,
     ...(bowRamp ? { bowRamp } : {}),
+    ...(deckhouse ? { deckhouse } : {}),
     bulwarkHeight,
     railHeight: bulwarkHeight + 0.4,
     // The notch in the transom bulwark for a stern roller (set below if she has one).
@@ -414,6 +448,11 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   const keelMid = mid[2][1];
   const deckMid = mid[0][1];
   const cg: V3 = [0, keelMid + 0.63 * (deckMid - keelMid) + 0.15 * (headroom - 2.2) + 0.15 * (floorY - level), h.lcb];
+  // A deckhouse's plate, high up: her centre of gravity rises by its share of her weight
+  // times how far its own centre (halfway up it) is above hers. Her displacement is the
+  // same (she still floats on her lines: the rest of her is that much lighter).
+  const dhKg = dhArea * dhc.kgPerM2;
+  if (deckhouse) cg[1] += (dhKg / mass) * ((deckMid + deckhouse.top) / 2 + 0.2 - cg[1]);
   const beamDeck = 2 * Math.max(...st.map((s) => s.halfBeamDeck));
   const lengthM = transom - stem;
   const gyradius = { roll: 0.39 * beamDeck, pitch: 0.278 * lengthM, yaw: 0.29 * lengthM };
@@ -540,7 +579,10 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   ];
   const poleShape: Rect[] = [{ x0: -dp.box.width / 2 - 0.05, x1: dp.box.width / 2 + 0.05, z0: -0.12, z1: dp.box.depth + 0.45 }];
   // The house in plan with a margin, and its door's steps aft.
-  const houseRect: Rect = { x0: -hw - 0.3, x1: hw + 0.3, z0: front - 0.3, z1: aft + 0.7 };
+  const dhW = deckhouse ? Math.max(...deckhouse.plan.map(([, w]) => w)) : 0;
+  const houseRect: Rect = { x0: -Math.max(hw, dhW) - 0.3, x1: Math.max(hw, dhW) + 0.3, z0: (deckhouse ? Math.min(front, deckhouse.z0) : front) - 0.3, z1: aft + 0.7 };
+  /** The forward end of what stands on her deck amidships: the deckhouse's front, or the wheelhouse's. */
+  const foreEnd = deckhouse ? Math.min(front, deckhouse.z0) : front;
   const onDeck = (r: Rect) => r.z0 > bowClear && r.z1 < transom - 0.15 && [r.z0, r.z1].every((z) => Math.max(Math.abs(r.x0), Math.abs(r.x1)) <= q.halfBeam(z) - 0.15);
   const standsOnDeck = (rects: Rect[]) => rects.every((r) => onDeck(r) && !overlaps(r, houseRect) && !taken.some((o) => overlaps(o, r)));
   // The roof: its edges, the masthead light's pole and the horn, and what's already on it.
@@ -610,7 +652,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   }
   if (d.deckCrane && !craneAt) {
     const fore = d.deckCrane === 1;
-    const z = fore ? front - 0.9 : aft + 0.9;
+    const z = fore ? foreEnd - 0.9 : aft + 0.9;
     const x = (fore ? 1 : -1) * (q.halfBeam(z) - cr.edgeInset);
     // At the edge its post stands inboard; the aft one faces aft (its boom resting over the aft deck, not the house).
     const shape = craneShape(-Math.sign(x) * Math.abs(cr.post.x), (fore ? 1 : -1) * cr.post.z).map((r) => placeRect(r, x, z, 0));
@@ -649,7 +691,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   const poleFoot = (deck: number, side: number, what: string): V3 | null => {
     for (const step of [0, 1])
       for (const sd of [side, -side]) {
-        const z = deck === 1 ? front - dp.fromHouse - 0.85 * step : aft + dp.fromHouse + 0.85 * step;
+        const z = deck === 1 ? foreEnd - dp.fromHouse - 0.85 * step : aft + dp.fromHouse + 0.85 * step;
         const room = deck === 1 ? z - 0.2 > bowClear : z + dp.box.depth + 0.5 < transom - 0.2;
         const x = sd * (q.halfBeam(z) - dp.inset);
         if (!room || Math.abs(x) < 0.5) continue;
@@ -696,7 +738,8 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     // Up to the window band's top edge (the door's opening runs up through the band).
     const height = Math.min(2.0, windowHead - 0.04, roofY - F - 0.12);
     const deckOutside = q.halfBeam(z0 + sdc.width / 2) - hw;
-    if (zEnd - z0 < sdc.width) warnings.push(`Her wheelhouse is too short for a side door between the helm and ${chartTableAt ? 'the chart table' : 'the aft wall'}: left off.`);
+    if (deckhouse) warnings.push('The side door would open onto the deckhouse’s top, which isn’t walked yet: left off.');
+    else if (zEnd - z0 < sdc.width) warnings.push(`Her wheelhouse is too short for a side door between the helm and ${chartTableAt ? 'the chart table' : 'the aft wall'}: left off.`);
     else if (deckOutside < sdc.sideDeck) warnings.push('There\'s no side deck outside her wheelhouse to step out onto (a narrower house leaves one): the side door is left off.');
     else if (height < 1.7) warnings.push('Her wheelhouse is too low inside for a side door: left off.');
     else sideDoor = { z0: r2(z0), z1: r2(z0 + sdc.width), height: r2(height), buttonHeight: sdc.buttonHeight };
@@ -707,7 +750,8 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   const ringSide = d.lifeRing === 1 ? -1 : d.lifeRing === 2 ? 1 : 0;
   const ring = ringSide
     ? {
-        stow: [r2(ringSide * Math.max(0.75, hw - dg.ringFromCorner)), r2(F + 1.15), r2(aft + 0.06)] as V3,
+        // At hand height off the deck (on the deckhouse's aft face if she has one, the house's floor being up on it).
+        stow: [r2(ringSide * Math.max(0.75, hw - dg.ringFromCorner)), r2((deckhouse ? q.deckY(aft) : F) + 1.15), r2(aft + 0.06)] as V3,
         cleat: cleat(ringSide, sternCleat),
         hook: [r2(ringSide * (q.halfBeam(sternCleat - 1.2) - 0.08)), r2(q.deckY(sternCleat - 1.2) + bulwarkHeight - 0.05), r2(Math.max(aft + 0.2, sternCleat - 2.6)), r2(sternCleat - 0.3)] as [number, number, number, number],
       }
@@ -817,8 +861,8 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     resistance: { ...lc.resistance, lwl: Math.round(h.lwl * 100) / 100 },
     ...(base.planing ? { planing: lc.planing } : {}),
     windage: {
-      side: Math.round(lengthM * freeboard + houseL * (roofY + 0.3 - level)),
-      front: Math.round(beamDeck * freeboard + 2 * hw * (roofY + 0.3 - level)),
+      side: Math.round(lengthM * freeboard + houseL * (roofY + 0.3 - level) + (deckhouse ? (deckhouse.z1 - deckhouse.z0) * SCALES.dhHeight(d.dhHeight) : 0)),
+      front: Math.round(beamDeck * freeboard + 2 * hw * (roofY + 0.3 - level) + (deckhouse ? 2 * Math.max(0, dhW - hw) * SCALES.dhHeight(d.dhHeight) : 0)),
       center: [0, Math.round((freeboard + 0.4) * 100) / 100, Math.round(((front + aft) / 4) * 100) / 100],
     },
     layout,
@@ -971,7 +1015,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   if (craneAt || winchAt) recipe.modules.push({ socket: 'hydraulicPump', module: 'hydraulics.pto-pump' });
 
   const gp = dg.price;
-  const gearPrice = (winchAt ? gp.towWinch : 0) + (sternRoller ? gp.sternRoller : 0) + (aFrame ? gp.aFrame : 0) + (ring ? gp.lifeRing : 0) + (sideDoor ? gp.sideDoor : 0);
+  const gearPrice = (winchAt ? gp.towWinch : 0) + (sternRoller ? gp.sternRoller : 0) + (aFrame ? gp.aFrame : 0) + (ring ? gp.lifeRing : 0) + (sideDoor ? gp.sideDoor : 0) + dhArea * dhc.pricePerM2;
   const price = Math.round((mass * 6 + kw * n * 120 + (d.controls ? 18000 : 6000) + (craneAt ? 25000 : 0) + (hasMonitor ? 15000 : 0) + gearPrice) / 1000) * 1000;
   return {
     hull,
