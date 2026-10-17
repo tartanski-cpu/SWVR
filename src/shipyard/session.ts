@@ -22,6 +22,7 @@
  */
 import type { ClientTransport, HostTransport, Link } from '../net/transport';
 import type { ShipDesign } from './design';
+import { cleanNote, cleanNotes, dropNote, putNote, type Note } from './notes';
 
 /** One person in the session. */
 export interface Person {
@@ -39,6 +40,8 @@ export interface Person {
 export interface YardDoc {
   v: 1;
   design: ShipDesign;
+  /** Pins and marks on her (notes.ts); missing in copies saved before part 2. */
+  notes?: Note[];
 }
 
 /** A change to the design: some of its fields. The gearbox isn't shared (each browser matches its own). */
@@ -47,10 +50,14 @@ export type DesignPatch = Partial<ShipDesign>;
 type ToKeeper =
   | { t: 'hello'; name: string }
   | { t: 'set'; patch: DesignPatch }
+  | { t: 'note'; note: Note }
+  | { t: 'unnote'; id: string }
   | { t: 'me'; cursor?: Person['cursor']; holding?: Person['holding']; name?: string };
 type FromKeeper =
   | { t: 'welcome'; you: string; doc: YardDoc; people: Person[] }
   | { t: 'patch'; patch: DesignPatch; by: string }
+  | { t: 'note'; note: Note; by: string }
+  | { t: 'unnote'; id: string; by: string }
   | { t: 'people'; people: Person[] };
 
 /** Colours handed out in turn: clear on the page's pale blue and on the boat. */
@@ -81,17 +88,42 @@ export interface SessionEvents {
   onPeople: (people: Person[]) => void;
   /** The link to the keeper is gone (they left): the page takes over or reconnects. */
   onLost: (reason: string) => void;
+  /** The pins and marks changed (anyone's, or from joining). */
+  onNotes?: (notes: Note[]) => void;
 }
 
 /** Common to both sides: the copy of the design and the people. */
 abstract class Side {
   design: ShipDesign;
   people: Person[] = [];
+  /** Pins and marks on her (notes.ts). */
+  notes: Note[];
   /** This browser's person id. */
   me = '';
 
-  constructor(design: ShipDesign, protected readonly events: SessionEvents) {
+  constructor(design: ShipDesign, protected readonly events: SessionEvents, notes: Note[] = []) {
     this.design = { ...design };
+    this.notes = cleanNotes(notes);
+  }
+
+  /** Put a pin or mark (new, or changed: done, new text). */
+  abstract note(n: Note): void;
+  /** Take a pin or mark off. */
+  abstract unnote(id: string): void;
+
+  protected setNote(n: unknown): Note | null {
+    const clean = cleanNote(n);
+    if (!clean) return null;
+    this.notes = putNote(this.notes, clean);
+    this.events.onNotes?.(this.notes);
+    return clean;
+  }
+
+  protected removeNote(id: unknown): boolean {
+    if (typeof id !== 'string' || !this.notes.some((x) => x.id === id)) return false;
+    this.notes = dropNote(this.notes, id);
+    this.events.onNotes?.(this.notes);
+    return true;
   }
 
   /** Change the design here and share it. */
@@ -101,7 +133,7 @@ abstract class Side {
   abstract close(): void;
 
   doc(): YardDoc {
-    return { v: 1, design: { ...this.design } };
+    return { v: 1, design: { ...this.design }, notes: this.notes };
   }
 
   protected apply(patch: DesignPatch, by: string | null): void {
@@ -117,8 +149,8 @@ export class Keeper extends Side {
   private readonly links = new Map<string, { link: Link; person: Person }>();
   private n = 0;
 
-  constructor(design: ShipDesign, name: string, private readonly transport: HostTransport, events: SessionEvents) {
-    super(design, events);
+  constructor(design: ShipDesign, name: string, private readonly transport: HostTransport, events: SessionEvents, notes: Note[] = []) {
+    super(design, events, notes);
     this.me = 'p0';
     this.people = [{ id: this.me, name: cleanPersonName(name, 'Person 1'), colour: COLOURS[0], cursor: null, holding: null }];
     transport.onMessage = (link, msg) => this.receive(link, msg as ToKeeper);
@@ -154,6 +186,11 @@ export class Keeper extends Side {
       if (!Object.keys(clean).length) return;
       this.apply(clean, entry.person.id);
       this.broadcast({ t: 'patch', patch: clean, by: entry.person.id });
+    } else if (msg.t === 'note') {
+      const n = this.setNote(msg.note);
+      if (n) this.broadcast({ t: 'note', note: n, by: entry.person.id });
+    } else if (msg.t === 'unnote') {
+      if (this.removeNote(msg.id)) this.broadcast({ t: 'unnote', id: msg.id, by: entry.person.id });
     } else if (msg.t === 'me') {
       this.update(entry.person.id, msg);
     }
@@ -191,6 +228,15 @@ export class Keeper extends Side {
     this.update(this.me, update);
   }
 
+  note(n: Note): void {
+    const clean = this.setNote(n);
+    if (clean) this.broadcast({ t: 'note', note: clean, by: this.me });
+  }
+
+  unnote(id: string): void {
+    if (this.removeNote(id)) this.broadcast({ t: 'unnote', id, by: this.me });
+  }
+
   get count(): number {
     return this.people.length;
   }
@@ -207,6 +253,7 @@ export class Member extends Side {
 
   constructor(design: ShipDesign, name: string, private readonly transport: ClientTransport, events: SessionEvents) {
     super(design, events);
+    // Until welcomed, no notes: the session's replace this browser's own.
     transport.onOpen = () => transport.send({ t: 'hello', name } satisfies ToKeeper);
     transport.onMessage = (msg) => this.receive(msg as FromKeeper);
     transport.onClose = (reason) => events.onLost(reason);
@@ -221,11 +268,17 @@ export class Member extends Side {
       // The session's design replaces whatever this browser had.
       this.design = { ...this.design, ...cleanPatch(msg.doc?.design, this.design) };
       this.events.onDesign(this.design, cleanPatch(msg.doc?.design, this.design), null);
+      this.notes = cleanNotes(msg.doc?.notes);
+      this.events.onNotes?.(this.notes);
       this.events.onPeople(this.people);
     } else if (msg.t === 'patch') {
       // Our own change coming back: already applied here.
       if (msg.by === this.me) return;
       this.apply(msg.patch, msg.by);
+    } else if (msg.t === 'note') {
+      if (msg.by !== this.me) this.setNote(msg.note);
+    } else if (msg.t === 'unnote') {
+      if (msg.by !== this.me) this.removeNote(msg.id);
     } else if (msg.t === 'people') {
       this.people = msg.people;
       this.events.onPeople(this.people);
@@ -241,6 +294,15 @@ export class Member extends Side {
 
   presence(update: { cursor?: Person['cursor']; holding?: Person['holding']; name?: string }): void {
     this.transport.send({ t: 'me', ...update } satisfies ToKeeper);
+  }
+
+  note(n: Note): void {
+    const clean = this.setNote(n);
+    if (clean) this.transport.send({ t: 'note', note: clean } satisfies ToKeeper);
+  }
+
+  unnote(id: string): void {
+    if (this.removeNote(id)) this.transport.send({ t: 'unnote', id } satisfies ToKeeper);
   }
 
   close(): void {

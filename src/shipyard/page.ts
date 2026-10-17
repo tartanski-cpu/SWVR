@@ -24,6 +24,7 @@ import { decodeDesign, DEFAULT_DESIGN, encodeDesign, FIELDS, SCALES, type ShipDe
 import { UndoStack } from './undo';
 import { YardLink } from './yardLink';
 import { newSessionId, sessionIdFrom, type DesignPatch, type Person } from './session';
+import { cleanNotes, dropNote, fromFrac, noteId, putNote, toFrac, todo, type Frac, type Mark, type Note, type Pin } from './notes';
 import { addFavourite, cleanName, readFavourites, removeFavourite, writeFavourites, type Favourite, type Store } from './favourites';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -115,7 +116,14 @@ function drawBoat(): void {
   root.add(new BoatView('design', def, modules, true).root);
   scene.add(root);
   boatRoot = root;
+  // Her extent: the frame for pins and marks (hull fractions, notes.ts).
+  const box = new THREE.Box3().setFromObject(root);
+  hullMin = box.min.toArray();
+  hullMax = box.max.toArray();
+  if (typeof drawNotes === 'function') drawNotes();
 }
+let hullMin = [0, 0, 0];
+let hullMax = [1, 1, 1];
 
 // ── The controls ──
 const controls = $('controls');
@@ -541,12 +549,12 @@ function readSessionCopy(id: string): ShipDesign | null {
 let saveTimer = 0;
 /** Keep this browser's copy of the session (so a session with nobody in it is still there). */
 function saveSessionCopy(): void {
-  if (!sessionId) return;
-  const id = sessionId;
+  // On your own (no session), the pins and marks are kept too, under 'solo'.
+  const id = sessionId ?? 'solo';
   clearTimeout(saveTimer);
   saveTimer = window.setTimeout(() => {
     try {
-      storage()?.setItem(SESSION_KEY(id), JSON.stringify({ v: 1, design, savedAt: Date.now() }));
+      storage()?.setItem(SESSION_KEY(id), JSON.stringify({ v: 1, design, notes, savedAt: Date.now() }));
     } catch {
       /* storage full or off: the session still works, it just isn't kept here */
     }
@@ -564,11 +572,15 @@ let people: Person[] = [];
 const STATE_TEXT = { connecting: 'Connecting…', keeping: 'Open: you’re keeping this session', joined: 'Joined', offline: 'Can’t connect (check your internet); your changes are kept in this browser' };
 function startLink(id: string): void {
   link?.close();
-  link = new YardLink(id, ($('myName') as HTMLInputElement).value || 'Designer', () => design, {
+  link = new YardLink(id, ($('myName') as HTMLInputElement).value || 'Designer', () => design, () => notes, {
     onDesign: (_d, patch, by) => change(patch, people.find((p) => p.id === by) ?? null),
     onPeople: (p) => {
       people = p;
       showPeople();
+    },
+    onNotes: (n) => {
+      notes = n;
+      notesChanged();
     },
     onLost: () => ($('sessionState').textContent = 'The session’s keeper left: taking over…'),
     onState: (st) => ($('sessionState').textContent = STATE_TEXT[st]),
@@ -693,16 +705,245 @@ $('leaveSession').onclick = () => {
   people = [];
   sessionId = null;
   history.pushState(null, '', `${location.pathname}${location.hash}`);
+  saveSessionCopy(); // the notes stay with you, on your own
   $('sessionState').textContent = 'Left the session. Your copy of her stays here.';
   showPeople();
   showSession();
 };
+
+// ── Pins and marks (notes.ts): anyone's notes on her, and the to-do list ──
+/** This browser's copy of the notes kept under `id` ('solo' when designing alone). */
+function readNotesCopy(id: string): Note[] {
+  try {
+    return cleanNotes(JSON.parse(storage()?.getItem(SESSION_KEY(id)) ?? 'null')?.notes);
+  } catch {
+    return [];
+  }
+}
+let notes: Note[] = readNotesCopy(sessionId ?? 'solo');
+/** Who I am on a note: my name and colour (my session colour, or the first). */
+function author(): { by: string; colour: string } {
+  const me = people.find((p) => p.id === link?.side?.me);
+  return { by: me?.name ?? (($('myName') as HTMLInputElement).value.trim() || 'Me'), colour: me?.colour ?? '#d9622b' };
+}
+/** Put or change a note: shared in a session, else just here. */
+function putMyNote(n: Note): void {
+  if (link?.side) link.side.note(n);
+  else {
+    notes = putNote(notes, n);
+    notesChanged();
+  }
+}
+function dropMyNote(id: string): void {
+  if (link?.side) link.side.unnote(id);
+  else {
+    notes = dropNote(notes, id);
+    notesChanged();
+  }
+}
+function notesChanged(): void {
+  drawNotes();
+  showTodo();
+  saveSessionCopy();
+}
+const notesGroup = new THREE.Group();
+scene.add(notesGroup);
+const fracToVec = (f: Frac) => new THREE.Vector3(...fromFrac(f, hullMin, hullMax));
+/** The pins (numbered as on the list, in their author's colour; done ones faded) and the marks. */
+function drawNotes(): void {
+  for (const c of [...notesGroup.children]) {
+    notesGroup.remove(c);
+    c.traverse((o) => {
+      const m = o as THREE.Mesh;
+      m.geometry?.dispose();
+      const mat = m.material as THREE.SpriteMaterial | undefined;
+      mat?.map?.dispose();
+      mat?.dispose?.();
+    });
+  }
+  todo(notes).forEach((pin, i) => {
+    const at = fracToVec(pin.at);
+    const g = new THREE.Group();
+    g.position.copy(at);
+    const opacity = pin.done ? 0.35 : 1;
+    const head = pinHead(String(i + 1), pin.colour, opacity);
+    head.position.y = 0.45;
+    head.userData.pin = pin.id;
+    const stalk = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3(0, 0.33, 0)]), new THREE.LineBasicMaterial({ color: pin.colour, transparent: true, opacity, depthTest: false }));
+    const dot = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 6), new THREE.MeshBasicMaterial({ color: pin.colour, transparent: true, opacity, depthTest: false }));
+    for (const o of [head, stalk, dot]) o.renderOrder = 11;
+    g.add(stalk, dot, head);
+    notesGroup.add(g);
+  });
+  for (const n of notes) {
+    if (n.kind !== 'mark') continue;
+    const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(n.pts.map(fracToVec)), new THREE.LineBasicMaterial({ color: n.colour, depthTest: false }));
+    line.renderOrder = 11;
+    notesGroup.add(line);
+  }
+}
+/** A round pin head with its number. */
+function pinHead(label: string, colour: string, opacity: number): THREE.Sprite {
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const g = c.getContext('2d')!;
+  g.fillStyle = colour;
+  g.beginPath();
+  g.arc(32, 32, 28, 0, Math.PI * 2);
+  g.fill();
+  g.strokeStyle = '#fff';
+  g.lineWidth = 4;
+  g.stroke();
+  g.fillStyle = '#fff';
+  g.font = '700 30px system-ui, sans-serif';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText(label, 32, 34);
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), depthTest: false, transparent: true, opacity, toneMapped: false }));
+  s.scale.set(0.42, 0.42, 1);
+  return s;
+}
+/** The to-do list: open pins, then done ones; and the marks' count. */
+function showTodo(): void {
+  const list = todo(notes);
+  const marks = notes.filter((n): n is Mark => n.kind === 'mark');
+  const open = list.filter((p) => !p.done).length;
+  $('todoCount').textContent = list.length ? `${open} open, ${list.length - open} done` : '';
+  const box = $('todo');
+  box.innerHTML = list.length ? '' : '<div class="meta">No pins yet. Press 📍 Pin on the view and click her to put one, with a note.</div>';
+  list.forEach((p, i) => {
+    const row = document.createElement('div');
+    row.className = `todo${p.done ? ' done' : ''}`;
+    row.dataset.pin = p.id;
+    row.innerHTML = `<span class="badge" style="background:${p.colour}">${i + 1}</span><div><div class="text">${esc(p.text || '(no note)')}</div><div class="meta">${esc(p.by)}${p.done ? ` · done${p.doneBy ? ` by ${esc(p.doneBy)}` : ''}` : ''}</div></div><div class="acts"><button data-act="done">${p.done ? 'Reopen' : 'Done'}</button><button data-act="del" title="Delete">✕</button></div>`;
+    row.querySelector<HTMLElement>('.text')!.onclick = () => lookAt(fracToVec(p.at));
+    row.querySelector<HTMLElement>('[data-act=done]')!.onclick = () => putMyNote({ ...p, done: !p.done, ...(p.done ? { doneBy: undefined } : { doneBy: author().by }) });
+    row.querySelector<HTMLElement>('[data-act=del]')!.onclick = () => {
+      if (confirm(`Delete pin ${i + 1}${p.text ? `, “${p.text}”` : ''}?`)) dropMyNote(p.id);
+    };
+    box.appendChild(row);
+  });
+  $('marksLine').innerHTML = marks.length ? `${marks.length} mark${marks.length > 1 ? 's' : ''} drawn on her. <button id="undoMark">Remove my last</button> <button id="clearMarks">Clear all</button>` : '';
+  $('marksLine').querySelector<HTMLElement>('#undoMark')?.addEventListener('click', () => {
+    const mine = marks.filter((m) => m.by === author().by).sort((a, b) => a.t - b.t).pop();
+    if (mine) dropMyNote(mine.id);
+  });
+  $('marksLine').querySelector<HTMLElement>('#clearMarks')?.addEventListener('click', () => {
+    if (confirm('Clear everyone’s marks on her? (Pins stay.)')) for (const m of marks) dropMyNote(m.id);
+  });
+}
+/** Turn the view to look at a point on her, from where you are. */
+function lookAt(p: THREE.Vector3): void {
+  const back = camera.position.clone().sub(orbit.target).setLength(Math.max(4, 0.45 * L()));
+  orbit.target.copy(p);
+  camera.position.copy(p).add(back);
+  orbit.update();
+}
+// The tools on the view: 📍 Pin (click her, type a note) and ✏ Mark (draw on her).
+let tool: 'pin' | 'mark' | null = null;
+const toolBtns: Record<string, HTMLButtonElement> = {};
+for (const [t, label] of [['pin', '📍 Pin'], ['mark', '✏ Mark']] as const) {
+  const b = document.createElement('button');
+  b.textContent = label;
+  b.className = 'tool';
+  b.onclick = () => setTool(tool === t ? null : t);
+  toolBtns[t] = b;
+  $('views').appendChild(b);
+}
+function setTool(t: typeof tool): void {
+  tool = t;
+  orbit.enabled = !t;
+  for (const [k, b] of Object.entries(toolBtns)) b.classList.toggle('on', k === t);
+  renderer.domElement.style.cursor = t ? 'crosshair' : '';
+  $('toolHint').textContent = t === 'pin' ? 'Click on her where the pin goes' : t === 'mark' ? 'Draw on her; press ✏ Mark again to stop' : '';
+  if (t !== 'pin') ($('pinEditor') as HTMLElement).hidden = true;
+}
+const noteRay = new THREE.Raycaster();
+function hitBoat(e: PointerEvent): THREE.Vector3 | null {
+  if (!boatRoot) return null;
+  const r = renderer.domElement.getBoundingClientRect();
+  noteRay.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), camera);
+  return noteRay.intersectObject(boatRoot, true)[0]?.point ?? null;
+}
+let pendingPin: Frac | null = null;
+let stroke: THREE.Vector3[] | null = null;
+let strokeLine: THREE.Line | null = null;
+let downAt: { x: number; y: number } | null = null;
+renderer.domElement.addEventListener('pointerdown', (e) => {
+  downAt = { x: e.clientX, y: e.clientY };
+  if (!tool) return;
+  const hit = hitBoat(e);
+  if (tool === 'pin') {
+    if (!hit) return;
+    pendingPin = toFrac(hit.toArray(), hullMin, hullMax);
+    const ed = $('pinEditor');
+    const r = $('view').getBoundingClientRect();
+    ed.style.left = `${Math.min(r.width - 250, Math.max(8, e.clientX - r.left - 20))}px`;
+    ed.style.top = `${Math.min(r.height - 90, e.clientY - r.top + 14)}px`;
+    ed.hidden = false;
+    ($('pinText') as HTMLInputElement).value = '';
+    ($('pinText') as HTMLInputElement).focus();
+  } else if (tool === 'mark' && hit) {
+    stroke = [hit];
+    strokeLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints(stroke), new THREE.LineBasicMaterial({ color: author().colour, depthTest: false }));
+    strokeLine.renderOrder = 11;
+    scene.add(strokeLine);
+    renderer.domElement.setPointerCapture(e.pointerId);
+  }
+});
+renderer.domElement.addEventListener('pointermove', (e) => {
+  if (!stroke || !strokeLine) return;
+  const hit = hitBoat(e);
+  if (!hit || hit.distanceTo(stroke[stroke.length - 1]) < 0.04 || stroke.length >= 300) return;
+  stroke.push(hit);
+  strokeLine.geometry.dispose();
+  strokeLine.geometry = new THREE.BufferGeometry().setFromPoints(stroke);
+});
+renderer.domElement.addEventListener('pointerup', (e) => {
+  if (stroke && strokeLine) {
+    scene.remove(strokeLine);
+    strokeLine.geometry.dispose();
+    if (stroke.length >= 2) putMyNote({ id: noteId(link?.side?.me ?? ''), kind: 'mark', ...author(), t: Date.now(), pts: stroke.map((p) => toFrac(p.toArray(), hullMin, hullMax)) });
+    stroke = null;
+    strokeLine = null;
+    return;
+  }
+  // A click (not a drag) on a pin: show it on the list.
+  if (!tool && downAt && Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) < 5) {
+    const r = renderer.domElement.getBoundingClientRect();
+    noteRay.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), camera);
+    const id = noteRay.intersectObject(notesGroup, true).find((h) => h.object.userData.pin)?.object.userData.pin as string | undefined;
+    const row = id ? document.querySelector<HTMLElement>(`.todo[data-pin="${id}"]`) : null;
+    if (row) {
+      row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      row.classList.remove('flash');
+      void row.offsetWidth;
+      row.style.setProperty('--c', '#2f5d8a');
+      row.classList.add('flash');
+    }
+  }
+});
+function addPin(): void {
+  if (!pendingPin) return;
+  const text = ($('pinText') as HTMLInputElement).value;
+  putMyNote({ id: noteId(link?.side?.me ?? ''), kind: 'pin', ...author(), t: Date.now(), at: pendingPin, text: text.replace(/\s+/g, ' ').trim().slice(0, 140), done: false } satisfies Pin);
+  pendingPin = null;
+  setTool(null);
+}
+$('pinAdd').onclick = addPin;
+$('pinText').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') addPin();
+  if (e.key === 'Escape') setTool(null);
+});
+$('pinCancel').onclick = () => setTool(null);
 
 // Leaving the page frees the session's id at once, so someone else can take over (PeerJS
 // would otherwise hold it for up to a minute).
 window.addEventListener('pagehide', () => link?.close());
 
 // ── Start ──
+showTodo();
+drawNotes();
 showUndo();
 showSession();
 if (sessionId) {
@@ -728,4 +969,4 @@ function look(eye: [number, number, number], at: [number, number, number]): void
   orbit.target.set(...at);
   orbit.update();
 }
-(window as unknown as { shipyard: unknown }).shipyard = { get design() { return design; }, get boat() { return boat; }, get trial() { return trial; }, get people() { return people; }, get link() { return link; }, change, setView, look, undo: () => undoRedo(false), redo: () => undoRedo(true) };
+(window as unknown as { shipyard: unknown }).shipyard = { get design() { return design; }, get boat() { return boat; }, get trial() { return trial; }, get people() { return people; }, get notes() { return notes; }, putMyNote, hullFrac: () => [hullMin, hullMax], get link() { return link; }, change, setView, look, undo: () => undoRedo(false), redo: () => undoRedo(true) };

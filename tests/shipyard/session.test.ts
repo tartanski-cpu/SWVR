@@ -124,3 +124,36 @@ describe('undo', () => {
     expect(u.canUndo).toBe(false);
   });
 });
+
+describe('pins and marks', () => {
+  it('a pin put by one reaches everyone; done and deleted likewise; a joiner gets them', async () => {
+    const { host, keeper, amy, ben } = await session();
+    const pin = { id: 'a-1', kind: 'pin' as const, by: 'Amy', colour: '#2f8a4a', t: 1, at: [0.5, 0.9, 0.3] as [number, number, number], text: 'searchlight here', done: false };
+    amy.note(pin);
+    await tick();
+    expect(keeper.notes).toHaveLength(1);
+    expect(ben.notes[0]).toMatchObject({ text: 'searchlight here', done: false });
+    ben.note({ ...pin, done: true, doneBy: 'Ben' });
+    await tick();
+    expect(amy.notes[0]).toMatchObject({ done: true, doneBy: 'Ben' });
+    keeper.note({ id: 'k-1', kind: 'mark', by: 'Simon', colour: '#d9622b', t: 2, pts: [[0.1, 0.5, 0.5], [0.2, 0.5, 0.6]] });
+    await tick();
+    expect(ben.notes.map((n) => n.id)).toEqual(['a-1', 'k-1']);
+    const late = new Member({ ...DEFAULT_DESIGN }, 'Cat', host.client(), recorder().events);
+    await tick();
+    await tick();
+    expect(late.notes.map((n) => n.id)).toEqual(['a-1', 'k-1']);
+    amy.unnote('a-1');
+    await tick();
+    expect(keeper.notes.map((n) => n.id)).toEqual(['k-1']);
+    expect(late.notes.map((n) => n.id)).toEqual(['k-1']);
+  });
+
+  it('bad notes are refused', async () => {
+    const { keeper, amy } = await session();
+    amy.note({ id: 'x', kind: 'pin', by: 'A', colour: 'red', t: 1, at: [NaN, 0, 0], text: 'x', done: false });
+    amy.note({ id: 'y', kind: 'mark', by: 'A', colour: '#000000', t: 1, pts: [[0, 0, 0]] });
+    await tick();
+    expect(keeper.notes).toHaveLength(0);
+  });
+});

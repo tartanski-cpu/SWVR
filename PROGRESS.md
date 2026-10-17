@@ -3260,6 +3260,39 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   3. Close the first page: the second keeps going.
   4. Later, open the link again: the boat is there.
 
+### Shipyard: designing together, part 2: pins and marks, the to-do list (owner)
+
+- **The brief:** a drawing layer where anyone drops a pin with a short note, or scribbles a freehand mark. Pins and marks are stored in hull fractions, not pixels, so a note stays on the roof when the hull is stretched. A pin is a small task in a side list with its author: anyone can mark it done, and done pins fade.
+- **Data** (`src/shipyard/notes.ts`):
+  - **Pin:** `{ id, by, colour, t, at, text, done, doneBy? }`. **Mark:** `{ id, by, colour, t, pts }`, up to 300 points.
+  - **Positions:** each point is a fraction (0..1) of her 3D view's bounding box along her beam, height and length (`toFrac` / `fromFrac`). Stretch her, raise the house or widen her, and the note moves with the boat.
+  - **Limits:** at most 300 notes, 140 characters a note. Anything malformed is refused (`cleanNote`).
+- **Shared** (`session.ts`): new messages `note` (put a note whole, by id; the last change wins) and `unnote` (delete). They go through the keeper like design patches. Joiners get the notes with the design, and the keeper's copy goes over with a takeover (`yardLink.ts`). The session's saved copy now holds the notes too.
+- **On your own:** with no session, notes are kept in the browser under `swvr.yard.session.solo`. Leaving a session keeps that session's notes with you, on your own.
+- **On the page** (`page.ts`, `shipyard.html`):
+  - **Tools:** two new buttons on the 3D view, **📍 Pin** and **✏ Mark**. While one is on, the view doesn't turn, so the click or drag goes on the boat.
+  - **A pin:** click on her and a small box asks for the note (Enter adds it, Esc cancels). Pins show as numbered round heads on a short stalk, in the author's colour; done ones fade to 35 %.
+  - **A mark:** drag on her. The line follows her surface (raycast), in your colour.
+  - **To do** (results column, under her figures): open pins first, oldest first, then done ones crossed out. Each shows its number, note and author ("done by …"), with **Done** / **Reopen** and **✕** (asks first). Click a note to swing the view to its pin; click a pin on the view to find it in the list.
+  - **Marks:** a count, with **Remove my last** and **Clear all** (asks first; pins stay).
+- **Not yet:**
+  - linking a pin to the nearest module socket, and resolving it by dropping a module there, waits for modules on the Shipyard (stop 3; for now only the deck crane is a choice);
+  - editing a pin's text after it's placed;
+  - undo for notes (delete instead).
+- **Tests:**
+  - `tests/shipyard/notes.test.ts`: a roof pin stays on the roof when she's lengthened and the house raised; the list's order; replace by id; bad notes refused.
+  - `session.test.ts`: a pin reaches everyone; done and deleted reach everyone; a late joiner gets them; bad notes refused.
+- **Checked in headless Chromium over the real PeerJS broker**, two browsers:
+  - Amy, in Side view, clicked the wheelhouse with 📍 Pin and typed "Searchlight here". Simon drew a mark along the hull.
+  - Both saw both notes, and the pin was on Simon's To do.
+  - Simon lengthened her (9 m to 10.6 m), and the pin moved along with her (z −0.45 m to +0.30 m), staying on the house.
+  - Simon pressed Done, and Amy's list showed it faded and "done by Simon" (screenshots of both pages).
+- **Owner test:**
+  1. Open a session on two devices.
+  2. On one, press 📍 Pin, click the roof and type a note. On the other, draw a mark with ✏ Mark.
+  3. Change her length and house height: the notes stay put on her.
+  4. Mark the pin Done on the other device.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

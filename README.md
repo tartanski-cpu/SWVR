@@ -509,6 +509,8 @@ The page shows her in 3D (around her and at the helm), her figures and her sea t
 
 **Design together:** type your name and press **Design together**, then send friends the link (**Copy link**). Everyone who opens it edits the same boat, live: a change by anyone shows for everyone. Each person has a colour and a name tag; you see where the others are pointing on the boat, and a slider someone is dragging shows their colour and name. **Undo** (Ctrl+Z) and **Redo** (Ctrl+Shift+Z) take back your own changes. There's no server and no account: the browsers talk directly, and each keeps its own copy, so the link still opens the boat later (from the copy in your browser) even when nobody else is there.
 
+**Pins and marks:** press **📍 Pin** on the 3D view, click on her and type a note ("searchlight here"); or press **✏ Mark** and draw on her. Everyone in the session sees them, in each person's colour. Pins are the design's **To do** list (right-hand column, under her figures): click a note to look at its pin, **Done** when it's sorted (done pins fade), ✕ to delete. Pins and marks are stuck to her, not to the screen: stretch her and they stay on the same part of the boat. On your own (no session) they're kept in your browser.
+
 **Favourites:** name a design and **Save to favourites** to keep her in a list on the page, with a small picture and her figures: **Open** her again, **Try in game**, or **Delete**. Saving again under the same name updates it. The list is kept in this browser on this device (the Quest's browser and your desktop each have their own); to move a design between them, use its code.
 
 ## Local development

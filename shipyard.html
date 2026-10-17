@@ -79,6 +79,21 @@
       .row.held::after { content: attr(data-who); position: absolute; right: 0; top: -9px; font-size: 10px; line-height: 14px; padding: 0 5px; border-radius: 7px; color: #fff; background: var(--c); }
       @keyframes flash { from { box-shadow: 0 0 0 3px var(--c); } to { box-shadow: 0 0 0 3px transparent; } }
       .flash { animation: flash 1.5s ease-out; }
+      #views button.tool.on { background: #2f5d8a; color: #fff; border-color: #2f5d8a; }
+      #toolHint { position: absolute; top: 52px; left: 10px; font-size: 12px; color: #fff; text-shadow: 0 0 3px #000; pointer-events: none; }
+      #pinEditor { position: absolute; width: 240px; background: #f6f9fa; border-radius: 8px; padding: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.25); z-index: 3; }
+      #pinEditor input { width: 100%; box-sizing: border-box; font: inherit; padding: 5px; }
+      #todoCount { font-weight: 400; color: #567; text-transform: none; letter-spacing: 0; }
+      .todo { display: grid; grid-template-columns: 24px 1fr auto; gap: 8px; align-items: start; padding: 6px; margin: 4px 0; border: 1px solid #c4d2d8; border-radius: 8px; background: #fff; }
+      .todo .badge { width: 22px; height: 22px; border-radius: 50%; color: #fff; font-weight: 700; font-size: 12px; text-align: center; line-height: 22px; }
+      .todo .text { cursor: pointer; }
+      .todo .text:hover { text-decoration: underline; }
+      .todo .acts { display: flex; gap: 4px; }
+      .todo .acts button { padding: 2px 7px; font-size: 12px; }
+      .todo.done { opacity: 0.5; }
+      .todo.done .text { text-decoration: line-through; }
+      .meta { font-size: 12px; color: #567; }
+      #marksLine button { padding: 1px 6px; font-size: 12px; }
       .fav.current { border-color: #2f5d8a; box-shadow: inset 3px 0 0 #2f5d8a; }
       @media (max-width: 1199px) {
         body { grid-template-columns: 340px minmax(0, 1fr); grid-template-rows: 46% 54%; grid-template-areas: 'side view' 'side results'; }
@@ -111,6 +126,11 @@
     <div id="view">
       <div id="views"></div>
       <div id="quick"></div>
+      <div id="toolHint"></div>
+      <div id="pinEditor" hidden>
+        <input id="pinText" placeholder="Note, e.g. searchlight here" maxlength="140" />
+        <div class="tools"><button id="pinAdd" class="primary">Add pin</button><button id="pinCancel">Cancel</button></div>
+      </div>
     </div>
     <div id="results">
       <h2>Sea trial</h2>
@@ -119,6 +139,9 @@
       <h2>Her figures</h2>
       <table id="figures"></table>
       <div id="warnings"></div>
+      <h2>To do <span id="todoCount"></span></h2>
+      <div id="todo"></div>
+      <div id="marksLine" class="meta"></div>
       <h2>Her code</h2>
       <div id="code" class="pending">-----</div>
       <div class="tools">
