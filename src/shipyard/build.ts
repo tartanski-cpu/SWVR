@@ -442,7 +442,8 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     ...(bowRamp ? { bowRamp } : {}),
     ...(deckhouse ? { deckhouse } : {}),
     bulwarkHeight,
-    railHeight: bulwarkHeight + 0.4,
+    // Handrails 0.4 m over the bulwarks, or none (owner: an option; bulwarks only).
+    railHeight: d.rails ? 0 : bulwarkHeight + 0.4,
     // The notch in the transom bulwark for a stern roller (set below if she has one).
     fairleadGap: d.sternRoller ? CONFIG.vessels.workboat.layout.fairleadGap : 0,
     deckEdgeMargin: 0.25,

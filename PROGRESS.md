@@ -3865,6 +3865,18 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Checked in headless Chromium:** a pilot boat with a 3 m, 1.2 m high, full-width, 30°-raked deckhouse, and set in with 0.5 m side decks, upright: views from the bow, stern and port; the wheelhouse on top, the steps up aft, no warnings. Found and fixed on the way: its faces wound inside out (invisible from outside), and its foot showing through her topsides at the bow. **Not checked:** the Quest, a phone, walking up the steps into a raised helm in the game.
 - **Next, for bigger boats (tugs), noted:** the deckhouse top walkable with rails and a ladder or stairs (the walk area's floors and ladders already do this for the workboat's roof), and an interior with a door into it.
 
+### Shipyard: no handrails, and a flat view (owner)
+
+- **Rails** (Hull step, under Protection): **Handrails** (as every design had, 0.4 m over the bulwarks) or **None** (bulwarks only: `layout.railHeight` 0, which the hull drawing already supported for the towed boats).
+  - It's `design.rails`; version 13 of the code. It rides above hull protection in the code's extension, the way `guard` does above the deckhouse.
+  - So 0 (handrails) leaves every earlier code exactly as it was, and an older game reading a no-rails code says it's from a newer Shipyard.
+  - `tests/shipyard/rails.test.ts`.
+- **Flat view** (a toggle among the view buttons): no perspective, so parallel lines stay parallel, as on a drawing. Side gives an elevation, Plan a plan.
+  - How: an orthographic camera is drawn and picked with instead (pins work in it). It follows the perspective camera's direction, which the mouse still turns and zooms, and is as wide as that camera sees at the point it orbits, so switching keeps her the same size there.
+  - "At the helm" turns it off: from inside the house a flat view would look in through its back.
+- **Checked:** typecheck, tests (644), and screenshots: no rails from the bow quarter, the same in the flat view, and the flat side view.
+- **Not changed:** the trial or weight for rails (handrails are light; left as before).
+
 ### A light mast under the masthead light (owner)
 
 - **The owner noticed** the masthead light floating over the wheelhouse roof on every boat but the starting workboat, which has its signal mast. This was the landing craft and every Shipyard design: about 1.1 m up, on nothing.

@@ -29,7 +29,7 @@ import type { SeaTrialResults } from '../vessel/seaTrials';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 import { buildVesselMesh } from '../vessel/view/hullMesh';
 import { DESIGN_HULLS, ENGINES, LIVERIES, ROOF_PAINTS, type DesignedBoat } from './build';
-import { ALL_FIELDS, decodeDesign, DEFAULT_DESIGN, encodeDesign, GUARDS, placeOf, placeValue, SCALES, type PlaceKey, type ShipDesign } from './design';
+import { ALL_FIELDS, decodeDesign, DEFAULT_DESIGN, encodeDesign, GUARDS, RAILS, placeOf, placeValue, SCALES, type PlaceKey, type ShipDesign } from './design';
 import { hullPlan } from '../vessel/layout';
 import { UndoStack } from './undo';
 import { YardLink } from './yardLink';
@@ -119,6 +119,8 @@ const VIEWS: Record<string, () => { eye: [number, number, number]; at: [number, 
 };
 const L = () => boat.figures.lengthM;
 function setView(name: string): void {
+  // From the helm the flat view would look in through the house's back: perspective there.
+  if (name === 'At the helm' && flat) flatBtn.click();
   const v = VIEWS[name]();
   camera.position.set(...v.eye);
   orbit.target.set(...v.at);
@@ -130,6 +132,36 @@ for (const name of Object.keys(VIEWS)) {
   b.onclick = () => setView(name);
   $('views').appendChild(b);
 }
+// The flat view (owner: "a no perspective toggle"): an orthographic camera drawn instead,
+// kept looking the way the perspective one does (which the mouse still turns and zooms), and
+// as wide as it sees at the point it orbits, so switching keeps the boat the same size there.
+const flatCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.05, 2000);
+let flat = false;
+/** The camera to draw and pick with: the perspective one, or the flat one matched to it. */
+function viewCam(): THREE.Camera {
+  if (!flat) return camera;
+  const back = camera.position.clone().sub(orbit.target);
+  const h = back.length() * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+  flatCam.left = -h * camera.aspect;
+  flatCam.right = h * camera.aspect;
+  flatCam.top = h;
+  flatCam.bottom = -h;
+  // Stood well back along the same line, so nothing of her is behind it (its size doesn't change with distance).
+  flatCam.position.copy(orbit.target).add(back.setLength(back.length() + 100));
+  flatCam.quaternion.copy(camera.quaternion);
+  flatCam.updateProjectionMatrix();
+  flatCam.updateMatrixWorld();
+  return flatCam;
+}
+const flatBtn = document.createElement('button');
+flatBtn.textContent = 'Flat view';
+flatBtn.className = 'tool';
+flatBtn.title = 'No perspective: parallel lines stay parallel, as on a drawing (scroll to zoom)';
+flatBtn.onclick = () => {
+  flat = !flat;
+  flatBtn.classList.toggle('on', flat);
+};
+$('views').appendChild(flatBtn);
 const waterBtn = document.createElement('button');
 waterBtn.textContent = 'Water on/off';
 waterBtn.onclick = () => (water.visible = !water.visible);
@@ -280,6 +312,7 @@ slider('bow', 'Bow rake', (v) => (v === 0 ? 'plumb' : `${SCALES.bow(v)}\u00b0`))
   controls.append(h, p);
 }
 options('guard', 'Protection', [...GUARDS]);
+options('rails', 'Rails', [...RAILS]);
 section('2. Wheelhouse');
 slider('housePos', 'Position', (v) => (v === 0 ? 'right aft' : v === 15 ? 'right forward' : `${pct(SCALES.housePos(v))} fwd`));
 slider('houseLength', 'Length', (v) => `${SCALES.houseLength(v).toFixed(1)} m`);
@@ -596,7 +629,7 @@ const defaultName = () => brief.name || `${DESIGN_HULLS[design.hull].name.split(
 function picture(): string {
   const keep = { eye: camera.position.clone(), at: orbit.target.clone() };
   setView('Bow ¾');
-  renderer.render(scene, camera);
+  renderer.render(scene, viewCam());
   const small = document.createElement('canvas');
   small.width = 192;
   small.height = 120;
@@ -782,7 +815,7 @@ renderer.domElement.addEventListener('pointermove', (e) => {
   if (!link?.side || !boatRoot || performance.now() - cursorAt < 100) return;
   cursorAt = performance.now();
   const r = renderer.domElement.getBoundingClientRect();
-  cursorRay.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), camera);
+  cursorRay.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), viewCam());
   const hit = cursorRay.intersectObject(boatRoot, true)[0];
   link.side.presence({ cursor: hit ? [hit.point.x, hit.point.y, hit.point.z] : null });
 });
@@ -1004,7 +1037,7 @@ const noteRay = new THREE.Raycaster();
 function hitBoat(e: PointerEvent): THREE.Vector3 | null {
   if (!boatRoot) return null;
   const r = renderer.domElement.getBoundingClientRect();
-  noteRay.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), camera);
+  noteRay.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), viewCam());
   return noteRay.intersectObject(boatRoot, true)[0]?.point ?? null;
 }
 let pendingPin: Frac | null = null;
@@ -1032,7 +1065,7 @@ renderer.domElement.addEventListener('pointerup', (e) => {
   // A click (not a drag) on a pin: show it on the list.
   if (!tool && downAt && Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) < 5) {
     const r = renderer.domElement.getBoundingClientRect();
-    noteRay.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), camera);
+    noteRay.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), viewCam());
     const id = noteRay.intersectObject(notesGroup, true).find((h) => h.object.userData.pin)?.object.userData.pin as string | undefined;
     const row = id ? document.querySelector<HTMLElement>(`.todo[data-pin="${id}"]`) : null;
     if (row) {
@@ -1223,7 +1256,7 @@ function newSheet(fields: Pick<Sheet, 'title' | 'image' | 'aspect'>): string | n
 }
 /** ✏ Sketch: a snapshot of the view as it is (pins and all), to draw on. */
 function snapshotSheet(): void {
-  renderer.render(scene, camera);
+  renderer.render(scene, viewCam());
   const src = renderer.domElement;
   const w = Math.min(720, src.width);
   const h = Math.round((w * src.height) / src.width);
@@ -1902,7 +1935,7 @@ setView('Bow ¾');
 runTrial();
 renderer.setAnimationLoop(() => {
   orbit.update();
-  renderer.render(scene, camera);
+  renderer.render(scene, viewCam());
 });
 // For checking from a script (headless browser tests).
 /** For scripted checks (headless screenshots): aim the camera from `eye` at `at`. */

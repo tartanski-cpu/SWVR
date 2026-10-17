@@ -23,6 +23,8 @@
  * Version 12 (hull protection: fenders, a rubbing strake, tyres; owner) puts its choice above
  * the deckhouse's, the most significant of all: 0 (none) leaves every earlier code as it was,
  * and a boat with one adds a character or two.
+ * Version 13 (no handrails, owner) puts that choice above hull protection's, the same way:
+ * 0 (handrails, as every boat had) leaves every earlier code as it was.
  *
  * Version 9 (a chart table): 14 characters of choices (70 bits) and the check:
  * 15 characters. Its number is 2^69 + the choices' number. Read with none of version 10's gear.
@@ -58,8 +60,8 @@
  * Twin engines didn't fit in what was left of the 45 bits, so version 3 went to 11.
  */
 
-/** The building rules this code was made with (12: hull protection, in version 10's extension; 17 characters without it or a deckhouse). */
-export const DESIGN_VERSION = 12;
+/** The building rules this code was made with (13: no handrails; 12: hull protection; both in version 10's extension). */
+export const DESIGN_VERSION = 13;
 
 /** One choice: its index on its scale, 0 .. steps-1. */
 export interface ShipDesign {
@@ -137,6 +139,8 @@ export interface ShipDesign {
    * go over the side and come in again by hand.
    */
   guard: number;
+  /** Her deck edge (RAILS): 0 handrails on the bulwarks (as every boat had), 1 none (bulwarks only). */
+  rails: number;
   /** Front windows' rake (SCALES.windowRake): leaning aft (a fast patrol boat) .. upright .. leaning forward (a pilot house). */
   windowRake: number;
   /**
@@ -196,9 +200,9 @@ export function placeValue(key: PlaceKey, x: number, fromTransom: number, face =
 }
 
 /** Version 10's choices, which earlier versions read as none. */
-type V10Gear = 'towWinch' | 'sternRoller' | 'aFrame' | 'lifeRing' | 'sideDoor' | PlaceKey | DeckhouseKey | 'guard';
+type V10Gear = 'towWinch' | 'sternRoller' | 'aFrame' | 'lifeRing' | 'sideDoor' | PlaceKey | DeckhouseKey | 'guard' | 'rails';
 /** None of version 10's gear (what an older code reads as). */
-const NO_V10_GEAR: Pick<ShipDesign, V10Gear> = { towWinch: 0, sternRoller: 0, aFrame: 0, lifeRing: 0, sideDoor: 0, craneAt: 0, lampAt: 0, monitorAt: 0, winchAt: 0, dhLength: 0, dhHeight: 0, dhWidth: 0, dhRake: 0, guard: 0 };
+const NO_V10_GEAR: Pick<ShipDesign, V10Gear> = { towWinch: 0, sternRoller: 0, aFrame: 0, lifeRing: 0, sideDoor: 0, craneAt: 0, lampAt: 0, monitorAt: 0, winchAt: 0, dhLength: 0, dhHeight: 0, dhWidth: 0, dhRake: 0, guard: 0, rails: 0 };
 
 /** A design as earlier versions held it: a step-down floor or not, rather than its height and the house's shape. */
 export type OldDesign = Omit<ShipDesign, V10Gear | 'chartTable' | 'searchlight' | 'fireMonitor' | 'floor' | 'visor' | 'roofThickness' | 'roofEdge' | 'roofPaint' | 'deckCrane' | 'windowRake' | 'lowerFront'> & { sunk: number };
@@ -324,13 +328,16 @@ const DECKHOUSE_COMBINATIONS = DECKHOUSE_FIELDS.reduce((a, f) => a * BigInt(f.st
 export const GUARDS = ['None', 'Fenders', 'Rubbing strake', 'Tyres', 'Strake and fenders'] as const;
 /** Hull protection in the code's extension (version 12), above the deckhouse. */
 const GUARD_FIELD: { key: 'guard'; steps: number } = { key: 'guard', steps: GUARDS.length };
+/** Her deck edge's choices (design.rails), as the page names them. */
+export const RAILS = ['Handrails', 'None'] as const;
+const RAIL_FIELD: { key: 'rails'; steps: number } = { key: 'rails', steps: RAILS.length };
 /** What a guard choice fits: the crew's fenders, and a fixed strake or tyres. */
 export function guardParts(guard: number): { fenders: boolean; side: 'strake' | 'tyres' | null } {
   return { fenders: guard === 1 || guard === 4, side: guard === 2 || guard === 4 ? 'strake' : guard === 3 ? 'tyres' : null };
 }
 
 /** Every choice with its number of steps, the placed-by-hand ones, the deckhouse's and hull protection too (for checking and merging designs). */
-export const ALL_FIELDS: { key: keyof ShipDesign; steps: number }[] = [...FIELDS, ...PLACE_FIELDS, ...DECKHOUSE_FIELDS, GUARD_FIELD];
+export const ALL_FIELDS: { key: keyof ShipDesign; steps: number }[] = [...FIELDS, ...PLACE_FIELDS, ...DECKHOUSE_FIELDS, GUARD_FIELD, RAIL_FIELD];
 
 /** Version 1's choices, each in whole bits (for reading its codes). */
 const V1_FIELDS: { key: keyof OldDesign; bits: number; steps: number }[] = [
@@ -466,11 +473,13 @@ function write(all: bigint, count: number): string {
 /** The design as its code, e.g. 'K7P4Q-2ZX9D-MR3XA-7Q' (version 10, 17 characters; longer with gear placed by hand). */
 export function encodeDesign(d: ShipDesign): string {
   const base = pack(d, FIELDS);
-  // Hull protection first (most significant: 0 without any), the deckhouse (0 without one),
+  // No handrails first (most significant: 0 with them), hull protection (0 without any), the deckhouse (0 without one),
   // then each piece of gear placed by hand, then which are placed (least significant).
   const guard = d.guard ?? 0;
   if (!Number.isInteger(guard) || guard < 0 || guard >= GUARD_FIELD.steps) throw new Error(`design guard ${guard} is off its scale (0..${GUARD_FIELD.steps - 1})`);
-  let ext = BigInt(guard) * (DECKHOUSE_COMBINATIONS + 1n);
+  const rails = d.rails ?? 0;
+  if (!Number.isInteger(rails) || rails < 0 || rails >= RAIL_FIELD.steps) throw new Error(`design rails ${rails} is off its scale (0..${RAIL_FIELD.steps - 1})`);
+  let ext = (BigInt(rails) * BigInt(GUARD_FIELD.steps) + BigInt(guard)) * (DECKHOUSE_COMBINATIONS + 1n);
   if (d.dhLength) ext += 1n + pack(d, DECKHOUSE_FIELDS);
   let which = 0;
   PLACE_FIELDS.forEach((f, i) => {
@@ -488,8 +497,8 @@ export function encodeDesign(d: ShipDesign): string {
 }
 
 /** The placed-by-hand gear from a code's extension (the number after its first 16 characters). */
-function unpackPlaces(ext: bigint): Pick<ShipDesign, PlaceKey | DeckhouseKey | 'guard'> | { error: string } {
-  const out = { craneAt: 0, lampAt: 0, monitorAt: 0, winchAt: 0, dhLength: 0, dhHeight: 0, dhWidth: 0, dhRake: 0, guard: 0 };
+function unpackPlaces(ext: bigint): Pick<ShipDesign, PlaceKey | DeckhouseKey | 'guard' | 'rails'> | { error: string } {
+  const out = { craneAt: 0, lampAt: 0, monitorAt: 0, winchAt: 0, dhLength: 0, dhHeight: 0, dhWidth: 0, dhRake: 0, guard: 0, rails: 0 };
   const which = Number(ext & BigInt((1 << PLACE_FIELDS.length) - 1));
   let n = ext >> BigInt(PLACE_FIELDS.length);
   for (let i = PLACE_FIELDS.length - 1; i >= 0; i--) {
@@ -499,12 +508,15 @@ function unpackPlaces(ext: bigint): Pick<ShipDesign, PlaceKey | DeckhouseKey | '
     n /= BigInt(f.steps);
     if (!out[f.key]) return { error: 'that code is off the scales (no design has it)' };
   }
-  // What's left: hull protection over the deckhouse (each 0: none).
+  // What's left: no handrails over hull protection over the deckhouse (each 0: as before).
   if (n === 0n) return which ? out : { error: 'that code is off the scales (no design has it)' };
-  const guard = n / (DECKHOUSE_COMBINATIONS + 1n);
+  const top = n / (DECKHOUSE_COMBINATIONS + 1n);
   const dhPart = n % (DECKHOUSE_COMBINATIONS + 1n);
-  if (guard >= BigInt(GUARD_FIELD.steps)) return { error: `that code is from a newer Shipyard than this game (it reads versions 1 to ${DESIGN_VERSION})` };
+  const guard = top % BigInt(GUARD_FIELD.steps);
+  const rails = top / BigInt(GUARD_FIELD.steps);
+  if (rails >= BigInt(RAIL_FIELD.steps)) return { error: `that code is from a newer Shipyard than this game (it reads versions 1 to ${DESIGN_VERSION})` };
   out.guard = Number(guard);
+  out.rails = Number(rails);
   if (dhPart === 0n) return out;
   const dh = unpack<Pick<ShipDesign, DeckhouseKey>>(dhPart - 1n, DECKHOUSE_FIELDS);
   if (!('design' in dh) || !dh.design.dhLength) return { error: 'that code is off the scales (no design has it)' };
@@ -580,9 +592,9 @@ export function decodeDesign(code: string): { design: ShipDesign } | { error: st
     const extBits = BigInt(5 * (s.length - 17));
     const base = all >> extBits;
     if (base >= COMBINATIONS) return { error: `that code is from a newer Shipyard than this game (it reads versions 1 to ${DESIGN_VERSION})` };
-    const places = s.length > 17 ? unpackPlaces(all & ((1n << extBits) - 1n)) : { craneAt: 0, lampAt: 0, monitorAt: 0, winchAt: 0, dhLength: 0, dhHeight: 0, dhWidth: 0, dhRake: 0, guard: 0 };
+    const places = s.length > 17 ? unpackPlaces(all & ((1n << extBits) - 1n)) : { craneAt: 0, lampAt: 0, monitorAt: 0, winchAt: 0, dhLength: 0, dhHeight: 0, dhWidth: 0, dhRake: 0, guard: 0, rails: 0 };
     if ('error' in places) return places;
-    type Base = Omit<ShipDesign, PlaceKey | DeckhouseKey | 'guard'>;
+    type Base = Omit<ShipDesign, PlaceKey | DeckhouseKey | 'guard' | 'rails'>;
     const v10 = unpack<Base>(base, FIELDS as { key: keyof Base; steps: number }[]);
     return 'design' in v10 ? { design: { ...tidy(v10.design), ...places } } : v10;
   }
