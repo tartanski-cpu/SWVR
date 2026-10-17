@@ -79,8 +79,9 @@ On a touchscreen the game puts you at the helm with on-screen controls (hold the
   - **Board / Go ashore;**
   - **Start engine / Stop engine** (one press does the whole start-up);
   - **Cast off / Moor here;**
-  - **Menu.**
-- **Looking round:** drag a finger anywhere else.
+  - **Menu;**
+  - **Switch to** the other boat (starts again in her).
+- **Looking round:** drag one finger anywhere else on the screen.
 
 Tap once for sound. Add `?touch=1` to the address to try these controls on a computer, or `?touch=0` to hide them. Single player only on a phone for now.
 

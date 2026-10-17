@@ -109,7 +109,7 @@ import { vesselReadout } from '../debug/vesselReadout';
 import { countBoatParts } from '../debug/boatParts';
 import { assembleView } from '../modular/assemble';
 import { holdGroup } from '../modular/bus';
-import { LIBRARY, RECIPES } from '../boats/library';
+import { HULLS, LIBRARY, RECIPES } from '../boats/library';
 import { DesktopPointer } from './desktopPointer';
 import { setupXR, xrSessionInfo } from './xrSession';
 import { applyPlayerIntent } from '../player/playerControl';
@@ -136,6 +136,17 @@ const BATTERY_KEY = 'swvr.battery';
  * The boat the game starts in: the page's `?boat=` (Debug > Boat > Start in, modular boats
  * M7), a vessel type with a recipe and a cabin to work her from; else the workboat.
  */
+/** A fresh start in another boat (the page's `?boat=`, the rest of the address kept): a new world, her views and controls. */
+function restartIn(defId: string): void {
+  const url = new URL(location.href);
+  if (defId === 'workboat') url.searchParams.delete('boat');
+  else url.searchParams.set('boat', defId);
+  location.assign(url.toString());
+}
+
+/** The boats you can start in (a home boat needs a wheelhouse for now). */
+const START_BOATS = ['workboat', 'landingCraft'];
+
 function startBoat(): string | undefined {
   const id = new URLSearchParams(location.search).get('boat');
   return id && RECIPES[id] && VESSEL_DEFS[id] && hasWheelhouse(VESSEL_DEFS[id]) ? id : undefined;
@@ -1715,13 +1726,7 @@ export class App {
         this.overlay.notify(port.cargo.berth ? `${port.name}: at the cargo berth, make fast at the cleats` : `${port.name}: in the bay, let go the anchor`, 3);
       },
       homeBoat: () => this.world.vessels[this.testVesselId]?.defId ?? 'workboat',
-      setHomeBoat: (defId) => {
-        // A fresh start in her (the page's `?boat=`): a new world, her views and controls.
-        const url = new URL(location.href);
-        if (defId === 'workboat') url.searchParams.delete('boat');
-        else url.searchParams.set('boat', defId);
-        location.assign(url.toString());
-      },
+      setHomeBoat: (defId) => restartIn(defId),
       seaTrialsShown: () => this.trialsPanel.shown,
       toggleSeaTrials: () => this.toggleSeaTrials(),
       debugPanel: () => this.overlay.visible,
@@ -2712,6 +2717,14 @@ export class App {
           const v = boat();
           if (v) this.pushIntentTo(v.id, 'dock', 1);
         },
+        otherBoat: () => {
+          const next = this.nextStartBoat();
+          return next ? (HULLS.get(RECIPES[next].hull)?.name ?? next) : null;
+        },
+        switchBoat: () => {
+          const next = this.nextStartBoat();
+          if (next) restartIn(next);
+        },
         drive: (lever, helm) => this.driveTo(this.drivenVesselId(), lever, helm),
         reading: () => {
           const v = boat();
@@ -2724,6 +2737,15 @@ export class App {
       this.renderer.domElement,
     );
     this.boardOnStart = CONFIG.touch.startAboard;
+    this.desktop.noPointerLock = true;
+  }
+
+  /** The next boat to start in after the one you're in (the touch controls' switch). */
+  private nextStartBoat(): string | null {
+    const here = this.world.vessels[this.testVesselId]?.defId ?? 'workboat';
+    const i = START_BOATS.indexOf(here);
+    const next = START_BOATS[(i + 1) % START_BOATS.length];
+    return next !== here && RECIPES[next] ? next : null;
   }
 
   /** The workboat's tender (the first outboard boat), if any. */

@@ -10,7 +10,7 @@ import { CONFIG } from '../config';
  *   - a helm slider along the bottom right (port / starboard; it stays where you leave it,
  *     as a wheel does; MID puts it amidships);
  *   - buttons: board at the helm / go ashore, start / stop the engine in one press, cast off /
- *     moor (alongside a berth), the menu;
+ *     moor (alongside a berth), the menu, and start again in the other boat (for testing);
  *   - speed and rpm;
  *   - a finger dragged anywhere else turns your view.
  *
@@ -31,6 +31,9 @@ export interface TouchHost {
   dockLabel(): string | null;
   /** Cast off, or put her lines ashore. */
   dock(): void;
+  /** The other boat you can start in (her name), and starting the game again in her. */
+  otherBoat(): string | null;
+  switchBoat(): void;
   /** Set the lever (-1 astern .. 1 ahead) and the helm (-1 port .. 1 starboard); null leaves one as it is. */
   drive(lever: number | null, helm: number | null): void;
   /** Where her lever and helm are now, and her speed (kn) and rpm. */
@@ -96,7 +99,9 @@ export class TouchControls {
     this.boardBtn = this.button('Board', () => host.toggleBoard());
     this.engineBtn = this.button('Start engine', () => host.engine());
     this.dockBtn = this.button('Cast off', () => host.dock());
+    const other = host.otherBoat();
     buttons.append(this.boardBtn, this.engineBtn, this.dockBtn, this.button('Menu', () => host.menu()));
+    if (other) buttons.append(this.button(`Switch to ${other}`, () => host.switchBoat()));
 
     // Throttle: up is ahead.
     this.throttle.className = 'tc-track tc-throttle';
@@ -118,23 +123,30 @@ export class TouchControls {
     this.root.append(this.read, buttons, this.throttle, this.helm, mid);
     document.body.appendChild(this.root);
 
-    // A finger on the scene turns the view.
+    // One finger dragged anywhere but on these controls turns the view, from the first touch:
+    // no tap first. The page never scrolls or zooms under it (else the browser takes the
+    // drag for itself and cancels it), and whatever lies over the scene (a notice, the
+    // reticle) doesn't stop it: listened for on the whole page, not just the canvas.
+    document.documentElement.style.touchAction = 'none';
+    document.body.style.touchAction = 'none';
     canvas.style.touchAction = 'none';
-    const fingers = new Map<number, { x: number; y: number }>();
-    canvas.addEventListener('pointerdown', (e) => {
-      if (e.pointerType !== 'touch') return;
-      fingers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    let finger: { id: number; x: number; y: number } | null = null;
+    const onControls = (e: Event) => e.target instanceof Element && !!e.target.closest('.tc-btn, .tc-track');
+    document.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'mouse' || finger || onControls(e)) return;
+      finger = { id: e.pointerId, x: e.clientX, y: e.clientY };
     });
-    canvas.addEventListener('pointermove', (e) => {
-      const f = fingers.get(e.pointerId);
-      if (!f) return;
-      host.look(e.clientX - f.x, e.clientY - f.y);
-      f.x = e.clientX;
-      f.y = e.clientY;
+    document.addEventListener('pointermove', (e) => {
+      if (!finger || e.pointerId !== finger.id) return;
+      host.look(e.clientX - finger.x, e.clientY - finger.y);
+      finger.x = e.clientX;
+      finger.y = e.clientY;
     });
-    const up = (e: PointerEvent) => fingers.delete(e.pointerId);
-    canvas.addEventListener('pointerup', up);
-    canvas.addEventListener('pointercancel', up);
+    const up = (e: PointerEvent) => {
+      if (finger && e.pointerId === finger.id) finger = null;
+    };
+    document.addEventListener('pointerup', up);
+    document.addEventListener('pointercancel', up);
   }
 
   /** Refresh what they show (call every frame); hidden in VR. */

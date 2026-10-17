@@ -24,7 +24,12 @@ export class DesktopController {
     private readonly canvas: HTMLCanvasElement,
     private readonly keyboard: Keyboard,
   ) {
+    // A click captures the mouse; a tap on a touchscreen doesn't (there a finger drag turns
+    // the view instead, ui/touchControls.ts: captured, the drag went to the controls).
+    let touched = false;
+    canvas.addEventListener('pointerdown', (e) => (touched = e.pointerType !== 'mouse'));
     canvas.addEventListener('click', () => {
+      if (touched || this.noPointerLock) return;
       if (document.pointerLockElement !== canvas) canvas.requestPointerLock();
     });
     document.addEventListener('mousemove', (e) => {
@@ -37,6 +42,8 @@ export class DesktopController {
 
   /** Mouse-look speed factor (slower through the binoculars). */
   lookScale = 1;
+  /** Never capture the mouse (the touch controls are showing). */
+  noPointerLock = false;
 
   /** Turn the view by a drag of (dx, dy) screen pixels (a finger on a touchscreen: ui/touchControls.ts). */
   look(dx: number, dy: number, sensitivity: number): void {

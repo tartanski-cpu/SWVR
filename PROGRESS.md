@@ -2643,8 +2643,27 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
     4. Pull the throttle through neutral to astern.
     5. Stop the engine.
     
-    Try the landing craft too (Menu > Debug > Boat > Start in, if the menu works for you on the phone, or start it on a computer first: both addresses share the setting).
+    Try the landing craft too: the **Switch to** button (added after the first test, below).
   - **Desktop:** add `?touch=1` to the address to see the same controls and drive with the mouse.
+
+### Touch controls, after the owner's first phone test: panning, and switching boats (done, on /next/)
+
+- **What went wrong:** touching the middle of the screen "stole the cursor" and the view wouldn't pan. A tap on the scene asked the browser to capture the pointer (the desktop's mouse capture). Captured, the finger's drag went to the console controls under the centre reticle, not to the view. And the page could take a drag for itself as a scroll.
+- **Now:**
+  - a touch never captures the pointer;
+  - one finger dragged anywhere except on a button or slider turns the view, from the very first touch (no tap first), even if it starts on the speed readout or a notice;
+  - the page no longer scrolls or zooms under a finger.
+  
+  A mouse click on a desktop still captures the mouse as before.
+- **Switch boat:** a new button, **Switch to (the other boat)**, starts the game again in the workboat or the landing craft (the page's `?boat=`), at her helm. It's for testing.
+  - **Correction:** the boat you start in is in the page address, not stored. So https://tartanski-cpu.github.io/SWVR/next/?boat=landingCraft opens straight into her.
+- **Checked:** on the emulated phone, with real touch events:
+  - a drag straight after loading turns the view;
+  - a tap in the middle captures nothing, and a drag after it still pans;
+  - a drag starting on the readout pans;
+  - Switch reloads into the landing craft at her helm, with the button now offering the workboat.
+  
+  On the desktop, a click still captures the mouse. All 483 tests pass.
 
 ### Test address for work in progress (owner request)
 
