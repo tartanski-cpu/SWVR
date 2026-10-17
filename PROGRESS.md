@@ -3179,6 +3179,38 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   - in the headless browser, in a design moored at Calder Haven: started the engine, raised the boom, hooked a crate off the foredeck, swung it to starboard (she heeled about 1°), and landed it on the quay.
 - **Not done yet:** the tow winch, A-frame, net drum, windlass and tender crane are modules but drawn at the workboat's fixed places. Making them placeable is next.
 
+### Tow winch, stern roller and trawl A-frame: placeable modules (owner)
+
+- **The owner asked** for the trawl A-frame and the winch to be modularised next. They were modules already, but tied to the starting workboat's places. The owner also set this chat's scope: it makes, tests and tweaks modules; putting them on the Shipyard page is done in a separate chat.
+- **Tow winch (`deck.tow-winch`): now drawn and worked from its socket.**
+  - It goes on any `deck.equipment` socket, anywhere on deck, facing any way (the socket's rotation).
+  - Its axes are the socket's: the deck at y 0, the drum across x, the wire leaving aft (+z).
+  - It used to sit at the workboat's `towWinch.z` on the centreline whatever socket it was fitted to.
+  - Where the wire leaves the drum (the towing system's lead) and its footprint turn and move with it.
+  - Its config is its sizes only. `CONFIG.vessels.workboat.towWinch.z` is now just where the workboat's hull puts its socket.
+- **Stern roller (`deck.stern-roller`) and A-frame (`deck.a-frame`): stand at their socket.**
+  - They used to always find the hull's transom. They still fit themselves to the hull there: the roller at her deck height on the centreline, the A-frame's feet on her quarters at her beam and deck.
+  - So they fit any hull's stern.
+  - The A-frame's distances (`fishing.aFrame`: `footFromTransom`, `headAft`) are now measured from its socket. On the workboat that's still the transom.
+- **Framework:** a module's `footprints` now also gets `at` (its socket's place on the boat), like `gear` does. Boat-axes gear that stands where its socket is uses it.
+- **Unchanged:** the workboat (golden runs identical) and every other boat.
+- **For the Shipyard chat (fitting them to designs):**
+  - the winch: a `deck.equipment` socket on the deck, rotated as wanted;
+  - the stern roller and the A-frame: `stern.gantry` sockets at the transom;
+  - the trawl (`fishing.trawl`): any `deck.equipment` socket (nominal), with an A-frame on board;
+  - the winch and the trawl need deck hydraulics (`hydraulics.pto-pump` on an `engine.bay` socket) and the DECK HYD breaker;
+  - the TRAWL switch is a `control.toggle` bound to `trawl.shoot` on the console (the workboat's console has one);
+  - the hull needs a notch in her transom bulwark for the roller: `layout.fairleadGap` (the workboat's is 0.44 m);
+  - the A-frame needs about 1.4 m of aft deck for its braces, and the winch room to stand forward of it.
+- **Checked:**
+  - typecheck and all tests (566), including new `tests/modular/sternGear.test.ts`. It fits all four to the landing craft through sockets added for the test, and checks:
+    - a valid boat, with the lead, tow point and A-frame where the sockets and her hull put them;
+    - the winch turned on its socket turns its lead, footprint and drum;
+    - the controls are on her;
+    - she tows (the winch heaves the line in) and trawls (the net goes out) as the workboat does;
+  - screenshots in the headless browser, the sockets patched in by the browser only: the landing craft with the A-frame, roller and winch across the deck, and with the winch turned fore-and-aft.
+- **Not checked:** working them in VR on another boat (no boat in the game has them but the workboat yet).
+
 ### Searchlight and fire monitor: on the roof or on a deck pole (owner)
 
 - **The owner asked** for the fire monitor and the searchlight to be adaptive modules: on the wheelhouse roof just as they are on the starting boat, or on the working deck on a pole so they're high, with a joystick at the pole, and possibly one in the wheelhouse too.

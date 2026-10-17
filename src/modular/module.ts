@@ -60,9 +60,10 @@ export interface ModuleDefinition<Config = unknown, State = unknown> {
    * Where it stands solid on the boat, for walking and cargo (M5b): fixed boxes and discs in
    * the boat's axes, worked out from its config and the hull (deck gear draws in the boat's
    * axes too). Read by the simulation as well as the view (cargo placement is simulated).
-   * What moves with the bus (a table's leaf) is the view's `footprints` instead.
+   * What moves with the bus (a table's leaf) is the view's `footprints` instead. `at` takes a
+   * point in its socket's axes to the boat's (for boat-axes gear that stands where its socket is).
    */
-  footprints?(c: Config, hull: HullQueries): GearFootprint[];
+  footprints?(c: Config, hull: HullQueries, at: (local: readonly [number, number, number]) => [number, number, number]): GearFootprint[];
   /** Sockets it offers its own children (a console's slots, a mast's light). */
   sockets?(c: Config): Socket[];
   sim?: ModuleSim<Config, State>;

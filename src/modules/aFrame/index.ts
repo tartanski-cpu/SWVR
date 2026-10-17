@@ -5,9 +5,11 @@
  * PAY OUT and HAUL (hold to run) for working the net by hand. It gives the boat a trawl
  * gantry: where the blocks are, where the net's drag acts on her.
  *
- * Drawn in the boat's axes from the hull's beam, deck and transom (its defaults: the
- * figures in CONFIG.vessels.workboat.fishing.aFrame); the frame and the box are
- * merged with the boat's fixed parts, the button caps are shared parts.
+ * Drawn in the boat's axes, standing where its socket is (on the starting workboat, her
+ * transom), fitted to the hull there: its feet on the quarters at her beam and deck, so it
+ * fits any hull (its figures: CONFIG.vessels.workboat.fishing.aFrame, distances from its
+ * socket). The frame and the box are merged with the boat's fixed parts, the button caps
+ * are shared parts.
  */
 import * as THREE from 'three';
 import { CONFIG } from '../../config';
@@ -18,15 +20,15 @@ import { part } from '../../render/geometryUtils';
 
 export type AFrameConfig = typeof CONFIG.vessels.workboat.fishing.aFrame;
 
-/** Where the A-frame stands (the boat's axes), from the hull. */
-export function aFrameGeometry(a: AFrameConfig, hull: HullQueries): GearFacts['trawlGantry'] {
-  const footZ = hull.transom - a.footFromTransom;
+/** Where the A-frame stands (the boat's axes), from its socket's z (its stern line: the transom on the workboat) and the hull there. */
+export function aFrameGeometry(a: AFrameConfig, hull: HullQueries, sternZ: number): GearFacts['trawlGantry'] {
+  const footZ = sternZ - a.footFromTransom;
   const deck = hull.deckY(footZ);
   return {
     x: hull.halfBeam(footZ) - a.footInset,
     footZ,
     deck,
-    headZ: hull.transom + a.headAft,
+    headZ: sternZ + a.headAft,
     top: deck + a.height,
     blockX: a.blockX,
     braceZ: footZ - a.braceForward,
@@ -45,16 +47,16 @@ export const A_FRAME: ModuleDefinition<AFrameConfig> = {
     haul: { dir: 'write', key: 'net.haul' },
   },
   provides: () => [{ gear: 'trawlGantry' }],
-  gear: (c, hull) => ({ trawlGantry: aFrameGeometry(c, hull) }),
+  gear: (c, hull, at) => ({ trawlGantry: aFrameGeometry(c, hull, at([0, 0, 0])[2]) }),
   // The legs' feet and the braces' feet on the quarters, both sides.
-  footprints: (c, hull) => {
-    const af = aFrameGeometry(c, hull);
+  footprints: (c, hull, at) => {
+    const af = aFrameGeometry(c, hull, at([0, 0, 0])[2]);
     return [af.footZ, af.braceZ].flatMap((z) => [-1, 1].map((s) => ({ x: s * af.x, z, r: 0.12, top: af.top })));
   },
   view: {
     frame: 'boat',
-    build({ config, keys, hull, share }) {
-      const af = aFrameGeometry(config, hull);
+    build({ config, keys, hull, share, socket }) {
+      const af = aFrameGeometry(config, hull, socket.transform.position[2]);
       const RED = 0xb8261a;
       const parts: THREE.BufferGeometry[] = [];
       for (const s of [-1, 1]) {

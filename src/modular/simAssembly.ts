@@ -80,13 +80,13 @@ export function buildSimDef(recipe: Recipe, lib: { hulls: HullLibrary; modules: 
     const place = places.get(m.path)!;
     // Gear drawn in the boat's axes gives its footprints there; gear drawn from its socket
     // (placeable: the deck crane) gives them in its own axes, put onto the boat here.
-    const own = m.def.footprints?.(m.config, hull) ?? [];
-    footprints.push(...(m.def.view?.frame === 'boat' ? own : own.map((f) => placeFootprint(f, place))));
-    // The first module giving each kind of gear tells the world about it.
     const at = (p: readonly [number, number, number]): [number, number, number] => {
       const w = new THREE.Vector3(...p).applyMatrix4(place);
       return [w.x, w.y, w.z];
     };
+    const own = m.def.footprints?.(m.config, hull, at) ?? [];
+    footprints.push(...(m.def.view?.frame === 'boat' ? own : own.map((f) => placeFootprint(f, place))));
+    // The first module giving each kind of gear tells the world about it.
     const facts = m.def.gear?.(m.config, hull, at) ?? {};
     for (const k of Object.keys(facts) as GearKind[]) if (!(k in gear)) Object.assign(gear, { [k]: facts[k] });
     const roles = m.def.power?.(m.config) ?? [];
