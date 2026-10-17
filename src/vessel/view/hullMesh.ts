@@ -5,6 +5,7 @@ import type { Livery } from '../vesselDef';
 import { flatVertexColorMaterial, mergeParts, part } from '../../render/geometryUtils';
 import { CONFIG } from '../../config';
 import { paintIndex, type PaintName } from '../../render/pixelPaint';
+import type { HouseShape } from '../vesselDef';
 
 /** The workboat's livery, and every hull's for the parts her own (`Livery`) doesn't give. */
 const COLORS = {
@@ -52,11 +53,11 @@ const FRAME_PROUD = 0.004;
 /** A bow this wide at the stem (half-beam, m) is square (a landing bow): plated across, with a bulwark. */
 const SQUARE_BOW = 0.2;
 
-/** A layout with a wheelhouse (and its roof and ladder). */
-type HouseLayout = LayoutConfig & Required<Pick<LayoutConfig, 'wheelhouse' | 'roof' | 'ladder'>>;
+/** A layout with a wheelhouse (and its roof; a ladder up to it if it's walked). */
+type HouseLayout = LayoutConfig & Required<Pick<LayoutConfig, 'wheelhouse' | 'roof'>>;
 
 function hasHouse(layout: LayoutConfig): layout is HouseLayout {
-  return !!(layout.wheelhouse && layout.roof && layout.ladder);
+  return !!(layout.wheelhouse && layout.roof);
 }
 
 function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number, number, number] | undefined, col: Paint): THREE.BufferGeometry[] {
@@ -185,7 +186,12 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
     const plan = hullPlan({ hull: form });
     const deckLo = Math.min(...Array.from({ length: 9 }, (_, i) => plan.deckY(wh.front + ((wh.aft - wh.front) * i) / 8)));
     const low = Math.min(0.9, wh.floorY - 0.15);
-    parts.push(...buildWheelhouse(layout, col, sunk ? low : Math.max(low, deckLo - 0.06)));
+    const base = sunk ? low : Math.max(low, deckLo - 0.06);
+    parts.push(...(wh.shape ? buildShapedHouse(layout, col, base) : buildWheelhouse(layout, col, base)));
+    // Steps at the aft door: solid blocks up to each tread.
+    const d = wh.doorWidth / 2;
+    const foot = Math.min(wh.floorY, plan.deckY(wh.aft)) - 0.05;
+    for (const st of wh.steps ?? []) parts.push(box(-d, d, foot, st.y, st.z0, st.z1, col.deck, 'nonSlip'));
   }
   // Stepping down into a sunken cabin: the step's face, from the deck down to the door sill.
   if (sunk && layout.wheelhouse) {
@@ -374,12 +380,200 @@ export const JAMB = 0.16;
  * heights. Sill and head lines stay level, the glass and mullions lean forward. The rain
  * glass and the wipers (rainGlass.ts) use the same matrix, so they sit on the raked panes.
  */
-export function frontRake(wh: { floorY: number; windowSill: number; frontSill?: number; frontRakeDeg?: number }): { matrix: THREE.Matrix4; tan: number; sill: number } {
+export function frontRake(wh: { floorY: number; windowSill: number; frontSill?: number; frontRakeDeg?: number; shape?: HouseShape }): { matrix: THREE.Matrix4; tan: number; sill: number; ahead: number } {
   const sill = wh.floorY + (wh.frontSill ?? wh.windowSill);
   const tan = Math.tan(((wh.frontRakeDeg ?? 0) * Math.PI) / 180);
-  // z' = z - tan * (y - sill)
-  const matrix = new THREE.Matrix4().set(1, 0, 0, 0, 0, 1, 0, 0, 0, -tan, 1, tan * sill, 0, 0, 0, 1);
-  return { matrix, tan, sill };
+  // A shaped house's front below the windows leans forward, carrying their foot `ahead`.
+  const sh = wh.shape;
+  const ahead = sh ? Math.max(0, sill - sh.lowerFromY) * Math.tan((sh.lowerRakeDeg * Math.PI) / 180) : 0;
+  // z' = z - ahead - tan * (y - sill)
+  const matrix = new THREE.Matrix4().set(1, 0, 0, 0, 0, 1, 0, 0, 0, -tan, 1, tan * sill - ahead, 0, 0, 0, 1);
+  return { matrix, tan, sill, ahead };
+}
+
+/** A shear that leans what's above `y0` forward at `deg` from vertical (z' = z - tan (y - y0)). */
+function leanForward(deg: number, y0: number): THREE.Matrix4 {
+  const tan = Math.tan((deg * Math.PI) / 180);
+  return new THREE.Matrix4().set(1, 0, 0, 0, 0, 1, 0, 0, 0, -tan, 1, tan * y0, 0, 0, 0, 1);
+}
+
+/** A prism across x0..x1 whose section (in z, y) is the polygon `pts`: a wall panel of any outline. */
+function prism(x0: number, x1: number, pts: [number, number][], color: number): THREE.BufferGeometry {
+  const shape = new THREE.Shape(pts.map(([z, y]) => new THREE.Vector2(z, y)));
+  // Extruded along its own +z, then turned so that runs along -x and the shape's x is z (as wedge()).
+  const g = new THREE.ExtrudeGeometry(shape, { depth: x1 - x0, bevelEnabled: false }).rotateY(-Math.PI / 2).translate(x1, 0, 0);
+  return part(g, color);
+}
+
+/**
+ * A shaped wheelhouse (the Shipyard's, owner; its layout's `shape`): in profile, the front
+ * below the windows leans forward from `lowerFromY` up to the window band; the front windows
+ * rake either way (`frontRakeDeg`) from there; above them a header up to the roof, which
+ * rakes about the middle of the house and reaches forward of the windows' head as a visor.
+ * The side walls follow that profile at their front ends, so their windows are trapezoids.
+ * The side and aft windows start lower (windowSill) than the front's (frontSill, the dash
+ * top); between them at each front corner a black post. No roof rail or ladder: the roof
+ * isn't walked.
+ * Frames, the wood lining, the floor and the console are the box house's (buildWheelhouse).
+ */
+function buildShapedHouse(layout: HouseLayout, col: Paint, base: number): THREE.BufferGeometry[] {
+  const wh = layout.wheelhouse;
+  const sh = wh.shape!;
+  const parts: THREE.BufferGeometry[] = [];
+  const hw = wh.halfWidth;
+  const w = wh.wall;
+  const H = col.house;
+  const { FW, fbox, framed } = frameKit(col);
+  const zF = wh.front;
+  const zA = wh.aft;
+  const mid = (zF + zA) / 2;
+  const tanR = Math.tan((sh.roofRakeDeg * Math.PI) / 180);
+  /** The roof's underside at z (+ rake: rising forward). */
+  const roofAt = (z: number) => wh.roofY + (mid - z) * tanR;
+  const rake = frontRake(wh);
+  const raked = (g: THREE.BufferGeometry) => g.applyMatrix4(rake.matrix);
+  const S = rake.sill;
+  const sideS = Math.min(S, wh.floorY + wh.windowSill);
+  const head = wh.floorY + wh.windowHead;
+  // The lower front leans from L0 (no lower than the walls' foot) up to the sill.
+  const L0 = Math.max(base, Math.min(sh.lowerFromY, S));
+  const lean = leanForward(sh.lowerRakeDeg, L0);
+  const tanL = Math.tan((sh.lowerRakeDeg * Math.PI) / 180);
+  const zLow = (y: number) => zF - Math.max(0, y - L0) * tanL;
+  // The windows' foot and head, in z.
+  const zS = zF - rake.ahead;
+  const zH = zS - (head - S) * rake.tan;
+  const wallsFrom = parts.length;
+
+  // Front: below the windows (upright up to L0, leaning above it), the two mullions between
+  // the panes, and the header above them up to the roof.
+  if (L0 > base + 0.01) parts.push(box(-hw, hw, base, L0, zF, zF + w, H));
+  parts.push(...framed(-hw, hw, L0, S, zF, zF + w, 'top').map((g) => g.applyMatrix4(lean)));
+  for (const x of [-0.5, 0.5]) parts.push(raked(fbox(x - 0.04, x + 0.04, S, head, zF, zF + w)));
+  parts.push(...framed(-hw, hw, head, roofAt(zH) + 0.02, zH, zH + w, 'bottom'));
+
+  // Side walls: below the band, following the front's lower lean; the band's posts (the
+  // front one raked with the windows) and a mullion; above it, up to the raked roof.
+  const bandMid = ((zS + zH) / 2 + 0.1 + zA) / 2;
+  for (const s of [-1, 1]) {
+    const x0 = s > 0 ? hw - w : -hw;
+    const x1 = s > 0 ? hw : -hw + w;
+    const top = sideS - FW;
+    const low: [number, number][] = [[zA, base], [zA, top], [zLow(top), top], ...(top > L0 ? [[zF, L0] as [number, number]] : []), ...(L0 > base + 0.01 ? [[zF, base] as [number, number]] : [])];
+    parts.push(prism(x0, x1, low, H));
+    parts.push(fbox(x0, x1, top, sideS, zLow(sideS) + 0.1, zA));
+    // The front corner post: from the side windows' sill up to the front's, following the lean.
+    if (S > sideS + 0.01) parts.push(prism(x0 - FRAME_PROUD, x1 + FRAME_PROUD, [[zLow(top), top], [zLow(S), S], [zLow(S) + 0.1, S], [zLow(top) + 0.1, top]], col.frame));
+    parts.push(raked(fbox(x0, x1, S, head, zF, zF + 0.1)));
+    parts.push(fbox(x0, x1, sideS, head, zA - 0.1, zA));
+    parts.push(fbox(x0, x1, sideS, head, bandMid - 0.04, bandMid + 0.04));
+    parts.push(fbox(x0, x1, head, head + FW, zH, zA));
+    parts.push(prism(x0, x1, [[zH, head + FW], [zA, head + FW], [zA, roofAt(zA) + 0.02], [zH, roofAt(zH) + 0.02]], H));
+  }
+
+  // Aft wall: panels either side of the doorway, the band open, and a lintel up to the roof.
+  const door = wh.doorWidth / 2;
+  const roofAft = roofAt(zA) + 0.02;
+  for (const s of [-1, 1]) {
+    const [p0, p1] = s > 0 ? [door, hw] : [-hw, -door];
+    parts.push(box(p0, p1, base, sideS - FW, zA - w, zA, H), fbox(p0, p1, sideS - FW, sideS, zA - w, zA));
+    parts.push(box(p0, p1, head + FW, roofAft, zA - w, zA, H), fbox(p0, p1, head, head + FW, zA - w, zA));
+    const jx = s > 0 ? door : -door - JAMB;
+    parts.push(fbox(jx, jx + JAMB, sideS, head, zA - w, zA));
+  }
+  parts.push(box(-door, door, wh.floorY + wh.doorHeight, roofAft, zA - w, zA, H));
+  // The walls' inside faces: wood lining (pixel painting, owner).
+  const centre = new THREE.Vector3(0, 0, mid);
+  for (const g of parts.slice(wallsFrom)) lineInside(g, H, col.lining, centre);
+  // Door sill, floor, console.
+  parts.push(box(-door, door, base, wh.floorY + 0.02, zA - w, zA, col.floor));
+  buildFloor(layout, col, parts);
+  buildConsole(wh, col, parts);
+
+  // Roof: a slab from the visor's edge to aft of the house, raked about the middle; the wood
+  // ceiling just under it.
+  const rf = layout.roof;
+  const roofShear = new THREE.Matrix4().set(1, 0, 0, 0, 0, 1, -tanR, tanR * mid, 0, 0, 1, 0, 0, 0, 0, 1);
+  const ov = rf.overhang;
+  parts.push(box(-hw - ov, hw + ov, wh.roofY, wh.roofY + rf.thickness, zH - sh.visor, zA + ov, col.roof).applyMatrix4(roofShear));
+  parts.push(box(-hw + w, hw - w, wh.roofY - 0.012, wh.roofY, Math.max(zF, zH) + w, zA - w, col.lining, 'wood').applyMatrix4(roofShear));
+  return parts;
+}
+
+/**
+ * Window frames (pixel painting, owner): a black band round the glass, as its own strip of
+ * wall (crisper than a painted line, and it costs a box): along the top of the panels below
+ * the glass and the bottom of those above it; the mullions and posts between panes are black.
+ */
+function frameKit(col: Paint) {
+  const H = col.house;
+  const F = col.frame;
+  const FW = CONFIG.pixelPaint.frameWidth;
+  /**
+   * A frame piece: 4 mm proud of the wall all round. Where it overlaps a wall panel (a corner
+   * post over the front wall's end) their faces would otherwise share a plane and flicker
+   * between black and white (z-fighting, owner).
+   */
+  function fbox(x0: number, x1: number, y0: number, y1: number, z0: number, z1: number): THREE.BufferGeometry {
+    const e = FRAME_PROUD;
+    return box(Math.min(x0, x1) - e, Math.max(x0, x1) + e, y0 - e, y1 + e, Math.min(z0, z1) - e, Math.max(z0, z1) + e, F);
+  }
+  /** A wall panel with the frame along its top edge (under the glass) or its bottom (over it); `solid` is a stretch of z with wall, not glass, beside that edge. */
+  const framed = (x0: number, x1: number, y0: number, y1: number, z0: number, z1: number, edge: 'top' | 'bottom', solid?: [number, number]): THREE.BufferGeometry[] => {
+    if (y1 - y0 <= 2 * FW) return [fbox(x0, x1, y0, y1, z0, z1)];
+    const [b0, b1] = edge === 'top' ? [y1 - FW, y1] : [y0, y0 + FW];
+    const out = [edge === 'top' ? box(x0, x1, y0, b0, z0, z1, H) : box(x0, x1, b1, y1, z0, z1, H)];
+    // The band, in H where there's wall beside it instead of glass.
+    const s0 = solid ? Math.max(z0, Math.min(z1, solid[0])) : z0;
+    const s1 = solid ? Math.max(z0, Math.min(z1, solid[1])) : z0;
+    if (s0 > z0) out.push(fbox(x0, x1, b0, b1, z0, s0));
+    if (s1 > s0) out.push(box(x0, x1, b0, b1, s0, s1, H));
+    if (z1 > s1) out.push(fbox(x0, x1, b0, b1, s1, z1));
+    return out;
+  };
+  return { F, FW, fbox, framed };
+}
+
+/** The wheelhouse floor, round the engine hatch's opening if she has one, and the engine space under it. */
+function buildFloor(layout: HouseLayout, col: Paint, parts: THREE.BufferGeometry[]): void {
+  const wh = layout.wheelhouse;
+  const hw = wh.halfWidth;
+  const w = wh.wall;
+  const eh = layout.engineHatch;
+  const fx0 = -hw + w;
+  const fx1 = hw - w;
+  const fz0 = wh.front + w;
+  const fz1 = wh.aft - w;
+  const fy0 = wh.floorY - 0.1;
+  if (eh) {
+    parts.push(box(fx0, eh.x0, fy0, wh.floorY, fz0, fz1, col.floor, 'mat'));
+    parts.push(box(eh.x1, fx1, fy0, wh.floorY, fz0, fz1, col.floor, 'mat'));
+    parts.push(box(eh.x0, eh.x1, fy0, wh.floorY, fz0, eh.z0, col.floor, 'mat'));
+    parts.push(box(eh.x0, eh.x1, fy0, wh.floorY, eh.z1, fz1, col.floor, 'mat'));
+    // Engine space: four walls and a floor, painted light grey (an engine room's white-ish paint).
+    const pit = wh.floorY - eh.pitDepth;
+    const t = 0.03;
+    parts.push(box(eh.x0 - t, eh.x1 + t, pit - t, pit, eh.z0 - t, eh.z1 + t, 0x5a6066));
+    parts.push(box(eh.x0 - t, eh.x0, pit, fy0, eh.z0, eh.z1, 0xb8bcb8));
+    parts.push(box(eh.x1, eh.x1 + t, pit, fy0, eh.z0, eh.z1, 0xb8bcb8));
+    parts.push(box(eh.x0 - t, eh.x1 + t, pit, fy0, eh.z0 - t, eh.z0, 0xb8bcb8));
+    parts.push(box(eh.x0 - t, eh.x1 + t, pit, fy0, eh.z1, eh.z1 + t, 0xb8bcb8));
+    // A steel coaming round the opening, flush with the floor.
+    parts.push(box(eh.x0 - 0.03, eh.x1 + 0.03, wh.floorY - 0.004, wh.floorY + 0.004, eh.z0 - 0.03, eh.z0, 0x8a9096));
+    parts.push(box(eh.x0 - 0.03, eh.x1 + 0.03, wh.floorY - 0.004, wh.floorY + 0.004, eh.z1, eh.z1 + 0.03, 0x8a9096));
+  } else parts.push(box(fx0, fx1, fy0, wh.floorY, fz0, fz1, col.floor, 'mat'));
+}
+
+/** Helm console across the front: body, sloping top (approximated by a step), panel face. */
+function buildConsole(wh: HouseLayout['wheelhouse'], col: Paint, parts: THREE.BufferGeometry[]): void {
+  const hw = wh.halfWidth;
+  const w = wh.wall;
+  const c0 = wh.front + w;
+  const c1 = c0 + wh.consoleDepth;
+  const cTop = wh.floorY + wh.consoleHeight;
+  parts.push(box(-hw + w, hw - w, wh.floorY, cTop, c0, c1, col.console));
+  parts.push(box(-hw + w, hw - w, cTop, cTop + 0.12, c0, c0 + wh.consoleDepth * 0.45, col.console));
+  parts.push(box(-hw + w + 0.05, hw - w - 0.05, cTop - 0.01, cTop + 0.005, c0 + wh.consoleDepth * 0.45, c1 - 0.03, col.panel));
 }
 
 /**
@@ -396,33 +590,7 @@ function buildWheelhouse(layout: HouseLayout, col: Paint, base: number): THREE.B
   const head = wh.floorY + wh.windowHead;
   const roof = wh.roofY;
   const H = col.house;
-  // Window frames (pixel painting, owner): a black band round the glass, as its own strip of
-  // wall (crisper than a painted line, and it costs a box): along the top of the panels below
-  // the glass and the bottom of those above it; the mullions and posts between panes are black.
-  const F = col.frame;
-  const FW = CONFIG.pixelPaint.frameWidth;
-  /** A wall panel with the frame along its top edge (under the glass) or its bottom (over it); `solid` is a stretch of z with wall, not glass, beside that edge. */
-  const framed = (x0: number, x1: number, y0: number, y1: number, z0: number, z1: number, edge: 'top' | 'bottom', solid?: [number, number]): THREE.BufferGeometry[] => {
-    if (y1 - y0 <= 2 * FW) return [fbox(x0, x1, y0, y1, z0, z1)];
-    const [b0, b1] = edge === 'top' ? [y1 - FW, y1] : [y0, y0 + FW];
-    const out = [edge === 'top' ? box(x0, x1, y0, b0, z0, z1, H) : box(x0, x1, b1, y1, z0, z1, H)];
-    // The band, in H where there's wall beside it instead of glass.
-    const s0 = solid ? Math.max(z0, Math.min(z1, solid[0])) : z0;
-    const s1 = solid ? Math.max(z0, Math.min(z1, solid[1])) : z0;
-    if (s0 > z0) out.push(fbox(x0, x1, b0, b1, z0, s0));
-    if (s1 > s0) out.push(box(x0, x1, b0, b1, s0, s1, H));
-    if (z1 > s1) out.push(fbox(x0, x1, b0, b1, s1, z1));
-    return out;
-  };
-  /**
-   * A frame piece: 4 mm proud of the wall all round. Where it overlaps a wall panel (a corner
-   * post over the front wall's end) their faces would otherwise share a plane and flicker
-   * between black and white (z-fighting, owner).
-   */
-  function fbox(x0: number, x1: number, y0: number, y1: number, z0: number, z1: number): THREE.BufferGeometry {
-    const e = FRAME_PROUD;
-    return box(Math.min(x0, x1) - e, Math.max(x0, x1) + e, y0 - e, y1 + e, Math.min(z0, z1) - e, Math.max(z0, z1) + e, F);
-  }
+  const { FW, fbox, framed } = frameKit(col);
   // Everything from here to the floor is the house's walls: lined with wood inside (below).
   const wallsFrom = parts.length;
 
@@ -510,31 +678,8 @@ function buildWheelhouse(layout: HouseLayout, col: Paint, base: number): THREE.B
   // Door sill.
   parts.push(box(-door, door, base, wh.floorY + 0.02, wh.aft - w, wh.aft, col.floor));
 
-  // Floor and roof.
-  // The floor, round the engine hatch's opening if she has one, and the engine space under it.
-  const eh = layout.engineHatch;
-  const fx0 = -hw + w;
-  const fx1 = hw - w;
-  const fz0 = wh.front + w;
-  const fz1 = wh.aft - w;
-  const fy0 = wh.floorY - 0.1;
-  if (eh) {
-    parts.push(box(fx0, eh.x0, fy0, wh.floorY, fz0, fz1, col.floor, 'mat'));
-    parts.push(box(eh.x1, fx1, fy0, wh.floorY, fz0, fz1, col.floor, 'mat'));
-    parts.push(box(eh.x0, eh.x1, fy0, wh.floorY, fz0, eh.z0, col.floor, 'mat'));
-    parts.push(box(eh.x0, eh.x1, fy0, wh.floorY, eh.z1, fz1, col.floor, 'mat'));
-    // Engine space: four walls and a floor, painted light grey (an engine room's white-ish paint).
-    const pit = wh.floorY - eh.pitDepth;
-    const t = 0.03;
-    parts.push(box(eh.x0 - t, eh.x1 + t, pit - t, pit, eh.z0 - t, eh.z1 + t, 0x5a6066));
-    parts.push(box(eh.x0 - t, eh.x0, pit, fy0, eh.z0, eh.z1, 0xb8bcb8));
-    parts.push(box(eh.x1, eh.x1 + t, pit, fy0, eh.z0, eh.z1, 0xb8bcb8));
-    parts.push(box(eh.x0 - t, eh.x1 + t, pit, fy0, eh.z0 - t, eh.z0, 0xb8bcb8));
-    parts.push(box(eh.x0 - t, eh.x1 + t, pit, fy0, eh.z1, eh.z1 + t, 0xb8bcb8));
-    // A steel coaming round the opening, flush with the floor.
-    parts.push(box(eh.x0 - 0.03, eh.x1 + 0.03, wh.floorY - 0.004, wh.floorY + 0.004, eh.z0 - 0.03, eh.z0, 0x8a9096));
-    parts.push(box(eh.x0 - 0.03, eh.x1 + 0.03, wh.floorY - 0.004, wh.floorY + 0.004, eh.z1, eh.z1 + 0.03, 0x8a9096));
-  } else parts.push(box(fx0, fx1, fy0, wh.floorY, fz0, fz1, col.floor, 'mat'));
+  buildFloor(layout, col, parts);
+  buildConsole(wh, col, parts);
   const rf = layout.roof;
   const top = roof + rf.thickness;
   const ov = rf.overhang;
@@ -545,6 +690,7 @@ function buildWheelhouse(layout: HouseLayout, col: Paint, base: number): THREE.B
 
   // Roof rail (posts + top rail), open at the ladder head on the aft edge.
   const lad = layout.ladder;
+  if (!lad) return parts;
   const rx = hw + ov - 0.04;
   const z0 = wh.front - ov + 0.04;
   const z1 = wh.aft + ov - 0.04;
@@ -571,13 +717,6 @@ function buildWheelhouse(layout: HouseLayout, col: Paint, base: number): THREE.B
     parts.push(bar(new THREE.Vector3(lad.x - sx, y, lz), new THREE.Vector3(lad.x + sx, y, lz), 0.035, 0.035, col.rail));
   }
 
-  // Helm console across the front: body, sloping top (approximated by a step), panel face.
-  const c0 = wh.front + w;
-  const c1 = c0 + wh.consoleDepth;
-  const cTop = wh.floorY + wh.consoleHeight;
-  parts.push(box(-hw + w, hw - w, wh.floorY, cTop, c0, c1, col.console));
-  parts.push(box(-hw + w, hw - w, cTop, cTop + 0.12, c0, c0 + wh.consoleDepth * 0.45, col.console));
-  parts.push(box(-hw + w + 0.05, hw - w - 0.05, cTop - 0.01, cTop + 0.005, c0 + wh.consoleDepth * 0.45, c1 - 0.03, col.panel));
   return parts;
 }
 

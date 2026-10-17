@@ -27,7 +27,7 @@ import { inertiaFromGyradius, lightshipOf } from '../modular/massProperties';
 import type { Mount, Recipe } from '../modular/recipe';
 import type { Socket } from '../modular/socket';
 import type { HullForm } from '../vessel/hullForm';
-import type { LayoutConfig, Livery } from '../vessel/vesselDef';
+import type { DoorStep, HouseShape, LayoutConfig, Livery } from '../vessel/vesselDef';
 import { BREAKERS } from '../vessel/vesselState';
 import { SCALES, type ShipDesign } from './design';
 
@@ -123,7 +123,7 @@ export const DESIGN_HULLS: DesignHull[] = [
     ramp: true,
     cockpit: 1.0,
     foredeck: 1.6,
-    defaults: { length: 8, beam: 8, depth: 8, bulwark: 2, bow: 2, housePos: 4, houseLength: 2, houseWidth: 7, headroom: 3, sunk: 1, engine: 1, twin: 0 },
+    defaults: { length: 8, beam: 8, depth: 8, bulwark: 2, bow: 2, housePos: 4, houseLength: 2, houseWidth: 7, headroom: 3, floor: 2, visor: 1, roofRake: 2, windowRake: 4, lowerFront: 0, engine: 1, twin: 0 },
   },
   {
     name: 'Gillnetter: 9.75 m, beamy and shallow, flat open foredeck',
@@ -133,7 +133,7 @@ export const DESIGN_HULLS: DesignHull[] = [
     cockpit: 1.0,
     foredeck: 1.5,
     // A bowpicker: the house right aft, the open foredeck for the net reel.
-    defaults: { length: 8, beam: 8, depth: 8, bulwark: 3, bow: 2, housePos: 0, houseLength: 6, houseWidth: 7, headroom: 3, sunk: 0, engine: 1, twin: 0 },
+    defaults: { length: 8, beam: 8, depth: 8, bulwark: 3, bow: 2, housePos: 0, houseLength: 6, houseWidth: 7, headroom: 3, floor: 3, visor: 1, roofRake: 2, windowRake: 4, lowerFront: 0, engine: 1, twin: 0 },
   },
   {
     name: 'Workboat: 12 m semi-displacement, hard chine, fine entry',
@@ -149,7 +149,7 @@ export const DESIGN_HULLS: DesignHull[] = [
     cockpit: 1.5,
     foredeck: 2.0,
     // As the game's workboat: the house a little forward of amidships, her working deck aft.
-    defaults: { length: 8, beam: 8, depth: 8, bulwark: 2, bow: 1, housePos: 9, houseLength: 5, houseWidth: 7, headroom: 3, sunk: 0, engine: 2, twin: 0 },
+    defaults: { length: 8, beam: 8, depth: 8, bulwark: 2, bow: 1, housePos: 9, houseLength: 5, houseWidth: 7, headroom: 3, floor: 3, visor: 2, roofRake: 2, windowRake: 6, lowerFront: 0, engine: 2, twin: 0 },
   },
   // New hull types go on the end: a design's code holds its hull's place in this list.
   {
@@ -161,7 +161,7 @@ export const DESIGN_HULLS: DesignHull[] = [
     foredeck: 2.6,
     // A pilot / crew boat: a long house amidships with walkaround side decks (the Targa and
     // Safehaven types), low bulwarks, a well-raked stem, twin engines.
-    defaults: { length: 8, beam: 8, depth: 8, bulwark: 0, bow: 4, housePos: 9, houseLength: 12, houseWidth: 6, headroom: 3, sunk: 0, engine: 2, twin: 1, paint: 1 },
+    defaults: { length: 8, beam: 8, depth: 8, bulwark: 0, bow: 4, housePos: 9, houseLength: 12, houseWidth: 6, headroom: 3, floor: 3, visor: 2, roofRake: 3, windowRake: 6, lowerFront: 0, engine: 2, twin: 1, paint: 1 },
   },
 ];
 
@@ -188,7 +188,8 @@ export const LIVERIES: { name: string; livery: Livery }[] = [
 export interface DesignedBoat {
   hull: HullDefinition;
   recipe: Recipe;
-  figures: { lengthM: number; beamM: number; massT: number; draughtM: number; gmM: number; propellerM: number; gear: number; engine: string; price: number };
+  /** floorM: the cabin floor about the deck under the house (as built: a fine hull can bring a low one up). */
+  figures: { lengthM: number; beamM: number; massT: number; draughtM: number; gmM: number; propellerM: number; gear: number; engine: string; price: number; floorM: number };
   warnings: string[];
 }
 
@@ -304,22 +305,49 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   const deckHi = Math.max(...along(8).map((z) => q.deckY(z)));
   const deckLo = Math.min(...along(8).map((z) => q.deckY(z)));
   const headroom = SCALES.headroom(d.headroom);
-  // A step-down floor needs her hull at least as wide as the house down at that floor (its
-  // walls go down to it); in a fine entry it isn't, and the floor stays level.
-  let sunk = !!d.sunk;
-  if (sunk) {
-    const y = deckLo - 0.19 - 0.15;
-    const tightest = Math.min(...along(8).map((z) => halfBreadthAt(st.reduce((a, s) => (Math.abs(s.z - z) < Math.abs(a.z - z) ? s : a)).polygon, y)));
-    if (tightest < hw + 0.02) {
-      sunk = false;
-      warnings.push('Her hull is too fine under the wheelhouse to step down into it: its floor is kept level with the deck.');
-    }
+  // The floor (owner: the house's height, to see over a bow or a ramp): raised from the
+  // highest deck under the house, or sunk from the lowest (a step down in, for headroom).
+  // A floor below the deck needs her hull at least as wide as the house down there (its
+  // walls go down to it); in a fine entry it isn't, and the floor comes up until it is.
+  const lift = SCALES.floor(d.floor);
+  const level = deckHi + 0.03;
+  let floorY = lift >= 0 ? level + lift : Math.min(level, deckLo + 0.01 + lift);
+  const tightAt = (y: number) => Math.min(...along(8).map((z) => halfBreadthAt(st.reduce((a, s) => (Math.abs(s.z - z) < Math.abs(a.z - z) ? s : a)).polygon, y)));
+  if (floorY < level && tightAt(floorY - 0.15) < hw + 0.02) {
+    while (floorY < level && tightAt(floorY - 0.15) < hw + 0.02) floorY = Math.min(level, floorY + 0.2);
+    warnings.push(`Her hull is too fine under the wheelhouse for its floor that low: raised to ${(floorY - level).toFixed(1)} m about the deck.`);
   }
-  const floorY = sunk ? deckLo - 0.19 : deckHi + 0.03;
   const roofY = floorY + headroom;
   const wall = 0.06;
-  // The engine under a hatch in the cabin floor, aft to starboard.
-  const eh = { x0: 0.15, x1: Math.min(0.85, hw - 0.2), z0: aft - 1.125, z1: aft - 0.325, pitDepth: 0.75 };
+  // The house's shape (owner): the roof raked about the middle of the house and reaching
+  // forward over the windows (the visor), the front windows raked either way, the front
+  // below them leaning forward.
+  const tanR = Math.tan((SCALES.roofRake(d.roofRake) * Math.PI) / 180);
+  const roofAt = (z: number) => roofY + ((front + aft) / 2 - z) * tanR;
+  const sill = 1.31; // the front glass's, level with the dash top; the sides' and aft's 1.0
+  const windowHead = Math.min(1.95, headroom - 0.2, roofAt(front) - floorY - 0.2, roofAt(aft) - floorY - 0.2);
+  const doorHeight = Math.min(1.95, headroom - 0.1, roofAt(aft) - floorY - 0.1);
+  const house: HouseShape = { lowerRakeDeg: SCALES.lowerFront(d.lowerFront), lowerFromY: Math.min(q.deckY(front), floorY), roofRakeDeg: SCALES.roofRake(d.roofRake), visor: SCALES.visor(d.visor) };
+  const windowRake = SCALES.windowRake(d.windowRake);
+  // Where the front windows' foot and head stand (z), as hullMesh draws them.
+  const ahead = Math.max(0, floorY + sill - house.lowerFromY) * Math.tan((house.lowerRakeDeg * Math.PI) / 180);
+  const zHead = front - ahead - (windowHead - sill) * Math.tan((windowRake * Math.PI) / 180);
+  if (Math.min(roofAt(front), roofAt(aft)) - floorY < 1.85) warnings.push('Her roof rake leaves little headroom at its low end: give her more headroom or less rake.');
+  // Steps at the aft door, no rise over 0.35 m (a player steps up 0.4): outside for a
+  // raised floor, inside for a deep sunk one.
+  const doorDeck = q.deckY(aft + 0.15);
+  const rise = floorY - doorDeck;
+  const nSteps = Math.max(0, Math.ceil(Math.abs(rise) / 0.35) - 1);
+  const tread = 0.28;
+  const steps: DoorStep[] = Array.from({ length: nSteps }, (_, i) => {
+    const k = i + 1; // 1: the lowest step; nSteps: the highest, at the door
+    const y = Math.min(floorY, doorDeck) + (Math.abs(rise) * k) / (nSteps + 1);
+    const out = nSteps - k; // treads between it and the door
+    return rise > 0 ? { y, z0: aft + out * tread, z1: aft + (out + 1) * tread } : { y, z0: aft - wall - (out + 1) * tread, z1: aft - wall - out * tread };
+  });
+  // The engine under a hatch in the cabin floor, aft to starboard (forward of any steps inside).
+  const inside = rise < 0 ? nSteps * tread : 0;
+  const eh = { x0: 0.15, x1: Math.min(0.85, hw - 0.2), z0: aft - 1.125 - inside, z1: aft - 0.325 - inside, pitDepth: 0.75 };
   const hatchZ = (eh.z0 + eh.z1) / 2;
   // The engine space goes no deeper than her bottom allows under the whole hatch: her vee
   // rises from the keel out to the chine, so its corners (out at the hatch's sides) are
@@ -330,7 +358,10 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   eh.pitDepth = Math.min(0.75, floorY - bottomUnder - 0.08);
   if (eh.pitDepth < 0.55) warnings.push(`There's only ${(eh.pitDepth * 100).toFixed(0)} cm under the cabin floor for the engine (it wants 55): raise the floor or deepen her.`);
   const F = floorY;
-  const roofTop = roofY + 0.1;
+  /** The roof's top at z. */
+  const roofTopAt = (z: number) => roofAt(z) + 0.1;
+  // On the roof, forward: clear of its front edge (the visor's) whichever way the windows rake.
+  const roofFront = Math.max(front, zHead - house.visor);
 
   // Her bow ramp (the landing craft's), across her square bow.
   const bowHalf = st[st.length - 1].halfBeamDeck;
@@ -338,9 +369,9 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   const bowRamp = base.ramp ? { ...lcRamp, width: Math.round(2 * (bowHalf - 0.08) * 100) / 100, ram: { ...lcRamp.ram, x: Math.round((bowHalf - 0.07) * 100) / 100 }, button: { z: stem + 0.8, y: 0.42 } } : undefined;
 
   const layout = {
-    wheelhouse: { halfWidth: hw, front, aft, floorY, roofY, wall, doorWidth: 0.7, doorHeight: Math.min(1.95, headroom - 0.1), windowSill: 0.95, windowHead: Math.min(1.95, headroom - 0.2), frontSill: 1.31, consoleDepth: 0.5, consoleHeight: 0.9 },
-    roof: { thickness: 0.1, overhang: 0.15, railHeight: 0.6, edgeMargin: 0.25 },
-    ladder: { x: hw - 0.33, width: 0.4, depth: 0.45 },
+    // No roof rail or ladder (owner: simpler): the roof isn't walked.
+    wheelhouse: { halfWidth: hw, front, aft, floorY, roofY, wall, doorWidth: 0.7, doorHeight, windowSill: 1.0, windowHead, frontSill: sill, frontRakeDeg: windowRake, consoleDepth: 0.5, consoleHeight: 0.9, shape: house, ...(steps.length ? { steps } : {}) },
+    roof: { thickness: 0.1, overhang: 0.15, railHeight: 0, edgeMargin: 0.25 },
     doorButtons: { x: 0.45, height: 1.1 },
     engineHatch: eh,
     ...(bowRamp ? { bowRamp } : {}),
@@ -360,7 +391,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   const mid = st.reduce((a, s) => (Math.abs(s.z - h.lcb) < Math.abs(a.z - h.lcb) ? s : a)).polygon;
   const keelMid = mid[2][1];
   const deckMid = mid[0][1];
-  const cg: V3 = [0, keelMid + 0.63 * (deckMid - keelMid) + 0.15 * (headroom - 2.2), h.lcb];
+  const cg: V3 = [0, keelMid + 0.63 * (deckMid - keelMid) + 0.15 * (headroom - 2.2) + 0.15 * (floorY - level), h.lcb];
   const beamDeck = 2 * Math.max(...st.map((s) => s.halfBeamDeck));
   const lengthM = transom - stem;
   const gyradius = { roll: 0.39 * beamDeck, pitch: 0.278 * lengthM, yaw: 0.29 * lengthM };
@@ -404,12 +435,12 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     rampButton: [-(hw - 0.07), F + 0.73, front + 0.775] as V3,
     batteryMaster: [hw - 0.45, F + 0.48, aft - 0.065] as V3,
     batterySelector: [hw - 0.2, F + 0.48, aft - 0.065] as V3,
-    vhf: [-(hw - 0.3), roofY - 0.17, front + 0.525] as V3,
+    vhf: [-(hw - 0.3), roofAt(front + 0.525) - 0.17, front + 0.525] as V3,
     engineBed: [(eh.x0 + eh.x1) / 2, F - 0.35, hatchZ] as V3,
     engineSpace: [-0.2, F - 0.47, hatchZ] as V3,
     cabinLight: [0, roofY - 0.12, (front + aft) / 2 + 0.15] as V3,
-    searchlight: [0, roofTop + 0.13, front + 0.275] as V3,
-    navLights: [0, roofTop, front + 1.275] as V3,
+    searchlight: [0, roofTopAt(roofFront + 0.275) + 0.13, roofFront + 0.275] as V3,
+    navLights: [0, roofTopAt(roofFront + 1.275), roofFront + 1.275] as V3,
   };
   const bowCleat = stem + 0.5;
   const sternCleat = transom - 0.4;
@@ -444,7 +475,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     { id: 'cabinLight', type: 'cabin.overhead', transform: { position: at.cabinLight }, label: 'Cabin ceiling' },
     { id: 'searchlight', type: 'roof.mount', transform: { position: at.searchlight }, label: 'Cabin roof, forward' },
     { id: 'navLights', type: 'hull.light', transform: { position: at.navLights }, label: 'Cabin roof: the navigation lights' },
-    { id: 'horn', type: 'roof.mount', transform: { position: [0, roofTop, front + 0.775] }, label: 'Cabin roof (nominal)' },
+    { id: 'horn', type: 'roof.mount', transform: { position: [0, roofTopAt(roofFront + 0.775), roofFront + 0.775] }, label: 'Cabin roof (nominal)' },
     { id: 'wipers', type: 'window.wiper', transform: { position: [0, roofY - 0.2, front] }, label: 'Over the front windows (nominal)' },
     { id: 'cleatFwdPort', type: 'deck.fitting', transform: { position: cleat(-1, bowCleat) }, label: 'Bulwark top, forward, port' },
     { id: 'cleatFwdStbd', type: 'deck.fitting', transform: { position: cleat(1, bowCleat) }, label: 'Bulwark top, forward, starboard' },
@@ -476,8 +507,8 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     resistance: { ...lc.resistance, lwl: Math.round(h.lwl * 100) / 100 },
     ...(base.planing ? { planing: lc.planing } : {}),
     windage: {
-      side: Math.round(lengthM * freeboard + houseL * (headroom + 0.3)),
-      front: Math.round(beamDeck * freeboard + 2 * hw * (headroom + 0.3)),
+      side: Math.round(lengthM * freeboard + houseL * (roofY + 0.3 - level)),
+      front: Math.round(beamDeck * freeboard + 2 * hw * (roofY + 0.3 - level)),
       center: [0, Math.round((freeboard + 0.4) * 100) / 100, Math.round(((front + aft) / 4) * 100) / 100],
     },
     layout,
@@ -540,7 +571,13 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   }
   bySocket(recipe.modules, 'searchlight')!.config = { position: at.searchlight };
   bySocket(recipe.modules, 'navLights')!.config = {
-    lights: { masthead: [0, roofTop + 1.1, front + 0.475], port: [-(hw + 0.03), roofY - 0.15, front + 0.175], starboard: [hw + 0.03, roofY - 0.15, front + 0.175], stern: [0, q.deckY(transom) + 0.6, transom - 0.05] },
+    lights: {
+      masthead: [0, roofTopAt(roofFront + 0.475) + 1.1, roofFront + 0.475],
+      // The sidelights on the house sides, above the windows, just aft of the header.
+      port: [-(hw + 0.03), roofAt(Math.max(front, zHead) + 0.175) - 0.15, Math.max(front, zHead) + 0.175],
+      starboard: [hw + 0.03, roofAt(Math.max(front, zHead) + 0.175) - 0.15, Math.max(front, zHead) + 0.175],
+      stern: [0, q.deckY(transom) + 0.6, transom - 0.05],
+    },
   };
   // The console, laid out across her cabin: the landing craft's dash, widened or narrowed.
   const consoleMount = bySocket(recipe.modules, 'helm')!;
@@ -565,7 +602,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   return {
     hull,
     recipe,
-    figures: { lengthM, beamM: beamDeck, massT: mass / 1000, draughtM: -Math.min(...st.map((s) => s.polygon[2][1])), gmM: gm, propellerM: propD, gear, engine: twin ? `Twin ${eng.name}` : eng.name, price },
+    figures: { lengthM, beamM: beamDeck, massT: mass / 1000, draughtM: -Math.min(...st.map((s) => s.polygon[2][1])), gmM: gm, propellerM: propD, gear, engine: twin ? `Twin ${eng.name}` : eng.name, price, floorM: Math.round((floorY - level) * 100) / 100 },
     warnings,
   };
 }

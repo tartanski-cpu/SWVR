@@ -122,7 +122,7 @@ function openDeckWalkArea(def: VesselDef, layout: LayoutConfig): WalkArea {
  *              kept clear of on deck and roof
  */
 export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: readonly GearFootprint[] = []): WalkArea {
-  if (!layout.wheelhouse || !layout.roof || !layout.ladder) return openDeckWalkArea(def, layout);
+  if (!layout.wheelhouse || !layout.roof) return openDeckWalkArea(def, layout);
   const wh = layout.wheelhouse;
   const r = layout.bodyRadius;
   const st = def.hull.stations;
@@ -130,13 +130,18 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: reado
   const deckHalfBeam = (z: number) => stationLerp(def, z, (i) => st[i].halfBeamDeck);
   const deckY = (z: number) => stationLerp(def, z, (i) => st[i].polygon[0][1]);
 
-  // Wheelhouse boxes (x is symmetric about the centreline).
-  const ext = { x: wh.halfWidth, z0: wh.front, z1: wh.aft };
+  // Wheelhouse boxes (x is symmetric about the centreline). A shaped house's front below the
+  // windows leans forward (to the windows' foot): the deck is kept clear of all of it.
+  const sh = wh.shape;
+  const ahead = sh ? Math.max(0, wh.floorY + (wh.frontSill ?? wh.windowSill) - sh.lowerFromY) * Math.tan((sh.lowerRakeDeg * Math.PI) / 180) : 0;
+  const ext = { x: wh.halfWidth, z0: wh.front - ahead, z1: wh.aft };
   const int = { x: wh.halfWidth - wh.wall, z0: wh.front + wh.wall, z1: wh.aft - wh.wall };
   const consoleAft = int.z0 + wh.consoleDepth;
   const doorHalf = wh.doorWidth / 2;
   const sd = wh.sideDoor;
   const inHouseFootprint = (x: number, z: number) => Math.abs(x) <= ext.x && z >= ext.z0 && z <= ext.z1;
+  // A floor sunk more than a step below the deck at the door (a Shipyard design's): steps inside.
+  const deepSunk = deckY(ext.z1) - wh.floorY > 0.35;
   // Furniture on the wheelhouse floor: the chart table (if she has one: a module, its plan in
   // her axes), footprint and height above the floor. Its leaf folded down against the wall,
   // only a strip along the wall is taken up.
@@ -156,11 +161,12 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: reado
   const inGateway = (x: number, z: number, edge: number) =>
     !!gate && gateOpen && Math.sign(x) === gate.side && z > gate.z0 + r * 0.6 && z < gate.z1 - r * 0.6 && Math.abs(x) <= deckHalfBeam(z) - edge;
 
-  // Roof (walkable, railed) and the ladder up the aft face of the wheelhouse.
+  // Roof (walkable, railed) and the ladder up the aft face of the wheelhouse. A house with
+  // no ladder (the Shipyard's) has no way up: its roof isn't walked.
   const roof = layout.roof;
   const roofTop = wh.roofY + roof.thickness;
   const lad = layout.ladder;
-  const inLadder = (x: number, z: number) => Math.abs(x - lad.x) <= lad.width / 2 && z >= ext.z1 + 0.02 && z <= ext.z1 + lad.depth;
+  const inLadder = (x: number, z: number) => !!lad && Math.abs(x - lad.x) <= lad.width / 2 && z >= ext.z1 + 0.02 && z <= ext.z1 + lad.depth;
 
   const surfaces: Surface[] = [
     {
@@ -173,11 +179,12 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: reado
       },
     },
     {
-      // Wheelhouse floor, clear of walls and console, plus the aft doorway.
+      // Wheelhouse floor, clear of walls and console, plus the aft doorway (out to the deck;
+      // a floor sunk more than a step below the deck stops at the wall: a threshold below).
       height: () => wh.floorY,
       contains: (x, z) =>
         (Math.abs(x) <= int.x - r && z >= consoleAft + r && z <= int.z1 - r && !atFurniture(x, z, r)) ||
-        (Math.abs(x) <= doorHalf - r * 0.6 && z > int.z1 - r - 0.02 && z < ext.z1 + r + 0.02) ||
+        (Math.abs(x) <= doorHalf - r * 0.6 && z > int.z1 - r - 0.02 && z < (deepSunk ? int.z1 : ext.z1 + r + 0.02)) ||
         // The port side door, out to the side deck.
         (!!sd && x < -int.x + r + 0.02 && x > -ext.x - r - 0.02 && z > sd.z0 + r * 0.6 && z < sd.z1 - r * 0.6),
     },
@@ -186,12 +193,26 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: reado
       // landing at the ladder head.
       height: () => roofTop,
       contains: (x, z) => {
+        if (!lad) return false;
         const m = roof.edgeMargin;
         const onRoof = Math.abs(x) <= ext.x + roof.overhang - m && z >= ext.z0 - roof.overhang + m && z <= ext.z1 - m;
         const landing = Math.abs(x - lad.x) <= lad.width / 2 && z > ext.z1 - 0.5 && z <= ext.z1 + 0.05;
         return (onRoof && !onGear(gear, x, z, 0, roofTop)) || landing;
       },
     },
+    // A deep sunk floor's threshold: the doorway at the deck's height, its steps inside.
+    {
+      height: (_x, z) => deckY(Math.max(z, ext.z1)),
+      contains: (x, z) => deepSunk && Math.abs(x) <= doorHalf - r * 0.6 && z >= int.z1 && z < ext.z1 + r + 0.02,
+    },
+    // Steps at the aft door (a raised floor's outside, a deep sunk floor's inside), across
+    // the doorway.
+    ...(wh.steps ?? []).map(
+      (st): Surface => ({
+        height: () => st.y,
+        contains: (x, z) => Math.abs(x) <= doorHalf - r * 0.6 && z >= st.z0 && z <= st.z1,
+      }),
+    ),
   ];
 
   return {
@@ -218,7 +239,7 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: reado
     },
 
     ladderAt(x, z) {
-      return inLadder(x, z) ? { bottom: deckY(ext.z1 + lad.depth / 2), top: roofTop } : null;
+      return lad && inLadder(x, z) ? { bottom: deckY(ext.z1 + lad.depth / 2), top: roofTop } : null;
     },
 
     inBounds(x, z) {

@@ -153,14 +153,21 @@ slider('housePos', 'Position', (v) => (v === 0 ? 'right aft' : v === 15 ? 'right
 slider('houseLength', 'Length', (v) => `${SCALES.houseLength(v).toFixed(1)} m`);
 slider('houseWidth', 'Width', (v) => pct(SCALES.houseWidth(v)));
 slider('headroom', 'Headroom', (v) => `${SCALES.headroom(v).toFixed(1)} m`);
-{
-  const row = document.createElement('label');
-  row.className = 'choice';
-  row.innerHTML = '<input type="checkbox" data-key="sunk"> Step down into it (its floor below the deck, for headroom)';
-  const box = row.querySelector('input')!;
-  box.onchange = () => change({ sunk: box.checked ? 1 : 0 });
-  controls.appendChild(row);
-}
+const signed = (x: number, unit: string, digits = 0) => `${x > 0 ? '+' : ''}${x.toFixed(digits)}${unit}`;
+slider('floor', 'Floor height', () => {
+  const f = boat.figures.floorM;
+  return Math.abs(f) < 0.05 ? 'at the deck' : `${signed(f, ' m', 1)}${f < 0 ? ' (sunk)' : ''}`;
+});
+slider('lowerFront', 'Front below', (v) => (v === 0 ? 'upright' : `${SCALES.lowerFront(v)}\u00b0 fwd`));
+slider('windowRake', 'Windows', (v) => {
+  const a = SCALES.windowRake(v);
+  return a === 0 ? 'upright' : a > 0 ? `${a}\u00b0 reverse` : `${-a}\u00b0 raked`;
+});
+slider('visor', 'Roof visor', (v) => (v === 0 ? 'none' : `${SCALES.visor(v).toFixed(2)} m`));
+slider('roofRake', 'Roof rake', (v) => {
+  const a = SCALES.roofRake(v);
+  return a === 0 ? 'level' : a > 0 ? `${a}\u00b0 up fwd` : `${-a}\u00b0 down fwd`;
+});
 section('3. Engine');
 choices('engine', ENGINES.map((e) => ({ name: e.name, note: `${e.kg} kg with its gearbox. Propeller and gearbox matched to her by trial.` })));
 {
@@ -173,7 +180,7 @@ choices('engine', ENGINES.map((e) => ({ name: e.name, note: `${e.kg} kg with its
 }
 section('4. Controls');
 choices('controls', [
-  { name: 'Basic', note: 'Wheel, throttle, key / heat / start, speed and depth, rpm.' },
+  { name: 'Basic', note: 'Wheel, throttle, key and start, speed and depth, rpm.' },
   { name: 'Advanced', note: 'Adds lights, wipers, horn, searchlight, heading, engine monitor and the VHF.' },
 ]);
 section('5. Paint');
@@ -201,7 +208,6 @@ function syncControls(): void {
     const k = el.dataset.key as keyof ShipDesign;
     el.textContent = outputs[k]!(design[k]);
   });
-  (document.querySelector('input[data-key=sunk]') as HTMLInputElement).checked = !!design.sunk;
   (document.querySelector('input[data-key=twin]') as HTMLInputElement).checked = !!design.twin;
 }
 
@@ -330,4 +336,10 @@ renderer.setAnimationLoop(() => {
   renderer.render(scene, camera);
 });
 // For checking from a script (headless browser tests).
-(window as unknown as { shipyard: unknown }).shipyard = { get design() { return design; }, get boat() { return boat; }, get trial() { return trial; }, change, setView };
+/** For scripted checks (headless screenshots): aim the camera from `eye` at `at`. */
+function look(eye: [number, number, number], at: [number, number, number]): void {
+  camera.position.set(...eye);
+  orbit.target.set(...at);
+  orbit.update();
+}
+(window as unknown as { shipyard: unknown }).shipyard = { get design() { return design; }, get boat() { return boat; }, get trial() { return trial; }, change, setView, look };

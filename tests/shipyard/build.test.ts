@@ -13,6 +13,8 @@ import { fullAhead, matchGear } from '../../src/shipyard/trial';
 import { uprightHydrostatics } from '../../src/vessel/hydrostatics';
 import { VESSEL_DEFS } from '../../src/vessel/vesselDef';
 import { flattenMounts } from '../../src/modular/recipe';
+import { vesselWalkArea } from '../../src/vessel/layout';
+import { hullPlan } from '../../src/vessel/layout';
 
 const all = (pick: (steps: number) => number) => Object.fromEntries(FIELDS.map((f) => [f.key, pick(f.steps)])) as unknown as ShipDesign;
 
@@ -122,6 +124,40 @@ describe('Shipyard: the boats it builds', () => {
     }
     useDesign({ ...DEFAULT_DESIGN, hull: 2 });
     expect(VESSEL_DEFS.design.hull.stations.some((s) => s.spray)).toBe(false);
+  });
+
+  it('every floor height, each hull: no step over 0.35 m from the deck at the door to the floor, and the walk area takes you in', () => {
+    for (let hull = 0; hull < DESIGN_HULLS.length; hull++)
+      for (let floor = 0; floor < 8; floor++) {
+        useDesign({ ...DEFAULT_DESIGN, ...DESIGN_HULLS[hull].defaults, hull, floor });
+        const def = VESSEL_DEFS.design;
+        const wh = def.layout.wheelhouse!;
+        const deck = hullPlan(def).deckY(wh.aft + 0.15);
+        const levels = [deck, ...(wh.steps ?? []).map((s) => s.y), wh.floorY].sort((a, b) => a - b);
+        for (let i = 1; i < levels.length; i++) expect(levels[i] - levels[i - 1], `hull ${hull} floor ${floor}`).toBeLessThanOrEqual(0.351);
+        // Walking in at the door, along the centreline: each spot's floor within a step of the last.
+        const walk = vesselWalkArea(def, def.layout);
+        let y = deck;
+        for (let z = wh.aft + 0.65; z > wh.aft - 0.9; z -= 0.05) {
+          const here = walk.floorsAt(0, z).filter((f) => Math.abs(f - y) <= 0.4);
+          expect(here.length, `hull ${hull} floor ${floor} at z ${z.toFixed(2)}`).toBeGreaterThan(0);
+          y = here.reduce((a, f) => (Math.abs(f - wh.floorY) < Math.abs(a - wh.floorY) ? f : a));
+        }
+        expect(y).toBeCloseTo(wh.floorY, 6);
+      }
+  });
+
+  it('the house\'s shape at its extremes builds cleanly: windows raked either way, the front below leaning, the visor, the roof raked', () => {
+    for (const hull of [0, 3])
+      for (const windowRake of [0, 8])
+        for (const [lowerFront, visor, roofRake] of [[0, 0, 0], [4, 4, 4]]) {
+          const boat = useDesign({ ...DEFAULT_DESIGN, ...DESIGN_HULLS[hull].defaults, hull, windowRake, lowerFront, visor, roofRake });
+          const wh = boat.hull.layout.wheelhouse!;
+          expect(wh.shape).toBeDefined();
+          expect(boat.hull.layout.ladder).toBeUndefined();
+          expect(wh.windowHead).toBeGreaterThan(wh.frontSill! + 0.4);
+          expect(wh.doorHeight).toBeGreaterThan(1.7);
+        }
   });
 
   it('only the landing craft hull has the bow ramp', () => {

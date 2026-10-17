@@ -78,7 +78,7 @@ describe('vessel walk area (multi-level)', () => {
   });
 
   it('a ladder joins the aft deck to the roof', () => {
-    const lad = area.ladderAt(L.ladder.x, wh.aft + 0.25);
+    const lad = area.ladderAt(L.ladder!.x, wh.aft + 0.25);
     expect(lad).not.toBeNull();
     expect(lad!.top).toBeCloseTo(roofTop, 6);
     expect(lad!.bottom).toBeGreaterThan(0.9);
@@ -157,12 +157,12 @@ describe('locomotion', () => {
 
   it('climbs the ladder hand over hand to the roof, steps onto it, and stays up there', () => {
     const p = createPlayerState('p', 'test');
-    p.position = [L.ladder.x, DECK_AFT, wh.aft + 0.3];
+    p.position = [L.ladder!.x, DECK_AFT, wh.aft + 0.3];
     const loco = new Locomotion();
     run(loco, p, 1, () => ({})); // standing at the foot of the ladder
     // Hand-over-hand: grab high, pull down 0.4 m, release, repeat.
     for (let rung = 0; rung < 8; rung++) {
-      const hand = new THREE.Vector3(L.ladder.x, p.position[1] + 1.8, wh.aft + 0.1);
+      const hand = new THREE.Vector3(L.ladder!.x, p.position[1] + 1.8, wh.aft + 0.1);
       loco.update(p, input(p, { grabbing: { left: null, right: hand.clone() } }));
       for (let k = 1; k <= 10; k++) {
         loco.update(p, input(p, { grabbing: { left: null, right: hand.clone().add(new THREE.Vector3(0, -0.04 * k, 0)) } }));

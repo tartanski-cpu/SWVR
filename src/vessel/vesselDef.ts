@@ -29,7 +29,35 @@ export type Livery = Partial<Record<'bottom' | 'topsides' | 'deck' | 'house' | '
  * door, side sills raised alongside the console, a higher front sill, a raked front.
  */
 export type WheelhouseLayout = Omit<WorkboatLayout['wheelhouse'], 'sideDoor' | 'sideRaise' | 'frontSill' | 'frontRakeDeg'> &
-  Partial<Pick<WorkboatLayout['wheelhouse'], 'sideDoor' | 'sideRaise' | 'frontSill' | 'frontRakeDeg'>>;
+  Partial<Pick<WorkboatLayout['wheelhouse'], 'sideDoor' | 'sideRaise' | 'frontSill' | 'frontRakeDeg'>> & {
+    /** A shaped house (the Shipyard's): drawn by its own builder (hullMesh.ts buildShapedHouse). */
+    shape?: HouseShape;
+    /** Steps at the aft door, where her floor is more than a step above or below the deck there. */
+    steps?: DoorStep[];
+  };
+
+/**
+ * A shaped wheelhouse (owner, the Shipyard): the front below the windows leaning forward,
+ * the windows raked either way (frontRakeDeg: + leaning forward at the top), the roof raked
+ * and reaching forward over the windows as a visor. roofY is the roof's underside amidships
+ * of the house.
+ */
+export interface HouseShape {
+  /** The front below the windows: its lean from vertical (deg, + top forward), from `lowerFromY` (the deck, or the floor if lower) up to the windows. */
+  lowerRakeDeg: number;
+  lowerFromY: number;
+  /** The roof's rake (deg, + rising forward), about the middle of the house. */
+  roofRakeDeg: number;
+  /** How far the roof reaches forward of the top of the front windows (m). */
+  visor: number;
+}
+
+/** A step at the aft door: a tread `y` high from `z0` to `z1` (z0 < z1), across the doorway. */
+export interface DoorStep {
+  y: number;
+  z0: number;
+  z1: number;
+}
 
 /** Electric outboard (see CONFIG.vessels.skiff.outboard and physics/outboard.ts). */
 export type OutboardConfig = typeof CONFIG.vessels.skiff.outboard;
@@ -140,12 +168,12 @@ export interface VesselDef {
  * for one (6c makes them per boat). A fact of her shape: what's fitted in it is her modules'.
  */
 export type WheelhouseDef = VesselDef & {
-  layout: LayoutConfig & { wheelhouse: WheelhouseLayout } & Required<Pick<WorkboatLayout, 'roof' | 'ladder' | 'doorButtons'>>;
+  layout: LayoutConfig & { wheelhouse: WheelhouseLayout } & Required<Pick<WorkboatLayout, 'roof' | 'doorButtons'>>;
 };
 
 /** Has her hull a wheelhouse (see WheelhouseDef)? */
 export function hasWheelhouse(def: VesselDef): def is WheelhouseDef {
-  return !!(def.layout.wheelhouse && def.layout.roof && def.layout.ladder && def.layout.doorButtons);
+  return !!(def.layout.wheelhouse && def.layout.roof && def.layout.doorButtons);
 }
 
 /** What's built into a hull (see VesselDef). */

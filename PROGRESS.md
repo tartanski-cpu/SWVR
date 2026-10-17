@@ -2963,6 +2963,55 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   - **In VR:** master on, INSTR on, key on. You should hear the buzzer and see the GLOW lamp lit. When it goes out, hold START: she runs and the buzzer stops.
   - **On desktop:** the same with the mouse.
 
+### Shipyard: the wheelhouse's shape and floor height (owner)
+
+- **The owner asked** for control of the house's shape, from a photo of a Dutch-style patrol boat:
+  - the roof: a visor reaching over the front windows, and its rake;
+  - the front windows' rake (raked aft for a fast patrol boat, through upright, to a pilot house's reverse rake);
+  - the front below the windows, upright or leaning forward, its top meeting the windows' foot;
+  - the house's height, set by its floor (the inside keeps its headroom).
+
+  The roof ladder and rail are dropped from designs, to keep it simple. Agreed: 13-character codes with the finer steps, and a floor from 0.6 m below the deck to 0.8 m above it, with steps.
+- **The choices (`design.ts`, version 4; `SCALES`):**
+  - floor: -0.6 .. +0.8 m in 0.2 m steps; it replaces the step-down tick box;
+  - visor: 0 .. 0.6 m;
+  - roofRake: -6 .. +6 deg (+ rising forward);
+  - windowRake: -30 .. +30 deg (+ leaning forward: reverse rake);
+  - lowerFront: 0 .. 30 deg forward.
+- **Codes:** now 13 characters (60 bits, ~13 % used), shown as XXXXX-XXXXX-XXX. Old codes still read:
+  - versions 1-3 (10 and 11 characters) come in as the old box house;
+  - a step-down floor becomes floor -0.2 m, and none becomes level.
+- **Each hull type's starting shape:**
+  - landing craft and gillnetter: upright;
+  - workboat: windows reverse-raked 15 deg, 0.3 m visor;
+  - pilot boat: windows reverse-raked 15 deg, 0.3 m visor, roof rising 3 deg forward.
+- **Drawing (`buildShapedHouse`, `vessel/view/hullMesh.ts`), used only for a layout with a `shape`** (the game's workboat and landing craft keep `buildWheelhouse`, and their golden runs are unchanged):
+  - **Front profile:** upright up to the deck (`lowerFromY`), then leaning forward up to the front glass's sill, then the windows at their rake, then a header up to the roof.
+  - **Side walls:** they follow the front profile (extruded outlines, `prism`), so their windows are trapezoids. The side and aft windows start at 1.0 m and the front at the dash top (1.31 m), with a black corner post between.
+  - **Roof:** sheared to its rake about the middle of the house, reaching to the visor.
+  - **Shared with the box house:** the frames, wood lining, floor and console (now `frameKit`, `buildFloor`, `buildConsole`).
+  - **Rain glass and wipers:** `frontRake()` now carries the windows' foot forward by the lower front's lean (`ahead`), so they sit on the raked panes.
+- **Floor and steps (`shipyard/build.ts`):**
+  - **Floor height:** raised from the highest deck under the house, or sunk from the lowest. A floor too low for a fine hull comes up in 0.2 m steps, with a warning.
+  - **Steps:** a rise at the aft door of over 0.35 m (a player steps up 0.4) gets steps, `wheelhouse.steps`. A raised floor's steps are outside; a deep sunk floor's are inside, with the engine hatch moved forward clear of them.
+  - **Walking (`layout.ts`):** the steps are walk surfaces. A deep sunk floor's doorway is a threshold at deck height. The deck is kept clear of a forward-leaning lower front.
+  - **Weight and windage:** the CG and the windage follow the floor height.
+- **No ladder:** `ladder` is now optional for a wheelhouse (`hasWheelhouse`, `vesselWalkArea`, `hullMesh`). Without it the roof isn't walked.
+- **Roof fittings follow the roof's rake and front edge:** the searchlight, horn, nav lights and VHF. The sidelights sit on the house sides just aft of the header.
+- **Page:** five new sliders under Wheelhouse (Floor height, Front below, Windows, Roof visor, Roof rake). The code box takes 13 characters. `window.shipyard.look(eye, at)` is there for scripted screenshots.
+- **Checked:**
+  - typecheck; all 509 tests:
+    - codes v4, with v2 and v3 codes reading as the box house;
+    - every floor height on every hull: no step over 0.35 m, and walking in at the door along the centreline reaches the floor;
+    - the shape's extremes build with a sound window band and door;
+  - golden runs unchanged;
+  - screenshots in the Shipyard of a patrol shape (windows raked aft, front below leaning 22.5 deg, visor, roof down forward, floor +0.4), the pilot's default, a raised floor (+0.8) and a sunk one (-0.6), from the side, bow, stern and helm;
+  - a design opened in the game with no errors.
+- **Not done:** walking into a design in VR or on desktop by hand; the shape's interior shell (the VR fade in walls) still treats the front as upright.
+- **Owner test:**
+  - **Desktop or phone:** on the Shipyard page, try the five new sliders on each hull, from the side, the bow and At the helm. Raise the floor to +0.8 and look at the steps from Stern 3/4.
+  - **In VR:** open a design (`?design=` and its code), walk up the steps into the house, and check the view over the bow from the helm.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**
