@@ -88,6 +88,21 @@
       .mission { border: 1px solid #c4d2d8; border-radius: 8px; background: var(--card); padding: 8px; cursor: pointer; }
       .mission b { display: block; margin-bottom: 2px; }
       .mission div { font-size: 12px; color: var(--muted); }
+      .jobs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+      .job { border: 1px solid #c4d2d8; border-radius: 8px; background: var(--card); padding: 6px 8px; cursor: pointer; font-size: 13px; user-select: none; }
+      .job input { margin: 0 4px 0 0; vertical-align: -1px; }
+      .job.on { border-color: var(--accent); background: var(--accent-soft); }
+      .job small { display: block; color: var(--muted); font-size: 11px; line-height: 1.3; margin-top: 2px; }
+      [hidden] { display: none !important; }
+      #charts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 6px 0 8px; }
+      #charts .chart { margin: 0; background: #fcfcfb; border: 1px solid var(--line); border-radius: 6px; padding: 4px 4px 2px; min-width: 0; }
+      #charts .chart.wide { grid-column: 1 / 3; }
+      #charts figcaption { font-size: 11px; color: var(--muted); margin: 0 2px 2px; }
+      #charts svg { display: block; width: 100%; height: auto; }
+      #charts.stale { opacity: 0.45; }
+      #chartTip { position: fixed; z-index: 30; pointer-events: none; background: #10202a; color: #fff; font-size: 12px; padding: 4px 8px; border-radius: 5px; max-width: 240px; box-shadow: 0 2px 8px rgba(0,0,0,0.25); }
+      #briefCheck .na { color: var(--muted); }
+      #briefCheck .na .mark { color: var(--muted); }
       .mission.on { border-color: var(--accent); background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
       .targets .row { grid-template-columns: 1fr 120px; }
       .targets input[type=number] { font: inherit; padding: 4px 6px; width: 100%; box-sizing: border-box; }
@@ -112,7 +127,11 @@
       #views button.tool.on { background: var(--accent); color: #fff; border-color: var(--accent); }
       #toolHint { position: absolute; top: 90px; left: 10px; font-size: 12px; color: #fff; text-shadow: 0 0 3px #000; pointer-events: none; }
       #pinEditor { position: absolute; width: 240px; background: var(--paper); border-radius: 8px; padding: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.25); z-index: 3; }
-      #pinEditor input { width: 100%; box-sizing: border-box; font: inherit; padding: 5px; }
+      #pinEditor input, #pinEditor select { width: 100%; box-sizing: border-box; font: inherit; padding: 5px; margin-bottom: 4px; }
+      #fromPins { margin: 4px 0 10px; }
+      #fromPins .item { display: grid; grid-template-columns: 24px 1fr; gap: 6px; padding: 5px 0; border-top: 1px solid #e1e8eb; font-size: 13px; }
+      #fromPins .item .meta { display: block; }
+      .todo .gear { font-weight: 600; }
       #quick { position: absolute; left: 10px; right: 10px; bottom: 10px; background: rgba(246,249,250,0.92); border-radius: 8px; padding: 6px 10px; font-size: 13px; font-variant-numeric: tabular-nums; display: flex; flex-wrap: wrap; gap: 4px 14px; pointer-events: none; }
       #quick b { color: var(--accent); }
       #quick .busy { color: var(--wait); }
@@ -136,7 +155,7 @@
       #status { color: var(--muted); font-size: 12px; min-height: 16px; }
       #todoCount { font-weight: 400; color: var(--muted); text-transform: none; letter-spacing: 0; }
       .todo { display: grid; grid-template-columns: 24px 1fr auto; gap: 8px; align-items: start; padding: 6px; margin: 4px 0; border: 1px solid #c4d2d8; border-radius: 8px; background: var(--card); }
-      .todo .badge { width: 22px; height: 22px; border-radius: 50%; color: #fff; font-weight: 700; font-size: 12px; text-align: center; line-height: 22px; }
+      .todo .badge, #fromPins .badge { width: 22px; height: 22px; border-radius: 50%; color: #fff; font-weight: 700; font-size: 12px; text-align: center; line-height: 22px; }
       .todo .text { cursor: pointer; }
       .todo .text:hover { text-decoration: underline; }
       .todo .acts { display: flex; gap: 4px; }
@@ -144,8 +163,7 @@
       .todo.done { opacity: 0.5; }
       .todo.done .text { text-decoration: line-through; }
       .sketch { display: grid; grid-template-columns: 84px 1fr auto; gap: 8px; align-items: center; padding: 6px; margin: 4px 0; border: 1px solid #c4d2d8; border-radius: 8px; background: var(--card); cursor: pointer; }
-      .sketch img, .sketch .gridPic { width: 84px; height: 52px; object-fit: cover; border-radius: 4px; background: #fbfcfd; display: block; }
-      .sketch .gridPic { background-image: linear-gradient(#e3e9ee 1px, transparent 1px), linear-gradient(90deg, #e3e9ee 1px, transparent 1px); background-size: 8px 8px; border: 1px solid #d6dfe3; box-sizing: border-box; }
+      .sketch img { width: 84px; height: 52px; object-fit: cover; border-radius: 4px; background: #fbfcfd; display: block; }
       .sketch button { padding: 2px 7px; font-size: 12px; }
 
       /* The last step: her code, the game, favourites. */
@@ -191,13 +209,6 @@
       .sheetHint { font-size: 12px; color: var(--muted); margin: 6px 0; }
       .sheetArea { display: flex; justify-content: center; }
       .sheetArea canvas { border-radius: 6px; box-shadow: 0 1px 6px rgba(0,0,0,0.2); touch-action: none; cursor: crosshair; background: #fff; }
-      .pens { display: flex; gap: 4px; }
-      .pens[hidden], .suggestBtn[hidden] { display: none; }
-      .pen.on { outline: 2px solid var(--accent); }
-      .pen[data-pen=hull] { color: #1f4e79; font-weight: 600; }
-      .pen[data-pen=house] { color: #c0551f; font-weight: 600; }
-      .sheetResult { margin-top: 10px; background: #fff; border: 1px solid var(--accent); border-radius: 8px; padding: 10px; }
-      .sheetResult p { margin: 3px 0; }
 
       @media (max-width: 1199px) {
         body { grid-template-columns: 360px minmax(0, 1fr); grid-template-rows: auto 48% minmax(0, 1fr); grid-template-areas: 'top top' 'side view' 'side results'; }
@@ -244,6 +255,9 @@
           <h1>What’s she for?</h1>
           <p class="guide">Start from the job. Pick what she’s for and set what she has to do: the Shipyard suggests a boat, and checks every change against the brief (on the right).</p>
           <div class="missions" id="missions"></div>
+          <h2>Her jobs</h2>
+          <p class="meta">The game’s jobs she’s wanted for: each adds its own lines to the brief (deck room, bollard pull, the gear the job needs).</p>
+          <div class="jobs" id="jobs"></div>
           <h2>Her targets</h2>
           <div class="targets">
             <div class="row"><label>Top speed at least (kn)</label><input type="number" min="0" max="60" step="0.5" data-brief="speedKn" /></div>
@@ -251,12 +265,13 @@
             <div class="row"><label>Price at most (£)</label><input type="number" min="0" max="5000000" step="5000" data-brief="budget" /></div>
             <div class="row"><label>Stability, GM at least (m)</label><input type="number" min="0" max="5" step="0.05" data-brief="gmM" /></div>
             <label class="choice"><input type="checkbox" data-brief="crane" /> A deck crane is wanted</label>
+            <div class="row" data-for-job="cargo"><label>Cargo runs: crates on deck at least</label><input type="number" min="0" max="200" step="1" data-brief="crates" /></div>
+            <div class="row" data-for-job="potting"><label>Potting: pots on deck at least</label><input type="number" min="0" max="200" step="1" data-brief="pots" /></div>
             <div class="meta">0 means no target.</div>
           </div>
           <h2>Start her</h2>
           <div class="start">
             <button id="suggestBrief" class="primary">Suggest a boat for this brief<small>The usual hull for the job, sized and powered for the targets.</small></button>
-            <button id="startSketch">Start from a sketch<small>Draw her profile on squared paper; the Shipyard reads it and suggests a boat.</small></button>
             <button id="openSaved">Open a saved design or a code<small>Your favourites, or a code from a friend.</small></button>
           </div>
           <div id="suggestMsg"></div>
@@ -296,7 +311,8 @@
       <div id="quick"></div>
       <div id="toolHint"></div>
       <div id="pinEditor" hidden>
-        <input id="pinText" placeholder="Note, e.g. searchlight here" maxlength="140" />
+        <select id="pinGear" title="Equipment wanted here: placed for you at the Deck gear step"></select>
+        <input id="pinText" placeholder="Note (optional with equipment)" maxlength="140" />
         <div class="tools"><button id="pinAdd" class="primary">Add pin</button><button id="pinCancel">Cancel</button></div>
       </div>
     </section>
@@ -306,6 +322,7 @@
       <div id="briefCheck"></div>
       <h2>Sea trial</h2>
       <div id="status"></div>
+      <div id="charts"></div>
       <table id="trial"></table>
       <h2>Her figures</h2>
       <table id="figures"></table>

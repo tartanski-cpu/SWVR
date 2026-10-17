@@ -3493,6 +3493,51 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   - suggestion from the brief doesn't size the hull (it fits the engine);
   - pins don't link to module sockets (stop 3).
 
+### Shipyard: jobs in the brief, deck cargo, sea-trial charts, pins that place equipment (owner)
+
+- **The owner asked:**
+  - The brief should match the game's jobs: lobster, fishing, cargo, fire missions.
+  - The number of cargo units her deck takes is missing: "modularize that as soon as possible".
+  - Graphs in the sea trial, keeping the basic numbers.
+  - The sketch-to-boat "always seemed to suggest the gill netter". Then, on reflection: the pure 2D squared-paper sketch doesn't add anything, so take it out. Sketching should be free-form, shared, for discussion; **pins** are the precise part: put one on her and pick from a drop-down the equipment wanted there, and it's placed automatically in the next step.
+  - Later: water jets and electric engines; more modules.
+- **Deck cargo** (`src/cargo/deck.ts` `deckCapacity`; `src/shipyard/deckRoom.ts`):
+  - How many items of a footprint stand on her open deck at once, one deep, by the game's own placing rule (`onOpenDeck`: inside the bulwarks, clear of the wheelhouse, the narrow bow and her deck gear): rows across the deck from the transom forward, each as many as fit side by side with a 5 cm gap, tried at four starting points and the best kept.
+  - `deckRoom()` gives a design's crates (room on deck, capped by her payload `cargo.maxPayloadKg` at the crate's 40 kg), the room alone, and pots (`CONFIG.cargo.kinds` sizes).
+  - Shown in her figures ("Deck cargo: 51 crates (6.3 t payload)", "Pots on deck"), the strip under the 3D view ("Deck 51 crates"), and Compare.
+  - Typical at standard size: landing craft 21 crates / 10 pots, gillnetter 34 / 18, workboat 54 / 31, pilot boat 49 / 29. The game's own workboat: 37 crates.
+  - `deck.ts` now keeps its hull plans by the vessel def itself (a WeakMap), so each Shipyard design (a new 'design' def each time) gets its own; no change for the game's boats.
+- **Jobs in the brief** (`brief.ts` `JOBS`, `FITTABLE`, `TOW_BOLLARD_T`): tick the game's jobs she's wanted for, each adding its own lines to the check, in the game's own terms (the gear the job's code asks the boat for with `gearOf`):
+
+  | Job | Lines |
+  |---|---|
+  | Cargo runs | crates on deck ≥ `crates` (default 6, the biggest cargo job) |
+  | Lobster & crab pots | pots on deck ≥ `pots` (default 5, the pallet's) |
+  | Towing | bollard pull ≥ 3 t (the game's workboat pulls 3.9 t); a tow point |
+  | Fire fighting | a fire monitor |
+  | Search & rescue | a life ring, a boat hook, a searchlight |
+  | Trawling | the trawl gantry and net |
+
+  - Gear the Shipyard can't fit yet (tow point, life ring, boat hook, trawl gear) shows as "not in the Shipyard yet" (–) and doesn't count against her; when its module comes, the line checks for real (it already asks the built boat).
+  - The missions now carry jobs: workboat cargo + towing, landing craft cargo, inshore fishing pots, pilot rescue. **Suggest** fits the gear her jobs need where it can (fire monitor, searchlight, on the roof), and picks an engine that also meets the bollard pull when towing.
+  - **Retuned:** the workboat's budget is now ≤ £230k (was £200k): towing needs the 400 kW engine for 3 t of bollard pull; she comes to £217k with her crane.
+  - Older briefs (no jobs) read as before, with no jobs.
+- **Sea-trial charts** (`src/shipyard/trialCharts.ts`; plain SVG, no library), above the numbers in the right-hand column, greyed while a new trial runs:
+  - speed by lever and range by lever (25-100 %), with the brief's target as a dashed line;
+  - the turning circle: her track hard over drawn through the measured advance and transfer (at 90°) and tactical diameter (at 180°), with dimension lines and her length to scale (a schematic of the measured figures, not a recorded track);
+  - roll decay from 10°: the measured peaks, and the damped swing fitted to her period and damping ratio;
+  - stopping: crash stop and coast to 1 kn, in metres and boat lengths.
+  - One series a chart (so no legend; the title says what it is), one data colour, hairline grids, a hover tooltip on each dot and bar.
+- **Pins that place equipment** (`src/shipyard/pinGear.ts`; `notes.ts` Pin `gear`, `placed`):
+  - The pin editor has a drop-down: "Just a note", then the gear the Shipyard places (fire monitor, searchlight, deck crane), then gear still to come (tow winch, tow post / stern roller, trawl A-frame, pot hauler, life ring, door).
+  - **At the Deck gear step** each pinned piece the Shipyard can fit is placed nearest its pin (`placeGear`): on the wheelhouse roof if the pin is on or just over it, else the foredeck or aft deck, whichever side of the house the pin is (the crane can't go on the roof: the nearer deck). The pin is then ticked done "by the Shipyard", noting where it went, and isn't placed again (move the gear by hand afterwards and it stays). A pin added while you're on Deck gear is placed at once.
+  - The step lists what the pins asked for and what became of it; pinned gear not yet in the Shipyard stays on the to-do list.
+  - The poles' side is fixed by the build (searchlight to starboard, monitor to port), so a pin's side doesn't move them across; the list says so.
+- **Taken out: sketch to boat.** The squared profile sheet, its pens, Suggest a boat, and `sketchFit.ts` with its tests (`hullProfiles` in page.ts too). Old squared sheets are dropped when read. Before it went, the matching was improved (a type that can't be made that long ruled out; the house's place weighed), but the owner found the route itself added nothing. Snapshot sketches stay, for discussion.
+- **Tests:** `tests/shipyard/deckRoom.test.ts` (the game workboat's deck; bigger hull more room; longer house less; payload cap); `brief.test.ts` (moved from sketchFit.test.ts, plus each job's lines, gear fitted by Suggest, a towing engine, older briefs); `pinGear.test.ts` (roof, foredeck, aft deck; the crane to the nearer deck; gear not yet fittable); `notes.test.ts` (a pin's gear kept; old squared sheets dropped). All 567 tests pass, with typecheck and the build.
+- **Checked in headless Chromium** (1600 px): Harbour workboat, Suggest: workboat with crane, 400 kW, 13.2 kn, 64 nm, £217k, 51 crates, 4.0 t bollard pull, meets the brief, tow point "not in the Shipyard yet". The five charts drawn and a tooltip shown on hover. A pin put through the editor (tow winch) and two by script (fire monitor on the foredeck, searchlight on the aft deck): at Deck gear the monitor went to the foredeck pole and the searchlight to the aft deck pole, both pins ticked done, the tow winch left as a to-do. No page errors. **Not checked:** the Quest, a phone, two browsers placing from the same pins at once (both would make the same change, so it's harmless).
+- **Next, noted:** water-jet and electric propulsion; the deck modules still to come (tow point, rescue gear, trawl gear, pot hauler, doors), which the jobs' lines and the pin list are ready for.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

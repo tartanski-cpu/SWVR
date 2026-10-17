@@ -2,12 +2,13 @@
  * The Shipyard page (shipyard.html; owner, Oct 2026): design a boat and get her code.
  *
  * A designer's workflow (owner: a tool, not a sandbox), in steps along the top:
- *   Brief       what she's for and her targets (brief.ts); a suggested boat for it, or a
- *               first sketch of her profile read into one (sketchFit.ts)
+ *   Brief       what she's for, its jobs and her targets (brief.ts); a suggested boat for it
  *   Hull … Paint  one step per group of choices, each with a line of guidance
  *   Trials & handover  the brief checked against her trials, her code, the game, favourites
  * The brief is checked line by line all the way (right-hand column), with where to go when a
- * line isn't met. Designing together, variants, pins and sketches sit across all the steps.
+ * line isn't met. Designing together, variants, pins and sketches sit across all the steps:
+ * sketches (snapshots drawn on) to talk a change over, pins to decide it, with equipment
+ * wanted at the pin placed at the Deck gear step (pinGear.ts).
  *
  *   1. hull type, and sliders for her length, beam, depth and bulwarks;
  *   2. the wheelhouse: where it sits, its length, width and headroom, a step-down floor;
@@ -22,7 +23,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { BoatView } from '../app/boatView';
 import { LIBRARY, RECIPES } from '../boats/library';
-import { useDesign } from '../boats/sims';
+import { gearOf, useDesign } from '../boats/sims';
 import { assembleView } from '../modular/assemble';
 import type { SeaTrialResults } from '../vessel/seaTrials';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
@@ -35,10 +36,12 @@ import { Keeper, newSessionId, sessionIdFrom, type DesignPatch, type Person, typ
 import { cleanDoc, diffFields, fork, MAIN, mergePatch, newDoc, promote, type Variant, type YardDoc } from './variants';
 import { LoopbackHost } from '../net/transport';
 import { fromFrac, inkOf, MAX_SHEETS, noteId, sheetsOf, toFrac, todo, type Frac, type Ink, type Note, type Pin, type Sheet } from './notes';
-import { checkBrief, engineOptions, missionOf, MISSIONS, newBrief, pickEngine, suggestFor, type Brief, type Tried } from './brief';
-import { fitSketch, readSketch, type HullProfile, type Pt } from './sketchFit';
+import { checkBrief, engineOptions, JOBS, missionOf, MISSIONS, newBrief, pickEngine, suggestFor, type Brief, type JobId, type Tried } from './brief';
+import { deckRoom, type DeckRoom } from './deckRoom';
+import { trialCharts } from './trialCharts';
+import type { GearKind } from '../modular/module';
+import { EQUIPMENT, equipmentOf, placeGear, SPOT_NAMES } from './pinGear';
 import { SheetEditor } from './sheetEditor';
-import { hullFormOf } from '../modular/hull';
 import { addFavourite, cleanName, readFavourites, removeFavourite, writeFavourites, type Favourite, type Store } from './favourites';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -272,6 +275,12 @@ choices('engine', ENGINES.map((e) => ({ name: e.name, note: `${e.kg} kg with its
   controls.appendChild(row);
 }
 section('4. Deck gear');
+{
+  // Equipment asked for on pins, placed when you come to this step (pinGear.ts).
+  const box = document.createElement('div');
+  box.id = 'fromPins';
+  controls.appendChild(box);
+}
 options('deckCrane', 'Deck crane', ['None', 'Foredeck', 'Aft deck']);
 options('searchlight', 'Searchlight', ['None', 'Roof', 'Foredeck pole', 'Aft deck pole']);
 options('fireMonitor', 'Fire monitor', ['None', 'Roof', 'Foredeck pole', 'Aft deck pole']);
@@ -344,6 +353,8 @@ function showFigures(): void {
     ['Displacement', `${f.massT.toFixed(2)} t`],
     ['Draught', `${f.draughtM.toFixed(2)} m`],
     ['Stability (GM)', `${f.gmM.toFixed(2)} m`],
+    ['Deck cargo', deckWords(deckRoom())],
+    ['Pots on deck', `${deckRoom().pots}`],
     ['Engine', f.engine],
     ['Propeller', `${f.propellerM.toFixed(2)} m`],
     ['Gearbox', matched ? `${f.gear.toFixed(2)} : 1 (matched)` : 'matching...'],
@@ -354,6 +365,11 @@ function showFigures(): void {
   if (typeof showBriefCheck === 'function' && $('briefCheck')) showBriefCheck();
 }
 
+/** "21 crates (2.1 t)", or why fewer than there's room for. */
+function deckWords(r: DeckRoom): string {
+  const t = `${(r.payloadKg / 1000).toFixed(1)} t payload`;
+  return r.crates < r.crateRoom ? `${r.crates} crates (room for ${r.crateRoom}; ${t})` : `${r.crates} crates (${t})`;
+}
 /**
  * The line of key figures on the 3D view (always in sight, also on a phone): her
  * stability, displacement and the trial's headline numbers, greyed while a new trial runs.
@@ -366,12 +382,13 @@ function showQuick(): void {
     ['GM', `${f.gmM.toFixed(2)} m`],
     ['Disp.', `${f.massT.toFixed(1)} t`],
     ['Draught', `${f.draughtM.toFixed(2)} m`],
+    ['Deck', `${deckRoom().crates} crates`],
   ];
   if (t) {
     items.push(['Top', `${t.topSpeedKn.toFixed(1)} kn`], ['Turn', `${t.tacticalDiameter.toFixed(0)} m`], ['Stop', `${t.crashStopDistance.toFixed(0)} m`], ['Roll', `${t.motions.rollPeriod.toFixed(1)} s`]);
   }
   $('quick').innerHTML =
-    items.map(([k, v], i) => `<span${i >= 3 && stale ? ' class="busy"' : ''}>${k} <b>${v}</b></span>`).join('') + (stale || !t ? '<span class="busy">trial running…</span>' : '');
+    items.map(([k, v], i) => `<span${i >= 4 && stale ? ' class="busy"' : ''}>${k} <b>${v}</b></span>`).join('') + (stale || !t ? '<span class="busy">trial running…</span>' : '');
 }
 function showTrial(): void {
   const t = trial;
@@ -379,10 +396,14 @@ function showTrial(): void {
   showBriefCheck();
   if (!t) {
     $('trial').innerHTML = '';
+    $('charts').innerHTML = '';
     return;
   }
   // Greyed while it's the last design's trial and a new one is running.
-  $('trial').style.opacity = trialFor === matchKey(design) ? '1' : '0.45';
+  const fresh = trialFor === matchKey(design);
+  $('trial').style.opacity = fresh ? '1' : '0.45';
+  $('charts').classList.toggle('stale', !fresh);
+  $('charts').innerHTML = trialCharts(t, boat.figures.lengthM, brief);
   const top = t.speedTable[t.speedTable.length - 1];
   const three = t.speedTable[2];
   rows($('trial'), [
@@ -409,6 +430,25 @@ function showCode(): void {
   ($('play') as HTMLAnchorElement).href = `./?design=${code}`;
   history.replaceState(null, '', `#${code}`);
   markCurrent();
+}
+
+// The charts' hover: what a dot or bar stands for, beside the pointer.
+{
+  const tip = document.createElement('div');
+  tip.id = 'chartTip';
+  tip.hidden = true;
+  document.body.appendChild(tip);
+  const box = $('charts');
+  box.addEventListener('pointermove', (e) => {
+    const el = (e.target as Element).closest('[data-tip]');
+    if (!el) return void (tip.hidden = true);
+    tip.textContent = el.getAttribute('data-tip');
+    tip.hidden = false;
+    const x = Math.min(e.clientX + 12, window.innerWidth - tip.offsetWidth - 8);
+    tip.style.left = `${x}px`;
+    tip.style.top = `${e.clientY + 14}px`;
+  });
+  box.addEventListener('pointerleave', () => (tip.hidden = true));
 }
 
 // ── Trials in the background (worker.ts) ──
@@ -781,6 +821,7 @@ function dropMyNote(id: string): void {
 function notesChanged(): void {
   drawNotes();
   showTodo();
+  showFromPins();
   sheetEditor.refresh();
   saveSessionCopy();
 }
@@ -846,7 +887,7 @@ function showTodo(): void {
     const row = document.createElement('div');
     row.className = `todo${p.done ? ' done' : ''}`;
     row.dataset.pin = p.id;
-    row.innerHTML = `<span class="badge" style="background:${p.colour}">${i + 1}</span><div><div class="text">${esc(p.text || '(no note)')}</div><div class="meta">${esc(p.by)}${p.done ? ` · done${p.doneBy ? ` by ${esc(p.doneBy)}` : ''}` : ''}</div></div><div class="acts"><button data-act="done">${p.done ? 'Reopen' : 'Done'}</button><button data-act="del" title="Delete">✕</button></div>`;
+    row.innerHTML = `<span class="badge" style="background:${p.colour}">${i + 1}</span><div><div class="text">${equipmentOf(p.gear) ? `<span class="gear">${esc(equipmentOf(p.gear)!.name)}</span>${p.text ? ': ' : ''}` : ''}${esc(p.text || (p.gear ? '' : '(no note)'))}</div><div class="meta">${esc(p.by)}${p.done ? ` · done${p.doneBy ? ` by ${esc(p.doneBy)}` : ''}` : ''}</div></div><div class="acts"><button data-act="done">${p.done ? 'Reopen' : 'Done'}</button><button data-act="del" title="Delete">✕</button></div>`;
     row.querySelector<HTMLElement>('.text')!.onclick = () => lookAt(fracToVec(p.at));
     row.querySelector<HTMLElement>('[data-act=done]')!.onclick = () => putMyNote({ ...p, done: !p.done, ...(p.done ? { doneBy: undefined } : { doneBy: author().by }) });
     row.querySelector<HTMLElement>('[data-act=del]')!.onclick = () => {
@@ -913,7 +954,8 @@ renderer.domElement.addEventListener('pointerdown', (e) => {
     ed.style.top = `${Math.min(r.height - 90, e.clientY - r.top + 14)}px`;
     ed.hidden = false;
     ($('pinText') as HTMLInputElement).value = '';
-    ($('pinText') as HTMLInputElement).focus();
+    ($('pinGear') as HTMLSelectElement).value = '';
+    ($('pinGear') as HTMLSelectElement).focus();
   }
 });
 renderer.domElement.addEventListener('pointerup', (e) => {
@@ -932,12 +974,61 @@ renderer.domElement.addEventListener('pointerup', (e) => {
     }
   }
 });
+{
+  // The pin's equipment list: what the Shipyard can place, then what's still to come.
+  const sel = $('pinGear') as HTMLSelectElement;
+  const opt = (value: string, text: string) => Object.assign(document.createElement('option'), { value, textContent: text });
+  sel.append(opt('', 'Just a note'));
+  const now = document.createElement('optgroup');
+  now.label = 'Placed for you at Deck gear';
+  const later = document.createElement('optgroup');
+  later.label = 'Not in the Shipyard yet (a to-do)';
+  for (const e of EQUIPMENT) (e.field ? now : later).append(opt(e.id, e.name));
+  sel.append(now, later);
+}
 function addPin(): void {
   if (!pendingPin) return;
-  const text = ($('pinText') as HTMLInputElement).value;
-  putMyNote({ id: noteId(link?.side?.me ?? ''), kind: 'pin', ...author(), t: Date.now(), at: pendingPin, text: text.replace(/\s+/g, ' ').trim().slice(0, 140), done: false } satisfies Pin);
+  const text = ($('pinText') as HTMLInputElement).value.replace(/\s+/g, ' ').trim().slice(0, 140);
+  const gear = ($('pinGear') as HTMLSelectElement).value;
+  if (!text && !gear) return void ($('pinText') as HTMLInputElement).focus();
+  putMyNote({ id: noteId(link?.side?.me ?? ''), kind: 'pin', ...author(), t: Date.now(), at: pendingPin, text, done: false, ...(gear ? { gear } : {}) } satisfies Pin);
   pendingPin = null;
   setTool(null);
+  if (gear && onDeckGearStep()) placeFromPins();
+}
+const onDeckGearStep = () => document.querySelector('.step.on')?.getAttribute('data-step') === 'deck gear';
+/**
+ * Put the equipment asked for on pins where the pins are (pinGear.ts), each once: a pin it's
+ * done for is marked with where it went and ticked done. Run on coming to the Deck gear
+ * step, and for a new pin while you're on it. Gear the Shipyard can't fit stays a to-do.
+ */
+function placeFromPins(): void {
+  const wh = VESSEL_DEFS.design.layout.wheelhouse;
+  const house = wh ? { front: wh.front, aft: wh.aft, halfWidth: wh.halfWidth, roofY: wh.roofY } : undefined;
+  for (const p of todo(notes)) {
+    const eq = equipmentOf(p.gear);
+    if (!eq || p.placed || p.done) continue;
+    const put = placeGear(eq, fromFrac(p.at, hullMin, hullMax), house);
+    if (!put) continue;
+    change(put.patch);
+    putMyNote({ ...p, placed: SPOT_NAMES[put.spot], done: true, doneBy: 'the Shipyard' });
+  }
+  showFromPins();
+}
+/** The Deck gear step's list of what pins asked for, and what became of it. */
+function showFromPins(): void {
+  const box = document.getElementById('fromPins');
+  if (!box) return;
+  const list = todo(notes).filter((p) => equipmentOf(p.gear));
+  box.innerHTML = list.length ? '<div class="meta">From the pins:</div>' : '<div class="meta">Put a pin on her (📍 Pin) and pick the equipment you want there: it’s placed here for you.</div>';
+  for (const p of list) {
+    const eq = equipmentOf(p.gear)!;
+    const n = todo(notes).indexOf(p) + 1;
+    const row = document.createElement('div');
+    row.className = 'item';
+    row.innerHTML = `<span class="badge" style="background:${p.colour}">${n}</span><span><b>${esc(eq.name)}</b>${p.text ? ` <span class="meta">“${esc(p.text)}”</span>` : ''}<span class="meta">${p.placed ? `Placed ${esc(p.placed)}.${eq.id === 'searchlight' ? ' (Its pole stands to starboard.)' : eq.id === 'fireMonitor' ? ' (Its pole stands to port.)' : ''}` : eq.field ? 'Placed when you come to this step.' : 'Not in the Shipyard yet: kept on the to-do list.'}</span></span>`;
+    box.appendChild(row);
+  }
 }
 $('pinAdd').onclick = addPin;
 $('pinText').addEventListener('keydown', (e) => {
@@ -955,11 +1046,10 @@ const sheetEditor = new SheetEditor({
   sheet: (id) => notes.find((n): n is Sheet => n.kind === 'sheet' && n.id === id),
   ink: (id) => inkOf(notes, id),
   author: () => author(),
-  addInk: (sheet, pts, tag) => putMyNote({ id: noteId(side().me), kind: 'ink', ...author(), t: Date.now(), sheet, pts, ...(tag ? { tag } : {}) } satisfies Ink),
+  addInk: (sheet, pts) => putMyNote({ id: noteId(side().me), kind: 'ink', ...author(), t: Date.now(), sheet, pts } satisfies Ink),
   dropInk: (id) => dropMyNote(id),
-  suggest: (sheet) => suggestFromSketch(sheet),
 });
-function newSheet(fields: Pick<Sheet, 'title' | 'image' | 'aspect' | 'grid'>): string | null {
+function newSheet(fields: Pick<Sheet, 'title' | 'image' | 'aspect'>): string | null {
   if (sheetsOf(notes).length >= MAX_SHEETS) {
     alert(`That’s ${MAX_SHEETS} sketches on this tab: delete one first (Sketches, on the right).`);
     return null;
@@ -991,7 +1081,7 @@ function showSketches(): void {
     const row = document.createElement('div');
     row.className = 'sketch';
     const strokes = inkOf(notes, sh.id).length;
-    row.innerHTML = `${sh.image ? `<img alt="" src="${sh.image}">` : '<div class="gridPic"></div>'}<div><b>${esc(sh.title || 'Sketch')}</b><div class="meta">${esc(sh.by)} · ${strokes} stroke${strokes === 1 ? '' : 's'}</div></div><button title="Delete">✕</button>`;
+    row.innerHTML = `<img alt="" src="${sh.image}"><div><b>${esc(sh.title || 'Sketch')}</b><div class="meta">${esc(sh.by)} · ${strokes} stroke${strokes === 1 ? '' : 's'}</div></div><button title="Delete">✕</button>`;
     row.onclick = (e) => {
       if ((e.target as HTMLElement).tagName === 'BUTTON') {
         if (confirm(`Delete the sketch “${sh.title}” and what’s drawn on it?`)) dropMyNote(sh.id);
@@ -1027,6 +1117,7 @@ function goStep(to: number | string): void {
   } catch {
     /* fine */
   }
+  if (els[i].dataset.step === 'deck gear') placeFromPins();
   showStepNav();
 }
 function showStepNav(): void {
@@ -1057,8 +1148,21 @@ function setBrief(patch: Partial<Brief>): void {
     c.className = 'mission';
     c.dataset.mission = m.id;
     c.innerHTML = `<b>${m.name}</b><div>${m.what}</div>`;
-    c.onclick = () => setBrief({ mission: m.id, ...m.targets });
+    c.onclick = () => setBrief({ mission: m.id, ...m.targets, jobs: [...m.targets.jobs] });
     box.appendChild(c);
+  }
+  const jobs = $('jobs');
+  for (const j of JOBS) {
+    const c = document.createElement('label');
+    c.className = 'job';
+    c.dataset.job = j.id;
+    c.title = j.what;
+    c.innerHTML = `<input type="checkbox" />${j.name}<small>${j.what}</small>`;
+    c.querySelector('input')!.onchange = (e) => {
+      const on = (e.target as HTMLInputElement).checked;
+      setBrief({ jobs: on ? [...brief.jobs, j.id] : brief.jobs.filter((x: JobId) => x !== j.id) });
+    };
+    jobs.appendChild(c);
   }
   document.querySelectorAll<HTMLInputElement>('[data-brief]').forEach((el) => {
     el.addEventListener('change', () => {
@@ -1076,10 +1180,16 @@ function showBrief(): void {
     if (el.type === 'checkbox') el.checked = !!v;
     else el.value = String(v);
   });
+  document.querySelectorAll<HTMLElement>('.job').forEach((el) => {
+    const on = brief.jobs.includes(el.dataset.job as JobId);
+    el.classList.toggle('on', on);
+    el.querySelector('input')!.checked = on;
+  });
+  document.querySelectorAll<HTMLElement>('[data-for-job]').forEach((el) => (el.hidden = !brief.jobs.includes(el.dataset.forJob as JobId)));
   const name = $('designName') as HTMLInputElement;
   if (document.activeElement !== name) name.value = brief.name;
   document.title = `${brief.name ? `${brief.name} · ` : ''}Workboat World Shipyard`;
-  showBriefCheck();
+  showTrial(); // its charts draw the brief's targets; it shows the brief check too
 }
 /** What her trial says now, if it's for the design as she is (null while a new one runs). */
 function currentTrial(): SeaTrialResults | null {
@@ -1087,28 +1197,42 @@ function currentTrial(): SeaTrialResults | null {
 }
 function measured() {
   const t = currentTrial();
-  return { topSpeedKn: t?.topSpeedKn ?? null, rangeNm: t?.speedTable.at(-1)?.rangeNm ?? null, price: boat.figures.price, gmM: boat.figures.gmM, crane: (design.deckCrane ?? 0) > 0 };
+  const room = deckRoom();
+  return {
+    topSpeedKn: t?.topSpeedKn ?? null,
+    rangeNm: t?.speedTable.at(-1)?.rangeNm ?? null,
+    price: boat.figures.price,
+    gmM: boat.figures.gmM,
+    crane: (design.deckCrane ?? 0) > 0,
+    bollardT: t ? t.bollard.aheadKN / 9.81 : null,
+    crates: room.crates,
+    pots: room.pots,
+    payloadKg: room.payloadKg,
+    has: (kind: GearKind) => !!gearOf({ defId: 'design' }, kind),
+  };
 }
 /** True if she meets every line of the brief, false if not, null while her trial runs (or there's no brief). */
 function briefVerdict(): boolean | null {
   const lines = checkBrief(brief, measured());
   if (!lines.length) return null;
   if (lines.some((l) => l.ok === false)) return false;
-  return lines.some((l) => l.ok === null) ? null : true;
+  return lines.some((l) => l.ok === null && !l.na) ? null : true;
 }
 /** The brief, line by line (right-hand column), and the verdict on the last step. */
 function showBriefCheck(): void {
-  const lines = checkBrief(brief, measured());
+  const all = checkBrief(brief, measured());
+  // Lines for gear the Shipyard can't fit yet are shown, but not counted.
+  const lines = all.filter((l) => !l.na);
   const box = $('briefCheck');
   const m = missionOf(brief.mission);
   const met = lines.filter((l) => l.ok).length;
   const verdict = briefVerdict();
   const head = lines.length ? `${m.name}: ${verdict === true ? 'meets the brief' : verdict === false ? `${met} of ${lines.length} met` : 'checking…'}` : 'No targets yet: set them in the Brief (step 1).';
   box.innerHTML = `<div class="verdict">${esc(head)}</div>`;
-  for (const l of lines) {
+  for (const l of all) {
     const row = document.createElement('div');
-    row.className = `line ${l.ok === null ? 'wait' : l.ok ? 'ok' : 'bad'}`;
-    row.innerHTML = `<span class="mark">${l.ok === null ? '…' : l.ok ? '✓' : '✗'}</span><span>${l.label} <span class="meta">${esc(l.target)}</span></span><span class="val">${l.value ?? 'trial running'}</span>${l.fix ? `<div class="fix">${esc(l.fix.hint)}<button>Go to ${esc(l.fix.step)}</button></div>` : ''}`;
+    row.className = `line ${l.na ? 'na' : l.ok === null ? 'wait' : l.ok ? 'ok' : 'bad'}`;
+    row.innerHTML = `<span class="mark">${l.na ? '–' : l.ok === null ? '…' : l.ok ? '✓' : '✗'}</span><span>${l.label} <span class="meta">${esc(l.target)}</span></span><span class="val">${l.value ?? 'trial running'}</span>${l.fix ? `<div class="fix">${esc(l.fix.hint)}<button>Go to ${esc(l.fix.step)}</button></div>` : ''}`;
     const go = row.querySelector('button');
     if (go && l.fix) go.onclick = () => goStep(l.fix!.step);
     box.appendChild(row);
@@ -1147,7 +1271,7 @@ $('suggestBrief').onclick = async () => {
     const d = { ...base, ...fit };
     const t = await trialOf(d, run * 100 + k);
     if (run !== searchRun) return; // asked again
-    if (t) tried.push({ fit, topSpeedKn: t.topSpeedKn, rangeNm: t.speedTable.at(-1)?.rangeNm ?? 0, price: boatFor(d).boat.figures.price });
+    if (t) tried.push({ fit, topSpeedKn: t.topSpeedKn, rangeNm: t.speedTable.at(-1)?.rangeNm ?? 0, price: boatFor(d).boat.figures.price, bollardT: t.bollard.aheadKN / 9.81 });
   }
   const best = pickEngine(brief, tried);
   // Only if she's still the boat the trials were for (nobody has changed her hull since).
@@ -1160,45 +1284,6 @@ $('suggestBrief').onclick = async () => {
   msg.innerHTML = `<b>Suggested:</b> a ${esc(h)}${patch.deckCrane ? ' with a deck crane' : ''}, ${esc(name)}: ${best.topSpeedKn.toFixed(1)} kn, ${best.rangeNm.toFixed(0)} nm, £${best.price.toLocaleString('en-GB')}. ${tried.length} engine fits tried; the cheapest that does the job fitted. Now shape her in the next steps: the brief on the right keeps score.`;
 };
 $('openSaved').onclick = () => goStep('handover');
-
-// From a sketch: squared paper, her profile drawn, read into a boat (sketchFit.ts).
-$('startSketch').onclick = () => {
-  const existing = sheetsOf(notes).find((s) => s.grid);
-  const id = existing?.id ?? newSheet({ title: 'Profile sketch', image: '', aspect: 20 / 8, grid: { wM: 20, hM: 8, waterY: 2.5 } });
-  if (id) sheetEditor.show(id);
-};
-let profiles: HullProfile[] | null = null;
-/** Each hull type at its standard size, measured from the build (for reading sketches). */
-function hullProfiles(): HullProfile[] {
-  if (profiles) return profiles;
-  // Each type's profile is read the same way as a sketch (sketchFit.ts readSketch): her
-  // stations' sheer and keel, bow to the right, so a sketch and a type are compared like for like.
-  profiles = DESIGN_HULLS.map((h, i) => {
-    const d = { ...DEFAULT_DESIGN, ...h.defaults, hull: i, length: 8, beam: 8, depth: 8 };
-    const st = hullFormOf(useDesign(d).hull.form).stations;
-    const top = st.map((s) => [-s.z, Math.max(...s.polygon.map((p) => p[1]))] as Pt);
-    const bottom = st.map((s) => [-s.z, Math.min(...s.polygon.map((p) => p[1]))] as Pt).reverse();
-    const r = readSketch([[...top, ...bottom, top[0]]], [])!;
-    return { name: h.name.split(':')[0], lengthM: r.lengthM, depthM: r.freeboardM + r.draughtM, draughtM: r.draughtM, stemDeg: r.stemDeg, rampBow: !!h.ramp, defaults: h.defaults };
-  });
-  boat = useDesign(design); // put her back
-  return profiles;
-}
-function suggestFromSketch(sheet: Sheet): void {
-  const g = sheet.grid;
-  if (!g) return;
-  const toM = (i: Ink): Pt[] => i.pts.map(([x, y]) => [x * g.wM, (1 - y) * g.hM - g.waterY]);
-  const ink = inkOf(notes, sheet.id);
-  const reading = readSketch(ink.filter((i) => i.tag !== 'house').map(toM), ink.filter((i) => i.tag === 'house').map(toM));
-  if (!reading) return sheetEditor.showResult('<p>Draw a bit more of her first: her hull’s outline at least (deck edge, stem, bottom, transom), at least 2 m long.</p>', () => {});
-  const fit = fitSketch(reading, hullProfiles());
-  const order = fit.scores.map((sc, i) => [sc, i]).sort((a, b) => a[0] - b[0]);
-  const second = order[1] ? hullProfiles()[order[1][1]].name : '';
-  sheetEditor.showResult(`${fit.says.map((t) => `<p>${esc(t)}</p>`).join('')}${second ? `<p class="meta">Next nearest: ${esc(second)}.</p>` : ''}`, () => {
-    change(fit.patch);
-    goStep('hull');
-  });
-}
 
 // The together box opens from the header.
 $('togetherBtn').onclick = () => ($('togetherPop').hidden = !$('togetherPop').hidden);
@@ -1325,14 +1410,15 @@ let cmpRenderer: THREE.WebGLRenderer | null = null;
 const cmpWorker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
 let cmpRun = 0;
 /** Build a variant's boat on its own (the page's boat is put back after). */
-function boatFor(d: ShipDesign): { root: THREE.Group; boat: DesignedBoat } {
+function boatFor(d: ShipDesign): { root: THREE.Group; boat: DesignedBoat; room: DeckRoom } {
   const b = useDesign(d);
+  const room = deckRoom();
   const def = VESSEL_DEFS.design;
   const root = new THREE.Group();
   root.add(buildVesselMesh(def.hull, def.layout, def.exhaust?.position, def.livery));
   root.add(new BoatView('design', def, assembleView(RECIPES.design, def, LIBRARY), true).root);
   boat = useDesign(design);
-  return { root, boat: b };
+  return { root, boat: b, room };
 }
 /**
  * Her profile (from starboard, bow to the right) and plan, at `mpp` metres a pixel, framed
@@ -1426,7 +1512,7 @@ function showCompare(): void {
   // Their sea trials (each matched by trial, in the background).
   const run = ++cmpRun;
   const results: Record<string, SeaTrialResults | undefined> = {};
-  const bars = () => showBars(A, a.boat, results.a, B, b.boat, results.b);
+  const bars = () => showBars(A, a.boat, a.room, results.a, B, b.boat, b.room, results.b);
   bars();
   cmpWorker.onmessage = (e: MessageEvent<{ id: number; trials?: SeaTrialResults }>) => {
     if (Math.floor(e.data.id / 10) !== run) return;
@@ -1437,7 +1523,7 @@ function showCompare(): void {
   cmpWorker.postMessage({ id: run * 10 + 2, design: B.id === active ? design : B.design, match: true });
 }
 /** The verdict bars: each figure for both, as bars to the larger of the two. */
-function showBars(A: Variant, a: DesignedBoat, ta: SeaTrialResults | undefined, B: Variant, b: DesignedBoat, tb: SeaTrialResults | undefined): void {
+function showBars(A: Variant, a: DesignedBoat, ra: DeckRoom, ta: SeaTrialResults | undefined, B: Variant, b: DesignedBoat, rb: DeckRoom, tb: SeaTrialResults | undefined): void {
   const rowsOf: [string, number | undefined, number | undefined, (x: number) => string, string][] = [
     ['Top speed', ta?.topSpeedKn, tb?.topSpeedKn, (x) => `${x.toFixed(1)} kn`, 'more is faster'],
     ['Turning circle', ta?.tacticalDiameter, tb?.tacticalDiameter, (x) => `${x.toFixed(0)} m`, 'less turns tighter'],
@@ -1445,6 +1531,8 @@ function showBars(A: Variant, a: DesignedBoat, ta: SeaTrialResults | undefined, 
     ['Range flat out', ta?.speedTable.at(-1)?.rangeNm, tb?.speedTable.at(-1)?.rangeNm, (x) => `${x.toFixed(0)} nm`, ''],
     ['Stability (GM)', a.figures.gmM, b.figures.gmM, (x) => `${x.toFixed(2)} m`, 'more is stiffer'],
     ['Displacement', a.figures.massT, b.figures.massT, (x) => `${x.toFixed(1)} t`, ''],
+    ['Deck cargo', ra.crates, rb.crates, (x) => `${x} crates`, 'more carries more'],
+    ['Bollard pull', ta && ta.bollard.aheadKN / 9.81, tb && tb.bollard.aheadKN / 9.81, (x) => `${x.toFixed(1)} t`, 'more tows harder'],
     ['Roll period', ta?.motions.rollPeriod, tb?.motions.rollPeriod, (x) => `${x.toFixed(1)} s`, 'longer is gentler'],
     ['Price', a.figures.price, b.figures.price, (x) => `£${Math.round(x).toLocaleString('en-GB')}`, ''],
   ];
@@ -1522,4 +1610,4 @@ function look(eye: [number, number, number], at: [number, number, number]): void
   orbit.target.set(...at);
   orbit.update();
 }
-(window as unknown as { shipyard: unknown }).shipyard = { get design() { return design; }, get boat() { return boat; }, get trial() { return trial; }, get people() { return people; }, get brief() { return brief; }, goStep, sheetEditor, get profiles() { return hullProfiles(); }, get notes() { return notes; }, putMyNote, hullFrac: () => [hullMin, hullMax], get link() { return link; }, change, setView, look, undo: () => undoRedo(false), redo: () => undoRedo(true) };
+(window as unknown as { shipyard: unknown }).shipyard = { get design() { return design; }, get boat() { return boat; }, get trial() { return trial; }, get people() { return people; }, get brief() { return brief; }, goStep, sheetEditor, get notes() { return notes; }, putMyNote, hullFrac: () => [hullMin, hullMax], get link() { return link; }, change, setView, look, undo: () => undoRedo(false), redo: () => undoRedo(true) };

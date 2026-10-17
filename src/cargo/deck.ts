@@ -7,7 +7,7 @@
  */
 import { footprintsOf } from '../boats/sims';
 import { hullPlan, onGear } from '../vessel/layout';
-import { VESSEL_DEFS } from '../vessel/vesselDef';
+import { VESSEL_DEFS, type VesselDef } from '../vessel/vesselDef';
 
 export interface DeckFootprint {
   hx: number;
@@ -16,11 +16,13 @@ export interface DeckFootprint {
 
 /** Bulwark thickness plus a little air (m). */
 const EDGE = 0.25;
-const plans = new Map<string, ReturnType<typeof hullPlan>>();
+/** Kept by the def itself, so a Shipyard design (a new 'design' def each time) gets its own. */
+const plans = new WeakMap<VesselDef, ReturnType<typeof hullPlan>>();
 
 function planOf(defId: string) {
-  let p = plans.get(defId);
-  if (!p) plans.set(defId, (p = hullPlan(VESSEL_DEFS[defId])));
+  const def = VESSEL_DEFS[defId];
+  let p = plans.get(def);
+  if (!p) plans.set(def, (p = hullPlan(def)));
   return p;
 }
 
@@ -67,6 +69,40 @@ export function deckSpot(
     }
   }
   return null;
+}
+
+/**
+ * How many items of a footprint stand on her open deck at once (the Shipyard's "deck
+ * cargo" figure), one deep, not stacked: rows across the deck, each as many as fit side by
+ * side with a hand's width (`gap`) between, from the transom forward. The same rule as
+ * placing them by hand (`onOpenDeck`), so she really takes that many. The rows are tried at
+ * a few starting points and the best kept, so a short deck isn't undercounted by where the
+ * first row happened to fall.
+ */
+export function deckCapacity(defId: string, f: DeckFootprint, gap = 0.05): number {
+  const plan = planOf(defId);
+  const r = Math.max(f.hx, f.hz);
+  const pitch = 2 * r + gap;
+  let best = 0;
+  for (const shift of [0, 0.25, 0.5, 0.75]) {
+    let n = 0;
+    for (let z = plan.transom - r - shift * pitch; z > plan.stem + r; z -= pitch) {
+      // The row's open stretch across, at this station (a wheelhouse splits it in two).
+      const half = plan.halfBeam(z);
+      let run: number[] = [];
+      const fill = () => {
+        if (run.length) n += Math.floor((run[run.length - 1] - run[0]) / pitch + 1e-6) + 1;
+        run = [];
+      };
+      for (let x = -half; x <= half; x += 0.05) {
+        if (onOpenDeck(defId, f, x, z)) run.push(x);
+        else fill();
+      }
+      fill();
+    }
+    best = Math.max(best, n);
+  }
+  return best;
 }
 
 /** Lashing points of a vessel (vessel axes, x/z on the deck). */

@@ -29,4 +29,11 @@ describe('notes', () => {
     expect(cleanNote({ id: 'a', kind: 'blob' })).toBeNull();
     expect((cleanNote({ ...pin('a', 1), text: 'x'.repeat(500) }) as Pin).text).toHaveLength(140);
   });
+
+  it('a pin keeps its equipment and where it went; the old squared profile sheets are dropped', () => {
+    const p = cleanNote({ ...pin('a', 1), gear: 'fireMonitor', placed: 'on the foredeck' }) as Pin;
+    expect(p.gear).toBe('fireMonitor');
+    expect(p.placed).toBe('on the foredeck');
+    expect(cleanNote({ id: 's', kind: 'sheet', by: 'A', colour: '#123456', t: 1, title: 'Profile sketch', image: '', aspect: 2.5, grid: { wM: 20, hM: 8, waterY: 2.5 } })).toBeNull();
+  });
 });

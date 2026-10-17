@@ -2,15 +2,18 @@
  * Notes on the boat (owner, Oct 2026; collaboration, part 2): pins, and sketches that anyone
  * in the session puts on her.
  *
- *   pin    a point on her with a short note ("searchlight here", "cut the house down"). A pin
- *          is a small task: it's on the design's to-do list with its author until someone
+ *   pin    a point on her with a short note ("cut the house down"), or equipment wanted
+ *          there, picked from a list (pinGear.ts: "a fire monitor here"), which the
+ *          Shipyard places when you reach Deck gear. A pin is a small task: it's on the design's to-do list with its author until someone
  *          marks it done, and done pins fade. Kept in **hull fractions**, not metres or
  *          pixels: each coordinate as a fraction of her hull's extent (0 at one end, 1 at the
  *          other), along her length, across her beam and up her height, so stretch her and a
  *          pin on the roof stays on the roof, not in the water.
  *   sheet  a flat sketch sheet (owner: draw on a 2D picture, like on a screenshot, not in
- *          3D): a snapshot of the view as it was, or a squared drawing grid for a first
- *          sketch of her profile (sketchFit.ts reads that one).
+ *          3D): a snapshot of the view as it was, drawn on freehand by everyone in the
+ *          session, to talk a change over. (A squared sheet for a first profile sketch,
+ *          read into a suggested boat, was tried and taken out: owner, Oct 2026, it didn't
+ *          add anything. Old ones are dropped.)
  *   ink    one pen stroke on a sheet, in the sheet's own 0..1 coordinates (x across, y down).
  *          Each stroke is its own note, so two people can draw on one sheet at once.
  *
@@ -39,22 +42,22 @@ export interface Pin extends NoteBase {
   done: boolean;
   /** Who marked it done. */
   doneBy?: string;
+  /** Equipment wanted here (pinGear.ts EQUIPMENT id), if any. */
+  gear?: string;
+  /** Where the Shipyard put it ("on the foredeck"), once it has: it isn't placed again. */
+  placed?: string;
 }
 export interface Sheet extends NoteBase {
   kind: 'sheet';
   title: string;
-  /** The picture under the drawing (a JPEG data URL), or '' for a squared grid. */
+  /** The picture under the drawing (a JPEG data URL). */
   image: string;
   /** Its shape: width / height. */
   aspect: number;
-  /** A drawing grid's extent in metres (with the waterline `waterY` m up from its foot). */
-  grid?: { wM: number; hM: number; waterY: number };
 }
 export interface Ink extends NoteBase {
   kind: 'ink';
   sheet: string;
-  /** Which part a profile-sketch stroke draws ('hull' or 'house'); none on a snapshot. */
-  tag?: 'hull' | 'house';
   pts: [number, number][];
 }
 export type Note = Pin | Sheet | Ink;
@@ -76,21 +79,27 @@ export function cleanNote(n: unknown): Note | null {
   if (typeof o.id !== 'string' || !o.id || o.id.length > 40) return null;
   const base = { id: o.id, by: str(o.by, 20) || '?', colour: /^#[0-9a-f]{6}$/i.test(String(o.colour)) ? String(o.colour) : '#567', t: Number(o.t) || 0 };
   if (o.kind === 'pin' && frac(o.at)) {
-    return { ...base, kind: 'pin', at: [o.at[0], o.at[1], o.at[2]], text: str(o.text, MAX_TEXT), done: !!o.done, ...(o.doneBy ? { doneBy: str(o.doneBy, 20) } : {}) };
+    return {
+      ...base,
+      kind: 'pin',
+      at: [o.at[0], o.at[1], o.at[2]],
+      text: str(o.text, MAX_TEXT),
+      done: !!o.done,
+      ...(o.doneBy ? { doneBy: str(o.doneBy, 20) } : {}),
+      ...(o.gear ? { gear: str(o.gear, 20) } : {}),
+      ...(o.placed ? { placed: str(o.placed, 40) } : {}),
+    };
   }
   if (o.kind === 'sheet') {
     const image = typeof o.image === 'string' && o.image.length <= MAX_IMAGE && /^data:image\/(jpeg|png);base64,/.test(o.image) ? o.image : '';
     const aspect = Number(o.aspect);
-    const g = o.grid as Record<string, unknown> | undefined;
-    const grid = g && [g.wM, g.hM, g.waterY].every((x) => typeof x === 'number' && Number.isFinite(x) && x >= 0 && x < 200) ? { wM: Number(g.wM), hM: Number(g.hM), waterY: Number(g.waterY) } : undefined;
-    if (!image && !grid) return null;
-    return { ...base, kind: 'sheet', title: str(o.title, 60), image, aspect: aspect > 0.2 && aspect < 5 ? aspect : 1.6, ...(grid ? { grid } : {}) };
+    if (!image) return null;
+    return { ...base, kind: 'sheet', title: str(o.title, 60), image, aspect: aspect > 0.2 && aspect < 5 ? aspect : 1.6 };
   }
   if (o.kind === 'ink' && typeof o.sheet === 'string' && Array.isArray(o.pts)) {
     const xy = (p: unknown): p is [number, number] => Array.isArray(p) && p.length === 2 && p.every((x) => typeof x === 'number' && Number.isFinite(x) && x > -0.5 && x < 1.5);
     const pts = o.pts.filter(xy).slice(0, MAX_POINTS).map((p) => [p[0], p[1]] as [number, number]);
-    const tag = o.tag === 'hull' || o.tag === 'house' ? o.tag : undefined;
-    return pts.length >= 2 ? { ...base, kind: 'ink', sheet: o.sheet.slice(0, 40), pts, ...(tag ? { tag } : {}) } : null;
+    return pts.length >= 2 ? { ...base, kind: 'ink', sheet: o.sheet.slice(0, 40), pts } : null;
   }
   return null;
 }
