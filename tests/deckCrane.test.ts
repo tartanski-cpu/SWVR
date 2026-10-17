@@ -8,6 +8,8 @@ import { useDesign } from '../src/boats/sims';
 import { deckHeightAt, payloadOf, type CargoItem } from '../src/cargo/cargo';
 import { craneStateOf, cranesOf, hookOnBoat } from '../src/cargo/craneHook';
 import { craneRadius, safeLoadAt } from '../src/modules/deckCrane';
+import { buyBlocker, createCareer } from '../src/career/career';
+import * as THREE from 'three';
 import { CONFIG } from '../src/config';
 import { IdFactory } from '../src/core/ids';
 import type { Intent } from '../src/core/intents';
@@ -202,5 +204,55 @@ describe('deck crane', { timeout: 30000 }, () => {
     send('crane.hook', 0);
     expect(world.cargo.heavy.at).toEqual({ hook: v.id, crane: path });
     expect(s.loadKg).toBe(mass);
+  });
+
+  /** How far the hook wanders (m, the most from its mean) over 20 s in a seaway, in the world as she heads and drifts. */
+  function wander(upgrade: boolean, hydraulics = true): number {
+    useDesign({ ...DEFAULT_DESIGN, deckCrane: 1 });
+    const { world, vesselId } = createWorld(new IdFactory(), 'design'); // the default sea: waves on
+    world.geography = 'openSea';
+    world.career = createCareer();
+    if (upgrade) world.career.upgrades.push('craneComp');
+    const v = world.vessels[vesselId];
+    const path = cranesOf(v)[0].path;
+    if (hydraulics) startEngine(world, v);
+    const step = (control: string, value: number) => stepWorld(world, [{ playerId: 'p', targetId: v.id, control, value } as Intent], DT);
+    step('crane.luff', 20);
+    step('crane.slew', 90); // out over the side: where she rolls most
+    for (let i = 0; i < 20 / DT; i++) stepWorld(world, [], DT);
+    const pts: THREE.Vector3[] = [];
+    for (let i = 0; i < 20 / DT; i++) {
+      stepWorld(world, [], DT);
+      // In the world, then taken back by her drift and heading (not compensated, nor meant to be).
+      const q = new THREE.Quaternion().fromArray(v.orientation);
+      const h = hookOnBoat(v, path)!.applyQuaternion(q);
+      const yaw = new THREE.Euler().setFromQuaternion(q, 'YXZ').y;
+      h.y += v.position[1];
+      pts.push(h.applyAxisAngle(new THREE.Vector3(0, 1, 0), -yaw));
+    }
+    const mean = pts.reduce((a, p) => a.add(p), new THREE.Vector3()).multiplyScalar(1 / pts.length);
+    return Math.max(...pts.map((p) => p.distanceTo(mean)));
+  }
+
+  it('motion compensation (an upgrade): the hook holds steady in a seaway as she rolls, pitches and heaves', () => {
+    const plain = wander(false);
+    const held = wander(true);
+    expect(plain).toBeGreaterThan(0.1); // she does move it about
+    expect(held).toBeLessThan(plain * 0.3);
+    // Without hydraulic pressure it can't: the hook rides with her.
+    expect(wander(true, false)).toBeGreaterThan(plain * 0.7);
+  });
+
+  it('motion compensation is sold only for a boat with a deck crane', () => {
+    for (const [deckCrane, why] of [[0, 'Needs a deck crane'], [1, null]] as const) {
+      useDesign({ ...DEFAULT_DESIGN, deckCrane });
+      const { world } = createWorld(new IdFactory(), 'design');
+      world.career = createCareer();
+      world.career.money = 1e6;
+      world.career.rep = { calder: 100 };
+      const blocker = buyBlocker(world, 'craneComp');
+      if (why) expect(blocker).toBe(why);
+      else expect(blocker).not.toBe('Needs a deck crane');
+    }
   });
 });

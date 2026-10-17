@@ -9,7 +9,8 @@
  * BOOM OUT / IN (hold) run its telescopic inner section out of the boom's tip and back
  * (owner: to reach out over the deck); HOOK takes the cargo under the hook or sets down
  * what's on it. A load-moment limiter (`safeLoadAt`) keeps a load within what the crane can
- * hold at that reach. On desktop, clicking the joystick steers it with W A S D, and keys work
+ * hold at that reach. Bought as an upgrade, motion compensation holds the hook steady
+ * against her roll, pitch and heave (the world works it: cargo/craneHook.ts). On desktop, clicking the joystick steers it with W A S D, and keys work
  * the buttons too (`keyExtras`: R / F hoist, Q / E boom in / out, Space the hook). The hooking is the
  * world.s (cargo/cargo.ts, stepCraneCargo): the crane only says, through its state, that HOOK was
  * pressed (`press`), and the world says what's on the hook (`hooked`). The load hangs rigid
@@ -40,6 +41,13 @@ export interface DeckCraneState {
   extend: number;
   /** The load on the hook (kg; the world sets it), for the load-moment limiter. */
   loadKg: number;
+  /**
+   * Motion compensation (a career upgrade; the world works it, cargo/craneHook.ts): where the
+   * hook is held this tick, in the crane's axes, or null when it hangs where the boom puts it.
+   */
+  hookAt: [number, number, number] | null;
+  /** Her height, averaged: the level the compensation holds the hook to (null: not yet). */
+  refY: number | null;
   /** HOOK pressed and not yet acted on by the world. */
   press: boolean;
   /** Was HOOK held last tick (to see a press). */
@@ -81,8 +89,8 @@ const toward = (from: number, to: number, step: number) => from + Math.max(-step
 
 export const DECK_CRANE: ModuleDefinition<DeckCraneConfig, DeckCraneState> = {
   id: 'deck.crane',
-  // 2: the telescopic boom (`extend`) and the load on the hook (`loadKg`).
-  version: 2,
+  // 2: the telescopic boom (`extend`) and the load on the hook (`loadKg`). 3: motion compensation (`hookAt`, `refY`).
+  version: 3,
   fits: ['deck.equipment'],
   defaults: CONFIG.modules.deckCrane,
   validateConfig: (c) => [
@@ -107,9 +115,12 @@ export const DECK_CRANE: ModuleDefinition<DeckCraneConfig, DeckCraneState> = {
     { x: 0, z: 0, r: c.plinthRadius + 0.05, top: c.columnHeight },
     { x0: c.post.x - 0.17, x1: c.post.x + 0.17, z0: c.post.z - 0.13, z1: c.post.z + 0.13, top: c.post.height + 0.1 },
   ],
-  migrate: (old) => ({ ...(old as DeckCraneState), extend: 0, loadKg: 0 }),
+  migrate: (old, from) => {
+    const s = old as DeckCraneState;
+    return { ...s, ...(from < 2 ? { extend: 0, loadKg: 0 } : {}), hookAt: null, refY: null };
+  },
   sim: {
-    init: (c) => ({ slew: c.stow.slewDeg, luff: c.stow.luffDeg, wire: c.stow.wire, extend: 0, loadKg: 0, press: false, held: false, hooked: null }),
+    init: (c) => ({ slew: c.stow.slewDeg, luff: c.stow.luffDeg, wire: c.stow.wire, extend: 0, loadKg: 0, hookAt: null, refY: null, press: false, held: false, hooked: null }),
     tick({ config: c, io }, s, dt) {
       const hook = !!io.get('hook');
       if (hook && !s.held) s.press = true;
@@ -244,11 +255,15 @@ export const DECK_CRANE: ModuleDefinition<DeckCraneConfig, DeckCraneState> = {
           ram.position.copy(a);
           ram.quaternion.setFromUnitVectors(unitUp, b.clone().sub(a).normalize());
           ram.scale.set(1, a.distanceTo(b), 1);
-          // The wire from the tip straight down to the hook.
+          // The hook: where the compensation holds it, or straight below the tip; the wire from
+          // it up to the tip.
           tip.fromArray(craneTip(c, st.slew, st.luff, extend));
-          wire.position.copy(tip).setY(tip.y - st.wire);
-          wire.scale.set(1, st.wire, 1);
-          hookMesh.position.copy(wire.position);
+          if (st.hookAt) hookMesh.position.fromArray(st.hookAt);
+          else hookMesh.position.copy(tip).setY(tip.y - st.wire);
+          wire.position.copy(hookMesh.position);
+          b.subVectors(tip, hookMesh.position);
+          wire.scale.set(1, Math.max(0.01, b.length()), 1);
+          wire.quaternion.setFromUnitVectors(unitUp, b.normalize());
         },
       };
     },

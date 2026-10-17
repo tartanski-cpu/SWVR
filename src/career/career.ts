@@ -36,6 +36,7 @@ import { sayRadio } from '../rescue/rescue';
 import { cargoPortAt } from '../cargo/cargo';
 import { significantWaveHeight } from '../ocean/waves';
 import type { TutorialState } from './tutorial';
+import { simOf } from '../boats/sims';
 
 export type JobKind = 'cargo' | 'fish' | 'log' | 'debris' | 'tow' | 'rescue' | 'fire' | 'crate' | 'catch';
 export type ContractKind = 'cargo' | 'fish' | 'logs';
@@ -338,6 +339,10 @@ export function buyBlocker(world: WorldState, id: string): string | null {
   const u = CONFIG.career.upgrades.find((x) => x.id === id);
   if (!c || !u) return 'Unknown';
   if (c.upgrades.includes(id)) return 'Fitted';
+  // Gear for something she hasn't got (the crane's motion compensation, on a boat without a crane).
+  const needs = 'needs' in u ? u.needs : undefined;
+  const v = workboat(world);
+  if (needs && !(v && simOf(v.defId)?.mounts.some((m) => m.def.id === needs))) return `Needs a ${needs === 'deck.crane' ? 'deck crane' : needs}`;
   if (!officeAt(world)) return 'In port only';
   const best = Math.max(0, ...Object.values(c.rep));
   if (best < u.minRep) return `Needs reputation ${u.minRep}`;

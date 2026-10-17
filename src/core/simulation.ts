@@ -123,7 +123,7 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
   }
   for (const vessel of Object.values(world.vessels)) if (onCrane(vessel)) stepTender(world, vessel, dt);
   // The deck cranes' HOOK presses (their machinery has just marked them).
-  stepCraneCargo(world);
+  stepCraneCargo(world, dt);
 
   stepForecast(world);
   stepTraffic(world, dt);

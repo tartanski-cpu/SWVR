@@ -38,10 +38,42 @@ export function craneStateOf(v: VesselState, path: string): DeckCraneState | und
   return v.modules?.[path]?.s as DeckCraneState | undefined;
 }
 
-/** Where a crane's hook is, in her axes (null: no such crane on her, or no state yet). */
+/** Where a crane's hook is, in her axes (null: no such crane on her, or no state yet); held by its motion compensation if that's working. */
 export function hookOnBoat(v: VesselState, path: string, out = new THREE.Vector3()): THREE.Vector3 | null {
   const crane = cranesOf(v).find((c) => c.path === path);
   const s = craneStateOf(v, path);
   if (!crane || !s) return null;
-  return out.fromArray(craneHook(crane.config, s)).applyMatrix4(crane.place);
+  return out.fromArray(s.hookAt ?? craneHook(crane.config, s)).applyMatrix4(crane.place);
+}
+
+const qBoat = new THREE.Quaternion();
+const qLevel = new THREE.Quaternion();
+const euler = new THREE.Euler();
+const nominal = new THREE.Vector3();
+const held = new THREE.Vector3();
+const inv = new THREE.Matrix4();
+
+/**
+ * Motion compensation (the 'craneComp' upgrade), each tick: where the hook is held, in the
+ * crane's axes. The hook is put where it would hang if she floated upright and steady: her
+ * heading kept (you still slew it round with her), her roll and pitch taken out, and her
+ * height as `s.refY` (averaged over `settleS`, so her heave on the waves is taken out but a
+ * change of draught isn't). From there back into her axes as she lies now: the crane moves
+ * the hook that far from where the boom would leave it, up to its `stroke`.
+ */
+export function compensatedHook(v: VesselState, crane: CraneOnBoat, s: DeckCraneState): [number, number, number] {
+  const c = crane.config;
+  nominal.fromArray(craneHook(c, s)).applyMatrix4(crane.place);
+  qBoat.fromArray(v.orientation);
+  qLevel.setFromEuler(euler.set(0, euler.setFromQuaternion(qBoat, 'YXZ').y, 0, 'YXZ'));
+  // Her steady self's hook, from her origin in the world (level, at her averaged height);
+  // then in her axes as she lies now.
+  held.copy(nominal).applyQuaternion(qLevel);
+  held.y += (s.refY ?? v.position[1]) - v.position[1];
+  held.applyQuaternion(qBoat.invert());
+  // No further than its stroke from where the boom would leave it.
+  held.sub(nominal);
+  if (held.length() > c.motionComp.stroke) held.setLength(c.motionComp.stroke);
+  held.add(nominal);
+  return held.applyMatrix4(inv.copy(crane.place).invert()).toArray() as [number, number, number];
 }

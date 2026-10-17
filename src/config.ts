@@ -1400,7 +1400,8 @@ export const CONFIG = {
    *   contracts `perPort` offers at each office, renewed every `refresh` s. Per kind: the
    *             item counts by tier (reputation `tierRep` at that port to take each tier),
    *             the bonus per item and the time allowed per item (s).
-   *   upgrades  price and the best port reputation needed.
+   *   upgrades  price and the best port reputation needed; `needs`: a module her boat must
+   *             carry to fit it (the deck crane's motion compensation).
    */
   career: {
     startMoney: 500,
@@ -1446,6 +1447,7 @@ export const CONFIG = {
       { id: 'towPost', name: 'Heavy towing post', price: 1500, minRep: 10, desc: 'The towline holds 75 % more before it parts' },
       { id: 'trawl', name: 'Bigger trawl', price: 1800, minRep: 10, desc: 'The net fills half as fast again' },
       { id: 'ice', name: 'Ice machine', price: 1200, minRep: 0, desc: 'Iced fish fetch 30 % more' },
+      { id: 'craneComp', name: 'Crane motion compensation', price: 3500, minRep: 15, needs: 'deck.crane', desc: 'The deck crane holds its hook steady as she rolls, pitches and heaves' },
     ],
   },
 
@@ -2532,6 +2534,14 @@ export const CONFIG = {
       post: { x: 0.55, z: 0.45, height: 1.05, deskWidth: 0.5, deskDepth: 0.28 },
       /** How close the hook must be to an item's lifting point to take it (m). */
       hookReach: 0.6,
+      /**
+       * Motion compensation (a career upgrade, 'craneComp'): while there's hydraulic pressure
+       * the crane holds its hook still against her roll, pitch and heave, as if she were
+       * upright and steady: it follows only her heading and her height averaged over
+       * `settleS` (s), so you still place the hook yourself. It can move the hook up to
+       * `stroke` (m) from where it would hang uncompensated (its rams' and wire's travel).
+       */
+      motionComp: { stroke: 1.2, settleS: 8 },
     },
 
     /**

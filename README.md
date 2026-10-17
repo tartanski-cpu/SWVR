@@ -346,6 +346,7 @@ Everything you do now earns or costs money. The menu's **Office** tab is your ha
   | Heavy towing post | £1,500 | 10 | The towline takes 75 % more before it parts |
   | Bigger trawl | £1,800 | 10 | The net fills half as fast again |
   | Ice machine | £1,200 | — | Fish fetch 30 % more |
+  | Crane motion compensation | £3,500 | 15 | The deck crane holds its hook steady as she rolls, pitches and heaves (a boat with a deck crane only; it needs deck hydraulics) |
 
 - **Saved:** your money, ledger, reputation and upgrades are kept in the host's browser between sessions; crew-mates see the host's career. You start with £500.
 - **Debug:** Debug → Missions → Career → **+£5000, rep** (cash and +25 reputation everywhere).

@@ -3179,6 +3179,29 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   - in the headless browser, in a design moored at Calder Haven: started the engine, raised the boom, hooked a crate off the foredeck, swung it to starboard (she heeled about 1°), and landed it on the quay.
 - **Not done yet:** the tow winch, A-frame, net drum, windlass and tender crane are modules but drawn at the workboat's fixed places. Making them placeable is next.
 
+### Deck crane: motion compensation, an upgrade you buy (owner)
+
+- **The owner asked** for an upgrade that makes the crane motion compensated: something you buy, not a button.
+- **The upgrade:** 'craneComp', "Crane motion compensation", in the chandlery (menu, Yard tab), £3,500, reputation 15.
+  - Upgrades can now say what module they need (`needs`). This one needs a `deck.crane` on the home boat; without one it shows "Needs a deck crane".
+- **What it does:** while there's deck hydraulic pressure, the crane holds its hook where it would hang if she floated upright and steady, against her roll, pitch and heave, like a real active motion-compensated crane.
+  - It keeps her heading, so you still slew the hook round with her, and her height averaged over `motionComp.settleS` (8 s). That takes out her heave on the waves but not a change of draught.
+  - It moves the hook at most `motionComp.stroke` (1.2 m) from where the boom alone would leave it: its rams' and wire's travel.
+  - Off, or with no pressure, the hook rides with her, as before.
+- **How it's built:**
+  - **The world works it, each tick** (`cargo/craneHook.ts` `compensatedHook`, run from `stepCraneCargo`, which now takes `dt`). It needs the boat's pose and the career.
+  - **The result goes in the crane's state** (`hookAt`, `refY`; `deck.crane` v3), so crew in multiplayer see the same.
+  - **Taking, setting down and the load's weight** all use the held hook.
+  - **The crane draws its wire** from the boom tip to wherever the hook is (plumb in the world when compensated, at an angle to the boat).
+- **Config:** `CONFIG.modules.deckCrane.motionComp` {`stroke`, `settleS`}; the upgrade in `CONFIG.career.upgrades`.
+- **Checked:**
+  - typecheck and all tests, including new ones:
+    - in the default sea, the boom out over the side, the hook's wander over 20 s (as she heads and drifts) drops from 0.93 m to 0.12 m with it fitted, and stays large with no hydraulic pressure;
+    - it's only for sale on a boat with a deck crane;
+    - golden runs unchanged;
+  - in the game, headless: heeled 8° with the boom out over the low side, the hook is held up and the wire hangs plumb (screenshots with it on and off).
+- **Not checked:** how it feels in VR in a seaway.
+
 ### Deck crane: telescopic boom, load-moment limit, keyboard working on desktop (owner)
 
 - **The owner tested the deck crane** and asked for:

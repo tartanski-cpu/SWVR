@@ -35,7 +35,9 @@ import type { VesselState } from '../vessel/vesselState';
 import { PORTS, type PortDef } from '../world/archipelago';
 import { standingHeight } from '../world/geography';
 import { deckSpot, onOpenDeck, type DeckFootprint } from './deck';
-import { craneStateOf, cranesOf, hookOnBoat } from './craneHook';
+import { compensatedHook, craneStateOf, cranesOf, hookOnBoat } from './craneHook';
+import { hasUpgrade } from '../career/career';
+import { hydraulicsOn } from '../vessel/electrics';
 import { safeLoadAt } from '../modules/deckCrane';
 import { cargoLost, earn, portName } from '../career/career';
 import { isPot, potLost, shootPot } from '../potting/potting';
@@ -361,11 +363,16 @@ const SET_DOWN_BELOW = 0.4;
  * quay or the shore (delivered at its port), or the sea (lost; a pot is shot). Too high, or
  * no room: it stays on the hook.
  */
-export function stepCraneCargo(world: WorldState): void {
+export function stepCraneCargo(world: WorldState, dt: number): void {
   for (const v of Object.values(world.vessels)) {
     for (const crane of cranesOf(v)) {
       const s = craneStateOf(v, crane.path);
       if (!s) continue;
+      // Motion compensation (an upgrade): her averaged height, and where it holds the hook.
+      // It needs the deck hydraulics; without them the hook hangs where the boom leaves it.
+      const y = v.position[1];
+      s.refY = s.refY === null || s.refY === undefined ? y : s.refY + (y - s.refY) * Math.min(1, dt / crane.config.motionComp.settleS);
+      s.hookAt = hasUpgrade(world, 'craneComp') && hydraulicsOn(v) ? compensatedHook(v, crane, s) : null;
       // Its load gone some other way: the hook is free.
       const load = s.hooked ? world.cargo[s.hooked] : undefined;
       if (s.hooked && !(load && 'hook' in load.at)) s.hooked = null;
