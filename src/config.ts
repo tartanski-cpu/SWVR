@@ -11,6 +11,12 @@ const LOGRAFT_MASS = 6400;
 const LOGRAFT_LCB = 1.0;
 const BARGE_MASS = 10500;
 const BARGE_LCB = 1.39;
+/**
+ * The landing craft's cabin floor (m, vessel axes): 0.19-0.23 m below the deck around the
+ * cabin, so you step down into it for the headroom (2.2 m to the roof). Everything in her
+ * cabin is placed from it.
+ */
+const LC_FLOOR = 0.77;
 
 export const CONFIG = {
   sim: {
@@ -968,17 +974,24 @@ export const CONFIG = {
        */
       mass: 7850,
       /** Of which her engine with its gearbox (her recipe's diesel declares the same), at its bed. */
-      engineKg: 600,
+      engineKg: 800,
       cg: [0, 0.45, 1.025] as [number, number, number],
       gyradius: { roll: 1.1, pitch: 2.5, yaw: 2.6 },
       addedMass: { surge: 0.05, sway: 0.4, heave: 0.6, roll: 0.25, pitch: 0.6, yaw: 0.3 },
       /**
        * The workboat's per-area damping (it scales with her waterplane by itself); the angular
        * damping scaled to her size: roll ~30 % of critical (critical ~57 kN*m*s for 7.85 t,
-       * GM ~1.1 m, I_roll from the gyradius), pitch and yaw likewise.
+       * GM ~1.1 m, I_roll from the gyradius), pitch and yaw likewise. Her linear surge term
+       * (`surgeLinear`, a small drag for settling at rest) is a quarter of the workboat's: at
+       * her 20 kn it would otherwise add ~4 kN on top of her resistance curve.
        */
-      damping: { vertical: 1300, verticalCd: 1.5, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 20, roll: 17000, pitch: 12000, yaw: 5000 },
-      /** As the workboat's curve (a displacement boat; no planing lift modelled), on her 8.8 m waterline. */
+      damping: { vertical: 1300, verticalCd: 1.5, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 5, roll: 17000, pitch: 12000, yaw: 5000 },
+      /**
+       * As the workboat's curve, on her 8.8 m waterline: past the hump (Fn ~0.5, ~9 kn) the
+       * wave term levels off at R/Delta = 0.115, about what a planing hull of her size needs,
+       * so she can be driven to 20 kn (owner request; her 280 kW diesel and 0.6 m propeller in
+       * her recipe). No planing lift is modelled yet: she doesn't rise or trim at speed.
+       */
       resistance: { lwl: 8.8, formFactor: 0.2, waveA: 1.0, waveB: 0.94, waveKnee: 0.3, waveCap: 0.115, asternFactor: 3.6, y: -0.25 },
       /** Side-on: hull ~10 x 1.2 m plus the cabin ~2.7 x 2.0; end-on 2.8 x 1.2 plus 2.1 x 2.0 (m2). */
       windage: { side: 17, front: 7.5, center: [0, 1.3, 0.6] as [number, number, number] },
@@ -993,13 +1006,14 @@ export const CONFIG = {
           halfWidth: 1.05,
           front: 0.725,
           aft: 3.375,
-          floorY: 1.02,
+          floorY: LC_FLOOR,
           roofY: 2.97,
           wall: 0.06,
           doorWidth: 0.7,
-          doorHeight: 1.8,
+          /** Door and window heads raised with the floor lowered: the roof stays where it was. */
+          doorHeight: 1.95,
           windowSill: 0.95,
-          windowHead: 1.75,
+          windowHead: 1.95,
           /** The front sill level with the dash top (console 0.9 + dash 0.41). */
           frontSill: 1.31,
           consoleDepth: 0.5,
@@ -1053,7 +1067,7 @@ export const CONFIG = {
         lashRange: 1.1,
       },
       /** At the helm, facing forward. */
-      boardingSpot: [0, 1.02, 1.85] as [number, number, number],
+      boardingSpot: [0, LC_FLOOR, 1.85] as [number, number, number],
       spawn: { x: 0, z: -22, dropHeight: 3, headingDeg: 90 },
       /** Wet exhaust through the transom, starboard of the centreline, and which way it blows. */
       exhaust: { position: [0.55, 0.2, 5.15] as [number, number, number], direction: [0, -0.12, 1] as [number, number, number] },
@@ -1062,9 +1076,9 @@ export const CONFIG = {
        * cabin's aft wall, port of the door; the binoculars on the dash top, port end.
        */
       stowage: {
-        extinguisher: [-0.85, 1.6, 3.225] as [number, number, number],
-        torch: [-0.6, 1.7, 3.255] as [number, number, number],
-        binoculars: { at: [-0.7, 2.37, 0.865] as [number, number, number], yawDeg: 20 },
+        extinguisher: [-0.85, LC_FLOOR + 0.58, 3.225] as [number, number, number],
+        torch: [-0.6, LC_FLOOR + 0.68, 3.255] as [number, number, number],
+        binoculars: { at: [-0.7, LC_FLOOR + 1.35, 0.865] as [number, number, number], yawDeg: 20 },
       },
       /**
        * Where her modules go (vessel axes, m): the helm console's top at its aft face; the
@@ -1073,15 +1087,16 @@ export const CONFIG = {
        * cleats' stations, fore and aft.
        */
       places: {
-        console: [0, 1.92, 1.285] as [number, number, number],
-        breakerPanel: [0.98, 1.62, 1.6] as [number, number, number],
+        console: [0, LC_FLOOR + 0.9, 1.285] as [number, number, number],
+        /** Its back against the starboard wall (the wall's inside face at x 0.99; the tilted panel reaches 0.12 m outboard of this point). */
+        breakerPanel: [0.865, LC_FLOOR + 0.6, 1.6] as [number, number, number],
         /** The bow ramp's button in the cabin: the port wall by the helm (the breaker panel's mirror). */
-        rampButton: [-0.98, 1.75, 1.5] as [number, number, number],
-        batteryMaster: [0.6, 1.5, 3.31] as [number, number, number],
-        batterySelector: [0.85, 1.5, 3.31] as [number, number, number],
+        rampButton: [-0.98, LC_FLOOR + 0.73, 1.5] as [number, number, number],
+        batteryMaster: [0.6, LC_FLOOR + 0.48, 3.31] as [number, number, number],
+        batterySelector: [0.85, LC_FLOOR + 0.48, 3.31] as [number, number, number],
         vhf: [-0.75, 2.8, 1.25] as [number, number, number],
-        engineBed: [0.5, 0.67, 2.65] as [number, number, number],
-        engineSpace: [-0.2, 0.55, 2.65] as [number, number, number],
+        engineBed: [0.5, LC_FLOOR - 0.35, 2.65] as [number, number, number],
+        engineSpace: [-0.2, LC_FLOOR - 0.47, 2.65] as [number, number, number],
         rudder: [0, -0.3, 4.85] as [number, number, number],
         cabinLight: [0, 2.85, 2.2] as [number, number, number],
         searchlight: [0, 3.2, 1.0] as [number, number, number],

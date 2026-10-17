@@ -2521,6 +2521,56 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   - **Desktop:** the same, clicking the buttons.
   - **Your eye on it:** its length, angles and speed, and the rams' look. The numbers are all in `bowRamp`.
 
+### Landing craft: breaker panel, a step down into the cabin, 20 knots (owner test of M7a+; done, on /next/ for the owner to test)
+
+- **The owner's test:** generally good, but:
+  - the breaker panel was half hidden in the cabin wall;
+  - the cabin felt too low (try a step down into it);
+  - make her faster: really she should plane. That's a big job, so for now a 20 kn top speed.
+- **Breaker panel:** it was placed 0.01 m inside the starboard wall, so its 0.12 m-deep box was buried in it. It now sits with its back flat against the wall (`places.breakerPanel` x 0.865).
+- **A step down into the cabin:**
+  - **Floor:** her cabin floor is lowered 0.25 m, to 0.77 m. That's 0.19-0.23 m below the deck around the cabin, a single step you take at the door.
+  - **Headroom:** 2.2 m to the roof (was 1.95). The roof stays where it was.
+  - **Door and windows:** the door and the window heads are raised 0.2 m, so they don't sit low in the walls.
+  - **What moved with the floor:** everything in the cabin is now placed from the floor (`LC_FLOOR` in config.ts): the console, the panels, the buttons, the hand gear, where you stand, and the engine and its space under the hatch.
+  - **Drawing it** (shared code, for any hull whose cabin floor is below her deck; `hullMesh.ts sunkenHouse`): the deck is cut away inside the cabin, the walls reach below the floor, and the step at the door has a face. The workboat's floor is above her deck, so she's drawn exactly as before.
+  - **Trade-off:** your eye at the helm is 0.25 m lower. You still see the water over the raised bow ramp, from about 70 m ahead (was about 55 m).
+- **20 knots** (her recipe, `src/boats/landingCraft.json`):
+  - **Engine:** 280 kW (375 hp) in place of 150 kW: the same torque curve scaled up, the same 1,800 rpm, so the rpm gauge still fits. 800 kg with its gearbox (was 600; her total weight is unchanged, so the hull's own share is lighter). Its cooling is scaled up to match.
+  - **Propeller and gearbox:** a 0.6 m, higher-pitch propeller on a 1.35:1 gearbox. Wake and thrust deduction are cut to a fast boat's (0.06 and 0.08).
+  - **Settling drag:** her slow-speed settling drag (`damping.surgeLinear`) is cut from 20 to 5. At 20 kn it was adding about 4 kN, a third as much again as her resistance curve.
+  - **Engine bed:** her engine socket now takes up to 300 kW.
+- **Her sea trials now:**
+  - **Speed:** 20.0 kn at full lever (1,696 rpm, 60 L/h, about 100 nm on 300 L); 13.7 kn at three-quarters; 9.2 kn at half.
+  - **Acceleration:** 0 to 90 % of top speed in 11 s.
+  - **Turning:** tactical diameter 32 m (was 25 m); speed in the turn 9.2 kn.
+  - **Crash stop:** 31 m (was 15 m), because she's going twice as fast.
+  - **Bollard pull:** 2.1 t.
+  - **Engine temperature:** holds 86 °C after ten minutes flat out.
+- **What isn't modelled yet** (real planing is a bigger job):
+  - She doesn't rise or trim at speed: she runs level at her displacement draught.
+  - In a hard-over turn at 20 kn she heels outward, up to about 20° for a moment, then about 7° steady. A planing hull banks into the turn. A smaller rudder barely changed it, so it's the hull model, not the rudder.
+  - Her resistance past the hump is a flat fraction of her weight, a reasonable stand-in for a planing hull's.
+  
+  Proper planing (dynamic lift, running trim, banking into turns) would be its own milestone.
+- **Config:** `LC_FLOOR` (new, 0.77), `vessels.landingCraft.layout.wheelhouse.floorY / doorHeight / windowHead`, `places.*` (from the floor), `stowage`, `boardingSpot`, `engineKg` 800, `damping.surgeLinear` 5. In her recipe: the diesel's `powerKw`, `torqueCurve`, `gearRatio`, thermal and propeller.
+- **Exactly as before for the workboat:**
+  - Golden runs match without re-recording.
+  - Draw calls unchanged: 62 / 57 / 115 / 36 by day, 64 / 58 / 116 / 35 at night.
+  - The landing craft's helm view: 53 by day.
+- **Tests (483, all pass):**
+  - the "floor above the deck" test is now "a step down": less than a step, at least 2.1 m headroom, the engine space still inside the hull, and the deck cut away over her cabin but not the workboat's;
+  - a walk from the cockpit, down the step and through the door to the helm, no pace higher than a step;
+  - her diesel is 280 kW and she makes over 19 kn.
+- **Checked in the browser:** the breaker panel flat against the wall and fully visible; the cabin from inside (helm view, aft wall, ceiling) and through the door from the cockpit; her from outside.
+- **Owner test** (at /SWVR/next/, Debug > Boat > Start in > Landing craft):
+  - **VR:**
+    1. Walk from the cockpit into the cabin: you step down at the door.
+    2. Stand inside and check the headroom, and that the breaker panel on the starboard wall is fully visible and its breakers work.
+    3. Start her, cast off and open her up: about 20 kn flat out (watch the speed screen).
+    4. Try a hard-over turn at speed, and tell me how the heel feels.
+  - **Desktop:** the same.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

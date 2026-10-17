@@ -9,16 +9,16 @@
       "module": "propulsion.diesel-inboard",
       "config": {
         "engine": {
-          "powerKw": 150,
+          "powerKw": 280,
           "idleRpm": 600,
           "ratedRpm": 1800,
-          "torqueCurve": [[0, 0], [300, 375], [600, 638], [1000, 938], [1300, 990], [1600, 908], [1800, 796], [1900, 450], [1950, 0]],
-          "frictionTorque": 40,
+          "torqueCurve": [[0, 0], [300, 700], [600, 1191], [1000, 1751], [1300, 1848], [1600, 1695], [1800, 1486], [1900, 840], [1950, 0]],
+          "frictionTorque": 70,
           "frictionPerRpm": 0.03,
-          "inertia": 1.6,
+          "inertia": 2.6,
           "droopRpm": 120,
           "rackRiseRate": 0.45,
-          "starterTorque": 280,
+          "starterTorque": 420,
           "starterMaxRpm": 160,
           "crankTime": 1.6,
           "startOnlyInNeutral": true,
@@ -27,7 +27,7 @@
           "unheatedExtraCrank": 5,
           "coldBelowC": 40,
           "glowCoolRate": 0.25,
-          "gearRatio": 1.42,
+          "gearRatio": 1.35,
           "gearEfficiency": 0.97,
           "shiftDelay": 0.6,
           "neutralBand": 0.08,
@@ -35,10 +35,10 @@
           "thermal": {
             "heatToCoolant": 0.3,
             "lhvMJPerKg": 42.7,
-            "heatCapacity": 60,
+            "heatCapacity": 110,
             "thermostatOpenC": 80,
             "thermostatFullC": 88,
-            "exchangerKwPerK": 1.7,
+            "exchangerKwPerK": 3.6,
             "baseLossKwPerK": 0.012,
             "faultExchangerFraction": 0.08,
             "alarmC": 95,
@@ -51,16 +51,16 @@
           }
         },
         "propeller": {
-          "diameter": 0.55,
-          "kt0": 0.57,
-          "j0": 1.15,
-          "kq0": 0.077,
-          "jq0": 1.25,
+          "diameter": 0.6,
+          "kt0": 0.6,
+          "j0": 1.35,
+          "kq0": 0.1,
+          "jq0": 1.45,
           "asternEfficiency": 0.5,
           "asternTorque": 0.9,
-          "inertia": 0.15,
-          "wake": 0.18,
-          "thrustDeduction": 0.18,
+          "inertia": 0.2,
+          "wake": 0.06,
+          "thrustDeduction": 0.08,
           "position": [0, -0.35, 4.45],
           "rightHanded": true,
           "propWalkAhead": 0.03,
@@ -80,7 +80,7 @@
           "oilCan": [0.77, 2.9],
           "shelfDrop": 0.3
         },
-        "massKg": 600
+        "massKg": 800
       }
     },
     {
@@ -100,7 +100,7 @@
           "coastFadeThrust": 8000,
           "position": [0, -0.3, 4.85]
         },
-        "propeller": {"wake": 0.18, "diameter": 0.55}
+        "propeller": {"wake": 0.06, "diameter": 0.6}
       }
     },
     {"socket": "fuelTank", "module": "fuel.tank", "config": {"tankL": 300, "startL": 210}},

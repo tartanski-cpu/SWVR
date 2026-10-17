@@ -17,7 +17,8 @@ import { stepWorld } from '../src/core/simulation';
 import { createWorld } from '../src/core/world';
 import { fits } from '../src/modular/socket';
 import { validateRecipe } from '../src/modular/recipe';
-import { hullPlan, vesselWalkArea } from '../src/vessel/layout';
+import { hullPlan, STEP_HEIGHT, vesselWalkArea } from '../src/vessel/layout';
+import { sunkenHouse } from '../src/vessel/view/hullMesh';
 import { placeVessel } from '../src/vessel/vesselControl';
 import { hasWheelhouse, VESSEL_DEFS } from '../src/vessel/vesselDef';
 
@@ -37,9 +38,23 @@ describe('the landing craft: her hull', () => {
     expect(hasWheelhouse(def)).toBe(true);
   });
 
-  it('the cabin floor stands above the deck everywhere under the cabin', () => {
+  it('her cabin is a step down from the deck (for headroom), over her engine space; the workboat\'s isn\'t', () => {
     const wh = lc.layout.wheelhouse;
-    for (const s of def.hull.stations) if (s.z <= wh.aft && s.z >= wh.front) expect(wh.floorY).toBeGreaterThan(s.polygon[0][1]);
+    const plan = hullPlan(def);
+    for (const z of [wh.front, (wh.front + wh.aft) / 2, wh.aft]) {
+      const step = plan.deckY(z) - wh.floorY;
+      expect(step).toBeGreaterThan(0.1);
+      expect(step).toBeLessThan(STEP_HEIGHT);
+    }
+    expect(wh.roofY - wh.floorY).toBeGreaterThan(2.1);
+    // The engine space's floor is still inside the hull, above her bottom there.
+    const pit = wh.floorY - lc.layout.engineHatch.pitDepth;
+    const z = (lc.layout.engineHatch.z0 + lc.layout.engineHatch.z1) / 2;
+    const st = def.hull.stations.reduce((a, b) => (Math.abs(b.z - z) < Math.abs(a.z - z) ? b : a));
+    expect(pit).toBeGreaterThan(st.polygon[3][1]);
+    // The deck is cut away over her cabin, not over the workboat's.
+    expect(sunkenHouse(def.hull, def.layout)).not.toBeNull();
+    expect(sunkenHouse(VESSEL_DEFS.workboat.hull, VESSEL_DEFS.workboat.layout)).toBeNull();
   });
 
   it('assembled from her recipe she weighs what she displaces at her waterline, her engine and batteries in', () => {
@@ -70,9 +85,9 @@ describe('the landing craft: her recipe', () => {
     expect(fits(console, helm, { ...(console.defaults as Record<string, unknown>), ...(hers.config as Record<string, unknown>) }).ok).toBe(true);
   });
 
-  it('her machinery: a 150 kW diesel, its rudder, her batteries; no crane, no tow point, no fire monitor', () => {
+  it('her machinery: a 280 kW diesel, its rudder, her batteries; no crane, no tow point, no fire monitor', () => {
     const v = { defId: 'landingCraft' };
-    expect(gearOf(v, 'diesel')!.engine.powerKw).toBe(150);
+    expect(gearOf(v, 'diesel')!.engine.powerKw).toBe(280);
     expect(gearOf(v, 'rudder')).not.toBeNull();
     expect(gearOf(v, 'batteries')).not.toBeNull();
     for (const k of ['tenderCrane', 'towPoint', 'fireMonitor', 'trawl'] as const) expect(gearOf(v, k), k).toBeNull();
@@ -89,6 +104,14 @@ describe('the landing craft: aboard', () => {
     const deckAt = (z: number) => Math.max(...area.floorsAt(0, z).filter((y) => y < wh.floorY + 0.5));
     expect(area.walkable(0, -2.5, deckAt(-2.5))).toBe(true);
     expect(area.walkable(0, 4.2, deckAt(4.2))).toBe(true);
+    // Down the step from the cockpit, through the door, to the helm: each pace a step at most.
+    let y = deckAt(4.2);
+    for (let z = 4.2; z >= hz; z -= 0.1) {
+      const floors = area.floorsAt(0, z).filter((f) => Math.abs(f - y) <= STEP_HEIGHT);
+      expect(floors.length, `z ${z.toFixed(1)}`).toBeGreaterThan(0);
+      y = floors.reduce((a, b) => (Math.abs(b - y) < Math.abs(a - y) ? b : a));
+    }
+    expect(y).toBeCloseTo(wh.floorY, 6);
     // The cabin's side wall, from the side deck.
     expect(area.walkable(wh.halfWidth, (wh.front + wh.aft) / 2, deckAt(2))).toBe(false);
   });
@@ -105,7 +128,7 @@ describe('the landing craft: aboard', () => {
     expect(world.salvage?.logs.length ?? 0).toBe(0);
   });
 
-  it('she starts and drives on her own machinery', () => {
+  it('she starts and drives on her own machinery, to about 20 kn', () => {
     const { world, vesselId } = createWorld(new IdFactory(), 'landingCraft');
     const v = world.vessels[vesselId];
     placeVessel(v, 0, 0, 0, 0);
@@ -116,8 +139,8 @@ describe('the landing craft: aboard', () => {
     for (let i = 0; i < 4 / DT; i++) stepWorld(world, [], DT);
     expect(v.engine.phase).toBe('running');
     send('lever', 1);
-    for (let i = 0; i < 40 / DT; i++) stepWorld(world, [], DT);
-    expect(Math.hypot(v.linearVelocity[0], v.linearVelocity[2]) / 0.5144).toBeGreaterThan(9);
+    for (let i = 0; i < 60 / DT; i++) stepWorld(world, [], DT);
+    expect(Math.hypot(v.linearVelocity[0], v.linearVelocity[2]) / 0.5144).toBeGreaterThan(19);
   });
 });
 

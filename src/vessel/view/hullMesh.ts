@@ -81,16 +81,46 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
     return new THREE.Vector3(0, (poly[2][1] + poly[0][1]) / 2, st[i].z);
   };
 
+  // A cabin sunk below the deck (its floor lower than the deck under it: you step down into
+  // it) has no deck across it: the deck is cut away inside the house's walls.
+  const sunk = sunkenHouse(form, layout);
   for (let i = 0; i < st.length - 1; i++) {
     // Interior reference midway between the two stations.
     const mid = inside(i).add(inside(i + 1)).multiplyScalar(0.5);
+    const cut = !!sunk && Math.min(st[i].z, st[i + 1].z) < sunk.aft && Math.max(st[i].z, st[i + 1].z) > sunk.front;
     const edges: [number, number, number][] = [
       [0, 1, col.topsides], // port topside
       [1, 2, col.bottom], // port bottom
       [2, 3, col.bottom], // starboard bottom
       [3, 4, col.topsides], // starboard topside
-      [4, 0, col.deck], // deck
     ];
+    if (!cut) edges.push([4, 0, col.deck]); // deck
+    else {
+      // The deck in pieces between the stations and the house's ends; across the house, only
+      // its strips outside the walls.
+      const za = st[i].z;
+      const zb = st[i + 1].z;
+      const at = (z: number, k: number) => P(i, k).lerp(P(i + 1, k), (z - za) / (zb - za));
+      const breaks = [za, zb, sunk.front, sunk.aft].filter((z) => z <= Math.max(za, zb) && z >= Math.min(za, zb)).sort((a, b) => b - a);
+      for (let j = 0; j < breaks.length - 1; j++) {
+        const z0 = breaks[j];
+        const z1 = breaks[j + 1];
+        if (z0 - z1 < 1e-6) continue;
+        const p0 = at(z0, 0), p1 = at(z1, 0), s0 = at(z0, 4), s1 = at(z1, 4);
+        const zm = (z0 + z1) / 2;
+        if (zm > sunk.front && zm < sunk.aft) {
+          for (const [e0, e1, x] of [[p0, p1, -sunk.halfWidth], [s0, s1, sunk.halfWidth]] as const) {
+            const i0 = e0.clone().setX(x);
+            const i1 = e1.clone().setX(x);
+            tri(e0, i0, i1, mid, col.deck);
+            tri(e0, i1, e1, mid, col.deck);
+          }
+        } else {
+          tri(s0, p0, p1, mid, col.deck);
+          tri(s0, p1, s1, mid, col.deck);
+        }
+      }
+    }
     for (const [a, b, color] of edges) {
       const a0 = P(i, a);
       const b0 = P(i, b);
@@ -123,6 +153,12 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
   const ex = exhaustOutlet;
   if (ex) parts.push(bar(new THREE.Vector3(ex[0], ex[1], ex[2] - 0.12), new THREE.Vector3(ex[0], ex[1], ex[2]), 0.13, 0.13, col.mast));
   if (hasHouse(layout)) parts.push(...buildWheelhouse(layout, col));
+  // Stepping down into a sunken cabin: the step's face, from the deck down to the door sill.
+  if (sunk && layout.wheelhouse) {
+    const wh = layout.wheelhouse;
+    const d = wh.doorWidth / 2;
+    parts.push(box(-d, d, wh.floorY, hullPlan({ hull: form }).deckY(wh.aft), wh.aft, wh.aft + 0.03, col.deck));
+  }
   return parts;
 }
 
@@ -251,6 +287,19 @@ function buildDeckFittings(form: HullForm, layout: LayoutConfig, col: Paint): TH
   return parts;
 }
 
+/**
+ * A wheelhouse whose floor is below the deck under it (the landing craft's: you step down
+ * into her cabin, for the headroom): its footprint, where the deck is cut away. Null if her
+ * house floor is above the deck (the workboat's), or she has no house.
+ */
+export function sunkenHouse(form: HullForm, layout: LayoutConfig): { front: number; aft: number; halfWidth: number } | null {
+  const wh = layout.wheelhouse;
+  if (!wh) return null;
+  const plan = hullPlan({ hull: form });
+  const deck = Math.max(plan.deckY(wh.front), plan.deckY(wh.aft));
+  return wh.floorY < deck ? { front: wh.front, aft: wh.aft, halfWidth: wh.halfWidth } : null;
+}
+
 /** Width of the aft door's jambs (m): the door buttons sit on the starboard one. */
 export const JAMB = 0.16;
 
@@ -277,7 +326,8 @@ function buildWheelhouse(layout: HouseLayout, col: Paint): THREE.BufferGeometry[
   const parts: THREE.BufferGeometry[] = [];
   const hw = wh.halfWidth;
   const w = wh.wall;
-  const base = 0.9; // walls start below the deck so there's never a gap
+  // Walls start below the deck (and the floor) so there's never a gap.
+  const base = Math.min(0.9, wh.floorY - 0.15);
   const sill = wh.floorY + wh.windowSill;
   const head = wh.floorY + wh.windowHead;
   const roof = wh.roofY;

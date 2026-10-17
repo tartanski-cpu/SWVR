@@ -80,7 +80,7 @@ export const LANDING_CRAFT_HULL: HullDefinition = {
     { id: 'engineHatch', type: 'deck.fitting', transform: { position: [eh.x1, wh.floorY, (eh.z0 + eh.z1) / 2] }, capacity: { size: [eh.x1 - eh.x0, 0.035, eh.z1 - eh.z0] }, label: 'Cabin floor, over the engine' },
     { id: 'dipstick', type: 'deck.fitting', transform: { position: [eh.x0 + 0.15, wh.floorY - 0.32, eh.z0 + 0.2] }, label: 'Engine space, the engine\'s inboard side' },
     { id: 'oilCan', type: 'deck.fitting', transform: { position: [eh.x1 - 0.08, wh.floorY - 0.3, eh.z1 - 0.15], rotationDeg: [0, 90, 0] }, label: 'Engine space, the shelf' },
-    { id: 'engine', type: 'engine.bay', transform: { position: at.engineBed }, tags: ['inboard'], capacity: { maxPowerKw: 200 }, label: 'Engine bed, under the cabin floor' },
+    { id: 'engine', type: 'engine.bay', transform: { position: at.engineBed }, tags: ['inboard'], capacity: { maxPowerKw: 300 }, label: 'Engine bed, under the cabin floor' },
     { id: 'fuelTank', type: 'engine.bay', transform: { position: at.engineSpace }, label: 'Engine space (nominal)' },
     { id: 'batteries', type: 'engine.bay', transform: { position: at.engineSpace }, label: 'Engine space (nominal)' },
     { id: 'bilgePump', type: 'engine.bay', transform: { position: [at.engineSpace[0], wh.floorY - eh.pitDepth, at.engineSpace[2]] }, label: 'Bottom of the engine space (nominal)' },
