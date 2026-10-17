@@ -6,12 +6,14 @@
  *
  * It gives the boat fenders. Drawn in the boat's axes: the basket at `basket` (x, z) on
  * the deck, the fenders at the stations `z`, each side, hung from the hull's beam and deck
- * (defaults: CONFIG.vessels.workboat.fenders). One instanced draw call for the six.
+ * (defaults: CONFIG.vessels.workboat.fenders). One instanced draw call for the six. Out,
+ * they cushion her against a quay (vessel/physics/guards.ts).
  */
 import { CONFIG } from '../../config';
 import { FenderBasket, FendersView } from '../../controls/deckGear';
 import { busOf } from '../../modular/bus';
 import type { ModuleDefinition } from '../../modular/module';
+import { fenderProbes } from '../../vessel/physics/guards';
 
 export type FendersConfig = typeof CONFIG.vessels.workboat.fenders;
 
@@ -23,7 +25,8 @@ export const FENDERS: ModuleDefinition<FendersConfig> = {
   validateConfig: (c) => (c.z.length > 0 ? [] : ['no fender stations']),
   ports: { out: { dir: 'write', key: 'fenders.out' } },
   provides: () => [{ gear: 'fenders' }],
-  gear: () => ({ fenders: {} }),
+  // Out, each fender's outer face meets a quay before her plating does (vessel/physics/guards.ts).
+  gear: (c, hull) => ({ fenders: { probes: fenderProbes(c.z, hull) } }),
   view: {
     frame: 'boat',
     build({ config: c, keys, hull }) {

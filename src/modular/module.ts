@@ -107,6 +107,7 @@ export type GearKind =
   | 'bowCleat'
   | 'sternCleat'
   | 'fenders'
+  | 'sideGuard'
   | 'swimLadder'
   | 'lifeRing'
   | 'boatHook'
@@ -139,7 +140,13 @@ export interface GearFacts {
   /** A cleat the mooring lines are made fast to, forward (bow line) or aft (stern line): its station (z) and the line's height on her. */
   bowCleat: { z: number; lineY: number };
   sternCleat: { z: number; lineY: number };
-  fenders: Record<string, never>;
+  /**
+   * The crew's fenders: where each hangs over the side when out (its outer face, both sides;
+   * vessel/physics/guards.ts probes them against quays while 'fenders.out' is on).
+   */
+  fenders: { probes: [number, number, number][] };
+  /** A rubbing strake or tyres along her sides (always on): its points to probe, both sides. */
+  sideGuard: { kind: 'strake' | 'tyres'; probes: [number, number, number][] };
   /** The swim ladder: its outboard line (x, z), foot and head heights, where you step aboard (deckX), the desktop's jump range, its width. */
   swimLadder: { x: number; z: number; bottom: number; top: number; deckX: number; range: number; width: number };
   /** The life ring: where it hangs stowed, and the cleat its line is made fast to. */

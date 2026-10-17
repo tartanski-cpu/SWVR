@@ -17,6 +17,7 @@ import { jetOn } from '../../src/fire/fire';
 import type { Recipe } from '../../src/modular/recipe';
 import { swimLadderOf } from '../../src/player/body';
 import { hullPlan, onGear, STEP_HEIGHT, vesselWalkArea } from '../../src/vessel/layout';
+import { fenderProbes } from '../../src/vessel/physics/guards';
 import { berthAxis } from '../../src/vessel/physics/mooring';
 import { placeVessel } from '../../src/vessel/vesselControl';
 import { BERTHS } from '../../src/world/archipelago';
@@ -115,7 +116,10 @@ describe('the gear\'s facts are where v1.0 had them', () => {
     expect(gearOf(boat, 'swimLadder')).toEqual({ x: hb + 0.08, z: c.z, bottom: c.bottom, top: plan.deckY(c.z) + def.layout.bulwarkHeight, deckX: hb - 0.6, range: c.range, width: c.width });
     expect(gearOf(boat, 'lifeRing')).toEqual({ stow: CONFIG.vessels.workboat.rescueGear.ringStow, cleat: CONFIG.vessels.workboat.rescueGear.ringCleat });
     expect(gearOf(boat, 'boatHook')).toEqual({ stow: CONFIG.vessels.workboat.rescueGear.hookStow });
-    expect(gearOf(boat, 'fenders')).toEqual({});
+    // The fenders where they hang when out (their outer faces, both sides), at v1.0's stations.
+    const fz = CONFIG.vessels.workboat.fenders.z;
+    expect(gearOf(boat, 'fenders')).toEqual({ probes: fenderProbes(fz, plan) });
+    expect(gearOf(boat, 'fenders')!.probes.map((p) => p[2])).toEqual([...fz, ...fz]);
   });
 
   it('the navigation lights hang on the mast\'s masthead socket', () => {

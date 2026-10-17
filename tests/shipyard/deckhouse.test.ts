@@ -9,7 +9,7 @@ import { hullPlan, vesselWalkArea } from '../../src/vessel/layout';
 import { VESSEL_DEFS } from '../../src/vessel/vesselDef';
 import { footprintsOf } from '../../src/boats/sims';
 
-const PILOT = { ...DEFAULT_DESIGN, ...DESIGN_HULLS[3].defaults, hull: 3 };
+const PILOT = { ...DEFAULT_DESIGN, ...DESIGN_HULLS[3].defaults, hull: 3, guard: 0 };
 const WITH = { ...PILOT, dhLength: 5, dhHeight: 2, dhWidth: 0, dhRake: 1 };
 
 describe('the deckhouse', () => {

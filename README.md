@@ -194,7 +194,7 @@ Above it, a lamp on the wall with its own small switch on the wooden batten the 
 
 ### Transit jobs and closing up
 
-- **Fenders:** press the fender basket on the aft deck (starboard) to put all six out over the side, or take them in.
+- **Fenders:** press the fender basket on the aft deck (starboard) to put all six out over the side, or take them in. Out, they cushion her against a quay: a knock coming alongside a bit fast does less damage to her hull (or none).
   - Coming up to a berth with them in puts "Coming alongside: fenders out" on the duty board.
   - Out of harbour with them still out gives "Under way: fenders in".
 - **Lash the cargo:** under way with loose cargo on deck, "Under way: lash the deck cargo" comes up.
@@ -513,6 +513,13 @@ Design your own boat at https://tartanski-cpu.github.io/SWVR/next/shipyard.html 
 Then the choices, a step at a time:
 
 1. Pick a hull type (landing craft, gillnetter, workboat or pilot boat), size her with the sliders, and rake her stem from plumb to 50°. **Size her for the brief's deck cargo** does the sizing again (say after changing the brief).
+   Choose her **hull protection**, what keeps her sides off a quay:
+   - **Fenders**, the cheapest, and what a new design starts with. A basket on deck: press it to put the fenders over the side coming alongside, and again to take them in. They only help while they're out.
+   - A **rubber rubbing strake**, fixed, right round her sheer and the transom (across a square bow too, if she has no ramp). Firm: it takes a rub or a moderate knock.
+   - **Tyres**, fixed, in a close row along her sides and one on her stem, as on a tug. Soft and grippy, the best at a hard knock and for pushing, but a little extra weight and drag.
+   - **Strake and fenders**, or **none**.
+
+   Hit a quay too hard and her hull is damaged and leaks. Each of these takes up part of the knock first.
 2. Optionally give her a **deckhouse**, as on pilot and rescue boats: a lower block on the main deck from the wheelhouse's aft wall forward, that the wheelhouse stands on. Choose how far it reaches forward of the house, its height (0.8–1.4 m), its width (out to her sides, or set in leaving side decks) and its front (upright, or raked 30° or 50°). The helm is then raised onto it, with steps up to the aft door. For now it's solid: no way in, and its top isn't walked; its weight is high up, so her GM drops a little.
    Place and size the wheelhouse (and fit a **chart table** along its port wall if it's wide enough), and shape it: its floor height (sunk below the deck or raised to see over the bow, with steps at the door), the front windows (raked aft for a fast patrol look, upright, or reverse-raked like a pilot house), and the roof: one flat slab, its visor over the windows, its thickness (10, 20 or 30 cm) and its front edge, raked back as it rises at 30, 45 or 60°. Designed houses have no roof ladder or rail.
 3. Add deck gear (pin it, above, or by hand): a **deck crane** on the foredeck (at the starboard edge) or the aft deck (at the port edge), leaving the middle of the deck clear (see below), and a **searchlight** and a **fire monitor**, each on the wheelhouse roof or on a pole on the foredeck or the aft deck. On a pole, each has its own controls in a box on the pole at hand height (a joystick, its switch, and the monitor's FIRE gauge); stand aft of it facing forward and work it like the helm's. One on the roof is worked from the helm; one on a pole also from the helm if you pick the advanced controls. And the working deck gear: a **tow winch** (aft deck), a **stern roller** in the transom (her tow point), a **trawl A-frame** over the transom with its net (it brings the winch, whose drum hauls the warps), a **life ring and boat hook** (on the wheelhouse's aft wall, port or starboard, the ring's line on that quarter's cleat), and a **side door** in the wheelhouse's port wall (it needs a side deck outside to step onto: a narrower house leaves one).
@@ -530,7 +537,7 @@ It lifts up to 800 kg out to the base boom's reach, and less the further out (it
 
 **On desktop,** click the crane's joystick and work it all from the keyboard while the mouse still looks around: **W A S D** slew and raise or lower the boom, **R / F** hoist up / down, **E / Q** boom out / in, **Space** the hook. Click again to let go.
 
-The page shows her in 3D (around her and at the helm), her figures and her sea trials, then gives her **code**: 17 characters, like `XXXXX-XXXXX-XXXXX-XX`, a few more for each piece of gear placed by hand (older 10- to 15-character codes still work). **Try her in the game** opens the game in her. Or add `?design=` and the code to the game's address, also on the Quest. Buying her at the boatyard in the game comes next.
+The page shows her in 3D (around her and at the helm), her figures and her sea trials, then gives her **code**: 17 characters, like `XXXXX-XXXXX-XXXXX-XX`, a few more for each piece of gear placed by hand, a deckhouse, or hull protection (older 10- to 15-character codes still work, and read with no hull protection). **Try her in the game** opens the game in her. Or add `?design=` and the code to the game's address, also on the Quest. Buying her at the boatyard in the game comes next.
 
 **Design together:** press **👥 Design together** (top right), type your name and press **Start a session**, then send friends the link (**Copy link**). Everyone who opens it edits the same boat, live: a change by anyone shows for everyone. Each person has a colour and a name tag; you see where the others are pointing on the boat, and a slider someone is dragging shows their colour and name. **Undo** (Ctrl+Z) and **Redo** (Ctrl+Shift+Z) take back your own changes. There's no server and no account: the browsers talk directly, and each keeps its own copy, so the link still opens the boat later (from the copy in your browser) even when nobody else is there.
 

@@ -3879,6 +3879,79 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Checked:** typecheck and 628 tests pass. Headless screenshots at 1600 px (the Brief, Hull, Deck gear, and Trials & handover steps) and at 390 px (phone).
 - **Not looked at:** the compare overlay, the sketch editor and the Design-together pop-up. They use the same tokens.
 
+### Shipyard: hull protection: fenders, a rubbing strake or tyres (owner)
+
+- **The owner asked** for a hull choice in the Shipyard:
+  - a rubber rubbing strake all round the boat, permanent;
+  - fenders, the cheaper option, which the crew put out and take in;
+  - tyre fenders, permanent.
+
+  On seeing the first tyres (hung singly on chains), the owner sent a photo of a tug: the tyres should be fatter and in a close row, all but touching, with no strings. Changed to match, with one more on the stem for pushing.
+- **The choice** (`design.ts` `guard`, `GUARDS`; the page's Hull step, under "Hull protection"):
+  - 0 none;
+  - 1 fenders (what a new design starts with);
+  - 2 rubbing strake;
+  - 3 tyres;
+  - 4 strake and fenders (added: what most real workboats carry).
+- **It does something in play** (`vessel/physics/guards.ts`; `contacts.ts guardContactAt`; `vesselPhysics.ts`):
+  - **Contact points:** each guard has its own points on its outer face, standing proud of her plating, so it meets a quay or pier first:
+    - fenders: three a side, out over the side, and only while they're out (`fenders.out`);
+    - strake: on the corner of her deck edge, every 0.6 m, and across the transom;
+    - tyres: a row along each side, and one on the stem.
+  - **How each pushes back:** with its own spring, damping and grip (`CONFIG.contacts.guards`):
+    - fenders: soft and slippery;
+    - strake: firm;
+    - tyres: soft and grippy.
+  - **Damage:** each takes up `absorb` m/s of the approach speed before the knock counts as damage (`wear.ts`): fenders 1.2, strake 0.4, tyres 0.9.
+  - **Her own points are unchanged:** her hull's contact points (keel, chines, deck edge) stay as they were, so a hard enough push squeezes a guard flat and reaches the plating.
+  - **Only quays and piers:** guards don't count against rocks or the seabed.
+  - **Cheap on the Quest:** guard points are only tested with a quay or pier within reach of her (`geography.ts blockNear`), so at sea they cost nothing.
+  - **Measured:** a designed 12 m workboat driven sideways into Calder Haven's quay at 2.2 m/s takes hull damage of:
+
+    | Protection | Hull damage |
+    |---|---|
+    | None | 0.095 |
+    | Rubbing strake | 0.016 |
+    | Tyres | 0 |
+    | Fenders out | 0 |
+    | Fenders in the basket | 0.095 (the same as none) |
+
+    At 0.5 m/s none of them is damaged.
+- **The starting workboat's fenders now work too:** the `deck.fenders` module's gear gives its points (`GearFacts.fenders.probes`). Out, they cushion her alongside. In, nothing changes, so the golden runs are identical (none puts the fenders out).
+- **Drawn** (new module `hull.guard`, on a new socket type `hull.side`; merged with her fixed parts, so no draw calls of their own):
+  - **strake:** a black half-round (7 cm) swept along her deck edge, across the transom and, on a square bow without a ramp, across the bow;
+  - **tyres:** fat lorry tyres, about 0.9 m across with a small hole and 0.28 m wide, 0.92 m apart, so they all but touch. They hang plumb against her deck edge, covering its corner, where her deck is at least 45 % of its widest. One more is on the stem, facing forward, if she has no ramp. Each tyre is about 100 triangles: no chains drawn;
+  - **fenders:** the existing basket and fenders. The basket goes aft to starboard on deck, else the next clear spot (port, aft of the house, then the foredeck); if there's no room the fenders are left off, with a warning. The stowed fenders now start lying along the bulwarks: in the Shipyard's preview, which never updates her, they used to sit at her origin.
+- **Weight, drag, price** (`shipyard/build.ts`):
+  - **Weight:** the strake (`kgPerM` 5) and the tyres (`kgEach` 45) are designed into her weight as the deckhouse is. Her displacement is unchanged, and her CG rises by their share.
+  - **Drag:** tyres add `formFactorAdd` 0.03 to her form factor.
+  - **Prices** (`CONFIG.shipyard.protection`): fenders £450; strake £110 a metre (about £3,000 on a 12 m boat); tyres £90 each plus £600 to fit. Her price is rounded to £1,000, so the fenders can disappear in the rounding.
+- **Codes, version 12:** the choice rides in the code's extension, above the deckhouse.
+  - None leaves every earlier code exactly as it was, and older codes read with no protection.
+  - A guard adds three characters: 20 for a design with only that.
+- **Config:**
+  - `CONFIG.contacts.guards` {fenders, strake, tyres}: stiffness, damping, friction, absorb;
+  - `CONFIG.modules.hullGuard`:
+    - strake: radius, drop, kgPerM, spacing;
+    - tyres: radius, hole, thickness, drop, spacing, minBeam, kgEach, formFactorAdd;
+  - `CONFIG.shipyard.protection`: prices, and fenders a side.
+- **Tests** (`tests/shipyard/protection.test.ts`, 8 new; 636 in all, all pass):
+  - codes: none unchanged, each choice round-trips, also with a deckhouse and placed gear;
+  - every hull with every choice: a valid recipe, level on her lines, no warnings, the right modules and gear;
+  - the fender basket on deck, three fenders a side outboard;
+  - the strake proud of the deck edge and across the transom;
+  - the tyres in a close row, and one on the stem;
+  - price, weight and drag;
+  - drawn with her fixed parts and merging with them (that caught a missing-normals bug);
+  - the alongside damage above, and gentle berthing doing no damage.
+  - Also updated: the deck-fittings test (the fenders' points), the bus-key table (`contact.impact` now says "less what a fender, strake or tyre took up"), and the design and deckhouse tests (older codes read with no protection).
+- **Checked in headless Chromium:**
+  - Shipyard screenshots: the strake along the sides and across the transom; the tyres on the workboat and pilot hulls and the stem tyre; the fender basket and fenders stowed;
+  - two designs opened in the game (`?design=`), with no page errors.
+
+  Found and fixed on the way: the strake was wound inside out, so only the far side showed through the bow.
+- **Not checked:** the Quest; driving onto a quay by hand; the landing craft and gillnetter with a strake, by eye (the tests build them).
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

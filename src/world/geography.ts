@@ -63,6 +63,17 @@ export function blockContact(x: number, y: number, z: number, out: BlockHit): bo
   return found;
 }
 
+/** Is any quay or pier within `r` m (in plan) of world (x, z)? A cheap check before probing many points against them. */
+export function blockNear(x: number, z: number, r: number): boolean {
+  for (const b of PREPARED) {
+    const dx = x - b.def.x;
+    const dz = z - b.def.z;
+    const reach = b.reach + r;
+    if (dx * dx + dz * dz <= reach * reach) return true;
+  }
+  return false;
+}
+
 /** The port whose fuel berth contains (x, z), if any. */
 export function fuelBerthAt(x: number, z: number): PortDef | null {
   for (const p of PORTS) {

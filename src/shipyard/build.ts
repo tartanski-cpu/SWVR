@@ -14,7 +14,9 @@
  *     what's inside it (console, panels, buttons, the engine under its hatch) placed from it
  *     the way the landing craft's is (boats/landingCraftHull.ts);
  *   - her machinery and controls: the landing craft's recipe as the template, with the
- *     chosen engine and propeller, and the basic or advanced controls.
+ *     chosen engine and propeller, and the basic or advanced controls;
+ *   - her hull protection: the crew's fenders (a basket on deck), a rubber rubbing strake
+ *     all round, or tyres along her sides (modules/hullGuard), designed into her weight.
  * Anything doubtful (a cabin too narrow for the console, too little stability) comes back as
  * a plain-language warning; the page shows them, the game builds her anyway.
  */
@@ -30,7 +32,8 @@ import type { HullForm } from '../vessel/hullForm';
 import type { DoorStep, HouseShape, LayoutConfig, Livery } from '../vessel/vesselDef';
 import type { DeckhouseLayout } from '../vessel/deckhouse';
 import { BREAKERS } from '../vessel/vesselState';
-import { PLACE_GRID, placeOf, SCALES, type PlaceKey, type ShipDesign } from './design';
+import { strakeLine, tyreSpots } from '../vessel/physics/guards';
+import { guardParts, PLACE_GRID, placeOf, SCALES, type PlaceKey, type ShipDesign } from './design';
 
 type V3 = [number, number, number];
 const study = (id: string): HullDesign => {
@@ -453,6 +456,19 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   // same (she still floats on her lines: the rest of her is that much lighter).
   const dhKg = dhArea * dhc.kgPerM2;
   if (deckhouse) cg[1] += (dhKg / mass) * ((deckMid + deckhouse.top) / 2 + 0.2 - cg[1]);
+  // Hull protection (owner): the strake or the tyres, high on her sides, designed in the same
+  // way (the crew's few fenders are too light to count). The strake runs right round her: both
+  // sides, the transom and, without a ramp, across a square bow.
+  const prot = guardParts(d.guard);
+  const hg = CONFIG.modules.hullGuard;
+  const strakeAt = prot.side === 'strake' ? strakeLine(q) : [];
+  let strakeM = 0;
+  for (let i = 1; i < strakeAt.length; i++) strakeM += 2 * Math.hypot(strakeAt[i][0] - strakeAt[i - 1][0], strakeAt[i][1] - strakeAt[i - 1][1], strakeAt[i][2] - strakeAt[i - 1][2]);
+  if (strakeAt.length) strakeM += 2 * strakeAt[0][0] + (base.ramp ? 0 : 2 * strakeAt[strakeAt.length - 1][0]);
+  const tyres = prot.side === 'tyres' ? tyreSpots(q) : [];
+  const guardKg = strakeM * hg.strake.kgPerM + 2 * tyres.length * hg.tyres.kgEach;
+  const guardY = prot.side === 'strake' ? deckMid - hg.strake.drop : deckMid - hg.tyres.drop;
+  if (guardKg > 0) cg[1] += (guardKg / mass) * (guardY - cg[1]);
   const beamDeck = 2 * Math.max(...st.map((s) => s.halfBeamDeck));
   const lengthM = transom - stem;
   const gyradius = { roll: 0.39 * beamDeck, pitch: 0.278 * lengthM, yaw: 0.29 * lengthM };
@@ -716,6 +732,25 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   /** Where a deck piece is, in words: "Foredeck, port", "Aft deck, centreline". */
   const deckWords = (p: V3) => `${p[2] < front ? 'Foredeck' : p[2] > aft ? 'Aft deck' : 'Side deck'}, ${Math.abs(p[0]) < 0.2 ? 'centreline' : p[0] < 0 ? 'port' : 'starboard'}`;
 
+  // The fender basket (owner: the crew's fenders): on deck against the bulwark, aft to
+  // starboard where the starting workboat's is, else the next clear spot (port, then just
+  // aft of the house, then the foredeck). The fenders hang over the side at three stations
+  // spread along her, each side, when they're out.
+  const pc = CONFIG.shipyard.protection;
+  let basketAt: [number, number] | null = null;
+  const fenderZs = [0.3, 0.55, 0.825].slice(0, pc.fenders).map((f) => r2(stem + f * (transom - stem)));
+  if (prot.fenders) {
+    for (const [sd, z] of [[1, transom - 0.6], [-1, transom - 0.6], [1, aft + 1.0], [-1, aft + 1.0], [1, foreEnd - 0.6], [-1, foreEnd - 0.6]]) {
+      const x = sd * (q.halfBeam(z) - 0.45);
+      const rect = { x0: x - 0.25, x1: x + 0.25, z0: z - 0.25, z1: z + 0.25 };
+      if (!onDeck(rect) || overlaps(rect, houseRect) || taken.some((o) => overlaps(o, rect))) continue;
+      basketAt = [r2(x), r2(z)];
+      taken.push(rect);
+      break;
+    }
+    if (!basketAt) warnings.push('There\'s no clear deck for the fender basket: the fenders are left off.');
+  }
+
   // The chart table (owner: its own choice): along the port wall at the aft end, its hinge
   // corner forward, if her house is wide enough to pass inboard of it and long enough to
   // leave the helm clear.
@@ -829,6 +864,9 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
           { id: 'deckCrane', type: 'deck.equipment' as const, transform: { position: craneAt, ...(craneYaw ? { rotationDeg: [0, craneYaw, 0] as V3 } : {}) }, capacity: { loadRatingKg: 1000 }, label: cranePlaced ? `${deckWords(craneAt)}: the deck crane` : d.deckCrane === 1 ? 'Foredeck, starboard edge: the deck crane' : 'Aft deck, port edge: the deck crane' },
         ]
       : []),
+    // Hull protection: the fender basket on deck; the strake or tyres along her sides.
+    ...(basketAt ? [{ id: 'fenders', type: 'deck.fitting' as const, transform: { position: [basketAt[0], q.deckY(basketAt[1]), basketAt[1]] as V3 }, label: `${deckWords([basketAt[0], 0, basketAt[1]])}: the fender basket` }] : []),
+    ...(prot.side ? [{ id: 'hullGuard', type: 'hull.side' as const, transform: { position: [0, q.deckY(0), 0] as V3 }, label: prot.side === 'strake' ? 'Her sheer, all round: the rubbing strake' : 'Her sides: the tyres' }] : []),
     // The deck hydraulics' pump on the engine's power take-off, for the crane and the winch.
     ...(craneAt || winchAt ? [{ id: 'hydraulicPump', type: 'engine.bay' as const, transform: { position: at.engineSpace }, label: 'On the engine\'s power take-off (nominal)' }] : []),
   ];
@@ -858,7 +896,8 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     ]),
     addedMass: lc.addedMass,
     damping,
-    resistance: { ...lc.resistance, lwl: Math.round(h.lwl * 100) / 100 },
+    // Tyres hanging low catch spray and the odd wave: a little more drag.
+    resistance: { ...lc.resistance, lwl: Math.round(h.lwl * 100) / 100, ...(tyres.length ? { formFactor: lc.resistance.formFactor + hg.tyres.formFactorAdd } : {}) },
     ...(base.planing ? { planing: lc.planing } : {}),
     windage: {
       side: Math.round(lengthM * freeboard + houseL * (roofY + 0.3 - level) + (deckhouse ? (deckhouse.z1 - deckhouse.z0) * SCALES.dhHeight(d.dhHeight) : 0)),
@@ -1013,10 +1052,13 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
       { socket: 'sideDoorOut', module: 'control.door-button', config: { label: 'Side door: open / shut' }, bind: { door: 'door.side.open' } },
     );
   if (craneAt || winchAt) recipe.modules.push({ socket: 'hydraulicPump', module: 'hydraulics.pto-pump' });
+  if (basketAt) recipe.modules.push({ socket: 'fenders', module: 'deck.fenders', config: { z: fenderZs, basket: basketAt } });
+  if (prot.side) recipe.modules.push({ socket: 'hullGuard', module: 'hull.guard', config: { kind: prot.side, aroundBow: !bowRamp } });
 
   const gp = dg.price;
   const gearPrice = (winchAt ? gp.towWinch : 0) + (sternRoller ? gp.sternRoller : 0) + (aFrame ? gp.aFrame : 0) + (ring ? gp.lifeRing : 0) + (sideDoor ? gp.sideDoor : 0) + dhArea * dhc.pricePerM2;
-  const price = Math.round((mass * 6 + kw * n * 120 + (d.controls ? 18000 : 6000) + (craneAt ? 25000 : 0) + (hasMonitor ? 15000 : 0) + gearPrice) / 1000) * 1000;
+  const guardPrice = (basketAt ? pc.fendersPrice : 0) + strakeM * pc.strakePerM + (tyres.length ? 2 * tyres.length * pc.tyrePrice + pc.tyreFitting : 0);
+  const price = Math.round((mass * 6 + kw * n * 120 + (d.controls ? 18000 : 6000) + (craneAt ? 25000 : 0) + (hasMonitor ? 15000 : 0) + gearPrice + guardPrice) / 1000) * 1000;
   return {
     hull,
     recipe,

@@ -40,6 +40,7 @@ export type SocketType =
   | 'tender.cradle' //   where a ship's boat stows (the skiff)
   | 'window.wiper' //    one per wiped windscreen pane
   | 'hull.rudder' //     a rudder stock and its steering gear
+  | 'hull.side' //       along her sides: a rubbing strake or tyres
   | 'transom.mount'; //  an outboard motor's bracket on the transom (M6a: the skiff's)
 
 /** Position (m) and rotation (deg, applied in the order Y, X, Z) relative to the parent. */

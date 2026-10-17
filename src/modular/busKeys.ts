@@ -371,7 +371,7 @@ export const BUS_KEYS = {
   'hull.damage': state('number', (s) => s.damage, 'Hull damage; it leaks into the bilge.', { unit: '0..1', range: [0, 1], persist: true }),
   'contact.force': state('number', (s) => s.contact.force, 'Total contact force against ground or structures on the last tick.', { unit: 'N', writer: 'core' }),
   'contact.slide': state('number', (s) => s.contact.slide, 'Mean sliding speed of the touching points.', { unit: 'm/s', writer: 'core' }),
-  'contact.impact': state('number', (s) => s.contact.impact, 'Largest approach speed of a point that touched this tick.', { unit: 'm/s', writer: 'core' }),
+  'contact.impact': state('number', (s) => s.contact.impact, 'Largest approach speed of a point that touched this tick (less what a fender, strake or tyre took up).', { unit: 'm/s', writer: 'core' }),
 
   // ── Engine panel warning lamps ──
   'lamp.oil': state('enum', (s) => lamp(s, 'oil'), 'OIL lamp: on with no oil pressure (key on, engine stopped), blinking while running with the sump nearly dry.', { values: LAMP }),

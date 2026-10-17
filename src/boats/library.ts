@@ -34,6 +34,7 @@ import { FLOODLIGHT } from '../modules/floodlight';
 import { FM_RADIO } from '../modules/fmRadio';
 import { FUEL_TANK } from '../modules/fuelTank';
 import { HATCH_COVER } from '../modules/hatchCover';
+import { HULL_GUARD } from '../modules/hullGuard';
 import { JOYSTICK } from '../modules/joystick';
 import { KEY_SWITCH } from '../modules/keySwitch';
 import { LIFE_RING_STATION } from '../modules/lifeRingStation';
@@ -93,7 +94,7 @@ export const MODULES = createModuleLibrary([
   VHF, CHARTPLOTTER, CHART_TABLE, DUTY_BOARD, WHITEBOARD, DOOR_BUTTON, HATCH_COVER, DIPSTICK, OIL_CAN,
   DIESEL_INBOARD, RUDDER, FUEL_TANK, BATTERY_BANK, PTO_PUMP, BILGE_PUMP, CONSUMER,
   TENDER_CRANE, DECK_CRANE, TOW_WINCH, STERN_ROLLER, A_FRAME, TRAWL, ANCHOR_WINDLASS,
-  SEARCHLIGHT, FIRE_MONITOR, MAST, CLEAT, FENDERS, SWIM_LADDER, LIFE_RING_STATION, BOAT_HOOK_RACK,
+  SEARCHLIGHT, FIRE_MONITOR, MAST, CLEAT, FENDERS, HULL_GUARD, SWIM_LADDER, LIFE_RING_STATION, BOAT_HOOK_RACK,
   ELECTRIC_OUTBOARD,
   NAV_LIGHTS, CABIN_LIGHT, FLOODLIGHT, RAIL_LIGHTS, TILLER,
 ]);

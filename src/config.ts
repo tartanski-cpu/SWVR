@@ -1999,6 +1999,26 @@ export const CONFIG = {
     fenderFriction: 0.12,
     /** Below this sliding speed friction becomes viscous, so a grounded boat settles (m/s). */
     stickSpeed: 0.08,
+    /**
+     * What a boat hangs or fits on her own sides to keep her topsides off a quay (owner: a
+     * Shipyard choice; vessel/physics/guards.ts). Each is probed at its own points, standing
+     * proud of the hull, so it touches before the plating does. Per point, as the hard
+     * values above: `stiffness` (N/m), `damping` (N per m/s), `friction` (sliding, as a
+     * fraction of the push). `absorb` (m/s): how much of the approach speed it takes up
+     * before any of the hit reaches the hull for damage (vessel/wear.ts `impactSafe` then
+     * applies on top). A softer guard lets her lean in further, and soaks up more of the knock.
+     *   fenders  the crew's air-filled fenders, hung on their lines (only while out):
+     *            softest, slippery;
+     *   strake   a solid rubber rubbing strake along her sheer: firm, takes a glancing
+     *            rub but little of a hard knock; it's thin, so a hard push reaches the plating;
+     *   tyres    old lorry tyres in a close row (a tug's or a pushboat's): soft and grippy,
+     *            they hold her against a quay or a hull she's pushing.
+     */
+    guards: {
+      fenders: { stiffness: 6e4, damping: 2e4, friction: 0.15, absorb: 1.2 },
+      strake: { stiffness: 2.5e5, damping: 3e4, friction: 0.5, absorb: 0.4 },
+      tyres: { stiffness: 1e5, damping: 3e4, friction: 0.7, absorb: 0.9 },
+    },
   },
 
   /** Desktop debug driving with the arrow keys (in VR you use the bridge controls). */
@@ -2036,6 +2056,13 @@ export const CONFIG = {
      * deck edge (the bulwark), when it's full width.
      */
     deckhouse: { kgPerM2: 35, pricePerM2: 450, fromStem: 1.2, edge: 0.12 },
+    /**
+     * Hull protection (owner): what keeps her sides off a quay (design.ts `guard`). Prices
+     * (GBP): a set of fenders and their basket the cheapest; the rubbing strake and the
+     * tyres by the metre of her and per tyre (the build counts them). `fenders`: how many
+     * a side (spread along her, as the workboat's three).
+     */
+    protection: { fendersPrice: 450, strakePerM: 110, tyrePrice: 90, tyreFitting: 600, fenders: 3 },
   },
 
   /**
@@ -2711,6 +2738,29 @@ export const CONFIG = {
       box: { width: 0.36, depth: 0.22, height: 0.12 },
       fromHouse: 0.75,
       inset: 0.3,
+    },
+
+    /**
+     * hull.guard (modules/hullGuard): permanent protection along her sides (owner: a Shipyard
+     * choice beside the crew's fenders). Sizes in m; masses in kg.
+     *   strake  a solid rubber D-section along her sheer, all round (round the transom and,
+     *           on a bow without a ramp, the stem): `radius` of its half-round, on the corner
+     *           of her deck edge, its centre `drop` below it; it weighs `kgPerM` a metre.
+     *           Probed every `spacing` along her (the contact points).
+     *   tyres   old lorry tyres in a close row along each side (as on tugs and pushboats:
+     *           nearly touching, held by a wire through them along the gunwale), plumb
+     *           against her deck edge (covering it: the widest of her): outer `radius`,
+     *           `thickness` (side to side), their centres `drop` below the deck edge,
+     *           `spacing` apart (a tyre's width and a little: they all but touch), over the
+     *           part of her at least `minBeam` of her widest deck half-beam (not right up
+     *           into the fine bow); `hole`: the radius of the hole through the middle. One
+     *           more on her stem, facing forward, for pushing (a bow without a ramp). `kgEach` each. Hanging low, they catch spray and
+     *           the odd wave: her form factor (friction resistance) is raised by
+     *           `formFactorAdd` (Shipyard build).
+     */
+    hullGuard: {
+      strake: { radius: 0.07, drop: 0.06, kgPerM: 5, spacing: 0.6 },
+      tyres: { radius: 0.45, hole: 0.21, thickness: 0.28, drop: 0.4, spacing: 0.92, minBeam: 0.45, kgEach: 45, formFactorAdd: 0.03 },
     },
 
     /** instrument.warning-lamps: the lamps' spacing (m). */

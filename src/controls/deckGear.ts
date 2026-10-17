@@ -18,6 +18,7 @@ import * as THREE from 'three';
 import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
 import { withPixelPaint } from '../render/pixelPaint';
 import type { VesselState } from '../vessel/vesselState';
+import { FENDER_HANG } from '../vessel/physics/guards';
 import { Control, type Wiring } from './Control';
 
 export class FenderBasket extends Control {
@@ -70,10 +71,11 @@ export class FendersView {
 
   constructor(zs: readonly number[], plan: { halfBeam(z: number): number; deckY(z: number): number }) {
     // The fender and its line up to the rail (visible from on board; laid out on deck when stowed).
-    const geo = mergeParts([part(new THREE.CapsuleGeometry(0.12, 0.45, 4, 8), 0x1a3a6a), part(new THREE.CylinderGeometry(0.008, 0.008, 0.95).translate(0, 0.8, 0), 0xe8e0c8)]);
+    const geo = mergeParts([part(new THREE.CapsuleGeometry(FENDER_HANG.radius, 0.45, 4, 8), 0x1a3a6a), part(new THREE.CylinderGeometry(0.008, 0.008, 0.95).translate(0, 0.8, 0), 0xe8e0c8)]);
     for (const side of [-1, 1]) for (const z of zs) this.spots.push({ z, side, halfBeam: plan.halfBeam(z), deckY: plan.deckY(z) });
     this.mesh = new THREE.InstancedMesh(geo, flatVertexColorMaterial(), this.spots.length);
     this.mesh.name = 'fenders';
+    this.update(false); // stowed until told otherwise (the Shipyard's preview never updates her)
   }
 
   /** @param over  the fenders are out over the side */
@@ -87,7 +89,7 @@ export class FendersView {
     this.spots.forEach((s, i) => {
       if (out) {
         // Hanging on their lines just outside the hull, below the sheer.
-        m.compose(new THREE.Vector3(s.side * (s.halfBeam + 0.13), s.deckY - 0.55, s.z), q.identity(), one);
+        m.compose(new THREE.Vector3(s.side * (s.halfBeam + FENDER_HANG.off), s.deckY - FENDER_HANG.drop, s.z), q.identity(), one);
       } else {
         // Lying fore-and-aft on deck against the bulwark.
         q.setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);

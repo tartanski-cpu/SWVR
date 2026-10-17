@@ -73,6 +73,39 @@ export function contactAt(px: number, py: number, pz: number, vx: number, vy: nu
   const k = fendered ? c.fenderStiffness : c.stiffness;
   const damp = fendered ? c.fenderDamping : c.damping;
   const mu = fendered ? c.fenderFriction : c.friction;
+  push(depth, k, damp, mu, vx, vy, vz, out);
+  return true;
+}
+
+/** What a guard on her sides is made of (CONFIG.contacts.guards). */
+export interface GuardMaterial {
+  stiffness: number;
+  damping: number;
+  friction: number;
+  absorb: number;
+}
+
+/**
+ * Contact force at one of a guard's points (a fender, the rubbing strake, a tyre: standing
+ * proud of her plating, so it meets a quay first). Only quays and piers: a guard is there
+ * for coming alongside, not for rocks or the seabed (her hull's own points meet those).
+ * Against a quay's own rubber fenders, the softer of the two springs, and the lower friction.
+ */
+export function guardContactAt(px: number, py: number, pz: number, vx: number, vy: number, vz: number, mat: GuardMaterial, out: ContactResult): boolean {
+  if (!blockContact(px, py, pz, hit)) return false;
+  const c = CONFIG.contacts;
+  n.x = hit.nx;
+  n.y = hit.ny;
+  n.z = hit.nz;
+  const k = hit.fendered ? Math.min(mat.stiffness, c.fenderStiffness) : mat.stiffness;
+  const mu = hit.fendered ? Math.min(mat.friction, c.fenderFriction) : mat.friction;
+  push(hit.depth, k, mat.damping, mu, vx, vy, vz, out);
+  return true;
+}
+
+/** The penalty spring's push at a point `depth` into a surface (normal `n`), and its friction. */
+function push(depth: number, k: number, damp: number, mu: number, vx: number, vy: number, vz: number, out: ContactResult): void {
+  const c = CONFIG.contacts;
   const vn = vx * n.x + vy * n.y + vz * n.z;
   const fn = Math.max(0, k * depth - damp * vn);
   // Tangential velocity and friction.
@@ -88,5 +121,4 @@ export function contactAt(px: number, py: number, pz: number, vx: number, vy: nu
   out.normal = fn;
   out.slide = vt;
   out.approach = -vn;
-  return true;
 }

@@ -29,7 +29,7 @@ import type { SeaTrialResults } from '../vessel/seaTrials';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 import { buildVesselMesh } from '../vessel/view/hullMesh';
 import { DESIGN_HULLS, ENGINES, LIVERIES, ROOF_PAINTS, type DesignedBoat } from './build';
-import { ALL_FIELDS, decodeDesign, DEFAULT_DESIGN, encodeDesign, placeOf, placeValue, SCALES, type PlaceKey, type ShipDesign } from './design';
+import { ALL_FIELDS, decodeDesign, DEFAULT_DESIGN, encodeDesign, GUARDS, placeOf, placeValue, SCALES, type PlaceKey, type ShipDesign } from './design';
 import { hullPlan } from '../vessel/layout';
 import { UndoStack } from './undo';
 import { YardLink } from './yardLink';
@@ -269,6 +269,16 @@ slider('beam', 'Beam', () => `${boat.figures.beamM.toFixed(2)} m`);
 slider('depth', 'Depth', (v) => pct(SCALES.scale(v)));
 slider('bulwark', 'Bulwarks', (v) => `${SCALES.bulwark(v).toFixed(1)} m`);
 slider('bow', 'Bow rake', (v) => (v === 0 ? 'plumb' : `${SCALES.bow(v)}\u00b0`));
+{
+  // Hull protection (owner): what keeps her sides off a quay.
+  const h = document.createElement('h2');
+  h.textContent = 'Hull protection';
+  const p = document.createElement('p');
+  p.className = 'meta';
+  p.textContent = 'What keeps her sides off a quay. Fenders are the cheapest, but the crew must put them over the side coming alongside (the basket on deck) and take them in again. A rubber rubbing strake round her sheer, or tyres along her sides, are always there: the strake is firm and thin (a glancing rub, little of a hard knock); tyres are soft and grippy, and add a little weight and drag.';
+  controls.append(h, p);
+}
+options('guard', 'Protection', [...GUARDS]);
 section('2. Wheelhouse');
 slider('housePos', 'Position', (v) => (v === 0 ? 'right aft' : v === 15 ? 'right forward' : `${pct(SCALES.housePos(v))} fwd`));
 slider('houseLength', 'Length', (v) => `${SCALES.houseLength(v).toFixed(1)} m`);

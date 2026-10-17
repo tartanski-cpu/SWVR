@@ -55,7 +55,8 @@ import type { VesselState } from '../vesselState';
 import { calmWaterResistance } from './propulsion';
 import { submergedSection, type SubmergedSection } from './sectionClip';
 import { physicsStations } from '../hullForm';
-import { contactAt, hullContactPoints, type ContactResult } from './contacts';
+import { contactAt, guardContactAt, hullContactPoints, type ContactResult, type GuardMaterial } from './contacts';
+import { blockNear } from '../../world/geography';
 import { stepMooring } from './mooring';
 import type { ExternalForce } from './vesselContact';
 import type { PhysicsPort } from '../../modular/module';
@@ -102,6 +103,17 @@ const cgL = new THREE.Vector3();
 const inertia = new THREE.Vector3();
 
 /** Add a point mass m at offset d from the CG to the inertia (diagonal terms). */
+/** How far her ends reach from her origin (m, in plan): for the cheap is-a-quay-near check. */
+const reaches = new WeakMap<VesselDef, number>();
+function reachOf(def: VesselDef): number {
+  let r = reaches.get(def);
+  if (r === undefined) {
+    r = Math.max(...def.hull.stations.map((st) => Math.hypot(st.z, st.halfBeamDeck)));
+    reaches.set(def, r);
+  }
+  return r;
+}
+
 function addPointInertia(m: number, d: THREE.Vector3): void {
   inertia.x += m * (d.y * d.y + d.z * d.z);
   inertia.y += m * (d.x * d.x + d.z * d.z);
@@ -353,6 +365,29 @@ export function stepVessel(
       c.force += contact.normal * scale;
       c.slide += contact.slide;
       c.impact = Math.max(c.impact, contact.approach);
+    }
+    // Guards on her sides (vessel/physics/guards.ts): the crew's fenders while they're out, a
+    // rubbing strake or tyres. Each point stands proud of her plating and meets a quay or
+    // pier first, with its own spring; it takes up `absorb` of the knock before any of it
+    // counts as a hit on her hull. Probed only with a quay or pier within reach of her.
+    const fenders = gearOf(state, 'fenders');
+    const sideGuard = gearOf(state, 'sideGuard');
+    const fendersOut = !!fenders && state.controls.fenders > 0;
+    if ((fendersOut || sideGuard) && blockNear(pos.x, pos.z, reachOf(def) + 1)) {
+      const guard = (probes: readonly (readonly [number, number, number])[], mat: GuardMaterial) => {
+        for (const [lx, ly, lz] of probes) {
+          toWorld(lx, ly, lz, pt);
+          pointVelocity(pt, ptV);
+          if (!guardContactAt(pt.x, pt.y, pt.z, ptV.x, ptV.y, ptV.z, mat, contact)) continue;
+          addForceAt(cf.set(contact.fx * scale, contact.fy * scale, contact.fz * scale), pt);
+          touching++;
+          c.force += contact.normal * scale;
+          c.slide += contact.slide;
+          c.impact = Math.max(c.impact, contact.approach - mat.absorb);
+        }
+      };
+      if (fendersOut) guard(fenders.probes, CONFIG.contacts.guards.fenders);
+      if (sideGuard) guard(sideGuard.probes, CONFIG.contacts.guards[sideGuard.kind]);
     }
     if (touching > 0) c.slide /= touching;
     // Her anchor (a module, M5a): the chain's pull at the hawse.

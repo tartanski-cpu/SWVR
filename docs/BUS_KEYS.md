@@ -286,7 +286,7 @@ Every value on a boat's bus (modular boats; `src/modular/busKeys.ts`). Generated
 |---|---|---|---|---|---|
 | `contact.force` | N | read only | core |  | Total contact force against ground or structures on the last tick. |
 | `contact.slide` | m/s | read only | core |  | Mean sliding speed of the touching points. |
-| `contact.impact` | m/s | read only | core |  | Largest approach speed of a point that touched this tick. |
+| `contact.impact` | m/s | read only | core |  | Largest approach speed of a point that touched this tick (less what a fender, strake or tyre took up). |
 
 ## lamp
 
