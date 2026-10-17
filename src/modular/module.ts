@@ -53,7 +53,12 @@ export interface ModuleDefinition<Config = unknown, State = unknown> {
    */
   gear?(c: Config, hull: HullQueries, at: (local: readonly [number, number, number]) => [number, number, number]): Partial<GearFacts>;
   /** Mass, CG, size, power: checked against the socket, added to the boat's mass (2.6). */
-  physical?(c: Config): Physical;
+  /**
+   * `hull` and `at` (its socket's place on the boat) are given when she's assembled, for gear
+   * that stands somewhere of its own choosing from its socket (the deck crane at the deck
+   * edge); not when a socket's rating is checked.
+   */
+  physical?(c: Config, hull?: HullQueries, at?: (local: readonly [number, number, number]) => [number, number, number]): Physical;
   /** Its part in the energy network (2.5). */
   power?(c: Config): PowerRole[];
   /**

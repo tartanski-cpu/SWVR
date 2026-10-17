@@ -2530,7 +2530,19 @@ export const CONFIG = {
       extendRate: 0.3,
       /** Where it rests: boom slewed and luffed to these, the wire this long, the boom run in. */
       stow: { slewDeg: 0, luffDeg: 5, wire: 0.8 },
-      /** The control post beside the column (its own axes: x outboard of the socket, z aft), its height, and its desk's size (m). */
+      /**
+       * Which side it stands (owner: keep the working deck clear): 'auto' moves it from a
+       * centreline socket out to the starboard deck edge, and leaves it on a socket that's
+       * already off to one side; 'port' / 'starboard' choose; 'socket' keeps it exactly on its
+       * socket. At the edge its column stands `edgeInset` (m) in from the deck edge.
+       */
+      side: 'auto' as 'auto' | 'port' | 'starboard' | 'socket',
+      edgeInset: 0.55,
+      /**
+       * The control post beside the column (z aft of it), its height, and its desk's size (m).
+       * `x`: how far to the side of the column; at the edge the post stands inboard of it (on
+       * a 'socket' crane, + is the socket's starboard).
+       */
       post: { x: 0.55, z: 0.45, height: 1.05, deskWidth: 0.5, deskDepth: 0.28 },
       /** How close the hook must be to an item's lifting point to take it (m). */
       hookReach: 0.6,

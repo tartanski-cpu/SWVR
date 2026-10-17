@@ -15,7 +15,8 @@ import * as THREE from 'three';
 import { CONFIG } from '../config';
 import type { Vec3 } from '../core/math';
 import { wettedSurfaceAtDWL, type VesselDef } from '../vessel/vesselDef';
-import { hullFormOf, type HullLibrary } from './hull';
+import { hullFormOf, hullQueries, type HullLibrary } from './hull';
+import type { HullQueries } from './module';
 import { combine, type PointMass } from './massProperties';
 import { flattenMounts, type ModuleLibrary, type MountedModule, type Recipe } from './recipe';
 import type { Transform } from './socket';
@@ -39,13 +40,15 @@ export function mountPlaces(mounted: readonly MountedModule[]): Map<string, THRE
 }
 
 /** The modules that declare a mass, as point masses at their CG in the boat's axes. */
-export function moduleMasses(mounted: readonly MountedModule[]): PointMass[] {
+export function moduleMasses(mounted: readonly MountedModule[], hull?: HullQueries): PointMass[] {
   const places = mountPlaces(mounted);
   const out: PointMass[] = [];
   for (const m of mounted) {
-    const p = m.def.physical?.(m.config as never);
+    const place = places.get(m.path)!;
+    const toBoat = (q: readonly [number, number, number]): [number, number, number] => new THREE.Vector3(...q).applyMatrix4(place).toArray();
+    const p = m.def.physical?.(m.config as never, hull, toBoat);
     if (!p?.massKg) continue;
-    const at = new THREE.Vector3(...(p.cg ?? [0, 0, 0])).applyMatrix4(places.get(m.path)!);
+    const at = new THREE.Vector3(...(p.cg ?? [0, 0, 0])).applyMatrix4(place);
     out.push({ massKg: p.massKg, at: [at.x, at.y, at.z] });
   }
   return out;
@@ -56,8 +59,8 @@ export function vesselDefFrom(id: string, recipe: Recipe, lib: { hulls: HullLibr
   if (!hull) throw new Error(`Recipe '${recipe.id}': unknown hull '${recipe.hull}'`);
   const { mounted, errors } = flattenMounts(recipe, lib.hulls, lib.modules);
   if (errors.length) throw new Error(`Recipe '${recipe.id}' has problems:\n  ${errors.join('\n  ')}`);
-  const mass = combine(hull.lightship, moduleMasses(mounted));
   const form = hullFormOf(hull.form);
+  const mass = combine(hull.lightship, moduleMasses(mounted, hullQueries({ hull: form, layout: hull.layout })));
   const a = hull.addedMass;
   return {
     id,

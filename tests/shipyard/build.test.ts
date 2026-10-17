@@ -2,7 +2,9 @@
  * The Shipyard's boat builder: any design builds a valid boat that floats level on her
  * lines, her machinery and controls are the packages chosen, and her gearbox matches by trial.
  */
+import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
+import { cranesOf } from '../../src/cargo/craneHook';
 import { footprintsOf, gearOf, useDesign } from '../../src/boats/sims';
 import { RECIPES } from '../../src/boats/library';
 import { validateRecipe } from '../../src/modular/recipe';
@@ -172,9 +174,10 @@ describe('Shipyard: the boats it builds', () => {
         // Still floats level with the crane's weight.
         const h = uprightHydrostatics(VESSEL_DEFS.design);
         expect(Math.abs(h.lcgMinusLcb), `${hull}/${deckCrane} trim`).toBeLessThan(0.02);
-        // Nobody walks through its column.
-        const crane = flattenMounts(RECIPES.design, LIBRARY.hulls, LIBRARY.modules).mounted.find((m) => m.def.id === 'deck.crane')!;
-        const [cx, , cz] = crane.socket.transform.position;
+        // It stands at a deck edge, clear of the middle of the working deck (owner), and
+        // nobody walks through its column.
+        const [cx, , cz] = new THREE.Vector3().setFromMatrixPosition(cranesOf({ defId: 'design' })[0].place).toArray();
+        expect(Math.abs(cx), `${hull}/${deckCrane} at the side`).toBeGreaterThan(0.4);
         const def = VESSEL_DEFS.design;
         const walk = vesselWalkArea(def, def.layout, footprintsOf({ defId: 'design' }));
         expect(walk.walkable(cx, cz, hullPlan(def).deckY(cz)), `${hull}/${deckCrane} walk`).toBe(false);

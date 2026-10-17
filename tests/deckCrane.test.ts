@@ -7,7 +7,9 @@ import { describe, expect, it } from 'vitest';
 import { useDesign } from '../src/boats/sims';
 import { deckHeightAt, payloadOf, type CargoItem } from '../src/cargo/cargo';
 import { craneStateOf, cranesOf, hookOnBoat } from '../src/cargo/craneHook';
-import { craneRadius, safeLoadAt } from '../src/modules/deckCrane';
+import { craneRadius, craneSeatAt, safeLoadAt } from '../src/modules/deckCrane';
+import { hullQueries } from '../src/modular/hull';
+import { VESSEL_DEFS } from '../src/vessel/vesselDef';
 import { buyBlocker, createCareer } from '../src/career/career';
 import * as THREE from 'three';
 import { CONFIG } from '../src/config';
@@ -73,8 +75,10 @@ describe('deck crane', { timeout: 30000 }, () => {
   it('hooks a crate on her deck, carries its weight at the hook, and sets it down on deck', () => {
     const { world, v, send, run, path } = setup(1);
     startEngine(world, v);
-    // Boom raised over her foredeck (the crane stows pointing forward), and let it get there.
+    // Boom raised and swung a little inboard (it stands at the starboard deck edge), over her
+    // open foredeck, and let it get there.
     send('crane.luff', 50);
+    send('crane.slew', -20);
     run(5);
     const s = craneStateOf(v, path!)!;
     const hook = hookOnBoat(v, path!)!;
@@ -254,5 +258,35 @@ describe('deck crane', { timeout: 30000 }, () => {
       if (why) expect(blocker).toBe(why);
       else expect(blocker).not.toBe('Needs a deck crane');
     }
+  });
+
+  it('stands at the deck edge, clear of the working deck: from a centreline socket to starboard (or the side asked), its post inboard', () => {
+    useDesign(DEFAULT_DESIGN);
+    const hull = hullQueries(VESSEL_DEFS.design);
+    const z = -1;
+    const socket = (x: number, turned = false) => new THREE.Matrix4().compose(new THREE.Vector3(x, hull.deckY(z), z), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, turned ? Math.PI : 0, 0)), new THREE.Vector3(1, 1, 1));
+    const edge = hull.halfBeam(z) - crane.edgeInset;
+    // A centreline socket: out to the starboard edge, the post inboard (to port).
+    let seat = craneSeatAt(crane, hull, socket(0));
+    expect(seat.dx).toBeCloseTo(edge, 9);
+    expect(seat.postX).toBe(-Math.abs(crane.post.x));
+    // Asked for port: the port edge, the post to starboard.
+    seat = craneSeatAt({ ...crane, side: 'port' }, hull, socket(0));
+    expect(seat.dx).toBeCloseTo(-edge, 9);
+    expect(seat.postX).toBe(Math.abs(crane.post.x));
+    // A socket already off to port, turned to face aft: it stays there, its post still inboard
+    // (in the socket's axes, turned, inboard is -x).
+    seat = craneSeatAt(crane, hull, socket(-0.8, true));
+    expect(seat.dx).toBeCloseTo(0, 12);
+    expect(seat.postX).toBe(-Math.abs(crane.post.x));
+    // 'socket': exactly on it, the post as configured.
+    seat = craneSeatAt({ ...crane, side: 'socket' }, hull, socket(0));
+    expect(seat).toEqual({ dx: 0, postX: crane.post.x });
+  });
+
+  it('its weight is where it stands: at the starboard edge it heels her a little that way', () => {
+    useDesign({ ...DEFAULT_DESIGN, deckCrane: 1 });
+    const withCrane = VESSEL_DEFS.design.cg[0];
+    expect(withCrane).toBeGreaterThan(0.005);
   });
 });

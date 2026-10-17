@@ -8,10 +8,12 @@
 import * as THREE from 'three';
 import { simOf } from '../boats/sims';
 import { matrixOf } from '../modular/vesselAssembly';
-import { craneHook, DECK_CRANE, type DeckCraneConfig, type DeckCraneState } from '../modules/deckCrane';
+import { craneHook, craneSeatAt, DECK_CRANE, type DeckCraneConfig, type DeckCraneState } from '../modules/deckCrane';
+import { hullQueries } from '../modular/hull';
+import { VESSEL_DEFS } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
 
-/** A deck crane on a boat: its path (its key in VesselState.modules), config and place on her. */
+/** A deck crane on a boat: its path (its key in VesselState.modules), config, and its column's place on her. */
 export interface CraneOnBoat {
   path: string;
   config: DeckCraneConfig;
@@ -26,8 +28,18 @@ export function cranesOf(v: { defId: string }): CraneOnBoat[] {
   if (!sim) return [];
   let list = found.get(sim);
   if (!list) {
-    // Deck sockets are the hull's own, so a socket's transform is its place on the boat.
-    list = sim.mounts.filter((m) => m.def.id === DECK_CRANE.id).map((m) => ({ path: m.path, config: m.config as DeckCraneConfig, place: matrixOf(m.socket.transform) }));
+    // Deck sockets are the hull's own, so a socket's transform is its place on the boat; the
+    // crane stands from it where it chooses (out at the deck edge: craneSeat), and its axes
+    // are its column's.
+    const hull = hullQueries(VESSEL_DEFS[v.defId]);
+    list = sim.mounts
+      .filter((m) => m.def.id === DECK_CRANE.id)
+      .map((m) => {
+        const config = m.config as DeckCraneConfig;
+        const socket = matrixOf(m.socket.transform);
+        const place = socket.clone().multiply(new THREE.Matrix4().makeTranslation(craneSeatAt(config, hull, socket).dx, 0, 0));
+        return { path: m.path, config, place };
+      });
     found.set(sim, list);
   }
   return list;

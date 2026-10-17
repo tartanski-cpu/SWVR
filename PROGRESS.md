@@ -3179,6 +3179,31 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   - in the headless browser, in a design moored at Calder Haven: started the engine, raised the boom, hooked a crate off the foredeck, swung it to starboard (she heeled about 1°), and landed it on the quay.
 - **Not done yet:** the tow winch, A-frame, net drum, windlass and tender crane are modules but drawn at the workboat's fixed places. Making them placeable is next.
 
+### Deck crane: stands at the deck edge (owner)
+
+- **The owner asked** for the deck crane to always stand off to port or starboard, to leave the working deck as free as possible.
+- **The module decides where it stands from its socket** (new config `side`, `craneSeat`):
+  - **'auto'** (the default): from a centreline socket it moves out to the starboard deck edge; on a socket already off to one side it stays there;
+  - **'port'** or **'starboard'**: that edge;
+  - **'socket'**: exactly on the socket, as before.
+  - At the edge its column stands `edgeInset` (0.55 m) in from the deck edge, its control post always inboard of it.
+  - A socket turned across her (not square fore and aft) keeps it on the socket.
+- **Everything follows the column:** its drawing, its footprint (the walk area and cargo), where its hook and load are, the motion compensation, and its weight. A crane at the edge heels her a little that way, as it should.
+- **Framework:** a module's `physical` (its mass and CG) can now be given the hull and its socket's place, as `gear` and `footprints` are, for gear that stands where it chooses from its socket.
+- **Effect on Shipyard designs** (no Shipyard code changed, by the owner's split between chats):
+  - the foredeck crane now stands at the starboard edge; the aft deck one stays at the port edge where it was;
+  - **for the Shipyard chat:** the builder still plans the foredeck crane as if on the centreline:
+    - its clash checks: a starboard foredeck searchlight pole can now land on the crane;
+    - its designed-in weight: she now heels slightly to starboard;
+  - the place to ask is `craneSeat` / `cranesOf(...).place`.
+- **Checked:**
+  - typecheck and all tests (581), including new ones:
+    - where it stands for a centreline socket (starboard edge), asked for port, an off-centre socket turned aft (stays, post inboard), and 'socket';
+    - its weight heels her toward it;
+    - the Shipyard build test now checks the column is at the side, not in the walk area;
+    - golden runs unchanged;
+  - Shipyard 3D views (only looked at): the foredeck crane at the starboard edge with the post inboard and the foredeck clear (plan view), and the aft deck crane at the port edge.
+
 ### Deck crane: motion compensation, an upgrade you buy (owner)
 
 - **The owner asked** for an upgrade that makes the crane motion compensated: something you buy, not a button.

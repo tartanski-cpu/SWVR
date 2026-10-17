@@ -18,7 +18,9 @@
  * payload).
  *
  * Drawn from its socket (placeable on any deck.equipment socket): its axes are the socket's,
- * slew 0 along the socket's forward (-z), + to starboard. Its state (the angles it has
+ * slew 0 along the socket's forward (-z), + to starboard. It keeps the working deck clear
+ * (owner): from a centreline socket it stands out at the deck edge (`side`, `craneSeat`),
+ * its control post inboard of it; "the crane's axes" below are its column's. Its state (the angles it has
  * reached, the wire, the hook) is its own, in VesselState.modules, so crew see it move.
  */
 import * as THREE from 'three';
@@ -27,7 +29,8 @@ import { Button } from '../../controls/Button';
 import { Joystick } from '../../controls/Joystick';
 import { barGeometry } from '../../mechanisms/line';
 import { busOf } from '../../modular/bus';
-import type { ModuleDefinition } from '../../modular/module';
+import type { HullQueries, ModuleDefinition } from '../../modular/module';
+import { matrixOf } from '../../modular/vesselAssembly';
 import { flatVertexColorMaterial, mergeParts, part } from '../../render/geometryUtils';
 
 export type DeckCraneConfig = typeof CONFIG.modules.deckCrane;
@@ -84,6 +87,33 @@ export function safeLoadAt(c: DeckCraneConfig, s: Pick<DeckCraneState, 'luff' | 
   return c.swlKg * Math.min(1, c.boomLength / Math.max(1e-6, craneRadius(c, s.luff, s.extend)));
 }
 
+/** Where the column stands, in its socket's axes (along x: `dx`), and its control post's x beside it (inboard at the edge). */
+export interface CraneSeat {
+  dx: number;
+  postX: number;
+}
+
+/**
+ * Where it stands from its socket (`side`): out at the deck edge on its side, or on the
+ * socket. `at` takes a point in the socket's axes to the boat's. A socket turned across her
+ * (not square fore and aft) keeps it on the socket.
+ */
+export function craneSeat(c: DeckCraneConfig, hull: HullQueries, at: (p: readonly [number, number, number]) => [number, number, number]): CraneSeat {
+  const p0 = at([0, 0, 0]);
+  const dirX = at([1, 0, 0])[0] - p0[0]; // her x along the socket's x: +1, or -1 turned to face aft
+  if (c.side === 'socket' || Math.abs(dirX) < 0.5) return { dx: 0, postX: c.post.x };
+  const offCentre = Math.abs(p0[0]) > 0.05;
+  const s = c.side === 'port' ? -1 : c.side === 'starboard' ? 1 : offCentre ? Math.sign(p0[0]) : 1;
+  const x = c.side === 'auto' && offCentre ? p0[0] : s * (hull.halfBeam(p0[2]) - c.edgeInset);
+  return { dx: (x - p0[0]) / dirX, postX: -s * Math.sign(dirX) * Math.abs(c.post.x) };
+}
+
+/** The same, for a socket's place as a matrix (the views). */
+export function craneSeatAt(c: DeckCraneConfig, hull: HullQueries, place: THREE.Matrix4): CraneSeat {
+  const v = new THREE.Vector3();
+  return craneSeat(c, hull, (p) => v.set(...p).applyMatrix4(place).toArray());
+}
+
 /** Move `from` toward `to` by no more than `step`. */
 const toward = (from: number, to: number, step: number) => from + Math.max(-step, Math.min(step, to - from));
 
@@ -108,13 +138,18 @@ export const DECK_CRANE: ModuleDefinition<DeckCraneConfig, DeckCraneState> = {
     pressure: { dir: 'read', key: 'hydraulics.on' },
   },
   needs: () => [{ power: 'hydraulic' }],
-  physical: (c) => ({ massKg: c.massKg, cg: [0, c.columnHeight / 2, 0], swlKg: c.swlKg }),
-  // The plinth and column (in its own axes: the assembler puts them onto the boat), and the
-  // control post beside it.
-  footprints: (c) => [
-    { x: 0, z: 0, r: c.plinthRadius + 0.05, top: c.columnHeight },
-    { x0: c.post.x - 0.17, x1: c.post.x + 0.17, z0: c.post.z - 0.13, z1: c.post.z + 0.13, top: c.post.height + 0.1 },
-  ],
+  // Its weight where its column stands (at the deck edge it heels her a little).
+  physical: (c, hull, at) => ({ massKg: c.massKg, cg: [hull && at ? craneSeat(c, hull, at).dx : 0, c.columnHeight / 2, 0], swlKg: c.swlKg }),
+  // The plinth and column (in its socket's axes: the assembler puts them onto the boat), and
+  // the control post beside it.
+  footprints: (c, hull, at) => {
+    const { dx, postX } = craneSeat(c, hull, at);
+    const px = dx + postX;
+    return [
+      { x: dx, z: 0, r: c.plinthRadius + 0.05, top: c.columnHeight },
+      { x0: px - c.post.deskWidth / 2, x1: px + c.post.deskWidth / 2, z0: c.post.z - c.post.deskDepth / 2, z1: c.post.z + c.post.deskDepth / 2, top: c.post.height + 0.1 },
+    ];
+  },
   migrate: (old, from) => {
     const s = old as DeckCraneState;
     return { ...s, ...(from < 2 ? { extend: 0, loadKg: 0 } : {}), hookAt: null, refY: null };
@@ -141,19 +176,22 @@ export const DECK_CRANE: ModuleDefinition<DeckCraneConfig, DeckCraneState> = {
     },
   },
   view: {
-    build({ config: c, keys, socket }) {
+    build({ config: c, keys, socket, hull }) {
       const steel = 0x3f464c;
       const yellow = 0xe0a020;
-      const p = c.post;
+      // Where it stands from its socket, and its post beside it: drawn in the socket's axes,
+      // the column at `dx`, everything else from there.
+      const { dx, postX } = craneSeatAt(c, hull, matrixOf(socket.transform));
+      const p = { ...c.post, x: dx + postX };
       const staticParts = [
-        part(new THREE.CylinderGeometry(c.plinthRadius, c.plinthRadius * 1.1, c.plinthHeight, 16).translate(0, c.plinthHeight / 2, 0), steel),
+        part(new THREE.CylinderGeometry(c.plinthRadius, c.plinthRadius * 1.1, c.plinthHeight, 16).translate(dx, c.plinthHeight / 2, 0), steel),
         // The control post: a pillar and a desk on top.
         part(new THREE.BoxGeometry(0.16, p.height, 0.16).translate(p.x, p.height / 2, p.z), steel),
         part(new THREE.BoxGeometry(p.deskWidth, 0.06, p.deskDepth).translate(p.x, p.height + 0.03, p.z), 0x2a3035),
       ];
       // The slewing part: the column, and the boom on its pivot at the column's head.
       const slewing = new THREE.Group();
-      slewing.position.y = c.plinthHeight;
+      slewing.position.set(dx, c.plinthHeight, 0);
       const column = new THREE.Mesh(
         mergeParts([
           part(new THREE.CylinderGeometry(c.columnRadius, c.columnRadius * 1.15, c.columnHeight - c.plinthHeight, 14).translate(0, (c.columnHeight - c.plinthHeight) / 2, 0), yellow),
@@ -260,6 +298,9 @@ export const DECK_CRANE: ModuleDefinition<DeckCraneConfig, DeckCraneState> = {
           tip.fromArray(craneTip(c, st.slew, st.luff, extend));
           if (st.hookAt) hookMesh.position.fromArray(st.hookAt);
           else hookMesh.position.copy(tip).setY(tip.y - st.wire);
+          // (The crane's axes are its column's: in the socket's, out by `dx`.)
+          tip.x += dx;
+          hookMesh.position.x += dx;
           wire.position.copy(hookMesh.position);
           b.subVectors(tip, hookMesh.position);
           wire.scale.set(1, Math.max(0.01, b.length()), 1);
