@@ -371,9 +371,34 @@ export class InteractionSystem {
     this.steering?.keySteer(x, y);
   }
 
+  /** The companion buttons held down by their keys while steering (Control.keyExtras). */
+  private readonly extraHeld = new Set<Control>();
+
+  /** The keys the steered control's companions take (none when not steering). */
+  get steeringCodes(): string[] {
+    return this.steering?.keyExtras.map((e) => e.code) ?? [];
+  }
+
+  /** Desktop: press and release the steered control's companion buttons as their keys go down and up. */
+  steerExtras(isDown: (code: string) => boolean): void {
+    for (const e of this.steering?.keyExtras ?? []) {
+      const down = isDown(e.code) && e.target.enabled;
+      if (down && !this.extraHeld.has(e.target)) {
+        e.target.bind(this.context(null, e.target));
+        e.target.pressStart();
+        this.extraHeld.add(e.target);
+      } else if (!down && this.extraHeld.has(e.target)) {
+        e.target.pressEnd();
+        this.extraHeld.delete(e.target);
+      }
+    }
+  }
+
   private stopSteering(): void {
     const c = this.steering;
     if (!c) return;
+    for (const b of this.extraHeld) b.pressEnd();
+    this.extraHeld.clear();
     c.grabEnd(this.deskPointer);
     c.held = false;
     this.steering = null;
@@ -381,7 +406,10 @@ export class InteractionSystem {
 
   /** Name of whatever the desktop reticle is on (for a hint), or null. */
   get desktopHoverLabel(): string | null {
-    if (this.steering) return `${this.steering.label}: W A S D to steer · click to let go`;
+    if (this.steering) {
+      const extras = this.steering.keyExtras.map((e) => `${e.key} ${e.does}`);
+      return `${this.steering.label}: W A S D to steer${extras.length ? ` · ${extras.join(' · ')}` : ''} · click to let go`;
+    }
     const c = this.deskHover;
     if (!c) return null;
     return c.kind === 'grab' && this.rules.lockedByOther(c) ? `${c.label} (crew-mate has it)` : c.label;

@@ -142,6 +142,12 @@ export abstract class Control {
   readonly keySteerable: boolean = false;
   keySteer(_x: number, _y: number): void {}
   /**
+   * Desktop: while this control is keyboard-steered, these keys work its companion buttons
+   * (held down, the button is held: the deck crane's hoist, boom and hook). Those keys do
+   * nothing else meanwhile (Keyboard.claim).
+   */
+  keyExtras: readonly KeyExtra[] = [];
+  /**
    * Desktop: a part of a keyboard-steered control (the skiff's gear lever on her tiller):
    * clicking it starts steering that control instead (WASD does the gear and throttle).
    */
@@ -195,4 +201,14 @@ export abstract class Control {
     }
     return this.toLocal(p.position, out);
   }
+}
+
+/** A key that works a companion button while a control is keyboard-steered (Control.keyExtras). */
+export interface KeyExtra {
+  /** The physical key (KeyboardEvent.code). */
+  code: string;
+  /** How to show it ('R', 'Space'), and what it does ('hoist up'). */
+  key: string;
+  does: string;
+  target: Control;
 }

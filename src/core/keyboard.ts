@@ -21,14 +21,27 @@ export class Keyboard {
     target.addEventListener('blur', () => this.down.clear());
   }
 
+  /** Keys lent to something else for now (a keyboard-steered crane's buttons): their actions don't fire. */
+  private claimed = new Set<string>();
+
   /** True while any key bound to the action is held. */
   action(name: KeyAction): boolean {
-    return KEYS[name].codes.some((c) => this.down.has(c));
+    return KEYS[name].codes.some((c) => this.down.has(c) && !this.claimed.has(c));
   }
 
   /** True only on the frame a key bound to the action went down. */
   actionPressed(name: KeyAction): boolean {
-    return KEYS[name].codes.some((c) => this.pressed.has(c));
+    return KEYS[name].codes.some((c) => this.pressed.has(c) && !this.claimed.has(c));
+  }
+
+  /** Lend these keys to something else (until the next claim): their usual actions don't fire. */
+  claim(codes: Iterable<string>): void {
+    this.claimed = new Set(codes);
+  }
+
+  /** True while this physical key is held (for whoever has claimed it). */
+  isDown(code: string): boolean {
+    return this.down.has(code);
   }
 
   endFrame(): void {

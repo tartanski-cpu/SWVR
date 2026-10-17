@@ -3179,6 +3179,43 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   - in the headless browser, in a design moored at Calder Haven: started the engine, raised the boom, hooked a crate off the foredeck, swung it to starboard (she heeled about 1°), and landed it on the quay.
 - **Not done yet:** the tow winch, A-frame, net drum, windlass and tender crane are modules but drawn at the workboat's fixed places. Making them placeable is next.
 
+### Deck crane: telescopic boom, load-moment limit, keyboard working on desktop (owner)
+
+- **The owner tested the deck crane** and asked for:
+  - a way to extend the boom, to reach out over the deck;
+  - easier working for keyboard users: grab the joystick and still look around, the boom on W A S D, and keys for the wire and the boom in and out. VR players use the joystick and buttons directly.
+- **Telescopic boom (`deck.crane` v2):**
+  - an inner section runs out of the boom's tip up to `extendMax` (2.0 m) at `extendRate` (0.3 m/s), on new **BOOM OUT / BOOM IN** buttons (hold, blue) on the post's desk;
+  - it's drawn a size smaller, so it hides inside the base section when run in, and the sheave head rides on its end;
+  - the crane's state gains `extend` (saved states from v1 come in with the boom run in);
+  - the bus gains `crane.boomOut` and `crane.boomIn`, on a boat with a crane only.
+- **Load-moment limit (naval architect's addition):**
+  - `swlKg` (800 kg) holds out to the base boom's reach (`boomLength`, 3.4 m); further out it's the same load moment, load × reach (`safeLoadAt`): about 500 kg at full stretch, level;
+  - the hook won't take a load heavier than that at its reach;
+  - with a load on (the world tells the crane, `loadKg`), the boom won't run out or lower past the limit, but always comes back in or up.
+- **The desk** is wider (`post.deskWidth` 0.5 m, `deskDepth` 0.28 m). Standing at it, left to right:
+  - BOOM OUT (far) and IN (near);
+  - the joystick;
+  - HOIST UP (far) and DOWN (near);
+  - HOOK.
+- **Keyboard on desktop.** Clicking the joystick already steered it with W A S D while the mouse looks around (the searchlight's way). Now a steered control can carry companion keys (`Control.keyExtras`) that hold its buttons down while held:
+  - the crane's are **R / F** hoist up / down, **E / Q** boom out / in, **Space** hook;
+  - the on-screen hint lists them;
+  - while it's steered, those keys do nothing else: no engine stop on E, no lash on Q, no jump on Space, no fly mode on F (`Keyboard.claim`);
+  - letting go of the joystick lets go of any held button.
+- **Checked:**
+  - typecheck and all tests (577), including new ones:
+    - the boom runs out and in at its rate, and the hook goes further out by as much;
+    - the load moment;
+    - the limiter stops the boom running out with a 700 kg crate on, and lets it come back in;
+    - a load over the limit at that reach isn't taken, but is once the boom's run in;
+    - the companion keys press, hold and release their buttons, and let go with the joystick;
+    - golden runs unchanged;
+  - in the game, headless, on a design with the crane:
+    - clicked the joystick, then held W (boom up), E (boom out; the engine kept running), D (slew) and F (hoist down): the crane followed each;
+    - screenshots of the boom run out and of the new desk.
+- **Not checked:** in VR, the BOOM buttons by hand.
+
 ### Tow winch, stern roller and trawl A-frame: placeable modules (owner)
 
 - **The owner asked** for the trawl A-frame and the winch to be modularised next. They were modules already, but tied to the starting workboat's places. The owner also set this chat's scope: it makes, tests and tweaks modules; putting them on the Shipyard page is done in a separate chat.

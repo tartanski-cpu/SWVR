@@ -194,6 +194,8 @@ Every value on a boat's bus (modular boats; `src/modular/busKeys.ts`). Generated
 | `crane.luff` | deg, -5 to 70 | player sets; held: crane | module |  | Deck crane: the boom angle its joystick asks for, above level. |
 | `crane.hoistUp` | on / off | player sets | module |  | Deck crane HOIST UP button held. |
 | `crane.hoistDown` | on / off | player sets | module |  | Deck crane HOIST DOWN button held. |
+| `crane.boomOut` | on / off | player sets | module |  | Deck crane BOOM OUT button held: runs the telescopic boom out. |
+| `crane.boomIn` | on / off | player sets | module |  | Deck crane BOOM IN button held: runs the telescopic boom in. |
 | `crane.hook` | on / off | player sets | module |  | Deck crane HOOK button held: a press takes the item under the hook, or sets down the one on it. |
 
 ## trawl

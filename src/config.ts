@@ -2512,13 +2512,24 @@ export const CONFIG = {
       hoistRate: 0.35,
       wireMin: 0.4,
       wireMax: 6,
-      /** Safe working load (kg), and the crane's own weight (kg). */
+      /**
+       * Safe working load (kg), and the crane's own weight (kg). The SWL holds out to the base
+       * boom's own reach (`boomLength`); further out, the boom run out, it lifts less: the
+       * same load moment (load x reach). The crane won't take a load past its moment, and
+       * stops running the boom out or down when the load on the hook reaches it.
+       */
       swlKg: 800,
       massKg: 420,
-      /** Where it rests: boom slewed and luffed to these, the wire this long. */
+      /**
+       * The telescopic boom (owner: to reach out over the deck): an inner section runs out of
+       * the boom's tip up to `extendMax` (m) at `extendRate` (m/s), on BOOM OUT / BOOM IN.
+       */
+      extendMax: 2.0,
+      extendRate: 0.3,
+      /** Where it rests: boom slewed and luffed to these, the wire this long, the boom run in. */
       stow: { slewDeg: 0, luffDeg: 5, wire: 0.8 },
-      /** The control post beside the column (its own axes: x outboard of the socket, z aft), and its height. */
-      post: { x: 0.55, z: 0.45, height: 1.05 },
+      /** The control post beside the column (its own axes: x outboard of the socket, z aft), its height, and its desk's size (m). */
+      post: { x: 0.55, z: 0.45, height: 1.05, deskWidth: 0.5, deskDepth: 0.28 },
       /** How close the hook must be to an item's lifting point to take it (m). */
       hookReach: 0.6,
     },

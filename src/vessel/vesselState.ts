@@ -78,6 +78,8 @@ export interface VesselControls {
   craneHoistUp?: number;
   craneHoistDown?: number;
   craneHook?: number;
+  craneBoomOut?: number;
+  craneBoomIn?: number;
   netOut?: number;
   netIn?: number;
 }

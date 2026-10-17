@@ -586,6 +586,8 @@ export class App {
       inXR,
     );
     this.keyboard.endFrame();
+    // The keys a keyboard-steered control's buttons use do only that while it's steered.
+    this.keyboard.claim(this.renderer.xr.isPresenting ? [] : (this.interaction?.steeringCodes ?? []));
   }
 
   /** Fixed sim ticks (alone or hosting), or the host's snapshots (client); returns the render time. */
@@ -1328,6 +1330,8 @@ export class App {
       // outboard) instead of walking.
       const k = this.keyboard;
       this.interaction!.steerKeys((k.action('right') ? 1 : 0) - (k.action('left') ? 1 : 0), (k.action('forward') ? 1 : 0) - (k.action('back') ? 1 : 0));
+      // Its companion buttons on their keys (the deck crane's hoist, boom and hook).
+      this.interaction!.steerExtras((code) => k.isDown(code));
     } else if (!inXR && this.desktop.mode === 'walk' && !this.interaction?.desktopHeld) {
       // (Not while the mouse holds a control - dragging a lever or the wheel: you stay put.)
       const { x, y, z } = this.desktop.walk;

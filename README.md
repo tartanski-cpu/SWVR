@@ -54,6 +54,7 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | Q on cargo on deck | Lash it to the nearest D-ring / release it |
 | Middle mouse button (hold) | **Laser pointer** to the reticle (the beam comes from your lower right); the crew sees the beam and dot |
 | Click the searchlight or fire monitor joystick, or the skiff's tiller or gear lever | Steer it with **W A S D** (you don't walk meanwhile) while the mouse still looks around; click again to let go. You don't walk while dragging a lever or the wheel either |
+| Click the deck crane's joystick | **W A S D** slew and raise / lower the boom, **R / F** hoist up / down, **E / Q** boom out / in, **Space** hook (those keys do nothing else meanwhile); click again to let go |
 | B | Board the boat (you appear at the helm) / go ashore onto the quay |
 | Aim **+** and click / drag | Operate the bridge controls (see below) |
 | E | Debug: engine start / stop |
@@ -511,7 +512,12 @@ Then the choices, a step at a time:
 
 - the joystick slews it (sideways) and raises or lowers the boom (push to raise);
 - HOIST UP and HOIST DOWN (hold) haul in and pay out the wire;
-- HOOK takes the crate or drum under the hook (up to 800 kg), and pressed again sets it down on the deck, the quay, or into the sea.
+- BOOM OUT and BOOM IN (hold, the blue pair) run its telescopic boom out up to 2 m further, and back;
+- HOOK takes the crate or drum under the hook, and pressed again sets it down on the deck, the quay, or into the sea.
+
+It lifts up to 800 kg out to the base boom's reach, and less the further out (its load-moment limit): it won't take a load it can't hold there, and stops the boom going further out with one on.
+
+**On desktop,** click the crane's joystick and work it all from the keyboard while the mouse still looks around: **W A S D** slew and raise or lower the boom, **R / F** hoist up / down, **E / Q** boom out / in, **Space** the hook. Click again to let go.
 
 The page shows her in 3D (around her and at the helm), her figures and her sea trials, then gives her **code**: 15 characters, like `XXXXX-XXXXX-XXXXX` (older 10-, 11-, 13- and 14-character codes still work). **Try her in the game** opens the game in her. Or add `?design=` and the code to the game's address, also on the Quest. Buying her at the boatyard in the game comes next.
 

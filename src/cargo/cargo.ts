@@ -36,6 +36,7 @@ import { PORTS, type PortDef } from '../world/archipelago';
 import { standingHeight } from '../world/geography';
 import { deckSpot, onOpenDeck, type DeckFootprint } from './deck';
 import { craneStateOf, cranesOf, hookOnBoat } from './craneHook';
+import { safeLoadAt } from '../modules/deckCrane';
 import { cargoLost, earn, portName } from '../career/career';
 import { isPot, potLost, shootPot } from '../potting/potting';
 
@@ -368,19 +369,23 @@ export function stepCraneCargo(world: WorldState): void {
       // Its load gone some other way: the hook is free.
       const load = s.hooked ? world.cargo[s.hooked] : undefined;
       if (s.hooked && !(load && 'hook' in load.at)) s.hooked = null;
+      // What's on the hook, for its load-moment limiter.
+      s.loadKg = s.hooked && load ? load.mass : 0;
       if (!s.press) continue;
       s.press = false;
       const hook = hookOnBoat(v, crane.path);
       if (!hook) continue;
       if (load && s.hooked) {
-        if (setDown(world, v, load, hook)) s.hooked = null;
+        if (setDown(world, v, load, hook)) [s.hooked, s.loadKg] = [null, 0];
         continue;
       }
       const hookW = onWorld(v, hook);
       let best: CargoItem | null = null;
       let bestD = crane.config.hookReach;
+      // No heavier than it may lift this far out (the boom run out lifts less).
+      const canLift = safeLoadAt(crane.config, { luff: s.luff, extend: s.extend ?? 0 });
       for (const c of Object.values(world.cargo)) {
-        if (c.mass > crane.config.swlKg) continue;
+        if (c.mass > canLift) continue;
         const p = liftPoint(world, c);
         const d = p ? p.distanceTo(hookW) : Infinity;
         if (d < bestD) [best, bestD] = [c, d];
@@ -388,6 +393,7 @@ export function stepCraneCargo(world: WorldState): void {
       if (best) {
         best.at = { hook: v.id, crane: crane.path };
         s.hooked = best.id;
+        s.loadKg = best.mass;
       }
     }
   }

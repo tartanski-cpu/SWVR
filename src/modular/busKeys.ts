@@ -331,6 +331,8 @@ export const BUS_KEYS = {
   'crane.luff': craneKey(setting('craneLuff', [crane.luffMinDeg, crane.luffMaxDeg], 'deg', 'Deck crane: the boom angle its joystick asks for, above level.', { hold: 'crane', writer: 'module' }), { field: 'craneLuff', value: crane.stow.luffDeg }),
   'crane.hoistUp': craneKey(control('craneHoistUp', 'Deck crane HOIST UP button held.', { writer: 'module' })),
   'crane.hoistDown': craneKey(control('craneHoistDown', 'Deck crane HOIST DOWN button held.', { writer: 'module' })),
+  'crane.boomOut': craneKey(control('craneBoomOut', 'Deck crane BOOM OUT button held: runs the telescopic boom out.', { writer: 'module' })),
+  'crane.boomIn': craneKey(control('craneBoomIn', 'Deck crane BOOM IN button held: runs the telescopic boom in.', { writer: 'module' })),
   'crane.hook': craneKey(control('craneHook', 'Deck crane HOOK button held: a press takes the item under the hook, or sets down the one on it.', { writer: 'module' })),
   'trawl.shoot': control('trawl', 'TRAWL switch: shoot the net (on) / haul it (off). It follows the net when worked by hand.', {
     aliases: ['trawl'],

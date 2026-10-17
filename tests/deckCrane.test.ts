@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { useDesign } from '../src/boats/sims';
 import { deckHeightAt, payloadOf, type CargoItem } from '../src/cargo/cargo';
 import { craneStateOf, cranesOf, hookOnBoat } from '../src/cargo/craneHook';
+import { craneRadius, safeLoadAt } from '../src/modules/deckCrane';
 import { CONFIG } from '../src/config';
 import { IdFactory } from '../src/core/ids';
 import type { Intent } from '../src/core/intents';
@@ -119,5 +120,87 @@ describe('deck crane', { timeout: 30000 }, () => {
     send('crane.hook', 0);
     expect('vessel' in world.cargo.big.at).toBe(true);
     expect(s.hooked).toBeNull();
+  });
+
+  it('runs its boom out and in at its own rate, reaching further out, up to its full stretch', () => {
+    const { world, v, send, run, path } = setup(1);
+    startEngine(world, v);
+    const s = craneStateOf(v, path!)!;
+    const before = hookOnBoat(v, path!)!.clone();
+    send('crane.boomOut', 1);
+    run(2);
+    expect(s.extend).toBeCloseTo(2 * crane.extendRate, 1);
+    // Stowed pointing forward: the hook goes further forward (-z) by as much.
+    expect(before.z - hookOnBoat(v, path!)!.z).toBeCloseTo(s.extend * Math.cos((s.luff * Math.PI) / 180), 6);
+    run(20);
+    expect(s.extend).toBe(crane.extendMax);
+    send('crane.boomOut', 0);
+    send('crane.boomIn', 1);
+    run(20);
+    expect(s.extend).toBe(0);
+  });
+
+  it('lifts less the further out: its safe working load to the base boom\'s reach, then the same load moment', () => {
+    const c = { ...crane };
+    expect(safeLoadAt(c, { luff: 0, extend: 0 })).toBe(crane.swlKg);
+    expect(safeLoadAt(c, { luff: 40, extend: 0 })).toBe(crane.swlKg); // closer in: no more than its SWL
+    const far = safeLoadAt(c, { luff: 0, extend: crane.extendMax });
+    expect(far * craneRadius(c, 0, crane.extendMax)).toBeCloseTo(crane.swlKg * crane.boomLength, 6);
+    expect(far).toBeLessThan(crane.swlKg);
+  });
+
+  it('its load-moment limiter: with a heavy load on, the boom won\'t run out past what it may hold there, but comes back in', () => {
+    const { world, v, send, run, path } = setup(1);
+    startEngine(world, v);
+    const s = craneStateOf(v, path!)!;
+    send('crane.luff', 0);
+    run(2);
+    // A 700 kg crate on the hook.
+    const hook = hookOnBoat(v, path!)!;
+    const deckY = deckHeightAt(v.defId, hook.z);
+    world.cargo.big = { id: 'big', kind: 0, mass: 700, from: 'calder', to: 'brannock', at: { vessel: v.id, pos: [hook.x, deckY, hook.z], yaw: 0, vel: [0, 0], lashed: false } };
+    s.wire += hook.y - (deckY + CONFIG.cargo.kinds[0].size[1]);
+    send('crane.hook', 1);
+    send('crane.hook', 0);
+    expect(s.loadKg).toBe(700);
+    send('crane.boomOut', 1);
+    run(10);
+    // It stops where 700 kg is all it may hold.
+    expect(safeLoadAt(crane, s)).toBeGreaterThanOrEqual(700);
+    expect(safeLoadAt(crane, { luff: s.luff, extend: s.extend + crane.extendRate / 30 })).toBeLessThan(700);
+    send('crane.boomOut', 0);
+    send('crane.boomIn', 1);
+    run(1);
+    expect(s.extend).toBeLessThan(0.5);
+  });
+
+  it('won\'t hook a load heavier than it may lift at that reach', () => {
+    const { world, v, send, run, path } = setup(1);
+    startEngine(world, v);
+    send('crane.luff', 30);
+    send('crane.boomOut', 1);
+    run(8);
+    send('crane.boomOut', 0);
+    const s = craneStateOf(v, path!)!;
+    const hook = hookOnBoat(v, path!)!;
+    const deckY = deckHeightAt(v.defId, hook.z);
+    const mass = Math.round(safeLoadAt(crane, s)) + 50; // under its SWL, over what it may lift this far out
+    expect(mass).toBeLessThan(crane.swlKg);
+    world.cargo.heavy = { id: 'heavy', kind: 0, mass, from: 'calder', to: 'brannock', at: { vessel: v.id, pos: [hook.x, deckY, hook.z], yaw: 0, vel: [0, 0], lashed: false } };
+    s.wire += hook.y - (deckY + CONFIG.cargo.kinds[0].size[1]);
+    send('crane.hook', 1);
+    send('crane.hook', 0);
+    expect('vessel' in world.cargo.heavy.at).toBe(true);
+    // Run in, and it takes it.
+    send('crane.boomIn', 1);
+    run(10);
+    send('crane.boomIn', 0);
+    const h2 = hookOnBoat(v, path!)!;
+    world.cargo.heavy.at = { vessel: v.id, pos: [h2.x, deckHeightAt(v.defId, h2.z), h2.z], yaw: 0, vel: [0, 0], lashed: false };
+    s.wire += h2.y - (deckHeightAt(v.defId, h2.z) + CONFIG.cargo.kinds[0].size[1]);
+    send('crane.hook', 1);
+    send('crane.hook', 0);
+    expect(world.cargo.heavy.at).toEqual({ hook: v.id, crane: path });
+    expect(s.loadKg).toBe(mass);
   });
 });

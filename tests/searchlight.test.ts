@@ -82,4 +82,36 @@ describe('searchlight joystick on the desktop', () => {
     j.tick(1);
     expect(sent.spotPan).toBe(pan);
   });
+
+  it('keys work a steered joystick\'s companion buttons (the deck crane\'s): held while held, let go with it', async () => {
+    const { InteractionSystem } = await import('../src/controls/InteractionSystem');
+    const { Button } = await import('../src/controls/Button');
+    const sent: [string, number][] = [];
+    const j = new Joystick('j', opts);
+    j.root.position.set(0, 0, -1);
+    j.root.updateMatrixWorld(true);
+    const up = new Button('up', 'crane.hoistUp', 'HOIST UP', 'momentary', 0x3a9a4a);
+    j.keyExtras = [{ code: 'KeyR', key: 'R', does: 'hoist up', target: up }];
+    const sys = new InteractionSystem([j, up], (c, v) => sent.push([c, v]), () => {});
+    const knob = new THREE.Vector3(0, 0.105 + 0.035, -1);
+    const ray = new THREE.Ray(knob.clone().add(new THREE.Vector3(0, 0.5, 0)), new THREE.Vector3(0, -1, 0));
+    sys.updateDesktop(ray, true, true, false, 0, 0);
+    sys.updateDesktop(ray, false, false, true, 0, 0);
+    expect(sys.steeringCodes).toEqual(['KeyR']);
+    expect(sys.desktopHoverLabel).toMatch(/R hoist up/);
+    let r = true;
+    sys.steerExtras((code) => code === 'KeyR' && r);
+    sys.steerExtras((code) => code === 'KeyR' && r); // still held: pressed once
+    expect(sent.filter(([c]) => c === 'crane.hoistUp')).toEqual([['crane.hoistUp', 1]]);
+    r = false;
+    sys.steerExtras(() => false);
+    expect(sent.at(-1)).toEqual(['crane.hoistUp', 0]);
+    // Held when the joystick is let go: let go too.
+    r = true;
+    sys.steerExtras((code) => code === 'KeyR' && r);
+    sys.updateDesktop(null, true, true, false, 0, 0);
+    expect(sys.steering).toBeNull();
+    expect(sent.at(-1)).toEqual(['crane.hoistUp', 0]);
+    expect(sys.steeringCodes).toEqual([]);
+  });
 });
