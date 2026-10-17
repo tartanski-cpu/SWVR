@@ -71,6 +71,7 @@ export function vesselDefFrom(id: string, recipe: Recipe, lib: { hulls: HullLibr
     designVolume: mass.massKg / CONFIG.ocean.density,
     wettedSurface: wettedSurfaceAtDWL(form),
     resistance: hull.resistance,
+    ...(hull.planing ? { planing: hull.planing } : {}),
     boardingSpot: [...hull.helm.stand] as Vec3,
     spawn: hull.spawn,
     windage: hull.windage,

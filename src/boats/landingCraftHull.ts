@@ -61,6 +61,7 @@ export const LANDING_CRAFT_HULL: HullDefinition = {
   addedMass: lc.addedMass,
   damping: lc.damping,
   resistance: lc.resistance,
+  planing: lc.planing,
   windage: lc.windage,
   layout: lc.layout,
   cargo: lc.cargo,

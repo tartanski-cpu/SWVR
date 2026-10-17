@@ -2681,6 +2681,36 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   2. Rest your hand on it: it should stay put.
   3. Push a little further, and it goes into gear with a light tick.
 
+### Landing craft: a quiet idle on a phone, the sound dipping on throttle-up, banking into turns (owner phone test; done, on /next/)
+
+- **No engine sound at idle on the phone (earbuds):**
+  - **Why:** her idle beat is ~40 Hz, below what earbuds and phone speakers can play. VR speakers manage it.
+  - **Fix:** with the touch controls (phones, tablets), the engine is voiced for small speakers. Its harmonics around 240 Hz are lifted 9 dB, and its tone opened 160 Hz, so the ear hears the deep beat from the harmonics (`CONFIG.engineSmallSpeakers`).
+  - **Result:** at idle, ~7 dB more in the range earbuds play.
+  - VR and desktop are untouched: the filter sits flat there.
+- **The sound dying for a moment on throttle-up:**
+  - **Why:** the clutch went in, and the 0.6 m propeller loaded the engine before her governor could add fuel. It was limited to 0.45 of full rack a second, the workboat's old naturally aspirated engine's figure. The revs sagged from 590 to 400 rpm, and the sound with them.
+  - **Fix:** her turbo diesel's governor now adds fuel at 2.0 a second (her recipe's `rackRiseRate`). The sag is about 75 rpm and brief, and the rising load makes the sound louder as it happens.
+  - **The workboat is unchanged:** she sags to ~440 rpm too, but the VR lever moves gradually and you were happy with her.
+- **Leaning out of turns:**
+  - **The owner:** like a displacement boat, she heeled out of turns, but a planing boat leans in.
+  - **Why she leaned out:** the game had only the displacement mechanism. Her CG swings round above the water's side force on the hull, which heels her out.
+  - **What makes a planing hull lean in:** turning, she slides outward through the water. The outer half of her vee bottom meets the water at a steeper angle and lifts more than the inner half, and that rolls her into the turn.
+  - **How it's modelled now** (`vesselPhysics.ts`, a hull's `planing`): a pair of vertical forces at her chines, `bank` x 1/2 rho Awp U v (forward speed times sideways slip), up on the side she's sliding toward and down on the other. It fades in from Fn 0.3 to 0.7 (~5 to ~13 kn).
+  - **Result:**
+    - helm 40 % at 16 kn: ~6.5° into the turn (was 8.5° out);
+    - thrown hard over at 20 kn: she leans in up to ~15° as she carves in, then settles nearly upright (was a 20° lurch out, then 7° out).
+  - Only the landing craft has it; the workboat is a displacement boat and is unchanged.
+- **Still to come with real planing:**
+  - hard over she bleeds speed to ~9 kn, more than a planing boat would (the hull's sideways drag is a displacement hull's);
+  - no running trim or rise at speed.
+- **Config:** `CONFIG.vessels.landingCraft.planing` (`bank` 0.06, `fnStart` 0.3, `fnFull` 0.7), `CONFIG.engineSmallSpeakers`, her recipe's diesel `rackRiseRate` 2.0.
+- **Tests (1 new, 485 in all, all pass):** she leans 3-12° into a moderate turn at speed, and the workboat has no planing. Workboat golden runs and sea trials unchanged; her straight-line trials unchanged (20.0 kn).
+- **Owner test:**
+  1. On the phone, listen at idle (earbuds) and as you throttle up from neutral: the sound shouldn't dip.
+  2. Flat out, put the helm over halfway, then hard: she should lean into the turn.
+  3. In VR, the workboat should sound and handle as before.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

@@ -2738,6 +2738,8 @@ export class App {
     );
     this.boardOnStart = CONFIG.touch.startAboard;
     this.desktop.noPointerLock = true;
+    // A phone's speaker or earbuds: the engine voiced so its idle beat can be heard.
+    this.sound.engine.smallSpeakers = true;
   }
 
   /** The next boat to start in after the one you're in (the touch controls' switch). */

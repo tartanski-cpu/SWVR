@@ -20,7 +20,7 @@ import { buildHullForm, hullFormFromDesign, type HullParams } from '../vessel/hu
 import type { HullDesign } from '../hulls/loft';
 import { hullPlan } from '../vessel/layout';
 import type { HullForm } from '../vessel/hullForm';
-import type { HullFittings, LayoutConfig, VesselConfig } from '../vessel/vesselDef';
+import type { HullFittings, LayoutConfig, PlaningConfig, VesselConfig } from '../vessel/vesselDef';
 import type { MassProperties } from './massProperties';
 import type { BusKey } from './busKeys';
 import type { HullQueries, Provision } from './module';
@@ -57,6 +57,8 @@ export interface HullDefinition {
   damping: VesselConfig['damping'];
   /** Calm-water resistance. */
   resistance: VesselConfig['resistance'];
+  /** A planing hull's banking into turns; unset for a displacement hull. */
+  planing?: PlaningConfig;
   /** Windage for leeway: areas and the centre of effort. */
   windage: VesselConfig['windage'];
   /** Deck, bulwarks, walkable margins; the wheelhouse, its roof and ladder where she has them. */

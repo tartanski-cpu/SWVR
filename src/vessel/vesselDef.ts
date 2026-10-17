@@ -12,6 +12,9 @@ type WorkboatLayout = Workboat['layout'];
 export type LayoutConfig = Omit<WorkboatLayout, 'wheelhouse' | 'roof' | 'ladder' | 'doorButtons' | 'fairleadGap' | 'engineHatch' | 'sideGate'> &
   Partial<Pick<WorkboatLayout, 'roof' | 'ladder' | 'doorButtons' | 'fairleadGap' | 'engineHatch' | 'sideGate'>> & { wheelhouse?: WheelhouseLayout; bowRamp?: BowRampLayout };
 
+/** A planing hull's banking in turns (CONFIG.vessels.landingCraft.planing). */
+export type PlaningConfig = (typeof CONFIG.vessels.landingCraft)['planing'];
+
 /** A bow ramp across a square bow (the landing craft's: CONFIG.vessels.landingCraft.layout.bowRamp). */
 export type BowRampLayout = (typeof CONFIG.vessels.landingCraft.layout)['bowRamp'];
 
@@ -108,6 +111,8 @@ export interface VesselDef {
   /** Wetted surface (m^2) at the DWL, from the stations. */
   wettedSurface: number;
   resistance: VesselConfig['resistance'];
+  /** A planing hull's banking into turns (vessel/physics/vesselPhysics.ts); none: a displacement hull. */
+  planing?: PlaningConfig;
   /** Where players stand after boarding (vessel axes). */
   boardingSpot: Vec3;
   /** Debug spawn / drop test placement. */

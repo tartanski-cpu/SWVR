@@ -17,7 +17,7 @@
           "frictionPerRpm": 0.03,
           "inertia": 2.6,
           "droopRpm": 120,
-          "rackRiseRate": 0.45,
+          "rackRiseRate": 2.0,
           "starterTorque": 420,
           "starterMaxRpm": 160,
           "crankTime": 1.6,

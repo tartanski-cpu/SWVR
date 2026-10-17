@@ -187,3 +187,26 @@ describe('the landing craft: her paint and her bow ramp', () => {
   });
 });
 
+describe('the landing craft: a planing hull', () => {
+  it('banks into a turn at speed (owner), where the displacement workboat leans out', () => {
+    expect(VESSEL_DEFS.workboat.planing).toBeUndefined();
+    const { world, vesselId } = createWorld(new IdFactory(), 'landingCraft');
+    const v = world.vessels[vesselId];
+    placeVessel(v, 0, 0, 0, 0);
+    world.environment.waves = [];
+    world.geography = 'openSea';
+    const send = (control: string, value: number) => stepWorld(world, [{ playerId: 'p', targetId: v.id, control, value } as Intent], DT);
+    send('quickStart', 1);
+    for (let i = 0; i < 6 / DT; i++) stepWorld(world, [], DT);
+    send('lever', 1);
+    for (let i = 0; i < 40 / DT; i++) stepWorld(world, [], DT);
+    send('helm', 0.4); // to starboard
+    for (let i = 0; i < 25 / DT; i++) stepWorld(world, [], DT);
+    // Her starboard side (+x) down = leaning into a starboard turn.
+    const stbd = new THREE.Vector3(1, 0, 0).applyQuaternion(new THREE.Quaternion(...v.orientation));
+    const heelInDeg = (-Math.asin(stbd.y) * 180) / Math.PI;
+    expect(heelInDeg).toBeGreaterThan(3);
+    expect(heelInDeg).toBeLessThan(12);
+  });
+});
+

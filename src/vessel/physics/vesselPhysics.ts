@@ -299,8 +299,36 @@ export function stepVessel(
   tmp.z -= sO.velocity[2];
   tmp.y = 0;
   const U = -tmp.applyQuaternion(qInv).z; // forward speed through water
+  const vSway = tmp.x; // sideways through the water, + to starboard
   const R = calmWaterResistance(def, U) * immersion;
   addForceAt(tmp.set(0, 0, Math.sign(U) * R).applyQuaternion(q), resW);
+
+  // ── A planing hull banks into a turn (def.planing; the landing craft) ──
+  // Turning, she slides outward through the water. The half of her vee bottom on that side
+  // meets the water at a steeper angle and lifts more; the inner half lifts less. That pair
+  // of vertical forces across her chines rolls her into the turn, against the outward heel of
+  // her CG swinging round above the side force on her hull (all a displacement hull has).
+  // Modelled as  F = bank * 1/2 rho Awp U v  up on the side she's sliding toward and down on
+  // the other, at the chines over her LCG; faded in from Fn `fnStart` (off the hump) to
+  // `fnFull` (planing), and with how much of her is in the water.
+  const pl = def.planing;
+  if (pl && immersion > 0) {
+    const fn = Math.abs(U) / Math.sqrt(g * def.resistance.lwl);
+    const t = Math.min(1, Math.max(0, (fn - pl.fnStart) / (pl.fnFull - pl.fnStart)));
+    const fade = t * t * (3 - 2 * t);
+    if (fade > 0) {
+      let b = 0;
+      let awp = 0;
+      for (const st of def.hull.stations) {
+        b = Math.max(b, st.halfBeamChine);
+        awp += 2 * st.halfBeamChine * st.weight;
+      }
+      const f = fade * immersion * pl.bank * 0.5 * rho * awp * Math.abs(U) * vSway;
+      // Up at the starboard chine when sliding to starboard (vSway > 0), down at port.
+      addForceAt(tmp.set(0, f, 0).applyQuaternion(q), toWorld(b, def.resistance.y, cgL.z, portP));
+      addForceAt(tmp.set(0, -f, 0).applyQuaternion(q), toWorld(-b, def.resistance.y, cgL.z, portP));
+    }
+  }
 
   for (const e of external) addForceAt(cf.copy(e.force), e.point);
 

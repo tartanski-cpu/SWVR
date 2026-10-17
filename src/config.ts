@@ -993,6 +993,17 @@ export const CONFIG = {
        * her recipe). No planing lift is modelled yet: she doesn't rise or trim at speed.
        */
       resistance: { lwl: 8.8, formFactor: 0.2, waveA: 1.0, waveB: 0.94, waveKnee: 0.3, waveCap: 0.115, asternFactor: 3.6, y: -0.25 },
+      /**
+       * A planing hull banks into a turn (owner): sliding outward, the outer half of her vee
+       * bottom lifts more than the inner, rolling her in against her CG's outward heel
+       * (vessel/physics/vesselPhysics.ts). `bank` scales that lift pair, 1/2 rho Awp U v at
+       * her chines; it fades in from Fn `fnStart` to `fnFull` (~5 to ~13 kn on her 8.8 m
+       * waterline). Tuned: at 16 kn with the helm 40 % over she leans ~6 deg into the turn
+       * (it was ~8 deg out); thrown hard over at 20 kn she leans in up to ~15 deg as she
+       * carves round, then settles near upright as she slows (to ~9 kn: the hull's sideways
+       * drag isn't a planing hull's yet).
+       */
+      planing: { bank: 0.06, fnStart: 0.3, fnFull: 0.7 },
       /** Side-on: hull ~10 x 1.2 m plus the cabin ~2.7 x 2.0; end-on 2.8 x 1.2 plus 2.1 x 2.0 (m2). */
       windage: { side: 17, front: 7.5, center: [0, 1.3, 0.6] as [number, number, number] },
       /**
@@ -2626,6 +2637,14 @@ export const CONFIG = {
       turbo: { idleHz: 1400, boostHz: 3200, gain: 0.006 } as { idleHz: number; boostHz: number; gain: number } | null,
     },
   },
+
+  /**
+   * The engine on small speakers (a phone's, earbuds; on with the touch controls): their
+   * speakers can't play the beat's fundamental (30-120 Hz), so its harmonics they can play
+   * are lifted (`presenceDb` at `presenceHz`) and the tone opened up (`lpLiftHz` on its
+   * low-pass); the ear hears the deep beat from them. VR and desktop are untouched.
+   */
+  engineSmallSpeakers: { presenceHz: 240, presenceDb: 9, lpLiftHz: 160 },
 
   /**
    * How shut-in the wheelhouse is, for sound (0 open .. 1 shut): the aft door is the big

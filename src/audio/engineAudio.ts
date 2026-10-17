@@ -65,7 +65,15 @@ export class EngineSound {
     private readonly houseLp: BiquadFilterNode,
     private readonly voice: EngineVoice,
     private readonly turbo: { osc: OscillatorNode; gain: GainNode } | null,
+    private readonly presence: BiquadFilterNode,
   ) {}
+
+  /** Voiced for small speakers (CONFIG.engineSmallSpeakers): on for phones and tablets. */
+  private small = false;
+  set smallSpeakers(on: boolean) {
+    this.small = on;
+    this.presence.gain.value = on ? CONFIG.engineSmallSpeakers.presenceDb : 0;
+  }
 
   /** @param ratedRpm the engine's rated speed (its pulses lengthen below it) */
   static async create(ctx: BaseAudioContext, destination: AudioNode, voice: EngineVoice = CONFIG.engineVoices.inlineSix, ratedRpm = 1800): Promise<EngineSound> {
@@ -76,7 +84,15 @@ export class EngineSound {
     houseLp.type = 'lowpass';
     houseLp.frequency.value = 20000;
     houseLp.Q.value = 0.5;
-    master.connect(houseLp).connect(destination);
+    // Small speakers (a phone, earbuds) can't play the beat's fundamental (30-120 Hz): this
+    // lifts its harmonics they can play, and the ear hears the deep beat from them (see
+    // smallSpeakers). Flat (0 dB) otherwise: the VR and desktop sound are untouched.
+    const presence = ctx.createBiquadFilter();
+    presence.type = 'peaking';
+    presence.frequency.value = CONFIG.engineSmallSpeakers.presenceHz;
+    presence.Q.value = 0.8;
+    presence.gain.value = 0;
+    master.connect(presence).connect(houseLp).connect(destination);
 
     // ── Combustion: body resonance, low-pass, a little saturation ──
     const dcBlock = ctx.createBiquadFilter();
@@ -187,7 +203,7 @@ export class EngineSound {
       turbo = { osc, gain };
     }
 
-    return new EngineSound(ctx, master, worklet, fallback, bodyLp, thump, starter, starterGain, hiss, dry, muffled, houseLp, voice, turbo);
+    return new EngineSound(ctx, master, worklet, fallback, bodyLp, thump, starter, starterGain, hiss, dry, muffled, houseLp, voice, turbo, presence);
   }
 
   /** Stop it and unhook it (the boat changed engines). */
@@ -227,7 +243,8 @@ export class EngineSound {
     // Brighter and harder as it revs and digs in.
     // Darker than before (it topped out near 900 Hz): the bark stays under ~450 Hz.
     const v = this.voice;
-    this.bodyLp.frequency.setTargetAtTime(v.lp.base + v.lp.rpm * rpmFrac + v.lp.load * load, t, smooth);
+    const lpLift = this.small ? CONFIG.engineSmallSpeakers.lpLiftHz : 0;
+    this.bodyLp.frequency.setTargetAtTime(v.lp.base + lpLift + v.lp.rpm * rpmFrac + v.lp.load * load, t, smooth);
     this.thump.gain.setTargetAtTime(turning ? v.thump.base + v.thump.rpm * rpmFrac + v.thump.load * load : 0, t, 0.1);
     // Wet exhaust: dry bark in the air, dull under water. Under goes fast (the
     // outlet floods), back out a little slower (the water has to clear).
@@ -264,6 +281,8 @@ export class EngineAudio {
   private wanted: EngineVoiceId = 'inlineSix';
   private ratedRpm = 1800;
   private building = false;
+  /** Voice it for small speakers (phones, tablets, earbuds; the touch controls set it). */
+  smallSpeakers = false;
 
   /** The shared AudioContext (null until a user gesture has unlocked audio). */
   get context(): AudioContext | null {
@@ -289,6 +308,7 @@ export class EngineAudio {
     const voice = this.wanted;
     void EngineSound.create(ctx, mixer.bus(ctx, 'engine'), CONFIG.engineVoices[voice], this.ratedRpm).then((s) => {
       this.sound?.dispose();
+      s.smallSpeakers = this.smallSpeakers;
       this.sound = s;
       this.built = voice;
       this.building = false;
