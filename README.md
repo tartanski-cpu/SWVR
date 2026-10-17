@@ -19,6 +19,7 @@ Since the MVP:
 - **A small archipelago** with three kinds of port (see below), groundings and collisions, an anchor and windlass, sheltered water and an echo sounder.
 - **Cargo runs** between the ports, with real deadweight.
 - **Wake and spray:** foam that rides the swell, spray when the bow slams, and water and splash sounds.
+- **Pixel painting:** crisp low-resolution detail on the boats: welded plating on the hulls, non-slip decks, black window frames, wood-lined wheelhouses, floor matting and a chequer-plate engine hatch.
 
 ## Play it (no install)
 

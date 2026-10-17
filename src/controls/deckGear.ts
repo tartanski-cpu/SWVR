@@ -16,6 +16,7 @@
  */
 import * as THREE from 'three';
 import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
+import { withPixelPaint } from '../render/pixelPaint';
 import type { VesselState } from '../vessel/vesselState';
 import { Control, type Wiring } from './Control';
 
@@ -119,7 +120,7 @@ export class EngineHatch extends Control {
     this.read = wiring.read ?? ((s) => s.controls.engineHatch ?? 0);
     // The panel: chequer-plate grey, its top flush with the floor, with a flush lifting ring
     // near the inboard edge (yellow, so you can find it).
-    const plate = new THREE.Mesh(new THREE.BoxGeometry(width, 0.035, length).translate(-width / 2, -0.0175, 0), this.material(0x8a9096));
+    const plate = new THREE.Mesh(mergeParts([part(new THREE.BoxGeometry(width, 0.035, length).translate(-width / 2, -0.0175, 0), 0xffffff, 'chequer')]), withPixelPaint(this.material(0x8a9096)));
     const ring = new THREE.Mesh(new THREE.TorusGeometry(0.035, 0.008, 6, 14).rotateX(Math.PI / 2).translate(-width + 0.09, 0.004, 0), this.material(0xe8c020));
     // Two hinge knuckles on the outboard edge.
     const hinges = new THREE.Mesh(

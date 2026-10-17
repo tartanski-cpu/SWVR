@@ -3,6 +3,8 @@ import type { HullForm } from '../hullForm';
 import { hullPlan, type LayoutConfig } from '../layout';
 import type { Livery } from '../vesselDef';
 import { flatVertexColorMaterial, mergeParts, part } from '../../render/geometryUtils';
+import { CONFIG } from '../../config';
+import { paintIndex, type PaintName } from '../../render/pixelPaint';
 
 /** The workboat's livery, and every hull's for the parts her own (`Livery`) doesn't give. */
 const COLORS = {
@@ -17,6 +19,10 @@ const COLORS = {
   floor: 0x7f857c,
   console: 0x3c4248,
   panel: 0x22272b,
+  /** The window frames round the wheelhouse glass. */
+  frame: 0x16191b,
+  /** The wheelhouse's wood lining, inside. */
+  lining: 0x8a5d3c,
 };
 
 /** Every part's colour, for a hull's livery. */
@@ -53,6 +59,7 @@ function hasHouse(layout: LayoutConfig): layout is HouseLayout {
 function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number, number, number] | undefined, col: Paint): THREE.BufferGeometry[] {
   const positions: number[] = [];
   const colors: number[] = [];
+  const paints: number[] = [];
   const c = new THREE.Color();
   const n = new THREE.Vector3();
   const e1 = new THREE.Vector3();
@@ -60,7 +67,7 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
   const centroid = new THREE.Vector3();
 
   /** Add triangle a-b-c, flipped if needed so its normal points away from `inside`. */
-  const tri = (a: THREE.Vector3, b: THREE.Vector3, d: THREE.Vector3, inside: THREE.Vector3, color: number) => {
+  const tri = (a: THREE.Vector3, b: THREE.Vector3, d: THREE.Vector3, inside: THREE.Vector3, color: number, paint: PaintName = 'plating') => {
     e1.subVectors(b, a);
     e2.subVectors(d, a);
     n.crossVectors(e1, e2);
@@ -71,6 +78,7 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
     for (const v of verts) {
       positions.push(v.x, v.y, v.z);
       colors.push(c.r, c.g, c.b);
+      paints.push(paintIndex(paint));
     }
   };
 
@@ -122,12 +130,12 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
           for (const [e0, e1, x] of [[p0, p1, -sunk.halfWidth], [s0, s1, sunk.halfWidth]] as const) {
             const i0 = e0.clone().setX(x);
             const i1 = e1.clone().setX(x);
-            tri(e0, i0, i1, mid, col.deck);
-            tri(e0, i1, e1, mid, col.deck);
+            tri(e0, i0, i1, mid, col.deck, 'nonSlip');
+            tri(e0, i1, e1, mid, col.deck, 'nonSlip');
           }
         } else {
-          tri(s0, p0, p1, mid, col.deck);
-          tri(s0, p1, s1, mid, col.deck);
+          tri(s0, p0, p1, mid, col.deck, 'nonSlip');
+          tri(s0, p1, s1, mid, col.deck, 'nonSlip');
         }
       }
     }
@@ -136,8 +144,10 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
       const b0 = P(i, b);
       const a1 = P(i + 1, a);
       const b1 = P(i + 1, b);
-      tri(a0, b0, b1, mid, color);
-      tri(a0, b1, a1, mid, color);
+      // Her plating, and non-slip paint on the deck.
+      const paint = color === col.deck && a === last ? 'nonSlip' : 'plating';
+      tri(a0, b0, b1, mid, color, paint);
+      tri(a0, b1, a1, mid, color, paint);
     }
   }
   // Transom (station 0) as a fan around its centre.
@@ -156,6 +166,7 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
   const hull = new THREE.BufferGeometry();
   hull.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   hull.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  hull.setAttribute('paint', new THREE.Float32BufferAttribute(paints, 1));
   hull.computeVertexNormals();
 
   const parts = [hull, ...buildDeckFittings(form, layout, col)];
@@ -182,11 +193,42 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
   return parts;
 }
 
+/**
+ * Lines a house wall inside: its faces that stand upright and look in towards `centre` (in
+ * plan) take the lining's colour and the wood paint. Only a part in the house's own colour
+ * (the window frames stay black inside too).
+ */
+function lineInside(g: THREE.BufferGeometry, house: number, lining: number, centre: THREE.Vector3): void {
+  const col = g.attributes.color;
+  const pos = g.attributes.position;
+  const paint = g.attributes.paint;
+  const h = new THREE.Color(house);
+  if (Math.abs(col.getX(0) - h.r) + Math.abs(col.getY(0) - h.g) + Math.abs(col.getZ(0) - h.b) > 1e-3) return;
+  const c = new THREE.Color(lining);
+  const wood = paintIndex('wood');
+  const a = new THREE.Vector3();
+  const b = new THREE.Vector3();
+  const d = new THREE.Vector3();
+  for (let i = 0; i + 2 < pos.count; i += 3) {
+    a.fromBufferAttribute(pos, i);
+    b.fromBufferAttribute(pos, i + 1);
+    d.fromBufferAttribute(pos, i + 2);
+    const n = d.clone().sub(b).cross(a.clone().sub(b)).normalize();
+    if (Math.abs(n.y) > 0.5) continue;
+    const mid = a.clone().add(b).add(d).divideScalar(3);
+    if (n.x * (centre.x - mid.x) + n.z * (centre.z - mid.z) <= 0.01) continue;
+    for (let k = i; k < i + 3; k++) {
+      col.setXYZ(k, c.r, c.g, c.b);
+      paint.setX(k, wood);
+    }
+  }
+}
+
 /** Box from (x0,y0,z0) to (x1,y1,z1), axis-aligned. */
-function box(x0: number, x1: number, y0: number, y1: number, z0: number, z1: number, color: number): THREE.BufferGeometry {
+function box(x0: number, x1: number, y0: number, y1: number, z0: number, z1: number, color: number, paint?: PaintName): THREE.BufferGeometry {
   const g = new THREE.BoxGeometry(Math.abs(x1 - x0), Math.abs(y1 - y0), Math.abs(z1 - z0));
   g.translate((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);
-  return part(g, color);
+  return part(g, color, paint);
 }
 
 /**
@@ -351,6 +393,26 @@ function buildWheelhouse(layout: HouseLayout, col: Paint, base: number): THREE.B
   const head = wh.floorY + wh.windowHead;
   const roof = wh.roofY;
   const H = col.house;
+  // Window frames (pixel painting, owner): a black band round the glass, as its own strip of
+  // wall (crisper than a painted line, and it costs a box): along the top of the panels below
+  // the glass and the bottom of those above it; the mullions and posts between panes are black.
+  const F = col.frame;
+  const FW = CONFIG.pixelPaint.frameWidth;
+  /** A wall panel with the frame along its top edge (under the glass) or its bottom (over it); `solid` is a stretch of z with wall, not glass, beside that edge. */
+  const framed = (x0: number, x1: number, y0: number, y1: number, z0: number, z1: number, edge: 'top' | 'bottom', solid?: [number, number]): THREE.BufferGeometry[] => {
+    if (y1 - y0 <= 2 * FW) return [box(x0, x1, y0, y1, z0, z1, F)];
+    const [b0, b1] = edge === 'top' ? [y1 - FW, y1] : [y0, y0 + FW];
+    const out = [edge === 'top' ? box(x0, x1, y0, b0, z0, z1, H) : box(x0, x1, b1, y1, z0, z1, H)];
+    // The band, in H where there's wall beside it instead of glass.
+    const s0 = solid ? Math.max(z0, Math.min(z1, solid[0])) : z0;
+    const s1 = solid ? Math.max(z0, Math.min(z1, solid[1])) : z0;
+    if (s0 > z0) out.push(box(x0, x1, b0, b1, z0, s0, F));
+    if (s1 > s0) out.push(box(x0, x1, b0, b1, s0, s1, H));
+    if (z1 > s1) out.push(box(x0, x1, b0, b1, s1, z1, F));
+    return out;
+  };
+  // Everything from here to the floor is the house's walls: lined with wood inside (below).
+  const wallsFrom = parts.length;
 
   // Front wall: the lower panel upright; above the sill (the window band's two mullions and
   // the panel above the glass) raked forward, pilot-house style (frontRake).
@@ -360,9 +422,9 @@ function buildWheelhouse(layout: HouseLayout, col: Paint, base: number): THREE.B
   const raked = (g: THREE.BufferGeometry) => g.applyMatrix4(rake.matrix);
   const fwdAtHead = (head - fSill) * rake.tan;
   const fwdAtRoof = (roof - fSill) * rake.tan;
-  parts.push(box(-hw, hw, base, fSill, wh.front, wh.front + w, H));
-  parts.push(raked(box(-hw, hw, head, roof, wh.front, wh.front + w, H)));
-  for (const x of [-0.5, 0.5]) parts.push(raked(box(x - 0.04, x + 0.04, fSill, head, wh.front, wh.front + w, H)));
+  parts.push(...framed(-hw, hw, base, fSill, wh.front, wh.front + w, 'top'));
+  parts.push(...framed(-hw, hw, head, roof, wh.front, wh.front + w, 'bottom').map(raked));
+  for (const x of [-0.5, 0.5]) parts.push(raked(box(x - 0.04, x + 0.04, fSill, head, wh.front, wh.front + w, F)));
   // Side walls, each with one mullion. Alongside the console the wall stands up to the
   // console top (`sideRaise`, owner sketch), sloping back down to the sill aft of it. The
   // port wall has a sliding door between the console and the chart table (`sideDoor`).
@@ -377,26 +439,28 @@ function buildWheelhouse(layout: HouseLayout, col: Paint, base: number): THREE.B
     const x0 = s > 0 ? hw - w : -hw;
     const x1 = s > 0 ? hw : -hw + w;
     const door = s < 0 && sd ? sd : null;
+    // Where the wall stands above the sill beside the console (no glass there, so no frame under it).
+    const solid: [number, number] | undefined = raise && raiseTop > sill ? [wh.front, door ? door.z0 : raise.z1 + raise.slope] : undefined;
     if (door) {
       // Below the window band and above it, round the door opening (floor to door head).
-      parts.push(box(x0, x1, base, sill, wh.front, door.z0, H));
-      parts.push(box(x0, x1, base, sill, door.z1, wh.aft, H));
-      parts.push(box(x0, x1, head, roof, wh.front, door.z0, H));
-      parts.push(box(x0, x1, head, roof, door.z1, wh.aft, H));
+      parts.push(...framed(x0, x1, base, sill, wh.front, door.z0, 'top', solid));
+      parts.push(...framed(x0, x1, base, sill, door.z1, wh.aft, 'top'));
+      parts.push(...framed(x0, x1, head, roof, wh.front, door.z0, 'bottom'));
+      parts.push(...framed(x0, x1, head, roof, door.z1, wh.aft, 'bottom'));
       parts.push(box(x0, x1, wh.floorY + door.height, roof, door.z0, door.z1, H)); // header
       parts.push(box(x0, x1, base, wh.floorY + 0.02, door.z0, door.z1, col.floor)); // threshold
       // Jambs: forward (the door buttons are on it), and aft, running back to the mullion.
       parts.push(box(x0, x1, sill, wh.floorY + door.height, door.z0 - jamb, door.z0, H));
       parts.push(box(x0, x1, sill, wh.floorY + door.height, door.z1, mullion + 0.04, H));
     } else {
-      parts.push(box(x0, x1, base, sill, wh.front, wh.aft, H));
-      parts.push(box(x0, x1, head, roof, wh.front, wh.aft, H));
+      parts.push(...framed(x0, x1, base, sill, wh.front, wh.aft, 'top', solid));
+      parts.push(...framed(x0, x1, head, roof, wh.front, wh.aft, 'bottom'));
     }
-    parts.push(box(x0, x1, sill, head, mullion - 0.04, mullion + 0.04, H));
+    parts.push(box(x0, x1, sill, head, mullion - 0.04, mullion + 0.04, F));
     if (raise && raiseTop > sill) {
       // Solid up to the console top beside it; on the port side it runs into the door jamb.
       const zEnd = door ? door.z0 - jamb : raise.z1;
-      parts.push(box(x0, x1, sill, raiseTop, wh.front, zEnd, H));
+      parts.push(...framed(x0, x1, sill, raiseTop, wh.front, zEnd, 'top'));
       if (!door) parts.push(wedge(x0, x1, raise.z1, raise.z1 + raise.slope, sill, raiseTop, H));
     }
     // Front corner posts, raked with the front; deep enough at the foot that, leaning
@@ -404,24 +468,33 @@ function buildWheelhouse(layout: HouseLayout, col: Paint, base: number): THREE.B
     // the top). Above the head the same cheek runs up to the roof.
     // Below the front sill the post is as deep as the raked cheek's foot, so the two meet
     // flush and there's no slot of window beside the dash (owner feedback).
-    parts.push(box(x0, x1, sill, fSill, wh.front, wh.front + 0.1 + fwdAtHead, H));
-    parts.push(raked(box(x0, x1, fSill, head, wh.front, wh.front + 0.1 + fwdAtHead, H)));
+    parts.push(box(x0, x1, sill, fSill, wh.front, wh.front + 0.1 + fwdAtHead, F));
+    parts.push(raked(box(x0, x1, fSill, head, wh.front, wh.front + 0.1 + fwdAtHead, F)));
     if (fwdAtRoof > 0) parts.push(raked(box(x0, x1, head, roof, wh.front, wh.front + fwdAtRoof + 0.02, H)));
-    parts.push(box(x0, x1, sill, head, wh.aft - 0.1, wh.aft, H));
+    parts.push(box(x0, x1, sill, head, wh.aft - 0.1, wh.aft, F));
   }
   // Aft wall: panels either side of the doorway, with the window band open, and a lintel.
   const door = wh.doorWidth / 2;
   for (const s of [-1, 1]) {
     const x0 = s > 0 ? door : -hw;
     const x1 = s > 0 ? hw : -door;
-    parts.push(box(x0, x1, base, sill, wh.aft - w, wh.aft, H));
-    parts.push(box(x0, x1, head, roof, wh.aft - w, wh.aft, H));
+    // (The aft wall's panels run across, x, so their band is a box across too.)
+    const [p0, p1] = [Math.min(x0, x1), Math.max(x0, x1)];
+    if (sill - base > 2 * FW) parts.push(box(p0, p1, base, sill - FW, wh.aft - w, wh.aft, H), box(p0, p1, sill - FW, sill, wh.aft - w, wh.aft, F));
+    else parts.push(box(p0, p1, base, sill, wh.aft - w, wh.aft, F));
+    if (roof - head > 2 * FW) parts.push(box(p0, p1, head + FW, roof, wh.aft - w, wh.aft, H), box(p0, p1, head, head + FW, wh.aft - w, wh.aft, F));
+    else parts.push(box(p0, p1, head, roof, wh.aft - w, wh.aft, F));
     // Door jambs carry the band between sill and head next to the opening (wide enough for
     // the door's push buttons, inside and out).
     const jx = s > 0 ? door : -door - JAMB;
-    parts.push(box(jx, jx + JAMB, sill, head, wh.aft - w, wh.aft, H));
+    parts.push(box(jx, jx + JAMB, sill, head, wh.aft - w, wh.aft, F));
   }
   parts.push(box(-door, door, wh.floorY + wh.doorHeight, roof, wh.aft - w, wh.aft, H));
+  // The walls' inside faces: wood lining (pixel painting, owner).
+  const centre = new THREE.Vector3(0, 0, (wh.front + wh.aft) / 2);
+  for (const g of parts.slice(wallsFrom)) lineInside(g, H, col.lining, centre);
+  // The ceiling: wood lining just under the roof.
+  parts.push(box(-hw + w, hw - w, roof - 0.012, roof, wh.front + w, wh.aft - w, col.lining, 'wood'));
   // Door sill.
   parts.push(box(-door, door, base, wh.floorY + 0.02, wh.aft - w, wh.aft, col.floor));
 
@@ -434,10 +507,10 @@ function buildWheelhouse(layout: HouseLayout, col: Paint, base: number): THREE.B
   const fz1 = wh.aft - w;
   const fy0 = wh.floorY - 0.1;
   if (eh) {
-    parts.push(box(fx0, eh.x0, fy0, wh.floorY, fz0, fz1, col.floor));
-    parts.push(box(eh.x1, fx1, fy0, wh.floorY, fz0, fz1, col.floor));
-    parts.push(box(eh.x0, eh.x1, fy0, wh.floorY, fz0, eh.z0, col.floor));
-    parts.push(box(eh.x0, eh.x1, fy0, wh.floorY, eh.z1, fz1, col.floor));
+    parts.push(box(fx0, eh.x0, fy0, wh.floorY, fz0, fz1, col.floor, 'mat'));
+    parts.push(box(eh.x1, fx1, fy0, wh.floorY, fz0, fz1, col.floor, 'mat'));
+    parts.push(box(eh.x0, eh.x1, fy0, wh.floorY, fz0, eh.z0, col.floor, 'mat'));
+    parts.push(box(eh.x0, eh.x1, fy0, wh.floorY, eh.z1, fz1, col.floor, 'mat'));
     // Engine space: four walls and a floor, painted light grey (an engine room's white-ish paint).
     const pit = wh.floorY - eh.pitDepth;
     const t = 0.03;
@@ -449,7 +522,7 @@ function buildWheelhouse(layout: HouseLayout, col: Paint, base: number): THREE.B
     // A steel coaming round the opening, flush with the floor.
     parts.push(box(eh.x0 - 0.03, eh.x1 + 0.03, wh.floorY - 0.004, wh.floorY + 0.004, eh.z0 - 0.03, eh.z0, 0x8a9096));
     parts.push(box(eh.x0 - 0.03, eh.x1 + 0.03, wh.floorY - 0.004, wh.floorY + 0.004, eh.z1, eh.z1 + 0.03, 0x8a9096));
-  } else parts.push(box(fx0, fx1, fy0, wh.floorY, fz0, fz1, col.floor));
+  } else parts.push(box(fx0, fx1, fy0, wh.floorY, fz0, fz1, col.floor, 'mat'));
   const rf = layout.roof;
   const top = roof + rf.thickness;
   const ov = rf.overhang;

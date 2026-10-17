@@ -2886,6 +2886,43 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Checked:** typecheck; all 504 tests (a new one: the spray chine sits between the chine and the deck edge, outboard of the chine, and the sections keep five points); screenshots of the pilot from the bow and the stern, with the water on and off.
 - **Owner test:** on the Shipyard page, pick the pilot boat, turn the water off and look along her side and at her transom: a second knuckle runs above the chine. It's drawn in the topside colour, so it shows as a change of light on her side, not a coloured line.
 
+### Pixel painting, step 1 (owner: Stormworks-style detail without extra geometry)
+
+- **What it is:** small, low-resolution greyscale images ("tiles") painted on the boats' flat panels as crisp pixels. Each tile multiplies the part's own colour, so it takes any livery.
+- **How (`src/render/pixelPaint.ts`):**
+  - **The tiles are generated in code at start-up**, 64 x 64 pixels each, seeded so they're the same every time. There are no files to download, and they take ~0.1 MB of texture memory.
+  - **The five tiles:**
+    - plating: 1 m strakes and 2 m plates, staggered butts, weld seams;
+    - nonSlip: deck grit;
+    - wood: 12.5 cm planks;
+    - mat: floor speckle;
+    - chequer: tread plate.
+  - **Each part names its tile:** `part(shape, colour, 'plating')` (`render/geometryUtils.ts`). `mergeParts` works out where each face falls on its tile, square-on in metres, so the pixels are the same size everywhere.
+  - **The shared material** (`flatVertexColorMaterial`) draws them. Its pixels stay crisp up close, but their edges blend over about one screen pixel, and they average out with distance (mipmaps). This is so they don't crawl in VR.
+- **Where they're used:**
+  - every hull: plating, with the non-slip on the deck;
+  - wheelhouse walls inside: wood lining in a new livery colour `lining`, plus a wood ceiling;
+  - wheelhouse floor: matting;
+  - the engine hatch lid: chequer plate.
+- **Window frames are real geometry, not paint:** a black band (`frameWidth`, in the new livery colour `frame`) along the panels above and below the glass, and black mullions and corner posts. That's crisper than painted lines and costs a few boxes.
+- **Config (`CONFIG.pixelPaint`):**
+  - `strength` (0 turns it all off, 1 full);
+  - `tileMetres` (how much surface each tile covers);
+  - `frameWidth` (0.06 m).
+- **Cost:**
+  - **Draw calls are unchanged** (measured in the headless browser at the start view: workboat 246, landing craft 154, the same before and after).
+  - **Triangles:** about +380 on the workboat and +260 on the landing craft.
+  - **Fragment cost:** one texture read per pixel drawn on painted parts.
+  - Not yet measured on the Quest.
+- **Checked:**
+  - typecheck;
+  - all 506 tests (new: each tile averages mid-grey, so it adds detail without darkening a colour; painted parts carry their tile and metre coordinates);
+  - screenshots of the workboat and the landing craft inside and out.
+- **Owner test:**
+  - **In VR:** look at the window frames, the wood lining and the hatch up close. Then walk the deck and look along it and at the hull from the quay. Watch for shimmer or crawling as you move your head. Note the frame rate on the debug panel.
+  - **On desktop:** the same views. Tell me what's too strong or too faint; each tile's size and the overall strength are config numbers.
+- **Step 2 (not started):** weathering (rust streaks under scuppers and fittings, grime at the waterline), perhaps a wear setting.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

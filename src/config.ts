@@ -29,6 +29,21 @@ export const CONFIG = {
     maxTicksPerFrame: 5,
   },
 
+  /**
+   * Pixel painting (owner, Oct 2026): small low-resolution detail images on the boats'
+   * surfaces (steel plating, non-slip deck, wood lining, floor matting, chequer plate),
+   * drawn as crisp pixels, Stormworks style: detail without extra shapes or draw calls.
+   * The images are generated at start-up (render/pixelPaint.ts), greyscale, and multiply each
+   * part's own colour, so they take any livery.
+   */
+  pixelPaint: {
+    /** How strongly the detail shows: 0 off (plain colours, as before) .. 1 full. */
+    strength: 1,
+    /** How much surface one repeat of each image covers (m, square). Each image is 64 x 64 pixels, so plating at 4 m is 16 pixels a metre. */
+    tileMetres: { plating: 4, nonSlip: 1, wood: 2, mat: 1, chequer: 0.5 },
+    /** Width of the black window frames round the wheelhouse glass (m). */
+    frameWidth: 0.06,
+  },
   render: {
     antialias: true,
     maxPixelRatio: 2,
