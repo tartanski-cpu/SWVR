@@ -34,11 +34,21 @@ export class Lever extends Control {
    * @param wiring  which channel it sends (default 'lever'; a module sends its bus key,
    *                'throttle.demand') and how it reads its position back from the state
    */
+  /**
+   * @param detent  the neutral notch (fraction of travel either side); `hold`, how much
+   *                further it must be pushed to leave it; `click` / `release`, the haptic
+   *                pulses going in and out (CONFIG.modules.throttleLever)
+   */
   constructor(
     id: string,
     opts: { maxAngleDeg: number; length: number },
-    private readonly detent = 0.06,
+    private readonly detent = 0.15,
     wiring: Wiring = {},
+    private readonly feel: { hold: number; click: { strength: number; ms: number }; release: { strength: number; ms: number } } = {
+      hold: 0.06,
+      click: { strength: 1, ms: 70 },
+      release: { strength: 0.4, ms: 25 },
+    },
   ) {
     super(id, wiring.channel ?? 'lever');
     this.read = wiring.read ?? ((s) => s.controls.lever);
@@ -115,7 +125,7 @@ export class Lever extends Control {
       } else {
         // Through the gate: land just clear of the magnetic detent so it doesn't recapture.
         this.notchHold = 0;
-        next = Math.sign(step) * this.max * (this.detent + 0.01);
+        next = Math.sign(step) * this.max * (this.detent + this.feel.hold + 0.01);
       }
     }
     this.setTheta(next);
@@ -123,11 +133,16 @@ export class Lever extends Control {
 
   private setTheta(raw: number): void {
     let theta = clamp(raw, -this.max, this.max);
-    // Magnetic neutral detent.
+    // Magnetic neutral detent: it catches the lever inside `detent`, and once caught holds it
+    // till pushed `hold` further (so it's easy to find and doesn't slip out). Going in gives
+    // a firm click in the hand, coming out a light one.
     const v = -theta / this.max;
-    const inDetent = Math.abs(v) < this.detent;
+    const inDetent = Math.abs(v) < this.detent + (this.inDetent ? this.feel.hold : 0);
     if (inDetent) theta = 0;
-    if (inDetent !== this.inDetent) this.ctx?.haptic(inDetent ? 0.5 : 0.25, inDetent ? 35 : 15);
+    if (inDetent !== this.inDetent) {
+      const p = inDetent ? this.feel.click : this.feel.release;
+      this.ctx?.haptic(p.strength, p.ms);
+    }
     this.inDetent = inDetent;
     this.theta = theta;
     this.arm.rotation.x = theta;

@@ -2312,10 +2312,22 @@ export const CONFIG = {
      * control.throttle-lever (modules/throttleLever): the combined throttle/gear lever.
      * Travel either side of upright (deg), and the handle's length from its pivot to the
      * knob (m). `detent`: the magnetic neutral notch, as a fraction of full travel either
-     * side; 3/4 of the engine's neutral band (vessels.workboat.engine.neutralBand 0.08), so
-     * the lever clicks into neutral before the gearbox would engage.
+     * side (0.15: 6 deg each way of the 40). It was 0.06 (2.4 deg), too narrow to find in VR
+     * (owner): the lever slipped through into ahead or astern. Inside it the lever sends
+     * exactly 0, so the gearbox is in neutral. `detentHold`: once in, it holds until pushed
+     * this much further past the notch's edge (it's sticky, so a hand resting on it doesn't
+     * pop it out). `click` / `release`: the haptic pulse going into the notch (firm) and
+     * out of it (light): strength 0..1 and length (ms).
      */
-    throttleLever: { maxAngleDeg: 40, length: 0.2, detent: 0.06, engrave: 'AHEAD ▲  ▼ ASTERN' },
+    throttleLever: {
+      maxAngleDeg: 40,
+      length: 0.2,
+      detent: 0.15,
+      detentHold: 0.06,
+      click: { strength: 1, ms: 70 },
+      release: { strength: 0.4, ms: 25 },
+      engrave: 'AHEAD ▲  ▼ ASTERN',
+    },
 
     /**
      * console.standard (modules/console): the helm console's dash, pedestals and group

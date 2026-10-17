@@ -26,6 +26,11 @@ export interface ThrottleLeverConfig {
   length: number;
   /** The neutral notch, as a fraction of full travel either side. */
   detent: number;
+  /** How much further past the notch's edge it must be pushed to leave it. */
+  detentHold: number;
+  /** The haptic pulses into the notch and out of it. */
+  click: { strength: number; ms: number };
+  release: { strength: number; ms: number };
   /** Engraved beside it ('' for none). */
   engrave: string;
 }
@@ -38,7 +43,7 @@ export const THROTTLE_LEVER: ModuleDefinition<ThrottleLeverConfig> = {
   validateConfig: (c) => [
     ...(c.maxAngleDeg > 0 && c.maxAngleDeg <= 80 ? [] : ['maxAngleDeg should be between 0 and 80']),
     ...(c.length > 0 ? [] : ['length should be more than 0']),
-    ...(c.detent >= 0 && c.detent < 0.5 ? [] : ['detent should be between 0 and 0.5']),
+    ...(c.detent >= 0 && c.detent + c.detentHold < 0.5 ? [] : ['detent (plus detentHold) should be between 0 and 0.5']),
   ],
   ports: { demand: { dir: 'write', key: 'throttle.demand' } },
   view: {
@@ -46,7 +51,8 @@ export const THROTTLE_LEVER: ModuleDefinition<ThrottleLeverConfig> = {
       const key = ctx.keys.demand;
       // Its id stays 'lever': the interaction system, the desktop hand and the wheelhouse's
       // hide-from-outside rule know the throttle by it.
-      const lever = new Lever('lever', ctx.config, ctx.config.detent, { channel: key, read: (s) => busOf(s).num(key) });
+      const c = ctx.config;
+      const lever = new Lever('lever', c, c.detent, { channel: key, read: (s) => busOf(s).num(key) }, { hold: c.detentHold, click: c.click, release: c.release });
       return { staticParts: [], movingParts: [], controls: [lever], labels: ctx.config.engrave ? [{ text: ctx.config.engrave, at: [0, 0, 0] }] : [], update: () => {} };
     },
   },

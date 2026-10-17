@@ -2665,6 +2665,22 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   
   On the desktop, a click still captures the mouse. All 483 tests pass.
 
+### Throttle lever: a wider, stickier neutral notch with a firmer click (owner VR test; done, on /next/)
+
+- **The owner:** in VR, neutral was hard to find on the throttle lever; it often slipped through into ahead or astern. Can the click into neutral be felt more?
+- **Why:** the notch was only 2.4° each side of upright (6 % of the 40° travel), and the haptic pulse going in was half strength for 35 ms.
+- **Now** (`CONFIG.modules.throttleLever`, `controls/Lever.ts`):
+  - **Wider:** the notch catches the lever within 6° each side (`detent` 0.15).
+  - **Sticky:** once in, it holds until you push about 2.4° further, to 8.4° (`detentHold` 0.06), so a hand resting on it doesn't knock it out.
+  - **Firmer click:** going in gives a full-strength 70 ms pulse (`click`), coming out a light one (`release`).
+- **Side effect:** the slowest ahead or astern is now just past 8.4° of lever, not 2.4°. Just out of the notch, she runs a touch above idle in gear (about 8 % of the rpm range at most). Tell me if dead-slow manoeuvring feels too quick; `detent` and `detentHold` tune it.
+- **On the desktop:** a mouse drag still stops in the notch and needs a deliberate extra push to go through. Once through, it lands just past the sticky edge.
+- **Tests (1 new, 484 in all, all pass):** the notch catches at 5°, holds at 8°, lets go at 9°, and the pulses are the configured ones. Golden runs unchanged (the lever's feel isn't in the simulation).
+- **Owner test, VR:**
+  1. Grab the throttle and move it slowly through upright. You should feel a strong click as it drops into neutral.
+  2. Rest your hand on it: it should stay put.
+  3. Push a little further, and it goes into gear with a light tick.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

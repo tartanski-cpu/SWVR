@@ -85,6 +85,29 @@ describe('the throttle lever module', () => {
     expect(sent.at(-1)?.[1]).toBe(0);
   });
 
+  it('its neutral notch is easy to find in VR: wide, sticky, and a firm click going in (owner)', () => {
+    const a = build();
+    const lever = leverOf(a);
+    for (const m of a.modules) m.root.updateMatrixWorld(true);
+    const sent: number[] = [];
+    const pulses: [number, number][] = [];
+    lever.bind({ emit: (_c, v) => sent.push(v), haptic: (i, ms) => pulses.push([i, ms]) });
+    const at = new THREE.Vector3(...OLD_LEVER);
+    const hand = (deg: number) => ({ position: at.clone().add(new THREE.Vector3(0, 0.24, CONFIG.modules.throttleLever.length * ((deg * Math.PI) / 180))) });
+    const tl = CONFIG.modules.throttleLever;
+    lever.grabStart(hand(0));
+    lever.grabMove(hand(-20)); // half ahead: out of the notch, a light pulse
+    expect(pulses.at(-1)).toEqual([tl.release.strength, tl.release.ms]);
+    lever.grabMove(hand(-5)); // 5 deg of 40: within the 6 deg notch
+    expect(sent.at(-1)).toBe(0);
+    expect(pulses.at(-1)).toEqual([tl.click.strength, tl.click.ms]);
+    expect(tl.click.strength).toBe(1);
+    lever.grabMove(hand(-8)); // past the notch's edge, but it holds (sticky to 8.4 deg)
+    expect(sent.at(-1)).toBe(0);
+    lever.grabMove(hand(-9)); // pushed through
+    expect(sent.at(-1)).toBeCloseTo(9 / 40, 2);
+  });
+
   it('its intents drive the boat exactly like the old channel', () => {
     const a = world();
     const b = world();
