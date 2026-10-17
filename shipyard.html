@@ -84,10 +84,15 @@
       .tools { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 
       /* The brief step. */
-      .missions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-      .mission { border: 1px solid #c4d2d8; border-radius: 8px; background: var(--card); padding: 8px; cursor: pointer; }
-      .mission b { display: block; margin-bottom: 2px; }
-      .mission div { font-size: 12px; color: var(--muted); }
+      .type { border: 1px solid #c4d2d8; border-radius: 8px; background: var(--card); padding: 8px; margin: 6px 0; }
+      .type.on { border-color: var(--accent); background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+      .type .head { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
+      .type .what { font-size: 12px; color: var(--muted); margin: 2px 0 4px; }
+      .type .lines { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12px; font-variant-numeric: tabular-nums; }
+      .type .lines .ok::before { content: '✓ '; color: var(--ok); font-weight: 700; }
+      .type .lines .bad::before { content: '✗ '; color: var(--bad); font-weight: 700; }
+      .type .verdict { font-size: 12px; font-weight: 600; }
+      .type button { margin-top: 6px; }
       .jobs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
       .job { border: 1px solid #c4d2d8; border-radius: 8px; background: var(--card); padding: 6px 8px; cursor: pointer; font-size: 13px; user-select: none; }
       .job input { margin: 0 4px 0 0; vertical-align: -1px; }
@@ -103,7 +108,6 @@
       #chartTip { position: fixed; z-index: 30; pointer-events: none; background: #10202a; color: #fff; font-size: 12px; padding: 4px 8px; border-radius: 5px; max-width: 240px; box-shadow: 0 2px 8px rgba(0,0,0,0.25); }
       #briefCheck .na { color: var(--muted); }
       #briefCheck .na .mark { color: var(--muted); }
-      .mission.on { border-color: var(--accent); background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
       .targets .row { grid-template-columns: 1fr 120px; }
       .targets input[type=number] { font: inherit; padding: 4px 6px; width: 100%; box-sizing: border-box; }
       .start { display: grid; gap: 6px; margin-top: 8px; }
@@ -129,6 +133,9 @@
       #pinEditor { position: absolute; width: 240px; background: var(--paper); border-radius: 8px; padding: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.25); z-index: 3; }
       #pinEditor input, #pinEditor select { width: 100%; box-sizing: border-box; font: inherit; padding: 5px; margin-bottom: 4px; }
       #fromPins { margin: 4px 0 10px; }
+      .palette { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
+      .palette button.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+      .palette button.later { color: var(--muted); border-style: dashed; }
       #fromPins .item { display: grid; grid-template-columns: 24px 1fr; gap: 6px; padding: 5px 0; border-top: 1px solid #e1e8eb; font-size: 13px; }
       #fromPins .item .meta { display: block; }
       .todo .gear { font-weight: 600; }
@@ -253,8 +260,7 @@
       <div id="stepBody">
         <div class="step" data-step="brief" data-title="Brief">
           <h1>What’s she for?</h1>
-          <p class="guide">Start from the job. Pick what she’s for and set what she has to do: the Shipyard suggests a boat, and checks every change against the brief (on the right).</p>
-          <div class="missions" id="missions"></div>
+          <p class="guide">Start from her jobs. Tick what she’ll do and set what she has to manage; the Shipyard then says which hull types can do it, and checks every change against the brief (on the right).</p>
           <h2>Her jobs</h2>
           <p class="meta">The game’s jobs she’s wanted for: each adds its own lines to the brief (deck room, bollard pull, the gear the job needs).</p>
           <div class="jobs" id="jobs"></div>
@@ -269,12 +275,13 @@
             <div class="row" data-for-job="potting"><label>Potting: pots on deck at least</label><input type="number" min="0" max="200" step="1" data-brief="pots" /></div>
             <div class="meta">0 means no target.</div>
           </div>
-          <h2>Start her</h2>
-          <div class="start">
-            <button id="suggestBrief" class="primary">Suggest a boat for this brief<small>The usual hull for the job, sized and powered for the targets.</small></button>
-            <button id="openSaved">Open a saved design or a code<small>Your favourites, or a code from a friend.</small></button>
-          </div>
+          <h2>Hull types for this brief</h2>
+          <p class="meta">Best first, from each type’s measured sea trials and deck room. Start from one: a bare hull, an engine found for her by trial, then her equipment pinned on her where you want it.</p>
+          <div id="types"></div>
           <div id="suggestMsg"></div>
+          <div class="start">
+            <button id="openSaved">Or open a saved design or a code<small>Your favourites, or a code from a friend.</small></button>
+          </div>
         </div>
         <!-- The choices' steps go here (page.ts: one per section). -->
         <div class="step" data-step="handover" data-title="Trials & handover">

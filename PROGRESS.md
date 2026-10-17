@@ -3598,6 +3598,37 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Checked in headless Chromium** (1600 px): Harbour workboat, Suggest: workboat with crane, 400 kW, 13.2 kn, 64 nm, £217k, 51 crates, 4.0 t bollard pull, meets the brief, tow point "not in the Shipyard yet". The five charts drawn and a tooltip shown on hover. A pin put through the editor (tow winch) and two by script (fire monitor on the foredeck, searchlight on the aft deck): at Deck gear the monitor went to the foredeck pole and the searchlight to the aft deck pole, both pins ticked done, the tow winch left as a to-do. No page errors. **Not checked:** the Quest, a phone, two browsers placing from the same pins at once (both would make the same change, so it's harmless).
 - **Next, noted:** water-jet and electric propulsion; the deck modules still to come (tow point, rescue gear, trawl gear, pot hauler, doors), which the jobs' lines and the pin list are ready for.
 
+### Shipyard: jobs first, hull types ranked against them; a bare hull, equipment pinned on her (owner)
+
+- **The owner asked:**
+  - The harbour workboat / landing craft / inshore fishing cards on the brief are really a result of the jobs: pick cargo, towing and fire fighting, and then you could have one of the hull types. Make the type a second step.
+  - Pinning and the steps along the top clashed: "you start with a raw hull and you pin things and then it places the equipment for you."
+  - Sketches: found where they're kept; fine.
+- **The brief is jobs and targets only** (`brief.ts`): the missions (`MISSIONS`, `missionOf`, `Brief.mission`) are gone. `Brief.hull` is the type she was started from (null before one's picked); an older brief's mission is read as its type. `newBrief()` is empty: no jobs, no targets, GM ≥ 0.5 m.
+- **Hull types for this brief** (`src/shipyard/typeFit.ts`, `TYPE_FACTS`, `rankTypes`): each type checked against the brief with what it can do, **measured**: each type at standard size, bare, every engine fit, gearbox matched, the game's own sea trials (Oct 2026):
+
+  | Type | Fit | Top kn | Range nm | Pull t | Price |
+  |---|---|---|---|---|---|
+  | Landing craft (21 crates, 10 pots) | 150 / twin 150 / 280 / twin 280 / 400 / twin 400 | 10.5 / 22.8 / 19.5 / 33.5 / 26.6 / 34.2 | 60 / 116 / 94 / 159 / 130 / 225 | 1.3 / 1.2 / 2.0 / 1.6 / 2.4 / 2.4 | £86-164k |
+  | Gillnetter (34, 18) | same order | 8.4 / 15.6 / 11.9 / 26.2 / 18.8 / 33.6 | 55 / 75 / 52 / 118 / 85 / 153 | 1.6 / 1.4 / 2.4 / 1.9 / 2.9 / 2.2 | £124-202k |
+  | Workboat (54, 31) | same order | 8.4 / 10.9 / 10.0 / 19.6 / 13.2 / 25.8 | 52 / 52 / 52 / 91 / 64 / 130 | 1.6 / 1.5 / 2.9 / 2.6 / 4.0 / 3.3 | £162-240k |
+  | Pilot boat (49, 29) | same order | 8.6 / 10.8 / 10.6 / 17.8 / 12.2 / 24.1 | 56 / 53 / 46 / 84 / 61 / 126 | 1.6 / 1.5 / 2.7 / 2.6 / 4.0 / 3.3 | £186-264k |
+
+  - A type passes speed, range, price and (for towing) bollard pull only if **one** engine fit meets them together, so no impossible boat is promised. Deck room: crates (cargo runs) and pots (potting).
+  - Ranked by lines it can't meet, then by how many of the brief's jobs it's built for (`goodFor`: landing craft cargo; gillnetter pots; workboat cargo, towing, fire, trawl; pilot boat rescue), then price.
+  - Each type's card: what she's built for, ✓/✗ per line with her figure, **Start from this hull**.
+  - Worth knowing from the table: on these trials the landing craft is the fastest and cheapest hull, and a twin installation pulls *less* than one big engine (two smaller propellers slip more); the bollard-pull hint now says so. Re-measure the table if the hulls or engines change.
+- **A bare hull** (`bareHull`): starting from a type gives her its layout with no deck gear (crane, searchlight, fire monitor off), then every engine fit is tried on her by trial and the cheapest that does the brief fitted (as before). The brief's lines then say what her jobs still need ("Fire fighting: fire monitor – none: pin one on her where you want it").
+- **Steps:** Brief, Hull, Wheelhouse, **Deck gear, Engine**, Controls, Paint, Trials & handover (Deck gear before Engine: the gear's weight is in her before the engine is chosen).
+- **Equipment by pin, placed at once** (`page.ts`):
+  - Deck gear opens with a **palette**, a button for each piece (`pinGear.ts` EQUIPMENT; gear not in the Shipyard yet dashed): pick one, click on her, and it's pinned and **placed straight away** at the nearest of its places (roof, foredeck, aft deck: the Shipyard's set mounts, so it stands at the mount, not exactly under the pin). The 📍 Pin tool's list does the same from any step.
+  - Pinned again elsewhere, a piece moves; the earlier pin is marked "moved to a later pin".
+  - **Delete a pin and its equipment comes off** (if it still stands where that pin put it), with the confirm saying so.
+  - Below, "Or set by hand": the old choices, still there.
+  - Coming to Deck gear also places anything pinned earlier and not yet placed (older saves).
+- **Tests:** `brief.test.ts` rewritten (an empty brief; a bare hull; engine choice incl. towing; the line checks; older briefs' missions read as types) with the ranking: cargo + towing + fire at harbour speed is the workboat (the only one pulling 3 t); pots the gillnetter; fast cheap cargo the landing craft; fast rescue the pilot boat; one engine fit must meet speed and price together.
+- **Checked in headless Chromium** (1600 px): cargo + towing + fire, 10 kn, 50 nm, £230k: the workboat ranked first ("Best fit", 13 kn, 64 nm, £192k, 4.0 t, 54 crates), Start from this hull: a bare workboat, 400 kW fitted after six trials. Deck gear: Fire monitor from the palette, clicked on her in plan view: placed on the wheelhouse roof, pin ticked, the brief then met on every line (tow point "not in the Shipyard yet"). Deleting the pin took the monitor off. No page errors. **Not checked:** the Quest, a phone, two browsers pinning the same piece at once.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**
