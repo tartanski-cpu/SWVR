@@ -244,10 +244,12 @@ choices('engine', ENGINES.map((e) => ({ name: e.name, note: `${e.kg} kg with its
 }
 section('4. Deck gear');
 options('deckCrane', 'Deck crane', ['None', 'Foredeck', 'Aft deck']);
+options('searchlight', 'Searchlight', ['None', 'Roof', 'Foredeck pole', 'Aft deck pole']);
+options('fireMonitor', 'Fire monitor', ['None', 'Roof', 'Foredeck pole', 'Aft deck pole']);
 section('5. Controls');
 choices('controls', [
   { name: 'Basic', note: 'Wheel, throttle, key and start, speed and depth, rpm.' },
-  { name: 'Advanced', note: 'Adds lights, wipers, horn, searchlight, heading, engine monitor and the VHF.' },
+  { name: 'Advanced', note: 'Adds lights, wipers, horn, heading, engine monitor and the VHF, and the searchlight and fire monitor controls at the helm when they’re on poles.' },
 ]);
 const hex = (c: number) => `#${c.toString(16).padStart(6, '0')}`;
 section('6. Paint');

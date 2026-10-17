@@ -40,6 +40,8 @@ export function cleanDesign(d: unknown): ShipDesign {
     const steps = FIELDS.find((f) => f.key === k)?.steps ?? 64;
     if (typeof v === 'number' && Number.isInteger(v) && v >= 0 && v < steps) out[k] = v;
   }
+  // Saved before the searchlight was its own choice: it came with the advanced controls.
+  if (!('searchlight' in o)) out.searchlight = out.controls ? 1 : 0;
   return out;
 }
 

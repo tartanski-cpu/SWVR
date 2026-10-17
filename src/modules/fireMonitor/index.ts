@@ -13,14 +13,36 @@
  * boat's axes from its config (the vessel's, CONFIG.vessels.workboat.fireMonitor, until
  * M6): the monitor on the roof, the gauge on the console (its track and labels merged with
  * the boat's fixed parts), like the crane's console button.
+ *
+ * On the wheelhouse roof (a roof.mount, `pole` null) it's worked from the helm. On the
+ * working deck (a deck.equipment socket, owner) it stands on a pole (`pole`, modules/
+ * deckPole.ts) with its own FIRE PUMP switch, joystick and gauge in a box at hand height (the
+ * config's gauge is put there), as well as the helm's controls if she has them: both work
+ * the same keys.
  */
 import { CONFIG } from '../../config';
 import { FireGauge } from '../../fire/fireGauge';
+import { Joystick } from '../../controls/Joystick';
+import { Toggle } from '../../controls/Toggle';
 import { MonitorView } from '../../fire/monitorView';
+import { busOf } from '../../modular/bus';
 import type { ModuleDefinition } from '../../modular/module';
 import { part } from '../../render/geometryUtils';
+import { poleBoxTop, poleFootprint, poleParts, type DeckPole } from '../../mechanisms/deckPole';
 
-export type FireMonitorConfig = typeof CONFIG.vessels.workboat.fireMonitor;
+export type FireMonitorConfig = typeof CONFIG.vessels.workboat.fireMonitor & {
+  /** On a deck pole (null: on the roof). */
+  pole: DeckPole | null;
+};
+
+/** How far below the barrel's pivot the monitor's own red riser ends (fire/monitorView.ts). */
+const POST_DROP = 0.38;
+
+/** Where the FIRE gauge sits in a pole's box (vessel axes): ahead of the joystick and switch. */
+export function poleGaugeAt(at: readonly [number, number, number], pole: DeckPole): [number, number, number] {
+  const [x, y, z] = poleBoxTop(at, pole);
+  return [x - 0.03, y + 0.002, z - 0.06];
+}
 
 /** What the app feeds the monitor: its gauge, which shows the fire job. */
 export interface FireMonitorApi {
@@ -30,8 +52,8 @@ export interface FireMonitorApi {
 export const FIRE_MONITOR: ModuleDefinition<FireMonitorConfig> = {
   id: 'deck.fire-monitor',
   version: 1,
-  fits: ['roof.mount'],
-  defaults: CONFIG.vessels.workboat.fireMonitor,
+  fits: ['roof.mount', 'deck.equipment'],
+  defaults: { ...CONFIG.vessels.workboat.fireMonitor, pole: null },
   validateConfig: (c) => (c.nozzleSpeed > 0 && c.panLimitDeg > 0 ? [] : ['the monitor needs a nozzle speed and room to pan']),
   ports: {
     pan: { dir: 'read', key: 'monitor.pan' },
@@ -42,21 +64,46 @@ export const FIRE_MONITOR: ModuleDefinition<FireMonitorConfig> = {
   needs: () => [{ power: 'pto' }, { power: 'electrical' }],
   provides: () => [{ gear: 'fireMonitor' }],
   gear: (c) => ({ fireMonitor: c }),
+  footprints: (c) => (c.pole ? [poleFootprint(c.position, c.position[1] - POST_DROP)] : []),
   view: {
     frame: 'boat',
-    build({ config: c, keys }) {
+    build({ config: c, keys, socket }) {
       const monitor = new MonitorView(c);
-      const gp = c.gauge;
+      // On a deck pole, its gauge goes in the pole's box.
+      const gp = c.pole ? { ...c.gauge, position: poleGaugeAt(c.position, c.pole) } : c.gauge;
       const gauge = new FireGauge(gp.length, gp.lampX);
       gauge.root.position.fromArray(gp.position);
       const [x, y, z] = gp.position;
+      // On a deck pole: the pole, and its box with the FIRE PUMP switch and a joystick.
+      const controls = [];
+      const poleLabels = [];
+      if (c.pole) {
+        const [bx, by, bz] = poleBoxTop(c.position, c.pole);
+        const stick = new Joystick(
+          `${socket.id}PoleJoystick`,
+          { ...CONFIG.modules.joystick, panLimitDeg: c.panLimitDeg, tiltMinDeg: c.tiltMinDeg, tiltMaxDeg: c.tiltMaxDeg },
+          { pan: keys.pan, tilt: keys.tilt },
+          'Fire monitor joystick (on its pole)',
+          0xc8281a,
+          { pan: (s) => busOf(s).num(keys.pan), tilt: (s) => busOf(s).num(keys.tilt) },
+        );
+        stick.root.position.set(bx - 0.08, by, bz + 0.04);
+        const pump = new Toggle(`${socket.id}PoleSwitch`, keys.pump, 'FIRE PUMP (on the monitor\'s pole)', (s) => busOf(s).num(keys.pump));
+        pump.root.position.set(bx + 0.11, by, bz + 0.04);
+        controls.push(stick, pump);
+        poleLabels.push({ text: 'FIRE PUMP', at: [bx + 0.11, by, bz + 0.1] as const }, { text: 'MONITOR', at: [bx - 0.08, by, bz + 0.105] as const });
+      }
       return {
-        staticParts: [part(FireGauge.track(gp.length).translate(x, y, z), 0x14171a)],
+        staticParts: [
+          part(FireGauge.track(gp.length).translate(x, y, z), 0x14171a),
+          ...(c.pole ? poleParts(c.position, c.pole, c.position[1] - POST_DROP) : []),
+        ],
         movingParts: [monitor.root, gauge.root],
-        controls: [],
+        controls,
         labels: [
           { text: 'FIRE', at: [x, y, z - 0.03] },
           { text: 'ON TARGET', at: [x + gp.length / 2 + gp.lampX, y, z - 0.03] },
+          ...poleLabels,
         ],
         update: (read) => monitor.update(read.num(keys.pan), read.num(keys.tilt), !!read.get(keys.pump)),
         api: { gauge } satisfies FireMonitorApi,

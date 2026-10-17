@@ -44,14 +44,14 @@ describe('Shipyard: the boats it builds', () => {
 
   it('basic controls are the wheel, throttle, starting, speed and depth, rpm; advanced adds the rest', () => {
     const ids = (controls: number) => {
-      useDesign({ ...DEFAULT_DESIGN, controls });
+      useDesign({ ...DEFAULT_DESIGN, controls, searchlight: 0 });
       return flattenMounts(RECIPES.design, LIBRARY.hulls, LIBRARY.modules).mounted.map((m) => m.def.id);
     };
     const basic = ids(0);
     const advanced = ids(1);
     for (const id of ['control.wheel', 'control.throttle-lever', 'control.key-switch', 'propulsion.diesel-inboard']) expect(basic).toContain(id);
     expect(basic.filter((id) => id === 'instrument.screen').length).toBe(2);
-    for (const id of ['radio.vhf', 'deck.searchlight', 'light.navigation']) {
+    for (const id of ['radio.vhf', 'light.navigation']) {
       expect(basic).not.toContain(id);
       expect(advanced).toContain(id);
     }
@@ -183,6 +183,57 @@ describe('Shipyard: the boats it builds', () => {
       }
     useDesign(DEFAULT_DESIGN);
     expect(flattenMounts(RECIPES.design, LIBRARY.hulls, LIBRARY.modules).mounted.map((m) => m.def.id)).not.toContain('deck.crane');
+  });
+
+  it('the searchlight and fire monitor go on the roof or on a deck pole, on every hull and with the crane anywhere; poles keep clear of walking', () => {
+    const left: string[] = [];
+    for (let hull = 0; hull < DESIGN_HULLS.length; hull++)
+      for (const deckCrane of [0, 1, 2])
+        for (let searchlight = 0; searchlight < 4; searchlight++)
+          for (let fireMonitor = 0; fireMonitor < 4; fireMonitor++) {
+            const tag = `hull ${hull} crane ${deckCrane} lamp ${searchlight} monitor ${fireMonitor}`;
+            const boat = useDesign({ ...DEFAULT_DESIGN, hull, deckCrane, searchlight, fireMonitor });
+            expect(validateRecipe(RECIPES.design, LIBRARY), tag).toEqual([]);
+            if (boat.warnings.length) left.push(`${tag}: ${boat.warnings.join(' ')}`);
+            const mounted = flattenMounts(RECIPES.design, LIBRARY.hulls, LIBRARY.modules).mounted;
+            const def = VESSEL_DEFS.design;
+            const walk = vesselWalkArea(def, def.layout, footprintsOf({ defId: 'design' }));
+            for (const [id, choice] of [['deck.searchlight', searchlight], ['deck.fire-monitor', fireMonitor]] as const) {
+              const m = mounted.find((x) => x.def.id === id);
+              if (!choice) {
+                expect(m, tag).toBeUndefined();
+                continue;
+              }
+              if (!m) continue; // left off for want of room (warned)
+              const c = m.config as { position: [number, number, number]; pole: { deckY: number } | null };
+              expect(!!c.pole, tag).toBe(choice >= 2);
+              if (!c.pole) continue;
+              // The pole stands on deck, the unit high above it, and you can't walk through it but can stand aft of its box.
+              const [x, y, z] = c.position;
+              expect(c.pole.deckY, tag).toBeCloseTo(hullPlan(def).deckY(z), 2);
+              expect(y - c.pole.deckY, tag).toBeGreaterThan(2);
+              expect(walk.walkable(x, z, c.pole.deckY), `${tag} ${id} pole`).toBe(false);
+              expect(walk.walkable(x, z + 0.42, c.pole.deckY), `${tag} ${id} stand`).toBe(true);
+            }
+          }
+    // Every hull finds room for both poles on either deck, with or without a crane; only the
+    // shortest aft decks can't take the aft crane and both poles too (and say so).
+    for (const l of left) expect(l).toMatch(/^hull [01] crane 2 lamp 3 monitor 3: There's no room on her aft deck for the fire monitor's pole/);
+  });
+
+  it('a unit on the roof is worked from the helm; one on a pole has its own controls, and the helm\'s too with the advanced controls', () => {
+    const helm = (d: Partial<ShipDesign>) => {
+      useDesign({ ...DEFAULT_DESIGN, ...d });
+      const mounted = flattenMounts(RECIPES.design, LIBRARY.hulls, LIBRARY.modules).mounted;
+      return mounted.filter((m) => m.path.startsWith('helm/')).map((m) => m.socket.id);
+    };
+    for (const controls of [0, 1]) {
+      expect(helm({ controls, searchlight: 1, fireMonitor: 1 })).toEqual(expect.arrayContaining(['spotlight', 'spotJoystick', 'firePump', 'monJoystick']));
+      const onPoles = helm({ controls, searchlight: 2, fireMonitor: 3 });
+      for (const id of ['spotlight', 'spotJoystick', 'firePump', 'monJoystick']) expect(onPoles.includes(id), `${controls} ${id}`).toBe(!!controls);
+      const none = helm({ controls, searchlight: 0, fireMonitor: 0 });
+      for (const id of ['spotlight', 'spotJoystick', 'firePump', 'monJoystick']) expect(none).not.toContain(id);
+    }
   });
 
   it('only the landing craft hull has the bow ramp', () => {

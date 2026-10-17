@@ -2523,6 +2523,26 @@ export const CONFIG = {
       hookReach: 0.6,
     },
 
+    /**
+     * The deck pole (owner): the searchlight or the fire monitor fitted on the working deck
+     * instead of the wheelhouse roof stands on a steel pole, high enough to see and shoot over
+     * the bulwarks and people's heads, with a control box at hand height on its aft side (a
+     * joystick and the unit's switch, and the monitor's FIRE gauge), so it can be worked from
+     * beside it, facing forward like at the helm. Heights above the deck at the pole (m).
+     * Shipyard designs place them `fromHouse` forward or aft of the house, `inset` in from the
+     * deck edge: the searchlight to starboard, the monitor to port.
+     */
+    deckPole: {
+      lampHeight: 2.5,
+      nozzleHeight: 2.3,
+      boxHeight: 1.05,
+      radius: 0.05,
+      /** The control box: width (athwartships), depth (fore and aft), height (m). */
+      box: { width: 0.36, depth: 0.22, height: 0.12 },
+      fromHouse: 0.75,
+      inset: 0.3,
+    },
+
     /** instrument.warning-lamps: the lamps' spacing (m). */
     warningLamps: { spacing: 0.085 },
 

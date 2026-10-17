@@ -497,7 +497,7 @@ Design your own boat at https://tartanski-cpu.github.io/SWVR/next/shipyard.html 
 
 1. Pick a hull type (landing craft, gillnetter, workboat or pilot boat), size her with the sliders, and rake her stem from plumb to 50°.
 2. Place and size the wheelhouse, and shape it: its floor height (sunk below the deck or raised to see over the bow, with steps at the door), the front windows (raked aft for a fast patrol look, upright, or reverse-raked like a pilot house), and the roof: one flat slab, its visor over the windows, its thickness (10, 20 or 30 cm) and its front edge, raked back as it rises at 30, 45 or 60°. Designed houses have no roof ladder or rail.
-3. Add a **deck crane** if you like, on the foredeck or the aft deck (see below).
+3. Add deck gear: a **deck crane** on the foredeck or the aft deck (see below), and a **searchlight** and a **fire monitor**, each on the wheelhouse roof or on a pole on the foredeck or the aft deck. On a pole, each has its own controls in a box on the pole at hand height (a joystick, its switch, and the monitor's FIRE gauge); stand aft of it facing forward and work it like the helm's. One on the roof is worked from the helm; one on a pole also from the helm if you pick the advanced controls.
 4. Choose an engine, single or twin (its propeller is matched by trial), basic or advanced controls, a paint, and the roof's colour (the hull's, or orange, white, grey or black).
 
 **The deck crane** is worked from the post beside it, once the engine is running and the DECK HYD breaker is on:
@@ -506,7 +506,7 @@ Design your own boat at https://tartanski-cpu.github.io/SWVR/next/shipyard.html 
 - HOIST UP and HOIST DOWN (hold) haul in and pay out the wire;
 - HOOK takes the crate or drum under the hook (up to 800 kg), and pressed again sets it down on the deck, the quay, or into the sea.
 
-The page shows her in 3D (around her and at the helm), her figures and her sea trials, then gives her **code**: 14 characters, like `XXXXX-XXXXX-XXXX` (older 10-, 11- and 13-character codes still work). **Try her in the game** opens the game in her. Or add `?design=` and the code to the game's address, also on the Quest. Buying her at the boatyard in the game comes next.
+The page shows her in 3D (around her and at the helm), her figures and her sea trials, then gives her **code**: 15 characters, like `XXXXX-XXXXX-XXXXX` (older 10-, 11-, 13- and 14-character codes still work). **Try her in the game** opens the game in her. Or add `?design=` and the code to the game's address, also on the Quest. Buying her at the boatyard in the game comes next.
 
 **Design together:** type your name and press **Design together**, then send friends the link (**Copy link**). Everyone who opens it edits the same boat, live: a change by anyone shows for everyone. Each person has a colour and a name tag; you see where the others are pointing on the boat, and a slider someone is dragging shows their colour and name. **Undo** (Ctrl+Z) and **Redo** (Ctrl+Shift+Z) take back your own changes. There's no server and no account: the browsers talk directly, and each keeps its own copy, so the link still opens the boat later (from the copy in your browser) even when nobody else is there.
 

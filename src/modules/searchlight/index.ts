@@ -11,9 +11,18 @@
  * vessel/view/searchlight.ts, in the boat's axes from its config (defaults:
  * CONFIG.vessels.workboat.spotlight); the app hands it how dark it is and gives
  * its light to the ocean (`api`).
+ *
+ * On the wheelhouse roof (a roof.mount, `pole` null) it's worked from the helm. On the
+ * working deck (a deck.equipment socket, owner) it stands on a pole (`pole`, modules/
+ * deckPole.ts) with its own SPOT switch and joystick in a box at hand height, as well as the
+ * helm's if she has them: both work the same keys, so either moves it.
  */
 import { CONFIG } from '../../config';
+import { Joystick } from '../../controls/Joystick';
+import { Toggle } from '../../controls/Toggle';
+import { busOf } from '../../modular/bus';
 import type { ModuleDefinition } from '../../modular/module';
+import { poleBoxTop, poleFootprint, poleParts, type DeckPole } from '../../mechanisms/deckPole';
 import { Searchlight, type SearchlightLook } from '../../vessel/view/searchlight';
 import { BREAKERS, type BreakerName } from '../../vessel/vesselState';
 
@@ -21,7 +30,12 @@ export type SearchlightConfig = SearchlightLook & {
   /** Its draw while on (A), and its breaker's circuit. */
   amps: number;
   circuit: BreakerName;
+  /** On a deck pole (null: on the roof). */
+  pole: DeckPole | null;
 };
+
+/** How far below the lamp's pivot its own short post ends (vessel/view/searchlight.ts). */
+const POST_DROP = 0.245;
 
 /** What the app hands the searchlight each frame, and takes from it. */
 export interface SearchlightApi {
@@ -34,8 +48,8 @@ export interface SearchlightApi {
 export const SEARCHLIGHT: ModuleDefinition<SearchlightConfig> = {
   id: 'deck.searchlight',
   version: 1,
-  fits: ['roof.mount'],
-  defaults: { ...CONFIG.vessels.workboat.spotlight, ...CONFIG.modules.searchlight, circuit: 'deckLights' },
+  fits: ['roof.mount', 'deck.equipment'],
+  defaults: { ...CONFIG.vessels.workboat.spotlight, ...CONFIG.modules.searchlight, circuit: 'deckLights', pole: null },
   validateConfig: (c) => [
     ...(c.panLimitDeg > 0 && c.tiltMaxDeg > c.tiltMinDeg ? [] : ['the searchlight needs room to pan and tilt']),
     ...((BREAKERS as readonly string[]).includes(c.circuit) ? [] : [`'${c.circuit}' isn't a circuit (${BREAKERS.join(', ')})`]),
@@ -49,16 +63,38 @@ export const SEARCHLIGHT: ModuleDefinition<SearchlightConfig> = {
   needs: (c) => [{ power: 'electrical', circuit: c.circuit }],
   provides: () => [{ gear: 'searchlight' }],
   gear: (c) => ({ searchlight: c }),
+  footprints: (c) => (c.pole ? [poleFootprint(c.position, c.position[1] - POST_DROP)] : []),
   power: (c) => [{ role: 'load', circuit: c.circuit, amps: (io) => (io.num('on') > 0 ? c.amps : 0) }],
   view: {
     frame: 'boat',
-    build({ config, keys }) {
+    build({ config, keys, socket }) {
       const lamp = new Searchlight(config);
       const api: SearchlightApi = { lamp, darkness: 0 };
+      const pole = config.pole;
+      // On a deck pole: the pole, and its box with the SPOT switch and a joystick.
+      const controls = [];
+      const labels = [];
+      if (pole) {
+        const [x, y, z] = poleBoxTop(config.position, pole);
+        const stick = new Joystick(
+          `${socket.id}PoleJoystick`,
+          { ...CONFIG.modules.joystick, panLimitDeg: config.panLimitDeg, tiltMinDeg: config.tiltMinDeg, tiltMaxDeg: config.tiltMaxDeg },
+          { pan: keys.pan, tilt: keys.tilt },
+          'Searchlight joystick (on its pole)',
+          0xe0b020,
+          { pan: (s) => busOf(s).num(keys.pan), tilt: (s) => busOf(s).num(keys.tilt) },
+        );
+        stick.root.position.set(x - 0.07, y, z + 0.01);
+        const spot = new Toggle(`${socket.id}PoleSwitch`, keys.on, 'Searchlight on/off (on its pole)', (s) => busOf(s).num(keys.on));
+        spot.root.position.set(x + 0.1, y, z + 0.01);
+        controls.push(stick, spot);
+        labels.push({ text: 'SPOT', at: [x + 0.1, y, z + 0.07] as const }, { text: 'SEARCHLIGHT', at: [x - 0.07, y, z + 0.08] as const });
+      }
       return {
-        staticParts: [],
+        staticParts: pole ? poleParts(config.position, pole, config.position[1] - POST_DROP) : [],
         movingParts: [lamp.root],
-        controls: [],
+        controls,
+        labels,
         update: (read) => lamp.update(!!read.get(keys.on), read.num(keys.pan), read.num(keys.tilt), api.darkness, !!read.get(keys.live)),
         api,
       };

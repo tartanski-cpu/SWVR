@@ -101,7 +101,7 @@ describe('footprints: what you walk round comes from the modules', () => {
 describe('the gear\'s facts are where v1.0 had them', () => {
   it('the searchlight and the fire monitor: the vessel\'s own figures', () => {
     expect(gearOf(boat, 'searchlight')).toMatchObject(CONFIG.vessels.workboat.spotlight);
-    expect(gearOf(boat, 'fireMonitor')).toEqual(CONFIG.vessels.workboat.fireMonitor);
+    expect(gearOf(boat, 'fireMonitor')).toEqual({ ...CONFIG.vessels.workboat.fireMonitor, pole: null }); // on the roof, no pole
   });
 
   it('the cleats: the bow and stern lines\' stations and height', () => {

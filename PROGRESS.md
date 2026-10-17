@@ -3179,6 +3179,53 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   - in the headless browser, in a design moored at Calder Haven: started the engine, raised the boom, hooked a crate off the foredeck, swung it to starboard (she heeled about 1°), and landed it on the quay.
 - **Not done yet:** the tow winch, A-frame, net drum, windlass and tender crane are modules but drawn at the workboat's fixed places. Making them placeable is next.
 
+### Searchlight and fire monitor: on the roof or on a deck pole (owner)
+
+- **The owner asked** for the fire monitor and the searchlight to be adaptive modules: on the wheelhouse roof just as they are on the starting boat, or on the working deck on a pole so they're high, with a joystick at the pole, and possibly one in the wheelhouse too.
+- **The modules (`deck.searchlight`, `deck.fire-monitor`)** now fit a `roof.mount` or a `deck.equipment` socket. They take a `pole` in their config: `null` on the roof (the starting boat and the landing craft: unchanged, golden runs identical), or the deck's height at its foot.
+- **On a pole** (`mechanisms/deckPole.ts`, shared by both):
+  - a steel pole from a foot plate on the deck up to the unit's own short post;
+  - a control box on the pole's aft side at hand height, square to the boat, so you stand aft of it facing forward and work it like the helm's (sideways trains it, push raises it);
+  - the searchlight's box has its joystick and SPOT switch;
+  - the monitor's box has its joystick, FIRE PUMP switch and FIRE gauge (the gauge moves there from the console);
+  - you can't walk through the pole (its footprint), but can stand at the box.
+- **Both sets of controls work the same keys,** so the pole's and the helm's move the same light or monitor.
+- **Shipyard designs:** two new choices under **4. Deck gear**:
+  - **Searchlight:** None / Roof / Foredeck pole / Aft deck pole;
+  - **Fire monitor:** None / Roof / Foredeck pole / Aft deck pole;
+  - **Where the poles go:** `fromHouse` (0.75 m) forward or aft of the house, `inset` (0.3 m) in from the deck edge, the searchlight to starboard and the monitor to port;
+  - **Clashes:** a pole that would clash with the crane or the other pole goes to the other side, then a step (0.85 m) further from the house; with no room left it's left off with a warning (only the aft crane with both poles aft, on the landing craft and gillnetter);
+  - **Lamp heights:** the searchlight's lamp is `lampHeight` (2.5 m) above the deck, the monitor's nozzle `nozzleHeight` (2.3 m);
+  - **Roof monitor:** centred on the roof aft of the masthead light (clear of its barrel's swing); its FIRE PUMP switch goes by SPOT, its joystick on the searchlight's pedestal with the FIRE gauge between them.
+- **Which controls are in the wheelhouse:**
+  - a unit on the roof always has its helm controls (the only place to work it), even with the basic controls;
+  - a unit on a pole has its own at the pole, and the helm's as well with the advanced controls.
+- **Codes:** version 8, now **15 characters**.
+  - Older codes read as the same boats: the searchlight on the roof if they had the advanced controls (which carried it until now), none if basic; no monitor.
+  - Designs saved in the browser (sessions, variants) follow the same rule.
+  - Favourites are codes, so they read as before.
+- **Price:** a design's price now counts the crane (£25,000) and the monitor with its pump (£15,000).
+- **Fix:** the FIRE gauge's bar starts empty. Before a fire job set it, it showed a full-length red bar, seen in the Shipyard's preview.
+- **Config:** `CONFIG.modules.deckPole`:
+  - `lampHeight`, `nozzleHeight`, `boxHeight` 1.05 m;
+  - `radius`;
+  - `box` {width, depth, height};
+  - `fromHouse`, `inset`.
+- **Checked:**
+  - typecheck and all tests (551), including new ones:
+    - every hull × crane × searchlight × monitor builds a valid boat;
+    - each pole stands on deck with its unit over 2 m up, blocks walking at its foot, and leaves room to stand at its box;
+    - which helm controls appear for roof, pole, basic and advanced;
+    - version 7 codes and old saved designs read as before;
+  - Shipyard screenshots: poles fore and aft, roof units, the console with both joysticks and the gauge, and the aft crane with both poles;
+  - in the game, in a design with the searchlight on a foredeck pole and the monitor on an aft-deck pole:
+    - both poles' controls are there with the helm's;
+    - the searchlight lights;
+    - with the engine running and FIRE PUMP on, the jet flows from the monitor on its pole;
+    - screenshots of both boxes and the jet.
+- **Not checked:** working the pole joysticks with VR controllers.
+- **Known:** the deck crane's boom isn't stopped by a pole, so swung low over one it passes through it (there's no collision between deck gear).
+
 ### Shipyard: favourites (owner)
 
 - **The owner asked:** a way to save favourite designs in the Shipyard.

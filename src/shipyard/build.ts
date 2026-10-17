@@ -479,6 +479,48 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     if (z + 0.4 < transom - 0.3) craneAt = [-(q.halfBeam(z) - 0.6), q.deckY(z), z];
     else warnings.push('There\'s no room on her aft deck for the deck crane: left off.');
   }
+  // The searchlight and the fire monitor (owner): on the wheelhouse roof, or each on a pole
+  // on the foredeck or the aft deck (CONFIG.modules.deckPole), the searchlight to starboard
+  // and the monitor to port, a little off the house, with room aft of the pole to stand at
+  // its control box. A pole goes where it's clear of the crane and the other pole: its own
+  // side first, then the other, then a step further from the house; else it's left off.
+  const dp = CONFIG.modules.deckPole;
+  type Rect = { x0: number; x1: number; z0: number; z1: number };
+  const taken: Rect[] = [];
+  if (craneAt) {
+    // The crane's plinth, and its control post with room to stand at it (a crane on the aft deck faces aft).
+    const r = cr.plinthRadius + 0.1;
+    taken.push({ x0: craneAt[0] - r, x1: craneAt[0] + r, z0: craneAt[2] - r, z1: craneAt[2] + r });
+    const s = d.deckCrane === 2 ? -1 : 1;
+    const [px, pz] = [craneAt[0] + s * (d.deckCrane === 2 ? -cr.post.x : cr.post.x), craneAt[2] + s * cr.post.z];
+    taken.push({ x0: px - 0.3, x1: px + 0.3, z0: pz - 0.5, z1: pz + 0.5 });
+  }
+  const overlaps = (a: Rect, b: Rect) => a.x0 < b.x1 && b.x0 < a.x1 && a.z0 < b.z1 && b.z0 < a.z1;
+  const r2 = (v: number) => Math.round(v * 100) / 100;
+  /** A pole's foot on deck 1 (fore) or 2 (aft), starting on `side`; null (and a warning) if there's no room. */
+  const poleFoot = (deck: number, side: number, what: string): V3 | null => {
+    for (const step of [0, 1])
+      for (const sd of [side, -side]) {
+        const z = deck === 1 ? front - dp.fromHouse - 0.85 * step : aft + dp.fromHouse + 0.85 * step;
+        const room = deck === 1 ? z - 0.2 > stem + (bowRamp ? 1.8 : 1.0) : z + dp.box.depth + 0.5 < transom - 0.2;
+        const x = sd * (q.halfBeam(z) - dp.inset);
+        if (!room || Math.abs(x) < 0.5) continue;
+        // The pole, its box aft of it, and room to stand aft of the box.
+        const rect = { x0: x - dp.box.width / 2 - 0.05, x1: x + dp.box.width / 2 + 0.05, z0: z - 0.12, z1: z + dp.box.depth + 0.45 };
+        if (taken.some((o) => overlaps(o, rect))) continue;
+        taken.push(rect);
+        return [r2(x), q.deckY(z), r2(z)];
+      }
+    warnings.push(`There's no room on her ${deck === 1 ? 'foredeck' : 'aft deck'} for the ${what}'s pole: left off.`);
+    return null;
+  };
+  const lampFoot = d.searchlight >= 2 ? poleFoot(d.searchlight - 1, 1, 'searchlight') : null;
+  const monitorFoot = d.fireMonitor >= 2 ? poleFoot(d.fireMonitor - 1, -1, 'fire monitor') : null;
+  const hasLamp = d.searchlight === 1 || !!lampFoot;
+  const hasMonitor = d.fireMonitor === 1 || !!monitorFoot;
+  // On the roof: the monitor centred aft of the masthead light's pole, clear of its barrel's swing.
+  const monitorRoof: V3 = [0, roofTopAt(0) + 0.38, r2(Math.min(roofFront + 1.25, aft - 0.3))];
+
   const sockets: Socket[] = [
     { id: 'helm', type: 'helm.console', transform: { position: at.console }, capacity: { size: [2 * (hw - wall) - 0.04, 1.6, 1.0] }, label: 'Helm console, across the front of the cabin' },
     { id: 'breakerPanel', type: 'wall.panel', transform: { position: at.breakerPanel, rotationDeg: [-40, -90, 0] }, label: 'Starboard wall, by the helm' },
@@ -502,7 +544,16 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     { id: 'bilgePump', type: 'engine.bay', transform: { position: [at.engineSpace[0], F - eh.pitDepth, at.engineSpace[2]] }, label: 'Bottom of the engine space (nominal)' },
     { id: 'rudder', type: 'hull.rudder', transform: { position: rudderPos }, label: 'Rudder stock, under the transom' },
     { id: 'cabinLight', type: 'cabin.overhead', transform: { position: at.cabinLight }, label: 'Cabin ceiling' },
-    { id: 'searchlight', type: 'roof.mount', transform: { position: at.searchlight }, label: 'Cabin roof, forward' },
+    lampFoot
+      ? { id: 'searchlight', type: 'deck.equipment', transform: { position: lampFoot }, label: `${d.searchlight === 2 ? 'Foredeck' : 'Aft deck'}, starboard: the searchlight's pole` }
+      : { id: 'searchlight', type: 'roof.mount', transform: { position: at.searchlight }, label: 'Cabin roof, forward' },
+    ...(hasMonitor
+      ? [
+          monitorFoot
+            ? { id: 'fireMonitor', type: 'deck.equipment' as const, transform: { position: monitorFoot }, label: `${d.fireMonitor === 2 ? 'Foredeck' : 'Aft deck'}, port: the fire monitor's pole` }
+            : { id: 'fireMonitor', type: 'roof.mount' as const, transform: { position: monitorRoof }, label: 'Cabin roof, aft of the masthead light: the fire monitor' },
+        ]
+      : []),
     { id: 'navLights', type: 'hull.light', transform: { position: at.navLights }, label: 'Cabin roof: the navigation lights' },
     { id: 'horn', type: 'roof.mount', transform: { position: [0, roofTopAt(roofFront + 0.775), roofFront + 0.775] }, label: 'Cabin roof (nominal)' },
     { id: 'wipers', type: 'window.wiper', transform: { position: [0, roofY - 0.2, front] }, label: 'Over the front windows (nominal)' },
@@ -609,7 +660,12 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   for (const m of recipe.modules) {
     if (m.module === 'deck.cleat') (m.config as Record<string, any>).stations = { bow: bowCleat, stern: sternCleat, midship: 0 };
   }
-  bySocket(recipe.modules, 'searchlight')!.config = { position: at.searchlight };
+  // The searchlight on the roof or its pole (or none), and the fire monitor.
+  if (lampFoot) bySocket(recipe.modules, 'searchlight')!.config = { position: [lampFoot[0], r2(lampFoot[1] + dp.lampHeight), lampFoot[2]], pole: { deckY: lampFoot[1] } };
+  else if (hasLamp) bySocket(recipe.modules, 'searchlight')!.config = { position: at.searchlight };
+  else recipe.modules = recipe.modules.filter((m) => m.socket !== 'searchlight');
+  if (monitorFoot) recipe.modules.push({ socket: 'fireMonitor', module: 'deck.fire-monitor', config: { position: [monitorFoot[0], r2(monitorFoot[1] + dp.nozzleHeight), monitorFoot[2]], pole: { deckY: monitorFoot[1] } } });
+  else if (hasMonitor) recipe.modules.push({ socket: 'fireMonitor', module: 'deck.fire-monitor', config: { position: monitorRoof } }); // its gauge: on the console, below
   bySocket(recipe.modules, 'navLights')!.config = {
     lights: {
       masthead: [0, roofTopAt(roofFront + 0.475) + 1.1, roofFront + 0.475],
@@ -623,6 +679,29 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   // The console, laid out across her cabin: the landing craft's dash, widened or narrowed.
   const consoleMount = bySocket(recipe.modules, 'helm')!;
   const cc = consoleMount.config as Record<string, any>;
+  // The helm's searchlight and monitor controls: always for a unit on the roof (the only
+  // place to work it from); for one on a pole (which has its own) with the advanced controls.
+  const lampAtHelm = d.searchlight === 1 || (!!lampFoot && !!d.controls);
+  const monitorAtHelm = d.fireMonitor === 1 || (!!monitorFoot && !!d.controls);
+  const searchGroup = cc.groups.find((gp: { title: string }) => gp.title === 'SEARCH');
+  if (!lampAtHelm) {
+    consoleMount.modules = consoleMount.modules!.filter((m) => m.socket !== 'spotlight' && m.socket !== 'spotJoystick');
+    cc.groups = cc.groups.filter((gp: { title: string }) => gp !== searchGroup);
+  }
+  if (monitorAtHelm) {
+    // FIRE PUMP beside SPOT (or in its place), the monitor's joystick aft on the same pedestal
+    // as the searchlight's, and its FIRE gauge between them.
+    const [px] = cc.pedestals.x.filter((x: number) => x < 0);
+    cc.slots.firePump = { position: [lampAtHelm ? -0.3 : -0.39, 0.01, -0.2] };
+    cc.slots.monJoystick = { position: [px, 0.01, 0.23] };
+    if (lampAtHelm) cc.slots.spotJoystick.position = [px, 0.01, -0.01];
+    consoleMount.modules!.push(
+      { socket: 'firePump', module: 'control.toggle', config: { label: 'FIRE PUMP (needs the engine running)', engrave: 'FIRE PUMP' }, bind: { value: 'firePump.on' } },
+      { socket: 'monJoystick', module: 'control.joystick', config: { label: 'Fire monitor joystick', engrave: 'MONITOR', knob: '#d8301a', panRateDeg: 40 }, bind: { pan: 'monitor.pan', tilt: 'monitor.tilt' } },
+    );
+    if (lampAtHelm) Object.assign(searchGroup, { title: 'SEARCH · FIRE', x: [-0.48, -0.24] });
+    else cc.groups.push({ ...searchGroup, title: 'FIRE' });
+  }
   const dashHalf = hw - wall - 0.11;
   const sx = dashHalf / cc.dash.halfWidth;
   cc.dash.halfWidth = Math.round(dashHalf * 1000) / 1000;
@@ -632,10 +711,17 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   if (!d.controls) {
     // Basic: wheel, throttle, starting (key, START, the lamps and the card), speed with
     // depth, rpm. No lights, searchlight, horn, wipers, heading, engine monitor or VHF.
-    const keep = ['wheel', 'throttle', 'start', 'key', 'lamps', 'card', 'speed', 'rpm'];
+    // The searchlight's and monitor's controls stay if they're worked from here.
+    const keep = ['wheel', 'throttle', 'start', 'key', 'lamps', 'card', 'speed', 'rpm', 'spotlight', 'spotJoystick', 'firePump', 'monJoystick'];
     consoleMount.modules = consoleMount.modules!.filter((m) => keep.includes(m.socket));
-    cc.groups = cc.groups.filter((gp: { title: string }) => gp.title === 'ENGINE');
-    recipe.modules = recipe.modules.filter((m) => !['cabinLight', 'horn', 'wipers', 'vhf', 'searchlight', 'navLights'].includes(m.socket));
+    cc.groups = cc.groups.filter((gp: { title: string }) => ['ENGINE', 'SEARCH', 'FIRE', 'SEARCH · FIRE'].includes(gp.title));
+    recipe.modules = recipe.modules.filter((m) => !['cabinLight', 'horn', 'wipers', 'vhf', 'navLights'].includes(m.socket));
+  }
+  if (hasMonitor && !monitorFoot) {
+    // The roof monitor's FIRE gauge on the console, between the two joysticks.
+    const [mx, , mz] = cc.slots.monJoystick.position as V3;
+    const mon = bySocket(recipe.modules, 'fireMonitor')!;
+    mon.config = { ...mon.config, gauge: { ...CONFIG.vessels.workboat.fireMonitor.gauge, position: [r2(at.console[0] + mx), r2(at.console[1] + 0.012), r2(at.console[2] + mz - 0.125)] } };
   }
   if (!bowRamp) recipe.modules = recipe.modules.filter((m) => m.socket !== 'rampCabin' && m.socket !== 'rampBow');
   if (craneAt) {
@@ -644,7 +730,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     recipe.modules.push({ socket: 'deckCrane', module: 'deck.crane', ...post }, { socket: 'hydraulicPump', module: 'hydraulics.pto-pump' });
   }
 
-  const price = Math.round((mass * 6 + kw * n * 120 + (d.controls ? 18000 : 6000)) / 1000) * 1000;
+  const price = Math.round((mass * 6 + kw * n * 120 + (d.controls ? 18000 : 6000) + (craneAt ? 25000 : 0) + (hasMonitor ? 15000 : 0)) / 1000) * 1000;
   return {
     hull,
     recipe,

@@ -1,15 +1,16 @@
-/** Shipyard designs: the choices round-trip through their 14-character code, typos are caught, older 10-, 11- and 13-character codes still read. */
+/** Shipyard designs: the choices round-trip through their 15-character code, typos are caught, older 10-, 11-, 13- and 14-character codes still read. */
 import { describe, expect, it } from 'vitest';
-import { COMBINATIONS, decodeDesign, DEFAULT_DESIGN, encodeDesign, encodeDesignV2, encodeDesignV3, encodeDesignV4, encodeDesignV5, encodeDesignV6, FIELDS, type OldDesign, type ShipDesign } from '../../src/shipyard/design';
+import { cleanDesign } from '../../src/shipyard/variants';
+import { COMBINATIONS, decodeDesign, DEFAULT_DESIGN, encodeDesign, encodeDesignV2, encodeDesignV3, encodeDesignV4, encodeDesignV5, encodeDesignV6, encodeDesignV7, FIELDS, type OldDesign, type ShipDesign } from '../../src/shipyard/design';
 
 /** The starting design as versions 1-3 held it (a step-down floor, the house a box). */
-const { floor: _f, visor: _v, roofThickness: _t, roofEdge: _e, roofPaint: _p, windowRake: _w, lowerFront: _l, ...rest } = DEFAULT_DESIGN;
+const { floor: _f, visor: _v, roofThickness: _t, roofEdge: _e, roofPaint: _p, windowRake: _w, lowerFront: _l, searchlight: _s, fireMonitor: _m, ...rest } = DEFAULT_DESIGN;
 const OLD: OldDesign = { ...rest, sunk: 1 };
 
 describe('Shipyard design codes', () => {
-  it('are 14 characters (in fives, with dashes), and read back to the same choices', () => {
+  it('are 15 characters (in fives, with dashes), and read back to the same choices', () => {
     const code = encodeDesign(DEFAULT_DESIGN);
-    expect(code).toMatch(/^[0-9A-Z]{5}-[0-9A-Z]{5}-[0-9A-Z]{4}$/);
+    expect(code).toMatch(/^[0-9A-Z]{5}-[0-9A-Z]{5}-[0-9A-Z]{5}$/);
     expect(decodeDesign(code)).toEqual({ design: DEFAULT_DESIGN });
   });
 
@@ -25,23 +26,39 @@ describe('Shipyard design codes', () => {
     for (const d of [max, min]) expect(decodeDesign(encodeDesign(d))).toEqual({ design: { ...d, lowerFront: 0, roofEdge: Math.max(1, d.roofEdge) } });
   });
 
-  it('fits: every combination of the choices in 65 bits (13 characters)', () => {
+  it('fits: every combination of the choices in 70 bits (14 characters)', () => {
     expect(COMBINATIONS).toBe(FIELDS.reduce((a, f) => a * BigInt(f.steps), 1n));
-    expect(COMBINATIONS < 1n << 65n).toBe(true);
+    expect(COMBINATIONS < 1n << 70n).toBe(true);
+  });
+
+  it('reads version 7 codes (before the searchlight and monitor were placed) as the same boats: the searchlight on the roof with the advanced controls, no monitor', () => {
+    for (const controls of [0, 1]) {
+      const { searchlight: _s2, fireMonitor: _m2, ...v7 } = { ...DEFAULT_DESIGN, deckCrane: 2, controls };
+      const code = encodeDesignV7(v7);
+      expect(code).toHaveLength(16);
+      expect(decodeDesign(code)).toEqual({ design: { ...v7, searchlight: controls, fireMonitor: 0 } });
+    }
+  });
+
+  it('a design saved in the browser before the searchlight was a choice keeps it as it was (with the advanced controls only)', () => {
+    const { searchlight: _s5, fireMonitor: _m5, ...saved } = DEFAULT_DESIGN;
+    expect(cleanDesign({ ...saved, controls: 0 })).toEqual({ ...DEFAULT_DESIGN, controls: 0, searchlight: 0 });
+    expect(cleanDesign({ ...saved, controls: 1 })).toEqual({ ...DEFAULT_DESIGN, controls: 1, searchlight: 1 });
+    expect(cleanDesign({ ...DEFAULT_DESIGN, controls: 0, searchlight: 3, fireMonitor: 2 })).toEqual({ ...DEFAULT_DESIGN, controls: 0, searchlight: 3, fireMonitor: 2 });
   });
 
   it('reads version 6 codes (before the deck crane) as the same boats, without a crane', () => {
-    const { deckCrane: _c, ...v6 } = { ...DEFAULT_DESIGN, roofPaint: 2, visor: 3 };
+    const { deckCrane: _c, searchlight: _s3, fireMonitor: _m3, ...v6 } = { ...DEFAULT_DESIGN, roofPaint: 2, visor: 3 };
     const code = encodeDesignV6(v6);
     expect(code).toHaveLength(16);
-    expect(decodeDesign(code)).toEqual({ design: { ...v6, deckCrane: 0 } });
+    expect(decodeDesign(code)).toEqual({ design: { ...v6, deckCrane: 0, searchlight: 1, fireMonitor: 0 } });
     // And a crane makes a different code.
     expect(encodeDesign({ ...DEFAULT_DESIGN, deckCrane: 1 })).not.toBe(encodeDesign(DEFAULT_DESIGN));
   });
 
   it('reads version 5 codes (13 characters) as the same boats, the roof the hull\'s colour', () => {
-    const { roofPaint: _p2, deckCrane: _c2, ...v5 } = { ...DEFAULT_DESIGN, roofThickness: 2, roofEdge: 3, visor: 4 };
-    expect(decodeDesign(encodeDesignV5(v5))).toEqual({ design: { ...v5, roofPaint: 0, deckCrane: 0 } });
+    const { roofPaint: _p2, deckCrane: _c2, searchlight: _s4, fireMonitor: _m4, ...v5 } = { ...DEFAULT_DESIGN, roofThickness: 2, roofEdge: 3, visor: 4 };
+    expect(decodeDesign(encodeDesignV5(v5))).toEqual({ design: { ...v5, roofPaint: 0, deckCrane: 0, searchlight: 1, fireMonitor: 0 } });
   });
 
   it('reads version 4 codes (the raked roof) as the same boats, the roof the thinnest slab, square at the front', () => {
@@ -89,7 +106,7 @@ describe('Shipyard design codes', () => {
         const bad = code.slice(0, i) + ch + code.slice(i + 1);
         expect('error' in decodeDesign(bad), bad).toBe(true);
       }
-    expect(decodeDesign('ABC')).toEqual({ error: 'a design code has 14 characters (this has 3)' });
+    expect(decodeDesign('ABC')).toEqual({ error: 'a design code has 15 characters (this has 3)' });
     expect('error' in decodeDesign('UUUUU-UUUUU')).toBe(true);
   });
 });

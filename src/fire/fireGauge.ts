@@ -34,6 +34,8 @@ export class FireGauge {
     this.bar.name = 'fireGaugeBar';
     lamp.name = 'fireGaugeLamp';
     this.root.add(this.bar, lamp);
+    // Empty until a fire job says otherwise (the Shipyard's preview never does).
+    this.update(null);
   }
 
   /**
