@@ -71,7 +71,7 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
   const centroid = new THREE.Vector3();
 
   /** Add triangle a-b-c, flipped if needed so its normal points away from `inside`. */
-  const tri = (a: THREE.Vector3, b: THREE.Vector3, d: THREE.Vector3, inside: THREE.Vector3, color: number, paint: PaintName = 'plating') => {
+  const tri = (a: THREE.Vector3, b: THREE.Vector3, d: THREE.Vector3, inside: THREE.Vector3, color: number, paint?: PaintName) => {
     e1.subVectors(b, a);
     e2.subVectors(d, a);
     n.crossVectors(e1, e2);
@@ -148,8 +148,9 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
       const b0 = P(i, b);
       const a1 = P(i + 1, a);
       const b1 = P(i + 1, b);
-      // Her plating, and non-slip paint on the deck.
-      const paint = color === col.deck && a === last ? 'nonSlip' : 'plating';
+      // Non-slip paint on the deck; her topsides and bottom plain (owner: workboats are mostly
+      // GRP, or aluminium in big sheets: no plate seams).
+      const paint = color === col.deck && a === last ? 'nonSlip' : undefined;
       tri(a0, b0, b1, mid, color, paint);
       tri(a0, b1, a1, mid, color, paint);
     }

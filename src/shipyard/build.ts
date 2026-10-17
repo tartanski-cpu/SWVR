@@ -184,6 +184,21 @@ export const LIVERIES: { name: string; livery: Livery }[] = [
   { name: 'Rescue red', livery: { bottom: 0x2f3438, topsides: 0xc0302a, deck: 0x7d8a78, house: 0xeceae2, roof: 0xb9bdb6 } },
 ];
 
+/** Roof colours (owner): the hull's own topsides colour (null), or one of its own; an orange roof is common on workboats. */
+export const ROOF_PAINTS: { name: string; colour: number | null }[] = [
+  { name: 'Like hull', colour: null },
+  { name: 'Orange', colour: 0xe0661f },
+  { name: 'White', colour: 0xeeeeea },
+  { name: 'Grey', colour: 0xb9bdb6 },
+  { name: 'Black', colour: 0x22262a },
+];
+
+/** Her livery with the roof's colour chosen (the workboat orange livery is `{}`: the workboat's own orange topsides). */
+function liveryOf(d: ShipDesign): Livery {
+  const l = LIVERIES[d.paint].livery;
+  return { ...l, roof: ROOF_PAINTS[d.roofPaint].colour ?? l.topsides ?? 0xd9622b };
+}
+
 /** The designed boat: her hull and recipe, her main figures, and anything to warn about. */
 export interface DesignedBoat {
   hull: HullDefinition;
@@ -519,7 +534,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
         torch: [-(hw - 0.45), F + 0.68, aft - 0.12],
         binoculars: { at: [-(hw - 0.35), F + 1.35, front + 0.14], yawDeg: 20 },
       },
-      livery: LIVERIES[d.paint].livery,
+      livery: liveryOf(d),
     },
     sockets,
     provides: [{ power: 'electrical', circuits: BREAKERS }],

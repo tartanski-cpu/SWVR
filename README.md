@@ -19,7 +19,7 @@ Since the MVP:
 - **A small archipelago** with three kinds of port (see below), groundings and collisions, an anchor and windlass, sheltered water and an echo sounder.
 - **Cargo runs** between the ports, with real deadweight.
 - **Wake and spray:** foam that rides the swell, spray when the bow slams, and water and splash sounds.
-- **Pixel painting:** crisp low-resolution detail on the boats: welded plating on the hulls, non-slip decks, black window frames, wood-lined wheelhouses, floor matting and a chequer-plate engine hatch.
+- **Pixel painting:** crisp low-resolution detail on the boats: non-slip decks, black window frames, wood-lined wheelhouses, floor matting and a chequer-plate engine hatch.
 
 ## Play it (no install)
 
@@ -485,9 +485,9 @@ Design your own boat at https://tartanski-cpu.github.io/SWVR/next/shipyard.html 
 
 1. Pick a hull type (landing craft, gillnetter, workboat or pilot boat), size her with the sliders, and rake her stem from plumb to 50°.
 2. Place and size the wheelhouse, and shape it: its floor height (sunk below the deck or raised to see over the bow, with steps at the door), the front windows (raked aft for a fast patrol look, upright, or reverse-raked like a pilot house), and the roof: one flat slab, its visor over the windows, its thickness (10, 20 or 30 cm) and its front edge, raked back as it rises at 30, 45 or 60°. Designed houses have no roof ladder or rail.
-3. Choose an engine, single or twin (its propeller is matched by trial), basic or advanced controls, and a paint.
+3. Choose an engine, single or twin (its propeller is matched by trial), basic or advanced controls, a paint, and the roof's colour (the hull's, or orange, white, grey or black).
 
-The page shows her in 3D (around her and at the helm), her figures and her sea trials, then gives her **code**: 13 characters, like `3MEEH-RYJAN-X95` (older 10- and 11-character codes still work, with the house as it was). **Try her in the game** opens the game in her. Or add `?design=` and the code to the game's address, also on the Quest. Buying her at the boatyard in the game comes next.
+The page shows her in 3D (around her and at the helm), her figures and her sea trials, then gives her **code**: 14 characters, like `XXXXX-XXXXX-XXXX` (older 10-, 11- and 13-character codes still work). **Try her in the game** opens the game in her. Or add `?design=` and the code to the game's address, also on the Quest. Buying her at the boatyard in the game comes next.
 
 ## Local development
 

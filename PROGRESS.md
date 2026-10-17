@@ -3041,6 +3041,14 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Roof fittings** forward (searchlight, horn, masthead) stand clear of the set-back top edge.
 - **Checked:** typecheck; all 510 tests (round trips now expect a square edge read as 30 deg); screenshots of a 30 cm roof with a 60 deg edge on the landing craft, the pilot's default, and the page's buttons.
 
+### Hull plating dropped; the Shipyard roof's colour (owner)
+
+- **No plating on the hulls:** the owner says workboats are mostly GRP, or aluminium in big sheets, so plate seams look wrong. The hull mesh paints topsides and bottom plain (`hullMesh.ts`). The plating tile is gone from `pixelPaint.ts` and `CONFIG.pixelPaint.tileMetres`. Decks keep their non-slip; the cabins keep wood, matting and the chequer-plate hatch. Draw calls are unchanged.
+- **Roof colour (`roofPaint`, `ROOF_PAINTS` in `shipyard/build.ts`):** Like hull (her topsides colour, the default), Orange (common on workboats), White, Grey or Black. It's a row of swatches under Paint, and the "Like hull" swatch follows the hull's paint.
+- **Codes now 14 characters** (version 6: 13 of choices, 65 bits, and the check), shown as XXXXX-XXXXX-XXXX. The owner: as many variations as wanted; what matters is an easy way to carry a code into VR. Version 4 and 5 codes (13 characters) and older ones still read, with the roof the hull's colour.
+- **Noted for the boatyard step:** carrying a code into VR. Today it's the `?design=` address; better would be an in-game keypad, or scanning it from the Shipyard page.
+- **Checked:** typecheck; all 511 tests (new: version 5 codes read with the roof the hull's colour); screenshots of an orange roof on a navy pilot boat, "Like hull" on a grey landing craft, and the game's workboat, its hull now plain.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

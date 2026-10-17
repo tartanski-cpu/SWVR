@@ -3,13 +3,14 @@ import { CONFIG } from '../config';
 
 /**
  * Pixel painting (owner, Oct 2026): detail painted onto the boats' flat panels as small,
- * crisp, low-resolution images, Stormworks style: steel plate seams, a non-slip deck, wood
- * lining, floor matting, chequer plate. The shapes, and the draw calls, stay as they were.
+ * crisp, low-resolution images, Stormworks style: a non-slip deck, wood lining, floor
+ * matting, chequer plate. (Hull plating was tried and dropped, owner: workboats are mostly
+ * GRP, or aluminium in big sheets.) The shapes, and the draw calls, stay as they were.
  *
  * - The images ("tiles") are made here in code at start-up: nothing to download. Each is
  *   64 x 64 greyscale pixels, mid-grey on average, and multiplies the part's own colour
  *   (mid-grey leaves it as it is), so a tile takes any livery's paint.
- * - A part says which tile it wears (`part(shape, colour, 'plating')`, render/geometryUtils);
+ * - A part says which tile it wears (`part(shape, colour, 'wood')`, render/geometryUtils);
  *   where on the tile each point falls is worked out when parts are merged: a flat
  *   projection in metres along the face, so the pixels are the same size everywhere.
  * - Drawn in the shared flat-shaded material (flatVertexColorMaterial), one texture for all
@@ -19,7 +20,7 @@ import { CONFIG } from '../config';
  */
 
 /** The tiles, in their order in the texture (0 is no paint). */
-export const PAINTS = ['plating', 'nonSlip', 'wood', 'mat', 'chequer'] as const;
+export const PAINTS = ['nonSlip', 'wood', 'mat', 'chequer'] as const;
 export type PaintName = (typeof PAINTS)[number];
 
 /** A tile's index in the texture (0: none). */
@@ -42,19 +43,6 @@ function rng(seed: number): () => number {
 
 /** Each tile's pixels: brightness 0..1 at (x, y), y up the face. Every tile repeats seamlessly. */
 const PAINTERS: Record<PaintName, () => (x: number, y: number) => number> = {
-  /** Welded steel plating: strakes 1 m deep (16 pixels), plates 2 m long with their butts staggered, each plate a shade apart. */
-  plating: () => {
-    const r = rng(11);
-    const shade = Array.from({ length: 8 }, () => 0.46 + 0.08 * r());
-    const speck = Array.from({ length: TILE * TILE }, () => (r() - 0.5) * 0.03);
-    return (x, y) => {
-      const strake = Math.floor(y / 16);
-      const along = (x + (strake % 2) * 16) % TILE;
-      if (y % 16 === 0 || along % 32 === 0) return 0.34; // the weld seam
-      if (y % 16 === 1 || along % 32 === 1) return 0.56; // the plate edge just past it catches the light
-      return shade[strake * 2 + Math.floor(along / 32)] + speck[y * TILE + x];
-    };
-  },
   /** Non-slip deck paint: a grit of raised flecks over a slightly mottled ground. */
   nonSlip: () => {
     const r = rng(23);

@@ -19,7 +19,7 @@ import { assembleView } from '../modular/assemble';
 import type { SeaTrialResults } from '../vessel/seaTrials';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 import { buildVesselMesh } from '../vessel/view/hullMesh';
-import { DESIGN_HULLS, ENGINES, LIVERIES, type DesignedBoat } from './build';
+import { DESIGN_HULLS, ENGINES, LIVERIES, ROOF_PAINTS, type DesignedBoat } from './build';
 import { decodeDesign, DEFAULT_DESIGN, encodeDesign, FIELDS, SCALES, type ShipDesign } from './design';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -198,6 +198,7 @@ choices('controls', [
   { name: 'Basic', note: 'Wheel, throttle, key and start, speed and depth, rpm.' },
   { name: 'Advanced', note: 'Adds lights, wipers, horn, searchlight, heading, engine monitor and the VHF.' },
 ]);
+const hex = (c: number) => `#${c.toString(16).padStart(6, '0')}`;
 section('5. Paint');
 {
   const box = document.createElement('div');
@@ -208,15 +209,38 @@ section('5. Paint');
     s.title = l.name;
     s.dataset.key = 'paint';
     s.dataset.i = String(i);
-    s.style.background = `#${(l.livery.topsides ?? 0xd9622b).toString(16).padStart(6, '0')}`;
+    s.style.background = hex(l.livery.topsides ?? 0xd9622b);
     s.onclick = () => change({ paint: i });
     box.appendChild(s);
   });
   controls.appendChild(box);
 }
+{
+  // The roof's colour: the hull's own (its swatch follows the hull's paint), or one of its own.
+  const row = document.createElement('div');
+  row.className = 'row opts';
+  row.innerHTML = '<label>Roof</label><div class="swatches"></div>';
+  const box = row.querySelector('div')!;
+  ROOF_PAINTS.forEach((p, i) => {
+    const s = document.createElement('div');
+    s.className = 'swatch';
+    s.title = p.name;
+    s.dataset.key = 'roofPaint';
+    s.dataset.i = String(i);
+    if (p.colour === null) {
+      s.classList.add('likeHull');
+      s.textContent = '=';
+    } else s.style.background = hex(p.colour);
+    s.onclick = () => change({ roofPaint: i });
+    box.appendChild(s);
+  });
+  controls.appendChild(row);
+}
 
 /** Show the design in the controls. */
 function syncControls(): void {
+  const likeHull = document.querySelector<HTMLElement>('.swatch.likeHull');
+  if (likeHull) likeHull.style.background = hex(LIVERIES[design.paint].livery.topsides ?? 0xd9622b);
   document.querySelectorAll<HTMLElement>('[data-key][data-i]').forEach((el) => el.classList.toggle('on', design[el.dataset.key as keyof ShipDesign] === Number(el.dataset.i)));
   document.querySelectorAll<HTMLInputElement>('input[type=range][data-key]').forEach((el) => (el.value = String(design[el.dataset.key as keyof ShipDesign])));
   document.querySelectorAll<HTMLOutputElement>('output[data-key]').forEach((el) => {
