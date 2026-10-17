@@ -76,33 +76,34 @@ function scaledStudy(d: HullDesign, L: number, B: number, D: number, bow: number
 }
 
 /**
- * Her keel line with her bow reshaped (the Shipyard's bow choice: her stem's rake from
- * vertical, SCALES.bow): a straight stem from 0.15 m under the stem head, raked `deg`, down
- * until it meets her keel, which runs at full depth to it (her own keel line, held at its
- * depth forward of 75 % of her length: her rocker is kept, owner). 0 deg is a plumb stem. A 50 deg stem on a 2 m deep bow cuts
- * the forefoot back ~2.4 m; the keel isn't cut away further aft than that (owner).
- * Drawn through samples every 2.5 % of her length, and at the knuckle (the study's smooth
- * curve through them).
+ * Her keel line with her bow reshaped (the Shipyard's bow choice, SCALES.bow): her stem runs
+ * from 0.15 m under the stem head down to her keel, raked `deg` from vertical overall (stem
+ * head to forefoot), and curved (owner, after the straight stem read as too raked): full
+ * forward, like the hull study's pilot boat, steeper at the deck (atan(tan deg / 2): 31 deg
+ * at 50) and sweeping round into the keel with no knuckle. In profile it's a parabola, the
+ * keel line its tangent at the forefoot. 0 deg is a plumb stem.
+ * Her keel runs at full depth to it (her own keel line, held at its depth forward of 75 % of
+ * her length: her rocker is kept, owner). A 50 deg stem on a 2 m deep bow reaches back
+ * ~2.4 m; the keel isn't cut away further aft than the straight stem did (owner).
+ * Drawn through samples every 1.25 % of her length.
  */
 export function bowKeel(keel: [number, number][], stemDeckY: number, lengthM: number, deg: number): [number, number][] {
   const own = (t: number) => curveAt(keel, t);
   // Her own keel line (her rocker), held at its depth over the forward quarter, where her
   // stem is: at 50 deg a stem reaches back about that far, so only the forefoot is reshaped.
   const deep = (t: number) => (t < 0.75 ? own(t) : Math.min(own(t), own(0.75)));
-  const stem = (t: number) => (deg > 0.1 ? stemDeckY - 0.15 - ((1 - t) * lengthM) / Math.tan((deg * Math.PI) / 180) : -Infinity);
-  const at = (t: number) => Math.max(deep(t), stem(t));
-  const ts = Array.from({ length: 41 }, (_, i) => i / 40);
-  // The knuckle, where the stem meets the keel: sampled too, so the corner stays sharp.
-  if (deg > 0.1) {
-    let lo = 0.75;
-    let hi = 1;
-    for (let k = 0; k < 30; k++) {
-      const m = (lo + hi) / 2;
-      if (stem(m) > deep(m)) hi = m;
-      else lo = m;
-    }
-    ts.push(hi);
-  }
+  const top = stemDeckY - 0.15;
+  const bottom = deep(1);
+  // How far back from the stem head the stem meets the keel (m).
+  const reach = deg > 0.1 ? (top - bottom) * Math.tan((deg * Math.PI) / 180) : 0;
+  const stem = (t: number) => {
+    const d = (1 - t) * lengthM;
+    return reach > 0 && d < reach ? bottom + (top - bottom) * (1 - d / reach) ** 2 : -Infinity;
+  };
+  const at = (t: number) => (reach > 0 ? Math.max(deep(t), stem(t)) : deep(t));
+  const ts = Array.from({ length: 81 }, (_, i) => i / 80);
+  // The forefoot, where the stem runs into the keel: sampled too.
+  if (reach > 0 && reach < lengthM) ts.push(1 - reach / lengthM);
   return ts.sort((a, b) => a - b).map((t) => [t, at(t)] as [number, number]);
 }
 

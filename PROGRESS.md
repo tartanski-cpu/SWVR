@@ -2925,6 +2925,16 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **The owner saw no painting on the Quest:** most likely that tab had loaded the build before this one (the desktop, later, had it). The Quest draws the boats with the same material as the desktop, with no VR-only path. To check which build is loaded, look at the commit in the NEXT menu header.
 - **Step 2 (not started):** weathering (rust streaks under scuppers and fittings, grime at the waterline), perhaps a wear setting.
 
+### Shipyard: a curved stem on the lofted hulls (owner)
+
+- **The owner said** the pilot boat at the maximum rake still looked like too much. It measured 50 deg from vertical, as specified, but as a straight line about 2.8 m long, ending in a hard knuckle about 3.3 m back. Offered a curved stem like the hull study's pilot; the owner chose it.
+- **The stem now (`bowKeel`, `shipyard/build.ts`):**
+  - It still meets the keel at the same place, so the slider is the rake from the stem head to the forefoot (0-50 deg). The keel isn't cut further back, as the owner asked earlier.
+  - In between it is full forward: a parabola in profile, steeper at the deck (atan(tan deg / 2): 31 deg at the maximum) and running into the keel along it, with no knuckle.
+  - Applies to the landing craft, gillnetter and pilot boat, so their codes' bows change shape a little. The workboat's own chine hull keeps its straight stem (`hullForm.ts`), which the owner liked plumb.
+- **Checked:** typecheck; all tests (the bow test still finds the keel unchanged aft of the forefoot); side profiles of the pilot at 0, 25 and 50 deg; the landing craft and gillnetter at their defaults.
+- **Owner test:** on the Shipyard page, pick the pilot boat, turn the water off, look from the side and move the Bow rake from plumb to 50 deg.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**
