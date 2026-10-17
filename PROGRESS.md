@@ -1793,6 +1793,7 @@ Order, as the owner set it:
    - It is built here, in the current VR/desktop game, not in a branch-off.
    - Saved boat designs must be usable later in the procedural world (see 3). The saved design file is the one place the two meet, so keep it independent of the world.
 2. **Mobile / touchscreen version.** First step done (Oct 2026): touch controls in this app (see "Touchscreen controls"), so the owner can test driving on a phone. No multiplayer from a phone at first (owner). The plan below still stands for the full version.
+   - **Collaborative Shipyard (owner idea, Oct 2026; later):** sketch together on a reference boat's side and plan views in multiplayer, slide components in 2D as a mock-up, then build the agreed design. Notes in docs/MODULAR_BOATS.md, M8.
    - **Shipyard (owner, Oct 2026):** boats will be designed in a separate Shipyard web app (hull forms stretched and modified, wheelhouses, engines; later, AI reading a photo). The game's boat shop only upgrades your existing boat. See docs/MODULAR_BOATS.md, M8.
    
    The original notes for the full mobile version:

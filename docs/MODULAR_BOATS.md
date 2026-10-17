@@ -931,6 +931,21 @@ Sizes: S is about a session, M two or three, L more.
   1. **Done; see PROGRESS "Shipyard, stop 1".** The Shipyard page (`shipyard.html`, `src/shipyard/`): three hull types with sliders, a wheelhouse with sliders, engine packages with the gearbox matched by trial, basic or advanced controls, paint; a live 3D view, figures, warnings and the game's sea trials; a 10-character code holding the choices (with a check character); `?design=CODE` starts the game in her.
   2. Buying her at the boatyard in the game: enter the code, see the price, pay from the career, and she becomes your boat (the career save remembers her code; `next` gets its own save keys first).
   3. Placing controls by hand: plan / side / inside views of her wheelhouse and deck, slots marked, drag modules on (the code grows a little).
+- **Idea for later (owner, Oct 2026; not planned in detail, nothing built): a collaborative Shipyard.** Building boats together:
+  - **Phase 1, the mock-up, in multiplayer:**
+    - Several people open the same Shipyard session.
+    - On a reference boat's side and plan views (the stop 3 views, or a picture of a reference boat), everyone can sketch on top, with each person's pen colour, and talk it through.
+    - Cranes, winches and other components can be slid into place in 2D as a rough mock-up.
+  - **Phase 2, the build:** once the mock-up is agreed, the boat is built from it with the normal Shipyard steps, to a code.
+  - **How it could work** (thoughts so far):
+    - The same peer-to-peer multiplayer as the game (PeerJS rooms, one host), so no server of our own.
+    - The shared state is small: the design's choices, the sketch strokes (as lines, not pictures) and the mock-up's component placements. Everyone sends edits to the host, and the host shares the result.
+    - Stop 3 should be built with this in mind: its 2D views and drag-and-drop as plain data, so making them shared later is a small step.
+  - **To decide when it starts:**
+    - **Keeping a session:** peer-to-peer ends when everyone leaves. A mock-up could be saved as a file, or as the design code plus a sketch file; anything kept online needs a server (the "ask first" rule).
+    - **Who edits when:** everyone at once, or one holder of the pen.
+    - **Voice:** the game's multiplayer has none. Talk outside it, or add voice (a bigger step).
+    - **Reliability:** the free PeerJS broker it relies on has been fine for the game so far.
 - **The boat shop in the 3D game** (what this M8 section describes below): at a harbour, it only upgrades and fits out *your existing boat*: modules into her sockets, within what her hull allows. Designing a new hull happens in the Shipyard, not in the game.
 
 - At a harbour with a yard, a VR-friendly panel shows the boat's sockets. Empty ones glow.
