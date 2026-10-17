@@ -3,7 +3,7 @@
  * lines, her machinery and controls are the packages chosen, and her gearbox matches by trial.
  */
 import { describe, expect, it } from 'vitest';
-import { gearOf, useDesign } from '../../src/boats/sims';
+import { footprintsOf, gearOf, useDesign } from '../../src/boats/sims';
 import { RECIPES } from '../../src/boats/library';
 import { validateRecipe } from '../../src/modular/recipe';
 import { LIBRARY } from '../../src/boats/library';
@@ -158,6 +158,31 @@ describe('Shipyard: the boats it builds', () => {
           expect(wh.windowHead).toBeGreaterThan(wh.frontSill! + 0.4);
           expect(wh.doorHeight).toBeGreaterThan(1.7);
         }
+  });
+
+  it('the deck crane goes on the foredeck or the aft deck of each hull, with a hydraulic pump, and the walk area keeps clear of it', () => {
+    for (let hull = 0; hull < DESIGN_HULLS.length; hull++)
+      for (const deckCrane of [1, 2]) {
+        const boat = useDesign({ ...DEFAULT_DESIGN, hull, deckCrane });
+        expect(validateRecipe(RECIPES.design, LIBRARY), `${hull}/${deckCrane}`).toEqual([]);
+        const ids = flattenMounts(RECIPES.design, LIBRARY.hulls, LIBRARY.modules).mounted.map((m) => m.def.id);
+        expect(ids, `${hull}/${deckCrane}`).toContain('deck.crane');
+        expect(ids, `${hull}/${deckCrane}`).toContain('hydraulics.pto-pump');
+        expect(boat.warnings, `${hull}/${deckCrane}`).toEqual([]);
+        // Still floats level with the crane's weight.
+        const h = uprightHydrostatics(VESSEL_DEFS.design);
+        expect(Math.abs(h.lcgMinusLcb), `${hull}/${deckCrane} trim`).toBeLessThan(0.02);
+        // Nobody walks through its column.
+        const crane = flattenMounts(RECIPES.design, LIBRARY.hulls, LIBRARY.modules).mounted.find((m) => m.def.id === 'deck.crane')!;
+        const [cx, , cz] = crane.socket.transform.position;
+        const def = VESSEL_DEFS.design;
+        const walk = vesselWalkArea(def, def.layout, footprintsOf({ defId: 'design' }));
+        expect(walk.walkable(cx, cz, hullPlan(def).deckY(cz)), `${hull}/${deckCrane} walk`).toBe(false);
+        const beside = [[0, -0.8], [0, 0.8], [-0.8, 0], [0.8, 0]].some(([dx, dz]) => walk.walkable(cx + dx, cz + dz, hullPlan(def).deckY(cz + dz)));
+        expect(beside, `${hull}/${deckCrane} beside`).toBe(true);
+      }
+    useDesign(DEFAULT_DESIGN);
+    expect(flattenMounts(RECIPES.design, LIBRARY.hulls, LIBRARY.modules).mounted.map((m) => m.def.id)).not.toContain('deck.crane');
   });
 
   it('only the landing craft hull has the bow ramp', () => {

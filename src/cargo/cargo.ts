@@ -13,6 +13,9 @@
  *     ('cargoLash') they stay put.
  *   - At an anchorage there's no quay: launch the workboat's skiff, load her (two crates
  *     or one drum: `cargo.slots`), run her up the beach and carry the goods up to the stack.
+ *   - A boat's deck crane (modules/deckCrane) lifts it too: HOOK takes the item under the
+ *     hook, and sets it down again on the deck, the quay or the sea (stepCraneCargo). It
+ *     hangs rigid under the hook (no swing, owner's choice), its weight on the boat there.
  *   - Cargo aboard, and cargo carried by players aboard, is real deadweight: payloadOf()
  *     feeds masses and positions to the vessel physics (mass, CG, inertia), so cargo
  *     shifting to one side gives her a list.
@@ -31,6 +34,7 @@ import type { VesselState } from '../vessel/vesselState';
 import { PORTS, type PortDef } from '../world/archipelago';
 import { standingHeight } from '../world/geography';
 import { deckSpot, onOpenDeck, type DeckFootprint } from './deck';
+import { craneStateOf, cranesOf, hookOnBoat } from './craneHook';
 import { cargoLost, earn, portName } from '../career/career';
 import { isPot, potLost, shootPot } from '../potting/potting';
 
@@ -40,7 +44,9 @@ export type CargoAt =
   /** On a vessel's deck (vessel axes): base centre, yaw, sliding velocity (x, z) and lashing. */
   | { vessel: EntityId; pos: Vec3; yaw: number; vel: [number, number]; lashed: boolean }
   /** In a player's hands. */
-  | { carriedBy: EntityId };
+  | { carriedBy: EntityId }
+  /** On a vessel's deck crane's hook (`crane`: its path on her), hanging under it. */
+  | { hook: EntityId; crane: string };
 
 export interface CargoItem {
   id: EntityId;
@@ -210,6 +216,7 @@ export function placeBlocker(world: WorldState, v: VesselState, item: CargoItem)
 /** Why a player can't pick an item up, or null. */
 export function takeBlocker(item: CargoItem): string | null {
   if ('carriedBy' in item.at) return 'Someone has it';
+  if ('hook' in item.at) return 'It\'s on the crane hook';
   if ('vessel' in item.at && item.at.lashed) return 'Lashed down: undo the lashing first';
   return null;
 }
@@ -270,10 +277,7 @@ export function applyCargoIntent(world: WorldState, intent: Intent): void {
         retire(world, item, false); // into the sea
         break;
       }
-      item.at = { ground: [x, g, z], yaw };
-      const port = portAtPoint(x, z);
-      // Delivered: at its port, or anywhere for cargo fished out of the sea (to 'any').
-      if (port && (port.id === item.to || item.to === 'any')) retire(world, item, true, port.id);
+      landAshore(world, item, x, g, z, yaw);
       break;
     }
     case 'cargoLash':
@@ -287,6 +291,104 @@ export function applyCargoIntent(world: WorldState, intent: Intent): void {
       }
       break;
   }
+}
+
+/** Set an item down ashore; at its port (or anywhere, for cargo fished out of the sea), it's delivered. */
+function landAshore(world: WorldState, item: CargoItem, x: number, g: number, z: number, yaw: number): void {
+  item.at = { ground: [x, g, z], yaw };
+  const port = portAtPoint(x, z);
+  if (port && (port.id === item.to || item.to === 'any')) retire(world, item, true, port.id);
+}
+
+// ── The deck crane's hook ─────────────────────────────────────────────────────────────
+
+const qh = new THREE.Quaternion();
+/** A point in a vessel's axes, in the world. */
+function onWorld(v: VesselState, local: THREE.Vector3): THREE.Vector3 {
+  return local.clone().applyQuaternion(qh.fromArray(v.orientation)).add(new THREE.Vector3().fromArray(v.position));
+}
+
+/** Where an item's lifting point (the middle of its top) is in the world, or null if it can't be lifted (in hands, on a hook, lashed). */
+function liftPoint(world: WorldState, c: CargoItem): THREE.Vector3 | null {
+  const h = kindOf(c).size[1];
+  if ('ground' in c.at) return new THREE.Vector3(c.at.ground[0], c.at.ground[1] + h, c.at.ground[2]);
+  if ('vessel' in c.at && !c.at.lashed) {
+    const v = world.vessels[c.at.vessel];
+    return v ? onWorld(v, new THREE.Vector3(c.at.pos[0], c.at.pos[1] + h, c.at.pos[2])) : null;
+  }
+  return null;
+}
+
+/** How far above the surface under it a load may be set down from (m), and how far into it (the hook lowered a little too far). */
+const SET_DOWN_ABOVE = 0.8;
+const SET_DOWN_BELOW = 0.4;
+
+/**
+ * The deck cranes' HOOK presses, after the boats' machinery has run (its sim marks a press,
+ * `press`). An empty hook takes the nearest free item whose top is within reach of it and
+ * within the crane's safe working load; a loaded hook sets its item down on what's under
+ * it, if it's been lowered close enough: her own deck (room and payload allowing), the
+ * quay or the shore (delivered at its port), or the sea (lost; a pot is shot). Too high, or
+ * no room: it stays on the hook.
+ */
+export function stepCraneCargo(world: WorldState): void {
+  for (const v of Object.values(world.vessels)) {
+    for (const crane of cranesOf(v)) {
+      const s = craneStateOf(v, crane.path);
+      if (!s) continue;
+      // Its load gone some other way: the hook is free.
+      const load = s.hooked ? world.cargo[s.hooked] : undefined;
+      if (s.hooked && !(load && 'hook' in load.at)) s.hooked = null;
+      if (!s.press) continue;
+      s.press = false;
+      const hook = hookOnBoat(v, crane.path);
+      if (!hook) continue;
+      if (load && s.hooked) {
+        if (setDown(world, v, load, hook)) s.hooked = null;
+        continue;
+      }
+      const hookW = onWorld(v, hook);
+      let best: CargoItem | null = null;
+      let bestD = crane.config.hookReach;
+      for (const c of Object.values(world.cargo)) {
+        if (c.mass > crane.config.swlKg) continue;
+        const p = liftPoint(world, c);
+        const d = p ? p.distanceTo(hookW) : Infinity;
+        if (d < bestD) [best, bestD] = [c, d];
+      }
+      if (best) {
+        best.at = { hook: v.id, crane: crane.path };
+        s.hooked = best.id;
+      }
+    }
+  }
+}
+
+/** Set a hooked item down under the hook (`hook`: in her axes). False: it stays on the hook. */
+function setDown(world: WorldState, v: VesselState, item: CargoItem, hook: THREE.Vector3): boolean {
+  const h = kindOf(item).size[1];
+  const base = hook.clone().setY(hook.y - h);
+  // Her own deck.
+  if (onOpenDeck(v.defId, footprint(item), base.x, base.z)) {
+    const deckY = deckHeight(v.defId, base.z);
+    const gap = base.y - deckY;
+    if (gap > SET_DOWN_ABOVE || gap < -SET_DOWN_BELOW || placeBlocker(world, v, item)) return false;
+    item.at = { vessel: v.id, pos: [base.x, deckY, base.z], yaw: 0, vel: [0, 0], lashed: false };
+    return true;
+  }
+  // Over the side: the quay or shore, or the sea.
+  const w = onWorld(v, base);
+  const g = standingHeight(w.x, w.z);
+  if (g > -0.3) {
+    const gap = w.y - g;
+    if (gap > SET_DOWN_ABOVE || gap < -SET_DOWN_BELOW) return false;
+    landAshore(world, item, w.x, g, w.z, 0);
+    return true;
+  }
+  if (w.y > SET_DOWN_ABOVE) return false; // not down to the water yet
+  if (isPot(item)) shootPot(world, item, w.x, w.z);
+  else retire(world, item, false);
+  return true;
 }
 
 /**
@@ -483,6 +585,11 @@ export function payloadOf(world: WorldState, vesselId: EntityId): { mass: number
     } else if ('carriedBy' in c.at) {
       const p = world.players[c.at.carriedBy];
       if (p && p.aboardVesselId === vesselId) out.push({ mass: c.mass, pos: new THREE.Vector3(p.position[0], p.position[1] + 1.1, p.position[2]) });
+    } else if ('hook' in c.at && c.at.hook === vesselId) {
+      // On her crane's hook: its weight bears on her at the hook (it hangs from it).
+      const v = world.vessels[vesselId];
+      const hook = v && hookOnBoat(v, c.at.crane);
+      if (hook) out.push({ mass: c.mass, pos: hook.setY(hook.y - kindOf(c).size[1] / 2) });
     }
   }
   return out;

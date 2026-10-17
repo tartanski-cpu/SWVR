@@ -2443,6 +2443,42 @@ export const CONFIG = {
      */
     joystick: { panRateDeg: 50, tiltRateDeg: 22 },
 
+    /**
+     * deck.crane (modules/deckCrane): a placeable hydraulic deck crane for cargo (owner),
+     * independent of the skiff's crane. A column that slews on a plinth, a boom that luffs
+     * from its head, a wire and hook hanging from the boom's tip. Worked from a control post
+     * at its foot: a joystick (sideways slews, fore-aft raises and lowers the boom; the
+     * crane follows at its own rates, only with hydraulic pressure) and HOIST UP / DOWN and
+     * HOOK buttons. Sizes in m, rates in deg/s and m/s. The load hangs rigid under the hook
+     * (no swing: owner's choice, no new rope physics); its weight acts on the boat there.
+     */
+    deckCrane: {
+      plinthHeight: 0.25,
+      plinthRadius: 0.24,
+      columnHeight: 1.6,
+      columnRadius: 0.13,
+      boomLength: 3.4,
+      boomDepth: 0.15,
+      slewRateDeg: 25,
+      luffRateDeg: 12,
+      /** Slew stops either side of straight ahead (deg), and the boom's range (deg above level). */
+      slewLimitDeg: 170,
+      luffMinDeg: -5,
+      luffMaxDeg: 70,
+      hoistRate: 0.35,
+      wireMin: 0.4,
+      wireMax: 6,
+      /** Safe working load (kg), and the crane's own weight (kg). */
+      swlKg: 800,
+      massKg: 420,
+      /** Where it rests: boom slewed and luffed to these, the wire this long. */
+      stow: { slewDeg: 0, luffDeg: 5, wire: 0.8 },
+      /** The control post beside the column (its own axes: x outboard of the socket, z aft), and its height. */
+      post: { x: 0.55, z: 0.45, height: 1.05 },
+      /** How close the hook must be to an item's lifting point to take it (m). */
+      hookReach: 0.6,
+    },
+
     /** instrument.warning-lamps: the lamps' spacing (m). */
     warningLamps: { spacing: 0.085 },
 

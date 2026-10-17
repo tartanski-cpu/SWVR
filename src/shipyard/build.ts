@@ -465,6 +465,20 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   // ── Hull definition ──
   const weighed = { massKg: mass, cg, inertia: inertiaFromGyradius(mass, gyradius) };
   const freeboard = deckMid;
+  // The deck crane (owner: placeable, for cargo): on the foredeck on the centreline, clear
+  // of the house's front, its control post toward the house; or on the aft deck to port,
+  // clear of the door and its steps, its post inboard.
+  const cr = CONFIG.modules.deckCrane;
+  let craneAt: V3 | null = null;
+  if (d.deckCrane === 1) {
+    const z = front - 0.9;
+    if (z - cr.plinthRadius - 0.3 > stem + (bowRamp ? 1.8 : 1.0)) craneAt = [0, q.deckY(z), z];
+    else warnings.push('There\'s no room on her foredeck for the deck crane: left off.');
+  } else if (d.deckCrane === 2) {
+    const z = aft + 0.9;
+    if (z + 0.4 < transom - 0.3) craneAt = [-(q.halfBeam(z) - 0.6), q.deckY(z), z];
+    else warnings.push('There\'s no room on her aft deck for the deck crane: left off.');
+  }
   const sockets: Socket[] = [
     { id: 'helm', type: 'helm.console', transform: { position: at.console }, capacity: { size: [2 * (hw - wall) - 0.04, 1.6, 1.0] }, label: 'Helm console, across the front of the cabin' },
     { id: 'breakerPanel', type: 'wall.panel', transform: { position: at.breakerPanel, rotationDeg: [-40, -90, 0] }, label: 'Starboard wall, by the helm' },
@@ -496,6 +510,14 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     { id: 'cleatFwdStbd', type: 'deck.fitting', transform: { position: cleat(1, bowCleat) }, label: 'Bulwark top, forward, starboard' },
     { id: 'cleatAftPort', type: 'deck.fitting', transform: { position: cleat(-1, sternCleat) }, label: 'Bulwark top, aft, port' },
     { id: 'cleatAftStbd', type: 'deck.fitting', transform: { position: cleat(1, sternCleat) }, label: 'Bulwark top, aft, starboard' },
+    ...(craneAt
+      ? [
+          // The aft one faces aft (its boom rests over the aft deck, not the house).
+          { id: 'deckCrane', type: 'deck.equipment' as const, transform: { position: craneAt, ...(d.deckCrane === 2 ? { rotationDeg: [0, 180, 0] as V3 } : {}) }, capacity: { loadRatingKg: 1000 }, label: d.deckCrane === 1 ? 'Foredeck, centreline: the deck crane' : 'Aft deck, port: the deck crane' },
+          // Its hydraulic pump on the engine's power take-off.
+          { id: 'hydraulicPump', type: 'engine.bay' as const, transform: { position: at.engineSpace }, label: 'On the engine\'s power take-off (nominal)' },
+        ]
+      : []),
   ];
   // Lashing points along the longer stretch of open deck (fore or aft of the house).
   const fore = front - (stem + 0.8);
@@ -516,6 +538,9 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     lightship: lightshipOf(weighed, [
       { massKg: eng.kg * n, at: at.engineBed },
       { massKg: batteriesKg, at: at.engineSpace },
+      // The deck crane, if she has one: designed in, so she still floats on her lines with it
+      // (her hull and ballast lighter by its weight, as with the engine).
+      ...(craneAt ? [{ massKg: cr.massKg, at: [craneAt[0], craneAt[1] + cr.columnHeight / 2, craneAt[2]] as V3 }] : []),
     ]),
     addedMass: lc.addedMass,
     damping,
@@ -613,6 +638,11 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     recipe.modules = recipe.modules.filter((m) => !['cabinLight', 'horn', 'wipers', 'vhf', 'searchlight', 'navLights'].includes(m.socket));
   }
   if (!bowRamp) recipe.modules = recipe.modules.filter((m) => m.socket !== 'rampCabin' && m.socket !== 'rampBow');
+  if (craneAt) {
+    // Turned to face aft, the aft crane's control post goes to its other side, so it stays inboard.
+    const post = d.deckCrane === 2 ? { config: { post: { ...cr.post, x: -cr.post.x } } } : {};
+    recipe.modules.push({ socket: 'deckCrane', module: 'deck.crane', ...post }, { socket: 'hydraulicPump', module: 'hydraulics.pto-pump' });
+  }
 
   const price = Math.round((mass * 6 + kw * n * 120 + (d.controls ? 18000 : 6000)) / 1000) * 1000;
   return {

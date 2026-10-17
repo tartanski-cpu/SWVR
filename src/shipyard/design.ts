@@ -11,8 +11,11 @@
  * (digits and letters without I, L, O and U, so nothing looks like anything else), with a
  * check character after them (a weighted sum: any one mistyped character is caught).
  *
- * Version 6 (the roof's colour; this one): 13 characters of choices (65 bits) and the check:
- * 14 characters, shown as K7P4Q-2ZX9D-MR3X. Its number is the choices' number. Codes may
+ * Version 7 (a deck crane; this one): 13 characters of choices (65 bits) and the check:
+ * 14 characters, shown as K7P4Q-2ZX9D-MR3X. Its number is 2^64 + the choices' number.
+ *
+ * Version 6 (the roof's colour): 14 characters too, its number the choices' number (below
+ * 2^64). Read with no deck crane. Codes may
  * grow when choices are added (owner: as many variations as possible; what matters is an
  * easy way to carry a code into VR).
  *
@@ -35,8 +38,8 @@
  * Twin engines didn't fit in what was left of the 45 bits, so version 3 went to 11.
  */
 
-/** The building rules this code was made with (6: the roof's colour, 14 characters). */
-export const DESIGN_VERSION = 6;
+/** The building rules this code was made with (7: a deck crane, 14 characters). */
+export const DESIGN_VERSION = 7;
 
 /** One choice: its index on its scale, 0 .. steps-1. */
 export interface ShipDesign {
@@ -63,6 +66,8 @@ export interface ShipDesign {
   roofEdge: number;
   /** The roof's colour (ROOF_PAINTS): the hull's topsides colour, or one of its own (an orange roof is common on workboats, owner). */
   roofPaint: number;
+  /** A deck crane for cargo (owner): 0 none, 1 on the foredeck, 2 on the aft deck. */
+  deckCrane: number;
   /** Front windows' rake (SCALES.windowRake): leaning aft (a fast patrol boat) .. upright .. leaning forward (a pilot house). */
   windowRake: number;
   /**
@@ -83,11 +88,13 @@ export interface ShipDesign {
 }
 
 /** A design as earlier versions held it: a step-down floor or not, rather than its height and the house's shape. */
-export type OldDesign = Omit<ShipDesign, 'floor' | 'visor' | 'roofThickness' | 'roofEdge' | 'roofPaint' | 'windowRake' | 'lowerFront'> & { sunk: number };
+export type OldDesign = Omit<ShipDesign, 'floor' | 'visor' | 'roofThickness' | 'roofEdge' | 'roofPaint' | 'deckCrane' | 'windowRake' | 'lowerFront'> & { sunk: number };
 /** A design as version 4 held it: a raked roof rather than its thickness and front edge. */
-export type V4Design = Omit<ShipDesign, 'roofThickness' | 'roofEdge' | 'roofPaint'> & { roofRake: number };
+export type V4Design = Omit<ShipDesign, 'roofThickness' | 'roofEdge' | 'roofPaint' | 'deckCrane'> & { roofRake: number };
 /** A design as version 5 held it: no roof colour. */
-export type V5Design = Omit<ShipDesign, 'roofPaint'>;
+export type V5Design = Omit<ShipDesign, 'roofPaint' | 'deckCrane'>;
+/** A design as version 6 held it: no deck crane. */
+export type V6Design = Omit<ShipDesign, 'deckCrane'>;
 
 /** Version 2's choices, in its code's order (the hull type first, most significant). */
 const V2_FIELDS: { key: keyof OldDesign; steps: number }[] = [
@@ -162,8 +169,11 @@ const V5_FIELDS: { key: keyof V5Design; steps: number }[] = [
   { key: 'paint', steps: 8 },
 ];
 
-/** Each choice's number of steps, in the code's order (version 6: version 5's, then the roof's colour). */
-export const FIELDS: { key: keyof ShipDesign; steps: number }[] = [...V5_FIELDS, { key: 'roofPaint', steps: 5 }];
+/** Version 6's choices: version 5's, then the roof's colour. */
+const V6_FIELDS: { key: keyof V6Design; steps: number }[] = [...V5_FIELDS, { key: 'roofPaint', steps: 5 }];
+
+/** Each choice's number of steps, in the code's order (version 7: version 6's, then the deck crane). */
+export const FIELDS: { key: keyof ShipDesign; steps: number }[] = [...V6_FIELDS, { key: 'deckCrane', steps: 3 }];
 
 /** Version 1's choices, each in whole bits (for reading its codes). */
 const V1_FIELDS: { key: keyof OldDesign; bits: number; steps: number }[] = [
@@ -235,6 +245,7 @@ export const DEFAULT_DESIGN: ShipDesign = {
   roofThickness: 0,
   roofEdge: 1,
   roofPaint: 0,
+  deckCrane: 0,
   windowRake: 4,
   lowerFront: 0,
   twin: 0,
@@ -245,8 +256,10 @@ export const DEFAULT_DESIGN: ShipDesign = {
 };
 
 const ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
-/** Every combination of version 6's choices: its codes are the numbers 0 .. this - 1. */
+/** Every combination of version 7's choices: its codes are the numbers V7_BASE .. V7_BASE + this - 1. */
 export const COMBINATIONS = FIELDS.reduce((a, f) => a * BigInt(f.steps), 1n);
+const V7_BASE = 1n << 64n;
+const V6_COMBINATIONS = V6_FIELDS.reduce((a, f) => a * BigInt(f.steps), 1n);
 /** Where version 5's codes start (13 characters), and how many there are. */
 const V5_BASE = 1n << 59n;
 const V5_COMBINATIONS = V5_FIELDS.reduce((a, f) => a * BigInt(f.steps), 1n);
@@ -276,9 +289,14 @@ function write(all: bigint, count: number): string {
   return s.match(/.{1,5}/g)!.join('-');
 }
 
-/** The design as its code, e.g. 'K7P4Q-2ZX9D-MR3X' (version 6, 14 characters). */
+/** The design as its code, e.g. 'K7P4Q-2ZX9D-MR3X' (version 7, 14 characters). */
 export function encodeDesign(d: ShipDesign): string {
-  return write(pack(d, FIELDS), 13);
+  return write(V7_BASE + pack(d, FIELDS), 13);
+}
+
+/** A version 6 design as its code: for checking old codes still read. */
+export function encodeDesignV6(d: V6Design): string {
+  return write(pack(d, V6_FIELDS), 13);
 }
 
 /** A version 5 design as its code: for checking old codes still read. */
@@ -308,12 +326,12 @@ export function encodeDesignV3(d: OldDesign): string {
  */
 function upgrade(d: OldDesign): ShipDesign {
   const { sunk, ...rest } = d;
-  return { ...rest, floor: sunk ? 2 : 3, visor: 1, roofThickness: 0, roofEdge: 1, roofPaint: 0, windowRake: 4, lowerFront: 0 };
+  return { ...rest, floor: sunk ? 2 : 3, visor: 1, roofThickness: 0, roofEdge: 1, roofPaint: 0, deckCrane: 0, windowRake: 4, lowerFront: 0 };
 }
 
 /**
  * A code back to its design, or why it can't be read. Forgiving as typed: any case, with
- * or without the dashes or spaces, and I / L read as 1, O as 0. 14 characters (version 6),
+ * or without the dashes or spaces, and I / L read as 1, O as 0. 14 characters (versions 6 and 7),
  * 13 (versions 4 and 5), 11 (version 3), or 10 (versions 1 and 2: single engines).
  */
 export function decodeDesign(code: string): { design: ShipDesign } | { error: string } {
@@ -334,22 +352,27 @@ export function decodeDesign(code: string): { design: ShipDesign } | { error: st
   let all = 0n;
   for (const v of body) all = (all << 5n) | BigInt(v);
   if (s.length === 14) {
-    if (all >= COMBINATIONS) return { error: `that code is from a newer Shipyard than this game (it reads versions 1 to ${DESIGN_VERSION})` };
-    const v6 = unpack<ShipDesign>(all, FIELDS);
-    return 'design' in v6 ? { design: { ...v6.design, lowerFront: 0, roofEdge: Math.max(1, v6.design.roofEdge) } } : v6;
+    if (all >= V7_BASE) {
+      if (all - V7_BASE >= COMBINATIONS) return { error: `that code is from a newer Shipyard than this game (it reads versions 1 to ${DESIGN_VERSION})` };
+      const v7 = unpack<ShipDesign>(all - V7_BASE, FIELDS);
+      return 'design' in v7 ? { design: { ...v7.design, lowerFront: 0, roofEdge: Math.max(1, v7.design.roofEdge) } } : v7;
+    }
+    if (all >= V6_COMBINATIONS) return { error: 'that isn’t a Shipyard code' };
+    const v6 = unpack<V6Design>(all, V6_FIELDS);
+    return 'design' in v6 ? { design: { ...v6.design, lowerFront: 0, roofEdge: Math.max(1, v6.design.roofEdge), deckCrane: 0 } } : v6;
   }
   if (s.length === 13) {
     if (all >= V5_BASE) {
       if (all - V5_BASE >= V5_COMBINATIONS) return { error: 'that isn’t a Shipyard code' };
       const v5 = unpack<V5Design>(all - V5_BASE, V5_FIELDS);
-      return 'design' in v5 ? { design: { ...v5.design, lowerFront: 0, roofEdge: Math.max(1, v5.design.roofEdge), roofPaint: 0 } } : v5;
+      return 'design' in v5 ? { design: { ...v5.design, lowerFront: 0, roofEdge: Math.max(1, v5.design.roofEdge), roofPaint: 0, deckCrane: 0 } } : v5;
     }
     if (all >= V4_COMBINATIONS) return { error: 'that isn’t a Shipyard code' };
     // Version 4: its raked roof becomes the thinnest flat slab, square at the front.
     const v4 = unpack<V4Design>(all, V4_FIELDS);
     if (!('design' in v4)) return v4;
     const { roofRake: _r, ...rest } = v4.design;
-    return { design: { ...rest, lowerFront: 0, roofThickness: 0, roofEdge: 1, roofPaint: 0 } };
+    return { design: { ...rest, lowerFront: 0, roofThickness: 0, roofEdge: 1, roofPaint: 0, deckCrane: 0 } };
   }
   const old = s.length === 11 ? (all >= V3_COMBINATIONS ? { error: 'that isn’t a Shipyard code' } : unpack<OldDesign>(all, V3_FIELDS)) : decodeV12(all);
   return 'design' in old ? { design: upgrade(old.design) } : old;

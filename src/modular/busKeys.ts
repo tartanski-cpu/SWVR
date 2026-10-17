@@ -172,6 +172,25 @@ function heading(s: VesselState): number {
 }
 
 const spot = CONFIG.vessels.workboat.spotlight;
+const crane = CONFIG.modules.deckCrane;
+
+/** Does she carry a deck crane (its state is kept with her: VesselState.modules)? */
+const hasCrane = (s: VesselState) => !!s.modules && Object.values(s.modules).some((e) => e.id === 'deck.crane');
+
+/**
+ * A deck crane key: there only on a boat with a crane. `unset`: a setting's value before its
+ * joystick is first touched (the crane's stowed angle, not 0).
+ */
+function craneKey(spec: BusKeySpec, unset?: { field: keyof VesselControls; value: number }): BusKeySpec {
+  const get = spec.bind.get;
+  return {
+    ...spec,
+    bind: {
+      ...spec.bind,
+      get: (s) => (!hasCrane(s) ? undefined : unset ? (s.controls[unset.field] ?? unset.value) : get(s)),
+    },
+  };
+}
 const mon = CONFIG.vessels.workboat.fireMonitor;
 
 export const BUS_KEYS = {
@@ -306,6 +325,13 @@ export const BUS_KEYS = {
   'fenders.out': control('fenders', 'Fenders over the side (on) or stowed.', { aliases: ['fenders'] }),
   'winch.heaveIn': control('winchHeave', 'Tow winch HEAVE IN button held.', { aliases: ['winchHeave'] }),
   'winch.payOut': control('winchPayOut', 'Tow winch PAY OUT button held.', { aliases: ['winchPayOut'] }),
+  // The deck crane (modules/deckCrane): its joystick asks for slew and boom angles, its
+  // buttons hoist and hook. Only on a boat that has one.
+  'crane.slew': craneKey(setting('craneSlew', [-crane.slewLimitDeg, crane.slewLimitDeg], 'deg', 'Deck crane: the slew its joystick asks for, + to starboard of straight ahead (the crane follows at its own rate).', { hold: 'crane', writer: 'module' }), { field: 'craneSlew', value: crane.stow.slewDeg }),
+  'crane.luff': craneKey(setting('craneLuff', [crane.luffMinDeg, crane.luffMaxDeg], 'deg', 'Deck crane: the boom angle its joystick asks for, above level.', { hold: 'crane', writer: 'module' }), { field: 'craneLuff', value: crane.stow.luffDeg }),
+  'crane.hoistUp': craneKey(control('craneHoistUp', 'Deck crane HOIST UP button held.', { writer: 'module' })),
+  'crane.hoistDown': craneKey(control('craneHoistDown', 'Deck crane HOIST DOWN button held.', { writer: 'module' })),
+  'crane.hook': craneKey(control('craneHook', 'Deck crane HOOK button held: a press takes the item under the hook, or sets down the one on it.', { writer: 'module' })),
   'trawl.shoot': control('trawl', 'TRAWL switch: shoot the net (on) / haul it (off). It follows the net when worked by hand.', {
     aliases: ['trawl'],
     followedBy: 'fishing',

@@ -20,7 +20,7 @@ import { combine, type PointMass } from './massProperties';
 import { flattenMounts, type ModuleLibrary, type MountedModule, type Recipe } from './recipe';
 import type { Transform } from './socket';
 
-const matrixOf = (t: Transform): THREE.Matrix4 => {
+export const matrixOf = (t: Transform): THREE.Matrix4 => {
   const [rx, ry, rz] = (t.rotationDeg ?? [0, 0, 0]).map((d) => (d * Math.PI) / 180);
   return new THREE.Matrix4().compose(new THREE.Vector3(...t.position), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, rz, 'YXZ')), new THREE.Vector3(1, 1, 1));
 };

@@ -8,7 +8,7 @@ import { applyPlayerIntent } from '../player/playerControl';
 import { applyRescueIntent, isRescueIntent, stepRescue } from '../rescue/rescue';
 import { applyBoardIntent, isBoardIntent } from '../board/board';
 import { applyVesselIntent, stepRefuelling } from '../vessel/vesselControl';
-import { applyCargoIntent, deckVelocitiesBefore, isCargoIntent, payloadOf, stepDeckCargo } from '../cargo/cargo';
+import { applyCargoIntent, deckVelocitiesBefore, isCargoIntent, payloadOf, stepCraneCargo, stepDeckCargo } from '../cargo/cargo';
 import * as THREE from 'three';
 import { CONFIG } from '../config';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
@@ -122,6 +122,8 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
     stepHullWear(vessel, dt);
   }
   for (const vessel of Object.values(world.vessels)) if (onCrane(vessel)) stepTender(world, vessel, dt);
+  // The deck cranes' HOOK presses (their machinery has just marked them).
+  stepCraneCargo(world);
 
   stepForecast(world);
   stepTraffic(world, dt);

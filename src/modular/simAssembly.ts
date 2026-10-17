@@ -23,7 +23,7 @@ import type { BreakerName } from '../vessel/vesselState';
 import { busOf } from './bus';
 import type { BusKey } from './busKeys';
 import type { HullLibrary } from './hull';
-import { portIO, type GearFacts, type GearFootprint, type GearKind, type HullQueries, type ModuleDefinition, type PhysicsPort, type PortIO, type PowerRole, type SimContext } from './module';
+import { portIO, restoreModuleState, type GearFacts, type GearFootprint, type GearKind, type HullQueries, type ModuleDefinition, type PhysicsPort, type PortIO, type PowerRole, type SimContext } from './module';
 import { flattenMounts, validateRecipe, type ModuleLibrary, type Recipe } from './recipe';
 import type { Socket } from './socket';
 import { mountPlaces } from './vesselAssembly';
@@ -77,9 +77,12 @@ export function buildSimDef(recipe: Recipe, lib: { hulls: HullLibrary; modules: 
   const footprints: GearFootprint[] = [];
   const places = mountPlaces(mounted);
   for (const m of mounted) {
-    footprints.push(...(m.def.footprints?.(m.config, hull) ?? []));
-    // The first module giving each kind of gear tells the world about it.
     const place = places.get(m.path)!;
+    // Gear drawn in the boat's axes gives its footprints there; gear drawn from its socket
+    // (placeable: the deck crane) gives them in its own axes, put onto the boat here.
+    const own = m.def.footprints?.(m.config, hull) ?? [];
+    footprints.push(...(m.def.view?.frame === 'boat' ? own : own.map((f) => placeFootprint(f, place))));
+    // The first module giving each kind of gear tells the world about it.
     const at = (p: readonly [number, number, number]): [number, number, number] => {
       const w = new THREE.Vector3(...p).applyMatrix4(place);
       return [w.x, w.y, w.z];
@@ -93,6 +96,25 @@ export function buildSimDef(recipe: Recipe, lib: { hulls: HullLibrary; modules: 
   const stores = mounts.flatMap((m) => m.roles.filter((r) => r.role === 'store'));
   if (stores.length > 1) throw new Error(`Recipe '${recipe.id}': more than one battery bank (one house bank for now)`);
   return { recipe: recipe.id, mounts, gear, footprints };
+}
+
+/** A footprint in a module's axes onto the boat's (a box: the box around its turned corners). */
+function placeFootprint(f: GearFootprint, place: THREE.Matrix4): GearFootprint {
+  const lift = new THREE.Vector3().setFromMatrixPosition(place).y;
+  const on = (x: number, z: number) => new THREE.Vector3(x, 0, z).applyMatrix4(place);
+  const height = { top: f.top + lift, ...(f.base !== undefined ? { base: f.base + lift } : {}) };
+  if ('r' in f) {
+    const c = on(f.x, f.z);
+    return { x: c.x, z: c.z, r: f.r, ...height };
+  }
+  const corners = [on(f.x0, f.z0), on(f.x1, f.z0), on(f.x0, f.z1), on(f.x1, f.z1)];
+  return {
+    x0: Math.min(...corners.map((p) => p.x)),
+    x1: Math.max(...corners.map((p) => p.x)),
+    z0: Math.min(...corners.map((p) => p.z)),
+    z1: Math.max(...corners.map((p) => p.z)),
+    ...height,
+  };
 }
 
 const runtimes = new WeakMap<VesselState, VesselRuntime>();
@@ -117,10 +139,17 @@ function makeRuntime(sim: VesselSimDef, v: VesselState): VesselRuntime {
     const io = portIO(bus, m.keys);
     if (m.def.sim) {
       const ctx: SimContext<unknown> = { config: m.config, socket: m.socket, path: m.path, io, env };
-      // Until M6 a converted machine's state is where today's VesselState keeps it. (A
-      // module with state of its own would keep it in VesselState.modules, so snapshots and
-      // saves carry it: none needs one yet.)
-      const state = m.def.sim.legacyState ? m.def.sim.legacyState(v) : m.def.sim.init(m.config);
+      // Until M6 a converted machine's state is where today's VesselState keeps it. A module
+      // with state of its own keeps it in VesselState.modules (the deck crane), so snapshots
+      // and saves carry it, and its view reads it there.
+      let state: unknown;
+      if (m.def.sim.legacyState) state = m.def.sim.legacyState(v);
+      else {
+        v.modules ??= {};
+        const saved = v.modules[m.path];
+        v.modules[m.path] = { ...restoreModuleState(m.def, m.config, saved)!, id: m.def.id };
+        state = v.modules[m.path].s;
+      }
       bound.push({ ctx, def: m.def, state });
     }
     for (const r of m.roles) {

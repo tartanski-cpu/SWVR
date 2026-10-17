@@ -430,6 +430,8 @@ export type GearFootprint = Footprint | DiscFootprint;
 export interface ModuleStateEnvelope {
   v: number;
   s: unknown;
+  /** Which module it is ('deck.crane'): set where a boat keeps it (VesselState.modules), so her bus knows what she carries. */
+  id?: string;
 }
 
 /** A fresh state for a newly fitted module (none for modules without a sim half). */

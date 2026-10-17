@@ -1,7 +1,8 @@
+import type { ModuleStateEnvelope } from '../modular/module';
 import type { EntityId } from '../core/ids';
 import { CONFIG } from '../config';
 import type { Quat, Vec3 } from '../core/math';
-import { gearOf } from '../boats/sims';
+import { freshModuleStates, gearOf } from '../boats/sims';
 
 /** Control positions as set by players (via intents). */
 export interface VesselControls {
@@ -67,6 +68,16 @@ export interface VesselControls {
    */
   winchHeave?: number;
   winchPayOut?: number;
+  /**
+   * The deck crane's controls (modules/deckCrane): the slew and boom angles its joystick
+   * asks for (deg; the crane follows at its own rates), and its hold-to-run HOIST UP / DOWN
+   * and HOOK buttons (1 while held). Unset until a boat has a crane.
+   */
+  craneSlew?: number;
+  craneLuff?: number;
+  craneHoistUp?: number;
+  craneHoistDown?: number;
+  craneHook?: number;
   netOut?: number;
   netIn?: number;
 }
@@ -199,6 +210,11 @@ export interface VesselState {
   tender?: TenderState;
   /** 12 V electrics, boats that have them (vessel/electrics.ts). */
   electrics?: ElectricsState;
+  /**
+   * Modules with state of their own (modular boats; the first: the deck crane), by their
+   * path on her ('deckCrane'): plain JSON, so it is sent to crew and saved like the rest.
+   */
+  modules?: Record<string, ModuleStateEnvelope>;
   /** Water in the bilge, 0 (dry) .. 1 (full), boats with a bilge pump (vessel/bilge.ts). */
   bilge?: number;
   /** Hull damage, 0 (sound) .. 1: it leaks into the bilge (vessel/wear.ts). */
@@ -287,5 +303,7 @@ export function createVesselState(id: EntityId, defId: string): VesselState {
     ...(gearOf(v, 'batteries')
       ? { electrics: { master: 1, selector: 1, soc: [1, 1] as [number, number], volts: 12.7, amps: 0, breakers: { instruments: 1, chart: 1, radio: 1, navLights: 1, deckLights: 1, bilge: 1, hydraulics: 1 } } }
       : {}),
+    // Her modules' own state (the deck crane), if any keep theirs here.
+    ...(freshModuleStates(defId) ? { modules: freshModuleStates(defId) } : {}),
   };
 }

@@ -186,6 +186,16 @@ Every value on a boat's bus (modular boats; `src/modular/busKeys.ts`). Generated
 | `winch.heaveIn` | on / off | player sets | legacy | `winchHeave` | Tow winch HEAVE IN button held. |
 | `winch.payOut` | on / off | player sets | legacy | `winchPayOut` | Tow winch PAY OUT button held. |
 
+## crane
+
+| Key | Values | Use | Written by | Old names | What it is |
+|---|---|---|---|---|---|
+| `crane.slew` | deg, -170 to 170 | player sets; held: crane | module |  | Deck crane: the slew its joystick asks for, + to starboard of straight ahead (the crane follows at its own rate). |
+| `crane.luff` | deg, -5 to 70 | player sets; held: crane | module |  | Deck crane: the boom angle its joystick asks for, above level. |
+| `crane.hoistUp` | on / off | player sets | module |  | Deck crane HOIST UP button held. |
+| `crane.hoistDown` | on / off | player sets | module |  | Deck crane HOIST DOWN button held. |
+| `crane.hook` | on / off | player sets | module |  | Deck crane HOOK button held: a press takes the item under the hook, or sets down the one on it. |
+
 ## trawl
 
 | Key | Values | Use | Written by | Old names | What it is |

@@ -5,6 +5,7 @@ import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUti
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 import { kindOf, lashPointFor, portById, type CargoItem } from './cargo';
 import { hasUpgrade } from '../career/career';
+import { hookOnBoat } from './craneHook';
 
 const MAX = 48;
 const STRAP = 0xe8641c;
@@ -195,6 +196,14 @@ export class CargoView {
         if (!root) continue;
         root.localToWorld(this.p.fromArray(c.at.pos));
         root.getWorldQuaternion(this.q).multiply(this.qYaw.setFromAxisAngle(this.up, c.at.yaw));
+      } else if ('hook' in c.at) {
+        // Hanging under her crane's hook (its base a load's height below the hook).
+        const v = world.vessels[c.at.hook];
+        root = vesselRoots.get(c.at.hook) ?? null;
+        const hook = v && root ? hookOnBoat(v, c.at.crane, this.p) : null;
+        if (!hook || !root) continue;
+        root.localToWorld(hook.setY(hook.y - sy));
+        root.getWorldQuaternion(this.q);
       } else {
         const pose = carried(c);
         if (!pose) continue;

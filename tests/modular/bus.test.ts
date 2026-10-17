@@ -46,7 +46,8 @@ describe('bus key registry', () => {
       const [lo, hi] = spec.range ?? [-10, 10];
       return now === hi ? lo : hi;
     };
-    const keys = allKeys().filter((k) => specOf(k).bind.set && !specOf(k).press);
+    // Only the keys she has (a deck crane's are there only on a boat with one).
+    const keys = allKeys().filter((k) => specOf(k).bind.set && !specOf(k).press && bus.has(k));
     expect(keys.length).toBeGreaterThan(40);
     for (const k of keys) {
       const v = other(k);

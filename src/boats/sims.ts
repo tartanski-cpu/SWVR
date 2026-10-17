@@ -6,7 +6,7 @@
 import { buildSimDef, runtimeFor, type VesselRuntime, type VesselSimDef } from '../modular/simAssembly';
 import type { VesselState } from '../vessel/vesselState';
 import { hullQueries } from '../modular/hull';
-import type { GearFacts, GearFootprint, GearKind } from '../modular/module';
+import { initModuleState, type GearFacts, type GearFootprint, type GearKind, type ModuleStateEnvelope } from '../modular/module';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 import type { Recipe } from '../modular/recipe';
 import { LIBRARY, RECIPES, setDesignBoat } from './library';
@@ -36,7 +36,7 @@ export function useDesign(d: ShipDesign): DesignedBoat {
 }
 
 /** Her recipe's simulation side (null: she has none). */
-function simOf(defId: string): VesselSimDef | null {
+export function simOf(defId: string): VesselSimDef | null {
   let sim = sims.get(defId);
   if (sim === undefined) {
     const recipe = RECIPES[defId];
@@ -67,4 +67,15 @@ export function footprintsOf(v: { defId: string }): readonly GearFootprint[] {
 export function vesselRuntime(v: VesselState): VesselRuntime | null {
   const sim = simOf(v.defId);
   return sim ? runtimeFor(sim, v) : null;
+}
+
+/**
+ * A new boat's own module state (modules that keep theirs in VesselState.modules, such as
+ * the deck crane), as they start; undefined if she has none. Made with her, so their keys
+ * are there from her first moment, not only once her machinery has first run.
+ */
+export function freshModuleStates(defId: string): Record<string, ModuleStateEnvelope> | undefined {
+  const out: Record<string, ModuleStateEnvelope> = {};
+  for (const m of simOf(defId)?.mounts ?? []) if (m.def.sim && !m.def.sim.legacyState) out[m.path] = { ...initModuleState(m.def, m.config)!, id: m.def.id };
+  return Object.keys(out).length ? out : undefined;
 }

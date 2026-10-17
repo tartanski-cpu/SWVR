@@ -189,7 +189,7 @@ export function assembleView(recipe: Recipe, def: VesselDef, lib: { hulls: HullL
     update(state, dt, s, frame = NO_FRAME) {
       if (modules.length) {
         const read = busOf(state);
-        for (const m of modules) m.instance.update(read, undefined, dt, frame);
+        for (const m of modules) m.instance.update(read, state.modules?.[m.path]?.s, dt, frame);
         if (interlocks.length) {
           disabled.clear();
           for (const il of interlocks) if (evalCondition(il.cond, read)) for (const c of il.controls) disabled.add(c);

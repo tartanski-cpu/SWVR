@@ -1,6 +1,6 @@
 /** Shipyard designs: the choices round-trip through their 14-character code, typos are caught, older 10-, 11- and 13-character codes still read. */
 import { describe, expect, it } from 'vitest';
-import { COMBINATIONS, decodeDesign, DEFAULT_DESIGN, encodeDesign, encodeDesignV2, encodeDesignV3, encodeDesignV4, encodeDesignV5, FIELDS, type OldDesign, type ShipDesign } from '../../src/shipyard/design';
+import { COMBINATIONS, decodeDesign, DEFAULT_DESIGN, encodeDesign, encodeDesignV2, encodeDesignV3, encodeDesignV4, encodeDesignV5, encodeDesignV6, FIELDS, type OldDesign, type ShipDesign } from '../../src/shipyard/design';
 
 /** The starting design as versions 1-3 held it (a step-down floor, the house a box). */
 const { floor: _f, visor: _v, roofThickness: _t, roofEdge: _e, roofPaint: _p, windowRake: _w, lowerFront: _l, ...rest } = DEFAULT_DESIGN;
@@ -30,9 +30,18 @@ describe('Shipyard design codes', () => {
     expect(COMBINATIONS < 1n << 65n).toBe(true);
   });
 
+  it('reads version 6 codes (before the deck crane) as the same boats, without a crane', () => {
+    const { deckCrane: _c, ...v6 } = { ...DEFAULT_DESIGN, roofPaint: 2, visor: 3 };
+    const code = encodeDesignV6(v6);
+    expect(code).toHaveLength(16);
+    expect(decodeDesign(code)).toEqual({ design: { ...v6, deckCrane: 0 } });
+    // And a crane makes a different code.
+    expect(encodeDesign({ ...DEFAULT_DESIGN, deckCrane: 1 })).not.toBe(encodeDesign(DEFAULT_DESIGN));
+  });
+
   it('reads version 5 codes (13 characters) as the same boats, the roof the hull\'s colour', () => {
-    const { roofPaint: _p2, ...v5 } = { ...DEFAULT_DESIGN, roofThickness: 2, roofEdge: 3, visor: 4 };
-    expect(decodeDesign(encodeDesignV5(v5))).toEqual({ design: { ...v5, roofPaint: 0 } });
+    const { roofPaint: _p2, deckCrane: _c2, ...v5 } = { ...DEFAULT_DESIGN, roofThickness: 2, roofEdge: 3, visor: 4 };
+    expect(decodeDesign(encodeDesignV5(v5))).toEqual({ design: { ...v5, roofPaint: 0, deckCrane: 0 } });
   });
 
   it('reads version 4 codes (the raked roof) as the same boats, the roof the thinnest slab, square at the front', () => {

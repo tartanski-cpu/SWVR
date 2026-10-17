@@ -485,7 +485,14 @@ Design your own boat at https://tartanski-cpu.github.io/SWVR/next/shipyard.html 
 
 1. Pick a hull type (landing craft, gillnetter, workboat or pilot boat), size her with the sliders, and rake her stem from plumb to 50°.
 2. Place and size the wheelhouse, and shape it: its floor height (sunk below the deck or raised to see over the bow, with steps at the door), the front windows (raked aft for a fast patrol look, upright, or reverse-raked like a pilot house), and the roof: one flat slab, its visor over the windows, its thickness (10, 20 or 30 cm) and its front edge, raked back as it rises at 30, 45 or 60°. Designed houses have no roof ladder or rail.
-3. Choose an engine, single or twin (its propeller is matched by trial), basic or advanced controls, a paint, and the roof's colour (the hull's, or orange, white, grey or black).
+3. Add a **deck crane** if you like, on the foredeck or the aft deck (see below).
+4. Choose an engine, single or twin (its propeller is matched by trial), basic or advanced controls, a paint, and the roof's colour (the hull's, or orange, white, grey or black).
+
+**The deck crane** is worked from the post beside it, once the engine is running and the DECK HYD breaker is on:
+
+- the joystick slews it (sideways) and raises or lowers the boom (push to raise);
+- HOIST UP and HOIST DOWN (hold) haul in and pay out the wire;
+- HOOK takes the crate or drum under the hook (up to 800 kg), and pressed again sets it down on the deck, the quay, or into the sea.
 
 The page shows her in 3D (around her and at the helm), her figures and her sea trials, then gives her **code**: 14 characters, like `XXXXX-XXXXX-XXXX` (older 10-, 11- and 13-character codes still work). **Try her in the game** opens the game in her. Or add `?design=` and the code to the game's address, also on the Quest. Buying her at the boatyard in the game comes next.
 

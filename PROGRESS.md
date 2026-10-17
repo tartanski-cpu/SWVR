@@ -3077,6 +3077,48 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Also checked:** the shaped house's other overlaps (roof and lining, console, floor, door sill). None put two colours in one plane.
 - **Checked:** typecheck; all tests; a close render of the front corner.
 
+### A placeable deck crane, a module of its own (owner)
+
+- **The owner asked** to finish the module build-out and for a deck crane, independent of the skiff's crane, as a placeable module. The owner noted the wipers and the rain glass belong with the wheelhouse, and the hand gear is already on Shipyard designs, so the deck crane is this round's piece. My open questions went unanswered, so I used my recommendations: controls on a post at the crane; it lifts the game's cargo, hanging rigid under the hook (no swing); the load's weight acts on the boat at the hook; placeable on Shipyard designs.
+- **The module (`modules/deckCrane`, `deck.crane`, fits any `deck.equipment` socket):**
+  - a column that slews on a plinth, a boom that luffs on a ram, a wire to a hook;
+  - drawn in its socket's axes, so it can go anywhere and face any way;
+  - worked from a control post beside it: a joystick (sideways slews, push raises the boom), HOIST UP and HOIST DOWN (hold), and HOOK;
+  - it moves only with deck hydraulic pressure (engine running and the DECK HYD breaker on), at its own rates;
+  - designs with a crane also get the hydraulic pump on the engine's power take-off.
+- **Its state is its own.** The angles it has reached, the wire out and what's on the hook live in `VesselState.modules` (new: module state kept with the boat, so crew in multiplayer see it move). It is made with the boat, so its controls work from her first moment.
+- **Its bus keys** (`crane.slew`, `crane.luff`, `crane.hoistUp`, `crane.hoistDown`, `crane.hook`) exist only on a boat with a crane, so the other boats' runs are unchanged (golden runs identical).
+- **Lifting cargo (`cargo/cargo.ts`, `stepCraneCargo`; `cargo/craneHook.ts`):**
+  - **HOOK with an empty hook** takes the nearest free crate or drum whose top is within `hookReach` of the hook, up to the crane's safe working load;
+  - **HOOK with a load** sets it down on what's under it, once it's lowered close enough:
+    - her own deck (if there's room and payload);
+    - the quay or shore (delivered there if it's that port's cargo);
+    - the sea: lost, or a pot is shot;
+  - too high, or no room: it stays on the hook;
+  - a hooked item can't be picked up by hand;
+  - its weight bears on the boat at the hook, so a load swung outboard heels her.
+- **Placeable on Shipyard designs:** a new choice, **Deck gear: None / Foredeck / Aft deck**.
+  - **Foredeck:** on the centreline, 0.9 m forward of the house, its post toward the house.
+  - **Aft deck:** to port, 0.9 m aft of the house, facing aft, its post inboard.
+  - **Weight:** its 420 kg is designed in, as the engine's is, so she still floats on her lines.
+  - **If it doesn't fit,** it's left off with a warning.
+  - **Codes:** version 7, still 14 characters; version 6 codes read as before, without a crane.
+- **Config:** `CONFIG.modules.deckCrane`:
+  - **size:** `plinthHeight`, `plinthRadius`, `columnHeight`, `columnRadius`, `boomLength` 3.4 m, `boomDepth`;
+  - **rates:** `slewRateDeg` 25, `luffRateDeg` 12, `hoistRate` 0.35 m/s;
+  - **limits:** `slewLimitDeg` 170, `luffMinDeg` -5, `luffMaxDeg` 70, `wireMin` 0.4, `wireMax` 6 m;
+  - **loads:** `swlKg` 800, `massKg` 420;
+  - **positions:** `stow` (its angles before the stick is touched), `post` (the control post's place), `hookReach` 0.6 m.
+- **Footprints:** a module's own footprints are now turned and moved with its socket (`placeFootprint` in `simAssembly.ts`), so the walk area keeps you out of the column wherever it stands.
+- **Checked:**
+  - typecheck; all tests (517), including new ones:
+    - it builds fore and aft on every hull, valid and level;
+    - it holds without pressure and moves at its rates;
+    - it hooks, carries and sets down a crate, and won't lift over its safe working load;
+    - version 6 codes still read;
+  - in the headless browser, in a design moored at Calder Haven: started the engine, raised the boom, hooked a crate off the foredeck, swung it to starboard (she heeled about 1°), and landed it on the quay.
+- **Not done yet:** the tow winch, A-frame, net drum, windlass and tender crane are modules but drawn at the workboat's fixed places. Making them placeable is next.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

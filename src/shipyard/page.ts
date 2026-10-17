@@ -194,13 +194,15 @@ choices('engine', ENGINES.map((e) => ({ name: e.name, note: `${e.kg} kg with its
   box.onchange = () => change({ twin: box.checked ? 1 : 0 });
   controls.appendChild(row);
 }
-section('4. Controls');
+section('4. Deck gear');
+options('deckCrane', 'Deck crane', ['None', 'Foredeck', 'Aft deck']);
+section('5. Controls');
 choices('controls', [
   { name: 'Basic', note: 'Wheel, throttle, key and start, speed and depth, rpm.' },
   { name: 'Advanced', note: 'Adds lights, wipers, horn, searchlight, heading, engine monitor and the VHF.' },
 ]);
 const hex = (c: number) => `#${c.toString(16).padStart(6, '0')}`;
-section('5. Paint');
+section('6. Paint');
 {
   const box = document.createElement('div');
   box.className = 'swatches';
