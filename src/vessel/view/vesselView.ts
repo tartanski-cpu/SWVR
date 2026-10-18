@@ -2,6 +2,7 @@ import { buildTowModel } from '../../tow/towLook';
 import * as THREE from 'three';
 import type { VesselDef } from '../vesselDef';
 import type { VesselState } from '../vesselState';
+import { ONE_OFF_VIEWS } from '../../boats/oneOffViews';
 import { buildVesselMesh } from './hullMesh';
 
 /**
@@ -30,6 +31,9 @@ export class VesselView {
     this.root.name = `vessel:${vesselId}`;
     // A towable hull (towing missions) has its own model: a cruiser, logs, a barge.
     this.root.add(def.tow ? buildTowModel(def) : buildVesselMesh(def.hull, def.layout, def.exhaust?.position, def.livery));
+    // A one-off boat's own parts (boats/oneOffViews.ts: the Alaskan 38's bracket, outboards, rails).
+    const oneOff = ONE_OFF_VIEWS[def.id];
+    if (oneOff) this.root.add(oneOff(def));
   }
 
   snapshot(state: VesselState): void {

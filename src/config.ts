@@ -46,6 +46,8 @@ const PONTOON_LCB = 3.17;
  * cabin is placed from it.
  */
 const LC_FLOOR = 0.77;
+/** The Alaskan 38's house floor (m above the DWL): her pilothouse's, a step up from the cockpit deck (1.02 at the door). */
+const A38_FLOOR = 1.25;
 
 export const CONFIG = {
   sim: {
@@ -1221,6 +1223,188 @@ export const CONFIG = {
         navLights: [0, 3.07, 2.0] as [number, number, number],
         cleats: { bow: -4.6, stern: 4.7 },
       },
+    },
+
+    /**
+     * The Alaskan 38 (owner, Oct 2026): a one-off boat built from a video of a custom
+     * aluminium expedition / sport-fishing boat, designed afresh for the game in that spirit
+     * (src/boats/alaskan38/design.ts: her lines; boats/alaskan38/view.ts: her one-off parts).
+     * 11.6 m on the waterline; lofted, her deck runs 12.19 m from the transom (z = +6.09) to
+     * the stem (z = -6.09), with twin outboards on a bracket off the transom. Built in stages:
+     *   1  her hull, the bracket and outboards, spray rails and bow rail; a plain pilothouse
+     *      standing in for her superstructure; she floats and drives;
+     *   2  her superstructure (trunk cabin, raised pilothouse, saloon, cockpit overhead);
+     *   3  her interior.
+     * Here: her mass, handling, deck layout, and where her modules and her one-off parts go.
+     * Her machinery's settings are her recipe's (src/boats/alaskan38.json).
+     */
+    alaskan38: {
+      /**
+       * kg, as weighed (engines and batteries in): the displacement of her stations at the
+       * DWL, so she floats on her design waterline (tests/seaTrials.test.ts prints it:
+       * `VESSEL=alaskan38 npm run trials`). CG: z = her LCB (level trim); height 0.55 m above
+       * the DWL (a tall house, but the engines hang low aft and the tanks are in the bilge).
+       * Radii of gyration: roll ~0.4 B, pitch / yaw ~0.25 L.
+       */
+      mass: 9230,
+      /** Of which her two outboards (her recipe's twin diesel declares the same, 2 x 380 kg), at the bracket. */
+      engineKg: 760,
+      cg: [0, 0.55, 1.71] as [number, number, number],
+      gyradius: { roll: 1.5, pitch: 3.0, yaw: 3.1 },
+      addedMass: { surge: 0.05, sway: 0.4, heave: 0.6, roll: 0.25, pitch: 0.6, yaw: 0.3 },
+      /**
+       * As the landing craft's (per-area terms scale with her waterplane); the angular
+       * damping scaled to her size: roll ~30 % of critical for 10 t with GM ~1.3 m and her
+       * roll gyradius, pitch and yaw likewise.
+       */
+      damping: { vertical: 1300, verticalCd: 1.5, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 5, roll: 30000, pitch: 25000, yaw: 10000 },
+      /**
+       * The landing craft's curve on her 11.6 m waterline, the wave term levelling off at
+       * R/Delta = 0.13 past the hump (a deep vee runs a little harder than her flatter
+       * bottom): with 2 x 300 kW on the bracket she makes about 30 kn. No planing lift is
+       * modelled yet: she doesn't rise or trim at speed.
+       */
+      resistance: { lwl: 11.6, formFactor: 0.2, waveA: 1.0, waveB: 0.94, waveKnee: 0.3, waveCap: 0.13, asternFactor: 3.6, y: -0.3 },
+      /** She banks into a turn as the landing craft does (a deeper vee: a little more). */
+      planing: { bank: 0.07, fnStart: 0.3, fnFull: 0.7 },
+      /** Side-on: hull ~12 x 1.3 m plus the house ~5.5 x 2.4; end-on 3.8 x 1.3 plus 3 x 2.4 (m2). */
+      windage: { side: 30, front: 11, center: [0, 1.6, 0] as [number, number, number] },
+      /**
+       * Deck layout. The game's house box (`wheelhouse`) is her pilothouse and saloon
+       * together, from the foredeck to the cockpit: it is what you walk in, where the aft
+       * door hangs, where the rain lands on the glass and where her modules go. Its walls,
+       * windows and roof are **her own geometry** (`shell: 'oneOff'`: boats/alaskan38/view.ts
+       * draws them from this box and `house` below; the hull mesh draws only the floor and
+       * console). Stage 2: one floor at the pilothouse's height (1.25 m above the DWL, a step
+       * up from the cockpit deck); the sunk saloon floor and the raised helm come with the
+       * interior, stage 3. The front: three facets, reverse-raked 12° (a pilothouse front keeps
+       * sun and rain off the glass); the side glass from 0.9 m above the floor to 2.0 m, the
+       * roof at 2.2 m. No roof ladder: her roof carries the radar and the rod rack.
+       * The bulwarks 0.45 m round the cockpit (the game takes one height; the design's run
+       * lower forward, where the bow rail stands).
+       */
+      layout: {
+        wheelhouse: {
+          halfWidth: 1.5,
+          front: -2.8,
+          aft: 2.7,
+          floorY: A38_FLOOR,
+          roofY: A38_FLOOR + 2.2,
+          wall: 0.06,
+          doorWidth: 0.75,
+          doorHeight: 1.95,
+          windowSill: 0.9,
+          windowHead: 2.0,
+          /** The front sill level with the dash top (console 0.9 + dash 0.41). */
+          frontSill: 1.31,
+          /** Reverse-raked (leaning forward at the top), as a pilothouse front. */
+          frontRakeDeg: 12,
+          consoleDepth: 0.5,
+          consoleHeight: 0.9,
+          shape: { lowerRakeDeg: 0, lowerFromY: A38_FLOOR, roofEdgeDeg: 20, visor: 0.3, facet: { centre: 0.5, depth: 0.4 } },
+          shell: 'oneOff' as const,
+        },
+        roof: { thickness: 0.1, overhang: 0.12, railHeight: 0, edgeMargin: 0.25 },
+        doorButtons: { x: 0.5, height: 1.1 },
+        /** The engine space is a lazarette under the cockpit deck aft, to starboard (the outboards' fuel and batteries; a hatch in the deck). */
+        engineHatch: { x0: 0.2, x1: 1.0, z0: 4.6, z1: 5.4, pitDepth: 0.6 },
+        bulwarkHeight: 0.45,
+        railHeight: 0,
+        fairleadGap: 0,
+        deckEdgeMargin: 0.25,
+        bodyRadius: 0.22,
+      },
+      /**
+       * Her superstructure's own parts (boats/alaskan38/view.ts; drawing only; m, vessel
+       * axes), round the house box above:
+       *   pilothouseAft  where the pilothouse's side glass ends and the saloon's begins (a
+       *                  mullion), and where the saloon's sunk floor will start (stage 3);
+       *   sideDoor       the hinged door in the pilothouse's starboard side (drawn shut);
+       *   trunk          the trunk cabin on the foredeck, from the house front forward to
+       *                  `fwd`: `inset` in from the deck edge, `height` above the deck at the
+       *                  house, `fwdHeight` at its forward end (it tapers), a glass hatch;
+       *   eyebrow        the roof slab (tan: the eyebrow) reaching `visor` forward of the
+       *                  front glass and `sideOverhang` past the walls;
+       *   overhead       the roof carried aft over the cockpit to `aft`, on two posts;
+       *   radar, rodRack the radar dome and the rod rack on the overhead;
+       *   roofRail       grab rails along the roof's sides.
+       */
+      house: {
+        pilothouseAft: -0.5,
+        sideDoor: { z0: -1.35, z1: -0.65 },
+        trunk: { fwd: -4.9, height: 0.42, fwdHeight: 0.22, inset: 0.3, hatch: { z: -4.05, size: 0.55 } },
+        eyebrow: { visor: 0.3, sideOverhang: 0.12 },
+        overhead: { aft: 4.6, postRadius: 0.04 },
+        radar: { z: 3.3, radius: 0.3, height: 0.22 },
+        rodRack: { z: 4.3, halfWidth: 0.9, height: 0.55, rods: 6 },
+        roofRail: { height: 0.25, spacing: 1.2 },
+      },
+      /** The cockpit is her working deck: lashing points along both sides. */
+      cargo: {
+        maxPayloadKg: 1200,
+        slots: 0,
+        bowClear: 0.4,
+        aftClear: 0.4,
+        fixed: false,
+        lashPoints: [
+          [-1.3, 2.4], [-1.3, 3.8], [-1.3, 5.2],
+          [1.3, 2.4], [1.3, 3.8], [1.3, 5.2],
+        ] as [number, number][],
+        lashRange: 1.1,
+      },
+      /** At the helm, facing forward. */
+      boardingSpot: [0, A38_FLOOR, -1.3] as [number, number, number],
+      spawn: { x: 0, z: -22, dropHeight: 3, headingDeg: 90 },
+      /** The outboards' exhaust: out through their lower units, under water at the bracket (seen as a little spray astern). */
+      exhaust: { position: [0.5, 0.0, 7.6] as [number, number, number], direction: [0, -0.1, 1] as [number, number, number] },
+      /** Her hand gear: the extinguisher and torch brackets on the house's aft wall, port of the door; the binoculars on the dash top, port end. */
+      stowage: {
+        extinguisher: [-0.95, A38_FLOOR + 0.58, 2.55] as [number, number, number],
+        torch: [-0.7, A38_FLOOR + 0.68, 2.575] as [number, number, number],
+        binoculars: { at: [-0.7, A38_FLOOR + 1.35, -2.26] as [number, number, number], yawDeg: 20 },
+      },
+      /**
+       * Where her modules go (vessel axes, m): the console behind the faceted front; the
+       * breaker panel, battery master and selector, the radios; the lazarette; the "rudder"
+       * (the outboards steer: the rudder module stands at them, out of sight in their lower
+       * units); the cabin lamp; the roof; her cleats' stations.
+       */
+      places: {
+        console: [0, A38_FLOOR + 0.9, -1.84] as [number, number, number],
+        /** On the starboard wall by the helm, set back with the facet there. */
+        breakerPanel: [1.315, A38_FLOOR + 0.6, -1.5] as [number, number, number],
+        batteryMaster: [1.05, A38_FLOOR + 0.48, 2.635] as [number, number, number],
+        batterySelector: [1.3, A38_FLOOR + 0.48, 2.635] as [number, number, number],
+        vhf: [-1.2, A38_FLOOR + 2.03, -1.9] as [number, number, number],
+        fm: [1.15, A38_FLOOR + 2.09, -1.4] as [number, number, number],
+        /** The lazarette: the recipe's drawn engine is her fuel and electrics there (the outboards drive her). */
+        engineBed: [0.6, 0.6, 5.0] as [number, number, number],
+        engineSpace: [-0.2, 0.5, 5.0] as [number, number, number],
+        rudder: [0, -0.35, 7.9] as [number, number, number],
+        cabinLight: [0, A38_FLOOR + 2.08, 0.3] as [number, number, number],
+        searchlight: [0, A38_FLOOR + 2.3, -2.3] as [number, number, number],
+        navLights: [0, A38_FLOOR + 2.27, -1.0] as [number, number, number],
+        cleats: { bow: -5.3, stern: 5.6 },
+      },
+      /**
+       * Her one-off parts (boats/alaskan38/view.ts; drawing only). The outboard bracket: a
+       * welded box off the transom, `bottom` to `top` m above the DWL, `length` m long, its
+       * top the swim platform with a rail `railHeight` high; a gate in the transom at `gateX`
+       * with steps down. The outboards hang at +-`outboardX`.
+       */
+      bracket: { halfWidth: 1.55, bottom: 0.0, top: 0.45, length: 0.95, gateX: 0, railHeight: 0.9, outboardX: 0.5 },
+      /**
+       * Each outboard: cowl size; the leg from `legTop` (the cowl's underside) down to the
+       * anti-ventilation plate at `plateY`, the gearcase (and propeller centre) at `gearY`.
+       * Its propeller's place must agree with the recipe's (tests/alaskan38.test.ts).
+       */
+      outboards: { cowlWidth: 0.55, cowlHeight: 0.75, cowlLength: 0.85, legTop: 0.7, legWidth: 0.25, plateY: -0.1, gearY: -0.35, propDiameter: 0.4 },
+      /** Two spray rails along the topsides, at these shares of the way from the chine up to the deck edge, standing `proud` m. */
+      sprayRails: { shares: [0.3, 0.6], proud: 0.06, radius: 0.035, colour: 0x8a9096 },
+      /** The bow rail: posts on the deck edge from `from` (z) to the stem every `spacing` m, `height` m above the bulwark. */
+      bowRail: { from: -3.1, spacing: 0.7, height: 0.75 },
+      /** Her tinted glass (a second, see-through mesh): its colour and how dark (0 clear, 1 opaque). Dark from outside over her unlit interior; a light tint looking out. */
+      glass: { colour: 0x0e1a22, opacity: 0.3 },
     },
 
     /**
