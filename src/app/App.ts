@@ -61,6 +61,9 @@ import { CargoHands, type CargoHandsContext } from '../cargo/cargoHands';
 import { CargoView } from '../cargo/cargoView';
 import { berthById } from '../vessel/physics/mooring';
 import { XRControllers } from '../player/xrControllers';
+import { HandGestures } from '../player/handGesture';
+import { OwnHands } from '../player/ownHands';
+import { lookFromId } from '../net/avatarOutfits';
 import { BoatView } from './boatView';
 import type { Control } from '../controls/Control';
 import { InteractionSystem, type HandFrame } from '../controls/InteractionSystem';
@@ -414,6 +417,9 @@ export class App {
     right: { tracked: false, grip: new THREE.Vector3(), ray: new THREE.Ray(), quat: new THREE.Quaternion(), gripDown: false, gripPressed: false, triggerDown: false, triggerPressed: false },
   };
   private busyHands = { left: false, right: false };
+  /** VR hand gestures (grip and stick on a free hand) and your own hands drawn in them. */
+  private readonly gestures = new HandGestures();
+  private readonly ownHands = new OwnHands();
   private pointer: DesktopPointer | null = null;
   private readonly menu: WristMenu;
   /** Last comfort outputs, reused for the second rig sync in a frame. */
@@ -742,6 +748,7 @@ export class App {
     const onboard = this.world.players[this.localPlayerId]?.aboardVesselId;
     if (onboard) this.vesselViews.get(onboard)?.root.updateMatrixWorld();
     this.updateInteraction(inXR);
+    this.updateGestures(inXR);
     this.updateLocomotion(dt, inXR);
     this.syncRigToPlayer(0);
     this.updateLaser(dt);
@@ -1494,7 +1501,8 @@ export class App {
     const grabbing = { left: null as THREE.Vector3 | null, right: null as THREE.Vector3 | null };
     if (inXR) {
       for (const h of ['left', 'right'] as const) {
-        if (this.xrInput.isDown(h, XR_BUTTON.grip) && !this.busyHands[h]) grabbing[h] = this.controllers.worldPosition(h, this.gripW[h]);
+        // (Not a hand pointing or giving the finger: it stays where you hold it.)
+        if (this.xrInput.isDown(h, XR_BUTTON.grip) && !this.busyHands[h] && !this.gestures.gesturing(h)) grabbing[h] = this.controllers.worldPosition(h, this.gripW[h]);
       }
     }
     let desktopDelta: { x: number; y: number; z: number } | null = null;
@@ -1513,7 +1521,8 @@ export class App {
       const s = Math.sin(p.yaw);
       desktopDelta = { x: (x * c + z * s) * speedScale, y, z: (-x * s + z * c) * speedScale };
     }
-    const [lx, ly] = this.xrInput.hands.left.stick;
+    // A stick making a hand gesture (its grip held on a free hand) doesn't walk or turn.
+    const [lx, ly] = this.gestures.ownsStick('left') ? [0, 0] : this.xrInput.hands.left.stick;
     // Run (on foot): push the stick right to the edge - it ramps from walk to run over the
     // last fifth of its travel, so it doesn't lurch. (A stick click is already "board".)
     const push = Math.min(1, Math.max(0, (Math.hypot(lx, ly) - 0.8) / 0.2));
@@ -1526,7 +1535,7 @@ export class App {
       headForward: this.headFwd,
       grabbing,
       moveStick: inXR ? [lx * speedScale * run, -ly * speedScale * run] : [0, 0],
-      turnStick: inXR ? this.xrInput.hands.right.stick[0] : 0,
+      turnStick: inXR && !this.gestures.ownsStick('right') ? this.xrInput.hands.right.stick[0] : 0,
       desktopDelta,
       fly,
     });
@@ -2131,13 +2140,14 @@ export class App {
       right: hand('right'),
       leftQ: handQ('left'),
       rightQ: handQ('right'),
+      poses: inXR ? this.gestures.codes() : undefined,
       tool: this.chartTools?.heldTool() ?? null,
       laser: this.laser.pose(this.invFrame),
       gear: this.gear.map((g) => g.pose(this.invFrame)).find((x) => x) ?? null,
     };
     if (this.host) {
       p.name = pose.name;
-      p.avatar = { head: pose.head, left: pose.left, right: pose.right, leftQ: pose.leftQ, rightQ: pose.rightQ, tool: pose.tool, laser: pose.laser, gear: pose.gear };
+      p.avatar = { head: pose.head, left: pose.left, right: pose.right, leftQ: pose.leftQ, rightQ: pose.rightQ, poses: pose.poses, tool: pose.tool, laser: pose.laser, gear: pose.gear };
       return;
     }
     this.poseTimer += dt;
@@ -2552,6 +2562,20 @@ export class App {
       // Drawing on the chart only with the leaf unfolded.
       this.pointer.chart = (ray, b) => (this.chartTable?.isOpen ? tools.updateDesktop(this.chartCtx(), ray, b, this.frameDt) : { label: null, consumed: false });
     }
+  }
+
+  /**
+   * VR hand gestures (player/handGesture.ts) from each hand's grip and stick, after the
+   * controls have taken the hands they hold (busyHands); then your own hands drawn in them.
+   */
+  private updateGestures(inXR: boolean): void {
+    if (!inXR) this.gestures.reset();
+    else
+      for (const h of ['left', 'right'] as const) {
+        this.gestures.update(h, { grip: this.xrInput.isDown(h, XR_BUTTON.grip), stick: this.xrInput.hands[h].stick, busy: this.busyHands[h] });
+      }
+    const p = this.world.players[this.localPlayerId];
+    this.ownHands.update(this.controllers, inXR, p?.look ?? lookFromId(this.localPlayerId), this.gestures.pose);
   }
 
   /** Feed hands (VR) or the reticle (desktop) to the bridge controls. */

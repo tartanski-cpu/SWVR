@@ -3,6 +3,7 @@ import type { Intent } from '../core/intents';
 import { homeVessel, type WorldState } from '../core/world';
 import { createPlayerState } from '../player/playerState';
 import { randomLook } from './avatarOutfits';
+import { HAND_POSES } from '../player/handGesture';
 import { placeAshore } from '../player/playerControl';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 import { releaseHolds } from '../vessel/vesselControl';
@@ -84,7 +85,10 @@ export class HostSession {
       const vec = (v: unknown) => Array.isArray(v) && v.length === 3 && v.every(Number.isFinite);
       const g = pose.gear;
       const gear = g && (g.kind === 'extinguisher' || g.kind === 'torch') && vec(g.p) && vec(g.d) ? { kind: g.kind, on: !!g.on, p: g.p, d: g.d } : null;
-      p.avatar = { head: pose.head, left: pose.left, right: pose.right, leftQ: quat(pose.leftQ), rightQ: quat(pose.rightQ), tool, laser, gear };
+      // Hand gestures: two known pose codes, or relaxed hands.
+      const code = (c: unknown) => (typeof c === 'number' && Number.isInteger(c) && c >= 0 && c < HAND_POSES.length ? c : 0);
+      const poses: [number, number] = Array.isArray(pose.poses) ? [code(pose.poses[0]), code(pose.poses[1])] : [0, 0];
+      p.avatar = { head: pose.head, left: pose.left, right: pose.right, leftQ: quat(pose.leftQ), rightQ: quat(pose.rightQ), poses, tool, laser, gear };
     }
   }
 

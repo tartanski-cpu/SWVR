@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { CONFIG } from '../config';
 import { flatVertexColorMaterial } from '../render/geometryUtils';
-import { armGeometry, decodeLook, gloveGeometry, headGeometry, lookFromId, torsoGeometry } from './avatarOutfits';
+import { armGeometry, decodeLook, handGeometries, headGeometry, lookFromId, torsoGeometry } from './avatarOutfits';
+import { poseFromCode } from '../player/handGesture';
 import type { EntityId } from '../core/ids';
 import type { WorldState } from '../core/world';
 import { LaserBeam } from '../player/laserBeam';
@@ -40,8 +41,9 @@ interface Avatar {
   laser: LaserBeam;
 }
 
-/** One vertex-coloured material for every figure (their colours are in the geometry). */
+/** One vertex-coloured material for every figure (their colours are in the geometry), and your own hands. */
 let figureMat: THREE.Material | null = null;
+export const figureMaterial = (): THREE.Material => (figureMat ??= flatVertexColorMaterial());
 const DOWN = new THREE.Vector3(0, -1, 0);
 const FWD = new THREE.Vector3(0, 0, -1);
 const Y = new THREE.Vector3(0, 1, 0);
@@ -56,7 +58,8 @@ const Y = new THREE.Vector3(0, 1, 0);
  *     fixed length: the law of cosines gives how far along and how far out the elbow sits,
  *     bent down, out and back like a real one). A hand beyond reach (a desktop player
  *     working a control metres away) stretches the forearm like a rubber band, as before;
- *   - an untracked hand (desktop's left) hangs relaxed at the side.
+ *   - an untracked hand (desktop's left) hangs relaxed at the side;
+ *   - each VR hand in its gesture: relaxed, a fist, pointing, or the middle finger.
  * Everything is placed in the frame of what they're aboard (vessel root or scene), so a
  * crew-mate stays put on the deck however the boat moves. Positions ease toward each new
  * update, so 20 Hz network poses look smooth.
@@ -181,6 +184,8 @@ export class AvatarsView {
         // Turned as their real hand is (VR); otherwise along the forearm.
         if (hq && hand) mesh.quaternion.slerp(this.tmpQ.set(hq[0], hq[1], hq[2], hq[3]), Math.min(1, dt * 20));
         else mesh.quaternion.setFromUnitVectors(FWD, this.tmpV);
+        // Their hand's gesture (VR: a fist, pointing, the finger), a shared geometry per pose.
+        mesh.geometry = handGeometries(a.look, s)[poseFromCode(p.avatar?.poses?.[i])];
       }
     }
     for (const [id, a] of this.avatars) if (!seen.has(id)) this.remove(id, a);
@@ -191,14 +196,15 @@ export class AvatarsView {
     a.laser.root.removeFromParent();
     (a.tag.material.map as THREE.Texture).dispose();
     a.tag.material.dispose();
-    for (const m of [a.face, a.torso, ...a.upper, ...a.fore, a.left, a.right]) m.geometry.dispose();
+    // (The hands' geometries are shared, per look and pose: handGeometries.)
+    for (const m of [a.face, a.torso, ...a.upper, ...a.fore]) m.geometry.dispose();
     this.avatars.delete(id);
   }
 
   private create(id: EntityId, look: number): Avatar {
     const color = playerColor(id);
     const l = decodeLook(look);
-    const mat = (figureMat ??= flatVertexColorMaterial());
+    const mat = figureMaterial();
     const root = new THREE.Group();
     root.name = `avatar:${id}`;
     const head = new THREE.Group();
@@ -208,8 +214,8 @@ export class AvatarsView {
     const c = CONFIG.avatar;
     const upper: [THREE.Mesh, THREE.Mesh] = [new THREE.Mesh(armGeometry(l, c.upperArm, false), mat), new THREE.Mesh(armGeometry(l, c.upperArm, false), mat)];
     const fore: [THREE.Mesh, THREE.Mesh] = [new THREE.Mesh(armGeometry(l, c.forearm, true), mat), new THREE.Mesh(armGeometry(l, c.forearm, true), mat)];
-    const left = new THREE.Mesh(gloveGeometry(l, -1), mat);
-    const right = new THREE.Mesh(gloveGeometry(l, 1), mat);
+    const left = new THREE.Mesh(handGeometries(look, -1).rest, mat);
+    const right = new THREE.Mesh(handGeometries(look, 1).rest, mat);
     // Name tag: a camera-facing sprite above the head, redrawn when the name changes.
     const canvas = document.createElement('canvas');
     canvas.width = 256;

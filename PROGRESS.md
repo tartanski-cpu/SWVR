@@ -4587,6 +4587,20 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   - the debug sea-state buttons rebuild the same way.
 - **Checked:** `npm test` (101 files, 740 pass; a new weather test aboard 1.7 km out, a squall building the sea at ×10: the water's largest change in a tick is 0.01 m, the waves' own motion, where it was 0.7 m once a second before), typecheck. In the game (headless Chromium, the starting berth, the Storm sea at ×10): the water beside the boat changed at up to 0.97 m/s before, 0.06 m/s after. **Not checked:** the Quest.
 
+### VR hand gestures, and your own hands in VR (owner)
+
+- **The owner asked** for VR hand gestures (a fist, a pointing finger and the middle finger), worked by grip and the stick when the hand isn't holding or working anything, and to see your own hands in the Quest browser for feedback. No more rigging (no elbows).
+- **Controls** (`player/handGesture.ts`, `CONFIG.avatar.gesture.stick` 0.6 of the stick's travel):
+  - nothing pressed: relaxed (the mitt round the controller, as before);
+  - grip: a fist. With nothing in reach it still grabs the world, as before (you pull yourself along with a fist);
+  - grip, then the stick forward: point; grip, then the stick back: the middle finger. The finger stays out while the grip is held, until it's let go;
+  - while the grip is held on a free hand, that hand's stick is the gesture's: it doesn't walk (left) or snap-turn (right). Pointing or giving the finger, the hand doesn't grab the world, so it stays put;
+  - a hand holding or working anything (controls, cargo, gear, binoculars, chart tools, the fuel nozzle, pots, a survivor: `busyHands`) makes a fist on its grip and no gesture; its stick works as usual.
+- **The hands** (`net/avatarOutfits.ts handGeometry`): `rest` is the mitt; the others a closed fist (the back of the hand, four knuckles down the front, the thumb on top, the cuff). Point: the index finger out straight ahead. Rude: the middle finger out (a little longer), the thumb folded across the front so it stands alone. The finger points along the hand: turn your hand to aim it. Each look and side's four hands are built once and shared (`handGeometries`): a gesture just swaps a mesh's geometry.
+- **Your own hands** (`player/ownHands.ts`): in VR your own mitts in your outfit's colours (the ones crew-mates see on you) at each controller, in the pose of the moment. They take the place of the controller models: those were fetched from the WebXR input-profiles CDN and didn't show in the Quest browser. Two small meshes, fewer draw calls than the controller models.
+- **Multiplayer:** the pose goes in the player's pose as `poses` [left, right] (`HAND_POSES` codes); the host takes two known codes or relaxed hands (`net/hostSession.ts`). Desktop players and older versions show relaxed hands.
+- **Checked:** `npm test` (103 files, 747 pass; new `tests/handGesture.test.ts`: the controls, a busy hand, the shapes, through the host), typecheck. Headless Chromium screenshots of crew-mates' hands in every pose (the fist, pointing, the middle finger turned up), and your own hand attached to a stand-in controller, hidden out of VR. No page errors. **Not checked:** the Quest. The headless browser has no VR, so I haven't seen your own hands on real controllers, or how the grip and stick feel.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { CONFIG } from '../config';
 import { mergeParts, part } from '../render/geometryUtils';
+import type { HandPose } from '../player/handGesture';
 
 /**
  * Crew-mates' looks (owner request: a random selection of fisherman and workboat clothing).
@@ -175,4 +176,55 @@ export function gloveGeometry(l: Look, side: -1 | 1): THREE.BufferGeometry {
     part(new THREE.CapsuleGeometry(0.017, 0.03, 3, 8).rotateX(-1.21).translate(-side * 0.03, 0.03, -0.03), g), // thumb lobe
     part(new THREE.CylinderGeometry(0.036, 0.04, 0.045, 10).rotateX(-1.1).translate(0, -0.024, 0.052), cuff), // cuff
   ]);
+}
+
+/**
+ * The hand in each gesture pose (player/handGesture.ts), in the same grip frame as the mitt
+ * (-z forward, +y up, the thumb on the inner side). `rest` is the mitt itself; the others are
+ * a closed fist:
+ *   - the back of the hand, a little smaller than the mitt round the controller;
+ *   - four knuckles stacked down the front, index on top;
+ *   - the thumb on top on the inner side, as on the mitt (folded across the front for `rude`);
+ *   - `point`: the index finger out instead of its knuckle, straight forward;
+ *   - `rude`: the middle finger out instead of its knuckle, a little longer.
+ * The finger points along the hand: turn the hand to aim it (up, for the rude one).
+ */
+export function handGeometry(l: Look, side: -1 | 1, pose: HandPose): THREE.BufferGeometry {
+  if (pose === 'rest') return gloveGeometry(l, side);
+  const g = l.outfit.gloves;
+  const cuff = new THREE.Color(g).multiplyScalar(0.7).getHex();
+  const out = pose === 'point' ? 0 : pose === 'rude' ? 1 : -1;
+  const knuckleY = [0.024, 0.006, -0.012, -0.03];
+  const parts = [
+    part(new THREE.SphereGeometry(1, 10, 8).scale(0.04, 0.046, 0.044).translate(side * 0.006, -0.004, 0.002), g), // back of the hand
+    // The thumb: on top, along the hand; for the rude one folded across the front of the fist,
+    // so the middle finger stands alone.
+    pose === 'rude'
+      ? part(new THREE.CapsuleGeometry(0.0135, 0.026, 3, 8).rotateZ(Math.PI / 2).translate(-side * 0.008, -0.016, -0.05), g)
+      : part(new THREE.CapsuleGeometry(0.016, 0.028, 3, 8).rotateX(-1.21).translate(-side * 0.028, 0.026, -0.026), g),
+    part(new THREE.CylinderGeometry(0.036, 0.04, 0.045, 10).rotateX(-1.1).translate(0, -0.024, 0.052), cuff), // cuff
+  ];
+  knuckleY.forEach((y, i) => {
+    if (i !== out) parts.push(part(new THREE.SphereGeometry(1, 8, 6).scale(0.017, 0.0125, 0.016).translate(side * 0.008, y, -0.036), g));
+  });
+  if (out >= 0) {
+    // The finger: a capsule along -z from its knuckle (CapsuleGeometry runs along +y).
+    const r = out === 0 ? 0.0105 : 0.011;
+    const len = out === 0 ? 0.052 : 0.06;
+    parts.push(part(new THREE.CapsuleGeometry(r, len, 3, 8).rotateX(-Math.PI / 2).translate(side * 0.006, knuckleY[out], -0.03 - len / 2 - r), g));
+  }
+  return mergeParts(parts);
+}
+
+/** Every pose's hand for a look and side, built once and shared (own hands, crew-mates'). */
+const handCache = new Map<string, Record<HandPose, THREE.BufferGeometry>>();
+export function handGeometries(look: number, side: -1 | 1): Record<HandPose, THREE.BufferGeometry> {
+  const key = `${look}:${side}`;
+  let set = handCache.get(key);
+  if (!set) {
+    const l = decodeLook(look);
+    set = { rest: handGeometry(l, side, 'rest'), fist: handGeometry(l, side, 'fist'), point: handGeometry(l, side, 'point'), rude: handGeometry(l, side, 'rude') };
+    handCache.set(key, set);
+  }
+  return set;
 }

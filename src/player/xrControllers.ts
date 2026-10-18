@@ -1,11 +1,11 @@
 import * as THREE from 'three';
-import { XRControllerModelFactory } from 'three/addons/webxr/XRControllerModelFactory.js';
 import type { Handedness } from './xrInput';
 
 /**
- * Tracked controller grips with visible controller models (the real Touch models, fetched
- * by Three's XRControllerModelFactory from the WebXR input-profiles CDN). Grips are
- * children of the player rig, so they ride the boat with the player.
+ * Tracked controller grips and pointer rays. Grips are children of the player rig, so they
+ * ride the boat with the player. Your hands are drawn on them (ownHands.ts: your own mitts,
+ * in their gesture), not the controllers: the Touch models came from the WebXR
+ * input-profiles CDN and didn't show in the Quest browser.
  */
 export class XRControllers {
   readonly grips: Record<Handedness, THREE.Group | null> = { left: null, right: null };
@@ -13,10 +13,8 @@ export class XRControllers {
   readonly rays: Record<Handedness, THREE.Group | null> = { left: null, right: null };
 
   constructor(renderer: THREE.WebGLRenderer, parent: THREE.Object3D) {
-    const factory = new XRControllerModelFactory();
     for (let i = 0; i < 2; i++) {
       const grip = renderer.xr.getControllerGrip(i);
-      grip.add(factory.createControllerModel(grip));
       parent.add(grip);
       grip.addEventListener('connected', (e) => {
         const hand = (e as unknown as { data: XRInputSource }).data.handedness;

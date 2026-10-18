@@ -61,6 +61,8 @@ export interface PlayerState {
     right: Vec3 | null;
     leftQ?: Quat | null;
     rightQ?: Quat | null;
+    /** Each VR hand's gesture [left, right] (player/handGesture.ts HAND_POSES); absent: relaxed. */
+    poses?: [number, number];
     tool?: HeldTool | null;
     laser?: LaserPose | null;
     gear?: GearPose | null;

@@ -2430,6 +2430,12 @@ export const CONFIG = {
     bodyTurnRate: 4,
     maxTwistDeg: 50,
     lean: 0.5,
+    /**
+     * VR hand gestures (player/handGesture.ts): with the grip held on a free hand, the stick
+     * pushed forward past `stick` (0..1 of its travel) points the index finger, pulled back
+     * past it raises the middle finger.
+     */
+    gesture: { stick: 0.6 },
   },
 
   laser: { reach: 600, hitRate: 15, deskHand: [0.2, -0.25, -0.35] as [number, number, number] },
