@@ -2167,6 +2167,12 @@ export const CONFIG = {
     /** ...steeper only if her bottom is so flat aft the engine can't clear it otherwise (deg). */
     shaftAngleMaxDeg: 15,
     /**
+     * The skiff's cradle at least this far off the centreline toward her crane's side (m;
+     * build.ts; owner: the skiff and crane go over to one side, like the deck crane, not in
+     * the middle). It goes as far over as fits; nearer the middle only if there's no room.
+     */
+    skiffOffset: 0.3,
+    /**
      * Live sea trials at the Trials step (shipyard/liveTrial.ts; owner, Oct 2026: see how the
      * hull behaves). Calm deep water; she settles for `settleS` first.
      *   drop      lifted `dropM` above her rest, heeled `dropHeelDeg` and trimmed

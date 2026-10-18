@@ -3898,6 +3898,14 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Checked in headless Chromium:** a pilot boat with a 3 m, 1.2 m high, full-width, 30°-raked deckhouse, and set in with 0.5 m side decks, upright: views from the bow, stern and port; the wheelhouse on top, the steps up aft, no warnings. Found and fixed on the way: its faces wound inside out (invisible from outside), and its foot showing through her topsides at the bow. **Not checked:** the Quest, a phone, walking up the steps into a raised helm in the game.
 - **Next, for bigger boats (tugs), noted:** the deckhouse top walkable with rails and a ladder or stairs (the walk area's floors and ladders already do this for the workboat's roof), and an interior with a door into it.
 
+### Shipyard: the skiff and her crane over to one side (owner)
+
+- **The owner:** the skiff and crane still placed centrally. Like the deck crane, they should go to one side or the other, the crane swapping sides with them.
+- **Now** (`build.ts`): the cradle goes off the centreline toward the crane's side (the side picked: the click on her, or Foredeck/Aft deck crane to port/starboard). It's at least `CONFIG.shipyard.skiffOffset` (0.3 m) over, and as far over as fits (to 1.5 m), with the column outboard of it. It goes nearer the middle only if there's no room off the centreline. The crane module already mirrors for a column to port: skiff going over the port side.
+- **Checked:** typecheck and tests. On the small tug's aft deck the cradle now sits 0.70 m off the centreline to the crane's side (it was central), mirrored for port.
+- **Not checked:** the other hull types as they come have no room for the skiff's cradle at all (3.9 m × 3.0 m with the crane), before and after this change; on a longer hull it goes to the side the same way. Not checked in the 3D view.
+- **Known issue (found here):** the landing craft, gillnetter, workboat and pilot boat at their default sizes say there's no room for the skiff on either deck. Worth a look: the cradle and crane may need to fit a smaller footprint.
+
 ### Night mode for the chart, the whiteboard and the task board (owner)
 
 - **The owner:** the chart table and the whiteboard are very bright at night; they need a night mode.
