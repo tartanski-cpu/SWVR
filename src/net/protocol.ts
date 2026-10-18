@@ -24,7 +24,7 @@ import type { Intent } from '../core/intents';
 import type { WorldState } from '../core/world';
 import type { Quat, Vec3 } from '../core/math';
 import type { ChartMarks, ChartOp } from '../chart/marks';
-import type { GearPose, HeldTool, LaserPose } from '../player/playerState';
+import type { GearPose, HeldTool, LaserPose, RadioPose } from '../player/playerState';
 
 /** A player's body as others should see it, in the frame of what they're aboard. */
 export interface PlayerPose {
@@ -52,6 +52,8 @@ export interface PlayerPose {
   laser?: LaserPose | null;
   /** Hand gear (extinguisher, torch) in hand, if any. */
   gear?: GearPose | null;
+  /** The handheld VHF: in which hand (null: on the chest), and transmitting. */
+  radio?: RadioPose | null;
 }
 
 export type ClientMessage = { t: 'hello'; name: string } | { t: 'intents'; intents: Intent[] } | { t: 'pose'; pose: PlayerPose } | { t: 'chart'; op: ChartOp };

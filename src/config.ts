@@ -3436,6 +3436,56 @@ export const CONFIG = {
   net: { togetherRetryS: 2, togetherTries: 20, togetherConnectS: 8, togetherLeadS: 0.6 },
 
   /**
+   * Voice between the crew (net/voice.ts; owner request: up to four players). Everyone's
+   * microphone goes to everyone else over the multiplayer link; how each voice is heard is
+   * worked out from where the players are:
+   *
+   *   proximity (always on)  heard from where their head is, full up to `nearFull` metres,
+   *                          fading to nothing at `nearMax` (a voice on deck, not over the sea)
+   *   VHF (one channel)      while they press to talk on their handheld, heard by everyone
+   *                          within `radioRange` metres through the radio: no direction, cut
+   *                          down to the radio's narrow band (`radioLowHz`..`radioHighHz`) and
+   *                          a little overdriven (`radioDrive`). Line of sight is not modelled:
+   *                          a handheld's few kilometres, hills or not. Past `staticFrom` of
+   *                          the range a hiss comes up, to `staticMax` at the edge. A radio
+   *                          that's transmitting hears nobody (one talks at a time, as on VHF).
+   *   squelchS / squelchGain the short burst of noise as a transmission starts and ends.
+   *   retryS                 a call that failed is tried again after this (s).
+   */
+  voice: {
+    nearFull: 2,
+    nearMax: 22,
+    radioRange: 5000,
+    radioLowHz: 350,
+    radioHighHz: 2800,
+    radioDrive: 3,
+    radioGain: 0.9,
+    staticFrom: 0.6,
+    staticMax: 0.08,
+    squelchS: 0.12,
+    squelchGain: 0.25,
+    retryS: 5,
+  },
+
+  /**
+   * The handheld VHF everyone carries (player/radioHandset.ts). VR: clipped on the left of
+   * your chest at `chest` (metres from your head: right, up, forward, turned with your
+   * heading); grip it within `grabRange` (m) to take it, hold the trigger to talk, let go
+   * and it clips back on. Desktop: hold V to talk.
+   */
+  radio: {
+    chest: [-0.13, -0.4, -0.12] as [number, number, number],
+    grabRange: 0.14,
+  },
+
+  /**
+   * VR fly (Debug menu, for looking round the world in the headset): the left stick flies
+   * the way you look (forward and back, side to side) at `speed` m/s; one trigger held
+   * flies `fast` times quicker, both triggers `veryFast` times. The right stick still turns.
+   */
+  vrFly: { speed: 5, fast: 5, veryFast: 25 },
+
+  /**
    * How shut-in the wheelhouse is, for sound (0 open .. 1 shut): the aft door is the big
    * opening, so shutting it counts `door` (the windows the rest). Inside, wind, rain and the
    * hull wash are muffled by that much (the wash by up to `washMuffle`).

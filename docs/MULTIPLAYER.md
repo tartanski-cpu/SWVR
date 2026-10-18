@@ -60,6 +60,13 @@ Everything a player sends is in the frame they stand in: on deck, that's the ves
 - **The boat's response:** about 0.12 s plus the network round trip. A 12 m displacement boat responds over seconds, so you can't feel it. Client-side prediction isn't worth its complexity here.
 - **Walking:** local and instant.
 
+### Voice
+
+- **The calls:** a WebRTC audio call between each pair of players, through the same PeerJS peer as the game (four players: three calls each). Of each pair, the one whose network id sorts first calls (`net/voice.ts shouldCall`), the other answers. The host gives each player their network id (`PlayerState.peerId`; the host's own is the room id), so everyone knows whom to call from the snapshots.
+- **The microphone:** asked for once you're in a game and the sound is on, with echo cancellation and noise suppression. Refused or missing: you send silence and still hear everyone. Mute in Menu → Crew.
+- **How a voice is heard** (`voiceRoute`, `CONFIG.voice`): proximity from their head (full to 2 m, nothing past 22 m), always; and while their handheld's talk button is held (`avatar.radio.tx`, in the pose), through your radio within 5 km: band-passed, overdriven, no direction, a squelch at each end, hiss near the edge. A radio that's transmitting hears nobody.
+- **The handset:** `player/radioHandset.ts` (VR on the chest: grip, trigger; desktop V); others see it on your chest or in your hand.
+
 ## Code
 
 | File | What |
@@ -71,13 +78,15 @@ Everything a player sends is in the frame they stand in: on deck, that's the ves
 | `net/avatarView.ts` | Remote players: an upper-body figure (head, torso, elbowed arms, gloved hands turned as the real ones are) |
 | `net/avatarOutfits.ts` | Their working clothes: a random look per player, picked by the host when they join |
 | `app/App.ts` | `hostGame`, `joinGame`, `connectClient`, `leaveGame`, `followHost` (client frame), `updateNetPose` |
-| `ui/mainMenu.ts` | **Crew** tab with keypad |
+| `net/voice.ts` | Voice: the calls, proximity and radio sound |
+| `player/radioHandset.ts` | The handheld VHF |
+| `ui/mainMenu.ts` | **Crew** tab with keypad, voice status and mute |
 
 Tests: `tests/net.test.ts` (loopback host and client: welcome, intents stamped and validated, poses, snapshots, interpolation, disconnects). The broker can't be reached from the build sandbox, so the PeerJS path itself is tested on real devices.
 
 ## Not yet
 
 - **Several boats** (not wanted for now): the world and views already handle many vessels; it needs spawning a second boat and the bridge, audio and menu following "the boat I'm aboard" instead of the one test boat.
-- **Voice chat** (WebRTC can carry audio on the same connection). Not wanted for now.
+- **Voice through walls and hills:** the radio's range ignores the land (the owner: forget the hills), and proximity voice isn't muffled by the wheelhouse.
 - **Host migration:** if the host leaves, the game ends for everyone.
 - **TURN relay** for networks where direct connections fail (a paid or self-hosted service; ask first).

@@ -2,25 +2,26 @@
  * The volume settings: a master level and one per kind of sound, each a GainNode the
  * sound modules connect to instead of the AudioContext's destination:
  *
- *   sources -> bus gain (engine | effects | radio | music) -> master gain -> speakers
+ *   sources -> bus gain (engine | effects | radio | voice | music) -> master gain -> speakers
  *
  * Levels are 0..1, kept in localStorage per browser (so each player sets their own).
  * Sounds that don't go through WebAudio - speech synthesis and the FM radio's <audio>
  * element - read `level(bus)` and set their own volume from it.
  */
 
-export type Bus = 'engine' | 'effects' | 'radio' | 'music';
+export type Bus = 'engine' | 'effects' | 'radio' | 'voice' | 'music';
 
 export const BUSES: { id: Bus | 'master'; label: string }[] = [
   { id: 'master', label: 'Master' },
   { id: 'engine', label: 'Engine' },
   { id: 'effects', label: 'Sea & effects' },
-  { id: 'radio', label: 'VHF & voices' },
+  { id: 'radio', label: 'VHF calls' },
+  { id: 'voice', label: 'Crew voices' },
   { id: 'music', label: 'FM radio' },
 ];
 
 const KEY = 'swvr.volume';
-const DEFAULTS: Record<Bus | 'master', number> = { master: 0.9, engine: 0.8, effects: 1, radio: 1, music: 0.5 };
+const DEFAULTS: Record<Bus | 'master', number> = { master: 0.9, engine: 0.8, effects: 1, radio: 1, voice: 1, music: 0.5 };
 
 class Mixer {
   private readonly levels = { ...DEFAULTS };

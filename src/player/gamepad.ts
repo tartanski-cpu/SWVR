@@ -10,6 +10,7 @@ import { CONFIG } from '../config';
  *
  * At the helm (app/App.ts: "F: take the helm", or A): the left stick steers, RB / LB work the
  * throttle up and down, B puts it in neutral, the right stick looks round, A (or F) leaves.
+ * View is the radio's talk button (hold), on the helm and off it.
  */
 export interface PadState {
   connected: boolean;
@@ -31,7 +32,7 @@ export const PAD = { a: 0, b: 1, x: 2, y: 3, lb: 4, rb: 5, lt: 6, rt: 7, view: 8
  * press these keys (core/keybindings.ts), so every action works the same.
  *   A jump (by the wheel: take the helm)   B crouch   X lash cargo   Y board / go ashore
  *   LB wave (hold)   RB hang gear back   left stick click: run (hold)
- *   Menu: the menu   View: the help
+ *   Menu: the menu   View: talk on the handheld VHF (hold; at the helm too)
  * and the mouse buttons: RT use (the left button: press, grab, pick up), LT the binoculars
  * (the right), the right stick's click the laser pointer (the middle; at the helm too, as
  * the right stick's click is in VR).
@@ -45,10 +46,10 @@ export const PAD_KEYS: Partial<Record<number, string>> = {
   [PAD.rb]: 'KeyU',
   [PAD.ls]: 'ShiftLeft',
   [PAD.menu]: 'KeyO',
-  [PAD.view]: 'KeyH',
+  [PAD.view]: 'KeyV',
 };
 /** At the helm only these press keys (the rest work the boat: App.updateHelmSeat). */
-export const PAD_KEYS_AT_HELM: Partial<Record<number, string>> = { [PAD.menu]: 'KeyO', [PAD.view]: 'KeyH' };
+export const PAD_KEYS_AT_HELM: Partial<Record<number, string>> = { [PAD.menu]: 'KeyO', [PAD.view]: 'KeyV' };
 /** Mouse buttons (0 left, 1 middle, 2 right) from the triggers and the right stick's click, on and off the helm. */
 export const PAD_MOUSE: Partial<Record<number, 0 | 1 | 2>> = { [PAD.rt]: 0, [PAD.lt]: 2, [PAD.rs]: 1 };
 

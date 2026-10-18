@@ -70,7 +70,20 @@ export interface PlayerState {
     tool?: HeldTool | null;
     laser?: LaserPose | null;
     gear?: GearPose | null;
+    /** The handheld VHF (player/radioHandset.ts): which hand holds it (null: on the chest), and transmitting. */
+    radio?: RadioPose | null;
   };
+  /**
+   * The player's network address (net/voice.ts calls it for voice): set by the host when
+   * they join (a client's PeerJS id; the host's own is the room's id). Absent solo.
+   */
+  peerId?: string;
+}
+
+/** The handheld VHF as others see it: in which hand (null: clipped on the chest), and pressed to talk. */
+export interface RadioPose {
+  hand: 'left' | 'right' | null;
+  tx: boolean;
 }
 
 export function createPlayerState(id: EntityId, name: string): PlayerState {
