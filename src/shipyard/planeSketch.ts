@@ -1,11 +1,12 @@
 /**
  * Sketching on her views (owner, Oct 2026): drawing in 3D space didn't work, as nobody's
- * pen landed where anyone else expected. So sketches are drawn only on her four elevations:
- * the side (from starboard, bow to the right), the plan (from above), the bow and the stern,
- * each seen flat (no perspective). Each view has one drawing plane, a sheet of glass standing
+ * pen landed where anyone else expected. So sketches are drawn only on her square-on views:
+ * starboard (bow to the right) and port, the plan (from above), the bow and the stern, each
+ * seen flat (no perspective). Each view has one drawing plane, a sheet of glass standing
  * just clear of her on that side, the same for everyone in the session. A stroke is kept on
  * its plane in **hull fractions** (as pins are, notes.ts), so it stays put on her when she's
- * stretched, and it shows only when you look from that view.
+ * stretched. A view's sketch shows only while it's open (owner: like a saved sketch, opened
+ * from the list on the right, and closed back to the plain 3D view).
  *
  * A stroke is an `Ink` note whose sheet is the plane's name with an @ ('@side'): it is shared
  * while it's drawn (sent again every so often with the same id, so the others see the pen
@@ -17,7 +18,7 @@ import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import { fromFrac, toFrac, type Ink } from './notes';
 
-export type PlaneName = 'side' | 'plan' | 'bow' | 'stern';
+export type PlaneName = 'side' | 'port' | 'plan' | 'bow' | 'stern';
 
 /**
  * Each view's plane: which of her axes the pen moves along (u across the view, v up it,
@@ -25,7 +26,9 @@ export type PlaneName = 'side' | 'plan' | 'bow' | 'stern';
  * where the glass stands: just past her extent on the side the view looks from.
  */
 export const PLANES: Record<PlaneName, { u: 0 | 1 | 2; v: 0 | 1 | 2; normal: 0 | 1 | 2; side: 1 | -1; title: string }> = {
-  side: { u: 2, v: 1, normal: 0, side: 1, title: 'Side' },
+  // ('side' is the starboard view's: its name from before there was a port view, kept so sketches made then still open.)
+  side: { u: 2, v: 1, normal: 0, side: 1, title: 'Starboard' },
+  port: { u: 2, v: 1, normal: 0, side: -1, title: 'Port' },
   plan: { u: 0, v: 2, normal: 1, side: 1, title: 'Plan' },
   bow: { u: 0, v: 1, normal: 2, side: -1, title: 'Bow' },
   stern: { u: 0, v: 1, normal: 2, side: 1, title: 'Stern' },
@@ -36,7 +39,7 @@ export const PLANE_GAP = 0.6;
 
 /** The sheet id a plane's strokes carry. */
 export const planeSheet = (p: PlaneName) => `@${p}`;
-export const isPlaneSheet = (sheet: string): boolean => /^@(side|plan|bow|stern)$/.test(sheet);
+export const isPlaneSheet = (sheet: string): boolean => /^@(side|port|plan|bow|stern)$/.test(sheet);
 
 /** Where a plane's glass stands, along its normal (m, boat axes). */
 export function planeAt(p: PlaneName, min: readonly number[], max: readonly number[]): number {
@@ -65,7 +68,7 @@ export function fromPlane(p: PlaneName, uv: readonly [number, number], min: read
 /** The view's plane, if the camera looks at her square on to one (within ~25°), else null. */
 export function planeFacing(look: THREE.Vector3): PlaneName | null {
   const d = look.clone().normalize();
-  const best = (['side', 'plan', 'bow', 'stern'] as PlaneName[]).find((p) => {
+  const best = (['side', 'port', 'plan', 'bow', 'stern'] as PlaneName[]).find((p) => {
     const P = PLANES[p];
     // Looking towards her from the plane's side: against its outward direction.
     const n = new THREE.Vector3();

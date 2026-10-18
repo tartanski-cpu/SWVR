@@ -68,7 +68,8 @@
       #stepNav button.on .n { background: var(--accent-strong); color: var(--on-accent); }
       #stepNav button.seen .n { background: #2f6a48; }
       #stepNav button .flag { margin-left: 4px; }
-      #top .topRight { display: flex; gap: 6px; align-items: center; }
+      /* At the right (owner): their pop-ups open on the right. */
+      #top .topRight { display: flex; gap: 6px; align-items: center; margin-left: auto; }
       #top .topRight button { background: var(--top-raised); color: var(--top-ink); border-color: var(--top-edge); }
       #people { display: flex; gap: 4px; }
       .chip { font-size: 12px; padding: 1px 8px 1px 6px; border-radius: 10px; background: color-mix(in srgb, var(--c) 22%, var(--card)); border: 1px solid var(--c); color: var(--ink); white-space: nowrap; }
@@ -248,6 +249,7 @@
       .todo.done { opacity: 0.5; }
       .todo.done .text { text-decoration: line-through; }
       .sketch { display: grid; grid-template-columns: 84px 1fr auto; gap: 8px; align-items: center; padding: 6px; margin: 4px 0; border: 1px solid var(--edge); border-radius: 8px; background: var(--card); cursor: pointer; }
+      .sketch .planeIcon { width: 84px; height: 52px; border-radius: 4px; background: repeating-linear-gradient(0deg, var(--chart) 0 9px, var(--line) 9px 10px); display: grid; place-items: center; font-size: 20px; }
       .sketch img { width: 84px; height: 52px; object-fit: cover; border-radius: 4px; background: var(--chart); display: block; }
       .sketch button { padding: 2px 7px; font-size: 12px; }
 

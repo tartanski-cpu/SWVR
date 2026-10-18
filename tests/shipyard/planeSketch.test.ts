@@ -11,6 +11,7 @@ const max = [1.5, 3, 4.5];
 describe('sketch planes', () => {
   it('stand just clear of her on the side each view looks from', () => {
     expect(planeAt('side', min, max)).toBeCloseTo(1.5 + PLANE_GAP);
+    expect(planeAt('port', min, max)).toBeCloseTo(-1.5 - PLANE_GAP);
     expect(planeAt('plan', min, max)).toBeCloseTo(3 + PLANE_GAP);
     expect(planeAt('bow', min, max)).toBeCloseTo(-4.5 - PLANE_GAP);
     expect(planeAt('stern', min, max)).toBeCloseTo(4.5 + PLANE_GAP);
@@ -26,6 +27,7 @@ describe('sketch planes', () => {
 
   it('show only for the view being looked at square on', () => {
     expect(planeFacing(new THREE.Vector3(-1, 0, 0))).toBe('side'); // from starboard
+    expect(planeFacing(new THREE.Vector3(1, 0, 0))).toBe('port'); // from port
     expect(planeFacing(new THREE.Vector3(0, -1, 0.01))).toBe('plan');
     expect(planeFacing(new THREE.Vector3(0, 0, 1))).toBe('bow'); // from ahead, looking aft
     expect(planeFacing(new THREE.Vector3(0, 0, -1))).toBe('stern');
@@ -34,6 +36,7 @@ describe('sketch planes', () => {
 
   it("a plane's strokes may run beyond her; a sheet's stay on the sheet", () => {
     expect(isPlaneSheet(planeSheet('bow'))).toBe(true);
+    expect(isPlaneSheet(planeSheet('port'))).toBe(true);
     expect(isPlaneSheet('n-123')).toBe(false);
     const ink = { id: 'a', kind: 'ink', by: 'Amy', colour: '#d9622b', t: 1, pts: [[0.2, 1.8], [-0.7, 0.4]] };
     expect(cleanNote({ ...ink, sheet: '@side' })).not.toBeNull();
