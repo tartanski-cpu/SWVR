@@ -417,8 +417,8 @@ function prism(x0: number, x1: number, pts: [number, number][], color: number): 
  * A shaped wheelhouse (the Shipyard's, owner; its layout's `shape`): in profile, the front
  * below the windows leans forward from `lowerFromY` up to the window band; the front windows
  * rake either way (`frontRakeDeg`) from there; above them a header up to the roof: one flat
- * slab (owner) reaching forward of the windows' head as a visor, its front face raked back
- * as it rises (`roofEdgeDeg`), like the windows below it.
+ * slab (owner) reaching forward of the windows' head as a visor, its front and side faces
+ * chamfered back as they rise (`roofEdgeDeg`; owner: the visor look of a tug's roof).
  * The side walls follow that profile at their front ends, so their windows are trapezoids.
  * A side door (`sideDoor`, in the port wall) is an opening from the floor up through the
  * window band, with jambs, a header up to the band's top and a threshold.
@@ -518,17 +518,42 @@ function buildShapedHouse(layout: HouseLayout, col: Paint, base: number): THREE.
   buildFloor(layout, col, parts);
   buildConsole(wh, col, parts);
 
-  // Roof: one flat slab from the visor's edge to aft of the house. Its front face rakes back
-  // as it rises (owner: never square, always back): the underside reaches furthest forward,
-  // the top is set back by roofEdgeDeg. The wood ceiling under it.
+  // Roof: one flat slab from the visor's edge to aft of the house. Its front and sides are
+  // chamfered back as they rise (owner: never square, always back; the visor look): the
+  // underside reaches furthest out, the top is set in by roofEdgeDeg; the aft face square.
+  // The wood ceiling under it.
   const rf = layout.roof;
   const ov = rf.overhang;
   const t = rf.thickness;
   const zV = zH - sh.visor;
   const back = t * Math.tan((sh.roofEdgeDeg * Math.PI) / 180);
-  parts.push(prism(-hw - ov, hw + ov, [[zV + back, roofY + t], [zA + ov, roofY + t], [zA + ov, roofY], [zV, roofY]], col.roof));
+  parts.push(chamferedSlab(hw + ov, zV, zA + ov, roofY, t, back, col.roof));
   parts.push(box(-hw + w, hw - w, roofY - 0.012, roofY, Math.max(zF, zH) + w, zA - w, col.lining, 'wood'));
   return parts;
+}
+
+/**
+ * A slab `t` thick from `y0` up, `halfW` either side of the centreline from `z0` (forward)
+ * to `z1`, its front and sides chamfered: the top set in by `back` (the aft face square).
+ */
+function chamferedSlab(halfW: number, z0: number, z1: number, y0: number, t: number, back: number, color: number): THREE.BufferGeometry {
+  const y1 = y0 + t;
+  const wt = halfW - back;
+  const [Bpf, Bsf, Bsa, Bpa] = [[-halfW, y0, z0], [halfW, y0, z0], [halfW, y0, z1], [-halfW, y0, z1]];
+  const [Tpf, Tsf, Tsa, Tpa] = [[-wt, y1, z0 + back], [wt, y1, z0 + back], [wt, y1, z1], [-wt, y1, z1]];
+  const v: number[] = [];
+  // Each face's corners clockwise as seen from outside it (as buildDeckhouse's).
+  const quad = (a: number[], b: number[], c: number[], d: number[]) => v.push(...a, ...c, ...b, ...a, ...d, ...c);
+  quad(Tpf, Tsf, Tsa, Tpa); // top
+  quad(Bpf, Bpa, Bsa, Bsf); // underside
+  quad(Bpf, Bsf, Tsf, Tpf); // the front chamfer
+  quad(Bsa, Tsa, Tsf, Bsf); // starboard
+  quad(Bpf, Tpf, Tpa, Bpa); // port
+  quad(Bsa, Bpa, Tpa, Tsa); // aft
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3));
+  g.computeVertexNormals();
+  return part(g, color);
 }
 
 /**

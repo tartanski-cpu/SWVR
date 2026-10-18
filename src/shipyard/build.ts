@@ -412,6 +412,8 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   // The house's shape (owner): the roof one flat slab reaching forward over the windows (the
   // visor), its front edge cut back underneath; the front windows raked either way.
   const roofThickness = SCALES.roofThickness(d.roofThickness);
+  // Its front and sides chamfered (hullMesh.ts chamferedSlab): the top set in this much.
+  const roofBack = roofThickness * Math.tan((SCALES.roofEdge(d.roofEdge) * Math.PI) / 180);
   const sill = 1.31; // the front glass's, level with the dash top; the sides' and aft's 1.0
   // The windows run up to the roof's underside, only their frame between (owner: the roof is
   // one piece, overhanging them, no band of wall above the glass).
@@ -653,7 +655,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     [0, roofFront + 0.775, 0.3],
   ];
   const onRoof = (x: number, z: number) => Math.abs(x) < hw && z > front && z < aft;
-  const standsOnRoof = (x: number, z: number) => Math.abs(x) <= hw - 0.2 && z >= roofFront + 0.2 && z <= aft - 0.2 && roofTaken.every(([ox, oz, r]) => Math.hypot(x - ox, z - oz) >= r);
+  const standsOnRoof = (x: number, z: number) => Math.abs(x) <= Math.min(hw - 0.2, hw + 0.15 - roofBack - 0.15) && z >= roofFront + 0.2 && z <= aft - 0.2 && roofTaken.every(([ox, oz, r]) => Math.hypot(x - ox, z - oz) >= r);
   /** The pinned cell, or the nearest within a metre where `stands` (x, z: boat axes); null if none. */
   const seat = (key: PlaceKey, stands: (x: number, z: number, face: number) => boolean): { x: number; z: number; face: number; moved: boolean } | null => {
     const p = placeOf(key, d[key]);
@@ -1097,8 +1099,9 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
       masthead: [0, roofTopAt(roofFront + 0.475) + 1.1, roofFront + 0.475],
       // The sidelights on the house sides, above the windows, just aft of the header.
       // The sidelights on the roof's edges (the windows run up to it), just aft of the front glass.
-      port: [-(hw + 0.15 + 0.03), roofY + roofThickness / 2, Math.max(front, zHead) + 0.175],
-      starboard: [hw + 0.15 + 0.03, roofY + roofThickness / 2, Math.max(front, zHead) + 0.175],
+      // (On the chamfered side at mid-thickness, just proud of it.)
+      port: [-r2(hw + 0.15 - roofBack / 2 + 0.03), roofY + roofThickness / 2, Math.max(front, zHead) + 0.175],
+      starboard: [r2(hw + 0.15 - roofBack / 2 + 0.03), roofY + roofThickness / 2, Math.max(front, zHead) + 0.175],
       stern: [0, q.deckY(transom) + 0.6, transom - 0.05],
     },
   };
