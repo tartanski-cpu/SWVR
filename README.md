@@ -496,7 +496,13 @@ To dock:
 **Night:** the ports have lamp posts. Near a port, its floodlight lights the quay, your boat and the water around you.
 
 - **Collisions:** you can run aground and hit quays. Fenders are soft; rock isn't.
-- **Refuelling:** come alongside a fuel berth and stop, then use **Refuel** on the menu's Boat tab.
+- **Refuelling by hand:** come alongside a fuel berth (Calder Haven quay, north end; Brannock T-head) and stop. On the quay, the red pump has a hose and nozzle:
+  1. **Take the nozzle** from its holster on the pump's face: grip it (desktop: click it). The hose follows; it reaches about 10 m.
+  2. **Walk it to her filler:** a round chrome cap on her side deck, each side, just aft of the wheelhouse. When the nozzle is close enough, a **green ring** lights on the cap: let go of the nozzle there, or pull the trigger (desktop: click the filler).
+  3. **Back to the pump: press START** (the green button; touch it and grip or pull the trigger, desktop: click). The gauge shows the litres and the price this fill, and her tank. **STOP** (red) when you have what you want; it stops by itself when she's full. You pay when the fuel stops.
+  4. **Take the nozzle out** of her filler (grip it again) and **hang it back** in the pump's holster (let go of it there; desktop: click the pump).
+
+  Put it down anywhere else and it lies on the quay; over the water it swings back to the pump. If she drifts off with it in, it's pulled out and the fuel stops. Or, in one click: **Refuel** on the menu's Boat tab, as before.
 
 On desktop, aim the **+** reticle at a control. Click buttons and switches. Click and drag the lever (mouse up/down) and the wheel (mouse left/right).
 

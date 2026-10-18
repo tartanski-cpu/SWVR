@@ -4202,6 +4202,23 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Tests** (`tug.test.ts`): two knees, either side, the plate clear between them (no point within 0.3 m of the centreline); nosing into the quay at 2 m/s still does no damage; pushing another boat still meets the knees first. All Shipyard tests pass.
 - **Checked:** Shipyard screenshots from Bow ¾ and from ahead. **Not checked:** the Quest.
 
+### Refuelling by hand: the pump's hose and her filler (owner)
+
+- **The owner:** every boat (the workboat, the landing craft, Shipyard boats) needs a filler, a round cap on deck; each harbour's fuel pump a flexible hose, drawn as the towline is. Grab the nozzle, walk it out (a reach of about 10 m, no collisions), plug it into the filler (a click spot when close), walk back and start the pump; a gauge shows how much; stop it, or it stops when full; then take the nozzle out and hang it back on the pump.
+- **The sim** (`fuel/fuelHose.ts`, `world.fuel`, so the crew see the same):
+  - each pump's hose: the nozzle **in its holster**, **in a player's hand** (moved by its holder, `hoseMove` every 0.1 s, kept within `fuelHose.reach` 10 m of the outlet, flat), **on the quay** (let go anywhere else; over the water it swings back to the pump) or **in a filler**;
+  - intents `hoseTake` (anyone's but someone else's in hand; from a filler it stops the fuel; from the pump it zeroes the gauge), `hoseMove`, `hoseDrop`, `hosePlug` (the filler within reach of the pump), `hoseStow`, `pumpStart` (nozzle in, at a fuel berth and slow, not full), `pumpStop`;
+  - the fuel flows by the menu's Refuel (`vesselControl.ts stepRefuelling`, `refuelRateLps`, stops when full or she leaves the berth) and is billed the same way (career.ts, when it stops). The gauge counts the litres through the hose since the nozzle came off the pump (`gaugeOf`);
+  - **pulled out:** a boat whose filler drifts `pullOut` (1.5 m) past the hose's reach pulls the nozzle out; the fuel stops.
+- **Fillers** (`fillerPoints`): every boat with a diesel, on her side deck each side, `filler.aft` (0.4 m) aft of her wheelhouse, `filler.inset` (0.3 m) in from the deck edge; worked out from her hull, so Shipyard designs have them with nothing added.
+- **Drawn** (`fuel/fuelView.ts`): the pump (moved from worldView.ts) facing its berth: a red cabinet (worn paint), a white top, a gauge (litres, price, her tank, PUMPING; redrawn at 4 Hz when it changes), green START and red STOP, the holster, the outlet low on its side; the hose (black, 16 instanced pieces, sagging and lying on the quay or the water, `hoseLength` 11 m); the nozzle; the fillers (a chrome cap in a dark ring, one instanced mesh), with a green ring on the one the nozzle in your hand would go into. About four draw calls a pump, drawn only within 160 m, plus one for the fillers.
+- **Hands** (`fuel/fuelHands.ts`): VR grip the nozzle to take it; let go at a filler (its ring lit), or pull the trigger there, to plug it in; let go at the holster to hang it up; START / STOP by touching and gripping or pulling the trigger. Desktop: click the nozzle (it rides in front of you), click a filler, the pump, or anywhere to put it down; click START / STOP. Reasons say why not ("Put the nozzle in her filler first", "Bring her alongside the fuel berth and let her settle", "She's full").
+- **Brannock's pump** moved abeam its berth (-550, 314 to -556.6, 309.3): it was 8 m along the T-head, so a boat lying there one way had her filler 11.7 m off.
+- The menu's one-click **Refuel** stays.
+- **Config:** `CONFIG.fuelHose` (reach, pullOut, hoseLength, the pump's parts, the filler's place, grab / button / plug distances, desktop reach and hand).
+- **Tests** (`fuelHose.test.ts`): fillers on every diesel boat; at both fuel berths, either way round, the quay-side filler within reach (3 to 5.4 m); take, carried 30 m held at 10 m, plugged, START, 10 s filling, the gauge, STOP, billed; stops itself when full, START refused with the nozzle out or full; drifting off pulls it out; put down on the quay and picked up again, hung up; dropped over the water back to the pump; someone else's nozzle can't be taken.
+- **Checked in headless Chromium:** the desktop path by its own label / click (take, the filler under the reticle, plug, START), fuel flowing and the gauge counting; screenshots of the pump with the nozzle hung up, pumping, and the hose from the pump to her filler. No page errors. **Not checked:** the Quest (gripping the nozzle, the trigger at the filler, pressing the buttons by hand).
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

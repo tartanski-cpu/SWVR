@@ -24,6 +24,7 @@ import { applyPainterIntent, painterForces } from '../vessel/physics/painter';
 import { applyFireIntent, isFireIntent, stepFire } from '../fire/fire';
 import { stepExtinguisher } from '../fire/extinguisher';
 import { applyPottingIntent, isPottingIntent, stepPotting } from '../potting/potting';
+import { applyFuelIntent, isFuelIntent, stepFuelHoses } from '../fuel/fuelHose';
 import { applyTowIntent, isTowIntent, stepTow, towlineForces } from '../tow/tow';
 import { applySalvageIntent, isSalvageIntent, stepSalvage } from '../salvage/salvage';
 import { stepFishing, trawlForces } from '../fishing/fishing';
@@ -65,6 +66,8 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
       applySalvageIntent(world, intent.playerId, intent.control);
     } else if (isPottingIntent(intent.control)) {
       applyPottingIntent(world, intent);
+    } else if (isFuelIntent(intent.control)) {
+      applyFuelIntent(world, intent);
     } else if (intent.control === 'painter') {
       applyPainterIntent(world, intent);
     } else if (intent.control === 'crane') {
@@ -132,6 +135,7 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
   stepTow(world, dt);
   stepExtinguisher(world, dt);
   stepPotting(world, dt);
+  stepFuelHoses(world);
   stepFire(world, dt);
   stepSalvage(world, dt);
   stepFishing(world, dt);

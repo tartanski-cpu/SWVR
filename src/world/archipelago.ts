@@ -369,7 +369,7 @@ export const PORTS: PortDef[] = [
     // at the cargo berth (owner: it was 10 m forward of her, by her bow).
     cargo: { berth: { x: 707, z: 660, radius: 16 }, stackX: 714.8, stackZ: 666, stackYawDeg: 0, color: 0x2f6fd0 },
   },
-  { id: 'brannock', name: 'Brannock Pier', kind: 'pier', x: -553, z: 317, fuel: { x: -545, z: 305, radius: 14, pumpX: -550, pumpZ: 314 },
+  { id: 'brannock', name: 'Brannock Pier', kind: 'pier', x: -553, z: 317, fuel: { x: -545, z: 305, radius: 14, pumpX: -556.6, pumpZ: 309.3 }, // the pump abeam the fuel berth, within the hose's reach
     clearRadius: 70,
     // South-east end of the T-head's seaward face (fuel is at the north-west end).
     cargo: { berth: { x: -539, z: 321, radius: 14 }, stackX: -547, stackZ: 320, stackYawDeg: 135, color: 0xe07a1f },

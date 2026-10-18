@@ -2970,6 +2970,46 @@ export const CONFIG = {
     anchorWindlass: { amps: 60, draw: true, roller: 0.32, aft: 0.75, box: [0.34, 0.26, 0.3] as [number, number, number], gypsy: 0.11 },
   },
 
+  /**
+   * Refuelling by hand (fuel/fuelHose.ts; owner, Oct 2026): each harbour's fuel pump has a
+   * hose. Take the nozzle from its holster (grip it; desktop: click), walk it out to the
+   * boat, plug it into her filler (let go of it there, or pull the trigger; desktop: click
+   * the filler), walk back and press START on the pump; STOP, or it stops when she's full.
+   * Then take the nozzle out and hang it back on the pump. No collisions: the hose is drawn
+   * only (as the towline is, hanging in a curve and lying on the ground).
+   *   reach       how far the nozzle goes from the pump (m, flat): carried further, it stays
+   *               at the end of the hose; plugged in, a boat that drifts `pullOut` m past it
+   *               pulls the nozzle out (it falls on the quay) and the pump stops
+   *   hoseLength  the hose as drawn (m): longer than `reach`, so it sags and lies on the ground
+   *   pump        the pump, in its own axes (x across its face, y up, z out of its face, which
+   *               looks at the fuel berth): size (w, h, d), where the hose comes out
+   *               (`outlet`), the nozzle's holster, the gauge and the START / STOP buttons
+   *   filler      each boat's filler: on the side deck, both sides, `aft` m aft of her
+   *               wheelhouse (of her middle without one), `inset` m in from the deck edge
+   *   grab        a hand within this of the nozzle grips it, of a button presses it, and a
+   *               nozzle let go within `plug` of a filler (or the holster) goes in (m)
+   *   desk        desktop reach for clicks (m), and where the nozzle rides in the "hand"
+   *               (m right, up, forward of the eyes)
+   */
+  fuelHose: {
+    reach: 10,
+    pullOut: 1.5,
+    hoseLength: 11,
+    pump: {
+      size: [0.6, 1.6, 0.45] as [number, number, number],
+      outlet: [0.31, 0.7, 0.12] as [number, number, number],
+      holster: [-0.18, 1.0, 0.24] as [number, number, number],
+      gauge: [0, 1.24, 0.226] as [number, number, number],
+      start: [0.1, 1.0, 0.24] as [number, number, number],
+      stop: [0.22, 1.0, 0.24] as [number, number, number],
+    },
+    filler: { aft: 0.4, inset: 0.3 },
+    grab: 0.3,
+    button: 0.12,
+    plug: 0.4,
+    desk: { reach: 3.2, hand: [0.18, -0.3, 0.55] as [number, number, number] },
+  },
+
   start: {
     berthId: 'calder-cargo',
     quay: { x: 713, z: 661.5, yawDeg: 90 },

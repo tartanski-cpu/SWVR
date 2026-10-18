@@ -1,3 +1,4 @@
+import type { FuelState } from '../fuel/fuelHose';
 import { gearOf } from '../boats/sims';
 import type { BoardState } from '../board/board';
 import { CONFIG } from '../config';
@@ -74,6 +75,8 @@ export interface WorldState {
   salvage?: SalvageState;
   /** Lobster and crab potting: pots in the water (potting/potting.ts). Absent = off. */
   potting?: PottingState;
+  /** The fuel pumps' hoses: where each nozzle is (fuel/fuelHose.ts). Made when first used. */
+  fuel?: FuelState;
   /** Fishing: the trawl and the catch (fishing/fishing.ts). */
   fishing?: FishingState;
   /** The career: money, ledger, reputation, contracts, upgrades (career/career.ts). */

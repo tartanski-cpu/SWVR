@@ -69,6 +69,8 @@ import { TouchControls, wantsTouchControls } from '../ui/touchControls';
 import { TowlineView } from '../tow/towlineView';
 import { PotView } from '../potting/potView';
 import { PotHands, type PotHandsContext } from '../potting/potHands';
+import { FuelView } from '../fuel/fuelView';
+import { FuelHands, type FuelHandsContext } from '../fuel/fuelHands';
 import { PainterView } from '../vessel/view/painterView';
 import { cleatName, painterPlan, skiffCleatLocal } from '../vessel/physics/painter';
 import { Cleat } from '../controls/deckGear';
@@ -279,6 +281,9 @@ export class App {
   private readonly trawlView = new TrawlView();
   private readonly potView = new PotView();
   private readonly potHands = new PotHands();
+  /** The fuel pumps' hoses and the boats' fillers (fuel/): refuelling by hand. */
+  private readonly fuelView = new FuelView();
+  private readonly fuelHands = new FuelHands();
   private readonly targetsView = new TargetsView();
   private readonly desktopHand = new DesktopHand();
   private readonly deskHandW = new THREE.Vector3();
@@ -463,7 +468,7 @@ export class App {
     if (tugView) for (const g of this.gear) if (stowage?.[g.kind]) g.mount(tugView.root, stowage[g.kind]!);
     if (tugView) this.potHands.mount(tugView.root, this.scene, this.world.vessels[this.testVesselId].defId);
     this.scene.add(this.handGearView.root);
-    this.scene.add(this.towline.root, this.painter.root, this.fireView.root, this.jetView.root, this.logView.root, this.trawlView.root, this.potView.root);
+    this.scene.add(this.towline.root, this.painter.root, this.fireView.root, this.jetView.root, this.logView.root, this.trawlView.root, this.potView.root, this.fuelView.root);
     this.setupBridge();
 
     setupXR(this.renderer, this.camera);
@@ -792,6 +797,7 @@ export class App {
       if (id === this.testVesselId) ({ slam, lap } = hit);
     }
     this.towline.update(this.world, this.vesselRoots, this.testVesselId, this.renderWaves);
+    this.fuelView.update(this.world, this.vesselRoots, this.focus, this.renderWaves, dt, this.fuelHands.hot, this.fuelHands.held());
     this.painter.update(this.world, this.vesselRoots, this.renderWaves);
     this.logView.update(this.world, this.renderWaves, renderTime);
     this.trawlView.update(this.world, this.vesselRoots.get(this.testVesselId) ?? null, this.renderWaves, renderTime);
@@ -2326,6 +2332,9 @@ export class App {
         const onPots = this.potHands.updateXR(this.potCtx(), this.hands, this.busyHands, this.frameDt);
         for (const h of ['left', 'right'] as const) if (onPots[h] || this.potHands.busy(h)) this.busyHands[h] = true;
       }
+      // The fuel pump's nozzle and buttons.
+      const onFuel = this.fuelHands.updateXR(this.fuelCtx(), this.hands, this.busyHands, this.frameDt);
+      for (const h of ['left', 'right'] as const) if (onFuel[h] || this.fuelHands.busy(h)) this.busyHands[h] = true;
       if (this.board && !this.noteKeys.isOpen) {
         const onBoard = this.board.updateXR(this.boardCtx(), this.hands, this.busyHands);
         for (const h of ['left', 'right'] as const) if (onBoard[h]) this.busyHands[h] = true;
@@ -2367,13 +2376,16 @@ export class App {
         const free = !this.cargoHands.carrying;
         const board = free && !this.rescueHands.deskBusy && this.board ? this.board.label(this.boardCtx(), ray) : null;
         // Pot work (the buoy on the hook, the line, the bait tub) before the rescue gear's own label.
-        const pots = free && !board && this.world.potting ? this.potHands.updateDesktop(this.potCtx(), ray, this.frameDt) : null;
-        const gear = free && !board ? this.rescueHands.updateDesktop(this.rescueCtx(), ray, this.headW, this.headFwd, this.frameDt) : null;
-        return board ?? pots ?? gear ?? this.cargoHands.updateDesktop(this.cargoCtx(), ray, this.headW, this.headFwd);
+        // The fuel nozzle (carried in front of us while held) and the pump's buttons.
+        const fuel = free && !board && !this.rescueHands.deskBusy ? this.fuelHands.label(this.fuelCtx(), ray, this.frameDt) : null;
+        const pots = free && !board && !fuel && this.world.potting ? this.potHands.updateDesktop(this.potCtx(), ray, this.frameDt) : null;
+        const gear = free && !board && !fuel ? this.rescueHands.updateDesktop(this.rescueCtx(), ray, this.headW, this.headFwd, this.frameDt) : null;
+        return board ?? fuel ?? pots ?? gear ?? this.cargoHands.updateDesktop(this.cargoCtx(), ray, this.headW, this.headFwd);
       },
       click: (ray: THREE.Ray | null) => {
         this.camera.getWorldDirection(this.headFwd);
         if (!this.cargoHands.carrying && !this.rescueHands.deskBusy && this.board?.click(this.boardCtx(), ray)) return true;
+        if (!this.cargoHands.carrying && !this.rescueHands.deskBusy && this.fuelHands.click(this.fuelCtx(), ray)) return true;
         if (!this.cargoHands.carrying && this.world.potting && this.potHands.desktopClick(this.potCtx(), ray)) return true;
         if (!this.cargoHands.carrying && this.rescueHands.desktopClick(this.rescueCtx(), ray, this.headFwd)) return true;
         const took = this.cargoHands.desktopClick(this.cargoCtx(), ray);
@@ -2469,6 +2481,24 @@ export class App {
   }
 
   /** The pot hands' view of the app (pots are worked from the workboat). */
+  /** The fuel hands' view of the app. */
+  private fuelCtx(): FuelHandsContext {
+    return {
+      world: this.world,
+      playerId: this.localPlayerId,
+      view: this.fuelView,
+      roots: this.vesselRoots,
+      push: (control, ref, args, targetId) => this.intents.push({ playerId: this.localPlayerId, targetId: targetId ?? this.localPlayerId, control, value: 1, ref, args }),
+      notify: (text) => this.overlay.notify(text, 3),
+      pulse: (h, i, ms) => this.xrInput.pulse(h, i, ms),
+      // In front of the eyes, a little right and down (the camera looks along its -z).
+      deskHand: (out) => {
+        const [x, y, z] = CONFIG.fuelHose.desk.hand;
+        return out.set(x, y, -z).applyMatrix4(this.camera.matrixWorld);
+      },
+    };
+  }
+
   private potCtx(): PotHandsContext {
     return {
       world: this.world,

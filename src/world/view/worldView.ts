@@ -160,12 +160,7 @@ function buildStructures(): THREE.BufferGeometry[] {
     const strip = new THREE.BoxGeometry(0.3, 0.03, 12).rotateY(-yaw).translate(ex, b.deckY + 0.015, ez);
     parts.push(part(strip, 0xf2c200));
   }
-  for (const p of PORTS) {
-    if (!p.fuel) continue;
-    const top = standingHeight(p.fuel.pumpX, p.fuel.pumpZ);
-    parts.push(part(new THREE.BoxGeometry(0.7, 1.5, 0.5).translate(p.fuel.pumpX, top + 0.75, p.fuel.pumpZ), 0xc8281e, 'worn'));
-    parts.push(part(new THREE.BoxGeometry(0.72, 0.25, 0.52).translate(p.fuel.pumpX, top + 1.62, p.fuel.pumpZ), 0xf0f0f0));
-  }
+  // The fuel pumps are drawn with their hoses (fuel/fuelView.ts).
   return parts;
 }
 
