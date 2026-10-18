@@ -116,6 +116,9 @@ export interface RescueState {
   hook?: HookState;
   shout?: Shout;
   shoutSeq?: number;
+  /** The last swimmer into a turning propeller (views spray red when `seq` changes). */
+  strike?: { seq: number; pos: Vec3; player: string };
+  strikeSeq?: number;
   /** When a crew-mate on the ring last shouted about the propeller (world time, s). */
   propWarnedCrew?: number;
   cheer?: number;

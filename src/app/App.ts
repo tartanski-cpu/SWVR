@@ -63,6 +63,8 @@ import { berthById } from '../vessel/physics/mooring';
 import { XRControllers } from '../player/xrControllers';
 import { HandGestures } from '../player/handGesture';
 import { OwnHands } from '../player/ownHands';
+import { struckByPropeller } from '../rescue/propStrike';
+import { PropStrikeView } from '../rescue/propStrikeView';
 import { lookFromId } from '../net/avatarOutfits';
 import { BoatView } from './boatView';
 import type { Control } from '../controls/Control';
@@ -419,6 +421,10 @@ export class App {
   private busyHands = { left: false, right: false };
   /** When we last let go of (or asked for) the life ring in the water (world time). */
   private ringLetGoAt = -99;
+  /** The red spray when a swimmer goes into a propeller (everyone sees it). */
+  private readonly propStrikeView = new PropStrikeView();
+  /** Us struck by a propeller: seconds since (red, black, back aboard), or -1. */
+  private strikeT = -1;
   /** Crew-mates in the water (to say so once when one goes in). */
   private readonly overboard = new Set<string>();
   private readonly waveV = new THREE.Vector3();
@@ -541,6 +547,7 @@ export class App {
     this.targetsView.onWhistle = (pos) => this.sound.whistle.blow(pos);
     this.scene.add(this.laser.beam.root);
     this.scene.add(this.wildlife.root);
+    this.scene.add(this.propStrikeView.pool.points);
     for (const vessel of Object.values(this.world.vessels)) this.addVesselView(vessel);
     const tugView = this.vesselViews.get(this.testVesselId);
     // The towline's lead from the winch drum over the stern roller; the trawl's warps from
@@ -758,6 +765,7 @@ export class App {
     this.updateInteraction(inXR);
     this.updateGestures(inXR);
     this.updateLocomotion(dt, inXR);
+    this.updateStrike(dt);
     this.syncRigToPlayer(0);
     this.updateLaser(dt);
     this.camera.getWorldPosition(this.focus);
@@ -890,6 +898,12 @@ export class App {
     this.logView.update(this.world, this.renderWaves, renderTime);
     this.trawlView.update(this.world, this.vesselRoots.get(this.testVesselId) ?? null, this.renderWaves, renderTime);
     this.potView.update(this.world, this.renderWaves, this.world.time, this.focus, darkness, this.vesselRoots);
+    const struck = this.propStrikeView.update(this.world, this.renderWaves, dt, this.focus, darkness);
+    if (struck) {
+      const d = struck.distanceTo(this.focus);
+      this.sound.contact.thud(1, d);
+      this.sound.water.splash(1, d);
+    }
     // Potting switched on in Settings: on in our game too, if it's ours (alone or hosting).
     if (userSettings.potting && !this.world.potting && (this.host || !this.client)) this.pushVesselIntent('pottingOn', 1);
     this.fireView.update(this.world, this.renderWaves, renderTime, dt);
@@ -1393,6 +1407,16 @@ export class App {
       }
       this.comfortOverlay.update(dt, 0.6, false);
       return true;
+    }
+    // Into a turning propeller (rescue/propStrike.ts): red, black, back aboard (updateStrike).
+    if (this.strikeT < 0) {
+      const chest = this.tmpV.copy(this.headW);
+      chest.y -= 0.6;
+      if (struckByPropeller(this.world, chest)) {
+        this.strikeT = 0;
+        this.rescueCtx().push('rescuePropStrike', undefined, 1, [chest.x, chest.y, chest.z]);
+        pulseBoth(1, 400);
+      }
     }
     // Swimming: climb out with a hand on the gunwale or transom, or the jump button near a
     // hull or quay; otherwise swim (strokes with grab-the-world, or the stick).
@@ -2610,6 +2634,29 @@ export class App {
       const tools = this.chartTools;
       // Drawing on the chart only with the leaf unfolded.
       this.pointer.chart = (ray, b) => (this.chartTable?.isOpen ? tools.updateDesktop(this.chartCtx(), ray, b, this.frameDt) : { label: null, consumed: false });
+    }
+  }
+
+  /**
+   * Struck by a propeller: the view red at once, fading to black; put back aboard our boat
+   * (as if hauled out and patched up) while it's black; then the view clears.
+   */
+  private updateStrike(dt: number): void {
+    if (this.strikeT < 0) return;
+    const c = CONFIG.rescue.propStrike;
+    const was = this.strikeT;
+    this.strikeT += dt;
+    const t = this.strikeT;
+    if (was < c.respawnAt && t >= c.respawnAt) {
+      this.toggleBoardTo(true);
+      this.overlay.notify('Hauled out of the water and patched up. Neutral near swimmers!', 5);
+    }
+    const red = t < c.blackAt ? 1 : Math.max(0, 1 - (t - c.blackAt) / (c.clearAt - c.blackAt));
+    const black = t < c.blackAt ? t / c.blackAt : t < c.respawnAt + 0.4 ? 1 : Math.max(0, 1 - (t - c.respawnAt - 0.4) / (c.clearAt - c.respawnAt - 0.4));
+    this.comfortOverlay.strike(red, black);
+    if (t >= c.clearAt) {
+      this.strikeT = -1;
+      this.comfortOverlay.strike(0, 0);
     }
   }
 

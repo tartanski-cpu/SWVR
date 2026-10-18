@@ -42,6 +42,16 @@ export class ContactAudio {
     source().connect(band).connect(this.scrape).connect(mixer.bus(ctx, 'effects'));
   }
 
+  /** A one-off thud (a swimmer struck by a propeller), `distance` m from the listener. */
+  thud(strength: number, distance: number): void {
+    if (!this.ctx || !this.thump) return;
+    const now = this.ctx.currentTime;
+    const g = Math.min(1, strength) * 2.6 / (1 + distance / 12);
+    this.thump.gain.cancelScheduledValues(now);
+    this.thump.gain.setValueAtTime(g, now);
+    this.thump.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+  }
+
   /** @param distance listener distance from the boat (m); returns impact strength 0..1 (for haptics) */
   update(c: ContactState, distance: number, dt: number): number {
     this.cooldown = Math.max(0, this.cooldown - dt);

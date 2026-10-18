@@ -214,7 +214,7 @@ function jitter(a: number): number {
   return (Math.random() - 0.5) * 2 * a;
 }
 
-function sprayTexture(): THREE.Texture {
+export function sprayTexture(): THREE.Texture {
   const s = 32;
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = s;

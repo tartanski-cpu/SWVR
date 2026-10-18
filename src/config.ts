@@ -2326,6 +2326,15 @@ export const CONFIG = {
      */
     crewCatchRadius: 2.5,
     crewCatchSlack: 1.5,
+    /**
+     * A swimmer into a turning propeller (owner: a bloody special effect, for fun). Turning:
+     * in gear with the engine over `minRpm`. Struck: their chest within the blades' radius
+     * + `reach` (m) of the hub. Then, from the hit (s): the view red at once, fading to black
+     * by `blackAt`, put back aboard her at `respawnAt`, clear again by `clearAt`. Everyone
+     * sees a burst of `droplets` red drops, then red froth churned up at `frothRate` a
+     * second for `frothSec`.
+     */
+    propStrike: { minRpm: 300, reach: 0.55, blackAt: 1.1, respawnAt: 1.8, clearAt: 3.2, droplets: 140, frothRate: 45, frothSec: 2.2 },
     maxLine: 30,
     reelScale: 1.6,
     desktopThrowSpeed: 17,

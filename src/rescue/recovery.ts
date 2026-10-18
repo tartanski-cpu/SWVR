@@ -274,6 +274,17 @@ export function applyRecoveryIntent(world: WorldState, v: VesselState | undefine
       shout(r, `${pl.name || 'Your crew-mate'} has the ring: haul in!`);
       return true;
     }
+    case 'rescuePropStrike': {
+      // A swimmer into a turning propeller (their game saw it: propStrike.ts). Everyone's
+      // view sprays red there (propStrikeView.ts); they're put back aboard by their game.
+      const a = intent.args ?? [];
+      if (a.length < 3 || !a.slice(0, 3).every(Number.isFinite)) return true;
+      r.strikeSeq = (r.strikeSeq ?? 0) + 1;
+      r.strike = { seq: r.strikeSeq, pos: [a[0], a[1], a[2]], player: who };
+      if (ring.player === who) ring.player = null;
+      shout(r, `Man down at the stern! ${world.players[who]?.name || 'Someone'} went into the propeller!`);
+      return true;
+    }
     case 'ringLetGo':
       if (ring.player === who) ring.player = null;
       return true;

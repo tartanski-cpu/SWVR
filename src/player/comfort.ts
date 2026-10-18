@@ -119,7 +119,10 @@ export class MotionDecoupler {
  */
 export class ComfortOverlay {
   readonly mesh: THREE.Mesh;
-  private readonly uniforms = { uVignette: { value: 0 }, uFade: { value: 0 } };
+  private readonly uniforms = { uVignette: { value: 0 }, uFade: { value: 0 }, uRed: { value: 0 } };
+  /** Struck by a propeller (rescue/propStrike.ts): red, and blacked out (0..1). */
+  private red = 0;
+  private black = 0;
   private vignette = 0;
   private fade = 0;
 
@@ -136,12 +139,13 @@ export class ComfortOverlay {
       fragmentShader: /* glsl */ `
         uniform float uVignette;
         uniform float uFade;
+        uniform float uRed;
         varying vec2 vUv;
         void main() {
           float d = length(vUv - 0.5) * 2.0;           // 0 centre .. ~1.4 corners
           float inner = mix(1.2, 0.45, uVignette);       // tunnel closes in with strength
           float a = smoothstep(inner, inner + 0.35, d) * step(0.001, uVignette);
-          gl_FragColor = vec4(0.0, 0.0, 0.0, max(a, uFade));
+          gl_FragColor = vec4(0.5 * uRed, 0.0, 0.0, max(a, uFade));
         }`,
     });
     this.mesh = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.6), material);
@@ -159,8 +163,21 @@ export class ComfortOverlay {
     const targetV = Math.min(1, moving) * CONFIG.comfort.vignette;
     this.vignette += (targetV - this.vignette) * Math.min(1, dt / (targetV > this.vignette ? 0.08 : 0.3));
     this.fade += ((inWall ? 1 : 0) - this.fade) * Math.min(1, dt / 0.15);
+    this.apply();
+  }
+
+  /** Struck by a propeller: `red` 0..1 tints the view, `black` 0..1 blacks it out. */
+  strike(red: number, black: number): void {
+    this.red = red;
+    this.black = black;
+    this.apply();
+  }
+
+  private apply(): void {
     this.uniforms.uVignette.value = this.vignette;
-    this.uniforms.uFade.value = this.fade;
-    this.mesh.visible = this.vignette > 0.01 || this.fade > 0.01;
+    // Red: a see-through wash (0.55 at full), deepening as it blacks out.
+    this.uniforms.uFade.value = Math.max(this.fade, this.black, 0.55 * this.red);
+    this.uniforms.uRed.value = this.red * (1 - this.black * 0.6);
+    this.mesh.visible = this.vignette > 0.01 || this.uniforms.uFade.value > 0.01;
   }
 }

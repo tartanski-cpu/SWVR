@@ -4652,6 +4652,16 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **The line's hover text** on desktop says "your crew-mate is on it!".
 - **Checked:** `npm test` (105 files, 754 pass; new `tests/crewOverboard.test.ts`: thrown, taken, not snatched back, hauled in, not stowed under them, let go, out of reach, the propeller shout, gone from the game; the swimming flag through the host), typecheck. In the game in headless Chromium: me in the water 12 m off her stern, the ring floated by me, it was taken on its own; eight pulls hauled me in to her stern on the ring. No page errors. **Not checked:** the Quest, and two real players over the network (the test drives the host's side).
 
+### Into the propeller: a bloody special effect (owner)
+
+- **The owner asked** for a bloody special effect when a player gets too close to the propeller, for fun; the on/off switch can come later.
+- **Struck** (`rescue/propStrike.ts`, `CONFIG.rescue.propStrike`): a swimmer's chest within the blades' radius + `reach` (0.55 m) of a turning propeller's hub. Turning means the inboard diesel in gear, ahead or astern, over `minRpm` (300); not in neutral. Hubs are at her `propeller.position`, a twin-screw boat's either side at `twinX` (now in the diesel's gear facts). The swimmer's own game checks it (it moves their body).
+- **The swimmer:** a long buzz in both controllers; the view goes red at once, then fades to black by `blackAt` (1.1 s); at `respawnAt` (1.8 s) they're put back aboard the home boat ("Hauled out of the water and patched up. Neutral near swimmers!"); clear again by `clearAt` (3.2 s). The red and the black are on the comfort overlay (`player/comfort.ts strike`).
+- **Everyone** (`rescue/propStrikeView.ts`): the host is told (`rescuePropStrike`: `rescue.strike` with a sequence number, the place and who). Every game then throws a burst of `droplets` (140) red drops up and out of the water there, then red froth churned up at `frothRate` (45 a second) for `frothSec` (2.2 s), dimmer at night. A thud (`ContactAudio.thud`) and a splash, fainter with distance. A shout: "Man down at the stern! <name> went into the propeller!". It lets them out of the life ring.
+- **Cost:** its own pool of up to 260 drops, one draw call, drawn only while any are alive (only after a strike); no new physics.
+- **Not yet:** the Settings switch (the owner will add it later; the plan was white spray with it off), and the skiff's outboard (it has no gear facts for its propeller here).
+- **Checked:** `npm test` (106 files, 757 pass; new `tests/propStrike.test.ts`: stopped, neutral, ahead and astern, out of reach, twin screws, the host's message and junk), typecheck. In the game in headless Chromium: me in the water just aft of her hub, her going slow astern, struck: the shout, the red drops at her stern, the red-to-black view, then back aboard and clear. No page errors. **Not checked:** the Quest (the burst at a real frame rate, the haptics), and with two players.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**
