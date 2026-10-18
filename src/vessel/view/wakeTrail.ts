@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { CONFIG } from '../../config';
-import { gerstnerChunk, MAX_WAVES } from '../../ocean/oceanView';
+import { MAX_KNOCKS, MAX_RACES, MAX_WAVES, gerstnerChunk } from '../../ocean/oceanView';
 import { restPosition, type PreparedWave } from '../../ocean/waves';
 import { MAX_SHELTERS } from '../../world/shelter';
 import { foamNoiseTexture } from '../../ocean/foamNoise';
@@ -102,7 +102,7 @@ export class WakeTrail {
       },
       vertexShader: `${gerstnerChunk}\n${WAKE_VERT}`,
       fragmentShader: WAKE_FRAG,
-      defines: { MAX_WAVES, MAX_SHELTERS },
+      defines: { MAX_WAVES, MAX_SHELTERS, MAX_RACES, MAX_KNOCKS },
       transparent: true,
       depthWrite: false,
       // Winding depends on which way the boat was going (ahead or astern) when the points

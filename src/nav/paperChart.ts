@@ -13,7 +13,8 @@
  * table): sized to be read from standing height on desktop without leaning in.
  */
 import { CONFIG } from '../config';
-import { MARKS, MAX_DEPTH, PORTS, WRECKS, type MarkKind } from '../world/archipelago';
+import { CURRENTS, MARKS, MAX_DEPTH, PORTS, WRECKS, type MarkKind } from '../world/archipelago';
+import { slackTimes } from '../world/currents';
 import { LIGHT_CHARACTERS } from '../world/navMarks';
 import { groundHeight } from '../world/terrain';
 import { chartBounds, chartIslands, toLatLon } from './geo';
@@ -196,6 +197,44 @@ export function drawPaperChart(widthPx = 2048): PaperChart {
   // Buoys: a small pillar (can, cone) in the mark's colours with its topmark, the light's
   // magenta flare and its character (as charted).
   for (const m of MARKS) drawMark(g, m.kind, px(m.x), pz(m.z), u * 0.6, (text, tx, ty) => label(text, tx, ty, `italic ${13 * u}px Georgia, serif`, '#9a1f78'));
+
+  // Tidal races (regions): the zone's outline turned to its set, a double-headed arrow
+  // (it runs both ways), and the note a chart prints: the peak rate, the cycle, the slack times.
+  for (const z of CURRENTS) {
+    if (z.x < b.x0 || z.x > b.x1 || z.z < b.z0 || z.z > b.z1) continue;
+    const x = px(z.x);
+    const y = pz(z.z);
+    const hl = (z.length / 2) * ppm;
+    const hw = (z.width / 2) * ppm;
+    g.save();
+    g.translate(x, y);
+    g.rotate((z.setDeg * Math.PI) / 180);
+    g.strokeStyle = '#9a1f78';
+    g.lineWidth = 1.5 * u;
+    g.setLineDash([6 * u, 5 * u]);
+    g.strokeRect(-hw, -hl, 2 * hw, 2 * hl);
+    g.setLineDash([]);
+    g.lineWidth = 2 * u;
+    g.beginPath();
+    g.moveTo(0, -hl * 0.7);
+    g.lineTo(0, hl * 0.7);
+    for (const d of [-1, 1]) {
+      g.moveTo(-5 * u, d * hl * 0.7 - d * 8 * u);
+      g.lineTo(0, d * hl * 0.7);
+      g.lineTo(5 * u, d * hl * 0.7 - d * 8 * u);
+    }
+    // Overfalls: three wavy strokes across the middle.
+    for (const row of [-1, 0, 1]) {
+      g.moveTo(-hw * 0.6, row * 7 * u);
+      for (let i = 1; i <= 6; i++) g.lineTo(-hw * 0.6 + (i * hw * 1.2) / 6, row * 7 * u + (i % 2 ? -3 : 3) * u);
+    }
+    g.stroke();
+    g.restore();
+    const slacks = slackTimes(z).map((t) => `${String(Math.floor(t)).padStart(2, '0')}${String(Math.round((t % 1) * 60)).padStart(2, '0')}`);
+    label(z.name, x, y - hl - 26 * u, `italic bold ${16 * u}px Georgia, serif`, '#9a1f78');
+    label(`Race ${z.peakKn} kn at peak, ${z.periodH} h cycle`, x, y - hl - 10 * u, `italic ${13 * u}px Georgia, serif`, '#9a1f78');
+    label(`slack ${slacks.join(' ')}`, x, y + hl + 16 * u, `italic ${13 * u}px Georgia, serif`, '#9a1f78');
+  }
 
   // Compass rose, bottom left (open water there).
   const rose = Math.min(W, H) * 0.1;

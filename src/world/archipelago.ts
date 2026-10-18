@@ -13,6 +13,7 @@ import type {
   BerthDef,
   BlockDef,
   BuildingDef,
+  CurrentZoneDef,
   CutDef,
   FishingGroundDef,
   FlatDef,
@@ -50,6 +51,7 @@ export const PORT_FLOODS: PortFloodDef[] = REGIONS.flatMap((r) => r.portFloods);
 export const POTTING_GROUNDS: PottingGround[] = REGIONS.flatMap((r) => r.pottingGrounds);
 export const FISHING_GROUNDS: FishingGroundDef[] = REGIONS.flatMap((r) => r.fishingGrounds);
 export const FOG_BANKS: FogBankDef[] = REGIONS.flatMap((r) => r.fogBanks);
+export const CURRENTS: CurrentZoneDef[] = REGIONS.flatMap((r) => r.currents);
 
 /** Deepest water anywhere (m): the open sea floor. */
 export const MAX_DEPTH = 40;

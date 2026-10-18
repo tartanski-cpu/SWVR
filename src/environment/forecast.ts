@@ -9,6 +9,9 @@ import { CONFIG, type WeatherPresetName } from '../config';
 import { homeVessel, type WorldState } from '../core/world';
 import { isPowered } from '../vessel/electrics';
 import { beaufort, compass8, type WeatherState } from './weather';
+import { CURRENTS } from '../world/archipelago';
+import { raceReading } from '../world/currents';
+import type { EnvironmentState } from './environmentState';
 
 export interface Forecast {
   text: string;
@@ -44,8 +47,21 @@ function clock(timeOfDay: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
-/** The forecast as read out: now, then the next change and roughly when. */
-export function forecastText(w: WeatherState, time: number): string {
+/**
+ * The tidal races (regions): a line each, whether it's running or slack and when the next
+ * slack is, so you can judge whether the passage is wise today (world/currents.ts).
+ */
+export function racesText(env: EnvironmentState): string {
+  return CURRENTS.map((z) => {
+    const r = raceReading(z, env.timeOfDay, env.raceOverride);
+    const slackAt = clock(r.nextSlackH);
+    if (r.slack) return `${z.name}: slack water, the race running again by ${clock((r.nextSlackH + 0.5) % 24)}.`;
+    return `${z.name}: race running ${compass8(r.dirDeg)} ${r.kn.toFixed(0)} knots, slack about ${slackAt}.`;
+  }).join(' ');
+}
+
+/** The forecast as read out: now, then the next change and roughly when, then the races. */
+export function forecastText(w: WeatherState, time: number, env?: EnvironmentState): string {
   const now = w.now;
   const nextP = CONFIG.weather.presets[w.next.preset];
   const gale = w.preset === 'Squall' || w.next.preset === 'Squall';
@@ -58,6 +74,7 @@ export function forecastText(w: WeatherState, time: number): string {
     w.next.preset === w.preset
       ? 'No change expected.'
       : `Becoming ${SKY[w.next.preset]} ${when}: wind ${dir} ${beaufort(nextP.wind)}, visibility ${visibilityWord(nextP.visibility)}.`,
+    env ? racesText(env) : '',
   ];
   return parts.filter(Boolean).join(' ');
 }
@@ -74,7 +91,7 @@ export function stepForecast(world: WorldState): void {
   const v = homeVessel(world);
   if (!v || !isPowered(v, 'radio')) return; // nobody listening
   world.forecast = {
-    text: forecastText(w, world.time),
+    text: forecastText(w, world.time, world.environment),
     receivedAt: clock(world.environment.timeOfDay),
     seq: (world.forecast?.seq ?? 0) + 1,
     at: world.time,

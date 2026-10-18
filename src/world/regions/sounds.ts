@@ -11,13 +11,20 @@
  *
  * Where: north of home (-Z), the gap from home's northern islands (Tarran, the Skerry) to
  * this island's south shore about 3.3 km, the brief's "one map diagonal".
+ *
+ * MILESTONE 3: the trial race, Sruth Tarsk, lies in the sound on the direct line from Calder
+ * Haven to the hill: 500 m wide, 900 m long, running north on the flood and south on the
+ * ebb at 9 kn at peak (the Corryvreckan-type race of the brief), a six-hour cycle with slack
+ * at 00:00, 03:00, 06:00... The starter workboat (13 kn) makes about 4 kn over the ground
+ * against it at peak; a Shipyard pilot boat punches through. Go round it to the east or west.
  */
 import type { RegionDef } from '../defs';
 
 export const SOUNDS: RegionDef = {
   id: 'sounds',
   name: 'The Sounds',
-  bounds: { x0: -1500, x1: 2500, z0: -6500, z1: -3200 },
+  // The footprint reaches south over the sound, to take in the trial race on the crossing.
+  bounds: { x0: -1500, x1: 2500, z0: -6500, z1: -1900 },
   landmarks: [
     // The cairn hill: 150 m, steep, bare above the heather line.
     { name: 'Cnoc Tarsk', kind: 'hill', x: 400, z: -4000, height: 150 },
@@ -59,4 +66,7 @@ export const SOUNDS: RegionDef = {
   pottingGrounds: [],
   fishingGrounds: [],
   fogBanks: [],
+  currents: [
+    { id: 'sruth-tarsk', name: 'Sruth Tarsk', x: 470, z: -2500, length: 900, width: 500, setDeg: 0, peakKn: 9, periodH: 6, phaseH: 0, waveFactor: 1.8, knocks: 4 },
+  ],
 };

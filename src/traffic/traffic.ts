@@ -14,9 +14,12 @@
  * Random choices use a deterministic hash of a counter in the state.
  */
 import { CONFIG } from '../config';
+import { driftVelocity } from '../world/drift';
+
+const driftV = { x: 0, z: 0 };
 import type { Intent } from '../core/intents';
 import { homeVessel, type WorldState } from '../core/world';
-import { visibilityAt, windVector } from '../environment/weather';
+import { visibilityAt } from '../environment/weather';
 import type { VesselState } from '../vessel/vesselState';
 import { PORTS } from '../world/archipelago';
 import { groundHeight } from '../world/terrain';
@@ -181,11 +184,11 @@ export function stepTraffic(world: WorldState, dt: number): void {
     const opening = (s.x - bx) * Math.sin(s.course) - (s.z - bz) * Math.cos(s.course) > 0;
     return !(d > c.despawn && opening) && d < c.despawn * 1.6;
   });
-  // Debris drifts downwind (like everything in the water), and is left behind.
-  const w = windVector(world.environment, { x: 0, z: 0 });
+  // Debris drifts like everything in the water (world/drift.ts), and is left behind.
   for (const d of t.debris) {
-    d.x += (CONFIG.rescue.drift[0] + w.x * CONFIG.weather.driftPerWind) * dt;
-    d.z += (CONFIG.rescue.drift[1] + w.z * CONFIG.weather.driftPerWind) * dt;
+    const dv = driftVelocity(world.environment, d.x, d.z, driftV);
+    d.x += dv.x * dt;
+    d.z += dv.z * dt;
   }
   t.debris = t.debris.filter((d) => Math.hypot(d.x - bx, d.z - bz) < c.despawn);
 }

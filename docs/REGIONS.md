@@ -1,6 +1,6 @@
 # Regions: growing the world
 
-Status: **agreed with the owner (Oct 2026); milestones 1 and 2 done, awaiting the owner's test.** The running record is PROGRESS.md "Regions".
+Status: **agreed with the owner (Oct 2026); milestones 1 to 3 done, awaiting the owner's test.** The running record is PROGRESS.md "Regions".
 
 The owner's brief, in short: grow the world by adding **regions** round home, each with its own geography, weather, fish, goods and towing jobs, reached by a short passage across open water, all still running in the browser on the Quest. The design intent, what a region defines, the tidal races as current zones, the four regions and the technical rules are the owner's; the decisions and the plan below are what was agreed in the session that started the work.
 
@@ -26,7 +26,7 @@ A region is **data, never code of its own**: one file in `src/world/regions/` ho
 - **One sky.** The weather profile in force is that of the region the host's own boat is in; the director's next pick uses the new weights when you cross. Katabatic gusts and the Mistral event are new preset kinds a region's profile can reach.
 - **The exposed pier's weather window is not a rule:** a pier with no shelter zone, facing the prevailing sea, punishes you through the contact physics and hull damage. The chart and forecast state the window.
 - **Anchorages:** bottom type scales the anchor's holding; shelter zones get an optional open arc, so a bay sheltered from all but the south is calm until the sea comes from the south.
-- **Current zones** go in as the shelter zones did: one list, read on the CPU (the water velocity at each hull station: the vessel physics already works against it) and in the ocean shader (standing waves, whirl patches, foam). One shared drift helper for everything that floats.
+- **Current zones are oriented rectangles** (centre, length along the set, width, set direction), not free polygons: the ocean shader tests them exactly the same way the physics does; a polygon would need a lookup texture. They go in as the shelter zones did: one list, read on the CPU (the water velocity at each hull station: the vessel physics already works against it) and in the ocean shader (standing waves, whirl patches, foam). One shared drift helper for everything that floats.
 - **The race clock is the game clock,** and time flows by default (owner): a six game-hour cycle, slack around dawn and dusk; the Voyage tab can still freeze time.
 - **The fast boat is a Shipyard boat** (the yard builds boats to 33 kn). The starter workboat (13 kn) cannot pass the 9 kn race at peak; it can from about two-thirds of the way to slack.
 - **New mechanics come after each region's first version:** recovering a mooring block with the crane, carrying a passenger, an escort job, fish-farm cages, stern-to mooring, log booms. Each region is built first with the jobs that reuse what exists.
@@ -38,7 +38,7 @@ A region is **data, never code of its own**: one file in `src/world/regions/` ho
 
 1. **Region framework, no visible change** (done): home becomes `home`; the region list, bounds and `regionAt`; every consumer generic; fog banks and fishing grounds into the region file; the menu's port rows and teleport for any number of ports; tests.
 2. **Seeing far, and streaming** (done): far plane, visibility-driven fog and cull distances, landmark silhouettes, worker-built meshes, load and unload by distance, the debug map and teleport, the budget measured; the Sounds as a stub with only its landmark hill to prove it.
-3. **Current zones:** the race mechanic, surface effects, sound, knock points, chart symbol and forecast line, debug set-to-peak and set-to-slack; a test race in open water near home.
+3. **Current zones** (done): the race mechanic, surface effects, sound, knock points, chart symbol and forecast line, debug set-to-peak and set-to-slack; the trial race Sruth Tarsk in the sound on the crossing to the Sounds.
 4. **The Sounds:** the full region with spine, repair yard, two races, cliff inlet with leading line, directional shelter, species, goods, jobs; the per-port economy and job templates every later region uses; the archipelago sheet and the detail sheet; the forecast per crossing.
 5. **The Fjord:** narrow entrance, katabatic gusts, cheap fuel, the fish farm, the first new mechanics.
 6. **The Narrows:** the 12 kn race with the pinnacle, the buoyed dog-leg, wrecks, log booms, the night escort.

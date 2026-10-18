@@ -106,8 +106,12 @@ export const CONFIG = {
   environment: {
     /** Hours, 0..24. */
     startTimeOfDay: 10.5,
-    /** Game-hours per real second. 0 = frozen sun. */
-    timeScale: 0,
+    /**
+     * Game-hours per real second. 0 = frozen sun. Time flows by default since the regions
+     * (owner): one game hour in five real minutes (the menu's x12), so a day is two real
+     * hours and a six-hour race cycle half an hour, with slack windows minutes long.
+     */
+    timeScale: 12 / 3600,
     /** Sea (and air) temperature (°C): a cold engine starts here, the cooler rejects heat to it. */
     seaTempC: 14,
     /** Hours added per keypress of N / M (debug). */
@@ -3369,6 +3373,23 @@ export const CONFIG = {
     lightVisFactor: 1.3,
     /** Far-off land is nudged toward the camera by this many depth units (silhouettes; see render.far). */
     silhouetteDepthUnits: -4,
+  },
+
+  /**
+   * Tidal races as current zones (world/currents.ts; the zones are each region's `currents`).
+   *   edgeFade     the current (and the standing waves) come up over this far inside a zone's edges (m)
+   *   slackBelowKn the race counts as slack while it runs slower than this (the forecast, the chart)
+   *   knock        the whirl points: a boat within `radius` m of one takes a yaw and a heel
+   *                push, `yaw` and `roll` rad/s^2 at the point's middle at peak, scaled by the
+   *                race's strength; each point turns its own way, and wanders with time so no
+   *                two passes are alike. Never a capsize: the hull's own damping takes it.
+   *   roar         heard from `hearRange` m outside a running race, `gain` at full strength inside
+   */
+  currents: {
+    edgeFade: 60,
+    slackBelowKn: 1.5,
+    knock: { radius: 28, yaw: 0.07, roll: 0.08 },
+    roar: { hearRange: 700, gain: 0.55 },
   },
 
   debug: {

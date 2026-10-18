@@ -7,6 +7,8 @@ varying float vHeight;
 // swell) and how sheltered the water is there (1 open sea .. a harbour's factor).
 varying vec2 vRest;
 varying float vShelter;
+// The strongest running race here, signed (0 none): its foam streaks and whirls (ocean.frag).
+varying float vRace;
 
 void main() {
   vec4 world0 = modelMatrix * vec4(position, 1.0);
@@ -17,5 +19,8 @@ void main() {
   vHeight = disp.y;
   vRest = p0;
   vShelter = shelterAt(p0);
+  float running;
+  raceAt(p0, running);
+  vRace = running;
   gl_Position = projectionMatrix * viewMatrix * vec4(wp, 1.0);
 }

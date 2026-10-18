@@ -4,7 +4,8 @@ import * as THREE from 'three';
 import type { WorldState } from '../core/world';
 import { part } from '../render/geometryUtils';
 import { cargoPaused, portById } from '../rescue/rescue';
-import { FISHING_GROUNDS, MARKS, PORTS, POTTING_GROUNDS, WRECKS } from '../world/archipelago';
+import { CURRENTS, FISHING_GROUNDS, MARKS, PORTS, POTTING_GROUNDS, WRECKS } from '../world/archipelago';
+import { raceReading } from '../world/currents';
 import { chartIslands } from './geo';
 import { groundHeight } from '../world/terrain';
 import { CONFIG } from '../config';
@@ -244,6 +245,39 @@ export class ChartPlotter {
         g.stroke();
       }
       g.fillText(p.name.replace(' (anchorage)', ''), px + 10, py - 12);
+    }
+
+    // Tidal races (regions): the zone outlined, turned to its set, an arrow the way the water
+    // runs now and its speed; slack, a still box and the word.
+    for (const z of CURRENTS) {
+      const [cx, cy] = toPx(z.x, z.z);
+      const hl = z.length / 2 / mpp;
+      const hw = z.width / 2 / mpp;
+      if (cx + hl < 0 || cx - hl > W || cy + hl < 0 || cy - hl > H) continue;
+      const r = raceReading(z, world.environment.timeOfDay, world.environment.raceOverride);
+      g.save();
+      g.translate(cx, cy);
+      g.rotate((z.setDeg * Math.PI) / 180);
+      g.strokeStyle = r.slack ? 'rgba(150,190,240,0.8)' : 'rgba(255,150,80,0.9)';
+      g.lineWidth = 2;
+      g.setLineDash([5, 4]);
+      g.strokeRect(-hw, -hl, 2 * hw, 2 * hl);
+      g.setLineDash([]);
+      if (!r.slack) {
+        const dir = r.dirDeg === z.setDeg ? -1 : 1; // the set is up in this frame
+        const len = Math.max(14, hl * 0.6);
+        g.lineWidth = 3;
+        g.beginPath();
+        g.moveTo(0, -dir * len);
+        g.lineTo(0, dir * len);
+        g.lineTo(-6, dir * len - dir * 9);
+        g.moveTo(0, dir * len);
+        g.lineTo(6, dir * len - dir * 9);
+        g.stroke();
+      }
+      g.restore();
+      g.fillStyle = r.slack ? '#9ec0f0' : '#ffb070';
+      g.fillText(r.slack ? `${z.name}: slack` : `${z.name}: ${r.kn.toFixed(1)} kn`, cx + hw + 6, cy);
     }
 
     // Fishing grounds: dashed teal rings with their names.

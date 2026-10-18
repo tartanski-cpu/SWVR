@@ -16,6 +16,7 @@ import { WhistleAudio } from '../audio/whistleAudio';
 import { FmRadio } from '../audio/fmRadio';
 import { WildlifeAudio } from '../audio/wildlifeAudio';
 import { WindAudio } from '../audio/windAudio';
+import { RaceAudio } from '../audio/raceAudio';
 
 /**
  * The game's sound systems in one place (split out of App). Each makes its own sounds; the
@@ -53,12 +54,14 @@ export class SoundBoard {
   readonly wildlife = new WildlifeAudio();
   /** The FM set's stream, from the set under the wheelhouse roof. */
   readonly fm = new FmRadio();
+  /** A tidal race's roar (regions). */
+  readonly race = new RaceAudio();
 
   /** On a user gesture: start audio (again harmless). */
   unlock(): void {
     this.engine.unlock();
     const ctx = this.engine.context;
-    for (const s of [this.horn, this.alarm, this.contact, this.water, this.radio, this.whistle, this.shipHorn, this.rescue, this.motor, this.wind, this.paper, this.fire, this.anchor, this.hydraulics, this.wildlife, this.fm]) s.attach(ctx);
+    for (const s of [this.horn, this.alarm, this.contact, this.water, this.radio, this.whistle, this.shipHorn, this.rescue, this.motor, this.wind, this.paper, this.fire, this.anchor, this.hydraulics, this.wildlife, this.fm, this.race]) s.attach(ctx);
     watchVoices();
   }
 }

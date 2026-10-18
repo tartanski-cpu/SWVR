@@ -23,8 +23,11 @@
  */
 import { gearOf } from '../boats/sims';
 import { CONFIG } from '../config';
+import { driftVelocity } from '../world/drift';
+
+const driftV = { x: 0, z: 0 };
 import { homeVessel, type WorldState } from '../core/world';
-import { windVector } from '../environment/weather';
+
 import { sayRadio } from '../rescue/rescue';
 import { PORTS } from '../world/archipelago';
 import { REGIONS } from '../world/regions';
@@ -185,10 +188,10 @@ export function stepLog(world: WorldState, log: SalvageLog, T: number, ux: numbe
     v[0] += ((T * ux - drag * v[0]) / c.mass) * dt;
     v[1] += ((T * uz - drag * v[1]) / c.mass) * dt;
     if (T === 0) {
-      // Off the line: it drifts with the wind like the debris.
-      const w = windVector(world.environment, { x: log.x, z: log.z });
-      log.x += (CONFIG.rescue.drift[0] + w.x * CONFIG.weather.driftPerWind) * dt;
-      log.z += (CONFIG.rescue.drift[1] + w.z * CONFIG.weather.driftPerWind) * dt;
+      // Off the line: it drifts like the debris (world/drift.ts).
+      const dv = driftVelocity(world.environment, log.x, log.z, driftV);
+      log.x += dv.x * dt;
+      log.z += dv.z * dt;
     }
   }
   log.x += v[0] * dt;

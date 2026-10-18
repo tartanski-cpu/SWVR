@@ -1,6 +1,7 @@
 import { applySlipIntent, isSlipIntent, stepSlipway } from '../world/slipway';
 import { applyEnvironmentIntent, stepEnvironment } from '../environment/timeOfDay';
 import { stepWeather } from '../environment/weather';
+import { setRaceClock, stepRaceKnocks } from '../world/currents';
 import { applyCameraIntent, isCameraIntent, stepCameraHolds } from '../player/cameraHold';
 import { windForce } from '../vessel/physics/windage';
 import { prepareWaves, type PreparedWave } from '../ocean/waves';
@@ -120,6 +121,8 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
   // 2. Integrate systems. Forces are evaluated at the start-of-tick time.
   stepEnvironment(world.environment, dt);
   stepWeather(world.environment, world.time, dt);
+  // The tidal races' strength from the game clock: the water every sample reads this tick.
+  setRaceClock(world.environment.timeOfDay, world.environment.raceOverride);
   simWaves = prepareWaves(world.environment.waves, world.time, simWaves);
   // Boat against boat (the tender alongside), from the start-of-tick states.
   // A tender in her cradle or on the crane rides her ship instead (stepped below, after it).
@@ -146,6 +149,8 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
     const ext = touching.get(vessel.id);
     const external = wind ? [...(ext ?? []), wind] : ext;
     stepVessel(vessel, VESSEL_DEFS[vessel.defId], simWaves, dt, dbg, world.geography === 'archipelago', payload, external);
+    // In a running race, its whirl points knock her head and heel about.
+    if (world.geography === 'archipelago') stepRaceKnocks(vessel, world.time, dt);
     // On a slipway (a bow-ramp boat landed): held where she lies, the waves no longer moving her.
     stepSlipway(vessel, dt);
     stepDeckCargo(world, vessel, deckBefore, dt);

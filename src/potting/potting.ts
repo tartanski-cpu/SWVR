@@ -1,4 +1,7 @@
 import { CONFIG } from '../config';
+import { addCurrent } from '../world/currents';
+
+const raceV = { x: 0, z: 0 };
 import type { EntityId } from '../core/ids';
 import type { Intent } from '../core/intents';
 import { homeVessel, type WorldState } from '../core/world';
@@ -229,6 +232,19 @@ export function stepPotting(world: WorldState, dt: number): void {
       pot.z = nz;
       pot.ground = groundAt(nx, nz)?.id ?? null;
     }
+  }
+  // A tidal race carries pots along (the owner: everything in the water drifts with it).
+  for (const pot of p.shot) {
+    if (!buoyUp(world, pot)) continue;
+    raceV.x = 0;
+    raceV.z = 0;
+    if (addCurrent(pot.x, pot.z, raceV) <= 0) continue;
+    const nx = pot.x + raceV.x * dt;
+    const nz = pot.z + raceV.z * dt;
+    if (groundHeight(nx, nz) > -1.5) continue;
+    pot.x = nx;
+    pot.z = nz;
+    pot.ground = groundAt(nx, nz)?.id ?? null;
   }
   // Hauling: a hooked buoy comes off when its hooker lets go of the hook; a pot on its
   // line is dragged along under the boat, and in a swell the line slips back if left.

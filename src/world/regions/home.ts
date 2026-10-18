@@ -253,4 +253,6 @@ export const HOME: RegionDef = {
     { x: 380, z: 430, r: 260, visibility: 160 },
     { x: -470, z: -360, r: 230, visibility: 180 },
   ],
+  // No races in home's waters: the first is in the sound to the north (regions/sounds.ts).
+  currents: [],
 };

@@ -24,6 +24,9 @@
 import { windVector } from '../environment/weather';
 import * as THREE from 'three';
 import { CONFIG } from '../config';
+import { driftVelocity } from '../world/drift';
+
+const driftV = { x: 0, z: 0 };
 import type { Intent } from '../core/intents';
 import type { Vec3 } from '../core/math';
 import type { WorldState } from '../core/world';
@@ -155,8 +158,9 @@ export function stepRecovery(world: WorldState, v: VesselState, waves: readonly 
     }
   }
   if (station && ring.state === 'water') {
-    ring.pos[0] += (cfg.drift[0] + wind.x * CONFIG.weather.driftPerWind) * dt;
-    ring.pos[2] += (cfg.drift[1] + wind.z * CONFIG.weather.driftPerWind) * dt;
+    const dv = driftVelocity(world.environment, ring.pos[0], ring.pos[2], driftV);
+    ring.pos[0] += dv.x * dt;
+    ring.pos[2] += dv.z * dt;
     // The line: no longer than paid out. Taut, it drags the ring toward the cleat.
     const dx = ring.pos[0] - cleat.x;
     const dz = ring.pos[2] - cleat.z;

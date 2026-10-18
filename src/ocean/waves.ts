@@ -34,6 +34,15 @@
 import { CONFIG } from '../config';
 import { wrap } from '../core/math';
 import { shelterFactor } from '../world/shelter';
+import { addCurrent, raceWaveFactor } from '../world/currents';
+
+/**
+ * The amplitude factor at rest position (x0, z0): sheltered water (<= 1) times the tidal
+ * races' standing waves (>= 1 while one runs). The shader applies the same two (gerstner.glsl).
+ */
+export function waveFactorAt(x0: number, z0: number): number {
+  return shelterFactor(x0, z0) * raceWaveFactor(x0, z0);
+}
 
 const TWO_PI = Math.PI * 2;
 
@@ -98,12 +107,13 @@ function horizontalDisplacement(waves: readonly PreparedWave[], x0: number, z0: 
     hx += w.horizontal * w.dirX * c;
     hz += w.horizontal * w.dirZ * c;
   }
-  const s = waves.length > 0 ? shelterFactor(x0, z0) : 1;
+  const s = waves.length > 0 ? waveFactorAt(x0, z0) : 1;
   out.x = hx * s;
   out.z = hz * s;
 }
 
 const scratchH = { x: 0, z: 0 };
+const cur = { x: 0, z: 0 };
 
 /**
  * Rest position (x0, z0) of the particle currently at world point (x, z).
@@ -122,7 +132,7 @@ export function restPosition(waves: readonly PreparedWave[], x: number, z: numbe
 
 /** Full displaced position of the particle with rest position (x0, z0). */
 export function displacedPosition(waves: readonly PreparedWave[], x0: number, z0: number): [number, number, number] {
-  const sh = waves.length > 0 ? shelterFactor(x0, z0) : 1;
+  const sh = waves.length > 0 ? waveFactorAt(x0, z0) : 1;
   let x = x0;
   let y = 0;
   let z = z0;
@@ -143,7 +153,7 @@ export function surfaceHeight(waves: readonly PreparedWave[], x: number, z: numb
   const [x0, z0] = restPosition(waves, x, z);
   let y = 0;
   for (const w of waves) y += w.amplitude * Math.sin(w.k * (w.dirX * x0 + w.dirZ * z0) - w.phase);
-  return y * shelterFactor(x0, z0);
+  return y * waveFactorAt(x0, z0);
 }
 
 export interface SurfaceSample {
@@ -162,7 +172,7 @@ export interface SurfaceSample {
  */
 export function sampleSurface(waves: readonly PreparedWave[], x: number, z: number): SurfaceSample {
   const [x0, z0] = restPosition(waves, x, z);
-  const sh = waves.length > 0 ? shelterFactor(x0, z0) : 1;
+  const sh = waves.length > 0 ? waveFactorAt(x0, z0) : 1;
   let y = 0;
   // Tangent along x0: (1 + txx, txy, txz); along z0: (tzx, tzy, 1 + tzz)
   let txx = 0, txy = 0, txz = 0, tzy = 0, tzz = 0; // prettier-ignore
@@ -195,7 +205,11 @@ export function sampleSurface(waves: readonly PreparedWave[], x: number, z: numb
   nx /= len;
   ny /= len;
   nz /= len;
-  return { height: y, normal: [nx, ny, nz], velocity: [vx, vy, vz] };
+  // The tidal races: the water itself moving (world/currents.ts), on top of the orbits.
+  cur.x = 0;
+  cur.z = 0;
+  addCurrent(x, z, cur);
+  return { height: y, normal: [nx, ny, nz], velocity: [vx + cur.x, vy, vz + cur.z] };
 }
 
 /** Significant wave height of a sum of sinusoids: Hs = 4σ, σ² = Σ A²/2. */

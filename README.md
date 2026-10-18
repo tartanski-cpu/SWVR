@@ -498,6 +498,8 @@ The world is growing: new map areas round home, each with its own harbours, weat
 - **You can see far.** On a clear day the land shows out to the horizon, hazing with distance, instead of dissolving at 2.5 km. In fog or rain it closes in as before, and lights fade out at the range the weather allows.
 - **A hill to the north.** From Calder Haven look north on a clear day: a cairn hill about 4.6 km off across the sound, the landmark of the first new region, the Sounds. Steer for it and its island fills in as you near it (built while you sail; nothing to wait for). There is nothing else there yet: its harbours, tidal races and grounds are next.
 - **Home has a landmark too:** a cairn and a trig pillar on top of Calder Holm.
+- **A tidal race in the sound.** On the direct line to the hill lies **Sruth Tarsk**: 500 m of water running north on the flood and south on the ebb at up to 9 kn, six hours a full cycle, slack at 00:00, 03:00, 06:00 and so on. You hear its roar and see the standing waves and whirls from outside. Go in against it and your log still reads your full speed while the land shows you crawling; a boat slower than the water goes backwards. Whirls knock the helm about. Go round it, wait for slack (the VHF forecast says when; the plotter shows the race and its speed now), or punch through in a fast boat.
+- **The clock runs now:** a game hour every five real minutes (Voyage → Time flow), so the races turn and night comes in a session.
 - Debug (Settings → Game → Debug tab → Shown): **World → To region** moves the boat between regions; **Views → Region map** shows the regions and what's loaded on the perf panel.
 
 ### Cargo

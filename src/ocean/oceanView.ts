@@ -8,7 +8,12 @@ import gerstnerChunk from './shaders/gerstner.glsl?raw';
 import type { PreparedWave } from './waves';
 import { createRippleTexture } from './rippleTexture';
 import { foamNoiseTexture } from './foamNoise';
-import { SHELTERS, type ShelterDef } from '../world/archipelago';
+import { SHELTERS, type CurrentZoneDef, type ShelterDef } from '../world/archipelago';
+import { knockPoints, raceStrength, setVector } from '../world/currents';
+
+/** Races and whirl points the shader holds at once: those of the regions drawn in full. */
+export const MAX_RACES = 4;
+export const MAX_KNOCKS = 12;
 import { MAX_SHELTERS } from '../world/shelter';
 
 export const MAX_WAVES = 8;
@@ -34,6 +39,10 @@ export class OceanView {
       uShelter: u.uShelter,
       uShelterK: u.uShelterK,
       uShelterCount: u.uShelterCount,
+      uRace: u.uRace,
+      uRaceB: u.uRaceB,
+      uRaceCount: u.uRaceCount,
+      uRaceFade: u.uRaceFade,
       uSunIntensity: u.uSunIntensity,
       uAmbient: u.uAmbient,
       uFogColor: u.uFogColor,
@@ -50,6 +59,14 @@ export class OceanView {
     uShelter: { value: Array.from({ length: MAX_SHELTERS }, () => new THREE.Vector4()) },
     uShelterK: { value: Array.from({ length: MAX_SHELTERS }, () => 1) },
     uShelterCount: { value: 0 },
+    // Tidal races (setRaces, setRaceStrengths each frame) and their whirl points.
+    uRace: { value: Array.from({ length: MAX_RACES }, () => new THREE.Vector4()) },
+    uRaceB: { value: Array.from({ length: MAX_RACES }, () => new THREE.Vector4(1, 0, 0, 1)) },
+    uRaceCount: { value: 0 },
+    uRaceFade: { value: CONFIG.currents.edgeFade },
+    uKnock: { value: Array.from({ length: MAX_KNOCKS }, () => new THREE.Vector4()) },
+    uKnockCount: { value: 0 },
+    uTime: { value: 0 },
     uDeep: { value: new THREE.Color(CONFIG.ocean.colors.deep) },
     uScatter: { value: new THREE.Color(CONFIG.ocean.colors.scatter) },
     uFoam: { value: new THREE.Color(CONFIG.ocean.colors.foam) },
@@ -93,7 +110,7 @@ export class OceanView {
       uniforms: this.uniforms,
       vertexShader: `${gerstnerChunk}\n${oceanVertex}`,
       fragmentShader,
-      defines: { MAX_WAVES, MAX_SHELTERS },
+      defines: { MAX_WAVES, MAX_SHELTERS, MAX_RACES, MAX_KNOCKS },
     });
     this.mesh = new THREE.Mesh(createOceanGeometry(), material);
     this.mesh.name = 'ocean';
@@ -123,6 +140,38 @@ export class OceanView {
       u.uShelterK.value[i] = i < n && z ? z.factor : 1;
     }
     u.uShelterCount.value = n;
+  }
+
+  private races: readonly CurrentZoneDef[] = [];
+
+  /** The tidal races the shader draws: those of the regions drawn in full (set with the shelters). */
+  setRaces(zones: readonly CurrentZoneDef[]): void {
+    this.races = zones.slice(0, MAX_RACES);
+    const u = this.uniforms;
+    let nk = 0;
+    this.races.forEach((z, i) => {
+      const s = setVector(z);
+      u.uRace.value[i].set(z.x, z.z, z.length / 2, z.width / 2);
+      u.uRaceB.value[i].set(s.x, s.z, 0, z.waveFactor);
+      for (const k of knockPoints(z)) {
+        if (nk >= MAX_KNOCKS) break;
+        u.uKnock.value[nk++].set(k.x, k.z, CONFIG.currents.knock.radius * 1.6, 0);
+      }
+    });
+    u.uRaceCount.value = this.races.length;
+    u.uKnockCount.value = nk;
+  }
+
+  /** Each race's strength now (the clock, world/currents.ts), once per frame. */
+  private setRaceStrengths(time: number): void {
+    const u = this.uniforms;
+    u.uTime.value = time % 3600;
+    let nk = 0;
+    this.races.forEach((z, i) => {
+      const st = raceStrength(z);
+      u.uRaceB.value[i].z = st;
+      for (let k = 0; k < z.knocks && nk < MAX_KNOCKS; k++) u.uKnock.value[nk++].w = Math.abs(st);
+    });
   }
 
   /** The searchlight's pool on the water (intensity 0 = off). */
@@ -165,6 +214,7 @@ export class OceanView {
 
     const u = this.uniforms;
     u.uCenter.value.set(viewer.x, viewer.z);
+    this.setRaceStrengths(time);
     const count = Math.min(waves.length, MAX_WAVES);
     u.uWaveCount.value = count;
     let crest = 0;

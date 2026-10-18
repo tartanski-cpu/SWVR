@@ -22,7 +22,8 @@ describe('headless simulation', () => {
     const { world, localPlayerId } = createWorld(new IdFactory());
     const before = world.environment.timeOfDay;
     stepWorld(world, [{ playerId: localPlayerId, targetId: ENVIRONMENT_ID, control: 'timeOfDayDelta', value: 23 }], 1 / 60);
-    expect(world.environment.timeOfDay).toBeCloseTo((before + 23) % 24, 9);
+    // The clock runs by default (time flows since the regions): the tick moves it on a hair.
+    expect(world.environment.timeOfDay).toBeCloseTo((before + 23 + world.environment.timeScale / 60) % 24, 9);
   });
 });
 

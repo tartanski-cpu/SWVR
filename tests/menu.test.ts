@@ -87,6 +87,8 @@ function fakeHost() {
     teleportToPort: (i) => calls.push(`go ${i}`),
     teleportToRegion: (id) => calls.push(`region ${id}`),
     regionMap: () => false,
+    raceOverride: () => 0,
+    setRaceOverride: (v) => calls.push(`race ${v}`),
     toggleRegionMap: () => calls.push('regionMap'),
     runStatus: () => 'No cargo run',
     rescueNow: () => calls.push('rescue'),

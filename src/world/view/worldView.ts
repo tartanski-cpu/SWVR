@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { fitPaint, flatVertexColorMaterial, mergeParts, paintLocal, part } from '../../render/geometryUtils';
 import type { PaintName } from '../../render/pixelPaint';
-import { LAMPS, LIGHTS, PORT_FLOODS, type BlockDef, type BuildingDef, type RegionDef, type ShelterDef, type SlipwayDef, type WreckDef } from '../archipelago';
+import { LAMPS, LIGHTS, PORT_FLOODS, type BlockDef, type BuildingDef, type CurrentZoneDef, type RegionDef, type ShelterDef, type SlipwayDef, type WreckDef } from '../archipelago';
 import { CONFIG } from '../../config';
 import { groundHeight } from '../terrain';
 import { standingHeight } from '../geography';
@@ -64,6 +64,11 @@ export class WorldView {
   get shelters(): ShelterDef[] {
     this.residencyChanged = false;
     return this.views.filter((v) => v.resident).flatMap((v) => v.region.shelters);
+  }
+
+  /** The tidal races of the regions drawn in full, for the ocean shader. */
+  get races(): CurrentZoneDef[] {
+    return this.views.filter((v) => v.resident).flatMap((v) => v.region.currents);
   }
 
   /**

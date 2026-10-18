@@ -176,6 +176,9 @@ export interface MenuHost {
   teleportToRegion(id: string): void;
   regionMap(): boolean;
   toggleRegionMap(): void;
+  /** Debug: the tidal races pinned (0 the clock, 1 peak, 2 slack). */
+  raceOverride(): number;
+  setRaceOverride(v: number): void;
   seaTrialsShown(): boolean;
   toggleSeaTrials(): void;
   /** Which boat you start in (modular boats M7: the workboat, or the landing craft); choosing one restarts the game in her. */
@@ -244,6 +247,7 @@ export interface CameraOptions {
 /** Time flow options: game time per real time. */
 const TIME_FLOW: [string, number][] = [
   ['Stopped', 0],
+  ['×12', 12 / 3600],
   ['×60', 60 / 3600],
   ['×600', 600 / 3600],
 ];
@@ -630,6 +634,8 @@ export function mainMenu(h: MenuHost): MainMenu {
             { text: '+', press: () => h.setSeaScale(h.seaScale() + CONFIG.ocean.seaScaleStep) },
           ],
         },
+        { heading: 'Tidal races' },
+        { label: 'Running', buttons: [choice('By the clock', 0, () => h.raceOverride(), (v) => h.setRaceOverride(v)), choice('Peak', 1, () => h.raceOverride(), (v) => h.setRaceOverride(v)), choice('Slack', 2, () => h.raceOverride(), (v) => h.setRaceOverride(v))] },
         { heading: 'Move' },
         { label: 'To port', buttons: PORTS.map((_, i) => ({ text: () => h.ports()[i]?.name ?? '', press: () => h.teleportToPort(i) })) },
         { label: 'To region', buttons: REGIONS.map((r) => ({ text: r.name, press: () => h.teleportToRegion(r.id) })) },

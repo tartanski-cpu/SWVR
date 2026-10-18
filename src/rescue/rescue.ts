@@ -22,8 +22,9 @@
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 import { isPowered } from '../vessel/electrics';
 import { formatPosition } from '../nav/geo';
-import { windVector } from '../environment/weather';
+
 import { CONFIG } from '../config';
+import { driftVelocity } from '../world/drift';
 import type { EntityId } from '../core/ids';
 import type { Intent } from '../core/intents';
 import { homeVessel, type WorldState } from '../core/world';
@@ -358,6 +359,8 @@ function rescueVessel(world: WorldState): VesselState | undefined {
 }
 
 /** One tick: track cargo runs, roll and raise calls, time out unanswered ones, drift targets, recovery. */
+const driftV = { x: 0, z: 0 };
+
 export function stepRescue(world: WorldState, dt: number, waves: readonly PreparedWave[] = []): void {
   const cfg = CONFIG.rescue;
   const r = (world.rescue ??= createRescueState());
@@ -394,13 +397,13 @@ export function stepRescue(world: WorldState, dt: number, waves: readonly Prepar
   }
 
   const inc = r.active;
-  const wind = windVector(world.environment, { x: 0, z: 0 });
   if (inc) {
     for (const t of inc.targets) {
       if (!t.phase || t.phase === 'floating') {
-        // Current, plus leeway: things in the water drift downwind.
-        t.x += (cfg.drift[0] + wind.x * CONFIG.weather.driftPerWind) * dt;
-        t.z += (cfg.drift[1] + wind.z * CONFIG.weather.driftPerWind) * dt;
+        // The set, the wind's leeway and any race: things in the water drift (world/drift.ts).
+        const d = driftVelocity(world.environment, t.x, t.z, driftV);
+        t.x += d.x * dt;
+        t.z += d.z * dt;
       }
     }
   }

@@ -278,6 +278,33 @@ export interface LandmarkDef {
   height: number;
 }
 
+/**
+ * A tidal race as a current zone (the regions brief, section 4; world/currents.ts). No tide
+ * model: the water in the zone runs along `setDeg` at `peakKn` x sin(2 pi (t - phaseH) /
+ * periodH), t the game clock in hours, so it floods one way, slackens, and ebbs back the
+ * other, `periodH` hours a full cycle (choose a divisor of 24 so midnight is no jump). Slack
+ * is at phaseH + k x periodH / 2. The zone is an oriented rectangle: `length` m along the
+ * set, `width` m across, fading in over CONFIG.currents.edgeFade m inside its edges.
+ * Inside, the waves stand up (`waveFactor` x their amplitude at peak) and `knocks` whirl
+ * points knock the helm about as you pass. The chart prints the peak, the cycle and the
+ * slack times; the forecast says whether it's running.
+ */
+export interface CurrentZoneDef {
+  id: string;
+  name: string;
+  x: number;
+  z: number;
+  length: number;
+  width: number;
+  /** Where the water goes on the flood half (deg, 0 north, clockwise). */
+  setDeg: number;
+  peakKn: number;
+  periodH: number;
+  phaseH: number;
+  waveFactor: number;
+  knocks: number;
+}
+
 /** A region's footprint on the map (world m): all its data lies inside; open water between regions belongs to none. */
 export interface RegionBounds {
   x0: number;
@@ -326,4 +353,6 @@ export interface RegionDef {
   pottingGrounds: PottingGround[];
   fishingGrounds: FishingGroundDef[];
   fogBanks: FogBankDef[];
+  /** Tidal races (milestone 3). */
+  currents: CurrentZoneDef[];
 }

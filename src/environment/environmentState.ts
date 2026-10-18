@@ -24,6 +24,8 @@ export interface EnvironmentState {
    * continuous here when the sea changes (weather.ts rebuildWaves). Absent: the origin.
    */
   seaAnchor?: { x: number; z: number };
+  /** Debug (regions): every tidal race pinned at peak or slack; absent: the clock (world/currents.ts). */
+  raceOverride?: 'peak' | 'slack';
 }
 
 /** The configured waves scaled to sea state `s` (see CONFIG.ocean.seaStates). */

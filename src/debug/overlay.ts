@@ -34,6 +34,8 @@ export interface DebugStats {
 export interface RegionMapData {
   regions: { id: string; bounds: { x0: number; x1: number; z0: number; z1: number }; resident: boolean; building: boolean; outline: boolean }[];
   landmarks: { x: number; z: number }[];
+  /** The tidal races: the zone and what it's doing now (kn, signed along its set). */
+  races: { x: number; z: number; length: number; width: number; setDeg: number; kn: number }[];
   /** The viewer (world x, z) and heading (deg, 0 north, clockwise). */
   viewer: { x: number; z: number; headingDeg: number };
 }
@@ -219,6 +221,34 @@ export class DebugOverlay {
       ctx.strokeRect(px(r.bounds.x0), pz(r.bounds.z0), w, h);
       ctx.fillStyle = '#dfe';
       ctx.fillText(r.id, px(r.bounds.x0) + 4, pz(r.bounds.z0) + size / 18);
+    }
+    // Races: the zone's rectangle turned to its set, an arrow the way it runs, its speed.
+    for (const r of d.races) {
+      const a = (r.setDeg * Math.PI) / 180;
+      ctx.save();
+      ctx.translate(px(r.x), pz(r.z));
+      ctx.rotate(a);
+      const w = r.width * k;
+      const h = r.length * k;
+      const on = Math.abs(r.kn) > 1.5;
+      ctx.fillStyle = on ? 'rgba(240,120,60,0.35)' : 'rgba(120,160,220,0.25)';
+      ctx.strokeStyle = on ? '#ff9a5c' : '#9ab8e0';
+      ctx.lineWidth = 1.5;
+      ctx.fillRect(-w / 2, -h / 2, w, h);
+      ctx.strokeRect(-w / 2, -h / 2, w, h);
+      if (on) {
+        const dir = r.kn >= 0 ? -1 : 1; // the set is up (north) in this frame: -y
+        ctx.beginPath();
+        ctx.moveTo(0, -dir * h * 0.3);
+        ctx.lineTo(0, dir * h * 0.3);
+        ctx.lineTo(-4, dir * h * 0.3 - dir * 6);
+        ctx.moveTo(0, dir * h * 0.3);
+        ctx.lineTo(4, dir * h * 0.3 - dir * 6);
+        ctx.stroke();
+      }
+      ctx.restore();
+      ctx.fillStyle = on ? '#ffb080' : '#b0c8e8';
+      ctx.fillText(`${Math.abs(r.kn).toFixed(1)} kn`, px(r.x) + 6, pz(r.z) - 4);
     }
     ctx.fillStyle = '#f0e0a0';
     for (const l of d.landmarks) {

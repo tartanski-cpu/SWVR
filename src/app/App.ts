@@ -53,7 +53,8 @@ import { WristMenu } from '../ui/wristMenu';
 import { mainMenu, type MenuHost } from '../ui/mainMenu';
 import { placeInFront } from '../ui/placeInFront';
 import { canRefuel, releaseHolds } from '../vessel/vesselControl';
-import { FISHING_GROUNDS, PORTS } from '../world/archipelago';
+import { CURRENTS, FISHING_GROUNDS, PORTS } from '../world/archipelago';
+import { raceRoarLevel, raceStrength, setRaceClock } from '../world/currents';
 import { REGIONS, regionById } from '../world/regions';
 import { groundHeight } from '../world/terrain';
 import { aboard, carriedBy, dropCarried, cargoLabel, cargoPortAt, kindOf, payloadMass, quickLoadable, quickPort, quickUnloadable, slotsUsed, type CargoItem } from '../cargo/cargo';
@@ -726,6 +727,7 @@ export class App {
       this.overlay.setRegionMap({
         regions: this.worldView.regionStates().map((r) => ({ id: r.region.id, bounds: r.region.bounds, resident: r.resident, building: r.building, outline: r.outline })),
         landmarks: REGIONS.flatMap((r) => r.landmarks),
+        races: CURRENTS.map((z) => ({ x: z.x, z: z.z, length: z.length, width: z.width, setDeg: z.setDeg, kn: raceStrength(z) * z.peakKn })),
         viewer: { x: this.focus.x, z: this.focus.z, headingDeg: ((Math.atan2(this.tmpV.x, -this.tmpV.z) * 180) / Math.PI + 360) % 360 },
       });
     } else this.overlay.setRegionMap(null);
@@ -842,6 +844,9 @@ export class App {
 
   /** Light, sky and sea around the head. */
   private updateSurroundings(renderTime: number): void {
+    // The tidal races' strength now, for everything drawn on the water this frame (and the
+    // ocean shader's zones follow the resident regions).
+    setRaceClock(this.world.environment.timeOfDay, this.world.environment.raceOverride);
     this.environment.update(this.world.environment, this.focus, this.world.time);
     this.sky.update(this.environment, this.focus);
     this.ocean.update(this.renderWaves, this.focus, this.environment, renderTime, windVector(this.world.environment, this.windNow));
@@ -980,7 +985,10 @@ export class App {
     // Regions: which are drawn in full for this viewer, which outlines are in sight today;
     // the ocean shader's shelter zones follow the resident set.
     this.worldView.update(this.focus, this.environment.visibility, dt);
-    if (this.worldView.residencyChanged) this.ocean.setShelters(this.worldView.shelters);
+    if (this.worldView.residencyChanged) {
+      this.ocean.setRaces(this.worldView.races);
+      this.ocean.setShelters(this.worldView.shelters);
+    }
     this.worldView.lights.update(renderTime, darkness, this.focus, this.environment.visibility);
     this.navMarks.update(this.renderWaves, renderTime, darkness);
     this.targetsView.visibility = this.environment.visibility;
@@ -1845,6 +1853,8 @@ export class App {
       },
       weatherPreset: () => env().weather?.preset ?? '',
       setWeather: (name) => this.pushEnvIntent('weatherForce', Object.keys(CONFIG.weather.presets).indexOf(name)),
+      raceOverride: () => (env().raceOverride === 'peak' ? 1 : env().raceOverride === 'slack' ? 2 : 0),
+      setRaceOverride: (v) => this.pushEnvIntent('raceOverride', v),
       weatherFixed: () => env().weather?.fixed ?? true,
       setWeatherFixed: (on) => this.pushEnvIntent('weatherFixed', on ? 1 : 0),
       weatherFast: () => (env().weather?.speed ?? 1) > 1,
@@ -3370,6 +3380,8 @@ export class App {
       this.closed = home.door?.shut && (home.sideDoor?.shut ?? true) ? 1 : 0;
     }
     this.sound.wind.update(Math.hypot(ax, az), inside, dt, this.closed);
+    // A tidal race's roar: its strength where you are, or fading in from outside it.
+    this.sound.race.update(raceRoarLevel(this.focus.x, this.focus.z), inside, this.closed);
   }
 
   /**

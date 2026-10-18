@@ -30,6 +30,11 @@ uniform vec3 uTorchPos;
 uniform vec3 uTorchDir;
 uniform vec2 uTorchCos;
 uniform vec3 uTorchColor;       // 0 when off
+// Tidal races: the whirl points (x, z, radius, strength 0..1) for the whirl patches.
+uniform vec4 uKnock[MAX_KNOCKS];
+uniform int uKnockCount;
+uniform float uTime;
+varying float vRace;
 uniform vec3 uFogColor;
 uniform float uFogNear;
 uniform float uFogFar;
@@ -159,6 +164,35 @@ void main() {
     float tatten = tcone / (1.0 + (dt / 18.0) * (dt / 18.0));
     float tglint = pow(max(dot(n, normalize(tdir + v)), 0.0), 50.0);
     col += uTorchColor * tatten * (0.6 * max(dot(n, tdir), 0.0) + tglint * 1.5);
+  }
+
+  // A running tidal race: broken water. Foam streaks drawn out along the set (the same
+  // noise trick as the wind's streaks, on the water's rest position so they ride with it),
+  // denser the stronger it runs, and whirl patches round the knock points: a dark eye with a
+  // ring of foam turning round it. All within the zone (vRace), nothing outside.
+  if (abs(vRace) > 0.02) {
+    float st = abs(vRace);
+    float near = 1.0 - smoothstep(300.0, 900.0, dist);
+    float sn = texture2D(uFoamNoise, vec2(vRest.x * 0.08, vRest.y * 0.012 - uTime * 0.05 * sign(vRace))).r;
+    float broken = smoothstep(0.62, 0.8, sn) * st;
+    float sn2 = texture2D(uFoamNoise, vec2(vRest.x * 0.03 + 0.3, vRest.y * 0.004 - uTime * 0.03 * sign(vRace))).r;
+    broken = max(broken, smoothstep(0.66, 0.84, sn2) * st * 0.7);
+    float whirl = 0.0;
+    float eye = 0.0;
+    for (int k = 0; k < MAX_KNOCKS; k++) {
+      if (k >= uKnockCount) break;
+      vec4 kp = uKnock[k];
+      vec2 d = vRest - kp.xy;
+      float r = length(d) / kp.z;
+      if (r > 1.0) continue;
+      float ang = atan(d.y, d.x) + uTime * 1.2 * kp.w + r * 6.0;
+      float arm = texture2D(uFoamNoise, vec2(ang * 0.4, r * 1.5 - uTime * 0.2)).r;
+      whirl = max(whirl, smoothstep(0.5, 0.7, arm) * (1.0 - r) * kp.w);
+      eye = max(eye, (1.0 - smoothstep(0.0, 0.35, r)) * kp.w);
+    }
+    col *= 1.0 - 0.35 * eye;
+    float wf = clamp(max(broken * 0.4, whirl * 0.8), 0.0, 1.0) * near;
+    col = mix(col, uFoam * (0.4 * uAmbient + 0.3 * uSunIntensity), wf);
   }
 
   float fogF = clamp((dist - uFogNear) / (uFogFar - uFogNear), 0.0, 1.0);
