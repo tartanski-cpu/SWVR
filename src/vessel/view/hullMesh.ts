@@ -576,8 +576,10 @@ function buildShapedHouse(layout: HouseLayout, col: Paint, base: number): THREE.
   parts.push(...keep(box(-door, door, wh.floorY + wh.doorHeight, roofAft, zA - w, zA, H)));
   // A faceted front: everything at the front (forward of a little aft of the front wall, the
   // raked glass's frames and the header included) set back by facetDz at its x, so the outer
-  // panes and the side walls' front ends meet on the angle.
-  if (sh.facet) setBack(parts.slice(wallsFrom), facetDz(wh), zF + w + 0.13);
+  // panes and the side walls' front ends meet on the angle. Glass raked aft has its head aft of
+  // the wall (zH): the zone reaches past that too, or the tops of its posts were left behind
+  // and crossed the bottoms (owner).
+  if (sh.facet) setBack(parts.slice(wallsFrom), facetDz(wh), Math.max(zF, zH) + w + 0.13);
   // The walls' inside faces: wood lining (pixel painting, owner).
   const centre = new THREE.Vector3(0, 0, mid);
   for (const g of parts.slice(wallsFrom)) lineInside(g, H, col.lining, centre);

@@ -3865,7 +3865,13 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Checked in headless Chromium:** a pilot boat with a 3 m, 1.2 m high, full-width, 30°-raked deckhouse, and set in with 0.5 m side decks, upright: views from the bow, stern and port; the wheelhouse on top, the steps up aft, no warnings. Found and fixed on the way: its faces wound inside out (invisible from outside), and its foot showing through her topsides at the bow. **Not checked:** the Quest, a phone, walking up the steps into a raised helm in the game.
 - **Next, for bigger boats (tugs), noted:** the deckhouse top walkable with rails and a ladder or stairs (the walk area's floors and ladders already do this for the workboat's roof), and an interior with a door into it.
 
-### Shipyard: the side windows take the front's rake (owner)
+### Shipyard: a faceted front raked aft: its corner posts crossed (owner)
+
+- **The owner saw**, with the front windows raked back (the top aft) on a three-facet front, the side windows' front posts not following the rake: a frame crossing the corner and the header sticking out forward of the roof.
+- **Why:** a faceted front sets back everything near the front wall by the facet's angle at its x (`setBack`), but only geometry forward of a line just aft of the wall. Glass raked aft has its head aft of the wall, so the tops of the corner posts and the header were left where they were while their feet went back: they crossed.
+- **Now** (`vessel/view/hullMesh.ts buildShapedHouse`): that line is taken from the glass's head when it's aft of the wall (`Math.max(zF, zH)`), so the whole raked corner goes back together.
+- **Checked:** typecheck and tests; the Shipyard, headless: the tug, three facets, raked 22.5 deg aft (profile and the owner's view: the corner posts parallel, leaning aft, nothing crossing). **Not checked:** VR.
+
 
 - **The owner saw** (a faceted, reverse-raked front, raked out all round) an upright post in the side windows right behind the raked front corner: "the side windows don't get the rake".
 - **Why:** the side window band's middle mullion was built upright whatever the front's rake; on a short band it stands just aft of the raked corner post.
