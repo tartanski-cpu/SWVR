@@ -526,7 +526,14 @@ function buildShapedHouse(layout: HouseLayout, col: Paint, base: number): THREE.
 
   // Side walls: below the band, following the front's lower lean; the band's posts (the
   // front one raked with the windows) and a mullion; above it, up to the raked roof.
-  const bandMid = ((zS + zH) / 2 + 0.1 + zA) / 2;
+  // The side windows' front post (raked with the front, set back with a faceted corner): its aft
+  // face's z at height y. The band's mullion stands upright midway between it and the aft wall.
+  const fd = facetDepth(wh);
+  const frontPostAft = (y: number) => zF + fd - rake.ahead - rake.tan * (y - S) + 0.1;
+  const bandMid = ((frontPostAft(sideS) + frontPostAft(head)) / 2 + zA) / 2;
+  // Upright (owner): only the front post takes the rake. A front raked aft can lean back over it:
+  // then it stops where the post meets it (cut short).
+  const mullionTop = rake.tan < 0 && frontPostAft(head) > bandMid - 0.04 ? S + (zF + fd - rake.ahead + 0.1 - (bandMid - 0.04)) / rake.tan : head;
   const sd = wh.sideDoor;
   for (const s of [-1, 1]) {
     const x0 = s > 0 ? hw - w : -hw;
@@ -554,9 +561,8 @@ function buildShapedHouse(layout: HouseLayout, col: Paint, base: number): THREE.
     }
     parts.push(raked(fbox(x0, x1, S, head, zF, zF + 0.1)));
     parts.push(fbox(x0, x1, sideS, head, zA - 0.1, zA));
-    // The band's mullion (not in a doorway), raked parallel to the front windows (owner: upright
-    // beside a raked front it read as the side windows not taking the rake).
-    if (!door || bandMid < door.z0 - 0.15 || bandMid > door.z1 + 0.15) parts.push(raked(fbox(x0, x1, sideS, head, bandMid - 0.04, bandMid + 0.04)));
+    // The band's mullion (not in a doorway): upright, cut short under a front raked back over it.
+    if ((!door || bandMid < door.z0 - 0.15 || bandMid > door.z1 + 0.15) && mullionTop > sideS + 0.1) parts.push(fbox(x0, x1, sideS, Math.min(head, mullionTop), bandMid - 0.04, bandMid + 0.04));
     parts.push(fbox(x0, x1, head, head + FW, zH, zA));
     // Wall above the band, if the glass stops short of the roof (the Shipyard's runs up to it).
     if (roofY + 0.02 - (head + FW) > 0.01) parts.push(box(x0, x1, head + FW, roofY + 0.02, zH, zA, H));

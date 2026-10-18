@@ -3865,7 +3865,12 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Checked in headless Chromium:** a pilot boat with a 3 m, 1.2 m high, full-width, 30°-raked deckhouse, and set in with 0.5 m side decks, upright: views from the bow, stern and port; the wheelhouse on top, the steps up aft, no warnings. Found and fixed on the way: its faces wound inside out (invisible from outside), and its foot showing through her topsides at the bow. **Not checked:** the Quest, a phone, walking up the steps into a raised helm in the game.
 - **Next, for bigger boats (tugs), noted:** the deckhouse top walkable with rails and a ladder or stairs (the walk area's floors and ladders already do this for the workboat's roof), and an interior with a door into it.
 
-### Shipyard: a faceted front raked aft: its corner posts crossed (owner)
+### Shipyard: the side windows' middle frame upright again, clear of a faceted corner (owner)
+
+- **The owner** (on the change below, which raked the side windows' middle mullion with the front): "the forward most side pillar should adapt to the angle but the other should stay vertical, being cut if necessary".
+- **Now** (`vessel/view/hullMesh.ts buildShapedHouse`): only the side windows' front post takes the front's rake; the middle mullion stands upright again. It now sits midway between that post (as raked, and set back with a faceted corner: it didn't allow for the facet, so on the tug it stood right at the corner) and the aft wall. Where a front raked back leans over it, it stops where the post meets it (cut short; with the facet allowed for, that's rare).
+- **Checked:** typecheck and tests; the Shipyard, headless: the tug, three facets, raked aft, upright and reverse (profiles: the front post raked, the middle mullion upright midway along the band). **Not checked:** VR.
+
 
 - **The owner saw**, with the front windows raked back (the top aft) on a three-facet front, the side windows' front posts not following the rake: a frame crossing the corner and the header sticking out forward of the roof.
 - **Why:** a faceted front sets back everything near the front wall by the facet's angle at its x (`setBack`), but only geometry forward of a line just aft of the wall. Glass raked aft has its head aft of the wall, so the tops of the corner posts and the header were left where they were while their feet went back: they crossed.
@@ -3875,7 +3880,7 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 
 - **The owner saw** (a faceted, reverse-raked front, raked out all round) an upright post in the side windows right behind the raked front corner: "the side windows don't get the rake".
 - **Why:** the side window band's middle mullion was built upright whatever the front's rake; on a short band it stands just aft of the raked corner post.
-- **Now** (`vessel/view/hullMesh.ts buildShapedHouse`): that mullion is raked parallel to the front windows (the front's shear, from the sill), so the side panes follow the front's line. Raked out all round, it also leans out with the side wall. The aft corner posts stay as they were (upright, or leaning aft with the aft wall).
+- **Now** (superseded above: upright again, only the front post raked) (`vessel/view/hullMesh.ts buildShapedHouse`): that mullion is raked parallel to the front windows (the front's shear, from the sill), so the side panes follow the front's line. Raked out all round, it also leans out with the side wall. The aft corner posts stay as they were (upright, or leaning aft with the aft wall).
 - **Checked:** typecheck and tests; the Shipyard, headless: the owner's view of a faceted, reverse-raked front raked out all round (the two posts at the corner now parallel) and its profile. **Not checked:** VR.
 
 
