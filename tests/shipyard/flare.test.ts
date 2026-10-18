@@ -104,3 +104,32 @@ describe('wipers sized to their panes', () => {
     }
   });
 });
+
+describe('the console clear of the front glass (owner: it rose into the window band against the glass)', () => {
+  it('every rake: the dash stands at least consoleClear behind the glass from the sill up to its top; more for glass raked aft; the helm and the console go back together', () => {
+    const dashTop = 0.9 + CONFIG.modules.helmConsole.dash.top;
+    let upright = 0;
+    for (const windowRake of [0, 2, 4, 6, 8]) {
+      const b = useDesign(typeOf(4, { windowRake, facets: 0 }));
+      const wh = VESSEL_DEFS.design.layout.wheelhouse!;
+      const back = wh.consoleBack ?? 0;
+      const lean = Math.tan(((wh.frontRakeDeg ?? 0) * Math.PI) / 180);
+      const glassAft = Math.max(0, -lean * (dashTop - wh.frontSill!)); // the glass's furthest aft from the sill to the dash top
+      // The dash's front: 0.06 aft of the house front with the console against the wall.
+      expect(0.06 + back - glassAft, `${windowRake}`).toBeGreaterThanOrEqual(CONFIG.shipyard.consoleClear - 1e-6);
+      expect(b.hull.helm.stand[2] - back, `${windowRake}`).toBeCloseTo(wh.front + 1.125, 6);
+      const helm = b.hull.sockets.find((s) => s.id === 'helm')!;
+      expect(helm.transform.position[2] - back).toBeCloseTo(wh.front + 0.56, 6);
+      if (windowRake === 4) upright = back;
+      if (windowRake === 0) expect(back).toBeGreaterThan(0.2); // raked aft 30 deg: well back
+    }
+    expect(upright).toBeGreaterThan(0);
+  });
+
+  it('raked out all round sets the front leaning out with the sides, whatever its own rake says', () => {
+    for (const windowRake of [0, 4, 8]) {
+      useDesign(typeOf(2, { flare: 1, windowRake }));
+      expect(VESSEL_DEFS.design.layout.wheelhouse!.frontRakeDeg).toBe(CONFIG.shipyard.flareDeg);
+    }
+  });
+});

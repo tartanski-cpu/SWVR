@@ -2113,6 +2113,14 @@ export const CONFIG = {
      */
     windowSills: { standard: 1.0, low: 0.75 },
     /**
+     * How far (m) the console stands clear of the front glass (owner: with the sill below the
+     * dash top, the dash rose into the window band against the glass): the console, and what's
+     * placed by it, go aft until each part rising above the sill (the dash, or the low-sill
+     * desk and screens; the screens hung from the roof) is at least this far behind the glass
+     * at its height, whichever way the glass rakes (shipyard/build.ts consoleBack).
+     */
+    consoleClear: 0.2,
+    /**
      * The advanced interior's working lights (owner): the overhead switch panel (panel.overhead)
      * and the foredeck and aft deck floodlights (light.flood). No rail lights for now (owner).
      *   overheadAft   the panel's face this far aft of the wheelhouse front (m), on the

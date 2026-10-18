@@ -799,7 +799,8 @@ function buildFloor(layout: HouseLayout, col: Paint, parts: THREE.BufferGeometry
 function buildConsole(wh: HouseLayout['wheelhouse'], col: Paint, parts: THREE.BufferGeometry[]): void {
   const hw = wh.halfWidth;
   const w = wh.wall;
-  const c0 = wh.front + w;
+  // (Set back from the wall if the house says so: clear of the front glass.)
+  const c0 = wh.front + w + (wh.consoleBack ?? 0);
   const c1 = c0 + wh.consoleDepth;
   const cTop = wh.floorY + wh.consoleHeight;
   // A faceted front's console wraps round with it: built in three across, its wings set back.

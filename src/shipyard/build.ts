@@ -507,10 +507,30 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   if (d.flare) house.flare = { tan: Math.round(Math.tan((CONFIG.shipyard.flareDeg * Math.PI) / 180) * 1e4) / 1e4 };
   /** How far a faceted front is set back at x (0 across the middle; the console's wings, and what's placed beside them, follow it). */
   const sb = (x: number) => (house.facet ? (Math.max(0, Math.abs(x) - house.facet.centre) * house.facet.depth) / (hw - house.facet.centre) : 0);
-  const windowRake = SCALES.windowRake(d.windowRake);
+  // Raked out all round (owner): the front leans out with the sides, at the same angle (its own rake is set aside).
+  const windowRake = d.flare ? CONFIG.shipyard.flareDeg : SCALES.windowRake(d.windowRake);
   // Where the front windows' foot and head stand (z), as hullMesh draws them.
   const ahead = Math.max(0, floorY + sill - house.lowerFromY) * Math.tan((house.lowerRakeDeg * Math.PI) / 180);
   const zHead = front - ahead - (windowHead - sill) * Math.tan((windowRake * Math.PI) / 180);
+  // The console (and what's placed by it) set back from the front (owner: it stood against the
+  // glass): far enough that each of its parts rising above the sill is `consoleClear` behind the
+  // glass anywhere from the sill up to that part's top. Glass raked aft at the top (negative rake)
+  // leans back over it, so that needs more. Each part: its height above the floor, and its front (m aft of the house front)
+  // with the console against the wall: the dash; with low sills, the desk's raised back and the
+  // screens on stalks; the screens hung from the roof.
+  const consoleBack = (() => {
+    const lean = Math.tan((windowRake * Math.PI) / 180); // + forward at the top
+    // How far aft the glass reaches anywhere from the sill up to height y (it's tightest at the
+    // sill for glass leaning forward, at y for glass raked aft).
+    const glassAft = (y: number) => Math.max(0, -lean * (y - sill));
+    const parts: [number, number][] = d.sills
+      ? [[1.02, 0.06], [0.9 + 0.21 + CONFIG.modules.screen.dash.height / 2, 0.2], [headroom - 0.1, 0.32]]
+      : [[0.9 + CONFIG.modules.helmConsole.dash.top, 0.06], [headroom - 0.1, 0.32]];
+    const above = parts.filter(([y]) => y > sill);
+    return above.length ? Math.ceil(Math.max(0, ...above.map(([y, z]) => glassAft(y) + CONFIG.shipyard.consoleClear - z)) * 100) / 100 : 0; // (up to the next cm)
+  })();
+  /** The console's line: the house front, less any setback (consoleBack). */
+  const cf = front + consoleBack;
   // Steps at the aft door, no rise over 0.35 m (a player steps up 0.4): outside for a
   // raised floor, inside for a deep sunk one.
   const doorDeck = q.deckY(aft + 0.15);
@@ -548,7 +568,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
 
   const layout = {
     // No roof rail or ladder (owner: simpler): the roof isn't walked.
-    wheelhouse: { halfWidth: hw, front, aft, floorY, roofY, wall, doorWidth: 0.7, doorHeight, windowSill: sill, windowHead, frontSill: sill, frontRakeDeg: windowRake, ...(d.flare ? { doorHinged: true } : {}), consoleDepth: 0.5, consoleHeight: 0.9, viewSill: d.sills ? 0.9 : Math.max(sill, 0.9 + CONFIG.modules.helmConsole.dash.top), shape: house, ...(steps.length ? { steps } : {}) },
+    wheelhouse: { halfWidth: hw, front, aft, floorY, roofY, wall, doorWidth: 0.7, doorHeight, windowSill: sill, windowHead, frontSill: sill, frontRakeDeg: windowRake, ...(d.flare ? { doorHinged: true } : {}), consoleDepth: 0.5, ...(consoleBack ? { consoleBack } : {}), consoleHeight: 0.9, viewSill: d.sills ? 0.9 : Math.max(sill, 0.9 + CONFIG.modules.helmConsole.dash.top), shape: house, ...(steps.length ? { steps } : {}) },
     roof: { thickness: roofThickness, overhang: 0.15, railHeight: 0, edgeMargin: 0.25 },
     doorButtons: { x: 0.45, height: 1.1 },
     engineHatch: eh,
@@ -649,19 +669,19 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   // ── Places (vessel axes), as the landing craft's are from her cabin ──
   const wl = CONFIG.shipyard.workLights;
   const at = {
-    console: [0, F + 0.9, front + 0.56] as V3,
+    console: [0, F + 0.9, cf + 0.56] as V3,
     // (Below the window sill: low windows bring it down.)
-    breakerPanel: [hw - 0.185, F + Math.min(0.6, sill - 0.2), front + 0.875 + sb(hw - 0.185)] as V3,
-    rampButton: [-(hw - 0.07), F + Math.min(0.73, sill - 0.08), front + 0.775 + sb(hw - 0.07)] as V3,
+    breakerPanel: [hw - 0.185, F + Math.min(0.6, sill - 0.2), cf + 0.875 + sb(hw - 0.185)] as V3,
+    rampButton: [-(hw - 0.07), F + Math.min(0.73, sill - 0.08), cf + 0.775 + sb(hw - 0.07)] as V3,
     batteryMaster: [hw - 0.45, F + 0.48, aft - 0.065] as V3,
     batterySelector: [hw - 0.2, F + 0.48, aft - 0.065] as V3,
-    vhf: [-(hw - 0.3), roofY - 0.17, front + 0.525 + sb(hw - 0.3)] as V3,
+    vhf: [-(hw - 0.3), roofY - 0.17, cf + 0.525 + sb(hw - 0.3)] as V3,
     // The advanced package's instruments (owner): the chartplotter hung out to starboard
     // ahead of the helm, turned toward it (the VHF's mirror); the NAV / WIND screen hung on
     // the centreline ahead of the helm; the FM set further aft to starboard, over your head.
-    chartplotter: [hw - 0.35, roofY - 0.17, front + 0.5 + sb(hw - 0.35)] as V3,
-    navDisplay: [0, roofY - 0.15, front + 0.42] as V3,
-    fm: [hw - 0.35, roofY - 0.11, front + 1.3 + sb(hw - 0.35)] as V3,
+    chartplotter: [hw - 0.35, roofY - 0.17, cf + 0.5 + sb(hw - 0.35)] as V3,
+    navDisplay: [0, roofY - 0.15, cf + 0.42] as V3,
+    fm: [hw - 0.35, roofY - 0.11, cf + 1.3 + sb(hw - 0.35)] as V3,
     // The task board, on solid wall below the window sill (her walls are glass above it), on
     // the starboard wall, aft (its face's middle; 2 cm off the wall's inside face, clear of
     // its frames: no flicker between them).
@@ -677,7 +697,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     // The advanced interior's working lights (owner): the overhead switch panel over the helm
     // (its face), and the deck floods on the roof's front and aft edges, off to port (the
     // fore one set back with a faceted front's corner), each aimed at the middle of its deck.
-    overhead: [0, roofY - CONFIG.modules.overheadPanel.drop, front + wl.overheadAft] as V3,
+    overhead: [0, roofY - CONFIG.modules.overheadPanel.drop, cf + wl.overheadAft] as V3,
     floodFore: [-wl.flood.x, roofTopAt(roofFront) + 0.07, roofFront + wl.flood.inset + sb(wl.flood.x + 0.11)] as V3,
     floodAft: [-wl.flood.x, roofTopAt(aft) + 0.07, aft - wl.flood.inset] as V3,
   };
@@ -986,7 +1006,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   let chartTableAt: V3 | null = null;
   if (d.chartTable) {
     const z0 = aft - wall - 0.3 - ctab.depth;
-    if (hw - wall - ctab.width >= 0.35 && z0 >= front + 1.0 + sb(hw)) chartTableAt = [-(hw - wall), F, Math.round(z0 * 1000) / 1000];
+    if (hw - wall - ctab.width >= 0.35 && z0 >= cf + 1.0 + sb(hw)) chartTableAt = [-(hw - wall), F, Math.round(z0 * 1000) / 1000];
     else warnings.push(`Her wheelhouse is too ${hw - wall - ctab.width < 0.35 ? 'narrow' : 'short'} for the chart table along its port wall: left off.`);
   }
   // The side door (owner): a sliding door in the port wall, aft of the console with room to
@@ -996,7 +1016,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   let sideDoor: { z0: number; z1: number; height: number; buttonHeight: number } | null = null;
   if (d.sideDoor) {
     const sdc = dg.sideDoor;
-    const z0 = Math.max(front + sb(hw) + wall + 0.5 + sdc.fromConsole, bowRamp ? at.rampButton[2] + 0.15 : -Infinity);
+    const z0 = Math.max(cf + sb(hw) + wall + 0.5 + sdc.fromConsole, bowRamp ? at.rampButton[2] + 0.15 : -Infinity);
     const zEnd = chartTableAt ? chartTableAt[2] - 0.05 : aft - wall - 0.15;
     // Up to the window band's top edge (the door's opening runs up through the band).
     const height = Math.min(2.0, windowHead - 0.04, roofY - F - 0.12);
@@ -1142,7 +1162,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     id: 'hull.design',
     version: 1,
     name: `Shipyard design ${code}`,
-    helm: { stand: [0, F, front + 1.125], yawDeg: 0 },
+    helm: { stand: [0, F, cf + 1.125], yawDeg: 0 },
     form,
     lightship: lightshipOf(weighed, [
       { massKg: eng.kg * n, at: at.engineBed },
@@ -1170,7 +1190,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
       stowage: {
         extinguisher: [-(hw - 0.2), F + 0.58, aft - 0.15],
         torch: [-(hw - 0.45), F + 0.68, aft - 0.12],
-        binoculars: { at: [-(hw - 0.35), F + 1.35, front + 0.14 + sb(hw - 0.35)], yawDeg: 20 },
+        binoculars: { at: [-(hw - 0.35), F + 1.35, cf + 0.14 + sb(hw - 0.35)], yawDeg: 20 },
       },
       livery: liveryOf(d),
       ...(rescueGear ? { rescueGear } : {}),

@@ -141,7 +141,7 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: reado
   // set back with the outer panes, so its aft edge is further aft toward the sides.
   const facet = wh.shape?.facet;
   const wrapK = facet ? facet.depth / (wh.halfWidth - facet.centre) : 0;
-  const consoleAftAt = (x: number) => int.z0 + wh.consoleDepth + (facet ? Math.max(0, Math.abs(x) - facet.centre) * wrapK : 0);
+  const consoleAftAt = (x: number) => int.z0 + (wh.consoleBack ?? 0) + wh.consoleDepth + (facet ? Math.max(0, Math.abs(x) - facet.centre) * wrapK : 0);
   const doorHalf = wh.doorWidth / 2;
   const sd = wh.sideDoor;
   // A deckhouse under the wheelhouse (vessel/deckhouse.ts): solid, and not walked on, for now.

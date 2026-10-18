@@ -37,6 +37,8 @@ export type WheelhouseLayout = Omit<WorkboatLayout['wheelhouse'], 'sideDoor' | '
     steps?: DoorStep[];
     /** Where the view out through the front glass starts, above the floor (m): the top of what stands in front of it (the dash). The wipers clear the glass from there up. Unset: the front sill. */
     viewSill?: number;
+    /** The console set back from the front wall this far (m; owner: clear of the glass), the floor in front of it bare. Unset: 0. */
+    consoleBack?: number;
     /** The aft door hinged on its port side, swinging out 90 deg onto the deck (owner: with the windows raked out all round a sliding door would clash with the leaning glass), not sliding. */
     doorHinged?: boolean;
   };

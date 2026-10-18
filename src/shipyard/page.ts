@@ -22,6 +22,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { BoatView } from '../app/boatView';
+import { CONFIG } from '../config';
 import { LIBRARY, RECIPES } from '../boats/library';
 import { gearOf, useDesign } from '../boats/sims';
 import { assembleView } from '../modular/assemble';
@@ -341,6 +342,7 @@ slider('floor', 'Floor height', () => {
   return Math.abs(f) < 0.05 ? 'at the deck' : `${signed(f, ' m', 1)}${f < 0 ? ' (sunk)' : ''}`;
 });
 slider('windowRake', 'Windows', (v) => {
+  if (design.flare) return `${CONFIG.shipyard.flareDeg}\u00b0 reverse (raked out all round)`;
   const a = SCALES.windowRake(v);
   return a === 0 ? 'upright' : a > 0 ? `${a}\u00b0 reverse` : `${-a}\u00b0 raked`;
 });
@@ -471,6 +473,8 @@ function syncControls(): void {
   twinBox.disabled = SINGLE_ONLY_ENGINES.includes(design.engine);
   // A tug's push bow and a landing craft's landing bow are their own: no bow rake to choose.
   (document.querySelector('input[type=range][data-key=bow]') as HTMLInputElement).disabled = !!(DESIGN_HULLS[design.hull].pushBow || DESIGN_HULLS[design.hull].landingBow);
+  // Raked out all round sets the front's rake too (it leans out with the sides).
+  (document.querySelector('input[type=range][data-key=windowRake]') as HTMLInputElement).disabled = !!design.flare;
   // The deckhouse as wide as the house: its width's other buttons aren't the one chosen.
   if (design.dhNarrow) document.querySelectorAll<HTMLElement>('[data-key="dhWidth"]').forEach((el) => el.classList.remove('on'));
   showOnHer();
