@@ -977,7 +977,6 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     { id: 'overhead', type: 'cabin.overhead', transform: { position: at.overhead }, label: 'Under the roof, over the helm: the switch panel' },
     { id: 'floodFore', type: 'hull.light', transform: { position: at.floodFore }, label: 'Roof edge, forward: the foredeck flood' },
     { id: 'floodAft', type: 'hull.light', transform: { position: at.floodAft }, label: 'Roof edge, aft: the aft deck flood' },
-    { id: 'railLights', type: 'hull.light', transform: { position: [0, roofTopAt(0), 0] }, label: 'Along the bulwark tops (nominal)' },
     lampFoot
       ? { id: 'searchlight', type: 'deck.equipment', transform: { position: lampFoot }, label: `${deckWords(lampFoot)}: the searchlight's pole` }
       : { id: 'searchlight', type: 'roof.mount', transform: { position: lampRoof }, label: lampHand.roof ? 'Cabin roof: the searchlight' : 'Cabin roof, forward' },
@@ -1195,8 +1194,8 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     { socket: 'dutyBoard', module: 'furniture.duty-board' },
   );
   // The working lights (the workboat's, as modules): the floods aimed at the middle of the
-  // foredeck and of the aft deck, and the overhead panel with their three switches (no FM
-  // set in it: hers hangs on its own, out to starboard).
+  // foredeck and of the aft deck, and the overhead panel with their two switches (no FM set
+  // in it: hers hangs on its own, out to starboard; no rail lights for now, owner).
   const zFore = (stem + front) / 2;
   const zAftDeck = (aft + transom) / 2;
   const lamps = {
@@ -1207,24 +1206,21 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   recipe.modules.push(
     { socket: 'floodFore', module: 'light.flood', config: { end: 'fore', lamps }, bind: { on: 'lights.deckFore' } },
     { socket: 'floodAft', module: 'light.flood', config: { end: 'aft', lamps }, bind: { on: 'lights.deckAft' } },
-    { socket: 'railLights', module: 'light.rail' },
     {
       socket: 'overhead',
       module: 'panel.overhead',
       config: {
-        width: 0.42,
-        slots: { deckFore: { x: -0.11, hang: true }, deckAft: { x: 0, hang: true }, railLights: { x: 0.11, hang: true } },
+        width: 0.32,
+        slots: { deckFore: { x: -0.06, hang: true }, deckAft: { x: 0.06, hang: true } },
         legends: [
-          { text: 'FOREDECK', x: -0.11 },
-          { text: 'AFT DECK', x: 0 },
-          { text: 'RAIL', x: 0.11 },
+          { text: 'FOREDECK', x: -0.06 },
+          { text: 'AFT DECK', x: 0.06 },
         ],
         legend: ohp.legend,
       },
       modules: [
         { socket: 'deckFore', module: 'control.toggle', config: { label: 'Foredeck floodlight' }, bind: { value: 'lights.deckFore' } },
         { socket: 'deckAft', module: 'control.toggle', config: { label: 'Aft deck floodlight' }, bind: { value: 'lights.deckAft' } },
-        { socket: 'railLights', module: 'control.toggle', config: { label: 'Rail lights' }, bind: { value: 'lights.rail' } },
       ],
     },
   );
@@ -1237,7 +1233,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     consoleMount.modules = consoleMount.modules!.filter((m) => keep.includes(m.socket));
     cc.groups = cc.groups.filter((gp: { title: string }) => ['ENGINE', 'SEARCH', 'FIRE', 'SEARCH · FIRE', 'DECK'].includes(gp.title));
     // (The FM set and the advanced instruments come with the advanced controls, owner.)
-    recipe.modules = recipe.modules.filter((m) => !['cabinLight', 'horn', 'wipers', 'vhf', 'fm', 'navLights', 'chartplotter', 'navDisplay', 'whiteboard', 'dutyBoard', 'overhead', 'floodFore', 'floodAft', 'railLights'].includes(m.socket));
+    recipe.modules = recipe.modules.filter((m) => !['cabinLight', 'horn', 'wipers', 'vhf', 'fm', 'navLights', 'chartplotter', 'navDisplay', 'whiteboard', 'dutyBoard', 'overhead', 'floodFore', 'floodAft'].includes(m.socket));
   }
   if (hasMonitor && !monitorFoot) {
     // The roof monitor's FIRE gauge on the console, between the two joysticks.

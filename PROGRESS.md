@@ -3869,16 +3869,16 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 
 - **The owner noticed** designs had no overhead switch panel and no foredeck or aft deck lights, which the workboat has. Asked for them as modules, and only with the advanced interior for now.
 - **Now, with Advanced controls** (`shipyard/build.ts`), the same modules as the workboat's:
-  - **the overhead switch panel** (`panel.overhead`, socket `overhead`): under the roof on the centreline, just aft of the hung NAV / WIND screen and over the helm. Narrower than the workboat's (0.42 m), with three switches hung from it: FOREDECK, AFT DECK and RAIL. Her FM set stays where it was, hung on its own out to starboard.
+  - **the overhead switch panel** (`panel.overhead`, socket `overhead`): under the roof on the centreline, just aft of the hung NAV / WIND screen and over the helm. Narrower than the workboat's, with two switches hung from it: FOREDECK and AFT DECK (0.32 m wide). Her FM set stays where it was, hung on its own out to starboard.
   - **two deck floods** (`light.flood`, sockets `floodFore`, `floodAft`): a lamp on the roof's front edge and one on its aft edge, a little to port of the centreline (clear of the searchlight, the masthead light and the fire monitor), each aimed at the middle of its deck. On a faceted front the fore lamp goes back with the cut corner. Hand-placed roof gear keeps clear of them.
-  - **the rail lights** (`light.rail`): LED strips along the inside of the bulwark tops and across the transom (glow only).
-  - All three are on the deck-lights breaker (DECK LTS), as on the workboat. That breaker starts open in a cold start: close it on the breaker panel first.
+  - ~~the rail lights~~: fitted at first, then taken off at the owner's word ("not needed, remove this feature for now"). The panel has two switches; the `light.rail` module stays in the library (the workboat has it), ready if they're wanted later.
+  - Both are on the deck-lights breaker (DECK LTS), as on the workboat. That breaker starts open in a cold start: close it on the breaker panel first.
 - **Basic controls:** none of them (taken off with the other advanced items).
 - **Cost on the Quest:** the same as the workboat's: two real spotlights, each hidden while off; the panel merged with her other fixed parts.
 - **Config:** `CONFIG.shipyard.workLights` (`overheadAft` 0.7 m, the panel's face aft of the wheelhouse front; `flood.x` 0.35 m to port; `flood.inset` 0.1 m in from the roof edge; `flood.keepClear` 0.3 m). The panel's box and legends are `CONFIG.modules.overheadPanel`'s; the beams are `vessels.workboat.deckLights`'.
 - **Checked:**
-  - typecheck and tests (676; `tests/shipyard/workLights.test.ts`: every hull type, flat and faceted, with advanced controls has the panel with its three switches, both floods aimed down at their decks, and the rail lights, and its recipe checks out; with basic controls none of them);
-  - in the game, desktop, headless, at night on a faceted landing craft: the three switches and their legends on the panel above the NAV / WIND screen, both floods on and the aft deck lit, the rail strips glowing; by day, both lamps on the roof edges, clear of the searchlight and the mast.
+  - typecheck and tests (676; `tests/shipyard/workLights.test.ts`: every hull type, flat and faceted, with advanced controls has the panel with its two switches and both floods aimed down at their decks, no rail lights, and its recipe checks out; with basic controls none of them);
+  - in the game, desktop, headless, at night on a faceted landing craft: the switches and their legends on the panel above the NAV / WIND screen, both floods on and the aft deck lit; by day, both lamps on the roof edges, clear of the searchlight and the mast.
   - **Not checked:** VR.
 
 

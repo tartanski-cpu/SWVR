@@ -2059,7 +2059,7 @@ export const CONFIG = {
     facetDeg: 30,
     /**
      * The advanced interior's working lights (owner): the overhead switch panel (panel.overhead)
-     * and the foredeck and aft deck floodlights (light.flood), with the rail lights (light.rail).
+     * and the foredeck and aft deck floodlights (light.flood). No rail lights for now (owner).
      *   overheadAft   the panel's face this far aft of the wheelhouse front (m), on the
      *                 centreline, just aft of the hung NAV / WIND screen and over the helm;
      *   flood.x       each flood this far to port of the centreline (m), clear of the

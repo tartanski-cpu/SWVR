@@ -14,17 +14,17 @@ const ids = () => flattenMounts(RECIPES.design, LIBRARY.hulls, LIBRARY.modules).
 const typeOf = (hull: number, controls: number, facets = 0): ShipDesign => ({ ...BASE, hull, ...DESIGN_HULLS[hull].defaults, controls, facets });
 
 describe('the working lights', () => {
-  it('advanced: every hull type has the overhead panel (three switches), both floods and the rail lights; the recipe checks out', () => {
+  it('advanced: every hull type has the overhead panel (two switches), both floods, no rail lights (owner: not for now); the recipe checks out', () => {
     for (let hull = 0; hull < DESIGN_HULLS.length; hull++)
       for (const facets of [0, 1]) {
         useDesign(typeOf(hull, 1, facets));
         expect(validateRecipe(RECIPES.design, LIBRARY), `${hull}`).toEqual([]);
         const got = ids();
         expect(got.filter((i) => i === 'light.flood'), `${hull}`).toHaveLength(2);
-        expect(got, `${hull}`).toContain('light.rail');
+        expect(got, `${hull}`).not.toContain('light.rail');
         const panel = RECIPES.design.modules.find((m) => m.socket === 'overhead')!;
         expect(panel.module).toBe('panel.overhead');
-        expect(panel.modules!.map((m) => m.bind?.value)).toEqual(['lights.deckFore', 'lights.deckAft', 'lights.rail']);
+        expect(panel.modules!.map((m) => m.bind?.value)).toEqual(['lights.deckFore', 'lights.deckAft']);
         // The floods stand on her roof, inside its edges, and aim down at her decks.
         const floods = RECIPES.design.modules.filter((m) => m.module === 'light.flood');
         for (const f of floods) {
