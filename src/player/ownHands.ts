@@ -18,6 +18,10 @@ export class OwnHands {
     right: new THREE.Mesh(undefined, figureMaterial()),
   };
 
+  /** Debug > Hands: the controller's own axes drawn on it (X red, Y green, Z blue). */
+  showAxes = false;
+  private readonly axes: Record<Handedness, THREE.AxesHelper> = { left: new THREE.AxesHelper(0.15), right: new THREE.AxesHelper(0.15) };
+
   constructor() {
     for (const h of ['left', 'right'] as const) {
       this.meshes[h].name = `ownHand:${h}`;
@@ -30,11 +34,15 @@ export class OwnHands {
     for (const h of ['left', 'right'] as const) {
       const mesh = this.meshes[h];
       const grip = inXR ? controllers.grips[h] : null;
+      const axes = this.axes[h];
       if (!grip) {
         mesh.visible = false;
+        axes.visible = false;
         continue;
       }
       if (mesh.parent !== grip) grip.add(mesh);
+      if (axes.parent !== grip) grip.add(axes);
+      axes.visible = this.showAxes;
       mesh.geometry = handGeometries(look, h === 'left' ? -1 : 1)[pose[h]];
       mesh.visible = true;
     }

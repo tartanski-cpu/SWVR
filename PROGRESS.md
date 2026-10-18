@@ -4879,6 +4879,14 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Running:** `CONFIG.locomotion.runMultiplier` 2.4 → 3.2 (desktop Shift, a controller's left stick click, VR the stick pushed to its edge): about 5.1 m/s on desktop, 4.5 m/s in VR.
 - **Checked:** `npm test`, typecheck. Headless Chromium screenshots: the quay from the water (the shed, crane and boats clear of the harbour office, the pump, the goods stack and the berths) and the board, drawn when near and hit by the reticle's ray. No page errors. **Not checked:** the Quest.
 
+### The VR hands set by the WebXR grip frame, and a hand-fit tool (owner)
+
+- **The owner:** the hands are still not right in VR, and hard to describe; research the Quest's controller orientation, or give a way to see what's wrong and screenshot it.
+- **The research** (the WebXR Device API, `gripSpace`, which the Quest browser follows): for a fist round a straight rod (the controller's handle), the origin is in the curled fingers, **-Z runs along the rod toward the thumb**, **+X out of the back of the right hand** (-X of the left), and **+Y back along the arm**. The hand shapes are drawn fingers forward along -z, thumb up +y, the wrist back at +z, so they need pitching forward 90° about X (their up to -Z, their back to +Y) and **nothing else**: the earlier extra 90° roll was what was wrong.
+- **Now** `CONFIG.avatar.handTurn` {pitchDeg 90, rollDeg 0, yawDeg 0} (applied about X, then Z, then Y in `net/avatarOutfits.ts handGeometries`).
+- **The hand-fit tool** (Debug > Hands; the Debug tab is shown from Settings > Game > Debug tab): pitch, roll and yaw nudged 15° at a time, live, on your own hands and crew-mates' (`turnHands`: the shapes built again), with the numbers shown; **Back to 90 / 0 / 0**; and **Controller axes: Shown** draws each controller's own frame on it (`player/ownHands.ts showAxes`: X red, Y green, Z blue), so a screenshot shows how the hand sits in it. The numbers that look right go into `handTurn`.
+- **Checked:** `npm test` (all pass; the hand test checks the pointing finger runs out along -Y, the cuff toward +Y, and that a nudge rebuilds the shapes and the reset puts them back), typecheck. Headless Chromium: a pretend controller in a handshake hold (the handle upright): the cuff back toward the viewer, the finger out ahead, the blue Z down the handle. **Not checked:** the Quest (the owner's test).
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**
