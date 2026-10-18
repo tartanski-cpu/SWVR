@@ -4476,7 +4476,7 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   - Her rated payload (30 % of her weight) is about 0.35 t less.
   - The pinned landing craft in `inTheGame.test.ts` makes 22.5 kn.
 - **Existing codes** for this type build with the new lines.
-- **Checked:** `npm test` (100 files, 730 pass), typecheck. Headless Chromium screenshots: her profile, bow quarter and head-on (the V bottom running into the box under the ramp), and landed on the Calder slip, flaps on the concrete. No page errors. **Not checked:** the Quest.
+- **Checked:** `npm test` (101 files, 735 pass, after the latest `next`), typecheck. Headless Chromium screenshots: her profile, bow quarter and head-on (the V bottom running into the box under the ramp), and landed on the Calder slip, flaps on the concrete. No page errors. **Not checked:** the Quest.
 
 ### Test address for work in progress (owner request)
 
