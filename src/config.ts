@@ -2041,13 +2041,21 @@ export const CONFIG = {
      *                     and the side deck it needs outside to step onto (m: room to stand
      *                     clear of the deck edge, layout deckEdgeMargin + bodyRadius);
      *   ringFromCorner    the life ring this far in from the house's aft corner (m).
+     *   anchor            the anchor and windlass (owner): its roller `fromStem` aft of the
+     *                     stem on the bulwark's top (at the stern, on a ramp-bow boat: on the
+     *                     port quarter, `fromSide` in from her side, its windlass `kedgeAft`
+     *                     forward of the roller, close by the transom on a short aft deck).
+     *                     (Its weight, and the skiff's and her crane's, are in her lightship
+     *                     as a whole: those modules don't weigh themselves, so she floats on
+     *                     her designed lines with them.)
      */
     deckGear: {
       winchFromTransom: 0.75,
       standRoom: 0.6,
       sideDoor: { width: 0.75, fromConsole: 0.35, buttonHeight: 1.1, sideDeck: 0.5 },
       ringFromCorner: 0.4,
-      price: { towWinch: 12_000, sternRoller: 2_000, aFrame: 18_000, lifeRing: 600, sideDoor: 3_000 },
+      anchor: { fromStem: 0.35, fromSide: 0.45, kedgeAft: 0.4 },
+      price: { towWinch: 12_000, sternRoller: 2_000, aFrame: 18_000, lifeRing: 600, sideDoor: 3_000, anchor: 3_500, skiff: 38_000 },
     },
     /**
      * The deckhouse a design can have under her wheelhouse (shipyard/build.ts): its walls and

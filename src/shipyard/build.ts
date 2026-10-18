@@ -694,6 +694,45 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     }
   }
 
+  // The skiff in her cradle and its crane (owner; module deck.tender-crane, its socket the
+  // foot of the column): the cradle forward of the column (as on the workboat's foredeck),
+  // the column at its aft end to one side, the skiff going over that side. On the foredeck
+  // the column just forward of the house, on the aft deck as far aft as it fits; the cradle
+  // on the centreline if there's room, else as far over as the column's side allows.
+  const tc = CONFIG.vessels.workboat.tenderCrane;
+  let skiffAt: V3 | null = null;
+  if (d.skiff) {
+    const fore = d.skiff <= 2;
+    const side = d.skiff % 2 === 1 ? 1 : -1;
+    const ahead = tc.column[1] - tc.cradle.z0; // the cradle reaches this far forward of the column
+    const outset = tc.column[0] - tc.stow[0]; // the column this far out from the cradle's middle
+    const shape = (cx: number, cz: number): Rect[] => [
+      { x0: cx - side * outset - tc.cradle.halfWidth - 0.1, x1: cx - side * outset + tc.cradle.halfWidth + 0.1, z0: cz - ahead - 0.1, z1: cz + (tc.cradle.z1 - tc.column[1]) + 0.1 },
+      { x0: cx - 0.35, x1: cx + 0.35, z0: cz - 0.35, z1: cz + 0.35 },
+    ];
+    // Its own check (the cradle is long): inside her beam at each end and the middle, 0.5 m
+    // clear of the stem and 0.15 of the transom, clear of the house itself and of its aft
+    // doorway (and the steps there, if any), and of her other gear.
+    const body: Rect = { x0: -Math.max(hw, dhW) - 0.2, x1: Math.max(hw, dhW) + 0.2, z0: foreEnd - 0.2, z1: aft + 0.15 };
+    const doorway: Rect = { x0: -0.6, x1: 0.6, z0: aft, z1: aft + 0.3 + Math.max(0, ...steps.map((st) => st.z1 - aft)) };
+    const fits = (r: Rect) =>
+      r.z0 > stem + 0.5 && r.z1 < transom - 0.15 && [r.z0, (r.z0 + r.z1) / 2, r.z1].every((z) => Math.max(Math.abs(r.x0), Math.abs(r.x1)) <= q.halfBeam(z) - 0.15) && !overlaps(r, body) && !overlaps(r, doorway) && !taken.some((o) => overlaps(o, r));
+    const zs: number[] = [];
+    if (fore) for (let z = foreEnd - 0.55; z - ahead > stem + 0.5; z -= 0.25) zs.push(z);
+    else for (let z = transom - 0.5; z - ahead > aft; z -= 0.25) zs.push(z);
+    // The cradle's middle on the centreline, or shifted toward the column's side (to 1 m).
+    search: for (const z of zs)
+      for (const mid of [0, 0.25, 0.5, 0.75, 1]) {
+        const cx = side * (outset + mid);
+        if (shape(cx, z).every(fits)) {
+          skiffAt = [r2(cx), q.deckY(z), r2(z)];
+          taken.push(...shape(cx, z));
+          break search;
+        }
+      }
+    if (!skiffAt) warnings.push(`There's no room on her ${fore ? 'foredeck' : 'aft deck'} for the skiff's cradle (${(ahead + 0.3).toFixed(1)} m long, ${(2 * tc.cradle.halfWidth + outset).toFixed(1)} m across with the crane) clear of her other gear: move the wheelhouse ${fore ? 'aft' : 'forward'}, or make her longer. Left off.`);
+  }
+
   // The searchlight and the fire monitor: placed by hand, on the roof if the pin's on it
   // (clear of the masthead light, the horn and each other), else on a pole on deck; at their
   // usual places, on the roof (choice 1) or a pole a little off the house (2 fore, 3 aft).
@@ -737,6 +776,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   const monitorOnRoof = monitorByHand ? !!monitorHand.roof : d.fireMonitor === 1;
   const hasLamp = lampOnRoof || !!lampFoot;
   const hasMonitor = monitorOnRoof || !!monitorFoot;
+
   // On the roof: the searchlight forward on the centreline, the monitor centred aft of the
   // masthead light's pole, clear of its barrel's swing; or where they're placed.
   const lampRoof: V3 = lampHand.roof ? [lampHand.roof[0], r2(roofTopAt(lampHand.roof[1]) + 0.13), lampHand.roof[1]] : at.searchlight;
@@ -762,6 +802,36 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     }
     if (!basketAt) warnings.push('There\'s no clear deck for the fender basket: the fenders are left off.');
   }
+
+  // The anchor, last, on what deck's left (owner; module deck.anchor-windlass, its socket the roller where the chain
+  // leaves her): at the bow, its roller on the bulwark's top just aft of the stem and the
+  // windlass on the deck behind it; on a ramp-bow boat (the ramp is her bow) a kedge on the
+  // port quarter, the roller on the transom facing aft.
+  const ac = dg.anchor;
+  const awc = CONFIG.modules.anchorWindlass;
+  let anchorAt: { at: V3; yaw: number } | null = null;
+  if (!d.noAnchor) {
+    const z = bowRamp ? transom - 0.05 : stem + ac.fromStem;
+    // The kedge on the port quarter, else the starboard, else along the transom toward the
+    // middle, last on the centreline (if no stern roller's there), wherever there's room.
+    const xs: number[] = [];
+    const outer = q.halfBeam(transom - 0.3) - ac.fromSide;
+    for (let k = outer; k >= 0.6; k -= 0.25) xs.push(-k, k);
+    if (!sternRoller) xs.push(0);
+    for (const x of bowRamp ? xs : [0]) {
+      // The roller and the windlass behind it (forward of it, for the kedge), with room to work it.
+      const rect: Rect = bowRamp ? { x0: x - 0.25, x1: x + 0.25, z0: z - ac.kedgeAft - 0.15, z1: z } : { x0: -0.25, x1: 0.25, z0: z, z1: z + awc.aft + 0.15 };
+      // Clear of the house and of its aft door's steps (only the doorway: the margin the
+      // other gear keeps round the house is more than a windlass needs).
+      const clearOfHouse = !overlaps(rect, { ...houseRect, z1: aft + 0.15 }) && !overlaps(rect, { x0: -0.6, x1: 0.6, z0: aft, z1: aft + 0.8 });
+      if (!clearOfHouse || taken.some((o) => overlaps(o, rect))) continue;
+      anchorAt = { at: [r2(x), r2(q.bulwarkTop(z)), r2(z)], yaw: bowRamp ? 180 : 0 };
+      taken.push(rect);
+      break;
+    }
+    if (!anchorAt) warnings.push(`There's no room for the anchor's windlass ${bowRamp ? 'along her transom (clear of the stern gear)' : 'behind her bow roller (clear of the deckhouse)'}: left off.`);
+  }
+
 
   // The chart table (owner: its own choice): along the port wall at the aft end, its hinge
   // corner forward, if her house is wide enough to pass inboard of it and long enough to
@@ -882,7 +952,9 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     ...(basketAt ? [{ id: 'fenders', type: 'deck.fitting' as const, transform: { position: [basketAt[0], q.deckY(basketAt[1]), basketAt[1]] as V3 }, label: `${deckWords([basketAt[0], 0, basketAt[1]])}: the fender basket` }] : []),
     ...(prot.side ? [{ id: 'hullGuard', type: 'hull.side' as const, transform: { position: [0, q.deckY(0), 0] as V3 }, label: prot.side === 'strake' ? 'Her sheer, all round: the rubbing strake' : 'Her sides: the tyres' }] : []),
     // The deck hydraulics' pump on the engine's power take-off, for the crane and the winch.
-    ...(craneAt || winchAt ? [{ id: 'hydraulicPump', type: 'engine.bay' as const, transform: { position: at.engineSpace }, label: 'On the engine\'s power take-off (nominal)' }] : []),
+    ...(anchorAt ? [{ id: 'anchor', type: (bowRamp ? 'deck.equipment' : 'bow.windlass') as 'deck.equipment', transform: { position: anchorAt.at, rotationDeg: [0, anchorAt.yaw, 0] as V3 }, label: bowRamp ? 'The stern roller for the kedge anchor, port quarter' : 'The bow roller and the windlass behind it' }] : []),
+    ...(skiffAt ? [{ id: 'tenderCrane', type: 'deck.equipment' as const, transform: { position: skiffAt }, label: 'The skiff crane\'s column (her cradle forward of it)' }] : []),
+    ...(craneAt || winchAt || skiffAt ? [{ id: 'hydraulicPump', type: 'engine.bay' as const, transform: { position: at.engineSpace }, label: 'On the engine\'s power take-off (nominal)' }] : []),
   ];
   // Lashing points along the longer stretch of open deck (fore or aft of the house).
   const fore = front - (stem + 0.8);
@@ -1021,6 +1093,14 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     if (lampAtHelm) Object.assign(searchGroup, { title: 'SEARCH · FIRE', x: [-0.48, -0.24] });
     else cc.groups.push({ ...searchGroup, title: 'FIRE' });
   }
+  // The ANCHOR switch, and the skiff crane's button's place, starboard of the wheel (the
+  // gap between the SEARCH and ENGINE groups), in a DECK group.
+  if (anchorAt || d.skiff) {
+    cc.slots.anchor = { position: [0.12, 0.01, -0.2] };
+    cc.slots.skiffCrane = { position: [0.27, 0.01, -0.2] };
+    cc.groups.push({ title: 'DECK', x: [0.04, 0.35], color: 0x8a6d2a });
+    if (anchorAt) consoleMount.modules!.push({ socket: 'anchor', module: 'control.toggle', config: { label: 'Anchor: let go / heave in', engrave: 'ANCHOR' }, bind: { value: 'anchor.letGo' } });
+  }
   const dashHalf = hw - wall - 0.11;
   const sx = dashHalf / cc.dash.halfWidth;
   cc.dash.halfWidth = Math.round(dashHalf * 1000) / 1000;
@@ -1040,9 +1120,9 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     // Basic: wheel, throttle, starting (key, START, the lamps and the card), speed with
     // depth, rpm. No lights, searchlight, horn, wipers, heading, engine monitor, VHF or FM radio.
     // The searchlight's and monitor's controls stay if they're worked from here.
-    const keep = ['wheel', 'throttle', 'start', 'key', 'lamps', 'card', 'speed', 'rpm', 'spotlight', 'spotJoystick', 'firePump', 'monJoystick'];
+    const keep = ['wheel', 'throttle', 'start', 'key', 'lamps', 'card', 'speed', 'rpm', 'spotlight', 'spotJoystick', 'firePump', 'monJoystick', 'anchor'];
     consoleMount.modules = consoleMount.modules!.filter((m) => keep.includes(m.socket));
-    cc.groups = cc.groups.filter((gp: { title: string }) => ['ENGINE', 'SEARCH', 'FIRE', 'SEARCH · FIRE'].includes(gp.title));
+    cc.groups = cc.groups.filter((gp: { title: string }) => ['ENGINE', 'SEARCH', 'FIRE', 'SEARCH · FIRE', 'DECK'].includes(gp.title));
     // (The FM set and the advanced instruments come with the advanced controls, owner.)
     recipe.modules = recipe.modules.filter((m) => !['cabinLight', 'horn', 'wipers', 'vhf', 'fm', 'navLights', 'chartplotter', 'navDisplay', 'whiteboard', 'dutyBoard'].includes(m.socket));
   }
@@ -1067,12 +1147,18 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
       { socket: 'sideDoorIn', module: 'control.door-button', config: { label: 'Side door: open / shut' }, bind: { door: 'door.side.open' } },
       { socket: 'sideDoorOut', module: 'control.door-button', config: { label: 'Side door: open / shut' }, bind: { door: 'door.side.open' } },
     );
-  if (craneAt || winchAt) recipe.modules.push({ socket: 'hydraulicPump', module: 'hydraulics.pto-pump' });
+  if (anchorAt) recipe.modules.push({ socket: 'anchor', module: 'deck.anchor-windlass', ...(bowRamp ? { config: { aft: ac.kedgeAft } } : {}) });
+  if (skiffAt) {
+    // Its SKIFF CRANE button on the dash, starboard of the wheel (beside the ANCHOR switch).
+    const [bx, , bz] = cc.slots.skiffCrane.position as V3;
+    recipe.modules.push({ socket: 'tenderCrane', module: 'deck.tender-crane', config: { consoleButton: [r2(at.console[0] + bx), r2(at.console[1] + 0.01), r2(at.console[2] + bz)] } });
+  }
+  if (craneAt || winchAt || skiffAt) recipe.modules.push({ socket: 'hydraulicPump', module: 'hydraulics.pto-pump' });
   if (basketAt) recipe.modules.push({ socket: 'fenders', module: 'deck.fenders', config: { z: fenderZs, basket: basketAt } });
   if (prot.side) recipe.modules.push({ socket: 'hullGuard', module: 'hull.guard', config: { kind: prot.side, aroundBow: !bowRamp } });
 
   const gp = dg.price;
-  const gearPrice = (winchAt ? gp.towWinch : 0) + (sternRoller ? gp.sternRoller : 0) + (aFrame ? gp.aFrame : 0) + (ring ? gp.lifeRing : 0) + (sideDoor ? gp.sideDoor : 0) + dhArea * dhc.pricePerM2;
+  const gearPrice = (winchAt ? gp.towWinch : 0) + (sternRoller ? gp.sternRoller : 0) + (aFrame ? gp.aFrame : 0) + (ring ? gp.lifeRing : 0) + (sideDoor ? gp.sideDoor : 0) + (anchorAt ? gp.anchor : 0) + (skiffAt ? gp.skiff : 0) + dhArea * dhc.pricePerM2;
   const guardPrice = (basketAt ? pc.fendersPrice : 0) + strakeM * pc.strakePerM + (tyres.length ? 2 * tyres.length * pc.tyrePrice + pc.tyreFitting : 0);
   const price = Math.round((mass * 6 + kw * n * 120 + (d.controls ? 18000 : 6000) + (craneAt ? 25000 : 0) + (hasMonitor ? 15000 : 0) + gearPrice + guardPrice) / 1000) * 1000;
   return {

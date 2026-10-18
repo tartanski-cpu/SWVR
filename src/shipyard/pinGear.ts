@@ -11,7 +11,11 @@
  *                   nearest cell that does if not (shipyard/build.ts);
  *   at the transom  the stern roller and the trawl A-frame, wherever on her the pin is;
  *   by side         the life ring and boat hook, on the side of the house the pin's on;
- *   in the wall     the side door, in the wheelhouse's port wall.
+ *   in the wall     the side door, in the wheelhouse's port wall;
+ *   the anchor      at the bow roller (a kedge at the stern on a ramp-bow boat), wherever
+ *                   the pin is (every boat should have one: it's fitted unless taken off);
+ *   the skiff       on the foredeck or the aft deck, whichever the pin's on, the crane's
+ *                   column on the side the pin's on; the builder finds where it fits.
  *
  * Pure: the page gives the pin's point, her wheelhouse and her transom.
  */
@@ -21,12 +25,14 @@ export interface Equipment {
   id: string;
   name: string;
   /** How a pin places it (see above). */
-  how: 'grid' | 'transom' | 'side' | 'wall';
+  how: 'grid' | 'transom' | 'side' | 'wall' | 'anchor' | 'skiff';
   /** The design choice that fits it, and (on the grid) where it's placed by hand. */
   field: keyof ShipDesign;
   key?: PlaceKey;
   /** It can be turned on its spot (quarter turns). */
   turns?: boolean;
+  /** The choice's value with it off, if not 0 (the anchor's is 'no anchor': 1). */
+  off?: number;
 }
 
 /** The list on the pin. */
@@ -39,7 +45,14 @@ export const EQUIPMENT: Equipment[] = [
   { id: 'aFrame', name: 'Trawl A-frame and net', how: 'transom', field: 'aFrame' },
   { id: 'lifeRing', name: 'Life ring and boat hook', how: 'side', field: 'lifeRing' },
   { id: 'sideDoor', name: 'Side door (port wall)', how: 'wall', field: 'sideDoor' },
+  { id: 'anchor', name: 'Anchor and windlass', how: 'anchor', field: 'noAnchor', off: 1 },
+  { id: 'skiff', name: 'Skiff and crane', how: 'skiff', field: 'skiff' },
 ];
+
+/** Does she carry it? */
+export function fitted(eq: Equipment, d: ShipDesign): boolean {
+  return (d[eq.field] ?? 0) !== (eq.off ?? 0);
+}
 
 /** Ids pins had before these were placeable (they still read). */
 const OLD_IDS: Record<string, string> = { towPost: 'sternRoller', door: 'sideDoor' };
@@ -75,11 +88,16 @@ export function placeGear(eq: Equipment, p: readonly number[], house: HouseBox |
     return { patch: { [eq.field]: base, [eq.key]: placeValue(eq.key, x, transom - z, face) } as Partial<ShipDesign>, words };
   }
   if (eq.how === 'side') return { patch: { [eq.field]: x < 0 ? 1 : 2 } as Partial<ShipDesign>, words: `on the ${x < 0 ? 'port' : 'starboard'} side of the wheelhouse's aft wall, its line on that quarter's cleat` };
+  if (eq.how === 'anchor') return { patch: { noAnchor: 0 }, words: 'at her bow roller (a kedge at the stern on a ramp-bow boat)' };
+  if (eq.how === 'skiff') {
+    const fore = !house || z < mid;
+    return { patch: { skiff: (fore ? 1 : 3) + (x < 0 ? 1 : 0) }, words: `on the ${fore ? 'foredeck' : 'aft deck'}, its crane to ${x < 0 ? 'port' : 'starboard'}` };
+  }
   if (eq.how === 'wall') return { patch: { [eq.field]: 1 } as Partial<ShipDesign>, words: "in the wheelhouse's port wall" };
   return { patch: { [eq.field]: 1 } as Partial<ShipDesign>, words: 'at the transom' };
 }
 
 /** The design change that takes a piece of equipment off again. */
 export function removeGear(eq: Equipment): Partial<ShipDesign> {
-  return { [eq.field]: 0, ...(eq.key ? { [eq.key]: 0 } : {}) } as Partial<ShipDesign>;
+  return { [eq.field]: eq.off ?? 0, ...(eq.key ? { [eq.key]: 0 } : {}) } as Partial<ShipDesign>;
 }

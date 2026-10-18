@@ -3865,6 +3865,39 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Checked in headless Chromium:** a pilot boat with a 3 m, 1.2 m high, full-width, 30°-raked deckhouse, and set in with 0.5 m side decks, upright: views from the bow, stern and port; the wheelhouse on top, the steps up aft, no warnings. Found and fixed on the way: its faces wound inside out (invisible from outside), and its foot showing through her topsides at the bow. **Not checked:** the Quest, a phone, walking up the steps into a raised helm in the game.
 - **Next, for bigger boats (tugs), noted:** the deckhouse top walkable with rails and a ladder or stairs (the walk area's floors and ladders already do this for the workboat's roof), and an interior with a door into it.
 
+### Shipyard: the anchor, and the skiff with her crane (owner)
+
+- **The owner found** the anchor and the skiff still weren't in the Shipyard. The other session had made both modules placeable (`deck.anchor-windlass`, `deck.tender-crane`), leaving the Shipyard choices to this chat.
+- **The anchor** (`design.noAnchor`: 0 means fitted). Every boat should have one, so every design carries it, older codes included.
+  - **Where:**
+    - at the bow: the roller on the bulwark's top `anchor.fromStem` (0.35 m) aft of the stem, the windlass on the deck behind it;
+    - on the ramp-bow landing-craft type: a kedge at the transom, facing aft. It goes on the port quarter, else the starboard, else along the transom toward the middle, last on the centreline (not with a stern roller there). Its windlass is `kedgeAft` (0.4 m) forward of the roller, so it fits a short aft deck. It's placed after all her other gear, on what's left.
+  - **At the helm:** an ANCHOR switch, in a DECK group starboard of the wheel, kept with the basic controls too.
+  - If there's no room it's left off, saying where it wanted to go.
+- **The skiff and her crane** (`design.skiff`, `SKIFFS`): none; or the foredeck or aft deck, with the crane's column to starboard or port.
+  - **Layout:** the cradle (3.6 m, with the skiff) runs forward of the column, as on the workboat, and the skiff goes over the column's side.
+  - **Its own fit check:**
+    - inside her beam at each end of the cradle and its middle;
+    - 0.5 m clear of the stem, 0.15 m of the transom;
+    - clear of the house itself and of its aft doorway (and steps, if any);
+    - clear of her other gear;
+    - the cradle on the centreline or shifted up to 1 m toward the column's side.
+  - **What comes with it:** the deck hydraulics' pump, and the SKIFF CRANE button on the dash beside the ANCHOR switch (`consoleButton`).
+  - **Which boats take it:** the 12 m workboat and 14 m pilot boat types take it on the foredeck with the house right aft, or the aft deck with it right forward. At their default house positions neither deck is long enough. The 9-10 m landing craft and gillnetter can't carry it. The warning says to move the house or lengthen her.
+  - **In the Shipyard view** the skiff is drawn in her cradle (the game's skiff hull at the crane's stow point). In the game she's her own boat, carried by any boat with the crane.
+- **Weight:** neither module weighs itself. A first try took their weight out of her hull as placed parts, and she came out light and trimmed. So their weight is in her lightship as a whole, and she floats on her designed lines.
+- **Price:** anchor £3,500, skiff and crane £38,000 (`deckGear.price`).
+- **Pins:** "Anchor and windlass" (puts it back on) and "Skiff and crane" (the deck and side from where the pin is) join the list. "On her now" shows both, with Take off (`pinGear.ts` `fitted`, `off`).
+- **Code:** version 15. Both ride above the narrow deckhouse in the code's extension, so 0 (an anchor, no skiff) leaves every earlier code as it was.
+- **Checked:**
+  - typecheck and tests (652; `tests/shipyard/anchorSkiff.test.ts`: codes; every hull type gets its anchor and switch; the skiff on the workboat type's four places; every hull fits it or says why; pins);
+  - Shipyard screenshots: the skiff in her cradle on the foredeck, the anchor's roller and windlass, the dash's ANCHOR switch and SKIFF CRANE label, the landing craft's kedge;
+  - in the game, headless, with a design code: she carries the skiff; with the engine running the crane launch begins (rigged and hoisted out of the cradle); the anchor pays out chain.
+- **Not checked:**
+  - the full launch, recovery and driving the skiff on a design;
+  - the SKIFF CRANE button pressed in the game (it's made when the game hands the skiff to the crane, so the Shipyard shows only its label);
+  - VR.
+
 ### Shipyard: a deckhouse as wide as the wheelhouse, so a side door (owner)
 
 - **Width "As the wheelhouse"**, the fifth choice: the deckhouse runs forward of the wheelhouse only, no wider than the house (narrower only where her bow is), and the house stands on it.

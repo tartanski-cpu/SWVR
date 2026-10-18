@@ -29,7 +29,7 @@ import type { SeaTrialResults } from '../vessel/seaTrials';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 import { buildVesselMesh } from '../vessel/view/hullMesh';
 import { DESIGN_HULLS, ENGINES, LIVERIES, ROOF_PAINTS, type DesignedBoat } from './build';
-import { ALL_FIELDS, decodeDesign, DEFAULT_DESIGN, encodeDesign, GUARDS, RAILS, placeOf, placeValue, SCALES, type PlaceKey, type ShipDesign } from './design';
+import { ALL_FIELDS, decodeDesign, DEFAULT_DESIGN, encodeDesign, GUARDS, RAILS, SKIFFS, placeOf, placeValue, SCALES, type PlaceKey, type ShipDesign } from './design';
 import { hullPlan } from '../vessel/layout';
 import { UndoStack } from './undo';
 import { YardLink } from './yardLink';
@@ -42,7 +42,7 @@ import { rankTypes } from './typeFit';
 import { deckRoom, sizeForDeck, type DeckRoom } from './deckRoom';
 import { trialCharts } from './trialCharts';
 import type { GearKind } from '../modular/module';
-import { EQUIPMENT, equipmentOf, placeGear, removeGear, type Equipment } from './pinGear';
+import { EQUIPMENT, equipmentOf, fitted, placeGear, removeGear, type Equipment } from './pinGear';
 import { SheetEditor } from './sheetEditor';
 import { addProject, readProjects, removeProject, writeProjects, type Project } from './projects';
 import { addFavourite, cleanName, readFavourites, removeFavourite, writeFavourites, type Favourite, type Store } from './favourites';
@@ -182,6 +182,7 @@ function drawBoat(): void {
   root.add(buildVesselMesh(def.hull, def.layout, def.exhaust?.position, def.livery));
   const modules = assembleView(RECIPES.design, def, LIBRARY);
   root.add(new BoatView('design', def, modules, true).root);
+  addSkiff(root);
   scene.add(root);
   boatRoot = root;
   // Her extent: the frame for pins and marks (hull fractions, notes.ts).
@@ -189,6 +190,18 @@ function drawBoat(): void {
   hullMin = box.min.toArray();
   hullMax = box.max.toArray();
   if (typeof drawNotes === 'function') drawNotes();
+}
+/**
+ * The skiff in her cradle, if she carries one (the crane's tenderCrane gear): in the game
+ * she's a boat of her own the crane holds (app); here just her hull, where she stows.
+ */
+function addSkiff(root: THREE.Group): void {
+  const crane = gearOf({ defId: 'design' }, 'tenderCrane');
+  if (!crane) return;
+  const sk = VESSEL_DEFS.skiff;
+  const mesh = buildVesselMesh(sk.hull, sk.layout, sk.exhaust?.position, sk.livery);
+  mesh.position.set(...crane.stow);
+  root.add(mesh);
 }
 /**
  * Her hull and house's extent (the hull mesh: the first child), not the whole view: lights'
@@ -1191,6 +1204,7 @@ const USUAL: Record<string, string[]> = {
   aFrame: ['', 'over the transom, with the net and a winch'],
   lifeRing: ['', 'port side of the wheelhouse', 'starboard side of the wheelhouse'],
   sideDoor: ['', "in the wheelhouse's port wall"],
+  skiff: SKIFFS.map((s) => s.toLowerCase()),
 };
 /** Take a piece off her: with its pin, if a pin put it there. */
 function takeOff(eq: Equipment): void {
@@ -1202,12 +1216,16 @@ function takeOff(eq: Equipment): void {
 function showOnHer(): void {
   const box = document.getElementById('onHer');
   if (!box) return;
-  const on = EQUIPMENT.filter((e) => (design[e.field] ?? 0) > 0);
+  const on = EQUIPMENT.filter((e) => fitted(e, design));
   box.innerHTML = `<h2>On her now</h2>${on.length ? '' : '<div class="meta">No deck gear yet.</div>'}`;
   for (const eq of on) {
     const v = design[eq.field] ?? 0;
     const at = eq.key ? boat.placed[eq.key] : undefined;
-    const where = eq.key && design[eq.key] && at ? `${USUAL[eq.id]?.[v] ?? ''}, where pinned: ${at.x === 0 ? 'on the centreline' : `${Math.abs(at.x).toFixed(2)} m to ${at.x < 0 ? 'port' : 'starboard'}`}` : USUAL[eq.id]?.[v] ?? '';
+    // Fitted but left off for want of room (the builder says so in her warnings).
+    const short = eq.id === 'anchor' ? 'anchor' : eq.id === 'skiff' ? 'skiff' : '';
+    const leftOff = short && boat.warnings.some((w) => w.includes(short) && /left off/.test(w)) ? ' (no room: left off, see the warnings)' : '';
+    const ramp = DESIGN_HULLS[design.hull].ramp;
+    const where = eq.id === 'anchor' ? (ramp ? 'a kedge at the stern (her bow is the ramp)' : 'at the bow roller') + leftOff : eq.key && design[eq.key] && at ? `${USUAL[eq.id]?.[v] ?? ''}, where pinned: ${at.x === 0 ? 'on the centreline' : `${Math.abs(at.x).toFixed(2)} m to ${at.x < 0 ? 'port' : 'starboard'}`}` : (USUAL[eq.id]?.[v] ?? '') + leftOff;
     const row = document.createElement('div');
     row.className = 'item';
     row.innerHTML = `<span><b>${esc(eq.name)}</b> <span class="meta">${esc(where)}</span></span>`;
@@ -1770,6 +1788,7 @@ function boatFor(d: ShipDesign): { root: THREE.Group; boat: DesignedBoat; room: 
   const root = new THREE.Group();
   root.add(buildVesselMesh(def.hull, def.layout, def.exhaust?.position, def.livery));
   root.add(new BoatView('design', def, assembleView(RECIPES.design, def, LIBRARY), true).root);
+  addSkiff(root);
   boat = useDesign(design);
   return { root, boat: b, room };
 }
