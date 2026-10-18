@@ -2314,6 +2314,12 @@ export const CONFIG = {
     throwScale: 1.4,
     minThrowSpeed: 1.2,
     catchRadius: 2.5,
+    /**
+     * A crew-mate overboard takes the ring when it floats within this of them (m: a couple
+     * of strokes; their own game checks it, the host allows a little slack for lag).
+     */
+    crewCatchRadius: 2.5,
+    crewCatchSlack: 1.5,
     maxLine: 30,
     reelScale: 1.6,
     desktopThrowSpeed: 17,

@@ -88,7 +88,7 @@ export class HostSession {
       // Hand gestures: two known pose codes, or relaxed hands.
       const code = (c: unknown) => (typeof c === 'number' && Number.isInteger(c) && c >= 0 && c < HAND_POSES.length ? c : 0);
       const poses: [number, number] = Array.isArray(pose.poses) ? [code(pose.poses[0]), code(pose.poses[1])] : [0, 0];
-      p.avatar = { head: pose.head, left: pose.left, right: pose.right, leftQ: quat(pose.leftQ), rightQ: quat(pose.rightQ), poses, tool, laser, gear };
+      p.avatar = { head: pose.head, left: pose.left, right: pose.right, leftQ: quat(pose.leftQ), rightQ: quat(pose.rightQ), poses, swimming: pose.swimming === true, tool, laser, gear };
     }
   }
 

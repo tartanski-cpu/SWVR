@@ -15,6 +15,11 @@
  *
  * Propeller rule: a survivor on the line near the stern with the engine in gear shouts and
  * swims away until it's in neutral - no failure, just the lesson.
+ *
+ * A crew-mate overboard (owner request): a player swimming takes the ring when it's in reach
+ * (their own game sends `ringGrab`: it moves their body). They ride in it as it's hauled in,
+ * and climb out as usual at the boat (or let go: `ringLetGo`). `ring.player` says who's in
+ * it; nobody else can take the ring meanwhile. Near the stern with her in gear, they shout.
  */
 import { windVector } from '../environment/weather';
 import * as THREE from 'three';
@@ -38,6 +43,8 @@ export interface RingState {
   vel: Vec3;
   /** Line paid out (m). */
   line: number;
+  /** A crew-mate in the water holding it (player id), being hauled in. */
+  player?: string | null;
 }
 
 export interface HookState {
@@ -159,8 +166,20 @@ export function stepRecovery(world: WorldState, v: VesselState, waves: readonly 
       ring.pos[2] = cleat.z + (dz / d) * ring.line;
     }
     ring.pos[1] = surfaceHeight(waves, ring.pos[0], ring.pos[2]);
+    // A crew-mate in it: still in the game, and still in the water (not aboard anything).
+    if (ring.player) {
+      const pl = world.players[ring.player];
+      if (!pl || pl.aboardVesselId) ring.player = null;
+    }
+    if (ring.player) {
+      const at = vesselToWorld(v, gear.stern);
+      if (v.engine.gear !== 0 && Math.hypot(ring.pos[0] - at.x, ring.pos[2] - at.z) < cfg.propRadius && world.time - (r.propWarnedCrew ?? -99) > 6) {
+        r.propWarnedCrew = world.time;
+        shout(r, 'Neutral! Put her in neutral, I\'m by the propeller!');
+      }
+    }
     // Reeled right in with nobody on it: back on its hook.
-    const onLine = persons(r).some((t) => t.phase === 'onLine');
+    const onLine = !!ring.player || persons(r).some((t) => t.phase === 'onLine');
     if (!onLine && ring.line < 1.6) ring.state = 'stowed';
   }
 
@@ -217,7 +236,7 @@ export function applyRecoveryIntent(world: WorldState, v: VesselState | undefine
   switch (intent.control) {
     case 'ringTake':
       if (v && !gearOf(v, 'lifeRing')) return true; // no life ring aboard
-      if (ring.state === 'stowed' || (ring.state === 'water' && !persons(r).some((t) => t.phase === 'onLine'))) {
+      if (ring.state === 'stowed' || (ring.state === 'water' && !ring.player && !persons(r).some((t) => t.phase === 'onLine'))) {
         ring.state = 'held';
         ring.holder = who;
       }
@@ -244,6 +263,19 @@ export function applyRecoveryIntent(world: WorldState, v: VesselState | undefine
         const d = Math.hypot(ring.pos[0] - cleat.x, ring.pos[2] - cleat.z);
         ring.line = Math.max(0.5, Math.min(ring.line, d) - Math.max(0, Math.min(5, intent.value)));
       }
+      return true;
+    case 'ringGrab': {
+      // A crew-mate in the water takes the floating ring: within reach of it, nobody on it.
+      const pl = world.players[who];
+      if (ring.state !== 'water' || ring.player || !pl || pl.aboardVesselId) return true;
+      if (persons(r).some((t) => t.phase === 'onLine')) return true;
+      if (Math.hypot(pl.position[0] - ring.pos[0], pl.position[2] - ring.pos[2]) > cfg.crewCatchRadius + cfg.crewCatchSlack) return true;
+      ring.player = who;
+      shout(r, `${pl.name || 'Your crew-mate'} has the ring: haul in!`);
+      return true;
+    }
+    case 'ringLetGo':
+      if (ring.player === who) ring.player = null;
       return true;
     case 'hookTake':
       if (v && !gearOf(v, 'boatHook')) return true; // no boat hook aboard

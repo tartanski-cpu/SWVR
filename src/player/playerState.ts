@@ -63,6 +63,8 @@ export interface PlayerState {
     rightQ?: Quat | null;
     /** Each VR hand's gesture [left, right] (player/handGesture.ts HAND_POSES); absent: relaxed. */
     poses?: [number, number];
+    /** In the water: overboard (crew-mates are told, and can throw them the life ring). */
+    swimming?: boolean;
     tool?: HeldTool | null;
     laser?: LaserPose | null;
     gear?: GearPose | null;

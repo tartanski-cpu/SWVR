@@ -417,6 +417,14 @@ export class App {
     right: { tracked: false, grip: new THREE.Vector3(), ray: new THREE.Ray(), quat: new THREE.Quaternion(), gripDown: false, gripPressed: false, triggerDown: false, triggerPressed: false },
   };
   private busyHands = { left: false, right: false };
+  /** When we last let go of (or asked for) the life ring in the water (world time). */
+  private ringLetGoAt = -99;
+  /** Crew-mates in the water (to say so once when one goes in). */
+  private readonly overboard = new Set<string>();
+  private readonly waveV = new THREE.Vector3();
+  private readonly waveF = new THREE.Vector3();
+  private readonly waveW = new THREE.Vector3();
+  private readonly waveUp = new THREE.Vector3(0, 0.38, 0);
   /** VR hand gestures (grip and stick on a free hand) and your own hands drawn in them. */
   private readonly gestures = new HandGestures();
   private readonly ownHands = new OwnHands();
@@ -999,6 +1007,14 @@ export class App {
     this.desktopHand.update(this.camera, deskHand, dt);
     this.updateNetPose(dt);
     this.avatars.update(this.world, this.localPlayerId, this.vesselRoots, dt);
+    // A crew-mate goes in the water: say so once (they can wave; throw them the life ring).
+    for (const pl of Object.values(this.world.players)) {
+      if (pl.id === this.localPlayerId) continue;
+      if (pl.avatar?.swimming && !this.overboard.has(pl.id)) {
+        this.overboard.add(pl.id);
+        this.overlay.notify(`Man overboard: ${pl.name || 'a crew-mate'} is in the water! Throw them the life ring`, 5);
+      } else if (!pl.avatar?.swimming) this.overboard.delete(pl.id);
+    }
     this.updateGear(darkness, dt);
   }
 
@@ -1389,12 +1405,36 @@ export class App {
       }
     }
     if (!out && jumpPressed) out = climbOut(p, bodyW, null, this.bodyVessels(), this.renderWaves);
+    // In the life ring (a crew-mate threw it, rescue/recovery.ts): out of it on climbing out,
+    // or the jump button away from a hull lets go.
+    const ring = this.world.rescue?.ring;
+    const inRing = ring?.state === 'water' && ring.player === this.localPlayerId;
+    if (inRing && (out || jumpPressed)) {
+      this.rescueCtx().push('ringLetGo', undefined, 1);
+      this.ringLetGoAt = this.world.time;
+    }
     if (out) {
       this.keepViewOnReparent = true;
       pulseBoth(0.4, 60);
       return true;
     }
-    this.runLocomotion(dt, inXR, this.scene, this.swimArea, CONFIG.body.swimSpeed / CONFIG.locomotion.smoothSpeed, false);
+    if (inRing && !jumpPressed) {
+      // Held in the ring: towed with it as the line is hauled in (no strokes of your own).
+      const k = Math.min(1, dt * 6);
+      p.position[0] += (ring.pos[0] - bodyW.x) * k;
+      p.position[2] += (ring.pos[2] - bodyW.z) * k;
+      bodyW.x += (ring.pos[0] - bodyW.x) * k;
+      bodyW.z += (ring.pos[2] - bodyW.z) * k;
+    } else {
+      // The ring floating within a couple of strokes, nobody in it: take it (not straight
+      // back after letting go).
+      if (ring?.state === 'water' && !ring.player && this.world.time - this.ringLetGoAt > 3 && Math.hypot(ring.pos[0] - bodyW.x, ring.pos[2] - bodyW.z) < CONFIG.rescue.crewCatchRadius) {
+        this.rescueCtx().push('ringGrab', undefined, 1);
+        this.ringLetGoAt = this.world.time; // (asked: not again every frame while the host answers)
+        pulseBoth(0.5, 80);
+      }
+      this.runLocomotion(dt, inXR, this.scene, this.swimArea, CONFIG.body.swimSpeed / CONFIG.locomotion.smoothSpeed, false);
+    }
     this.camera.getWorldPosition(this.headW);
     const ev = updateSwim(p, dt, this.bodyW.copy(this.headW).setY(p.position[1]), headHeight, this.bodyVessels(), this.worldArea, this.renderWaves);
     if (ev) this.keepViewOnReparent = true;
@@ -2115,7 +2155,15 @@ export class App {
     const head = onDeck(this.camera.getWorldPosition(this.tmpV));
     const q = this.camera.getWorldQuaternion(this.poseQ).premultiply(carrierQInv);
     const inXR = this.renderer.xr.isPresenting;
+    // Desktop: waving (hold Y), the right arm up over the head, swinging side to side.
+    const waving = !inXR && this.keyboard.action('wave');
     const hand = (h: 'left' | 'right') => {
+      if (waving && h === 'right') {
+        const f = this.camera.getWorldDirection(this.waveF);
+        const side = this.waveV.set(-f.z, 0, f.x).normalize();
+        const w = this.camera.getWorldPosition(this.waveW).addScaledVector(side, 0.28 + 0.14 * Math.sin(this.world.time * 7)).add(this.waveUp);
+        return onDeck(w).toArray() as [number, number, number];
+      }
       // Desktop players have one hand: on whatever the mouse holds (a rubber band to others),
       // so it's where that control really is on the deck.
       if (!inXR) return h === 'right' && this.desktopHandWorld(this.gripW[h]) ? (this.gripW[h].clone().applyMatrix4(this.invFrame).toArray() as [number, number, number]) : null;
@@ -2141,13 +2189,14 @@ export class App {
       leftQ: handQ('left'),
       rightQ: handQ('right'),
       poses: inXR ? this.gestures.codes() : undefined,
+      swimming: p.mode === 'swim',
       tool: this.chartTools?.heldTool() ?? null,
       laser: this.laser.pose(this.invFrame),
       gear: this.gear.map((g) => g.pose(this.invFrame)).find((x) => x) ?? null,
     };
     if (this.host) {
       p.name = pose.name;
-      p.avatar = { head: pose.head, left: pose.left, right: pose.right, leftQ: pose.leftQ, rightQ: pose.rightQ, poses: pose.poses, tool: pose.tool, laser: pose.laser, gear: pose.gear };
+      p.avatar = { head: pose.head, left: pose.left, right: pose.right, leftQ: pose.leftQ, rightQ: pose.rightQ, poses: pose.poses, swimming: pose.swimming, tool: pose.tool, laser: pose.laser, gear: pose.gear };
       return;
     }
     this.poseTimer += dt;

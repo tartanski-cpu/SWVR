@@ -42,6 +42,8 @@ export interface PlayerPose {
   rightQ?: Quat | null;
   /** VR hands' gestures [left, right] (player/handGesture.ts HAND_POSES); absent: relaxed. */
   poses?: [number, number];
+  /** In the water (a crew-mate sees them overboard). */
+  swimming?: boolean;
   /** A chart table tool in one hand (pencil, eraser, rule), if any. */
   tool?: HeldTool | null;
   /** Laser pointer: beam from, to (frame coordinates) and whether it hit something. */

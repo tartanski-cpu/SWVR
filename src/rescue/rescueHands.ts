@@ -541,7 +541,10 @@ export class RescueHands {
     const target = this.deskTarget(ctx, ray);
     if (target === 'ring') return 'life ring\nclick to take it';
     if (target === 'hook') return 'boat hook\nclick to take it';
-    if (target === 'line') return rs?.active?.targets.some((t) => t.phase === 'onLine') ? 'line: survivor on it!\nclick to pull in' : 'life ring line\nclick to pull in';
+    if (target === 'line') {
+      if (rs?.ring?.player) return 'line: your crew-mate is on it!\nclick to pull in';
+      return rs?.active?.targets.some((t) => t.phase === 'onLine') ? 'line: survivor on it!\nclick to pull in' : 'life ring line\nclick to pull in';
+    }
     return null;
   }
 

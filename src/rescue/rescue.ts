@@ -116,6 +116,8 @@ export interface RescueState {
   hook?: HookState;
   shout?: Shout;
   shoutSeq?: number;
+  /** When a crew-mate on the ring last shouted about the propeller (world time, s). */
+  propWarnedCrew?: number;
   cheer?: number;
   /**
    * After a rescue, the cargo run carries on: no second call for cargo bound here (port id)

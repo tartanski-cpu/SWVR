@@ -4601,6 +4601,20 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Multiplayer:** the pose goes in the player's pose as `poses` [left, right] (`HAND_POSES` codes); the host takes two known codes or relaxed hands (`net/hostSession.ts`). Desktop players and older versions show relaxed hands.
 - **Checked:** `npm test` (103 files, 747 pass; new `tests/handGesture.test.ts`: the controls, a busy hand, the shapes, through the host), typecheck. Headless Chromium screenshots of crew-mates' hands in every pose (the fist, pointing, the middle finger turned up), and your own hand attached to a stand-in controller, hidden out of VR. No page errors. **Not checked:** the Quest. The headless browser has no VR, so I haven't seen your own hands on real controllers, or how the grip and stick feel.
 
+### A crew-mate overboard: the life ring rescue (owner)
+
+- **The owner asked:** a crew-mate who falls in can wave, you see it, throw them the life ring, they get in it, and you pull them in with the line.
+- **Seeing them** (`app/App.ts`):
+  - a player's pose now says whether they're in the water (`PlayerPose.swimming`, kept by the host as `avatar.swimming`). Their crew-mates get "Man overboard: <name> is in the water! Throw them the life ring" once;
+  - **waving:** a VR player waves their real hand (their avatar shows it, head just above the water). A desktop player holds **Y** (`KEYS.wave`): their avatar's right arm goes up over the head, swinging side to side.
+- **The ring** (`rescue/recovery.ts`): it's thrown and hauled exactly as for a rescue call's survivors (the same throw, line and hand-over-hand pull).
+  - **Taking it:** the swimmer's own game sees the floating ring within `CONFIG.rescue.crewCatchRadius` (2.5 m) and sends `ringGrab`, with a buzz in both hands. The host allows `crewCatchSlack` (1.5 m) more for lag, and nobody else must be on it. `RingState.player` says who's in it. A shout: "<name> has the ring: haul in!".
+  - **Towed in:** in the ring, the swimmer's own game (it moves their body) carries them with the ring, no strokes of their own, as the line comes in. The ring isn't put back on its hook while they're in it, and nobody can take it from them.
+  - **Out:** they climb out as usual at the boat (grip the gunwale, transom or swim ladder, or A / Space by the hull), which lets go of the ring (`ringLetGo`); A / Space away from a hull just lets go. The host also lets go for them once they're aboard anything or gone from the game. Reeled in and empty, the ring goes back on its hook.
+  - **The propeller:** in the ring near her stern with her in gear, they shout "Neutral! Put her in neutral, I'm by the propeller!" (every 6 s).
+- **The line's hover text** on desktop says "your crew-mate is on it!".
+- **Checked:** `npm test` (105 files, 754 pass; new `tests/crewOverboard.test.ts`: thrown, taken, not snatched back, hauled in, not stowed under them, let go, out of reach, the propeller shout, gone from the game; the swimming flag through the host), typecheck. In the game in headless Chromium: me in the water 12 m off her stern, the ring floated by me, it was taken on its own; eight pulls hauled me in to her stern on the ring. No page errors. **Not checked:** the Quest, and two real players over the network (the test drives the host's side).
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**
