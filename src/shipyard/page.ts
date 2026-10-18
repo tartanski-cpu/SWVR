@@ -349,7 +349,7 @@ slider('windowRake', 'Windows', (v) => {
 options('facets', 'Front windows', ['Flat across', 'Three facets']);
 options('flare', 'Side & aft windows', ['Upright', 'Raked out all round']);
 options('sills', 'Window sills', [...SILLS]);
-slider('visor', 'Roof visor', (v) => `${SCALES.visor(v).toFixed(2)} m`);
+// (No visor slider: the roof overhangs the windows by a set length, owner.)
 options('roofThickness', 'Roof', [0, 1, 2].map((i) => `${Math.round(SCALES.roofThickness(i) * 100)} cm`));
 options('roofEdge', 'Roof edge', ['', '30\u00b0', '45\u00b0', '60\u00b0']);
 options('chartTable', 'Chart table', ['None', 'Port wall, aft']);

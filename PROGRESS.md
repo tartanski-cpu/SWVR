@@ -3865,7 +3865,12 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Checked in headless Chromium:** a pilot boat with a 3 m, 1.2 m high, full-width, 30°-raked deckhouse, and set in with 0.5 m side decks, upright: views from the bow, stern and port; the wheelhouse on top, the steps up aft, no warnings. Found and fixed on the way: its faces wound inside out (invisible from outside), and its foot showing through her topsides at the bow. **Not checked:** the Quest, a phone, walking up the steps into a raised helm in the game.
 - **Next, for bigger boats (tugs), noted:** the deckhouse top walkable with rails and a ladder or stairs (the walk area's floors and ladders already do this for the workboat's roof), and an interior with a door into it.
 
-### Shipyard: the console clear of the front glass; raked out all round sets the front too (owner)
+### Shipyard: no visor slider (owner)
+
+- **The owner** is trimming the Shipyard's options: the roof's visor "should be overlapping the windows, a set level". (The floor height slider stays: the owner uses it.)
+- **Now:** the Roof visor slider is gone; every design's roof reaches `CONFIG.shipyard.visor` (0.3 m, the old default) forward of the top of the front windows. The choice (`design.visor`) stays in the code so every code still reads, but the build no longer uses it: designs that had a longer or shorter visor (0.15 to 0.75 m) now have 0.3 m.
+- **Checked:** typecheck and tests (737); the Shipyard, headless: a design's roof over its windows from the side. **Not checked:** VR.
+
 
 - **The owner saw** (a tug, three facets, reverse-raked front) the console's dash standing in the window band right against the glass and its frames ("it intersects with the console... needs to be pushed back"); and that a front rake of its own makes no sense with the windows raked out all round.
 - **Why:** with the sills one height all round (1.0 m), the dash (up to 1.31 m) now rises above the front sill, against the wall.

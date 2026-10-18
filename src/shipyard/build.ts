@@ -498,7 +498,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   const windowHead = headroom - CONFIG.pixelPaint.frameWidth;
   const doorHeight = Math.min(1.95, headroom - 0.1);
   // The front below the windows stays upright (its choice isn't offered now, owner).
-  const house: HouseShape = { lowerRakeDeg: 0, lowerFromY: Math.min(q.deckY(front), floorY), roofEdgeDeg: SCALES.roofEdge(d.roofEdge), visor: SCALES.visor(d.visor) };
+  const house: HouseShape = { lowerRakeDeg: 0, lowerFromY: Math.min(q.deckY(front), floorY), roofEdgeDeg: SCALES.roofEdge(d.roofEdge), visor: CONFIG.shipyard.visor }; // (one set length now, owner: `d.visor` is kept in the code, unused)
   // A three-facet front (owner: a tug's pilot house): the middle pane square across her
   // between the mullions, the outer two angled back `facetDeg` to the side walls; the
   // console wraps round with it, its wings set back as much (sb).

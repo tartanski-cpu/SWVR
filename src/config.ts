@@ -2105,6 +2105,8 @@ export const CONFIG = {
     facetDeg: 30,
     /** Windows raked out all round (owner: a tug's or supply vessel's bridge): the side and aft windows lean out this far from vertical (deg), from their sill up to the roof. */
     flareDeg: 15,
+    /** The roof's visor: how far it reaches forward of the top of the front windows (m), overlapping them. One set length now (owner: no slider for it; it was 0.15 to 0.75). */
+    visor: 0.3,
     /**
      * The window sills, one height all round (owner), above the wheelhouse floor (m):
      * `standard` (the dash top stands above it at the front), or `low`, below the console's
