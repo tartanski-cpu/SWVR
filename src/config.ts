@@ -901,9 +901,9 @@ export const CONFIG = {
       // behind the helm.
       // A drop leaf on the port wall (owner request: with the logbook gone the fixed table was
       // too big): just long enough for the chart and the pen holder, 75 cm deep (the chart
-      // covers its depth). `lamp`: the wall bracket ([x, z]; x at the wall), the arm's height
-      // above the table and the shade over the chart's middle; the lamp switch on the batten
-      // at its aft end ([x, z]).
+      // covers its depth). `lamp`: on a stalk fixed to the table (owner): its base by the wall
+      // edge (`base` z), its height above the table, and its shade over the chart's middle
+      // (`head` [x, z]); the lamp switch on the batten at its aft end ([x, z]).
       chartTable: {
         x0: -1.37,
         x1: -0.62,
@@ -3113,8 +3113,8 @@ export const CONFIG = {
     /**
      * furniture.chart-table (M3c): the drop-leaf chart table on a wall. From its socket (the
      * leaf's hinge corner on the floor, at the wall: x out from the wall, z aft): its size
-     * (m), the pen holder [x, z], the lamp (its wall bracket [x, z], height above the table,
-     * its head over the chart [x, z]) and the lamp switch on the batten [x, z]. `lampAmps`:
+     * (m), the pen holder [x, z], the lamp (on a stalk on the table: its base by the wall edge
+     * [x, z], its height above the table, its shade over the chart [x, z]) and the lamp switch on the batten [x, z]. `lampAmps`:
      * the lamp's draw (A, DECK LTS circuit; M4a).
      */
     chartTable: {

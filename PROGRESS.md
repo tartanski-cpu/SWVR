@@ -3877,6 +3877,13 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   - Typecheck and tests (`tests/nightPaper.test.ts`: white by day; dim and red at night, the lamps never above `nightMax`; the white cabin light keeps it near white; dimming through the dusk).
   - Headless, in the game: the chart and the whiteboard by day, at night with no lights, with the red cabin light and the chart lamp, and with the white cabin light.
 - **Not checked:** the Quest (its display shows the dark differently from a desktop screenshot).
+- **Also: the chart lamp on a stalk** (owner: the lamp hanging off the wall above the table was useless; one on a stalk fixed to the table instead, no interaction for now). `vessel/view/chartTable.ts`:
+  - It has a weighted base at the leaf's wall edge, an upright stalk, and a gooseneck curving out to a small shade over the chart, tipped toward it.
+  - It's part of the leaf, so it folds down with it.
+  - The wall bracket and arm are gone. Its switch on the batten works as before (the stalk itself isn't moveable).
+  - `chartTable.lamp`: `base` z, `height`, and `head` (the shade over the chart) in the config, now for the stalk lamp.
+- **Also: the Shipyard's Plan view** (owner: bow to the right, stern to the left, to use the wide view better): from above, her bow to the right and port at the top, as a plan is drawn. It's high enough that her length fits across the view, whatever its shape.
+- Headless: the lamp on the table by day and at night (off, red with its lamp on, white cabin light); the Plan view with her bow to the right.
 
 ### Shipyard: buttons to the right, port and starboard views, sketches only when opened (owner)
 

@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { bar } from '../../mechanisms/line';
 import { Control, type Wiring } from '../../controls/Control';
 import { Toggle } from '../../controls/Toggle';
 import type { VesselState } from '../vesselState';
@@ -16,8 +15,8 @@ type ChartTableConfig = typeof CONFIG.vessels.workboat.chartTable;
  * batten; unfolded it's a table, held up by a leg that swings down from its inboard edge;
  * folded, it hangs flat against the wall with the chart facing into the wheelhouse, still
  * readable, and the floor in front of it is free. A press on the knob on its inboard edge
- * folds or unfolds it (ChartLeafHandle, vessel control `chartLeaf`). The lamp is on the wall
- * above, its arm reaching over the chart; its switch is on the batten.
+ * folds or unfolds it (ChartLeafHandle, vessel control `chartLeaf`). The lamp stands on the
+ * leaf on a stalk, its gooseneck curving over the chart (owner); its switch is on the batten.
  *
  * You stand on its inboard side facing the wall, so the chart lies north to port: chart
  * east runs forward (-z), north outboard (-x). The chart covers the leaf's depth;
@@ -66,25 +65,32 @@ export class ChartTableView {
     const DARK = 0x4e3420;
     this.tableMat = flatVertexColorMaterial();
 
-    // On the wall: the batten the leaf hangs from, and the lamp (bracket, arm over the chart,
-    // shade). One merged mesh.
-    const lp = cfg.lamp;
-    const head = new THREE.Vector3(lp.head[0], T + lp.height, lp.head[1]);
-    const mount = new THREE.Vector3(x0 + 0.02, T + lp.height + 0.12, lp.base[1]);
-    const wall = new THREE.Mesh(
-      mergeParts([
-        box(x0, x0 + 0.03, T - 0.09, T - 0.04, z0, z1, DARK), // batten
-        box(x0, x0 + 0.02, mount.y - 0.08, mount.y + 0.06, mount.z - 0.05, mount.z + 0.05, 0x1f4a32), // lamp bracket
-        bar(mount, head.clone().setY(head.y + 0.03), 0.008, 0x9aa0a6, 6),
-        part(new THREE.CylinderGeometry(0.03, 0.085, 0.09, 16, 1, true).translate(head.x, head.y - 0.03, head.z), 0x1f4a32),
-        part(new THREE.CylinderGeometry(0.03, 0.03, 0.01, 16).translate(head.x, head.y + 0.015, head.z), 0x1f4a32),
-      ]),
-      this.tableMat,
-    );
+    // On the wall: the batten the leaf hangs from.
+    const wall = new THREE.Mesh(mergeParts([box(x0, x0 + 0.03, T - 0.09, T - 0.04, z0, z1, DARK)]), this.tableMat);
     wall.name = 'chartTableWall';
+    // The lamp (owner: on a stalk fixed to the table, not hung off the wall): a weighted base
+    // at the leaf's wall edge, an upright stalk, a gooseneck curving out over the chart to a
+    // small shade looking down at it. Part of the leaf: it folds down with it.
+    const lp = cfg.lamp;
+    const foot = new THREE.Vector3(x0 + 0.07, T, lp.base[1]);
+    const head = new THREE.Vector3(lp.head[0], T + lp.height - 0.05, lp.head[1]);
+    const neck = new THREE.CatmullRomCurve3([
+      foot.clone().setY(T + 0.02),
+      foot.clone().setY(T + lp.height * 0.7),
+      new THREE.Vector3(foot.x + (head.x - foot.x) * 0.35, T + lp.height, foot.z),
+      new THREE.Vector3(head.x - 0.03, head.y + 0.04, head.z),
+    ]);
+    const LAMP = 0x1f4a32;
+    const lampParts = [
+      part(new THREE.CylinderGeometry(0.055, 0.065, 0.025, 16).translate(foot.x, T + 0.0125, foot.z), LAMP), // base
+      part(new THREE.TubeGeometry(neck, 20, 0.007, 6), 0x9aa0a6), // stalk and gooseneck
+      // The shade: a short cone, open downward, tipped a little toward the chart.
+      part(new THREE.CylinderGeometry(0.025, 0.06, 0.08, 16, 1, true).rotateZ(-0.25).translate(head.x, head.y, head.z), LAMP),
+      part(new THREE.CylinderGeometry(0.025, 0.025, 0.01, 16).rotateZ(-0.25).translate(head.x - 0.01, head.y + 0.04, head.z), LAMP),
+    ];
     this.bulbMat = new THREE.MeshBasicMaterial({ color: 0x4a463e });
-    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.024, 10, 6), this.bulbMat);
-    bulb.position.set(head.x, head.y - 0.04, head.z);
+    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.02, 10, 6), this.bulbMat);
+    bulb.position.set(head.x + 0.008, head.y - 0.02, head.z);
 
     // The leaf: top, fiddle rails (outboard, forward, aft; the inboard edge stays open to
     // lean on), hinge knuckles, pen holder, dividers. In table coordinates, inside leafFrame.
@@ -98,6 +104,7 @@ export class ChartTableView {
     const [hx, hz] = cfg.holder;
     parts.push(part(new THREE.CylinderGeometry(0.032, 0.03, 0.085, 12).translate(hx, T + 0.0425, hz), 0x2c3a44));
     for (const a of [-0.12, 0.12]) parts.push(placed(new THREE.BoxGeometry(0.005, 0.005, 0.16).translate(0, 0, -0.08), x0 + 0.12, T + 0.004, z0 + 0.58, 2.3 + a, 0x9aa0a6));
+    parts.push(...lampParts);
     const leaf = new THREE.Mesh(mergeParts(parts), this.tableMat);
     leaf.name = 'chartTableBody';
     // The leg (a gate leg): hinged under the leaf at its inboard aft corner, down to the floor
@@ -134,14 +141,14 @@ export class ChartTableView {
     pivot.add(this.leafFrame);
     this.leafHandle = new ChartLeafHandle(pivot, legPivot, keys.leaf);
     this.leafHandle.root.position.set(x1, T - 0.02, (z0 + z1) / 2);
-    this.leafFrame.add(leaf, chart, legPivot, this.leafHandle.root);
+    this.leafFrame.add(leaf, chart, bulb, legPivot, this.leafHandle.root);
 
     this.lampSwitch = new Toggle('chartLamp', keys.lamp?.channel ?? 'chartLamp', 'Chart table lamp', keys.lamp?.read ?? ((s) => s.controls.chartLamp));
     // On the batten, aft end, its lever moving up and down the wall.
     this.lampSwitch.root.position.set(x0 + 0.03, T - 0.065, cfg.lampSwitch[1]);
     this.lampSwitch.root.rotation.z = -Math.PI / 2; // its "up" out of the wall (+x)
     this.lampSwitch.root.scale.setScalar(0.8);
-    this.root.add(wall, pivot, bulb, this.lampSwitch.root);
+    this.root.add(wall, pivot, this.lampSwitch.root);
     this.detail = [chart, bulb];
   }
 
