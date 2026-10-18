@@ -1,6 +1,7 @@
 import { applySlipIntent, isSlipIntent, stepSlipway } from '../world/slipway';
 import { applyEnvironmentIntent, stepEnvironment } from '../environment/timeOfDay';
 import { stepWeather } from '../environment/weather';
+import { applyCameraIntent, isCameraIntent, stepCameraHolds } from '../player/cameraHold';
 import { windForce } from '../vessel/physics/windage';
 import { prepareWaves, type PreparedWave } from '../ocean/waves';
 import { stepVessel, type HydroDebug } from '../vessel/physics/vesselPhysics';
@@ -55,6 +56,8 @@ function seaAnchor(world: WorldState): void {
   let z = 0;
   let n = 0;
   for (const p of Object.values(world.players)) {
+    // (Not a recording camera: it can be anywhere.)
+    if (p.avatar?.camera) continue;
     const v = p.aboardVesselId ? world.vessels[p.aboardVesselId] : undefined;
     const at = v ? v.position : p.position;
     x += at[0];
@@ -72,7 +75,9 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
   seaAnchor(world);
   // 1. Apply intents, routed by target entity.
   for (const intent of intents) {
-    if (intent.control === 'quietCalls') {
+    if (isCameraIntent(intent.control)) {
+      applyCameraIntent(world, intent);
+    } else if (intent.control === 'quietCalls') {
       world.quietCalls = intent.value > 0.5;
     } else if (isBoardIntent(intent.control)) {
       applyBoardIntent(world, intent);
@@ -111,6 +116,7 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
     }
   }
 
+  stepCameraHolds(world);
   // 2. Integrate systems. Forces are evaluated at the start-of-tick time.
   stepEnvironment(world.environment, dt);
   stepWeather(world.environment, world.time, dt);

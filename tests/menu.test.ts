@@ -28,6 +28,7 @@ function fakeHost() {
     { name: 'Little lander', code: LANDER, savedAt: 1, picture: '', summary: '9 m' },
   ]);
   const yard = new ShipyardCodes(() => ({ getItem: () => saved, setItem: () => {} }));
+  const cam = { on: false, fov: 60, speed: 1, smooth: true, rideBoat: true, clean: true, zoom: (n: number) => (cam.fov += n * 2) };
   const state = { time: 10.5, scale: 0, sea: 1, coupling: 1, smooth: true, snap: 30, aboard: false, trials: false, dbg: false, hydro: false, probes: false, code: '', weather: 'Clear', debugMenu: true };
   const host: MenuHost = {
     timeOfDay: () => state.time,
@@ -171,6 +172,10 @@ function fakeHost() {
     playerName: () => 'Mate',
     nextPlayerName: () => calls.push('name'),
     netRole: () => 'solo',
+    camera: () => cam,
+    setCamera: (on) => calls.push(`camera ${on}`),
+    setCameraRide: (ride) => calls.push(`ride ${ride}`),
+    cameraNote: () => 'Fly a camera',
     hostGame: () => calls.push('host'),
     leaveGame: () => calls.push('leave'),
     shipyardCodes: () => yard,

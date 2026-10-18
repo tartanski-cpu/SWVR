@@ -228,3 +228,21 @@ export function handGeometries(look: number, side: -1 | 1): Record<HandPose, THR
   }
   return set;
 }
+
+/**
+ * The recording camera as crew-mates see it (player/cameraMode.ts): a small hand-held camera,
+ * its origin at the lens, looking down -z. A dark body behind the lens, the lens with a
+ * glass ring, a red record light on top, a stub of handle under it to hold it by, and a
+ * band in the camera player's colour on each side. Generic, no brand look.
+ */
+export function cameraBodyGeometry(accent: number): THREE.BufferGeometry {
+  const body = 0x2a2e33;
+  return mergeParts([
+    part(new THREE.BoxGeometry(0.1, 0.07, 0.05).translate(0, 0, 0.03), body),
+    part(new THREE.CylinderGeometry(0.024, 0.026, 0.02, 14).rotateX(Math.PI / 2).translate(0, 0, -0.002), 0x141618),
+    part(new THREE.CylinderGeometry(0.016, 0.016, 0.004, 14).rotateX(Math.PI / 2).translate(0, 0, -0.013), 0x3a6a8a),
+    part(new THREE.BoxGeometry(0.012, 0.008, 0.012).translate(0.03, 0.039, 0.012), 0xe02020),
+    part(new THREE.CylinderGeometry(0.013, 0.015, 0.075, 8).translate(0, -0.07, 0.035), 0x4a4f56),
+    part(new THREE.BoxGeometry(0.102, 0.016, 0.03).translate(0, 0.012, 0.03), accent),
+  ]);
+}

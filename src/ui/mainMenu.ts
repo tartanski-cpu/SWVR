@@ -200,6 +200,11 @@ export interface MenuHost {
   playerName(): string;
   nextPlayerName(): void;
   netRole(): 'solo' | 'starting' | 'host' | 'client';
+  /** The recording camera (player/cameraMode.ts): its options, on and off, a line of help. */
+  camera(): CameraOptions;
+  setCamera(on: boolean): void;
+  setCameraRide(ride: boolean): void;
+  cameraNote(): string;
   hostGame(): void;
   leaveGame(): void;
   /** Office > Your boats (shipyard/takeHer.ts): the favourites' page and the code being typed. */
@@ -217,6 +222,17 @@ export interface MenuHost {
   backspace(): void;
   joinGame(): void;
   close(): void;
+}
+
+/** The recording camera's options the menu works directly (player/cameraMode.ts). */
+export interface CameraOptions {
+  readonly on: boolean;
+  fov: number;
+  speed: number;
+  smooth: boolean;
+  readonly rideBoat: boolean;
+  clean: boolean;
+  zoom(steps: number): void;
 }
 
 /** Time flow options: game time per real time. */
@@ -482,6 +498,42 @@ export function mainMenu(h: MenuHost): MainMenu {
     { label: '', buttons: ['1', '2', '3', '4', '5'].map(digit) },
     { label: '', buttons: ['6', '7', '8', '9', '0'].map(digit) },
     { label: '', buttons: [{ text: () => (solo() ? '⌫' : ''), press: () => h.backspace() }] },
+    { heading: 'Camera (for recording)' },
+    { label: '', buttons: [{ text: () => h.cameraNote() }] },
+    { label: 'Be the camera', buttons: [choice('On', true, () => h.camera().on, (v) => h.setCamera(v)), choice('Off', false, () => h.camera().on, (v) => h.setCamera(v))] },
+    {
+      label: 'Field of view',
+      buttons: [
+        { text: '−', press: () => h.camera().zoom(-2.5) },
+        { text: () => `${Math.round(h.camera().fov)}°`, weight: 1.2 },
+        { text: '+', press: () => h.camera().zoom(2.5) },
+      ],
+    },
+    {
+      label: 'Flying speed',
+      buttons: ['Slow', 'Normal', 'Fast'].map((n, i) =>
+        choice(n, i, () => h.camera().speed, (v) => {
+          h.camera().speed = v;
+        }),
+      ),
+    },
+    {
+      label: 'Smoothing',
+      buttons: [true, false].map((v) =>
+        choice(v ? 'On' : 'Off', v, () => h.camera().smooth, (x) => {
+          h.camera().smooth = x;
+        }),
+      ),
+    },
+    { label: 'Rides with', buttons: [choice('The boat', true, () => h.camera().rideBoat, (v) => h.setCameraRide(v)), choice('Stays put', false, () => h.camera().rideBoat, (v) => h.setCameraRide(v))] },
+    {
+      label: 'Clean screen',
+      buttons: [true, false].map((v) =>
+        choice(v ? 'On' : 'Off', v, () => h.camera().clean, (x) => {
+          h.camera().clean = x;
+        }),
+      ),
+    },
   ];
 
   const settings: MenuSection[] = [

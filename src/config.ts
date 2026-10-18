@@ -2483,6 +2483,27 @@ export const CONFIG = {
     gesture: { stick: 0.6 },
   },
 
+  /**
+   * The recording camera (player/cameraMode.ts): a desktop player who's a flying camera for
+   * filming the others (record the screen with OBS), which a VR player can pick up.
+   *   fov            field of view to start with, and its range (deg, vertical)
+   *   speeds         flying speeds, slow / normal / fast (m/s; Shift: x3)
+   *   smoothTau      smoothing on: the view eases to where you fly and look over this (s)
+   *   heldTau        held by a VR player: the view eases onto their hand (s; smooths the network)
+   *   grabRange      a VR hand this close to the camera body (m) grips it
+   *   lens           the lens in the holder's grip axes (m: up, and forward along the controller)
+   */
+  camera: {
+    fov: 60,
+    fovMin: 20,
+    fovMax: 100,
+    speeds: [1.2, 4, 10] as [number, number, number],
+    smoothTau: 0.35,
+    heldTau: 0.08,
+    grabRange: 0.2,
+    lens: [0, 0.035, -0.08] as [number, number, number],
+  },
+
   laser: { reach: 600, hitRate: 15, deskHand: [0.2, -0.25, -0.35] as [number, number, number] },
 
   comfort: {

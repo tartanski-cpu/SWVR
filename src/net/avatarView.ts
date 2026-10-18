@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { CONFIG } from '../config';
 import { flatVertexColorMaterial } from '../render/geometryUtils';
-import { armGeometry, decodeLook, handGeometries, headGeometry, lookFromId, torsoGeometry } from './avatarOutfits';
+import { armGeometry, cameraBodyGeometry, decodeLook, handGeometries, headGeometry, lookFromId, torsoGeometry } from './avatarOutfits';
 import { poseFromCode } from '../player/handGesture';
 import type { EntityId } from '../core/ids';
 import type { WorldState } from '../core/world';
@@ -39,6 +39,8 @@ interface Avatar {
   toolKey: string;
   /** Their laser pointer, in the same frame as the avatar (the pose gives it in frame coordinates). */
   laser: LaserBeam;
+  /** A recording camera (player/cameraMode.ts): drawn instead of the figure, at the head's pose. */
+  camBody: THREE.Mesh;
 }
 
 /** One vertex-coloured material for every figure (their colours are in the geometry), and your own hands. */
@@ -81,7 +83,14 @@ export class AvatarsView {
 
   constructor(private readonly scene: THREE.Object3D) {}
 
-  update(world: WorldState, localId: EntityId, vesselRoots: Map<string, THREE.Object3D>, dt: number): void {
+  /** Recording cameras by player id (to grab one: their world position). */
+  readonly cameras = new Map<EntityId, THREE.Object3D>();
+
+  /**
+   * @param heldGrip  where a camera we're holding goes: our grip (its lens at CONFIG.camera.lens
+   *                  in it), so it's in our hand without the network's lag; null if not ours.
+   */
+  update(world: WorldState, localId: EntityId, vesselRoots: Map<string, THREE.Object3D>, dt: number, heldGrip: (cameraId: EntityId) => THREE.Object3D | null = () => null): void {
     const c = CONFIG.avatar;
     const seen = new Set<EntityId>();
     for (const p of Object.values(world.players)) {
@@ -115,6 +124,22 @@ export class AvatarsView {
       else a.laser.hide();
       if (a.tagName !== p.name) drawTag(a, p.name);
       a.tag.position.set(a.head.position.x, a.head.position.y + 0.34, a.head.position.z);
+      // A recording camera: the camera body at the head's pose (or in our hand), no figure.
+      const isCam = !!p.avatar?.camera;
+      for (const m of [a.face, a.torso, ...a.upper, ...a.fore, a.left, a.right]) m.visible = !isCam;
+      a.camBody.visible = isCam;
+      if (isCam) {
+        this.cameras.set(p.id, a.camBody);
+        const grip = heldGrip(p.id);
+        const holder = grip ?? a.head;
+        if (a.camBody.parent !== holder) holder.add(a.camBody);
+        if (grip) a.camBody.position.fromArray(CONFIG.camera.lens);
+        else a.camBody.position.set(0, 0, 0);
+        a.tag.position.y = a.head.position.y + 0.16;
+        continue;
+      }
+      this.cameras.delete(p.id);
+      if (a.camBody.parent !== a.head) a.head.add(a.camBody);
 
       // The torso's heading: toward the head's, lagging, never twisted more than maxTwistDeg.
       const f = this.dir.copy(FWD).applyQuaternion(a.head.quaternion);
@@ -193,6 +218,9 @@ export class AvatarsView {
 
   private remove(id: EntityId, a: Avatar): void {
     a.root.removeFromParent();
+    a.camBody.removeFromParent();
+    a.camBody.geometry.dispose();
+    this.cameras.delete(id);
     a.laser.root.removeFromParent();
     (a.tag.material.map as THREE.Texture).dispose();
     a.tag.material.dispose();
@@ -226,7 +254,10 @@ export class AvatarsView {
     tag.scale.set(0.6, 0.15, 1);
     tag.userData.color = color;
     root.add(head, torso, ...upper, ...fore, left, right, tag);
-    const a: Avatar = { root, head, face, torso, upper, fore, left, right, bodyYaw: 0, look, frame: null, tag, tagName: '', tool: null, toolKey: '', laser: new LaserBeam(color) };
+    const camBody = new THREE.Mesh(cameraBodyGeometry(color), mat);
+    camBody.visible = false;
+    head.add(camBody);
+    const a: Avatar = { root, head, face, torso, upper, fore, left, right, bodyYaw: 0, look, frame: null, tag, tagName: '', tool: null, toolKey: '', laser: new LaserBeam(color), camBody };
     this.avatars.set(id, a);
     return a;
   }

@@ -37,6 +37,11 @@ export interface WorldState {
   time: number;
   environment: EnvironmentState;
   players: Record<EntityId, PlayerState>;
+  /**
+   * A crew-mate holding a camera player's camera in their hand (player/cameraHold.ts), by
+   * the camera player's id: who, and which hand. The camera's view follows that hand.
+   */
+  cameraHolds?: Record<EntityId, { by: EntityId; hand: 'left' | 'right' }>;
   vessels: Record<EntityId, VesselState>;
   /**
    * The players' own boat, the one the game gives them (modular boats M6b): the world's

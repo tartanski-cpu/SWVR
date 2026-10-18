@@ -380,6 +380,11 @@ Everything you do now earns or costs money. The menu's **Office** tab is your ha
   The duty board ticks the steps off, and there's a £200 welcome at the end. **Menu → Office → Jobs** shows the step you're on, with **Skip** (or **Again** to replay it).
 - **Career slots:** three careers per browser (Menu → Office → Career → Slot 1 / 2 / 3), each with its money, reputation, upgrades, the boat's condition and the first-voyage step. **New career in this slot** asks you to press twice.
 - **Playing together:** when you host, the duty board shows the **game code** for your crew to read off the wall. Menu → Crew lists who's aboard, and the last code you joined is remembered. Crew-mates play the host's career, in the host's boat: if it isn't the one they're in (a Shipyard boat, or the workboat fitted out otherwise), their game starts again in hers and joins again by itself (in VR, enter VR again).
+- **The recording camera** (for filming, desktop): join the game on a desktop computer, then **Menu → Crew → Be the camera: On**. You're a small flying camera instead of a crew-mate (the others see a camera with your name over it). Record your screen with OBS or similar.
+  - **Fly it:** the mouse aims it; W / S fly forward and back where it looks, A / D sideways, Space / C straight up and down, Shift faster; the mouse wheel zooms. It flies through everything.
+  - **Options** (same menu): field of view, flying speed (slow / normal / fast), smoothing (eases the view for steady footage), **rides with the boat** (keeps its place on her, the picture always level) or **stays put** (set up a shot ashore or at sea as she passes), and **clean screen** (nothing on the screen but the picture).
+  - **Handled like a GoPro:** a VR player grips the camera and it's in their hand, the camera's picture following it (about a sixth of a second behind, smoothed). It's locked to their hand until they let go; then it stays right there, riding with their boat (or put, as set).
+  - **Be the camera: Off** puts you back aboard at the helm. Sound for recording comes later.
 
 ### Damage, wear and weather
 

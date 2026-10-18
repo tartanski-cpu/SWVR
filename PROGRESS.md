@@ -4726,6 +4726,22 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Not yet:** the Settings switch (the owner will add it later; the plan was white spray with it off), and the skiff's outboard (it has no gear facts for its propeller here).
 - **Checked:** `npm test` (106 files, 757 pass; new `tests/propStrike.test.ts`: stopped, neutral, ahead and astern, out of reach, twin screws, the host's message and junk), typecheck. In the game in headless Chromium: me in the water just aft of her hub, her going slow astern, struck: the shout, the red drops at her stern, the red-to-black view, then back aboard and clear. No page errors. **Not checked:** the Quest (the burst at a real frame rate, the haptics), and with two players.
 
+### The recording camera (owner)
+
+- **The owner asked:** a desktop player in a session becomes a camera instead of an avatar, flying where they look, with simple options (field of view…), to record the VR player from a third-person view with an outside tool (OBS). A VR player can grab the camera and handle it like a GoPro. Their answers: locked while a VR player holds it; rides with the boat, with an option not to (for a set-up ashore); no preview screen. Sound later.
+- **Camera mode** (`player/cameraMode.ts`, desktop only; Menu → Crew → Camera):
+  - the view leaves the player's body (the camera becomes a child of the scene) and flies: the mouse aims it (the desktop look, `DesktopController.lookYaw/lookPitch/setLook`), W/S forward and back along the view, A/D sideways, Space/C up and down, Shift ×3, the wheel zooms. Nothing collides;
+  - **rides with the boat** (default): its place is kept in her axes and its aim from her heading, the picture always level (her roll and pitch don't tip it, as on a gimbal). **Stays put:** world axes. Switching keeps it where it is;
+  - options: field of view (`CONFIG.camera.fov` 60°, 20–100°), flying speed (`speeds` 1.2 / 4 / 10 m/s), smoothing (`smoothTau` 0.35 s; on by default), clean screen (on by default: `body.camera-clean` hides everything but the canvas, `index.html`);
+  - the body's and the boat's keys are off (board, engine, crouch, lash, the debug driving, fly mode); the menu still works by mouse. Off again: aboard her at the helm, the old field of view back.
+- **Others see a camera** (`net/avatarOutfits.ts cameraBodyGeometry`, `net/avatarView.ts`): the pose says `camera: true` (validated by the host into `avatar.camera`); its head is the camera's place and turn, in its frame. Drawn as a small hand-held camera (a dark body, lens, red record light, a handle, a band in the player's colour) with their name, no figure. One small mesh.
+- **Picked up in VR** (`player/cameraHold.ts`, `app/App.ts updateCameraGrab`):
+  - a free hand's grip within `grabRange` (0.2 m) of a camera body sends `cameraGrab`; the host keeps `world.cameraHolds[camera] = {by, hand}` (only a camera, not held already, not by a camera or itself). Let go: `cameraRelease`. The host lets go for a holder or camera that leaves, or a camera that stops being one;
+  - the holder sees it in their hand at once (the body is put on their grip, the lens at `CONFIG.camera.lens`); the hand is busy (a fist, no gestures, no grabbing the world);
+  - the camera's game puts its view on the holder's hand from their pose (`heldTau` 0.08 s easing over the network), locked; let go, it stays right there, riding with the holder's boat if "rides with the boat" (or put, as set, or if they were ashore).
+- **The sea's steady point** (`seaAnchor`, the players' middle) leaves cameras out: they can be anywhere.
+- **Checked:** `npm test` (110 files, 774 pass; new `tests/cameraHold.test.ts`: grab, not twice, release only by the holder, not a crew-mate or yourself or by a camera, let go when the holder leaves or it's no longer a camera, the sea's steady point, the flag through the host; the menu test has the new options), typecheck. In the game in headless Chromium: into camera mode aboard (the view in the scene, riding her, the clean screen on), flown forward and up 4.5 m, rode with her when she moved 41 m, put on a pretend VR holder's hand (lens 4 cm above and 8 cm ahead), stayed exactly there when let go (the holder ashore: put), back to being yourself aboard; a crew-mate's camera body on deck. No page errors. **Not checked:** two real players (a desktop camera and a VR holder over the network), OBS, and the Quest.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

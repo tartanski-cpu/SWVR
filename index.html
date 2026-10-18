@@ -25,6 +25,8 @@
         background: #2b3a48; border: 1px solid #5a6e80; border-bottom-width: 2px; border-radius: 4px;
       }
       #help b { color: #fff; }
+      /* The recording camera's clean screen (player/cameraMode.ts): only the picture. */
+      body.camera-clean > :not(canvas) { visibility: hidden !important; }
     </style>
   </head>
   <body>

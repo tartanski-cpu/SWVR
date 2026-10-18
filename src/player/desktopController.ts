@@ -40,6 +40,18 @@ export class DesktopController {
     });
   }
 
+  /** The mouse look (rad): yaw about up, pitch up/down. The recording camera flies by it. */
+  get lookYaw(): number {
+    return this.yaw;
+  }
+  get lookPitch(): number {
+    return this.pitch;
+  }
+  setLook(yaw: number, pitch: number): void {
+    this.yaw = yaw;
+    this.pitch = THREE.MathUtils.clamp(pitch, -1.5, 1.5);
+  }
+
   /** Mouse-look speed factor (slower through the binoculars). */
   lookScale = 1;
   /** Never capture the mouse (the touch controls are showing). */

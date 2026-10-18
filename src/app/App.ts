@@ -63,6 +63,8 @@ import { berthById } from '../vessel/physics/mooring';
 import { XRControllers } from '../player/xrControllers';
 import { HandGestures } from '../player/handGesture';
 import { OwnHands } from '../player/ownHands';
+import { CameraMode } from '../player/cameraMode';
+import type { PlayerState } from '../player/playerState';
 import { struckByPropeller } from '../rescue/propStrike';
 import { PropStrikeView } from '../rescue/propStrikeView';
 import { lookFromId } from '../net/avatarOutfits';
@@ -421,6 +423,19 @@ export class App {
   private busyHands = { left: false, right: false };
   /** When we last let go of (or asked for) the life ring in the water (world time). */
   private ringLetGoAt = -99;
+  /** The recording camera (Menu > Crew > Be the camera; desktop): player/cameraMode.ts. */
+  private readonly camMode = new CameraMode();
+  /** Our field of view before we became the camera (back to it after). */
+  private camOldFov = 0;
+  private camWasHeld = false;
+  /** The boat of whoever last held us, to ride with when they let go. */
+  private camHolderBoat: string | null = null;
+  /** A camera body in our VR hand (we've asked the host, or it's ours), by hand. */
+  private readonly camGrip: Record<'left' | 'right', { id: string; at: number } | null> = { left: null, right: null };
+  private readonly camW = new THREE.Vector3();
+  private readonly camQ = new THREE.Quaternion();
+  private readonly camQ2 = new THREE.Quaternion();
+  private readonly camLens = new THREE.Vector3();
   /** The red spray when a swimmer goes into a propeller (everyone sees it). */
   private readonly propStrikeView = new PropStrikeView();
   /** Us struck by a propeller: seconds since (red, black, back aboard), or -1. */
@@ -749,6 +764,8 @@ export class App {
 
   /** Us: carried gear, the desktop look, pointing and grabbing, walking, the laser; then the head. */
   private updatePlayer(dt: number, inXR: boolean): void {
+    if (this.camMode.on && !inXR) return this.updateCameraMode(dt);
+    if (this.camMode.on) this.setCameraMode(false); // (into VR: back to being yourself)
     this.syncRigToPlayer(dt);
     this.cargoHands.tick(this.cargoCtx(), dt);
     this.rescueHands.tick(this.rescueCtx(), dt);
@@ -1020,7 +1037,8 @@ export class App {
     if (deskHand) this.desktopHand.setColor(playerColor(this.localPlayerId));
     this.desktopHand.update(this.camera, deskHand, dt);
     this.updateNetPose(dt);
-    this.avatars.update(this.world, this.localPlayerId, this.vesselRoots, dt);
+    const heldGrip = (id: string) => (inXR ? (['left', 'right'] as const).map((h) => (this.camGrip[h]?.id === id ? this.controllers.grips[h] : null)).find((g) => g) ?? null : null);
+    this.avatars.update(this.world, this.localPlayerId, this.vesselRoots, dt, heldGrip);
     // A crew-mate goes in the water: say so once (they can wave; throw them the life ring).
     for (const pl of Object.values(this.world.players)) {
       if (pl.id === this.localPlayerId) continue;
@@ -1083,21 +1101,23 @@ export class App {
     if (k.actionPressed('toggleProbes')) this.probes.toggle();
     if (k.actionPressed('toggleHydro')) for (const h of this.hydroViews.values()) h.toggle();
     if (k.actionPressed('dropVessel')) this.pushVesselIntent('debugDrop', 0);
-    if (k.actionPressed('flyMode')) this.desktop.toggleFly();
-    if (k.actionPressed('lash') && !this.renderer.xr.isPresenting) {
+    // The recording camera flies on its own keys: none of the body's or the boat's here.
+    const cam = this.camMode.on;
+    if (k.actionPressed('flyMode') && !cam) this.desktop.toggleFly();
+    if (k.actionPressed('lash') && !this.renderer.xr.isPresenting && !cam) {
       this.camera.getWorldPosition(this.tmpRay.origin);
       this.camera.getWorldDirection(this.tmpRay.direction);
       this.cargoHands.desktopLash(this.cargoCtx(), this.tmpRay);
     }
-    this.handleDebugDriving(dt);
-    if (k.actionPressed('engine')) this.requestEngineStartStop();
+    if (!cam) this.handleDebugDriving(dt);
+    if (k.actionPressed('engine') && !cam) this.requestEngineStartStop();
     if (this.boardOnStart) {
       this.boardOnStart = false;
       if (!this.world.players[this.localPlayerId]?.aboardVesselId) this.toggleBoardTo(true);
     }
     this.touch?.update(this.renderer.xr.isPresenting);
     // Crouch: X (VR) or C (desktop, walking) toggles it.
-    if (this.xrInput.wasPressed('left', XR_BUTTON.primary) || (k.actionPressed('crouch') && this.desktop.mode === 'walk' && !this.interaction?.steering)) {
+    if (this.xrInput.wasPressed('left', XR_BUTTON.primary) || (k.actionPressed('crouch') && this.desktop.mode === 'walk' && !this.interaction?.steering && !cam)) {
       this.crouched = !this.crouched;
     }
     // Motion coupling: in the menu, or 9 / 0 (desktop).
@@ -1105,7 +1125,7 @@ export class App {
     if (k.actionPressed('couplingDown')) dc = -0.1;
     if (k.actionPressed('couplingUp')) dc = 0.1;
     if (dc !== 0) this.setCoupling(this.decoupler.coupling + dc);
-    if (k.actionPressed('board') || this.xrInput.wasPressed('left', XR_BUTTON.stick)) this.toggleBoard();
+    if ((k.actionPressed('board') && !cam) || this.xrInput.wasPressed('left', XR_BUTTON.stick)) this.toggleBoard();
     if (k.actionPressed('seaTrials')) this.trialsPanel.toggle(this.world.vessels[this.testVesselId].defId);
     if (k.actionPressed('seaState')) {
       // Cycle the weather presets (each eases in; the sea follows the wind).
@@ -2076,6 +2096,15 @@ export class App {
         saveSettings();
       },
       netRole: () => (this.host ? 'host' : this.client ? 'client' : this.hostStarting ? 'starting' : 'solo'),
+      camera: () => this.camMode,
+      setCamera: (on) => this.setCameraMode(on),
+      setCameraRide: (ride) => this.setCameraRide(ride),
+      cameraNote: () => {
+        if (this.renderer.xr.isPresenting) return 'Desktop only. In VR, grip a camera to pick it up';
+        const hold = this.world.cameraHolds?.[this.localPlayerId];
+        if (this.camMode.on && hold) return `In ${this.world.players[hold.by]?.name ?? 'a crew-mate'}'s hand`;
+        return this.camMode.on ? 'Mouse aims · W A S D fly · Space / C up, down · Shift fast · wheel zooms' : 'Fly a camera to film the others (record the screen)';
+      },
       hostGame: () => this.hostGame(),
       leaveGame: () => {
         this.netMessage = '';
@@ -2150,6 +2179,8 @@ export class App {
    * NET_RATE times a second when a client.
    */
   private updateNetPose(dt: number): void {
+    // The recording camera: the camera body, no figure (alone too: it's still a camera).
+    if (this.camMode.on && this.world.players[this.localPlayerId]) return this.sendCameraPose(dt, this.world.players[this.localPlayerId]);
     if (!this.host && this.client?.status !== 'connected') {
       // Solo: no pose to send, but the simulation still needs your hand gear (the
       // extinguisher on a fire), which it reads from your avatar like a crew-mate's.
@@ -2629,11 +2660,183 @@ export class App {
     );
     this.scene.add(this.interaction.rayLine('left'), this.interaction.rayLine('right'));
     this.pointer = new DesktopPointer(this.renderer.domElement, this.desktop, this.interaction, this.menu, this.desktopCargo());
+    // The recording camera zooms on the mouse wheel.
+    this.renderer.domElement.addEventListener(
+      'wheel',
+      (e) => {
+        if (!this.camMode.on) return;
+        this.camMode.zoom(Math.sign(e.deltaY));
+        e.preventDefault();
+      },
+      { passive: false },
+    );
     this.pointer.gearHeld = () => this.gear.some((g) => g.held === 'desk');
     if (this.chartTools) {
       const tools = this.chartTools;
       // Drawing on the chart only with the leaf unfolded.
       this.pointer.chart = (ray, b) => (this.chartTable?.isOpen ? tools.updateDesktop(this.chartCtx(), ray, b, this.frameDt) : { label: null, consumed: false });
+    }
+  }
+
+  /**
+   * Become the recording camera, or yourself again (desktop only). The camera starts where
+   * your eyes are, riding with the boat you're aboard (or put, ashore or as set); back as
+   * yourself, you're aboard her at the helm.
+   */
+  private setCameraMode(on: boolean): void {
+    const cm = this.camMode;
+    if (on === cm.on || (on && this.renderer.xr.isPresenting)) return;
+    const p = this.world.players[this.localPlayerId];
+    if (on) {
+      for (const g of this.gear) if (g.held) g.hangBack();
+      this.laser.off();
+      this.pointer?.hide();
+      this.camera.getWorldPosition(this.camW);
+      this.camera.getWorldQuaternion(this.camQ);
+      this.camOldFov = this.camera.fov;
+      this.scene.attach(this.camera);
+      const frameId = cm.rideBoat ? (p.aboardVesselId ?? null) : null;
+      cm.anchor(frameId, frameId ? (this.vesselRoots.get(frameId) ?? null) : null, this.camW, this.camQ);
+      cm.snap();
+      this.desktop.setLook(cm.yaw, cm.pitch);
+      cm.on = true;
+      this.overlay.notify('You are the camera. Fly: mouse, W A S D, Space / C, Shift faster; the wheel zooms. Options: Menu > Crew', 6);
+    } else {
+      cm.on = false;
+      if (p.avatar) p.avatar.camera = false;
+      document.body.classList.remove('camera-clean');
+      this.rig.root.add(this.camera);
+      this.camera.fov = this.camOldFov || CONFIG.render.fovDeg;
+      this.camera.updateProjectionMatrix();
+      this.desktop.resetPose();
+      p.mode = 'walk';
+      this.keepViewOnReparent = false;
+      this.toggleBoardTo(true);
+    }
+  }
+
+  /** "Rides with the boat" on or off: it keeps its place in the world, now in the new frame. */
+  private setCameraRide(ride: boolean): void {
+    const cm = this.camMode;
+    cm.rideBoat = ride;
+    if (!cm.on) return;
+    const id = ride ? this.testVesselId : null;
+    cm.anchor(id, id ? (this.vesselRoots.get(id) ?? null) : null, this.camera.getWorldPosition(this.camW), this.camera.getWorldQuaternion(this.camQ));
+    this.desktop.setLook(cm.yaw, cm.pitch);
+  }
+
+  /** One frame as the recording camera: flown by us, or in a VR crew-mate's hand. */
+  private updateCameraMode(dt: number): void {
+    const cm = this.camMode;
+    const p = this.world.players[this.localPlayerId];
+    let frame = cm.frameId ? (this.vesselRoots.get(cm.frameId) ?? null) : null;
+    if (cm.frameId && !frame) {
+      // Her boat's gone (a rebuild, a different game): stay where it is.
+      cm.anchor(null, null, this.camera.getWorldPosition(this.camW), this.camera.getWorldQuaternion(this.camQ));
+      frame = null;
+    }
+    // Held: the lens on the holder's hand (their pose: the hand in their frame).
+    const hold = this.world.cameraHolds?.[this.localPlayerId];
+    const hp = hold && this.world.players[hold.by];
+    const hand = hp?.avatar?.[hold!.hand];
+    const hq = hp?.avatar?.[hold?.hand === 'left' ? 'leftQ' : 'rightQ'];
+    let held: { pos: THREE.Vector3; quat: THREE.Quaternion } | null = null;
+    if (hp && hand && hq) {
+      const hf = (hp.aboardVesselId && this.vesselRoots.get(hp.aboardVesselId)) || this.scene;
+      hf.updateMatrixWorld();
+      const quat = hf.getWorldQuaternion(this.camQ).multiply(this.camQ2.set(hq[0], hq[1], hq[2], hq[3]));
+      const pos = hf.localToWorld(this.camW.fromArray(hand)).add(this.camLens.fromArray(CONFIG.camera.lens).applyQuaternion(quat));
+      held = { pos, quat };
+      this.camHolderBoat = hp.aboardVesselId;
+    }
+    if (this.camWasHeld && !held) {
+      // Let go: it stays right there, riding with their boat (or put).
+      const id = cm.rideBoat ? this.camHolderBoat : null;
+      cm.anchor(id, id ? (this.vesselRoots.get(id) ?? null) : null, this.camera.getWorldPosition(this.camW), this.camera.getWorldQuaternion(this.camQ));
+      frame = id ? (this.vesselRoots.get(id) ?? null) : null;
+      this.desktop.setLook(cm.yaw, cm.pitch);
+    }
+    this.camWasHeld = !!held;
+    const k = this.keyboard;
+    const move = {
+      x: (k.action('right') ? 1 : 0) - (k.action('left') ? 1 : 0),
+      y: (k.action('up') ? 1 : 0) - (k.action('down') ? 1 : 0),
+      z: (k.action('forward') ? 1 : 0) - (k.action('back') ? 1 : 0),
+      fast: k.action('fast'),
+    };
+    // Held, it's locked to the hand: the mouse follows along, so flying picks up from there.
+    if (held) move.x = move.y = move.z = 0;
+    cm.update(dt, frame, { yaw: this.desktop.lookYaw, pitch: this.desktop.lookPitch }, move, held, this.camera);
+    if (held) this.desktop.setLook(cm.yaw, cm.pitch);
+    // Our player rides where the camera does (others place the camera body from it).
+    if (p.aboardVesselId !== cm.frameId) this.keepViewOnReparent = true;
+    p.aboardVesselId = cm.frameId;
+    p.position = [cm.pos.x, cm.pos.y, cm.pos.z];
+    p.mode = 'walk';
+    document.body.classList.toggle('camera-clean', cm.clean && !this.menu.isOpen);
+    this.camera.getWorldPosition(this.focus);
+    // The menu still works by mouse; nothing else in the world does.
+    if (this.menu.isOpen) this.pointer?.update(this.camera);
+    else this.pointer?.hide();
+  }
+
+  /** Our pose as the recording camera: the camera body's place and turn, no figure. */
+  private sendCameraPose(dt: number, p: PlayerState): void {
+    const cm = this.camMode;
+    const frame = cm.frameId ? (this.vesselRoots.get(cm.frameId) ?? null) : null;
+    cm.framePose(frame, this.camW, this.camQ);
+    const r = (x: number) => Math.round(x * 1000) / 1000;
+    const head: [number, number, number, number, number, number, number] = [r(this.camW.x), r(this.camW.y), r(this.camW.z), r(this.camQ.x), r(this.camQ.y), r(this.camQ.z), r(this.camQ.w)];
+    const pose: PlayerPose = { name: userSettings.playerName, aboardVesselId: cm.frameId, position: [head[0], head[1], head[2]], yaw: 0, head, left: null, right: null, camera: true };
+    if (this.host || this.client?.status !== 'connected') {
+      p.name = pose.name;
+      p.avatar = { head, left: null, right: null, camera: true };
+      return;
+    }
+    this.poseTimer += dt;
+    if (this.poseTimer < 1 / NET_RATE) return;
+    this.poseTimer = 0;
+    this.client!.sendPose(pose);
+  }
+
+  /**
+   * VR: grip a crew-mate's recording camera to pick it up (it's in your hand, their view
+   * following it); let go of the grip and it stays there. A hand holding one is busy.
+   */
+  private updateCameraGrab(): void {
+    const holds = this.world.cameraHolds ?? {};
+    const me = this.localPlayerId;
+    for (const h of ['left', 'right'] as const) {
+      const f = this.hands[h];
+      const mine = this.camGrip[h];
+      if (mine) {
+        const hold = holds[mine.id];
+        const ours = hold?.by === me && hold.hand === h;
+        // Let go; or the host never gave it us (someone else had it), or it isn't a camera now.
+        if (!f.gripDown || (!ours && (hold || this.world.time - mine.at > 1.5)) || !this.avatars.cameras.has(mine.id)) {
+          if (ours) this.intents.push({ playerId: me, targetId: ENVIRONMENT_ID, control: 'cameraRelease', value: 1, ref: mine.id });
+          this.camGrip[h] = null;
+          continue;
+        }
+        this.busyHands[h] = true;
+        continue;
+      }
+      if (!f.gripPressed || this.busyHands[h] || !f.tracked) continue;
+      let best: string | null = null;
+      let bestD: number = CONFIG.camera.grabRange;
+      for (const [id, body] of this.avatars.cameras) {
+        if (holds[id] || Object.values(this.camGrip).some((g) => g?.id === id)) continue;
+        const d = body.getWorldPosition(this.camW).distanceTo(f.grip);
+        if (d < bestD) {
+          bestD = d;
+          best = id;
+        }
+      }
+      if (!best) continue;
+      this.intents.push({ playerId: me, targetId: ENVIRONMENT_ID, control: 'cameraGrab', value: h === 'right' ? 1 : 0, ref: best });
+      this.camGrip[h] = { id: best, at: this.world.time };
+      this.busyHands[h] = true;
+      this.xrInput.pulse(h, 0.5, 40);
     }
   }
 
@@ -2747,6 +2950,7 @@ export class App {
         const onBoard = this.board.updateXR(this.boardCtx(), this.hands, this.busyHands);
         for (const h of ['left', 'right'] as const) if (onBoard[h]) this.busyHands[h] = true;
       } else if (this.board) this.board.rayLine.visible = false;
+      this.updateCameraGrab();
       this.pointer?.hide();
       return;
     }
