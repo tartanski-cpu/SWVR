@@ -64,7 +64,7 @@ import { XRControllers } from '../player/xrControllers';
 import { HandGestures } from '../player/handGesture';
 import { OwnHands } from '../player/ownHands';
 import { CameraMode } from '../player/cameraMode';
-import { GamepadInput, PAD, padHelm, padLever, type PadState } from '../player/gamepad';
+import { GamepadInput, PAD, PAD_KEYS, PAD_KEYS_AT_HELM, PAD_MOUSE, padHelm, padLever, type PadState } from '../player/gamepad';
 import { HelmPrompt } from '../ui/helmPrompt';
 import type { PlayerState } from '../player/playerState';
 import { struckByPropeller } from '../rescue/propStrike';
@@ -1102,15 +1102,16 @@ export class App {
   /** Debug-only bindings. Note time-of-day goes through the intent path like any control. */
   private handleDebugInput(dt: number): void {
     const k = this.keyboard;
+    // The game controller first: its buttons press keys the rest of this reads.
+    const cam = this.camMode.on;
+    this.updateHelmSeat(dt, cam);
     if (k.actionPressed('toggleOverlay') || this.xrInput.wasPressed('right', XR_BUTTON.secondary)) this.overlay.toggle();
     if (k.actionPressed('menu') || this.xrInput.wasPressed('left', XR_BUTTON.secondary)) this.toggleMenu();
     if (k.actionPressed('toggleHelp')) this.help.toggle();
     if (k.actionPressed('toggleProbes')) this.probes.toggle();
     if (k.actionPressed('toggleHydro')) for (const h of this.hydroViews.values()) h.toggle();
     if (k.actionPressed('dropVessel')) this.pushVesselIntent('debugDrop', 0);
-    // The recording camera flies on its own keys: none of the body's or the boat's here.
-    const cam = this.camMode.on;
-    this.updateHelmSeat(dt, cam);
+    // (The recording camera flies on its own keys: none of the body's or the boat's here.)
     if (k.actionPressed('flyMode') && !cam) this.desktop.toggleFly();
     if (k.actionPressed('lash') && !this.renderer.xr.isPresenting && !cam) {
       this.camera.getWorldPosition(this.tmpRay.origin);
@@ -2714,15 +2715,38 @@ export class App {
         this.desktop.setLook(0, -0.12);
       }
     }
-    if (this.atHelm && pad?.connected) {
+    const ctl = !!pad?.connected;
+    if (pad && ctl) {
+      // The right stick looks round, anywhere; the left walks, off the helm.
       const r = CONFIG.gamepad.lookRate * dt;
       this.desktop.setLook(this.desktop.lookYaw - pad.rx * r, this.desktop.lookPitch - pad.ry * r);
+      const walk = !this.atHelm && !cam;
+      this.desktop.padMove.x = walk ? pad.lx : 0;
+      this.desktop.padMove.z = walk ? pad.ly : 0;
+      this.desktop.padMove.run = walk && !!pad.down[PAD.ls];
+      // Its buttons as the keys and mouse buttons (player/gamepad.ts PAD_KEYS, PAD_MOUSE).
+      const keys = this.atHelm ? PAD_KEYS_AT_HELM : PAD_KEYS;
+      for (const [i, code] of Object.entries(keys)) {
+        const b = Number(i);
+        if (b === PAD.a && near) continue; // by the wheel, A takes the helm instead of jumping
+        if (pad.pressed[b]) this.keyboard.inject(code!, true);
+        if (pad.released[b]) this.keyboard.inject(code!, false);
+      }
+      for (const [i, button] of Object.entries(PAD_MOUSE)) {
+        const b = Number(i);
+        if (pad.pressed[b]) this.pointer?.padButton(button!, true);
+        if (pad.released[b]) this.pointer?.padButton(button!, false);
+      }
+      if (this.atHelm && v) this.padHelmSwitches(v, pad);
+    } else {
+      this.desktop.padMove.x = this.desktop.padMove.z = 0;
+      this.desktop.padMove.run = false;
     }
-    const ctl = pad?.connected;
+    if (this.pointer) this.pointer.padAim = ctl;
     this.helmPrompt.show(
       this.atHelm
         ? ctl
-          ? 'At the helm · left stick: steer · RB / LB: throttle · B: neutral · right stick: look · A: leave'
+          ? 'At the helm · left stick: steer · RB / LB: throttle · B: neutral · right stick: look · A: leave\nD-pad: anchor up ↑ / down ↓, horn ←, wipers → · left stick click: searchlight · right stick click: laser · X: fire pump'
           : 'At the helm · ← →: steer · ↑ ↓: throttle · X: neutral · F: leave (or plug in a game controller)'
         : near
           ? ctl
@@ -2730,6 +2754,47 @@ export class App {
             : 'Press F to take the helm'
           : '',
     );
+  }
+
+  /**
+   * At the helm, a game controller works her switches (owner's layout): the d-pad up heaves
+   * the anchor up, down lets it go; right the wipers on / off; left the horn while held; the
+   * left stick's click the searchlight; X the fire pump (the monitor's water). (B is
+   * neutral, the right stick's click the laser.) The same switches as on her console,
+   * by intent; a line says what.
+   */
+  private padHelmSwitches(v: VesselState, pad: PadState): void {
+    const say = (text: string) => this.overlay.notify(text, 1.5);
+    const id = v.id;
+    const c = v.controls;
+    if (pad.pressed[PAD.up] || pad.pressed[PAD.down]) {
+      if (!gearOf(v, 'anchor')) say('No anchor aboard');
+      else {
+        const down = !!pad.pressed[PAD.down];
+        this.pushIntentTo(id, 'anchor', down ? 1 : 0);
+        say(down ? 'Anchor: letting go' : 'Anchor: heaving up');
+      }
+    }
+    if (pad.pressed[PAD.right]) {
+      this.pushIntentTo(id, 'wipers', c.wipers ? 0 : 1);
+      say(c.wipers ? 'Wipers off' : 'Wipers on');
+    }
+    if (pad.pressed[PAD.left]) this.pushIntentTo(id, 'horn', 1);
+    if (pad.released[PAD.left]) this.pushIntentTo(id, 'horn', 0);
+    if (pad.pressed[PAD.ls]) {
+      if (!gearOf(v, 'searchlight')) say('No searchlight aboard');
+      else {
+        this.pushIntentTo(id, 'spotlight', c.spotlight ? 0 : 1);
+        say(c.spotlight ? 'Searchlight off' : 'Searchlight on');
+      }
+    }
+    if (pad.pressed[PAD.x]) {
+      if (!gearOf(v, 'fireMonitor')) say('No fire pump aboard');
+      else {
+        this.pushIntentTo(id, 'firePump', c.firePump ? 0 : 1);
+        say(c.firePump ? 'Fire pump off' : 'Fire pump on');
+      }
+    }
   }
 
   /**

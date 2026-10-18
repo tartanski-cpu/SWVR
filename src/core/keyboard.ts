@@ -44,6 +44,17 @@ export class Keyboard {
     return this.down.has(code);
   }
 
+  /**
+   * A key pressed or let go by something else (a game controller's button, player/gamepad.ts):
+   * as if typed, so every action bound to it works the same.
+   */
+  inject(code: string, down: boolean): void {
+    if (down && !this.down.has(code)) {
+      this.pressed.add(code);
+      this.down.add(code);
+    } else if (!down) this.down.delete(code);
+  }
+
   endFrame(): void {
     this.pressed.clear();
   }

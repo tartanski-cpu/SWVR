@@ -4,12 +4,14 @@
  */
 import { describe, expect, it } from 'vitest';
 import { CONFIG } from '../src/config';
-import { deadZone, GamepadInput, PAD, padHelm, padLever, type PadState } from '../src/player/gamepad';
+import { Keyboard } from '../src/core/keyboard';
+import { KEYS } from '../src/core/keybindings';
+import { deadZone, GamepadInput, PAD, PAD_KEYS, PAD_KEYS_AT_HELM, PAD_MOUSE, padHelm, padLever, type PadState } from '../src/player/gamepad';
 
 const pad = (down: number[] = []): PadState => {
   const d: boolean[] = [];
   for (const i of down) d[i] = true;
-  return { connected: true, lx: 0, ly: 0, rx: 0, ry: 0, down: d, pressed: [] };
+  return { connected: true, lx: 0, ly: 0, rx: 0, ry: 0, down: d, pressed: [], released: [] };
 };
 
 describe('a game controller at the helm', () => {
@@ -44,5 +46,25 @@ describe('a game controller at the helm', () => {
     const s = new GamepadInput().poll();
     expect(s.connected).toBe(false);
     expect([s.lx, s.ly, s.rx, s.ry]).toEqual([0, 0, 0, 0]);
+  });
+
+  it("off the helm its buttons are the keys: each one bound to an action; pressed once, held, let go", () => {
+    const bound = new Set(Object.values(KEYS).flatMap((k) => k.codes as readonly string[]));
+    for (const code of [...Object.values(PAD_KEYS), ...Object.values(PAD_KEYS_AT_HELM)]) expect(bound.has(code!), code).toBe(true);
+    // At the helm the throttle bumpers and the switch buttons don't press keys or the mouse there.
+    for (const b of [PAD.lb, PAD.rb, PAD.b, PAD.y, PAD.ls, PAD.rs, PAD.up, PAD.down, PAD.left, PAD.right]) expect(PAD_KEYS_AT_HELM[b]).toBeUndefined();
+    expect(PAD_MOUSE[PAD.rt]).toBe(0);
+    expect(PAD_MOUSE[PAD.rs]).toBe(1); // the laser, as the right stick's click in VR
+    expect(PAD_KEYS_AT_HELM[PAD.x]).toBeUndefined(); // the fire pump, at the helm
+    const k = new Keyboard(new EventTarget() as unknown as Window);
+    k.inject(PAD_KEYS[PAD.a]!, true);
+    expect(k.actionPressed('jump')).toBe(true);
+    k.endFrame();
+    expect(k.actionPressed('jump')).toBe(false);
+    expect(k.action('jump')).toBe(true); // held
+    k.inject(PAD_KEYS[PAD.a]!, true);
+    expect(k.actionPressed('jump')).toBe(false); // still the same press
+    k.inject(PAD_KEYS[PAD.a]!, false);
+    expect(k.action('jump')).toBe(false);
   });
 });

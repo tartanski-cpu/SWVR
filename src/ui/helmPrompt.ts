@@ -19,7 +19,8 @@ export class HelmPrompt {
     s.color = '#f2f5f5';
     s.font = '600 14px system-ui, sans-serif';
     s.pointerEvents = 'none';
-    s.whiteSpace = 'nowrap';
+    s.whiteSpace = 'pre';
+    s.textAlign = 'center';
     s.display = 'none';
     document.body.appendChild(this.el);
   }

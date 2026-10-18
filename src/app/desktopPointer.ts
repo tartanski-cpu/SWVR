@@ -122,8 +122,25 @@ export class DesktopPointer {
   }
 
   /** Aim from the camera centre and feed this frame's mouse events to the controls. */
+  /** A game controller is in use: it aims by the reticle without the mouse captured. */
+  padAim = false;
+
+  /** A game controller's trigger or bumper as a mouse button (0 left, 1 middle, 2 right). */
+  padButton(button: 0 | 1 | 2, down: boolean): void {
+    if (button === 0) {
+      if (down && !this.down) {
+        this.down = true;
+        this.pressed = true;
+      } else if (!down && this.down) {
+        this.down = false;
+        this.released = true;
+      }
+    } else if (button === 2) this.rightDown = down;
+    else this.middleDown = down;
+  }
+
   update(camera: THREE.Camera): void {
-    const locked = this.desktop.pointerLocked;
+    const locked = this.desktop.pointerLocked || this.padAim;
     this.gearPressed = false;
     let ray: THREE.Ray | null = null;
     if (locked) {

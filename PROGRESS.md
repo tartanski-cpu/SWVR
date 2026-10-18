@@ -4760,6 +4760,17 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Done** (`CONFIG.avatar.handTurn` {pitchDeg 90, rollDeg 90}, applied in `net/avatarOutfits.ts handGeometries`): every hand shape (relaxed, fist, point, middle finger), ours and crew-mates' (both are drawn on the controller's grip pose), is turned in the controller's axes: first pitched forward (the top of the hand toward forward), then rolled anti-clockwise looking along it (the top toward the left). Both hands the same way.
 - **Checked:** `npm test`, typecheck. **Not checked:** in VR (the owner will). If one hand comes out mirrored wrong, or the angles need nudging, it's those two numbers (or a mirrored roll for the left hand).
 
+### The game controller: the rest of the buttons (owner)
+
+- **The owner:** the controller works well; map the rest. At the helm: the anchor up and down, a button for neutral, the wipers, the searchlight, the fire monitor, the horn, and the laser on a stick's click (not the cabin lights). Off the helm: walk round, jump and everything else.
+- **At the helm** (`app/App.ts padHelmSwitches`, the same switches as on her console, by intent, with a line saying what): d-pad up `anchor` 0 (heave up), down `anchor` 1 (let go); right `wipers` on / off; left `horn` while held; left stick click `spotlight` on / off; X `firePump` on / off; B neutral (as before); right stick click the laser (hold). A boat without an anchor, searchlight or fire monitor says so. The helm line lists them on a second row.
+- **Off the helm** (`player/gamepad.ts PAD_KEYS`, `PAD_MOUSE`): the buttons press the keyboard's keys (`Keyboard.inject`) and the mouse's buttons (`DesktopPointer.padButton`), so every action works as it does by keyboard and mouse:
+  - left stick walks as far as it's pushed (`DesktopController.padMove`; click and hold to run); the right stick looks round (also at the helm);
+  - A jump (by the wheel: take the helm), B crouch, X lash cargo, Y board / go ashore, LB wave, RB hang gear back, Menu the menu, View the help;
+  - RT use (the left button), LT binoculars (the right), right stick click the laser (the middle);
+  - with a controller in use, the reticle aims without the mouse captured (`DesktopPointer.padAim`).
+- **Checked:** `npm test` (all pass; the gamepad test now also checks every button's key is bound to an action, the helm's buttons press no keys, and a pressed key is pressed once, held and let go), typecheck. In the game in headless Chromium with a pretend controller, stepped at 60 frames a second, a fully fitted workboat: wipers, horn while held, anchor down and up, searchlight, fire pump, the laser while the stick's clicked, Y nothing at the helm, the Menu button opens and shuts the menu; off the helm the stick walked 1.6 m in a second, B crouched and stood, A jumped. No page errors. **Not checked:** a real controller.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

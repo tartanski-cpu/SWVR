@@ -81,6 +81,8 @@ export class DesktopController {
   mode: 'walk' | 'fly' = 'walk';
   /** True while the mouse is dragging a bridge control: mouse moves the control, not the view. */
   lookFrozen = false;
+  /** A game controller's left stick (x right, z back; -1..1) and its run button, added to the keys. */
+  readonly padMove = { x: 0, z: 0, run: false };
   /** Walking displacement this frame in rig axes (x right, z back; y = climb), set by update(). */
   readonly walk = { x: 0, y: 0, z: 0 };
 
@@ -107,9 +109,13 @@ export class DesktopController {
       // Space / C climb when you're at a ladder (ignored elsewhere).
       this.walk.y = this.move.y * CONFIG.desktop.climbSpeed * dt;
       this.move.y = 0;
+      // The stick adds to the keys, as far as it's pushed (a little push: a slow walk).
+      this.move.x += this.padMove.x;
+      this.move.z += this.padMove.z;
       if (this.move.lengthSq() > 0) {
-        const speed = CONFIG.desktop.walkSpeed * (k.action('fast') ? CONFIG.locomotion.runMultiplier : 1);
-        this.move.normalize().applyAxisAngle(THREE.Object3D.DEFAULT_UP, this.yaw).multiplyScalar(speed * dt);
+        const speed = CONFIG.desktop.walkSpeed * (k.action('fast') || this.padMove.run ? CONFIG.locomotion.runMultiplier : 1);
+        if (this.move.lengthSq() > 1) this.move.normalize();
+        this.move.applyAxisAngle(THREE.Object3D.DEFAULT_UP, this.yaw).multiplyScalar(speed * dt);
         this.walk.x = this.move.x;
         this.walk.z = this.move.z;
       }

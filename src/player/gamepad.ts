@@ -18,12 +18,39 @@ export interface PadState {
   ly: number;
   rx: number;
   ry: number;
-  /** Held this frame, and pressed since the last (edges). */
+  /** Held this frame, and pressed / let go since the last (edges). */
   down: boolean[];
   pressed: boolean[];
+  released: boolean[];
 }
 
-export const PAD = { a: 0, b: 1, x: 2, y: 3, lb: 4, rb: 5, lt: 6, rt: 7 } as const;
+export const PAD = { a: 0, b: 1, x: 2, y: 3, lb: 4, rb: 5, lt: 6, rt: 7, view: 8, menu: 9, ls: 10, rs: 11, up: 12, down: 13, left: 14, right: 15 } as const;
+
+/**
+ * Off the helm, the controller does what the keyboard and mouse do (app/App.ts): its buttons
+ * press these keys (core/keybindings.ts), so every action works the same.
+ *   A jump (by the wheel: take the helm)   B crouch   X lash cargo   Y board / go ashore
+ *   LB wave (hold)   RB hang gear back   left stick click: run (hold)
+ *   Menu: the menu   View: the help
+ * and the mouse buttons: RT use (the left button: press, grab, pick up), LT the binoculars
+ * (the right), the right stick's click the laser pointer (the middle; at the helm too, as
+ * the right stick's click is in VR).
+ */
+export const PAD_KEYS: Partial<Record<number, string>> = {
+  [PAD.a]: 'Space',
+  [PAD.b]: 'KeyC',
+  [PAD.x]: 'KeyQ',
+  [PAD.y]: 'KeyB',
+  [PAD.lb]: 'KeyY',
+  [PAD.rb]: 'KeyU',
+  [PAD.ls]: 'ShiftLeft',
+  [PAD.menu]: 'KeyO',
+  [PAD.view]: 'KeyH',
+};
+/** At the helm only these press keys (the rest work the boat: App.updateHelmSeat). */
+export const PAD_KEYS_AT_HELM: Partial<Record<number, string>> = { [PAD.menu]: 'KeyO', [PAD.view]: 'KeyH' };
+/** Mouse buttons (0 left, 1 middle, 2 right) from the triggers and the right stick's click, on and off the helm. */
+export const PAD_MOUSE: Partial<Record<number, 0 | 1 | 2>> = { [PAD.rt]: 0, [PAD.lt]: 2, [PAD.rs]: 1 };
 
 /** A stick axis with the dead zone taken out and the rest rescaled to 0..1. */
 export function deadZone(v: number, dz: number = CONFIG.gamepad.deadZone): number {
@@ -32,7 +59,7 @@ export function deadZone(v: number, dz: number = CONFIG.gamepad.deadZone): numbe
 }
 
 export class GamepadInput {
-  readonly state: PadState = { connected: false, lx: 0, ly: 0, rx: 0, ry: 0, down: [], pressed: [] };
+  readonly state: PadState = { connected: false, lx: 0, ly: 0, rx: 0, ry: 0, down: [], pressed: [], released: [] };
   private prev: boolean[] = [];
 
   /** Once a frame: the first connected controller (none: all zero). */
@@ -43,6 +70,7 @@ export class GamepadInput {
     s.connected = !!pad;
     const down = pad ? pad.buttons.map((b) => b.pressed) : [];
     s.pressed = down.map((d, i) => d && !this.prev[i]);
+    s.released = this.prev.map((d, i) => d && !down[i]);
     s.down = down;
     this.prev = down;
     s.lx = deadZone(pad?.axes[0] ?? 0);
