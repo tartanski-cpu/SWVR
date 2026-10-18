@@ -26,7 +26,8 @@ import { CONFIG } from '../config';
 import { homeVessel, type WorldState } from '../core/world';
 import { windVector } from '../environment/weather';
 import { sayRadio } from '../rescue/rescue';
-import { ISLANDS, PORTS } from '../world/archipelago';
+import { PORTS } from '../world/archipelago';
+import { REGIONS } from '../world/regions';
 import { earn, portName } from '../career/career';
 import { groundHeight } from '../world/terrain';
 
@@ -86,7 +87,10 @@ export function beachSpots(): BeachSpot[] {
   if (beaches) return beaches;
   const c = CONFIG.salvage;
   const out: BeachSpot[] = [];
-  for (const isl of ISLANDS) {
+  // Logs wash up where there's a port to sell them at: a region with no ports yet (a
+  // milestone-2 stub) gets none. (Jobs per region: milestone 4.)
+  const islands = REGIONS.filter((r) => r.ports.length > 0).flatMap((r) => r.islands);
+  for (const isl of islands) {
     if (isl.radius < 40) continue; // rocks: no beaches
     for (let deg = 0; deg < 360; deg += 4) {
       const a = (deg * Math.PI) / 180;

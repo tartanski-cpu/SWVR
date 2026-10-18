@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { CONFIG, type WeatherPresetName } from '../src/config';
+import { FOG_BANKS } from '../src/world/archipelago';
 import { IdFactory } from '../src/core/ids';
 import type { Intent } from '../src/core/intents';
 import { stepWorld } from '../src/core/simulation';
@@ -115,7 +116,7 @@ describe('dynamic weather', () => {
     const { env, send, run } = setup('Clear');
     send('weatherFixed', 1);
     expect(visibilityAt(env, 0, 0)).toBeGreaterThan(5000);
-    const bank = CONFIG.weather.fogBanks[0];
+    const bank = FOG_BANKS[0];
     expect(visibilityAt(env, bank.x, bank.z)).toBeLessThan(bank.visibility * 1.01);
     send('weatherForce', Object.keys(CONFIG.weather.presets).indexOf('Fog'));
     run(240);

@@ -8,7 +8,7 @@ import gerstnerChunk from './shaders/gerstner.glsl?raw';
 import type { PreparedWave } from './waves';
 import { createRippleTexture } from './rippleTexture';
 import { foamNoiseTexture } from './foamNoise';
-import { SHELTERS } from '../world/archipelago';
+import { SHELTERS, type ShelterDef } from '../world/archipelago';
 import { MAX_SHELTERS } from '../world/shelter';
 
 export const MAX_WAVES = 8;
@@ -46,13 +46,10 @@ export class OceanView {
     uWaveB: { value: Array.from({ length: MAX_WAVES }, () => new THREE.Vector4()) },
     uWaveCount: { value: 0 },
     uCenter: { value: new THREE.Vector2() },
-    // Static: the shelter zones never move.
-    uShelter: { value: Array.from({ length: MAX_SHELTERS }, (_, i) => {
-      const z = SHELTERS[i];
-      return z ? new THREE.Vector4(z.x, z.z, z.rIn, z.rOut) : new THREE.Vector4();
-    }) },
-    uShelterK: { value: Array.from({ length: MAX_SHELTERS }, (_, i) => SHELTERS[i]?.factor ?? 1) },
-    uShelterCount: { value: Math.min(SHELTERS.length, MAX_SHELTERS) },
+    // The shelter zones of the regions drawn in full (setShelters); home's to start with.
+    uShelter: { value: Array.from({ length: MAX_SHELTERS }, () => new THREE.Vector4()) },
+    uShelterK: { value: Array.from({ length: MAX_SHELTERS }, () => 1) },
+    uShelterCount: { value: 0 },
     uDeep: { value: new THREE.Color(CONFIG.ocean.colors.deep) },
     uScatter: { value: new THREE.Color(CONFIG.ocean.colors.scatter) },
     uFoam: { value: new THREE.Color(CONFIG.ocean.colors.foam) },
@@ -100,6 +97,7 @@ export class OceanView {
     });
     this.mesh = new THREE.Mesh(createOceanGeometry(), material);
     this.mesh.name = 'ocean';
+    this.setShelters(SHELTERS);
     // Vertices move in the shader, so the CPU bounding volume is meaningless; it is
     // always around the viewer anyway.
     this.mesh.frustumCulled = false;
@@ -109,6 +107,24 @@ export class OceanView {
    * @param waves  wave constants for the current render time (from prepareWaves)
    * @param viewer viewer world position; the grid is re-centred under it
    */
+  /**
+   * The sheltered-water zones the shader applies (the same formula as the CPU's
+   * shelterFactor): those of the regions drawn in full, refreshed when that changes. The
+   * CPU reads every region's zones; a zone the shader lacks would only be one far from
+   * every player, so nobody sees the difference.
+   */
+  setShelters(zones: readonly ShelterDef[]): void {
+    const u = this.uniforms;
+    const n = Math.min(zones.length, MAX_SHELTERS);
+    for (let i = 0; i < MAX_SHELTERS; i++) {
+      const z = zones[i];
+      if (i < n && z) u.uShelter.value[i].set(z.x, z.z, z.rIn, z.rOut);
+      else u.uShelter.value[i].set(0, 0, 0, 0);
+      u.uShelterK.value[i] = i < n && z ? z.factor : 1;
+    }
+    u.uShelterCount.value = n;
+  }
+
   /** The searchlight's pool on the water (intensity 0 = off). */
   setSpotlight(light: THREE.SpotLight): void {
     const u = this.uniforms;

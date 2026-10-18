@@ -5,8 +5,10 @@ type MeshConfig = typeof CONFIG.ocean.mesh;
 
 /**
  * 1D grid coordinates for the ocean tile, symmetric about 0: uniform `innerSpacing` out
- * to `innerHalfExtent`, then each cell `growth` times larger than the last out to `radius`.
- * Dense where you look closely, coarse towards the horizon where fog hides detail.
+ * to `innerHalfExtent`, then each cell `growth` times larger than the last out to `radius`,
+ * then `farGrowth` times larger out to `farRadius` (the flat, hazed sea to the horizon; no
+ * wave survives on cells that size). Dense where you look closely, coarse towards the
+ * horizon where the haze hides detail.
  */
 export function gridCoordinates(m: MeshConfig = CONFIG.ocean.mesh): number[] {
   const half = [0];
@@ -19,6 +21,11 @@ export function gridCoordinates(m: MeshConfig = CONFIG.ocean.mesh): number[] {
   while (x < m.radius) {
     step *= m.growth;
     x = Math.min(x + step, m.radius);
+    half.push(x);
+  }
+  while (x < m.farRadius) {
+    step *= m.farGrowth;
+    x = Math.min(x + step, m.farRadius);
     half.push(x);
   }
   return [...half.slice(1).reverse().map((v) => -v), ...half];

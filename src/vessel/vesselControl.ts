@@ -8,7 +8,8 @@ import { toggleCleat, toggleDock } from './physics/mooring';
 import { gearOf } from '../boats/sims';
 import { VESSEL_DEFS } from './vesselDef';
 import { fuelBerthAt } from '../world/geography';
-import { BERTHS, PORTS } from '../world/archipelago';
+import { BERTHS, FISHING_GROUNDS, PORTS } from '../world/archipelago';
+import { regionById } from '../world/regions';
 import type { VesselState } from './vesselState';
 import { applyBusIntent, holdGroup, isKeyName } from '../modular/bus';
 
@@ -304,7 +305,7 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
       break;
     case 'teleportToGround': {
       // Menu shortcut (Tests, ref = fishing ground name): in the middle of it, lever neutral.
-      const g = CONFIG.fishing.grounds.find((o) => o.name === intent.ref);
+      const g = FISHING_GROUNDS.find((o) => o.name === intent.ref);
       if (!g) break;
       placeVessel(s, g.x, 0, g.z, 0);
       s.controls.lever = 0;
@@ -322,6 +323,29 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
       const a = port.cargo.anchorage;
       if (berth) placeVessel(s, berth.x, 0, berth.z, berth.headingDeg);
       else if (a) placeVessel(s, a.x, 0, a.z, 0);
+      else break;
+      s.controls.lever = 0;
+      s.anchor = { phase: 'stowed', x: 0, z: 0, rodeM: 0, tension: 0, dragging: false };
+      s.controls.anchor = 0;
+      s.mooring = { phase: 'free', berthId: null, reversed: false, t: 0 };
+      s.refuelling = false;
+      break;
+    }
+    case 'teleportToRegion': {
+      // Menu shortcut (ref = region id; regions, debug): at the region's first port as
+      // teleportToPort would put her, or, in a region with no port yet, afloat 700 m south of
+      // its landmark, heading north toward it.
+      const region = regionById(intent.ref ?? '');
+      if (!region) break;
+      const port = region.ports[0];
+      const berth = port && BERTHS.find((b) => b.portId === port.id && b.id.endsWith('cargo'));
+      const a = port?.cargo.anchorage;
+      const mark = region.landmarks[0];
+      const isle = region.islands[0];
+      if (berth) placeVessel(s, berth.x, 0, berth.z, berth.headingDeg);
+      else if (a) placeVessel(s, a.x, 0, a.z, 0);
+      else if (mark) placeVessel(s, mark.x, 0, mark.z + (isle ? isle.radius * 1.3 : 0) + 700, 0);
+      else if (isle) placeVessel(s, isle.x, 0, isle.z + isle.radius * 1.3 + 700, 0);
       else break;
       s.controls.lever = 0;
       s.anchor = { phase: 'stowed', x: 0, z: 0, rodeM: 0, tension: 0, dragging: false };

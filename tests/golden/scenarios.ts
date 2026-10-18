@@ -21,7 +21,7 @@ import { allKeys, busOf, specOf } from '../../src/modular/bus';
 import { berthAxis } from '../../src/vessel/physics/mooring';
 import { placeVessel } from '../../src/vessel/vesselControl';
 import type { VesselState } from '../../src/vessel/vesselState';
-import { BERTHS, PORTS } from '../../src/world/archipelago';
+import { BERTHS, FISHING_GROUNDS, PORTS } from '../../src/world/archipelago';
 
 const DT = 1 / 60;
 
@@ -112,7 +112,7 @@ export function play(
 const preheat = CONFIG.vessels.workboat.engine.preheatTime;
 const berth = BERTHS.find((b) => b.id === 'calder-cargo')!;
 const selkie = PORTS.find((p) => p.id === 'selkie')!.cargo.anchorage!;
-const ground = CONFIG.fishing.grounds[1];
+const ground = FISHING_GROUNDS[1];
 
 const skiffOf = (world: WorldState) => Object.values(world.vessels).find((x) => x.defId === 'skiff')!;
 const towLine = (world: WorldState): Record<string, Value> => {

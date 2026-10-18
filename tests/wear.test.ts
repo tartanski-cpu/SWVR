@@ -7,7 +7,7 @@ import { createWorld } from '../src/core/world';
 import { parseCareer, repairBlocker, repairCost, serializeCareer } from '../src/career/career';
 import { stepWear, wearRackCap } from '../src/vessel/wear';
 import { placeVessel } from '../src/vessel/vesselControl';
-import { BERTHS } from '../src/world/archipelago';
+import { BERTHS, FISHING_GROUNDS } from '../src/world/archipelago';
 
 const DT = 1 / 60;
 
@@ -118,7 +118,7 @@ describe('damage and wear (phase 2)', { timeout: 60000 }, () => {
     const { world, v, send } = setup();
     const { startEngine } = await import('./helpers/engine');
     startEngine(world, v); // the net drum is hydraulic
-    const g = CONFIG.fishing.grounds[1];
+    const g = FISHING_GROUNDS[1];
     placeVessel(v, g.x, 0, g.z, 0);
     send('trawl', 1);
     for (let i = 0; i < (CONFIG.fishing.shootTime + 1) / DT; i++) {

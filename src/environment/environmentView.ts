@@ -28,7 +28,7 @@ export class EnvironmentView {
   visibility = Infinity;
 
   constructor(scene: THREE.Scene) {
-    this.fog = new THREE.Fog(0xffffff, CONFIG.environment.fogNear, CONFIG.environment.fogFar);
+    this.fog = new THREE.Fog(0xffffff, CONFIG.environment.hazeFar * CONFIG.weather.hazeNearFraction, CONFIG.environment.hazeFar);
     scene.fog = this.fog;
     scene.background = this.background; // clear colour behind the sky dome
     scene.add(this.sun, this.sun.target, this.hemi);
@@ -91,16 +91,17 @@ export class EnvironmentView {
     this.hemi.color.copy(this.zenith).lerp(this.horizon, 0.55);
     this.hemi.groundColor.setRGB(p.horizon[0] * 0.3, p.horizon[1] * 0.35, p.horizon[2] * 0.4, THREE.SRGBColorSpace);
     this.hemi.intensity = p.ambientIntensity * 1.35;
-    this.fog.near = CONFIG.environment.fogNear;
-    this.fog.far = CONFIG.environment.fogFar;
+    // (applyWeather sets the fog's reach from today's visibility right after this.)
+    this.fog.far = CONFIG.environment.hazeFar;
+    this.fog.near = this.fog.far * CONFIG.weather.hazeNearFraction;
   }
 
   /**
    * Weather on top of the time-of-day palette:
    *   cloud      the sky greys toward its own brightness, the sun dims (up to 75 %), the
    *              sky light a little;
-   *   visibility scene fog closes in (built-in linear fog: from `nearFraction` x visibility
-   *              to the visibility), and in thick fog the whole sky turns the fog colour.
+   *   visibility scene fog closes in (built-in linear fog, out to the visibility or the
+   *              clearest day's haze), and in thick fog the whole sky turns the fog colour.
    * Everything that reads the shared colours (sky dome, ocean, lights) follows.
    */
   private applyWeather(cloud: number, visibility: number, rain: number): void {
@@ -127,9 +128,14 @@ export class EnvironmentView {
       this.zenith.multiplyScalar(k);
       this.horizon.multiplyScalar(0.5 + 0.5 * k);
     }
-    const far = Math.min(CONFIG.environment.fogFar, visibility);
+    // Fog out to the visibility, or to the clearest day's haze (regions: the far land shows
+    // across a sound). In fog the clear band in front is short (nearFraction); in clear air
+    // the sea is crisp for a few km and only the far land softens (hazeNearFraction).
+    const far = Math.min(CONFIG.environment.hazeFar, visibility);
+    const clarity = Math.min(1, Math.max(0, (Math.log(far) - Math.log(3000)) / (Math.log(CONFIG.environment.hazeFar) - Math.log(3000))));
+    const nearFraction = CONFIG.weather.nearFraction + (CONFIG.weather.hazeNearFraction - CONFIG.weather.nearFraction) * clarity;
     this.fog.far = far;
-    this.fog.near = Math.min(CONFIG.environment.fogNear, far * CONFIG.weather.nearFraction);
+    this.fog.near = far * nearFraction;
     // Fog: the sky dome takes the fog colour as visibility drops below ~3 km.
     const thick = 1 - Math.min(1, Math.max(0, (Math.log(visibility) - Math.log(300)) / (Math.log(3000) - Math.log(300))));
     if (thick > 0) {

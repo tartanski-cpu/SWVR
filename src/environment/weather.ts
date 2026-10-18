@@ -21,6 +21,7 @@
  * Random choices use a deterministic hash of a counter in the state (host and clients agree).
  */
 import { CONFIG, type WeatherPresetName } from '../config';
+import { FOG_BANKS } from '../world/archipelago';
 import { clamp, wrap } from '../core/math';
 import { wavenumberFromPeriod, type WaveComponent } from '../ocean/waves';
 import type { EnvironmentState } from './environmentState';
@@ -203,8 +204,8 @@ export function rebuildWaves(env: EnvironmentState, time: number): void {
 /** Visibility at a point (m): the weather's, thinned by any fog bank around it. */
 export function visibilityAt(env: EnvironmentState, x: number, z: number): number {
   const w = env.weather;
-  let vis = w ? w.now.visibility : CONFIG.environment.fogFar * 4;
-  for (const b of CONFIG.weather.fogBanks) {
+  let vis = w ? w.now.visibility : CONFIG.environment.hazeFar;
+  for (const b of FOG_BANKS) {
     const d = Math.hypot(x - b.x, z - b.z);
     if (d >= b.r) continue;
     // Thickest in the middle, thinning out over the outer half of the bank.

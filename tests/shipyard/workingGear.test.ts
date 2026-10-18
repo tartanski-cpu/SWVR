@@ -1,5 +1,6 @@
 /** A Shipyard boat with the working deck gear does the game's jobs with it: she tows on her winch and trawls. */
 import { describe, expect, it } from 'vitest';
+import { FISHING_GROUNDS } from '../../src/world/archipelago';
 import { useDesign } from '../../src/boats/sims';
 import { CONFIG } from '../../src/config';
 import { IdFactory } from '../../src/core/ids';
@@ -46,7 +47,7 @@ describe('a Shipyard boat with the working deck gear', () => {
 
   it('trawls: the net goes out on a fishing ground', () => {
     const { world, v, send, run } = setup();
-    const g = CONFIG.fishing.grounds[1];
+    const g = FISHING_GROUNDS[1];
     placeVessel(v, g.x, 0, g.z + 100, 0);
     startEngine(world, v);
     send('trawl.shoot', 1);

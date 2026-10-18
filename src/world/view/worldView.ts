@@ -1,181 +1,208 @@
 import * as THREE from 'three';
 import { fitPaint, flatVertexColorMaterial, mergeParts, paintLocal, part } from '../../render/geometryUtils';
 import type { PaintName } from '../../render/pixelPaint';
-import { BERTHS, BLOCKS, BUILDINGS, ISLANDS, LAMPS, LIGHTS, PORT_FLOODS, PORTS, RIDGES, SLIPWAYS, WRECKS, type BlockDef, type SlipwayDef, type WreckDef } from '../archipelago';
+import { LAMPS, LIGHTS, PORT_FLOODS, type BlockDef, type BuildingDef, type RegionDef, type ShelterDef, type SlipwayDef, type WreckDef } from '../archipelago';
 import { CONFIG } from '../../config';
-import { groundHeight, slipSurface } from '../terrain';
+import { groundHeight } from '../terrain';
 import { standingHeight } from '../geography';
+import { REGIONS, distanceToBounds } from '../regions';
+import { seenRange } from '../sight';
+import { buildSilhouetteArrays, buildTerrainArrays, hash, summitNear, treeSpots, type TerrainArrays } from './terrainMesh';
+import type { TerrainRequest, TerrainResult } from './terrainWorker';
 
 /**
- * Everything static in the archipelago, built once at start-up from the level data:
- *   terrain     one flat-shaded, vertex-coloured mesh sampled from the same height function
- *               the physics uses (cells entirely below -3 m are skipped - the sea is opaque)
- *   structures  quays, pier decks and piles, fenders, bollards, fuel pumps, breakwater rock
- *               armour, buildings, light towers - one merged mesh
- *   trees       one instanced mesh
- *   lights      harbour and lighthouse lights (HarbourLights, animated)
+ * Everything static in the world, region by region (regions, milestone 2):
+ *   terrain     one flat-shaded, vertex-coloured mesh per region, sampled from the same
+ *               height function the physics uses (terrainMesh.ts)
+ *   structures  quays, pier decks and piles, fenders, bollards, breakwater rock armour,
+ *               buildings, light towers, wrecks, lamp posts, cairns - one merged mesh per region
+ *   trees       one instanced mesh per region
+ *   silhouette  a region seen from far off: its land at 30 m cells, a few thousand triangles
+ *   lights      harbour and lighthouse lights (HarbourLights, animated; all regions)
+ *
+ * Streaming: a region is RESIDENT (its terrain, structures and trees in the scene) while the
+ * viewer is within CONFIG.regions.loadDistance of its footprint, and put away again beyond
+ * unloadDistance. Home is built before the first frame, as it always was. Any other region
+ * is built the first time it's wanted: its terrain and trees in a web worker (no frame
+ * stalls), the structures on the game thread when they arrive (a few milliseconds), and
+ * kept afterwards. While a region isn't resident its silhouette stands in, as far off as
+ * its tallest thing can be seen today (sight.ts). Each player's machine does this for its
+ * own viewer; the simulation knows every region all the time.
  */
 export class WorldView {
   readonly root = new THREE.Group();
   readonly lights: HarbourLights;
   readonly portLighting: PortLighting;
+  private readonly views: RegionView[];
+  private worker: Worker | null = null;
+  private nextRequest = 1;
+  private sinceCheck = Infinity;
+  /** Set when the resident set changed since the last read of `shelters` (the ocean shader's zones). */
+  residencyChanged = true;
 
   constructor() {
     this.root.name = 'archipelago';
-    const terrain = new THREE.Mesh(buildTerrain(), flatVertexColorMaterial());
-    terrain.name = 'terrain';
-    const structures = new THREE.Mesh(mergeParts(buildStructures()), flatVertexColorMaterial());
-    structures.name = 'structures';
+    this.views = REGIONS.map((r) => new RegionView(r));
+    for (const v of this.views) {
+      this.root.add(v.silhouette);
+      // Home is here before the first frame (it was always built at start-up); the rest when wanted.
+      if (v.region.id === 'home') {
+        v.build(buildTerrainArrays(v.region), treeSpots(v.region));
+        this.setResident(v, true);
+      }
+    }
     this.lights = new HarbourLights();
     this.portLighting = new PortLighting();
-    this.root.add(terrain, structures, buildTrees(), this.lights.points, this.portLighting.root);
-    // Static: no per-frame matrix updates needed.
+    this.root.add(this.lights.points, this.portLighting.root);
     this.root.traverse((o) => {
       o.matrixAutoUpdate = false;
       o.updateMatrix();
     });
   }
-}
 
-// ── Terrain ──────────────────────────────────────────────────────────────────────
-
-const CELL = 6;
-const SKIP_BELOW = -3;
-/** Round a slipway the terrain is drawn finer (`CELL / FINE` m), so it meets the slab's edges. */
-const FINE = 6;
-/** ...and kept this far under the slab (m), so the concrete isn't fighting it for the pixels. */
-const UNDER_SLIP = 0.15;
-
-/** The terrain's drawn height: the ground, sunk a little under a slipway's slab. */
-function meshHeight(x: number, z: number): number {
-  const h = groundHeight(x, z, false);
-  return slipSurface(x, z) ? h - UNDER_SLIP : h;
-}
-
-/** Grid cells (CELL) that touch a slipway, or come within a cell of it: drawn fine. */
-function nearSlip(i: number, j: number): boolean {
-  for (const s of SLIPWAYS) {
-    const r = Math.hypot(s.length, s.width) + CELL;
-    const cx = (i + 0.5) * CELL;
-    const cz = (j + 0.5) * CELL;
-    if (Math.abs(cx - s.x) > r + CELL || Math.abs(cz - s.z) > r + CELL) continue;
-    // Any point of the cell within a cell of the slab.
-    for (let a = 0; a <= 4; a++)
-      for (let b = 0; b <= 4; b++) {
-        const x = i * CELL + (a / 4) * CELL;
-        const z = j * CELL + (b / 4) * CELL;
-        for (const [dx, dz] of [[0, 0], [CELL, 0], [-CELL, 0], [0, CELL], [0, -CELL]]) if (slipSurface(x + dx, z + dz)) return true;
-      }
+  /** The shelter zones of the regions drawn in full, for the ocean shader. */
+  get shelters(): ShelterDef[] {
+    this.residencyChanged = false;
+    return this.views.filter((v) => v.resident).flatMap((v) => v.region.shelters);
   }
-  return false;
-}
 
-function buildTerrain(): THREE.BufferGeometry {
-  // Unique grid cells around every island (islands' boxes overlap, e.g. Gull Rocks).
-  const cells = new Set<number>();
-  const key = (i: number, j: number) => (i + 4096) * 8192 + (j + 4096);
-  for (const isl of ISLANDS) {
-    const reach = isl.radius * 1.35 + 40;
-    const i0 = Math.floor((isl.x - reach) / CELL);
-    const i1 = Math.ceil((isl.x + reach) / CELL);
-    const j0 = Math.floor((isl.z - reach) / CELL);
-    const j1 = Math.ceil((isl.z + reach) / CELL);
-    for (let i = i0; i < i1; i++) for (let j = j0; j < j1; j++) cells.add(key(i, j));
-  }
-  const heights = new Map<number, number>();
-  const hAt = (i: number, j: number) => {
-    const k = key(i, j);
-    let h = heights.get(k);
-    if (h === undefined) {
-      h = meshHeight(i * CELL, j * CELL);
-      heights.set(k, h);
+  /**
+   * Once per frame: which regions should be drawn in full for this viewer, and which
+   * silhouettes are in sight today.
+   * @param viewer      the camera (world)
+   * @param visibility  today's visibility where the viewer is (m)
+   */
+  update(viewer: THREE.Vector3, visibility: number, dt: number): void {
+    this.sinceCheck += dt;
+    if (this.sinceCheck < CONFIG.regions.residencyEvery) return;
+    this.sinceCheck = 0;
+    const c = CONFIG.regions;
+    for (const v of this.views) {
+      const d = distanceToBounds(v.region, viewer.x, viewer.z);
+      v.distance = d;
+      const want = v.resident ? d < c.unloadDistance : d < c.loadDistance;
+      if (want && !v.built && !v.building) this.request(v);
+      if (want && v.built && !v.resident) this.setResident(v, true);
+      else if (!want && v.resident) this.setResident(v, false);
+      // The silhouette: when not drawn in full, and in sight.
+      const land = v.landmark;
+      const dl = Math.hypot(viewer.x - land.x, viewer.z - land.z);
+      v.silhouette.visible = !v.resident && dl < seenRange(land.h, visibility);
     }
-    return h;
-  };
-
-  const pos: number[] = [];
-  const col: number[] = [];
-  const a = new THREE.Vector3();
-  const b = new THREE.Vector3();
-  const c = new THREE.Vector3();
-  const n = new THREE.Vector3();
-  const color = new THREE.Color();
-  const tri = (ax: number, az: number, ah: number, bx: number, bz: number, bh: number, cx: number, cz: number, ch: number) => {
-    if (Math.max(ah, bh, ch) < SKIP_BELOW) return;
-    a.set(ax, ah, az);
-    b.set(bx, bh, bz);
-    c.set(cx, ch, cz);
-    n.subVectors(c, b).cross(a.clone().sub(b)).normalize();
-    if (n.y < 0) n.negate();
-    terrainColor((ah + bh + ch) / 3, n.y, (ax + bx + cx) / 3, (az + bz + cz) / 3, color);
-    pos.push(ax, ah, az, bx, bh, bz, cx, ch, cz);
-    for (let k = 0; k < 3; k++) col.push(color.r, color.g, color.b);
-  };
-  for (const k of cells) {
-    const i = Math.floor(k / 8192) - 4096;
-    const j = (k % 8192) - 4096;
-    const x0 = i * CELL;
-    const z0 = j * CELL;
-    const x1 = x0 + CELL;
-    const z1 = z0 + CELL;
-    const h00 = hAt(i, j);
-    const h10 = hAt(i + 1, j);
-    const h01 = hAt(i, j + 1);
-    const h11 = hAt(i + 1, j + 1);
-    if (nearSlip(i, j)) {
-      // Fine round a slipway. Along an edge shared with a coarse cell its points lie on that
-      // cell's straight edge (no cracks between them); inside, the ground's own heights.
-      const f = CELL / FINE;
-      const coarse = (di: number, dj: number) => !nearSlip(i + di, j + dj);
-      const [w, e, nn, s] = [coarse(-1, 0), coarse(1, 0), coarse(0, -1), coarse(0, 1)];
-      const at = (a: number, b: number) => {
-        if (a === 0 && w) return h00 + ((h01 - h00) * b) / FINE;
-        if (a === FINE && e) return h10 + ((h11 - h10) * b) / FINE;
-        if (b === 0 && nn) return h00 + ((h10 - h00) * a) / FINE;
-        if (b === FINE && s) return h01 + ((h11 - h01) * a) / FINE;
-        return meshHeight(x0 + a * f, z0 + b * f);
-      };
-      for (let a = 0; a < FINE; a++)
-        for (let b = 0; b < FINE; b++) {
-          const xa = x0 + a * f;
-          const za = z0 + b * f;
-          tri(xa, za, at(a, b), xa, za + f, at(a, b + 1), xa + f, za, at(a + 1, b));
-          tri(xa + f, za, at(a + 1, b), xa, za + f, at(a, b + 1), xa + f, za + f, at(a + 1, b + 1));
-        }
-      continue;
-    }
-    // Counter-clockwise seen from above (+Y): (x0,z0) -> (x0,z1) -> (x1,z0).
-    tri(x0, z0, h00, x0, z1, h01, x1, z0, h10);
-    tri(x1, z0, h10, x0, z1, h01, x1, z1, h11);
   }
+
+  /** One line per region for the debug overlay: state and distance. */
+  status(): string {
+    return this.views
+      .map((v) => {
+        const km = v.distance === Infinity ? '' : ` ${(v.distance / 1000).toFixed(1)} km`;
+        const state = v.resident ? 'full' : v.building ? 'building' : v.silhouette.visible ? 'outline' : v.built ? 'put away' : 'unseen';
+        return `${v.region.id}: ${state}${km}${v.buildMs ? ` (built ${v.buildMs.toFixed(0)} ms, ${v.mainMs.toFixed(0)} on the frame)` : ''}`;
+      })
+      .join('  ');
+  }
+
+  /** For the debug map: each region's footprint and state. */
+  regionStates(): { region: RegionDef; resident: boolean; building: boolean; outline: boolean; distance: number }[] {
+    return this.views.map((v) => ({ region: v.region, resident: v.resident, building: v.building, outline: v.silhouette.visible, distance: v.distance }));
+  }
+
+  private setResident(v: RegionView, on: boolean): void {
+    if (v.resident === on) return;
+    v.resident = on;
+    if (on) this.root.add(v.full);
+    else this.root.remove(v.full);
+    this.residencyChanged = true;
+  }
+
+  /** Ask the worker for a region's terrain and trees (or build them now where there is no worker). */
+  private request(v: RegionView): void {
+    v.building = true;
+    if (typeof Worker === 'undefined') {
+      const t0 = performance.now();
+      v.build(buildTerrainArrays(v.region), treeSpots(v.region));
+      v.mainMs = v.buildMs = performance.now() - t0;
+      return;
+    }
+    if (!this.worker) {
+      this.worker = new Worker(new URL('./terrainWorker.ts', import.meta.url), { type: 'module' });
+      this.worker.onmessage = (e: MessageEvent<TerrainResult>) => this.onTerrain(e.data);
+    }
+    const msg: TerrainRequest = { id: this.nextRequest++, regionId: v.region.id };
+    v.requestId = msg.id;
+    this.worker.postMessage(msg);
+  }
+
+  private onTerrain(r: TerrainResult): void {
+    const v = this.views.find((x) => x.requestId === r.id);
+    if (!v) return;
+    if (r.error) {
+      console.error(`region ${r.regionId}: ${r.error}`);
+      v.building = false;
+      return;
+    }
+    const t0 = performance.now();
+    v.build({ position: r.position, color: r.color }, r.trees);
+    v.mainMs = performance.now() - t0;
+    v.buildMs = r.ms + v.mainMs;
+    v.full.traverse((o) => {
+      o.matrixAutoUpdate = false;
+      o.updateMatrix();
+    });
+    // Shown at the next residency check, if still wanted.
+    this.sinceCheck = Infinity;
+  }
+}
+
+/** One region's drawing: its full meshes (when built) and its silhouette. */
+class RegionView {
+  readonly full = new THREE.Group();
+  readonly silhouette: THREE.Mesh;
+  /** The tallest thing to steer for: the highest landmark, else the highest island. */
+  readonly landmark: { x: number; z: number; h: number };
+  built = false;
+  building = false;
+  resident = false;
+  requestId = 0;
+  /** Build time: in the worker, and on the game thread (ms), for the debug overlay. */
+  buildMs = 0;
+  mainMs = 0;
+  distance = Infinity;
+
+  constructor(readonly region: RegionDef) {
+    this.full.name = `region:${region.id}`;
+    const sil = buildSilhouetteArrays(region);
+    const mat = flatVertexColorMaterial();
+    // Far-off land: nudged toward the camera in depth, so the sea behind it never bleeds
+    // through its coast where the depth buffer is coarse (render.far).
+    mat.polygonOffset = true;
+    mat.polygonOffsetFactor = -1;
+    mat.polygonOffsetUnits = CONFIG.regions.silhouetteDepthUnits;
+    this.silhouette = new THREE.Mesh(arraysToGeometry(sil), mat);
+    this.silhouette.name = `silhouette:${region.id}`;
+    this.silhouette.visible = false;
+    const tall = [...region.landmarks.map((l) => ({ x: l.x, z: l.z, h: l.height })), ...region.islands.map((i) => ({ x: i.x, z: i.z, h: i.height }))];
+    this.landmark = tall.reduce((a, b) => (b.h > a.h ? b : a), { x: (region.bounds.x0 + region.bounds.x1) / 2, z: (region.bounds.z0 + region.bounds.z1) / 2, h: 0 });
+  }
+
+  /** Makes the full meshes from the worker's arrays (or ones built here), and the structures. */
+  build(terrain: TerrainArrays, trees: Float32Array): void {
+    const terrainMesh = new THREE.Mesh(arraysToGeometry(terrain), flatVertexColorMaterial());
+    terrainMesh.name = 'terrain';
+    const structures = new THREE.Mesh(mergeParts(buildStructures(this.region)), flatVertexColorMaterial());
+    structures.name = 'structures';
+    this.full.add(terrainMesh, structures, buildTreesMesh(trees));
+    this.built = true;
+    this.building = false;
+  }
+}
+
+function arraysToGeometry(a: TerrainArrays): THREE.BufferGeometry {
   const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  geo.setAttribute('position', new THREE.BufferAttribute(a.position, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(a.color, 3));
   geo.computeVertexNormals();
   return geo;
-}
-
-/** Small deterministic hash in [0, 1) for colour and placement variation. */
-function hash(x: number, z: number): number {
-  const s = Math.sin(x * 12.9898 + z * 78.233) * 43758.5453;
-  return s - Math.floor(s);
-}
-
-const SAND = new THREE.Color(0xd9c99a);
-const WET_SAND = new THREE.Color(0xa99a70);
-const SEABED = new THREE.Color(0x3e5a58);
-const GRASS = new THREE.Color(0x58823c);
-const HEATH = new THREE.Color(0x7b7a4a);
-const ROCK = new THREE.Color(0x77736b);
-
-function terrainColor(h: number, ny: number, x: number, z: number, out: THREE.Color): void {
-  if (h < -0.3) out.copy(WET_SAND).lerp(SEABED, Math.min(1, -h / 5));
-  else if (ny < 0.72) out.copy(ROCK);
-  else if (h < 1.7 && ny > 0.8) out.copy(SAND);
-  else if (h > 30) out.copy(HEATH);
-  else out.copy(GRASS).lerp(HEATH, Math.min(1, Math.max(0, (h - 18) / 14)));
-  const v = 0.92 + 0.16 * hash(Math.round(x), Math.round(z));
-  out.multiplyScalar(v);
 }
 
 // ── Structures ───────────────────────────────────────────────────────────────────
@@ -186,16 +213,17 @@ const PILE = 0x3d3a36;
 const FENDER = 0x1e1e1e;
 const BOLLARD = 0x2a2c30;
 
-function buildStructures(): THREE.BufferGeometry[] {
+function buildStructures(region: RegionDef): THREE.BufferGeometry[] {
   const parts: THREE.BufferGeometry[] = [];
-  for (const b of BLOCKS) buildBlock(b, parts);
-  for (const s of SLIPWAYS) buildSlipway(s, parts);
-  for (const r of RIDGES) if (r.drawn !== false) buildBreakwater(r.ax, r.az, r.bx, r.bz, r.crest, r.halfWidth, r.slope, parts);
-  for (const bd of BUILDINGS) buildBuilding(bd, parts);
-  for (const l of LIGHTS) buildLightTower(l.x, l.z, l.y, l.color, l.tower, parts);
-  for (const w of WRECKS) buildWreck(w, parts);
+  for (const b of region.blocks) buildBlock(b, parts);
+  for (const s of region.slipways) buildSlipway(s, parts);
+  for (const r of region.ridges) if (r.drawn !== false) buildBreakwater(r.ax, r.az, r.bx, r.bz, r.crest, r.halfWidth, r.slope, parts);
+  for (const bd of region.buildings) buildBuilding(bd, parts);
+  for (const l of region.lights) buildLightTower(l.x, l.z, l.y, l.color, l.tower, parts);
+  for (const w of region.wrecks) buildWreck(w, parts);
+  for (const l of region.landmarks) if (l.kind === 'hill') buildCairn(l.x, l.z, parts);
   // Lamp posts: a slim pole with a downward-facing head.
-  for (const l of LAMPS) {
+  for (const l of region.lamps) {
     const base = standingHeight(l.x, l.z);
     const h = l.y - base;
     parts.push(part(new THREE.CylinderGeometry(0.07, 0.1, h, 6).translate(l.x, base + h / 2, l.z), 0x50565c, 'worn'));
@@ -204,7 +232,7 @@ function buildStructures(): THREE.BufferGeometry[] {
   }
   // Berth marks: a yellow strip along the quay/pier edge for each named berth (fuel,
   // cargo); you can dock at any bollards, but these are where things happen.
-  for (const b of BERTHS) {
+  for (const b of region.berths) {
     const yaw = (b.headingDeg * Math.PI) / 180;
     const ex = b.x + b.shoreX * (b.shoreDist + 0.3);
     const ez = b.z + b.shoreZ * (b.shoreDist + 0.3);
@@ -356,7 +384,7 @@ function buildBreakwater(ax: number, az: number, bx: number, bz: number, crest: 
   }
 }
 
-function buildBuilding(bd: (typeof BUILDINGS)[number], parts: THREE.BufferGeometry[]): void {
+function buildBuilding(bd: BuildingDef, parts: THREE.BufferGeometry[]): void {
   const yaw = (bd.yawDeg * Math.PI) / 180;
   const hw = bd.width / 2;
   const hd = bd.depth / 2;
@@ -394,6 +422,24 @@ function buildBuilding(bd: (typeof BUILDINGS)[number], parts: THREE.BufferGeomet
   );
 }
 
+/**
+ * A landmark hill's cairn (regions): a heap of stones on the summit with a trig pillar
+ * beside it, the thing you steer for from the next region. The summit is the highest
+ * ground within 60 m of the landmark's position.
+ */
+function buildCairn(x: number, z: number, parts: THREE.BufferGeometry[]): void {
+  const top = summitNear(x, z);
+  const stone = 0x6e6a62;
+  parts.push(part(new THREE.ConeGeometry(1.6, 2.6, 7).translate(top.x, top.h + 1.1, top.z), stone, 'stone'));
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2 + hash(i, top.x);
+    const r = 1.4 + 0.5 * hash(top.z, i);
+    parts.push(part(new THREE.DodecahedronGeometry(0.35 + 0.2 * hash(i, i), 0).translate(top.x + Math.cos(a) * r, top.h + 0.1, top.z + Math.sin(a) * r), stone, 'stone'));
+  }
+  // The pillar: concrete, 1.2 m, a little way off the heap.
+  parts.push(part(new THREE.CylinderGeometry(0.22, 0.28, 1.2, 4).translate(top.x + 2.6, top.h + 0.55, top.z + 1.2), 0xd8d4cc, 'concrete'));
+}
+
 function buildLightTower(x: number, z: number, lampY: number, color: string, tower: string, parts: THREE.BufferGeometry[]): void {
   if (tower === 'none') return;
   const ground = groundHeight(x, z);
@@ -414,49 +460,35 @@ function buildLightTower(x: number, z: number, lampY: number, color: string, tow
 
 // ── Trees ────────────────────────────────────────────────────────────────────────
 
-function buildTrees(): THREE.InstancedMesh {
-  // Lean low-poly conifer (~16 triangles): open-ended cones, three-sided trunk.
-  const geo = mergeParts([
+let conifer: THREE.BufferGeometry | null = null;
+/** Lean low-poly conifer (~16 triangles): open-ended cones, three-sided trunk. Shared by every region. */
+function coniferGeometry(): THREE.BufferGeometry {
+  conifer ??= mergeParts([
     part(new THREE.CylinderGeometry(0.18, 0.25, 1.6, 3, 1, true).translate(0, 0.8, 0), 0x5a4030),
     part(new THREE.ConeGeometry(1.6, 3.6, 5, 1, true).translate(0, 2.8, 0), 0xffffff),
     part(new THREE.ConeGeometry(1.15, 2.8, 5, 1, true).translate(0, 4.6, 0), 0xffffff),
   ]);
-  const spots: [number, number, number, number][] = [];
-  const step = 5;
-  for (const isl of ISLANDS) {
-    if (isl.trees <= 0) continue;
-    const reach = isl.radius * 1.2;
-    for (let x = isl.x - reach; x < isl.x + reach; x += step) {
-      for (let z = isl.z - reach; z < isl.z + reach; z += step) {
-        // Forest patches from low-frequency noise; trees thin out at the edges.
-        const patch = Math.sin(x * 0.012 + isl.seed) * Math.sin(z * 0.015 - isl.seed) + 0.35 * Math.sin((x - z) * 0.03);
-        if (patch < 0.05) continue;
-        if (hash(x, z) > ((isl.trees * (step * step)) / 100) * 1.8 * Math.min(1, patch * 2)) continue;
-        const jx = x + (hash(z, x) - 0.5) * step;
-        const jz = z + (hash(x + 1, z - 1) - 0.5) * step;
-        const h = groundHeight(jx, jz);
-        if (h < 3 || h > 40) continue;
-        const slope = Math.abs(groundHeight(jx + 2, jz) - h) + Math.abs(groundHeight(jx, jz + 2) - h);
-        if (slope > 2.2) continue;
-        if (PORTS.some((p) => Math.hypot(jx - p.x, jz - p.z) < p.clearRadius)) continue;
-        if (BUILDINGS.some((b) => Math.hypot(jx - b.x, jz - b.z) < Math.max(b.width, b.depth))) continue;
-        spots.push([jx, h - 0.2, jz, 0.7 + 0.7 * hash(jz, jx)]);
-      }
-    }
-  }
-  const mesh = new THREE.InstancedMesh(geo, flatVertexColorMaterial(), spots.length);
+  return conifer;
+}
+
+/** A region's trees as one instanced mesh, from their places (terrainMesh.ts treeSpots: x, y, z, scale each). */
+function buildTreesMesh(spots: Float32Array): THREE.InstancedMesh {
+  const n = spots.length / 4;
+  const mesh = new THREE.InstancedMesh(coniferGeometry(), flatVertexColorMaterial(), n);
   mesh.name = 'trees';
   const m = new THREE.Matrix4();
   const q = new THREE.Quaternion();
   const c = new THREE.Color();
-  spots.forEach(([x, y, z, s], i) => {
-    q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), hash(x, y) * Math.PI * 2);
-    m.compose(new THREE.Vector3(x, y, z), q, new THREE.Vector3(s, s * (0.85 + 0.3 * hash(z, y)), s));
+  const up = new THREE.Vector3(0, 1, 0);
+  for (let i = 0; i < n; i++) {
+    const [x, y, z, sc] = [spots[i * 4], spots[i * 4 + 1], spots[i * 4 + 2], spots[i * 4 + 3]];
+    q.setFromAxisAngle(up, hash(x, y) * Math.PI * 2);
+    m.compose(new THREE.Vector3(x, y, z), q, new THREE.Vector3(sc, sc * (0.85 + 0.3 * hash(z, y)), sc));
     mesh.setMatrixAt(i, m);
     // Instance colour tints the (white) foliage; the trunk is dark enough not to matter.
     c.setRGB(0.18 + 0.08 * hash(x, z), 0.36 + 0.1 * hash(z, x), 0.16 + 0.05 * hash(y, x));
     mesh.setColorAt(i, c);
-  });
+  }
   mesh.computeBoundingSphere();
   return mesh;
 }
@@ -538,12 +570,24 @@ export class HarbourLights {
     this.points.frustumCulled = false;
   }
 
-  /** @param time seconds; @param darkness 0 (noon) .. 1 (night) */
-  update(time: number, darkness: number): void {
+  /**
+   * @param time       seconds
+   * @param darkness   0 (noon) .. 1 (night)
+   * @param viewer     where you are: a light is seen out to its sight distance (its height)
+   *                   or the visibility, whichever is less, fading over the last fifth (sight.ts)
+   * @param visibility today's visibility where you are (m)
+   */
+  update(time: number, darkness: number, viewer?: THREE.Vector3, visibility = Infinity): void {
     const col = this.colors.array as Float32Array;
     LIGHTS.forEach((l, i) => {
       const on = l.period === 0 || time % l.period < 0.6;
-      for (let k = 0; k < 3; k++) col[i * 3 + k] = on ? this.base[i * 3 + k] : 0;
+      let seen = 1;
+      if (viewer) {
+        const range = seenRange(l.y, visibility, CONFIG.regions.lightVisFactor);
+        const d = Math.hypot(viewer.x - l.x, viewer.z - l.z);
+        seen = Math.min(1, Math.max(0, (range - d) / (0.2 * range)));
+      }
+      for (let k = 0; k < 3; k++) col[i * 3 + k] = on ? this.base[i * 3 + k] * seen : 0;
     });
     this.colors.needsUpdate = true;
     this.material.size = 6 + 16 * darkness;

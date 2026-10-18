@@ -7,11 +7,11 @@ import { createWorld } from '../src/core/world';
 import { aboard, GROUND, stackPoint } from '../src/cargo/cargo';
 import { fishingStatus, trawlForces } from '../src/fishing/fishing';
 import { placeVessel } from '../src/vessel/vesselControl';
-import { PORTS } from '../src/world/archipelago';
+import { FISHING_GROUNDS, PORTS } from '../src/world/archipelago';
 import { startEngine } from './helpers/engine';
 
 const DT = 1 / 60;
-const ground = CONFIG.fishing.grounds[1];
+const ground = FISHING_GROUNDS[1];
 
 function setup() {
   const { world, vesselId, localPlayerId } = createWorld(new IdFactory());

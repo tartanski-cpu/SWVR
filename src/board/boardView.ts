@@ -206,6 +206,11 @@ export class BoardView {
   }
 
   /** Redraw if the notes, the hover or a drag changed. */
+  /** Its colour for the light on it (render/nightPaper.ts: dim, and red at night). */
+  setLight(paper: THREE.Color): void {
+    (this.surface.material as THREE.MeshBasicMaterial).color.copy(paper);
+  }
+
   update(world: WorldState): void {
     const b = world.board;
     // A note being dragged that someone else has taken down: stop.

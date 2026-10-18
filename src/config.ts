@@ -85,7 +85,13 @@ export const CONFIG = {
     maxPixelRatio: 2,
     fovDeg: 70,
     near: 0.05,
-    far: 4000,
+    /**
+     * Far plane (m): out to the clearest day's horizon (environment.hazeFar), so a region's
+     * landmark hill shows across the sound (regions, milestone 2). Depth precision at the
+     * far end is coarse (tens of metres), which is why far-off land is drawn above the
+     * waterline only and nudged toward the camera (worldView.ts).
+     */
+    far: 14000,
   },
 
   xr: {
@@ -109,10 +115,15 @@ export const CONFIG = {
     /** Observer latitude and solar declination drive the sun path (degrees). */
     latitudeDeg: 50,
     solarDeclinationDeg: 12,
-    fogNear: 200,
-    fogFar: 2600,
+    /**
+     * The clearest day's haze (m): scene fog runs out to the visibility, or to this, whichever
+     * is less, so even on a clear day the sea and the far land dissolve into the sky by here
+     * (the camera's far plane sits just beyond). Was 2600 before the regions: the next
+     * region's hill, 4-5 km off, was simply not drawn.
+     */
+    hazeFar: 13500,
     /** Radius (m) of the sky dome; must be inside the camera far plane. */
-    skyRadius: 3500,
+    skyRadius: 13800,
   },
 
   ocean: {
@@ -169,8 +180,15 @@ export const CONFIG = {
       innerHalfExtent: 32,
       /** Each cell beyond the centre is this much larger than the previous one. */
       growth: 1.08,
-      /** Half-width (m) of the whole ocean tile. Must exceed fogFar so the edge is hidden. */
+      /** Half-width (m) of the wave-detailed tile; beyond it the cells grow faster (`farGrowth`) out to `farRadius`. */
       radius: 3000,
+      /**
+       * Half-width (m) of the whole tile: past environment.hazeFar, so the sea's edge is
+       * always lost in the haze. The cells out there are hundreds of metres across: no wave
+       * is drawn on them (they fade with the grid), it's the flat, hazed sea to the horizon.
+       */
+      farRadius: 14000,
+      farGrowth: 1.25,
       /**
        * A wave is faded out (visually only) where the grid becomes too coarse to draw it:
        * where cell size exceeds wavelength / this many cells.
@@ -883,9 +901,9 @@ export const CONFIG = {
       // behind the helm.
       // A drop leaf on the port wall (owner request: with the logbook gone the fixed table was
       // too big): just long enough for the chart and the pen holder, 75 cm deep (the chart
-      // covers its depth). `lamp`: the wall bracket ([x, z]; x at the wall), the arm's height
-      // above the table and the shade over the chart's middle; the lamp switch on the batten
-      // at its aft end ([x, z]).
+      // covers its depth). `lamp`: on a stalk fixed to the table (owner): its base by the wall
+      // edge (`base` z), its height above the table, and its shade over the chart's middle
+      // (`head` [x, z]); the lamp switch on the batten at its aft end ([x, z]).
       chartTable: {
         x0: -1.37,
         x1: -0.62,
@@ -1694,11 +1712,7 @@ export const CONFIG = {
    * `foulHold` N pull astern. Boxes appear `boxInset` m in from the transom.
    */
   fishing: {
-    grounds: [
-      { name: 'Calder Bank', x: 1700, z: 650, radius: 300, richness: 1.2 },
-      { name: 'Skerry Ground', x: -150, z: -150, radius: 250, richness: 0.8 },
-      { name: 'The Hollows', x: -1100, z: 1000, radius: 320, richness: 1.0 },
-    ],
+    // The grounds themselves (where, how rich) are level data: each region's `fishingGrounds`.
     minSpeed: 1.0,
     /**
      * Raised from 2.1 (4 kn) with the drag below (owner feedback after V1.0: the trawling
@@ -1844,7 +1858,7 @@ export const CONFIG = {
    *   seaPerWind  sea scale per m/s of wind (CONFIG.ocean.seaStates: 1 = moderate)
    *   seaBuild / seaDecay  time constants (s): the sea builds after the wind, and settles slower
    *   windDir  the wind comes FROM this bearing, wandering +-`windDirSpread`
-   * Fog banks: patches of thick fog in the archipelago (x, z, radius m, visibility m).
+   * Fog banks (where, how thick) are level data: each region's `fogBanks` (world/regions/).
    */
   weather: {
     startPreset: 'Clear' as WeatherPresetName,
@@ -1873,13 +1887,16 @@ export const CONFIG = {
     seaDecay: 160,
     windDir: 225,
     windDirSpread: 35,
-    fogBanks: [
-      // Around Gull Rocks (between the start and Calder Haven) and off the Skerry.
-      { x: 380, z: 430, r: 260, visibility: 160 },
-      { x: -470, z: -360, r: 230, visibility: 180 },
-    ],
-    /** Fog: scene fog runs from `nearFraction` x visibility to the visibility. */
+    // Fog banks (where, how thick) are level data: each region's `fogBanks`.
+    /**
+     * Fog: scene fog runs from `nearFraction` x the fog's far end to that end. In fog
+     * (visibility under ~3 km) the near end is close in, `nearFraction`; in clear air it
+     * stands further out, `hazeNearFraction` of the haze distance, so the sea is crisp for
+     * the first few kilometres and the far land only softens. Blended between the two in
+     * log(visibility) between 3 and 13.5 km.
+     */
     nearFraction: 0.12,
+    hazeNearFraction: 0.35,
     /** Leeway: air density (kg/m3) and drag coefficient on the boats' windage (vessel `windage`). */
     airDensity: 1.225,
     windCd: 1.0,
@@ -2488,6 +2505,16 @@ export const CONFIG = {
    * red by themselves (owner: automatic, no switch), dimmer still at `redLevel` of that.
    */
   panelLighting: { nightLevel: 0.3, redLevel: 0.6, redFrom: 0.55, redTo: 0.85 },
+
+  /**
+   * The chart, the whiteboard and the duty board at night (render/nightPaper.ts; owner: they
+   * were very bright at night). Their brightness: the sky's ambient light times `daylight`,
+   * plus the cabin lamp (`cabinWhite` / `cabinRed`), plus the chart lamp (1 by day, `lampNight`
+   * at night, turned down), at least `least`, at most `nightMax` at night. At night they go
+   * red with the panels (CONFIG.panelLighting redFrom..redTo): green and blue cut by
+   * `redGreen` / `redBlue`; with the white cabin light on, only `whiteLightRed` of that.
+   */
+  nightPaper: { daylight: 1.1, cabinWhite: 0.3, cabinRed: 0.1, lampNight: 0.3, least: 0.04, nightMax: 0.4, redGreen: 0.7, redBlue: 0.85, whiteLightRed: 0.2 },
 
   /**
    * Other players' figures (net/avatarView.ts, looks in net/avatarOutfits.ts). Upper body
@@ -3107,8 +3134,8 @@ export const CONFIG = {
     /**
      * furniture.chart-table (M3c): the drop-leaf chart table on a wall. From its socket (the
      * leaf's hinge corner on the floor, at the wall: x out from the wall, z aft): its size
-     * (m), the pen holder [x, z], the lamp (its wall bracket [x, z], height above the table,
-     * its head over the chart [x, z]) and the lamp switch on the batten [x, z]. `lampAmps`:
+     * (m), the pen holder [x, z], the lamp (on a stalk on the table: its base by the wall edge
+     * [x, z], its height above the table, its shade over the chart [x, z]) and the lamp switch on the batten [x, z]. `lampAmps`:
      * the lamp's draw (A, DECK LTS circuit; M4a).
      */
     chartTable: {
@@ -3347,6 +3374,32 @@ export const CONFIG = {
     engineShut: 0.45,
     engineShutLp: 320,
     washMuffle: 0.6,
+  },
+
+  /**
+   * Regions (world/regions/, docs/REGIONS.md): several map areas, each drawn in full only
+   * while you're near it. All regions' DATA is always live (terrain, harbours, charts, jobs);
+   * what's streamed per player is the drawing.
+   *   loadDistance    a region's full terrain, structures and trees are shown (built in a
+   *                   worker the first time) when the viewer is within this of its footprint (m)
+   *   unloadDistance  ...and put away again beyond this (m; wider than loadDistance so a
+   *                   boat working along the edge doesn't flicker it in and out)
+   *   residencyEvery  how often the distances are checked (s)
+   *   sight           how far off a thing of height h (m) can be seen on the clearest day
+   *                   (m): base + perSqrtHeight * sqrt(h). The owner's rule of thumb: a 100 m
+   *                   hill from ~40 km, a 10 m light from ~12 km, the sea itself from ~5 km.
+   *                   Not horizon maths: a cull distance, cut further by the day's visibility.
+   *   lightVisFactor  a light (a point) is seen through haze a little further than land:
+   *                   out to this times the visibility
+   */
+  regions: {
+    loadDistance: 2500,
+    unloadDistance: 3500,
+    residencyEvery: 0.5,
+    sight: { base: 5000, perSqrtHeight: 3500 },
+    lightVisFactor: 1.3,
+    /** Far-off land is nudged toward the camera by this many depth units (silhouettes; see render.far). */
+    silhouetteDepthUnits: -4,
   },
 
   debug: {
