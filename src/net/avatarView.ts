@@ -6,6 +6,7 @@ import { poseFromCode } from '../player/handGesture';
 import type { EntityId } from '../core/ids';
 import type { WorldState } from '../core/world';
 import { LaserBeam } from '../player/laserBeam';
+import { CHEST_TURN, radioGeometry } from '../player/radioHandset';
 
 const COLORS = [0xd8582a, 0x2a8ad8, 0x3aa84a, 0xc8a020, 0x9a4ad0, 0x20a8a0];
 
@@ -41,11 +42,19 @@ interface Avatar {
   laser: LaserBeam;
   /** A recording camera (player/cameraMode.ts): drawn instead of the figure, at the head's pose. */
   camBody: THREE.Mesh;
+  /** Their handheld VHF: on the chest, or in the hand that holds it. */
+  radio: THREE.Mesh;
 }
 
 /** One vertex-coloured material for every figure (their colours are in the geometry), and your own hands. */
 let figureMat: THREE.Material | null = null;
 export const figureMaterial = (): THREE.Material => (figureMat ??= flatVertexColorMaterial());
+/** The VHF handset, shared by every figure. */
+let radioGeo: THREE.BufferGeometry | null = null;
+/** Where it clips on, in the torso's axes (hung from the neck: left of the chest, on the front). */
+const RADIO_ON_CHEST = new THREE.Vector3(-0.1, -0.2, -0.125);
+const ZERO = new THREE.Vector3();
+const NO_TURN = new THREE.Quaternion();
 const DOWN = new THREE.Vector3(0, -1, 0);
 const FWD = new THREE.Vector3(0, 0, -1);
 const Y = new THREE.Vector3(0, 1, 0);
@@ -168,6 +177,14 @@ export class AvatarsView {
         a.tool = tool ? toolMesh(tool.kind) : null;
         if (a.tool && tool) (tool.hand === 'left' ? a.left : a.right).add(a.tool);
       }
+      // The VHF: in the hand that holds it, else clipped on the chest.
+      const rh = p.avatar?.radio?.hand;
+      const holder = rh === 'left' && p.avatar?.left ? a.left : rh === 'right' && p.avatar?.right ? a.right : a.torso;
+      if (a.radio.parent !== holder) {
+        holder.add(a.radio);
+        a.radio.position.copy(holder === a.torso ? RADIO_ON_CHEST : ZERO);
+        a.radio.quaternion.copy(holder === a.torso ? CHEST_TURN : NO_TURN);
+      }
       const L1 = c.upperArm;
       const L2 = c.forearm;
       for (const [i, mesh, hand, s, hq] of [
@@ -257,7 +274,11 @@ export class AvatarsView {
     const camBody = new THREE.Mesh(cameraBodyGeometry(color), mat);
     camBody.visible = false;
     head.add(camBody);
-    const a: Avatar = { root, head, face, torso, upper, fore, left, right, bodyYaw: 0, look, frame: null, tag, tagName: '', tool: null, toolKey: '', laser: new LaserBeam(color), camBody };
+    const radio = new THREE.Mesh((radioGeo ??= radioGeometry()), mat);
+    torso.add(radio);
+    radio.position.copy(RADIO_ON_CHEST);
+    radio.quaternion.copy(CHEST_TURN);
+    const a: Avatar = { root, head, face, torso, upper, fore, left, right, bodyYaw: 0, look, frame: null, tag, tagName: '', tool: null, toolKey: '', laser: new LaserBeam(color), camBody, radio };
     this.avatars.set(id, a);
     return a;
   }

@@ -52,6 +52,7 @@ export class HostSession {
         p.position = [...VESSEL_DEFS[boat.defId].boardingSpot];
         p.mode = 'walk';
       } else placeAshore(p);
+      p.peerId = link.id; // for voice (net/voice.ts): who to call
       this.world.players[playerId] = p;
       this.peers.set(link.id, { link, playerId });
       this.send(link, { t: 'welcome', playerId, world: this.world, ...(this.marks ? { chart: this.marks } : {}) });
@@ -88,7 +89,10 @@ export class HostSession {
       // Hand gestures: two known pose codes, or relaxed hands.
       const code = (c: unknown) => (typeof c === 'number' && Number.isInteger(c) && c >= 0 && c < HAND_POSES.length ? c : 0);
       const poses: [number, number] = Array.isArray(pose.poses) ? [code(pose.poses[0]), code(pose.poses[1])] : [0, 0];
-      p.avatar = { head: pose.head, left: pose.left, right: pose.right, leftQ: quat(pose.leftQ), rightQ: quat(pose.rightQ), poses, swimming: pose.swimming === true, camera: pose.camera === true, tool, laser, gear };
+      // The VHF: a hand or the chest, and the talk button.
+      const r = pose.radio;
+      const radio = r && typeof r === 'object' ? { hand: r.hand === 'left' || r.hand === 'right' ? r.hand : null, tx: r.tx === true } : null;
+      p.avatar = { head: pose.head, left: pose.left, right: pose.right, leftQ: quat(pose.leftQ), rightQ: quat(pose.rightQ), poses, swimming: pose.swimming === true, camera: pose.camera === true, tool, laser, gear, radio };
     }
   }
 

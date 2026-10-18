@@ -39,7 +39,7 @@ export class PeerHostTransport implements HostTransport {
   onMessage: (link: Link, msg: unknown) => void = () => {};
   onDisconnect: (link: Link) => void = () => {};
   readonly ready: Promise<void>;
-  private readonly peer: Peer;
+  readonly peer: Peer;
 
   /** `peerId`: the id to register (default: the game's room id for `code`; the Shipyard has its own). */
   constructor(code: string, peerId = peerIdForRoom(code)) {
@@ -67,7 +67,7 @@ export class PeerClientTransport implements ClientTransport {
   onOpen: () => void = () => {};
   onMessage: (msg: unknown) => void = () => {};
   onClose: (reason: string) => void = () => {};
-  private readonly peer: Peer;
+  readonly peer: Peer;
   private conn: DataConnection | null = null;
 
   constructor(code: string, peerId = peerIdForRoom(code)) {

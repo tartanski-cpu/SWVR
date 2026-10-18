@@ -135,7 +135,11 @@ import { setupXR, xrSessionInfo } from './xrSession';
 import { applyPlayerIntent } from '../player/playerControl';
 import { HostSession } from '../net/hostSession';
 import { ClientSession } from '../net/clientSession';
-import { PeerClientTransport, PeerHostTransport, randomRoomCode, type ClientTransport } from '../net/transport';
+import { PeerClientTransport, PeerHostTransport, peerIdForRoom, randomRoomCode, type ClientTransport } from '../net/transport';
+import type Peer from 'peerjs';
+import { VoiceChat, type VoiceSpeaker } from '../net/voice';
+import { RadioHandset } from '../player/radioHandset';
+import { vrFlySpeed, vrFlyStep } from '../player/vrFly';
 import { NET_RATE, type PlayerPose } from '../net/protocol';
 import { AvatarsView } from '../net/avatarView';
 import { fuelTankL } from '../vessel/fuelTank';
@@ -498,6 +502,20 @@ export class App {
   // Multiplayer (net/): at most one of host / client is set.
   private host: HostSession | null = null;
   private client: ClientSession | null = null;
+  /** The multiplayer link's PeerJS peer (for voice), while hosting or joined. */
+  private netPeer: Peer | null = null;
+  /** Hosting: our own network id (the room's), for the crew's voice calls. */
+  private hostPeerId = '';
+  /** Voice with the crew (net/voice.ts), while in a game with others. */
+  private voice: VoiceChat | null = null;
+  /** Your microphone off (Crew menu); kept across games. */
+  private voiceMuted = false;
+  /** The handheld VHF on your chest (player/radioHandset.ts). */
+  private readonly radio = new RadioHandset();
+  private readonly voiceSpeakers: VoiceSpeaker[] = [];
+  /** Debug > World: VR fly (player/vrFly.ts). */
+  private vrFlyOn = false;
+  private readonly flyRight = new THREE.Vector3();
   /** Hosting: waiting for the PeerJS server to register the room code. */
   private hostStarting = false;
   private joinCode = '';
@@ -1059,6 +1077,35 @@ export class App {
     this.camera.getWorldDirection(this.listenerFwd);
     this.listenerUp.set(0, 1, 0).applyQuaternion(this.camera.getWorldQuaternion(this.attQ));
     this.sound.whistle.setListener(this.focus, this.listenerFwd, this.listenerUp);
+    this.updateVoice();
+  }
+
+  /**
+   * Voice with the crew (net/voice.ts): started once we're in a game with others and the
+   * sound is on, stopped when we're back to solo. Each frame, every crew-mate's head (world)
+   * and radio talk button, for how we hear them.
+   */
+  private updateVoice(): void {
+    const inGame = !!this.host || this.client?.status === 'connected';
+    const ctx = this.sound.engine.context;
+    if (!inGame || !this.netPeer || !ctx) return;
+    // Hosting: our own network id, for the crew to call (in the snapshots with us).
+    const me = this.world.players[this.localPlayerId];
+    if (this.host && me) me.peerId = this.hostPeerId;
+    if (!this.voice) {
+      this.voice = new VoiceChat(this.netPeer, ctx);
+      this.voice.setMuted(this.voiceMuted);
+    }
+    const list = this.voiceSpeakers;
+    list.length = 0;
+    for (const p of Object.values(this.world.players)) {
+      if (p.id === this.localPlayerId || !p.peerId || !p.avatar) continue;
+      const frame = (p.aboardVesselId && this.vesselRoots.get(p.aboardVesselId)) || this.scene;
+      const h = p.avatar.head;
+      const w = frame.localToWorld(new THREE.Vector3(h[0], h[1], h[2]));
+      list.push({ peerId: p.peerId, head: w, tx: !!p.avatar.radio?.tx });
+    }
+    this.voice.update({ head: this.focus, tx: this.radio.tx }, list);
   }
 
   /** Port floodlights, cargo, the desktop hand, our pose out and the crew's avatars in. */
@@ -1541,11 +1588,61 @@ export class App {
     // Head from the camera's pose relative to the rig (fresh this frame; see syncRigToPlayer).
     this.camera.getWorldPosition(this.headW);
     this.camera.getWorldDirection(this.headFwd);
+    if (inXR && this.vrFlyOn) {
+      this.updateVrFly(dt);
+      this.placeDebugPanel(inXR);
+      return;
+    }
     if (!this.updateBody(dt, inXR, area, frame)) {
       this.runLocomotion(dt, inXR, frame, inXR ? area : this.withDoor(area, p.aboardVesselId), 1, inXR);
       this.crossRamp();
     }
     this.placeDebugPanel(inXR);
+  }
+
+  /**
+   * VR fly (Debug > World; player/vrFly.ts): off the boat into the world's frame, held in the
+   * air (no gravity while it's on), the left stick flying where you look at the triggers'
+   * speed, the right stick turning as usual. Switched off, the body is "in the air" with
+   * no speed, so it falls from there as after a jump.
+   */
+  private updateVrFly(dt: number): void {
+    const p = this.world.players[this.localPlayerId];
+    if (p.aboardVesselId) {
+      const root = this.vesselViews.get(p.aboardVesselId)?.root;
+      if (root) {
+        const w = root.localToWorld(this.tmpV.fromArray(p.position));
+        p.position = [w.x, w.y, w.z];
+        p.yaw += yawOf(root.quaternion);
+      }
+      p.aboardVesselId = null;
+      this.keepViewOnReparent = true;
+    }
+    p.mode = 'air';
+    p.velocity = [0, 0, 0];
+    const left = this.xrInput.hands.left;
+    const [lx, ly] = this.gestures.ownsStick('left') ? [0, 0] : left.stick;
+    const speed = vrFlySpeed(left.values[XR_BUTTON.trigger] ?? 0, this.xrInput.hands.right.values[XR_BUTTON.trigger] ?? 0);
+    const f = this.headFwd;
+    const right = this.flyRight.set(-f.z, 0, f.x);
+    if (right.lengthSq() > 1e-6) right.normalize();
+    const d = Math.hypot(lx, ly) > 0.15 ? vrFlyStep(lx, -ly, f, right, speed, dt) : { x: 0, y: 0, z: 0 };
+    p.position = [p.position[0] + d.x, p.position[1] + d.y, p.position[2] + d.z];
+    // Turning: the usual snap turn (the stick-only part of locomotion; no floor in the open air).
+    this.locomotion.update(p, {
+      dt,
+      frame: this.scene,
+      area: this.swimArea,
+      head: this.headW,
+      headForward: this.headFwd,
+      grabbing: { left: null, right: null },
+      moveStick: [0, 0],
+      turnStick: !this.gestures.ownsStick('right') ? this.xrInput.hands.right.stick[0] : 0,
+      desktopDelta: null,
+      fly: true,
+    });
+    // The comfort vignette closes in with speed, as for walking.
+    this.comfortOverlay.update(dt, Math.min(1, Math.hypot(d.x, d.y, d.z) / Math.max(1e-6, dt) / CONFIG.vrFly.speed), false);
   }
 
   /** Her bow ramp, lowered all the way while she's landed on a slipway: it can be walked (world/slipway.ts). */
@@ -2166,6 +2263,11 @@ export class App {
       handTurn: () => CONFIG.avatar.handTurn,
       turnHands: (axis, deg) => turnHands(axis, deg),
       handAxes: () => this.ownHands.showAxes,
+      vrFly: () => this.vrFlyOn,
+      setVrFly: (on: boolean) => {
+        this.vrFlyOn = on;
+        this.overlay.notify(on ? (this.renderer.xr.isPresenting ? 'VR fly: left stick flies where you look; triggers go faster' : 'VR fly: on in the headset (desktop: J flies)') : 'VR fly off', 3);
+      },
       setHandAxes: (on) => {
         this.ownHands.showAxes = on;
       },
@@ -2321,10 +2423,11 @@ export class App {
       tool: this.chartTools?.heldTool() ?? null,
       laser: this.laser.pose(this.invFrame),
       gear: this.gear.map((g) => g.pose(this.invFrame)).find((x) => x) ?? null,
+      radio: this.radio.pose(),
     };
     if (this.host) {
       p.name = pose.name;
-      p.avatar = { head: pose.head, left: pose.left, right: pose.right, leftQ: pose.leftQ, rightQ: pose.rightQ, poses: pose.poses, swimming: pose.swimming, tool: pose.tool, laser: pose.laser, gear: pose.gear };
+      p.avatar = { head: pose.head, left: pose.left, right: pose.right, leftQ: pose.leftQ, rightQ: pose.rightQ, poses: pose.poses, swimming: pose.swimming, tool: pose.tool, laser: pose.laser, gear: pose.gear, radio: pose.radio };
       return;
     }
     this.poseTimer += dt;
@@ -2344,6 +2447,8 @@ export class App {
         this.hostStarting = false;
         this.host = new HostSession(this.world, this.ids, transport, code);
         this.host.marks = this.marks;
+        this.netPeer = transport.peer;
+        this.hostPeerId = peerIdForRoom(code);
         this.netMessage = '';
         this.overlay.notify(`Hosting: game code ${code}`, 4);
       },
@@ -2367,7 +2472,9 @@ export class App {
     } catch {
       // Not remembered.
     }
-    this.connectClient(new PeerClientTransport(this.joinCode));
+    const transport = new PeerClientTransport(this.joinCode);
+    this.connectClient(transport);
+    this.netPeer = transport.peer;
     // Sent in together: an attempt that hasn't got in after a while (the host's page was still
     // opening its game) is dropped and tried again, rather than left waiting for ever.
     const client = this.client as ClientSession | null; // (set by connectClient)
@@ -2395,6 +2502,17 @@ export class App {
   /** The crew, for the menu. */
   private crewMenu() {
     return {
+      voiceStatus: () => {
+        const v = this.voice;
+        if (!v) return this.host || this.client ? 'Starting (sound on first)' : 'In a game with crew';
+        const mic = v.micState === 'asking' ? 'asking for the microphone' : v.micState === 'none' ? 'no microphone (listening only)' : v.isMuted ? 'microphone muted' : 'microphone on';
+        return `${v.connected} connected · ${mic}`;
+      },
+      micMuted: () => this.voiceMuted,
+      setMicMuted: (m: boolean) => {
+        this.voiceMuted = m;
+        this.voice?.setMuted(m);
+      },
       crewList: () => {
         const names = Object.values(this.world.players).map((p) => (p.id === this.localPlayerId ? `${p.name} (you)` : p.name));
         return names.length > 1 ? `Aboard: ${names.join(', ')}` : 'Just you';
@@ -2561,6 +2679,10 @@ export class App {
 
   private toSolo(): void {
     this.client = null;
+    this.netPeer = null;
+    this.hostPeerId = '';
+    this.voice?.close();
+    this.voice = null;
     // The host's career is in our world now: it's not a refit of ours.
     this.fitWanted = null;
     for (const id of Object.keys(this.world.players)) {
@@ -3109,6 +3231,15 @@ export class App {
           onBino[h] = true; // busy for the rest of the frame
         }
       }
+      // The handheld VHF on your chest: the same (its trigger is the talk button).
+      const onRadio = this.radio.updateXR(this.scene, this.hands, { left: onBino.left || this.busyHands.left, right: onBino.right || this.busyHands.right }, this.camera.getWorldPosition(this.tmpV), this.camera.getWorldQuaternion(this.attQ), (h, i, ms) => this.xrInput.pulse(h, i, ms));
+      for (const h of ['left', 'right'] as const) {
+        if (!onRadio[h]) continue;
+        const f = this.hands[h];
+        f.gripDown = f.gripPressed = f.triggerDown = f.triggerPressed = false;
+        f.trigger = 0;
+        onBino[h] = true; // busy for the rest of the frame
+      }
       // The chart table's tools: a hand holding one gives its grip and trigger to the tool.
       const onTools = this.chartTools && this.chartTable?.isOpen ? this.chartTools.updateXR(this.chartCtx(), this.hands, this.busyHands, this.frameDt) : { left: false, right: false };
       for (const h of ['left', 'right'] as const) {
@@ -3139,6 +3270,7 @@ export class App {
       return;
     }
     this.pointer?.update(this.camera);
+    this.radio.updateDesktop(this.keyboard.action('talk'));
     for (const g of this.gear) if (g.aboard) g.updateDesktop(this.camera, !!this.pointer?.gearDown, !!this.pointer?.gearPressed);
     if (this.keyboard.actionPressed('hangGear')) for (const g of this.gear) if (g.held) g.hangBack();
   }

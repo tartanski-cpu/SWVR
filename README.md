@@ -63,7 +63,7 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | E | Debug: engine start / stop |
 | **F** by the wheel | **Take the helm:** you stand at the helm facing forward, held there, and drive with the arrow keys or a **game controller** (below). F again leaves it. The wheel and lever still work by mouse |
 | **Game controller** (Xbox and most others), at the helm | **Left stick** left / right: steer (the wheel follows the stick, back amidships when you let go). **RB / LB:** throttle up / down (it stops at neutral on the way through). **B:** neutral. **Right stick:** look round. **D-pad:** up heaves the anchor up, down lets it go; right the wipers on / off; left the horn (hold). **Left stick click:** searchlight on / off. **X:** fire pump on / off. **Right stick click:** laser pointer (hold). **A:** take the helm / leave it (as F) |
-| **Game controller**, off the helm | **Left stick:** walk (click it in and hold to run). **Right stick:** look round. **A:** jump (by the wheel: take the helm). **B:** crouch. **X:** lash / release cargo. **Y:** board / go ashore. **RT:** use (as the left mouse button: press, grab, pick up). **LT:** binoculars (hold). **Right stick click:** laser pointer (hold). **LB:** wave (hold). **RB:** hang the extinguisher or torch back. **Menu:** the menu. **View:** the help. The browser only sees the controller once you've pressed one of its buttons |
+| **Game controller**, off the helm | **Left stick:** walk (click it in and hold to run). **Right stick:** look round. **A:** jump (by the wheel: take the helm). **B:** crouch. **X:** lash / release cargo. **Y:** board / go ashore. **RT:** use (as the left mouse button: press, grab, pick up). **LT:** binoculars (hold). **Right stick click:** laser pointer (hold). **LB:** wave (hold). **RB:** hang the extinguisher or torch back. **Menu:** the menu. **View:** talk on your handheld VHF (hold; at the helm too). The browser only sees the controller once you've pressed one of its buttons |
 | ↑ / ↓ | Throttle/gear lever ahead / astern (neutral to full in about a second) |
 | ← / → | Debug: wheel to port / starboard |
 | X / G | Debug: lever to neutral / wheel amidships |
@@ -71,7 +71,8 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | L | Weather: switch to the next preset (Clear / Overcast / Fog / Rain / Squall), changing over a minute |
 | 9 / 0 | Motion coupling −/+ 10 % (desktop has its own setting, 30 % by default: the view soaks up the boat's quick roll and heave; in the wheelhouse or with the reticle on a control it rides rigidly with the boat, so the console holds still to click) |
 | R / K | Test: drop the boat from 4 m / heel her 20° and release |
-| V | Buoyancy debug view on/off |
+| V (hold) | Talk on your handheld VHF: crew-mates within a few kilometres hear you on their radios (multiplayer) |
+| F4 | Buoyancy debug view on/off |
 | N / M | Time of day −/+ 30 min |
 | F3 or I | Debug overlay on/off (FPS, cpu/gpu frame time, draw calls, boat readouts); off at start |
 | P | Wave surface probes on/off |
@@ -121,6 +122,7 @@ Tap once for sound. Add `?touch=1` to the address to try these controls on a com
 | **Trigger** on the green button on the **deck gate**'s aft post (starboard side of the working deck, just aft of the wheelhouse; a button on each face) | Open / shut the gate in the bulwark and rail. Open, you can walk out to the deck edge in the gateway and jump down into the skiff alongside; from the skiff (there's a step on the hull side below it), jump at the open gate and you're up on deck |
 | **Trigger** on the skiff's **bow cleat** (on her stem head) or **stern cleat** (on her port quarter) | That end's line: let it go if it's fast. Otherwise, lying slowly alongside a quay berth, it goes **ashore** to the bollard, and with both ends ashore she's moored there, like the big boats. Anywhere else it goes to the nearest of the ship's cleats within 6 m (the bow line is her **painter**), so you can tie her alongside fore and aft. She goes into the water already on her painter, made fast to the forward starboard cleat, so she can't blow away. Trigger on a **midship cleat** (just aft of the wheelhouse, each side) to lead the nearer of her free lines there while you work cargo over the side; again to let it go. A hard pull (towing her off at speed) parts it |
 | **Grip** on the skiff's tiller, then **trigger** | Steer by swinging the tiller; the same hand's trigger is the throttle (let go = idle). Red button on the motor: on/off; yellow lever on its side: forward / neutral / reverse |
+| **Grip** the radio on your chest (left side) | Take your **handheld VHF**; hold that hand's **trigger** to talk on it (its red light comes on). Crew-mates within a few kilometres hear you through their radios. Let go of the grip and it clips back on your chest |
 | B | Debug/perf panel on your left wrist (off at start): FPS, cpu/gpu frame time, draw calls, XR resolution, boat readouts |
 
 ### VR menu (Y)
@@ -142,7 +144,7 @@ The menu is laid out for playing. Some tabs have sections, picked from a second 
 | Office | **Jobs:** balance, the contract on, the harbour office's job board, the first voyage (**Skip** / **Again**). **Career:** balance, reputation, ledger, the three save slots |
 | Crew | Multiplayer: host or join a game, your name, who's aboard |
 | Settings | **Comfort:** motion coupling ±10 %, stick walking, snap-turn angle, boat hook reach. **Sound:** volumes. **Game:** rain effect, rescue position (on the plotter, or plot it yourself), and the **Debug tab** (hidden / shown). Remembered on the device |
-| Debug | Hidden until **Settings → Game → Debug tab → Shown**. **World:** time ±10 min, weather presets, **Fixed weather** / **Fast ×10**, sea state and wave height, move to a port, board / leave the boat. **Boat:** **Start in** the workboat (as your career has her fitted out), the **workboat with all her gear** (for testing, whatever the career has), or the **landing craft** (the second boat built from modules: a 9 m aluminium landing craft that does 20 knots on a turbocharged V8 with its own engine sound, with a step down into her cabin; the game restarts in her. Her bow ramp is worked by the green buttons on the port bulwark by the bow and on the cabin's port wall), drop 4 m, heel 20°, damage, **On a slip** (a bow-ramp boat landed on the nearest slipway), electrics, start-up, oil, bilge, engine faults, sea trials. **Missions:** rescue, tow, fire, side jobs and traffic on demand, +£5000. **Views:** perf panel, buoyancy, wave probes, targets on the chart, radio voice test |
+| Debug | Hidden until **Settings → Game → Debug tab → Shown**. **World:** time ±10 min, weather presets, **Fixed weather** / **Fast ×10**, sea state and wave height, move to a port, board / leave the boat. **Boat:** **Start in** the workboat (as your career has her fitted out), the **workboat with all her gear** (for testing, whatever the career has), or the **landing craft** (the second boat built from modules: a 9 m aluminium landing craft that does 20 knots on a turbocharged V8 with its own engine sound, with a step down into her cabin; the game restarts in her. Her bow ramp is worked by the green buttons on the port bulwark by the bow and on the cabin's port wall), drop 4 m, heel 20°, damage, **On a slip** (a bow-ramp boat landed on the nearest slipway), electrics, start-up, oil, bilge, engine faults, sea trials. **Missions:** rescue, tow, fire, side jobs and traffic on demand, +£5000. **Views:** perf panel, buoyancy, wave probes, targets on the chart, radio voice test. **World → VR fly** (in the headset): the left stick flies where you look, up and down too, through everything; hold one trigger to go fast, both to go very fast; the right stick still turns. Switch it off and you drop from wherever you are |
 
 ### Bridge
 
@@ -681,7 +683,14 @@ Open the perf panel in VR with B (or from the menu). At 90 Hz the frame budget i
 
 ## Multiplayer
 
-Co-op crew on one boat, peer-to-peer (one player hosts). Menu → **Crew** → **Host a game** shows a 5-digit code; the others type it on the keypad and press **Join**. Everyone can use every control. Crew-mates appear as an upper-body figure in working clothes (a random outfit each time you join: oilskins and sou'wester, float coat, fisherman's jumper, hi-vis and hard hat, bib-and-brace, crew jacket), with arms that bend at the elbow and gloved hands that turn as theirs do; their player colour is on the hat and collar. Details and limits: [`docs/MULTIPLAYER.md`](docs/MULTIPLAYER.md).
+Co-op crew on one boat, peer-to-peer (one player hosts). Menu → **Crew** → **Host a game** shows a 5-digit code; the others type it on the keypad and press **Join**. Everyone can use every control. Crew-mates appear as an upper-body figure in working clothes (a random outfit each time you join: oilskins and sou'wester, float coat, fisherman's jumper, hi-vis and hard hat, bib-and-brace, crew jacket), with arms that bend at the elbow and gloved hands that turn as theirs do; their player colour is on the hat and collar.
+
+**Talking:** in a game together, you can talk (allow the microphone when the browser asks; with up to four players).
+- **Nearby** you hear each other as you would on deck: from where they stand, fading out over about 20 m. It's always on.
+- **The handheld VHF** everyone wears on the chest: hold it to talk (VR: grip it, then hold the trigger; desktop: hold V; game controller: hold View). Everyone within about 5 km hears you on their radio: one channel, no direction, the tinny radio sound, a squelch at each end and some hiss near the edge of the range. You can't hear the radio while you're talking on it.
+- **Menu → Crew** shows how many you're connected to and lets you mute your microphone. Its volume is **Settings → Sound → Crew voices**.
+
+Details and limits: [`docs/MULTIPLAYER.md`](docs/MULTIPLAYER.md).
 
 ## Testing a new boat
 
