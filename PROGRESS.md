@@ -3874,6 +3874,7 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   - the outer two are angled back `CONFIG.shipyard.facetDeg` (30 deg) from square to the side walls. That's a setback of (house half-width − 0.5) × tan 30 at the walls: about 0.5 m on a 2.8 m wide house;
   - full height, from below the deck to the roof, raked with the windows;
   - the roof follows them (owner, later: "should follow the design of the windows"): its front is square across the middle and cut back on the same angle outside the mullions, the chamfer running round the angled edges (`chamferedSlab` with `centre`, `dz`). The wood ceiling under it is cut the same way. The sidelights on the roof's sides go back with its corners (build.ts `sb`), and roof gear keeps clear of the cut corners.
+  - a deckhouse under it is faceted too (owner: "it looks like it's split... the deck house should also inherit the same faceting"). Its plan's half width is capped by the same angle from its own front (build.ts `halfAt`): square across the middle (±0.5 m) at its front, the corners cut back at 30 deg, with a section where the cut meets her side so the edge is straight. Being ahead of the house, it's always wider than the house over it. One as wide as the house runs aft to the house's angled corners, so they stand on it. The facet's go/no-go is now decided before the deckhouse, so both follow the same one.
 - **How it's drawn** (`hullMesh.ts`):
   - the front is built in three across (split at the mullions), then everything at the front is set back by `facetDz(x)` (0 across the middle, the facet's depth at the side walls). The side walls' front ends follow.
   - the floor is filled out to the angled walls (`planSlab`);
@@ -3889,7 +3890,7 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   - a house too narrow (under 0.25 m outside the mullions);
   - a house too short (less than 1.6 m behind the facets' depth: the console's 0.5 m and room to stand at the helm).
 - **Checked:**
-  - typecheck and tests (664 with the tug's; `tests/shipyard/facets.test.ts`: the code, with the tug's hull type too; the facet's depth from the angle; the helm where it was; every wing slot set back and turned, the middle ones not; a short house left flat);
+  - typecheck and tests (664 with the tug's; `tests/shipyard/facets.test.ts`: the code, with the tug's hull type too; the facet's depth from the angle; the helm where it was; every wing slot set back and turned, the middle ones not; a short house left flat; a deckhouse under it faceted, never narrower than the house over it);
   - screenshots of a 12 m workboat from the bow quarter, from forward, from above and at the helm; the tug and the workboat's wrapped dash from behind the helm.
 - **Not checked:**
   - rain on the angled panes with the wipers going;

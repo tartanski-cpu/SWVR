@@ -370,6 +370,15 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   // stands on it: its floor at the deckhouse's top, steps up to its aft door from the deck.
   const dhc = CONFIG.shipyard.deckhouse;
   const rnd = (v: number) => Math.round(v * 1000) / 1000;
+  // A three-facet front (decided here: the deckhouse under the house follows it too).
+  const facetTan = Math.tan((CONFIG.shipyard.facetDeg * Math.PI) / 180);
+  let facet: { centre: number; depth: number } | null = null;
+  if (d.facets) {
+    const depth = Math.round((hw - FACET_CENTRE) * facetTan * 1000) / 1000;
+    if (hw - FACET_CENTRE < 0.25) warnings.push('Her wheelhouse is too narrow for a faceted front (its middle pane would be all of it): left flat.');
+    else if (aft - front - depth < 1.6) warnings.push('Her wheelhouse is too short for a faceted front (the console\'s wings would reach too far aft): left flat.');
+    else facet = { centre: FACET_CENTRE, depth };
+  }
   let deckhouse: DeckhouseLayout | null = null;
   let dhArea = 0;
   if (d.dhLength) {
@@ -382,12 +391,19 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     // As wide as the house (owner: leaves her side decks clear, for a side door): only forward
     // of it, the house's own walls coming down to the deck. Else from its aft wall.
     const narrow = !!d.dhNarrow;
-    const z1 = narrow ? front + 0.03 : aft - 0.02;
+    // (As wide as a faceted house: on to its angled corners, so they stand on it.)
+    const z1 = narrow ? front + 0.03 + (facet?.depth ?? 0) : aft - 0.02;
     const side = SCALES.dhWidth(d.dhWidth);
-    const halfAt = (z: number) => (narrow ? Math.max(0.3, Math.min(hw, q.halfBeam(z) - dhc.edge)) : Math.max(z >= front - 0.01 ? hw : 0.3, q.halfBeam(z) - Math.max(dhc.edge, side)));
+    const plainAt = (z: number) => (narrow ? Math.max(0.3, Math.min(hw, q.halfBeam(z) - dhc.edge)) : Math.max(z >= front - 0.01 ? hw : 0.3, q.halfBeam(z) - Math.max(dhc.edge, side)));
+    // Faceted as the house is (owner): its front square across the middle, its corners cut
+    // back at the same angle from its own front (always ahead of the house's, so wider).
+    const halfAt = (z: number) => (facet ? Math.min(plainAt(z), Math.max(0.3, facet.centre + (z - z0) / facetTan)) : plainAt(z));
     const zs: number[] = [];
     for (let z = z0; z < z1 - 0.05; z += 0.25) zs.push(z);
+    // A section where the cut corner meets her side (or the set-in width), so its edge is straight.
+    if (facet) for (let z = z0; z < z1; z += 0.05) if (Math.abs(facet.centre + (z - z0) / facetTan - plainAt(z)) < 0.03) zs.push(z);
     zs.push(z1);
+    zs.sort((a, b) => a - b);
     const plan = zs.map((z): [number, number] => [rnd(z), rnd(halfAt(z))]);
     const top = rnd(Math.max(...zs.map((z) => q.deckY(z))) + SCALES.dhHeight(d.dhHeight));
     deckhouse = { z0: rnd(z0), z1: rnd(z1), top, rakeDeg: SCALES.dhRake(d.dhRake), plan };
@@ -427,12 +443,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   // A three-facet front (owner: a tug's pilot house): the middle pane square across her
   // between the mullions, the outer two angled back `facetDeg` to the side walls; the
   // console wraps round with it, its wings set back as much (sb).
-  if (d.facets) {
-    const depth = Math.round((hw - FACET_CENTRE) * Math.tan((CONFIG.shipyard.facetDeg * Math.PI) / 180) * 1000) / 1000;
-    if (hw - FACET_CENTRE < 0.25) warnings.push('Her wheelhouse is too narrow for a faceted front (its middle pane would be all of it): left flat.');
-    else if (aft - front - depth < 1.6) warnings.push('Her wheelhouse is too short for a faceted front (the console\'s wings would reach too far aft): left flat.');
-    else house.facet = { centre: FACET_CENTRE, depth };
-  }
+  if (facet) house.facet = facet;
   /** How far a faceted front is set back at x (0 across the middle; the console's wings, and what's placed beside them, follow it). */
   const sb = (x: number) => (house.facet ? (Math.max(0, Math.abs(x) - house.facet.centre) * house.facet.depth) / (hw - house.facet.centre) : 0);
   const windowRake = SCALES.windowRake(d.windowRake);

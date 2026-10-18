@@ -68,3 +68,21 @@ describe('a three-facet front', () => {
     expect(VESSEL_DEFS.design.layout.wheelhouse!.shape!.facet).toBeUndefined();
   });
 });
+
+describe('a deckhouse under a faceted house', () => {
+  it('is faceted too: its front square across the middle, its corners cut back at the same angle; always wider than the house over it', () => {
+    for (const dhNarrow of [0, 1]) {
+      useDesign({ ...typeOf(3), facets: 1, dhLength: 4, dhHeight: 1, dhWidth: 0, dhRake: 0, dhNarrow });
+      const l = VESSEL_DEFS.design.layout;
+      const dh = l.deckhouse!;
+      const wh = l.wheelhouse!;
+      const tan = Math.tan((CONFIG.shipyard.facetDeg * Math.PI) / 180);
+      // At its front, the middle only; along the cut, the angle.
+      expect(dh.plan[0][1]).toBeCloseTo(0.5, 2);
+      for (const [z, w] of dh.plan) expect(w).toBeLessThanOrEqual(0.5 + (z - dh.z0) / tan + 0.01);
+      // Under the house: at least as wide as its faceted outline.
+      const dz = facetDz(wh);
+      for (const [z, w] of dh.plan) if (z >= wh.front) for (let x = 0; x <= wh.halfWidth; x += 0.1) if (z >= wh.front + dz(x)) expect(w, `${dhNarrow} ${z}`).toBeGreaterThanOrEqual(Math.min(x, wh.halfWidth) - 0.01);
+    }
+  });
+});
