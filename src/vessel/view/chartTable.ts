@@ -68,29 +68,39 @@ export class ChartTableView {
     // On the wall: the batten the leaf hangs from.
     const wall = new THREE.Mesh(mergeParts([box(x0, x0 + 0.03, T - 0.09, T - 0.04, z0, z1, DARK)]), this.tableMat);
     wall.name = 'chartTableWall';
-    // The lamp (owner: on a stalk fixed to the table, not hung off the wall): a weighted base
-    // at the leaf's wall edge, an upright stalk, a gooseneck curving out over the chart to a
-    // small shade looking down at it. Part of the leaf: it folds down with it.
+    // The lamp (owner, from a picture: a gooseneck reading lamp fixed to the table, not hung
+    // off the wall): a round black base with a rocker switch on its face, at the leaf's wall
+    // edge; a long flexible neck rising from it and arching over; a cylindrical head on its
+    // end, aimed down and out at the chart, its lens in the open end. Part of the leaf: it
+    // folds down with it. (Not moveable yet; its switch is the one on the batten.)
     const lp = cfg.lamp;
+    const BLACK = 0x1a1c1e;
     const foot = new THREE.Vector3(x0 + 0.07, T, lp.base[1]);
-    const head = new THREE.Vector3(lp.head[0], T + lp.height - 0.05, lp.head[1]);
+    // The head's axis: down and out over the chart, 35° off the vertical.
+    const tilt = (35 * Math.PI) / 180;
+    const aim = new THREE.Vector3(Math.sin(tilt), -Math.cos(tilt), 0);
+    const mouth = new THREE.Vector3(lp.head[0], T + lp.height * 0.62, lp.head[1]);
+    const headLen = 0.1;
+    const neckEnd = mouth.clone().addScaledVector(aim, -headLen);
     const neck = new THREE.CatmullRomCurve3([
-      foot.clone().setY(T + 0.02),
-      foot.clone().setY(T + lp.height * 0.7),
-      new THREE.Vector3(foot.x + (head.x - foot.x) * 0.35, T + lp.height, foot.z),
-      new THREE.Vector3(head.x - 0.03, head.y + 0.04, head.z),
+      new THREE.Vector3(foot.x - 0.01, T + 0.035, foot.z),
+      new THREE.Vector3(foot.x - 0.005, T + lp.height * 0.6, foot.z),
+      new THREE.Vector3(foot.x + (neckEnd.x - foot.x) * 0.4, T + lp.height, foot.z),
+      new THREE.Vector3(neckEnd.x - 0.03, neckEnd.y + 0.06, neckEnd.z),
+      neckEnd,
     ]);
-    const LAMP = 0x1f4a32;
+    const along = (g: THREE.BufferGeometry, at: THREE.Vector3) => g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), aim)).translate(at.x, at.y, at.z);
     const lampParts = [
-      part(new THREE.CylinderGeometry(0.055, 0.065, 0.025, 16).translate(foot.x, T + 0.0125, foot.z), LAMP), // base
-      part(new THREE.TubeGeometry(neck, 20, 0.007, 6), 0x9aa0a6), // stalk and gooseneck
-      // The shade: a short cone, open downward, tipped a little toward the chart.
-      part(new THREE.CylinderGeometry(0.025, 0.06, 0.08, 16, 1, true).rotateZ(-0.25).translate(head.x, head.y, head.z), LAMP),
-      part(new THREE.CylinderGeometry(0.025, 0.025, 0.01, 16).rotateZ(-0.25).translate(head.x - 0.01, head.y + 0.04, head.z), LAMP),
+      part(new THREE.CylinderGeometry(0.05, 0.055, 0.035, 20).translate(foot.x, T + 0.0175, foot.z), BLACK), // base
+      box(foot.x + 0.045, foot.x + 0.056, T + 0.01, T + 0.026, foot.z - 0.012, foot.z + 0.012, 0x3a3d40), // its rocker switch
+      part(new THREE.TubeGeometry(neck, 32, 0.008, 8), BLACK), // the gooseneck
+      part(along(new THREE.CylinderGeometry(0.026, 0.024, headLen, 16, 1, true), neckEnd.clone().addScaledVector(aim, headLen / 2)), BLACK), // the head
+      part(along(new THREE.CylinderGeometry(0.016, 0.026, 0.02, 16), neckEnd), BLACK), // its back, where the neck joins
     ];
     this.bulbMat = new THREE.MeshBasicMaterial({ color: 0x4a463e });
-    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.02, 10, 6), this.bulbMat);
-    bulb.position.set(head.x + 0.008, head.y - 0.02, head.z);
+    // The lens, just inside the head's open end.
+    const bulb = new THREE.Mesh(along(new THREE.CylinderGeometry(0.021, 0.021, 0.004, 16), new THREE.Vector3()), this.bulbMat);
+    bulb.position.copy(mouth).addScaledVector(aim, -0.008);
 
     // The leaf: top, fiddle rails (outboard, forward, aft; the inboard edge stays open to
     // lean on), hinge knuckles, pen holder, dividers. In table coordinates, inside leafFrame.

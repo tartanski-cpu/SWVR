@@ -197,7 +197,7 @@ Above it, a lamp on the wall with its own small switch on the wooden batten the 
 
 - **Reading it on desktop:** aim the crosshair at the chart from the table and the view eases in, as if you leaned over it; look away and it eases back.
 - It's printed like a real chart: depth tints and contours, soundings in metres, a latitude and longitude scale in tenths of a minute around the edge, and a compass rose.
-- **At night** you need the chart table lamp (or the cabin light) to read the chart. The chart, the whiteboard and the task board go dim and red after dark, like the panels, so they don't dazzle you. The chart lamp, on a stalk fixed to the table with its gooseneck curving over the chart, is turned down to a dim red at night. With the white cabin light on they stay whitish, but dimmed.
+- **At night** you need the chart table lamp (or the cabin light) to read the chart. The chart, the whiteboard and the task board go dim and red after dark, like the panels, so they don't dazzle you. The chart lamp, a black gooseneck reading lamp standing on the table (a round base with a rocker switch, a long arching neck, a spot head aimed down at the chart), is turned down to a dim red at night. With the white cabin light on they stay whitish, but dimmed.
 
 ### Transit jobs and closing up
 
