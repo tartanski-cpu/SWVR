@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { panelLit } from '../controls/panelLighting';
 import { Cleat } from '../controls/deckGear';
-import { hasWheelhouse, type VesselDef } from '../vessel/vesselDef';
+import { hasWheelhouse, houseFloorAt, type VesselDef } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
 import type { EnvironmentState } from '../environment/environmentState';
 import type { Control } from '../controls/Control';
@@ -91,7 +91,7 @@ export class BoatView {
     const wh = layout.wheelhouse;
     if (wh) {
       this.door = new WheelhouseDoor(wh.doorWidth, wh.doorHeight, 'door', !!wh.doorHinged);
-      this.door.root.position.set(0, wh.floorY, wh.aft + 0.03);
+      this.door.root.position.set(0, houseFloorAt(wh, wh.aft), wh.aft + 0.03);
       this.root.add(this.door.root);
       // The port side door, between the console and the chart table: slides aft outside the
       // wall.

@@ -39,6 +39,13 @@ export type WheelhouseLayout = Omit<WorkboatLayout['wheelhouse'], 'sideDoor' | '
      * else (walk areas, the door, rain on the glass, module places) still reads this box.
      */
     shell?: 'oneOff';
+    /**
+     * The floor on more than one level along the house (the Alaskan 38: the raised
+     * pilothouse floor, a tread, the sunk saloon floor), each a stretch of z at a height;
+     * `floorY` where none covers (and the helm's level). houseFloorAt gives the floor at z.
+     * A level a step or more above or below the next needs a tread between (STEP_HEIGHT).
+     */
+    levels?: FloorLevel[];
     /** Steps at the aft door, where her floor is more than a step above or below the deck there. */
     steps?: DoorStep[];
     /** Where the view out through the front glass starts, above the floor (m): the top of what stands in front of it (the dash). The wipers clear the glass from there up. Unset: the front sill. */
@@ -77,6 +84,24 @@ export interface HouseShape {
    * same offset. The doors stay upright. See houseFlare.ts.
    */
   flare?: { tan: number };
+}
+
+/** A stretch of the house floor at one height (WheelhouseLayout.levels). */
+export interface FloorLevel {
+  z0: number;
+  z1: number;
+  y: number;
+}
+
+/** The house floor's height at z: the level covering it, else `floorY`. */
+export function houseFloorAt(wh: { floorY: number; levels?: FloorLevel[] }, z: number): number {
+  const l = wh.levels?.find((lv) => z >= lv.z0 && z <= lv.z1);
+  return l ? l.y : wh.floorY;
+}
+
+/** The house floor's lowest level. */
+export function houseFloorLow(wh: { floorY: number; levels?: FloorLevel[] }): number {
+  return Math.min(wh.floorY, ...(wh.levels ?? []).map((lv) => lv.y));
 }
 
 /** A step at the aft door: a tread `y` high from `z0` to `z1` (z0 < z1), across the doorway. */

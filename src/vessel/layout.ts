@@ -16,7 +16,7 @@ import { inDeckhouse } from './deckhouse';
 import { gearOf } from '../boats/sims';
 import type { GearFootprint } from '../modular/module';
 import type { HullForm } from './hullForm';
-import type { VesselDef } from './vesselDef';
+import { houseFloorAt, type VesselDef } from './vesselDef';
 
 export interface Ladder {
   bottom: number;
@@ -144,11 +144,13 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: reado
   const consoleAftAt = (x: number) => int.z0 + (wh.consoleBack ?? 0) + wh.consoleDepth + (facet ? Math.max(0, Math.abs(x) - facet.centre) * wrapK : 0);
   const doorHalf = wh.doorWidth / 2;
   const sd = wh.sideDoor;
+  // The floor's height along the house (one level, or several with treads between: levels).
+  const floorAt = (z: number) => houseFloorAt(wh, Math.min(Math.max(z, wh.front), wh.aft));
   // A deckhouse under the wheelhouse (vessel/deckhouse.ts): solid, and not walked on, for now.
   const dh = layout.deckhouse;
   const inHouseFootprint = (x: number, z: number) => Math.abs(x) <= ext.x && z >= ext.z0 && z <= ext.z1;
   // A floor sunk more than a step below the deck at the door (a Shipyard design's): steps inside.
-  const deepSunk = deckY(ext.z1) - wh.floorY > 0.35;
+  const deepSunk = deckY(ext.z1) - floorAt(ext.z1) > 0.35;
   // Furniture on the wheelhouse floor: the chart table (if she has one: a module, its plan in
   // her axes), footprint and height above the floor. Its leaf folded down against the wall,
   // only a strip along the wall is taken up.
@@ -197,7 +199,7 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: reado
     {
       // Wheelhouse floor, clear of walls and console, plus the aft doorway (out to the deck;
       // a floor sunk more than a step below the deck stops at the wall: a threshold below).
-      height: () => wh.floorY,
+      height: (_x, z) => floorAt(z),
       contains: (x, z) =>
         (Math.abs(x) <= int.x - r && z >= consoleAftAt(Math.abs(x) + r) + r && z <= int.z1 - r && !atFurniture(x, z, r) && !inSteps(x, z)) ||
         (Math.abs(x) <= doorHalf - r * 0.6 && z > int.z1 - r - 0.02 && z < (deepSunk ? int.z1 : ext.z1 + r + 0.02)) ||
@@ -271,7 +273,7 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: reado
         // Below the open deck, within the hull.
         return z <= transom && ax <= deckHalfBeam(z) && y < deckY(z) - 0.15;
       }
-      if (y < wh.floorY - 0.15) return true; // below the wheelhouse floor
+      if (y < floorAt(z) - 0.15) return true; // below the wheelhouse floor
       if (y > roofTop + 0.05) return false; // above the roof
       if (y > wh.roofY - 0.05) return true; // in the roof slab
       const inInterior = ax < int.x && z > int.z0 && z < int.z1;
@@ -281,7 +283,7 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: reado
         return z < consoleAftAt(x) && y < wh.floorY + wh.consoleHeight;
       }
       // In a wall: the doorway and window band are open.
-      const hy = y - wh.floorY;
+      const hy = y - floorAt(z);
       if (z >= int.z1 && ax < doorHalf && hy < wh.doorHeight) return false;
       if (sd && x < 0 && z > sd.z0 && z < sd.z1 && hy < sd.height) return false; // the port side doorway
       // The front's glass starts higher (frontSill, level with the dash top).

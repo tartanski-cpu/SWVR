@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { WheelhouseDef } from '../vessel/vesselDef';
+import { houseFloorLow, type WheelhouseDef } from '../vessel/vesselDef';
 
 /**
  * Draw-call saving (performance pass): the wheelhouse's small parts - switches, knobs,
@@ -85,7 +85,7 @@ export class InteriorDetail {
   update(viewer: THREE.Vector3 | null): void {
     const wh = this.def.layout.wheelhouse;
     const m = 1.2; // at the door, or leaning in at a window: show them
-    const near = !!viewer && Math.abs(viewer.x) < wh.halfWidth + m && viewer.z > wh.front - m && viewer.z < wh.aft + m && viewer.y > wh.floorY - 1;
+    const near = !!viewer && Math.abs(viewer.x) < wh.halfWidth + m && viewer.z > wh.front - m && viewer.z < wh.aft + m && viewer.y > houseFloorLow(wh) - 1;
     if (near === this.shown) return;
     this.shown = near;
     for (const o of this.small) o.visible = near;

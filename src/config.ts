@@ -1288,13 +1288,22 @@ export const CONFIG = {
           halfWidth: 1.5,
           front: -2.8,
           aft: 2.7,
+          /** The pilothouse floor (the helm's level); the saloon's is sunk (levels). */
           floorY: A38_FLOOR,
-          roofY: A38_FLOOR + 2.2,
+          /** The pilothouse roof; the saloon's is lower (house.saloon.roofY). */
+          roofY: A38_FLOOR + 2.3,
+          /** Pilothouse floor, a tread, the saloon floor (0.5 m down in two steps; the cockpit deck at the aft door is 1.02). */
+          levels: [
+            { z0: -2.8, z1: -0.5, y: A38_FLOOR },
+            { z0: -0.5, z1: -0.2, y: A38_FLOOR - 0.25 },
+            { z0: -0.2, z1: 2.7, y: A38_FLOOR - 0.5 },
+          ],
           wall: 0.06,
           doorWidth: 0.75,
           doorHeight: 1.95,
-          windowSill: 0.9,
-          windowHead: 2.0,
+          /** The pilothouse's side glass, above its floor (the saloon's: house.saloon). */
+          windowSill: 0.85,
+          windowHead: 2.05,
           /** The front sill level with the dash top (console 0.9 + dash 0.41). */
           frontSill: 1.31,
           /** Reverse-raked (leaning forward at the top), as a pilothouse front. */
@@ -1305,7 +1314,8 @@ export const CONFIG = {
           shell: 'oneOff' as const,
         },
         roof: { thickness: 0.1, overhang: 0.12, railHeight: 0, edgeMargin: 0.25 },
-        doorButtons: { x: 0.5, height: 1.1 },
+        /** The aft door's buttons: 1.1 m above the saloon floor at the door (0.5 m below the helm's floor, which this is measured from). */
+        doorButtons: { x: 0.5, height: 0.6 },
         /** The engine space is a lazarette under the cockpit deck aft, to starboard (the outboards' fuel and batteries; a hatch in the deck). */
         engineHatch: { x0: 0.2, x1: 1.0, z0: 4.6, z1: 5.4, pitDepth: 0.6 },
         bulwarkHeight: 0.45,
@@ -1316,27 +1326,35 @@ export const CONFIG = {
       },
       /**
        * Her superstructure's own parts (boats/alaskan38/view.ts; drawing only; m, vessel
-       * axes), round the house box above:
-       *   pilothouseAft  where the pilothouse's side glass ends and the saloon's begins (a
-       *                  mullion), and where the saloon's sunk floor will start (stage 3);
-       *   sideDoor       the hinged door in the pilothouse's starboard side (drawn shut);
+       * axes), round the house box above. Two roof levels, as the boat has: the pilothouse
+       * stands high forward; the saloon's lower roof runs aft from it and on over the
+       * cockpit as the overhead.
+       *   pilothouseAft  the pilothouse's aft wall (the step down into the saloon starts here);
+       *                  above the saloon roof it carries a band of aft-facing glass
+       *   sideDoor       the sliding door in the pilothouse's starboard side (drawn shut);
+       *   saloon         its roof's height; its side glass above its floor (sill, head);
        *   trunk          the trunk cabin on the foredeck, from the house front forward to
        *                  `fwd`: `inset` in from the deck edge, `height` above the deck at the
        *                  house, `fwdHeight` at its forward end (it tapers), a glass hatch;
-       *   eyebrow        the roof slab (tan: the eyebrow) reaching `visor` forward of the
-       *                  front glass and `sideOverhang` past the walls;
-       *   overhead       the roof carried aft over the cockpit to `aft`, on two posts;
-       *   radar, rodRack the radar dome and the rod rack on the overhead;
-       *   roofRail       grab rails along the roof's sides.
+       *   eyebrow        each roof slab (tan: the eyebrow) reaches `visor` ahead of the front
+       *                  glass and `sideOverhang` past the walls;
+       *   overhead       the saloon roof carried aft over the cockpit to `aft`, the hull's
+       *                  width (`halfWidth`), on a curved wing each side (the house's side
+       *                  carried aft, sweeping from the deck at `kneeFoot` up to the roof's
+       *                  aft edge), with a pair of grab handles on each wing;
+       *   radar, rodRack the radar dome on its pedestal behind the pilothouse, the rod rack
+       *                  along the overhead's aft edge;
+       *   roofRail       grab rails along the saloon roof's sides (for the tender).
        */
       house: {
         pilothouseAft: -0.5,
-        sideDoor: { z0: -1.35, z1: -0.65 },
+        sideDoor: { z0: -1.45, z1: -0.7 },
+        saloon: { roofY: A38_FLOOR - 0.5 + 2.2, sill: 1.0, head: 2.0 },
         trunk: { fwd: -4.9, height: 0.42, fwdHeight: 0.22, inset: 0.3, hatch: { z: -4.05, size: 0.55 } },
         eyebrow: { visor: 0.3, sideOverhang: 0.12 },
-        overhead: { aft: 4.6, postRadius: 0.04 },
-        radar: { z: 3.3, radius: 0.3, height: 0.22 },
-        rodRack: { z: 4.3, halfWidth: 0.9, height: 0.55, rods: 6 },
+        overhead: { aft: 4.6, halfWidth: 1.78, kneeFoot: 3.4 },
+        radar: { z: -0.15, radius: 0.3, height: 0.22, pedestal: 0.5 },
+        rodRack: { z: 4.45, halfWidth: 0.9, height: 0.55, rods: 6 },
         roofRail: { height: 0.25, spacing: 1.2 },
       },
       /** The cockpit is her working deck: lashing points along both sides. */
@@ -1359,8 +1377,8 @@ export const CONFIG = {
       exhaust: { position: [0.5, 0.0, 7.6] as [number, number, number], direction: [0, -0.1, 1] as [number, number, number] },
       /** Her hand gear: the extinguisher and torch brackets on the house's aft wall, port of the door; the binoculars on the dash top, port end. */
       stowage: {
-        extinguisher: [-0.95, A38_FLOOR + 0.58, 2.55] as [number, number, number],
-        torch: [-0.7, A38_FLOOR + 0.68, 2.575] as [number, number, number],
+        extinguisher: [-0.95, A38_FLOOR + 0.08, 2.55] as [number, number, number],
+        torch: [-0.7, A38_FLOOR + 0.18, 2.575] as [number, number, number],
         binoculars: { at: [-0.7, A38_FLOOR + 1.35, -2.26] as [number, number, number], yawDeg: 20 },
       },
       /**
@@ -1373,17 +1391,19 @@ export const CONFIG = {
         console: [0, A38_FLOOR + 0.9, -1.84] as [number, number, number],
         /** On the starboard wall by the helm, set back with the facet there. */
         breakerPanel: [1.315, A38_FLOOR + 0.6, -1.5] as [number, number, number],
-        batteryMaster: [1.05, A38_FLOOR + 0.48, 2.635] as [number, number, number],
-        batterySelector: [1.3, A38_FLOOR + 0.48, 2.635] as [number, number, number],
-        vhf: [-1.2, A38_FLOOR + 2.03, -1.9] as [number, number, number],
-        fm: [1.15, A38_FLOOR + 2.09, -1.4] as [number, number, number],
+        /** On the aft wall, above the saloon floor (0.5 m below the helm's). */
+        batteryMaster: [1.05, A38_FLOOR - 0.02, 2.635] as [number, number, number],
+        batterySelector: [1.3, A38_FLOOR - 0.02, 2.635] as [number, number, number],
+        vhf: [-1.2, A38_FLOOR + 2.13, -1.9] as [number, number, number],
+        fm: [1.15, A38_FLOOR + 2.19, -1.4] as [number, number, number],
         /** The lazarette: the recipe's drawn engine is her fuel and electrics there (the outboards drive her). */
         engineBed: [0.6, 0.6, 5.0] as [number, number, number],
         engineSpace: [-0.2, 0.5, 5.0] as [number, number, number],
         rudder: [0, -0.35, 7.9] as [number, number, number],
-        cabinLight: [0, A38_FLOOR + 2.08, 0.3] as [number, number, number],
-        searchlight: [0, A38_FLOOR + 2.3, -2.3] as [number, number, number],
-        navLights: [0, A38_FLOOR + 2.27, -1.0] as [number, number, number],
+        /** The saloon ceiling (its roof is the lower one). */
+        cabinLight: [0, A38_FLOOR + 1.6, 1.2] as [number, number, number],
+        searchlight: [0, A38_FLOOR + 2.4, -2.4] as [number, number, number],
+        navLights: [0, A38_FLOOR + 2.37, -1.0] as [number, number, number],
         cleats: { bow: -5.3, stern: 5.6 },
       },
       /**

@@ -602,8 +602,8 @@
       "config": {
         "position": [
           0,
-          3.55,
-          -2.3
+          3.65,
+          -2.4
         ]
       }
     },
@@ -612,22 +612,22 @@
       "module": "light.navigation",
       "config": {
         "mast": {
-          "footY": 3.52
+          "footY": 3.62
         },
         "lights": {
           "masthead": [
             0,
-            4.7,
+            4.8,
             -1.0
           ],
           "port": [
             -1.6,
-            3.6,
+            3.7,
             -2.0
           ],
           "starboard": [
             1.6,
-            3.6,
+            3.7,
             -2.0
           ],
           "stern": [

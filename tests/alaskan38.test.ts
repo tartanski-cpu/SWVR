@@ -10,6 +10,7 @@ import { alaskan38PropellerAt, buildAlaskan38Parts } from '../src/boats/alaskan3
 import { ONE_OFF_VIEWS } from '../src/boats/oneOffViews';
 import { RECIPES } from '../src/boats/library';
 import { CONFIG } from '../src/config';
+import { vesselWalkArea } from '../src/vessel/layout';
 import { VESSEL_DEFS } from '../src/vessel/vesselDef';
 
 describe('the Alaskan 38', () => {
@@ -56,9 +57,28 @@ describe('the Alaskan 38', () => {
     expect(box.min.z).toBeLessThan(-5.5); // the spray rails and bow rail reach the stem
     expect(box.min.y).toBeGreaterThan(-1.0); // the lower units under the bracket, not under the keel
     expect(Math.abs(box.max.x + box.min.x)).toBeLessThan(0.08); // symmetric (but for the side door's handle)
-    expect(box.max.y).toBeGreaterThan(def.layout.wheelhouse!.roofY + 0.5); // the rod rack over the roof
+    expect(box.max.y).toBeGreaterThan(CONFIG.vessels.alaskan38.house.saloon.roofY + 0.5); // the rod rack and radar over the saloon roof
     const glass = group.children.find((c) => c.name === 'alaskan38-glass') as THREE.Mesh;
     expect(glass.geometry.getAttribute('position').count).toBeGreaterThan(24 * 6); // front, sides, aft, hatch
     expect((glass.material as THREE.MeshBasicMaterial).transparent).toBe(true);
+  });
+
+  it('her house floor is walked on its levels: the helm high, two steps down into the saloon, the sill at the aft door', () => {
+    const area = vesselWalkArea(def, def.layout);
+    const wh = def.layout.wheelhouse!;
+    const lv = wh.levels!;
+    expect(area.floorsAt(0, -1.2)).toEqual([lv[0].y]); // the pilothouse
+    expect(area.floorsAt(0, -0.35)).toEqual([lv[1].y]); // the tread
+    expect(area.floorsAt(0.5, 1.5)).toEqual([lv[2].y]); // the saloon
+    // Each step is within a stride of the next: you walk down them (STEP_HEIGHT).
+    expect(area.walkable(0, -0.35, lv[0].y)).toBe(true);
+    expect(area.walkable(0, 0.0, lv[1].y)).toBe(true);
+    // Out of the aft door onto the cockpit deck, a step up.
+    const deckAtDoor = def.hull.stations.find((st) => st.z < wh.aft)!.polygon[0][1];
+    expect(area.walkable(0, wh.aft + 0.3, lv[2].y)).toBe(true);
+    expect(deckAtDoor - lv[2].y).toBeLessThan(0.4);
+    // Standing in the saloon your head is in the open, under its roof; below its floor is solid.
+    expect(area.insideSolid(0.5, lv[2].y + 1.7, 1.5)).toBe(false);
+    expect(area.insideSolid(0.5, lv[2].y - 0.3, 1.5)).toBe(true);
   });
 });
