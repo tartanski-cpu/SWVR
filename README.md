@@ -539,6 +539,13 @@ It lifts up to 800 kg out to the base boom's reach, and less the further out (it
 
 The page shows her in 3D (around her and at the helm), her figures and her sea trials, then gives her **code**: 17 characters, like `XXXXX-XXXXX-XXXXX-XX`, a few more for each piece of gear placed by hand, a deckhouse, or hull protection (older 10- to 15-character codes still work, and read with no hull protection). **Try her in the game** opens the game in her. Or add `?design=` and the code to the game's address, also on the Quest. Buying her at the boatyard in the game comes next.
 
+**Bring her into the game (Menu → Office → Your boats):**
+
+- **Your favourites:** every boat you've saved as a favourite in the Shipyard, in this browser, is listed there. **Take her** restarts the game in her. Nothing to type or paste, so it works in VR: design her in the Quest's browser, save her as a favourite, then pick her from the menu in VR (enter VR again once she's loaded).
+- **Her code:** for a boat designed on another device (the favourites stay in the browser they were saved in), type her code on the page's keypad, a laser press a character (dashes don't matter, and I, L and O read as 1, 1 and 0). **Take her** lights once the code reads as a boat; the line above the keypad says what she is.
+- **On desktop, paste:** copy her code or her **Try her in the game** link, then press Ctrl+V anywhere in the game (or the page's **Paste** button): it lands in the code line, ready to take.
+- **Now** shows the boat you're in, with **Back to the workboat**.
+
 **Design together:** press **👥 Design together** (top right), type your name and press **Start a session**, then send friends the link (**Copy link**). Everyone who opens it edits the same boat, live: a change by anyone shows for everyone. Each person has a colour and a name tag; you see where the others are pointing on the boat, and a slider someone is dragging shows their colour and name. **Undo** (Ctrl+Z) and **Redo** (Ctrl+Shift+Z) take back your own changes. There's no server and no account: the browsers talk directly, and each keeps its own copy, so the link still opens the boat later (from the copy in your browser) even when nobody else is there.
 
 **Sketches and pins:** sketches are for talking a change over, pins for deciding it.

@@ -4043,6 +4043,19 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   Found and fixed on the way: the strake was wound inside out, so only the far side showed through the bow.
 - **Not checked:** the Quest; driving onto a quay by hand; the landing craft and gillnetter with a strake, by eye (the tests build them).
 
+### Shipyard boats into the game: Office > Your boats (owner)
+
+- **The owner:** a way to bring the boats built in the Shipyard into the game, by copy and paste, and from VR, where pasting may not work in the immersive view.
+- **No paste needed in VR** (`shipyard/takeHer.ts`, menu `ui/mainMenu.ts yourBoats`, Office > Your boats):
+  - **Favourites:** the Shipyard saves them in this browser's storage (`swvr.shipyard.favourites`), which the game shares (same site), so the page lists them (5 a page, newest first, with the summary the Shipyard wrote) with **Take her** each. Designing in the Quest's browser and playing there needs no code at all.
+  - **A code typed on a keypad** in the menu (the code's 32 characters, ⌫, Clear), for a design from another device. Codes are cleaned as the Shipyard reads them (case, dashes, I/L/O). A typed code is only offered from 17 characters: the first 13 of today's code would already read as an older, shorter (version 2-5) code, i.e. some other boat. The line under it says what she is ("Pilot boat, twin engines: ready to take").
+  - **Desktop paste:** Ctrl+V anywhere in the game (not in a text box), or the page's **Paste** button (the clipboard API; the browser may refuse it, then it says to use Ctrl+V). A pasted code or a Shipyard play link (`...?design=CODE`) is taken whole, any version.
+  - **Take her** restarts the game with `?design=CODE` (as the Shipyard's own Try her in the game; `?boat=` dropped). In VR the reload ends the immersive session: enter VR again. **Now** names the boat (a favourite's name if she is one) with **Back to the workboat**.
+- `ALPHABET` is now exported from `shipyard/design.ts` for the keypad.
+- **Tests** (`menu.test.ts`): the favourites listed newest first and Take her restarts in one; typing a code (not ready at 13 characters, ready when whole, shown in groups of five); paste of a code in lower case or a play link, other text left alone. The crew tab's keypad test now names its tab (the two keypads share keys).
+- **Checked in headless Chromium:** two favourites seeded in the browser's storage; a play link pasted with Ctrl+V (a paste event) filled the code; Take her reloaded the game in her (`?design=`, her vessel type 'design'), and Now named her "Fast pilot (Shipyard)"; a picture of the menu page. No page errors. **Not checked:** the Quest (the keypad by laser, and re-entering VR after the reload).
+- **Not done / noticed:** in multiplayer the crew very likely don't get the host's Shipyard boat (each browser builds the 'design' vessel type from its own address; not tested); the boatyard purchase (buying her with the career's money) is still to come.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

@@ -112,6 +112,7 @@ import { assembleView } from '../modular/assemble';
 import { holdGroup } from '../modular/bus';
 import { HULLS, LIBRARY, RECIPES } from '../boats/library';
 import { decodeDesign } from '../shipyard/design';
+import { cleanCode, groupCode, ShipyardCodes } from '../shipyard/takeHer';
 import { DesktopPointer } from './desktopPointer';
 import { setupXR, xrSessionInfo } from './xrSession';
 import { applyPlayerIntent } from '../player/playerControl';
@@ -148,6 +149,23 @@ function restartIn(defId: string): void {
   if (defId === 'workboat') url.searchParams.delete('boat');
   else url.searchParams.set('boat', defId);
   location.assign(url.toString());
+}
+
+/** A fresh start in a Shipyard boat (the page's `?design=`): Office > Your boats (shipyard/takeHer.ts). */
+function restartInDesign(code: string): void {
+  const url = new URL(location.href);
+  url.searchParams.delete('boat');
+  url.searchParams.set('design', code);
+  location.assign(url.toString());
+}
+
+/** The browser's storage, if it lets us have it (a private window may not). */
+function browserStorage(): Storage | null {
+  try {
+    return localStorage;
+  } catch {
+    return null;
+  }
 }
 
 /** The boats you can start in (a home boat needs a wheelhouse for now). */
@@ -315,6 +333,8 @@ export class App {
   private marksSaveT = 0;
   /** Duties completed (for the tick sound when one finishes). */
   private dutiesDone = -1;
+  /** Office > Your boats: the Shipyard's favourites and the code being typed. */
+  private readonly shipyardCodes = new ShipyardCodes(browserStorage);
   private readonly noteKeys = new NoteKeyboard((text, x, y, colour) => this.pushBoardIntent('noteAdd', text, [x, y, colour]));
   /** The board's seq last saved to this browser (host / solo keeps the notes over a reload). */
   private boardSaved = -1;
@@ -454,6 +474,14 @@ export class App {
     const unlock = () => this.sound.unlock();
     window.addEventListener('pointerdown', unlock);
     window.addEventListener('keydown', unlock);
+    // Desktop: a Shipyard code (or her play link) pasted anywhere in the game goes to
+    // Office > Your boats, ready to take (shipyard/takeHer.ts).
+    window.addEventListener('paste', (e) => {
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+      const text = e.clipboardData?.getData('text') ?? '';
+      if (this.shipyardCodes.paste(text)) this.overlay.notify('Shipyard code pasted: Menu > Office > Your boats > Take her', 5);
+    });
     this.renderer.xr.addEventListener('sessionstart', unlock);
     // Menus opened in one mode don't carry over (the wrist grip disappears outside VR).
     const closePanels = () => {
@@ -1823,6 +1851,29 @@ export class App {
       leaveGame: () => {
         this.netMessage = '';
         this.leaveGame();
+      },
+      shipyardCodes: () => this.shipyardCodes,
+      takeDesign: (code) => {
+        this.overlay.notify('Restarting in her (in VR: enter VR again once she is loaded)', 4);
+        restartInDesign(code);
+      },
+      workboatAgain: () => restartIn('workboat'),
+      boatNow: () => {
+        const defId = this.world.vessels[this.testVesselId]?.defId ?? 'workboat';
+        if (defId === 'workboat') return 'The workboat';
+        if (defId === 'landingCraft') return 'The landing craft';
+        if (defId !== 'design') return defId;
+        const code = cleanCode(new URLSearchParams(location.search).get('design') ?? '');
+        const fav = this.shipyardCodes.favourites().find((f) => cleanCode(f.code) === code);
+        return fav ? `${fav.name} (Shipyard)` : `Shipyard boat ${groupCode(code)}`;
+      },
+      pasteCode: () => {
+        const clip = navigator.clipboard;
+        if (!clip?.readText) return this.overlay.notify('This browser will not let the game read the clipboard: press Ctrl+V instead', 4);
+        clip
+          .readText()
+          .then((t) => this.overlay.notify(this.shipyardCodes.paste(t) ? 'Shipyard code pasted: Take her' : 'No Shipyard code on the clipboard', 3))
+          .catch(() => this.overlay.notify('The browser would not let the game read the clipboard: press Ctrl+V instead', 4));
       },
       joinCode: () => this.joinCode,
       typeDigit: (d) => {

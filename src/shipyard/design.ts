@@ -436,7 +436,8 @@ export const DEFAULT_DESIGN: ShipDesign = {
   paint: 0,
 };
 
-const ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+/** The characters a design's code is written in (no I, L, O or U: read as 1, 1, 0, and kept out). */
+export const ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 /** Every combination of version 10's choices: its codes are the numbers 0 .. this - 1. */
 export const COMBINATIONS = FIELDS.reduce((a, f) => a * BigInt(f.steps), 1n);
 const V9_COMBINATIONS = V9_FIELDS.reduce((a, f) => a * BigInt(f.steps), 1n);

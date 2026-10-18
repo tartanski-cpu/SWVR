@@ -1,6 +1,8 @@
 import { BUSES } from '../audio/mixer';
 import { CONFIG } from '../config';
 import type { MenuPage, MenuRow, MenuSection } from './menuPanel';
+import { ALPHABET } from '../shipyard/design';
+import { groupCode, PER_PAGE, type ShipyardCodes } from '../shipyard/takeHer';
 
 /** What the menu can read and change. Implemented by the App; keeps the menu UI-only. */
 export interface MenuHost {
@@ -198,6 +200,15 @@ export interface MenuHost {
   netRole(): 'solo' | 'starting' | 'host' | 'client';
   hostGame(): void;
   leaveGame(): void;
+  /** Office > Your boats (shipyard/takeHer.ts): the favourites' page and the code being typed. */
+  shipyardCodes(): ShipyardCodes;
+  /** Restart the game in a Shipyard boat by her code; or back in the workboat. */
+  takeDesign(code: string): void;
+  workboatAgain(): void;
+  /** What she is now: "the workboat", or a Shipyard boat's name or code. */
+  boatNow(): string;
+  /** Desktop: the clipboard's code into the keypad's line. */
+  pasteCode(): void;
   /** The game code typed so far on the keypad. */
   joinCode(): string;
   typeDigit(d: string): void;
@@ -400,6 +411,10 @@ export function mainMenu(h: MenuHost): MainMenu {
           ],
         },
       ],
+    },
+    {
+      name: 'Your boats',
+      rows: yourBoats(h),
     },
     {
       name: 'Yard',
@@ -696,6 +711,60 @@ export function mainMenu(h: MenuHost): MainMenu {
       { name: 'Debug', sections: debug, hidden: () => !h.debugMenu() },
     ],
   };
+}
+
+/**
+ * Office > Your boats: take a Shipyard boat into the game (shipyard/takeHer.ts). Her
+ * favourites, from this browser, at a press each (nothing to paste in VR); or her code,
+ * typed on the keypad or pasted (desktop). Either restarts the game in her.
+ */
+function yourBoats(h: MenuHost): MenuRow[] {
+  const c = () => h.shipyardCodes();
+  const fav = (i: number): MenuRow => ({
+    label: '',
+    buttons: [
+      { text: () => (c().favouriteAt(i) ? `${c().favouriteAt(i)!.name}${c().favouriteAt(i)!.summary ? ` · ${c().favouriteAt(i)!.summary}` : ''}` : i === 0 ? 'None saved: in the Shipyard, save her as a favourite' : ''), weight: 3.2 },
+      { text: () => (c().favouriteAt(i) ? 'Take her' : ''), press: () => c().favouriteAt(i) && h.takeDesign(c().favouriteAt(i)!.code) },
+    ],
+  });
+  const key = (ch: string) => ({ text: ch, press: () => c().type(ch) });
+  return [
+    {
+      label: 'Now',
+      buttons: [
+        { text: () => h.boatNow(), weight: 2.4 },
+        { text: () => (h.boatNow() === 'The workboat' ? '' : 'Back to the workboat'), press: () => h.workboatAgain(), weight: 1.4 },
+      ],
+    },
+    { heading: 'Shipyard favourites (saved in this browser)' },
+    ...Array.from({ length: PER_PAGE }, (_, i) => fav(i)),
+    {
+      label: '',
+      buttons: [
+        { text: '◀', press: () => c().turn(-1) },
+        { text: () => `Page ${c().page + 1} of ${c().pages()}`, weight: 2 },
+        { text: '▶', press: () => c().turn(1) },
+      ],
+    },
+    { heading: 'Or type her code' },
+    {
+      label: 'Code',
+      buttons: [
+        { text: () => groupCode(c().code) || '_', weight: 3.2 },
+        { text: () => (c().check().ok ? 'Take her' : ''), active: () => c().check().ok, press: () => c().check().ok && h.takeDesign(c().code) },
+      ],
+    },
+    { label: '', buttons: [{ text: () => c().check().text }] },
+    ...[0, 8, 16, 24].map((from): MenuRow => ({ label: '', buttons: ALPHABET.slice(from, from + 8).split('').map(key) })),
+    {
+      label: '',
+      buttons: [
+        { text: '⌫', press: () => c().backspace() },
+        { text: 'Clear', press: () => c().clear() },
+        { text: 'Paste', press: () => h.pasteCode() },
+      ],
+    },
+  ];
 }
 
 export function formatHours(t: number): string {

@@ -4,6 +4,12 @@ import type { HandFrame } from '../src/controls/InteractionSystem';
 import { formatHours, mainMenu, type MainMenu, type MenuHost } from '../src/ui/mainMenu';
 import type { MenuButton } from '../src/ui/menuPanel';
 import type { WristMenu as WristMenuT } from '../src/ui/wristMenu';
+import { DEFAULT_DESIGN, encodeDesign } from '../src/shipyard/design';
+import { DESIGN_HULLS } from '../src/shipyard/build';
+import { ShipyardCodes } from '../src/shipyard/takeHer';
+
+const PILOT = encodeDesign({ ...DEFAULT_DESIGN, ...DESIGN_HULLS[3].defaults, hull: 3 } as typeof DEFAULT_DESIGN);
+const LANDER = encodeDesign(DEFAULT_DESIGN);
 
 // The menu draws onto a canvas; in Node, give it a canvas whose 2D context ignores
 // every call. Hit-testing and press logic don't depend on what gets drawn.
@@ -16,6 +22,12 @@ beforeAll(() => {
 
 function fakeHost() {
   const calls: string[] = [];
+  // Two Shipyard favourites in a pretend browser storage (Office > Your boats).
+  const saved = JSON.stringify([
+    { name: 'Pilot one', code: PILOT, savedAt: 2, picture: '', summary: '14 m · 24 kn' },
+    { name: 'Little lander', code: LANDER, savedAt: 1, picture: '', summary: '9 m' },
+  ]);
+  const yard = new ShipyardCodes(() => ({ getItem: () => saved, setItem: () => {} }));
   const state = { time: 10.5, scale: 0, sea: 1, coupling: 1, smooth: true, snap: 30, aboard: false, trials: false, dbg: false, hydro: false, probes: false, code: '', weather: 'Clear', debugMenu: true };
   const host: MenuHost = {
     timeOfDay: () => state.time,
@@ -160,6 +172,11 @@ function fakeHost() {
     netRole: () => 'solo',
     hostGame: () => calls.push('host'),
     leaveGame: () => calls.push('leave'),
+    shipyardCodes: () => yard,
+    takeDesign: (code) => calls.push(`take ${code}`),
+    workboatAgain: () => calls.push('workboat'),
+    boatNow: () => 'The workboat',
+    pasteCode: () => calls.push('paste'),
     joinCode: () => state.code,
     typeDigit: (d) => (state.code += d),
     backspace: () => (state.code = state.code.slice(0, -1)),
@@ -234,14 +251,61 @@ describe('crew tab', () => {
   it('the keypad types a game code and Join sends it', () => {
     const { host, calls, state } = fakeHost();
     const rows = mainMenu(host);
-    for (const d of ['4', '2', '0', '1', '7']) findButton(rows, d).press!();
-    findButton(rows, '⌫').press!();
-    findButton(rows, '9').press!();
+    // (Office > Your boats has a keypad too: these are the Crew tab's.)
+    for (const d of ['4', '2', '0', '1', '7']) findButton(rows, d, 'Crew').press!();
+    findButton(rows, '⌫', 'Crew').press!();
+    findButton(rows, '9', 'Crew').press!();
     expect(state.code).toBe('42019');
     expect(findButton(rows, '4 2 0 1 9')).toBeTruthy();
     findButton(rows, 'Join').press!();
     findButton(rows, 'Host a game').press!();
     expect(calls).toEqual(['join 42019', 'host']);
+  });
+});
+
+describe('office > your boats (Shipyard boats into the game)', () => {
+  it('lists the Shipyard favourites from this browser, newest first; Take her restarts in one', () => {
+    const { host, calls } = fakeHost();
+    const rows = mainMenu(host);
+    expect(findButton(rows, 'Pilot one · 14 m · 24 kn', 'Office')).toBeTruthy();
+    expect(findButton(rows, 'Little lander · 9 m', 'Office')).toBeTruthy();
+    findButton(rows, 'Take her', 'Office').press!();
+    expect(calls).toEqual([`take ${PILOT}`]);
+  });
+
+  it('her code typed on the keypad: ready only once it is whole, then Take her', () => {
+    const { host, calls } = fakeHost();
+    const rows = mainMenu(host);
+    const chars = PILOT.replace(/-/g, '').split('');
+    for (const ch of chars.slice(0, 13)) findButton(rows, ch, 'Office').press!();
+    // The first 13 characters of today's code would read as an older, shorter code: not offered.
+    expect(host.shipyardCodes().check().ok).toBe(false);
+    expect(findButton(rows, '13 characters so far', 'Office')).toBeTruthy();
+    for (const ch of chars.slice(13)) findButton(rows, ch, 'Office').press!();
+    expect(findButton(rows, PILOT, 'Office')).toBeTruthy(); // shown in groups of five, as the Shipyard prints it
+    expect(host.shipyardCodes().check().text).toMatch(/Pilot boat.*ready/);
+    findButton(rows, '⌫', 'Office').press!();
+    expect(host.shipyardCodes().check().ok).toBe(false);
+    findButton(rows, chars[19], 'Office').press!();
+    // The code row's Take her (the favourites' come first).
+    const codeRow = mainMenu(host).pages.find((p) => p.name === 'Office')!.sections!.find((s) => s.name === 'Your boats')!.rows.find((r) => 'label' in r && r.label === 'Code')!;
+    if (!('buttons' in codeRow)) throw new Error('no code row');
+    codeRow.buttons[1].press!();
+    expect(calls).toEqual([`take ${PILOT.replace(/-/g, '')}`]);
+    findButton(rows, 'Clear', 'Office').press!();
+    expect(host.shipyardCodes().code).toBe('');
+  });
+
+  it('a pasted code or play link is taken whole (lower case, dashes and all); anything else is left', () => {
+    const yard = new ShipyardCodes(() => null);
+    expect(yard.paste('hello there')).toBe(false);
+    expect(yard.code).toBe('');
+    expect(yard.paste(`  ${PILOT.toLowerCase()} `)).toBe(true);
+    expect(yard.code).toBe(PILOT.replace(/-/g, ''));
+    expect(yard.paste(`https://tartanski-cpu.github.io/SWVR/next/?design=${LANDER}`)).toBe(true);
+    expect(yard.code).toBe(LANDER.replace(/-/g, ''));
+    expect(yard.check().ok).toBe(true);
+    expect(yard.favourites()).toEqual([]);
   });
 });
 
