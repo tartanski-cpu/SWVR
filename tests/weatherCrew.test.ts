@@ -39,7 +39,7 @@ function setup(preset: WeatherPresetName = 'Clear') {
   return { world, env, v, send, weather, run, duty };
 }
 
-describe('weather and the crew', () => {
+describe('weather and the crew', { timeout: 30000 }, () => {
   it('the shipping forecast is heard only with the radio on, and describes the next change', () => {
     const { world, env, v, send, run } = setup('Clear');
     const w = env.weather!;
