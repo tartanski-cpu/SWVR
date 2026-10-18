@@ -49,7 +49,7 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | Right mouse button or Z (hold) | **Binoculars**: 7x zoom through two lens circles (Z is the key left of X, so Y on a German keyboard). Over the chart, right-drag still erases. Holding the wheel or a lever, it's free look instead (below) |
 | Y (hold) | **Wave:** your arm up over your head, swinging, for the crew to see. Overboard, it's how you call for the life ring (in VR, just wave your hand) |
 | W A S D | Walk (walls, furniture and the deck edge stop you; hold Shift to **run**) |
-| F | Toggle walk / free-fly camera (Space / C = up / down when flying) |
+| J | Debug: toggle walk / free-fly camera (Space / C = up / down when flying) |
 | Space / C at the ladder | Climb up / down (walk forward off the top onto the roof) |
 | Space (elsewhere) | **Jump**: off the boat onto a quay, from a quay aboard, or into the sea. Swimming near the hull, the swim ladder or a quay: climb out |
 | Click a cargo item | Pick it up (carried in front of you); click again to set it down |
@@ -61,7 +61,9 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | Aim **+** and click / drag | Operate the bridge controls (see below) |
 | Holding the wheel or a lever, hold the **right mouse button** | **Look round freely:** the mouse turns your view and the wheel (or lever) stays where you left it, still in your hand; no binoculars. Let go of the right button and the mouse steers again. Off the wheel, the right button is the binoculars again |
 | E | Debug: engine start / stop |
-| ↑ / ↓ | Debug: throttle/gear lever ahead / astern |
+| **F** by the wheel | **Take the helm:** you stand at the helm facing forward, held there, and drive with the arrow keys or a **game controller** (below). F again leaves it. The wheel and lever still work by mouse |
+| **Game controller** (Xbox and most others), at the helm | **Left stick** left / right: steer (the wheel follows the stick, back amidships when you let go). **RB / LB:** throttle up / down (it stops at neutral on the way through). **B:** neutral. **Right stick:** look round. **A:** take the helm / leave it (as F) |
+| ↑ / ↓ | Throttle/gear lever ahead / astern (neutral to full in about a second) |
 | ← / → | Debug: wheel to port / starboard |
 | X / G | Debug: lever to neutral / wheel amidships |
 | T | Hydrostatics + sea trials report |

@@ -4742,6 +4742,18 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **The sea's steady point** (`seaAnchor`, the players' middle) leaves cameras out: they can be anywhere.
 - **Checked:** `npm test` (110 files, 774 pass; new `tests/cameraHold.test.ts`: grab, not twice, release only by the holder, not a crew-mate or yourself or by a camera, let go when the holder leaves or it's no longer a camera, the sea's steady point, the flag through the host; the menu test has the new options), typecheck. In the game in headless Chromium: into camera mode aboard (the view in the scene, riding her, the clean screen on), flown forward and up 4.5 m, rode with her when she moved 41 m, put on a pretend VR holder's hand (lens 4 cm above and 8 cm ahead), stayed exactly there when let go (the holder ashore: put), back to being yourself aboard; a crew-mate's camera body on deck. No page errors. **Not checked:** two real players (a desktop camera and a VR holder over the network), OBS, and the Quest.
 
+### Desktop driving: a faster throttle, "F: take the helm" and a game controller (owner)
+
+- **The owner's desktop crew** found the arrow-key throttle slow, and want Xbox controller driving: walk up to the wheel (the hands still work it as before), "press F to drive", locked in position, then the left stick steers, the bumpers accelerate and decelerate, and the right stick looks round.
+- **The arrow keys:** `CONFIG.debugDriving.leverRate` 0.6 → 0.9 (neutral to full ahead in about 1.1 s); the bumpers use it too.
+- **Take the helm** (`app/App.ts updateHelmSeat`, desktop): within `CONFIG.gamepad.helmReach` (1.6 m) of her helm spot (`boardingSpot`, on foot, aboard, not as the camera) a line at the bottom says "Press F to take the helm" (`ui/helmPrompt.ts`; "Press A (or F)" with a controller). F or A: you're put at the helm facing forward and held there (no walking); F / A again, or leaving the spot (a jump), lets go. The line then lists the controls. F was the debug fly key: that's now **J**. (The deck crane's F, hoist down, still works while you're steering the crane.)
+- **The controller** (`player/gamepad.ts`, the browser's Gamepad API, "standard" layout: Xbox and most others), at the helm:
+  - left stick: the wheel follows it (`steerCurve` 1.5: gentle near the middle), back amidships when let go; centred, the arrow keys and the mouse still work the wheel;
+  - RB / LB: throttle up / down at `leverRate`, stopping at neutral on the way through; B: neutral;
+  - right stick: look round (`lookRate` 2.4 rad/s); A: take the helm or leave it;
+  - sticks have a dead zone (`deadZone` 0.15).
+- **Checked:** `npm test` (111 files, 778 pass; new `tests/gamepad.test.ts`: the dead zone, the steering curve and letting go, the bumpers, no controller), typecheck. In the game in headless Chromium with a pretend controller, stepped at 60 frames a second: A takes the helm, RB half a second 0.45, LB a second back through neutral to 0.45 astern, B neutral, the stick at 0.6 a 0.39 helm then amidships, the right stick turns the view, W doesn't walk you off, the arrow key a second 0.9, A leaves and W walks. No page errors. **Not checked:** a real Xbox controller (the browser only sees one after a button is pressed on it), and the Quest (not affected).
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

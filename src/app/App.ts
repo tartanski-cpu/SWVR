@@ -64,6 +64,8 @@ import { XRControllers } from '../player/xrControllers';
 import { HandGestures } from '../player/handGesture';
 import { OwnHands } from '../player/ownHands';
 import { CameraMode } from '../player/cameraMode';
+import { GamepadInput, PAD, padHelm, padLever, type PadState } from '../player/gamepad';
+import { HelmPrompt } from '../ui/helmPrompt';
 import type { PlayerState } from '../player/playerState';
 import { struckByPropeller } from '../rescue/propStrike';
 import { PropStrikeView } from '../rescue/propStrikeView';
@@ -423,6 +425,11 @@ export class App {
   private busyHands = { left: false, right: false };
   /** When we last let go of (or asked for) the life ring in the water (world time). */
   private ringLetGoAt = -99;
+  /** Desktop: a game controller, and standing at the helm to drive with it (F, or A). */
+  private readonly pad = new GamepadInput();
+  private atHelm = false;
+  private padSteering = false;
+  private readonly helmPrompt = new HelmPrompt();
   /** The recording camera (Menu > Crew > Be the camera; desktop): player/cameraMode.ts. */
   private readonly camMode = new CameraMode();
   /** Our field of view before we became the camera (back to it after). */
@@ -1103,6 +1110,7 @@ export class App {
     if (k.actionPressed('dropVessel')) this.pushVesselIntent('debugDrop', 0);
     // The recording camera flies on its own keys: none of the body's or the boat's here.
     const cam = this.camMode.on;
+    this.updateHelmSeat(dt, cam);
     if (k.actionPressed('flyMode') && !cam) this.desktop.toggleFly();
     if (k.actionPressed('lash') && !this.renderer.xr.isPresenting && !cam) {
       this.camera.getWorldPosition(this.tmpRay.origin);
@@ -1152,7 +1160,9 @@ export class App {
     if (!v) return;
     const k = this.keyboard;
     const cfg = CONFIG.debugDriving;
-    const leverIn = (k.action('leverAhead') ? 1 : 0) - (k.action('leverAstern') ? 1 : 0);
+    // A game controller at the helm: the bumpers work the throttle, the left stick the wheel.
+    const pad = this.atHelm && this.pad.state.connected ? this.pad.state : null;
+    const leverIn = clamp((k.action('leverAhead') ? 1 : 0) - (k.action('leverAstern') ? 1 : 0) + (pad ? padLever(pad) : 0), -1, 1);
     const helmIn = (k.action('helmStarboard') ? 1 : 0) - (k.action('helmPort') ? 1 : 0);
 
     let lever = this.signedLever(v);
@@ -1161,9 +1171,12 @@ export class App {
       // Stop briefly at the neutral detent when passing through it.
       lever = Math.sign(next) !== Math.sign(lever) && lever !== 0 ? 0 : next;
     }
-    if (k.actionPressed('leverNeutral')) lever = 0;
+    if (k.actionPressed('leverNeutral') || pad?.pressed[PAD.b]) lever = 0;
     let helm = v.controls.helm;
     if (helmIn !== 0) helm = clamp(helm + helmIn * cfg.helmRate * dt, -1, 1);
+    const stick = padHelm(pad?.lx ?? 0, this.padSteering);
+    this.padSteering = stick.steering;
+    if (stick.helm !== null && helmIn === 0) helm = stick.helm;
     if (k.actionPressed('helmMidships')) helm = 0;
     this.driveTo(id, lever, helm, leverIn !== 0);
   }
@@ -1598,7 +1611,7 @@ export class App {
       this.interaction!.steerKeys((k.action('right') ? 1 : 0) - (k.action('left') ? 1 : 0), (k.action('forward') ? 1 : 0) - (k.action('back') ? 1 : 0));
       // Its companion buttons on their keys (the deck crane's hoist, boom and hook).
       this.interaction!.steerExtras((code) => k.isDown(code));
-    } else if (!inXR && this.desktop.mode === 'walk' && !this.interaction?.desktopHeld) {
+    } else if (!inXR && this.desktop.mode === 'walk' && !this.interaction?.desktopHeld && !this.atHelm) {
       // (Not while the mouse holds a control - dragging a lever or the wheel: you stay put.)
       const { x, y, z } = this.desktop.walk;
       const c = Math.cos(p.yaw);
@@ -2676,6 +2689,47 @@ export class App {
       // Drawing on the chart only with the leaf unfolded.
       this.pointer.chart = (ray, b) => (this.chartTable?.isOpen ? tools.updateDesktop(this.chartCtx(), ray, b, this.frameDt) : { label: null, consumed: false });
     }
+  }
+
+  /**
+   * Desktop: by the wheel, "F: take the helm" (or a controller's A): you stand at the helm,
+   * facing forward, held there (no walking), and drive with the arrow keys or the controller
+   * (player/gamepad.ts); the right stick looks round. F / A again, or stepping away (a jump,
+   * boarding the skiff), leaves it. The wheel and lever can still be worked by mouse.
+   */
+  private updateHelmSeat(dt: number, cam: boolean): void {
+    const inXR = this.renderer.xr.isPresenting;
+    const pad: PadState | null = inXR ? null : this.pad.poll();
+    const p = this.world.players[this.localPlayerId];
+    const v = p?.aboardVesselId ? this.world.vessels[p.aboardVesselId] : undefined;
+    const spot = v && VESSEL_DEFS[v.defId]?.boardingSpot;
+    const near = !!spot && !inXR && !cam && (p.mode ?? 'walk') === 'walk' && Math.hypot(p.position[0] - spot[0], p.position[2] - spot[2]) < CONFIG.gamepad.helmReach;
+    if (this.atHelm && !near) this.atHelm = false;
+    const toggle = (this.keyboard.actionPressed('helm') && !this.interaction?.steering) || !!pad?.pressed[PAD.a];
+    if (toggle && near && v) {
+      this.atHelm = !this.atHelm;
+      if (this.atHelm) {
+        // At the helm, facing forward (the same spot boarding puts you).
+        this.intents.push({ playerId: this.localPlayerId, targetId: this.localPlayerId, control: 'board', value: 1, ref: v.id });
+        this.desktop.setLook(0, -0.12);
+      }
+    }
+    if (this.atHelm && pad?.connected) {
+      const r = CONFIG.gamepad.lookRate * dt;
+      this.desktop.setLook(this.desktop.lookYaw - pad.rx * r, this.desktop.lookPitch - pad.ry * r);
+    }
+    const ctl = pad?.connected;
+    this.helmPrompt.show(
+      this.atHelm
+        ? ctl
+          ? 'At the helm · left stick: steer · RB / LB: throttle · B: neutral · right stick: look · A: leave'
+          : 'At the helm · ← →: steer · ↑ ↓: throttle · X: neutral · F: leave (or plug in a game controller)'
+        : near
+          ? ctl
+            ? 'Press A (or F) to take the helm'
+            : 'Press F to take the helm'
+          : '',
+    );
   }
 
   /**

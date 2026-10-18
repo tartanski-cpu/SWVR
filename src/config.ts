@@ -2240,11 +2240,22 @@ export const CONFIG = {
   },
 
   debugDriving: {
-    /** Lever travel per second while the key is held (full range is -1..1). */
-    leverRate: 0.6,
+    /**
+     * Lever travel per second while the key (or a controller's bumper) is held (full range is
+     * -1..1): neutral to full ahead in about 1.1 s (the owner's desktop crew found 0.6 slow).
+     */
+    leverRate: 0.9,
     /** Helm travel per second while the key is held (full range is -1..1). */
     helmRate: 0.8,
   },
+
+  /**
+   * A game controller on the desktop (player/gamepad.ts): the sticks' dead zone (0..1 of
+   * their travel), the steering curve (helm = stick^steerCurve: gentle near the middle), how
+   * close to the helm (m, on deck) "F: take the helm" shows, and how fast the right stick
+   * looks round (rad/s at full deflection).
+   */
+  gamepad: { deadZone: 0.15, steerCurve: 1.5, helmReach: 1.6, lookRate: 2.4 },
 
   /** Player movement aboard and ashore. */
   locomotion: {
