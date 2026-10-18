@@ -10,7 +10,11 @@
  *
  * Wrapped (`wrap`, owner: a three-facet wheelhouse front): the dash's middle stays square
  * across and its wings, outside `centre` either side, are set back `k` m per m out, following
- * the angled outer windows; a slot on a wing is set back with it and turned to face along it.
+ * the angled outer windows. A slot on a wing is set back with it but NOT turned (owner): every
+ * control stays square to the boat, so a lever pushed forward goes forward and a joystick's
+ * forward is her bow. The pedestals under them stay square too, set back as a whole; the dash,
+ * the desk and the group plates are what angle back. Screens are the exception (`wrap.turn`,
+ * their slots): set into the dash's angled face, they turn with it, flush, facing the helm.
  */
 import * as THREE from 'three';
 import { CONFIG } from '../../config';
@@ -19,7 +23,7 @@ import { LABEL_OFFSET } from '../../modular/module';
 import type { Socket } from '../../modular/socket';
 import { part } from '../../render/geometryUtils';
 
-export type ConsoleConfig = typeof CONFIG.modules.helmConsole & { wrap?: { centre: number; k: number } };
+export type ConsoleConfig = typeof CONFIG.modules.helmConsole & { wrap?: { centre: number; k: number; turn?: string[] } };
 
 /** A wrapped dash's setback at x (m aft), and a wing's turn (deg about y): 0 across the middle. */
 const setback = (c: ConsoleConfig, x: number) => (c.wrap ? Math.max(0, Math.abs(x) - c.wrap.centre) * c.wrap.k : 0);
@@ -50,18 +54,16 @@ export const CONSOLE: ModuleDefinition<ConsoleConfig> = {
   sockets: (c) =>
     Object.entries(c.slots).map(([id, s]): Socket => {
       const [x, y, z] = s.position;
-      if (!c.wrap) return { id, type: 'panel.slot', transform: { position: s.position, rotationDeg: s.rotationDeg } };
+      // Wrapped: set back with the wing; square to the boat, unless it's a screen's (`turn`).
+      const at: [number, number, number] = [x, y, z + setback(c, x)];
+      if (!c.wrap?.turn?.includes(id)) return { id, type: 'panel.slot', transform: { position: at, rotationDeg: s.rotationDeg } };
       const [rx, ry, rz] = (s as { rotationDeg?: [number, number, number] }).rotationDeg ?? [0, 0, 0];
-      return { id, type: 'panel.slot', transform: { position: [x, y, z + setback(c, x)], rotationDeg: [rx, ry + wingYaw(c, x), rz] } };
+      return { id, type: 'panel.slot', transform: { position: at, rotationDeg: [rx, ry + wingYaw(c, x), rz] } };
     }),
   view: {
     build({ config: c }) {
       const d = c.dash;
       const staticParts = splits(c, -d.halfWidth, d.halfWidth).map(([a, b]) => box(b - a, d.top - d.bottom, d.aft - d.front, (a + b) / 2, (d.top + d.bottom) / 2, (d.front + d.aft) / 2, 0x30363b));
-      // Pedestals: from the console top down to the floor, jutting aft under the throttle
-      // and the joysticks.
-      const p = c.pedestals;
-      for (const x of p.x) staticParts.push(box(p.halfWidth * 2, -p.floor, p.aft - p.front, x, p.floor / 2, (p.aft + p.front) / 2, 0x3c4248));
       // Group plates under the switch row, a coloured strip along the forward edge of each,
       // its title on the strip.
       const top = 0.005;
@@ -82,6 +84,10 @@ export const CONSOLE: ModuleDefinition<ConsoleConfig> = {
           p.needsUpdate = true;
           g.computeVertexNormals();
         }
+      // Pedestals: from the console top down to the floor, jutting aft under the throttle
+      // and the joysticks. Square to the boat, set back as a whole with what stands on them.
+      const p = c.pedestals;
+      for (const x of p.x) staticParts.push(box(p.halfWidth * 2, -p.floor, p.aft - p.front, x, p.floor / 2, (p.aft + p.front) / 2 + setback(c, x), 0x3c4248));
       // The middle of the dash's face: the app measures how far you are from the screens.
       const dashAnchor = new THREE.Object3D();
       dashAnchor.name = 'dashAnchor';

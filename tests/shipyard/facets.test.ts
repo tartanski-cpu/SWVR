@@ -40,7 +40,7 @@ describe('a three-facet front', () => {
       expect(dz(0.5)).toBe(0);
       expect(dz(wh.halfWidth)).toBeCloseTo(f.depth, 6);
       expect(b.hull.helm.stand[2]).toBeCloseTo(flatStand, 6);
-      // The console's wings: set back as the windows are, their slots turned along them.
+      // The console's wings: set back as the windows are; their controls NOT turned (owner: square to the boat), their screens turned flush with the dash.
       const helm = RECIPES.design.modules.find((m) => m.socket === 'helm')!;
       const cc = helm.config as ConsoleConfig;
       expect(cc.wrap!.centre).toBe(0.5);
@@ -54,7 +54,8 @@ describe('a three-facet front', () => {
         else {
           wings++;
           expect(z, s.id).toBeCloseTo(flatZ + (Math.abs(x) - 0.5) * cc.wrap!.k, 6);
-          expect(Math.sign(s.transform.rotationDeg![1]), s.id).toBe(x < 0 ? 1 : -1);
+          if (cc.wrap!.turn!.includes(s.id)) expect(Math.sign(s.transform.rotationDeg![1]), s.id).toBe(x < 0 ? 1 : -1);
+          else expect(s.transform.rotationDeg ?? [0, 0, 0], s.id).toEqual(flatSlots[s.id].rotationDeg ?? [0, 0, 0]);
         }
       }
       expect(wings).toBeGreaterThan(3);

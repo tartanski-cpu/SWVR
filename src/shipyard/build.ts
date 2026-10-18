@@ -1230,7 +1230,13 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   cc.groups = cc.groups.map((gp: { x: [number, number] }) => ({ ...gp, x: gp.x.map((x) => Math.round(x * sx * 1000) / 1000) }));
   for (const slot of Object.values(cc.slots) as { position: V3 }[]) slot.position = [Math.round(slot.position[0] * sx * 1000) / 1000, slot.position[1], slot.position[2]];
   // A faceted front: the dash wraps round with it (console.standard's `wrap`), its wings set back as the outer windows are.
-  if (house.facet) cc.wrap = { centre: house.facet.centre, k: Math.round((house.facet.depth / (hw - house.facet.centre)) * 1e4) / 1e4 };
+  // Its controls stay square to her (owner: forward is forward); its screens turn with the wings, flush with the dash's face.
+  if (house.facet)
+    cc.wrap = {
+      centre: house.facet.centre,
+      k: Math.round((house.facet.depth / (hw - house.facet.centre)) * 1e4) / 1e4,
+      turn: consoleMount.modules!.filter((m) => m.module === 'instrument.screen').map((m) => m.socket),
+    };
   // The advanced instruments (taken off again below for the basic controls), and the chart table.
   recipe.modules.push(
     { socket: 'chartplotter', module: 'nav.chartplotter' },

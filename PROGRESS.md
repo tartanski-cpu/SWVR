@@ -3865,7 +3865,14 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Checked in headless Chromium:** a pilot boat with a 3 m, 1.2 m high, full-width, 30°-raked deckhouse, and set in with 0.5 m side decks, upright: views from the bow, stern and port; the wheelhouse on top, the steps up aft, no warnings. Found and fixed on the way: its faces wound inside out (invisible from outside), and its foot showing through her topsides at the bow. **Not checked:** the Quest, a phone, walking up the steps into a raised helm in the game.
 - **Next, for bigger boats (tugs), noted:** the deckhouse top walkable with rails and a ladder or stairs (the walk area's floors and ladders already do this for the workboat's roof), and an interior with a door into it.
 
-### Shipyard: a slow-revving tug diesel; twin engines drone; twins' bollard pull (owner)
+### Shipyard: a wrapped console's controls stay square to the boat (owner)
+
+- **The owner noticed** that on a faceted wheelhouse the console's wings turned the throttle (and the other controls on them) with the wing: "the controls need to be orientated with the ship so forward is forward".
+- **Now** (`modules/console/index.ts`): a slot on a wing is still set back with it, but keeps its own turn, so every control is square to the boat: the throttle pushed forward goes forward, a joystick's forward is the bow, switches flick fore and aft. The pedestals under the throttle and joysticks stay square too, set back as a whole (they were sheared with the wing). The dash, the desk and the group plates still angle back with the windows.
+- **Screens are the exception** (`wrap.turn`, set by `shipyard/build.ts` to the console's `instrument.screen` slots): set into the dash's angled face, they turn with it, flush, facing the helm. Displays, not controls.
+- **Why not move them all onto the middle segment:** it's 1 m wide (the middle pane), and the wheel, the DECK group and the horn already fill it; the throttle and the joysticks would crowd the wheel. Square on the wings, they work the same as on a flat console.
+- **Checked:** typecheck and tests (`tests/shipyard/facets.test.ts`: wing slots set back; controls' turn as on a flat console; screens turned along the wing); in the game, desktop, headless, a faceted workboat with the advanced controls: the throttle, the joysticks and switches square, the wing screens flush with the dash. **Not checked:** VR.
+
 
 - **The owner asked** for an engine with the tug in mind: a diesel of larger capacity, slower revving, for the torque a tug needs; a single installation only; lower revs all through its working range. And, while at it, twin engines to sound like two engines, with the drone as they go in and out of step.
 - **The engine** (`shipyard/build.ts ENGINES`, the fourth): "450 kW slow-revving tug diesel (big straight six, 1000 rpm; single only)", 2,200 kg with its gearbox, GBP 170 per kW (the others 120).
