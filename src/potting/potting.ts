@@ -24,7 +24,7 @@ import { sayRadio } from '../rescue/rescue';
  *     You have `pots` of them; pots are free for now, so any lost are replaced on the
  *     pallet.
  *   - Shooting: a pot let go over the side into the sea (cargoPlace in the sea, cargo.ts)
- *     becomes a shot pot: a plain record (where, when, whose, which ground, baited) and
+ *     becomes a shot pot: a plain record (where, when, whose, which ground) and
  *     no mesh while it soaks. Its marker buoy pops up `sinkTime` s later and stays,
  *     bobbing on the waves (potting/potView.ts: drawn from the records, no physics body).
  *   - Each boat's buoys have their own colour (`buoyColors`, by boat).
@@ -40,7 +40,6 @@ export interface ShotPot {
   z: number;
   /** World time it went in (s). */
   shotAt: number;
-  baited: boolean;
   /** The potting ground it's on, or null (shot elsewhere: it'll catch little). */
   ground: string | null;
   /**
@@ -169,7 +168,6 @@ export function shootPot(world: WorldState, item: CargoItem, x: number, z: numbe
     x,
     z,
     shotAt: world.time,
-    baited: !!item.pot?.baited,
     ground: groundAt(x, z)?.id ?? null,
   };
   p.shot.push(pot);
@@ -280,14 +278,15 @@ function hashStr(s: string): number {
 
 /**
  * What a pot brings up, worked out as it comes aboard (seeded by the pot and when it was
- * shot, so every peer agrees): expected = ground quality x soak (0..1) x bait x weather.
+ * shot, so every peer agrees): expected = ground quality x soak (0..1) x weather.
+ * Every pot is baited (owner, Oct 2026: the bait tub was taken out, to keep the loop simple).
  */
 export function catchFor(world: WorldState, pot: ShotPot): PotContents {
   const c = CONFIG.potting.catch;
   const g = POTTING_GROUNDS.find((x) => x.id === pot.ground);
   const quality = g?.quality ?? c.offGround;
   const wind = world.environment.weather?.now.wind ?? 0;
-  const expect = quality * soakFactor(world, pot) * (pot.baited ? 1 : c.unbaited) * (wind > c.roughWind ? c.roughFactor : 1);
+  const expect = quality * soakFactor(world, pot) * (wind > c.roughWind ? c.roughFactor : 1);
   const seed = `${pot.id}:${Math.round(pot.shotAt * 10)}`;
   const r = (k: number) => rand(hashStr(seed) * 1000 + k);
   // Each possible animal is there with probability `expect` (so at best, all of them).
@@ -297,7 +296,7 @@ export function catchFor(world: WorldState, pot: ShotPot): PotContents {
   for (let i = 0; i < c.crabMax; i++) if (r(i + 11) < expect) crab++;
   let bycatch: PotContents['bycatch'] = null;
   if (r(30) < c.bycatch) bycatch = r(31) < c.bootChance ? 'boot' : r(32) < 0.55 ? 'fish' : 'starfish';
-  return { crab, lobster, bycatch, baited: false };
+  return { crab, lobster, bycatch };
 }
 
 /** The gunwale point (vessel axes) nearest a world point: where a line comes aboard. */
@@ -379,7 +378,7 @@ export function buoyUp(world: WorldState, pot: ShotPot): boolean {
  *   potDebugAboard  debug: the pots on the pallet onto the aft deck of the target vessel
  *   potDebugGround  debug: the target vessel to the middle of the nearest potting ground
  *   potDebugReady   debug: every pot in the water soaked enough to haul (value 2: soaked its
- *                   best and baited, for the best catch the ground gives)
+ *                   best, for the best catch the ground gives)
  */
 export function applyPottingIntent(world: WorldState, intent: Intent): void {
   if (intent.control === 'pottingOn') {
@@ -395,10 +394,7 @@ export function applyPottingIntent(world: WorldState, intent: Intent): void {
   }
   if (intent.control === 'potDebugReady') {
     const full = intent.value > 1.5;
-    for (const pot of world.potting.shot) {
-      pot.shotAt = Math.min(pot.shotAt, world.time - CONFIG.potting.sinkTime - (full ? CONFIG.potting.soakBest : CONFIG.potting.soakReady));
-      if (full) pot.baited = true;
-    }
+    for (const pot of world.potting.shot) pot.shotAt = Math.min(pot.shotAt, world.time - CONFIG.potting.sinkTime - (full ? CONFIG.potting.soakBest : CONFIG.potting.soakReady));
   } else if (intent.control === 'potDebugAboard') {
     const z0 = hullPlan(VESSEL_DEFS[v.defId]).transom - 1.2;
     for (const c of Object.values(world.cargo)) {
@@ -455,7 +451,6 @@ export function quickHaulable(world: WorldState, v: VesselState): ShotPot | null
 /**
  * Quick potting intents (targetId: the vessel):
  *   potQuickLoad   the pallet's pots aboard (at the pallet's harbour), lashed
- *   potQuickBait   every pot aboard not yet baited, baited
  *   potQuickShoot  one pot from the deck over the side (starboard, a few metres off)
  *   potQuickHaul   the nearest buoy within quickHaulRange hauled: its pot on deck with its catch
  */
@@ -466,9 +461,6 @@ function applyQuickPotting(world: WorldState, v: VesselState, intent: Intent): v
       for (const c of quickPalletPots(world, v)) if (!stowOnDeck(world, v, c, x, z)) break;
       break;
     }
-    case 'potQuickBait':
-      for (const c of aboard(world, v.id)) if (isPot(c) && !c.pot?.baited) c.pot = { crab: 0, lobster: 0, bycatch: null, ...c.pot, baited: true };
-      break;
     case 'potQuickShoot': {
       const c = aboard(world, v.id).find(isPot);
       if (!c || !('vessel' in c.at)) break;
@@ -488,7 +480,7 @@ function applyQuickPotting(world: WorldState, v: VesselState, intent: Intent): v
   }
 }
 
-const HAUL_INTENTS = new Set(['potHook', 'potTow', 'potAboard', 'potHaul', 'potBait']);
+const HAUL_INTENTS = new Set(['potHook', 'potTow', 'potAboard', 'potHaul']);
 
 /**
  * Hauling and the catch (milestone 3). ref: the pot (a shot pot's id, or the pot cargo item
@@ -497,8 +489,7 @@ const HAUL_INTENTS = new Set(['potHook', 'potTow', 'potAboard', 'potHaul', 'potB
  *   potTow     args [x, z]: the hooked buoy drawn toward your hook tip (at most 3 m a go)
  *   potAboard  the buoy over the gunwale (within liftRange of the hull): the line leads in there
  *   potHaul    value m: line hauled in; at nothing left the pot comes over onto the deck
- *   potBait    bait from the tub into a pot not yet baited (the catch, if any, stays in it
- *              until it's sold ashore)
+ *              (the catch stays in it until it's sold ashore)
  */
 function applyHaulIntent(world: WorldState, intent: Intent): boolean {
   if (!HAUL_INTENTS.has(intent.control)) return false;
@@ -541,12 +532,6 @@ function applyHaulIntent(world: WorldState, intent: Intent): boolean {
       shot.haul.line = (shot.haul.line ?? 0) - Math.max(0, Math.min(5, intent.value));
       shot.haul.lastPull = world.time;
       if (shot.haul.line <= 0) landPot(world, shot, hv);
-      break;
-    }
-    case 'potBait': {
-      const item = intent.ref ? world.cargo[intent.ref] : undefined;
-      const pc = item?.pot;
-      if (item && isPot(item) && !pc?.baited) item.pot = { crab: 0, lobster: 0, bycatch: null, ...pc, baited: true };
       break;
     }
   }

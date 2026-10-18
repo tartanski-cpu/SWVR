@@ -36,7 +36,7 @@ import { sayRadio } from '../rescue/rescue';
 import { cargoPortAt } from '../cargo/cargo';
 import { significantWaveHeight } from '../ocean/waves';
 import type { TutorialState } from './tutorial';
-import { simOf } from '../boats/sims';
+import { hasModule } from '../boats/sims';
 
 export type JobKind = 'cargo' | 'fish' | 'log' | 'debris' | 'tow' | 'rescue' | 'fire' | 'crate' | 'catch';
 export type ContractKind = 'cargo' | 'fish' | 'logs';
@@ -120,6 +120,19 @@ export function repOf(c: CareerState | undefined, port: string | null | undefine
 
 export function hasUpgrade(world: WorldState, id: string): boolean {
   return !!world.career?.upgrades.includes(id);
+}
+
+/**
+ * The workboat's equipment the yard fits (CONFIG.career.upgrades with `fit`) that these
+ * upgrades haven't got: the upgrade ids. A new career has none of it (the starter boat).
+ */
+export function equipmentWithout(upgrades: readonly string[]): string[] {
+  return CONFIG.career.upgrades.filter((u) => u.fit && !upgrades.includes(u.id)).map((u) => u.id);
+}
+
+/** The sockets of the workboat's recipe left empty for that equipment (boats/sims.ts useWorkboatFit). */
+export function socketsWithout(equipment: readonly string[]): string[] {
+  return CONFIG.career.upgrades.filter((u) => u.fit && equipment.includes(u.id)).flatMap((u) => u.fit!);
 }
 
 /** The pay factor at a port: 1 at no reputation, 1 + repPayBonus at 100. */
@@ -340,9 +353,10 @@ export function buyBlocker(world: WorldState, id: string): string | null {
   if (!c || !u) return 'Unknown';
   if (c.upgrades.includes(id)) return 'Fitted';
   // Gear for something she hasn't got (the crane's motion compensation, on a boat without a crane).
-  const needs = 'needs' in u ? u.needs : undefined;
   const v = workboat(world);
-  if (needs && !(v && simOf(v.defId)?.mounts.some((m) => m.def.id === needs))) return `Needs a ${needs === 'deck.crane' ? 'deck crane' : needs}`;
+  if (u.needs && !(v && hasModule(v.defId, u.needs))) return `Needs ${u.needsName ?? u.needs}`;
+  // The yard fits the workboat's equipment to the workboat only.
+  if (u.fit && v?.defId !== 'workboat') return 'Workboat only';
   if (!officeAt(world)) return 'In port only';
   const best = Math.max(0, ...Object.values(c.rep));
   if (best < u.minRep) return `Needs reputation ${u.minRep}`;
@@ -433,6 +447,8 @@ export function parseCareer(raw: string | null): CareerState | null {
     c.ledger = o.ledger.filter((e) => e && typeof e.text === 'string' && typeof e.amount === 'number').slice(0, CONFIG.career.ledgerKeep);
     c.rep = Object.fromEntries(Object.entries(o.rep ?? {}).filter(([k, v]) => PORTS.some((p) => p.id === k) && typeof v === 'number'));
     c.upgrades = o.upgrades.filter((u) => CONFIG.career.upgrades.some((x) => x.id === u));
+    // A career saved before the starter workboat (no `kit`) had her with all her equipment.
+    if (typeof (o as { kit?: unknown }).kit !== 'number') for (const u of CONFIG.career.upgrades) if (u.fit && !c.upgrades.includes(u.id)) c.upgrades.push(u.id);
     c.contractsDone = typeof o.contractsDone === 'number' ? o.contractsDone : 0;
     if (o.tutorial && typeof o.tutorial.step === 'number') c.tutorial = { step: Math.max(0, Math.floor(o.tutorial.step)), base: 0, said: false };
     if (o.boat && typeof o.boat.damage === 'number' && typeof o.boat.wear === 'number') {
@@ -444,7 +460,10 @@ export function parseCareer(raw: string | null): CareerState | null {
   }
 }
 
-/** What's kept between sessions: money, ledger, reputation, upgrades (not offers or the contract). */
+/**
+ * What's kept between sessions: money, ledger, reputation, upgrades (not offers or the
+ * contract). `kit: 1`: the workboat's equipment is in the upgrades (see parseCareer).
+ */
 export function serializeCareer(c: CareerState): string {
-  return JSON.stringify({ money: c.money, ledger: c.ledger, rep: c.rep, upgrades: c.upgrades, contractsDone: c.contractsDone, boat: c.boat, tutorial: c.tutorial ? { step: c.tutorial.step } : undefined });
+  return JSON.stringify({ kit: 1, money: c.money, ledger: c.ledger, rep: c.rep, upgrades: c.upgrades, contractsDone: c.contractsDone, boat: c.boat, tutorial: c.tutorial ? { step: c.tutorial.step } : undefined });
 }

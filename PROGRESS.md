@@ -4260,6 +4260,57 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Now** (`fuelHose.ts pumpStart`): every START zeroes the gauge, so it reads what this run of the pump puts in her (it still zeroes when the nozzle comes off the pump, too).
 - **Test** (`fuelHose.test.ts`): two fills, the nozzle put down on the quay between them, never hung up: the second reads its own litres, as her tank does. On the old code it read 26.1 L for 6.0 L in the tank, the owner's case.
 
+### The starter workboat, and Shipyard boats ready for the game (owner)
+
+- **The owner:** keep the workboat as the boat a new game starts in, but simpler: start with less equipment and buy the rest as you earn. First the trawl gear and the skiff. Then close the gaps found when checking whether she could go:
+  - Shipyard boats get no rescue calls;
+  - the bait tub isn't needed (pots always baited, a simpler loop);
+  - basic controls have no VHF;
+  - crew joining a host in a Shipyard boat must get her;
+  - Shipyard boats have little test cover.
+- **The starter workboat:**
+  - a **new career** starts in the workboat without the **trawl gear** (A-frame, net and drum, the TRAWL switch) and without the **skiff and her crane**. Both are bought at the chandlery: `CONFIG.career.upgrades` `trawlGear` (£2,500, rep 5) and `skiff` (£4,000, rep 10). Their new `fit` field lists the sockets of her recipe the yard fits (`helm/trawl` for one in the helm console);
+  - built by `boats/library.ts setWorkboatFit` / `sims.ts useWorkboatFit`: her recipe with those sockets left empty;
+  - the tests' `workboat` is the **whole boat**, as before. The fit-out is only applied by the game (App `startFit`: from the career in the slot last used, read before the world is made, `careerSession.ts savedCareer`).
+  - **old careers keep the whole boat:** a save without `kit` (made before this) is given all the equipment (`career.ts parseCareer`); saves now carry `kit: 1`. The live game ignores `kit` and drops the new upgrade ids, so a career played there again reads back on /next/ with the whole boat. No new save keys were needed.
+  - **the refit:** when the career's equipment changes (bought, **New career**, another slot), the page starts again 2.5 s later with her refitted (App `checkRefit`; her views and controls are built once from her recipe). In VR you enter VR again; crew aboard are dropped (the host's page reloads).
+  - **Bigger trawl** and the **ice machine** now need the trawl gear aboard (`needs: 'fishing.trawl'`, with a new `needsName`). The workboat's equipment is "Workboat only" on other boats. The `needs` check now reads the whole recipe (`sims.ts hasModule`): the trawl has no simulation part, so it wasn't found before.
+  - **Debug → Boat → Start in:** Workboat (as the career has her), **Workboat, all gear** (`?fit=all`, for testing), Landing craft.
+- **Shipyard boats get the rescue calls** (`shipyard/build.ts`): a design with a **life ring** now has rescue places in her hull's fittings. Survivors come aboard over her transom's centre at the waterline and sit three abreast on the larger open deck (aft of the house, else the foredeck). The rescues already follow any home boat with rescue places; one without a life ring gets no calls.
+- **The bait tub is gone, every pot baited:**
+  - potting.ts: no `baited` on pots, no bait factor in the catch (`potting.catch.unbaited` removed), no `potBait` / `potQuickBait`;
+  - potHands.ts: the tub, the bait in hand and the pot's "bait it" action removed (and `potAction` from cargoHands);
+  - the menu's **Bait all** removed, as are `stowage.baitTub` and `CONFIG.potting.baitBox`.
+  - The catch is what a baited pot caught before.
+- **The VHF in the basic controls:** every Shipyard boat has it, to answer calls, hear the forecasts, the tutorial and the harbours (build.ts no longer takes `vhf` off for basic; the Shipyard page says so).
+- **Multiplayer: crew build the host's boat:**
+  - `world.build` (App) records her Shipyard code and the workboat's equipment left off. On the welcome the crew compare it with their own boat (`sameBoatAsHost`); if it differs, the page reloads with `?design=` / `?boat=`, `?fit=` and `?join=CODE`, builds her, and joins again by itself (`join` and its `fit` are taken off the address once read);
+  - a second mismatch, or a design with no code (an older host), is "That game is a different version";
+  - **fixed on the way:** the crew's copy of the snapshot listed the world's parts one by one and had missed the **pots**, the **fuel hoses**, the home boat and the quiet-calls switch. Crew now take every part but their own player.
+- **Tests:**
+  - **`shipyard/inTheGame.test.ts`** (31): five Shipyard boats pinned by their codes, one of each hull type with different gear and controls (a basic-controls landing craft; a gillnetter with a skiff and side door; a workboat type with crane, tow gear, searchlight and monitor; a twin pilot boat with a deckhouse; a twin tug). Each:
+    - reads back and builds with no warnings;
+    - has a diesel and fillers, a VHF, the hand gear, a life ring, boat hook and rescue seats on her deck;
+    - lies quietly at the start berth (and her skiff in its cradle);
+    - makes her pinned speed flat out (within 5 %: 19.5, 10.3, 13.2, 23.9, 10.1 kn);
+    - turns over 40° in 15 s at the helm, and loses her headway full astern within a minute;
+    - takes a survivor aboard by the life ring.
+    - Also: a design without a life ring gets no calls.
+  - **`starterWorkboat.test.ts`** (8): a new career's equipment left off; the starter boat valid, without the four modules, the rest aboard (towing, rescue, VHF, searchlight, monitor); no skiff, the TRAWL intent does nothing; each purchase brings back its own gear; the whole boat again; old and new saves; the yard selling it; Bigger trawl needing the trawl gear; "Workboat only" on a design.
+  - Changed: potting and quick-jobs tests (no bait), the Shipyard basic-controls test (VHF in basic), the career upgrade test (Bigger trawl / ice need the trawl).
+  - `npm test`: 98 files, 715 tests pass. `npm run typecheck` clean.
+- **Checked in headless Chromium:**
+  - a new browser: the starter workboat (no A-frame, no skiff, no crane; screenshots of the aft deck, the foredeck, the dash with no TRAWL or SKIFF CRANE);
+  - an old-format career: the whole boat;
+  - **New career:** refit to the starter;
+  - **trawl gear bought** in port: refit, A-frame and net aboard, £2,500 off;
+  - **Workboat, all gear**;
+  - **multiplayer**, two separate browsers over PeerJS: a host in a Shipyard design with the crew in the starter workboat (the crew's page reloaded into the design and joined again by itself, 2 aboard), and a host in the whole workboat (the crew rebuilt her with her skiff and joined). No page errors.
+- **Not checked:** the Quest (re-entering VR after a refit or a rebuild for a host).
+- **Next, if the owner wants them:**
+  - more of her equipment left off at the start (searchlight, fire monitor, the advanced instruments; a fixed towline on the post with the winch as an upgrade: that needs a new module);
+  - selling the starter boat towards a Shipyard boat (nothing yet spends career money on a design).
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

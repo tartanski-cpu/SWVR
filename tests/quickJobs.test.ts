@@ -83,21 +83,19 @@ describe('quick jobs from the menu: the same rules, no walking', () => {
     expect(world.rescue!.active).toBeNull();
   });
 
-  it('pots: loaded from the pallet, baited, shot, hauled with their catch, the catch sold at a port', () => {
+  it('pots: loaded from the pallet (baited), shot, hauled with their catch, the catch sold at a port', () => {
     const { world, v, send, at } = setup();
     send('pottingOn');
     at('calder');
     send('potQuickLoad');
     const pots = () => aboard(world, v.id).filter(isPot);
     expect(pots()).toHaveLength(CONFIG.potting.pots);
-    send('potQuickBait');
-    expect(pots().every((c) => c.pot?.baited)).toBe(true);
     const g = POTTING_GROUNDS[2];
     placeVessel(v, g.x, 0, g.z, 0);
     send('potQuickShoot');
     send('potQuickShoot');
     expect(world.potting!.shot).toHaveLength(2);
-    expect(world.potting!.shot.every((s) => s.baited && s.ground === g.id)).toBe(true);
+    expect(world.potting!.shot.every((s) => s.ground === g.id)).toBe(true);
     expect(pots()).toHaveLength(CONFIG.potting.pots - 2);
     // Not up yet (sinking): nothing to haul.
     send('potQuickHaul');
@@ -107,7 +105,7 @@ describe('quick jobs from the menu: the same rules, no walking', () => {
     send('potQuickHaul');
     expect(world.potting!.shot).toHaveLength(0);
     const hauled = pots().filter((c) => c.pot && 'crab' in c.pot && c.pot.crab + c.pot.lobster > 0);
-    // A good ground, baited and soaked its best: at least one of the two caught something.
+    // A good ground, soaked its best: at least one of the two caught something.
     expect(hauled.length).toBeGreaterThan(0);
     at('calder');
     const money0 = world.career?.money ?? 0;

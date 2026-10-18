@@ -8,7 +8,7 @@ import { buildDesign, type DesignedBoat } from '../shipyard/build';
 import { DEFAULT_DESIGN, encodeDesign, type ShipDesign } from '../shipyard/design';
 import { vesselDefFrom } from '../modular/vesselAssembly';
 import { registerVesselDefs } from '../vessel/vesselDef';
-import { createModuleLibrary, parseRecipe, validateRecipe, type Recipe } from '../modular/recipe';
+import { createModuleLibrary, parseRecipe, validateRecipe, type Mount, type Recipe } from '../modular/recipe';
 import { A_FRAME } from '../modules/aFrame';
 import { ANCHOR_WINDLASS } from '../modules/anchorWindlass';
 import { BOAT_HOOK_RACK } from '../modules/boatHookRack';
@@ -135,6 +135,30 @@ export function setDesignBoat(d: ShipDesign): DesignedBoat {
   RECIPES.design = loadRecipe(designed.recipe);
   registerVesselDefs(buildDefs);
   return designed;
+}
+
+/**
+ * The workboat as fitted out (owner, Oct 2026: a new career starts in her without some of her
+ * equipment, bought later at the yard; CONFIG.career.upgrades `fit`): her recipe without the
+ * modules in these sockets ("helm/trawl": the helm console's trawl socket). None left off:
+ * the whole boat, the tests' reference. Use boats/sims.ts `useWorkboatFit`.
+ */
+export function setWorkboatFit(without: readonly string[]): void {
+  const recipe = structuredClone(starterWorkboat) as unknown as Recipe;
+  for (const path of without) {
+    const [first, ...rest] = path.split('/');
+    let list: Mount[] | undefined = recipe.modules;
+    let socket = first;
+    for (const next of rest) {
+      list = list?.find((m) => m.socket === socket)?.modules;
+      socket = next;
+    }
+    const i = list?.findIndex((m) => m.socket === socket) ?? -1;
+    if (!list || i < 0) throw new Error(`The workboat has no module in socket '${path}'`);
+    list.splice(i, 1);
+  }
+  RECIPES.workboat = loadRecipe(recipe);
+  registerVesselDefs(buildDefs);
 }
 
 /** The design the 'design' vessel type is now. */

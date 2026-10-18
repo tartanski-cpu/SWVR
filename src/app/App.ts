@@ -82,12 +82,13 @@ import { fireAlertT } from '../fire/fire';
 import { FireView, JetView } from '../fire/fireView';
 import { WildlifeView } from '../wildlife/wildlifeView';
 import { LogView } from '../salvage/logView';
-import { CareerSession } from './careerSession';
+import { CareerSession, savedCareer } from './careerSession';
+import { equipmentWithout, socketsWithout } from '../career/career';
 import { TrawlView } from '../fishing/trawlView';
 import { InteriorDetail } from './interiorDetail';
 import { jetOn } from '../fire/fire';
 import { aFrameOf } from '../fishing/fishing';
-import { footprintsOf, gearOf, useDesign } from '../boats/sims';
+import { footprintsOf, gearOf, useDesign, useWorkboatFit } from '../boats/sims';
 import type { TowWinchApi } from '../modules/towWinch';
 import { lineLength, nearestTowTarget, towAlertT, towStatus, winchStalled } from '../tow/tow';
 import { TargetsView } from '../rescue/targetView';
@@ -113,7 +114,7 @@ import { countBoatParts } from '../debug/boatParts';
 import { assembleView } from '../modular/assemble';
 import { holdGroup } from '../modular/bus';
 import { HULLS, LIBRARY, RECIPES } from '../boats/library';
-import { decodeDesign } from '../shipyard/design';
+import { decodeDesign, encodeDesign } from '../shipyard/design';
 import { cleanCode, groupCode, ShipyardCodes } from '../shipyard/takeHer';
 import { DesktopPointer } from './desktopPointer';
 import { setupXR, xrSessionInfo } from './xrSession';
@@ -144,10 +145,19 @@ const BATTERY_KEY = 'swvr.battery';
 /** Why the page's ?design= code couldn't be read (shown once the game is up), if it couldn't. */
 let designCodeError: string | null = null;
 
-/** A fresh start in another boat (the page's `?boat=`, the rest of the address kept): a new world, her views and controls. */
+/**
+ * A fresh start in another boat (the page's `?boat=`, the rest of the address kept): a new
+ * world, her views and controls. 'workboat:all': the workboat with all her equipment, whatever
+ * the career has (`?fit=all`, for testing); 'workboat': as the career has her.
+ */
 function restartIn(defId: string): void {
   const url = new URL(location.href);
   url.searchParams.delete('design');
+  url.searchParams.delete('fit');
+  if (defId === 'workboat:all') {
+    url.searchParams.set('fit', 'all');
+    defId = 'workboat';
+  }
   if (defId === 'workboat') url.searchParams.delete('boat');
   else url.searchParams.set('boat', defId);
   location.assign(url.toString());
@@ -173,6 +183,9 @@ function browserStorage(): Storage | null {
 /** The boats you can start in (a home boat needs a wheelhouse for now). */
 const START_BOATS = ['workboat', 'landingCraft'];
 
+/** The Shipyard code of the design the game started in, if it did. */
+let startDesignCode: string | null = null;
+
 function startBoat(): string | undefined {
   // A Shipyard design (?design=CODE, shipyard/design.ts): the 'design' vessel type made her.
   const code = new URLSearchParams(location.search).get('design');
@@ -180,6 +193,7 @@ function startBoat(): string | undefined {
     const read = decodeDesign(code);
     if ('design' in read) {
       useDesign(read.design);
+      startDesignCode = encodeDesign(read.design);
       return 'design';
     }
     console.warn(`Shipyard code ${code}: ${read.error}`);
@@ -190,6 +204,32 @@ function startBoat(): string | undefined {
 }
 /** ...and the number of rescues completed. */
 const RESCUES_KEY = 'swvr.rescues';
+
+/**
+ * The workboat's equipment she starts without (career upgrade ids, CONFIG.career.upgrades
+ * `fit`; owner, Oct 2026: a new career starts in a simpler workboat and buys the rest at the
+ * yard). The page's `?fit=` says what's fitted (a list, or "all"; Debug > Start in, and crew
+ * joining a host build the host's boat with it); else the career in the slot last used: a
+ * new career has none of it, one saved before this has it all (career.ts parseCareer).
+ */
+function startFit(): string[] {
+  const p = new URLSearchParams(location.search).get('fit');
+  if (p === 'all') return [];
+  if (p !== null) return equipmentWithout(p.split(','));
+  return equipmentWithout(savedCareer()?.upgrades ?? []);
+}
+
+/** The page's `?join=` (a crew-mate's page reloaded to build the host's boat): the game to join. */
+const START_JOIN = new URLSearchParams(location.search).get('join');
+
+/** The address without the start-up parameters that are only for this load (join, and the fit that came with it). */
+function forgetStartParams(): void {
+  const url = new URL(location.href);
+  if (!url.searchParams.has('join')) return;
+  url.searchParams.delete('join');
+  url.searchParams.delete('fit');
+  history.replaceState(null, '', url.toString());
+}
 
 
 export class App {
@@ -390,6 +430,12 @@ export class App {
   /** Hosting: waiting for the PeerJS server to register the room code. */
   private hostStarting = false;
   private joinCode = '';
+  /** How our home boat was built (world.build as it was made here): crew joining compare theirs. */
+  private builtAs: NonNullable<WorldState['build']> = {};
+  /** The workboat's equipment the career wanted when last looked (null: not looked yet); see checkRefit. */
+  private fitWanted: string | null = null;
+  /** A refit under way: the page reloads at this time (ms). */
+  private refitAt = 0;
   private netMessage = '';
   private poseTimer = 0;
   private readonly avatars = new AvatarsView(this.scene);
@@ -415,8 +461,15 @@ export class App {
       CONFIG.render.far,
     );
 
-    const created = createWorld(this.ids, startBoat(), { tender: true, cold: true, weather: true, tows: true, fires: true, logs: true, harbour: true });
+    const boat = startBoat() ?? CONFIG.testScene.vesselDefId;
+    // The workboat fitted out as the career has her (a design or the landing craft as they are).
+    const without = boat === 'workboat' ? startFit() : [];
+    useWorkboatFit(socketsWithout(without));
+    forgetStartParams();
+    const created = createWorld(this.ids, boat, { tender: true, cold: true, weather: true, tows: true, fires: true, logs: true, harbour: true });
     this.world = created.world;
+    this.world.build = { ...(startDesignCode && boat === 'design' ? { design: startDesignCode } : {}), ...(without.length ? { without } : {}) };
+    this.builtAs = structuredClone(this.world.build);
     this.localPlayerId = created.localPlayerId;
     this.soloPlayerId = created.localPlayerId;
     this.testVesselId = created.vesselId;
@@ -466,7 +519,6 @@ export class App {
     const stowage = VESSEL_DEFS[this.world.vessels[this.testVesselId].defId].stowage;
     if (tugView && stowage?.binoculars) this.binoculars.stow(tugView.root, stowage.binoculars.at, stowage.binoculars.yawDeg);
     if (tugView) for (const g of this.gear) if (stowage?.[g.kind]) g.mount(tugView.root, stowage[g.kind]!);
-    if (tugView) this.potHands.mount(tugView.root, this.scene, this.world.vessels[this.testVesselId].defId);
     this.scene.add(this.handGearView.root);
     this.scene.add(this.towline.root, this.painter.root, this.fireView.root, this.jetView.root, this.logView.root, this.trawlView.root, this.potView.root, this.fuelView.root);
     this.setupBridge();
@@ -802,8 +854,6 @@ export class App {
     this.logView.update(this.world, this.renderWaves, renderTime);
     this.trawlView.update(this.world, this.vesselRoots.get(this.testVesselId) ?? null, this.renderWaves, renderTime);
     this.potView.update(this.world, this.renderWaves, this.world.time, this.focus, darkness, this.vesselRoots);
-    // The bait tub only while potting's on.
-    this.potHands.tub.visible = !!this.world.potting && this.potHands.hasTub;
     // Potting switched on in Settings: on in our game too, if it's ours (alone or hosting).
     if (userSettings.potting && !this.world.potting && (this.host || !this.client)) this.pushVesselIntent('pottingOn', 1);
     this.fireView.update(this.world, this.renderWaves, renderTime, dt);
@@ -875,6 +925,7 @@ export class App {
     }
     this.updateChartTable(testVessel, dt);
     this.career.tick();
+    this.checkRefit();
     // Host / solo: keep the rescue count in this browser too.
     const done = this.world.rescue?.completed ?? 0;
     if (!this.client && done !== this.rescuesSaved) {
@@ -1803,7 +1854,10 @@ export class App {
         if (this.world.players[this.localPlayerId].aboardVesselId !== this.testVesselId) this.toggleBoardTo(true);
         this.overlay.notify(port.cargo.berth ? `${port.name}: at the cargo berth, make fast at the cleats` : `${port.name}: in the bay, let go the anchor`, 3);
       },
-      homeBoat: () => this.world.vessels[this.testVesselId]?.defId ?? 'workboat',
+      homeBoat: () => {
+        const defId = this.world.vessels[this.testVesselId]?.defId ?? 'workboat';
+        return defId === 'workboat' && new URLSearchParams(location.search).get('fit') === 'all' ? 'workboat:all' : defId;
+      },
       setHomeBoat: (defId) => restartIn(defId),
       seaTrialsShown: () => this.trialsPanel.shown,
       toggleSeaTrials: () => this.toggleSeaTrials(),
@@ -1833,7 +1887,7 @@ export class App {
       },
       potsReady: (full) => {
         this.pushVesselIntent('potDebugReady', full ? 2 : 1);
-        this.overlay.notify(full ? 'Pots in the water: baited and soaked their best (a full catch on a good ground)' : 'Pots in the water: ready to haul', 2.5);
+        this.overlay.notify(full ? 'Pots in the water: soaked their best (a full catch on a good ground)' : 'Pots in the water: ready to haul', 2.5);
       },
       potsOnPlotter: () => !!this.homeView?.chart?.showPots,
       togglePotsOnPlotter: () => {
@@ -1908,27 +1962,11 @@ export class App {
     client.sendIntents(remote);
     const snap = client.latest;
     if (snap) {
-      const w = this.world;
-      w.tick = snap.tick;
-      w.time = snap.time;
-      w.environment = snap.environment;
-      w.vessels = snap.vessels;
-      w.cargo = snap.cargo;
-      w.cargoSeq = snap.cargoSeq;
-      w.deliveries = snap.deliveries;
-      w.rescue = snap.rescue;
-      w.board = snap.board;
-      w.duties = snap.duties;
-      w.forecast = snap.forecast;
-      w.traffic = snap.traffic;
-      w.tow = snap.tow;
-      w.fire = snap.fire;
-      w.salvage = snap.salvage;
-      w.fishing = snap.fishing;
-      w.career = snap.career;
-      w.lost = snap.lost;
-      w.geography = snap.geography;
-      w.players = { ...snap.players, [this.localPlayerId]: me };
+      // All of it (the pots and the fuel hoses too: they were missed when listed one by
+      // one), but our own body, which is ours.
+      const w = this.world as unknown as Record<string, unknown>;
+      for (const [k, val] of Object.entries(snap)) if (k !== 'players') w[k] = val;
+      this.world.players = { ...snap.players, [this.localPlayerId]: me };
     }
     this.syncVesselViews();
     const renderTime = Math.max(0, client.renderTime());
@@ -2069,6 +2107,8 @@ export class App {
     client.onWelcome = (playerId, world, chart) => {
       // The host's chart: their marks replace ours while we're aboard their boat.
       this.marks = chart ? { strokes: chart.strokes, tokens: chart.tokens ?? [], seq: this.marks.seq + 1 } : createMarks();
+      // The host's boat built here as theirs is (else we start again in hers and join again).
+      if (!this.sameBoatAsHost(world)) return;
       // Same boats on both sides (tows come and go, so they don't count).
       if (!Object.values(world.vessels).every((v) => this.vesselViews.has(v.id) || VESSEL_DEFS[v.defId]?.tow)) {
         this.netMessage = 'That game is a different version';
@@ -2084,6 +2124,74 @@ export class App {
       this.netMessage = reason;
       this.toSolo();
     };
+  }
+
+  /** The workboat's equipment the career has not got (upgrade ids, comma-joined), or null if she isn't the workboat. */
+  private wantedFit(): string | null {
+    const c = this.world.career;
+    return c && this.world.vessels[this.testVesselId]?.defId === 'workboat' ? equipmentWithout(c.upgrades).join(',') : null;
+  }
+
+  /**
+   * The yard refits her (host / solo): when the career's equipment changes (bought at the
+   * yard, a new career, another slot) and she's built otherwise, the page starts again with
+   * her refitted (her views and controls are built once, from her recipe). The career is
+   * saved first (it's saved as it changes).
+   */
+  private checkRefit(): void {
+    if (this.refitAt) {
+      if (performance.now() < this.refitAt) return;
+      this.refitAt = 0;
+      const url = new URL(location.href);
+      url.searchParams.delete('fit');
+      location.assign(url.toString());
+      return;
+    }
+    if (this.client) return;
+    const want = this.wantedFit();
+    if (this.fitWanted === null || want === null) {
+      this.fitWanted = want;
+      return;
+    }
+    if (want === this.fitWanted) return;
+    this.fitWanted = want;
+    if (want === (this.builtAs.without ?? []).join(',')) return;
+    this.overlay.notify('The yard fits her out: the game starts again with her new equipment', 4);
+    this.refitAt = performance.now() + 2500;
+  }
+
+  /**
+   * A crew-mate's check on the host's welcome: is their boat built as ours? If not, the page
+   * starts again building hers (her Shipyard code, the workboat's fit-out) and joins again.
+   * Returns false if we're leaving for that.
+   */
+  private sameBoatAsHost(world: WorldState): boolean {
+    const home = world.homeVesselId ? world.vessels[world.homeVesselId] : undefined;
+    const theirs = home?.defId ?? 'workboat';
+    const b = world.build ?? {};
+    const ours = this.world.vessels[this.testVesselId]?.defId;
+    const same = theirs === ours && (b.design ?? '') === (this.builtAs.design ?? '') && (b.without ?? []).join(',') === (this.builtAs.without ?? []).join(',');
+    if (same) return true;
+    // Already rebuilt for this game once (or her code can't be read): a different version.
+    const buildable = (theirs !== 'design' || !!b.design) && !!RECIPES[theirs];
+    if (START_JOIN === this.joinCode || !buildable) {
+      this.netMessage = 'That game is a different version';
+      this.leaveGame();
+      return false;
+    }
+    const url = new URL(location.href);
+    for (const k of ['design', 'boat', 'fit']) url.searchParams.delete(k);
+    if (theirs === 'design') url.searchParams.set('design', b.design!);
+    else if (theirs !== 'workboat') url.searchParams.set('boat', theirs);
+    if (theirs === 'workboat') {
+      const fitted = CONFIG.career.upgrades.filter((u) => u.fit && !(b.without ?? []).includes(u.id)).map((u) => u.id);
+      url.searchParams.set('fit', b.without?.length ? fitted.join(',') : 'all');
+    }
+    url.searchParams.set('join', this.joinCode);
+    this.overlay.notify("Building the host's boat: joining again in a moment", 4);
+    this.leaveGame();
+    setTimeout(() => location.assign(url.toString()), 1500);
+    return false;
   }
 
   /** Stop hosting, or leave the game we joined; play on alone from where things are. */
@@ -2102,6 +2210,8 @@ export class App {
 
   private toSolo(): void {
     this.client = null;
+    // The host's career is in our world now: it's not a refit of ours.
+    this.fitWanted = null;
     for (const id of Object.keys(this.world.players)) {
       if (id === this.localPlayerId) continue;
       dropCarried(this.world, id);
@@ -2201,6 +2311,7 @@ export class App {
       // The career (money, reputation, upgrades, her condition) carries on from the last
       // session here, in the slot last used. A first career starts with the first voyage.
       if (!this.client) this.career.restore();
+      this.fitWanted = this.wantedFit();
       this.joinCode = localStorage.getItem(LAST_CODE_KEY) ?? '';
       if (!this.client) this.marks = parseMarks(localStorage.getItem(CHART_KEY)) ?? this.marks;
       this.world.board ??= parseBoard(localStorage.getItem(BOARD_KEY)) ?? undefined;
@@ -2209,6 +2320,11 @@ export class App {
       if (Number.isFinite(n) && n > 0) (this.world.rescue ??= createRescueState()).completed = Math.floor(n);
     } catch {
       // No storage: an empty board, no count.
+    }
+    // Started again to build the host's boat: join their game again.
+    if (START_JOIN) {
+      this.joinCode = START_JOIN;
+      setTimeout(() => this.joinGame(), 500);
     }
     this.interaction = new InteractionSystem(
       // Every boat's controls (the home boat's first), the crane's buttons, the gear brackets.
@@ -2375,7 +2491,7 @@ export class App {
         // the mouse already holds rescue gear or cargo.
         const free = !this.cargoHands.carrying;
         const board = free && !this.rescueHands.deskBusy && this.board ? this.board.label(this.boardCtx(), ray) : null;
-        // Pot work (the buoy on the hook, the line, the bait tub) before the rescue gear's own label.
+        // Pot work (the buoy on the hook, the line) before the rescue gear's own label.
         // The fuel nozzle (carried in front of us while held) and the pump's buttons.
         const fuel = free && !board && !this.rescueHands.deskBusy ? this.fuelHands.label(this.fuelCtx(), ray, this.frameDt) : null;
         const pots = free && !board && !fuel && this.world.potting ? this.potHands.updateDesktop(this.potCtx(), ray, this.frameDt) : null;
@@ -2388,13 +2504,7 @@ export class App {
         if (!this.cargoHands.carrying && !this.rescueHands.deskBusy && this.fuelHands.click(this.fuelCtx(), ray)) return true;
         if (!this.cargoHands.carrying && this.world.potting && this.potHands.desktopClick(this.potCtx(), ray)) return true;
         if (!this.cargoHands.carrying && this.rescueHands.desktopClick(this.rescueCtx(), ray, this.headFwd)) return true;
-        const took = this.cargoHands.desktopClick(this.cargoCtx(), ray);
-        // Bait in hand goes into a pot (above) or is dropped by any other click.
-        if (this.potHands.bait === 'desk') {
-          this.potHands.dropBait();
-          if (!took) this.overlay.notify('Bait dropped', 2);
-        }
-        return took;
+        return this.cargoHands.desktopClick(this.cargoCtx(), ray);
       },
     };
   }
@@ -2861,12 +2971,6 @@ export class App {
         this.pushVesselIntent('potQuickLoad', 1);
         return say(`Loading ${n(k, 'pot')} from the pallet, lashed down`);
       }
-      case 'potBait': {
-        const k = pots.filter((c) => !c.pot?.baited).length;
-        if (!k) return say(pots.length ? 'All the pots aboard are baited' : 'No pots aboard');
-        this.pushVesselIntent('potQuickBait', 1);
-        return say(`Baited ${n(k, 'pot')}`);
-      }
       case 'potShoot': {
         if (!pots.length) return say('No pots aboard');
         this.pushVesselIntent('potQuickShoot', 1);
@@ -2993,7 +3097,6 @@ export class App {
       notify: (text) => this.overlay.notify(text, 2.5),
       pulse: (h, i, ms) => this.xrInput.pulse(h, i, ms),
       placedOnDeck: () => this.sound.rescue.snap(),
-      potAction: this.world.potting ? (c, doIt) => this.potHands.potAction(this.potCtx(), c, doIt) : undefined,
     };
   }
 

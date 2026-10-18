@@ -82,6 +82,12 @@ export interface WorldState {
   /** The career: money, ledger, reputation, contracts, upgrades (career/career.ts). */
   career?: CareerState;
   /**
+   * How the home boat was built, so crew who join build her the same (net: the welcome):
+   * her Shipyard code if she's a design, and the workboat's equipment she was fitted out
+   * without (career upgrade ids, CareerUpgrade.fit). Absent: as her vessel type has it.
+   */
+  build?: { design?: string; without?: string[] };
+  /**
    * No new emergency calls (rescues, tows, fires) while set: the menu's Voyage tab,
    * "Emergency calls: Off" (owner request: a way to quieten the VHF). A call already
    * ringing still runs its course. Forecasts and harbour chatter carry on.

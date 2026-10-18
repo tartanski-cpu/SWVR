@@ -1040,6 +1040,20 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
       const z = za + (zb - za) * f;
       lashPoints.push([Math.round(side * (q.halfBeam(z) - 0.25) * 100) / 100, Math.round(z * 100) / 100]);
     }
+  // Her rescue places (owner, Oct 2026: a Shipyard boat with a life ring gets the rescue
+  // calls, as the workboat does): survivors on the line come aboard over the transom's
+  // centre at the waterline (`stern`), and sit on the larger open deck, three abreast.
+  const seatZ = r2(aftDeck >= 1.5 ? (aft + transom) / 2 : (stem + front) / 2);
+  const seatX = r2(Math.min(0.9, q.halfBeam(seatZ) - 0.5));
+  const rescueGear = ring
+    ? {
+        ringStow: ring.stow,
+        ringCleat: ring.cleat,
+        hookStow: ring.hook,
+        stern: [0, 0.2, r2(transom - 0.05)] as V3,
+        seats: [[-seatX, seatZ], [seatX, seatZ], [0, r2(seatZ - 0.2)]] as [number, number][],
+      }
+    : undefined;
   const hull: HullDefinition = {
     id: 'hull.design',
     version: 1,
@@ -1075,6 +1089,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
         binoculars: { at: [-(hw - 0.35), F + 1.35, front + 0.14 + sb(hw - 0.35)], yawDeg: 20 },
       },
       livery: liveryOf(d),
+      ...(rescueGear ? { rescueGear } : {}),
     },
     sockets,
     provides: [{ power: 'electrical', circuits: BREAKERS }],
@@ -1227,13 +1242,14 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   if (chartTableAt) recipe.modules.push({ socket: 'chartTable', module: 'furniture.chart-table' });
   if (!d.controls) {
     // Basic: wheel, throttle, starting (key, START, the lamps and the card), speed with
-    // depth, rpm. No lights, searchlight, horn, wipers, heading, engine monitor, VHF or FM radio.
+    // depth, rpm, and the VHF (owner, Oct 2026: every boat answers calls, hears the forecasts
+    // and the harbours). No lights, searchlight, horn, wipers, heading, engine monitor or FM radio.
     // The searchlight's and monitor's controls stay if they're worked from here.
     const keep = ['wheel', 'throttle', 'start', 'key', 'lamps', 'card', 'speed', 'rpm', 'spotlight', 'spotJoystick', 'firePump', 'monJoystick', 'anchor'];
     consoleMount.modules = consoleMount.modules!.filter((m) => keep.includes(m.socket));
     cc.groups = cc.groups.filter((gp: { title: string }) => ['ENGINE', 'SEARCH', 'FIRE', 'SEARCH · FIRE', 'DECK'].includes(gp.title));
     // (The FM set and the advanced instruments come with the advanced controls, owner.)
-    recipe.modules = recipe.modules.filter((m) => !['cabinLight', 'horn', 'wipers', 'vhf', 'fm', 'navLights', 'chartplotter', 'navDisplay', 'whiteboard', 'dutyBoard', 'overhead', 'floodFore', 'floodAft'].includes(m.socket));
+    recipe.modules = recipe.modules.filter((m) => !['cabinLight', 'horn', 'wipers', 'fm', 'navLights', 'chartplotter', 'navDisplay', 'whiteboard', 'dutyBoard', 'overhead', 'floodFore', 'floodAft'].includes(m.socket));
   }
   if (hasMonitor && !monitorFoot) {
     // The roof monitor's FIRE gauge on the console, between the two joysticks.

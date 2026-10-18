@@ -225,14 +225,14 @@ describe('potting, milestone 3: hauling and the catch', () => {
     expect(local.x).toBeGreaterThan(1.5);
   });
 
-  it('the catch stays in the pot; set down on a harbour quay it is sold, lobster for more than crab; baited, it fishes better', () => {
+  it('the catch stays in the pot; set down on a harbour quay it is sold, lobster for more than crab; on a ground it fishes far better than off one', () => {
     const { world, v, send, shot } = readyPot();
     send('potHook', 1, shot.id, v.id);
     shot.haul = { by: Object.keys(world.players)[0], phase: 'line', vessel: v.id, lead: [2.2, 1.3, 3], line: 0.5, lastPull: world.time };
     send('potHaul', 1, shot.id, v.id);
     const item = world.cargo[shot.id];
     // Force a known haul to check the sale.
-    item.pot = { crab: 3, lobster: 1, bycatch: 'boot', baited: false };
+    item.pot = { crab: 3, lobster: 1, bycatch: 'boot' };
     const money0 = world.career?.money ?? 0;
     // Carried ashore and set down on the Calder Haven quay (by the pallet).
     send('cargoTake', 1, item.id, v.id);
@@ -246,19 +246,17 @@ describe('potting, milestone 3: hauling and the catch', () => {
     expect(paid).toBe(Math.round(paid)); // a whole sum
     expect(world.career!.ledger[0].text).toMatch(/1 lobster, 3 crabs sold at Calder/);
     expect(CONFIG.potting.price.lobster).toBeGreaterThan(CONFIG.potting.price.crab * 3);
-    send('potBait', 1, item.id, v.id);
-    expect(item.pot!.baited).toBe(true);
-    // Baited vs not, same everything else: more on average.
-    const base = { id: 'p', owner: v.id, x: 0, z: 0, shotAt: world.time - 1e5, ground: POTTING_GROUNDS[2].id };
-    let baited = 0;
-    let plain = 0;
+    // Every pot is baited (no bait tub): on a good ground, soaked, it fishes far better than off one.
+    const base = { id: 'p', owner: v.id, x: 0, z: 0, shotAt: world.time - 1e5 };
+    let onGround = 0;
+    let off = 0;
     for (let i = 0; i < 200; i++) {
-      const b = catchFor(world, { ...base, id: `p${i}`, baited: true });
-      const n = catchFor(world, { ...base, id: `p${i}`, baited: false });
-      baited += b.crab + b.lobster;
-      plain += n.crab + n.lobster;
+      const b = catchFor(world, { ...base, id: `p${i}`, ground: POTTING_GROUNDS[2].id });
+      const n = catchFor(world, { ...base, id: `p${i}`, ground: null });
+      onGround += b.crab + b.lobster;
+      off += n.crab + n.lobster;
     }
-    expect(baited).toBeGreaterThan(plain * 1.8);
+    expect(onGround).toBeGreaterThan(off * 1.8);
   });
 
   it('let the hook go and the buoy comes off it; in a heavy swell an idle line slips back', () => {

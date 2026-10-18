@@ -60,7 +60,7 @@ export interface CargoItem {
   from: string;
   to: string;
   at: CargoAt;
-  /** A pot hauled up (potting): what's in it, whether it's baited. */
+  /** A pot hauled up (potting): what's in it. */
   pot?: PotContents;
 }
 
@@ -69,8 +69,6 @@ export interface PotContents {
   crab: number;
   lobster: number;
   bycatch: 'fish' | 'starfish' | 'boot' | null;
-  /** Bait in it (from the bait tub): it'll fish better next time it's shot. */
-  baited: boolean;
 }
 
 /** Placement target for 'cargoPlace' meaning "ashore / in the sea" rather than a vessel. */
@@ -737,8 +735,7 @@ export function cargoLabel(item: CargoItem): string {
   if (isPot(item)) {
     const p = item.pot;
     if (p && (p.crab || p.lobster)) return `Lobster pot: ${catchText(p.crab, p.lobster)}: set it down on a harbour quay to sell`;
-    if (p?.baited) return 'Lobster pot, baited: shoot it over the side on a potting ground';
-    return `Lobster pot ${item.mass} kg: bait it, then shoot it over the side on a potting ground`;
+    return `Lobster pot ${item.mass} kg, baited: shoot it over the side on a potting ground`;
   }
   const to = item.to === 'any' ? 'any harbour' : portById(item.to)?.name.replace(' (anchorage)', '');
   return `${k.name} ${item.mass} kg → ${to}`;

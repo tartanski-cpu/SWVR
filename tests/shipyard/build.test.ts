@@ -44,7 +44,7 @@ describe('Shipyard: the boats it builds', () => {
       }
   });
 
-  it('basic controls are the wheel, throttle, starting, speed and depth, rpm; advanced adds the rest', () => {
+  it('basic controls are the wheel, throttle, starting, speed and depth, rpm and the VHF; advanced adds the rest', () => {
     const ids = (controls: number) => {
       useDesign({ ...DEFAULT_DESIGN, controls, searchlight: 0 });
       return flattenMounts(RECIPES.design, LIBRARY.hulls, LIBRARY.modules).mounted.map((m) => m.def.id);
@@ -53,7 +53,9 @@ describe('Shipyard: the boats it builds', () => {
     const advanced = ids(1);
     for (const id of ['control.wheel', 'control.throttle-lever', 'control.key-switch', 'propulsion.diesel-inboard']) expect(basic).toContain(id);
     expect(basic.filter((id) => id === 'instrument.screen').length).toBe(2);
-    for (const id of ['radio.vhf', 'radio.fm', 'light.navigation', 'nav.chartplotter', 'furniture.whiteboard', 'furniture.duty-board']) {
+    // Every boat has a VHF (owner, Oct 2026): she answers calls, hears the forecasts.
+    expect(basic).toContain('radio.vhf');
+    for (const id of ['radio.fm', 'light.navigation', 'nav.chartplotter', 'furniture.whiteboard', 'furniture.duty-board']) {
       expect(basic).not.toContain(id);
       expect(advanced).toContain(id);
     }

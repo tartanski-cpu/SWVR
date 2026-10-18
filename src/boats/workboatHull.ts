@@ -97,7 +97,7 @@ export const WORKBOAT_HULL: HullDefinition = {
   fittings: {
     exhaust: wb.exhaust,
     rescueGear: wb.rescueGear,
-    stowage: { extinguisher: CONFIG.handGear.extinguisher.bracket, torch: CONFIG.handGear.torch.bracket, binoculars: { at: CONFIG.binoculars.stow, yawDeg: CONFIG.binoculars.stowYawDeg }, baitTub: CONFIG.potting.baitBox },
+    stowage: { extinguisher: CONFIG.handGear.extinguisher.bracket, torch: CONFIG.handGear.torch.bracket, binoculars: { at: CONFIG.binoculars.stow, yawDeg: CONFIG.binoculars.stowYawDeg } },
   },
   sockets: [
     { id: 'helm', type: 'helm.console', transform: { position: wb.bridge.console.position }, label: 'Helm console, across the front of the wheelhouse' },

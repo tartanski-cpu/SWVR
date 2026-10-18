@@ -1,15 +1,13 @@
 import * as THREE from 'three';
 import { CONFIG } from '../config';
-import type { CargoItem } from '../cargo/cargo';
 import type { HandFrame } from '../controls/InteractionSystem';
 import type { WorldState } from '../core/world';
 import { surfaceHeight, type PreparedWave } from '../ocean/waves';
 import type { Handedness } from '../player/xrInput';
-import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
 import type { RescueHands } from '../rescue/rescueHands';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 import { hullPlan } from '../vessel/layout';
-import { buoyUp, isPot, type ShotPot } from './potting';
+import { buoyUp, type ShotPot } from './potting';
 
 /**
  * Hauling pots and working the catch, by hand (milestone 3). Local input only: everything
@@ -23,8 +21,7 @@ import { buoyUp, isPot, type ShotPot } from './potting';
  *            ring's line; desktop: click on it. At the end the pot comes over onto the deck.
  *   the pot  lands on deck with its catch inside, in sight through the netting; it stays
  *            there until the pot is set down on a harbour quay and sold (cargo.ts).
- *   bait     grip the bait tub on deck (desktop: click it) for a piece of bait; let go of it
- *            over a pot (desktop: click the pot) to bait it.
+ *            Every pot is baited (owner, Oct 2026: no bait tub, to keep the loop simple).
  */
 export interface PotHandsContext {
   world: WorldState;
@@ -45,15 +42,7 @@ const GRAB_LINE = 0.45;
 const PULL_CHUNK = 0.15;
 const DESK_REACH = 3.2;
 
-type Holder = Handedness | 'desk' | null;
-
 export class PotHands {
-  /** The bait tub (on the workboat's deck) and the bait in hand. */
-  readonly tub: THREE.Mesh;
-  readonly baitMesh: THREE.Mesh;
-  /** Her hull has a place for the tub, and it's aboard. */
-  hasTub = false;
-  bait: Holder = null;
   private line: { hand: Handedness; pot: string; last: THREE.Vector3; acc: number } | null = null;
   private towT = 0;
   /** The pot we're hauling: told what's in it when it lands. */
@@ -64,40 +53,8 @@ export class PotHands {
   private readonly tmp2 = new THREE.Vector3();
   private readonly a = new THREE.Vector3();
   private readonly b = new THREE.Vector3();
-  private readonly raycaster = new THREE.Raycaster();
   /** A hand is on (or over) a pot line: the line shows lit. */
   lineHover = false;
-
-  constructor() {
-    // A blue plastic bait tub with a lid half off, and a few pieces of bait in it.
-    this.tub = new THREE.Mesh(
-      mergeParts([
-        part(new THREE.CylinderGeometry(0.2, 0.17, 0.32, 12).translate(0, 0.16, 0), 0x2a6ab0),
-        part(new THREE.CylinderGeometry(0.205, 0.205, 0.025, 12).rotateZ(0.5).translate(0.12, 0.36, 0), 0x2a6ab0),
-        part(new THREE.CylinderGeometry(0.17, 0.17, 0.02, 12).translate(0, 0.3, 0), 0x6a7a6a),
-        ...[[-0.05, 0.02], [0.04, -0.06], [0.06, 0.05]].map(([x, z]) => part(new THREE.BoxGeometry(0.08, 0.025, 0.03).rotateY(x * 20).translate(x, 0.32, z), 0xb8b0a0)),
-      ]),
-      flatVertexColorMaterial(),
-    );
-    this.tub.name = 'baitTub';
-    this.baitMesh = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.03, 0.04), new THREE.MeshLambertMaterial({ color: 0xb8b0a0 }));
-    this.baitMesh.visible = false;
-  }
-
-  /**
-   * On her deck at her hull's bait-tub place (vessel x, z; the workboat's is
-   * CONFIG.potting.baitBox). A boat with no place for it has no tub: the menu's
-   * Bait all still baits her pots.
-   */
-  mount(root: THREE.Object3D, scene: THREE.Object3D, defId: string): void {
-    const def = VESSEL_DEFS[defId];
-    const at = def?.stowage?.baitTub;
-    scene.add(this.baitMesh);
-    if (!def || !at) return;
-    this.tub.position.set(at[0], hullPlan(def).deckY(at[1]), at[1]);
-    root.add(this.tub);
-    this.hasTub = true;
-  }
 
   // ── Where things are ──
 
@@ -142,23 +99,6 @@ export class PotHands {
     return Math.hypot(Math.max(0, Math.abs(l.x) - plan.halfBeam(lz)), l.z - lz);
   }
 
-  // ── The pot on deck ──
-
-  /**
-   * With bait in hand, a pot not yet baited takes it (`doIt`: bait it). Returns what it
-   * would do, or null. The catch stays in the pot (you can see it through the netting)
-   * until the pot is set down on a harbour quay, where it's sold.
-   */
-  potAction(ctx: PotHandsContext, c: CargoItem, doIt: boolean): string | null {
-    if (!this.bait || !isPot(c) || !('vessel' in c.at) || c.pot?.baited) return null;
-    if (doIt) {
-      ctx.push('potBait', c.id, 1);
-      this.bait = null;
-      ctx.notify('Baited');
-    }
-    return 'bait it';
-  }
-
   /** A pot we hauled has come aboard: say what's in it (once). */
   private announceLanded(ctx: PotHandsContext): void {
     if (!this.landing) return;
@@ -172,7 +112,7 @@ export class PotHands {
     if (!p) return;
     const extra = p.bycatch === 'boot' ? 'an old boot' : p.bycatch === 'fish' ? 'a little fish' : p.bycatch === 'starfish' ? 'a starfish' : '';
     const catchText = [p.lobster ? `${p.lobster} lobster${p.lobster > 1 ? 's' : ''}` : '', p.crab ? `${p.crab} crab${p.crab > 1 ? 's' : ''}` : ''].filter(Boolean).join(', ');
-    ctx.notify(catchText ? `Pot aboard: ${catchText}${extra ? ` and ${extra}` : ''}` : extra ? `Pot aboard: nothing but ${extra}` : 'Pot aboard: empty. Bait it and shoot it again');
+    ctx.notify(catchText ? `Pot aboard: ${catchText}${extra ? ` and ${extra}` : ''}` : extra ? `Pot aboard: nothing but ${extra}` : 'Pot aboard: empty. Shoot it again');
   }
 
   // ── VR ──
@@ -196,21 +136,6 @@ export class PotHands {
       }
     }
     if (hooked) this.towHooked(ctx, hooked, dt);
-    // The bait in hand follows it; let go over a pot to bait it.
-    if (this.bait && this.bait !== 'desk') {
-      const f = hands[this.bait];
-      used[this.bait] = true;
-      this.baitMesh.visible = true;
-      this.baitMesh.position.copy(f.grip);
-      if (!f.tracked || !f.gripDown) {
-        const pot = this.potNear(ctx, f.grip, 0.45);
-        const h = this.bait;
-        if (pot && this.potAction(ctx, pot, false) === 'bait it') this.potAction(ctx, pot, true);
-        else ctx.notify('Bait dropped');
-        this.bait = null;
-        ctx.pulse(h, 0.3, 20);
-      }
-    }
     // Hauling: the hand on the line pulls it in toward you; let go and you can take a new hold.
     const lines = this.linesAboard(ctx);
     if (this.line) {
@@ -240,7 +165,7 @@ export class PotHands {
     this.lineHover = false;
     for (const h of ['left', 'right'] as const) {
       const f = hands[h];
-      const free = f.tracked && !busy[h] && !ctx.rescue.busy(h) && this.bait !== h && this.line?.hand !== h;
+      const free = f.tracked && !busy[h] && !ctx.rescue.busy(h) && this.line?.hand !== h;
       if (!free) continue;
       // The other hand over the hooked buoy alongside: grip brings it aboard.
       const myHook = this.myHooked(ctx);
@@ -264,16 +189,8 @@ export class PotHands {
         this.line = { hand: h, pot: near.pot.id, last: f.grip.clone(), acc: 0 };
         ctx.pulse(h, 0.5, 40);
         used[h] = true;
-        continue;
-      }
-      // The bait tub.
-      if (!this.bait && this.hasTub && f.gripPressed && this.tub.getWorldPosition(this.a).setY(this.a.y + 0.3).distanceTo(f.grip) < 0.35) {
-        this.bait = h;
-        ctx.pulse(h, 0.4, 30);
-        used[h] = true;
       }
     }
-    if (!this.bait) this.baitMesh.visible = false;
     return used;
   }
 
@@ -291,20 +208,6 @@ export class PotHands {
     }
   }
 
-  /** The pot item on deck nearest a point, within r (m). */
-  private potNear(ctx: PotHandsContext, p: THREE.Vector3, r: number): CargoItem | null {
-    let best: CargoItem | null = null;
-    let bd = r;
-    for (const c of Object.values(ctx.world.cargo)) {
-      if (!isPot(c) || !('vessel' in c.at) || c.at.vessel !== ctx.vesselId || !ctx.vesselRoot) continue;
-      const w = ctx.vesselRoot.localToWorld(this.b.fromArray(c.at.pos));
-      w.y += 0.3;
-      const d = w.distanceTo(p);
-      if (d < bd) [best, bd] = [c, d];
-    }
-    return best;
-  }
-
   // ── Desktop ──
 
   /** Reticle label for pot work (or null: nothing here for us). */
@@ -313,10 +216,6 @@ export class PotHands {
     if (hooked) this.towHooked(ctx, hooked, dt);
     this.announceLanded(ctx);
     this.lineHover = false;
-    if (this.bait === 'desk') {
-      this.baitMesh.visible = false;
-      return 'bait in hand\nclick a pot to bait it';
-    }
     if (!ray) return null;
     if (ctx.rescue.deskBusy && !ctx.rescue.holdingRing) {
       if (hooked) return this.hullDistance(ctx, hooked.x, hooked.z) <= CONFIG.potting.haul.liftRange ? 'buoy alongside\nclick to bring it aboard' : 'buoy on the hook\nbring it alongside';
@@ -327,17 +226,12 @@ export class PotHands {
       this.lineHover = true;
       return 'pot line\nclick to haul it in';
     }
-    if (this.tubOnRay(ray)) return 'bait tub\nclick to take some bait';
     return null;
   }
 
   /** Desktop click: true if it was pot work. */
   desktopClick(ctx: PotHandsContext, ray: THREE.Ray | null): boolean {
     if (!ray) return false;
-    if (this.bait === 'desk') {
-      // Only a pot takes it; anywhere else it's dropped.
-      return false;
-    }
     if (ctx.rescue.deskBusy && !ctx.rescue.holdingRing) {
       const hooked = this.myHooked(ctx);
       if (hooked) {
@@ -362,16 +256,7 @@ export class PotHands {
       this.landing = l.pot.id;
       return true;
     }
-    if (this.tubOnRay(ray)) {
-      this.bait = 'desk';
-      return true;
-    }
     return false;
-  }
-
-  /** Desktop: drop bait you're holding (a click on nothing, or set down). */
-  dropBait(): void {
-    if (this.bait === 'desk') this.bait = null;
   }
 
   private buoyOnRay(ctx: PotHandsContext, ray: THREE.Ray): ShotPot | null {
@@ -396,15 +281,8 @@ export class PotHands {
     return null;
   }
 
-  private tubOnRay(ray: THREE.Ray): boolean {
-    if (!this.hasTub) return false;
-    this.raycaster.ray.copy(ray);
-    this.raycaster.far = DESK_REACH;
-    return this.raycaster.intersectObject(this.tub, false).length > 0;
-  }
-
   /** Busy hands (their grips are ours). */
   busy(h: Handedness): boolean {
-    return this.bait === h || this.line?.hand === h;
+    return this.line?.hand === h;
   }
 }

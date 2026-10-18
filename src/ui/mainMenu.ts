@@ -77,7 +77,7 @@ export interface MenuHost {
   skiffCargo(i: number): string | null;
   /**
    * Quick jobs (one click instead of carrying; the same rules): cargo 'load' / 'unload' /
-   * 'lash' / 'release' / 'lift' (floating crates aboard), and pots 'potLoad' / 'potBait' /
+   * 'lash' / 'release' / 'lift' (floating crates aboard), and pots 'potLoad' /
    * 'potShoot' / 'potHaul'. Says why not when it can't.
    */
   quickJob(what: string): void;
@@ -372,7 +372,6 @@ export function mainMenu(h: MenuHost): MainMenu {
       label: '',
       buttons: [
         { text: 'Load pots', press: () => h.quickJob('potLoad') },
-        { text: 'Bait all', press: () => h.quickJob('potBait') },
         { text: 'Shoot one', press: () => h.quickJob('potShoot') },
         { text: 'Haul nearest', press: () => h.quickJob('potHaul') },
       ],
@@ -579,7 +578,15 @@ export function mainMenu(h: MenuHost): MainMenu {
     {
       name: 'Boat',
       rows: [
-        { label: 'Start in', buttons: [choice('Workboat', 'workboat', () => h.homeBoat(), (v) => h.setHomeBoat(v)), choice('Landing craft', 'landingCraft', () => h.homeBoat(), (v) => h.setHomeBoat(v))] },
+        {
+          label: 'Start in',
+          buttons: [
+            // The workboat as your career has her fitted out, or with all her equipment (for testing).
+            choice('Workboat', 'workboat', () => h.homeBoat(), (v) => h.setHomeBoat(v)),
+            choice('Workboat, all gear', 'workboat:all', () => h.homeBoat(), (v) => h.setHomeBoat(v)),
+            choice('Landing craft', 'landingCraft', () => h.homeBoat(), (v) => h.setHomeBoat(v)),
+          ],
+        },
         {
           label: 'Hull',
           buttons: [

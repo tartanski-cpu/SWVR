@@ -9,7 +9,7 @@ import { hullQueries } from '../modular/hull';
 import { initModuleState, type GearFacts, type GearFootprint, type GearKind, type ModuleStateEnvelope } from '../modular/module';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 import { flattenMounts, type Recipe } from '../modular/recipe';
-import { LIBRARY, RECIPES, setDesignBoat } from './library';
+import { LIBRARY, RECIPES, setDesignBoat, setWorkboatFit } from './library';
 import type { DesignedBoat } from '../shipyard/build';
 import type { ShipDesign } from '../shipyard/design';
 
@@ -33,6 +33,15 @@ export function useDesign(d: ShipDesign): DesignedBoat {
   const boat = setDesignBoat(d);
   sims.delete('design');
   return boat;
+}
+
+/**
+ * Fit the workboat out without the modules in these sockets (library.ts setWorkboatFit; none:
+ * the whole boat), her machinery here too. For a new world, as useDesign.
+ */
+export function useWorkboatFit(without: readonly string[]): void {
+  setWorkboatFit(without);
+  sims.delete('workboat');
 }
 
 /** Her recipe's simulation side (null: she has none). */
@@ -78,6 +87,12 @@ export function freshModuleStates(defId: string): Record<string, ModuleStateEnve
   const out: Record<string, ModuleStateEnvelope> = {};
   for (const m of simOf(defId)?.mounts ?? []) if (m.def.sim && !m.def.sim.legacyState) out[m.path] = { ...initModuleState(m.def, m.config)!, id: m.def.id };
   return Object.keys(out).length ? out : undefined;
+}
+
+/** Does her recipe carry this module (its id), anywhere aboard? */
+export function hasModule(defId: string, moduleId: string): boolean {
+  const recipe = RECIPES[defId];
+  return !!recipe && flattenMounts(recipe, LIBRARY.hulls, LIBRARY.modules).mounted.some((m) => m.def.id === moduleId);
 }
 
 /** Does she carry a pull-down whiteboard (one hung from a cabin roof)? Its 'whiteboard.down' starts rolled up. */

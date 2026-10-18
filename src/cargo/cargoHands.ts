@@ -35,11 +35,6 @@ export interface CargoHandsContext {
   pulse(hand: Handedness, intensity: number, ms: number): void;
   /** Something was set down on a deck (the "snap" sound). */
   placedOnDeck?(): void;
-  /**
-   * Pot work (potting/potHands.ts): what working this item would do now (open the pot, tip
-   * out the catch, bait it), or null; `doIt` does it. VR: the trigger; desktop: the click.
-   */
-  potAction?(c: CargoItem, doIt: boolean): string | null;
 }
 
 interface Carry {
@@ -331,8 +326,7 @@ export class CargoHands {
       if (!c) continue;
       this.hovered = c.id;
       if (f.triggerPressed && 'vessel' in c.at) {
-        if (ctx.potAction?.(c, true)) ctx.pulse(h, 0.5, 40);
-        else this.toggleLash(ctx, c, h);
+        this.toggleLash(ctx, c, h);
         continue;
       }
       if (!f.gripPressed) continue;
@@ -383,8 +377,6 @@ export class CargoHands {
     if (!c) return null;
     this.hovered = c.id;
     const lashed = 'vessel' in c.at && c.at.lashed;
-    const work = ctx.potAction?.(c, false);
-    if (work) return `${cargoLabel(c)}\nclick: ${work}`;
     return `${cargoLabel(c)}${lashed ? '  (lashed)' : ''}\n${lashed ? 'Q: release lashing' : 'click: pick up' + ('vessel' in c.at ? ' · Q: lash down' : '')}`;
   }
 
@@ -397,7 +389,6 @@ export class CargoHands {
     if (!ray) return false;
     const c = this.itemOnRay(ctx, ray, DESK_REACH);
     if (!c) return false;
-    if (ctx.potAction?.(c, true)) return true;
     const why = takeBlocker(c);
     if (why) {
       ctx.notify(why);

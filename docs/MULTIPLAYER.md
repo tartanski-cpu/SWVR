@@ -5,7 +5,7 @@ Co-op crew on one shared boat, peer-to-peer: one player hosts, the others join w
 ## How to play
 
 1. **Host:** open the menu (Y in VR, O on desktop) → **Crew** tab → **Host a game**. The status line shows the game code, e.g. `Hosting, code 48213: 1 aboard`.
-2. **Join:** on the other headset or browser, **Crew** tab → type the code on the keypad → **Join**. You join aboard the workboat, wherever she is.
+2. **Join:** on the other headset or browser, **Crew** tab → type the code on the keypad → **Join**. You join aboard the host's boat, wherever she is. If she isn't the boat you're in (a Shipyard design, the landing craft, or the workboat fitted out otherwise by the host's career), your game starts again in her and joins again by itself, in a few seconds; in VR, enter VR again.
 3. **Leave:** **Leave game** (or **Stop hosting**). Everyone carries on alone from where things were. If the host leaves, the crew get "The host left" and continue solo.
 
 Everyone can use every control. **Levers, the wheel and the searchlight joystick have one owner at a time:** the first hand on it keeps it until it lets go. If a crew-mate has it, the control glows red when you reach for it and your grip gets a firm bump instead of grabbing. Buttons and switches anyone can press.
@@ -34,6 +34,8 @@ host -> client   snapshot  { world }                20 Hz: the whole WorldState
 ```
 
 - **Snapshots** are the full `WorldState` as JSON, about 2.6 KB. At 20 Hz that's about 50 KB/s per client. Deltas can come later if it ever matters.
+- **The host's boat:** `world.build` says how she was built: her Shipyard code if she's a design, and the workboat's equipment she was fitted out without (career upgrade ids). On the welcome the crew compare it with their own boat (App `sameBoatAsHost`); if it differs, the page reloads with `?design=` (or `?boat=`), `?fit=` (what's fitted) and `?join=CODE`, builds her, and joins again. `join` and its `fit` are taken off the address once read, so a later reload is your own game again.
+- **The crew copy every part of the snapshot** but their own player (the pots and the fuel hoses were missed when the parts were listed one by one).
 - **Intents** arrive at the host stamped with the sender's player id; a client can't act as another player.
 - **Poses** are client-authoritative. Each player walks, climbs and boards locally with no latency and sends where they are, in the frame of what they're aboard (vessel-local on deck). Trusting them is fine for co-op.
 

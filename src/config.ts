@@ -4,6 +4,25 @@
  */
 export type WeatherPresetName = 'Clear' | 'Overcast' | 'Fog' | 'Rain' | 'Squall';
 
+/** A career upgrade, bought at the yard (CONFIG.career.upgrades). */
+export interface CareerUpgrade {
+  id: string;
+  name: string;
+  price: number;
+  /** The best port reputation needed to buy it. */
+  minRep: number;
+  desc: string;
+  /** A module her boat must carry to take it (its id), and what to call it ("Needs the trawl gear"). */
+  needs?: string;
+  needsName?: string;
+  /**
+   * Equipment the yard fits to the workboat (the starter boat: owner, Oct 2026): the sockets
+   * of her recipe (boats/starterWorkboat.json; "helm/trawl" for one in the helm console) a
+   * new career's workboat is built without, until it's bought.
+   */
+  fit?: string[];
+}
+
 // Towable hulls (CONFIG.vessels.derelict / logRaft / barge): displacement at the DWL (kg) and
 // LCB (m aft), as their physics stations (`physicsStations`) integrate them, so they float
 // level on their DWL.
@@ -1506,7 +1525,8 @@ export const CONFIG = {
    *             item counts by tier (reputation `tierRep` at that port to take each tier),
    *             the bonus per item and the time allowed per item (s).
    *   upgrades  price and the best port reputation needed; `needs`: a module her boat must
-   *             carry to fit it (the deck crane's motion compensation).
+   *             carry to fit it (the deck crane's motion compensation). `fit`: equipment a new
+   *             career's workboat hasn't got until it's bought (CareerUpgrade).
    */
   career: {
     startMoney: 500,
@@ -1548,12 +1568,15 @@ export const CONFIG = {
       },
     },
     upgrades: [
+      // Her equipment (the starter workboat comes without it; a career begun before Oct 2026 has it all).
+      { id: 'trawlGear', name: 'Trawl gear', price: 2500, minRep: 5, fit: ['aFrame', 'trawl', 'helm/trawl'], desc: 'The A-frame over the transom, the net on its drum and the TRAWL switch' },
+      { id: 'skiff', name: 'Skiff and her crane', price: 4000, minRep: 10, fit: ['tenderCrane'], desc: 'The electric skiff in her cradle on the foredeck, and the crane to launch her' },
       { id: 'radar', name: 'Radar', price: 2400, minRep: 20, desc: 'Debris and floating crates on the plotter' },
       { id: 'towPost', name: 'Heavy towing post', price: 1500, minRep: 10, desc: 'The towline holds 75 % more before it parts' },
-      { id: 'trawl', name: 'Bigger trawl', price: 1800, minRep: 10, desc: 'The net fills half as fast again' },
-      { id: 'ice', name: 'Ice machine', price: 1200, minRep: 0, desc: 'Iced fish fetch 30 % more' },
-      { id: 'craneComp', name: 'Crane motion compensation', price: 3500, minRep: 15, needs: 'deck.crane', desc: 'The deck crane holds its hook steady as she rolls, pitches and heaves' },
-    ],
+      { id: 'trawl', name: 'Bigger trawl', price: 1800, minRep: 10, needs: 'fishing.trawl', needsName: 'the trawl gear', desc: 'The net fills half as fast again' },
+      { id: 'ice', name: 'Ice machine', price: 1200, minRep: 0, needs: 'fishing.trawl', needsName: 'the trawl gear', desc: 'Iced fish fetch 30 % more' },
+      { id: 'craneComp', name: 'Crane motion compensation', price: 3500, minRep: 15, needs: 'deck.crane', needsName: 'a deck crane', desc: 'The deck crane holds its hook steady as she rolls, pitches and heaves' },
+    ] as CareerUpgrade[],
   },
 
   /**
@@ -2442,12 +2465,12 @@ export const CONFIG = {
     /**
      * The catch, worked out when the pot comes up (a seeded random, the same for everyone):
      * the expected haul is the ground's quality x the soak (0..1, potting.ts soakFactor) x
-     * the bait (`unbaited` without) x the weather (`roughFactor` if it's blowing over
+     * the weather (every pot is baited) (`roughFactor` if it's blowing over
      * `roughWind` m/s). Up to `lobsterMax` lobsters and `crabMax` crabs at best. Off any
      * ground the quality is `offGround`. A `bycatch` chance of a small fish, a starfish or
      * (`bootChance` of those) an old boot.
      */
-    catch: { lobsterMax: 2, crabMax: 6, offGround: 0.15, unbaited: 0.35, roughWind: 11, roughFactor: 0.7, bycatch: 0.25, bootChance: 0.12 },
+    catch: { lobsterMax: 2, crabMax: 6, offGround: 0.15, roughWind: 11, roughFactor: 0.7, bycatch: 0.25, bootChance: 0.12 },
     /**
      * What the fish buyer pays (career money) for each animal in a pot set down on a harbour
      * quay. Lobster is worth far more than crab.
@@ -2459,8 +2482,6 @@ export const CONFIG = {
      */
     quickHaulRange: 25,
     quickShootOff: 3,
-    /** The bait tub on deck (vessel x, z), outside the wheelhouse's aft wall, port side. */
-    baitBox: [-0.95, 1.85] as [number, number],
   },
 
   /**

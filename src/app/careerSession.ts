@@ -25,6 +25,20 @@ export const CAREER_SLOTS = 3;
 const SLOT_KEY = 'swvr.careerSlot';
 const slotKey = (n: number) => `${CAREER_KEY}.${n}`;
 
+/**
+ * The career in the slot last used, as saved (null: none yet, a new career), read before the
+ * game is built: the workboat is fitted out as it has her (App startFit).
+ */
+export function savedCareer(): CareerState | null {
+  try {
+    const n = Number(localStorage.getItem(SLOT_KEY));
+    const slot = n >= 1 && n <= CAREER_SLOTS ? n : 1;
+    return parseCareer(localStorage.getItem(slotKey(slot)) ?? (slot === 1 ? localStorage.getItem(CAREER_KEY) : null));
+  } catch {
+    return null;
+  }
+}
+
 /** What the career session needs from the app. */
 export interface CareerHost {
   world(): WorldState;
