@@ -201,7 +201,7 @@ function browserStorage(): Storage | null {
 }
 
 /** The boats you can start in (a home boat needs a wheelhouse for now). */
-const START_BOATS = ['workboat', 'landingCraft'];
+const START_BOATS = ['workboat', 'landingCraft', 'alaskan38'];
 
 /** The Shipyard code of the design the game started in, if it did. */
 let startDesignCode: string | null = null;
@@ -2304,6 +2304,7 @@ export class App {
         const defId = this.world.vessels[this.testVesselId]?.defId ?? 'workboat';
         if (defId === 'workboat') return 'The workboat';
         if (defId === 'landingCraft') return 'The landing craft';
+        if (defId === 'alaskan38') return 'The Alaskan 38';
         if (defId !== 'design') return defId;
         const code = cleanCode(new URLSearchParams(location.search).get('design') ?? '');
         const fav = this.shipyardCodes.favourites().find((f) => cleanCode(f.code) === code);

@@ -1,0 +1,704 @@
+{
+  "id": "vessel.alaskan-38",
+  "version": 1,
+  "name": "Alaskan 38",
+  "hull": "hull.alaskan-38",
+  "modules": [
+    {
+      "socket": "engine",
+      "module": "propulsion.diesel-inboard",
+      "config": {
+        "engine": {
+          "powerKw": 300,
+          "idleRpm": 650,
+          "ratedRpm": 5800,
+          "torqueCurve": [
+            [
+              0,
+              0
+            ],
+            [
+              800,
+              260
+            ],
+            [
+              1500,
+              420
+            ],
+            [
+              2500,
+              520
+            ],
+            [
+              3500,
+              560
+            ],
+            [
+              4500,
+              540
+            ],
+            [
+              5400,
+              500
+            ],
+            [
+              5800,
+              440
+            ],
+            [
+              6200,
+              200
+            ],
+            [
+              6400,
+              0
+            ]
+          ],
+          "frictionTorque": 20,
+          "frictionPerRpm": 0.01,
+          "inertia": 0.35,
+          "droopRpm": 300,
+          "rackRiseRate": 2.5,
+          "starterTorque": 120,
+          "starterMaxRpm": 400,
+          "crankTime": 0.8,
+          "startOnlyInNeutral": true,
+          "preheatTime": 0.5,
+          "preheatHotTime": 0.2,
+          "unheatedExtraCrank": 0,
+          "coldBelowC": 40,
+          "glowCoolRate": 0.25,
+          "gearRatio": 2.0,
+          "gearEfficiency": 0.96,
+          "shiftDelay": 0.6,
+          "neutralBand": 0.08,
+          "trollingLever": 0.3,
+          "trollingMinShaft": 0.3,
+          "fuel": {
+            "tankL": 1100,
+            "startL": 800,
+            "sfcGPerKWh": 230,
+            "partLoadPenalty": 0.3,
+            "densityKgPerL": 0.84,
+            "lowFraction": 0.1,
+            "refuelRateLps": 2.5
+          },
+          "thermal": {
+            "heatToCoolant": 0.3,
+            "lhvMJPerKg": 42.7,
+            "heatCapacity": 40,
+            "thermostatOpenC": 80,
+            "thermostatFullC": 88,
+            "exchangerKwPerK": 2.4,
+            "baseLossKwPerK": 0.012,
+            "faultExchangerFraction": 0.08,
+            "alarmC": 95,
+            "derateStartC": 100,
+            "derateFullC": 110,
+            "derateRack": 0.3,
+            "shutdownC": 115,
+            "oilLagS": 45,
+            "oilLoadRiseC": 12
+          }
+        },
+        "propeller": {
+          "diameter": 0.4,
+          "kt0": 0.45,
+          "j0": 1.25,
+          "kq0": 0.07,
+          "jq0": 1.35,
+          "asternEfficiency": 0.5,
+          "asternTorque": 0.9,
+          "inertia": 0.03,
+          "wake": 0.03,
+          "thrustDeduction": 0.05,
+          "position": [
+            0,
+            -0.35,
+            7.9
+          ],
+          "rightHanded": true,
+          "propWalkAhead": 0.0,
+          "propWalkAstern": 0.0,
+          "propWalkFadeSpeed": 1.5
+        },
+        "sampleAt": [
+          0,
+          -0.3,
+          7.6
+        ],
+        "maintenance": {
+          "oilStart": 0.72,
+          "use": 0.00025,
+          "checkEvery": 900,
+          "lowAt": 0.4,
+          "lampAt": 0.12,
+          "engine": {
+            "x": 0.6,
+            "z": 5.0,
+            "length": 0.5,
+            "width": 0.35,
+            "height": 0.35
+          },
+          "dipstick": [
+            0.35,
+            4.8
+          ],
+          "filler": [
+            0.6,
+            5.25
+          ],
+          "oilCan": [
+            0.92,
+            5.25
+          ],
+          "shelfDrop": 0.3
+        },
+        "voice": "v8",
+        "massKg": 380,
+        "twin": {
+          "x": 0.5
+        }
+      }
+    },
+    {
+      "socket": "rudder",
+      "module": "steering.rudder",
+      "config": {
+        "rudder": {
+          "area": 0.12,
+          "liftSlope": 2.4,
+          "stallDeg": 28,
+          "maxAngleDeg": 30,
+          "rateDegPerS": null,
+          "washFactor": 0.8,
+          "washMaxFraction": 0.55,
+          "flowStraightening": 0.5,
+          "coastSteer": 1.5,
+          "coastFadeThrust": 12000,
+          "position": [
+            0,
+            -0.35,
+            7.9
+          ]
+        },
+        "propeller": {
+          "wake": 0.03,
+          "diameter": 0.4
+        }
+      }
+    },
+    {
+      "socket": "fuelTank",
+      "module": "fuel.tank",
+      "config": {
+        "tankL": 1100,
+        "startL": 800
+      }
+    },
+    {
+      "socket": "batteries",
+      "module": "electrical.battery-bank"
+    },
+    {
+      "socket": "bilgePump",
+      "module": "pump.bilge"
+    },
+    {
+      "socket": "cabinLight",
+      "module": "light.cabin"
+    },
+    {
+      "socket": "horn",
+      "module": "electrical.consumer",
+      "config": {
+        "label": "Horn",
+        "amps": 10,
+        "circuit": null
+      },
+      "bind": {
+        "on": "horn.sound"
+      }
+    },
+    {
+      "socket": "wipers",
+      "module": "electrical.consumer",
+      "config": {
+        "label": "Wiper motor",
+        "amps": 4,
+        "circuit": "instruments"
+      },
+      "bind": {
+        "on": "wipers.on"
+      }
+    },
+    {
+      "socket": "helm",
+      "module": "console.standard",
+      "config": {
+        "instrumentsAmps": 2.5,
+        "dash": {
+          "front": -0.5,
+          "aft": -0.34,
+          "bottom": 0,
+          "top": 0.41,
+          "halfWidth": 1.2
+        },
+        "pedestals": {
+          "x": [
+            0.42,
+            -0.42
+          ],
+          "halfWidth": 0.13,
+          "front": -0.08,
+          "aft": 0.3,
+          "floor": -0.95
+        },
+        "groups": [
+          {
+            "title": "LIGHTS",
+            "x": [
+              -0.88,
+              -0.5
+            ],
+            "color": 14200872
+          },
+          {
+            "title": "SEARCH",
+            "x": [
+              -0.48,
+              -0.3
+            ],
+            "color": 12599338
+          },
+          {
+            "title": "ENGINE",
+            "x": [
+              0.42,
+              0.88
+            ],
+            "color": 3840586
+          }
+        ],
+        "plates": {
+          "front": -0.27,
+          "aft": -0.05
+        },
+        "slots": {
+          "wheel": {
+            "position": [
+              0,
+              0.17,
+              0.12
+            ],
+            "rotationDeg": [
+              -22,
+              0,
+              0
+            ]
+          },
+          "throttle": {
+            "position": [
+              0.42,
+              0.01,
+              0.17
+            ]
+          },
+          "navLights": {
+            "position": [
+              -0.84,
+              0.01,
+              -0.2
+            ]
+          },
+          "cabinLight": {
+            "position": [
+              -0.7,
+              0.01,
+              -0.2
+            ]
+          },
+          "wipers": {
+            "position": [
+              -0.56,
+              0.01,
+              -0.2
+            ]
+          },
+          "spotlight": {
+            "position": [
+              -0.39,
+              0.01,
+              -0.2
+            ]
+          },
+          "horn": {
+            "position": [
+              -0.18,
+              0.01,
+              -0.2
+            ]
+          },
+          "heat": {
+            "position": [
+              0.5,
+              0.01,
+              -0.18
+            ]
+          },
+          "start": {
+            "position": [
+              0.63,
+              0.01,
+              -0.18
+            ]
+          },
+          "key": {
+            "position": [
+              0.77,
+              0.01,
+              -0.18
+            ]
+          },
+          "lamps": {
+            "position": [
+              0.65,
+              0.015,
+              -0.28
+            ]
+          },
+          "card": {
+            "position": [
+              0.72,
+              -0.31,
+              0.005
+            ]
+          },
+          "spotJoystick": {
+            "position": [
+              -0.42,
+              0.01,
+              0.17
+            ]
+          },
+          "speed": {
+            "position": [
+              -0.6,
+              0.21,
+              -0.34
+            ]
+          },
+          "heading": {
+            "position": [
+              -0.2,
+              0.21,
+              -0.34
+            ]
+          },
+          "rpm": {
+            "position": [
+              0.2,
+              0.21,
+              -0.34
+            ]
+          },
+          "engineMonitor": {
+            "position": [
+              0.6,
+              0.21,
+              -0.34
+            ]
+          }
+        }
+      },
+      "modules": [
+        {
+          "socket": "wheel",
+          "module": "control.wheel"
+        },
+        {
+          "socket": "throttle",
+          "module": "control.throttle-lever"
+        },
+        {
+          "socket": "navLights",
+          "module": "control.toggle",
+          "config": {
+            "label": "Navigation lights",
+            "engrave": "NAV LIGHTS"
+          },
+          "bind": {
+            "value": "lights.nav"
+          }
+        },
+        {
+          "socket": "cabinLight",
+          "module": "control.toggle",
+          "config": {
+            "label": "Cabin light: off / white / red (night)",
+            "engrave": "CABIN",
+            "positions": 3
+          },
+          "bind": {
+            "value": "lights.cabin"
+          }
+        },
+        {
+          "socket": "wipers",
+          "module": "control.toggle",
+          "config": {
+            "label": "Windscreen wipers",
+            "engrave": "WIPERS"
+          },
+          "bind": {
+            "value": "wipers.on"
+          }
+        },
+        {
+          "socket": "spotlight",
+          "module": "control.toggle",
+          "config": {
+            "label": "Searchlight on/off",
+            "engrave": "SPOT"
+          },
+          "bind": {
+            "value": "searchlight.on"
+          }
+        },
+        {
+          "socket": "horn",
+          "module": "control.push-button",
+          "config": {
+            "label": "Horn",
+            "engrave": "HORN",
+            "color": "#e0b020"
+          },
+          "bind": {
+            "press": "horn.sound"
+          }
+        },
+        {
+          "socket": "start",
+          "module": "control.push-button",
+          "config": {
+            "label": "START (hold)",
+            "engrave": "START",
+            "color": "#3aa04a",
+            "lit": {
+              "key": "propulsion.state",
+              "is": "running"
+            }
+          },
+          "bind": {
+            "press": "ignition.start"
+          }
+        },
+        {
+          "socket": "key",
+          "module": "control.key-switch"
+        },
+        {
+          "socket": "lamps",
+          "module": "instrument.warning-lamps"
+        },
+        {
+          "socket": "card",
+          "module": "furniture.start-card"
+        },
+        {
+          "socket": "spotJoystick",
+          "module": "control.joystick",
+          "config": {
+            "label": "Searchlight joystick",
+            "engrave": "SEARCHLIGHT",
+            "knob": "#e0b020"
+          }
+        },
+        {
+          "socket": "speed",
+          "module": "instrument.screen",
+          "config": {
+            "screen": "speed"
+          }
+        },
+        {
+          "socket": "heading",
+          "module": "instrument.screen",
+          "config": {
+            "screen": "heading"
+          }
+        },
+        {
+          "socket": "rpm",
+          "module": "instrument.screen",
+          "config": {
+            "screen": "rpm"
+          }
+        },
+        {
+          "socket": "engineMonitor",
+          "module": "instrument.screen",
+          "config": {
+            "screen": "engineMonitor"
+          }
+        }
+      ]
+    },
+    {
+      "socket": "breakerPanel",
+      "module": "panel.breakers"
+    },
+    {
+      "socket": "batteryMaster",
+      "module": "switch.battery-master"
+    },
+    {
+      "socket": "batterySelector",
+      "module": "switch.battery-selector"
+    },
+    {
+      "socket": "vhf",
+      "module": "radio.vhf"
+    },
+    {
+      "socket": "fm",
+      "module": "radio.fm"
+    },
+    {
+      "socket": "doorIn",
+      "module": "control.door-button",
+      "config": {
+        "label": "Cabin door: open / shut"
+      }
+    },
+    {
+      "socket": "doorOut",
+      "module": "control.door-button",
+      "config": {
+        "label": "Cabin door: open / shut"
+      }
+    },
+    {
+      "socket": "engineHatch",
+      "module": "fitting.hatch-cover",
+      "config": {
+        "engrave": "LAZARETTE"
+      },
+      "bind": {
+        "open": "hatch.engine.open"
+      }
+    },
+    {
+      "socket": "dipstick",
+      "module": "tool.dipstick"
+    },
+    {
+      "socket": "oilCan",
+      "module": "tool.oil-can"
+    },
+    {
+      "socket": "searchlight",
+      "module": "deck.searchlight",
+      "config": {
+        "position": [
+          0,
+          3.4,
+          -1.9
+        ]
+      }
+    },
+    {
+      "socket": "navLights",
+      "module": "light.navigation",
+      "config": {
+        "mast": {
+          "footY": 3.37
+        },
+        "lights": {
+          "masthead": [
+            0,
+            4.5,
+            -0.9
+          ],
+          "port": [
+            -1.48,
+            3.1,
+            -1.5
+          ],
+          "starboard": [
+            1.48,
+            3.1,
+            -1.5
+          ],
+          "stern": [
+            0,
+            1.45,
+            6.0
+          ]
+        }
+      }
+    },
+    {
+      "socket": "cleatFwdPort",
+      "module": "deck.cleat",
+      "config": {
+        "end": "bow",
+        "side": -1,
+        "stations": {
+          "bow": -5.3,
+          "stern": 5.6,
+          "midship": 0
+        }
+      }
+    },
+    {
+      "socket": "cleatFwdStbd",
+      "module": "deck.cleat",
+      "config": {
+        "end": "bow",
+        "side": 1,
+        "stations": {
+          "bow": -5.3,
+          "stern": 5.6,
+          "midship": 0
+        }
+      }
+    },
+    {
+      "socket": "cleatAftPort",
+      "module": "deck.cleat",
+      "config": {
+        "end": "stern",
+        "side": -1,
+        "stations": {
+          "bow": -5.3,
+          "stern": 5.6,
+          "midship": 0
+        }
+      }
+    },
+    {
+      "socket": "cleatAftStbd",
+      "module": "deck.cleat",
+      "config": {
+        "end": "stern",
+        "side": 1,
+        "stations": {
+          "bow": -5.3,
+          "stern": 5.6,
+          "midship": 0
+        }
+      }
+    }
+  ],
+  "interlocks": [
+    {
+      "when": "hatch.engine.open == false",
+      "disable": [
+        "control:dipstick",
+        "control:oilCan"
+      ],
+      "message": "Open the lazarette hatch first."
+    }
+  ]
+}

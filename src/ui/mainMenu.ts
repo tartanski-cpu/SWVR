@@ -666,6 +666,7 @@ export function mainMenu(h: MenuHost): MainMenu {
             choice('Workboat', 'workboat', () => h.homeBoat(), (v) => h.setHomeBoat(v)),
             choice('Workboat, all gear', 'workboat:all', () => h.homeBoat(), (v) => h.setHomeBoat(v)),
             choice('Landing craft', 'landingCraft', () => h.homeBoat(), (v) => h.setHomeBoat(v)),
+            choice('Alaskan 38', 'alaskan38', () => h.homeBoat(), (v) => h.setHomeBoat(v)),
           ],
         },
         {
