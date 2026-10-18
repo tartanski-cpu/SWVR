@@ -53,7 +53,9 @@ export class VesselEffects {
     world: THREE.Object3D,
     ocean: Record<string, { value: unknown }>,
   ) {
-    this.wake = new WakeTrail(ocean, def.hull.params.length / 2 - 0.2);
+    // Her propeller's size for the jet (the skiff's outboard: a small one).
+    const propD = gearOf({ defId: def.id }, 'diesel')?.propeller.diameter ?? 0.25;
+    this.wake = new WakeTrail(ocean, def.hull.params.length / 2 - 0.2, { propD, length: def.hull.params.length, planing: def.planing });
     this.spray = new Spray(def);
     this.equip = new Equipment(def, world);
     world.add(this.wake.mesh, this.spray.points);

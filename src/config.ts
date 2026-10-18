@@ -194,6 +194,17 @@ export const CONFIG = {
      * to the normal; faded out between `fadeNear` and `fadeFar` (m) where they'd only
      * sparkle. `calmBoost`: extra strength in a flat calm (scaled down as the waves grow).
      */
+    /**
+     * Foam the wind makes (owner: whitecaps, and the lines of foam along the wind when it
+     * blows hard), from the weather's wind speed (m/s), as the Beaufort scale describes:
+     *   white horses on the crests from `capsFrom` (force 4, 5.5 m/s), frequent by `capsFull`
+     *   (force 7, 13.9 m/s);
+     *   foam blown into streaks along the wind from `streakFrom` (force 6, 10.8 m/s), well
+     *   marked by `streakFull` (force 9, 20.8 m/s): lines about `streakLength` m long and
+     *   `streakWidth` m apart (the noise's blob sizes: the lines are sparser), drifting downwind at `drift` m/s.
+     * Fixed to the water (they ride the swell); faded in sheltered water.
+     */
+    windFoam: { capsFrom: 5.5, capsFull: 13.9, streakFrom: 10.8, streakFull: 20.8, streakLength: 90, streakWidth: 3.5, drift: 0.6 },
     ripples: {
       strength: 0.13,
       calmBoost: 0.06,
@@ -2016,9 +2027,29 @@ export const CONFIG = {
       /** Speed (m/s) for full-strength arms, and thrust (N) for full-strength prop wash. */
       fullArmSpeed: 4,
       fullWashThrust: 25000,
+      /**
+       * The propeller's jet (owner: a tug at full throttle, hardly moving, should churn the
+       * water astern). Momentum theory: the slipstream far behind the disc moves aft through
+       * the water at u = sqrt(V^2 + 2 T / (rho A)) - V (V the speed of advance, T one
+       * propeller's thrust, A its disc area). Its foam is carried aft at u, slowing as the
+       * jet mixes into the water around it (time constant `jetTau` s, so it travels at most
+       * u x jetTau), and spreads sideways at up to `washSpread` m/s at full wash.
+       */
+      jetTau: 2.2,
+      washSpread: 0.9,
+      /** A planing hull's wake (owner: more pronounced): spread up to `planingSpread` x maxSpread, the white water astern full. */
+      planingSpread: 1.6,
     },
     spray: {
-      maxParticles: 320,
+      maxParticles: 900,
+      /**
+       * Planing (owner: planing boats throw up a lot of spray), from her hull's `planing`
+       * Froude range (fnStart .. fnFull): sheets of spray thrown out from both sides where
+       * her bottom meets the water (`rootFrac` of her length forward of amidships), `sheetRate`
+       * particles/s per m/s at full planing; and a mist kicked up behind her transom
+       * (`sternRate` per m/s), left behind as she runs on.
+       */
+      planing: { rootFrac: 0.18, sheetRate: 18, sternRate: 3 },
       /** Bow wave "moustache": starts above this speed (m/s), particles/s per m/s above it. */
       bowSpeed: 2.2,
       bowRate: 18,

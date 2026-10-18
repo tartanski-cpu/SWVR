@@ -763,11 +763,13 @@ export class App {
   private readonly zoomDir = new THREE.Vector3();
   private readonly zoomInv = new THREE.Matrix4();
 
+  private readonly windNow = { x: 0, z: 0 };
+
   /** Light, sky and sea around the head. */
   private updateSurroundings(renderTime: number): void {
     this.environment.update(this.world.environment, this.focus, this.world.time);
     this.sky.update(this.environment, this.focus);
-    this.ocean.update(this.renderWaves, this.focus, this.environment, renderTime);
+    this.ocean.update(this.renderWaves, this.focus, this.environment, renderTime, windVector(this.world.environment, this.windNow));
     this.probes.update(this.renderWaves, this.camera);
   }
 

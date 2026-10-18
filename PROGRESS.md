@@ -4500,6 +4500,28 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 
 - **The owner asked** for a release-notes style update on everything added since Friday night. `docs/RELEASE_NOTES_next.md` covers Friday after the v1.0 notes to Sunday 18 October, all sessions' work. It says what's already in the live game (Friday evening's potting, hand gear, deck gate and so on) and what's only on /next/. It's linked from README.md beside the v1.0 notes.
 
+### Wake, planing spray and wind foam: a first pass (owner)
+
+- **The owner asked** for three things: a prop wash behind a boat on a high throttle even when she's slow (a tug pulling); a bolder wake and much more spray once she planes; and white horses and wind streaks on the sea in strong winds. Then, on the streaks: "probably needs to be a little bit more transparent or toned down".
+- **Prop wash** (`vessel/view/wakeTrail.ts`): the foam behind her now also comes from the screw's jet, by actuator-disc momentum theory.
+  - Jet speed u = √(V² + 2T/(ρA)) − V: T her thrust per shaft, A the disc (πD²/4, her propeller's diameter), ρ `ocean.density`, V her headway. A tug at bollard pull throws a jet of about 8 m/s; under way it drops off.
+  - The foam is carried aft by it and slows as it mixes in: it travels u·τ·(1 − e^(−t/τ)), with τ `effects.wake.jetTau` (2.2 s).
+  - A wash on a high throttle widens the trail (`effects.wake.washSpread` 0.9 m per unit of wash), whatever her speed. Going astern, the wash goes forward.
+- **Planing wake:** the hull's planing range (Froude number `planing.fnStart`..`fnFull`, on the landing craft and Shipyard designs) gives a planing factor 0..1.
+  - Planing, the trail is up to `effects.wake.planingSpread` (1.6×) wider, whiter and more opaque, and her wash never falls below 0.85.
+- **Planing spray** (`vessel/view/spray.ts`, `effects.spray.planing`):
+  - sheets of spray thrown out and up from both sides, where her bottom meets the water `rootFrac` (18 %) of her length aft of amidships, at `sheetRate` per metre run. Struck off still water, they keep only 30–45 % of her speed, so they stream away astern in a fan;
+  - a low mist kicked up behind her transom (`sternRate`);
+  - each lives as long as it's in the air. The pool is up to `effects.spray.maxParticles` 900 (one draw call) and the drops are a little larger.
+- **White horses and wind streaks** (`ocean/shaders/ocean.frag.glsl`, `ocean.windFoam`), from the wind of the moment (`windVector`):
+  - **white horses** from Beaufort 4 (`capsFrom` 5.5 m/s) to full at force 7 (`capsFull` 13.9): small breaking crests, more of them as the wind rises, mostly on the steeper faces, drifting downwind;
+  - **wind streaks** from force 6 (`streakFrom` 10.8) to full at force 9 (`streakFull` 20.8): thin, faint, broken lines along the wind, about `streakLength` 90 m by `streakWidth` 3.5 m of noise, drifting at `drift` 0.6 m/s. Toned down after the owner's comment: a constant-width hairline, at most 22 % foam;
+  - none in sheltered water, and they fade out past 250–900 m.
+  - The shared foam noise texture moved to `ocean/foamNoise.ts`.
+- **Cost on the Quest:** four extra texture reads per ocean pixel, only from force 4 up; up to 900 spray particles in one draw call, only when planing; nothing new in the simulation.
+- **Checked:** `npm test` (101 files, 739 pass, with new wake tests: the jet at rest and under way, astern, the planing factor), typecheck, build. Headless Chromium screenshots: the tug at full throttle at 3 kn (a wash astern), the landing craft planing (a wider, whiter wake, side spray), a gale and force 5 (white horses, faint streaks). No page errors.
+- **Not checked:** the Quest, at 90 Hz. In the slow headless browser the spray sheets looked shorter than they should, as its frames are long; they need a look in VR and on a fast desktop.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

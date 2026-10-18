@@ -14,6 +14,10 @@ import type { VesselState } from '../vesselState';
  *    re-enters the water fast (bow dropping into a wave, or a wave hitting the bow) it
  *    throws a burst up and out, scaled by the entry speed.
  *
+ *  - Planing (her hull's `planing` Froude range; owner: planing boats throw up a lot of
+ *    spray): sheets of spray thrown out and up from both sides where her bottom meets the
+ *    water, and a mist kicked up behind her transom, both more the faster she planes.
+ *
  * Particles keep the boat's velocity at launch, then drag to still air, so under way they
  * drift aft relative to the boat: in a head sea the spray comes back over the foredeck.
  */
@@ -29,9 +33,16 @@ export class Spray {
   private readonly out = new THREE.Vector3();
   private readonly q = new THREE.Quaternion();
   private readonly stem: THREE.Vector3;
+  /** Planing: where her spray sheets come off each side, her transom, her length and planing range. */
+  private readonly roots: THREE.Vector3[];
+  private readonly transom: THREE.Vector3;
+  private readonly length: number;
+  private readonly planing: VesselDef['planing'];
+  private sheetAccum = 0;
+  private sternAccum = 0;
 
   constructor(def: VesselDef) {
-    this.pool = new ParticlePool(this.cfg.maxParticles, 0.42, sprayTexture());
+    this.pool = new ParticlePool(this.cfg.maxParticles, 0.6, sprayTexture());
     this.points = this.pool.points;
     this.points.name = 'spray';
     // Waterline half-beam at a station: midway between chine and deck edge (hard chine).
@@ -45,6 +56,11 @@ export class Spray {
     this.probes = zs.flatMap((z) => [new THREE.Vector3(-wl(z), 0, z), new THREE.Vector3(wl(z), 0, z)]);
     this.lastDepth = this.probes.map(() => 0);
     this.stem = new THREE.Vector3(0, 0, -0.46 * L);
+    const zr = -this.cfg.planing.rootFrac * L;
+    this.roots = [new THREE.Vector3(-wl(zr), 0, zr), new THREE.Vector3(wl(zr), 0, zr)];
+    this.transom = new THREE.Vector3(0, 0, 0.48 * L);
+    this.length = L;
+    this.planing = def.planing;
   }
 
   /**
@@ -120,12 +136,78 @@ export class Spray {
           );
         }
       }
+      // ── Planing: spray sheets off both sides, mist behind the transom ──
+      const pl = this.planing;
+      const fn = speed / Math.sqrt(9.81 * this.length);
+      const planing = pl ? Math.min(1, Math.max(0, (fn - pl.fnStart) / (pl.fnFull - pl.fnStart))) : 0;
+      if (planing > 0) {
+        const pc = c.planing;
+        this.sheetAccum += pc.sheetRate * planing * speed * dt;
+        while (this.sheetAccum >= 1) {
+          this.sheetAccum -= 1;
+          const i = Math.random() < 0.5 ? 0 : 1;
+          root.localToWorld(this.p.copy(this.roots[i]));
+          const h = surfaceHeight(waves, this.p.x, this.p.z);
+          // (Planing, she rides up: her waterline stands a metre or so over the water. The
+          // spray comes off where her bottom meets it, so only a side lifted right clear, or
+          // buried, throws none.)
+          if (this.p.y - h > 2 || h - this.p.y > 0.9) continue;
+          this.out.set(i ? 1 : -1, 0, 0.25).applyQuaternion(this.q);
+          const sideways = 1.5 + speed * 0.3 + Math.random() * 1.2;
+          const up = 2.5 + speed * 0.2 + Math.random() * 1.5;
+          // Struck off still water: it keeps only a third of her speed, so it streams away
+          // astern of her in a fan, a sheet each side.
+          const keep = 0.3 + Math.random() * 0.15;
+          this.pool.emit(
+            this.p.x + this.out.x * 0.15,
+            h + 0.05,
+            this.p.z + this.out.z * 0.15,
+            vx * keep + this.out.x * sideways + jitter(0.4),
+            up,
+            vz * keep + this.out.z * sideways + jitter(0.4),
+            airTime(up),
+            0,
+            0.7 + 0.2 * planing,
+            1,
+          );
+        }
+        this.sternAccum += pc.sternRate * planing * speed * dt;
+        while (this.sternAccum >= 1) {
+          this.sternAccum -= 1;
+          root.localToWorld(this.p.copy(this.transom));
+          const h = surfaceHeight(waves, this.p.x, this.p.z);
+          this.out.set(1, 0, 0).applyQuaternion(this.q);
+          const across = jitter(1.2);
+          // Kicked up and left behind: half her speed, so it falls away astern.
+          const up = 2 + Math.random() * 2;
+          this.pool.emit(
+            this.p.x + this.out.x * across,
+            h + 0.1,
+            this.p.z + this.out.z * across,
+            vx * 0.5 + jitter(0.6),
+            up,
+            vz * 0.5 + jitter(0.6),
+            airTime(up),
+            0,
+            0.22,
+            1,
+          );
+        }
+      }
     }
 
     this.pool.setBrightness(0.2 + 0.8 * light);
     this.pool.step(dt, 1.2, 0, -9.81, () => 0.9, viewer);
     return { slam, lap };
   }
+}
+
+/**
+ * How long a drop thrown up at `up` m/s is in the air (s; up and back down, a little drag):
+ * its life, so it's gone as it lands rather than falling on under the water.
+ */
+function airTime(up: number): number {
+  return Math.min(1.4, (1.9 * up) / 9.81);
 }
 
 function jitter(a: number): number {

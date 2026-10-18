@@ -7,6 +7,7 @@ import oceanVertex from './shaders/ocean.vert.glsl?raw';
 import gerstnerChunk from './shaders/gerstner.glsl?raw';
 import type { PreparedWave } from './waves';
 import { createRippleTexture } from './rippleTexture';
+import { foamNoiseTexture } from './foamNoise';
 import { SHELTERS } from '../world/archipelago';
 import { MAX_SHELTERS } from '../world/shelter';
 
@@ -84,6 +85,10 @@ export class OceanView {
     uRippleUv: { value: [new THREE.Vector4(), new THREE.Vector4()] }, // offset x, z; 1/scale; unused
     uRippleStrength: { value: CONFIG.ocean.ripples.strength },
     uRippleFade: { value: new THREE.Vector2(CONFIG.ocean.ripples.fadeNear, CONFIG.ocean.ripples.fadeFar) },
+    // The wind's foam (CONFIG.ocean.windFoam): see update().
+    uWindFoam: { value: new THREE.Vector4(1, 0, 0, 0) },
+    uStreak: { value: new THREE.Vector3(1 / (8 * CONFIG.ocean.windFoam.streakLength), 1 / (8 * CONFIG.ocean.windFoam.streakWidth), 0) },
+    uFoamNoise: { value: foamNoiseTexture() },
   };
 
   constructor() {
@@ -134,8 +139,11 @@ export class OceanView {
     u.uPortLightRange.value = light.distance;
   }
 
-  /** @param time render time (s): drifts the ripples */
-  update(waves: readonly PreparedWave[], viewer: THREE.Vector3, env: EnvironmentView, time = 0): void {
+  /**
+   * @param time render time (s): drifts the ripples and the wind's foam
+   * @param wind the wind (m/s, world x, z: the way it blows), for its foam
+   */
+  update(waves: readonly PreparedWave[], viewer: THREE.Vector3, env: EnvironmentView, time = 0, wind = { x: 0, z: 0 }): void {
     const step = CONFIG.ocean.mesh.innerSpacing;
     this.mesh.position.set(Math.round(viewer.x / step) * step, 0, Math.round(viewer.z / step) * step);
 
@@ -168,6 +176,15 @@ export class OceanView {
       const oz = (((-Math.cos(a) * l.speed * time) / l.scale) % 1 + 1) % 1;
       u.uRippleUv.value[i].set(ox, oz, 1 / l.scale, 0);
     });
+
+    // The wind's foam, by the Beaufort scale: white horses from force 4, streaks from force 6.
+    const wf = CONFIG.ocean.windFoam;
+    const ws = Math.hypot(wind.x, wind.z);
+    const ramp = (a: number, b: number) => Math.min(1, Math.max(0, (ws - a) / (b - a)));
+    if (ws > 0.01) u.uWindFoam.value.set(wind.x / ws, wind.z / ws, ramp(wf.capsFrom, wf.capsFull), ramp(wf.streakFrom, wf.streakFull));
+    else u.uWindFoam.value.set(1, 0, 0, 0);
+    // The drift downwind, wrapped at the noise tile's length so it stays precise.
+    u.uStreak.value.z = (wf.drift * time) % (8 * wf.streakLength);
 
     u.uZenith.value.copy(env.zenith);
     u.uHorizon.value.copy(env.horizon);

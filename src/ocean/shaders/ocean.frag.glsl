@@ -38,13 +38,24 @@ uniform vec4 uRippleUv[2];      // per layer: uv drift offset (xy), 1/scale (z)
 uniform float uRippleStrength;
 uniform vec2 uRippleFade;       // near, far (m)
 
+// The wind's foam (CONFIG.ocean.windFoam; OceanView.update): the direction it blows toward
+// (xy), white horses 0..1 (z), streaks 0..1 (w); the streaks' scale (1 / (8 length), 1 / (8
+// spacing): the noise has 8 blobs a tile) and their drift downwind (m, z); the noise.
+uniform vec4 uWindFoam;
+uniform vec3 uStreak;
+uniform sampler2D uFoamNoise;
+
 varying vec3 vWorldPos;
 varying float vHeight;
+varying vec2 vRest;
+varying float vShelter;
 
 void main() {
   // Facet normal. dFdx/dFdy span the triangle's plane; their cross product points at the viewer.
   vec3 n = normalize(cross(dFdx(vWorldPos), dFdy(vWorldPos)));
   if (n.y < 0.0) n = -n;
+  // How steep the water is here (the facet, before the ripples): white horses break on steep faces.
+  float facetSlope = 1.0 - n.y;
 
   vec3 toEye = cameraPosition - vWorldPos;
   float dist = length(toEye);
@@ -83,6 +94,40 @@ void main() {
   float crestLo = uCrestHeight * mix(0.75, 0.45, uFoamAmount);
   float foam = smoothstep(crestLo, uCrestHeight * mix(1.0, 0.8, uFoamAmount), vHeight) * mix(0.35, 0.85, uFoamAmount);
   col = mix(col, uFoam * (0.4 * uAmbient + 0.3 * uSunIntensity), foam);
+
+  // The wind's foam (uniform branch: skipped in light airs). White horses: patches of foam
+  // on the upper half of the waves. Streaks: foam blown into long lines along the wind, the
+  // contour lines of a noise stretched out downwind (thin where it crosses its middle
+  // value), in patches. Both on the water's rest position, faded in sheltered water and far off.
+  if (uWindFoam.z + uWindFoam.w > 0.0) {
+    float open = smoothstep(0.25, 0.9, vShelter) * (1.0 - smoothstep(250.0, 900.0, dist));
+    vec2 down = uWindFoam.xy;
+    float along = dot(vRest, down) - uStreak.z;
+    float across = dot(vRest, vec2(-down.y, down.x));
+    // A line a set width on the water (owner: thin and faint, not bands): how far this
+    // point is from the noise's middle-value contour, in metres (the noise's change per
+    // metre from its screen derivatives), 0.15 m either side. Far off it thins away to nothing.
+    float sn = texture2D(uFoamNoise, vec2(across * uStreak.y, along * uStreak.x)).r;
+    float perMetre = fwidth(sn) / max(1e-4, length(fwidth(vRest)));
+    float fromLine = abs(sn - 0.5) / max(1e-4, perMetre);
+    // In patches, and broken along their length (not ruled lines).
+    float patchy = smoothstep(0.35, 0.65, texture2D(uFoamNoise, vRest * 0.006 + 0.37).r)
+      * smoothstep(0.42, 0.62, texture2D(uFoamNoise, vec2(across * uStreak.y * 3.0, along * uStreak.x * 6.0) + 0.61).r);
+    float streak = (1.0 - smoothstep(0.08, 0.2, fromLine)) * patchy * uWindFoam.w;
+    // White horses: small bright patches (a metre or two) where the water is steep, breaking
+    // and fading again: two fields of patches sliding past each other with the drift (one
+    // downwind, one across), foam only where both are high, so each one comes and goes in a
+    // few seconds. (Not by height: a gale's long swell lifts whole stretches of sea at once.)
+    float drift = uStreak.z;
+    float capA = texture2D(uFoamNoise, vRest * 0.11 + down * drift * 0.03 + vec2(0.13, 0.71)).r;
+    float capB = texture2D(uFoamNoise, vRest * 0.08 + vec2(-down.y, down.x) * drift * 0.025 + vec2(0.52, 0.27)).r;
+    float steep = smoothstep(0.002, 0.03, facetSlope);
+    // More of them as the wind rises, each as white (a light wind's few are no paler).
+    float capAt = mix(0.52, 0.37, uWindFoam.z);
+    float caps = smoothstep(capAt, capAt + 0.07, capA * capB) * mix(0.35, 1.0, steep) * min(1.0, uWindFoam.z * 4.0);
+    float wf = max(streak * 0.22, caps * 0.85) * open;
+    col = mix(col, uFoam * (0.4 * uAmbient + 0.3 * uSunIntensity), wf);
+  }
 
   // Port floodlight: a soft pool of light and a long glinting reflection on the facets.
   // Uniform branch (the same for every pixel): skipped entirely by day, which on a mobile
