@@ -35,7 +35,7 @@ export class ChartTableView {
   readonly lampSwitch: Toggle;
   /** The knob that folds and unfolds the leaf, for the interaction system. */
   readonly leafHandle: ChartLeafHandle;
-  /** The tab that turns to the next sheet (regions: the archipelago sheet, a sheet per region). */
+  /** The chart rack on the wall above the table: a press turns to the next sheet (regions: the archipelago sheet, a sheet per region). */
   readonly sheetTab: ChartSheetTab;
   /** The leaf's contents' frame: the table frame while unfolded (chart tools go in here). */
   readonly leafFrame = new THREE.Group();
@@ -162,17 +162,19 @@ export class ChartTableView {
     pivot.add(this.leafFrame);
     this.leafHandle = new ChartLeafHandle(pivot, legPivot, keys.leaf);
     this.leafHandle.root.position.set(x1, T - 0.02, (z0 + z1) / 2);
-    // The sheet tab: a paper tab at the chart's forward outboard corner (its north-east).
+    this.leafFrame.add(leaf, chart, bulb, legPivot, this.leafHandle.root);
+    // The chart rack: a pigeonhole of folded charts on the wall above the table's forward
+    // end, clear of the paper (a click on the paper is the pencil's). A press turns to the
+    // next sheet. On the wall, not the leaf: it stays put when the leaf folds.
     this.sheetTab = new ChartSheetTab(() => this.nextSheet());
-    this.sheetTab.root.position.set(this.chartCenter.x - ch / 2 + 0.03, T + 0.004, this.chartCenter.z - cw / 2 + 0.03);
-    this.leafFrame.add(leaf, chart, bulb, legPivot, this.leafHandle.root, this.sheetTab.root);
+    this.sheetTab.root.position.set(x0 + 0.045, T + 0.14, z0 + 0.14);
 
     this.lampSwitch = new Toggle('chartLamp', keys.lamp?.channel ?? 'chartLamp', 'Chart table lamp', keys.lamp?.read ?? ((s) => s.controls.chartLamp));
     // On the batten, aft end, its lever moving up and down the wall.
     this.lampSwitch.root.position.set(x0 + 0.03, T - 0.065, cfg.lampSwitch[1]);
     this.lampSwitch.root.rotation.z = -Math.PI / 2; // its "up" out of the wall (+x)
     this.lampSwitch.root.scale.setScalar(0.8);
-    this.root.add(wall, pivot, this.lampSwitch.root);
+    this.root.add(wall, pivot, this.lampSwitch.root, this.sheetTab.root);
     this.detail = [chart, bulb];
   }
 
@@ -323,22 +325,31 @@ export class ChartLeafHandle extends Control {
 }
 
 /**
- * The sheet tab (regions): a small paper tab at the chart's corner. A press turns to the
- * next sheet: the archipelago sheet, then each region's detail sheet. Each player's own
+ * The chart rack (regions): a wooden pigeonhole on the wall above the chart table with the
+ * other sheets folded in it. A press on it turns the table to the next sheet: the
+ * archipelago sheet, then each region's detail sheet, then home's again. Each player's own
  * table shows the sheet they turned to (nothing is sent: the pencil marks are in world
- * metres and fall on whichever sheet is out).
+ * metres and fall on whichever sheet is out). Its root sits on the wall (x out of the wall).
  */
 export class ChartSheetTab extends Control {
   readonly kind = 'press' as const;
-  readonly label = 'Chart: next sheet';
+  readonly label = 'Chart rack: next sheet';
   private pressed = false;
 
   constructor(private readonly onTurn: () => void) {
     super('chartSheet', 'chartSheet');
-    const tab = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.004, 0.045), this.material(0xe8d9a8));
-    const mark = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.005, 0.004).translate(0, 0, -0.012), this.material(0x1c2a36));
-    this.root.add(tab, mark);
-    this.hitObjects.push(tab);
+    const wood = this.material(0x6a4a2e);
+    // The box: an open pigeonhole 16 cm wide, 9 cm tall, 7 cm deep, its mouth facing into the wheelhouse (+x).
+    const back = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.09, 0.16).translate(-0.03, 0, 0), wood);
+    const bottom = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.01, 0.16).translate(0, -0.045, 0), wood);
+    const top = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.01, 0.16).translate(0, 0.045, 0), wood);
+    const sides = [-1, 1].map((s) => new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.09, 0.01).translate(0, 0, s * 0.075), wood));
+    // The folded charts in it, their spines out: a few sheets of paper leaning together.
+    const paper = this.material(0xe8dfc0);
+    const charts = [-0.02, 0, 0.02].map((dz, i) => new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.075, 0.012).translate(0.005, -0.002 + i * 0.003, dz), paper));
+    const spine = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.06, 0.05).translate(0.034, 0, 0), this.material(0x9a1f78));
+    this.root.add(back, bottom, top, ...sides, ...charts, spine);
+    this.hitObjects.push(back, bottom, top, ...sides, ...charts);
   }
 
   distanceTo(world: THREE.Vector3): number {
