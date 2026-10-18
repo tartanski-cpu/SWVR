@@ -399,11 +399,11 @@ export function stepVessel(
     const bowCleat = gearOf(state, 'bowCleat');
     const sternCleat = gearOf(state, 'sternCleat');
     if (bowCleat && sternCleat) {
-      toWorld(0, bowCleat.lineY, bowCleat.z, lineBow);
+      toWorld(bowCleat.x ?? 0, bowCleat.lineY, bowCleat.z, lineBow);
       pointVelocity(lineBow, lineBowV);
-      toWorld(0, sternCleat.lineY, sternCleat.z, lineStern);
+      toWorld(sternCleat.x ?? 0, sternCleat.lineY, sternCleat.z, lineStern);
       pointVelocity(lineStern, lineSternV);
-      stepMooring(state, { bow: bowCleat.z, stern: sternCleat.z }, lineBow, lineBowV, lineStern, lineSternV, dt, fBow, fStern);
+      stepMooring(state, { bow: bowCleat.z, stern: sternCleat.z, inshore: bowCleat.inshore }, lineBow, lineBowV, lineStern, lineSternV, dt, fBow, fStern);
       if (state.mooring.phase !== 'free') {
         addForceAt(cf.set(fBow.x, 0, fBow.z), lineBow);
         addForceAt(cf.set(fStern.x, 0, fStern.z), lineStern);

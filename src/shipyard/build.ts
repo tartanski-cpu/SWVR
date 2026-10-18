@@ -877,8 +877,10 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   // The skiff in her cradle and its crane (owner; module deck.tender-crane, its socket the
   // foot of the column): the cradle forward of the column (as on the workboat's foredeck),
   // the column at its aft end to one side, the skiff going over that side. On the foredeck
-  // the column just forward of the house, on the aft deck as far aft as it fits; the cradle
-  // on the centreline if there's room, else as far over as the column's side allows.
+  // the column just forward of the house, on the aft deck as far aft as it fits. The cradle
+  // is off the centreline toward the crane's side, as the deck crane is (owner: not central;
+  // the skiff and crane together over to the side picked), as far over as fits; only if
+  // there's no room off the centreline does it sit nearer the middle.
   const tc = CONFIG.vessels.workboat.tenderCrane;
   let skiffAt: V3 | null = null;
   if (d.skiff) {
@@ -900,16 +902,22 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     const zs: number[] = [];
     if (fore) for (let z = foreEnd - 0.55; z - ahead > stem + 0.5; z -= 0.25) zs.push(z);
     else for (let z = transom - 0.5; z - ahead > aft; z -= 0.25) zs.push(z);
-    // The cradle's middle on the centreline, or shifted toward the column's side (to 1 m).
-    search: for (const z of zs)
-      for (const mid of [0, 0.25, 0.5, 0.75, 1]) {
-        const cx = side * (outset + mid);
-        if (shape(cx, z).every(fits)) {
-          skiffAt = [r2(cx), q.deckY(z), r2(z)];
-          taken.push(...shape(cx, z));
-          break search;
+    // The cradle's middle shifted toward the column's side: as far over as fits (to 1.5 m),
+    // at least `skiffOffset` off the centreline; nearer the middle only as a last resort.
+    const least = CONFIG.shipyard.skiffOffset;
+    const mids: number[] = [];
+    for (let m = 1.5; m >= least - 1e-9; m -= 0.05) mids.push(Math.round(m * 100) / 100);
+    const fallback = [0.2, 0.1, 0].filter((m) => m < least);
+    search: for (const pass of [mids, fallback])
+      for (const z of zs)
+        for (const mid of pass) {
+          const cx = side * (outset + mid);
+          if (shape(cx, z).every(fits)) {
+            skiffAt = [r2(cx), q.deckY(z), r2(z)];
+            taken.push(...shape(cx, z));
+            break search;
+          }
         }
-      }
     if (!skiffAt) warnings.push(`There's no room on her ${fore ? 'foredeck' : 'aft deck'} for the skiff's cradle (${(ahead + 0.3).toFixed(1)} m long, ${(2 * tc.cradle.halfWidth + outset).toFixed(1)} m across with the crane) clear of her other gear: move the wheelhouse ${fore ? 'aft' : 'forward'}, or make her longer. Left off.`);
   }
 

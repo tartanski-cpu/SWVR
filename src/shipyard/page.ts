@@ -122,7 +122,10 @@ const VIEWS: Record<string, () => { eye: [number, number, number]; at: [number, 
   // (Owner: port and starboard, straight side on, in place of one side view.)
   Port: () => ({ eye: [-2.3 * L(), 1, 0], at: [0, 1, 0] }),
   'Stern ¾': () => ({ eye: [0.65 * L(), 0.45 * L(), 0.9 * L()], at: [0, 1, 0] }),
-  Plan: () => ({ eye: [0, 1.7 * L(), 0.01], at: [0, 0, 0] }),
+  // From above, bow to the right as a plan is drawn (owner: it fits the wide view better):
+  // the eye a hair to starboard of overhead turns her so (port at the top).
+  // High enough that her length fits across the view, whatever its shape.
+  Plan: () => ({ eye: [0.01, Math.max(0.9, 1.55 / camera.aspect) * L(), 0], at: [0, 0, 0] }),
   // Square on from ahead and astern (owner: the front and back views were missing; they're
   // also two of the four views you can sketch on, planeSketch.ts).
   Bow: () => ({ eye: [0, 1, -2.3 * L()], at: [0, 1, 0] }),

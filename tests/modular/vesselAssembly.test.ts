@@ -69,7 +69,7 @@ describe('every boat from her recipe', () => {
 
   it('the tows are hulls with no modules; the skiff has her outboard', () => {
     for (const id of ['derelict', 'logRaft', 'barge']) expect(RECIPES[id].modules, id).toEqual([]);
-    expect(RECIPES.skiff.modules.map((m) => m.module)).toEqual(['propulsion.electric-outboard']);
+    expect(RECIPES.skiff.modules.map((m) => m.module)).toEqual(['propulsion.electric-outboard', 'deck.boat-cleat', 'deck.boat-cleat']);
   });
 
   it('a heavier battery bank makes a heavier workboat, her CG drawn toward it', () => {

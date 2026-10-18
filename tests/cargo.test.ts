@@ -207,24 +207,25 @@ describe('cargo in the skiff', () => {
   const CRATE = 0;
   const DRUM = CONFIG.cargo.kinds.findIndex((k) => k.name === 'Oil drum');
 
-  it('takes two crates, or one drum, at a time', () => {
+  it('takes five crates across her floor (owner: she should carry more), or two drums: as many as there is room for', () => {
     const { world, skiff, give, put } = skiffSetup();
     placeVessel(skiff, 0, 0, -300, 0);
-    give('a', CRATE);
-    give('b', CRATE);
-    give('c', CRATE);
-    put('a', 0, -0.6);
-    put('b', 0, 0.3);
-    put('c', 0, 0);
-    expect(aboard(world, skiff.id).map((c) => c.id)).toEqual(['a', 'b']);
-    expect('carriedBy' in world.cargo.c.at).toBe(true); // full: still in your hands
-    // Unload, then one drum: fills her.
-    delete world.cargo.a;
-    delete world.cargo.b;
-    give('d', DRUM);
-    put('d', 0, -0.3);
-    put('c', 0, 0.4);
-    expect(aboard(world, skiff.id).map((c) => c.id)).toEqual(['d']);
+    // Set down in rows as you would: two abreast aft and amidships, one in the narrower bow.
+    const ids = ['a', 'b', 'c', 'd', 'e', 'f'];
+    const spots: [number, number][] = [[-0.33, 0.6], [0.33, 0.6], [-0.33, -0.05], [0.33, -0.05], [0, -0.7], [0, 0]];
+    ids.forEach((id, i) => {
+      give(id, CRATE);
+      put(id, ...spots[i]);
+    });
+    expect(aboard(world, skiff.id).map((c) => c.id)).toEqual(ids.slice(0, 5));
+    expect('carriedBy' in world.cargo.f.at).toBe(true); // full: still in your hands
+    // Unload, then drums: two fill her (three would be over her payload anyway).
+    for (const id of ids.slice(0, 5)) delete world.cargo[id];
+    for (const id of ['x', 'y', 'z']) {
+      give(id, DRUM);
+      put(id, 0, 0);
+    }
+    expect(aboard(world, skiff.id).map((c) => c.id)).toEqual(['x', 'y']);
   });
 
   it('goods stay put in her bottom (no sliding), and keep clear of the helmsman by the tiller', () => {

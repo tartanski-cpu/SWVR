@@ -417,9 +417,10 @@ export class ChartPlotter {
       g.fillText('TOW', tx + 11, ty - 10);
     }
 
-    // AIS targets: passing ships as triangles along their course, with a 6-minute course
-    // line and their name (AIS works in any visibility - that's the point of it).
-    for (const ship of world.traffic?.ships ?? []) {
+    // AIS targets (with the boatyard's AIS receiver): passing ships as triangles along their
+    // course, with a 6-minute course line and their name (AIS works in any visibility -
+    // that's the point of it).
+    for (const ship of world.career?.upgrades.includes('ais') ? (world.traffic?.ships ?? []) : []) {
       const [px, py] = toPx(ship.x, ship.z);
       if (px < -40 || px > W + 40 || py < -40 || py > H + 40) continue;
       const [ex, ey] = toPx(ship.x + Math.sin(ship.course) * ship.speed * 360, ship.z - Math.cos(ship.course) * ship.speed * 360);

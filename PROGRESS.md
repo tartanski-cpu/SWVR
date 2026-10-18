@@ -3179,6 +3179,39 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   - in the headless browser, in a design moored at Calder Haven: started the engine, raised the boom, hooked a crate off the foredeck, swung it to starboard (she heeled about 1°), and landed it on the quay.
 - **Not done yet:** the tow winch, A-frame, net drum, windlass and tender crane are modules but drawn at the workboat's fixed places. Making them placeable is next.
 
+### The skiff: a stern cleat, tied up front and back; more cargo (owner)
+
+- **The owner asked** for a cleat at the skiff's stern for a line, so she can be tied front and back to the ship or to the quay, and for her to carry more cargo, estimated from her floor area.
+- **Her cleats are modules now (`deck.boat-cleat`)**, on two new sockets on her hull (`CONFIG.vessels.skiff.cleats`):
+  - the bow cleat on her stem head, where the app used to draw it;
+  - the new stern cleat on the port quarter's coaming, clear of the outboard.
+- **One press on either cleat works that end's line:**
+  - fast (to the ship or ashore): it lets go;
+  - else, lying slowly alongside a free quay berth: it goes ashore to the bollard. With both ends ashore she's moored, by the same mooring lines as the big boats (`mooring.ts`). She lies `inshore` 1.4 m closer to the quay than a berth's mark, which is set for the workboat's beam;
+  - else: to the ship's nearest cleat in reach. The bow line is her painter as before; the stern line works the same way (`TenderState.sternPainter`), so she can lie alongside the ship tied fore and aft.
+- **The ship's own berth:** if another boat lies in the berth (the workboat), the skiff's lines go to the ship, not to that berth's marks.
+- **A ship's midship cleat** clicked leads the nearer of her free lines there, or lets go the line that's on it.
+- **Both lines** are drawn, and the crane lets both go when it picks her up.
+- **The mooring forces** are the big boats' (`CONFIG.docking`). On her 330 kg they're heavily damped; she comes in and settles without bouncing (moored within 30 s in the tests).
+- **Cargo, estimated from her floor:**
+  - **The space:** between the bow (`bowClear` 0.6 m) and the helmsman by the tiller (`aftClear` 0.9 m) her floor is 2.1 m long and 1.2-1.4 m wide inside, about 2.6 m². The edge margin was the bulwark's 0.25 m; it's now 0.08 m for her thin sides (`cargo.edge`, new, read by `cargo/deck.ts`).
+  - **What fits** (the game's rule, `deckCapacity`): five crates (two abreast aft, two amidships, one in the narrower bow), or two oil drums.
+  - **No slot limit now** (`slots` 0, was 2): room and mass decide.
+  - **`maxPayloadKg` 300 (was 250).** Five crates (200 kg), or two drums and a crate, with her helmsman sink her about 10 cm. Her waterplane is about 3.8 m², roughly 39 kg/cm, which leaves about 0.2 m of freeboard aft.
+- **Checked:**
+  - typecheck and all tests (784), including new ones:
+    - her two cleats;
+    - moored at a quay berth by both lines, alongside her mark and lined up with it;
+    - held in a strong offshore breeze, and blowing off when let go;
+    - in the ship's berth her lines go to the ship;
+    - tied alongside the ship fore and aft in a breeze;
+    - five crates by hand, the sixth refused; two drums, the third refused;
+  - updated tests for the midship cleat (it now takes her free stern line when her painter's fast) and for her modules;
+  - golden runs unchanged;
+  - two weather tests and one slipway test timed out once under load, and pass when run again;
+  - in the game, headless: tied at the Calder fuel berth by both lines to the bollards, and alongside the workboat on her midship and aft cleats.
+- **Not checked:** in VR.
+
 ### The skiff crane and the anchor windlass made placeable (owner)
 
 - **The owner found** the skiff (with her crane) and the anchor still couldn't be placed in the Shipyard. On the module side the reason was that both were fixed to the workboat's own coordinates. Both now stand wherever their socket is, like the deck crane, tow winch and stern gear.
@@ -3864,6 +3897,34 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Tests:** `tests/shipyard/deckhouse.test.ts` (codes with and without, with placed gear too; it stands from the aft wall forward, full width just inside the deck edge, the house on top with steps; set in, it leaves side decks, the deck under it closed, solid; GM drops a little but stays above 0.5, price up, deck room down; the side door left off with the reason).
 - **Checked in headless Chromium:** a pilot boat with a 3 m, 1.2 m high, full-width, 30°-raked deckhouse, and set in with 0.5 m side decks, upright: views from the bow, stern and port; the wheelhouse on top, the steps up aft, no warnings. Found and fixed on the way: its faces wound inside out (invisible from outside), and its foot showing through her topsides at the bow. **Not checked:** the Quest, a phone, walking up the steps into a raised helm in the game.
 - **Next, for bigger boats (tugs), noted:** the deckhouse top walkable with rails and a ladder or stairs (the walk area's floors and ladders already do this for the workboat's roof), and an interior with a door into it.
+
+### Shipyard: the skiff and her crane over to one side (owner)
+
+- **The owner:** the skiff and crane still placed centrally. Like the deck crane, they should go to one side or the other, the crane swapping sides with them.
+- **Now** (`build.ts`): the cradle goes off the centreline toward the crane's side (the side picked: the click on her, or Foredeck/Aft deck crane to port/starboard). It's at least `CONFIG.shipyard.skiffOffset` (0.3 m) over, and as far over as fits (to 1.5 m), with the column outboard of it. It goes nearer the middle only if there's no room off the centreline. The crane module already mirrors for a column to port: skiff going over the port side.
+- **Checked:** typecheck and tests. On the small tug's aft deck the cradle now sits 0.70 m off the centreline to the crane's side (it was central), mirrored for port.
+- **Not checked:** the other hull types as they come have no room for the skiff's cradle at all (3.9 m × 3.0 m with the crane), before and after this change; on a longer hull it goes to the side the same way. Not checked in the 3D view.
+- **Known issue (found here):** the landing craft, gillnetter, workboat and pilot boat at their default sizes say there's no room for the skiff on either deck. Worth a look: the cradle and crane may need to fit a smaller footprint.
+
+### Night mode for the chart, the whiteboard and the task board (owner)
+
+- **The owner:** the chart table and the whiteboard are very bright at night; they need a night mode.
+- **Why:** they're pictures drawn without the scene's lighting, so they read crisply by day. The chart was dimmed only by the light on it, and the white cabin light or the chart lamp lit it near full. The whiteboard and the task board weren't dimmed at all.
+- **Now** (`render/nightPaper.ts paperColour`, used by `App.ts` for `ChartTableView.setLight`, `BoardView.setLight` and `DutyBoardView.setLight`):
+  - **Brightness:** the sky's ambient light, plus the cabin lamp (white or red), plus for the chart its own lamp. The chart lamp is turned down at night, and nothing is brighter than `nightMax` at night.
+  - **Colour:** at night the wheelhouse goes to red light (with the panels: `CONFIG.panelLighting` redFrom..redTo), and the paper's whites become a dim red. The chart lamp's bulb and its glow on the table go red too. With the white cabin light on, it stays nearly white, but dimmed.
+- **Config:** `CONFIG.nightPaper` (`daylight`, `cabinWhite`, `cabinRed`, `lampNight`, `least`, `nightMax`, `redGreen`, `redBlue`, `whiteLightRed`).
+- **Checked:**
+  - Typecheck and tests (`tests/nightPaper.test.ts`: white by day; dim and red at night, the lamps never above `nightMax`; the white cabin light keeps it near white; dimming through the dusk).
+  - Headless, in the game: the chart and the whiteboard by day, at night with no lights, with the red cabin light and the chart lamp, and with the white cabin light.
+- **Not checked:** the Quest (its display shows the dark differently from a desktop screenshot).
+- **Also: the chart lamp on a stalk** (owner: the lamp hanging off the wall above the table was useless; one on a stalk fixed to the table instead, no interaction for now; then a picture of the kind wanted). `vessel/view/chartTable.ts`:
+  - A black gooseneck reading lamp: a round base with a rocker switch on its face, at the leaf's wall edge; a long flexible neck rising and arching over; and a cylindrical head on its end, aimed 35° off the vertical down and out at the chart, its lens just inside the open end (the lens glows when the lamp's on: red at night).
+  - It's part of the leaf, so it folds down with it.
+  - The wall bracket and arm are gone. Its switch on the batten works as before (the stalk itself isn't moveable).
+  - `chartTable.lamp`: `base` z, `height`, and `head` (the shade over the chart) in the config, now for the stalk lamp.
+- **Also: the Shipyard's Plan view** (owner: bow to the right, stern to the left, to use the wide view better): from above, her bow to the right and port at the top, as a plan is drawn. It's high enough that her length fits across the view, whatever its shape.
+- Headless: the lamp on the table by day and at night (off, red with its lamp on, white cabin light); the Plan view with her bow to the right.
 
 ### Shipyard: buttons to the right, port and starboard views, sketches only when opened (owner)
 
@@ -4791,6 +4852,32 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   - RT use (the left button), LT binoculars (the right), right stick click the laser (the middle);
   - with a controller in use, the reticle aims without the mouse captured (`DesktopPointer.padAim`).
 - **Checked:** `npm test` (all pass; the gamepad test now also checks every button's key is bound to an action, the helm's buttons press no keys, and a pressed key is pressed once, held and let go), typecheck. In the game in headless Chromium with a pretend controller, stepped at 60 frames a second, a fully fitted workboat: wipers, horn while held, anchor down and up, searchlight, fire pump, the laser while the stick's clicked, Y nothing at the helm, the Menu button opens and shuts the menu; off the helm the stick walked 1.6 m in a second, B crouched and stood, A jumped. No page errors. **Not checked:** a real controller.
+
+### The boatyard at Calder Haven: add-ons, upgrades and repairs out of the menu (owner)
+
+- **The owner:** the menu's chandlery is out of date. The starter boat stays bare; take the boat upgrades out of the O menu altogether, into a new boatyard on the pier side with a small crane and rusty boats; buy the add-ons and upgrades at a board on the outside of a building there. New upgrades: a bigger fuel tank and AIS. No old saves to keep working.
+- **The boatyard** (`world/regions/home.ts`, `world/view/worldView.ts buildYard`), at Calder Haven by the slipway, its ground levelled at the waterfront's 1.8 m (a new flat):
+  - the shed (a building: corrugated sheet, its front with the door and the board facing west to the slip);
+  - a small fixed yard crane at the head of the slip (a concrete pad, a yellow mast and slewing head, a jib up at 20° over the slip with a counterweight, the wire and hook block);
+  - two old boats laid up on keel blocks and shores, rusting: a hard-chine hull in a new **rust** paint (`render/pixelPaint.ts`: blotches of scale, pitting, runs down the plating), a faded band of old paint, one with a wheelhouse aft;
+  - all merged with the region's structures (no new draw calls), drawn only, no collision (as the buildings).
+- **The board** (`ui/yardBoard.ts`, `CONFIG.boatyard.board`): a 1.7 m menu panel (the menu's own, `WristMenu` with a width and a reach: 4 m) on the shed's front, drawn within `range` (25 m), worked like the menu: VR point and trigger, or touch; desktop aim and click. Its tabs:
+  - **Add-ons:** the starter workboat's equipment (`CONFIG.career.upgrades` with `fit`: trawl gear, skiff and crane, searchlight, fire monitor); fitting one starts the game again with her refitted, as before;
+  - **Upgrades:** radar, the new **AIS receiver**, the new **bigger fuel tank**, the heavy towing post, the bigger trawl, the ice machine, crane motion compensation;
+  - **Repairs:** the hull and the engine;
+  - each item on two lines: its name and price with Buy (or why not), and what it does.
+- **The O menu:** Office → Yard is gone. Office → Jobs has a line pointing to the boatyard.
+- **In Calder Haven:** buying and repairs want her in Calder Haven (`career.ts buyBlocker`, `repairBlocker`: "Bring her into Calder Haven").
+- **AIS** (`nav/chartPlotter.ts`): passing ships are on the plotter only with the AIS receiver (they were free before).
+- **The bigger fuel tank:** `CONFIG.career.bigTankFactor` 1.6 (the workboat 900 → 1,440 L). The career sets `VesselState.engine.tankL` each tick when she has it (so crew get it in the snapshot, and no restart); everything that reads the tank asks `vessel/fuelTank.ts fuelTankL` (the gauge, filling up at the berth and by hand, the hose, the low-fuel lamp, debug fuel).
+- **Checked:** `npm test` (113 files, 798 pass; the career and wear tests: buying and repairs at Calder only, not Brannock; new: the bigger tank fills to 1,440 L, the low-fuel lamp scaled; AIS bought; the rust tile mid-grey on average), typecheck. In the game in headless Chromium: the yard's ground levelled (1.8–2.2 m), the board drawn when near and hit by the reticle's ray; screenshots of the yard (the shed, the crane over the slip, the two rusting boats) and the board (Add-ons, and Upgrades after clicking its tab). No page errors. **Not checked:** the Quest (pointing at the board in VR, its text from a step back), and actually buying from the board in the game (the buy itself is the menu's, tested in the career test).
+
+### The boatyard onto the quay; a faster run (owner)
+
+- **The owner:** the yard was a bit far away: the building on the pier, the boats round it and the crane on the quayside. And a faster run.
+- **The boatyard** (`world/regions/home.ts`, `CONFIG.boatyard.board`) is on the Calder Haven quay now: the shed on the apron behind the berths (x 727.5–736.5, z 639–651), its front and board (727.4, 645) facing the quay edge, about 20 m from the cargo berth; the yard crane at the quay edge between the fuel berth and the goods stack (714.5, 637), its jib out west over the water; the two old boats laid up on the quay, beside the shed (746, 660) and south of it (731, 631). The flat made for the slipway site is gone (the terrain there is as before).
+- **Running:** `CONFIG.locomotion.runMultiplier` 2.4 → 3.2 (desktop Shift, a controller's left stick click, VR the stick pushed to its edge): about 5.1 m/s on desktop, 4.5 m/s in VR.
+- **Checked:** `npm test`, typecheck. Headless Chromium screenshots: the quay from the water (the shed, crane and boats clear of the harbour office, the pump, the goods stack and the berths) and the board, drawn when near and hit by the reticle's ray. No page errors. **Not checked:** the Quest.
 
 ### Test address for work in progress (owner request)
 

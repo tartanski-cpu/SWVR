@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { fitPaint, flatVertexColorMaterial, mergeParts, paintLocal, part } from '../../render/geometryUtils';
 import type { PaintName } from '../../render/pixelPaint';
 import { LAMPS, LIGHTS, PORT_FLOODS, type BlockDef, type BuildingDef, type CurrentZoneDef, type RegionDef, type ShelterDef, type SlipwayDef, type WreckDef } from '../archipelago';
+import type { YardDef } from '../defs';
 import { CONFIG } from '../../config';
 import { groundHeight } from '../terrain';
 import { standingHeight } from '../geography';
@@ -224,6 +225,7 @@ function buildStructures(region: RegionDef): THREE.BufferGeometry[] {
   for (const s of region.slipways) buildSlipway(s, parts);
   for (const r of region.ridges) if (r.drawn !== false) buildBreakwater(r.ax, r.az, r.bx, r.bz, r.crest, r.halfWidth, r.slope, parts);
   for (const bd of region.buildings) buildBuilding(bd, parts);
+  for (const y of region.yards ?? []) buildYard(y, parts);
   for (const l of region.lights) buildLightTower(l.x, l.z, l.y, l.color, l.tower, parts);
   for (const w of region.wrecks) buildWreck(w, parts);
   for (const l of region.landmarks) if (l.kind === 'hill') buildCairn(l.x, l.z, parts);
@@ -425,6 +427,73 @@ function buildBuilding(bd: BuildingDef, parts: THREE.BufferGeometry[]): void {
     paintLocal(part(door, 0x3a2a22, 'wood')).applyMatrix4(m),
     fitPaint(part(win, 0x6a7a88, 'window')).applyMatrix4(m),
   );
+}
+
+/**
+ * A boatyard's yard (YardDef): its crane and the boats laid up there. Merged with the rest of
+ * the region's structures (one draw call); original, generic shapes.
+ *   crane  a concrete pad, a yellow steel mast with a slewing head, a jib up at 20° toward
+ *          `jibDeg` with a counterweight behind, a wire and hook block at the jib's end;
+ *   boat   a hard-chine hull (pointed bow, square transom) in rust, a faded band of old paint
+ *          along her sheer, perhaps a wheelhouse aft, on three keel blocks with a shore each side.
+ */
+function buildYard(y: YardDef, parts: THREE.BufferGeometry[]): void {
+  const DEG = Math.PI / 180;
+  // Crane: built with its jib along local -z, then turned to the compass bearing.
+  {
+    const c = y.crane;
+    const base = Math.max(standingHeight(c.x, c.z), groundHeight(c.x, c.z));
+    const m = new THREE.Matrix4().makeRotationY(-c.jibDeg * DEG).setPosition(c.x, base, c.z);
+    const H = 6.5;
+    const jib = 6;
+    const lift = 20 * DEG;
+    const yellow = 0xd8a820;
+    const local: THREE.BufferGeometry[] = [
+      part(new THREE.BoxGeometry(1.8, 0.4, 1.8).translate(0, 0.2, 0), CONCRETE, 'concrete'),
+      part(new THREE.BoxGeometry(0.4, H, 0.4).translate(0, 0.4 + H / 2, 0), yellow, 'worn'),
+      part(new THREE.BoxGeometry(0.8, 0.6, 1.1).translate(0, H + 0.6, 0.1), yellow, 'worn'),
+      part(new THREE.BoxGeometry(0.28, 0.32, jib).translate(0, 0, -jib / 2).rotateX(lift).translate(0, H + 0.8, -0.3), yellow, 'worn'),
+      part(new THREE.BoxGeometry(0.9, 0.7, 0.6).translate(0, H + 0.75, 0.95), 0x3a3e44, 'worn'),
+    ];
+    // The jib's end, the wire hanging from it, and the hook block at the bottom.
+    const endY = H + 0.8 + Math.sin(lift) * jib;
+    const endZ = -0.3 - Math.cos(lift) * jib;
+    const drop = endY - 2.2;
+    local.push(part(new THREE.CylinderGeometry(0.02, 0.02, drop, 4).translate(0, endY - drop / 2, endZ), 0x202224));
+    local.push(part(new THREE.BoxGeometry(0.3, 0.4, 0.2).translate(0, 2.0, endZ), 0x2a2c30, 'worn'));
+    for (const g of local) parts.push(g.applyMatrix4(m));
+  }
+  // Boats laid up: bow along local -z, then turned to her heading.
+  for (const b of y.boats) {
+    const base = Math.max(standingHeight(b.x, b.z), groundHeight(b.x, b.z));
+    const keel = 0.55; // on blocks
+    const m = new THREE.Matrix4().makeRotationY(-b.headingDeg * DEG).multiply(new THREE.Matrix4().makeRotationZ(0.05)).setPosition(b.x, base + keel, b.z);
+    const L = b.length;
+    const hb = b.beam / 2;
+    // Her plan (x across, y along: + aft), extruded up her depth, the bottom narrowed (a chine).
+    const plan = new THREE.Shape([
+      new THREE.Vector2(-hb, L / 2),
+      new THREE.Vector2(hb, L / 2),
+      new THREE.Vector2(hb, -L * 0.1),
+      new THREE.Vector2(hb * 0.55, -L * 0.38),
+      new THREE.Vector2(0, -L / 2),
+      new THREE.Vector2(-hb * 0.55, -L * 0.38),
+      new THREE.Vector2(-hb, -L * 0.1),
+    ]);
+    const hull = new THREE.ExtrudeGeometry(plan, { depth: b.depth, bevelEnabled: false }).rotateX(Math.PI / 2).translate(0, b.depth, 0);
+    // (rotateX(90°): the plan's y to world z, the extrusion down to -y; lifted back up by her depth.)
+    const local: THREE.BufferGeometry[] = [paintLocal(part(hull, 0x8a4a26, 'rust'))];
+    // A faded band of old paint along her sheer, each side.
+    for (const s of [-1, 1]) local.push(part(new THREE.BoxGeometry(0.04, 0.22, L * 0.6).translate(s * (hb + 0.02), b.depth - 0.2, L * 0.15), 0x3e5a64, 'worn'));
+    if (b.house) {
+      local.push(paintLocal(part(new THREE.BoxGeometry(b.beam * 0.62, 1.5, L * 0.22).translate(0, b.depth + 0.75, L * 0.22), 0xb0a894, 'rust')));
+      local.push(part(new THREE.BoxGeometry(b.beam * 0.5, 0.45, 0.04).translate(0, b.depth + 1.05, L * 0.11 - 0.01), 0x2a3038));
+    }
+    // Keel blocks (timber) under her, and a shore under each bilge.
+    for (const z of [-L * 0.3, 0, L * 0.3]) local.push(part(new THREE.BoxGeometry(0.6, keel, 0.6).translate(0, -keel / 2, z), TIMBER, 'wood'));
+    for (const s of [-1, 1]) local.push(part(new THREE.BoxGeometry(0.12, 1.3, 0.12).rotateZ(s * 0.5).translate(s * (hb + 0.25), 0.15, 0), TIMBER, 'wood'));
+    for (const g of local) parts.push(g.applyMatrix4(m));
+  }
 }
 
 /**

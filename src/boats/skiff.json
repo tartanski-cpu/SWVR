@@ -4,6 +4,8 @@
   "name": "Skiff",
   "hull": "hull.skiff-3.6",
   "modules": [
-    { "socket": "outboard", "module": "propulsion.electric-outboard", "modules": [{ "socket": "tiller", "module": "control.tiller" }] }
+    { "socket": "outboard", "module": "propulsion.electric-outboard", "modules": [{ "socket": "tiller", "module": "control.tiller" }] },
+    { "socket": "bowCleat", "module": "deck.boat-cleat", "config": { "end": "bow" } },
+    { "socket": "sternCleat", "module": "deck.boat-cleat", "config": { "end": "stern" } }
   ]
 }

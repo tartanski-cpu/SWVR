@@ -416,6 +416,7 @@ export function mainMenu(h: MenuHost): MainMenu {
       name: 'Jobs',
       rows: [
         { label: 'Balance', buttons: [{ text: () => h.balance(), weight: 2 }] },
+        { label: '', buttons: [{ text: 'Add-ons, upgrades, repairs: the boatyard on the Calder Haven quay', weight: 3 }] },
         { heading: 'Contract' },
         { label: '', buttons: [{ text: () => h.contractText(), weight: 3 }, { text: () => (h.contractText().startsWith('None') ? '' : 'Abandon'), press: () => h.abandonContract() }] },
         { heading: 'Job board' },
@@ -442,32 +443,6 @@ export function mainMenu(h: MenuHost): MainMenu {
     {
       name: 'Your boats',
       rows: yourBoats(h),
-    },
-    {
-      name: 'Yard',
-      rows: [
-        { label: 'Balance', buttons: [{ text: () => h.balance(), weight: 2 }] },
-        { heading: 'Repairs (in port)' },
-        ...[0, 1].map(
-          (i): MenuRow => ({
-            label: '',
-            buttons: [
-              { text: () => h.repairText(i), weight: 3 },
-              { text: () => h.repairStatus(i) || (i === 0 ? 'Repair' : 'Overhaul'), active: () => !h.repairStatus(i), press: () => h.repair(i) },
-            ],
-          }),
-        ),
-        { heading: 'Chandlery (upgrades, in port)' },
-        ...CONFIG.career.upgrades.map(
-          (_, i): MenuRow => ({
-            label: '',
-            buttons: [
-              { text: () => h.upgradeText(i), weight: 3 },
-              { text: () => h.upgradeStatus(i) || 'Buy', active: () => !h.upgradeStatus(i), press: () => h.buyUpgrade(i) },
-            ],
-          }),
-        ),
-      ],
     },
     {
       name: 'Career',

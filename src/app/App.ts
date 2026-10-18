@@ -19,6 +19,7 @@ import { SkyView } from '../environment/skyView';
 import { OceanView } from '../ocean/oceanView';
 import { prepareWaves, significantWaveHeight, surfaceHeight, type PreparedWave } from '../ocean/waves';
 import { SurfaceProbes } from '../debug/surfaceProbes';
+import { paperColour } from '../render/nightPaper';
 import { HydroDebugView } from '../debug/hydroDebugView';
 import { onCrane, recoverCheck } from '../vessel/tenderCrane';
 import { hydraulicsOn, isPowered } from '../vessel/electrics';
@@ -68,6 +69,7 @@ import { OwnHands } from '../player/ownHands';
 import { CameraMode } from '../player/cameraMode';
 import { GamepadInput, PAD, PAD_KEYS, PAD_KEYS_AT_HELM, PAD_MOUSE, padHelm, padLever, type PadState } from '../player/gamepad';
 import { HelmPrompt } from '../ui/helmPrompt';
+import { YardBoard } from '../ui/yardBoard';
 import type { PlayerState } from '../player/playerState';
 import { struckByPropeller } from '../rescue/propStrike';
 import { PropStrikeView } from '../rescue/propStrikeView';
@@ -85,8 +87,7 @@ import { PotHands, type PotHandsContext } from '../potting/potHands';
 import { FuelView } from '../fuel/fuelView';
 import { FuelHands, type FuelHandsContext } from '../fuel/fuelHands';
 import { PainterView } from '../vessel/view/painterView';
-import { cleatName, painterPlan, skiffCleatLocal } from '../vessel/physics/painter';
-import { Cleat } from '../controls/deckGear';
+import { cleatName, painterPlan } from '../vessel/physics/painter';
 import { Binoculars } from '../player/binoculars';
 import { HandGear, type GearKind } from '../player/handGear';
 import { GearView } from '../player/gearView';
@@ -137,6 +138,7 @@ import { ClientSession } from '../net/clientSession';
 import { PeerClientTransport, PeerHostTransport, randomRoomCode, type ClientTransport } from '../net/transport';
 import { NET_RATE, type PlayerPose } from '../net/protocol';
 import { AvatarsView } from '../net/avatarView';
+import { fuelTankL } from '../vessel/fuelTank';
 
 /**
  * Top-level wiring. Owns the renderer, the simulation state and the per-frame loop:
@@ -289,6 +291,10 @@ export class App {
   private readonly vesselViews = new Map<EntityId, VesselView>();
   private readonly hydroViews = new Map<EntityId, HydroDebugView>();
   private readonly simDebug: SimDebug = new Map();
+  /** How dark it is (0 day .. 1 night), this frame. */
+  private darkness = 0;
+  /** The paper's colour for the light on it (chart, boards: render/nightPaper.ts). */
+  private readonly paper = new THREE.Color();
   /** Every sound system (soundBoard.ts). */
   private readonly sound = new SoundBoard();
   /** On-screen controls for a phone or tablet (ui/touchControls.ts), if shown. */
@@ -434,6 +440,8 @@ export class App {
   private atHelm = false;
   private padSteering = false;
   private readonly helmPrompt = new HelmPrompt();
+  /** The boatyard's board (ui/yardBoard.ts). */
+  private yardBoard!: YardBoard;
   /** The recording camera (Menu > Crew > Be the camera; desktop): player/cameraMode.ts. */
   private readonly camMode = new CameraMode();
   /** Our field of view before we became the camera (back to it after). */
@@ -547,8 +555,11 @@ export class App {
     this.camera.add(this.comfortOverlay.mesh);
     this.controllers = new XRControllers(this.renderer, this.rig.root);
     this.decoupler.coupling = userSettings.motionCoupling;
-    this.menu = new WristMenu(mainMenu(this.menuHost()));
-    this.scene.add(this.menu.rayLine, this.noteKeys.menu.root, this.noteKeys.menu.rayLine);
+    const host = this.menuHost();
+    this.menu = new WristMenu(mainMenu(host));
+    // The boatyard's board on its shed at Calder Haven (the add-ons, upgrades and repairs).
+    this.yardBoard = new YardBoard(host);
+    this.scene.add(this.menu.rayLine, this.noteKeys.menu.root, this.noteKeys.menu.rayLine, this.yardBoard.menu.rayLine);
 
     this.desktop = new DesktopController(this.camera, this.renderer.domElement, this.keyboard);
     this.environment = new EnvironmentView(this.scene);
@@ -643,13 +654,6 @@ export class App {
       const boat = new BoatView(vessel.id, def, modules, vessel.id === this.testVesselId);
       view.root.add(boat.root);
       this.boats.set(vessel.id, boat);
-      // An outboard boat (the skiff): her bow cleat on the stem head, for the painter.
-      if (gearOf(vessel, 'outboard')) {
-        const bow = new Cleat(-1, { id: 'painter', channel: 'painter', label: "Skiff's painter (bow cleat): let go / make fast to the nearest cleat" });
-        const [bx, by, bz] = skiffCleatLocal(def);
-        bow.root.position.set(bx, by - 0.06, bz);
-        boat.addControl(bow);
-      }
     }
   }
 
@@ -704,6 +708,7 @@ export class App {
     this.updatePlayer(dt, inXR);
     this.updateSurroundings(renderTime);
     const darkness = Math.min(1, Math.max(0, (8 - sunElevation(this.world.environment.timeOfDay)) / 14));
+    this.darkness = darkness;
     this.updateOwnBoat(dt, nowMs, darkness);
     const { slam, lap } = this.updateBoatsAndJobs(dt, renderTime, darkness);
     this.updateSceneViews(dt, renderTime, darkness);
@@ -885,8 +890,8 @@ export class App {
     if (this.homeView && testVessel) {
       {
         const p = this.ourSkiff()?.tender;
-        const on = p?.phase === 'free' ? p.painter?.cleat : undefined;
-        for (const c of this.homeView.cleats) c.painterOn = c.index === on;
+        const free = p?.phase === 'free';
+        for (const c of this.homeView.cleats) c.painterOn = free && (p?.painter?.cleat === c.index || p?.sternPainter?.cleat === c.index);
       }
       this.homeView.update(testVessel, dt, this.dashInView(), this.world.environment, frame);
       this.homeView.radio?.update(this.world.rescue, runStatus(this.world), dt, isPowered(testVessel, 'radio'), towAlertT(this.world) >= 0 || fireAlertT(this.world) >= 0);
@@ -1002,8 +1007,14 @@ export class App {
   private updateBoardsAndSaves(dt: number): void {
     const testVessel = this.world.vessels[this.testVesselId];
     this.noteKeys.menu.refresh();
+    this.yardBoard.update(this.scene, this.focus);
     if (this.board) {
       this.board.update(this.world);
+      // The boards: daylight and the cabin lamp on them; dim and red at night (nightPaper.ts).
+      const cabin = testVessel && isPowered(testVessel, 'deckLights') ? testVessel.controls.cabinLight : 0;
+      paperColour({ ambient: this.environment.ambientIntensity, darkness: this.darkness, cabin }, this.paper);
+      this.board.setLight(this.paper);
+      this.dutyBoard?.setLight(this.paper);
       this.dutyBoard?.update(this.world, this.host ? `Game code ${this.host.code}` : '');
       // A duty ticked off: a small tick.
       const done = this.world.duties?.completed ?? 0;
@@ -1763,12 +1774,17 @@ export class App {
     return Object.values(this.world.vessels).find((v) => v.tender?.hostId === this.testVesselId);
   }
 
-  /** The painter clicked (at `cleat`, -1 her bow cleat): say what happens, or why not. */
+  /** The skiff's lines clicked (at `cleat`: a ship's, or -1 / -2 her bow / stern cleat): say what happens, or why not. */
   private painterHint(skiff: VesselState, cleat: number): void {
     const plan = painterPlan(this.world, skiff, cleat);
-    if (plan.action === 'castOff') this.overlay.notify(`Painter let go from the ${cleatName(plan.cleat)}`, 2.5);
-    else if (plan.action === 'makeFast') this.overlay.notify(`Painter made fast to the ${cleatName(plan.cleat)} (${plan.length.toFixed(1)} m)`, 3);
-    else this.overlay.notify(`Painter: ${plan.why}`, 3);
+    const line = plan.action !== 'none' && plan.end === 'stern' ? 'Stern line' : 'Painter';
+    if (plan.action === 'castOff') this.overlay.notify(`${line} let go from the ${cleatName(plan.cleat)}`, 2.5);
+    else if (plan.action === 'makeFast') this.overlay.notify(`${line} made fast to the ${cleatName(plan.cleat)} (${plan.length.toFixed(1)} m)`, 3);
+    else if (plan.action === 'ashore') {
+      const other = plan.end === 'bow' ? skiff.mooring.stern : skiff.mooring.bow;
+      this.overlay.notify(`${line} made fast to the quay${other ? '' : `: now the ${plan.end === 'bow' ? 'stern' : 'bow'} line`}`, 3);
+    } else if (plan.action === 'letGoAshore') this.overlay.notify(`${line} let go from the quay`, 2.5);
+    else this.overlay.notify(`${line === 'Painter' && cleat === -2 ? 'Stern line' : line}: ${plan.why}`, 3);
   }
 
   private cleatHint(cleat: number): void {
@@ -1936,7 +1952,7 @@ export class App {
         this.pushVesselIntent('slipDebugLand', 1);
       },
       heelBoat: () => this.pushVesselIntent('debugHeel', 20),
-      fuel: () => ({ litres: boat().engine.fuelL, tank: gearOf(boat(), 'diesel')?.engine.fuel.tankL ?? 0 }),
+      fuel: () => ({ litres: boat().engine.fuelL, tank: fuelTankL(boat()) }),
       canRefuel: () => canRefuel(boat()),
       refuelling: () => boat().refuelling,
       toggleRefuel: () => {
@@ -3061,6 +3077,12 @@ export class App {
         this.hands.right.triggerPressed = false;
         this.hands.right.trigger = 0;
       }
+      // The boatyard's board, the same way.
+      if (this.yardBoard.menu.updateXR(this.hands.right, (i, ms) => this.xrInput.pulse('right', i, ms))) {
+        this.hands.right.triggerDown = false;
+        this.hands.right.triggerPressed = false;
+        this.hands.right.trigger = 0;
+      }
       // Binoculars: a hand holding them gives its grip and trigger to them.
       const onBino = this.binoculars.updateXR(this.hands, this.busyHands, this.camera.getWorldPosition(this.tmpV), (h, i, ms) => this.xrInput.pulse(h, i, ms));
       for (const h of ['left', 'right'] as const) {
@@ -3137,6 +3159,8 @@ export class App {
     return {
       carrying: () => this.cargoHands.carrying || this.rescueHands.deskBusy || !!this.board?.deskDragging,
       label: (ray: THREE.Ray | null) => {
+        // The boatyard's board: its buttons light up under the reticle.
+        if (this.yardBoard.menu.updateDesktop(ray, false)) return 'boatyard\nclick a button';
         this.camera.getWorldPosition(this.headW);
         this.camera.getWorldDirection(this.headFwd);
         // The board first (the life ring hangs just behind it, outside the wall), unless
@@ -3151,6 +3175,7 @@ export class App {
         return board ?? fuel ?? pots ?? gear ?? this.cargoHands.updateDesktop(this.cargoCtx(), ray, this.headW, this.headFwd);
       },
       click: (ray: THREE.Ray | null) => {
+        if (this.yardBoard.menu.updateDesktop(ray, true)) return true;
         this.camera.getWorldDirection(this.headFwd);
         if (!this.cargoHands.carrying && !this.rescueHands.deskBusy && this.board?.click(this.boardCtx(), ray)) return true;
         if (!this.cargoHands.carrying && !this.rescueHands.deskBusy && this.fuelHands.click(this.fuelCtx(), ray)) return true;
@@ -3168,10 +3193,9 @@ export class App {
   private updateChartTable(v: VesselState | undefined, dt: number): void {
     if (!this.chartTable || !v) return;
     const lamp = v.controls.chartLamp > 0 && isPowered(v, 'deckLights');
-    // The cabin lamp lights the chart; red (night) only faintly.
+    // Daylight, the cabin lamp and its own lamp on the chart; dim and red at night (nightPaper.ts).
     const cabin = isPowered(v, 'deckLights') ? v.controls.cabinLight : 0;
-    const level = Math.min(1, Math.max(0.04, this.environment.ambientIntensity * 1.1 + (cabin === 1 ? 0.45 : cabin === 2 ? 0.12 : 0) + (lamp ? 1 : 0)));
-    this.chartTable.setLight(level, lamp);
+    this.chartTable.setLight(paperColour({ ambient: this.environment.ambientIntensity, darkness: this.darkness, cabin, lamp }, this.paper), lamp);
     // From outside the wheelhouse the chart, bulb, tools and marks are too
     // small to matter (and mostly behind the aft wall): skip their draw calls.
     const wh = this.testDef.layout.wheelhouse;

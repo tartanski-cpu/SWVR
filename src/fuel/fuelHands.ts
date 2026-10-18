@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { gearOf } from '../boats/sims';
 import { CONFIG } from '../config';
 import type { HandFrame } from '../controls/InteractionSystem';
 import type { WorldState } from '../core/world';
@@ -8,6 +7,7 @@ import { canRefuel } from '../vessel/vesselControl';
 import type { PortDef } from '../world/archipelago';
 import { fuelPorts, hasFiller, nozzleWorld, pumpPoint } from './fuelHose';
 import { hoseAt, type FuelView } from './fuelView';
+import { fuelTankL } from '../vessel/fuelTank';
 
 /**
  * Refuelling by hand (fuel/fuelHose.ts): local input only, sent as fuel intents, so the
@@ -121,7 +121,7 @@ export class FuelHands {
     }
     if (at.kind !== 'filler') return ctx.notify('Put the nozzle in her filler first (on her side deck)');
     const v = ctx.world.vessels[at.vessel];
-    const tank = v && gearOf(v, 'diesel')?.engine.fuel.tankL;
+    const tank = v && fuelTankL(v);
     if (!v || !tank) return;
     if (v.engine.fuelL >= tank - 0.5) return ctx.notify("She's full");
     if (!canRefuel(v)) return ctx.notify('Bring her alongside the fuel berth and let her settle');

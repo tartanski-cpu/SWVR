@@ -165,6 +165,8 @@ export interface EngineState {
   shift: number;
   /** Fuel in the tank (L). */
   fuelL: number;
+  /** Her tank's size when it isn't her design's (L): the boatyard's bigger tank (career.ts). */
+  tankL?: number;
   /** Current fuel flow (L/h), for displays and the trials report. */
   fuelFlowLph: number;
   /** Coolant (block) and lube oil temperatures (°C). */
@@ -279,6 +281,8 @@ export interface TenderState {
    * on (vessel/physics/painter.ts cleatLocal order) and its length (m) from her bow cleat.
    */
   painter?: { cleat: number; length: number };
+  /** Her stern line to the ship, the same way (from her stern cleat), while it's fast. */
+  sternPainter?: { cleat: number; length: number };
 }
 
 export function createVesselState(id: EntityId, defId: string): VesselState {

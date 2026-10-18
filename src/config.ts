@@ -76,7 +76,7 @@ export const CONFIG = {
      * corrugated sheet and slates on the houses and sheds, concrete on the quays, stone on
      * the breakwaters.
      */
-    tileMetres: { nonSlip: 1, wood: 2, mat: 1, chequer: 0.5, crate: 1, sacking: 2, worn: 1.5, boards: 2, render: 2, sheet: 2, slates: 2, concrete: 4, stone: 3, window: 1 },
+    tileMetres: { nonSlip: 1, wood: 2, mat: 1, chequer: 0.5, crate: 1, sacking: 2, worn: 1.5, boards: 2, render: 2, sheet: 2, slates: 2, concrete: 4, stone: 3, window: 1, rust: 2 },
     /** Width of the black window frames round the wheelhouse glass (m). */
     frameWidth: 0.06,
   },
@@ -905,9 +905,9 @@ export const CONFIG = {
       // behind the helm.
       // A drop leaf on the port wall (owner request: with the logbook gone the fixed table was
       // too big): just long enough for the chart and the pen holder, 75 cm deep (the chart
-      // covers its depth). `lamp`: the wall bracket ([x, z]; x at the wall), the arm's height
-      // above the table and the shade over the chart's middle; the lamp switch on the batten
-      // at its aft end ([x, z]).
+      // covers its depth). `lamp`: on a stalk fixed to the table (owner): its base by the wall
+      // edge (`base` z), its height above the table, and its shade over the chart's middle
+      // (`head` [x, z]); the lamp switch on the batten at its aft end ([x, z]).
       chartTable: {
         x0: -1.37,
         x1: -0.62,
@@ -1298,18 +1298,39 @@ export const CONFIG = {
         bodyRadius: 0.22,
       },
       /**
-       * Cargo: two crates, or one drum (`slots`, CONFIG.cargo.kinds), in her bottom between
-       * the bow and the helmsman's place by the tiller. Sitting low, wedged in, it doesn't
-       * slide about (`fixed`), and she has no D-rings.
+       * Cargo in her bottom between the bow (`bowClear`) and the helmsman's place by the
+       * tiller (`aftClear`), kept `edge` m inside her thin aluminium sides (owner: she should
+       * carry more). Her floor there is about 2.6 m² (2.1 m long, 1.2-1.4 m wide inside), which
+       * takes five crates side by side, one deep (cargo/deck.ts deckCapacity; a crate's
+       * 0.6 × 0.5 m stands in 0.6 m square), or two oil drums: no slot limit, just room and
+       * mass. `maxPayloadKg` 300: five crates (200 kg), or two drums and a crate, with her
+       * helmsman sink her about 10 cm (her waterplane ~3.8 m², ~39 kg/cm), leaving ~0.2 m of
+       * freeboard aft. Sitting low, wedged in, it doesn't slide about (`fixed`), and she has
+       * no D-rings.
        */
       cargo: {
-        maxPayloadKg: 250,
-        slots: 2,
+        maxPayloadKg: 300,
+        slots: 0,
         bowClear: 0.6,
         aftClear: 0.9,
+        edge: 0.08,
         fixed: true,
         lashPoints: [] as [number, number][],
         lashRange: 0.8,
+      },
+      /**
+       * Her cleats (modules/boatCleat; owner: tie her up front and back, to the ship or the
+       * quay): the bow cleat on her stem head, the stern cleat on the port quarter's coaming
+       * (clear of the outboard), each socket the cleat's base (x, y, z); the line pulls from
+       * `lineY` above it. Moored at a quay berth she lies `inshore` m closer to the quay than
+       * the berth's mark, which is set for the workboat's beam (her half beam 0.8 m and a
+       * little air, against the workboat's 2.1 m and fenders).
+       */
+      cleats: {
+        bow: [0, 0.444375, -1.55] as [number, number, number],
+        stern: [-0.74, 0.45, 1.6] as [number, number, number],
+        lineY: 0.06,
+        inshore: 1.4,
       },
       /** Windage (see the workboat's): low sides plus whoever is aboard. */
       windage: { side: 2.4, front: 1.2, center: [0, 0.6, 0] as [number, number, number] },
@@ -1619,13 +1640,21 @@ export const CONFIG = {
         logs: { counts: [1, 2, 3], bonusPer: 160, secondsPer: 720 },
       },
     },
+    /** The bigger fuel tank upgrade: her tank's size times this. */
+    bigTankFactor: 1.6,
+    /**
+     * What the boatyard at Calder Haven sells (its board on the shed: ui/yardBoard.ts). With
+     * `fit`: add-ons, her equipment (the starter workboat comes without it; fitted, the game
+     * starts again with her refitted). Without: upgrades to what she has.
+     */
     upgrades: [
-      // Her equipment (the starter workboat comes without it; a career begun before Oct 2026 has it all).
       { id: 'trawlGear', name: 'Trawl gear', price: 2500, minRep: 5, fit: ['aFrame', 'trawl', 'helm/trawl'], desc: 'The A-frame over the transom, the net on its drum and the TRAWL switch' },
       { id: 'skiff', name: 'Skiff and her crane', price: 4000, minRep: 10, fit: ['tenderCrane'], desc: 'The electric skiff in her cradle on the foredeck, and the crane to launch her' },
       { id: 'searchlight', name: 'Searchlight', price: 1500, minRep: 5, fit: ['searchlight', 'helm/spotlight', 'helm/spotJoystick'], desc: 'The searchlight on the wheelhouse roof, its SPOT switch and joystick at the helm' },
       { id: 'fireMonitor', name: 'Fire monitor', price: 3000, minRep: 10, fit: ['fireMonitor', 'helm/firePump', 'helm/monJoystick'], desc: 'The fire monitor on the roof, the FIRE PUMP switch, its joystick and gauge: the fire calls come once she has it' },
       { id: 'radar', name: 'Radar', price: 2400, minRep: 20, desc: 'Debris and floating crates on the plotter' },
+      { id: 'ais', name: 'AIS receiver', price: 900, minRep: 0, desc: 'Passing ships on the plotter, by name and course, in any visibility' },
+      { id: 'bigTank', name: 'Bigger fuel tank', price: 1400, minRep: 5, desc: 'Her fuel tank enlarged by 60 %: further between fills' },
       { id: 'towPost', name: 'Heavy towing post', price: 1500, minRep: 10, desc: 'The towline holds 75 % more before it parts' },
       { id: 'trawl', name: 'Bigger trawl', price: 1800, minRep: 10, needs: 'fishing.trawl', needsName: 'the trawl gear', desc: 'The net fills half as fast again' },
       { id: 'ice', name: 'Ice machine', price: 1200, minRep: 0, needs: 'fishing.trawl', needsName: 'the trawl gear', desc: 'Iced fish fetch 30 % more' },
@@ -2150,6 +2179,12 @@ export const CONFIG = {
     /** ...steeper only if her bottom is so flat aft the engine can't clear it otherwise (deg). */
     shaftAngleMaxDeg: 15,
     /**
+     * The skiff's cradle at least this far off the centreline toward her crane's side (m;
+     * build.ts; owner: the skiff and crane go over to one side, like the deck crane, not in
+     * the middle). It goes as far over as fits; nearer the middle only if there's no room.
+     */
+    skiffOffset: 0.3,
+    /**
      * Live sea trials at the Trials step (shipyard/liveTrial.ts; owner, Oct 2026: see how the
      * hull behaves). Calm deep water; she settles for `settleS` first.
      *   drop      lifted `dropM` above her rest, heeled `dropHeelDeg` and trimmed
@@ -2278,6 +2313,17 @@ export const CONFIG = {
    */
   gamepad: { deadZone: 0.15, steerCurve: 1.5, helmReach: 1.6, lookRate: 2.4 },
 
+  /**
+   * The boatyard (owner, Oct 2026): where she's fitted out and mended, on the Calder Haven
+   * quay (the shed on the apron, a yard crane at the quay edge and old boats laid up round
+   * the shed: world/regions/home.ts; the slipway was too far from the berths). Its
+   * board on the shed's front (ui/yardBoard.ts) sells the add-ons and upgrades and does the
+   * repairs, with her in this port. `board`: its centre (x, z; m), its height above the
+   * ground, the way it faces (deg, compass: 270 = west), its width (m), how near (m) you
+   * must be for it to be drawn, and how far a pointer reaches it (m: VR and desktop).
+   */
+  boatyard: { port: 'calder', board: { x: 727.4, z: 645, up: 2.15, facingDeg: 270, width: 1.7, range: 25, reach: 4 } },
+
   /** Player movement aboard and ashore. */
   locomotion: {
     /**
@@ -2286,8 +2332,11 @@ export const CONFIG = {
      */
     smoothEnabled: true,
     smoothSpeed: 1.4,
-    /** Running (owner request): walking speed times this. VR: push the stick all the way; desktop: Shift. */
-    runMultiplier: 2.4,
+    /**
+     * Running (owner request): walking speed times this. VR: push the stick all the way;
+     * desktop: Shift (a controller: the left stick clicked in). 2.4 was too slow (owner).
+     */
+    runMultiplier: 3.2,
     snapTurnDeg: 30,
     /** Crouch (X in VR, C on the desktop): how far the view and hands drop (m), and how fast (s). */
     crouchDrop: 0.6,
@@ -2488,6 +2537,16 @@ export const CONFIG = {
    * red by themselves (owner: automatic, no switch), dimmer still at `redLevel` of that.
    */
   panelLighting: { nightLevel: 0.3, redLevel: 0.6, redFrom: 0.55, redTo: 0.85 },
+
+  /**
+   * The chart, the whiteboard and the duty board at night (render/nightPaper.ts; owner: they
+   * were very bright at night). Their brightness: the sky's ambient light times `daylight`,
+   * plus the cabin lamp (`cabinWhite` / `cabinRed`), plus the chart lamp (1 by day, `lampNight`
+   * at night, turned down), at least `least`, at most `nightMax` at night. At night they go
+   * red with the panels (CONFIG.panelLighting redFrom..redTo): green and blue cut by
+   * `redGreen` / `redBlue`; with the white cabin light on, only `whiteLightRed` of that.
+   */
+  nightPaper: { daylight: 1.1, cabinWhite: 0.3, cabinRed: 0.1, lampNight: 0.3, least: 0.04, nightMax: 0.4, redGreen: 0.7, redBlue: 0.85, whiteLightRed: 0.2 },
 
   /**
    * Other players' figures (net/avatarView.ts, looks in net/avatarOutfits.ts). Upper body
@@ -3107,8 +3166,8 @@ export const CONFIG = {
     /**
      * furniture.chart-table (M3c): the drop-leaf chart table on a wall. From its socket (the
      * leaf's hinge corner on the floor, at the wall: x out from the wall, z aft): its size
-     * (m), the pen holder [x, z], the lamp (its wall bracket [x, z], height above the table,
-     * its head over the chart [x, z]) and the lamp switch on the batten [x, z]. `lampAmps`:
+     * (m), the pen holder [x, z], the lamp (on a stalk on the table: its base by the wall edge
+     * [x, z], its height above the table, its shade over the chart [x, z]) and the lamp switch on the batten [x, z]. `lampAmps`:
      * the lamp's draw (A, DECK LTS circuit; M4a).
      */
     chartTable: {

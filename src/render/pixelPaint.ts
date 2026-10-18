@@ -25,7 +25,7 @@ import { CONFIG } from '../config';
  * houses, the buoys and nav marks). `crate` and `window` are whole pictures, one to a face
  * (`fitPaint`, render/geometryUtils); the others repeat every `tileMetres`.
  */
-export const PAINTS = ['nonSlip', 'wood', 'mat', 'chequer', 'crate', 'sacking', 'worn', 'boards', 'render', 'sheet', 'slates', 'concrete', 'stone', 'window'] as const;
+export const PAINTS = ['nonSlip', 'wood', 'mat', 'chequer', 'crate', 'sacking', 'worn', 'boards', 'render', 'sheet', 'slates', 'concrete', 'stone', 'window', 'rust'] as const;
 export type PaintName = (typeof PAINTS)[number];
 
 /** A tile's index in the texture (0: none). */
@@ -230,6 +230,28 @@ const PAINTERS: Record<PaintName, () => (x: number, y: number) => number> = {
     const big = noise(108, 8);
     const small = noise(109, 2);
     return (x, y) => 0.36 + 0.18 * big(x, y) + 0.1 * small(x, y) + (r() - 0.5) * 0.04;
+  },
+  /**
+   * Rust, for old steel laid up ashore (the boatyard's boats): blotches of scale, darker
+   * and lighter, pitting, and runs of rust down the plating from the worst patches.
+   */
+  rust: () => {
+    const r = rng(113);
+    const big = noise(114, 16);
+    const mid = noise(115, 8);
+    const px = Array.from({ length: TILE * TILE }, (_, i) => {
+      const x = i % TILE;
+      const y = Math.floor(i / TILE);
+      return 0.44 + 0.12 * big(x, y) + 0.08 * mid(x, y) + (r() < 0.06 ? -0.1 : 0) + (r() - 0.5) * 0.05;
+    });
+    // Runs: streaks down the face (+y is down the plating) from a dark patch.
+    for (let k = 0; k < 16; k++) {
+      const x0 = Math.floor(r() * TILE);
+      const y0 = Math.floor(r() * TILE);
+      const run = 6 + Math.floor(r() * 18);
+      for (let i = 0; i < run; i++) px[((y0 + i) % TILE) * TILE + x0] = 0.27 + 0.06 * (i / run);
+    }
+    return (x, y) => px[y * TILE + x];
   },
   /**
    * A window, the whole face (one to a face): a light frame and a cross of glazing bars over

@@ -36,7 +36,7 @@ import { sayRadio } from '../rescue/rescue';
 import { cargoPortAt } from '../cargo/cargo';
 import { significantWaveHeight } from '../ocean/waves';
 import type { TutorialState } from './tutorial';
-import { hasModule } from '../boats/sims';
+import { gearOf, hasModule } from '../boats/sims';
 
 export type JobKind = 'cargo' | 'fish' | 'log' | 'debris' | 'tow' | 'rescue' | 'fire' | 'crate' | 'catch';
 export type ContractKind = 'cargo' | 'fish' | 'logs';
@@ -248,7 +248,7 @@ export function repairCost(world: WorldState, what: 'hull' | 'engine'): number {
 export function repairBlocker(world: WorldState, what: 'hull' | 'engine'): string | null {
   const v = workboat(world);
   if (!v || repairCost(world, what) < 1) return 'Nothing to do';
-  if (!officeAt(world)) return 'In port only';
+  if (officeAt(world) !== CONFIG.boatyard.port) return 'Bring her into Calder Haven';
   if (what === 'engine' && v.engine.phase !== 'off') return 'Stop the engine first';
   return null;
 }
@@ -317,6 +317,10 @@ export function stepCareer(world: WorldState): void {
   const v = workboat(world);
   if (c.offersAt <= world.time) refreshOffers(world, c);
   if (v) {
+    // The boatyard's bigger fuel tank (fuelTank.ts reads it).
+    const base = gearOf(v, 'diesel')?.engine.fuel.tankL;
+    if (base && c.upgrades.includes('bigTank')) v.engine.tankL = Math.round(base * CONFIG.career.bigTankFactor);
+    else delete v.engine.tankL;
     // Fuel: count what flows in while refuelling, bill it when the hose comes off.
     const fuel = v.engine.fuelL;
     if (v.refuelling && c.lastFuel !== undefined && fuel > c.lastFuel) c.fuelTaken += fuel - c.lastFuel;
@@ -357,7 +361,7 @@ export function buyBlocker(world: WorldState, id: string): string | null {
   if (u.needs && !(v && hasModule(v.defId, u.needs))) return `Needs ${u.needsName ?? u.needs}`;
   // The yard fits the workboat's equipment to the workboat only.
   if (u.fit && v?.defId !== 'workboat') return 'Workboat only';
-  if (!officeAt(world)) return 'In port only';
+  if (officeAt(world) !== CONFIG.boatyard.port) return 'Bring her into Calder Haven';
   const best = Math.max(0, ...Object.values(c.rep));
   if (best < u.minRep) return `Needs reputation ${u.minRep}`;
   if (c.money < u.price) return 'Not enough money';

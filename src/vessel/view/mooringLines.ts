@@ -44,13 +44,15 @@ export class MooringLines {
     // No ends recorded (the sim fills them in on its next tick): both on the quay side.
     const legacy = !m.bow && !m.stern ? shoreSide(s, berth) : 0;
     // From her cleats (modules/cleat).
-    for (const [side, z, along] of [
-      [m.bow || legacy, gearOf(s, 'bowCleat')?.z, BOLLARD_HALF_SPACING], // the bow line leads forward to the forward bollard
-      [m.stern || legacy, gearOf(s, 'sternCleat')?.z, -BOLLARD_HALF_SPACING], // the stern line aft
+    for (const [side, cleat, along] of [
+      [m.bow || legacy, gearOf(s, 'bowCleat'), BOLLARD_HALF_SPACING], // the bow line leads forward to the forward bollard
+      [m.stern || legacy, gearOf(s, 'sternCleat'), -BOLLARD_HALF_SPACING], // the stern line aft
     ] as const) {
-      if (!side || z === undefined) continue;
-      // From the cleat on the bulwark top...
-      root.localToWorld(this.a.set(side * (plan.halfBeam(z) - 0.03), plan.deckY(z) + top, z));
+      if (!side || !cleat) continue;
+      // From the cleat on the bulwark top (a small boat's: where it is)...
+      const z = cleat.z;
+      if (cleat.x !== undefined) root.localToWorld(this.a.set(cleat.x, cleat.lineY, z));
+      else root.localToWorld(this.a.set(side * (plan.halfBeam(z) - 0.03), plan.deckY(z) + top, z));
       // ...to the bollard's head on the quay.
       this.b.set(
         berth.x + ax.x * along + berth.shoreX * (berth.shoreDist + 0.5),

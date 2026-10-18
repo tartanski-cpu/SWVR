@@ -119,7 +119,7 @@ Tap once for sound. Add `?touch=1` to the address to try these controls on a com
 | **Trigger** on a breaker (panel by the helm, under the starboard window) | Breakers: Instruments, Chart, Radio, Nav lights, Deck lights, Bilge, Deck hydraulics (DECK HYD). A device works only with the master and its breaker on; a green lamp shows the circuit is live |
 | **Trigger** on a green **skiff crane** button: SKIFF CRANE on the helm console (DECK group), the crane's control box (outboard side of its post, from the starboard side deck), or the remote on a post in the skiff by the helmsman. Or Menu > Boat > Skiff | Launch the skiff / recover her (she must be alongside the starboard bow and moving with you). Its hover text says which, or why not yet. In the cradle she's under a tarpaulin (launch her before boarding) and the crane is folded down along the starboard foredeck; LAUNCH unfolds it, hooks on and lifts her out |
 | **Trigger** on the green button on the **deck gate**'s aft post (starboard side of the working deck, just aft of the wheelhouse; a button on each face) | Open / shut the gate in the bulwark and rail. Open, you can walk out to the deck edge in the gateway and jump down into the skiff alongside; from the skiff (there's a step on the hull side below it), jump at the open gate and you're up on deck |
-| **Trigger** on the skiff's **bow cleat** (on her stem head) | Her **painter** (bow line to the ship): let it go, or make it fast to the nearest of the ship's cleats within 6 m. She goes into the water already on it, made fast to the forward starboard cleat, so she can't blow away. Trigger on a **midship cleat** (just aft of the wheelhouse, each side) to lead the painter there while you work cargo over the side; again to let it go. A hard pull (towing her off at speed) parts it |
+| **Trigger** on the skiff's **bow cleat** (on her stem head) or **stern cleat** (on her port quarter) | That end's line: let it go if it's fast. Otherwise, lying slowly alongside a quay berth, it goes **ashore** to the bollard, and with both ends ashore she's moored there, like the big boats. Anywhere else it goes to the nearest of the ship's cleats within 6 m (the bow line is her **painter**), so you can tie her alongside fore and aft. She goes into the water already on her painter, made fast to the forward starboard cleat, so she can't blow away. Trigger on a **midship cleat** (just aft of the wheelhouse, each side) to lead the nearer of her free lines there while you work cargo over the side; again to let it go. A hard pull (towing her off at speed) parts it |
 | **Grip** on the skiff's tiller, then **trigger** | Steer by swinging the tiller; the same hand's trigger is the throttle (let go = idle). Red button on the motor: on/off; yellow lever on its side: forward / neutral / reverse |
 | B | Debug/perf panel on your left wrist (off at start): FPS, cpu/gpu frame time, draw calls, XR resolution, boat readouts |
 
@@ -138,8 +138,8 @@ The menu is laid out for playing. Some tabs have sections, picked from a second 
 |---|---|
 | Voyage | The job you're on (contract, cargo run or rescue, with **Abandon**), what you've done; the **weather** now and what's coming; time of day ±1 h and time flow stopped / ×60 / ×600; bearing and range to each port; the paper chart's marks, with **Clear marks** |
 | Boat | **Deck:** tow (**Make fast** / **Cast off**), docking (**Dock** / **Cast off**), anchor status. **Skiff:** board, **LAUNCH** / **RECOVER**, battery. **Fuel** and **Refuel** (at a fuel berth). **FM radio:** power and station |
-| Cargo | Where you are, payload, deliveries; cargo aboard (lashed or loose), and what's in the skiff (two crates or one drum) |
-| Office | **Jobs:** balance, the contract on, the harbour office's job board, the first voyage (**Skip** / **Again**). **Yard:** repairs and the chandlery (upgrades), in port. **Career:** balance, reputation, ledger, the three save slots |
+| Cargo | Where you are, payload, deliveries; cargo aboard (lashed or loose), and what's in the skiff (up to five crates or two drums, 300 kg) |
+| Office | **Jobs:** balance, the contract on, the harbour office's job board, the first voyage (**Skip** / **Again**). **Career:** balance, reputation, ledger, the three save slots |
 | Crew | Multiplayer: host or join a game, your name, who's aboard |
 | Settings | **Comfort:** motion coupling ±10 %, stick walking, snap-turn angle, boat hook reach. **Sound:** volumes. **Game:** rain effect, rescue position (on the plotter, or plot it yourself), and the **Debug tab** (hidden / shown). Remembered on the device |
 | Debug | Hidden until **Settings → Game → Debug tab → Shown**. **World:** time ±10 min, weather presets, **Fixed weather** / **Fast ×10**, sea state and wave height, move to a port, board / leave the boat. **Boat:** **Start in** the workboat (as your career has her fitted out), the **workboat with all her gear** (for testing, whatever the career has), or the **landing craft** (the second boat built from modules: a 9 m aluminium landing craft that does 20 knots on a turbocharged V8 with its own engine sound, with a step down into her cabin; the game restarts in her. Her bow ramp is worked by the green buttons on the port bulwark by the bow and on the cabin's port wall), drop 4 m, heel 20°, damage, **On a slip** (a bow-ramp boat landed on the nearest slipway), electrics, start-up, oil, bilge, engine faults, sea trials. **Missions:** rescue, tow, fire, side jobs and traffic on demand, +£5000. **Views:** perf panel, buoyancy, wave probes, targets on the chart, radio voice test |
@@ -197,7 +197,7 @@ Above it, a lamp on the wall with its own small switch on the wooden batten the 
 
 - **Reading it on desktop:** aim the crosshair at the chart from the table and the view eases in, as if you leaned over it; look away and it eases back.
 - It's printed like a real chart: depth tints and contours, soundings in metres, a latitude and longitude scale in tenths of a minute around the edge, and a compass rose.
-- **At night** you need the chart table lamp (or the cabin light) to read the chart.
+- **At night** you need the chart table lamp (or the cabin light) to read the chart. The chart, the whiteboard and the task board go dim and red after dark, like the panels, so they don't dazzle you. The chart lamp, a black gooseneck reading lamp standing on the table (a round base with a rocker switch, a long arching neck, a spot head aimed down at the chart), is turned down to a dim red at night. With the white cabin light on they stay whitish, but dimmed.
 
 ### Transit jobs and closing up
 
@@ -326,7 +326,7 @@ One thing at a time on the line. The menu's **Tow → Make fast** picks the near
 
 ### Career: money, reputation, contracts, upgrades
 
-Everything you do now earns or costs money. The menu's **Office** tab is your harbour office: **Jobs** (contracts), **Yard** (repairs, upgrades) and **Career** (balance, reputation, ledger, save slots); the **duty board** shows your balance (top right) and any contract on.
+Everything you do now earns or costs money. The menu's **Office** tab is your harbour office: **Jobs** (contracts) and **Career** (balance, reputation, ledger, save slots); add-ons, upgrades and repairs are at the **boatyard** (below); the **duty board** shows your balance (top right) and any contract on.
 
 - **Pay:**
 
@@ -350,21 +350,23 @@ Everything you do now earns or costs money. The menu's **Office** tab is your ha
   - sell N salvage logs there.
 
   Each has a time limit and a bonus. Bigger ones need reputation at that port (15, 40). One contract at a time; late or abandoned, it's failed. The offers change every 10 minutes.
-- **Chandlery (upgrades, bought in port):**
+- **The boatyard** on the Calder Haven quay, behind the berths: a shed, a yard crane at the quay edge and old boats laid up rusting round the shed. Walk up to the **board on the shed's front** (VR: point and pull the trigger, or touch it; desktop: aim and click), with her in Calder Haven. Its tabs: **Add-ons** (her equipment: fitting one starts the game again with her refitted), **Upgrades** (for the gear she has) and **Repairs** (the hull, an engine overhaul).
 
-  | Upgrade | Price | Needs (best port reputation) | Effect |
+  | Add-on / upgrade | Price | Needs (best port reputation) | Effect |
   |---|---|---|---|
   | Trawl gear | £2,500 | 5 | The A-frame over the transom, the net on its drum and the TRAWL switch at the helm (the workboat) |
   | Skiff and her crane | £4,000 | 10 | The electric skiff in her cradle on the foredeck, and the crane to launch her (the workboat) |
   | Searchlight | £1,500 | 5 | The searchlight on the wheelhouse roof, its SPOT switch and joystick at the helm (the workboat) |
   | Fire monitor | £3,000 | 10 | The fire monitor on the roof, the FIRE PUMP switch, its joystick and gauge: the fire calls come once she has it (the workboat) |
   | Radar | £2,400 | 20 | Debris and floating crates show on the chartplotter within 1.5 nm |
+  | AIS receiver | £900 | — | Passing ships on the chartplotter, by name and course, in any visibility (without it, none) |
+  | Bigger fuel tank | £1,400 | 5 | Her fuel tank 60 % bigger (the workboat: 900 L to 1,440 L): further between fills |
   | Heavy towing post | £1,500 | 10 | The towline takes 75 % more before it parts |
   | Bigger trawl | £1,800 | 10 | The net fills half as fast again (needs the trawl gear) |
   | Ice machine | £1,200 | — | Fish fetch 30 % more (needs the trawl gear) |
   | Crane motion compensation | £3,500 | 15 | The deck crane holds its hook steady as she rolls, pitches and heaves (a boat with a deck crane only; it needs deck hydraulics) |
 
-- **Your first boat:** a new career starts in the workboat as the yard delivers her, without the trawl gear, the skiff, the searchlight or the fire monitor: cargo runs, towing, rescues (the hand torch finds people at night) and potting from day one; fishing, the skiff, the searchlight and the fire calls once you've earned them. Buy either at the chandlery: the game starts again with her refitted (about two seconds; in VR, enter VR again). A career started before this keeps the whole boat.
+- **Your first boat:** a new career starts in the workboat as the yard delivers her, without the trawl gear, the skiff, the searchlight or the fire monitor: cargo runs, towing, rescues (the hand torch finds people at night) and potting from day one; fishing, the skiff, the searchlight and the fire calls once you've earned them. Buy them at the boatyard: the game starts again with her refitted (about two seconds; in VR, enter VR again). A career started before this keeps the whole boat.
 - **Saved:** your money, ledger, reputation and upgrades are kept in the host's browser between sessions; crew-mates see the host's career. You start with £500.
 - **Debug:** Debug → Missions → Career → **+£5000, rep** (cash and +25 reputation everywhere).
 
@@ -397,7 +399,7 @@ Everything you do now earns or costs money. The menu's **Office** tab is your ha
 - **Engine wear:**
   - **What causes it:** running hot (coolant over 98 °C) or with the sump nearly dry.
   - **What it does:** a worn engine loses power, down to half at full wear.
-- **Repairs:** Office → Yard → **Repairs**, in port.
+- **Repairs:** at the boatyard's board in Calder Haven → **Repairs**.
   - Hull: £30 per % of damage, and the yard pumps her out.
   - Engine overhaul: £25 per % of wear, with the engine stopped.
   - Repairs can go on credit, so you can always get back out.
@@ -465,7 +467,7 @@ Gulls wheel over the boat by day, gliding and now and then flapping, and calling
 - **Swimming:** land in the sea and you float with your head just above the water. Swim with grab-the-world strokes or the stick. Climb out by gripping the gunwale or the transom, or press A beside a quay. The workboat has a **swim ladder** over the starboard side of the aft deck: grip any rung from the water (or press A / Space near it) and you're up it. **A crew-mate overboard:** everyone else is told ("Man overboard"). In the water, wave (your hand in VR, hold Y on desktop) so they spot you. They throw you the **life ring**; when it floats within a couple of strokes of you, you take it (you feel a buzz). Then they haul in the line hand over hand (desktop: click the line) and you're towed with the ring to the boat, where you climb out as usual: grip the gunwale, transom or swim ladder, or A / Space by the hull. A / Space away from the hull lets go of the ring. If she's in gear with you by her stern, you shout for neutral. Ignore it and swim into her **turning propeller** (in gear, ahead or astern) and it's messy: a burst of red spray in her wash, a thud, your view goes red and then black, and you come round back aboard. Everyone sees and hears it. Neutral near swimmers!
 - **Cargo:** each port has goods waiting in a row on its quay or beach, coloured by destination. They're man-portable (30–110 kg). Carry one to the boat, set it on the deck, and at its destination set it down ashore near that port's goods stack to deliver it. Dropped in the sea, it's lost.
 - **Lashing:** loose cargo slides when the deck heels or accelerates past friction (μ ≈ 0.35, so from about 19° of heel, sooner in a seaway) and goes over the rail if pressed against it hard enough (about 33°). Strap it to a D-ring (the rings along the bulwarks and centreline) and it stays put. Cargo is real weight in her stability: stow it all to one side and she lists.
-- **Selkie Bay** has no quay: anchor in the bay, launch the skiff, load her (two crates or one drum), run her up the beach and carry the goods up to the stack. Or, in a boat with a bow ramp, land on its slipway (below). Survivors can only be landed at a quay.
+- **Selkie Bay** has no quay: anchor in the bay, launch the skiff, load her (up to five crates or two drums), run her up the beach and carry the goods up to the stack. Or, in a boat with a bow ramp, land on its slipway (below). Survivors can only be landed at a quay.
 
 ### Landing slipways (bow-ramp boats)
 
@@ -557,7 +559,7 @@ Each step shows what you're working on. At the **Brief**, the middle of the page
 - **Roll from 45°:** heeled hard and let go. It reports her roll period and how fast the roll dies away (damping), or that she didn't come back.
 - **Inclining experiment:** a test weight (6 % of her displacement, bigger than a real test's so the heel shows; the yellow block on her aft deck) is moved across her. She heels to a steady angle, and it works out her GM from it, as a real inclining experiment does.
 
-**Sketching:** press **✏ Sketch** and draw with the mouse (or a finger) on her **Port**, **Starboard**, **Plan**, **Bow** or **Stern** view (the view buttons; Port and Starboard look straight side on). The view goes flat and square on, and a faint squared sheet of glass stands just clear of her on that side. It's the same sheet for everyone in the session, and anyone with that sketch open sees your pen moving as you draw. Each view keeps its own sketch, listed under **Sketches** on the right. A sketch shows only while it's open: click it in the list to open it (the view goes to it), and press **✏ Sketch** again to close it and go back to the view you had. **↶ Stroke** takes back your last stroke on the view; **✕ Clear view** rubs out everything on it. Sketches made on snapshots before this are still in the list.
+**Sketching:** press **✏ Sketch** and draw with the mouse (or a finger) on her **Port**, **Starboard**, **Plan**, **Bow** or **Stern** view (the view buttons; Port and Starboard look straight side on, and the Plan has her bow to the right). The view goes flat and square on, and a faint squared sheet of glass stands just clear of her on that side. It's the same sheet for everyone in the session, and anyone with that sketch open sees your pen moving as you draw. Each view keeps its own sketch, listed under **Sketches** on the right. A sketch shows only while it's open: click it in the list to open it (the view goes to it), and press **✏ Sketch** again to close it and go back to the view you had. **↶ Stroke** takes back your last stroke on the view; **✕ Clear view** rubs out everything on it. Sketches made on snapshots before this are still in the list.
 
 - **Brief (step 1): start from her jobs.** Tick **her jobs** in the game (cargo runs, lobster & crab pots, towing, fire fighting, search & rescue, trawling) and set her targets: top speed, range, price, stability (GM), a crane, and for cargo or pots how many she must carry on deck. Name her at the top.
 - **Hull types for this brief:** the five hull types, best first, each with what it can manage against your targets (✓ / ✗: speed, range, price, pull, deck room), from its measured sea trials. **Start from this hull** gives you that type as a **bare hull** (no deck gear), **sized for the deck cargo you asked for** (longer and beamier together until the crates or pots fit; a type that can only manage it stretched says so on its card), and every engine fit (three engines, single or twin) is tried on her by sea trial and the cheapest that does the job fitted.
