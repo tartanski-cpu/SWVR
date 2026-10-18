@@ -118,7 +118,9 @@ const VIEWS: Record<string, () => { eye: [number, number, number]; at: [number, 
   'Bow ¾': () => ({ eye: [-0.65 * L(), 0.45 * L(), -0.9 * L()], at: [0, 1, 0] }),
   // From starboard, so her bow is to the right, as a profile is always drawn (owner).
   // Level with what it looks at, so it's a true elevation (owner: it looked down a little).
-  Side: () => ({ eye: [2.3 * L(), 1, 0], at: [0, 1, 0] }),
+  Starboard: () => ({ eye: [2.3 * L(), 1, 0], at: [0, 1, 0] }),
+  // (Owner: port and starboard, straight side on, in place of one side view.)
+  Port: () => ({ eye: [-2.3 * L(), 1, 0], at: [0, 1, 0] }),
   'Stern ¾': () => ({ eye: [0.65 * L(), 0.45 * L(), 0.9 * L()], at: [0, 1, 0] }),
   Plan: () => ({ eye: [0, 1.7 * L(), 0.01], at: [0, 0, 0] }),
   // Square on from ahead and astern (owner: the front and back views were missing; they're
@@ -135,7 +137,10 @@ function setView(name: string): void {
   // From the helm the flat view would look in through the house's back: perspective there.
   if (name === 'At the helm' && flat) flatBtn.click();
   // Sketching is only on the four square-on views: another view puts the pen down.
-  if (tool === 'sketch' && !SKETCH_VIEWS.includes(name)) setTool(null);
+  if (tool === 'sketch' && !SKETCH_VIEWS.includes(name)) {
+    beforeSketch = null;
+    setTool(null);
+  }
   const v = VIEWS[name]();
   camera.position.set(...v.eye);
   orbit.target.set(...v.at);
@@ -1341,7 +1346,7 @@ const toolBtns: Record<string, HTMLButtonElement> = {};
   k.textContent = '✏ Sketch';
   k.className = 'tool';
   k.title = 'Draw on her side, plan, bow or stern view: everyone in the session draws on the same sheet';
-  k.onclick = () => setTool(tool === 'sketch' ? null : 'sketch');
+  k.onclick = () => (tool === 'sketch' ? closeSketch() : openSketch());
   toolBtns.sketch = k;
   const undoInk = document.createElement('button');
   undoInk.textContent = '↶ Stroke';
@@ -1370,14 +1375,11 @@ function setTool(t: typeof tool): void {
   // Sketching: the view stays square on (no turning it; the wheel still zooms) and flat.
   orbit.enabled = t !== 'pin';
   orbit.enableRotate = orbit.enablePan = !t;
-  if (t === 'sketch') {
-    if (!facingPlane()) setView('Side');
-    if (!flat) flatBtn.click();
-  }
+
   $('view').classList.toggle('sketching', t === 'sketch');
   for (const [k, b] of Object.entries(toolBtns)) b.classList.toggle('on', k === t);
   renderer.domElement.style.cursor = t ? 'crosshair' : '';
-  $('toolHint').textContent = t === 'pin' ? 'Click on her where the pin goes' : t === 'sketch' ? 'Draw on the sheet: everyone sees it as you draw. Side, Plan, Bow or Stern to change view' : '';
+  $('toolHint').textContent = t === 'pin' ? 'Click on her where the pin goes' : t === 'sketch' ? 'Draw on the sheet: everyone with it open sees it as you draw. Port, Starboard, Plan, Bow or Stern for another view’s sketch; ✏ Sketch again to close' : '';
   drawInk();
   if (t !== 'pin') ($('pinEditor') as HTMLElement).hidden = true;
 }
@@ -1592,7 +1594,26 @@ $('pinCancel').onclick = () => setTool(null);
 window.addEventListener('pagehide', () => link?.close());
 
 // ── Sketching on her views (planeSketch.ts): one sheet of glass per square-on view ──
-const SKETCH_VIEWS = ['Side', 'Plan', 'Bow', 'Stern'];
+const SKETCH_VIEWS = ['Port', 'Starboard', 'Plan', 'Bow', 'Stern'];
+/** Where the view was before a sketch was opened: closing it goes back there. */
+let beforeSketch: { eye: THREE.Vector3; at: THREE.Vector3; flat: boolean } | null = null;
+/** Open a view's sketch (the one being looked at, else starboard): the view square on and flat, the pen on. */
+function openSketch(p: PlaneName | null = facingPlane()): void {
+  if (tool !== 'sketch') beforeSketch = { eye: camera.position.clone(), at: orbit.target.clone(), flat };
+  setTool('sketch');
+  setView(PLANES[p ?? 'side'].title);
+  if (!flat) flatBtn.click();
+  drawInk();
+}
+/** Close the sketch: back to the view as it was before it was opened. */
+function closeSketch(): void {
+  const back = beforeSketch;
+  beforeSketch = null;
+  setTool(null);
+  if (!back) return;
+  if (flat !== back.flat) flatBtn.click();
+  look(back.eye.toArray(), back.at.toArray());
+}
 const planeInk = new PlaneInk();
 scene.add(planeInk.group);
 /** The view plane being looked at square on, if any (the ink shows only there). */
@@ -1607,7 +1628,9 @@ let inkFacing: PlaneName | null = null;
 function drawInk(): void {
   inkFacing = facingPlane();
   const inks = notes.filter((n): n is Ink => n.kind === 'ink' && isPlaneSheet(n.sheet));
-  planeInk.draw(stroke && !inks.some((n) => n.id === stroke!.id) ? [...inks, stroke] : inks, inkFacing, tool === 'sketch', hullMin, hullMax);
+  // Only while a sketch is open (owner): the plain 3D view never shows them.
+  planeInk.draw(stroke && !inks.some((n) => n.id === stroke!.id) ? [...inks, stroke] : inks, tool === 'sketch' ? inkFacing : null, tool === 'sketch', hullMin, hullMax);
+  showSketches(); // which one's open
 }
 /** Where the pointer meets the view's sheet of glass (boat axes), if it does. */
 function onGlass(e: PointerEvent, p: PlaneName): THREE.Vector3 | null {
@@ -1662,9 +1685,18 @@ const sheetEditor = new SheetEditor({
 function showSketches(): void {
   const box = $('sketches');
   const list = sheetsOf(notes);
-  const planes = (Object.keys(PLANES) as PlaneName[]).map((p) => [p, inkOf(notes, planeSheet(p)).length] as const).filter(([, n]) => n);
-  const onViews = planes.length ? `<div class="meta">Drawn on her views: ${planes.map(([p, n]) => `${PLANES[p].title} (${n} stroke${n === 1 ? '' : 's'})`).join(', ')}. Look from that view to see them.</div>` : '';
-  box.innerHTML = onViews + (list.length || planes.length ? '' : '<div class="meta">Press ✏ Sketch on the view to draw on her side, plan, bow or stern view.</div>');
+  const planes = (Object.keys(PLANES) as PlaneName[]).map((p) => [p, inkOf(notes, planeSheet(p))] as const).filter(([, n]) => n.length);
+  box.innerHTML = list.length || planes.length ? '' : '<div class="meta">Press ✏ Sketch on the view to draw on her port, starboard, plan, bow or stern view.</div>';
+  // Her views' sketches: click to open one (the view goes to it), ✏ Sketch to close it.
+  for (const [p, ink] of planes) {
+    const row = document.createElement('div');
+    row.className = 'sketch plane';
+    const who = [...new Set(ink.map((n) => n.by))].join(', ');
+    const open = tool === 'sketch' && facingPlane() === p;
+    row.innerHTML = `<div class="planeIcon">✏</div><div><b>${PLANES[p].title} view${open ? ' (open)' : ''}</b><div class="meta">${esc(who)} · ${ink.length} stroke${ink.length === 1 ? '' : 's'}</div></div>`;
+    row.onclick = () => (open ? closeSketch() : openSketch(p));
+    box.appendChild(row);
+  }
   for (const sh of list) {
     const row = document.createElement('div');
     row.className = 'sketch';
