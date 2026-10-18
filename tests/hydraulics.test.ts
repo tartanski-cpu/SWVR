@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CONFIG } from '../src/config';
+import { FISHING_GROUNDS } from '../src/world/archipelago';
 import { IdFactory } from '../src/core/ids';
 import type { Intent } from '../src/core/intents';
 import { stepWorld } from '../src/core/simulation';
@@ -56,7 +56,7 @@ describe('deck hydraulics', { timeout: 30000 }, () => {
 
   it('the net drum waits for pressure; a shoot asked for starts when it comes', () => {
     const { world, v, send, run } = setup();
-    const g = CONFIG.fishing.grounds[1];
+    const g = FISHING_GROUNDS[1];
     placeVessel(v, g.x, 0, g.z + 100, 0);
     send('trawl', 1);
     run(2);

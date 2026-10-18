@@ -4781,6 +4781,26 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **How milestones go out from now:** to `next` first for the owner to try, then to the dev branch when the owner is happy.
 - **Shared storage:** both addresses are one site to the browser, so they share career saves, settings, the chart and the whiteboard. That's harmless while the save format is the same. Before a milestone changes it (M6), `next` gets its own save keys.
 
+## Regions (owner brief, in progress)
+
+The owner's brief (Oct 2026): grow the world by adding **regions** round home, each with its own geography, weather, fish, goods and towing jobs, reached by a short passage across open water, all still on the Quest. Four regions are planned, in order: the Sounds (Hebridean: two tidal races, a cliff inlet, a repair yard), the Fjord (Norwegian: a narrow entrance, katabatic gusts, a fish farm, cheap fuel), the Narrows (Alaskan: the strongest race with a pinnacle rock, a buoyed dog-leg channel), the Calanques (Mediterranean: a strait with eddies, the Mistral, a chandlery). Tidal races are **current zones** on a simple clock, no tide model. The plan, the decisions agreed with the owner and the milestones are in [`docs/REGIONS.md`](docs/REGIONS.md).
+
+**Owner's answers to the plan's questions:** the fast boat for punching through a race is a Shipyard boat (the yard builds to 33 kn); the race clock is the game clock and time flows by default; new mechanics (crane recovery, passengers, escort, fish-farm cages, stern-to mooring, log booms) come after each region's first version; home at the origin with the Sounds north and the Calanques far south; a change of water, sky and haze mid-passage to the Calanques.
+
+### M1: region framework, no visible change (done, awaiting owner test)
+
+Nothing changes in play. The world is now a list of regions, and home is the first.
+
+- **`src/world/defs.ts`:** the shapes of the level data (the `IslandDef`, `PortDef`, ... interfaces, moved out of archipelago.ts), plus the new `RegionDef`: id, name, footprint (`bounds`), `landmarks` (a tall feature with its kind and height; milestone 2 uses them), and every list a region carries. The brief's other layers (theme, weather profile, species and goods, job templates, current zones) are added when their milestones come.
+- **`src/world/regions/home.ts`:** region `home`, "Skerry Sound": the whole of v1.0's world, the numbers moved verbatim. Its footprint is x -1500..2100, z -700..1800 (everything of home's with sea room, out to the fishing grounds and fog banks). Its landmarks: Calder Holm's summit (44 m) and the Tarran light (26 m).
+- **`src/world/regions/index.ts`:** `REGIONS` (home only for now), `regionById`, `inRegion`, `regionAt(x, z)` (inside a footprint, else the nearest region by distance to it: a crossing belongs to the side you're closer to), `distanceToBounds`.
+- **`src/world/archipelago.ts`** now only joins the regions' lists into the flat lists the game reads (`ISLANDS`, `PORTS`, `BERTHS`, ... home's first), so none of its 27 importers changed. Two more lists join them: **`FISHING_GROUNDS`** (from `CONFIG.fishing.grounds`) and **`FOG_BANKS`** (from `CONFIG.weather.fogBanks`): where a ground or a fog bank is, is level data, so it lives with its region. fishing.ts, the chartplotter, App, vesselControl and weather.ts read the lists; the config keeps the tunables.
+- **Menu:** the Voyage tab's port rows (bearing and range) and Debug → World → To port are one per port in `PORTS`, however many (they were three fixed rows).
+- **Tests (7 new, `tests/regions.test.ts`):** home first and found by id; ids unique across regions (regions, ports, berths, slipways, potting grounds); every region's data inside its footprint; berths, slipways and floods naming their own region's ports; `regionAt` inside and from the open sea; the flat lists are the regions joined; and home unchanged: the ports in order, Calder Holm, the Tarran light, the wreck, the harbour shelter, the fog bank and the grounds where they were, the ground height at the basin, the open sea and the summit, and the chart's sheet bounds as before. Eight tests that read `CONFIG.fishing.grounds` now read `FISHING_GROUNDS`.
+- **Checks:** `npm run typecheck` clean; `npm test` 112 files, 786 tests pass; `npm run build` passes; headless Chromium: the game loads with no page errors, and a checksum of every world mesh's vertex positions is identical before and after the move (see the session notes below).
+- **Test steps (desktop and headset):** nothing should look or play differently. Start a game: Calder Haven, the boat at the cargo berth as before. Voyage tab: the three ports with bearings and ranges. Debug → World → To port: the three buttons work. Trawl at Calder Bank and sail through the Gull Rocks fog bank: both as before.
+- **Next:** M2, seeing far and streaming (docs/REGIONS.md).
+
 ## Next
 
 **Next big step: modular boats** (the owner's separate prompt; see "Direction: one engine, three games" above). The mobile and procedural games wait until the owner asks.

@@ -8,7 +8,7 @@ import { toggleCleat, toggleDock } from './physics/mooring';
 import { gearOf } from '../boats/sims';
 import { VESSEL_DEFS } from './vesselDef';
 import { fuelBerthAt } from '../world/geography';
-import { BERTHS, PORTS } from '../world/archipelago';
+import { BERTHS, FISHING_GROUNDS, PORTS } from '../world/archipelago';
 import type { VesselState } from './vesselState';
 import { applyBusIntent, holdGroup, isKeyName } from '../modular/bus';
 
@@ -304,7 +304,7 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
       break;
     case 'teleportToGround': {
       // Menu shortcut (Tests, ref = fishing ground name): in the middle of it, lever neutral.
-      const g = CONFIG.fishing.grounds.find((o) => o.name === intent.ref);
+      const g = FISHING_GROUNDS.find((o) => o.name === intent.ref);
       if (!g) break;
       placeVessel(s, g.x, 0, g.z, 0);
       s.controls.lever = 0;

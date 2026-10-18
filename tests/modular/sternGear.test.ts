@@ -6,6 +6,7 @@
  * and they tow and trawl there as on the workboat.
  */
 import * as THREE from 'three';
+import { FISHING_GROUNDS } from '../../src/world/archipelago';
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { LIBRARY, RECIPES } from '../../src/boats/library';
 import { LANDING_CRAFT_HULL } from '../../src/boats/landingCraftHull';
@@ -139,7 +140,7 @@ describe('the stern gear, placeable', () => {
 
   it('she trawls with them: the net goes out on a fishing ground', () => {
     const { world, v, send, run } = setup();
-    const g = CONFIG.fishing.grounds[1];
+    const g = FISHING_GROUNDS[1];
     placeVessel(v, g.x, 0, g.z + 100, 0);
     startEngine(world, v);
     send('trawl.shoot', 1);

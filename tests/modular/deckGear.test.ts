@@ -23,7 +23,7 @@ import { towReach } from '../../src/tow/tow';
 import { hullPlan } from '../../src/vessel/layout';
 import { placeVessel } from '../../src/vessel/vesselControl';
 import { VESSEL_DEFS } from '../../src/vessel/vesselDef';
-import { PORTS } from '../../src/world/archipelago';
+import { FISHING_GROUNDS, PORTS } from '../../src/world/archipelago';
 import { startEngine } from '../helpers/engine';
 
 const DT = 1 / 60;
@@ -130,7 +130,7 @@ describe('take a module out and its job goes with it', { timeout: 30000 }, () =>
     const shoot = (recipe: Recipe | null) => {
       setVesselRecipe('workboat', recipe);
       const { world, v, send, run } = setup();
-      const g = CONFIG.fishing.grounds[1];
+      const g = FISHING_GROUNDS[1];
       placeVessel(v, g.x, 0, g.z + 100, 0);
       startEngine(world, v);
       send('trawl.shoot', 1);

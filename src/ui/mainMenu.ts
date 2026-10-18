@@ -1,5 +1,6 @@
 import { BUSES } from '../audio/mixer';
 import { CONFIG } from '../config';
+import { PORTS } from '../world/archipelago';
 import type { MenuPage, MenuRow, MenuSection } from './menuPanel';
 import { ALPHABET } from '../shipyard/design';
 import { groupCode, PER_PAGE, type ShipyardCodes } from '../shipyard/takeHer';
@@ -291,8 +292,8 @@ export function mainMenu(h: MenuHost): MainMenu {
     },
     { label: 'Time flow', buttons: TIME_FLOW.map(([label, rate]) => choice(label, rate, () => h.timeScale(), (v) => h.setTimeScale(v))) },
     { heading: 'Ports (bearing, range)' },
-    ...[0, 1, 2].map(
-      (i): MenuRow => ({
+    ...PORTS.map(
+      (_, i): MenuRow => ({
         label: '',
         buttons: [
           {
@@ -625,7 +626,7 @@ export function mainMenu(h: MenuHost): MainMenu {
           ],
         },
         { heading: 'Move' },
-        { label: 'To port', buttons: [0, 1, 2].map((i) => ({ text: () => h.ports()[i]?.name ?? '', press: () => h.teleportToPort(i) })) },
+        { label: 'To port', buttons: PORTS.map((_, i) => ({ text: () => h.ports()[i]?.name ?? '', press: () => h.teleportToPort(i) })) },
         { label: '', buttons: [{ text: () => (h.aboard() ? 'Leave boat (to the quay)' : 'Board boat (at the helm)'), press: () => h.toggleBoard() }] },
       ],
     },

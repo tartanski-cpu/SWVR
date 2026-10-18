@@ -1673,11 +1673,7 @@ export const CONFIG = {
    * `foulHold` N pull astern. Boxes appear `boxInset` m in from the transom.
    */
   fishing: {
-    grounds: [
-      { name: 'Calder Bank', x: 1700, z: 650, radius: 300, richness: 1.2 },
-      { name: 'Skerry Ground', x: -150, z: -150, radius: 250, richness: 0.8 },
-      { name: 'The Hollows', x: -1100, z: 1000, radius: 320, richness: 1.0 },
-    ],
+    // The grounds themselves (where, how rich) are level data: each region's `fishingGrounds`.
     minSpeed: 1.0,
     /**
      * Raised from 2.1 (4 kn) with the drag below (owner feedback after V1.0: the trawling
@@ -1823,7 +1819,7 @@ export const CONFIG = {
    *   seaPerWind  sea scale per m/s of wind (CONFIG.ocean.seaStates: 1 = moderate)
    *   seaBuild / seaDecay  time constants (s): the sea builds after the wind, and settles slower
    *   windDir  the wind comes FROM this bearing, wandering +-`windDirSpread`
-   * Fog banks: patches of thick fog in the archipelago (x, z, radius m, visibility m).
+   * Fog banks (where, how thick) are level data: each region's `fogBanks` (world/regions/).
    */
   weather: {
     startPreset: 'Clear' as WeatherPresetName,
@@ -1852,11 +1848,7 @@ export const CONFIG = {
     seaDecay: 160,
     windDir: 225,
     windDirSpread: 35,
-    fogBanks: [
-      // Around Gull Rocks (between the start and Calder Haven) and off the Skerry.
-      { x: 380, z: 430, r: 260, visibility: 160 },
-      { x: -470, z: -360, r: 230, visibility: 180 },
-    ],
+    // Fog banks (where, how thick) are level data: each region's `fogBanks`.
     /** Fog: scene fog runs from `nearFraction` x visibility to the visibility. */
     nearFraction: 0.12,
     /** Leeway: air density (kg/m3) and drag coefficient on the boats' windage (vessel `windage`). */

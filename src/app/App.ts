@@ -53,7 +53,7 @@ import { WristMenu } from '../ui/wristMenu';
 import { mainMenu, type MenuHost } from '../ui/mainMenu';
 import { placeInFront } from '../ui/placeInFront';
 import { canRefuel, releaseHolds } from '../vessel/vesselControl';
-import { PORTS } from '../world/archipelago';
+import { FISHING_GROUNDS, PORTS } from '../world/archipelago';
 import { groundHeight } from '../world/terrain';
 import { aboard, carriedBy, dropCarried, cargoLabel, cargoPortAt, kindOf, payloadMass, quickLoadable, quickPort, quickUnloadable, slotsUsed, type CargoItem } from '../cargo/cargo';
 import { groundAt, isPot, quickHaulable, quickPalletPots } from '../potting/potting';
@@ -2035,7 +2035,7 @@ export class App {
       goFishing: () => {
         // Teleport (with the boat) to the nearest fishing ground's edge, like the port Go buttons.
         const v = this.world.vessels[this.testVesselId];
-        const fg = [...CONFIG.fishing.grounds].sort((a, b) => Math.hypot(a.x - v.position[0], a.z - v.position[2]) - Math.hypot(b.x - v.position[0], b.z - v.position[2]))[0];
+        const fg = [...FISHING_GROUNDS].sort((a, b) => Math.hypot(a.x - v.position[0], a.z - v.position[2]) - Math.hypot(b.x - v.position[0], b.z - v.position[2]))[0];
         this.pushVesselIntent('teleportToGround', 1, fg.name);
         if (this.world.players[this.localPlayerId].aboardVesselId !== this.testVesselId) this.toggleBoardTo(true);
         this.overlay.notify(`${fg.name}: TRAWL switch on, then 2-4 kn`, 3);

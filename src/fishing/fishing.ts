@@ -9,7 +9,7 @@
  *             -> hauling (`haulTime` s) -> stowed. While it's out it drags on the boat:
  *             F = -(cL + cQ |v|) v at the stern, scaled by how far out it is (a trawl at
  *             3 kn is a few kN: you hear the engine work).
- *   catching  with the net down, in one of the fishing grounds (CONFIG.fishing.grounds,
+ *   catching  with the net down, in one of the fishing grounds (FISHING_GROUNDS in world/archipelago.ts,
  *             dashed rings on the chartplotter), at trawling speed (`minSpeed`..`maxSpeed`
  *             m/s, about 2-4.5 kn), the net fills at `richness / boxEvery` per s. Each time
  *             it's full, a box of fish appears on the aft deck (a cargo item bound for
@@ -20,6 +20,7 @@
  *             bottom: it holds her back hard and catches nothing until it's hauled.
  */
 import * as THREE from 'three';
+import { FISHING_GROUNDS, type FishingGroundDef } from '../world/archipelago';
 import { CONFIG } from '../config';
 import { hydraulicsOn } from '../vessel/electrics';
 import type { WorldState } from '../core/world';
@@ -65,8 +66,8 @@ function trawler(world: WorldState): VesselState | undefined {
 }
 
 /** The fishing ground at (x, z), if any. */
-export function groundAt(x: number, z: number): (typeof CONFIG.fishing.grounds)[number] | undefined {
-  return CONFIG.fishing.grounds.find((g) => Math.hypot(g.x - x, g.z - z) < g.radius);
+export function groundAt(x: number, z: number): FishingGroundDef | undefined {
+  return FISHING_GROUNDS.find((g) => Math.hypot(g.x - x, g.z - z) < g.radius);
 }
 
 /** Speed over the ground (m/s, horizontal). */

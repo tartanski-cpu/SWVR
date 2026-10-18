@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import type { WorldState } from '../core/world';
 import { part } from '../render/geometryUtils';
 import { cargoPaused, portById } from '../rescue/rescue';
-import { ISLANDS, MARKS, POTTING_GROUNDS, PORTS, WRECKS } from '../world/archipelago';
+import { FISHING_GROUNDS, ISLANDS, MARKS, PORTS, POTTING_GROUNDS, WRECKS } from '../world/archipelago';
 import { groundHeight } from '../world/terrain';
 import { CONFIG } from '../config';
 import type { ChartMarks } from '../chart/marks';
@@ -247,7 +247,7 @@ export class ChartPlotter {
 
     // Fishing grounds: dashed teal rings with their names.
     g.lineWidth = 2;
-    for (const fg of CONFIG.fishing.grounds) {
+    for (const fg of FISHING_GROUNDS) {
       const [cx, cy] = toPx(fg.x, fg.z);
       const rad = fg.radius / mpp;
       if (cx + rad < 0 || cx - rad > W || cy + rad < 0 || cy - rad > H) continue;
