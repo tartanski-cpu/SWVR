@@ -669,7 +669,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     [0, roofFront + 0.775, 0.3],
   ];
   const onRoof = (x: number, z: number) => Math.abs(x) < hw && z > front && z < aft;
-  const standsOnRoof = (x: number, z: number) => Math.abs(x) <= Math.min(hw - 0.2, hw + 0.15 - roofBack - 0.15) && z >= roofFront + 0.2 && z <= aft - 0.2 && roofTaken.every(([ox, oz, r]) => Math.hypot(x - ox, z - oz) >= r);
+  const standsOnRoof = (x: number, z: number) => Math.abs(x) <= Math.min(hw - 0.2, hw + 0.15 - roofBack - 0.15) && z >= roofFront + 0.2 + sb(Math.abs(x) + 0.2) && z <= aft - 0.2 && roofTaken.every(([ox, oz, r]) => Math.hypot(x - ox, z - oz) >= r);
   /** The pinned cell, or the nearest within a metre where `stands` (x, z: boat axes); null if none. */
   const seat = (key: PlaceKey, stands: (x: number, z: number, face: number) => boolean): { x: number; z: number; face: number; moved: boolean } | null => {
     const p = placeOf(key, d[key]);
@@ -1114,8 +1114,9 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
       // The sidelights on the house sides, above the windows, just aft of the header.
       // The sidelights on the roof's edges (the windows run up to it), just aft of the front glass.
       // (On the chamfered side at mid-thickness, just proud of it.)
-      port: [-r2(hw + 0.15 - roofBack / 2 + 0.03), roofY + roofThickness / 2, Math.max(front, zHead) + 0.175],
-      starboard: [r2(hw + 0.15 - roofBack / 2 + 0.03), roofY + roofThickness / 2, Math.max(front, zHead) + 0.175],
+      // (A faceted front's roof is cut back at its corners: they go back with it.)
+      port: [-r2(hw + 0.15 - roofBack / 2 + 0.03), roofY + roofThickness / 2, r2(Math.max(front, zHead) + 0.175 + sb(hw + 0.15))],
+      starboard: [r2(hw + 0.15 - roofBack / 2 + 0.03), roofY + roofThickness / 2, r2(Math.max(front, zHead) + 0.175 + sb(hw + 0.15))],
       stern: [0, q.deckY(transom) + 0.6, transom - 0.05],
     },
   };

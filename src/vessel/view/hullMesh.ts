@@ -559,8 +559,11 @@ function buildShapedHouse(layout: HouseLayout, col: Paint, base: number): THREE.
   const t = rf.thickness;
   const zV = zH - sh.visor;
   const back = t * Math.tan((sh.roofEdgeDeg * Math.PI) / 180);
-  parts.push(chamferedSlab(hw + ov, zV, zA + ov, roofY, t, back, col.roof));
-  parts.push(box(-hw + w, hw - w, roofY - 0.012, roofY, Math.max(zF, zH) + w, zA - w, col.lining, 'wood'));
+  // A faceted front's roof follows it (owner): square across the middle, cut back on the angle outside.
+  parts.push(chamferedSlab(hw + ov, zV, zA + ov, roofY, t, back, col.roof, sh.facet?.centre ?? 0, facetDz(wh)));
+  const ceilFrom = parts.length;
+  for (const [a, b] of spans) parts.push(box(Math.max(a, -hw + w), Math.min(b, hw - w), roofY - 0.012, roofY, Math.max(zF, zH) + w, zA - w, col.lining, 'wood'));
+  if (sh.facet) setBack(parts.slice(ceilFrom), facetDz(wh), zA - w - 0.01);
   return parts;
 }
 
@@ -587,20 +590,28 @@ function planSlab(pts: [number, number][], y0: number, y1: number, color: number
 /**
  * A slab `t` thick from `y0` up, `halfW` either side of the centreline from `z0` (forward)
  * to `z1`, its front and sides chamfered: the top set in by `back` (the aft face square).
+ * Faceted (`dz`, hullMesh facetDz; owner: the roof follows the three-facet windows): its
+ * front in three across, square between -`centre` and `centre`, set back by `dz` outside.
  */
-function chamferedSlab(halfW: number, z0: number, z1: number, y0: number, t: number, back: number, color: number): THREE.BufferGeometry {
+function chamferedSlab(halfW: number, z0: number, z1: number, y0: number, t: number, back: number, color: number, centre = 0, dz: (x: number) => number = () => 0): THREE.BufferGeometry {
   const y1 = y0 + t;
   const wt = halfW - back;
-  const [Bpf, Bsf, Bsa, Bpa] = [[-halfW, y0, z0], [halfW, y0, z0], [halfW, y0, z1], [-halfW, y0, z1]];
-  const [Tpf, Tsf, Tsa, Tpa] = [[-wt, y1, z0 + back], [wt, y1, z0 + back], [wt, y1, z1], [-wt, y1, z1]];
+  const c = Math.min(centre, wt);
+  // The front edge, port to starboard, underneath and on top; then the aft corners.
+  const B = [-halfW, -c, c, halfW].map((x) => [x, y0, z0 + dz(x)]);
+  const T = [-wt, -c, c, wt].map((x) => [x, y1, z0 + back + dz(x)]);
+  const [Bsa, Bpa, Tsa, Tpa] = [[halfW, y0, z1], [-halfW, y0, z1], [wt, y1, z1], [-wt, y1, z1]];
   const v: number[] = [];
   // Each face's corners clockwise as seen from outside it (as buildDeckhouse's).
   const quad = (a: number[], b: number[], c: number[], d: number[]) => v.push(...a, ...c, ...b, ...a, ...d, ...c);
-  quad(Tpf, Tsf, Tsa, Tpa); // top
-  quad(Bpf, Bpa, Bsa, Bsf); // underside
-  quad(Bpf, Bsf, Tsf, Tpf); // the front chamfer
-  quad(Bsa, Tsa, Tsf, Bsf); // starboard
-  quad(Bpf, Tpf, Tpa, Bpa); // port
+  const fan = (pts: number[][]) => {
+    for (let i = 1; i + 1 < pts.length; i++) v.push(...pts[0], ...pts[i + 1], ...pts[i]);
+  };
+  fan([...T, Tsa, Tpa]); // top
+  fan([B[0], Bpa, Bsa, B[3], B[2], B[1]]); // underside
+  for (let i = 0; i < 3; i++) quad(B[i], B[i + 1], T[i + 1], T[i]); // the front chamfer, in three
+  quad(Bsa, Tsa, T[3], B[3]); // starboard
+  quad(B[0], T[0], Tpa, Bpa); // port
   quad(Bsa, Bpa, Tpa, Tsa); // aft
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3));

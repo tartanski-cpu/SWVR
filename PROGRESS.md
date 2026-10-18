@@ -3872,7 +3872,8 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **The shape:**
   - the middle pane between the mullions (±0.5 m) stays square across;
   - the outer two are angled back `CONFIG.shipyard.facetDeg` (30 deg) from square to the side walls. That's a setback of (house half-width − 0.5) × tan 30 at the walls: about 0.5 m on a 2.8 m wide house;
-  - full height, from below the deck to the roof, raked with the windows. The roof stays as it was, overhanging the angled corners.
+  - full height, from below the deck to the roof, raked with the windows;
+  - the roof follows them (owner, later: "should follow the design of the windows"): its front is square across the middle and cut back on the same angle outside the mullions, the chamfer running round the angled edges (`chamferedSlab` with `centre`, `dz`). The wood ceiling under it is cut the same way. The sidelights on the roof's sides go back with its corners (build.ts `sb`), and roof gear keeps clear of the cut corners.
 - **How it's drawn** (`hullMesh.ts`):
   - the front is built in three across (split at the mullions), then everything at the front is set back by `facetDz(x)` (0 across the middle, the facet's depth at the side walls). The side walls' front ends follow.
   - the floor is filled out to the angled walls (`planSlab`);
