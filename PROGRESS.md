@@ -4478,6 +4478,10 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Existing codes** for this type build with the new lines.
 - **Checked:** `npm test` (101 files, 735 pass, after the latest `next`), typecheck. Headless Chromium screenshots: her profile, bow quarter and head-on (the V bottom running into the box under the ramp), and landed on the Calder slip, flaps on the concrete. No page errors. **Not checked:** the Quest.
 
+### Release notes for what's new since v1.0 (owner)
+
+- **The owner asked** for a release-notes style update on everything added since Friday night. `docs/RELEASE_NOTES_next.md` covers Friday after the v1.0 notes to Sunday 18 October, all sessions' work. It says what's already in the live game (Friday evening's potting, hand gear, deck gate and so on) and what's only on /next/. It's linked from README.md beside the v1.0 notes.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**
