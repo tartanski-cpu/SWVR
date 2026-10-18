@@ -49,8 +49,8 @@ export const TYPE_FACTS: TypeFacts[] = [
     pots: 10,
     maxCrates: 35,
     maxPots: 23,
-    // Re-measured with her landing bow (Oct 2026; it was the deep raked stem).
-    fits: [fit(0, 0, 11.2, 67, 1.34, 84_000), fit(0, 1, 23.6, 125, 2.30, 102_000), fit(1, 0, 20.6, 104, 2.02, 100_000), fit(1, 1, 34.2, 168, 3.25, 134_000), fit(2, 0, 27.7, 140, 2.44, 114_000), fit(2, 1, 34.9, 237, 4.88, 162_000), fit(3, 0, 10.0, 150, 1.50, 143_000)],
+    // Re-measured with her landing bow (Oct 2026: the steep V'd beach plate; it was a deep raked stem).
+    fits: [fit(0, 0, 15.8, 87, 1.29, 77_000), fit(0, 1, 27.8, 136, 1.98, 95_000), fit(1, 0, 25.6, 118, 1.84, 93_000), fit(1, 1, 35.6, 188, 3.25, 127_000), fit(2, 0, 29.7, 162, 2.44, 107_000), fit(2, 1, 36.3, 265, 4.88, 155_000), fit(3, 0, 11.0, 173, 1.50, 136_000)],
   },
   {
     what: 'Beamy and stable, an open foredeck to work pots and nets over, the house right aft.',

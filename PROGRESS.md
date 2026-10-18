@@ -4462,6 +4462,22 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   - No page errors.
 - **Not checked:** the Quest (walking the ramp in VR, the flaps' look), and a whole approach driven by hand in the browser (the test drives one).
 
+### The Shipyard landing craft's lines, from the owner's references
+
+- **The owner** (a GA of a 10.75 m aluminium daughter vessel, and a photo of an aluminium landing craft): the V-form planing hull runs into a box section for the ramp, keeping its V up the steep rake. Fixed, like the tug, is fine.
+- **Her lines** (`shipyard/build.ts landingCraftLines`): the hull study's landing craft with her bow redrawn.
+  - Her keel: -0.45 m at the transom, -0.48 m at 55 %, -0.42 m at 66 %, then up a steep, nearly straight beach plate (about 25°) to +1.0 m at the bow, just under the deck (1.3 m).
+  - Her chines are held about 0.25 m over the keel up the rake (`chineHeight` rising to 0.8 of the closing depth at the bow), so the V stays. Above them, her slab sides run on to a square box section 0.3 m deep under the ramp.
+  - The study's own design (and the game's landing craft, built from it) are unchanged: the game's landing craft is the test boat, and her mass and handling are tuned to her present lines.
+- **Landed on a slip:** at her standard size the flaps lie at 41°, tips 0.15 m above the water, dry. At the deepest settings they hang just 0.06–0.14 m short, still above the water. The beach plate lets her ride further up than the gentle forefoot did.
+- **She floats on her lines**, so the forefoot cut away (about 1.2 t of displacement) comes off her weight.
+  - Faster and cheaper, re-measured (`typeFit.ts TYPE_FACTS[0]`): e.g. a single 280 kW V8 25.6 kn (20.6 with the earlier landing bow, 19.5 with the deep stem); a single 150 kW 15.8 kn (11.2); range up 15–30 %; about £7,000 cheaper.
+  - Bollard pull is a little lower on three fits (the gearbox matched to her speed).
+  - Her rated payload (30 % of her weight) is about 0.35 t less.
+  - The pinned landing craft in `inTheGame.test.ts` makes 22.5 kn.
+- **Existing codes** for this type build with the new lines.
+- **Checked:** `npm test` (100 files, 730 pass), typecheck. Headless Chromium screenshots: her profile, bow quarter and head-on (the V bottom running into the box under the ramp), and landed on the Calder slip, flaps on the concrete. No page errors. **Not checked:** the Quest.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

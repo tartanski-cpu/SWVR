@@ -46,6 +46,38 @@ const study = (id: string): HullDesign => {
   return d;
 };
 
+/**
+ * The Shipyard landing craft's lines (owner, Oct 2026, from a GA and a photo of aluminium
+ * landing craft): the hull study's landing craft, her bow redrawn. A V-bottomed planing hull
+ * whose bottom sweeps up in a steep, nearly straight rake (the beach plate, about 25 deg) from
+ * a third of her length back to just under the deck at the bow, keeping its V all the way
+ * (the chines held about 0.25 m over the keel as the depth closes); above the chines her
+ * slab sides run on to a square box section, 0.3 m deep, that carries the ramp. (The study's
+ * own bow: a gentle forefoot only up to the waterline, flat-bottomed, under a 1.2 m bow plate.)
+ */
+const landingCraftLines = (): HullDesign => {
+  const d = study('landingCraft');
+  return {
+    ...d,
+    keel: [
+      [0, -0.45],
+      [0.55, -0.48],
+      [0.66, -0.42],
+      [1, 1.0],
+    ],
+    section: {
+      ...d.section,
+      chineHeight: [
+        [0, 0.12],
+        [0.6, 0.15],
+        [0.8, 0.22],
+        [0.92, 0.4],
+        [1, 0.8],
+      ],
+    },
+  };
+};
+
 /** A base hull the Shipyard starts from: its form (scaled) and the kind of boat she is. */
 export interface DesignHull {
   name: string;
@@ -139,9 +171,8 @@ export function bowKeel(keel: [number, number][], stemDeckY: number, lengthM: nu
 export const DESIGN_HULLS: DesignHull[] = [
   {
     name: 'Landing craft: 9 m aluminium, square landing bow with a ramp',
-    // Her bow is her own (the hull study's landing bow: the keel rises from 0.48 m under the
-    // water amidships to 0.12 m above it at the bow plate), as the game's landing craft's is.
-    form: (L, B, D) => ({ kind: 'lofted', design: scaledStudy(study('landingCraft'), L, B, D, null) }),
+    // Her bow is her own: the landing bow (landingCraftLines), no bow choice.
+    form: (L, B, D) => ({ kind: 'lofted', design: scaledStudy(landingCraftLines(), L, B, D, null) }),
     planing: true,
     ramp: true,
     landingBow: true,
