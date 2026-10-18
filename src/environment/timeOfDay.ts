@@ -8,8 +8,8 @@
 import { CONFIG } from '../config';
 import type { Intent } from '../core/intents';
 import { DEG, clamp, hexToRGB, lerp, lerpRGB, wrap, type RGB, type Vec3 } from '../core/math';
-import { seaStateWaves, type EnvironmentState } from './environmentState';
-import { setWeatherPreset } from './weather';
+import type { EnvironmentState } from './environmentState';
+import { rebuildWaves, setWeatherPreset } from './weather';
 import type { WeatherPresetName } from '../config';
 
 export function stepEnvironment(env: EnvironmentState, dt: number): void {
@@ -49,8 +49,9 @@ export function applyEnvironmentIntent(env: EnvironmentState, intent: Intent, ti
       break;
     case 'seaState':
       // Sea scale: 0 = flat calm, 1 = the configured moderate sea, up to maxSeaScale (storm).
+      // Rebuilt with the phases kept where the players are, so the waves don't jump.
       env.seaScale = Math.round(clamp(intent.value, 0, CONFIG.ocean.maxSeaScale) * 100) / 100;
-      env.waves = seaStateWaves(env.seaScale);
+      rebuildWaves(env, time);
       break;
   }
 }

@@ -4528,6 +4528,16 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Checked:** `npm test` (101 files, 739 pass, with new wake tests: the jet at rest and under way, astern, the planing factor), typecheck, build. Headless Chromium screenshots: the tug at full throttle at 3 kn (a wash astern), the landing craft planing (a wider, whiter wake, side spray), a gale and force 5 (white horses, faint streaks). No page errors.
 - **Not checked:** the Quest, at 90 Hz. In the slow headless browser the spray sheets looked shorter than they should, as its frames are long; they need a look in VR and on a fast desktop.
 
+### Fix: the waves stuttered while the sea changed (owner)
+
+- **The owner saw** the waves go "laggy" after changing the weather or the sea state in Debug.
+- **The cause** (`environment/weather.ts rebuildWaves`): a new sea state changes the waves' periods, so their frequency and their length. The rebuild kept the surface continuous only at the middle of the map (0, 0). Everywhere else the change of wave length shifted the waves by (k_new − k_old) × the distance from there. The rebuild ran once a second while the sea built or settled, so the waves jerked once a second. Near the harbours, about 1 km out, that was clearly visible, and 10× worse with Fast ×10. The debug sea-state buttons didn't keep the phases at all.
+- **The fix:**
+  - the surface is kept continuous where the players are: `EnvironmentState.seaAnchor`, the middle of the players (each one aboard counts at her position), set by the host each tick (`core/simulation.ts`). φ_new = φ_old + (ω_new − ω_old)·t − (k_new − k_old)·(D·a);
+  - the waves are rebuilt as soon as the sea has changed by 1 part in 10,000 (`WeatherState.wavesScale`, most ticks while it builds), not once a second: small steps, so far from the players only a gentle drift;
+  - the debug sea-state buttons rebuild the same way.
+- **Checked:** `npm test` (101 files, 740 pass; a new weather test aboard 1.7 km out, a squall building the sea at ×10: the water's largest change in a tick is 0.01 m, the waves' own motion, where it was 0.7 m once a second before), typecheck. In the game (headless Chromium, the starting berth, the Storm sea at ×10): the water beside the boat changed at up to 0.97 m/s before, 0.06 m/s after. **Not checked:** the Quest.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

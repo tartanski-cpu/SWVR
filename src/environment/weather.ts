@@ -16,13 +16,13 @@
  *              regularly, and soon after each change of weather.
  *   sea        follows the wind: target scale = wind x seaPerWind, built up over
  *              `seaBuild`, settling over `seaDecay` - so waves lag the wind. The wave
- *              components are rebuilt each second with their phases kept continuous
- *              (changing a period changes w, so phi is shifted by (w_new - w_old) t).
+ *              components are rebuilt as it changes, with their phases kept continuous
+ *              where the players are (rebuildWaves).
  * Random choices use a deterministic hash of a counter in the state (host and clients agree).
  */
 import { CONFIG, type WeatherPresetName } from '../config';
 import { clamp, wrap } from '../core/math';
-import type { WaveComponent } from '../ocean/waves';
+import { wavenumberFromPeriod, type WaveComponent } from '../ocean/waves';
 import type { EnvironmentState } from './environmentState';
 import { seaStateWaves } from './environmentState';
 
@@ -47,8 +47,9 @@ export interface WeatherState {
   fixed: boolean;
   /** Debug: transitions and holds run this many times faster. */
   speed: number;
-  /** World time of the last wave rebuild (s). */
+  /** World time of the last wave rebuild (s), and the sea scale they were built for. */
   wavesAt: number;
+  wavesScale?: number;
   /** The last lightning flash (seq counts them; views flash/thunder on change) and the next. */
   lightning: { seq: number; at: number; dist: number; nextAt: number };
   /** When the next shipping forecast goes out (world time, s). */
@@ -146,8 +147,10 @@ export function stepWeather(env: EnvironmentState, time: number, dt: number): vo
   const seaTarget = seaForWind(n.wind);
   const tau = seaTarget > env.seaScale ? c.seaBuild : c.seaDecay;
   env.seaScale += (seaTarget - env.seaScale) * (1 - Math.exp((-dt * w.speed) / tau));
-  // Rebuild the wave components once a second.
-  if (time - w.wavesAt >= 1) rebuildWaves(env, time);
+  // Rebuild the wave components as soon as the sea has changed by a hair (1 part in 10^4:
+  // most ticks while it builds or settles), so it changes smoothly. (Once a second, the
+  // waves stepped visibly each second.)
+  if (Math.abs(env.seaScale - (w.wavesScale ?? -1)) > 1e-4 * Math.max(1, env.seaScale)) rebuildWaves(env, time);
   // Lightning, in squalls once the rain has set in.
   const L = w.lightning;
   if (w.preset === 'Squall' && n.rain > 0.7) {
@@ -165,17 +168,33 @@ export function stepWeather(env: EnvironmentState, time: number, dt: number): vo
 
 /**
  * New wave components for the current sea scale, phases shifted so the surface doesn't
- * jump: theta = w t - phi must be the same before and after at `time`.
+ * jump where the players are (`env.seaAnchor`, else the origin).
+ *
+ * A component's phase is theta = k (D . p) - w t + phi. A new sea state changes its period,
+ * so both w and k: keeping theta the same at the anchor point a and time t needs
+ *   phi_new = phi_old + (w_new - w_old) t - (k_new - k_old) (D . a).
+ * It can only be exact along one line: elsewhere the change of k shifts the waves by
+ * (k_new - k_old) times the distance from it. Kept at the origin (as it was), that was a
+ * visible jerk near the harbours, a kilometre or so out; at the players it's nil where
+ * they are and, rebuilt in small steps as the sea changes, a gentle drift far off.
  */
 export function rebuildWaves(env: EnvironmentState, time: number): void {
-  if (env.weather) env.weather.wavesAt = time;
+  if (env.weather) {
+    env.weather.wavesAt = time;
+    env.weather.wavesScale = env.seaScale;
+  }
   const old = env.waves;
   const fresh = seaStateWaves(env.seaScale);
+  const a = env.seaAnchor ?? { x: 0, z: 0 };
   if (fresh.length && old.length === fresh.length) {
     fresh.forEach((f: WaveComponent, i) => {
       const o = old[i];
       const dw = TWO_PI / f.period - TWO_PI / o.period;
-      f.phase = wrap(o.phase + dw * time, TWO_PI);
+      const dk = wavenumberFromPeriod(f.period) - wavenumberFromPeriod(o.period);
+      const b = (f.directionDeg * Math.PI) / 180;
+      // D . a, with D = (sin b, -cos b): x east, north -z (as prepareWaves).
+      const along = Math.sin(b) * a.x - Math.cos(b) * a.z;
+      f.phase = wrap(o.phase + dw * time - dk * along, TWO_PI);
     });
   }
   env.waves = fresh;

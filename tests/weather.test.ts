@@ -83,6 +83,34 @@ describe('dynamic weather', () => {
     expect(maxJump).toBeLessThan(0.08); // one tick's natural motion, no seam
   });
 
+  it('far from the middle of the map too: the sea builds smoothly where she is (the owner saw the waves stutter)', () => {
+    const { world, env, v, send, run } = setup('Clear');
+    // Aboard her, 1.7 km from the middle of the map (the harbours are about that far out).
+    Object.values(world.players)[0].aboardVesselId = v.id;
+    placeVessel(v, 1400, 0, -900, 0);
+    send('weatherFixed', 1);
+    send('weatherSpeed', 10);
+    send('weatherForce', Object.keys(CONFIG.weather.presets).indexOf('Squall'));
+    run(5);
+    const at = (dx: number) => surfaceHeight(prepareWaves(env.waves, world.time), 1400 + dx, -900 + 20);
+    const last = [at(0), at(60)];
+    let maxJump = 0;
+    const scale0 = env.seaScale;
+    run(6, () => {
+      [0, 60].forEach((dx, i) => {
+        const h = at(dx);
+        maxJump = Math.max(maxJump, Math.abs(h - last[i]));
+        last[i] = h;
+      });
+    });
+    expect(env.seaScale).toBeGreaterThan(scale0 + 0.1); // the sea really is building
+    expect(maxJump).toBeLessThan(0.08); // one tick's natural motion, no step each second
+    // Kept where she is; the debug sea-state buttons keep the phases too, not the configured ones.
+    expect(env.seaAnchor!.x).toBeCloseTo(v.position[0], 1);
+    send('seaState', env.seaScale + 0.5);
+    expect(env.waves.map((w) => w.phase)).not.toEqual(CONFIG.ocean.waves.map((w) => w.phase));
+  });
+
   it('fog: visibility drops, and fog banks thin it further', () => {
     const { env, send, run } = setup('Clear');
     send('weatherFixed', 1);

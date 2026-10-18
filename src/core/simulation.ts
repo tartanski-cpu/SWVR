@@ -46,7 +46,30 @@ let simWaves: PreparedWave[] = [];
  * Pure with respect to the outside world: it reads only `world` and `intents`, so the
  * same function can later run headless on a server (see tests/simulation.test.ts).
  */
+/**
+ * The middle of the players, in world x, z (each aboard one counts at her position: aboard,
+ * a player's own position is in her frame). No players: it stays where it was.
+ */
+function seaAnchor(world: WorldState): void {
+  let x = 0;
+  let z = 0;
+  let n = 0;
+  for (const p of Object.values(world.players)) {
+    const v = p.aboardVesselId ? world.vessels[p.aboardVesselId] : undefined;
+    const at = v ? v.position : p.position;
+    x += at[0];
+    z += at[2];
+    n++;
+  }
+  if (n === 0) return;
+  const a = (world.environment.seaAnchor ??= { x: 0, z: 0 });
+  a.x = x / n;
+  a.z = z / n;
+}
+
 export function stepWorld(world: WorldState, intents: readonly Intent[], dt: number, debug?: SimDebug): void {
+  // Where the players are: the sea is kept continuous there as it changes (weather.ts).
+  seaAnchor(world);
   // 1. Apply intents, routed by target entity.
   for (const intent of intents) {
     if (intent.control === 'quietCalls') {

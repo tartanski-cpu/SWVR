@@ -19,6 +19,11 @@ export interface EnvironmentState {
   waves: WaveComponent[];
   /** Dynamic weather (weather.ts). Absent: fixed fair weather (tests, trials). */
   weather?: WeatherState;
+  /**
+   * Where the players are (world x, z; set by the host each tick): the waves are kept
+   * continuous here when the sea changes (weather.ts rebuildWaves). Absent: the origin.
+   */
+  seaAnchor?: { x: number; z: number };
 }
 
 /** The configured waves scaled to sea state `s` (see CONFIG.ocean.seaStates). */
