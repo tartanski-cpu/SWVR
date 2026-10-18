@@ -2120,6 +2120,15 @@ export const CONFIG = {
      */
     sketchShareMs: 120,
     /**
+     * Her propeller shaft's angle to the horizontal (deg), rising forward from the propeller
+     * (shipyard/machinery.ts; owner, Oct 2026: a reasonable shaft angle decides where the
+     * engine goes). Small craft run about 8-12°: steeper wastes thrust and stands the engine
+     * up through her floor. Only the drawing and the fit check; not her weights.
+     */
+    shaftAngleDeg: 10,
+    /** ...steeper only if her bottom is so flat aft the engine can't clear it otherwise (deg). */
+    shaftAngleMaxDeg: 15,
+    /**
      * Live sea trials at the Trials step (shipyard/liveTrial.ts; owner, Oct 2026: see how the
      * hull behaves). Calm deep water; she settles for `settleS` first.
      *   drop      lifted `dropM` above her rest, heeled `dropHeelDeg` and trimmed

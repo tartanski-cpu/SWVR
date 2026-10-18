@@ -20,7 +20,7 @@
  * Anything doubtful (a cabin too narrow for the console, too little stability) comes back as
  * a plain-language warning; the page shows them, the game builds her anyway.
  */
-import { fitEngine, twinEngineX } from './machinery';
+import { layShaft, twinEngineX, type ShaftLine } from './machinery';
 import { CONFIG } from '../config';
 import landingCraftRecipe from '../boats/landingCraft.json';
 import { DESIGNS } from '../hulls/designs';
@@ -297,6 +297,8 @@ export interface DesignedBoat {
   /** engineShortM: how far her engine stands above the cabin floor (0: it fits; machinery.ts). */
   figures: { lengthM: number; beamM: number; massT: number; draughtM: number; gmM: number; propellerM: number; engineShortM: number; gear: number; engine: string; price: number; floorM: number; floorOnDeckhouseM?: number };
   warnings: string[];
+  /** Her shaft line and the engine on it (machinery.ts): for the Shipyard's drawing of her machinery. */
+  shaft: ShaftLine;
   /**
    * Where the gear placed by hand stands (boat axes, m), whether it had to move off its
    * pinned cell to stand there (`moved`), and on the roof or not; null if it couldn't stand
@@ -662,11 +664,13 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   // revs fall): the 1000 rpm tug engine up to 1.4 m, as her draught allows (ENGINES propMaxM).
   const twinX = Math.round(0.28 * 2 * Math.max(...st.map((s) => s.halfBeamDeck)) * 100) / 100;
   const propD = Math.round(Math.max(0.45, Math.min(1.25 * draughtAft, 0.45 + (0.0015 * kw) / rs, eng.propMaxM, twin ? 2 * twinX - 0.15 : 9)) * 100) / 100;
-  // Does the engine fit under the cabin floor (machinery.ts)? Sat as low as her bottom
-  // allows at the hatch, its top must be under the floor: a tall engine in a shallow hull
-  // doesn't fit, which is a reason for more depth (owner).
-  const engineFit = fitEngine(shape, eng.size, twin ? twinEngineX(twinX, eng.size[1]) : 0, hatchZ, floorY);
-  if (!engineFit.fits) warnings.push(`The ${eng.name.split(' (')[0]} doesn't fit under the cabin floor: it stands ${(engineFit.shortM * 100).toFixed(0)} cm too tall. Give her more depth (Hull), raise the floor (Wheelhouse), or fit a smaller engine.`);
+  // Her shaft and the engine on it (machinery.ts): the shaft rises forward from the
+  // propeller at a set angle and the engine sits on it where it clears her bottom. Its top
+  // must be under the cabin floor (under the house) or the deck (elsewhere): a tall engine in
+  // a shallow hull doesn't fit, which is a reason for more depth (owner).
+  const ceilingAt = (z: number) => (z >= front && z <= aft ? floorY : q.deckY(z));
+  const shaft = layShaft(shape, eng.size, twin ? twinEngineX(twinX, eng.size[1]) : 0, { x: twin ? twinX : 0, z: transom - 0.65, d: propD }, ceilingAt, CONFIG.shipyard.shaftAngleDeg, CONFIG.shipyard.shaftAngleMaxDeg);
+  if (!shaft.fits) warnings.push(`The ${eng.name.split(' (')[0]} doesn't fit: on its shaft line it stands ${(shaft.shortM * 100).toFixed(0)} cm above the ${shaft.flangeZ - eng.size[0] / 2 >= front && shaft.flangeZ - eng.size[0] / 2 <= aft ? 'cabin floor' : 'deck'}. Give her more depth (Hull), raise the floor (Wheelhouse), or fit a smaller engine.`);
   const gear = Math.round(SCALES.gear(d.gear) * 100) / 100;
   const propPos: V3 = [0, keelAft + 0.1, transom - 0.65];
   const rudderPos: V3 = [0, keelAft + 0.15, transom - 0.25];
@@ -1437,8 +1441,9 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   return {
     hull,
     recipe,
-    figures: { lengthM, beamM: beamDeck, massT: mass / 1000, draughtM: -Math.min(...st.map((s) => s.polygon[2][1])), gmM: gm, propellerM: propD, engineShortM: engineFit.shortM, gear, engine: twin ? `Twin ${eng.name}` : eng.name, price, floorM: Math.round((floorY - level) * 100) / 100, floorOnDeckhouseM: deckhouse ? Math.round((floorY - onTop) * 100) / 100 : undefined },
+    figures: { lengthM, beamM: beamDeck, massT: mass / 1000, draughtM: -Math.min(...st.map((s) => s.polygon[2][1])), gmM: gm, propellerM: propD, engineShortM: shaft.shortM, gear, engine: twin ? `Twin ${eng.name}` : eng.name, price, floorM: Math.round((floorY - level) * 100) / 100, floorOnDeckhouseM: deckhouse ? Math.round((floorY - onTop) * 100) / 100 : undefined },
     warnings,
     placed,
+    shaft,
   };
 }

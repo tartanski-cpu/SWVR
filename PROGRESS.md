@@ -3865,6 +3865,23 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Checked in headless Chromium:** a pilot boat with a 3 m, 1.2 m high, full-width, 30°-raked deckhouse, and set in with 0.5 m side decks, upright: views from the bow, stern and port; the wheelhouse on top, the steps up aft, no warnings. Found and fixed on the way: its faces wound inside out (invisible from outside), and its foot showing through her topsides at the bow. **Not checked:** the Quest, a phone, walking up the steps into a raised helm in the game.
 - **Next, for bigger boats (tugs), noted:** the deckhouse top walkable with rails and a ladder or stairs (the walk area's floors and ladders already do this for the workboat's roof), and an interior with a door into it.
 
+### Shipyard: the shaft angle places the engine (owner)
+
+- **The owner:** in the side views the propeller shaft was too steep. A reasonable shaft angle should decide where the engine goes. "I wouldn't go into centre of gravities: just make it look [right]."
+- **Now** (`shipyard/machinery.ts layShaft`; `build.ts`; `enginePreview.ts`):
+  - **The shaft:** from the propeller, hung under her bottom as before, the shaft rises forward at `CONFIG.shipyard.shaftAngleDeg` (10°).
+  - **The engine:** tilted to the same angle, it slides forward along the shaft until its lower part is `CLEAR` over her bottom all along its length: as far aft as it will go, on a shaft at least `max(0.6 m, the propeller's diameter)` long, and not into her forward third. The gearbox flange sits `FLANGE_SHARE` (25 %) of the engine's height above its underside. Where the bottom is so flat aft that it can't clear within reach, the shaft goes a degree steeper at a time, up to `shaftAngleMaxDeg` (15°).
+  - **The fit check** is where the engine ends up: its top, highest at the tilted forward end, must be 3 cm under the cabin floor under the house, or under the deck elsewhere. `DesignedBoat.shaft` carries the line for the drawing; `figures.engineShortM` and the warning come from it. `fitEngine` (the engine at the hatch, level) is gone.
+  - **Only the look and the fit:** her weights, her centre of gravity and the physics' propeller position are as before, so handling and trials don't change.
+- **Results:**
+  - Every hull type as it comes still fits its engines.
+  - With the 280 kW V8 at 10°, the engine ends up forward of the house under the foredeck in the landing craft (her bottom is flat aft), under the house in the workboat and pilot boat, and further aft in the tug.
+  - The tug diesel is still too tall for the landing craft (16 cm, at the new place).
+- **Checked:**
+  - Typecheck and tests (`tests/shipyard/enginePreview.test.ts`: the shaft at 10° from a propeller under her bottom; the engine's underside clear of the bottom; the rudder from the bottom; the tug diesel too tall for a shallow hull, the small six fitting with room for its tilt; twin engines over a V bottom higher; `build.test.ts` as before).
+  - Headless side views of the landing craft, workboat, pilot boat and tug with the 280 kW V8.
+- **Not checked:** a phone; the Quest browser.
+
 ### Shipyard: protection at Hull, machinery that fits, harder live trials with the physics debug (owner)
 
 - **The owner** (after trying the last round):

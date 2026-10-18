@@ -6,15 +6,22 @@
  * Read off her stations' sections (the lines-plan outline the hull is built from: keel,
  * chine, deck edge on each side), between the two stations either side of a point:
  *
- *   engine    sits as low as it can: its lower part (the sump and bearers, `SUMP_SHARE`
+ *   engine    on its shaft line (below), its lower part (the sump and bearers, `SUMP_SHARE`
  *             of its width) clear of the hull bottom by `CLEAR` (plating, floors, bearers)
  *             all along its length, so with a V bottom a wide engine sits higher, and twin
  *             engines set out from the centreline sit higher still. It has to fit under the
- *             cabin floor (its hatch is in the floor): if its top comes above that, it
+ *             cabin floor (or the deck, aft of the house): if its top comes above that, it
  *             doesn't fit, by that much, and she needs that much more depth;
  *   propeller hangs below her bottom, its tip `TIP_SHARE` of its diameter clear of the
  *             plating over it (less and it hammers the hull);
  *   rudder    from the bottom down to the propeller's lower tip, behind it.
+ *
+ * The engine's place along her comes from its shaft (`layShaft`, owner: "a reasonable prop
+ * angle determines the position of your engine"): the shaft rises forward from the propeller
+ * at a set angle (CONFIG.shipyard.shaftAngleDeg, 10°: small craft run about 8-12°), and the
+ * engine, tilted to it, sits on it where it first clears her bottom (a hull dead flat aft
+ * takes a steeper shaft, up to CONFIG.shipyard.shaftAngleMaxDeg). Only where it's drawn
+ * and whether it fits: her weights and centre of gravity are as build.ts sets them.
  *
  * Plain numbers only (no drawing): build.ts checks the fit, the Shipyard's view draws it.
  */
@@ -57,35 +64,6 @@ export function bottomAt(form: Pick<HullForm, 'stations'>, x: number, z: number)
   return s[s.length - 1][1];
 }
 
-export interface EngineFit {
-  /** The engine's underside and top (m, boat axes), and its centre off the centreline (each of a twin). */
-  bottomY: number;
-  topY: number;
-  x: number;
-  /** Its top is under the cabin floor. */
-  fits: boolean;
-  /** How far its top comes above the floor (m; 0 if it fits). */
-  shortM: number;
-}
-
-/**
- * Place an engine of `size` ([length, width, height], m) centred on `bedZ` along her, at
- * `x` off the centreline (a twin's), as low as the hull bottom allows; check it's under `floorY`.
- */
-export function fitEngine(form: Pick<HullForm, 'stations'>, size: readonly [number, number, number], x: number, bedZ: number, floorY: number): EngineFit {
-  const [L, W, H] = size;
-  const half = (W * SUMP_SHARE) / 2;
-  let bottom = -Infinity;
-  for (let i = 0; i <= 6; i++) {
-    const z = bedZ - L / 2 + (L * i) / 6;
-    for (const dx of [-half, 0, half]) bottom = Math.max(bottom, bottomAt(form, x + dx, z));
-  }
-  const bottomY = bottom + CLEAR;
-  const topY = bottomY + H;
-  const shortM = Math.max(0, Math.round((topY - (floorY - 0.03)) * 100) / 100);
-  return { bottomY, topY, x, fits: shortM === 0, shortM };
-}
-
 /** The propeller's centre height under her bottom at (x, z), for diameter `d`. */
 export function propellerY(form: Pick<HullForm, 'stations'>, x: number, z: number, d: number): number {
   // The plating over the disc: the highest bottom across it.
@@ -96,4 +74,97 @@ export function propellerY(form: Pick<HullForm, 'stations'>, x: number, z: numbe
 /** Twin engines' centres off the centreline: a little inboard of their propellers, never closer than shoulder to shoulder. */
 export function twinEngineX(twinX: number, width: number): number {
   return Math.max(width / 2 + 0.08, Math.min(twinX * 0.8, twinX - 0.1));
+}
+
+/**
+ * The gearbox's output flange (where the shaft starts) above the engine's underside, as a
+ * share of the engine's height: a marine gearbox drops the shaft line below the crankshaft.
+ */
+export const FLANGE_SHARE = 0.25;
+
+/** Her engine on its shaft line: where it sits, and whether it fits under what's over it. */
+export interface ShaftLine {
+  /** Off the centreline (m; each of a twin). */
+  x: number;
+  /** The gearbox flange: height and place along her (m). */
+  flangeY: number;
+  flangeZ: number;
+  /** The propeller's centre height (m), under her bottom. */
+  propY: number;
+  /** The shaft's angle to the horizontal (deg), rising forward; the engine is tilted to it. */
+  angleDeg: number;
+  /** Its top, at its highest (the forward end, m). */
+  topY: number;
+  fits: boolean;
+  /** How far its top comes above the floor or deck over it (m; 0 if it fits). */
+  shortM: number;
+}
+
+/**
+ * Lay the shaft and put the engine on it (owner: a reasonable shaft angle decides where the
+ * engine goes). From the propeller, hung under her bottom, the shaft rises forward at
+ * `angleDeg`; the engine, tilted to the same angle, is slid forward along it until its lower
+ * part is `CLEAR` over her bottom all along its length: as far aft as it will go, on as
+ * short a shaft as allows (at least `minShaft`). Then its top must be under what's over it
+ * there (`ceilingAt`: the cabin floor under the house, the deck elsewhere), 3 cm clear.
+ */
+export function layShaft(
+  form: Pick<HullForm, 'stations'>,
+  size: readonly [number, number, number],
+  x: number,
+  prop: { x: number; z: number; d: number },
+  ceilingAt: (z: number) => number,
+  angleDeg: number,
+  maxAngleDeg = angleDeg,
+): ShaftLine {
+  // A bottom too flat aft for the shaft to clear it at its angle within reach: a little
+  // steeper, a degree at a time, up to `maxAngleDeg`.
+  let line = layAt(form, size, x, prop, ceilingAt, angleDeg);
+  for (let a = angleDeg + 1; !line.clears && a <= maxAngleDeg; a++) line = layAt(form, size, x, prop, ceilingAt, a);
+  return line.shaft;
+}
+
+function layAt(
+  form: Pick<HullForm, 'stations'>,
+  size: readonly [number, number, number],
+  x: number,
+  prop: { x: number; z: number; d: number },
+  ceilingAt: (z: number) => number,
+  angleDeg: number,
+): { shaft: ShaftLine; clears: boolean } {
+  const [L, W, H] = size;
+  const t = Math.tan((angleDeg * Math.PI) / 180);
+  const half = (W * SUMP_SHARE) / 2;
+  const propY = propellerY(form, prop.x, prop.z, prop.d);
+  const minShaft = Math.max(0.6, prop.d);
+  const stem = Math.min(...form.stations.map((s) => s.z));
+  /** How far the engine's underside dips under the clearance line, with its flange at `zf` (m; ≤ 0 clears). */
+  const dip = (zf: number) => {
+    const fy = propY + (prop.z - zf) * t;
+    let worst = -Infinity;
+    for (let i = 0; i <= 6; i++) {
+      const s = (L * i) / 6;
+      const under = fy + s * t - FLANGE_SHARE * H;
+      for (const dx of [-half, 0, half]) worst = Math.max(worst, bottomAt(form, x + dx, zf - s) + CLEAR - under);
+    }
+    return worst;
+  };
+  let zf = prop.z - minShaft;
+  let best = { zf, dip: dip(zf) };
+  // Forward in 5 cm steps until it clears (or the engine would run into her forward third).
+  while (best.dip > 0 && zf - L > stem + 0.3 * (prop.z - stem)) {
+    zf -= 0.05;
+    const d = dip(zf);
+    if (d < best.dip) best = { zf, dip: d };
+    if (d <= 0) break;
+  }
+  zf = best.zf;
+  const flangeY = propY + (prop.z - zf) * t;
+  let short = -Infinity;
+  for (let i = 0; i <= 6; i++) {
+    const s = (L * i) / 6;
+    short = Math.max(short, flangeY + s * t - FLANGE_SHARE * H + H - (ceilingAt(zf - s) - 0.03));
+  }
+  const shortM = Math.max(0, Math.round(short * 100) / 100);
+  return { shaft: { x, flangeY, flangeZ: zf, propY, angleDeg, topY: flangeY + L * t + (1 - FLANGE_SHARE) * H, fits: shortM === 0, shortM }, clears: best.dip <= 0.005 };
 }

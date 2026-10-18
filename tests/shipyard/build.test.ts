@@ -44,7 +44,7 @@ describe('Shipyard: the boats it builds', () => {
 
   it('the tug diesel fits the small tug as she comes, not the landing craft', () => {
     expect(useDesign({ ...DEFAULT_DESIGN, ...DESIGN_HULLS[4].defaults, hull: 4 }).figures.engineShortM).toBe(0);
-    expect(useDesign({ ...DEFAULT_DESIGN, ...DESIGN_HULLS[0].defaults, hull: 0, engine: 3 }).figures.engineShortM).toBeGreaterThan(0.2);
+    expect(useDesign({ ...DEFAULT_DESIGN, ...DESIGN_HULLS[0].defaults, hull: 0, engine: 3 }).figures.engineShortM).toBeGreaterThan(0.1);
   });
 
   it('the slider ends build too (every choice at its least and its most), each hull', () => {
