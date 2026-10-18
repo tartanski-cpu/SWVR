@@ -3,6 +3,7 @@
  * in its own folder under src/modules/, then list it here. Adding a boat: a hull here and
  * a recipe JSON.
  */
+import { CONFIG } from '../config';
 import { createHullLibrary, type HullLibrary } from '../modular/hull';
 import { buildDesign, type DesignedBoat } from '../shipyard/build';
 import { DEFAULT_DESIGN, encodeDesign, type ShipDesign } from '../shipyard/design';
@@ -156,6 +157,15 @@ export function setWorkboatFit(without: readonly string[]): void {
     const i = list?.findIndex((m) => m.socket === socket) ?? -1;
     if (!list || i < 0) throw new Error(`The workboat has no module in socket '${path}'`);
     list.splice(i, 1);
+  }
+  // A group plate on the helm console with nothing left on it (the SEARCH · FIRE group
+  // without the searchlight and the fire monitor) is left off too.
+  const helm = recipe.modules.find((m) => m.socket === 'helm');
+  if (helm && without.some((p) => p.startsWith('helm/'))) {
+    const c = CONFIG.modules.helmConsole;
+    // (What stands on the dash top: the switches and joysticks, not the screens above it.)
+    const xs = (helm.modules ?? []).map((m) => c.slots[m.socket]?.position).filter((p) => p && p[1] < 0.1).map((p) => p![0]);
+    helm.config = { ...helm.config, groups: c.groups.filter((g) => xs.some((x) => x >= g.x[0] && x <= g.x[1])) };
   }
   RECIPES.workboat = loadRecipe(recipe);
   registerVesselDefs(buildDefs);

@@ -4339,6 +4339,23 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   - more of her equipment left off at the start (searchlight, fire monitor, the advanced instruments; a fixed towline on the post with the winch as an upgrade: that needs a new module);
   - selling the starter boat towards a Shipyard boat (nothing yet spends career money on a design).
 
+### The starter workboat: no searchlight or fire monitor either (owner)
+
+- **The owner:** take the searchlight and the fire monitor off the starter boat too.
+- **Two more items at the chandlery** (`CONFIG.career.upgrades`, with `fit`):
+  - `searchlight`, £1,500, rep 5: the roof searchlight, the SPOT switch and its joystick (`searchlight`, `helm/spotlight`, `helm/spotJoystick`);
+  - `fireMonitor`, £3,000, rep 10: the roof monitor, the FIRE PUMP switch, its joystick and the FIRE gauge (`fireMonitor`, `helm/firePump`, `helm/monJoystick`).
+- **Fire calls** already come only to a boat with a fire monitor (`fire.ts tug`), so the starter gets none until it's bought. Night rescues: the hand torch is still aboard, as is the boat hook.
+- **The helm console** (`boats/library.ts setWorkboatFit`): a group plate with nothing left on its switch row is left off. Without both, the red SEARCH · FIRE plate goes; LIGHTS, DECK and ENGINE stay. The whole workboat's recipe is untouched (her console keeps its own defaults).
+- Old careers still have everything (a save without `kit` gets all the equipment).
+- **Tests** (`starterWorkboat.test.ts`, now 10):
+  - the four items left off and their sockets;
+  - none of the gear or its switches aboard, the horn, towing, rescue gear, VHF and torch still there;
+  - the console's plates;
+  - no fire call without the monitor, one with it.
+  - `npm test`: 98 files, 717 pass; typecheck clean.
+- **Checked in headless Chromium:** the starter's roof (no searchlight or monitor) and dash (no SEARCH · FIRE plate). Searchlight bought in port: the page restarts, the SPOT switch, its plate and the joystick are back, £1,500 off. No page errors. **Not checked:** the Quest.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

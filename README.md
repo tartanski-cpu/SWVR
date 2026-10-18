@@ -349,13 +349,15 @@ Everything you do now earns or costs money. The menu's **Office** tab is your ha
   |---|---|---|---|
   | Trawl gear | £2,500 | 5 | The A-frame over the transom, the net on its drum and the TRAWL switch at the helm (the workboat) |
   | Skiff and her crane | £4,000 | 10 | The electric skiff in her cradle on the foredeck, and the crane to launch her (the workboat) |
+  | Searchlight | £1,500 | 5 | The searchlight on the wheelhouse roof, its SPOT switch and joystick at the helm (the workboat) |
+  | Fire monitor | £3,000 | 10 | The fire monitor on the roof, the FIRE PUMP switch, its joystick and gauge: the fire calls come once she has it (the workboat) |
   | Radar | £2,400 | 20 | Debris and floating crates show on the chartplotter within 1.5 nm |
   | Heavy towing post | £1,500 | 10 | The towline takes 75 % more before it parts |
   | Bigger trawl | £1,800 | 10 | The net fills half as fast again (needs the trawl gear) |
   | Ice machine | £1,200 | — | Fish fetch 30 % more (needs the trawl gear) |
   | Crane motion compensation | £3,500 | 15 | The deck crane holds its hook steady as she rolls, pitches and heaves (a boat with a deck crane only; it needs deck hydraulics) |
 
-- **Your first boat:** a new career starts in the workboat as the yard delivers her, without the trawl gear or the skiff: cargo runs, towing, rescues, fires and potting from day one, and fishing and the skiff once you've earned them. Buy either at the chandlery: the game starts again with her refitted (about two seconds; in VR, enter VR again). A career started before this keeps the whole boat.
+- **Your first boat:** a new career starts in the workboat as the yard delivers her, without the trawl gear, the skiff, the searchlight or the fire monitor: cargo runs, towing, rescues (the hand torch finds people at night) and potting from day one; fishing, the skiff, the searchlight and the fire calls once you've earned them. Buy either at the chandlery: the game starts again with her refitted (about two seconds; in VR, enter VR again). A career started before this keeps the whole boat.
 - **Saved:** your money, ledger, reputation and upgrades are kept in the host's browser between sessions; crew-mates see the host's career. You start with £500.
 - **Debug:** Debug → Missions → Career → **+£5000, rep** (cash and +25 reputation everywhere).
 
