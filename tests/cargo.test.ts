@@ -105,7 +105,9 @@ describe('cargo by hand', () => {
 
   it('set down ashore at its destination: delivered, and a replacement appears somewhere', () => {
     const { world, send, waiting } = setup();
-    const item = waiting('calder').find((c) => c.to === 'brannock')!;
+    // (Runs follow the ports' products and needs since the regions: make this one Calder to Brannock.)
+    const item = waiting('calder')[0];
+    item.to = 'brannock';
     const total = Object.keys(world.cargo).length;
     send('cargoTake', item.id, { target: GROUND });
     // Wrong place ashore (back at Calder): it just sits there.

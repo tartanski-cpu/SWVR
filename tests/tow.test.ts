@@ -145,7 +145,7 @@ describe('towing missions', { timeout: 30000 }, () => {
     const sizes = { small: new Set<string>(), medium: new Set<string>(), large: new Set<string>() };
     for (const id of TOW_DEFS) sizes[VESSEL_DEFS[id].tow!.size].add(id);
     expect([...sizes.small].sort()).toEqual(['derelict', 'dory']);
-    expect([...sizes.medium].sort()).toEqual(['barge', 'logRaft', 'yacht']);
+    expect([...sizes.medium].sort()).toEqual(['barge', 'cage', 'logRaft', 'yacht']);
     expect([...sizes.large].sort()).toEqual(['pontoon', 'trawler']);
     // Heavier as they go: every large tow outweighs every medium, every medium every small.
     const heaviest = (k: keyof typeof sizes) => Math.max(...[...sizes[k]].map((id) => VESSEL_DEFS[id].mass));

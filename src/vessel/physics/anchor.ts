@@ -18,7 +18,8 @@
  */
 import { clamp } from '../../core/math';
 import { groundHeight } from '../../world/terrain';
-import type { CONFIG } from '../../config';
+import { CONFIG } from '../../config';
+import { bottomAt } from '../../world/geography';
 import type { AnchorState } from '../vesselState';
 
 /**
@@ -104,8 +105,9 @@ export function anchorStep(
   } else {
     T = wh + cfg.tautStiffness * (x - xTaut) + cfg.tautDamping * Math.max(0, opening);
   }
-  // Short scope lifts the anchor's shank and it holds far less: full holding from 3:1.
-  const holding = cfg.holdingN * clamp((L / h - 1) / 2, 0.15, 1);
+  // Short scope lifts the anchor's shank and it holds far less: full holding from 3:1. And
+  // the bottom: sand holds, mud less, weed and rock poorly (CONFIG.anchoring, the anchorage's).
+  const holding = cfg.holdingN * clamp((L / h - 1) / 2, 0.15, 1) * CONFIG.anchoring.bottomHolding[bottomAt(a.x, a.z)];
   T = clamp(T, 0, holding * 1.5);
   a.tension = T;
 

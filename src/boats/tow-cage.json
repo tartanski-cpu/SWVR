@@ -1,0 +1,7 @@
+{
+  "id": "vessel.cage-section",
+  "version": 1,
+  "name": "Fish-farm cage section",
+  "hull": "hull.cage-section",
+  "modules": []
+}

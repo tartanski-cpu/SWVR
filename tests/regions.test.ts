@@ -95,16 +95,16 @@ describe('regions', () => {
 
   it('home is v1.0 world, unchanged: the same places in the same spots', () => {
     // A few fixed points, so a slip while moving the data would show.
-    expect(PORTS.map((p) => p.id)).toEqual(['calder', 'brannock', 'selkie']);
+    expect(PORTS.map((p) => p.id)).toEqual(['calder', 'brannock', 'selkie', 'tarsk', 'garbh', 'camas']);
     expect(ISLANDS.find((i) => i.name === 'Calder Holm')).toMatchObject({ x: 960, z: 650, radius: 330, height: 44 });
     expect(LIGHTS.find((l) => l.tower === 'lighthouse')).toMatchObject({ x: 1400, z: -250, period: 10 });
     expect(WRECKS[0]).toMatchObject({ name: 'Margaret Ann', x: 41, z: 478 });
     expect(SHELTERS[0]).toMatchObject({ x: 665, z: 650, factor: 0.08 });
     expect(FOG_BANKS[0]).toMatchObject({ x: 380, z: 430, r: 260, visibility: 160 });
-    expect(FISHING_GROUNDS.map((g) => g.name)).toEqual(['Calder Bank', 'Skerry Ground', 'The Hollows']);
+    expect(FISHING_GROUNDS.slice(0, 3).map((g) => g.name)).toEqual(['Calder Bank', 'Skerry Ground', 'The Hollows']);
     // Ground where it was: Calder Haven's dredged basin, the quay, the open sea.
     expect(groundHeight(665, 650)).toBeCloseTo(-4.5, 1);
-    expect(groundHeight(0, -3000)).toBe(-40);
+    expect(groundHeight(0, 4000)).toBe(-40);
     expect(groundHeight(960, 650)).toBeGreaterThan(20);
     // The chart still covers the same sheet.
     expect(chartBounds()).toEqual({ x0: -1630, x1: 2170, z0: -1088, z1: 2340 });

@@ -10,7 +10,8 @@ import { groundHeight } from '../src/world/terrain';
 
 const DT = 1 / 60;
 
-function setup(x = 0, z = -2600) {
+// Open sea south of home (north of it, where this used to be, is the Sounds now).
+function setup(x = 0, z = 3600) {
   const { world, vesselId, localPlayerId } = createWorld(new IdFactory(), undefined, { weather: true });
   world.environment.waves = [];
   const v = world.vessels[vesselId];

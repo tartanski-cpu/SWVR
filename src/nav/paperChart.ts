@@ -17,7 +17,8 @@ import { CURRENTS, MARKS, MAX_DEPTH, PORTS, WRECKS, type MarkKind } from '../wor
 import { slackTimes } from '../world/currents';
 import { LIGHT_CHARACTERS } from '../world/navMarks';
 import { groundHeight } from '../world/terrain';
-import { chartBounds, chartIslands, toLatLon } from './geo';
+import { toLatLon } from './geo';
+import { sheetById, type ChartSheet } from './chartSheets';
 
 export interface PaperChart {
   canvas: HTMLCanvasElement;
@@ -41,10 +42,10 @@ const CONTOUR: RGB = [104, 146, 186];
 const INK = '#1c2a36';
 type RGB = [number, number, number];
 
-export function drawPaperChart(widthPx = 2048): PaperChart {
-  const b = chartBounds();
+export function drawPaperChart(widthPx = 2048, sheet: ChartSheet = sheetById('home')): PaperChart {
+  const b = sheet.bounds;
   const W = widthPx;
-  const u = W / 1280; // one chart point, px
+  const u = (W / 1280) * sheet.textScale; // one chart point, px (smaller type on the small-scale sheet)
   const ppm = W / (b.x1 - b.x0); // pixels per metre
   const H = Math.round((b.z1 - b.z0) * ppm);
   const c = document.createElement('canvas');
@@ -123,7 +124,7 @@ export function drawPaperChart(widthPx = 2048): PaperChart {
   const midLat = ((tl.lat + br.lat) / 2) * (Math.PI / 180);
   const latZ = (lat: number) => pz((CONFIG.nav.originLat - lat) * 1852 * 60);
   const lonX = (lon: number) => px((lon - CONFIG.nav.originLon) * 1852 * 60 * Math.cos(midLat));
-  const half = 0.5 / 60;
+  const half = sheet.gridMinutes / 60;
   g.strokeStyle = 'rgba(40, 60, 80, 0.45)';
   g.lineWidth = 1.2 * u;
   for (let lat = Math.ceil(br.lat / half) * half; lat < tl.lat; lat += half) {
@@ -141,7 +142,7 @@ export function drawPaperChart(widthPx = 2048): PaperChart {
 
   // Island names (one label per name), ports.
   const names = new Map<string, { x: number; z: number; n: number; r: number }>();
-  for (const i of chartIslands()) {
+  for (const i of sheet.islands) {
     const e = names.get(i.name) ?? { x: 0, z: 0, n: 0, r: 0 };
     e.x += i.x;
     e.z += i.z;
@@ -157,11 +158,12 @@ export function drawPaperChart(widthPx = 2048): PaperChart {
   }
   // Ports: a dot, the name out over the water, on the side away from their island's middle.
   for (const p of PORTS) {
+    if (p.x < b.x0 || p.x > b.x1 || p.z < b.z0 || p.z > b.z1) continue;
     g.fillStyle = '#7a1f1a';
     g.beginPath();
     g.arc(px(p.x), pz(p.z), 6 * u, 0, Math.PI * 2);
     g.fill();
-    const home = chartIslands().reduce((a, i) => (Math.hypot(i.x - p.x, i.z - p.z) - i.radius < Math.hypot(a.x - p.x, a.z - p.z) - a.radius ? i : a));
+    const home = sheet.islands.reduce((a, i) => (Math.hypot(i.x - p.x, i.z - p.z) - i.radius < Math.hypot(a.x - p.x, a.z - p.z) - a.radius ? i : a));
     const dx = p.x - home.x;
     const dz = p.z - home.z;
     const font = `italic bold ${26 * u}px Georgia, serif`;
@@ -230,6 +232,11 @@ export function drawPaperChart(widthPx = 2048): PaperChart {
     }
     g.stroke();
     g.restore();
+    if (sheet.textScale < 1) {
+      // The small-scale sheet: the name and the rate; the slack times are on the detail sheet.
+      label(`${z.name} ${z.peakKn} kn`, x, y - hl - 10 * u, `italic bold ${15 * u}px Georgia, serif`, '#9a1f78');
+      continue;
+    }
     const slacks = slackTimes(z).map((t) => `${String(Math.floor(t)).padStart(2, '0')}${String(Math.round((t % 1) * 60)).padStart(2, '0')}`);
     label(z.name, x, y - hl - 26 * u, `italic bold ${16 * u}px Georgia, serif`, '#9a1f78');
     label(`Race ${z.peakKn} kn at peak, ${z.periodH} h cycle`, x, y - hl - 10 * u, `italic ${13 * u}px Georgia, serif`, '#9a1f78');
@@ -244,7 +251,7 @@ export function drawPaperChart(widthPx = 2048): PaperChart {
   // to land, where they'd crowd the coastline). The open sound is all the same depth (the
   // terrain's floor), so out there only every third cell gets one, as a chart thins out
   // its soundings over deep, even ground; near the islands, where the depth changes, all do.
-  const step = 280;
+  const step = sheet.soundingStep;
   let cell = 0;
   for (let z = b.z0 + step / 2; z < b.z1; z += step) {
     for (let x = b.x0 + step / 2; x < b.x1; x += step, cell++) {
@@ -260,7 +267,7 @@ export function drawPaperChart(widthPx = 2048): PaperChart {
   }
 
   // Title block, top right.
-  const tw = 420 * u;
+  const tw = Math.max(420, sheet.title.length * 20 + 40) * u;
   const th = 112 * u;
   const tx = W - tw - border - 10 * u;
   const ty = border + 10 * u;
@@ -272,9 +279,9 @@ export function drawPaperChart(widthPx = 2048): PaperChart {
   g.strokeRect(tx + 4 * u, ty + 4 * u, tw - 8 * u, th - 8 * u);
   g.fillStyle = INK;
   g.font = `bold ${34 * u}px Georgia, serif`;
-  g.fillText('SKERRY SOUND', tx + tw / 2, ty + 34 * u);
+  g.fillText(sheet.title, tx + tw / 2, ty + 34 * u);
   g.font = `${19 * u}px Georgia, serif`;
-  g.fillText('Grid: half minutes of arc', tx + tw / 2, ty + 66 * u);
+  g.fillText(sheet.gridMinutes === 0.5 ? 'Grid: half minutes of arc' : `Grid: ${sheet.gridMinutes} minutes of arc`, tx + tw / 2, ty + 66 * u);
   g.fillText('Depths in metres', tx + tw / 2, ty + 90 * u);
 
   // Neat-line border, graduated in tenths of a minute (alternate black and white, as on

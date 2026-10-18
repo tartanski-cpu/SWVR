@@ -30,7 +30,8 @@
 import { CONFIG } from '../config';
 import type { Intent } from '../core/intents';
 import { homeVessel, type WorldState } from '../core/world';
-import { PORTS } from '../world/archipelago';
+import { PORTS, type PortDef } from '../world/archipelago';
+import { fuelBerthAt } from '../world/geography';
 import type { VesselState } from '../vessel/vesselState';
 import { sayRadio } from '../rescue/rescue';
 import { cargoPortAt } from '../cargo/cargo';
@@ -152,6 +153,14 @@ function addRep(c: CareerState, port: string | null | undefined, d: number): voi
   c.rep[port] = Math.max(0, Math.min(CONFIG.career.rep.max, (c.rep[port] ?? 0) + d));
 }
 
+/** What a port's buyer pays over the odds (PortDef.economy.buys), by what's sold: 1 where nothing is set. */
+function buyerFactor(port: string | null | undefined, kind: JobKind): number {
+  const buys = PORTS.find((p) => p.id === port)?.economy?.buys;
+  if (!buys) return 1;
+  const key = kind === 'fish' ? 'fish' : kind === 'catch' ? 'shellfish' : kind === 'log' ? 'log' : kind === 'cargo' ? 'cargo' : null;
+  return (key && buys[key]) || 1;
+}
+
 /** What a job pays before the port's reputation factor. */
 function basePay(world: WorldState, kind: JobKind, o: EarnOpts): number {
   const p = CONFIG.career.pay;
@@ -213,7 +222,7 @@ export function earn(world: WorldState, kind: JobKind, o: EarnOpts): void {
   const c = (world.career ??= createCareer());
   // Danger money: rescues, tows and fires in heavy weather pay more (phase 2).
   const storm = (kind === 'rescue' || kind === 'tow' || kind === 'fire') && heavyWeather(world);
-  const amount = Math.round(basePay(world, kind, o) * payFactor(c, o.port) * (storm ? 1 + CONFIG.career.stormBonus : 1));
+  const amount = Math.round(basePay(world, kind, o) * payFactor(c, o.port) * buyerFactor(o.port, kind) * (storm ? 1 + CONFIG.career.stormBonus : 1));
   post(world, c, storm ? `${o.text} (heavy weather)` : o.text, amount);
   addRep(c, o.port, REP_GAIN[kind]());
   // The contract: the right kind of work, at its port.
@@ -236,19 +245,36 @@ export function heavyWeather(world: WorldState): boolean {
   return world.environment.weather?.preset === 'Squall' || significantWaveHeight(world.environment.waves) > CONFIG.career.stormHs;
 }
 
-/** What repairs cost now: the hull (by damage) and an engine overhaul (by wear). */
+/** The boatyard at the port she's in (alongside, or anchored in its bay), if that port has one. */
+export function yardAt(world: WorldState): { yard: (typeof CONFIG.boatyards)[number]; port: PortDef } | null {
+  const id = officeAt(world);
+  const yard = CONFIG.boatyards.find((y) => y.port === id);
+  const port = PORTS.find((p) => p.id === id);
+  return yard && port ? { yard, port } : null;
+}
+
+/** The yard's repair rates: a factor on the standard (PortDef.economy.repairs); 1 away from any yard. */
+function repairFactor(world: WorldState, what: 'hull' | 'engine'): number {
+  const r = yardAt(world)?.port.economy?.repairs;
+  return r ? r[what] : 1;
+}
+
+/** What repairs cost now: the hull (by damage) and an engine overhaul (by wear), at this yard's rates. */
 export function repairCost(world: WorldState, what: 'hull' | 'engine'): number {
   const v = workboat(world);
   if (!v) return 0;
   const r = CONFIG.career.repairs;
-  return what === 'hull' ? Math.round((v.damage ?? 0) * 100 * r.hullPerPercent) : Math.round((v.engine.wear ?? 0) * 100 * r.enginePerPercent);
+  const f = repairFactor(world, what);
+  return what === 'hull' ? Math.round((v.damage ?? 0) * 100 * r.hullPerPercent * f) : Math.round((v.engine.wear ?? 0) * 100 * r.enginePerPercent * f);
 }
 
 /** Why a repair can't be done now, or null. */
 export function repairBlocker(world: WorldState, what: 'hull' | 'engine'): string | null {
   const v = workboat(world);
   if (!v || repairCost(world, what) < 1) return 'Nothing to do';
-  if (officeAt(world) !== CONFIG.boatyard.port) return 'Bring her into Calder Haven';
+  const y = yardAt(world);
+  if (!y) return 'Bring her into a boatyard';
+  if (y.port.economy?.repairs === false) return 'No repairs here';
   if (what === 'engine' && v.engine.phase !== 'off') return 'Stop the engine first';
   return null;
 }
@@ -325,7 +351,9 @@ export function stepCareer(world: WorldState): void {
     const fuel = v.engine.fuelL;
     if (v.refuelling && c.lastFuel !== undefined && fuel > c.lastFuel) c.fuelTaken += fuel - c.lastFuel;
     if (!v.refuelling && c.fuelTaken > 0.5) {
-      spend(world, c.fuelTaken * CONFIG.career.costs.fuelPerL, `Fuel, ${Math.round(c.fuelTaken)} L`);
+      // At the port's price, where it has one (PortDef.economy.fuelPrice).
+      const perL = fuelBerthAt(v.position[0], v.position[2])?.economy?.fuelPrice ?? CONFIG.career.costs.fuelPerL;
+      spend(world, c.fuelTaken * perL, `Fuel, ${Math.round(c.fuelTaken)} L`);
       c.fuelTaken = 0;
     }
     c.lastFuel = fuel;
@@ -361,7 +389,14 @@ export function buyBlocker(world: WorldState, id: string): string | null {
   if (u.needs && !(v && hasModule(v.defId, u.needs))) return `Needs ${u.needsName ?? u.needs}`;
   // The yard fits the workboat's equipment to the workboat only.
   if (u.fit && v?.defId !== 'workboat') return 'Workboat only';
-  if (officeAt(world) !== CONFIG.boatyard.port) return 'Bring her into Calder Haven';
+  const y = yardAt(world);
+  if (!y) return 'Bring her into a boatyard';
+  // Each yard sells its own list (PortDef.economy.sells; none listed: everything).
+  const sells = y.port.economy?.sells;
+  if (sells && !sells.includes(id)) {
+    const elsewhere = PORTS.find((p) => p.economy?.sells?.includes(id) && CONFIG.boatyards.some((b) => b.port === p.id));
+    return elsewhere ? `Fitted at ${elsewhere.name}` : 'Not sold here';
+  }
   const best = Math.max(0, ...Object.values(c.rep));
   if (best < u.minRep) return `Needs reputation ${u.minRep}`;
   if (c.money < u.price) return 'Not enough money';

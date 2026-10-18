@@ -35,7 +35,8 @@ import { applyCareerIntent, isCareerIntent, stepCareer } from '../career/career'
 import { applyTutorialIntent, isTutorialIntent, stepTutorial } from '../career/tutorial';
 import { ENVIRONMENT_ID, type EntityId } from './ids';
 import type { Intent } from './intents';
-import type { WorldState } from './world';
+import { homeVessel, type WorldState } from './world';
+import { regionAt } from '../world/regions';
 
 /** Optional per-vessel diagnostics written during a tick (not part of WorldState). */
 export type SimDebug = Map<EntityId, HydroDebug>;
@@ -120,7 +121,9 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
   stepCameraHolds(world);
   // 2. Integrate systems. Forces are evaluated at the start-of-tick time.
   stepEnvironment(world.environment, dt);
-  stepWeather(world.environment, world.time, dt);
+  // The weather director follows the profile of the region the home boat is in.
+  const hv = homeVessel(world);
+  stepWeather(world.environment, world.time, dt, hv ? regionAt(hv.position[0], hv.position[2]).weather : undefined);
   // The tidal races' strength from the game clock: the water every sample reads this tick.
   setRaceClock(world.environment.timeOfDay, world.environment.raceOverride);
   simWaves = prepareWaves(world.environment.waves, world.time, simWaves);

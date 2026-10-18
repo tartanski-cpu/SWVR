@@ -97,6 +97,8 @@ function landBox(world: WorldState, v: VesselState, f: FishingState): CargoItem 
     mass: k.mass,
     from: 'trawl',
     to: 'any',
+    // What's in it: the ground's species (named on the box; the buyer prices it).
+    species: groundAt(v.position[0], v.position[2])?.species,
     at: { vessel: v.id, pos: [spot.x, deckHeightAt(v.defId, spot.z), spot.z], yaw: 0, vel: [0, 0], lashed: false },
   };
   world.cargo[item.id] = item;

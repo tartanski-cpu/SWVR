@@ -52,6 +52,18 @@ export function buildTowModel(def: VesselDef): THREE.Object3D {
     }
     for (let i = 0; i < 2; i++) parts.push(part(new THREE.CylinderGeometry(r * 0.9, r * 0.9, len - 1.2, 9).rotateX(Math.PI / 2).translate((i - 0.5) * 2 * r, -0.12 + 1.7 * r, 0.3), 0x5c3c22));
     for (const z of [-len * 0.3, len * 0.3]) box(p.beamDeck + 0.04, 0.07, 0.12, 0, 0.2, z, 0x222222);
+  } else if (look === 'cage') {
+    // A fish-farm cage section: a ring of black floats with a handrail on stanchions, a few
+    // net-weight posts, and the net's top hanging under the ring (its skirt, dark).
+    const R = p.length / 2 - 0.3;
+    parts.push(part(new THREE.TorusGeometry(R, 0.3, 8, 28).rotateX(Math.PI / 2).translate(0, 0.05, 0), 0x1e2226, 'worn'));
+    parts.push(part(new THREE.TorusGeometry(R - 0.5, 0.2, 7, 24).rotateX(Math.PI / 2).translate(0, 0.0, 0), 0x2a2e32, 'worn'));
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2;
+      parts.push(part(new THREE.CylinderGeometry(0.03, 0.03, 1.0, 6).translate(Math.cos(a) * R, 0.55, Math.sin(a) * R), 0x8a8f94));
+    }
+    parts.push(part(new THREE.TorusGeometry(R, 0.03, 6, 28).rotateX(Math.PI / 2).translate(0, 1.05, 0), 0x8a8f94));
+    parts.push(part(new THREE.CylinderGeometry(R - 0.25, R - 0.35, 1.4, 24, 1, true).translate(0, -0.75, 0), 0x202a26));
   } else if (look === 'dory') {
     g.add(buildVesselMesh(def.hull, def.layout, undefined, { topsides: 0x2f6a8a, deck: 0x8f826c, bottom: 0x6a2a22, rail: 0x2a2a2a }));
     // Two thwarts across, an outboard on the transom, a fish box.

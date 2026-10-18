@@ -39,6 +39,7 @@ import { placeVessel } from '../vessel/vesselControl';
 import { isPowered, hydraulicsOn } from '../vessel/electrics';
 import { groundHeight } from '../world/terrain';
 import { PORTS } from '../world/archipelago';
+import { regionAt } from '../world/regions';
 import type { ExternalForce } from '../vessel/physics/vesselContact';
 import { createRescueState, nearestPort, sayRadio } from '../rescue/rescue';
 import { formatPosition } from '../nav/geo';
@@ -389,8 +390,7 @@ function stepTowedDebris(world: WorldState, line: TowLine, dt: number): void {
   }
 }
 
-function pickKind(t: TowState): string {
-  const w = CONFIG.tow.weights;
+function pickKind(t: TowState, w: Record<string, number> = CONFIG.tow.weights): string {
   const total = TOW_DEFS.reduce((s, d) => s + (w[d] ?? 0), 0);
   let x = rand(t) * total;
   for (const d of TOW_DEFS) {
@@ -412,8 +412,11 @@ function spawnTow(world: WorldState, defId: string, x: number, z: number, phase:
   return job;
 }
 
-/** A call: something adrift ahead of the boat, a little off to one side, in open water. */
-export function startTowCall(world: WorldState, v: VesselState, defId?: string): TowJob {
+/**
+ * A call: something adrift ahead of the boat, a little off to one side, in open water; or,
+ * from a region's job list, at its own spot (`at`, within r), described in its own words.
+ */
+export function startTowCall(world: WorldState, v: VesselState, defId?: string, opts: { name?: string; at?: { x: number; z: number; r: number } } = {}): TowJob {
   const cfg = CONFIG.tow;
   const t = (world.tow ??= createTowState());
   const kind = defId && TOW_DEFS.includes(defId as (typeof TOW_DEFS)[number]) ? defId : pickKind(t);
@@ -427,19 +430,34 @@ export function startTowCall(world: WorldState, v: VesselState, defId?: string):
   dz /= len;
   let x = bx + dx * cfg.ahead[0];
   let z = bz + dz * cfg.ahead[0];
-  for (let i = 0; i < 32; i++) {
-    const a = between(t, cfg.ahead);
-    const o = between(t, cfg.offset) * (rand(t) < 0.5 ? -1 : 1);
-    const cx = bx + dx * a - dz * o;
-    const cz = bz + dz * a + dx * o;
-    if (groundHeight(cx, cz) > -cfg.minDepth) continue;
-    if (nearestPort(cx, cz).dist < cfg.minPortDistance) continue;
-    x = cx;
-    z = cz;
-    break;
+  if (opts.at) {
+    x = opts.at.x;
+    z = opts.at.z;
+    for (let i = 0; i < 32; i++) {
+      const ang = rand(t) * Math.PI * 2;
+      const d = Math.sqrt(rand(t)) * opts.at.r;
+      const cx = opts.at.x + Math.cos(ang) * d;
+      const cz = opts.at.z + Math.sin(ang) * d;
+      if (groundHeight(cx, cz) > -cfg.minDepth) continue;
+      x = cx;
+      z = cz;
+      break;
+    }
+  } else {
+    for (let i = 0; i < 32; i++) {
+      const a = between(t, cfg.ahead);
+      const o = between(t, cfg.offset) * (rand(t) < 0.5 ? -1 : 1);
+      const cx = bx + dx * a - dz * o;
+      const cz = bz + dz * a + dx * o;
+      if (groundHeight(cx, cz) > -cfg.minDepth) continue;
+      if (nearestPort(cx, cz).dist < cfg.minPortDistance) continue;
+      x = cx;
+      z = cz;
+      break;
+    }
   }
   const job = spawnTow(world, kind, x, z, 'calling');
-  const name = VESSEL_DEFS[kind].tow?.name ?? 'a vessel';
+  const name = opts.name ?? VESSEL_DEFS[kind].tow?.name ?? 'a vessel';
   const where = CONFIG.rescue.plotYourself
     ? `in position ${formatPosition(x, z)}`
     : `bearing ${bearing(bx, bz, x, z).toFixed(0).padStart(3, '0')}°, ${(Math.hypot(x - bx, z - bz) / 1852).toFixed(1)} miles from you`;
@@ -533,7 +551,16 @@ export function stepTow(world: WorldState, dt: number): void {
     const busy = !!world.rescue?.active || !!world.fire?.job;
     const out = nearestPort(v.position[0], v.position[2]).dist > CONFIG.rescue.harbourRadius;
     // Only out of harbour, with nothing else on; otherwise the call waits.
-    if (t.calls && !world.quietCalls && world.time >= t.nextAt && out && !busy) startTowCall(world, v);
+    if (t.calls && !world.quietCalls && world.time >= t.nextAt && out && !busy) {
+      // The region's own jobs where it has them (RegionDef.jobs.tows), else the open-water mix.
+      const list = regionAt(v.position[0], v.position[2]).jobs?.tows;
+      if (list?.length) {
+        const total = list.reduce((s, j) => s + j.weight, 0);
+        let r = rand(t) * total;
+        const tpl = list.find((j) => (r -= j.weight) <= 0) ?? list[list.length - 1];
+        startTowCall(world, v, tpl.kind, { name: tpl.name, at: tpl.at });
+      } else startTowCall(world, v);
+    }
     return;
   }
 

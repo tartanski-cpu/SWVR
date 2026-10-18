@@ -74,6 +74,15 @@ export function blockNear(x: number, z: number, r: number): boolean {
   return false;
 }
 
+/** What the bottom is at (x, z): the anchorage's bottom when inside one, else sand (PortDef.bottom). */
+export function bottomAt(x: number, z: number): NonNullable<PortDef['bottom']> {
+  for (const p of PORTS) {
+    const a = p.cargo.anchorage;
+    if (a && Math.hypot(x - a.x, z - a.z) < a.radius * 1.3) return p.bottom ?? 'sand';
+  }
+  return 'sand';
+}
+
 /** The port whose fuel berth contains (x, z), if any. */
 export function fuelBerthAt(x: number, z: number): PortDef | null {
   for (const p of PORTS) {

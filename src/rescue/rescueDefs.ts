@@ -39,6 +39,17 @@ export const RESCUE_DEFS: RescueDef[] = [
     landed: 'Coastguard: the survivor is safely ashore at {harbour} and in good hands. Thank you, skipper. Fine seamanship.',
   },
   {
+    // The Sounds (regions): off the skerries; only from a region's job list (weight 0 here).
+    id: 'kayaker',
+    weight: 0,
+    target: 'person',
+    count: [1, 1],
+    searchRadius: 200,
+    call: 'MAYDAY RELAY. A sea kayaker is overdue and was last seen capsized off the skerries, bearing {bearing}, {range} miles from you. One person in the water in a drysuit. Any vessel able to assist, respond.',
+    done: 'Well done, skipper, that was a cold one. Please land the kayaker at {harbour}.',
+    landed: 'Coastguard: the kayaker is ashore at {harbour}, cold but fine, and asking after the kayak. Thank you, skipper.',
+  },
+  {
     id: 'lostCargo',
     weight: 1,
     target: 'crates',

@@ -147,14 +147,14 @@ describe('the far view', () => {
 });
 
 describe('teleport to a region', () => {
-  it('puts the boat afloat south of a region with no port yet, heading north; at the port otherwise', () => {
+  it("puts the boat at the region's first port's cargo berth, afloat", () => {
     const ids = new IdFactory();
     const v = createVesselState(ids.next('vessel'), 'workboat');
     applyVesselIntent(v, { playerId: 'p', targetId: v.id, control: 'teleportToRegion', value: 1, ref: 'sounds' });
-    const isle = SOUNDS.islands[0];
-    expect(v.position[0]).toBeCloseTo(isle.x);
-    expect(v.position[2]).toBeGreaterThan(isle.z + isle.radius);
-    expect(groundHeight(v.position[0], v.position[2])).toBeLessThan(-10);
+    const berth = SOUNDS.berths.find((b) => b.id === 'tarsk-cargo')!;
+    expect(v.position[0]).toBeCloseTo(berth.x);
+    expect(v.position[2]).toBeCloseTo(berth.z);
+    expect(groundHeight(v.position[0], v.position[2])).toBeLessThan(-4);
     applyVesselIntent(v, { playerId: 'p', targetId: v.id, control: 'teleportToRegion', value: 1, ref: 'home' });
     expect(v.position[0]).toBeCloseTo(708.5);
     expect(v.position[2]).toBeCloseTo(660);

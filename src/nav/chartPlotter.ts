@@ -6,7 +6,8 @@ import { part } from '../render/geometryUtils';
 import { cargoPaused, portById } from '../rescue/rescue';
 import { CURRENTS, FISHING_GROUNDS, MARKS, PORTS, POTTING_GROUNDS, WRECKS } from '../world/archipelago';
 import { raceReading } from '../world/currents';
-import { chartIslands } from './geo';
+import { REGIONS } from '../world/regions';
+import type { RegionDef } from '../world/defs';
 import { groundHeight } from '../world/terrain';
 import { CONFIG } from '../config';
 import type { ChartMarks } from '../chart/marks';
@@ -36,7 +37,8 @@ export class ChartPlotter {
   private readonly canvas = document.createElement('canvas');
   private readonly g: CanvasRenderingContext2D;
   private readonly texture: THREE.CanvasTexture;
-  private land: { canvas: HTMLCanvasElement; x0: number; z0: number } | null = null;
+  /** The land, shallows and sea of each region, sampled from the terrain once when first in view (regions). */
+  private readonly lands = new Map<string, { canvas: HTMLCanvasElement; x0: number; z0: number }>();
   private dark = false;
   private since = Infinity;
   /** Debug: draw the targets too. */
@@ -75,13 +77,13 @@ export class ChartPlotter {
     set.add(screen);
   }
 
-  /** Land, shallows and sea, sampled from the terrain once. */
-  private buildLand(): void {
+  /** A region's land, shallows and sea, sampled from the terrain once. */
+  private buildLand(region: RegionDef): void {
     let x0 = Infinity;
     let x1 = -Infinity;
     let z0 = Infinity;
     let z1 = -Infinity;
-    for (const i of chartIslands()) {
+    for (const i of region.islands) {
       x0 = Math.min(x0, i.x - i.radius);
       x1 = Math.max(x1, i.x + i.radius);
       z0 = Math.min(z0, i.z - i.radius);
@@ -111,7 +113,7 @@ export class ChartPlotter {
       }
     }
     g.putImageData(img, 0, 0);
-    this.land = { canvas: c, x0, z0 };
+    this.lands.set(region.id, { canvas: c, x0, z0 });
   }
 
   update(world: WorldState, vesselId: string, dt: number, visible: boolean): void {
@@ -131,8 +133,6 @@ export class ChartPlotter {
       return;
     }
     this.dark = false;
-    if (!this.land) this.buildLand();
-    const land = this.land!;
     const g = this.g;
     const [sx, , sz] = v.position;
     const r = world.rescue;
@@ -175,10 +175,17 @@ export class ChartPlotter {
     g.fillStyle = '#10303f';
     g.fillRect(0, 0, W, H);
     g.imageSmoothingEnabled = true;
-    // The land image section that covers the screen.
-    const srcX = (sx - span / 2 - land.x0) / RES;
-    const srcZ = (sz - (span * H) / W / 2 - land.z0) / RES;
-    g.drawImage(land.canvas, srcX, srcZ, span / RES, (span * H) / W / RES, 0, 0, W, H);
+    // Each region's land image that reaches the screen (built the first time it does).
+    const reachX = span / 2 + MARGIN;
+    const reachZ = (span * H) / W / 2 + MARGIN;
+    for (const r of REGIONS) {
+      const b = r.bounds;
+      if (b.x1 < sx - reachX || b.x0 > sx + reachX || b.z1 < sz - reachZ || b.z0 > sz + reachZ) continue;
+      if (!this.lands.has(r.id)) this.buildLand(r);
+      const land = this.lands.get(r.id)!;
+      const [dx, dz] = toPx(land.x0, land.z0);
+      g.drawImage(land.canvas, dx, dz, (land.canvas.width * RES) / mpp, (land.canvas.height * RES) / mpp);
+    }
 
     // The crew's pencil marks from the paper chart, faint.
     if (this.marks?.strokes.length) {

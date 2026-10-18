@@ -71,8 +71,11 @@ function targetFor(preset: WeatherPresetName, seq: number): WeatherValues {
   return { wind: p.wind, windFrom: wrap(c.windDir + (hash01(seq + 0.37) * 2 - 1) * c.windDirSpread, 360), visibility: p.visibility, rain: p.rain, cloud: p.cloud };
 }
 
-function pickNext(from: WeatherPresetName, seq: number): WeatherPresetName {
-  const table = CONFIG.weather.next[from] as Partial<Record<WeatherPresetName, number>>;
+/** The region's profile in force (RegionDef.weather), set by the host each tick; absent: the game's own tables. */
+export type WeatherProfile = { next: Record<string, Partial<Record<string, number>>>; hold?: [number, number] } | undefined;
+
+function pickNext(from: WeatherPresetName, seq: number, profile?: WeatherProfile): WeatherPresetName {
+  const table = ((profile?.next[from] as Partial<Record<WeatherPresetName, number>> | undefined) ?? CONFIG.weather.next[from]) as Partial<Record<WeatherPresetName, number>>;
   const entries = Object.entries(table) as [WeatherPresetName, number][];
   const total = entries.reduce((s, [, w]) => s + w, 0);
   let r = hash01(seq) * total;
@@ -82,8 +85,8 @@ function pickNext(from: WeatherPresetName, seq: number): WeatherPresetName {
   return entries[0][0];
 }
 
-function holdFor(preset: WeatherPresetName, seq: number): number {
-  const [a, b] = preset === 'Squall' ? CONFIG.weather.squallHold : CONFIG.weather.hold;
+function holdFor(preset: WeatherPresetName, seq: number, profile?: WeatherProfile): number {
+  const [a, b] = preset === 'Squall' ? CONFIG.weather.squallHold : (profile?.hold ?? CONFIG.weather.hold);
   return a + (b - a) * hash01(seq + 0.71);
 }
 
@@ -110,11 +113,11 @@ export function seaForWind(wind: number): number {
 }
 
 /** Change to a preset now (the director, or a debug force); `instant` jumps the values too. */
-export function setWeatherPreset(w: WeatherState, preset: WeatherPresetName, time: number, instant = false, env?: EnvironmentState): void {
+export function setWeatherPreset(w: WeatherState, preset: WeatherPresetName, time: number, instant = false, env?: EnvironmentState, profile?: WeatherProfile): void {
   w.seq += 3;
   w.preset = preset;
   w.target = targetFor(preset, w.seq);
-  w.next = { preset: pickNext(preset, w.seq + 1), at: time + holdFor(preset, w.seq + 2) / w.speed };
+  w.next = { preset: pickNext(preset, w.seq + 1, profile), at: time + holdFor(preset, w.seq + 2, profile) / w.speed };
   // A new plan: the coastguard puts out a fresh forecast shortly.
   w.forecastAt = Math.min(w.forecastAt, time + CONFIG.weather.forecast.afterChange / w.speed);
   if (instant) {
@@ -127,12 +130,13 @@ export function setWeatherPreset(w: WeatherState, preset: WeatherPresetName, tim
 }
 
 /** Advance the weather by dt (host). */
-export function stepWeather(env: EnvironmentState, time: number, dt: number): void {
+/** @param profile the weather profile of the region the home boat is in (RegionDef.weather), if any */
+export function stepWeather(env: EnvironmentState, time: number, dt: number, profile?: WeatherProfile): void {
   const w = env.weather;
   if (!w) return;
   const c = CONFIG.weather;
-  // Director: on to the planned preset when its time comes.
-  if (!w.fixed && time >= w.next.at) setWeatherPreset(w, w.next.preset, time);
+  // Director: on to the planned preset when its time comes (the next one by the region's odds).
+  if (!w.fixed && time >= w.next.at) setWeatherPreset(w, w.next.preset, time, false, undefined, profile);
   // Ease the values toward the target.
   const k = 1 - Math.exp((-dt * w.speed) / c.transition);
   const n = w.now;

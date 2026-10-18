@@ -1379,6 +1379,27 @@ export const CONFIG = {
       boardingSpot: [0, 0.3, 1] as [number, number, number],
       spawn: { x: 0, z: 0, dropHeight: 0.2, headingDeg: 0 },
     },
+    /**
+     * A fish-farm cage section torn from its moorings (the regions' jobs): a ring of floats
+     * with its net hanging under it. Floats as the log raft does (the same hull numbers, so
+     * the same mass and trim); drawn as the ring (tow/towLook.ts 'cage').
+     */
+    cage: {
+      tow: { look: 'cage' as const, name: 'a fish-farm cage section torn from its moorings', size: 'medium' as const },
+      hull: { length: 8, beamDeck: 3.0, beamChine: 2.9, keelY: -0.45, chineYAft: -0.3, chineYBow: -0.15, deckYAft: 0.2, deckYBow: 0.3, stations: 11, physicsStations: 5, deckParallel: 0.85 },
+      mass: LOGRAFT_MASS,
+      cg: [0, -0.1, LOGRAFT_LCB] as [number, number, number],
+      gyradius: { roll: 1.0, pitch: 2.2, yaw: 2.3 },
+      addedMass: { surge: 0.05, sway: 0.4, heave: 0.6, roll: 0.25, pitch: 0.6, yaw: 0.3 },
+      damping: { vertical: 800, verticalCd: 1.5, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 20, roll: 7000, pitch: 7000, yaw: 7000 },
+      // The net under it drags: a form factor well above the raft's.
+      resistance: { lwl: 7.8, formFactor: 1.6, waveA: 4, waveB: 3, waveKnee: 0.2, waveCap: 0.3, asternFactor: 1.5, y: -0.2 },
+      layout: { bulwarkHeight: 0, railHeight: 0, deckEdgeMargin: 0.15, bodyRadius: 0.22 },
+      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true, lashPoints: [] as [number, number][], lashRange: 0.8 },
+      windage: { side: 1.5, front: 1.5, center: [0, 0.4, 0] as [number, number, number] },
+      boardingSpot: [0, 0.3, 1] as [number, number, number],
+      spawn: { x: 0, z: 0, dropHeight: 0.2, headingDeg: 0 },
+    },
     barge: {
       tow: { look: 'barge' as const, name: 'a work barge adrift from her moorings', size: 'medium' as const },
       hull: { length: 9, beamDeck: 3.6, beamChine: 3.4, keelY: -0.55, chineYAft: -0.45, chineYBow: -0.15, deckYAft: 0.5, deckYBow: 0.6, stations: 11, physicsStations: 5, deckParallel: 0.85 },
@@ -1534,7 +1555,8 @@ export const CONFIG = {
      */
     every: [480, 1080] as [number, number],
     /** Relative odds of each kind (def ids). */
-    weights: { derelict: 1, dory: 0.8, logRaft: 1, barge: 0.7, yacht: 0.8, trawler: 0.5, pontoon: 0.4 } as Record<string, number>,
+    /** The open-water calls' mix; a region's own job list (RegionDef.jobs) replaces it there. The cage section comes only from a region's list. */
+    weights: { derelict: 1, dory: 0.8, logRaft: 1, barge: 0.7, yacht: 0.8, trawler: 0.5, pontoon: 0.4, cage: 0 } as Record<string, number>,
     /** Where it's adrift: this far ahead (m), this far off to one side (m), in open water. */
     ahead: [450, 850] as [number, number],
     offset: [80, 260] as [number, number],
@@ -1617,7 +1639,7 @@ export const CONFIG = {
       log: 180,
       debris: 40,
       crate: 80,
-      tow: { dory: 350, derelict: 600, logRaft: 450, barge: 800, yacht: 900, trawler: 1600, pontoon: 2000 } as Record<string, number>,
+      tow: { dory: 350, derelict: 600, logRaft: 450, barge: 800, yacht: 900, trawler: 1600, pontoon: 2000, cage: 550 } as Record<string, number>,
       towDefault: 500,
       rescue: 400,
       rescuePerPerson: 150,
@@ -1837,6 +1859,10 @@ export const CONFIG = {
       { name: 'Sack', mass: 50, size: [0.55, 0.3, 0.85] as [number, number, number], shape: 'box' as const, slots: 1 },
       { name: 'Gas bottle', mass: 70, size: [0.32, 1.1, 0.32] as [number, number, number], shape: 'drum' as const, slots: 1 },
       { name: 'Oil drum', mass: 110, size: [0.58, 0.88, 0.58] as [number, number, number], shape: 'drum' as const, slots: 2 },
+      // The regions' goods (the Sounds): the same crates and drums, different contents.
+      { name: 'Feed sack', mass: 45, size: [0.6, 0.35, 0.9] as [number, number, number], shape: 'box' as const, slots: 1 },
+      { name: 'Building materials', mass: 60, size: [0.8, 0.5, 0.6] as [number, number, number], shape: 'box' as const, slots: 1 },
+      { name: 'Whisky cask', mass: 80, size: [0.6, 0.85, 0.6] as [number, number, number], shape: 'drum' as const, slots: 2 },
       /**
        * A lobster / crab pot (potting/potting.ts): not trade cargo (never spawned at the
        * ports' goods stacks), but carried, stowed and lashed the same way. A creel: a
@@ -1845,7 +1871,7 @@ export const CONFIG = {
       { name: 'Pot', mass: 24, size: [0.75, 0.42, 0.5] as [number, number, number], shape: 'pot' as const, slots: 2 },
     ],
     /** How many of `kinds` (from the start) are trade cargo, spawned at the goods stacks. */
-    tradeKinds: 5,
+    tradeKinds: 8,
     twoHandKg: 60,
     /**
      * Unlashed cargo on deck slides when the apparent gravity along the deck (heel, trim,
@@ -2322,7 +2348,22 @@ export const CONFIG = {
    * ground, the way it faces (deg, compass: 270 = west), its width (m), how near (m) you
    * must be for it to be drawn, and how far a pointer reaches it (m: VR and desktop).
    */
-  boatyard: { port: 'calder', board: { x: 727.4, z: 645, up: 2.15, facingDeg: 270, width: 1.7, range: 25, reach: 4 } },
+  /**
+   * The boatyards (ui/yardBoard.ts): one per port that has one, its board on the shed's front
+   * (world x, z, height above the ground, the compass bearing it faces, its width, how near
+   * you must be to see it and to reach it). What each sells and charges is the port's
+   * `economy` (world/defs.ts PortDef): Calder's the equipment and the everyday upgrades at the
+   * standard rate; Loch Tarsk's the radar and the heavy towing post, and repairs cheaper.
+   */
+  boatyards: [
+    { port: 'calder', name: 'Calder Boatyard', board: { x: 727.4, z: 645, up: 2.15, facingDeg: 270, width: 1.7, range: 25, reach: 4 } },
+    { port: 'tarsk', name: 'Loch Tarsk Yard', board: { x: 597, z: -3921.5, up: 2.15, facingDeg: 0, width: 1.7, range: 25, reach: 4 } },
+  ],
+
+  /** Anchoring: the anchor's holding power by the bottom (PortDef.bottom; sand elsewhere). */
+  anchoring: {
+    bottomHolding: { sand: 1, mud: 0.8, weed: 0.55, rock: 0.4 } as Record<'sand' | 'mud' | 'weed' | 'rock', number>,
+  },
 
   /** Player movement aboard and ashore. */
   locomotion: {

@@ -79,6 +79,9 @@ export class WorldView {
    * @param visibility  today's visibility where the viewer is (m)
    */
   update(viewer: THREE.Vector3, visibility: number, dt: number): void {
+    // A region whose arrays have arrived is built one step a frame (terrain, structures,
+    // trees), so no single frame carries the whole of it.
+    for (const v of this.views) if (v.pending) v.buildStep();
     this.sinceCheck += dt;
     if (this.sinceCheck < CONFIG.regions.residencyEvery) return;
     this.sinceCheck = 0;
@@ -103,7 +106,7 @@ export class WorldView {
       .map((v) => {
         const km = v.distance === Infinity ? '' : ` ${(v.distance / 1000).toFixed(1)} km`;
         const state = v.resident ? 'full' : v.building ? 'building' : v.silhouette.visible ? 'outline' : v.built ? 'put away' : 'unseen';
-        return `${v.region.id}: ${state}${km}${v.buildMs ? ` (built ${v.buildMs.toFixed(0)} ms, ${v.mainMs.toFixed(0)} on the frame)` : ''}`;
+        return `${v.region.id}: ${state}${km}${v.buildMs && v.built ? ` (built ${v.buildMs.toFixed(0)} ms, worst frame ${v.mainMs.toFixed(0)})` : ''}`;
       })
       .join('  ');
   }
@@ -147,16 +150,8 @@ export class WorldView {
       v.building = false;
       return;
     }
-    const t0 = performance.now();
-    v.build({ position: r.position, color: r.color }, r.trees);
-    v.mainMs = performance.now() - t0;
-    v.buildMs = r.ms + v.mainMs;
-    v.full.traverse((o) => {
-      o.matrixAutoUpdate = false;
-      o.updateMatrix();
-    });
-    // Shown at the next residency check, if still wanted.
-    this.sinceCheck = Infinity;
+    v.pending = { terrain: { position: r.position, color: r.color }, trees: r.trees, step: 0 };
+    v.buildMs = r.ms;
   }
 }
 
@@ -174,6 +169,8 @@ class RegionView {
   buildMs = 0;
   mainMs = 0;
   distance = Infinity;
+  /** The worker's arrays, waiting to be built up one step a frame (buildStep). */
+  pending: { terrain: TerrainArrays; trees: Float32Array; step: number } | null = null;
 
   constructor(readonly region: RegionDef) {
     this.full.name = `region:${region.id}`;
@@ -191,15 +188,42 @@ class RegionView {
     this.landmark = tall.reduce((a, b) => (b.h > a.h ? b : a), { x: (region.bounds.x0 + region.bounds.x1) / 2, z: (region.bounds.z0 + region.bounds.z1) / 2, h: 0 });
   }
 
-  /** Makes the full meshes from the worker's arrays (or ones built here), and the structures. */
+  /** Makes the full meshes from the worker's arrays (or ones built here), and the structures, all at once (home, at start-up). */
   build(terrain: TerrainArrays, trees: Float32Array): void {
-    const terrainMesh = new THREE.Mesh(arraysToGeometry(terrain), flatVertexColorMaterial());
-    terrainMesh.name = 'terrain';
-    const structures = new THREE.Mesh(mergeParts(buildStructures(this.region)), flatVertexColorMaterial());
-    structures.name = 'structures';
-    this.full.add(terrainMesh, structures, buildTreesMesh(trees));
-    this.built = true;
-    this.building = false;
+    this.pending = { terrain, trees, step: 0 };
+    while (this.pending) this.buildStep();
+  }
+
+  /**
+   * One step of the build: the terrain mesh, then the structures, then the trees; each a
+   * few to a few tens of milliseconds, on its own frame. Done, the region is `built`.
+   */
+  buildStep(): void {
+    const p = this.pending;
+    if (!p) return;
+    const t0 = performance.now();
+    if (p.step === 0) {
+      const terrainMesh = new THREE.Mesh(arraysToGeometry(p.terrain), flatVertexColorMaterial());
+      terrainMesh.name = 'terrain';
+      this.full.add(terrainMesh);
+    } else if (p.step === 1) {
+      const structures = new THREE.Mesh(mergeParts(buildStructures(this.region)), flatVertexColorMaterial());
+      structures.name = 'structures';
+      this.full.add(structures);
+    } else {
+      this.full.add(buildTreesMesh(p.trees));
+      this.full.traverse((o) => {
+        o.matrixAutoUpdate = false;
+        o.updateMatrix();
+      });
+      this.pending = null;
+      this.built = true;
+      this.building = false;
+    }
+    p.step++;
+    const ms = performance.now() - t0;
+    this.mainMs = Math.max(this.mainMs, ms);
+    this.buildMs += ms;
   }
 }
 

@@ -62,6 +62,8 @@ export interface CargoItem {
   at: CargoAt;
   /** A pot hauled up (potting): what's in it. */
   pot?: PotContents;
+  /** A fish box from the trawl: what's in it (the ground's species, FishingGroundDef). */
+  species?: string;
 }
 
 /** What's in a hauled pot (potting/potting.ts catchFor). */
@@ -146,9 +148,16 @@ export function spawnCargo(world: WorldState): CargoItem | null {
   // Among the emptiest ports, pick one by hash so it isn't always the first.
   const candidates = PORTS.filter((_, i) => counts[i] === min);
   const from = candidates[Math.floor(hash01(n) * candidates.length)];
+  // The kind: one of the port's products (PortDef.economy.products), else any trade kind.
+  const products = (from.economy?.products ?? []).map((name) => cfg.kinds.findIndex((k) => k.name === name)).filter((i) => i >= 0 && i < cfg.tradeKinds);
+  const kind = products.length ? products[Math.floor(hash01(n + 0.25) * products.length)] : Math.floor(hash01(n + 0.25) * cfg.tradeKinds); // trade cargo only (not pots)
+  // Where to: a port that needs it; else one that takes anything (no needs listed); else any other.
+  const kindName = cfg.kinds[kind].name;
   const others = PORTS.filter((p) => p.id !== from.id);
-  const to = others[Math.floor(hash01(n + 0.5) * others.length)];
-  const kind = Math.floor(hash01(n + 0.25) * cfg.tradeKinds); // trade cargo only (not pots)
+  const needing = others.filter((p) => p.economy?.needs?.includes(kindName));
+  const takers = needing.length ? needing : others.filter((p) => !p.economy?.needs?.length);
+  const pool = takers.length ? takers : others;
+  const to = pool[Math.floor(hash01(n + 0.5) * pool.length)];
   // First free place in the row (nothing within half a spacing of it).
   const items = Object.values(world.cargo).filter((c) => 'ground' in c.at);
   let pos = stackPoint(from, 0);
@@ -741,5 +750,5 @@ export function cargoLabel(item: CargoItem): string {
     return `Lobster pot ${item.mass} kg, baited: shoot it over the side on a potting ground`;
   }
   const to = item.to === 'any' ? 'any harbour' : portById(item.to)?.name.replace(' (anchorage)', '');
-  return `${k.name} ${item.mass} kg → ${to}`;
+  return `${k.name}${item.species ? ` (${item.species})` : ''} ${item.mass} kg → ${to}`;
 }

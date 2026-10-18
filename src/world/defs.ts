@@ -114,6 +114,14 @@ export interface ShelterDef {
   rOut: number;
   /** Wave amplitude multiplier at full shelter (0 = flat calm). */
   factor: number;
+  /**
+   * Shelter with a gap (regions): the bay is open to seas coming FROM bearings within
+   * `openArcDeg` either side of `openFromDeg` (the sea's direction of travel is the
+   * opposite). From those the shelter fades to none; from everywhere else it is full.
+   * Unset: sheltered from every direction (a harbour basin).
+   */
+  openFromDeg?: number;
+  openArcDeg?: number;
 }
 
 export interface PortDef {
@@ -143,6 +151,33 @@ export interface PortDef {
     stackZ: number;
     stackYawDeg: number;
     color: number;
+  };
+  /**
+   * The anchorage's bottom (regions): what the anchor holds in. Scales the anchor's holding
+   * power (CONFIG.anchor.bottomHolding): sand holds well, mud less, rock and weed poorly.
+   * Unset: sand.
+   */
+  bottom?: 'sand' | 'mud' | 'rock' | 'weed';
+  /**
+   * What this port offers, where it differs from the game's defaults (regions: every region
+   * has a reason to go). All optional:
+   *   fuelPrice  £ per litre at its fuel berth (else CONFIG.career.costs.fuelPerL)
+   *   repairs    the yard's repair prices as a factor on CONFIG.career.repairs (1 = the
+   *              standard rate), or false: no repairs here
+   *   sells      the upgrade ids on offer at its yard (else the game's default list)
+   *   buys       price factors by what's sold here: 'fish' (fish boxes), 'shellfish' (pot
+   *              catch), 'log' (salvage), 'cargo' (deliveries); unset = 1
+   *   products   cargo kinds (names) that ship out of here; `needs` the kinds wanted here.
+   *              Runs are made from a port's products to a port that needs them; a port
+   *              without either takes part in every run, as before.
+   */
+  economy?: {
+    fuelPrice?: number;
+    repairs?: { hull: number; engine: number } | false;
+    sells?: string[];
+    buys?: Partial<Record<'fish' | 'shellfish' | 'log' | 'cargo', number>>;
+    products?: string[];
+    needs?: string[];
   };
 }
 
@@ -263,6 +298,8 @@ export interface FishingGroundDef {
   z: number;
   radius: number;
   richness: number;
+  /** What's caught here (regions): named on the fish box, priced by the buyer. */
+  species?: string;
 }
 
 /**
@@ -303,6 +340,28 @@ export interface CurrentZoneDef {
   phaseH: number;
   waveFactor: number;
   knocks: number;
+}
+
+/**
+ * A region's jobs (the brief, layer 5): what breaks down and what needs moving there. The
+ * job systems pick from the region the home boat is in; a region without a list gets the
+ * game's open-water mix. `at`: where the job happens (within `r` m of the spot, in open
+ * water), else ahead of the boat as always. `name`: how the radio describes the tow (else
+ * the kind's own words).
+ */
+export interface RegionJobs {
+  tows?: { kind: string; weight: number; name?: string; at?: { x: number; z: number; r: number } }[];
+  rescues?: { def: string; weight: number; at?: { x: number; z: number; r: number } }[];
+}
+
+/**
+ * A region's weather profile (the brief, layer 2): the director's odds of what follows each
+ * preset (CONFIG.weather.next for the game's default), and how long a preset holds (s).
+ * The host uses the profile of the region the home boat is in.
+ */
+export interface RegionWeather {
+  next: Record<string, Partial<Record<string, number>>>;
+  hold?: [number, number];
 }
 
 /** A region's footprint on the map (world m): all its data lies inside; open water between regions belongs to none. */
@@ -367,4 +426,7 @@ export interface RegionDef {
   fogBanks: FogBankDef[];
   /** Tidal races (milestone 3). */
   currents: CurrentZoneDef[];
+  /** Its jobs and its weather (milestone 4); absent: the game's defaults. */
+  jobs?: RegionJobs;
+  weather?: RegionWeather;
 }

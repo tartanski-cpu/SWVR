@@ -92,11 +92,11 @@ describe('damage and wear (phase 2)', { timeout: 60000 }, () => {
     v.damage = 0.25;
     v.engine.wear = 0.2;
     v.bilge = 0.5;
-    expect(repairBlocker(world, 'hull')).toBe('Bring her into Calder Haven');
+    expect(repairBlocker(world, 'hull')).toBe('Bring her into a boatyard');
     // The boatyard is at Calder Haven: not at Brannock.
     send('teleportToPort', 1, 'brannock');
     run(1);
-    expect(repairBlocker(world, 'hull')).toBe('Bring her into Calder Haven');
+    expect(repairBlocker(world, 'hull')).toBe('Bring her into a boatyard');
     send('teleportToPort', 1, 'calder');
     run(1);
     const cost = repairCost(world, 'hull');

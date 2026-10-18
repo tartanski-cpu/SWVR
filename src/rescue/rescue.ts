@@ -30,6 +30,7 @@ import type { Intent } from '../core/intents';
 import { homeVessel, type WorldState } from '../core/world';
 import type { VesselState } from '../vessel/vesselState';
 import { PORTS, type PortDef } from '../world/archipelago';
+import { regionAt } from '../world/regions';
 import { earn } from '../career/career';
 import { berthById } from '../vessel/physics/mooring';
 import { groundHeight } from '../world/terrain';
@@ -194,20 +195,21 @@ function bearingDeg(fromX: number, fromZ: number, toX: number, toZ: number): num
 }
 
 function pickDef(r: RescueState): RescueDef {
-  const total = RESCUE_DEFS.reduce((s, d) => s + d.weight, 0);
+  const pool = RESCUE_DEFS.filter((d) => d.weight > 0);
+  const total = pool.reduce((s, d) => s + d.weight, 0);
   let x = rand(r) * total;
-  for (const d of RESCUE_DEFS) {
+  for (const d of pool) {
     x -= d.weight;
     if (x <= 0) return d;
   }
-  return RESCUE_DEFS[RESCUE_DEFS.length - 1];
+  return pool[pool.length - 1];
 }
 
 /**
  * Raise an incident ahead of the boat, a little off her route toward `toward` (a port id,
  * or null: straight ahead), in open water, and send the distress call.
  */
-export function startIncident(world: WorldState, v: VesselState, toward: string | null, defId?: string): Incident {
+export function startIncident(world: WorldState, v: VesselState, toward: string | null, defId?: string, at?: { x: number; z: number; r: number }): Incident {
   const cfg = CONFIG.rescue;
   const r = world.rescue!;
   const def = (defId && RESCUE_DEFS.find((d) => d.id === defId)) || pickDef(r);
@@ -229,13 +231,23 @@ export function startIncident(world: WorldState, v: VesselState, toward: string 
   dz /= len;
   let x = bx + dx * cfg.ahead[0];
   let z = bz + dz * cfg.ahead[0];
+  // A region's job at its own spot (RegionDef.jobs.rescues `at`), else ahead of the boat.
   for (let i = 0; i < 24; i++) {
-    const a = between(r, cfg.ahead);
-    const o = between(r, cfg.offset) * (rand(r) < 0.5 ? -1 : 1);
-    const cx = bx + dx * a - dz * o;
-    const cz = bz + dz * a + dx * o;
+    let cx: number;
+    let cz: number;
+    if (at) {
+      const ang = rand(r) * Math.PI * 2;
+      const d = Math.sqrt(rand(r)) * at.r;
+      cx = at.x + Math.cos(ang) * d;
+      cz = at.z + Math.sin(ang) * d;
+    } else {
+      const a = between(r, cfg.ahead);
+      const o = between(r, cfg.offset) * (rand(r) < 0.5 ? -1 : 1);
+      cx = bx + dx * a - dz * o;
+      cz = bz + dz * a + dx * o;
+    }
     if (groundHeight(cx, cz) > -cfg.minDepth) continue;
-    if (nearestPort(cx, cz).dist < cfg.minPortDistance) continue;
+    if (!at && nearestPort(cx, cz).dist < cfg.minPortDistance) continue;
     x = cx;
     z = cz;
     break;
@@ -391,7 +403,14 @@ export function stepRescue(world: WorldState, dt: number, waves: readonly Prepar
       const a = portById(run.from)!;
       if (Math.hypot(x - a.x, z - a.z) >= run.triggerAt) {
         run.triggerAt = null; // one call per run
-        startIncident(world, v, run.to);
+        // The region's own rescues where it has them (RegionDef.jobs.rescues).
+        const list = regionAt(x, z).jobs?.rescues;
+        if (list?.length) {
+          const total = list.reduce((s, j) => s + j.weight, 0);
+          let pick = rand(r) * total;
+          const tpl = list.find((j) => (pick -= j.weight) <= 0) ?? list[list.length - 1];
+          startIncident(world, v, run.to, tpl.def, tpl.at);
+        } else startIncident(world, v, run.to);
       }
     }
   }

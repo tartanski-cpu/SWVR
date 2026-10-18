@@ -51,7 +51,7 @@ export const CHART_TABLE: ModuleDefinition<ChartTableConfig> = {
       return {
         staticParts: [],
         movingParts: [view.root],
-        controls: [view.lampSwitch, view.leafHandle],
+        controls: [view.lampSwitch, view.leafHandle, view.sheetTab],
         // Folded, only a strip along the wall is taken up.
         footprints: (read) => [{ x0: 0, x1: read.get(keys.leaf) ? c.width : 0.1, z0: 0, z1: c.depth, top: c.height }],
         update: () => {},

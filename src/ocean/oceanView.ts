@@ -39,6 +39,7 @@ export class OceanView {
       uShelter: u.uShelter,
       uShelterK: u.uShelterK,
       uShelterCount: u.uShelterCount,
+      uShelterArc: u.uShelterArc,
       uRace: u.uRace,
       uRaceB: u.uRaceB,
       uRaceCount: u.uRaceCount,
@@ -59,6 +60,7 @@ export class OceanView {
     uShelter: { value: Array.from({ length: MAX_SHELTERS }, () => new THREE.Vector4()) },
     uShelterK: { value: Array.from({ length: MAX_SHELTERS }, () => 1) },
     uShelterCount: { value: 0 },
+    uShelterArc: { value: Array.from({ length: MAX_SHELTERS }, () => new THREE.Vector2()) },
     // Tidal races (setRaces, setRaceStrengths each frame) and their whirl points.
     uRace: { value: Array.from({ length: MAX_RACES }, () => new THREE.Vector4()) },
     uRaceB: { value: Array.from({ length: MAX_RACES }, () => new THREE.Vector4(1, 0, 0, 1)) },
@@ -138,6 +140,9 @@ export class OceanView {
       if (i < n && z) u.uShelter.value[i].set(z.x, z.z, z.rIn, z.rOut);
       else u.uShelter.value[i].set(0, 0, 0, 0);
       u.uShelterK.value[i] = i < n && z ? z.factor : 1;
+      // A gap: the bearing it opens from and the half-arc, in radians (arc 0 = none).
+      if (i < n && z && z.openArcDeg) u.uShelterArc.value[i].set(((z.openFromDeg ?? 0) * Math.PI) / 180, (z.openArcDeg * Math.PI) / 180);
+      else u.uShelterArc.value[i].set(0, 0);
     }
     u.uShelterCount.value = n;
   }

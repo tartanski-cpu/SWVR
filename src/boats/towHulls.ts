@@ -11,7 +11,7 @@ import type { HullDefinition } from '../modular/hull';
 import type { VesselConfig } from '../vessel/vesselDef';
 import { hullDataFrom } from './hullData';
 
-function towHull(id: string, name: string, kind: 'derelict' | 'logRaft' | 'barge' | 'dory' | 'yacht' | 'trawler' | 'pontoon'): HullDefinition {
+function towHull(id: string, name: string, kind: 'derelict' | 'logRaft' | 'barge' | 'dory' | 'yacht' | 'trawler' | 'pontoon' | 'cage'): HullDefinition {
   const c: VesselConfig = CONFIG.vessels[kind];
   return { id, version: 1, name, helm: { stand: c.boardingSpot, yawDeg: 0 }, ...hullDataFrom(c), fittings: { tow: c.tow }, sockets: [] };
 }
@@ -23,3 +23,4 @@ export const DORY_HULL = towHull('hull.open-fishing-boat', 'Open fishing boat, 5
 export const YACHT_HULL = towHull('hull.sailing-yacht', 'Sailing yacht, 11 m (dismasted)', 'yacht');
 export const TRAWLER_HULL = towHull('hull.fishing-trawler', 'Fishing trawler, 18 m', 'trawler');
 export const PONTOON_HULL = towHull('hull.crane-pontoon', 'Crane pontoon, 20 m', 'pontoon');
+export const CAGE_HULL = towHull('hull.cage-section', 'Fish-farm cage section, 8 m', 'cage');

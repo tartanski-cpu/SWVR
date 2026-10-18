@@ -120,11 +120,15 @@ describe('career', { timeout: 30000 }, () => {
   it('upgrades: in port, with the money and the reputation; then they work', () => {
     const { world, send, run } = setup();
     const c = world.career!;
-    expect(buyBlocker(world, 'radar')).toBe('Bring her into Calder Haven');
+    expect(buyBlocker(world, 'radar')).toBe('Bring her into a boatyard');
     send('teleportToPort', 1, 'brannock');
     run(0.5);
-    expect(buyBlocker(world, 'radar')).toBe('Bring her into Calder Haven'); // the boatyard's at Calder
+    expect(buyBlocker(world, 'radar')).toBe('Bring her into a boatyard'); // no yard at the pier
     send('teleportToPort', 1, 'calder');
+    run(0.5);
+    // The radar is fitted at Loch Tarsk's yard only (regions); the ice machine at either.
+    expect(buyBlocker(world, 'radar')).toBe('Fitted at Loch Tarsk');
+    send('teleportToPort', 1, 'tarsk');
     run(0.5);
     expect(buyBlocker(world, 'radar')).toMatch(/reputation/);
     expect(buyBlocker(world, 'ice')).toBe('Not enough money');

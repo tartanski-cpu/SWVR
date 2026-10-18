@@ -33,15 +33,21 @@
  */
 import { CONFIG } from '../config';
 import { wrap } from '../core/math';
-import { shelterFactor } from '../world/shelter';
+import { arcShelter, shelterFactor } from '../world/shelter';
 import { addCurrent, raceWaveFactor } from '../world/currents';
 
 /**
- * The amplitude factor at rest position (x0, z0): sheltered water (<= 1) times the tidal
- * races' standing waves (>= 1 while one runs). The shader applies the same two (gerstner.glsl).
+ * The amplitude factor at rest position (x0, z0) that is the same for every wave: sheltered
+ * water (<= 1) times the tidal races' standing waves (>= 1 while one runs). A bay with a gap
+ * (ShelterDef.openArcDeg) is applied per wave on top, by its direction: arcShelter. The
+ * shader applies the same (gerstner.glsl).
  */
 export function waveFactorAt(x0: number, z0: number): number {
   return shelterFactor(x0, z0) * raceWaveFactor(x0, z0);
+}
+/** The whole factor for one wave: the common part times the gapped bays' shelter from its direction. */
+export function waveFactorFor(x0: number, z0: number, w: PreparedWave, common: number): number {
+  return common * arcShelter(x0, z0, w.dirX, w.dirZ);
 }
 
 const TWO_PI = Math.PI * 2;
@@ -102,14 +108,15 @@ export function prepareWaves(components: readonly WaveComponent[], t: number, ou
 function horizontalDisplacement(waves: readonly PreparedWave[], x0: number, z0: number, out: { x: number; z: number }) {
   let hx = 0;
   let hz = 0;
+  const common = waves.length > 0 ? waveFactorAt(x0, z0) : 1;
   for (const w of waves) {
-    const c = Math.cos(w.k * (w.dirX * x0 + w.dirZ * z0) - w.phase);
+    const s = waveFactorFor(x0, z0, w, common);
+    const c = Math.cos(w.k * (w.dirX * x0 + w.dirZ * z0) - w.phase) * s;
     hx += w.horizontal * w.dirX * c;
     hz += w.horizontal * w.dirZ * c;
   }
-  const s = waves.length > 0 ? waveFactorAt(x0, z0) : 1;
-  out.x = hx * s;
-  out.z = hz * s;
+  out.x = hx;
+  out.z = hz;
 }
 
 const scratchH = { x: 0, z: 0 };
@@ -132,11 +139,12 @@ export function restPosition(waves: readonly PreparedWave[], x: number, z: numbe
 
 /** Full displaced position of the particle with rest position (x0, z0). */
 export function displacedPosition(waves: readonly PreparedWave[], x0: number, z0: number): [number, number, number] {
-  const sh = waves.length > 0 ? waveFactorAt(x0, z0) : 1;
+  const common = waves.length > 0 ? waveFactorAt(x0, z0) : 1;
   let x = x0;
   let y = 0;
   let z = z0;
   for (const w of waves) {
+    const sh = waveFactorFor(x0, z0, w, common);
     const theta = w.k * (w.dirX * x0 + w.dirZ * z0) - w.phase;
     const s = Math.sin(theta);
     const c = Math.cos(theta);
@@ -151,9 +159,10 @@ export function displacedPosition(waves: readonly PreparedWave[], x0: number, z0
 export function surfaceHeight(waves: readonly PreparedWave[], x: number, z: number): number {
   if (waves.length === 0) return 0;
   const [x0, z0] = restPosition(waves, x, z);
+  const common = waveFactorAt(x0, z0);
   let y = 0;
-  for (const w of waves) y += w.amplitude * Math.sin(w.k * (w.dirX * x0 + w.dirZ * z0) - w.phase);
-  return y * waveFactorAt(x0, z0);
+  for (const w of waves) y += w.amplitude * waveFactorFor(x0, z0, w, common) * Math.sin(w.k * (w.dirX * x0 + w.dirZ * z0) - w.phase);
+  return y;
 }
 
 export interface SurfaceSample {
@@ -172,7 +181,7 @@ export interface SurfaceSample {
  */
 export function sampleSurface(waves: readonly PreparedWave[], x: number, z: number): SurfaceSample {
   const [x0, z0] = restPosition(waves, x, z);
-  const sh = waves.length > 0 ? waveFactorAt(x0, z0) : 1;
+  const common = waves.length > 0 ? waveFactorAt(x0, z0) : 1;
   let y = 0;
   // Tangent along x0: (1 + txx, txy, txz); along z0: (tzx, tzy, 1 + tzz)
   let txx = 0, txy = 0, txz = 0, tzy = 0, tzz = 0; // prettier-ignore
@@ -181,6 +190,7 @@ export function sampleSurface(waves: readonly PreparedWave[], x: number, z: numb
     const theta = w.k * (w.dirX * x0 + w.dirZ * z0) - w.phase;
     const s = Math.sin(theta);
     const c = Math.cos(theta);
+    const sh = waveFactorFor(x0, z0, w, common);
     const amp = w.amplitude * sh;
     const hor = w.horizontal * sh;
     y += amp * s;

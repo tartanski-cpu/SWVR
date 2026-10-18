@@ -197,6 +197,9 @@ export const HOME: RegionDef = {
       // north from (stackX, stackZ), 4 m in from the quay edge, abeam the aft deck of a boat
       // at the cargo berth (owner: it was 10 m forward of her, by her bow).
       cargo: { berth: { x: 707, z: 660, radius: 16 }, stackX: 714.8, stackZ: 666, stackYawDeg: 0, color: 0x2f6fd0 },
+      // Calder Boatyard: the equipment and the everyday upgrades at the standard rate. The
+      // radar and the heavy towing post are fitted at Loch Tarsk's yard only (regions).
+      economy: { repairs: { hull: 1, engine: 1 }, sells: ['trawlGear', 'skiff', 'searchlight', 'fireMonitor', 'ais', 'bigTank', 'trawl', 'ice', 'craneComp'] },
     },
     { id: 'brannock', name: 'Brannock Pier', kind: 'pier', x: -553, z: 317, fuel: { x: -545, z: 305, radius: 14, pumpX: -556.6, pumpZ: 309.3 }, // the pump abeam the fuel berth, within the hose's reach
       clearRadius: 70,
@@ -257,9 +260,9 @@ export const HOME: RegionDef = {
   ],
   // Trawling grounds (fishing/fishing.ts): a circle and its richness.
   fishingGrounds: [
-    { name: 'Calder Bank', x: 1700, z: 650, radius: 300, richness: 1.2 },
-    { name: 'Skerry Ground', x: -150, z: -150, radius: 250, richness: 0.8 },
-    { name: 'The Hollows', x: -1100, z: 1000, radius: 320, richness: 1.0 },
+    { name: 'Calder Bank', x: 1700, z: 650, radius: 300, richness: 1.2, species: 'haddock' },
+    { name: 'Skerry Ground', x: -150, z: -150, radius: 250, richness: 0.8, species: 'whiting' },
+    { name: 'The Hollows', x: -1100, z: 1000, radius: 320, richness: 1.0, species: 'cod' },
   ],
   // Fog banks (weather.ts visibilityAt): around Gull Rocks (between the start and Calder
   // Haven) and off the Skerry.

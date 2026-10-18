@@ -3,6 +3,7 @@ import { Control, type Wiring } from '../../controls/Control';
 import { Toggle } from '../../controls/Toggle';
 import type { VesselState } from '../vesselState';
 import { drawPaperChart, type PaperChart } from '../../nav/paperChart';
+import { SHEETS, type ChartSheet } from '../../nav/chartSheets';
 import { flatVertexColorMaterial, mergeParts, part } from '../../render/geometryUtils';
 import type { CONFIG } from '../../config';
 
@@ -34,6 +35,8 @@ export class ChartTableView {
   readonly lampSwitch: Toggle;
   /** The knob that folds and unfolds the leaf, for the interaction system. */
   readonly leafHandle: ChartLeafHandle;
+  /** The tab that turns to the next sheet (regions: the archipelago sheet, a sheet per region). */
+  readonly sheetTab: ChartSheetTab;
   /** The leaf's contents' frame: the table frame while unfolded (chart tools go in here). */
   readonly leafFrame = new THREE.Group();
   readonly top: number;
@@ -43,9 +46,14 @@ export class ChartTableView {
   /** The table's own material: a warm glow while the lamp is on (no real light). */
   private readonly tableMat: THREE.MeshLambertMaterial;
   private readonly bulbMat: THREE.MeshBasicMaterial;
-  private readonly chart: PaperChart;
+  /** The sheet on the table now, and the others once drawn (nav/chartSheets.ts; drawn when first turned to). */
+  private chart: PaperChart;
+  private sheetIndex = SHEETS.findIndex((s) => s.id === 'home');
+  private readonly drawn = new Map<string, PaperChart>();
+  private readonly chartTex: THREE.CanvasTexture;
   /** Table metres per world metre on the chart, and the chart's centre on the table. */
-  readonly scale: number;
+  scale: number;
+  private readonly chartDepth: number;
   private readonly chartCenter: THREE.Vector3;
   private lit = -1;
 
@@ -127,13 +135,16 @@ export class ChartTableView {
     legPivot.add(leg);
 
     // The paper chart, north to port (-x), east forward (-z): basis X -> -z, Y -> -x, Z -> +y.
-    this.chart = drawPaperChart();
+    this.chart = drawPaperChart(2048, SHEETS[this.sheetIndex]);
+    this.drawn.set(SHEETS[this.sheetIndex].id, this.chart);
     const b = this.chart.bounds;
     const depth = x1 - x0 - 0.06;
+    this.chartDepth = depth;
     this.scale = depth / (b.z1 - b.z0);
     const cw = (b.x1 - b.x0) * this.scale;
     const ch = depth;
     const tex = new THREE.CanvasTexture(this.chart.canvas);
+    this.chartTex = tex;
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.anisotropy = 16; // clamped to what the GPU allows: crisp at a slant from standing height
     this.chartMat = new THREE.MeshBasicMaterial({ map: tex, toneMapped: false });
@@ -151,7 +162,10 @@ export class ChartTableView {
     pivot.add(this.leafFrame);
     this.leafHandle = new ChartLeafHandle(pivot, legPivot, keys.leaf);
     this.leafHandle.root.position.set(x1, T - 0.02, (z0 + z1) / 2);
-    this.leafFrame.add(leaf, chart, bulb, legPivot, this.leafHandle.root);
+    // The sheet tab: a paper tab at the chart's forward outboard corner (its north-east).
+    this.sheetTab = new ChartSheetTab(() => this.nextSheet());
+    this.sheetTab.root.position.set(this.chartCenter.x - ch / 2 + 0.03, T + 0.004, this.chartCenter.z - cw / 2 + 0.03);
+    this.leafFrame.add(leaf, chart, bulb, legPivot, this.leafHandle.root, this.sheetTab.root);
 
     this.lampSwitch = new Toggle('chartLamp', keys.lamp?.channel ?? 'chartLamp', 'Chart table lamp', keys.lamp?.read ?? ((s) => s.controls.chartLamp));
     // On the batten, aft end, its lever moving up and down the wall.
@@ -160,6 +174,28 @@ export class ChartTableView {
     this.lampSwitch.root.scale.setScalar(0.8);
     this.root.add(wall, pivot, this.lampSwitch.root);
     this.detail = [chart, bulb];
+  }
+
+  /** The sheet on the table. */
+  get sheet(): ChartSheet {
+    return SHEETS[this.sheetIndex];
+  }
+
+  /** Turn to the next sheet (drawn the first time it's wanted); the marks, in world metres, fall where they should. */
+  nextSheet(): void {
+    this.sheetIndex = (this.sheetIndex + 1) % SHEETS.length;
+    const sheet = SHEETS[this.sheetIndex];
+    let chart = this.drawn.get(sheet.id);
+    if (!chart) {
+      chart = drawPaperChart(2048, sheet);
+      this.drawn.set(sheet.id, chart);
+    }
+    this.chart = chart;
+    const b = chart.bounds;
+    // The sheets share one shape, so the paper on the table stays the same size.
+    this.scale = this.chartDepth / (b.z1 - b.z0);
+    this.chartTex.image = chart.canvas;
+    this.chartTex.needsUpdate = true;
   }
 
   /** Unfolded all the way (the chart can be drawn on, read from above). */
@@ -284,4 +320,41 @@ export class ChartLeafHandle extends Control {
     this.legPivot.rotation.x = Math.min(1, f * 2) * (Math.PI / 2);
     this.pivot.rotation.z = -f * (Math.PI / 2);
   }
+}
+
+/**
+ * The sheet tab (regions): a small paper tab at the chart's corner. A press turns to the
+ * next sheet: the archipelago sheet, then each region's detail sheet. Each player's own
+ * table shows the sheet they turned to (nothing is sent: the pencil marks are in world
+ * metres and fall on whichever sheet is out).
+ */
+export class ChartSheetTab extends Control {
+  readonly kind = 'press' as const;
+  readonly label = 'Chart: next sheet';
+  private pressed = false;
+
+  constructor(private readonly onTurn: () => void) {
+    super('chartSheet', 'chartSheet');
+    const tab = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.004, 0.045), this.material(0xe8d9a8));
+    const mark = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.005, 0.004).translate(0, 0, -0.012), this.material(0x1c2a36));
+    this.root.add(tab, mark);
+    this.hitObjects.push(tab);
+  }
+
+  distanceTo(world: THREE.Vector3): number {
+    return this.toLocal(world).length();
+  }
+
+  pressStart(): void {
+    if (this.pressed) return;
+    this.pressed = true;
+    this.ctx?.haptic(0.3, 30);
+    this.onTurn();
+  }
+
+  pressEnd(): void {
+    this.pressed = false;
+  }
+
+  sync(): void {}
 }
