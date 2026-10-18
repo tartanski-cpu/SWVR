@@ -1,8 +1,9 @@
 /**
- * Module hull.push-fender: the rubber push fender on a tug's square bow (owner: the small
- * tug hull). A thick block of black rubber across her bow plate, from the bulwark top down
- * nearly to the foot of the plate, its outer corners chamfered: what she pushes barges and
- * ships with, and what meets a quay when she noses in.
+ * Module hull.push-fender: the push knees on a tug's square bow (owner: the small tug hull).
+ * Two vertical columns of black rubber on her bow plate, either side of the centreline, from
+ * the bulwark top down nearly to the foot of the plate, their outer corners chamfered (owner:
+ * two separate pads rather than one block across): what she pushes barges and ships with,
+ * and what meets a quay when she noses in.
  *
  * It gives the boat a push fender: its face's points, which meet a quay (and other boats)
  * before her bow plate does, with the fender's own spring and grip (CONFIG.contacts.guards
@@ -16,25 +17,33 @@ import type { ModuleDefinition } from '../../modular/module';
 import { part } from '../../render/geometryUtils';
 
 export interface PushFenderConfig {
-  /** Half its width across the bow (m), and its foot and top (m above the DWL). */
+  /** Half the bow plate's width the knees stand on (m), and their foot and top (m above the DWL). */
   halfWidth: number;
   bottom: number;
   top: number;
-  /** Her bow plate's station (z, boat axes): the fender stands on it, reaching forward. */
+  /** Her bow plate's station (z, boat axes): the knees stand on it, reaching forward. */
   z: number;
 }
 
-/** Its face's points (the boat's axes): `across` x `up`, on its flat front. */
+/** Each knee's centre across her (m, + starboard): `knees` of them, spread evenly, the outer ones `kneeAt` of the way out. */
+export function kneeCentres(c: PushFenderConfig): number[] {
+  const f = CONFIG.modules.pushFender;
+  const out = f.kneeAt * c.halfWidth;
+  return Array.from({ length: f.knees }, (_, i) => (f.knees === 1 ? 0 : -out + (2 * out * i) / (f.knees - 1)));
+}
+
+/** Their faces' points (the boat's axes): `across` x `up` on each knee's flat front. */
 export function pushFenderProbes(c: PushFenderConfig): [number, number, number][] {
   const f = CONFIG.modules.pushFender;
   const out: [number, number, number][] = [];
-  const w = c.halfWidth - f.chamfer;
-  for (let i = 0; i < f.across; i++)
-    for (let j = 0; j < f.up; j++) {
-      const x = -w + (2 * w * i) / (f.across - 1);
-      const y = c.bottom + 0.1 + ((c.top - c.bottom - 0.2) * j) / (f.up - 1);
-      out.push([x, y, c.z - f.thickness]);
-    }
+  const w = f.kneeWidth / 2 - f.chamfer;
+  for (const xc of kneeCentres(c))
+    for (let i = 0; i < f.across; i++)
+      for (let j = 0; j < f.up; j++) {
+        const x = xc - w + (f.across > 1 ? (2 * w * i) / (f.across - 1) : w);
+        const y = c.bottom + 0.1 + ((c.top - c.bottom - 0.2) * j) / (f.up - 1);
+        out.push([x, y, c.z - f.thickness]);
+      }
   return out;
 }
 
@@ -43,7 +52,7 @@ export const PUSH_FENDER: ModuleDefinition<PushFenderConfig> = {
   version: 1,
   fits: ['hull.side'],
   defaults: { halfWidth: 1.6, bottom: 0.5, top: 2.8, z: -6.5 },
-  validateConfig: (c) => [...(c.halfWidth > CONFIG.modules.pushFender.chamfer + 0.2 ? [] : ['the push fender is too narrow']), ...(c.top > c.bottom + 0.3 ? [] : ['the push fender has no height'])],
+  validateConfig: (c) => [...(CONFIG.modules.pushFender.kneeAt * c.halfWidth + CONFIG.modules.pushFender.kneeWidth / 2 <= c.halfWidth ? [] : ['the bow is too narrow for the push knees']), ...(c.top > c.bottom + 0.3 ? [] : ['the push fender has no height'])],
   ports: {},
   provides: () => [{ gear: 'pushFender' }],
   gear: (c) => ({ pushFender: { probes: pushFenderProbes(c) } }),
@@ -51,9 +60,9 @@ export const PUSH_FENDER: ModuleDefinition<PushFenderConfig> = {
     frame: 'boat',
     build({ config: c }) {
       const f = CONFIG.modules.pushFender;
-      const w = c.halfWidth;
-      // In plan (x across, forward from the plate), chamfered at its outer corners; drawn
-      // as a shape extruded from its foot up to its top, then stood on the plate.
+      const w = f.kneeWidth / 2;
+      // Each knee in plan (x across, forward from the plate), chamfered at its outer corners;
+      // drawn as a shape extruded from its foot up to its top, then stood on the plate.
       const plan = new THREE.Shape([
         new THREE.Vector2(-w, 0),
         new THREE.Vector2(w, 0),
@@ -63,8 +72,9 @@ export const PUSH_FENDER: ModuleDefinition<PushFenderConfig> = {
         new THREE.Vector2(-w, f.thickness - f.chamfer),
       ]);
       // Extruded along +z, then turned so that runs up (y) and the plan's forward runs to -z.
-      const block = new THREE.ExtrudeGeometry(plan, { depth: c.top - c.bottom, bevelEnabled: false }).rotateX(-Math.PI / 2).translate(0, c.bottom, c.z);
-      return { staticParts: [part(block, 0x1b1c1e)], movingParts: [], controls: [], update: () => {} };
+      const knee = new THREE.ExtrudeGeometry(plan, { depth: c.top - c.bottom, bevelEnabled: false }).rotateX(-Math.PI / 2);
+      const parts = kneeCentres(c).map((x) => part(knee.clone().translate(x, c.bottom, c.z), 0x1b1c1e));
+      return { staticParts: parts, movingParts: [], controls: [], update: () => {} };
     },
   },
 };

@@ -519,8 +519,8 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   const guardKg = strakeM * hg.strake.kgPerM + 2 * tyres.length * hg.tyres.kgEach;
   const guardY = prot.side === 'strake' ? deckMid - hg.strake.drop : deckMid - hg.tyres.drop;
   if (guardKg > 0) cg[1] += (guardKg / mass) * (guardY - cg[1]);
-  // A tug's push fender across her square bow plate (modules/pushFender): from the bulwark
-  // top down to just above where the plate's sides end (its chines), `inset` in from her
+  // A tug's push knees on her square bow plate (modules/pushFender): from the bulwark top
+  // down to just above where the plate's sides end (its chines), within `inset` of her
   // sides; designed in high at her bow, as the strake is.
   const pf = CONFIG.modules.pushFender;
   const stemPoly = st[st.length - 1].polygon;
@@ -528,7 +528,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     ? { halfWidth: rnd(q.halfBeam(stem) - pf.inset), bottom: rnd(stemPoly[3][1] + pf.clear), top: rnd(q.deckY(stem) + bulwarkHeight), z: rnd(stem) }
     : null;
   if (pushFender) {
-    const kg = 2 * pushFender.halfWidth * (pushFender.top - pushFender.bottom) * pf.kgPerM2;
+    const kg = pf.knees * pf.kneeWidth * (pushFender.top - pushFender.bottom) * pf.kgPerM2;
     cg[1] += (kg / mass) * ((pushFender.top + pushFender.bottom) / 2 - cg[1]);
   }
   const beamDeck = 2 * Math.max(...st.map((s) => s.halfBeamDeck));

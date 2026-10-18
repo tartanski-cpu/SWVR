@@ -2778,14 +2778,16 @@ export const CONFIG = {
      *           `formFactorAdd` (Shipyard build).
      */
     /**
-     * hull.push-fender (modules/pushFender): the rubber push fender on a tug's square bow
-     * (owner: the small tug hull). A block `thickness` m thick, faced flat with its corners
-     * chamfered by `chamfer`, across her bow plate (`inset` in from each side) from the
-     * bulwark top down to `clear` above the foot of the plate. It weighs `kgPerM2` per
-     * square metre of face (a heavy-duty rubber section). Probed on its face at `across` x
-     * `up` points against quays and other boats.
+     * hull.push-fender (modules/pushFender): the push knees on a tug's square bow (owner: the
+     * small tug hull; two separate vertical pads look better than one block across). Each a
+     * column of rubber `kneeWidth` m wide and `thickness` m thick, its outer corners chamfered
+     * by `chamfer`, its centre `kneeAt` of the way out from her centreline to `inset` inside
+     * her side, from the bulwark top down to `clear` above the foot of the plate; the bow
+     * plate shows between them. `knees` of them. Each weighs `kgPerM2` per square metre of face
+     * (a heavy-duty rubber section), and is probed on its face at `across` x `up` points
+     * against quays and other boats.
      */
-    pushFender: { thickness: 0.32, chamfer: 0.1, inset: 0.06, clear: 0.05, kgPerM2: 140, across: 5, up: 3 },
+    pushFender: { knees: 2, kneeWidth: 0.6, kneeAt: 0.55, thickness: 0.32, chamfer: 0.08, inset: 0.06, clear: 0.05, kgPerM2: 140, across: 2, up: 3 },
 
     hullGuard: {
       strake: { radius: 0.07, drop: 0.06, kgPerM: 5, spacing: 0.6 },

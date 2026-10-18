@@ -70,7 +70,7 @@ describe('the small tug: a fifth hull type', () => {
     expect(plan.deckY(plan.stem)).toBeGreaterThan(plan.deckY(plan.transom) + 0.6);
   });
 
-  it('her push fender: across her bow plate, from the bulwark top down near its foot, standing proud of it; no draw calls of its own', () => {
+  it('her push knees: two on her bow plate, either side of the centreline, from the bulwark top down near its foot, standing proud of it; no draw calls of their own', () => {
     useDesign(tug());
     const def = VESSEL_DEFS.design;
     const plan = hullPlan(def);
@@ -82,7 +82,13 @@ describe('the small tug: a fifth hull type', () => {
     expect(c.top).toBeCloseTo(plan.deckY(plan.stem) + def.layout.bulwarkHeight, 3);
     expect(c.bottom).toBeLessThan(plan.deckY(plan.stem) - 1);
     const probes = gearOf({ defId: 'design' }, 'pushFender')!.probes;
-    expect(probes).toHaveLength(CONFIG.modules.pushFender.across * CONFIG.modules.pushFender.up);
+    const pf = CONFIG.modules.pushFender;
+    expect(probes).toHaveLength(pf.knees * pf.across * pf.up);
+    // Two separate knees, either side of the centreline: the bow plate clear between them.
+    expect(pf.knees).toBe(2);
+    expect(probes.filter(([x]) => x < 0)).toHaveLength(pf.across * pf.up);
+    expect(Math.min(...probes.map(([x]) => Math.abs(x)))).toBeGreaterThan(0.3);
+    for (const [x] of probes) expect(Math.abs(x)).toBeLessThan(c.halfWidth);
     for (const [, , z] of probes) expect(z).toBeCloseTo(plan.stem - CONFIG.modules.pushFender.thickness, 6);
     const view = assembleView(RECIPES.design, def, LIBRARY);
     const fv = view.modules.find((x) => x.id === 'hull.push-fender')!;

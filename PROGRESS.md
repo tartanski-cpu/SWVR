@@ -4133,7 +4133,7 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   - **Her bow is her own** (`pushBow`): the bow-rake choice leaves it as it is, and the page's slider reads "push bow" and is disabled (`scaledStudy` with no bow).
   - **Layout:** `cockpit` 3.0 m (a long towing deck), `foredeck` 1.6 m.
   - **Defaults, from the render:** a short house forward of amidships with its floor raised 0.4 m to see over the bow, windows 7.5 deg reverse-raked, twin 400 kW, the rubbing strake, rescue red.
-- **The push fender** (new module `hull.push-fender`, `modules/pushFender`, on a `hull.side` socket at the stem):
+- **The push fender** (new module `hull.push-fender`, `modules/pushFender`, on a `hull.side` socket at the stem; since split into two push knees, below):
   - **Shape:** a block of black rubber `thickness` 0.32 m thick, its outer corners chamfered, across the bow plate (`inset` 6 cm in from each side), from the bulwark top down to just above the plate's chines.
   - **Drawing:** merged with her fixed parts, so no draw calls of its own.
   - **Weight:** `kgPerM2` 140 per m² of face, designed into her weight high at the bow.
@@ -4182,6 +4182,18 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   - **The pot pallet** (`CONFIG.potting.pallet`): 719, 638 to **716, 670.5**: just aft of her stern, 4-5 m in. It was ~25 m forward, near the fuel berth.
   - Both clear of the quay lamp post at 716, 668 and of where you start on the quay (713, 661.5). Landing cargo at Calder (within `cargo.deliveryRadius` of the stack) and selling a catch there move with them.
 - **Checked:** typecheck, all tests (golden runs unchanged); in headless Chromium the five goods and five pots at their new spots, screenshots from above the berth and from the quay. No page errors. **Not checked:** the Quest.
+
+### The small tug: two push knees instead of one block (owner)
+
+- **The owner said** splitting the big black block on the bow into two separate vertical ones would look better.
+- **Now two push knees** (`modules/pushFender`, `kneeCentres`):
+  - **Shape:** each a column of rubber `kneeWidth` 0.6 m wide and `thickness` 0.32 m thick, chamfered 8 cm (`chamfer`). They run from the bulwark top down to just above the plate's chines, as the block did.
+  - **Placing:** centred `kneeAt` 0.55 of the way out from her centreline (about 0.93 m each side on the standard tug), so the bow plate and the rubbing strake show between them.
+  - **Contact:** each is probed on its face at 2 x 3 points (`across`, `up`).
+  - **Weight:** goes with their face area: about 0.6 t together, where the block was about 0.9 t; GM 1.06 to 1.07 m.
+- **Config:** `CONFIG.modules.pushFender` {knees 2, kneeWidth 0.6, kneeAt 0.55, thickness, chamfer 0.08, inset, clear, kgPerM2, across 2, up 3}. The module's config (the plate's half-width, foot, top and station) is unchanged, so codes are unchanged.
+- **Tests** (`tug.test.ts`): two knees, either side, the plate clear between them (no point within 0.3 m of the centreline); nosing into the quay at 2 m/s still does no damage; pushing another boat still meets the knees first. All Shipyard tests pass.
+- **Checked:** Shipyard screenshots from Bow ¾ and from ahead. **Not checked:** the Quest.
 
 ### Test address for work in progress (owner request)
 
