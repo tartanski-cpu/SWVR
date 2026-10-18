@@ -151,6 +151,16 @@
       /* The brief, typed on the yard's paper (briefPaper.ts), in place of the 3D view at the Brief step. */
       #briefPaper { position: absolute; inset: 0; overflow-y: auto; padding: 24px 16px 40px; background: radial-gradient(ellipse at 50% 30%, #2a4152, #1a2731); z-index: 3; }
       #briefPaper[hidden] { display: none; }
+      /* Live sea trials (liveTrial.ts) at the Trials step. */
+      #livePanel { position: absolute; left: 10px; bottom: 64px; width: min(540px, calc(100% - 20px)); background: var(--glass); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; z-index: 2; }
+      #livePanel[hidden] { display: none; }
+      #livePanel .liveHead { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; margin-bottom: 6px; }
+      #livePanel .liveBtns { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+      #livePanel .liveBtns button.on { background: var(--accent-strong); color: var(--on-accent); border-color: var(--accent-strong); }
+      #liveChart { width: 100%; height: 110px; display: block; background: var(--chart); border-radius: 6px; }
+      #liveNow { margin-top: 4px; font-variant-numeric: tabular-nums; }
+      #liveResult { margin-top: 2px; font-size: 13px; color: var(--ok-ink); }
+      #liveResult:empty { display: none; }
       #view.paperMode > :not(#briefPaper):not(#tabs) { visibility: hidden; }
       .paper { position: relative; max-width: 640px; margin: 0 auto; background: #f5f0e3; color: #1d2430; padding: 34px 44px 40px; box-shadow: 0 10px 30px rgba(0,0,0,0.55); font: 14px/1.45 "Courier New", Courier, monospace; }
       .paper .letterhead { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; border-bottom: 2px solid #1d2430; padding-bottom: 6px; font-family: Georgia, "Times New Roman", serif; }
@@ -398,6 +408,13 @@
       <div id="quick"></div>
       <div id="toolHint"></div>
       <div id="briefPaper" hidden></div>
+      <div id="livePanel" hidden>
+        <div class="liveHead"><b>Live trials</b><span class="meta">the game’s physics, on her as designed, in calm water</span></div>
+        <div class="liveBtns"><button data-live="drop">Drop her from 4 m</button><button data-live="roll">Roll from 10°</button><button data-live="incline">Inclining experiment</button><button id="liveStop">Stop</button></div>
+        <canvas id="liveChart" width="520" height="110"></canvas>
+        <div id="liveNow" class="meta"></div>
+        <div id="liveResult"></div>
+      </div>
       <div id="pinEditor" hidden>
         <select id="pinGear" title="Equipment wanted here: placed for you at the Deck gear step"></select>
         <input id="pinText" placeholder="Note (optional with equipment)" maxlength="140" />

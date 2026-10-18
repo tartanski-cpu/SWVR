@@ -3865,6 +3865,23 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Checked in headless Chromium:** a pilot boat with a 3 m, 1.2 m high, full-width, 30°-raked deckhouse, and set in with 0.5 m side decks, upright: views from the bow, stern and port; the wheelhouse on top, the steps up aft, no warnings. Found and fixed on the way: its faces wound inside out (invisible from outside), and its foot showing through her topsides at the bow. **Not checked:** the Quest, a phone, walking up the steps into a raised helm in the game.
 - **Next, for bigger boats (tugs), noted:** the deckhouse top walkable with rails and a ladder or stairs (the walk area's floors and ladders already do this for the workboat's roof), and an interior with a door into it.
 
+### Shipyard: live sea trials at the Trials step (owner)
+
+- **The owner:** the final step should run a little dynamic sea trial on the page: the game's Drop test and the inclining experiment, run live so you see how the hull behaves.
+- **Now** (`shipyard/liveTrial.ts`, simulation only; `page.ts` "Live sea trials"):
+  - **A panel at the Trials & handover step** with three tests. Each runs her as designed in a world of her own (calm, deep water), with the game's physics on its fixed tick, in real time. Her 3D model moves as the physics has her. A chart against time (heave for the drop, heel for the others), the readings now (time, heel, trim, heave) and what the test found.
+  - **Drop her from 4 m:** lifted `dropM` above her rest, heeled `dropHeelDeg` (6°) and trimmed `dropTrimDeg` (3° bow down), as the game's Drop, and let go. It reports her heave period, how far she plunged below her waterline, the most she heeled, and whether she's back at rest.
+  - **Roll from 10°** (`rollDeg`): the free roll decay. It reports her roll period from the peaks and her damping as a share of critical (logarithmic decrement), as the trial does.
+  - **Inclining experiment:** a weight of `inclineShare` (2 %) of her displacement is moved `inclineBeamShare` (0.4) of her beam across, over `inclineMoveS` s. It's drawn as a yellow block on her aft deck. She heels to a steady angle, and **GM = w·d / (Δ·tan φ)**, as a real inclining experiment. The shift acts as a heeling couple, as in the trial's own inclining test, so her displacement and centre of gravity don't change.
+  - **The view** turns to show each test: from her quarter, with room above, for the drop; square on from astern for the roll; astern and a little above for the inclining weight.
+  - **When it stops:** changing her, leaving the step, or **Stop** ends a test and puts her back.
+  - Each person runs their own (a test isn't shared in a session).
+- **Config:** `CONFIG.shipyard.live` (`settleS`, `dropM`, `dropHeelDeg`, `dropTrimDeg`, `rollDeg`, `inclineShare`, `inclineBeamShare`, `inclineStartS`, `inclineMoveS`, `seconds` per test).
+- **Checked:**
+  - Typecheck and tests (`tests/shipyard/liveTrial.test.ts`, on the default design): the drop starts 4 m up, plunges below the waterline and comes back to rest; the roll decay's period matches the background trial's; the inclining experiment's GM is near her figure.
+  - Headless, in the page: drop (heave period 1.5 s, plunged 0.40 m, back at rest); roll (2.5 s, the same as the background trial; damping 29 %); inclining (0.13 t moved 1.12 m, heel 1.22°, GM 1.05 m against her figure of 1.02 m). Screenshots of the drop and the inclining weight on deck.
+- **Not checked:** a phone; slower machines (the physics is one boat at 60 steps a second, and it catches up in steps if a frame is slow).
+
 ### Shipyard: her engines and propellers at the Engine step (owner)
 
 - **The owner:** 3D models of each engine type, single or twin, with the calculated propeller size, drawn on the Shipyard page with the hull and wheelhouse see-through. They must not go into the game's 3D model, to keep it cheap.

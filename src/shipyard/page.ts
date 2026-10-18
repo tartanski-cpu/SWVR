@@ -30,6 +30,7 @@ import type { SeaTrialResults } from '../vessel/seaTrials';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 import { isPlaneSheet, PLANES, PlaneInk, planeAt, planeFacing, planeSheet, toPlane, type PlaneName } from './planeSketch';
 import { buildMachinery } from './enginePreview';
+import { LiveTrial, type LiveSample, type LiveTest } from './liveTrial';
 import { briefPaper } from './briefPaper';
 import { buildVesselMesh, buildVesselMeshParts } from '../vessel/view/hullMesh';
 import { DESIGN_HULLS, ENGINES, LIVERIES, ROOF_PAINTS, type DesignedBoat } from './build';
@@ -181,6 +182,8 @@ $('views').appendChild(waterBtn);
 
 /** Draw her: the game's hull mesh and her modules, as the game builds them. */
 function drawBoat(): void {
+  // She's changed: a live trial of her as she was stops.
+  stopLive();
   if (boatRoot) {
     scene.remove(boatRoot);
     boatRoot.traverse((o) => {
@@ -287,6 +290,92 @@ function look3(m: THREE.Mesh | null, how: 'solid' | 'ghost' | 'off'): void {
  * the hull at Wheelhouse (with what's inside the house: console, seats); the engines inside a
  * ghost of her at Engine; everything for the rest.
  */
+// ── Live sea trials (liveTrial.ts): her model moved by the game's physics, at the Trials step ──
+let live: LiveTrial | null = null;
+/** The inclining weight, on her deck while that test runs. */
+let liveWeight: THREE.Mesh | null = null;
+function startLive(test: LiveTest): void {
+  stopLive();
+  live = new LiveTrial(test);
+  document.querySelectorAll<HTMLElement>('[data-live]').forEach((b) => b.classList.toggle('on', b.dataset.live === test));
+  if (test === 'incline' && boatRoot) {
+    // The test weight: concrete blocks (~2.4 t/m³) on her aft deck, where you see them from
+    // astern, moved across as the test goes (only its moment matters, not where along her).
+    const side = Math.cbrt(live.weightKg / 2400);
+    const plan = hullPlan(VESSEL_DEFS.design);
+    const z = plan.transom + (plan.stem - plan.transom) * 0.12;
+    liveWeight = new THREE.Mesh(new THREE.BoxGeometry(side, side, side), new THREE.MeshStandardMaterial({ color: 0xd8b02a, roughness: 0.8 }));
+    liveWeight.userData.at = [plan.deckY(z) + side / 2, z];
+    boatRoot.add(liveWeight);
+  }
+  // A view that shows what the test is about: from her quarter, room above for the drop; from
+  // astern, square on, for the heel (a little above for the inclining weight on deck).
+  if (flat) flatBtn.click();
+  const L = boat.figures.lengthM;
+  if (test === 'drop') look([1.5 * L, 0.55 * L, 1.1 * L], [0, 1.6, 0]);
+  else if (test === 'incline') look([0, 0.45 * L, 1.7 * L], [0, 0.6, 0]); // over the weight on deck
+  else setView('Stern');
+  $('liveResult').textContent = '';
+}
+function stopLive(): void {
+  live = null;
+  liveWeight?.removeFromParent();
+  liveWeight = null;
+  document.querySelectorAll<HTMLElement>('[data-live]').forEach((b) => b.classList.remove('on'));
+  if (boatRoot) {
+    boatRoot.position.set(0, 0, 0);
+    boatRoot.quaternion.identity();
+  }
+}
+/** Advance the test, move her model to where the physics has her, and show the readings. */
+function stepLive(dt: number): void {
+  if (!live || !boatRoot) return;
+  live.advance(dt);
+  const v = live.v;
+  boatRoot.position.set(v.position[0], v.position[1] - live.restY, v.position[2]);
+  boatRoot.quaternion.fromArray(v.orientation);
+  if (liveWeight) {
+    const [y, z] = liveWeight.userData.at as [number, number];
+    liveWeight.position.set(live.shift * live.shiftM, y, z);
+  }
+  const s = live.samples[live.samples.length - 1];
+  $('liveNow').textContent = `${s.t.toFixed(1)} s · heel ${s.heelDeg.toFixed(1)}° · trim ${s.trimDeg.toFixed(1)}° · heave ${s.heaveM >= 0 ? '+' : ''}${s.heaveM.toFixed(2)} m${live.done ? ' · done' : ''}`;
+  $('liveResult').textContent = live.result() ?? '';
+  drawLiveChart(live);
+  if (live.done) document.querySelectorAll<HTMLElement>('[data-live]').forEach((b) => b.classList.remove('on'));
+}
+/** The test so far against time: heel (roll, inclining) or heave (drop), the whole run to scale. */
+function drawLiveChart(t: LiveTrial): void {
+  const c = $('liveChart') as HTMLCanvasElement;
+  const g = c.getContext('2d')!;
+  const W = c.width;
+  const H = c.height;
+  g.clearRect(0, 0, W, H);
+  const heave = t.test === 'drop';
+  const val = (s: LiveSample) => (heave ? s.heaveM : s.heelDeg);
+  const span = Math.max(heave ? 1 : 2, ...t.samples.map((s) => Math.abs(val(s)))) * 1.1;
+  const y = (v: number) => H / 2 - (v / span) * (H / 2 - 12);
+  const x = (time: number) => 30 + (time / t.duration) * (W - 40);
+  g.strokeStyle = '#3b5262';
+  g.lineWidth = 1;
+  g.beginPath();
+  g.moveTo(30, H / 2);
+  g.lineTo(W - 10, H / 2);
+  g.stroke();
+  g.fillStyle = '#93a8b5';
+  g.font = '11px system-ui, sans-serif';
+  g.fillText(heave ? `${span.toFixed(1)} m` : `${span.toFixed(1)}°`, 2, 14);
+  g.fillText(heave ? 'heave' : 'heel', 2, H / 2 + 4);
+  g.fillText(`${t.duration} s`, W - 34, H - 4);
+  g.strokeStyle = '#6aa8e6';
+  g.lineWidth = 2;
+  g.beginPath();
+  t.samples.forEach((s, i) => (i ? g.lineTo(x(s.t), y(val(s))) : g.moveTo(x(s.t), y(val(s)))));
+  g.stroke();
+}
+document.querySelectorAll<HTMLElement>('[data-live]').forEach((b) => (b.onclick = () => startLive(b.dataset.live as LiveTest)));
+$('liveStop').onclick = () => stopLive();
+
 /** The step last shown (to look at her machinery only on arriving at Engine), and the engine fit last looked at. */
 let shownStep = '';
 let framedFit = '';
@@ -312,6 +401,9 @@ function focusStep(): void {
   if (!shown) return;
   const { hull, house, modules, skiff, machinery } = shown;
   if (machinery) machinery.visible = step === 'engine';
+  // The live trials: at the Trials step only (leaving it stops one).
+  $('livePanel').hidden = step !== 'handover';
+  if ($('livePanel').hidden && live) stopLive();
   // Her propellers are under water: see them through it.
   (water.material as THREE.MeshLambertMaterial).opacity = step === 'engine' ? 0.18 : 0.55;
   const hullHow = step === 'wheelhouse' || step === 'engine' ? 'ghost' : 'solid';
@@ -2231,9 +2323,14 @@ showFigures();
 showCode();
 setView('Bow ¾');
 runTrial();
+let frameAt = performance.now();
 renderer.setAnimationLoop(() => {
+  const now = performance.now();
+  const dt = (now - frameAt) / 1000;
+  frameAt = now;
   // The brief's paper covers the view: don't draw her underneath it.
   if (!$('briefPaper').hidden) return;
+  if (live) stepLive(dt);
   orbit.update();
   // Turned to (or away from) a square-on view: its sketch shows (or goes).
   if (facingPlane() !== inkFacing) drawInk();
