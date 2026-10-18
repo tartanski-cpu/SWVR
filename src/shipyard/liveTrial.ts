@@ -6,8 +6,9 @@
  *   drop     lifted (CONFIG drop height, a little heeled and trimmed, as the game's "Drop"
  *            test does) and let go: she falls in, plunges, and heaves and rolls back to
  *            rest. Shows her heave and pitch damping, and whether she rights herself.
- *   roll     heeled (CONFIG roll angle) and let go: the free roll decay. Her roll period
- *            (from the peaks) and damping (the logarithmic decrement).
+ *   roll     heeled (CONFIG roll angle: 45°) and let go: the free roll decay. Her roll period
+ *            (from the peaks) and damping (the logarithmic decrement), or that she didn't
+ *            come back.
  *   incline  the inclining experiment: a known weight (a share of her displacement) is
  *            moved across her deck; she heels to a steady angle, and GM = w·d / (Δ·tan φ).
  *            As in the trial's own inclining test (seaTrials.ts), the weight's shift acts as
@@ -18,7 +19,7 @@
 import * as THREE from 'three';
 import { CONFIG } from '../config';
 import { IdFactory } from '../core/ids';
-import { stepWorld } from '../core/simulation';
+import { stepWorld, type SimDebug } from '../core/simulation';
 import { createWorld, type WorldState } from '../core/world';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
@@ -43,6 +44,8 @@ export class LiveTrial {
   /** Seconds since the test began. */
   t = 0;
   readonly samples: LiveSample[] = [];
+  /** The physics' own readings each step (the game's debug overlay: buoyancy by station, immersed volume). */
+  readonly debug: SimDebug = new Map();
   /** Where she floats at rest (her position's height), from settling her first. */
   readonly restY: number;
   /** The inclining weight's position across her (0 centreline .. 1 at the full shift). */
@@ -90,7 +93,7 @@ export class LiveTrial {
     while (this.acc >= DT && !this.done) {
       this.acc -= DT;
       if (this.test === 'incline') this.heelingCouple();
-      stepWorld(this.world, [], DT);
+      stepWorld(this.world, [], DT, this.debug);
       this.t += DT;
       this.sample();
     }
@@ -138,6 +141,8 @@ export class LiveTrial {
     if (peaks.length < 3) return null;
     const period = (2 * (s[peaks[peaks.length - 1].i].t - s[peaks[0].i].t)) / (peaks.length - 1);
     if (this.test === 'roll') {
+      const last = Math.abs(s[s.length - 1].heelDeg);
+      if (this.done && last > 30) return `She didn't come back: lying at ${last.toFixed(0)}° after ${this.duration} s`;
       const delta = Math.log(Math.abs(peaks[0].v) / Math.abs(peaks[2].v));
       const zeta = delta / Math.sqrt(4 * Math.PI * Math.PI + delta * delta);
       return `Roll period ${period.toFixed(1)} s; damping ${(zeta * 100).toFixed(0)} % of critical (from the peaks: ${peaks.slice(0, 4).map((p) => `${Math.abs(p.v).toFixed(1)}°`).join(', ')})`;

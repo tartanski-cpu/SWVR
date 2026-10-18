@@ -22,11 +22,16 @@ describe('live sea trials', () => {
     expect(t.result()).toMatch(/Heave period/);
   });
 
-  it('the roll decay reads her roll period as the trial does', () => {
+  it('the roll from 45°: she comes back upright, at about her small-angle roll period', () => {
     const t = run(new LiveTrial('roll'));
+    expect(t.samples[0].heelDeg).toBeCloseTo(45, 0);
+    expect(Math.abs(t.samples[t.samples.length - 1].heelDeg)).toBeLessThan(1);
     const m = /Roll period ([\d.]+) s/.exec(t.result() ?? '');
     expect(m).not.toBeNull();
-    expect(Number(m![1])).toBeCloseTo(runMotionTrials('design').rollPeriod, 0);
+    // A large roll swings a little slower than a small one; within a second of it.
+    expect(Math.abs(Number(m![1]) - runMotionTrials('design').rollPeriod)).toBeLessThan(1);
+    // The physics' own readings, as the game's debug overlay shows them.
+    expect(t.debug.get(t.v.id)?.stations.length).toBeGreaterThan(5);
   });
 
   it('the inclining experiment finds her GM near her figure', () => {

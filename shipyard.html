@@ -161,6 +161,7 @@
       #liveNow { margin-top: 4px; font-variant-numeric: tabular-nums; }
       #liveResult { margin-top: 2px; font-size: 13px; color: var(--ok-ink); }
       #liveResult:empty { display: none; }
+      #livePanel .liveKey { margin-top: 4px; font-size: 11px; }
       #view.paperMode > :not(#briefPaper):not(#tabs) { visibility: hidden; }
       .paper { position: relative; max-width: 640px; margin: 0 auto; background: #f5f0e3; color: #1d2430; padding: 34px 44px 40px; box-shadow: 0 10px 30px rgba(0,0,0,0.55); font: 14px/1.45 "Courier New", Courier, monospace; }
       .paper .letterhead { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; border-bottom: 2px solid #1d2430; padding-bottom: 6px; font-family: Georgia, "Times New Roman", serif; }
@@ -410,10 +411,11 @@
       <div id="briefPaper" hidden></div>
       <div id="livePanel" hidden>
         <div class="liveHead"><b>Live trials</b><span class="meta">the game’s physics, on her as designed, in calm water</span></div>
-        <div class="liveBtns"><button data-live="drop">Drop her from 4 m</button><button data-live="roll">Roll from 10°</button><button data-live="incline">Inclining experiment</button><button id="liveStop">Stop</button></div>
+        <div class="liveBtns"><button data-live="drop">Drop her</button><button data-live="roll">Roll</button><button data-live="incline">Inclining experiment</button><button id="liveStop">Stop</button></div>
         <canvas id="liveChart" width="520" height="110"></canvas>
         <div id="liveNow" class="meta"></div>
         <div id="liveResult"></div>
+        <div class="meta liveKey">Physics debug, as in the game: <span style="color:#66ccff">blue</span> the slices of her hull the physics floats, <span style="color:#ffe14d">yellow</span> the buoyancy on each (10 kN to a metre), <span style="color:#ff5050">red</span> her centre of gravity.</div>
       </div>
       <div id="pinEditor" hidden>
         <select id="pinGear" title="Equipment wanted here: placed for you at the Deck gear step"></select>

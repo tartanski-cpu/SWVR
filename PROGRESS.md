@@ -3865,6 +3865,36 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Checked in headless Chromium:** a pilot boat with a 3 m, 1.2 m high, full-width, 30°-raked deckhouse, and set in with 0.5 m side decks, upright: views from the bow, stern and port; the wheelhouse on top, the steps up aft, no warnings. Found and fixed on the way: its faces wound inside out (invisible from outside), and its foot showing through her topsides at the bow. **Not checked:** the Quest, a phone, walking up the steps into a raised helm in the game.
 - **Next, for bigger boats (tugs), noted:** the deckhouse top walkable with rails and a ladder or stairs (the walk area's floors and ladders already do this for the workboat's roof), and an interior with a door into it.
 
+### Shipyard: protection at Hull, machinery that fits, harder live trials with the physics debug (owner)
+
+- **The owner** (after trying the last round):
+  - At the Hull step the protection (strake, tyres, fenders) didn't show, though it did at Wheelhouse.
+  - The engines stood too high, through the wheelhouse; the propeller and rudder sat inside the hull. Engines go low in a boat; check they fit. That gives a reason for more depth: the big diesel shouldn't fit a hull at its least depth.
+  - Trials: roll from 45°; a bigger inclining weight; show the game's physics debug in all three.
+- **Hull protection at Hull** (`page.ts guardView`, `PROTECTION`): the protection modules (`hull.guard`, `hull.push-fender`, `deck.fenders`) are built apart from the rest. In the game every module's fixed parts are baked into one mesh, which the Hull step hid with the console and the rest. Now they show at Hull and the later steps, and hide over the ghost hull (Wheelhouse, Engine).
+- **The machinery in her hull** (`shipyard/machinery.ts`, read off her stations' sections):
+  - **The engine** sits as low as her bottom allows: its lower part (65 % of its width) is `CLEAR` (0.2 m: plating, floors, bearers) over the bottom all along its length. A V bottom puts a wide engine higher, and twin engines set out from the keel higher still.
+  - **The propeller** hangs under her bottom, its tip 15 % of its diameter clear of the plating over it (`TIP_SHARE`).
+  - **The rudder** runs from the bottom down to the propeller's lower tip.
+  - **Sizes:** each engine's size (length with gearbox, width, height) is now in `build.ts ENGINES size`: 150 kW six 1.47 × 0.62 × 0.78 m; 280 kW V8 1.32 × 0.86 × 0.8; 400 kW V8 1.52 × 0.96 × 0.9; tug diesel 2.65 × 0.95 × 1.35. The Shipyard's model is scaled to exactly that size (`enginePreview.ts`), so what's drawn is what's checked.
+  - **The fit check** (`build.ts`, `fitEngine`): the engine's top must be under the cabin floor (3 cm clear). If not:
+    - her warnings say "doesn't fit … N cm too tall" and what to do;
+    - `figures.engineShortM` says by how much, and the brief gets a failing line "Engine fits under the floor" (`brief.ts`, `Measured.engineShortM`) pointing to Hull;
+    - the model shows red with "Too tall by N cm".
+  - **Results:** every hull type as it comes fits its engines. The tug diesel doesn't fit the landing craft (39 cm short at default depth) or the gillnetter as designed, and only the deeper hulls take it. With the floor at its lowest and the hull at minimum depth, even the small engines don't fit the landing craft.
+  - **What stays the same:** the propeller's position in the physics (`build.ts propPos`) is unchanged; only the drawing places it under the bottom. The game's handling and the trials' numbers don't change.
+- **Live trials:**
+  - **Roll** from `rollDeg` 45° (was 10°), for 30 s. It says so if she doesn't come back (lying past 30° at the end).
+  - **Inclining weight** of `inclineShare` 6 % of her displacement (was 2 %), moved `inclineBeamShare` 0.45 of her beam (was 0.4): about 4° of heel on a 1 m GM boat, still within the small-angle formula.
+  - **The game's physics debug** (`debug/hydroDebugView.ts`, the game's own overlay) on her model while a test runs: the hull slices the physics floats (blue), the buoyancy on each (yellow arrows, 10 kN to a metre), her centre of gravity (red). The readings add what the water holds up against her weight, as the game's debug readout does. `LiveTrial.debug` collects the physics' readings each step.
+- **Checked:**
+  - Typecheck and tests:
+    - `tests/shipyard/enginePreview.test.ts`: the engine sits on the bottom at its size, the propeller tip under the bottom, the rudder from the bottom; the tug diesel is too tall for a shallow hull; twin engines on a V bottom sit higher.
+    - `tests/shipyard/build.test.ts`: each hull type as it comes fits its engines; the tug fits the tug diesel, the landing craft doesn't; only the fit warning for the tug diesel on hulls too shallow for it.
+    - `tests/shipyard/liveTrial.test.ts`: back upright from 45° at about her roll period; the physics' readings collected.
+  - Headless screenshots: the strake and tyres at Hull; the engines from the side (the 280 kW V8 low in the landing craft; the tug diesel red through her floor); the roll from 45° with the debug overlay; the inclining weight (0.38 t over 1.26 m, heel 4.09°, GM 1.06 m against her 1.02 m).
+- **Not checked:** a phone; the Quest browser.
+
 ### Shipyard: live sea trials at the Trials step (owner)
 
 - **The owner:** the final step should run a little dynamic sea trial on the page: the game's Drop test and the inclining experiment, run live so you see how the hull behaves.

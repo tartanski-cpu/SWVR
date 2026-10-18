@@ -31,6 +31,8 @@ import { VESSEL_DEFS } from '../vessel/vesselDef';
 import { isPlaneSheet, PLANES, PlaneInk, planeAt, planeFacing, planeSheet, toPlane, type PlaneName } from './planeSketch';
 import { buildMachinery } from './enginePreview';
 import { LiveTrial, type LiveSample, type LiveTest } from './liveTrial';
+import { flatVertexColorMaterial, mergeParts } from '../render/geometryUtils';
+import { HydroDebugView } from '../debug/hydroDebugView';
 import { briefPaper } from './briefPaper';
 import { buildVesselMesh, buildVesselMeshParts } from '../vessel/view/hullMesh';
 import { DESIGN_HULLS, ENGINES, LIVERIES, ROOF_PAINTS, type DesignedBoat } from './build';
@@ -197,14 +199,22 @@ function drawBoat(): void {
   const parts = buildVesselMeshParts(def.hull, def.layout, def.exhaust?.position, def.livery);
   root.add(parts.hull);
   if (parts.house) root.add(parts.house);
-  const modules = assembleView(RECIPES.design, def, LIBRARY);
+  // Her hull protection (strake, tyres, push fender, the fender basket) apart from the rest
+  // of her modules: it belongs with the hull (owner: shown at the Hull step). The game bakes
+  // it in with the rest.
+  const recipe = RECIPES.design;
+  const isGuard = (m: { module: string }) => PROTECTION.has(m.module);
+  const modules = assembleView({ ...recipe, modules: recipe.modules.filter((m) => !isGuard(m)) }, def, LIBRARY);
   const modulesRoot = new BoatView('design', def, modules, true).root;
   root.add(modulesRoot);
+  // (Without her interlocks: they're between the controls of the rest.)
+  const guard = guardView({ ...recipe, modules: recipe.modules.filter(isGuard), interlocks: [] }, def);
+  root.add(guard);
   addSkiff(root);
   const machinery = addMachinery(root);
   scene.add(root);
   boatRoot = root;
-  shown = { hull: parts.hull, house: parts.house, modules: modulesRoot, skiff: root.children.find((c) => c.name === 'skiff') ?? null, machinery };
+  shown = { hull: parts.hull, house: parts.house, modules: modulesRoot, guard, skiff: root.children.find((c) => c.name === 'skiff') ?? null, machinery };
   focusStep();
   // A different engine (or one more) at the Engine step: look at it afresh.
   const fit = `${design.engine}:${design.twin}`;
@@ -230,6 +240,19 @@ function addSkiff(root: THREE.Group): void {
   mesh.name = 'skiff';
   root.add(mesh);
 }
+/** The modules that protect her hull (build.ts: hull protection, the push fender, the fender basket). */
+const PROTECTION = new Set(['hull.guard', 'hull.push-fender', 'deck.fenders']);
+/** Her protection modules on their own: their parts and any fixed geometry, as the game draws them. */
+function guardView(recipe: typeof RECIPES.design, def: (typeof VESSEL_DEFS)['design']): THREE.Group {
+  const g = new THREE.Group();
+  g.name = 'guard';
+  if (!recipe.modules.length) return g;
+  const built = assembleView(recipe, def, LIBRARY);
+  for (const m of built.modules) g.add(m.root);
+  if (built.staticParts.length) g.add(new THREE.Mesh(mergeParts(built.staticParts), flatVertexColorMaterial()));
+  for (const m of built.shared) g.add(m);
+  return g;
+}
 /**
  * Her engines, shafts, propellers and rudders (enginePreview.ts), for the Engine step only:
  * where her design puts them, the propeller at the diameter it's given. (The game doesn't
@@ -244,13 +267,15 @@ function addMachinery(root: THREE.Group): THREE.Group | null {
   if (!bed || !prop || !rudder) return null;
   const twin = !!design.twin && !SINGLE_ONLY_ENGINES.includes(design.engine);
   const propD = boat.figures.propellerM;
-  const g = buildMachinery({ engine: design.engine, twin, bed: bed as [number, number, number], twinX: engine?.twin?.x ?? 0, propD, prop, rudder });
+  // (The engine bed is 0.35 m under the cabin floor: build.ts.)
+  const { group: g, fit } = buildMachinery({ engine: design.engine, twin, form: VESSEL_DEFS.design.hull, bed: bed as [number, number, number], floorY: bed[1] + 0.35, twinX: engine?.twin?.x ?? 0, propD, prop, rudder });
   g.name = 'machinery';
   const name = ENGINES[design.engine].name.split(' (')[0];
-  const tag = nameTag(twin ? `2 × ${name}` : name, '#2f6aa8');
-  tag.position.set(0, bed[1] + 1.1, bed[2]);
+  const tag = nameTag(fit.fits ? (twin ? `2 × ${name}` : name) : `Too tall by ${Math.round(fit.shortM * 100)} cm`, fit.fits ? '#2f6aa8' : '#b23a2c');
+  tag.position.set(0, fit.topY + 0.45, bed[2]);
+  const lowest = Math.min(...g.children.filter((c) => c.name === 'propeller').map((c) => c.position.y));
   const ptag = nameTag(`Propeller ⌀ ${propD.toFixed(2)} m${twin ? ' (two)' : ''}`, '#8a5a1c');
-  ptag.position.set(0, prop[1] - propD / 2 - 0.35, prop[2]);
+  ptag.position.set(0, lowest - propD / 2 - 0.35, prop[2]);
   g.add(tag, ptag);
   root.add(g);
   return g;
@@ -267,7 +292,7 @@ function hullBox(root: THREE.Object3D): THREE.Box3 {
 
 // ── Each step's view (owner, Oct 2026): the part being worked on, the rest out of the way ──
 /** Her parts as drawn: hull, house, the modules (equipment, controls, lights), the skiff. */
-let shown: { hull: THREE.Mesh; house: THREE.Mesh | null; modules: THREE.Object3D; skiff: THREE.Object3D | null; machinery: THREE.Object3D | null } | null = null;
+let shown: { hull: THREE.Mesh; house: THREE.Mesh | null; modules: THREE.Object3D; guard: THREE.Object3D; skiff: THREE.Object3D | null; machinery: THREE.Object3D | null } | null = null;
 /** A ghost: faint glass with her edges drawn, enough to see where her sides and deck are. */
 const ghostFill = new THREE.MeshBasicMaterial({ color: 0x9cc3dc, transparent: true, opacity: 0.08, depthWrite: false });
 const ghostEdge = new THREE.LineBasicMaterial({ color: 0xa9cfe6, transparent: true, opacity: 0.35, depthWrite: false });
@@ -294,6 +319,11 @@ function look3(m: THREE.Mesh | null, how: 'solid' | 'ghost' | 'off'): void {
 let live: LiveTrial | null = null;
 /** The inclining weight, on her deck while that test runs. */
 let liveWeight: THREE.Mesh | null = null;
+/** The game's physics debug overlay (buoyancy by station, her CG) on her while a test runs. */
+let liveHydro: HydroDebugView | null = null;
+// The buttons say what each test does (from the config).
+document.querySelector<HTMLElement>('[data-live=drop]')!.textContent = `Drop her from ${CONFIG.shipyard.live.dropM} m`;
+document.querySelector<HTMLElement>('[data-live=roll]')!.textContent = `Roll from ${CONFIG.shipyard.live.rollDeg}°`;
 function startLive(test: LiveTest): void {
   stopLive();
   live = new LiveTrial(test);
@@ -315,12 +345,18 @@ function startLive(test: LiveTest): void {
   if (test === 'drop') look([1.5 * L, 0.55 * L, 1.1 * L], [0, 1.6, 0]);
   else if (test === 'incline') look([0, 0.45 * L, 1.7 * L], [0, 0.6, 0]); // over the weight on deck
   else setView('Stern');
+  if (boatRoot) {
+    liveHydro = new HydroDebugView(VESSEL_DEFS.design, true);
+    boatRoot.add(liveHydro.root);
+  }
   $('liveResult').textContent = '';
 }
 function stopLive(): void {
   live = null;
   liveWeight?.removeFromParent();
   liveWeight = null;
+  liveHydro?.root.removeFromParent();
+  liveHydro = null;
   document.querySelectorAll<HTMLElement>('[data-live]').forEach((b) => b.classList.remove('on'));
   if (boatRoot) {
     boatRoot.position.set(0, 0, 0);
@@ -338,8 +374,12 @@ function stepLive(dt: number): void {
     const [y, z] = liveWeight.userData.at as [number, number];
     liveWeight.position.set(live.shift * live.shiftM, y, z);
   }
+  const hydro = live.debug.get(v.id);
+  liveHydro?.update(hydro);
   const s = live.samples[live.samples.length - 1];
-  $('liveNow').textContent = `${s.t.toFixed(1)} s · heel ${s.heelDeg.toFixed(1)}° · trim ${s.trimDeg.toFixed(1)}° · heave ${s.heaveM >= 0 ? '+' : ''}${s.heaveM.toFixed(2)} m${live.done ? ' · done' : ''}`;
+  // Immersed: what the water holds up (as the game's debug readout), against her weight.
+  const immersed = ((hydro?.submergedVolume ?? 0) * CONFIG.ocean.density) / 1000;
+  $('liveNow').textContent = `${s.t.toFixed(1)} s · heel ${s.heelDeg.toFixed(1)}° · trim ${s.trimDeg.toFixed(1)}° · heave ${s.heaveM >= 0 ? '+' : ''}${s.heaveM.toFixed(2)} m · immersed ${immersed.toFixed(1)} t of ${(VESSEL_DEFS.design.mass / 1000).toFixed(1)} t${live.done ? ' · done' : ''}`;
   $('liveResult').textContent = live.result() ?? '';
   drawLiveChart(live);
   if (live.done) document.querySelectorAll<HTMLElement>('[data-live]').forEach((b) => b.classList.remove('on'));
@@ -399,7 +439,9 @@ function focusStep(): void {
   $('view').classList.toggle('paperMode', step === 'brief');
   $('briefPaper').hidden = step !== 'brief';
   if (!shown) return;
-  const { hull, house, modules, skiff, machinery } = shown;
+  const { hull, house, modules, guard, skiff, machinery } = shown;
+  // Her protection goes with the hull: shown with it solid, not over a ghost of it.
+  guard.visible = step !== 'wheelhouse' && step !== 'engine';
   if (machinery) machinery.visible = step === 'engine';
   // The live trials: at the Trials step only (leaving it stops one).
   $('livePanel').hidden = step !== 'handover';
@@ -1773,6 +1815,7 @@ function measured() {
     pots: room.pots,
     payloadKg: room.payloadKg,
     has: (kind: GearKind) => !!gearOf({ defId: 'design' }, kind),
+    engineShortM: boat.figures.engineShortM,
   };
 }
 /** True if she meets every line of the brief, false if not, null while her trial runs (or there's no brief). */

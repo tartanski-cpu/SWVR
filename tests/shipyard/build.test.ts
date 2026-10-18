@@ -31,8 +31,20 @@ describe('Shipyard: the boats it builds', () => {
         expect(Math.abs(h.lcgMinusLcb), `${hull}/${engine} trim`).toBeLessThan(0.02);
         expect(h.gmt, `${hull}/${engine} GM`).toBeGreaterThan(0.5);
         expect(gearOf({ defId: 'design' }, 'diesel')!.engine.powerKw).toBe(ENGINES[engine].kw);
-        expect(boat.warnings, `${hull}/${engine}`).toEqual([]);
+        // The tall tug diesel doesn't fit under a shallow hull's floor (machinery.ts): said so,
+        // and nothing else. (It fits the tug, below.)
+        if (engine === 3) expect(boat.warnings.filter((w) => !w.startsWith('The 450 kW slow-revving tug diesel doesn’t fit') && !w.startsWith("The 450 kW slow-revving tug diesel doesn't fit")), `${hull}/${engine}`).toEqual([]);
+        else expect(boat.warnings, `${hull}/${engine}`).toEqual([]);
       }
+  });
+
+  it('every hull type as it comes has room for its engines', () => {
+    for (const [hull, t] of DESIGN_HULLS.entries()) expect(useDesign({ ...DEFAULT_DESIGN, ...t.defaults, hull }).figures.engineShortM, t.name).toBe(0);
+  });
+
+  it('the tug diesel fits the small tug as she comes, not the landing craft', () => {
+    expect(useDesign({ ...DEFAULT_DESIGN, ...DESIGN_HULLS[4].defaults, hull: 4 }).figures.engineShortM).toBe(0);
+    expect(useDesign({ ...DEFAULT_DESIGN, ...DESIGN_HULLS[0].defaults, hull: 0, engine: 3 }).figures.engineShortM).toBeGreaterThan(0.2);
   });
 
   it('the slider ends build too (every choice at its least and its most), each hull', () => {

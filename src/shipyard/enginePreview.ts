@@ -15,15 +15,22 @@
  * Sizes are in metres, about right for each engine's power and weight (build.ts ENGINES).
  */
 import * as THREE from 'three';
+import type { HullForm } from '../vessel/hullForm';
+import { ENGINES } from './build';
+import { bottomAt, fitEngine, propellerY, twinEngineX, type EngineFit } from './machinery';
 
 type V3 = readonly [number, number, number];
 
-/** Each engine type's look: its size (length along her, width, height), block colour, and build. */
+/**
+ * Each engine type's look: its build and block colour. Its size is the engine's own
+ * (build.ts ENGINES `size`): the model is scaled to exactly that, so what's drawn is what's
+ * checked for fit (machinery.ts).
+ */
 export const ENGINE_LOOKS = [
-  { kind: 'six', size: [1.15, 0.62, 0.78], block: 0x5a84a6 },
-  { kind: 'v8', size: [1.0, 0.86, 0.8], block: 0xa8483e },
-  { kind: 'v8', size: [1.2, 0.96, 0.9], block: 0x7d8792 },
-  { kind: 'bigSix', size: [2.1, 0.95, 1.35], block: 0x4f8a6c },
+  { kind: 'six', block: 0x5a84a6 },
+  { kind: 'v8', block: 0xa8483e },
+  { kind: 'v8', block: 0x7d8792 },
+  { kind: 'bigSix', block: 0x4f8a6c },
 ] as const;
 
 /** What to draw (from her design: build.ts puts the engine bed, propeller and rudder). */
@@ -32,8 +39,11 @@ export interface Machinery {
   engine: number;
   /** Two engines, side by side, each with its own shaft, propeller and rudder. */
   twin: boolean;
-  /** The engine bed (boat axes, m): under the cabin floor. */
+  /** Her hull (its stations: where her bottom is, machinery.ts). */
+  form: Pick<HullForm, 'stations'>;
+  /** The engine bed (boat axes, m) and the cabin floor's height over it. */
   bed: V3;
+  floorY: number;
   /** Twin propellers' distance off the centreline (m). */
   twinX: number;
   /** The propeller's diameter (m) and centre; the rudder's stock. */
@@ -72,9 +82,11 @@ function drum(g: THREE.Group, r: number, l: number, x: number, y: number, z: num
  */
 export function buildEngine(type: number): { group: THREE.Group; length: number; height: number } {
   const look = ENGINE_LOOKS[type] ?? ENGINE_LOOKS[0];
-  const [L, W, H] = look.size;
+  const [L0, W, H] = ENGINES[type]?.size ?? ENGINES[0].size;
+  const gearShare = look.kind === 'bigSix' ? 0.55 : 0.32;
+  const L = L0 - gearShare;
   const g = new THREE.Group();
-  const gearL = look.kind === 'bigSix' ? 0.55 : 0.32;
+  const gearL = gearShare;
   // Everything forward of the gearbox: z from -(gearL + L) to -gearL; the crank at y = 0.
   const zMid = -gearL - L / 2;
   const crankY = H * 0.12;
@@ -153,25 +165,38 @@ export function buildPropeller(d: number): THREE.Group {
   return g;
 }
 
-/** Her machinery (one or two of everything) for the Engine step's view. */
-export function buildMachinery(m: Machinery): THREE.Group {
+/**
+ * Her machinery (one or two of everything) for the Engine step's view, placed as machinery.ts
+ * places it: each engine as low as her bottom allows (shown red-tinted if it stands up
+ * through the cabin floor), each propeller hung under her bottom, a rudder from her bottom
+ * down behind it.
+ */
+export function buildMachinery(m: Machinery): { group: THREE.Group; fit: EngineFit } {
   const out = new THREE.Group();
+  const size = ENGINES[m.engine]?.size ?? ENGINES[0].size;
   const xs = m.twin ? [-1, 1] : [0];
-  const one = buildEngine(m.engine);
-  // Side by side, a little closer together than the propellers (they sit inside her hull).
-  const engineX = m.twin ? Math.max(0.45, Math.min(m.twinX * 0.8, m.twinX - 0.1)) : 0;
-  // Its top just under the cabin floor (the bed is 0.35 m under it).
-  const flangeY = m.bed[1] + 0.3 - one.height * 0.7;
-  const flangeZ = m.bed[2] + one.length / 2;
+  const engineX = m.twin ? twinEngineX(m.twinX, size[1]) : 0;
+  const fit = fitEngine(m.form, size, engineX, m.bed[2], m.floorY);
   for (const s of xs) {
-    const e = s === xs[0] ? one.group : buildEngine(m.engine).group;
-    const from = new THREE.Vector3(s * engineX, flangeY, flangeZ);
-    e.position.copy(from);
-    out.add(e);
-    // The shaft from the gearbox to the propeller, and the propeller on it.
-    const to = new THREE.Vector3(s * (m.twin ? m.twinX : 0), m.prop[1], m.prop[2]);
-    const len = from.distanceTo(to);
-    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, len, 10), mat(STEEL, 0.7));
+    const e = buildEngine(m.engine).group;
+    // Scaled to exactly its size, its underside where the fit puts it, centred on the bed.
+    const bb = new THREE.Box3().setFromObject(e);
+    const got = bb.getSize(new THREE.Vector3());
+    const holder = new THREE.Group();
+    holder.scale.set(size[1] / got.x, size[2] / got.y, size[0] / got.z);
+    holder.add(e);
+    const c = bb.getCenter(new THREE.Vector3());
+    holder.position.set(s * engineX - c.x * holder.scale.x, fit.bottomY - bb.min.y * holder.scale.y, m.bed[2] - c.z * holder.scale.z);
+    if (!fit.fits) e.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (mesh.isMesh) mesh.material = TOO_TALL;
+    });
+    out.add(holder);
+    // The shaft from the gearbox's flange (the engine's origin) to the propeller, out through her bottom.
+    const from = holder.position.clone();
+    const px = s * (m.twin ? m.twinX : 0);
+    const to = new THREE.Vector3(px, propellerY(m.form, px, m.prop[2], m.propD), m.prop[2]);
+    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, from.distanceTo(to), 10), mat(STEEL, 0.7));
     shaft.position.copy(from).add(to).multiplyScalar(0.5);
     shaft.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), to.clone().sub(from).normalize());
     out.add(shaft);
@@ -179,9 +204,15 @@ export function buildMachinery(m: Machinery): THREE.Group {
     prop.position.copy(to);
     prop.name = 'propeller';
     out.add(prop);
-    // The rudder behind it: a plate about as tall as the propeller.
-    const rh = m.propD * 0.9;
-    box(out, 0.04, rh, Math.max(0.25, m.propD * 0.45), s * (m.twin ? m.twinX : 0), m.rudder[1] + rh / 2 - m.propD * 0.35, m.rudder[2] + 0.05, 0x5d646b);
+    // The rudder: from her bottom over it down to the propeller's lower tip.
+    const top = bottomAt(m.form, px, m.rudder[2]);
+    const foot = to.y - m.propD / 2;
+    const rh = Math.max(0.2, top - foot);
+    const rudder = box(out, 0.04, rh, Math.max(0.25, m.propD * 0.45), px, top - rh / 2, m.rudder[2] + 0.05, 0x5d646b);
+    rudder.name = 'rudder';
   }
-  return out;
+  return { group: out, fit };
 }
+
+/** An engine that doesn't fit: tinted red. */
+const TOO_TALL = new THREE.MeshStandardMaterial({ color: 0xd04a3a, roughness: 0.6, transparent: true, opacity: 0.85 });

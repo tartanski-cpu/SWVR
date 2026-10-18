@@ -20,6 +20,7 @@
  * Anything doubtful (a cabin too narrow for the console, too little stability) comes back as
  * a plain-language warning; the page shows them, the game builds her anyway.
  */
+import { fitEngine, twinEngineX } from './machinery';
 import { CONFIG } from '../config';
 import landingCraftRecipe from '../boats/landingCraft.json';
 import { DESIGNS } from '../hulls/designs';
@@ -249,13 +250,16 @@ export const DESIGN_HULLS: DesignHull[] = [
  *              suit) turn a bigger, slower propeller: it throws more water slower, which pulls
  *              harder for the same power, what a tug wants (see `propD` in buildDesign).
  *   pricePerKw  GBP per kW (a slow, heavy engine costs more for its power).
+ *   size       its length (with the gearbox), width and height (m), about right for its power
+ *              and weight: what has to fit under the cabin floor (machinery.ts) and what the
+ *              Shipyard draws (enginePreview.ts). The tug diesel is tall: it wants a deep hull.
  *   about      what the Engine step says about it, if more than its weight.
  */
 export const ENGINES = [
-  { name: '150 kW diesel (straight six)', kw: 150, kg: 600, voice: 'inlineSix' as const, rackRise: 1.2, ratedRpm: 1800, propMaxM: 1.05, pricePerKw: 120 },
-  { name: '280 kW turbo diesel (V8)', kw: 280, kg: 800, voice: 'v8' as const, rackRise: 2.0, ratedRpm: 1800, propMaxM: 1.05, pricePerKw: 120 },
-  { name: '400 kW turbo diesel (V8)', kw: 400, kg: 1100, voice: 'v8' as const, rackRise: 2.0, ratedRpm: 1800, propMaxM: 1.05, pricePerKw: 120 },
-  { name: '450 kW slow-revving tug diesel (big straight six, 1000 rpm; single only)', kw: 450, kg: 2200, voice: 'inlineSix' as const, rackRise: 1.0, ratedRpm: 1000, propMaxM: 1.4, pricePerKw: 170, about: 'Slow-revving and heavy, for towing: more torque, turning a bigger propeller, so a harder pull for its power. Slower to answer the throttle.' },
+  { name: '150 kW diesel (straight six)', kw: 150, kg: 600, voice: 'inlineSix' as const, rackRise: 1.2, ratedRpm: 1800, propMaxM: 1.05, pricePerKw: 120, size: [1.47, 0.62, 0.78] as const },
+  { name: '280 kW turbo diesel (V8)', kw: 280, kg: 800, voice: 'v8' as const, rackRise: 2.0, ratedRpm: 1800, propMaxM: 1.05, pricePerKw: 120, size: [1.32, 0.86, 0.8] as const },
+  { name: '400 kW turbo diesel (V8)', kw: 400, kg: 1100, voice: 'v8' as const, rackRise: 2.0, ratedRpm: 1800, propMaxM: 1.05, pricePerKw: 120, size: [1.52, 0.96, 0.9] as const },
+  { name: '450 kW slow-revving tug diesel (big straight six, 1000 rpm; single only)', kw: 450, kg: 2200, voice: 'inlineSix' as const, rackRise: 1.0, ratedRpm: 1000, propMaxM: 1.4, pricePerKw: 170, size: [2.65, 0.95, 1.35] as const, about: 'Slow-revving and heavy, for towing: more torque, turning a bigger propeller, so a harder pull for its power. Slower to answer the throttle.' },
 ];
 
 /** Paints: the hull mesh's colours (vessel/view/hullMesh.ts); `{}` is the workboat's own. */
@@ -290,7 +294,8 @@ export interface DesignedBoat {
   hull: HullDefinition;
   recipe: Recipe;
   /** floorM: the cabin floor about the deck under the house (as built: a fine hull can bring a low one up). */
-  figures: { lengthM: number; beamM: number; massT: number; draughtM: number; gmM: number; propellerM: number; gear: number; engine: string; price: number; floorM: number; floorOnDeckhouseM?: number };
+  /** engineShortM: how far her engine stands above the cabin floor (0: it fits; machinery.ts). */
+  figures: { lengthM: number; beamM: number; massT: number; draughtM: number; gmM: number; propellerM: number; engineShortM: number; gear: number; engine: string; price: number; floorM: number; floorOnDeckhouseM?: number };
   warnings: string[];
   /**
    * Where the gear placed by hand stands (boat axes, m), whether it had to move off its
@@ -657,6 +662,11 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   // revs fall): the 1000 rpm tug engine up to 1.4 m, as her draught allows (ENGINES propMaxM).
   const twinX = Math.round(0.28 * 2 * Math.max(...st.map((s) => s.halfBeamDeck)) * 100) / 100;
   const propD = Math.round(Math.max(0.45, Math.min(1.25 * draughtAft, 0.45 + (0.0015 * kw) / rs, eng.propMaxM, twin ? 2 * twinX - 0.15 : 9)) * 100) / 100;
+  // Does the engine fit under the cabin floor (machinery.ts)? Sat as low as her bottom
+  // allows at the hatch, its top must be under the floor: a tall engine in a shallow hull
+  // doesn't fit, which is a reason for more depth (owner).
+  const engineFit = fitEngine(shape, eng.size, twin ? twinEngineX(twinX, eng.size[1]) : 0, hatchZ, floorY);
+  if (!engineFit.fits) warnings.push(`The ${eng.name.split(' (')[0]} doesn't fit under the cabin floor: it stands ${(engineFit.shortM * 100).toFixed(0)} cm too tall. Give her more depth (Hull), raise the floor (Wheelhouse), or fit a smaller engine.`);
   const gear = Math.round(SCALES.gear(d.gear) * 100) / 100;
   const propPos: V3 = [0, keelAft + 0.1, transom - 0.65];
   const rudderPos: V3 = [0, keelAft + 0.15, transom - 0.25];
@@ -1427,7 +1437,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   return {
     hull,
     recipe,
-    figures: { lengthM, beamM: beamDeck, massT: mass / 1000, draughtM: -Math.min(...st.map((s) => s.polygon[2][1])), gmM: gm, propellerM: propD, gear, engine: twin ? `Twin ${eng.name}` : eng.name, price, floorM: Math.round((floorY - level) * 100) / 100, floorOnDeckhouseM: deckhouse ? Math.round((floorY - onTop) * 100) / 100 : undefined },
+    figures: { lengthM, beamM: beamDeck, massT: mass / 1000, draughtM: -Math.min(...st.map((s) => s.polygon[2][1])), gmM: gm, propellerM: propD, engineShortM: engineFit.shortM, gear, engine: twin ? `Twin ${eng.name}` : eng.name, price, floorM: Math.round((floorY - level) * 100) / 100, floorOnDeckhouseM: deckhouse ? Math.round((floorY - onTop) * 100) / 100 : undefined },
     warnings,
     placed,
   };

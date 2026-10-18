@@ -2124,13 +2124,16 @@ export const CONFIG = {
      * hull behaves). Calm deep water; she settles for `settleS` first.
      *   drop      lifted `dropM` above her rest, heeled `dropHeelDeg` and trimmed
      *             `dropTrimDeg` (bow down), as the game's Drop test, and let go;
-     *   roll      heeled `rollDeg` and let go (the free roll decay);
+     *   roll      heeled `rollDeg` and let go (owner: from 45°, a hard test: her deck edge
+     *             well under, the righting arm beyond its small-angle range);
      *   incline   a weight of `inclineShare` of her displacement moved `inclineBeamShare`
      *             of her beam across, starting `inclineStartS` in, over `inclineMoveS` s;
-     *             GM from the steady heel (2 % moved 0.4 B heels a 1 m GM boat ~2-3°).
+     *             GM from the steady heel (owner: a bigger weight than a real test's, so the
+     *             heel shows: 6 % moved 0.45 B heels a 1 m GM boat ~4°, still small enough for
+     *             the small-angle formula).
      * `seconds`: how long each runs.
      */
-    live: { settleS: 10, dropM: 4, dropHeelDeg: 6, dropTrimDeg: -3, rollDeg: 10, inclineShare: 0.02, inclineBeamShare: 0.4, inclineStartS: 1, inclineMoveS: 3, seconds: { drop: 20, roll: 25, incline: 14 } },
+    live: { settleS: 10, dropM: 4, dropHeelDeg: 6, dropTrimDeg: -3, rollDeg: 45, inclineShare: 0.06, inclineBeamShare: 0.45, inclineStartS: 1, inclineMoveS: 3, seconds: { drop: 20, roll: 30, incline: 14 } },
     /**
      * The working deck gear a design can carry (shipyard/build.ts; owner, version 10), where
      * it goes and what it adds to her price (GBP):

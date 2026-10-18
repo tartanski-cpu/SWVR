@@ -189,6 +189,8 @@ export interface Measured {
   payloadKg: number;
   /** Has she this gear (boats/sims.ts `gearOf`)? */
   has: (kind: GearKind) => boolean;
+  /** How far her engine stands above the cabin floor (m; 0 or absent: it fits). */
+  engineShortM?: number;
 }
 
 /** Check the design against the brief, line by line (targets of 0 aren't checked). */
@@ -213,6 +215,10 @@ export function checkBrief(brief: Brief, m: Measured): Check[] {
   }
   if (brief.crane) {
     out.push({ label: 'Deck crane', target: 'wanted', value: m.crane ? 'fitted' : 'none', ok: m.crane, fix: m.crane ? null : { step: 'deck gear', hint: 'Pin one on her foredeck or aft deck (Deck gear).' } });
+  }
+  // Not a target but a must: her engine has to fit in her (machinery.ts).
+  if ((m.engineShortM ?? 0) > 0) {
+    out.push({ label: 'Engine fits under the floor', target: 'must', value: `${Math.round(m.engineShortM! * 100)} cm too tall`, ok: false, fix: { step: 'hull', hint: 'More depth (Hull), a raised cabin floor (Wheelhouse), or a smaller engine (Engine).' } });
   }
   const room = 'More deck: “Size her for the brief’s deck cargo” (Hull) makes her longer and beamier until it fits; or a shorter house (Wheelhouse), or gear off the open deck (Deck gear).';
   for (const id of brief.jobs) {
