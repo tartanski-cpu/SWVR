@@ -2099,6 +2099,12 @@ export const CONFIG = {
       sideDoor: { width: 0.75, fromConsole: 0.35, buttonHeight: 1.1, sideDeck: 0.5 },
       ringFromCorner: 0.4,
       anchor: { fromStem: 0.35, fromSide: 0.45, kedgeAft: 0.4 },
+      /**
+       * With a skiff (owner): a pair of midship cleats for her painter, one on each bulwark top,
+       * this far (m) off the house's end on the skiff's deck (the workboat's are just aft of
+       * her wheelhouse), and at least `fromEnds` (m) inside the mooring cleats.
+       */
+      midCleats: { fromHouse: 0.4, fromEnds: 0.6 },
       price: { towWinch: 12_000, sternRoller: 2_000, aFrame: 18_000, lifeRing: 600, sideDoor: 3_000, anchor: 3_500, skiff: 38_000 },
     },
     /**

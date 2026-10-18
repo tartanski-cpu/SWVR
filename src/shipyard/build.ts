@@ -637,6 +637,13 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   };
   const bowCleat = stem + 0.5;
   const sternCleat = transom - 0.4;
+  // With a skiff, the midship cleats for her painter (owner): on the bulwark tops at the house's
+  // end of the skiff's deck, as the workboat's are just aft of her wheelhouse, where the crew
+  // working her alongside stand; kept inside the mooring cleats.
+  const mc = CONFIG.shipyard.deckGear.midCleats;
+  const midCleat = d.skiff
+    ? Math.round(100 * Math.min(sternCleat - mc.fromEnds, Math.max(bowCleat + mc.fromEnds, d.skiff <= 2 ? (deckhouse ? Math.min(front, deckhouse.z0) : front) - mc.fromHouse : aft + mc.fromHouse))) / 100
+    : null;
   const cleat = (side: number, z: number): V3 => [side * (q.halfBeam(z) - 0.03), q.deckY(z) + bulwarkHeight, z];
   const rampBow: V3 | null = bowRamp ? [-(q.halfBeam(bowRamp.button.z) - 0.06), q.deckY(bowRamp.button.z) + bowRamp.button.y, bowRamp.button.z] : null;
 
@@ -1017,6 +1024,12 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     { id: 'cleatFwdStbd', type: 'deck.fitting', transform: { position: cleat(1, bowCleat) }, label: 'Bulwark top, forward, starboard' },
     { id: 'cleatAftPort', type: 'deck.fitting', transform: { position: cleat(-1, sternCleat) }, label: 'Bulwark top, aft, port' },
     { id: 'cleatAftStbd', type: 'deck.fitting', transform: { position: cleat(1, sternCleat) }, label: 'Bulwark top, aft, starboard' },
+    ...(midCleat !== null && skiffAt
+      ? ([
+          { id: 'cleatMidPort', type: 'deck.fitting', transform: { position: cleat(-1, midCleat) }, label: "Bulwark top, amidships, port (the skiff's painter)" },
+          { id: 'cleatMidStbd', type: 'deck.fitting', transform: { position: cleat(1, midCleat) }, label: "Bulwark top, amidships, starboard (the skiff's painter)" },
+        ] as Socket[])
+      : []),
     // The working deck gear (version 10).
     ...(winchAt ? [{ id: 'towWinch', type: 'deck.equipment' as const, transform: { position: winchAt, ...(winchFace ? { rotationDeg: [0, -90 * winchFace, 0] as V3 } : {}) }, label: `${deckWords(winchAt)}: the tow winch` }] : []),
     ...(sternRoller ? [{ id: 'sternRoller', type: 'stern.gantry' as const, transform: { position: [0, q.deckY(transom), transom] as V3 }, label: 'Transom, centreline: the notch in the bulwark' }] : []),
@@ -1167,8 +1180,14 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   rudder.propeller = { wake: prop.wake, diameter: propD };
   bySocket(recipe.modules, 'fuelTank')!.config = { tankL, startL: Math.round(tankL * 0.7) };
   for (const m of recipe.modules) {
-    if (m.module === 'deck.cleat') (m.config as Record<string, any>).stations = { bow: bowCleat, stern: sternCleat, midship: 0 };
+    if (m.module === 'deck.cleat') (m.config as Record<string, any>).stations = { bow: bowCleat, stern: sternCleat, midship: midCleat ?? 0 };
   }
+  // The skiff's painter's cleats (amidships, each side), with the skiff (if she's aboard).
+  if (midCleat !== null && skiffAt)
+    recipe.modules.push(
+      { socket: 'cleatMidPort', module: 'deck.cleat', config: { end: 'midship', side: -1, stations: { bow: bowCleat, stern: sternCleat, midship: midCleat } } },
+      { socket: 'cleatMidStbd', module: 'deck.cleat', config: { end: 'midship', side: 1, stations: { bow: bowCleat, stern: sternCleat, midship: midCleat } } },
+    );
   // The searchlight on the roof or its pole (or none), and the fire monitor.
   if (lampFoot) bySocket(recipe.modules, 'searchlight')!.config = { position: [lampFoot[0], r2(lampFoot[1] + dp.lampHeight), lampFoot[2]], pole: { deckY: lampFoot[1] } };
   else if (hasLamp) bySocket(recipe.modules, 'searchlight')!.config = { position: lampRoof };

@@ -8,6 +8,7 @@ import { decodeDesign, DEFAULT_DESIGN, encodeDesign, placeValue, SKIFFS, type Sh
 import { EQUIPMENT, fitted, placeGear, removeGear } from '../../src/shipyard/pinGear';
 import { hullPlan } from '../../src/vessel/layout';
 import { VESSEL_DEFS } from '../../src/vessel/vesselDef';
+import { cleatLocal } from '../../src/vessel/physics/painter';
 import { fakeCanvas } from '../modular/fakes';
 
 beforeAll(fakeCanvas);
@@ -75,6 +76,34 @@ describe('the skiff and her crane', () => {
       else expect(g.column[1]).toBeGreaterThan(wh.aft);
       expect(g.cradle.z0).toBeLessThan(g.column[1]);
     }
+  });
+
+  it('with her, two midship cleats for her painter (owner): on the bulwark tops at the house end of her deck, inside the mooring cleats; none without her', () => {
+    for (let hull = 0; hull < DESIGN_HULLS.length; hull++)
+      for (let skiff = 0; skiff < SKIFFS.length; skiff++) {
+        useDesign({ ...typeOf(hull), skiff });
+        const has = mounted().some((x) => x.def.id === 'deck.tender-crane');
+        const mids = RECIPES.design.modules.filter((m) => m.module === 'deck.cleat' && (m.config as { end: string }).end === 'midship');
+        expect(validateRecipe(RECIPES.design, LIBRARY)).toEqual([]);
+        if (!has) {
+          expect(mids, `${hull}/${skiff}`).toHaveLength(0);
+          expect(gearOf({ defId: 'design' }, 'midCleat')).toBeNull();
+          continue;
+        }
+        expect(mids.map((m) => (m.config as { side: number }).side).sort(), `${hull}/${skiff}`).toEqual([-1, 1]);
+        const mid = gearOf({ defId: 'design' }, 'midCleat')!;
+        const bow = gearOf({ defId: 'design' }, 'bowCleat')!;
+        const stern = gearOf({ defId: 'design' }, 'sternCleat')!;
+        expect(mid.z, `${hull}/${skiff}`).toBeGreaterThan(bow.z);
+        expect(mid.z, `${hull}/${skiff}`).toBeLessThan(stern.z);
+        // At the house's end of the skiff's deck: off the house, on her side of it.
+        const wh = VESSEL_DEFS.design.layout.wheelhouse!;
+        if (skiff <= 2) expect(mid.z, `${hull}/${skiff}`).toBeLessThan(wh.front);
+        else expect(mid.z, `${hull}/${skiff}`).toBeGreaterThan(wh.aft);
+        // The painter has somewhere to go: cleats 4 and 5.
+        expect(cleatLocal(VESSEL_DEFS.design, 4)![0]).toBeLessThan(0);
+        expect(cleatLocal(VESSEL_DEFS.design, 5)![0]).toBeGreaterThan(0);
+      }
   });
 
   it('every hull type either fits it or says there is no room', () => {
