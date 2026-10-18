@@ -4912,6 +4912,13 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **The preview** (`CameraPreview`, `CONFIG.camera.preview`): a little screen `size` 0.13 m wide, `above` 0.1 m over the lens, turned to your eyes, only while you hold a camera in VR. Its picture is `width` x `height` 192 x 108 pixels, drawn `rate` 12 times a second out to `far` 400 m (the scene once more at a tiny size, like the binoculars, but a fifth as often as the headset's frames). Your own figure isn't drawn on your side, only your hands, so facing you it shows what's behind you; the recording shows you.
 - **Checked:** `npm test` (the camera test: picked up facing the holder, flipped and back by the holder only, facing again after a new pick-up; the lens looks at the head with no roll), typecheck. Headless Chromium with a pretend hand: facing the viewer, the lens toward the eyes and the preview above; flipped, along the controller. No page errors. **Not checked:** the Quest (how it feels in the hand, the preview's cost at 90 Hz) and a desktop camera player's picture while held.
 
+### The recording camera rides the boat properly; the menu stays on it (owner)
+
+- **The owner:** with the boat under way the camera slid off to her stern; and on the desktop camera, the O menu disappeared. Grabbed by a VR player it still wants its steadying.
+- **The slide** (`player/cameraMode.ts`): its smoothing eased the view toward where it should be in the world's axes, so a moving boat ran ahead of it: at speed v it trailed v × the smoothing time (`CONFIG.camera.smoothTau` 0.35 s: about 1.7 m at 5 m/s, sliding further aft as she sped up). Now it's eased in her axes (its place) and her heading (its turn): she carries it exactly, and only your own flying and looking are eased; the picture still stays level. In a VR hand, it's eased the same way in the holder's boat (`heldTau`), so it steadies the hand without trailing. Let go aboard another boat, or "rides" changed, it carries on from where it is.
+- **The menu:** it opened in your body's frame (as when walking), but the camera flies apart from your body, so it was left behind. In camera mode it opens on the camera itself, straight ahead, the same size on the screen whatever the zoom.
+- **Checked:** `npm test`, typecheck. Headless Chromium, the workboat held at 5 m/s with the camera riding her: before, it slid 1.7 m aft in 5 s (25 m run); now it doesn't move on her (0.00 m). The menu opened in camera mode and still dead ahead of the camera 3 s of flying later. No page errors. **Not checked:** the Quest and a real two-player test (the VR hand on a moving boat).
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

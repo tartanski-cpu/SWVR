@@ -17,7 +17,11 @@ import { CONFIG } from '../config';
  *   held       by a VR player: locked to their hand (lens along their controller), easing
  *              onto it (it comes over the network). Let go, it stays there, riding with their
  *              boat (or put, as set).
- *   smoothing  on: the view eases to where you fly and look, for steady footage.
+ *   smoothing  on: the view eases to where you fly and look, for steady footage. The easing
+ *              is worked out in the boat's axes (its place) and her heading (its turn), so
+ *              riding with her it's carried exactly; only your own moves are eased. (Worked
+ *              out in the world's axes, a moving boat drew ahead of it: at 5 m/s it trailed
+ *              nearly 2 m aft and slid off her stern as she sped up.)
  *   clean      on: nothing on the screen but the picture (no reticle, help, labels, notices).
  *
  * State here is the camera player's own (their game flies it); others see it through their
@@ -41,9 +45,16 @@ export class CameraMode {
   /** Held in a VR player's hand this frame. */
   held = false;
 
+  /** The view now (world): where the camera is put, and what the others are sent. */
   private readonly sPos = new THREE.Vector3();
   private readonly sQuat = new THREE.Quaternion();
+  /** The same eased view in the frame it's eased in: place in its axes, turn from its heading. */
+  private readonly ePos = new THREE.Vector3();
+  private readonly eQuat = new THREE.Quaternion();
+  /** The frame the eased view is held in (null: the world). */
+  private eFrame: THREE.Object3D | null = null;
   private placed = false;
+  private readonly hq = new THREE.Quaternion();
   private readonly tPos = new THREE.Vector3();
   private readonly tQuat = new THREE.Quaternion();
   private readonly euler = new THREE.Euler(0, 0, 0, 'YXZ');
@@ -116,9 +127,23 @@ export class CameraMode {
     }
     const tau = held ? c.heldTau : this.smooth ? c.smoothTau : 0;
     const k = !this.placed || tau <= 0 ? 1 : 1 - Math.exp(-dt / tau);
+    // Eased in the frame (the boat's axes and heading), so she carries it with her exactly.
+    // A new frame (let go aboard another boat, "rides" changed): carry on from where it is.
+    if (this.eFrame !== frame && this.placed) this.toFrame(frame, this.sPos, this.sQuat);
+    this.eFrame = frame;
+    const headingQ = this.hq.setFromAxisAngle(UP, this.heading(frame));
+    if (frame) frame.worldToLocal(this.tPos);
+    this.tQuat.premultiply(headingQ.clone().invert());
+    if (!this.placed) {
+      this.ePos.copy(this.tPos);
+      this.eQuat.copy(this.tQuat);
+    }
     this.placed = true;
-    this.sPos.lerp(this.tPos, k);
-    this.sQuat.slerp(this.tQuat, k);
+    this.ePos.lerp(this.tPos, k);
+    this.eQuat.slerp(this.tQuat, k);
+    this.sPos.copy(this.ePos);
+    if (frame) frame.localToWorld(this.sPos);
+    this.sQuat.copy(headingQ).multiply(this.eQuat);
     camera.position.copy(this.sPos);
     camera.quaternion.copy(this.sQuat);
     if (camera.fov !== this.fov) {
@@ -126,6 +151,13 @@ export class CameraMode {
       camera.updateProjectionMatrix();
     }
     camera.updateMatrixWorld(true);
+  }
+
+  /** The eased view re-expressed in a new frame (from its world pose now). */
+  private toFrame(frame: THREE.Object3D | null, worldPos: THREE.Vector3, worldQuat: THREE.Quaternion): void {
+    this.ePos.copy(worldPos);
+    if (frame) frame.worldToLocal(this.ePos);
+    this.eQuat.copy(worldQuat).premultiply(this.hq.setFromAxisAngle(UP, this.heading(frame)).invert());
   }
 
   /** Zoom by mouse-wheel steps (in: fewer degrees). */
@@ -142,3 +174,5 @@ export class CameraMode {
     outQuat.premultiply(frame.getWorldQuaternion(this.fq).invert());
   }
 }
+
+const UP = new THREE.Vector3(0, 1, 0);

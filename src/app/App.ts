@@ -1817,6 +1817,12 @@ export class App {
     }
     const left = this.controllers.grips.left;
     if (this.renderer.xr.isPresenting && left?.visible) this.menu.openOnWrist(left);
+    // The recording camera: on the camera itself, straight ahead (it flies and eases on its
+    // own, apart from your body), as big on the screen whatever the zoom.
+    else if (this.camMode.on) {
+      const d = (CONFIG.menu.floatDistance * Math.tan((30 * Math.PI) / 180)) / Math.tan((this.camera.fov * Math.PI) / 360);
+      this.menu.openFixed(this.camera, 0, -0.04 * d, -d, 0);
+    }
     // In front of you, in the rig's carrier: that's the frame your view rides in, so with
     // motion decoupled the menu stays steady with your view instead of rolling with the deck.
     else this.menu.openInFront(this.rig.carrier, this.camera);
@@ -3061,6 +3067,11 @@ export class App {
       if (!hold!.back) faceHolder(pos, hf.localToWorld(this.camLens.set(head[0], head[1], head[2])), quat);
       held = { pos, quat };
       this.camHolderBoat = hp.aboardVesselId;
+      // In their hand it rides with their boat (eased in her axes, so it doesn't trail).
+      if (cm.frameId !== hp.aboardVesselId) {
+        cm.frameId = hp.aboardVesselId;
+        frame = hp.aboardVesselId ? (this.vesselRoots.get(hp.aboardVesselId) ?? null) : null;
+      }
     }
     if (this.camWasHeld && !held) {
       // Let go: it stays right there, riding with their boat (or put).
