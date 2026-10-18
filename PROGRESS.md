@@ -3865,6 +3865,16 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Checked in headless Chromium:** a pilot boat with a 3 m, 1.2 m high, full-width, 30°-raked deckhouse, and set in with 0.5 m side decks, upright: views from the bow, stern and port; the wheelhouse on top, the steps up aft, no warnings. Found and fixed on the way: its faces wound inside out (invisible from outside), and its foot showing through her topsides at the bow. **Not checked:** the Quest, a phone, walking up the steps into a raised helm in the game.
 - **Next, for bigger boats (tugs), noted:** the deckhouse top walkable with rails and a ladder or stairs (the walk area's floors and ladders already do this for the workboat's roof), and an interior with a door into it.
 
+### Shipyard: the roof chamfered on its front and sides (owner)
+
+- **The owner** sent a picture of a small tug whose roof is chamfered on the front and both sides, the visor look. The Shipyard's roof slab had only its front face raked back.
+- **Now** (`hullMesh.ts chamferedSlab`) its front and both sides are chamfered at the same "Roof edge" angle (30, 45 or 60 deg from the vertical); the aft face stays square. The underside reaches furthest out, and the top is set in by thickness × tan(angle): 0.1 m at 20 cm and 45 deg.
+- **What follows from it** (`build.ts`):
+  - the sidelights sit on the chamfered sides at mid-thickness, just proud of them (they were at the old square edge and would have floated);
+  - gear placed on the roof keeps 0.15 m inside the smaller flat top.
+- Nothing in the design code changes: it's the same choices, drawn differently.
+- **Checked:** typecheck, tests (655), and screenshots of a 12 m workboat with a 20 cm roof at 30, 45 and 60 deg.
+
 ### Shipyard: the anchor, and the skiff with her crane (owner)
 
 - **The owner found** the anchor and the skiff still weren't in the Shipyard. The other session had made both modules placeable (`deck.anchor-windlass`, `deck.tender-crane`), leaving the Shipyard choices to this chat.
