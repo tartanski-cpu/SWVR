@@ -3865,7 +3865,13 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Checked in headless Chromium:** a pilot boat with a 3 m, 1.2 m high, full-width, 30°-raked deckhouse, and set in with 0.5 m side decks, upright: views from the bow, stern and port; the wheelhouse on top, the steps up aft, no warnings. Found and fixed on the way: its faces wound inside out (invisible from outside), and its foot showing through her topsides at the bow. **Not checked:** the Quest, a phone, walking up the steps into a raised helm in the game.
 - **Next, for bigger boats (tugs), noted:** the deckhouse top walkable with rails and a ladder or stairs (the walk area's floors and ladders already do this for the workboat's roof), and an interior with a door into it.
 
-### Shipyard: no visor slider (owner)
+### Shipyard: the side windows take the front's rake (owner)
+
+- **The owner saw** (a faceted, reverse-raked front, raked out all round) an upright post in the side windows right behind the raked front corner: "the side windows don't get the rake".
+- **Why:** the side window band's middle mullion was built upright whatever the front's rake; on a short band it stands just aft of the raked corner post.
+- **Now** (`vessel/view/hullMesh.ts buildShapedHouse`): that mullion is raked parallel to the front windows (the front's shear, from the sill), so the side panes follow the front's line. Raked out all round, it also leans out with the side wall. The aft corner posts stay as they were (upright, or leaning aft with the aft wall).
+- **Checked:** typecheck and tests; the Shipyard, headless: the owner's view of a faceted, reverse-raked front raked out all round (the two posts at the corner now parallel) and its profile. **Not checked:** VR.
+
 
 - **The owner** is trimming the Shipyard's options: the roof's visor "should be overlapping the windows, a set level". (The floor height slider stays: the owner uses it.)
 - **Now:** the Roof visor slider is gone; every design's roof reaches `CONFIG.shipyard.visor` (0.3 m, the old default) forward of the top of the front windows. The choice (`design.visor`) stays in the code so every code still reads, but the build no longer uses it: designs that had a longer or shorter visor (0.15 to 0.75 m) now have 0.3 m.

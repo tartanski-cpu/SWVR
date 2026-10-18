@@ -554,8 +554,9 @@ function buildShapedHouse(layout: HouseLayout, col: Paint, base: number): THREE.
     }
     parts.push(raked(fbox(x0, x1, S, head, zF, zF + 0.1)));
     parts.push(fbox(x0, x1, sideS, head, zA - 0.1, zA));
-    // The band's mullion (not in a doorway).
-    if (!door || bandMid < door.z0 - 0.15 || bandMid > door.z1 + 0.15) parts.push(fbox(x0, x1, sideS, head, bandMid - 0.04, bandMid + 0.04));
+    // The band's mullion (not in a doorway), raked parallel to the front windows (owner: upright
+    // beside a raked front it read as the side windows not taking the rake).
+    if (!door || bandMid < door.z0 - 0.15 || bandMid > door.z1 + 0.15) parts.push(raked(fbox(x0, x1, sideS, head, bandMid - 0.04, bandMid + 0.04)));
     parts.push(fbox(x0, x1, head, head + FW, zH, zA));
     // Wall above the band, if the glass stops short of the roof (the Shipyard's runs up to it).
     if (roofY + 0.02 - (head + FW) > 0.01) parts.push(box(x0, x1, head + FW, roofY + 0.02, zH, zA, H));
