@@ -59,6 +59,12 @@ export interface DesignHull {
    * it is, faced with a rubber push fender (modules/pushFender).
    */
   pushBow?: boolean;
+  /**
+   * A landing bow (the landing craft, owner: a square platform on a planing hull): her own
+   * forefoot, the bottom sweeping up to a raked square bow plate at the waterline under her
+   * ramp, so she rides up a beach or a slipway. No bow choice: never plumb, never the deep stem.
+   */
+  landingBow?: boolean;
   /** Minimum open deck (m) aft of the house (cockpit) and forward of it. */
   cockpit: number;
   foredeck: number;
@@ -132,9 +138,12 @@ export function bowKeel(keel: [number, number][], stemDeckY: number, lengthM: nu
 export const DESIGN_HULLS: DesignHull[] = [
   {
     name: 'Landing craft: 9 m aluminium, square landing bow with a ramp',
-    form: (L, B, D, bow) => ({ kind: 'lofted', design: scaledStudy(study('landingCraft'), L, B, D, bow) }),
+    // Her bow is her own (the hull study's landing bow: the keel rises from 0.48 m under the
+    // water amidships to 0.12 m above it at the bow plate), as the game's landing craft's is.
+    form: (L, B, D) => ({ kind: 'lofted', design: scaledStudy(study('landingCraft'), L, B, D, null) }),
     planing: true,
     ramp: true,
+    landingBow: true,
     cockpit: 1.0,
     foredeck: 1.6,
     defaults: { length: 8, beam: 8, depth: 8, bulwark: 2, bow: 2, housePos: 4, houseLength: 2, houseWidth: 7, headroom: 3, floor: 2, visor: 1, roofThickness: 0, roofEdge: 1, windowRake: 4, lowerFront: 0, engine: 1, twin: 0 },

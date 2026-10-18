@@ -71,6 +71,7 @@ function fakeHost() {
     craneAction: () => 'LAUNCH',
     crane: () => calls.push('crane'),
     dropBoat: () => calls.push('drop'),
+    landOnSlip: () => calls.push('slip'),
     heelBoat: () => calls.push('heel'),
     fuel: () => ({ litres: 420, tank: 600 }),
     canRefuel: () => false,

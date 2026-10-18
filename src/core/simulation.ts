@@ -1,3 +1,4 @@
+import { applySlipIntent, isSlipIntent, stepSlipway } from '../world/slipway';
 import { applyEnvironmentIntent, stepEnvironment } from '../environment/timeOfDay';
 import { stepWeather } from '../environment/weather';
 import { windForce } from '../vessel/physics/windage';
@@ -68,6 +69,8 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
       applyPottingIntent(world, intent);
     } else if (isFuelIntent(intent.control)) {
       applyFuelIntent(world, intent);
+    } else if (isSlipIntent(intent.control)) {
+      applySlipIntent(world, intent);
     } else if (intent.control === 'painter') {
       applyPainterIntent(world, intent);
     } else if (intent.control === 'crane') {
@@ -114,6 +117,8 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
     const ext = touching.get(vessel.id);
     const external = wind ? [...(ext ?? []), wind] : ext;
     stepVessel(vessel, VESSEL_DEFS[vessel.defId], simWaves, dt, dbg, world.geography === 'archipelago', payload, external);
+    // On a slipway (a bow-ramp boat landed): held where she lies, the waves no longer moving her.
+    stepSlipway(vessel, dt);
     stepDeckCargo(world, vessel, deckBefore, dt);
     stepRefuelling(vessel, dt, world.geography === 'archipelago');
     // Her modules (every boat is built from a recipe since M6a): the energy network, the

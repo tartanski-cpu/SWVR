@@ -14,14 +14,23 @@ const X = new THREE.Vector3(1, 0, 0);
  * to stay joined as it swings. Three meshes: the ramp, the two cylinders, the two rods.
  *
  * Built along -z from its hinge (its walking face up) and turned about the hinge's x axis:
- * `raisedDeg` above the horizontal raised, `loweredDeg` (negative) below it lowered. Only
- * drawn: she floats, steers and walks the same with it up or down (7b: beaching, walking off).
+ * `raisedDeg` above the horizontal raised, `loweredDeg` (negative) below it lowered.
+ *
+ * Its toe flaps (`flap`; owner: to reach further): a row of hinged fingers along the lip,
+ * one mesh. Folded back flat on the walking face while it's raised; as it comes down (from
+ * `flopAt` of the way) they flop over, to hang `hangDeg` below the horizontal, or to lie on
+ * the slip at the angle she's landed with (VesselState.slip.flapDeg, world/slipway.ts). A
+ * set animation, not physics.
  */
 export class BowRamp {
   readonly root = new THREE.Group();
   private readonly ramp = new THREE.Group();
   private readonly cylinders: THREE.Mesh;
   private readonly rods: THREE.Mesh;
+  /** The toe flaps, hinged at the lip (a child of the ramp). */
+  private readonly flaps = new THREE.Group();
+  /** Where the flaps go once it's down: degrees below the horizontal. */
+  private flapTo: number;
   /** 0 raised .. 1 lowered, and where it's going. */
   private down = 0;
   private target = 0;
@@ -60,6 +69,20 @@ export class BowRamp {
     const plate = new THREE.Mesh(mergeParts(parts), flatVertexColorMaterial());
     this.ramp.add(plate);
     this.root.add(this.ramp);
+    // The toe flaps: fingers across the lip, each built along -z from the hinge.
+    const f = cfg.flap;
+    const fw = (w - (f.count - 1) * f.gap) / f.count;
+    const fingers = [];
+    for (let i = 0; i < f.count; i++) {
+      const x = -w / 2 + fw / 2 + i * (fw + f.gap);
+      fingers.push(part(new THREE.BoxGeometry(fw, 0.035, f.length).translate(x, -0.0175, -f.length / 2), colours.plate));
+      fingers.push(part(new THREE.BoxGeometry(fw - 0.06, 0.02, 0.03).translate(x, 0.01, -f.length * 0.55), colours.grip));
+      fingers.push(part(new THREE.CylinderGeometry(0.03, 0.03, fw * 0.6, 8).rotateZ(Math.PI / 2).translate(x, -0.01, 0), colours.fittings));
+    }
+    this.flaps.add(new THREE.Mesh(mergeParts(fingers), flatVertexColorMaterial()));
+    this.flaps.position.set(0, 0.02, -L - 0.08);
+    this.ramp.add(this.flaps);
+    this.flapTo = f.hangDeg;
 
     // The rams: a cylinder from its post, a rod from the ramp's lug; each built along its own
     // +z and long enough to meet the other at full stroke without either poking out past the
@@ -91,6 +114,12 @@ export class BowRamp {
 
   sync(state: VesselState): void {
     this.target = (state.controls.bowRamp ?? 0) > 0.5 ? 1 : 0;
+    // Landed on a slip: the flaps lie on it; else they hang.
+    const to = state.slip ? state.slip.flapDeg : this.cfg.flap.hangDeg;
+    if (to !== this.flapTo) {
+      this.flapTo = to;
+      this.place();
+    }
   }
 
   /** Swing toward up / down (call every frame). */
@@ -110,6 +139,14 @@ export class BowRamp {
     const e = this.down * this.down * (3 - 2 * this.down);
     const angle = (((1 - e) * this.cfg.raisedDeg + e * this.cfg.loweredDeg) * Math.PI) / 180;
     this.ramp.rotation.x = angle;
+    // The flaps: folded back on the face (172° about the lip), flopping over from `flopAt` of
+    // the way down to their angle below the horizontal (relative to the ramp: less its own).
+    const f = this.cfg.flap;
+    const k = Math.min(1, Math.max(0, (this.down - f.flopAt) / (1 - f.flopAt)));
+    const kf = k * k * (3 - 2 * k);
+    const folded = (172 * Math.PI) / 180;
+    const open = (-this.flapTo * Math.PI) / 180 - angle;
+    this.flaps.rotation.x = folded + (open - folded) * kf;
     // Each ram pointed along its pivots' line: the cylinder from its post, the rod back from
     // the lug. (About x only: both sides are alike.) Rx(b) takes +z to (0, -sin b, cos b).
     const lug = this.lugAt(angle, this.eye);

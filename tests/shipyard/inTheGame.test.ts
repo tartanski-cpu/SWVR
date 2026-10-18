@@ -33,7 +33,7 @@ const KN = 0.5144;
 
 /** The pinned boats: her code, what she is, her speed flat out on calm water (kn, the Shipyard's trial). */
 const BOATS = [
-  { code: '00XN3-V2SBD-VB2G0-47GG4', what: 'landing craft, basic controls, a life ring', knots: 19.46, skiff: false },
+  { code: '00XN3-V2SBD-VB2G0-47GG4', what: 'landing craft, basic controls, a life ring', knots: 20.59, skiff: false },
   { code: '03A4C-1JEMK-K20C0-39VN0-8', what: 'gillnetter: a skiff, a side door, a life ring', knots: 10.3, skiff: true },
   { code: '04CWN-VJ7WP-D6HE0-87GG0', what: 'workboat type: deck crane, tow winch and roller, searchlight, fire monitor', knots: 13.22, skiff: false },
   { code: '064GC-J03DJ-35TTG-49K0G', what: 'pilot boat: twin engines, a deckhouse', knots: 23.93, skiff: false },

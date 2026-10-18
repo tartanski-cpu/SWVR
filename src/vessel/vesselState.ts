@@ -86,6 +86,21 @@ export interface VesselControls {
   netIn?: number;
 }
 
+/**
+ * A bow-ramp boat on a slipway (world/slipway.ts): drawn up onto it ('landing', over `dur`
+ * s from where she was), then held there ('landed': no waves, no drift). `flapDeg`: her
+ * ramp's toe flaps' angle below the horizontal, resting on the slip.
+ */
+export interface SlipState {
+  id: string;
+  phase: 'landing' | 'landed';
+  t: number;
+  dur: number;
+  from: { position: Vec3; orientation: Quat };
+  to: { position: Vec3; orientation: Quat };
+  flapDeg: number;
+}
+
 /** Docking and mooring lines (physics/mooring.ts). */
 export interface MooringState {
   /** free: under way; docking: lines out, warping in; moored: made fast alongside. */
@@ -212,6 +227,8 @@ export interface VesselState {
   battery?: number;
   /** A ship's tender: whose crane she belongs to and where she is (vessel/tenderCrane.ts). */
   tender?: TenderState;
+  /** Landing on (or landed on) a slipway, her bow ramp down on it (world/slipway.ts). Absent: not. */
+  slip?: SlipState;
   /** 12 V electrics, boats that have them (vessel/electrics.ts). */
   electrics?: ElectricsState;
   /**

@@ -57,6 +57,8 @@ export interface MenuHost {
   craneAction(): string;
   crane(): void;
   dropBoat(): void;
+  /** Debug: a bow-ramp boat landed on the nearest slipway, her ramp down (world/slipway.ts). */
+  landOnSlip(): void;
   heelBoat(): void;
   /** Fuel aboard (L) and tank size. */
   fuel(): { litres: number; tank: number };
@@ -593,6 +595,7 @@ export function mainMenu(h: MenuHost): MainMenu {
             { text: 'Drop 4 m', press: () => h.dropBoat() },
             { text: 'Heel 20°', press: () => h.heelBoat() },
             { text: 'Damage', press: () => h.debugDamage() },
+            { text: 'On a slip', press: () => h.landOnSlip() },
           ],
         },
         {

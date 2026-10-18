@@ -4388,6 +4388,65 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   - off the wheel, right down: the binoculars (fov 70 to 10).
   - No page errors. **Not checked:** a real mouse and pointer lock; there's no unit test (the pointer is DOM input).
 
+### Landing slipways, the ramp's toe flaps, the Shipyard landing craft's landing bow (owner)
+
+- **The owner:**
+  - slipways at suitable ports where a bow-ramp boat pulls up; once her ramp is on the slip she's docked, the waves no longer moving her;
+  - mid-way, to make the ramp reach further: the classic toe flaps on the ramp's end, flopping down as it's lowered (a set animation is fine);
+  - then: the Shipyard landing craft's bow is too deep for the ramp to come down at a good angle. Real ones are a square platform on a planing hull, so always raked: take the plumb option away from that type.
+- **Why it needed thought:** the ramp is hinged at the top of the bow plate (1.3 m above the water) and is 1.2 m long. So, lowered, its lip is still 0.6 m up, about 1 m above a slip in front of her. Two things make it reach:
+  - a beaching bow: the game's landing craft already has one (her keel rises to +0.12 m at the bow plate, about 10°), so she rides well up a 1:8 slip;
+  - the toe flaps.
+- **The slipways** (`world/archipelago.ts SLIPWAYS`): concrete planes, 6 m wide, 1:8, from about 1.5–1.8 m above MSL ashore to about 1.7 m under the water.
+  - **Calder Haven:** just south of the quay's south end, 28 m long, up eastward onto the waterfront.
+  - **Selkie Bay:** up the beach west of the bothy, by the goods stack, 26 m. It gives a ramp boat a way to land cargo there without the skiff.
+  - In the ground (`terrain.ts slipSurface`, inside `groundHeight`), so a hull grounds on them and you walk on them.
+  - Drawn (`worldView.ts buildSlipway`, in the one structures mesh, no extra draw call): the slab down to the seabed, kerbs, grip grooves, a yellow line along the top.
+  - The terrain round each slip is drawn on a 1 m grid instead of 6 m, sunk 0.15 m under the slab. Its edges follow the coarse grid's, so there are no cracks.
+- **Landing** (`world/slipway.ts`, `VesselState.slip`, stepped after each boat's physics in `core/simulation.ts`):
+  - **When:** a boat with a bow ramp, her ramp lowered, the lever not astern, slower than `slipway.maxSpeed` (1 m/s), within 20° of the slip's line, within `range` 4 m of where she'd lie and 1.5 m of its centreline.
+  - **Drawn up:** at `landSpeed` 0.8 m/s, at least `landSec` 2 s.
+  - **Landed:** held, the waves no longer moving her. Her pose is reset after her machinery runs each tick, so the engine, electrics and so on carry on as usual.
+  - **Her landed pose** (`landedPose`): level, at her waterline, on the slip's centreline, as far up as her keel allows (every station clear, the first just touching).
+  - **Coming off:** the lever at `releaseLever` (-0.25) or more astern, or Menu → Boat → Cast off. A debug move (`placeVessel`) also clears it.
+  - **In port:** `cargoPortAt` gives the slip's port, so cargo, the harbour office and quick jobs count her there.
+  - **Messages:** "Landing on…", "Landed on…: walk off down the ramp. Go astern to come off", "Off the slip"; Menu → Boat shows it.
+  - **Debug → Boat → Hull → On a slip** (`slipDebugLand`) lands her on the nearest slip.
+- **The toe flaps** (`controls/BowRamp.ts`; `layout.bowRamp.flap`: `length` 0.7, `count` 4, `gap` 0.04, `flopAt` 0.6, `hangDeg` 75):
+  - fingers along the lip, one mesh (one extra draw call on a ramp boat);
+  - folded back on the walking face while the ramp's raised; from 60 % of the way down they flop over, to hang at 75°, or to lie on the slip at the angle worked out for it (`slip.flapDeg`, bisection to the slip's surface);
+  - the Shipyard's ramps carry them too.
+  - Landed on either slip, the landing craft's flaps lie at 37°, their tips 0.19 m above the water.
+- **Walking off** (App `withRamp` / `crossRamp`; `slipway.ts rampFloor`, `rampCrossing`):
+  - landed with the ramp all the way down, her walk area takes in the ramp and flaps (deck, lip, tip);
+  - walking down past the flaps' tips you're ashore on the slip; walking up onto them you're aboard (a 0.2 m gap between the two lines, so you don't flick back and forth);
+  - VR and desktop alike.
+- **The Shipyard landing craft's landing bow** (`shipyard/build.ts`, `DESIGN_HULLS[0].landingBow`):
+  - she keeps the hull study's own forefoot (the keel from -0.48 m amidships to +0.12 m at the bow plate), as the game's landing craft does. Before, the Shipyard's stem rake replaced it with a raked stem down to full depth;
+  - the bow-rake slider is locked for her ("landing bow"), as for the tug's push bow: no plumb;
+  - landed, her flaps lie at 54°, tips 0.05 m above the water. At the deepest hull settings her deck is higher and they hang about 0.2 m short, onto wet concrete;
+  - her draught amidships is unchanged (0.45 m): only the bow was deep;
+  - **existing codes:** a landing-craft code reads the same but now builds with the landing bow, whatever bow rake it was saved with;
+  - re-measured (`typeFit.ts TYPE_FACTS[0]`, every engine fit, gearbox matched, the game's sea trials): about 0.5–1 kn faster, 5–10 % more range, £6,000 cheaper, the same bollard pull. The pinned landing craft in `inTheGame.test.ts` makes 20.6 kn (was 19.5).
+- **Tests** (`slipway.test.ts`, 8):
+  - the slips in the ground, clear of the quays, deep water off the toe;
+  - the landing craft's landed pose: keel clear and just touching, flaps on the slip above the water, stern still over it;
+  - the Shipyard landing craft likewise, her bow the same whatever the bow choice;
+  - an approach at dead slow with her ramp down: landed, then held exactly for 30 s of swell, in port, engine running;
+  - astern: off and backing away;
+  - ramp up: no landing; the workboat never;
+  - moved: off the slip;
+  - the ramp floor running downhill from deck to tips, and the crossing lines.
+  - Changed: the Shipyard bow-choice test (the landing bow, like the push bow, isn't changed by it), the pinned landing craft's speed.
+  - `npm test`: 100 files, 728 pass; typecheck clean; golden runs unchanged.
+- **Checked in headless Chromium:**
+  - both slips drawn (screenshots before and after the terrain fix);
+  - the landing craft landed on each, the ramp lowering with its flaps flopping over, the view down the ramp from the foredeck;
+  - walking (W) down the ramp: ashore after 3 s; turned round and walked up: aboard after 2.5 s;
+  - a Shipyard landing craft landed at Calder (flaps 54°), and the Shipyard page's bow slider locked on "landing bow".
+  - No page errors.
+- **Not checked:** the Quest (walking the ramp in VR, the flaps' look), and a whole approach driven by hand in the browser (the test drives one).
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

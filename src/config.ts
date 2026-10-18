@@ -1120,6 +1120,13 @@ export const CONFIG = {
           raisedDeg: 60,
           loweredDeg: -35,
           travelSec: 6,
+          /**
+           * Toe flaps (owner: to reach further): a row of `count` hinged fingers along its lip,
+           * `length` m long, `gap` m apart. Folded back flat on the walking face while it's
+           * raised, they flop over as it comes down (from `flopAt` of the way down) and hang
+           * `hangDeg` below the horizontal, or lie on the slip when she's landed on one.
+           */
+          flap: { length: 0.7, count: 4, gap: 0.04, flopAt: 0.6, hangDeg: 75 },
           ram: { x: 0.98, aft: 1.0, height: 0.9, along: 0.8 },
           button: { z: -4.3, y: 0.42 },
         },
@@ -1411,6 +1418,18 @@ export const CONFIG = {
    * alongside. They are horizontal spring-dampers at bow and stern towards the berth, so
    * she still heaves and rolls.
    */
+  /**
+   * Landing on a slipway (world/slipway.ts; owner, Oct 2026), for a boat with a bow ramp:
+   * her ramp down (or going down), lined up with the slip within `maxAngleDeg`, slower than
+   * `maxSpeed` m/s, her middle within `range` m (in plan) of where she'd lie landed and
+   * `across` m of its centreline: she's drawn up onto it at `landSpeed` m/s (taking at least
+   * `landSec` s) and held there,
+   * the waves no longer moving her. The lever `releaseLever` astern or more takes her off.
+   * Landed, she lies level at her waterline, as far up the slip as her bottom allows (it
+   * just touches the concrete); her ramp's toe flaps (`layout.bowRamp.flap`) rest on it.
+   */
+  slipway: { maxAngleDeg: 20, maxSpeed: 1.0, range: 4, across: 1.5, landSec: 2, landSpeed: 0.8, releaseLever: -0.25 },
+
   docking: {
     /**
      * The skiff's painter (vessel/physics/painter.ts): her bow line to one of the ship's cleats,

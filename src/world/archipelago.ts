@@ -386,6 +386,33 @@ export const PORTS: PortDef[] = [
   },
 ];
 
+/**
+ * Landing slipways (owner, Oct 2026: for the bow-ramp boats): a concrete slip running up out
+ * of the water, a boat with a bow ramp lands on it bow first, her ramp down on the concrete
+ * (world/slipway.ts). (x, z) is the middle of its top edge, ashore, `top` m above MSL there;
+ * it runs down `slope` per metre, `length` m, the other way from `headingDeg` (the bearing up
+ * the slip: where a landed boat's bow points). `width` m across, kerbed each side.
+ */
+export interface SlipwayDef {
+  id: string;
+  portId: string;
+  name: string;
+  x: number;
+  z: number;
+  headingDeg: number;
+  width: number;
+  length: number;
+  top: number;
+  slope: number;
+}
+
+export const SLIPWAYS: SlipwayDef[] = [
+  // Calder Haven: south of the quay's south end, up onto the waterfront (eastward).
+  { id: 'calder-slip', portId: 'calder', name: 'Calder Haven slipway', x: 726, z: 700, headingDeg: 90, width: 6, length: 28, top: 1.8, slope: 1 / 8 },
+  // Selkie Bay: up the beach at the bay head, west of the bothy, by the goods stack (southward).
+  { id: 'selkie-slip', portId: 'selkie', name: 'Selkie Bay slipway', x: -168, z: 1296, headingDeg: 180, width: 6, length: 26, top: 1.5, slope: 1 / 8 },
+];
+
 /** Deepest water anywhere (m): the open sea floor. */
 export const MAX_DEPTH = 40;
 /** Seabed shelf: depth reaches ~63 % of MAX_DEPTH this far offshore (m). */

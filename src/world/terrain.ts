@@ -11,8 +11,33 @@
  *   flats   : waterfronts: land brought down to a level (never raised), blended at the edge.
  *   cuts    : basins and bays lower everything inside to a fixed depth, with a sloped edge.
  *   ridges  : breakwaters raise a trapezoidal mound along a segment.
+ *   slipways: a concrete slip (SLIPWAYS) is its own plane, top - slope x (distance down it),
+ *             wherever it lies (built up over the seabed, cut into the bank), square-edged.
  */
-import { CUTS, FLATS, ISLANDS, MAX_DEPTH, RIDGES, SHELF, type IslandDef } from './archipelago';
+import { CUTS, FLATS, ISLANDS, MAX_DEPTH, RIDGES, SHELF, SLIPWAYS, type IslandDef } from './archipelago';
+
+/** Each slipway's axes: the unit vector up it (world x, z), for slipSurface. */
+const SLIP_AXES = SLIPWAYS.map((s) => {
+  const a = (s.headingDeg * Math.PI) / 180;
+  return { s, ux: Math.sin(a), uz: -Math.cos(a), reach: Math.hypot(s.length, s.width / 2) };
+});
+
+/**
+ * The slipway surface at (x, z), if a slipway covers it: its height, and which one. `along`
+ * is the distance down the slip from its top edge (0 .. length).
+ */
+export function slipSurface(x: number, z: number): { h: number; id: string; along: number } | null {
+  for (const { s, ux, uz, reach } of SLIP_AXES) {
+    const dx = x - s.x;
+    const dz = z - s.z;
+    if (Math.abs(dx) > reach || Math.abs(dz) > reach) continue;
+    const down = -(dx * ux + dz * uz);
+    const across = dx * uz - dz * ux;
+    if (down < 0 || down > s.length || Math.abs(across) > s.width / 2) continue;
+    return { h: s.top - s.slope * down, id: s.id, along: down };
+  }
+  return null;
+}
 
 const smoothstep = (a: number, b: number, x: number) => {
   const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
@@ -75,6 +100,8 @@ export function groundHeight(x: number, z: number, ridges = true): number {
       h = Math.max(h, r.crest - Math.max(0, d - r.halfWidth) * r.slope);
     }
   }
+  const slip = slipSurface(x, z);
+  if (slip) h = slip.h;
   return h;
 }
 

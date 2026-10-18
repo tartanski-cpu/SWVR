@@ -61,7 +61,7 @@ describe('Shipyard: the boats it builds', () => {
     }
   });
 
-  it('the bow choice, a stem raked 0 (plumb) to 50 deg, each hull: more rake cuts away more forefoot, but only near the stem (not a push bow)', () => {
+  it('the bow choice, a stem raked 0 (plumb) to 50 deg, each hull: more rake cuts away more forefoot, but only near the stem (not a push bow or a landing bow)', () => {
     for (let hull = 0; hull < DESIGN_HULLS.length; hull++) {
       const mass: number[] = [];
       const lwl: number[] = [];
@@ -73,8 +73,8 @@ describe('Shipyard: the boats it builds', () => {
         mass.push(VESSEL_DEFS.design.mass);
         lwl.push(VESSEL_DEFS.design.resistance.lwl);
       }
-      // A tug's push bow is her own: the bow choice leaves it as it is.
-      if (DESIGN_HULLS[hull].pushBow) {
+      // A tug's push bow and a landing craft's landing bow are their own: the bow choice leaves them as they are.
+      if (DESIGN_HULLS[hull].pushBow || DESIGN_HULLS[hull].landingBow) {
         expect(new Set(mass).size, `hull ${hull}`).toBe(1);
         continue;
       }

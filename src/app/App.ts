@@ -40,8 +40,10 @@ import { TenderCraneView } from '../controls/TenderCraneView';
 import { hasWheelhouse, VESSEL_DEFS, type WheelhouseDef } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
 import { VesselView } from '../vessel/view/vesselView';
-import { hullPlan, vesselWalkArea, type WalkArea } from '../vessel/layout';
-import { climbOut, jump, swimArea, updateAir, updateSwim, type BodyVessel } from '../player/body';
+import { hullPlan, STEP_HEIGHT, vesselWalkArea, type WalkArea } from '../vessel/layout';
+import { standingHeight } from '../world/geography';
+import { climbOut, jump, swimArea, updateAir, updateSwim, yawOf, type BodyVessel } from '../player/body';
+import { rampCrossing, rampFloor, rampWalkable, slipOf } from '../world/slipway';
 import { worldWalkArea } from '../world/landWalkArea';
 import { leverDemand } from '../vessel/physics/propulsion';
 import { Locomotion } from '../player/locomotion';
@@ -926,6 +928,7 @@ export class App {
     this.updateChartTable(testVessel, dt);
     this.career.tick();
     this.checkRefit();
+    this.noteSlip();
     // Host / solo: keep the rescue count in this browser too.
     const done = this.world.rescue?.completed ?? 0;
     if (!this.client && done !== this.rescuesSaved) {
@@ -1376,12 +1379,79 @@ export class App {
   private updateLocomotion(dt: number, inXR: boolean): void {
     const p = this.world.players[this.localPlayerId];
     const frame = (p.aboardVesselId && this.vesselViews.get(p.aboardVesselId)?.root) || this.scene;
-    const area = (p.aboardVesselId && this.walkAreas.get(p.aboardVesselId)) || this.worldArea;
+    const area = this.withRamp((p.aboardVesselId && this.walkAreas.get(p.aboardVesselId)) || this.worldArea, p.aboardVesselId);
     // Head from the camera's pose relative to the rig (fresh this frame; see syncRigToPlayer).
     this.camera.getWorldPosition(this.headW);
     this.camera.getWorldDirection(this.headFwd);
-    if (!this.updateBody(dt, inXR, area, frame)) this.runLocomotion(dt, inXR, frame, inXR ? area : this.withDoor(area, p.aboardVesselId), 1, inXR);
+    if (!this.updateBody(dt, inXR, area, frame)) {
+      this.runLocomotion(dt, inXR, frame, inXR ? area : this.withDoor(area, p.aboardVesselId), 1, inXR);
+      this.crossRamp();
+    }
     this.placeDebugPanel(inXR);
+  }
+
+  /** Her bow ramp, lowered all the way while she's landed on a slipway: it can be walked (world/slipway.ts). */
+  private rampDownOnSlip(id: EntityId): VesselState | undefined {
+    const v = this.world.vessels[id];
+    return rampWalkable(v) && (this.boats.get(id)?.bowRamp?.lowered ?? 0) > 0.99 ? v : undefined;
+  }
+
+  /** Aboard a boat landed on a slipway with her ramp down: the ramp and its flaps are deck too. */
+  private withRamp(area: WalkArea, vesselId: EntityId | null): WalkArea {
+    const v = vesselId ? this.rampDownOnSlip(vesselId) : undefined;
+    if (!v) return area;
+    const def = VESSEL_DEFS[v.defId];
+    const flap = v.slip!.flapDeg;
+    const floor = (x: number, z: number) => rampFloor(def, flap, x, z);
+    return {
+      ...area,
+      floorsAt: (x, z) => {
+        const f = floor(x, z);
+        return f === null ? area.floorsAt(x, z) : [...area.floorsAt(x, z), f];
+      },
+      walkable: (x, z, y) => {
+        const f = floor(x, z);
+        return (f !== null && Math.abs(f - y) <= STEP_HEIGHT) || area.walkable(x, z, y);
+      },
+      inBounds: (x, z) => floor(x, z) !== null || (area.inBounds?.(x, z) ?? true),
+    };
+  }
+
+  /**
+   * Walking off down the ramp onto the slip, or up it from the slip (world/slipway.ts
+   * rampCrossing): past the flaps' tips you change frame, the boat's for the world's or back.
+   * She's held still while landed, so nothing jumps.
+   */
+  private crossRamp(): void {
+    const p = this.world.players[this.localPlayerId];
+    if (!p || (p.mode ?? 'walk') !== 'walk') return;
+    if (p.aboardVesselId) {
+      const v = this.rampDownOnSlip(p.aboardVesselId);
+      const root = v && this.vesselViews.get(v.id)?.root;
+      const cross = v && rampCrossing(VESSEL_DEFS[v.defId], v.slip!.flapDeg);
+      if (!root || !cross || Math.abs(p.position[0]) > cross.halfWidth || p.position[2] > cross.ashoreZ) return;
+      const w = root.localToWorld(this.tmpV.fromArray(p.position));
+      p.aboardVesselId = null;
+      p.position = [w.x, standingHeight(w.x, w.z), w.z];
+      p.yaw += yawOf(root.quaternion);
+      this.keepViewOnReparent = true;
+      return;
+    }
+    for (const id of this.vesselViews.keys()) {
+      const v = this.rampDownOnSlip(id);
+      const root = v && this.vesselViews.get(id)!.root;
+      const cross = v && rampCrossing(VESSEL_DEFS[v.defId], v.slip!.flapDeg);
+      if (!root || !cross) continue;
+      const l = root.worldToLocal(this.tmpV.fromArray(p.position));
+      if (Math.abs(l.x) > cross.halfWidth || l.z < cross.aboardZ || l.z > cross.aboardZ + 0.6) continue;
+      const f = rampFloor(VESSEL_DEFS[v.defId], v.slip!.flapDeg, l.x, l.z);
+      if (f === null) continue;
+      p.aboardVesselId = id;
+      p.position = [l.x, f, l.z];
+      p.yaw -= yawOf(root.quaternion);
+      this.keepViewOnReparent = true;
+      return;
+    }
   }
 
   /** Desktop walking on the workboat: a shut wheelhouse door (aft or port side) blocks its doorway. */
@@ -1710,6 +1780,10 @@ export class App {
         if (skiff) this.pushIntentTo(skiff.id, 'crane', 1);
       },
       dropBoat: () => this.pushVesselIntent('debugDrop', 0),
+      landOnSlip: () => {
+        if (!VESSEL_DEFS[boat().defId].layout.bowRamp) return this.overlay.notify('Only a boat with a bow ramp lands on a slipway (Debug > Start in > Landing craft)', 4);
+        this.pushVesselIntent('slipDebugLand', 1);
+      },
       heelBoat: () => this.pushVesselIntent('debugHeel', 20),
       fuel: () => ({ litres: boat().engine.fuelL, tank: gearOf(boat(), 'diesel')?.engine.fuel.tankL ?? 0 }),
       canRefuel: () => canRefuel(boat()),
@@ -1758,6 +1832,8 @@ export class App {
         return `${slotsUsed(this.world, skiff.id)} / ${max} slots · ${payloadMass(this.world, skiff.id)} kg · carry goods in and out by hand`;
       },
       dockStatus: () => {
+        const slip = slipOf(boat());
+        if (slip) return { text: boat().slip!.phase === 'landed' ? `Landed: ${slip.name} (walk off down the ramp; go astern to come off)` : `Landing: ${slip.name}`, ready: true, docked: true };
         const m = boat().mooring;
         const b = berthById(m.berthId);
         if (m.phase === 'moored') return { text: `Moored: ${b?.name}`, ready: true, docked: true };
@@ -1766,6 +1842,7 @@ export class App {
         return { text: 'No berth in range (come slowly alongside a yellow-marked berth)', ready: false, docked: false };
       },
       toggleDock: () => {
+        if (boat().slip) return this.pushVesselIntent('slipLeave', 1);
         const m = boat().mooring;
         if (m.phase === 'free' && !m.berthId) this.overlay.notify('No berth in range: come slowly alongside a berth marked in yellow, lined up with the quay');
         else this.pushVesselIntent('dock', 1);
@@ -2124,6 +2201,22 @@ export class App {
       this.netMessage = reason;
       this.toSolo();
     };
+  }
+
+  /** Our boat's slipway state when last looked ('' off a slip): the notes as it changes. */
+  private slipWas = '';
+
+  /** A note as she lands on a slipway, is landed, and comes off. */
+  private noteSlip(): void {
+    const v = this.world.vessels[this.testVesselId];
+    const now = v?.slip ? `${v.slip.phase}:${v.slip.id}` : '';
+    if (now === this.slipWas) return;
+    const was = this.slipWas;
+    this.slipWas = now;
+    const slip = slipOf(v);
+    if (slip && v!.slip!.phase === 'landing') this.overlay.notify(`Landing on the ${slip.name}`, 3);
+    else if (slip) this.overlay.notify(`Landed on the ${slip.name}: walk off down the ramp. Go astern to come off`, 5);
+    else if (was) this.overlay.notify('Off the slip', 2.5);
   }
 
   /** The workboat's equipment the career has not got (upgrade ids, comma-joined), or null if she isn't the workboat. */

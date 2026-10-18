@@ -136,7 +136,7 @@ The menu is laid out for playing. Some tabs have sections, picked from a second 
 | Office | **Jobs:** balance, the contract on, the harbour office's job board, the first voyage (**Skip** / **Again**). **Yard:** repairs and the chandlery (upgrades), in port. **Career:** balance, reputation, ledger, the three save slots |
 | Crew | Multiplayer: host or join a game, your name, who's aboard |
 | Settings | **Comfort:** motion coupling ±10 %, stick walking, snap-turn angle, boat hook reach. **Sound:** volumes. **Game:** rain effect, rescue position (on the plotter, or plot it yourself), and the **Debug tab** (hidden / shown). Remembered on the device |
-| Debug | Hidden until **Settings → Game → Debug tab → Shown**. **World:** time ±10 min, weather presets, **Fixed weather** / **Fast ×10**, sea state and wave height, move to a port, board / leave the boat. **Boat:** **Start in** the workboat (as your career has her fitted out), the **workboat with all her gear** (for testing, whatever the career has), or the **landing craft** (the second boat built from modules: a 9 m aluminium landing craft that does 20 knots on a turbocharged V8 with its own engine sound, with a step down into her cabin; the game restarts in her. Her bow ramp is worked by the green buttons on the port bulwark by the bow and on the cabin's port wall), drop 4 m, heel 20°, damage, electrics, start-up, oil, bilge, engine faults, sea trials. **Missions:** rescue, tow, fire, side jobs and traffic on demand, +£5000. **Views:** perf panel, buoyancy, wave probes, targets on the chart, radio voice test |
+| Debug | Hidden until **Settings → Game → Debug tab → Shown**. **World:** time ±10 min, weather presets, **Fixed weather** / **Fast ×10**, sea state and wave height, move to a port, board / leave the boat. **Boat:** **Start in** the workboat (as your career has her fitted out), the **workboat with all her gear** (for testing, whatever the career has), or the **landing craft** (the second boat built from modules: a 9 m aluminium landing craft that does 20 knots on a turbocharged V8 with its own engine sound, with a step down into her cabin; the game restarts in her. Her bow ramp is worked by the green buttons on the port bulwark by the bow and on the cabin's port wall), drop 4 m, heel 20°, damage, **On a slip** (a bow-ramp boat landed on the nearest slipway), electrics, start-up, oil, bilge, engine faults, sea trials. **Missions:** rescue, tow, fire, side jobs and traffic on demand, +£5000. **Views:** perf panel, buoyancy, wave probes, targets on the chart, radio voice test |
 
 ### Bridge
 
@@ -454,7 +454,19 @@ Gulls wheel over the boat by day, gliding and now and then flapping, and calling
 - **Swimming:** land in the sea and you float with your head just above the water. Swim with grab-the-world strokes or the stick. Climb out by gripping the gunwale or the transom, or press A beside a quay. The workboat has a **swim ladder** over the starboard side of the aft deck: grip any rung from the water (or press A / Space near it) and you're up it.
 - **Cargo:** each port has goods waiting in a row on its quay or beach, coloured by destination. They're man-portable (30–110 kg). Carry one to the boat, set it on the deck, and at its destination set it down ashore near that port's goods stack to deliver it. Dropped in the sea, it's lost.
 - **Lashing:** loose cargo slides when the deck heels or accelerates past friction (μ ≈ 0.35, so from about 19° of heel, sooner in a seaway) and goes over the rail if pressed against it hard enough (about 33°). Strap it to a D-ring (the rings along the bulwarks and centreline) and it stays put. Cargo is real weight in her stability: stow it all to one side and she lists.
-- **Selkie Bay** has no quay: anchor in the bay, launch the skiff, load her (two crates or one drum), run her up the beach and carry the goods up to the stack. Survivors can only be landed at a quay.
+- **Selkie Bay** has no quay: anchor in the bay, launch the skiff, load her (two crates or one drum), run her up the beach and carry the goods up to the stack. Or, in a boat with a bow ramp, land on its slipway (below). Survivors can only be landed at a quay.
+
+### Landing slipways (bow-ramp boats)
+
+**Calder Haven** (just south of the quay) and **Selkie Bay** (up the beach by the goods stack) have a concrete **slipway** running down into the water, kerbed each side.
+
+1. **Lower the bow ramp** (the green button by the bow or on the cabin wall). Its **toe flaps**, folded on the ramp, flop over as it comes down.
+2. **Come in slowly, bow first**, lined up with the slip (under 2 knots, within about 20°).
+3. Near the slip she's **drawn up onto it** at a walking pace and **landed**: she lies level, her bottom on the concrete, the ramp down and its flaps resting on the slip. The waves no longer move her. Her engine and electrics run on as usual.
+4. **Walk off** down the ramp and its flaps onto the slip, and back up the same way, carrying cargo if you like. Landed on a port's slip, she's **in that port** for cargo, the harbour office and the menu's quick jobs.
+5. **Go astern** to come off (or Menu → Boat → **Cast off**).
+
+The landing craft and the Shipyard's landing craft land; the workboat (no ramp) doesn't. **Debug → Boat → Hull → On a slip** lands a ramp boat on the nearest slipway at once.
 
 ## The archipelago
 
@@ -524,7 +536,7 @@ Design your own boat at https://tartanski-cpu.github.io/SWVR/next/shipyard.html 
 
 Then the choices, a step at a time:
 
-1. Pick a hull type (landing craft, gillnetter, workboat, pilot boat or small tug), size her with the sliders, and rake her stem from plumb to 50°. **Size her for the brief's deck cargo** does the sizing again (say after changing the brief).
+1. Pick a hull type (landing craft, gillnetter, workboat, pilot boat or small tug), size her with the sliders, and rake her stem from plumb to 50° (not the landing craft, whose landing bow is her own: her bottom sweeps up to a raked square bow plate at the waterline, so she rides up a beach or a slipway; nor the tug's push bow). **Size her for the brief's deck cargo** does the sizing again (say after changing the brief).
    - **The small tug** is short, deep and beamy (13 × 5.4 m, 1.65 m draught), with a strong sheer up to a high square **push bow**. On the bow plate stand two rubber **push knees**, either side of the centreline, from the bulwark top down nearly to the waterline. She starts with one slow-revving tug diesel, a rubbing strake, and the house forward with its floor raised to see over the bow. Her bow is her own: the bow-rake slider reads "push bow". Nose her into a quay or push another boat and the knees take it, not her plating. She's slow (about 9 knots flat out on the tug diesel, 10 on twin 400 kW V8s) but pulls hard for her size.
    Choose her **hull protection**, what keeps her sides off a quay:
    - **Fenders**, the cheapest, and what a new design starts with. A basket on deck: press it to put the fenders over the side coming alongside, and again to take them in. They only help while they're out.

@@ -32,7 +32,7 @@ import type { WorldState } from '../core/world';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 import { hullPlan } from '../vessel/layout';
 import type { VesselState } from '../vessel/vesselState';
-import { PORTS, type PortDef } from '../world/archipelago';
+import { PORTS, SLIPWAYS, type PortDef } from '../world/archipelago';
 import { standingHeight } from '../world/geography';
 import { deckSpot, onOpenDeck, type DeckFootprint } from './deck';
 import { compensatedHook, craneStateOf, cranesOf, hookOnBoat } from './craneHook';
@@ -206,6 +206,9 @@ export function anchoredAt(v: VesselState): PortDef | null {
 export function cargoPortAt(v: VesselState): PortDef | null {
   const anchored = anchoredAt(v);
   if (anchored) return anchored;
+  // Landed on a port's slipway (world/slipway.ts): in that port.
+  const slip = v.slip?.phase === 'landed' ? SLIPWAYS.find((s) => s.id === v.slip!.id) : undefined;
+  if (slip) return PORTS.find((p) => p.id === slip.portId) ?? null;
   for (const p of PORTS) {
     const b = p.cargo.berth;
     if (b && Math.hypot(v.position[0] - b.x, v.position[2] - b.z) < b.radius) return p;

@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 import { fitPaint, flatVertexColorMaterial, mergeParts, paintLocal, part } from '../../render/geometryUtils';
 import type { PaintName } from '../../render/pixelPaint';
-import { BERTHS, BLOCKS, BUILDINGS, ISLANDS, LAMPS, LIGHTS, PORT_FLOODS, PORTS, RIDGES, WRECKS, type BlockDef, type WreckDef } from '../archipelago';
+import { BERTHS, BLOCKS, BUILDINGS, ISLANDS, LAMPS, LIGHTS, PORT_FLOODS, PORTS, RIDGES, SLIPWAYS, WRECKS, type BlockDef, type SlipwayDef, type WreckDef } from '../archipelago';
 import { CONFIG } from '../../config';
-import { groundHeight } from '../terrain';
+import { groundHeight, slipSurface } from '../terrain';
 import { standingHeight } from '../geography';
 
 /**
@@ -41,6 +41,34 @@ export class WorldView {
 
 const CELL = 6;
 const SKIP_BELOW = -3;
+/** Round a slipway the terrain is drawn finer (`CELL / FINE` m), so it meets the slab's edges. */
+const FINE = 6;
+/** ...and kept this far under the slab (m), so the concrete isn't fighting it for the pixels. */
+const UNDER_SLIP = 0.15;
+
+/** The terrain's drawn height: the ground, sunk a little under a slipway's slab. */
+function meshHeight(x: number, z: number): number {
+  const h = groundHeight(x, z, false);
+  return slipSurface(x, z) ? h - UNDER_SLIP : h;
+}
+
+/** Grid cells (CELL) that touch a slipway, or come within a cell of it: drawn fine. */
+function nearSlip(i: number, j: number): boolean {
+  for (const s of SLIPWAYS) {
+    const r = Math.hypot(s.length, s.width) + CELL;
+    const cx = (i + 0.5) * CELL;
+    const cz = (j + 0.5) * CELL;
+    if (Math.abs(cx - s.x) > r + CELL || Math.abs(cz - s.z) > r + CELL) continue;
+    // Any point of the cell within a cell of the slab.
+    for (let a = 0; a <= 4; a++)
+      for (let b = 0; b <= 4; b++) {
+        const x = i * CELL + (a / 4) * CELL;
+        const z = j * CELL + (b / 4) * CELL;
+        for (const [dx, dz] of [[0, 0], [CELL, 0], [-CELL, 0], [0, CELL], [0, -CELL]]) if (slipSurface(x + dx, z + dz)) return true;
+      }
+  }
+  return false;
+}
 
 function buildTerrain(): THREE.BufferGeometry {
   // Unique grid cells around every island (islands' boxes overlap, e.g. Gull Rocks).
@@ -59,7 +87,7 @@ function buildTerrain(): THREE.BufferGeometry {
     const k = key(i, j);
     let h = heights.get(k);
     if (h === undefined) {
-      h = groundHeight(i * CELL, j * CELL, false);
+      h = meshHeight(i * CELL, j * CELL);
       heights.set(k, h);
     }
     return h;
@@ -94,6 +122,28 @@ function buildTerrain(): THREE.BufferGeometry {
     const h10 = hAt(i + 1, j);
     const h01 = hAt(i, j + 1);
     const h11 = hAt(i + 1, j + 1);
+    if (nearSlip(i, j)) {
+      // Fine round a slipway. Along an edge shared with a coarse cell its points lie on that
+      // cell's straight edge (no cracks between them); inside, the ground's own heights.
+      const f = CELL / FINE;
+      const coarse = (di: number, dj: number) => !nearSlip(i + di, j + dj);
+      const [w, e, nn, s] = [coarse(-1, 0), coarse(1, 0), coarse(0, -1), coarse(0, 1)];
+      const at = (a: number, b: number) => {
+        if (a === 0 && w) return h00 + ((h01 - h00) * b) / FINE;
+        if (a === FINE && e) return h10 + ((h11 - h10) * b) / FINE;
+        if (b === 0 && nn) return h00 + ((h10 - h00) * a) / FINE;
+        if (b === FINE && s) return h01 + ((h11 - h01) * a) / FINE;
+        return meshHeight(x0 + a * f, z0 + b * f);
+      };
+      for (let a = 0; a < FINE; a++)
+        for (let b = 0; b < FINE; b++) {
+          const xa = x0 + a * f;
+          const za = z0 + b * f;
+          tri(xa, za, at(a, b), xa, za + f, at(a, b + 1), xa + f, za, at(a + 1, b));
+          tri(xa + f, za, at(a + 1, b), xa, za + f, at(a, b + 1), xa + f, za + f, at(a + 1, b + 1));
+        }
+      continue;
+    }
     // Counter-clockwise seen from above (+Y): (x0,z0) -> (x0,z1) -> (x1,z0).
     tri(x0, z0, h00, x0, z1, h01, x1, z0, h10);
     tri(x1, z0, h10, x0, z1, h01, x1, z1, h11);
@@ -139,6 +189,7 @@ const BOLLARD = 0x2a2c30;
 function buildStructures(): THREE.BufferGeometry[] {
   const parts: THREE.BufferGeometry[] = [];
   for (const b of BLOCKS) buildBlock(b, parts);
+  for (const s of SLIPWAYS) buildSlipway(s, parts);
   for (const r of RIDGES) if (r.drawn !== false) buildBreakwater(r.ax, r.az, r.bx, r.bz, r.crest, r.halfWidth, r.slope, parts);
   for (const bd of BUILDINGS) buildBuilding(bd, parts);
   for (const l of LIGHTS) buildLightTower(l.x, l.z, l.y, l.color, l.tower, parts);
@@ -213,6 +264,37 @@ function buildBlock(b: BlockDef, parts: THREE.BufferGeometry[]): void {
       add(new THREE.CylinderGeometry(0.24, 0.24, 0.08, 8).translate(x, b.top + 0.52, z), BOLLARD);
     }
   }
+  for (const g of local) parts.push(g.applyMatrix4(m));
+}
+
+/**
+ * A landing slipway (SLIPWAYS; world/slipway.ts): a concrete slab on the slope, built down to
+ * the seabed, kerbed each side, grip grooves across it, a yellow line along its top edge.
+ * Built in its own frame (local +z down the slip, from its top edge) and turned to its
+ * bearing; part of the one structures mesh.
+ */
+function buildSlipway(s: SlipwayDef, parts: THREE.BufferGeometry[]): void {
+  const h = (s.headingDeg * Math.PI) / 180;
+  const m = new THREE.Matrix4().makeRotationY(-h).setPosition(s.x, 0, s.z);
+  const local: THREE.BufferGeometry[] = [];
+  const surface = (d: number) => s.top - s.slope * d;
+  // A box along the slip with its top face laid on the slope and its bottom on the seabed.
+  const sloped = (w: number, x: number, z0: number, z1: number, above: number, below: number) => {
+    const g = new THREE.BoxGeometry(w, 1, z1 - z0).translate(x, 0, (z0 + z1) / 2);
+    const p = g.attributes.position;
+    for (let i = 0; i < p.count; i++) p.setY(i, p.getY(i) > 0 ? surface(p.getZ(i)) + above : below);
+    p.needsUpdate = true;
+    g.computeVertexNormals();
+    return g;
+  };
+  local.push(paintLocal(part(sloped(s.width, 0, 0, s.length, 0, -6), CONCRETE, 'concrete')));
+  for (const side of [-1, 1]) local.push(paintLocal(part(sloped(0.3, side * (s.width / 2 + 0.15), 0, s.length, 0.15, -6), 0x8a8882, 'concrete')));
+  // Grooves across for grip (a wheel, a boot), down to the water.
+  for (let d = 1; d < s.length; d += 0.8) {
+    if (surface(d) < -0.3) break;
+    local.push(part(new THREE.BoxGeometry(s.width - 0.2, 0.02, 0.06).translate(0, surface(d) + 0.005, d), 0x7a7872));
+  }
+  local.push(part(new THREE.BoxGeometry(s.width, 0.02, 0.15).translate(0, s.top + 0.01, 0.1), 0xf2c200));
   for (const g of local) parts.push(g.applyMatrix4(m));
 }
 
