@@ -209,6 +209,11 @@ export interface MenuHost {
   playerName(): string;
   nextPlayerName(): void;
   netRole(): 'solo' | 'starting' | 'host' | 'client';
+  /** Debug > Hands: the VR hands' turn on the controller (deg), nudged; the controller's axes shown. */
+  handTurn(): { pitchDeg: number; rollDeg: number; yawDeg: number };
+  turnHands(axis: 'pitchDeg' | 'rollDeg' | 'yawDeg', deg: number | null): void;
+  handAxes(): boolean;
+  setHandAxes(on: boolean): void;
   /** The recording camera (player/cameraMode.ts): its options, on and off, a line of help. */
   camera(): CameraOptions;
   setCamera(on: boolean): void;
@@ -575,7 +580,27 @@ export function mainMenu(h: MenuHost): MainMenu {
     },
   ];
 
+  const turnRow = (label: string, axis: 'pitchDeg' | 'rollDeg' | 'yawDeg'): MenuRow => ({
+    label,
+    buttons: [
+      { text: '−15°', press: () => h.turnHands(axis, -15) },
+      { text: () => `${Math.round(h.handTurn()[axis])}°`, weight: 1.2 },
+      { text: '+15°', press: () => h.turnHands(axis, 15) },
+    ],
+  });
   const debug: MenuSection[] = [
+    {
+      name: 'Hands',
+      rows: [
+        { heading: 'VR hands on the controllers (tell us the numbers that look right)' },
+        turnRow('Pitch (about red X)', 'pitchDeg'),
+        turnRow('Roll (about blue Z)', 'rollDeg'),
+        turnRow('Yaw (about green Y)', 'yawDeg'),
+        { label: '', buttons: [{ text: 'Back to 90 / 0 / 0', press: () => h.turnHands('pitchDeg', null) }] },
+        { label: 'Controller axes', buttons: [choice('Shown', true, () => h.handAxes(), (v) => h.setHandAxes(v)), choice('Hidden', false, () => h.handAxes(), (v) => h.setHandAxes(v))] },
+        { heading: 'Red X: out of the back of your right hand · Green Y: back along your arm · Blue Z: down the handle' },
+      ],
+    },
     {
       name: 'World',
       rows: [

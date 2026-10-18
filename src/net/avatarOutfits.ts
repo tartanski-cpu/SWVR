@@ -218,15 +218,32 @@ export function handGeometry(l: Look, side: -1 | 1, pose: HandPose): THREE.Buffe
 
 /** Every pose's hand for a look and side, built once and shared (own hands, crew-mates'). */
 const handCache = new Map<string, Record<HandPose, THREE.BufferGeometry>>();
+
+/**
+ * Debug > Hands: nudge the hands' turn on the controller (CONFIG.avatar.handTurn) and build
+ * them again (the old shapes are left to the garbage collector: a mesh may still hold one
+ * this frame).
+ */
+export function turnHands(axis: 'pitchDeg' | 'rollDeg' | 'yawDeg', deg: number | null): void {
+  const t = CONFIG.avatar.handTurn;
+  if (deg === null) Object.assign(t, { pitchDeg: 90, rollDeg: 0, yawDeg: 0 });
+  else t[axis] = (((t[axis] + deg + 180) % 360) + 360) % 360 - 180;
+  handCache.clear();
+}
 export function handGeometries(look: number, side: -1 | 1): Record<HandPose, THREE.BufferGeometry> {
   const key = `${look}:${side}`;
   let set = handCache.get(key);
   if (!set) {
     const l = decodeLook(look);
-    // Turned to sit right on the controller (CONFIG.avatar.handTurn): pitch forward (about
-    // +x, by minus the angle: +y toward -z), then roll (about +z: +y toward -x).
+    // Turned to sit right on the controller (CONFIG.avatar.handTurn): pitched forward (about
+    // +x, by minus the angle: +y toward -z), then rolled (about +z: +y toward -x), then
+    // yawed (about +y).
     const t = CONFIG.avatar.handTurn;
-    const turn = new THREE.Matrix4().makeRotationZ((t.rollDeg * Math.PI) / 180).multiply(new THREE.Matrix4().makeRotationX((-t.pitchDeg * Math.PI) / 180));
+    const D = Math.PI / 180;
+    const turn = new THREE.Matrix4()
+      .makeRotationY(t.yawDeg * D)
+      .multiply(new THREE.Matrix4().makeRotationZ(t.rollDeg * D))
+      .multiply(new THREE.Matrix4().makeRotationX(-t.pitchDeg * D));
     const hand = (pose: HandPose) => handGeometry(l, side, pose).applyMatrix4(turn);
     set = { rest: hand('rest'), fist: hand('fist'), point: hand('point'), rude: hand('rude') };
     handCache.set(key, set);

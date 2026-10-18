@@ -6,7 +6,8 @@
 import { describe, expect, it } from 'vitest';
 import { IdFactory } from '../src/core/ids';
 import { createWorld } from '../src/core/world';
-import { decodeLook, handGeometries, handGeometry } from '../src/net/avatarOutfits';
+import { decodeLook, handGeometries, handGeometry, turnHands } from '../src/net/avatarOutfits';
+import { CONFIG } from '../src/config';
 import { ClientSession } from '../src/net/clientSession';
 import { HostSession } from '../src/net/hostSession';
 import type { PlayerPose } from '../src/net/protocol';
@@ -77,5 +78,22 @@ describe('hand gestures', () => {
     expect(world.players[c.playerId!].avatar!.poses).toEqual([0, 0]);
     c.sendPose(pose); // a desktop player, or an older version
     expect(world.players[c.playerId!].avatar!.poses).toEqual([0, 0]);
+  });
+
+  it("sits on the controller as the WebXR grip frame says: the finger out along -Y (away from the arm), the thumb toward -Z (up the handle)", () => {
+    expect(CONFIG.avatar.handTurn).toEqual({ pitchDeg: 90, rollDeg: 0, yawDeg: 0 });
+    const point = handGeometries(5, 1).point;
+    point.computeBoundingBox();
+    const b = point.boundingBox!;
+    // The finger reaches furthest of anything, out along -Y; the wrist's cuff is back along +Y.
+    expect(-b.min.y).toBeGreaterThan(0.09);
+    expect(b.max.y).toBeGreaterThan(0.05);
+    expect(-b.min.y).toBeGreaterThan(Math.max(-b.min.z, b.max.z, -b.min.x, b.max.x));
+    // Nudged from Debug > Hands, the shapes are built again turned; back to the spec's.
+    turnHands('rollDeg', 15);
+    expect(CONFIG.avatar.handTurn.rollDeg).toBe(15);
+    expect(handGeometries(5, 1).point).not.toBe(point);
+    turnHands('pitchDeg', null);
+    expect(CONFIG.avatar.handTurn).toEqual({ pitchDeg: 90, rollDeg: 0, yawDeg: 0 });
   });
 });

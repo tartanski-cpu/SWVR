@@ -73,7 +73,7 @@ import { YardBoard } from '../ui/yardBoard';
 import type { PlayerState } from '../player/playerState';
 import { struckByPropeller } from '../rescue/propStrike';
 import { PropStrikeView } from '../rescue/propStrikeView';
-import { lookFromId } from '../net/avatarOutfits';
+import { lookFromId, turnHands } from '../net/avatarOutfits';
 import { BoatView } from './boatView';
 import type { Control } from '../controls/Control';
 import { InteractionSystem, type HandFrame } from '../controls/InteractionSystem';
@@ -2163,6 +2163,12 @@ export class App {
         saveSettings();
       },
       netRole: () => (this.host ? 'host' : this.client ? 'client' : this.hostStarting ? 'starting' : 'solo'),
+      handTurn: () => CONFIG.avatar.handTurn,
+      turnHands: (axis, deg) => turnHands(axis, deg),
+      handAxes: () => this.ownHands.showAxes,
+      setHandAxes: (on) => {
+        this.ownHands.showAxes = on;
+      },
       camera: () => this.camMode,
       setCamera: (on) => this.setCameraMode(on),
       setCameraRide: (ride) => this.setCameraRide(ride),

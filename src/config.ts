@@ -2614,12 +2614,16 @@ export const CONFIG = {
      */
     gesture: { stick: 0.6 },
     /**
-     * The hands' turn on the controller (owner, from the Quest: they sat wrong), applied to
-     * every hand shape, ours and crew-mates' (deg, in the controller's axes: -z forward,
-     * +y up): first pitched forward (`pitchDeg`, the top of the hand toward forward), then
-     * rolled (`rollDeg`, + anti-clockwise as you look along it, the top toward your left).
+     * The hands' turn on the controller, applied to every hand shape, ours and crew-mates'.
+     * The shapes are drawn fingers forward along -z, thumb up +y, the wrist back at +z. The
+     * controller's grip frame (the WebXR spec, which the Quest browser follows): a fist round
+     * a rod (the handle), -Z along the rod toward the thumb, +X out of the back of the right
+     * hand (-X of the left), +Y back along the arm. So the shapes are pitched forward 90°
+     * about X (their up to -Z, their back to +Y), and nothing else: `rollDeg` (about Z) and
+     * `yawDeg` (about Y) are for fine-tuning, live from Debug > Hands (owner, Oct 2026: a
+     * 90° roll as well was wrong).
      */
-    handTurn: { pitchDeg: 90, rollDeg: 90 },
+    handTurn: { pitchDeg: 90, rollDeg: 0, yawDeg: 0 },
   },
 
   /**
