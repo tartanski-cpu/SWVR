@@ -4353,7 +4353,7 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   - none of the gear or its switches aboard, the horn, towing, rescue gear, VHF and torch still there;
   - the console's plates;
   - no fire call without the monitor, one with it.
-  - `npm test`: 98 files, 717 pass; typecheck clean.
+  - `npm test`: 99 files, 720 pass (after the latest `next`); typecheck clean.
 - **Checked in headless Chromium:** the starter's roof (no searchlight or monitor) and dash (no SEARCH · FIRE plate). Searchlight bought in port: the page restarts, the SPOT switch, its plate and the joystick are back, £1,500 off. No page errors. **Not checked:** the Quest.
 
 ### Test address for work in progress (owner request)
