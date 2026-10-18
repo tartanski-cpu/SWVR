@@ -3898,6 +3898,27 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Checked in headless Chromium:** a pilot boat with a 3 m, 1.2 m high, full-width, 30°-raked deckhouse, and set in with 0.5 m side decks, upright: views from the bow, stern and port; the wheelhouse on top, the steps up aft, no warnings. Found and fixed on the way: its faces wound inside out (invisible from outside), and its foot showing through her topsides at the bow. **Not checked:** the Quest, a phone, walking up the steps into a raised helm in the game.
 - **Next, for bigger boats (tugs), noted:** the deckhouse top walkable with rails and a ladder or stairs (the walk area's floors and ladders already do this for the workboat's roof), and an interior with a door into it.
 
+### Shipyard: buttons to the right, port and starboard views, sketches only when opened (owner)
+
+- **The owner:**
+  - Projects and Design together had drifted to the left, but their pop-ups open on the right.
+  - Replace the Side view with Port and Starboard, looking straight side on.
+  - A view's sketch showed in the 3D view at certain angles. It should show only when opened from the Sketches list on the right, and closing it should go back to the plain 3D view.
+- **Now:**
+  - **The header** (`shipyard.html #top .topRight`): pushed to the right (`margin-left: auto`). Moving the steps out of the header had let the buttons drift left.
+  - **Views:** **Starboard** (the old Side: from starboard, bow to the right) and **Port** (from port), straight side on and level.
+  - **A port sketch plane** (`planeSketch.ts`: plane `port`, glass `PLANE_GAP` off her port side). The starboard plane keeps its old name, `side`, so sketches made on it still open.
+  - **A sketch shows only while it's open** (`page.ts openSketch` / `closeSketch`):
+    - ✏ Sketch, or a click on a view's sketch in the Sketches list, opens it: the view goes square on to it, flat, with the pen on.
+    - ✏ Sketch again (or the list entry) closes it and puts the camera back where it was. Picking a three-quarter or helm view closes it there.
+    - The plain 3D view never shows sketches, at any angle.
+    - The list has one entry per view with strokes ("Port view", who drew, how many strokes, "(open)" when it is).
+  - In a session, a stroke shows live to everyone who has that view's sketch open.
+- **Checked:**
+  - Typecheck and tests (`tests/shipyard/planeSketch.test.ts`: the port plane stands off her port side, is faced from port, takes strokes).
+  - Headless: the header with the buttons at the right; the view buttons; a sketch drawn on Port, closed (the Port view then shows none), and reopened from the list.
+- **Not checked:** a phone; a live session with two browsers (the sharing is unchanged).
+
 ### Shipyard: the shaft angle places the engine (owner)
 
 - **The owner:** in the side views the propeller shaft was too steep. A reasonable shaft angle should decide where the engine goes. "I wouldn't go into centre of gravities: just make it look [right]."
