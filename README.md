@@ -45,7 +45,7 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 |---|---|
 | Click the view | Capture the mouse for looking (Esc releases it) |
 | O | Menu, floating in front of you: aim and click (same menu as in VR) |
-| Right mouse button or Z (hold) | **Binoculars**: 7x zoom through two lens circles (Z is the key left of X, so Y on a German keyboard). Over the chart, right-drag still erases |
+| Right mouse button or Z (hold) | **Binoculars**: 7x zoom through two lens circles (Z is the key left of X, so Y on a German keyboard). Over the chart, right-drag still erases. Holding the wheel or a lever, it's free look instead (below) |
 | W A S D | Walk (walls, furniture and the deck edge stop you; hold Shift to **run**) |
 | F | Toggle walk / free-fly camera (Space / C = up / down when flying) |
 | Space / C at the ladder | Climb up / down (walk forward off the top onto the roof) |
@@ -57,6 +57,7 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | Click the deck crane's joystick | **W A S D** slew and raise / lower the boom, **R / F** hoist up / down, **E / Q** boom out / in, **Space** hook (those keys do nothing else meanwhile); click again to let go |
 | B | Board the boat (you appear at the helm) / go ashore onto the quay |
 | Aim **+** and click / drag | Operate the bridge controls (see below) |
+| Holding the wheel or a lever, hold the **right mouse button** | **Look round freely:** the mouse turns your view and the wheel (or lever) stays where you left it, still in your hand; no binoculars. Let go of the right button and the mouse steers again. Off the wheel, the right button is the binoculars again |
 | E | Debug: engine start / stop |
 | ↑ / ↓ | Debug: throttle/gear lever ahead / astern |
 | ← / → | Debug: wheel to port / starboard |

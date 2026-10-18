@@ -405,6 +405,11 @@ export class InteractionSystem {
   }
 
   /** Name of whatever the desktop reticle is on (for a hint), or null. */
+  /** Desktop: a control is held with the mouse (the wheel or a lever, left button down). */
+  get desktopDragging(): boolean {
+    return !!this.dragging;
+  }
+
   get desktopHoverLabel(): string | null {
     if (this.steering) {
       const extras = this.steering.keyExtras.map((e) => `${e.key} ${e.does}`);

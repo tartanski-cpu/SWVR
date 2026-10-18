@@ -4363,6 +4363,25 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   - `npm test`: 99 files, 720 pass (after the latest `next`); typecheck clean.
 - **Checked in headless Chromium:** the starter's roof (no searchlight or monitor) and dash (no SEARCH · FIRE plate). Searchlight bought in port: the page restarts, the SPOT switch, its plate and the joystick are back, £1,500 off. No page errors. **Not checked:** the Quest.
 
+### Desktop: look round while holding the wheel (owner)
+
+- **The owner:** desktop players have to look down at the wheel to grab it, and while they hold it the view is stuck: they can't look up and around.
+- **Now** (desktop only, `app/desktopPointer.ts freeLook`): holding the wheel or a lever (left button), **hold the right button** and the mouse turns the view.
+  - The control stays held where it was (the mouse's moves don't reach it), and there are no binoculars.
+  - Let go of the right button and the mouse works the control again.
+  - Off the wheel, the right button is the binoculars as before.
+  - Free look lasts until the right button is let go, so letting go of the wheel first doesn't snap into the binoculars.
+  - The switch happens at the click itself, not on the next frame, so no stray movement turns the view or the wheel.
+  - The reticle says "hold the right button to look round" / "looking round: let go of the right button to steer".
+- The levers (the throttle) work the same way: they freeze the view in the same way. VR is unchanged.
+- `InteractionSystem.desktopDragging` tells the pointer a control is held.
+- **Checked in headless Chromium** (the mouse simulated, pointer capture stubbed), aboard at the helm aimed at the wheel:
+  - left drag turned it (helm 0.38) with the view still;
+  - right down, the mouse turned the view (yaw -0.55) with the helm held at 0.38, no binoculars;
+  - right up, the mouse steered it back to 0 with the view still;
+  - off the wheel, right down: the binoculars (fov 70 to 10).
+  - No page errors. **Not checked:** a real mouse and pointer lock; there's no unit test (the pointer is DOM input).
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

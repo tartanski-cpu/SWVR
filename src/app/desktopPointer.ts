@@ -22,6 +22,13 @@ export class DesktopPointer {
   laserDown = false;
   /** The right button is held for the binoculars (not taken by the chart eraser). */
   binocularsDown = false;
+  /**
+   * The right button is held while a control is held (the wheel, a lever): the view is
+   * free to look round and the mouse leaves the control where it is (owner: desktop
+   * players couldn't look up from the wheel). Kept until the right button is let go, so
+   * letting go of the wheel first doesn't snap into the binoculars.
+   */
+  freeLook = false;
   private shift = false;
   /** Holding hand gear (extinguisher, torch; set by the App): the left button works it. */
   gearHeld: (() => boolean) | null = null;
@@ -55,6 +62,13 @@ export class DesktopPointer {
     document.addEventListener('mousedown', (e) => {
       if (document.pointerLockElement !== canvas) return;
       if (e.button === 2) this.rightDown = true;
+      // Holding the wheel or a lever: the view is free from this moment (see freeLook), the
+      // moves until the next frame not turning the control.
+      if (e.button === 2 && this.interaction.desktopDragging && !this.binocularsDown) {
+        this.freeLook = true;
+        this.desktop.lookFrozen = false;
+        this.dx = this.dy = 0;
+      }
       if (e.button === 1) {
         this.middleDown = true;
         e.preventDefault(); // no auto-scroll
@@ -62,6 +76,11 @@ export class DesktopPointer {
     });
     document.addEventListener('mouseup', (e) => {
       if (e.button === 2) this.rightDown = false;
+      // ...and back on the control at once when it's let go.
+      if (e.button === 2 && this.freeLook) {
+        this.freeLook = false;
+        if (this.interaction.desktopDragging) this.desktop.lookFrozen = true;
+      }
       if (e.button === 1) this.middleDown = false;
     });
     const shift = (e: KeyboardEvent) => (this.shift = e.shiftKey);
@@ -81,7 +100,7 @@ export class DesktopPointer {
       this.released = true;
     });
     document.addEventListener('mousemove', (e) => {
-      if (!this.down) return;
+      if (!this.down || this.freeLook) return;
       this.dx += e.movementX;
       this.dy += e.movementY;
     });
@@ -118,15 +137,21 @@ export class DesktopPointer {
       // The pencil or eraser has the buttons.
       this.pressed = false;
     }
-    // Right button held, not erasing on the chart: the binoculars (owner request); the
-    // middle button: the laser pointer.
-    this.binocularsDown = locked && this.rightDown && !chart?.consumed;
+    // Right button held, not erasing on the chart: the binoculars (owner request), or,
+    // holding the wheel or a lever, free look (see freeLook); the middle button: the laser pointer.
+    const right = locked && this.rightDown && !chart?.consumed;
+    if (!right) this.freeLook = false;
+    else if (this.interaction.desktopDragging && !this.binocularsDown) this.freeLook = true;
+    this.binocularsDown = right && !this.freeLook;
     this.laserDown = locked && this.middleDown;
     // While carrying, a click sets the item down, whatever the reticle is on.
     const carrying = !onMenu && !!this.cargo?.carrying();
     const ctlRay = onMenu || carrying ? null : ray;
-    this.desktop.lookFrozen = this.interaction.updateDesktop(ctlRay, this.down, this.pressed && !onMenu && !carrying, this.released, this.dx, this.dy);
+    // Looking round, the mouse turns the view, not the control (it stays held where it is).
+    const [dx, dy] = this.freeLook ? [0, 0] : [this.dx, this.dy];
+    this.desktop.lookFrozen = this.interaction.updateDesktop(ctlRay, this.down, this.pressed && !onMenu && !carrying, this.released, dx, dy) && !this.freeLook;
     let label = onMenu ? null : (chart?.consumed ? chart.label : this.interaction.desktopHoverLabel);
+    if (label && this.interaction.desktopDragging) label += this.freeLook ? '\nlooking round: let go of the right button to steer' : '\nhold the right button to look round';
     // Holding gear: a press off any control is for the gear (not the cargo).
     const gear = !onMenu && locked && !carrying && !!this.gearHeld?.();
     if (gear && this.pressed && !this.interaction.pressConsumed) this.gearActive = this.gearPressed = true;
