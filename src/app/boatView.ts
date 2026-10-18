@@ -90,7 +90,7 @@ export class BoatView {
     const layout = def.layout;
     const wh = layout.wheelhouse;
     if (wh) {
-      this.door = new WheelhouseDoor(wh.doorWidth, wh.doorHeight);
+      this.door = new WheelhouseDoor(wh.doorWidth, wh.doorHeight, 'door', !!wh.doorHinged);
       this.door.root.position.set(0, wh.floorY, wh.aft + 0.03);
       this.root.add(this.door.root);
       // The port side door, between the console and the chart table: slides aft outside the

@@ -15,6 +15,10 @@
  * forward is her bow. The pedestals under them stay square too, set back as a whole; the dash,
  * the desk and the group plates are what angle back. Screens are the exception (`wrap.turn`,
  * their slots): set into the dash's angled face, they turn with it, flush, facing the helm.
+ *
+ * Bare (`bare`, owner: low wheelhouse windows): no dash, the upright panel across the front,
+ * so you can see down past the console; its screens (`bare.screens`, their slots) stay where
+ * they were, each on a slim stalk from the console top, and you see between them.
  */
 import * as THREE from 'three';
 import { CONFIG } from '../../config';
@@ -23,7 +27,7 @@ import { LABEL_OFFSET } from '../../modular/module';
 import type { Socket } from '../../modular/socket';
 import { part } from '../../render/geometryUtils';
 
-export type ConsoleConfig = typeof CONFIG.modules.helmConsole & { wrap?: { centre: number; k: number; turn?: string[] } };
+export type ConsoleConfig = typeof CONFIG.modules.helmConsole & { wrap?: { centre: number; k: number; turn?: string[] }; bare?: { screens: string[] } };
 
 /** A wrapped dash's setback at x (m aft), and a wing's turn (deg about y): 0 across the middle. */
 const setback = (c: ConsoleConfig, x: number) => (c.wrap ? Math.max(0, Math.abs(x) - c.wrap.centre) * c.wrap.k : 0);
@@ -63,7 +67,14 @@ export const CONSOLE: ModuleDefinition<ConsoleConfig> = {
   view: {
     build({ config: c }) {
       const d = c.dash;
-      const staticParts = splits(c, -d.halfWidth, d.halfWidth).map(([a, b]) => box(b - a, d.top - d.bottom, d.aft - d.front, (a + b) / 2, (d.top + d.bottom) / 2, (d.front + d.aft) / 2, 0x30363b));
+      const staticParts = c.bare ? [] : splits(c, -d.halfWidth, d.halfWidth).map(([a, b]) => box(b - a, d.top - d.bottom, d.aft - d.front, (a + b) / 2, (d.top + d.bottom) / 2, (d.front + d.aft) / 2, 0x30363b));
+      // Bare: each screen on a stalk from the console top up to the middle of its back, and a foot.
+      for (const id of c.bare?.screens ?? []) {
+        const sl = c.slots[id];
+        if (!sl) continue;
+        const [x, y, z] = sl.position;
+        staticParts.push(box(0.04, y, 0.03, x, y / 2, z - 0.03, 0x30363b), box(0.12, 0.012, 0.08, x, 0.006, z - 0.03, 0x30363b));
+      }
       // Group plates under the switch row, a coloured strip along the forward edge of each,
       // its title on the strip.
       const top = 0.005;

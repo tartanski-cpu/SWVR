@@ -31,6 +31,7 @@ import type { Socket } from '../modular/socket';
 import type { HullForm } from '../vessel/hullForm';
 import type { DoorStep, HouseShape, LayoutConfig, Livery } from '../vessel/vesselDef';
 import type { DeckhouseLayout } from '../vessel/deckhouse';
+import { houseFlare } from '../vessel/houseFlare';
 import { BREAKERS } from '../vessel/vesselState';
 import { strakeLine, tyreSpots } from '../vessel/physics/guards';
 import { guardParts, PLACE_GRID, placeOf, SCALES, SINGLE_ONLY_ENGINES, type PlaceKey, type ShipDesign } from './design';
@@ -458,7 +459,9 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   const roofThickness = SCALES.roofThickness(d.roofThickness);
   // Its front and sides chamfered (hullMesh.ts chamferedSlab): the top set in this much.
   const roofBack = roofThickness * Math.tan((SCALES.roofEdge(d.roofEdge) * Math.PI) / 180);
-  const sill = 1.31; // the front glass's, level with the dash top; the sides' and aft's 1.0
+  // The window sills, one height all round (owner; they were 1.31 at the front, the dash top,
+  // and 1.0 at the sides): the standard height, or low, below the console.
+  const sill = d.sills ? CONFIG.shipyard.windowSills.low : CONFIG.shipyard.windowSills.standard;
   // The windows run up to the roof's underside, only their frame between (owner: the roof is
   // one piece, overhanging them, no band of wall above the glass).
   const windowHead = headroom - CONFIG.pixelPaint.frameWidth;
@@ -469,6 +472,8 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   // between the mullions, the outer two angled back `facetDeg` to the side walls; the
   // console wraps round with it, its wings set back as much (sb).
   if (facet) house.facet = facet;
+  // Windows raked out all round (owner; houseFlare.ts): the sides and aft lean out above the sill.
+  if (d.flare) house.flare = { tan: Math.round(Math.tan((CONFIG.shipyard.flareDeg * Math.PI) / 180) * 1e4) / 1e4 };
   /** How far a faceted front is set back at x (0 across the middle; the console's wings, and what's placed beside them, follow it). */
   const sb = (x: number) => (house.facet ? (Math.max(0, Math.abs(x) - house.facet.centre) * house.facet.depth) / (hw - house.facet.centre) : 0);
   const windowRake = SCALES.windowRake(d.windowRake);
@@ -512,7 +517,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
 
   const layout = {
     // No roof rail or ladder (owner: simpler): the roof isn't walked.
-    wheelhouse: { halfWidth: hw, front, aft, floorY, roofY, wall, doorWidth: 0.7, doorHeight, windowSill: 1.0, windowHead, frontSill: sill, frontRakeDeg: windowRake, consoleDepth: 0.5, consoleHeight: 0.9, shape: house, ...(steps.length ? { steps } : {}) },
+    wheelhouse: { halfWidth: hw, front, aft, floorY, roofY, wall, doorWidth: 0.7, doorHeight, windowSill: sill, windowHead, frontSill: sill, frontRakeDeg: windowRake, ...(d.flare ? { doorHinged: true } : {}), consoleDepth: 0.5, consoleHeight: 0.9, viewSill: d.sills ? 0.9 : Math.max(sill, 0.9 + CONFIG.modules.helmConsole.dash.top), shape: house, ...(steps.length ? { steps } : {}) },
     roof: { thickness: roofThickness, overhang: 0.15, railHeight: 0, edgeMargin: 0.25 },
     doorButtons: { x: 0.45, height: 1.1 },
     engineHatch: eh,
@@ -614,8 +619,9 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   const wl = CONFIG.shipyard.workLights;
   const at = {
     console: [0, F + 0.9, front + 0.56] as V3,
-    breakerPanel: [hw - 0.185, F + 0.6, front + 0.875 + sb(hw - 0.185)] as V3,
-    rampButton: [-(hw - 0.07), F + 0.73, front + 0.775 + sb(hw - 0.07)] as V3,
+    // (Below the window sill: low windows bring it down.)
+    breakerPanel: [hw - 0.185, F + Math.min(0.6, sill - 0.2), front + 0.875 + sb(hw - 0.185)] as V3,
+    rampButton: [-(hw - 0.07), F + Math.min(0.73, sill - 0.08), front + 0.775 + sb(hw - 0.07)] as V3,
     batteryMaster: [hw - 0.45, F + 0.48, aft - 0.065] as V3,
     batterySelector: [hw - 0.2, F + 0.48, aft - 0.065] as V3,
     vhf: [-(hw - 0.3), roofY - 0.17, front + 0.525 + sb(hw - 0.3)] as V3,
@@ -631,7 +637,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     // The whiteboard: a pull-down board hung from the roof just forward of the aft wall
     // (owner: not low on the wall), port of the door, as wide as fits there.
     whiteboard: [(-(hw - wall) + 0.1) / 2, roofY, aft - wall - 0.1] as V3,
-    dutyBoard: [hw - wall - 0.02, F + 1.0 - CONFIG.modules.dutyBoard.height / 2 - 0.04, aft - wall - 0.5] as V3,
+    dutyBoard: [hw - wall - 0.02, F + sill - CONFIG.modules.dutyBoard.height / 2 - 0.04, aft - wall - 0.5] as V3,
     engineBed: [(eh.x0 + eh.x1) / 2, F - 0.35, hatchZ] as V3,
     engineSpace: [-0.2, F - 0.47, hatchZ] as V3,
     cabinLight: [0, roofY - 0.12, (front + aft) / 2 + 0.15] as V3,
@@ -966,7 +972,9 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     const deckOutside = q.halfBeam(z0 + sdc.width / 2) - hw;
     // On a house raised on a deckhouse as wide as it, the door opens onto the side deck below
     // with no steps (owner: the crew jump in and out; if that's too high it's a bad design).
-    if (deckhouse && !d.dhNarrow) warnings.push('The side door would open onto the deckhouse’s top, which isn’t walked yet (make the deckhouse as wide as the wheelhouse for one): left off.');
+    // A sliding door wants a flat wall to slide along (owner): not with the windows raked out.
+    if (d.flare) warnings.push('The side door slides along an upright wall: it needs upright side windows (not raked out all round): left off.');
+    else if (deckhouse && !d.dhNarrow) warnings.push('The side door would open onto the deckhouse’s top, which isn’t walked yet (make the deckhouse as wide as the wheelhouse for one): left off.');
     else if (zEnd - z0 < sdc.width) warnings.push(`Her wheelhouse is too short for a side door between the helm and ${chartTableAt ? 'the chart table' : 'the aft wall'}: left off.`);
     else if (deckOutside < sdc.sideDeck) warnings.push('There\'s no side deck outside her wheelhouse to step out onto (a narrower house leaves one): the side door is left off.');
     else if (height < 1.7) warnings.push('Her wheelhouse is too low inside for a side door: left off.');
@@ -979,7 +987,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   const ring = ringSide
     ? {
         // At hand height off the deck (on the deckhouse's aft face if she has one, the house's floor being up on it).
-        stow: [r2(ringSide * Math.max(0.75, hw - dg.ringFromCorner)), r2((deckhouse ? q.deckY(aft) : F) + 1.15), r2(aft + 0.06)] as V3,
+        stow: [r2(ringSide * Math.max(0.75, hw - dg.ringFromCorner)), r2(Math.min((deckhouse ? q.deckY(aft) : F) + 1.15, F + sill - 0.3)), r2(aft + 0.06)] as V3,
         cleat: cleat(ringSide, sternCleat),
         hook: [r2(ringSide * (q.halfBeam(sternCleat - 1.2) - 0.08)), r2(q.deckY(sternCleat - 1.2) + bulwarkHeight - 0.05), r2(Math.max(aft + 0.2, sternCleat - 2.6)), r2(sternCleat - 0.3)] as [number, number, number, number],
       }
@@ -1203,6 +1211,8 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   else recipe.modules = recipe.modules.filter((m) => m.socket !== 'searchlight');
   if (monitorFoot) recipe.modules.push({ socket: 'fireMonitor', module: 'deck.fire-monitor', config: { position: [monitorFoot[0], r2(monitorFoot[1] + dp.nozzleHeight), monitorFoot[2]], pole: { deckY: monitorFoot[1] } } });
   else if (hasMonitor) recipe.modules.push({ socket: 'fireMonitor', module: 'deck.fire-monitor', config: { position: monitorRoof } }); // its gauge: on the console, below
+  const fl = houseFlare(layout.wheelhouse!);
+  const onFlaredRoof = ([x, y, z]: V3): V3 => (fl ? fl.at(x, y, z) : [x, y, z]).map((v, i) => (i === 1 ? v : r2(v))) as V3;
   bySocket(recipe.modules, 'navLights')!.config = {
     // The masthead light on its own pole from the roof (no signal mast on her).
     mast: { footY: roofTopAt(roofFront + 0.475) },
@@ -1212,8 +1222,9 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
       // The sidelights on the roof's edges (the windows run up to it), just aft of the front glass.
       // (On the chamfered side at mid-thickness, just proud of it.)
       // (A faceted front's roof is cut back at its corners: they go back with it.)
-      port: [-r2(hw + 0.15 - roofBack / 2 + 0.03), roofY + roofThickness / 2, r2(Math.max(front, zHead) + 0.175 + sb(hw + 0.15))],
-      starboard: [r2(hw + 0.15 - roofBack / 2 + 0.03), roofY + roofThickness / 2, r2(Math.max(front, zHead) + 0.175 + sb(hw + 0.15))],
+      // (Raked out all round, the roof's edge is further out: they go with it, houseFlare.ts.)
+      port: onFlaredRoof([-(hw + 0.15 - roofBack / 2 + 0.03), roofY + roofThickness / 2, Math.max(front, zHead) + 0.175 + sb(hw + 0.15)]),
+      starboard: onFlaredRoof([hw + 0.15 - roofBack / 2 + 0.03, roofY + roofThickness / 2, Math.max(front, zHead) + 0.175 + sb(hw + 0.15)]),
       stern: [0, q.deckY(transom) + 0.6, transom - 0.05],
     },
   };
@@ -1316,6 +1327,9 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     // (The FM set and the advanced instruments come with the advanced controls, owner.)
     recipe.modules = recipe.modules.filter((m) => !['cabinLight', 'horn', 'wipers', 'fm', 'navLights', 'chartplotter', 'navDisplay', 'whiteboard', 'dutyBoard', 'overhead', 'floodFore', 'floodAft'].includes(m.socket));
   }
+  // Low windows (owner): the console's upright panel comes off, so you see down past it; its
+  // screens stay where they were, each on a stalk from the desk (console.standard's `bare`).
+  if (d.sills) cc.bare = { screens: consoleMount.modules!.filter((m) => m.module === 'instrument.screen').map((m) => m.socket) };
   if (hasMonitor && !monitorFoot) {
     // The roof monitor's FIRE gauge on the console, between the two joysticks.
     const [mx, , mz] = cc.slots.monJoystick.position as V3;

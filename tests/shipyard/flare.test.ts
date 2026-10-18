@@ -1,0 +1,106 @@
+/** Windows raked out all round, the window sills one height all round (low with the screens on stalks), and wipers sized to their panes (owner). */
+import { beforeAll, describe, expect, it } from 'vitest';
+import { useDesign } from '../../src/boats/sims';
+import { LIBRARY, RECIPES } from '../../src/boats/library';
+import { validateRecipe } from '../../src/modular/recipe';
+import { CONFIG } from '../../src/config';
+import { DESIGN_HULLS } from '../../src/shipyard/build';
+import { decodeDesign, DEFAULT_DESIGN, encodeDesign, SILLS, type ShipDesign } from '../../src/shipyard/design';
+import { houseFlare } from '../../src/vessel/houseFlare';
+import { VESSEL_DEFS } from '../../src/vessel/vesselDef';
+import { wiperFit } from '../../src/vessel/view/rainGlass';
+import { fakeCanvas } from '../modular/fakes';
+
+beforeAll(fakeCanvas);
+
+const BASE: ShipDesign = { ...DEFAULT_DESIGN, guard: 0 };
+const typeOf = (hull: number, more: Partial<ShipDesign> = {}): ShipDesign => ({ ...BASE, hull, ...DESIGN_HULLS[hull].defaults, ...more });
+
+describe('codes', () => {
+  it('upright windows and standard sills keep codes as they were; the new choices read back', () => {
+    expect(BASE.flare).toBe(0);
+    expect(BASE.sills).toBe(0);
+    expect(encodeDesign(BASE).replace(/-/g, '')).toHaveLength(17);
+    for (const flare of [0, 1])
+      for (let sills = 0; sills < SILLS.length; sills++) {
+        const d = { ...BASE, flare, sills, facets: 1, engine: 3, hull: 4, skiff: 1 };
+        expect(decodeDesign(encodeDesign(d))).toEqual({ design: d });
+      }
+  });
+});
+
+describe('raked out all round', () => {
+  it('every hull type: the walls lean out by the rake over the window band; the floor and below the sill stay put; the aft door hinged; no side door', () => {
+    for (let hull = 0; hull < DESIGN_HULLS.length; hull++) {
+      const b = useDesign(typeOf(hull, { flare: 1, sideDoor: 1, houseWidth: 3 }));
+      expect(validateRecipe(RECIPES.design, LIBRARY)).toEqual([]);
+      const wh = VESSEL_DEFS.design.layout.wheelhouse!;
+      const fl = houseFlare(wh)!;
+      expect(fl).not.toBeNull();
+      const tan = Math.tan((CONFIG.shipyard.flareDeg * Math.PI) / 180);
+      expect(fl.D).toBeCloseTo(tan * (wh.windowHead - wh.windowSill), 3);
+      const sill = wh.floorY + wh.windowSill;
+      // Below the sill nothing moves (you walk about as before); at the head the side walls are out by D, the aft wall aft by D, the front where it was.
+      expect(fl.at(wh.halfWidth, sill - 0.2, wh.aft)).toEqual([wh.halfWidth, sill - 0.2, wh.aft]);
+      const [x, , z] = fl.at(wh.halfWidth, wh.floorY + wh.windowHead, wh.aft);
+      expect(x).toBeCloseTo(wh.halfWidth + fl.D, 6);
+      expect(z).toBeCloseTo(wh.aft + fl.D, 6);
+      expect(fl.at(0, wh.floorY + wh.windowHead, wh.front)[2]).toBe(wh.front);
+      expect(wh.doorHinged).toBe(true);
+      expect(wh.sideDoor).toBeUndefined();
+      expect(b.warnings.join(' ')).toMatch(/side door slides along an upright wall/);
+    }
+  });
+
+  it('upright windows: no flare, a sliding aft door', () => {
+    useDesign(typeOf(2));
+    const wh = VESSEL_DEFS.design.layout.wheelhouse!;
+    expect(houseFlare(wh)).toBeNull();
+    expect(wh.doorHinged).toBeFalsy();
+  });
+});
+
+describe('window sills', () => {
+  it('one height all round: standard, or low with the console bare and its screens on stalks; what hangs on the walls below the glass', () => {
+    for (let sills = 0; sills < SILLS.length; sills++) {
+      const b = useDesign(typeOf(2, { sills, controls: 1 }));
+      expect(validateRecipe(RECIPES.design, LIBRARY)).toEqual([]);
+      const wh = VESSEL_DEFS.design.layout.wheelhouse!;
+      const h = sills ? CONFIG.shipyard.windowSills.low : CONFIG.shipyard.windowSills.standard;
+      expect(wh.windowSill).toBe(h);
+      expect(wh.frontSill).toBe(h);
+      const helm = RECIPES.design.modules.find((m) => m.socket === 'helm')!;
+      const bare = (helm.config as { bare?: { screens: string[] } }).bare;
+      if (sills) {
+        expect(h).toBeLessThan(wh.consoleHeight);
+        expect(bare!.screens.length).toBeGreaterThan(2);
+        expect(wh.viewSill).toBe(wh.consoleHeight);
+      } else expect(bare).toBeUndefined();
+      // The duty board and the breaker panel below the sill.
+      const sock = (id: string) => b.hull.sockets.find((s) => s.id === id)!.transform.position;
+      expect(sock('dutyBoard')[1] + CONFIG.modules.dutyBoard.height / 2).toBeLessThanOrEqual(wh.floorY + h + 1e-9);
+      expect(sock('breakerPanel')[1]).toBeLessThan(wh.floorY + h);
+    }
+  });
+});
+
+describe('wipers sized to their panes', () => {
+  it('a taller pane gets a longer arm and blade; a narrow pane a shorter sweep; the blade stays on the glass across its sweep', () => {
+    const c = CONFIG.rain;
+    const short = wiperFit(0.6, 0.5);
+    const tall = wiperFit(1.2, 0.5);
+    expect(tall.arm).toBeGreaterThan(short.arm);
+    expect(tall.blade).toBeGreaterThan(short.blade);
+    const narrow = wiperFit(1.0, 0.2);
+    expect(narrow.sweep).toBeLessThan(wiperFit(1.0, 0.6).sweep);
+    for (const [h, half] of [[0.6, 0.5], [1.2, 0.5], [1.0, 0.2], [0.9, 0.35]]) {
+      const f = wiperFit(h, half);
+      const p = c.wiperPivotAbove;
+      // Measured from the window head: the blade's foot at mid-sweep above the sill, its top at full sweep below the head, its reach inside the pane.
+      expect(p - f.arm - f.blade / 2).toBeGreaterThanOrEqual(-h - 1e-6);
+      expect(p - f.arm * Math.cos(f.sweep) + f.blade / 2).toBeLessThanOrEqual(1e-6);
+      expect(f.arm * Math.sin(f.sweep)).toBeLessThanOrEqual(half - c.wiperEdge + 1e-6);
+      expect(f.sweep).toBeLessThanOrEqual((c.wiperSweepDeg * Math.PI) / 180 + 1e-9);
+    }
+  });
+});

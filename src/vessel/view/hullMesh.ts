@@ -7,6 +7,7 @@ import { CONFIG } from '../../config';
 import { paintIndex, type PaintName } from '../../render/pixelPaint';
 import type { HouseShape } from '../vesselDef';
 import { deckhouseHalfWidth, type DeckhouseLayout } from '../deckhouse';
+import { houseFlare, type HouseFlare } from '../houseFlare';
 
 /** The workboat's livery, and every hull's for the parts her own (`Livery`) doesn't give. */
 const COLORS = {
@@ -436,6 +437,30 @@ function prism(x0: number, x1: number, pts: [number, number][], color: number): 
   return part(g, color);
 }
 
+/** Move every vertex by the house's flare (houseFlare.ts): walls raked out all round. */
+function applyFlare(geoms: THREE.BufferGeometry[], fl: HouseFlare): void {
+  for (const g of geoms) {
+    const p = g.attributes.position;
+    for (let i = 0; i < p.count; i++) {
+      const [x, y, z] = fl.at(p.getX(i), p.getY(i), p.getZ(i));
+      p.setXYZ(i, x, y, z);
+    }
+    p.needsUpdate = true;
+    g.computeVertexNormals();
+  }
+}
+
+/** A flat plate through the corners `pts` (a convex polygon, in order), seen from both sides. */
+function plate(pts: THREE.Vector3[], color: number): THREE.BufferGeometry {
+  const v: number[] = [];
+  for (let i = 1; i + 1 < pts.length; i++)
+    for (const [a, b, c] of [[pts[0], pts[i], pts[i + 1]], [pts[0], pts[i + 1], pts[i]]]) v.push(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3));
+  g.computeVertexNormals();
+  return part(g, color);
+}
+
 /**
  * A shaped wheelhouse (the Shipyard's, owner; its layout's `shape`): in profile, the front
  * below the windows leans forward from `lowerFromY` up to the window band; the front windows
@@ -449,6 +474,10 @@ function prism(x0: number, x1: number, pts: [number, number][], color: number): 
  * top); between them at each front corner a black post. No roof rail or ladder: the roof
  * isn't walked.
  * Frames, the wood lining, the floor and the console are the box house's (buildWheelhouse).
+ * Windows raked out all round (`shape.flare`, houseFlare.ts): the walls and the roof as built
+ * are deformed so the sides lean out and the aft wall aft above the sill; the aft doorway's
+ * lintel is left upright (its door hinged, swinging out), closed off to the leaning walls by
+ * plates beside it. (A side door slides along an upright wall: not offered with it.)
  */
 function buildShapedHouse(layout: HouseLayout, col: Paint, base: number): THREE.BufferGeometry[] {
   const wh = layout.wheelhouse;
@@ -476,6 +505,12 @@ function buildShapedHouse(layout: HouseLayout, col: Paint, base: number): THREE.
   const zS = zF - rake.ahead;
   const zH = zS - (head - S) * rake.tan;
   const wallsFrom = parts.length;
+  // What stays upright when the windows are raked out all round: the doors.
+  const upright = new Set<THREE.BufferGeometry>();
+  const keep = (...gs: THREE.BufferGeometry[]) => {
+    for (const g of gs) upright.add(g);
+    return gs;
+  };
 
   // Front: below the windows (upright up to L0, leaning above it), the two mullions between
   // the panes, and the header above them up to the roof. A faceted front is built in three
@@ -507,9 +542,9 @@ function buildShapedHouse(layout: HouseLayout, col: Paint, base: number): THREE.
       const jamb = 0.08;
       const doorTop = wh.floorY + door.height;
       parts.push(box(x0, x1, base, top, door.z1, zA, H), fbox(x0, x1, top, sideS, door.z1, zA));
-      parts.push(fbox(x0, x1, base, doorTop, door.z0 - jamb, door.z0), fbox(x0, x1, base, doorTop, door.z1, door.z1 + jamb)); // the jambs
-      if (head - doorTop > 0.01) parts.push(box(x0, x1, doorTop, head, door.z0, door.z1, H)); // the header, up to the band's top
-      parts.push(box(x0, x1, base, wh.floorY + 0.02, door.z0, door.z1, col.floor)); // the threshold
+      parts.push(...keep(fbox(x0, x1, base, doorTop, door.z0 - jamb, door.z0), fbox(x0, x1, base, doorTop, door.z1, door.z1 + jamb))); // the jambs
+      if (head - doorTop > 0.01) parts.push(...keep(box(x0, x1, doorTop, head, door.z0, door.z1, H))); // the header, up to the band's top
+      parts.push(...keep(box(x0, x1, base, wh.floorY + 0.02, door.z0, door.z1, col.floor))); // the threshold
     }
     // The front corner post: from the side windows' sill up to the front's, following the lean.
     // Proud of the walls all round, the front too: its face in the front wall's plane flickered (owner).
@@ -537,7 +572,7 @@ function buildShapedHouse(layout: HouseLayout, col: Paint, base: number): THREE.
     const jx = s > 0 ? door : -door - JAMB;
     parts.push(fbox(jx, jx + JAMB, sideS, head, zA - w, zA));
   }
-  parts.push(box(-door, door, wh.floorY + wh.doorHeight, roofAft, zA - w, zA, H));
+  parts.push(...keep(box(-door, door, wh.floorY + wh.doorHeight, roofAft, zA - w, zA, H)));
   // A faceted front: everything at the front (forward of a little aft of the front wall, the
   // raked glass's frames and the header included) set back by facetDz at its x, so the outer
   // panes and the side walls' front ends meet on the angle.
@@ -545,6 +580,16 @@ function buildShapedHouse(layout: HouseLayout, col: Paint, base: number): THREE.
   // The walls' inside faces: wood lining (pixel painting, owner).
   const centre = new THREE.Vector3(0, 0, mid);
   for (const g of parts.slice(wallsFrom)) lineInside(g, H, col.lining, centre);
+  // Raked out all round: the walls (not the aft doorway's lintel) lean out, and plates beside
+  // the doorway close them off to it, from the sill up to the roof.
+  const fl = houseFlare(wh);
+  if (fl) {
+    applyFlare(parts.slice(wallsFrom).filter((g) => !upright.has(g)), fl);
+    const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
+    const F = (x: number, y: number, z: number) => V(...fl.at(x, y, z));
+    for (const x of [-door, door]) parts.push(plate([V(x, sideS, zA), F(x, head, zA), F(x, roofAft, zA), V(x, roofAft, zA)], H));
+    // (No side door: it slides, so it needs an upright wall; the Shipyard leaves it off.)
+  }
   // Door sill, floor, console.
   parts.push(box(-door, door, base, wh.floorY + 0.02, zA - w, zA, col.floor));
   buildFloor(layout, col, parts);
@@ -560,10 +605,13 @@ function buildShapedHouse(layout: HouseLayout, col: Paint, base: number): THREE.
   const zV = zH - sh.visor;
   const back = t * Math.tan((sh.roofEdgeDeg * Math.PI) / 180);
   // A faceted front's roof follows it (owner): square across the middle, cut back on the angle outside.
+  const roofFrom = parts.length;
   parts.push(chamferedSlab(hw + ov, zV, zA + ov, roofY, t, back, col.roof, sh.facet?.centre ?? 0, facetDz(wh)));
   const ceilFrom = parts.length;
   for (const [a, b] of spans) parts.push(box(Math.max(a, -hw + w), Math.min(b, hw - w), roofY - 0.012, roofY, Math.max(zF, zH) + w, zA - w, col.lining, 'wood'));
   if (sh.facet) setBack(parts.slice(ceilFrom), facetDz(wh), zA - w - 0.01);
+  // Raked out all round: the roof and the ceiling go out with the walls' tops.
+  if (fl) applyFlare(parts.slice(roofFrom), fl);
   return parts;
 }
 

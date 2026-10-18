@@ -35,6 +35,10 @@ export type WheelhouseLayout = Omit<WorkboatLayout['wheelhouse'], 'sideDoor' | '
     shape?: HouseShape;
     /** Steps at the aft door, where her floor is more than a step above or below the deck there. */
     steps?: DoorStep[];
+    /** Where the view out through the front glass starts, above the floor (m): the top of what stands in front of it (the dash). The wipers clear the glass from there up. Unset: the front sill. */
+    viewSill?: number;
+    /** The aft door hinged on its port side, swinging out 90 deg onto the deck (owner: with the windows raked out all round a sliding door would clash with the leaning glass), not sliding. */
+    doorHinged?: boolean;
   };
 
 /**
@@ -58,6 +62,13 @@ export interface HouseShape {
    * much further aft (hullMesh.ts facetDz).
    */
   facet?: { centre: number; depth: number };
+  /**
+   * Windows raked out all round (owner: a tug's or supply vessel's bridge): above the side
+   * windows' sill the side walls lean out and the aft wall leans aft, `tan` (of the rake
+   * from vertical) per m of height, up to the window head and on up to the roof at the
+   * same offset. The doors stay upright. See houseFlare.ts.
+   */
+  flare?: { tan: number };
 }
 
 /** A step at the aft door: a tread `y` high from `z0` to `z1` (z0 < z1), across the doorway. */

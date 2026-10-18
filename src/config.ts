@@ -1902,15 +1902,17 @@ export const CONFIG = {
     glassCell: 0.022,
     /**
      * Pantograph wipers, pivoted on the header above each front pane: one sweep there and
-     * back (s), half-angle (deg), arm length and upright blade length (m), and the pivot's
-     * height above the window head (m).
+     * back (s), and the pivot's height above the window head (m). Each wiper is sized to its
+     * own pane (owner: they didn't grow with the windows; rainGlass.ts wiperFit): its arm and
+     * blade as long as the pane's height allows, its sweep at most `wiperSweepDeg` either side
+     * and no wider than keeps the blade `wiperEdge` (m) inside the pane's sides; the blade
+     * clears the sill and the head by `wiperMargin` (m).
      */
     wiperPeriod: 1.7,
     wiperSweepDeg: 45,
-    /** Sized to the shorter front panes (raised front sill): the blade stays on the glass across the sweep. */
-    wiperArm: 0.42,
-    wiperBlade: 0.36,
     wiperPivotAbove: 0.1,
+    wiperMargin: 0.02,
+    wiperEdge: 0.06,
   },
 
   /**
@@ -2101,6 +2103,15 @@ export const CONFIG = {
      */
     /** A three-facet wheelhouse front (owner): its outer panes angled back this far from square across her (deg). */
     facetDeg: 30,
+    /** Windows raked out all round (owner: a tug's or supply vessel's bridge): the side and aft windows lean out this far from vertical (deg), from their sill up to the roof. */
+    flareDeg: 15,
+    /**
+     * The window sills, one height all round (owner), above the wheelhouse floor (m):
+     * `standard` (the dash top stands above it at the front), or `low`, below the console's
+     * desk (0.9 m), with the console's upright panel taken off and its screens on stalks so
+     * you see down past them (owner).
+     */
+    windowSills: { standard: 1.0, low: 0.75 },
     /**
      * The advanced interior's working lights (owner): the overhead switch panel (panel.overhead)
      * and the foredeck and aft deck floodlights (light.flood). No rail lights for now (owner).

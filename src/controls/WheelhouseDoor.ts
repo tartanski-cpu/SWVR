@@ -11,10 +11,15 @@ import { Control, type Wiring } from './Control';
  * Its root sits at the bottom centre of the doorway, on the aft face of the wall.
  * The port side door (`sideDoor`) is the same panel, turned to slide aft along the outside
  * of the port wall; `key` is the vessel control that opens it (1 open).
+ * Hinged (`hinged`, owner: a Shipyard house with its windows raked out all round, where a
+ * sliding door would clash with the leaning glass): the same panel hung on the doorway's
+ * port side (clear of the push buttons, which are to starboard), swinging out 90 deg onto the deck.
  */
 export class WheelhouseDoor {
   readonly root = new THREE.Group();
   private readonly panel = new THREE.Group();
+  /** A hinged door's hinge line (its panel hangs off it). */
+  private readonly hinge = new THREE.Group();
   private open = 1;
   private target = 1;
 
@@ -22,6 +27,7 @@ export class WheelhouseDoor {
     private readonly width: number,
     height: number,
     private readonly key: 'door' | 'sideDoor' = 'door',
+    private readonly hinged = false,
   ) {
     this.root.name = key === 'door' ? 'wheelhouseDoor' : 'sideDoor';
     this.open = this.target = key === 'door' ? 1 : 0;
@@ -42,7 +48,13 @@ export class WheelhouseDoor {
     // A recessed pull on each face.
     const handle = new THREE.MeshLambertMaterial({ color: 0x5a6066 });
     for (const z of [-t, t]) this.panel.add(new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.22, 0.012).translate(w / 2 - 0.08, 1.05, z * 0.6), handle));
-    this.root.add(this.panel);
+    if (hinged) {
+      // Hung on the port jamb: the hinge at the doorway's port edge, the panel to starboard of it.
+      this.hinge.position.x = -w / 2;
+      this.panel.position.x = w / 2;
+      this.hinge.add(this.panel);
+      this.root.add(this.hinge);
+    } else this.root.add(this.panel);
     this.place();
   }
 
@@ -63,7 +75,9 @@ export class WheelhouseDoor {
   }
 
   private place(): void {
-    this.panel.position.x = -this.open * (this.width + 0.05);
+    // Hinged: swung about its hinge, out (aft) onto the deck; else slid to port.
+    if (this.hinged) this.hinge.rotation.y = (-this.open * Math.PI) / 2;
+    else this.panel.position.x = -this.open * (this.width + 0.05);
   }
 }
 
