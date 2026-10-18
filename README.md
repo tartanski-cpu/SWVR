@@ -574,6 +574,8 @@ The page shows her in 3D (around her and at the helm), her figures and her sea t
 
 **Design together:** press **👥 Design together** (top right), type your name and press **Start a session**, then send friends the link (**Copy link**). Everyone who opens it edits the same boat, live: a change by anyone shows for everyone. Each person has a colour and a name tag; you see where the others are pointing on the boat, and a slider someone is dragging shows their colour and name. **Undo** (Ctrl+Z) and **Redo** (Ctrl+Shift+Z) take back your own changes. There's no server and no account: the browsers talk directly, and each keeps its own copy, so the link still opens the boat later (from the copy in your browser) even when nobody else is there.
 
+**Try her together:** in a session with friends, press **Try her together** (beside **Try her in the game**). Everyone in the session goes into the game in her at once, aboard one multiplayer game hosted by whoever pressed it. Nobody needs to type a game code. It always loads the latest version of the game. If someone's browser was still on an old copy, their page reloads by itself to catch up. To get back to designing, use the browser's Back button: it returns to the session.
+
 **Sketches and pins:** sketches are for talking a change over, pins for deciding it.
 
 - **✏ Sketch** takes a snapshot of the view as it is and opens it to draw on freehand, like marking up a screenshot; everyone in the session draws on it too, live, each in their own colour. Sketches are listed on the right (click to open).

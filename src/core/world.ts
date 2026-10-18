@@ -86,7 +86,12 @@ export interface WorldState {
    * her Shipyard code if she's a design, and the workboat's equipment she was fitted out
    * without (career upgrade ids, CareerUpgrade.fit). Absent: as her vessel type has it.
    */
-  build?: { design?: string; without?: string[] };
+  build?: {
+    design?: string;
+    without?: string[];
+    /** The game's own version (commit and build time) on the host: crew on another reload (App.ts). */
+    app?: string;
+  };
   /**
    * No new emergency calls (rescues, tows, fires) while set: the menu's Voyage tab,
    * "Emergency calls: Off" (owner request: a way to quieten the VHF). A call already

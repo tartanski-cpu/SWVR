@@ -58,8 +58,26 @@ type Op =
   | { t: 'unvariant'; id: string }
   | { t: 'brief'; brief: Brief };
 type Presence = { cursor?: Person['cursor']; holding?: Person['holding']; name?: string; variant?: string };
-type ToKeeper = { t: 'hello'; name: string } | Op | ({ t: 'me' } & Presence);
-type FromKeeper = { t: 'welcome'; you: string; doc: YardDoc; people: Person[] } | (Op & { by: string }) | { t: 'people'; people: Person[] };
+/**
+ * "Try her together": one person sends everyone into the game, in the same multiplayer
+ * room. Not kept in the session (it's a one-off): the keeper passes it on to the others.
+ */
+export interface Go {
+  /** The boat's design code (design.ts). */
+  design: string;
+  /** The game room the sender hosts (5 digits, as the game's own game codes). */
+  room: string;
+}
+type ToKeeper = { t: 'hello'; name: string } | Op | ({ t: 'me' } & Presence) | ({ t: 'go' } & Go);
+type FromKeeper = { t: 'welcome'; you: string; doc: YardDoc; people: Person[] } | (Op & { by: string }) | { t: 'people'; people: Person[] } | ({ t: 'go'; by: string } & Go);
+
+/** A go message checked: a plausible design code and a 5-digit room, else null. */
+export function cleanGo(msg: unknown): Go | null {
+  const m = msg as Partial<Go> | null;
+  if (!m || typeof m.design !== 'string' || typeof m.room !== 'string') return null;
+  if (!/^[0-9A-Z-]{1,120}$/.test(m.design) || !/^\d{5}$/.test(m.room)) return null;
+  return { design: m.design, room: m.room };
+}
 
 /** Colours handed out in turn: clear on the page's pale blue and on the boat. */
 export const COLOURS = ['#d9622b', '#2f8a4a', '#7a3fb0', '#c0392b', '#1f7fb8', '#b8860b', '#d63384', '#3d5a80'];
@@ -95,6 +113,8 @@ export interface SessionEvents {
   onVariants?: (variants: Variant[], by: string | null) => void;
   /** The brief changed (or arrived, on joining). */
   onBrief?: (brief: Brief | null, by: string | null) => void;
+  /** Someone else pressed "Try her together": go into the game, joining their room. */
+  onGo?: (go: Go, by: string) => void;
 }
 
 /** Common to both sides: the session's copy of everything, and the people. */
@@ -252,8 +272,22 @@ export class Keeper extends Side {
     }
     if (!entry) return;
     if (msg.t === 'me') return this.update(entry.person.id, msg);
+    if (msg.t === 'go') return this.passGo(msg, entry.person.id);
     const done = this.apply(msg, entry.person.id);
     if (done) this.broadcast({ ...done, by: entry.person.id });
+  }
+
+  /** Send everyone (but the sender) into the game; the keeper goes too, if it isn't the sender. */
+  private passGo(msg: unknown, by: string): void {
+    const go = cleanGo(msg);
+    if (!go) return;
+    for (const e of this.links.values()) if (e.person.id !== by) e.link.send({ t: 'go', by, ...go } satisfies FromKeeper);
+    if (by !== this.me) this.events.onGo?.(go, by);
+  }
+
+  /** "Try her together": everyone else into the game, joining the room this browser will host. */
+  go(go: Go): void {
+    this.passGo(go, this.me);
   }
 
   private update(id: string, u: Presence): void {
@@ -327,6 +361,9 @@ export class Member extends Side {
     } else if (msg.t === 'people') {
       this.people = msg.people;
       this.events.onPeople(this.people);
+    } else if (msg.t === 'go') {
+      const go = cleanGo(msg);
+      if (go && msg.by !== this.me) this.events.onGo?.(go, msg.by);
     } else if (msg.by !== this.me) {
       // Someone else's change (our own come back already applied).
       this.apply(msg, msg.by);
@@ -340,6 +377,11 @@ export class Member extends Side {
 
   presence(update: Presence): void {
     this.transport.send({ t: 'me', ...update } satisfies ToKeeper);
+  }
+
+  /** "Try her together": the keeper passes it on to everyone else. */
+  go(go: Go): void {
+    if (cleanGo(go)) this.transport.send({ t: 'go', ...go } satisfies ToKeeper);
   }
 
   close(): void {

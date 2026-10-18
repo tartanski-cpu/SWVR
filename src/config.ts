@@ -3209,6 +3209,18 @@ export const CONFIG = {
   engineSmallSpeakers: { presenceHz: 240, presenceDb: 9, lpLiftHz: 160 },
 
   /**
+   * Multiplayer. "Try her together" (the Shipyard, owner Oct 2026): everyone in a design
+   * session is sent into the game at once, and the crew may arrive before the one who pressed
+   * it has the game open. So a crew-mate who finds no game yet tries again every
+   * `togetherRetryS` seconds, up to `togetherTries` times (~40 s in all, a slow phone included).
+   * An attempt not in after `togetherConnectS` seconds is dropped and tried again (one
+   * can hang if made just as the host's game opens).
+   * `togetherLeadS`: the Shipyard waits this long after telling the others before going into
+   * the game itself, so the message is out before its page closes.
+   */
+  net: { togetherRetryS: 2, togetherTries: 20, togetherConnectS: 8, togetherLeadS: 0.6 },
+
+  /**
    * How shut-in the wheelhouse is, for sound (0 open .. 1 shut): the aft door is the big
    * opening, so shutting it counts `door` (the windows the rest). Inside, wind, rain and the
    * hull wash are muffled by that much (the wash by up to `washMuffle`).

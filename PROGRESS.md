@@ -3865,7 +3865,24 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Checked in headless Chromium:** a pilot boat with a 3 m, 1.2 m high, full-width, 30°-raked deckhouse, and set in with 0.5 m side decks, upright: views from the bow, stern and port; the wheelhouse on top, the steps up aft, no warnings. Found and fixed on the way: its faces wound inside out (invisible from outside), and its foot showing through her topsides at the bow. **Not checked:** the Quest, a phone, walking up the steps into a raised helm in the game.
 - **Next, for bigger boats (tugs), noted:** the deckhouse top walkable with rails and a ladder or stairs (the walk area's floors and ladders already do this for the workboat's roof), and an interior with a door into it.
 
-### Shipyard: the throttle always beside the wheel (owner)
+### Shipyard: Try her together (owner)
+
+- **The owner:** getting friends into a game together from a design session meant pressing Try her in the game, sending the link round, then hosting and typing the game code from the menu. And the game it loaded looked old (the lobster pots in their old place). "If there's a button to say test together, it knows who's connected and it should just load that URL for all the people connected as long as it loads into the right version of the game."
+- **Why it looked old:** the game's page (`/next/index.html`) can be kept by the browser for up to ~10 minutes after a new version goes up (GitHub Pages' caching), and a tab left open keeps the version it loaded.
+- **Now:**
+  - **A Try her together button** beside Try her in the game, shown in a session with someone else in it (`shipyard/page.ts`).
+  - **The press:** picks a 5-digit game room, tells the session (a one-off `go` message the keeper passes on to everyone but the sender: `shipyard/session.ts` `Keeper.go`/`Member.go`, `SessionEvents.onGo`), and goes into the game with `?design=CODE&host=ROOM`.
+  - **Everyone else** goes into it with `?design=CODE&together=ROOM`.
+  - **In the game (`app/App.ts`):** `host=` hosts in that room; `together=` joins it. A crew-mate who arrives before the host's game is open tries again: every `togetherRetryS` s, up to `togetherTries` times. An attempt not in after `togetherConnectS` s is dropped and retried (one made just as the host's game opened could hang).
+  - **The right version:** every link into the game from the Shipyard now carries the time (`t=`), so the browser fetches the latest page rather than a kept copy. Try her in the game does this too.
+  - **The version check:** the host's version (commit and build time) rides in `world.build.app`. A crew-mate whose page differs reloads once, past the cache (`fresh=`). If it still differs, the host is the old one, and it says so.
+  - **Clean-up:** these start-up parameters are taken off the address once read. Back in the browser returns to the session.
+- **Config:** `CONFIG.net` (`togetherRetryS` 2, `togetherTries` 20, `togetherConnectS` 8, `togetherLeadS` 0.6: the presser's page waits that long so the message is out before it closes).
+- **Checked:**
+  - Typecheck and tests (`tests/shipyard/tryTogether.test.ts`: a member's go reaches the keeper and the other member, not the sender; the keeper's reaches every member; a bad room or code goes nowhere).
+  - Headless, two browsers over the real PeerJS server: a session; the member pressed it; both went into the game in the design; the presser hosted; the other waited, retried and joined (2 players aboard).
+- **Not checked:** the version reload (both pages were the same dev build); the Quest; more than two people.
+
 
 - **The owner** (in VR): with the console's wings following a faceted front, the throttle was too far away: "always keep that control only next to the wheel at the original distance".
 - **Why:** two things carried it off: the console's layout is spread to the house's width (on the tug, the throttle went 0.82 m out from the wheel), and on a faceted front it went back with the wing.

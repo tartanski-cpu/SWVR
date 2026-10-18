@@ -224,12 +224,27 @@ function startFit(): string[] {
 /** The page's `?join=` (a crew-mate's page reloaded to build the host's boat): the game to join. */
 const START_JOIN = new URLSearchParams(location.search).get('join');
 
-/** The address without the start-up parameters that are only for this load (join, and the fit that came with it). */
+/**
+ * "Try her together" from the Shipyard (owner, Oct 2026): the one who pressed it comes with
+ * `?host=ROOM` (host the game in that room), everyone else in the session with `?together=ROOM`
+ * (join it, waiting for the host to be up). 5 digits each, as the game codes.
+ */
+const START_PARAMS = new URLSearchParams(location.search);
+const START_HOST = /^\d{5}$/.test(START_PARAMS.get('host') ?? '') ? START_PARAMS.get('host')! : null;
+const START_TOGETHER = /^\d{5}$/.test(START_PARAMS.get('together') ?? '') ? START_PARAMS.get('together')! : null;
+/** Reloaded once already to catch up with the host's version (`?fresh=`): don't again. */
+const START_FRESH = START_PARAMS.has('fresh');
+
+declare const __BUILD__: string | undefined;
+/** This page's version: commit and build time (vite.config.ts); 'dev' when not built. */
+const APP_BUILD = typeof __BUILD__ === 'string' ? __BUILD__ : 'dev';
+
+/** The address without the start-up parameters that are only for this load (join and the fit that came with it, host, together, the cache-buster). */
 function forgetStartParams(): void {
   const url = new URL(location.href);
-  if (!url.searchParams.has('join')) return;
-  url.searchParams.delete('join');
-  url.searchParams.delete('fit');
+  const once = ['join', 'fit', 'host', 'together', 'fresh', 't'];
+  if (!once.some((k) => url.searchParams.has(k))) return;
+  for (const k of once) url.searchParams.delete(k);
   history.replaceState(null, '', url.toString());
 }
 
@@ -472,6 +487,8 @@ export class App {
     this.world = created.world;
     this.world.build = { ...(startDesignCode && boat === 'design' ? { design: startDesignCode } : {}), ...(without.length ? { without } : {}) };
     this.builtAs = structuredClone(this.world.build);
+    // Sent to crew with the boat, so a crew-mate on an older page knows (not part of her build).
+    this.world.build.app = APP_BUILD;
     this.localPlayerId = created.localPlayerId;
     this.soloPlayerId = created.localPlayerId;
     this.testVesselId = created.vesselId;
@@ -2130,9 +2147,8 @@ export class App {
   }
 
   /** Host a game: register a room code with the PeerJS server, then accept crew. */
-  private hostGame(): void {
+  private hostGame(code = randomRoomCode()): void {
     if (this.host || this.client || this.hostStarting) return;
-    const code = randomRoomCode();
     const transport = new PeerHostTransport(code);
     this.hostStarting = true;
     this.netMessage = 'Opening a game...';
@@ -2165,6 +2181,28 @@ export class App {
       // Not remembered.
     }
     this.connectClient(new PeerClientTransport(this.joinCode));
+    // Sent in together: an attempt that hasn't got in after a while (the host's page was still
+    // opening its game) is dropped and tried again, rather than left waiting for ever.
+    const client = this.client as ClientSession | null; // (set by connectClient)
+    if (this.togetherTries > 0 && client) {
+      setTimeout(() => {
+        if (this.client === client && client.status !== 'connected') this.retryTogether(client);
+      }, CONFIG.net.togetherConnectS * 1000);
+    }
+  }
+
+  /** Sent in together and not in yet: drop this attempt and try again shortly (or give up when out of tries). */
+  private retryTogether(client: ClientSession): void {
+    if (this.client === client) this.client = null;
+    client.close();
+    this.toSolo();
+    if (this.togetherTries <= 0) {
+      this.netMessage = 'Couldn\'t find the host\'s game: ask them for the game code (menu, Crew)';
+      return;
+    }
+    this.togetherTries--;
+    this.netMessage = 'Waiting for the host to open the game...';
+    setTimeout(() => this.joinGame(), CONFIG.net.togetherRetryS * 1000);
   }
 
   /** The crew, for the menu. */
@@ -2186,6 +2224,8 @@ export class App {
     client.onWelcome = (playerId, world, chart) => {
       // The host's chart: their marks replace ours while we're aboard their boat.
       this.marks = chart ? { strokes: chart.strokes, tokens: chart.tokens ?? [], seq: this.marks.seq + 1 } : createMarks();
+      // The host's page is another version: reload this one, fresh, once (it may be the old one).
+      if (!this.sameVersionAsHost(world)) return;
       // The host's boat built here as theirs is (else we start again in hers and join again).
       if (!this.sameBoatAsHost(world)) return;
       // Same boats on both sides (tows come and go, so they don't count).
@@ -2194,15 +2234,44 @@ export class App {
         this.leaveGame();
         return;
       }
+      this.togetherTries = 0; // in: no more retries if this game ends
       // Become the player the host made for us; keep standing where we are.
       this.movePlayer(playerId);
       this.overlay.notify('Joined: you are aboard the host\'s world', 3);
     };
     client.onClosed = (reason) => {
       if (this.client !== client) return;
+      // Sent in together from the Shipyard: the host's game may not be open yet; try again.
+      if (this.togetherTries > 0 && client.status !== 'connected' && reason === 'No game with that code') return this.retryTogether(client);
       this.netMessage = reason;
       this.toSolo();
     };
+  }
+
+  /** Joining from "Try her together": tries left while the host's game isn't open yet. */
+  private togetherTries = 0;
+
+  /**
+   * A crew-mate's check on the host's welcome: is their page the same version as ours? A
+   * browser can keep an old copy of the game for a few minutes after a new one goes up. If
+   * not, reload this page past the cache, once; if still not, say so (it's the host who's old).
+   * Returns false if we're leaving for that.
+   */
+  private sameVersionAsHost(world: WorldState): boolean {
+    const theirs = world.build?.app;
+    if (!theirs || theirs === APP_BUILD || theirs === 'dev' || APP_BUILD === 'dev') return true;
+    if (START_FRESH) {
+      this.netMessage = `The host's game is another version (${theirs}; yours ${APP_BUILD}): the host reloads the page`;
+      this.leaveGame();
+      return false;
+    }
+    const url = new URL(location.href);
+    url.searchParams.set('join', this.joinCode);
+    url.searchParams.set('fresh', '1');
+    url.searchParams.set('t', String(Date.now()));
+    this.leaveGame();
+    location.replace(url.toString());
+    return false;
   }
 
   /** Our boat's slipway state when last looked ('' off a slip): the notes as it changes. */
@@ -2420,6 +2489,14 @@ export class App {
     if (START_JOIN) {
       this.joinCode = START_JOIN;
       setTimeout(() => this.joinGame(), 500);
+    } else if (START_TOGETHER) {
+      // Sent in from the Shipyard: join the one who pressed "Try her together".
+      this.joinCode = START_TOGETHER;
+      this.togetherTries = CONFIG.net.togetherTries;
+      setTimeout(() => this.joinGame(), 500);
+    } else if (START_HOST) {
+      // Pressed "Try her together": host in the room the others were sent to.
+      setTimeout(() => this.hostGame(START_HOST), 300);
     }
     this.interaction = new InteractionSystem(
       // Every boat's controls (the home boat's first), the crane's buttons, the gear brackets.

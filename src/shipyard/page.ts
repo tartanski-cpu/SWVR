@@ -36,7 +36,7 @@ import { UndoStack } from './undo';
 import { YardLink } from './yardLink';
 import { Keeper, newSessionId, sessionIdFrom, type DesignPatch, type Person, type SessionEvents } from './session';
 import { cleanDoc, diffFields, fork, MAIN, mergePatch, newDoc, promote, type Variant, type YardDoc } from './variants';
-import { LoopbackHost } from '../net/transport';
+import { LoopbackHost, randomRoomCode } from '../net/transport';
 import { fromFrac, inkOf, MAX_SHEETS, noteId, sheetsOf, toFrac, todo, type Frac, type Ink, type Note, type Pin, type Sheet } from './notes';
 import { bareHull, checkBrief, engineOptions, JOBS, jobOf, newBrief, pickEngine, type Brief, type JobId, type Tried } from './brief';
 import { rankTypes } from './typeFit';
@@ -636,6 +636,29 @@ function change(patch: Partial<ShipDesign>, by: 'me' | Person | null = 'me'): vo
 }
 
 // ── Code tools ──
+/** The game's address for her; `t` (the time) makes the browser fetch the latest game, not a copy it kept. */
+function gameUrl(code: string, extra = ''): string {
+  return `./?design=${code}${extra}&t=${Date.now()}`;
+}
+$('play').onclick = (e) => {
+  e.preventDefault();
+  if (matchedFor === matchKey(design)) location.assign(gameUrl(encodeDesign(design)));
+};
+// "Try her together" (owner, Oct 2026): in a session, one press takes everyone into the game in
+// her, in one multiplayer game. The presser hosts it in a new room; the others join it
+// (session.ts sends them the room; the game waits for the host, App.ts).
+$('playTogether').onclick = () => {
+  if (matchedFor !== matchKey(design) || !link?.side) return;
+  const code = encodeDesign(design);
+  const room = randomRoomCode();
+  link.side.go({ design: code, room });
+  $('sessionState').textContent = 'Taking everyone into the game…';
+  setTimeout(() => location.assign(gameUrl(code, `&host=${room}`)), CONFIG.net.togetherLeadS * 1000);
+};
+/** The together button: only in a session with someone else in it. */
+function showTogether(): void {
+  $('playTogether').hidden = !(link?.side && people.length > 1);
+}
 $('copy').onclick = () => {
   if (matchedFor === matchKey(design)) void navigator.clipboard?.writeText(encodeDesign(design));
 };
@@ -824,6 +847,7 @@ function showSession(): void {
 }
 /** The people here, as coloured name chips; and their hands on the controls. */
 function showPeople(): void {
+  showTogether();
   const me = link?.side?.me;
   $('people').innerHTML = people.map((p) => `<span class="chip" style="--c:${p.colour}">${esc(p.name)}${p.id === me ? ' (you)' : ''}</span>`).join('');
   document.querySelectorAll<HTMLElement>('.row.held').forEach((r) => {
@@ -1700,6 +1724,12 @@ const handlers: SessionEvents = {
     people = p;
     showPeople();
     showTabs();
+  },
+  onGo: (go, by) => {
+    // Someone pressed "Try her together": into the game in her, joining their game.
+    const who = people.find((p) => p.id === by)?.name ?? 'Someone';
+    $('sessionState').textContent = `${who} is taking everyone into the game…`;
+    location.assign(gameUrl(go.design, `&together=${go.room}`));
   },
   onBrief: (b) => {
     brief = b ?? newBrief();

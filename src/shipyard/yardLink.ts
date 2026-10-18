@@ -73,6 +73,7 @@ export class YardLink {
         onNotes: (n, v) => this.events.onNotes?.(n, v),
         onVariants: (list, by) => this.events.onVariants?.(list, by),
         onBrief: (b, by) => this.events.onBrief?.(b, by),
+        onGo: (g, by) => this.events.onGo?.(g, by),
         onLost: (reason) => {
           if (!settled) return done(false);
           if (this.side !== member) return;
