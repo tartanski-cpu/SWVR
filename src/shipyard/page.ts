@@ -29,6 +29,7 @@ import { assembleView } from '../modular/assemble';
 import type { SeaTrialResults } from '../vessel/seaTrials';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 import { isPlaneSheet, PLANES, PlaneInk, planeAt, planeFacing, planeSheet, toPlane, type PlaneName } from './planeSketch';
+import { buildMachinery } from './enginePreview';
 import { briefPaper } from './briefPaper';
 import { buildVesselMesh, buildVesselMeshParts } from '../vessel/view/hullMesh';
 import { DESIGN_HULLS, ENGINES, LIVERIES, ROOF_PAINTS, type DesignedBoat } from './build';
@@ -197,10 +198,15 @@ function drawBoat(): void {
   const modulesRoot = new BoatView('design', def, modules, true).root;
   root.add(modulesRoot);
   addSkiff(root);
+  const machinery = addMachinery(root);
   scene.add(root);
   boatRoot = root;
-  shown = { hull: parts.hull, house: parts.house, modules: modulesRoot, skiff: root.children.find((c) => c.name === 'skiff') ?? null };
+  shown = { hull: parts.hull, house: parts.house, modules: modulesRoot, skiff: root.children.find((c) => c.name === 'skiff') ?? null, machinery };
   focusStep();
+  // A different engine (or one more) at the Engine step: look at it afresh.
+  const fit = `${design.engine}:${design.twin}`;
+  if (shownStep === 'engine' && fit !== framedFit) frameMachinery();
+  framedFit = fit;
   // Her extent: the frame for pins and marks (hull fractions, notes.ts).
   const box = hullBox(root);
   hullMin = box.min.toArray();
@@ -222,6 +228,31 @@ function addSkiff(root: THREE.Group): void {
   root.add(mesh);
 }
 /**
+ * Her engines, shafts, propellers and rudders (enginePreview.ts), for the Engine step only:
+ * where her design puts them, the propeller at the diameter it's given. (The game doesn't
+ * draw them.) With a label on the engine and on the propeller.
+ */
+function addMachinery(root: THREE.Group): THREE.Group | null {
+  const bed = boat.hull.sockets.find((s) => s.id === 'engine')?.transform?.position;
+  const cfg = (id: string) => boat.recipe.modules.find((m) => m.socket === id)?.config as Record<string, any> | undefined;
+  const engine = cfg('engine');
+  const prop = engine?.propeller?.position as [number, number, number] | undefined;
+  const rudder = cfg('rudder')?.rudder?.position as [number, number, number] | undefined;
+  if (!bed || !prop || !rudder) return null;
+  const twin = !!design.twin && !SINGLE_ONLY_ENGINES.includes(design.engine);
+  const propD = boat.figures.propellerM;
+  const g = buildMachinery({ engine: design.engine, twin, bed: bed as [number, number, number], twinX: engine?.twin?.x ?? 0, propD, prop, rudder });
+  g.name = 'machinery';
+  const name = ENGINES[design.engine].name.split(' (')[0];
+  const tag = nameTag(twin ? `2 × ${name}` : name, '#2f6aa8');
+  tag.position.set(0, bed[1] + 1.1, bed[2]);
+  const ptag = nameTag(`Propeller ⌀ ${propD.toFixed(2)} m${twin ? ' (two)' : ''}`, '#8a5a1c');
+  ptag.position.set(0, prop[1] - propD / 2 - 0.35, prop[2]);
+  g.add(tag, ptag);
+  root.add(g);
+  return g;
+}
+/**
  * Her hull and house's extent (the hull mesh: the first child), not the whole view: lights'
  * glows and the searchlight's beam reach far beyond her and would throw the frame out.
  */
@@ -233,7 +264,7 @@ function hullBox(root: THREE.Object3D): THREE.Box3 {
 
 // ── Each step's view (owner, Oct 2026): the part being worked on, the rest out of the way ──
 /** Her parts as drawn: hull, house, the modules (equipment, controls, lights), the skiff. */
-let shown: { hull: THREE.Mesh; house: THREE.Mesh | null; modules: THREE.Object3D; skiff: THREE.Object3D | null } | null = null;
+let shown: { hull: THREE.Mesh; house: THREE.Mesh | null; modules: THREE.Object3D; skiff: THREE.Object3D | null; machinery: THREE.Object3D | null } | null = null;
 /** A ghost: faint glass with her edges drawn, enough to see where her sides and deck are. */
 const ghostFill = new THREE.MeshBasicMaterial({ color: 0x9cc3dc, transparent: true, opacity: 0.08, depthWrite: false });
 const ghostEdge = new THREE.LineBasicMaterial({ color: 0xa9cfe6, transparent: true, opacity: 0.35, depthWrite: false });
@@ -256,13 +287,33 @@ function look3(m: THREE.Mesh | null, how: 'solid' | 'ghost' | 'off'): void {
  * the hull at Wheelhouse (with what's inside the house: console, seats); the engines inside a
  * ghost of her at Engine; everything for the rest.
  */
+/** The step last shown (to look at her machinery only on arriving at Engine), and the engine fit last looked at. */
+let shownStep = '';
+let framedFit = '';
+/** Look at her engines and propellers: from her starboard quarter, a little above. */
+function frameMachinery(): void {
+  const m = shown?.machinery;
+  if (!m) return;
+  const box = new THREE.Box3();
+  m.traverse((o) => {
+    if ((o as THREE.Mesh).isMesh) box.expandByObject(o);
+  });
+  if (box.isEmpty()) return;
+  const at = box.getCenter(new THREE.Vector3());
+  const r = Math.max(3, box.getSize(new THREE.Vector3()).length() * 1.1);
+  if (flat) flatBtn.click();
+  look([at.x + 0.75 * r, at.y + 0.55 * r, at.z + 0.6 * r], at.toArray());
+}
 function focusStep(): void {
   const step = stepEls()[stepAt]?.dataset.step ?? '';
   // The brief is written on paper, not shown on a boat.
   $('view').classList.toggle('paperMode', step === 'brief');
   $('briefPaper').hidden = step !== 'brief';
   if (!shown) return;
-  const { hull, house, modules, skiff } = shown;
+  const { hull, house, modules, skiff, machinery } = shown;
+  if (machinery) machinery.visible = step === 'engine';
+  // Her propellers are under water: see them through it.
+  (water.material as THREE.MeshLambertMaterial).opacity = step === 'engine' ? 0.18 : 0.55;
   const hullHow = step === 'wheelhouse' || step === 'engine' ? 'ghost' : 'solid';
   const houseHow = step === 'hull' ? 'off' : step === 'engine' ? 'ghost' : 'solid';
   look3(hull, hullHow);
@@ -1532,6 +1583,9 @@ function goStep(to: number | string, share = true): void {
   if (els[i].dataset.step === 'deck gear') placeFromPins();
   showStepNav();
   focusStep();
+  // Arriving at Engine: look at her machinery.
+  if (els[i].dataset.step === 'engine' && shownStep !== 'engine') frameMachinery();
+  shownStep = els[i].dataset.step!;
 }
 function showStepNav(): void {
   const nav = $('stepNav');

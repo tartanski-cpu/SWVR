@@ -3865,6 +3865,24 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Checked in headless Chromium:** a pilot boat with a 3 m, 1.2 m high, full-width, 30°-raked deckhouse, and set in with 0.5 m side decks, upright: views from the bow, stern and port; the wheelhouse on top, the steps up aft, no warnings. Found and fixed on the way: its faces wound inside out (invisible from outside), and its foot showing through her topsides at the bow. **Not checked:** the Quest, a phone, walking up the steps into a raised helm in the game.
 - **Next, for bigger boats (tugs), noted:** the deckhouse top walkable with rails and a ladder or stairs (the walk area's floors and ladders already do this for the workboat's roof), and an interior with a door into it.
 
+### Shipyard: her engines and propellers at the Engine step (owner)
+
+- **The owner:** 3D models of each engine type, single or twin, with the calculated propeller size, drawn on the Shipyard page with the hull and wheelhouse see-through. They must not go into the game's 3D model, to keep it cheap.
+- **Now** (`shipyard/enginePreview.ts`; `page.ts addMachinery`, `frameMachinery`):
+  - **One original, generic model per engine type** (`ENGINE_LOOKS`, sized for each engine's power and weight):
+    - the 150 kW straight six: long and narrow, a ribbed cover over one head;
+    - the V8s: short and wide, two angled banks, a turbo on top, an intercooler across the vee (the 400 kW a size up from the 280);
+    - the 450 kW tug diesel: big and tall, six separate heads, air and exhaust manifolds along its sides, a big flywheel housing and a heavy gearbox.
+  - Each has a sump, a heat exchanger tank, a pulley, an alternator, a flywheel housing, the marine gearbox and mounting feet.
+  - **Where they go:** from her design (`build.ts`). The engine is centred on the engine bed, its top just under the cabin floor. A twin installation has two engines side by side, a little inboard of the propellers. A shaft runs from each gearbox to its propeller, at her design's diameter (`figures.propellerM`) and position, with a rudder behind each.
+  - **Labels:** the engine ("2 × 400 kW turbo diesel") and "Propeller ⌀ 0.86 m".
+  - **The view:** shown only at the Engine step, inside the ghosts of hull and house, with the water faded so the propellers show. Arriving at the step, or changing the engine or twin there, turns the camera to the machinery.
+  - **Never in the game:** they're built only by the Shipyard page.
+- **Checked:**
+  - Typecheck and tests (`tests/shipyard/enginePreview.test.ts`: a look for every engine, the tug diesel the longest, the gearbox flange as the origin; one or two propellers, set out to the twin positions, at the given diameter).
+  - Headless screenshots at the Engine step: single 280 kW V8, twin 400 kW V8s, the tug diesel, the straight six.
+- **Not checked:** VR (it's the Shipyard page, desktop and phone); a phone.
+
 ### Shipyard: sketching on her four views, together (owner)
 
 - **The owner:** "sketching didn't work because it was trying to sketch in 3D space". They asked for sketching only on a side, top, front or back view, on one flat plane beside the model that everyone draws on, live in multiplayer. The front and back views were missing.
