@@ -2385,7 +2385,8 @@ export const CONFIG = {
    *   buoyColors each boat's buoy colour (by boat), flag colour while soaking
    */
   potting: {
-    pallet: { x: 719, z: 638, yawDeg: 90 },
+    // Just aft of a boat at the Calder Haven cargo berth, 4 m in from the quay edge (owner: it was 25 m forward of her).
+    pallet: { x: 716, z: 670.5, yawDeg: 90 },
     pots: 5,
     maxShot: 24,
     sinkTime: 2.5,

@@ -4151,6 +4151,15 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   - her code opened in the game (moored at Calder Haven, no errors).
 - **Not checked:** the Quest; pushing a tow by hand in the game.
 
+### Calder Haven: the goods and the pots by the boat (owner)
+
+- **The owner:** move the lobster pots and the cargo at the start harbour closer to where the boat is moored.
+- She starts at the cargo berth (`calder-cargo`, centre 708.5, 660, heading north: aft deck z ~661.5-666), the quay edge at x 711.
+  - **The goods stack** (`archipelago.ts` PORTS calder `stackX/stackZ`): 716, 652 to **714.8, 666**: its row runs north from there 0.9 m a slot (to ~662 with five items), 4 m in from the edge, abeam her aft deck. It was 10-14 m forward, by her bow.
+  - **The pot pallet** (`CONFIG.potting.pallet`): 719, 638 to **716, 670.5**: just aft of her stern, 4-5 m in. It was ~25 m forward, near the fuel berth.
+  - Both clear of the quay lamp post at 716, 668 and of where you start on the quay (713, 661.5). Landing cargo at Calder (within `cargo.deliveryRadius` of the stack) and selling a catch there move with them.
+- **Checked:** typecheck, all tests (golden runs unchanged); in headless Chromium the five goods and five pots at their new spots, screenshots from above the berth and from the quay. No page errors. **Not checked:** the Quest.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

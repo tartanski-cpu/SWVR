@@ -364,8 +364,10 @@ export const SHELTERS: ShelterDef[] = [
 export const PORTS: PortDef[] = [
   { id: 'calder', name: 'Calder Haven', kind: 'harbour', x: 570, z: 646, fuel: { x: 705, z: 625, radius: 14, pumpX: 713, pumpZ: 625 },
     clearRadius: 140,
-    // Middle-south of the quay (the fuel berth is at its north end).
-    cargo: { berth: { x: 707, z: 660, radius: 16 }, stackX: 716, stackZ: 652, stackYawDeg: 0, color: 0x2f6fd0 },
+    // Middle-south of the quay (the fuel berth is at its north end). The goods stack runs
+    // north from (stackX, stackZ), 4 m in from the quay edge, abeam the aft deck of a boat
+    // at the cargo berth (owner: it was 10 m forward of her, by her bow).
+    cargo: { berth: { x: 707, z: 660, radius: 16 }, stackX: 714.8, stackZ: 666, stackYawDeg: 0, color: 0x2f6fd0 },
   },
   { id: 'brannock', name: 'Brannock Pier', kind: 'pier', x: -553, z: 317, fuel: { x: -545, z: 305, radius: 14, pumpX: -550, pumpZ: 314 },
     clearRadius: 70,
