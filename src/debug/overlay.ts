@@ -30,9 +30,19 @@ export interface DebugStats {
   extra?: string;
 }
 
+/** The debug region map (regions): each region's footprint and state, and where you are. */
+export interface RegionMapData {
+  regions: { id: string; bounds: { x0: number; x1: number; z0: number; z1: number }; resident: boolean; building: boolean; outline: boolean }[];
+  landmarks: { x: number; z: number }[];
+  /** The viewer (world x, z) and heading (deg, 0 north, clockwise). */
+  viewer: { x: number; z: number; headingDeg: number };
+}
+
 export class DebugOverlay {
   visible = CONFIG.debug.overlayVisibleAtStart;
   readonly vrPanel: THREE.Mesh;
+  private regionMap: RegionMapData | null = null;
+  private readonly mapCanvas: HTMLCanvasElement;
 
   private readonly dom: HTMLDivElement;
   private readonly canvas: HTMLCanvasElement;
@@ -64,6 +74,11 @@ export class DebugOverlay {
       zIndex: '10',
     } satisfies Partial<CSSStyleDeclaration>);
     document.body.appendChild(this.dom);
+    // The region map under the text on desktop (its own canvas); drawn into the panel in VR.
+    this.mapCanvas = document.createElement('canvas');
+    this.mapCanvas.width = this.mapCanvas.height = 220;
+    Object.assign(this.mapCanvas.style, { position: 'fixed', top: '150px', left: '8px', display: 'none', pointerEvents: 'none', zIndex: '10', borderRadius: '4px' } satisfies Partial<CSSStyleDeclaration>);
+    document.body.appendChild(this.mapCanvas);
 
     this.canvas = document.createElement('canvas');
     this.canvas.width = 512;
@@ -82,6 +97,11 @@ export class DebugOverlay {
 
   toggle(): void {
     this.visible = !this.visible;
+  }
+
+  /** Show the region map (with the panel), or hide it (null). */
+  setRegionMap(data: RegionMapData | null): void {
+    this.regionMap = data;
   }
 
   private toastText = '';
@@ -151,7 +171,79 @@ export class DebugOverlay {
 
     if (!this.visible && !this.toastActive) return;
     if (inXR) this.drawPanel();
-    else this.dom.textContent = this.lines.join('\n');
+    else {
+      this.dom.textContent = this.lines.join('\n');
+      const mapOn = this.visible && !!this.regionMap;
+      this.mapCanvas.style.display = mapOn ? 'block' : 'none';
+      this.mapCanvas.style.top = `${this.dom.offsetHeight + 14}px`;
+      if (mapOn) this.drawMap(this.mapCanvas.getContext('2d')!, 0, 0, this.mapCanvas.width);
+    }
+  }
+
+  /**
+   * The region map: footprints to scale (green: drawn in full; yellow: being built; grey:
+   * its outline is in sight; dark: not drawn), landmarks as triangles, you as a dot with
+   * your heading. North up.
+   */
+  private drawMap(ctx: CanvasRenderingContext2D, ox: number, oy: number, size: number): void {
+    const d = this.regionMap;
+    if (!d) return;
+    ctx.fillStyle = 'rgba(10,20,30,0.85)';
+    ctx.fillRect(ox, oy, size, size);
+    let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity; // prettier-ignore
+    for (const r of d.regions) {
+      x0 = Math.min(x0, r.bounds.x0);
+      x1 = Math.max(x1, r.bounds.x1);
+      z0 = Math.min(z0, r.bounds.z0);
+      z1 = Math.max(z1, r.bounds.z1);
+    }
+    x0 = Math.min(x0, d.viewer.x - 500);
+    x1 = Math.max(x1, d.viewer.x + 500);
+    z0 = Math.min(z0, d.viewer.z - 500);
+    z1 = Math.max(z1, d.viewer.z + 500);
+    const span = Math.max(x1 - x0, z1 - z0) * 1.08;
+    const cx = (x0 + x1) / 2;
+    const cz = (z0 + z1) / 2;
+    const k = size / span;
+    const px = (x: number) => ox + size / 2 + (x - cx) * k;
+    const pz = (z: number) => oy + size / 2 + (z - cz) * k;
+    ctx.font = `${Math.round(size / 18)}px monospace`;
+    ctx.textAlign = 'left';
+    for (const r of d.regions) {
+      const w = (r.bounds.x1 - r.bounds.x0) * k;
+      const h = (r.bounds.z1 - r.bounds.z0) * k;
+      ctx.fillStyle = r.resident ? 'rgba(60,160,80,0.45)' : r.building ? 'rgba(220,180,40,0.35)' : r.outline ? 'rgba(140,150,160,0.3)' : 'rgba(60,70,80,0.3)';
+      ctx.fillRect(px(r.bounds.x0), pz(r.bounds.z0), w, h);
+      ctx.strokeStyle = r.resident ? '#5ce07a' : r.building ? '#f0c040' : '#9aa5b0';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(px(r.bounds.x0), pz(r.bounds.z0), w, h);
+      ctx.fillStyle = '#dfe';
+      ctx.fillText(r.id, px(r.bounds.x0) + 4, pz(r.bounds.z0) + size / 18);
+    }
+    ctx.fillStyle = '#f0e0a0';
+    for (const l of d.landmarks) {
+      const x = px(l.x);
+      const z = pz(l.z);
+      ctx.beginPath();
+      ctx.moveTo(x, z - 5);
+      ctx.lineTo(x - 5, z + 4);
+      ctx.lineTo(x + 5, z + 4);
+      ctx.closePath();
+      ctx.fill();
+    }
+    const vx = px(d.viewer.x);
+    const vz = pz(d.viewer.z);
+    const a = (d.viewer.headingDeg * Math.PI) / 180;
+    ctx.strokeStyle = '#ff8060';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(vx, vz);
+    ctx.lineTo(vx + Math.sin(a) * 14, vz - Math.cos(a) * 14);
+    ctx.stroke();
+    ctx.fillStyle = '#ff8060';
+    ctx.beginPath();
+    ctx.arc(vx, vz, 3.5, 0, Math.PI * 2);
+    ctx.fill();
   }
 
   private get toastActive(): boolean {
@@ -176,6 +268,8 @@ export class DebugOverlay {
       ctx.fillStyle = i === 0 && this.toastActive ? '#ffb38a' : '#bff7c8';
       ctx.fillText(line, 14, 38 + i * 34);
     });
+    // The region map in the panel's lower right corner (over the readout's long lines).
+    if (this.visible && this.regionMap) this.drawMap(ctx, canvas.width - 190, canvas.height - 190, 180);
     this.texture.needsUpdate = true;
   }
 }

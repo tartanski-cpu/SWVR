@@ -1,6 +1,7 @@
 import { BUSES } from '../audio/mixer';
 import { CONFIG } from '../config';
 import { PORTS } from '../world/archipelago';
+import { REGIONS } from '../world/regions';
 import type { MenuPage, MenuRow, MenuSection } from './menuPanel';
 import { ALPHABET } from '../shipyard/design';
 import { groupCode, PER_PAGE, type ShipyardCodes } from '../shipyard/takeHer';
@@ -171,6 +172,10 @@ export interface MenuHost {
   toggleShowTargets(): void;
   /** Move the boat (and you, aboard) to port i's berth or anchorage. */
   teleportToPort(i: number): void;
+  /** Regions (debug): put the boat in a region, by id; the region map on the perf panel. */
+  teleportToRegion(id: string): void;
+  regionMap(): boolean;
+  toggleRegionMap(): void;
   seaTrialsShown(): boolean;
   toggleSeaTrials(): void;
   /** Which boat you start in (modular boats M7: the workboat, or the landing craft); choosing one restarts the game in her. */
@@ -627,6 +632,7 @@ export function mainMenu(h: MenuHost): MainMenu {
         },
         { heading: 'Move' },
         { label: 'To port', buttons: PORTS.map((_, i) => ({ text: () => h.ports()[i]?.name ?? '', press: () => h.teleportToPort(i) })) },
+        { label: 'To region', buttons: REGIONS.map((r) => ({ text: r.name, press: () => h.teleportToRegion(r.id) })) },
         { label: '', buttons: [{ text: () => (h.aboard() ? 'Leave boat (to the quay)' : 'Board boat (at the helm)'), press: () => h.toggleBoard() }] },
       ],
     },
@@ -754,6 +760,7 @@ export function mainMenu(h: MenuHost): MainMenu {
             { text: 'Perf panel', active: () => h.debugPanel(), press: () => h.toggleDebugPanel() },
             { text: 'Buoyancy', active: () => h.hydroView(), press: () => h.toggleHydroView() },
             { text: 'Wave probes', active: () => h.probes(), press: () => h.toggleProbes() },
+            { text: 'Region map', active: () => h.regionMap(), press: () => h.toggleRegionMap() },
           ],
         },
         { label: 'Chart', buttons: [{ text: 'Targets on chart', active: () => h.showTargets(), press: () => h.toggleShowTargets() }] },

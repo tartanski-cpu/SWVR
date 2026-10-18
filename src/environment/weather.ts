@@ -204,7 +204,7 @@ export function rebuildWaves(env: EnvironmentState, time: number): void {
 /** Visibility at a point (m): the weather's, thinned by any fog bank around it. */
 export function visibilityAt(env: EnvironmentState, x: number, z: number): number {
   const w = env.weather;
-  let vis = w ? w.now.visibility : CONFIG.environment.fogFar * 4;
+  let vis = w ? w.now.visibility : CONFIG.environment.hazeFar;
   for (const b of FOG_BANKS) {
     const d = Math.hypot(x - b.x, z - b.z);
     if (d >= b.r) continue;

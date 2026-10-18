@@ -85,7 +85,13 @@ export const CONFIG = {
     maxPixelRatio: 2,
     fovDeg: 70,
     near: 0.05,
-    far: 4000,
+    /**
+     * Far plane (m): out to the clearest day's horizon (environment.hazeFar), so a region's
+     * landmark hill shows across the sound (regions, milestone 2). Depth precision at the
+     * far end is coarse (tens of metres), which is why far-off land is drawn above the
+     * waterline only and nudged toward the camera (worldView.ts).
+     */
+    far: 14000,
   },
 
   xr: {
@@ -109,10 +115,15 @@ export const CONFIG = {
     /** Observer latitude and solar declination drive the sun path (degrees). */
     latitudeDeg: 50,
     solarDeclinationDeg: 12,
-    fogNear: 200,
-    fogFar: 2600,
+    /**
+     * The clearest day's haze (m): scene fog runs out to the visibility, or to this, whichever
+     * is less, so even on a clear day the sea and the far land dissolve into the sky by here
+     * (the camera's far plane sits just beyond). Was 2600 before the regions: the next
+     * region's hill, 4-5 km off, was simply not drawn.
+     */
+    hazeFar: 13500,
     /** Radius (m) of the sky dome; must be inside the camera far plane. */
-    skyRadius: 3500,
+    skyRadius: 13800,
   },
 
   ocean: {
@@ -169,8 +180,15 @@ export const CONFIG = {
       innerHalfExtent: 32,
       /** Each cell beyond the centre is this much larger than the previous one. */
       growth: 1.08,
-      /** Half-width (m) of the whole ocean tile. Must exceed fogFar so the edge is hidden. */
+      /** Half-width (m) of the wave-detailed tile; beyond it the cells grow faster (`farGrowth`) out to `farRadius`. */
       radius: 3000,
+      /**
+       * Half-width (m) of the whole tile: past environment.hazeFar, so the sea's edge is
+       * always lost in the haze. The cells out there are hundreds of metres across: no wave
+       * is drawn on them (they fade with the grid), it's the flat, hazed sea to the horizon.
+       */
+      farRadius: 14000,
+      farGrowth: 1.25,
       /**
        * A wave is faded out (visually only) where the grid becomes too coarse to draw it:
        * where cell size exceeds wavelength / this many cells.
@@ -1849,8 +1867,15 @@ export const CONFIG = {
     windDir: 225,
     windDirSpread: 35,
     // Fog banks (where, how thick) are level data: each region's `fogBanks`.
-    /** Fog: scene fog runs from `nearFraction` x visibility to the visibility. */
+    /**
+     * Fog: scene fog runs from `nearFraction` x the fog's far end to that end. In fog
+     * (visibility under ~3 km) the near end is close in, `nearFraction`; in clear air it
+     * stands further out, `hazeNearFraction` of the haze distance, so the sea is crisp for
+     * the first few kilometres and the far land only softens. Blended between the two in
+     * log(visibility) between 3 and 13.5 km.
+     */
     nearFraction: 0.12,
+    hazeNearFraction: 0.35,
     /** Leeway: air density (kg/m3) and drag coefficient on the boats' windage (vessel `windage`). */
     airDensity: 1.225,
     windCd: 1.0,
@@ -3318,6 +3343,32 @@ export const CONFIG = {
     engineShut: 0.45,
     engineShutLp: 320,
     washMuffle: 0.6,
+  },
+
+  /**
+   * Regions (world/regions/, docs/REGIONS.md): several map areas, each drawn in full only
+   * while you're near it. All regions' DATA is always live (terrain, harbours, charts, jobs);
+   * what's streamed per player is the drawing.
+   *   loadDistance    a region's full terrain, structures and trees are shown (built in a
+   *                   worker the first time) when the viewer is within this of its footprint (m)
+   *   unloadDistance  ...and put away again beyond this (m; wider than loadDistance so a
+   *                   boat working along the edge doesn't flicker it in and out)
+   *   residencyEvery  how often the distances are checked (s)
+   *   sight           how far off a thing of height h (m) can be seen on the clearest day
+   *                   (m): base + perSqrtHeight * sqrt(h). The owner's rule of thumb: a 100 m
+   *                   hill from ~40 km, a 10 m light from ~12 km, the sea itself from ~5 km.
+   *                   Not horizon maths: a cull distance, cut further by the day's visibility.
+   *   lightVisFactor  a light (a point) is seen through haze a little further than land:
+   *                   out to this times the visibility
+   */
+  regions: {
+    loadDistance: 2500,
+    unloadDistance: 3500,
+    residencyEvery: 0.5,
+    sight: { base: 5000, perSqrtHeight: 3500 },
+    lightVisFactor: 1.3,
+    /** Far-off land is nudged toward the camera by this many depth units (silhouettes; see render.far). */
+    silhouetteDepthUnits: -4,
   },
 
   debug: {

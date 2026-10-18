@@ -76,7 +76,8 @@ describe('regions', () => {
   it('regionAt: inside home anywhere in it, and nearest from the open sea beyond it', () => {
     expect(regionAt(570, 646).id).toBe('home'); // Calder Haven
     expect(regionAt(-553, 317).id).toBe('home'); // Brannock Pier
-    expect(regionAt(0, -3000).id).toBe('home'); // far out at sea: the nearest region
+    expect(regionAt(0, 3000).id).toBe('home'); // far out at sea to the south: the nearest region
+    expect(regionAt(0, -3000).id).toBe('sounds'); // in the sound, nearer the Sounds' footprint than home's
     expect(distanceToBounds(HOME, 0, 0)).toBe(0);
     expect(distanceToBounds(HOME, 0, -1700)).toBeCloseTo(1000);
     expect(distanceToBounds(HOME, 2400, 2200)).toBeCloseTo(500);

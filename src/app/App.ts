@@ -54,6 +54,7 @@ import { mainMenu, type MenuHost } from '../ui/mainMenu';
 import { placeInFront } from '../ui/placeInFront';
 import { canRefuel, releaseHolds } from '../vessel/vesselControl';
 import { FISHING_GROUNDS, PORTS } from '../world/archipelago';
+import { REGIONS, regionById } from '../world/regions';
 import { groundHeight } from '../world/terrain';
 import { aboard, carriedBy, dropCarried, cargoLabel, cargoPortAt, kindOf, payloadMass, quickLoadable, quickPort, quickUnloadable, slotsUsed, type CargoItem } from '../cargo/cargo';
 import { groundAt, isPot, quickHaulable, quickPalletPots } from '../potting/potting';
@@ -318,6 +319,8 @@ export class App {
   private interaction: InteractionSystem | null = null;
   private readonly effects = new Map<EntityId, VesselEffects>();
   private readonly worldView = new WorldView();
+  /** Debug → Views → Region map: the region map on the perf panel. */
+  private showRegionMap = false;
   /** The hazard buoys, riding the swell with their lights (owner request). */
   private readonly navMarks = new NavMarksView();
   private readonly cargoView = new CargoView();
@@ -718,6 +721,14 @@ export class App {
     this.gpuTimer.end();
     const t3 = performance.now();
 
+    if (this.showRegionMap && this.overlay.visible) {
+      this.camera.getWorldDirection(this.tmpV);
+      this.overlay.setRegionMap({
+        regions: this.worldView.regionStates().map((r) => ({ id: r.region.id, bounds: r.region.bounds, resident: r.resident, building: r.building, outline: r.outline })),
+        landmarks: REGIONS.flatMap((r) => r.landmarks),
+        viewer: { x: this.focus.x, z: this.focus.z, headingDeg: ((Math.atan2(this.tmpV.x, -this.tmpV.z) * 180) / Math.PI + 360) % 360 },
+      });
+    } else this.overlay.setRegionMap(null);
     this.overlay.frame(
       frameMs,
       {
@@ -728,7 +739,7 @@ export class App {
         xr: inXR ? xrSessionInfo(this.renderer) : this.desktop.pointerLocked ? 'desktop (mouse captured)' : 'desktop',
         cpu: { sim: t1 - t0, views: t2 - t1, render: t3 - t2 },
         gpuMs: this.gpuTimer.lastMs,
-        extra: vesselReadout(this.world.vessels[this.testVesselId], this.simDebug) + this.boatPartsLine(dt),
+        extra: vesselReadout(this.world.vessels[this.testVesselId], this.simDebug) + this.boatPartsLine(dt) + '\nregions  ' + this.worldView.status(),
       },
       inXR,
     );
@@ -966,7 +977,11 @@ export class App {
 
   /** Port lights, weather, the rescue's people and gear and their sounds. */
   private updateSceneViews(dt: number, renderTime: number, darkness: number): void {
-    this.worldView.lights.update(renderTime, darkness);
+    // Regions: which are drawn in full for this viewer, which outlines are in sight today;
+    // the ocean shader's shelter zones follow the resident set.
+    this.worldView.update(this.focus, this.environment.visibility, dt);
+    if (this.worldView.residencyChanged) this.ocean.setShelters(this.worldView.shelters);
+    this.worldView.lights.update(renderTime, darkness, this.focus, this.environment.visibility);
     this.navMarks.update(this.renderWaves, renderTime, darkness);
     this.targetsView.visibility = this.environment.visibility;
     this.updateWeatherViews(renderTime, darkness, dt);
@@ -2048,6 +2063,18 @@ export class App {
       toggleShowTargets: () => {
         const plotter = this.homeView?.chart;
         if (plotter) plotter.showTargets = !plotter.showTargets;
+      },
+      teleportToRegion: (id) => {
+        const region = regionById(id);
+        if (!region) return;
+        this.pushVesselIntent('teleportToRegion', 1, id);
+        if (this.world.players[this.localPlayerId].aboardVesselId !== this.testVesselId) this.toggleBoardTo(true);
+        this.overlay.notify(region.ports[0] ? `${region.name}: at ${region.ports[0].name}` : `${region.name}: afloat south of ${region.landmarks[0]?.name ?? 'its island'}`, 3);
+      },
+      regionMap: () => this.showRegionMap,
+      toggleRegionMap: () => {
+        this.showRegionMap = !this.showRegionMap;
+        if (this.showRegionMap && !this.overlay.visible) this.overlay.visible = true;
       },
       teleportToPort: (i) => {
         const port = PORTS[i];

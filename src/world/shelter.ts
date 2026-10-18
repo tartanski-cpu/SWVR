@@ -10,7 +10,8 @@
  */
 import { SHELTERS } from './archipelago';
 
-export const MAX_SHELTERS = 4;
+/** Zones the ocean shader can hold at once: those of the regions drawn in full (worldView.ts). */
+export const MAX_SHELTERS = 8;
 
 export function shelterFactor(x: number, z: number): number {
   let s = 1;

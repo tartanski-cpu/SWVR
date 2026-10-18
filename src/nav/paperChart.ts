@@ -13,10 +13,10 @@
  * table): sized to be read from standing height on desktop without leaning in.
  */
 import { CONFIG } from '../config';
-import { ISLANDS, MARKS, MAX_DEPTH, PORTS, WRECKS, type MarkKind } from '../world/archipelago';
+import { MARKS, MAX_DEPTH, PORTS, WRECKS, type MarkKind } from '../world/archipelago';
 import { LIGHT_CHARACTERS } from '../world/navMarks';
 import { groundHeight } from '../world/terrain';
-import { chartBounds, toLatLon } from './geo';
+import { chartBounds, chartIslands, toLatLon } from './geo';
 
 export interface PaperChart {
   canvas: HTMLCanvasElement;
@@ -140,7 +140,7 @@ export function drawPaperChart(widthPx = 2048): PaperChart {
 
   // Island names (one label per name), ports.
   const names = new Map<string, { x: number; z: number; n: number; r: number }>();
-  for (const i of ISLANDS) {
+  for (const i of chartIslands()) {
     const e = names.get(i.name) ?? { x: 0, z: 0, n: 0, r: 0 };
     e.x += i.x;
     e.z += i.z;
@@ -160,7 +160,7 @@ export function drawPaperChart(widthPx = 2048): PaperChart {
     g.beginPath();
     g.arc(px(p.x), pz(p.z), 6 * u, 0, Math.PI * 2);
     g.fill();
-    const home = ISLANDS.reduce((a, i) => (Math.hypot(i.x - p.x, i.z - p.z) - i.radius < Math.hypot(a.x - p.x, a.z - p.z) - a.radius ? i : a));
+    const home = chartIslands().reduce((a, i) => (Math.hypot(i.x - p.x, i.z - p.z) - i.radius < Math.hypot(a.x - p.x, a.z - p.z) - a.radius ? i : a));
     const dx = p.x - home.x;
     const dz = p.z - home.z;
     const font = `italic bold ${26 * u}px Georgia, serif`;

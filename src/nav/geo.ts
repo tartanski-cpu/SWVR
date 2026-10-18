@@ -4,7 +4,8 @@
  * of latitude is a nautical mile (1852 m); a minute of longitude shrinks with cos(lat).
  */
 import { CONFIG } from '../config';
-import { ISLANDS } from '../world/archipelago';
+import type { IslandDef } from '../world/archipelago';
+import { regionById } from '../world/regions';
 
 const M_PER_DEG = 1852 * 60;
 
@@ -30,13 +31,22 @@ export function formatPosition(x: number, z: number): string {
   return `${part(lat, 2, 'N', 'S')} ${part(lon, 3, 'E', 'W')}`;
 }
 
-/** The area the charts cover (world m): the islands plus a margin of open water. */
+/**
+ * The islands the charts show: home's, for now. The other regions' get their own sheets,
+ * and an archipelago sheet shows them all (regions, milestone 4); until then the paper chart
+ * and the plotter stay the home sheet they were.
+ */
+export function chartIslands(): readonly IslandDef[] {
+  return regionById('home')!.islands;
+}
+
+/** The area the charts cover (world m): the charted islands plus a margin of open water. */
 export function chartBounds(margin = 700): { x0: number; x1: number; z0: number; z1: number } {
   let x0 = Infinity;
   let x1 = -Infinity;
   let z0 = Infinity;
   let z1 = -Infinity;
-  for (const i of ISLANDS) {
+  for (const i of chartIslands()) {
     x0 = Math.min(x0, i.x - i.radius);
     x1 = Math.max(x1, i.x + i.radius);
     z0 = Math.min(z0, i.z - i.radius);

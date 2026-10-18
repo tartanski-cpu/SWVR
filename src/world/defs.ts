@@ -302,6 +302,12 @@ export interface RegionDef {
   name: string;
   bounds: RegionBounds;
   landmarks: LandmarkDef[];
+  /**
+   * Lean high ground (optional): inland above `above` m the drawn terrain merges `cells` x
+   * `cells` of the usual 6 m cells into one, so a big, high island stays cheap on the Quest.
+   * The coast and the shallows keep the full detail. Home has none (it stays exactly as it was).
+   */
+  leanTerrain?: { above: number; cells: number };
   islands: IslandDef[];
   cuts: CutDef[];
   flats: FlatDef[];

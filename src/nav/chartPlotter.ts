@@ -4,7 +4,8 @@ import * as THREE from 'three';
 import type { WorldState } from '../core/world';
 import { part } from '../render/geometryUtils';
 import { cargoPaused, portById } from '../rescue/rescue';
-import { FISHING_GROUNDS, ISLANDS, MARKS, PORTS, POTTING_GROUNDS, WRECKS } from '../world/archipelago';
+import { FISHING_GROUNDS, MARKS, PORTS, POTTING_GROUNDS, WRECKS } from '../world/archipelago';
+import { chartIslands } from './geo';
 import { groundHeight } from '../world/terrain';
 import { CONFIG } from '../config';
 import type { ChartMarks } from '../chart/marks';
@@ -79,7 +80,7 @@ export class ChartPlotter {
     let x1 = -Infinity;
     let z0 = Infinity;
     let z1 = -Infinity;
-    for (const i of ISLANDS) {
+    for (const i of chartIslands()) {
       x0 = Math.min(x0, i.x - i.radius);
       x1 = Math.max(x1, i.x + i.radius);
       z0 = Math.min(z0, i.z - i.radius);

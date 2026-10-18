@@ -8,8 +8,9 @@
  */
 import type { RegionDef } from '../defs';
 import { HOME } from './home';
+import { SOUNDS } from './sounds';
 
-export const REGIONS: readonly RegionDef[] = [HOME];
+export const REGIONS: readonly RegionDef[] = [HOME, SOUNDS];
 
 export function regionById(id: string): RegionDef | undefined {
   return REGIONS.find((r) => r.id === id);

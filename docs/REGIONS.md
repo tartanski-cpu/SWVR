@@ -1,6 +1,6 @@
 # Regions: growing the world
 
-Status: **agreed with the owner (Oct 2026); milestone 1 done, awaiting the owner's test.** The running record is PROGRESS.md "Regions".
+Status: **agreed with the owner (Oct 2026); milestones 1 and 2 done, awaiting the owner's test.** The running record is PROGRESS.md "Regions".
 
 The owner's brief, in short: grow the world by adding **regions** round home, each with its own geography, weather, fish, goods and towing jobs, reached by a short passage across open water, all still running in the browser on the Quest. The design intent, what a region defines, the tidal races as current zones, the four regions and the technical rules are the owner's; the decisions and the plan below are what was agreed in the session that started the work.
 
@@ -30,14 +30,14 @@ A region is **data, never code of its own**: one file in `src/world/regions/` ho
 - **The race clock is the game clock,** and time flows by default (owner): a six game-hour cycle, slack around dawn and dusk; the Voyage tab can still freeze time.
 - **The fast boat is a Shipyard boat** (the yard builds boats to 33 kn). The starter workboat (13 kn) cannot pass the 9 kn race at peak; it can from about two-thirds of the way to slack.
 - **New mechanics come after each region's first version:** recovering a mooring block with the crane, carrying a passenger, an escort job, fish-farm cages, stern-to mooring, log booms. Each region is built first with the jobs that reuse what exists.
-- **Layout:** home at the origin; the Sounds 3 km north, beyond Rona and Eilean Dubh; the Fjord north-east and the Narrows north-west of the Sounds, one more gap out; the Calanques two gaps due south of home. The water colour, sky and haze change across a line mid-passage to the Calanques.
+- **Layout:** home at the origin; the Sounds 3 km north, beyond Tarran and the Skerry (home's northern islands; Rona and Eilean Dubh are its southern ones); the Fjord north-east and the Narrows north-west of the Sounds, one more gap out; the Calanques two gaps due south of home, beyond Rona and Eilean Dubh. The water colour, sky and haze change across a line mid-passage to the Calanques.
 - **Saves stay compatible** between the game and /next/: new ports, goods and species are additive. A milestone that must change a format gives `next` its own keys first.
 - **Seeing far:** the camera's far plane goes out to about 12 km, scene fog follows the weather's visibility, and landmarks and lights get cull distances from their height and the day's visibility (not horizon maths).
 
 ## Milestones
 
 1. **Region framework, no visible change** (done): home becomes `home`; the region list, bounds and `regionAt`; every consumer generic; fog banks and fishing grounds into the region file; the menu's port rows and teleport for any number of ports; tests.
-2. **Seeing far, and streaming:** far plane, visibility-driven fog and cull distances, landmark silhouettes, worker-built meshes, load and unload by distance, the debug map and teleport, the budget measured; an empty neighbour slot with a landmark hill to prove it.
+2. **Seeing far, and streaming** (done): far plane, visibility-driven fog and cull distances, landmark silhouettes, worker-built meshes, load and unload by distance, the debug map and teleport, the budget measured; the Sounds as a stub with only its landmark hill to prove it.
 3. **Current zones:** the race mechanic, surface effects, sound, knock points, chart symbol and forecast line, debug set-to-peak and set-to-slack; a test race in open water near home.
 4. **The Sounds:** the full region with spine, repair yard, two races, cliff inlet with leading line, directional shelter, species, goods, jobs; the per-port economy and job templates every later region uses; the archipelago sheet and the detail sheet; the forecast per crossing.
 5. **The Fjord:** narrow entrance, katabatic gusts, cheap fuel, the fish farm, the first new mechanics.

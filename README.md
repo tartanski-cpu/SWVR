@@ -491,6 +491,15 @@ A new game starts in **Calder Haven**: your boat lies moored alongside the quay 
 
 Also look out for **Gull Rocks** (on the direct line to Calder Haven), **Tarran** with its lighthouse (Fl W 10 s), Skerry and Eilean Dubh.
 
+### Beyond home: the regions (being built)
+
+The world is growing: new map areas round home, each with its own harbours, weather, fish, goods and jobs, reached by a short passage across open water. For now (on /next/):
+
+- **You can see far.** On a clear day the land shows out to the horizon, hazing with distance, instead of dissolving at 2.5 km. In fog or rain it closes in as before, and lights fade out at the range the weather allows.
+- **A hill to the north.** From Calder Haven look north on a clear day: a cairn hill about 4.6 km off across the sound, the landmark of the first new region, the Sounds. Steer for it and its island fills in as you near it (built while you sail; nothing to wait for). There is nothing else there yet: its harbours, tidal races and grounds are next.
+- **Home has a landmark too:** a cairn and a trig pillar on top of Calder Holm.
+- Debug (Settings → Game → Debug tab → Shown): **World → To region** moves the boat between regions; **Views → Region map** shows the regions and what's loaded on the perf panel.
+
 ### Cargo
 
 Each port has three items waiting ashore, each bound for another port. The box colour shows the destination: **blue** Calder Haven, **orange** Brannock Pier, **green** Selkie Bay.
