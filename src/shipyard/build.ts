@@ -579,6 +579,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   const batteriesKg = 2 * CONFIG.modules.batteryBank.massKg;
 
   // ── Places (vessel axes), as the landing craft's are from her cabin ──
+  const wl = CONFIG.shipyard.workLights;
   const at = {
     console: [0, F + 0.9, front + 0.56] as V3,
     breakerPanel: [hw - 0.185, F + 0.6, front + 0.875 + sb(hw - 0.185)] as V3,
@@ -604,6 +605,12 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     cabinLight: [0, roofY - 0.12, (front + aft) / 2 + 0.15] as V3,
     searchlight: [0, roofTopAt(roofFront + 0.275) + 0.13, roofFront + 0.275] as V3,
     navLights: [0, roofTopAt(roofFront + 1.275), roofFront + 1.275] as V3,
+    // The advanced interior's working lights (owner): the overhead switch panel over the helm
+    // (its face), and the deck floods on the roof's front and aft edges, off to port (the
+    // fore one set back with a faceted front's corner), each aimed at the middle of its deck.
+    overhead: [0, roofY - CONFIG.modules.overheadPanel.drop, front + wl.overheadAft] as V3,
+    floodFore: [-wl.flood.x, roofTopAt(roofFront) + 0.07, roofFront + wl.flood.inset + sb(wl.flood.x + 0.11)] as V3,
+    floodAft: [-wl.flood.x, roofTopAt(aft) + 0.07, aft - wl.flood.inset] as V3,
   };
   const bowCleat = stem + 0.5;
   const sternCleat = transom - 0.4;
@@ -678,6 +685,8 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   const roofTaken: [number, number, number][] = [
     [0, roofFront + 0.475, 0.45],
     [0, roofFront + 0.775, 0.3],
+    // The deck floods (advanced controls).
+    ...(d.controls ? ([at.floodFore, at.floodAft].map(([x, , z]) => [x, z, wl.flood.keepClear]) as [number, number, number][]) : []),
   ];
   const onRoof = (x: number, z: number) => Math.abs(x) < hw && z > front && z < aft;
   const standsOnRoof = (x: number, z: number) => Math.abs(x) <= Math.min(hw - 0.2, hw + 0.15 - roofBack - 0.15) && z >= roofFront + 0.2 + sb(Math.abs(x) + 0.2) && z <= aft - 0.2 && roofTaken.every(([ox, oz, r]) => Math.hypot(x - ox, z - oz) >= r);
@@ -965,6 +974,10 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     { id: 'bilgePump', type: 'engine.bay', transform: { position: [at.engineSpace[0], F - eh.pitDepth, at.engineSpace[2]] }, label: 'Bottom of the engine space (nominal)' },
     { id: 'rudder', type: 'hull.rudder', transform: { position: rudderPos }, label: 'Rudder stock, under the transom' },
     { id: 'cabinLight', type: 'cabin.overhead', transform: { position: at.cabinLight }, label: 'Cabin ceiling' },
+    { id: 'overhead', type: 'cabin.overhead', transform: { position: at.overhead }, label: 'Under the roof, over the helm: the switch panel' },
+    { id: 'floodFore', type: 'hull.light', transform: { position: at.floodFore }, label: 'Roof edge, forward: the foredeck flood' },
+    { id: 'floodAft', type: 'hull.light', transform: { position: at.floodAft }, label: 'Roof edge, aft: the aft deck flood' },
+    { id: 'railLights', type: 'hull.light', transform: { position: [0, roofTopAt(0), 0] }, label: 'Along the bulwark tops (nominal)' },
     lampFoot
       ? { id: 'searchlight', type: 'deck.equipment', transform: { position: lampFoot }, label: `${deckWords(lampFoot)}: the searchlight's pole` }
       : { id: 'searchlight', type: 'roof.mount', transform: { position: lampRoof }, label: lampHand.roof ? 'Cabin roof: the searchlight' : 'Cabin roof, forward' },
@@ -1181,6 +1194,40 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     { socket: 'whiteboard', module: 'furniture.whiteboard', config: { roller: { ...CONFIG.modules.whiteboard.roller, width: Math.round(Math.min(CONFIG.modules.whiteboard.roller.width, hw - wall - 0.1 - 0.2) * 100) / 100 } } },
     { socket: 'dutyBoard', module: 'furniture.duty-board' },
   );
+  // The working lights (the workboat's, as modules): the floods aimed at the middle of the
+  // foredeck and of the aft deck, and the overhead panel with their three switches (no FM
+  // set in it: hers hangs on its own, out to starboard).
+  const zFore = (stem + front) / 2;
+  const zAftDeck = (aft + transom) / 2;
+  const lamps = {
+    fore: { position: at.floodFore, target: [0, r2(q.deckY(zFore)), r2(zFore)] as V3 },
+    aft: { position: at.floodAft, target: [0, r2(q.deckY(zAftDeck)), r2(zAftDeck)] as V3 },
+  };
+  const ohp = CONFIG.modules.overheadPanel;
+  recipe.modules.push(
+    { socket: 'floodFore', module: 'light.flood', config: { end: 'fore', lamps }, bind: { on: 'lights.deckFore' } },
+    { socket: 'floodAft', module: 'light.flood', config: { end: 'aft', lamps }, bind: { on: 'lights.deckAft' } },
+    { socket: 'railLights', module: 'light.rail' },
+    {
+      socket: 'overhead',
+      module: 'panel.overhead',
+      config: {
+        width: 0.42,
+        slots: { deckFore: { x: -0.11, hang: true }, deckAft: { x: 0, hang: true }, railLights: { x: 0.11, hang: true } },
+        legends: [
+          { text: 'FOREDECK', x: -0.11 },
+          { text: 'AFT DECK', x: 0 },
+          { text: 'RAIL', x: 0.11 },
+        ],
+        legend: ohp.legend,
+      },
+      modules: [
+        { socket: 'deckFore', module: 'control.toggle', config: { label: 'Foredeck floodlight' }, bind: { value: 'lights.deckFore' } },
+        { socket: 'deckAft', module: 'control.toggle', config: { label: 'Aft deck floodlight' }, bind: { value: 'lights.deckAft' } },
+        { socket: 'railLights', module: 'control.toggle', config: { label: 'Rail lights' }, bind: { value: 'lights.rail' } },
+      ],
+    },
+  );
   if (chartTableAt) recipe.modules.push({ socket: 'chartTable', module: 'furniture.chart-table' });
   if (!d.controls) {
     // Basic: wheel, throttle, starting (key, START, the lamps and the card), speed with
@@ -1190,7 +1237,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     consoleMount.modules = consoleMount.modules!.filter((m) => keep.includes(m.socket));
     cc.groups = cc.groups.filter((gp: { title: string }) => ['ENGINE', 'SEARCH', 'FIRE', 'SEARCH · FIRE', 'DECK'].includes(gp.title));
     // (The FM set and the advanced instruments come with the advanced controls, owner.)
-    recipe.modules = recipe.modules.filter((m) => !['cabinLight', 'horn', 'wipers', 'vhf', 'fm', 'navLights', 'chartplotter', 'navDisplay', 'whiteboard', 'dutyBoard'].includes(m.socket));
+    recipe.modules = recipe.modules.filter((m) => !['cabinLight', 'horn', 'wipers', 'vhf', 'fm', 'navLights', 'chartplotter', 'navDisplay', 'whiteboard', 'dutyBoard', 'overhead', 'floodFore', 'floodAft', 'railLights'].includes(m.socket));
   }
   if (hasMonitor && !monitorFoot) {
     // The roof monitor's FIRE gauge on the console, between the two joysticks.

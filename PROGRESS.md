@@ -3865,7 +3865,22 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Checked in headless Chromium:** a pilot boat with a 3 m, 1.2 m high, full-width, 30°-raked deckhouse, and set in with 0.5 m side decks, upright: views from the bow, stern and port; the wheelhouse on top, the steps up aft, no warnings. Found and fixed on the way: its faces wound inside out (invisible from outside), and its foot showing through her topsides at the bow. **Not checked:** the Quest, a phone, walking up the steps into a raised helm in the game.
 - **Next, for bigger boats (tugs), noted:** the deckhouse top walkable with rails and a ladder or stairs (the walk area's floors and ladders already do this for the workboat's roof), and an interior with a door into it.
 
-### Door steps you climb, not walk through (owner)
+### Shipyard: the working lights with the advanced interior (owner)
+
+- **The owner noticed** designs had no overhead switch panel and no foredeck or aft deck lights, which the workboat has. Asked for them as modules, and only with the advanced interior for now.
+- **Now, with Advanced controls** (`shipyard/build.ts`), the same modules as the workboat's:
+  - **the overhead switch panel** (`panel.overhead`, socket `overhead`): under the roof on the centreline, just aft of the hung NAV / WIND screen and over the helm. Narrower than the workboat's (0.42 m), with three switches hung from it: FOREDECK, AFT DECK and RAIL. Her FM set stays where it was, hung on its own out to starboard.
+  - **two deck floods** (`light.flood`, sockets `floodFore`, `floodAft`): a lamp on the roof's front edge and one on its aft edge, a little to port of the centreline (clear of the searchlight, the masthead light and the fire monitor), each aimed at the middle of its deck. On a faceted front the fore lamp goes back with the cut corner. Hand-placed roof gear keeps clear of them.
+  - **the rail lights** (`light.rail`): LED strips along the inside of the bulwark tops and across the transom (glow only).
+  - All three are on the deck-lights breaker (DECK LTS), as on the workboat. That breaker starts open in a cold start: close it on the breaker panel first.
+- **Basic controls:** none of them (taken off with the other advanced items).
+- **Cost on the Quest:** the same as the workboat's: two real spotlights, each hidden while off; the panel merged with her other fixed parts.
+- **Config:** `CONFIG.shipyard.workLights` (`overheadAft` 0.7 m, the panel's face aft of the wheelhouse front; `flood.x` 0.35 m to port; `flood.inset` 0.1 m in from the roof edge; `flood.keepClear` 0.3 m). The panel's box and legends are `CONFIG.modules.overheadPanel`'s; the beams are `vessels.workboat.deckLights`'.
+- **Checked:**
+  - typecheck and tests (676; `tests/shipyard/workLights.test.ts`: every hull type, flat and faceted, with advanced controls has the panel with its three switches, both floods aimed down at their decks, and the rail lights, and its recipe checks out; with basic controls none of them);
+  - in the game, desktop, headless, at night on a faceted landing craft: the three switches and their legends on the panel above the NAV / WIND screen, both floods on and the aft deck lit, the rail strips glowing; by day, both lamps on the roof edges, clear of the searchlight and the mast.
+  - **Not checked:** VR.
+
 
 - **The owner** walked through the steps up to a raised wheelhouse's aft door in desktop mode.
 - **Why:**

@@ -2057,6 +2057,17 @@ export const CONFIG = {
      */
     /** A three-facet wheelhouse front (owner): its outer panes angled back this far from square across her (deg). */
     facetDeg: 30,
+    /**
+     * The advanced interior's working lights (owner): the overhead switch panel (panel.overhead)
+     * and the foredeck and aft deck floodlights (light.flood), with the rail lights (light.rail).
+     *   overheadAft   the panel's face this far aft of the wheelhouse front (m), on the
+     *                 centreline, just aft of the hung NAV / WIND screen and over the helm;
+     *   flood.x       each flood this far to port of the centreline (m), clear of the
+     *                 searchlight and the fire monitor at their usual centreline places;
+     *   flood.inset   in from the roof's front or aft edge (m);
+     *   flood.keepClear  the roof round each flood that hand-placed roof gear keeps off (m).
+     */
+    workLights: { overheadAft: 0.7, flood: { x: 0.35, inset: 0.1, keepClear: 0.3 } },
     deckGear: {
       winchFromTransom: 0.75,
       standRoom: 0.6,
