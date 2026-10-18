@@ -116,6 +116,7 @@ import { NoteKeyboard } from '../board/noteKeyboard';
 import { parseBoard } from '../board/board';
 import { DesktopHand } from '../player/desktopHand';
 import { playerColor } from '../net/avatarView';
+import { CameraPreview, faceHolder } from '../player/cameraPreview';
 import { createRescueState, nearestPort, runStatus } from '../rescue/rescue';
 import { engineAlarms } from '../vessel/physics/engineThermal';
 import { VesselEffects } from '../vessel/view/vesselEffects';
@@ -459,6 +460,8 @@ export class App {
   private readonly camQ = new THREE.Quaternion();
   private readonly camQ2 = new THREE.Quaternion();
   private readonly camLens = new THREE.Vector3();
+  /** VR: the preview screen over a recording camera in our hand. */
+  private readonly camPreview = new CameraPreview();
   /** The red spray when a swimmer goes into a propeller (everyone sees it). */
   private readonly propStrikeView = new PropStrikeView();
   /** Us struck by a propeller: seconds since (red, black, back aboard), or -1. */
@@ -614,7 +617,7 @@ export class App {
     const stowage = VESSEL_DEFS[this.world.vessels[this.testVesselId].defId].stowage;
     if (tugView && stowage?.binoculars) this.binoculars.stow(tugView.root, stowage.binoculars.at, stowage.binoculars.yawDeg);
     if (tugView) for (const g of this.gear) if (stowage?.[g.kind]) g.mount(tugView.root, stowage[g.kind]!);
-    this.scene.add(this.handGearView.root);
+    this.scene.add(this.handGearView.root, this.camPreview.screen);
     this.scene.add(this.towline.root, this.painter.root, this.fireView.root, this.jetView.root, this.logView.root, this.trawlView.root, this.potView.root, this.fuelView.root);
     this.setupBridge();
 
@@ -741,6 +744,7 @@ export class App {
     this.renderer.info.reset();
     this.gpuTimer.begin();
     if (inXR) this.binoculars.renderScope(this.renderer, this.scene);
+    if (inXR) this.camPreview.render(this.renderer, this.scene);
     this.renderer.render(this.scene, this.camera);
     this.gpuTimer.end();
     const t3 = performance.now();
@@ -1126,7 +1130,12 @@ export class App {
     this.desktopHand.update(this.camera, deskHand, dt);
     this.updateNetPose(dt);
     const heldGrip = (id: string) => (inXR ? (['left', 'right'] as const).map((h) => (this.camGrip[h]?.id === id ? this.controllers.grips[h] : null)).find((g) => g) ?? null : null);
-    this.avatars.update(this.world, this.localPlayerId, this.vesselRoots, dt, heldGrip);
+    this.avatars.update(this.world, this.localPlayerId, this.vesselRoots, dt, heldGrip, this.focus);
+    // A camera in our hand: its preview screen, turned to our eyes.
+    const heldCam = inXR ? (['left', 'right'] as const).map((h) => this.camGrip[h]?.id).find((id) => id && this.world.cameraHolds?.[id]?.by === this.localPlayerId) : undefined;
+    const camBody = heldCam ? this.avatars.cameras.get(heldCam) : undefined;
+    if (camBody) this.camPreview.show(camBody, this.focus, dt);
+    else this.camPreview.hide();
     // A crew-mate goes in the water: say so once (they can wave; throw them the life ring).
     for (const pl of Object.values(this.world.players)) {
       if (pl.id === this.localPlayerId) continue;
@@ -3046,6 +3055,10 @@ export class App {
       hf.updateMatrixWorld();
       const quat = hf.getWorldQuaternion(this.camQ).multiply(this.camQ2.set(hq[0], hq[1], hq[2], hq[3]));
       const pos = hf.localToWorld(this.camW.fromArray(hand)).add(this.camLens.fromArray(CONFIG.camera.lens).applyQuaternion(quat));
+      // Facing the holder (at their head, player/cameraPreview.ts) unless they've flipped it
+      // to look out ahead of their hand.
+      const head = hp.avatar!.head;
+      if (!hold!.back) faceHolder(pos, hf.localToWorld(this.camLens.set(head[0], head[1], head[2])), quat);
       held = { pos, quat };
       this.camHolderBoat = hp.aboardVesselId;
     }
@@ -3119,6 +3132,11 @@ export class App {
           continue;
         }
         this.busyHands[h] = true;
+        // The trigger turns it round: filming you, or looking out ahead of your hand.
+        if (ours && f.triggerPressed) {
+          this.intents.push({ playerId: me, targetId: ENVIRONMENT_ID, control: 'cameraFlip', value: 1, ref: mine.id });
+          this.xrInput.pulse(h, 0.4, 30);
+        }
         continue;
       }
       if (!f.gripPressed || this.busyHands[h] || !f.tracked) continue;

@@ -7,6 +7,7 @@ import type { EntityId } from '../core/ids';
 import type { WorldState } from '../core/world';
 import { LaserBeam } from '../player/laserBeam';
 import { CHEST_TURN, radioGeometry } from '../player/radioHandset';
+import { faceHolder } from '../player/cameraPreview';
 
 const COLORS = [0xd8582a, 0x2a8ad8, 0x3aa84a, 0xc8a020, 0x9a4ad0, 0x20a8a0];
 
@@ -79,6 +80,7 @@ export class AvatarsView {
   private readonly avatars = new Map<EntityId, Avatar>();
   private readonly tmpV = new THREE.Vector3();
   private readonly tmpQ = new THREE.Quaternion();
+  private readonly camQ = new THREE.Quaternion();
   private readonly yawQ = new THREE.Quaternion();
   private readonly bodyQ = new THREE.Quaternion();
   private readonly neck = new THREE.Vector3();
@@ -98,8 +100,9 @@ export class AvatarsView {
   /**
    * @param heldGrip  where a camera we're holding goes: our grip (its lens at CONFIG.camera.lens
    *                  in it), so it's in our hand without the network's lag; null if not ours.
+   * @param ourHead   our eyes (world): a camera in our hand faces them unless flipped
    */
-  update(world: WorldState, localId: EntityId, vesselRoots: Map<string, THREE.Object3D>, dt: number, heldGrip: (cameraId: EntityId) => THREE.Object3D | null = () => null): void {
+  update(world: WorldState, localId: EntityId, vesselRoots: Map<string, THREE.Object3D>, dt: number, heldGrip: (cameraId: EntityId) => THREE.Object3D | null = () => null, ourHead?: THREE.Vector3): void {
     const c = CONFIG.avatar;
     const seen = new Set<EntityId>();
     for (const p of Object.values(world.players)) {
@@ -142,8 +145,20 @@ export class AvatarsView {
         const grip = heldGrip(p.id);
         const holder = grip ?? a.head;
         if (a.camBody.parent !== holder) holder.add(a.camBody);
-        if (grip) a.camBody.position.fromArray(CONFIG.camera.lens);
-        else a.camBody.position.set(0, 0, 0);
+        if (grip) {
+          a.camBody.position.fromArray(CONFIG.camera.lens);
+          // In our hand it faces us (at our eyes), unless we've flipped it (player/cameraPreview.ts).
+          a.camBody.quaternion.identity();
+          if (!world.cameraHolds?.[p.id]?.back && ourHead) {
+            grip.updateWorldMatrix(true, false);
+            const lens = a.camBody.getWorldPosition(this.tmpV);
+            faceHolder(lens, ourHead, this.tmpQ).premultiply(grip.getWorldQuaternion(this.camQ).invert());
+            a.camBody.quaternion.copy(this.tmpQ);
+          }
+        } else {
+          a.camBody.position.set(0, 0, 0);
+          a.camBody.quaternion.identity();
+        }
         a.tag.position.y = a.head.position.y + 0.16;
         continue;
       }

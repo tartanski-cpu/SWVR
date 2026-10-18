@@ -2635,6 +2635,9 @@ export const CONFIG = {
    *   heldTau        held by a VR player: the view eases onto their hand (s; smooths the network)
    *   grabRange      a VR hand this close to the camera body (m) grips it
    *   lens           the lens in the holder's grip axes (m: up, and forward along the controller)
+   *   preview        held in VR, a little screen of its view above it (player/cameraPreview.ts):
+   *                  its picture `width` x `height` pixels, drawn `rate` times a second out to
+   *                  `far` m; the screen `size` m wide, `above` m over the lens
    */
   camera: {
     fov: 60,
@@ -2645,6 +2648,7 @@ export const CONFIG = {
     heldTau: 0.08,
     grabRange: 0.2,
     lens: [0, 0.035, -0.08] as [number, number, number],
+    preview: { width: 192, height: 108, rate: 12, far: 400, size: 0.13, above: 0.1 },
   },
 
   laser: { reach: 600, hitRate: 15, deskHand: [0.2, -0.25, -0.35] as [number, number, number] },

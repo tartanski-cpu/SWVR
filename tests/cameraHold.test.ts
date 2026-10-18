@@ -4,7 +4,9 @@
  * let go when the holder or the camera leaves, or stops being a camera. Crew get it in the
  * snapshot; the camera flag rides in the pose through the host.
  */
+import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
+import { faceHolder } from '../src/player/cameraPreview';
 import { IdFactory } from '../src/core/ids';
 import type { Intent } from '../src/core/intents';
 import { stepWorld } from '../src/core/simulation';
@@ -43,6 +45,32 @@ describe('the recording camera in a VR hand', () => {
     expect(world.cameraHolds?.[cam.id]).toBeUndefined();
     send('cameraGrab', me, cam.id, 0);
     expect(world.cameraHolds?.[cam.id]).toEqual({ by: me, hand: 'left' });
+  });
+
+  it('picked up it faces the holder; their trigger flips it to look out ahead, and back; nobody else can', () => {
+    const { world, cam, vr, send, me } = setup();
+    send('cameraGrab', vr.id, cam.id, 1);
+    expect(world.cameraHolds?.[cam.id]?.back).toBeFalsy();
+    send('cameraFlip', vr.id, cam.id);
+    expect(world.cameraHolds?.[cam.id]?.back).toBe(true);
+    send('cameraFlip', me, cam.id);
+    expect(world.cameraHolds?.[cam.id]?.back).toBe(true); // not theirs
+    send('cameraFlip', vr.id, cam.id);
+    expect(world.cameraHolds?.[cam.id]?.back).toBe(false);
+    // Let go and picked up again: facing the holder again.
+    send('cameraFlip', vr.id, cam.id);
+    send('cameraRelease', vr.id, cam.id);
+    send('cameraGrab', vr.id, cam.id, 0);
+    expect(world.cameraHolds?.[cam.id]?.back).toBeFalsy();
+  });
+
+  it('facing the holder, the lens looks at their head, upright', () => {
+    const lens = new THREE.Vector3(0.3, 1.2, -0.5);
+    const eyes = new THREE.Vector3(0, 1.7, 0);
+    const q = faceHolder(lens, eyes, new THREE.Quaternion());
+    const look = new THREE.Vector3(0, 0, -1).applyQuaternion(q);
+    expect(look.dot(eyes.clone().sub(lens).normalize())).toBeCloseTo(1, 5);
+    expect(new THREE.Vector3(1, 0, 0).applyQuaternion(q).y).toBeCloseTo(0, 5); // no roll
   });
 
   it("only a camera, not yourself, not by a camera; let go when the holder or camera goes, or it isn't a camera now", () => {
