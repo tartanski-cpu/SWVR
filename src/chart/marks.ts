@@ -58,6 +58,50 @@ export function createMarks(): ChartMarks {
 const q = (v: number) => Math.round(v / CONFIG.chartMarks.quantM) * CONFIG.chartMarks.quantM;
 const clean = (pts: unknown): number[] => (Array.isArray(pts) ? pts.filter((v) => typeof v === 'number' && Number.isFinite(v)).map(q) : []);
 
+/** A rectangle in chart coordinates (a sheet's bounds). */
+export interface ChartRect {
+  x0: number;
+  x1: number;
+  z0: number;
+  z1: number;
+}
+
+/**
+ * The part of the segment (x0, z0)-(x1, z1) inside `r`, or null if none. Liang-Barsky
+ * clipping: each edge of the rectangle trims the segment's parameter range [t0, t1]. The
+ * marks are in world metres and a sheet shows only its own patch of sea, so a stroke that
+ * runs off the sheet is drawn up to the paper's edge and no further; a stroke on another
+ * sheet's sea is not drawn at all.
+ */
+export function clipSegment(x0: number, z0: number, x1: number, z1: number, r: ChartRect): [number, number, number, number] | null {
+  const dx = x1 - x0;
+  const dz = z1 - z0;
+  let t0 = 0;
+  let t1 = 1;
+  // p: how fast the segment heads out through an edge; q: how far inside that edge it starts.
+  const edges: [number, number][] = [
+    [-dx, x0 - r.x0],
+    [dx, r.x1 - x0],
+    [-dz, z0 - r.z0],
+    [dz, r.z1 - z0],
+  ];
+  for (const [p, q] of edges) {
+    if (p === 0) {
+      if (q < 0) return null; // parallel to this edge and outside it
+      continue;
+    }
+    const t = q / p;
+    if (p < 0) {
+      if (t > t1) return null;
+      if (t > t0) t0 = t;
+    } else {
+      if (t < t0) return null;
+      if (t < t1) t1 = t;
+    }
+  }
+  return [x0 + t0 * dx, z0 + t0 * dz, x0 + t1 * dx, z0 + t1 * dz];
+}
+
 export function pointCount(m: ChartMarks): number {
   return m.strokes.reduce((n, s) => n + s.pts.length / 2, 0);
 }

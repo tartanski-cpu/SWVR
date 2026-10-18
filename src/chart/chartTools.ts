@@ -26,7 +26,7 @@ import type { HandFrame } from '../controls/InteractionSystem';
 import type { Handedness } from '../player/xrInput';
 import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
 import type { ChartTableView } from '../vessel/view/chartTable';
-import type { ChartMarks, ChartOp, ChartToken } from './marks';
+import { clipSegment, type ChartMarks, type ChartOp, type ChartToken } from './marks';
 
 export interface ChartToolsContext {
   marks: ChartMarks;
@@ -80,7 +80,8 @@ export class ChartTools {
   readonly root = new THREE.Group();
   private readonly lines: THREE.LineSegments;
   private readonly lineGeo = new THREE.BufferGeometry();
-  private shownSeq = -1;
+  /** The marks drawn now: `seq|sheet id`. The sheet is part of it: the marks are in world metres, so a new sheet needs them laid out again. */
+  private shownKey = '';
   private readonly tools: Record<ToolName, Tool>;
   private strokeN = 0;
   private drawing: Drawing | null = null;
@@ -204,13 +205,16 @@ export class ChartTools {
   /** Rebuild the markers on the chart when they change (or one is lifted off). */
   private redrawTokens(marks: ChartMarks): void {
     const list = marks.tokens ?? [];
-    const key = `${marks.seq}|${this.heldToken?.id ?? ''}`;
+    const key = `${marks.seq}|${this.table.sheet.id}|${this.heldToken?.id ?? ''}`;
     if (key === this.shownTokens) return;
     this.shownTokens = key;
     this.tokens.clear();
     const y = this.table.chartRect.y + 0.0004;
+    const b = this.table.sheet.bounds;
     for (const t of list) {
       if (t.id === this.heldToken?.id) continue;
+      // A marker on another sheet's sea stays off this one.
+      if (t.x < b.x0 || t.x > b.x1 || t.z < b.z0 || t.z > b.z1) continue;
       const m = this.tokenMesh(t.n);
       this.table.chartToTable(t.x, t.z, m.position).setY(y);
       this.tokens.add(m);
@@ -261,11 +265,13 @@ export class ChartTools {
 
   // ── Marks ────────────────────────────────────────────────────────────────
 
-  /** Rebuild the lines when the marks changed (cheap: a few thousand vertices). */
+  /** Rebuild the lines when the marks changed or the sheet turned (cheap: a few thousand vertices). */
   private redraw(marks: ChartMarks): void {
     this.redrawTokens(marks);
-    if (marks.seq === this.shownSeq) return;
-    this.shownSeq = marks.seq;
+    const key = `${marks.seq}|${this.table.sheet.id}`;
+    if (key === this.shownKey) return;
+    this.shownKey = key;
+    const bounds = this.table.sheet.bounds;
     const pos = this.lineGeo.attributes.position as THREE.BufferAttribute;
     const col = this.lineGeo.attributes.color as THREE.BufferAttribute;
     const y = this.table.chartRect.y + 0.0012;
@@ -282,8 +288,11 @@ export class ChartTools {
       seen += n;
       const shade = 0.16 + 0.5 * fade * age;
       for (let i = 0; i + 3 < s.pts.length && v + 2 <= pos.count; i += 2) {
-        this.table.chartToTable(s.pts[i], s.pts[i + 1], a).setY(y);
-        this.table.chartToTable(s.pts[i + 2], s.pts[i + 3], b).setY(y);
+        // Only the part on this sheet: the marks are in world metres and a sheet shows its own patch of sea.
+        const seg = clipSegment(s.pts[i], s.pts[i + 1], s.pts[i + 2], s.pts[i + 3], bounds);
+        if (!seg) continue;
+        this.table.chartToTable(seg[0], seg[1], a).setY(y);
+        this.table.chartToTable(seg[2], seg[3], b).setY(y);
         pos.setXYZ(v, a.x, a.y, a.z);
         pos.setXYZ(v + 1, b.x, b.y, b.z);
         col.setXYZ(v, shade, shade, shade * 1.05);

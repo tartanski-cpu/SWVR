@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CONFIG } from '../src/config';
 import { IdFactory } from '../src/core/ids';
 import { createWorld } from '../src/core/world';
-import { applyChartOp, createMarks, parseMarks, pointCount, serializeMarks, type ChartMarks } from '../src/chart/marks';
+import { applyChartOp, clipSegment, createMarks, parseMarks, pointCount, serializeMarks, type ChartMarks } from '../src/chart/marks';
 import { ClientSession } from '../src/net/clientSession';
 import { HostSession } from '../src/net/hostSession';
 import { LoopbackHost } from '../src/net/transport';
@@ -97,5 +97,29 @@ describe('chart marks', () => {
     host.broadcastChart(erase);
     expect(a.mine.marks.strokes.map((s) => s.id)).toEqual(['route']);
     expect(b.mine.marks.strokes.map((s) => s.id)).toEqual(['route']);
+  });
+});
+
+describe('chart sheets: marks clipped to the sheet', () => {
+  // The marks are in world metres and each sheet shows its own patch of sea, so a stroke is
+  // drawn only where it crosses the sheet out on the table (regions: several sheets).
+  const sheet = { x0: -100, x1: 100, z0: -50, z1: 50 };
+
+  it('a segment inside the sheet is kept whole', () => {
+    expect(clipSegment(-10, -10, 20, 30, sheet)).toEqual([-10, -10, 20, 30]);
+  });
+
+  it('a segment that runs off the sheet stops at the paper edge', () => {
+    expect(clipSegment(0, 0, 200, 0, sheet)).toEqual([0, 0, 100, 0]);
+    // Both ends outside, crossing the middle: trimmed to the edges on both sides.
+    expect(clipSegment(-200, 0, 200, 0, sheet)).toEqual([-100, 0, 100, 0]);
+  });
+
+  it('a segment on another sheet\'s sea is not drawn', () => {
+    expect(clipSegment(500, 500, 600, 700, sheet)).toBeNull();
+    // Parallel to the top edge, above it.
+    expect(clipSegment(-200, -80, 200, -80, sheet)).toBeNull();
+    // Passing the corner outside, diagonally.
+    expect(clipSegment(90, -200, 300, 10, sheet)).toBeNull();
   });
 });
