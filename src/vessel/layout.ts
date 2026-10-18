@@ -175,15 +175,23 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: reado
   const lad = layout.ladder;
   const inLadder = (x: number, z: number) => !!lad && Math.abs(x - lad.x) <= lad.width / 2 && z >= ext.z1 + 0.02 && z <= ext.z1 + lad.depth;
 
+  // Steps at the aft door (a raised floor's outside, a deep sunk floor's inside): solid
+  // blocks across the doorway. Under them is neither deck nor cabin floor, so you climb them
+  // rather than walk through them at deck height (owner: you passed through them).
+  const steps = wh.steps ?? [];
+  const stepsZ0 = Math.min(...steps.map((st) => st.z0));
+  const stepsZ1 = Math.max(...steps.map((st) => st.z1));
+  const inSteps = (x: number, z: number) => steps.length > 0 && Math.abs(x) <= doorHalf + r * 0.5 && z >= stepsZ0 && z <= stepsZ1;
+
   const surfaces: Surface[] = [
     {
-      // Open deck: inside the bulwarks, aft of the bow, clear of the wheelhouse exterior.
+      // Open deck: inside the bulwarks, aft of the bow, clear of the wheelhouse exterior and its door steps.
       height: (_x, z) => deckY(z),
       contains: (x, z) => {
         const onDeck = (z <= transom - layout.deckEdgeMargin && Math.abs(x) <= deckHalfBeam(z) - layout.deckEdgeMargin) || inGateway(x, z, 0.08);
         const nearHouse = Math.abs(x) < ext.x + r && z > ext.z0 - r && z < ext.z1 + r;
         const nearDeckhouse = !!dh && inDeckhouse(dh, x, z, r);
-        return onDeck && !nearHouse && !nearDeckhouse && !onGear(gear, x, z, r, deckY(z));
+        return onDeck && !nearHouse && !nearDeckhouse && !inSteps(x, z) && !onGear(gear, x, z, r, deckY(z));
       },
     },
     {
@@ -191,7 +199,7 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: reado
       // a floor sunk more than a step below the deck stops at the wall: a threshold below).
       height: () => wh.floorY,
       contains: (x, z) =>
-        (Math.abs(x) <= int.x - r && z >= consoleAftAt(Math.abs(x) + r) + r && z <= int.z1 - r && !atFurniture(x, z, r)) ||
+        (Math.abs(x) <= int.x - r && z >= consoleAftAt(Math.abs(x) + r) + r && z <= int.z1 - r && !atFurniture(x, z, r) && !inSteps(x, z)) ||
         (Math.abs(x) <= doorHalf - r * 0.6 && z > int.z1 - r - 0.02 && z < (deepSunk ? int.z1 : ext.z1 + r + 0.02)) ||
         // The port side door, out to the side deck.
         (!!sd && x < -int.x + r + 0.02 && x > -ext.x - r - 0.02 && z > sd.z0 + r * 0.6 && z < sd.z1 - r * 0.6),
@@ -213,12 +221,12 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: reado
       height: (_x, z) => deckY(Math.max(z, ext.z1)),
       contains: (x, z) => deepSunk && Math.abs(x) <= doorHalf - r * 0.6 && z >= int.z1 && z < ext.z1 + r + 0.02,
     },
-    // Steps at the aft door (a raised floor's outside, a deep sunk floor's inside), across
-    // the doorway.
-    ...(wh.steps ?? []).map(
+    // The steps' treads, their full width (and as far out as the deck and floor are kept off
+    // them, so their sides are no gap).
+    ...steps.map(
       (st): Surface => ({
         height: () => st.y,
-        contains: (x, z) => Math.abs(x) <= doorHalf - r * 0.6 && z >= st.z0 && z <= st.z1,
+        contains: (x, z) => Math.abs(x) <= doorHalf + r * 0.5 && z >= st.z0 && z <= st.z1,
       }),
     ),
   ];

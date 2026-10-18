@@ -3865,6 +3865,24 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Checked in headless Chromium:** a pilot boat with a 3 m, 1.2 m high, full-width, 30°-raked deckhouse, and set in with 0.5 m side decks, upright: views from the bow, stern and port; the wheelhouse on top, the steps up aft, no warnings. Found and fixed on the way: its faces wound inside out (invisible from outside), and its foot showing through her topsides at the bow. **Not checked:** the Quest, a phone, walking up the steps into a raised helm in the game.
 - **Next, for bigger boats (tugs), noted:** the deckhouse top walkable with rails and a ladder or stairs (the walk area's floors and ladders already do this for the workboat's roof), and an interior with a door into it.
 
+### Door steps you climb, not walk through (owner)
+
+- **The owner** walked through the steps up to a raised wheelhouse's aft door in desktop mode.
+- **Why:**
+  - the deck you walk on carried on underneath the steps, so you could stay at deck height inside them;
+  - their treads only counted in a 0.44 m strip down the middle (the doorway's width less the body's), though they're drawn 0.7 m wide. So off-centre you walked through them.
+  - The steps inside a deep-sunk cabin had the same fault, with the cabin floor under them.
+- **Now** (`vessel/layout.ts`):
+  - the steps' footprint (the door's width plus half a body, over their length) is taken out of the deck and the cabin floor;
+  - the treads count across that whole width, so the only floor there is the tread and you climb.
+  - Beside them, the deck is as before; from the side you can step onto the lowest only.
+- **Walking at a low frame rate** (`player/locomotion.ts tryMove`): a move that's refused is tried at half length before sliding along.
+  - A long frame (0.4 m at the headless browser's ~4 fps; a dropped frame on the Quest) could reach over a 0.28 m tread to the step beyond, a rise too high, and stick on the first step.
+  - Half way gets onto the tread, and the next frame on up. This is shared walking code, so every boat gets it.
+- **Checked:**
+  - typecheck and tests (673; `tests/shipyard/doorSteps.test.ts`: across the steps' width the only floor is the tread, never the deck; each a step up; beside them the deck; inside a deep-sunk cabin no floor under its steps);
+  - in the game, desktop, headless, on a pilot boat on a 0.8 m deckhouse (three steps): walking forward on the centreline and 0.28 m off it climbs 1.15 → 1.51 → 1.83 → 2.16 → into the cabin at 2.49 m.
+
 ### Shipyard: a three-facet wheelhouse front (owner)
 
 - **The owner asked** (the small tug picture) for an option where the middle front pane stands square across her and the two outer panes are angled.

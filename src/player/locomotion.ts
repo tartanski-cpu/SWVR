@@ -198,6 +198,11 @@ export class Locomotion {
     if (free || area.walkable(head.x + dx, head.z + dz, y)) {
       mx = dx;
       mz = dz;
+    } else if (area.walkable(head.x + dx / 2, head.z + dz / 2, y)) {
+      // Half way (a long frame's move can reach over a tread to the step beyond it, a
+      // rise too high: half way gets onto the tread, and the next frame on up).
+      mx = dx / 2;
+      mz = dz / 2;
     } else if (area.walkable(head.x + dx, head.z, y)) {
       mx = dx;
     } else if (area.walkable(head.x, head.z + dz, y)) {
