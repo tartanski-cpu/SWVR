@@ -2114,6 +2114,12 @@ export const CONFIG = {
     matchRpm: 0.93,
     runSeconds: 45,
     /**
+     * Sketching on her views (shipyard/planeSketch.ts; owner, Oct 2026: sketch together in
+     * real time): a stroke being drawn is sent to the others this often (ms), so they see the
+     * pen moving, not just the finished line.
+     */
+    sketchShareMs: 120,
+    /**
      * The working deck gear a design can carry (shipyard/build.ts; owner, version 10), where
      * it goes and what it adds to her price (GBP):
      *   winchFromTransom  the tow winch's drum this far forward of the transom, on the

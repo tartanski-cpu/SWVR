@@ -99,7 +99,8 @@ export function briefSketch(brief: Brief): string {
     }
     if (m === 'ring') out.push(`<circle class="thin" cx="${(h0 + h1) / 2}" cy="${hy - 16}" r="7"/><circle class="thin" cx="${(h0 + h1) / 2}" cy="${hy - 16}" r="3.5"/>`);
   }
-  return `<svg class="sketch" viewBox="0 0 ${W} 210" role="img" aria-label="A rough sketch of the kind of boat the brief describes"><defs><filter id="pencil"><feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="2" seed="3"/><feDisplacementMap in="SourceGraphic" scale="2.2"/></filter></defs><g filter="url(#pencil)">${out.join('')}</g></svg>`;
+  // (No pencil-wobble filter: an SVG turbulence filter is slow to draw on a phone or headset.)
+  return `<svg class="sketch" viewBox="0 0 ${W} 210" role="img" aria-label="A rough sketch of the kind of boat the brief describes">${out.join('')}</svg>`;
 }
 
 /** A reference for the brief (letters and digits from its name), as an office would number it. */

@@ -3865,6 +3865,25 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Checked in headless Chromium:** a pilot boat with a 3 m, 1.2 m high, full-width, 30°-raked deckhouse, and set in with 0.5 m side decks, upright: views from the bow, stern and port; the wheelhouse on top, the steps up aft, no warnings. Found and fixed on the way: its faces wound inside out (invisible from outside), and its foot showing through her topsides at the bow. **Not checked:** the Quest, a phone, walking up the steps into a raised helm in the game.
 - **Next, for bigger boats (tugs), noted:** the deckhouse top walkable with rails and a ladder or stairs (the walk area's floors and ladders already do this for the workboat's roof), and an interior with a door into it.
 
+### Shipyard: sketching on her four views, together (owner)
+
+- **The owner:** "sketching didn't work because it was trying to sketch in 3D space". They asked for sketching only on a side, top, front or back view, on one flat plane beside the model that everyone draws on, live in multiplayer. The front and back views were missing.
+- **Now** (`shipyard/planeSketch.ts`; `page.ts`, "Sketching on her views"):
+  - **Bow** and **Stern** views (square on, level) join Bow ¾, Side, Stern ¾, Plan and At the helm.
+  - **✏ Sketch** turns the pen on. It goes to the Side view if you're not on one of the four, makes the view flat (no perspective), and stops it turning (the wheel still zooms).
+  - **The plane:** each of the four views has one sheet of glass, standing `PLANE_GAP` (0.6 m) clear of her on that side. It's shown faint and squared every metre while you draw.
+  - **How strokes are kept:** as `Ink` notes on sheet `@side` / `@plan` / `@bow` / `@stern`, in hull fractions across the view, so they stay on her when she's stretched (`toPlane` / `fromPlane`). `notes.ts cleanNote` lets plane strokes run up to her size again beyond her.
+  - **What shows when:** a view's strokes show whenever the camera looks square on to it (`planeFacing`, within about 25°) and hide otherwise. Lines are drawn a few pixels wide whatever the zoom (three's Line2, part of three, no new dependency).
+  - **Live:** a stroke being drawn is sent every `CONFIG.shipyard.sketchShareMs` (120 ms) as the same note, so the others see the pen moving.
+  - **Rubbing out:** **↶ Stroke** takes back your last stroke on the view; **✕ Clear view** rubs out everyone's on it, after asking.
+  - The snapshot sketches (✏ Sketch used to snapshot the view onto a 2D sheet) are no longer made. Ones already made stay in the Sketches list and still open.
+- **Found and fixed on the way:** the Brief's paper (previous change) made the page crawl. Its pencil-wobble SVG filter was slow to draw, and the 3D view kept drawing under the paper every frame. In a session that was slow enough that a second browser timed out joining. The filter is gone, and the view doesn't draw while the paper covers it.
+- **Checked:**
+  - Typecheck and tests (`tests/shipyard/planeSketch.test.ts`: where each plane stands; points kept as fractions and put back, a stroke going with her when stretched; which view is faced; plane strokes may run beyond her).
+  - Headless, one browser: strokes on Side and Plan, each hidden from the other views.
+  - Headless, two browsers in a live session over PeerJS: Amy's Next twice moved both to Wheelhouse ("Amy moved everyone here"); Simon's Back moved both to Hull; Amy's stroke showed on Simon's screen while she was still drawing (30 points mid-stroke, 49 when done).
+- **Not checked:** touch drawing on a phone or tablet; the Quest browser.
+
 ### Shipyard: the design flow made obvious, shared, and a view for each step (owner)
 
 - **The owner** (after a full multiplayer test):

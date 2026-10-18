@@ -14,7 +14,9 @@
  *          session, to talk a change over. (A squared sheet for a first profile sketch,
  *          read into a suggested boat, was tried and taken out: owner, Oct 2026, it didn't
  *          add anything. Old ones are dropped.)
- *   ink    one pen stroke on a sheet, in the sheet's own 0..1 coordinates (x across, y down).
+ *   ink    one pen stroke on a sheet, in the sheet's own 0..1 coordinates (x across, y down);
+ *          or on one of her views' drawing planes (sheet '@side', '@plan', '@bow', '@stern':
+ *          planeSketch.ts), in hull fractions across that view.
  *          Each stroke is its own note, so two people can draw on one sheet at once.
  *
  * (The first freehand marks were drawn on her 3D surface; the owner found that confusing,
@@ -97,7 +99,10 @@ export function cleanNote(n: unknown): Note | null {
     return { ...base, kind: 'sheet', title: str(o.title, 60), image, aspect: aspect > 0.2 && aspect < 5 ? aspect : 1.6 };
   }
   if (o.kind === 'ink' && typeof o.sheet === 'string' && Array.isArray(o.pts)) {
-    const xy = (p: unknown): p is [number, number] => Array.isArray(p) && p.length === 2 && p.every((x) => typeof x === 'number' && Number.isFinite(x) && x > -0.5 && x < 1.5);
+    // On a sheet, within it (a little over); on one of her views' planes (planeSketch.ts:
+    // '@side' and so on, in hull fractions), up to her size again beyond her on every side.
+    const lim = /^@/.test(o.sheet) ? 1 : 0.5;
+    const xy = (p: unknown): p is [number, number] => Array.isArray(p) && p.length === 2 && p.every((x) => typeof x === 'number' && Number.isFinite(x) && x > -lim && x < 1 + lim);
     const pts = o.pts.filter(xy).slice(0, MAX_POINTS).map((p) => [p[0], p[1]] as [number, number]);
     return pts.length >= 2 ? { ...base, kind: 'ink', sheet: o.sheet.slice(0, 40), pts } : null;
   }

@@ -28,6 +28,7 @@ import { gearOf, useDesign } from '../boats/sims';
 import { assembleView } from '../modular/assemble';
 import type { SeaTrialResults } from '../vessel/seaTrials';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
+import { isPlaneSheet, PLANES, PlaneInk, planeAt, planeFacing, planeSheet, toPlane, type PlaneName } from './planeSketch';
 import { briefPaper } from './briefPaper';
 import { buildVesselMesh, buildVesselMeshParts } from '../vessel/view/hullMesh';
 import { DESIGN_HULLS, ENGINES, LIVERIES, ROOF_PAINTS, type DesignedBoat } from './build';
@@ -38,7 +39,7 @@ import { YardLink } from './yardLink';
 import { Keeper, newSessionId, sessionIdFrom, type DesignPatch, type Person, type SessionEvents } from './session';
 import { cleanDoc, diffFields, fork, MAIN, mergePatch, newDoc, promote, type Variant, type YardDoc } from './variants';
 import { LoopbackHost, randomRoomCode } from '../net/transport';
-import { fromFrac, inkOf, MAX_SHEETS, noteId, sheetsOf, toFrac, todo, type Frac, type Ink, type Note, type Pin, type Sheet } from './notes';
+import { fromFrac, inkOf, MAX_POINTS, noteId, sheetsOf, toFrac, todo, type Frac, type Ink, type Note, type Pin, type Sheet } from './notes';
 import { bareHull, checkBrief, engineOptions, JOBS, jobOf, newBrief, pickEngine, type Brief, type JobId, type Tried } from './brief';
 import { rankTypes } from './typeFit';
 import { deckRoom, sizeForDeck, type DeckRoom } from './deckRoom';
@@ -103,6 +104,7 @@ function resize(): void {
   const w = view.clientWidth;
   const h = view.clientHeight;
   renderer.setSize(w, h);
+  if (typeof planeInk !== 'undefined') planeInk.resize(w, h);
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
 }
@@ -115,6 +117,10 @@ const VIEWS: Record<string, () => { eye: [number, number, number]; at: [number, 
   Side: () => ({ eye: [2.3 * L(), 1, 0], at: [0, 1, 0] }),
   'Stern ¾': () => ({ eye: [0.65 * L(), 0.45 * L(), 0.9 * L()], at: [0, 1, 0] }),
   Plan: () => ({ eye: [0, 1.7 * L(), 0.01], at: [0, 0, 0] }),
+  // Square on from ahead and astern (owner: the front and back views were missing; they're
+  // also two of the four views you can sketch on, planeSketch.ts).
+  Bow: () => ({ eye: [0, 1, -2.3 * L()], at: [0, 1, 0] }),
+  Stern: () => ({ eye: [0, 1, 2.3 * L()], at: [0, 1, 0] }),
   'At the helm': () => {
     const [x, y, z] = boat.hull.helm.stand;
     return { eye: [x, y + 1.65, z], at: [x, y + 1.3, z - 6] };
@@ -124,6 +130,8 @@ const L = () => boat.figures.lengthM;
 function setView(name: string): void {
   // From the helm the flat view would look in through the house's back: perspective there.
   if (name === 'At the helm' && flat) flatBtn.click();
+  // Sketching is only on the four square-on views: another view puts the pen down.
+  if (tool === 'sketch' && !SKETCH_VIEWS.includes(name)) setTool(null);
   const v = VIEWS[name]();
   camera.position.set(...v.eye);
   orbit.target.set(...v.at);
@@ -198,6 +206,7 @@ function drawBoat(): void {
   hullMin = box.min.toArray();
   hullMax = box.max.toArray();
   if (typeof drawNotes === 'function') drawNotes();
+  if (typeof drawInk === 'function') drawInk();
 }
 /**
  * The skiff in her cradle, if she carries one (the crane's tenderCrane gear): in the game
@@ -1041,6 +1050,7 @@ function dropMyNote(id: string): void {
 }
 function notesChanged(): void {
   drawNotes();
+  drawInk();
   showTodo();
   showFromPins();
   sheetEditor.refresh();
@@ -1128,7 +1138,7 @@ function lookAt(p: THREE.Vector3): void {
   orbit.update();
 }
 // The tools on the view: 📍 Pin (click her, type a note) and ✏ Sketch (a snapshot of the view to draw on, in 2D).
-let tool: 'pin' | null = null;
+let tool: 'pin' | 'sketch' | null = null;
 /** Equipment picked on the Deck gear palette: the next click on her pins it there. */
 let presetGear: string | null = null;
 const toolBtns: Record<string, HTMLButtonElement> = {};
@@ -1145,18 +1155,45 @@ const toolBtns: Record<string, HTMLButtonElement> = {};
   const k = document.createElement('button');
   k.textContent = '✏ Sketch';
   k.className = 'tool';
-  k.title = 'Take a snapshot of this view and draw on it';
-  k.onclick = () => snapshotSheet();
-  $('views').append(b, k);
+  k.title = 'Draw on her side, plan, bow or stern view: everyone in the session draws on the same sheet';
+  k.onclick = () => setTool(tool === 'sketch' ? null : 'sketch');
+  toolBtns.sketch = k;
+  const undoInk = document.createElement('button');
+  undoInk.textContent = '↶ Stroke';
+  undoInk.className = 'tool sketchOnly';
+  undoInk.title = 'Take back your last stroke on this view';
+  undoInk.onclick = () => {
+    const p = facingPlane();
+    const mine = p ? inkOf(notes, planeSheet(p)).filter((n) => n.by === author().by) : [];
+    if (mine.length) dropMyNote(mine[mine.length - 1].id);
+  };
+  const clearInk = document.createElement('button');
+  clearInk.textContent = '✕ Clear view';
+  clearInk.className = 'tool sketchOnly';
+  clearInk.title = 'Rub out everything drawn on this view (everyone’s)';
+  clearInk.onclick = () => {
+    const p = facingPlane();
+    const all = p ? inkOf(notes, planeSheet(p)) : [];
+    if (all.length && confirm(`Rub out all ${all.length} strokes on the ${PLANES[p!].title.toLowerCase()} view, everyone’s?`)) for (const n of all) dropMyNote(n.id);
+  };
+  $('views').append(b, k, undoInk, clearInk);
 }
 function setTool(t: typeof tool): void {
   tool = t;
   presetGear = null;
   document.querySelectorAll<HTMLElement>('.palette button').forEach((b) => b.classList.remove('on'));
-  orbit.enabled = !t;
+  // Sketching: the view stays square on (no turning it; the wheel still zooms) and flat.
+  orbit.enabled = t !== 'pin';
+  orbit.enableRotate = orbit.enablePan = !t;
+  if (t === 'sketch') {
+    if (!facingPlane()) setView('Side');
+    if (!flat) flatBtn.click();
+  }
+  $('view').classList.toggle('sketching', t === 'sketch');
   for (const [k, b] of Object.entries(toolBtns)) b.classList.toggle('on', k === t);
   renderer.domElement.style.cursor = t ? 'crosshair' : '';
-  $('toolHint').textContent = t === 'pin' ? 'Click on her where the pin goes' : '';
+  $('toolHint').textContent = t === 'pin' ? 'Click on her where the pin goes' : t === 'sketch' ? 'Draw on the sheet: everyone sees it as you draw. Side, Plan, Bow or Stern to change view' : '';
+  drawInk();
   if (t !== 'pin') ($('pinEditor') as HTMLElement).hidden = true;
 }
 const noteRay = new THREE.Raycaster();
@@ -1170,6 +1207,7 @@ let pendingPin: Frac | null = null;
 let downAt: { x: number; y: number } | null = null;
 renderer.domElement.addEventListener('pointerdown', (e) => {
   downAt = { x: e.clientX, y: e.clientY };
+  if (tool === 'sketch') return startStroke(e);
   if (!tool) return;
   const hit = hitBoat(e);
   if (tool === 'pin') {
@@ -1368,6 +1406,65 @@ $('pinCancel').onclick = () => setTool(null);
 // would otherwise hold it for up to a minute).
 window.addEventListener('pagehide', () => link?.close());
 
+// ── Sketching on her views (planeSketch.ts): one sheet of glass per square-on view ──
+const SKETCH_VIEWS = ['Side', 'Plan', 'Bow', 'Stern'];
+const planeInk = new PlaneInk();
+scene.add(planeInk.group);
+/** The view plane being looked at square on, if any (the ink shows only there). */
+function facingPlane(): PlaneName | null {
+  return planeFacing(orbit.target.clone().sub(camera.position));
+}
+/** The stroke being drawn here (shared as it grows). */
+let stroke: Ink | null = null;
+let strokeSent = 0;
+let inkFacing: PlaneName | null = null;
+/** Draw the strokes for the view being looked at (and the one being drawn). */
+function drawInk(): void {
+  inkFacing = facingPlane();
+  const inks = notes.filter((n): n is Ink => n.kind === 'ink' && isPlaneSheet(n.sheet));
+  planeInk.draw(stroke && !inks.some((n) => n.id === stroke!.id) ? [...inks, stroke] : inks, inkFacing, tool === 'sketch', hullMin, hullMax);
+}
+/** Where the pointer meets the view's sheet of glass (boat axes), if it does. */
+function onGlass(e: PointerEvent, p: PlaneName): THREE.Vector3 | null {
+  const r = renderer.domElement.getBoundingClientRect();
+  noteRay.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), viewCam());
+  const n = new THREE.Vector3();
+  n.setComponent(PLANES[p].normal, 1);
+  return noteRay.ray.intersectPlane(new THREE.Plane(n, -planeAt(p, hullMin, hullMax)), new THREE.Vector3());
+}
+function startStroke(e: PointerEvent): void {
+  const p = facingPlane();
+  const at = p && onGlass(e, p);
+  if (!p || !at) return;
+  renderer.domElement.setPointerCapture(e.pointerId);
+  stroke = { id: noteId(side().me), kind: 'ink', ...author(), t: Date.now(), sheet: planeSheet(p), pts: [toPlane(p, at.toArray(), hullMin, hullMax)] };
+  strokeSent = performance.now();
+}
+renderer.domElement.addEventListener('pointermove', (e) => {
+  if (!stroke) return;
+  const p = facingPlane();
+  const at = p && planeSheet(p) === stroke.sheet ? onGlass(e, p) : null;
+  if (!p || !at) return;
+  const uv = toPlane(p, at.toArray(), hullMin, hullMax);
+  const last = stroke.pts[stroke.pts.length - 1];
+  if (Math.hypot(uv[0] - last[0], uv[1] - last[1]) < 0.004 || stroke.pts.length >= MAX_POINTS) return;
+  stroke = { ...stroke, pts: [...stroke.pts, uv] };
+  // Shared as it's drawn (owner: sketch together in real time): the same note, sent again.
+  if (stroke.pts.length >= 2 && performance.now() - strokeSent > CONFIG.shipyard.sketchShareMs) {
+    strokeSent = performance.now();
+    putMyNote(stroke);
+  } else drawInk();
+});
+const endStroke = () => {
+  if (!stroke) return;
+  const done = stroke;
+  stroke = null;
+  if (done.pts.length >= 2) putMyNote(done);
+  else drawInk();
+};
+renderer.domElement.addEventListener('pointerup', endStroke);
+renderer.domElement.addEventListener('pointercancel', endStroke);
+
 // ── Sketches (notes.ts sheets and ink; sheetEditor.ts): flat pictures to draw on ──
 const sheetEditor = new SheetEditor({
   sheet: (id) => notes.find((n): n is Sheet => n.kind === 'sheet' && n.id === id),
@@ -1376,34 +1473,13 @@ const sheetEditor = new SheetEditor({
   addInk: (sheet, pts) => putMyNote({ id: noteId(side().me), kind: 'ink', ...author(), t: Date.now(), sheet, pts } satisfies Ink),
   dropInk: (id) => dropMyNote(id),
 });
-function newSheet(fields: Pick<Sheet, 'title' | 'image' | 'aspect'>): string | null {
-  if (sheetsOf(notes).length >= MAX_SHEETS) {
-    alert(`That’s ${MAX_SHEETS} sketches on this tab: delete one first (Sketches, on the right).`);
-    return null;
-  }
-  const id = noteId(side().me);
-  putMyNote({ id, kind: 'sheet', ...author(), t: Date.now(), ...fields });
-  return id;
-}
-/** ✏ Sketch: a snapshot of the view as it is (pins and all), to draw on. */
-function snapshotSheet(): void {
-  renderer.render(scene, viewCam());
-  const src = renderer.domElement;
-  const w = Math.min(720, src.width);
-  const h = Math.round((w * src.height) / src.width);
-  const c = document.createElement('canvas');
-  c.width = w;
-  c.height = h;
-  c.getContext('2d')!.drawImage(src, 0, 0, w, h);
-  const tab = side().variant(active)?.name ?? 'Main';
-  const id = newSheet({ title: `${tab}: ${new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`, image: c.toDataURL('image/jpeg', 0.72), aspect: w / h });
-  if (id) sheetEditor.show(id);
-}
 /** The list of sketches (right-hand column): a thumbnail each; click to open. */
 function showSketches(): void {
   const box = $('sketches');
   const list = sheetsOf(notes);
-  box.innerHTML = list.length ? '' : '<div class="meta">Press ✏ Sketch on the view to draw on a snapshot of her, or start from a sketch in the Brief.</div>';
+  const planes = (Object.keys(PLANES) as PlaneName[]).map((p) => [p, inkOf(notes, planeSheet(p)).length] as const).filter(([, n]) => n);
+  const onViews = planes.length ? `<div class="meta">Drawn on her views: ${planes.map(([p, n]) => `${PLANES[p].title} (${n} stroke${n === 1 ? '' : 's'})`).join(', ')}. Look from that view to see them.</div>` : '';
+  box.innerHTML = onViews + (list.length || planes.length ? '' : '<div class="meta">Press ✏ Sketch on the view to draw on her side, plan, bow or stern view.</div>');
   for (const sh of list) {
     const row = document.createElement('div');
     row.className = 'sketch';
@@ -2102,7 +2178,11 @@ showCode();
 setView('Bow ¾');
 runTrial();
 renderer.setAnimationLoop(() => {
+  // The brief's paper covers the view: don't draw her underneath it.
+  if (!$('briefPaper').hidden) return;
   orbit.update();
+  // Turned to (or away from) a square-on view: its sketch shows (or goes).
+  if (facingPlane() !== inkFacing) drawInk();
   renderer.render(scene, viewCam());
 });
 // For checking from a script (headless browser tests).
