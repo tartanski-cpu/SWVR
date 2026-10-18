@@ -60,6 +60,6 @@ export function fuelAndHeatStep(e: EngineState, def: EngineSpec, fuelL: number, 
 export function engineAlarms(s: VesselState, def: EngineSpec): { highTemp: boolean; lowFuel: boolean } {
   return {
     highTemp: s.engine.coolantC > def.engine.thermal.alarmC,
-    lowFuel: s.engine.fuelL < def.engine.fuel.lowFraction * def.engine.fuel.tankL,
+    lowFuel: s.engine.fuelL < def.engine.fuel.lowFraction * (s.engine.tankL ?? def.engine.fuel.tankL),
   };
 }

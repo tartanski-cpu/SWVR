@@ -7,6 +7,9 @@ import { createWorld } from '../src/core/world';
 import { GROUND, stackPoint, type CargoItem } from '../src/cargo/cargo';
 import { buyBlocker, hasUpgrade, money, officeAt, parseCareer, repOf, serializeCareer } from '../src/career/career';
 import { placeVessel } from '../src/vessel/vesselControl';
+import { fuelTankL } from '../src/vessel/fuelTank';
+import { gearOf } from '../src/boats/sims';
+import { engineAlarms } from '../src/vessel/physics/engineThermal';
 import { PORTS } from '../src/world/archipelago';
 
 const DT = 1 / 60;
@@ -117,7 +120,10 @@ describe('career', { timeout: 30000 }, () => {
   it('upgrades: in port, with the money and the reputation; then they work', () => {
     const { world, send, run } = setup();
     const c = world.career!;
-    expect(buyBlocker(world, 'radar')).toBe('In port only');
+    expect(buyBlocker(world, 'radar')).toBe('Bring her into Calder Haven');
+    send('teleportToPort', 1, 'brannock');
+    run(0.5);
+    expect(buyBlocker(world, 'radar')).toBe('Bring her into Calder Haven'); // the boatyard's at Calder
     send('teleportToPort', 1, 'calder');
     run(0.5);
     expect(buyBlocker(world, 'radar')).toMatch(/reputation/);
@@ -132,6 +138,25 @@ describe('career', { timeout: 30000 }, () => {
     // Iced fish fetch more.
     send('careerBuy', 1, 'ice', 'env');
     expect(hasUpgrade(world, 'ice')).toBe(true);
+  });
+
+  it('the bigger fuel tank: 60 % more fuel to the gauge, the fill and the low-fuel lamp; AIS puts ships on the plotter', () => {
+    const { world, v, send, run } = setup();
+    const base = fuelTankL(v);
+    expect(base).toBe(gearOf(v, 'diesel')!.engine.fuel.tankL);
+    send('teleportToPort', 1, 'calder');
+    run(0.5);
+    send('careerDebugCash', 1, undefined, 'env');
+    send('careerBuy', 1, 'bigTank', 'env');
+    run(0.1);
+    expect(fuelTankL(v)).toBe(Math.round(base * CONFIG.career.bigTankFactor));
+    send('debugFuel', 10000);
+    expect(v.engine.fuelL).toBe(fuelTankL(v)); // filled to the new size
+    expect(engineAlarms(v, gearOf(v, 'diesel')!).lowFuel).toBe(false);
+    // AIS: a passing ship drawn on the plotter only with the receiver.
+    expect(buyBlocker(world, 'ais')).toBeNull();
+    send('careerBuy', 1, 'ais', 'env');
+    expect(hasUpgrade(world, 'ais')).toBe(true);
   });
 
   it('money reads like money (thousands, minus, rounding)', () => {

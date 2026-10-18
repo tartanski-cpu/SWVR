@@ -27,8 +27,16 @@ export class WristMenu {
   private lastDepth: number | null = null;
   private hover: MenuButton | null = null;
 
-  constructor(menu: MainMenu) {
-    this.panel = new MenuPanel(menu.header, menu.pages, CONFIG.menu.width);
+  /**
+   * @param widthM the panel's width (m): the wrist menu's by default; a board in the world, wider.
+   * @param reach  how far a pointer reaches it (m; VR ray, desktop reticle): a board on a wall, further.
+   */
+  constructor(
+    menu: MainMenu,
+    widthM: number = CONFIG.menu.width,
+    private readonly reach: { ray: number; desktop: number } = { ray: CONFIG.menu.rayLength, desktop: CONFIG.interaction.desktopReach },
+  ) {
+    this.panel = new MenuPanel(menu.header, menu.pages, widthM);
     this.root.name = 'menu';
     this.root.add(this.panel.mesh);
     this.root.visible = false;
@@ -59,6 +67,14 @@ export class WristMenu {
    */
   openInFront(frame: THREE.Object3D, camera: THREE.Camera): void {
     placeInFront(this.root, frame, camera, CONFIG.menu.floatDistance, 0.12);
+    this.show(true);
+  }
+
+  /** Fixed in the world (a board on a wall): in `parent` at this place, facing +z turned by `yaw` (rad). */
+  openFixed(parent: THREE.Object3D, x: number, y: number, z: number, yaw: number): void {
+    parent.add(this.root);
+    this.root.position.set(x, y, z);
+    this.root.rotation.set(0, yaw, 0);
     this.show(true);
   }
 
@@ -113,7 +129,7 @@ export class WristMenu {
     } else {
       this.pokeLatched = false;
       this.lastDepth = null;
-      const hit = this.panel.hitRay(hand.ray, m.rayLength);
+      const hit = this.panel.hitRay(hand.ray, this.reach.ray);
       if (hit) {
         consumed = true;
         target = hit.btn;
@@ -131,7 +147,7 @@ export class WristMenu {
   updateDesktop(ray: THREE.Ray | null, pressed: boolean): boolean {
     if (!this.isOpen || !ray) return false;
     this.root.updateWorldMatrix(true, true);
-    const hit = this.panel.hitRay(ray, CONFIG.interaction.desktopReach);
+    const hit = this.panel.hitRay(ray, this.reach.desktop);
     const target = hit?.btn ?? null;
     if (target && pressed) this.press(target, () => {});
     this.setHover(target);

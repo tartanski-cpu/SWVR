@@ -9,6 +9,7 @@ import { VESSEL_DEFS, type VesselDef } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
 import { BERTHS, PORTS, type PortDef } from '../world/archipelago';
 import { standingHeight } from '../world/geography';
+import { fuelTankL } from '../vessel/fuelTank';
 
 /**
  * Refuelling by hand (owner, Oct 2026): every harbour's fuel pump has a hose, every boat
@@ -204,7 +205,7 @@ export function applyFuelIntent(world: WorldState, intent: Intent): void {
     case 'pumpStart': {
       if (at.kind !== 'filler') return;
       const v = world.vessels[at.vessel];
-      const tank = v && gearOf(v, 'diesel')?.engine.fuel.tankL;
+      const tank = v && fuelTankL(v);
       if (!v || !tank || !canRefuel(v) || v.engine.fuelL >= tank) return;
       v.refuelling = true;
       // A new fill: the gauge from nought, so it shows what this START puts in her.
@@ -254,7 +255,7 @@ export function gaugeOf(world: WorldState, portId: string): { litres: number; pr
   const litres = hose?.litres ?? 0;
   const at = hose?.at;
   const v = at?.kind === 'filler' ? world.vessels[at.vessel] : undefined;
-  const size = v && gearOf(v, 'diesel')?.engine.fuel.tankL;
+  const size = v && fuelTankL(v);
   return {
     litres,
     price: litres * CONFIG.career.costs.fuelPerL,

@@ -68,6 +68,7 @@ import { OwnHands } from '../player/ownHands';
 import { CameraMode } from '../player/cameraMode';
 import { GamepadInput, PAD, PAD_KEYS, PAD_KEYS_AT_HELM, PAD_MOUSE, padHelm, padLever, type PadState } from '../player/gamepad';
 import { HelmPrompt } from '../ui/helmPrompt';
+import { YardBoard } from '../ui/yardBoard';
 import type { PlayerState } from '../player/playerState';
 import { struckByPropeller } from '../rescue/propStrike';
 import { PropStrikeView } from '../rescue/propStrikeView';
@@ -136,6 +137,7 @@ import { ClientSession } from '../net/clientSession';
 import { PeerClientTransport, PeerHostTransport, randomRoomCode, type ClientTransport } from '../net/transport';
 import { NET_RATE, type PlayerPose } from '../net/protocol';
 import { AvatarsView } from '../net/avatarView';
+import { fuelTankL } from '../vessel/fuelTank';
 
 /**
  * Top-level wiring. Owns the renderer, the simulation state and the per-frame loop:
@@ -437,6 +439,8 @@ export class App {
   private atHelm = false;
   private padSteering = false;
   private readonly helmPrompt = new HelmPrompt();
+  /** The boatyard's board (ui/yardBoard.ts). */
+  private yardBoard!: YardBoard;
   /** The recording camera (Menu > Crew > Be the camera; desktop): player/cameraMode.ts. */
   private readonly camMode = new CameraMode();
   /** Our field of view before we became the camera (back to it after). */
@@ -550,8 +554,11 @@ export class App {
     this.camera.add(this.comfortOverlay.mesh);
     this.controllers = new XRControllers(this.renderer, this.rig.root);
     this.decoupler.coupling = userSettings.motionCoupling;
-    this.menu = new WristMenu(mainMenu(this.menuHost()));
-    this.scene.add(this.menu.rayLine, this.noteKeys.menu.root, this.noteKeys.menu.rayLine);
+    const host = this.menuHost();
+    this.menu = new WristMenu(mainMenu(host));
+    // The boatyard's board on its shed at Calder Haven (the add-ons, upgrades and repairs).
+    this.yardBoard = new YardBoard(host);
+    this.scene.add(this.menu.rayLine, this.noteKeys.menu.root, this.noteKeys.menu.rayLine, this.yardBoard.menu.rayLine);
 
     this.desktop = new DesktopController(this.camera, this.renderer.domElement, this.keyboard);
     this.environment = new EnvironmentView(this.scene);
@@ -992,6 +999,7 @@ export class App {
   private updateBoardsAndSaves(dt: number): void {
     const testVessel = this.world.vessels[this.testVesselId];
     this.noteKeys.menu.refresh();
+    this.yardBoard.update(this.scene, this.focus);
     if (this.board) {
       this.board.update(this.world);
       // The boards: daylight and the cabin lamp on them; dim and red at night (nightPaper.ts).
@@ -1934,7 +1942,7 @@ export class App {
         this.pushVesselIntent('slipDebugLand', 1);
       },
       heelBoat: () => this.pushVesselIntent('debugHeel', 20),
-      fuel: () => ({ litres: boat().engine.fuelL, tank: gearOf(boat(), 'diesel')?.engine.fuel.tankL ?? 0 }),
+      fuel: () => ({ litres: boat().engine.fuelL, tank: fuelTankL(boat()) }),
       canRefuel: () => canRefuel(boat()),
       refuelling: () => boat().refuelling,
       toggleRefuel: () => {
@@ -3059,6 +3067,12 @@ export class App {
         this.hands.right.triggerPressed = false;
         this.hands.right.trigger = 0;
       }
+      // The boatyard's board, the same way.
+      if (this.yardBoard.menu.updateXR(this.hands.right, (i, ms) => this.xrInput.pulse('right', i, ms))) {
+        this.hands.right.triggerDown = false;
+        this.hands.right.triggerPressed = false;
+        this.hands.right.trigger = 0;
+      }
       // Binoculars: a hand holding them gives its grip and trigger to them.
       const onBino = this.binoculars.updateXR(this.hands, this.busyHands, this.camera.getWorldPosition(this.tmpV), (h, i, ms) => this.xrInput.pulse(h, i, ms));
       for (const h of ['left', 'right'] as const) {
@@ -3135,6 +3149,8 @@ export class App {
     return {
       carrying: () => this.cargoHands.carrying || this.rescueHands.deskBusy || !!this.board?.deskDragging,
       label: (ray: THREE.Ray | null) => {
+        // The boatyard's board: its buttons light up under the reticle.
+        if (this.yardBoard.menu.updateDesktop(ray, false)) return 'boatyard\nclick a button';
         this.camera.getWorldPosition(this.headW);
         this.camera.getWorldDirection(this.headFwd);
         // The board first (the life ring hangs just behind it, outside the wall), unless
@@ -3149,6 +3165,7 @@ export class App {
         return board ?? fuel ?? pots ?? gear ?? this.cargoHands.updateDesktop(this.cargoCtx(), ray, this.headW, this.headFwd);
       },
       click: (ray: THREE.Ray | null) => {
+        if (this.yardBoard.menu.updateDesktop(ray, true)) return true;
         this.camera.getWorldDirection(this.headFwd);
         if (!this.cargoHands.carrying && !this.rescueHands.deskBusy && this.board?.click(this.boardCtx(), ray)) return true;
         if (!this.cargoHands.carrying && !this.rescueHands.deskBusy && this.fuelHands.click(this.fuelCtx(), ray)) return true;

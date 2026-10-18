@@ -4853,6 +4853,25 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   - with a controller in use, the reticle aims without the mouse captured (`DesktopPointer.padAim`).
 - **Checked:** `npm test` (all pass; the gamepad test now also checks every button's key is bound to an action, the helm's buttons press no keys, and a pressed key is pressed once, held and let go), typecheck. In the game in headless Chromium with a pretend controller, stepped at 60 frames a second, a fully fitted workboat: wipers, horn while held, anchor down and up, searchlight, fire pump, the laser while the stick's clicked, Y nothing at the helm, the Menu button opens and shuts the menu; off the helm the stick walked 1.6 m in a second, B crouched and stood, A jumped. No page errors. **Not checked:** a real controller.
 
+### The boatyard at Calder Haven: add-ons, upgrades and repairs out of the menu (owner)
+
+- **The owner:** the menu's chandlery is out of date. The starter boat stays bare; take the boat upgrades out of the O menu altogether, into a new boatyard on the pier side with a small crane and rusty boats; buy the add-ons and upgrades at a board on the outside of a building there. New upgrades: a bigger fuel tank and AIS. No old saves to keep working.
+- **The boatyard** (`world/regions/home.ts`, `world/view/worldView.ts buildYard`), at Calder Haven by the slipway, its ground levelled at the waterfront's 1.8 m (a new flat):
+  - the shed (a building: corrugated sheet, its front with the door and the board facing west to the slip);
+  - a small fixed yard crane at the head of the slip (a concrete pad, a yellow mast and slewing head, a jib up at 20° over the slip with a counterweight, the wire and hook block);
+  - two old boats laid up on keel blocks and shores, rusting: a hard-chine hull in a new **rust** paint (`render/pixelPaint.ts`: blotches of scale, pitting, runs down the plating), a faded band of old paint, one with a wheelhouse aft;
+  - all merged with the region's structures (no new draw calls), drawn only, no collision (as the buildings).
+- **The board** (`ui/yardBoard.ts`, `CONFIG.boatyard.board`): a 1.7 m menu panel (the menu's own, `WristMenu` with a width and a reach: 4 m) on the shed's front, drawn within `range` (25 m), worked like the menu: VR point and trigger, or touch; desktop aim and click. Its tabs:
+  - **Add-ons:** the starter workboat's equipment (`CONFIG.career.upgrades` with `fit`: trawl gear, skiff and crane, searchlight, fire monitor); fitting one starts the game again with her refitted, as before;
+  - **Upgrades:** radar, the new **AIS receiver**, the new **bigger fuel tank**, the heavy towing post, the bigger trawl, the ice machine, crane motion compensation;
+  - **Repairs:** the hull and the engine;
+  - each item on two lines: its name and price with Buy (or why not), and what it does.
+- **The O menu:** Office → Yard is gone. Office → Jobs has a line pointing to the boatyard.
+- **In Calder Haven:** buying and repairs want her in Calder Haven (`career.ts buyBlocker`, `repairBlocker`: "Bring her into Calder Haven").
+- **AIS** (`nav/chartPlotter.ts`): passing ships are on the plotter only with the AIS receiver (they were free before).
+- **The bigger fuel tank:** `CONFIG.career.bigTankFactor` 1.6 (the workboat 900 → 1,440 L). The career sets `VesselState.engine.tankL` each tick when she has it (so crew get it in the snapshot, and no restart); everything that reads the tank asks `vessel/fuelTank.ts fuelTankL` (the gauge, filling up at the berth and by hand, the hose, the low-fuel lamp, debug fuel).
+- **Checked:** `npm test` (113 files, 798 pass; the career and wear tests: buying and repairs at Calder only, not Brannock; new: the bigger tank fills to 1,440 L, the low-fuel lamp scaled; AIS bought; the rust tile mid-grey on average), typecheck. In the game in headless Chromium: the yard's ground levelled (1.8–2.2 m), the board drawn when near and hit by the reticle's ray; screenshots of the yard (the shed, the crane over the slip, the two rusting boats) and the board (Add-ons, and Upgrades after clicking its tab). No page errors. **Not checked:** the Quest (pointing at the board in VR, its text from a step back), and actually buying from the board in the game (the buy itself is the menu's, tested in the career test).
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

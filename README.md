@@ -139,7 +139,7 @@ The menu is laid out for playing. Some tabs have sections, picked from a second 
 | Voyage | The job you're on (contract, cargo run or rescue, with **Abandon**), what you've done; the **weather** now and what's coming; time of day ±1 h and time flow stopped / ×60 / ×600; bearing and range to each port; the paper chart's marks, with **Clear marks** |
 | Boat | **Deck:** tow (**Make fast** / **Cast off**), docking (**Dock** / **Cast off**), anchor status. **Skiff:** board, **LAUNCH** / **RECOVER**, battery. **Fuel** and **Refuel** (at a fuel berth). **FM radio:** power and station |
 | Cargo | Where you are, payload, deliveries; cargo aboard (lashed or loose), and what's in the skiff (up to five crates or two drums, 300 kg) |
-| Office | **Jobs:** balance, the contract on, the harbour office's job board, the first voyage (**Skip** / **Again**). **Yard:** repairs and the chandlery (upgrades), in port. **Career:** balance, reputation, ledger, the three save slots |
+| Office | **Jobs:** balance, the contract on, the harbour office's job board, the first voyage (**Skip** / **Again**). **Career:** balance, reputation, ledger, the three save slots |
 | Crew | Multiplayer: host or join a game, your name, who's aboard |
 | Settings | **Comfort:** motion coupling ±10 %, stick walking, snap-turn angle, boat hook reach. **Sound:** volumes. **Game:** rain effect, rescue position (on the plotter, or plot it yourself), and the **Debug tab** (hidden / shown). Remembered on the device |
 | Debug | Hidden until **Settings → Game → Debug tab → Shown**. **World:** time ±10 min, weather presets, **Fixed weather** / **Fast ×10**, sea state and wave height, move to a port, board / leave the boat. **Boat:** **Start in** the workboat (as your career has her fitted out), the **workboat with all her gear** (for testing, whatever the career has), or the **landing craft** (the second boat built from modules: a 9 m aluminium landing craft that does 20 knots on a turbocharged V8 with its own engine sound, with a step down into her cabin; the game restarts in her. Her bow ramp is worked by the green buttons on the port bulwark by the bow and on the cabin's port wall), drop 4 m, heel 20°, damage, **On a slip** (a bow-ramp boat landed on the nearest slipway), electrics, start-up, oil, bilge, engine faults, sea trials. **Missions:** rescue, tow, fire, side jobs and traffic on demand, +£5000. **Views:** perf panel, buoyancy, wave probes, targets on the chart, radio voice test |
@@ -326,7 +326,7 @@ One thing at a time on the line. The menu's **Tow → Make fast** picks the near
 
 ### Career: money, reputation, contracts, upgrades
 
-Everything you do now earns or costs money. The menu's **Office** tab is your harbour office: **Jobs** (contracts), **Yard** (repairs, upgrades) and **Career** (balance, reputation, ledger, save slots); the **duty board** shows your balance (top right) and any contract on.
+Everything you do now earns or costs money. The menu's **Office** tab is your harbour office: **Jobs** (contracts) and **Career** (balance, reputation, ledger, save slots); add-ons, upgrades and repairs are at the **boatyard** (below); the **duty board** shows your balance (top right) and any contract on.
 
 - **Pay:**
 
@@ -350,21 +350,23 @@ Everything you do now earns or costs money. The menu's **Office** tab is your ha
   - sell N salvage logs there.
 
   Each has a time limit and a bonus. Bigger ones need reputation at that port (15, 40). One contract at a time; late or abandoned, it's failed. The offers change every 10 minutes.
-- **Chandlery (upgrades, bought in port):**
+- **The boatyard** at Calder Haven, by the slipway: a shed with a yard crane and old boats laid up rusting. Walk up to the **board on the shed's front** (VR: point and pull the trigger, or touch it; desktop: aim and click), with her in Calder Haven. Its tabs: **Add-ons** (her equipment: fitting one starts the game again with her refitted), **Upgrades** (for the gear she has) and **Repairs** (the hull, an engine overhaul).
 
-  | Upgrade | Price | Needs (best port reputation) | Effect |
+  | Add-on / upgrade | Price | Needs (best port reputation) | Effect |
   |---|---|---|---|
   | Trawl gear | £2,500 | 5 | The A-frame over the transom, the net on its drum and the TRAWL switch at the helm (the workboat) |
   | Skiff and her crane | £4,000 | 10 | The electric skiff in her cradle on the foredeck, and the crane to launch her (the workboat) |
   | Searchlight | £1,500 | 5 | The searchlight on the wheelhouse roof, its SPOT switch and joystick at the helm (the workboat) |
   | Fire monitor | £3,000 | 10 | The fire monitor on the roof, the FIRE PUMP switch, its joystick and gauge: the fire calls come once she has it (the workboat) |
   | Radar | £2,400 | 20 | Debris and floating crates show on the chartplotter within 1.5 nm |
+  | AIS receiver | £900 | — | Passing ships on the chartplotter, by name and course, in any visibility (without it, none) |
+  | Bigger fuel tank | £1,400 | 5 | Her fuel tank 60 % bigger (the workboat: 900 L to 1,440 L): further between fills |
   | Heavy towing post | £1,500 | 10 | The towline takes 75 % more before it parts |
   | Bigger trawl | £1,800 | 10 | The net fills half as fast again (needs the trawl gear) |
   | Ice machine | £1,200 | — | Fish fetch 30 % more (needs the trawl gear) |
   | Crane motion compensation | £3,500 | 15 | The deck crane holds its hook steady as she rolls, pitches and heaves (a boat with a deck crane only; it needs deck hydraulics) |
 
-- **Your first boat:** a new career starts in the workboat as the yard delivers her, without the trawl gear, the skiff, the searchlight or the fire monitor: cargo runs, towing, rescues (the hand torch finds people at night) and potting from day one; fishing, the skiff, the searchlight and the fire calls once you've earned them. Buy either at the chandlery: the game starts again with her refitted (about two seconds; in VR, enter VR again). A career started before this keeps the whole boat.
+- **Your first boat:** a new career starts in the workboat as the yard delivers her, without the trawl gear, the skiff, the searchlight or the fire monitor: cargo runs, towing, rescues (the hand torch finds people at night) and potting from day one; fishing, the skiff, the searchlight and the fire calls once you've earned them. Buy them at the boatyard: the game starts again with her refitted (about two seconds; in VR, enter VR again). A career started before this keeps the whole boat.
 - **Saved:** your money, ledger, reputation and upgrades are kept in the host's browser between sessions; crew-mates see the host's career. You start with £500.
 - **Debug:** Debug → Missions → Career → **+£5000, rep** (cash and +25 reputation everywhere).
 
@@ -397,7 +399,7 @@ Everything you do now earns or costs money. The menu's **Office** tab is your ha
 - **Engine wear:**
   - **What causes it:** running hot (coolant over 98 °C) or with the sump nearly dry.
   - **What it does:** a worn engine loses power, down to half at full wear.
-- **Repairs:** Office → Yard → **Repairs**, in port.
+- **Repairs:** at the boatyard's board in Calder Haven → **Repairs**.
   - Hull: £30 per % of damage, and the yard pumps her out.
   - Engine overhaul: £25 per % of wear, with the engine stopped.
   - Repairs can go on credit, so you can always get back out.

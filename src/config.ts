@@ -76,7 +76,7 @@ export const CONFIG = {
      * corrugated sheet and slates on the houses and sheds, concrete on the quays, stone on
      * the breakwaters.
      */
-    tileMetres: { nonSlip: 1, wood: 2, mat: 1, chequer: 0.5, crate: 1, sacking: 2, worn: 1.5, boards: 2, render: 2, sheet: 2, slates: 2, concrete: 4, stone: 3, window: 1 },
+    tileMetres: { nonSlip: 1, wood: 2, mat: 1, chequer: 0.5, crate: 1, sacking: 2, worn: 1.5, boards: 2, render: 2, sheet: 2, slates: 2, concrete: 4, stone: 3, window: 1, rust: 2 },
     /** Width of the black window frames round the wheelhouse glass (m). */
     frameWidth: 0.06,
   },
@@ -1636,13 +1636,21 @@ export const CONFIG = {
         logs: { counts: [1, 2, 3], bonusPer: 160, secondsPer: 720 },
       },
     },
+    /** The bigger fuel tank upgrade: her tank's size times this. */
+    bigTankFactor: 1.6,
+    /**
+     * What the boatyard at Calder Haven sells (its board on the shed: ui/yardBoard.ts). With
+     * `fit`: add-ons, her equipment (the starter workboat comes without it; fitted, the game
+     * starts again with her refitted). Without: upgrades to what she has.
+     */
     upgrades: [
-      // Her equipment (the starter workboat comes without it; a career begun before Oct 2026 has it all).
       { id: 'trawlGear', name: 'Trawl gear', price: 2500, minRep: 5, fit: ['aFrame', 'trawl', 'helm/trawl'], desc: 'The A-frame over the transom, the net on its drum and the TRAWL switch' },
       { id: 'skiff', name: 'Skiff and her crane', price: 4000, minRep: 10, fit: ['tenderCrane'], desc: 'The electric skiff in her cradle on the foredeck, and the crane to launch her' },
       { id: 'searchlight', name: 'Searchlight', price: 1500, minRep: 5, fit: ['searchlight', 'helm/spotlight', 'helm/spotJoystick'], desc: 'The searchlight on the wheelhouse roof, its SPOT switch and joystick at the helm' },
       { id: 'fireMonitor', name: 'Fire monitor', price: 3000, minRep: 10, fit: ['fireMonitor', 'helm/firePump', 'helm/monJoystick'], desc: 'The fire monitor on the roof, the FIRE PUMP switch, its joystick and gauge: the fire calls come once she has it' },
       { id: 'radar', name: 'Radar', price: 2400, minRep: 20, desc: 'Debris and floating crates on the plotter' },
+      { id: 'ais', name: 'AIS receiver', price: 900, minRep: 0, desc: 'Passing ships on the plotter, by name and course, in any visibility' },
+      { id: 'bigTank', name: 'Bigger fuel tank', price: 1400, minRep: 5, desc: 'Her fuel tank enlarged by 60 %: further between fills' },
       { id: 'towPost', name: 'Heavy towing post', price: 1500, minRep: 10, desc: 'The towline holds 75 % more before it parts' },
       { id: 'trawl', name: 'Bigger trawl', price: 1800, minRep: 10, needs: 'fishing.trawl', needsName: 'the trawl gear', desc: 'The net fills half as fast again' },
       { id: 'ice', name: 'Ice machine', price: 1200, minRep: 0, needs: 'fishing.trawl', needsName: 'the trawl gear', desc: 'Iced fish fetch 30 % more' },
@@ -2300,6 +2308,16 @@ export const CONFIG = {
    * looks round (rad/s at full deflection).
    */
   gamepad: { deadZone: 0.15, steerCurve: 1.5, helmReach: 1.6, lookRate: 2.4 },
+
+  /**
+   * The boatyard (owner, Oct 2026): where she's fitted out and mended, at Calder Haven by
+   * the slipway (the shed, a yard crane and old boats laid up: world/regions/home.ts). Its
+   * board on the shed's front (ui/yardBoard.ts) sells the add-ons and upgrades and does the
+   * repairs, with her in this port. `board`: its centre (x, z; m), its height above the
+   * ground, the way it faces (deg, compass: 270 = west), its width (m), how near (m) you
+   * must be for it to be drawn, and how far a pointer reaches it (m: VR and desktop).
+   */
+  boatyard: { port: 'calder', board: { x: 759.4, z: 708, up: 2.15, facingDeg: 270, width: 1.7, range: 25, reach: 4 } },
 
   /** Player movement aboard and ashore. */
   locomotion: {

@@ -165,6 +165,8 @@ export interface EngineState {
   shift: number;
   /** Fuel in the tank (L). */
   fuelL: number;
+  /** Her tank's size when it isn't her design's (L): the boatyard's bigger tank (career.ts). */
+  tankL?: number;
   /** Current fuel flow (L/h), for displays and the trials report. */
   fuelFlowLph: number;
   /** Coolant (block) and lube oil temperatures (°C). */

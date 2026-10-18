@@ -427,7 +427,7 @@ const paintEngineMonitor: Painter = (g, s) => {
   const tempColor = e.coolantC > th.alarmC ? RED : e.coolantC < 60 ? '#7fb8ff' : GREEN;
   bar(78, 'TEMP', tFrac(e.coolantC), `${e.coolantC.toFixed(0)}°C`, tempColor, [tFrac(th.alarmC)]);
   bar(118, 'OIL', tFrac(e.oilC), `${e.oilC.toFixed(0)}°C`, e.oilC > th.alarmC + 10 ? RED : AMBER);
-  const fuelFrac = e.fuelL / diesel.engine.fuel.tankL;
+  const fuelFrac = e.fuelL / (e.tankL ?? diesel.engine.fuel.tankL);
   bar(158, 'FUEL', fuelFrac, `${e.fuelL.toFixed(0)} L`, al.lowFuel ? RED : AMBER, [diesel.engine.fuel.lowFraction]);
   g.fillStyle = DIM;
   g.font = 'bold 22px ui-monospace, Menlo, Consolas, monospace';

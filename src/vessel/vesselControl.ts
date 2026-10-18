@@ -12,6 +12,7 @@ import { BERTHS, FISHING_GROUNDS, PORTS } from '../world/archipelago';
 import { regionById } from '../world/regions';
 import type { VesselState } from './vesselState';
 import { applyBusIntent, holdGroup, isKeyName } from '../modular/bus';
+import { fuelTankL } from './fuelTank';
 
 const q = new THREE.Quaternion();
 const e = new THREE.Euler();
@@ -156,7 +157,7 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
     }
     case 'debugFuel': {
       // Set the tank to `value` litres (debug/test, e.g. to try running dry).
-      const tank = gearOf(s, 'diesel')?.engine.fuel.tankL ?? 0;
+      const tank = fuelTankL(s);
       s.engine.fuelL = clamp(intent.value, 0, tank);
       break;
     }
@@ -377,9 +378,10 @@ export function stepRefuelling(s: VesselState, dt: number, archipelago: boolean)
   const diesel = gearOf(s, 'diesel');
   if (!s.refuelling || !diesel) return;
   const f = diesel.engine.fuel;
-  if (!archipelago || !canRefuel(s) || s.engine.fuelL >= f.tankL) {
+  const tank = fuelTankL(s);
+  if (!archipelago || !canRefuel(s) || s.engine.fuelL >= tank) {
     s.refuelling = false;
     return;
   }
-  s.engine.fuelL = Math.min(f.tankL, s.engine.fuelL + f.refuelRateLps * dt);
+  s.engine.fuelL = Math.min(tank, s.engine.fuelL + f.refuelRateLps * dt);
 }

@@ -296,6 +296,16 @@ export interface RegionBounds {
  * the milestones that use them: the drawing theme and weather profile, fish and goods,
  * the job templates, and the current zones (tidal races).
  */
+/**
+ * A boatyard's yard (the shed is one of the region's buildings; its board: CONFIG.boatyard):
+ * a small fixed yard crane, its jib out toward `jibDeg` (compass), and old boats laid up
+ * ashore on blocks, rusting (bow toward `headingDeg`; sizes in m; `house`: a wheelhouse aft).
+ */
+export interface YardDef {
+  crane: { x: number; z: number; jibDeg: number };
+  boats: { x: number; z: number; headingDeg: number; length: number; beam: number; depth: number; house: boolean }[];
+}
+
 export interface RegionDef {
   /** Stable id (saves and multiplayer may name it; never rename). */
   id: string;
@@ -314,6 +324,8 @@ export interface RegionDef {
   ridges: RidgeDef[];
   blocks: BlockDef[];
   buildings: BuildingDef[];
+  /** Boatyards' cranes and laid-up boats (drawn only: no collision, like the buildings). */
+  yards?: YardDef[];
   marks: MarkDef[];
   wrecks: WreckDef[];
   lights: LightDef[];
