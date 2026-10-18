@@ -3865,6 +3865,19 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Checked in headless Chromium:** a pilot boat with a 3 m, 1.2 m high, full-width, 30°-raked deckhouse, and set in with 0.5 m side decks, upright: views from the bow, stern and port; the wheelhouse on top, the steps up aft, no warnings. Found and fixed on the way: its faces wound inside out (invisible from outside), and its foot showing through her topsides at the bow. **Not checked:** the Quest, a phone, walking up the steps into a raised helm in the game.
 - **Next, for bigger boats (tugs), noted:** the deckhouse top walkable with rails and a ladder or stairs (the walk area's floors and ladders already do this for the workboat's roof), and an interior with a door into it.
 
+### Night mode for the chart, the whiteboard and the task board (owner)
+
+- **The owner:** the chart table and the whiteboard are very bright at night; they need a night mode.
+- **Why:** they're pictures drawn without the scene's lighting, so they read crisply by day. The chart was dimmed only by the light on it, and the white cabin light or the chart lamp lit it near full. The whiteboard and the task board weren't dimmed at all.
+- **Now** (`render/nightPaper.ts paperColour`, used by `App.ts` for `ChartTableView.setLight`, `BoardView.setLight` and `DutyBoardView.setLight`):
+  - **Brightness:** the sky's ambient light, plus the cabin lamp (white or red), plus for the chart its own lamp. The chart lamp is turned down at night, and nothing is brighter than `nightMax` at night.
+  - **Colour:** at night the wheelhouse goes to red light (with the panels: `CONFIG.panelLighting` redFrom..redTo), and the paper's whites become a dim red. The chart lamp's bulb and its glow on the table go red too. With the white cabin light on, it stays nearly white, but dimmed.
+- **Config:** `CONFIG.nightPaper` (`daylight`, `cabinWhite`, `cabinRed`, `lampNight`, `least`, `nightMax`, `redGreen`, `redBlue`, `whiteLightRed`).
+- **Checked:**
+  - Typecheck and tests (`tests/nightPaper.test.ts`: white by day; dim and red at night, the lamps never above `nightMax`; the white cabin light keeps it near white; dimming through the dusk).
+  - Headless, in the game: the chart and the whiteboard by day, at night with no lights, with the red cabin light and the chart lamp, and with the white cabin light.
+- **Not checked:** the Quest (its display shows the dark differently from a desktop screenshot).
+
 ### Shipyard: buttons to the right, port and starboard views, sketches only when opened (owner)
 
 - **The owner:**

@@ -18,6 +18,7 @@ export class DutyBoardView {
   private readonly canvas = document.createElement('canvas');
   private readonly g: CanvasRenderingContext2D;
   private readonly texture: THREE.CanvasTexture;
+  private readonly faceMat: THREE.MeshBasicMaterial;
   private readonly ch: number;
   private signature = '';
   /** Its wooden frame (root axes), to be merged with the boat's other fixed parts. */
@@ -32,14 +33,20 @@ export class DutyBoardView {
     this.texture = new THREE.CanvasTexture(this.canvas);
     this.texture.colorSpace = THREE.SRGBColorSpace;
     this.texture.anisotropy = 4;
+    this.faceMat = new THREE.MeshBasicMaterial({ map: this.texture });
     this.fixedParts = [part(new THREE.BoxGeometry(cfg.width + 0.04, cfg.height + 0.04, 0.02).translate(0, 0, -0.012), 0x5a3c22)];
-    const face = new THREE.Mesh(new THREE.PlaneGeometry(cfg.width, cfg.height), new THREE.MeshBasicMaterial({ map: this.texture }));
+    const face = new THREE.Mesh(new THREE.PlaneGeometry(cfg.width, cfg.height), this.faceMat);
     this.root.add(face);
     this.root.name = 'dutyBoard';
     this.draw([], null);
   }
 
   /** @param note a line for the header (the host's game code, for crew to read off the wall) */
+  /** Its colour for the light on it (render/nightPaper.ts: dim, and red at night). */
+  setLight(paper: THREE.Color): void {
+    this.faceMat.color.copy(paper);
+  }
+
   update(world: WorldState, note = ''): void {
     const items = world.duties?.items ?? [];
     const fc = world.forecast ?? null;

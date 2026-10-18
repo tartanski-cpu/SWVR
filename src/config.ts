@@ -2486,6 +2486,16 @@ export const CONFIG = {
   panelLighting: { nightLevel: 0.3, redLevel: 0.6, redFrom: 0.55, redTo: 0.85 },
 
   /**
+   * The chart, the whiteboard and the duty board at night (render/nightPaper.ts; owner: they
+   * were very bright at night). Their brightness: the sky's ambient light times `daylight`,
+   * plus the cabin lamp (`cabinWhite` / `cabinRed`), plus the chart lamp (1 by day, `lampNight`
+   * at night, turned down), at least `least`, at most `nightMax` at night. At night they go
+   * red with the panels (CONFIG.panelLighting redFrom..redTo): green and blue cut by
+   * `redGreen` / `redBlue`; with the white cabin light on, only `whiteLightRed` of that.
+   */
+  nightPaper: { daylight: 1.1, cabinWhite: 0.3, cabinRed: 0.1, lampNight: 0.3, least: 0.04, nightMax: 0.4, redGreen: 0.7, redBlue: 0.85, whiteLightRed: 0.2 },
+
+  /**
    * Other players' figures (net/avatarView.ts, looks in net/avatarOutfits.ts). Upper body
    * only (owner's choice): head, a torso hanging from the neck to the waist, two-part arms
    * with elbows reaching to the hands. The torso turns toward where the head looks but lags

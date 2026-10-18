@@ -19,6 +19,7 @@ import { SkyView } from '../environment/skyView';
 import { OceanView } from '../ocean/oceanView';
 import { prepareWaves, significantWaveHeight, surfaceHeight, type PreparedWave } from '../ocean/waves';
 import { SurfaceProbes } from '../debug/surfaceProbes';
+import { paperColour } from '../render/nightPaper';
 import { HydroDebugView } from '../debug/hydroDebugView';
 import { onCrane, recoverCheck } from '../vessel/tenderCrane';
 import { hydraulicsOn, isPowered } from '../vessel/electrics';
@@ -288,6 +289,10 @@ export class App {
   private readonly vesselViews = new Map<EntityId, VesselView>();
   private readonly hydroViews = new Map<EntityId, HydroDebugView>();
   private readonly simDebug: SimDebug = new Map();
+  /** How dark it is (0 day .. 1 night), this frame. */
+  private darkness = 0;
+  /** The paper's colour for the light on it (chart, boards: render/nightPaper.ts). */
+  private readonly paper = new THREE.Color();
   /** Every sound system (soundBoard.ts). */
   private readonly sound = new SoundBoard();
   /** On-screen controls for a phone or tablet (ui/touchControls.ts), if shown. */
@@ -703,6 +708,7 @@ export class App {
     this.updatePlayer(dt, inXR);
     this.updateSurroundings(renderTime);
     const darkness = Math.min(1, Math.max(0, (8 - sunElevation(this.world.environment.timeOfDay)) / 14));
+    this.darkness = darkness;
     this.updateOwnBoat(dt, nowMs, darkness);
     const { slam, lap } = this.updateBoatsAndJobs(dt, renderTime, darkness);
     this.updateSceneViews(dt, renderTime, darkness);
@@ -996,6 +1002,11 @@ export class App {
     this.noteKeys.menu.refresh();
     if (this.board) {
       this.board.update(this.world);
+      // The boards: daylight and the cabin lamp on them; dim and red at night (nightPaper.ts).
+      const cabin = testVessel && isPowered(testVessel, 'deckLights') ? testVessel.controls.cabinLight : 0;
+      paperColour({ ambient: this.environment.ambientIntensity, darkness: this.darkness, cabin }, this.paper);
+      this.board.setLight(this.paper);
+      this.dutyBoard?.setLight(this.paper);
       this.dutyBoard?.update(this.world, this.host ? `Game code ${this.host.code}` : '');
       // A duty ticked off: a small tick.
       const done = this.world.duties?.completed ?? 0;
@@ -3158,10 +3169,9 @@ export class App {
   private updateChartTable(v: VesselState | undefined, dt: number): void {
     if (!this.chartTable || !v) return;
     const lamp = v.controls.chartLamp > 0 && isPowered(v, 'deckLights');
-    // The cabin lamp lights the chart; red (night) only faintly.
+    // Daylight, the cabin lamp and its own lamp on the chart; dim and red at night (nightPaper.ts).
     const cabin = isPowered(v, 'deckLights') ? v.controls.cabinLight : 0;
-    const level = Math.min(1, Math.max(0.04, this.environment.ambientIntensity * 1.1 + (cabin === 1 ? 0.45 : cabin === 2 ? 0.12 : 0) + (lamp ? 1 : 0)));
-    this.chartTable.setLight(level, lamp);
+    this.chartTable.setLight(paperColour({ ambient: this.environment.ambientIntensity, darkness: this.darkness, cabin, lamp }, this.paper), lamp);
     // From outside the wheelhouse the chart, bulb, tools and marks are too
     // small to matter (and mostly behind the aft wall): skip their draw calls.
     const wh = this.testDef.layout.wheelhouse;

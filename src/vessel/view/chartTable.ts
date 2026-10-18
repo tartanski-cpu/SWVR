@@ -182,16 +182,19 @@ export class ChartTableView {
   }
 
   /**
-   * @param level brightness 0..1 of the chart (daylight, cabin lamp, this lamp)
+   * @param paper the chart's colour for the light on it (render/nightPaper.ts: dim, and red
+   *              at night)
    * @param lampOn the lamp is lit (switched on and powered)
    */
-  setLight(level: number, lampOn: boolean): void {
-    const key = Math.round(level * 50) + (lampOn ? 1000 : 0);
+  setLight(paper: THREE.Color, lampOn: boolean): void {
+    // Red light at night: the lamp's bulb and its glow on the table go red too.
+    const red = paper.r > 0.01 && paper.g / paper.r < 0.6;
+    const key = Math.round(paper.r * 100) * 10000 + Math.round(paper.g * 100) * 10 + (lampOn ? 1 : 0);
     if (key === this.lit) return;
     this.lit = key;
-    this.chartMat.color.setScalar(level);
-    this.bulbMat.color.setHex(lampOn ? 0xfff0c0 : 0x4a463e);
-    this.tableMat.emissive.setHex(lampOn ? 0x3a2a14 : 0x000000);
+    this.chartMat.color.copy(paper);
+    this.bulbMat.color.setHex(lampOn ? (red ? 0xff5a3a : 0xfff0c0) : 0x4a463e);
+    this.tableMat.emissive.setHex(lampOn ? (red ? 0x2a0804 : 0x3a2a14) : 0x000000);
   }
 }
 
