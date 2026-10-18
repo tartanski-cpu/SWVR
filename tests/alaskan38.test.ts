@@ -41,9 +41,11 @@ describe('the Alaskan 38', () => {
     expect(cfg.propeller.position[1] + cfg.propeller.diameter / 2).toBeLessThan(0);
   });
 
-  it('her one-off parts build as one mesh, astern of and along her hull, with nothing out of range', () => {
+  it('her one-off parts build as one opaque mesh and one of glass, astern of and along her hull, with nothing out of range', () => {
     expect(ONE_OFF_VIEWS.alaskan38).toBe(buildAlaskan38Parts);
-    const mesh = buildAlaskan38Parts(def);
+    const group = buildAlaskan38Parts(def);
+    expect(group.children.map((c) => c.name).sort()).toEqual(['alaskan38-glass', 'alaskan38-parts']);
+    const mesh = group.children.find((c) => c.name === 'alaskan38-parts') as THREE.Mesh;
     const pos = mesh.geometry.getAttribute('position');
     expect(pos.count).toBeGreaterThan(100);
     const box = new THREE.Box3().setFromBufferAttribute(pos as THREE.BufferAttribute);
@@ -53,6 +55,10 @@ describe('the Alaskan 38', () => {
     expect(box.max.z).toBeLessThan(transom + 3);
     expect(box.min.z).toBeLessThan(-5.5); // the spray rails and bow rail reach the stem
     expect(box.min.y).toBeGreaterThan(-1.0); // the lower units under the bracket, not under the keel
-    expect(Math.abs(box.max.x + box.min.x)).toBeLessThan(0.05); // symmetric
+    expect(Math.abs(box.max.x + box.min.x)).toBeLessThan(0.08); // symmetric (but for the side door's handle)
+    expect(box.max.y).toBeGreaterThan(def.layout.wheelhouse!.roofY + 0.5); // the rod rack over the roof
+    const glass = group.children.find((c) => c.name === 'alaskan38-glass') as THREE.Mesh;
+    expect(glass.geometry.getAttribute('position').count).toBeGreaterThan(24 * 6); // front, sides, aft, hatch
+    expect((glass.material as THREE.MeshBasicMaterial).transparent).toBe(true);
   });
 });

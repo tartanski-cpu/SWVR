@@ -88,7 +88,7 @@ export const ALASKAN_38_HULL: HullDefinition = {
     { id: 'cabinLight', type: 'cabin.overhead', transform: { position: at.cabinLight }, label: 'House ceiling' },
     { id: 'searchlight', type: 'roof.mount', transform: { position: at.searchlight }, label: 'Roof, forward' },
     { id: 'navLights', type: 'hull.light', transform: { position: at.navLights }, label: 'Roof: the navigation lights' },
-    { id: 'horn', type: 'roof.mount', transform: { position: [0, roofTop, -0.3] }, label: 'Roof (nominal)' },
+    { id: 'horn', type: 'roof.mount', transform: { position: [0, roofTop, 0] }, label: 'Roof (nominal)' },
     { id: 'wipers', type: 'window.wiper', transform: { position: [0, wh.roofY - 0.2, wh.front] }, label: 'Over the front windows (nominal)' },
     { id: 'cleatFwdPort', type: 'deck.fitting', transform: { position: cleat(-1, at.cleats.bow) }, label: 'Bulwark top, forward, port' },
     { id: 'cleatFwdStbd', type: 'deck.fitting', transform: { position: cleat(1, at.cleats.bow) }, label: 'Bulwark top, forward, starboard' },

@@ -7,7 +7,10 @@
  *   stage 1  the outboard bracket off her transom with its swim platform and rails, the
  *            twin outboards (cowls, legs, propellers), the two spray rails along her
  *            topsides carried round the stem, and the bow rail;
- *   stage 2  the superstructure (trunk cabin, pilothouse, saloon, cockpit overhead);
+ *   stage 2  the superstructure: the trunk cabin on the foredeck, the pilothouse and saloon
+ *            (their walls, glass and the tan eyebrow roof round the game's house box, which
+ *            stays what you walk in: layout.wheelhouse with `shell: 'oneOff'`), the roof
+ *            carried aft over the cockpit on two posts with the radar and rod rack;
  *   stage 3  the interior.
  *
  * Drawing only: her physics is her stations and her modules'. The outboards are drawn here;
@@ -19,6 +22,7 @@ import { bar } from '../../mechanisms/line';
 import { flatVertexColorMaterial, mergeParts, part } from '../../render/geometryUtils';
 import { CONFIG } from '../../config';
 import type { VesselDef } from '../../vessel/vesselDef';
+import { facetDepth, facetDz, frontRake, paintOf, setBack } from '../../vessel/view/hullMesh';
 
 const ALU = 0x9aa0a6; // bare aluminium: bracket, platform frame
 const GRATING = 0xb4b9be; // the platform's non-slip top
@@ -35,9 +39,62 @@ function box(w: number, h: number, l: number, at: V3, colour: number): THREE.Buf
 function drum(r: number, l: number, at: V3, colour: number, sides = 12): THREE.BufferGeometry {
   return part(new THREE.CylinderGeometry(r, r, l, sides).rotateX(Math.PI / 2).translate(at[0], at[1], at[2]), colour);
 }
+/** A box by its extents (either order). */
+function span(x0: number, x1: number, y0: number, y1: number, z0: number, z1: number, colour: number): THREE.BufferGeometry {
+  return box(Math.abs(x1 - x0), Math.abs(y1 - y0), Math.abs(z1 - z0), [(x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2], colour);
+}
+/** A post or rail, round. */
+function rod(a: V3, b: V3, r: number, colour: number): THREE.BufferGeometry {
+  return bar(new THREE.Vector3(...a), new THREE.Vector3(...b), r, colour, 8);
+}
 
-/** Her one-off parts, as one mesh in her axes. */
-export function buildAlaskan38Parts(def: VesselDef): THREE.Mesh {
+/**
+ * The deck edge at z (between her stations): half-beam and height. Past the stem, the stem's.
+ */
+function deckEdge(def: VesselDef): (z: number) => { x: number; y: number } {
+  const st = def.hull.stations;
+  return (z) => {
+    let i = 0;
+    while (i < st.length - 2 && st[i + 1].z > z) i++;
+    const a = st[i];
+    const d = st[i + 1];
+    const t = Math.max(0, Math.min(1, (z - a.z) / (d.z - a.z || 1)));
+    return { x: a.halfBeamDeck + (d.halfBeamDeck - a.halfBeamDeck) * t, y: a.polygon[0][1] + (d.polygon[0][1] - a.polygon[0][1]) * t };
+  };
+}
+
+/**
+ * A lofted box along z: at each section its half-width and its bottom and top heights; a
+ * top, two sides and the two ends (the trunk cabin, which follows the deck edge and the
+ * deck's rise forward).
+ */
+function loftBox(sections: { z: number; half: number; y0: number; y1: number }[], colour: number): THREE.BufferGeometry {
+  const v: number[] = [];
+  const quad = (a: V3, b: V3, c: V3, d: V3) => v.push(...a, ...b, ...c, ...a, ...c, ...d);
+  for (let i = 1; i < sections.length; i++) {
+    const p = sections[i - 1];
+    const q = sections[i];
+    // (Sections run forward, toward -z: the top's winding puts its face up.)
+    quad([-p.half, p.y1, p.z], [-q.half, q.y1, q.z], [q.half, q.y1, q.z], [p.half, p.y1, p.z]);
+    quad([p.half, p.y0, p.z], [q.half, q.y0, q.z], [q.half, q.y1, q.z], [p.half, p.y1, p.z]); // starboard side, facing +x
+    quad([-p.half, p.y1, p.z], [-q.half, q.y1, q.z], [-q.half, q.y0, q.z], [-p.half, p.y0, p.z]); // port side, facing -x
+  }
+  const e = sections[sections.length - 1];
+  quad([-e.half, e.y0, e.z], [-e.half, e.y1, e.z], [e.half, e.y1, e.z], [e.half, e.y0, e.z]); // the forward end, facing -z
+  const f = sections[0];
+  quad([f.half, f.y0, f.z], [f.half, f.y1, f.z], [-f.half, f.y1, f.z], [-f.half, f.y0, f.z]); // the aft end, facing +z
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3));
+  g.computeVertexNormals();
+  return part(g, colour);
+}
+
+/**
+ * Her one-off parts in her axes: one opaque mesh, and her glass as a second, tinted and
+ * see-through (the game's other houses have open window frames; hers is tinted, as the
+ * boat's is, dark from outside, a light tint from within: CONFIG.vessels.alaskan38.glass).
+ */
+export function buildAlaskan38Parts(def: VesselDef): THREE.Group {
   const c = CONFIG.vessels.alaskan38;
   const st = def.hull.stations;
   const transom = st[0].z;
@@ -129,15 +186,7 @@ export function buildAlaskan38Parts(def: VesselDef): THREE.Mesh {
   // From the house's forward end to the stem: posts on the deck edge each side, a rail
   // along their tops meeting at the stem, where it stands the highest.
   const r = c.bowRail;
-  const plan = (z: number) => {
-    // The deck edge at z (between stations).
-    let i = 0;
-    while (i < st.length - 2 && st[i + 1].z > z) i++;
-    const a = st[i];
-    const d = st[i + 1];
-    const t = (z - a.z) / (d.z - a.z || 1);
-    return { x: a.halfBeamDeck + (d.halfBeamDeck - a.halfBeamDeck) * t, y: a.polygon[0][1] + (d.polygon[0][1] - a.polygon[0][1]) * t };
-  };
+  const plan = deckEdge(def);
   const stem = st[st.length - 1].z;
   const zs: number[] = [];
   for (let z = r.from; z > stem + 0.15; z -= r.spacing) zs.push(z);
@@ -155,9 +204,203 @@ export function buildAlaskan38Parts(def: VesselDef): THREE.Mesh {
     for (let i = 1; i < tops.length; i++) parts.push(bar(tops[i - 1], tops[i], 0.02, BLACK, 8));
   }
 
+  const glass: THREE.BufferGeometry[] = [];
+  buildSuperstructure(def, parts, glass);
+
+  const group = new THREE.Group();
+  group.name = 'alaskan38';
   const mesh = new THREE.Mesh(mergeParts(parts), flatVertexColorMaterial());
-  mesh.name = 'alaskan38';
-  return mesh;
+  mesh.name = 'alaskan38-parts';
+  group.add(mesh);
+  const g = CONFIG.vessels.alaskan38.glass;
+  const panes = new THREE.Mesh(mergeParts(glass), new THREE.MeshBasicMaterial({ color: g.colour, transparent: true, opacity: g.opacity, depthWrite: false, side: THREE.DoubleSide }));
+  panes.name = 'alaskan38-glass';
+  panes.renderOrder = 2;
+  group.add(panes);
+  return group;
+}
+
+/**
+ * Stage 2: her superstructure round the game's house box (layout.wheelhouse, which stays
+ * what you walk in; its floor and console are the hull mesh's). From forward:
+ *   - the trunk cabin on the foredeck: the fore cabin's top, following the deck edge
+ *     `inset` in from it, tapering forward, a glass hatch in it;
+ *   - the pilothouse: a three-facet front, reverse-raked above the sill (the same shear
+ *     as the rain glass, hullMesh.ts frontRake / facetDz, so the rain lands on the panes),
+ *     side glass to `pilothouseAft` with a hinged door in the starboard side;
+ *   - the saloon: two long side windows each side, the aft wall with the doorway (the door
+ *     itself is the game's, boatView.ts) and a window each side of it;
+ *   - the roof: one tan slab (the eyebrow) from a visor ahead of the front glass, past the
+ *     walls each side, carried aft over the cockpit as the overhead, on two posts at its
+ *     aft corners, with grab rails along its sides, the radar dome and the rod rack on it.
+ * Her colours are her livery's (the design's: light grey house, tan roof, dark glass).
+ */
+function buildSuperstructure(def: VesselDef, parts: THREE.BufferGeometry[], glass: THREE.BufferGeometry[]): void {
+  const wh = def.layout.wheelhouse;
+  if (!wh) return;
+  const h = CONFIG.vessels.alaskan38.house;
+  const col = paintOf(def.livery);
+  const H = col.house;
+  const GLASS = 0; // (the panes' colour is their material's: they go in `glass`)
+  const FRAME = col.frame;
+  const FW = CONFIG.pixelPaint.frameWidth;
+  const edge = deckEdge(def);
+  const hw = wh.halfWidth;
+  const w = wh.wall;
+  const front = wh.front;
+  const aft = wh.aft;
+  const roof = wh.roofY;
+  const roofTop = roof + (def.layout.roof?.thickness ?? 0.1);
+  const sill = wh.floorY + wh.windowSill;
+  const head = wh.floorY + wh.windowHead;
+  // The walls start a little under the deck at the house's lowest point (the aft end: the
+  // deck rises forward), as the game's houses do, so there's never a gap at the deck.
+  const base = Math.min(edge(front).y, edge(aft).y) - 0.06;
+  const rake = frontRake(wh);
+  const dz = facetDz(wh);
+  const fd = facetDepth(wh);
+
+  // ── Side walls ──
+  // Below the glass and above it solid; between, the glass in frames: the pilothouse's pane
+  // (with the door in it to starboard), then the saloon's two, a mullion between each.
+  const mullion = (x0: number, x1: number, y0: number, y1: number, z: number) => span(x0, x1, y0, y1, z - FW / 2, z + FW / 2, FRAME);
+  for (const s of [-1, 1]) {
+    const xi = s * (hw - w);
+    const xo = s * hw;
+    const zF = front + fd; // the facet's corner: where the side wall begins
+    parts.push(span(xi, xo, base, sill, zF, aft, H));
+    parts.push(span(xi, xo, head, roof, zF, aft, H));
+    // The glass: one pane thick, set in the wall's middle.
+    glass.push(span(s * (hw - w / 2 - 0.01), s * (hw - w / 2 + 0.01), sill, head, zF, aft, GLASS));
+    // Frames: the sill and head bands, a mullion at each pane's end.
+    const xf0 = s * (hw - 0.004);
+    const xf1 = s * (hw + 0.004);
+    parts.push(span(xf0, xf1, sill - 0.004, sill + FW, zF, aft, FRAME));
+    parts.push(span(xf0, xf1, head - FW, head + 0.004, zF, aft, FRAME));
+    const breaks = [zF, (zF + h.pilothouseAft) / 2, h.pilothouseAft, (h.pilothouseAft + aft) / 2, aft];
+    for (const z of breaks) parts.push(mullion(xf0, xf1, sill, head, z));
+    // The pilothouse door, to starboard: a panel standing a little proud, glass in its top, a handle.
+    if (s > 0) {
+      const d = h.sideDoor;
+      const doorFoot = Math.max(wh.floorY - 0.02, edge((d.z0 + d.z1) / 2).y);
+      parts.push(span(xo, xo + 0.03, doorFoot, sill - 0.004, d.z0, d.z1, 0xb9bdbf));
+      parts.push(span(xo, xo + 0.03, head + 0.004, head + 0.08, d.z0, d.z1, 0xb9bdbf));
+      for (const z of [d.z0, d.z1]) parts.push(span(xo, xo + 0.034, doorFoot, head + 0.08, z - 0.03, z + 0.03, FRAME));
+      parts.push(span(xo + 0.03, xo + 0.07, doorFoot + 1.0, doorFoot + 1.03, d.z1 - 0.3, d.z1 - 0.1, FRAME)); // the handle
+    }
+  }
+
+  // ── The aft wall ──
+  // Solid each side of the doorway with a window in it, a header over the door.
+  const dw = wh.doorWidth / 2;
+  const doorTop = wh.floorY + wh.doorHeight;
+  for (const s of [-1, 1]) {
+    const x0 = s * dw;
+    const x1 = s * hw;
+    parts.push(span(x0, x1, base, sill, aft - w, aft, H));
+    parts.push(span(x0, x1, head, roof, aft - w, aft, H));
+    // The window: a pane between the jamb and the corner, framed.
+    const g0 = s * (dw + 0.12);
+    const g1 = s * (hw - 0.14);
+    glass.push(span(g0, g1, sill, head, aft - w / 2 - 0.01, aft - w / 2 + 0.01, GLASS));
+    parts.push(span(s * (dw + 0.12 - FW), g0, sill, head, aft - 0.004, aft + 0.004, FRAME));
+    parts.push(span(g1, s * (hw - 0.14 + FW), sill, head, aft - 0.004, aft + 0.004, FRAME));
+    parts.push(span(g0, g1, sill - FW, sill, aft - 0.004, aft + 0.004, FRAME));
+    parts.push(span(g0, g1, head, head + FW, aft - 0.004, aft + 0.004, FRAME));
+    // The wall between the jamb and the glass, where the door's frame stands.
+    parts.push(span(x0, g0, sill, head, aft - w, aft, H));
+    parts.push(span(g1, x1, sill, head, aft - w, aft, H));
+  }
+  parts.push(span(-dw, dw, doorTop, roof, aft - w, aft, H));
+
+  // ── The front ──
+  // Built flat across at `front`, then each vertex set back by its x (the three facets:
+  // the middle pane square across, the outer two angled back to the walls) and what's
+  // above the sill leaned forward by the rake, as the rain glass is.
+  const S = rake.sill;
+  const c = wh.shape?.facet?.centre ?? hw;
+  const lower: THREE.BufferGeometry[] = [span(-hw, hw, base, S, front, front + w, H)];
+  const upper: THREE.BufferGeometry[] = [];
+  const panes: THREE.BufferGeometry[] = [];
+  const paneX = [-(hw - w), -c, c, hw - w];
+  for (let i = 0; i + 1 < paneX.length; i++) panes.push(span(paneX[i] + 0.005, paneX[i + 1] - 0.005, S, head, front + w / 2 - 0.01, front + w / 2 + 0.01, GLASS));
+  for (const x of [-c, c]) upper.push(span(x - FW / 2, x + FW / 2, S, head, front - 0.004, front + 0.004, FRAME)); // the mullions
+  for (const s of [-1, 1]) {
+    // The corner posts, foot to roof: below the sill upright, above it raked with the glass.
+    lower.push(span(s * (hw - FW), s * hw, base, S, front - 0.004, front + 0.004, FRAME));
+    upper.push(span(s * (hw - FW), s * hw, S, roof, front - 0.004, front + 0.004, FRAME));
+  }
+  upper.push(span(-hw, hw, S - 0.004, S + FW, front - 0.004, front + 0.004, FRAME)); // the sill band
+  upper.push(span(-hw, hw, head - FW, head + 0.004, front - 0.004, front + 0.004, FRAME)); // the head band
+  upper.push(span(-hw, hw, head, roof, front, front + w, H)); // the header
+  setBack(lower, dz);
+  setBack(upper, dz);
+  setBack(panes, dz);
+  for (const g of [...upper, ...panes]) g.applyMatrix4(rake.matrix);
+  parts.push(...lower, ...upper);
+  glass.push(...panes);
+
+  // ── The roof: the eyebrow, carried aft as the cockpit overhead ──
+  // One tan slab, its front edge following the facets and reaching `visor` ahead of the
+  // raked glass's head; a light-grey top set in from the edge, so the tan shows as a band.
+  const ahead = rake.tan * (roof - S); // how far the glass's top is ahead of the sill line
+  const zRoofFront = front - ahead - h.eyebrow.visor;
+  const ox = hw + h.eyebrow.sideOverhang;
+  const slab = [span(-ox, ox, roof, roofTop, zRoofFront, h.overhead.aft, col.roof), span(-ox + 0.1, ox - 0.1, roofTop, roofTop + 0.03, zRoofFront + 0.1, h.overhead.aft - 0.1, H)];
+  setBack(slab, dz, front + 0.5); // (the front edge only)
+  parts.push(...slab);
+  // The overhead's posts, on the deck at its aft corners, and the beam between them.
+  const zPost = h.overhead.aft - 0.12;
+  for (const s of [-1, 1]) {
+    const x = s * (ox - 0.1);
+    parts.push(rod([x, edge(zPost).y, zPost], [x, roof, zPost], h.overhead.postRadius, H));
+  }
+  parts.push(span(-ox + 0.06, ox - 0.06, roof - 0.1, roof, h.overhead.aft - 0.16, h.overhead.aft - 0.02, H));
+  // Grab rails along the roof's sides.
+  const rr = h.roofRail;
+  for (const s of [-1, 1]) {
+    const x = s * (ox - 0.07);
+    const z0 = front + 0.2;
+    const z1 = h.overhead.aft - 0.3;
+    parts.push(rod([x, roofTop + rr.height, z0], [x, roofTop + rr.height, z1], 0.018, BLACK));
+    for (let z = z0; z <= z1 + 0.01; z += (z1 - z0) / Math.max(1, Math.round((z1 - z0) / rr.spacing))) parts.push(rod([x, roofTop, z], [x, roofTop + rr.height, z], 0.015, BLACK));
+  }
+  // The radar: a white dome on a short pedestal.
+  const rd = h.radar;
+  parts.push(span(-0.12, 0.12, roofTop, roofTop + 0.18, rd.z - 0.12, rd.z + 0.12, H));
+  parts.push(part(new THREE.CylinderGeometry(rd.radius, rd.radius * 0.9, rd.height, 16).translate(0, roofTop + 0.18 + rd.height / 2, rd.z), COWL));
+  // The rod rack: two uprights and a bar across, the rod holders along it, raked aft.
+  const rk = h.rodRack;
+  const rackTop = roofTop + rk.height;
+  for (const s of [-1, 1]) parts.push(rod([s * rk.halfWidth, roofTop, rk.z], [s * rk.halfWidth, rackTop, rk.z], 0.02, ALU));
+  parts.push(rod([-rk.halfWidth, rackTop, rk.z], [rk.halfWidth, rackTop, rk.z], 0.02, ALU));
+  for (let i = 0; i < rk.rods; i++) {
+    const x = -rk.halfWidth + ((i + 0.5) * 2 * rk.halfWidth) / rk.rods;
+    parts.push(rod([x, rackTop - 0.14, rk.z - 0.03], [x, rackTop + 0.16, rk.z + 0.08], 0.022, ALU));
+  }
+
+  // ── The trunk cabin ──
+  // From the house front forward to `fwd`, `inset` in from the deck edge, its top `height`
+  // over the deck at the house tapering to `fwdHeight` at its forward end; a glass hatch.
+  const tr = h.trunk;
+  const sections: { z: number; half: number; y0: number; y1: number }[] = [];
+  const n = 6;
+  for (let i = 0; i <= n; i++) {
+    const t = i / n;
+    const z = front + 0.02 + (tr.fwd - front - 0.02) * t;
+    const e = edge(z);
+    sections.push({ z, half: Math.max(0.25, e.x - tr.inset), y0: e.y - 0.08, y1: e.y + tr.height + (tr.fwdHeight - tr.height) * t });
+  }
+  parts.push(loftBox(sections, H));
+  const hz = tr.hatch.z;
+  const hTop = edge(hz).y + tr.height + ((tr.fwdHeight - tr.height) * (hz - front)) / (tr.fwd - front);
+  glass.push(span(-tr.hatch.size / 2, tr.hatch.size / 2, hTop, hTop + 0.035, hz - tr.hatch.size / 2, hz + tr.hatch.size / 2, GLASS));
+  parts.push(span(-tr.hatch.size / 2 - 0.03, tr.hatch.size / 2 + 0.03, hTop, hTop + 0.02, hz - tr.hatch.size / 2 - 0.03, hz + tr.hatch.size / 2 + 0.03, FRAME));
+  // The anchor roller at the stem.
+  const stem = def.hull.stations[def.hull.stations.length - 1].z;
+  const sy = edge(stem + 0.35).y;
+  parts.push(span(-0.1, 0.1, sy, sy + 0.12, stem + 0.05, stem + 0.6, ALU));
+  parts.push(part(new THREE.CylinderGeometry(0.06, 0.06, 0.16, 10).rotateZ(Math.PI / 2).translate(0, sy + 0.14, stem + 0.12), BLACK));
 }
 
 /** For tests: where her outboards' propellers turn (her axes). */

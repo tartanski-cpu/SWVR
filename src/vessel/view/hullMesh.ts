@@ -216,7 +216,11 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
     const deckLo = Math.min(...Array.from({ length: 9 }, (_, i) => plan.deckY(wh.front + ((wh.aft - wh.front) * i) / 8)));
     const low = Math.min(0.9, wh.floorY - 0.15);
     const base = sunk ? low : Math.max(low, deckLo - 0.06);
-    parts.push(...(wh.shape ? buildShapedHouse(layout, col, base) : buildWheelhouse(layout, col, base)));
+    if (wh.shell === 'oneOff') {
+      // Her own walls and roof (boats/oneOffViews.ts): only what's inside them here.
+      buildFloor(layout, col, parts);
+      buildConsole(wh, col, parts);
+    } else parts.push(...(wh.shape ? buildShapedHouse(layout, col, base) : buildWheelhouse(layout, col, base)));
     // Steps at the aft door: solid blocks up to each tread.
     const d = wh.doorWidth / 2;
     const foot = Math.min(wh.floorY, plan.deckY(wh.aft)) - 0.05;

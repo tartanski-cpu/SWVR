@@ -33,6 +33,12 @@ export type WheelhouseLayout = Omit<WorkboatLayout['wheelhouse'], 'sideDoor' | '
   Partial<Pick<WorkboatLayout['wheelhouse'], 'sideDoor' | 'sideRaise' | 'frontSill' | 'frontRakeDeg'>> & {
     /** A shaped house (the Shipyard's): drawn by its own builder (hullMesh.ts buildShapedHouse). */
     shape?: HouseShape;
+    /**
+     * The walls, windows and roof are the boat's own geometry (boats/oneOffViews.ts, the
+     * Alaskan 38): the hull mesh draws only her floor, console and door steps. Everything
+     * else (walk areas, the door, rain on the glass, module places) still reads this box.
+     */
+    shell?: 'oneOff';
     /** Steps at the aft door, where her floor is more than a step above or below the deck there. */
     steps?: DoorStep[];
     /** Where the view out through the front glass starts, above the floor (m): the top of what stands in front of it (the dash). The wipers clear the glass from there up. Unset: the front sill. */
