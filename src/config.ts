@@ -2947,7 +2947,7 @@ export const CONFIG = {
 
     /**
      * propulsion.diesel-inboard (M4a): the 12 V side of the engine (A): the alternator's full
-     * output (from 600 rpm), and what the starter and the glow plugs draw (on the master
+     * output (from idle), and what the starter and the glow plugs draw (on the master
      * alone). Its engine, propeller and oil use are the workboat's (CONFIG.vessels.workboat:
      * engine, propeller, maintenance.use) until the boat is built entirely from JSON (M6).
      */
@@ -3114,8 +3114,18 @@ export const CONFIG = {
    * are lifted (`presenceDb` at `presenceHz`) and the tone opened up (`lpLiftHz` on its
    * low-pass); the ear hears the deep beat from them. VR and desktop are untouched.
    */
-  /** Twin engines (the Shipyard's): the engine sound's level times this (two sources, ~+3 dB). */
+  /** Twin engines (the Shipyard's): the engine sound's level times this (two sources, ~+3 dB; split between the two engines' sounds). */
   engineTwinLevel: 1.4,
+  /**
+   * Twin engines' drone (owner): each engine has its own sound, and the second runs a little
+   * off the first's revs, by a share of them that wanders slowly through zero: `share` at
+   * most (0.8 %: 12 rpm at 1500, so their beats drift in and out of step about once every
+   * 1-2 s at full revs, slower at idle), as the sum of two slow swings (`periodsS`, s,
+   * weighted 0.6 / 0.4) so it never quite repeats. In real twins the governors never hold
+   * exactly the same speed: the firing pulses go in and out of phase and you hear the
+   * "wow-wow" drone. Only the sound: the physics still runs them in lockstep.
+   */
+  engineTwinDrift: { share: 0.008, periodsS: [23, 9.7] as [number, number] },
 
   engineSmallSpeakers: { presenceHz: 240, presenceDb: 9, lpLiftHz: 160 },
 

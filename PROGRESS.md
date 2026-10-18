@@ -3865,7 +3865,35 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Checked in headless Chromium:** a pilot boat with a 3 m, 1.2 m high, full-width, 30°-raked deckhouse, and set in with 0.5 m side decks, upright: views from the bow, stern and port; the wheelhouse on top, the steps up aft, no warnings. Found and fixed on the way: its faces wound inside out (invisible from outside), and its foot showing through her topsides at the bow. **Not checked:** the Quest, a phone, walking up the steps into a raised helm in the game.
 - **Next, for bigger boats (tugs), noted:** the deckhouse top walkable with rails and a ladder or stairs (the walk area's floors and ladders already do this for the workboat's roof), and an interior with a door into it.
 
-### Shipyard: the working lights with the advanced interior (owner)
+### Shipyard: a slow-revving tug diesel; twin engines drone; twins' bollard pull (owner)
+
+- **The owner asked** for an engine with the tug in mind: a diesel of larger capacity, slower revving, for the torque a tug needs; a single installation only; lower revs all through its working range. And, while at it, twin engines to sound like two engines, with the drone as they go in and out of step.
+- **The engine** (`shipyard/build.ts ENGINES`, the fourth): "450 kW slow-revving tug diesel (big straight six, 1000 rpm; single only)", 2,200 kg with its gearbox, GBP 170 per kW (the others 120).
+  - Its torque curve, idle, governor droop and starter speed are the 1800 rpm engines' with every rpm scaled by 1000/1800, so it is slower all through: idles at 333 rpm, about 325 / 505 / 730 / 940 rpm at a quarter, half, three-quarter and full lever on the tug. Its torque is scaled up by the same factor (the same power at fewer revs: about 1.8 times the 400 kW V8's peak torque for 12 % more power). Its friction follows its torque and its flywheel is heavier in the same proportion; its governor adds fuel more slowly (`rackRise` 1.0).
+  - **Single only** (`design.ts SINGLE_ONLY_ENGINES`): choosing it unticks the twin box, which is greyed out; a code asking for two is built with one, with a warning. The brief's engine search tries it single only.
+  - **The propeller** (the owner's question): the build already sized it to her draught aft and her power, but capped at 1.05 m and the same for every engine. Now a slower engine gets a bigger one for its power (a propeller's best diameter grows as its revs fall: the power term is divided by the rpm share), up to `propMaxM` 1.4 m for this engine, as her draught allows. On the tug: 1.25 m (draught-limited) against the V8's 1.05 m, on a 2.14 gearbox (matched by trial as ever). Still an open propeller: no nozzle.
+  - The alternator gives its full output from the engine's idle (it was from 600 rpm, the 1800 rpm engines' idle; `dieselInboard`), so the slow engine still charges at idle.
+  - The engine bed now takes up to 1000 kW.
+  - **The design code** (version 18): the fourth engine rides in the extension above the facets (`MORE_ENGINES`), as the tug hull did; 0 leaves every earlier code as it was.
+  - **The tug now starts with it** (one engine; she had twin 400 kW V8s).
+- **Measured on the tug** (her standard size, gearbox matched; the game's sea trials):
+
+  | Engines | Top speed | Range flat out | Bollard pull | Price |
+  |---|---|---|---|---|
+  | 400 kW V8, single | 8.4 kn | 43 nm | 4.16 t | 473,000 |
+  | 400 kW V8, twin | 10.1 kn | 56 nm | 8.32 t | 521,000 |
+  | 450 kW tug diesel (single) | 9.0 kn | 44 nm | 5.05 t | 501,000 |
+
+  The tug diesel pulls 21 % harder than the single V8 for 12 % more power: its bigger, slower propeller. Twin V8s still pull hardest, on nearly twice the power.
+- **A bug found on the way:** the sea trials' bollard pull counted one propeller on a twin-screw boat (`vessel/seaTrials.ts`: the engine state's thrust is one shaft's; the game pushes with both). So every twin was reported pulling about what a single does, and the brief's hint said twins pull less. Now both count. The hull-type table (`shipyard/typeFit.ts TYPE_FACTS`) is re-measured with every engine fit; twins' pulls about doubled (e.g. the landing craft on twin 400s: 4.9 t, so she can now meet a towing brief's 3 t; the brief test says so).
+- **Twin engines' sound** (`audio/engineAudio.ts`): each engine has its own sound (a second worklet and filter chain, only on a twin), together the same ~+3 dB as before. The second runs a slowly wandering share off the first's revs, at most 0.8 % (12 rpm at 1500), passing through zero, the sum of two slow swings (23 s and 9.7 s) so it never quite repeats: their beats drift in and out of step, the "wow-wow" drone. Only the sound: the physics still runs them in lockstep. Config: `CONFIG.engineTwinDrift` (`share`, `periodsS`), `engineTwinLevel`.
+  - The sound is now rebuilt when the engine's rated rpm changes too, not only its voice (the slow engine shares the straight six's voice).
+- **Checked:**
+  - typecheck and tests (679): `tests/shipyard/tugEngine.test.ts` (every engine's code reads back, the first three's 17-character codes unchanged; the tug diesel rated 1000, idle 333, over 1.7 times the V8's torque, a bigger propeller, recipe valid; a twin choice built single with a warning); the tug's reference test now expects the tug diesel; the brief's tests updated for seven engine fits and the corrected twin pull.
+  - in the Shipyard, headless: the tug with the tug diesel, 1.25 m propeller, 2.14 gearbox, no warnings; the twin box greyed out; in the game she starts and runs up to about 860 rpm at full lever alongside.
+  - the twin sound rendered offline in the browser: a twin V8's loudness swells and fades by 29 % (a single's 4 %), 2.9 dB louder than a single.
+  - **Not checked:** VR, or the sound by ear on the Quest.
+
 
 - **The owner noticed** designs had no overhead switch panel and no foredeck or aft deck lights, which the workboat has. Asked for them as modules, and only with the advanced interior for now.
 - **Now, with Advanced controls** (`shipyard/build.ts`), the same modules as the workboat's:

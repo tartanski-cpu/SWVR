@@ -276,10 +276,16 @@ export class EngineSound {
 export class EngineAudio {
   private ctx: AudioContext | null = null;
   private sound: EngineSound | null = null;
-  /** The voice the sound was built with, and the one wanted (her engine's). */
-  private built: EngineVoiceId | null = null;
+  /** Twin engines: the second engine's own sound (null with one engine). */
+  private sound2: EngineSound | null = null;
+  /** The voice, rated rpm and number of engines the sound was built for, and those wanted (her engines'). */
+  private built: string | null = null;
   private wanted: EngineVoiceId = 'inlineSix';
   private ratedRpm = 1800;
+  private twin = false;
+  private get wantedKey(): string {
+    return `${this.wanted}|${this.ratedRpm}|${this.twin ? 2 : 1}`;
+  }
   private building = false;
   /** Voice it for small speakers (phones, tablets, earbuds; the touch controls set it). */
   smallSpeakers = false;
@@ -300,17 +306,23 @@ export class EngineAudio {
     this.build();
   }
 
-  /** (Re)build the sound in the wanted voice; the old one is stopped once the new is ready. */
+  /**
+   * (Re)build the sound in the wanted voice (and rated rpm, which shapes its pulses), one per
+   * engine; the old one is stopped once the new is ready.
+   */
   private build(): void {
     const ctx = this.ctx;
     if (!ctx || this.building) return;
     this.building = true;
-    const voice = this.wanted;
-    void EngineSound.create(ctx, mixer.bus(ctx, 'engine'), CONFIG.engineVoices[voice], this.ratedRpm).then((s) => {
+    const key = this.wantedKey;
+    const make = () => EngineSound.create(ctx, mixer.bus(ctx, 'engine'), CONFIG.engineVoices[this.wanted], this.ratedRpm);
+    void Promise.all([make(), this.twin ? make() : Promise.resolve(null)]).then(([s, s2]) => {
       this.sound?.dispose();
-      s.smallSpeakers = this.smallSpeakers;
+      this.sound2?.dispose();
+      for (const x of [s, s2]) if (x) x.smallSpeakers = this.smallSpeakers;
       this.sound = s;
-      this.built = voice;
+      this.sound2 = s2;
+      this.built = key;
       this.building = false;
     });
   }
@@ -327,15 +339,25 @@ export class EngineAudio {
     const diesel = gearOf(v, 'diesel');
     this.wanted = diesel?.voice ?? 'inlineSix';
     this.ratedRpm = diesel?.engine.ratedRpm ?? 1800;
-    if (this.sound && this.built !== this.wanted) this.build();
+    this.twin = !!diesel?.twin;
+    if (this.sound && this.built !== this.wantedKey) this.build();
     if (!this.sound) return;
     const e = v.engine;
-    this.sound.set(
-      { rpm: e.rpm, load: e.rack, ratedRpm: this.ratedRpm, running: e.phase === 'running', cranking: e.phase === 'cranking', submerged },
-      // Twin engines in lockstep: the same note, louder (two sources, ~+3 dB).
-      ((0.42 * (diesel?.twin ? CONFIG.engineTwinLevel : 1)) / (1 + distance / 8)) * house,
-      lp,
-    );
+    const input = { rpm: e.rpm, load: e.rack, ratedRpm: this.ratedRpm, running: e.phase === 'running', cranking: e.phase === 'cranking', submerged };
+    const level = (0.42 / (1 + distance / 8)) * house;
+    if (!this.sound2) {
+      this.sound.set(input, level, lp);
+      return;
+    }
+    // Twin engines: two sounds, together ~+3 dB (each at engineTwinLevel / sqrt 2: two
+    // unrelated sources add in power). The second runs a slowly wandering share off the
+    // first's revs (CONFIG.engineTwinDrift), so their beats drift in and out of step: the drone.
+    const each = (level * CONFIG.engineTwinLevel) / Math.SQRT2;
+    const dr = CONFIG.engineTwinDrift;
+    const t = this.ctx!.currentTime;
+    const drift = dr.share * (0.6 * Math.sin((2 * Math.PI * t) / dr.periodsS[0]) + 0.4 * Math.sin((2 * Math.PI * t) / dr.periodsS[1]));
+    this.sound.set(input, each, lp);
+    this.sound2.set({ ...input, rpm: e.rpm * (1 + drift) }, each, lp);
   }
 }
 

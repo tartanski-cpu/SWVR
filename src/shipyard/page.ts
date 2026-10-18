@@ -29,7 +29,7 @@ import type { SeaTrialResults } from '../vessel/seaTrials';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 import { buildVesselMesh } from '../vessel/view/hullMesh';
 import { DESIGN_HULLS, ENGINES, LIVERIES, ROOF_PAINTS, type DesignedBoat } from './build';
-import { ALL_FIELDS, decodeDesign, DEFAULT_DESIGN, encodeDesign, GUARDS, RAILS, SKIFFS, placeOf, placeValue, SCALES, type PlaceKey, type ShipDesign } from './design';
+import { ALL_FIELDS, decodeDesign, DEFAULT_DESIGN, encodeDesign, GUARDS, RAILS, SINGLE_ONLY_ENGINES, SKIFFS, placeOf, placeValue, SCALES, type PlaceKey, type ShipDesign } from './design';
 import { hullPlan } from '../vessel/layout';
 import { UndoStack } from './undo';
 import { YardLink } from './yardLink';
@@ -400,7 +400,7 @@ section('3. Deck gear');
   controls.append(pal, box, onHer);
 }
 section('4. Engine');
-choices('engine', ENGINES.map((e) => ({ name: e.name, note: `${e.kg} kg with its gearbox. Propeller and gearbox matched to her by trial.` })));
+choices('engine', ENGINES.map((e) => ({ name: e.name, note: `${'about' in e ? `${e.about} ` : ''}${e.kg} kg with its gearbox. Propeller and gearbox matched to her by trial.` })), (i) => (SINGLE_ONLY_ENGINES.includes(i) ? { twin: 0 } : {}));
 {
   const row = document.createElement('label');
   row.className = 'choice';
@@ -463,7 +463,10 @@ function syncControls(): void {
     const k = el.dataset.key as keyof ShipDesign;
     el.textContent = outputs[k]!(design[k]);
   });
-  (document.querySelector('input[data-key=twin]') as HTMLInputElement).checked = !!design.twin;
+  const twinBox = document.querySelector('input[data-key=twin]') as HTMLInputElement;
+  twinBox.checked = !!design.twin;
+  // The tug diesel goes in singly only.
+  twinBox.disabled = SINGLE_ONLY_ENGINES.includes(design.engine);
   // A tug's push bow is her own: no bow rake to choose.
   (document.querySelector('input[type=range][data-key=bow]') as HTMLInputElement).disabled = !!DESIGN_HULLS[design.hull].pushBow;
   // The deckhouse as wide as the house: its width's other buttons aren't the one chosen.

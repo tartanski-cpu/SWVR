@@ -33,7 +33,7 @@ import type { DoorStep, HouseShape, LayoutConfig, Livery } from '../vessel/vesse
 import type { DeckhouseLayout } from '../vessel/deckhouse';
 import { BREAKERS } from '../vessel/vesselState';
 import { strakeLine, tyreSpots } from '../vessel/physics/guards';
-import { guardParts, PLACE_GRID, placeOf, SCALES, type PlaceKey, type ShipDesign } from './design';
+import { guardParts, PLACE_GRID, placeOf, SCALES, SINGLE_ONLY_ENGINES, type PlaceKey, type ShipDesign } from './design';
 
 /** A faceted front's middle pane: between the front windows' mullions (hullMesh.ts, at +-0.5 m). */
 const FACET_CENTRE = 0.5;
@@ -189,16 +189,32 @@ export const DESIGN_HULLS: DesignHull[] = [
     foredeck: 1.6,
     // The owner's reference: a short house forward of amidships, raised to see over the
     // high bow, windows a little reverse-raked; a low towing deck aft; twin screws; a
-    // rubbing strake; red and grey.
-    defaults: { length: 8, beam: 8, depth: 8, bulwark: 4, bow: 0, housePos: 11, houseLength: 4, houseWidth: 4, headroom: 3, floor: 5, visor: 1, roofThickness: 1, roofEdge: 2, windowRake: 5, lowerFront: 0, engine: 2, twin: 1, paint: 7, guard: 2 },
+    // rubbing strake; red and grey. One slow-revving tug diesel (owner: an engine with the
+    // tug in mind; single only).
+    defaults: { length: 8, beam: 8, depth: 8, bulwark: 4, bow: 0, housePos: 11, houseLength: 4, houseWidth: 4, headroom: 3, floor: 5, visor: 1, roofThickness: 1, roofEdge: 2, windowRake: 5, lowerFront: 0, engine: 3, twin: 0, paint: 7, guard: 2 },
   },
 ];
 
-/** Engine packages: power, weight, sound, and how quickly its governor adds fuel. */
+/**
+ * Engine packages: power, weight, sound, and how quickly its governor adds fuel.
+ *   ratedRpm   its rated speed. The first three are high-speed diesels rated at 1800 rpm. The
+ *              tug's (owner, Oct 2026) is a slow-revving heavy-duty diesel: bigger cylinders
+ *              turning slower, so far more torque for its power (torque = power / shaft speed:
+ *              at 1000 rpm, 1.8 times a 1800 rpm engine's). Its torque curve, idle, governor
+ *              droop and starter are the 1800 rpm engine's with every rpm scaled to it, so it
+ *              is slower all through its range (owner): idling at 333 rpm, flat out near 1000.
+ *              It goes in singly only (design.ts SINGLE_ONLY_ENGINES; owner).
+ *   propMaxM   the biggest propeller it's given (m). Slow revs (and a lower gearbox ratio to
+ *              suit) turn a bigger, slower propeller: it throws more water slower, which pulls
+ *              harder for the same power, what a tug wants (see `propD` in buildDesign).
+ *   pricePerKw  GBP per kW (a slow, heavy engine costs more for its power).
+ *   about      what the Engine step says about it, if more than its weight.
+ */
 export const ENGINES = [
-  { name: '150 kW diesel (straight six)', kw: 150, kg: 600, voice: 'inlineSix' as const, rackRise: 1.2 },
-  { name: '280 kW turbo diesel (V8)', kw: 280, kg: 800, voice: 'v8' as const, rackRise: 2.0 },
-  { name: '400 kW turbo diesel (V8)', kw: 400, kg: 1100, voice: 'v8' as const, rackRise: 2.0 },
+  { name: '150 kW diesel (straight six)', kw: 150, kg: 600, voice: 'inlineSix' as const, rackRise: 1.2, ratedRpm: 1800, propMaxM: 1.05, pricePerKw: 120 },
+  { name: '280 kW turbo diesel (V8)', kw: 280, kg: 800, voice: 'v8' as const, rackRise: 2.0, ratedRpm: 1800, propMaxM: 1.05, pricePerKw: 120 },
+  { name: '400 kW turbo diesel (V8)', kw: 400, kg: 1100, voice: 'v8' as const, rackRise: 2.0, ratedRpm: 1800, propMaxM: 1.05, pricePerKw: 120 },
+  { name: '450 kW slow-revving tug diesel (big straight six, 1000 rpm; single only)', kw: 450, kg: 2200, voice: 'inlineSix' as const, rackRise: 1.0, ratedRpm: 1000, propMaxM: 1.4, pricePerKw: 170, about: 'Slow-revving and heavy, for towing: more torque, turning a bigger propeller, so a harder pull for its power. Slower to answer the throttle.' },
 ];
 
 /** Paints: the hull mesh's colours (vessel/view/hullMesh.ts); `{}` is the workboat's own. */
@@ -559,16 +575,23 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   // ── Machinery ──
   const eng = ENGINES[d.engine];
   const kw = eng.kw;
+  // Her engine's rated speed as a share of the 1800 rpm engines' (1 for those).
+  const rs = eng.ratedRpm / 1800;
   // Twin engines: two of the package, their propellers set out ~28 % of her deck beam either
   // side of the centreline (under her bottom, clear of each other), twin rudders behind them.
-  const twin = !!d.twin;
+  // (An engine that only goes in singly is built single, whatever the twin choice says.)
+  const singleOnly = SINGLE_ONLY_ENGINES.includes(d.engine);
+  if (d.twin && singleOnly) warnings.push(`The ${eng.name.split(' (')[0]} goes in singly: she has one.`);
+  const twin = !!d.twin && !singleOnly;
   const n = twin ? 2 : 1;
   const keelAft = st[0].polygon[2][1];
   const draughtAft = -keelAft;
   // The propeller: as big as her draught aft allows (tip clear below her keel by ~1/4 of
-  // it), and no bigger than her engine can turn (0.675 m at 150 kW .. 1.05 m at 400 kW).
+  // it), and no bigger than her engine can turn (0.675 m at 150 kW .. 1.05 m at 400 kW). A
+  // slower engine turns a bigger one for its power (a propeller's best diameter grows as its
+  // revs fall): the 1000 rpm tug engine up to 1.4 m, as her draught allows (ENGINES propMaxM).
   const twinX = Math.round(0.28 * 2 * Math.max(...st.map((s) => s.halfBeamDeck)) * 100) / 100;
-  const propD = Math.round(Math.max(0.45, Math.min(1.25 * draughtAft, 0.45 + 0.0015 * kw, 1.05, twin ? 2 * twinX - 0.15 : 9)) * 100) / 100;
+  const propD = Math.round(Math.max(0.45, Math.min(1.25 * draughtAft, 0.45 + (0.0015 * kw) / rs, eng.propMaxM, twin ? 2 * twinX - 0.15 : 9)) * 100) / 100;
   const gear = Math.round(SCALES.gear(d.gear) * 100) / 100;
   const propPos: V3 = [0, keelAft + 0.1, transom - 0.65];
   const rudderPos: V3 = [0, keelAft + 0.15, transom - 0.25];
@@ -968,7 +991,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     { id: 'engineHatch', type: 'deck.fitting', transform: { position: [eh.x1, F, hatchZ] }, capacity: { size: [eh.x1 - eh.x0, 0.035, eh.z1 - eh.z0] }, label: 'Cabin floor, over the engine' },
     { id: 'dipstick', type: 'deck.fitting', transform: { position: [eh.x0 + 0.15, F - 0.32, eh.z0 + 0.2] }, label: "Engine space, the engine's inboard side" },
     { id: 'oilCan', type: 'deck.fitting', transform: { position: [eh.x1 - 0.08, F - 0.3, eh.z1 - 0.15], rotationDeg: [0, 90, 0] }, label: 'Engine space, the shelf' },
-    { id: 'engine', type: 'engine.bay', transform: { position: at.engineBed }, tags: ['inboard'], capacity: { maxPowerKw: 800 }, label: 'Engine bed, under the cabin floor' },
+    { id: 'engine', type: 'engine.bay', transform: { position: at.engineBed }, tags: ['inboard'], capacity: { maxPowerKw: 1000 }, label: 'Engine bed, under the cabin floor' },
     { id: 'fuelTank', type: 'engine.bay', transform: { position: at.engineSpace }, label: 'Engine space (nominal)' },
     { id: 'batteries', type: 'engine.bay', transform: { position: at.engineSpace }, label: 'Engine space (nominal)' },
     { id: 'bilgePump', type: 'engine.bay', transform: { position: [at.engineSpace[0], F - eh.pitDepth, at.engineSpace[2]] }, label: 'Bottom of the engine space (nominal)' },
@@ -1107,14 +1130,22 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   recipe.name = `Shipyard design ${code}`;
   recipe.hull = 'hull.design';
   const k = kw / 150;
+  // (A slower-revving engine, ENGINES ratedRpm, `rs` above: every rpm of the 1800 rpm curve
+  // scaled by rs, its torque by k / rs (the same power at fewer revs is more torque). Its
+  // friction follows the torque; its flywheel is heavier in the same proportion.)
+  const kq = k / rs;
   const bySocket = (list: Mount[], id: string) => list.find((m) => m.socket === id);
   const engine = bySocket(recipe.modules, 'engine')!.config as Record<string, any>;
   Object.assign(engine.engine, {
     powerKw: kw,
-    torqueCurve: BASE_TORQUE.map(([r, t]) => [r, Math.round(t * k)]),
-    frictionTorque: Math.round(40 * k ** 0.6),
-    inertia: Math.round(1.6 * k * 10) / 10,
-    starterTorque: Math.round(280 * Math.sqrt(k)),
+    torqueCurve: BASE_TORQUE.map(([r, t]) => [Math.round(r * rs), Math.round(t * kq)]),
+    frictionTorque: Math.round(40 * kq ** 0.6),
+    inertia: Math.round(1.6 * kq * 10) / 10,
+    starterTorque: Math.round(280 * Math.sqrt(kq)),
+    idleRpm: Math.round(engine.engine.idleRpm * rs),
+    ratedRpm: eng.ratedRpm,
+    droopRpm: Math.round(engine.engine.droopRpm * rs),
+    starterMaxRpm: Math.round(engine.engine.starterMaxRpm * rs),
     rackRiseRate: eng.rackRise,
     gearRatio: gear,
   });
@@ -1286,7 +1317,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   const gp = dg.price;
   const gearPrice = (winchAt ? gp.towWinch : 0) + (sternRoller ? gp.sternRoller : 0) + (aFrame ? gp.aFrame : 0) + (ring ? gp.lifeRing : 0) + (sideDoor ? gp.sideDoor : 0) + (anchorAt ? gp.anchor : 0) + (skiffAt ? gp.skiff : 0) + dhArea * dhc.pricePerM2;
   const guardPrice = (pushFender ? CONFIG.shipyard.pushFenderPrice : 0) + (basketAt ? pc.fendersPrice : 0) + strakeM * pc.strakePerM + (tyres.length ? 2 * tyres.length * pc.tyrePrice + pc.tyreFitting : 0);
-  const price = Math.round((mass * 6 + kw * n * 120 + (d.controls ? 18000 : 6000) + (craneAt ? 25000 : 0) + (hasMonitor ? 15000 : 0) + gearPrice + guardPrice) / 1000) * 1000;
+  const price = Math.round((mass * 6 + kw * n * eng.pricePerKw + (d.controls ? 18000 : 6000) + (craneAt ? 25000 : 0) + (hasMonitor ? 15000 : 0) + gearPrice + guardPrice) / 1000) * 1000;
   return {
     hull,
     recipe,

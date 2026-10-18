@@ -36,7 +36,7 @@ export interface DieselInboardConfig {
   propeller: typeof wb.propeller;
   /** Where the propeller's inflow and immersion are taken (boat axes, m): just aft of it, at the rudder. */
   sampleAt: readonly [number, number, number];
-  /** The alternator's full output (A, at 600 rpm and above). */
+  /** The alternator's full output (A, from the engine's idle speed up: 600 rpm on an 1800 rpm engine). */
   alternatorAmps: number;
   /** Lube oil burnt, as a fraction of the sump per second at no load. */
   oilUse: number;
@@ -102,8 +102,8 @@ export const DIESEL_INBOARD: ModuleDefinition<DieselInboardConfig, EngineState> 
   // Its mass at its bed (the socket): it's part of the boat's mass, CG and inertia (M6).
   physical: (c) => ({ powerKw: c.engine.powerKw * (c.twin ? 2 : 1), massKg: c.massKg * (c.twin ? 2 : 1) }),
   power: (c) => [
-    // The alternator: full output from 600 rpm.
-    { role: 'source', amps: (io) => (io.get('state') === 'running' ? c.alternatorAmps * clamp(io.num('rpm') / 600, 0, 1) : 0) },
+    // The alternator: full output from idle (its pulley is sized for the engine's revs).
+    { role: 'source', amps: (io) => (io.get('state') === 'running' ? c.alternatorAmps * clamp(io.num('rpm') / c.engine.idleRpm, 0, 1) : 0) },
     // The starter and the glow plugs are on the master alone.
     { role: 'load', amps: (io) => (io.get('state') === 'cranking' ? c.starterAmps : 0) },
     { role: 'load', amps: (io) => (io.has('glowLamp') && io.get('glowLamp') === 'on' ? c.glowAmps : 0) },

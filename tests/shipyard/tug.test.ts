@@ -50,7 +50,7 @@ describe('the small tug: a fifth hull type', () => {
     expect(() => encodeDesign({ ...DEFAULT_DESIGN, hull: HULL_TYPES })).toThrow();
   });
 
-  it('builds as her reference: short, beamy and deep, level on her lines, stable, twin screws, a strake, no warnings', () => {
+  it('builds as her reference: short, beamy and deep, level on her lines, stable, one slow-revving tug diesel (owner), a strake, no warnings', () => {
     const boat = useDesign(tug());
     expect(boat.warnings).toEqual([]);
     expect(validateRecipe(RECIPES.design, LIBRARY)).toEqual([]);
@@ -59,7 +59,7 @@ describe('the small tug: a fifth hull type', () => {
     expect(f.lengthM / f.beamM).toBeLessThan(2.7);
     expect(f.draughtM).toBeGreaterThan(1.4);
     expect(f.gmM).toBeGreaterThan(0.8);
-    expect(f.engine).toMatch(/^Twin/);
+    expect(f.engine).toMatch(/^450 kW slow-revving tug diesel/);
     const h = uprightHydrostatics(VESSEL_DEFS.design);
     expect(Math.abs(h.sinkage)).toBeLessThan(0.02);
     expect(Math.abs(h.lcgMinusLcb)).toBeLessThan(0.02);

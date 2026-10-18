@@ -14,7 +14,8 @@ describe('the brief', () => {
     expect(b.jobs).toEqual([]);
     expect(b.hull).toBeNull();
     expect(b.gmM).toBeGreaterThan(0);
-    expect(engineOptions()).toHaveLength(6);
+    // Four engines, single and twin, but the tug diesel only single.
+    expect(engineOptions()).toHaveLength(7);
   });
 
   it('a bare hull: the type’s layout and no deck gear (it’s pinned on her)', () => {
@@ -85,11 +86,11 @@ describe('the brief', () => {
 });
 
 describe('hull types for a brief', () => {
-  it('cargo and towing at harbour speed: the workboat, the only one that pulls 3 t', () => {
+  it('cargo and towing at harbour speed: the workboat (the landing craft pulls 3 t only with twin V8s, a twin\'s pull counting both propellers)', () => {
     const r = rankTypes(brief({ jobs: ['cargo', 'towing', 'fire'], speedKn: 10, rangeNm: 50, budget: 230_000 }));
     expect(r[0].hull).toBe(WORKBOAT);
     expect(r[0].misses).toBe(0);
-    expect(r.find((t) => t.hull === LANDING)!.lines.find((l) => l.label === 'Pull')!.ok).toBe(false);
+    expect(r.find((t) => t.hull === LANDING)!.lines.find((l) => l.label === 'Pull')!.ok).toBe(true);
   });
 
   it('pots: the gillnetter, built for them, ahead of others that could also do it', () => {

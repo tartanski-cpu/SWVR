@@ -13,7 +13,7 @@
  */
 import { CONFIG } from '../config';
 import type { GearKind } from '../modular/module';
-import type { ShipDesign } from './design';
+import { ENGINE_TYPES, SINGLE_ONLY_ENGINES, type ShipDesign } from './design';
 
 /**
  * The game's jobs she can be wanted for (owner, Oct 2026: "do you want to do lobster missions?
@@ -127,10 +127,10 @@ export function bareHull(hull: number, hullDefaults: (hull: number) => Partial<S
   return { ...hullDefaults(hull), hull, deckCrane: 0, searchlight: 0, fireMonitor: 0 };
 }
 
-/** Every engine fit to try: each engine, single and twin. */
+/** Every engine fit to try: each engine, single and (unless it only goes in singly) twin. */
 export function engineOptions(): Partial<ShipDesign>[] {
   const out: Partial<ShipDesign>[] = [];
-  for (const engine of [0, 1, 2]) for (const twin of [0, 1]) out.push({ engine, twin });
+  for (let engine = 0; engine < ENGINE_TYPES; engine++) for (const twin of SINGLE_ONLY_ENGINES.includes(engine) ? [0] : [0, 1]) out.push({ engine, twin });
   return out;
 }
 
@@ -229,7 +229,7 @@ export function checkBrief(brief: Brief, m: Measured): Check[] {
     }
     if (id === 'towing') {
       const ok = m.bollardT === null ? null : m.bollardT >= TOW_BOLLARD_T;
-      out.push({ label: `${job.name}: bollard pull`, target: `≥ ${TOW_BOLLARD_T.toFixed(1)} t`, value: m.bollardT === null ? null : `${m.bollardT.toFixed(1)} t`, ok, fix: ok === false ? { step: 'engine', hint: 'A single big engine pulls hardest (Engine): on trial a twin installation pulls less, its smaller propellers slipping more.' } : null });
+      out.push({ label: `${job.name}: bollard pull`, target: `≥ ${TOW_BOLLARD_T.toFixed(1)} t`, value: m.bollardT === null ? null : `${m.bollardT.toFixed(1)} t`, ok, fix: ok === false ? { step: 'engine', hint: 'More power, twin engines, or the slow-revving tug diesel, which turns a bigger propeller (Engine).' } : null });
     }
     for (const g of job.gear) {
       const fit = FITTABLE[g.kind];
