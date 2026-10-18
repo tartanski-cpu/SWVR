@@ -2018,6 +2018,12 @@ export const CONFIG = {
       fenders: { stiffness: 6e4, damping: 2e4, friction: 0.15, absorb: 1.2 },
       strake: { stiffness: 2.5e5, damping: 3e4, friction: 0.5, absorb: 0.4 },
       tyres: { stiffness: 1e5, damping: 3e4, friction: 0.7, absorb: 0.9 },
+      /**
+       * A tug's push fender (modules/pushFender): a thick block of rubber on her square bow,
+       * built to push barges and ships: stiffer than tyres (it carries her whole thrust),
+       * grippy so the bow doesn't slide off what she's pushing, and it takes a hard knock.
+       */
+      pushFender: { stiffness: 2e5, damping: 4e4, friction: 0.8, absorb: 1.2 },
     },
   },
 
@@ -2070,6 +2076,8 @@ export const CONFIG = {
      * tyres by the metre of her and per tyre (the build counts them). `fenders`: how many
      * a side (spread along her, as the workboat's three).
      */
+    /** The small tug's push fender (GBP), with its fixings. */
+    pushFenderPrice: 4500,
     protection: { fendersPrice: 450, strakePerM: 110, tyrePrice: 90, tyreFitting: 600, fenders: 3 },
   },
 
@@ -2766,6 +2774,16 @@ export const CONFIG = {
      *           the odd wave: her form factor (friction resistance) is raised by
      *           `formFactorAdd` (Shipyard build).
      */
+    /**
+     * hull.push-fender (modules/pushFender): the rubber push fender on a tug's square bow
+     * (owner: the small tug hull). A block `thickness` m thick, faced flat with its corners
+     * chamfered by `chamfer`, across her bow plate (`inset` in from each side) from the
+     * bulwark top down to `clear` above the foot of the plate. It weighs `kgPerM2` per
+     * square metre of face (a heavy-duty rubber section). Probed on its face at `across` x
+     * `up` points against quays and other boats.
+     */
+    pushFender: { thickness: 0.32, chamfer: 0.1, inset: 0.06, clear: 0.05, kgPerM2: 140, across: 5, up: 3 },
+
     hullGuard: {
       strake: { radius: 0.07, drop: 0.06, kgPerM: 5, spacing: 0.6 },
       tyres: { radius: 0.45, hole: 0.21, thickness: 0.28, drop: 0.4, spacing: 0.92, minBeam: 0.45, kgEach: 45, formFactorAdd: 0.03 },

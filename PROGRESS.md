@@ -4089,6 +4089,58 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Checked in headless Chromium:** two favourites seeded in the browser's storage; a play link pasted with Ctrl+V (a paste event) filled the code; Take her reloaded the game in her (`?design=`, her vessel type 'design'), and Now named her "Fast pilot (Shipyard)"; a picture of the menu page. No page errors. **Not checked:** the Quest (the keypad by laser, and re-entering VR after the reload).
 - **Not done / noticed:** in multiplayer the crew very likely don't get the host's Shipyard boat (each browser builds the 'design' vessel type from its own address; not tested); the boatyard purchase (buying her with the career's money) is still to come.
 
+### Shipyard: a fifth hull type, the small tug, with a push fender (owner)
+
+- **The owner asked** for a new hull form for a small tug, from a reference render (a small tug with a raised red foredeck, grey topsides and a dark bottom), "the bow notably has a pusher thingy": a thick rubber push fender on a square bow.
+- **The hull** (an original design in the hull study: `src/hulls/designs.ts` `pushTug`, "Small push tug", also in the viewer):
+  - 13.0 x 5.4 m, 1.65 m draught, 65.9 t, hard chine.
+  - **Coefficients:** L/B 2.41, B/T 3.27; Cb 0.61, Cp 0.77, Cm 0.79, Cwp 0.92 (a full waterplane: the square bow).
+  - **Profile:** full almost to the bow, which ends in a square push plate about two thirds of her beam (`halfBeam` 1.75 m at the stem). The sheer is low aft (the towing deck, 0.95 m) and rises strongly to 2.0 m at the bow. Aft, a raised run over the propellers (keel -1.0 m at the transom); amidships full depth (-1.65 m); forward, the bottom sweeps up in a spoon to the foot of the plate, just above the waterline (+0.35 m).
+- **In the Shipyard** (`build.ts`, `DESIGN_HULLS[4]`):
+  - **Her bow is her own** (`pushBow`): the bow-rake choice leaves it as it is, and the page's slider reads "push bow" and is disabled (`scaledStudy` with no bow).
+  - **Layout:** `cockpit` 3.0 m (a long towing deck), `foredeck` 1.6 m.
+  - **Defaults, from the render:** a short house forward of amidships with its floor raised 0.4 m to see over the bow, windows 7.5 deg reverse-raked, twin 400 kW, the rubbing strake, rescue red.
+- **The push fender** (new module `hull.push-fender`, `modules/pushFender`, on a `hull.side` socket at the stem):
+  - **Shape:** a block of black rubber `thickness` 0.32 m thick, its outer corners chamfered, across the bow plate (`inset` 6 cm in from each side), from the bulwark top down to just above the plate's chines.
+  - **Drawing:** merged with her fixed parts, so no draw calls of its own.
+  - **Weight:** `kgPerM2` 140 per m² of face, designed into her weight high at the bow.
+  - **Price:** `CONFIG.shipyard.pushFenderPrice` £4,500.
+  - **Contact:** its face is probed at 5 x 3 points (`across`, `up`) against quays and piers, with its own material (`CONFIG.contacts.guards.pushFender`: stiffness 2e5, damping 4e4, friction 0.8, absorb 1.2 m/s).
+- **Boats against boats now see the guards** (`vesselContact.ts guardSamples`): the push fender, a strake or tyres, and the crew's fenders while out, so the tug pushes another boat on her fender before her bow plate meets it. Boats without guards, or with fenders in, are unchanged; the golden runs are identical.
+- **Design codes, version 16:** the code's first 16 characters only hold four hull types, so a fifth rides at the very top of the extension (`MORE_HULLS`; `HULL_TYPES` 5). It's 0 for the first four, so every earlier code reads exactly as before; 1 is the tug, whose first 16 characters hold hull 0. A bare tug's code is 22 characters. `ALL_FIELDS` gives `hull` 5 steps for checking and merging designs.
+- **The brief's ranking** (`typeFit.ts` `TYPE_FACTS[4]`), measured as the others were (standard size, bare, each engine fit, gearbox matched, the game's sea trials):
+
+  | Engines | Top speed (kn) | Range (nm) | Bollard pull (t) | Price |
+  |---|---|---|---|---|
+  | 150 kW | 6.2 | 35 | 1.56 | £443k |
+  | 2 x 150 kW | 7.7 | 41 | 1.56 | £461k |
+  | 280 kW | 7.6 | 36 | 2.87 | £459k |
+  | 2 x 280 kW | 9.1 | 46 | 2.87 | £492k |
+  | 400 kW | 8.4 | 43 | 4.16 | £473k |
+  | 2 x 400 kW | 10.1 | 56 | 4.16 | £521k |
+
+  Deck room: 79 crates or 53 pots; at her largest, 122 or 83. Good for: towing.
+- **Things to look at with the owner** (not changed):
+  - **Bollard pull is low for a tug:** 4.2 t on 800 kW, where a real one would show 10 t or more. The Shipyard's open propeller is capped at 1.05 m, and her twin fits pull the same as her single ones (as on the other types: the propeller sizing). Nozzles (Kort) and a bigger propeller for a deep tug would be the fix.
+  - **Range is short:** the tank is sized by engine power, not hull.
+  - **She's dear:** price goes with displacement.
+  - **Paint:** there's no red-and-grey tug livery; the paint list is full in the code (8 steps).
+  - **One bulwark height:** the Shipyard has one height all round, so there's no higher foredeck bulwark as in the render.
+- **Tests:**
+  - `tests/shipyard/tug.test.ts` (6 new; 661 in all, all pass):
+    - she's in the lists, and her code round-trips with the extension's other choices; the first four types' codes are unchanged;
+    - she builds level, stable, short and beamy, with twin screws, a strake and no warnings; her bow is square and her sheer rises to it;
+    - the push fender's place and points; no draw calls; it merges;
+    - only the tug has one;
+    - nosing into Calder Haven's quay at 2 m/s, she's stopped by over 20 kN with no damage, where a workboat hull is damaged;
+    - pushing a workboat broadside on her fender pushes her back before her bow plate would touch.
+  - The bow-rake test now expects the push bow to stay as it is. The other Shipyard tests loop over every hull type, so they run on the tug too: every engine, slider ends, gear placement, anchor and skiff, protection.
+- **Checked in headless Chromium:**
+  - the Shipyard's Bow ¾, Side and Stern ¾ views of her, and the Hull step with her card and the disabled "push bow" slider;
+  - the hull study viewer's new tab;
+  - her code opened in the game (moored at Calder Haven, no errors).
+- **Not checked:** the Quest; pushing a tow by hand in the game.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

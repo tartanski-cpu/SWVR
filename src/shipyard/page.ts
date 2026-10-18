@@ -315,7 +315,7 @@ slider('length', 'Length', () => `${boat.figures.lengthM.toFixed(2)} m`);
 slider('beam', 'Beam', () => `${boat.figures.beamM.toFixed(2)} m`);
 slider('depth', 'Depth', (v) => pct(SCALES.scale(v)));
 slider('bulwark', 'Bulwarks', (v) => `${SCALES.bulwark(v).toFixed(1)} m`);
-slider('bow', 'Bow rake', (v) => (v === 0 ? 'plumb' : `${SCALES.bow(v)}\u00b0`));
+slider('bow', 'Bow rake', (v) => (DESIGN_HULLS[design.hull].pushBow ? 'push bow' : v === 0 ? 'plumb' : `${SCALES.bow(v)}\u00b0`));
 {
   // Hull protection (owner): what keeps her sides off a quay.
   const h = document.createElement('h2');
@@ -463,6 +463,8 @@ function syncControls(): void {
     el.textContent = outputs[k]!(design[k]);
   });
   (document.querySelector('input[data-key=twin]') as HTMLInputElement).checked = !!design.twin;
+  // A tug's push bow is her own: no bow rake to choose.
+  (document.querySelector('input[type=range][data-key=bow]') as HTMLInputElement).disabled = !!DESIGN_HULLS[design.hull].pushBow;
   // The deckhouse as wide as the house: its width's other buttons aren't the one chosen.
   if (design.dhNarrow) document.querySelectorAll<HTMLElement>('[data-key="dhWidth"]').forEach((el) => el.classList.remove('on'));
   showOnHer();

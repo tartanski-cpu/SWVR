@@ -1,7 +1,9 @@
 /**
  * Boat against boat (the skiff alongside the workboat): a soft, fender-like contact.
  *
- * Each hull is sampled at its deck edges and chines, station by station (both sides). A
+ * Each hull is sampled at its deck edges and chines, station by station (both sides), and
+ * at what it carries to keep its sides off: the crew's fenders while they're out, a rubbing
+ * strake or tyres, a tug's push fender (so she pushes a barge on her fender). A
  * sample point of boat A that is inside boat B's hull (in B's plan, between its keel and
  * a little above its deck) is pushed out along the shortest way out of B - sideways, or
  * fore / aft near the ends - by a spring-damper:
@@ -15,6 +17,7 @@
  */
 import * as THREE from 'three';
 import type { Vec3 } from '../../core/math';
+import { gearOf } from '../../boats/sims';
 import { hullPlan } from '../layout';
 import type { VesselDef } from '../vesselDef';
 import type { VesselState } from '../vesselState';
@@ -70,6 +73,16 @@ function samples(def: VesselDef): Vec3[] {
   return s;
 }
 
+/** Her guards' points (her own axes): fenders while they're out, a strake or tyres, a push fender. */
+function guardSamples(s: VesselState): readonly (readonly [number, number, number])[] {
+  const fenders = gearOf(s, 'fenders');
+  const side = gearOf(s, 'sideGuard');
+  const push = gearOf(s, 'pushFender');
+  if (!push && !side && !(fenders && s.controls.fenders > 0)) return NONE;
+  return [...(fenders && s.controls.fenders > 0 ? fenders.probes : []), ...(side?.probes ?? []), ...(push?.probes ?? [])];
+}
+const NONE: readonly (readonly [number, number, number])[] = [];
+
 /** Points of A inside B: push them apart. Adds to `outA` / `outB`. */
 function pushOut(a: VesselState, defA: VesselDef, b: VesselState, defB: VesselDef, outA: ExternalForce[], outB: ExternalForce[]): void {
   qA.fromArray(a.orientation);
@@ -79,7 +92,7 @@ function pushOut(a: VesselState, defA: VesselDef, b: VesselState, defB: VesselDe
   const keelB = Math.min(...defB.hull.stations.map((st) => st.polygon[2][1]));
   const cgA = cgWorld(a, defA, qA);
   const cgB = cgWorld(b, defB, qB);
-  for (const s of samples(defA)) {
+  for (const s of [...samples(defA), ...guardSamples(a)]) {
     p.fromArray(s).applyQuaternion(qA).add(tmp.fromArray(a.position));
     // In B's axes.
     l.copy(p).sub(tmp.fromArray(b.position)).applyQuaternion(qBInv);

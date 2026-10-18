@@ -108,6 +108,7 @@ export type GearKind =
   | 'sternCleat'
   | 'fenders'
   | 'sideGuard'
+  | 'pushFender'
   | 'swimLadder'
   | 'lifeRing'
   | 'boatHook'
@@ -147,6 +148,8 @@ export interface GearFacts {
   fenders: { probes: [number, number, number][] };
   /** A rubbing strake or tyres along her sides (always on): its points to probe, both sides. */
   sideGuard: { kind: 'strake' | 'tyres'; probes: [number, number, number][] };
+  /** A tug's push fender on her square bow (always on): its face's points to probe. */
+  pushFender: { probes: [number, number, number][] };
   /** The swim ladder: its outboard line (x, z), foot and head heights, where you step aboard (deckX), the desktop's jump range, its width. */
   swimLadder: { x: number; z: number; bottom: number; top: number; deckX: number; range: number; width: number };
   /** The life ring: where it hangs stowed, and the cleat its line is made fast to. */

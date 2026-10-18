@@ -505,14 +505,15 @@ On desktop, aim the **+** reticle at a control. Click buttons and switches. Clic
 Design your own boat at https://tartanski-cpu.github.io/SWVR/next/shipyard.html (work in progress). The page is dark, easy on the eyes next to the game. It works like a designer's tool, in steps along the top: **Brief → Hull → Wheelhouse → Deck gear → Engine → Controls → Paint → Trials & handover** (Back / Next at the foot of the left-hand panel, or click a step).
 
 - **Brief (step 1): start from her jobs.** Tick **her jobs** in the game (cargo runs, lobster & crab pots, towing, fire fighting, search & rescue, trawling) and set her targets: top speed, range, price, stability (GM), a crane, and for cargo or pots how many she must carry on deck. Name her at the top.
-- **Hull types for this brief:** the four hull types, best first, each with what it can manage against your targets (✓ / ✗: speed, range, price, pull, deck room), from its measured sea trials. **Start from this hull** gives you that type as a **bare hull** (no deck gear), **sized for the deck cargo you asked for** (longer and beamier together until the crates or pots fit; a type that can only manage it stretched says so on its card), and every engine fit (three engines, single or twin) is tried on her by sea trial and the cheapest that does the job fitted.
+- **Hull types for this brief:** the five hull types, best first, each with what it can manage against your targets (✓ / ✗: speed, range, price, pull, deck room), from its measured sea trials. **Start from this hull** gives you that type as a **bare hull** (no deck gear), **sized for the deck cargo you asked for** (longer and beamier together until the crates or pots fit; a type that can only manage it stretched says so on its card), and every engine fit (three engines, single or twin) is tried on her by sea trial and the cheapest that does the job fitted.
 - **The brief is checked all the way** (top of the right-hand column): each target ✓ or ✗ with her figure, and when one isn't met, what to change and a button to that step. Each job adds its own lines: crates or pots on deck, bollard pull for towing (3 t), the gear the game's job needs. Gear the Shipyard can't fit yet (a tow point, a life ring, the trawl gear) shows as "not in the Shipyard yet" and doesn't count against her. The last step says whether she meets the brief.
 - **Deck cargo:** her figures (and the strip under the 3D view) say how many of the game's crates stand on her open deck at once, by the game's own rule for where cargo can go, and within what she can carry; and how many pots.
 - **Sea-trial charts** (right-hand column, above the numbers): speed and range at each lever position (with the brief's targets dashed), her turning circle (advance, transfer, tactical diameter, her length to scale), the roll dying away after a 10° heel, and her stopping distances in metres and boat lengths. Hover a dot or bar for its figures.
 
 Then the choices, a step at a time:
 
-1. Pick a hull type (landing craft, gillnetter, workboat or pilot boat), size her with the sliders, and rake her stem from plumb to 50°. **Size her for the brief's deck cargo** does the sizing again (say after changing the brief).
+1. Pick a hull type (landing craft, gillnetter, workboat, pilot boat or small tug), size her with the sliders, and rake her stem from plumb to 50°. **Size her for the brief's deck cargo** does the sizing again (say after changing the brief).
+   - **The small tug** is short, deep and beamy (13 × 5.4 m, 1.65 m draught), with a strong sheer up to a high square **push bow**. The bow is faced with a thick rubber **push fender**, from the bulwark top down nearly to the waterline. She starts with twin engines, a rubbing strake, and the house forward with its floor raised to see over the bow. Her bow is her own: the bow-rake slider reads "push bow". Nose her into a quay or push another boat and the fender takes it, not her plating. She's slow (about 10 knots flat out on twin 400 kW) but pulls hard for her size.
    Choose her **hull protection**, what keeps her sides off a quay:
    - **Fenders**, the cheapest, and what a new design starts with. A basket on deck: press it to put the fenders over the side coming alongside, and again to take them in. They only help while they're out.
    - A **rubber rubbing strake**, fixed, right round her sheer and the transom (across a square bow too, if she has no ramp). Firm: it takes a rub or a moderate knock.
@@ -615,7 +616,7 @@ Open the perf panel in VR with B (or from the menu). At 90 Hz the frame budget i
 
 ## Hull study (work in progress)
 
-`hulls.html` (live at [tartanski-cpu.github.io/SWVR/hulls.html](https://tartanski-cpu.github.io/SWVR/hulls.html)) shows ten workboat hull types, from a 10 m gillnetter to a 26 m multicat, generated from design curves, with their hydrostatics. It is groundwork for modular boats and not part of the game yet.
+`hulls.html` (live at [tartanski-cpu.github.io/SWVR/hulls.html](https://tartanski-cpu.github.io/SWVR/hulls.html)) shows eleven workboat hull types, from a 10 m gillnetter to a 26 m multicat (and the small push tug), generated from design curves, with their hydrostatics. It is groundwork for modular boats and not part of the game yet.
 
 ## Multiplayer
 

@@ -51,6 +51,11 @@ export interface DesignHull {
   planing: boolean;
   /** A square landing bow with its ramp (the landing craft's). */
   ramp: boolean;
+  /**
+   * A tug's square push bow (the small tug's): her own bow, which the bow choice leaves as
+   * it is, faced with a rubber push fender (modules/pushFender).
+   */
+  pushBow?: boolean;
   /** Minimum open deck (m) aft of the house (cockpit) and forward of it. */
   cockpit: number;
   foredeck: number;
@@ -77,9 +82,11 @@ const UPRIGHT: [number, number][] = [
  * A flat-bottomed hull's chine sweeps up with her forefoot instead (the landing craft's
  * square bow keeps its buoyancy that way).
  */
-function scaledStudy(d: HullDesign, L: number, B: number, D: number, bow: number, chinesRunOn = false): HullDesign {
+function scaledStudy(d: HullDesign, L: number, B: number, D: number, bow: number | null, chinesRunOn = false): HullDesign {
   const by = (c: [number, number][], k: number) => c.map(([t, v]) => [t, v * k] as [number, number]);
   const sheer = by(d.sheer, D);
+  // No bow choice (a push bow): her own keel and forefoot, scaled.
+  if (bow === null) return { ...d, length: d.length * L, halfBeam: by(d.halfBeam, B), sheer, keel: by(d.keel, D), rake: UPRIGHT, wheelhouse: undefined, houses: undefined };
   const bowed = bowKeel(by(d.keel, D), curveAt(sheer, 1), d.length * L, SCALES.bow(bow));
   return { ...d, length: d.length * L, halfBeam: by(d.halfBeam, B), sheer, keel: bowed.keel, ...(chinesRunOn ? { chineKeel: bowed.base } : {}), rake: UPRIGHT, wheelhouse: undefined, houses: undefined };
 }
@@ -166,6 +173,21 @@ export const DESIGN_HULLS: DesignHull[] = [
     // A pilot / crew boat: a long house amidships with walkaround side decks (the Targa and
     // Safehaven types), low bulwarks, a well-raked stem, twin engines.
     defaults: { length: 8, beam: 8, depth: 8, bulwark: 0, bow: 4, housePos: 9, houseLength: 12, houseWidth: 6, headroom: 3, floor: 3, visor: 2, roofThickness: 1, roofEdge: 2, windowRake: 6, lowerFront: 0, engine: 2, twin: 1, paint: 1 },
+  },
+  {
+    name: 'Small tug: 13 m, beamy and deep, a square push bow with a rubber push fender',
+    // Her bow is her own (a square push plate, the bottom sweeping up to it): no bow choice.
+    form: (L, B, D) => ({ kind: 'lofted', design: scaledStudy(study('pushTug'), L, B, D, null) }),
+    planing: false,
+    ramp: false,
+    pushBow: true,
+    // A long towing deck aft; the foredeck short, up to the push bow.
+    cockpit: 3.0,
+    foredeck: 1.6,
+    // The owner's reference: a short house forward of amidships, raised to see over the
+    // high bow, windows a little reverse-raked; a low towing deck aft; twin screws; a
+    // rubbing strake; red and grey.
+    defaults: { length: 8, beam: 8, depth: 8, bulwark: 4, bow: 0, housePos: 11, houseLength: 4, houseWidth: 4, headroom: 3, floor: 5, visor: 1, roofThickness: 1, roofEdge: 2, windowRake: 5, lowerFront: 0, engine: 2, twin: 1, paint: 7, guard: 2 },
   },
 ];
 
@@ -481,6 +503,18 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   const guardKg = strakeM * hg.strake.kgPerM + 2 * tyres.length * hg.tyres.kgEach;
   const guardY = prot.side === 'strake' ? deckMid - hg.strake.drop : deckMid - hg.tyres.drop;
   if (guardKg > 0) cg[1] += (guardKg / mass) * (guardY - cg[1]);
+  // A tug's push fender across her square bow plate (modules/pushFender): from the bulwark
+  // top down to just above where the plate's sides end (its chines), `inset` in from her
+  // sides; designed in high at her bow, as the strake is.
+  const pf = CONFIG.modules.pushFender;
+  const stemPoly = st[st.length - 1].polygon;
+  const pushFender = base.pushBow
+    ? { halfWidth: rnd(q.halfBeam(stem) - pf.inset), bottom: rnd(stemPoly[3][1] + pf.clear), top: rnd(q.deckY(stem) + bulwarkHeight), z: rnd(stem) }
+    : null;
+  if (pushFender) {
+    const kg = 2 * pushFender.halfWidth * (pushFender.top - pushFender.bottom) * pf.kgPerM2;
+    cg[1] += (kg / mass) * ((pushFender.top + pushFender.bottom) / 2 - cg[1]);
+  }
   const beamDeck = 2 * Math.max(...st.map((s) => s.halfBeamDeck));
   const lengthM = transom - stem;
   const gyradius = { roll: 0.39 * beamDeck, pitch: 0.278 * lengthM, yaw: 0.29 * lengthM };
@@ -950,6 +984,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
       : []),
     // Hull protection: the fender basket on deck; the strake or tyres along her sides.
     ...(basketAt ? [{ id: 'fenders', type: 'deck.fitting' as const, transform: { position: [basketAt[0], q.deckY(basketAt[1]), basketAt[1]] as V3 }, label: `${deckWords([basketAt[0], 0, basketAt[1]])}: the fender basket` }] : []),
+    ...(pushFender ? [{ id: 'pushFender', type: 'hull.side' as const, transform: { position: [0, pushFender.bottom, pushFender.z] as V3 }, label: 'Her square bow: the push fender' }] : []),
     ...(prot.side ? [{ id: 'hullGuard', type: 'hull.side' as const, transform: { position: [0, q.deckY(0), 0] as V3 }, label: prot.side === 'strake' ? 'Her sheer, all round: the rubbing strake' : 'Her sides: the tyres' }] : []),
     // The deck hydraulics' pump on the engine's power take-off, for the crane and the winch.
     ...(anchorAt ? [{ id: 'anchor', type: (bowRamp ? 'deck.equipment' : 'bow.windlass') as 'deck.equipment', transform: { position: anchorAt.at, rotationDeg: [0, anchorAt.yaw, 0] as V3 }, label: bowRamp ? 'The stern roller for the kedge anchor, port quarter' : 'The bow roller and the windlass behind it' }] : []),
@@ -1155,11 +1190,12 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   }
   if (craneAt || winchAt || skiffAt) recipe.modules.push({ socket: 'hydraulicPump', module: 'hydraulics.pto-pump' });
   if (basketAt) recipe.modules.push({ socket: 'fenders', module: 'deck.fenders', config: { z: fenderZs, basket: basketAt } });
+  if (pushFender) recipe.modules.push({ socket: 'pushFender', module: 'hull.push-fender', config: pushFender });
   if (prot.side) recipe.modules.push({ socket: 'hullGuard', module: 'hull.guard', config: { kind: prot.side, aroundBow: !bowRamp } });
 
   const gp = dg.price;
   const gearPrice = (winchAt ? gp.towWinch : 0) + (sternRoller ? gp.sternRoller : 0) + (aFrame ? gp.aFrame : 0) + (ring ? gp.lifeRing : 0) + (sideDoor ? gp.sideDoor : 0) + (anchorAt ? gp.anchor : 0) + (skiffAt ? gp.skiff : 0) + dhArea * dhc.pricePerM2;
-  const guardPrice = (basketAt ? pc.fendersPrice : 0) + strakeM * pc.strakePerM + (tyres.length ? 2 * tyres.length * pc.tyrePrice + pc.tyreFitting : 0);
+  const guardPrice = (pushFender ? CONFIG.shipyard.pushFenderPrice : 0) + (basketAt ? pc.fendersPrice : 0) + strakeM * pc.strakePerM + (tyres.length ? 2 * tyres.length * pc.tyrePrice + pc.tyreFitting : 0);
   const price = Math.round((mass * 6 + kw * n * 120 + (d.controls ? 18000 : 6000) + (craneAt ? 25000 : 0) + (hasMonitor ? 15000 : 0) + gearPrice + guardPrice) / 1000) * 1000;
   return {
     hull,

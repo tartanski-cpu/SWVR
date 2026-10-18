@@ -367,13 +367,15 @@ export function stepVessel(
       c.impact = Math.max(c.impact, contact.approach);
     }
     // Guards on her sides (vessel/physics/guards.ts): the crew's fenders while they're out, a
-    // rubbing strake or tyres. Each point stands proud of her plating and meets a quay or
-    // pier first, with its own spring; it takes up `absorb` of the knock before any of it
-    // counts as a hit on her hull. Probed only with a quay or pier within reach of her.
+    // rubbing strake or tyres, a tug's push fender on her bow. Each point stands proud of her
+    // plating and meets a quay or pier first, with its own spring; it takes up `absorb` of the
+    // knock before any of it counts as a hit on her hull. Probed only with a quay or pier
+    // within reach of her.
     const fenders = gearOf(state, 'fenders');
     const sideGuard = gearOf(state, 'sideGuard');
+    const pushFender = gearOf(state, 'pushFender');
     const fendersOut = !!fenders && state.controls.fenders > 0;
-    if ((fendersOut || sideGuard) && blockNear(pos.x, pos.z, reachOf(def) + 1)) {
+    if ((fendersOut || sideGuard || pushFender) && blockNear(pos.x, pos.z, reachOf(def) + 1)) {
       const guard = (probes: readonly (readonly [number, number, number])[], mat: GuardMaterial) => {
         for (const [lx, ly, lz] of probes) {
           toWorld(lx, ly, lz, pt);
@@ -388,6 +390,7 @@ export function stepVessel(
       };
       if (fendersOut) guard(fenders.probes, CONFIG.contacts.guards.fenders);
       if (sideGuard) guard(sideGuard.probes, CONFIG.contacts.guards[sideGuard.kind]);
+      if (pushFender) guard(pushFender.probes, CONFIG.contacts.guards.pushFender);
     }
     if (touching > 0) c.slide /= touching;
     // Her anchor (a module, M5a): the chain's pull at the hawse.

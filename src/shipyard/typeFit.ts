@@ -78,6 +78,17 @@ export const TYPE_FACTS: TypeFacts[] = [
     maxPots: 49,
     fits: [fit(0, 0, 8.6, 56, 1.56, 186_000), fit(0, 1, 10.8, 53, 1.5, 204_000), fit(1, 0, 10.6, 46, 2.74, 202_000), fit(1, 1, 17.8, 84, 2.57, 235_000), fit(2, 0, 12.2, 61, 3.98, 216_000), fit(2, 1, 24.1, 126, 3.27, 264_000)],
   },
+  {
+    // The small tug (measured Oct 2026, as the others): heavy for her length, so slow, short
+    // ranged on the tank her engines get, and dear; a big deck payload.
+    what: 'A tug: short, deep and beamy, a rubber push fender on her square bow to push barges and ships; a strong pull for her size, but slow.',
+    goodFor: ['towing'],
+    crates: 79,
+    pots: 53,
+    maxCrates: 122,
+    maxPots: 83,
+    fits: [fit(0, 0, 6.2, 35, 1.56, 443_000), fit(0, 1, 7.7, 41, 1.56, 461_000), fit(1, 0, 7.6, 36, 2.87, 459_000), fit(1, 1, 9.1, 46, 2.87, 492_000), fit(2, 0, 8.4, 43, 4.16, 473_000), fit(2, 1, 10.1, 56, 4.16, 521_000)],
+  },
 ];
 
 export interface TypeLine {

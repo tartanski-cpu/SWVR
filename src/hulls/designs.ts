@@ -1,5 +1,5 @@
 /**
- * Hull study designs: ten workboat types, small to large, monohull and catamaran. Each is
+ * Hull study designs: eleven workboat types, small to large, monohull and catamaran. Each is
  * an original design that takes its proportions and character from the type (no real
  * boat's lines are copied). Numbers are metres; see loft.ts for what each curve means.
  * Draught is set by the keel curve: the design waterline is y = 0.
@@ -26,6 +26,9 @@
  *     the house amidships on the bridge deck.
  *   - Multicat: ~26 x 11.5 m, draught 2.4 m, rectangular pontoon hull, house aft,
  *     open foredeck for the cranes.
+ *   - Small push tug (owner's reference render of a small tug, Oct 2026): ~13 x 5.4 m, L/B
+ *     about 2.4, hard chine, a high square push bow with a rubber push fender, the bottom
+ *     sweeping up to it; low aft deck, house forward of amidships, twin screws.
  */
 import type { HullDesign } from './loft';
 
@@ -609,5 +612,71 @@ export const DESIGNS: HullDesign[] = [
       { z0: 10.0, z1: 6.0, halfWidth: 2.6, height: 2.5, frontRake: 0.4, sill: 0.8, head: 2.0, panesFront: 5, panesSide: 3, panesBack: 3, overhang: 0.35, above: 2.6 },
     ],
     colours: { topsides: 0xd9622b, bulwark: 0xd9622b, bottom: 0x2a2a2a, boot: 0x2a2a2a, house: 0xf3efe2, deck: 0x5e6660, roof: 0x9aa09a },
+  },
+  {
+    id: 'pushTug',
+    name: 'Small push tug',
+    blurb: 'Small steel tug for harbour and push work: short, beamy and deep (L/B 2.4), hard chine, a strong sheer up to a high square push bow, its flat bow plate faced with a thick rubber push fender; the bottom sweeps up to the plate in a spoon. A low aft deck for towing, the house forward of amidships, twin propellers in a raised run aft. 13.0 x 5.4 m, draught 1.65 m.',
+    length: 13.0,
+    // Full almost to the bow, which ends square: a push plate about two thirds of her beam.
+    halfBeam: [
+      [0, 2.45],
+      [0.25, 2.7],
+      [0.6, 2.7],
+      [0.82, 2.4],
+      [0.95, 1.95],
+      [1, 1.75],
+    ],
+    // Low aft (the towing deck), a strong sheer up to the bow.
+    sheer: [
+      [0, 0.95],
+      [0.4, 1.0],
+      [0.7, 1.3],
+      [1, 2.0],
+    ],
+    // A raised run aft over the propellers, full depth amidships, and the bottom sweeping up
+    // in a spoon to the foot of the push plate, just above the waterline.
+    keel: [
+      [0, -1.0],
+      [0.12, -1.35],
+      [0.3, -1.65],
+      [0.62, -1.65],
+      [0.8, -1.25],
+      [0.92, -0.45],
+      [1, 0.35],
+    ],
+    rake: [
+      [0, 0.1],
+      [0.85, 0],
+      [1, -0.08],
+    ],
+    section: {
+      chineBeam: [
+        [0, 0.88],
+        [0.5, 0.9],
+        [0.85, 0.86],
+        [1, 0.9],
+      ],
+      chineHeight: [
+        [0, 0.3],
+        [0.5, 0.22],
+        [0.85, 0.25],
+        [1, 0.25],
+      ],
+      flare: [
+        [0, 0.02],
+        [0.6, 0.03],
+        [1, 0.08],
+      ],
+    },
+    // Higher bulwarks on the foredeck, round the push bow.
+    bulwark: [
+      [0, 0.75],
+      [0.55, 0.75],
+      [0.62, 1.0],
+      [1, 1.0],
+    ],
+    wheelhouse: { z0: 1.0, z1: -2.0, halfWidth: 1.7, height: 2.2, frontRake: 0.25, sill: 1.0, head: 1.9, panesFront: 3, panesSide: 2, panesBack: 2, overhang: 0.25 },
+    colours: { topsides: 0x6d6a66, bulwark: 0xd8352c, bottom: 0x25272a, boot: 0xd8352c, house: 0xf1f1ee, deck: 0x5d6a5e, roof: 0xd8352c },
   },
 ];
