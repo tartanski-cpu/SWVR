@@ -104,8 +104,6 @@ export const HOME: RegionDef = {
   flats: [
     // Calder Haven waterfront, level with the quay.
     { x: CH.x + 40, z: CH.z, radius: 150, height: 1.8, edge: 90 },
-    // The boatyard by the slipway, levelled at the waterfront's height.
-    { x: 758, z: 714, radius: 26, height: 1.8, edge: 18 },
     // Brannock pier root.
     { x: -665, z: 435, radius: 40, height: 2.0, edge: 40 },
     // Selkie Bay: a low beach and dune behind the bay head instead of a cut hillside.
@@ -141,9 +139,9 @@ export const HOME: RegionDef = {
     { x: 778, z: 602, width: 9, depth: 7, height: 4.5, yawDeg: 10, wall: 0xf1ede2, roof: 0x2f4f6f },
     { x: 784, z: 700, width: 9, depth: 8, height: 4.5, yawDeg: -8, wall: 0xe8d6b8, roof: 0x8a3a2a, cladding: 'boards' },
     { x: 805, z: 650, width: 12, depth: 8, height: 5, yawDeg: 4, wall: 0xf4f0e6, roof: 0x3e3e3e },
-    // The boatyard shed by the slipway, its front (door and the yard's board) facing west
-    // to the slip and the quay (CONFIG.boatyard).
-    { x: 764, z: 708, width: 12, depth: 9, height: 5, yawDeg: 90, wall: 0x6f7f78, roof: 0x7a4a30, cladding: 'sheet' },
+    // The boatyard shed on the quay apron, behind the berths: its front (door and the yard's
+    // board) facing west to the quay edge (CONFIG.boatyard).
+    { x: 732, z: 645, width: 12, depth: 9, height: 5, yawDeg: 90, wall: 0x6f7f78, roof: 0x7a4a30, cladding: 'sheet' },
     // Brannock: shed and cottage at the pier root.
     { x: -680, z: 440, width: 14, depth: 9, height: 5, yawDeg: 45, wall: 0x8c9aa3, roof: 0x3e4a52, cladding: 'sheet' },
     { x: -705, z: 470, width: 8, depth: 6, height: 4, yawDeg: 30, wall: 0xf0ebe0, roof: 0x7a2e22, cladding: 'boards' },
@@ -152,11 +150,12 @@ export const HOME: RegionDef = {
   ],
   yards: [
     {
-      // The yard crane by the head of the slip, its jib out over it; two old boats laid up.
-      crane: { x: 737, z: 710, jibDeg: 240 },
+      // The yard crane at the quay edge between the fuel and cargo berths (north of the goods
+      // stack), its jib out over the water; two old boats laid up on the quay round the shed.
+      crane: { x: 714.5, z: 637, jibDeg: 270 },
       boats: [
-        { x: 747, z: 722, headingDeg: 195, length: 9, beam: 3.2, depth: 1.7, house: true },
-        { x: 751, z: 697, headingDeg: 260, length: 7, beam: 2.6, depth: 1.3, house: false },
+        { x: 746, z: 660, headingDeg: 180, length: 9, beam: 3.2, depth: 1.7, house: true },
+        { x: 731, z: 631, headingDeg: 90, length: 7, beam: 2.6, depth: 1.3, house: false },
       ],
     },
   ],

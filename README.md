@@ -350,7 +350,7 @@ Everything you do now earns or costs money. The menu's **Office** tab is your ha
   - sell N salvage logs there.
 
   Each has a time limit and a bonus. Bigger ones need reputation at that port (15, 40). One contract at a time; late or abandoned, it's failed. The offers change every 10 minutes.
-- **The boatyard** at Calder Haven, by the slipway: a shed with a yard crane and old boats laid up rusting. Walk up to the **board on the shed's front** (VR: point and pull the trigger, or touch it; desktop: aim and click), with her in Calder Haven. Its tabs: **Add-ons** (her equipment: fitting one starts the game again with her refitted), **Upgrades** (for the gear she has) and **Repairs** (the hull, an engine overhaul).
+- **The boatyard** on the Calder Haven quay, behind the berths: a shed, a yard crane at the quay edge and old boats laid up rusting round the shed. Walk up to the **board on the shed's front** (VR: point and pull the trigger, or touch it; desktop: aim and click), with her in Calder Haven. Its tabs: **Add-ons** (her equipment: fitting one starts the game again with her refitted), **Upgrades** (for the gear she has) and **Repairs** (the hull, an engine overhaul).
 
   | Add-on / upgrade | Price | Needs (best port reputation) | Effect |
   |---|---|---|---|

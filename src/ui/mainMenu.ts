@@ -412,7 +412,7 @@ export function mainMenu(h: MenuHost): MainMenu {
       name: 'Jobs',
       rows: [
         { label: 'Balance', buttons: [{ text: () => h.balance(), weight: 2 }] },
-        { label: '', buttons: [{ text: 'Add-ons, upgrades, repairs: the boatyard at Calder Haven, by the slipway', weight: 3 }] },
+        { label: '', buttons: [{ text: 'Add-ons, upgrades, repairs: the boatyard on the Calder Haven quay', weight: 3 }] },
         { heading: 'Contract' },
         { label: '', buttons: [{ text: () => h.contractText(), weight: 3 }, { text: () => (h.contractText().startsWith('None') ? '' : 'Abandon'), press: () => h.abandonContract() }] },
         { heading: 'Job board' },

@@ -4872,6 +4872,13 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **The bigger fuel tank:** `CONFIG.career.bigTankFactor` 1.6 (the workboat 900 → 1,440 L). The career sets `VesselState.engine.tankL` each tick when she has it (so crew get it in the snapshot, and no restart); everything that reads the tank asks `vessel/fuelTank.ts fuelTankL` (the gauge, filling up at the berth and by hand, the hose, the low-fuel lamp, debug fuel).
 - **Checked:** `npm test` (113 files, 798 pass; the career and wear tests: buying and repairs at Calder only, not Brannock; new: the bigger tank fills to 1,440 L, the low-fuel lamp scaled; AIS bought; the rust tile mid-grey on average), typecheck. In the game in headless Chromium: the yard's ground levelled (1.8–2.2 m), the board drawn when near and hit by the reticle's ray; screenshots of the yard (the shed, the crane over the slip, the two rusting boats) and the board (Add-ons, and Upgrades after clicking its tab). No page errors. **Not checked:** the Quest (pointing at the board in VR, its text from a step back), and actually buying from the board in the game (the buy itself is the menu's, tested in the career test).
 
+### The boatyard onto the quay; a faster run (owner)
+
+- **The owner:** the yard was a bit far away: the building on the pier, the boats round it and the crane on the quayside. And a faster run.
+- **The boatyard** (`world/regions/home.ts`, `CONFIG.boatyard.board`) is on the Calder Haven quay now: the shed on the apron behind the berths (x 727.5–736.5, z 639–651), its front and board (727.4, 645) facing the quay edge, about 20 m from the cargo berth; the yard crane at the quay edge between the fuel berth and the goods stack (714.5, 637), its jib out west over the water; the two old boats laid up on the quay, beside the shed (746, 660) and south of it (731, 631). The flat made for the slipway site is gone (the terrain there is as before).
+- **Running:** `CONFIG.locomotion.runMultiplier` 2.4 → 3.2 (desktop Shift, a controller's left stick click, VR the stick pushed to its edge): about 5.1 m/s on desktop, 4.5 m/s in VR.
+- **Checked:** `npm test`, typecheck. Headless Chromium screenshots: the quay from the water (the shed, crane and boats clear of the harbour office, the pump, the goods stack and the berths) and the board, drawn when near and hit by the reticle's ray. No page errors. **Not checked:** the Quest.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

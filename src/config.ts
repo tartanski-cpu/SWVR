@@ -2310,14 +2310,15 @@ export const CONFIG = {
   gamepad: { deadZone: 0.15, steerCurve: 1.5, helmReach: 1.6, lookRate: 2.4 },
 
   /**
-   * The boatyard (owner, Oct 2026): where she's fitted out and mended, at Calder Haven by
-   * the slipway (the shed, a yard crane and old boats laid up: world/regions/home.ts). Its
+   * The boatyard (owner, Oct 2026): where she's fitted out and mended, on the Calder Haven
+   * quay (the shed on the apron, a yard crane at the quay edge and old boats laid up round
+   * the shed: world/regions/home.ts; the slipway was too far from the berths). Its
    * board on the shed's front (ui/yardBoard.ts) sells the add-ons and upgrades and does the
    * repairs, with her in this port. `board`: its centre (x, z; m), its height above the
    * ground, the way it faces (deg, compass: 270 = west), its width (m), how near (m) you
    * must be for it to be drawn, and how far a pointer reaches it (m: VR and desktop).
    */
-  boatyard: { port: 'calder', board: { x: 759.4, z: 708, up: 2.15, facingDeg: 270, width: 1.7, range: 25, reach: 4 } },
+  boatyard: { port: 'calder', board: { x: 727.4, z: 645, up: 2.15, facingDeg: 270, width: 1.7, range: 25, reach: 4 } },
 
   /** Player movement aboard and ashore. */
   locomotion: {
@@ -2327,8 +2328,11 @@ export const CONFIG = {
      */
     smoothEnabled: true,
     smoothSpeed: 1.4,
-    /** Running (owner request): walking speed times this. VR: push the stick all the way; desktop: Shift. */
-    runMultiplier: 2.4,
+    /**
+     * Running (owner request): walking speed times this. VR: push the stick all the way;
+     * desktop: Shift (a controller: the left stick clicked in). 2.4 was too slow (owner).
+     */
+    runMultiplier: 3.2,
     snapTurnDeg: 30,
     /** Crouch (X in VR, C on the desktop): how far the view and hands drop (m), and how fast (s). */
     crouchDrop: 0.6,
