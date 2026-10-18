@@ -2492,6 +2492,13 @@ export const CONFIG = {
      * past it raises the middle finger.
      */
     gesture: { stick: 0.6 },
+    /**
+     * The hands' turn on the controller (owner, from the Quest: they sat wrong), applied to
+     * every hand shape, ours and crew-mates' (deg, in the controller's axes: -z forward,
+     * +y up): first pitched forward (`pitchDeg`, the top of the hand toward forward), then
+     * rolled (`rollDeg`, + anti-clockwise as you look along it, the top toward your left).
+     */
+    handTurn: { pitchDeg: 90, rollDeg: 90 },
   },
 
   /**

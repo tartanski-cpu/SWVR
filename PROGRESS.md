@@ -4754,6 +4754,12 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   - sticks have a dead zone (`deadZone` 0.15).
 - **Checked:** `npm test` (111 files, 778 pass; new `tests/gamepad.test.ts`: the dead zone, the steering curve and letting go, the bumpers, no controller), typecheck. In the game in headless Chromium with a pretend controller, stepped at 60 frames a second: A takes the helm, RB half a second 0.45, LB a second back through neutral to 0.45 astern, B neutral, the stick at 0.6 a 0.39 helm then amidships, the right stick turns the view, W doesn't walk you off, the arrow key a second 0.9, A leaves and W walks. No page errors. **Not checked:** a real Xbox controller (the browser only sees one after a button is pressed on it), and the Quest (not affected).
 
+### The VR hands turned to sit right on the controllers (owner)
+
+- **The owner, in VR:** the new hands need pitching forward 90° and then rolling anti-clockwise 90°.
+- **Done** (`CONFIG.avatar.handTurn` {pitchDeg 90, rollDeg 90}, applied in `net/avatarOutfits.ts handGeometries`): every hand shape (relaxed, fist, point, middle finger), ours and crew-mates' (both are drawn on the controller's grip pose), is turned in the controller's axes: first pitched forward (the top of the hand toward forward), then rolled anti-clockwise looking along it (the top toward the left). Both hands the same way.
+- **Checked:** `npm test`, typecheck. **Not checked:** in VR (the owner will). If one hand comes out mirrored wrong, or the angles need nudging, it's those two numbers (or a mirrored roll for the left hand).
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

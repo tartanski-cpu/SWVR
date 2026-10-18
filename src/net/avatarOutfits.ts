@@ -223,7 +223,12 @@ export function handGeometries(look: number, side: -1 | 1): Record<HandPose, THR
   let set = handCache.get(key);
   if (!set) {
     const l = decodeLook(look);
-    set = { rest: handGeometry(l, side, 'rest'), fist: handGeometry(l, side, 'fist'), point: handGeometry(l, side, 'point'), rude: handGeometry(l, side, 'rude') };
+    // Turned to sit right on the controller (CONFIG.avatar.handTurn): pitch forward (about
+    // +x, by minus the angle: +y toward -z), then roll (about +z: +y toward -x).
+    const t = CONFIG.avatar.handTurn;
+    const turn = new THREE.Matrix4().makeRotationZ((t.rollDeg * Math.PI) / 180).multiply(new THREE.Matrix4().makeRotationX((-t.pitchDeg * Math.PI) / 180));
+    const hand = (pose: HandPose) => handGeometry(l, side, pose).applyMatrix4(turn);
+    set = { rest: hand('rest'), fist: hand('fist'), point: hand('point'), rude: hand('rude') };
     handCache.set(key, set);
   }
   return set;
