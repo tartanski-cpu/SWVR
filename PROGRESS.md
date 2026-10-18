@@ -3865,6 +3865,29 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Checked in headless Chromium:** a pilot boat with a 3 m, 1.2 m high, full-width, 30°-raked deckhouse, and set in with 0.5 m side decks, upright: views from the bow, stern and port; the wheelhouse on top, the steps up aft, no warnings. Found and fixed on the way: its faces wound inside out (invisible from outside), and its foot showing through her topsides at the bow. **Not checked:** the Quest, a phone, walking up the steps into a raised helm in the game.
 - **Next, for bigger boats (tugs), noted:** the deckhouse top walkable with rails and a ladder or stairs (the walk area's floors and ladders already do this for the workboat's roof), and an interior with a door into it.
 
+### Shipyard: a three-facet wheelhouse front (owner)
+
+- **The owner asked** (the small tug picture) for an option where the middle front pane stands square across her and the two outer panes are angled.
+- **"Front windows: Flat across / Three facets"** (Wheelhouse step; `design.facets`, version 17, above the later hull types (the small tug, version 16) in the code's extension, so 0 leaves earlier codes as they were).
+- **The shape:**
+  - the middle pane between the mullions (±0.5 m) stays square across;
+  - the outer two are angled back `CONFIG.shipyard.facetDeg` (30 deg) from square to the side walls. That's a setback of (house half-width − 0.5) × tan 30 at the walls: about 0.5 m on a 2.8 m wide house;
+  - full height, from below the deck to the roof, raked with the windows. The roof stays as it was, overhanging the angled corners.
+- **How it's drawn** (`hullMesh.ts`):
+  - the front is built in three across (split at the mullions), then everything at the front is set back by `facetDz(x)` (0 across the middle, the facet's depth at the side walls). The side walls' front ends follow.
+  - the floor is filled out to the angled walls (`planSlab`);
+  - the rain glass and the wipers (`rainGlass.ts`) follow the outer panes too.
+- **The console and helm** stand the facet's depth further aft, so the console's full width fits behind the angled corners (`HouseShape.facet.depth`; build.ts `iF`; layout.ts `consoleAft`). The middle glass then stands a little ahead of the dash, as on a pilot house. The instruments overhead, the binoculars and the side door's place move with it.
+- **When it stays flat**, with a warning:
+  - a house too narrow (under 0.25 m outside the mullions);
+  - a house too short (less than 1.6 m behind the facets' depth: the console's 0.5 m and room to stand at the helm).
+- **Checked:**
+  - typecheck and tests (664 with the tug's; `tests/shipyard/facets.test.ts`: the code, with the tug's hull type too; the facet's depth from the angle; the helm moved aft by it; a short house left flat);
+  - screenshots of a 12 m workboat from the bow quarter, from forward, from above and at the helm.
+- **Not checked:**
+  - rain on the angled panes with the wipers going;
+  - the game in VR.
+
 ### Shipyard: the roof chamfered on its front and sides (owner)
 
 - **The owner** sent a picture of a small tug whose roof is chamfered on the front and both sides, the visor look. The Shipyard's roof slab had only its front face raked back.

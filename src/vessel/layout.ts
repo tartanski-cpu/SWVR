@@ -137,7 +137,8 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: reado
   const ahead = sh ? Math.max(0, wh.floorY + (wh.frontSill ?? wh.windowSill) - sh.lowerFromY) * Math.tan((sh.lowerRakeDeg * Math.PI) / 180) : 0;
   const ext = { x: wh.halfWidth, z0: wh.front - ahead, z1: wh.aft };
   const int = { x: wh.halfWidth - wh.wall, z0: wh.front + wh.wall, z1: wh.aft - wh.wall };
-  const consoleAft = int.z0 + wh.consoleDepth;
+  // (A faceted front's console stands aft of its corners: vesselDef.ts HouseShape.facet.)
+  const consoleAft = int.z0 + wh.consoleDepth + (wh.shape?.facet?.depth ?? 0);
   const doorHalf = wh.doorWidth / 2;
   const sd = wh.sideDoor;
   // A deckhouse under the wheelhouse (vessel/deckhouse.ts): solid, and not walked on, for now.

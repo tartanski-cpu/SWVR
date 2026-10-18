@@ -2055,6 +2055,8 @@ export const CONFIG = {
      *                     as a whole: those modules don't weigh themselves, so she floats on
      *                     her designed lines with them.)
      */
+    /** A three-facet wheelhouse front (owner): its outer panes angled back this far from square across her (deg). */
+    facetDeg: 30,
     deckGear: {
       winchFromTransom: 0.75,
       standRoom: 0.6,

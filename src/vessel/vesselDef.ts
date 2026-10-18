@@ -51,6 +51,13 @@ export interface HouseShape {
   roofEdgeDeg: number;
   /** How far the roof reaches forward of the top of the front windows (m). */
   visor: number;
+  /**
+   * A three-facet front (owner: a tug's pilot house): the middle pane square across her,
+   * the outer two angled back to the sides from `centre` (m either side of the centreline,
+   * the mullions) to `depth` (m aft) at the side walls; the console and helm stand that
+   * much further aft (hullMesh.ts facetDz).
+   */
+  facet?: { centre: number; depth: number };
 }
 
 /** A step at the aft door: a tread `y` high from `z0` to `z1` (z0 < z1), across the doorway. */

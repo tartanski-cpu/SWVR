@@ -563,7 +563,7 @@ The page shows her in 3D (around her and at the helm), her figures and her sea t
 
 **Variants:** **+ Fork** (in the tabs over the 3D view) copies the tab you're on into a new variant you name ("Amy's twin-engine version"), with its own pins and sketches; then try things there without touching the main design. Each variant is a tab (double-click to rename, × to delete); coloured dots show who's on which. **Compare** shows two side by side: her profile and plan at the same scale (sterns lined up), a list of what differs, and bars for their sea trials and figures. Tick values in the list and **Copy ticked values** to merge them into the first, or **Make it the main design** (the old main is kept as a variant). Works on your own too.
 
-**Rails:** on the Hull step, handrails over her bulwarks or none. **Flat view** (with the view buttons) draws her with no perspective, like a drawing: Side is her profile, Plan her plan.
+**Front windows:** on the Wheelhouse step, flat across or **three facets** (the middle pane square, the outer two angled back to the sides, as on a tug; the helm stands a little further aft). **Rails:** on the Hull step, handrails over her bulwarks or none. **Flat view** (with the view buttons) draws her with no perspective, like a drawing: Side is her profile, Plan her plan.
 
 **Projects** (📁 in the header): a project is all of a piece of design work — the brief, the design and its variants, their pins and sketches. **Save** keeps it under her name; **New design** starts afresh (the brief cleared, no pins); **Open** brings a saved one back. Starting a new design or opening another saves the work on show first, so nothing is lost. Kept in this browser, like the favourites; not while designing together (leave the session first).
 

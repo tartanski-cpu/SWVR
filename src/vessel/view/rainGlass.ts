@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { CONFIG } from '../../config';
 import type { WheelhouseDef } from '../vesselDef';
-import { frontRake } from './hullMesh';
+import { facetDz, frontRake } from './hullMesh';
 
 /**
  * Rain on the wheelhouse front windows, and the wipers. The windows are open frames until
@@ -45,6 +45,8 @@ export class RainGlass {
   private readonly v = new THREE.Vector3();
   private readonly s = new THREE.Vector3();
   private readonly level = new THREE.Quaternion();
+  /** A faceted front's setback at x (0 for a flat one). */
+  private readonly dz: (x: number) => number;
 
   constructor(def: WheelhouseDef) {
     const wh = def.layout.wheelhouse;
@@ -56,9 +58,19 @@ export class RainGlass {
     // Pane centres between the corner posts and the mullions at x = +-0.5.
     const paneX = [(x0 + -0.5) / 2, 0, (x1 + 0.5) / 2];
     const pivotY = head + c.wiperPivotAbove;
-    this.pivots = paneX.map((x) => new THREE.Vector3(x, pivotY, wh.front - 0.015));
+    // A faceted front (hullMesh.ts facetDz): the outer panes set back on the angle, with their wipers.
+    this.dz = facetDz(wh);
+    this.pivots = paneX.map((x) => new THREE.Vector3(x, pivotY, wh.front - 0.015 + this.dz(x)));
 
-    const geo = new THREE.PlaneGeometry(x1 - x0, head - sill).translate((x0 + x1) / 2, (sill + head) / 2, wh.front + wh.wall * 0.5);
+    // Three across (its columns at the mullions), each pane's glass set back with its pane.
+    const geo = new THREE.PlaneGeometry(1, head - sill, 3, 1).translate(0, (sill + head) / 2, wh.front + wh.wall * 0.5);
+    const xs = [x0, -0.5, 0.5, x1];
+    const pos = geo.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      const x = xs[i % 4];
+      pos.setX(i, x);
+      pos.setZ(i, pos.getZ(i) + this.dz(x));
+    }
     this.material = new THREE.ShaderMaterial({
       transparent: true,
       depthWrite: false,
@@ -157,9 +169,12 @@ export class RainGlass {
     const cos = Math.cos(angle);
     this.q.setFromAxisAngle(this.z, angle);
     let i = 0;
+    // Each part on its facet: set back by the facet at its x, less its pivot's (already in p.z).
+    let px = 0;
     const put = (x: number, y: number, z: number, sx: number, sy: number, sz: number, turned: boolean) =>
-      this.parts.setMatrixAt(i++, this.m.compose(this.v.set(x, y, z), turned ? this.q : this.level, this.s.set(sx, sy, sz)));
+      this.parts.setMatrixAt(i++, this.m.compose(this.v.set(x, y, z + this.dz(x) - this.dz(px)), turned ? this.q : this.level, this.s.set(sx, sy, sz)));
     for (const p of this.pivots) {
+      px = p.x;
       // The two links pivot LINK apart on the header and stay parallel (a parallelogram), so
       // the carrier across their tips - and the blade on it - stays level and upright.
       for (const [dx, w] of [[-LINK / 2, 0.016], [LINK / 2, 0.009]] as const) put(p.x + dx + (sin * L) / 2, p.y - (cos * L) / 2, p.z, w, L, 0.01, true);
