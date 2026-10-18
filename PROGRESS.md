@@ -3865,7 +3865,13 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Checked in headless Chromium:** a pilot boat with a 3 m, 1.2 m high, full-width, 30°-raked deckhouse, and set in with 0.5 m side decks, upright: views from the bow, stern and port; the wheelhouse on top, the steps up aft, no warnings. Found and fixed on the way: its faces wound inside out (invisible from outside), and its foot showing through her topsides at the bow. **Not checked:** the Quest, a phone, walking up the steps into a raised helm in the game.
 - **Next, for bigger boats (tugs), noted:** the deckhouse top walkable with rails and a ladder or stairs (the walk area's floors and ladders already do this for the workboat's roof), and an interior with a door into it.
 
-### Shipyard: the side windows' middle frame upright again, clear of a faceted corner (owner)
+### Shipyard: the throttle always beside the wheel (owner)
+
+- **The owner** (in VR): with the console's wings following a faceted front, the throttle was too far away: "always keep that control only next to the wheel at the original distance".
+- **Why:** two things carried it off: the console's layout is spread to the house's width (on the tug, the throttle went 0.82 m out from the wheel), and on a faceted front it went back with the wing.
+- **Now:** the throttle and its pedestal are never further out than on the reference console (0.45 m from the wheel; closer on a narrow console, which squeezes the layout: `shipyard/build.ts`), and never set back with a wing (`console.standard` `wrap.fixed`). At 0.45 m it's on the console's square middle anyway.
+- **Checked:** typecheck and tests (`tests/shipyard/facets.test.ts`: the throttle no further out than the reference, not set back); the game, desktop, headless: the throttle beside the wheel on a faceted design. **Not checked:** VR.
+
 
 - **The owner** (on the change below, which raked the side windows' middle mullion with the front): "the forward most side pillar should adapt to the angle but the other should stay vertical, being cut if necessary".
 - **Now** (`vessel/view/hullMesh.ts buildShapedHouse`): only the side windows' front post takes the front's rake; the middle mullion stands upright again. It now sits midway between that post (as raked, and set back with a faceted corner: it didn't allow for the facet, so on the tug it stood right at the corner) and the aft wall. Where a front raked back leans over it, it stops where the post meets it (cut short; with the facet allowed for, that's rare).

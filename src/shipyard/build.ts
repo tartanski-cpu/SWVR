@@ -1316,9 +1316,14 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   const dashHalf = hw - wall - 0.11;
   const sx = dashHalf / cc.dash.halfWidth;
   cc.dash.halfWidth = Math.round(dashHalf * 1000) / 1000;
-  cc.pedestals.x = cc.pedestals.x.map((x: number) => Math.round(x * sx * 1000) / 1000);
+  // The throttle (and its pedestal) beside the wheel, no further out than on the reference console
+  // (owner: on a wide console, spread with it, it was out of reach in VR); closer on a narrow one.
+  const throttleX = cc.slots.throttle.position[0] as number;
+  const throttleAt = Math.round(throttleX * Math.min(1, sx) * 1000) / 1000;
+  cc.pedestals.x = cc.pedestals.x.map((x: number) => (x === throttleX ? throttleAt : Math.round(x * sx * 1000) / 1000));
   cc.groups = cc.groups.map((gp: { x: [number, number] }) => ({ ...gp, x: gp.x.map((x) => Math.round(x * sx * 1000) / 1000) }));
   for (const slot of Object.values(cc.slots) as { position: V3 }[]) slot.position = [Math.round(slot.position[0] * sx * 1000) / 1000, slot.position[1], slot.position[2]];
+  cc.slots.throttle.position = [throttleAt, cc.slots.throttle.position[1], cc.slots.throttle.position[2]];
   // A faceted front: the dash wraps round with it (console.standard's `wrap`), its wings set back as the outer windows are.
   // Its controls stay square to her (owner: forward is forward); its screens turn with the wings, flush with the dash's face.
   if (house.facet)
@@ -1326,6 +1331,8 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
       centre: house.facet.centre,
       k: Math.round((house.facet.depth / (hw - house.facet.centre)) * 1e4) / 1e4,
       turn: consoleMount.modules!.filter((m) => m.module === 'instrument.screen').map((m) => m.socket),
+      // The throttle stays beside the wheel where it is on a flat console (owner: set back with the wing it was out of reach in VR).
+      fixed: ['throttle'],
     };
   // The advanced instruments (taken off again below for the basic controls), and the chart table.
   recipe.modules.push(

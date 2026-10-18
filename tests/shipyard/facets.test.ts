@@ -50,7 +50,7 @@ describe('a three-facet front', () => {
       for (const s of CONSOLE.sockets!(cc)) {
         const [x, , z] = s.transform.position;
         const flatZ = flatSlots[s.id].position[2];
-        if (Math.abs(x) <= 0.5) expect(z, s.id).toBeCloseTo(flatZ, 6);
+        if (Math.abs(x) <= 0.5 || s.id === 'throttle') expect(z, s.id).toBeCloseTo(flatZ, 6); // (the throttle stays by the wheel, owner)
         else {
           wings++;
           expect(z, s.id).toBeCloseTo(flatZ + (Math.abs(x) - 0.5) * cc.wrap!.k, 6);
@@ -59,6 +59,10 @@ describe('a three-facet front', () => {
         }
       }
       expect(wings).toBeGreaterThan(3);
+      // The throttle beside the wheel: no further out than on the reference console, not set back (owner).
+      const thr = CONSOLE.sockets!(cc).find((x) => x.id === 'throttle')!;
+      expect(Math.abs(thr.transform.position[0])).toBeLessThanOrEqual(CONFIG.modules.helmConsole.slots.throttle.position[0] + 1e-9);
+      expect(thr.transform.position[2]).toBeCloseTo(flatSlots.throttle.position[2], 6);
       expect(flat.warnings).toEqual([]);
     }
   });
