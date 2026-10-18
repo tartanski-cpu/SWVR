@@ -3179,6 +3179,39 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   - in the headless browser, in a design moored at Calder Haven: started the engine, raised the boom, hooked a crate off the foredeck, swung it to starboard (she heeled about 1°), and landed it on the quay.
 - **Not done yet:** the tow winch, A-frame, net drum, windlass and tender crane are modules but drawn at the workboat's fixed places. Making them placeable is next.
 
+### The skiff: a stern cleat, tied up front and back; more cargo (owner)
+
+- **The owner asked** for a cleat at the skiff's stern for a line, so she can be tied front and back to the ship or to the quay, and for her to carry more cargo, estimated from her floor area.
+- **Her cleats are modules now (`deck.boat-cleat`)**, on two new sockets on her hull (`CONFIG.vessels.skiff.cleats`):
+  - the bow cleat on her stem head, where the app used to draw it;
+  - the new stern cleat on the port quarter's coaming, clear of the outboard.
+- **One press on either cleat works that end's line:**
+  - fast (to the ship or ashore): it lets go;
+  - else, lying slowly alongside a free quay berth: it goes ashore to the bollard. With both ends ashore she's moored, by the same mooring lines as the big boats (`mooring.ts`). She lies `inshore` 1.4 m closer to the quay than a berth's mark, which is set for the workboat's beam;
+  - else: to the ship's nearest cleat in reach. The bow line is her painter as before; the stern line works the same way (`TenderState.sternPainter`), so she can lie alongside the ship tied fore and aft.
+- **The ship's own berth:** if another boat lies in the berth (the workboat), the skiff's lines go to the ship, not to that berth's marks.
+- **A ship's midship cleat** clicked leads the nearer of her free lines there, or lets go the line that's on it.
+- **Both lines** are drawn, and the crane lets both go when it picks her up.
+- **The mooring forces** are the big boats' (`CONFIG.docking`). On her 330 kg they're heavily damped; she comes in and settles without bouncing (moored within 30 s in the tests).
+- **Cargo, estimated from her floor:**
+  - **The space:** between the bow (`bowClear` 0.6 m) and the helmsman by the tiller (`aftClear` 0.9 m) her floor is 2.1 m long and 1.2-1.4 m wide inside, about 2.6 m². The edge margin was the bulwark's 0.25 m; it's now 0.08 m for her thin sides (`cargo.edge`, new, read by `cargo/deck.ts`).
+  - **What fits** (the game's rule, `deckCapacity`): five crates (two abreast aft, two amidships, one in the narrower bow), or two oil drums.
+  - **No slot limit now** (`slots` 0, was 2): room and mass decide.
+  - **`maxPayloadKg` 300 (was 250).** Five crates (200 kg), or two drums and a crate, with her helmsman sink her about 10 cm. Her waterplane is about 3.8 m², roughly 39 kg/cm, which leaves about 0.2 m of freeboard aft.
+- **Checked:**
+  - typecheck and all tests (784), including new ones:
+    - her two cleats;
+    - moored at a quay berth by both lines, alongside her mark and lined up with it;
+    - held in a strong offshore breeze, and blowing off when let go;
+    - in the ship's berth her lines go to the ship;
+    - tied alongside the ship fore and aft in a breeze;
+    - five crates by hand, the sixth refused; two drums, the third refused;
+  - updated tests for the midship cleat (it now takes her free stern line when her painter's fast) and for her modules;
+  - golden runs unchanged;
+  - two weather tests and one slipway test timed out once under load, and pass when run again;
+  - in the game, headless: tied at the Calder fuel berth by both lines to the bollards, and alongside the workboat on her midship and aft cleats.
+- **Not checked:** in VR.
+
 ### The skiff crane and the anchor windlass made placeable (owner)
 
 - **The owner found** the skiff (with her crane) and the anchor still couldn't be placed in the Shipyard. On the module side the reason was that both were fixed to the workboat's own coordinates. Both now stand wherever their socket is, like the deck crane, tow winch and stern gear.

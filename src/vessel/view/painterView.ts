@@ -1,15 +1,15 @@
 import * as THREE from 'three';
 import type { WorldState } from '../../core/world';
 import { surfaceHeight, type PreparedWave } from '../../ocean/waves';
-import { cleatLocal, skiffCleatLocal } from '../physics/painter';
+import { cleatLocal, lineFrom, skiffCleatLocal } from '../physics/painter';
 import { VESSEL_DEFS } from '../vesselDef';
 
 const SEGMENTS = 10;
-/** At most this many painters drawn (one skiff today). */
-const MAX = 2;
+/** At most this many lines drawn (one skiff today, bow and stern). */
+const MAX = 4;
 
 /**
- * The skiff's painter, drawn between the ship's cleat and her bow cleat on the drawn
+ * The skiff's painter and stern line, drawn between the ship's cleat and hers on the drawn
  * (interpolated) boats. Like the towline: one instanced mesh of short cylinders, one draw
  * call. Slack, it hangs in a parabola about its length (sag s = sqrt(3 d (L - d) / 8) for
  * chord d, length L), but not below the water's surface; taut, it's straight.
@@ -37,18 +37,20 @@ export class PainterView {
 
   update(world: WorldState, roots: Map<string, THREE.Object3D>, waves: readonly PreparedWave[]): void {
     let n = 0;
-    for (const v of Object.values(world.vessels)) {
+    for (const v of Object.values(world.vessels)) for (const end of ['bow', 'stern'] as const) {
       const t = v.tender;
-      if (!t?.painter || t.phase !== 'free' || n >= MAX) continue;
+      const line = t && lineFrom(t, end);
+      if (!t || !line || t.phase !== 'free' || n >= MAX) continue;
       const host = world.vessels[t.hostId];
       const hostRoot = roots.get(t.hostId);
       const root = roots.get(v.id);
-      const local = host && cleatLocal(VESSEL_DEFS[host.defId], t.painter.cleat);
-      if (!hostRoot || !root || !local) continue;
+      const local = host && cleatLocal(VESSEL_DEFS[host.defId], line.cleat);
+      const own = skiffCleatLocal(VESSEL_DEFS[v.defId], end);
+      if (!hostRoot || !root || !local || !own) continue;
       hostRoot.localToWorld(this.a.fromArray(local));
-      root.localToWorld(this.b.fromArray(skiffCleatLocal(VESSEL_DEFS[v.defId])));
+      root.localToWorld(this.b.fromArray(own));
       const d = this.a.distanceTo(this.b);
-      const L = t.painter.length;
+      const L = line.length;
       const sag = d < L ? Math.sqrt((3 * d * (L - d)) / 8) : 0;
       const point = (u: number, out: THREE.Vector3) => {
         out.lerpVectors(this.a, this.b, u);

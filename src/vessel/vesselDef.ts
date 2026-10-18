@@ -100,7 +100,8 @@ export interface VesselConfig {
   damping: Workboat['damping'];
   resistance: Workboat['resistance'];
   layout: LayoutConfig;
-  cargo: Workboat['cargo'];
+  /** `edge`: how far inside her sheer cargo keeps (m; unset: the bulwark's, cargo/deck.ts). */
+  cargo: Workboat['cargo'] & { edge?: number };
   boardingSpot: Vec3;
   spawn: Workboat['spawn'];
   windage: Workboat['windage'];

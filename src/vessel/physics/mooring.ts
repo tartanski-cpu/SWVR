@@ -125,11 +125,13 @@ type V = { x: number; y: number; z: number };
 
 /**
  * Advance docking/mooring and return the line forces at the bow and stern line points.
- * @param cleats             the stations (vessel z) of her bow and stern cleats
+ * @param cleats             the stations (vessel z) of her bow and stern cleats, and how much
+ *                           closer to the quay than the berth's marks she lies (`inshore`, m:
+ *                           a small boat; the marks are set for the workboat's beam)
  * @param bow, stern          line points on the boat (world) and their velocities
  * @param outBow, outStern    horizontal forces (world, N)
  */
-export function stepMooring(s: VesselState, cleats: { bow: number; stern: number }, bow: V, bowVel: V, stern: V, sternVel: V, dt: number, outBow: V, outStern: V): void {
+export function stepMooring(s: VesselState, cleats: { bow: number; stern: number; inshore?: number }, bow: V, bowVel: V, stern: V, sternVel: V, dt: number, outBow: V, outStern: V): void {
   const c = CONFIG.docking;
   const m = s.mooring;
   outBow.x = outBow.y = outBow.z = 0;
@@ -172,8 +174,10 @@ export function stepMooring(s: VesselState, cleats: { bow: number; stern: number
   // her alongside, centred on the berth (vessel z is aft, the berth axis points her bow).
   const fz = -cleats.bow;
   const az = -cleats.stern;
-  if (m.bow) line(bow, bowVel, b.x + a.x * fz, b.z + a.z * fz, outBow);
-  if (m.stern) line(stern, sternVel, b.x + a.x * az, b.z + a.z * az, outStern);
+  const inX = b.shoreX * (cleats.inshore ?? 0);
+  const inZ = b.shoreZ * (cleats.inshore ?? 0);
+  if (m.bow) line(bow, bowVel, b.x + a.x * fz + inX, b.z + a.z * fz + inZ, outBow);
+  if (m.stern) line(stern, sternVel, b.x + a.x * az + inX, b.z + a.z * az + inZ, outStern);
 
   if (worst > c.breakDist && !docking) {
     // Lines parted.

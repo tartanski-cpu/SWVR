@@ -138,9 +138,15 @@ export interface GearFacts {
   searchlight: typeof CONFIG.vessels.workboat.spotlight;
   /** The fire monitor: the nozzle's pivot, its aim limits, the water's speed and drift (fire/fire.ts shoots the jet from it). */
   fireMonitor: typeof CONFIG.vessels.workboat.fireMonitor;
-  /** A cleat the mooring lines are made fast to, forward (bow line) or aft (stern line): its station (z) and the line's height on her. */
-  bowCleat: { z: number; lineY: number };
-  sternCleat: { z: number; lineY: number };
+  /**
+   * A cleat the mooring lines are made fast to, forward (bow line) or aft (stern line): its
+   * station (z) and the line's height on her. A small boat's (the skiff's, modules/boatCleat)
+   * also gives where it is across her (`x`; else her side at the bulwark) and how much closer
+   * to the quay than a berth's mark she lies (`inshore`, m: a berth is marked for the
+   * workboat's beam).
+   */
+  bowCleat: { z: number; lineY: number; x?: number; inshore?: number };
+  sternCleat: { z: number; lineY: number; x?: number; inshore?: number };
   /**
    * The crew's fenders: where each hangs over the side when out (its outer face, both sides;
    * vessel/physics/guards.ts probes them against quays while 'fenders.out' is on).

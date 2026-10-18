@@ -250,8 +250,8 @@ export class Cleat extends Control {
 
   /**
    * `index` 0-3: a mooring cleat (channel 'cleat'); 4-5: a midship cleat, for the skiff's
-   * painter only (channel 'painterCleat'); -1: the skiff's own bow cleat (channel
-   * `<skiffId>:painter`). Its value on press is its index.
+   * painter only (channel 'painterCleat'); -1, -2: the skiff's own bow and stern cleats
+   * (modules/boatCleat, channel `<skiffId>:painter`). Its value on press is its index.
    */
   constructor(
     readonly index: number,
@@ -294,7 +294,12 @@ export class Cleat extends Control {
 
   sync(state: VesselState): void {
     let fast = this.painterOn;
-    if (this.index < 0) fast = !!state.tender?.painter; // her bow cleat: the painter's on
+    if (this.index < 0) {
+      // A small boat's own cleat (-1 bow, -2 stern): its line to the ship, or ashore.
+      const bow = this.index === -1;
+      const m = state.mooring;
+      fast = !!(bow ? state.tender?.painter : state.tender?.sternPainter) || (m.phase !== 'free' && !!(bow ? m.bow : m.stern));
+    }
     else if (this.index < 4) {
       const m = state.mooring;
       const end = this.index < 2 ? m.bow : m.stern;

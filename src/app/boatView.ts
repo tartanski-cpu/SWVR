@@ -139,7 +139,7 @@ export class BoatView {
     for (const m of modules.shared) this.root.add(m);
   }
 
-  /** A control the app makes for her (the skiff's bow cleat, for the painter): it rides and routes with her. */
+  /** A control the app makes for her: it rides and routes with her. */
   addControl(c: Control): void {
     this.controls.push(c);
     if (!c.root.parent) this.root.add(c.root);

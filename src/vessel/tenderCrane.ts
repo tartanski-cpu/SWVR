@@ -179,7 +179,9 @@ export function applyCraneIntent(world: WorldState, intent: Intent): void {
     const yaw = Math.atan2(-fwd.x, -fwd.z); // her heading relative to ours (rad, + = bow to port)
     t.phase = 'hoisting';
     t.t = 0;
-    delete t.painter; // let go: she comes up on the hook
+    // Let go: she comes up on the hook.
+    delete t.painter;
+    delete t.sternPainter;
     t.from = [local.x, local.y, local.z, yaw];
     tender.controls.lever = 0;
     tender.controls.obOn = 0;

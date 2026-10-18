@@ -279,6 +279,8 @@ export interface TenderState {
    * on (vessel/physics/painter.ts cleatLocal order) and its length (m) from her bow cleat.
    */
   painter?: { cleat: number; length: number };
+  /** Her stern line to the ship, the same way (from her stern cleat), while it's fast. */
+  sternPainter?: { cleat: number; length: number };
 }
 
 export function createVesselState(id: EntityId, defId: string): VesselState {

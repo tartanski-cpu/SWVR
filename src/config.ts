@@ -1276,18 +1276,39 @@ export const CONFIG = {
         bodyRadius: 0.22,
       },
       /**
-       * Cargo: two crates, or one drum (`slots`, CONFIG.cargo.kinds), in her bottom between
-       * the bow and the helmsman's place by the tiller. Sitting low, wedged in, it doesn't
-       * slide about (`fixed`), and she has no D-rings.
+       * Cargo in her bottom between the bow (`bowClear`) and the helmsman's place by the
+       * tiller (`aftClear`), kept `edge` m inside her thin aluminium sides (owner: she should
+       * carry more). Her floor there is about 2.6 m² (2.1 m long, 1.2-1.4 m wide inside), which
+       * takes five crates side by side, one deep (cargo/deck.ts deckCapacity; a crate's
+       * 0.6 × 0.5 m stands in 0.6 m square), or two oil drums: no slot limit, just room and
+       * mass. `maxPayloadKg` 300: five crates (200 kg), or two drums and a crate, with her
+       * helmsman sink her about 10 cm (her waterplane ~3.8 m², ~39 kg/cm), leaving ~0.2 m of
+       * freeboard aft. Sitting low, wedged in, it doesn't slide about (`fixed`), and she has
+       * no D-rings.
        */
       cargo: {
-        maxPayloadKg: 250,
-        slots: 2,
+        maxPayloadKg: 300,
+        slots: 0,
         bowClear: 0.6,
         aftClear: 0.9,
+        edge: 0.08,
         fixed: true,
         lashPoints: [] as [number, number][],
         lashRange: 0.8,
+      },
+      /**
+       * Her cleats (modules/boatCleat; owner: tie her up front and back, to the ship or the
+       * quay): the bow cleat on her stem head, the stern cleat on the port quarter's coaming
+       * (clear of the outboard), each socket the cleat's base (x, y, z); the line pulls from
+       * `lineY` above it. Moored at a quay berth she lies `inshore` m closer to the quay than
+       * the berth's mark, which is set for the workboat's beam (her half beam 0.8 m and a
+       * little air, against the workboat's 2.1 m and fenders).
+       */
+      cleats: {
+        bow: [0, 0.444375, -1.55] as [number, number, number],
+        stern: [-0.74, 0.45, 1.6] as [number, number, number],
+        lineY: 0.06,
+        inshore: 1.4,
       },
       /** Windage (see the workboat's): low sides plus whoever is aboard. */
       windage: { side: 2.4, front: 1.2, center: [0, 0.6, 0] as [number, number, number] },

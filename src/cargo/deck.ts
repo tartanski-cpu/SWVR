@@ -15,7 +15,7 @@ export interface DeckFootprint {
   hz: number;
 }
 
-/** Bulwark thickness plus a little air (m). */
+/** Bulwark thickness plus a little air (m), unless she says (`cargo.edge`: the skiff's thin sides). */
 const EDGE = 0.25;
 /** Kept by the def itself, so a Shipyard design (a new 'design' def each time) gets its own. */
 const plans = new WeakMap<VesselDef, ReturnType<typeof hullPlan>>();
@@ -33,7 +33,7 @@ function openPoint(defId: string, x: number, z: number): boolean {
   const def = VESSEL_DEFS[defId];
   const wh = def.layout.wheelhouse;
   if (z > plan.transom - Math.max(EDGE, def.cargo.aftClear) || z < plan.stem + def.cargo.bowClear) return false;
-  if (Math.abs(x) > plan.halfBeam(z) - EDGE) return false;
+  if (Math.abs(x) > plan.halfBeam(z) - (def.cargo.edge ?? EDGE)) return false;
   if (wh && Math.abs(x) < wh.halfWidth + 0.05 && z > wh.front - 0.05 && z < wh.aft + 0.05) return false;
   if (def.layout.deckhouse && inDeckhouse(def.layout.deckhouse, x, z, 0.05)) return false;
   if (onGear(footprintsOf({ defId }), x, z, 0.05, plan.deckY(z))) return false;

@@ -68,12 +68,18 @@ describe("the skiff's painter", () => {
     expect(span(boat, skiff, 1)).toBeGreaterThan(CONFIG.docking.painter.maxLength + 5);
   });
 
-  it('led to the midship cleat, and made fast again from her bow cleat', () => {
+  it('led to the midship cleat (the nearer of her free lines), and made fast again from her bow cleat', () => {
     const { boat, skiff, send, run, launch } = setup(0);
     launch();
-    // Out of reach of the midship cleat from the bow: it stays where it is.
+    // Her painter's fast forward: the midship cleat takes her free stern line (in reach of it).
     send(skiff.id, 'painter', 5);
     expect(skiff.tender!.painter?.cleat).toBe(1);
+    expect(skiff.tender!.sternPainter?.cleat).toBe(5);
+    // Let both go (from her own cleats).
+    send(skiff.id, 'painter', -2);
+    send(skiff.id, 'painter', -1);
+    expect(skiff.tender!.painter).toBeUndefined();
+    expect(skiff.tender!.sternPainter).toBeUndefined();
     // Bring her bow alongside the working deck (as if she'd been walked aft on it).
     const [cx, , cz] = cleatLocal(VESSEL_DEFS.workboat, 5)!;
     const bowZ = skiffCleatLocal(VESSEL_DEFS.skiff)[2];
@@ -82,6 +88,7 @@ describe("the skiff's painter", () => {
     skiff.orientation = [...boat.orientation];
     skiff.linearVelocity = [0, 0, 0];
     skiff.angularVelocity = [0, 0, 0];
+    // Both free: the nearer end, her bow, is led there.
     send(skiff.id, 'painter', 5);
     expect(skiff.tender!.painter?.cleat).toBe(5);
     run(20);

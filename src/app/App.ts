@@ -83,8 +83,7 @@ import { PotHands, type PotHandsContext } from '../potting/potHands';
 import { FuelView } from '../fuel/fuelView';
 import { FuelHands, type FuelHandsContext } from '../fuel/fuelHands';
 import { PainterView } from '../vessel/view/painterView';
-import { cleatName, painterPlan, skiffCleatLocal } from '../vessel/physics/painter';
-import { Cleat } from '../controls/deckGear';
+import { cleatName, painterPlan } from '../vessel/physics/painter';
 import { Binoculars } from '../player/binoculars';
 import { HandGear, type GearKind } from '../player/handGear';
 import { GearView } from '../player/gearView';
@@ -639,13 +638,6 @@ export class App {
       const boat = new BoatView(vessel.id, def, modules, vessel.id === this.testVesselId);
       view.root.add(boat.root);
       this.boats.set(vessel.id, boat);
-      // An outboard boat (the skiff): her bow cleat on the stem head, for the painter.
-      if (gearOf(vessel, 'outboard')) {
-        const bow = new Cleat(-1, { id: 'painter', channel: 'painter', label: "Skiff's painter (bow cleat): let go / make fast to the nearest cleat" });
-        const [bx, by, bz] = skiffCleatLocal(def);
-        bow.root.position.set(bx, by - 0.06, bz);
-        boat.addControl(bow);
-      }
     }
   }
 
@@ -869,8 +861,8 @@ export class App {
     if (this.homeView && testVessel) {
       {
         const p = this.ourSkiff()?.tender;
-        const on = p?.phase === 'free' ? p.painter?.cleat : undefined;
-        for (const c of this.homeView.cleats) c.painterOn = c.index === on;
+        const free = p?.phase === 'free';
+        for (const c of this.homeView.cleats) c.painterOn = free && (p?.painter?.cleat === c.index || p?.sternPainter?.cleat === c.index);
       }
       this.homeView.update(testVessel, dt, this.dashInView(), this.world.environment, frame);
       this.homeView.radio?.update(this.world.rescue, runStatus(this.world), dt, isPowered(testVessel, 'radio'), towAlertT(this.world) >= 0 || fireAlertT(this.world) >= 0);
@@ -1740,12 +1732,17 @@ export class App {
     return Object.values(this.world.vessels).find((v) => v.tender?.hostId === this.testVesselId);
   }
 
-  /** The painter clicked (at `cleat`, -1 her bow cleat): say what happens, or why not. */
+  /** The skiff's lines clicked (at `cleat`: a ship's, or -1 / -2 her bow / stern cleat): say what happens, or why not. */
   private painterHint(skiff: VesselState, cleat: number): void {
     const plan = painterPlan(this.world, skiff, cleat);
-    if (plan.action === 'castOff') this.overlay.notify(`Painter let go from the ${cleatName(plan.cleat)}`, 2.5);
-    else if (plan.action === 'makeFast') this.overlay.notify(`Painter made fast to the ${cleatName(plan.cleat)} (${plan.length.toFixed(1)} m)`, 3);
-    else this.overlay.notify(`Painter: ${plan.why}`, 3);
+    const line = plan.action !== 'none' && plan.end === 'stern' ? 'Stern line' : 'Painter';
+    if (plan.action === 'castOff') this.overlay.notify(`${line} let go from the ${cleatName(plan.cleat)}`, 2.5);
+    else if (plan.action === 'makeFast') this.overlay.notify(`${line} made fast to the ${cleatName(plan.cleat)} (${plan.length.toFixed(1)} m)`, 3);
+    else if (plan.action === 'ashore') {
+      const other = plan.end === 'bow' ? skiff.mooring.stern : skiff.mooring.bow;
+      this.overlay.notify(`${line} made fast to the quay${other ? '' : `: now the ${plan.end === 'bow' ? 'stern' : 'bow'} line`}`, 3);
+    } else if (plan.action === 'letGoAshore') this.overlay.notify(`${line} let go from the quay`, 2.5);
+    else this.overlay.notify(`${line === 'Painter' && cleat === -2 ? 'Stern line' : line}: ${plan.why}`, 3);
   }
 
   private cleatHint(cleat: number): void {
