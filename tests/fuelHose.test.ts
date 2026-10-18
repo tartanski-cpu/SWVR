@@ -92,6 +92,31 @@ describe('refuelling by hand: the pump, its hose and her filler', () => {
     expect(world.career!.money).toBeCloseTo(money - 10 * tank.refuelRateLps * CONFIG.career.costs.fuelPerL, 0);
   });
 
+  it('the gauge starts from nought at every START: a second fill, the nozzle never hung up, reads its own litres, as her tank does', () => {
+    const { world, v, send, run } = setup();
+    run(1);
+    send('hoseTake');
+    const f = fillerWorld(v, 1);
+    send('hoseMove', [f.x, f.y, f.z]);
+    send('hosePlug', [1], v.id);
+    v.engine.fuelL = 100;
+    send('pumpStart');
+    run(8);
+    send('pumpStop');
+    // Taken out and put down on the quay, not hung up; later, back in and a second fill.
+    send('hoseTake');
+    send('hoseDrop', [717, 3, 622]);
+    send('hoseTake');
+    send('hoseMove', [f.x, f.y, f.z]);
+    send('hosePlug', [1], v.id);
+    const before = v.engine.fuelL;
+    send('pumpStart');
+    run(2.4);
+    send('pumpStop');
+    run(0.2);
+    expect(gaugeOf(world, 'calder').litres).toBeCloseTo(v.engine.fuelL - before, 1);
+  });
+
   it('stops by itself when she is full; START does nothing on a full tank or with the nozzle not in', () => {
     const { world, v, send, run } = setup();
     run(1);

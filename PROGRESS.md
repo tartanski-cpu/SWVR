@@ -4220,6 +4220,13 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Tests** (`fuelHose.test.ts`): fillers on every diesel boat; at both fuel berths, either way round, the quay-side filler within reach (3 to 5.4 m); take, carried 30 m held at 10 m, plugged, START, 10 s filling, the gauge, STOP, billed; stops itself when full, START refused with the nozzle out or full; drifting off pulls it out; put down on the quay and picked up again, hung up; dropped over the water back to the pump; someone else's nozzle can't be taken.
 - **Checked in headless Chromium:** the desktop path by its own label / click (take, the filler under the reticle, plug, START), fuel flowing and the gauge counting; screenshots of the pump with the nozzle hung up, pumping, and the hose from the pump to her filler. No page errors. **Not checked:** the Quest (gripping the nozzle, the trigger at the filler, pressing the buttons by hand).
 
+### Fix: the fuel pump's gauge counts from START (owner)
+
+- **The owner:** the pump read 25.6 L, but the boat's fuel readout had gone up only 6 L.
+- **The cause:** the gauge went back to nought only when the nozzle came out of the pump's holster. Taken out of the filler and put down on the quay (or left in the filler) instead of hung up, the next fill carried on from the last: an earlier ~20 L plus this 6 L. The fuel itself was right: in every boat (workboat, landing craft, a twin-V8 Shipyard design), engine running or not, the tank and the litres through the hose agree to the litre.
+- **Now** (`fuelHose.ts pumpStart`): every START zeroes the gauge, so it reads what this run of the pump puts in her (it still zeroes when the nozzle comes off the pump, too).
+- **Test** (`fuelHose.test.ts`): two fills, the nozzle put down on the quay between them, never hung up: the second reads its own litres, as her tank does. On the old code it read 26.1 L for 6.0 L in the tank, the owner's case.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

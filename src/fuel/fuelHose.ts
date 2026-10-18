@@ -21,8 +21,9 @@ import { standingHeight } from '../world/geography';
  *           in, if the filler is within reach of the pump.
  *   pump    START on the pump: fuel flows as the menu's Refuel does (vesselControl.ts
  *           stepRefuelling: at a fuel berth, slow, until she's full) and is billed when it
- *           stops (career.ts). The gauge counts the litres since the nozzle came off the pump.
- *           STOP stops it; so does taking the nozzle out.
+ *           stops (career.ts). The gauge counts the litres from START (owner: it read 25.6 L
+ *           while the boat had taken 6: it went on from an earlier fill when the nozzle hadn't
+ *           been hung back on the pump in between). STOP stops it; so does taking the nozzle out.
  *   stow    hang it back in the holster. Let go anywhere else and it lies on the quay (over
  *           the water, it swings back to the pump).
  *   pulled  a boat plugged in that drifts `pullOut` m past the hose's reach pulls it out:
@@ -44,7 +45,7 @@ export type NozzleAt =
 export interface FuelHose {
   port: string;
   at: NozzleAt;
-  /** Litres through the pump since the nozzle last came off it (the gauge). */
+  /** Litres through the pump since START was last pressed (the gauge). */
   litres: number;
   /** Her tank last tick, while plugged in (to count what flows). */
   lastFuel?: number;
@@ -177,7 +178,7 @@ export function applyFuelIntent(world: WorldState, intent: Intent): void {
       if (at.kind === 'hand' && !mine && world.players[at.player]) return;
       const pos = nozzleWorld(world, hose);
       if (at.kind === 'filler') unplug(world, hose);
-      if (at.kind === 'pump') hose.litres = 0; // a new fill: the gauge back to nought
+      if (at.kind === 'pump') hose.litres = 0; // off the pump: the gauge back to nought
       hose.at = { kind: 'hand', player: intent.playerId, pos: [pos.x, pos.y, pos.z] };
       return;
     }
@@ -206,6 +207,8 @@ export function applyFuelIntent(world: WorldState, intent: Intent): void {
       const tank = v && gearOf(v, 'diesel')?.engine.fuel.tankL;
       if (!v || !tank || !canRefuel(v) || v.engine.fuelL >= tank) return;
       v.refuelling = true;
+      // A new fill: the gauge from nought, so it shows what this START puts in her.
+      hose.litres = 0;
       hose.lastFuel = v.engine.fuelL;
       return;
     }
