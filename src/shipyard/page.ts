@@ -28,7 +28,8 @@ import { gearOf, useDesign } from '../boats/sims';
 import { assembleView } from '../modular/assemble';
 import type { SeaTrialResults } from '../vessel/seaTrials';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
-import { buildVesselMesh } from '../vessel/view/hullMesh';
+import { briefPaper } from './briefPaper';
+import { buildVesselMesh, buildVesselMeshParts } from '../vessel/view/hullMesh';
 import { DESIGN_HULLS, ENGINES, LIVERIES, ROOF_PAINTS, type DesignedBoat } from './build';
 import { ALL_FIELDS, decodeDesign, DEFAULT_DESIGN, encodeDesign, GUARDS, RAILS, SILLS, SINGLE_ONLY_ENGINES, SKIFFS, placeOf, placeValue, SCALES, type PlaceKey, type ShipDesign } from './design';
 import { hullPlan } from '../vessel/layout';
@@ -180,12 +181,18 @@ function drawBoat(): void {
   }
   const def = VESSEL_DEFS.design;
   const root = new THREE.Group();
-  root.add(buildVesselMesh(def.hull, def.layout, def.exhaust?.position, def.livery));
+  // Hull and house apart, so a step can show one on its own (focus, below).
+  const parts = buildVesselMeshParts(def.hull, def.layout, def.exhaust?.position, def.livery);
+  root.add(parts.hull);
+  if (parts.house) root.add(parts.house);
   const modules = assembleView(RECIPES.design, def, LIBRARY);
-  root.add(new BoatView('design', def, modules, true).root);
+  const modulesRoot = new BoatView('design', def, modules, true).root;
+  root.add(modulesRoot);
   addSkiff(root);
   scene.add(root);
   boatRoot = root;
+  shown = { hull: parts.hull, house: parts.house, modules: modulesRoot, skiff: root.children.find((c) => c.name === 'skiff') ?? null };
+  focusStep();
   // Her extent: the frame for pins and marks (hull fractions, notes.ts).
   const box = hullBox(root);
   hullMin = box.min.toArray();
@@ -202,6 +209,7 @@ function addSkiff(root: THREE.Group): void {
   const sk = VESSEL_DEFS.skiff;
   const mesh = buildVesselMesh(sk.hull, sk.layout, sk.exhaust?.position, sk.livery);
   mesh.position.set(...crane.stow);
+  mesh.name = 'skiff';
   root.add(mesh);
 }
 /**
@@ -209,7 +217,57 @@ function addSkiff(root: THREE.Group): void {
  * glows and the searchlight's beam reach far beyond her and would throw the frame out.
  */
 function hullBox(root: THREE.Object3D): THREE.Box3 {
-  return new THREE.Box3().setFromObject(root.children[0] ?? root);
+  const box = new THREE.Box3().setFromObject(root.children[0] ?? root);
+  const house = root.children.find((c) => c.name === 'house');
+  return house ? box.union(new THREE.Box3().setFromObject(house)) : box;
+}
+
+// ── Each step's view (owner, Oct 2026): the part being worked on, the rest out of the way ──
+/** Her parts as drawn: hull, house, the modules (equipment, controls, lights), the skiff. */
+let shown: { hull: THREE.Mesh; house: THREE.Mesh | null; modules: THREE.Object3D; skiff: THREE.Object3D | null } | null = null;
+/** A ghost: faint glass with her edges drawn, enough to see where her sides and deck are. */
+const ghostFill = new THREE.MeshBasicMaterial({ color: 0x9cc3dc, transparent: true, opacity: 0.08, depthWrite: false });
+const ghostEdge = new THREE.LineBasicMaterial({ color: 0xa9cfe6, transparent: true, opacity: 0.35, depthWrite: false });
+/** Show a mesh solid (as built), ghosted, or not at all. */
+function look3(m: THREE.Mesh | null, how: 'solid' | 'ghost' | 'off'): void {
+  if (!m) return;
+  m.userData.solid ??= m.material;
+  m.visible = how !== 'off';
+  m.material = how === 'ghost' ? ghostFill : (m.userData.solid as THREE.Material);
+  let edges = m.children.find((c) => c.name === 'edges');
+  if (how === 'ghost' && !edges) {
+    edges = new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry, 28), ghostEdge);
+    edges.name = 'edges';
+    m.add(edges);
+  }
+  if (edges) edges.visible = how === 'ghost';
+}
+/**
+ * The step on show decides what's drawn: the hull alone at Hull; the house over a ghost of
+ * the hull at Wheelhouse (with what's inside the house: console, seats); the engines inside a
+ * ghost of her at Engine; everything for the rest.
+ */
+function focusStep(): void {
+  const step = stepEls()[stepAt]?.dataset.step ?? '';
+  // The brief is written on paper, not shown on a boat.
+  $('view').classList.toggle('paperMode', step === 'brief');
+  $('briefPaper').hidden = step !== 'brief';
+  if (!shown) return;
+  const { hull, house, modules, skiff } = shown;
+  const hullHow = step === 'wheelhouse' || step === 'engine' ? 'ghost' : 'solid';
+  const houseHow = step === 'hull' ? 'off' : step === 'engine' ? 'ghost' : 'solid';
+  look3(hull, hullHow);
+  look3(house, houseHow);
+  if (skiff) skiff.visible = !['hull', 'wheelhouse', 'engine'].includes(step);
+  // The modules: none at Hull or Engine; at Wheelhouse only those inside the house.
+  // (Inside its walls: a little narrower than its outside, so fenders on her sides stay out.)
+  const inHouse = house ? new THREE.Box3().setFromObject(house).expandByVector(new THREE.Vector3(-0.15, 0.05, 0.05)) : null;
+  const c = new THREE.Vector3();
+  for (const m of modules.children) {
+    if (step === 'hull' || step === 'engine') m.visible = false;
+    else if (step === 'wheelhouse') m.visible = !!inHouse && inHouse.containsPoint(new THREE.Box3().setFromObject(m).getCenter(c));
+    else m.visible = true;
+  }
 }
 let hullMin = [0, 0, 0];
 let hullMax = [1, 1, 1];
@@ -1369,10 +1427,19 @@ function stepEls(): HTMLElement[] {
   return [...stepBody.querySelectorAll<HTMLElement>(':scope > .step')];
 }
 let stepAt = 0;
-function goStep(to: number | string): void {
+/**
+ * Go to a step of the design flow. In a session everyone moves together (owner: the steps
+ * didn't keep in step): `share` sends it to the others; a step that came from someone else
+ * isn't sent back.
+ */
+function goStep(to: number | string, share = true): void {
   const els = stepEls();
   const i = typeof to === 'number' ? to : els.findIndex((e) => e.dataset.step === to);
   if (i < 0 || i >= els.length) return;
+  if (share) {
+    side().setStep(els[i].dataset.step!);
+    $('flowWho').textContent = '';
+  }
   stepAt = i;
   seen.add(els[i].dataset.step!);
   els.forEach((e, k) => e.classList.toggle('on', k === i));
@@ -1380,7 +1447,7 @@ function goStep(to: number | string): void {
   ($('stepBack') as HTMLButtonElement).disabled = i === 0;
   const next = $('stepNext') as HTMLButtonElement;
   next.disabled = i === els.length - 1;
-  next.textContent = i === els.length - 2 ? 'Trials & handover →' : 'Next →';
+  next.textContent = i < els.length - 1 ? `Next: ${els[i + 1].dataset.title} →` : 'Next →';
   try {
     sessionStorage.setItem(STEP_KEY, els[i].dataset.step!);
   } catch {
@@ -1388,6 +1455,7 @@ function goStep(to: number | string): void {
   }
   if (els[i].dataset.step === 'deck gear') placeFromPins();
   showStepNav();
+  focusStep();
 }
 function showStepNav(): void {
   const nav = $('stepNav');
@@ -1399,6 +1467,12 @@ function showStepNav(): void {
     const flag = e.dataset.step === 'handover' && verdict !== null ? `<span class="flag">${verdict ? '✓' : '✗'}</span>` : '';
     b.innerHTML = `<span class="n">${i + 1}</span>${e.dataset.title}${flag}`;
     b.onclick = () => goStep(i);
+    if (i > 0) {
+      const a = document.createElement('span');
+      a.className = 'arrow';
+      a.textContent = '›';
+      nav.appendChild(a);
+    }
     nav.appendChild(b);
   });
 }
@@ -1450,6 +1524,14 @@ function showBrief(): void {
   if (document.activeElement !== name) name.value = brief.name;
   document.title = `${brief.name ? `${brief.name} · ` : ''}Workboat World Shipyard`;
   showTrial(); // its charts draw the brief's targets; it shows the brief check too
+  showPaper();
+}
+/** The brief on the yard's paper (briefPaper.ts), shown in the middle at the Brief step. */
+function showPaper(): void {
+  const any = brief.jobs.length || brief.speedKn || brief.rangeNm || brief.budget;
+  const top = any ? rankTypes(brief)[0] : null;
+  const best = top ? { name: DESIGN_HULLS[top.hull].name.split(':')[0].trim(), verdict: top.misses ? `${top.misses} line${top.misses === 1 ? '' : 's'} short` : 'best fit' } : null;
+  $('briefPaper').innerHTML = briefPaper(brief, best);
 }
 /** What her trial says now, if it's for the design as she is (null while a new one runs). */
 function currentTrial(): SeaTrialResults | null {
@@ -1735,6 +1817,12 @@ const handlers: SessionEvents = {
     brief = b ?? newBrief();
     showBrief();
     saveSessionCopy();
+  },
+  onStep: (s, by) => {
+    // Someone moved the session on (or back): everyone's on the same step.
+    const who = by ? people.find((p) => p.id === by)?.name : null;
+    goStep(s, false);
+    $('flowWho').textContent = who ? `${who} moved everyone here` : '';
   },
   onLost: () => {},
 };

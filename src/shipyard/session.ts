@@ -27,7 +27,7 @@
 import type { ClientTransport, HostTransport, Link } from '../net/transport';
 import type { ShipDesign } from './design';
 import { cleanNote, dropNote, putNote, type Note } from './notes';
-import { cleanDoc, cleanVariant, dropVariant, MAIN, newDoc, putVariant, type Variant, type YardDoc } from './variants';
+import { cleanDoc, cleanStep, cleanVariant, dropVariant, MAIN, newDoc, putVariant, type Variant, type YardDoc } from './variants';
 import { cleanBrief, type Brief } from './brief';
 
 export type { YardDoc } from './variants';
@@ -56,7 +56,8 @@ type Op =
   | { t: 'unnote'; v: string; id: string }
   | { t: 'variant'; variant: Variant }
   | { t: 'unvariant'; id: string }
-  | { t: 'brief'; brief: Brief };
+  | { t: 'brief'; brief: Brief }
+  | { t: 'step'; step: string };
 type Presence = { cursor?: Person['cursor']; holding?: Person['holding']; name?: string; variant?: string };
 /**
  * "Try her together": one person sends everyone into the game, in the same multiplayer
@@ -115,6 +116,8 @@ export interface SessionEvents {
   onBrief?: (brief: Brief | null, by: string | null) => void;
   /** Someone else pressed "Try her together": go into the game, joining their room. */
   onGo?: (go: Go, by: string) => void;
+  /** Someone moved the session to another step of the design flow (or it arrived, on joining). */
+  onStep?: (step: string, by: string | null) => void;
 }
 
 /** Common to both sides: the session's copy of everything, and the people. */
@@ -122,6 +125,8 @@ abstract class Side {
   variants: Variant[];
   /** What she's for (brief.ts), once someone has set it. */
   brief: Brief | null;
+  /** The step of the design flow everyone's on (null: not set yet). */
+  step: string | null;
   people: Person[] = [];
   /** This browser's person id. */
   me = '';
@@ -130,6 +135,7 @@ abstract class Side {
     const doc = 'variants' in start ? cleanDoc(start) : null;
     this.variants = doc?.variants ?? newDoc(start as ShipDesign).variants;
     this.brief = doc?.brief ?? null;
+    this.step = doc?.step ?? null;
   }
 
   /** The main design and its notes (the first tab). */
@@ -144,12 +150,17 @@ abstract class Side {
   }
 
   doc(): YardDoc {
-    return { v: 2, variants: this.variants, ...(this.brief ? { brief: this.brief } : {}) };
+    return { v: 2, variants: this.variants, ...(this.brief ? { brief: this.brief } : {}), ...(this.step ? { step: this.step } : {}) };
   }
 
   /** Set the brief (shared, whole). */
   setBrief(brief: Brief): void {
     this.act({ t: 'brief', brief });
+  }
+
+  /** Move everyone to a step of the design flow. */
+  setStep(step: string): void {
+    this.act({ t: 'step', step });
   }
 
   /** Change a variant's design here and share it. */
@@ -197,6 +208,13 @@ abstract class Side {
       this.brief = b;
       this.events.onBrief?.(b, by);
       return { t: 'brief', brief: b };
+    }
+    if (op.t === 'step') {
+      const s = cleanStep(op.step);
+      if (!s || s === this.step) return null;
+      this.step = s;
+      this.events.onStep?.(s, by);
+      return { t: 'step', step: s };
     }
     if (op.t === 'unvariant') {
       if (op.id === MAIN || !this.variant(op.id)) return null;
@@ -353,7 +371,9 @@ export class Member extends Side {
       this.people = msg.people;
       this.variants = doc.variants;
       this.brief = doc.brief ?? null;
+      this.step = doc.step ?? null;
       this.events.onBrief?.(this.brief, null);
+      if (this.step) this.events.onStep?.(this.step, null);
       this.events.onVariants?.(this.variants, null);
       for (const v of this.variants) this.events.onNotes?.(v.notes, v.id);
       this.events.onDesign(this.design, cleanPatch(this.design, this.design), null, MAIN);

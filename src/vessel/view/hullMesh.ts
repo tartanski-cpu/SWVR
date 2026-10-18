@@ -49,6 +49,24 @@ export function buildVesselMesh(form: HullForm, layout: LayoutConfig, exhaustOut
   return mesh;
 }
 
+/**
+ * The same, in two meshes: her hull (with its bulwarks, rails and fittings) and her house
+ * (deckhouse, wheelhouse and its steps), for the Shipyard, which shows one step's part on
+ * its own (owner, Oct 2026: the hull without the house; the house over a ghost of the hull).
+ * The game draws the one merged mesh above.
+ */
+export function buildVesselMeshParts(form: HullForm, layout: LayoutConfig, exhaustOutlet?: [number, number, number], livery?: Livery): { hull: THREE.Mesh; house: THREE.Mesh | null } {
+  const at = { house: 0 };
+  const parts = buildParts(form, layout, exhaustOutlet, paintOf(livery), at);
+  const mesh = (list: THREE.BufferGeometry[]) => new THREE.Mesh(mergeParts(list), flatVertexColorMaterial());
+  const hull = mesh(parts.slice(0, at.house));
+  hull.name = 'hull';
+  const rest = parts.slice(at.house);
+  const house = rest.length ? mesh(rest) : null;
+  if (house) house.name = 'house';
+  return { hull, house };
+}
+
 /** How far the window frames stand proud of the walls (m): enough not to flicker against them. */
 const FRAME_PROUD = 0.004;
 
@@ -62,7 +80,7 @@ function hasHouse(layout: LayoutConfig): layout is HouseLayout {
   return !!(layout.wheelhouse && layout.roof);
 }
 
-function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number, number, number] | undefined, col: Paint): THREE.BufferGeometry[] {
+function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number, number, number] | undefined, col: Paint, at?: { house: number }): THREE.BufferGeometry[] {
   const positions: number[] = [];
   const colors: number[] = [];
   const paints: number[] = [];
@@ -180,6 +198,8 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
   // Wet-exhaust outlet: a short pipe stub through the transom.
   const ex = exhaustOutlet;
   if (ex) parts.push(bar(new THREE.Vector3(ex[0], ex[1], ex[2] - 0.12), new THREE.Vector3(ex[0], ex[1], ex[2]), 0.13, 0.13, col.mast));
+  // The house's parts from here on (buildVesselMeshParts).
+  if (at) at.house = parts.length;
   // A deckhouse under the wheelhouse (vessel/deckhouse.ts), from a little below the deck
   // under each part of it (her sides tuck in below the deck: lower, it showed through them).
   if (layout.deckhouse) {

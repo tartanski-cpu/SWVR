@@ -3865,6 +3865,27 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Checked in headless Chromium:** a pilot boat with a 3 m, 1.2 m high, full-width, 30°-raked deckhouse, and set in with 0.5 m side decks, upright: views from the bow, stern and port; the wheelhouse on top, the steps up aft, no warnings. Found and fixed on the way: its faces wound inside out (invisible from outside), and its foot showing through her topsides at the bow. **Not checked:** the Quest, a phone, walking up the steps into a raised helm in the game.
 - **Next, for bigger boats (tugs), noted:** the deckhouse top walkable with rails and a ladder or stairs (the walk area's floors and ladders already do this for the workboat's roof), and an interior with a door into it.
 
+### Shipyard: the design flow made obvious, shared, and a view for each step (owner)
+
+- **The owner** (after a full multiplayer test):
+  - The step names along the top and the Next / Back buttons at the foot of the left panel competed, and Next / Back didn't keep a session together.
+  - At the Brief, everyone turned the 3D boat round instead of agreeing the brief. They asked for a typed brief on official-looking paper, with an abstract drawing of the kind of boat.
+  - At Hull, the wheelhouse shouldn't be there. At Wheelhouse, the hull should be faded so you know you're on the house but can still see her sides.
+- **Now:**
+  - **One step bar** under the title (`shipyard.html #flow`): **← Back** at its left; the steps with › between them, done ones ticked green; **Next: <the next step's name> →** at its right. The foot of the left panel no longer has its own buttons.
+  - **The step is shared in a session** (`session.ts` op `step`, `Side.setStep`, `SessionEvents.onStep`; kept in the work as `YardDoc.step`, checked by `variants.ts cleanStep`). Anyone changing step moves everyone, and the bar says "Amy moved everyone here". Someone joining later arrives on the session's step.
+  - **The brief on paper** (`shipyard/briefPaper.ts`): at the Brief step the 3D view gives way to a typed document on the yard's letterhead: reference, date and vessel name; her duties ticked; her requirements ("no requirement" where none is set); an arrangement sketch; the recommended hull type; signature lines; a DRAFT stamp, which turns to AGREED once a hull is picked.
+    - The sketch is an abstract pencil profile, not to scale (`sketchPlan`): a deep short hull with a push fender for towing, a raked bow at 20 kn or more, otherwise a workboat. The house goes forward over a working deck if she works on deck. Each job adds a mark: crates, pots, a crane, an A-frame, a tow hook and line, a fire monitor and its spray, a searchlight and life ring.
+  - **What each step shows** (`page.ts focusStep`; the hull and house built as two meshes for the Shipyard, `hullMesh.ts buildVesselMeshParts`; the game still draws one merged mesh):
+    - Hull: the hull alone, with no house, gear or skiff.
+    - Wheelhouse: the house (and deckhouse) over a ghost of the hull: faint glass with her edges drawn. Only the gear inside the house (console, seats, panels) is shown.
+    - Engine: hull and house both ghosted. The engines and propellers come in the next change.
+    - Deck gear, Controls, Paint, Trials: everything.
+- **Checked:**
+  - Typecheck and tests (`tests/shipyard/flow.test.ts`: a step anyone moves to reaches everyone and a latecomer starts on it; a bad step is ignored and the step is kept with the work; the sketch plan for each kind of brief; the paper escapes the name, shows the requirements, and is stamped draft or agreed).
+  - Headless screenshots: the step bar; the Brief's paper with cargo, towing and fire ticked (and its sketch); the hull alone; the wheelhouse over the ghost hull.
+- **Not checked:** the step moving everyone in a live two-person session (the protocol is tested; the page's wiring was not run with two browsers); a phone; the Quest browser.
+
 ### Shipyard: Try her together (owner)
 
 - **The owner:** getting friends into a game together from a design session meant pressing Try her in the game, sending the link round, then hosting and typing the game code from the menu. And the game it loaded looked old (the lobster pots in their old place). "If there's a button to say test together, it knows who's connected and it should just load that URL for all the people connected as long as it loads into the right version of the game."

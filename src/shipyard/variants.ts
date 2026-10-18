@@ -27,6 +27,8 @@ export interface YardDoc {
   variants: Variant[];
   /** What she's for and her targets (brief.ts): one for the design and all its variants. */
   brief?: Brief;
+  /** The step of the design flow the session is on (page.ts: everyone moves together). */
+  step?: string;
 }
 
 export const MAIN = 'main';
@@ -69,6 +71,11 @@ export function newDoc(design: ShipDesign, notes: Note[] = []): YardDoc {
 }
 
 /** A doc from storage or the wire, checked. Part 1-2 copies ({ v: 1, design, notes }) become a main design. */
+/** A step name (page.ts's data-step: lower-case words), else null. */
+export function cleanStep(s: unknown): string | null {
+  return typeof s === 'string' && /^[a-z &]{1,30}$/.test(s) ? s : null;
+}
+
 export function cleanDoc(raw: unknown): YardDoc | null {
   if (!raw || typeof raw !== 'object') return null;
   const o = raw as Record<string, unknown>;
@@ -81,7 +88,8 @@ export function cleanDoc(raw: unknown): YardDoc | null {
   const seen = new Set<string>();
   const rest = list.filter((v) => v.id !== MAIN && !seen.has(v.id) && seen.add(v.id)).slice(0, MAX_VARIANTS - 1);
   const brief = cleanBrief(o.brief);
-  return { v: 2, variants: [{ ...main, parent: null }, ...rest], ...(brief ? { brief } : {}) };
+  const step = cleanStep(o.step);
+  return { v: 2, variants: [{ ...main, parent: null }, ...rest], ...(brief ? { brief } : {}), ...(step ? { step } : {}) };
 }
 
 /** A fork of `from`: a full copy of its design and notes, with a parent link. */

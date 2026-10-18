@@ -74,6 +74,7 @@ export class YardLink {
         onVariants: (list, by) => this.events.onVariants?.(list, by),
         onBrief: (b, by) => this.events.onBrief?.(b, by),
         onGo: (g, by) => this.events.onGo?.(g, by),
+        onStep: (s, by) => this.events.onStep?.(s, by),
         onLost: (reason) => {
           if (!settled) return done(false);
           if (this.side !== member) return;
