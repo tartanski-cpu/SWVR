@@ -137,8 +137,11 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: reado
   const ahead = sh ? Math.max(0, wh.floorY + (wh.frontSill ?? wh.windowSill) - sh.lowerFromY) * Math.tan((sh.lowerRakeDeg * Math.PI) / 180) : 0;
   const ext = { x: wh.halfWidth, z0: wh.front - ahead, z1: wh.aft };
   const int = { x: wh.halfWidth - wh.wall, z0: wh.front + wh.wall, z1: wh.aft - wh.wall };
-  // (A faceted front's console stands aft of its corners: vesselDef.ts HouseShape.facet.)
-  const consoleAft = int.z0 + wh.consoleDepth + (wh.shape?.facet?.depth ?? 0);
+  // A faceted front's console wraps round with it (vesselDef.ts HouseShape.facet): its wings
+  // set back with the outer panes, so its aft edge is further aft toward the sides.
+  const facet = wh.shape?.facet;
+  const wrapK = facet ? facet.depth / (wh.halfWidth - facet.centre) : 0;
+  const consoleAftAt = (x: number) => int.z0 + wh.consoleDepth + (facet ? Math.max(0, Math.abs(x) - facet.centre) * wrapK : 0);
   const doorHalf = wh.doorWidth / 2;
   const sd = wh.sideDoor;
   // A deckhouse under the wheelhouse (vessel/deckhouse.ts): solid, and not walked on, for now.
@@ -188,7 +191,7 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: reado
       // a floor sunk more than a step below the deck stops at the wall: a threshold below).
       height: () => wh.floorY,
       contains: (x, z) =>
-        (Math.abs(x) <= int.x - r && z >= consoleAft + r && z <= int.z1 - r && !atFurniture(x, z, r)) ||
+        (Math.abs(x) <= int.x - r && z >= consoleAftAt(Math.abs(x) + r) + r && z <= int.z1 - r && !atFurniture(x, z, r)) ||
         (Math.abs(x) <= doorHalf - r * 0.6 && z > int.z1 - r - 0.02 && z < (deepSunk ? int.z1 : ext.z1 + r + 0.02)) ||
         // The port side door, out to the side deck.
         (!!sd && x < -int.x + r + 0.02 && x > -ext.x - r - 0.02 && z > sd.z0 + r * 0.6 && z < sd.z1 - r * 0.6),
@@ -267,7 +270,7 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: reado
       if (inInterior) {
         // The helm console across the front, and the furniture.
         if (atFurniture(x, z, 0, y)) return true;
-        return z < consoleAft && y < wh.floorY + wh.consoleHeight;
+        return z < consoleAftAt(x) && y < wh.floorY + wh.consoleHeight;
       }
       // In a wall: the doorway and window band are open.
       const hy = y - wh.floorY;

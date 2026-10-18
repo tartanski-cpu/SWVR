@@ -3877,13 +3877,19 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
   - the front is built in three across (split at the mullions), then everything at the front is set back by `facetDz(x)` (0 across the middle, the facet's depth at the side walls). The side walls' front ends follow.
   - the floor is filled out to the angled walls (`planSlab`);
   - the rain glass and the wipers (`rainGlass.ts`) follow the outer panes too.
-- **The console and helm** stand the facet's depth further aft, so the console's full width fits behind the angled corners (`HouseShape.facet.depth`; build.ts `iF`; layout.ts `consoleAft`). The middle glass then stands a little ahead of the dash, as on a pilot house. The instruments overhead, the binoculars and the side door's place move with it.
+- **The console wraps round with the front** (owner, the next day: "the bridge instruments... also got the angled effect... a wraparound"). At first the whole console stood the facet's depth further aft. Now:
+  - it stays where a flat front's is, behind the middle pane;
+  - its wings, outside the mullions, are set back as the outer windows are: the hull's console body (`hullMesh.ts buildConsole`, `setBack`) and the console module's dash and group plates (`console.standard`'s `wrap: { centre, k }`);
+  - each instrument on a wing is set back with it and turned to face along it (the slots' yaw is ±the facet angle);
+  - the helm stands where it does on a flat front;
+  - what stands beside the wings is set back by the facet at its own x (build.ts `sb(x)`): the breaker panel, the ramp button, the VHF, chartplotter and FM overhead, the binoculars, the monitor's gauge, the skiff crane's button, the side door and chart table;
+  - walking keeps aft of the wings: the console's aft edge is a function of x (layout.ts `consoleAftAt`).
 - **When it stays flat**, with a warning:
   - a house too narrow (under 0.25 m outside the mullions);
   - a house too short (less than 1.6 m behind the facets' depth: the console's 0.5 m and room to stand at the helm).
 - **Checked:**
-  - typecheck and tests (664 with the tug's; `tests/shipyard/facets.test.ts`: the code, with the tug's hull type too; the facet's depth from the angle; the helm moved aft by it; a short house left flat);
-  - screenshots of a 12 m workboat from the bow quarter, from forward, from above and at the helm.
+  - typecheck and tests (664 with the tug's; `tests/shipyard/facets.test.ts`: the code, with the tug's hull type too; the facet's depth from the angle; the helm where it was; every wing slot set back and turned, the middle ones not; a short house left flat);
+  - screenshots of a 12 m workboat from the bow quarter, from forward, from above and at the helm; the tug and the workboat's wrapped dash from behind the helm.
 - **Not checked:**
   - rain on the angled panes with the wipers going;
   - the game in VR.

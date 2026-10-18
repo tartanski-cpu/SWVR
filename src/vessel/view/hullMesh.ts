@@ -402,7 +402,7 @@ export function frontRake(wh: { floorY: number; windowSill: number; frontSill?: 
 /**
  * A faceted front's setback at `x` (m aft of the house's front): 0 across the middle pane,
  * growing to the facet's depth at the side walls (vesselDef.ts HouseShape.facet); 0 everywhere
- * for a flat front. Also how much further aft the console and helm stand (`facetDepth`).
+ * for a flat front. The console wraps round with it (its wings set back as much).
  */
 export function facetDz(wh: { halfWidth: number; shape?: HouseShape }): (x: number) => number {
   const f = wh.shape?.facet;
@@ -411,6 +411,16 @@ export function facetDz(wh: { halfWidth: number; shape?: HouseShape }): (x: numb
   return (x) => Math.max(0, Math.abs(x) - f.centre) * k;
 }
 export const facetDepth = (wh: { shape?: HouseShape }): number => wh.shape?.facet?.depth ?? 0;
+
+/** Set each vertex (forward of `zone`, if given) back by `dz` at its x: a faceted front's walls, its console's wings. */
+export function setBack(geoms: THREE.BufferGeometry[], dz: (x: number) => number, zone = Infinity): void {
+  for (const g of geoms) {
+    const p = g.attributes.position;
+    for (let i = 0; i < p.count; i++) if (p.getZ(i) < zone) p.setZ(i, p.getZ(i) + dz(p.getX(i)));
+    p.needsUpdate = true;
+    g.computeVertexNormals();
+  }
+}
 
 /** A shear that leans what's above `y0` forward at `deg` from vertical (z' = z - tan (y - y0)). */
 function leanForward(deg: number, y0: number): THREE.Matrix4 {
@@ -531,16 +541,7 @@ function buildShapedHouse(layout: HouseLayout, col: Paint, base: number): THREE.
   // A faceted front: everything at the front (forward of a little aft of the front wall, the
   // raked glass's frames and the header included) set back by facetDz at its x, so the outer
   // panes and the side walls' front ends meet on the angle.
-  if (sh.facet) {
-    const dz = facetDz(wh);
-    const zone = zF + w + 0.13;
-    for (const g of parts.slice(wallsFrom)) {
-      const p = g.attributes.position;
-      for (let i = 0; i < p.count; i++) if (p.getZ(i) < zone) p.setZ(i, p.getZ(i) + dz(p.getX(i)));
-      p.needsUpdate = true;
-      g.computeVertexNormals();
-    }
-  }
+  if (sh.facet) setBack(parts.slice(wallsFrom), facetDz(wh), zF + w + 0.13);
   // The walls' inside faces: wood lining (pixel painting, owner).
   const centre = new THREE.Vector3(0, 0, mid);
   for (const g of parts.slice(wallsFrom)) lineInside(g, H, col.lining, centre);
@@ -739,12 +740,19 @@ function buildFloor(layout: HouseLayout, col: Paint, parts: THREE.BufferGeometry
 function buildConsole(wh: HouseLayout['wheelhouse'], col: Paint, parts: THREE.BufferGeometry[]): void {
   const hw = wh.halfWidth;
   const w = wh.wall;
-  const c0 = wh.front + w + facetDepth(wh);
+  const c0 = wh.front + w;
   const c1 = c0 + wh.consoleDepth;
   const cTop = wh.floorY + wh.consoleHeight;
-  parts.push(box(-hw + w, hw - w, wh.floorY, cTop, c0, c1, col.console));
-  parts.push(box(-hw + w, hw - w, cTop, cTop + 0.12, c0, c0 + wh.consoleDepth * 0.45, col.console));
-  parts.push(box(-hw + w + 0.05, hw - w - 0.05, cTop - 0.01, cTop + 0.005, c0 + wh.consoleDepth * 0.45, c1 - 0.03, col.panel));
+  // A faceted front's console wraps round with it: built in three across, its wings set back.
+  const f = wh.shape?.facet;
+  const spans: [number, number][] = f ? [[-hw + w, -f.centre], [-f.centre, f.centre], [f.centre, hw - w]] : [[-hw + w, hw - w]];
+  const from = parts.length;
+  for (const [a, b] of spans) {
+    parts.push(box(a, b, wh.floorY, cTop, c0, c1, col.console));
+    parts.push(box(a, b, cTop, cTop + 0.12, c0, c0 + wh.consoleDepth * 0.45, col.console));
+    parts.push(box(Math.max(a, -hw + w + 0.05), Math.min(b, hw - w - 0.05), cTop - 0.01, cTop + 0.005, c0 + wh.consoleDepth * 0.45, c1 - 0.03, col.panel));
+  }
+  if (f) setBack(parts.slice(from), facetDz(wh));
 }
 
 /**

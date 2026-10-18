@@ -7,6 +7,7 @@ import { CONFIG } from '../../src/config';
 import { DESIGN_HULLS } from '../../src/shipyard/build';
 import { decodeDesign, DEFAULT_DESIGN, encodeDesign, type ShipDesign } from '../../src/shipyard/design';
 import { facetDz } from '../../src/vessel/view/hullMesh';
+import { CONSOLE, type ConsoleConfig } from '../../src/modules/console';
 import { VESSEL_DEFS } from '../../src/vessel/vesselDef';
 
 const BASE: ShipDesign = { ...DEFAULT_DESIGN, guard: 0 };
@@ -23,7 +24,7 @@ describe('a three-facet front', () => {
     expect(decodeDesign(encodeDesign(tug))).toEqual({ design: tug });
   });
 
-  it('the middle pane square across, the outer two angled back to the sides; the console and helm that much further aft', () => {
+  it('the middle pane square across, the outer two angled back to the sides; the dash wraps round with them, the helm where it was', () => {
     for (const hull of [2, 3]) {
       const flat = useDesign(typeOf(hull));
       const flatStand = flat.hull.helm.stand[2];
@@ -38,7 +39,25 @@ describe('a three-facet front', () => {
       expect(dz(0)).toBe(0);
       expect(dz(0.5)).toBe(0);
       expect(dz(wh.halfWidth)).toBeCloseTo(f.depth, 6);
-      expect(b.hull.helm.stand[2]).toBeCloseTo(flatStand + f.depth, 6);
+      expect(b.hull.helm.stand[2]).toBeCloseTo(flatStand, 6);
+      // The console's wings: set back as the windows are, their slots turned along them.
+      const helm = RECIPES.design.modules.find((m) => m.socket === 'helm')!;
+      const cc = helm.config as ConsoleConfig;
+      expect(cc.wrap!.centre).toBe(0.5);
+      expect(cc.wrap!.k).toBeCloseTo(f.depth / (wh.halfWidth - 0.5), 3);
+      const flatSlots = Object.fromEntries(CONSOLE.sockets!({ ...cc, wrap: undefined }).map((s) => [s.id, s.transform]));
+      let wings = 0;
+      for (const s of CONSOLE.sockets!(cc)) {
+        const [x, , z] = s.transform.position;
+        const flatZ = flatSlots[s.id].position[2];
+        if (Math.abs(x) <= 0.5) expect(z, s.id).toBeCloseTo(flatZ, 6);
+        else {
+          wings++;
+          expect(z, s.id).toBeCloseTo(flatZ + (Math.abs(x) - 0.5) * cc.wrap!.k, 6);
+          expect(Math.sign(s.transform.rotationDeg![1]), s.id).toBe(x < 0 ? 1 : -1);
+        }
+      }
+      expect(wings).toBeGreaterThan(3);
       expect(flat.warnings).toEqual([]);
     }
   });

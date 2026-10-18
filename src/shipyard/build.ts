@@ -426,15 +426,15 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   const house: HouseShape = { lowerRakeDeg: 0, lowerFromY: Math.min(q.deckY(front), floorY), roofEdgeDeg: SCALES.roofEdge(d.roofEdge), visor: SCALES.visor(d.visor) };
   // A three-facet front (owner: a tug's pilot house): the middle pane square across her
   // between the mullions, the outer two angled back `facetDeg` to the side walls; the
-  // console and everything placed from it that much further aft (iF).
+  // console wraps round with it, its wings set back as much (sb).
   if (d.facets) {
     const depth = Math.round((hw - FACET_CENTRE) * Math.tan((CONFIG.shipyard.facetDeg * Math.PI) / 180) * 1000) / 1000;
     if (hw - FACET_CENTRE < 0.25) warnings.push('Her wheelhouse is too narrow for a faceted front (its middle pane would be all of it): left flat.');
-    else if (aft - front - depth < 1.6) warnings.push('Her wheelhouse is too short for a faceted front (the helm would stand too far aft): left flat.');
+    else if (aft - front - depth < 1.6) warnings.push('Her wheelhouse is too short for a faceted front (the console\'s wings would reach too far aft): left flat.');
     else house.facet = { centre: FACET_CENTRE, depth };
   }
-  /** The house's front as the console and helm see it: aft of a faceted front's corners. */
-  const iF = front + (house.facet?.depth ?? 0);
+  /** How far a faceted front is set back at x (0 across the middle; the console's wings, and what's placed beside them, follow it). */
+  const sb = (x: number) => (house.facet ? (Math.max(0, Math.abs(x) - house.facet.centre) * house.facet.depth) / (hw - house.facet.centre) : 0);
   const windowRake = SCALES.windowRake(d.windowRake);
   // Where the front windows' foot and head stand (z), as hullMesh draws them.
   const ahead = Math.max(0, floorY + sill - house.lowerFromY) * Math.tan((house.lowerRakeDeg * Math.PI) / 180);
@@ -569,18 +569,18 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
 
   // ── Places (vessel axes), as the landing craft's are from her cabin ──
   const at = {
-    console: [0, F + 0.9, iF + 0.56] as V3,
-    breakerPanel: [hw - 0.185, F + 0.6, iF + 0.875] as V3,
-    rampButton: [-(hw - 0.07), F + 0.73, iF + 0.775] as V3,
+    console: [0, F + 0.9, front + 0.56] as V3,
+    breakerPanel: [hw - 0.185, F + 0.6, front + 0.875 + sb(hw - 0.185)] as V3,
+    rampButton: [-(hw - 0.07), F + 0.73, front + 0.775 + sb(hw - 0.07)] as V3,
     batteryMaster: [hw - 0.45, F + 0.48, aft - 0.065] as V3,
     batterySelector: [hw - 0.2, F + 0.48, aft - 0.065] as V3,
-    vhf: [-(hw - 0.3), roofY - 0.17, iF + 0.525] as V3,
+    vhf: [-(hw - 0.3), roofY - 0.17, front + 0.525 + sb(hw - 0.3)] as V3,
     // The advanced package's instruments (owner): the chartplotter hung out to starboard
     // ahead of the helm, turned toward it (the VHF's mirror); the NAV / WIND screen hung on
     // the centreline ahead of the helm; the FM set further aft to starboard, over your head.
-    chartplotter: [hw - 0.35, roofY - 0.17, iF + 0.5] as V3,
-    navDisplay: [0, roofY - 0.15, iF + 0.42] as V3,
-    fm: [hw - 0.35, roofY - 0.11, iF + 1.3] as V3,
+    chartplotter: [hw - 0.35, roofY - 0.17, front + 0.5 + sb(hw - 0.35)] as V3,
+    navDisplay: [0, roofY - 0.15, front + 0.42] as V3,
+    fm: [hw - 0.35, roofY - 0.11, front + 1.3 + sb(hw - 0.35)] as V3,
     // The task board, on solid wall below the window sill (her walls are glass above it), on
     // the starboard wall, aft (its face's middle; 2 cm off the wall's inside face, clear of
     // its frames: no flicker between them).
@@ -890,7 +890,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   let chartTableAt: V3 | null = null;
   if (d.chartTable) {
     const z0 = aft - wall - 0.3 - ctab.depth;
-    if (hw - wall - ctab.width >= 0.35 && z0 >= iF + 1.0) chartTableAt = [-(hw - wall), F, Math.round(z0 * 1000) / 1000];
+    if (hw - wall - ctab.width >= 0.35 && z0 >= front + 1.0 + sb(hw)) chartTableAt = [-(hw - wall), F, Math.round(z0 * 1000) / 1000];
     else warnings.push(`Her wheelhouse is too ${hw - wall - ctab.width < 0.35 ? 'narrow' : 'short'} for the chart table along its port wall: left off.`);
   }
   // The side door (owner): a sliding door in the port wall, aft of the console with room to
@@ -900,7 +900,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   let sideDoor: { z0: number; z1: number; height: number; buttonHeight: number } | null = null;
   if (d.sideDoor) {
     const sdc = dg.sideDoor;
-    const z0 = Math.max(iF + wall + 0.5 + sdc.fromConsole, bowRamp ? at.rampButton[2] + 0.15 : -Infinity);
+    const z0 = Math.max(front + sb(hw) + wall + 0.5 + sdc.fromConsole, bowRamp ? at.rampButton[2] + 0.15 : -Infinity);
     const zEnd = chartTableAt ? chartTableAt[2] - 0.05 : aft - wall - 0.15;
     // Up to the window band's top edge (the door's opening runs up through the band).
     const height = Math.min(2.0, windowHead - 0.04, roofY - F - 0.12);
@@ -1021,7 +1021,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     id: 'hull.design',
     version: 1,
     name: `Shipyard design ${code}`,
-    helm: { stand: [0, F, iF + 1.125], yawDeg: 0 },
+    helm: { stand: [0, F, front + 1.125], yawDeg: 0 },
     form,
     lightship: lightshipOf(weighed, [
       { massKg: eng.kg * n, at: at.engineBed },
@@ -1049,7 +1049,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
       stowage: {
         extinguisher: [-(hw - 0.2), F + 0.58, aft - 0.15],
         torch: [-(hw - 0.45), F + 0.68, aft - 0.12],
-        binoculars: { at: [-(hw - 0.35), F + 1.35, iF + 0.14], yawDeg: 20 },
+        binoculars: { at: [-(hw - 0.35), F + 1.35, front + 0.14 + sb(hw - 0.35)], yawDeg: 20 },
       },
       livery: liveryOf(d),
     },
@@ -1159,6 +1159,8 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   cc.pedestals.x = cc.pedestals.x.map((x: number) => Math.round(x * sx * 1000) / 1000);
   cc.groups = cc.groups.map((gp: { x: [number, number] }) => ({ ...gp, x: gp.x.map((x) => Math.round(x * sx * 1000) / 1000) }));
   for (const slot of Object.values(cc.slots) as { position: V3 }[]) slot.position = [Math.round(slot.position[0] * sx * 1000) / 1000, slot.position[1], slot.position[2]];
+  // A faceted front: the dash wraps round with it (console.standard's `wrap`), its wings set back as the outer windows are.
+  if (house.facet) cc.wrap = { centre: house.facet.centre, k: Math.round((house.facet.depth / (hw - house.facet.centre)) * 1e4) / 1e4 };
   // The advanced instruments (taken off again below for the basic controls), and the chart table.
   recipe.modules.push(
     { socket: 'chartplotter', module: 'nav.chartplotter' },
@@ -1182,7 +1184,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
     // The roof monitor's FIRE gauge on the console, between the two joysticks.
     const [mx, , mz] = cc.slots.monJoystick.position as V3;
     const mon = bySocket(recipe.modules, 'fireMonitor')!;
-    mon.config = { ...mon.config, gauge: { ...CONFIG.vessels.workboat.fireMonitor.gauge, position: [r2(at.console[0] + mx), r2(at.console[1] + 0.012), r2(at.console[2] + mz - 0.125)] } };
+    mon.config = { ...mon.config, gauge: { ...CONFIG.vessels.workboat.fireMonitor.gauge, position: [r2(at.console[0] + mx), r2(at.console[1] + 0.012), r2(at.console[2] + mz - 0.125 + sb(mx))] } };
   }
   if (!bowRamp) recipe.modules = recipe.modules.filter((m) => m.socket !== 'rampCabin' && m.socket !== 'rampBow');
   if (craneAt) {
@@ -1203,7 +1205,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   if (skiffAt) {
     // Its SKIFF CRANE button on the dash, starboard of the wheel (beside the ANCHOR switch).
     const [bx, , bz] = cc.slots.skiffCrane.position as V3;
-    recipe.modules.push({ socket: 'tenderCrane', module: 'deck.tender-crane', config: { consoleButton: [r2(at.console[0] + bx), r2(at.console[1] + 0.01), r2(at.console[2] + bz)] } });
+    recipe.modules.push({ socket: 'tenderCrane', module: 'deck.tender-crane', config: { consoleButton: [r2(at.console[0] + bx), r2(at.console[1] + 0.01), r2(at.console[2] + bz + sb(bx))] } });
   }
   if (craneAt || winchAt || skiffAt) recipe.modules.push({ socket: 'hydraulicPump', module: 'hydraulics.pto-pump' });
   if (basketAt) recipe.modules.push({ socket: 'fenders', module: 'deck.fenders', config: { z: fenderZs, basket: basketAt } });
