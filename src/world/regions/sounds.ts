@@ -66,6 +66,16 @@ export const SOUNDS: RegionDef = {
     { name: 'Sgeirean Dubha', x: 1300, z: -3420, radius: 30, height: 4, shape: [[3, 0.25, 2.8]], beach: 1, seed: 29, trees: 0 },
     // A lone rock awash in the loch approach, an isolated danger mark on it.
     { name: 'Bogha Ruadh', x: 1000, z: -3850, radius: 12, height: 0.9, shape: [[3, 0.25, 1.1]], beach: 0.5, seed: 30, trees: 0 },
+    // Rocks on the passages (owner, after M6): on the straight lines between the regions'
+    // harbours, so a crossing in fog is navigated, not steered blind. Charted, unlit.
+    // Sgeir a' Cheò: on the line from Calder Haven to Loch Tarsk, at the race's east edge.
+    { name: "Sgeir a' Cheò", x: 728, z: -1965, radius: 22, height: 3, shape: [[3, 0.2, 0.4]], beach: 0.5, seed: 31, trees: 0 },
+    { name: "Sgeir a' Cheò", x: 698, z: -1932, radius: 12, height: 1.2, shape: [[2, 0.25, 1.3]], beach: 0.5, seed: 32, trees: 0 },
+    // Sgeir Fhada: on the way from Loch Tarsk to the Fjord.
+    { name: 'Sgeir Fhada', x: 2300, z: -4880, radius: 25, height: 3.5, shape: [[2, 0.3, 0.6]], beach: 0.5, seed: 33, trees: 0 },
+    { name: 'Sgeir Fhada', x: 2340, z: -4905, radius: 10, height: 1, shape: [[3, 0.2, 2.1]], beach: 0.5, seed: 34, trees: 0 },
+    // Bogha nan Ròn: on the way from Loch Tarsk to the Narrows.
+    { name: 'Bogha nan Ròn', x: -690, z: -4270, radius: 18, height: 2.5, shape: [[3, 0.25, 1.7]], beach: 0.5, seed: 35, trees: 0 },
   ],
   // Big, high islands: inland above 12 m the terrain is drawn in 24 m cells (4 x 4 of the usual), the coast and shallows at 6 m: the Quest's budget.
   leanTerrain: { above: 12, cells: 4 },

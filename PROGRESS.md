@@ -5398,6 +5398,11 @@ The third new region (`src/world/regions/narrows.ts`; original places, placehold
   4. Kestrel Wharf (the pier on the south side facing the Sounds) in a south-westerly; Otter Cove behind its islet (let out plenty of chain: weed).
   5. From the Sounds on a clear day, look north-west for Signal Peak's mast; at night its red light.
   6. Read the triangle count and frame rate in the narrows and at the cannery.
+- **Owner's first VR run, changes:**
+  - **Otter Cove more sheltered:** a narrow mouth (about 100 m) in the shore, a 9 m basin about 170 m across behind it, and Otter Islet (bigger, 80 m) moved in across the mouth with deep passages either side: no straight line in from the sea. The landing straddles the basin's edge so it slopes into a beach at the cove's head. Shelter 0.12, open only to a sea from dead south (±15°).
+  - **Cutter Narrows narrower:** about 300 m of water instead of 480 (the channel's half-widths 140/115/130 m in its middle, edge 100); the race zone 340 m wide; Twin Fang Rock still mid-channel.
+  - **Rocks on the passages** (owner: the straight lines between the regions' harbours should have rocks on them, so a crossing in fog must be navigated): charted, unlit rock groups 1-3.5 m high, deep water round them. **Sgeir a' Cheò** on the line Calder Haven-Loch Tarsk (at Sruth Tarsk's east edge), **Sgeir Fhada** and **Mellomskjæra** on Loch Tarsk-Kvassvik, **Bogha nan Ròn** and **Grey Seal Rocks** on Loch Tarsk-the narrows' entrance. Each is an island in its region's data; home is unchanged. The AI traffic checks its course for shallow water, so it steers round them.
+  - Tests: the cove's mouth, islet, passages, basin and beach; the narrows' new width; a test that each passage's direct line meets a rock; the region-gap tests measure between real islands (100 m or more). `npm test`: 137 files, 955 tests pass; checked headless (the cove from seaward and from inside, the narrows, the rock in the sound).
 - **Next:** M7, the Calanques (docs/REGIONS.md), on the owner's word.
 
 ## Next
