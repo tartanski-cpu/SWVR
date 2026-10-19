@@ -5298,9 +5298,10 @@ Owner, Oct 2026, answering the heel report below: the workboat should be a semi-
 - **Leaning into a turn** (vesselPhysics.ts, `CONFIG.planingTurn` `{ maxLeanDeg 20, alpha 0.6, stiffness 2 }`), faded in with her Froude number:
   - her side force's heeling moment is reckoned with it acting 60 % of the way from her chines up to her CG (her bottom's lift carries it, not her keel), which takes most of the outward heel's lever away;
   - her bottom's lift gives her a roll stiffness about the *apparent* vertical (gravity plus her turn's centripetal acceleration U r), so she leans in as a cyclist does, toward `bank` × that angle, at most 20°. It is a spring (2 × W GM sin(lean − heel)), so it also rights her if she's thrown past it;
-  - `bank` = `CONFIG.shipyard.bankPerSine` (1.5) × sin(deadrise aft) × lift: the landing craft type 0.21, the workboat 0.23, the pilot boat 0.56. The built-in landing craft `planing.bank` 0.55, the Alaskan 0.5 (their old banking force replaced by this).
+  - `planing.lean` = `CONFIG.shipyard.leanPerSine` (1.5) × sin(deadrise aft) × lift: the landing craft type 0.21, the workboat 0.23, the pilot boat 0.56.
+  - **The built-in landing craft and the Alaskan keep their old banking force** (`planing.bank`, owner: "I really like the way the fast landing craft are today"). Checked: flat out then hard over, their track and attitude are identical to the last digit with the old code.
 - **Slamming:** the vertical damping's quadratic term scaled by tan 9° / tan(deadrise amidships), 0.35 to 1.6 (`slamRefDeg`, `slamMin`, `slamMax`): a flat bottom slams, a deep vee enters gently.
-- **Roll damping going ahead** (`damping.rollLift`, `CONFIG.shipyard.rollLift` 0.3; the landing craft and Alaskan too): the lift part of roll damping, growing with speed. It stops a fast hull rolling to and fro in a hard turn.
+- **Roll damping going ahead** (`damping.rollLift`, `CONFIG.shipyard.rollLift` 0.3; Shipyard boats only): the lift part of roll damping, growing with speed. It stops a fast hull rolling to and fro in a hard turn.
 - **Measured, flat out then the helm over, calm water** (heel + into the turn):
 
 | Boat | Before | Now |
@@ -5310,12 +5311,12 @@ Owner, Oct 2026, answering the heel report below: the workboat should be a semi-
 | Workboat type, hard over | swings 15-40° out, settles ~20° out | 6° out |
 | Workboat type, four outboards | capsized | ~15° in at first, settles 4° in |
 | Landing craft type, hard over | 18° out, settles 13° out | 5° out |
-| Built-in landing craft, 40 % helm | 6° in | 4° in |
+| Built-in landing craft, Alaskan | | unchanged (identical) |
 | Tug, gillnetter | 1-4° out | unchanged |
 
 - **In waves** (default sea scaled to Hs 3.6 m, head on, about 20 kn): vertical acceleration rms 0.27 g for the landing craft type, 0.18 g for the workboat type, 0.09 g for the pilot boat. The deep vee rides about three times softer.
 - **Also:** the workboat type now shows planing spray and a planing wake at speed (they read `planing`).
-- **Unchanged:** the built-in workboat and skiff (no `planing`; golden runs equal); the tug.
+- **Unchanged:** the built-in workboat, skiff, landing craft and Alaskan (golden runs equal); the tug.
 - **Tests:** `tests/shipyard/hullRegimes.test.ts` (5).
 
 ### Sea trials: Shipyard boats heel hard in turns and the fast ones capsize (owner report; fixed above)

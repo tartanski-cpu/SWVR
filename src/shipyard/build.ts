@@ -851,7 +851,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   const deadriseMid = deadrise(0.5);
   const slam = Math.min(sy.slamMax, Math.max(sy.slamMin, Math.tan((sy.slamRefDeg * Math.PI) / 180) / Math.tan(Math.max(0.02, deadriseMid))));
   const regime = base.regime === 'displacement' ? null : sy.regimes[base.regime];
-  const planing = regime ? { bank: Math.round(sy.bankPerSine * Math.sin(deadriseAft) * regime.lift * 1000) / 1000, fnStart: regime.fnStart, fnFull: regime.fnFull } : null;
+  const planing = regime ? { lean: Math.round(sy.leanPerSine * Math.sin(deadriseAft) * regime.lift * 1000) / 1000, fnStart: regime.fnStart, fnFull: regime.fnFull } : null;
   const damping = { ...perArea, rollLift: sy.rollLift, verticalCd: Math.round(perArea.verticalCd * slam * 100) / 100, roll: Math.round(0.28 * rollCritical), pitch: Math.round(lc.damping.pitch * sizeK), yaw: Math.round(lc.damping.yaw * sizeK) };
 
   // ── Machinery ──

@@ -339,42 +339,65 @@ export function stepVessel(
   tmp.z -= sO.velocity[2];
   tmp.y = 0;
   const U = -tmp.applyQuaternion(qInv).z; // forward speed through water
+  const vSway = tmp.x; // sideways through the water, + to starboard
   const R = calmWaterResistance(def, U) * immersion;
   addForceAt(tmp.set(0, 0, Math.sign(U) * R).applyQuaternion(q), resW);
 
-  // ── A planing hull in a turn (def.planing: the landing craft, the Shipyard's planing and
-  // semi-displacement hulls) ──
+  // ── A planing hull in a turn (def.planing) ──
   // Planing, her weight rides on her bottom's lift, from Fn `fnStart` (off the hump) to
-  // `fnFull` (planing). Two things follow in a turn:
+  // `fnFull` (planing). Two models, each faded in over that range:
+  //
+  // `bank` (the built-in landing craft and Alaskan; owner: keep how they handle). Turning,
+  // she slides outward through the water. The half of her vee bottom on that side meets the
+  // water at a steeper angle and lifts more; the inner half lifts less. That pair of vertical
+  // forces across her chines rolls her into the turn, against the outward heel of her CG
+  // swinging round above the side force on her hull (all a displacement hull has). Modelled
+  // as  F = bank * 1/2 rho Awp U v  up on the side she's sliding toward and down on the
+  // other, at the chines over her LCG; with how much of her is in the water.
+  //
+  // `lean` (the Shipyard's boats; CONFIG.planingTurn):
   //   - her side force is carried by that lift on the two halves of her vee, not deep on her
   //     keel as a displacement hull's is: its heeling moment is reckoned with it acting part
-  //     way (`alpha`, CONFIG.planingTurn) from her chines up to her CG, which takes much of the
-  //     outward heel's lever away;
+  //     way (`alpha`) from her chines up to her CG, which takes much of the outward heel's
+  //     lever away;
   //   - her bottom's lift gives her a roll stiffness about the apparent vertical (gravity
   //     with her turn's centripetal acceleration), not the true one, so she leans into the
-  //     turn as a cyclist does: toward `bank` x that angle (a deeper vee leans more: the
+  //     turn as a cyclist does: toward `lean` x that angle (a deeper vee leans more: the
   //     Shipyard sets it from her deadrise), no more than `maxLeanDeg`. A spring toward that
   //     lean, `stiffness` x W GM sin(lean - heel): it also rights her if she's thrown past it.
-  // With how much of her is in the water.
+  //   With how much of her is in the water.
   const pl = def.planing;
   if (pl && immersion > 0) {
     const fn = Math.abs(U) / Math.sqrt(g * def.resistance.lwl);
     const t = Math.min(1, Math.max(0, (fn - pl.fnStart) / (pl.fnFull - pl.fnStart)));
-    const fade = t * t * (3 - 2 * t) * immersion;
-    if (fade > 0) {
+    const fade = t * t * (3 - 2 * t);
+    if (fade > 0 && pl.bank) {
+      let b = 0;
+      let awp = 0;
+      for (const st of def.hull.stations) {
+        b = Math.max(b, st.halfBeamChine);
+        awp += 2 * st.halfBeamChine * st.weight;
+      }
+      const f = fade * immersion * pl.bank * 0.5 * rho * awp * Math.abs(U) * vSway;
+      // Up at the starboard chine when sliding to starboard (vSway > 0), down at port.
+      addForceAt(tmp.set(0, f, 0).applyQuaternion(q), toWorld(b, def.resistance.y, cgL.z, portP));
+      addForceAt(tmp.set(0, -f, 0).applyQuaternion(q), toWorld(-b, def.resistance.y, cgL.z, portP));
+    }
+    if (fade > 0 && pl.lean) {
       // As a couple: + at 1 m above her CG, - at her CG (vessel x). Her heel from her
       // orientation's x axis (+ to port, as the couple's moment).
       let gm = uprightGM.get(def);
       if (gm === undefined) uprightGM.set(def, (gm = Math.max(0.3, uprightHydrostatics(def).gmt)));
       const pt = CONFIG.planingTurn;
       const maxLean = (pt.maxLeanDeg * Math.PI) / 180;
-      const lean = maxLean * Math.tanh((pl.bank * Math.atan((U * w.y) / g)) / maxLean);
+      const lean = maxLean * Math.tanh((pl.lean * Math.atan((U * w.y) / g)) / maxLean);
       const heel = Math.asin(Math.max(-1, Math.min(1, 2 * (q.x * q.y + q.w * q.z))));
-      const up = fade * (pt.alpha * sideToCG + (1 - pt.alpha) * sideToChines - pt.stiffness * def.mass * g * gm * Math.sin(lean - heel));
+      const up = fade * immersion * (pt.alpha * sideToCG + (1 - pt.alpha) * sideToChines - pt.stiffness * def.mass * g * gm * Math.sin(lean - heel));
       addForceAt(tmp.set(up, 0, 0).applyQuaternion(q), toWorld(0, cgL.y + 1, cgL.z, portP));
       addForceAt(tmp.set(-up, 0, 0).applyQuaternion(q), toWorld(0, cgL.y, cgL.z, portP));
     }
   }
+
 
   for (const e of external) addForceAt(cf.copy(e.force), e.point);
 

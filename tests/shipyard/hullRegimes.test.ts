@@ -61,9 +61,9 @@ describe('the hull types ride as their kind', () => {
     const lc = buildDesign(type(LC)).hull;
     const pilot = buildDesign(type(PILOT)).hull;
     const wb = buildDesign(type(WORKBOAT)).hull;
-    expect(pilot.planing!.bank).toBeGreaterThan(2 * lc.planing!.bank);
+    expect(pilot.planing!.lean!).toBeGreaterThan(2 * lc.planing!.lean!);
     // The semi-displacement workboat: half her weight on lift, coming in later.
-    expect(wb.planing!.bank).toBeLessThan(pilot.planing!.bank / 2);
+    expect(wb.planing!.lean!).toBeLessThan(pilot.planing!.lean! / 2);
     expect(wb.planing!.fnStart).toBeGreaterThanOrEqual(lc.planing!.fnStart);
     expect(pilot.damping.verticalCd).toBeLessThan(lc.damping.verticalCd / 2);
   });
