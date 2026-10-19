@@ -338,63 +338,79 @@ const paintHeading: Painter = (g, s) => {
   g.fill();
 };
 
+/**
+ * Engine and steering (on every boat: the basic controls' too): revs, gear and engine state,
+ * fuel burn and coolant, load; and where the rudder (or the outboards' or stern drives' legs)
+ * actually is against where the helm asks for it (owner, Oct 2026: "see the actual position of
+ * the rudder or the Kort nozzle ... a slight delay between especially the Xbox controller input
+ * and what the position of that thing"; the round rev counter, which said what the figures
+ * say, made room for it).
+ */
 const paintRpm: Painter = (g, s) => {
   const diesel = gearOf(s, 'diesel');
   if (!diesel) return;
-  title(g, 'ENGINE RPM');
+  const rudder = gearOf(s, 'rudder');
   const e = s.engine;
-  const max = 2000;
-  const cx = 140;
-  const cy = 156;
-  const r = 92;
-  const a0 = Math.PI * 0.8;
-  const a1 = Math.PI * 2.2;
-  const ang = (rpm: number) => a0 + (a1 - a0) * Math.min(1, rpm / max);
-  // Dial: arc, red zone above rated + 50, ticks every 250.
-  g.lineWidth = 7;
-  g.strokeStyle = '#3a3220';
-  g.beginPath();
-  g.arc(cx, cy, r, a0, a1);
-  g.stroke();
-  g.strokeStyle = RED;
-  g.beginPath();
-  g.arc(cx, cy, r, ang(diesel.engine.ratedRpm + 50), a1);
-  g.stroke();
-  g.strokeStyle = AMBER;
-  g.lineWidth = 3;
-  for (let t = 0; t <= max; t += 250) {
-    const a = ang(t);
-    const inner = t % 500 === 0 ? r - 20 : r - 11;
-    g.beginPath();
-    g.moveTo(cx + Math.cos(a) * inner, cy + Math.sin(a) * inner);
-    g.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
-    g.stroke();
-  }
-  // Needle.
-  const a = ang(e.rpm);
-  g.strokeStyle = '#ffe6b0';
-  g.lineWidth = 5;
-  g.beginPath();
-  g.moveTo(cx, cy);
-  g.lineTo(cx + Math.cos(a) * (r - 8), cy + Math.sin(a) * (r - 8));
-  g.stroke();
-  g.fillStyle = '#ffe6b0';
-  g.beginPath();
-  g.arc(cx, cy, 8, 0, Math.PI * 2);
-  g.fill();
-  // Digital RPM, gear and engine state, then fuel burn and coolant.
+  title(g, 'ENGINE');
+  // Revs in figures (in tens, like a real tacho), gear and engine state beside them.
   g.textAlign = 'right';
-  big(g, (Math.round(e.rpm / 10) * 10).toString(), 488, 66, 56); // in tens, like a real tacho
+  big(g, (Math.round(e.rpm / 10) * 10).toString(), 236, 66, 56);
+  g.textAlign = 'left';
+  big(g, 'rpm', 244, 78, 20, DIM);
   const gear = e.phase !== 'running' ? (e.phase === 'cranking' ? 'CRANKING' : 'ENGINE OFF') : e.gear === 1 ? 'AHEAD' : e.gear === -1 ? 'ASTERN' : 'NEUTRAL';
   const color = e.phase !== 'running' ? (e.phase === 'cranking' ? AMBER : RED) : e.gear === 1 ? GREEN : e.gear === -1 ? RED : AMBER;
-  big(g, gear, 488, 118, 28, color);
-  text(g, `${e.fuelFlowLph.toFixed(1)} L/h  ${e.coolantC.toFixed(0)}°C`, 488, 146, DIM, TEXT_PX, 'right');
+  g.textAlign = 'right';
+  big(g, gear, 488, 54, 28, color);
+  text(g, `${e.fuelFlowLph.toFixed(1)} L/h  ${e.coolantC.toFixed(0)}°C`, 488, 78, DIM, TEXT_PX, 'right');
   // Load (fuel rack) bar.
+  text(g, 'LOAD', 24, 108, DIM, SMALL_PX);
   g.fillStyle = '#1f2a24';
-  g.fillRect(300, 206, 188, 16);
+  g.fillRect(80, 110, 408, 12);
   g.fillStyle = e.rack > 0.95 ? RED : AMBER;
-  g.fillRect(300, 206, 188 * e.rack, 16);
-  text(g, 'LOAD', 292, 205, DIM, SMALL_PX, 'right');
+  g.fillRect(80, 110, 408 * Math.min(1, e.rack), 12);
+  if (!rudder) return;
+  // Steering: a scale across, port red, starboard green; the needle where it is, the ring
+  // where the helm asks for it.
+  const max = rudder.maxAngleDeg;
+  const deg = (s.rudder * 180) / Math.PI;
+  const helmDeg = s.controls.helm * max;
+  const sideOf = (d: number) => (Math.abs(d) < 0.5 ? 'MID' : d > 0 ? 'STBD' : 'PORT');
+  const colorOf = (d: number) => (Math.abs(d) < 0.5 ? AMBER : d > 0 ? GREEN : RED);
+  text(g, diesel.units ? 'DRIVES' : 'RUDDER', 24, 140, DIM);
+  text(g, `${Math.abs(deg).toFixed(0)}° ${sideOf(deg)}`, 488, 136, colorOf(deg), 26, 'right');
+  const cx = 256;
+  const half = 212;
+  const y = 200;
+  const xAt = (d: number) => cx + (Math.max(-max, Math.min(max, d)) / max) * half;
+  g.lineWidth = 6;
+  g.strokeStyle = RED;
+  g.beginPath();
+  g.moveTo(xAt(-max), y);
+  g.lineTo(cx, y);
+  g.stroke();
+  g.strokeStyle = GREEN;
+  g.beginPath();
+  g.moveTo(cx, y);
+  g.lineTo(xAt(max), y);
+  g.stroke();
+  g.strokeStyle = AMBER;
+  g.lineWidth = 2;
+  for (let d = -Math.floor(max / 5) * 5; d <= max; d += 5) {
+    const x = xAt(d);
+    g.beginPath();
+    g.moveTo(x, y - (d % 10 === 0 ? 14 : 8));
+    g.lineTo(x, y + (d % 10 === 0 ? 14 : 8));
+    g.stroke();
+  }
+  // The helm's order: a hollow ring.
+  g.strokeStyle = '#ffe6b0';
+  g.lineWidth = 3;
+  g.beginPath();
+  g.arc(xAt(helmDeg), y, 11, 0, Math.PI * 2);
+  g.stroke();
+  // Where it is: the needle.
+  g.fillStyle = '#ffe6b0';
+  g.fillRect(xAt(deg) - 3, y - 26, 6, 52);
 };
 
 const paintRudder: Painter = (g, s) => {
@@ -616,7 +632,7 @@ const paintNav: Painter = (g, s, def, env) => {
 export const SCREENS = {
   speed: { paint: paintSpeed, key: speedKey },
   heading: { paint: paintHeading, key: (s) => [Math.round(headingDeg(s)), knots(s) > 0.3 ? Math.round(cogDeg(s)) : -1, Math.abs(rateOfTurn(s)) < 3 ? 0 : Math.round(rateOfTurn(s))].join('|') },
-  rpm: { paint: paintRpm, key: (s) => [Math.round(s.engine.rpm / 10), s.engine.phase, s.engine.gear, Math.round(s.engine.rack * 50), s.engine.fuelFlowLph.toFixed(1), s.engine.coolantC.toFixed(0)].join('|') },
+  rpm: { paint: paintRpm, key: (s) => [Math.round(s.engine.rpm / 10), s.engine.phase, s.engine.gear, Math.round(s.engine.rack * 50), s.engine.fuelFlowLph.toFixed(1), s.engine.coolantC.toFixed(0), Math.round(((s.rudder * 180) / Math.PI) * 2), Math.round(s.controls.helm * 100)].join('|') },
   rudder: { paint: paintRudder, key: (s) => [Math.round(((s.rudder * 180) / Math.PI) * 2), Math.round(s.controls.helm * 100)].join('|') },
   engineMonitor: { paint: paintEngineMonitor, key: engineKey },
   nav: { paint: paintNav, key: (s, def, env) => navKey(s, def, env) },

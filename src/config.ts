@@ -1843,9 +1843,13 @@ export const CONFIG = {
    *   torqueGain   the torque absorbed times this (the duct loads the propeller a little more)
    *   asternGain   astern thrust times this (a nozzle backs poorly: its flow is the wrong way round)
    *   steerGain    the rudder's slipstream force (washFactor and its cap) times this
+   *   asternSteer  astern, the share of that the rudder gets from the propeller drawing its
+   *                water in past it through the duct (owner: it "hardly steers at all"
+   *                backwards; tuned on the small tug to turn about half as hard astern as
+   *                ahead at the same throttle, as nozzle-and-rudder tugs do)
    *   price        GBP, in the Shipyard
    */
-  nozzle: { thrustGain: 1.3, jFactor: 0.75, torqueGain: 1.08, asternGain: 0.85, steerGain: 1.5, price: 12000 },
+  nozzle: { thrustGain: 1.3, jFactor: 0.75, torqueGain: 1.08, asternGain: 0.85, steerGain: 1.5, asternSteer: 0.9, price: 12000 },
 
   docking: {
     /**
