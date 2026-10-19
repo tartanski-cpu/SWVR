@@ -856,8 +856,8 @@ export const CONFIG = {
       /**
        * Deck cargo. Items sit wherever they're put on the open deck; their masses and
        * positions go into the hull's mass, CG and inertia, so a load shifting to one side
-       * gives her a list. Lashing points (D-rings, vessel axes, on the deck) along the aft
-       * bulwarks and centreline: a crate within `lashRange` of one can be strapped down.
+       * gives her a list. Anything on open deck (clear of the houses and the gear on it) can be
+       * strapped down where it stands (owner, Oct 2026: no D-rings to find).
        */
       cargo: {
         maxPayloadKg: 5000,
@@ -868,12 +868,6 @@ export const CONFIG = {
         aftClear: 0.25,
         /** Cargo stays where it's put (true), or slides about the deck in a seaway (false). */
         fixed: false,
-        lashPoints: [
-          [-1.95, 3.0], [-1.95, 4.0], [-1.4, 5.3],
-          [1.95, 3.0], [1.95, 4.0], [1.4, 5.3],
-          [0, 3.6], [0, 4.2],
-        ] as [number, number][],
-        lashRange: 1.1,
       },
       /**
        * Cabin light: a ceiling lamp in the wheelhouse (vessel axes) and its light (cd, m).
@@ -1178,11 +1172,6 @@ export const CONFIG = {
         bowClear: 0.4,
         aftClear: 0.25,
         fixed: false,
-        lashPoints: [
-          [-1.1, -0.5], [-1.1, -2.0], [-1.1, -3.5],
-          [1.1, -0.5], [1.1, -2.0], [1.1, -3.5],
-        ] as [number, number][],
-        lashRange: 1.1,
       },
       /** At the helm, facing forward. */
       boardingSpot: [0, LC_FLOOR, 1.85] as [number, number, number],
@@ -1413,11 +1402,6 @@ export const CONFIG = {
         bowClear: 0.4,
         aftClear: 0.4,
         fixed: false,
-        lashPoints: [
-          [-1.3, 2.4], [-1.3, 3.8], [-1.3, 5.2],
-          [1.3, 2.4], [1.3, 3.8], [1.3, 5.2],
-        ] as [number, number][],
-        lashRange: 1.1,
       },
       /** At the helm, facing forward. */
       boardingSpot: [0.5, A38_FLOOR, -1.3] as [number, number, number],
@@ -1568,8 +1552,6 @@ export const CONFIG = {
         aftClear: 0.9,
         edge: 0.08,
         fixed: true,
-        lashPoints: [] as [number, number][],
-        lashRange: 0.8,
       },
       /**
        * Her cleats (modules/boatCleat; owner: tie her up front and back, to the ship or the
@@ -1612,7 +1594,7 @@ export const CONFIG = {
       damping: { vertical: 800, verticalCd: 1.5, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 20, roll: 2000, pitch: 2500, yaw: 2500 },
       resistance: { lwl: 6.5, formFactor: 0.25, waveA: 1.5, waveB: 1.2, waveKnee: 0.28, waveCap: 0.15, asternFactor: 2.0, y: -0.2 },
       layout: { bulwarkHeight: 0.25, railHeight: 0, deckEdgeMargin: 0.15, bodyRadius: 0.22 },
-      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true, lashPoints: [] as [number, number][], lashRange: 0.8 },
+      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true },
       windage: { side: 9, front: 4, center: [0, 1.1, 0] as [number, number, number] },
       boardingSpot: [0, 0.75, 2] as [number, number, number],
       spawn: { x: 0, z: 0, dropHeight: 0.2, headingDeg: 0 },
@@ -1627,7 +1609,7 @@ export const CONFIG = {
       damping: { vertical: 800, verticalCd: 1.5, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 20, roll: 7000, pitch: 7000, yaw: 7000 },
       resistance: { lwl: 7.8, formFactor: 0.8, waveA: 4, waveB: 3, waveKnee: 0.2, waveCap: 0.3, asternFactor: 1.5, y: -0.2 },
       layout: { bulwarkHeight: 0, railHeight: 0, deckEdgeMargin: 0.15, bodyRadius: 0.22 },
-      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true, lashPoints: [] as [number, number][], lashRange: 0.8 },
+      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true },
       windage: { side: 2, front: 1.2, center: [0, 0.3, 0] as [number, number, number] },
       boardingSpot: [0, 0.3, 1] as [number, number, number],
       spawn: { x: 0, z: 0, dropHeight: 0.2, headingDeg: 0 },
@@ -1648,7 +1630,7 @@ export const CONFIG = {
       // The net under it drags: a form factor well above the raft's.
       resistance: { lwl: 7.8, formFactor: 1.6, waveA: 4, waveB: 3, waveKnee: 0.2, waveCap: 0.3, asternFactor: 1.5, y: -0.2 },
       layout: { bulwarkHeight: 0, railHeight: 0, deckEdgeMargin: 0.15, bodyRadius: 0.22 },
-      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true, lashPoints: [] as [number, number][], lashRange: 0.8 },
+      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true },
       windage: { side: 1.5, front: 1.5, center: [0, 0.4, 0] as [number, number, number] },
       boardingSpot: [0, 0.3, 1] as [number, number, number],
       spawn: { x: 0, z: 0, dropHeight: 0.2, headingDeg: 0 },
@@ -1663,7 +1645,7 @@ export const CONFIG = {
       damping: { vertical: 800, verticalCd: 1.5, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 20, roll: 10000, pitch: 10000, yaw: 10000 },
       resistance: { lwl: 8.7, formFactor: 0.6, waveA: 3, waveB: 2.5, waveKnee: 0.22, waveCap: 0.25, asternFactor: 1.5, y: -0.25 },
       layout: { bulwarkHeight: 0.1, railHeight: 0, deckEdgeMargin: 0.15, bodyRadius: 0.22 },
-      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true, lashPoints: [] as [number, number][], lashRange: 0.8 },
+      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true },
       windage: { side: 5, front: 3, center: [0, 0.8, 0] as [number, number, number] },
       boardingSpot: [0, 0.55, 1] as [number, number, number],
       spawn: { x: 0, z: 0, dropHeight: 0.2, headingDeg: 0 },
@@ -1685,7 +1667,7 @@ export const CONFIG = {
       damping: { vertical: 800, verticalCd: 1.5, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 20, roll: 950, pitch: 600, yaw: 300 },
       resistance: { lwl: 5.2, formFactor: 0.25, waveA: 1.5, waveB: 1.2, waveKnee: 0.28, waveCap: 0.15, asternFactor: 2.0, y: -0.15 },
       layout: { bulwarkHeight: 0.15, railHeight: 0, deckEdgeMargin: 0.12, bodyRadius: 0.22 },
-      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true, lashPoints: [] as [number, number][], lashRange: 0.8 },
+      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true },
       windage: { side: 3, front: 1.5, center: [0, 0.5, 0] as [number, number, number] },
       boardingSpot: [0, 0.45, 1] as [number, number, number],
       spawn: { x: 0, z: 0, dropHeight: 0.2, headingDeg: 0 },
@@ -1701,7 +1683,7 @@ export const CONFIG = {
       damping: { vertical: 800, verticalCd: 1.5, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 20, roll: 24000, pitch: 20000, yaw: 10000 },
       resistance: { lwl: 10.2, formFactor: 0.15, waveA: 1.0, waveB: 0.9, waveKnee: 0.3, waveCap: 0.12, asternFactor: 2.5, y: -0.4 },
       layout: { bulwarkHeight: 0.06, railHeight: 0, deckEdgeMargin: 0.15, bodyRadius: 0.22 },
-      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true, lashPoints: [] as [number, number][], lashRange: 0.8 },
+      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true },
       windage: { side: 12, front: 5, center: [0, 1.2, 0] as [number, number, number] },
       boardingSpot: [0, 0.9, 2.5] as [number, number, number],
       spawn: { x: 0, z: 0, dropHeight: 0.2, headingDeg: 0 },
@@ -1717,7 +1699,7 @@ export const CONFIG = {
       // Her nets round the propeller and the locked shaft drag (the form factor, ~3x a clean hull's).
       resistance: { lwl: 17, formFactor: 1.0, waveA: 1.2, waveB: 1.0, waveKnee: 0.28, waveCap: 0.15, asternFactor: 2.0, y: -0.8 },
       layout: { bulwarkHeight: 0.8, railHeight: 0, deckEdgeMargin: 0.2, bodyRadius: 0.22 },
-      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true, lashPoints: [] as [number, number][], lashRange: 0.8 },
+      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true },
       windage: { side: 55, front: 25, center: [0, 3, 0] as [number, number, number] },
       boardingSpot: [0, 1.4, 6] as [number, number, number],
       spawn: { x: 0, z: 0, dropHeight: 0.2, headingDeg: 0 },
@@ -1733,7 +1715,7 @@ export const CONFIG = {
       // Bluff, square-ended: a big form factor and an early wave rise.
       resistance: { lwl: 19.5, formFactor: 2.5, waveA: 4, waveB: 3.5, waveKnee: 0.15, waveCap: 0.3, asternFactor: 1.5, y: -0.5 },
       layout: { bulwarkHeight: 0.1, railHeight: 0, deckEdgeMargin: 0.2, bodyRadius: 0.22 },
-      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true, lashPoints: [] as [number, number][], lashRange: 0.8 },
+      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true },
       windage: { side: 45, front: 20, center: [0, 2.5, 0] as [number, number, number] },
       boardingSpot: [0, 1.0, 4] as [number, number, number],
       spawn: { x: 0, z: 0, dropHeight: 0.2, headingDeg: 0 },

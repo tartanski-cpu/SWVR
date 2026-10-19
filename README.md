@@ -53,7 +53,7 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | Space / C at the ladder | Climb up / down (walk forward off the top onto the roof) |
 | Space (elsewhere) | **Jump**: off the boat onto a quay, from a quay aboard, or into the sea. Swimming near the hull, the swim ladder or a quay: climb out |
 | Click a cargo item | Pick it up (carried in front of you); click again to set it down |
-| Q on cargo on deck | Lash it to the nearest D-ring / release it |
+| Q on cargo on deck | Lash it down where it stands / release it (anywhere on open deck, clear of the house and gear) |
 | Middle mouse button (hold) | **Laser pointer** to the reticle (the beam comes from your lower right); the crew sees the beam and dot |
 | Click the searchlight or fire monitor joystick, or the skiff's tiller or gear lever | Steer it with **W A S D** (you don't walk meanwhile) while the mouse still looks around; click again to let go. You don't walk while dragging a lever or the wheel either |
 | Click the deck crane's joystick | **W A S D** slew and raise / lower the boom, **R / F** hoist up / down, **E / Q** boom out / in, **Space** hook (those keys do nothing else meanwhile); click again to let go |
@@ -106,7 +106,7 @@ Tap once for sound. Add `?touch=1` to the address to try these controls on a com
 | **Hand gestures** (a hand holding nothing) | **Grip**: a fist. **Grip, then push that hand's stick forward**: point. **Grip, then pull the stick back**: the middle finger. The finger stays out until you let go of the grip; while you hold the grip on an empty hand, its stick doesn't walk or turn you. You see your own hands (the mitts crew-mates see on you, in your outfit) where your controllers are, and crew-mates see your gestures |
 | **Right stick click (hold)** | **Laser pointer** from the right controller; the crew sees the beam and dot |
 | **Grip** on a cargo item | Pick it up; it follows your hand. Items over 60 kg need both grips on them. Let go to set it down: on the deck over the boat, ashore over land, lost in the sea |
-| **Trigger** touching cargo on deck | Lash it to the nearest D-ring (orange straps) / release it |
+| **Trigger** touching cargo on deck | Lash it down where it stands (orange straps) / release it |
 | **Grip** on the gunwale or transom while swimming | Haul yourself aboard (A near a quay climbs out there) |
 | **Grip + pull down at the ladder** | Climb (aft face of the wheelhouse, up to the railed roof). Push up to climb down |
 | **Y** | **Menu** on your left wrist (see below) |
