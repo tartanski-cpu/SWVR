@@ -283,6 +283,8 @@ export class EngineAudio {
   private wanted: EngineVoiceId = 'inlineSix';
   private ratedRpm = 1800;
   private twin = false;
+  /** How many engines she has (outboards: 2 to 4, heard as two voices, louder with more). */
+  private count = 1;
   private get wantedKey(): string {
     return `${this.wanted}|${this.ratedRpm}|${this.twin ? 2 : 1}`;
   }
@@ -340,6 +342,7 @@ export class EngineAudio {
     this.wanted = diesel?.voice ?? 'inlineSix';
     this.ratedRpm = diesel?.engine.ratedRpm ?? 1800;
     this.twin = !!diesel?.twin;
+    this.count = diesel?.units?.length ?? (this.twin ? 2 : 1);
     if (this.sound && this.built !== this.wantedKey) this.build();
     if (!this.sound) return;
     const e = v.engine;
@@ -352,7 +355,8 @@ export class EngineAudio {
     // Twin engines: two sounds, together ~+3 dB (each at engineTwinLevel / sqrt 2: two
     // unrelated sources add in power). The second runs a slowly wandering share off the
     // first's revs (CONFIG.engineTwinDrift), so their beats drift in and out of step: the drone.
-    const each = (level * CONFIG.engineTwinLevel) / Math.SQRT2;
+    // (Three or four outboards: two voices still, each as loud as half of them together: +1.8 / +3 dB.)
+    const each = ((level * CONFIG.engineTwinLevel) / Math.SQRT2) * Math.sqrt(Math.max(2, this.count) / 2);
     const dr = CONFIG.engineTwinDrift;
     const t = this.ctx!.currentTime;
     const drift = dr.share * (0.6 * Math.sin((2 * Math.PI * t) / dr.periodsS[0]) + 0.4 * Math.sin((2 * Math.PI * t) / dr.periodsS[1]));

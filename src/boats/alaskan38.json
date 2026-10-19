@@ -5,128 +5,17 @@
   "hull": "hull.alaskan-38",
   "modules": [
     {
-      "socket": "engine",
-      "module": "propulsion.diesel-inboard",
+      "socket": "outboards",
+      "module": "propulsion.outboard",
       "config": {
-        "engine": {
-          "powerKw": 300,
-          "idleRpm": 650,
-          "ratedRpm": 5800,
-          "torqueCurve": [
-            [
-              0,
-              0
-            ],
-            [
-              800,
-              260
-            ],
-            [
-              1500,
-              420
-            ],
-            [
-              2500,
-              520
-            ],
-            [
-              3500,
-              560
-            ],
-            [
-              4500,
-              540
-            ],
-            [
-              5400,
-              500
-            ],
-            [
-              5800,
-              440
-            ],
-            [
-              6200,
-              200
-            ],
-            [
-              6400,
-              0
-            ]
-          ],
-          "frictionTorque": 20,
-          "frictionPerRpm": 0.01,
-          "inertia": 0.35,
-          "droopRpm": 300,
-          "rackRiseRate": 2.5,
-          "starterTorque": 120,
-          "starterMaxRpm": 400,
-          "crankTime": 0.8,
-          "startOnlyInNeutral": true,
-          "preheatTime": 0.5,
-          "preheatHotTime": 0.2,
-          "unheatedExtraCrank": 0,
-          "coldBelowC": 40,
-          "glowCoolRate": 0.25,
-          "gearRatio": 2.0,
-          "gearEfficiency": 0.96,
-          "shiftDelay": 0.6,
-          "neutralBand": 0.08,
-          "trollingLever": 0.3,
-          "trollingMinShaft": 0.3,
-          "fuel": {
-            "tankL": 1100,
-            "startL": 800,
-            "sfcGPerKWh": 230,
-            "partLoadPenalty": 0.3,
-            "densityKgPerL": 0.84,
-            "lowFraction": 0.1,
-            "refuelRateLps": 2.5
-          },
-          "thermal": {
-            "heatToCoolant": 0.3,
-            "lhvMJPerKg": 42.7,
-            "heatCapacity": 40,
-            "thermostatOpenC": 80,
-            "thermostatFullC": 88,
-            "exchangerKwPerK": 2.4,
-            "baseLossKwPerK": 0.012,
-            "faultExchangerFraction": 0.08,
-            "alarmC": 95,
-            "derateStartC": 100,
-            "derateFullC": 110,
-            "derateRack": 0.3,
-            "shutdownC": 115,
-            "oilLagS": 45,
-            "oilLoadRiseC": 12
-          }
-        },
-        "propeller": {
-          "diameter": 0.4,
-          "kt0": 0.45,
-          "j0": 1.25,
-          "kq0": 0.07,
-          "jq0": 1.35,
-          "asternEfficiency": 0.5,
-          "asternTorque": 0.9,
-          "inertia": 0.03,
-          "wake": 0.03,
-          "thrustDeduction": 0.05,
-          "position": [
-            0,
-            -0.35,
-            7.9
-          ],
-          "rightHanded": true,
-          "propWalkAhead": 0.0,
-          "propWalkAstern": 0.0,
-          "propWalkFadeSpeed": 1.5
-        },
-        "sampleAt": [
-          0,
-          -0.3,
-          7.6
+        "units": [
+          -0.5,
+          0.5
         ],
+        "mount": {
+          "y": 0.7,
+          "z": 7.04
+        },
         "maintenance": {
           "oilStart": 0.72,
           "use": 0.00025,
@@ -153,38 +42,6 @@
             5.25
           ],
           "shelfDrop": 0.3
-        },
-        "voice": "v8",
-        "massKg": 380,
-        "twin": {
-          "x": 0.5
-        }
-      }
-    },
-    {
-      "socket": "rudder",
-      "module": "steering.rudder",
-      "config": {
-        "rudder": {
-          "area": 0.12,
-          "liftSlope": 2.4,
-          "stallDeg": 28,
-          "maxAngleDeg": 30,
-          "rateDegPerS": null,
-          "washFactor": 0.8,
-          "washMaxFraction": 0.55,
-          "flowStraightening": 0.5,
-          "coastSteer": 1.5,
-          "coastFadeThrust": 12000,
-          "position": [
-            0,
-            -0.35,
-            7.9
-          ]
-        },
-        "propeller": {
-          "wake": 0.03,
-          "diameter": 0.4
         }
       }
     },

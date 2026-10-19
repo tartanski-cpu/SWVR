@@ -1247,7 +1247,7 @@ export const CONFIG = {
        * Radii of gyration: roll ~0.4 B, pitch / yaw ~0.25 L.
        */
       mass: 9230,
-      /** Of which her two outboards (her recipe's twin diesel declares the same, 2 x 380 kg), at the bracket. */
+      /** Of which her two outboards (her recipe's outboard module declares the same, 2 x CONFIG.modules.outboard.massKg), on the bracket. */
       engineKg: 760,
       cg: [0, 0.55, 1.71] as [number, number, number],
       gyradius: { roll: 1.5, pitch: 3.0, yaw: 3.1 },
@@ -1432,9 +1432,9 @@ export const CONFIG = {
       },
       /**
        * Where her modules go (vessel axes, m): the console behind the faceted front; the
-       * breaker panel, battery master and selector, the radios; the lazarette; the "rudder"
-       * (the outboards steer: the rudder module stands at them, out of sight in their lower
-       * units); the cabin lamp; the roof; her cleats' stations.
+       * breaker panel, battery master and selector, the radios; the lazarette; the cabin
+       * lamp; the roof; her cleats' stations. (Her outboards: the outboard module on the
+       * bracket, `bracket.mountY` and its aft face.)
        */
       places: {
         /** The console's dash (the module), to starboard of the companionway: x 0.5, 0.9 m each way (its body: house.interior.console). */
@@ -1446,10 +1446,8 @@ export const CONFIG = {
         batterySelector: [1.3, A38_FLOOR - 0.02, 2.635] as [number, number, number],
         vhf: [-1.2, A38_FLOOR + 2.13, -1.9] as [number, number, number],
         fm: [1.15, A38_FLOOR + 2.19, -1.4] as [number, number, number],
-        /** The lazarette: the recipe's drawn engine is her fuel and electrics there (the outboards drive her). */
-        engineBed: [0.6, 0.6, 5.0] as [number, number, number],
+        /** The lazarette: her fuel, batteries and pump. */
         engineSpace: [-0.2, 0.5, 5.0] as [number, number, number],
-        rudder: [0, -0.35, 7.9] as [number, number, number],
         /** The saloon ceiling (its roof is the lower one). */
         cabinLight: [0, A38_FLOOR + 1.6, 1.2] as [number, number, number],
         searchlight: [0, A38_FLOOR + 2.4, -2.4] as [number, number, number],
@@ -1465,15 +1463,11 @@ export const CONFIG = {
        * Her one-off parts (boats/alaskan38/view.ts; drawing only). The outboard bracket: a
        * welded box off the transom, `bottom` to `top` m above the DWL, `length` m long, its
        * top the swim platform with a rail `railHeight` high; a gate in the transom at `gateX`
-       * with steps down. The outboards hang at +-`outboardX`.
+       * with steps down. Her two outboards (the outboard module, propulsion.outboard: its
+       * figures CONFIG.modules.outboard) clamp to its aft face at +-`outboardX`, the mount's
+       * top (their cowls' undersides) `mountY` above the DWL.
        */
-      bracket: { halfWidth: 1.55, bottom: 0.0, top: 0.45, length: 0.95, gateX: 0, railHeight: 0.9, outboardX: 0.5 },
-      /**
-       * Each outboard: cowl size; the leg from `legTop` (the cowl's underside) down to the
-       * anti-ventilation plate at `plateY`, the gearcase (and propeller centre) at `gearY`.
-       * Its propeller's place must agree with the recipe's (tests/alaskan38.test.ts).
-       */
-      outboards: { cowlWidth: 0.55, cowlHeight: 0.75, cowlLength: 0.85, legTop: 0.7, legWidth: 0.25, plateY: -0.1, gearY: -0.35, propDiameter: 0.4 },
+      bracket: { halfWidth: 1.55, bottom: 0.0, top: 0.45, length: 0.95, gateX: 0, railHeight: 0.9, outboardX: 0.5, mountY: 0.7 },
       /** Two spray rails along the topsides, at these shares of the way from the chine up to the deck edge, standing `proud` m. */
       sprayRails: { shares: [0.3, 0.6], proud: 0.06, radius: 0.035, colour: 0x8a9096 },
       /** The bow rail: posts on the deck edge from `from` (z) to the stem every `spacing` m, `height` m above the bulwark. */
@@ -3550,6 +3544,111 @@ export const CONFIG = {
       massKg: 1300,
     },
 
+    /**
+     * propulsion.outboard (owner, Oct 2026: "an outboard engine module for the Shipyard...
+     * 2, 3 or 4 outboards"): petrol V8 outboards on a bracket off the transom, worked
+     * together from one lever and one key, steered by swinging them with the wheel (no
+     * rudder). Each one's figures are the Alaskan 38's, tuned by sea trial (26 kn with two
+     * on her 9.2 t):
+     *   engine      300 kW (400 hp), idling at 650 rpm, rated 5800; a petrol engine's torque
+     *               curve (flat from 2500 to 5400 rpm, falling off past its rated speed), a
+     *               light flywheel, a quick starter, no glow plugs (`preheatTime` 0: the
+     *               HEAT button does nothing, and she starts cold as warm). It burns from
+     *               her tank as the diesels do (the game has one fuel; petrol at the fuel
+     *               berth is for later), at petrol's 0.74 kg/L. Its fuel and heat
+     *               figures are the ones she was tuned with (more fuel per kWh heats it
+     *               into its derate flat out).
+     *   gearRatio   2.0: the lower unit's bevel gears, the engine at 5800 turning the
+     *               propeller at 2900 rpm.
+     *   propeller   0.4 m (a 16 in prop), light and fast; each unit's (the module draws and
+     *               places it: its `position` is worked out from `mount` and `look`).
+     *   steering    the units swing together up to `maxAngleDeg` either way at `rateDegPerS`
+     *               (hydraulic steering), each pushing along its own heading; their lower
+     *               units (`legArea` each, the gearcase and skeg below the water) steer a
+     *               little as a rudder does from the water flowing past them.
+     *   spacing     the units' centres across the transom (m): about what two 400 hp
+     *               outboards need to turn lock to lock without touching.
+     *   look        each unit's size (m): the cowl; the shaft from the mount's top down to
+     *               the anti-ventilation plate (a 30 in long shaft); the gearcase below it
+     *               to the propeller's centre; how far aft of the mount the steering pivot
+     *               and the propeller are (straight).
+     *   bracket     the Shipyard's bracket off the transom that carries them: how far aft it
+     *               reaches, its top below the mount, and the margin past the outer units.
+     *   massKg      each one, dry (about what a 400 hp V8 outboard weighs).
+     *   pricePerKw  GBP per kW.
+     */
+    outboard: {
+      engine: {
+        powerKw: 300,
+        idleRpm: 650,
+        ratedRpm: 5800,
+        torqueCurve: [[0, 0], [800, 260], [1500, 420], [2500, 520], [3500, 560], [4500, 540], [5400, 500], [5800, 440], [6200, 200], [6400, 0]] as [number, number][],
+        frictionTorque: 20,
+        frictionPerRpm: 0.01,
+        inertia: 0.35,
+        droopRpm: 300,
+        rackRiseRate: 2.5,
+        starterTorque: 120,
+        starterMaxRpm: 400,
+        crankTime: 0.8,
+        startOnlyInNeutral: true,
+        preheatTime: 0,
+        preheatHotTime: 0,
+        unheatedExtraCrank: 0,
+        coldBelowC: 40,
+        glowCoolRate: 0.25,
+        gearRatio: 2.0,
+        gearEfficiency: 0.96,
+        shiftDelay: 0.6,
+        neutralBand: 0.08,
+        trollingLever: 0.3,
+        trollingMinShaft: 0.3,
+        fuel: { tankL: 1100, startL: 800, sfcGPerKWh: 230, partLoadPenalty: 0.3, densityKgPerL: 0.74, lowFraction: 0.1, refuelRateLps: 2.5 },
+        thermal: {
+          heatToCoolant: 0.3,
+          lhvMJPerKg: 42.7,
+          heatCapacity: 40,
+          thermostatOpenC: 80,
+          thermostatFullC: 88,
+          exchangerKwPerK: 2.4,
+          baseLossKwPerK: 0.012,
+          faultExchangerFraction: 0.08,
+          alarmC: 95,
+          derateStartC: 100,
+          derateFullC: 110,
+          derateRack: 0.3,
+          shutdownC: 115,
+          oilLagS: 45,
+          oilLoadRiseC: 12,
+        },
+      },
+      propeller: {
+        diameter: 0.4,
+        kt0: 0.45,
+        j0: 1.25,
+        kq0: 0.07,
+        jq0: 1.35,
+        asternEfficiency: 0.5,
+        asternTorque: 0.9,
+        inertia: 0.03,
+        wake: 0.03,
+        thrustDeduction: 0.05,
+        position: [0, 0, 0] as [number, number, number],
+        rightHanded: true,
+        propWalkAhead: 0,
+        propWalkAstern: 0,
+        propWalkFadeSpeed: 1.5,
+      },
+      steering: { maxAngleDeg: 30, rateDegPerS: 45, legArea: 0.09 },
+      spacing: 0.7,
+      look: { cowlWidth: 0.55, cowlHeight: 0.75, cowlLength: 0.85, legWidth: 0.25, shaftLength: 0.8, gearDrop: 0.25, pivotAft: 0.15, propAft: 0.8 },
+      bracket: { length: 0.75, belowMount: 0.2, margin: 0.4 },
+      massKg: 380,
+      alternatorAmps: 60,
+      starterAmps: 120,
+      pricePerKw: 130,
+    },
+
     /** electrical.battery-bank (M6): each 12 V 100 Ah battery's mass (kg). */
     batteryBank: { massKg: 28 },
 
@@ -3692,6 +3791,27 @@ export const CONFIG = {
       drive: 1.4,
       hiss: { base: 0.002, load: 0.01 },
       turbo: { idleHz: 1400, boostHz: 3200, gain: 0.006 } as { idleHz: number; boostHz: number; gain: number } | null,
+    },
+    /**
+     * The petrol V8 outboards (owner, Oct 2026: "a great V8 petrol outboard sound", heard on
+     * the Alaskan 38, "without the turbo part"): the V8's voice exactly, the turbo whine
+     * left out. Revving to 5800 rpm (the outboards' rated speed: ENGINE voices take their
+     * pulse rate from the engine's revs), its beat runs four times the diesel's: the
+     * high, hard V8 howl of an outboard flat out.
+     */
+    outboardV8: {
+      cylinders: 8,
+      strength: [1.0, 0.94, 0.58, 0.55, 0.6, 1.03, 0.97, 0.56],
+      jitter: 0.12,
+      pulseTau: 0.011,
+      pulseTauLow: 0.005,
+      body: { freq: 85, q: 0.9, gain: 5 },
+      stack: { freq: 132, q: 2.0, gain: 3 },
+      lp: { base: 160, rpm: 140, load: 200 },
+      thump: { base: 0.55, rpm: 0.3, load: 0.4 },
+      drive: 1.4,
+      hiss: { base: 0.002, load: 0.01 },
+      turbo: null as { idleHz: number; boostHz: number; gain: number } | null,
     },
   },
 

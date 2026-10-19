@@ -5,17 +5,15 @@
  * into one vertex-coloured mesh (one draw call):
  *
  *   stage 1  the outboard bracket off her transom with its swim platform and rails, the
- *            twin outboards (cowls, legs, propellers), the two spray rails along her
- *            topsides carried round the stem, and the bow rail;
+ *            two spray rails along her topsides carried round the stem, and the bow rail;
  *   stage 2  the superstructure: the trunk cabin on the foredeck, the pilothouse and saloon
  *            (their walls, glass and the tan eyebrow roof round the game's house box, which
  *            stays what you walk in: layout.wheelhouse with `shell: 'oneOff'`), the roof
  *            carried aft over the cockpit on two posts with the radar and rod rack;
  *   stage 3  the interior.
  *
- * Drawing only: her physics is her stations and her modules'. The outboards are drawn here;
- * her thrust comes from a twin diesel-inboard module placed at them (boats/alaskan38.json)
- * until there's an outboard engine module.
+ * Drawing only: her physics is her stations and her modules'. Her outboards are the outboard
+ * module's (propulsion.outboard: it draws them, swinging with the wheel), on this bracket.
  */
 import * as THREE from 'three';
 import { bar } from '../../mechanisms/line';
@@ -27,17 +25,12 @@ import { facetDepth, facetDz, frontRake, paintOf, setBack } from '../../vessel/v
 const ALU = 0x9aa0a6; // bare aluminium: bracket, platform frame
 const GRATING = 0xb4b9be; // the platform's non-slip top
 const BLACK = 0x1a1c1e; // rails, the outboards' legs
-const COWL = 0xeeeeea; // the outboards' cowls
-const DARK = 0x2f3438; // the outboards' lower units
-const BRONZE = 0xc08a3e;
+const COWL = 0xeeeeea; // the radar dome
 
 type V3 = [number, number, number];
 
 function box(w: number, h: number, l: number, at: V3, colour: number): THREE.BufferGeometry {
   return part(new THREE.BoxGeometry(w, h, l).translate(at[0], at[1], at[2]), colour);
-}
-function drum(r: number, l: number, at: V3, colour: number, sides = 12): THREE.BufferGeometry {
-  return part(new THREE.CylinderGeometry(r, r, l, sides).rotateX(Math.PI / 2).translate(at[0], at[1], at[2]), colour);
 }
 /** A box by its extents (either order). */
 function span(x0: number, x1: number, y0: number, y1: number, z0: number, z1: number, colour: number): THREE.BufferGeometry {
@@ -126,37 +119,6 @@ export function buildAlaskan38Parts(def: VesselDef): THREE.Group {
     const x = side * (b.halfWidth - 0.05);
     parts.push(bar(new THREE.Vector3(x, railTop, transom + 0.1), new THREE.Vector3(x, railTop, zEnd - 0.05), 0.02, BLACK, 8));
     parts.push(bar(new THREE.Vector3(x, railTop, zEnd - 0.05), new THREE.Vector3(side * (b.outboardX + 0.5), railTop, zEnd - 0.05), 0.02, BLACK, 8));
-  }
-
-  // ── The outboards ──
-  // Each hangs on a mounting plate at the bracket's aft face: a cowl (the engine) above the
-  // platform, a slim leg down through it, the lower unit and its propeller under water.
-  const o = c.outboards;
-  for (const side of [-1, 1]) {
-    const x = side * b.outboardX;
-    const zPlate = transom + b.length;
-    parts.push(box(o.cowlWidth + 0.2, 0.6, 0.06, [x, b.top + 0.3, zPlate + 0.03], ALU)); // mounting plate
-    const zCowl = zPlate + 0.1 + o.cowlLength / 2;
-    const yCowl = o.legTop + o.cowlHeight / 2;
-    parts.push(box(o.cowlWidth, o.cowlHeight, o.cowlLength, [x, yCowl, zCowl], COWL));
-    parts.push(box(o.cowlWidth + 0.02, 0.08, o.cowlLength - 0.1, [x, o.legTop + 0.04, zCowl], DARK)); // the pan under the cowl
-    parts.push(box(o.cowlWidth * 0.55, o.cowlHeight * 0.35, 0.02, [x, yCowl + 0.05, zCowl + o.cowlLength / 2 + 0.01], DARK)); // the air intake panel at the back
-    // The leg: from under the cowl down to the anti-ventilation plate, then the lower unit.
-    const zLeg = zPlate + 0.1 + o.cowlLength * 0.45;
-    parts.push(box(o.legWidth, o.legTop - o.plateY, 0.42, [x, (o.legTop + o.plateY) / 2, zLeg], DARK));
-    parts.push(box(o.legWidth + 0.3, 0.025, 0.7, [x, o.plateY, zLeg + 0.05], DARK)); // anti-ventilation plate
-    parts.push(box(o.legWidth * 0.8, o.plateY - o.gearY, 0.34, [x, (o.plateY + o.gearY) / 2, zLeg], DARK));
-    parts.push(drum(0.1, 0.62, [x, o.gearY, zLeg + 0.06], DARK, 14)); // the torpedo
-    parts.push(part(new THREE.ConeGeometry(0.1, 0.22, 14).rotateX(-Math.PI / 2).translate(x, o.gearY, zLeg - 0.36), DARK)); // its nose
-    parts.push(box(0.03, 0.42, 0.26, [x, o.gearY - 0.1, zLeg - 0.08], DARK)); // the skeg
-    // The propeller behind the torpedo.
-    const zProp = zLeg + 0.42;
-    parts.push(drum(0.045, 0.1, [x, o.gearY, zProp], BRONZE, 10));
-    for (let i = 0; i < 3; i++) {
-      const blade = new THREE.BoxGeometry(0.07, o.propDiameter / 2 - 0.04, 0.012).translate(0, o.propDiameter / 4 + 0.02, 0);
-      blade.rotateY(0.6).rotateZ((i * 2 * Math.PI) / 3).translate(x, o.gearY, zProp);
-      parts.push(part(blade, BRONZE));
-    }
   }
 
   // ── The spray rails ──
@@ -640,12 +602,4 @@ function buildInterior(
   const ce = it.ceiling;
   parts.push(span(-xi + ce.inset, xi - ce.inset, phRoof - ce.thickness, phRoof, front + w + g.fd + ce.inset, phAft - w - ce.inset, ce.colour));
   parts.push(span(-xi + ce.inset, xi - ce.inset, saRoof - ce.thickness, saRoof, phAft + ce.inset, aft - w - ce.inset, ce.colour));
-}
-
-/** For tests: where her outboards' propellers turn (her axes). */
-export function alaskan38PropellerAt(def: VesselDef): V3[] {
-  const c = CONFIG.vessels.alaskan38;
-  const transom = def.hull.stations[0].z;
-  const zLeg = transom + c.bracket.length + 0.1 + c.outboards.cowlLength * 0.45;
-  return [-1, 1].map((side) => [side * c.bracket.outboardX, c.outboards.gearY, zLeg + 0.42] as V3);
 }

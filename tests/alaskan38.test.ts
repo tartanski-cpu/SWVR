@@ -6,7 +6,8 @@
  */
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { alaskan38PropellerAt, buildAlaskan38Parts } from '../src/boats/alaskan38/view';
+import { buildAlaskan38Parts } from '../src/boats/alaskan38/view';
+import { OUTBOARD, outboardGeometry } from '../src/modules/outboard';
 import { ONE_OFF_VIEWS } from '../src/boats/oneOffViews';
 import { RECIPES } from '../src/boats/library';
 import { CONFIG } from '../src/config';
@@ -26,20 +27,18 @@ describe('the Alaskan 38', () => {
     expect(Math.abs(def.cg[2] - c.cg[2])).toBeLessThan(1e-6); // her modules go back where they were weighed
   });
 
-  it('her twin engine module pushes where her drawn outboards turn their propellers', () => {
-    const engine = RECIPES.alaskan38.modules.find((m) => m.socket === 'engine');
-    expect(engine).toBeDefined();
-    const cfg = engine!.config as { twin: { x: number }; propeller: { position: [number, number, number]; diameter: number } };
-    expect(cfg.twin.x).toBe(c.bracket.outboardX);
-    const drawn = alaskan38PropellerAt(def);
-    expect(drawn.map((p) => p[0]).sort()).toEqual([-c.bracket.outboardX, c.bracket.outboardX]);
-    for (const p of drawn) {
-      expect(p[1]).toBeCloseTo(cfg.propeller.position[1], 2);
-      expect(Math.abs(p[2] - cfg.propeller.position[2])).toBeLessThan(0.15);
-    }
-    expect(cfg.propeller.diameter).toBe(c.outboards.propDiameter);
-    // Under water at rest, by at least a radius: the module fades thrust as the disc comes out.
-    expect(cfg.propeller.position[1] + cfg.propeller.diameter / 2).toBeLessThan(0);
+  it('her two outboards are the outboard module, on her bracket, their propellers under water', () => {
+    const m = RECIPES.alaskan38.modules.find((x) => x.module === 'propulsion.outboard');
+    expect(m).toBeDefined();
+    expect(RECIPES.alaskan38.modules.some((x) => x.module === 'steering.rudder' || x.module === 'propulsion.diesel-inboard')).toBe(false);
+    const cfg = { ...OUTBOARD.defaults, ...(m!.config as object) } as typeof OUTBOARD.defaults;
+    expect(cfg.units.map(Math.abs)).toEqual([c.bracket.outboardX, c.bracket.outboardX]);
+    // Clamped to the bracket's aft face, at the mount's height.
+    expect(cfg.mount.z).toBeCloseTo(def.hull.stations[0].z + c.bracket.length, 1);
+    expect(cfg.mount.y).toBe(c.bracket.mountY);
+    const g = outboardGeometry(cfg);
+    expect(g.propY + cfg.propeller.diameter / 2).toBeLessThan(0);
+    expect(g.propZ).toBeGreaterThan(cfg.mount.z);
   });
 
   it('her one-off parts build as one opaque mesh and one of glass, astern of and along her hull, with nothing out of range', () => {
@@ -52,10 +51,9 @@ describe('the Alaskan 38', () => {
     const box = new THREE.Box3().setFromBufferAttribute(pos as THREE.BufferAttribute);
     for (const v of [box.min.x, box.min.y, box.min.z, box.max.x, box.max.y, box.max.z]) expect(Number.isFinite(v)).toBe(true);
     const transom = def.hull.stations[0].z;
-    expect(box.max.z).toBeGreaterThan(transom + c.bracket.length); // the outboards hang off the bracket
+    expect(box.max.z).toBeGreaterThan(transom + c.bracket.length - 0.05); // the bracket and its platform
     expect(box.max.z).toBeLessThan(transom + 3);
     expect(box.min.z).toBeLessThan(-5.5); // the spray rails and bow rail reach the stem
-    expect(box.min.y).toBeGreaterThan(-1.0); // the lower units under the bracket, not under the keel
     expect(Math.abs(box.max.x + box.min.x)).toBeLessThan(0.08); // symmetric (but for the side door's handle)
     expect(box.max.y).toBeGreaterThan(CONFIG.vessels.alaskan38.house.saloon.roofY + 0.5); // the rod rack and radar over the saloon roof
     const glass = group.children.find((c) => c.name === 'alaskan38-glass') as THREE.Mesh;
