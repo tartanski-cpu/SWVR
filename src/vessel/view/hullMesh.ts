@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { HullForm } from '../hullForm';
 import { hullPlan, type LayoutConfig } from '../layout';
-import { housesOf, type Livery } from '../vesselDef';
+import { houseFloorAt, houseFloorLow, housesOf, type Livery } from '../vesselDef';
 import { flatVertexColorMaterial, mergeParts, part } from '../../render/geometryUtils';
 import { CONFIG } from '../../config';
 import { paintIndex, type PaintName } from '../../render/pixelPaint';
@@ -230,17 +230,19 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
       // hull narrows fast below the deck and lower walls showed through her topsides. A sunk
       // house's walls go down to its floor (the Shipyard keeps those where her hull is wide).
       const deckLo = Math.min(...Array.from({ length: 9 }, (_, i) => plan.deckY(wh.front + ((wh.aft - wh.front) * i) / 8)));
-      const low = Math.min(0.9, wh.floorY - 0.15);
+      const low = Math.min(0.9, houseFloorLow(wh) - 0.15);
       const base = sunkHere ? low : Math.max(low, deckLo - 0.06);
       if (wh.shell === 'oneOff') {
         // Her own walls, floors, console body and roof (boats/oneOffViews.ts): nothing here.
       } else parts.push(...(wh.shape ? buildShapedHouse(own, col, base) : buildWheelhouse(own, col, base)));
       // Steps at the aft door: solid blocks up to each tread.
       const d = wh.doorWidth / 2;
-      const foot = Math.min(wh.floorY, plan.deckY(wh.aft)) - 0.05;
+      // (Its floor at the door: a saloon's, a step or two down from the helm's.)
+      const doorFloor = houseFloorAt(wh, wh.aft);
+      const foot = Math.min(doorFloor, plan.deckY(wh.aft)) - 0.05;
       for (const st of wh.steps ?? []) parts.push(box(-d, d, foot, st.y, st.z0, st.z1, col.deck, 'nonSlip'));
       // Stepping down into a sunken cabin: the step's face, from the deck down to the door sill.
-      if (sunkHere) parts.push(box(-d, d, wh.floorY, plan.deckY(wh.aft), wh.aft, wh.aft + 0.03, col.deck));
+      if (sunkHere) parts.push(box(-d, d, doorFloor, plan.deckY(wh.aft), wh.aft, wh.aft + 0.03, col.deck));
     }
   }
   return parts;
@@ -422,7 +424,7 @@ export function sunkenHouses(form: HullForm, layout: LayoutConfig): { house: num
     // cabin): the cut runs on forward, `inset` in from the deck edge there.
     const op = helm ? layout.deckOpening : undefined;
     if (op) out.push({ house: k, helm, front: Math.min(wh.front, op.front), aft: wh.aft, halfWidth: (z) => (z < wh.front ? Math.max(0.2, plan.halfBeam(z) - op.inset) : wh.halfWidth) });
-    else if (wh.floorY < deck) out.push({ house: k, helm, front: wh.front, aft: wh.aft, halfWidth: () => wh.halfWidth });
+    else if (houseFloorLow(wh) < deck) out.push({ house: k, helm, front: wh.front, aft: wh.aft, halfWidth: () => wh.halfWidth });
   }
   return out;
 }
@@ -626,7 +628,9 @@ function buildShapedHouse(layout: HouseLayout, col: Paint, base: number): THREE.
     const jx = s > 0 ? door : -door - JAMB;
     parts.push(fbox(jx, jx + JAMB, sideS, head, zA - w, zA));
   }
-  parts.push(...keep(box(-door, door, wh.floorY + wh.doorHeight, roofAft, zA - w, zA, H)));
+  // (The doorway from the floor at the door: a saloon's, if it's a step or two down.)
+  const doorFloor = houseFloorAt(wh, zA);
+  parts.push(...keep(box(-door, door, doorFloor + wh.doorHeight, roofAft, zA - w, zA, H)));
   // A faceted front: everything at the front (forward of a little aft of the front wall, the
   // raked glass's frames and the header included) set back by facetDz at its x, so the outer
   // panes and the side walls' front ends meet on the angle. Glass raked aft has its head aft of
@@ -647,7 +651,7 @@ function buildShapedHouse(layout: HouseLayout, col: Paint, base: number): THREE.
     // (No side door: it slides, so it needs an upright wall; the Shipyard leaves it off.)
   }
   // Door sill, floor, console.
-  parts.push(box(-door, door, base, wh.floorY + 0.02, zA - w, zA, col.floor));
+  parts.push(box(-door, door, base, doorFloor + 0.02, zA - w, zA, col.floor));
   buildFloor(layout, col, parts);
   buildConsole(wh, col, parts);
 
@@ -825,7 +829,14 @@ function buildFloor(layout: HouseLayout, col: Paint, parts: THREE.BufferGeometry
   // piece out to the angled walls.
   const fd = facetDepth(wh);
   const fz0 = wh.front + w + fd;
-  const fz1 = wh.aft - w;
+  // A floor at more than one height (levels: a saloon a step or two down, its treads): the
+  // helm's floor forward of them, each level a block from the lowest floor up, and the riser
+  // where the helm's floor ends (the engine hatch is in the helm's, if in the house).
+  const levels = wh.levels ?? [];
+  const lowest = houseFloorLow(wh) - 0.1;
+  const fz1 = levels.length ? Math.min(...levels.map((lv) => lv.z0)) : wh.aft - w;
+  for (const lv of levels) parts.push(box(fx0, fx1, lowest, lv.y, Math.max(lv.z0, fz0), Math.min(lv.z1, wh.aft - w), col.floor, 'mat'));
+  if (levels.length && wh.floorY - 0.1 > lowest + 0.005) parts.push(box(fx0, fx1, lowest, wh.floorY - 0.1, fz1 - 0.05, fz1, col.floor));
   const fy0 = wh.floorY - 0.1;
   if (fd) {
     const c = wh.shape!.facet!.centre;
@@ -981,14 +992,15 @@ function buildWheelhouse(layout: HouseLayout, col: Paint, base: number): THREE.B
     const jx = s > 0 ? door : -door - JAMB;
     parts.push(fbox(jx, jx + JAMB, sill, head, wh.aft - w, wh.aft));
   }
-  parts.push(box(-door, door, wh.floorY + wh.doorHeight, roof, wh.aft - w, wh.aft, H));
+  const doorFloor = houseFloorAt(wh, wh.aft);
+  parts.push(box(-door, door, doorFloor + wh.doorHeight, roof, wh.aft - w, wh.aft, H));
   // The walls' inside faces: wood lining (pixel painting, owner).
   const centre = new THREE.Vector3(0, 0, (wh.front + wh.aft) / 2);
   for (const g of parts.slice(wallsFrom)) lineInside(g, H, col.lining, centre);
   // The ceiling: wood lining just under the roof.
   parts.push(box(-hw + w, hw - w, roof - 0.012, roof, wh.front + w, wh.aft - w, col.lining, 'wood'));
   // Door sill.
-  parts.push(box(-door, door, base, wh.floorY + 0.02, wh.aft - w, wh.aft, col.floor));
+  parts.push(box(-door, door, base, doorFloor + 0.02, wh.aft - w, wh.aft, col.floor));
 
   buildFloor(layout, col, parts);
   buildConsole(wh, col, parts);

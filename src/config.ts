@@ -2765,6 +2765,13 @@ export const CONFIG = {
      */
     deckhouse: { kgPerM2: 35, pricePerM2: 450, fromStem: 1.2, edge: 0.12 },
     /**
+     * A saloon aft of the wheelhouse (parametric boats P2b, design.saloon): the house runs on
+     * aft, one house under one roof. Shorter than `minLength` (m) where her deck runs out, it's
+     * left off. Stepping down into it, each step is a 0.2 m rise (design.saloonFloor) with a
+     * tread `tread` m deep between (a comfortable stair's going), aft of the wheelhouse.
+     */
+    saloon: { minLength: 1.2, tread: 0.28 },
+    /**
      * Hull protection (owner): what keeps her sides off a quay (design.ts `guard`). Prices
      * (GBP): a set of fenders and their basket the cheapest; the rubbing strake and the
      * tyres by the metre of her and per tyre (the build counts them). `fenders`: how many

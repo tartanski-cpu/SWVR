@@ -37,7 +37,7 @@ import { briefPaper } from './briefPaper';
 import { buildVesselMesh, buildVesselMeshParts } from '../vessel/view/hullMesh';
 import { DESIGN_HULLS, ENGINES, LIVERIES, ROOF_PAINTS, type DesignedBoat } from './build';
 import { docFileName, docFileText, docToken, designToken, readDesign, shortCode } from './designDoc';
-import { ALL_FIELDS, DEFAULT_DESIGN, GUARDS, MATERIALS, OUTBOARDS, RAILS, SILLS, SINGLE_ONLY_ENGINES, SKIFFS, outboardCount, placeOf, placeValue, SCALES, type PlaceKey, type ShipDesign } from './design';
+import { ALL_FIELDS, DEFAULT_DESIGN, GUARDS, MATERIALS, OUTBOARDS, RAILS, SALOON_FLOORS, SILLS, SINGLE_ONLY_ENGINES, SKIFFS, outboardCount, placeOf, placeValue, SCALES, type PlaceKey, type ShipDesign } from './design';
 import { hullPlan } from '../vessel/layout';
 import { UndoStack } from './undo';
 import { YardLink } from './yardLink';
@@ -621,6 +621,9 @@ options('rails', 'Rails', [...RAILS]);
 section('2. Wheelhouse');
 slider('housePos', 'Position', (v) => (v === 0 ? 'right aft' : v === 15 ? 'right forward' : `${pct(SCALES.housePos(v))} fwd`));
 slider('houseLength', 'Length', (v) => `${SCALES.houseLength(v).toFixed(1)} m`);
+// A saloon aft of it (parametric boats P2b): the house runs on aft, its floor level or steps down.
+slider('saloon', 'Saloon aft', (v) => (v ? `${SCALES.saloon(v).toFixed(1)} m` : 'none'));
+options('saloonFloor', 'Saloon floor', [...SALOON_FLOORS]);
 slider('houseWidth', 'Width', (v) => pct(SCALES.houseWidth(v)));
 slider('headroom', 'Headroom', (v) => `${SCALES.headroom(v).toFixed(1)} m`);
 const signed = (x: number, unit: string, digits = 0) => `${x > 0 ? '+' : ''}${x.toFixed(digits)}${unit}`;

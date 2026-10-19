@@ -177,7 +177,7 @@ function houseWalk(
   // wall, only a strip along the wall is taken up.
   const ct = helm ? gearOf({ defId: def.id }, 'chartTable') : null;
   const atFurniture = (x: number, z: number, pad: number, y = -Infinity) =>
-    !!ct && x >= ct.x0 - pad && x <= (live.leafFolded() ? ct.x0 + 0.1 : ct.x1) + pad && z >= ct.z0 - pad && z <= ct.z1 + pad && y < wh.floorY + ct.height;
+    !!ct && x >= ct.x0 - pad && x <= (live.leafFolded() ? ct.x0 + 0.1 : ct.x1) + pad && z >= ct.z0 - pad && z <= ct.z1 + pad && y < floorAt((ct.z0 + ct.z1) / 2) + ct.height;
   // Roof (walkable, railed) and the ladder up the aft face of the helm's house. A house with
   // no ladder (the Shipyard's, and every further house) has no way up: its roof isn't walked.
   const roof = layout.roof!;
