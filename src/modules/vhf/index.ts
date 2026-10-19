@@ -26,7 +26,7 @@ export const VHF: ModuleDefinition<VhfConfig> = {
       // Its brackets reach up to the roof.
       const y = socket.transform.position[1];
       const radio = new RadioSet(config.tiltDeg, Math.max(0, (hull.cabinRoof ?? y) - y));
-      return { staticParts: radio.fixedParts, movingParts: [radio.root], controls: [radio.handset], update: () => {}, api: radio };
+      return { staticParts: radio.fixedParts, movingParts: [radio.root], controls: [radio.handset, radio.sosButton], update: () => {}, api: radio };
     },
   },
 };

@@ -117,6 +117,9 @@ export interface MenuHost {
   /** No new emergency calls (world.quietCalls). */
   quietCalls(): boolean;
   setQuietCalls(on: boolean): void;
+  /** SOS (rescue/sos.ts): her condition in a line, and send it (recover her to the yard if she's over or under). */
+  sosStatus(): string;
+  sos(): void;
   /** Towing missions: one-line status (or null), make fast / cast off, tows delivered; debug. */
   towStatus(): string | null;
   towFast(): boolean;
@@ -337,6 +340,13 @@ export function mainMenu(h: MenuHost): MainMenu {
 
   const boat: MenuRow[] = [
     { heading: 'Deck' },
+    {
+      label: 'SOS',
+      buttons: [
+        { text: () => h.sosStatus(), weight: 2.4 },
+        { text: 'Send SOS', press: () => h.sos() },
+      ],
+    },
     {
       label: 'Tow',
       buttons: [

@@ -8,7 +8,7 @@ import { createPlayerState } from '../player/playerState';
 import { placeAshore } from '../player/playerControl';
 import { dropVessel, placeVessel } from '../vessel/vesselControl';
 import { BERTHS } from '../world/archipelago';
-import { shoreSide } from '../vessel/physics/mooring';
+import { berthPose, shoreSide } from '../vessel/physics/mooring';
 import { createVesselState, type VesselState } from '../vessel/vesselState';
 import { IdFactory, type EntityId } from './ids';
 import { stockPorts, type CargoItem } from '../cargo/cargo';
@@ -167,7 +167,8 @@ export function createWorld(
 function mooredAtStart(v: VesselState): void {
   const b = BERTHS.find((x) => x.id === CONFIG.start.berthId);
   if (!b) return dropVessel(v);
-  placeVessel(v, b.x, 0, b.z, b.headingDeg);
+  const at = berthPose(v, b);
+  placeVessel(v, at.x, 0, at.z, at.headingDeg);
   v.mooring.phase = 'moored';
   v.mooring.berthId = b.id;
   v.mooring.reversed = false;

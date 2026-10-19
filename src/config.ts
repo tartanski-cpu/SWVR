@@ -23,6 +23,15 @@ export interface CareerUpgrade {
   fit?: string[];
 }
 
+/**
+ * How wide a player's body is for walking into things (m: half their width): house walls,
+ * gear and the deck's edge keep this far off. Every boat's layout uses it (`bodyRadius`),
+ * Shipyard designs too (shipyard/build.ts). 0.22 kept people out of narrow side decks: with
+ * the deck-edge margin (0.25-0.3), a side deck had to be over half a metre wide. Shoulders
+ * turn sideways down a narrow deck, so 0.14 (owner, Oct 2026).
+ */
+export const BODY_RADIUS = 0.14;
+
 // Towable hulls (CONFIG.vessels.derelict / logRaft / barge): displacement at the DWL (kg) and
 // LCB (m aft), as their physics stations (`physicsStations`) integrate them, so they float
 // level on their DWL.
@@ -617,8 +626,8 @@ export const CONFIG = {
          */
         sideGate: { side: 1, z0: 2.6, z1: 3.4, openDeg: 90, buttonHeight: 0.85, boardRange: 1.8, stepDrop: 0.55 },
         deckEdgeMargin: 0.3,
-        /** Player body radius used for collision with walls. */
-        bodyRadius: 0.22,
+        /** Player body radius used for collision with walls (BODY_RADIUS, top of this file). */
+        bodyRadius: BODY_RADIUS,
       },
       /**
        * Bridge (vessel axes, m). Since modular boats M3 the helm console and its controls and
@@ -1172,7 +1181,7 @@ export const CONFIG = {
         railHeight: 0.9,
         fairleadGap: 0,
         deckEdgeMargin: 0.25,
-        bodyRadius: 0.22,
+        bodyRadius: BODY_RADIUS,
       },
       /** The open foredeck is her cargo deck: lashing points along both sides. */
       cargo: {
@@ -1322,7 +1331,7 @@ export const CONFIG = {
         railHeight: 0,
         fairleadGap: 0,
         deckEdgeMargin: 0.25,
-        bodyRadius: 0.22,
+        bodyRadius: BODY_RADIUS,
         /**
          * Below the pilothouse: the companionway down to port of the helm (three treads,
          * 0.31 m each, running forward under the dash) and the fore cabin's sole, 0.8 m wide
@@ -1541,7 +1550,7 @@ export const CONFIG = {
         bulwarkHeight: 0.15,
         railHeight: 0,
         deckEdgeMargin: 0.12,
-        bodyRadius: 0.22,
+        bodyRadius: BODY_RADIUS,
       },
       /**
        * Cargo in her bottom between the bow (`bowClear`) and the helmsman's place by the
@@ -1602,7 +1611,7 @@ export const CONFIG = {
       addedMass: { surge: 0.05, sway: 0.4, heave: 0.6, roll: 0.25, pitch: 0.6, yaw: 0.3 },
       damping: { vertical: 800, verticalCd: 1.5, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 20, roll: 2000, pitch: 2500, yaw: 2500 },
       resistance: { lwl: 6.5, formFactor: 0.25, waveA: 1.5, waveB: 1.2, waveKnee: 0.28, waveCap: 0.15, asternFactor: 2.0, y: -0.2 },
-      layout: { bulwarkHeight: 0.25, railHeight: 0, deckEdgeMargin: 0.15, bodyRadius: 0.22 },
+      layout: { bulwarkHeight: 0.25, railHeight: 0, deckEdgeMargin: 0.15, bodyRadius: BODY_RADIUS },
       cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true },
       windage: { side: 9, front: 4, center: [0, 1.1, 0] as [number, number, number] },
       boardingSpot: [0, 0.75, 2] as [number, number, number],
@@ -1617,7 +1626,7 @@ export const CONFIG = {
       addedMass: { surge: 0.05, sway: 0.4, heave: 0.6, roll: 0.25, pitch: 0.6, yaw: 0.3 },
       damping: { vertical: 800, verticalCd: 1.5, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 20, roll: 7000, pitch: 7000, yaw: 7000 },
       resistance: { lwl: 7.8, formFactor: 0.8, waveA: 4, waveB: 3, waveKnee: 0.2, waveCap: 0.3, asternFactor: 1.5, y: -0.2 },
-      layout: { bulwarkHeight: 0, railHeight: 0, deckEdgeMargin: 0.15, bodyRadius: 0.22 },
+      layout: { bulwarkHeight: 0, railHeight: 0, deckEdgeMargin: 0.15, bodyRadius: BODY_RADIUS },
       cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true },
       windage: { side: 2, front: 1.2, center: [0, 0.3, 0] as [number, number, number] },
       boardingSpot: [0, 0.3, 1] as [number, number, number],
@@ -1638,7 +1647,7 @@ export const CONFIG = {
       damping: { vertical: 800, verticalCd: 1.5, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 20, roll: 7000, pitch: 7000, yaw: 7000 },
       // The net under it drags: a form factor well above the raft's.
       resistance: { lwl: 7.8, formFactor: 1.6, waveA: 4, waveB: 3, waveKnee: 0.2, waveCap: 0.3, asternFactor: 1.5, y: -0.2 },
-      layout: { bulwarkHeight: 0, railHeight: 0, deckEdgeMargin: 0.15, bodyRadius: 0.22 },
+      layout: { bulwarkHeight: 0, railHeight: 0, deckEdgeMargin: 0.15, bodyRadius: BODY_RADIUS },
       cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true },
       windage: { side: 1.5, front: 1.5, center: [0, 0.4, 0] as [number, number, number] },
       boardingSpot: [0, 0.3, 1] as [number, number, number],
@@ -1653,7 +1662,7 @@ export const CONFIG = {
       addedMass: { surge: 0.05, sway: 0.4, heave: 0.6, roll: 0.25, pitch: 0.6, yaw: 0.3 },
       damping: { vertical: 800, verticalCd: 1.5, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 20, roll: 10000, pitch: 10000, yaw: 10000 },
       resistance: { lwl: 8.7, formFactor: 0.6, waveA: 3, waveB: 2.5, waveKnee: 0.22, waveCap: 0.25, asternFactor: 1.5, y: -0.25 },
-      layout: { bulwarkHeight: 0.1, railHeight: 0, deckEdgeMargin: 0.15, bodyRadius: 0.22 },
+      layout: { bulwarkHeight: 0.1, railHeight: 0, deckEdgeMargin: 0.15, bodyRadius: BODY_RADIUS },
       cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true },
       windage: { side: 5, front: 3, center: [0, 0.8, 0] as [number, number, number] },
       boardingSpot: [0, 0.55, 1] as [number, number, number],
@@ -1675,7 +1684,7 @@ export const CONFIG = {
       addedMass: { surge: 0.05, sway: 0.4, heave: 0.6, roll: 0.25, pitch: 0.6, yaw: 0.3 },
       damping: { vertical: 800, verticalCd: 1.5, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 20, roll: 950, pitch: 600, yaw: 300 },
       resistance: { lwl: 5.2, formFactor: 0.25, waveA: 1.5, waveB: 1.2, waveKnee: 0.28, waveCap: 0.15, asternFactor: 2.0, y: -0.15 },
-      layout: { bulwarkHeight: 0.15, railHeight: 0, deckEdgeMargin: 0.12, bodyRadius: 0.22 },
+      layout: { bulwarkHeight: 0.15, railHeight: 0, deckEdgeMargin: 0.12, bodyRadius: BODY_RADIUS },
       cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true },
       windage: { side: 3, front: 1.5, center: [0, 0.5, 0] as [number, number, number] },
       boardingSpot: [0, 0.45, 1] as [number, number, number],
@@ -1691,7 +1700,7 @@ export const CONFIG = {
       addedMass: { surge: 0.05, sway: 0.4, heave: 0.6, roll: 0.25, pitch: 0.6, yaw: 0.3 },
       damping: { vertical: 800, verticalCd: 1.5, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 20, roll: 24000, pitch: 20000, yaw: 10000 },
       resistance: { lwl: 10.2, formFactor: 0.15, waveA: 1.0, waveB: 0.9, waveKnee: 0.3, waveCap: 0.12, asternFactor: 2.5, y: -0.4 },
-      layout: { bulwarkHeight: 0.06, railHeight: 0, deckEdgeMargin: 0.15, bodyRadius: 0.22 },
+      layout: { bulwarkHeight: 0.06, railHeight: 0, deckEdgeMargin: 0.15, bodyRadius: BODY_RADIUS },
       cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true },
       windage: { side: 12, front: 5, center: [0, 1.2, 0] as [number, number, number] },
       boardingSpot: [0, 0.9, 2.5] as [number, number, number],
@@ -1707,7 +1716,7 @@ export const CONFIG = {
       damping: { vertical: 800, verticalCd: 1.5, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 20, roll: 460000, pitch: 345000, yaw: 172000 },
       // Her nets round the propeller and the locked shaft drag (the form factor, ~3x a clean hull's).
       resistance: { lwl: 17, formFactor: 1.0, waveA: 1.2, waveB: 1.0, waveKnee: 0.28, waveCap: 0.15, asternFactor: 2.0, y: -0.8 },
-      layout: { bulwarkHeight: 0.8, railHeight: 0, deckEdgeMargin: 0.2, bodyRadius: 0.22 },
+      layout: { bulwarkHeight: 0.8, railHeight: 0, deckEdgeMargin: 0.2, bodyRadius: BODY_RADIUS },
       cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true },
       windage: { side: 55, front: 25, center: [0, 3, 0] as [number, number, number] },
       boardingSpot: [0, 1.4, 6] as [number, number, number],
@@ -1723,7 +1732,7 @@ export const CONFIG = {
       damping: { vertical: 800, verticalCd: 1.5, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 20, roll: 1430000, pitch: 750000, yaw: 375000 },
       // Bluff, square-ended: a big form factor and an early wave rise.
       resistance: { lwl: 19.5, formFactor: 2.5, waveA: 4, waveB: 3.5, waveKnee: 0.15, waveCap: 0.3, asternFactor: 1.5, y: -0.5 },
-      layout: { bulwarkHeight: 0.1, railHeight: 0, deckEdgeMargin: 0.2, bodyRadius: 0.22 },
+      layout: { bulwarkHeight: 0.1, railHeight: 0, deckEdgeMargin: 0.2, bodyRadius: BODY_RADIUS },
       cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true },
       windage: { side: 45, front: 20, center: [0, 2.5, 0] as [number, number, number] },
       boardingSpot: [0, 1.0, 4] as [number, number, number],
@@ -1750,6 +1759,14 @@ export const CONFIG = {
   slipway: { maxAngleDeg: 20, maxSpeed: 1.0, range: 4, across: 1.5, landSec: 2, landSpeed: 0.8, releaseLever: -0.25 },
 
   docking: {
+    /**
+     * Lying at a berth: the berth marks (BerthDef.shoreDist, 2.5 m off the face) are set for
+     * the workboat's beam (her widest deck half-beam, 2.3 m, plus this much air for her
+     * fenders). Any boat lies with her own half-beam plus this off the face
+     * (vessel/physics/mooring.ts berthInshore), so a broad tug lies further off and a narrow
+     * boat closer, instead of into the quay (owner, Oct 2026: the big tug spawned into it).
+     */
+    fenderClear: 0.2,
     /**
      * The skiff's painter (vessel/physics/painter.ts): her bow line to one of the ship's cleats,
      * so she doesn't blow away. Made fast to the forward starboard cleat as she touches the
@@ -2421,6 +2438,63 @@ export const CONFIG = {
 
   /** Water effects (all one draw call each; see vessel/view/wakeTrail.ts and spray.ts). */
   effects: {
+    /**
+     * Diesel exhaust smoke (vessel/exhaust.ts: the model; vessel/view/exhaustSmoke.ts: the
+     * drawing). Owner, Oct 2026: a small simulation of why a diesel smokes, not a lookup.
+     *
+     * A diesel always takes a full charge of air and injects fuel into it; it smokes BLACK
+     * (soot) when the air–fuel ratio goes rich of the smoke limit, as it can't burn all the
+     * fuel: lugging (full rack, revs well down: a turbo gives little boost at low revs, and a
+     * mechanical pump delivers more per stroke slowly), a throttle snap (the rack opens before
+     * the turbo spools up: turbo lag), or an overloaded engine. It smokes WHITE when cold
+     * (fuel and water vapour unburnt: a cold block, poor atomisation), BLUE when it burns its
+     * lube oil (worn rings and guides: a worn engine, most at idle and when cold). Warm, clean
+     * and within its power it shows a faint grey haze only.
+     *
+     *   lambdaFull    the air–fuel ratio, relative to stoichiometric, at full rack and rated
+     *                 revs, warm: the maker's smoke limit (naturally aspirated / turbocharged)
+     *   smokeLambda   soot starts to show below this ratio; blackLambda: solid black
+     *   turbo         boost at full exhaust energy (1 = twice the air) and how long it takes
+     *                 to spool up (s; it falls off twice as fast). Turbocharged engines are
+     *                 the ones whose voice has a turbo (CONFIG.engineVoices).
+     *   lugFuel       a mechanical pump's over-delivery: fuel per stroke at full rack rises
+     *                 by this from rated revs down to a standstill
+     *   snapFuel      the transient over-fuelling as the rack swings open (per unit of rack
+     *                 per second)
+     *   coldC         white smoke from the block stone cold up to this temperature (°C),
+     *                 gone by coldClearC
+     *   blueWear      how much blue a worn-out engine (wear 1) makes at idle
+     *   haze          the opacity of the clean warm engine's haze
+     *   jet, jetPerRpm, lift, rise   how fast it leaves the outlet (m/s: jet + jetPerRpm ×
+     *                 rpm fraction), its upward kick (m/s, plus as much again at random),
+     *                 and the plume's drift upward as it drags to still air (m/s)
+     *   greyHaze, greyBlack   the grey of the haze and of solid soot, fresh from the outlet
+     *                 (linear light: 0.16 shows as a mid grey, 0.02 as near black)
+     *   greyAge       how much it lightens as it disperses (over its life)
+     *   rate, ratePerOpacity   particles per second from a warm engine at rated revs: rate +
+     *                 ratePerOpacity × the smoke's opacity (fewer at low revs)
+     */
+    exhaust: {
+      lambdaFull: { natural: 1.45, turbo: 1.7 },
+      smokeLambda: 1.35,
+      blackLambda: 0.95,
+      turbo: { maxBoost: 1.0, lagS: 1.5 },
+      lugFuel: 0.3,
+      snapFuel: 0.4,
+      coldC: 25,
+      coldClearC: 60,
+      blueWear: 0.6,
+      haze: 0.12,
+      jet: 1.4,
+      jetPerRpm: 2.2,
+      lift: 0.3,
+      rise: 0.4,
+      greyHaze: 0.16,
+      greyBlack: 0.02,
+      greyAge: 0.08,
+      rate: 10,
+      ratePerOpacity: 60,
+    },
     wake: {
       /** Ring-buffer size; with the spacing below this must cover `life` at full speed. */
       maxPoints: 220,
@@ -2814,6 +2888,15 @@ export const CONFIG = {
    * A run is: cargo aboard bound for another port, and the boat out of harbour. Once per run
    * there's a `chance` of a call, somewhere between `triggerFraction` of the way along.
    */
+  /**
+   * SOS (owner, Oct 2026; rescue/sos.ts): a boat capsized or sunk is recovered to the nearest
+   * boatyard's port by the salvage tug, from the main menu (Boat > SOS) or the red button
+   * under the VHF set. Upright and afloat, the coastguard turns an SOS down.
+   *   overturnDeg  she counts as capsized once she's rolled or pitched this far from upright
+   *   sunkDepth    ...or her waterline is this far under the surface (m): sunk
+   */
+  sos: { overturnDeg: 80, sunkDepth: 3 },
+
   rescue: {
     /** Lowered after V1.0 (owner: too many calls; was 0.5). */
     chance: 0.35,

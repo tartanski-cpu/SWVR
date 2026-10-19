@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import { panelLit } from '../controls/panelLighting';
 import type { RescueState } from './rescue';
+import { Button } from '../controls/Button';
 import { Handset } from '../controls/Handset';
+import { sosCondition } from './sos';
 import { part } from '../render/geometryUtils';
 
 const W = 512;
@@ -11,14 +13,17 @@ const H = 256;
  * The overhead VHF set: a box hung from the wheelhouse roof, tilted down toward the helm,
  * with a speaker grille, a call lamp that flashes red on an incoming distress call, a
  * small screen showing the latest message, and the handset on a clip (picking it up
- * answers a call; see Handset).
+ * answers a call; see Handset). A red SOS button under the set (rescue/sos.ts): lit, and
+ * the screen says so, while she's capsized or sunk.
  *
  * Draw calls: body (merged), screen (canvas, redrawn only when the text changes), lamp,
- * handset and its cord.
+ * handset and its cord, the SOS button.
  */
 export class RadioSet {
   readonly root = new THREE.Group();
   readonly handset: Handset;
+  /** The SOS button (intent `sos`): under the set, by the grille, where the helmsman looks up at it. */
+  readonly sosButton: Button;
   /** The set's case, bezel, grille, knobs and its brackets to the roof (root axes), to be merged with the boat's other fixed parts. */
   readonly fixedParts: THREE.BufferGeometry[];
   private readonly canvas = document.createElement('canvas');
@@ -75,6 +80,11 @@ export class RadioSet {
     this.root.add(clip);
     this.handset = new Handset('handset', new THREE.Vector3(-0.04, 0.0, 0));
     clip.add(this.handset.root);
+    // The SOS button on the set's underside, its cap pointing down, under the grille.
+    this.sosButton = new Button('sos', 'sos', 'SOS: call the salvage tug (capsized or sunk)', 'pulse', 0xd42020, (v) => sosCondition(v) !== 'upright');
+    this.sosButton.root.position.set(-0.11, -h / 2, 0.04);
+    this.sosButton.root.rotation.x = Math.PI;
+    set.add(this.sosButton.root);
     this.draw(null, 'Listening, channel 16', false);
   }
 
@@ -82,8 +92,8 @@ export class RadioSet {
    * @param r      rescue state (latest message, active incident)
    * @param status one line about the cargo run / rescue, for the bottom of the screen
    */
-  /** `towCalling`: a tow call is ringing (towing missions share the VHF). */
-  update(r: RescueState | undefined, status: string, dt: number, powered = true, towCalling = false): void {
+  /** `towCalling`: a tow call is ringing (towing missions share the VHF). `sos`: she's over or under: shown instead of `status`. */
+  update(r: RescueState | undefined, status: string, dt: number, powered = true, towCalling = false, sos: string | null = null): void {
     if (!powered) {
       // No 12 V: dark screen, no lamp (drawn once).
       (this.lamp.material as THREE.MeshBasicMaterial).color.setHex(0x200808);
@@ -101,6 +111,7 @@ export class RadioSet {
     const on = calling && this.flash % 0.8 < 0.4;
     (this.lamp.material as THREE.MeshBasicMaterial).color.setHex(on ? 0xff2a1a : calling ? 0x601010 : 0x401010);
     const msg = r?.radio ?? null;
+    if (sos) status = sos;
     const sig = `${msg?.id ?? 0}|${status}|${calling}`;
     if (sig === this.signature) return;
     this.signature = sig;

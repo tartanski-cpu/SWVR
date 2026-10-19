@@ -21,7 +21,7 @@
  * a plain-language warning; the page shows them, the game builds her anyway.
  */
 import { bottomAt as bottomUnder, FLANGE_SHARE, halfSection, layShaft, sternDriveLine, twinEngineX, type ShaftLine } from './machinery';
-import { CONFIG } from '../config';
+import { BODY_RADIUS, CONFIG } from '../config';
 import landingCraftRecipe from '../boats/landingCraft.json';
 import { DESIGNS } from '../hulls/designs';
 import { curveAt, type HullDesign } from '../hulls/loft';
@@ -500,7 +500,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   const bulwarkHeight = Math.round(SCALES.bulwark(d.bulwark) * 100) / 100;
 
   // ── The wheelhouse, within the deck free for it ──
-  const q = hullQueries({ hull: shape, layout: { bulwarkHeight, railHeight: 0, deckEdgeMargin: 0.25, bodyRadius: 0.22 } as LayoutConfig });
+  const q = hullQueries({ hull: shape, layout: { bulwarkHeight, railHeight: 0, deckEdgeMargin: 0.25, bodyRadius: BODY_RADIUS } as LayoutConfig });
   const zAft = transom - base.cockpit;
   const zFwd = stem + base.foredeck + (base.ramp ? 0.6 : 0);
   let houseL = SCALES.houseLength(d.houseLength);
@@ -683,7 +683,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
     // The notch in the transom bulwark for a stern roller (set below if she has one).
     fairleadGap: d.sternRoller ? CONFIG.vessels.workboat.layout.fairleadGap : 0,
     deckEdgeMargin: 0.25,
-    bodyRadius: 0.22,
+    bodyRadius: BODY_RADIUS,
   } as LayoutConfig;
   if (layout.wheelhouse && roofY - deckHi < 1.8) warnings.push('Her wheelhouse roof is low over the deck outside: the doorway will be a squeeze.');
 

@@ -206,8 +206,11 @@ export const SOUNDS: RegionDef = {
     { id: 'garbh-cargo', portId: 'garbh', name: 'Garbh Pier T-head (cargo)', x: -475.3, z: -2174.7, headingDeg: 135, shoreX: S2, shoreZ: -S2, shoreDist: 2.5, deckY: 2.4 },
   ],
   slipways: [
-    // Loch Tarsk: the yard's slip, east of the quay, down into the loch (northward).
-    { id: 'tarsk-slip', portId: 'tarsk', name: 'Loch Tarsk slipway', x: 665, z: -3930, headingDeg: 180, width: 6, length: 26, top: 1.8, slope: 1 / 8 },
+    // Loch Tarsk: the yard's slip, east of the quay, down into the loch (northward). Its top
+    // edge is on the shore (the yard's level ground, 2 m, ends at the loch's cut about
+    // z = -3905 here), so it runs from the land into the water; it used to start 25 m out,
+    // over the loch, on its own (owner, Oct 2026).
+    { id: 'tarsk-slip', portId: 'tarsk', name: 'Loch Tarsk slipway', x: 665, z: -3902, headingDeg: 180, width: 6, length: 28, top: 2.0, slope: 1 / 8 },
   ],
   lamps: [
     { x: 570, z: -3925, y: 7.5 },

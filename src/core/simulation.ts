@@ -10,6 +10,7 @@ import { stepVessel, type HydroDebug } from '../vessel/physics/vesselPhysics';
 import { vesselContacts } from '../vessel/physics/vesselContact';
 import { applyPlayerIntent } from '../player/playerControl';
 import { applyRescueIntent, isRescueIntent, stepRescue } from '../rescue/rescue';
+import { applySosIntent } from '../rescue/sos';
 import { applyBoardIntent, isBoardIntent } from '../board/board';
 import { applyVesselIntent, stepRefuelling } from '../vessel/vesselControl';
 import { applyCargoIntent, deckVelocitiesBefore, isCargoIntent, payloadOf, stepCraneCargo, stepDeckCargo } from '../cargo/cargo';
@@ -84,6 +85,8 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
       world.quietCalls = intent.value > 0.5;
     } else if (isBoardIntent(intent.control)) {
       applyBoardIntent(world, intent);
+    } else if (intent.control === 'sos') {
+      applySosIntent(world, intent);
     } else if (isRescueIntent(intent.control)) {
       applyRescueIntent(world, intent);
     } else if (isFireIntent(intent.control)) {

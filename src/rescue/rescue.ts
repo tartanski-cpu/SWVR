@@ -113,6 +113,8 @@ export interface RescueState {
   active: Incident | null;
   radio: RadioMessage | null;
   completed: number;
+  /** SOS calls answered (rescue/sos.ts): how many, and when the last was (world time, s). */
+  sos?: { sent: number; t: number };
   /** Rescue gear and survivors' shouts (rescue/recovery.ts); counter for the cheer. */
   ring?: RingState;
   hook?: HookState;

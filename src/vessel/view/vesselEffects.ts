@@ -1,6 +1,7 @@
 import type * as THREE from 'three';
 import { surfaceHeight, type PreparedWave } from '../../ocean/waves';
 import { gearOf } from '../../boats/sims';
+import { CONFIG } from '../../config';
 import type { VesselDef } from '../vesselDef';
 import type { VesselState } from '../vesselState';
 import { ExhaustSmoke } from './exhaustSmoke';
@@ -20,7 +21,7 @@ import { MooringLines } from './mooringLines';
  * modules' own views since M6c.
  */
 class Equipment {
-  readonly smoke: { view: ExhaustSmoke; exhaust: NonNullable<VesselDef['exhaust']>; ratedRpm: number } | null;
+  readonly smoke: { view: ExhaustSmoke; exhaust: NonNullable<VesselDef['exhaust']> } | null;
   readonly chain: AnchorChainView | null;
   readonly lines: MooringLines | null;
 
@@ -30,7 +31,9 @@ class Equipment {
   ) {
     const her = { defId: def.id };
     const diesel = gearOf(her, 'diesel');
-    this.smoke = def.exhaust && diesel ? { view: new ExhaustSmoke(), exhaust: def.exhaust, ratedRpm: diesel.engine.ratedRpm } : null;
+    // Turbocharged if her engine's voice has a turbo (CONFIG.engineVoices): the smoke model's air.
+    const turbo = !!diesel?.voice && !!CONFIG.engineVoices[diesel.voice]?.turbo;
+    this.smoke = def.exhaust && diesel ? { view: new ExhaustSmoke(turbo, diesel), exhaust: def.exhaust } : null;
     this.chain = gearOf(her, 'anchor') ? new AnchorChainView() : null;
     this.lines = gearOf(her, 'bowCleat') && gearOf(her, 'sternCleat') ? new MooringLines() : null;
     for (const o of [this.smoke?.view.root, this.chain?.line, this.lines?.mesh]) if (o) world.add(o);
@@ -80,7 +83,7 @@ export class VesselEffects {
     const e = this.equip;
     if (e.smoke) {
       e.smoke.view.setLight(light);
-      e.smoke.view.update(dt, s, e.smoke.exhaust, e.smoke.ratedRpm, this.root, (x, z) => surfaceHeight(waves, x, z), viewer);
+      e.smoke.view.update(dt, s, e.smoke.exhaust, this.root, (x, z) => surfaceHeight(waves, x, z), viewer);
     }
     e.chain?.update(s, this.root);
     e.lines?.update(s, e.def, this.root);

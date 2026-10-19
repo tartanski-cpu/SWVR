@@ -105,6 +105,7 @@ import { jetOn } from '../fire/fire';
 import { aFrameOf } from '../fishing/fishing';
 import { footprintsOf, gearOf, useDesign, useWorkboatFit } from '../boats/sims';
 import type { TowWinchApi } from '../modules/towWinch';
+import { sosCondition, sosStatus } from '../rescue/sos';
 import { lineLength, nearestTowTarget, towAlertT, towStatus, winchStalled } from '../tow/tow';
 import { TargetsView } from '../rescue/targetView';
 import { RescueHands, type RescueHandsContext } from '../rescue/rescueHands';
@@ -919,7 +920,7 @@ export class App {
         for (const c of this.homeView.cleats) c.painterOn = free && (p?.painter?.cleat === c.index || p?.sternPainter?.cleat === c.index);
       }
       this.homeView.update(testVessel, dt, this.dashInView(), this.world.environment, frame);
-      this.homeView.radio?.update(this.world.rescue, runStatus(this.world), dt, isPowered(testVessel, 'radio'), towAlertT(this.world) >= 0 || fireAlertT(this.world) >= 0);
+      this.homeView.radio?.update(this.world.rescue, runStatus(this.world), dt, isPowered(testVessel, 'radio'), towAlertT(this.world) >= 0 || fireAlertT(this.world) >= 0, sosCondition(testVessel) === 'upright' ? null : sosStatus(testVessel));
       // Say so when the anchor is up or holding (the speed screen shows it all the time).
       const ap = testVessel.anchor.phase;
       if (ap !== this.lastAnchorPhase) {
@@ -1403,6 +1404,20 @@ export class App {
     const wash = Math.min(1, Math.abs(v.thrust) / 15000);
     depth += wash * 0.07 * (Math.sin(t * 4.3) + 0.6 * Math.sin(t * 7.1 + 1.3));
     return clamp((depth + 0.03) / 0.2, 0, 1);
+  }
+
+  /**
+   * SOS (the menu's Boat > SOS, or the red button under the VHF): the salvage tug recovers
+   * her to the nearest boatyard's port if she's over or under (rescue/sos.ts). Anyone off her
+   * (in the water, say) comes along, at the helm, as the port shortcuts do.
+   */
+  private sendSos(): void {
+    const v = this.world.vessels[this.testVesselId];
+    if (!v) return;
+    this.pushVesselIntent('sos', 1);
+    if (sosCondition(v) === 'upright') return;
+    if (this.world.players[this.localPlayerId].aboardVesselId !== this.testVesselId) this.toggleBoardTo(true);
+    this.overlay.notify('SOS sent: the salvage tug is bringing her into the yard', 4);
   }
 
   /** Play new radio traffic (and repeat the alert of an unanswered call); show it as a notice too. */
@@ -2192,6 +2207,8 @@ export class App {
           this.overlay.notify(`Voice test: ${speech}; spoken ${lastSpeech.started} of ${lastSpeech.tried}${n <= 0 || lastSpeech.started < lastSpeech.tried ? ' (radio: squelch only, no voice)' : ''}`, 8);
         }, 2000);
       },
+      sosStatus: () => sosStatus(this.world.vessels[this.testVesselId]),
+      sos: () => this.sendSos(),
       rescueNear: (kind) => this.pushVesselIntent('rescueDebugNear', 1, kind),
       rescueAboard: () => this.pushVesselIntent('rescueDebugAboard', 1),
       rescues: () => this.world.rescue?.completed ?? 0,
@@ -2883,6 +2900,7 @@ export class App {
         if ((channel === 'start' || channel === 'ignition.start') && value > 0) this.startInGearHint();
         if (channel === 'dipstick' || channel === 'propulsion.oilCheck') this.readDipstick();
         if (channel === 'cleat') this.cleatHint(value);
+        if (channel === 'sos') return value > 0 ? this.sendSos() : undefined;
         // A gear bracket (desktop): take the gear or hang it back. Local: no intent. In VR the
         // grip takes it.
         if (channel.startsWith('gear:')) {

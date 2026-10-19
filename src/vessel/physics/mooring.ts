@@ -20,6 +20,7 @@ import { CONFIG } from '../../config';
 import type { BerthDef } from '../../world/archipelago';
 import { allBerths } from '../../world/berths';
 import { gearOf } from '../../boats/sims';
+import { VESSEL_DEFS } from '../vesselDef';
 import type { VesselState } from '../vesselState';
 
 const q = new THREE.Quaternion();
@@ -124,6 +125,27 @@ export function berthById(id: string | null): BerthDef | undefined {
 type V = { x: number; y: number; z: number };
 
 /**
+ * How much closer to the quay than the berth's mark she lies (m; negative: further off). The
+ * marks are set for the workboat's beam (BerthDef.shoreDist off the face): she lies with her
+ * widest deck half-beam and CONFIG.docking.fenderClear off it, unless her cleats say (the
+ * skiff's `inshore`), so a broad boat isn't moored into the quay.
+ */
+export function berthInshore(s: { defId: string }, shoreDist: number): number {
+  const set = gearOf(s, 'bowCleat')?.inshore;
+  if (set !== undefined) return set;
+  const def = VESSEL_DEFS[s.defId];
+  const halfBeam = def ? Math.max(...def.hull.stations.map((st) => st.halfBeamDeck)) : 2.1;
+  // To the millimetre: the workboat's comes out at 0, not a rounding hair off it.
+  return Math.round((shoreDist - halfBeam - CONFIG.docking.fenderClear) * 1000) / 1000;
+}
+
+/** Where to put her alongside a berth (world x, z), her beam allowed for. */
+export function berthPose(s: { defId: string }, b: BerthDef): { x: number; z: number; headingDeg: number } {
+  const inshore = berthInshore(s, b.shoreDist);
+  return { x: b.x + b.shoreX * inshore, z: b.z + b.shoreZ * inshore, headingDeg: b.headingDeg };
+}
+
+/**
  * Advance docking/mooring and return the line forces at the bow and stern line points.
  * @param cleats             the stations (vessel z) of her bow and stern cleats, and how much
  *                           closer to the quay than the berth's marks she lies (`inshore`, m:
@@ -174,8 +196,9 @@ export function stepMooring(s: VesselState, cleats: { bow: number; stern: number
   // her alongside, centred on the berth (vessel z is aft, the berth axis points her bow).
   const fz = -cleats.bow;
   const az = -cleats.stern;
-  const inX = b.shoreX * (cleats.inshore ?? 0);
-  const inZ = b.shoreZ * (cleats.inshore ?? 0);
+  const inshore = cleats.inshore ?? berthInshore(s, b.shoreDist);
+  const inX = b.shoreX * inshore;
+  const inZ = b.shoreZ * inshore;
   if (m.bow) line(bow, bowVel, b.x + a.x * fz + inX, b.z + a.z * fz + inZ, outBow);
   if (m.stern) line(stern, sternVel, b.x + a.x * az + inX, b.z + a.z * az + inZ, outStern);
 

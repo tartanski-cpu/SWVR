@@ -10,7 +10,7 @@ What's in the MVP:
 - **A 12 m displacement workboat** floated by strip-theory hydrostatics. It has a slow-revving diesel, gearbox and prop, a rudder and prop walk.
 - **A walk-in wheelhouse**, a ladder to the roof, and grab-the-world locomotion.
 - **Physical bridge controls** (wheel, throttle/gear lever, start/stop, horn, nav-light switch) with live instruments.
-- **Nav lights** with proper arcs of visibility, exhaust smoke driven by engine load and temperature, and synthesised engine and horn audio.
+- **Nav lights** with proper arcs of visibility, exhaust smoke from a little model of the combustion (black when she's lugged or the throttle's snapped open on a turbo, white cold, blue worn), and synthesised engine and horn audio.
 
 Since the MVP:
 
@@ -271,6 +271,7 @@ The screens' lettering is a size smaller than it was, so each fits a little more
 
 - **Fuel:** the tank holds 600 L. Flat out burns about 49 L/h; 6–7 kn about 11 L/h. Run dry and the engine stops; it won't restart until you refuel.
 - **Cold start:** the engine starts cold and smokes white until it warms up, which takes about 5 minutes under way.
+- **Smoke:** what comes out of the exhaust is worked out from the combustion. Warm and within her power there's only a faint haze. **Black** smoke is soot from too much fuel for the air: lugging (full throttle with the revs well down, worst on a turbo engine, which gives little boost at low revs) or snapping the throttle open on a turbo (a puff while it spools up). The V8s are turbocharged; the straight sixes aren't. **Blue** smoke is a worn engine burning its oil, most at idle. Smoke that won't clear is telling you something.
 - **Overheating:** flat out and free-running she keeps cool: the governor eases the fuel as the load falls, and the raw-water pump is at full flow. **Lugging** overheats her: full throttle on a tow, or a hull that won't get up on the plane, holds the revs down with the fuel still full, so the pump turns slower and the engine runs hot and smoky. The alarm sounds at 95 °C, power is derated from 100 °C, and it shuts down at 115 °C. Ease the throttle and she recovers. The pump-failure fault (Debug) overheats her under any load.
 
 ### NAV / WIND display and binoculars
@@ -416,6 +417,7 @@ Everything you do now earns or costs money. The menu's **Office** tab is your ha
 - **Heavy weather:**
   - **No trawling** in a sea over 2.2 m (Hs): the net jumps off the bottom.
   - **Danger money:** rescues, tows and fires in a squall, or in a sea over 1.8 m, pay 50 % more.
+- **SOS:** capsized or sunk, send an SOS: **Menu → Boat → SOS → Send SOS**, or press the **red button under the VHF set** (it lights, and the set's screen says CAPSIZED or SUNK, while she's over or under). The salvage tug rights her and brings her into the nearest boatyard's port (Calder Haven or Loch Tarsk), at the cargo berth, engine off and lines off; her damage stays for the yard to mend. Anyone in the water comes along. Upright and afloat, the coastguard turns the call down. No charge.
 - **Debug:** Debug → Boat → Hull → **Damage** (30 % hull damage and 30 % engine wear).
 
 ### Log salvage (side job)

@@ -9,6 +9,7 @@ import { gearOf } from '../boats/sims';
 import { VESSEL_DEFS } from './vesselDef';
 import { fuelBerthAt } from '../world/geography';
 import { BERTHS, FISHING_GROUNDS, PORTS } from '../world/archipelago';
+import { berthPose } from './physics/mooring';
 import { regionById } from '../world/regions';
 import type { VesselState } from './vesselState';
 import { applyBusIntent, holdGroup, isKeyName } from '../modular/bus';
@@ -322,7 +323,10 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
       if (!port) break;
       const berth = BERTHS.find((b) => b.portId === port.id && b.id.endsWith('cargo'));
       const a = port.cargo.anchorage;
-      if (berth) placeVessel(s, berth.x, 0, berth.z, berth.headingDeg);
+      if (berth) {
+        const at = berthPose(s, berth);
+        placeVessel(s, at.x, 0, at.z, at.headingDeg);
+      }
       else if (a) placeVessel(s, a.x, 0, a.z, 0);
       else break;
       s.controls.lever = 0;
@@ -343,7 +347,10 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
       const a = port?.cargo.anchorage;
       const mark = region.landmarks[0];
       const isle = region.islands[0];
-      if (berth) placeVessel(s, berth.x, 0, berth.z, berth.headingDeg);
+      if (berth) {
+        const at = berthPose(s, berth);
+        placeVessel(s, at.x, 0, at.z, at.headingDeg);
+      }
       else if (a) placeVessel(s, a.x, 0, a.z, 0);
       else if (mark) placeVessel(s, mark.x, 0, mark.z + (isle ? isle.radius * 1.3 : 0) + 700, 0);
       else if (isle) placeVessel(s, isle.x, 0, isle.z + isle.radius * 1.3 + 700, 0);

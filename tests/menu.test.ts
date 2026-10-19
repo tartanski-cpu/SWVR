@@ -95,6 +95,8 @@ function fakeHost() {
     runStatus: () => 'No cargo run',
     rescueNow: () => calls.push('rescue'),
     rescueEnd: () => calls.push('rescueEnd'),
+    sosStatus: () => 'Upright and afloat',
+    sos: () => calls.push('sos'),
     voiceTest: () => calls.push('voiceTest'),
     rescueAboard: () => calls.push('rescueAboard'),
     rescues: () => 0,
