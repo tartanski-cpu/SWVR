@@ -4088,34 +4088,36 @@ export const CONFIG = {
       turbo: { idleHz: 1400, boostHz: 3200, gain: 0.006 } as { idleHz: number; boostHz: number; gain: number } | null,
     },
     /**
-     * The tug diesel (owner, Oct 2026: "a better engine noise for the big straight six
-     * diesel", then "still sounds like a single cylinder"), matched to the owner's recording
-     * of a tug with twin 450 hp engines idling (analysed: ref/tug.wav, PROGRESS.md). That
-     * recording fires 62 times a second at idle, its strongest line by 12 dB, with a lope
-     * once every eight firings (lines 7.8 Hz apart, -20 dB): an eight-beat engine, the
-     * pattern of a two-stroke V8 at ~470 rpm. A straight six at the tug diesel's 450 rpm idle
-     * fires only 22 times a second, each firing heard on its own: a single cylinder's thump.
-     * So its voice fires as the recording does: eight pulses a revolution (`cylinders` 16 in
-     * this four-stroke reckoning: 60 Hz at 450 rpm, 133 Hz flat out), lumpy once a revolution
-     * (`strength`); most of it a 40-80 Hz rumble (`body` broad at 66 Hz), a resonance at 250
-     * Hz (`stack`), and the mechanical clatter riding on each firing above 400 Hz (`grit`,
-     * `mech`) that the recording has and the other engines are kept free of. Rendered
-     * offline, its spectrum lies within a few per cent of the recording's in every band.
+     * The tug diesel, the big straight six (owner, Oct 2026: "a better engine noise for the
+     * big straight six diesel"; "still sounds like a single cylinder"; then, with a phone
+     * recording of "an actual 6 cylinder marine diesel" idling: this voice is that one's,
+     * and only the big straight six's). The recording, analysed (PROGRESS.md): it fires 70
+     * times a second, very evenly (the lines half-way between the firing's, which unequal
+     * cylinders make, are 35 to 48 dB down), its third harmonic (210 Hz) the loudest, the
+     * fundamental 6 dB and the second 11 dB under it, most of it at 120 to 400 Hz, a little
+     * clatter to 2 kHz. A six firing 70 times a second at idle fires six times a revolution,
+     * as a two-stroke six does (~700 rpm): `cylinders` 12 in this four-stroke reckoning
+     * (45 Hz at the tug diesel's 450 rpm idle, 100 Hz flat out; a four-stroke six at its revs
+     * fired only 22 times a second at idle, heard as one cylinder thumping). Even cylinders;
+     * short pulses; a narrow exhaust resonance at 210 Hz (`stack`) and a dip at 70 (`body`,
+     * negative gain); the clatter riding on each firing (`grit`, `mech`). Rendered offline at
+     * the recording's 70 firings a second, its harmonics lie within 1 dB of the recording's
+     * for the first three, and its spectrum within a few per cent from 200 Hz up.
      */
     bigSix: {
-      cylinders: 16,
-      strength: [1.37, 1.16, 0.85, 0.84, 0.93, 0.84, 0.85, 1.16],
-      jitter: 0.06,
-      grit: 0.35,
-      mech: 2.8,
-      pulseTau: 0.012,
-      pulseTauLow: 0.008,
-      body: { freq: 66, q: 0.7, gain: 6 },
-      stack: { freq: 250, q: 1.4, gain: 12 },
-      lp: { base: 600, rpm: 300, load: 400 },
-      // (Quiet at idle and swelling with the throttle as the six's did: rendered offline,
-      // within about 2 dB of it at idle, half and full throttle.)
-      thump: { base: 0.2, rpm: 0.2, load: 0.32 },
+      cylinders: 12,
+      strength: [1.0, 0.98, 1.0, 0.98, 1.0, 0.98],
+      jitter: 0.03,
+      grit: 0.3,
+      mech: 3.5,
+      pulseTau: 0.006,
+      pulseTauLow: 0.004,
+      body: { freq: 70, q: 1.0, gain: -6 },
+      stack: { freq: 210, q: 4, gain: 16 },
+      lp: { base: 700, rpm: 300, load: 400 },
+      // (Rendered offline: within about 3 dB of the engine's old sound overall, and up to
+      // 4 dB stronger where a headset plays, 100 to 400 Hz, where most of it now is.)
+      thump: { base: 0.34, rpm: 0.34, load: 0.54 },
       drive: 1.5,
       hiss: { base: 0.003, load: 0.012 },
       turbo: { idleHz: 650, boostHz: 1700, gain: 0.007 } as { idleHz: number; boostHz: number; gain: number } | null,
