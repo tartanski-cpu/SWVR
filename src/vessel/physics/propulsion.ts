@@ -345,6 +345,18 @@ export function rudderForceAt(angle: number, def: RudderSpec, relVx: number, rel
     const withWash = rudderNormal(angle, def, fx, Math.sqrt(Math.max(fz, 0) ** 2 + extra)) * coast;
     const cap = r.washMaxFraction * steer * thrust;
     N += clamp(withWash - N, -cap, cap);
+  } else if (thrust < 0 && def.nozzle) {
+    // Astern in a Kort nozzle (owner: "when you go backwards, it hardly steers at all"): the
+    // propeller draws its water in from aft, through the duct, past the rudder just behind
+    // it, so the rudder stands in that concentrated inflow (flowing forward: fz < 0). A share
+    // of the slipstream effect ahead (CONFIG.nozzle.asternSteer). An open propeller's inflow
+    // is drawn from all round it and does little for the rudder: none added.
+    const d = def.propeller.diameter;
+    const share = CONFIG.nozzle.steerGain * CONFIG.nozzle.asternSteer;
+    const extra = (r.washFactor * share * 8 * -thrust) / (CONFIG.ocean.density * Math.PI * d * d);
+    const withSuction = rudderNormal(angle, def, fx, -Math.sqrt(Math.max(-fz, 0) ** 2 + extra)) * coast;
+    const cap = r.washMaxFraction * share * -thrust;
+    N += clamp(withSuction - N, -cap, cap);
   }
   out.x = N * Math.cos(angle);
   out.z = -N * Math.sin(angle);

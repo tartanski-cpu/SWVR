@@ -4,6 +4,12 @@
  * speed; poorer astern. Its own place in the design code (version 24).
  */
 import { afterAll, describe, expect, it } from 'vitest';
+import { headingDeg } from '../src/controls/instruments';
+import { IdFactory } from '../src/core/ids';
+import type { Intent } from '../src/core/intents';
+import { stepWorld } from '../src/core/simulation';
+import { createWorld } from '../src/core/world';
+import { placeVessel } from '../src/vessel/vesselControl';
 import { CONFIG } from '../src/config';
 import { useDesign } from '../src/boats/sims';
 import { buildDesign, DESIGN_HULLS } from '../src/shipyard/build';
@@ -79,3 +85,49 @@ describe('the nozzle in the Shipyard', () => {
     expect(ob.figures.price - buildDesign({ ...DEFAULT_DESIGN, outboards: 1 }).figures.price).toBe(0);
   });
 });
+
+describe('steering astern in a Kort nozzle (owner: "when you go backwards, it hardly steers at all")', () => {
+  /** The small tug, `lever` for 10 s, then the wheel hard over for 15 s: how far she turns (deg). */
+  const turned = (nozzle: number, lever: number) => {
+    useDesign({ ...DEFAULT_DESIGN, ...DESIGN_HULLS[4].defaults, hull: 4, nozzle });
+    const { world, vesselId } = createWorld(new IdFactory(), 'design');
+    const v = world.vessels[vesselId];
+    placeVessel(v, 0, 0, 0, 0);
+    world.environment.waves = [];
+    world.geography = 'openSea';
+    const send = (c: string, x: number) => stepWorld(world, [{ playerId: 'p', targetId: v.id, control: c, value: x } as Intent], 1 / 60);
+    send('quickStart', 1);
+    for (let i = 0; i < 360; i++) stepWorld(world, [], 1 / 60);
+    send('lever', lever);
+    for (let i = 0; i < 600; i++) stepWorld(world, [], 1 / 60);
+    send('helm', 1);
+    let total = 0;
+    let last = headingDeg(v);
+    for (let i = 0; i < 900; i++) {
+      stepWorld(world, [], 1 / 60);
+      const h = headingDeg(v);
+      total += ((h - last + 540) % 360) - 180;
+      last = h;
+    }
+    return Math.abs(total);
+  };
+
+  it('the rudder in the nozzle’s inflow steers her astern: many times the open propeller’s, a good share of ahead', () => {
+    const asternNozzle = turned(1, -0.6);
+    expect(asternNozzle).toBeGreaterThan(4 * turned(0, -0.6));
+    expect(asternNozzle).toBeGreaterThan(0.35 * turned(1, 0.6));
+    expect(asternNozzle).toBeLessThan(turned(1, 0.6)); // (still less than ahead)
+  });
+
+  it('at the same thrust astern, a rudder behind a nozzle bites harder than behind an open propeller', () => {
+    const r = CONFIG.vessels.workboat;
+    const plain = { rudder: r.rudder, propeller: r.propeller } as RudderSpec;
+    const inDuct = { ...plain, nozzle: true } as RudderSpec;
+    const a = { x: 0, z: 0 };
+    const b = { x: 0, z: 0 };
+    rudderForceAt(0.5, plain, 0, -1, -8000, a);
+    rudderForceAt(0.5, inDuct, 0, -1, -8000, b);
+    expect(Math.abs(b.x)).toBeGreaterThan(1.5 * Math.abs(a.x));
+  });
+});
+
