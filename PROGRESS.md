@@ -5036,6 +5036,10 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Tests:** `tests/shipyard/rodRack.test.ts` rewritten (every place round-trips; the pin's wall; four rods in a spaced row on the aft wall and the starboard wall; priced and weighed), the gear menu's fit list without it.
 - **Checked:** typecheck, `npm test`. **Not checked:** by eye in headless Chromium this time; VR.
 
+### The rod the right way round, without its rings (owner playtest)
+
+- The owner: the fishing game works; the rod looked the wrong way round (thick end at the tip), and the line rings could go. `player/handGear.ts rodMesh`: the blank's cylinder had its radii swapped once turned along the rod (a cylinder's top goes to +z, the butt); now thick at the grip, tapering to the tip. The four tori are gone (24 fewer small parts per rod). **Checked:** typecheck, `npm test`; not by eye.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**
@@ -5435,6 +5439,16 @@ Owner, Oct 2026: on a wide wheelhouse "the instruments are very widely spaced ap
 - **Tests:** `tests/shipyard/helmView.test.ts` (5): the screens in one row over the wheel, standard and wide; the basic controls' two side by side; a wide cabin's console 2.2 m, against the port or starboard wall, its module, stand, NAV screen and hung units with it; the floor beside it walked, in front of it not; a narrow cabin's wall to wall, the code both ways. Full suite passes.
 - **Checked:** headless Chromium, in the game from the skipper's eye at the wheel, a workboat at full beam and full house width: the console in the middle (advanced controls) and to port (basic controls), every screen and switch in view, the floor and glass beside it clear. **Not checked:** the Quest; starboard by eye (mirrored, and tested).
 - **Test steps:** desktop and VR: Shipyard, workboat, Hull: beam to the top; Wheelhouse: width 100 %, Console: Port; handover and play her: the console against the port wall, its screens in front of you at the wheel, the floor beside it to walk to the starboard windows. Try Middle and Starboard, and the basic controls.
+
+### The rudder's actual angle on every boat; the Kort nozzle steers astern (done, awaiting owner test)
+
+Owner, Oct 2026: "it's going to be useful to see the actual position of the rudder or the Kort nozzle, because maybe there's a slight delay between especially the Xbox controller input and ... that thing ... add those to one of the instruments that's on all the vessels ... take away things like the rotation speed and things that are not that useful"; and "court nozzle behaves pretty good forward, but when you go backwards, it hardly steers at all".
+
+- **The ENGINE screen** (the old ENGINE RPM: on every boat, the basic controls' too; controls/instruments.ts `paintRpm`): its round rev counter, which said what the figures beside it said, is gone; in its place a steering scale across the screen, port red and starboard green, a needle where the rudder (or the outboards' or stern drives' legs: DRIVES) actually is and a ring where the helm asks for it, so a lag between the wheel or a controller and the rudder shows; the angle in figures, P or S. Kept: revs in figures, gear and state, fuel burn and coolant, the load bar. (The rate of turn on the HEADING screen stays: say if that's the "rotation speed" to go.)
+- **Astern with the nozzle:** measured on the small tug (lever 0.6, wheel hard over for 15 s): ahead she turned ~120 to 220 deg, astern only ~9 with or without the nozzle. The rudder's extra force from the propeller's slipstream (`washFactor`, boosted in a nozzle by `steerGain`) was only added going ahead; astern the rudder saw only her drift. Astern a nozzle draws its water in from aft through the duct, past the rudder just behind it, so the rudder stands in that concentrated inflow: now it gets `CONFIG.nozzle.asternSteer` (0.9) of the slipstream effect it gets ahead, flowing the other way (propulsion.ts `rudderForceAt`). She now turns ~120 deg in 15 s astern (10 deg/s against 23.5 ahead: a bit under half, as nozzle-and-rudder tugs do). Open propellers unchanged (their inflow comes from all round them): they still steer weakly astern, as a single-screw boat does.
+- **Tests:** `tests/nozzle.test.ts` (+2): astern with the nozzle she turns more than 4 times as far as with an open propeller, over a third as far as ahead and less than ahead; at the same astern thrust a rudder behind a nozzle bites over 1.5 times as hard. Full suite passes.
+- **Checked:** the screen rendered (headless Chromium, the workboat with the wheel over: needle and ring together at 21 deg STBD). **Not checked:** the Quest; the lag with an Xbox controller (the owner's); the tug astern by hand.
+- **Test steps:** any boat, desktop or VR: put the wheel over and watch the ENGINE screen: the ring jumps to the order, the needle follows as the rudder swings. With an Xbox controller, the same. The Shipyard's small tug with a Kort nozzle: back her up and put the wheel over: she swings now.
 
 ## Regions (owner brief, in progress)
 

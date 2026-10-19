@@ -261,7 +261,7 @@ The dash shows:
 
 - **Speed** (kn) and **depth under the keel** (red below 2 m), side by side, with heading, course over ground and the anchor.
 - **Heading** (compass tape), with course over ground and **rate of turn** (degrees a minute, S or P).
-- **Engine RPM**, with gear, engine state, load, fuel burn and coolant temperature.
+- **Engine**: rpm, gear, engine state, load, fuel burn and coolant temperature, and the **rudder's actual angle** (the needle) against the helm's order (the ring), so you can see it catching up with the wheel. With outboards or stern drives it shows their legs (DRIVES).
 - **Rudder angle**: the needle is the actual rudder, the ring is the helm order (also in figures, top right).
 - The **engine monitor**, behind the wheel (read it through the spokes): coolant and oil temperature, fuel litres and L/h, battery volts, and HIGH TEMP / LOW FUEL lamps. A buzzer sounds with the alarms.
 
