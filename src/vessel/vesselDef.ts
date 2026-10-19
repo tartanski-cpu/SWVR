@@ -11,7 +11,43 @@ type WorkboatLayout = Workboat['layout'];
  * wheelhouse, its walkable roof and the ladder up to it.
  */
 export type LayoutConfig = Omit<WorkboatLayout, 'wheelhouse' | 'roof' | 'ladder' | 'doorButtons' | 'fairleadGap' | 'engineHatch' | 'sideGate'> &
-  Partial<Pick<WorkboatLayout, 'roof' | 'ladder' | 'doorButtons' | 'fairleadGap' | 'engineHatch' | 'sideGate'>> & { wheelhouse?: WheelhouseLayout; bowRamp?: BowRampLayout; deckhouse?: DeckhouseLayout };
+  Partial<Pick<WorkboatLayout, 'roof' | 'ladder' | 'doorButtons' | 'fairleadGap' | 'engineHatch' | 'sideGate'>> & {
+    wheelhouse?: WheelhouseLayout;
+    bowRamp?: BowRampLayout;
+    deckhouse?: DeckhouseLayout;
+    /**
+     * Floors besides the deck and the house's (the Alaskan 38: her companionway treads and
+     * the fore cabin's sole), each a level rectangle at a height; walked like any floor,
+     * each within a stride (layout.ts STEP_HEIGHT) of its neighbours.
+     */
+    extraFloors?: FloorPatch[];
+    /**
+     * Hollow volumes inside what would otherwise be solid (below the deck or the house
+     * floor): the fore cabin, the companionway. Your head is in the open there.
+     */
+    hollows?: Hollow[];
+    /** The deck cut away forward of the house too, from `front` to the house, `inset` in from the deck edge: a cabin under a trunk cabin there (hullMesh.ts sunkenHouse). */
+    deckOpening?: { front: number; inset: number };
+  };
+
+/** A level rectangle of floor at a height (LayoutConfig.extraFloors). */
+export interface FloorPatch {
+  x0: number;
+  x1: number;
+  z0: number;
+  z1: number;
+  y: number;
+}
+
+/** A box of open space (LayoutConfig.hollows). */
+export interface Hollow {
+  x0: number;
+  x1: number;
+  y0: number;
+  y1: number;
+  z0: number;
+  z1: number;
+}
 
 /** A planing hull's banking in turns (CONFIG.vessels.landingCraft.planing). */
 export type PlaningConfig = (typeof CONFIG.vessels.landingCraft)['planing'];
@@ -46,6 +82,8 @@ export type WheelhouseLayout = Omit<WorkboatLayout['wheelhouse'], 'sideDoor' | '
      * A level a step or more above or below the next needs a tread between (STEP_HEIGHT).
      */
     levels?: FloorLevel[];
+    /** Openings in the house floor (a companionway down): not walked; the treads below are extraFloors. */
+    floorHoles?: { x0: number; x1: number; z0: number; z1: number }[];
     /** Steps at the aft door, where her floor is more than a step above or below the deck there. */
     steps?: DoorStep[];
     /** Where the view out through the front glass starts, above the floor (m): the top of what stands in front of it (the dash). The wipers clear the glass from there up. Unset: the front sill. */

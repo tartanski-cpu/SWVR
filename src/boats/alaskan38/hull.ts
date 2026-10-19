@@ -11,7 +11,9 @@
  * lower units turn.
  *
  * Sockets (vessel axes):
- *   helm                 the console behind the faceted front; its space is the house's width
+ *   helm                 the console behind the faceted front, to starboard of the companionway
+ *   chartTable           the dinette table in the saloon (the chart lives on it)
+ *   dutyBoard, whiteboard   the saloon's starboard wall; its aft wall, port of the door
  *   breakerPanel,        the starboard wall by the helm; the aft wall, starboard of the door
  *   batteryMaster/Selector
  *   vhf, fm              under the roof, out to port and starboard
@@ -69,7 +71,10 @@ export const ALASKAN_38_HULL: HullDefinition = {
   spawn: a.spawn,
   fittings: { exhaust: a.exhaust, stowage: a.stowage, livery: liveryOf(design.colours ?? {}) },
   sockets: [
-    { id: 'helm', type: 'helm.console', transform: { position: at.console }, capacity: { size: [2 * (wh.halfWidth - wh.wall) - 0.04, 1.6, 1.0] }, label: 'Helm console, behind the front windows' },
+    { id: 'helm', type: 'helm.console', transform: { position: at.console }, capacity: { size: [2 * (wh.halfWidth - wh.wall - at.console[0]) - 0.04, 1.6, 1.0] }, label: 'Helm console, behind the front windows, to starboard of the companionway' },
+    { id: 'chartTable', type: 'cabin.furniture', transform: { position: at.chartTable }, capacity: { size: [0.75, 2.2, 0.95] }, label: 'The dinette table, port side of the saloon' },
+    { id: 'dutyBoard', type: 'wall.panel', transform: { position: at.dutyBoard, rotationDeg: [0, -90, 0] }, label: 'Saloon, starboard wall over the galley' },
+    { id: 'whiteboard', type: 'wall.panel', transform: { position: at.whiteboard, rotationDeg: [0, 180, 0] }, label: 'Saloon, aft wall, port of the door' },
     { id: 'breakerPanel', type: 'wall.panel', transform: { position: at.breakerPanel, rotationDeg: [-40, -90, 0] }, label: 'Starboard wall, by the helm' },
     { id: 'batteryMaster', type: 'wall.panel', transform: { position: at.batteryMaster, rotationDeg: [0, 180, 0] }, label: 'Aft wall, starboard of the door, low' },
     { id: 'batterySelector', type: 'wall.panel', transform: { position: at.batterySelector, rotationDeg: [0, 180, 0] }, label: 'Aft wall, beside the battery master' },

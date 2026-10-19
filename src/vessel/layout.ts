@@ -146,6 +146,15 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: reado
   const sd = wh.sideDoor;
   // The floor's height along the house (one level, or several with treads between: levels).
   const floorAt = (z: number) => houseFloorAt(wh, Math.min(Math.max(z, wh.front), wh.aft));
+  // Openings in the house floor (a companionway): the floor isn't there, to half a body in.
+  const holes = wh.floorHoles ?? [];
+  const inHole = (x: number, z: number) => holes.some((o) => x > o.x0 - r * 0.5 && x < o.x1 + r * 0.5 && z > o.z0 - r * 0.5 && z < o.z1 + r * 0.5);
+  // Open space below the deck or the floor (the fore cabin, the companionway).
+  const hollows = layout.hollows ?? [];
+  const inHollow = (x: number, y: number, z: number) => hollows.some((o) => x > o.x0 && x < o.x1 && y > o.y0 && y < o.y1 && z > o.z0 && z < o.z1);
+  // The deck cut away forward of the house (a cabin under a trunk cabin there): not deck.
+  const op = layout.deckOpening;
+  const inOpening = (x: number, z: number) => !!op && z < wh.front + r && z > op.front - r && Math.abs(x) < deckHalfBeam(z) - op.inset + r;
   // A deckhouse under the wheelhouse (vessel/deckhouse.ts): solid, and not walked on, for now.
   const dh = layout.deckhouse;
   const inHouseFootprint = (x: number, z: number) => Math.abs(x) <= ext.x && z >= ext.z0 && z <= ext.z1;
@@ -193,7 +202,7 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: reado
         const onDeck = (z <= transom - layout.deckEdgeMargin && Math.abs(x) <= deckHalfBeam(z) - layout.deckEdgeMargin) || inGateway(x, z, 0.08);
         const nearHouse = Math.abs(x) < ext.x + r && z > ext.z0 - r && z < ext.z1 + r;
         const nearDeckhouse = !!dh && inDeckhouse(dh, x, z, r);
-        return onDeck && !nearHouse && !nearDeckhouse && !inSteps(x, z) && !onGear(gear, x, z, r, deckY(z));
+        return onDeck && !nearHouse && !nearDeckhouse && !inOpening(x, z) && !inSteps(x, z) && !onGear(gear, x, z, r, deckY(z));
       },
     },
     {
@@ -201,7 +210,7 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: reado
       // a floor sunk more than a step below the deck stops at the wall: a threshold below).
       height: (_x, z) => floorAt(z),
       contains: (x, z) =>
-        (Math.abs(x) <= int.x - r && z >= consoleAftAt(Math.abs(x) + r) + r && z <= int.z1 - r && !atFurniture(x, z, r) && !inSteps(x, z)) ||
+        (Math.abs(x) <= int.x - r && z >= consoleAftAt(Math.abs(x) + r) + r && z <= int.z1 - r && !atFurniture(x, z, r) && !inSteps(x, z) && !inHole(x, z)) ||
         (Math.abs(x) <= doorHalf - r * 0.6 && z > int.z1 - r - 0.02 && z < (deepSunk ? int.z1 : ext.z1 + r + 0.02)) ||
         // The port side door, out to the side deck.
         (!!sd && x < -int.x + r + 0.02 && x > -ext.x - r - 0.02 && z > sd.z0 + r * 0.6 && z < sd.z1 - r * 0.6),
@@ -223,6 +232,14 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: reado
       height: (_x, z) => deckY(Math.max(z, ext.z1)),
       contains: (x, z) => deepSunk && Math.abs(x) <= doorHalf - r * 0.6 && z >= int.z1 && z < ext.z1 + r + 0.02,
     },
+    // Other floors (the companionway's treads, the fore cabin's sole), a little short of
+    // their edges each way so you don't stand half off them.
+    ...(layout.extraFloors ?? []).map(
+      (f): Surface => ({
+        height: () => f.y,
+        contains: (x, z) => x >= f.x0 + r * 0.5 && x <= f.x1 - r * 0.5 && z >= f.z0 && z <= f.z1,
+      }),
+    ),
     // The steps' treads, their full width (and as far out as the deck and floor are kept off
     // them, so their sides are no gap).
     ...steps.map(
@@ -267,6 +284,7 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: reado
 
     insideSolid(x, y, z) {
       const ax = Math.abs(x);
+      if (inHollow(x, y, z)) return false; // the fore cabin, the companionway
       if (!inHouseFootprint(x, z)) {
         // The deckhouse (solid, for now) up to its top.
         if (dh && inDeckhouse(dh, x, z) && y < dh.top) return true;

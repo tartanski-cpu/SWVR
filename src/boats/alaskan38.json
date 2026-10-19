@@ -242,7 +242,7 @@
           "aft": -0.34,
           "bottom": 0,
           "top": 0.41,
-          "halfWidth": 1.2
+          "halfWidth": 0.9
         },
         "pedestals": {
           "x": [
@@ -689,6 +689,18 @@
           "midship": 0
         }
       }
+    },
+    {
+      "socket": "chartTable",
+      "module": "furniture.chart-table"
+    },
+    {
+      "socket": "dutyBoard",
+      "module": "furniture.duty-board"
+    },
+    {
+      "socket": "whiteboard",
+      "module": "furniture.whiteboard"
     }
   ],
   "interlocks": [

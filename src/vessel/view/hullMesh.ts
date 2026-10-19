@@ -151,9 +151,9 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
         const p0 = at(z0, 0), p1 = at(z1, 0), s0 = at(z0, last), s1 = at(z1, last);
         const zm = (z0 + z1) / 2;
         if (zm > sunk.front && zm < sunk.aft) {
-          for (const [e0, e1, x] of [[p0, p1, -sunk.halfWidth], [s0, s1, sunk.halfWidth]] as const) {
-            const i0 = e0.clone().setX(x);
-            const i1 = e1.clone().setX(x);
+          for (const [e0, e1, side] of [[p0, p1, -1], [s0, s1, 1]] as const) {
+            const i0 = e0.clone().setX(side * sunk.halfWidth(z0));
+            const i1 = e1.clone().setX(side * sunk.halfWidth(z1));
             tri(e0, i0, i1, mid, col.deck, 'nonSlip');
             tri(e0, i1, e1, mid, col.deck, 'nonSlip');
           }
@@ -217,8 +217,7 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
     const low = Math.min(0.9, wh.floorY - 0.15);
     const base = sunk ? low : Math.max(low, deckLo - 0.06);
     if (wh.shell === 'oneOff') {
-      // Her own walls, floors and roof (boats/oneOffViews.ts): only her console here.
-      buildConsole(wh, col, parts);
+      // Her own walls, floors, console body and roof (boats/oneOffViews.ts): nothing here.
     } else parts.push(...(wh.shape ? buildShapedHouse(layout, col, base) : buildWheelhouse(layout, col, base)));
     // Steps at the aft door: solid blocks up to each tread.
     const d = wh.doorWidth / 2;
@@ -395,12 +394,16 @@ function buildDeckFittings(form: HullForm, layout: LayoutConfig, col: Paint): TH
  * into her cabin, for the headroom): its footprint, where the deck is cut away. Null if her
  * house floor is above the deck (the workboat's), or she has no house.
  */
-export function sunkenHouse(form: HullForm, layout: LayoutConfig): { front: number; aft: number; halfWidth: number } | null {
+export function sunkenHouse(form: HullForm, layout: LayoutConfig): { front: number; aft: number; halfWidth: (z: number) => number } | null {
   const wh = layout.wheelhouse;
   if (!wh) return null;
   const plan = hullPlan({ hull: form });
   const deck = Math.max(plan.deckY(wh.front), plan.deckY(wh.aft));
-  return wh.floorY < deck ? { front: wh.front, aft: wh.aft, halfWidth: wh.halfWidth } : null;
+  // A cabin below the deck forward of the house (layout.deckOpening: under a trunk cabin):
+  // the cut runs on forward, `inset` in from the deck edge there.
+  const op = layout.deckOpening;
+  if (op) return { front: Math.min(wh.front, op.front), aft: wh.aft, halfWidth: (z) => (z < wh.front ? Math.max(0.2, plan.halfBeam(z) - op.inset) : wh.halfWidth) };
+  return wh.floorY < deck ? { front: wh.front, aft: wh.aft, halfWidth: () => wh.halfWidth } : null;
 }
 
 /** Width of the aft door's jambs (m): the door buttons sit on the starboard one. */

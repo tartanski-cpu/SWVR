@@ -81,4 +81,32 @@ describe('the Alaskan 38', () => {
     expect(area.insideSolid(0.5, lv[2].y + 1.7, 1.5)).toBe(false);
     expect(area.insideSolid(0.5, lv[2].y - 0.3, 1.5)).toBe(true);
   });
+
+  it('the companionway goes down to port of the helm into the fore cabin, where you stand under the trunk', () => {
+    const area = vesselWalkArea(def, def.layout);
+    const wh = def.layout.wheelhouse!;
+    const treads = def.layout.extraFloors!.filter((f) => f.y > 0.1 && f.y < wh.floorY).sort((a, b) => b.y - a.y);
+    expect(treads.length).toBe(3);
+    // The hole in the pilothouse floor isn't walked; the top tread is a stride below the floor beside it.
+    expect(area.floorsAt(-0.9, -2.3)).not.toContain(wh.floorY);
+    expect(area.walkable(-0.9, -1.7, wh.floorY)).toBe(true);
+    expect(area.walkable(-0.9, (treads[0].z0 + treads[0].z1) / 2, wh.floorY)).toBe(true);
+    for (let i = 1; i < treads.length; i++) {
+      expect(treads[i - 1].y - treads[i].y).toBeLessThan(0.4);
+      expect(area.floorsAt(-0.9, (treads[i].z0 + treads[i].z1) / 2)).toEqual([treads[i].y]);
+    }
+    // The sole, and standing room over it under the trunk (eye height 1.7).
+    const sole = def.layout.extraFloors!.find((f) => f.y < 0.1)!;
+    expect(area.floorsAt(-0.2, -3.3)).toContain(sole.y);
+    expect(area.floorsAt(-0.2, -3.3)).not.toContain(def.hull.stations.find((st) => st.z < -3.3)!.polygon[0][1]); // no deck over the fore cabin
+    expect(area.walkable(-0.8, -2.9, treads[2].y)).toBe(true); // off the bottom tread onto the sole
+    expect(area.insideSolid(-0.2, sole.y + 1.7, -3.3)).toBe(false);
+    expect(area.insideSolid(-0.9, 1.9, -2.3)).toBe(false); // your head coming up the companionway
+    expect(area.insideSolid(0.8, sole.y + 0.5, -3.2)).toBe(false); // in the cabin to starboard (the locker is drawn, not solid)
+  });
+
+  it('her saloon carries the chart table (as the dinette table), the duty board and the whiteboard', () => {
+    const ids = RECIPES.alaskan38.modules.map((m) => m.module);
+    expect(ids).toEqual(expect.arrayContaining(['furniture.chart-table', 'furniture.duty-board', 'furniture.whiteboard']));
+  });
 });

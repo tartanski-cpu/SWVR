@@ -1312,6 +1312,8 @@ export const CONFIG = {
           consoleHeight: 0.9,
           shape: { lowerRakeDeg: 0, lowerFromY: A38_FLOOR, roofEdgeDeg: 20, visor: 0.3, facet: { centre: 0.5, depth: 0.4 } },
           shell: 'oneOff' as const,
+          /** The companionway opening, to port, forward (the treads: layout.extraFloors). */
+          floorHoles: [{ x0: -1.24, x1: -0.42, z0: -2.78, z1: -1.9 }],
         },
         roof: { thickness: 0.1, overhang: 0.12, railHeight: 0, edgeMargin: 0.25 },
         /** The aft door's buttons: 1.1 m above the saloon floor at the door (0.5 m below the helm's floor, which this is measured from). */
@@ -1323,6 +1325,28 @@ export const CONFIG = {
         fairleadGap: 0,
         deckEdgeMargin: 0.25,
         bodyRadius: 0.22,
+        /**
+         * Below the pilothouse: the companionway down to port of the helm (three treads,
+         * 0.31 m each, running forward under the dash) and the fore cabin's sole, 0.8 m wide
+         * between the berth fronts, with standing headroom under the trunk cabin. Walked
+         * (layout.ts); drawn by view.ts from `house.interior`.
+         */
+        extraFloors: [
+          { x0: -1.2, x1: -0.42, z0: -2.2, z1: -1.9, y: 0.94 },
+          { x0: -1.2, x1: -0.42, z0: -2.5, z1: -2.2, y: 0.63 },
+          { x0: -1.2, x1: -0.42, z0: -2.8, z1: -2.5, y: 0.31 },
+          { x0: -0.95, x1: 0.25, z0: -3.3, z1: -2.78, y: 0 },
+          { x0: -0.5, x1: 0.25, z0: -4.0, z1: -3.3, y: 0 },
+          /** The trunk cabin's top (nearly level: the deck rises as the trunk lowers), stepped onto from the side decks forward. */
+          { x0: -0.85, x1: 0.85, z0: -4.6, z1: -2.9, y: 1.82 },
+        ],
+        /** The companionway (up through the pilothouse floor) and the fore cabin (under the trunk and the pilothouse floor): open space. */
+        hollows: [
+          { x0: -1.24, x1: -0.42, y0: -0.1, y1: 2.4, z0: -2.78, z1: -1.9 },
+          { x0: -1.4, x1: 1.4, y0: -0.1, y1: 1.9, z0: -5.0, z1: -2.78 },
+        ],
+        /** No deck under the trunk cabin (the fore cabin is open up into it), the side decks 0.32 m wide beside it. */
+        deckOpening: { front: -4.85, inset: 0.32 },
       },
       /**
        * Her superstructure's own parts (boats/alaskan38/view.ts; drawing only; m, vessel
@@ -1350,12 +1374,37 @@ export const CONFIG = {
         pilothouseAft: -0.5,
         sideDoor: { z0: -1.45, z1: -0.7 },
         saloon: { roofY: A38_FLOOR - 0.5 + 2.2, sill: 1.0, head: 2.0 },
-        trunk: { fwd: -4.9, height: 0.42, fwdHeight: 0.22, inset: 0.3, hatch: { z: -4.05, size: 0.55 } },
+        trunk: { fwd: -4.9, height: 0.4, fwdHeight: 0.2, inset: 0.3, hatch: { z: -4.05, size: 0.55 } },
         eyebrow: { visor: 0.3, sideOverhang: 0.12 },
         overhead: { aft: 4.6, halfWidth: 1.78, kneeFoot: 3.4 },
         radar: { z: -0.15, radius: 0.3, height: 0.22, pedestal: 0.5 },
         rodRack: { z: 4.45, halfWidth: 0.9, height: 0.55, rods: 6 },
         roofRail: { height: 0.25, spacing: 1.2 },
+        /**
+         * Inside (stage 3; drawing only, the walking is layout.extraFloors / hollows):
+         *   console        the console body, to starboard of the companionway (the console
+         *                  module's dash sits on it: places.console, x 0.5); x0 is its port end
+         *   seats          the helm seat and a companion's, on pedestals behind the console
+         *   companionway   the opening's bounds, the handrail
+         *   foreCabin      the sole, the V-berth's platform and cushions, a hanging locker
+         *                  under the pilothouse floor to starboard, the lining's colours
+         *   galley         the counter along the saloon's starboard side: sink, stove, fridge
+         *   dinette        the settees round the table (the table is the chart-table module,
+         *                  places.chartTable) along the saloon's port side
+         *   ceiling        the lining under each roof, set in from the walls
+         */
+        interior: {
+          console: { x0: -0.4, colour: 0x3c4248 },
+          seats: [
+            { x: 0.5, z: -0.95 },
+            { x: -0.85, z: -0.95 },
+          ],
+          companionway: { x0: -1.24, x1: -0.42, z0: -2.78, z1: -1.9, rail: { x: -0.44, height: 0.9 } },
+          foreCabin: { sole: 0, berth: { aft: -3.75, top: 0.55, cushion: 0.12 }, locker: { x0: 0.35, x1: 1.05, z0: -3.6, z1: -2.82, top: 1.1 }, lining: 0xd8d2c4, trim: 0x8a5d3c, cushion: 0x2b3a55 },
+          galley: { x0: 0.85, z0: 0.0, z1: 2.5, top: 0.9, sink: [1.15, 0.5] as [number, number], stove: [1.15, 1.3] as [number, number], fridge: [1.9, 2.4] as [number, number] },
+          dinette: { x1: -0.95, seat: 0.45, back: 0.9, fwd: [-0.15, 0.55] as [number, number], aft: [1.6, 2.4] as [number, number] },
+          ceiling: { inset: 0.12, thickness: 0.02, colour: 0xeeece6 },
+        },
       },
       /** The cockpit is her working deck: lashing points along both sides. */
       cargo: {
@@ -1371,7 +1420,7 @@ export const CONFIG = {
         lashRange: 1.1,
       },
       /** At the helm, facing forward. */
-      boardingSpot: [0, A38_FLOOR, -1.3] as [number, number, number],
+      boardingSpot: [0.5, A38_FLOOR, -1.3] as [number, number, number],
       spawn: { x: 0, z: -22, dropHeight: 3, headingDeg: 90 },
       /** The outboards' exhaust: out through their lower units, under water at the bracket (seen as a little spray astern). */
       exhaust: { position: [0.5, 0.0, 7.6] as [number, number, number], direction: [0, -0.1, 1] as [number, number, number] },
@@ -1379,7 +1428,7 @@ export const CONFIG = {
       stowage: {
         extinguisher: [-0.95, A38_FLOOR + 0.08, 2.55] as [number, number, number],
         torch: [-0.7, A38_FLOOR + 0.18, 2.575] as [number, number, number],
-        binoculars: { at: [-0.7, A38_FLOOR + 1.35, -2.26] as [number, number, number], yawDeg: 20 },
+        binoculars: { at: [-0.25, A38_FLOOR + 1.35, -2.26] as [number, number, number], yawDeg: 20 },
       },
       /**
        * Where her modules go (vessel axes, m): the console behind the faceted front; the
@@ -1388,7 +1437,8 @@ export const CONFIG = {
        * units); the cabin lamp; the roof; her cleats' stations.
        */
       places: {
-        console: [0, A38_FLOOR + 0.9, -1.84] as [number, number, number],
+        /** The console's dash (the module), to starboard of the companionway: x 0.5, 0.9 m each way (its body: house.interior.console). */
+        console: [0.5, A38_FLOOR + 0.9, -1.84] as [number, number, number],
         /** On the starboard wall by the helm, set back with the facet there. */
         breakerPanel: [1.315, A38_FLOOR + 0.6, -1.5] as [number, number, number],
         /** On the aft wall, above the saloon floor (0.5 m below the helm's). */
@@ -1405,6 +1455,11 @@ export const CONFIG = {
         searchlight: [0, A38_FLOOR + 2.4, -2.4] as [number, number, number],
         navLights: [0, A38_FLOOR + 2.37, -1.0] as [number, number, number],
         cleats: { bow: -5.3, stern: 5.6 },
+        /** The dinette table is the chart-table module (its drop leaf against the port wall): its forward inboard corner on the saloon floor. */
+        chartTable: [-1.37, A38_FLOOR - 0.5, 0.6] as [number, number, number],
+        /** The crew whiteboard on the saloon's aft wall, port of the door; the duty board on its starboard wall over the galley. */
+        whiteboard: [-1.0, A38_FLOOR + 1.15, 2.635] as [number, number, number],
+        dutyBoard: [1.435, A38_FLOOR + 1.1, 1.3] as [number, number, number],
       },
       /**
        * Her one-off parts (boats/alaskan38/view.ts; drawing only). The outboard bracket: a
