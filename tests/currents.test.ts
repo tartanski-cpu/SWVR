@@ -15,6 +15,7 @@ import { racesText } from '../src/environment/forecast';
 import { createWeather } from '../src/environment/weather';
 import { prepareWaves, restPosition, sampleSurface, surfaceHeight } from '../src/ocean/waves';
 import { decodeDesign, DEFAULT_DESIGN } from '../src/shipyard/design';
+import { matchGear } from '../src/shipyard/trial';
 import { placeVessel } from '../src/vessel/vesselControl';
 import { CURRENTS, type CurrentZoneDef } from '../src/world/archipelago';
 import { addCurrent, knockPoints, nextSlack, raceFactor, raceReading, raceRoarLevel, raceWaveFactor, setRaceClock, slackTimes, zoneWeight } from '../src/world/currents';
@@ -194,7 +195,8 @@ describe('boats in the race', () => {
   it('a Shipyard pilot boat punches through at peak', () => {
     const read = decodeDesign(PILOT);
     if (!('design' in read)) throw new Error(read.error);
-    useDesign(read.design);
+    // (Her gearbox matched to her, as the Shipyard does.)
+    useDesign({ ...read.design, gear: matchGear(read.design).gear });
     const { world, v, send, run } = boat('design', 180);
     world.environment.raceOverride = 'peak';
     send('quickStart', 1);

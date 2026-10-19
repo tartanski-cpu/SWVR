@@ -73,14 +73,17 @@ describe('the deckhouse', () => {
   });
 
   it('the floor height counts from its top: sunk into it, the top is open over the cabin, and the floor is walked', () => {
+    // (Its top over her deck at the transom: sunk into it, its top is open over the cabin, so
+    // she's a little lighter and floats a few mm higher.)
+    const overDeck = () => VESSEL_DEFS.design.layout.deckhouse!.top - VESSEL_DEFS.design.hull.stations[0].polygon[0][1];
     const level = useDesign({ ...WITH, floor: 3 });
-    const top = VESSEL_DEFS.design.layout.deckhouse!.top;
+    const top = overDeck();
     expect(level.figures.floorOnDeckhouseM).toBeCloseTo(0, 6);
     const sunk = useDesign({ ...WITH, floor: 1 }); // 0.4 m down
     const def = VESSEL_DEFS.design;
     const dh = def.layout.deckhouse!;
     const wh = def.layout.wheelhouse!;
-    expect(dh.top).toBeCloseTo(top, 6);
+    expect(overDeck()).toBeCloseTo(top, 6);
     expect(sunk.figures.floorOnDeckhouseM).toBeCloseTo(-0.4, 6);
     expect(wh.floorY).toBeCloseTo(dh.top + 0.02 - 0.4, 6);
     expect(dh.well).toBeDefined();
@@ -91,7 +94,7 @@ describe('the deckhouse', () => {
     expect(walk.insideSolid(0, wh.floorY + 0.5, z)).toBe(false);
     // Raised, it stands higher on it.
     useDesign({ ...WITH, floor: 4 });
-    expect(VESSEL_DEFS.design.layout.wheelhouse!.floorY).toBeCloseTo(top + 0.22, 6);
+    expect(VESSEL_DEFS.design.layout.wheelhouse!.floorY - VESSEL_DEFS.design.hull.stations[0].polygon[0][1]).toBeCloseTo(top + 0.22, 6);
   });
 
   it('the side door is left off with one (it would open onto its top), saying why', () => {

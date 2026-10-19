@@ -244,8 +244,9 @@ describe('deck crane', { timeout: 30000 }, () => {
     const held = wander(true);
     expect(plain).toBeGreaterThan(0.1); // she does move it about
     expect(held).toBeLessThan(plain * 0.3);
-    // Without hydraulic pressure it can't: the hook rides with her.
-    expect(wander(true, false)).toBeGreaterThan(plain * 0.7);
+    // Without hydraulic pressure it can't: the hook rides with her. (It can't be swung out over
+    // the side either, so it rides stowed inboard, where she moves a little less.)
+    expect(wander(true, false)).toBeGreaterThan(plain * 0.5);
   });
 
   it('motion compensation is sold only for a boat with a deck crane', () => {
