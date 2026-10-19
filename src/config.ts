@@ -4027,6 +4027,35 @@ export const CONFIG = {
       turbo: { idleHz: 1400, boostHz: 3200, gain: 0.006 } as { idleHz: number; boostHz: number; gain: number } | null,
     },
     /**
+     * The tug's big slow straight six (owner, Oct 2026: "a better engine noise for the big
+     * straight six diesel"; it borrowed the workboat's six, which slowed to its 1000 rpm
+     * sounded like a small engine idling). A big medium-speed diesel: at its slow revs each
+     * firing is heard on its own (17 Hz at idle, 50 Hz flat out), so the pulses are longer
+     * (a deep "chuff" that rings through the big exhaust); its body resonance lower (a pipe
+     * twice the bore); the cylinders more even than the worn workboat's, the front
+     * three a touch stronger than the back three (their exhaust manifolds join apart, a slow
+     * one-a-revolution swell under the beat); a heavier thump and more grit under load; a
+     * bigger intake rush; and a large, slow turbo's low whistle as she digs in.
+     */
+    bigSix: {
+      cylinders: 6,
+      strength: [1.0, 0.84, 0.96, 0.8, 1.02, 0.86],
+      jitter: 0.06,
+      pulseTau: 0.028,
+      pulseTauLow: 0.022,
+      body: { freq: 70, q: 1.0, gain: 5 },
+      // (Its bark kept at 125 Hz, where a headset's speakers still play: the 70 Hz body under
+      // it is felt on headphones and big speakers, and a Quest's own can't play it.)
+      stack: { freq: 125, q: 1.6, gain: 6 },
+      lp: { base: 115, rpm: 110, load: 160 },
+      // (Its longer pulses carry more: a lower thump keeps it about as loud as the six was,
+      // rendered offline: within 1 dB overall and in the 100-400 Hz a headset plays.)
+      thump: { base: 0.45, rpm: 0.14, load: 0.25 },
+      drive: 1.5,
+      hiss: { base: 0.003, load: 0.012 },
+      turbo: { idleHz: 650, boostHz: 1700, gain: 0.007 } as { idleHz: number; boostHz: number; gain: number } | null,
+    },
+    /**
      * The petrol V8 outboards (owner, Oct 2026: "a great V8 petrol outboard sound", heard on
      * the Alaskan 38, "without the turbo part"): the V8's voice exactly, the turbo whine
      * left out. Revving to 5800 rpm (the outboards' rated speed: ENGINE voices take their
