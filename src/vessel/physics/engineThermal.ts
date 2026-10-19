@@ -41,10 +41,20 @@ export function fuelAndHeatStep(e: EngineState, def: EngineSpec, fuelL: number, 
   if (e.phase === 'running' && left <= 0) e.phase = 'off'; // ran dry
 
   // ── Heat ──
-  const qIn = kgPerS * th.lhvMJPerKg * 1000 * th.heatToCoolant; // kW
+  // Lugging (the rack ahead of the revs: full fuel with the revs held down by a tow, or a
+  // hull that won't get up on the plane) burns more fuel than the air at those revs takes
+  // cleanly: smoke, a hot exhaust, and more of the fuel's heat into the water jackets.
+  const lug = e.phase === 'running' ? clamp(e.rack - e.rpm / def.engine.ratedRpm, 0, 1) : 0;
+  const qIn = kgPerS * th.lhvMJPerKg * 1000 * th.heatToCoolant * (1 + th.lugHeat * lug); // kW
   const opening = clamp((e.coolantC - th.thermostatOpenC) / (th.thermostatFullC - th.thermostatOpenC), 0, 1);
-  // The raw-water pump is driven by the engine: no flow through the exchanger when stopped.
-  const pump = e.phase === 'running' ? 1 : 0;
+  // The raw-water pump is driven by the engine: its flow (so the exchanger's cooling) follows
+  // the revs, nothing when stopped. With the lugging heat above, that is what tells towing
+  // from planing (owner): flat out on the plane the engine sits near its rated revs with
+  // the pump at full flow, and the governor has eased the fuel off as the load fell: cool.
+  // Flat out on a tow, the propeller holds the revs down with the rack still full: a slow
+  // pump and a hot, smoky engine: the alarm comes and the governor derates. Ease the
+  // throttle and it recovers.
+  const pump = e.phase === 'running' ? clamp(e.rpm / def.engine.ratedRpm, 0, 1.1) ** th.pumpFlowExp : 0;
   const exchanger = th.exchangerKwPerK * opening * pump * (e.coolingFault ? th.faultExchangerFraction : 1);
   const qOut = (th.baseLossKwPerK + exchanger) * (e.coolantC - seaC);
   e.coolantC += ((qIn - qOut) / th.heatCapacity) * dt;

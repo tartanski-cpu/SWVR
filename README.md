@@ -266,7 +266,7 @@ The dash shows:
 
 - **Fuel:** the tank holds 600 L. Flat out burns about 49 L/h; 6–7 kn about 11 L/h. Run dry and the engine stops; it won't restart until you refuel.
 - **Cold start:** the engine starts cold and smokes white until it warms up, which takes about 5 minutes under way.
-- **Overheating:** with the pump-failure fault on, it overheats under load. The alarm sounds at 95 °C, power is derated from 100 °C, and it shuts down at 115 °C. Ease off before that.
+- **Overheating:** flat out and free-running she keeps cool: the governor eases the fuel as the load falls, and the raw-water pump is at full flow. **Lugging** overheats her: full throttle on a tow, or a hull that won't get up on the plane, holds the revs down with the fuel still full, so the pump turns slower and the engine runs hot and smoky. The alarm sounds at 95 °C, power is derated from 100 °C, and it shuts down at 115 °C. Ease the throttle and she recovers. The pump-failure fault (Debug) overheats her under any load.
 
 ### NAV / WIND display and binoculars
 

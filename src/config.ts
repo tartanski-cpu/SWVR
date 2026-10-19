@@ -426,8 +426,13 @@ export const CONFIG = {
          * Cooling and temperatures. One lumped heat capacity (block + coolant):
          *   C dT/dt = Q_in - UA (T - T_sea)
          *   Q_in = heatToCoolant * fuel energy rate (m_dot * LHV)
-         *   UA   = baseLoss + exchanger * thermostat opening (0 at openC .. 1 at fullC),
-         *          the exchanger only working while the engine-driven raw-water pump turns.
+         *   UA   = baseLoss + exchanger * thermostat opening (0 at openC .. 1 at fullC)
+         *          * (rpm / rated)^pumpFlowExp: the engine-driven raw-water pump's flow;
+         *   lugging  the rack ahead of the revs (rack - rpm / rated, when positive: full fuel
+         *          with the revs held down) puts `lugHeat` x that much more of the fuel's heat
+         *          into the water: smoke and a hot exhaust.
+         * The exchanger is sized so flat out at rated revs she settles in the mid 80s (°C);
+         * towing flat out, or a hull that won't plane, overheats: alarm, derate, not shutdown.
          * Oil follows the coolant with a lag, running hotter under load.
          */
         thermal: {
@@ -437,8 +442,12 @@ export const CONFIG = {
           heatCapacity: 150,
           thermostatOpenC: 80,
           thermostatFullC: 88,
-          /** Sea-water heat exchanger conductance, thermostat fully open (kW/K). */
+          /** Sea-water heat exchanger conductance, thermostat fully open, pump at rated revs (kW/K). */
           exchangerKwPerK: 4.4,
+          /** The raw-water pump's flow with the revs: (rpm / rated) to this power (1: in proportion). */
+          pumpFlowExp: 1,
+          /** Extra heat to the water per unit of lugging (rack - rpm / rated): 1 = 20 % more at 0.2. */
+          lugHeat: 1,
           /** Losses with the thermostat shut or the engine stopped (kW/K). */
           baseLossKwPerK: 0.03,
           /** A failed raw-water pump impeller leaves this fraction of the exchanger working. */
@@ -3657,7 +3666,10 @@ export const CONFIG = {
           heatCapacity: 40,
           thermostatOpenC: 80,
           thermostatFullC: 88,
-          exchangerKwPerK: 2.4,
+          /** Sized for its 300 kW held flat out (the Shipyard's 1.7 kW/K per 150 kW); 2.4 ran it to 113 °C. */
+          exchangerKwPerK: 3.4,
+          pumpFlowExp: 1,
+          lugHeat: 1,
           baseLossKwPerK: 0.012,
           faultExchangerFraction: 0.08,
           alarmC: 95,

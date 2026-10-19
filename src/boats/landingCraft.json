@@ -41,6 +41,8 @@
             "thermostatOpenC": 80,
             "thermostatFullC": 88,
             "exchangerKwPerK": 3.6,
+            "pumpFlowExp": 1,
+            "lugHeat": 1,
             "baseLossKwPerK": 0.012,
             "faultExchangerFraction": 0.08,
             "alarmC": 95,

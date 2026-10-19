@@ -89,6 +89,27 @@ describe('outboards: built', () => {
   });
 });
 
+describe('outboards: cooling', () => {
+  it('held flat out on the plane for ten minutes they stay cool (owner: the throttles are set for it)', () => {
+    useDesign(boat(1, 1));
+    const { world, vesselId } = createWorld(new IdFactory(), 'design');
+    const v = world.vessels[vesselId];
+    placeVessel(v, 0, 0, 0, 0);
+    world.environment.waves = [];
+    world.geography = 'openSea';
+    const DT = 1 / 60;
+    const send = (control: string, value: number) => stepWorld(world, [{ playerId: 't', targetId: v.id, control, value } as Intent], DT);
+    send('quickStart', 1);
+    for (let i = 0; i < 5 / DT; i++) stepWorld(world, [], DT);
+    send('lever', 1);
+    for (let i = 0; i < 600 / DT; i++) stepWorld(world, [], DT);
+    const th = gearOf(v, 'diesel')!.engine.thermal;
+    expect(Math.hypot(v.linearVelocity[0], v.linearVelocity[2]) / 0.5144).toBeGreaterThan(14);
+    expect(v.engine.coolantC).toBeLessThan(th.alarmC);
+    expect(v.engine.phase).toBe('running');
+  });
+});
+
 describe('outboards: steering', () => {
   it('the wheel to starboard swings the propellers to starboard and brings her bow to starboard', () => {
     useDesign(boat(2));

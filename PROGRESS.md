@@ -4935,6 +4935,18 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - All in `CONFIG.clouds`.
 - **Checked:** `npm test` (new `tests/clouds.test.ts`: rain cloud darker than plain cloud; nothing upwind while a change is far off, building and darkening within the lead; no jump when the change comes; nothing for a fixed weather), typecheck. Headless Chromium screenshots looking upwind: clear (scattered cumulus), overcast (grey deck), overcast with rain coming (darker toward the upwind horizon), clear with overcast coming (cloud building upwind), rain (dark and heavy). No page errors. **Not checked:** the Quest (the sky pixel cost at 90 Hz: two texture looks per pixel; the look in the headset) and the drift over time.
 
+### Engine heat: flat out is fine, lugging on a tow overheats (owner)
+
+- **The owner:** the overheating was too aggressive. A boat with outboards held flat out should run all day (that's what the throttles are set for): as she comes up onto the plane the load falls off. Towing at full throttle in displacement mode is the case that maxes the load, and that should overheat.
+- **Two things were wrong.** The outboard's cooler was undersized (`exchangerKwPerK` 2.4 for 300 kW; the Shipyard's rule is 1.7 kW/K per 150 kW): flat out she settled at 113 °C, past the derate and two degrees short of the shutdown. And the heat model couldn't tell towing from planing: heat in followed the fuel burn alone, and cooling was the same at any revs, so flat out on a tow (less power at fewer revs) ran *cooler* than free-running.
+- **The model now** (`vessel/physics/engineThermal.ts`, `CONFIG...engine.thermal`):
+  - the raw-water pump is engine-driven: the exchanger's cooling scales with (rpm / rated)^`pumpFlowExp` (1);
+  - **lugging** (`rack - rpm / rated`, when positive: full fuel with the revs held down) puts `lugHeat` (1) × that much more of the fuel's heat into the water: smoke and a hot exhaust;
+  - the outboard's exchanger is 3.4 kW/K (`lugHeat` and `pumpFlowExp` on the workboat's, the outboard's and the landing craft's thermal; the Shipyard spreads the workboat's).
+- **What it does** (the workboat, 400 kW): free-running at 13 kn, 1,700 rpm, rack 0.84: 86.5 °C. Made fast and pulling at full throttle: 1,420 rpm, 97 °C: the alarm, close to the derate; half throttle on the tow brings it back. Two outboards on the gillnetter flat out for ten minutes: under the alarm, 18 kn. The Alaskan's 25 s bollard pull reads 2.71 t (was 2.9: the lugging heat starts to bite within the pull).
+- **The golden runs** (`tests/golden/fixtures`) were re-recorded: only their coolant and oil temperatures moved (the idle a few hundredths warmer); speeds, revs and positions are byte for byte as before.
+- **Checked:** `npm test` (new: the workboat free-running cool and alarmed on the tow, recovering at half throttle; two outboards flat out for ten minutes cool), typecheck, `npm run trials`. **Not checked:** the Quest; the owner's own case (the Alaskan or a Shipyard boat with outboards, flat out, then towing).
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**
