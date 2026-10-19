@@ -4,7 +4,7 @@ import {
   aboard,
   deckVelocitiesBefore,
   GROUND,
-  lashPointFor,
+  canLash,
   payloadOf,
   portAtPoint,
   stepDeckCargo,
@@ -153,18 +153,22 @@ describe('cargo by hand', () => {
     expect(c.world.lost).toBe(1);
   });
 
-  it('lashed cargo stays put; lashing needs a D-ring within reach', () => {
+  it('lashed cargo stays put; it lashes wherever it stands on open deck, not off it', () => {
     const { world, v, send, onDeck, heelAndSlide } = setup();
     const near = onDeck('n', 1, 1.2, 4.2);
-    const far = onDeck('f', 1, 0.8, 1.9 + 0.6);
-    expect(lashPointFor(v, near)).not.toBeNull();
+    // Anywhere on open deck (owner, Oct 2026: no D-rings): the middle of her aft deck too.
+    const middle = onDeck('m', 1, 0, 3.0);
+    expect(canLash(v, near)).toBe(true);
+    expect(canLash(v, middle)).toBe(true);
     send('cargoLash', 'n');
     expect((near.at as { lashed: boolean }).lashed).toBe(true);
-    // Find a spot out of reach of every ring, if the layout has one; else just check the reach rule.
-    if (!lashPointFor(v, far)) {
-      send('cargoLash', 'f');
-      expect((far.at as { lashed: boolean }).lashed).toBe(false);
-    }
+    // Not off it: set in the wheelhouse's footprint (as nothing places it), it won't lash.
+    const wh = VESSEL_DEFS[v.defId].layout.wheelhouse!;
+    const inHouse = onDeck('h', 1, 0, (wh.front + wh.aft) / 2);
+    expect(canLash(v, inHouse)).toBe(false);
+    send('cargoLash', 'h');
+    expect((inHouse.at as { lashed: boolean }).lashed).toBe(false);
+    delete world.cargo.h;
     heelAndSlide(40, 2);
     expect(world.cargo.n).toBeDefined();
     expect((near.at as { pos: number[] }).pos[0]).toBeCloseTo(1.2, 3);

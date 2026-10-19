@@ -106,10 +106,5 @@ export function deckCapacity(defId: string, f: DeckFootprint, gap = 0.05): numbe
   return best;
 }
 
-/** Lashing points of a vessel (vessel axes, x/z on the deck). */
-export function lashPoints(defId: string): readonly [number, number][] {
-  return VESSEL_DEFS[defId].cargo.lashPoints;
-}
-
 export const DECK_EDGE = EDGE;
 

@@ -666,7 +666,6 @@ export class App {
     this.walkAreas.set(vessel.id, vesselWalkArea(def, def.layout, footprintsOf(vessel)));
     this.effects.set(vessel.id, new VesselEffects(def, view.root, this.scene, this.ocean.sharedUniforms));
     this.vesselRoots.set(vessel.id, view.root);
-    if (!def.tow) this.cargoView.attachVessel(view.root, vessel.defId);
     // Her modules, drawn and worked: her boat view, built from her recipe (M6c). The home
     // boat's controls send plain channels; another boat's go to her (the skiff's tiller). A
     // tow, a hull with no modules, has none.

@@ -1353,16 +1353,8 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
     ...(skiffAt ? [{ id: 'tenderCrane', type: 'deck.equipment' as const, transform: { position: skiffAt }, label: 'The skiff crane\'s column (her cradle forward of it)' }] : []),
     ...(craneAt || winchAt || skiffAt ? [{ id: 'hydraulicPump', type: 'engine.bay' as const, transform: { position: at.engineSpace }, label: 'On the engine\'s power take-off (nominal)' }] : []),
   ];
-  // Lashing points along the longer stretch of open deck (fore or aft of the house).
-  const fore = front - (stem + 0.8);
+  // (Her open deck aft of the house, for the rescue places below.)
   const aftDeck = transom - 0.5 - aft;
-  const [za, zb] = fore >= aftDeck ? [stem + 0.8, front - 0.3] : [aft + 0.3, transom - 0.5];
-  const lashPoints: [number, number][] = [];
-  if (Math.abs(zb - za) > 1.2)
-    for (const side of [-1, 1]) for (const f of [0.15, 0.5, 0.85]) {
-      const z = za + (zb - za) * f;
-      lashPoints.push([Math.round(side * (q.halfBeam(z) - 0.25) * 100) / 100, Math.round(z * 100) / 100]);
-    }
   // Her rescue places (owner, Oct 2026: a Shipyard boat with a life ring gets the rescue
   // calls, as the workboat does): survivors on the line come aboard over the transom's
   // centre at the waterline (`stern`), and sit on the larger open deck, three abreast.
@@ -1407,7 +1399,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
       center: [0, Math.round((freeboard + 0.4) * 100) / 100, Math.round(((front + aft) / 4) * 100) / 100],
     },
     layout,
-    cargo: { maxPayloadKg: payloadKg, slots: 0, bowClear: 0.4, aftClear: 0.25, fixed: false, lashPoints, lashRange: 1.1 },
+    cargo: { maxPayloadKg: payloadKg, slots: 0, bowClear: 0.4, aftClear: 0.25, fixed: false },
     spawn: { x: 0, z: -22, dropHeight: 3, headingDeg: 90 },
     fittings: {
       exhaust: { position: [0.55, 0.2, transom + 0.05], direction: [0, -0.12, 1] },

@@ -2,8 +2,7 @@ import * as THREE from 'three';
 import type { WorldState } from '../core/world';
 import { CONFIG } from '../config';
 import { fitPaint, flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
-import { VESSEL_DEFS } from '../vessel/vesselDef';
-import { kindOf, lashPointFor, portById, type CargoItem } from './cargo';
+import { kindOf, portById, type CargoItem } from './cargo';
 import { hasUpgrade } from '../career/career';
 import { hookOnBoat } from './craneHook';
 import { bootGeometry, crabGeometry, floorSlot, lobsterGeometry, smallFishGeometry, starfishGeometry } from '../potting/catchGeometry';
@@ -109,8 +108,7 @@ export type CarriedPose = (item: CargoItem) => { pos: THREE.Vector3; quat: THREE
  * Every cargo item, one instanced draw call per shape (crates, sacks, drums, the trawl's fish
  * boxes) plus one for the lashing straps: waiting ashore, riding a deck, or in someone's
  * hands. Sized by kind, coloured by destination (the port's colour), with the detail painted
- * on (pixel paint: a crate's boards, sacking, a drum's worn paint). The item a hand is on is drawn brighter. Lashing points (D-rings) are baked onto
- * each vessel once (`attachVessel`).
+ * on (pixel paint: a crate's boards, sacking, a drum's worn paint). The item a hand is on is drawn brighter.
  */
 export class CargoView {
   readonly root = new THREE.Group();
@@ -157,7 +155,7 @@ export class CargoView {
     this.sacks = new THREE.InstancedMesh(sack, mat, MAX);
     this.drums = new THREE.InstancedMesh(drum, mat, MAX);
     // Strap: a unit box on its base; bands round an item and ties down to its D-ring.
-    this.straps = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0), new THREE.MeshLambertMaterial({ color: STRAP }), MAX * 3);
+    this.straps = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0), new THREE.MeshLambertMaterial({ color: STRAP }), MAX * 6);
     this.fishSize = CONFIG.cargo.kinds.find((k) => k.name === 'Fish box')?.size ?? [0.8, 0.3, 0.5];
     this.fishBoxes = new THREE.InstancedMesh(fishBoxGeometry(this.fishSize, false), mat, MAX);
     this.icedBoxes = new THREE.InstancedMesh(fishBoxGeometry(this.fishSize, true), mat, MAX);
@@ -197,28 +195,6 @@ export class CargoView {
       if (key) n[key]++;
       else n.extra[extra!] = k + 1;
     }
-  }
-
-  /** D-rings on a vessel's deck, baked into its root (one small draw call). */
-  attachVessel(root: THREE.Object3D, defId: string): void {
-    const def = VESSEL_DEFS[defId];
-    const plan = def.hull.stations;
-    const deckY = (z: number) => {
-      for (let i = 0; i < plan.length - 1; i++) {
-        if (z <= plan[i].z && z >= plan[i + 1].z) {
-          const t = (plan[i].z - z) / (plan[i].z - plan[i + 1].z);
-          return plan[i].polygon[0][1] + (plan[i + 1].polygon[0][1] - plan[i].polygon[0][1]) * t;
-        }
-      }
-      return plan[0].polygon[0][1];
-    };
-    const parts = def.cargo.lashPoints.map(([x, z]) =>
-      part(new THREE.TorusGeometry(0.05, 0.012, 5, 10).rotateY(Math.abs(x) > 0.1 ? 0 : Math.PI / 2).translate(x, deckY(z) + 0.05, z), 0xd8d0b0),
-    );
-    if (!parts.length) return; // no D-rings (the skiff)
-    const mesh = new THREE.Mesh(mergeParts(parts), flatVertexColorMaterial());
-    mesh.name = 'lashPoints';
-    root.add(mesh);
   }
 
   /**
@@ -290,26 +266,22 @@ export class CargoView {
         im.setColorAt(i, this.color);
       }
 
-      // Lashed: two bands round it and a tie down to its D-ring.
-      if (root && 'vessel' in c.at && c.at.lashed && ns + 3 <= MAX * 3) {
+      // Lashed (where it stands on open deck: no D-rings): two bands round it, each tied down
+      // to the deck either side, as a ratchet strap is.
+      if (root && 'vessel' in c.at && c.at.lashed && ns + 6 <= MAX * 6) {
         for (const off of [-0.25, 0.25]) {
           this.a.set(0, -0.01, off * sz).applyQuaternion(this.q).add(this.p);
           this.m.compose(this.a, this.q, this.scale.set(sx + 0.03, sy + 0.025, 0.05));
           this.straps.setMatrixAt(ns++, this.m);
-        }
-        const v = world.vessels[c.at.vessel];
-        const lp = v && lashPointFor(v, c);
-        if (lp) {
-          // From the ring up to the item's top edge on that side.
-          root.localToWorld(this.a.set(lp[0], c.at.pos[1] + 0.05, lp[1]));
-          const dir = this.b.set(lp[0] - c.at.pos[0], 0, lp[1] - c.at.pos[2]);
-          const len = dir.length();
-          dir.multiplyScalar(len > 1e-3 ? Math.min(1, Math.max(sx, sz) / 2 / len) : 0);
-          root.localToWorld(this.b.set(c.at.pos[0] + dir.x, c.at.pos[1] + sy, c.at.pos[2] + dir.z));
-          const span = this.b.clone().sub(this.a);
-          this.qYaw.setFromUnitVectors(this.up, span.clone().normalize());
-          this.m.compose(this.a, this.qYaw, this.scale.set(0.05, span.length(), 0.012));
-          this.straps.setMatrixAt(ns++, this.m);
+          for (const side of [-1, 1]) {
+            // From its top edge on that side out and down to the deck beside it.
+            this.a.set(side * (sx / 2 + 0.22), 0, off * sz).applyQuaternion(this.q).add(this.p);
+            this.b.set(side * (sx / 2), sy, off * sz).applyQuaternion(this.q).add(this.p);
+            const span = this.b.clone().sub(this.a);
+            this.qYaw.setFromUnitVectors(this.up, span.clone().normalize());
+            this.m.compose(this.a, this.qYaw, this.scale.set(0.05, span.length(), 0.012));
+            this.straps.setMatrixAt(ns++, this.m);
+          }
         }
       }
     }
