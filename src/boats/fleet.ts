@@ -16,6 +16,7 @@
  *                roller, fire monitor and searchlight, tyres along her sides;
  *   starterBoat  the beginner boat: the gillnetter as basic as she comes, the cheapest engine
  *                (150 kW straight six, ~8 kn), fenders, basic controls.
+ * Each but the beginner boat has the helm assist panel (autopilot, dock, auto start).
  * (Their ids live on in saves and multiplayer: never rename.)
  */
 import { readDoc } from '../shipyard/designDoc';

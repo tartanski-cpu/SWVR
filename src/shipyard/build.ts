@@ -1020,10 +1020,14 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   const toPort = (out: number) => Math.round(Math.max(-out, cx - CONFIG.shipyard.helm.hungReach) * 1000) / 1000;
   const toStbd = (out: number) => Math.round(Math.min(out, cx + CONFIG.shipyard.helm.hungReach) * 1000) / 1000;
   const wl = CONFIG.shipyard.workLights;
+  // The helm assist panel (design.helmAssist): with the advanced controls only.
+  const helmAssist = !!d.helmAssist && !!d.controls;
   const at = {
     console: [cx, F + 0.9, cf + 0.56] as V3,
     // (Below the window sill: low windows bring it down.)
     breakerPanel: [hw - 0.185, F + Math.min(0.6, sill - 0.2), cf + 0.875 + sb(hw - 0.185)] as V3,
+    // The helm assist panel: on the same wall, aft of the breaker panel.
+    helmAssist: [hw - 0.185, F + Math.min(0.6, sill - 0.2), cf + 0.875 + sb(hw - 0.185) + CONFIG.modules.breakerPanel.width / 2 + CONFIG.modules.helmAssist.gap + CONFIG.modules.helmAssist.width / 2] as V3,
     rampButton: [-(hw - 0.07), F + Math.min(0.73, sill - 0.08), cf + 0.775 + sb(hw - 0.07)] as V3,
     // (On the aft wall: from the saloon's floor, if she has one.)
     batteryMaster: [hw - 0.45, FA + 0.48, aft - 0.065] as V3,
@@ -1524,6 +1528,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
     ...(outboards ? [{ id: 'outboards', type: 'transom.outboards' as const, transform: { position: [0, outboards.mount.y, outboards.mount.z] as V3 }, label: 'The bracket off the transom: her outboards' }] : []),
     { id: 'helm', type: 'helm.console', transform: { position: at.console }, capacity: { size: [2 * consoleHalf - 0.04, 1.6, 1.0] }, label: 'Helm console, across the front of the cabin' },
     { id: 'breakerPanel', type: 'wall.panel', transform: { position: at.breakerPanel, rotationDeg: [-40, -90, 0] }, label: 'Starboard wall, by the helm' },
+    ...(helmAssist ? [{ id: 'helmAssist', type: 'wall.panel' as const, transform: { position: at.helmAssist, rotationDeg: [-40, -90, 0] as V3 }, label: 'Starboard wall, aft of the breaker panel' }] : []),
     { id: 'batteryMaster', type: 'wall.panel', transform: { position: at.batteryMaster, rotationDeg: [0, 180, 0] }, label: 'Aft wall, starboard of the door, low' },
     { id: 'batterySelector', type: 'wall.panel', transform: { position: at.batterySelector, rotationDeg: [0, 180, 0] }, label: 'Aft wall, beside the battery master' },
     { id: 'vhf', type: 'cabin.overhead', transform: { position: at.vhf, rotationDeg: [0, 20, 0] }, label: 'Under the roof, out to port' },
@@ -1898,6 +1903,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
     },
   );
   if (chartTableAt) recipe.modules.push({ socket: 'chartTable', module: 'furniture.chart-table' });
+  if (helmAssist) recipe.modules.push({ socket: 'helmAssist', module: 'panel.helm-assist' });
   if (!d.controls) {
     // Basic: wheel, throttle, starting (key, START, the lamps and the card), speed with
     // depth, rpm, and the VHF (owner, Oct 2026: every boat answers calls, hears the forecasts

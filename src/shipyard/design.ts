@@ -226,6 +226,12 @@ export interface ShipDesign {
    */
   consoleSide: number;
   /**
+   * The helm assist panel (owner, Oct 2026; modules/helmAssist): 0 none, 1 a small box by the
+   * breaker panel with AUTO START, DOCK and AUTOPILOT (holds her compass heading). With the
+   * advanced controls only. Not in the short code: a design with it travels as a link or file.
+   */
+  helmAssist: number;
+  /**
    * The saloon's roof (SCALES.saloonRoof; parametric boats P2b): as high as the wheelhouse's
    * (one roof), or 1 to 3 steps of 0.2 m lower, its own roof aft of a step in the roofline (the
    * raised pilothouse look). Its windows come down with it.
@@ -393,6 +399,8 @@ const ROD_RACK_FIELD: { key: 'rodRack'; steps: number } = { key: 'rodRack', step
 /** Where the helm console stands (design.consoleSide), as the page names it. */
 export const CONSOLE_SIDES = ['Middle', 'Port', 'Starboard'] as const;
 const CONSOLE_SIDE_FIELD: { key: 'consoleSide'; steps: number } = { key: 'consoleSide', steps: CONSOLE_SIDES.length };
+/** The helm assist panel (design.helmAssist): none, or fitted. Not in the code. */
+const HELM_ASSIST_FIELD: { key: 'helmAssist'; steps: number } = { key: 'helmAssist', steps: 2 };
 /** How many outboards a design has (0: an inboard). */
 export const outboardCount = (d: Pick<ShipDesign, 'outboards'>): number => (d.outboards ? d.outboards + 1 : 0);
 /** What a guard choice fits: the crew's fenders, and a fixed strake or tyres. */
@@ -401,7 +409,7 @@ export function guardParts(guard: number): { fenders: boolean; side: 'strake' | 
 }
 
 /** Every choice with its number of steps, the placed-by-hand ones, the deckhouse's and hull protection too (for checking and merging designs). */
-export const ALL_FIELDS: { key: keyof ShipDesign; steps: number }[] = [...FIELDS.map((f) => (f.key === 'hull' ? { ...f, steps: HULL_TYPES } : f.key === 'engine' ? { ...f, steps: ENGINE_TYPES } : f)), ...PLACE_FIELDS, ...DECKHOUSE_FIELDS, GUARD_FIELD, RAIL_FIELD, NARROW_FIELD, NO_ANCHOR_FIELD, SKIFF_FIELD, FACETS_FIELD, FLARE_FIELD, SILLS_FIELD, OUTBOARDS_FIELD, MATERIAL_FIELD, STERN_DRIVE_FIELD, SALOON_FIELD, SALOON_FLOOR_FIELD, SALOON_ROOF_FIELD, ROOF_TOP_FIELD, NOZZLE_FIELD, ROD_RACK_FIELD, CONSOLE_SIDE_FIELD];
+export const ALL_FIELDS: { key: keyof ShipDesign; steps: number }[] = [...FIELDS.map((f) => (f.key === 'hull' ? { ...f, steps: HULL_TYPES } : f.key === 'engine' ? { ...f, steps: ENGINE_TYPES } : f)), ...PLACE_FIELDS, ...DECKHOUSE_FIELDS, GUARD_FIELD, RAIL_FIELD, NARROW_FIELD, NO_ANCHOR_FIELD, SKIFF_FIELD, FACETS_FIELD, FLARE_FIELD, SILLS_FIELD, OUTBOARDS_FIELD, MATERIAL_FIELD, STERN_DRIVE_FIELD, SALOON_FIELD, SALOON_FLOOR_FIELD, SALOON_ROOF_FIELD, ROOF_TOP_FIELD, NOZZLE_FIELD, ROD_RACK_FIELD, CONSOLE_SIDE_FIELD, HELM_ASSIST_FIELD];
 
 /** What the steps mean (the build reads these; the page labels its sliders with them). */
 export const SCALES = {
@@ -536,6 +544,7 @@ export const DEFAULT_DESIGN: ShipDesign = fromSteps({
   searchlight: 1,
   fireMonitor: 0,
   chartTable: 0,
+  helmAssist: 0,
   ...NO_V10_GEAR,
   // The crew's fenders: what every boat has, at the least.
   guard: 1,
@@ -578,6 +587,7 @@ export function encodeDesign(design: ShipDesign): string {
   // Her measurements as the code's steps; off them, no code holds her (she travels as a document).
   const d = toSteps(design);
   if (!d) throw new Error('her measurements are between the code’s steps: she travels as a link or file');
+  if (d.helmAssist) throw new Error('the helm assist panel isn’t in the code: she travels as a link or file');
   if (!Number.isInteger(d.hull) || d.hull < 0 || d.hull >= HULL_TYPES) throw new Error(`design hull ${d.hull} is off its scale (0..${HULL_TYPES - 1})`);
   // A hull type after the first four: 0 in the first 16 characters, its number in the extension.
   const more = d.hull >= BASE_HULLS ? d.hull - BASE_HULLS + 1 : 0;
@@ -746,14 +756,14 @@ export function decodeDesign(code: string): { design: ShipDesign } | { error: st
     const read = s.length > 17 ? unpackPlaces(all & ((1n << extBits) - 1n)) : { craneAt: 0, lampAt: 0, monitorAt: 0, winchAt: 0, dhLength: 0, dhHeight: 0, dhWidth: 0, dhRake: 0, guard: 0, rails: 0, dhNarrow: 0, noAnchor: 0, skiff: 0, facets: 0, flare: 0, sills: 0, outboards: 0, material: 0, sternDrive: 0, saloon: 0, saloonFloor: 0, nozzle: 0, saloonRoof: 0, roofTop: 0, rodRack: 0, consoleSide: 0, more: 0, moreEngine: 0 };
     if ('error' in read) return read;
     const { more, moreEngine, ...places } = read;
-    type Base = Omit<ShipDesign, PlaceKey | DeckhouseKey | 'guard' | 'rails' | 'dhNarrow' | 'noAnchor' | 'skiff' | 'facets' | 'flare' | 'sills' | 'outboards' | 'material' | 'sternDrive' | 'saloon' | 'saloonFloor' | 'nozzle' | 'saloonRoof' | 'roofTop' | 'rodRack' | 'consoleSide'>;
+    type Base = Omit<ShipDesign, PlaceKey | DeckhouseKey | 'guard' | 'rails' | 'dhNarrow' | 'noAnchor' | 'skiff' | 'facets' | 'flare' | 'sills' | 'outboards' | 'material' | 'sternDrive' | 'saloon' | 'saloonFloor' | 'nozzle' | 'saloonRoof' | 'roofTop' | 'rodRack' | 'consoleSide' | 'helmAssist'>;
     const v10 = unpack<Base>(base, FIELDS as { key: keyof Base; steps: number }[]);
     if (!('design' in v10)) return v10;
     // A later hull type: its first 16 characters hold hull 0.
     if (more && v10.design.hull !== 0) return { error: 'that code is off the scales (no design has it)' };
     // A later engine: its first 16 characters hold engine 0.
     if (moreEngine && v10.design.engine !== 0) return { error: 'that code is off the scales (no design has it)' };
-    return { design: fromSteps({ ...tidy(v10.design), ...places, ...(more ? { hull: BASE_HULLS - 1 + more } : {}), ...(moreEngine ? { engine: BASE_ENGINES - 1 + moreEngine } : {}) }) };
+    return { design: fromSteps({ ...tidy(v10.design), ...places, helmAssist: 0, ...(more ? { hull: BASE_HULLS - 1 + more } : {}), ...(moreEngine ? { engine: BASE_ENGINES - 1 + moreEngine } : {}) }) };
   }
   // Codes from before version 10 (shorter than 17 characters) are retired (owner, Oct 2026: no need to keep old designs).
   return { error: `a design code has 17 characters (this has ${s.length})${s.length >= 10 ? ': codes from older Shipyards no longer open' : ''}` };

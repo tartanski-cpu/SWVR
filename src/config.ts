@@ -3890,6 +3890,18 @@ export const CONFIG = {
       ],
     },
 
+    /**
+     * panel.helm-assist (owner, Oct 2026; modules/helmAssist): a small box by the breaker panel
+     * with three buttons, AUTO START, DOCK and AUTOPILOT. `width`, `height` (m), `pitch` between
+     * the buttons, `amps` with the master on (INSTRUMENTS circuit; it works only with it live).
+     * `gap`: how far aft of the breaker panel it hangs (m, between their edges).
+     * `autopilot` (vessel/autopilot.ts): it steers to hold her heading as a helmsman would, the
+     * wheel turned in proportion to how far she is off her heading (`helmPerDeg`, helm travel
+     * per degree off) less how fast she is already swinging back (`helmPerDegS`, per degree a
+     * second: so she doesn't overshoot), never more than `maxHelm` of the wheel's travel.
+     */
+    helmAssist: { width: 0.3, height: 0.14, pitch: 0.085, amps: 0.6, gap: 0.04, autopilot: { helmPerDeg: 0.04, helmPerDegS: 0.25, maxHelm: 0.5 } },
+
     /** radio.vhf (M3c): the VHF set hung from the roof; how far its face tilts down toward you; its draw (A, RADIO circuit). */
     vhf: { tiltDeg: 35, amps: 1.5 },
 

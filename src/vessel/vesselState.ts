@@ -31,6 +31,10 @@ export interface VesselControls {
   fmStation: number;
   /** The pull-down whiteboard (under a cabin roof): 1 pulled down, 0 / absent rolled up. */
   boardDown?: number;
+  /** The autopilot (vessel/autopilot.ts; the helm assist panel): 1 engaged, holding `autopilotHeading` (deg); `autopilotHelm` the wheel as it last set it. */
+  autopilot?: number;
+  autopilotHeading?: number;
+  autopilotHelm?: number;
   /**
    * Outboard boats: motor on (0/1) and gear (-1 reverse, 0 neutral, +1 forward). Their
    * `lever` is then the twist-grip throttle, 0..1, in that gear.

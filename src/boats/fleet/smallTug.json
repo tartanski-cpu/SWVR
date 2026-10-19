@@ -59,6 +59,7 @@
     "engine": 3,
     "gear": 5,
     "controls": 1,
-    "paint": 5
+    "paint": 5,
+    "helmAssist": 1
   }
 }

@@ -839,6 +839,8 @@ choices('controls', [
   { name: 'Basic', note: 'Wheel, throttle, key and start, speed and depth, rpm, and the VHF radio.' },
   { name: 'Advanced', note: 'Adds lights, wipers, horn, heading, engine monitor, an FM radio, the chartplotter, the NAV / WIND screen, the task board and the whiteboard, an overhead switch panel for the foredeck and aft deck floodlights, and the searchlight and fire monitor controls at the helm when they’re on poles.' },
 ]);
+// The helm assist panel (owner, Oct 2026): with the advanced controls (the instruments) only.
+options('helmAssist', 'Helm assist', ['None', 'Autopilot, dock, auto start']).dataset.when = 'controls';
 const hex = (c: number) => `#${c.toString(16).padStart(6, '0')}`;
 section('6. Paint');
 {

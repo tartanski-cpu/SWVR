@@ -15,6 +15,8 @@ import { CONFIG } from '../config';
 import { hydraulicsOn, isPowered } from '../vessel/electrics';
 import { leverDemand, preheatNeeded } from '../vessel/physics/propulsion';
 import { gearOf } from '../boats/sims';
+import { engageAutopilot, quickStart } from '../vessel/autopilot';
+import { toggleDock } from '../vessel/physics/mooring';
 import { BREAKERS, type BreakerName, type VesselControls, type VesselState } from '../vessel/vesselState';
 import type { BusKeySpec, BusValue } from './bus';
 
@@ -332,6 +334,12 @@ export const BUS_KEYS = {
   'anchor.chainOut': state('number', (s) => s.anchor.rodeM, 'Chain paid out.', { unit: 'm', writer: 'module' }),
   'anchor.tension': state('number', (s) => s.anchor.tension, 'Horizontal chain tension at the bow on the last tick.', { unit: 'N', writer: 'module' }),
   'anchor.dragging': state('boolean', (s) => s.anchor.dragging, 'The anchor is dragging (tension over its holding power).', { writer: 'module' }),
+  // ── The helm assist panel (owner, Oct 2026; modules/helmAssist, vessel/autopilot.ts) ──
+  'helmAssist.autoStart': press('AUTO START pressed: the whole start-up, master and main breakers on and the engine started.', [], quickStart),
+  'helmAssist.dock': press('DOCK pressed: both lines ashore at the berth in range, or cast off (the menu Dock).', [], toggleDock),
+  'autopilot.engage': press('AUTOPILOT pressed: hold the heading she is on now, or let go. Turning the wheel lets go too.', [], (s) => engageAutopilot(s, !s.controls.autopilot)),
+  'autopilot.on': state('boolean', (s) => (gearOf(s, 'autopilot') ? !!s.controls.autopilot : undefined), 'The autopilot is holding her heading.'),
+  'autopilot.heading': state('number', (s) => (s.controls.autopilot ? s.controls.autopilotHeading : undefined), 'The heading the autopilot holds.', { unit: 'deg' }),
   'mooring.phase': state('enum', (s) => s.mooring.phase, 'Mooring: free, docking (lines going ashore) or moored.', { values: ['free', 'docking', 'moored'] }),
   'mooring.bow': state('number', (s) => s.mooring.bow ?? 0, 'Bow line: 0 not fast, else the side of the cleat it is on (-1 port, +1 starboard).', { unit: 'side', integer: true, range: [-1, 1] }),
   'mooring.stern': state('number', (s) => s.mooring.stern ?? 0, 'Stern line: 0 not fast, else the side of the cleat it is on.', { unit: 'side', integer: true, range: [-1, 1] }),

@@ -171,6 +171,21 @@ Every value on a boat's bus (modular boats; `src/modular/busKeys.ts`). Generated
 | `anchor.tension` | N | read only | module |  | Horizontal chain tension at the bow on the last tick. |
 | `anchor.dragging` | on / off | read only | module |  | The anchor is dragging (tension over its holding power). |
 
+## helmAssist
+
+| Key | Values | Use | Written by | Old names | What it is |
+|---|---|---|---|---|---|
+| `helmAssist.autoStart` | on / off | press | legacy |  | AUTO START pressed: the whole start-up, master and main breakers on and the engine started. |
+| `helmAssist.dock` | on / off | press | legacy |  | DOCK pressed: both lines ashore at the berth in range, or cast off (the menu Dock). |
+
+## autopilot
+
+| Key | Values | Use | Written by | Old names | What it is |
+|---|---|---|---|---|---|
+| `autopilot.engage` | on / off | press | legacy |  | AUTOPILOT pressed: hold the heading she is on now, or let go. Turning the wheel lets go too. |
+| `autopilot.on` | on / off | read only | legacy |  | The autopilot is holding her heading. |
+| `autopilot.heading` | deg | read only | legacy |  | The heading the autopilot holds. |
+
 ## mooring
 
 | Key | Values | Use | Written by | Old names | What it is |

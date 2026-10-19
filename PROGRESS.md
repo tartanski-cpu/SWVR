@@ -5298,6 +5298,25 @@ Owner, Oct 2026: before the cockpit roof, clean up the Shipyard's buttons. The o
 - **Checked:** headless Chromium, the Wheelhouse step with a saloon and a deckhouse, then with the windows raked out and the deckhouse "As the wheelhouse"; the owner's configuration (workboat type, three facets, saloon roof lower, a sand roof top) from the same angle as their screenshot: the step is clean. **Not checked:** the Quest (a desktop page).
 - **Next:** the other steps the same way, once the owner has tried this one.
 
+### Helm assist panel: autopilot, dock and auto start (done, awaiting owner test)
+
+Owner, Oct 2026: an autopilot, a dock button and an auto start button on a module: an individual option, a checkbox with the instruments in the Shipyard, a small box next to the circuit breaker box.
+
+- **The module** `panel.helm-assist` (src/modules/helmAssist): a 0.30 × 0.14 m box on the starboard wall, 4 cm aft of the breaker panel, on the same slope. It has three push buttons under a HELM ASSIST engraving (`CONFIG.modules.helmAssist`):
+  - **AUTO START** (green, `helmAssist.autoStart`): the debug's quick start, moved into `vessel/autopilot.ts quickStart`: master, main breakers, engine started.
+  - **DOCK** (blue, `helmAssist.dock`): the menu's Dock / Cast off (`toggleDock`), exactly.
+  - **AUTOPILOT** (amber, lit while engaged, `autopilot.engage`): holds the compass heading she was on when pressed. Another press lets it go; so does turning the wheel, or the INSTR circuit going dead.
+- **How the autopilot steers** (`vessel/autopilot.ts stepAutopilot`, each tick before her steering is read): as a helmsman would, wheel = `helmPerDeg` (0.04) × heading error − `helmPerDegS` (0.25) × rate of turn, never more than `maxHelm` (0.5) of the wheel's travel. The rate term is the damping: she comes back to her heading without overshooting. The wheel visibly turns with it.
+  - **Measured:** engaged while swinging at 50 % or full throttle, every fleet boat with the panel comes back within 2-5° and settles on her heading, in calm water and in waves.
+- **Shipyard:** Controls step, **Helm assist** (`design.helmAssist`), shown only with the Advanced controls; fitted only with them.
+  - It isn't in the short code: a design with it travels as a link or file (as the free wheelhouse measurements do), so the code's packing is untouched.
+  - The fleet's landing craft, fishing boat, pilot boat and tug have it; the beginner boat (basic controls) doesn't.
+- **Simulation keys:** `helmAssist.autoStart`, `helmAssist.dock`, `autopilot.engage`, `autopilot.on`, `autopilot.heading` (docs/BUS_KEYS.md regenerated). New gear kind `autopilot`; `controls.autopilot`, `autopilotHeading`, `autopilotHelm`.
+- **Checked:**
+  - tests/helmAssist.test.ts (6): placement, the Shipyard choice, auto start, the autopilot holding and letting go, power, dock = menu dock;
+  - screenshots from inside all four fleet boats: the panel sits clear of the duty board and battery switches.
+- **Draw calls:** the box is merged into the boat's fixed parts; the engraving is one mesh; the caps are the shared button caps.
+
 ### The fleet, step 1: the game's own boats, designed in the Shipyard (done, awaiting owner test)
 
 Owner, Oct 2026: build a selection of boats with the Shipyard, one of each hull type and a basic beginner boat, use them in the main game and for testing from now on ("eat our own dog food"), spawnable from the debug menu. The old workboat, landing craft and Alaskan are to be hidden later, then deleted (owner's choice). New careers will start afresh in the beginner boat; old saves won't carry over (owner's choice).

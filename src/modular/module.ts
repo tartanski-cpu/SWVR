@@ -120,7 +120,9 @@ export type GearKind =
   | 'outboard'
   | 'batteries'
   | 'bilgePump'
-  | 'chartTable';
+  | 'chartTable'
+  // The helm assist panel (owner, Oct 2026)
+  | 'autopilot';
 
 /** What the world's systems need to know about each kind of gear (the boat's axes, m). */
 export interface GearFacts {
@@ -179,6 +181,8 @@ export interface GearFacts {
   bilgePump: { pumpRate: number; alarmAt: number };
   /** The chart table: its plan on the wheelhouse floor (the boat's axes) and its height. */
   chartTable: { x0: number; x1: number; z0: number; z1: number; height: number };
+  /** The helm assist panel's autopilot (vessel/autopilot.ts): its steering, CONFIG.modules.helmAssist.autopilot. */
+  autopilot: typeof CONFIG.modules.helmAssist.autopilot;
 }
 
 type Workboat = typeof CONFIG.vessels.workboat;
