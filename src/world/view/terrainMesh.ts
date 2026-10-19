@@ -21,6 +21,8 @@ import { groundHeight, slipSurface } from '../terrain';
 
 export const CELL = 6;
 export const SKIP_BELOW = -3;
+/** Lean terrain: a block whose every vertex is deeper than this is drawn coarse (m). */
+const WET = -0.6;
 /** Round a slipway the terrain is drawn finer (`CELL / FINE` m). */
 const FINE = 6;
 /** ...and kept this far under the slab (m), so the concrete isn't fighting it for the pixels. */
@@ -188,8 +190,18 @@ export function buildTerrainArrays(region: RegionDef): TerrainArrays {
     const k = blockKey(I, J);
     let v = coarseBlocks.get(k);
     if (v === undefined) {
-      v = true;
-      for (let a = 0; a <= N && v; a++) for (let b = 0; b <= N && v; b++) if (hAt(I * N + a, J * N + b) <= lean.above) v = false;
+      // Coarse when every vertex of the block is high ground (above `above`), or every one is
+      // under water (below WET: the sea is opaque, so a bank's or a basin's floor needn't be
+      // fine; a rock as small as a cell still makes the block fine).
+      let high = true;
+      let wet = true;
+      for (let a = 0; a <= N && (high || wet); a++)
+        for (let b = 0; b <= N && (high || wet); b++) {
+          const h = hAt(I * N + a, J * N + b);
+          if (h <= lean.above) high = false;
+          if (h >= WET) wet = false;
+        }
+      v = high || wet;
       if (v) for (let a = 0; a < N && v; a++) for (let b = 0; b < N && v; b++) if (nearSlip(region, I * N + a, J * N + b)) v = false;
       coarseBlocks.set(k, v);
     }

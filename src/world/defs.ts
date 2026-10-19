@@ -54,6 +54,20 @@ export interface CutDef {
   edge: number;
 }
 
+/**
+ * A shallow bank (regions: the Narrows' flats): the seabed inside is brought UP to `depth`
+ * below MSL (never lowered), easing back over `edge` m at the rim. Open water to look at, too
+ * shallow to cross: a channel (ChannelDef) dredged through it is the way, and its marks
+ * show where. Laid on after the islands, before the cuts and channels.
+ */
+export interface ShoalDef {
+  x: number;
+  z: number;
+  radius: number;
+  depth: number;
+  edge: number;
+}
+
 /** Levelled ground (waterfronts): land inside is brought down to `height` (never raised). */
 export interface FlatDef {
   x: number;
@@ -389,6 +403,11 @@ export interface RegionWeather {
    * own wind is light (CONFIG.gusts.maxBaseWind).
    */
   katabatic?: { every: [number, number]; last: [number, number] };
+  /**
+   * Morning fog (the Narrows): a change of weather due to begin between `from` and `to`
+   * o'clock is to fog, `chance` of the time (a cold night's fog over calm water).
+   */
+  morningFog?: { from: number; to: number; chance: number };
 }
 
 /**
@@ -499,6 +518,8 @@ export interface RegionDef {
   islands: IslandDef[];
   /** Fjords and narrows cut through the land (regions). */
   channels?: ChannelDef[];
+  /** Shallow banks (regions: the Narrows' flats). */
+  shoals?: ShoalDef[];
   cuts: CutDef[];
   flats: FlatDef[];
   ridges: RidgeDef[];

@@ -10,8 +10,9 @@ import type { RegionDef } from '../defs';
 import { HOME } from './home';
 import { SOUNDS } from './sounds';
 import { FJORD } from './fjord';
+import { NARROWS } from './narrows';
 
-export const REGIONS: readonly RegionDef[] = [HOME, SOUNDS, FJORD];
+export const REGIONS: readonly RegionDef[] = [HOME, SOUNDS, FJORD, NARROWS];
 
 export function regionById(id: string): RegionDef | undefined {
   return REGIONS.find((r) => r.id === id);

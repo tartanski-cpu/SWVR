@@ -142,10 +142,31 @@ export class DisplayAtlas {
 }
 
 /** Speed screen: speed, the echo sounder and the anchor (flash phases while it moves). */
+/*
+ * Lettering (owner, Oct 2026: the text "can be slightly smaller" so each screen fits more).
+ * Sizes in atlas pixels; a screen's 512 px span its 0.38 m width, so 20 px letters stand
+ * about 15 mm tall: easy to read at arm's length in the headset. The room this freed holds
+ * a few more readings: heading and course on the speed screen, rate of turn on the
+ * heading screen, the helm's angle on the rudder screen, battery volts on the engine
+ * monitor, the depth on NAV / WIND.
+ */
+const MONO = 'ui-monospace, Menlo, Consolas, monospace';
+/** Each screen's title, top left. */
+const TITLE_PX = 20;
+/** Labels and secondary readings. */
+const TEXT_PX = 20;
+/** Small print (the condition bars, the lamps). */
+const SMALL_PX = 16;
+
+function font(px: number): string {
+  return `bold ${px}px ${MONO}`;
+}
+
+/** Speed screen: speed, the echo sounder, heading and course, and the anchor (flash phases while it moves). */
 function speedKey(s: VesselState, def: VesselDef): string {
   const a = s.anchor;
   const anchorFlash = a.phase !== 'stowed' && (a.phase !== 'set' || a.dragging) ? Math.floor(performance.now() / 500) % 2 : 0;
-  return [knots(s).toFixed(1), Math.min(99.9, depthUnderKeel(s, def)).toFixed(1), a.phase, a.rodeM.toFixed(0), a.dragging ? 1 : 0, anchorFlash].join('|');
+  return [knots(s).toFixed(1), Math.min(99.9, depthUnderKeel(s, def)).toFixed(1), Math.round(headingDeg(s)), Math.round(cogDeg(s)), a.phase, a.rodeM.toFixed(0), a.dragging ? 1 : 0, anchorFlash].join('|');
 }
 
 function engineKey(s: VesselState): string {
@@ -154,22 +175,36 @@ function engineKey(s: VesselState): string {
   const e = s.engine;
   const al = engineAlarms(s, diesel);
   const alarmBlink = al.highTemp || al.lowFuel ? Math.floor(performance.now() / 400) % 2 : 0;
-  return [e.coolantC.toFixed(0), e.oilC.toFixed(0), e.fuelL.toFixed(0), e.fuelFlowLph.toFixed(1), al.highTemp ? 1 : 0, al.lowFuel ? 1 : 0, alarmBlink, e.coolingFault ? 1 : 0, (s.damage ?? 0).toFixed(2), (e.wear ?? 0).toFixed(2)].join('|');
+  return [e.coolantC.toFixed(0), e.oilC.toFixed(0), e.fuelL.toFixed(0), e.fuelFlowLph.toFixed(1), al.highTemp ? 1 : 0, al.lowFuel ? 1 : 0, alarmBlink, e.coolingFault ? 1 : 0, (s.damage ?? 0).toFixed(2), (e.wear ?? 0).toFixed(2), (s.electrics?.volts ?? 0).toFixed(1)].join('|');
 }
 
 function title(g: CanvasRenderingContext2D, text: string): void {
   g.fillStyle = DIM;
-  g.font = 'bold 26px ui-monospace, Menlo, Consolas, monospace';
+  g.font = font(TITLE_PX);
   g.textAlign = 'left';
   g.textBaseline = 'top';
-  g.fillText(text, 22, 18);
+  g.fillText(text, 20, 16);
 }
 
-function big(g: CanvasRenderingContext2D, text: string, x: number, y: number, size = 110, color = AMBER): void {
+function big(g: CanvasRenderingContext2D, text: string, x: number, y: number, size = 80, color = AMBER): void {
   g.fillStyle = color;
-  g.font = `bold ${size}px ui-monospace, Menlo, Consolas, monospace`;
+  g.font = font(size);
   g.textBaseline = 'middle';
   g.fillText(text, x, y);
+}
+
+/** A line of small text: `align` and `baseline` top. */
+function text(g: CanvasRenderingContext2D, t: string, x: number, y: number, color = DIM, px = TEXT_PX, align: CanvasTextAlign = 'left'): void {
+  g.fillStyle = color;
+  g.font = font(px);
+  g.textAlign = align;
+  g.textBaseline = 'top';
+  g.fillText(t, x, y);
+}
+
+/** Three-figure bearing, 000 to 359. */
+function bearing(deg: number): string {
+  return `${String(Math.round(deg) % 360).padStart(3, '0')}°`;
 }
 
 /**
@@ -184,32 +219,45 @@ function knots(s: VesselState): number {
   return Math.hypot(s.linearVelocity[0], s.linearVelocity[2]) * 1.943844;
 }
 
-function headingDeg(s: VesselState): number {
+export function headingDeg(s: VesselState): number {
   const q = new THREE.Quaternion().fromArray(s.orientation);
   const f = new THREE.Vector3(0, 0, -1).applyQuaternion(q);
   return ((Math.atan2(f.x, -f.z) * 180) / Math.PI + 360) % 360;
 }
 
+/** Rate of turn (deg/min, + to starboard): her yaw rate; a turn to port raises her y spin. */
+export function rateOfTurn(s: VesselState): number {
+  return (-s.angularVelocity[1] * 180 * 60) / Math.PI;
+}
+
+/** Depth under her keel as the sounder shows it. */
+function depthText(d: number): string {
+  return d > 99 ? '>99' : d.toFixed(1);
+}
+
 const paintSpeed: Painter = (g, s, def) => {
   title(g, 'SPEED  SOG');
-  // Echo sounder: water under the keel.
-  const underKeel = depthUnderKeel(s, def);
-  g.textAlign = 'right';
-  g.fillStyle = underKeel < 2 ? RED : GREEN;
-  g.font = 'bold 26px ui-monospace, Menlo, Consolas, monospace';
-  g.textBaseline = 'top';
-  g.fillText(underKeel > 99 ? 'DEPTH >99 m' : `DEPTH ${underKeel.toFixed(1)} m`, 488, 18);
+  text(g, 'DEPTH', 316, 16);
   const kn = knots(s);
   g.textAlign = 'right';
-  big(g, kn.toFixed(1), 380, 128, 120);
+  big(g, kn.toFixed(1), 228, 92, 84);
   g.textAlign = 'left';
-  big(g, 'kn', 392, 150, 40, DIM);
+  big(g, 'kn', 236, 108, 28, DIM);
+  // Echo sounder: water under the keel, red under 2 m.
+  const underKeel = depthUnderKeel(s, def);
+  g.textAlign = 'right';
+  big(g, depthText(underKeel), 452, 92, 64, underKeel < 2 ? RED : GREEN);
+  g.textAlign = 'left';
+  big(g, 'm', 458, 108, 28, DIM);
+  // Heading and course, under the speed and depth.
+  text(g, `HDG ${bearing(headingDeg(s))}`, 24, 146, GREEN);
+  text(g, `COG ${kn > 0.3 ? bearing(cogDeg(s)) : '---'}`, 316, 146, GREEN);
+  paintAnchor(g, s);
   // 0-15 kn bar.
   g.fillStyle = '#1f2a24';
-  g.fillRect(24, 206, 464, 22);
+  g.fillRect(24, 210, 464, 16);
   g.fillStyle = AMBER;
-  g.fillRect(24, 206, Math.min(464, (kn / 15) * 464), 22);
-  paintAnchor(g, s);
+  g.fillRect(24, 210, Math.min(464, (kn / 15) * 464), 16);
 };
 
 /**
@@ -220,37 +268,40 @@ const paintSpeed: Painter = (g, s, def) => {
 function paintAnchor(g: CanvasRenderingContext2D, s: VesselState): void {
   const a = s.anchor;
   const flash = Math.floor(performance.now() / 500) % 2 === 0;
-  let text: string;
+  let t: string;
   let color = AMBER;
   switch (a.phase) {
     case 'stowed':
-      text = 'ANCHOR UP';
+      t = 'ANCHOR UP';
       color = DIM;
       break;
     case 'set':
-      text = a.dragging ? 'DRAGGING' : `ANCHOR DOWN ${a.rodeM.toFixed(0)} m`;
+      t = a.dragging ? 'DRAGGING' : `ANCHOR DOWN ${a.rodeM.toFixed(0)} m`;
       color = a.dragging ? (flash ? RED : DIM) : AMBER;
       break;
     case 'paying':
-      text = `LETTING GO ${a.rodeM.toFixed(0)} m`;
+      t = `LETTING GO ${a.rodeM.toFixed(0)} m`;
       color = flash ? AMBER : DIM;
       break;
     default: // weighing, hanging
-      text = `HEAVING IN ${a.rodeM.toFixed(0)} m`;
+      t = `HEAVING IN ${a.rodeM.toFixed(0)} m`;
       color = flash ? AMBER : DIM;
   }
-  g.textAlign = 'left';
-  g.textBaseline = 'top';
-  g.font = 'bold 24px ui-monospace, Menlo, Consolas, monospace';
-  g.fillStyle = color;
-  g.fillText(text, 24, 172);
+  text(g, t, 24, 178, color);
 }
 
 const paintHeading: Painter = (g, s) => {
   title(g, 'HEADING');
   const h = headingDeg(s);
-  g.textAlign = 'center';
-  big(g, `${Math.round(h).toString().padStart(3, '0')}°`, 256, 100, 96);
+  g.textAlign = 'left';
+  big(g, bearing(h), 24, 84, 72);
+  // Course over ground and rate of turn, beside the heading.
+  const kn = knots(s);
+  const rot = rateOfTurn(s);
+  text(g, `COG ${kn > 0.3 ? bearing(cogDeg(s)) : '---'}`, 488, 50, GREEN, TEXT_PX, 'right');
+  // (Under 3°/min reads 0: a moored boat's sway isn't a turn.)
+  const turning = Math.abs(rot) >= 3;
+  text(g, `ROT ${turning ? String(Math.round(Math.abs(rot))).padStart(3, ' ') : '  0'}°/min ${!turning ? ' ' : rot > 0 ? 'S' : 'P'}`, 488, 82, !turning ? AMBER : rot > 0 ? GREEN : RED, TEXT_PX, 'right');
   // Compass tape: 90 degrees visible across the width, centre line = heading.
   const pxPerDeg = 464 / 90;
   g.save();
@@ -260,7 +311,8 @@ const paintHeading: Painter = (g, s) => {
   g.strokeStyle = AMBER;
   g.fillStyle = AMBER;
   g.lineWidth = 3;
-  g.font = 'bold 26px ui-monospace, Menlo, Consolas, monospace';
+  g.font = font(TEXT_PX);
+  g.textAlign = 'center';
   g.textBaseline = 'top';
   for (let d = Math.floor(h - 50); d <= h + 50; d++) {
     if (d % 5 !== 0) continue;
@@ -268,7 +320,7 @@ const paintHeading: Painter = (g, s) => {
     const major = d % 10 === 0;
     g.beginPath();
     g.moveTo(x, 162);
-    g.lineTo(x, major ? 186 : 176);
+    g.lineTo(x, major ? 184 : 174);
     g.stroke();
     if (d % 30 === 0) {
       const w = ((d % 360) + 360) % 360;
@@ -281,8 +333,8 @@ const paintHeading: Painter = (g, s) => {
   g.fillStyle = GREEN;
   g.beginPath();
   g.moveTo(256, 160);
-  g.lineTo(244, 146);
-  g.lineTo(268, 146);
+  g.lineTo(246, 148);
+  g.lineTo(266, 148);
   g.fill();
 };
 
@@ -292,14 +344,14 @@ const paintRpm: Painter = (g, s) => {
   title(g, 'ENGINE RPM');
   const e = s.engine;
   const max = 2000;
-  const cx = 150;
-  const cy = 160;
-  const r = 104;
+  const cx = 140;
+  const cy = 156;
+  const r = 92;
   const a0 = Math.PI * 0.8;
   const a1 = Math.PI * 2.2;
   const ang = (rpm: number) => a0 + (a1 - a0) * Math.min(1, rpm / max);
   // Dial: arc, red zone above rated + 50, ticks every 250.
-  g.lineWidth = 8;
+  g.lineWidth = 7;
   g.strokeStyle = '#3a3220';
   g.beginPath();
   g.arc(cx, cy, r, a0, a1);
@@ -312,7 +364,7 @@ const paintRpm: Painter = (g, s) => {
   g.lineWidth = 3;
   for (let t = 0; t <= max; t += 250) {
     const a = ang(t);
-    const inner = t % 500 === 0 ? r - 22 : r - 12;
+    const inner = t % 500 === 0 ? r - 20 : r - 11;
     g.beginPath();
     g.moveTo(cx + Math.cos(a) * inner, cy + Math.sin(a) * inner);
     g.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
@@ -321,31 +373,28 @@ const paintRpm: Painter = (g, s) => {
   // Needle.
   const a = ang(e.rpm);
   g.strokeStyle = '#ffe6b0';
-  g.lineWidth = 6;
+  g.lineWidth = 5;
   g.beginPath();
   g.moveTo(cx, cy);
   g.lineTo(cx + Math.cos(a) * (r - 8), cy + Math.sin(a) * (r - 8));
   g.stroke();
   g.fillStyle = '#ffe6b0';
   g.beginPath();
-  g.arc(cx, cy, 9, 0, Math.PI * 2);
+  g.arc(cx, cy, 8, 0, Math.PI * 2);
   g.fill();
-  // Digital RPM, gear and engine state.
+  // Digital RPM, gear and engine state, then fuel burn and coolant.
   g.textAlign = 'right';
-  big(g, (Math.round(e.rpm / 10) * 10).toString(), 488, 92, 72); // in tens, like a real tacho
+  big(g, (Math.round(e.rpm / 10) * 10).toString(), 488, 66, 56); // in tens, like a real tacho
   const gear = e.phase !== 'running' ? (e.phase === 'cranking' ? 'CRANKING' : 'ENGINE OFF') : e.gear === 1 ? 'AHEAD' : e.gear === -1 ? 'ASTERN' : 'NEUTRAL';
   const color = e.phase !== 'running' ? (e.phase === 'cranking' ? AMBER : RED) : e.gear === 1 ? GREEN : e.gear === -1 ? RED : AMBER;
-  big(g, gear, 488, 160, 38, color);
+  big(g, gear, 488, 118, 28, color);
+  text(g, `${e.fuelFlowLph.toFixed(1)} L/h  ${e.coolantC.toFixed(0)}°C`, 488, 146, DIM, TEXT_PX, 'right');
   // Load (fuel rack) bar.
   g.fillStyle = '#1f2a24';
-  g.fillRect(300, 200, 188, 18);
+  g.fillRect(300, 206, 188, 16);
   g.fillStyle = e.rack > 0.95 ? RED : AMBER;
-  g.fillRect(300, 200, 188 * e.rack, 18);
-  g.fillStyle = DIM;
-  g.font = 'bold 20px ui-monospace, Menlo, Consolas, monospace';
-  g.textAlign = 'right';
-  g.textBaseline = 'top';
-  g.fillText('LOAD', 290, 198);
+  g.fillRect(300, 206, 188 * e.rack, 16);
+  text(g, 'LOAD', 292, 205, DIM, SMALL_PX, 'right');
 };
 
 const paintRudder: Painter = (g, s) => {
@@ -356,10 +405,10 @@ const paintRudder: Painter = (g, s) => {
   const deg = (s.rudder * 180) / Math.PI;
   const cx = 256;
   const cy = 70;
-  const r = 150;
+  const r = 140;
   // Rudder indicators hang down: 0 straight down, port left (red), starboard right (green).
   const ang = (d: number) => Math.PI / 2 - (d / 45) * (Math.PI / 2) * 0.9;
-  g.lineWidth = 10;
+  g.lineWidth = 9;
   g.strokeStyle = RED;
   g.beginPath();
   g.arc(cx, cy, r, ang(0), ang(-max));
@@ -372,33 +421,37 @@ const paintRudder: Painter = (g, s) => {
   g.lineWidth = 3;
   for (let d = -max; d <= max; d += 5) {
     const a = ang(d);
-    const inner = d % 10 === 0 ? r - 20 : r - 10;
+    const inner = d % 10 === 0 ? r - 18 : r - 9;
     g.beginPath();
     g.moveTo(cx + Math.cos(a) * inner, cy + Math.sin(a) * inner);
     g.lineTo(cx + Math.cos(a) * (r + 4), cy + Math.sin(a) * (r + 4));
     g.stroke();
   }
   // Commanded (helm) as a hollow marker, actual rudder as the needle.
-  const cmd = ang(s.controls.helm * max);
+  const helmDeg = s.controls.helm * max;
+  const cmd = ang(helmDeg);
   g.strokeStyle = '#ffe6b0';
   g.lineWidth = 3;
   g.beginPath();
-  g.arc(cx + Math.cos(cmd) * (r - 30), cy + Math.sin(cmd) * (r - 30), 9, 0, Math.PI * 2);
+  g.arc(cx + Math.cos(cmd) * (r - 28), cy + Math.sin(cmd) * (r - 28), 8, 0, Math.PI * 2);
   g.stroke();
   const a = ang(deg);
-  g.lineWidth = 7;
+  g.lineWidth = 6;
   g.beginPath();
   g.moveTo(cx, cy);
   g.lineTo(cx + Math.cos(a) * (r - 10), cy + Math.sin(a) * (r - 10));
   g.stroke();
+  const sideOf = (d: number) => (Math.abs(d) < 0.5 ? 'MID' : d > 0 ? 'STBD' : 'PORT');
+  const colorOf = (d: number) => (Math.abs(d) < 0.5 ? AMBER : d > 0 ? GREEN : RED);
+  // The helm's order, top right (the hollow marker, in figures).
+  text(g, `HELM ${Math.abs(helmDeg).toFixed(0)}° ${sideOf(helmDeg)}`, 488, 16, colorOf(helmDeg), TEXT_PX, 'right');
   g.textAlign = 'left';
-  const side = Math.abs(deg) < 0.5 ? 'MID' : deg > 0 ? 'STBD' : 'PORT';
-  big(g, `${Math.abs(deg).toFixed(0)}°`, 24, 200, 54, Math.abs(deg) < 0.5 ? AMBER : deg > 0 ? GREEN : RED);
+  big(g, `${Math.abs(deg).toFixed(0)}°`, 24, 206, 40, colorOf(deg));
   g.textAlign = 'right';
-  big(g, side, 488, 200, 44, Math.abs(deg) < 0.5 ? AMBER : deg > 0 ? GREEN : RED);
+  big(g, sideOf(deg), 488, 206, 32, colorOf(deg));
 };
 
-/** Engine monitor: coolant and oil temperature, fuel, consumption, alarm lamps. */
+/** Engine monitor: coolant and oil temperature, fuel, consumption, battery, alarm lamps, her condition. */
 const paintEngineMonitor: Painter = (g, s) => {
   const diesel = gearOf(s, 'diesel');
   if (!diesel) return;
@@ -407,58 +460,58 @@ const paintEngineMonitor: Painter = (g, s) => {
   const th = diesel.engine.thermal;
   const al = engineAlarms(s, diesel);
   const blink = Math.floor(performance.now() / 400) % 2 === 0;
-  // Two horizontal bar gauges: coolant 40-120 °C, fuel 0-100 %.
+  // Horizontal bar gauges: coolant and oil 40-120 °C, fuel 0-100 %.
   const bar = (y: number, label: string, frac: number, value: string, color: string, marks: number[] = []) => {
     g.fillStyle = DIM;
-    g.font = 'bold 24px ui-monospace, Menlo, Consolas, monospace';
+    g.font = font(TEXT_PX);
     g.textAlign = 'left';
     g.textBaseline = 'middle';
     g.fillText(label, 24, y);
     g.fillStyle = '#1f2a24';
-    g.fillRect(130, y - 13, 230, 26);
+    g.fillRect(100, y - 10, 270, 20);
     g.fillStyle = color;
-    g.fillRect(130, y - 13, 230 * Math.max(0, Math.min(1, frac)), 26);
+    g.fillRect(100, y - 10, 270 * Math.max(0, Math.min(1, frac)), 20);
     g.fillStyle = '#ffe6b0';
-    for (const m of marks) g.fillRect(130 + 230 * m - 1, y - 17, 3, 34);
+    for (const m of marks) g.fillRect(100 + 270 * m - 1, y - 13, 3, 26);
     g.textAlign = 'right';
-    big(g, value, 492, y, 34, color);
+    big(g, value, 488, y, 26, color);
   };
   const tFrac = (c: number) => (c - 40) / 80;
   const tempColor = e.coolantC > th.alarmC ? RED : e.coolantC < 60 ? '#7fb8ff' : GREEN;
-  bar(66, 'TEMP', tFrac(e.coolantC), `${e.coolantC.toFixed(0)}°C`, tempColor, [tFrac(th.alarmC)]);
-  bar(104, 'OIL', tFrac(e.oilC), `${e.oilC.toFixed(0)}°C`, e.oilC > th.alarmC + 10 ? RED : AMBER);
+  bar(60, 'TEMP', tFrac(e.coolantC), `${e.coolantC.toFixed(0)}°C`, tempColor, [tFrac(th.alarmC)]);
+  bar(90, 'OIL', tFrac(e.oilC), `${e.oilC.toFixed(0)}°C`, e.oilC > th.alarmC + 10 ? RED : AMBER);
   const fuelFrac = e.fuelL / (e.tankL ?? diesel.engine.fuel.tankL);
-  bar(142, 'FUEL', fuelFrac, `${e.fuelL.toFixed(0)} L`, al.lowFuel ? RED : AMBER, [diesel.engine.fuel.lowFraction]);
-  g.fillStyle = DIM;
-  g.font = 'bold 22px ui-monospace, Menlo, Consolas, monospace';
-  g.textAlign = 'left';
-  g.fillText(`${e.fuelFlowLph.toFixed(1)} L/h`, 24, 186);
-  // Alarm lamps.
-  const lamp = (x: number, text: string, on: boolean) => {
+  bar(120, 'FUEL', fuelFrac, `${e.fuelL.toFixed(0)} L`, al.lowFuel ? RED : AMBER, [diesel.engine.fuel.lowFraction]);
+  // Fuel burn and the battery, then the alarm lamps.
+  text(g, `${e.fuelFlowLph.toFixed(1)} L/h`, 24, 142);
+  const volts = s.electrics?.volts;
+  if (volts !== undefined) text(g, `BATT ${volts.toFixed(1)} V`, 24, 166, volts < 11.8 ? RED : DIM);
+  const lamp = (x: number, t: string, on: boolean) => {
     g.fillStyle = on ? (blink ? RED : '#7a1c12') : '#2a1a16';
-    g.fillRect(x, 170, 120, 34);
+    g.fillRect(x, 146, 112, 30);
     g.fillStyle = on ? '#fff2e8' : '#4a3430';
-    g.font = 'bold 20px ui-monospace, Menlo, Consolas, monospace';
+    g.font = font(SMALL_PX);
     g.textAlign = 'center';
-    g.fillText(text, x + 60, 188);
+    g.textBaseline = 'middle';
+    g.fillText(t, x + 56, 162);
   };
-  lamp(236, 'HIGH TEMP', al.highTemp);
-  lamp(368, 'LOW FUEL', al.lowFuel);
+  lamp(250, 'HIGH TEMP', al.highTemp);
+  lamp(376, 'LOW FUEL', al.lowFuel);
   // Her condition (wear.ts; owner: damage and wear were invisible): two small bars, full when sound.
   const cond = (x: number, label: string, sound: number) => {
     g.fillStyle = DIM;
-    g.font = 'bold 18px ui-monospace, Menlo, Consolas, monospace';
+    g.font = font(SMALL_PX);
     g.textAlign = 'left';
     g.textBaseline = 'middle';
-    g.fillText(label, x, 222);
+    g.fillText(label, x, 214);
     g.fillStyle = '#1f2a24';
-    g.fillRect(x + 76, 215, 110, 14);
+    g.fillRect(x + 66, 208, 110, 12);
     g.fillStyle = sound > 0.7 ? GREEN : sound > 0.4 ? AMBER : RED;
-    g.fillRect(x + 76, 215, 110 * Math.max(0, Math.min(1, sound)), 14);
-    g.fillText(`${Math.round(sound * 100)}%`, x + 194, 222);
+    g.fillRect(x + 66, 208, 110 * Math.max(0, Math.min(1, sound)), 12);
+    g.fillText(`${Math.round(sound * 100)}%`, x + 182, 214);
   };
   cond(24, 'HULL', 1 - (s.damage ?? 0));
-  cond(268, 'ENGINE', 1 - (e.wear ?? 0));
+  cond(264, 'ENGINE', 1 - (e.wear ?? 0));
 };
 
 /** True and apparent wind where the boat is: speed (m/s) and the direction it blows FROM. */
@@ -482,35 +535,32 @@ function cogDeg(s: VesselState): number {
   return ((Math.atan2(s.linearVelocity[0], -s.linearVelocity[2]) * 180) / Math.PI + 360) % 360;
 }
 
-function navKey(s: VesselState, env: EnvironmentState | null): string {
+function navKey(s: VesselState, def: VesselDef, env: EnvironmentState | null): string {
   const w = winds(s, env);
-  return [formatPosition(s.position[0], s.position[2]), Math.round(cogDeg(s)), Math.round(w.trueFrom / 5), Math.round(w.trueSpd * 2), Math.round(w.appRel / 5), Math.round(w.appSpd * 2)].join('|');
+  return [formatPosition(s.position[0], s.position[2]), knots(s).toFixed(1), Math.round(cogDeg(s)), Math.round(headingDeg(s)), Math.min(99.9, depthUnderKeel(s, def)).toFixed(1), Math.round(w.trueFrom / 5), Math.round(w.trueSpd * 2), Math.round(w.appRel / 5), Math.round(w.appSpd * 2)].join('|');
 }
 
-const paintNav: Painter = (g, s, _def, env) => {
+const paintNav: Painter = (g, s, def, env) => {
   title(g, 'NAV  /  WIND');
-  const mono = 'ui-monospace, Menlo, Consolas, monospace';
   const [lat, lon] = formatPosition(s.position[0], s.position[2]).split(' ');
   g.textAlign = 'left';
   g.textBaseline = 'alphabetic';
   g.fillStyle = AMBER;
-  g.font = `bold 34px ${mono}`;
-  g.fillText(lat, 24, 92);
-  g.fillText(lon, 24, 132);
+  g.font = font(28);
+  g.fillText(lat, 24, 76);
+  g.fillText(lon, 24, 110);
   const kn = knots(s);
-  g.font = `bold 26px ${mono}`;
-  g.fillStyle = GREEN;
-  g.fillText(`SOG ${kn.toFixed(1)} kn`, 24, 174);
-  g.fillText(`COG ${kn > 0.3 ? String(Math.round(cogDeg(s))).padStart(3, '0') + '°' : '---'}`, 24, 206);
-  g.fillText(`HDG ${String(Math.round(headingDeg(s)) % 360).padStart(3, '0')}°`, 24, 238);
+  const d = depthUnderKeel(s, def);
+  text(g, `SOG ${kn.toFixed(1)} kn`, 24, 126, GREEN);
+  text(g, `COG ${kn > 0.3 ? bearing(cogDeg(s)) : '---'}`, 24, 152, GREEN);
+  text(g, `HDG ${bearing(headingDeg(s))}`, 24, 178, GREEN);
+  text(g, `DEPTH ${depthText(d)} m`, 24, 204, d < 2 ? RED : GREEN);
   // Wind: true (from, speed, force) as text; apparent on a dial, bow up.
   const w = winds(s, env);
   const toKn = 1.943844;
-  g.fillStyle = AMBER;
-  g.font = `bold 22px ${mono}`;
-  g.fillText(`TRUE ${String(Math.round(w.trueFrom)).padStart(3, '0')}° ${(w.trueSpd * toKn).toFixed(0)} kn F${beaufort(w.trueSpd)}`, 268, 66);
-  const cx = 388;
-  const cy = 156;
+  const cx = 392;
+  text(g, `TRUE ${bearing(w.trueFrom)} ${(w.trueSpd * toKn).toFixed(0)} kn F${beaufort(w.trueSpd)}`, 488, 16, AMBER, SMALL_PX, 'right');
+  const cy = 132;
   const r = 66;
   g.strokeStyle = DIM;
   g.lineWidth = 3;
@@ -558,21 +608,18 @@ const paintNav: Painter = (g, s, _def, env) => {
     g.closePath();
     g.fill();
   }
-  g.fillStyle = GREEN;
-  g.font = `bold 20px ${mono}`;
-  g.textAlign = 'center';
   const side = Math.abs(w.appRel) < 2 || Math.abs(w.appRel) > 178 ? '' : w.appRel > 0 ? ' S' : ' P';
-  g.fillText(`APP ${Math.abs(Math.round(w.appRel))}°${side} ${(w.appSpd * toKn).toFixed(0)} kn`, cx, 246);
+  text(g, `APP ${Math.abs(Math.round(w.appRel))}°${side} ${(w.appSpd * toKn).toFixed(0)} kn`, cx, 208, GREEN, SMALL_PX, 'center');
 };
 
 /** The screens there are, for the screen module (modules/screen) to pick from. */
 export const SCREENS = {
   speed: { paint: paintSpeed, key: speedKey },
-  heading: { paint: paintHeading, key: (s) => String(Math.round(headingDeg(s))) },
-  rpm: { paint: paintRpm, key: (s) => [Math.round(s.engine.rpm / 10), s.engine.phase, s.engine.gear, Math.round(s.engine.rack * 50)].join('|') },
+  heading: { paint: paintHeading, key: (s) => [Math.round(headingDeg(s)), knots(s) > 0.3 ? Math.round(cogDeg(s)) : -1, Math.abs(rateOfTurn(s)) < 3 ? 0 : Math.round(rateOfTurn(s))].join('|') },
+  rpm: { paint: paintRpm, key: (s) => [Math.round(s.engine.rpm / 10), s.engine.phase, s.engine.gear, Math.round(s.engine.rack * 50), s.engine.fuelFlowLph.toFixed(1), s.engine.coolantC.toFixed(0)].join('|') },
   rudder: { paint: paintRudder, key: (s) => [Math.round(((s.rudder * 180) / Math.PI) * 2), Math.round(s.controls.helm * 100)].join('|') },
   engineMonitor: { paint: paintEngineMonitor, key: engineKey },
-  nav: { paint: paintNav, key: (s, _def, env) => navKey(s, env) },
+  nav: { paint: paintNav, key: (s, def, env) => navKey(s, def, env) },
 } satisfies Record<string, Screen>;
 
 export type ScreenName = keyof typeof SCREENS;

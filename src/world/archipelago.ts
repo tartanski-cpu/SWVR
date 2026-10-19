@@ -21,6 +21,7 @@ import type {
   FarmDef,
   FlatDef,
   FogBankDef,
+  ShoalDef,
   GustZoneDef,
   IslandDef,
   LampDef,
@@ -44,6 +45,7 @@ export const RIDGES: RidgeDef[] = REGIONS.flatMap((r) => r.ridges);
 /** Quays, piers and barges, and the fish farms' cage rings (farms.ts: solid to a boat, drawn by the farm). */
 export const BLOCKS: BlockDef[] = REGIONS.flatMap((r) => [...r.blocks, ...(r.farms ?? []).flatMap(farmBlocks)]);
 export const CHANNELS: ChannelDef[] = REGIONS.flatMap((r) => r.channels ?? []);
+export const SHOALS: ShoalDef[] = REGIONS.flatMap((r) => r.shoals ?? []);
 export const FARMS: FarmDef[] = REGIONS.flatMap((r) => r.farms ?? []);
 export const GUSTS: GustZoneDef[] = REGIONS.flatMap((r) => r.gusts ?? []);
 export const BUILDINGS: BuildingDef[] = REGIONS.flatMap((r) => r.buildings);

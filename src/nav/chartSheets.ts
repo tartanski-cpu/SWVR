@@ -6,7 +6,7 @@
  * any of them, and the chart tools' maths (world metres <-> table) needs only the sheet's
  * bounds. The plotter has its own view and does not use these.
  */
-import type { IslandDef } from '../world/defs';
+import type { IslandDef, RegionDef } from '../world/defs';
 import { REGIONS, regionById } from '../world/regions';
 
 export interface ChartSheet {
@@ -40,6 +40,28 @@ function islandBox(islands: readonly IslandDef[], margin: number): ChartSheet['b
   return { x0: x0 - margin, x1: x1 + margin, z0: z0 - margin, z1: z1 + margin };
 }
 
+/**
+ * A region's chart box: its islands with the margin, grown to take in its shallow banks
+ * (ShoalDef) and its buoys with a little sea round them (the Narrows' flats and channel
+ * reach well beyond its islands).
+ */
+function regionBox(r: RegionDef, margin: number): ChartSheet['bounds'] {
+  const b = islandBox(r.islands, margin);
+  for (const sh of r.shoals ?? []) {
+    b.x0 = Math.min(b.x0, sh.x - sh.radius - 150);
+    b.x1 = Math.max(b.x1, sh.x + sh.radius + 150);
+    b.z0 = Math.min(b.z0, sh.z - sh.radius - 150);
+    b.z1 = Math.max(b.z1, sh.z + sh.radius + 150);
+  }
+  for (const m of r.marks) {
+    b.x0 = Math.min(b.x0, m.x - 250);
+    b.x1 = Math.max(b.x1, m.x + 250);
+    b.z0 = Math.min(b.z0, m.z - 250);
+    b.z1 = Math.max(b.z1, m.z + 250);
+  }
+  return b;
+}
+
 /** Widen or heighten the box, symmetrically, to the aspect (width / height) `a`. */
 function padToAspect(b: ChartSheet['bounds'], a: number): ChartSheet['bounds'] {
   const w = b.x1 - b.x0;
@@ -63,7 +85,7 @@ function detailSheet(regionId: string): ChartSheet {
   return {
     id: r.id,
     title: r.name.toUpperCase(),
-    bounds: padToAspect(islandBox(r.islands, MARGIN), SHEET_ASPECT),
+    bounds: padToAspect(regionBox(r, MARGIN), SHEET_ASPECT),
     gridMinutes: 0.5,
     soundingStep: 280,
     textScale: 1,
@@ -77,7 +99,10 @@ export const SHEETS: ChartSheet[] = [
     id: 'archipelago',
     // Every region by name: "SKERRY SOUND, THE SOUNDS AND THE FJORD".
     title: REGIONS.map((r) => r.name.toUpperCase()).join(', ').replace(/, ([^,]*)$/, ' AND $1'),
-    bounds: padToAspect(islandBox(REGIONS.flatMap((r) => r.islands), 900), SHEET_ASPECT),
+    bounds: padToAspect(
+      REGIONS.map((r) => regionBox(r, 900)).reduce((a, b) => ({ x0: Math.min(a.x0, b.x0), x1: Math.max(a.x1, b.x1), z0: Math.min(a.z0, b.z0), z1: Math.max(a.z1, b.z1) })),
+      SHEET_ASPECT,
+    ),
     gridMinutes: 2,
     soundingStep: 900,
     textScale: 0.75,

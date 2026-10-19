@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { CONFIG } from '../config';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { VesselState } from '../vessel/vesselState';
 import { Control } from './Control';
@@ -24,23 +25,28 @@ export class Toggle extends Control {
     private readonly positions: 2 | 3 = 2,
   ) {
     super(id, channel);
-    const plate = this.fixed(new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.012, 0.09), new THREE.MeshLambertMaterial({ color: 0x23282c })));
+    const k = CONFIG.interaction.switchScale;
+    const plate = this.fixed(new THREE.Mesh(new THREE.BoxGeometry(0.07 * k, 0.012, 0.09 * k), new THREE.MeshLambertMaterial({ color: 0x23282c })));
     plate.position.y = 0.006;
     // Bat lever: stick and ball tip in one mesh (one draw call per toggle).
     const bat = new THREE.Mesh(
-      mergeGeometries([new THREE.CylinderGeometry(0.007, 0.009, 0.05, 8).translate(0, 0.025, 0).toNonIndexed(), new THREE.SphereGeometry(0.012, 8, 6).translate(0, 0.05, 0).toNonIndexed()]),
+      mergeGeometries([new THREE.CylinderGeometry(0.007 * k, 0.009 * k, 0.05 * k, 8).translate(0, 0.025 * k, 0).toNonIndexed(), new THREE.SphereGeometry(0.012 * k, 8, 6).translate(0, 0.05 * k, 0).toNonIndexed()]),
       this.material(0xd8dadc),
     );
     this.bat.position.y = 0.012;
     this.batMesh = bat;
     this.bat.add(bat);
-    this.root.add(plate, this.bat);
-    this.hitObjects.push(bat, plate);
+    // What the pointer and reticle hit: the switch at its first, full size (a hidden box
+    // drawn by nothing), so a smaller switch is no harder to aim at.
+    const hit = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.07, 0.09).translate(0, 0.035, 0), new THREE.MeshBasicMaterial());
+    hit.visible = false;
+    this.root.add(plate, this.bat, hit);
+    this.hitObjects.push(bat, plate, hit);
     this.show(0);
   }
 
   distanceTo(world: THREE.Vector3): number {
-    return this.toLocal(world).distanceTo(new THREE.Vector3(0, 0.04, 0));
+    return this.toLocal(world).distanceTo(new THREE.Vector3(0, 0.04 * CONFIG.interaction.switchScale, 0));
   }
 
   pressStart(): void {
