@@ -21,7 +21,7 @@ import type { PreparedWave } from '../ocean/waves';
 import { surfaceHeight } from '../ocean/waves';
 import type { WalkArea } from '../vessel/layout';
 import type { VesselState } from '../vessel/vesselState';
-import { VESSEL_DEFS } from '../vessel/vesselDef';
+import { housesOf, VESSEL_DEFS } from '../vessel/vesselDef';
 import { gearOf } from '../boats/sims';
 import type { GearFacts } from '../modular/module';
 import { blockContact, blockTop, nearestBlockEdge, type BlockHit } from '../world/geography';
@@ -133,13 +133,13 @@ export function updateAir(
     body.z += hit.nz * hit.depth;
   }
 
-  // Wheelhouse walls: you bounce off (back to where you were, falling straight down).
-  // Tested as "entered the wheelhouse footprint below its roof this frame", so a long
+  // House walls (every house: P2a): you bounce off (back to where you were, falling straight
+  // down). Tested as "entered a house's footprint below its roof this frame", so a long
   // frame can't step through a thin wall.
   for (const ves of vessels) {
-    const wh = VESSEL_DEFS[ves.state.defId].layout.wheelhouse;
-    if (!wh) continue;
-    const inHouse = (l: THREE.Vector3) => Math.abs(l.x) < wh.halfWidth && l.z > wh.front && l.z < wh.aft && l.y < wh.roofY;
+    const houses = housesOf(VESSEL_DEFS[ves.state.defId].layout);
+    if (!houses.length) continue;
+    const inHouse = (l: THREE.Vector3) => houses.some((wh) => Math.abs(l.x) < wh.halfWidth && l.z > wh.front && l.z < wh.aft && l.y < wh.roofY);
     const wasIn = inHouse(ves.root.worldToLocal(tmpD.copy(before)));
     const ln = ves.root.worldToLocal(tmpC.copy(body));
     if (!wasIn && inHouse(ln)) {
@@ -195,9 +195,9 @@ export function updateAir(
         const d = plan.deckY(lz);
         if (prevY >= d - 0.05 && lnY <= d + 0.02) {
           // Nearest open-deck floor athwartships (inboard of a bulwark, outboard of the
-          // wheelhouse), never inside the wheelhouse.
-          const wh = VESSEL_DEFS[ves.state.defId].layout.wheelhouse;
-          const inHouse = (x: number) => !!wh && Math.abs(x) < wh.halfWidth + 0.05 && lz > wh.front && lz < wh.aft;
+          // wheelhouse), never inside a house.
+          const houses = housesOf(VESSEL_DEFS[ves.state.defId].layout);
+          const inHouse = (x: number) => houses.some((wh) => Math.abs(x) < wh.halfWidth + 0.05 && lz > wh.front && lz < wh.aft);
           for (let k = 1; k <= 20; k++) {
             const x = lx + (k % 2 ? -1 : 1) * Math.sign(lx || 1) * Math.ceil(k / 2) * 0.1;
             if (inHouse(x)) continue;

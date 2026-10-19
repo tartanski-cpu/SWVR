@@ -5,7 +5,7 @@ import type { Intent } from '../core/intents';
 import type { WorldState } from '../core/world';
 import { hullPlan } from '../vessel/layout';
 import { canRefuel } from '../vessel/vesselControl';
-import { VESSEL_DEFS, type VesselDef } from '../vessel/vesselDef';
+import { housesOf, VESSEL_DEFS, type VesselDef } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
 import { BERTHS, PORTS, type PortDef } from '../world/archipelago';
 import { standingHeight } from '../world/geography';
@@ -91,8 +91,10 @@ export function pumpPoint(port: PortDef, local: readonly number[], out = new THR
 export function fillerPoints(def: VesselDef): Vec3[] {
   const cfg = CONFIG.fuelHose.filler;
   const plan = hullPlan(def);
-  const wh = def.layout.wheelhouse;
-  const z = Math.min(plan.transom - 0.4, Math.max(plan.stem + 1, (wh ? wh.aft : 0) + cfg.aft));
+  // Aft of her houses (the aftmost's aft wall; amidships without one).
+  const houses = housesOf(def.layout);
+  const aftmost = houses.length ? Math.max(...houses.map((h) => h.aft)) : 0;
+  const z = Math.min(plan.transom - 0.4, Math.max(plan.stem + 1, aftmost + cfg.aft));
   const half = Math.max(0.2, plan.halfBeam(z) - cfg.inset);
   const y = plan.deckY(z);
   return [

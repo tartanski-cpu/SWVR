@@ -28,7 +28,21 @@ export type LayoutConfig = Omit<WorkboatLayout, 'wheelhouse' | 'roof' | 'ladder'
     hollows?: Hollow[];
     /** The deck cut away forward of the house too, from `front` to the house, `inset` in from the deck edge: a cabin under a trunk cabin there (hullMesh.ts sunkenHouse). */
     deckOpening?: { front: number; inset: number };
+    /**
+     * More houses besides the helm's (`wheelhouse`), parametric boats P2a: each a house of its
+     * own (a saloon aft of the pilothouse, a deckhouse, a trunk cabin), walked, drawn, kept
+     * off the deck and solid in its walls, as the helm's is. What belongs to the helm stays
+     * the helm house's: the console (a further house's `consoleDepth` 0 has none), the doors
+     * and their buttons, the rain on the front glass and the wipers, the roof ladder, the
+     * engine hatch, the module places. `housesOf` gives them all, the helm's first.
+     */
+    houses?: WheelhouseLayout[];
   };
+
+/** Every house she has, the helm's first (none: an open boat). */
+export function housesOf(layout: { wheelhouse?: WheelhouseLayout; houses?: WheelhouseLayout[] }): WheelhouseLayout[] {
+  return [...(layout.wheelhouse ? [layout.wheelhouse] : []), ...(layout.houses ?? [])];
+}
 
 /** A level rectangle of floor at a height (LayoutConfig.extraFloors). */
 export interface FloorPatch {

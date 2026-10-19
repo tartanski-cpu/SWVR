@@ -41,7 +41,7 @@ can copy a link, open it on another machine, save and open a file.
 
 **Why:** one rectangular wheelhouse is assumed in about 18 places, so every other shape is a patch.
 
-- **P2a, houses as a list (M):** the layout's single `wheelhouse` becomes a list of house parts
+- **P2a, houses as a list (M): done.** the layout's single `wheelhouse` becomes a list of house parts
   (length, width, height, floor level, front style, window layout, roof overhang), each with its
   own floor, walls and openings. Walking, doors, rain on the glass, cargo room, hiding detail and
   the sound inside read the list. Today's boats become one-part lists and must come out identical

@@ -7,7 +7,7 @@
  */
 import { footprintsOf } from '../boats/sims';
 import { hullPlan, onGear } from '../vessel/layout';
-import { VESSEL_DEFS, type VesselDef } from '../vessel/vesselDef';
+import { housesOf, VESSEL_DEFS, type VesselDef } from '../vessel/vesselDef';
 import { inDeckhouse } from '../vessel/deckhouse';
 
 export interface DeckFootprint {
@@ -31,10 +31,9 @@ function planOf(defId: string) {
 function openPoint(defId: string, x: number, z: number): boolean {
   const plan = planOf(defId);
   const def = VESSEL_DEFS[defId];
-  const wh = def.layout.wheelhouse;
   if (z > plan.transom - Math.max(EDGE, def.cargo.aftClear) || z < plan.stem + def.cargo.bowClear) return false;
   if (Math.abs(x) > plan.halfBeam(z) - (def.cargo.edge ?? EDGE)) return false;
-  if (wh && Math.abs(x) < wh.halfWidth + 0.05 && z > wh.front - 0.05 && z < wh.aft + 0.05) return false;
+  if (housesOf(def.layout).some((wh) => Math.abs(x) < wh.halfWidth + 0.05 && z > wh.front - 0.05 && z < wh.aft + 0.05)) return false;
   if (def.layout.deckhouse && inDeckhouse(def.layout.deckhouse, x, z, 0.05)) return false;
   if (onGear(footprintsOf({ defId }), x, z, 0.05, plan.deckY(z))) return false;
   return true;

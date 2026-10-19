@@ -118,20 +118,40 @@ function openDeckWalkArea(def: VesselDef, layout: LayoutConfig): WalkArea {
   };
 }
 
-/**
- * @param gear  where her gear stands solid (her modules' footprints, boats/sims footprintsOf):
- *              kept clear of on deck and roof
- */
-export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: readonly GearFootprint[] = []): WalkArea {
-  if (!layout.wheelhouse || !layout.roof) return openDeckWalkArea(def, layout);
-  const wh = layout.wheelhouse;
-  const r = layout.bodyRadius;
-  const st = def.hull.stations;
-  const transom = st[0].z;
-  const deckHalfBeam = (z: number) => stationLerp(def, z, (i) => st[i].halfBeamDeck);
-  const deckY = (z: number) => stationLerp(def, z, (i) => st[i].polygon[0][1]);
+/** One house's walking (P2a: every house in the list has one). */
+interface HouseWalk {
+  /** The deck is kept clear of it (a body's radius off its walls). */
+  near(x: number, z: number): boolean;
+  /** Its door steps' blocks (neither deck nor floor under them). */
+  inSteps(x: number, z: number): boolean;
+  /** Inside its outside walls, in plan. */
+  inFootprint(x: number, z: number): boolean;
+  /** Its floor, its roof (the helm house's, by its ladder), a deep sunk floor's threshold. */
+  floors: Surface[];
+  /** Its door steps' treads. */
+  steps: Surface[];
+  /** Is a point in its footprint solid (walls, roof slab, under the floor, the console, furniture)? */
+  solid(x: number, y: number, z: number): boolean;
+  /** The helm house only: its roof ladder (on its aft face), and the roof's top. */
+  inLadder(x: number, z: number): boolean;
+  ladderAt(): Ladder | null;
+}
 
-  // Wheelhouse boxes (x is symmetric about the centreline). A shaped house's front below the
+/**
+ * One house's floor, roof, walls and steps for walking. `helm`: the helm's house, which alone
+ * has the roof ladder (its roof walkable) and the furniture (the chart table).
+ */
+function houseWalk(
+  def: VesselDef,
+  layout: LayoutConfig,
+  wh: NonNullable<LayoutConfig['wheelhouse']>,
+  helm: boolean,
+  gear: readonly GearFootprint[],
+  deckY: (z: number) => number,
+  live: { leafFolded(): boolean },
+): HouseWalk {
+  const r = layout.bodyRadius;
+  // House boxes (x is symmetric about the centreline). A shaped house's front below the
   // windows leans forward (to the windows' foot): the deck is kept clear of all of it.
   const sh = wh.shape;
   const ahead = sh ? Math.max(0, wh.floorY + (wh.frontSill ?? wh.windowSill) - sh.lowerFromY) * Math.tan((sh.lowerRakeDeg * Math.PI) / 180) : 0;
@@ -149,43 +169,21 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: reado
   // Openings in the house floor (a companionway): the floor isn't there, to half a body in.
   const holes = wh.floorHoles ?? [];
   const inHole = (x: number, z: number) => holes.some((o) => x > o.x0 - r * 0.5 && x < o.x1 + r * 0.5 && z > o.z0 - r * 0.5 && z < o.z1 + r * 0.5);
-  // Open space below the deck or the floor (the fore cabin, the companionway).
-  const hollows = layout.hollows ?? [];
-  const inHollow = (x: number, y: number, z: number) => hollows.some((o) => x > o.x0 && x < o.x1 && y > o.y0 && y < o.y1 && z > o.z0 && z < o.z1);
-  // The deck cut away forward of the house (a cabin under a trunk cabin there): not deck.
-  const op = layout.deckOpening;
-  const inOpening = (x: number, z: number) => !!op && z < wh.front + r && z > op.front - r && Math.abs(x) < deckHalfBeam(z) - op.inset + r;
-  // A deckhouse under the wheelhouse (vessel/deckhouse.ts): solid, and not walked on, for now.
-  const dh = layout.deckhouse;
-  const inHouseFootprint = (x: number, z: number) => Math.abs(x) <= ext.x && z >= ext.z0 && z <= ext.z1;
+  const inFootprint = (x: number, z: number) => Math.abs(x) <= ext.x && z >= ext.z0 && z <= ext.z1;
   // A floor sunk more than a step below the deck at the door (a Shipyard design's): steps inside.
   const deepSunk = deckY(ext.z1) - floorAt(ext.z1) > 0.35;
-  // Furniture on the wheelhouse floor: the chart table (if she has one: a module, its plan in
-  // her axes), footprint and height above the floor. Its leaf folded down against the wall,
-  // only a strip along the wall is taken up.
-  const ct = gearOf({ defId: def.id }, 'chartTable');
-  let leafFolded = false;
-  // The engine hatch in the floor: open, its hole can't be walked into (you can still stand
-  // where you were if it opened under you; you just can't step onto it).
-  const hatch = layout.engineHatch;
-  let hatchOpen = false;
-  const inHatch = (x: number, z: number) => !!hatch && hatchOpen && x > hatch.x0 - r * 0.3 && x < hatch.x1 + r * 0.3 && z > hatch.z0 - r * 0.3 && z < hatch.z1 + r * 0.3;
+  // Furniture on the helm house's floor: the chart table (if she has one: a module, its plan
+  // in her axes), footprint and height above the floor. Its leaf folded down against the
+  // wall, only a strip along the wall is taken up.
+  const ct = helm ? gearOf({ defId: def.id }, 'chartTable') : null;
   const atFurniture = (x: number, z: number, pad: number, y = -Infinity) =>
-    !!ct && x >= ct.x0 - pad && x <= (leafFolded ? ct.x0 + 0.1 : ct.x1) + pad && z >= ct.z0 - pad && z <= ct.z1 + pad && y < wh.floorY + ct.height;
-
-  // The working-deck gate: open, the gateway is walkable right out to the deck edge.
-  const gate = layout.sideGate;
-  let gateOpen = false;
-  const inGateway = (x: number, z: number, edge: number) =>
-    !!gate && gateOpen && Math.sign(x) === gate.side && z > gate.z0 + r * 0.6 && z < gate.z1 - r * 0.6 && Math.abs(x) <= deckHalfBeam(z) - edge;
-
-  // Roof (walkable, railed) and the ladder up the aft face of the wheelhouse. A house with
-  // no ladder (the Shipyard's) has no way up: its roof isn't walked.
-  const roof = layout.roof;
+    !!ct && x >= ct.x0 - pad && x <= (live.leafFolded() ? ct.x0 + 0.1 : ct.x1) + pad && z >= ct.z0 - pad && z <= ct.z1 + pad && y < wh.floorY + ct.height;
+  // Roof (walkable, railed) and the ladder up the aft face of the helm's house. A house with
+  // no ladder (the Shipyard's, and every further house) has no way up: its roof isn't walked.
+  const roof = layout.roof!;
   const roofTop = wh.roofY + roof.thickness;
-  const lad = layout.ladder;
+  const lad = helm ? layout.ladder : undefined;
   const inLadder = (x: number, z: number) => !!lad && Math.abs(x - lad.x) <= lad.width / 2 && z >= ext.z1 + 0.02 && z <= ext.z1 + lad.depth;
-
   // Steps at the aft door (a raised floor's outside, a deep sunk floor's inside): solid
   // blocks across the doorway. Under them is neither deck nor cabin floor, so you climb them
   // rather than walk through them at deck height (owner: you passed through them).
@@ -194,104 +192,52 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: reado
   const stepsZ1 = Math.max(...steps.map((st) => st.z1));
   const inSteps = (x: number, z: number) => steps.length > 0 && Math.abs(x) <= doorHalf + r * 0.5 && z >= stepsZ0 && z <= stepsZ1;
 
-  const surfaces: Surface[] = [
-    {
-      // Open deck: inside the bulwarks, aft of the bow, clear of the wheelhouse exterior and its door steps.
-      height: (_x, z) => deckY(z),
-      contains: (x, z) => {
-        const onDeck = (z <= transom - layout.deckEdgeMargin && Math.abs(x) <= deckHalfBeam(z) - layout.deckEdgeMargin) || inGateway(x, z, 0.08);
-        const nearHouse = Math.abs(x) < ext.x + r && z > ext.z0 - r && z < ext.z1 + r;
-        const nearDeckhouse = !!dh && inDeckhouse(dh, x, z, r);
-        return onDeck && !nearHouse && !nearDeckhouse && !inOpening(x, z) && !inSteps(x, z) && !onGear(gear, x, z, r, deckY(z));
+  return {
+    near: (x, z) => Math.abs(x) < ext.x + r && z > ext.z0 - r && z < ext.z1 + r,
+    inSteps,
+    inFootprint,
+    inLadder,
+    ladderAt: () => (lad ? { bottom: deckY(ext.z1 + lad.depth / 2), top: roofTop } : null),
+    floors: [
+      {
+        // The house floor, clear of walls and console, plus the aft doorway (out to the deck;
+        // a floor sunk more than a step below the deck stops at the wall: a threshold below).
+        height: (_x, z) => floorAt(z),
+        contains: (x, z) =>
+          (Math.abs(x) <= int.x - r && z >= consoleAftAt(Math.abs(x) + r) + r && z <= int.z1 - r && !atFurniture(x, z, r) && !inSteps(x, z) && !inHole(x, z)) ||
+          (Math.abs(x) <= doorHalf - r * 0.6 && z > int.z1 - r - 0.02 && z < (deepSunk ? int.z1 : ext.z1 + r + 0.02)) ||
+          // The port side door, out to the side deck.
+          (!!sd && x < -int.x + r + 0.02 && x > -ext.x - r - 0.02 && z > sd.z0 + r * 0.6 && z < sd.z1 - r * 0.6),
       },
-    },
-    {
-      // Wheelhouse floor, clear of walls and console, plus the aft doorway (out to the deck;
-      // a floor sunk more than a step below the deck stops at the wall: a threshold below).
-      height: (_x, z) => floorAt(z),
-      contains: (x, z) =>
-        (Math.abs(x) <= int.x - r && z >= consoleAftAt(Math.abs(x) + r) + r && z <= int.z1 - r && !atFurniture(x, z, r) && !inSteps(x, z) && !inHole(x, z)) ||
-        (Math.abs(x) <= doorHalf - r * 0.6 && z > int.z1 - r - 0.02 && z < (deepSunk ? int.z1 : ext.z1 + r + 0.02)) ||
-        // The port side door, out to the side deck.
-        (!!sd && x < -int.x + r + 0.02 && x > -ext.x - r - 0.02 && z > sd.z0 + r * 0.6 && z < sd.z1 - r * 0.6),
-    },
-    {
-      // Wheelhouse roof inside its rail, around what stands on it (the mast), plus the
-      // landing at the ladder head.
-      height: () => roofTop,
-      contains: (x, z) => {
-        if (!lad) return false;
-        const m = roof.edgeMargin;
-        const onRoof = Math.abs(x) <= ext.x + roof.overhang - m && z >= ext.z0 - roof.overhang + m && z <= ext.z1 - m;
-        const landing = Math.abs(x - lad.x) <= lad.width / 2 && z > ext.z1 - 0.5 && z <= ext.z1 + 0.05;
-        return (onRoof && !onGear(gear, x, z, 0, roofTop)) || landing;
+      {
+        // The roof inside its rail, around what stands on it (the mast), plus the landing at
+        // the ladder head.
+        height: () => roofTop,
+        contains: (x, z) => {
+          if (!lad) return false;
+          const m = roof.edgeMargin;
+          const onRoof = Math.abs(x) <= ext.x + roof.overhang - m && z >= ext.z0 - roof.overhang + m && z <= ext.z1 - m;
+          const landing = Math.abs(x - lad.x) <= lad.width / 2 && z > ext.z1 - 0.5 && z <= ext.z1 + 0.05;
+          return (onRoof && !onGear(gear, x, z, 0, roofTop)) || landing;
+        },
       },
-    },
-    // A deep sunk floor's threshold: the doorway at the deck's height, its steps inside.
-    {
-      height: (_x, z) => deckY(Math.max(z, ext.z1)),
-      contains: (x, z) => deepSunk && Math.abs(x) <= doorHalf - r * 0.6 && z >= int.z1 && z < ext.z1 + r + 0.02,
-    },
-    // Other floors (the companionway's treads, the fore cabin's sole), a little short of
-    // their edges each way so you don't stand half off them.
-    ...(layout.extraFloors ?? []).map(
-      (f): Surface => ({
-        height: () => f.y,
-        contains: (x, z) => x >= f.x0 + r * 0.5 && x <= f.x1 - r * 0.5 && z >= f.z0 && z <= f.z1,
-      }),
-    ),
+      // A deep sunk floor's threshold: the doorway at the deck's height, its steps inside.
+      {
+        height: (_x, z) => deckY(Math.max(z, ext.z1)),
+        contains: (x, z) => deepSunk && Math.abs(x) <= doorHalf - r * 0.6 && z >= int.z1 && z < ext.z1 + r + 0.02,
+      },
+    ],
     // The steps' treads, their full width (and as far out as the deck and floor are kept off
     // them, so their sides are no gap).
-    ...steps.map(
+    steps: steps.map(
       (st): Surface => ({
         height: () => st.y,
         contains: (x, z) => Math.abs(x) <= doorHalf + r * 0.5 && z >= st.z0 && z <= st.z1,
       }),
     ),
-  ];
-
-  return {
-    floorsAt(x, z) {
-      return surfaces.filter((s) => s.contains(x, z)).map((s) => s.height(x, z));
-    },
-
-    walkable(x, z, y) {
-      if (inLadder(x, z)) return true;
-      if (inHatch(x, z) && Math.abs(y - wh.floorY) <= STEP_HEIGHT) return false;
-      return surfaces.some((s) => s.contains(x, z) && Math.abs(s.height(x, z) - y) <= STEP_HEIGHT);
-    },
-
-    setHatchOpen(open) {
-      hatchOpen = open;
-    },
-
-    setChartLeafFolded(folded) {
-      leafFolded = folded;
-    },
-
-    setGateOpen(open) {
-      gateOpen = open;
-    },
-
-    ladderAt(x, z) {
-      return lad && inLadder(x, z) ? { bottom: deckY(ext.z1 + lad.depth / 2), top: roofTop } : null;
-    },
-
-    inBounds(x, z) {
-      if (inGateway(x, z, 0.02)) return true;
-      return z <= transom - FENCE && z >= st[st.length - 1].z + FENCE && Math.abs(x) <= deckHalfBeam(z) - FENCE;
-    },
-
-    insideSolid(x, y, z) {
+    solid(x, y, z) {
       const ax = Math.abs(x);
-      if (inHollow(x, y, z)) return false; // the fore cabin, the companionway
-      if (!inHouseFootprint(x, z)) {
-        // The deckhouse (solid, for now) up to its top.
-        if (dh && inDeckhouse(dh, x, z) && y < dh.top) return true;
-        // Below the open deck, within the hull.
-        return z <= transom && ax <= deckHalfBeam(z) && y < deckY(z) - 0.15;
-      }
-      if (y < floorAt(z) - 0.15) return true; // below the wheelhouse floor
+      if (y < floorAt(z) - 0.15) return true; // below the house floor
       if (y > roofTop + 0.05) return false; // above the roof
       if (y > wh.roofY - 0.05) return true; // in the roof slab
       const inInterior = ax < int.x && z > int.z0 && z < int.z1;
@@ -313,3 +259,109 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: reado
   };
 }
 
+/**
+ * @param gear  where her gear stands solid (her modules' footprints, boats/sims footprintsOf):
+ *              kept clear of on deck and roof
+ */
+export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: readonly GearFootprint[] = []): WalkArea {
+  if (!layout.wheelhouse || !layout.roof) return openDeckWalkArea(def, layout);
+  const wh = layout.wheelhouse;
+  const r = layout.bodyRadius;
+  const st = def.hull.stations;
+  const transom = st[0].z;
+  const deckHalfBeam = (z: number) => stationLerp(def, z, (i) => st[i].halfBeamDeck);
+  const deckY = (z: number) => stationLerp(def, z, (i) => st[i].polygon[0][1]);
+
+  // Open space below the deck or the floor (the fore cabin, the companionway).
+  const hollows = layout.hollows ?? [];
+  const inHollow = (x: number, y: number, z: number) => hollows.some((o) => x > o.x0 && x < o.x1 && y > o.y0 && y < o.y1 && z > o.z0 && z < o.z1);
+  // The deck cut away forward of the helm's house (a cabin under a trunk cabin there): not deck.
+  const op = layout.deckOpening;
+  const inOpening = (x: number, z: number) => !!op && z < wh.front + r && z > op.front - r && Math.abs(x) < deckHalfBeam(z) - op.inset + r;
+  // A deckhouse under the wheelhouse (vessel/deckhouse.ts): solid, and not walked on, for now.
+  const dh = layout.deckhouse;
+  let leafFolded = false;
+  // The engine hatch in the helm house's floor: open, its hole can't be walked into (you can
+  // still stand where you were if it opened under you; you just can't step onto it).
+  const hatch = layout.engineHatch;
+  let hatchOpen = false;
+  const inHatch = (x: number, z: number) => !!hatch && hatchOpen && x > hatch.x0 - r * 0.3 && x < hatch.x1 + r * 0.3 && z > hatch.z0 - r * 0.3 && z < hatch.z1 + r * 0.3;
+
+  // The working-deck gate: open, the gateway is walkable right out to the deck edge.
+  const gate = layout.sideGate;
+  let gateOpen = false;
+  const inGateway = (x: number, z: number, edge: number) =>
+    !!gate && gateOpen && Math.sign(x) === gate.side && z > gate.z0 + r * 0.6 && z < gate.z1 - r * 0.6 && Math.abs(x) <= deckHalfBeam(z) - edge;
+
+  // Her houses (P2a): the helm's, then any more, each walked as its own.
+  const live = { leafFolded: () => leafFolded };
+  const helmHouse = houseWalk(def, layout, wh, true, gear, deckY, live);
+  const others = (layout.houses ?? []).map((h) => houseWalk(def, layout, h, false, gear, deckY, live));
+  const houses = [helmHouse, ...others];
+
+  const surfaces: Surface[] = [
+    {
+      // Open deck: inside the bulwarks, aft of the bow, clear of the houses' outsides and their door steps.
+      height: (_x, z) => deckY(z),
+      contains: (x, z) => {
+        const onDeck = (z <= transom - layout.deckEdgeMargin && Math.abs(x) <= deckHalfBeam(z) - layout.deckEdgeMargin) || inGateway(x, z, 0.08);
+        const nearDeckhouse = !!dh && inDeckhouse(dh, x, z, r);
+        return onDeck && !houses.some((h) => h.near(x, z) || h.inSteps(x, z)) && !nearDeckhouse && !inOpening(x, z) && !onGear(gear, x, z, r, deckY(z));
+      },
+    },
+    ...helmHouse.floors,
+    // Other floors (the companionway's treads, the fore cabin's sole), a little short of
+    // their edges each way so you don't stand half off them.
+    ...(layout.extraFloors ?? []).map(
+      (f): Surface => ({
+        height: () => f.y,
+        contains: (x, z) => x >= f.x0 + r * 0.5 && x <= f.x1 - r * 0.5 && z >= f.z0 && z <= f.z1,
+      }),
+    ),
+    ...helmHouse.steps,
+    ...others.flatMap((h) => [...h.floors, ...h.steps]),
+  ];
+
+  return {
+    floorsAt(x, z) {
+      return surfaces.filter((s) => s.contains(x, z)).map((s) => s.height(x, z));
+    },
+
+    walkable(x, z, y) {
+      if (helmHouse.inLadder(x, z)) return true;
+      if (inHatch(x, z) && Math.abs(y - wh.floorY) <= STEP_HEIGHT) return false;
+      return surfaces.some((s) => s.contains(x, z) && Math.abs(s.height(x, z) - y) <= STEP_HEIGHT);
+    },
+
+    setHatchOpen(open) {
+      hatchOpen = open;
+    },
+
+    setChartLeafFolded(folded) {
+      leafFolded = folded;
+    },
+
+    setGateOpen(open) {
+      gateOpen = open;
+    },
+
+    ladderAt(x, z) {
+      return helmHouse.inLadder(x, z) ? helmHouse.ladderAt() : null;
+    },
+
+    inBounds(x, z) {
+      if (inGateway(x, z, 0.02)) return true;
+      return z <= transom - FENCE && z >= st[st.length - 1].z + FENCE && Math.abs(x) <= deckHalfBeam(z) - FENCE;
+    },
+
+    insideSolid(x, y, z) {
+      if (inHollow(x, y, z)) return false; // the fore cabin, the companionway
+      const house = houses.find((h) => h.inFootprint(x, z));
+      if (house) return house.solid(x, y, z);
+      // The deckhouse (solid, for now) up to its top.
+      if (dh && inDeckhouse(dh, x, z) && y < dh.top) return true;
+      // Below the open deck, within the hull.
+      return z <= transom && Math.abs(x) <= deckHalfBeam(z) && y < deckY(z) - 0.15;
+    },
+  };
+}

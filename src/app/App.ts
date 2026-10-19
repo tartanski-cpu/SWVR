@@ -39,7 +39,7 @@ import type { FireMonitorApi } from '../modules/fireMonitor';
 import type { FireGauge } from '../fire/fireGauge';
 import { DutyBoardView } from '../duties/dutyBoardView';
 import { TenderCraneView } from '../controls/TenderCraneView';
-import { hasWheelhouse, houseFloorAt, houseFloorLow, VESSEL_DEFS, type WheelhouseDef } from '../vessel/vesselDef';
+import { hasWheelhouse, houseFloorAt, houseFloorLow, housesOf, VESSEL_DEFS, type WheelhouseDef } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
 import { VesselView } from '../vessel/view/vesselView';
 import { hullPlan, STEP_HEIGHT, vesselWalkArea, type WalkArea } from '../vessel/layout';
@@ -3588,8 +3588,8 @@ export class App {
     windVector(this.world.environment, this.windV, { x: this.focus.x, z: this.focus.z });
     const ax = this.windV.x - (v?.linearVelocity[0] ?? 0);
     const az = this.windV.z - (v?.linearVelocity[2] ?? 0);
-    const wh = this.testDef.layout.wheelhouse;
-    const inside = !!v && v.id === this.testVesselId && Math.abs(p.position[0]) < wh.halfWidth && p.position[2] > wh.front && p.position[2] < wh.aft && p.position[1] > houseFloorLow(wh) - 0.3;
+    // In any of her houses (P2a): the sound inside, out of the weather.
+    const inside = !!v && v.id === this.testVesselId && housesOf(this.testDef.layout).some((wh) => Math.abs(p.position[0]) < wh.halfWidth && p.position[2] > wh.front && p.position[2] < wh.aft && p.position[1] > houseFloorLow(wh) - 0.3);
     this.insideHouse = inside;
     // How shut-in the wheelhouse is: the aft door decides.
     const home = this.homeView;
@@ -3619,11 +3619,12 @@ export class App {
     // Rain streaks: none inside the wheelhouse box.
     let house: typeof this.rainHouse | null = null;
     if (view) {
-      const wh = this.testDef.layout.wheelhouse;
+      // Over all her houses (P2a: one box round them all).
+      const hs = housesOf(this.testDef.layout);
       const ov = this.testDef.layout.roof.overhang;
       this.rainHouse.matrixWorld.copy(view.root.matrixWorld);
-      this.rainHouse.min.set(-wh.halfWidth - ov, wh.floorY - 1.5, wh.front - ov);
-      this.rainHouse.max.set(wh.halfWidth + ov, wh.roofY + 0.3, wh.aft + ov);
+      this.rainHouse.min.set(-Math.max(...hs.map((h) => h.halfWidth)) - ov, Math.min(...hs.map((h) => h.floorY)) - 1.5, Math.min(...hs.map((h) => h.front)) - ov);
+      this.rainHouse.max.set(Math.max(...hs.map((h) => h.halfWidth)) + ov, Math.max(...hs.map((h) => h.roofY)) + 0.3, Math.max(...hs.map((h) => h.aft)) + ov);
       house = this.rainHouse;
     }
     windVector(env, this.windV);
