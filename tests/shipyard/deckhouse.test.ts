@@ -3,14 +3,14 @@ import { describe, expect, it } from 'vitest';
 import { useDesign } from '../../src/boats/sims';
 import { deckRoom } from '../../src/shipyard/deckRoom';
 import { DESIGN_HULLS } from '../../src/shipyard/build';
-import { decodeDesign, DEFAULT_DESIGN, encodeDesign, placeValue, SCALES } from '../../src/shipyard/design';
+import { decodeDesign, DEFAULT_DESIGN, encodeDesign, placeValue, SCALES, fromSteps } from '../../src/shipyard/design';
 import { deckhouseHalfWidth } from '../../src/vessel/deckhouse';
 import { hullPlan, vesselWalkArea } from '../../src/vessel/layout';
 import { VESSEL_DEFS } from '../../src/vessel/vesselDef';
 import { footprintsOf } from '../../src/boats/sims';
 
 const PILOT = { ...DEFAULT_DESIGN, ...DESIGN_HULLS[3].defaults, hull: 3, guard: 0 };
-const WITH = { ...PILOT, dhLength: 5, dhHeight: 2, dhWidth: 0, dhRake: 1 };
+const WITH = { ...PILOT, ...fromSteps({ dhLength: 5, dhHeight: 2, dhWidth: 0, dhRake: 1 }) };
 
 describe('the deckhouse', () => {
   it('codes: none keeps the code as it was; one adds a couple of characters and reads back', () => {
@@ -44,7 +44,7 @@ describe('the deckhouse', () => {
   });
 
   it('set in, it leaves side decks; the deck under it isn’t walked, and it’s solid', () => {
-    useDesign({ ...WITH, dhWidth: 3 });
+    useDesign({ ...WITH, dhWidth: 0.7 });
     const def = VESSEL_DEFS.design;
     const dh = def.layout.deckhouse!;
     const plan = hullPlan(def);
@@ -76,10 +76,10 @@ describe('the deckhouse', () => {
     // (Its top over her deck at the transom: sunk into it, its top is open over the cabin, so
     // she's a little lighter and floats a few mm higher.)
     const overDeck = () => VESSEL_DEFS.design.layout.deckhouse!.top - VESSEL_DEFS.design.hull.stations[0].polygon[0][1];
-    const level = useDesign({ ...WITH, floor: 3 });
+    const level = useDesign({ ...WITH, floor: 0 });
     const top = overDeck();
     expect(level.figures.floorOnDeckhouseM).toBeCloseTo(0, 6);
-    const sunk = useDesign({ ...WITH, floor: 1 }); // 0.4 m down
+    const sunk = useDesign({ ...WITH, floor: -0.4 }); // 0.4 m down
     const def = VESSEL_DEFS.design;
     const dh = def.layout.deckhouse!;
     const wh = def.layout.wheelhouse!;
@@ -93,7 +93,7 @@ describe('the deckhouse', () => {
     expect(walk.walkable(0, z, wh.floorY)).toBe(true);
     expect(walk.insideSolid(0, wh.floorY + 0.5, z)).toBe(false);
     // Raised, it stands higher on it.
-    useDesign({ ...WITH, floor: 4 });
+    useDesign({ ...WITH, floor: 0.2 });
     expect(VESSEL_DEFS.design.layout.wheelhouse!.floorY - VESSEL_DEFS.design.hull.stations[0].polygon[0][1]).toBeCloseTo(top + 0.22, 6);
   });
 
@@ -103,7 +103,7 @@ describe('the deckhouse', () => {
 });
 
 describe('a deckhouse as wide as the wheelhouse', () => {
-  const NARROW = { ...WITH, dhNarrow: 1, dhHeight: 0 };
+  const NARROW = { ...WITH, dhNarrow: 1, dhHeight: 0.5 };
   it('codes: none keeps codes as they were; it reads back, with rails, protection and placed gear', () => {
     expect(decodeDesign(encodeDesign(NARROW))).toEqual({ design: NARROW });
     const more = { ...NARROW, rails: 1, guard: 4, towWinch: 1, winchAt: placeValue('winchAt', 0, 1, 2) };
@@ -112,7 +112,7 @@ describe('a deckhouse as wide as the wheelhouse', () => {
   });
 
   it('stands forward of the house only, no wider; the house on it; a side door onto the side deck (no steps: jumped)', () => {
-    const b = useDesign({ ...NARROW, houseWidth: 3, sideDoor: 1 });
+    const b = useDesign({ ...NARROW, houseWidth: 0.8, sideDoor: 1 });
     const def = VESSEL_DEFS.design;
     const dh = def.layout.deckhouse!;
     const wh = def.layout.wheelhouse!;

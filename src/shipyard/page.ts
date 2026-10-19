@@ -37,7 +37,7 @@ import { briefPaper } from './briefPaper';
 import { buildVesselMesh, buildVesselMeshParts } from '../vessel/view/hullMesh';
 import { DESIGN_HULLS, ENGINES, LIVERIES, ROOF_PAINTS, ROOF_TOPS, type DesignedBoat } from './build';
 import { docFileName, docFileText, docToken, designToken, readDesign, shortCode } from './designDoc';
-import { ALL_FIELDS, DEFAULT_DESIGN, GUARDS, MATERIALS, OUTBOARDS, RAILS, SALOON_FLOORS, SALOON_ROOFS, SILLS, SINGLE_ONLY_ENGINES, SKIFFS, outboardCount, placeOf, placeValue, SCALES, type PlaceKey, type ShipDesign } from './design';
+import { ALL_FIELDS, DEFAULT_DESIGN, GUARDS, MATERIALS, OUTBOARDS, RAILS, MEASURES, SILLS, type MeasureKey, SINGLE_ONLY_ENGINES, SKIFFS, outboardCount, placeOf, placeValue, SCALES, type PlaceKey, type ShipDesign } from './design';
 import { hullPlan } from '../vessel/layout';
 import { UndoStack } from './undo';
 import { YardLink } from './yardLink';
@@ -546,6 +546,67 @@ function slider(key: keyof ShipDesign, label: string, show: (v: number) => strin
   controls.appendChild(row);
 }
 const pct = (k: number) => `${Math.round(k * 100)} %`;
+/**
+ * A measured choice's slider (design.ts MEASURES: the wheelhouse's, in real units, moving `by`
+ * at a time). `off` (the saloon, the deckhouse): the slider's first notch, at that value, is
+ * none (0). `min`: a slider starting above the measure's own (the deckhouse's side decks: 0 is
+ * "to her sides", its own button). Its row, to show only where it applies (data-when).
+ */
+function measure(key: MeasureKey, label: string, show: (v: number) => string, o: { off?: number; min?: number } = {}): HTMLElement {
+  labels[key] ??= label;
+  const mz = MEASURES[key];
+  const lo = o.off ?? o.min ?? mz.min;
+  const row = document.createElement('div');
+  row.className = 'row';
+  row.innerHTML = `<label>${label}</label><input type="range" min="${lo}" max="${mz.max}" step="${mz.by}" data-key="${key}"><output data-key="${key}"></output>`;
+  const input = row.querySelector('input')!;
+  input.oninput = () => {
+    const v = Number(input.value);
+    change({ [key]: o.off !== undefined && v <= o.off + 1e-9 ? 0 : Math.round(v * 1e6) / 1e6 });
+  };
+  input.addEventListener('pointerdown', () => link?.side?.presence({ holding: key }));
+  input.addEventListener('change', () => link?.side?.presence({ holding: null }));
+  outputs[key] = show;
+  controls.appendChild(row);
+  return row;
+}
+/** A few set values of a measured choice as buttons (the saloon's floor: whole steps down). Its row. */
+function valueOptions(key: MeasureKey, label: string, items: [number, string][]): HTMLElement {
+  labels[key] ??= label;
+  const row = document.createElement('div');
+  row.className = 'row opts';
+  row.innerHTML = `<label>${label}</label><div></div>`;
+  const box = row.querySelector('div')!;
+  for (const [v, name] of items) {
+    const c = document.createElement('span');
+    c.className = 'choice';
+    c.dataset.key = key;
+    c.dataset.i = String(v);
+    c.textContent = name;
+    c.onclick = () => change({ [key]: v });
+    box.appendChild(c);
+  }
+  // (Named in the compare list as its button is.)
+  outputs[key] ??= (v) => items.find(([x]) => Math.abs(x - v) < 1e-6)?.[1] ?? String(v);
+  controls.appendChild(row);
+  return row;
+}
+/** A group's heading within a step (the Wheelhouse's: Size and place, Windows...), and a line on it. */
+function group(title: string, note = ''): void {
+  const h = document.createElement('h2');
+  h.textContent = title;
+  controls.appendChild(h);
+  if (note) {
+    const p = document.createElement('p');
+    p.className = 'meta';
+    p.textContent = note;
+    controls.appendChild(p);
+  }
+}
+/** The deckhouse's width buttons and when each is the one chosen (they set two fields: dhWidth, dhNarrow). */
+const dhKinds: [HTMLElement, (d: ShipDesign) => boolean][] = [];
+/** When a row shown only where it applies (data-when / data-unless) is: a field set, or the deckhouse with side decks. */
+const rowApplies = (cond: string): boolean => (cond === 'dhSideDecks' ? !!design.dhLength && !design.dhNarrow && design.dhWidth > 0 : !!design[cond as keyof ShipDesign]);
 /** A few set options in a row, as buttons (for choices with only a handful of settings). */
 function options(key: keyof ShipDesign, label: string, names: string[]): void {
   labels[key] ??= label;
@@ -620,64 +681,82 @@ options('rails', 'Rails', [...RAILS]);
   ]);
 }
 section('2. Wheelhouse');
-slider('housePos', 'Position', (v) => (v === 0 ? 'right aft' : v === 15 ? 'right forward' : `${pct(SCALES.housePos(v))} fwd`));
-slider('houseLength', 'Length', (v) => `${SCALES.houseLength(v).toFixed(1)} m`);
-// A saloon aft of it (parametric boats P2b): the house runs on aft, its floor level or steps down.
-slider('saloon', 'Saloon aft', (v) => (v ? `${SCALES.saloon(v).toFixed(1)} m` : 'none'));
-options('saloonFloor', 'Saloon floor', [...SALOON_FLOORS]);
-// Its own roof, lower (P2b): a step in the roofline aft of the wheelhouse.
-options('saloonRoof', 'Saloon roof', [...SALOON_ROOFS]);
-slider('houseWidth', 'Width', (v) => pct(SCALES.houseWidth(v)));
-slider('headroom', 'Headroom', (v) => `${SCALES.headroom(v).toFixed(1)} m`);
-const signed = (x: number, unit: string, digits = 0) => `${x > 0 ? '+' : ''}${x.toFixed(digits)}${unit}`;
-slider('floor', 'Floor height', () => {
-  const f = boat.figures.floorM;
-  // With a deckhouse, from its top (the house stands on it, or sunk into it).
-  const g = boat.figures.floorOnDeckhouseM;
-  if (g !== undefined) return Math.abs(g) < 0.05 ? 'on the deckhouse' : `${Math.abs(g).toFixed(1)} m ${g < 0 ? 'into' : 'above'} the deckhouse`;
-  return Math.abs(f) < 0.05 ? 'at the deck' : `${signed(f, ' m', 1)}${f < 0 ? ' (sunk)' : ''}`;
-});
-slider('windowRake', 'Windows', (v) => {
-  if (design.flare) return `${CONFIG.shipyard.flareDeg}\u00b0 reverse (raked out all round)`;
-  const a = SCALES.windowRake(v);
-  return a === 0 ? 'upright' : a > 0 ? `${a}\u00b0 reverse` : `${-a}\u00b0 raked`;
-});
-options('facets', 'Front windows', ['Flat across', 'Three facets']);
-options('flare', 'Side & aft windows', ['Upright', 'Raked out all round']);
-options('sills', 'Window sills', [...SILLS]);
-// (No visor slider: the roof overhangs the windows by a set length, owner.)
-options('roofThickness', 'Roof', [0, 1, 2].map((i) => `${Math.round(SCALES.roofThickness(i) * 100)} cm`));
-options('roofEdge', 'Roof edge', ['', '30\u00b0', '45\u00b0', '60\u00b0']);
-options('chartTable', 'Chart table', ['None', 'Port wall, aft']);
+// Owner, Oct 2026: designs travel as documents now, so the wheelhouse's measurements are real
+// values on fine sliders (design.ts MEASURES), not a few steps squeezed into a typed code; in
+// groups, each row shown only where it applies.
 {
+  const m = (v: number, digits = 2) => `${v.toFixed(digits)} m`;
+  const signed = (x: number, unit: string, digits = 0) => `${x > 0 ? '+' : ''}${x.toFixed(digits)}${unit}`;
+  const houseW = () => (boat.hull.layout.wheelhouse ? 2 * boat.hull.layout.wheelhouse.halfWidth : 0);
+
+  group('Size and place');
+  measure('housePos', 'Position', (v) => (v <= 0.001 ? 'right aft' : v >= 0.999 ? 'right fwd' : `${pct(v)} fwd`));
+  measure('houseLength', 'Length', (v) => m(v));
+  // (Its share of the room between her side decks sets it; shown as what that comes to.)
+  measure('houseWidth', 'Width', (v) => (v >= 0.995 ? `${m(houseW())}, full` : m(houseW())));
+  measure('headroom', 'Headroom', (v) => m(v));
+  measure('floor', 'Floor height', () => {
+    const f = boat.figures.floorM;
+    // With a deckhouse, from its top (the house stands on it, or sunk into it).
+    const g = boat.figures.floorOnDeckhouseM;
+    if (g !== undefined) return Math.abs(g) < 0.025 ? 'on the deckhouse' : `${g < 0 ? '−' : '+'}${Math.abs(g).toFixed(2)} m`;
+    return Math.abs(f) < 0.025 ? 'at the deck' : `${signed(f, ' m', 2)}${f < 0 ? ' (sunk)' : ''}`;
+  });
+
+  // A saloon aft of it (parametric boats P2b): the house runs on aft, its floor level or steps
+  // down, its own roof as high or lower.
+  group('Saloon aft');
+  measure('saloon', 'Length', (v) => (v ? m(v, 1) : 'none'), { off: 1.1 });
+  valueOptions('saloonFloor', 'Floor down', [0, 1, 2, 3].map((i) => [SCALES.saloonFloor(i), i ? `${i} step${i > 1 ? 's' : ''}` : 'level'] as [number, string])).dataset.when = 'saloon';
+  measure('saloonRoof', 'Roof', (v) => (v ? `${m(v)} lower` : 'as wheelhouse')).dataset.when = 'saloon';
+
+  group('Windows');
+  options('facets', 'Front', ['Flat across', 'Three facets']);
+  measure('windowRake', 'Front rake', (a) => (Math.abs(a) < 0.5 ? 'upright' : a > 0 ? `${a.toFixed(0)}° reverse` : `${(-a).toFixed(0)}° back`)).dataset.unless = 'flare';
+  // (Raked out all round, the front leans out with them: its own rake stands aside.)
+  options('flare', 'Sides & aft', ['Upright', 'Raked out']);
+  options('sills', 'Sills', [...SILLS]);
+
+  // (Its colours are on the Paint step; no visor choice: the roof overhangs the windows by a set length, owner.)
+  group('Roof');
+  measure('roofThickness', 'Thickness', (v) => `${Math.round(v * 100)} cm`);
+  measure('roofEdge', 'Edge', (v) => `${v.toFixed(0)}° back`);
+
+  group('Inside');
+  options('chartTable', 'Chart table', ['None', 'Port wall, aft']);
+
   // The deckhouse (owner: pilot and rescue boats): the wheelhouse stands on it.
-  const h = document.createElement('h2');
-  h.textContent = 'Deckhouse';
-  const p = document.createElement('p');
-  p.className = 'meta';
-  p.textContent = 'A lower deckhouse that the wheelhouse stands on, as on pilot and rescue boats: from the wheelhouse’s aft wall forward, the helm raised onto it with steps up to the door. Its floor height (above) is then from the deckhouse’s top: lower it to sink the cabin into the deckhouse. Solid for now (no way in but the wheelhouse, its top not walked).';
-  controls.append(h, p);
+  group('Deckhouse', 'A lower deckhouse that the wheelhouse stands on, as on pilot and rescue boats: from the wheelhouse’s aft wall forward, the helm raised onto it with steps up to the door. Its floor height (above) is then from the deckhouse’s top: lower it to sink the cabin into the deckhouse. Solid for now (no way in but the wheelhouse, its top not walked).');
+  measure('dhLength', 'Forward', (v) => (v ? m(v, 1) : 'none'), { off: 0.4 });
+  measure('dhHeight', 'Height', (v) => m(v)).dataset.when = 'dhLength';
+  {
+    // Its width: out to her sides, set in to leave side decks (how wide: below), or only as
+    // wide as the wheelhouse, forward of it (owner: her side decks clear, for a side door).
+    const row = document.createElement('div');
+    row.className = 'row opts';
+    row.dataset.when = 'dhLength';
+    row.innerHTML = '<label>Width</label><div></div>';
+    const box = row.querySelector('div')!;
+    const kinds: [string, (d: ShipDesign) => boolean, Partial<ShipDesign>][] = [
+      ['To her sides', (d) => !d.dhNarrow && !d.dhWidth, { dhNarrow: 0, dhWidth: 0 }],
+      ['Side decks', (d) => !d.dhNarrow && d.dhWidth > 0, { dhNarrow: 0, dhWidth: 0.3 }],
+      ['As the wheelhouse', (d) => !!d.dhNarrow, { dhNarrow: 1 }],
+    ];
+    for (const [name, on, patch] of kinds) {
+      const c = document.createElement('span');
+      c.className = 'choice dhKind';
+      c.textContent = name;
+      c.onclick = () => change(name === 'Side decks' && design.dhWidth > 0 ? { dhNarrow: 0 } : patch);
+      dhKinds.push([c, on]);
+      box.appendChild(c);
+    }
+    labels.dhNarrow = 'Deckhouse width';
+    optionNames.dhNarrow = ['Set by Width', 'As the wheelhouse'];
+    controls.appendChild(row);
+  }
+  measure('dhWidth', 'Side decks', (v) => m(v), { min: 0.1 }).dataset.when = 'dhSideDecks';
+  measure('dhRake', 'Front', (v) => (v < 0.5 ? 'upright' : `raked ${v.toFixed(0)}°`)).dataset.when = 'dhLength';
 }
-slider('dhLength', 'Forward of the house', (v) => (v ? `${SCALES.dhLength(v).toFixed(1)} m` : 'none'));
-options('dhHeight', 'Height', [0, 1, 2, 3, 4].map((i) => `${SCALES.dhHeight(i).toFixed(1)} m`));
-options('dhWidth', 'Width', ['To her sides', '0.3 m side decks', '0.5 m', '0.7 m']);
-{
-  // A fifth width (owner): only as wide as the wheelhouse, forward of it, leaving her side
-  // decks clear (so she can have a side door). Its own choice in the code (dhNarrow); the
-  // other widths turn it off again.
-  const box = [...controls.querySelectorAll<HTMLElement>('[data-key="dhWidth"]')].at(-1)!.parentElement!;
-  const c = document.createElement('span');
-  c.className = 'choice';
-  c.dataset.key = 'dhNarrow';
-  c.dataset.i = '1';
-  c.textContent = 'As the wheelhouse';
-  labels.dhNarrow = 'Deckhouse width';
-  optionNames.dhNarrow = ['Set by Width', 'As the wheelhouse'];
-  c.onclick = () => change({ dhNarrow: 1 });
-  box.appendChild(c);
-  box.querySelectorAll<HTMLElement>('[data-key="dhWidth"]').forEach((el) => el.addEventListener('click', () => design.dhNarrow && change({ dhNarrow: 0 })));
-}
-options('dhRake', 'Front', ['Upright', 'Raked 30°', 'Raked 50°']);
 section('3. Deck gear');
 {
   // Her equipment by the work it's for (gearMenu.ts), each a card: what it is, whether she
@@ -778,6 +857,11 @@ function syncControls(): void {
   if (likeHull) likeHull.style.background = hex(LIVERIES[design.paint].livery.topsides ?? 0xd9622b);
   document.querySelectorAll<HTMLElement>('[data-key][data-i]').forEach((el) => el.classList.toggle('on', design[el.dataset.key as keyof ShipDesign] === Number(el.dataset.i)));
   document.querySelectorAll<HTMLInputElement>('input[type=range][data-key]').forEach((el) => (el.value = String(design[el.dataset.key as keyof ShipDesign])));
+  // Rows that apply only sometimes (the saloon's floor and roof with a saloon; the front's rake
+  // unless the windows are raked out all round, when it leans with them).
+  document.querySelectorAll<HTMLElement>('[data-when]').forEach((el) => (el.style.display = rowApplies(el.dataset.when!) ? '' : 'none'));
+  document.querySelectorAll<HTMLElement>('[data-unless]').forEach((el) => (el.style.display = rowApplies(el.dataset.unless!) ? 'none' : ''));
+  for (const [el, on] of dhKinds) el.classList.toggle('on', on(design));
   document.querySelectorAll<HTMLOutputElement>('output[data-key]').forEach((el) => {
     const k = el.dataset.key as keyof ShipDesign;
     el.textContent = outputs[k]!(design[k]);

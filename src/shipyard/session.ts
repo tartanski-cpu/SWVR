@@ -150,7 +150,7 @@ abstract class Side {
   }
 
   doc(): YardDoc {
-    return { v: 2, variants: this.variants, ...(this.brief ? { brief: this.brief } : {}), ...(this.step ? { step: this.step } : {}) };
+    return { v: 3, variants: this.variants, ...(this.brief ? { brief: this.brief } : {}), ...(this.step ? { step: this.step } : {}) };
   }
 
   /** Set the brief (shared, whole). */

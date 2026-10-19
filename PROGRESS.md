@@ -5231,6 +5231,60 @@ The plan's P2b ("a pilothouse and a saloon in a row ... the step between floors 
 - **Checked:** headless Chromium: the Shipyard's Wheelhouse step with a workboat's saloon two steps down; in the game, her from the quay, from the helm looking aft, and from the saloon looking forward up the two steps; a pilot boat with a long saloon one step down, outside and in. **Not checked:** the Quest; every combination with a deckhouse, facets or raked-out windows by eye (the tests cover their numbers).
 - **Test steps:** desktop: Shipyard, workboat, Wheelhouse step: Floor height +0.2 m, Saloon aft 2.8 m, Saloon floor Two steps down; Trials & handover, play her: walk in at the aft door onto the saloon floor, up the two steps to the helm. Try Three steps down with the floor at the deck: she tells you how far it could go. VR: the same, stepping up and down by walking; press the door buttons inside and out.
 
+### Shipyard: the Wheelhouse step cleaned up, its measurements free values (done, awaiting owner test)
+
+Owner, Oct 2026: before the cockpit roof, clean up the Shipyard's buttons. The options were cut down to keep a typed code short for VR; with designs travelling as JSON that limit has gone. The owner chose: drop the limit (a design on the old steps keeps a short code, any other travels as a link or file), and do the Wheelhouse step first.
+
+- **The design:** the wheelhouse's measurements are now real values (`design.ts MEASURES`, `MeasureKey`).
+  - **The fields:** position (0 aft to 1 forward), length, width (a fraction of the room), headroom, floor height, the saloon's length, floor and roof drop, the front windows' rake, the roof's thickness and edge angle, and the deckhouse's length, height, side decks and front rake.
+  - **Ranges:** each has a range, `min` to `max` (the old code's ends, the roof a little wider), and a slider step `by` (5 cm, 1 cm, 1°...).
+  - **The saloon floor** stays in whole 0.2 m stairs.
+  - **Unchanged:** every other choice (hull, engine, paint, gear...) is as it was.
+- **Codes:**
+  - `toSteps` / `fromSteps` convert between values and the old code's steps.
+  - `encodeDesign` codes a design only when every measurement sits on an old step; else she has no short code (`shortCode` null) and her link or file carries the values.
+  - The hull types' starting designs and the tests are written in steps through `fromSteps`.
+- **Reading documents** (`designFromFields`): a measurement off its range is brought onto it with a warning; any value in range stays as it is.
+  - **Older saves:** a version 1 document or a version 2 project held the code's steps, and is converted as it's read.
+  - **New versions:** documents are now version 2, projects version 3.
+- **The Wheelhouse step** (page.ts), in groups:
+  - **Size and place:** Position, Length, Width (shown in metres), Headroom, Floor height.
+  - **Saloon aft:** Length (its first notch is none), Floor down (level, 1, 2 or 3 steps), Roof (lower by any amount up to 0.6 m).
+  - **Windows:** Front (flat or three facets), Front rake (hidden when the sides are raked out, as the front then leans with them), Sides & aft, Sills.
+  - **Roof:** Thickness, Edge.
+  - **Inside:** Chart table.
+  - **Deckhouse:** Forward (first notch none), Height, Width (to her sides, side decks, as the wheelhouse), Side decks (only with side decks), Front.
+  - **How the rows work:** rows show only where they apply (`data-when`, `data-unless`), and values are short enough to sit on one line.
+  - **Gone:** the hidden blank roof-edge button, and the "As the wheelhouse" button tacked onto the deckhouse widths (now one width choice). The visor and the lower front, retired before, stay out.
+- **Also fixed (owner's screenshot):** with a three-facet front and a lower saloon roof, the wheelhouse's wood ceiling poked out over the saloon roof at the step. The facet's setback was moving the ceiling's aft end too; now only forward of the step (hullMesh).
+- **Tests:**
+  - `tests/shipyard/wheelhouseMeasures.test.ts` (5): the starting design's values; on-step designs keep a code; a design between steps travels as a link with its values; a 3.15 m house is 3.15 m; the document reader's range; older documents and projects converted.
+  - `saloonRoof.test.ts`: the ceiling stops at the step with three facets.
+  - The Shipyard tests now write their designs in steps through `fromSteps`.
+  - Full suite 979 pass; typecheck and build clean.
+- **Checked:** headless Chromium, the Wheelhouse step with a saloon and a deckhouse, then with the windows raked out and the deckhouse "As the wheelhouse"; the owner's configuration (workboat type, three facets, saloon roof lower, a sand roof top) from the same angle as their screenshot: the step is clean. **Not checked:** the Quest (a desktop page).
+- **Next:** the other steps the same way, once the owner has tried this one.
+
+### Sea trials: Shipyard boats heel hard in turns and the fast ones capsize (owner report; measured, fix to agree)
+
+Owner: in sea trials the boats lean out and nearly fall over in sharp turns. Measured, flat out then hard over, calm water:
+
+| Boat | GM | Top speed | Turn | Heel |
+|---|---|---|---|---|
+| Built-in workboat | 1.31 m | 13 kn | 9 kn | settles at 6° (realistic) |
+| Built-in landing craft (planing) | 1.12 m | 20 kn | 9 kn | 15° for a moment, settles at 3° |
+| Shipyard landing craft type | 0.75 m | 20 kn | 9 kn | 18° at worst, settles at 13° |
+| Shipyard workboat type | 1.26 m | 24 kn | 11 kn | swings 15-40°, settles near 20° |
+| Shipyard pilot boat (planing) | 0.94 m | 36 kn | | capsizes |
+| Shipyard workboat type, three or four outboards | 1.2 m | 31-38 kn | | capsizes |
+
+- **Why, on her own figures:**
+  - **The lever:** turning, she slides outward with her weight at her CG while the water's side force acts low on her hull. Hard over at speed that's about 0.18 g at 1.4 m, a heeling lever of 0.25 m.
+  - **Her GZ curve** (`gzCurve`) only reaches 0.25 m at about 20° (0.21 m at 15°, 0.32 m at 30°; the built-in workboat has 0.33 m at 15°). Her CG is high: 1.09 m above the waterline, against 0.45 m on the built-in workboat. So the sim is consistent with her stability; she is tender at speed.
+  - **The fast boats** pull 0.4-0.6 g turning at 30-38 kn, more than their whole GZ curve resists.
+  - **Missing:** only hulls marked planing bank into a turn, and weakly. A workboat type driven at 30 kn by outboards gets none.
+- **To agree with the owner before changing the physics** (it changes how every fast boat handles): see the report in the chat.
+
 ### Parametric boats P2b, second stop: the saloon's own lower roof, and the eyebrow (done, awaiting owner test)
 
 Owner, Oct 2026: carry on with the build-out where the Shipyard chat stopped. The plan's P2b listed "the saloon's own, lower roof and the eyebrow's two colours" next.

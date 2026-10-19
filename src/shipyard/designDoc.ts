@@ -11,19 +11,23 @@
  *               No old designs are kept compatible (owner, Oct 2026: older Shipyard boats may
  *               break), so there's no history to carry: just today's fields.
  *   reading     forgiving, and says what it did: a field it doesn't know (from a newer
- *               Shipyard) is skipped, a value off its scale is brought onto it, each with a
- *               warning; it never throws.
+ *               Shipyard) is skipped, a value off its scale (a measurement: its range) is
+ *               brought onto it, each with a warning; it never throws.
  *   a token     what travels where a code travelled (the game's address, crew joining a host,
  *               favourites, Try her together): her short code while one can hold her, else
  *               `doc.` and her document, compacted (only the fields that differ from the
  *               starting design) in URL-safe characters. `readDesign` takes either, or a link or file
  *               holding one, so when a design can't be coded nothing else has to change.
  */
-import { ALL_FIELDS, DEFAULT_DESIGN, decodeDesign, encodeDesign, type ShipDesign } from './design';
+import { ALL_FIELDS, DEFAULT_DESIGN, decodeDesign, encodeDesign, fromSteps, MEASURES, onMeasure, type MeasureKey, type ShipDesign } from './design';
 
 export const DOC_FORMAT = 'swvr.design';
-/** The document's own version: goes up only if its shape changes (not for new fields: those are just names). */
-export const DOC_VERSION = 1;
+/**
+ * The document's own version: goes up only if its shape changes (not for new fields: those are
+ * just names). 2: the wheelhouse's measurements are values (design.ts MEASURES); a version 1
+ * document's are the code's steps, read as such.
+ */
+export const DOC_VERSION = 2;
 /** What starts a document token (base64url has no '.', so it can't be mistaken for a code). */
 export const DOC_PREFIX = 'doc.';
 const MAX_NAME = 40;
@@ -63,8 +67,11 @@ export function designFromFields(fields: unknown): { design: ShipDesign; warning
       warnings.push(`'${k}' isn't a number: left as the starting design's`);
       continue;
     }
-    const on = Math.min(steps - 1, Math.max(0, Math.round(v)));
-    if (on !== v) warnings.push(`'${k}' ${v} is off its scale (0 to ${steps - 1}): ${on}`);
+    // A measurement (the wheelhouse's: metres, degrees) onto its range and its slider's step;
+    // any other choice onto its whole-number steps.
+    const m = k in MEASURES ? MEASURES[k as MeasureKey] : null;
+    const on = m ? onMeasure(k as MeasureKey, v) : Math.min(steps - 1, Math.max(0, Math.round(v)));
+    if (Math.abs(on - v) > 1e-6) warnings.push(m ? `'${k}' ${v} is off its range (${m.min} to ${m.max}): ${on}` : `'${k}' ${v} is off its scale (0 to ${steps - 1}): ${on}`);
     got[k] = on;
   }
   const unknown = Object.keys(o).filter((k) => !(k in DEFAULT_DESIGN));
@@ -86,7 +93,7 @@ export function readDoc(doc: unknown): ReadDesign {
   const o = doc as Record<string, unknown>;
   if (o.format !== DOC_FORMAT) return { error: 'that isn’t a Shipyard design' };
   if (typeof o.v !== 'number' || o.v > DOC_VERSION) return { error: `that design is from a newer Shipyard than this game (it reads version ${DOC_VERSION})` };
-  const read = designFromFields(o.design);
+  const read = designFromFields(o.v < 2 && o.design && typeof o.design === 'object' ? fromSteps(o.design as Partial<ShipDesign>) : o.design);
   return { ...read, name: cleanDocName(o.name) };
 }
 

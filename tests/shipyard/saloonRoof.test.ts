@@ -10,7 +10,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { useDesign } from '../../src/boats/sims';
 import { CONFIG } from '../../src/config';
 import { buildDesign, DESIGN_HULLS, ROOF_TOPS } from '../../src/shipyard/build';
-import { decodeDesign, DEFAULT_DESIGN, encodeDesign, type ShipDesign } from '../../src/shipyard/design';
+import { decodeDesign, DEFAULT_DESIGN, encodeDesign, type ShipDesign, fromSteps } from '../../src/shipyard/design';
 import { uprightHydrostatics } from '../../src/vessel/hydrostatics';
 import { vesselWalkArea } from '../../src/vessel/layout';
 import { houseFloorAt, houseRoofAt, VESSEL_DEFS } from '../../src/vessel/vesselDef';
@@ -20,7 +20,7 @@ import { fakeCanvas } from '../modular/fakes';
 beforeAll(fakeCanvas);
 afterAll(() => useDesign(DEFAULT_DESIGN));
 
-const type = (hull: number, more: Partial<ShipDesign> = {}): ShipDesign => ({ ...DEFAULT_DESIGN, ...DESIGN_HULLS[hull].defaults, hull, ...more });
+const type = (hull: number, more: Partial<ShipDesign> = {}): ShipDesign => ({ ...DEFAULT_DESIGN, ...DESIGN_HULLS[hull].defaults, hull, ...fromSteps(more) });
 /** The workboat, her wheelhouse floor raised a step, a 2.8 m saloon two steps down under a roof two steps lower. */
 const WB = type(2, { floor: 4, saloon: 4, saloonFloor: 2, saloonRoof: 2 });
 
@@ -101,6 +101,24 @@ describe("the saloon's own roof", () => {
     }
     expect(aftTop).toBeCloseTo(wh.saloonRoof!.y + t, 2);
     expect(fwdTop).toBeCloseTo(wh.roofY + t, 2);
+  });
+
+  it('with a three-facet front, the wheelhouse’s ceiling stops at the step (owner: it poked out over the saloon roof)', () => {
+    for (const hull of [2, 4]) {
+      useDesign(type(hull, { floor: 4, saloon: 4, saloonFloor: 2, saloonRoof: 2, facets: 1 }));
+      const def = VESSEL_DEFS.design;
+      const wh = def.layout.wheelhouse!;
+      const sr = wh.saloonRoof!;
+      const house = buildVesselMeshParts(def.hull, def.layout, def.exhaust?.position, def.livery).house!;
+      const pos = house.geometry.getAttribute('position');
+      const col = house.geometry.getAttribute('color');
+      const wood = new THREE.Color(0x8a5d3c);
+      for (let i = 0; i < pos.count; i++) {
+        const isWood = Math.abs(col.getX(i) - wood.r) < 0.01 && Math.abs(col.getY(i) - wood.g) < 0.01 && Math.abs(col.getZ(i) - wood.b) < 0.01;
+        // (Above the saloon roof's top: outside.)
+        if (isWood && pos.getY(i) > sr.y + def.layout.roof!.thickness + 0.01) expect(pos.getZ(i), `hull ${hull}`).toBeLessThanOrEqual(sr.z + 1e-6);
+      }
+    }
   });
 
   it('every hull type takes one, floating level and stable', () => {

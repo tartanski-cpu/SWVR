@@ -6,14 +6,14 @@
 import { afterAll, describe, expect, it } from 'vitest';
 import { useDesign } from '../../src/boats/sims';
 import { buildDesign, DESIGN_HULLS, materialOf } from '../../src/shipyard/build';
-import { decodeDesign, DEFAULT_DESIGN, encodeDesign, type ShipDesign } from '../../src/shipyard/design';
+import { decodeDesign, DEFAULT_DESIGN, encodeDesign, type ShipDesign, fromSteps } from '../../src/shipyard/design';
 import { matchGear } from '../../src/shipyard/trial';
 import { uprightHydrostatics } from '../../src/vessel/hydrostatics';
 import { VESSEL_DEFS } from '../../src/vessel/vesselDef';
 
 afterAll(() => useDesign(DEFAULT_DESIGN));
 
-const type = (hull: number, more: Partial<ShipDesign> = {}): ShipDesign => ({ ...DEFAULT_DESIGN, ...DESIGN_HULLS[hull].defaults, hull, ...more });
+const type = (hull: number, more: Partial<ShipDesign> = {}): ShipDesign => ({ ...DEFAULT_DESIGN, ...DESIGN_HULLS[hull].defaults, hull, ...fromSteps(more) });
 
 describe('what she is built of, and what she weighs', () => {
   it('each hull type is its own material, the workboat either', () => {

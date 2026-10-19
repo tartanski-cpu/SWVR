@@ -4,7 +4,7 @@
  * and says so; a field a document lacks is the starting design's.
  */
 import { describe, expect, it } from 'vitest';
-import { ALL_FIELDS, DEFAULT_DESIGN, decodeDesign, encodeDesign, type ShipDesign } from '../../src/shipyard/design';
+import { ALL_FIELDS, DEFAULT_DESIGN, decodeDesign, encodeDesign, type ShipDesign, fromSteps, toSteps } from '../../src/shipyard/design';
 import {
   DOC_FIELDS,
   designDoc,
@@ -36,13 +36,14 @@ function designs(): ShipDesign[] {
 }
 function rawDesigns(): ShipDesign[] {
   const out: ShipDesign[] = [{ ...DEFAULT_DESIGN }];
-  for (const f of ALL_FIELDS) out.push({ ...DEFAULT_DESIGN, [f.key]: f.steps - 1 });
+  for (const f of ALL_FIELDS) out.push({ ...DEFAULT_DESIGN, ...fromSteps({ [f.key]: f.steps - 1 }) });
   let seed = 7;
   const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
   for (let i = 0; i < 40; i++) {
-    const d = { ...DEFAULT_DESIGN };
+    // (In the code's steps, then the wheelhouse's measurements as values.)
+    const d = { ...toSteps(DEFAULT_DESIGN)! };
     for (const f of ALL_FIELDS) if (rnd() < 0.4) d[f.key] = Math.floor(rnd() * Math.min(f.steps, 40));
-    out.push(d);
+    out.push(fromSteps(d));
   }
   return out;
 }

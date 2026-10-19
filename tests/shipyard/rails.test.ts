@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { useDesign } from '../../src/boats/sims';
 import { DESIGN_HULLS } from '../../src/shipyard/build';
-import { decodeDesign, DEFAULT_DESIGN, encodeDesign, placeValue, RAILS, type ShipDesign } from '../../src/shipyard/design';
+import { decodeDesign, DEFAULT_DESIGN, encodeDesign, placeValue, RAILS, type ShipDesign, fromSteps } from '../../src/shipyard/design';
 import { VESSEL_DEFS } from '../../src/vessel/vesselDef';
 
 const BASE: ShipDesign = { ...DEFAULT_DESIGN, guard: 0 };
@@ -16,7 +16,7 @@ describe('no handrails', () => {
     expect(encodeDesign(none).replace(/-/g, '').length).toBeGreaterThan(17);
     expect(decodeDesign(encodeDesign(none))).toEqual({ design: none });
     for (const guard of [0, 1, 4]) {
-      const more = { ...none, guard, dhLength: 3, dhHeight: 2, dhWidth: 1, dhRake: 1, deckCrane: 2, craneAt: placeValue('craneAt', -1, 2.5, 1) };
+      const more = { ...none, guard, ...fromSteps({ dhLength: 3, dhHeight: 2, dhWidth: 1, dhRake: 1 }), deckCrane: 2, craneAt: placeValue('craneAt', -1, 2.5, 1) };
       expect(decodeDesign(encodeDesign(more))).toEqual({ design: more });
       // And with handrails, unchanged from before.
       expect(decodeDesign(encodeDesign({ ...more, rails: 0 }))).toEqual({ design: { ...more, rails: 0 } });

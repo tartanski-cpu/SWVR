@@ -10,7 +10,7 @@ import { RECIPES } from '../../src/boats/library';
 import { validateRecipe } from '../../src/modular/recipe';
 import { LIBRARY } from '../../src/boats/library';
 import { DESIGN_HULLS, ENGINES } from '../../src/shipyard/build';
-import { DEFAULT_DESIGN, FIELDS, placeValue, type ShipDesign } from '../../src/shipyard/design';
+import { DEFAULT_DESIGN, FIELDS, placeValue, type ShipDesign, fromSteps } from '../../src/shipyard/design';
 import { fullAhead, matchGear } from '../../src/shipyard/trial';
 import { uprightHydrostatics } from '../../src/vessel/hydrostatics';
 import { VESSEL_DEFS } from '../../src/vessel/vesselDef';
@@ -155,7 +155,7 @@ describe('Shipyard: the boats it builds', () => {
   it('every floor height, each hull: no step over 0.35 m from the deck at the door to the floor, and the walk area takes you in', () => {
     for (let hull = 0; hull < DESIGN_HULLS.length; hull++)
       for (let floor = 0; floor < 8; floor++) {
-        useDesign({ ...DEFAULT_DESIGN, ...DESIGN_HULLS[hull].defaults, hull, floor });
+        useDesign({ ...DEFAULT_DESIGN, ...DESIGN_HULLS[hull].defaults, hull, ...fromSteps({ floor }) });
         const def = VESSEL_DEFS.design;
         const wh = def.layout.wheelhouse!;
         const deck = hullPlan(def).deckY(wh.aft + 0.15);
@@ -177,7 +177,7 @@ describe('Shipyard: the boats it builds', () => {
     for (const hull of [0, 3])
       for (const windowRake of [0, 8])
         for (const [lowerFront, visor, roofThickness, roofEdge] of [[0, 0, 0, 1], [4, 4, 2, 3], [4, 0, 2, 3]]) {
-          const boat = useDesign({ ...DEFAULT_DESIGN, ...DESIGN_HULLS[hull].defaults, hull, windowRake, lowerFront, visor, roofThickness, roofEdge });
+          const boat = useDesign({ ...DEFAULT_DESIGN, ...DESIGN_HULLS[hull].defaults, hull, ...fromSteps({ windowRake, roofThickness, roofEdge }), lowerFront, visor });
           const wh = boat.hull.layout.wheelhouse!;
           expect(wh.shape).toBeDefined();
           expect(boat.hull.layout.ladder).toBeUndefined();
@@ -362,7 +362,7 @@ describe('Shipyard: the boats it builds', () => {
   it('the working deck gear: winch, stern roller, A-frame and trawl, life ring and boat hook, side door; she tows and trawls', () => {
     const wb = { ...DEFAULT_DESIGN, ...DESIGN_HULLS[2].defaults, hull: 2 };
     // A narrower house than her usual, for a side deck outside the side door.
-    const b = useDesign({ ...wb, houseWidth: 3, towWinch: 1, sternRoller: 1, aFrame: 1, lifeRing: 2, sideDoor: 1 });
+    const b = useDesign({ ...wb, houseWidth: 0.8, towWinch: 1, sternRoller: 1, aFrame: 1, lifeRing: 2, sideDoor: 1 });
     expect(validateRecipe(RECIPES.design, LIBRARY)).toEqual([]);
     expect(b.warnings.filter((w) => /left off/.test(w))).toEqual([]);
     for (const k of ['towWinch', 'towPoint', 'trawlGantry', 'trawl', 'lifeRing', 'boatHook'] as const) expect(gearOf({ defId: 'design' }, k), k).toBeTruthy();
@@ -370,7 +370,7 @@ describe('Shipyard: the boats it builds', () => {
     expect(VESSEL_DEFS.design.layout.wheelhouse!.sideDoor).toBeTruthy();
     expect(VESSEL_DEFS.design.layout.fairleadGap).toBeGreaterThan(0); // the notch for the roller
     // And priced in.
-    expect(b.figures.price).toBeGreaterThan(useDesign({ ...wb, houseWidth: 3 }).figures.price + 30_000);
+    expect(b.figures.price).toBeGreaterThan(useDesign({ ...wb, houseWidth: 0.8 }).figures.price + 30_000);
     // Without room for a side deck, the door's left off and says why.
     expect(useDesign({ ...wb, sideDoor: 1 }).warnings.join(' ')).toMatch(/narrower house/);
   });
