@@ -49,8 +49,8 @@
  * earlier code as it was.
  * Version 24 (a Kort nozzle round the propeller, owner: a tug's) puts that above the saloon's
  * floor, the most significant: 0 (an open propeller) leaves every earlier code as it was.
- * Version 25 (a fishing rod rack on the house's aft wall, owner) puts that above the nozzle,
- * the same way: 0 (none) leaves every earlier code as it was.
+ * Version 26 (a fishing rod rack on the house's aft wall, owner) puts that above version 25's
+ * roof choices, the most significant: 0 (none) leaves every earlier code as it was.
  *
  * Version 9 (a chart table): 14 characters of choices (70 bits) and the check:
  * 15 characters. Its number is 2^69 + the choices' number. Read with none of version 10's gear.
@@ -86,8 +86,8 @@
  * Twin engines didn't fit in what was left of the 45 bits, so version 3 went to 11.
  */
 
-/** The building rules this code was made with (25: a fishing rod rack; 24: a Kort nozzle; 23: a saloon aft of the wheelhouse; 22: stern drives; 21: the hull's material; 20: outboards; 19: windows raked out all round, and the window sills; 18: a fourth engine, the slow-revving tug diesel; 17: a three-facet front; 16: a fifth hull type, the small tug; 15: the anchor and the skiff; 14: a deckhouse as wide as the house; 13: no handrails; 12: hull protection; all in version 10's extension). */
-export const DESIGN_VERSION = 25;
+/** The building rules this code was made with (26: a fishing rod rack; 25: the saloon's own lower roof, and the roof's inset top in a second colour; 24: a Kort nozzle; 23: a saloon aft of the wheelhouse; 22: stern drives; 21: the hull's material; 20: outboards; 19: windows raked out all round, and the window sills; 18: a fourth engine, the slow-revving tug diesel; 17: a three-facet front; 16: a fifth hull type, the small tug; 15: the anchor and the skiff; 14: a deckhouse as wide as the house; 13: no handrails; 12: hull protection; all in version 10's extension). */
+export const DESIGN_VERSION = 26;
 
 /**
  * How many hull types there are (build.ts DESIGN_HULLS). The code's first 16 characters
@@ -220,6 +220,17 @@ export interface ShipDesign {
   /** A fishing rod on a rack on the house's aft wall, a bucket under it (modules/rodRack; owner): 1, or 0 none. */
   rodRack: number;
   /**
+   * The saloon's roof (SCALES.saloonRoof; parametric boats P2b): as high as the wheelhouse's
+   * (one roof), or 1 to 3 steps of 0.2 m lower, its own roof aft of a step in the roofline (the
+   * raised pilothouse look). Its windows come down with it.
+   */
+  saloonRoof: number;
+  /**
+   * The roof's top (ROOF_TOPS, build.ts; owner: the eyebrow): one colour, or a panel set in
+   * from its edges in a second colour, so the roof's edge shows as a band round it.
+   */
+  roofTop: number;
+  /**
    * Hull protection (owner), what keeps her sides off a quay (GUARDS): 0 none, 1 the crew's
    * fenders (a basket on deck; the cheapest), 2 a rubber rubbing strake all round, 3 tyres
    * along her sides, 4 the strake and fenders. The strake and tyres are fixed; the fenders
@@ -287,9 +298,9 @@ export function placeValue(key: PlaceKey, x: number, fromTransom: number, face =
 }
 
 /** The choices after the first code's: none of them in a new design (DEFAULT_DESIGN takes them from here). */
-type V10Gear = 'towWinch' | 'sternRoller' | 'aFrame' | 'lifeRing' | 'sideDoor' | PlaceKey | DeckhouseKey | 'guard' | 'rails' | 'dhNarrow' | 'noAnchor' | 'skiff' | 'facets' | 'flare' | 'sills' | 'outboards' | 'material' | 'sternDrive' | 'saloon' | 'saloonFloor' | 'nozzle' | 'rodRack';
+type V10Gear = 'towWinch' | 'sternRoller' | 'aFrame' | 'lifeRing' | 'sideDoor' | PlaceKey | DeckhouseKey | 'guard' | 'rails' | 'dhNarrow' | 'noAnchor' | 'skiff' | 'facets' | 'flare' | 'sills' | 'outboards' | 'material' | 'sternDrive' | 'saloon' | 'saloonFloor' | 'nozzle' | 'saloonRoof' | 'roofTop' | 'rodRack';
 /** None of them. */
-const NO_V10_GEAR: Pick<ShipDesign, V10Gear> = { towWinch: 0, sternRoller: 0, aFrame: 0, lifeRing: 0, sideDoor: 0, craneAt: 0, lampAt: 0, monitorAt: 0, winchAt: 0, dhLength: 0, dhHeight: 0, dhWidth: 0, dhRake: 0, guard: 0, rails: 0, dhNarrow: 0, noAnchor: 0, skiff: 0, facets: 0, flare: 0, sills: 0, outboards: 0, material: 0, sternDrive: 0, saloon: 0, saloonFloor: 0, nozzle: 0, rodRack: 0 };
+const NO_V10_GEAR: Pick<ShipDesign, V10Gear> = { towWinch: 0, sternRoller: 0, aFrame: 0, lifeRing: 0, sideDoor: 0, craneAt: 0, lampAt: 0, monitorAt: 0, winchAt: 0, dhLength: 0, dhHeight: 0, dhWidth: 0, dhRake: 0, guard: 0, rails: 0, dhNarrow: 0, noAnchor: 0, skiff: 0, facets: 0, flare: 0, sills: 0, outboards: 0, material: 0, sternDrive: 0, saloon: 0, saloonFloor: 0, nozzle: 0, saloonRoof: 0, roofTop: 0, rodRack: 0 };
 
 /** Each choice's number of steps, in the code's order. (The hull type first, most significant: four types in the first 16 characters; later ones ride in the extension, MORE_HULLS.) */
 export const FIELDS: { key: keyof ShipDesign; steps: number }[] = [
@@ -365,6 +376,11 @@ const SALOON_FIELD: { key: 'saloon'; steps: number } = { key: 'saloon', steps: 9
 export const SALOON_FLOORS = ['Level with the wheelhouse', 'One step down', 'Two steps down', 'Three steps down'] as const;
 const SALOON_FLOOR_FIELD: { key: 'saloonFloor'; steps: number } = { key: 'saloonFloor', steps: SALOON_FLOORS.length };
 const NOZZLE_FIELD: { key: 'nozzle'; steps: number } = { key: 'nozzle', steps: 2 };
+/** The saloon roof's choices (design.saloonRoof), as the page names them. */
+export const SALOON_ROOFS = ['As high as the wheelhouse', 'One step lower', 'Two steps lower', 'Three steps lower'] as const;
+const SALOON_ROOF_FIELD: { key: 'saloonRoof'; steps: number } = { key: 'saloonRoof', steps: SALOON_ROOFS.length };
+/** How many roof-top choices there are (build.ts ROOF_TOPS: one colour, then the second colours). */
+const ROOF_TOP_FIELD: { key: 'roofTop'; steps: number } = { key: 'roofTop', steps: 5 };
 const ROD_RACK_FIELD: { key: 'rodRack'; steps: number } = { key: 'rodRack', steps: 2 };
 /** How many outboards a design has (0: an inboard). */
 export const outboardCount = (d: Pick<ShipDesign, 'outboards'>): number => (d.outboards ? d.outboards + 1 : 0);
@@ -374,7 +390,7 @@ export function guardParts(guard: number): { fenders: boolean; side: 'strake' | 
 }
 
 /** Every choice with its number of steps, the placed-by-hand ones, the deckhouse's and hull protection too (for checking and merging designs). */
-export const ALL_FIELDS: { key: keyof ShipDesign; steps: number }[] = [...FIELDS.map((f) => (f.key === 'hull' ? { ...f, steps: HULL_TYPES } : f.key === 'engine' ? { ...f, steps: ENGINE_TYPES } : f)), ...PLACE_FIELDS, ...DECKHOUSE_FIELDS, GUARD_FIELD, RAIL_FIELD, NARROW_FIELD, NO_ANCHOR_FIELD, SKIFF_FIELD, FACETS_FIELD, FLARE_FIELD, SILLS_FIELD, OUTBOARDS_FIELD, MATERIAL_FIELD, STERN_DRIVE_FIELD, SALOON_FIELD, SALOON_FLOOR_FIELD];
+export const ALL_FIELDS: { key: keyof ShipDesign; steps: number }[] = [...FIELDS.map((f) => (f.key === 'hull' ? { ...f, steps: HULL_TYPES } : f.key === 'engine' ? { ...f, steps: ENGINE_TYPES } : f)), ...PLACE_FIELDS, ...DECKHOUSE_FIELDS, GUARD_FIELD, RAIL_FIELD, NARROW_FIELD, NO_ANCHOR_FIELD, SKIFF_FIELD, FACETS_FIELD, FLARE_FIELD, SILLS_FIELD, OUTBOARDS_FIELD, MATERIAL_FIELD, STERN_DRIVE_FIELD, SALOON_FIELD, SALOON_FLOOR_FIELD, SALOON_ROOF_FIELD, ROOF_TOP_FIELD];
 
 /** What the steps mean (the build reads these; the page labels its sliders with them). */
 export const SCALES = {
@@ -391,6 +407,8 @@ export const SCALES = {
   saloon: (i: number) => (i ? 1.2 + 0.4 * i : 0),
   /** The saloon floor below the wheelhouse's (m): 0, then a 0.2 m step each. */
   saloonFloor: (i: number) => 0.2 * i,
+  /** The saloon's roof below the wheelhouse's (m): 0, then a 0.2 m step each. */
+  saloonRoof: (i: number) => 0.2 * i,
   /** Bulwark height (m): 0.3 .. 1.0. */
   bulwark: (i: number) => 0.3 + 0.1 * i,
   /** Wheelhouse position: 0 right aft .. 1 right forward, within the deck that's free for it. */
@@ -517,13 +535,17 @@ export function encodeDesign(d: ShipDesign): string {
   if (!Number.isInteger(saloon) || saloon < 0 || saloon >= SALOON_FIELD.steps) throw new Error(`design saloon ${saloon} is off its scale (0..${SALOON_FIELD.steps - 1})`);
   const saloonFloor = d.saloonFloor ?? 0;
   if (!Number.isInteger(saloonFloor) || saloonFloor < 0 || saloonFloor >= SALOON_FLOOR_FIELD.steps) throw new Error(`design saloonFloor ${saloonFloor} is off its scale (0..${SALOON_FLOOR_FIELD.steps - 1})`);
+  const saloonRoof = d.saloonRoof ?? 0;
+  if (!Number.isInteger(saloonRoof) || saloonRoof < 0 || saloonRoof >= SALOON_ROOF_FIELD.steps) throw new Error(`design saloonRoof ${saloonRoof} is off its scale (0..${SALOON_ROOF_FIELD.steps - 1})`);
+  const roofTop = d.roofTop ?? 0;
+  if (!Number.isInteger(roofTop) || roofTop < 0 || roofTop >= ROOF_TOP_FIELD.steps) throw new Error(`design roofTop ${roofTop} is off its scale (0..${ROOF_TOP_FIELD.steps - 1})`);
   const nozzle = d.nozzle ?? 0;
   if (nozzle !== 0 && nozzle !== 1) throw new Error(`design nozzle ${nozzle} is off its scale (0..1)`);
   const rodRack = d.rodRack ?? 0;
   if (rodRack !== 0 && rodRack !== 1) throw new Error(`design rodRack ${rodRack} is off its scale (0..1)`);
-  // From the top: the rod rack, the nozzle, the saloon's floor and length, stern drives, the material, the outboards, the sills, the raked-out windows, a later engine, the facets, a later hull type, the skiff, no anchor, the narrow deckhouse,
+  // From the top: the rod rack, the roof's top colour and the saloon's roof, the nozzle, the saloon's floor and length, stern drives, the material, the outboards, the sills, the raked-out windows, a later engine, the facets, a later hull type, the skiff, no anchor, the narrow deckhouse,
   // no rails, protection (each 0: as before).
-  const top = ((((((((((((((BigInt(rodRack) * BigInt(NOZZLE_FIELD.steps) + BigInt(nozzle)) * BigInt(SALOON_FLOOR_FIELD.steps) + BigInt(saloonFloor)) * BigInt(SALOON_FIELD.steps) + BigInt(saloon)) * BigInt(STERN_DRIVE_FIELD.steps) + BigInt(sternDrive)) * BigInt(MATERIAL_FIELD.steps) + BigInt(material)) * BigInt(OUTBOARDS_FIELD.steps) + BigInt(outboards)) * BigInt(SILLS_FIELD.steps) + BigInt(sills)) * BigInt(FLARE_FIELD.steps) + BigInt(flare)) * BigInt(MORE_ENGINES) + BigInt(moreEngine)) * BigInt(FACETS_FIELD.steps) + BigInt(facets)) * BigInt(MORE_HULLS) + BigInt(more)) * BigInt(SKIFF_FIELD.steps) + BigInt(skiff)) * 2n + BigInt(noAnchor)) * 2n + BigInt(narrow)) * BigInt(RAIL_FIELD.steps) + BigInt(rails);
+  const top = ((((((((((((((((BigInt(rodRack) * BigInt(ROOF_TOP_FIELD.steps) + BigInt(roofTop)) * BigInt(SALOON_ROOF_FIELD.steps) + BigInt(saloonRoof)) * BigInt(NOZZLE_FIELD.steps) + BigInt(nozzle)) * BigInt(SALOON_FLOOR_FIELD.steps) + BigInt(saloonFloor)) * BigInt(SALOON_FIELD.steps) + BigInt(saloon)) * BigInt(STERN_DRIVE_FIELD.steps) + BigInt(sternDrive)) * BigInt(MATERIAL_FIELD.steps) + BigInt(material)) * BigInt(OUTBOARDS_FIELD.steps) + BigInt(outboards)) * BigInt(SILLS_FIELD.steps) + BigInt(sills)) * BigInt(FLARE_FIELD.steps) + BigInt(flare)) * BigInt(MORE_ENGINES) + BigInt(moreEngine)) * BigInt(FACETS_FIELD.steps) + BigInt(facets)) * BigInt(MORE_HULLS) + BigInt(more)) * BigInt(SKIFF_FIELD.steps) + BigInt(skiff)) * 2n + BigInt(noAnchor)) * 2n + BigInt(narrow)) * BigInt(RAIL_FIELD.steps) + BigInt(rails);
   let ext = (top * BigInt(GUARD_FIELD.steps) + BigInt(guard)) * (DECKHOUSE_COMBINATIONS + 1n);
   if (d.dhLength) ext += 1n + pack(d, DECKHOUSE_FIELDS);
   let which = 0;
@@ -542,8 +564,8 @@ export function encodeDesign(d: ShipDesign): string {
 }
 
 /** The placed-by-hand gear from a code's extension (the number after its first 16 characters). */
-function unpackPlaces(ext: bigint): (Pick<ShipDesign, PlaceKey | DeckhouseKey | 'guard' | 'rails' | 'dhNarrow' | 'noAnchor' | 'skiff' | 'facets' | 'flare' | 'sills' | 'outboards' | 'material' | 'sternDrive' | 'saloon' | 'saloonFloor' | 'nozzle' | 'rodRack'> & { more: number; moreEngine: number }) | { error: string } {
-  const out = { craneAt: 0, lampAt: 0, monitorAt: 0, winchAt: 0, dhLength: 0, dhHeight: 0, dhWidth: 0, dhRake: 0, guard: 0, rails: 0, dhNarrow: 0, noAnchor: 0, skiff: 0, facets: 0, flare: 0, sills: 0, outboards: 0, material: 0, sternDrive: 0, saloon: 0, saloonFloor: 0, nozzle: 0, rodRack: 0, more: 0, moreEngine: 0 };
+function unpackPlaces(ext: bigint): (Pick<ShipDesign, PlaceKey | DeckhouseKey | 'guard' | 'rails' | 'dhNarrow' | 'noAnchor' | 'skiff' | 'facets' | 'flare' | 'sills' | 'outboards' | 'material' | 'sternDrive' | 'saloon' | 'saloonFloor' | 'nozzle' | 'saloonRoof' | 'roofTop' | 'rodRack'> & { more: number; moreEngine: number }) | { error: string } {
+  const out = { craneAt: 0, lampAt: 0, monitorAt: 0, winchAt: 0, dhLength: 0, dhHeight: 0, dhWidth: 0, dhRake: 0, guard: 0, rails: 0, dhNarrow: 0, noAnchor: 0, skiff: 0, facets: 0, flare: 0, sills: 0, outboards: 0, material: 0, sternDrive: 0, saloon: 0, saloonFloor: 0, nozzle: 0, saloonRoof: 0, roofTop: 0, rodRack: 0, more: 0, moreEngine: 0 };
   const which = Number(ext & BigInt((1 << PLACE_FIELDS.length) - 1));
   let n = ext >> BigInt(PLACE_FIELDS.length);
   for (let i = PLACE_FIELDS.length - 1; i >= 0; i--) {
@@ -588,10 +610,14 @@ function unpackPlaces(ext: bigint): (Pick<ShipDesign, PlaceKey | DeckhouseKey | 
   const saloonFloor = up % BigInt(SALOON_FLOOR_FIELD.steps);
   up /= BigInt(SALOON_FLOOR_FIELD.steps);
   const nozzle = up % BigInt(NOZZLE_FIELD.steps);
-  const rodRack = up / BigInt(NOZZLE_FIELD.steps);
+  up /= BigInt(NOZZLE_FIELD.steps);
+  const saloonRoof = up % BigInt(SALOON_ROOF_FIELD.steps);
+  up /= BigInt(SALOON_ROOF_FIELD.steps);
+  const roofTop = up % BigInt(ROOF_TOP_FIELD.steps);
+  const rodRack = up / BigInt(ROOF_TOP_FIELD.steps);
   if (rodRack >= BigInt(ROD_RACK_FIELD.steps)) return { error: `that code is from a newer Shipyard than this game (it reads versions 1 to ${DESIGN_VERSION})` };
-  out.nozzle = Number(nozzle);
   out.rodRack = Number(rodRack);
+  out.nozzle = Number(nozzle);
   out.more = Number(more);
   out.moreEngine = Number(moreEngine);
   out.flare = Number(flare);
@@ -601,6 +627,8 @@ function unpackPlaces(ext: bigint): (Pick<ShipDesign, PlaceKey | DeckhouseKey | 
   out.sternDrive = Number(sternDrive);
   out.saloon = Number(saloon);
   out.saloonFloor = Number(saloonFloor);
+  out.saloonRoof = Number(saloonRoof);
+  out.roofTop = Number(roofTop);
   out.facets = Number(facets);
   out.guard = Number(guard);
   out.rails = Number(rails);
@@ -632,10 +660,10 @@ export function decodeDesign(code: string): { design: ShipDesign } | { error: st
     const extBits = BigInt(5 * (s.length - 17));
     const base = all >> extBits;
     if (base >= COMBINATIONS) return { error: `that code is from a newer Shipyard than this game (it reads versions 1 to ${DESIGN_VERSION})` };
-    const read = s.length > 17 ? unpackPlaces(all & ((1n << extBits) - 1n)) : { craneAt: 0, lampAt: 0, monitorAt: 0, winchAt: 0, dhLength: 0, dhHeight: 0, dhWidth: 0, dhRake: 0, guard: 0, rails: 0, dhNarrow: 0, noAnchor: 0, skiff: 0, facets: 0, flare: 0, sills: 0, outboards: 0, material: 0, sternDrive: 0, saloon: 0, saloonFloor: 0, nozzle: 0, rodRack: 0, more: 0, moreEngine: 0 };
+    const read = s.length > 17 ? unpackPlaces(all & ((1n << extBits) - 1n)) : { craneAt: 0, lampAt: 0, monitorAt: 0, winchAt: 0, dhLength: 0, dhHeight: 0, dhWidth: 0, dhRake: 0, guard: 0, rails: 0, dhNarrow: 0, noAnchor: 0, skiff: 0, facets: 0, flare: 0, sills: 0, outboards: 0, material: 0, sternDrive: 0, saloon: 0, saloonFloor: 0, nozzle: 0, saloonRoof: 0, roofTop: 0, rodRack: 0, more: 0, moreEngine: 0 };
     if ('error' in read) return read;
     const { more, moreEngine, ...places } = read;
-    type Base = Omit<ShipDesign, PlaceKey | DeckhouseKey | 'guard' | 'rails' | 'dhNarrow' | 'noAnchor' | 'skiff' | 'facets' | 'flare' | 'sills' | 'outboards' | 'material' | 'sternDrive' | 'saloon' | 'saloonFloor' | 'nozzle' | 'rodRack'>;
+    type Base = Omit<ShipDesign, PlaceKey | DeckhouseKey | 'guard' | 'rails' | 'dhNarrow' | 'noAnchor' | 'skiff' | 'facets' | 'flare' | 'sills' | 'outboards' | 'material' | 'sternDrive' | 'saloon' | 'saloonFloor' | 'nozzle' | 'saloonRoof' | 'roofTop' | 'rodRack'>;
     const v10 = unpack<Base>(base, FIELDS as { key: keyof Base; steps: number }[]);
     if (!('design' in v10)) return v10;
     // A later hull type: its first 16 characters hold hull 0.

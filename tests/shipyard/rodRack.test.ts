@@ -1,6 +1,6 @@
 /**
  * The fishing rod's rack (owner, Oct 2026): a Shipyard fitting on the house's aft wall, the
- * side the life ring isn't, its bucket on deck; its own place in the code (version 25).
+ * side the life ring isn't, its bucket on deck; its own place in the code (version 26).
  */
 import { afterAll, describe, expect, it } from 'vitest';
 import { gearOf, useDesign } from '../../src/boats/sims';

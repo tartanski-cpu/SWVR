@@ -55,8 +55,13 @@ can copy a link, open it on another machine, save and open a file.
     walking, doors, rain, sound and cargo needed nothing new), the saloon's floor level or one to
     three steps down, the treads made automatically. Two plain choices in the code (version 23),
     so no list was needed yet: the list comes with the first design that has houses apart.
-  - **Still to come:** the saloon's own, lower roof and the eyebrow's two colours; a cockpit
-    overhead with wings; a pilothouse raised on a walkable deckhouse (today's deckhouse is solid).
+  - **Second stop, done (awaiting owner test): the saloon's own, lower roof, and the eyebrow.**
+    The saloon's roof one to three 0.2 m steps below the wheelhouse's, a step in the roofline at
+    the wheelhouse's aft end, its windows coming down with it (`wheelhouse.saloonRoof`,
+    `houseRoofAt`); and the roof's top in a second colour, a panel set in from its edges.
+    Two more plain choices in the code (version 25).
+  - **Still to come:** a cockpit overhead with wings; a pilothouse raised on a walkable deckhouse
+    (today's deckhouse is solid).
 - **P2c, a trunk cabin with a cabin below (M):** the deckhouse becomes a walkable trunk cabin, the
   deck cut away beneath it, a fore cabin and a companionway (the layout fields from the Alaskan:
   floor holes, extra floors, hollows, the deck opening).

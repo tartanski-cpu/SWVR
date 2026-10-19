@@ -21,7 +21,7 @@ import type { PreparedWave } from '../ocean/waves';
 import { surfaceHeight } from '../ocean/waves';
 import type { WalkArea } from '../vessel/layout';
 import type { VesselState } from '../vessel/vesselState';
-import { housesOf, VESSEL_DEFS } from '../vessel/vesselDef';
+import { houseRoofAt, housesOf, VESSEL_DEFS } from '../vessel/vesselDef';
 import { gearOf } from '../boats/sims';
 import type { GearFacts } from '../modular/module';
 import { blockContact, blockTop, nearestBlockEdge, type BlockHit } from '../world/geography';
@@ -139,7 +139,7 @@ export function updateAir(
   for (const ves of vessels) {
     const houses = housesOf(VESSEL_DEFS[ves.state.defId].layout);
     if (!houses.length) continue;
-    const inHouse = (l: THREE.Vector3) => houses.some((wh) => Math.abs(l.x) < wh.halfWidth && l.z > wh.front && l.z < wh.aft && l.y < wh.roofY);
+    const inHouse = (l: THREE.Vector3) => houses.some((wh) => Math.abs(l.x) < wh.halfWidth && l.z > wh.front && l.z < wh.aft && l.y < houseRoofAt(wh, l.z));
     const wasIn = inHouse(ves.root.worldToLocal(tmpD.copy(before)));
     const ln = ves.root.worldToLocal(tmpC.copy(body));
     if (!wasIn && inHouse(ln)) {

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { houseFloorLow, type WheelhouseDef } from '../vessel/vesselDef';
+import { houseFloorLow, houseRoofAt, type WheelhouseDef } from '../vessel/vesselDef';
 
 /**
  * Draw-call saving (performance pass): the wheelhouse's small parts - switches, knobs,
@@ -71,7 +71,7 @@ export class InteriorDetail {
         this.box.applyMatrix4(inv);
         this.box.getBoundingSphere(this.sphere);
         const c = this.sphere.center;
-        const inside = Math.abs(c.x) < wh.halfWidth && c.z > wh.front && c.z < wh.aft && c.y > houseFloorLow(wh) - 0.2 && c.y < wh.roofY;
+        const inside = Math.abs(c.x) < wh.halfWidth && c.z > wh.front && c.z < wh.aft && c.y > houseFloorLow(wh) - 0.2 && c.y < houseRoofAt(wh, c.z);
         if (inside && this.sphere.radius < maxRadius) this.small.push(o);
       }
     }

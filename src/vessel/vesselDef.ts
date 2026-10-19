@@ -80,7 +80,8 @@ export type BowRampLayout = (typeof CONFIG.vessels.landingCraft.layout)['bowRamp
  * A hull's paint, by part (vessel/view/hullMesh.ts draws her in it); a part not given keeps
  * the workboat's colour. 0xRRGGBB.
  */
-export type Livery = Partial<Record<'bottom' | 'topsides' | 'deck' | 'house' | 'windows' | 'roof' | 'mast' | 'rail' | 'floor' | 'console' | 'panel', number>>;
+/** `roofTop`: a panel set in from the roof top's edges in its own colour (the eyebrow; none: the roof is one colour). */
+export type Livery = Partial<Record<'bottom' | 'topsides' | 'deck' | 'house' | 'windows' | 'roof' | 'roofTop' | 'mast' | 'rail' | 'floor' | 'console' | 'panel', number>>;
 
 /**
  * A wheelhouse: the workboat's, with what not every house has optional (M7): a port side
@@ -103,6 +104,12 @@ export type WheelhouseLayout = Omit<WorkboatLayout['wheelhouse'], 'sideDoor' | '
      * A level a step or more above or below the next needs a tread between (STEP_HEIGHT).
      */
     levels?: FloorLevel[];
+    /**
+     * The saloon's own roof, lower than the wheelhouse's (parametric boats P2b): aft of `z` (the
+     * step in the roofline) the roof's underside is at `y`, not `roofY`. houseRoofAt gives the
+     * underside at z. Unset: one roof all along.
+     */
+    saloonRoof?: { z: number; y: number };
     /** Openings in the house floor (a companionway down): not walked; the treads below are extraFloors. */
     floorHoles?: { x0: number; x1: number; z0: number; z1: number }[];
     /** Steps at the aft door, where her floor is more than a step above or below the deck there. */
@@ -156,6 +163,11 @@ export interface FloorLevel {
 export function houseFloorAt(wh: { floorY: number; levels?: FloorLevel[] }, z: number): number {
   const l = wh.levels?.find((lv) => z >= lv.z0 && z <= lv.z1);
   return l ? l.y : wh.floorY;
+}
+
+/** The house roof's underside at z: the wheelhouse's, or a lower saloon roof's aft of its step (saloonRoof). */
+export function houseRoofAt(wh: { roofY: number; saloonRoof?: { z: number; y: number } }, z: number): number {
+  return wh.saloonRoof && z > wh.saloonRoof.z ? wh.saloonRoof.y : wh.roofY;
 }
 
 /** The house floor's lowest level. */

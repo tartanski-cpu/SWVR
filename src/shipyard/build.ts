@@ -329,10 +329,24 @@ export const ROOF_PAINTS: { name: string; colour: number | null }[] = [
   { name: 'Black', colour: 0x22262a },
 ];
 
-/** Her livery with the roof's colour chosen (the workboat orange livery is `{}`: the workboat's own orange topsides). */
+/**
+ * The roof's top (owner: the eyebrow, as on the Alaskan's tan roof with its light-grey top):
+ * one colour, or a panel set in from the edges in a second colour (hullMesh: `roofInset` in
+ * from the top's edge), so the roof's edge shows as a band round it.
+ */
+export const ROOF_TOPS: { name: string; colour: number | null }[] = [
+  { name: 'One colour', colour: null },
+  { name: 'Light grey', colour: 0xc9ccc4 },
+  { name: 'White', colour: 0xeeeeea },
+  { name: 'Sand', colour: 0xc8b48a },
+  { name: 'Dark grey', colour: 0x4a4f54 },
+];
+
+/** Her livery with the roof's colour chosen, and its top's (the workboat orange livery is `{}`: the workboat's own orange topsides). */
 function liveryOf(d: ShipDesign): Livery {
   const l = LIVERIES[d.paint].livery;
-  return { ...l, roof: ROOF_PAINTS[d.roofPaint].colour ?? l.topsides ?? 0xd9622b };
+  const top = ROOF_TOPS[d.roofTop ?? 0]?.colour;
+  return { ...l, roof: ROOF_PAINTS[d.roofPaint].colour ?? l.topsides ?? 0xd9622b, ...(top != null ? { roofTop: top } : {}) };
 }
 
 /** The designed boat: her hull and recipe, her main figures, and anything to warn about. */
@@ -646,6 +660,25 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   // one piece, overhanging them, no band of wall above the glass).
   const windowHead = headroom - CONFIG.pixelPaint.frameWidth;
   const doorHeight = Math.min(1.95, headroom - 0.1);
+  // The saloon's own roof (owner, P2b: the raised pilothouse look): lower than the wheelhouse's
+  // by whole 0.2 m steps, the step in the roofline at the wheelhouse's aft end, its windows
+  // coming down with it. Never so low its headroom is under the doorway's plus 0.1 m (the aft
+  // door is in its wall), or its window band (from the sill to the frame under the roof) under
+  // `sal.minBand`: as low as it can go then, and said.
+  let roofDrop = saloonL ? SCALES.saloonRoof(d.saloonRoof ?? 0) : 0;
+  if (roofDrop) {
+    const asked = roofDrop;
+    const ok = (drop: number) => roofY - drop - FA >= doorHeight + 0.1 - 1e-6 && roofY - drop - CONFIG.pixelPaint.frameWidth - (floorY + sill) >= sal.minBand - 1e-6;
+    while (roofDrop > 1e-6 && !ok(roofDrop)) roofDrop = Math.round((roofDrop - 0.2) * 10) / 10;
+    if (roofDrop < asked - 1e-6) {
+      const why = roofY - asked - FA < doorHeight + 0.1 - 1e-6 ? 'its headroom over the saloon floor would be less than the doorway' : 'its windows would be too shallow';
+      warnings.push(roofDrop ? `The saloon's roof can only come ${Math.round(roofDrop / 0.2)} step${roofDrop > 0.3 ? 's' : ''} lower (${why}): a deeper saloon floor, or more headroom, lets it go lower.` : `The saloon's roof can't come lower (${why}): it's as high as the wheelhouse's. A deeper saloon floor, or more headroom, lets it.`);
+    }
+  }
+  /** The saloon's roof (its underside), lower than the wheelhouse's aft of the step at `helmAft`; null: one roof. */
+  const saloonRoof = roofDrop ? { z: rnd(helmAft), y: rnd(roofY - roofDrop) } : null;
+  /** The roof's underside at z (a lower saloon roof aft of its step). */
+  const roofAt = (z: number) => (saloonRoof && z > saloonRoof.z ? saloonRoof.y : roofY);
   // The front below the windows stays upright (its choice isn't offered now, owner).
   const house: HouseShape = { lowerRakeDeg: 0, lowerFromY: Math.min(q.deckY(front), floorY), roofEdgeDeg: SCALES.roofEdge(d.roofEdge), visor: CONFIG.shipyard.visor }; // (one set length now, owner: `d.visor` is kept in the code, unused)
   // A three-facet front (owner: a tug's pilot house): the middle pane square across her
@@ -695,8 +728,8 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   // Treads inside the aft wall (a sunk floor): the engine hatch keeps forward of them.
   const inside = rise < 0 ? nSteps * tread : 0;
   const F = floorY;
-  /** The roof's top (flat: the same all along). */
-  const roofTopAt = (_z: number) => roofY + roofThickness;
+  /** The roof's top (flat, or a step down to a lower saloon roof). */
+  const roofTopAt = (z: number) => roofAt(z) + roofThickness;
   // On the roof, forward: clear of its front edge (the visor's top, set back by its rake) whichever way the windows rake.
   const roofFront = Math.max(front, zHead - house.visor + roofThickness * Math.tan((house.roofEdgeDeg * Math.PI) / 180));
 
@@ -712,7 +745,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
 
   const layout = {
     // No roof rail or ladder (owner: simpler): the roof isn't walked.
-    wheelhouse: { halfWidth: hw, front, aft, floorY, roofY, wall, doorWidth: 0.7, doorHeight, windowSill: sill, windowHead, frontSill: sill, frontRakeDeg: windowRake, ...(d.flare ? { doorHinged: true } : {}), consoleDepth: 0.5, ...(consoleBack ? { consoleBack } : {}), consoleHeight: 0.9, viewSill: d.sills ? 0.9 : Math.max(sill, 0.9 + CONFIG.modules.helmConsole.dash.top), shape: house, ...(steps.length ? { steps } : {}), ...(levels.length ? { levels } : {}) },
+    wheelhouse: { halfWidth: hw, front, aft, floorY, roofY, wall, doorWidth: 0.7, doorHeight, windowSill: sill, windowHead, frontSill: sill, frontRakeDeg: windowRake, ...(d.flare ? { doorHinged: true } : {}), consoleDepth: 0.5, ...(consoleBack ? { consoleBack } : {}), consoleHeight: 0.9, viewSill: d.sills ? 0.9 : Math.max(sill, 0.9 + CONFIG.modules.helmConsole.dash.top), shape: house, ...(steps.length ? { steps } : {}), ...(levels.length ? { levels } : {}), ...(saloonRoof ? { saloonRoof } : {}) },
     roof: { thickness: roofThickness, overhang: 0.15, railHeight: 0, edgeMargin: 0.25 },
     // (Their height from the wheelhouse's floor: 1.1 m above the saloon's at its aft door.)
     doorButtons: { x: 0.45, height: rnd(1.1 - saloonDrop) },
@@ -853,7 +886,8 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   // gear isn't placed yet, and left out.
   const restKgZ: [number, number][] = [
     [shellM2 * mat.shellKgPerM2 * (base.scantlings ?? 1) * grownPlate, shellM2z / shellM2],
-    [(2 * (houseL + 2 * hw) * (roofY - floorY) + 4 * hw * houseL) * mat.houseKgPerM2, (front + aft) / 2],
+    // (A lower saloon roof: its two side walls that much shorter; the step's riser and the lower aft wall cancel.)
+    [(2 * (houseL + 2 * hw) * (roofY - floorY) - 2 * saloonL * roofDrop + 4 * hw * houseL) * mat.houseKgPerM2, (front + aft) / 2],
     [dhArea * mat.houseKgPerM2, deckhouse ? (deckhouse.z0 + deckhouse.z1) / 2 : 0],
     [wc.outfitKgPerM2 * lengthM * beamDeck * 0.8, shellM2z / shellM2],
     [wc.crewKg + wc.storesKg, (front + aft) / 2],
@@ -960,12 +994,12 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
     // its frames: no flicker between them).
     // The whiteboard: a pull-down board hung from the roof just forward of the aft wall
     // (owner: not low on the wall), port of the door, as wide as fits there.
-    whiteboard: [(-(hw - wall) + 0.1) / 2, roofY, aft - wall - 0.1] as V3,
+    whiteboard: [(-(hw - wall) + 0.1) / 2, roofAt(aft - wall - 0.1), aft - wall - 0.1] as V3,
     dutyBoard: [hw - wall - 0.02, F + sill - CONFIG.modules.dutyBoard.height / 2 - 0.04, aft - wall - 0.5] as V3,
     // The engine's middle, on its shaft line (its weight is carried there); the engine space under its hatch.
     engineBed: [0, rnd(engTopAt(engMid) - engH / 2), rnd(engMid)] as V3,
     engineSpace: [0, 0, 0] as V3, // (set with her engine hatch, below)
-    cabinLight: [0, roofY - 0.12, (front + aft) / 2 + 0.15] as V3,
+    cabinLight: [0, roofAt((front + aft) / 2 + 0.15) - 0.12, (front + aft) / 2 + 0.15] as V3,
     searchlight: [0, roofTopAt(roofFront + 0.275) + 0.13, roofFront + 0.275] as V3,
     navLights: [0, roofTopAt(roofFront + 1.275), roofFront + 1.275] as V3,
     // The advanced interior's working lights (owner): the overhead switch panel over the helm
@@ -1059,7 +1093,8 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
     ...(d.controls ? ([at.floodFore, at.floodAft].map(([x, , z]) => [x, z, wl.flood.keepClear]) as [number, number, number][]) : []),
   ];
   const onRoof = (x: number, z: number) => Math.abs(x) < hw && z > front && z < aft;
-  const standsOnRoof = (x: number, z: number) => Math.abs(x) <= Math.min(hw - 0.2, hw + 0.15 - roofBack - 0.15) && z >= roofFront + 0.2 + sb(Math.abs(x) + 0.2) && z <= aft - 0.2 && roofTaken.every(([ox, oz, r]) => Math.hypot(x - ox, z - oz) >= r);
+  // (Not on the step down to a lower saloon roof.)
+  const standsOnRoof = (x: number, z: number) => Math.abs(x) <= Math.min(hw - 0.2, hw + 0.15 - roofBack - 0.15) && z >= roofFront + 0.2 + sb(Math.abs(x) + 0.2) && z <= aft - 0.2 && (!saloonRoof || Math.abs(z - saloonRoof.z) >= 0.3) && roofTaken.every(([ox, oz, r]) => Math.hypot(x - ox, z - oz) >= r);
   /** The pinned cell, or the nearest within a metre where `stands` (x, z: boat axes); null if none. */
   const seat = (key: PlaceKey, stands: (x: number, z: number, face: number) => boolean): { x: number; z: number; face: number; moved: boolean } | null => {
     const p = placeOf(key, d[key]);
@@ -1431,7 +1466,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
     { id: 'navDisplay', type: 'cabin.overhead', transform: { position: at.navDisplay }, label: 'Overhead, on the centreline ahead of the helm' },
     { id: 'whiteboard', type: 'cabin.overhead', transform: { position: at.whiteboard, rotationDeg: [0, 180, 0] }, label: 'Under the roof by the aft wall, port of the door: the pull-down whiteboard' },
     { id: 'dutyBoard', type: 'wall.panel', transform: { position: at.dutyBoard, rotationDeg: [0, -90, 0] }, label: 'Starboard wall, aft' },
-    ...(chartTableAt ? [{ id: 'chartTable', type: 'cabin.furniture' as const, transform: { position: chartTableAt }, capacity: { size: [ctab.width, roofY - F, ctab.depth] as V3 }, label: 'Port wall, aft: the chart table' }] : []),
+    ...(chartTableAt ? [{ id: 'chartTable', type: 'cabin.furniture' as const, transform: { position: chartTableAt }, capacity: { size: [ctab.width, roofAt(chartTableAt[2]) - chartTableAt[1], ctab.depth] as V3 }, label: 'Port wall, aft: the chart table' }] : []),
     { id: 'doorIn', type: 'wall.panel', transform: { position: [0.45, FA + 1.1, aft - wall], rotationDeg: [-90, 0, 0] }, label: 'Door frame, inside' },
     { id: 'doorOut', type: 'wall.panel', transform: { position: [0.45, FA + 1.1, aft], rotationDeg: [-90, 180, 0] }, label: 'Door frame, outside' },
     ...(rampBow
@@ -1553,7 +1588,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
     resistance: { ...lc.resistance, lwl: Math.round(h.lwl * 100) / 100, ...(tyres.length ? { formFactor: lc.resistance.formFactor + hg.tyres.formFactorAdd } : {}) },
     ...(base.planing ? { planing: lc.planing } : {}),
     windage: {
-      side: Math.round(lengthM * freeboard + houseL * (roofY + 0.3 - level) + (deckhouse ? (deckhouse.z1 - deckhouse.z0) * SCALES.dhHeight(d.dhHeight) : 0)),
+      side: Math.round(lengthM * freeboard + houseL * (roofY + 0.3 - level) - saloonL * roofDrop + (deckhouse ? (deckhouse.z1 - deckhouse.z0) * SCALES.dhHeight(d.dhHeight) : 0)),
       front: Math.round(beamDeck * freeboard + 2 * hw * (roofY + 0.3 - level) + (deckhouse ? 2 * Math.max(0, dhW - hw) * SCALES.dhHeight(d.dhHeight) : 0)),
       center: [0, Math.round((freeboard + 0.4) * 100) / 100, Math.round(((front + aft) / 4) * 100) / 100],
     },
@@ -1844,7 +1879,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   // fittings, paint, by her deck area), and her load as she's trialled: half her fuel, crew
   // and stores (CONFIG.shipyard.weights).
   const bulwarkRun = 2 * lengthM + 2 * st[0].halfBeamDeck + (bowRamp ? 0 : 2 * st[st.length - 1].halfBeamDeck);
-  const houseM2 = 2 * (houseL + 2 * hw) * (roofY - floorY) + 2 * (2 * hw * houseL);
+  const houseM2 = 2 * (houseL + 2 * hw) * (roofY - floorY) - 2 * saloonL * roofDrop + 2 * (2 * hw * houseL);
   const machineKg = outboards ? obc.massKg * nOb : eng.kg * n;
   const machineY = outboards ? outboards.mount.y : at.engineBed[1];
   const machineZ = outboards ? outboards.mount.z : at.engineBed[2];

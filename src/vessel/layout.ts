@@ -16,7 +16,7 @@ import { inDeckhouse } from './deckhouse';
 import { gearOf } from '../boats/sims';
 import type { GearFootprint } from '../modular/module';
 import type { HullForm } from './hullForm';
-import { houseFloorAt, type VesselDef } from './vesselDef';
+import { houseFloorAt, houseRoofAt, type VesselDef } from './vesselDef';
 
 export interface Ladder {
   bottom: number;
@@ -238,8 +238,10 @@ function houseWalk(
     solid(x, y, z) {
       const ax = Math.abs(x);
       if (y < floorAt(z) - 0.15) return true; // below the house floor
-      if (y > roofTop + 0.05) return false; // above the roof
-      if (y > wh.roofY - 0.05) return true; // in the roof slab
+      // (A lower saloon roof aft of its step: houseRoofAt.)
+      const under = houseRoofAt(wh, z);
+      if (y > under + roof.thickness + 0.05) return false; // above the roof
+      if (y > under - 0.05) return true; // in the roof slab
       const inInterior = ax < int.x && z > int.z0 && z < int.z1;
       if (inInterior) {
         // The helm console across the front, and the furniture.
@@ -253,7 +255,9 @@ function houseWalk(
       // The front's glass starts higher (frontSill, level with the dash top).
       const raise = wh.sideRaise;
       const sillHere = z < int.z0 ? (wh.frontSill ?? wh.windowSill) : raise && z < raise.z1 ? raise.height : wh.windowSill;
-      if (hy > sillHere && hy < wh.windowHead) return false;
+      // The window band's head: as far under the roof here as the wheelhouse's is under its own
+      // where a lower saloon roof brings its windows down with it; else from the floor here.
+      if (hy > sillHere && (wh.saloonRoof ? y < under - (wh.roofY - wh.floorY - wh.windowHead) : hy < wh.windowHead)) return false;
       return true;
     },
   };
