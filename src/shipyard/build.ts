@@ -462,11 +462,13 @@ const BASE_TORQUE: [number, number][] = [
  * plating, houses, machinery, gear and load are what they are); then with her lines raised
  * (lighter than they displace) or lowered (heavier) until she displaces exactly that
  * weight, so her draught, freeboard and hydrostatics are those of the boat as built.
+ * `id`: her vessel type's id (her hull is `hull.<id>`, her recipe `vessel.<id>`): the
+ * Shipyard's one-at-a-time 'design', or a fleet boat's own (boats/fleet.ts).
  */
-export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
-  const first = buildAt(d, code, 0, null);
+export function buildDesign(d: ShipDesign, code = 'design', id = 'design'): DesignedBoat {
+  const first = buildAt(d, code, 0, null, id);
   const { rise, sinks } = riseFor(hullFormOf(first.hull.form), first.weights.massKg);
-  const boat = buildAt(d, code, rise, { massKg: first.weights.massKg, cgY: first.weights.cgY });
+  const boat = buildAt(d, code, rise, { massKg: first.weights.massKg, cgY: first.weights.cgY }, id);
   if (sinks) boat.warnings.unshift(`She's too heavy for her hull (${(first.weights.massKg / 1000).toFixed(1)} t): she'd float with her deck awash. Make her lighter (aluminium, a smaller engine, less gear) or bigger.`);
   else if (boat.figures.freeboardM < 0.3) boat.warnings.unshift(`She floats deep for her weight: ${Math.round(boat.figures.freeboardM * 100)} cm of freeboard amidships. Give her more depth (Hull) or make her lighter.`);
   return boat;
@@ -505,7 +507,7 @@ function riseFor(form: HullForm, massKg: number): { rise: number; sinks: boolean
   return { rise: Math.round(((lo + hi) / 2) * 1000) / 1000, sinks: false };
 }
 
-function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: number; cgY: number } | null): DesignedBoat {
+function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: number; cgY: number } | null, id: string): DesignedBoat {
   const warnings: string[] = [];
   const base = DESIGN_HULLS[d.hull];
   // Her size: length, beam and depth as factors of her type's own. A hull that `growsTo` a
@@ -1633,7 +1635,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   const sunkBy = CONFIG.shipyard.weights.payloadFreeboard * deckMid;
   const payloadKg = Math.max(0, Math.round((atDWL({ ...shape, stations: st.map((s) => ({ ...s, polygon: s.polygon.map(([x, y]) => [x, y - sunkBy] as [number, number]) })) }).volume * rho - mass) / 100) * 100);
   const hull: HullDefinition = {
-    id: 'hull.design',
+    id: `hull.${id}`,
     version: 1,
     name: `Shipyard design ${code}`,
     helm: { stand: [cx, F, cf + 1.125], yawDeg: 0 },
@@ -1681,9 +1683,9 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
 
   // ── Recipe: the landing craft's, with her machinery, controls and places ──
   const recipe = structuredClone(landingCraftRecipe) as unknown as Recipe;
-  recipe.id = 'vessel.design';
+  recipe.id = `vessel.${id}`;
   recipe.name = `Shipyard design ${code}`;
-  recipe.hull = 'hull.design';
+  recipe.hull = `hull.${id}`;
   const k = kw / 150;
   // (A slower-revving engine, ENGINES ratedRpm, `rs` above: every rpm of the 1800 rpm curve
   // scaled by rs, its torque by k / rs (the same power at fewer revs is more torque). Its

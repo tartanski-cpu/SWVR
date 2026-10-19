@@ -86,6 +86,7 @@ import towCoaster from './tow-coaster.json';
 import towCage from './tow-cage.json';
 import { BARGE_HULL, CAGE_HULL, COASTER_HULL, DERELICT_HULL, DORY_HULL, LOG_RAFT_HULL, PONTOON_HULL, TRAWLER_HULL, YACHT_HULL } from './towHulls';
 import { WORKBOAT_HULL } from './workboatHull';
+import { FLEET } from './fleet';
 
 const FIXED_HULLS = createHullLibrary([WORKBOAT_HULL, SKIFF_HULL, DERELICT_HULL, LOG_RAFT_HULL, BARGE_HULL, DORY_HULL, YACHT_HULL, TRAWLER_HULL, PONTOON_HULL, CAGE_HULL, COASTER_HULL, LANDING_CRAFT_HULL, ALASKAN_38_HULL]);
 
@@ -96,7 +97,11 @@ const FIXED_HULLS = createHullLibrary([WORKBOAT_HULL, SKIFF_HULL, DERELICT_HULL,
  */
 let designed: DesignedBoat = buildDesign(DEFAULT_DESIGN, shortCode(DEFAULT_DESIGN) ?? 'custom');
 
-export const HULLS: HullLibrary = { get: (id) => (id === designed.hull.id ? designed.hull : FIXED_HULLS.get(id)) };
+/** The fleet's boats (boats/fleet.ts), each built from her design under her own id. */
+const FLEET_BOATS: Record<string, DesignedBoat> = Object.fromEntries(FLEET.map((f) => [f.id, buildDesign(f.design, shortCode(f.design) ?? 'custom', f.id)]));
+const FLEET_HULLS = new Map(Object.values(FLEET_BOATS).map((b) => [b.hull.id, b.hull]));
+
+export const HULLS: HullLibrary = { get: (id) => (id === designed.hull.id ? designed.hull : (FLEET_HULLS.get(id) ?? FIXED_HULLS.get(id))) };
 
 export const MODULES = createModuleLibrary([
   CONSOLE, WHEEL, THROTTLE_LEVER, TOGGLE, PUSH_BUTTON, KEY_SWITCH, JOYSTICK, WARNING_LAMPS, START_CARD, SCREEN,
@@ -136,6 +141,7 @@ export const RECIPES: Record<string, Recipe> = {
   landingCraft: loadRecipe(landingCraft),
   alaskan38: loadRecipe(alaskan38),
   design: loadRecipe(designed.recipe),
+  ...Object.fromEntries(Object.entries(FLEET_BOATS).map(([id, b]) => [id, loadRecipe(b.recipe)])),
 };
 
 /**

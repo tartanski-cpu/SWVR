@@ -1,4 +1,5 @@
 import { BUSES } from '../audio/mixer';
+import { FLEET } from '../boats/fleet';
 import { CONFIG } from '../config';
 import { PORTS } from '../world/archipelago';
 import { REGIONS } from '../world/regions';
@@ -687,6 +688,11 @@ export function mainMenu(h: MenuHost): MainMenu {
             choice('Landing craft', 'landingCraft', () => h.homeBoat(), (v) => h.setHomeBoat(v)),
             choice('Alaskan 38', 'alaskan38', () => h.homeBoat(), (v) => h.setHomeBoat(v)),
           ],
+        },
+        {
+          // The fleet (boats/fleet.ts): the game's own boats, designed in the Shipyard.
+          label: 'Start in fleet',
+          buttons: FLEET.map((f) => choice(f.name, f.id, () => h.homeBoat(), (v) => h.setHomeBoat(v))),
         },
         {
           label: 'Hull',

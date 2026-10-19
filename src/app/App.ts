@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { FLEET, FLEET_IDS } from '../boats/fleet';
 import { CONFIG } from '../config';
 import { IdFactory, ENVIRONMENT_ID, type EntityId } from '../core/ids';
 import { IntentQueue } from '../core/intents';
@@ -208,7 +209,7 @@ function browserStorage(): Storage | null {
 }
 
 /** The boats you can start in (a home boat needs a wheelhouse for now). */
-const START_BOATS = ['workboat', 'landingCraft', 'alaskan38'];
+const START_BOATS = ['workboat', 'landingCraft', 'alaskan38', ...FLEET_IDS];
 
 /** The Shipyard code of the design the game started in, if it did. */
 let startDesignCode: string | null = null;
@@ -2450,6 +2451,8 @@ export class App {
         if (defId === 'workboat') return 'The workboat';
         if (defId === 'landingCraft') return 'The landing craft';
         if (defId === 'alaskan38') return 'The Alaskan 38';
+        const fleet = FLEET.find((f) => f.id === defId);
+        if (fleet) return `The ${fleet.name.toLowerCase()}`;
         if (defId !== 'design') return defId;
         const token = new URLSearchParams(location.search).get('design') ?? '';
         const fav = this.shipyardCodes.favourites().find((f) => sameDesign(f.code, token));

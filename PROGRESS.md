@@ -5298,6 +5298,39 @@ Owner, Oct 2026: before the cockpit roof, clean up the Shipyard's buttons. The o
 - **Checked:** headless Chromium, the Wheelhouse step with a saloon and a deckhouse, then with the windows raked out and the deckhouse "As the wheelhouse"; the owner's configuration (workboat type, three facets, saloon roof lower, a sand roof top) from the same angle as their screenshot: the step is clean. **Not checked:** the Quest (a desktop page).
 - **Next:** the other steps the same way, once the owner has tried this one.
 
+### The fleet, step 1: the game's own boats, designed in the Shipyard (done, awaiting owner test)
+
+Owner, Oct 2026: build a selection of boats with the Shipyard, one of each hull type and a basic beginner boat, use them in the main game and for testing from now on ("eat our own dog food"), spawnable from the debug menu. The old workboat, landing craft and Alaskan are to be hidden later, then deleted (owner's choice). New careers will start afresh in the beginner boat; old saves won't carry over (owner's choice).
+
+- **The boats** (`src/boats/fleet/*.json`, each a Shipyard design file: open it in the Shipyard's Projects; `src/boats/fleet.ts` lists them). Vessel type ids (kept in saves and multiplayer, never rename): `lander`, `fishingBoat`, `pilotBoat`, `smallTug`, `starterBoat`.
+
+| Boat | Hull type, size | Power | Speed | GM | Price | Kit |
+|---|---|---|---|---|---|---|
+| Fast landing craft | landing craft, 9 m | 400 kW V8 | 29.7 kn | 0.65 m | £149k | searchlight, strake and fenders, life ring, advanced controls |
+| Fishing boat | gillnetter, 9.8 m | 280 kW V8 | 10.2 kn | 1.80 m | £139k | rod rack, searchlight, strake and fenders, life ring, advanced controls |
+| Pilot boat | pilot boat, 12.6 m | twin 400 kW V8 | 37.8 kn | 0.98 m | £265k | searchlight and fire monitor on the roof, chart table, strake, life ring, pilot yellow |
+| Small tug | tug, 13 m | 450 kW tug diesel in a Kort nozzle | 8.7 kn | 1.53 m | £317k | tow winch, stern roller, fire monitor, searchlight, tyres, black |
+| Beginner boat | gillnetter, 9.8 m | 150 kW straight six | 8.3 kn | 1.85 m | £108k | fenders, life ring, basic controls, workboat orange |
+
+- **Left off on purpose:**
+  - the fishing boat's trawl A-frame (her house is right aft: no aft deck; she works pots over her open foredeck);
+  - the pilot boat's side door (her house is full width: no side deck);
+  - the landing craft's crane (it brought her GM down to 0.52 m; she loads over her ramp).
+- **How:** the Shipyard's builder takes a vessel type id (`buildDesign(d, code, id)`: hull `hull.<id>`, recipe `vessel.<id>`). The boats library builds each fleet boat when the game loads (boats/library.ts `FLEET_BOATS`, in `HULLS` and `RECIPES`), and they are in `VESSEL_IDS`.
+- **In the game:**
+  - Debug > Boat > **Start in fleet** (`?boat=<id>`);
+  - the touch controls' boat switch cycles through them too (`START_BOATS`);
+  - the boat's name in the menus comes from her design file.
+- **Checked:**
+  - each builds with no warnings and reaches her Shipyard speed in the game;
+  - in the browser, each loads with no errors and draws fewer objects than the old workboat from the quay (81-106 draw calls, against 116).
+- **Tests:** `tests/fleet.test.ts` (3); the boat-wide tests over `VESSEL_IDS` now cover the fleet too.
+- **Next steps (each tried by the owner first):**
+  - a new career starts in the beginner boat, with the upgrades working on her;
+  - the tests and golden runs move onto the fleet;
+  - the old workboat, landing craft and Alaskan are hidden, then deleted.
+- **Then, owner's request:** an autopilot, dock and auto-start panel as a module, a Shipyard choice with the instruments (next).
+
 ### Shipyard: the workboat hull type retired (done, awaiting owner test)
 
 Owner, Oct 2026: "the workboat is not really a class of hull... it's a role." The Shipyard's types are now the landing craft (a fast planing vee with a flat square platform on top), the gillnetter (the fishing boat, built to carry load), the pilot boat (deep-V planing; also the rescue or patrol boat) and the small tug. The beginner boat is to be based on the fishing boat (fleet plan).
