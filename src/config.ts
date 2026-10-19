@@ -3308,6 +3308,24 @@ export const CONFIG = {
     preview: { width: 192, height: 108, rate: 12, far: 400, size: 0.13, above: 0.1 },
   },
 
+  /**
+   * Camera views at the helm with a game controller (player/helmCamera.ts; owner, Oct 2026):
+   * Y cycles inside, orbit and flyby while you drive from the helm.
+   *   orbit   `lengths` of her length off (at least `minDist` m), the right stick turning it
+   *           round and up or down at `rate` rad/s between `pitchMin` and `pitchMax`, looking
+   *           at her `up` lengths above her origin, eased over `tau` s
+   *   flyby   the spot `ahead` m along her course, `offset` m to the side (alternating),
+   *           `height` m up; a new spot once she's `behind` m past it or `maxDist` m off;
+   *           the look eases over `lookTau` s
+   *   zoom    RT / LT held: the orbit distance scaled between `zoomMin` and `zoomMax`, the
+   *           flyby lens down to `fovMin` of its field of view, at `zoomRate` (per s, as a log)
+   */
+  helmCamera: {
+    orbit: { lengths: 2.2, minDist: 14, rate: 2.0, pitchMin: 0.06, pitchMax: 1.2, up: 0.12, tau: 0.25, zoomMin: 0.4, zoomMax: 3 },
+    flyby: { ahead: 70, offset: 28, height: 7, behind: 25, maxDist: 170, lookTau: 0.12, fovMin: 0.3 },
+    zoomRate: 0.9,
+  },
+
   laser: { reach: 600, hitRate: 15, deskHand: [0.2, -0.25, -0.35] as [number, number, number] },
 
   comfort: {

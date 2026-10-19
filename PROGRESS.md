@@ -5040,6 +5040,14 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 
 - The owner: the fishing game works; the rod looked the wrong way round (thick end at the tip), and the line rings could go. `player/handGear.ts rodMesh`: the blank's cylinder had its radii swapped once turned along the rod (a cylinder's top goes to +z, the butt); now thick at the grip, tapering to the tip. The four tori are gone (24 fewer small parts per rod). **Checked:** typecheck, `npm test`; not by eye.
 
+### Camera views at the helm with a controller: orbit and flyby (owner)
+
+- **The owner:** with an Xbox controller, driving from the helm, a button cycles the view: inside, an external orbit camera (for docking) and a flyby camera; zoom on the controller; the flyby camera is static and the boat passes it. Nothing to do with the recording camera.
+- `player/helmCamera.ts` (`HelmCamera`, `CONFIG.helmCamera`): **Y** at the helm cycles inside → orbit → flyby (Y was unused at the helm; View stays the VHF's talk button). **Orbit:** a camera 2.2 lengths off her (14 m at least), astern at first, turned with her heading so it keeps its place as she turns; the right stick swings it round and up or down (0.06–1.2 rad), RT / LT held zoom it in and out (0.4–3× the distance); eased over 0.25 s; looking at a point 0.12 lengths above her origin. **Flyby:** a spot 70 m ahead along her course (her velocity, or her heading if she's stopped), 28 m to one side, 7 m up; the camera stays there and turns to watch her; once she's 25 m past it (or 170 m off) a new spot is put down ahead, the other side. RT / LT narrow and widen its lens (down to 0.3 of the field of view). The triggers aren't the mouse buttons while an outside view is on.
+- `app/App.ts applyHelmCamera`: after every view is posed, the camera is set to the view's world pose in its parent's frame (so the desktop controller's own pose is overridden for the frame) and its lens set; back inside (Y, leaving the helm, VR, the recording camera) the lens is restored. The helm prompt names Y.
+- **Tests:** `tests/helmCamera.test.ts` (the cycle; orbit astern and turning with her heading, the stick's swing, the zoom; flyby's spot ahead and to the side, static as she passes, re-placed the other side once she's by, the lens' zoom).
+- **Checked:** typecheck, `npm test`. Headless Chromium: the orbit and flyby views forced on (no controller in the headless browser) and rendered. **Not checked:** with a real controller in hand.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

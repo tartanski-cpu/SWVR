@@ -10,7 +10,8 @@ import { CONFIG } from '../config';
  *
  * At the helm (app/App.ts: "F: take the helm", or A): the left stick steers, RB / LB work the
  * throttle up and down, B puts it in neutral, the right stick looks round, A (or F) leaves.
- * View is the radio's talk button (hold), on the helm and off it.
+ * View is the radio's talk button (hold), on the helm and off it. At the helm, Y cycles the
+ * camera: inside, orbit, flyby (player/helmCamera.ts).
  */
 export interface PadState {
   connected: boolean;
