@@ -3946,8 +3946,10 @@ export const CONFIG = {
    * can hang if made just as the host's game opens).
    * `togetherLeadS`: the Shipyard waits this long after telling the others before going into
    * the game itself, so the message is out before its page closes.
+   * Hosting that fails at the broker (slow, down, or a room still held by a page that closed
+   * without saying) is tried again `hostTries` times in all, `hostRetryS` apart.
    */
-  net: { togetherRetryS: 2, togetherTries: 20, togetherConnectS: 8, togetherLeadS: 0.6 },
+  net: { togetherRetryS: 2, togetherTries: 20, togetherConnectS: 8, togetherLeadS: 0.6, hostTries: 4, hostRetryS: 3 },
 
   /**
    * Voice between the crew (net/voice.ts; owner request: up to four players). Everyone's

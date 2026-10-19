@@ -68,6 +68,11 @@ Everything a player sends is in the frame they stand in: on deck, that's the ves
 - **Off by default** (`userSettings.voiceChat`, Menu → Crew → Voice chat): off, no microphone, no calls answered or made, no radio.
 - **The handset:** `player/radioHandset.ts` (VR high on the left shoulder: grip, trigger; desktop V); others see it on your shoulder or in your hand.
 
+### Versions and the broker
+
+- **Same build on both sides.** The welcome carries the host's build stamp (`world.build.app`); a crew-mate on another build reloads once past the cache (`?fresh=1`), and if still different leaves ("the host reloads the page"). The site is rebuilt on every push and GitHub Pages serves a cached page for some minutes, so this used to bite on busy days: now each page checks `build.json` (written by `vite.config.ts` beside the pages, fetched past every cache) in a line of script at the top of the HTML, before the game loads, and reloads itself if it's behind (`src/build.ts freshUrl`). The hello carries the crew-mate's build too: the host is told when a crew-mate is newer (`HostSession.onOtherBuild`).
+- **Hosting that fails** at the broker (`PeerHostTransport.ready` rejects: slow, down, `unavailable-id` for a room a closed page still holds) is tried again `CONFIG.net.hostTries` times, `hostRetryS` apart; a "Try her together" host keeps its room (the others are waiting in it), a menu host takes a new code. Each failure is shown on the screen, not only in the Crew tab.
+
 ## Code
 
 | File | What |

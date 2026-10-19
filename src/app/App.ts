@@ -140,6 +140,7 @@ import { ClientSession } from '../net/clientSession';
 import { PeerClientTransport, PeerHostTransport, peerIdForRoom, randomRoomCode, type ClientTransport } from '../net/transport';
 import type Peer from 'peerjs';
 import { VoiceChat, type VoiceSpeaker } from '../net/voice';
+import { APP_BUILD } from '../build';
 import { RadioHandset } from '../player/radioHandset';
 import { vrFlySpeed, vrFlyStep } from '../player/vrFly';
 import { NET_RATE, type PlayerPose } from '../net/protocol';
@@ -254,9 +255,6 @@ const START_TOGETHER = /^\d{5}$/.test(START_PARAMS.get('together') ?? '') ? STAR
 /** Reloaded once already to catch up with the host's version (`?fresh=`): don't again. */
 const START_FRESH = START_PARAMS.has('fresh');
 
-declare const __BUILD__: string | undefined;
-/** This page's version: commit and build time (vite.config.ts); 'dev' when not built. */
-const APP_BUILD = typeof __BUILD__ === 'string' ? __BUILD__ : 'dev';
 
 /** The address without the start-up parameters that are only for this load (join and the fit that came with it, host, together, the cache-buster). */
 function forgetStartParams(): void {
@@ -2469,8 +2467,8 @@ export class App {
     this.client!.sendPose(pose);
   }
 
-  /** Host a game: register a room code with the PeerJS server, then accept crew. */
-  private hostGame(code = randomRoomCode()): void {
+  /** Host a game: register a room code with the PeerJS server, then accept crew. `tries`: again on a failure (below). */
+  private hostGame(code = randomRoomCode(), tries = CONFIG.net.hostTries): void {
     if (this.host || this.client || this.hostStarting) return;
     const transport = new PeerHostTransport(code);
     this.hostStarting = true;
@@ -2484,11 +2482,27 @@ export class App {
         this.hostPeerId = peerIdForRoom(code);
         this.netMessage = '';
         this.overlay.notify(`Hosting: game code ${code}`, 4);
+        // A crew-mate on a newer page than ours: they can't stay, and only we can put it right.
+        this.host.onOtherBuild = (name, theirs) => {
+          this.netMessage = `${name}'s page is another build (${theirs}; yours ${APP_BUILD}): reload this page (Ctrl+F5) and host again`;
+          this.overlay.notify(this.netMessage, 10);
+        };
       },
       (e: { type?: string }) => {
         this.hostStarting = false;
         transport.close();
-        this.netMessage = `Couldn't host (${e?.type ?? 'network'})`;
+        const why = e?.type ?? 'network';
+        // The broker can be slow, down for a moment, or still hold a room we had before (a page
+        // closed without saying): try again a few times. "Try her together" needs its room (the
+        // others are waiting in it); a menu host can take any code.
+        if (tries > 1) {
+          this.netMessage = `Couldn't host (${why}): trying again...`;
+          this.overlay.notify(this.netMessage, 4);
+          setTimeout(() => this.hostGame(code === START_HOST || why === 'unavailable-id' ? code : randomRoomCode(), tries - 1), CONFIG.net.hostRetryS * 1000);
+          return;
+        }
+        this.netMessage = `Couldn't host (${why}). Check the connection, then Menu > Crew > Host a game`;
+        this.overlay.notify(this.netMessage, 8);
       },
     );
   }
@@ -2565,7 +2579,7 @@ export class App {
 
   /** Become a client over `transport` (PeerJS, or the in-memory loopback in tests). */
   private connectClient(transport: ClientTransport): void {
-    const client = new ClientSession(transport, userSettings.playerName);
+    const client = new ClientSession(transport, userSettings.playerName, undefined, APP_BUILD);
     this.client = client;
     this.netMessage = '';
     client.onChart = (op) => applyChartOp(this.marks, op);

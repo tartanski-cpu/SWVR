@@ -58,6 +58,29 @@ describe('crew voice: the host passes on network ids and radios', () => {
   });
 });
 
+describe('the host hears which build a crew-mate has', () => {
+  it('another build than the host\'s is reported; the same, or a dev page, is not', async () => {
+    const seen: string[] = [];
+    const make = async (ours: string, theirs: string | undefined) => {
+      const ids = new IdFactory();
+      const { world } = createWorld(ids);
+      world.build = { ...(world.build ?? {}), app: ours } as typeof world.build;
+      const t = new LoopbackHost();
+      const host = new HostSession(world, ids, t, '1');
+      host.onOtherBuild = (name, b) => seen.push(`${name}:${b}`);
+      new ClientSession(t.client(), 'Crew', undefined, theirs);
+      await new Promise((r) => setTimeout(r, 0));
+      host.close();
+    };
+    await make('NEXT aaa', 'NEXT bbb');
+    expect(seen).toEqual(['Crew:NEXT bbb']);
+    await make('NEXT aaa', 'NEXT aaa');
+    await make('dev', 'NEXT bbb');
+    await make('NEXT aaa', undefined);
+    expect(seen).toHaveLength(1);
+  });
+});
+
 describe('VR fly', () => {
   it('one trigger fast, both very fast', () => {
     const f = CONFIG.vrFly;
