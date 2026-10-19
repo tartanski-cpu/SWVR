@@ -50,8 +50,9 @@ describe('deck room', () => {
     // Already enough: left as she is.
     expect(sizeForDeck(lc, { crates: 10, pots: 0 }).patch).toEqual({ length: lc.length, beam: lc.beam });
     // More than she can ever take: as big as she goes, and says so.
-    const big = sizeForDeck(lc, { crates: 200, pots: 0 });
+    const big = sizeForDeck(lc, { crates: 2000, pots: 0 });
     expect(big.met).toBe(false);
     expect(big.patch.length).toBe(15);
+    expect(big.room.crates).toBeGreaterThan(200); // (the landing craft grows to 22.5 m)
   });
 });
