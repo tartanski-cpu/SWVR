@@ -5298,7 +5298,40 @@ Owner, Oct 2026: before the cockpit roof, clean up the Shipyard's buttons. The o
 - **Checked:** headless Chromium, the Wheelhouse step with a saloon and a deckhouse, then with the windows raked out and the deckhouse "As the wheelhouse"; the owner's configuration (workboat type, three facets, saloon roof lower, a sand roof top) from the same angle as their screenshot: the step is clean. **Not checked:** the Quest (a desktop page).
 - **Next:** the other steps the same way, once the owner has tried this one.
 
-### Sea trials: Shipyard boats heel hard in turns and the fast ones capsize (owner report; measured, fix to agree)
+### Hull types ride as their kind: semi-displacement workboat, deep-V pilot boat; boats lean into turns, none capsizes (done, awaiting owner test)
+
+Owner, Oct 2026, answering the heel report below: the workboat should be a semi-displacement hull, partly planing, as is typical for workboats; the pilot boat a deep-V planing hull, made to go fast in waves; both designed for seakeeping, while the flatter, faster landing craft type isn't the best sea boat.
+
+- **Regimes** (`DesignHull.regime` in build.ts, replacing the `planing` flag; `CONFIG.shipyard.regimes`):
+  - **planing** (landing craft, gillnetter, pilot boat): her weight on her bottom's lift from Fn 0.3 to 0.7;
+  - **semi** (workboat): half her weight on lift (`lift` 0.5), coming in later and more gently, Fn 0.3 to 0.9;
+  - **displacement** (tug): none.
+- **Deadrise measured from her lines** (build.ts: keel to chine at each section): aft at `deadriseAt` (a quarter of her length from the transom, where planing pressure acts) and amidships. The landing craft type 8°/9°, the workboat 18°/23°, the pilot boat 22°/25°, the tug ~14°.
+- **Leaning into a turn** (vesselPhysics.ts, `CONFIG.planingTurn` `{ maxLeanDeg 20, alpha 0.6, stiffness 2 }`), faded in with her Froude number:
+  - her side force's heeling moment is reckoned with it acting 60 % of the way from her chines up to her CG (her bottom's lift carries it, not her keel), which takes most of the outward heel's lever away;
+  - her bottom's lift gives her a roll stiffness about the *apparent* vertical (gravity plus her turn's centripetal acceleration U r), so she leans in as a cyclist does, toward `bank` × that angle, at most 20°. It is a spring (2 × W GM sin(lean − heel)), so it also rights her if she's thrown past it;
+  - `planing.lean` = `CONFIG.shipyard.leanPerSine` (1.5) × sin(deadrise aft) × lift: the landing craft type 0.21, the workboat 0.23, the pilot boat 0.56.
+  - **The built-in landing craft and the Alaskan keep their old banking force** (`planing.bank`, owner: "I really like the way the fast landing craft are today"). Checked: flat out then hard over, their track and attitude are identical to the last digit with the old code.
+- **Slamming:** the vertical damping's quadratic term scaled by tan 9° / tan(deadrise amidships), 0.35 to 1.6 (`slamRefDeg`, `slamMin`, `slamMax`): a flat bottom slams, a deep vee enters gently.
+- **Roll damping going ahead** (`damping.rollLift`, `CONFIG.shipyard.rollLift` 0.3; Shipyard boats only): the lift part of roll damping, growing with speed. It stops a fast hull rolling to and fro in a hard turn.
+- **Measured, flat out then the helm over, calm water** (heel + into the turn):
+
+| Boat | Before | Now |
+|---|---|---|
+| Pilot boat, 40 % helm at 26 kn | capsized | 10° in |
+| Pilot boat, hard over | capsized | snaps to ~27° in, settles 4° in at 13 kn |
+| Workboat type, hard over | swings 15-40° out, settles ~20° out | 6° out |
+| Workboat type, four outboards | capsized | ~15° in at first, settles 4° in |
+| Landing craft type, hard over | 18° out, settles 13° out | 5° out |
+| Built-in landing craft, Alaskan | | unchanged (identical) |
+| Tug, gillnetter | 1-4° out | unchanged |
+
+- **In waves** (default sea scaled to Hs 3.6 m, head on, about 20 kn): vertical acceleration rms 0.27 g for the landing craft type, 0.18 g for the workboat type, 0.09 g for the pilot boat. The deep vee rides about three times softer.
+- **Also:** the workboat type now shows planing spray and a planing wake at speed (they read `planing`).
+- **Unchanged:** the built-in workboat, skiff, landing craft and Alaskan (golden runs equal); the tug.
+- **Tests:** `tests/shipyard/hullRegimes.test.ts` (5).
+
+### Sea trials: Shipyard boats heel hard in turns and the fast ones capsize (owner report; fixed above)
 
 Owner: in sea trials the boats lean out and nearly fall over in sharp turns. Measured, flat out then hard over, calm water:
 
@@ -5316,7 +5349,7 @@ Owner: in sea trials the boats lean out and nearly fall over in sharp turns. Mea
   - **Her GZ curve** (`gzCurve`) only reaches 0.25 m at about 20° (0.21 m at 15°, 0.32 m at 30°; the built-in workboat has 0.33 m at 15°). Her CG is high: 1.09 m above the waterline, against 0.45 m on the built-in workboat. So the sim is consistent with her stability; she is tender at speed.
   - **The fast boats** pull 0.4-0.6 g turning at 30-38 kn, more than their whole GZ curve resists.
   - **Missing:** only hulls marked planing bank into a turn, and weakly. A workboat type driven at 30 kn by outboards gets none.
-- **To agree with the owner before changing the physics** (it changes how every fast boat handles): see the report in the chat.
+- **Fixed** in "Hull types ride as their kind" above.
 
 ### Parametric boats P2b, second stop: the saloon's own lower roof, and the eyebrow (done, awaiting owner test)
 
@@ -5407,7 +5440,7 @@ Owner, Oct 2026: "When the wheelhouse is wide ... the instruments are very widel
 Owner, Oct 2026: on a wide wheelhouse "the instruments are very widely spaced apart, especially ... the simple instrumentation option, and you can't see them all when you're steering"; then, preferring it to gathering the instruments on a full-width console: "cut the console short ... better visibility around the side of it, especially if you have the long windows", and "an option to offset the whole ... console, to the port or the starboard or the central side ... we're going to need that later when we do more modular".
 
 - **Why:** a Shipyard console was the landing craft's (1.98 m) stretched wall to wall, everything on it spread in proportion: on a 4.4 m-wide workboat cabin the four screens stood ~1.5 m either side, the basic controls' two lopsided.
-- **The console** (`CONFIG.shipyard.helm.maxConsole` 2.2 m): no longer than that; on a wider cabin there's floor and glass beside it. New choice on the Wheelhouse step, **Console: Middle / Port / Starboard** (`design.consoleSide`, code version 27): off the middle, it stands against that side wall. A faceted front's console wraps round its middle pane, so it stays in the middle (said); a cabin no wider than the console has it wall to wall as before.
+- **The console** (`CONFIG.shipyard.helm.maxConsole` 2.2 m): no longer than that; on a wider cabin there's floor and glass beside it. New choice on the Wheelhouse step, **Console: Middle / Port / Starboard** (`design.consoleSide`, code version 27): off the middle, it stands against that side wall. With a faceted front (owner: "it will always have to go to the center, but I still want you to cut the sides off it"): cut short just the same, its wings wrapping round the angled panes, always in the middle; the Console choice is offered only with a flat front (hidden while the front is faceted; a side chosen before is set aside quietly). A cabin no wider than the console has it wall to wall as before.
 - **With it:** the console module and everything on it, the helm stand (where you're put at the wheel), the NAV screen and the overhead switch panel over the helm, all at the console's middle; the VHF, chartplotter and FM set hung out to their sides but no further than `hungReach` (1.0 m) from it. Its screens stand in one row centred over the wheel (speed, heading, rpm, engine monitor; the basic controls' two side by side), `screenGap` 0.02 m apart, never spread out.
 - **Walking and drawing** (`wheelhouse.consoleSpan`, new): the console is solid and drawn only across its span (hullMesh `buildConsole`, layout `houseWalk`); beside it the floor is walked up to the front wall. Boats without a span (every built-in boat, narrow Shipyard cabins) are unchanged.
 - **Also fixed:** the two newest design choices (the Kort nozzle, the rod rack) were missing from the list of fields (`ALL_FIELDS`) that design links, files and the variant comparison read; added with the console's.
@@ -5424,6 +5457,14 @@ Owner, Oct 2026: "it's going to be useful to see the actual position of the rudd
 - **Tests:** `tests/nozzle.test.ts` (+2): astern with the nozzle she turns more than 4 times as far as with an open propeller, over a third as far as ahead and less than ahead; at the same astern thrust a rudder behind a nozzle bites over 1.5 times as hard. Full suite passes.
 - **Checked:** the screen rendered (headless Chromium, the workboat with the wheel over: needle and ring together at 21 deg STBD). **Not checked:** the Quest; the lag with an Xbox controller (the owner's); the tug astern by hand.
 - **Test steps:** any boat, desktop or VR: put the wheel over and watch the ENGINE screen: the ring jumps to the order, the needle follows as the rudder swings. With an Xbox controller, the same. The Shipyard's small tug with a Kort nozzle: back her up and put the wheel over: she swings now.
+
+### Shipyard: the hull and the wheelhouse see-through or solid, on any step (done, awaiting owner test)
+
+Owner, Oct 2026: "an option to toggle on and off the transparency that appears in the hull and the engines ... the hull and the wheelhouse ... respectively".
+
+- **What:** two buttons with the view buttons, beside Water on/off: **Hull: solid / see-through** and **Wheelhouse: solid / see-through** (page.ts `seeThrough`, `focusStep`). Each step still opens with its own view (the hull see-through at Wheelhouse, both at Engine, both solid elsewhere); a click flips that part until the step changes; the buttons say which it is (lit when see-through). The wheelhouse's is greyed at the Hull step (it isn't drawn there). Her fenders, strake or tyres show whenever the hull is solid.
+- **Checked:** headless Chromium: the Engine step with the hull turned solid (the wheelhouse still see-through, the engine seen down through it); Deck gear with the wheelhouse turned see-through (the console inside it). Typecheck and the full suite. **Not checked:** a Design-together session (each person's view is their own).
+- **Test steps (desktop):** Shipyard, Engine step: press Hull: see-through, it goes solid; Wheelhouse too. Deck gear: press Wheelhouse: solid, see the console through it. Change step: each starts with its own view again.
 
 ## Regions (owner brief, in progress)
 

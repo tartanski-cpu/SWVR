@@ -70,8 +70,18 @@ export interface Hollow {
   z1: number;
 }
 
-/** A planing hull's banking in turns (CONFIG.vessels.landingCraft.planing). */
-export type PlaningConfig = (typeof CONFIG.vessels.landingCraft)['planing'];
+/**
+ * A planing hull's behaviour in turns (vesselPhysics.ts), faded in from Fn `fnStart` to
+ * `fnFull`. Two models: `bank`, the built-in landing craft's and Alaskan's banking force
+ * (CONFIG.vessels.landingCraft.planing; owner: keep how she handles); `lean`, the Shipyard's
+ * boats' lean into the turn (CONFIG.planingTurn, CONFIG.shipyard).
+ */
+export interface PlaningConfig {
+  fnStart: number;
+  fnFull: number;
+  bank?: number;
+  lean?: number;
+}
 
 /** A bow ramp across a square bow (the landing craft's: CONFIG.vessels.landingCraft.layout.bowRamp). */
 export type BowRampLayout = (typeof CONFIG.vessels.landingCraft.layout)['bowRamp'];
@@ -205,7 +215,8 @@ export interface VesselConfig {
   cg: Vec3;
   gyradius: Workboat['gyradius'];
   addedMass: Workboat['addedMass'];
-  damping: Workboat['damping'];
+  /** `rollLift`: roll damping that grows with speed (vesselPhysics.ts; unset: none). */
+  damping: Workboat['damping'] & { rollLift?: number };
   resistance: Workboat['resistance'];
   layout: LayoutConfig;
   /** `edge`: how far inside her sheer cargo keeps (m; unset: the bulwark's, cargo/deck.ts). */

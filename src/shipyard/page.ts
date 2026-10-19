@@ -199,6 +199,21 @@ const waterBtn = document.createElement('button');
 waterBtn.textContent = 'Water on/off';
 waterBtn.onclick = () => (water.visible = !water.visible);
 $('views').appendChild(waterBtn);
+// The hull and the wheelhouse see-through or solid (owner, Oct 2026: an option to turn each
+// see-through, whatever the step). Each step opens with its own view (focusStep); a click
+// flips that part until the step changes.
+const seeThrough: { hull: boolean | null; house: boolean | null; step: string } = { hull: null, house: null, step: '' };
+const seeBtns = (['hull', 'house'] as const).map((part) => {
+  const b = document.createElement('button');
+  b.className = 'tool';
+  b.title = `Show her ${part === 'hull' ? 'hull' : 'wheelhouse'} see-through or solid (each step starts with its own)`;
+  b.onclick = () => {
+    seeThrough[part] = !b.classList.contains('on');
+    focusStep();
+  };
+  $('views').appendChild(b);
+  return b;
+});
 
 /** Draw her: the game's hull mesh and her modules, as the game builds them. */
 function drawBoat(): void {
@@ -462,18 +477,27 @@ function focusStep(): void {
   $('briefPaper').hidden = step !== 'brief';
   if (!shown) return;
   const { hull, house, modules, guard, skiff, machinery } = shown;
-  // Her protection goes with the hull: shown with it solid, not over a ghost of it.
-  guard.visible = step !== 'wheelhouse' && step !== 'engine';
   if (machinery) machinery.visible = step === 'engine';
   // The live trials: at the Trials step only (leaving it stops one).
   $('livePanel').hidden = step !== 'handover';
   if ($('livePanel').hidden && live) stopLive();
   // Her propellers are under water: see them through it.
   (water.material as THREE.MeshLambertMaterial).opacity = step === 'engine' ? 0.18 : 0.55;
-  const hullHow = step === 'wheelhouse' || step === 'engine' ? 'ghost' : 'solid';
-  const houseHow = step === 'hull' ? 'off' : step === 'engine' ? 'ghost' : 'solid';
-  look3(hull, hullHow);
-  look3(house, houseHow);
+  // Each step's own view, unless a see-through button has flipped it since the step opened.
+  if (seeThrough.step !== step) Object.assign(seeThrough, { hull: null, house: null, step });
+  const hullGhost = seeThrough.hull ?? (step === 'wheelhouse' || step === 'engine');
+  const houseGhost = seeThrough.house ?? step === 'engine';
+  look3(hull, hullGhost ? 'ghost' : 'solid');
+  // Her protection goes with the hull: shown with it solid, not over a ghost of it.
+  guard.visible = !hullGhost;
+  look3(house, step === 'hull' ? 'off' : houseGhost ? 'ghost' : 'solid');
+  const [hullBtn, houseBtn] = seeBtns;
+  hullBtn.textContent = `Hull: ${hullGhost ? 'see-through' : 'solid'}`;
+  hullBtn.classList.toggle('on', hullGhost);
+  houseBtn.textContent = `Wheelhouse: ${houseGhost ? 'see-through' : 'solid'}`;
+  houseBtn.classList.toggle('on', houseGhost);
+  // (Not drawn at the Hull step: nothing to see through.)
+  houseBtn.disabled = step === 'hull' || !house;
   if (skiff) skiff.visible = !['hull', 'wheelhouse', 'engine'].includes(step);
   // The modules: none at Hull or Engine; at Wheelhouse only those inside the house.
   // (Inside its walls: a little narrower than its outside, so fenders on her sides stay out.)
@@ -608,7 +632,7 @@ const dhKinds: [HTMLElement, (d: ShipDesign) => boolean][] = [];
 /** When a row shown only where it applies (data-when / data-unless) is: a field set, or the deckhouse with side decks. */
 const rowApplies = (cond: string): boolean => (cond === 'dhSideDecks' ? !!design.dhLength && !design.dhNarrow && design.dhWidth > 0 : !!design[cond as keyof ShipDesign]);
 /** A few set options in a row, as buttons (for choices with only a handful of settings). */
-function options(key: keyof ShipDesign, label: string, names: string[]): void {
+function options(key: keyof ShipDesign, label: string, names: string[]): HTMLElement {
   labels[key] ??= label;
   optionNames[key] = names;
   const row = document.createElement('div');
@@ -627,6 +651,7 @@ function options(key: keyof ShipDesign, label: string, names: string[]): void {
     box.appendChild(c);
   });
   controls.appendChild(row);
+  return row;
 }
 /** The choices whose gear can also be placed by hand (pinGear.ts), and where that's kept. */
 const PLACED_BY: Partial<Record<keyof ShipDesign, PlaceKey>> = { deckCrane: 'craneAt', searchlight: 'lampAt', fireMonitor: 'monitorAt', towWinch: 'winchAt' };
@@ -725,7 +750,8 @@ section('2. Wheelhouse');
   group('Inside');
   // The helm console (owner): no longer than CONFIG.shipyard.helm.maxConsole, so on a wide
   // wheelhouse there's room beside it, and against the port or starboard wall if chosen.
-  options('consoleSide', 'Console', [...CONSOLE_SIDES]);
+  // (Only with a flat front: a faceted front's console wraps round its middle pane, so it stays there.)
+  options('consoleSide', 'Console', [...CONSOLE_SIDES]).dataset.unless = 'facets';
   options('chartTable', 'Chart table', ['None', 'Port wall, aft']);
 
   // The deckhouse (owner: pilot and rescue boats): the wheelhouse stands on it.

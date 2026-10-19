@@ -55,6 +55,7 @@ import type { VesselState } from '../vesselState';
 import { calmWaterResistance } from './propulsion';
 import { submergedSection, type SubmergedSection } from './sectionClip';
 import { physicsStations } from '../hullForm';
+import { uprightHydrostatics } from '../hydrostatics';
 import { contactAt, guardContactAt, hullContactPoints, type ContactResult, type GuardMaterial } from './contacts';
 import { blockNear } from '../../world/geography';
 import { stepMooring } from './mooring';
@@ -100,6 +101,20 @@ const fBow = { x: 0, y: 0, z: 0 };
 const fStern = { x: 0, y: 0, z: 0 };
 /** Centre of gravity (vessel axes) and principal inertia (x pitch, y yaw, z roll) this tick. */
 const cgL = new THREE.Vector3();
+/** A station's chine height (vessel axes): its widest point in the lower half of its section. */
+const chines = new WeakMap<object, number>();
+function chineY(st: { polygon: readonly (readonly number[])[] }): number {
+  let y = chines.get(st);
+  if (y === undefined) {
+    const lo = Math.min(...st.polygon.map((p) => p[1]));
+    const mid = (lo + Math.max(...st.polygon.map((p) => p[1]))) / 2;
+    y = st.polygon.filter((p) => p[1] < mid).reduce((a, p) => (Math.abs(p[0]) > Math.abs(a[0]) ? p : a), [0, lo])[1];
+    chines.set(st, y);
+  }
+  return y;
+}
+/** Each hull's upright GM (m), worked out once (hydrostatics.ts). */
+const uprightGM = new WeakMap<VesselDef, number>();
 const inertia = new THREE.Vector3();
 
 /** Add a point mass m at offset d from the CG to the inertia (diagonal terms). */
@@ -228,6 +243,14 @@ export function stepVessel(
   }
 
   let submergedVolume = 0;
+  // Her hull's side force, and Σ of each station's times how far below her CG it acts (vessel
+  // axes): a planing hull's share of its heeling moment is taken off once her speed is known.
+  let sideToCG = 0;
+  let sideToChines = 0;
+  let sideForce = 0;
+  // Σ of each station's lateral area times its half-beam squared: the roll damping her hull
+  // gives as a lifting surface going ahead (below).
+  let rollLiftArea = 0;
   for (const st of physicsStations(def.hull)) {
     const b = Math.max(st.halfBeamChine, 0.05);
     // Water surface at port chine, centreline and starboard chine (at DWL height).
@@ -284,6 +307,7 @@ export function stepVessel(
     //   - crossflow drag, quadratic in v (dominant at low speed and large drift),
     //   - a small linear term for settling at rest.
     const aLat = sub.maxDepth * st.weight;
+    rollLiftArea += aLat * b * b;
     const uFwd = Math.abs(tmp.z);
     const fx = -(
       d.lateralLinear * aLat * tmp.x +
@@ -292,6 +316,9 @@ export function stepVessel(
     );
     const fz = -d.surgeLinear * sub.area * tmp.z;
     addForceAt(tmp.set(fx, 0, fz).applyQuaternion(q), pt);
+    sideToCG += fx * (cgL.y - sub.cy);
+    sideToChines += fx * (chineY(st) - sub.cy);
+    sideForce += fx;
   }
 
   const immersion = Math.min(1, submergedVolume / def.designVolume);
@@ -316,20 +343,35 @@ export function stepVessel(
   const R = calmWaterResistance(def, U) * immersion;
   addForceAt(tmp.set(0, 0, Math.sign(U) * R).applyQuaternion(q), resW);
 
-  // ── A planing hull banks into a turn (def.planing; the landing craft) ──
-  // Turning, she slides outward through the water. The half of her vee bottom on that side
-  // meets the water at a steeper angle and lifts more; the inner half lifts less. That pair
-  // of vertical forces across her chines rolls her into the turn, against the outward heel of
-  // her CG swinging round above the side force on her hull (all a displacement hull has).
-  // Modelled as  F = bank * 1/2 rho Awp U v  up on the side she's sliding toward and down on
-  // the other, at the chines over her LCG; faded in from Fn `fnStart` (off the hump) to
-  // `fnFull` (planing), and with how much of her is in the water.
+  // ── A planing hull in a turn (def.planing) ──
+  // Planing, her weight rides on her bottom's lift, from Fn `fnStart` (off the hump) to
+  // `fnFull` (planing). Two models, each faded in over that range:
+  //
+  // `bank` (the built-in landing craft and Alaskan; owner: keep how they handle). Turning,
+  // she slides outward through the water. The half of her vee bottom on that side meets the
+  // water at a steeper angle and lifts more; the inner half lifts less. That pair of vertical
+  // forces across her chines rolls her into the turn, against the outward heel of her CG
+  // swinging round above the side force on her hull (all a displacement hull has). Modelled
+  // as  F = bank * 1/2 rho Awp U v  up on the side she's sliding toward and down on the
+  // other, at the chines over her LCG; with how much of her is in the water.
+  //
+  // `lean` (the Shipyard's boats; CONFIG.planingTurn):
+  //   - her side force is carried by that lift on the two halves of her vee, not deep on her
+  //     keel as a displacement hull's is: its heeling moment is reckoned with it acting part
+  //     way (`alpha`) from her chines up to her CG, which takes much of the outward heel's
+  //     lever away;
+  //   - her bottom's lift gives her a roll stiffness about the apparent vertical (gravity
+  //     with her turn's centripetal acceleration), not the true one, so she leans into the
+  //     turn as a cyclist does: toward `lean` x that angle (a deeper vee leans more: the
+  //     Shipyard sets it from her deadrise), no more than `maxLeanDeg`. A spring toward that
+  //     lean, `stiffness` x W GM sin(lean - heel): it also rights her if she's thrown past it.
+  //   With how much of her is in the water.
   const pl = def.planing;
   if (pl && immersion > 0) {
     const fn = Math.abs(U) / Math.sqrt(g * def.resistance.lwl);
     const t = Math.min(1, Math.max(0, (fn - pl.fnStart) / (pl.fnFull - pl.fnStart)));
     const fade = t * t * (3 - 2 * t);
-    if (fade > 0) {
+    if (fade > 0 && pl.bank) {
       let b = 0;
       let awp = 0;
       for (const st of def.hull.stations) {
@@ -341,7 +383,21 @@ export function stepVessel(
       addForceAt(tmp.set(0, f, 0).applyQuaternion(q), toWorld(b, def.resistance.y, cgL.z, portP));
       addForceAt(tmp.set(0, -f, 0).applyQuaternion(q), toWorld(-b, def.resistance.y, cgL.z, portP));
     }
+    if (fade > 0 && pl.lean) {
+      // As a couple: + at 1 m above her CG, - at her CG (vessel x). Her heel from her
+      // orientation's x axis (+ to port, as the couple's moment).
+      let gm = uprightGM.get(def);
+      if (gm === undefined) uprightGM.set(def, (gm = Math.max(0.3, uprightHydrostatics(def).gmt)));
+      const pt = CONFIG.planingTurn;
+      const maxLean = (pt.maxLeanDeg * Math.PI) / 180;
+      const lean = maxLean * Math.tanh((pl.lean * Math.atan((U * w.y) / g)) / maxLean);
+      const heel = Math.asin(Math.max(-1, Math.min(1, 2 * (q.x * q.y + q.w * q.z))));
+      const up = fade * immersion * (pt.alpha * sideToCG + (1 - pt.alpha) * sideToChines - pt.stiffness * def.mass * g * gm * Math.sin(lean - heel));
+      addForceAt(tmp.set(up, 0, 0).applyQuaternion(q), toWorld(0, cgL.y + 1, cgL.z, portP));
+      addForceAt(tmp.set(-up, 0, 0).applyQuaternion(q), toWorld(0, cgL.y, cgL.z, portP));
+    }
   }
+
 
   for (const e of external) addForceAt(cf.copy(e.force), e.point);
 
@@ -431,6 +487,11 @@ export function stepVessel(
   tb.x -= d.pitch * immersion * wb.x;
   tb.y -= d.yaw * immersion * wb.y;
   tb.z -= d.roll * immersion * wb.z;
+  // Going ahead her hull damps roll far more: rolling, each side of her moves up or down
+  // through the water and, with her speed, meets it at an angle, like a foil (the lift part of
+  // roll damping, Ikeda): B = rollLift x 1/2 rho U Σ (lateral area x half-beam²). Without it a
+  // fast hull rolled to and fro in a hard turn, roll and yaw feeding each other.
+  if (d.rollLift) tb.z -= d.rollLift * 0.5 * CONFIG.ocean.density * Math.abs(U) * rollLiftArea * wb.z;
   const Ix = inertia.x * (1 + def.addedAngular[0] * immersion);
   const Iy = inertia.y * (1 + def.addedAngular[1] * immersion);
   const Iz = inertia.z * (1 + def.addedAngular[2] * immersion);
