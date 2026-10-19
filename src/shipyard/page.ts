@@ -36,7 +36,8 @@ import { HydroDebugView } from '../debug/hydroDebugView';
 import { briefPaper } from './briefPaper';
 import { buildVesselMesh, buildVesselMeshParts } from '../vessel/view/hullMesh';
 import { DESIGN_HULLS, ENGINES, LIVERIES, ROOF_PAINTS, type DesignedBoat } from './build';
-import { ALL_FIELDS, decodeDesign, DEFAULT_DESIGN, encodeDesign, GUARDS, OUTBOARDS, RAILS, SILLS, SINGLE_ONLY_ENGINES, SKIFFS, placeOf, placeValue, SCALES, type PlaceKey, type ShipDesign } from './design';
+import { docFileName, docFileText, docToken, designToken, readDesign, shortCode } from './designDoc';
+import { ALL_FIELDS, DEFAULT_DESIGN, GUARDS, OUTBOARDS, RAILS, SILLS, SINGLE_ONLY_ENGINES, SKIFFS, placeOf, placeValue, SCALES, type PlaceKey, type ShipDesign } from './design';
 import { hullPlan } from '../vessel/layout';
 import { UndoStack } from './undo';
 import { YardLink } from './yardLink';
@@ -58,7 +59,8 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 const stepsOf = (k: keyof ShipDesign) => ALL_FIELDS.find((f) => f.key === k)!.steps;
 
 // ── State ──
-const fromHash = decodeDesign(decodeURIComponent(location.hash.slice(1)));
+// Opened with her code or her document in the address (#CODE, #doc.…: designDoc.ts): her design.
+const fromHash = location.hash.length > 1 ? readDesign(decodeURIComponent(location.hash.slice(1))) : { error: '' };
 /** A shared session's id (?s=...), and this browser's last copy of it (designing together, session.ts). */
 let sessionId = sessionIdFrom(location.search);
 /**
@@ -835,10 +837,12 @@ function showCode(): void {
     el.textContent = 'matching...';
     return;
   }
-  const code = encodeDesign(design);
-  el.textContent = code;
-  ($('play') as HTMLAnchorElement).href = `./?design=${code}`;
-  history.replaceState(null, '', `#${code}`);
+  // Her short code to type into VR (none if no code can hold her: her link then); the address and the game take her token.
+  const code = shortCode(design);
+  const token = designToken(design);
+  el.textContent = code ?? 'No short code: share her by link or file';
+  ($('play') as HTMLAnchorElement).href = `./?design=${token}`;
+  history.replaceState(null, '', `#${token}`);
   markCurrent();
 }
 
@@ -913,14 +917,14 @@ function gameUrl(code: string, extra = ''): string {
 }
 $('play').onclick = (e) => {
   e.preventDefault();
-  if (matchedFor === matchKey(design)) location.assign(gameUrl(encodeDesign(design)));
+  if (matchedFor === matchKey(design)) location.assign(gameUrl(designToken(design)));
 };
 // "Try her together" (owner, Oct 2026): in a session, one press takes everyone into the game in
 // her, in one multiplayer game. The presser hosts it in a new room; the others join it
 // (session.ts sends them the room; the game waits for the host, App.ts).
 $('playTogether').onclick = () => {
   if (matchedFor !== matchKey(design) || !link?.side) return;
-  const code = encodeDesign(design);
+  const code = designToken(design);
   const room = randomRoomCode();
   link.side.go({ design: code, room });
   $('sessionState').textContent = 'Taking everyone into the game…';
@@ -931,16 +935,45 @@ function showTogether(): void {
   $('playTogether').hidden = !(link?.side && people.length > 1);
 }
 $('copy').onclick = () => {
-  if (matchedFor === matchKey(design)) void navigator.clipboard?.writeText(encodeDesign(design));
+  const code = shortCode(design);
+  if (matchedFor === matchKey(design) && code) void navigator.clipboard?.writeText(code);
 };
-/** Open a design by its code (typed in, or a favourite). False, with the reason shown, if it won't read. */
+// Sharing her as a document (parametric boats P1; designDoc.ts): a link to the Shipyard with
+// her in it (paste it in a message), or a file (send it, keep it, open it here again).
+/** Her name as shared: the brief's, else what she'd be called. */
+const shareName = () => (brief.name ?? '').trim() || defaultName();
+$('shareLink').onclick = () => {
+  if (matchedFor !== matchKey(design)) return;
+  const url = `${location.origin}${location.pathname}#${docToken(design, shareName())}`;
+  void navigator.clipboard?.writeText(url);
+  $('shareMsg').textContent = 'Link copied: paste it in a message. It opens the Shipyard on her.';
+};
+$('saveFile').onclick = () => {
+  if (matchedFor !== matchKey(design)) return;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([docFileText(design, shareName())], { type: 'application/json' }));
+  a.download = docFileName(shareName());
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  $('shareMsg').textContent = `Saved as ${a.download}.`;
+};
+$('openFile').onclick = () => ($('fileIn') as HTMLInputElement).click();
+($('fileIn') as HTMLInputElement).onchange = async () => {
+  const input = $('fileIn') as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = '';
+  if (file) openCode(await file.text(), $('shareMsg'));
+};
+/** Open a design by its code, link or file (typed in, pasted, a favourite). False, with the reason shown, if it won't read. */
 function openCode(code: string, msg: HTMLElement): boolean {
-  const read = decodeDesign(code);
+  const read = readDesign(code);
   if ('error' in read) {
     msg.textContent = read.error;
     return false;
   }
-  msg.textContent = '';
+  // What the reader had to do (a field from a newer Shipyard left out, a value brought onto its scale).
+  msg.textContent = read.warnings.length ? `Opened, but: ${read.warnings.join('; ')}.` : '';
+  if (read.name) setBrief({ name: read.name });
   share(read.design);
   design = read.design;
   matchedFor = matchKey(design);
@@ -992,7 +1025,7 @@ function saveFavourite(): void {
   const name = cleanName(nameBox.value, defaultName());
   const f = boat.figures;
   const summary = [`${f.lengthM.toFixed(1)} m`, `${f.massT.toFixed(1)} t`, trial ? `${trial.topSpeedKn.toFixed(1)} kn` : '', f.engine].filter(Boolean).join(' · ');
-  const fav: Favourite = { name, code: encodeDesign(design), savedAt: Date.now(), picture: picture(), summary };
+  const fav: Favourite = { name, code: designToken(design), savedAt: Date.now(), picture: picture(), summary };
   const list = addFavourite(readFavourites(storage()), fav);
   // If the browser's storage is full, keep the designs and drop the pictures.
   const ok = writeFavourites(storage(), list) || writeFavourites(storage(), list.map((x) => ({ ...x, picture: '' })));
@@ -1013,7 +1046,7 @@ function showFavourites(): void {
     card.className = 'fav';
     card.dataset.code = f.code;
     const when = new Date(f.savedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-    card.innerHTML = `${f.picture ? `<img alt="" src="${f.picture}">` : '<div class="nopic"></div>'}<div><b title="${esc(f.name)}">${esc(f.name)}</b><div class="meta">${esc(f.summary)}</div><div class="code">${esc(f.code)} · ${when}</div><div class="acts"><button data-act="open">Open</button><button data-act="play">Try in game</button><button data-act="del">Delete</button></div></div>`;
+    card.innerHTML = `${f.picture ? `<img alt="" src="${f.picture}">` : '<div class="nopic"></div>'}<div><b title="${esc(f.name)}">${esc(f.name)}</b><div class="meta">${esc(f.summary)}</div><div class="code">${esc(groupFavCode(f.code))} · ${when}</div><div class="acts"><button data-act="open">Open</button><button data-act="play">Try in game</button><button data-act="del">Delete</button></div></div>`;
     card.querySelector<HTMLElement>('[data-act=open]')!.onclick = () => openCode(f.code, $('favMsg'));
     card.querySelector<HTMLElement>('[data-act=play]')!.onclick = () => (location.href = `./?design=${encodeURIComponent(f.code)}`);
     card.querySelector<HTMLElement>('[data-act=del]')!.onclick = () => {
@@ -1025,9 +1058,11 @@ function showFavourites(): void {
   }
   markCurrent();
 }
+/** A favourite's code as shown (one saved from a link has no code). */
+const groupFavCode = (token: string) => (token.startsWith('doc.') ? 'from a link' : token);
 /** Mark the favourite that is the design on show now (if any). */
 function markCurrent(): void {
-  const now = matchedFor === matchKey(design) ? encodeDesign(design) : '';
+  const now = matchedFor === matchKey(design) ? designToken(design) : '';
   document.querySelectorAll<HTMLElement>('.fav').forEach((el) => el.classList.toggle('current', el.dataset.code === now));
 }
 $('load').addEventListener('keydown', (e) => e.key === 'Enter' && loadCode());
@@ -1791,6 +1826,8 @@ $('stepNext').onclick = () => goStep(stepAt + 1);
 
 // ── The brief (brief.ts): what she's for, her targets, checked all the way ──
 let brief: Brief = startDoc.brief ?? newBrief();
+// Opened from a link with her name in it (and no session of its own): her name.
+if (!sessionId && 'design' in fromHash && fromHash.name) brief = { ...brief, name: fromHash.name };
 function setBrief(patch: Partial<Brief>): void {
   side().setBrief({ ...brief, ...patch });
 }

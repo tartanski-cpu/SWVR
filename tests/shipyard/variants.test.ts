@@ -47,7 +47,9 @@ describe('variants', () => {
     expect(doc.variants.map((v) => v.id)).toEqual([MAIN]);
     expect(doc.variants[0].design.length).toBe(2);
     expect(cleanDoc({ v: 2, variants: [{ id: 'x', design: {} }] })).toBeNull(); // no main
-    expect(cleanDoc({ v: 2, variants: [{ id: MAIN, design: { length: 999, beam: -1 } }] })!.variants[0].design.length).toBe(DEFAULT_DESIGN.length);
+    // Off its scale: brought onto it (the design document's rule, designDoc.ts).
+    const off = cleanDoc({ v: 2, variants: [{ id: MAIN, design: { length: 999, beam: -1 } }] })!.variants[0].design;
+    expect([off.length, off.beam]).toEqual([15, 0]);
   });
 
   it('in a session: a fork, its edits and its pins reach everyone; edits to one variant leave the others', async () => {

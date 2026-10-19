@@ -130,8 +130,8 @@ import { countBoatParts } from '../debug/boatParts';
 import { assembleView } from '../modular/assemble';
 import { holdGroup } from '../modular/bus';
 import { HULLS, LIBRARY, RECIPES } from '../boats/library';
-import { decodeDesign, encodeDesign } from '../shipyard/design';
-import { cleanCode, groupCode, ShipyardCodes } from '../shipyard/takeHer';
+import { designToken, readDesign, sameDesign } from '../shipyard/designDoc';
+import { groupCode, ShipyardCodes } from '../shipyard/takeHer';
 import { DesktopPointer } from './desktopPointer';
 import { setupXR, xrSessionInfo } from './xrSession';
 import { applyPlayerIntent } from '../player/playerControl';
@@ -208,13 +208,13 @@ const START_BOATS = ['workboat', 'landingCraft', 'alaskan38'];
 let startDesignCode: string | null = null;
 
 function startBoat(): string | undefined {
-  // A Shipyard design (?design=CODE, shipyard/design.ts): the 'design' vessel type made her.
+  // A Shipyard design (?design=CODE, or her document: shipyard/designDoc.ts): the 'design' vessel type made her.
   const code = new URLSearchParams(location.search).get('design');
   if (code) {
-    const read = decodeDesign(code);
+    const read = readDesign(code);
     if ('design' in read) {
       useDesign(read.design);
-      startDesignCode = encodeDesign(read.design);
+      startDesignCode = designToken(read.design);
       return 'design';
     }
     console.warn(`Shipyard code ${code}: ${read.error}`);
@@ -2329,9 +2329,10 @@ export class App {
         if (defId === 'landingCraft') return 'The landing craft';
         if (defId === 'alaskan38') return 'The Alaskan 38';
         if (defId !== 'design') return defId;
-        const code = cleanCode(new URLSearchParams(location.search).get('design') ?? '');
-        const fav = this.shipyardCodes.favourites().find((f) => cleanCode(f.code) === code);
-        return fav ? `${fav.name} (Shipyard)` : `Shipyard boat ${groupCode(code)}`;
+        const token = new URLSearchParams(location.search).get('design') ?? '';
+        const fav = this.shipyardCodes.favourites().find((f) => sameDesign(f.code, token));
+        const read = readDesign(token);
+        return fav ? `${fav.name} (Shipyard)` : 'design' in read && read.name ? `${read.name} (Shipyard)` : `Shipyard boat ${groupCode(token)}`;
       },
       pasteCode: () => {
         const clip = navigator.clipboard;

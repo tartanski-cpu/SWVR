@@ -6,6 +6,7 @@
  * the main design, and one's values can be merged into another field by field.
  */
 import { ALL_FIELDS, DEFAULT_DESIGN, type ShipDesign } from './design';
+import { designFromFields } from './designDoc';
 import { cleanNotes, type Note } from './notes';
 import { cleanBrief, type Brief } from './brief';
 
@@ -35,19 +36,14 @@ export const MAIN = 'main';
 export const MAX_VARIANTS = 12;
 const MAX_NAME = 40;
 
-/** A design from anything shaped like one: every field a whole step in range, else the default's. */
+/**
+ * A design from anything shaped like one (a saved project's, a session's): read as a design
+ * document's fields (designDoc.ts), every field on its scale, one it lacks as boats were
+ * before that field existed. (Not nothing: that's the default design.)
+ */
 export function cleanDesign(d: unknown): ShipDesign {
-  const out = { ...DEFAULT_DESIGN };
-  if (!d || typeof d !== 'object') return out;
-  const o = d as Record<string, unknown>;
-  for (const k of Object.keys(out) as (keyof ShipDesign)[]) {
-    const v = o[k];
-    const steps = ALL_FIELDS.find((f) => f.key === k)?.steps ?? 64;
-    if (typeof v === 'number' && Number.isInteger(v) && v >= 0 && v < steps) out[k] = v;
-  }
-  // Saved before the searchlight was its own choice: it came with the advanced controls.
-  if (!('searchlight' in o)) out.searchlight = out.controls ? 1 : 0;
-  return out;
+  if (!d || typeof d !== 'object') return { ...DEFAULT_DESIGN };
+  return designFromFields(d).design;
 }
 
 export function cleanVariant(v: unknown): Variant | null {

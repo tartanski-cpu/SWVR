@@ -391,6 +391,14 @@
             <button id="playTogether" class="primary" hidden title="Everyone in this session goes into the game in her, together, in one multiplayer game you host">Try her together</button>
             <button id="copy">Copy code</button>
           </div>
+          <h2>Share her</h2>
+          <div class="tools">
+            <button id="shareLink" title="A link to the Shipyard with her in it, her name too: paste it in a message">Copy link</button>
+            <button id="saveFile" title="Her design as a small file: send it, keep it, open it here again">Save file</button>
+            <button id="openFile" title="Open a design file">Open file</button>
+            <input id="fileIn" type="file" accept=".json,application/json" hidden />
+          </div>
+          <div id="shareMsg"></div>
           <h2>Favourites</h2>
           <div class="tools">
             <input id="favName" placeholder="Name her" maxlength="40" />
@@ -398,9 +406,9 @@
           </div>
           <div id="favMsg"></div>
           <div id="favs"></div>
-          <h2>Open a code</h2>
+          <h2>Open a code or a link</h2>
           <div class="tools">
-            <input id="load" placeholder="XXXXX-XXXXX-XXXXX" maxlength="20" />
+            <input id="load" placeholder="A code or a link" />
             <button id="loadBtn">Open</button>
           </div>
           <div id="loadMsg"></div>
