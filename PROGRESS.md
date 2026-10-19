@@ -5220,6 +5220,47 @@ The plan's P2b ("a pilothouse and a saloon in a row ... the step between floors 
 - **Checked:** headless Chromium: the Shipyard's Wheelhouse step with a workboat's saloon two steps down; in the game, her from the quay, from the helm looking aft, and from the saloon looking forward up the two steps; a pilot boat with a long saloon one step down, outside and in. **Not checked:** the Quest; every combination with a deckhouse, facets or raked-out windows by eye (the tests cover their numbers).
 - **Test steps:** desktop: Shipyard, workboat, Wheelhouse step: Floor height +0.2 m, Saloon aft 2.8 m, Saloon floor Two steps down; Trials & handover, play her: walk in at the aft door onto the saloon floor, up the two steps to the helm. Try Three steps down with the floor at the deck: she tells you how far it could go. VR: the same, stepping up and down by walking; press the door buttons inside and out.
 
+### Parametric boats P2b, second stop: the saloon's own lower roof, and the eyebrow (done, awaiting owner test)
+
+Owner, Oct 2026: carry on with the build-out where the Shipyard chat stopped. The plan's P2b listed "the saloon's own, lower roof and the eyebrow's two colours" next.
+
+- **What:**
+  - **Saloon roof** on the Wheelhouse step (`design.saloonRoof`, `SALOON_ROOFS`, `SCALES.saloonRoof`, 0.2 m a step): as high as the wheelhouse's, or one to three steps lower. The step in the roofline is at the wheelhouse's aft end, where the treads down begin.
+  - **Roof top** on the Paint step (`design.roofTop`, `ROOF_TOPS` in build.ts): one colour, or light grey, white, sand or dark grey for a panel set in `CONFIG.shipyard.saloon.roofInset` (0.1 m) from the top's edges. The roof's own colour then shows as a band round it, like the Alaskan's tan roof with its lighter top.
+- **The layout:** `wheelhouse.saloonRoof { z, y }`: aft of `z` the roof's underside is at `y`. `houseRoofAt(wh, z)` (vesselDef.ts) gives the underside at any point.
+  - **Its readers:** walking (in the roof slab, above it, and the window band's head in the wall: layout.ts); the body's "inside a house" test (body.ts); hiding interior detail from outside (interiorDetail.ts); and in the builder, what hangs from the roof (the pull-down whiteboard, the cabin light), what stands on it (`roofTopAt`; nothing placed on the step), and the chart table's room.
+  - Without a lower roof every reader works as before.
+- **The limits:**
+  - **Headroom:** never less than the doorway's plus 0.1 m over the saloon floor (its aft door is in the saloon).
+  - **Windows:** its window band (sill to frame) never under `CONFIG.shipyard.saloon.minBand` (0.35 m).
+  - **When it can't go as low as asked:** it goes as low as it can, in whole steps, and the Shipyard says why. A deeper saloon floor or more headroom lets it go lower.
+- **Drawing** (hullMesh `buildShapedHouse`):
+  - aft of the step, the side walls, aft wall and window band come down by the drop (the band's head as far under its roof as the wheelhouse's);
+  - a post ends the wheelhouse's band at the step;
+  - a wall across her above the saloon roof makes the step in the roofline;
+  - the wheelhouse's roof slab ends 0.15 m past the step, over the saloon's, which starts inside the step's wall;
+  - each roof has its own wood ceiling;
+  - the inset top follows a three-facet front, and leans out with the walls on a house raked out all round.
+- **Weights and windage:** the saloon's side walls are shorter by the drop: less plate and less side area.
+- **The code:** version 24; the two choices at the top of the extension (0: as before, so every older code reads the same).
+- **Tests:** `tests/shipyard/saloonRoof.test.ts` (8):
+  - the code both ways, and unchanged without the two choices;
+  - two steps lower: the underside, the step's place, and the headroom kept when the floor steps down as far;
+  - the limit, and its warning;
+  - walked: in the slab solid, standing room under it, open above it, the band lower than the wheelhouse's;
+  - the whiteboard hung from the saloon's roof;
+  - drawn at the two heights;
+  - every hull type with one floats level and stable;
+  - the inset top drawn on both roofs in its colour, and not without the choice.
+  - Full suite 961 pass; typecheck clean.
+- **Checked:**
+  - **Shipyard (headless Chromium):** the workboat with a 2.8 m saloon two steps down under a roof two steps lower, seen from forward, from port and from aft. A close look at the inset top (orange roof, white top; then sand on a three-facet front).
+  - **In the game:** her alongside the quay (two roofs, the orange edge round the white tops); from the helm looking aft (the wall above the step, the saloon's lower ceiling); from the saloon looking forward up the treads.
+  - **Not checked:** the Quest; every combination with a deckhouse, facets or windows raked out all round by eye (the tests cover the numbers for every hull type).
+- **Test steps:**
+  - **Desktop:** Shipyard, workboat, Wheelhouse step: Floor height +0.2 m, Saloon aft 2.8 m, Saloon floor Two steps down, Saloon roof Two steps lower. Paint: Roof orange, Roof top White. Look at her from aft and from the side. Try Saloon roof Three steps lower with the floor level: she says why it stays higher. Trials & handover, play her: walk from the helm aft down the treads under the lower ceiling and out of the aft door.
+  - **VR:** the same, walking it. Look up at the step in the ceiling, and out of the saloon's windows.
+
 ### Shipyard: the Deck gear menu, grouped, with icons (done, awaiting owner test)
 
 Owner, Oct 2026: redesign the Deck gear step's left side: some equipment can't really be placed (the anchor: it's fitted by default, check), the list is in no order, group it (rescue equipment, fishing equipment...) with a little icon for each.

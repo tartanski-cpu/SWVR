@@ -28,13 +28,13 @@ const COLORS = {
   lining: 0x8a5d3c,
 };
 
-/** Every part's colour, for a hull's livery. */
-type Paint = typeof COLORS;
+/** Every part's colour, for a hull's livery (`roofTop`: only a roof with an inset top in a second colour has one). */
+type Paint = typeof COLORS & { roofTop?: number };
 
 /** A hull's colours: her livery over the workboat's. */
 export function paintOf(livery?: Livery): Paint {
   const paint = { ...COLORS };
-  for (const [k, v] of Object.entries(livery ?? {})) if (v !== undefined) paint[k as keyof Paint] = v;
+  for (const [k, v] of Object.entries(livery ?? {})) if (v !== undefined) (paint as Record<string, number>)[k] = v;
   return paint;
 }
 
@@ -545,6 +545,12 @@ function buildShapedHouse(layout: HouseLayout, col: Paint, base: number): THREE.
   const S = rake.sill;
   const sideS = Math.min(S, wh.floorY + wh.windowSill);
   const head = wh.floorY + wh.windowHead;
+  // A lower saloon roof (P2b) aft of its step (`zStep`): the saloon's windows' head as far under
+  // its roof as the wheelhouse's are under hers; its walls and aft wall up to its roof.
+  const sr = wh.saloonRoof;
+  const zStep = sr ? sr.z : zA;
+  const headS = sr ? sr.y - (roofY - head) : head;
+  const roofS = sr ? sr.y : roofY;
   // The lower front leans from L0 (no lower than the walls' foot) up to the sill.
   const L0 = Math.max(base, Math.min(sh.lowerFromY, S));
   const lean = leanForward(sh.lowerRakeDeg, L0);
@@ -609,25 +615,35 @@ function buildShapedHouse(layout: HouseLayout, col: Paint, base: number): THREE.
       parts.push(prism(x0 - e, x1 + e, [[zLow(top) - e, top - e], [zLow(S) - e, S + e], [zLow(S) + 0.1, S + e], [zLow(top) + 0.1, top - e]], col.frame));
     }
     parts.push(raked(fbox(x0, x1, S, head, zF, zF + 0.1)));
-    parts.push(fbox(x0, x1, sideS, head, zA - 0.1, zA));
-    // The band's mullion (not in a doorway): upright, cut short under a front raked back over it.
-    if ((!door || bandMid < door.z0 - 0.15 || bandMid > door.z1 + 0.15) && mullionTop > sideS + 0.1) parts.push(fbox(x0, x1, sideS, Math.min(head, mullionTop), bandMid - 0.04, bandMid + 0.04));
-    parts.push(fbox(x0, x1, head, head + FW, zH, zA));
+    parts.push(fbox(x0, x1, sideS, headS, zA - 0.1, zA));
+    // The band's mullion (not in a doorway): upright, cut short under a front raked back over it
+    // (and under a lower saloon roof's head aft of the step).
+    if ((!door || bandMid < door.z0 - 0.15 || bandMid > door.z1 + 0.15) && mullionTop > sideS + 0.1) parts.push(fbox(x0, x1, sideS, Math.min(bandMid > zStep ? headS : head, mullionTop), bandMid - 0.04, bandMid + 0.04));
+    parts.push(fbox(x0, x1, head, head + FW, zH, zStep));
     // Wall above the band, if the glass stops short of the roof (the Shipyard's runs up to it).
-    if (roofY + 0.02 - (head + FW) > 0.01) parts.push(box(x0, x1, head + FW, roofY + 0.02, zH, zA, H));
+    if (roofY + 0.02 - (head + FW) > 0.01) parts.push(box(x0, x1, head + FW, roofY + 0.02, zH, zStep, H));
+    if (sr) {
+      // The saloon's band under its lower roof: a post where the wheelhouse's ends at the step,
+      // its head frame, and any wall above it up to its roof.
+      parts.push(fbox(x0, x1, sideS, head, zStep - 0.08, zStep));
+      parts.push(fbox(x0, x1, headS, headS + FW, zStep, zA));
+      if (roofS + 0.02 - (headS + FW) > 0.01) parts.push(box(x0, x1, headS + FW, roofS + 0.02, zStep, zA, H));
+    }
   }
 
   // Aft wall: panels either side of the doorway, the band open, and a lintel up to the roof.
   const door = wh.doorWidth / 2;
-  const roofAft = roofY + 0.02;
+  const roofAft = roofS + 0.02;
   for (const s of [-1, 1]) {
     const [p0, p1] = s > 0 ? [door, hw] : [-hw, -door];
     parts.push(box(p0, p1, base, sideS - FW, zA - w, zA, H), fbox(p0, p1, sideS - FW, sideS, zA - w, zA));
-    parts.push(fbox(p0, p1, head, head + FW, zA - w, zA));
-    if (roofAft - (head + FW) > 0.01) parts.push(box(p0, p1, head + FW, roofAft, zA - w, zA, H));
+    parts.push(fbox(p0, p1, headS, headS + FW, zA - w, zA));
+    if (roofAft - (headS + FW) > 0.01) parts.push(box(p0, p1, headS + FW, roofAft, zA - w, zA, H));
     const jx = s > 0 ? door : -door - JAMB;
-    parts.push(fbox(jx, jx + JAMB, sideS, head, zA - w, zA));
+    parts.push(fbox(jx, jx + JAMB, sideS, headS, zA - w, zA));
   }
+  // The step in the roofline: the wheelhouse's aft wall above the saloon's roof, across her.
+  if (sr) parts.push(box(-hw, hw, roofS, roofY + 0.02, zStep - w, zStep, H));
   // (The doorway from the floor at the door: a saloon's, if it's a step or two down.)
   const doorFloor = houseFloorAt(wh, zA);
   parts.push(...keep(box(-door, door, doorFloor + wh.doorHeight, roofAft, zA - w, zA, H)));
@@ -647,7 +663,7 @@ function buildShapedHouse(layout: HouseLayout, col: Paint, base: number): THREE.
     applyFlare(parts.slice(wallsFrom).filter((g) => !upright.has(g)), fl);
     const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
     const F = (x: number, y: number, z: number) => V(...fl.at(x, y, z));
-    for (const x of [-door, door]) parts.push(plate([V(x, sideS, zA), F(x, head, zA), F(x, roofAft, zA), V(x, roofAft, zA)], H));
+    for (const x of [-door, door]) parts.push(plate([V(x, sideS, zA), F(x, headS, zA), F(x, roofAft, zA), V(x, roofAft, zA)], H));
     // (No side door: it slides, so it needs an upright wall; the Shipyard leaves it off.)
   }
   // Door sill, floor, console.
@@ -666,10 +682,26 @@ function buildShapedHouse(layout: HouseLayout, col: Paint, base: number): THREE.
   const back = t * Math.tan((sh.roofEdgeDeg * Math.PI) / 180);
   // A faceted front's roof follows it (owner): square across the middle, cut back on the angle outside.
   const roofFrom = parts.length;
-  parts.push(chamferedSlab(hw + ov, zV, zA + ov, roofY, t, back, col.roof, sh.facet?.centre ?? 0, facetDz(wh)));
+  // With a lower saloon roof the wheelhouse's ends `ov` aft of the step, over the saloon's
+  // (which starts inside the step's wall, its front hidden); each has its ceiling.
+  const zRoofEnd = sr ? zStep + ov : zA + ov;
+  parts.push(chamferedSlab(hw + ov, zV, zRoofEnd, roofY, t, back, col.roof, sh.facet?.centre ?? 0, facetDz(wh)));
+  if (sr) parts.push(chamferedSlab(hw + ov, zStep - w, zA + ov, roofS, t, back, col.roof));
+  // The eyebrow (owner): a panel on each roof's top set in from its edges in a second colour.
+  if (col.roofTop !== undefined) {
+    const k = CONFIG.shipyard.saloon.roofInset;
+    const wi = hw + ov - back - k;
+    const dz = facetDz(wh);
+    const c = Math.min(sh.facet?.centre ?? 0, wi);
+    const front = (x: number): [number, number] => [x, zV + back + k + dz(x)];
+    const across = c > 0 ? [front(-wi), front(-c), front(c), front(wi)] : [front(-wi), front(wi)];
+    parts.push(planSlab([...across, [wi, zRoofEnd - k], [-wi, zRoofEnd - k]], roofY + t, roofY + t + 0.02, col.roofTop));
+    if (sr) parts.push(planSlab([[-wi, zRoofEnd + k], [wi, zRoofEnd + k], [wi, zA + ov - k], [-wi, zA + ov - k]], roofS + t, roofS + t + 0.02, col.roofTop));
+  }
   const ceilFrom = parts.length;
-  for (const [a, b] of spans) parts.push(box(Math.max(a, -hw + w), Math.min(b, hw - w), roofY - 0.012, roofY, Math.max(zF, zH) + w, zA - w, col.lining, 'wood'));
+  for (const [a, b] of spans) parts.push(box(Math.max(a, -hw + w), Math.min(b, hw - w), roofY - 0.012, roofY, Math.max(zF, zH) + w, zStep - w, col.lining, 'wood'));
   if (sh.facet) setBack(parts.slice(ceilFrom), facetDz(wh), zA - w - 0.01);
+  if (sr) parts.push(box(-hw + w, hw - w, roofS - 0.012, roofS, zStep, zA - w, col.lining, 'wood'));
   // Raked out all round: the roof and the ceiling go out with the walls' tops.
   if (fl) applyFlare(parts.slice(roofFrom), fl);
   return parts;

@@ -35,9 +35,9 @@ import { flatVertexColorMaterial, mergeParts } from '../render/geometryUtils';
 import { HydroDebugView } from '../debug/hydroDebugView';
 import { briefPaper } from './briefPaper';
 import { buildVesselMesh, buildVesselMeshParts } from '../vessel/view/hullMesh';
-import { DESIGN_HULLS, ENGINES, LIVERIES, ROOF_PAINTS, type DesignedBoat } from './build';
+import { DESIGN_HULLS, ENGINES, LIVERIES, ROOF_PAINTS, ROOF_TOPS, type DesignedBoat } from './build';
 import { docFileName, docFileText, docToken, designToken, readDesign, shortCode } from './designDoc';
-import { ALL_FIELDS, DEFAULT_DESIGN, GUARDS, MATERIALS, OUTBOARDS, RAILS, SALOON_FLOORS, SILLS, SINGLE_ONLY_ENGINES, SKIFFS, outboardCount, placeOf, placeValue, SCALES, type PlaceKey, type ShipDesign } from './design';
+import { ALL_FIELDS, DEFAULT_DESIGN, GUARDS, MATERIALS, OUTBOARDS, RAILS, SALOON_FLOORS, SALOON_ROOFS, SILLS, SINGLE_ONLY_ENGINES, SKIFFS, outboardCount, placeOf, placeValue, SCALES, type PlaceKey, type ShipDesign } from './design';
 import { hullPlan } from '../vessel/layout';
 import { UndoStack } from './undo';
 import { YardLink } from './yardLink';
@@ -625,6 +625,8 @@ slider('houseLength', 'Length', (v) => `${SCALES.houseLength(v).toFixed(1)} m`);
 // A saloon aft of it (parametric boats P2b): the house runs on aft, its floor level or steps down.
 slider('saloon', 'Saloon aft', (v) => (v ? `${SCALES.saloon(v).toFixed(1)} m` : 'none'));
 options('saloonFloor', 'Saloon floor', [...SALOON_FLOORS]);
+// Its own roof, lower (P2b): a step in the roofline aft of the wheelhouse.
+options('saloonRoof', 'Saloon roof', [...SALOON_ROOFS]);
 slider('houseWidth', 'Width', (v) => pct(SCALES.houseWidth(v)));
 slider('headroom', 'Headroom', (v) => `${SCALES.headroom(v).toFixed(1)} m`);
 const signed = (x: number, unit: string, digits = 0) => `${x > 0 ? '+' : ''}${x.toFixed(digits)}${unit}`;
@@ -758,6 +760,8 @@ section('6. Paint');
   });
   controls.appendChild(row);
 }
+// The roof's top (owner: the eyebrow): one colour, or a panel in a second colour set in from its edges.
+options('roofTop', 'Roof top', ROOF_TOPS.map((t) => t.name));
 
 /** Show the design in the controls. */
 function syncControls(): void {

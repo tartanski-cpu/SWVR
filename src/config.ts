@@ -2769,8 +2769,13 @@ export const CONFIG = {
      * aft, one house under one roof. Shorter than `minLength` (m) where her deck runs out, it's
      * left off. Stepping down into it, each step is a 0.2 m rise (design.saloonFloor) with a
      * tread `tread` m deep between (a comfortable stair's going), aft of the wheelhouse.
+     * Its own roof (design.saloonRoof) can be lower, in 0.2 m steps, a step in the roofline at
+     * the wheelhouse's aft end, its windows coming down with it; but never so low that its
+     * headroom over its floor is less than the doorway's plus 0.1 m, or its window band (sill
+     * to frame) is under `minBand` m tall. `roofInset`: how far in from the roof top's edges
+     * a roof-top panel in a second colour (design.roofTop, the eyebrow) is set (m).
      */
-    saloon: { minLength: 1.2, tread: 0.28 },
+    saloon: { minLength: 1.2, tread: 0.28, minBand: 0.35, roofInset: 0.1 },
     /**
      * Hull protection (owner): what keeps her sides off a quay (design.ts `guard`). Prices
      * (GBP): a set of fenders and their basket the cheapest; the rubbing strake and the
