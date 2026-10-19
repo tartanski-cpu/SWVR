@@ -885,6 +885,8 @@ function syncControls(): void {
   const likeHull = document.querySelector<HTMLElement>('.swatch.likeHull');
   if (likeHull) likeHull.style.background = hex(LIVERIES[design.paint].livery.topsides ?? 0xd9622b);
   document.querySelectorAll<HTMLElement>('[data-key][data-i]').forEach((el) => el.classList.toggle('on', design[el.dataset.key as keyof ShipDesign] === Number(el.dataset.i)));
+  // A retired hull type (build.ts DESIGN_HULLS `retired`: the workboat) shows only on a design already on her.
+  document.querySelectorAll<HTMLElement>('[data-key=hull][data-i]').forEach((el) => (el.style.display = DESIGN_HULLS[Number(el.dataset.i)].retired && design.hull !== Number(el.dataset.i) ? 'none' : ''));
   document.querySelectorAll<HTMLInputElement>('input[type=range][data-key]').forEach((el) => (el.value = String(design[el.dataset.key as keyof ShipDesign])));
   // Rows that apply only sometimes (the saloon's floor and roof with a saloon; the front's rake
   // unless the windows are raked out all round, when it leans with them).
@@ -952,7 +954,9 @@ function showFigures(): void {
     // Her weights, part by part (build.ts): she floats where they add up to.
     ...boat.weights.items.map((it): [string, string] => [`&nbsp;&nbsp;${it.name}`, `${(it.kg / 1000).toFixed(2)} t`]),
   ]);
-  $('warnings').innerHTML = boat.warnings.map((w) => `<div>${w}</div>`).join('');
+  // A design on a retired hull type (build.ts DESIGN_HULLS `retired`) still builds; it says so.
+  const retired = DESIGN_HULLS[design.hull].retired ? [`The ${DESIGN_HULLS[design.hull].name.split(':')[0].toLowerCase()} hull type is retired: start her again from another type (Brief).`] : [];
+  $('warnings').innerHTML = [...retired, ...boat.warnings].map((w) => `<div>${w}</div>`).join('');
   showQuick();
   if (typeof showBriefCheck === 'function' && $('briefCheck')) showBriefCheck();
 }

@@ -104,6 +104,12 @@ export interface DesignHull {
    * ramp, so she rides up a beach or a slipway. No bow choice: never plumb, never the deep stem.
    */
   landingBow?: boolean;
+  /**
+   * No longer offered (owner, Oct 2026: "the workboat is not really a class of hull, it's a
+   * role"): not in the Hull step nor the brief's hull types. Kept, and in her place in this
+   * list (a design code holds her index), so a design already on her still opens and builds.
+   */
+  retired?: boolean;
   /** Minimum open deck (m) aft of the house (cockpit) and forward of it. */
   cockpit: number;
   foredeck: number;
@@ -240,6 +246,7 @@ export const DESIGN_HULLS: DesignHull[] = [
   },
   {
     name: 'Workboat: 12 m semi-displacement, hard chine, fine entry',
+    retired: true,
     form: (L, B, D, bow) => {
       const h = CONFIG.vessels.workboat.hull;
       return {

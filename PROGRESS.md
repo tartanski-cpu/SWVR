@@ -5298,6 +5298,16 @@ Owner, Oct 2026: before the cockpit roof, clean up the Shipyard's buttons. The o
 - **Checked:** headless Chromium, the Wheelhouse step with a saloon and a deckhouse, then with the windows raked out and the deckhouse "As the wheelhouse"; the owner's configuration (workboat type, three facets, saloon roof lower, a sand roof top) from the same angle as their screenshot: the step is clean. **Not checked:** the Quest (a desktop page).
 - **Next:** the other steps the same way, once the owner has tried this one.
 
+### Shipyard: the workboat hull type retired (done, awaiting owner test)
+
+Owner, Oct 2026: "the workboat is not really a class of hull... it's a role." The Shipyard's types are now the landing craft (a fast planing vee with a flat square platform on top), the gillnetter (the fishing boat, built to carry load), the pilot boat (deep-V planing; also the rescue or patrol boat) and the small tug. The beginner boat is to be based on the fishing boat (fleet plan).
+
+- **Retired, not deleted** (build.ts DESIGN_HULLS `retired`, typeFit.ts TYPE_FACTS `retired`): a design code holds her hull's index, so removing her would renumber the pilot boat and tug and turn saved designs into the wrong boats.
+  - Not in the Hull step's choices, nor the brief's hull types (`rankTypes` leaves her out).
+  - A design already on her still opens and builds as before: she shows in the Hull step's list while chosen, and the warnings say she's retired.
+  - Building is unchanged, so the tests that use her as a test boat stand.
+- **Tests:** brief.test.ts: the cargo-and-towing brief no longer names her; deck room checked on the gillnetter; a new test that she's never offered.
+
 ### Hull types ride as their kind: semi-displacement workboat, deep-V pilot boat; boats lean into turns, none capsizes (done, awaiting owner test)
 
 Owner, Oct 2026, answering the heel report below: the workboat should be a semi-displacement hull, partly planing, as is typical for workboats; the pilot boat a deep-V planing hull, made to go fast in waves; both designed for seakeeping, while the flatter, faster landing craft type isn't the best sea boat.

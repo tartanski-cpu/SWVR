@@ -30,6 +30,8 @@ export interface TypeFacts {
   what: string;
   /** The game's jobs she's built for (breaks ties between types that can all do the brief). */
   goodFor: JobId[];
+  /** Not offered (as build.ts DESIGN_HULLS `retired`: the workboat). */
+  retired?: boolean;
   /** Deck room, bare, at standard size and at her largest (length and beam sliders full; deckRoom.ts). */
   crates: number;
   pots: number;
@@ -63,6 +65,7 @@ export const TYPE_FACTS: TypeFacts[] = [
   },
   {
     what: 'Semi-displacement, deep and steady: the biggest working deck aft of the house, and the strongest pull.',
+    retired: true,
     goodFor: ['cargo', 'towing', 'fire', 'trawl'],
     crates: 54,
     pots: 31,
@@ -134,5 +137,6 @@ export function rankTypes(brief: Brief, facts: TypeFacts[] = TYPE_FACTS): TypeFi
     if (brief.jobs.includes('potting') && brief.pots) room('Pots', brief.pots, f.pots, f.maxPots, 'pots');
     return { hull, facts: f, lines, misses: lines.filter((l) => !l.ok).length, suits: brief.jobs.filter((j) => f.goodFor.includes(j)), best };
   });
-  return out.sort((a, b) => a.misses - b.misses || b.suits.length - a.suits.length || a.best.price - b.best.price);
+  // Not the retired hull types (build.ts DESIGN_HULLS `retired`: the workboat).
+  return out.filter((t) => !t.facts.retired).sort((a, b) => a.misses - b.misses || b.suits.length - a.suits.length || a.best.price - b.best.price);
 }
