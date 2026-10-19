@@ -162,6 +162,9 @@ function houseWalk(
   const facet = wh.shape?.facet;
   const wrapK = facet ? facet.depth / (wh.halfWidth - facet.centre) : 0;
   const consoleAftAt = (x: number) => int.z0 + (wh.consoleBack ?? 0) + wh.consoleDepth + (facet ? Math.max(0, Math.abs(x) - facet.centre) * wrapK : 0);
+  // A console cut short (consoleSpan): is x across from it (within `pad`)? Beside it, the floor runs to the front wall.
+  const span = wh.consoleSpan;
+  const byConsole = (x: number, pad: number) => !span || (x > span.x0 - pad && x < span.x1 + pad);
   const doorHalf = wh.doorWidth / 2;
   const sd = wh.sideDoor;
   // The floor's height along the house (one level, or several with treads between: levels).
@@ -204,7 +207,7 @@ function houseWalk(
         // a floor sunk more than a step below the deck stops at the wall: a threshold below).
         height: (_x, z) => floorAt(z),
         contains: (x, z) =>
-          (Math.abs(x) <= int.x - r && z >= consoleAftAt(Math.abs(x) + r) + r && z <= int.z1 - r && !atFurniture(x, z, r) && !inSteps(x, z) && !inHole(x, z)) ||
+          (Math.abs(x) <= int.x - r && z >= (byConsole(x, r) ? consoleAftAt(Math.abs(x) + r) + r : int.z0 + r) && z <= int.z1 - r && !atFurniture(x, z, r) && !inSteps(x, z) && !inHole(x, z)) ||
           (Math.abs(x) <= doorHalf - r * 0.6 && z > int.z1 - r - 0.02 && z < (deepSunk ? int.z1 : ext.z1 + r + 0.02)) ||
           // The port side door, out to the side deck.
           (!!sd && x < -int.x + r + 0.02 && x > -ext.x - r - 0.02 && z > sd.z0 + r * 0.6 && z < sd.z1 - r * 0.6),
@@ -246,7 +249,7 @@ function houseWalk(
       if (inInterior) {
         // The helm console across the front, and the furniture.
         if (atFurniture(x, z, 0, y)) return true;
-        return z < consoleAftAt(x) && y < wh.floorY + wh.consoleHeight;
+        return byConsole(x, 0) && z < consoleAftAt(x) && y < wh.floorY + wh.consoleHeight;
       }
       // In a wall: the doorway and window band are open.
       const hy = y - floorAt(z);

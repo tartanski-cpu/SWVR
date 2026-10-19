@@ -15,9 +15,9 @@ describe('the deck gear menu', () => {
     }
   });
 
-  it('gear with one place on any boat is fitted, not placed: the anchor, stern roller, A-frame, side door, rod rack', () => {
+  it('gear with one place on any boat is fitted, not placed: the anchor, stern roller, A-frame, side door', () => {
     const fit = EQUIPMENT.filter((e) => gearKind(e) === 'fit').map((e) => e.id);
-    expect(fit.sort()).toEqual(['aFrame', 'anchor', 'rodRack', 'sideDoor', 'sternRoller']);
+    expect(fit.sort()).toEqual(['aFrame', 'anchor', 'sideDoor', 'sternRoller']);
     // Fitting needs no point on her.
     for (const id of fit) expect(fitted(equipmentOf(id)!, { ...DEFAULT_DESIGN, noAnchor: 1, ...placeGear(equipmentOf(id)!, [0, 0, 0], undefined, 0).patch })).toBe(true);
   });

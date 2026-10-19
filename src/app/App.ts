@@ -351,9 +351,9 @@ export class App {
   /** Binoculars on the dash (VR: pick up and raise to the eyes; desktop: hold Z). */
   private binoculars!: Binoculars;
   /** Hand gear on brackets in the wheelhouse (player/handGear.ts). */
-  private readonly gear = [new HandGear('extinguisher'), new HandGear('torch'), new HandGear('rod')];
-  /** The handheld rod's game (fishing/rodGame.ts) and what it shows. */
-  private readonly rodGame = new RodGame();
+  private readonly gear = [new HandGear('extinguisher'), new HandGear('torch'), ...Array.from({ length: CONFIG.rod.perRack }, (_, i) => new HandGear('rod', i))];
+  /** Each rod's game (fishing/rodGame.ts; the rack's rods, in order) and what they show. */
+  private readonly rodGames = this.gear.filter((g) => g.kind === 'rod').map(() => new RodGame());
   private readonly rodView = new RodView();
   private readonly handGearView = new GearView();
   private extEmptySaid = false;
@@ -623,12 +623,14 @@ export class App {
     // The hand gear's places aboard are her hull's (M7): gear she has no place for isn't aboard.
     const stowage = VESSEL_DEFS[this.world.vessels[this.testVesselId].defId].stowage;
     if (tugView && stowage?.binoculars) this.binoculars.stow(tugView.root, stowage.binoculars.at, stowage.binoculars.yawDeg);
-    // The rod hangs on its rack (a module, deck.rod-rack), across the house's aft wall.
+    // The rods stand upright in their rack (a module, deck.rod-rack): each in its own cup.
     const rodRack = gearOf(this.world.vessels[this.testVesselId], 'rodRack');
+    const upright = new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.PI / 2, 0, 0)); // the rod's -z (its tip) up
     if (tugView) {
       for (const g of this.gear) {
         if (g.kind === 'rod') {
-          if (rodRack) g.mount(tugView.root, rodRack.stow, Math.PI / 2);
+          const at = rodRack?.rods[g.slot];
+          if (at) g.mount(tugView.root, at, upright);
         } else if (stowage?.[g.kind]) g.mount(tugView.root, stowage[g.kind]!);
       }
       if (rodRack) this.rodView.attachBucket(tugView.root);
@@ -1427,14 +1429,26 @@ export class App {
    * (fishing/rodGame.ts); its events are told, felt and sent on (the catch, as an intent).
    */
   private updateRod(dt: number): void {
-    const rod = this.gear.find((g) => g.kind === 'rod');
     const v = this.world.vessels[this.testVesselId];
-    if (!rod || !v) return;
-    const p = this.tmpV;
+    if (!v) return;
+    const rods = this.gear.filter((g) => g.kind === 'rod');
+    const shown: { game: RodGame; tip: THREE.Vector3 | null }[] = [];
+    rods.forEach((rod, i) => {
+      rod.tick(dt);
+      const game = this.rodGames[i];
+      const tip = this.rodStep(dt, v, rod, game);
+      shown.push({ game, tip });
+    });
+    this.rodView.update(this.world, this.testVesselId, shown);
+  }
+
+  /** One rod's frame: its game stepped from the hand; what it says, told, felt and sent on. Returns its tip if in hand. */
+  private rodStep(dt: number, v: VesselState, rod: HandGear, game: RodGame): THREE.Vector3 | null {
+    const p = new THREE.Vector3();
     const d = this.tmpV2;
     rod.tipWorld(p, d);
     const held = !!rod.held;
-    const ev = this.rodGame.step(dt, {
+    const ev = game.step(dt, {
       held,
       pressed: rod.pressed,
       down: rod.on,
@@ -1445,12 +1459,11 @@ export class App {
       boatSpeed: Math.hypot(v.linearVelocity[0], v.linearVelocity[2]),
     });
     rod.pressed = false;
-    this.rodView.update(this.world, this.testVesselId, this.rodGame, held ? p : null);
     const hand = rod.held === 'left' || rod.held === 'right' ? rod.held : null;
     // The fish's pull in the hand while it's on.
-    if (hand && this.rodGame.phase === 'playing' && this.rodGame.pull > 0.5) this.xrInput.pulse(hand, 0.25 * this.rodGame.pull, 30);
-    if (!ev) return;
-    const g = this.rodGame;
+    if (hand && game.phase === 'playing' && game.pull > 0.5) this.xrInput.pulse(hand, 0.25 * game.pull, 30);
+    if (!ev) return held ? p : null;
+    const g = game;
     switch (ev) {
       case 'cast':
         this.overlay.notify('Cast. Wait for the float to dip, then press to strike', 3);
@@ -1482,6 +1495,7 @@ export class App {
       case 'wound':
         break;
     }
+    return held ? p : null;
   }
 
   /**
@@ -1538,8 +1552,8 @@ export class App {
   }
 
   /** Does a crew-mate hold this gear (it's off its bracket in their hand)? */
-  private gearTakenByOther(kind: GearKind): boolean {
-    return Object.values(this.world.players).some((p) => p.id !== this.localPlayerId && p.avatar?.gear?.kind === kind);
+  private gearTakenByOther(kind: GearKind, slot = 0): boolean {
+    return Object.values(this.world.players).some((p) => p.id !== this.localPlayerId && p.avatar?.gear?.kind === kind && (p.avatar.gear.slot ?? 0) === slot);
   }
 
   /** Hand gear as everyone sees it: sprays, beams, crew-mates' gear; the brackets' state. */
@@ -1576,7 +1590,7 @@ export class App {
     this.handGearView.update(this.world, this.localPlayerId, local, this.vesselRoots, darkness, dt);
     this.updateRod(dt);
     // On the bracket: hidden while a crew-mate has it (it's in their hand).
-    for (const g of this.gear) if (!g.held) g.mesh.visible = !this.gearTakenByOther(g.kind);
+    for (const g of this.gear) if (!g.held) g.mesh.visible = !this.gearTakenByOther(g.kind, g.slot);
     // Spraying an empty extinguisher: say so once.
     const ext = this.gear[0];
     const empty = (extinguisherShip(this.world)?.extCharge ?? 1) <= 0;
@@ -2983,11 +2997,11 @@ export class App {
         // A gear bracket (desktop): take the gear or hang it back. Local: no intent. In VR the
         // grip takes it.
         if (channel.startsWith('gear:')) {
-          const g = this.gear.find((x) => `gear:${x.kind}` === channel);
+          const g = this.gear.find((x) => x.bracket.channel === channel);
           if (g && !this.renderer.xr.isPresenting) {
             for (const o of this.gear) if (o !== g && o.held) o.hangBack(); // one at a time
-            if (!g.held && this.gearTakenByOther(g.kind)) this.overlay.notify('A crew-mate has it', 2);
-            g.toggleDesk(this.gearTakenByOther(g.kind));
+            if (!g.held && this.gearTakenByOther(g.kind, g.slot)) this.overlay.notify('A crew-mate has it', 2);
+            g.toggleDesk(this.gearTakenByOther(g.kind, g.slot));
           }
           return;
         }
@@ -3399,7 +3413,7 @@ export class App {
       // Hand gear (extinguisher, torch): the same.
       for (const g of this.gear) {
         if (!g.aboard) continue;
-        const used = g.updateXR(this.hands, this.busyHands, this.gearTakenByOther(g.kind), (h, i, ms) => this.xrInput.pulse(h, i, ms));
+        const used = g.updateXR(this.hands, this.busyHands, this.gearTakenByOther(g.kind, g.slot), (h, i, ms) => this.xrInput.pulse(h, i, ms));
         for (const h of ['left', 'right'] as const) {
           if (!used[h]) continue;
           const f = this.hands[h];

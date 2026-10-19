@@ -720,6 +720,19 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   })();
   /** The console's line: the house front, less any setback (consoleBack). */
   const cf = front + consoleBack;
+  // The console across the cabin (owner: cut short on a wide wheelhouse, for the view past
+  // it; to port, the middle or starboard): no longer than `maxConsole`, its middle `cx`. A
+  // faceted front's console wraps round the middle pane: it stays in the middle.
+  const helmCfg = CONFIG.shipyard.helm;
+  const consoleHalf = Math.min(hw - wall, helmCfg.maxConsole / 2);
+  const short = consoleHalf < hw - wall - 0.005;
+  let side = d.consoleSide ?? 0;
+  if (side && !short) side = 0; // (as wide as the cabin: nowhere to move to)
+  if (side && facet) {
+    side = 0;
+    warnings.push('With a faceted front the console wraps round the middle pane: it stays in the middle.');
+  }
+  const cx = Math.round((side === 1 ? -(hw - wall - consoleHalf) : side === 2 ? hw - wall - consoleHalf : 0) * 1000) / 1000;
   // Steps at the aft door, no rise over 0.35 m (a player steps up 0.4): outside for a
   // raised floor, inside for a deep sunk one.
   const doorDeck = q.deckY(aft + 0.15);
@@ -752,7 +765,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
 
   const layout = {
     // No roof rail or ladder (owner: simpler): the roof isn't walked.
-    wheelhouse: { halfWidth: hw, front, aft, floorY, roofY, wall, doorWidth: 0.7, doorHeight, windowSill: sill, windowHead, frontSill: sill, frontRakeDeg: windowRake, ...(d.flare ? { doorHinged: true } : {}), consoleDepth: 0.5, ...(consoleBack ? { consoleBack } : {}), consoleHeight: 0.9, viewSill: d.sills ? 0.9 : Math.max(sill, 0.9 + CONFIG.modules.helmConsole.dash.top), shape: house, ...(steps.length ? { steps } : {}), ...(levels.length ? { levels } : {}), ...(saloonRoof ? { saloonRoof } : {}) },
+    wheelhouse: { halfWidth: hw, front, aft, floorY, roofY, wall, doorWidth: 0.7, doorHeight, windowSill: sill, windowHead, frontSill: sill, frontRakeDeg: windowRake, ...(d.flare ? { doorHinged: true } : {}), consoleDepth: 0.5, ...(consoleBack ? { consoleBack } : {}), consoleHeight: 0.9, viewSill: d.sills ? 0.9 : Math.max(sill, 0.9 + CONFIG.modules.helmConsole.dash.top), shape: house, ...(short ? { consoleSpan: { x0: Math.round((cx - consoleHalf) * 1000) / 1000, x1: Math.round((cx + consoleHalf) * 1000) / 1000 } } : {}), ...(steps.length ? { steps } : {}), ...(levels.length ? { levels } : {}), ...(saloonRoof ? { saloonRoof } : {}) },
     roof: { thickness: roofThickness, overhang: 0.15, railHeight: 0, edgeMargin: 0.25 },
     // (Their height from the wheelhouse's floor: 1.1 m above the saloon's at its aft door.)
     doorButtons: { x: 0.45, height: rnd(1.1 - saloonDrop) },
@@ -995,22 +1008,26 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   const batteriesKg = 2 * CONFIG.modules.batteryBank.massKg;
 
   // ── Places (vessel axes), as the landing craft's are from her cabin ──
+  /** Where a unit hung from the roof out to port / starboard goes: toward that side (`out` m from the centreline), no further than in view from the wheel. */
+  const toPort = (out: number) => Math.round(Math.max(-out, cx - CONFIG.shipyard.helm.hungReach) * 1000) / 1000;
+  const toStbd = (out: number) => Math.round(Math.min(out, cx + CONFIG.shipyard.helm.hungReach) * 1000) / 1000;
   const wl = CONFIG.shipyard.workLights;
   const at = {
-    console: [0, F + 0.9, cf + 0.56] as V3,
+    console: [cx, F + 0.9, cf + 0.56] as V3,
     // (Below the window sill: low windows bring it down.)
     breakerPanel: [hw - 0.185, F + Math.min(0.6, sill - 0.2), cf + 0.875 + sb(hw - 0.185)] as V3,
     rampButton: [-(hw - 0.07), F + Math.min(0.73, sill - 0.08), cf + 0.775 + sb(hw - 0.07)] as V3,
     // (On the aft wall: from the saloon's floor, if she has one.)
     batteryMaster: [hw - 0.45, FA + 0.48, aft - 0.065] as V3,
     batterySelector: [hw - 0.2, FA + 0.48, aft - 0.065] as V3,
-    vhf: [-(hw - 0.3), roofY - 0.17, cf + 0.525 + sb(hw - 0.3)] as V3,
+    // (Hung out to the sides, but in view from the wheel on a wide house: CONFIG.shipyard.helm.)
+    vhf: [toPort(hw - 0.3), roofY - 0.17, cf + 0.525 + sb(toPort(hw - 0.3))] as V3,
     // The advanced package's instruments (owner): the chartplotter hung out to starboard
     // ahead of the helm, turned toward it (the VHF's mirror); the NAV / WIND screen hung on
     // the centreline ahead of the helm; the FM set further aft to starboard, over your head.
-    chartplotter: [hw - 0.35, roofY - 0.17, cf + 0.5 + sb(hw - 0.35)] as V3,
-    navDisplay: [0, roofY - 0.15, cf + 0.42] as V3,
-    fm: [hw - 0.35, roofY - 0.11, cf + 1.3 + sb(hw - 0.35)] as V3,
+    chartplotter: [toStbd(hw - 0.35), roofY - 0.17, cf + 0.5 + sb(toStbd(hw - 0.35))] as V3,
+    navDisplay: [cx, roofY - 0.15, cf + 0.42] as V3,
+    fm: [toStbd(hw - 0.35), roofY - 0.11, cf + 1.3 + sb(toStbd(hw - 0.35))] as V3,
     // The task board, on solid wall below the window sill (her walls are glass above it), on
     // the starboard wall, aft (its face's middle; 2 cm off the wall's inside face, clear of
     // its frames: no flicker between them).
@@ -1027,7 +1044,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
     // The advanced interior's working lights (owner): the overhead switch panel over the helm
     // (its face), and the deck floods on the roof's front and aft edges, off to port (the
     // fore one set back with a faceted front's corner), each aimed at the middle of its deck.
-    overhead: [0, roofY - CONFIG.modules.overheadPanel.drop, cf + wl.overheadAft] as V3,
+    overhead: [cx, roofY - CONFIG.modules.overheadPanel.drop, cf + wl.overheadAft] as V3,
     floodFore: [-wl.flood.x, roofTopAt(roofFront) + 0.07, roofFront + wl.flood.inset + sb(wl.flood.x + 0.11)] as V3,
     floodAft: [-wl.flood.x, roofTopAt(aft) + 0.07, aft - wl.flood.inset] as V3,
   };
@@ -1463,22 +1480,41 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
         hook: [r2(ringSide * (q.halfBeam(sternCleat - 1.2) - 0.08)), r2(q.deckY(sternCleat - 1.2) + bulwarkHeight - 0.05), r2(Math.max(aft + 0.2, sternCleat - 2.6)), r2(sternCleat - 0.3)] as [number, number, number, number],
       }
     : null;
-  // The rod rack (owner, Oct 2026; design.rodRack): on the house's aft wall at the side the
-  // life ring isn't (starboard with no ring), the rod across two clips at hand height, its
-  // bucket on deck under it.
-  const rodSide: -1 | 1 = ringSide < 0 ? 1 : ringSide > 0 ? -1 : 1;
-  const rodRack = d.rodRack
-    ? {
-        stow: [r2(rodSide * Math.max(0.7, hw - 0.75)), r2(Math.min((deckhouse ? q.deckY(aft) : FA) + 1.3, F + sill - 0.2)), r2(aft + 0.06)] as V3,
-        bucket: [r2(rodSide * Math.max(0.5, hw - 0.75)), r2(q.deckY(aft + 0.5)), r2(aft + 0.5)] as V3,
-        side: rodSide,
-      }
-    : null;
+  // The rod rack (owner, Oct 2026; design.rodRack: 1 aft wall port, 2 aft wall starboard, 3
+  // port wall, 4 starboard wall): CONFIG.rod.perRack rods standing upright in cups on the deck
+  // against the wall, spaced along it, the bucket on deck at the end of the row. A side wall
+  // needs a side deck to stand on (0.25 m: the cups are against the wall) and a port wall its
+  // door clear: no room, the aft wall.
+  const rc = CONFIG.rod;
+  const rackRow = rc.spacing * (rc.perRack - 1);
+  let rodRack: { rods: V3[]; yawDeg: number; bucket: V3; side: -1 | 1 } | null = null;
+  if (d.rodRack) {
+    const rodSide: -1 | 1 = d.rodRack === 1 || d.rodRack === 3 ? -1 : 1;
+    let onSide = d.rodRack >= 3;
+    // The side wall: the row's middle, aft of the door if the port door is there.
+    let zc = aft - 0.9 - rackRow / 2;
+    if (onSide && rodSide < 0 && sideDoor && zc - rackRow / 2 - 0.3 < sideDoor.z1 && zc + rackRow / 2 + 0.3 > sideDoor.z0) zc = sideDoor.z0 - 0.4 - rackRow / 2;
+    if (onSide && (q.halfBeam(zc) - hw < 0.25 || zc - rackRow / 2 < front + 0.2)) {
+      warnings.push(`No room on the ${rodSide < 0 ? 'port' : 'starboard'} side deck for the rod rack: it's on the aft wall.`);
+      onSide = false;
+    }
+    const rods: V3[] = [];
+    if (onSide) {
+      const x = rodSide * (hw + 0.09);
+      for (let i = 0; i < rc.perRack; i++) rods.push([r2(x), r2(q.deckY(zc) + 0.02), r2(zc - rackRow / 2 + i * rc.spacing)]);
+      rodRack = { rods, yawDeg: rodSide * 90, bucket: [r2(rodSide * (hw + 0.25)), r2(q.deckY(zc + rackRow / 2 + 0.45)), r2(zc + rackRow / 2 + 0.45)], side: rodSide };
+    } else {
+      const xc = rodSide * Math.max(0.55 + rackRow / 2, hw - 0.3 - rackRow / 2);
+      const y = r2((deckhouse ? q.deckY(aft + 0.1) : q.deckY(aft + 0.1)) + 0.02);
+      for (let i = 0; i < rc.perRack; i++) rods.push([r2(xc - rodSide * rackRow / 2 + rodSide * i * rc.spacing), y, r2(aft + 0.09)]);
+      rodRack = { rods, yawDeg: 0, bucket: [r2(xc + rodSide * (rackRow / 2 + 0.4)), r2(q.deckY(aft + 0.3)), r2(aft + 0.3)], side: rodSide };
+    }
+  }
   const sockets: Socket[] = [
     // (A stern drive: its engine and legs, weighed at the engine.)
     ...(sd ? [{ id: 'sternDrive', type: 'transom.outboards' as const, transform: { position: at.engineBed }, label: 'Against the transom: her engine and its stern drive' }] : []),
     ...(outboards ? [{ id: 'outboards', type: 'transom.outboards' as const, transform: { position: [0, outboards.mount.y, outboards.mount.z] as V3 }, label: 'The bracket off the transom: her outboards' }] : []),
-    { id: 'helm', type: 'helm.console', transform: { position: at.console }, capacity: { size: [2 * (hw - wall) - 0.04, 1.6, 1.0] }, label: 'Helm console, across the front of the cabin' },
+    { id: 'helm', type: 'helm.console', transform: { position: at.console }, capacity: { size: [2 * consoleHalf - 0.04, 1.6, 1.0] }, label: 'Helm console, across the front of the cabin' },
     { id: 'breakerPanel', type: 'wall.panel', transform: { position: at.breakerPanel, rotationDeg: [-40, -90, 0] }, label: 'Starboard wall, by the helm' },
     { id: 'batteryMaster', type: 'wall.panel', transform: { position: at.batteryMaster, rotationDeg: [0, 180, 0] }, label: 'Aft wall, starboard of the door, low' },
     { id: 'batterySelector', type: 'wall.panel', transform: { position: at.batterySelector, rotationDeg: [0, 180, 0] }, label: 'Aft wall, beside the battery master' },
@@ -1541,7 +1577,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
           { id: 'trawl', type: 'deck.equipment' as const, transform: { position: winchAt! }, label: 'Aft deck: the net (nominal)' },
         ]
       : []),
-    ...(rodRack ? [{ id: 'rodRack', type: 'deck.fitting' as const, transform: { position: rodRack.stow }, label: `Wheelhouse aft wall, ${rodSide < 0 ? 'port' : 'starboard'}: the fishing rod's rack, its bucket on deck under it` }] : []),
+    ...(rodRack ? [{ id: 'rodRack', type: 'deck.fitting' as const, transform: { position: rodRack.rods[0] }, label: `Wheelhouse ${rodRack.yawDeg ? (rodRack.side < 0 ? 'port' : 'starboard') : 'aft'} wall${rodRack.yawDeg ? '' : rodRack.side < 0 ? ', port of the door' : ', starboard of the door'}: the fishing rods' rack, the bucket beside it` }] : []),
     ...(ring
       ? [
           { id: 'lifeRing', type: 'deck.fitting' as const, transform: { position: ring.stow }, label: `Wheelhouse aft wall, ${ringSide < 0 ? 'port' : 'starboard'}: the life ring (its line on that quarter's cleat)` },
@@ -1594,7 +1630,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
     id: 'hull.design',
     version: 1,
     name: `Shipyard design ${code}`,
-    helm: { stand: [0, F, cf + 1.125], yawDeg: 0 },
+    helm: { stand: [cx, F, cf + 1.125], yawDeg: 0 },
     form,
     lightship: lightshipOf(weighed, [
       outboards ? { massKg: obc.massKg * nOb, at: [0, outboards.mount.y, outboards.mount.z] as V3 } : { massKg: (eng.kg + (sd ? sdc.legKg : 0)) * n, at: at.engineBed },
@@ -1784,7 +1820,8 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
     cc.groups.push({ title: 'DECK', x: [0.04, 0.35], color: 0x8a6d2a });
     if (anchorAt) consoleMount.modules!.push({ socket: 'anchor', module: 'control.toggle', config: { label: 'Anchor: let go / heave in', engrave: 'ANCHOR' }, bind: { value: 'anchor.letGo' } });
   }
-  const dashHalf = hw - wall - 0.11;
+  // The dash along the console (cut short on a wide wheelhouse: consoleHalf), what's on it spread or closed up with it.
+  const dashHalf = consoleHalf - 0.11;
   const sx = dashHalf / cc.dash.halfWidth;
   cc.dash.halfWidth = Math.round(dashHalf * 1000) / 1000;
   // The throttle (and its pedestal) beside the wheel, no further out than on the reference console
@@ -1795,6 +1832,14 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   cc.groups = cc.groups.map((gp: { x: [number, number] }) => ({ ...gp, x: gp.x.map((x) => Math.round(x * sx * 1000) / 1000) }));
   for (const slot of Object.values(cc.slots) as { position: V3 }[]) slot.position = [Math.round(slot.position[0] * sx * 1000) / 1000, slot.position[1], slot.position[2]];
   cc.slots.throttle.position = [throttleAt, cc.slots.throttle.position[1], cc.slots.throttle.position[2]];
+  // Its screens in one row centred over the wheel, in their order, whichever she has (the basic
+  // controls' two side by side), never spread with the dash; closer on a narrow one.
+  const screens = ['speed', 'heading', 'rpm', 'engineMonitor'].filter((id) => consoleMount.modules!.some((m) => m.socket === id && m.module === 'instrument.screen') && (d.controls || ['speed', 'rpm'].includes(id)));
+  const pitch = (CONFIG.modules.screen.dash.width + CONFIG.shipyard.helm.screenGap) * Math.min(1, sx);
+  screens.forEach((id, i) => {
+    const slot = cc.slots[id] as { position: V3 };
+    slot.position = [Math.round((i - (screens.length - 1) / 2) * pitch * 1000) / 1000, slot.position[1], slot.position[2]];
+  });
   // A faceted front: the dash wraps round with it (console.standard's `wrap`), its wings set back as the outer windows are.
   // Its controls stay square to her (owner: forward is forward); its screens turn with the wings, flush with the dash's face.
   if (house.facet)

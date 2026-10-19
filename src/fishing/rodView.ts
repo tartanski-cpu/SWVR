@@ -7,18 +7,18 @@ import type { RodGame } from './rodGame';
 
 const LINE_POINTS = 12;
 const MAX_FISH = CONFIG.rod.bucketMax;
+const RODS = CONFIG.rod.perRack;
 
 /**
  * What the rod game shows (owner, Oct 2026): the line from the rod's tip to the float (a
  * sagging curve, taut when a fish pulls), the float itself (an orange and white pear on the
  * water), and the fish in the bucket on deck (one per catch, up to the bucket's fill), drawn
- * from the boat's catch (VesselState.rodCatch) so the crew see it too. Three draw calls.
+ * from the boat's catch (VesselState.rodCatch) so the crew see it too. A line and a float
+ * per rod of the rack (yours: your games), one mesh of fish.
  */
 export class RodView {
   readonly root = new THREE.Group();
-  private readonly line: THREE.Line;
-  private readonly pts: THREE.Vector3[] = Array.from({ length: LINE_POINTS }, () => new THREE.Vector3());
-  private readonly float: THREE.Mesh;
+  private readonly lines: { line: THREE.Line; float: THREE.Mesh; pts: THREE.Vector3[] }[] = [];
   private readonly fish: THREE.InstancedMesh;
   private bucketHome: THREE.Object3D | null = null;
   private readonly m = new THREE.Matrix4();
@@ -29,20 +29,23 @@ export class RodView {
 
   constructor() {
     this.root.name = 'rodFishing';
-    this.line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(this.pts), new THREE.LineBasicMaterial({ color: 0xe8e8e0, transparent: true, opacity: 0.8 }));
-    this.line.frustumCulled = false;
-    this.line.visible = false;
-    this.float = new THREE.Mesh(
-      mergeParts([part(new THREE.SphereGeometry(0.05, 8, 6).translate(0, 0.02, 0), 0xe85a1a), part(new THREE.SphereGeometry(0.035, 8, 6).translate(0, 0.08, 0), 0xf4f0e8)]),
-      flatVertexColorMaterial(),
-    );
-    this.float.visible = false;
+    const floatGeo = mergeParts([part(new THREE.SphereGeometry(0.05, 8, 6).translate(0, 0.02, 0), 0xe85a1a), part(new THREE.SphereGeometry(0.035, 8, 6).translate(0, 0.08, 0), 0xf4f0e8)]);
+    const lineMat = new THREE.LineBasicMaterial({ color: 0xe8e8e0, transparent: true, opacity: 0.8 });
+    for (let i = 0; i < RODS; i++) {
+      const pts = Array.from({ length: LINE_POINTS }, () => new THREE.Vector3());
+      const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), lineMat);
+      line.frustumCulled = false;
+      line.visible = false;
+      const float = new THREE.Mesh(floatGeo, flatVertexColorMaterial());
+      float.visible = false;
+      this.lines.push({ line, float, pts });
+      this.root.add(line, float);
+    }
     // A fish: a flat spindle with a tail, silver-blue.
     const fishGeo = mergeParts([part(new THREE.SphereGeometry(0.1, 8, 5).scale(1.6, 0.45, 0.25), 0x9ab0c0), part(new THREE.ConeGeometry(0.06, 0.1, 4).rotateZ(Math.PI / 2).translate(-0.19, 0, 0), 0x7a90a0)]);
     this.fish = new THREE.InstancedMesh(fishGeo, flatVertexColorMaterial(), MAX_FISH);
     this.fish.count = 0;
     this.fish.frustumCulled = false;
-    this.root.add(this.line, this.float);
   }
 
   /** The bucket's boat (its root), so the fish ride in it. */
@@ -54,24 +57,27 @@ export class RodView {
   }
 
   /**
-   * @param game  your own rod game (the line and float are yours)
-   * @param tip   the rod's tip (world)
+   * @param rods  your own rods' games (the lines and floats are yours), each with its tip (world) if in hand
    */
-  update(world: WorldState, vesselId: string, game: RodGame, tip: THREE.Vector3 | null): void {
-    const out = game.phase !== 'idle' && !!tip;
-    this.line.visible = out;
-    this.float.visible = out;
-    if (out && tip) {
+  update(world: WorldState, vesselId: string, rods: { game: RodGame; tip: THREE.Vector3 | null }[]): void {
+    this.lines.forEach((l, i) => {
+      const r = rods[i];
+      const out = !!r && r.game.phase !== 'idle' && !!r.tip;
+      l.line.visible = out;
+      l.float.visible = out;
+      if (!out || !r.tip) return;
+      const tip = r.tip;
+      const game = r.game;
       const f = game.float;
-      this.float.position.set(f.x, f.y, f.z);
+      l.float.position.set(f.x, f.y, f.z);
       // The line: a sag between the tip and the float, pulled straight by the fish.
       const sag = game.phase === 'playing' ? 0.3 * (1 - game.tension) : 0.9;
       for (let i = 0; i < LINE_POINTS; i++) {
         const t = i / (LINE_POINTS - 1);
-        this.pts[i].set(tip.x + (f.x - tip.x) * t, tip.y + (f.y - tip.y) * t - sag * 4 * t * (1 - t), tip.z + (f.z - tip.z) * t);
+        l.pts[i].set(tip.x + (f.x - tip.x) * t, tip.y + (f.y - tip.y) * t - sag * 4 * t * (1 - t), tip.z + (f.z - tip.z) * t);
       }
-      this.line.geometry.setFromPoints(this.pts);
-    }
+      l.line.geometry.setFromPoints(l.pts);
+    });
     // The bucket's fish.
     const v = world.vessels[vesselId];
     const rack = v ? gearOf(v, 'rodRack') : null;

@@ -93,8 +93,12 @@ export class GearBracket extends Control {
   /** Shown in the label: someone else has it. */
   takenElsewhere = false;
 
-  constructor(readonly gear: GearKind) {
-    super(`gear:${gear}`, `gear:${gear}`);
+  /** @param channel the bracket's own channel: `gear:<kind>`, or `gear:rod2` for the third rod. */
+  constructor(
+    readonly gear: GearKind,
+    channel = `gear:${gear}`,
+  ) {
+    super(channel, channel);
     this.label = gear === 'extinguisher' ? 'Fire extinguisher: take / hang back' : gear === 'rod' ? 'Fishing rod: take / hang back' : 'Torch: take / hang back';
     const h = gear === 'extinguisher' ? 0.55 : 0.2;
     // The rod lies across its clips: a long hit box along x.
@@ -143,20 +147,26 @@ export class HandGear {
   on = false;
   /** The rod: its trigger / button went down this frame (a cast, a strike). */
   pressed = false;
-  /** The rod: hung across its rack at this yaw (rad about y), so it lies along the wall. */
-  private hangYaw = 0;
+  /** How it hangs on its rack (the rod: upright in its cup). */
+  private readonly hangQuat = new THREE.Quaternion();
+  /** The rod: seconds left before a press counts after taking it (so the grab isn't a cast). */
+  private grace = 0;
   /** The torch's own light (only the torch; only while lit, `realLight`). */
   readonly light: THREE.SpotLight | null = null;
   private home: THREE.Object3D | null = null;
   private readonly tmp = new THREE.Vector3();
   private readonly tmpD = new THREE.Vector3();
 
-  constructor(readonly kind: GearKind) {
+  /** @param slot which of the rack's rods this is (the rods: 0..n-1; one of the others: 0). */
+  constructor(
+    readonly kind: GearKind,
+    readonly slot = 0,
+  ) {
     const g = gearMesh(kind);
     this.mesh = g.mesh;
-    this.mesh.name = `gear:${kind}`;
+    this.mesh.name = `gear:${kind}${slot || ''}`;
     this.tip = g.tip;
-    this.bracket = new GearBracket(kind);
+    this.bracket = new GearBracket(kind, `gear:${kind}${slot || ''}`);
     if (kind === 'torch' && CONFIG.handGear.torch.realLight) {
       const c = CONFIG.handGear.torch;
       // Not lit: invisible, so no shader includes it (one recompile when first switched on).
@@ -175,9 +185,10 @@ export class HandGear {
   }
 
   /** Hang it on its bracket in `parent` (the home boat's root), at `pos` (its axes). */
-  mount(parent: THREE.Object3D, pos: readonly number[], yaw = 0): void {
+  mount(parent: THREE.Object3D, pos: readonly number[], hang?: THREE.Quaternion): void {
     this.home = parent;
-    this.hangYaw = yaw;
+    if (hang) this.hangQuat.copy(hang);
+    else this.hangQuat.identity();
     // The bracket's root is the gear's hanging point (the handle).
     const up = this.kind === 'extinguisher' ? 0.27 : this.kind === 'rod' ? 0 : 0.07;
     this.bracket.root.position.set(pos[0], pos[1] + up, pos[2]);
@@ -192,17 +203,13 @@ export class HandGear {
     if (!this.home) return;
     this.home.add(this.mesh);
     this.mesh.position.copy(this.bracket.root.position);
-    this.mesh.quaternion.identity();
-    // The rod lies across its clips: its middle on the rack, turned along the wall.
-    if (this.kind === 'rod') {
-      this.mesh.rotation.y = this.hangYaw;
-      this.mesh.position.x += Math.sin(this.hangYaw) * 1.0;
-      this.mesh.position.z += Math.cos(this.hangYaw) * 1.0;
-    }
+    this.mesh.quaternion.copy(this.hangQuat);
   }
 
   private take(h: Handedness | 'desk'): void {
     this.held = h;
+    this.pressed = false;
+    this.grace = CONFIG.rod.takeGrace;
     let o: THREE.Object3D = this.mesh;
     while (o.parent) o = o.parent;
     o.add(this.mesh);
@@ -236,7 +243,7 @@ export class HandGear {
       used[held] = true;
       this.mesh.position.copy(f.grip);
       if (f.quat) this.mesh.quaternion.copy(f.quat);
-      this.pressed = f.triggerPressed;
+      this.pressed = f.triggerPressed && this.grace <= 0;
       if (this.kind === 'extinguisher' || this.kind === 'rod') this.setOn(f.triggerDown);
       else if (f.triggerPressed) {
         this.setOn(!this.on);
@@ -279,9 +286,14 @@ export class HandGear {
     const target = this.tmp.setFromMatrixPosition(camera.matrixWorld).addScaledVector(look, 8);
     this.mesh.lookAt(target);
     this.mesh.rotateY(Math.PI); // lookAt points +z at the target; the nozzle is -z
-    this.pressed = pressed;
+    this.pressed = pressed && this.grace <= 0;
     if (this.kind === 'extinguisher' || this.kind === 'rod') this.setOn(down);
     else if (pressed) this.setOn(!this.on);
+  }
+
+  /** Every frame while held: the grace after taking it runs down. */
+  tick(dt: number): void {
+    if (this.grace > 0) this.grace -= dt;
   }
 
   /** Where the hand is (desktop: for the avatar's "hand"). */
@@ -305,6 +317,6 @@ export class HandGear {
     this.tipWorld(p, d);
     p.applyMatrix4(inv);
     d.transformDirection(inv);
-    return { kind: this.kind, on: this.on, p: [r(p.x), r(p.y), r(p.z)], d: [r(d.x), r(d.y), r(d.z)] };
+    return { kind: this.kind, on: this.on, p: [r(p.x), r(p.y), r(p.z)], d: [r(d.x), r(d.y), r(d.z)], ...(this.slot ? { slot: this.slot } : {}) };
   }
 }

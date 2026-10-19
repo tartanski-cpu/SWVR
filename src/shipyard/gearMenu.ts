@@ -34,7 +34,7 @@ export const GEAR_GROUPS: GearGroup[] = [
 export const GEAR_ABOUT: Record<string, string> = {
   skiff: 'A small boat on deck, with its own crane to launch and recover her: for reaching people in the water and running to the beach.',
   lifeRing: 'Thrown on its line to someone in the water; the boat hook beside it to bring them alongside.',
-  rodRack: 'A handheld rod on a rack on the house, a bucket under it: cast over the side, play what bites, sell the bucket in port.',
+  rodRack: 'Four handheld rods standing in a rack on a wall of the wheelhouse, a bucket beside them: cast over the side, play what bites, sell the bucket in port.',
   searchlight: 'A steerable lamp for searching at night.',
   fireMonitor: 'A water cannon for fighting fires on other boats and on the quay.',
   towWinch: 'A powered drum for the tow line: tows things far heavier than she is.',
@@ -47,7 +47,7 @@ export const GEAR_ABOUT: Record<string, string> = {
 
 /** How it goes on her (above). */
 export function gearKind(eq: Equipment): 'place' | 'fit' {
-  return eq.how === 'grid' || eq.how === 'side' || eq.how === 'skiff' ? 'place' : 'fit';
+  return eq.how === 'grid' || eq.how === 'side' || eq.how === 'skiff' || eq.how === 'rack' ? 'place' : 'fit';
 }
 
 const svg = (body: string) => `<svg class="gearIcon" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;

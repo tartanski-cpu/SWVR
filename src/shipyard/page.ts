@@ -37,7 +37,7 @@ import { briefPaper } from './briefPaper';
 import { buildVesselMesh, buildVesselMeshParts } from '../vessel/view/hullMesh';
 import { DESIGN_HULLS, ENGINES, LIVERIES, ROOF_PAINTS, ROOF_TOPS, type DesignedBoat } from './build';
 import { docFileName, docFileText, docToken, designToken, readDesign, shortCode } from './designDoc';
-import { ALL_FIELDS, DEFAULT_DESIGN, GUARDS, MATERIALS, OUTBOARDS, RAILS, MEASURES, SILLS, type MeasureKey, SINGLE_ONLY_ENGINES, SKIFFS, outboardCount, placeOf, placeValue, SCALES, type PlaceKey, type ShipDesign } from './design';
+import { ALL_FIELDS, CONSOLE_SIDES, DEFAULT_DESIGN, GUARDS, MATERIALS, OUTBOARDS, RAILS, MEASURES, SILLS, type MeasureKey, SINGLE_ONLY_ENGINES, SKIFFS, outboardCount, placeOf, placeValue, SCALES, type PlaceKey, type ShipDesign } from './design';
 import { hullPlan } from '../vessel/layout';
 import { UndoStack } from './undo';
 import { YardLink } from './yardLink';
@@ -723,6 +723,9 @@ section('2. Wheelhouse');
   measure('roofEdge', 'Edge', (v) => `${v.toFixed(0)}° back`);
 
   group('Inside');
+  // The helm console (owner): no longer than CONFIG.shipyard.helm.maxConsole, so on a wide
+  // wheelhouse there's room beside it, and against the port or starboard wall if chosen.
+  options('consoleSide', 'Console', [...CONSOLE_SIDES]);
   options('chartTable', 'Chart table', ['None', 'Port wall, aft']);
 
   // The deckhouse (owner: pilot and rescue boats): the wheelhouse stands on it.
@@ -1723,7 +1726,7 @@ const USUAL: Record<string, string[]> = {
   aFrame: ['', 'over the transom, with the net and a winch'],
   lifeRing: ['', 'port side of the wheelhouse', 'starboard side of the wheelhouse'],
   sideDoor: ['', "in the wheelhouse's port wall"],
-  rodRack: ['', "on the wheelhouse's aft wall, its bucket on deck under it"],
+  rodRack: ['', "on the wheelhouse's aft wall, port of the door", "on the wheelhouse's aft wall, starboard of the door", "on the wheelhouse's port wall", "on the wheelhouse's starboard wall"],
   skiff: SKIFFS.map((s) => s.toLowerCase()),
 };
 /** Take a piece off her: with its pin, if a pin put it there. */
