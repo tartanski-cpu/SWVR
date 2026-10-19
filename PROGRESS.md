@@ -4958,6 +4958,12 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Checked:** `npm test` (new `tests/build.test.ts`: behind → the same address with fresh and a cache-buster; same build, a dev page, no answer or already fresh → stays; the host hears a crew-mate's other build, not the same or a dev one), typecheck, `npm run build` (build.json and the script in index.html and shipyard.html). The built site under `vite preview` in headless Chromium: on the served build no reload; with `build.json` answering a newer build, the game page reloads at 0.2 s with `?together=12345&fresh=1&t=…` and then stays; the Shipyard page the same with its `?s=` session. Hosting from the menu and the together path against the real broker: hosted and joined. **Not checked:** the live site after this publish (the owner's two browsers), and the Quest.
 - **If it still fails for the owner:** the message on the screen now says why; please send it.
 
+### The Shipyard says why it can't start, with a fresh start (owner: Chrome broken, Edge fine)
+
+- **The owner:** the Shipyard page doesn't load in their Chrome but does in Edge, so it's something that browser holds. The live page loaded clean in headless Chromium through every step, with yesterday's favourites too, so the cause couldn't be found from here.
+- **Now** (`shipyard.html`, a line of script before the page's module): an error while the page loads (an uncaught error or a failed promise) puts up a banner with the error's text and where it came from, and a **Start afresh** button that clears this browser's copy of the design on the table, the step and the chosen project (`swvr.yard.session.*`, `swvr.yard.step`, `swvr.yard.project`; favourites and projects are kept) and loads the page again past the cache.
+- **Checked:** the built page in headless Chromium with a chunk made to throw as it loads: the banner with the error, and Start afresh brought the page back whole. **Owner:** if the banner shows, please send its words.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**
