@@ -2831,6 +2831,18 @@ export const CONFIG = {
      */
     consoleClear: 0.2,
     /**
+     * The helm in the skipper's view, however wide the wheelhouse (owner, Oct 2026: on a wide
+     * one "the instruments are very widely spaced apart ... you can't see them all when
+     * you're steering"). The console's screens stand in one row centred over the wheel,
+     * `screenGap` (m) between them (four: about 1.6 m across, within ~35 deg either side of
+     * the skipper's eye at the wheel), never spread out with the console. Its switches and
+     * buttons spread with a wider console only up to `maxSpread` times their places on the
+     * reference console (the landing craft's, 1.76 m of dash); beyond, the dash's ends are
+     * left clear. The units hung from the roof out to the sides (the VHF, the chartplotter,
+     * the FM set) come no further out than `hungReach` (m) from the centreline.
+     */
+    helm: { screenGap: 0.02, maxSpread: 1.25, hungReach: 1.0 },
+    /**
      * The advanced interior's working lights (owner): the overhead switch panel (panel.overhead)
      * and the foredeck and aft deck floodlights (light.flood). No rail lights for now (owner).
      *   overheadAft   the panel's face this far aft of the wheelhouse front (m), on the

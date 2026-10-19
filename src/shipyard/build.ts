@@ -974,6 +974,8 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   const batteriesKg = 2 * CONFIG.modules.batteryBank.massKg;
 
   // ── Places (vessel axes), as the landing craft's are from her cabin ──
+  /** How far out (m) a unit hung from the roof to one side goes: toward her side, no further than in view from the wheel. */
+  const hung = (x: number) => Math.min(x, CONFIG.shipyard.helm.hungReach);
   const wl = CONFIG.shipyard.workLights;
   const at = {
     console: [0, F + 0.9, cf + 0.56] as V3,
@@ -983,13 +985,14 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
     // (On the aft wall: from the saloon's floor, if she has one.)
     batteryMaster: [hw - 0.45, FA + 0.48, aft - 0.065] as V3,
     batterySelector: [hw - 0.2, FA + 0.48, aft - 0.065] as V3,
-    vhf: [-(hw - 0.3), roofY - 0.17, cf + 0.525 + sb(hw - 0.3)] as V3,
+    // (Hung out to the sides, but in view from the wheel on a wide house: CONFIG.shipyard.helm.)
+    vhf: [-hung(hw - 0.3), roofY - 0.17, cf + 0.525 + sb(hung(hw - 0.3))] as V3,
     // The advanced package's instruments (owner): the chartplotter hung out to starboard
     // ahead of the helm, turned toward it (the VHF's mirror); the NAV / WIND screen hung on
     // the centreline ahead of the helm; the FM set further aft to starboard, over your head.
-    chartplotter: [hw - 0.35, roofY - 0.17, cf + 0.5 + sb(hw - 0.35)] as V3,
+    chartplotter: [hung(hw - 0.35), roofY - 0.17, cf + 0.5 + sb(hung(hw - 0.35))] as V3,
     navDisplay: [0, roofY - 0.15, cf + 0.42] as V3,
-    fm: [hw - 0.35, roofY - 0.11, cf + 1.3 + sb(hw - 0.35)] as V3,
+    fm: [hung(hw - 0.35), roofY - 0.11, cf + 1.3 + sb(hung(hw - 0.35))] as V3,
     // The task board, on solid wall below the window sill (her walls are glass above it), on
     // the starboard wall, aft (its face's middle; 2 cm off the wall's inside face, clear of
     // its frames: no flicker between them).
@@ -1783,7 +1786,9 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
     if (anchorAt) consoleMount.modules!.push({ socket: 'anchor', module: 'control.toggle', config: { label: 'Anchor: let go / heave in', engrave: 'ANCHOR' }, bind: { value: 'anchor.letGo' } });
   }
   const dashHalf = hw - wall - 0.11;
-  const sx = dashHalf / cc.dash.halfWidth;
+  // The dash runs her cabin's width; what's on it spreads with it only so far (owner: on a wide
+  // wheelhouse the instruments were out of the skipper's view: CONFIG.shipyard.helm).
+  const sx = Math.min(dashHalf / cc.dash.halfWidth, CONFIG.shipyard.helm.maxSpread);
   cc.dash.halfWidth = Math.round(dashHalf * 1000) / 1000;
   // The throttle (and its pedestal) beside the wheel, no further out than on the reference console
   // (owner: on a wide console, spread with it, it was out of reach in VR); closer on a narrow one.
@@ -1793,6 +1798,14 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   cc.groups = cc.groups.map((gp: { x: [number, number] }) => ({ ...gp, x: gp.x.map((x) => Math.round(x * sx * 1000) / 1000) }));
   for (const slot of Object.values(cc.slots) as { position: V3 }[]) slot.position = [Math.round(slot.position[0] * sx * 1000) / 1000, slot.position[1], slot.position[2]];
   cc.slots.throttle.position = [throttleAt, cc.slots.throttle.position[1], cc.slots.throttle.position[2]];
+  // Its screens in one row centred over the wheel, in their order, whichever she has (the basic
+  // controls' two side by side), never spread with the dash; closer on a narrow one.
+  const screens = ['speed', 'heading', 'rpm', 'engineMonitor'].filter((id) => consoleMount.modules!.some((m) => m.socket === id && m.module === 'instrument.screen') && (d.controls || ['speed', 'rpm'].includes(id)));
+  const pitch = (CONFIG.modules.screen.dash.width + CONFIG.shipyard.helm.screenGap) * Math.min(1, dashHalf / CONFIG.vessels.landingCraft.layout.wheelhouse.halfWidth);
+  screens.forEach((id, i) => {
+    const slot = cc.slots[id] as { position: V3 };
+    slot.position = [Math.round((i - (screens.length - 1) / 2) * pitch * 1000) / 1000, slot.position[1], slot.position[2]];
+  });
   // A faceted front: the dash wraps round with it (console.standard's `wrap`), its wings set back as the outer windows are.
   // Its controls stay square to her (owner: forward is forward); its screens turn with the wings, flush with the dash's face.
   if (house.facet)
