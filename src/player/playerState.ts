@@ -23,7 +23,7 @@ export interface HeldTool {
  * aboard (or world). The host uses the extinguisher's to put fires out; everyone draws it.
  */
 export interface GearPose {
-  kind: 'extinguisher' | 'torch';
+  kind: 'extinguisher' | 'torch' | 'rod';
   on: boolean;
   p: Vec3;
   d: Vec3;

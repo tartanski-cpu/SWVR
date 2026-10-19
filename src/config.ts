@@ -1783,6 +1783,49 @@ export const CONFIG = {
   slipway: { maxAngleDeg: 20, maxSpeed: 1.0, range: 4, across: 1.5, landSec: 2, landSpeed: 0.8, releaseLever: -0.25 },
 
   /**
+   * The handheld fishing rod (owner, Oct 2026; fishing/rodGame.ts, modules/rodRack): a rod on
+   * a rack on the wheelhouse's aft wall (a Shipyard fitting), a bucket on deck under it.
+   * Take the rod, cast (trigger / click) over the side, wait; a fish bites (the float dips,
+   * the rod buzzes): strike within `biteWindow` s, then play it: hold to reel (the line's
+   * tension rises, the fish comes in), let go to rest it (the tension falls). Over 1 the line
+   * parts. Landed at `landAt` m, it goes in the bucket; tied up at a port the bucket is sold.
+   *   castRange     how far the float flies (m, along the rod, level)
+   *   maxSpeed      the boat must be slower than this to fish (m/s)
+   *   wait          seconds to a bite in open water (range); in a fishing ground divided by
+   *                 (1 + richness × groundFactor)
+   *   biteWindow    seconds to strike once it bites
+   *   reelRate      line in per second while reeling (m/s), less as the fish pulls
+   *   tensionUp     how fast the tension rises while reeling, per unit of the fish's pull
+   *   tensionDown   how fast it falls resting (per s)
+   *   fightPeriod   the fish's runs (s): its pull swings between calm and full
+   *   pullPerKg     a fish's full pull in tension per kg (a 2 kg fish at 0.9 breaks the line if you don't rest it)
+   *   landAt        the float this close (m) and the fish is in
+   *   bucketMax     fish the bucket holds
+   *   pricePerKg    what the merchant pays (GBP), times the port's fish factor
+   *   species       what bites where: the coast's own mix, and each fishing ground's own
+   *                 species (FishingGroundDef.species) when you're in one; kg ranges
+   */
+  rod: {
+    castRange: 12,
+    maxSpeed: 1.5,
+    wait: [10, 35] as [number, number],
+    groundFactor: 1.5,
+    biteWindow: 2.5,
+    reelRate: 1.4,
+    tensionUp: 0.9,
+    tensionDown: 1.2,
+    fightPeriod: 3.2,
+    pullPerKg: 0.42,
+    landAt: 1.5,
+    bucketMax: 12,
+    pricePerKg: 5.5,
+    species: {
+      coast: ['mackerel', 'pollack', 'wrasse', 'mackerel', 'coalfish'] as string[],
+      kg: { mackerel: [0.3, 1.1], pollack: [0.6, 3.5], wrasse: [0.4, 1.6], coalfish: [0.5, 2.8], haddock: [0.7, 2.4], herring: [0.2, 0.5], cod: [1.0, 6.0] } as Record<string, [number, number]>,
+    },
+  },
+
+  /**
    * A Kort nozzle (owner, Oct 2026; the Shipyard's choice on a shaft-driven inboard): a duct
    * round the propeller. Ducting a heavily loaded propeller lets the duct itself carry part of
    * the thrust, so at a standstill (bollard pull) she pulls harder for the same power; at
@@ -2717,7 +2760,7 @@ export const CONFIG = {
       fuelDensity: 0.84,
       crewKg: 170,
       storesKg: 150,
-      gear: { towWinch: 450, aFrame: 350, sternRoller: 60, skiff: 500, anchor: 150 },
+      gear: { towWinch: 450, aFrame: 350, sternRoller: 60, skiff: 500, anchor: 150, rodRack: 12 },
     },
     engineHatch: { endRoom: 0.1, sideRoom: 0.2, minLength: 0.8, maxLength: 1.8, minWidth: 0.6, helmRoom: 0.1, deckMargin: 0.35, soleClear: 0.08 },
     /**
@@ -2804,7 +2847,7 @@ export const CONFIG = {
        * her wheelhouse), and at least `fromEnds` (m) inside the mooring cleats.
        */
       midCleats: { fromHouse: 0.4, fromEnds: 0.6 },
-      price: { towWinch: 12_000, sternRoller: 2_000, aFrame: 18_000, lifeRing: 600, sideDoor: 3_000, anchor: 3_500, skiff: 38_000 },
+      price: { towWinch: 12_000, sternRoller: 2_000, aFrame: 18_000, lifeRing: 600, sideDoor: 3_000, anchor: 3_500, skiff: 38_000, rodRack: 700 },
     },
     /**
      * The deckhouse a design can have under her wheelhouse (shipyard/build.ts): its walls and
@@ -3032,6 +3075,15 @@ export const CONFIG = {
      *  alongside (from the hull side, m) a hooked crate must be to lift aboard. */
     hookLength: 2.2,
     hookReach: 0.6,
+    /**
+     * Pushing off with the boat hook (owner, Oct 2026): its tip on a quay, a pier or the
+     * shore, each press of the trigger (VR) or click (desktop) gives the boat a shove of
+     * `impulse` N·s along the hook, away from what it's on (a person's hard push for a
+     * second or two), at the hand. She moves by impulse / her mass: a 4 t boat a fifth of a
+     * knot a push, a 60 t tug hardly at all, so a heavy boat takes many pushes. No feedback
+     * through the hand, so it's a nudge, not physics. `every`: no more often than this (s).
+     */
+    hookPush: { impulse: 900, every: 0.3 },
     /**
      * Auto-extend (menu option, on by default): pointed at a floating crate or a tow's bow
      * eye within this range (m), the hook telescopes out to it; it slides back to its own
@@ -4028,8 +4080,9 @@ export const CONFIG = {
    *   strength       each firing's loudness, in firing order (the cycle's lumpy rhythm)
    *   jitter         +- random spread on each firing's loudness
    *   grit           how much of each pulse is noise (0.08 if left out)
-   *   mech           level of that noise above 400 Hz, beside the tone: the engine's
-   *                  mechanical clatter riding on each firing (0: none)
+   *   mech           level of that noise in `mechBand` (Hz, from and to; 400 to 1400 if
+   *                  left out), beside the tone: the engine's mechanical clatter riding on
+   *                  each firing (0: none)
    *   pulseTau       how long each exhaust pulse rings (s), + pulseTauLow more at idle
    *   body, stack    the exhaust's two resonances (peaking filters: Hz, Q, dB)
    *   lp             the tone's low-pass: base + rpm * (rpm / rated) + load * load (Hz)
@@ -4051,6 +4104,7 @@ export const CONFIG = {
       jitter: 0.1,
       grit: 0.08,
       mech: 0,
+      mechBand: null as readonly [number, number] | null,
       pulseTau: 0.013,
       pulseTauLow: 0.006,
       body: { freq: 110, q: 0.9, gain: 4 },
@@ -4077,6 +4131,7 @@ export const CONFIG = {
       jitter: 0.12,
       grit: 0.08,
       mech: 0,
+      mechBand: null as readonly [number, number] | null,
       pulseTau: 0.011,
       pulseTauLow: 0.005,
       body: { freq: 85, q: 0.9, gain: 5 },
@@ -4088,34 +4143,43 @@ export const CONFIG = {
       turbo: { idleHz: 1400, boostHz: 3200, gain: 0.006 } as { idleHz: number; boostHz: number; gain: number } | null,
     },
     /**
-     * The tug diesel (owner, Oct 2026: "a better engine noise for the big straight six
-     * diesel", then "still sounds like a single cylinder"), matched to the owner's recording
-     * of a tug with twin 450 hp engines idling (analysed: ref/tug.wav, PROGRESS.md). That
-     * recording fires 62 times a second at idle, its strongest line by 12 dB, with a lope
-     * once every eight firings (lines 7.8 Hz apart, -20 dB): an eight-beat engine, the
-     * pattern of a two-stroke V8 at ~470 rpm. A straight six at the tug diesel's 450 rpm idle
-     * fires only 22 times a second, each firing heard on its own: a single cylinder's thump.
-     * So its voice fires as the recording does: eight pulses a revolution (`cylinders` 16 in
-     * this four-stroke reckoning: 60 Hz at 450 rpm, 133 Hz flat out), lumpy once a revolution
-     * (`strength`); most of it a 40-80 Hz rumble (`body` broad at 66 Hz), a resonance at 250
-     * Hz (`stack`), and the mechanical clatter riding on each firing above 400 Hz (`grit`,
-     * `mech`) that the recording has and the other engines are kept free of. Rendered
-     * offline, its spectrum lies within a few per cent of the recording's in every band.
+     * The tug diesel, the big straight six (owner, Oct 2026: "a better engine noise for the
+     * big straight six diesel"; "still sounds like a single cylinder"; then, with a phone
+     * recording of "an actual 6 cylinder marine diesel" idling: this voice is that one's,
+     * and only the big straight six's). The recording, analysed (PROGRESS.md): it fires 70
+     * times a second, very evenly (the lines half-way between the firing's, which unequal
+     * cylinders make, are 35 to 48 dB down), its third harmonic (210 Hz) the loudest, the
+     * fundamental 6 dB and the second 11 dB under it, most of it at 120 to 400 Hz, a little
+     * clatter to 2 kHz. A six firing 70 times a second at idle fires six times a revolution,
+     * as a two-stroke six does (~700 rpm): `cylinders` 12 in this four-stroke reckoning
+     * (45 Hz at the tug diesel's 450 rpm idle, 100 Hz flat out; a four-stroke six at its revs
+     * fired only 22 times a second at idle, heard as one cylinder thumping). Even cylinders;
+     * short pulses; a narrow exhaust resonance at 210 Hz (`stack`) and a dip at 70 (`body`,
+     * negative gain); the clatter riding on each firing (`grit`, `mech`). Rendered offline at
+     * the recording's 70 firings a second and its size, its harmonics lay within 1 dB of the
+     * recording's for the first three, its spectrum within a few per cent from 200 Hz up;
+     * then all of it scaled to the tug diesel's size (below).
      */
     bigSix: {
-      cylinders: 16,
-      strength: [1.37, 1.16, 0.85, 0.84, 0.93, 0.84, 0.85, 1.16],
-      jitter: 0.06,
-      grit: 0.35,
-      mech: 2.8,
-      pulseTau: 0.012,
-      pulseTauLow: 0.008,
-      body: { freq: 66, q: 0.7, gain: 6 },
-      stack: { freq: 250, q: 1.4, gain: 12 },
-      lp: { base: 600, rpm: 300, load: 400 },
-      // (Quiet at idle and swelling with the throttle as the six's did: rendered offline,
-      // within about 2 dB of it at idle, half and full throttle.)
-      thump: { base: 0.2, rpm: 0.2, load: 0.32 },
+      cylinders: 12,
+      strength: [1.0, 0.98, 1.0, 0.98, 1.0, 0.98],
+      jitter: 0.03,
+      grit: 0.3,
+      mech: 3.5,
+      // Scaled from the recording's smaller six (owner: "a smaller straight 6 so you can adapt
+      // for the size of the tug's one"): the tug diesel's block 2.65 m long against ~1.5 m,
+      // ~35 litres against ~6.5 (cube root 1.75): about 1.8 times the size. A bigger engine of
+      // the same kind rings lower in proportion: its resonances, the clatter's band and the
+      // tone's low-pass divided by 1.8, its pulses 1.8 times as long.
+      mechBand: [220, 780] as readonly [number, number] | null,
+      pulseTau: 0.011,
+      pulseTauLow: 0.007,
+      body: { freq: 39, q: 1.0, gain: -6 },
+      stack: { freq: 117, q: 4, gain: 16 },
+      lp: { base: 390, rpm: 170, load: 220 },
+      // (Rendered offline: within about 2 dB of the engine's old sound overall, and a few dB
+      // stronger where a headset plays, 100 to 400 Hz, where most of it now is.)
+      thump: { base: 0.26, rpm: 0.26, load: 0.4 },
       drive: 1.5,
       hiss: { base: 0.003, load: 0.012 },
       turbo: { idleHz: 650, boostHz: 1700, gain: 0.007 } as { idleHz: number; boostHz: number; gain: number } | null,
@@ -4133,6 +4197,7 @@ export const CONFIG = {
       jitter: 0.12,
       grit: 0.08,
       mech: 0,
+      mechBand: null as readonly [number, number] | null,
       pulseTau: 0.011,
       pulseTauLow: 0.005,
       body: { freq: 85, q: 0.9, gain: 5 },

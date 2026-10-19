@@ -224,6 +224,8 @@ export interface VesselState {
    * charge left, 0..1. Absent = full.
    */
   extCharge?: number;
+  /** The rod's catch in the bucket (fishing/rod.ts): fish, their weight (kg), the last one's species. Sold when she's tied up at a port. */
+  rodCatch?: { count: number; kg: number; last?: string };
   /** Taking fuel at a fuel berth. */
   refuelling: boolean;
   contact: ContactState;

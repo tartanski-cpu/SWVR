@@ -25,8 +25,12 @@ import type { Handedness } from './xrInput';
  *
  * Drawn in the hand frame: the grip at the origin, the nozzle / lens toward -z (where the
  * controller points).
+ *
+ * The fishing rod (owner, Oct 2026) is the third: on its rack on the wheelhouse's aft wall
+ * (modules/rodRack), taken the same way; its trigger / left button is the rod game's cast,
+ * strike and reel (fishing/rodGame.ts reads `pressed` and `on` each frame).
  */
-export type GearKind = 'extinguisher' | 'torch';
+export type GearKind = 'extinguisher' | 'torch' | 'rod';
 
 /** The extinguisher: red bottle hanging under the handle, a short black hose to the nozzle. */
 function extinguisherMesh(): { mesh: THREE.Mesh; tip: THREE.Vector3 } {
@@ -59,8 +63,22 @@ function torchMesh(): { mesh: THREE.Mesh; tip: THREE.Vector3 } {
   return { mesh: new THREE.Mesh(geo, flatVertexColorMaterial()), tip: new THREE.Vector3(0, -0.06, -0.16) };
 }
 
+/** The rod: a 2.4 m tapered rod forward of the grip (-z), a reel under the grip, a cork butt behind. */
+function rodMesh(): { mesh: THREE.Mesh; tip: THREE.Vector3 } {
+  const blank = 0x3a2e24;
+  const geo = mergeParts([
+    part(new THREE.CylinderGeometry(0.004, 0.012, 2.2, 6).rotateX(Math.PI / 2).translate(0, 0.0, -1.15), blank), // the blank, butt to tip
+    part(new THREE.CylinderGeometry(0.016, 0.016, 0.32, 8).rotateX(Math.PI / 2).translate(0, 0, 0.1), 0xb08a5a), // the cork grip
+    part(new THREE.CylinderGeometry(0.035, 0.035, 0.03, 12).rotateZ(Math.PI / 2).translate(0, -0.06, -0.02), 0x2b2f33), // the reel's spool
+    part(new THREE.BoxGeometry(0.012, 0.05, 0.03).translate(0, -0.03, -0.02), 0x2b2f33), // its foot
+    part(new THREE.CylinderGeometry(0.004, 0.004, 0.05, 6).translate(0.035, -0.06, -0.02), 0x8a8f94), // the handle
+    ...[-0.5, -1.0, -1.5, -1.95].map((z) => part(new THREE.TorusGeometry(0.012, 0.002, 4, 8).translate(0, 0.012, z), 0x8a8f94)), // the line rings
+  ]);
+  return { mesh: new THREE.Mesh(geo, flatVertexColorMaterial()), tip: new THREE.Vector3(0, 0.01, -2.25) };
+}
+
 export function gearMesh(kind: GearKind): { mesh: THREE.Mesh; tip: THREE.Vector3 } {
-  return kind === 'extinguisher' ? extinguisherMesh() : torchMesh();
+  return kind === 'extinguisher' ? extinguisherMesh() : kind === 'rod' ? rodMesh() : torchMesh();
 }
 
 /**
@@ -77,20 +95,21 @@ export class GearBracket extends Control {
 
   constructor(readonly gear: GearKind) {
     super(`gear:${gear}`, `gear:${gear}`);
-    this.label = gear === 'extinguisher' ? 'Fire extinguisher: take / hang back' : 'Torch: take / hang back';
+    this.label = gear === 'extinguisher' ? 'Fire extinguisher: take / hang back' : gear === 'rod' ? 'Fishing rod: take / hang back' : 'Torch: take / hang back';
     const h = gear === 'extinguisher' ? 0.55 : 0.2;
-    const hit = new THREE.Mesh(new THREE.BoxGeometry(0.2, h, 0.2), new THREE.MeshBasicMaterial({ visible: false }));
+    // The rod lies across its clips: a long hit box along x.
+    const hit = new THREE.Mesh(new THREE.BoxGeometry(gear === 'rod' ? 1.2 : 0.2, h, 0.2), new THREE.MeshBasicMaterial({ visible: false }));
     hit.position.y = gear === 'extinguisher' ? -0.22 : -0.04;
     // The bracket itself: a dark strap and back plate on the wall (aft of the gear, +z).
-    const strap = new THREE.Mesh(
-      mergeParts(
-        gear === 'extinguisher'
-          ? [part(new THREE.BoxGeometry(0.12, 0.3, 0.012).translate(0, -0.26, 0.1), 0x2a2e33), part(new THREE.BoxGeometry(0.17, 0.03, 0.03).translate(0, -0.32, 0.085), 0x2a2e33)]
-          : [part(new THREE.BoxGeometry(0.08, 0.12, 0.012).translate(0, -0.05, 0.075), 0x2a2e33), part(new THREE.BoxGeometry(0.03, 0.03, 0.08).translate(0, 0.0, 0.04), 0x2a2e33)],
-      ),
-      flatVertexColorMaterial(),
-    );
-    this.root.add(hit, strap);
+    // The rod's rack clips are the module's own (modules/rodRack): no strap of its own.
+    const strapParts =
+      gear === 'extinguisher'
+        ? [part(new THREE.BoxGeometry(0.12, 0.3, 0.012).translate(0, -0.26, 0.1), 0x2a2e33), part(new THREE.BoxGeometry(0.17, 0.03, 0.03).translate(0, -0.32, 0.085), 0x2a2e33)]
+        : gear === 'rod'
+          ? []
+          : [part(new THREE.BoxGeometry(0.08, 0.12, 0.012).translate(0, -0.05, 0.075), 0x2a2e33), part(new THREE.BoxGeometry(0.03, 0.03, 0.08).translate(0, 0.0, 0.04), 0x2a2e33)];
+    this.root.add(hit);
+    if (strapParts.length) this.root.add(new THREE.Mesh(mergeParts(strapParts), flatVertexColorMaterial()));
     this.hitObjects.push(hit);
   }
 
@@ -120,8 +139,12 @@ export class HandGear {
   readonly bracket: GearBracket;
   /** Which hand holds it ('desk' for the desktop mouse), or null: on its bracket. */
   held: Handedness | 'desk' | null = null;
-  /** Spraying / lit. */
+  /** Spraying / lit / reeling (the rod: the trigger or button held). */
   on = false;
+  /** The rod: its trigger / button went down this frame (a cast, a strike). */
+  pressed = false;
+  /** The rod: hung across its rack at this yaw (rad about y), so it lies along the wall. */
+  private hangYaw = 0;
   /** The torch's own light (only the torch; only while lit, `realLight`). */
   readonly light: THREE.SpotLight | null = null;
   private home: THREE.Object3D | null = null;
@@ -152,10 +175,11 @@ export class HandGear {
   }
 
   /** Hang it on its bracket in `parent` (the home boat's root), at `pos` (its axes). */
-  mount(parent: THREE.Object3D, pos: readonly number[]): void {
+  mount(parent: THREE.Object3D, pos: readonly number[], yaw = 0): void {
     this.home = parent;
+    this.hangYaw = yaw;
     // The bracket's root is the gear's hanging point (the handle).
-    const up = this.kind === 'extinguisher' ? 0.27 : 0.07;
+    const up = this.kind === 'extinguisher' ? 0.27 : this.kind === 'rod' ? 0 : 0.07;
     this.bracket.root.position.set(pos[0], pos[1] + up, pos[2]);
     parent.add(this.bracket.root);
     this.hangBack();
@@ -163,11 +187,18 @@ export class HandGear {
 
   hangBack(): void {
     this.held = null;
+    this.pressed = false;
     this.setOn(false);
     if (!this.home) return;
     this.home.add(this.mesh);
     this.mesh.position.copy(this.bracket.root.position);
     this.mesh.quaternion.identity();
+    // The rod lies across its clips: its middle on the rack, turned along the wall.
+    if (this.kind === 'rod') {
+      this.mesh.rotation.y = this.hangYaw;
+      this.mesh.position.x += Math.sin(this.hangYaw) * 1.0;
+      this.mesh.position.z += Math.cos(this.hangYaw) * 1.0;
+    }
   }
 
   private take(h: Handedness | 'desk'): void {
@@ -205,7 +236,8 @@ export class HandGear {
       used[held] = true;
       this.mesh.position.copy(f.grip);
       if (f.quat) this.mesh.quaternion.copy(f.quat);
-      if (this.kind === 'extinguisher') this.setOn(f.triggerDown);
+      this.pressed = f.triggerPressed;
+      if (this.kind === 'extinguisher' || this.kind === 'rod') this.setOn(f.triggerDown);
       else if (f.triggerPressed) {
         this.setOn(!this.on);
         pulse(held, 0.3, 20);
@@ -247,7 +279,8 @@ export class HandGear {
     const target = this.tmp.setFromMatrixPosition(camera.matrixWorld).addScaledVector(look, 8);
     this.mesh.lookAt(target);
     this.mesh.rotateY(Math.PI); // lookAt points +z at the target; the nozzle is -z
-    if (this.kind === 'extinguisher') this.setOn(down);
+    this.pressed = pressed;
+    if (this.kind === 'extinguisher' || this.kind === 'rod') this.setOn(down);
     else if (pressed) this.setOn(!this.on);
   }
 

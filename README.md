@@ -328,6 +328,8 @@ Out of harbour, with no rescue on, a tow call comes over the VHF every few minut
 
 Unanswered calls go away after two minutes. The menu's Debug → Missions section has buttons that put a tow just astern (**Small**, **Medium**, **Large** or **Ship**: a kind of that size at random), raise a call, or end the job.
 
+**Push off with the boat hook.** Put the hook's tip against a quay, a pier or the shore and press the trigger (VR) or click (desktop): the boat gets a shove along the hook, away from it, at your hand. Press again to push more. A light boat moves off at a walking pace in a few pushes; a 60 t tug barely moves, so it takes a great many.
+
 **Tow anything in the water.** The towline isn't only for tow jobs. Make it fast the same way (hook or menu) to:
 - **any boat afloat**, at her bow, e.g. our own skiff once she's off the crane;
 - **floating debris** (the planks-and-drum hazards). Towed slowly into a harbour, it's cleared away, and the harbour thanks you.
@@ -443,6 +445,19 @@ The boat has a trawl: a red A-frame over the transom with a block each side on i
 5. **Haul the net** (TRAWL switch off, or hold HAUL on the A-frame) and **carry the boxes ashore** to any port's goods stack to land them. If the deck's full, the catch waits in the net.
 
 **Debug → Missions → Side jobs → Fishing ground** takes you to the nearest ground.
+
+### Rod fishing (side job)
+
+A Shipyard fitting (Deck gear → Fishing → **Fishing rod and bucket**, £700): a handheld rod on a rack across the wheelhouse's aft wall, on the side the life ring isn't, with a bucket on deck under it.
+
+1. **Take the rod** from its rack (VR: grip it; desktop: click it). Slow the boat right down (under 3 knots) and point the rod over the side.
+2. **Cast:** press the trigger (left button). The float flies out about 12 m along the rod and lands on the water.
+3. **Wait.** In a fishing ground a bite comes in seconds; in open water, half a minute or so. The float dips and the rod buzzes in your hand.
+4. **Strike:** press again within a couple of seconds, or it lets go.
+5. **Play it:** hold the trigger to reel. The line's tension rises as the fish pulls (it runs in waves); let go to rest it and the tension falls. Hold on through a hard run and the line parts. Reel it to the rod's tip and it's in the bucket.
+6. **Sell:** tie up at any port and the bucket is sold to the fish merchant by weight (£5.50 a kilo, more where a port pays well for fish), with a line in the ledger. The bucket holds 12 fish.
+
+What bites is the ground's own species in a fishing ground (haddock, mackerel, cod...), and mackerel, pollack, wrasse or coalfish along the coast. Hang the rod back and the line is wound in, fish or no fish. Crew-mates see the rod in your hand and the fish in the bucket; the float and line are yours alone.
 
 ### Lobster and crab potting (new, being built)
 
@@ -601,7 +616,7 @@ Then the choices, a step at a time:
    Place and size the wheelhouse (and fit a **chart table** along its port wall if it's wide enough), and shape it: its floor height (sunk below the deck or raised to see over the bow, with steps at the door), the front windows (raked aft for a fast patrol look, upright, or reverse-raked like a pilot house), and the roof: one flat slab overhanging the windows by a set 30 cm, its thickness (10, 20 or 30 cm) and its front edge, raked back as it rises at 30, 45 or 60°. Designed houses have no roof ladder or rail.
 3. Add deck gear (pin it, above, or by hand): a **deck crane** on the foredeck (at the starboard edge) or the aft deck (at the port edge), leaving the middle of the deck clear (see below), and a **searchlight** and a **fire monitor**, each on the wheelhouse roof or on a pole on the foredeck or the aft deck. On a pole, each has its own controls in a box on the pole at hand height (a joystick, its switch, and the monitor's FIRE gauge); stand aft of it facing forward and work it like the helm's. One on the roof is worked from the helm; one on a pole also from the helm if you pick the advanced controls. And the working deck gear: a **tow winch** (aft deck), a **stern roller** in the transom (her tow point), a **trawl A-frame** over the transom with its net (it brings the winch, whose drum hauls the warps), a **life ring and boat hook** (on the wheelhouse's aft wall, port or starboard, the ring's line on that quarter's cleat: with them she gets the **rescue calls** in the game, survivors climbing aboard over her transom and sitting on her open deck), and a **side door** in the wheelhouse's port wall (it needs a side deck outside to step onto: a narrower house leaves one).
 4. Choose basic or advanced controls. Every boat has the **VHF** (calls, forecasts, the harbours). Advanced adds the lights, wipers, horn, FM radio, the chartplotter, the NAV / WIND screen, the task board, an **overhead switch panel** over the helm for her **foredeck and aft deck floodlights** (on the DECK LTS breaker), and a **pull-down whiteboard**: pull its handle and it unrolls from its box under the roof by the aft wall; pull again and it rolls up.
-5. Choose an engine, single or twin (its propeller is matched by trial). The **slow-revving tug diesel** (450 kW, 1000 rpm, single only) turns a bigger propeller for a harder pull, with a voice of its own, matched to a recording of a real tug's engines: a deep, even rumble at idle with a slow lope and a mechanical clatter, and a big turbo's low whistle as she digs in. **Twin engines** each have their own sound, slightly out of step, so they drone in and out of phase as on a real twin-screw boat. Then choose basic or advanced controls, a paint, and the roof's colour (the hull's, or orange, white, grey or black).
+5. Choose an engine, single or twin (its propeller is matched by trial). The **slow-revving tug diesel** (450 kW, 1000 rpm, single only) turns a bigger propeller for a harder pull, with a voice of its own, matched to a recording of a real six-cylinder marine diesel: an even, busy rumble with a mechanical clatter, and a big turbo's low whistle as she digs in. **Twin engines** each have their own sound, slightly out of step, so they drone in and out of phase as on a real twin-screw boat. Then choose basic or advanced controls, a paint, and the roof's colour (the hull's, or orange, white, grey or black).
 
 **The deck crane** is worked from the post beside it, once the engine is running and the DECK HYD breaker is on:
 

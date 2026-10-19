@@ -10,6 +10,7 @@ import { VESSEL_DEFS } from './vesselDef';
 import { fuelBerthAt } from '../world/geography';
 import { BERTHS, FISHING_GROUNDS, PORTS } from '../world/archipelago';
 import { berthPose } from './physics/mooring';
+import { applyRodIntent } from '../fishing/rod';
 import { regionById } from '../world/regions';
 import type { VesselState } from './vesselState';
 import { applyBusIntent, holdGroup, isKeyName } from '../modular/bus';
@@ -304,6 +305,10 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
       break;
     case 'debugDrop':
       dropVessel(s);
+      break;
+    case 'rodCatch':
+      // A fish off the handheld rod into her bucket (fishing/rod.ts).
+      applyRodIntent(s, intent);
       break;
     case 'teleportToGround': {
       // Menu shortcut (Tests, ref = fishing ground name): in the middle of it, lever neutral.

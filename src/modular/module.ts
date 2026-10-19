@@ -112,6 +112,7 @@ export type GearKind =
   | 'swimLadder'
   | 'lifeRing'
   | 'boatHook'
+  | 'rodRack'
   // M6b: the machinery and fittings the vessel definition used to carry
   | 'midCleat'
   | 'diesel'
@@ -162,6 +163,8 @@ export interface GearFacts {
   lifeRing: { stow: [number, number, number]; cleat: [number, number, number] };
   /** The boat hook: in its clips at (x, y), from z0 to z1. */
   boatHook: { stow: [number, number, number, number] };
+  /** The fishing rod's rack (owner, Oct 2026): where the rod hangs, its bucket on deck, which side of the house (-1 port, 1 starboard). */
+  rodRack: { stow: [number, number, number]; bucket: [number, number, number]; side: -1 | 1 };
   /** A midship cleat (the skiff's painter): its station and the line's height. */
   midCleat: { z: number; lineY: number };
   /** The inboard diesel: the engine, its propeller, and its upkeep (oil, and where the engine and its dipstick are). */

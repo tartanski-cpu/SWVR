@@ -1,7 +1,8 @@
 /**
- * The tug diesel has its own voice (owner, Oct 2026), not the workboat six slowed down, matched
- * to the owner's recording of a tug's engines: about 60 firings a second at idle (a six at its
- * idle fired 22: "a single cylinder"), a lope once every eight, clatter on each firing.
+ * The tug diesel, the big straight six, has its own voice (owner, Oct 2026), matched to the
+ * owner's recording of a six-cylinder marine diesel idling: six firings a revolution (70 a
+ * second in the recording; a four-stroke six at the tug's idle fired 22: "a single
+ * cylinder"), even, with clatter. Only the big six has it.
  */
 import { describe, expect, it } from 'vitest';
 import { CONFIG } from '../../src/config';
@@ -9,17 +10,21 @@ import { buildDesign, DESIGN_HULLS, ENGINES } from '../../src/shipyard/build';
 import { DEFAULT_DESIGN } from '../../src/shipyard/design';
 
 describe('the tug diesel’s voice', () => {
-  it('fires about 60 times a second at idle, lumpy once in eight, with clatter; the other engines keep theirs', () => {
+  it('fires six times a revolution, evenly, with clatter; only the big six has it', () => {
     const tug = ENGINES.findIndex((e) => e.ratedRpm === 1000);
     expect(ENGINES[tug].voice).toBe('bigSix');
     expect(ENGINES.filter((_, i) => i !== tug).map((e) => e.voice)).toEqual(['inlineSix', 'v8', 'v8']);
     const big = CONFIG.engineVoices.bigSix;
     expect(ENGINES[tug].idleRpm).toBe(450);
-    const fireAtIdle = (450 * big.cylinders) / 120;
-    expect(fireAtIdle).toBeGreaterThan(55);
-    expect(fireAtIdle).toBeLessThan(65);
-    expect(big.strength).toHaveLength(8);
+    // Six a revolution: 45 Hz at its 450 rpm idle, 100 flat out.
+    expect((450 * big.cylinders) / 120).toBe(45);
+    expect(big.strength).toHaveLength(6);
+    expect(Math.min(...big.strength) / Math.max(...big.strength)).toBeGreaterThan(0.95);
     expect(big.mech).toBeGreaterThan(0);
+    // Sized to the tug diesel (the recording's six was smaller, ~1.8 times): its exhaust ringing
+    // and clatter lower than the recording's 210 Hz and 400-1400 Hz.
+    expect(big.stack.freq).toBeCloseTo(210 / 1.8, 0);
+    expect(big.mechBand![1]).toBeLessThan(1400);
     // The others keep their tone free of clatter.
     for (const v of ['inlineSix', 'v8', 'outboardV8'] as const) expect(CONFIG.engineVoices[v].mech).toBe(0);
     // In her recipe: the game plays it.

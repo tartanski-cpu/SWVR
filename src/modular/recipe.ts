@@ -258,6 +258,7 @@ const GEAR_WORDS: Record<GearKind, string> = {
   swimLadder: 'a swim ladder',
   lifeRing: 'a life ring',
   boatHook: 'a boat hook',
+  rodRack: 'a fishing rod rack',
   midCleat: 'a midship cleat',
   diesel: 'an inboard diesel',
   rudder: 'a rudder',

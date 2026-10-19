@@ -23,6 +23,9 @@
  *   - Click the hook to take it; it reaches where you look on the water. Click a crate to
  *     hook it, click again once it's alongside to lift it aboard. Click open water to put
  *     the hook back.
+ * Pushing off (owner, Oct 2026): the hook's tip on a quay, a pier or the shore, press the
+ * trigger (VR) or click (desktop): a shove along the hook, away from it, at the hand
+ * ('hookPush', recovery.ts). Press again to push more; a heavy boat takes many.
  * Towing: with the hook, touch (VR) or click (desktop) the bow eye of any boat afloat (a
  * tow's orange eye, our own skiff's stem) or a piece of drifting debris to make the
  * towline fast over our stern roller (towMake ref=<target>; the simulation checks the
@@ -48,6 +51,8 @@ import { userSettings } from '../player/userSettings';
 import { distanceToHull } from './recovery';
 import { lineFor, towName, towPoint, towReach, towTargets } from '../tow/tow';
 import { ropePoints, ROPE_POINTS } from './rescueGearView';
+import { blockTop } from '../world/geography';
+import { groundHeight } from '../world/terrain';
 import type { RescueTarget } from './rescue';
 
 export interface RescueHandsContext {
@@ -90,6 +95,8 @@ export class RescueHands {
   private hookSince = 0;
   private clock = 0;
   private towT = 0;
+  /** Last push off a quay with the hook (s). */
+  private pushAt = -1;
   /** Last time we asked to make a towline fast (s), so a hook resting on the eye asks once a second. */
   private towAsk = -9;
   /** The VR hook tip was on the bow eye last frame (a touch toggles once, on arrival). */
@@ -388,7 +395,7 @@ export class RescueHands {
       } else if (f.tracked) {
         this.hookBase.copy(f.grip);
         this.hookTip.copy(f.grip).addScaledVector(f.ray.direction, this.extend(ctx, f.grip, f.ray.direction, dt));
-        this.useHook(ctx, dt, h);
+        this.useHook(ctx, dt, h, f.triggerPressed);
       }
     }
     // Free hands: grab the gear (or, with the hook in the other hand, the crate on it).
@@ -468,9 +475,34 @@ export class RescueHands {
   }
 
   /** The hook in hand: hook a crate the tip touches; tow the one on it. */
-  private useHook(ctx: RescueHandsContext, dt: number, hand: Holder): void {
+  /** Is the hook's tip on something solid: inside a quay or pier's plan below its deck, or in the ground? */
+  private tipOnSolid(): boolean {
+    const t = this.hookTip;
+    const top = blockTop(t.x, t.z);
+    if (top !== null && t.y < top + 0.3) return true;
+    return groundHeight(t.x, t.z) > t.y - 0.1;
+  }
+
+  /** A shove off whatever the tip is on: along the pole from tip to hand, level, at the hand. */
+  private pushOff(ctx: RescueHandsContext, hand: Holder): void {
+    if (this.clock - this.pushAt < CONFIG.rescue.hookPush.every) return;
+    this.pushAt = this.clock;
+    const d = this.tmp.copy(this.hookBase).sub(this.hookTip);
+    d.y = 0;
+    if (d.lengthSq() < 1e-6) return;
+    d.normalize();
+    ctx.push('hookPush', undefined, 1, [d.x, d.z, this.hookBase.x, this.hookBase.y, this.hookBase.z]);
+    if (hand !== 'desk') ctx.pulse(hand, 0.7, 70);
+  }
+
+  private useHook(ctx: RescueHandsContext, dt: number, hand: Holder, press = false): void {
     const cfg = CONFIG.rescue;
     const on = this.hookedCrate(ctx);
+    // The tip on a quay or the shore: a press shoves us off it.
+    if (!on && press && this.tipOnSolid()) {
+      this.pushOff(ctx, hand);
+      return;
+    }
     if (on) {
       const v = ctx.world.vessels[ctx.vesselId];
       if (hand !== 'desk' && v && this.liftHinted !== on.id && distanceToHull(v, on.x, on.z) <= cfg.liftRange) {
@@ -535,6 +567,7 @@ export class RescueHands {
         const what = eyeOn.key.startsWith('d:') ? 'debris' : eyeOn.key.startsWith('l:') ? 'log' : 'bow eye';
         return ctx.world.tow?.line ? `${what}\nclick to cast off the towline` : `${what}\nclick to make the towline fast`;
       }
+      if (this.tipOnSolid()) return 'boat hook on the quay\nclick to push off (again to push more)';
       return this.crateOnRay(ctx, ray) ? 'crate\nclick to hook it' : 'boat hook\nclick a crate to hook it · click open water to put it back';
     }
     if (!ray) return null;
@@ -649,6 +682,10 @@ export class RescueHands {
       const eyeOn = this.towEyeOnRay(ctx, ray);
       if (eyeOn) {
         this.makeFast(ctx, 'desk', eyeOn.key);
+        return true;
+      }
+      if (this.tipOnSolid()) {
+        this.pushOff(ctx, 'desk');
         return true;
       }
       const t = this.crateOnRay(ctx, ray);

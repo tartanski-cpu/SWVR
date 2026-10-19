@@ -299,6 +299,28 @@ export function applyRecoveryIntent(world: WorldState, v: VesselState | undefine
         delete hook.deck;
       }
       return true;
+    case 'hookPush': {
+      // A shove off a quay with the hook (rescueHands.ts): args = the push direction (world
+      // x, z, horizontal, away from what the tip is on) and where the hand is (world). The
+      // boat gets CONFIG.rescue.hookPush.impulse N·s there: a change of speed, and of yaw
+      // about her CG from the hand's offset.
+      const a = intent.args ?? [];
+      if (!v || hook.holder !== who || a.length < 5 || !a.every(Number.isFinite)) return true;
+      const len = Math.hypot(a[0], a[1]);
+      if (len < 1e-6) return true;
+      const def = VESSEL_DEFS[v.defId];
+      const J = CONFIG.rescue.hookPush.impulse;
+      const jx = (a[0] / len) * J;
+      const jz = (a[1] / len) * J;
+      v.linearVelocity[0] += jx / def.mass;
+      v.linearVelocity[2] += jz / def.mass;
+      // The hand's lever arm about her CG (world, in plan): torque about y is r × J.
+      const cg = vesselToWorld(v, def.cg);
+      const rx = a[2] - cg.x;
+      const rz = a[4] - cg.z;
+      v.angularVelocity[1] += (rz * jx - rx * jz) / def.inertia[1];
+      return true;
+    }
     case 'hookStow':
     case 'hookDrop':
       // Back in its clips, or laid down on deck (args: butt x, y, z in vessel axes, yaw).
