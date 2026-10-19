@@ -1100,7 +1100,8 @@ export const CONFIG = {
        * (`surgeLinear`, a small drag for settling at rest) is a quarter of the workboat's: at
        * her 20 kn it would otherwise add ~4 kN on top of her resistance curve.
        */
-      damping: { vertical: 1300, verticalCd: 1.5, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 5, roll: 17000, pitch: 12000, yaw: 5000 },
+      // (`rollLift`: her roll damping going ahead, CONFIG.shipyard.rollLift.)
+      damping: { vertical: 1300, verticalCd: 1.5, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 5, roll: 17000, pitch: 12000, yaw: 5000, rollLift: 0.3 },
       /**
        * As the workboat's curve, on her 8.8 m waterline: past the hump (Fn ~0.5, ~9 kn) the
        * wave term levels off at R/Delta = 0.115, about what a planing hull of her size needs,
@@ -1109,16 +1110,14 @@ export const CONFIG = {
        */
       resistance: { lwl: 8.8, formFactor: 0.2, waveA: 1.0, waveB: 0.94, waveKnee: 0.3, waveCap: 0.115, asternFactor: 3.6, y: -0.25 },
       /**
-       * A planing hull banks into a turn (owner): sliding outward, the outer half of her vee
-       * bottom lifts more than the inner, rolling her in against her CG's outward heel
-       * (vessel/physics/vesselPhysics.ts). `bank` scales that lift pair, 1/2 rho Awp U v at
-       * her chines; it fades in from Fn `fnStart` to `fnFull` (~5 to ~13 kn on her 8.8 m
-       * waterline). Tuned: at 16 kn with the helm 40 % over she leans ~6 deg into the turn
-       * (it was ~8 deg out); thrown hard over at 20 kn she leans in up to ~15 deg as she
-       * carves round, then settles near upright as she slows (to ~9 kn: the hull's sideways
-       * drag isn't a planing hull's yet).
+       * A planing hull in a turn (owner; vessel/physics/vesselPhysics.ts, CONFIG.planingTurn):
+       * her side force rides on her bottom's lift, and that lift leans her into the turn,
+       * toward `bank` x the angle a cyclist would lean at her turn's speed and radius. Both
+       * fade in from Fn `fnStart` to `fnFull` (~5 to ~13 kn on her 8.8 m waterline). At 16
+       * kn with the helm 40 % over she leans ~4 deg into the turn; thrown hard over at 20 kn
+       * she leans in ~10 deg as she carves round, then settles upright as she slows.
        */
-      planing: { bank: 0.06, fnStart: 0.3, fnFull: 0.7 },
+      planing: { bank: 0.55, fnStart: 0.3, fnFull: 0.7 },
       /** Side-on: hull ~10 x 1.2 m plus the cabin ~2.7 x 2.0; end-on 2.8 x 1.2 plus 2.1 x 2.0 (m2). */
       windage: { side: 17, front: 7.5, center: [0, 1.3, 0.6] as [number, number, number] },
       /**
@@ -1267,7 +1266,7 @@ export const CONFIG = {
        * damping scaled to her size: roll ~30 % of critical for 10 t with GM ~1.3 m and her
        * roll gyradius, pitch and yaw likewise.
        */
-      damping: { vertical: 1300, verticalCd: 1.5, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 5, roll: 30000, pitch: 25000, yaw: 10000 },
+      damping: { vertical: 1300, verticalCd: 1.5, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 5, roll: 30000, pitch: 25000, yaw: 10000, rollLift: 0.3 },
       /**
        * The landing craft's curve on her 11.6 m waterline, the wave term levelling off at
        * R/Delta = 0.13 past the hump (a deep vee runs a little harder than her flatter
@@ -1275,8 +1274,8 @@ export const CONFIG = {
        * modelled yet: she doesn't rise or trim at speed.
        */
       resistance: { lwl: 11.6, formFactor: 0.2, waveA: 1.0, waveB: 0.94, waveKnee: 0.3, waveCap: 0.13, asternFactor: 3.6, y: -0.3 },
-      /** She banks into a turn as the landing craft does (a deeper vee: a little more). */
-      planing: { bank: 0.07, fnStart: 0.3, fnFull: 0.7 },
+      /** She leans into a turn as the landing craft does (her deeper vee: about as much; CONFIG.shipyard.bankPerSine x sin(deadrise) would give 0.39). */
+      planing: { bank: 0.5, fnStart: 0.3, fnFull: 0.7 },
       /** Side-on: hull ~12 x 1.3 m plus the house ~5.5 x 2.4; end-on 3.8 x 1.3 plus 3 x 2.4 (m2). */
       windage: { side: 30, front: 11, center: [0, 1.6, 0] as [number, number, number] },
       /**
@@ -2688,7 +2687,50 @@ export const CONFIG = {
    * should settle at this share of the engine's rated rpm (the landing craft's: 1696 of
    * 1800); `runSeconds`: how long each full-throttle trial runs before it's read.
    */
+  /**
+   * A planing hull in a turn (vesselPhysics.ts; each hull's `planing`): her side force's
+   * heeling moment reckoned with it acting `alpha` of the way from her chines up to her CG
+   * (her bottom's lift carries it, not her keel); her lift's roll stiffness, `stiffness` x
+   * W GM, toward a lean into the turn of her `bank` x the apparent vertical's angle (gravity
+   * with U r), at most `maxLeanDeg`. Tuned on sea trials, flat out then the helm put over:
+   * the Shipyard's deep-V pilot boat leans ~10 deg in at 26 kn on a 40 % helm, and settles
+   * ~4 deg in hard over at 13 kn; the semi-displacement workboat type heels ~6 deg out; the
+   * flat landing craft type ~5 deg out; none capsizes, even with four outboards.
+   */
+  planingTurn: { maxLeanDeg: 20, alpha: 0.6, stiffness: 2 },
+
   shipyard: {
+    /**
+     * How a Shipyard hull rides at speed (owner, Oct 2026: the workboat a semi-displacement hull,
+     * the pilot boat a deep-V planing hull built to go fast in waves, the landing craft flatter
+     * and faster but a poorer sea boat). Each hull type has a `regime` (build.ts DESIGN_HULLS):
+     *   planing       her weight carried on her bottom's lift from Fn `fnStart` (off the hump)
+     *                 to `fnFull` (planing): `lift` 1;
+     *   semi          a semi-displacement hull: only part of her weight (`lift`) carried by
+     *                 lift, coming in later and more gradually (Fn 0.4 to 1.0);
+     *   displacement  none (the tug).
+     * Leaning into a turn (vesselPhysics.ts, CONFIG.planingTurn): a vee bottom's lift leans
+     * her in toward `bank` x the angle a cyclist would lean; a deeper vee more, so from her
+     * deadrise aft (`deadriseAt` of her length from the transom, where her planing pressure
+     * acts): bank = `bankPerSine` x sin(deadrise) x lift. The landing craft type's 8 deg:
+     * 0.21; the 22 deg deep-V pilot boat: 0.56; the semi-displacement workboat's 18 deg at
+     * half lift: 0.23.
+     * Slamming (the vertical damping's quadratic term, vesselPhysics.ts, standing in for
+     * water-entry loads): a flat bottom slams, a deep vee enters gently. Scaled as
+     * tan(`slamRefDeg`) / tan(deadrise), the landing craft's 9 deg amidships the reference,
+     * between `slamMin` and `slamMax`; her deadrise amidships, where she meets the waves.
+     */
+    regimes: { planing: { lift: 1, fnStart: 0.3, fnFull: 0.7 }, semi: { lift: 0.5, fnStart: 0.3, fnFull: 0.9 } },
+    bankPerSine: 1.5,
+    deadriseAt: 0.25,
+    slamRefDeg: 9,
+    slamMin: 0.35,
+    slamMax: 1.6,
+    /**
+     * Her roll damping going ahead (vesselPhysics.ts `rollLift`: the lift part of roll damping,
+     * growing with speed), for every Shipyard hull: about doubles it at a fast boat's full speed.
+     */
+    rollLift: 0.3,
     matchRpm: 0.93,
     runSeconds: 45,
     /**

@@ -84,8 +84,13 @@ export interface DesignHull {
   name: string;
   /** Her form, scaled (length, beam and depth factors), with her bow (its step: SCALES.bow, the stem's rake). */
   form(L: number, B: number, D: number, bow: number): HullDefinition['form'];
-  /** A planing hull (she banks into turns, a fast boat's propeller), or a displacement one. */
-  planing: boolean;
+  /**
+   * How she rides at speed (CONFIG.shipyard.regimes): a planing hull (a fast boat's propeller,
+   * the landing craft's per-area damping), a semi-displacement one (part planing; the
+   * workboat's), or a displacement one. Her banking into turns and how she slams come from it
+   * and her own deadrise.
+   */
+  regime: 'planing' | 'semi' | 'displacement';
   /** A square landing bow with its ramp (the landing craft's). */
   ramp: boolean;
   /**
@@ -215,7 +220,7 @@ export const DESIGN_HULLS: DesignHull[] = [
     growsTo: 2.5,
     // Her bow is her own: the landing bow (landingCraftLines), no bow choice.
     form: (L, B, D) => ({ kind: 'lofted', design: scaledStudy(landingCraftLines(), L, B, D, null) }),
-    planing: true,
+    regime: 'planing',
     ramp: true,
     landingBow: true,
     cockpit: 1.0,
@@ -226,7 +231,7 @@ export const DESIGN_HULLS: DesignHull[] = [
     name: 'Gillnetter: 9.75 m, beamy and shallow, flat open foredeck',
     material: 'steel',
     form: (L, B, D, bow) => ({ kind: 'lofted', design: scaledStudy(study('gillnetter'), L, B, D, bow) }),
-    planing: true,
+    regime: 'planing',
     ramp: false,
     cockpit: 1.0,
     foredeck: 1.5,
@@ -242,7 +247,8 @@ export const DESIGN_HULLS: DesignHull[] = [
         params: { ...h, length: h.length * L, beamDeck: h.beamDeck * B, beamChine: h.beamChine * B, keelY: h.keelY * D, chineYAft: h.chineYAft * D, chineYBow: h.chineYBow * D, deckYAft: h.deckYAft * D, deckYBow: h.deckYBow * D, forefoot: { from: 0.55, rise: 1, stemDeg: SCALES.bow(bow) } },
       };
     },
-    planing: false,
+    // (Semi-displacement, owner: part of her weight on her bottom's lift at speed.)
+    regime: 'semi',
     ramp: false,
     cockpit: 1.5,
     foredeck: 2.0,
@@ -254,7 +260,7 @@ export const DESIGN_HULLS: DesignHull[] = [
     name: 'Pilot boat: 14 m deep-V, spray chine, fine entry, well-raked stem',
     material: 'aluminium',
     form: (L, B, D, bow) => ({ kind: 'lofted', design: scaledStudy(study('pilot'), L, B, D, bow, true) }),
-    planing: true,
+    regime: 'planing',
     ramp: false,
     cockpit: 1.6,
     foredeck: 2.6,
@@ -269,7 +275,7 @@ export const DESIGN_HULLS: DesignHull[] = [
     ballastKg: 18000,
     // Her bow is her own (a square push plate, the bottom sweeping up to it): no bow choice.
     form: (L, B, D) => ({ kind: 'lofted', design: scaledStudy(study('pushTug'), L, B, D, null) }),
-    planing: false,
+    regime: 'displacement',
     ramp: false,
     pushBow: true,
     // A long towing deck aft; the foredeck short, up to the push bow.
@@ -817,8 +823,23 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   const sizeK = (mass / lc.mass) * (lengthM / 10.2) ** 2;
   // Per-area terms: a planing hull's (the landing craft's, with her small settling drag in
   // surge) or a displacement hull's (the workboat's).
-  const perArea = base.planing ? lc.damping : CONFIG.vessels.workboat.damping;
-  const damping = { ...perArea, roll: Math.round(0.28 * rollCritical), pitch: Math.round(lc.damping.pitch * sizeK), yaw: Math.round(lc.damping.yaw * sizeK) };
+  const perArea = base.regime === 'planing' ? lc.damping : CONFIG.vessels.workboat.damping;
+  // How she rides at speed (CONFIG.shipyard regimes): her deadrise aft (where her planing
+  // pressure acts) sets how hard she banks into a turn, amidships how hard she slams.
+  const sy = CONFIG.shipyard;
+  const deadrise = (frac: number) => {
+    const poly = st[Math.round(frac * (st.length - 1))].polygon;
+    const keel = poly.reduce((a, p) => (p[1] < a[1] ? p : a));
+    const midY = (keel[1] + Math.max(...poly.map((p) => p[1]))) / 2;
+    const chine = poly.filter((p) => p[1] < midY).reduce((a, p) => (Math.abs(p[0]) > Math.abs(a[0]) ? p : a));
+    return Math.atan2(chine[1] - keel[1], Math.max(0.01, Math.abs(chine[0]) - Math.abs(keel[0])));
+  };
+  const deadriseAft = deadrise(sy.deadriseAt);
+  const deadriseMid = deadrise(0.5);
+  const slam = Math.min(sy.slamMax, Math.max(sy.slamMin, Math.tan((sy.slamRefDeg * Math.PI) / 180) / Math.tan(Math.max(0.02, deadriseMid))));
+  const regime = base.regime === 'displacement' ? null : sy.regimes[base.regime];
+  const planing = regime ? { bank: Math.round(sy.bankPerSine * Math.sin(deadriseAft) * regime.lift * 1000) / 1000, fnStart: regime.fnStart, fnFull: regime.fnFull } : null;
+  const damping = { ...perArea, rollLift: sy.rollLift, verticalCd: Math.round(perArea.verticalCd * slam * 100) / 100, roll: Math.round(0.28 * rollCritical), pitch: Math.round(lc.damping.pitch * sizeK), yaw: Math.round(lc.damping.yaw * sizeK) };
 
   // ── Machinery ──
   const eng = ENGINES[d.engine];
@@ -965,7 +986,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   const engTopAt = (z: number) => shaft.flangeY + (shaft.flangeZ - z) * Math.tan((shaft.angleDeg * Math.PI) / 180) + (1 - FLANGE_SHARE) * engH;
   const propPos: V3 = [0, keelAft + 0.1, transom - 0.65];
   const rudderPos: V3 = [0, keelAft + 0.15, transom - 0.25];
-  const prop = base.planing ? { kt0: 0.6, j0: 1.35, kq0: 0.1, jq0: 1.45, wake: 0.06, thrustDeduction: 0.08 } : { kt0: 0.57, j0: 1.15, kq0: 0.077, jq0: 1.25, wake: 0.18, thrustDeduction: 0.18 };
+  const prop = base.regime === 'planing' ? { kt0: 0.6, j0: 1.35, kq0: 0.1, jq0: 1.45, wake: 0.06, thrustDeduction: 0.08 } : { kt0: 0.57, j0: 1.15, kq0: 0.077, jq0: 1.25, wake: 0.18, thrustDeduction: 0.18 };
   // One rudder (or twin rudders, as one of twice the area, each in its own propeller's wash).
   const rudderArea = Math.round(0.07 * h.lwl * Math.max(0.3, draughtAft) * n * 100) / 100;
   // Her installed power (the outboards': each one's, times their count).
@@ -1587,7 +1608,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
     damping,
     // Tyres hanging low catch spray and the odd wave: a little more drag.
     resistance: { ...lc.resistance, lwl: Math.round(h.lwl * 100) / 100, ...(tyres.length ? { formFactor: lc.resistance.formFactor + hg.tyres.formFactorAdd } : {}) },
-    ...(base.planing ? { planing: lc.planing } : {}),
+    ...(planing ? { planing } : {}),
     windage: {
       side: Math.round(lengthM * freeboard + houseL * (roofY + 0.3 - level) - saloonL * roofDrop + (deckhouse ? (deckhouse.z1 - deckhouse.z0) * d.dhHeight : 0)),
       front: Math.round(beamDeck * freeboard + 2 * hw * (roofY + 0.3 - level) + (deckhouse ? 2 * Math.max(0, dhW - hw) * d.dhHeight : 0)),

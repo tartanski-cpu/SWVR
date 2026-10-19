@@ -199,7 +199,8 @@ export interface VesselConfig {
   cg: Vec3;
   gyradius: Workboat['gyradius'];
   addedMass: Workboat['addedMass'];
-  damping: Workboat['damping'];
+  /** `rollLift`: roll damping that grows with speed (vesselPhysics.ts; unset: none). */
+  damping: Workboat['damping'] & { rollLift?: number };
   resistance: Workboat['resistance'];
   layout: LayoutConfig;
   /** `edge`: how far inside her sheer cargo keeps (m; unset: the bulwark's, cargo/deck.ts). */

@@ -5277,7 +5277,39 @@ Owner, Oct 2026: before the cockpit roof, clean up the Shipyard's buttons. The o
 - **Checked:** headless Chromium, the Wheelhouse step with a saloon and a deckhouse, then with the windows raked out and the deckhouse "As the wheelhouse"; the owner's configuration (workboat type, three facets, saloon roof lower, a sand roof top) from the same angle as their screenshot: the step is clean. **Not checked:** the Quest (a desktop page).
 - **Next:** the other steps the same way, once the owner has tried this one.
 
-### Sea trials: Shipyard boats heel hard in turns and the fast ones capsize (owner report; measured, fix to agree)
+### Hull types ride as their kind: semi-displacement workboat, deep-V pilot boat; boats lean into turns, none capsizes (done, awaiting owner test)
+
+Owner, Oct 2026, answering the heel report below: the workboat should be a semi-displacement hull, partly planing, as is typical for workboats; the pilot boat a deep-V planing hull, made to go fast in waves; both designed for seakeeping, while the flatter, faster landing craft type isn't the best sea boat.
+
+- **Regimes** (`DesignHull.regime` in build.ts, replacing the `planing` flag; `CONFIG.shipyard.regimes`):
+  - **planing** (landing craft, gillnetter, pilot boat): her weight on her bottom's lift from Fn 0.3 to 0.7;
+  - **semi** (workboat): half her weight on lift (`lift` 0.5), coming in later and more gently, Fn 0.3 to 0.9;
+  - **displacement** (tug): none.
+- **Deadrise measured from her lines** (build.ts: keel to chine at each section): aft at `deadriseAt` (a quarter of her length from the transom, where planing pressure acts) and amidships. The landing craft type 8°/9°, the workboat 18°/23°, the pilot boat 22°/25°, the tug ~14°.
+- **Leaning into a turn** (vesselPhysics.ts, `CONFIG.planingTurn` `{ maxLeanDeg 20, alpha 0.6, stiffness 2 }`), faded in with her Froude number:
+  - her side force's heeling moment is reckoned with it acting 60 % of the way from her chines up to her CG (her bottom's lift carries it, not her keel), which takes most of the outward heel's lever away;
+  - her bottom's lift gives her a roll stiffness about the *apparent* vertical (gravity plus her turn's centripetal acceleration U r), so she leans in as a cyclist does, toward `bank` × that angle, at most 20°. It is a spring (2 × W GM sin(lean − heel)), so it also rights her if she's thrown past it;
+  - `bank` = `CONFIG.shipyard.bankPerSine` (1.5) × sin(deadrise aft) × lift: the landing craft type 0.21, the workboat 0.23, the pilot boat 0.56. The built-in landing craft `planing.bank` 0.55, the Alaskan 0.5 (their old banking force replaced by this).
+- **Slamming:** the vertical damping's quadratic term scaled by tan 9° / tan(deadrise amidships), 0.35 to 1.6 (`slamRefDeg`, `slamMin`, `slamMax`): a flat bottom slams, a deep vee enters gently.
+- **Roll damping going ahead** (`damping.rollLift`, `CONFIG.shipyard.rollLift` 0.3; the landing craft and Alaskan too): the lift part of roll damping, growing with speed. It stops a fast hull rolling to and fro in a hard turn.
+- **Measured, flat out then the helm over, calm water** (heel + into the turn):
+
+| Boat | Before | Now |
+|---|---|---|
+| Pilot boat, 40 % helm at 26 kn | capsized | 10° in |
+| Pilot boat, hard over | capsized | snaps to ~27° in, settles 4° in at 13 kn |
+| Workboat type, hard over | swings 15-40° out, settles ~20° out | 6° out |
+| Workboat type, four outboards | capsized | ~15° in at first, settles 4° in |
+| Landing craft type, hard over | 18° out, settles 13° out | 5° out |
+| Built-in landing craft, 40 % helm | 6° in | 4° in |
+| Tug, gillnetter | 1-4° out | unchanged |
+
+- **In waves** (default sea scaled to Hs 3.6 m, head on, about 20 kn): vertical acceleration rms 0.27 g for the landing craft type, 0.18 g for the workboat type, 0.09 g for the pilot boat. The deep vee rides about three times softer.
+- **Also:** the workboat type now shows planing spray and a planing wake at speed (they read `planing`).
+- **Unchanged:** the built-in workboat and skiff (no `planing`; golden runs equal); the tug.
+- **Tests:** `tests/shipyard/hullRegimes.test.ts` (5).
+
+### Sea trials: Shipyard boats heel hard in turns and the fast ones capsize (owner report; fixed above)
 
 Owner: in sea trials the boats lean out and nearly fall over in sharp turns. Measured, flat out then hard over, calm water:
 
@@ -5295,7 +5327,7 @@ Owner: in sea trials the boats lean out and nearly fall over in sharp turns. Mea
   - **Her GZ curve** (`gzCurve`) only reaches 0.25 m at about 20° (0.21 m at 15°, 0.32 m at 30°; the built-in workboat has 0.33 m at 15°). Her CG is high: 1.09 m above the waterline, against 0.45 m on the built-in workboat. So the sim is consistent with her stability; she is tender at speed.
   - **The fast boats** pull 0.4-0.6 g turning at 30-38 kn, more than their whole GZ curve resists.
   - **Missing:** only hulls marked planing bank into a turn, and weakly. A workboat type driven at 30 kn by outboards gets none.
-- **To agree with the owner before changing the physics** (it changes how every fast boat handles): see the report in the chat.
+- **Fixed** in "Hull types ride as their kind" above.
 
 ### Parametric boats P2b, second stop: the saloon's own lower roof, and the eyebrow (done, awaiting owner test)
 
