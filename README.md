@@ -257,11 +257,13 @@ To work in peace, set **Menu → Voyage → Emergency calls → Off (quiet)**. N
 
 The dash shows:
 
-- **Speed** (kn), with **depth under the keel** (red below 2 m).
-- **Heading** (compass tape).
-- **Engine RPM**, with gear, engine state and load.
-- **Rudder angle**: the needle is the actual rudder, the ring is the helm order.
-- The **engine monitor**, behind the wheel (read it through the spokes): coolant and oil temperature, fuel litres and L/h, and HIGH TEMP / LOW FUEL lamps. A buzzer sounds with the alarms.
+- **Speed** (kn) and **depth under the keel** (red below 2 m), side by side, with heading, course over ground and the anchor.
+- **Heading** (compass tape), with course over ground and **rate of turn** (degrees a minute, S or P).
+- **Engine RPM**, with gear, engine state, load, fuel burn and coolant temperature.
+- **Rudder angle**: the needle is the actual rudder, the ring is the helm order (also in figures, top right).
+- The **engine monitor**, behind the wheel (read it through the spokes): coolant and oil temperature, fuel litres and L/h, battery volts, and HIGH TEMP / LOW FUEL lamps. A buzzer sounds with the alarms.
+
+The screens' lettering is a size smaller than it was, so each fits a little more; the switches and push buttons are a size smaller too (they're just as easy to press and aim at).
 
 ### Engine management
 
@@ -273,7 +275,7 @@ The dash shows:
 
 - **NAV / WIND** (overhead, just forward of the light switches; glance up from the wheel):
   - your position (latitude and longitude);
-  - speed and course over ground, heading;
+  - speed and course over ground, heading, depth;
   - the true wind (direction it blows from, knots, Beaufort force);
   - a dial with the apparent wind (what you feel on deck) relative to the bow.
 - **FM radio** (the overhead set on the workboat; under the cabin roof to starboard on the landing craft and on Shipyard designs with the advanced controls; or menu → Boat): the music comes from the set, so you hear which way it is. Step out of the wheelhouse and it's quieter and duller through the walls, more so with the doors shut.

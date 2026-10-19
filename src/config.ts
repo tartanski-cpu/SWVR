@@ -3188,6 +3188,15 @@ export const CONFIG = {
     grabRadius: 0.12,
     /** Direct press: controller tip within this distance of a button / switch (m). */
     touchRadius: 0.06,
+    /**
+     * Size of the panel switches and push buttons (toggle plates and bats, button housings
+     * and caps), as a factor of their first, VR-sized build (owner, Oct 2026: "reduce
+     * slightly the size of the switches"). 1 = a 70 x 90 mm toggle plate with a 62 mm bat and
+     * an 84 mm push button; 0.75 = 53 x 68 mm and a 63 mm button, still well over a
+     * fingertip. Only their look: `touchRadius` (how near a hand must come) stays as it was,
+     * so they are no harder to press in VR.
+     */
+    switchScale: 0.75,
     /** Pointer-ray fallback length (m) for controls just out of reach. */
     rayLength: 1.5,
     /** Desktop reticle reach (m). */

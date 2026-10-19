@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { CONFIG } from '../config';
 import type { VesselState } from '../vessel/vesselState';
 import { Control } from './Control';
 
@@ -12,6 +13,9 @@ export class Button extends Control {
   /** The cap (modules draw it as a shared part: modular/sharedParts.ts). */
   readonly cap: THREE.Mesh;
   private pressed = false;
+  /** The cap's height out and pressed in (m). */
+  private readonly capOut: number;
+  private readonly capIn: number;
 
   constructor(
     id: string,
@@ -24,12 +28,19 @@ export class Button extends Control {
     private readonly litWhen?: (s: VesselState) => boolean,
   ) {
     super(id, channel);
-    const housing = this.fixed(new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.042, 0.022, 14), new THREE.MeshLambertMaterial({ color: 0x23282c })));
-    housing.position.y = 0.011;
-    this.cap = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.018, 14), this.material(capColor));
-    this.cap.position.y = 0.028;
-    this.root.add(housing, this.cap);
-    this.hitObjects.push(this.cap, housing);
+    const k = CONFIG.interaction.switchScale;
+    const housing = this.fixed(new THREE.Mesh(new THREE.CylinderGeometry(0.038 * k, 0.042 * k, 0.022 * k, 14), new THREE.MeshLambertMaterial({ color: 0x23282c })));
+    housing.position.y = 0.011 * k;
+    this.cap = new THREE.Mesh(new THREE.CylinderGeometry(0.028 * k, 0.028 * k, 0.018 * k, 14), this.material(capColor));
+    this.capOut = 0.028 * k;
+    this.capIn = 0.02 * k;
+    this.cap.position.y = this.capOut;
+    // What the pointer and reticle hit: the button at its first, full size (a hidden
+    // cylinder drawn by nothing), so a smaller button is no harder to aim at.
+    const hit = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.042, 0.037, 14).translate(0, 0.0185, 0), new THREE.MeshBasicMaterial());
+    hit.visible = false;
+    this.root.add(housing, this.cap, hit);
+    this.hitObjects.push(this.cap, housing, hit);
   }
 
   distanceTo(world: THREE.Vector3): number {
@@ -39,7 +50,7 @@ export class Button extends Control {
   pressStart(): void {
     if (this.pressed) return;
     this.pressed = true;
-    this.cap.position.y = 0.02;
+    this.cap.position.y = this.capIn;
     this.ctx?.haptic(0.6, 40);
     this.ctx?.emit(this.channel, 1);
   }
@@ -47,7 +58,7 @@ export class Button extends Control {
   pressEnd(): void {
     if (!this.pressed) return;
     this.pressed = false;
-    this.cap.position.y = 0.028;
+    this.cap.position.y = this.capOut;
     if (this.mode === 'momentary') this.ctx?.emit(this.channel, 0);
   }
 
