@@ -748,6 +748,10 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   // up to 0.35 m under the water and no higher than 0.08 m under it, a 30 in shaft above.
   const nOb = outboardCount(d);
   const obc = CONFIG.modules.outboard;
+  // Her gearbox (or the outboards' lower units), the design's step: matched by trial
+  // (shipyard/trial.ts matchGear) so she reaches her rated revs flat out. (Outboards on a
+  // fixed 2.0 lower unit lugged on a heavy hull and ran hot: owner.)
+  const gear = Math.round(SCALES.gear(d.gear) * 100) / 100;
   const outboards = (() => {
     if (!nOb) return null;
     const halfT = st[0].halfBeamDeck;
@@ -757,7 +761,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
     const plateY = Math.round(Math.max(-0.35, Math.min(-0.08, keelAft + 0.35)) * 100) / 100;
     const mount = { y: Math.round((plateY + obc.look.shaftLength) * 100) / 100, z: Math.round((transom + obc.bracket.length) * 100) / 100 };
     const bracket = { z0: Math.round((transom - 0.02) * 100) / 100, z1: mount.z, y0: 0, y1: Math.round((mount.y - obc.bracket.belowMount) * 100) / 100, halfWidth: Math.round(Math.min(halfT - 0.05, Math.max(...units.map(Math.abs)) + obc.bracket.margin) * 100) / 100 };
-    return { units, mount, bracket };
+    return { units, mount, bracket, engine: { ...obc.engine, gearRatio: gear } };
   })();
   if (!shaft.fits && !outboards) warnings.push(`The ${eng.name.split(' (')[0]} doesn't fit: on its shaft line it stands ${(shaft.shortM * 100).toFixed(0)} cm above the ${shaft.flangeZ - eng.size[0] / 2 >= front && shaft.flangeZ - eng.size[0] / 2 <= aft ? 'cabin floor' : 'deck'}. Give her more depth (Hull), raise the floor (Wheelhouse), or fit a smaller engine.`);
 
@@ -782,7 +786,6 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   type HatchZone = { floor: boolean; z0: number; z1: number; x0: (z: number) => number; x1: (z: number) => number };
   /** The engine's top (the model's) at z along her, on its tilted shaft line. */
   const engTopAt = (z: number) => shaft.flangeY + (shaft.flangeZ - z) * Math.tan((shaft.angleDeg * Math.PI) / 180) + (1 - FLANGE_SHARE) * engH;
-  const gear = Math.round(SCALES.gear(d.gear) * 100) / 100;
   const propPos: V3 = [0, keelAft + 0.1, transom - 0.65];
   const rudderPos: V3 = [0, keelAft + 0.15, transom - 0.25];
   const prop = base.planing ? { kt0: 0.6, j0: 1.35, kq0: 0.1, jq0: 1.45, wake: 0.06, thrustDeduction: 0.08 } : { kt0: 0.57, j0: 1.15, kq0: 0.077, jq0: 1.25, wake: 0.18, thrustDeduction: 0.18 };
@@ -1715,7 +1718,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   return {
     hull,
     recipe,
-    figures: { lengthM, beamM: beamDeck, massT: mass / 1000, draughtM: -Math.min(...st.map((s) => s.polygon[2][1])), gmM: gm, propellerM: nOb ? obc.propeller.diameter : propD, engineShortM: nOb ? 0 : shaft.shortM, gear: nOb ? obc.engine.gearRatio : gear, engine: nOb ? `${['', 'One', 'Two', 'Three', 'Four'][nOb]} ${obc.engine.powerKw} kW petrol V8 outboards` : twin ? `Twin ${eng.name}` : eng.name, price, floorM: Math.round((floorY - level) * 100) / 100, floorOnDeckhouseM: deckhouse ? Math.round((floorY - onTop) * 100) / 100 : undefined, material, freeboardM: Math.round(deckMid * 100) / 100 },
+    figures: { lengthM, beamM: beamDeck, massT: mass / 1000, draughtM: -Math.min(...st.map((s) => s.polygon[2][1])), gmM: gm, propellerM: nOb ? obc.propeller.diameter : propD, engineShortM: nOb ? 0 : shaft.shortM, gear, engine: nOb ? `${['', 'One', 'Two', 'Three', 'Four'][nOb]} ${obc.engine.powerKw} kW petrol V8 outboards` : twin ? `Twin ${eng.name}` : eng.name, price, floorM: Math.round((floorY - level) * 100) / 100, floorOnDeckhouseM: deckhouse ? Math.round((floorY - onTop) * 100) / 100 : undefined, material, freeboardM: Math.round(deckMid * 100) / 100 },
     warnings,
     placed,
     shaft,

@@ -698,7 +698,7 @@ choices('engine', ENGINES.map((e) => ({ name: e.name, note: `${'about' in e ? `$
   const o = CONFIG.modules.outboard;
   const head = document.createElement('div');
   head.style.margin = '12px 0 4px';
-  head.innerHTML = `<b>Or outboards</b><div style="font-size:12px;color:var(--muted)">${o.engine.powerKw} kW (${Math.round(o.engine.powerKw * 1.341)} hp) petrol V8s, ${o.massKg} kg each, on a bracket off the transom in place of the engine above. They steer by swinging with the wheel: no rudder. Worked together from one lever and key.</div>`;
+  head.innerHTML = `<b>Or outboards</b><div style="font-size:12px;color:var(--muted)">${o.engine.powerKw} kW (${Math.round(o.engine.powerKw * 1.341)} hp) petrol V8s, ${o.massKg} kg each, on a bracket off the transom in place of the engine above. They steer by swinging with the wheel: no rudder. Worked together from one lever and key. Their lower units' gearing is matched to her by trial, like a gearbox.</div>`;
   controls.appendChild(head);
   choices('outboards', OUTBOARDS.map((name) => ({ name })));
 }

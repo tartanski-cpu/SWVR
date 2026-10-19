@@ -16,7 +16,7 @@ import { validateRecipe } from '../../src/modular/recipe';
 import { OUTBOARD, outboardGeometry, type OutboardConfig } from '../../src/modules/outboard';
 import { DESIGN_HULLS } from '../../src/shipyard/build';
 import { decodeDesign, DEFAULT_DESIGN, encodeDesign, OUTBOARDS, outboardCount, type ShipDesign } from '../../src/shipyard/design';
-import { fullAhead } from '../../src/shipyard/trial';
+import { fullAhead, matchGear } from '../../src/shipyard/trial';
 import { uprightHydrostatics } from '../../src/vessel/hydrostatics';
 import { placeVessel } from '../../src/vessel/vesselControl';
 import { VESSEL_DEFS } from '../../src/vessel/vesselDef';
@@ -80,10 +80,14 @@ describe('outboards: built', () => {
     }
   });
 
-  it('more outboards go faster (the 9.75 m gillnetter: about 18 kn on two, 31 on four)', () => {
+  it('more outboards go faster (the 9.75 m gillnetter: about 18 kn on two, 31 on four), their lower units matched by trial', () => {
     const GILLNETTER = 1;
-    const two = fullAhead(boat(1, GILLNETTER)).knots;
-    const four = fullAhead(boat(3, GILLNETTER)).knots;
+    const matched = (o: number) => {
+      const d = boat(o, GILLNETTER);
+      return { ...d, gear: matchGear(d).gear };
+    };
+    const two = fullAhead(matched(1)).knots;
+    const four = fullAhead(matched(3)).knots;
     expect(two).toBeGreaterThan(14);
     expect(four).toBeGreaterThan(two + 8);
   });
@@ -91,7 +95,8 @@ describe('outboards: built', () => {
 
 describe('outboards: cooling', () => {
   it('held flat out on the plane for ten minutes they stay cool (owner: the throttles are set for it)', () => {
-    useDesign(boat(1, 1));
+    const d = boat(1, 1);
+    useDesign({ ...d, gear: matchGear(d).gear });
     const { world, vesselId } = createWorld(new IdFactory(), 'design');
     const v = world.vessels[vesselId];
     placeVessel(v, 0, 0, 0, 0);
