@@ -347,8 +347,8 @@ export interface HullQueries {
   cabinRoof: number | null;
   /** Height of the wheelhouse floor (null: no wheelhouse). */
   cabinFloor: number | null;
-  /** The engine space under the hatch in the wheelhouse floor: its depth below the floor and its outboard side (x); null: none. */
-  engineSpace: { depth: number; outboardX: number } | null;
+  /** The engine space under the engine hatch: its depth below the hatch, its outboard side (x), its top (the floor or the deck the hatch is in) and its extent in plan; null: none. */
+  engineSpace: { depth: number; outboardX: number; top: number; box: { x0: number; x1: number; z0: number; z1: number } } | null;
 }
 
 /**

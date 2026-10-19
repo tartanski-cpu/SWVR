@@ -2512,11 +2512,28 @@ export const CONFIG = {
      * Her propeller shaft's angle to the horizontal (deg), rising forward from the propeller
      * (shipyard/machinery.ts; owner, Oct 2026: a reasonable shaft angle decides where the
      * engine goes). Small craft run about 8-12°: steeper wastes thrust and stands the engine
-     * up through her floor. Only the drawing and the fit check; not her weights.
+     * up through her floor. Where it puts the engine is where she carries its weight, where
+     * the game draws it, and where its hatch goes (engineHatch, below).
      */
     shaftAngleDeg: 10,
     /** ...steeper only if her bottom is so flat aft the engine can't clear it otherwise (deg). */
     shaftAngleMaxDeg: 15,
+    /**
+     * The engine hatch and the engine space under it (build.ts; owner, Oct 2026: the engine
+     * goes where her shaft line puts it, not in a box under the wheelhouse). Metres:
+     *   endRoom, sideRoom    the hatch past the engine's ends and its sides (room for the
+     *                        dipstick and the oil can's shelf beside it);
+     *   minLength, maxLength the hatch's length, whatever the engine's (a tug diesel's
+     *                        2.65 m would be a big lid to lift);
+     *   minWidth             narrower than this (a tight spot by the deck edge) and it goes elsewhere;
+     *   helmRoom             in the cabin floor, aft of the console by this: an engine under the helm gets
+     *                        its hatch right behind the console, as a wheelhouse's often is (open, it's a
+     *                        hole where you'd stand to steer: shut it to get under way);
+     *   deckMargin           on deck, in from the deck edge by this (the bulwark, the deck edge margin);
+     *   soleClear            the engine space's floor plates this far over her bottom's highest point under
+     *                        the engine's sides (twin: both engines'; the space spans both).
+     */
+    engineHatch: { endRoom: 0.1, sideRoom: 0.2, minLength: 0.8, maxLength: 1.8, minWidth: 0.6, helmRoom: 0.1, deckMargin: 0.35, soleClear: 0.08 },
     /**
      * The skiff's cradle at least this far off the centreline toward her crane's side (m;
      * build.ts; owner: the skiff and crane go over to one side, like the deck crane, not in

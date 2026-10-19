@@ -44,8 +44,39 @@ export function engineParts(mt: typeof CONFIG.vessels.workboat.maintenance, floo
   out.push(part(new THREE.CylinderGeometry(0.17, 0.17, 0.08, 16).rotateX(Math.PI / 2).translate(e.x, base + 0.22, z1 + 0.04), 0x2a2e32));
   // The oil filler cap on the rocker cover (yellow, like the dipstick ring).
   out.push(part(new THREE.CylinderGeometry(0.03, 0.034, 0.03, 12).translate(mt.filler[0], top + 0.015, mt.filler[1]), 0xe8c020));
-  // The oil can's shelf on the engine space's outboard wall.
-  const shelfY = fy - mt.shelfDrop;
-  out.push(box(mt.oilCan[0] - 0.09, space.outboardX, shelfY - 0.02, shelfY, mt.oilCan[1] - 0.1, mt.oilCan[1] + 0.1, 0x8a9096));
+  out.push(...oilShelfParts(mt, fy, space.outboardX));
   return out;
 }
+
+/** The oil can's shelf on the engine space's outboard wall (`outboardX`), `mt.shelfDrop` under its top (`topY`: the floor or deck the hatch is in). */
+export function oilShelfParts(mt: typeof CONFIG.vessels.workboat.maintenance, topY: number, outboardX: number): THREE.BufferGeometry[] {
+  const shelfY = topY - mt.shelfDrop;
+  return [part(new THREE.BoxGeometry(outboardX - (mt.oilCan[0] - 0.09), 0.02, 0.2).translate((mt.oilCan[0] - 0.09 + outboardX) / 2, shelfY - 0.01, mt.oilCan[1]), 0x8a9096)];
+}
+
+/**
+ * The draw order that keeps the sea out of an engine space: after the boat (0), before the
+ * sea (ocean/oceanView.ts draws it at OCEAN_ORDER).
+ */
+export const WATER_STOP_ORDER = 0.5;
+export const OCEAN_ORDER = 1;
+
+/**
+ * A water stop for the engine space under the hatch: the game draws the sea surface right
+ * through a hull (nothing shuts it out), so a space whose floor is below the sea would look
+ * awash. This box fills the space and is drawn after the boat and before the sea, writing
+ * depth only (no colour): what's in the space is already drawn and stays; the sea behind it
+ * fails the depth test. One draw call, only where the space goes below `CLEAR_OF_SEA`.
+ */
+export function waterStop(space: { depth: number; top: number; box: { x0: number; x1: number; z0: number; z1: number } } | null): THREE.Mesh[] {
+  if (!space || space.top - space.depth > CLEAR_OF_SEA) return [];
+  const { x0, x1, z0, z1 } = space.box;
+  const y0 = space.top - space.depth;
+  const y1 = space.top - 0.01;
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, y1 - y0, z1 - z0).translate((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2), new THREE.MeshBasicMaterial({ colorWrite: false }));
+  mesh.renderOrder = WATER_STOP_ORDER;
+  mesh.name = 'waterStop';
+  return [mesh];
+}
+/** An engine space's floor this far over the still waterline (m) is clear of the sea: no water stop. */
+const CLEAR_OF_SEA = 0.3;

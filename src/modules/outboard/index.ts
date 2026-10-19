@@ -38,6 +38,7 @@ import { engineStep, rudderForceAt, steeringStep, type DieselInputs, type Rudder
 import { oilStep } from '../../vessel/maintenance';
 import { engineWearStep } from '../../vessel/wear';
 import type { EngineState } from '../../vessel/vesselState';
+import { waterStop } from '../../vessel/view/engineLook';
 import { mountPlate, outboardUnitParts } from './look';
 
 const wb = CONFIG.vessels.workboat;
@@ -215,7 +216,7 @@ export const OUTBOARD: ModuleDefinition<OutboardConfig, OutboardState> = {
   },
   view: {
     frame: 'boat',
-    build({ config: c, keys }) {
+    build({ config: c, keys, hull }) {
       const g = outboardGeometry(c);
       // The fixed parts: each unit's clamp plate, and the bracket if this module draws it.
       const staticParts = c.units.map((x) => mountPlate(c.look, x, c.mount.y, c.mount.z));
@@ -243,7 +244,8 @@ export const OUTBOARD: ModuleDefinition<OutboardConfig, OutboardState> = {
       place(0);
       return {
         staticParts,
-        movingParts: [mesh],
+        // (And the water stop for her lazarette, the engine space her oil checks are in.)
+        movingParts: [mesh, ...waterStop(hull.engineSpace)],
         controls: [],
         update: (read) => {
           const deg = read.num(keys.swing);

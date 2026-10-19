@@ -95,6 +95,15 @@ export function createHullLibrary(hulls: readonly HullDefinition[]): HullLibrary
   return { get: (id) => byId.get(id) };
 }
 
+/** The engine space under her engine hatch, as modules see it (HullQueries.engineSpace). */
+function engineSpaceOf(layout: LayoutConfig): HullQueries['engineSpace'] {
+  const eh = layout.engineHatch;
+  if (!eh) return null;
+  const x0 = eh.space?.x0 ?? eh.x0;
+  const x1 = eh.space?.x1 ?? eh.x1;
+  return { depth: eh.pitDepth, outboardX: x1, top: eh.y ?? layout.wheelhouse?.floorY ?? 0, box: { x0, x1, z0: eh.z0, z1: eh.z1 } };
+}
+
 /** Read-only hull geometry for modules, from a hull's form and layout (2.7). */
 export function hullQueries(def: { hull: HullForm; layout: LayoutConfig }): HullQueries {
   const plan = hullPlan(def);
@@ -107,6 +116,6 @@ export function hullQueries(def: { hull: HullForm; layout: LayoutConfig }): Hull
     stem: plan.stem,
     cabinRoof: def.layout.wheelhouse?.roofY ?? null,
     cabinFloor: def.layout.wheelhouse?.floorY ?? null,
-    engineSpace: def.layout.engineHatch ? { depth: def.layout.engineHatch.pitDepth, outboardX: def.layout.engineHatch.x1 } : null,
+    engineSpace: engineSpaceOf(def.layout),
   };
 }

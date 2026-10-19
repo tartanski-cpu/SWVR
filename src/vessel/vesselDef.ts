@@ -11,7 +11,14 @@ type WorkboatLayout = Workboat['layout'];
  * wheelhouse, its walkable roof and the ladder up to it.
  */
 export type LayoutConfig = Omit<WorkboatLayout, 'wheelhouse' | 'roof' | 'ladder' | 'doorButtons' | 'fairleadGap' | 'engineHatch' | 'sideGate'> &
-  Partial<Pick<WorkboatLayout, 'roof' | 'ladder' | 'doorButtons' | 'fairleadGap' | 'engineHatch' | 'sideGate'>> & {
+  Partial<Pick<WorkboatLayout, 'roof' | 'ladder' | 'doorButtons' | 'fairleadGap' | 'sideGate'>> & {
+    /**
+     * The hatch over the engine (its opening, x0..x1 across, z0..z1 along) and the engine
+     * space under it (`pitDepth` deep). In the helm house's floor, or (`y`, the deck's height
+     * there: a Shipyard design's engine aft or forward of the house) cut into the open deck.
+     * `space`: the engine space wider than the opening, across (twin engines, side by side).
+     */
+    engineHatch?: WorkboatLayout['engineHatch'] & { y?: number; space?: { x0: number; x1: number } };
     wheelhouse?: WheelhouseLayout;
     bowRamp?: BowRampLayout;
     deckhouse?: DeckhouseLayout;

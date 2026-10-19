@@ -281,9 +281,11 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: reado
   // A deckhouse under the wheelhouse (vessel/deckhouse.ts): solid, and not walked on, for now.
   const dh = layout.deckhouse;
   let leafFolded = false;
-  // The engine hatch in the helm house's floor: open, its hole can't be walked into (you can
-  // still stand where you were if it opened under you; you just can't step onto it).
+  // The engine hatch in the helm house's floor (or in the deck, at its `y`): open, its hole
+  // can't be walked into (you can still stand where you were if it opened under you; you
+  // just can't step onto it).
   const hatch = layout.engineHatch;
+  const hatchY = hatch?.y ?? wh?.floorY ?? 0;
   let hatchOpen = false;
   const inHatch = (x: number, z: number) => !!hatch && hatchOpen && x > hatch.x0 - r * 0.3 && x < hatch.x1 + r * 0.3 && z > hatch.z0 - r * 0.3 && z < hatch.z1 + r * 0.3;
 
@@ -329,7 +331,7 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: reado
 
     walkable(x, z, y) {
       if (helmHouse.inLadder(x, z)) return true;
-      if (inHatch(x, z) && Math.abs(y - wh.floorY) <= STEP_HEIGHT) return false;
+      if (inHatch(x, z) && Math.abs(y - hatchY) <= STEP_HEIGHT) return false;
       return surfaces.some((s) => s.contains(x, z) && Math.abs(s.height(x, z) - y) <= STEP_HEIGHT);
     },
 

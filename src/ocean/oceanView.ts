@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { CONFIG } from '../config';
 import type { EnvironmentView } from '../environment/environmentView';
+import { OCEAN_ORDER } from '../vessel/view/engineLook';
 import { createOceanGeometry, distanceForCellSize } from './oceanGeometry';
 import fragmentShader from './shaders/ocean.frag.glsl?raw';
 import oceanVertex from './shaders/ocean.vert.glsl?raw';
@@ -125,6 +126,8 @@ export class OceanView {
     // Vertices move in the shader, so the CPU bounding volume is meaningless; it is
     // always around the viewer anyway.
     this.mesh.frustumCulled = false;
+    // After the boats, and after their engine spaces' water stops (vessel/view/engineLook.ts).
+    this.mesh.renderOrder = OCEAN_ORDER;
   }
 
   /**

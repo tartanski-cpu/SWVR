@@ -66,6 +66,14 @@ Each house part and hull feature offers its own sockets (the helm spot, wall pan
 the transom), so modules find their place instead of the Shipyard working out offsets. This is
 also when the Shipyard's one long build function is broken up by part.
 
+**A first piece of it, done early (owner, Oct 2026, during P2a):** the engine is placed from her
+layout. Her shaft line (shipyard/machinery.ts) puts the engine; the game draws it there (the
+Shipyard's own engine model), carries its weight there, and cuts the engine hatch and engine space
+over it, in the deck or the cabin floor, clear of her deck gear. The fake engine box under the
+wheelhouse is gone from Shipyard boats (the built-in workboat and landing craft keep theirs).
+What's left for P4: the hatch, dipstick and oil can as places the engine module offers, not
+offsets build.ts works out.
+
 ## P5. Interior parts (M)
 
 Berth, settee, galley run, seat, locker, head with a door: placed on a floor level, each a
