@@ -2533,6 +2533,43 @@ export const CONFIG = {
      *   soleClear            the engine space's floor plates this far over her bottom's highest point under
      *                        the engine's sides (twin: both engines'; the space spans both).
      */
+    /**
+     * What her hull and houses are built of (owner, Oct 2026: the gillnetter and the tug steel,
+     * the landing craft and pilot boat aluminium, the workboat either; build.ts weighs her by
+     * it). Per square metre of her plating with its framing, bulkheads and welds averaged in
+     * (`shellKgPerM2`: about 6 mm of plate and as much again in framing, bulkheads and engine
+     * beds for a 10-14 m boat, aluminium at 2.7 t/m3 and steel at 7.85; a hull type can ask for
+     * heavier, build.ts DESIGN_HULLS `scantlings`), and of her houses (`houseKgPerM2`: thinner
+     * plate); and `pricePerKg`, built: aluminium dearer to buy and to weld.
+     */
+    materials: {
+      aluminium: { shellKgPerM2: 35, houseKgPerM2: 18, pricePerKg: 20 },
+      steel: { shellKgPerM2: 85, houseKgPerM2: 50, pricePerKg: 5 },
+    },
+    /**
+     * Her other weights (build.ts), and her load as trialled:
+     *   bulwarkShare     bulwarks weigh this share of her plating a square metre (thinner, less framing);
+     *   machineryShare   shafting, propeller, rudder, tanks, exhaust and cooling: this share of the engines' weight;
+     *   outfitKgPerM2    wiring, interior, windows, fittings and paint, per m2 of her deck (80 % of length x beam);
+     *   outfitPricePerKg ...and what it costs a kilo, fitted;
+     *   fuelShare        her tanks this full (half: the usual trial condition), fuel at `fuelDensity` kg/l;
+     *   crewKg, storesKg two crew, and stores;
+     *   gear             deck gear without a weight of its own in the game (kg each);
+     *   payloadFreeboard her deck payload: what sinks her by this share of her freeboard amidships
+     *                    (so a light hull carries more than the same hull built heavy).
+     */
+    weights: {
+      payloadFreeboard: 0.12,
+      bulwarkShare: 0.6,
+      machineryShare: 0.35,
+      outfitKgPerM2: 32,
+      outfitPricePerKg: 12,
+      fuelShare: 0.5,
+      fuelDensity: 0.84,
+      crewKg: 170,
+      storesKg: 150,
+      gear: { towWinch: 450, aFrame: 350, sternRoller: 60, skiff: 500, anchor: 150 },
+    },
     engineHatch: { endRoom: 0.1, sideRoom: 0.2, minLength: 0.8, maxLength: 1.8, minWidth: 0.6, helmRoom: 0.1, deckMargin: 0.35, soleClear: 0.08 },
     /**
      * The skiff's cradle at least this far off the centreline toward her crane's side (m;

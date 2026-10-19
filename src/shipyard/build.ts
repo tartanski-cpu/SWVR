@@ -104,6 +104,26 @@ export interface DesignHull {
   foredeck: number;
   /** Where the Shipyard page starts her when you pick her (her type's usual layout); the sliders move it all. */
   defaults: Partial<ShipDesign>;
+  /**
+   * What she's built of, if her type settles it (owner, Oct 2026): the gillnetter and the tug
+   * steel, the landing craft and the pilot boat aluminium. Unset (the workboat), it's the
+   * design's choice (design.material).
+   */
+  material?: Material;
+  /** Her plating and framing heavier than the material's usual, by this factor (the tug's: built heavy, for pushing and towing). */
+  scantlings?: number;
+  /**
+   * Permanent ballast (kg), low in her hull: the tug's, so she sits down to grip the water
+   * and swing a big propeller (her propeller's size is bounded by her draught aft).
+   */
+  ballastKg?: number;
+}
+
+/** What a hull and its houses are built of (CONFIG.shipyard.materials). */
+export type Material = 'aluminium' | 'steel';
+/** What this design is built of: her hull type's own material, else her choice. */
+export function materialOf(d: Pick<ShipDesign, 'hull' | 'material'>): Material {
+  return DESIGN_HULLS[d.hull]?.material ?? (d.material ? 'steel' : 'aluminium');
 }
 
 /**
@@ -172,6 +192,7 @@ export function bowKeel(keel: [number, number][], stemDeckY: number, lengthM: nu
 export const DESIGN_HULLS: DesignHull[] = [
   {
     name: 'Landing craft: 9 m aluminium, square landing bow with a ramp',
+    material: 'aluminium',
     // Her bow is her own: the landing bow (landingCraftLines), no bow choice.
     form: (L, B, D) => ({ kind: 'lofted', design: scaledStudy(landingCraftLines(), L, B, D, null) }),
     planing: true,
@@ -183,6 +204,7 @@ export const DESIGN_HULLS: DesignHull[] = [
   },
   {
     name: 'Gillnetter: 9.75 m, beamy and shallow, flat open foredeck',
+    material: 'steel',
     form: (L, B, D, bow) => ({ kind: 'lofted', design: scaledStudy(study('gillnetter'), L, B, D, bow) }),
     planing: true,
     ramp: false,
@@ -210,6 +232,7 @@ export const DESIGN_HULLS: DesignHull[] = [
   // New hull types go on the end: a design's code holds its hull's place in this list.
   {
     name: 'Pilot boat: 14 m deep-V, spray chine, fine entry, well-raked stem',
+    material: 'aluminium',
     form: (L, B, D, bow) => ({ kind: 'lofted', design: scaledStudy(study('pilot'), L, B, D, bow, true) }),
     planing: true,
     ramp: false,
@@ -221,6 +244,9 @@ export const DESIGN_HULLS: DesignHull[] = [
   },
   {
     name: 'Small tug: 13 m, beamy and deep, a square push bow with a rubber push fender',
+    material: 'steel',
+    scantlings: 1.5,
+    ballastKg: 18000,
     // Her bow is her own (a square push plate, the bottom sweeping up to it): no bow choice.
     form: (L, B, D) => ({ kind: 'lofted', design: scaledStudy(study('pushTug'), L, B, D, null) }),
     planing: false,
@@ -295,10 +321,16 @@ export interface DesignedBoat {
   recipe: Recipe;
   /** floorM: the cabin floor about the deck under the house (as built: a fine hull can bring a low one up). */
   /** engineShortM: how far her engine stands above the cabin floor (0: it fits; machinery.ts). */
-  figures: { lengthM: number; beamM: number; massT: number; draughtM: number; gmM: number; propellerM: number; engineShortM: number; gear: number; engine: string; price: number; floorM: number; floorOnDeckhouseM?: number };
+  figures: { lengthM: number; beamM: number; massT: number; draughtM: number; gmM: number; propellerM: number; engineShortM: number; gear: number; engine: string; price: number; floorM: number; floorOnDeckhouseM?: number; material: Material; freeboardM: number };
   warnings: string[];
   /** Her shaft line and the engine on it (machinery.ts): for the Shipyard's drawing of her machinery. */
   shaft: ShaftLine;
+  /**
+   * What she weighs, part by part (owner, Oct 2026): what she's built of, each part's weight
+   * (kg) and its centre's height (m, her axes as first drawn: buildDesign raises them with her
+   * lines), and the total and its centre: her displacement and centre of gravity.
+   */
+  weights: { material: Material; items: { name: string; kg: number; y: number }[]; massKg: number; cgY: number };
   /**
    * Where the gear placed by hand stands (boat axes, m), whether it had to move off its
    * pinned cell to stand there (`moved`), and on the roof or not; null if it couldn't stand
@@ -377,13 +409,62 @@ const BASE_TORQUE: [number, number][] = [
   [0, 0], [300, 375], [600, 638], [1000, 938], [1300, 990], [1600, 908], [1800, 796], [1900, 450], [1950, 0],
 ];
 
+/**
+ * Build her design (owner, Oct 2026: she floats at what she weighs). Twice: first on her
+ * lines as drawn, to weigh her (her weight doesn't depend on how high she floats: her
+ * plating, houses, machinery, gear and load are what they are); then with her lines raised
+ * (lighter than they displace) or lowered (heavier) until she displaces exactly that
+ * weight, so her draught, freeboard and hydrostatics are those of the boat as built.
+ */
 export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
+  const first = buildAt(d, code, 0, null);
+  const { rise, sinks } = riseFor(hullFormOf(first.hull.form), first.weights.massKg);
+  const boat = buildAt(d, code, rise, { massKg: first.weights.massKg, cgY: first.weights.cgY });
+  if (sinks) boat.warnings.unshift(`She's too heavy for her hull (${(first.weights.massKg / 1000).toFixed(1)} t): she'd float with her deck awash. Make her lighter (aluminium, a smaller engine, less gear) or bigger.`);
+  else if (boat.figures.freeboardM < 0.3) boat.warnings.unshift(`She floats deep for her weight: ${Math.round(boat.figures.freeboardM * 100)} cm of freeboard amidships. Give her more depth (Hull) or make her lighter.`);
+  return boat;
+}
+
+/** Her lines raised by `rise` (m; negative lowers them): her keel and sheer lines, which every height of her hull is measured from. */
+function raised(form: HullDefinition['form'], rise: number): HullDefinition['form'] {
+  if (!rise) return form;
+  // (The workboat's chine hull: its keel, chine and deck heights.)
+  if (form.kind === 'chine') {
+    const p = form.params;
+    return { ...form, params: { ...p, keelY: p.keelY + rise, chineYAft: p.chineYAft + rise, chineYBow: p.chineYBow + rise, deckYAft: p.deckYAft + rise, deckYBow: p.deckYBow + rise } };
+  }
+  const up = (c: [number, number][]) => c.map(([t, v]) => [t, v + rise] as [number, number]);
+  const dsg = form.design;
+  return { ...form, design: { ...dsg, keel: up(dsg.keel), sheer: up(dsg.sheer), ...(dsg.chineKeel ? { chineKeel: up(dsg.chineKeel) } : {}) } };
+}
+
+/**
+ * How far to raise her lines (m) for her to displace `massKg`: her stations moved up by it,
+ * their volume below the waterline (atDWL) is her weight in sea water. Found by halving the
+ * bracket (40 steps: well under a millimetre). Deeper than her deck awash she `sinks`.
+ */
+function riseFor(form: HullForm, massKg: number): { rise: number; sinks: boolean } {
+  const rho = CONFIG.ocean.density;
+  const at = (rise: number) => atDWL({ ...form, stations: form.stations.map((s) => ({ ...s, polygon: s.polygon.map(([x, y]) => [x, y + rise] as [number, number]) })) }).volume * rho;
+  const deckLow = Math.min(...form.stations.map((s) => s.polygon[0][1]));
+  let lo = -deckLow + 0.02;
+  let hi = 3;
+  if (at(lo) < massKg) return { rise: lo, sinks: true };
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2;
+    if (at(mid) > massKg) lo = mid;
+    else hi = mid;
+  }
+  return { rise: Math.round(((lo + hi) / 2) * 1000) / 1000, sinks: false };
+}
+
+function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: number; cgY: number } | null): DesignedBoat {
   const warnings: string[] = [];
   const base = DESIGN_HULLS[d.hull];
   const L = SCALES.scale(d.length);
   const B = SCALES.scale(d.beam);
   const D = SCALES.scale(d.depth);
-  const form = base.form(L, B, D, d.bow);
+  const form = raised(base.form(L, B, D, d.bow), raise);
   const shape = hullFormOf(form);
   const st = shape.stations;
   const transom = st[0].z;
@@ -577,7 +658,8 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   const h = atDWL(shape);
   const rho = CONFIG.ocean.density;
   const g = CONFIG.ocean.gravity;
-  const mass = Math.round(rho * h.volume);
+  // (Her weight, once weighed: buildDesign. The first time, what her lines displace as drawn.)
+  const mass = given ? given.massKg : Math.round(rho * h.volume);
   const mid = st.reduce((a, s) => (Math.abs(s.z - h.lcb) < Math.abs(a.z - h.lcb) ? s : a)).polygon;
   const keelMid = mid[2][1];
   const deckMid = mid[0][1];
@@ -615,6 +697,10 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   const beamDeck = 2 * Math.max(...st.map((s) => s.halfBeamDeck));
   const lengthM = transom - stem;
   const gyradius = { roll: 0.39 * beamDeck, pitch: 0.278 * lengthM, yaw: 0.29 * lengthM };
+  // Weighed (buildDesign), her centre of gravity is her parts': its height from the weights
+  // below, her lines raised with it; along her it stays over her centre of buoyancy (level
+  // trim: as her designer would trim her, with her tanks and ballast).
+  if (given) cg[1] = Math.round((given.cgY + raise) * 1000) / 1000;
   const gm = h.kbY + h.iT / h.volume - cg[1];
   if (gm < 0.5) warnings.push(`Her stability is low (GM ${gm.toFixed(2)} m): give her more beam or less depth.`);
   const iRoll = mass * gyradius.roll ** 2 * 1.25; // with its added mass
@@ -1288,6 +1374,11 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
         seats: [[-seatX, seatZ], [seatX, seatZ], [0, r2(seatZ - 0.2)]] as [number, number][],
       }
     : undefined;
+  // What she can carry on deck: what she'd displace sunk by a share of her freeboard
+  // (CONFIG.shipyard.weights.payloadFreeboard), less what she weighs. So the same hull in
+  // aluminium carries more than in steel: she has more reserve of buoyancy.
+  const sunkBy = CONFIG.shipyard.weights.payloadFreeboard * deckMid;
+  const payloadKg = Math.max(0, Math.round((atDWL({ ...shape, stations: st.map((s) => ({ ...s, polygon: s.polygon.map(([x, y]) => [x, y - sunkBy] as [number, number]) })) }).volume * rho - mass) / 100) * 100);
   const hull: HullDefinition = {
     id: 'hull.design',
     version: 1,
@@ -1313,7 +1404,7 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
       center: [0, Math.round((freeboard + 0.4) * 100) / 100, Math.round(((front + aft) / 4) * 100) / 100],
     },
     layout,
-    cargo: { maxPayloadKg: Math.round((0.3 * mass) / 100) * 100, slots: 0, bowClear: 0.4, aftClear: 0.25, fixed: false, lashPoints, lashRange: 1.1 },
+    cargo: { maxPayloadKg: payloadKg, slots: 0, bowClear: 0.4, aftClear: 0.25, fixed: false, lashPoints, lashRange: 1.1 },
     spawn: { x: 0, z: -22, dropHeight: 3, headingDeg: 90 },
     fittings: {
       exhaust: { position: [0.55, 0.2, transom + 0.05], direction: [0, -0.12, 1] },
@@ -1558,16 +1649,76 @@ export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
   if (pushFender) recipe.modules.push({ socket: 'pushFender', module: 'hull.push-fender', config: pushFender });
   if (prot.side) recipe.modules.push({ socket: 'hullGuard', module: 'hull.guard', config: { kind: prot.side, aroundBow: !bowRamp } });
 
+  // ── Her weights, built up (owner, Oct 2026: aluminium or steel, the houses counted) ──
+  // Each part's weight and the height of its centre. Her hull: her plating and framing, by
+  // its area (every station's section all round, deck included, and her transom and any
+  // square bow plate) at the material's weight a square metre; her bulwarks the same, lighter.
+  // Her houses: walls, roof and floor by area. Her machinery, batteries and crane as their
+  // modules weigh. Her deck gear, hull protection, fit-out (wiring, interior, windows,
+  // fittings, paint, by her deck area), and her load as she's trialled: half her fuel, crew
+  // and stores (CONFIG.shipyard.weights).
+  const material = materialOf(d);
+  const mat = CONFIG.shipyard.materials[material];
+  const wc = CONFIG.shipyard.weights;
+  let shellM2 = 0;
+  let shellM2y = 0;
+  const ring2 = (p: readonly (readonly [number, number])[]) => p.map((a, i) => [a, p[(i + 1) % p.length]] as const);
+  for (let i = 1; i < st.length; i++) {
+    const dz = Math.abs(st[i].z - st[i - 1].z) / 2;
+    for (const sec of [st[i - 1], st[i]])
+      for (const [a, b] of ring2(sec.polygon)) {
+        const m2 = Math.hypot(b[0] - a[0], b[1] - a[1]) * dz;
+        shellM2 += m2;
+        shellM2y += (m2 * (a[1] + b[1])) / 2;
+      }
+  }
+  for (const end of [st[0], ...(st[st.length - 1].halfBeamDeck > 0.3 ? [st[st.length - 1]] : [])]) {
+    const p = end.polygon;
+    const m2 = Math.abs(p.reduce((a, [x, y], i) => a + x * p[(i + 1) % p.length][1] - p[(i + 1) % p.length][0] * y, 0)) / 2;
+    shellM2 += m2;
+    shellM2y += (m2 * p.reduce((a, [, y]) => a + y, 0)) / p.length;
+  }
+  const bulwarkRun = 2 * lengthM + 2 * st[0].halfBeamDeck + (bowRamp ? 0 : 2 * st[st.length - 1].halfBeamDeck);
+  const houseM2 = 2 * (houseL + 2 * hw) * (roofY - floorY) + 2 * (2 * hw * houseL);
+  const machineKg = outboards ? obc.massKg * nOb : eng.kg * n;
+  const machineY = outboards ? outboards.mount.y : at.engineBed[1];
+  const gearKg = (winchAt ? wc.gear.towWinch : 0) + (aFrame ? wc.gear.aFrame : 0) + (sternRoller ? wc.gear.sternRoller : 0) + (skiffAt ? wc.gear.skiff : 0) + (anchorAt ? wc.gear.anchor : 0);
+  const pushKg = pushFender ? pf.knees * pf.kneeWidth * (pushFender.top - pushFender.bottom) * pf.kgPerM2 : 0;
+  const items = [
+    { name: `Hull: ${material} plating and framing`, kg: shellM2 * mat.shellKgPerM2 * (base.scantlings ?? 1), y: shellM2y / shellM2 },
+    { name: 'Bulwarks', kg: bulwarkRun * bulwarkHeight * mat.shellKgPerM2 * wc.bulwarkShare, y: deckMid + bulwarkHeight / 2 },
+    { name: 'Wheelhouse', kg: houseM2 * mat.houseKgPerM2, y: (floorY + roofY) / 2 },
+    { name: 'Deckhouse', kg: dhArea * mat.houseKgPerM2, y: deckhouse ? (deckMid + deckhouse.top) / 2 : deckMid },
+    { name: outboards ? 'Outboards' : n > 1 ? 'Engines and gearboxes' : 'Engine and gearbox', kg: machineKg, y: machineY },
+    { name: outboards ? 'Bracket, rigging and tanks' : 'Shafting, propeller, rudder, tanks, exhaust', kg: machineKg * wc.machineryShare, y: outboards ? deckMid : machineY },
+    { name: 'Batteries', kg: batteriesKg, y: at.engineSpace[1] },
+    { name: 'Deck crane', kg: craneAt ? cr.massKg : 0, y: craneAt ? craneAt[1] + cr.columnHeight / 2 : deckMid },
+    { name: 'Deck gear', kg: gearKg, y: deckMid + 0.5 },
+    { name: 'Hull protection', kg: guardKg + pushKg, y: guardKg + pushKg > 0 ? (guardKg * guardY + (pushFender ? (pushKg * (pushFender.top + pushFender.bottom)) / 2 : 0)) / (guardKg + pushKg) : deckMid },
+    { name: 'Fit-out: wiring, interior, windows, fittings, paint', kg: wc.outfitKgPerM2 * lengthM * beamDeck * 0.8, y: deckMid + 0.3 },
+    { name: 'Fuel (half her tanks)', kg: tankL * wc.fuelShare * wc.fuelDensity, y: keelMid + 0.35 * (deckMid - keelMid) },
+    { name: 'Crew and stores', kg: wc.crewKg + wc.storesKg, y: deckMid + 0.8 },
+    { name: 'Ballast', kg: base.ballastKg ?? 0, y: keelMid + 0.15 },
+  ]
+    .filter((it) => it.kg > 0)
+    .map((it) => ({ name: it.name, kg: Math.round(it.kg), y: Math.round(it.y * 1000) / 1000 }));
+  const weighedKg = items.reduce((a, it) => a + it.kg, 0);
+  const weights = { material, items, massKg: weighedKg, cgY: Math.round((items.reduce((a, it) => a + it.kg * it.y, 0) / weighedKg) * 1000) / 1000 };
+  // Her build: her structure (hull, bulwarks, houses) at the material's price a kilo, built
+  // (aluminium dearer to buy and to weld; steel heavier, cheaper), and her fit-out.
+  const buildPrice = items.filter((it) => /^(Hull|Bulwarks|Wheelhouse|Deckhouse)/.test(it.name)).reduce((a, it) => a + it.kg, 0) * mat.pricePerKg + (items.find((it) => it.name.startsWith('Fit-out'))?.kg ?? 0) * wc.outfitPricePerKg;
+
   const gp = dg.price;
-  const gearPrice = (winchAt ? gp.towWinch : 0) + (sternRoller ? gp.sternRoller : 0) + (aFrame ? gp.aFrame : 0) + (ring ? gp.lifeRing : 0) + (sideDoor ? gp.sideDoor : 0) + (anchorAt ? gp.anchor : 0) + (skiffAt ? gp.skiff : 0) + dhArea * dhc.pricePerM2;
+  const gearPrice = (winchAt ? gp.towWinch : 0) + (sternRoller ? gp.sternRoller : 0) + (aFrame ? gp.aFrame : 0) + (ring ? gp.lifeRing : 0) + (sideDoor ? gp.sideDoor : 0) + (anchorAt ? gp.anchor : 0) + (skiffAt ? gp.skiff : 0);
   const guardPrice = (pushFender ? CONFIG.shipyard.pushFenderPrice : 0) + (basketAt ? pc.fendersPrice : 0) + strakeM * pc.strakePerM + (tyres.length ? 2 * tyres.length * pc.tyrePrice + pc.tyreFitting : 0);
-  const price = Math.round((mass * 6 + (nOb ? powerKw * obc.pricePerKw : kw * n * eng.pricePerKw) + (d.controls ? 18000 : 6000) + (craneAt ? 25000 : 0) + (hasMonitor ? 15000 : 0) + gearPrice + guardPrice) / 1000) * 1000;
+  const price = Math.round((buildPrice + (nOb ? powerKw * obc.pricePerKw : kw * n * eng.pricePerKw) + (d.controls ? 18000 : 6000) + (craneAt ? 25000 : 0) + (hasMonitor ? 15000 : 0) + gearPrice + guardPrice) / 1000) * 1000;
   return {
     hull,
     recipe,
-    figures: { lengthM, beamM: beamDeck, massT: mass / 1000, draughtM: -Math.min(...st.map((s) => s.polygon[2][1])), gmM: gm, propellerM: nOb ? obc.propeller.diameter : propD, engineShortM: nOb ? 0 : shaft.shortM, gear: nOb ? obc.engine.gearRatio : gear, engine: nOb ? `${['', 'One', 'Two', 'Three', 'Four'][nOb]} ${obc.engine.powerKw} kW petrol V8 outboards` : twin ? `Twin ${eng.name}` : eng.name, price, floorM: Math.round((floorY - level) * 100) / 100, floorOnDeckhouseM: deckhouse ? Math.round((floorY - onTop) * 100) / 100 : undefined },
+    figures: { lengthM, beamM: beamDeck, massT: mass / 1000, draughtM: -Math.min(...st.map((s) => s.polygon[2][1])), gmM: gm, propellerM: nOb ? obc.propeller.diameter : propD, engineShortM: nOb ? 0 : shaft.shortM, gear: nOb ? obc.engine.gearRatio : gear, engine: nOb ? `${['', 'One', 'Two', 'Three', 'Four'][nOb]} ${obc.engine.powerKw} kW petrol V8 outboards` : twin ? `Twin ${eng.name}` : eng.name, price, floorM: Math.round((floorY - level) * 100) / 100, floorOnDeckhouseM: deckhouse ? Math.round((floorY - onTop) * 100) / 100 : undefined, material, freeboardM: Math.round(deckMid * 100) / 100 },
     warnings,
     placed,
     shaft,
+    weights,
   };
 }

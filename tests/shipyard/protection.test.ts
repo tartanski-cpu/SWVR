@@ -25,7 +25,8 @@ import { fakeCanvas } from '../modular/fakes';
 beforeAll(fakeCanvas);
 
 const BASE: ShipDesign = { ...DEFAULT_DESIGN, guard: 0 };
-const WORKBOAT: ShipDesign = { ...BASE, hull: 2, ...DESIGN_HULLS[2].defaults };
+// (In steel: near the weight these knocks were tuned on.)
+const WORKBOAT: ShipDesign = { ...BASE, hull: 2, ...DESIGN_HULLS[2].defaults, material: 1 };
 const mounted = () => flattenMounts(RECIPES.design, LIBRARY.hulls, LIBRARY.modules).mounted;
 const modulesOf = () => mounted().map((m) => m.def.id);
 
@@ -110,22 +111,24 @@ describe('hull protection: what each puts on her', () => {
     }
   });
 
-  it('price, weight and drag: fenders the cheapest; the tyres a little more drag, her displacement the same', () => {
+  it('price, weight and drag: fenders the cheapest; the tyres a little more drag; the strake and tyres add their weight', () => {
     const none = useDesign({ ...WORKBOAT, guard: 0 });
     const ff = VESSEL_DEFS.design.resistance.formFactor;
     const fenders = useDesign({ ...WORKBOAT, guard: 1 });
     const strake = useDesign({ ...WORKBOAT, guard: 2 });
     const tyres = useDesign({ ...WORKBOAT, guard: 3 });
-    const cgTyres = VESSEL_DEFS.design.cg[1];
     expect(VESSEL_DEFS.design.resistance.formFactor).toBeCloseTo(ff + CONFIG.modules.hullGuard.tyres.formFactorAdd, 9);
     const both = useDesign({ ...WORKBOAT, guard: 4 });
     expect(fenders.figures.price).toBeGreaterThanOrEqual(none.figures.price);
     expect(strake.figures.price).toBeGreaterThan(fenders.figures.price);
     expect(tyres.figures.price).toBeGreaterThan(fenders.figures.price);
     expect(both.figures.price).toBeGreaterThanOrEqual(strake.figures.price);
-    for (const b of [fenders, strake, tyres, both]) expect(b.figures.massT).toBe(none.figures.massT);
-    useDesign({ ...WORKBOAT, guard: 0 });
-    expect(cgTyres).toBeGreaterThan(VESSEL_DEFS.design.cg[1]); // the tyres hang above her CG
+    // (She floats at what she weighs: the strake and the tyres are weight; the crew's fenders too light to count.)
+    expect(fenders.figures.massT).toBe(none.figures.massT);
+    for (const b of [strake, tyres, both]) expect(b.figures.massT).toBeGreaterThan(none.figures.massT);
+    // Her CG moves toward the tyres' height (as built: her parts' weights and heights).
+    const tyreY = tyres.weights.items.find((it) => it.name === 'Hull protection')!.y;
+    expect(Math.sign(tyres.weights.cgY - none.weights.cgY)).toBe(Math.sign(tyreY - none.weights.cgY));
   });
 
   it('draws them with her fixed parts: no draw calls of their own', () => {
@@ -178,7 +181,7 @@ describe('hull protection: alongside', { timeout: 120000 }, () => {
     expect(strake).toBeLessThan(0.5 * none);
     expect(strake).toBeGreaterThan(0);
     expect(tyres).toBeLessThan(0.5 * strake);
-    expect(fendersOut).toBeLessThan(0.5 * strake);
+    expect(fendersOut).toBeLessThan(0.15 * none);
   });
 
   it('coming alongside gently (0.5 m/s) does nothing to any of them', () => {

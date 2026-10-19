@@ -37,7 +37,7 @@ import { briefPaper } from './briefPaper';
 import { buildVesselMesh, buildVesselMeshParts } from '../vessel/view/hullMesh';
 import { DESIGN_HULLS, ENGINES, LIVERIES, ROOF_PAINTS, type DesignedBoat } from './build';
 import { docFileName, docFileText, docToken, designToken, readDesign, shortCode } from './designDoc';
-import { ALL_FIELDS, DEFAULT_DESIGN, GUARDS, OUTBOARDS, RAILS, SILLS, SINGLE_ONLY_ENGINES, SKIFFS, placeOf, placeValue, SCALES, type PlaceKey, type ShipDesign } from './design';
+import { ALL_FIELDS, DEFAULT_DESIGN, GUARDS, MATERIALS, OUTBOARDS, RAILS, SILLS, SINGLE_ONLY_ENGINES, SKIFFS, placeOf, placeValue, SCALES, type PlaceKey, type ShipDesign } from './design';
 import { hullPlan } from '../vessel/layout';
 import { UndoStack } from './undo';
 import { YardLink } from './yardLink';
@@ -431,7 +431,8 @@ let shownStep = '';
 let framedFit = '';
 /** Look at her engines and propellers: from her starboard quarter, a little above. */
 function frameMachinery(): void {
-  const m = shown?.machinery;
+  // (Her outboards, if that's her machinery.)
+  const m = shown?.machinery ?? shown?.modules.getObjectByName('outboards');
   if (!m) return;
   const box = new THREE.Box3();
   m.traverse((o) => {
@@ -468,7 +469,9 @@ function focusStep(): void {
   const inHouse = house ? new THREE.Box3().setFromObject(house).expandByVector(new THREE.Vector3(-0.15, 0.05, 0.05)) : null;
   const c = new THREE.Vector3();
   for (const m of modules.children) {
-    if (step === 'hull' || step === 'engine') m.visible = false;
+    // (Her outboards are her machinery: shown at Engine, as her inboard is.)
+    if (step === 'engine') m.visible = !!m.getObjectByName('outboards');
+    else if (step === 'hull') m.visible = false;
     else if (step === 'wheelhouse') m.visible = !!inHouse && inHouse.containsPoint(new THREE.Box3().setFromObject(m).getCenter(c));
     else m.visible = true;
   }
@@ -516,7 +519,7 @@ function choices(key: keyof ShipDesign, items: { name: string; note?: string }[]
 }
 const outputs: Partial<Record<keyof ShipDesign, (v: number) => string>> = {};
 /** Each field's label and, for a few set options, their names (the compare list shows them). */
-const labels: Partial<Record<keyof ShipDesign, string>> = { hull: 'Hull', engine: 'Engine', twin: 'Engines', outboards: 'Outboards', controls: 'Controls', paint: 'Paint', roofPaint: 'Roof colour' };
+const labels: Partial<Record<keyof ShipDesign, string>> = { hull: 'Hull', engine: 'Engine', twin: 'Engines', outboards: 'Outboards', material: 'Built of', controls: 'Controls', paint: 'Paint', roofPaint: 'Roof colour' };
 const optionNames: Partial<Record<keyof ShipDesign, string[]>> = {};
 function slider(key: keyof ShipDesign, label: string, show: (v: number) => string): void {
   labels[key] ??= label;
@@ -590,6 +593,21 @@ slider('bow', 'Bow rake', (v) => (DESIGN_HULLS[design.hull].pushBow ? 'push bow'
 }
 options('guard', 'Protection', [...GUARDS]);
 options('rails', 'Rails', [...RAILS]);
+// What she's built of (owner, Oct 2026): a choice on the workboat hull; the others are their type's own.
+{
+  const h = document.createElement('h2');
+  h.textContent = 'Built of';
+  const p = document.createElement('p');
+  p.className = 'meta';
+  p.id = 'materialNote';
+  controls.append(h, p);
+  const al = CONFIG.shipyard.materials.aluminium;
+  const fe = CONFIG.shipyard.materials.steel;
+  choices('material', [
+    { name: MATERIALS[0], note: `Light: about ${al.shellKgPerM2} kg a square metre of hull, so she floats higher and goes faster for her power. £${al.pricePerKg} a kilo built.` },
+    { name: MATERIALS[1], note: `Tough and cheaper to build (£${fe.pricePerKg} a kilo), but about ${fe.shellKgPerM2} kg a square metre: she sits deeper and is slower for her power.` },
+  ]);
+}
 section('2. Wheelhouse');
 slider('housePos', 'Position', (v) => (v === 0 ? 'right aft' : v === 15 ? 'right forward' : `${pct(SCALES.housePos(v))} fwd`));
 slider('houseLength', 'Length', (v) => `${SCALES.houseLength(v).toFixed(1)} m`);
@@ -742,6 +760,15 @@ function syncControls(): void {
   twinBox.checked = !!design.twin;
   // The tug diesel goes in singly only; with outboards there's no inboard to twin.
   twinBox.disabled = SINGLE_ONLY_ENGINES.includes(design.engine) || !!design.outboards;
+  // A hull type built of its own material: the choice stands aside, and says why.
+  const ownMaterial = DESIGN_HULLS[design.hull].material;
+  document.querySelectorAll<HTMLElement>('[data-key="material"]').forEach((el) => {
+    el.classList.toggle('aside', !!ownMaterial);
+    if (ownMaterial) el.classList.toggle('on', MATERIALS[Number(el.dataset.i)].toLowerCase() === ownMaterial);
+  });
+  $('materialNote').textContent = ownMaterial
+    ? `The ${DESIGN_HULLS[design.hull].name.split(':')[0].toLowerCase()} is built of ${ownMaterial}, as her type is.`
+    : 'Her hull and houses: what she weighs, how deep she floats, how fast she goes and what she costs follow from it.';
   // With outboards the engine packages stand aside (shown, not chosen).
   document.querySelectorAll<HTMLElement>('[data-key="engine"]').forEach((el) => el.classList.toggle('aside', !!design.outboards));
   // A tug's push bow and a landing craft's landing bow are their own: no bow rake to choose.
@@ -762,8 +789,10 @@ function showFigures(): void {
   const matched = matchedFor === matchKey(design);
   rows($('figures'), [
     ['Length overall x beam', `${f.lengthM.toFixed(2)} x ${f.beamM.toFixed(2)} m`],
-    ['Displacement', `${f.massT.toFixed(2)} t`],
+    ['Built of', f.material === 'steel' ? 'Steel' : 'Aluminium'],
+    ['Displacement', `${f.massT.toFixed(2)} t (her weight, as below)`],
     ['Draught', `${f.draughtM.toFixed(2)} m`],
+    ['Freeboard', `${f.freeboardM.toFixed(2)} m amidships`],
     ['Stability (GM)', `${f.gmM.toFixed(2)} m`],
     ['Deck cargo', deckWords(deckRoom())],
     ['Pots on deck', `${deckRoom().pots}`],
@@ -771,6 +800,8 @@ function showFigures(): void {
     ['Propeller', `${f.propellerM.toFixed(2)} m`],
     ['Gearbox', matched ? `${f.gear.toFixed(2)} : 1 (matched)` : 'matching...'],
     ['Price', `£${f.price.toLocaleString('en-GB')}`],
+    // Her weights, part by part (build.ts): she floats where they add up to.
+    ...boat.weights.items.map((it): [string, string] => [`&nbsp;&nbsp;${it.name}`, `${(it.kg / 1000).toFixed(2)} t`]),
   ]);
   $('warnings').innerHTML = boat.warnings.map((w) => `<div>${w}</div>`).join('');
   showQuick();

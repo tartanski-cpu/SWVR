@@ -29,11 +29,13 @@ describe('Shipyard: the boats it builds', () => {
         const h = uprightHydrostatics(VESSEL_DEFS.design);
         expect(Math.abs(h.sinkage), `${hull}/${engine} sinkage`).toBeLessThan(0.02);
         expect(Math.abs(h.lcgMinusLcb), `${hull}/${engine} trim`).toBeLessThan(0.02);
-        expect(h.gmt, `${hull}/${engine} GM`).toBeGreaterThan(0.5);
+        // Stable; a tender one (a heavy engine high in a light hull) is told so.
+        expect(h.gmt, `${hull}/${engine} GM`).toBeGreaterThan(0.3);
+        if (h.gmt < 0.5) expect(boat.warnings.some((w) => w.startsWith('Her stability is low')), `${hull}/${engine}`).toBe(true);
         expect(gearOf({ defId: 'design' }, 'diesel')!.engine.powerKw).toBe(ENGINES[engine].kw);
         // The tall tug diesel doesn't fit under a shallow hull's floor (machinery.ts): said so,
         // and nothing else. (It fits the tug, below.)
-        if (engine === 3) expect(boat.warnings.filter((w) => !w.startsWith('The 450 kW slow-revving tug diesel doesn’t fit') && !w.startsWith("The 450 kW slow-revving tug diesel doesn't fit")), `${hull}/${engine}`).toEqual([]);
+        if (engine === 3) expect(boat.warnings.filter((w) => !w.startsWith('The 450 kW slow-revving tug diesel doesn’t fit') && !w.startsWith("The 450 kW slow-revving tug diesel doesn't fit") && !w.startsWith('Her stability is low')), `${hull}/${engine}`).toEqual([]);
         else expect(boat.warnings, `${hull}/${engine}`).toEqual([]);
       }
   });
@@ -103,9 +105,11 @@ describe('Shipyard: the boats it builds', () => {
         return st.reduce((a, b) => (Math.abs(b.z - z) < Math.abs(a.z - z) ? b : a));
       };
       useDesign({ ...DEFAULT_DESIGN, hull, bow: 0 });
-      const plumbKeel = at(0.7).polygon[2][1];
+      // (Her keel's depth under her deck: she floats a little higher or lower with each bow, at what she weighs.)
+      const keelDepth = () => at(0.7).polygon[0][1] - at(0.7).polygon[2][1];
+      const plumbKeel = keelDepth();
       useDesign({ ...DEFAULT_DESIGN, hull, bow: 4 });
-      expect(at(0.7).polygon[2][1], `hull ${hull}`).toBeCloseTo(plumbKeel, 6);
+      expect(keelDepth(), `hull ${hull}`).toBeCloseTo(plumbKeel, 6);
     }
   });
 
@@ -123,7 +127,8 @@ describe('Shipyard: the boats it builds', () => {
     useDesign(single);
     const m1 = VESSEL_DEFS.design.mass;
     const boat = useDesign(twin);
-    expect(VESSEL_DEFS.design.mass).toBe(m1); // she floats on her lines either way: her lightship gives way
+    // Heavier by the second engine and its shafting, propeller and rudder (she floats deeper for it).
+    expect(VESSEL_DEFS.design.mass).toBeGreaterThan(m1 + ENGINES[single.engine].kg);
     const diesel = gearOf({ defId: 'design' }, 'diesel')!;
     expect(diesel.twin).toBe(true);
     expect(boat.figures.engine).toMatch(/^Twin /);
