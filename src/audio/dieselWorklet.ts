@@ -45,6 +45,9 @@ class DieselProcessor extends AudioWorkletProcessor {
     this.tau = v.pulseTau || 0.013;
     this.tauLow = v.pulseTauLow === undefined ? 0.006 : v.pulseTauLow;
     this.rated = v.ratedRpm || 1800;
+    // How much of each pulse is noise (its rasp; the main thread can pass it on, high-passed,
+    // as the engine's mechanical clatter: CONFIG.engineVoices 'mech').
+    this.grit = v.grit === undefined || v.grit === null ? 0.08 : v.grit;
   }
   rand() {
     this.seed = (this.seed * 16807) % 2147483647;
@@ -73,7 +76,7 @@ class DieselProcessor extends AudioWorkletProcessor {
       // Smooth pulse: the attack follows the envelope with a 1.5 ms lag (no click edge).
       this.rise += (this.env - this.rise) * (1 - dRise);
       const n = this.rand() * 2 - 1;
-      a[i] = this.rise * (0.92 + 0.08 * n);
+      a[i] = this.rise * (1 - this.grit + this.grit * n);
       this.env *= dEnv;
     }
     return true;
