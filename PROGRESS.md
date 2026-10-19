@@ -5036,6 +5036,10 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Tests:** `tests/shipyard/rodRack.test.ts` rewritten (every place round-trips; the pin's wall; four rods in a spaced row on the aft wall and the starboard wall; priced and weighed), the gear menu's fit list without it.
 - **Checked:** typecheck, `npm test`. **Not checked:** by eye in headless Chromium this time; VR.
 
+### The rod the right way round, without its rings (owner playtest)
+
+- The owner: the fishing game works; the rod looked the wrong way round (thick end at the tip), and the line rings could go. `player/handGear.ts rodMesh`: the blank's cylinder had its radii swapped once turned along the rod (a cylinder's top goes to +z, the butt); now thick at the grip, tapering to the tip. The four tori are gone (24 fewer small parts per rod). **Checked:** typecheck, `npm test`; not by eye.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

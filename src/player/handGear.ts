@@ -63,16 +63,17 @@ function torchMesh(): { mesh: THREE.Mesh; tip: THREE.Vector3 } {
   return { mesh: new THREE.Mesh(geo, flatVertexColorMaterial()), tip: new THREE.Vector3(0, -0.06, -0.16) };
 }
 
-/** The rod: a 2.4 m tapered rod forward of the grip (-z), a reel under the grip, a cork butt behind. */
+/** The rod: a 2.4 m blank tapering forward of the grip (-z), a reel under the grip, a cork butt behind. No line rings (owner: polygons). */
 function rodMesh(): { mesh: THREE.Mesh; tip: THREE.Vector3 } {
   const blank = 0x3a2e24;
   const geo = mergeParts([
-    part(new THREE.CylinderGeometry(0.004, 0.012, 2.2, 6).rotateX(Math.PI / 2).translate(0, 0.0, -1.15), blank), // the blank, butt to tip
+    // The blank, thick at the butt (by the grip, +z) tapering to the tip (-z): a cylinder's top
+    // (its first radius) goes to +z when it's turned this way (owner: it was the wrong way round).
+    part(new THREE.CylinderGeometry(0.012, 0.004, 2.2, 6).rotateX(Math.PI / 2).translate(0, 0.0, -1.15), blank),
     part(new THREE.CylinderGeometry(0.016, 0.016, 0.32, 8).rotateX(Math.PI / 2).translate(0, 0, 0.1), 0xb08a5a), // the cork grip
     part(new THREE.CylinderGeometry(0.035, 0.035, 0.03, 12).rotateZ(Math.PI / 2).translate(0, -0.06, -0.02), 0x2b2f33), // the reel's spool
     part(new THREE.BoxGeometry(0.012, 0.05, 0.03).translate(0, -0.03, -0.02), 0x2b2f33), // its foot
     part(new THREE.CylinderGeometry(0.004, 0.004, 0.05, 6).translate(0.035, -0.06, -0.02), 0x8a8f94), // the handle
-    ...[-0.5, -1.0, -1.5, -1.95].map((z) => part(new THREE.TorusGeometry(0.012, 0.002, 4, 8).translate(0, 0.012, z), 0x8a8f94)), // the line rings
   ]);
   return { mesh: new THREE.Mesh(geo, flatVertexColorMaterial()), tip: new THREE.Vector3(0, 0.01, -2.25) };
 }
