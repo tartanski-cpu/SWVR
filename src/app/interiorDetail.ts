@@ -71,7 +71,7 @@ export class InteriorDetail {
         this.box.applyMatrix4(inv);
         this.box.getBoundingSphere(this.sphere);
         const c = this.sphere.center;
-        const inside = Math.abs(c.x) < wh.halfWidth && c.z > wh.front && c.z < wh.aft && c.y > wh.floorY - 0.2 && c.y < wh.roofY;
+        const inside = Math.abs(c.x) < wh.halfWidth && c.z > wh.front && c.z < wh.aft && c.y > houseFloorLow(wh) - 0.2 && c.y < wh.roofY;
         if (inside && this.sphere.radius < maxRadius) this.small.push(o);
       }
     }

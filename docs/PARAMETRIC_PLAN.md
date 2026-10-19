@@ -50,6 +50,13 @@ can copy a link, open it on another machine, save and open a file.
   pilothouse raised on a deckhouse; the step between floors made automatically; a cockpit
   overhead with wings; the eyebrow's two-colour roof. The design document carries the list (the
   first thing the code couldn't).
+  - **First stop, done (awaiting owner test): a saloon aft of the wheelhouse.** The house runs on
+    aft under one roof (one house with its floor at two heights, as the Alaskan's is built, so
+    walking, doors, rain, sound and cargo needed nothing new), the saloon's floor level or one to
+    three steps down, the treads made automatically. Two plain choices in the code (version 23),
+    so no list was needed yet: the list comes with the first design that has houses apart.
+  - **Still to come:** the saloon's own, lower roof and the eyebrow's two colours; a cockpit
+    overhead with wings; a pilothouse raised on a walkable deckhouse (today's deckhouse is solid).
 - **P2c, a trunk cabin with a cabin below (M):** the deckhouse becomes a walkable trunk cabin, the
   deck cut away beneath it, a fore cabin and a companionway (the layout fields from the Alaskan:
   floor holes, extra floors, hollows, the deck opening).

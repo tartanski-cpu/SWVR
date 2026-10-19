@@ -30,7 +30,7 @@ import { inertiaFromGyradius, lightshipOf } from '../modular/massProperties';
 import type { Mount, Recipe } from '../modular/recipe';
 import type { Socket } from '../modular/socket';
 import type { HullForm } from '../vessel/hullForm';
-import type { DoorStep, HouseShape, LayoutConfig, Livery } from '../vessel/vesselDef';
+import type { DoorStep, FloorLevel, HouseShape, LayoutConfig, Livery } from '../vessel/vesselDef';
 import type { DeckhouseLayout } from '../vessel/deckhouse';
 import { houseFlare } from '../vessel/houseFlare';
 import { BREAKERS } from '../vessel/vesselState';
@@ -508,8 +508,24 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
     houseL = zAft - zFwd;
     warnings.push(`The wheelhouse is longer than her deck allows: cut to ${houseL.toFixed(1)} m.`);
   }
+  // A saloon aft of it (parametric boats P2b): the house runs on aft, one house, one roof.
+  // Cut short (or left off, under `saloonMin`) if her deck hasn't the room.
+  const sal = CONFIG.shipyard.saloon;
+  let saloonL = SCALES.saloon(d.saloon ?? 0);
+  if (saloonL && houseL + saloonL > zAft - zFwd) {
+    saloonL = Math.floor((zAft - zFwd - houseL) * 10) / 10;
+    if (saloonL < sal.minLength) {
+      saloonL = 0;
+      warnings.push('There\'s no room on her deck for a saloon aft of the wheelhouse: left off (a shorter wheelhouse leaves some).');
+    } else warnings.push(`The saloon is longer than her deck allows: cut to ${saloonL.toFixed(1)} m.`);
+  }
+  /** The wheelhouse's own length; `houseL` from here on is the whole house's, saloon and all. */
+  const helmL = houseL;
+  houseL += saloonL;
   const aft = zAft - SCALES.housePos(d.housePos) * (zAft - zFwd - houseL);
   const front = aft - houseL;
+  /** Where the wheelhouse ends and the saloon begins (the house's aft, without one). */
+  const helmAft = front + helmL;
   const along = (n: number) => Array.from({ length: n + 1 }, (_, i) => front + ((aft - front) * i) / n);
   const narrowest = Math.min(...along(8).map((z) => q.halfBeam(z)));
   const sideDeck = 0.28;
@@ -594,6 +610,30 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   }
   const roofY = floorY + headroom;
   const wall = 0.06;
+  // The saloon's floor (owner: "two steps down into the saloon", as on the Alaskan): level with
+  // the wheelhouse's, or a step or more down, each a 0.2 m rise with a tread `sal.tread` deep
+  // between (the treads aft of the wheelhouse, in the saloon). Not into a deckhouse it stands
+  // on, and below the deck only where her hull is wide enough for the house's walls to go
+  // down to it (as a sunk wheelhouse floor); else as low as it can go, in whole steps.
+  let saloonDrop = saloonL ? SCALES.saloonFloor(d.saloonFloor ?? 0) : 0;
+  if (saloonDrop) {
+    const salTight = (y: number) => Math.min(...Array.from({ length: 5 }, (_, i) => helmAft + ((aft - helmAft) * i) / 4).map((z) => halfBreadthAt(st.reduce((a, s) => (Math.abs(s.z - z) < Math.abs(a.z - z) ? s : a)).polygon, y)));
+    const lowest = deckhouse ? Math.min(floorY, deckhouse.top + 0.02) : -Infinity;
+    const fits = (drop: number) => floorY - drop >= lowest - 1e-6 && (floorY - drop >= level - 1e-6 || salTight(floorY - drop - 0.15) >= hw + 0.02);
+    const asked = saloonDrop;
+    while (saloonDrop > 1e-6 && !fits(saloonDrop)) saloonDrop = Math.round((saloonDrop - 0.2) * 10) / 10;
+    if (saloonDrop < asked - 1e-6) warnings.push(saloonDrop ? `The saloon's floor can only go ${Math.round(saloonDrop / 0.2)} step${saloonDrop > 0.3 ? 's' : ''} down here (${deckhouse ? 'not into the deckhouse' : 'her hull is too fine for it lower'}).` : `The saloon's floor can't step down here (${deckhouse ? 'not into the deckhouse' : 'her hull is too fine for it lower'}): level with the wheelhouse's.`);
+  }
+  /** The saloon's floor (the wheelhouse's, without one or level with it): the floor at the aft door. */
+  const FA = rnd(floorY - saloonDrop);
+  const nRise = Math.round(saloonDrop / 0.2);
+  const levels: FloorLevel[] = saloonDrop
+    ? [
+        // The treads down from the wheelhouse, then the saloon.
+        ...Array.from({ length: nRise - 1 }, (_, k) => ({ y: rnd(floorY - 0.2 * (k + 1)), z0: rnd(helmAft + k * sal.tread), z1: rnd(helmAft + (k + 1) * sal.tread) })),
+        { y: FA, z0: rnd(helmAft + (nRise - 1) * sal.tread), z1: rnd(aft) },
+      ]
+    : [];
   // The house's shape (owner): the roof one flat slab reaching forward over the windows (the
   // visor), its front edge cut back underneath; the front windows raked either way.
   const roofThickness = SCALES.roofThickness(d.roofThickness);
@@ -643,12 +683,12 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   // Steps at the aft door, no rise over 0.35 m (a player steps up 0.4): outside for a
   // raised floor, inside for a deep sunk one.
   const doorDeck = q.deckY(aft + 0.15);
-  const rise = floorY - doorDeck;
+  const rise = FA - doorDeck;
   const nSteps = Math.max(0, Math.ceil(Math.abs(rise) / 0.35) - 1);
   const tread = 0.28;
   const steps: DoorStep[] = Array.from({ length: nSteps }, (_, i) => {
     const k = i + 1; // 1: the lowest step; nSteps: the highest, at the door
-    const y = Math.min(floorY, doorDeck) + (Math.abs(rise) * k) / (nSteps + 1);
+    const y = Math.min(FA, doorDeck) + (Math.abs(rise) * k) / (nSteps + 1);
     const out = nSteps - k; // treads between it and the door
     return rise > 0 ? { y, z0: aft + out * tread, z1: aft + (out + 1) * tread } : { y, z0: aft - wall - (out + 1) * tread, z1: aft - wall - out * tread };
   });
@@ -672,9 +712,10 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
 
   const layout = {
     // No roof rail or ladder (owner: simpler): the roof isn't walked.
-    wheelhouse: { halfWidth: hw, front, aft, floorY, roofY, wall, doorWidth: 0.7, doorHeight, windowSill: sill, windowHead, frontSill: sill, frontRakeDeg: windowRake, ...(d.flare ? { doorHinged: true } : {}), consoleDepth: 0.5, ...(consoleBack ? { consoleBack } : {}), consoleHeight: 0.9, viewSill: d.sills ? 0.9 : Math.max(sill, 0.9 + CONFIG.modules.helmConsole.dash.top), shape: house, ...(steps.length ? { steps } : {}) },
+    wheelhouse: { halfWidth: hw, front, aft, floorY, roofY, wall, doorWidth: 0.7, doorHeight, windowSill: sill, windowHead, frontSill: sill, frontRakeDeg: windowRake, ...(d.flare ? { doorHinged: true } : {}), consoleDepth: 0.5, ...(consoleBack ? { consoleBack } : {}), consoleHeight: 0.9, viewSill: d.sills ? 0.9 : Math.max(sill, 0.9 + CONFIG.modules.helmConsole.dash.top), shape: house, ...(steps.length ? { steps } : {}), ...(levels.length ? { levels } : {}) },
     roof: { thickness: roofThickness, overhang: 0.15, railHeight: 0, edgeMargin: 0.25 },
-    doorButtons: { x: 0.45, height: 1.1 },
+    // (Their height from the wheelhouse's floor: 1.1 m above the saloon's at its aft door.)
+    doorButtons: { x: 0.45, height: rnd(1.1 - saloonDrop) },
     ...(bowRamp ? { bowRamp } : {}),
     ...(deckhouse ? { deckhouse } : {}),
     bulwarkHeight,
@@ -901,8 +942,9 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
     // (Below the window sill: low windows bring it down.)
     breakerPanel: [hw - 0.185, F + Math.min(0.6, sill - 0.2), cf + 0.875 + sb(hw - 0.185)] as V3,
     rampButton: [-(hw - 0.07), F + Math.min(0.73, sill - 0.08), cf + 0.775 + sb(hw - 0.07)] as V3,
-    batteryMaster: [hw - 0.45, F + 0.48, aft - 0.065] as V3,
-    batterySelector: [hw - 0.2, F + 0.48, aft - 0.065] as V3,
+    // (On the aft wall: from the saloon's floor, if she has one.)
+    batteryMaster: [hw - 0.45, FA + 0.48, aft - 0.065] as V3,
+    batterySelector: [hw - 0.2, FA + 0.48, aft - 0.065] as V3,
     vhf: [-(hw - 0.3), roofY - 0.17, cf + 0.525 + sb(hw - 0.3)] as V3,
     // The advanced package's instruments (owner): the chartplotter hung out to starboard
     // ahead of the helm, turned toward it (the VHF's mirror); the NAV / WIND screen hung on
@@ -1239,7 +1281,8 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   // Her engine hatch (planned above, with the engine), now the deck gear has its places.
   const ctabW = d.chartTable ? CONFIG.modules.chartTable.width + 0.1 : 0;
   const zones: HatchZone[] = [];
-  if (!deckhouse) zones.push({ floor: true, z0: cf + 0.5 + ehc.helmRoom, z1: aft - wall - inside - 0.05, x0: () => -(hw - wall) + 0.05 + ctabW, x1: () => hw - wall - 0.05 });
+  // (In the wheelhouse's floor: a saloon a step down has its own, at another height.)
+  if (!deckhouse) zones.push({ floor: true, z0: cf + 0.5 + ehc.helmRoom, z1: saloonDrop ? helmAft - 0.05 : aft - wall - inside - 0.05, x0: () => -(hw - wall) + 0.05 + ctabW, x1: () => hw - wall - 0.05 });
   const houseZ0 = (deckhouse ? Math.min(front, deckhouse.z0) : front) - 0.3;
   const houseZ1 = aft + Math.max(0.7, (rise > 0 ? nSteps * tread : 0) + 0.3);
   const deckX = (z: number) => q.halfBeam(z) - ehc.deckMargin;
@@ -1322,7 +1365,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   let chartTableAt: V3 | null = null;
   if (d.chartTable) {
     const z0 = aft - wall - 0.3 - ctab.depth;
-    if (hw - wall - ctab.width >= 0.35 && z0 >= cf + 1.0 + sb(hw)) chartTableAt = [-(hw - wall), F, Math.round(z0 * 1000) / 1000];
+    if (hw - wall - ctab.width >= 0.35 && z0 >= cf + 1.0 + sb(hw) && (!saloonDrop || z0 >= levels[levels.length - 1].z0)) chartTableAt = [-(hw - wall), FA, Math.round(z0 * 1000) / 1000];
     else warnings.push(`Her wheelhouse is too ${hw - wall - ctab.width < 0.35 ? 'narrow' : 'short'} for the chart table along its port wall: left off.`);
   }
   // The side door (owner): a sliding door in the port wall, aft of the console with room to
@@ -1333,7 +1376,8 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   if (d.sideDoor) {
     const sdc = dg.sideDoor;
     const z0 = Math.max(cf + sb(hw) + wall + 0.5 + sdc.fromConsole, bowRamp ? at.rampButton[2] + 0.15 : -Infinity);
-    const zEnd = chartTableAt ? chartTableAt[2] - 0.05 : aft - wall - 0.15;
+    // (Forward of the step down into a saloon: the doorway on one floor.)
+    const zEnd = Math.min(chartTableAt ? chartTableAt[2] - 0.05 : aft - wall - 0.15, saloonDrop ? helmAft - 0.05 : Infinity);
     // Up to the window band's top edge (the door's opening runs up through the band).
     const height = Math.min(2.0, windowHead - 0.04, roofY - F - 0.12);
     const deckOutside = q.halfBeam(z0 + sdc.width / 2) - hw;
@@ -1354,7 +1398,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   const ring = ringSide
     ? {
         // At hand height off the deck (on the deckhouse's aft face if she has one, the house's floor being up on it).
-        stow: [r2(ringSide * Math.max(0.75, hw - dg.ringFromCorner)), r2(Math.min((deckhouse ? q.deckY(aft) : F) + 1.15, F + sill - 0.3)), r2(aft + 0.06)] as V3,
+        stow: [r2(ringSide * Math.max(0.75, hw - dg.ringFromCorner)), r2(Math.min((deckhouse ? q.deckY(aft) : FA) + 1.15, F + sill - 0.3)), r2(aft + 0.06)] as V3,
         cleat: cleat(ringSide, sternCleat),
         hook: [r2(ringSide * (q.halfBeam(sternCleat - 1.2) - 0.08)), r2(q.deckY(sternCleat - 1.2) + bulwarkHeight - 0.05), r2(Math.max(aft + 0.2, sternCleat - 2.6)), r2(sternCleat - 0.3)] as [number, number, number, number],
       }
@@ -1374,8 +1418,8 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
     { id: 'whiteboard', type: 'cabin.overhead', transform: { position: at.whiteboard, rotationDeg: [0, 180, 0] }, label: 'Under the roof by the aft wall, port of the door: the pull-down whiteboard' },
     { id: 'dutyBoard', type: 'wall.panel', transform: { position: at.dutyBoard, rotationDeg: [0, -90, 0] }, label: 'Starboard wall, aft' },
     ...(chartTableAt ? [{ id: 'chartTable', type: 'cabin.furniture' as const, transform: { position: chartTableAt }, capacity: { size: [ctab.width, roofY - F, ctab.depth] as V3 }, label: 'Port wall, aft: the chart table' }] : []),
-    { id: 'doorIn', type: 'wall.panel', transform: { position: [0.45, F + 1.1, aft - wall], rotationDeg: [-90, 0, 0] }, label: 'Door frame, inside' },
-    { id: 'doorOut', type: 'wall.panel', transform: { position: [0.45, F + 1.1, aft], rotationDeg: [-90, 180, 0] }, label: 'Door frame, outside' },
+    { id: 'doorIn', type: 'wall.panel', transform: { position: [0.45, FA + 1.1, aft - wall], rotationDeg: [-90, 0, 0] }, label: 'Door frame, inside' },
+    { id: 'doorOut', type: 'wall.panel', transform: { position: [0.45, FA + 1.1, aft], rotationDeg: [-90, 180, 0] }, label: 'Door frame, outside' },
     ...(rampBow
       ? ([
           { id: 'rampCabin', type: 'wall.panel', transform: { position: at.rampButton, rotationDeg: [-90, -90, 0] }, label: 'Port wall, by the helm' },
