@@ -115,6 +115,22 @@ describe('outboards: cooling', () => {
   });
 });
 
+describe('outboards: the lower units', () => {
+  it("a code matched for an inboard (or never matched) can't gear them below the range made: she'd lug and run hot (owner)", () => {
+    const [gMin, gMax] = CONFIG.modules.outboard.engine.gearRange;
+    useDesign({ ...boat(3, 1), gear: 0 }); // the lowest step: ratio 1.0 for an inboard
+    expect(outboardsOf()!.engine.gearRatio).toBe(gMin);
+    useDesign({ ...boat(3, 1), gear: 15 });
+    expect(outboardsOf()!.engine.gearRatio).toBe(gMax);
+    const d = boat(3, 1);
+    const m = matchGear(d).gear;
+    useDesign({ ...d, gear: m });
+    const r = outboardsOf()!.engine.gearRatio;
+    expect(r).toBeGreaterThanOrEqual(gMin);
+    expect(r).toBeLessThanOrEqual(gMax);
+  });
+});
+
 describe('outboards: steering', () => {
   it('the wheel to starboard swings the propellers to starboard and brings her bow to starboard', () => {
     useDesign(boat(2));

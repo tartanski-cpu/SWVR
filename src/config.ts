@@ -1943,6 +1943,11 @@ export const CONFIG = {
     slideSafe: 0.4,
     grindForce: 20000,
     grindDamage: 0.02,
+    /** Rubbing on the guards damages her only in a sea over this scale (a storm), at this much per m. */
+    stormSea: 2.5,
+    stormRubDamage: 0.002,
+    /** Damage or wear over this blinks the HULL / ENGINE lamp (on from the duty board's thresholds). */
+    badAt: 0.5,
     leakRate: 1 / 40,
     bilgeMassFull: 3000,
     hotC: 98,
@@ -3486,7 +3491,7 @@ export const CONFIG = {
     },
 
     /** instrument.warning-lamps: the lamps' spacing (m). */
-    warningLamps: { spacing: 0.085 },
+    warningLamps: { spacing: 0.066 },
 
     /** furniture.start-card: the laminated start-up card (m). */
     startCard: { width: 0.19, height: 0.26 },
@@ -3676,6 +3681,8 @@ export const CONFIG = {
         coldBelowC: 40,
         glowCoolRate: 0.25,
         gearRatio: 2.0,
+        /** The lower units made: the design's gear step is held to this range of ratios (build.ts). */
+        gearRange: [1.5, 2.4] as [number, number],
         gearEfficiency: 0.96,
         shiftDelay: 0.6,
         neutralBand: 0.08,

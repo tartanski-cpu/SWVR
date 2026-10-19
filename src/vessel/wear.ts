@@ -7,6 +7,10 @@
  *            quay or the bottom faster than `impactSafe` m/s - does
  *            (v - impactSafe)^2 x `impactDamage`; grinding along the bottom (sliding over
  *            `slideSafe` m/s under more than `grindForce` N) does `grindDamage` per m slid.
+ *            Rubbing along a quay on her guards (fenders out, a rubbing strake, tyres; the
+ *            contact's guardForce / guardSlide) is what guards are for and does nothing
+ *            (owner: a playtest lost a whole hull to a berth), except in a storm (the sea
+ *            scale over `stormSea`), when working on the fenders does `stormRubDamage` per m.
  *            A damaged hull leaks: damage x `leakRate` of the bilge per second (bilge.ts),
  *            on top of the rain; at about half damage that beats the bilge pump.
  *   water    water in the bilge is weight low in the hull: a full bilge is `bilgeMassFull`
@@ -27,14 +31,18 @@ export function stepWear(s: VesselState, dt: number): void {
   if (gearOf(s, 'diesel')) engineWearStep(s.engine, dt);
 }
 
-/** The hull's damage from hard hits and grinding (on a recipe boat the engine's wear is its module's). */
-export function stepHullWear(s: VesselState, dt: number): void {
+/**
+ * The hull's damage from hard hits and grinding (on a recipe boat the engine's wear is its
+ * module's). `seaScale`: the sea now (environment), for the storm rule on the guards.
+ */
+export function stepHullWear(s: VesselState, dt: number, seaScale = 0): void {
   const c = CONFIG.wear;
   if (s.damage !== undefined) {
     const k = s.contact;
     let d = 0;
     if (k.impact > c.impactSafe) d += (k.impact - c.impactSafe) ** 2 * c.impactDamage;
     if (k.force > c.grindForce && k.slide > c.slideSafe) d += k.slide * dt * c.grindDamage;
+    if (seaScale > c.stormSea && (k.guardForce ?? 0) > c.grindForce && (k.guardSlide ?? 0) > c.slideSafe) d += k.guardSlide! * dt * c.stormRubDamage;
     s.damage = Math.min(1, s.damage + d);
   }
 }

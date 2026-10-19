@@ -350,8 +350,11 @@ export function stepVessel(
   c.force = 0;
   c.slide = 0;
   c.impact = 0;
+  c.guardForce = 0;
+  c.guardSlide = 0;
   if (geography) {
     let touching = 0;
+    let guardTouching = 0;
     // The penalty springs are tuned for the workboat; a lighter boat gets them scaled by
     // her mass, so k/m and c/m (what sets the step's stability) stay the same. Unscaled,
     // the 330 kg skiff would bounce off a beach and blow up.
@@ -382,9 +385,10 @@ export function stepVessel(
           pointVelocity(pt, ptV);
           if (!guardContactAt(pt.x, pt.y, pt.z, ptV.x, ptV.y, ptV.z, mat, contact)) continue;
           addForceAt(cf.set(contact.fx * scale, contact.fy * scale, contact.fz * scale), pt);
-          touching++;
-          c.force += contact.normal * scale;
-          c.slide += contact.slide;
+          // Taken on the guard, not the plating (wear.ts): only a knock through it counts.
+          guardTouching++;
+          c.guardForce! += contact.normal * scale;
+          c.guardSlide! += contact.slide;
           c.impact = Math.max(c.impact, contact.approach - mat.absorb);
         }
       };
@@ -393,6 +397,7 @@ export function stepVessel(
       if (pushFender) guard(pushFender.probes, CONFIG.contacts.guards.pushFender);
     }
     if (touching > 0) c.slide /= touching;
+    if (guardTouching > 0) c.guardSlide! /= guardTouching;
     // Her anchor (a module, M5a): the chain's pull at the hawse.
     machinery?.mooring(port, dt);
     // Mooring lines (docked), at her forward and aft cleats' stations (modules/cleat).

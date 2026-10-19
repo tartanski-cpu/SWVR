@@ -37,7 +37,7 @@ import { briefPaper } from './briefPaper';
 import { buildVesselMesh, buildVesselMeshParts } from '../vessel/view/hullMesh';
 import { DESIGN_HULLS, ENGINES, LIVERIES, ROOF_PAINTS, type DesignedBoat } from './build';
 import { docFileName, docFileText, docToken, designToken, readDesign, shortCode } from './designDoc';
-import { ALL_FIELDS, DEFAULT_DESIGN, GUARDS, MATERIALS, OUTBOARDS, RAILS, SILLS, SINGLE_ONLY_ENGINES, SKIFFS, placeOf, placeValue, SCALES, type PlaceKey, type ShipDesign } from './design';
+import { ALL_FIELDS, DEFAULT_DESIGN, GUARDS, MATERIALS, OUTBOARDS, RAILS, SILLS, SINGLE_ONLY_ENGINES, SKIFFS, outboardCount, placeOf, placeValue, SCALES, type PlaceKey, type ShipDesign } from './design';
 import { hullPlan } from '../vessel/layout';
 import { UndoStack } from './undo';
 import { YardLink } from './yardLink';
@@ -81,7 +81,14 @@ let design: ShipDesign = { ...startDoc.variants.find((v) => v.id === active)!.de
 let boat: DesignedBoat = useDesign(design);
 /** The choices her gearbox was matched for (not the paint or the controls, which don't change it). */
 const matchKey = (d: ShipDesign) => JSON.stringify({ ...d, gear: 0, paint: 0, controls: 0 });
-let matchedFor: string | null = matchKey(design); // a loaded code (or the default) comes matched
+/**
+ * Does a loaded design come with its gearing matched? An inboard's code does (the yard
+ * matched it before it was issued). Outboards' lower units are matched from the same step
+ * only since Oct 2026: a code from before carries the inboard's step, far too low for them
+ * (she lugged and ran hot, owner), so those are matched again on loading.
+ */
+const comesMatched = (d: ShipDesign) => outboardCount(d) === 0;
+let matchedFor: string | null = comesMatched(design) ? matchKey(design) : null;
 let trial: SeaTrialResults | null = null;
 /** The choices `trial` was run for: while they differ from now, its figures are greyed (a new run is coming). */
 let trialFor = '';
@@ -1025,7 +1032,7 @@ function openCode(code: string, msg: HTMLElement): boolean {
   if (read.name) setBrief({ name: read.name });
   share(read.design);
   design = read.design;
-  matchedFor = matchKey(design);
+  matchedFor = comesMatched(design) ? matchKey(design) : null;
   trial = null;
   change({});
   runTrial();

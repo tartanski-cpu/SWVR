@@ -5,7 +5,7 @@ import type { Intent } from '../src/core/intents';
 import { stepWorld } from '../src/core/simulation';
 import { createWorld } from '../src/core/world';
 import { parseCareer, repairBlocker, repairCost, serializeCareer } from '../src/career/career';
-import { stepWear, wearRackCap } from '../src/vessel/wear';
+import { stepHullWear, stepWear, wearRackCap } from '../src/vessel/wear';
 import { placeVessel } from '../src/vessel/vesselControl';
 import { BERTHS, FISHING_GROUNDS } from '../src/world/archipelago';
 
@@ -85,6 +85,24 @@ describe('damage and wear (phase 2)', { timeout: 60000 }, () => {
     const w0 = v.engine.wear!;
     stepWear(v, 1);
     expect(v.engine.wear! - w0).toBeCloseTo(CONFIG.wear.dryWear, 6);
+  });
+
+  it('rubbing along a quay on her guards does nothing in a calm; a storm works on them a little (owner)', () => {
+    const { v } = setup();
+    v.damage = 0;
+    // Lying hard against a quay on the fenders, surging along it: the guards take it all.
+    v.contact = { force: 0, slide: 0, impact: 0, guardForce: 60000, guardSlide: 1.0 };
+    for (let i = 0; i < 60 * 60; i++) stepHullWear(v, DT, 1.0);
+    expect(v.damage).toBe(0);
+    // The same in a storm sea: a little, far less than grinding on the plating.
+    for (let i = 0; i < 60 * 60; i++) stepHullWear(v, DT, CONFIG.wear.stormSea + 0.5);
+    expect(v.damage).toBeCloseTo(60 * 1.0 * CONFIG.wear.stormRubDamage, 4);
+    expect(v.damage).toBeLessThan(60 * 1.0 * CONFIG.wear.grindDamage);
+    // The plating itself grinding: as before.
+    v.damage = 0;
+    v.contact = { force: 60000, slide: 1.0, impact: 0 };
+    stepHullWear(v, 1, 0);
+    expect(v.damage).toBeCloseTo(CONFIG.wear.grindDamage, 6);
   });
 
   it('repaired in port for money (the engine stopped for an overhaul); condition is saved with the career', () => {

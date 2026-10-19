@@ -823,7 +823,10 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
     const plateY = Math.round(Math.max(-0.35, Math.min(-0.08, keelAft + 0.35)) * 100) / 100;
     const mount = { y: Math.round((plateY + obc.look.shaftLength) * 100) / 100, z: Math.round((transom + obc.bracket.length) * 100) / 100 };
     const bracket = { z0: Math.round((transom - 0.02) * 100) / 100, z1: mount.z, y0: 0, y1: Math.round((mount.y - obc.bracket.belowMount) * 100) / 100, halfWidth: Math.round(Math.min(halfT - 0.05, Math.max(...units.map(Math.abs)) + obc.bracket.margin) * 100) / 100 };
-    return { units, mount, bracket, engine: { ...obc.engine, gearRatio: gear } };
+    // A lower unit only comes in a narrow range of ratios: a code matched for an inboard (or
+    // never matched) can't put a 1.2 on them (she'd lug and run hot).
+    const [gMin, gMax] = obc.engine.gearRange;
+    return { units, mount, bracket, engine: { ...obc.engine, gearRatio: Math.min(gMax, Math.max(gMin, gear)) } };
   })();
   if (!shaft.fits && !outboards) warnings.push(`The ${eng.name.split(' (')[0]} doesn't fit: ${sd ? 'against the transom' : 'on its shaft line'} it stands ${(shaft.shortM * 100).toFixed(0)} cm above the ${shaft.flangeZ - eng.size[0] / 2 >= front && shaft.flangeZ - eng.size[0] / 2 <= aft ? 'cabin floor' : 'deck'}. Give her more depth (Hull), raise the floor (Wheelhouse), or fit a smaller engine.`);
 
