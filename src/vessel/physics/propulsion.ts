@@ -160,7 +160,9 @@ export function preheatNeededFor(e: Pick<EngineState, 'coolantC'>, spec: EngineS
 export function crankNeededFor(e: EngineState, spec: EngineSpec): number {
   const cfg = spec.engine;
   const cold = e.coolantC < cfg.coldBelowC ? 1 : 0;
-  const heated = Math.min(1, e.glow / preheatNeededFor(e, spec));
+  // (An engine with no glow plugs, a petrol outboard's: preheat 0, always ready.)
+  const need = preheatNeededFor(e, spec);
+  const heated = need > 0 ? Math.min(1, e.glow / need) : 1;
   return cfg.crankTime + cold * (1 - heated) * cfg.unheatedExtraCrank;
 }
 

@@ -351,7 +351,7 @@ export function runSeaTrials(defId = 'workboat'): SeaTrialResults {
     });
     // Twin screws: `thrust` is one shaft's (they run in lockstep, each giving it), so the pull is twice it.
     const diesel = gearOf(b.v, 'diesel');
-    const shafts = diesel?.twin ? 2 : 1;
+    const shafts = diesel?.units?.length ?? (diesel?.twin ? 2 : 1);
     return { kN: (shafts * Math.abs(b.v.thrust) * (1 - (diesel?.propeller.thrustDeduction ?? 0))) / 1000, rpm: b.v.engine.rpm };
   };
   const bAhead = bollardAt(1);

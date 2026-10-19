@@ -36,7 +36,7 @@ import { HydroDebugView } from '../debug/hydroDebugView';
 import { briefPaper } from './briefPaper';
 import { buildVesselMesh, buildVesselMeshParts } from '../vessel/view/hullMesh';
 import { DESIGN_HULLS, ENGINES, LIVERIES, ROOF_PAINTS, type DesignedBoat } from './build';
-import { ALL_FIELDS, decodeDesign, DEFAULT_DESIGN, encodeDesign, GUARDS, RAILS, SILLS, SINGLE_ONLY_ENGINES, SKIFFS, placeOf, placeValue, SCALES, type PlaceKey, type ShipDesign } from './design';
+import { ALL_FIELDS, decodeDesign, DEFAULT_DESIGN, encodeDesign, GUARDS, OUTBOARDS, RAILS, SILLS, SINGLE_ONLY_ENGINES, SKIFFS, placeOf, placeValue, SCALES, type PlaceKey, type ShipDesign } from './design';
 import { hullPlan } from '../vessel/layout';
 import { UndoStack } from './undo';
 import { YardLink } from './yardLink';
@@ -514,7 +514,7 @@ function choices(key: keyof ShipDesign, items: { name: string; note?: string }[]
 }
 const outputs: Partial<Record<keyof ShipDesign, (v: number) => string>> = {};
 /** Each field's label and, for a few set options, their names (the compare list shows them). */
-const labels: Partial<Record<keyof ShipDesign, string>> = { hull: 'Hull', engine: 'Engine', twin: 'Engines', controls: 'Controls', paint: 'Paint', roofPaint: 'Roof colour' };
+const labels: Partial<Record<keyof ShipDesign, string>> = { hull: 'Hull', engine: 'Engine', twin: 'Engines', outboards: 'Outboards', controls: 'Controls', paint: 'Paint', roofPaint: 'Roof colour' };
 const optionNames: Partial<Record<keyof ShipDesign, string[]>> = {};
 function slider(key: keyof ShipDesign, label: string, show: (v: number) => string): void {
   labels[key] ??= label;
@@ -673,6 +673,15 @@ choices('engine', ENGINES.map((e) => ({ name: e.name, note: `${'about' in e ? `$
   box.onchange = () => change({ twin: box.checked ? 1 : 0 });
   controls.appendChild(row);
 }
+// Or outboards (owner, Oct 2026): 2, 3 or 4 petrol V8s on a bracket off the transom, in place of the inboard above.
+{
+  const o = CONFIG.modules.outboard;
+  const head = document.createElement('div');
+  head.style.margin = '12px 0 4px';
+  head.innerHTML = `<b>Or outboards</b><div style="font-size:12px;color:var(--muted)">${o.engine.powerKw} kW (${Math.round(o.engine.powerKw * 1.341)} hp) petrol V8s, ${o.massKg} kg each, on a bracket off the transom in place of the engine above. They steer by swinging with the wheel: no rudder. Worked together from one lever and key.</div>`;
+  controls.appendChild(head);
+  choices('outboards', OUTBOARDS.map((name) => ({ name })));
+}
 section('5. Controls');
 choices('controls', [
   { name: 'Basic', note: 'Wheel, throttle, key and start, speed and depth, rpm, and the VHF radio.' },
@@ -729,8 +738,10 @@ function syncControls(): void {
   });
   const twinBox = document.querySelector('input[data-key=twin]') as HTMLInputElement;
   twinBox.checked = !!design.twin;
-  // The tug diesel goes in singly only.
-  twinBox.disabled = SINGLE_ONLY_ENGINES.includes(design.engine);
+  // The tug diesel goes in singly only; with outboards there's no inboard to twin.
+  twinBox.disabled = SINGLE_ONLY_ENGINES.includes(design.engine) || !!design.outboards;
+  // With outboards the engine packages stand aside (shown, not chosen).
+  document.querySelectorAll<HTMLElement>('[data-key="engine"]').forEach((el) => el.classList.toggle('aside', !!design.outboards));
   // A tug's push bow and a landing craft's landing bow are their own: no bow rake to choose.
   (document.querySelector('input[type=range][data-key=bow]') as HTMLInputElement).disabled = !!(DESIGN_HULLS[design.hull].pushBow || DESIGN_HULLS[design.hull].landingBow);
   // Raked out all round sets the front's rake too (it leans out with the sides).

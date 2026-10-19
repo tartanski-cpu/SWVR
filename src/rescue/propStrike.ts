@@ -24,7 +24,8 @@ export function turningPropellers(v: VesselState): { hubs: [number, number, numb
   const d = gearOf(v, 'diesel');
   if (!d || v.engine.gear === 0 || v.engine.rpm < CONFIG.rescue.propStrike.minRpm) return null;
   const [x, y, z] = d.propeller.position;
-  const hubs: [number, number, number][] = d.twin && d.twinX ? [[-d.twinX, y, z], [d.twinX, y, z]] : [[x, y, z]];
+  // (Outboards: each unit's propeller, straight ahead.)
+  const hubs: [number, number, number][] = d.units ? d.units.map((ux): [number, number, number] => [ux, y, z]) : d.twin && d.twinX ? [[-d.twinX, y, z], [d.twinX, y, z]] : [[x, y, z]];
   return { hubs, radius: d.propeller.diameter / 2 };
 }
 

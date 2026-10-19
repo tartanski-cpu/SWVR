@@ -99,6 +99,9 @@
       #stepFoot { display: none; justify-content: space-between; gap: 8px; padding: 10px 16px; border-top: 1px solid var(--line); background: var(--paper); }
       .choice { display: block; padding: 6px 8px; margin: 4px 0; border: 1px solid var(--edge); border-radius: 6px; cursor: pointer; background: var(--card); }
       .choice.on { border-color: var(--accent); background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+      /* An engine package standing aside while outboards are chosen (page.ts). */
+      .choice.aside { opacity: 0.45; }
+      .choice.aside.on { border-color: var(--line, #ccc); background: none; box-shadow: none; }
       .row { display: grid; grid-template-columns: 110px 1fr 86px; align-items: center; gap: 6px; margin: 6px 0; position: relative; border-radius: 6px; }
       .opts { grid-template-columns: 110px 1fr; }
       .opts .choice { display: inline-block; margin: 0 4px 0 0; padding: 3px 9px; }
