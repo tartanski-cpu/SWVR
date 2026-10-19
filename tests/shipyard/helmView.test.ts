@@ -22,7 +22,7 @@ const pitch = CONFIG.modules.screen.dash.width + CONFIG.shipyard.helm.screenGap;
 
 describe('the helm in view on a wide wheelhouse', () => {
   it('the screens stand in one row over the wheel, as on the reference console, however wide the dash', () => {
-    for (const d of [type(2, { beam: 15, houseWidth: 7 }), type(4, { beam: 15, houseWidth: 7 }), type(2)]) {
+    for (const d of [type(2, { beam: 15, houseWidth: 1 }), type(4, { beam: 15, houseWidth: 1 }), type(2)]) {
       const { cfg, screens } = helmOf(d);
       expect(screens.sort((a, c) => a - c)).toEqual([-1.5, -0.5, 0.5, 1.5].map((k) => Math.round(k * pitch * 1000) / 1000));
       expect(cfg.dash.halfWidth).toBeLessThanOrEqual(CONFIG.shipyard.helm.maxConsole / 2); // (cut short on a wide one)
@@ -30,12 +30,12 @@ describe('the helm in view on a wide wheelhouse', () => {
   });
 
   it('with the basic controls, its two screens side by side over the wheel', () => {
-    const { screens } = helmOf(type(2, { beam: 15, houseWidth: 7, controls: 0 }));
+    const { screens } = helmOf(type(2, { beam: 15, houseWidth: 1, controls: 0 }));
     expect(screens.sort((a, c) => a - c)).toEqual([-0.5, 0.5].map((k) => Math.round(k * pitch * 1000) / 1000));
   });
 
   it('a wide wheelhouse’s console is cut short, with floor beside it; to port or starboard against that wall, its helm with it', () => {
-    const wide = (more: Partial<ShipDesign> = {}) => type(2, { beam: 15, houseWidth: 7, ...more });
+    const wide = (more: Partial<ShipDesign> = {}) => type(2, { beam: 15, houseWidth: 1, ...more });
     for (const side of [0, 1, 2]) {
       const { b, cfg, screens } = helmOf(wide({ consoleSide: side }));
       const wh = b.hull.layout.wheelhouse!;
@@ -63,7 +63,7 @@ describe('the helm in view on a wide wheelhouse', () => {
     const { useDesign } = await import('../../src/boats/sims');
     const { vesselWalkArea } = await import('../../src/vessel/layout');
     const { VESSEL_DEFS } = await import('../../src/vessel/vesselDef');
-    useDesign(type(2, { beam: 15, houseWidth: 7, consoleSide: 1 }));
+    useDesign(type(2, { beam: 15, houseWidth: 1, consoleSide: 1 }));
     const def = VESSEL_DEFS.design;
     const wh = def.layout.wheelhouse!;
     const area = vesselWalkArea(def, def.layout, []);
