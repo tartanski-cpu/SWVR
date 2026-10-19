@@ -35,7 +35,7 @@ import type { DeckhouseLayout } from '../vessel/deckhouse';
 import { houseFlare } from '../vessel/houseFlare';
 import { BREAKERS } from '../vessel/vesselState';
 import { strakeLine, tyreSpots } from '../vessel/physics/guards';
-import { guardParts, outboardCount, PLACE_GRID, placeOf, SCALES, SINGLE_ONLY_ENGINES, type PlaceKey, type ShipDesign } from './design';
+import { fromSteps, guardParts, MEASURES, outboardCount, PLACE_GRID, placeOf, SCALES, SINGLE_ONLY_ENGINES, type PlaceKey, type ShipDesign } from './design';
 
 /** A faceted front's middle pane: between the front windows' mullions (hullMesh.ts, at +-0.5 m). */
 const FACET_CENTRE = 0.5;
@@ -220,7 +220,7 @@ export const DESIGN_HULLS: DesignHull[] = [
     landingBow: true,
     cockpit: 1.0,
     foredeck: 1.6,
-    defaults: { length: 8, beam: 8, depth: 8, bulwark: 2, bow: 2, housePos: 4, houseLength: 2, houseWidth: 7, headroom: 3, floor: 2, visor: 1, roofThickness: 0, roofEdge: 1, windowRake: 4, lowerFront: 0, engine: 1, twin: 0 },
+    defaults: fromSteps({ length: 8, beam: 8, depth: 8, bulwark: 2, bow: 2, housePos: 4, houseLength: 2, houseWidth: 7, headroom: 3, floor: 2, visor: 1, roofThickness: 0, roofEdge: 1, windowRake: 4, lowerFront: 0, engine: 1, twin: 0 }),
   },
   {
     name: 'Gillnetter: 9.75 m, beamy and shallow, flat open foredeck',
@@ -231,7 +231,7 @@ export const DESIGN_HULLS: DesignHull[] = [
     cockpit: 1.0,
     foredeck: 1.5,
     // A bowpicker: the house right aft, the open foredeck for the net reel.
-    defaults: { length: 8, beam: 8, depth: 8, bulwark: 3, bow: 2, housePos: 0, houseLength: 6, houseWidth: 7, headroom: 3, floor: 3, visor: 1, roofThickness: 0, roofEdge: 1, windowRake: 4, lowerFront: 0, engine: 1, twin: 0 },
+    defaults: fromSteps({ length: 8, beam: 8, depth: 8, bulwark: 3, bow: 2, housePos: 0, houseLength: 6, houseWidth: 7, headroom: 3, floor: 3, visor: 1, roofThickness: 0, roofEdge: 1, windowRake: 4, lowerFront: 0, engine: 1, twin: 0 }),
   },
   {
     name: 'Workboat: 12 m semi-displacement, hard chine, fine entry',
@@ -247,7 +247,7 @@ export const DESIGN_HULLS: DesignHull[] = [
     cockpit: 1.5,
     foredeck: 2.0,
     // As the game's workboat: the house a little forward of amidships, her working deck aft.
-    defaults: { length: 8, beam: 8, depth: 8, bulwark: 2, bow: 1, housePos: 9, houseLength: 5, houseWidth: 7, headroom: 3, floor: 3, visor: 2, roofThickness: 1, roofEdge: 1, windowRake: 6, lowerFront: 0, engine: 2, twin: 0 },
+    defaults: fromSteps({ length: 8, beam: 8, depth: 8, bulwark: 2, bow: 1, housePos: 9, houseLength: 5, houseWidth: 7, headroom: 3, floor: 3, visor: 2, roofThickness: 1, roofEdge: 1, windowRake: 6, lowerFront: 0, engine: 2, twin: 0 }),
   },
   // New hull types go on the end: a design's code holds its hull's place in this list.
   {
@@ -260,7 +260,7 @@ export const DESIGN_HULLS: DesignHull[] = [
     foredeck: 2.6,
     // A pilot / crew boat: a long house amidships with walkaround side decks (the Targa and
     // Safehaven types), low bulwarks, a well-raked stem, twin engines.
-    defaults: { length: 8, beam: 8, depth: 8, bulwark: 0, bow: 4, housePos: 9, houseLength: 12, houseWidth: 6, headroom: 3, floor: 3, visor: 2, roofThickness: 1, roofEdge: 2, windowRake: 6, lowerFront: 0, engine: 2, twin: 1, paint: 1 },
+    defaults: fromSteps({ length: 8, beam: 8, depth: 8, bulwark: 0, bow: 4, housePos: 9, houseLength: 12, houseWidth: 6, headroom: 3, floor: 3, visor: 2, roofThickness: 1, roofEdge: 2, windowRake: 6, lowerFront: 0, engine: 2, twin: 1, paint: 1 }),
   },
   {
     name: 'Small tug: 13 m, beamy and deep, a square push bow with a rubber push fender',
@@ -279,7 +279,7 @@ export const DESIGN_HULLS: DesignHull[] = [
     // high bow, windows a little reverse-raked; a low towing deck aft; twin screws; a
     // rubbing strake; red and grey. One slow-revving tug diesel (owner: an engine with the
     // tug in mind; single only).
-    defaults: { length: 8, beam: 8, depth: 8, bulwark: 4, bow: 0, housePos: 11, houseLength: 4, houseWidth: 4, headroom: 3, floor: 5, visor: 1, roofThickness: 1, roofEdge: 2, windowRake: 5, lowerFront: 0, engine: 3, twin: 0, paint: 7, guard: 2 },
+    defaults: fromSteps({ length: 8, beam: 8, depth: 8, bulwark: 4, bow: 0, housePos: 11, houseLength: 4, houseWidth: 4, headroom: 3, floor: 5, visor: 1, roofThickness: 1, roofEdge: 2, windowRake: 5, lowerFront: 0, engine: 3, twin: 0, paint: 7, guard: 2 }),
   },
 ];
 
@@ -517,7 +517,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   const q = hullQueries({ hull: shape, layout: { bulwarkHeight, railHeight: 0, deckEdgeMargin: 0.25, bodyRadius: BODY_RADIUS } as LayoutConfig });
   const zAft = transom - base.cockpit;
   const zFwd = stem + base.foredeck + (base.ramp ? 0.6 : 0);
-  let houseL = SCALES.houseLength(d.houseLength);
+  let houseL = d.houseLength;
   if (houseL > zAft - zFwd) {
     houseL = zAft - zFwd;
     warnings.push(`The wheelhouse is longer than her deck allows: cut to ${houseL.toFixed(1)} m.`);
@@ -525,7 +525,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   // A saloon aft of it (parametric boats P2b): the house runs on aft, one house, one roof.
   // Cut short (or left off, under `saloonMin`) if her deck hasn't the room.
   const sal = CONFIG.shipyard.saloon;
-  let saloonL = SCALES.saloon(d.saloon ?? 0);
+  let saloonL = d.saloon ?? 0;
   if (saloonL && houseL + saloonL > zAft - zFwd) {
     saloonL = Math.floor((zAft - zFwd - houseL) * 10) / 10;
     if (saloonL < sal.minLength) {
@@ -536,27 +536,27 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   /** The wheelhouse's own length; `houseL` from here on is the whole house's, saloon and all. */
   const helmL = houseL;
   houseL += saloonL;
-  const aft = zAft - SCALES.housePos(d.housePos) * (zAft - zFwd - houseL);
+  const aft = zAft - d.housePos * (zAft - zFwd - houseL);
   const front = aft - houseL;
   /** Where the wheelhouse ends and the saloon begins (the house's aft, without one). */
   const helmAft = front + helmL;
   const along = (n: number) => Array.from({ length: n + 1 }, (_, i) => front + ((aft - front) * i) / n);
   const narrowest = Math.min(...along(8).map((z) => q.halfBeam(z)));
   const sideDeck = 0.28;
-  let hw = SCALES.houseWidth(d.houseWidth) * (narrowest - sideDeck);
+  let hw = d.houseWidth * (narrowest - sideDeck);
   if (hw < 0.85) {
     warnings.push('Her wheelhouse is too narrow for the console: widened to 1.7 m, leaving narrow side decks.');
     hw = Math.min(0.85, narrowest - 0.12);
   }
   const deckHi = Math.max(...along(8).map((z) => q.deckY(z)));
   const deckLo = Math.min(...along(8).map((z) => q.deckY(z)));
-  const headroom = SCALES.headroom(d.headroom);
+  const headroom = d.headroom;
   // The floor (owner: the house's height, to see over a bow or a ramp): raised from the
   // highest deck under the house, or sunk from the lowest (a step down in, for headroom).
   // A floor below the deck needs her hull at least as wide as the house down there (its
   // walls go down to it); in a fine entry it isn't, and the floor comes up until it is.
   // (Set after the deckhouse, below: with one, the floor is measured from its top.)
-  const lift = SCALES.floor(d.floor);
+  const lift = d.floor;
   const level = deckHi + 0.03;
   const tightAt = (y: number) => Math.min(...along(8).map((z) => halfBreadthAt(st.reduce((a, s) => (Math.abs(s.z - z) < Math.abs(a.z - z) ? s : a)).polygon, y)));
   // ── The deckhouse (owner: pilot and rescue boats; vessel/deckhouse.ts) ──
@@ -578,7 +578,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   let deckhouse: DeckhouseLayout | null = null;
   let dhArea = 0;
   if (d.dhLength) {
-    let z0 = front - SCALES.dhLength(d.dhLength);
+    let z0 = front - d.dhLength;
     const minZ = stem + (base.ramp ? 1.8 : dhc.fromStem);
     if (z0 < minZ) {
       z0 = minZ;
@@ -589,7 +589,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
     const narrow = !!d.dhNarrow;
     // (As wide as a faceted house: on to its angled corners, so they stand on it.)
     const z1 = narrow ? front + 0.03 + (facet?.depth ?? 0) : aft - 0.02;
-    const side = SCALES.dhWidth(d.dhWidth);
+    const side = d.dhWidth;
     const plainAt = (z: number) => (narrow ? Math.max(0.3, Math.min(hw, q.halfBeam(z) - dhc.edge)) : Math.max(z >= front - 0.01 ? hw : 0.3, q.halfBeam(z) - Math.max(dhc.edge, side)));
     // Faceted as the house is (owner): its front square across the middle, its corners cut
     // back at the same angle from its own front (always ahead of the house's, so wider).
@@ -601,10 +601,10 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
     zs.push(z1);
     zs.sort((a, b) => a - b);
     const plan = zs.map((z): [number, number] => [rnd(z), rnd(halfAt(z))]);
-    const top = rnd(Math.max(...zs.map((z) => q.deckY(z))) + SCALES.dhHeight(d.dhHeight));
-    deckhouse = { z0: rnd(z0), z1: rnd(z1), top, rakeDeg: SCALES.dhRake(d.dhRake), plan };
+    const top = rnd(Math.max(...zs.map((z) => q.deckY(z))) + d.dhHeight);
+    deckhouse = { z0: rnd(z0), z1: rnd(z1), top, rakeDeg: d.dhRake, plan };
     // Its plate: the two sides, the top, the front and the aft face (m²), for its weight and price.
-    const h = SCALES.dhHeight(d.dhHeight);
+    const h = d.dhHeight;
     for (let i = 1; i < plan.length; i++) dhArea += (plan[i][0] - plan[i - 1][0]) * (2 * h + plan[i][1] + plan[i - 1][1]);
     dhArea += 2 * plan[0][1] * h + 2 * plan[plan.length - 1][1] * h;
   }
@@ -629,7 +629,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   // between (the treads aft of the wheelhouse, in the saloon). Not into a deckhouse it stands
   // on, and below the deck only where her hull is wide enough for the house's walls to go
   // down to it (as a sunk wheelhouse floor); else as low as it can go, in whole steps.
-  let saloonDrop = saloonL ? SCALES.saloonFloor(d.saloonFloor ?? 0) : 0;
+  let saloonDrop = saloonL ? d.saloonFloor ?? 0 : 0;
   if (saloonDrop) {
     const salTight = (y: number) => Math.min(...Array.from({ length: 5 }, (_, i) => helmAft + ((aft - helmAft) * i) / 4).map((z) => halfBreadthAt(st.reduce((a, s) => (Math.abs(s.z - z) < Math.abs(a.z - z) ? s : a)).polygon, y)));
     const lowest = deckhouse ? Math.min(floorY, deckhouse.top + 0.02) : -Infinity;
@@ -650,9 +650,9 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
     : [];
   // The house's shape (owner): the roof one flat slab reaching forward over the windows (the
   // visor), its front edge cut back underneath; the front windows raked either way.
-  const roofThickness = SCALES.roofThickness(d.roofThickness);
+  const roofThickness = d.roofThickness;
   // Its front and sides chamfered (hullMesh.ts chamferedSlab): the top set in this much.
-  const roofBack = roofThickness * Math.tan((SCALES.roofEdge(d.roofEdge) * Math.PI) / 180);
+  const roofBack = roofThickness * Math.tan((d.roofEdge * Math.PI) / 180);
   // The window sills, one height all round (owner; they were 1.31 at the front, the dash top,
   // and 1.0 at the sides): the standard height, or low, below the console.
   const sill = d.sills ? CONFIG.shipyard.windowSills.low : CONFIG.shipyard.windowSills.standard;
@@ -665,14 +665,15 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   // coming down with it. Never so low its headroom is under the doorway's plus 0.1 m (the aft
   // door is in its wall), or its window band (from the sill to the frame under the roof) under
   // `sal.minBand`: as low as it can go then, and said.
-  let roofDrop = saloonL ? SCALES.saloonRoof(d.saloonRoof ?? 0) : 0;
+  let roofDrop = saloonL ? d.saloonRoof ?? 0 : 0;
   if (roofDrop) {
     const asked = roofDrop;
     const ok = (drop: number) => roofY - drop - FA >= doorHeight + 0.1 - 1e-6 && roofY - drop - CONFIG.pixelPaint.frameWidth - (floorY + sill) >= sal.minBand - 1e-6;
-    while (roofDrop > 1e-6 && !ok(roofDrop)) roofDrop = Math.round((roofDrop - 0.2) * 10) / 10;
+    const by = MEASURES.saloonRoof.by;
+    while (roofDrop > 1e-6 && !ok(roofDrop)) roofDrop = Math.max(0, Math.round((roofDrop - by) / by) * by);
     if (roofDrop < asked - 1e-6) {
       const why = roofY - asked - FA < doorHeight + 0.1 - 1e-6 ? 'its headroom over the saloon floor would be less than the doorway' : 'its windows would be too shallow';
-      warnings.push(roofDrop ? `The saloon's roof can only come ${Math.round(roofDrop / 0.2)} step${roofDrop > 0.3 ? 's' : ''} lower (${why}): a deeper saloon floor, or more headroom, lets it go lower.` : `The saloon's roof can't come lower (${why}): it's as high as the wheelhouse's. A deeper saloon floor, or more headroom, lets it.`);
+      warnings.push(roofDrop ? `The saloon's roof can only come ${roofDrop.toFixed(2)} m lower (${why}): a deeper saloon floor, or more headroom, lets it go lower.` : `The saloon's roof can't come lower (${why}): it's as high as the wheelhouse's. A deeper saloon floor, or more headroom, lets it.`);
     }
   }
   /** The saloon's roof (its underside), lower than the wheelhouse's aft of the step at `helmAft`; null: one roof. */
@@ -680,7 +681,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   /** The roof's underside at z (a lower saloon roof aft of its step). */
   const roofAt = (z: number) => (saloonRoof && z > saloonRoof.z ? saloonRoof.y : roofY);
   // The front below the windows stays upright (its choice isn't offered now, owner).
-  const house: HouseShape = { lowerRakeDeg: 0, lowerFromY: Math.min(q.deckY(front), floorY), roofEdgeDeg: SCALES.roofEdge(d.roofEdge), visor: CONFIG.shipyard.visor }; // (one set length now, owner: `d.visor` is kept in the code, unused)
+  const house: HouseShape = { lowerRakeDeg: 0, lowerFromY: Math.min(q.deckY(front), floorY), roofEdgeDeg: d.roofEdge, visor: CONFIG.shipyard.visor }; // (one set length now, owner: `d.visor` is kept in the code, unused)
   // A three-facet front (owner: a tug's pilot house): the middle pane square across her
   // between the mullions, the outer two angled back `facetDeg` to the side walls; the
   // console wraps round with it, its wings set back as much (sb).
@@ -690,7 +691,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   /** How far a faceted front is set back at x (0 across the middle; the console's wings, and what's placed beside them, follow it). */
   const sb = (x: number) => (house.facet ? (Math.max(0, Math.abs(x) - house.facet.centre) * house.facet.depth) / (hw - house.facet.centre) : 0);
   // Raked out all round (owner): the front leans out with the sides, at the same angle (its own rake is set aside).
-  const windowRake = d.flare ? CONFIG.shipyard.flareDeg : SCALES.windowRake(d.windowRake);
+  const windowRake = d.flare ? CONFIG.shipyard.flareDeg : d.windowRake;
   // Where the front windows' foot and head stand (z), as hullMesh draws them.
   const ahead = Math.max(0, floorY + sill - house.lowerFromY) * Math.tan((house.lowerRakeDeg * Math.PI) / 180);
   const zHead = front - ahead - (windowHead - sill) * Math.tan((windowRake * Math.PI) / 180);
@@ -1607,8 +1608,8 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
     resistance: { ...lc.resistance, lwl: Math.round(h.lwl * 100) / 100, ...(tyres.length ? { formFactor: lc.resistance.formFactor + hg.tyres.formFactorAdd } : {}) },
     ...(base.planing ? { planing: lc.planing } : {}),
     windage: {
-      side: Math.round(lengthM * freeboard + houseL * (roofY + 0.3 - level) - saloonL * roofDrop + (deckhouse ? (deckhouse.z1 - deckhouse.z0) * SCALES.dhHeight(d.dhHeight) : 0)),
-      front: Math.round(beamDeck * freeboard + 2 * hw * (roofY + 0.3 - level) + (deckhouse ? 2 * Math.max(0, dhW - hw) * SCALES.dhHeight(d.dhHeight) : 0)),
+      side: Math.round(lengthM * freeboard + houseL * (roofY + 0.3 - level) - saloonL * roofDrop + (deckhouse ? (deckhouse.z1 - deckhouse.z0) * d.dhHeight : 0)),
+      front: Math.round(beamDeck * freeboard + 2 * hw * (roofY + 0.3 - level) + (deckhouse ? 2 * Math.max(0, dhW - hw) * d.dhHeight : 0)),
       center: [0, Math.round((freeboard + 0.4) * 100) / 100, Math.round(((front + aft) / 4) * 100) / 100],
     },
     layout,

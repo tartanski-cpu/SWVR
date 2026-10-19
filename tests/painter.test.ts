@@ -118,7 +118,7 @@ describe("a Shipyard design's skiff's painter (owner: a midship cleat for it)", 
     const { DEFAULT_DESIGN } = await import('../src/shipyard/design');
     const { DESIGN_HULLS } = await import('../src/shipyard/build');
     // The workboat type, her house forward, the skiff on her aft deck to starboard.
-    useDesign({ ...DEFAULT_DESIGN, hull: 2, ...DESIGN_HULLS[2].defaults, guard: 0, housePos: 15, skiff: 3 });
+    useDesign({ ...DEFAULT_DESIGN, hull: 2, ...DESIGN_HULLS[2].defaults, guard: 0, housePos: 1, skiff: 3 });
     const { world: w, vesselId } = createWorld(new IdFactory(), 'design', { tender: true });
     w.environment.waves = [];
     w.geography = 'openSea';

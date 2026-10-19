@@ -700,7 +700,8 @@ function buildShapedHouse(layout: HouseLayout, col: Paint, base: number): THREE.
   }
   const ceilFrom = parts.length;
   for (const [a, b] of spans) parts.push(box(Math.max(a, -hw + w), Math.min(b, hw - w), roofY - 0.012, roofY, Math.max(zF, zH) + w, zStep - w, col.lining, 'wood'));
-  if (sh.facet) setBack(parts.slice(ceilFrom), facetDz(wh), zA - w - 0.01);
+  // (Only its front: its aft end, at the step to a lower saloon roof or the aft wall, stays put.)
+  if (sh.facet) setBack(parts.slice(ceilFrom), facetDz(wh), zStep - w - 0.01);
   if (sr) parts.push(box(-hw + w, hw - w, roofS - 0.012, roofS, zStep, zA - w, col.lining, 'wood'));
   // Raked out all round: the roof and the ceiling go out with the walls' tops.
   if (fl) applyFlare(parts.slice(roofFrom), fl);

@@ -59,11 +59,11 @@ describe('variants', () => {
     await tick();
     await tick();
     amy.putVariant(fork(amy.variant(MAIN)!, 'v-amy', 'Amy’s long house', 'Amy', 1));
-    amy.edit({ houseLength: 12 }, 'v-amy');
+    amy.edit({ houseLength: 4.8 }, 'v-amy');
     amy.note({ id: 'p', kind: 'pin', by: 'Amy', colour: '#2f8a4a', t: 2, at: [0.5, 0.9, 0.5], text: 'longer', done: false }, 'v-amy');
     await tick();
     expect(keeper.variants.map((v) => v.name)).toEqual(['Main', 'Amy’s long house']);
-    expect(keeper.variant('v-amy')!.design.houseLength).toBe(12);
+    expect(keeper.variant('v-amy')!.design.houseLength).toBe(4.8);
     expect(keeper.design.houseLength).toBe(DEFAULT_DESIGN.houseLength);
     expect(keeper.variant('v-amy')!.notes).toHaveLength(1);
     expect(keeper.notes).toHaveLength(0);
@@ -71,7 +71,7 @@ describe('variants', () => {
     const cat = new Member({ ...DEFAULT_DESIGN }, 'Cat', host.client(), quiet);
     await tick();
     await tick();
-    expect(cat.variant('v-amy')!.design.houseLength).toBe(12);
+    expect(cat.variant('v-amy')!.design.houseLength).toBe(4.8);
     keeper.dropVariant('v-amy');
     await tick();
     expect(amy.variants).toHaveLength(1);

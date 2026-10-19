@@ -1,6 +1,6 @@
 /** Shipyard designs: the choices round-trip through their 17-character (or longer) code, typos are caught; codes from before version 10 are retired. */
 import { describe, expect, it } from 'vitest';
-import { COMBINATIONS, decodeDesign, DEFAULT_DESIGN, encodeDesign, FIELDS, PLACE_GRID, placeOf, placeValue, type ShipDesign } from '../../src/shipyard/design';
+import { COMBINATIONS, decodeDesign, DEFAULT_DESIGN, encodeDesign, FIELDS, PLACE_GRID, placeOf, placeValue, type ShipDesign, fromSteps } from '../../src/shipyard/design';
 
 // The page's starting design without hull protection.
 const BASE: ShipDesign = { ...DEFAULT_DESIGN, guard: 0 };
@@ -15,13 +15,14 @@ describe('Shipyard design codes', () => {
   it('every choice at every step survives the trip (and the maxima and minima together)', () => {
     for (const f of FIELDS)
       for (let v = 0; v < f.steps; v++) {
-        const d: ShipDesign = { ...BASE, [f.key]: v };
+        // (In the code's steps; the wheelhouse's measurements as values: fromSteps.)
+        const d: ShipDesign = { ...BASE, ...fromSteps({ [f.key]: v }) };
         // The front below the windows isn't offered now: any code reads it as upright.
-        expect(decodeDesign(encodeDesign(d))).toEqual({ design: { ...d, lowerFront: 0, roofEdge: Math.max(1, d.roofEdge) } });
+        expect(decodeDesign(encodeDesign(d))).toEqual({ design: { ...d, lowerFront: 0 } });
       }
-    const max = { ...BASE, ...Object.fromEntries(FIELDS.map((f) => [f.key, f.steps - 1])) } as ShipDesign;
-    const min = { ...BASE, ...Object.fromEntries(FIELDS.map((f) => [f.key, 0])) } as ShipDesign;
-    for (const d of [max, min]) expect(decodeDesign(encodeDesign(d))).toEqual({ design: { ...d, lowerFront: 0, roofEdge: Math.max(1, d.roofEdge) } });
+    const max = { ...BASE, ...fromSteps(Object.fromEntries(FIELDS.map((f) => [f.key, f.steps - 1]))) } as ShipDesign;
+    const min = { ...BASE, ...fromSteps(Object.fromEntries(FIELDS.map((f) => [f.key, 0]))) } as ShipDesign;
+    for (const d of [max, min]) expect(decodeDesign(encodeDesign(d))).toEqual({ design: { ...d, lowerFront: 0 } });
   });
 
   it('fits: every combination of the choices in 80 bits (16 characters)', () => {

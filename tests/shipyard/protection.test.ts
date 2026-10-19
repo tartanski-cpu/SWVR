@@ -14,7 +14,7 @@ import { assembleView } from '../../src/modular/assemble';
 import { flattenMounts, validateRecipe } from '../../src/modular/recipe';
 import { mergeParts } from '../../src/render/geometryUtils';
 import { DESIGN_HULLS } from '../../src/shipyard/build';
-import { decodeDesign, DEFAULT_DESIGN, encodeDesign, GUARDS, placeValue, type ShipDesign } from '../../src/shipyard/design';
+import { decodeDesign, DEFAULT_DESIGN, encodeDesign, GUARDS, placeValue, type ShipDesign, fromSteps } from '../../src/shipyard/design';
 import { hullPlan } from '../../src/vessel/layout';
 import { uprightHydrostatics } from '../../src/vessel/hydrostatics';
 import { placeVessel } from '../../src/vessel/vesselControl';
@@ -39,7 +39,7 @@ describe('hull protection: codes', () => {
       expect(code.replace(/-/g, '').length).toBeGreaterThan(17);
       expect(code.replace(/-/g, '').length).toBeLessThanOrEqual(20);
       expect(decodeDesign(code)).toEqual({ design: d });
-      const more = { ...d, dhLength: 3, dhHeight: 2, dhWidth: 1, dhRake: 1, deckCrane: 2, craneAt: placeValue('craneAt', -1, 2.5, 1) };
+      const more = { ...d, ...fromSteps({ dhLength: 3, dhHeight: 2, dhWidth: 1, dhRake: 1 }), deckCrane: 2, craneAt: placeValue('craneAt', -1, 2.5, 1) };
       expect(decodeDesign(encodeDesign(more))).toEqual({ design: more });
     }
     // The page starts with the crew's fenders.

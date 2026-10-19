@@ -119,14 +119,14 @@ export interface ShipDesign {
   bulwark: number;
   /** Bow: the stem's rake, 0 plumb .. 4 raked 50 deg (SCALES.bow). */
   bow: number;
-  /** Wheelhouse: where along the deck (aft .. forward), its length, its width, its headroom. */
+  /** Wheelhouse (values, not steps: MEASURES): where along the deck (0 aft .. 1 forward), its length (m), its width (a fraction of the room), its headroom (m). */
   housePos: number;
   houseLength: number;
   houseWidth: number;
   headroom: number;
-  /** Floor height about the deck (SCALES.floor): sunk below it (a step down in) .. raised above it (steps up), to see over a bow or a ramp. */
+  /** Floor height about the deck (m, MEASURES): sunk below it (a step down in) .. raised above it (steps up), to see over a bow or a ramp. */
   floor: number;
-  /** Roof, one flat slab: how far it reaches forward over the front windows (SCALES.visor), its thickness (SCALES.roofThickness) and its front edge (SCALES.roofEdge). */
+  /** Roof, one flat slab: how far it reaches forward over the front windows (SCALES.visor), its thickness (m) and its front edge (degrees back; both MEASURES). */
   visor: number;
   roofThickness: number;
   roofEdge: number;
@@ -442,8 +442,72 @@ export const SCALES = {
   gear: (i: number) => Math.round(100 * 1.1 ** i) / 100,
 };
 
+/** The wheelhouse's choices that are measurements (with its saloon and the deckhouse under it). */
+export type MeasureKey = 'housePos' | 'houseLength' | 'houseWidth' | 'headroom' | 'floor' | 'saloon' | 'saloonFloor' | 'saloonRoof' | 'windowRake' | 'roofThickness' | 'roofEdge' | 'dhLength' | 'dhHeight' | 'dhWidth' | 'dhRake';
+
+/**
+ * The wheelhouse's measured choices (owner, Oct 2026: designs travel as documents now, so no
+ * more squeezing them onto a few steps to keep a typed code short). Each holds its real value:
+ * metres, degrees, or a fraction (`housePos` 0 right aft .. 1 right forward of the deck free
+ * for it; `houseWidth` of what the deck leaves between side decks), anything from `min` to
+ * `max` (a document's value is brought onto that: onMeasure); the Shipyard's slider moves `by`
+ * at a time. `code` is the old code's step i's value: a design whose values all sit on those steps
+ * still gets a short code (encodeDesign); any other travels as a link or file (designDoc.ts).
+ * 0 for `saloon` and `dhLength` is none.
+ */
+export const MEASURES: Record<MeasureKey, { min: number; max: number; by: number; code: (i: number) => number; steps: number }> = {
+  housePos: { min: 0, max: 1, by: 0.01, code: SCALES.housePos, steps: 16 },
+  houseLength: { min: 2.4, max: 5.4, by: 0.05, code: SCALES.houseLength, steps: 16 },
+  houseWidth: { min: 0.65, max: 1, by: 0.01, code: SCALES.houseWidth, steps: 8 },
+  headroom: { min: 1.9, max: 2.6, by: 0.05, code: SCALES.headroom, steps: 8 },
+  floor: { min: -0.6, max: 0.8, by: 0.05, code: SCALES.floor, steps: 8 },
+  saloon: { min: 0, max: 4.4, by: 0.1, code: SCALES.saloon, steps: 9 },
+  // (Whole steps down: a stair's rise each.)
+  saloonFloor: { min: 0, max: 0.6, by: 0.2, code: SCALES.saloonFloor, steps: 4 },
+  saloonRoof: { min: 0, max: 0.6, by: 0.05, code: SCALES.saloonRoof, steps: 4 },
+  windowRake: { min: -30, max: 30, by: 1, code: SCALES.windowRake, steps: 9 },
+  roofThickness: { min: 0.08, max: 0.3, by: 0.01, code: SCALES.roofThickness, steps: 3 },
+  roofEdge: { min: 20, max: 60, by: 1, code: SCALES.roofEdge, steps: 4 },
+  dhLength: { min: 0, max: 3.5, by: 0.1, code: SCALES.dhLength, steps: 8 },
+  dhHeight: { min: 0.4, max: 1.5, by: 0.05, code: SCALES.dhHeight, steps: 5 },
+  dhWidth: { min: 0, max: 0.8, by: 0.05, code: SCALES.dhWidth, steps: 4 },
+  dhRake: { min: 0, max: 50, by: 1, code: SCALES.dhRake, steps: 3 },
+};
+export const MEASURE_KEYS = Object.keys(MEASURES) as MeasureKey[];
+/**
+ * A measured choice, tidied: on its range (to a micrometre). Only the saloon's floor keeps to
+ * its steps (whole stairs); any other value between is fine (the slider's step is only the
+ * slider's: the old code's steps, a position's fifteenths, needn't sit on it).
+ */
+export function onMeasure(k: MeasureKey, v: number): number {
+  const m = MEASURES[k];
+  const on = Math.min(m.max, Math.max(m.min, k === 'saloonFloor' ? Math.round(v / m.by) * m.by : v));
+  return Math.round(on * 1e6) / 1e6;
+}
+
+/** A design written in the old code's step numbers (the hull types' starting designs, tests) as values. */
+export function fromSteps<D extends Partial<ShipDesign>>(d: D): D {
+  const out = { ...d } as Record<string, number>;
+  for (const k of MEASURE_KEYS) if (out[k] !== undefined) out[k] = Math.round(MEASURES[k].code(out[k]) * 1e6) / 1e6;
+  return out as D;
+}
+
+/** A design's measured choices back as the old code's step numbers, or null if one isn't on them (no short code holds her). */
+export function toSteps(d: ShipDesign): ShipDesign | null {
+  const out = { ...d };
+  for (const k of MEASURE_KEYS) {
+    const m = MEASURES[k];
+    // (From the top: the roof edge's old first step reads the same as its second.)
+    let i = m.steps - 1;
+    while (i >= 0 && Math.abs(m.code(i) - d[k]) > 1e-6) i--;
+    if (i < 0) return null;
+    out[k] = i;
+  }
+  return out;
+}
+
 /** The page's starting point: the landing craft much as she is. */
-export const DEFAULT_DESIGN: ShipDesign = {
+export const DEFAULT_DESIGN: ShipDesign = fromSteps({
   hull: 0,
   length: 8,
   beam: 8,
@@ -473,7 +537,7 @@ export const DEFAULT_DESIGN: ShipDesign = {
   gear: 2,
   controls: 1,
   paint: 0,
-};
+});
 
 /** The characters a design's code is written in (no I, L, O or U: read as 1, 1, 0, and kept out). */
 export const ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
@@ -501,7 +565,10 @@ function write(all: bigint, count: number): string {
 }
 
 /** The design as its code, e.g. 'K7P4Q-2ZX9D-MR3XA-7Q' (version 10, 17 characters; longer with gear placed by hand). */
-export function encodeDesign(d: ShipDesign): string {
+export function encodeDesign(design: ShipDesign): string {
+  // Her measurements as the code's steps; off them, no code holds her (she travels as a document).
+  const d = toSteps(design);
+  if (!d) throw new Error('her measurements are between the code’s steps: she travels as a link or file');
   if (!Number.isInteger(d.hull) || d.hull < 0 || d.hull >= HULL_TYPES) throw new Error(`design hull ${d.hull} is off its scale (0..${HULL_TYPES - 1})`);
   // A hull type after the first four: 0 in the first 16 characters, its number in the extension.
   const more = d.hull >= BASE_HULLS ? d.hull - BASE_HULLS + 1 : 0;
@@ -672,7 +739,7 @@ export function decodeDesign(code: string): { design: ShipDesign } | { error: st
     if (more && v10.design.hull !== 0) return { error: 'that code is off the scales (no design has it)' };
     // A later engine: its first 16 characters hold engine 0.
     if (moreEngine && v10.design.engine !== 0) return { error: 'that code is off the scales (no design has it)' };
-    return { design: { ...tidy(v10.design), ...places, ...(more ? { hull: BASE_HULLS - 1 + more } : {}), ...(moreEngine ? { engine: BASE_ENGINES - 1 + moreEngine } : {}) } };
+    return { design: fromSteps({ ...tidy(v10.design), ...places, ...(more ? { hull: BASE_HULLS - 1 + more } : {}), ...(moreEngine ? { engine: BASE_ENGINES - 1 + moreEngine } : {}) }) };
   }
   // Codes from before version 10 (shorter than 17 characters) are retired (owner, Oct 2026: no need to keep old designs).
   return { error: `a design code has 17 characters (this has ${s.length})${s.length >= 10 ? ': codes from older Shipyards no longer open' : ''}` };

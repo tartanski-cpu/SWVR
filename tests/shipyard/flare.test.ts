@@ -5,7 +5,7 @@ import { LIBRARY, RECIPES } from '../../src/boats/library';
 import { validateRecipe } from '../../src/modular/recipe';
 import { CONFIG } from '../../src/config';
 import { DESIGN_HULLS } from '../../src/shipyard/build';
-import { decodeDesign, DEFAULT_DESIGN, encodeDesign, SILLS, type ShipDesign } from '../../src/shipyard/design';
+import { decodeDesign, DEFAULT_DESIGN, encodeDesign, SILLS, type ShipDesign, fromSteps } from '../../src/shipyard/design';
 import { houseFlare } from '../../src/vessel/houseFlare';
 import { VESSEL_DEFS } from '../../src/vessel/vesselDef';
 import { wiperFit } from '../../src/vessel/view/rainGlass';
@@ -32,7 +32,7 @@ describe('codes', () => {
 describe('raked out all round', () => {
   it('every hull type: the walls lean out by the rake over the window band; the floor and below the sill stay put; the aft door hinged; no side door', () => {
     for (let hull = 0; hull < DESIGN_HULLS.length; hull++) {
-      const b = useDesign(typeOf(hull, { flare: 1, sideDoor: 1, houseWidth: 3 }));
+      const b = useDesign(typeOf(hull, { flare: 1, sideDoor: 1, houseWidth: 0.8 }));
       expect(validateRecipe(RECIPES.design, LIBRARY)).toEqual([]);
       const wh = VESSEL_DEFS.design.layout.wheelhouse!;
       const fl = houseFlare(wh)!;
@@ -110,7 +110,7 @@ describe('the console clear of the front glass (owner: it rose into the window b
     const dashTop = 0.9 + CONFIG.modules.helmConsole.dash.top;
     let upright = 0;
     for (const windowRake of [0, 2, 4, 6, 8]) {
-      const b = useDesign(typeOf(4, { windowRake, facets: 0 }));
+      const b = useDesign(typeOf(4, { ...fromSteps({ windowRake }), facets: 0 }));
       const wh = VESSEL_DEFS.design.layout.wheelhouse!;
       const back = wh.consoleBack ?? 0;
       const lean = Math.tan(((wh.frontRakeDeg ?? 0) * Math.PI) / 180);
@@ -128,7 +128,7 @@ describe('the console clear of the front glass (owner: it rose into the window b
 
   it('raked out all round sets the front leaning out with the sides, whatever its own rake says', () => {
     for (const windowRake of [0, 4, 8]) {
-      useDesign(typeOf(2, { flare: 1, windowRake }));
+      useDesign(typeOf(2, { flare: 1, ...fromSteps({ windowRake }) }));
       expect(VESSEL_DEFS.design.layout.wheelhouse!.frontRakeDeg).toBe(CONFIG.shipyard.flareDeg);
     }
   });

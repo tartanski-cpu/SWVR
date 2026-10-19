@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { useDesign } from '../../src/boats/sims';
 import { buildDesign, DESIGN_HULLS } from '../../src/shipyard/build';
-import { decodeDesign, DEFAULT_DESIGN, encodeDesign, SCALES, type ShipDesign } from '../../src/shipyard/design';
+import { decodeDesign, DEFAULT_DESIGN, encodeDesign, SCALES, type ShipDesign, fromSteps } from '../../src/shipyard/design';
 import { uprightHydrostatics } from '../../src/vessel/hydrostatics';
 import { vesselWalkArea, STEP_HEIGHT } from '../../src/vessel/layout';
 import { houseFloorAt, VESSEL_DEFS } from '../../src/vessel/vesselDef';
@@ -18,7 +18,7 @@ import { fakeCanvas } from '../modular/fakes';
 beforeAll(fakeCanvas);
 afterAll(() => useDesign(DEFAULT_DESIGN));
 
-const type = (hull: number, more: Partial<ShipDesign> = {}): ShipDesign => ({ ...DEFAULT_DESIGN, ...DESIGN_HULLS[hull].defaults, hull, ...more });
+const type = (hull: number, more: Partial<ShipDesign> = {}): ShipDesign => ({ ...DEFAULT_DESIGN, ...DESIGN_HULLS[hull].defaults, hull, ...fromSteps(more) });
 /** The workboat, her wheelhouse floor raised a step, a 2.8 m saloon two steps down. */
 const WB = type(2, { floor: 4, saloon: 4, saloonFloor: 2 });
 

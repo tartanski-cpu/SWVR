@@ -4,7 +4,7 @@ import { gearOf, useDesign } from '../../src/boats/sims';
 import { LIBRARY, RECIPES } from '../../src/boats/library';
 import { flattenMounts, validateRecipe } from '../../src/modular/recipe';
 import { DESIGN_HULLS } from '../../src/shipyard/build';
-import { decodeDesign, DEFAULT_DESIGN, encodeDesign, placeValue, SKIFFS, type ShipDesign } from '../../src/shipyard/design';
+import { decodeDesign, DEFAULT_DESIGN, encodeDesign, placeValue, SKIFFS, type ShipDesign, fromSteps } from '../../src/shipyard/design';
 import { EQUIPMENT, fitted, placeGear, removeGear } from '../../src/shipyard/pinGear';
 import { hullPlan } from '../../src/vessel/layout';
 import { VESSEL_DEFS } from '../../src/vessel/vesselDef';
@@ -24,7 +24,7 @@ describe('the anchor and the skiff: codes', () => {
     expect(encodeDesign(BASE).replace(/-/g, '')).toHaveLength(17);
     for (let skiff = 0; skiff < SKIFFS.length; skiff++)
       for (const noAnchor of [0, 1]) {
-        const d = { ...BASE, skiff, noAnchor, rails: 1, guard: 2, dhLength: 3, dhHeight: 1, dhWidth: 0, dhRake: 0, dhNarrow: 1, deckCrane: 2, craneAt: placeValue('craneAt', -1, 2.5, 1) };
+        const d = { ...BASE, skiff, noAnchor, rails: 1, guard: 2, ...fromSteps({ dhLength: 3, dhHeight: 1, dhWidth: 0, dhRake: 0 }), dhNarrow: 1, deckCrane: 2, craneAt: placeValue('craneAt', -1, 2.5, 1) };
         expect(decodeDesign(encodeDesign(d))).toEqual({ design: d });
       }
   });
@@ -60,7 +60,7 @@ describe('the anchor', () => {
 describe('the skiff and her crane', () => {
   it('fits on the workboat type\'s foredeck (her house right aft) and aft deck (right forward), either side: the crane, its pump, its helm button; she carries the skiff', () => {
     for (let skiff = 1; skiff < SKIFFS.length; skiff++) {
-      const b = useDesign({ ...typeOf(2), skiff, housePos: skiff <= 2 ? 0 : 15 });
+      const b = useDesign({ ...typeOf(2), skiff, housePos: skiff <= 2 ? 0 : 1 });
       expect(b.warnings, SKIFFS[skiff]).toEqual([]);
       expect(validateRecipe(RECIPES.design, LIBRARY), SKIFFS[skiff]).toEqual([]);
       const ids = mounted().map((x) => x.def.id);

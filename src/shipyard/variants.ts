@@ -5,7 +5,7 @@
  * the main design and its variants. Any two can be compared, a variant can be promoted to
  * the main design, and one's values can be merged into another field by field.
  */
-import { ALL_FIELDS, DEFAULT_DESIGN, type ShipDesign } from './design';
+import { ALL_FIELDS, DEFAULT_DESIGN, fromSteps, type ShipDesign } from './design';
 import { designFromFields } from './designDoc';
 import { cleanNotes, type Note } from './notes';
 import { cleanBrief, type Brief } from './brief';
@@ -24,7 +24,8 @@ export interface Variant {
 
 /** What a session (or a design on your own) holds: the main design first, then its variants. */
 export interface YardDoc {
-  v: 2;
+  /** 3: the wheelhouse's measurements as values (design.ts MEASURES); 2 and 1 held the code's steps. */
+  v: 3;
   variants: Variant[];
   /** What she's for and her targets (brief.ts): one for the design and all its variants. */
   brief?: Brief;
@@ -63,7 +64,7 @@ export function cleanVariant(v: unknown): Variant | null {
 
 /** A new doc holding just a main design. */
 export function newDoc(design: ShipDesign, notes: Note[] = []): YardDoc {
-  return { v: 2, variants: [{ id: MAIN, name: 'Main', parent: null, by: '', t: 0, design: { ...design }, notes }] };
+  return { v: 3, variants: [{ id: MAIN, name: 'Main', parent: null, by: '', t: 0, design: { ...design }, notes }] };
 }
 
 /** A doc from storage or the wire, checked. Part 1-2 copies ({ v: 1, design, notes }) become a main design. */
@@ -75,9 +76,11 @@ export function cleanStep(s: unknown): string | null {
 export function cleanDoc(raw: unknown): YardDoc | null {
   if (!raw || typeof raw !== 'object') return null;
   const o = raw as Record<string, unknown>;
-  if (o.v === 1 && o.design) return newDoc(cleanDesign(o.design), cleanNotes(o.notes));
-  if (o.v !== 2 || !Array.isArray(o.variants)) return null;
-  const list = o.variants.map(cleanVariant).filter((v): v is Variant => !!v);
+  // (Saved before the wheelhouse's measurements were values: its designs in the code's steps.)
+  const old = (d: unknown) => (d && typeof d === 'object' ? fromSteps(d as Partial<ShipDesign>) : d);
+  if (o.v === 1 && o.design) return newDoc(cleanDesign(old(o.design)), cleanNotes(o.notes));
+  if ((o.v !== 2 && o.v !== 3) || !Array.isArray(o.variants)) return null;
+  const list = o.variants.map((v) => (o.v === 2 && v && typeof v === 'object' ? { ...v, design: old((v as { design?: unknown }).design) } : v)).map(cleanVariant).filter((v): v is Variant => !!v);
   const main = list.find((v) => v.id === MAIN);
   if (!main) return null;
   // Main first; no repeated ids.
@@ -85,7 +88,7 @@ export function cleanDoc(raw: unknown): YardDoc | null {
   const rest = list.filter((v) => v.id !== MAIN && !seen.has(v.id) && seen.add(v.id)).slice(0, MAX_VARIANTS - 1);
   const brief = cleanBrief(o.brief);
   const step = cleanStep(o.step);
-  return { v: 2, variants: [{ ...main, parent: null }, ...rest], ...(brief ? { brief } : {}), ...(step ? { step } : {}) };
+  return { v: 3, variants: [{ ...main, parent: null }, ...rest], ...(brief ? { brief } : {}), ...(step ? { step } : {}) };
 }
 
 /** A fork of `from`: a full copy of its design and notes, with a parent link. */
