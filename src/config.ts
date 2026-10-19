@@ -4080,8 +4080,9 @@ export const CONFIG = {
    *   strength       each firing's loudness, in firing order (the cycle's lumpy rhythm)
    *   jitter         +- random spread on each firing's loudness
    *   grit           how much of each pulse is noise (0.08 if left out)
-   *   mech           level of that noise above 400 Hz, beside the tone: the engine's
-   *                  mechanical clatter riding on each firing (0: none)
+   *   mech           level of that noise in `mechBand` (Hz, from and to; 400 to 1400 if
+   *                  left out), beside the tone: the engine's mechanical clatter riding on
+   *                  each firing (0: none)
    *   pulseTau       how long each exhaust pulse rings (s), + pulseTauLow more at idle
    *   body, stack    the exhaust's two resonances (peaking filters: Hz, Q, dB)
    *   lp             the tone's low-pass: base + rpm * (rpm / rated) + load * load (Hz)
@@ -4103,6 +4104,7 @@ export const CONFIG = {
       jitter: 0.1,
       grit: 0.08,
       mech: 0,
+      mechBand: null as readonly [number, number] | null,
       pulseTau: 0.013,
       pulseTauLow: 0.006,
       body: { freq: 110, q: 0.9, gain: 4 },
@@ -4129,6 +4131,7 @@ export const CONFIG = {
       jitter: 0.12,
       grit: 0.08,
       mech: 0,
+      mechBand: null as readonly [number, number] | null,
       pulseTau: 0.011,
       pulseTauLow: 0.005,
       body: { freq: 85, q: 0.9, gain: 5 },
@@ -4153,8 +4156,9 @@ export const CONFIG = {
      * fired only 22 times a second at idle, heard as one cylinder thumping). Even cylinders;
      * short pulses; a narrow exhaust resonance at 210 Hz (`stack`) and a dip at 70 (`body`,
      * negative gain); the clatter riding on each firing (`grit`, `mech`). Rendered offline at
-     * the recording's 70 firings a second, its harmonics lie within 1 dB of the recording's
-     * for the first three, and its spectrum within a few per cent from 200 Hz up.
+     * the recording's 70 firings a second and its size, its harmonics lay within 1 dB of the
+     * recording's for the first three, its spectrum within a few per cent from 200 Hz up;
+     * then all of it scaled to the tug diesel's size (below).
      */
     bigSix: {
       cylinders: 12,
@@ -4162,14 +4166,20 @@ export const CONFIG = {
       jitter: 0.03,
       grit: 0.3,
       mech: 3.5,
-      pulseTau: 0.006,
-      pulseTauLow: 0.004,
-      body: { freq: 70, q: 1.0, gain: -6 },
-      stack: { freq: 210, q: 4, gain: 16 },
-      lp: { base: 700, rpm: 300, load: 400 },
-      // (Rendered offline: within about 3 dB of the engine's old sound overall, and up to
-      // 4 dB stronger where a headset plays, 100 to 400 Hz, where most of it now is.)
-      thump: { base: 0.34, rpm: 0.34, load: 0.54 },
+      // Scaled from the recording's smaller six (owner: "a smaller straight 6 so you can adapt
+      // for the size of the tug's one"): the tug diesel's block 2.65 m long against ~1.5 m,
+      // ~35 litres against ~6.5 (cube root 1.75): about 1.8 times the size. A bigger engine of
+      // the same kind rings lower in proportion: its resonances, the clatter's band and the
+      // tone's low-pass divided by 1.8, its pulses 1.8 times as long.
+      mechBand: [220, 780] as readonly [number, number] | null,
+      pulseTau: 0.011,
+      pulseTauLow: 0.007,
+      body: { freq: 39, q: 1.0, gain: -6 },
+      stack: { freq: 117, q: 4, gain: 16 },
+      lp: { base: 390, rpm: 170, load: 220 },
+      // (Rendered offline: within about 2 dB of the engine's old sound overall, and a few dB
+      // stronger where a headset plays, 100 to 400 Hz, where most of it now is.)
+      thump: { base: 0.26, rpm: 0.26, load: 0.4 },
       drive: 1.5,
       hiss: { base: 0.003, load: 0.012 },
       turbo: { idleHz: 650, boostHz: 1700, gain: 0.007 } as { idleHz: number; boostHz: number; gain: number } | null,
@@ -4187,6 +4197,7 @@ export const CONFIG = {
       jitter: 0.12,
       grit: 0.08,
       mech: 0,
+      mechBand: null as readonly [number, number] | null,
       pulseTau: 0.011,
       pulseTauLow: 0.005,
       body: { freq: 85, q: 0.9, gain: 5 },

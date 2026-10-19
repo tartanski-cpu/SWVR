@@ -21,6 +21,10 @@ describe('the tug diesel’s voice', () => {
     expect(big.strength).toHaveLength(6);
     expect(Math.min(...big.strength) / Math.max(...big.strength)).toBeGreaterThan(0.95);
     expect(big.mech).toBeGreaterThan(0);
+    // Sized to the tug diesel (the recording's six was smaller, ~1.8 times): its exhaust ringing
+    // and clatter lower than the recording's 210 Hz and 400-1400 Hz.
+    expect(big.stack.freq).toBeCloseTo(210 / 1.8, 0);
+    expect(big.mechBand![1]).toBeLessThan(1400);
     // The others keep their tone free of clatter.
     for (const v of ['inlineSix', 'v8', 'outboardV8'] as const) expect(CONFIG.engineVoices[v].mech).toBe(0);
     // In her recipe: the game plays it.
