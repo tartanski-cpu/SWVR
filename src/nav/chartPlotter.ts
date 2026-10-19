@@ -18,6 +18,11 @@ const H = 384;
 /** Land layer resolution (m per pixel) and margin around the islands (m). */
 const RES = 8;
 const MARGIN = 700;
+/**
+ * At most this many land samples a region (it's sampled on the frame when it first comes into
+ * view): a big region (the Fjord's mountain) is sampled coarser than RES so it doesn't hitch.
+ */
+const MAX_SAMPLES = 260_000;
 
 /**
  * A simple overhead chartplotter, north up, centred on own ship. It zooms to keep in view
@@ -38,7 +43,7 @@ export class ChartPlotter {
   private readonly g: CanvasRenderingContext2D;
   private readonly texture: THREE.CanvasTexture;
   /** The land, shallows and sea of each region, sampled from the terrain once when first in view (regions). */
-  private readonly lands = new Map<string, { canvas: HTMLCanvasElement; x0: number; z0: number }>();
+  private readonly lands = new Map<string, { canvas: HTMLCanvasElement; x0: number; z0: number; res: number }>();
   private dark = false;
   private since = Infinity;
   /** Debug: draw the targets too. */
@@ -93,8 +98,9 @@ export class ChartPlotter {
     z0 -= MARGIN;
     x1 += MARGIN;
     z1 += MARGIN;
-    const cw = Math.ceil((x1 - x0) / RES);
-    const ch = Math.ceil((z1 - z0) / RES);
+    const res = Math.max(RES, Math.sqrt(((x1 - x0) * (z1 - z0)) / MAX_SAMPLES));
+    const cw = Math.ceil((x1 - x0) / res);
+    const ch = Math.ceil((z1 - z0) / res);
     const c = document.createElement('canvas');
     c.width = cw;
     c.height = ch;
@@ -102,7 +108,7 @@ export class ChartPlotter {
     const img = g.createImageData(cw, ch);
     for (let j = 0; j < ch; j++) {
       for (let i = 0; i < cw; i++) {
-        const h = groundHeight(x0 + (i + 0.5) * RES, z0 + (j + 0.5) * RES);
+        const h = groundHeight(x0 + (i + 0.5) * res, z0 + (j + 0.5) * res);
         // Deep water, shallows (< 6 m), beach, land.
         const [r, gg, b] = h > 3 ? [118, 128, 86] : h > 0 ? [196, 178, 126] : h > -6 ? [44, 98, 118] : [16, 46, 66];
         const k = (j * cw + i) * 4;
@@ -113,7 +119,7 @@ export class ChartPlotter {
       }
     }
     g.putImageData(img, 0, 0);
-    this.lands.set(region.id, { canvas: c, x0, z0 });
+    this.lands.set(region.id, { canvas: c, x0, z0, res });
   }
 
   update(world: WorldState, vesselId: string, dt: number, visible: boolean): void {
@@ -184,7 +190,7 @@ export class ChartPlotter {
       if (!this.lands.has(r.id)) this.buildLand(r);
       const land = this.lands.get(r.id)!;
       const [dx, dz] = toPx(land.x0, land.z0);
-      g.drawImage(land.canvas, dx, dz, (land.canvas.width * RES) / mpp, (land.canvas.height * RES) / mpp);
+      g.drawImage(land.canvas, dx, dz, (land.canvas.width * land.res) / mpp, (land.canvas.height * land.res) / mpp);
     }
 
     // The crew's pencil marks from the paper chart, faint.

@@ -2122,6 +2122,10 @@ export const CONFIG = {
       { name: 'Feed sack', mass: 45, size: [0.6, 0.35, 0.9] as [number, number, number], shape: 'box' as const, slots: 1 },
       { name: 'Building materials', mass: 60, size: [0.8, 0.5, 0.6] as [number, number, number], shape: 'box' as const, slots: 1 },
       { name: 'Whisky cask', mass: 80, size: [0.6, 0.85, 0.6] as [number, number, number], shape: 'drum' as const, slots: 2 },
+      // The Fjord's: feed pellets for the farm, salmon from it (iced, in an insulated box), sawn timber.
+      { name: 'Feed pellets', mass: 40, size: [0.6, 0.3, 0.85] as [number, number, number], shape: 'box' as const, slots: 1 },
+      { name: 'Salmon box', mass: 32, size: [0.9, 0.35, 0.5] as [number, number, number], shape: 'box' as const, slots: 1 },
+      { name: 'Timber', mass: 70, size: [0.5, 0.4, 1.6] as [number, number, number], shape: 'box' as const, slots: 2 },
       /**
        * A lobster / crab pot (potting/potting.ts): not trade cargo (never spawned at the
        * ports' goods stacks), but carried, stowed and lashed the same way. A creel: a
@@ -2130,7 +2134,7 @@ export const CONFIG = {
       { name: 'Pot', mass: 24, size: [0.75, 0.42, 0.5] as [number, number, number], shape: 'pot' as const, slots: 2 },
     ],
     /** How many of `kinds` (from the start) are trade cargo, spawned at the goods stacks. */
-    tradeKinds: 8,
+    tradeKinds: 11,
     twoHandKg: 60,
     /**
      * Unlashed cargo on deck slides when the apparent gravity along the deck (heel, trim,
@@ -2157,6 +2161,32 @@ export const CONFIG = {
    *   windDir  the wind comes FROM this bearing, wandering +-`windDirSpread`
    * Fog banks (where, how thick) are level data: each region's `fogBanks` (world/regions/).
    */
+  /**
+   * Katabatic gusts (environment/gusts.ts; the zones are each region's `gusts`, when they fall
+   * its weather profile's `katabatic`).
+   *   rise, fall   a gust comes up over `rise` s and dies away over `fall` s
+   *   flutter      it pulses: its strength dips by up to this fraction (two slow sines)
+   *   edge         across its zone it fades out over this outer fraction of the radius
+   *   nearBias     how often it falls on the zone nearest the home boat (else any of the region's)
+   *   maxBaseWind  no gusts while the weather's own wind is over this (m/s): lost in a gale
+   *   firstAfter   the first one falls this long after you come into a region with gusts (s)
+   *   debugLast    the debug menu's "Gust now" blows this long (s)
+   *   lead         the dark patch on the water shows this long before the wind arrives (s)
+   *   look         its patch on the water: how much darker, how much streaked with spray (0..1)
+   */
+  gusts: {
+    rise: 4,
+    fall: 10,
+    flutter: 0.3,
+    edge: 0.4,
+    nearBias: 0.7,
+    maxBaseWind: 9,
+    firstAfter: 90,
+    debugLast: 45,
+    lead: 3,
+    look: { darken: 0.3, spray: 0.4 },
+  },
+
   weather: {
     startPreset: 'Clear' as WeatherPresetName,
     /** Fix the weather to the start preset for a session (no director). */
@@ -3790,6 +3820,8 @@ export const CONFIG = {
     lightVisFactor: 1.3,
     /** Far-off land is nudged toward the camera by this many depth units (silhouettes; see render.far). */
     silhouetteDepthUnits: -4,
+    /** A waterfall's ribbon stands this far off the rock, toward the water (m): the drawn walls are coarse. */
+    fallStandOff: 4,
   },
 
   /**

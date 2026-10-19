@@ -47,7 +47,7 @@ export class WindSock {
   }
 
   update(s: VesselState, env: EnvironmentState, dt: number): void {
-    windVector(env, this.wind);
+    windVector(env, this.wind, { x: s.position[0], z: s.position[2] });
     // Apparent wind in the boat's axes.
     this.q.fromArray(s.orientation).invert();
     this.v.set(this.wind.x - s.linearVelocity[0], 0, this.wind.z - s.linearVelocity[2]).applyQuaternion(this.q);

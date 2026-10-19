@@ -24,6 +24,7 @@ import { HydroDebugView } from '../debug/hydroDebugView';
 import { onCrane, recoverCheck } from '../vessel/tenderCrane';
 import { hydraulicsOn, isPowered } from '../vessel/electrics';
 import { beaufort, compass8, visibilityAt, windVector } from '../environment/weather';
+import { gustZone } from '../environment/gusts';
 import { RainView } from '../environment/rainView';
 import { ChartTableView } from '../vessel/view/chartTable';
 import { dipstickReading } from '../vessel/maintenance';
@@ -54,7 +55,7 @@ import { WristMenu } from '../ui/wristMenu';
 import { mainMenu, type MenuHost } from '../ui/mainMenu';
 import { placeInFront } from '../ui/placeInFront';
 import { canRefuel, releaseHolds } from '../vessel/vesselControl';
-import { CURRENTS, FISHING_GROUNDS, PORTS } from '../world/archipelago';
+import { CURRENTS, FISHING_GROUNDS, GUSTS, PORTS } from '../world/archipelago';
 import { raceRoarLevel, raceStrength, setRaceClock } from '../world/currents';
 import { REGIONS, regionById } from '../world/regions';
 import { groundHeight } from '../world/terrain';
@@ -755,6 +756,10 @@ export class App {
         regions: this.worldView.regionStates().map((r) => ({ id: r.region.id, bounds: r.region.bounds, resident: r.resident, building: r.building, outline: r.outline })),
         landmarks: REGIONS.flatMap((r) => r.landmarks),
         races: CURRENTS.map((z) => ({ x: z.x, z: z.z, length: z.length, width: z.width, setDeg: z.setDeg, kn: raceStrength(z) * z.peakKn })),
+        gusts: GUSTS.map((z) => {
+          const g = this.world.environment.weather?.gust;
+          return { x: z.x, z: z.z, r: z.r, s: g?.zone === z.id ? g.s : 0 };
+        }),
         viewer: { x: this.focus.x, z: this.focus.z, headingDeg: ((Math.atan2(this.tmpV.x, -this.tmpV.z) * 180) / Math.PI + 360) % 360 },
       });
     } else this.overlay.setRegionMap(null);
@@ -877,6 +882,7 @@ export class App {
     this.environment.update(this.world.environment, this.focus, this.world.time);
     this.sky.update(this.environment, this.focus);
     this.ocean.update(this.renderWaves, this.focus, this.environment, renderTime, windVector(this.world.environment, this.windNow));
+    this.ocean.setGust(this.world.environment.weather?.gust);
     this.probes.update(this.renderWaves, this.camera);
   }
 
@@ -1983,6 +1989,17 @@ export class App {
       setWeather: (name) => this.pushEnvIntent('weatherForce', Object.keys(CONFIG.weather.presets).indexOf(name)),
       raceOverride: () => (env().raceOverride === 'peak' ? 1 : env().raceOverride === 'slack' ? 2 : 0),
       setRaceOverride: (v) => this.pushEnvIntent('raceOverride', v),
+      gustNow: () => {
+        const v = this.world.vessels[this.testVesselId];
+        const at = v ? v.position : [this.focus.x, 0, this.focus.z];
+        this.intents.push({ playerId: this.localPlayerId, targetId: ENVIRONMENT_ID, control: 'gustNow', value: 1, args: [at[0], at[2]] });
+      },
+      gustStatus: () => {
+        const g = env().weather?.gust;
+        const zone = gustZone(g);
+        if (zone && g) return `Gust on ${zone.name}: ${Math.round(g.peak * g.s)} m/s`;
+        return g ? `None; next in ${Math.max(0, Math.round((g.nextAt - this.world.time) / 60))} min (in a region with gusts)` : 'None here';
+      },
       weatherFixed: () => env().weather?.fixed ?? true,
       setWeatherFixed: (on) => this.pushEnvIntent('weatherFixed', on ? 1 : 0),
       weatherFast: () => (env().weather?.speed ?? 1) > 1,
@@ -3556,7 +3573,8 @@ export class App {
   private updateWindSound(dt: number): void {
     const p = this.world.players[this.localPlayerId];
     const v = p?.aboardVesselId ? this.world.vessels[p.aboardVesselId] : undefined;
-    windVector(this.world.environment, this.windV);
+    // The wind where you are (a katabatic gust falling on you is in it: you hear it come).
+    windVector(this.world.environment, this.windV, { x: this.focus.x, z: this.focus.z });
     const ax = this.windV.x - (v?.linearVelocity[0] ?? 0);
     const az = this.windV.z - (v?.linearVelocity[2] ?? 0);
     const wh = this.testDef.layout.wheelhouse;

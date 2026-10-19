@@ -13,7 +13,7 @@ const wind = { x: 0, z: 0 };
 
 /** Drift velocity at (x, z) now (m/s, world x, z), written to `out`. */
 export function driftVelocity(env: EnvironmentState, x: number, z: number, out: { x: number; z: number }): { x: number; z: number } {
-  const w = windVector(env, wind);
+  const w = windVector(env, wind, { x, z });
   out.x = CONFIG.rescue.drift[0] + w.x * CONFIG.weather.driftPerWind;
   out.z = CONFIG.rescue.drift[1] + w.z * CONFIG.weather.driftPerWind;
   addCurrent(x, z, out);

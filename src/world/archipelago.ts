@@ -9,15 +9,19 @@
  * World axes: +X east, -Z north, metres; heights above mean sea level (MSL = y 0).
  */
 import { REGIONS } from './regions';
+import { farmBlocks } from './farms';
 import type {
   BerthDef,
   BlockDef,
   BuildingDef,
+  ChannelDef,
   CurrentZoneDef,
   CutDef,
   FishingGroundDef,
+  FarmDef,
   FlatDef,
   FogBankDef,
+  GustZoneDef,
   IslandDef,
   LampDef,
   LightDef,
@@ -37,7 +41,11 @@ export const ISLANDS: IslandDef[] = REGIONS.flatMap((r) => r.islands);
 export const CUTS: CutDef[] = REGIONS.flatMap((r) => r.cuts);
 export const FLATS: FlatDef[] = REGIONS.flatMap((r) => r.flats);
 export const RIDGES: RidgeDef[] = REGIONS.flatMap((r) => r.ridges);
-export const BLOCKS: BlockDef[] = REGIONS.flatMap((r) => r.blocks);
+/** Quays, piers and barges, and the fish farms' cage rings (farms.ts: solid to a boat, drawn by the farm). */
+export const BLOCKS: BlockDef[] = REGIONS.flatMap((r) => [...r.blocks, ...(r.farms ?? []).flatMap(farmBlocks)]);
+export const CHANNELS: ChannelDef[] = REGIONS.flatMap((r) => r.channels ?? []);
+export const FARMS: FarmDef[] = REGIONS.flatMap((r) => r.farms ?? []);
+export const GUSTS: GustZoneDef[] = REGIONS.flatMap((r) => r.gusts ?? []);
 export const BUILDINGS: BuildingDef[] = REGIONS.flatMap((r) => r.buildings);
 export const MARKS: MarkDef[] = REGIONS.flatMap((r) => r.marks);
 export const WRECKS: WreckDef[] = REGIONS.flatMap((r) => r.wrecks);

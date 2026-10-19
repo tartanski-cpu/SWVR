@@ -1,6 +1,7 @@
 import { applySlipIntent, isSlipIntent, stepSlipway } from '../world/slipway';
 import { applyEnvironmentIntent, stepEnvironment } from '../environment/timeOfDay';
 import { stepWeather } from '../environment/weather';
+import { stepGusts } from '../environment/gusts';
 import { setRaceClock, stepRaceKnocks } from '../world/currents';
 import { applyCameraIntent, isCameraIntent, stepCameraHolds } from '../player/cameraHold';
 import { windForce } from '../vessel/physics/windage';
@@ -123,7 +124,10 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
   stepEnvironment(world.environment, dt);
   // The weather director follows the profile of the region the home boat is in.
   const hv = homeVessel(world);
-  stepWeather(world.environment, world.time, dt, hv ? regionAt(hv.position[0], hv.position[2]).weather : undefined);
+  const hvRegion = hv ? regionAt(hv.position[0], hv.position[2]) : undefined;
+  stepWeather(world.environment, world.time, dt, hvRegion?.weather);
+  // Katabatic gusts off the mountains (the region the home boat is in, if it has any).
+  stepGusts(world.environment, world.time, hvRegion, hv?.position[0] ?? 0, hv?.position[2] ?? 0);
   // The tidal races' strength from the game clock: the water every sample reads this tick.
   setRaceClock(world.environment.timeOfDay, world.environment.raceOverride);
   simWaves = prepareWaves(world.environment.waves, world.time, simWaves);

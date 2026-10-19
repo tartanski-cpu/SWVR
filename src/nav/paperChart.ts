@@ -13,7 +13,7 @@
  * table): sized to be read from standing height on desktop without leaning in.
  */
 import { CONFIG } from '../config';
-import { CURRENTS, MARKS, MAX_DEPTH, PORTS, WRECKS, type MarkKind } from '../world/archipelago';
+import { CURRENTS, LIGHTS, MARKS, MAX_DEPTH, PORTS, WRECKS, type MarkKind } from '../world/archipelago';
 import { slackTimes } from '../world/currents';
 import { LIGHT_CHARACTERS } from '../world/navMarks';
 import { groundHeight } from '../world/terrain';
@@ -199,6 +199,36 @@ export function drawPaperChart(widthPx = 2048, sheet: ChartSheet = sheetById('ho
   // Buoys: a small pillar (can, cone) in the mark's colours with its topmark, the light's
   // magenta flare and its character (as charted).
   for (const m of MARKS) drawMark(g, m.kind, px(m.x), pz(m.z), u * 0.6, (text, tx, ty) => label(text, tx, ty, `italic ${13 * u}px Georgia, serif`, '#9a1f78'));
+
+  // Lights (regions brief: a lighthouse is identified at night from the chart): the
+  // position dot with a magenta flare and the light's character as charted (Fl W 6s: a
+  // white flash every 6 s; F R: fixed red). Lighthouses on every sheet; the smaller pier,
+  // quay and channel lights on the detail sheets only (they'd crowd the archipelago sheet).
+  for (const l of LIGHTS) {
+    if (l.x < b.x0 || l.x > b.x1 || l.z < b.z0 || l.z > b.z1) continue;
+    if (l.tower !== 'lighthouse' && sheet.textScale < 1) continue;
+    const x = px(l.x);
+    const y = pz(l.z);
+    const big = l.tower === 'lighthouse';
+    g.fillStyle = 'rgba(190, 40, 150, 0.55)';
+    g.beginPath();
+    g.ellipse(x + 10 * u, y - 10 * u, (big ? 13 : 8) * u, (big ? 5 : 3.5) * u, -0.7, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = INK;
+    g.beginPath();
+    g.arc(x, y, (big ? 4 : 2.5) * u, 0, Math.PI * 2);
+    g.fill();
+    // A small light beside a port's name or a buoy goes unlabelled (the harbour is named, and
+    // its labels would pile up); one of a pair labels on the side away from the other.
+    if (!big && (PORTS.some((p) => Math.hypot(p.x - l.x, p.z - l.z) < 120) || MARKS.some((m) => Math.hypot(m.x - l.x, m.z - l.z) < 120))) continue;
+    const mate = LIGHTS.find((o) => o !== l && Math.hypot(o.x - l.x, o.z - l.z) < 250);
+    const left = !!mate && mate.x > l.x;
+    const colour = l.color === 'white' ? 'W' : l.color === 'red' ? 'R' : 'G';
+    const ch = l.period > 0 ? `Fl ${colour} ${l.period}s` : `F ${colour}`;
+    g.textAlign = left ? 'right' : 'left';
+    label(ch, x + (left ? -10 : big ? 24 : 16) * u, y - 2 * u, `italic ${(big ? 15 : 12) * u}px Georgia, serif`, '#9a1f78');
+    g.textAlign = 'center';
+  }
 
   // Tidal races (regions): the zone's outline turned to its set, a double-headed arrow
   // (it runs both ways), and the note a chart prints: the peak rate, the cycle, the slack times.

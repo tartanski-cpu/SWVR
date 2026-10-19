@@ -75,7 +75,8 @@ function detailSheet(regionId: string): ChartSheet {
 export const SHEETS: ChartSheet[] = [
   {
     id: 'archipelago',
-    title: 'THE SOUNDS AND SKERRY SOUND',
+    // Every region by name: "SKERRY SOUND, THE SOUNDS AND THE FJORD".
+    title: REGIONS.map((r) => r.name.toUpperCase()).join(', ').replace(/, ([^,]*)$/, ' AND $1'),
     bounds: padToAspect(islandBox(REGIONS.flatMap((r) => r.islands), 900), SHEET_ASPECT),
     gridMinutes: 2,
     soundingStep: 900,

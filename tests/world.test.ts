@@ -39,7 +39,13 @@ function boatAt(x: number, z: number, headingDeg: number, calm = true) {
 
 describe('terrain', () => {
   it('islands rise above the sea, open water is deep, the start is clear', () => {
-    for (const isl of ISLANDS) expect(groundHeight(isl.x, isl.z)).toBeGreaterThan(isl.height * 0.5);
+    // Each island's high ground: the highest point near its middle (a fjord may run through the
+    // very middle of a mountain mass).
+    for (const isl of ISLANDS) {
+      let top = -Infinity;
+      for (let a = -2; a <= 2; a++) for (let b = -2; b <= 2; b++) top = Math.max(top, groundHeight(isl.x + (a * isl.radius) / 5, isl.z + (b * isl.radius) / 5));
+      expect(top).toBeGreaterThan(isl.height * 0.5);
+    }
     expect(groundHeight(0, 0)).toBeLessThan(-30);
     expect(groundHeight(0, -22)).toBeLessThan(-30);
   });

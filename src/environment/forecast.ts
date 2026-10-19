@@ -10,6 +10,7 @@ import { homeVessel, type WorldState } from '../core/world';
 import { isPowered } from '../vessel/electrics';
 import { beaufort, compass8, type WeatherState } from './weather';
 import { CURRENTS } from '../world/archipelago';
+import { REGIONS } from '../world/regions';
 import { raceReading } from '../world/currents';
 import type { EnvironmentState } from './environmentState';
 
@@ -60,6 +61,17 @@ export function racesText(env: EnvironmentState): string {
   }).join(' ');
 }
 
+/**
+ * Katabatic gusts (regions with mountains): a warning line each while the weather is light
+ * enough for them (in a gale they're lost in it), with the force they reach.
+ */
+export function gustsText(w: WeatherState): string {
+  if (w.now.wind > CONFIG.gusts.maxBaseWind) return '';
+  return REGIONS.filter((r) => r.weather?.katabatic && r.gusts?.length)
+    .map((r) => `${r.name}: sudden squalls off the mountains without warning, force ${beaufort(Math.max(...r.gusts!.map((g) => g.peakMs)))} at times.`)
+    .join(' ');
+}
+
 /** The forecast as read out: now, then the next change and roughly when, then the races. */
 export function forecastText(w: WeatherState, time: number, env?: EnvironmentState): string {
   const now = w.now;
@@ -75,6 +87,7 @@ export function forecastText(w: WeatherState, time: number, env?: EnvironmentSta
       ? 'No change expected.'
       : `Becoming ${SKY[w.next.preset]} ${when}: wind ${dir} ${beaufort(nextP.wind)}, visibility ${visibilityWord(nextP.visibility)}.`,
     env ? racesText(env) : '',
+    gustsText(w),
   ];
   return parts.filter(Boolean).join(' ');
 }

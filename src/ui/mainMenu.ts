@@ -186,6 +186,9 @@ export interface MenuHost {
   /** Debug: the tidal races pinned (0 the clock, 1 peak, 2 slack). */
   raceOverride(): number;
   setRaceOverride(v: number): void;
+  /** Debug: a katabatic gust now, on the zone nearest the boat; and what the gusts are doing. */
+  gustNow(): void;
+  gustStatus(): string;
   seaTrialsShown(): boolean;
   toggleSeaTrials(): void;
   /** Which boat you start in (modular boats M7: the workboat, or the landing craft); choosing one restarts the game in her. */
@@ -650,6 +653,8 @@ export function mainMenu(h: MenuHost): MainMenu {
         },
         { heading: 'Tidal races' },
         { label: 'Running', buttons: [choice('By the clock', 0, () => h.raceOverride(), (v) => h.setRaceOverride(v)), choice('Peak', 1, () => h.raceOverride(), (v) => h.setRaceOverride(v)), choice('Slack', 2, () => h.raceOverride(), (v) => h.setRaceOverride(v))] },
+        { heading: 'Katabatic gusts' },
+        { label: '', buttons: [{ text: 'Gust now (nearest zone)', press: () => h.gustNow() }, { text: () => h.gustStatus(), weight: 1.6 }] },
         { heading: 'Move' },
         { label: 'To port', buttons: PORTS.map((_, i) => ({ text: () => h.ports()[i]?.name ?? '', press: () => h.teleportToPort(i) })) },
         { label: 'To region', buttons: REGIONS.map((r) => ({ text: r.name, press: () => h.teleportToRegion(r.id) })) },

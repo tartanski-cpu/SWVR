@@ -33,6 +33,9 @@ uniform vec3 uTorchColor;       // 0 when off
 // Tidal races: the whirl points (x, z, radius, strength 0..1) for the whirl patches.
 uniform vec4 uKnock[MAX_KNOCKS];
 uniform int uKnockCount;
+uniform vec4 uGust;             // a katabatic gust: x, z, radius, strength (0: none)
+uniform vec2 uGustDir;          // the way it blows (world x, z)
+uniform vec2 uGustLook;         // how much darker, how much spray (CONFIG.gusts.look)
 uniform float uTime;
 varying float vRace;
 uniform vec3 uFogColor;
@@ -193,6 +196,25 @@ void main() {
     col *= 1.0 - 0.35 * eye;
     float wf = clamp(max(broken * 0.4, whirl * 0.8), 0.0, 1.0) * near;
     col = mix(col, uFoam * (0.4 * uAmbient + 0.3 * uSunIntensity), wf);
+  }
+
+  // A katabatic gust: the water under it goes dark and ruffled (cat's paws), streaked with
+  // spray blown along the way it goes, strongest in the middle of its patch. Uniform branch:
+  // nothing to do between gusts.
+  if (uGust.w > 0.01) {
+    vec2 gd = vWorldPos.xz - uGust.xy;
+    float gr = length(gd) / uGust.z;
+    if (gr < 1.0) {
+      float gs = (1.0 - smoothstep(0.55, 1.0, gr)) * uGust.w;
+      vec2 gacross = vec2(-uGustDir.y, uGustDir.x);
+      float galong = dot(vWorldPos.xz, uGustDir);
+      float gside = dot(vWorldPos.xz, gacross);
+      // Spray streaks: long along the gust, narrow across it, racing downwind.
+      float gn = texture2D(uFoamNoise, vec2(gside * 0.16, galong * 0.014 - uTime * 0.6)).r;
+      float gspray = smoothstep(0.7, 0.88, gn) * gs * gs;
+      col *= 1.0 - uGustLook.x * gs;
+      col = mix(col, uFoam * (0.4 * uAmbient + 0.3 * uSunIntensity), gspray * uGustLook.y);
+    }
   }
 
   float fogF = clamp((dist - uFogNear) / (uFogFar - uFogNear), 0.0, 1.0);

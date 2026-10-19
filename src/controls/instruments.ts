@@ -448,7 +448,7 @@ const paintEngineMonitor: Painter = (g, s) => {
 
 /** True and apparent wind where the boat is: speed (m/s) and the direction it blows FROM. */
 function winds(s: VesselState, env: EnvironmentState | null): { trueFrom: number; trueSpd: number; appRel: number; appSpd: number } {
-  const w = env ? windVector(env, { x: 0, z: 0 }) : { x: 0, z: 0 };
+  const w = env ? windVector(env, { x: 0, z: 0 }, { x: s.position[0], z: s.position[2] }) : { x: 0, z: 0 };
   const trueSpd = Math.hypot(w.x, w.z);
   // Blowing toward (x, z); FROM is the opposite bearing (0 = north = -z).
   const trueFrom = trueSpd > 0.05 ? ((Math.atan2(-w.x, w.z) * 180) / Math.PI + 360) % 360 : 0;

@@ -1,6 +1,6 @@
 # Regions: growing the world
 
-Status: **agreed with the owner (Oct 2026); milestones 1 to 4 done, awaiting the owner's test.** The running record is PROGRESS.md "Regions".
+Status: **agreed with the owner (Oct 2026); milestones 1 to 5 done, awaiting the owner's test.** The running record is PROGRESS.md "Regions".
 
 The owner's brief, in short: grow the world by adding **regions** round home, each with its own geography, weather, fish, goods and towing jobs, reached by a short passage across open water, all still running in the browser on the Quest. The design intent, what a region defines, the tidal races as current zones, the four regions and the technical rules are the owner's; the decisions and the plan below are what was agreed in the session that started the work.
 
@@ -23,7 +23,7 @@ A region is **data, never code of its own**: one file in `src/world/regions/` ho
 
 - **All regions' data is always live** (terrain, harbours, charts, jobs), so the host can simulate a crew member's skiff in another region and the charts know the whole world. Only the **drawing** is streamed per client by the viewer's position: full meshes inside a load distance, a cheap silhouette (landmark hill, island outline) beyond it, built once in a worker and kept. Three regions at first, five at most.
 - **Budget:** two resident regions may cost at most ~30 % more than today's scene (about 160k triangles, 65k of them land). New regions go leaner on trees; measured on the headset with the perf overlay.
-- **One sky.** The weather profile in force is that of the region the host's own boat is in; the director's next pick uses the new weights when you cross. Katabatic gusts and the Mistral event are new preset kinds a region's profile can reach.
+- **One sky.** The weather profile in force is that of the region the host's own boat is in; the director's next pick uses the new weights when you cross. The Mistral event is to be a new preset kind a region's profile can reach. **Katabatic gusts are not a preset** (decided in M5): a preset holds minutes of the same wind everywhere, while a katabatic gust is local and short. They are events on gust zones (`RegionDef.gusts`), falling when the region's profile says (`katabatic`), in light weather only.
 - **The exposed pier's weather window is not a rule:** a pier with no shelter zone, facing the prevailing sea, punishes you through the contact physics and hull damage. The chart and forecast state the window.
 - **Anchorages:** bottom type scales the anchor's holding; shelter zones get an optional open arc, so a bay sheltered from all but the south is calm until the sea comes from the south.
 - **Current zones are oriented rectangles** (centre, length along the set, width, set direction), not free polygons: the ocean shader tests them exactly the same way the physics does; a polygon would need a lookup texture. They go in as the shelter zones did: one list, read on the CPU (the water velocity at each hull station: the vessel physics already works against it) and in the ocean shader (standing waves, whirl patches, foam). One shared drift helper for everything that floats.
@@ -40,7 +40,7 @@ A region is **data, never code of its own**: one file in `src/world/regions/` ho
 2. **Seeing far, and streaming** (done): far plane, visibility-driven fog and cull distances, landmark silhouettes, worker-built meshes, load and unload by distance, the debug map and teleport, the budget measured; the Sounds as a stub with only its landmark hill to prove it.
 3. **Current zones** (done): the race mechanic, surface effects, sound, knock points, chart symbol and forecast line, debug set-to-peak and set-to-slack; the trial race Sruth Tarsk in the sound on the crossing to the Sounds.
 4. **The Sounds** (done): the full region with spine, repair yard, two races, cliff inlet with leading line, directional shelter, species, goods, jobs; the per-port economy and job templates every later region uses; the archipelago sheet and the detail sheets; the regional weather profile.
-5. **The Fjord:** narrow entrance, katabatic gusts, cheap fuel, the fish farm, the first new mechanics.
+5. **The Fjord** (done): the fjord and its walls, the race in the narrows, the 100 m side fjord, katabatic gusts, the cheapest fuel, the fish farm (cages solid, the barge a port for feed and salmon), waterfalls, the region's look (theme). The new jobs that need new mechanics (the mooring block with the crane, the vet as a passenger) come after its first version, as agreed.
 6. **The Narrows:** the 12 kn race with the pinnacle, the buoyed dog-leg, wrecks, log booms, the night escort.
 7. **The Calanques:** Mediterranean theme, the strait with eddies, inlets, the Mistral event, the chandlery, stern-to mooring, the busiest traffic.
 8. **Polish and balance:** every region resident in turn on the headset within budget, chart and forecast complete, each region's reason to go actually pulling.

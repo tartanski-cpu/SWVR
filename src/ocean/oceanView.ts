@@ -15,6 +15,7 @@ import { knockPoints, raceStrength, setVector } from '../world/currents';
 export const MAX_RACES = 4;
 export const MAX_KNOCKS = 12;
 import { MAX_SHELTERS } from '../world/shelter';
+import { gustZone, type GustState } from '../environment/gusts';
 
 export const MAX_WAVES = 8;
 export { gerstnerChunk };
@@ -68,6 +69,10 @@ export class OceanView {
     uRaceFade: { value: CONFIG.currents.edgeFade },
     uKnock: { value: Array.from({ length: MAX_KNOCKS }, () => new THREE.Vector4()) },
     uKnockCount: { value: 0 },
+    // A katabatic gust's patch on the water (setGust): x, z, radius, strength; the way it blows.
+    uGust: { value: new THREE.Vector4() },
+    uGustDir: { value: new THREE.Vector2(1, 0) },
+    uGustLook: { value: new THREE.Vector2(CONFIG.gusts.look.darken, CONFIG.gusts.look.spray) },
     uTime: { value: 0 },
     uDeep: { value: new THREE.Color(CONFIG.ocean.colors.deep) },
     uScatter: { value: new THREE.Color(CONFIG.ocean.colors.scatter) },
@@ -177,6 +182,22 @@ export class OceanView {
       u.uRaceB.value[i].z = st;
       for (let k = 0; k < z.knocks && nk < MAX_KNOCKS; k++) u.uKnock.value[nk++].w = Math.abs(st);
     });
+  }
+
+  /**
+   * A katabatic gust's patch on the water (environment/gusts.ts): darker, ruffled water
+   * streaked with spray down the way it blows, a few seconds ahead of the wind itself.
+   */
+  setGust(g: GustState | undefined): void {
+    const u = this.uniforms;
+    const zone = gustZone(g);
+    if (!zone || !g || g.look <= 0.01) {
+      u.uGust.value.w = 0;
+      return;
+    }
+    const to = ((zone.fromDeg + 180) * Math.PI) / 180;
+    u.uGust.value.set(zone.x, zone.z, zone.r, g.look);
+    u.uGustDir.value.set(Math.sin(to), -Math.cos(to));
   }
 
   /** The searchlight's pool on the water (intensity 0 = off). */

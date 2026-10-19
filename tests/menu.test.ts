@@ -89,6 +89,8 @@ function fakeHost() {
     regionMap: () => false,
     raceOverride: () => 0,
     setRaceOverride: (v) => calls.push(`race ${v}`),
+    gustNow: () => calls.push('gust'),
+    gustStatus: () => 'None here',
     toggleRegionMap: () => calls.push('regionMap'),
     runStatus: () => 'No cargo run',
     rescueNow: () => calls.push('rescue'),

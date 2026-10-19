@@ -87,7 +87,8 @@ describe('regions', () => {
     const flat = REGIONS.flatMap((r) => r.islands);
     expect(ISLANDS).toEqual(flat);
     expect(PORTS.slice(0, HOME.ports.length)).toEqual(HOME.ports);
-    expect(BLOCKS.length).toBe(REGIONS.reduce((n, r) => n + r.blocks.length, 0));
+    // Blocks: the regions' quays, piers and barges, and a low block for each fish-farm cage ring.
+    expect(BLOCKS.length).toBe(REGIONS.reduce((n, r) => n + r.blocks.length + (r.farms ?? []).reduce((k, f) => k + f.rows * f.cols, 0), 0));
     expect(MARKS.length).toBe(REGIONS.reduce((n, r) => n + r.marks.length, 0));
     expect(FOG_BANKS.length).toBe(REGIONS.reduce((n, r) => n + r.fogBanks.length, 0));
     expect(FISHING_GROUNDS.length).toBe(REGIONS.reduce((n, r) => n + r.fishingGrounds.length, 0));
@@ -95,7 +96,7 @@ describe('regions', () => {
 
   it('home is v1.0 world, unchanged: the same places in the same spots', () => {
     // A few fixed points, so a slip while moving the data would show.
-    expect(PORTS.map((p) => p.id)).toEqual(['calder', 'brannock', 'selkie', 'tarsk', 'garbh', 'camas']);
+    expect(PORTS.map((p) => p.id)).toEqual(['calder', 'brannock', 'selkie', 'tarsk', 'garbh', 'camas', 'kvassvik', 'kvassfarm', 'ytterbrygga', 'trangvika']);
     expect(ISLANDS.find((i) => i.name === 'Calder Holm')).toMatchObject({ x: 960, z: 650, radius: 330, height: 44 });
     expect(LIGHTS.find((l) => l.tower === 'lighthouse')).toMatchObject({ x: 1400, z: -250, period: 10 });
     expect(WRECKS[0]).toMatchObject({ name: 'Margaret Ann', x: 41, z: 478 });

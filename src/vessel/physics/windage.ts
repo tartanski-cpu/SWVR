@@ -51,8 +51,9 @@ function clrZ(def: VesselDef): number {
 
 /** The wind's force on a vessel this tick, or null in a calm / without weather. */
 export function windForce(s: VesselState, def: VesselDef, env: EnvironmentState): ExternalForce | null {
-  windVector(env, wind);
-  if (!env.weather || env.weather.now.wind < 0.2) return null;
+  // The wind where she is: the weather's, plus a katabatic gust if one is falling on her.
+  windVector(env, wind, { x: s.position[0], z: s.position[2] });
+  if (!env.weather || Math.hypot(wind.x, wind.z) < 0.2) return null;
   const c = CONFIG.weather;
   // Apparent wind in vessel axes.
   q.fromArray(s.orientation);

@@ -36,6 +36,8 @@ export interface RegionMapData {
   landmarks: { x: number; z: number }[];
   /** The tidal races: the zone and what it's doing now (kn, signed along its set). */
   races: { x: number; z: number; length: number; width: number; setDeg: number; kn: number }[];
+  /** Katabatic gust zones: the circle, and how hard it's blowing there now (0..1; 0 between gusts). */
+  gusts?: { x: number; z: number; r: number; s: number }[];
   /** The viewer (world x, z) and heading (deg, 0 north, clockwise). */
   viewer: { x: number; z: number; headingDeg: number };
 }
@@ -221,6 +223,20 @@ export class DebugOverlay {
       ctx.strokeRect(px(r.bounds.x0), pz(r.bounds.z0), w, h);
       ctx.fillStyle = '#dfe';
       ctx.fillText(r.id, px(r.bounds.x0) + 4, pz(r.bounds.z0) + size / 18);
+    }
+    // Gust zones: a dashed circle, filled while a gust is blowing on it.
+    for (const g of d.gusts ?? []) {
+      ctx.beginPath();
+      ctx.arc(px(g.x), pz(g.z), g.r * k, 0, Math.PI * 2);
+      ctx.setLineDash([4, 3]);
+      ctx.strokeStyle = g.s > 0.05 ? '#f4f4ff' : '#8a9ab8';
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+      ctx.setLineDash([]);
+      if (g.s > 0.05) {
+        ctx.fillStyle = `rgba(230,236,255,${(0.15 + 0.35 * g.s).toFixed(2)})`;
+        ctx.fill();
+      }
     }
     // Races: the zone's rectangle turned to its set, an arrow the way it runs, its speed.
     for (const r of d.races) {

@@ -16,7 +16,7 @@
  *
  * World axes: +X east, -Z north, metres; heights above MSL.
  */
-import type { IslandDef, RegionDef } from '../defs';
+import type { IslandDef, RegionDef, RegionTheme } from '../defs';
 import { groundHeight, slipSurface } from '../terrain';
 
 export const CELL = 6;
@@ -74,21 +74,45 @@ const SEABED = rgb(0x3e5a58);
 const GRASS = rgb(0x58823c);
 const HEATH = rgb(0x7b7a4a);
 const ROCK = rgb(0x77736b);
+const SNOW = rgb(0xeef2f4);
+
+/** A region's ground colours (RegionTheme; unset: home's grass, heather and rock). */
+interface Palette {
+  grass: RGB;
+  heath: RGB;
+  rock: RGB;
+  heathAbove: number;
+  snowAbove: number;
+}
+const HOME_PALETTE: Palette = { grass: GRASS, heath: HEATH, rock: ROCK, heathAbove: 30, snowAbove: Infinity };
+function paletteOf(t: RegionTheme | undefined): Palette {
+  if (!t) return HOME_PALETTE;
+  return {
+    grass: t.grass !== undefined ? rgb(t.grass) : GRASS,
+    heath: t.heath !== undefined ? rgb(t.heath) : HEATH,
+    rock: t.rock !== undefined ? rgb(t.rock) : ROCK,
+    heathAbove: t.heathAbove ?? 30,
+    snowAbove: t.snowAbove ?? Infinity,
+  };
+}
 
 /** The ground's colour from its height, slope (normal y) and a little per-spot variation. */
-export function terrainColor(h: number, ny: number, x: number, z: number): RGB {
+export function terrainColor(h: number, ny: number, x: number, z: number, p: Palette = HOME_PALETTE): RGB {
   let c: RGB;
-  if (h < -0.3) c = lerp3(WET_SAND, SEABED, Math.min(1, -h / 5));
-  else if (ny < 0.72) c = ROCK;
+  // Snow lies on the tops, but not on the steepest rock (it slides off), with a ragged line.
+  if (h > p.snowAbove + 25 * (hash(Math.round(x / 7), Math.round(z / 7)) - 0.5) && ny > 0.55) c = SNOW;
+  else if (h < -0.3) c = lerp3(WET_SAND, SEABED, Math.min(1, -h / 5));
+  else if (ny < 0.72) c = p.rock;
   else if (h < 1.7 && ny > 0.8) c = SAND;
-  else if (h > 30) c = HEATH;
-  else c = lerp3(GRASS, HEATH, Math.min(1, Math.max(0, (h - 18) / 14)));
+  else if (h > p.heathAbove) c = p.heath;
+  else c = lerp3(p.grass, p.heath, Math.min(1, Math.max(0, (h - (p.heathAbove - 12)) / 14)));
   const v = 0.92 + 0.16 * hash(Math.round(x), Math.round(z));
   return [c[0] * v, c[1] * v, c[2] * v];
 }
 
 /** Collects triangles with the flat-shaded colour of each. */
 class TriangleSink {
+  constructor(private readonly palette: Palette = HOME_PALETTE) {}
   pos: number[] = [];
   col: number[] = [];
   tri(ax: number, az: number, ah: number, bx: number, bz: number, bh: number, cx: number, cz: number, ch: number): void {
@@ -104,7 +128,7 @@ class TriangleSink {
     ny /= len;
     nz /= len;
     if (ny < 0) ny = -ny;
-    const c = terrainColor((ah + bh + ch) / 3, ny, (ax + bx + cx) / 3, (az + bz + cz) / 3);
+    const c = terrainColor((ah + bh + ch) / 3, ny, (ax + bx + cx) / 3, (az + bz + cz) / 3, this.palette);
     this.pos.push(ax, ah, az, bx, bh, bz, cx, ch, cz);
     for (let k = 0; k < 3; k++) this.col.push(c[0], c[1], c[2]);
   }
@@ -113,16 +137,25 @@ class TriangleSink {
   }
 }
 
-/** The grid cells (of `cell` m) round each of the islands, as unique keys. */
+/**
+ * The grid cells (of `cell` m) round each of the islands, as unique keys: those within
+ * `margin` m of the island's widest coastline (its radius stretched by its wobbles; beyond
+ * a few metres off the coast the seabed is too deep to draw).
+ */
 function islandCells(islands: readonly IslandDef[], cell: number, margin: number): Set<number> {
   const cells = new Set<number>();
   for (const isl of islands) {
-    const reach = isl.radius * 1.35 + margin;
+    const reach = isl.radius * (1 + isl.shape.reduce((s, [, a]) => s + Math.abs(a), 0)) + margin + cell;
     const i0 = Math.floor((isl.x - reach) / cell);
     const i1 = Math.ceil((isl.x + reach) / cell);
     const j0 = Math.floor((isl.z - reach) / cell);
     const j1 = Math.ceil((isl.z + reach) / cell);
-    for (let i = i0; i < i1; i++) for (let j = j0; j < j1; j++) cells.add(cellKey(i, j));
+    for (let i = i0; i < i1; i++)
+      for (let j = j0; j < j1; j++) {
+        const dx = (i + 0.5) * cell - isl.x;
+        const dz = (j + 0.5) * cell - isl.z;
+        if (dx * dx + dz * dz <= reach * reach) cells.add(cellKey(i, j));
+      }
   }
   return cells;
 }
@@ -142,7 +175,7 @@ export function buildTerrainArrays(region: RegionDef): TerrainArrays {
     }
     return h;
   };
-  const sink = new TriangleSink();
+  const sink = new TriangleSink(paletteOf(region.theme));
 
   // Lean high ground: blocks of N x N cells whose every corner is above `above` (and no
   // slipway near) are drawn as one quad. Decided per block, once.
@@ -248,9 +281,15 @@ export function buildTerrainArrays(region: RegionDef): TerrainArrays {
  * than a slope fighting the water for the pixels miles away).
  */
 export const SILHOUETTE_FLOOR = 0.4;
+/** A silhouette is drawn coarser than SILHOUETTE_CELL when it would take more cells than this (a big region). */
+const SILHOUETTE_MAX_CELLS = 5000;
 export function buildSilhouetteArrays(region: RegionDef): TerrainArrays {
-  const cell = SILHOUETTE_CELL;
-  const cells = islandCells(region.islands, cell, 0);
+  let cell = SILHOUETTE_CELL;
+  let cells = islandCells(region.islands, cell, 0);
+  if (cells.size > SILHOUETTE_MAX_CELLS) {
+    cell = Math.ceil(cell * Math.sqrt(cells.size / SILHOUETTE_MAX_CELLS));
+    cells = islandCells(region.islands, cell, 0);
+  }
   const heights = new Map<number, number>();
   const hAt = (i: number, j: number) => {
     const k = cellKey(i, j);
@@ -261,7 +300,7 @@ export function buildSilhouetteArrays(region: RegionDef): TerrainArrays {
     }
     return h;
   };
-  const sink = new TriangleSink();
+  const sink = new TriangleSink(paletteOf(region.theme));
   for (const k of cells) {
     const [i, j] = cellOf(k);
     const h00 = hAt(i, j);
@@ -282,10 +321,14 @@ export function buildSilhouetteArrays(region: RegionDef): TerrainArrays {
 /**
  * Where a region's trees stand: x, y, z and scale per tree (four floats each). Forest
  * patches from low-frequency noise, thinning at the edges; on gentle ground between 3 and
- * 40 m, clear of the ports' waterfronts and the buildings.
+ * 40 m (the region's theme may let them climb higher and steeper: a fjord's pine slopes),
+ * clear of the ports' waterfronts and the buildings.
  */
 export function treeSpots(region: RegionDef): Float32Array {
   const spots: number[] = [];
+  const top = region.theme?.treesTo ?? 40;
+  // Steepness limit as the sum of two 2 m height steps (the test below).
+  const steep = (region.theme?.treeSlope ?? 0.55) * 4;
   const step = 5;
   for (const isl of region.islands) {
     if (isl.trees <= 0) continue;
@@ -298,9 +341,9 @@ export function treeSpots(region: RegionDef): Float32Array {
         const jx = x + (hash(z, x) - 0.5) * step;
         const jz = z + (hash(x + 1, z - 1) - 0.5) * step;
         const h = groundHeight(jx, jz);
-        if (h < 3 || h > 40) continue;
+        if (h < 3 || h > top) continue;
         const slope = Math.abs(groundHeight(jx + 2, jz) - h) + Math.abs(groundHeight(jx, jz + 2) - h);
-        if (slope > 2.2) continue;
+        if (slope > steep) continue;
         if (region.ports.some((p) => Math.hypot(jx - p.x, jz - p.z) < p.clearRadius)) continue;
         if (region.buildings.some((b) => Math.hypot(jx - b.x, jz - b.z) < Math.max(b.width, b.depth))) continue;
         spots.push(jx, h - 0.2, jz, 0.7 + 0.7 * hash(jz, jx));

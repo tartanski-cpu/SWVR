@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import { fitPaint, flatVertexColorMaterial, mergeParts, paintLocal, part } from '../../render/geometryUtils';
 import type { PaintName } from '../../render/pixelPaint';
 import { LAMPS, LIGHTS, PORT_FLOODS, type BlockDef, type BuildingDef, type CurrentZoneDef, type RegionDef, type ShelterDef, type SlipwayDef, type WreckDef } from '../archipelago';
-import type { YardDef } from '../defs';
+import type { FallDef, FarmDef, YardDef } from '../defs';
+import { ringCentres } from '../farms';
 import { CONFIG } from '../../config';
 import { groundHeight } from '../terrain';
 import { standingHeight } from '../geography';
@@ -253,6 +254,8 @@ function buildStructures(region: RegionDef): THREE.BufferGeometry[] {
   for (const l of region.lights) buildLightTower(l.x, l.z, l.y, l.color, l.tower, parts);
   for (const w of region.wrecks) buildWreck(w, parts);
   for (const l of region.landmarks) if (l.kind === 'hill') buildCairn(l.x, l.z, parts);
+  for (const f of region.falls ?? []) buildFall(f, parts);
+  for (const f of region.farms ?? []) buildFarm(f, parts);
   // Lamp posts: a slim pole with a downward-facing head.
   for (const l of region.lamps) {
     const base = standingHeight(l.x, l.z);
@@ -292,6 +295,15 @@ function buildBlock(b: BlockDef, parts: THREE.BufferGeometry[]): void {
 
   if (b.kind === 'quay') {
     add(new THREE.BoxGeometry(2 * W, b.top + 6, 2 * L).translate(0, (b.top - 6) / 2, 0), CONCRETE, 'concrete');
+  } else if (b.kind === 'barge') {
+    // A fish farm's feed barge: a steel hull floating 1.2 m deep, a house at one end, the
+    // feed silo at the other (the pellets are blown down hoses to the cages).
+    add(new THREE.BoxGeometry(2 * W, b.top + 1.2, 2 * L).translate(0, (b.top - 1.2) / 2, 0), 0x2e4a3e, 'worn');
+    add(new THREE.BoxGeometry(2 * W + 0.1, 0.25, 2 * L + 0.1).translate(0, 0.1, 0), 0x1c1c1c);
+    add(new THREE.BoxGeometry(2 * W - 1.2, 2.6, 4.5).translate(0, b.top + 1.3, -L + 3), 0xe8e4da, 'sheet');
+    add(new THREE.BoxGeometry(2 * W - 1.0, 0.2, 5).translate(0, b.top + 2.7, -L + 3), 0x3a3f44);
+    add(new THREE.CylinderGeometry(W * 0.55, W * 0.55, 5.5, 12).translate(0, b.top + 2.75, L - 4), 0xc9ccc8, 'sheet');
+    add(new THREE.ConeGeometry(W * 0.55, 1.2, 12).translate(0, b.top + 6.1, L - 4), 0xa8aca8);
   } else {
     // Deck planks laid across the pier.
     add(new THREE.BoxGeometry(2 * W, 0.45, 2 * L).translate(0, b.top - 0.225, 0), TIMBER, 'wood');
@@ -553,6 +565,88 @@ function buildLightTower(x: number, z: number, lampY: number, color: string, tow
     parts.push(part(new THREE.CylinderGeometry(1.0, 1.0, 1.6, 10).translate(x, lampY, z), 0xfff0c0));
     parts.push(part(new THREE.ConeGeometry(1.3, 1.4, 10).translate(x, lampY + 1.5, z), 0x2a2a2a));
     parts.push(part(new THREE.CylinderGeometry(1.8, 1.8, 0.2, 10).translate(x, lampY - 0.9, z), 0x2a2a2a));
+  }
+}
+
+/**
+ * A waterfall (FallDef): a ribbon of white water down the ground from the heights to the
+ * water's edge, kept a few metres off the rock (the drawn terrain is coarse on the walls) and
+ * seen from both sides, with a patch of foam where it lands.
+ */
+function buildFall(f: FallDef, parts: THREE.BufferGeometry[]): void {
+  const dx = f.toX - f.x;
+  const dz = f.toZ - f.z;
+  const len = Math.hypot(dx, dz) || 1;
+  const ux = dx / len;
+  const uz = dz / len;
+  // Across the ribbon (horizontal), and the push off the wall toward the water.
+  const cx = -uz * (f.width / 2);
+  const cz = ux * (f.width / 2);
+  const off = CONFIG.regions.fallStandOff;
+  const n = Math.max(2, Math.ceil(len / 6));
+  const pos: number[] = [];
+  const pt = (i: number): [number, number, number] => {
+    const t = i / n;
+    const x = f.x + dx * t + ux * off;
+    const z = f.z + dz * t + uz * off;
+    return [x, Math.max(groundHeight(x - ux * off, z - uz * off, false), 0.2) + 0.6, z];
+  };
+  for (let i = 0; i < n; i++) {
+    const [ax, ay, az] = pt(i);
+    const [bx, by, bz] = pt(i + 1);
+    const q = [
+      [ax - cx, ay, az - cz],
+      [ax + cx, ay, az + cz],
+      [bx - cx, by, bz - cz],
+      [bx + cx, by, bz + cz],
+    ];
+    // Both windings: seen from either side.
+    for (const tri of [
+      [0, 2, 1],
+      [1, 2, 3],
+      [0, 1, 2],
+      [1, 3, 2],
+    ])
+      for (const k of tri) pos.push(...q[k]);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.computeVertexNormals();
+  parts.push(part(g, 0xe4f0f2));
+  // The foam where it lands.
+  const [ex, , ez] = pt(n);
+  parts.push(part(new THREE.CircleGeometry(f.width * 1.4, 10).rotateX(-Math.PI / 2).translate(ex, 0.12, ez), 0xf2f6f6));
+}
+
+/**
+ * A fish farm (FarmDef): each cage ring a black float pipe with a handrail on stanchions
+ * and the net's jump fence above the water, orange buoys at the grid's corners. Low-poly
+ * (a couple of hundred triangles a ring). The rings' solid part is a low block each
+ * (farms.ts), in the collision.
+ */
+function buildFarm(f: FarmDef, parts: THREE.BufferGeometry[]): void {
+  const r = f.ringRadius;
+  const centres = ringCentres(f);
+  for (const [x, z] of centres) {
+    parts.push(part(new THREE.TorusGeometry(r, 0.28, 4, 18).rotateX(Math.PI / 2).translate(x, 0.25, z), 0x1a1c1e));
+    parts.push(part(new THREE.TorusGeometry(r + 0.9, 0.22, 4, 18).rotateX(Math.PI / 2).translate(x, 0.2, z), 0x1a1c1e));
+    parts.push(part(new THREE.TorusGeometry(r + 0.45, 0.05, 3, 18).rotateX(Math.PI / 2).translate(x, 1.15, z), 0x2a2d30));
+    for (let k = 0; k < 9; k++) {
+      const a = (k / 9) * Math.PI * 2;
+      parts.push(part(new THREE.BoxGeometry(0.08, 0.95, 0.08).translate(x + Math.cos(a) * (r + 0.45), 0.7, z + Math.sin(a) * (r + 0.45)), 0x2a2d30));
+    }
+    // The net's jump fence inside the ring (seen from outside; inside, the net is under water).
+    parts.push(part(new THREE.CylinderGeometry(r - 0.2, r - 0.2, 0.9, 18, 1, true).translate(x, 0.75, z), 0x2b3534));
+  }
+  // Corner buoys of the mooring grid, a ring's spacing out from the corner rings.
+  const corners = [centres[0], centres[f.cols - 1], centres[centres.length - f.cols], centres[centres.length - 1]];
+  const mx = centres.reduce((s, c) => s + c[0], 0) / centres.length;
+  const mz = centres.reduce((s, c) => s + c[1], 0) / centres.length;
+  for (const [x, z] of corners) {
+    const d = Math.hypot(x - mx, z - mz) || 1;
+    const bx = x + ((x - mx) / d) * f.spacing * 0.6;
+    const bz = z + ((z - mz) / d) * f.spacing * 0.6;
+    parts.push(part(new THREE.SphereGeometry(0.55, 8, 5).translate(bx, 0.2, bz), 0xe8701a));
   }
 }
 

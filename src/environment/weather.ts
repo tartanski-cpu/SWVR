@@ -26,6 +26,7 @@ import { clamp, wrap } from '../core/math';
 import { wavenumberFromPeriod, type WaveComponent } from '../ocean/waves';
 import type { EnvironmentState } from './environmentState';
 import { seaStateWaves } from './environmentState';
+import { addGust, type GustState } from './gusts';
 
 export interface WeatherValues {
   /** Wind speed (m/s) and the bearing it blows FROM (deg, 0 = north). */
@@ -55,6 +56,8 @@ export interface WeatherState {
   lightning: { seq: number; at: number; dist: number; nextAt: number };
   /** When the next shipping forecast goes out (world time, s). */
   forecastAt: number;
+  /** Katabatic gusts (gusts.ts): the one blowing, and when the next falls. Absent until the host first steps them. */
+  gust?: GustState;
 }
 
 const TWO_PI = Math.PI * 2;
@@ -219,8 +222,12 @@ export function visibilityAt(env: EnvironmentState, x: number, z: number): numbe
   return vis;
 }
 
-/** Wind velocity vector (m/s, world x/z): blowing FROM windFrom, so toward windFrom + 180. */
-export function windVector(env: EnvironmentState, out: { x: number; z: number }): { x: number; z: number } {
+/**
+ * Wind velocity vector (m/s, world x/z): blowing FROM windFrom, so toward windFrom + 180.
+ * Given a place (`at`: world x, z), a katabatic gust blowing there is added (gusts.ts);
+ * without one, the weather's wind everywhere.
+ */
+export function windVector(env: EnvironmentState, out: { x: number; z: number }, at?: { x: number; z: number }): { x: number; z: number } {
   const w = env.weather;
   if (!w) {
     out.x = 0;
@@ -230,6 +237,7 @@ export function windVector(env: EnvironmentState, out: { x: number; z: number })
   const to = ((w.now.windFrom + 180) * Math.PI) / 180;
   out.x = Math.sin(to) * w.now.wind; // east
   out.z = -Math.cos(to) * w.now.wind; // north is -z
+  if (at && w.gust?.zone) addGust(env, at.x, at.z, out);
   return out;
 }
 

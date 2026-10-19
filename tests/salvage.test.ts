@@ -40,13 +40,15 @@ describe('log salvage', { timeout: 60000 }, () => {
 
   it('a log on a beach: made fast, pulled off under power, towed into harbour and sold', () => {
     const { world, v, send, run } = setup();
-    // The spot on the open shore that's furthest from anything, a log on it.
-    const b = beachSpots()[Math.floor(beachSpots().length / 2)];
-    placeVessel(v, b.x, 0, b.z, 0);
+    // A spot on an open shore (Eilean Garbh's east side: named, so new regions' beaches joining
+    // the list don't move it), and a log washed up near it - on the beach spot it chose.
+    const near = beachSpots().find((s) => s.island === 'Eilean Garbh' && s.side === 'east')!;
+    placeVessel(v, near.x, 0, near.z, 0);
     send('salvageDebugNear', 1, undefined, 'env');
     const log = world.salvage!.logs[0];
     expect(log).toBeDefined();
     expect(log.afloat).toBe(false);
+    const b = beachSpots().find((s) => Math.hypot(s.x - log.x, s.z - log.z) < 1)!;
     // Lie off the beach, stern to it: bow pointing out to sea along the bearing from the island.
     const a = b.yaw - Math.PI / 2; // bearing from the island centre out through the spot
     const out = [Math.sin(a), -Math.cos(a)];
@@ -69,7 +71,8 @@ describe('log salvage', { timeout: 60000 }, () => {
     // Into a harbour, stopped: sold.
     send('lever', 0);
     const port = PORTS.find((p) => p.id === 'calder')!;
-    placeVessel(v, port.x, 0, port.z - 25, 0);
+    // Lying 12 m off it, inside the towline's length: the line slack, the log at rest.
+    placeVessel(v, port.x, 0, port.z - 12, 0);
     log.x = port.x;
     log.z = port.z;
     log.vel = [0, 0];
