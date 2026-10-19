@@ -136,6 +136,8 @@ function fakeHost() {
     tutorialRestart: () => calls.push('restart'),
     crewList: () => 'Just you',
     voiceStatus: () => '',
+    voiceChat: () => false,
+    setVoiceChat: () => {},
     micMuted: () => false,
     setMicMuted: () => {},
     vrFly: () => false,

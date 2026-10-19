@@ -26,6 +26,11 @@ export interface UserSettings {
    * so off unless you turn it on). Hosting or alone, it's switched on in your game.
    */
   potting: boolean;
+  /**
+   * Voice with the crew (net/voice.ts) and the handheld VHF: off unless you turn it on (Menu >
+   * Crew). Off, the microphone isn't asked for, nobody's voice is played, and you've no radio.
+   */
+  voiceChat: boolean;
 }
 
 /** Names to pick from in the menu (there's no comfortable way to type in VR). */
@@ -48,6 +53,7 @@ function load(): UserSettings {
     hookAutoExtend: true,
     debugMenu: false,
     potting: false,
+    voiceChat: false,
   };
   try {
     const raw = localStorage.getItem(KEY);
@@ -61,6 +67,7 @@ function load(): UserSettings {
       if (typeof saved.hookAutoExtend === 'boolean') s.hookAutoExtend = saved.hookAutoExtend;
       if (typeof saved.debugMenu === 'boolean') s.debugMenu = saved.debugMenu;
       if (typeof saved.potting === 'boolean') s.potting = saved.potting;
+      if (typeof saved.voiceChat === 'boolean') s.voiceChat = saved.voiceChat;
       if (saved.rainQuality === 'high' || saved.rainQuality === 'low' || saved.rainQuality === 'off') s.rainQuality = saved.rainQuality;
     } else {
       const legacy = localStorage.getItem(LEGACY_COUPLING_KEY);

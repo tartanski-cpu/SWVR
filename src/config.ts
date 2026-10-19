@@ -3851,14 +3851,17 @@ export const CONFIG = {
   },
 
   /**
-   * The handheld VHF everyone carries (player/radioHandset.ts). VR: clipped on the left of
-   * your chest at `chest` (metres from your head: right, up, forward, turned with your
-   * heading); grip it within `grabRange` (m) to take it, hold the trigger to talk, let go
-   * and it clips back on. Desktop: hold V to talk.
+   * The handheld VHF everyone carries with voice chat on (player/radioHandset.ts). VR: clipped
+   * high on your left shoulder at `shoulder` (metres from your head: right, up, forward, turned
+   * with your heading), up out of the way of hands pulling and grabbing (on the chest it was
+   * taken by mistake); grip it within `grabRange` (m) to take it, hold the trigger to talk,
+   * let go and it clips back on. `onAvatar`: where others see it, in the torso's axes (hung
+   * from the neck). Desktop: hold V to talk.
    */
   radio: {
-    chest: [-0.13, -0.4, -0.12] as [number, number, number],
-    grabRange: 0.14,
+    shoulder: [-0.19, -0.2, -0.04] as [number, number, number],
+    grabRange: 0.1,
+    onAvatar: [-0.16, -0.06, -0.1] as [number, number, number],
   },
 
   /**
