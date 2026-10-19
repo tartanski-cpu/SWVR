@@ -30,14 +30,16 @@ type Workboat = typeof CONFIG.vessels.workboat;
 export interface EngineSpec {
   engine: Workboat['engine'];
 }
-/** A diesel and its propeller as configured. */
+/** A diesel and its propeller as configured; `nozzle`: the propeller in a Kort nozzle (CONFIG.nozzle). */
 export interface DieselSpec extends EngineSpec {
   propeller: Workboat['propeller'];
+  nozzle?: boolean;
 }
-/** A rudder as configured, and the propeller it stands behind (its wake and slipstream). */
+/** A rudder as configured, and the propeller it stands behind (its wake and slipstream; in a Kort nozzle or not). */
 export interface RudderSpec {
   rudder: Workboat['rudder'];
   propeller: Pick<Workboat['propeller'], 'wake' | 'diameter'>;
+  nozzle?: boolean;
 }
 
 /** What the diesel reads from the rest of the boat each tick (its module's ports). */
@@ -185,7 +187,7 @@ export function fullLoadTorque(def: EngineSpec, rpm: number): number {
  * Propeller thrust (N, + = ahead) and shaft torque (N*m, opposing rotation, >= 0) at prop
  * speed n (rev/s, signed: + = ahead rotation) and vessel speed through the water (m/s).
  */
-export function propellerForces(def: Pick<DieselSpec, 'propeller'>, n: number, speed: number): { thrust: number; torque: number } {
+export function propellerForces(def: Pick<DieselSpec, 'propeller' | 'nozzle'>, n: number, speed: number): { thrust: number; torque: number } {
   const p = def.propeller;
   const an = Math.abs(n);
   if (an < 0.02) return { thrust: 0, torque: 0 };
@@ -194,10 +196,16 @@ export function propellerForces(def: Pick<DieselSpec, 'propeller'>, n: number, s
   // Advance ratio in the prop's own working direction: moving ahead while backing
   // (crash stop) gives negative J, so the prop bites harder and absorbs more torque.
   const J = (n > 0 ? va : -va) / (an * p.diameter);
-  const kt = clamp(p.kt0 * (1 - J / p.j0), -0.2 * p.kt0, 1.6 * p.kt0);
-  const kq = clamp(p.kq0 * (1 - J / p.jq0), -0.1 * p.kq0, 1.6 * p.kq0);
+  // In a Kort nozzle (CONFIG.nozzle): more thrust at a standstill, falling off sooner with
+  // advance (the duct's drag), a little more torque, and poorer astern.
+  const nz = def.nozzle ? CONFIG.nozzle : null;
+  const kt0 = p.kt0 * (nz?.thrustGain ?? 1);
+  const j0 = p.j0 * (nz?.jFactor ?? 1);
+  const kq0 = p.kq0 * (nz?.torqueGain ?? 1);
+  const kt = clamp(kt0 * (1 - J / j0), -0.2 * kt0, 1.6 * kt0);
+  const kq = clamp(kq0 * (1 - J / p.jq0), -0.1 * kq0, 1.6 * kq0);
   const astern = n < 0;
-  const thrust = kt * rho * an * an * p.diameter ** 4 * (astern ? p.asternEfficiency : 1);
+  const thrust = kt * rho * an * an * p.diameter ** 4 * (astern ? p.asternEfficiency * (nz?.asternGain ?? 1) : 1);
   const torque = kq * rho * an * an * p.diameter ** 5 * (astern ? p.asternTorque : 1);
   return { thrust: astern ? -thrust : thrust, torque };
 }
@@ -329,10 +337,13 @@ export function rudderForceAt(angle: number, def: RudderSpec, relVx: number, rel
     // ...plus the slipstream's contribution. Momentum theory gives the far-wake speed
     // increase; part of it is developed at the rudder. The extra force can't exceed what
     // deflecting the slipstream's momentum (~T) can give, so it is capped at washMaxFraction*T.
+    // A rudder in a Kort nozzle's jet (CONFIG.nozzle.steerGain): the jet is concentrated on
+    // it, so more of the slipstream's momentum is turned.
     const d = def.propeller.diameter;
-    const extra = (r.washFactor * 8 * thrust) / (CONFIG.ocean.density * Math.PI * d * d);
+    const steer = def.nozzle ? CONFIG.nozzle.steerGain : 1;
+    const extra = (r.washFactor * steer * 8 * thrust) / (CONFIG.ocean.density * Math.PI * d * d);
     const withWash = rudderNormal(angle, def, fx, Math.sqrt(Math.max(fz, 0) ** 2 + extra)) * coast;
-    const cap = r.washMaxFraction * thrust;
+    const cap = r.washMaxFraction * steer * thrust;
     N += clamp(withWash - N, -cap, cap);
   }
   out.x = N * Math.cos(angle);

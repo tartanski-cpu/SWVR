@@ -141,12 +141,13 @@ describe('towing missions', { timeout: 30000 }, () => {
     expect(world.rescue!.radio?.text).toMatch(/parted/);
   });
 
-  it('tows come in three sizes (debug: small, medium, large), each kind at random; a large one passes a heavy hawser', () => {
-    const sizes = { small: new Set<string>(), medium: new Set<string>(), large: new Set<string>() };
+  it('tows come in three sizes (debug: small, medium, large; and a ship, a tug\'s), each kind at random; a large one passes a heavy hawser', () => {
+    const sizes = { small: new Set<string>(), medium: new Set<string>(), large: new Set<string>(), ship: new Set<string>() };
     for (const id of TOW_DEFS) sizes[VESSEL_DEFS[id].tow!.size].add(id);
     expect([...sizes.small].sort()).toEqual(['derelict', 'dory']);
     expect([...sizes.medium].sort()).toEqual(['barge', 'cage', 'logRaft', 'yacht']);
     expect([...sizes.large].sort()).toEqual(['pontoon', 'trawler']);
+    expect([...sizes.ship]).toEqual(['coaster']);
     // Heavier as they go: every large tow outweighs every medium, every medium every small.
     const heaviest = (k: keyof typeof sizes) => Math.max(...[...sizes[k]].map((id) => VESSEL_DEFS[id].mass));
     const lightest = (k: keyof typeof sizes) => Math.min(...[...sizes[k]].map((id) => VESSEL_DEFS[id].mass));

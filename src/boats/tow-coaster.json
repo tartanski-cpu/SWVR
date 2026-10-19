@@ -1,0 +1,7 @@
+{
+  "id": "vessel.coaster",
+  "version": 1,
+  "name": "Coaster (dead ship)",
+  "hull": "hull.coaster",
+  "modules": []
+}

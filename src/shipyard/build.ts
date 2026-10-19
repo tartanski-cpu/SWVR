@@ -836,6 +836,9 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   const sdc = CONFIG.modules.sternDrive;
   if (d.sternDrive && singleOnly && !outboardCount(d)) warnings.push(`The ${eng.name.split(' (')[0]} goes on a shaft (its big slow propeller): no stern drive.`);
   const sd = !!d.sternDrive && !singleOnly && !outboardCount(d);
+  // A Kort nozzle (owner, Oct 2026; design.nozzle; CONFIG.nozzle): on a shaft-driven propeller only.
+  if (d.nozzle && (sd || outboardCount(d))) warnings.push(`A Kort nozzle goes round a shaft-driven propeller: none on ${outboardCount(d) ? 'outboards' : 'a stern drive'}.`);
+  const nozzle = !!d.nozzle && !sd && !outboardCount(d);
   const n = twin ? 2 : 1;
   const keelAft = st[0].polygon[2][1];
   const draughtAft = -keelAft;
@@ -1646,6 +1649,8 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   const rudder = bySocket(recipe.modules, 'rudder')!.config as Record<string, any>;
   Object.assign(rudder.rudder, { area: rudderArea, position: rudderPos });
   rudder.propeller = { wake: prop.wake, diameter: propD };
+  rudder.nozzle = nozzle;
+  engine.nozzle = nozzle;
   if (sdLegs) {
     // Her stern drives in place of the shaft and rudder: the outboards' module (the legs swing
     // to steer) with her inboard engine package, drawn inside against the transom.
@@ -1910,11 +1915,11 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   const gp = dg.price;
   const gearPrice = (winchAt ? gp.towWinch : 0) + (sternRoller ? gp.sternRoller : 0) + (aFrame ? gp.aFrame : 0) + (ring ? gp.lifeRing : 0) + (sideDoor ? gp.sideDoor : 0) + (anchorAt ? gp.anchor : 0) + (skiffAt ? gp.skiff : 0);
   const guardPrice = (pushFender ? CONFIG.shipyard.pushFenderPrice : 0) + (basketAt ? pc.fendersPrice : 0) + strakeM * pc.strakePerM + (tyres.length ? 2 * tyres.length * pc.tyrePrice + pc.tyreFitting : 0);
-  const price = Math.round((buildPrice + (nOb ? powerKw * obc.pricePerKw : kw * n * eng.pricePerKw) + (sd ? sdc.price * n : 0) + (d.controls ? 18000 : 6000) + (craneAt ? 25000 : 0) + (hasMonitor ? 15000 : 0) + gearPrice + guardPrice) / 1000) * 1000;
+  const price = Math.round((buildPrice + (nOb ? powerKw * obc.pricePerKw : kw * n * eng.pricePerKw) + (sd ? sdc.price * n : 0) + (nozzle ? CONFIG.nozzle.price * n : 0) + (d.controls ? 18000 : 6000) + (craneAt ? 25000 : 0) + (hasMonitor ? 15000 : 0) + gearPrice + guardPrice) / 1000) * 1000;
   return {
     hull,
     recipe,
-    figures: { lengthM, beamM: beamDeck, massT: mass / 1000, draughtM: -Math.min(...st.map((s) => s.polygon[2][1])), gmM: gm, propellerM: nOb ? obc.propeller.diameter : sd ? sdPropD : propD, engineShortM: nOb ? 0 : shaft.shortM, gear, engine: nOb ? `${['', 'One', 'Two', 'Three', 'Four'][nOb]} ${obc.engine.powerKw} kW petrol V8 outboards` : `${twin ? `Twin ${eng.name}` : eng.name}${sd ? (twin ? ', on stern drives' : ', on a stern drive') : ''}`, price, floorM: Math.round((floorY - level) * 100) / 100, floorOnDeckhouseM: deckhouse ? Math.round((floorY - onTop) * 100) / 100 : undefined, material, freeboardM: Math.round(deckMid * 100) / 100 },
+    figures: { lengthM, beamM: beamDeck, massT: mass / 1000, draughtM: -Math.min(...st.map((s) => s.polygon[2][1])), gmM: gm, propellerM: nOb ? obc.propeller.diameter : sd ? sdPropD : propD, engineShortM: nOb ? 0 : shaft.shortM, gear, engine: nOb ? `${['', 'One', 'Two', 'Three', 'Four'][nOb]} ${obc.engine.powerKw} kW petrol V8 outboards` : `${twin ? `Twin ${eng.name}` : eng.name}${sd ? (twin ? ', on stern drives' : ', on a stern drive') : ''}${nozzle ? (twin ? ', in Kort nozzles' : ', in a Kort nozzle') : ''}`, price, floorM: Math.round((floorY - level) * 100) / 100, floorOnDeckhouseM: deckhouse ? Math.round((floorY - onTop) * 100) / 100 : undefined, material, freeboardM: Math.round(deckMid * 100) / 100 },
     warnings,
     placed,
     shaft,

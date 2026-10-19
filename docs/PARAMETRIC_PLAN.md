@@ -59,7 +59,7 @@ can copy a link, open it on another machine, save and open a file.
     The saloon's roof one to three 0.2 m steps below the wheelhouse's, a step in the roofline at
     the wheelhouse's aft end, its windows coming down with it (`wheelhouse.saloonRoof`,
     `houseRoofAt`); and the roof's top in a second colour, a panel set in from its edges.
-    Two more plain choices in the code (version 24).
+    Two more plain choices in the code (version 25).
   - **Still to come:** a cockpit overhead with wings; a pilothouse raised on a walkable deckhouse
     (today's deckhouse is solid).
 - **P2c, a trunk cabin with a cabin below (M):** the deckhouse becomes a walkable trunk cabin, the

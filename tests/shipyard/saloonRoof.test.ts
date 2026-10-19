@@ -25,7 +25,7 @@ const type = (hull: number, more: Partial<ShipDesign> = {}): ShipDesign => ({ ..
 const WB = type(2, { floor: 4, saloon: 4, saloonFloor: 2, saloonRoof: 2 });
 
 describe("the saloon's own roof", () => {
-  it('is in her code (version 24), with the roof top, both ways; a design without them reads as before', () => {
+  it('is in her code (version 25), with the roof top, both ways; a design without them reads as before', () => {
     const d = { ...WB, roofTop: 3 };
     expect(decodeDesign(encodeDesign(d))).toEqual({ design: d });
     const plain = type(2, { saloon: 4, saloonFloor: 2 });

@@ -112,6 +112,22 @@ function tug(world: WorldState): VesselState | undefined {
 }
 
 /**
+ * Tug class (owner, Oct 2026): a boat that gets the big tows (a ship; TowLook.needs 'tug').
+ * Her engine is the slow-revving tug diesel (rated at or under CONFIG.tow.tugRpm), or she
+ * has the heavy towing post.
+ */
+export function isTugClass(world: WorldState, v: VesselState): boolean {
+  const rated = gearOf(v, 'diesel')?.engine.ratedRpm;
+  return (rated !== undefined && rated <= CONFIG.tow.tugRpm) || hasUpgrade(world, 'towPost');
+}
+
+/** The kinds this boat may be called for: a ship only for a tug. */
+function kindsFor(world: WorldState, v: VesselState): readonly (typeof TOW_DEFS)[number][] {
+  const tug = isTugClass(world, v);
+  return TOW_DEFS.filter((d) => !VESSEL_DEFS[d].tow?.needs || tug);
+}
+
+/**
  * Where the towline leaves her (vessel axes): her tow point, the top of the stern roller
  * (modules/sternRoller). The tow's pull acts on the boat here. Her stern, on a boat
  * without one (nothing tows from it: tug() passes her by).
@@ -390,14 +406,14 @@ function stepTowedDebris(world: WorldState, line: TowLine, dt: number): void {
   }
 }
 
-function pickKind(t: TowState, w: Record<string, number> = CONFIG.tow.weights): string {
-  const total = TOW_DEFS.reduce((s, d) => s + (w[d] ?? 0), 0);
+function pickKind(t: TowState, w: Record<string, number> = CONFIG.tow.weights, from: readonly string[] = TOW_DEFS): string {
+  const total = from.reduce((s, d) => s + (w[d] ?? 0), 0);
   let x = rand(t) * total;
-  for (const d of TOW_DEFS) {
+  for (const d of from) {
     x -= w[d] ?? 0;
     if (x <= 0) return d;
   }
-  return TOW_DEFS[0];
+  return from[0] ?? TOW_DEFS[0];
 }
 
 /** Put a tow of this kind in the water at (x, z) and make it the job. */
@@ -419,7 +435,10 @@ function spawnTow(world: WorldState, defId: string, x: number, z: number, phase:
 export function startTowCall(world: WorldState, v: VesselState, defId?: string, opts: { name?: string; at?: { x: number; z: number; r: number } } = {}): TowJob {
   const cfg = CONFIG.tow;
   const t = (world.tow ??= createTowState());
-  const kind = defId && TOW_DEFS.includes(defId as (typeof TOW_DEFS)[number]) ? defId : pickKind(t);
+  // A tug gets the big tows their share of the time (CONFIG.tow.bigShare); no one else does.
+  const allowed = kindsFor(world, v);
+  const big = isTugClass(world, v) && rand(t) < cfg.bigShare;
+  const kind = defId && allowed.includes(defId as (typeof TOW_DEFS)[number]) ? defId : big ? pickKind(t, cfg.bigWeights, allowed) : pickKind(t, cfg.weights, allowed);
   const [bx, , bz] = v.position;
   // Straight ahead: the bow is -z in vessel axes.
   const [qx, qy, qz, qw] = v.orientation;
@@ -462,7 +481,8 @@ export function startTowCall(world: WorldState, v: VesselState, defId?: string, 
     ? `in position ${formatPosition(x, z)}`
     : `bearing ${bearing(bx, bz, x, z).toFixed(0).padStart(3, '0')}°, ${(Math.hypot(x - bx, z - bz) / 1852).toFixed(1)} miles from you`;
   const heavy = (VESSEL_DEFS[kind].tow?.lineFactor ?? 1) > 1 ? ' She is a big one: she will pass you her own heavy hawser. Take up the strain gently.' : '';
-  sayRadio(world, 'distress', `SÉCURITÉ. Tow wanted: ${name}, adrift ${where}. Can you take her in tow to any harbour?${heavy}`);
+  const ship = VESSEL_DEFS[kind].tow?.needs === 'tug';
+  sayRadio(world, 'distress', ship ? `PAN PAN. Tug wanted: ${name}, drifting ${where}. She needs a tug to bring her into harbour; nothing smaller will shift her.${heavy}` : `SÉCURITÉ. Tow wanted: ${name}, adrift ${where}. Can you take her in tow to any harbour?${heavy}`);
   return job;
 }
 
@@ -648,7 +668,7 @@ export function applyTowIntent(world: WorldState, intent: Intent): void {
       const fx = -(2 * (qx * qz + qw * qy));
       const fz = -(1 - 2 * (qx * qx + qy * qy));
       const len = Math.hypot(fx, fz) || 1;
-      // A kind by name, or one of a size (the debug menu's Small / Medium / Large, owner), at random.
+      // A kind by name, or one of a size (the debug menu's Small / Medium / Large / Ship, owner), at random.
       const ofSize = TOW_DEFS.filter((d) => VESSEL_DEFS[d].tow?.size === intent.ref);
       const kind = TOW_DEFS.includes(intent.ref as (typeof TOW_DEFS)[number]) ? intent.ref! : ofSize.length ? ofSize[Math.floor(rand(t) * ofSize.length)] : TOW_DEFS[0];
       const back = CONFIG.tow.debugDistance + hullPlan(VESSEL_DEFS[v.defId]).transom - hullPlan(VESSEL_DEFS[kind]).stem;
