@@ -922,12 +922,17 @@ function buildConsole(wh: HouseLayout['wheelhouse'], col: Paint, parts: THREE.Bu
   const cTop = wh.floorY + wh.consoleHeight;
   // A faceted front's console wraps round with it: built in three across, its wings set back.
   const f = wh.shape?.facet;
-  const spans: [number, number][] = f ? [[-hw + w, -f.centre], [-f.centre, f.centre], [f.centre, hw - w]] : [[-hw + w, hw - w]];
+  // (Cut short across the cabin, to port, the middle or starboard: consoleSpan.)
+  const x0 = wh.consoleSpan?.x0 ?? -hw + w;
+  const x1 = wh.consoleSpan?.x1 ?? hw - w;
+  const spans = (f ? ([[-hw + w, -f.centre], [-f.centre, f.centre], [f.centre, hw - w]] as [number, number][]) : [[-hw + w, hw - w] as [number, number]])
+    .map(([a, b]): [number, number] => [Math.max(a, x0), Math.min(b, x1)])
+    .filter(([a, b]) => b - a > 0.01);
   const from = parts.length;
   for (const [a, b] of spans) {
     parts.push(box(a, b, wh.floorY, cTop, c0, c1, col.console));
     parts.push(box(a, b, cTop, cTop + 0.12, c0, c0 + wh.consoleDepth * 0.45, col.console));
-    parts.push(box(Math.max(a, -hw + w + 0.05), Math.min(b, hw - w - 0.05), cTop - 0.01, cTop + 0.005, c0 + wh.consoleDepth * 0.45, c1 - 0.03, col.panel));
+    parts.push(box(Math.max(a, x0 + 0.05), Math.min(b, x1 - 0.05), cTop - 0.01, cTop + 0.005, c0 + wh.consoleDepth * 0.45, c1 - 0.03, col.panel));
   }
   if (f) setBack(parts.slice(from), facetDz(wh));
 }
