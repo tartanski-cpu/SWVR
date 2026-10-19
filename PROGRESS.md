@@ -4970,6 +4970,11 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Fix** (`net/transport.ts`): the connection uses PeerJS's default `binary` serialization (binarypack), which cuts each message into 16 KB pieces and joins them again, whatever its size. No backward compatibility is needed (owner): both sides must be this build, and the pages keep themselves on the latest.
 - **Checked:** the same test now joins (host 1 peer, the crew connected); hosting and joining fresh, and the Shipyard's together path, as before; `npm test`, typecheck. **Not checked:** the live site with the owner's browsers.
 
+### The handheld VHF's talk button clicks (owner)
+
+- `audio/handsetAudio.ts` (`SoundBoard.handset`, the VHF bus, not spatial: it's in your hand): pressed, a short hard click and a brief squelch burst as the transmitter opens; let go, a softer, lower click and a shorter burst. An oscillator pop and filtered noise, no files. `App.updateHandsetSound` plays it on each change of `radio.tx` (solo too; voice chat on). `CONFIG.voice.handset` (`clickHz`, `clickGain`, `squelchS`, `squelchGain`).
+- **Checked:** typecheck, `npm test`; headless Chromium with voice chat on, V held and released: a click each way, sound on the VHF bus. **Not checked:** by ear (the owner's call on the level).
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

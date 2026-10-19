@@ -1085,6 +1085,7 @@ export class App {
     this.listenerUp.set(0, 1, 0).applyQuaternion(this.camera.getWorldQuaternion(this.attQ));
     this.sound.whistle.setListener(this.focus, this.listenerFwd, this.listenerUp);
     this.updateVoice();
+    this.updateHandsetSound();
   }
 
   /**
@@ -1113,6 +1114,14 @@ export class App {
       list.push({ peerId: p.peerId, head: w, tx: !!p.avatar.radio?.tx });
     }
     this.voice.update({ head: this.focus, tx: this.radio.tx }, list);
+  }
+
+  /** The handset's talk button went down or up this frame: its click (solo too). */
+  private radioTxWas = false;
+  private updateHandsetSound(): void {
+    const tx = this.radio.tx;
+    if (tx !== this.radioTxWas) this.sound.handset.click(tx);
+    this.radioTxWas = tx;
   }
 
   /** Port floodlights, cargo, the desktop hand, our pose out and the crew's avatars in. */

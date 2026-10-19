@@ -692,7 +692,7 @@ Co-op crew on one boat, peer-to-peer (one player hosts). Menu → **Crew** → *
 
 **Talking** (off unless you switch it on: **Menu → Crew → Voice chat: On**; then allow the microphone when the browser asks; up to four players). Off, your microphone isn't used, you hear no one and you have no radio.
 - **Nearby** you hear each other as you would on deck: from where they stand, fading out over about 20 m. It's always on.
-- **The handheld VHF** clipped high on your left shoulder: hold it to talk (VR: grip it, then hold the trigger; desktop: hold V; game controller: hold View). Everyone within about 5 km hears you on their radio: one channel, no direction, the tinny radio sound, a squelch at each end and some hiss near the edge of the range. You can't hear the radio while you're talking on it.
+- **The handheld VHF** clipped high on your left shoulder: hold it to talk (VR: grip it, then hold the trigger; desktop: hold V; game controller: hold View). You hear the talk button click and the squelch open and close. Everyone within about 5 km hears you on their radio: one channel, no direction, the tinny radio sound, a squelch at each end and some hiss near the edge of the range. You can't hear the radio while you're talking on it.
 - **Menu → Crew** shows how many you're connected to and lets you mute your microphone. Its volume is **Settings → Sound → Crew voices**.
 
 Details and limits: [`docs/MULTIPLAYER.md`](docs/MULTIPLAYER.md).

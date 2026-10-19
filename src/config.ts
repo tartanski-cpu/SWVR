@@ -3981,6 +3981,8 @@ export const CONFIG = {
     squelchS: 0.12,
     squelchGain: 0.25,
     retryS: 5,
+    /** Your own handset's talk button (audio/handsetAudio.ts): the switch's click and the squelch burst after it. */
+    handset: { clickHz: 2200, clickGain: 0.5, squelchS: 0.09, squelchGain: 0.18 },
   },
 
   /**
