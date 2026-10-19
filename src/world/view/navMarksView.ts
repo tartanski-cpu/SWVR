@@ -1,9 +1,11 @@
 import * as THREE from 'three';
+import { CONFIG } from '../../config';
 import { flatVertexColorMaterial, mergeParts, part } from '../../render/geometryUtils';
 import { surfaceHeight, type PreparedWave } from '../../ocean/waves';
 import { MARKS, type MarkKind } from '../archipelago';
 import { LIGHT_CHARACTERS, lightOn } from '../navMarks';
-import { glowTexture } from './worldView';
+
+import { glowSprite, LightPointsMaterial } from '../../render/lightPoints';
 
 /**
  * The hazard buoys (archipelago.ts MARKS; owner request), drawn to IALA: pillar buoys for
@@ -72,7 +74,7 @@ export class NavMarksView {
   readonly root = new THREE.Group();
   private readonly meshes = new Map<MarkKind, { mesh: THREE.InstancedMesh; marks: number[] }>();
   private readonly lamps: THREE.Points;
-  private readonly lampMat: THREE.PointsMaterial;
+  private readonly lampMat: LightPointsMaterial;
   private readonly lampPos: THREE.BufferAttribute;
   private readonly lampCol: THREE.BufferAttribute;
   private readonly base: Float32Array;
@@ -106,7 +108,7 @@ export class NavMarksView {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', this.lampPos);
     geo.setAttribute('color', this.lampCol);
-    this.lampMat = new THREE.PointsMaterial({ size: 8, sizeAttenuation: false, map: glowTexture(), vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false });
+    this.lampMat = new LightPointsMaterial(glowSprite());
     this.lamps = new THREE.Points(geo, this.lampMat);
     this.lamps.name = 'buoyLights';
     this.lamps.frustumCulled = false;
@@ -141,7 +143,6 @@ export class NavMarksView {
     }
     this.lampPos.needsUpdate = true;
     this.lampCol.needsUpdate = true;
-    this.lampMat.size = 4 + 12 * darkness;
-    this.lampMat.opacity = 0.25 + 0.75 * darkness;
+    this.lampMat.set(CONFIG.lightPoints.size * (0.5 + 0.8 * darkness), 0.25 + 0.75 * darkness);
   }
 }

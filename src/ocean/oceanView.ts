@@ -17,6 +17,7 @@ export const MAX_RACES = 4;
 export const MAX_KNOCKS = 12;
 import { MAX_SHELTERS } from '../world/shelter';
 import { gustZone, type GustState } from '../environment/gusts';
+import { groundHeight } from '../world/terrain';
 
 export const MAX_WAVES = 8;
 export { gerstnerChunk };
@@ -111,6 +112,10 @@ export class OceanView {
     uWindFoam: { value: new THREE.Vector4(1, 0, 0, 0) },
     uStreak: { value: new THREE.Vector3(1 / (8 * CONFIG.ocean.windFoam.streakLength), 1 / (8 * CONFIG.ocean.windFoam.streakWidth), 0) },
     uFoamNoise: { value: foamNoiseTexture() },
+    // The shallows round the viewer (bakeShallows), for the breaking waves on beaches.
+    uShallows: { value: null as THREE.DataTexture | null },
+    uShallowsRect: { value: new THREE.Vector4(0, 0, 0, 0) },
+    uShore: { value: new THREE.Vector2(CONFIG.shore.maxDepth, CONFIG.shore.wash) },
   };
 
   constructor() {
@@ -128,6 +133,52 @@ export class OceanView {
     this.mesh.frustumCulled = false;
     // After the boats, and after their engine spaces' water stops (vessel/view/engineLook.ts).
     this.mesh.renderOrder = OCEAN_ORDER;
+  }
+
+  // ── The shallows map (CONFIG.shore): the water's depth round the viewer, for the surf ──
+  private shallows: THREE.DataTexture | null = null;
+  private shallowsNext: THREE.DataTexture | null = null;
+  private bakeAt = { x: 0, z: 0 };
+  private bakeRow = -1;
+
+  /**
+   * Bake the depth map a few rows a frame (groundHeight over a few thousand points is more
+   * than a frame should take), and start again when the viewer is far from its middle. The
+   * map in use stays until the new one is whole, so the surf never flickers.
+   */
+  private bakeShallows(x: number, z: number): void {
+    const c = CONFIG.shore;
+    const n = c.cells;
+    if (this.bakeRow < 0 && (!this.shallows || Math.hypot(x - this.bakeAt.x, z - this.bakeAt.z) > c.rebake)) {
+      this.bakeAt = { x, z };
+      this.shallowsNext = new THREE.DataTexture(new Uint8Array(n * n), n, n, THREE.RedFormat);
+      this.shallowsNext.magFilter = THREE.LinearFilter;
+      this.shallowsNext.minFilter = THREE.LinearFilter;
+      this.bakeRow = 0;
+    }
+    if (this.bakeRow < 0 || !this.shallowsNext) return;
+    const data = this.shallowsNext.image.data as Uint8Array;
+    const x0 = this.bakeAt.x - c.span / 2;
+    const z0 = this.bakeAt.z - c.span / 2;
+    const cell = c.span / n;
+    const end = Math.min(n, this.bakeRow + c.rowsPerFrame);
+    for (let j = this.bakeRow; j < end; j++) {
+      const wz = z0 + (j + 0.5) * cell;
+      for (let i = 0; i < n; i++) {
+        const depth = -groundHeight(x0 + (i + 0.5) * cell, wz, false);
+        data[j * n + i] = depth <= 0 ? 0 : Math.round(255 * Math.min(1, depth / c.maxDepth));
+      }
+    }
+    this.bakeRow = end;
+    if (end < n) return;
+    // Whole: swap it in.
+    this.bakeRow = -1;
+    this.shallows?.dispose();
+    this.shallows = this.shallowsNext;
+    this.shallowsNext = null;
+    this.shallows.needsUpdate = true;
+    this.uniforms.uShallows.value = this.shallows;
+    this.uniforms.uShallowsRect.value.set(x0, z0, 1 / c.span, 1 / c.span);
   }
 
   /**
@@ -240,6 +291,7 @@ export class OceanView {
   update(waves: readonly PreparedWave[], viewer: THREE.Vector3, env: EnvironmentView, time = 0, wind = { x: 0, z: 0 }): void {
     const step = CONFIG.ocean.mesh.innerSpacing;
     this.mesh.position.set(Math.round(viewer.x / step) * step, 0, Math.round(viewer.z / step) * step);
+    this.bakeShallows(viewer.x, viewer.z);
 
     const u = this.uniforms;
     u.uCenter.value.set(viewer.x, viewer.z);

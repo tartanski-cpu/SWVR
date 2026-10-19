@@ -28,6 +28,8 @@ export class EnvironmentView {
   visibility = Infinity;
   /** A lightning flash now, 0..1 (the clouds light up with it: skyView.ts). */
   flash = 0;
+  /** The moon is the light now, 0..1 (sunDir, sunColor and sunIntensity are the moon's). */
+  moon = 0;
 
   constructor(scene: THREE.Scene) {
     this.fog = new THREE.Fog(0xffffff, CONFIG.environment.hazeFar * CONFIG.weather.hazeNearFraction, CONFIG.environment.hazeFar);
@@ -78,22 +80,36 @@ export class EnvironmentView {
     const dir = sunDirection(timeOfDay);
     this.sunDir.set(dir[0], dir[1], dir[2]);
 
-    const p = skyPalette(sunElevationDeg(dir));
+    const elev = sunElevationDeg(dir);
+    const p = skyPalette(elev);
     this.zenith.setRGB(...p.zenith, THREE.SRGBColorSpace);
     this.horizon.setRGB(...p.horizon, THREE.SRGBColorSpace);
     this.sunColor.setRGB(...p.sunColor, THREE.SRGBColorSpace);
     this.sunIntensity = p.sunIntensity;
     this.ambientIntensity = p.ambientIntensity;
+    // The moon (CONFIG.moon): from dusk, the light comes from the anti-sun point, a full moon
+    // opposite the sun: the sky's disc and glow, the sea's glitter path and the shadows
+    // follow it as they do the sun, at a fraction of the strength and a cool white.
+    const m = CONFIG.moon;
+    const night = Math.min(1, Math.max(0, (m.from - elev) / (m.from - m.full)));
+    const moonUp = Math.min(1, Math.max(0, -dir[1] * 4));
+    this.moon = night * moonUp;
+    if (this.moon > 0) {
+      this.sunDir.set(-dir[0], -dir[1], -dir[2]);
+      this.sunColor.setHex(m.color);
+      this.sunIntensity = m.light * this.moon;
+      this.ambientIntensity += m.ambient * this.moon;
+    }
 
     this.background.copy(this.horizon);
     this.fog.color.setRGB(...p.fog, THREE.SRGBColorSpace);
     this.sun.color.copy(this.sunColor);
-    this.sun.intensity = p.sunIntensity;
+    this.sun.intensity = this.sunIntensity; // (the moon's at night)
     // Sky light: average of zenith and horizon - the whole dome lights a shaded wall, and
     // the pure zenith blue made white paint look navy.
     this.hemi.color.copy(this.zenith).lerp(this.horizon, 0.55);
     this.hemi.groundColor.setRGB(p.horizon[0] * 0.3, p.horizon[1] * 0.35, p.horizon[2] * 0.4, THREE.SRGBColorSpace);
-    this.hemi.intensity = p.ambientIntensity * 1.35;
+    this.hemi.intensity = this.ambientIntensity * 1.35;
     // (applyWeather sets the fog's reach from today's visibility right after this.)
     this.fog.far = CONFIG.environment.hazeFar;
     this.fog.near = this.fog.far * CONFIG.weather.hazeNearFraction;

@@ -20,6 +20,8 @@ Since the MVP:
 - **Cargo runs** between the ports, with real deadweight.
 - **Wake and spray:** foam that rides the swell, a prop wash astern on a high throttle (even pulling slowly, as a tug does), a wider, whiter wake and sheets of spray when a boat planes, spray when the bow slams, and water and splash sounds.
 - **Wind on the sea:** white horses from force 4, and faint streaks along the wind from force 6.
+- **Surf on the beaches:** waves break as they shoal, white water and a line of wash along the sand, more the bigger the sea.
+- **A moon** lights the night: its disc, the clouds, a glitter path on the sea and soft shadows; cloud dims it.
 - **Pixel painting:** crisp low-resolution detail on the boats: non-slip decks, black window frames, wood-lined wheelhouses, floor matting and a chequer-plate engine hatch.
 
 ## Play it (no install)

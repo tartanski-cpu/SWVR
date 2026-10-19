@@ -14,6 +14,7 @@ import type { WorldState } from '../core/world';
 import { surfaceHeight, type PreparedWave } from '../ocean/waves';
 import { flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
 import type { ShipType } from './traffic';
+import { glowSprite, LightPointsMaterial } from '../render/lightPoints';
 
 interface ShipMarker {
   root: THREE.Group;
@@ -84,7 +85,8 @@ export class TrafficView {
   readonly root = new THREE.Group();
   private readonly geo = new Map<ShipType, { mesh: THREE.BufferGeometry; lights: THREE.BufferGeometry }>();
   private readonly material = flatVertexColorMaterial();
-  private readonly lightMat = new THREE.PointsMaterial({ size: 5, sizeAttenuation: false, vertexColors: true, toneMapped: false });
+  /** Their navigation lights: round points that shrink with distance (render/lightPoints.ts). */
+  private readonly lightMat = new LightPointsMaterial(glowSprite(), CONFIG.lightPoints.size * 0.8);
   private readonly ships = new Map<string, ShipMarker>();
   private readonly debris = new Map<string, THREE.Mesh>();
   private readonly debrisGeo: THREE.BufferGeometry;
@@ -153,6 +155,7 @@ export class TrafficView {
       const st = CONFIG.traffic.ships[s.type];
       this.float(m.root, waves, m.x, m.z, s.course, st.length, st.beam);
       m.lights.visible = darkness > 0.35;
+      this.lightMat.set(CONFIG.lightPoints.size * (0.5 + 0.5 * darkness), Math.min(1, (darkness - 0.35) * 4));
     }
     for (const [id, m] of this.ships) {
       if (seen.has(id)) continue;

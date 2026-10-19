@@ -2207,6 +2207,30 @@ export const CONFIG = {
     noiseSize: 128,
   },
 
+  /**
+   * Small lights drawn as points (render/lightPoints.ts: ships' nav lights, buoys, harbour
+   * lamps): `size` px at `ref` m, shrinking with distance between `min` and `max` px.
+   */
+  lightPoints: { size: 7, ref: 120, min: 2.2, max: 14 },
+
+  /**
+   * The moon (environment/environmentView.ts): after dusk (the sun under `from` degrees) the
+   * night's light comes from the anti-sun point, as a full moon does: `light` is its
+   * directional strength (the sun's is up to 3), `ambient` what it adds to the sky light,
+   * `color` its cool white. Cloud dims it as it does the sun. Owner: the night sea was very dark.
+   */
+  moon: { from: -6, full: -12, light: 0.35, ambient: 0.1, color: 0xc4d2ff },
+
+  /**
+   * Breaking waves on beaches (ocean/oceanView.ts, the shore in ocean.frag.glsl): a map of
+   * the water's depth `span` m square round the viewer, `cells` across, baked `rowsPerFrame`
+   * rows a frame and again when the viewer is `rebake` m from its middle. A wave breaks where
+   * its height reaches about 0.78 of the depth (a surf beach's rule), so a calm sea breaks
+   * only in the last few centimetres and a storm out to a couple of metres: foam there, out
+   * to `maxDepth` m at most, and a line of wash in the last `wash` m of depth.
+   */
+  shore: { span: 3600, cells: 192, rowsPerFrame: 16, rebake: 700, maxDepth: 4, wash: 0.8 },
+
   weather: {
     startPreset: 'Clear' as WeatherPresetName,
     /** Fix the weather to the start preset for a session (no director). */

@@ -4985,6 +4985,15 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Tests:** `tests/wear.test.ts` (guards rubbing: nothing in a calm, a little in a storm, grinding on the plating as before), `tests/shipyard/outboards.test.ts` (the ratio held to its range, a matched one inside it). `docs/BUS_KEYS.md` regenerated for the two lamps.
 - **Checked:** `npm test`, typecheck. Headless Chromium, the workboat with damage 0.35 and wear 0.6: the seven lamps with HULL and ENGINE lit amber; the monitor's bars. **Not checked:** the Quest; the lamp row's fit on every console (the spacing is the module's).
 
+### Breaking waves on beaches, a moon, and lights that shrink with distance (owner)
+
+- **Surf** (`ocean/oceanView.ts bakeShallows`, the shore block in `ocean.frag.glsl`, `CONFIG.shore`): the ocean gets a map of the water's depth 3.6 km square round the viewer (192 cells, 18.75 m each: `groundHeight` on each, baked 16 rows a frame so no frame pays for it all, baked again when the viewer is 700 m from its middle; the map in use stays until the new one is whole). In the shader a wave breaks where its height reaches about 0.78 of the depth (the surf rule of thumb), so the sea's height (the crest height, with the vertex's shelter) sets a breaking depth: a calm sea breaks only in the last centimetres, a storm out to a couple of metres. Over the crests inside that the water goes white, broken up by the foam noise rolling shoreward, white water fading over about twice the breaking depth; the last `wash` 0.8 m of depth is a line of wash on the sand. One texture look per ocean pixel inside the map, nothing outside.
+- **Whitecaps:** already there since the wind foam (Oct 18): white horses from force 4, streaks from force 6, and breaking crests in a steep sea. The known-issues line saying otherwise was stale; removed.
+- **The moon** (`environment/environmentView.ts`, `CONFIG.moon`): from dusk (the sun under −6°, full by −12°) the light comes from the anti-sun point, a full moon opposite the sun, at `light` 0.35 (the sun's is up to 3) in a cool white, with `ambient` 0.1 added to the sky light. Everything that follows the sun follows it: the sky dome's disc and halo, the clouds lit from it, the sea's glitter path, the shadows; cloud dims it as it does the sun. `EnvironmentView.moon` says how much the moon is the light.
+- **Lights as points** (`render/lightPoints.ts LightPointsMaterial`, `CONFIG.lightPoints`): the AI ships' nav lights, the buoys' lamps and the harbour lamps were THREE.PointsMaterial at a fixed pixel size (square, and as big a mile off as alongside). They are now a soft round glow whose size is `size` px at `ref` 120 m, shrinking with distance between `min` 2.2 and `max` 14 px: a point far off, a glow close to. The buoys and harbour lamps keep their brightening with the dark.
+- **Tests:** `tests/moon.test.ts` (midnight: the moon up, cool, a fraction of the sun; noon: nothing). The ocean's bake and shader are checked by eye.
+- **Checked:** `npm test`, typecheck. Headless Chromium: the moon over the harbour at midnight with its halo and moonlit clouds; a cargo ship's lights at 250 m and 1.2 km (small far off); Selkie Bay's beach from the side in a moderate and a rough sea (white water along the shore, more in the rough). **Not checked:** the Quest (the one extra texture look; the bake's cost per frame on the headset), and the surf on every beach (the map blurs a steep shore).
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**
@@ -5329,9 +5338,6 @@ For performance on the Quest, read the debug panel's cpu/gpu lines in VR:
 - **Shipyard, for later (owner):** the skiff and her crane are placed near the centreline; she should go out toward the side picked (port or starboard) so the crane can reach over it. The side picked is already in the design (`design.skiff`); it's where `build.ts` seats the cradle and column.
 - **Water inside the hull:** the ocean is drawn wherever it is, so green water over the bulwark in big rolls can show "inside" the boat. Freeboard is 0.95–1.5 m, so it's rare in the current sea state. The fix is a hull-interior depth/stencil mask (see "Decision" above).
 - **Collisions** are with the terrain, quays and piers only. The boat passes through the hazard buoys.
-- **Fixed-size lights:** harbour lights are constant pixel size, so they don't grow as you approach.
-- **No whitecaps or foam** beyond a faint crest tint.
-- **The ocean at night is very dark** (no moon yet).
 - **Beam-sea roll** is near resonance: the roll period is 3.5 s and the sea has energy at 2–7 s. Roll damping was raised to 15 % of critical; bilge keels or a lower GM would be the naval-architecture levers if it's still too lively.
 - **Controller models need internet** on the headset (CDN). Without it, the hands are invisible but still work.
 - **Wave fading at distance:** far objects (more than about 40 m from the viewer) can sit a few cm off the drawn surface for the shortest waves. Physics always uses the exact CPU surface.

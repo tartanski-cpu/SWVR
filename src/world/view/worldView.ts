@@ -11,6 +11,7 @@ import { REGIONS, distanceToBounds } from '../regions';
 import { seenRange } from '../sight';
 import { buildSilhouetteArrays, buildTerrainArrays, hash, summitNear, treeSpots, type TerrainArrays } from './terrainMesh';
 import type { TerrainRequest, TerrainResult } from './terrainWorker';
+import { glowSprite, LightPointsMaterial } from '../../render/lightPoints';
 
 /**
  * Everything static in the world, region by region (regions, milestone 2):
@@ -730,7 +731,7 @@ const LIGHT_COLORS = { red: 0xff3020, green: 0x30ff60, white: 0xfff4d8 };
  */
 export class HarbourLights {
   readonly points: THREE.Points;
-  private readonly material: THREE.PointsMaterial;
+  private readonly material: LightPointsMaterial;
   private readonly colors: THREE.BufferAttribute;
   private readonly base: Float32Array;
 
@@ -747,16 +748,7 @@ export class HarbourLights {
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     this.colors = new THREE.BufferAttribute(this.base.slice(), 3);
     geo.setAttribute('color', this.colors);
-    this.material = new THREE.PointsMaterial({
-      size: 8,
-      sizeAttenuation: false,
-      map: glowTexture(),
-      vertexColors: true,
-      transparent: true,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-      fog: false,
-    });
+    this.material = new LightPointsMaterial(glowSprite());
     this.points = new THREE.Points(geo, this.material);
     this.points.name = 'harbourLights';
     this.points.frustumCulled = false;
@@ -782,8 +774,7 @@ export class HarbourLights {
       for (let k = 0; k < 3; k++) col[i * 3 + k] = on ? this.base[i * 3 + k] * seen : 0;
     });
     this.colors.needsUpdate = true;
-    this.material.size = 6 + 16 * darkness;
-    this.material.opacity = 0.35 + 0.65 * darkness;
+    this.material.set(CONFIG.lightPoints.size * (0.6 + 1.0 * darkness), 0.35 + 0.65 * darkness);
   }
 }
 

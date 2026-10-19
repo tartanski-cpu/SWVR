@@ -52,6 +52,12 @@ uniform vec2 uRippleFade;       // near, far (m)
 uniform vec4 uWindFoam;
 uniform vec3 uStreak;
 uniform sampler2D uFoamNoise;
+// Breaking waves on beaches (CONFIG.shore; OceanView.bakeShallows): the water's depth round
+// the viewer as a map (red: depth / maxDepth), its rectangle (x0, z0, 1/w, 1/h), and the
+// rule's numbers: maxDepth (m), the wash depth (m).
+uniform sampler2D uShallows;
+uniform vec4 uShallowsRect;
+uniform vec2 uShore;
 
 varying vec3 vWorldPos;
 varying float vHeight;
@@ -102,6 +108,33 @@ void main() {
   float crestLo = uCrestHeight * mix(0.75, 0.45, uFoamAmount);
   float foam = smoothstep(crestLo, uCrestHeight * mix(1.0, 0.8, uFoamAmount), vHeight) * mix(0.35, 0.85, uFoamAmount);
   col = mix(col, uFoam * (0.4 * uAmbient + 0.3 * uSunIntensity), foam);
+
+  // Breaking waves on beaches. A wave breaks where its height reaches about 0.78 of the
+  // depth (the surf rule of thumb): the crest over that goes white, out to a depth that
+  // grows with the sea (a calm breaks only in the last centimetres, a storm out to 2 m), and
+  // the last of the water runs out on the sand as a line of wash. The foam is broken up by
+  // the noise so it comes and goes along the beach.
+  vec2 suv = (vWorldPos.xz - uShallowsRect.xy) * uShallowsRect.zw;
+  if (all(greaterThan(suv, vec2(0.0))) && all(lessThan(suv, vec2(1.0)))) {
+    float depth = texture2D(uShallows, suv).r * uShore.x;
+    if (depth > 0.01) {
+      // The sea's height here (the crest over the trough, with the shelter the vertex gave it).
+      float seaH = max(0.12, uCrestHeight * 1.3 * vShelter);
+      float breakDepth = seaH / 0.78;
+      // Surf: the crests over the breaking depth go white, more the shallower; the foam
+      // rolls shoreward with the noise, and the white water left behind fades over the
+      // breaking depth.
+      float sn = texture2D(uFoamNoise, vRest * 0.045 + vec2(0.0, uTime * 0.02)).r;
+      float sn2 = texture2D(uFoamNoise, vRest * 0.11 + vec2(uTime * 0.01, -uTime * 0.03)).r;
+      float onCrest = smoothstep(-0.3 * seaH, 0.6 * seaH, vHeight);
+      float shallow = 1.0 - smoothstep(breakDepth * 0.8, breakDepth * 2.2, depth);
+      float surf = shallow * max(onCrest * smoothstep(0.3, 0.55, sn), 0.55 * smoothstep(0.45, 0.7, sn2));
+      // The wash: the last of the water running out over the sand.
+      float wash = (1.0 - smoothstep(0.0, uShore.y, depth)) * (0.6 + 0.4 * smoothstep(0.3, 0.6, sn2));
+      float f = max(surf, wash) * (1.0 - smoothstep(uShore.x * 0.7, uShore.x, depth));
+      col = mix(col, uFoam * (0.5 * uAmbient + 0.3 * uSunIntensity), f * 0.9);
+    }
+  }
 
   // The wind's foam (uniform branch: skipped in light airs). White horses: patches of foam
   // on the upper half of the waves. Streaks: foam blown into long lines along the wind, the
