@@ -9,12 +9,14 @@ import type { Handedness } from './xrInput';
  * The handheld VHF every player carries (owner request), for talking to the crew beyond
  * shouting distance (net/voice.ts: one channel, a few kilometres).
  *
- *   VR       it's clipped on the left of your chest (CONFIG.radio.chest). Grip it to take it
+ * Only with voice chat on (Menu > Crew; off by default).
+ *
+ *   VR       it's clipped high on your left shoulder (CONFIG.radio.shoulder). Grip it to take it
  *            (it stays in that hand while you hold the grip); hold that hand's trigger to
  *            talk; let go of the grip and it clips back on.
  *   desktop  hold V to talk (no radio drawn: you've no hands to see).
  *
- * Others see it on your chest, or in your hand while you hold it (net/avatarView.ts), and
+ * Others see it on your shoulder, or in your hand while you hold it (net/avatarView.ts), and
  * hear you through their own radios while you talk.
  */
 
@@ -43,13 +45,13 @@ function talkLight(): THREE.Mesh {
   return m;
 }
 
-/** Hand frame -> clipped upright on the chest: the aerial up, the screen facing out (forward). */
+/** Hand frame -> clipped upright on the shoulder: the aerial up, the screen facing out (forward). */
 export const CHEST_TURN = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 0, -1), new THREE.Vector3(0, -1, 0)));
 
 export class RadioHandset {
   readonly mesh: THREE.Mesh;
   private readonly light: THREE.Mesh;
-  /** Which VR hand holds it (null: on the chest). */
+  /** Which VR hand holds it (null: on the shoulder). */
   held: Handedness | null = null;
   /** Talking (the trigger in VR, V on the desktop). */
   tx = false;
@@ -94,7 +96,7 @@ export class RadioHandset {
       }
     }
     this.setTx(false);
-    this.chest(headPos, headQ);
+    this.clipOn(headPos, headQ);
     for (const h of ['left', 'right'] as const) {
       const f = hands[h];
       if (!f.tracked || busy[h] || !f.gripPressed) continue;
@@ -108,18 +110,19 @@ export class RadioHandset {
     return used;
   }
 
-  /** Desktop (or out of VR): nothing drawn; talking while `held` (the V key). */
-  updateDesktop(talk: boolean): void {
+  /** Desktop (or out of VR, or voice chat off): nothing drawn; talking while `talk` (the V key). Uses no hands. */
+  updateDesktop(talk: boolean): Record<Handedness, boolean> {
     this.held = null;
     this.mesh.visible = false;
     this.setTx(talk);
+    return { left: false, right: false };
   }
 
-  /** On the chest: below and ahead of the head, turned with your heading only (not your nod). */
-  private chest(headPos: THREE.Vector3, headQ: THREE.Quaternion): void {
+  /** On the shoulder: by and below the head, turned with your heading only (not your nod). */
+  private clipOn(headPos: THREE.Vector3, headQ: THREE.Quaternion): void {
     const f = this.fwd.set(0, 0, -1).applyQuaternion(headQ);
     this.yawQ.setFromAxisAngle(UP, Math.atan2(-f.x, -f.z));
-    const [x, y, z] = CONFIG.radio.chest;
+    const [x, y, z] = CONFIG.radio.shoulder;
     this.mesh.position.set(x, y, z).applyQuaternion(this.yawQ).add(headPos);
     this.mesh.quaternion.copy(this.yawQ).multiply(CHEST_TURN);
   }

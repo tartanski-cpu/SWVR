@@ -65,7 +65,8 @@ Everything a player sends is in the frame they stand in: on deck, that's the ves
 - **The calls:** a WebRTC audio call between each pair of players, through the same PeerJS peer as the game (four players: three calls each). Of each pair, the one whose network id sorts first calls (`net/voice.ts shouldCall`), the other answers. The host gives each player their network id (`PlayerState.peerId`; the host's own is the room id), so everyone knows whom to call from the snapshots.
 - **The microphone:** asked for once you're in a game and the sound is on, with echo cancellation and noise suppression. Refused or missing: you send silence and still hear everyone. Mute in Menu → Crew.
 - **How a voice is heard** (`voiceRoute`, `CONFIG.voice`): proximity from their head (full to 2 m, nothing past 22 m), always; and while their handheld's talk button is held (`avatar.radio.tx`, in the pose), through your radio within 5 km: band-passed, overdriven, no direction, a squelch at each end, hiss near the edge. A radio that's transmitting hears nobody.
-- **The handset:** `player/radioHandset.ts` (VR on the chest: grip, trigger; desktop V); others see it on your chest or in your hand.
+- **Off by default** (`userSettings.voiceChat`, Menu → Crew → Voice chat): off, no microphone, no calls answered or made, no radio.
+- **The handset:** `player/radioHandset.ts` (VR high on the left shoulder: grip, trigger; desktop V); others see it on your shoulder or in your hand.
 
 ## Code
 

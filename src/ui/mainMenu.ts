@@ -163,6 +163,9 @@ export interface MenuHost {
   crewList(): string;
   /** Voice with the crew (net/voice.ts): a status line, and your microphone muted. */
   voiceStatus(): string;
+  /** Voice chat and the handheld VHF on (off by default; a per-browser setting). */
+  voiceChat(): boolean;
+  setVoiceChat(on: boolean): void;
   micMuted(): boolean;
   setMicMuted(m: boolean): void;
   /** Debug > World: VR fly (the left stick flies where you look; the triggers go faster). */
@@ -480,6 +483,7 @@ export function mainMenu(h: MenuHost): MainMenu {
     { label: '', buttons: [{ text: () => h.netStatus() }] },
     { label: '', buttons: [{ text: () => h.crewList() }] },
     { label: 'Your name', buttons: [{ text: () => h.playerName(), weight: 1.6 }, { text: 'Change', press: () => h.nextPlayerName() }] },
+    { label: 'Voice chat', buttons: [choice('On', true, () => h.voiceChat(), (v) => h.setVoiceChat(v)), choice('Off', false, () => h.voiceChat(), (v) => h.setVoiceChat(v))] },
     { label: 'Voice', buttons: [{ text: () => h.voiceStatus(), weight: 2 }] },
     { label: 'Microphone', buttons: [choice('On', false, () => h.micMuted(), (v) => h.setMicMuted(v)), choice('Muted', true, () => h.micMuted(), (v) => h.setMicMuted(v))] },
     {

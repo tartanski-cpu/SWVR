@@ -1098,7 +1098,7 @@ export class App {
   private updateVoice(): void {
     const inGame = !!this.host || this.client?.status === 'connected';
     const ctx = this.sound.engine.context;
-    if (!inGame || !this.netPeer || !ctx) return;
+    if (!inGame || !this.netPeer || !ctx || !userSettings.voiceChat) return;
     // Hosting: our own network id, for the crew to call (in the snapshots with us).
     const me = this.world.players[this.localPlayerId];
     if (this.host && me) me.peerId = this.hostPeerId;
@@ -2456,7 +2456,7 @@ export class App {
       tool: this.chartTools?.heldTool() ?? null,
       laser: this.laser.pose(this.invFrame),
       gear: this.gear.map((g) => g.pose(this.invFrame)).find((x) => x) ?? null,
-      radio: this.radio.pose(),
+      radio: userSettings.voiceChat ? this.radio.pose() : null,
     };
     if (this.host) {
       p.name = pose.name;
@@ -2537,9 +2537,19 @@ export class App {
     return {
       voiceStatus: () => {
         const v = this.voice;
+        if (!userSettings.voiceChat) return 'Off';
         if (!v) return this.host || this.client ? 'Starting (sound on first)' : 'In a game with crew';
         const mic = v.micState === 'asking' ? 'asking for the microphone' : v.micState === 'none' ? 'no microphone (listening only)' : v.isMuted ? 'microphone muted' : 'microphone on';
         return `${v.connected} connected · ${mic}`;
+      },
+      voiceChat: () => userSettings.voiceChat,
+      setVoiceChat: (on: boolean) => {
+        userSettings.voiceChat = on;
+        saveUserSettings();
+        if (!on) {
+          this.voice?.close();
+          this.voice = null;
+        }
       },
       micMuted: () => this.voiceMuted,
       setMicMuted: (m: boolean) => {
@@ -3279,7 +3289,7 @@ export class App {
         }
       }
       // The handheld VHF on your chest: the same (its trigger is the talk button).
-      const onRadio = this.radio.updateXR(this.scene, this.hands, { left: onBino.left || this.busyHands.left, right: onBino.right || this.busyHands.right }, this.camera.getWorldPosition(this.tmpV), this.camera.getWorldQuaternion(this.attQ), (h, i, ms) => this.xrInput.pulse(h, i, ms));
+      const onRadio = !userSettings.voiceChat ? this.radio.updateDesktop(false) : this.radio.updateXR(this.scene, this.hands, { left: onBino.left || this.busyHands.left, right: onBino.right || this.busyHands.right }, this.camera.getWorldPosition(this.tmpV), this.camera.getWorldQuaternion(this.attQ), (h, i, ms) => this.xrInput.pulse(h, i, ms));
       for (const h of ['left', 'right'] as const) {
         if (!onRadio[h]) continue;
         const f = this.hands[h];
@@ -3317,7 +3327,7 @@ export class App {
       return;
     }
     this.pointer?.update(this.camera);
-    this.radio.updateDesktop(this.keyboard.action('talk'));
+    this.radio.updateDesktop(userSettings.voiceChat && this.keyboard.action('talk'));
     for (const g of this.gear) if (g.aboard) g.updateDesktop(this.camera, !!this.pointer?.gearDown, !!this.pointer?.gearPressed);
     if (this.keyboard.actionPressed('hangGear')) for (const g of this.gear) if (g.held) g.hangBack();
   }

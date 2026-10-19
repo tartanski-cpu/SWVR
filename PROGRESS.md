@@ -4919,6 +4919,13 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **The menu:** it opened in your body's frame (as when walking), but the camera flies apart from your body, so it was left behind. In camera mode it opens on the camera itself, straight ahead, the same size on the screen whatever the zoom.
 - **Checked:** `npm test`, typecheck. Headless Chromium, the workboat held at 5 m/s with the camera riding her: before, it slid 1.7 m aft in 5 s (25 m run); now it doesn't move on her (0.00 m). The menu opened in camera mode and still dead ahead of the camera 3 s of flying later. No page errors. **Not checked:** the Quest and a real two-player test (the VR hand on a moving boat).
 
+### Voice chat off by default; the VHF up on the shoulder (owner)
+
+- **The owner:** in VR the handheld radio kept being grabbed by mistake. All voice chat off by default, and the radio somewhere better.
+- **Off by default:** a new setting, **Menu → Crew → Voice chat: On / Off** (`userSettings.voiceChat`, remembered in the browser, off to start). Off: the microphone isn't asked for, no voice calls are made or answered, nothing is heard, and you've no radio (not drawn, not grabbable, V does nothing, crew-mates see none on you). Switched off in a game, voice stops at once.
+- **The radio moved** from the middle of the chest, where hands pass when pulling and grabbing, to high on the left shoulder, as lifeboat crews wear theirs (`CONFIG.radio.shoulder` from your head [-0.19, -0.2, -0.04] m; on others, `onAvatar` [-0.16, -0.06, -0.1] in the torso's axes), and it has to be gripped closer (`grabRange` 0.14 → 0.1 m). Reach across with your right hand, as to a lapel mic.
+- **Checked:** `npm test`, typecheck. Headless Chromium: with the default, hosting a game starts no voice and sends no radio; switched on in both pages, the calls connect and the near / radio / far cases are as before (heard close by, louder talking on the radio; 2 km off silent until the radio). A screenshot of the radio on a crew-mate's left shoulder. No page errors. **Not checked:** the Quest (whether the shoulder is out of the way, and easy enough to reach).
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**
