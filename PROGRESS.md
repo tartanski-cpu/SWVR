@@ -4964,6 +4964,12 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Now** (`shipyard.html`, a line of script before the page's module): an error while the page loads (an uncaught error or a failed promise) puts up a banner with the error's text and where it came from, and a **Start afresh** button that clears this browser's copy of the design on the table, the step and the chosen project (`swvr.yard.session.*`, `swvr.yard.step`, `swvr.yard.project`; favourites and projects are kept) and loads the page again past the cache.
 - **Checked:** the built page in headless Chromium with a chunk made to throw as it loads: the banner with the error, and Start afresh brought the page back whole. **Owner:** if the banner shows, please send its words.
 
+### Multiplayer: nobody could join a host with a career in her world (owner, priority; it worked Sunday night)
+
+- **Found** by hosting with a career save made by Sunday night's build and joining from a fresh browser: the crew sat at "connecting" with no message, the host's peers stayed at 0, and on the host's data channel PeerJS said **"Message too big for JSON channel"**. The game's connections used PeerJS's `json` serialization, which sends each message whole and refuses one over 16,300 bytes. The welcome carries the whole world, and with a career (potting, upgrades, the regions' state, the pots and marks) it passed 16 KB on Monday: every host with a saved career was unjoinable, while a fresh browser (no career: a smaller world) still worked, which is why it couldn't be reproduced earlier, and why Sunday night's smaller world was fine.
+- **Fix** (`net/transport.ts`): the connection uses PeerJS's default `binary` serialization (binarypack), which cuts each message into 16 KB pieces and joins them again, whatever its size. No backward compatibility is needed (owner): both sides must be this build, and the pages keep themselves on the latest.
+- **Checked:** the same test now joins (host 1 peer, the crew connected); hosting and joining fresh, and the Shipyard's together path, as before; `npm test`, typecheck. **Not checked:** the live site with the owner's browsers.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**
