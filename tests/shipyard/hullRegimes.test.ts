@@ -57,19 +57,26 @@ describe('the hull types ride as their kind', () => {
     expect(buildDesign(type(TUG)).hull.planing).toBeUndefined();
   });
 
-  it('a deeper vee leans further into a turn and slams less', () => {
+  it('a deeper vee leans further into a turn and slams less; the semi-displacement workboat least', () => {
     const lc = buildDesign(type(LC)).hull;
     const pilot = buildDesign(type(PILOT)).hull;
     const wb = buildDesign(type(WORKBOAT)).hull;
-    expect(pilot.planing!.lean!).toBeGreaterThan(2 * lc.planing!.lean!);
+    expect(pilot.planing!.lean!).toBeGreaterThan(1.2 * lc.planing!.lean!);
     // The semi-displacement workboat: half her weight on lift, coming in later.
-    expect(wb.planing!.lean!).toBeLessThan(pilot.planing!.lean! / 2);
+    expect(wb.planing!.lean!).toBeLessThan(lc.planing!.lean!);
     expect(wb.planing!.fnStart).toBeGreaterThanOrEqual(lc.planing!.fnStart);
     expect(pilot.damping.verticalCd).toBeLessThan(lc.damping.verticalCd / 2);
   });
 });
 
 describe('in a hard turn at speed', () => {
+  it('the landing craft type leans into the turn, the small one most (owner)', () => {
+    const at = (step: number) => turn(type(LC, { length: step, beam: step, depth: step }), 0.4).at(-1)!;
+    const nine = at(8);
+    expect(nine).toBeGreaterThan(3);
+    expect(at(0)).toBeGreaterThan(nine);
+  });
+
   it('the pilot boat leans into the turn', () => {
     const heel = turn(type(PILOT), 0.4);
     expect(heel.at(-1)!).toBeGreaterThan(5);

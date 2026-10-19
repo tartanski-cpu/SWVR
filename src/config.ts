@@ -2702,13 +2702,15 @@ export const CONFIG = {
    * A planing hull in a turn (vesselPhysics.ts; each hull's `planing`): her side force's
    * heeling moment reckoned with it acting `alpha` of the way from her chines up to her CG
    * (her bottom's lift carries it, not her keel); her lift's roll stiffness, `stiffness` x
-   * W GM, toward a lean into the turn of her `lean` x the apparent vertical's angle (gravity
-   * with U r), at most `maxLeanDeg`. Tuned on sea trials, flat out then the helm put over:
-   * the Shipyard's deep-V pilot boat leans ~10 deg in at 26 kn on a 40 % helm, and settles
-   * ~4 deg in hard over at 13 kn; the semi-displacement workboat type heels ~6 deg out; the
-   * flat landing craft type ~5 deg out; none capsizes, even with four outboards.
+   * W x her half-beam at the chines, toward a lean into the turn of her `lean` x the
+   * apparent vertical's angle (gravity with U r), at most `maxLeanDeg`. Tuned on sea trials,
+   * flat out then the helm put over (owner: the landing craft should lean in, the small ones
+   * most): on a 40 % helm the Shipyard's landing craft type leans ~9 deg in at 7.2 m, ~6 at
+   * 9 m (the built-in landing craft ~7); the deep-V pilot boat ~15; the semi-displacement
+   * workboat ~5. Hard over the 9 m landing craft leans ~13 deg in, then comes upright as she
+   * slows; the workboat heels ~5 deg out; none capsizes, even with four outboards.
    */
-  planingTurn: { maxLeanDeg: 20, alpha: 0.6, stiffness: 2 },
+  planingTurn: { maxLeanDeg: 20, alpha: 0.6, stiffness: 1.5 },
 
   shipyard: {
     /**
@@ -2720,19 +2722,20 @@ export const CONFIG = {
      *   semi          a semi-displacement hull: only part of her weight (`lift`) carried by
      *                 lift, coming in later and more gradually (Fn 0.4 to 1.0);
      *   displacement  none (the tug).
-     * Leaning into a turn (vesselPhysics.ts, CONFIG.planingTurn): a vee bottom's lift leans
-     * her in toward `lean` x the angle a cyclist would lean; a deeper vee more, so from her
-     * deadrise aft (`deadriseAt` of her length from the transom, where her planing pressure
-     * acts): lean = `leanPerSine` x sin(deadrise) x lift. The landing craft type's 8 deg:
-     * 0.21; the 22 deg deep-V pilot boat: 0.56; the semi-displacement workboat's 18 deg at
-     * half lift: 0.23.
+     * Leaning into a turn (vesselPhysics.ts, CONFIG.planingTurn): a planing bottom's lift
+     * leans her in toward `lean` x the angle a cyclist would lean; every planing hull
+     * `leanBase`, a deeper vee more, from her deadrise aft (`deadriseAt` of her length from the
+     * transom, where her planing pressure acts): lean = (`leanBase` + `leanPerSine` x
+     * sin(deadrise)) x lift. The landing craft type's 8 deg: 0.84; the 22 deg deep-V pilot
+     * boat: 1.07; the semi-displacement workboat's 18 deg at half lift: 0.5.
      * Slamming (the vertical damping's quadratic term, vesselPhysics.ts, standing in for
      * water-entry loads): a flat bottom slams, a deep vee enters gently. Scaled as
      * tan(`slamRefDeg`) / tan(deadrise), the landing craft's 9 deg amidships the reference,
      * between `slamMin` and `slamMax`; her deadrise amidships, where she meets the waves.
      */
     regimes: { planing: { lift: 1, fnStart: 0.3, fnFull: 0.7 }, semi: { lift: 0.5, fnStart: 0.3, fnFull: 0.9 } },
-    leanPerSine: 1.5,
+    leanBase: 0.7,
+    leanPerSine: 1.0,
     deadriseAt: 0.25,
     slamRefDeg: 9,
     slamMin: 0.35,

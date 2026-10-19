@@ -5318,6 +5318,13 @@ Owner, Oct 2026, answering the heel report below: the workboat should be a semi-
 | Built-in landing craft, Alaskan | | unchanged (identical) |
 | Tug, gillnetter | 1-4° out | unchanged |
 
+- **Follow-up (owner: "you took away their really nice lean into corners"; the landing craft should lean in more, the small ones especially, the big ones can differ):**
+  - **Every planing hull now gets a base lean** (`CONFIG.shipyard.leanBase` 0.7, plus `leanPerSine` 1.0 × sin(deadrise aft); × lift): the landing craft type 0.84, the pilot boat 1.07, the workboat 0.5.
+  - **The leaning stiffness comes from her beam, not her GM** (`stiffness` 1.5 × W × half-beam at the chines). A planing bottom's roll stiffness is its lift spread across her beam. With GM, small tender boats leant least, the opposite of what was wanted.
+  - **The propellers already help:** an outboard's or a stern drive's thrust, and a rudder's force, act low at the propeller, so swinging them pushes her stern out from below and leans her in. Unchanged.
+  - **Measured, 40 % helm, landing craft type:** 7.2 m leans 9° in, 8.1 m 8°, 9 m 6° (built-in landing craft 7°). Hard over, the 9 m one leans 13° in, then comes upright as she slows (built-in: 15° in, then 3° out). From 15 m up, on her standard engine she makes only ~10 kn, so she barely heels: too slow to plane.
+  - **Pilot boat:** about 15° in on a 40 % helm; hard over a ~30° snap in, settling ~8° in. **Workboat type:** 5° in on a 40 % helm, ~5° out hard over (slowed to 10 kn). With four outboards: ~7° in.
+  - **Still capsizes: the 7.2 m landing craft type with two 400 hp outboards.** Not the turning model: her GM is 0.14 m and her GZ peaks at 0.06 m. The outboards are too heavy, sitting high on a 4.4 t hull, and she makes 43 kn. The Shipyard already warns ("Her stability is low"). Give her more beam, or the diesel.
 - **In waves** (default sea scaled to Hs 3.6 m, head on, about 20 kn): vertical acceleration rms 0.27 g for the landing craft type, 0.18 g for the workboat type, 0.09 g for the pilot boat. The deep vee rides about three times softer.
 - **Also:** the workboat type now shows planing spray and a planing wake at speed (they read `planing`).
 - **Unchanged:** the built-in workboat, skiff, landing craft and Alaskan (golden runs equal); the tug.
