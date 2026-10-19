@@ -5450,6 +5450,14 @@ Owner, Oct 2026: "it's going to be useful to see the actual position of the rudd
 - **Checked:** the screen rendered (headless Chromium, the workboat with the wheel over: needle and ring together at 21 deg STBD). **Not checked:** the Quest; the lag with an Xbox controller (the owner's); the tug astern by hand.
 - **Test steps:** any boat, desktop or VR: put the wheel over and watch the ENGINE screen: the ring jumps to the order, the needle follows as the rudder swings. With an Xbox controller, the same. The Shipyard's small tug with a Kort nozzle: back her up and put the wheel over: she swings now.
 
+### Shipyard: the hull and the wheelhouse see-through or solid, on any step (done, awaiting owner test)
+
+Owner, Oct 2026: "an option to toggle on and off the transparency that appears in the hull and the engines ... the hull and the wheelhouse ... respectively".
+
+- **What:** two buttons with the view buttons, beside Water on/off: **Hull: solid / see-through** and **Wheelhouse: solid / see-through** (page.ts `seeThrough`, `focusStep`). Each step still opens with its own view (the hull see-through at Wheelhouse, both at Engine, both solid elsewhere); a click flips that part until the step changes; the buttons say which it is (lit when see-through). The wheelhouse's is greyed at the Hull step (it isn't drawn there). Her fenders, strake or tyres show whenever the hull is solid.
+- **Checked:** headless Chromium: the Engine step with the hull turned solid (the wheelhouse still see-through, the engine seen down through it); Deck gear with the wheelhouse turned see-through (the console inside it). Typecheck and the full suite. **Not checked:** a Design-together session (each person's view is their own).
+- **Test steps (desktop):** Shipyard, Engine step: press Hull: see-through, it goes solid; Wheelhouse too. Deck gear: press Wheelhouse: solid, see the console through it. Change step: each starts with its own view again.
+
 ## Regions (owner brief, in progress)
 
 The owner's brief (Oct 2026): grow the world by adding **regions** round home, each with its own geography, weather, fish, goods and towing jobs, reached by a short passage across open water, all still on the Quest. Four regions are planned, in order: the Sounds (Hebridean: two tidal races, a cliff inlet, a repair yard), the Fjord (Norwegian: a narrow entrance, katabatic gusts, a fish farm, cheap fuel), the Narrows (Alaskan: the strongest race with a pinnacle rock, a buoyed dog-leg channel), the Calanques (Mediterranean: a strait with eddies, the Mistral, a chandlery). Tidal races are **current zones** on a simple clock, no tide model. The plan, the decisions agreed with the owner and the milestones are in [`docs/REGIONS.md`](docs/REGIONS.md).
