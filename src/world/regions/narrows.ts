@@ -43,13 +43,18 @@ export const NARROWS: RegionDef = {
     { name: 'Hemlock Island', x: -5200, z: -6400, radius: 1100, height: 330, shape: [[2, 0.08, 0.3], [3, 0.05, 1.9], [5, 0.03, 0.7]], beach: 2, seed: 61, trees: 0.05, rise: 0.4 },
     { name: 'Kestrel Island', x: -3300, z: -6500, radius: 900, height: 250, shape: [[2, 0.1, 2.1], [3, 0.05, 0.6]], beach: 2, seed: 62, trees: 0.05, rise: 0.45 },
     // Otter Islet: the anchorage's shelter, in the mouth of the cove.
-    { name: 'Otter Islet', x: -5000, z: -5180, radius: 60, height: 18, shape: [[3, 0.15, 0.9]], beach: 2, seed: 63, trees: 0.04 },
+    { name: 'Otter Islet', x: -5000, z: -5225, radius: 80, height: 22, shape: [[3, 0.1, 0.9]], beach: 2, seed: 63, trees: 0.04 },
+    // Grey Seal Rocks: on the passage from Loch Tarsk to the narrows (owner, after M6: a
+    // crossing in fog must be navigated). Charted, unlit.
+    { name: 'Grey Seal Rocks', x: -2485, z: -4585, radius: 22, height: 3, shape: [[3, 0.2, 2.4]], beach: 0.5, seed: 64, trees: 0 },
+    { name: 'Grey Seal Rocks', x: -2450, z: -4560, radius: 11, height: 1, shape: [[2, 0.3, 1.0]], beach: 0.5, seed: 65, trees: 0 },
   ],
   // Lean terrain from just above the waterline (and the flats' floor), as the Fjord.
   leanTerrain: { above: 0.5, cells: 6 },
   channels: [
-    // Cutter Narrows: about 480 m wide between walls of 200 m and more, 1.5 km long.
-    { name: 'Cutter Narrows', points: [[-4300, -4900, 350], [-4250, -5700, 220], [-4250, -6400, 200], [-4250, -7100, 210], [-4300, -7900, 350]], depth: 38, edge: 110 },
+    // Cutter Narrows: about 300 m wide between walls of 200 m and more, 1.5 km long (narrowed
+    // from 480 m after the owner's first run through it).
+    { name: 'Cutter Narrows', points: [[-4300, -4900, 300], [-4250, -5700, 140], [-4250, -6400, 115], [-4250, -7100, 130], [-4300, -7900, 300]], depth: 38, edge: 100 },
     // Spruce Channel: 9 m deep, about 80 m wide, through the flats in seven legs.
     { name: 'Spruce Channel', points: [[-6500, -5000, 35], [-6550, -5800, 35], [-6800, -6300, 35], [-6750, -6900, 35], [-6450, -7400, 35], [-5900, -7700, 35], [-5300, -7750, 35], [-4800, -7550, 40]], depth: 9, edge: 25 },
   ],
@@ -73,17 +78,19 @@ export const NARROWS: RegionDef = {
     { x: -4980, z: -7860, radius: 200, depth: 1.0, edge: 100 },
   ],
   cuts: [
-    // Otter Cove: 9 m, cut into Hemlock's south shore behind the islet.
-    { x: -5000, z: -5400, radius: 140, depth: 9, edge: 60 },
+    // Otter Cove: a narrow mouth (about 120 m) in Hemlock's south shore, the islet just
+    // outside it, and a 9 m basin behind (made more sheltered after the owner's first visit).
+    { x: -5000, z: -5370, radius: 70, depth: 9, edge: 30 },
+    { x: -5000, z: -5490, radius: 130, depth: 9, edge: 55 },
   ],
   flats: [
     // The cannery's ground behind the quay.
     { x: -4730, z: -7350, radius: 60, height: 2.0, edge: 30 },
     // Kestrel Wharf's root.
     { x: -3478, z: -5530, radius: 30, height: 2.4, edge: 15 },
-    // Otter Cove: a landing at the head of the cove (outside the cove's cut: a flat inside a
-    // cut's edge is dug down with it).
-    { x: -5000, z: -5570, radius: 50, height: 1.5, edge: 30 },
+    // Otter Cove: a landing at the head of the cove. It straddles the basin's edge: the cut
+    // digs its inner half down into a beach, its outer half stays level for the cabin.
+    { x: -5000, z: -5605, radius: 60, height: 1.5, edge: 25 },
   ],
   ridges: [
     // The cannery's breakwater, off its east side against the narrows.
@@ -114,7 +121,7 @@ export const NARROWS: RegionDef = {
     // Kestrel Wharf: a shed at the root.
     { x: -3470, z: -5545, width: 9, depth: 6, height: 4, yawDeg: 200, wall: 0x8c9aa3, roof: 0x3e4a52, cladding: 'sheet' },
     // Otter Cove: a trapper's cabin at the landing.
-    { x: -5000, z: -5585, width: 5, depth: 4, height: 2.8, yawDeg: 0, wall: 0x6a4a32, roof: 0x3a3a3a, cladding: 'boards' },
+    { x: -5000, z: -5632, width: 5, depth: 4, height: 2.8, yawDeg: 0, wall: 0x6a4a32, roof: 0x3a3a3a, cladding: 'boards' },
   ],
   marks: [
     // Twin Fang Rock: an isolated danger mark on the southern pinnacle.
@@ -156,7 +163,7 @@ export const NARROWS: RegionDef = {
     // The cannery: behind the breakwater; open only to the north-west, over the flats.
     { x: -4710, z: -7400, rIn: 90, rOut: 200, factor: 0.15, openFromDeg: 315, openArcDeg: 25 },
     // Otter Cove: shut in by the islet; open a little to the south past it.
-    { x: -5000, z: -5420, rIn: 90, rOut: 200, factor: 0.15, openFromDeg: 180, openArcDeg: 20 },
+    { x: -5000, z: -5490, rIn: 130, rOut: 240, factor: 0.12, openFromDeg: 180, openArcDeg: 15 },
     // The flats: a metre of water breaks the sea; calm inside.
     { x: -6500, z: -6700, rIn: 500, rOut: 900, factor: 0.4 },
   ],
@@ -196,9 +203,9 @@ export const NARROWS: RegionDef = {
       name: 'Otter Cove (anchorage)',
       kind: 'anchorage',
       x: -5000,
-      z: -5420,
+      z: -5490,
       clearRadius: 50,
-      cargo: { anchorage: { x: -5000, z: -5420, radius: 90 }, stackX: -4985, stackZ: -5572, stackYawDeg: 90, color: 0x8aa020 },
+      cargo: { anchorage: { x: -5000, z: -5490, radius: 90 }, stackX: -4990, stackZ: -5627, stackYawDeg: 90, color: 0x8aa020 },
       bottom: 'weed',
       economy: { repairs: false, needs: ['Groceries'] },
     },
@@ -216,16 +223,16 @@ export const NARROWS: RegionDef = {
     { x: -4700, z: -7368, y: 7.5 },
     { x: -3490, z: -5490, y: 7 },
     { x: -3512, z: -5432, y: 7 },
-    { x: -4990, z: -5578, y: 4.5 },
+    { x: -4992, z: -5638, y: 4.5 },
   ],
   portFloods: [
     { portId: 'ashby', x: -4718, y: 11, z: -7380 },
     { portId: 'kestrel', x: -3514, y: 10, z: -5430 },
-    { portId: 'otter', x: -5000, y: 6, z: -5575 },
+    { portId: 'otter', x: -5000, y: 6, z: -5636 },
   ],
   pottingGrounds: [
     { id: 'kestrel-east', name: 'Kestrel Island, east shore', x: -2395, z: -6450, radius: 50, quality: 0.85 },
-    { id: 'otter-islet', name: 'Otter Islet', x: -5065, z: -5170, radius: 35, quality: 0.8 },
+    { id: 'otter-islet', name: 'Otter Islet', x: -5000, z: -5125, radius: 35, quality: 0.8 },
   ],
   fishingGrounds: [
     { name: 'Cutter Bank', x: -4300, z: -4700, radius: 400, richness: 1.2, species: 'salmon' },
@@ -235,7 +242,7 @@ export const NARROWS: RegionDef = {
   currents: [
     // Cutter Narrows: the strongest race in the game, flooding north, 12 kn at peak; slack
     // at 00:45, 03:45 and so on (three-quarters of an hour after the Sounds' races).
-    { id: 'cutter-narrows', name: 'Cutter Narrows', x: -4250, z: -6400, length: 1500, width: 480, setDeg: 0, peakKn: 12, periodH: 6, phaseH: 0.75, waveFactor: 2.0, knocks: 5 },
+    { id: 'cutter-narrows', name: 'Cutter Narrows', x: -4250, z: -6400, length: 1500, width: 340, setDeg: 0, peakKn: 12, periodH: 6, phaseH: 0.75, waveFactor: 2.0, knocks: 5 },
   ],
   jobs: {
     tows: [
@@ -245,7 +252,7 @@ export const NARROWS: RegionDef = {
       { kind: 'yacht', weight: 0.5, name: 'a yacht lost in the fog off Spruce Channel', at: { x: -6500, z: -4800, r: 150 } },
     ],
     rescues: [
-      { def: 'kayaker', weight: 0.6, at: { x: -5000, z: -5150, r: 150 } },
+      { def: 'kayaker', weight: 0.6, at: { x: -5000, z: -5100, r: 120 } },
       { def: 'manOverboard', weight: 0.5 },
       { def: 'lostCargo', weight: 0.4 },
     ],

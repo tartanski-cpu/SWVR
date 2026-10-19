@@ -149,7 +149,12 @@ export const OUTBOARD: ModuleDefinition<OutboardConfig, OutboardState> = {
   },
   // (The game has one fuel: her tank's. Petrol at the fuel berth is for later.)
   needs: () => [{ fuel: 'diesel' }],
-  provides: () => [{ gear: 'diesel' }, { gear: 'rudder' }],
+  // Power for the deck hydraulics' pump and the fire pump while the engines run (the game's
+  // rule: vessel/electrics.ts hydraulicsOn): on a stern drive, off the inboard engine's power
+  // take-off, as an inboard's; on outboards, which have none, it stands for the deck's own
+  // hydraulic power pack and fire pump, run while the engines are. Without it a Shipyard boat
+  // on outboards or stern drives with a crane, winch, skiff or fire monitor wouldn't start.
+  provides: () => [{ gear: 'diesel' }, { gear: 'rudder' }, { power: 'pto' }],
   gear: (raw) => {
     const c = placed(raw);
     return {

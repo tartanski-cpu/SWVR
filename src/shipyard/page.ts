@@ -50,6 +50,7 @@ import { rankTypes } from './typeFit';
 import { deckRoom, sizeForDeck, type DeckRoom } from './deckRoom';
 import { trialCharts } from './trialCharts';
 import type { GearKind } from '../modular/module';
+import { GEAR_ABOUT, GEAR_GROUPS, GEAR_ICONS, gearKind } from './gearMenu';
 import { EQUIPMENT, equipmentOf, fitted, placeGear, removeGear, type Equipment } from './pinGear';
 import { SheetEditor } from './sheetEditor';
 import { addProject, readProjects, removeProject, writeProjects, type Project } from './projects';
@@ -495,7 +496,7 @@ const STEP_GUIDE: Record<string, string> = {
   Hull: 'Her type and proportions. Length and beam set her size and stability; depth her freeboard; a raked bow throws spray aside and takes a head sea more softly.',
   Wheelhouse: 'Where the crew stand and what they can see. Forward gives a long working deck aft; aft, a foredeck to work over. Keep it low and light for stability.',
   Engine: 'Power for the speed in the brief. The propeller and gearbox are matched to her by trial each time; twin engines add power and handling, and cost.',
-  'Deck gear': 'Pin her equipment on her: pick a piece, then click on her where it goes, and it’s placed there (on the wheelhouse roof, the foredeck or the aft deck, whichever is nearest). Its weight is designed in. Delete its pin to take it off again.',
+  'Deck gear': 'Her equipment, by the work it’s for. <b>Place</b> it, then click on her where it goes: it’s put there (on the wheelhouse roof, the foredeck or the aft deck, whichever is nearest). Gear with only one place on any boat (the anchor, the stern roller, the A-frame, the side door) is simply <b>Fit</b>ted. Its weight is designed in.',
   Controls: 'What the skipper has at the helm.',
   Paint: 'Her colours, hull and roof.',
 };
@@ -677,24 +678,14 @@ options('dhWidth', 'Width', ['To her sides', '0.3 m side decks', '0.5 m', '0.7 m
 options('dhRake', 'Front', ['Upright', 'Raked 30°', 'Raked 50°']);
 section('3. Deck gear');
 {
-  // Pin her equipment where it's wanted (pinGear.ts): a button a piece, then click on her.
-  const pal = document.createElement('div');
-  pal.className = 'palette';
-  for (const e of EQUIPMENT) {
-    const b = document.createElement('button');
-    b.textContent = e.name;
-    b.dataset.gear = e.id;
-    b.title = `Click, then click on her where the ${e.name.toLowerCase()} goes: it’s placed there`;
-    b.onclick = () => pinGearTool(e.id);
-    pal.appendChild(b);
-  }
+  // Her equipment by the work it's for (gearMenu.ts), each a card: what it is, whether she
+  // has it and where, and Place (click on her where it goes) or Fit, Move, Turn, Take off.
+  // The pins that placed gear are listed under it.
+  const menu = document.createElement('div');
+  menu.id = 'gearMenu';
   const box = document.createElement('div');
   box.id = 'fromPins';
-  // What's on her now, pinned or not (a type's own fit, an older code), each with a way off
-  // (owner, Oct 2026: the choices "set by hand" that were here repeated the pins).
-  const onHer = document.createElement('div');
-  onHer.id = 'onHer';
-  controls.append(pal, box, onHer);
+  controls.append(menu, box);
 }
 section('4. Engine');
 choices('engine', ENGINES.map((e) => ({ name: e.name, note: `${'about' in e ? `${e.about} ` : ''}${e.kg} kg with its gearbox. Propeller and gearbox matched to her by trial.` })), (i) => (SINGLE_ONLY_ENGINES.includes(i) ? { twin: 0 } : {}));
@@ -1492,7 +1483,7 @@ const toolBtns: Record<string, HTMLButtonElement> = {};
 function setTool(t: typeof tool): void {
   tool = t;
   presetGear = null;
-  document.querySelectorAll<HTMLElement>('.palette button').forEach((b) => b.classList.remove('on'));
+  document.querySelectorAll<HTMLElement>('#gearMenu [data-place]').forEach((b) => b.classList.remove('on'));
   // Sketching: the view stays square on (no turning it; the wheel still zooms) and flat.
   orbit.enabled = t !== 'pin';
   orbit.enableRotate = orbit.enablePan = !t;
@@ -1562,7 +1553,7 @@ renderer.domElement.addEventListener('pointerup', (e) => {
 function pinGearTool(id: string): void {
   setTool('pin');
   presetGear = id;
-  document.querySelectorAll<HTMLElement>('.palette button').forEach((b) => b.classList.toggle('on', b.dataset.gear === id));
+  document.querySelectorAll<HTMLElement>('#gearMenu [data-place]').forEach((b) => b.classList.toggle('on', b.dataset.place === id));
   $('toolHint').textContent = `Click on her where the ${equipmentOf(id)!.name.toLowerCase()} goes`;
 }
 function addPin(gearPicked?: string): void {
@@ -1652,29 +1643,60 @@ function takeOff(eq: Equipment): void {
   if (pin) dropPin(pin);
   else change(removeGear(eq));
 }
-/** The Deck gear step's list of what's on her now. */
+/** Where a fitted piece is, in words (its usual place, where it was pinned; left off for want of room). */
+function whereOnHer(eq: Equipment): string {
+  const v = design[eq.field] ?? 0;
+  const at = eq.key ? boat.placed[eq.key] : undefined;
+  // Fitted but left off for want of room (the builder says so in her warnings).
+  const short = eq.id === 'anchor' ? 'anchor' : eq.id === 'skiff' ? 'skiff' : eq.id === 'sideDoor' ? 'side door' : '';
+  const leftOff = short && boat.warnings.some((w) => w.toLowerCase().includes(short) && /left off/.test(w)) ? ' (no room: left off, see the warnings)' : '';
+  const ramp = DESIGN_HULLS[design.hull].ramp;
+  if (eq.id === 'anchor') return (ramp ? 'a kedge at the stern (her bow is the ramp)' : 'at the bow roller') + leftOff;
+  if (eq.key && design[eq.key] && at) return `${USUAL[eq.id]?.[v] ?? ''}, where pinned: ${at.x === 0 ? 'on the centreline' : `${Math.abs(at.x).toFixed(2)} m to ${at.x < 0 ? 'port' : 'starboard'}`}`;
+  return (USUAL[eq.id]?.[v] ?? '') + leftOff;
+}
+/** Groups the player has closed (kept while the page is open). */
+const closedGroups = new Set<string>();
+/** The Deck gear step's menu: her equipment by group, each a card with its state and actions. */
 function showOnHer(): void {
-  const box = document.getElementById('onHer');
-  if (!box) return;
-  const on = EQUIPMENT.filter((e) => fitted(e, design));
-  box.innerHTML = `<h2>On her now</h2>${on.length ? '' : '<div class="meta">No deck gear yet.</div>'}`;
-  for (const eq of on) {
-    const v = design[eq.field] ?? 0;
-    const at = eq.key ? boat.placed[eq.key] : undefined;
-    // Fitted but left off for want of room (the builder says so in her warnings).
-    const short = eq.id === 'anchor' ? 'anchor' : eq.id === 'skiff' ? 'skiff' : '';
-    const leftOff = short && boat.warnings.some((w) => w.includes(short) && /left off/.test(w)) ? ' (no room: left off, see the warnings)' : '';
-    const ramp = DESIGN_HULLS[design.hull].ramp;
-    const where = eq.id === 'anchor' ? (ramp ? 'a kedge at the stern (her bow is the ramp)' : 'at the bow roller') + leftOff : eq.key && design[eq.key] && at ? `${USUAL[eq.id]?.[v] ?? ''}, where pinned: ${at.x === 0 ? 'on the centreline' : `${Math.abs(at.x).toFixed(2)} m to ${at.x < 0 ? 'port' : 'starboard'}`}` : (USUAL[eq.id]?.[v] ?? '') + leftOff;
-    const row = document.createElement('div');
-    row.className = 'item';
-    row.innerHTML = `<span><b>${esc(eq.name)}</b> <span class="meta">${esc(where)}</span></span>`;
-    const b = document.createElement('button');
-    b.textContent = 'Take off';
-    b.title = 'Take it off her (and its pin, if it has one)';
-    b.onclick = () => takeOff(eq);
-    row.appendChild(b);
-    box.appendChild(row);
+  const menu = document.getElementById('gearMenu');
+  if (!menu) return;
+  menu.innerHTML = '';
+  for (const g of GEAR_GROUPS) {
+    const items = g.items.map((id) => equipmentOf(id)!).filter(Boolean);
+    const on = items.filter((eq) => fitted(eq, design)).length;
+    const det = document.createElement('details');
+    det.className = 'gearGroup';
+    det.open = !closedGroups.has(g.name);
+    det.ontoggle = () => (det.open ? closedGroups.delete(g.name) : closedGroups.add(g.name));
+    det.innerHTML = `<summary><span>${esc(g.name)}</span><span class="meta">${on ? `${on} of ${items.length} fitted` : 'none fitted'}</span></summary>`;
+    for (const eq of items) {
+      const has = fitted(eq, design);
+      const kind = gearKind(eq);
+      const card = document.createElement('div');
+      card.className = `gearCard${has ? ' fitted' : ''}`;
+      card.innerHTML = `${GEAR_ICONS[eq.id] ?? ''}<div class="gearText"><b>${esc(eq.name)}</b><span class="meta">${esc(GEAR_ABOUT[eq.id] ?? '')}</span><span class="gearState">${has ? `✓ On her: ${esc(whereOnHer(eq))}` : 'Not fitted'}</span></div><div class="gearActs"></div>`;
+      const acts = card.querySelector('.gearActs')!;
+      const button = (text: string, title: string, go: () => void, primary = false) => {
+        const b = document.createElement('button');
+        b.textContent = text;
+        b.title = title;
+        if (primary) b.className = 'primary';
+        b.onclick = go;
+        acts.appendChild(b);
+        return b;
+      };
+      if (kind === 'place') {
+        const b = button(has ? 'Move' : 'Place', `Then click on her where the ${eq.name.toLowerCase()} goes: it’s placed there`, () => pinGearTool(eq.id), !has);
+        b.dataset.place = eq.id;
+        if (presetGear === eq.id) b.classList.add('on');
+        const at = has && eq.key && eq.turns ? placeOf(eq.key, design[eq.key]) : null;
+        if (at) button('Turn ↻', `A quarter turn on its spot (now ${FACINGS[eq.key!][at.face]})`, () => turnGear(eq));
+      } else if (!has) button('Fit', `Fit it: it goes ${USUAL[eq.id]?.[1] ?? 'in its place'}${eq.id === 'anchor' ? ' (or a kedge at the stern on a ramp-bow boat)' : ''}`, () => change(placeGear(eq, [0, 0, 0], undefined, 0).patch), true);
+      if (has) button('Take off', 'Take it off her (and its pin, if it has one)', () => takeOff(eq));
+      det.appendChild(card);
+    }
+    menu.appendChild(det);
   }
 }
 /** The Deck gear step's list of what pins asked for, and what became of it. */
@@ -1683,7 +1705,7 @@ function showFromPins(): void {
   const box = document.getElementById('fromPins');
   if (!box) return;
   const list = todo(notes).filter((p) => equipmentOf(p.gear));
-  box.innerHTML = list.length ? '<div class="meta">Pinned:</div>' : '<div class="meta">Nothing pinned yet. Pick a piece above, then click on her where it goes.</div>';
+  box.innerHTML = list.length ? '<h2>Pins</h2>' : '';
   for (const p of list) {
     const eq = equipmentOf(p.gear)!;
     const n = todo(notes).indexOf(p) + 1;

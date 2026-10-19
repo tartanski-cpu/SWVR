@@ -51,21 +51,42 @@ describe('the geography', () => {
   it('one gap out from the Sounds, to the north-west', () => {
     expect(regionAt(-4250, -6400).id).toBe('narrows');
     let gap = Infinity;
-    for (const a of SOUNDS.islands) for (const b of NARROWS.islands) gap = Math.min(gap, Math.hypot(a.x - b.x, a.z - b.z) - a.radius - b.radius);
+    // Between real islands (the passage rocks lie in the gap on purpose).
+    const big = (i: { radius: number }) => i.radius >= 100;
+    for (const a of SOUNDS.islands.filter(big)) for (const b of NARROWS.islands.filter(big)) gap = Math.min(gap, Math.hypot(a.x - b.x, a.z - b.z) - a.radius - b.radius);
     expect(gap).toBeGreaterThan(2500);
     expect(gap).toBeLessThan(4500);
   });
 
-  it('the narrows: about 450-550 m of deep water between walls, the strongest race in the game', () => {
+  it('the narrows: about 300 m of deep water between walls, the strongest race in the game', () => {
     let w = 0;
     for (let x = -4800; x <= -3700; x += 1) if (groundHeight(x, -6400) < 0) w += 1;
-    expect(w).toBeGreaterThan(400);
-    expect(w).toBeLessThan(600);
-    expect(groundHeight(-4600, -6400)).toBeGreaterThan(150);
-    expect(groundHeight(-3900, -6400)).toBeGreaterThan(50);
+    expect(w).toBeGreaterThan(250);
+    expect(w).toBeLessThan(380);
+    expect(groundHeight(-4500, -6400)).toBeGreaterThan(150);
+    expect(groundHeight(-3950, -6400)).toBeGreaterThan(50);
     const race = CURRENTS.find((c) => c.id === 'cutter-narrows')!;
     expect(race.peakKn).toBe(Math.max(...CURRENTS.map((c) => c.peakKn)));
     expect(race.peakKn).toBe(12);
+  });
+
+  it('Otter Cove: a narrow mouth with the islet across it, a 9 m basin behind, a beach at its head', () => {
+    // The mouth at the shore: about 100 m of water, no more.
+    let mouth = 0;
+    for (let x = -5150; x <= -4850; x += 1) if (groundHeight(x, -5380) < -2) mouth += 1;
+    expect(mouth).toBeGreaterThan(60);
+    expect(mouth).toBeLessThan(140);
+    // The islet stands across it, a little way out: no straight line in from the south.
+    expect(groundHeight(-5000, -5225)).toBeGreaterThan(10);
+    for (let x = -5040; x <= -4960; x += 10) expect(groundHeight(x, -5260), `${x}`).toBeGreaterThan(0);
+    // Deep passages either side of the islet, and the basin.
+    expect(groundHeight(-5070, -5320)).toBeLessThan(-6);
+    expect(groundHeight(-4930, -5320)).toBeLessThan(-6);
+    expect(groundHeight(-5000, -5490)).toBeCloseTo(-9, 0);
+    // The beach at the head: shallow, then the cabin's level.
+    expect(groundHeight(-5000, -5600)).toBeGreaterThan(-3);
+    expect(groundHeight(-5000, -5600)).toBeLessThan(0);
+    expect(groundHeight(-5000, -5625)).toBeCloseTo(1.5, 1);
   });
 
   it('Twin Fang Rock: two pinnacles 0.6 m under, deep water all round, marked', () => {
@@ -118,7 +139,7 @@ describe('the geography', () => {
     };
     const onRock = run(-4230);
     expect(onRock.hit).toBeGreaterThan(0);
-    const clear = run(-4100);
+    const clear = run(-4170); // 60 m east of the rock, still in the channel
     expect(clear.hit).toBe(0);
     expect(clear.z).toBeLessThan(-6300 - 150); // carried north by the race
   });
@@ -134,12 +155,14 @@ describe('the spine', () => {
     expect(port('kestrel').kind).toBe('pier');
     expect(shelterFactor(-3518, -5420)).toBe(1);
     expect(port('otter').kind).toBe('anchorage');
-    expect(bottomAt(-5000, -5420)).toBe('weed');
+    expect(bottomAt(-5000, -5490)).toBe('weed');
     // Sheltered from a sea out of the north-east (travelling south-west), open where their gaps are.
     const SW = [-Math.SQRT1_2, Math.SQRT1_2] as const;
-    expect(arcShelter(-5000, -5420, SW[0], SW[1])).toBeLessThan(0.2);
+    expect(arcShelter(-5000, -5490, SW[0], SW[1])).toBeLessThan(0.2);
     expect(arcShelter(-4710, -7395, SW[0], SW[1])).toBeLessThan(0.2);
-    expect(arcShelter(-5000, -5420, 0, -1)).toBeGreaterThan(0.9); // a sea from the south gets into the cove
+    // Only a sea from dead south gets in, past the islet, and only a little of it (the cut-down mouth).
+    expect(arcShelter(-5000, -5490, -Math.SQRT1_2, -Math.SQRT1_2)).toBeLessThan(0.2); // from the south-east
+    expect(arcShelter(-5000, -5490, Math.SQRT1_2, -Math.SQRT1_2)).toBeLessThan(0.2); // from the south-west
     for (const b of NARROWS.berths) {
       expect(groundHeight(b.x, b.z), b.id).toBeLessThan(-4);
       expect(standingHeight(b.x + b.shoreX * (b.shoreDist + 1), b.z + b.shoreZ * (b.shoreDist + 1)), b.id).toBeCloseTo(b.deckY, 1);

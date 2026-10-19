@@ -110,4 +110,22 @@ describe('regions', () => {
     // The chart still covers the same sheet.
     expect(chartBounds()).toEqual({ x0: -1630, x1: 2170, z0: -1088, z1: 2340 });
   });
+
+  it('the passages between the regions have rocks on their direct lines (navigate them in fog)', () => {
+    const port = (id: string) => PORTS.find((p) => p.id === id)!;
+    // The direct line from a to b passes within 60 m of land somewhere in open water between them.
+    const blocked = (a: { x: number; z: number }, b: { x: number; z: number }, from: number, to: number) => {
+      for (let t = from; t <= to; t += 0.002) if (groundHeight(a.x + (b.x - a.x) * t, a.z + (b.z - a.z) * t) > 0) return true;
+      return false;
+    };
+    // Calder Haven to Loch Tarsk, across the sound (home's north edge to the Sounds' south).
+    expect(blocked(port('calder'), port('tarsk'), 0.4, 0.6)).toBe(true);
+    // Loch Tarsk to Kvassvik, the open water before the Fjord's coast (both halves).
+    expect(blocked(port('tarsk'), port('kvassvik'), 0.2, 0.3)).toBe(true);
+    expect(blocked(port('tarsk'), port('kvassvik'), 0.3, 0.42)).toBe(true);
+    // Loch Tarsk to the narrows' south entrance (both halves).
+    const narrows = { x: -4280, z: -4900 };
+    expect(blocked(port('tarsk'), narrows, 0.25, 0.4)).toBe(true);
+    expect(blocked(port('tarsk'), narrows, 0.55, 0.75)).toBe(true);
+  });
 });

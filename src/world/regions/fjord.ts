@@ -57,6 +57,10 @@ export const FJORD: RegionDef = {
     },
     // Kvasstind: the peak standing out of the plateau north of the fjord.
     { name: 'Kvasstind', x: 5800, z: -7900, radius: 650, height: 760, shape: [[3, 0.08, 0.4]], beach: 1, seed: 42, trees: 0, rise: 0.95 },
+    // Mellomskjæra: rocks on the passage from Loch Tarsk (owner, after M6: a crossing in fog
+    // must be navigated). Charted, unlit.
+    { name: 'Mellomskjæra', x: 2942, z: -5267, radius: 24, height: 3, shape: [[3, 0.2, 0.9]], beach: 0.5, seed: 44, trees: 0 },
+    { name: 'Mellomskjæra', x: 2905, z: -5290, radius: 12, height: 1.2, shape: [[2, 0.25, 0.2]], beach: 0.5, seed: 45, trees: 0 },
   ],
   // Big, high land: inland above 12 m the terrain is drawn in 36 m cells (the Quest's budget;
   // the walls and tops are hundreds of metres high, so the shape holds).

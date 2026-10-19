@@ -50,7 +50,9 @@ describe('the geography', () => {
     expect(regionAt(5300, -7100).id).toBe('fjord');
     // The gap between the Sounds' and the Fjord's nearest land: about the diagonal rule (3 km, give or take).
     let gap = Infinity;
-    for (const a of SOUNDS.islands) for (const b of FJORD.islands) gap = Math.min(gap, Math.hypot(a.x - b.x, a.z - b.z) - a.radius - b.radius);
+    // Between real islands (the passage rocks lie in the gap on purpose).
+    const big = (i: { radius: number }) => i.radius >= 100;
+    for (const a of SOUNDS.islands.filter(big)) for (const b of FJORD.islands.filter(big)) gap = Math.min(gap, Math.hypot(a.x - b.x, a.z - b.z) - a.radius - b.radius);
     expect(gap).toBeGreaterThan(2500);
     expect(gap).toBeLessThan(4500);
   });
