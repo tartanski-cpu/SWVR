@@ -10,7 +10,7 @@
  * saves are `swvr.*` too). That storage belongs to this browser on this device: the Quest's
  * browser and the desktop's keep separate lists. A design moves between them by its code.
  */
-import { decodeDesign } from './design';
+import { readDesign } from './designDoc';
 
 export interface Favourite {
   name: string;
@@ -44,7 +44,7 @@ export function readFavourites(store: Store | null): Favourite[] {
   }
   if (!Array.isArray(raw)) return [];
   return raw
-    .filter((f): f is Favourite => !!f && typeof f.name === 'string' && typeof f.code === 'string' && 'design' in decodeDesign(f.code))
+    .filter((f): f is Favourite => !!f && typeof f.name === 'string' && typeof f.code === 'string' && 'design' in readDesign(f.code))
     .map((f) => ({ name: f.name, code: f.code, savedAt: Number(f.savedAt) || 0, picture: typeof f.picture === 'string' ? f.picture : '', summary: typeof f.summary === 'string' ? f.summary : '' }))
     .sort((a, b) => b.savedAt - a.savedAt);
 }

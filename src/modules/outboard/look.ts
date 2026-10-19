@@ -25,13 +25,20 @@ const drum = (r: number, l: number, at: V3, colour: number, sides = 12) => part(
 /** The leg's place aft of the steering axis (m): the propeller's, less the gearcase's length ahead of it. */
 const legZ = (o: OutboardLook) => o.propAft - 0.42;
 
-/** One outboard's parts, in its own axes (see above). `propD`: the propeller's diameter. */
-export function outboardUnitParts(o: OutboardLook, propD: number): THREE.BufferGeometry[] {
+/**
+ * One outboard's parts, in its own axes (see above). `propD`: the propeller's diameter.
+ * `sterndrive`: a stern drive's outdrive leg instead (its engine is inside the boat): no cowl,
+ * a low gimbal housing at the top of the leg in its place (`cowlWidth` by `cowlLength`).
+ */
+export function outboardUnitParts(o: OutboardLook, propD: number, sterndrive = false): THREE.BufferGeometry[] {
   const parts: THREE.BufferGeometry[] = [];
   const zCowl = o.cowlLength / 2 - 0.05;
-  parts.push(box(o.cowlWidth, o.cowlHeight, o.cowlLength, [0, o.cowlHeight / 2, zCowl], COWL));
-  parts.push(box(o.cowlWidth + 0.02, 0.08, o.cowlLength - 0.1, [0, 0.04, zCowl], DARK)); // the pan
-  parts.push(box(o.cowlWidth * 0.55, o.cowlHeight * 0.35, 0.02, [0, o.cowlHeight / 2 + 0.05, zCowl + o.cowlLength / 2 + 0.01], DARK)); // the air intake
+  if (sterndrive) parts.push(box(o.cowlWidth, 0.22, o.cowlLength, [0, -0.11, zCowl - 0.05], DARK)); // the gimbal housing
+  else {
+    parts.push(box(o.cowlWidth, o.cowlHeight, o.cowlLength, [0, o.cowlHeight / 2, zCowl], COWL));
+    parts.push(box(o.cowlWidth + 0.02, 0.08, o.cowlLength - 0.1, [0, 0.04, zCowl], DARK)); // the pan
+    parts.push(box(o.cowlWidth * 0.55, o.cowlHeight * 0.35, 0.02, [0, o.cowlHeight / 2 + 0.05, zCowl + o.cowlLength / 2 + 0.01], DARK)); // the air intake
+  }
   const zl = legZ(o);
   const plate = -o.shaftLength;
   const gear = plate - o.gearDrop;
@@ -50,7 +57,8 @@ export function outboardUnitParts(o: OutboardLook, propD: number): THREE.BufferG
   return parts;
 }
 
-/** Each unit's clamp bracket on the mount (fixed: the unit swings behind it), boat axes. */
-export function mountPlate(o: OutboardLook, x: number, mountY: number, mountZ: number): THREE.BufferGeometry {
+/** Each unit's clamp bracket on the mount (fixed: the unit swings behind it), boat axes; a stern drive's shield on the transom, round its bell housing. */
+export function mountPlate(o: OutboardLook, x: number, mountY: number, mountZ: number, sterndrive = false): THREE.BufferGeometry {
+  if (sterndrive) return box(o.cowlWidth + 0.15, 0.5, 0.05, [x, mountY - 0.15, mountZ + 0.025], DARK);
   return box(o.cowlWidth + 0.2, 0.6, 0.06, [x, mountY - 0.3, mountZ + 0.03], 0x9aa0a6);
 }

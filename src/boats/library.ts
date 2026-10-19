@@ -6,7 +6,8 @@
 import { CONFIG } from '../config';
 import { createHullLibrary, type HullLibrary } from '../modular/hull';
 import { buildDesign, type DesignedBoat } from '../shipyard/build';
-import { DEFAULT_DESIGN, encodeDesign, type ShipDesign } from '../shipyard/design';
+import { DEFAULT_DESIGN, type ShipDesign } from '../shipyard/design';
+import { shortCode } from '../shipyard/designDoc';
 import { vesselDefFrom } from '../modular/vesselAssembly';
 import { registerVesselDefs } from '../vessel/vesselDef';
 import { createModuleLibrary, parseRecipe, validateRecipe, type Mount, type Recipe } from '../modular/recipe';
@@ -91,7 +92,7 @@ const FIXED_HULLS = createHullLibrary([WORKBOAT_HULL, SKIFF_HULL, DERELICT_HULL,
  * built from a design's choices (by default the Shipyard's starting design). `useDesign`
  * swaps her for another: a game started in her, or the Shipyard page trying one out.
  */
-let designed: DesignedBoat = buildDesign(DEFAULT_DESIGN, encodeDesign(DEFAULT_DESIGN));
+let designed: DesignedBoat = buildDesign(DEFAULT_DESIGN, shortCode(DEFAULT_DESIGN) ?? 'custom');
 
 export const HULLS: HullLibrary = { get: (id) => (id === designed.hull.id ? designed.hull : FIXED_HULLS.get(id)) };
 
@@ -139,7 +140,7 @@ export const RECIPES: Record<string, Recipe> = {
  * boats/sims.ts `useDesign`, which also refits her machinery.
  */
 export function setDesignBoat(d: ShipDesign): DesignedBoat {
-  designed = buildDesign(d, encodeDesign(d));
+  designed = buildDesign(d, shortCode(d) ?? 'custom');
   RECIPES.design = loadRecipe(designed.recipe);
   registerVesselDefs(buildDefs);
   return designed;

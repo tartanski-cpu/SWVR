@@ -426,8 +426,13 @@ export const CONFIG = {
          * Cooling and temperatures. One lumped heat capacity (block + coolant):
          *   C dT/dt = Q_in - UA (T - T_sea)
          *   Q_in = heatToCoolant * fuel energy rate (m_dot * LHV)
-         *   UA   = baseLoss + exchanger * thermostat opening (0 at openC .. 1 at fullC),
-         *          the exchanger only working while the engine-driven raw-water pump turns.
+         *   UA   = baseLoss + exchanger * thermostat opening (0 at openC .. 1 at fullC)
+         *          * (rpm / rated)^pumpFlowExp: the engine-driven raw-water pump's flow;
+         *   lugging  the rack ahead of the revs (rack - rpm / rated, when positive: full fuel
+         *          with the revs held down) puts `lugHeat` x that much more of the fuel's heat
+         *          into the water: smoke and a hot exhaust.
+         * The exchanger is sized so flat out at rated revs she settles in the mid 80s (°C);
+         * towing flat out, or a hull that won't plane, overheats: alarm, derate, not shutdown.
          * Oil follows the coolant with a lag, running hotter under load.
          */
         thermal: {
@@ -437,8 +442,12 @@ export const CONFIG = {
           heatCapacity: 150,
           thermostatOpenC: 80,
           thermostatFullC: 88,
-          /** Sea-water heat exchanger conductance, thermostat fully open (kW/K). */
+          /** Sea-water heat exchanger conductance, thermostat fully open, pump at rated revs (kW/K). */
           exchangerKwPerK: 4.4,
+          /** The raw-water pump's flow with the revs: (rpm / rated) to this power (1: in proportion). */
+          pumpFlowExp: 1,
+          /** Extra heat to the water per unit of lugging (rack - rpm / rated): 1 = 20 % more at 0.2. */
+          lugHeat: 1,
           /** Losses with the thermostat shut or the engine stopped (kW/K). */
           baseLossKwPerK: 0.03,
           /** A failed raw-water pump impeller leaves this fraction of the exchanger working. */
@@ -856,8 +865,8 @@ export const CONFIG = {
       /**
        * Deck cargo. Items sit wherever they're put on the open deck; their masses and
        * positions go into the hull's mass, CG and inertia, so a load shifting to one side
-       * gives her a list. Lashing points (D-rings, vessel axes, on the deck) along the aft
-       * bulwarks and centreline: a crate within `lashRange` of one can be strapped down.
+       * gives her a list. Anything on open deck (clear of the houses and the gear on it) can be
+       * strapped down where it stands (owner, Oct 2026: no D-rings to find).
        */
       cargo: {
         maxPayloadKg: 5000,
@@ -868,12 +877,6 @@ export const CONFIG = {
         aftClear: 0.25,
         /** Cargo stays where it's put (true), or slides about the deck in a seaway (false). */
         fixed: false,
-        lashPoints: [
-          [-1.95, 3.0], [-1.95, 4.0], [-1.4, 5.3],
-          [1.95, 3.0], [1.95, 4.0], [1.4, 5.3],
-          [0, 3.6], [0, 4.2],
-        ] as [number, number][],
-        lashRange: 1.1,
       },
       /**
        * Cabin light: a ceiling lamp in the wheelhouse (vessel axes) and its light (cd, m).
@@ -1178,11 +1181,6 @@ export const CONFIG = {
         bowClear: 0.4,
         aftClear: 0.25,
         fixed: false,
-        lashPoints: [
-          [-1.1, -0.5], [-1.1, -2.0], [-1.1, -3.5],
-          [1.1, -0.5], [1.1, -2.0], [1.1, -3.5],
-        ] as [number, number][],
-        lashRange: 1.1,
       },
       /** At the helm, facing forward. */
       boardingSpot: [0, LC_FLOOR, 1.85] as [number, number, number],
@@ -1413,11 +1411,6 @@ export const CONFIG = {
         bowClear: 0.4,
         aftClear: 0.4,
         fixed: false,
-        lashPoints: [
-          [-1.3, 2.4], [-1.3, 3.8], [-1.3, 5.2],
-          [1.3, 2.4], [1.3, 3.8], [1.3, 5.2],
-        ] as [number, number][],
-        lashRange: 1.1,
       },
       /** At the helm, facing forward. */
       boardingSpot: [0.5, A38_FLOOR, -1.3] as [number, number, number],
@@ -1568,8 +1561,6 @@ export const CONFIG = {
         aftClear: 0.9,
         edge: 0.08,
         fixed: true,
-        lashPoints: [] as [number, number][],
-        lashRange: 0.8,
       },
       /**
        * Her cleats (modules/boatCleat; owner: tie her up front and back, to the ship or the
@@ -1612,7 +1603,7 @@ export const CONFIG = {
       damping: { vertical: 800, verticalCd: 1.5, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 20, roll: 2000, pitch: 2500, yaw: 2500 },
       resistance: { lwl: 6.5, formFactor: 0.25, waveA: 1.5, waveB: 1.2, waveKnee: 0.28, waveCap: 0.15, asternFactor: 2.0, y: -0.2 },
       layout: { bulwarkHeight: 0.25, railHeight: 0, deckEdgeMargin: 0.15, bodyRadius: 0.22 },
-      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true, lashPoints: [] as [number, number][], lashRange: 0.8 },
+      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true },
       windage: { side: 9, front: 4, center: [0, 1.1, 0] as [number, number, number] },
       boardingSpot: [0, 0.75, 2] as [number, number, number],
       spawn: { x: 0, z: 0, dropHeight: 0.2, headingDeg: 0 },
@@ -1627,7 +1618,7 @@ export const CONFIG = {
       damping: { vertical: 800, verticalCd: 1.5, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 20, roll: 7000, pitch: 7000, yaw: 7000 },
       resistance: { lwl: 7.8, formFactor: 0.8, waveA: 4, waveB: 3, waveKnee: 0.2, waveCap: 0.3, asternFactor: 1.5, y: -0.2 },
       layout: { bulwarkHeight: 0, railHeight: 0, deckEdgeMargin: 0.15, bodyRadius: 0.22 },
-      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true, lashPoints: [] as [number, number][], lashRange: 0.8 },
+      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true },
       windage: { side: 2, front: 1.2, center: [0, 0.3, 0] as [number, number, number] },
       boardingSpot: [0, 0.3, 1] as [number, number, number],
       spawn: { x: 0, z: 0, dropHeight: 0.2, headingDeg: 0 },
@@ -1648,7 +1639,7 @@ export const CONFIG = {
       // The net under it drags: a form factor well above the raft's.
       resistance: { lwl: 7.8, formFactor: 1.6, waveA: 4, waveB: 3, waveKnee: 0.2, waveCap: 0.3, asternFactor: 1.5, y: -0.2 },
       layout: { bulwarkHeight: 0, railHeight: 0, deckEdgeMargin: 0.15, bodyRadius: 0.22 },
-      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true, lashPoints: [] as [number, number][], lashRange: 0.8 },
+      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true },
       windage: { side: 1.5, front: 1.5, center: [0, 0.4, 0] as [number, number, number] },
       boardingSpot: [0, 0.3, 1] as [number, number, number],
       spawn: { x: 0, z: 0, dropHeight: 0.2, headingDeg: 0 },
@@ -1663,7 +1654,7 @@ export const CONFIG = {
       damping: { vertical: 800, verticalCd: 1.5, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 20, roll: 10000, pitch: 10000, yaw: 10000 },
       resistance: { lwl: 8.7, formFactor: 0.6, waveA: 3, waveB: 2.5, waveKnee: 0.22, waveCap: 0.25, asternFactor: 1.5, y: -0.25 },
       layout: { bulwarkHeight: 0.1, railHeight: 0, deckEdgeMargin: 0.15, bodyRadius: 0.22 },
-      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true, lashPoints: [] as [number, number][], lashRange: 0.8 },
+      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true },
       windage: { side: 5, front: 3, center: [0, 0.8, 0] as [number, number, number] },
       boardingSpot: [0, 0.55, 1] as [number, number, number],
       spawn: { x: 0, z: 0, dropHeight: 0.2, headingDeg: 0 },
@@ -1685,7 +1676,7 @@ export const CONFIG = {
       damping: { vertical: 800, verticalCd: 1.5, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 20, roll: 950, pitch: 600, yaw: 300 },
       resistance: { lwl: 5.2, formFactor: 0.25, waveA: 1.5, waveB: 1.2, waveKnee: 0.28, waveCap: 0.15, asternFactor: 2.0, y: -0.15 },
       layout: { bulwarkHeight: 0.15, railHeight: 0, deckEdgeMargin: 0.12, bodyRadius: 0.22 },
-      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true, lashPoints: [] as [number, number][], lashRange: 0.8 },
+      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true },
       windage: { side: 3, front: 1.5, center: [0, 0.5, 0] as [number, number, number] },
       boardingSpot: [0, 0.45, 1] as [number, number, number],
       spawn: { x: 0, z: 0, dropHeight: 0.2, headingDeg: 0 },
@@ -1701,7 +1692,7 @@ export const CONFIG = {
       damping: { vertical: 800, verticalCd: 1.5, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 20, roll: 24000, pitch: 20000, yaw: 10000 },
       resistance: { lwl: 10.2, formFactor: 0.15, waveA: 1.0, waveB: 0.9, waveKnee: 0.3, waveCap: 0.12, asternFactor: 2.5, y: -0.4 },
       layout: { bulwarkHeight: 0.06, railHeight: 0, deckEdgeMargin: 0.15, bodyRadius: 0.22 },
-      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true, lashPoints: [] as [number, number][], lashRange: 0.8 },
+      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true },
       windage: { side: 12, front: 5, center: [0, 1.2, 0] as [number, number, number] },
       boardingSpot: [0, 0.9, 2.5] as [number, number, number],
       spawn: { x: 0, z: 0, dropHeight: 0.2, headingDeg: 0 },
@@ -1717,7 +1708,7 @@ export const CONFIG = {
       // Her nets round the propeller and the locked shaft drag (the form factor, ~3x a clean hull's).
       resistance: { lwl: 17, formFactor: 1.0, waveA: 1.2, waveB: 1.0, waveKnee: 0.28, waveCap: 0.15, asternFactor: 2.0, y: -0.8 },
       layout: { bulwarkHeight: 0.8, railHeight: 0, deckEdgeMargin: 0.2, bodyRadius: 0.22 },
-      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true, lashPoints: [] as [number, number][], lashRange: 0.8 },
+      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true },
       windage: { side: 55, front: 25, center: [0, 3, 0] as [number, number, number] },
       boardingSpot: [0, 1.4, 6] as [number, number, number],
       spawn: { x: 0, z: 0, dropHeight: 0.2, headingDeg: 0 },
@@ -1733,7 +1724,7 @@ export const CONFIG = {
       // Bluff, square-ended: a big form factor and an early wave rise.
       resistance: { lwl: 19.5, formFactor: 2.5, waveA: 4, waveB: 3.5, waveKnee: 0.15, waveCap: 0.3, asternFactor: 1.5, y: -0.5 },
       layout: { bulwarkHeight: 0.1, railHeight: 0, deckEdgeMargin: 0.2, bodyRadius: 0.22 },
-      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true, lashPoints: [] as [number, number][], lashRange: 0.8 },
+      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true },
       windage: { side: 45, front: 20, center: [0, 2.5, 0] as [number, number, number] },
       boardingSpot: [0, 1.0, 4] as [number, number, number],
       spawn: { x: 0, z: 0, dropHeight: 0.2, headingDeg: 0 },
@@ -1952,6 +1943,11 @@ export const CONFIG = {
     slideSafe: 0.4,
     grindForce: 20000,
     grindDamage: 0.02,
+    /** Rubbing on the guards damages her only in a sea over this scale (a storm), at this much per m. */
+    stormSea: 2.5,
+    stormRubDamage: 0.002,
+    /** Damage or wear over this blinks the HULL / ENGINE lamp (on from the duty board's thresholds). */
+    badAt: 0.5,
     leakRate: 1 / 40,
     bilgeMassFull: 3000,
     hotC: 98,
@@ -2182,6 +2178,36 @@ export const CONFIG = {
     debugLast: 45,
     lead: 3,
     look: { darken: 0.3, spray: 0.4 },
+  },
+
+  /**
+   * The cloud layer (environment/clouds.ts, drawn in the sky dome by skyView.ts: no extra
+   * draw call; two looks into a small noise picture per sky pixel).
+   *   lead        a change of weather shows on the upwind horizon this long before it comes (s)
+   *   rainDark / cloudDark  how dark a weather's cloud is: rain x rainDark + cover x cloudDark
+   *   scale       how many noise tiles across the cloud deck per deck height (bigger: smaller clouds)
+   *   drift       the deck moves with the wind: tiles per metre the wind blows (so clouds
+   *               cross the sky in a few minutes in a fresh breeze)
+   *   upwind      where across the sky the upwind side takes over: from `upwind[0]` to
+   *               `upwind[1]` deck heights out along the wind (0 overhead)
+   *   horizon     clouds thin into the haze over this height above the horizon (sky dir y)
+   *   baseDark    how dark the darkest cloud base is, as a fraction of the horizon's colour
+   *   minCover    even the clearest sky has this much fair-weather cloud (of the sky, 0..1)
+   *   flash       how much a lightning flash lights up the clouds
+   *   noiseSize   the noise picture (pixels square, tiling)
+   */
+  clouds: {
+    lead: 300,
+    rainDark: 1,
+    cloudDark: 0.25,
+    scale: 0.35,
+    drift: 0.0004,
+    upwind: [-0.4, 3] as [number, number],
+    horizon: 0.05,
+    baseDark: 0.16,
+    minCover: 0.15,
+    flash: 1.6,
+    noiseSize: 128,
   },
 
   weather: {
@@ -2485,11 +2511,68 @@ export const CONFIG = {
      * Her propeller shaft's angle to the horizontal (deg), rising forward from the propeller
      * (shipyard/machinery.ts; owner, Oct 2026: a reasonable shaft angle decides where the
      * engine goes). Small craft run about 8-12°: steeper wastes thrust and stands the engine
-     * up through her floor. Only the drawing and the fit check; not her weights.
+     * up through her floor. Where it puts the engine is where she carries its weight, where
+     * the game draws it, and where its hatch goes (engineHatch, below).
      */
     shaftAngleDeg: 10,
-    /** ...steeper only if her bottom is so flat aft the engine can't clear it otherwise (deg). */
+    /**
+     * ...steeper (deg), a degree at a time, where that lets the engine sit nearer where her
+     * weights balance (owner, Oct 2026: not always far forward), or clear a bottom too flat aft.
+     */
     shaftAngleMaxDeg: 15,
+    /**
+     * The engine hatch and the engine space under it (build.ts; owner, Oct 2026: the engine
+     * goes where her shaft line puts it, not in a box under the wheelhouse). Metres:
+     *   endRoom, sideRoom    the hatch past the engine's ends and its sides (room for the
+     *                        dipstick and the oil can's shelf beside it);
+     *   minLength, maxLength the hatch's length, whatever the engine's (a tug diesel's
+     *                        2.65 m would be a big lid to lift);
+     *   minWidth             narrower than this (a tight spot by the deck edge) and it goes elsewhere;
+     *   helmRoom             in the cabin floor, aft of the console by this: an engine under the helm gets
+     *                        its hatch right behind the console, as a wheelhouse's often is (open, it's a
+     *                        hole where you'd stand to steer: shut it to get under way);
+     *   deckMargin           on deck, in from the deck edge by this (the bulwark, the deck edge margin);
+     *   soleClear            the engine space's floor plates this far over her bottom's highest point under
+     *                        the engine's sides (twin: both engines'; the space spans both).
+     */
+    /**
+     * What her hull and houses are built of (owner, Oct 2026: the gillnetter and the tug steel,
+     * the landing craft and pilot boat aluminium, the workboat either; build.ts weighs her by
+     * it). Per square metre of her plating with its framing, bulkheads and welds averaged in
+     * (`shellKgPerM2`: about 6 mm of plate and as much again in framing, bulkheads and engine
+     * beds for a 10-14 m boat, aluminium at 2.7 t/m3 and steel at 7.85; a hull type can ask for
+     * heavier, build.ts DESIGN_HULLS `scantlings`), and of her houses (`houseKgPerM2`: thinner
+     * plate); and `pricePerKg`, built: aluminium dearer to buy and to weld.
+     */
+    materials: {
+      aluminium: { shellKgPerM2: 35, houseKgPerM2: 18, pricePerKg: 20 },
+      steel: { shellKgPerM2: 85, houseKgPerM2: 50, pricePerKg: 5 },
+    },
+    /**
+     * Her other weights (build.ts), and her load as trialled:
+     *   bulwarkShare     bulwarks weigh this share of her plating a square metre (thinner, less framing);
+     *   machineryShare   shafting, propeller, rudder, tanks, exhaust and cooling: this share of the engines' weight;
+     *   outfitKgPerM2    wiring, interior, windows, fittings and paint, per m2 of her deck (80 % of length x beam);
+     *   outfitPricePerKg ...and what it costs a kilo, fitted;
+     *   fuelShare        her tanks this full (half: the usual trial condition), fuel at `fuelDensity` kg/l;
+     *   crewKg, storesKg two crew, and stores;
+     *   gear             deck gear without a weight of its own in the game (kg each);
+     *   payloadFreeboard her deck payload: what sinks her by this share of her freeboard amidships
+     *                    (so a light hull carries more than the same hull built heavy).
+     */
+    weights: {
+      payloadFreeboard: 0.12,
+      bulwarkShare: 0.6,
+      machineryShare: 0.35,
+      outfitKgPerM2: 32,
+      outfitPricePerKg: 12,
+      fuelShare: 0.5,
+      fuelDensity: 0.84,
+      crewKg: 170,
+      storesKg: 150,
+      gear: { towWinch: 450, aFrame: 350, sternRoller: 60, skiff: 500, anchor: 150 },
+    },
+    engineHatch: { endRoom: 0.1, sideRoom: 0.2, minLength: 0.8, maxLength: 1.8, minWidth: 0.6, helmRoom: 0.1, deckMargin: 0.35, soleClear: 0.08 },
     /**
      * The skiff's cradle at least this far off the centreline toward her crane's side (m;
      * build.ts; owner: the skiff and crane go over to one side, like the deck crane, not in
@@ -3411,7 +3494,7 @@ export const CONFIG = {
     },
 
     /** instrument.warning-lamps: the lamps' spacing (m). */
-    warningLamps: { spacing: 0.085 },
+    warningLamps: { spacing: 0.066 },
 
     /** furniture.start-card: the laminated start-up card (m). */
     startCard: { width: 0.19, height: 0.26 },
@@ -3601,6 +3684,8 @@ export const CONFIG = {
         coldBelowC: 40,
         glowCoolRate: 0.25,
         gearRatio: 2.0,
+        /** The lower units made: the design's gear step is held to this range of ratios (build.ts). */
+        gearRange: [1.5, 2.4] as [number, number],
         gearEfficiency: 0.96,
         shiftDelay: 0.6,
         neutralBand: 0.08,
@@ -3613,7 +3698,10 @@ export const CONFIG = {
           heatCapacity: 40,
           thermostatOpenC: 80,
           thermostatFullC: 88,
-          exchangerKwPerK: 2.4,
+          /** Sized for its 300 kW held flat out (the Shipyard's 1.7 kW/K per 150 kW); 2.4 ran it to 113 °C. */
+          exchangerKwPerK: 3.4,
+          pumpFlowExp: 1,
+          lugHeat: 1,
           baseLossKwPerK: 0.012,
           faultExchangerFraction: 0.08,
           alarmC: 95,
@@ -3650,6 +3738,26 @@ export const CONFIG = {
       alternatorAmps: 60,
       starterAmps: 120,
       pricePerKw: 130,
+    },
+    /**
+     * Stern drives (owner, Oct 2026: "so that engines can go right up the back"): the
+     * inboard engine package against the transom, level, driving an outdrive leg through it
+     * that swings to steer (modules/outboard, `sterndrive`: the outboards' steering, no
+     * rudder). A twin installation has a leg each.
+     *   transomInset  the engine's gearbox end this far forward of the transom (the leg's
+     *                 bell housing through it)
+     *   legKg, price  each leg (with its gimbal housing and the transom shield), and what it adds
+     *   propMaxM      the leg's propeller no bigger than this (a high-revving one: its own gears)
+     *   look          the leg's (outboard look keys): its steering axis `pivotAft` of the
+     *                 transom, the propeller `propAft` of that; its length is worked out (the
+     *                 anti-ventilation plate level with her bottom at the transom)
+     */
+    sternDrive: {
+      transomInset: 0.15,
+      legKg: 160,
+      price: 9000,
+      propMaxM: 0.55,
+      look: { cowlWidth: 0.45, cowlHeight: 0, cowlLength: 0.5, legWidth: 0.2, shaftLength: 0.6, gearDrop: 0.22, pivotAft: 0.3, propAft: 0.6 },
     },
 
     /** electrical.battery-bank (M6): each 12 V 100 Ah battery's mass (kg). */
@@ -3848,8 +3956,10 @@ export const CONFIG = {
    * can hang if made just as the host's game opens).
    * `togetherLeadS`: the Shipyard waits this long after telling the others before going into
    * the game itself, so the message is out before its page closes.
+   * Hosting that fails at the broker (slow, down, or a room still held by a page that closed
+   * without saying) is tried again `hostTries` times in all, `hostRetryS` apart.
    */
-  net: { togetherRetryS: 2, togetherTries: 20, togetherConnectS: 8, togetherLeadS: 0.6 },
+  net: { togetherRetryS: 2, togetherTries: 20, togetherConnectS: 8, togetherLeadS: 0.6, hostTries: 4, hostRetryS: 3 },
 
   /**
    * Voice between the crew (net/voice.ts; owner request: up to four players). Everyone's
@@ -3881,6 +3991,8 @@ export const CONFIG = {
     squelchS: 0.12,
     squelchGain: 0.25,
     retryS: 5,
+    /** Your own handset's talk button (audio/handsetAudio.ts): the switch's click and the squelch burst after it. */
+    handset: { clickHz: 2200, clickGain: 0.5, squelchS: 0.09, squelchGain: 0.18 },
   },
 
   /**

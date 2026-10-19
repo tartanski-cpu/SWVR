@@ -297,6 +297,8 @@ Every value on a boat's bus (modular boats; `src/modular/busKeys.ts`). Generated
 | `lamp.glow` | off / on / blink | read only | legacy |  | GLOW lamp: on from the key going on until the glow plugs are hot enough (wait for it to go out, then START). |
 | `lamp.neutral` | off / on / blink | read only | legacy |  | NEUTRAL lamp: on with the lever in neutral; blinking while START is held in gear. |
 | `lamp.bilge` | off / on / blink | read only | legacy |  | BILGE lamp: blinking with the bilge over its alarm level. |
+| `lamp.hull` | off / on / blink | read only | legacy |  | HULL lamp: on with hull damage worth a repair, blinking when bad. |
+| `lamp.engine` | off / on / blink | read only | legacy |  | ENGINE lamp: on with engine wear worth an overhaul, blinking when bad. |
 
 ## nav
 

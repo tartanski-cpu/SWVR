@@ -154,7 +154,7 @@ function engineKey(s: VesselState): string {
   const e = s.engine;
   const al = engineAlarms(s, diesel);
   const alarmBlink = al.highTemp || al.lowFuel ? Math.floor(performance.now() / 400) % 2 : 0;
-  return [e.coolantC.toFixed(0), e.oilC.toFixed(0), e.fuelL.toFixed(0), e.fuelFlowLph.toFixed(1), al.highTemp ? 1 : 0, al.lowFuel ? 1 : 0, alarmBlink, e.coolingFault ? 1 : 0].join('|');
+  return [e.coolantC.toFixed(0), e.oilC.toFixed(0), e.fuelL.toFixed(0), e.fuelFlowLph.toFixed(1), al.highTemp ? 1 : 0, al.lowFuel ? 1 : 0, alarmBlink, e.coolingFault ? 1 : 0, (s.damage ?? 0).toFixed(2), (e.wear ?? 0).toFixed(2)].join('|');
 }
 
 function title(g: CanvasRenderingContext2D, text: string): void {
@@ -425,25 +425,40 @@ const paintEngineMonitor: Painter = (g, s) => {
   };
   const tFrac = (c: number) => (c - 40) / 80;
   const tempColor = e.coolantC > th.alarmC ? RED : e.coolantC < 60 ? '#7fb8ff' : GREEN;
-  bar(78, 'TEMP', tFrac(e.coolantC), `${e.coolantC.toFixed(0)}°C`, tempColor, [tFrac(th.alarmC)]);
-  bar(118, 'OIL', tFrac(e.oilC), `${e.oilC.toFixed(0)}°C`, e.oilC > th.alarmC + 10 ? RED : AMBER);
+  bar(66, 'TEMP', tFrac(e.coolantC), `${e.coolantC.toFixed(0)}°C`, tempColor, [tFrac(th.alarmC)]);
+  bar(104, 'OIL', tFrac(e.oilC), `${e.oilC.toFixed(0)}°C`, e.oilC > th.alarmC + 10 ? RED : AMBER);
   const fuelFrac = e.fuelL / (e.tankL ?? diesel.engine.fuel.tankL);
-  bar(158, 'FUEL', fuelFrac, `${e.fuelL.toFixed(0)} L`, al.lowFuel ? RED : AMBER, [diesel.engine.fuel.lowFraction]);
+  bar(142, 'FUEL', fuelFrac, `${e.fuelL.toFixed(0)} L`, al.lowFuel ? RED : AMBER, [diesel.engine.fuel.lowFraction]);
   g.fillStyle = DIM;
   g.font = 'bold 22px ui-monospace, Menlo, Consolas, monospace';
   g.textAlign = 'left';
-  g.fillText(`${e.fuelFlowLph.toFixed(1)} L/h`, 24, 204);
+  g.fillText(`${e.fuelFlowLph.toFixed(1)} L/h`, 24, 186);
   // Alarm lamps.
   const lamp = (x: number, text: string, on: boolean) => {
     g.fillStyle = on ? (blink ? RED : '#7a1c12') : '#2a1a16';
-    g.fillRect(x, 188, 120, 34);
+    g.fillRect(x, 170, 120, 34);
     g.fillStyle = on ? '#fff2e8' : '#4a3430';
     g.font = 'bold 20px ui-monospace, Menlo, Consolas, monospace';
     g.textAlign = 'center';
-    g.fillText(text, x + 60, 206);
+    g.fillText(text, x + 60, 188);
   };
   lamp(236, 'HIGH TEMP', al.highTemp);
   lamp(368, 'LOW FUEL', al.lowFuel);
+  // Her condition (wear.ts; owner: damage and wear were invisible): two small bars, full when sound.
+  const cond = (x: number, label: string, sound: number) => {
+    g.fillStyle = DIM;
+    g.font = 'bold 18px ui-monospace, Menlo, Consolas, monospace';
+    g.textAlign = 'left';
+    g.textBaseline = 'middle';
+    g.fillText(label, x, 222);
+    g.fillStyle = '#1f2a24';
+    g.fillRect(x + 76, 215, 110, 14);
+    g.fillStyle = sound > 0.7 ? GREEN : sound > 0.4 ? AMBER : RED;
+    g.fillRect(x + 76, 215, 110 * Math.max(0, Math.min(1, sound)), 14);
+    g.fillText(`${Math.round(sound * 100)}%`, x + 194, 222);
+  };
+  cond(24, 'HULL', 1 - (s.damage ?? 0));
+  cond(268, 'ENGINE', 1 - (e.wear ?? 0));
 };
 
 /** True and apparent wind where the boat is: speed (m/s) and the direction it blows FROM. */

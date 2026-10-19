@@ -168,7 +168,7 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
     stepEnergyNetwork(vessel, machinery, dt);
     stepHullLeak(vessel, dt);
     machinery.tick(dt, world.time);
-    stepHullWear(vessel, dt);
+    stepHullWear(vessel, dt, world.environment.seaScale);
   }
   for (const vessel of Object.values(world.vessels)) if (onCrane(vessel)) stepTender(world, vessel, dt);
   // The deck cranes' HOOK presses (their machinery has just marked them).

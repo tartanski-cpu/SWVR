@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { HullForm } from '../hullForm';
 import { hullPlan, type LayoutConfig } from '../layout';
-import type { Livery } from '../vesselDef';
+import { housesOf, type Livery } from '../vesselDef';
 import { flatVertexColorMaterial, mergeParts, part } from '../../render/geometryUtils';
 import { CONFIG } from '../../config';
 import { paintIndex, type PaintName } from '../../render/pixelPaint';
@@ -127,12 +127,21 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
   };
 
   // A cabin sunk below the deck (its floor lower than the deck under it: you step down into
-  // it) has no deck across it: the deck is cut away inside the house's walls.
-  const sunk = sunkenHouse(form, layout);
+  // it) has no deck across it: the deck is cut away inside the house's walls. Every house's
+  // (P2a: the list), the helm's first.
+  const cuts = sunkenHouses(form, layout);
+  // ...and an engine hatch in the deck (a Shipyard design's, over her engine forward or aft
+  // of the house) has its opening cut out, from x0 to x1 across. Each cut: the deck stays
+  // outboard of its inner edge on each side (`inner`, by side -1 port, 1 starboard).
+  const deckHatch = layout.engineHatch?.y !== undefined ? layout.engineHatch : undefined;
+  const deckCuts = [
+    ...cuts.map((c) => ({ front: c.front, aft: c.aft, inner: (side: number, z: number) => side * c.halfWidth(z) })),
+    ...(deckHatch ? [{ front: deckHatch.z0, aft: deckHatch.z1, inner: (side: number) => (side < 0 ? deckHatch.x0 : deckHatch.x1) }] : []),
+  ];
   for (let i = 0; i < st.length - 1; i++) {
     // Interior reference midway between the two stations.
     const mid = inside(i).add(inside(i + 1)).multiplyScalar(0.5);
-    const cut = !!sunk && Math.min(st[i].z, st[i + 1].z) < sunk.aft && Math.max(st[i].z, st[i + 1].z) > sunk.front;
+    const cut = deckCuts.some((c) => Math.min(st[i].z, st[i + 1].z) < c.aft && Math.max(st[i].z, st[i + 1].z) > c.front);
     // Topsides from each deck edge down to its chine, bottom from the chines to the keel.
     const edges: [number, number, number][] = [];
     for (let k = 0; k < last; k++) edges.push([k, k + 1, k < chine || k >= last - chine ? col.topsides : col.bottom]);
@@ -143,17 +152,18 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
       const za = st[i].z;
       const zb = st[i + 1].z;
       const at = (z: number, k: number) => P(i, k).lerp(P(i + 1, k), (z - za) / (zb - za));
-      const breaks = [za, zb, sunk.front, sunk.aft].filter((z) => z <= Math.max(za, zb) && z >= Math.min(za, zb)).sort((a, b) => b - a);
+      const breaks = [za, zb, ...deckCuts.flatMap((c) => [c.front, c.aft])].filter((z) => z <= Math.max(za, zb) && z >= Math.min(za, zb)).sort((a, b) => b - a);
       for (let j = 0; j < breaks.length - 1; j++) {
         const z0 = breaks[j];
         const z1 = breaks[j + 1];
         if (z0 - z1 < 1e-6) continue;
         const p0 = at(z0, 0), p1 = at(z1, 0), s0 = at(z0, last), s1 = at(z1, last);
         const zm = (z0 + z1) / 2;
-        if (zm > sunk.front && zm < sunk.aft) {
+        const across = deckCuts.find((c) => zm > c.front && zm < c.aft);
+        if (across) {
           for (const [e0, e1, side] of [[p0, p1, -1], [s0, s1, 1]] as const) {
-            const i0 = e0.clone().setX(side * sunk.halfWidth(z0));
-            const i1 = e1.clone().setX(side * sunk.halfWidth(z1));
+            const i0 = e0.clone().setX(across.inner(side, z0));
+            const i1 = e1.clone().setX(across.inner(side, z1));
             tri(e0, i0, i1, mid, col.deck, 'nonSlip');
             tri(e0, i1, e1, mid, col.deck, 'nonSlip');
           }
@@ -195,6 +205,8 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
   hull.computeVertexNormals();
 
   const parts = [hull, ...buildDeckFittings(form, layout, col)];
+  // The engine space under a deck hatch: as under one in the cabin floor (buildFloor).
+  if (deckHatch) parts.push(...engineSpaceParts(deckHatch, deckHatch.y!, deckHatch.y!, true));
   // Wet-exhaust outlet: a short pipe stub through the transom.
   const ex = exhaustOutlet;
   if (ex) parts.push(bar(new THREE.Vector3(ex[0], ex[1], ex[2] - 0.12), new THREE.Vector3(ex[0], ex[1], ex[2]), 0.13, 0.13, col.mast));
@@ -206,29 +218,30 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
     const plan = hullPlan({ hull: form });
     parts.push(buildDeckhouse(layout.deckhouse, (z) => plan.deckY(z) - 0.06, col.house));
   }
+  // Her houses (P2a: the list), the helm's first: each drawn as the helm's is, from a layout
+  // that is its own (a further house has no engine hatch in its floor, no ladder to its roof).
   if (hasHouse(layout)) {
-    // Its walls start below the deck so there's never a gap there, but no lower than 0.06 m
-    // under it, where the hull's sides are still wider than the house: on a fine entry the
-    // hull narrows fast below the deck and lower walls showed through her topsides. A sunk
-    // house's walls go down to its floor (the Shipyard keeps those where her hull is wide).
-    const wh = layout.wheelhouse;
     const plan = hullPlan({ hull: form });
-    const deckLo = Math.min(...Array.from({ length: 9 }, (_, i) => plan.deckY(wh.front + ((wh.aft - wh.front) * i) / 8)));
-    const low = Math.min(0.9, wh.floorY - 0.15);
-    const base = sunk ? low : Math.max(low, deckLo - 0.06);
-    if (wh.shell === 'oneOff') {
-      // Her own walls, floors, console body and roof (boats/oneOffViews.ts): nothing here.
-    } else parts.push(...(wh.shape ? buildShapedHouse(layout, col, base) : buildWheelhouse(layout, col, base)));
-    // Steps at the aft door: solid blocks up to each tread.
-    const d = wh.doorWidth / 2;
-    const foot = Math.min(wh.floorY, plan.deckY(wh.aft)) - 0.05;
-    for (const st of wh.steps ?? []) parts.push(box(-d, d, foot, st.y, st.z0, st.z1, col.deck, 'nonSlip'));
-  }
-  // Stepping down into a sunken cabin: the step's face, from the deck down to the door sill.
-  if (sunk && layout.wheelhouse) {
-    const wh = layout.wheelhouse;
-    const d = wh.doorWidth / 2;
-    parts.push(box(-d, d, wh.floorY, hullPlan({ hull: form }).deckY(wh.aft), wh.aft, wh.aft + 0.03, col.deck));
+    for (const [k, wh] of housesOf(layout).entries()) {
+      const own: HouseLayout = k === 0 ? layout : { ...layout, wheelhouse: wh, engineHatch: undefined, ladder: undefined };
+      const sunkHere = cuts.some((c) => c.house === k);
+      // Its walls start below the deck so there's never a gap there, but no lower than 0.06 m
+      // under it, where the hull's sides are still wider than the house: on a fine entry the
+      // hull narrows fast below the deck and lower walls showed through her topsides. A sunk
+      // house's walls go down to its floor (the Shipyard keeps those where her hull is wide).
+      const deckLo = Math.min(...Array.from({ length: 9 }, (_, i) => plan.deckY(wh.front + ((wh.aft - wh.front) * i) / 8)));
+      const low = Math.min(0.9, wh.floorY - 0.15);
+      const base = sunkHere ? low : Math.max(low, deckLo - 0.06);
+      if (wh.shell === 'oneOff') {
+        // Her own walls, floors, console body and roof (boats/oneOffViews.ts): nothing here.
+      } else parts.push(...(wh.shape ? buildShapedHouse(own, col, base) : buildWheelhouse(own, col, base)));
+      // Steps at the aft door: solid blocks up to each tread.
+      const d = wh.doorWidth / 2;
+      const foot = Math.min(wh.floorY, plan.deckY(wh.aft)) - 0.05;
+      for (const st of wh.steps ?? []) parts.push(box(-d, d, foot, st.y, st.z0, st.z1, col.deck, 'nonSlip'));
+      // Stepping down into a sunken cabin: the step's face, from the deck down to the door sill.
+      if (sunkHere) parts.push(box(-d, d, wh.floorY, plan.deckY(wh.aft), wh.aft, wh.aft + 0.03, col.deck));
+    }
   }
   return parts;
 }
@@ -395,15 +408,23 @@ function buildDeckFittings(form: HullForm, layout: LayoutConfig, col: Paint): TH
  * house floor is above the deck (the workboat's), or she has no house.
  */
 export function sunkenHouse(form: HullForm, layout: LayoutConfig): { front: number; aft: number; halfWidth: (z: number) => number } | null {
-  const wh = layout.wheelhouse;
-  if (!wh) return null;
+  return sunkenHouses(form, layout).find((c) => c.helm) ?? null;
+}
+
+/** Where the deck is cut away for her houses (P2a: every house sunk below the deck; the helm's, `house` 0, with any deck opening forward of it). */
+export function sunkenHouses(form: HullForm, layout: LayoutConfig): { house: number; helm: boolean; front: number; aft: number; halfWidth: (z: number) => number }[] {
   const plan = hullPlan({ hull: form });
-  const deck = Math.max(plan.deckY(wh.front), plan.deckY(wh.aft));
-  // A cabin below the deck forward of the house (layout.deckOpening: under a trunk cabin):
-  // the cut runs on forward, `inset` in from the deck edge there.
-  const op = layout.deckOpening;
-  if (op) return { front: Math.min(wh.front, op.front), aft: wh.aft, halfWidth: (z) => (z < wh.front ? Math.max(0.2, plan.halfBeam(z) - op.inset) : wh.halfWidth) };
-  return wh.floorY < deck ? { front: wh.front, aft: wh.aft, halfWidth: () => wh.halfWidth } : null;
+  const out: { house: number; helm: boolean; front: number; aft: number; halfWidth: (z: number) => number }[] = [];
+  for (const [k, wh] of housesOf(layout).entries()) {
+    const helm = k === 0 && !!layout.wheelhouse;
+    const deck = Math.max(plan.deckY(wh.front), plan.deckY(wh.aft));
+    // A cabin below the deck forward of the helm's house (layout.deckOpening: under a trunk
+    // cabin): the cut runs on forward, `inset` in from the deck edge there.
+    const op = helm ? layout.deckOpening : undefined;
+    if (op) out.push({ house: k, helm, front: Math.min(wh.front, op.front), aft: wh.aft, halfWidth: (z) => (z < wh.front ? Math.max(0.2, plan.halfBeam(z) - op.inset) : wh.halfWidth) });
+    else if (wh.floorY < deck) out.push({ house: k, helm, front: wh.front, aft: wh.aft, halfWidth: () => wh.halfWidth });
+  }
+  return out;
 }
 
 /** Width of the aft door's jambs (m): the door buttons sit on the starboard one. */
@@ -796,7 +817,8 @@ function buildFloor(layout: HouseLayout, col: Paint, parts: THREE.BufferGeometry
   const wh = layout.wheelhouse;
   const hw = wh.halfWidth;
   const w = wh.wall;
-  const eh = layout.engineHatch;
+  // (A hatch in the deck instead, at its own height `y`, is the hull's: buildVesselMeshParts.)
+  const eh = layout.engineHatch?.y === undefined ? layout.engineHatch : undefined;
   const fx0 = -hw + w;
   const fx1 = hw - w;
   // A faceted front (facetDz): the floor from aft of its corners, and forward of that a
@@ -816,22 +838,38 @@ function buildFloor(layout: HouseLayout, col: Paint, parts: THREE.BufferGeometry
     parts.push(box(eh.x1, fx1, fy0, wh.floorY, fz0, fz1, col.floor, 'mat'));
     parts.push(box(eh.x0, eh.x1, fy0, wh.floorY, fz0, eh.z0, col.floor, 'mat'));
     parts.push(box(eh.x0, eh.x1, fy0, wh.floorY, eh.z1, fz1, col.floor, 'mat'));
-    // Engine space: four walls and a floor, painted light grey (an engine room's white-ish paint).
-    const pit = wh.floorY - eh.pitDepth;
-    const t = 0.03;
-    parts.push(box(eh.x0 - t, eh.x1 + t, pit - t, pit, eh.z0 - t, eh.z1 + t, 0x5a6066));
-    parts.push(box(eh.x0 - t, eh.x0, pit, fy0, eh.z0, eh.z1, 0xb8bcb8));
-    parts.push(box(eh.x1, eh.x1 + t, pit, fy0, eh.z0, eh.z1, 0xb8bcb8));
-    parts.push(box(eh.x0 - t, eh.x1 + t, pit, fy0, eh.z0 - t, eh.z0, 0xb8bcb8));
-    parts.push(box(eh.x0 - t, eh.x1 + t, pit, fy0, eh.z1, eh.z1 + t, 0xb8bcb8));
-    // A steel coaming round the opening, flush with the floor.
-    parts.push(box(eh.x0 - 0.03, eh.x1 + 0.03, wh.floorY - 0.004, wh.floorY + 0.004, eh.z0 - 0.03, eh.z0, 0x8a9096));
-    parts.push(box(eh.x0 - 0.03, eh.x1 + 0.03, wh.floorY - 0.004, wh.floorY + 0.004, eh.z1, eh.z1 + 0.03, 0x8a9096));
+    parts.push(...engineSpaceParts(eh, wh.floorY, fy0));
   } else parts.push(box(fx0, fx1, fy0, wh.floorY, fz0, fz1, col.floor, 'mat'));
+}
+
+/**
+ * The engine space under its hatch (in the cabin floor, or the deck): four walls up to
+ * `wallTop` and a floor `pitDepth` under the hatch's `top`, painted light grey (an engine
+ * room's white-ish paint), and a steel coaming flush with the top across its ends (and
+ * along its sides, `allRound`: in the deck, which has no floor boards to meet it there).
+ */
+function engineSpaceParts(eh: NonNullable<LayoutConfig['engineHatch']>, top: number, wallTop: number, allRound = false): THREE.BufferGeometry[] {
+  const parts: THREE.BufferGeometry[] = [];
+  const pit = top - eh.pitDepth;
+  const t = 0.03;
+  // (Across both engines of a twin, wider than the opening: `space`.)
+  const x0 = eh.space?.x0 ?? eh.x0;
+  const x1 = eh.space?.x1 ?? eh.x1;
+  parts.push(box(x0 - t, x1 + t, pit - t, pit, eh.z0 - t, eh.z1 + t, 0x5a6066));
+  parts.push(box(x0 - t, x0, pit, wallTop, eh.z0, eh.z1, 0xb8bcb8));
+  parts.push(box(x1, x1 + t, pit, wallTop, eh.z0, eh.z1, 0xb8bcb8));
+  parts.push(box(x0 - t, x1 + t, pit, wallTop, eh.z0 - t, eh.z0, 0xb8bcb8));
+  parts.push(box(x0 - t, x1 + t, pit, wallTop, eh.z1, eh.z1 + t, 0xb8bcb8));
+  parts.push(box(eh.x0 - 0.03, eh.x1 + 0.03, top - 0.004, top + 0.004, eh.z0 - 0.03, eh.z0, 0x8a9096));
+  parts.push(box(eh.x0 - 0.03, eh.x1 + 0.03, top - 0.004, top + 0.004, eh.z1, eh.z1 + 0.03, 0x8a9096));
+  if (allRound) for (const [x0, x1] of [[eh.x0 - 0.03, eh.x0], [eh.x1, eh.x1 + 0.03]]) parts.push(box(x0, x1, top - 0.004, top + 0.004, eh.z0, eh.z1, 0x8a9096));
+  return parts;
 }
 
 /** Helm console across the front: body, sloping top (approximated by a step), panel face. */
 function buildConsole(wh: HouseLayout['wheelhouse'], col: Paint, parts: THREE.BufferGeometry[]): void {
+  // A house with no console (a further house, P2a: consoleDepth 0).
+  if (wh.consoleDepth <= 0) return;
   const hw = wh.halfWidth;
   const w = wh.wall;
   // (Set back from the wall if the house says so: clear of the front glass.)

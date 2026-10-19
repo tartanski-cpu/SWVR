@@ -22,7 +22,7 @@ import { standingHeight } from '../world/geography';
 import { groundAt, isPot } from '../potting/potting';
 import { groundHeight } from '../world/terrain';
 import { CONFIG } from '../config';
-import { GROUND, cargoLabel, footprint, isHeavy, kindOf, lashPointFor, placeBlocker, takeBlocker, type CargoItem } from './cargo';
+import { GROUND, canLash, cargoLabel, footprint, isHeavy, kindOf, placeBlocker, takeBlocker, type CargoItem } from './cargo';
 
 export interface CargoHandsContext {
   world: WorldState;
@@ -290,11 +290,11 @@ export class CargoHands {
     if (c.at.lashed) {
       ctx.push('cargoLash', v.id, c.id, 0);
       ctx.notify('Lashing released');
-    } else if (lashPointFor(v, c)) {
+    } else if (canLash(v, c)) {
       ctx.push('cargoLash', v.id, c.id, 1);
       ctx.notify('Lashed down');
     } else {
-      ctx.notify('No D-ring within reach: move it next to one (the rings along the bulwarks and centreline)');
+      ctx.notify('Not on open deck: set it down clear of the gear and the house to lash it');
       if (hand) ctx.pulse(hand, 0.8, 60);
       return;
     }

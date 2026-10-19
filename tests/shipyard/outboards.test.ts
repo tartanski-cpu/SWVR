@@ -16,7 +16,7 @@ import { validateRecipe } from '../../src/modular/recipe';
 import { OUTBOARD, outboardGeometry, type OutboardConfig } from '../../src/modules/outboard';
 import { DESIGN_HULLS } from '../../src/shipyard/build';
 import { decodeDesign, DEFAULT_DESIGN, encodeDesign, OUTBOARDS, outboardCount, type ShipDesign } from '../../src/shipyard/design';
-import { fullAhead } from '../../src/shipyard/trial';
+import { fullAhead, matchGear } from '../../src/shipyard/trial';
 import { uprightHydrostatics } from '../../src/vessel/hydrostatics';
 import { placeVessel } from '../../src/vessel/vesselControl';
 import { VESSEL_DEFS } from '../../src/vessel/vesselDef';
@@ -80,12 +80,54 @@ describe('outboards: built', () => {
     }
   });
 
-  it('more outboards go faster (the 9.75 m gillnetter: about 18 kn on two, 31 on four)', () => {
+  it('more outboards go faster (the 9.75 m gillnetter: about 18 kn on two, 31 on four), their lower units matched by trial', () => {
     const GILLNETTER = 1;
-    const two = fullAhead(boat(1, GILLNETTER)).knots;
-    const four = fullAhead(boat(3, GILLNETTER)).knots;
+    const matched = (o: number) => {
+      const d = boat(o, GILLNETTER);
+      return { ...d, gear: matchGear(d).gear };
+    };
+    const two = fullAhead(matched(1)).knots;
+    const four = fullAhead(matched(3)).knots;
     expect(two).toBeGreaterThan(14);
     expect(four).toBeGreaterThan(two + 8);
+  });
+});
+
+describe('outboards: cooling', () => {
+  it('held flat out on the plane for ten minutes they stay cool (owner: the throttles are set for it)', () => {
+    const d = boat(1, 1);
+    useDesign({ ...d, gear: matchGear(d).gear });
+    const { world, vesselId } = createWorld(new IdFactory(), 'design');
+    const v = world.vessels[vesselId];
+    placeVessel(v, 0, 0, 0, 0);
+    world.environment.waves = [];
+    world.geography = 'openSea';
+    const DT = 1 / 60;
+    const send = (control: string, value: number) => stepWorld(world, [{ playerId: 't', targetId: v.id, control, value } as Intent], DT);
+    send('quickStart', 1);
+    for (let i = 0; i < 5 / DT; i++) stepWorld(world, [], DT);
+    send('lever', 1);
+    for (let i = 0; i < 600 / DT; i++) stepWorld(world, [], DT);
+    const th = gearOf(v, 'diesel')!.engine.thermal;
+    expect(Math.hypot(v.linearVelocity[0], v.linearVelocity[2]) / 0.5144).toBeGreaterThan(14);
+    expect(v.engine.coolantC).toBeLessThan(th.alarmC);
+    expect(v.engine.phase).toBe('running');
+  });
+});
+
+describe('outboards: the lower units', () => {
+  it("a code matched for an inboard (or never matched) can't gear them below the range made: she'd lug and run hot (owner)", () => {
+    const [gMin, gMax] = CONFIG.modules.outboard.engine.gearRange;
+    useDesign({ ...boat(3, 1), gear: 0 }); // the lowest step: ratio 1.0 for an inboard
+    expect(outboardsOf()!.engine.gearRatio).toBe(gMin);
+    useDesign({ ...boat(3, 1), gear: 15 });
+    expect(outboardsOf()!.engine.gearRatio).toBe(gMax);
+    const d = boat(3, 1);
+    const m = matchGear(d).gear;
+    useDesign({ ...d, gear: m });
+    const r = outboardsOf()!.engine.gearRatio;
+    expect(r).toBeGreaterThanOrEqual(gMin);
+    expect(r).toBeLessThanOrEqual(gMax);
   });
 });
 

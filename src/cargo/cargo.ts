@@ -259,24 +259,21 @@ function deckDisc(c: CargoItem): { x: number; z: number; r: number } {
   return { x: at.pos[0], z: at.pos[2], r: Math.max(f.hx, f.hz) };
 }
 
-/** The nearest lashing point within reach of an item on deck (vessel axes), or null. */
-export function lashPointFor(v: VesselState, item: CargoItem): [number, number] | null {
-  if (!('vessel' in item.at)) return null;
-  const [x, , z] = item.at.pos;
-  let best: [number, number] | null = null;
-  let bestD = VESSEL_DEFS[v.defId].cargo.lashRange;
-  for (const p of VESSEL_DEFS[v.defId].cargo.lashPoints) {
-    const d = Math.hypot(p[0] - x, p[1] - z);
-    if (d < bestD) [best, bestD] = [p, d];
-  }
-  return best;
+/**
+ * Can an item on her deck be lashed where it stands? Anywhere on open deck (owner, Oct 2026:
+ * no D-rings to find): clear of her houses, the gear on deck and her bulwarks, as it is
+ * wherever cargo can be set down (cargo/deck.ts onOpenDeck).
+ */
+export function canLash(v: VesselState, item: CargoItem): boolean {
+  if (!('vessel' in item.at) || item.at.vessel !== v.id) return false;
+  return onOpenDeck(v.defId, footprint(item), item.at.pos[0], item.at.pos[2]);
 }
 
 /**
  * Cargo intents. targetId: the vessel (or GROUND for 'cargoPlace' ashore); ref: the item.
  *   cargoTake               pick it up (if free and not lashed)
  *   cargoPlace  args [x, y, z, yaw]   set it down there, in the vessel's axes or the world
- *   cargoLash   value 1/0   strap down / release (on deck, near a lashing point)
+ *   cargoLash   value 1/0   strap down / release (where it stands on open deck)
  */
 export function applyCargoIntent(world: WorldState, intent: Intent): void {
   if (applyQuickIntent(world, intent)) return;
@@ -315,7 +312,7 @@ export function applyCargoIntent(world: WorldState, intent: Intent): void {
     }
     case 'cargoLash':
       if (v && 'vessel' in item.at && item.at.vessel === v.id) {
-        if (intent.value > 0.5 && lashPointFor(v, item)) {
+        if (intent.value > 0.5 && canLash(v, item)) {
           item.at.lashed = true;
           item.at.vel = [0, 0];
         } else if (intent.value <= 0.5) {
@@ -503,14 +500,14 @@ export function quickUnloadable(world: WorldState, v: VesselState): CargoItem[] 
 
 /**
  * Put an item on a vessel's deck in the first free spot near (x, z) (vessel axes), lashed
- * if a D-ring is in reach. False if it won't go (payload, slots, or no room).
+ * where it stands. False if it won't go (payload, slots, or no room).
  */
 export function stowOnDeck(world: WorldState, v: VesselState, item: CargoItem, x: number, z: number): boolean {
   if (placeBlocker(world, v, item)) return false;
   const spot = deckSpot(v.defId, footprint(item), x, z, aboard(world, v.id).filter((o) => o.id !== item.id).map(deckDisc));
   if (!spot) return false;
   item.at = { vessel: v.id, pos: [spot.x, deckHeight(v.defId, spot.z), spot.z], yaw: 0, vel: [0, 0], lashed: false };
-  if (lashPointFor(v, item)) item.at.lashed = true;
+  if (canLash(v, item)) item.at.lashed = true;
   return true;
 }
 
@@ -541,7 +538,7 @@ function applyQuickIntent(world: WorldState, intent: Intent): boolean {
   } else if (intent.control === 'cargoQuickLash') {
     for (const c of aboard(world, v.id)) {
       if (!('vessel' in c.at)) continue;
-      if (intent.value > 0.5 && lashPointFor(v, c)) {
+      if (intent.value > 0.5 && canLash(v, c)) {
         c.at.lashed = true;
         c.at.vel = [0, 0];
       } else if (intent.value <= 0.5) c.at.lashed = false;

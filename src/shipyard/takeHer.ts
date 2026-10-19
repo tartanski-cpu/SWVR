@@ -11,7 +11,8 @@
  * This is the menu's state and its checks, with no page or scene in it (tested in
  * tests/takeHer.test.ts). The restart itself is the app's (App.ts takeDesign).
  */
-import { ALPHABET, decodeDesign } from './design';
+import { ALPHABET } from './design';
+import { isDocToken, readDesign } from './designDoc';
 import { readFavourites, type Favourite, type Store } from './favourites';
 import { DESIGN_HULLS } from './build';
 
@@ -32,8 +33,9 @@ export function cleanCode(text: string): string {
     .slice(0, MAX_CODE);
 }
 
-/** A code shown in groups of five, as the Shipyard prints it. */
+/** A code shown in groups of five, as the Shipyard prints it (a design from a link has no code: said so). */
 export function groupCode(code: string): string {
+  if (isDocToken(code)) return 'from a link';
   return (code.match(/.{1,5}/g) ?? []).join('-');
 }
 
@@ -46,11 +48,11 @@ export function groupCode(code: string): string {
  */
 export function checkCode(code: string, whole = false): { ok: boolean; text: string } {
   if (!code) return { ok: false, text: 'Type her code from the Shipyard (it is under her picture there)' };
-  const read = decodeDesign(code);
+  const read = readDesign(code);
   if (!whole && code.length < 17) return { ok: false, text: `${code.length} characters so far` };
   if (!('design' in read)) return { ok: false, text: `${code.length} characters: not a whole code yet (${read.error})` };
   const hull = DESIGN_HULLS[read.design.hull]?.name.split(':')[0] ?? 'A Shipyard boat';
-  return { ok: true, text: `${hull}${read.design.twin ? ', twin engines' : ''}: ready to take` };
+  return { ok: true, text: `${read.name ? `${read.name}: ` : ''}${hull}${read.design.twin ? ', twin engines' : ''}: ready to take` };
 }
 
 /** The menu's Your boats page: the favourites' page, and the code being typed. */
@@ -99,9 +101,10 @@ export class ShipyardCodes {
     this.pasted = false;
   }
 
-  /** Pasted text (a code, or the Shipyard's play link with ?design=): kept if it reads as a boat (true), else left as it was. */
+  /** Pasted text (a code, the Shipyard's play link with ?design=, or a link to her document): kept if it reads as a boat (true), else left as it was. */
   paste(text: string): boolean {
-    const code = cleanCode(text.match(/design=([^&#\s]+)/)?.[1] ?? text);
+    const doc = text.match(/doc\.[A-Za-z0-9_-]+/)?.[0];
+    const code = doc ?? cleanCode(text.match(/design=([^&#\s]+)/)?.[1] ?? text);
     if (!checkCode(code, true).ok) return false;
     this.code = code;
     this.pasted = true;

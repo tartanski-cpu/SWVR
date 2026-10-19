@@ -1,7 +1,7 @@
 /**
  * Multiplayer messages (peer-to-peer, one player hosts; see docs/MULTIPLAYER.md).
  *
- *   client -> host   hello     { name }                     on connect
+ *   client -> host   hello     { name, build }              on connect (build: their page's version)
  *   host -> client   welcome   { playerId, world }          your id + the whole world
  *   client -> host   intents   { intents }                  vessel / environment / cargo intents
  *   client -> host   pose      { pose }                     ~20 Hz: where my body, head, hands are
@@ -56,7 +56,7 @@ export interface PlayerPose {
   radio?: RadioPose | null;
 }
 
-export type ClientMessage = { t: 'hello'; name: string } | { t: 'intents'; intents: Intent[] } | { t: 'pose'; pose: PlayerPose } | { t: 'chart'; op: ChartOp };
+export type ClientMessage = { t: 'hello'; name: string; build?: string } | { t: 'intents'; intents: Intent[] } | { t: 'pose'; pose: PlayerPose } | { t: 'chart'; op: ChartOp };
 
 export type HostMessage = { t: 'welcome'; playerId: EntityId; world: WorldState; chart?: ChartMarks } | { t: 'snapshot'; world: WorldState } | { t: 'chart'; op: ChartOp };
 

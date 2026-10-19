@@ -26,7 +26,8 @@ import { fuelAndHeatStep } from '../../vessel/physics/engineThermal';
 import { engineStep, type DieselInputs } from '../../vessel/physics/propulsion';
 import { oilStep } from '../../vessel/maintenance';
 import { engineWearStep } from '../../vessel/wear';
-import { engineParts } from '../../vessel/view/engineLook';
+import { engineParts, oilShelfParts, waterStop } from '../../vessel/view/engineLook';
+import { engineGeometry } from '../../vessel/view/engineModels';
 import type { EngineState } from '../../vessel/vesselState';
 
 const wb = CONFIG.vessels.workboat;
@@ -58,6 +59,14 @@ export interface DieselInboardConfig {
   twin?: { x: number };
   /** How it sounds (CONFIG.engineVoices); unset, the workboat's straight six. */
   voice?: keyof typeof CONFIG.engineVoices;
+  /**
+   * The engine as built into her (a Shipyard design: where her shaft line puts it), drawn as
+   * its model (vessel/view/engineModels.ts) under its hatch: the model (the Shipyard's
+   * engine type), its size (length, width, height, m), each engine's distance off the
+   * centreline (one, or a twin's two), its gearbox flange (height, place along her) and the
+   * shaft's angle. Unset, the generic engine under the wheelhouse floor (engineLook.ts).
+   */
+  installed?: { model: number; size: [number, number, number]; xs: number[]; flangeY: number; flangeZ: number; angleDeg: number };
 }
 
 export const DIESEL_INBOARD: ModuleDefinition<DieselInboardConfig, EngineState> = {
@@ -159,8 +168,14 @@ export const DIESEL_INBOARD: ModuleDefinition<DieselInboardConfig, EngineState> 
   view: {
     frame: 'boat',
     build({ config: c, hull }) {
-      const parts = hull.cabinFloor !== null && hull.engineSpace ? engineParts(c.maintenance, hull.cabinFloor, hull.engineSpace) : [];
-      return { staticParts: parts, movingParts: [], controls: [], update: () => {} };
+      const space = hull.engineSpace;
+      const inst = c.installed;
+      const parts = inst && space
+        ? [...inst.xs.flatMap((x) => engineGeometry(inst.model, inst.size, { x, flangeY: inst.flangeY, flangeZ: inst.flangeZ, angleDeg: inst.angleDeg })), ...oilShelfParts(c.maintenance, space.top, space.outboardX)]
+        : hull.cabinFloor !== null && space
+          ? engineParts(c.maintenance, hull.cabinFloor, space)
+          : [];
+      return { staticParts: parts, movingParts: waterStop(space), controls: [], update: () => {} };
     },
   },
 };

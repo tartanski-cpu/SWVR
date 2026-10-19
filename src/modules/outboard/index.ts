@@ -27,6 +27,9 @@
  *   drawn      the units (one instanced mesh: one draw call however many), each on a clamp
  *              plate, and (if `bracket` is given: the Shipyard's) the bracket off the transom
  *              that carries them. The Alaskan 38 draws her own bracket.
+ *   sterndrive (owner, Oct 2026) the same module as a stern drive: an inboard engine package
+ *              (`engine`, a diesel with its glow plugs) against the transom, drawn inside
+ *              (`installed`), each unit an outdrive leg (no cowl) on a transom shield.
  */
 import * as THREE from 'three';
 import { CONFIG } from '../../config';
@@ -38,6 +41,8 @@ import { engineStep, rudderForceAt, steeringStep, type DieselInputs, type Rudder
 import { oilStep } from '../../vessel/maintenance';
 import { engineWearStep } from '../../vessel/wear';
 import type { EngineState } from '../../vessel/vesselState';
+import { oilShelfParts, waterStop } from '../../vessel/view/engineLook';
+import { engineGeometry } from '../../vessel/view/engineModels';
 import { mountPlate, outboardUnitParts } from './look';
 
 const wb = CONFIG.vessels.workboat;
@@ -63,6 +68,14 @@ export interface OutboardConfig {
   /** Her upkeep (the oil checks): as the inboard's. */
   maintenance: typeof wb.maintenance;
   voice?: keyof typeof CONFIG.engineVoices;
+  /**
+   * Stern drives (owner, Oct 2026; CONFIG.modules.sternDrive): the engine is inside, against
+   * the transom (`installed`: drawn as the diesel draws its own, vessel/view/engineModels.ts),
+   * and each unit is an outdrive leg: no cowl, a gimbal housing on a shield on the transom.
+   * Its physics is an outboard's (the leg swings to steer; the engine is the inboard package's).
+   */
+  sterndrive?: boolean;
+  installed?: { model: number; size: [number, number, number]; xs: number[]; flangeY: number; flangeZ: number; angleDeg: number };
 }
 
 /** The module's state: her engine, and the units' swing (rad, + propellers to starboard). */
@@ -215,17 +228,22 @@ export const OUTBOARD: ModuleDefinition<OutboardConfig, OutboardState> = {
   },
   view: {
     frame: 'boat',
-    build({ config: c, keys }) {
+    build({ config: c, keys, hull }) {
       const g = outboardGeometry(c);
       // The fixed parts: each unit's clamp plate, and the bracket if this module draws it.
-      const staticParts = c.units.map((x) => mountPlate(c.look, x, c.mount.y, c.mount.z));
+      const staticParts = c.units.map((x) => mountPlate(c.look, x, c.mount.y, c.mount.z, !!c.sterndrive));
+      // A stern drive's engines inside, against the transom, and the oil can's shelf by them.
+      const inst = c.installed;
+      const space = hull.engineSpace;
+      if (inst) for (const x of inst.xs) staticParts.push(...engineGeometry(inst.model, inst.size, { x, flangeY: inst.flangeY, flangeZ: inst.flangeZ, angleDeg: inst.angleDeg }));
+      if (inst && space) staticParts.push(...oilShelfParts(c.maintenance, space.top, space.outboardX));
       const b = c.bracket;
       if (b) {
         staticParts.push(part(new THREE.BoxGeometry(2 * b.halfWidth, b.y1 - b.y0, b.z1 - b.z0).translate(0, (b.y0 + b.y1) / 2, (b.z0 + b.z1) / 2), 0x9aa0a6));
         staticParts.push(part(new THREE.BoxGeometry(2 * b.halfWidth + 0.04, 0.04, b.z1 - b.z0 + 0.04).translate(0, b.y1 + 0.02, (b.z0 + b.z1) / 2), 0xb4b9be)); // its grating top
       }
       // The units: one shape, drawn once per unit (one draw call), each swung by the rudder angle.
-      const unit = mergeParts(outboardUnitParts(c.look, c.propeller.diameter));
+      const unit = mergeParts(outboardUnitParts(c.look, c.propeller.diameter, !!c.sterndrive));
       const mesh = new THREE.InstancedMesh(unit, flatVertexColorMaterial(), c.units.length);
       mesh.name = 'outboards';
       const m = new THREE.Matrix4();
@@ -243,7 +261,8 @@ export const OUTBOARD: ModuleDefinition<OutboardConfig, OutboardState> = {
       place(0);
       return {
         staticParts,
-        movingParts: [mesh],
+        // (And the water stop for her lazarette, the engine space her oil checks are in.)
+        movingParts: [mesh, ...waterStop(hull.engineSpace)],
         controls: [],
         update: (read) => {
           const deg = read.num(keys.swing);

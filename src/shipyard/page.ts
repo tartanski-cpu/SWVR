@@ -36,7 +36,8 @@ import { HydroDebugView } from '../debug/hydroDebugView';
 import { briefPaper } from './briefPaper';
 import { buildVesselMesh, buildVesselMeshParts } from '../vessel/view/hullMesh';
 import { DESIGN_HULLS, ENGINES, LIVERIES, ROOF_PAINTS, type DesignedBoat } from './build';
-import { ALL_FIELDS, decodeDesign, DEFAULT_DESIGN, encodeDesign, GUARDS, OUTBOARDS, RAILS, SILLS, SINGLE_ONLY_ENGINES, SKIFFS, placeOf, placeValue, SCALES, type PlaceKey, type ShipDesign } from './design';
+import { docFileName, docFileText, docToken, designToken, readDesign, shortCode } from './designDoc';
+import { ALL_FIELDS, DEFAULT_DESIGN, GUARDS, MATERIALS, OUTBOARDS, RAILS, SILLS, SINGLE_ONLY_ENGINES, SKIFFS, outboardCount, placeOf, placeValue, SCALES, type PlaceKey, type ShipDesign } from './design';
 import { hullPlan } from '../vessel/layout';
 import { UndoStack } from './undo';
 import { YardLink } from './yardLink';
@@ -58,7 +59,8 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 const stepsOf = (k: keyof ShipDesign) => ALL_FIELDS.find((f) => f.key === k)!.steps;
 
 // ── State ──
-const fromHash = decodeDesign(decodeURIComponent(location.hash.slice(1)));
+// Opened with her code or her document in the address (#CODE, #doc.…: designDoc.ts): her design.
+const fromHash = location.hash.length > 1 ? readDesign(decodeURIComponent(location.hash.slice(1))) : { error: '' };
 /** A shared session's id (?s=...), and this browser's last copy of it (designing together, session.ts). */
 let sessionId = sessionIdFrom(location.search);
 /**
@@ -79,7 +81,14 @@ let design: ShipDesign = { ...startDoc.variants.find((v) => v.id === active)!.de
 let boat: DesignedBoat = useDesign(design);
 /** The choices her gearbox was matched for (not the paint or the controls, which don't change it). */
 const matchKey = (d: ShipDesign) => JSON.stringify({ ...d, gear: 0, paint: 0, controls: 0 });
-let matchedFor: string | null = matchKey(design); // a loaded code (or the default) comes matched
+/**
+ * Does a loaded design come with its gearing matched? An inboard's code does (the yard
+ * matched it before it was issued). Outboards' lower units are matched from the same step
+ * only since Oct 2026: a code from before carries the inboard's step, far too low for them
+ * (she lugged and ran hot, owner), so those are matched again on loading.
+ */
+const comesMatched = (d: ShipDesign) => outboardCount(d) === 0;
+let matchedFor: string | null = comesMatched(design) ? matchKey(design) : null;
 let trial: SeaTrialResults | null = null;
 /** The choices `trial` was run for: while they differ from now, its figures are greyed (a new run is coming). */
 let trialFor = '';
@@ -272,19 +281,22 @@ function addMachinery(root: THREE.Group): THREE.Group | null {
   const engine = cfg('engine');
   const prop = engine?.propeller?.position as [number, number, number] | undefined;
   const rudder = cfg('rudder')?.rudder?.position as [number, number, number] | undefined;
-  if (!bed || !prop || !rudder) return null;
+  // A stern drive: its engines only (the legs are its module's, shown at Engine too).
+  const sd = !!cfg('sternDrive');
+  if (!bed || (!sd && (!prop || !rudder))) return null;
   const twin = !!design.twin && !SINGLE_ONLY_ENGINES.includes(design.engine);
   const propD = boat.figures.propellerM;
   const fit = boat.shaft;
-  const g = buildMachinery({ engine: design.engine, twin, form: VESSEL_DEFS.design.hull, shaft: fit, twinX: engine?.twin?.x ?? 0, propD, propZ: prop[2], rudderZ: rudder[2] });
+  const g = buildMachinery({ engine: design.engine, twin, form: VESSEL_DEFS.design.hull, shaft: fit, twinX: engine?.twin?.x ?? 0, propD, propZ: prop?.[2] ?? 0, rudderZ: rudder?.[2] ?? 0, sterndrive: sd });
   g.name = 'machinery';
   const name = ENGINES[design.engine].name.split(' (')[0];
   const tag = nameTag(fit.fits ? (twin ? `2 × ${name}` : name) : `Too tall by ${Math.round(fit.shortM * 100)} cm`, fit.fits ? '#2f6aa8' : '#b23a2c');
   tag.position.set(0, fit.topY + 0.45, fit.flangeZ - ENGINES[design.engine].size[0] / 2);
   const lowest = Math.min(...g.children.filter((c) => c.name === 'propeller').map((c) => c.position.y));
   const ptag = nameTag(`Propeller ⌀ ${propD.toFixed(2)} m${twin ? ' (two)' : ''}`, '#8a5a1c');
-  ptag.position.set(0, lowest - propD / 2 - 0.35, prop[2]);
-  g.add(tag, ptag);
+  ptag.position.set(0, lowest - propD / 2 - 0.35, prop?.[2] ?? 0);
+  // (A stern drive's propellers are on its legs: no tag down there.)
+  g.add(...(sd ? [tag] : [tag, ptag]));
   root.add(g);
   return g;
 }
@@ -429,7 +441,8 @@ let shownStep = '';
 let framedFit = '';
 /** Look at her engines and propellers: from her starboard quarter, a little above. */
 function frameMachinery(): void {
-  const m = shown?.machinery;
+  // (Her outboards, if that's her machinery.)
+  const m = shown?.machinery ?? shown?.modules.getObjectByName('outboards');
   if (!m) return;
   const box = new THREE.Box3();
   m.traverse((o) => {
@@ -466,7 +479,9 @@ function focusStep(): void {
   const inHouse = house ? new THREE.Box3().setFromObject(house).expandByVector(new THREE.Vector3(-0.15, 0.05, 0.05)) : null;
   const c = new THREE.Vector3();
   for (const m of modules.children) {
-    if (step === 'hull' || step === 'engine') m.visible = false;
+    // (Her outboards are her machinery: shown at Engine, as her inboard is.)
+    if (step === 'engine') m.visible = !!m.getObjectByName('outboards');
+    else if (step === 'hull') m.visible = false;
     else if (step === 'wheelhouse') m.visible = !!inHouse && inHouse.containsPoint(new THREE.Box3().setFromObject(m).getCenter(c));
     else m.visible = true;
   }
@@ -514,7 +529,7 @@ function choices(key: keyof ShipDesign, items: { name: string; note?: string }[]
 }
 const outputs: Partial<Record<keyof ShipDesign, (v: number) => string>> = {};
 /** Each field's label and, for a few set options, their names (the compare list shows them). */
-const labels: Partial<Record<keyof ShipDesign, string>> = { hull: 'Hull', engine: 'Engine', twin: 'Engines', outboards: 'Outboards', controls: 'Controls', paint: 'Paint', roofPaint: 'Roof colour' };
+const labels: Partial<Record<keyof ShipDesign, string>> = { hull: 'Hull', engine: 'Engine', twin: 'Engines', outboards: 'Outboards', sternDrive: 'Stern drive', material: 'Built of', controls: 'Controls', paint: 'Paint', roofPaint: 'Roof colour' };
 const optionNames: Partial<Record<keyof ShipDesign, string[]>> = {};
 function slider(key: keyof ShipDesign, label: string, show: (v: number) => string): void {
   labels[key] ??= label;
@@ -588,6 +603,21 @@ slider('bow', 'Bow rake', (v) => (DESIGN_HULLS[design.hull].pushBow ? 'push bow'
 }
 options('guard', 'Protection', [...GUARDS]);
 options('rails', 'Rails', [...RAILS]);
+// What she's built of (owner, Oct 2026): a choice on the workboat hull; the others are their type's own.
+{
+  const h = document.createElement('h2');
+  h.textContent = 'Built of';
+  const p = document.createElement('p');
+  p.className = 'meta';
+  p.id = 'materialNote';
+  controls.append(h, p);
+  const al = CONFIG.shipyard.materials.aluminium;
+  const fe = CONFIG.shipyard.materials.steel;
+  choices('material', [
+    { name: MATERIALS[0], note: `Light: about ${al.shellKgPerM2} kg a square metre of hull, so she floats higher and goes faster for her power. £${al.pricePerKg} a kilo built.` },
+    { name: MATERIALS[1], note: `Tough and cheaper to build (£${fe.pricePerKg} a kilo), but about ${fe.shellKgPerM2} kg a square metre: she sits deeper and is slower for her power.` },
+  ]);
+}
 section('2. Wheelhouse');
 slider('housePos', 'Position', (v) => (v === 0 ? 'right aft' : v === 15 ? 'right forward' : `${pct(SCALES.housePos(v))} fwd`));
 slider('houseLength', 'Length', (v) => `${SCALES.houseLength(v).toFixed(1)} m`);
@@ -673,12 +703,21 @@ choices('engine', ENGINES.map((e) => ({ name: e.name, note: `${'about' in e ? `$
   box.onchange = () => change({ twin: box.checked ? 1 : 0 });
   controls.appendChild(row);
 }
+// Stern drives (owner, Oct 2026): the engine right at the back, a leg through the transom that steers.
+{
+  const row = document.createElement('label');
+  row.className = 'choice';
+  row.innerHTML = '<input type="checkbox" data-key="sternDrive"> Stern drive: the engine against the transom, driving a leg through it that swings to steer (no shaft or rudder; a leg each for twins). Frees her deck and balances her, with a smaller propeller';
+  const box = row.querySelector('input')!;
+  box.onchange = () => change({ sternDrive: box.checked ? 1 : 0 });
+  controls.appendChild(row);
+}
 // Or outboards (owner, Oct 2026): 2, 3 or 4 petrol V8s on a bracket off the transom, in place of the inboard above.
 {
   const o = CONFIG.modules.outboard;
   const head = document.createElement('div');
   head.style.margin = '12px 0 4px';
-  head.innerHTML = `<b>Or outboards</b><div style="font-size:12px;color:var(--muted)">${o.engine.powerKw} kW (${Math.round(o.engine.powerKw * 1.341)} hp) petrol V8s, ${o.massKg} kg each, on a bracket off the transom in place of the engine above. They steer by swinging with the wheel: no rudder. Worked together from one lever and key.</div>`;
+  head.innerHTML = `<b>Or outboards</b><div style="font-size:12px;color:var(--muted)">${o.engine.powerKw} kW (${Math.round(o.engine.powerKw * 1.341)} hp) petrol V8s, ${o.massKg} kg each, on a bracket off the transom in place of the engine above. They steer by swinging with the wheel: no rudder. Worked together from one lever and key. Their lower units' gearing is matched to her by trial, like a gearbox.</div>`;
   controls.appendChild(head);
   choices('outboards', OUTBOARDS.map((name) => ({ name })));
 }
@@ -740,6 +779,19 @@ function syncControls(): void {
   twinBox.checked = !!design.twin;
   // The tug diesel goes in singly only; with outboards there's no inboard to twin.
   twinBox.disabled = SINGLE_ONLY_ENGINES.includes(design.engine) || !!design.outboards;
+  // A hull type built of its own material: the choice stands aside, and says why.
+  const ownMaterial = DESIGN_HULLS[design.hull].material;
+  document.querySelectorAll<HTMLElement>('[data-key="material"]').forEach((el) => {
+    el.classList.toggle('aside', !!ownMaterial);
+    if (ownMaterial) el.classList.toggle('on', MATERIALS[Number(el.dataset.i)].toLowerCase() === ownMaterial);
+  });
+  $('materialNote').textContent = ownMaterial
+    ? `The ${DESIGN_HULLS[design.hull].name.split(':')[0].toLowerCase()} is built of ${ownMaterial}, as her type is.`
+    : 'Her hull and houses: what she weighs, how deep she floats, how fast she goes and what she costs follow from it.';
+  const sdBox = document.querySelector('input[data-key=sternDrive]') as HTMLInputElement;
+  sdBox.checked = !!design.sternDrive;
+  // The tug diesel goes on a shaft; with outboards there's no inboard.
+  sdBox.disabled = SINGLE_ONLY_ENGINES.includes(design.engine) || !!design.outboards;
   // With outboards the engine packages stand aside (shown, not chosen).
   document.querySelectorAll<HTMLElement>('[data-key="engine"]').forEach((el) => el.classList.toggle('aside', !!design.outboards));
   // A tug's push bow and a landing craft's landing bow are their own: no bow rake to choose.
@@ -760,15 +812,21 @@ function showFigures(): void {
   const matched = matchedFor === matchKey(design);
   rows($('figures'), [
     ['Length overall x beam', `${f.lengthM.toFixed(2)} x ${f.beamM.toFixed(2)} m`],
-    ['Displacement', `${f.massT.toFixed(2)} t`],
+    ['Built of', f.material === 'steel' ? 'Steel' : 'Aluminium'],
+    ['Displacement', `${f.massT.toFixed(2)} t (her weight, as below)`],
     ['Draught', `${f.draughtM.toFixed(2)} m`],
+    ['Freeboard', `${f.freeboardM.toFixed(2)} m amidships`],
     ['Stability (GM)', `${f.gmM.toFixed(2)} m`],
+    // Where her weights put her centre of gravity, against her centre of buoyancy (her tanks and ballast trim the rest).
+    ['Balance (LCG)', Math.abs(boat.weights.balanceM) < 0.05 ? 'over her centre of buoyancy' : `${Math.abs(boat.weights.balanceM).toFixed(2)} m ${boat.weights.balanceM > 0 ? 'aft' : 'forward'} of her centre of buoyancy`],
     ['Deck cargo', deckWords(deckRoom())],
     ['Pots on deck', `${deckRoom().pots}`],
     ['Engine', f.engine],
     ['Propeller', `${f.propellerM.toFixed(2)} m`],
     ['Gearbox', matched ? `${f.gear.toFixed(2)} : 1 (matched)` : 'matching...'],
     ['Price', `£${f.price.toLocaleString('en-GB')}`],
+    // Her weights, part by part (build.ts): she floats where they add up to.
+    ...boat.weights.items.map((it): [string, string] => [`&nbsp;&nbsp;${it.name}`, `${(it.kg / 1000).toFixed(2)} t`]),
   ]);
   $('warnings').innerHTML = boat.warnings.map((w) => `<div>${w}</div>`).join('');
   showQuick();
@@ -835,10 +893,12 @@ function showCode(): void {
     el.textContent = 'matching...';
     return;
   }
-  const code = encodeDesign(design);
-  el.textContent = code;
-  ($('play') as HTMLAnchorElement).href = `./?design=${code}`;
-  history.replaceState(null, '', `#${code}`);
+  // Her short code to type into VR (none if no code can hold her: her link then); the address and the game take her token.
+  const code = shortCode(design);
+  const token = designToken(design);
+  el.textContent = code ?? 'No short code: share her by link or file';
+  ($('play') as HTMLAnchorElement).href = `./?design=${token}`;
+  history.replaceState(null, '', `#${token}`);
   markCurrent();
 }
 
@@ -913,14 +973,14 @@ function gameUrl(code: string, extra = ''): string {
 }
 $('play').onclick = (e) => {
   e.preventDefault();
-  if (matchedFor === matchKey(design)) location.assign(gameUrl(encodeDesign(design)));
+  if (matchedFor === matchKey(design)) location.assign(gameUrl(designToken(design)));
 };
 // "Try her together" (owner, Oct 2026): in a session, one press takes everyone into the game in
 // her, in one multiplayer game. The presser hosts it in a new room; the others join it
 // (session.ts sends them the room; the game waits for the host, App.ts).
 $('playTogether').onclick = () => {
   if (matchedFor !== matchKey(design) || !link?.side) return;
-  const code = encodeDesign(design);
+  const code = designToken(design);
   const room = randomRoomCode();
   link.side.go({ design: code, room });
   $('sessionState').textContent = 'Taking everyone into the game…';
@@ -931,19 +991,48 @@ function showTogether(): void {
   $('playTogether').hidden = !(link?.side && people.length > 1);
 }
 $('copy').onclick = () => {
-  if (matchedFor === matchKey(design)) void navigator.clipboard?.writeText(encodeDesign(design));
+  const code = shortCode(design);
+  if (matchedFor === matchKey(design) && code) void navigator.clipboard?.writeText(code);
 };
-/** Open a design by its code (typed in, or a favourite). False, with the reason shown, if it won't read. */
+// Sharing her as a document (parametric boats P1; designDoc.ts): a link to the Shipyard with
+// her in it (paste it in a message), or a file (send it, keep it, open it here again).
+/** Her name as shared: the brief's, else what she'd be called. */
+const shareName = () => (brief.name ?? '').trim() || defaultName();
+$('shareLink').onclick = () => {
+  if (matchedFor !== matchKey(design)) return;
+  const url = `${location.origin}${location.pathname}#${docToken(design, shareName())}`;
+  void navigator.clipboard?.writeText(url);
+  $('shareMsg').textContent = 'Link copied: paste it in a message. It opens the Shipyard on her.';
+};
+$('saveFile').onclick = () => {
+  if (matchedFor !== matchKey(design)) return;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([docFileText(design, shareName())], { type: 'application/json' }));
+  a.download = docFileName(shareName());
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  $('shareMsg').textContent = `Saved as ${a.download}.`;
+};
+$('openFile').onclick = () => ($('fileIn') as HTMLInputElement).click();
+($('fileIn') as HTMLInputElement).onchange = async () => {
+  const input = $('fileIn') as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = '';
+  if (file) openCode(await file.text(), $('shareMsg'));
+};
+/** Open a design by its code, link or file (typed in, pasted, a favourite). False, with the reason shown, if it won't read. */
 function openCode(code: string, msg: HTMLElement): boolean {
-  const read = decodeDesign(code);
+  const read = readDesign(code);
   if ('error' in read) {
     msg.textContent = read.error;
     return false;
   }
-  msg.textContent = '';
+  // What the reader had to do (a field from a newer Shipyard left out, a value brought onto its scale).
+  msg.textContent = read.warnings.length ? `Opened, but: ${read.warnings.join('; ')}.` : '';
+  if (read.name) setBrief({ name: read.name });
   share(read.design);
   design = read.design;
-  matchedFor = matchKey(design);
+  matchedFor = comesMatched(design) ? matchKey(design) : null;
   trial = null;
   change({});
   runTrial();
@@ -992,7 +1081,7 @@ function saveFavourite(): void {
   const name = cleanName(nameBox.value, defaultName());
   const f = boat.figures;
   const summary = [`${f.lengthM.toFixed(1)} m`, `${f.massT.toFixed(1)} t`, trial ? `${trial.topSpeedKn.toFixed(1)} kn` : '', f.engine].filter(Boolean).join(' · ');
-  const fav: Favourite = { name, code: encodeDesign(design), savedAt: Date.now(), picture: picture(), summary };
+  const fav: Favourite = { name, code: designToken(design), savedAt: Date.now(), picture: picture(), summary };
   const list = addFavourite(readFavourites(storage()), fav);
   // If the browser's storage is full, keep the designs and drop the pictures.
   const ok = writeFavourites(storage(), list) || writeFavourites(storage(), list.map((x) => ({ ...x, picture: '' })));
@@ -1013,7 +1102,7 @@ function showFavourites(): void {
     card.className = 'fav';
     card.dataset.code = f.code;
     const when = new Date(f.savedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-    card.innerHTML = `${f.picture ? `<img alt="" src="${f.picture}">` : '<div class="nopic"></div>'}<div><b title="${esc(f.name)}">${esc(f.name)}</b><div class="meta">${esc(f.summary)}</div><div class="code">${esc(f.code)} · ${when}</div><div class="acts"><button data-act="open">Open</button><button data-act="play">Try in game</button><button data-act="del">Delete</button></div></div>`;
+    card.innerHTML = `${f.picture ? `<img alt="" src="${f.picture}">` : '<div class="nopic"></div>'}<div><b title="${esc(f.name)}">${esc(f.name)}</b><div class="meta">${esc(f.summary)}</div><div class="code">${esc(groupFavCode(f.code))} · ${when}</div><div class="acts"><button data-act="open">Open</button><button data-act="play">Try in game</button><button data-act="del">Delete</button></div></div>`;
     card.querySelector<HTMLElement>('[data-act=open]')!.onclick = () => openCode(f.code, $('favMsg'));
     card.querySelector<HTMLElement>('[data-act=play]')!.onclick = () => (location.href = `./?design=${encodeURIComponent(f.code)}`);
     card.querySelector<HTMLElement>('[data-act=del]')!.onclick = () => {
@@ -1025,9 +1114,11 @@ function showFavourites(): void {
   }
   markCurrent();
 }
+/** A favourite's code as shown (one saved from a link has no code). */
+const groupFavCode = (token: string) => (token.startsWith('doc.') ? 'from a link' : token);
 /** Mark the favourite that is the design on show now (if any). */
 function markCurrent(): void {
-  const now = matchedFor === matchKey(design) ? encodeDesign(design) : '';
+  const now = matchedFor === matchKey(design) ? designToken(design) : '';
   document.querySelectorAll<HTMLElement>('.fav').forEach((el) => el.classList.toggle('current', el.dataset.code === now));
 }
 $('load').addEventListener('keydown', (e) => e.key === 'Enter' && loadCode());
@@ -1791,6 +1882,8 @@ $('stepNext').onclick = () => goStep(stepAt + 1);
 
 // ── The brief (brief.ts): what she's for, her targets, checked all the way ──
 let brief: Brief = startDoc.brief ?? newBrief();
+// Opened from a link with her name in it (and no session of its own): her name.
+if (!sessionId && 'design' in fromHash && fromHash.name) brief = { ...brief, name: fromHash.name };
 function setBrief(patch: Partial<Brief>): void {
   side().setBrief({ ...brief, ...patch });
 }

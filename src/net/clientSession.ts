@@ -33,8 +33,10 @@ export class ClientSession {
     private readonly transport: ClientTransport,
     name: string,
     private readonly now: () => number = () => performance.now() / 1000,
+    /** This page's build (build.ts APP_BUILD), so the host can tell if it's behind us. */
+    build?: string,
   ) {
-    transport.onOpen = () => transport.send({ t: 'hello', name });
+    transport.onOpen = () => transport.send({ t: 'hello', name, ...(build ? { build } : {}) });
     transport.onMessage = (m) => this.receive(m as HostMessage);
     transport.onClose = (reason) => {
       if (this.status === 'closed') return;

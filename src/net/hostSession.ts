@@ -35,6 +35,9 @@ export class HostSession {
     transport.onDisconnect = (link) => this.drop(link);
   }
 
+  /** A crew-mate's page is another build than ours (they won't stay: their page refuses ours). */
+  onOtherBuild: (name: string, theirs: string) => void = () => {};
+
   get playerCount(): number {
     return 1 + this.peers.size;
   }
@@ -53,6 +56,8 @@ export class HostSession {
         p.mode = 'walk';
       } else placeAshore(p);
       p.peerId = link.id; // for voice (net/voice.ts): who to call
+      const ours = this.world.build?.app;
+      if (msg.build && ours && ours !== 'dev' && msg.build !== 'dev' && msg.build !== ours) this.onOtherBuild(p.name, msg.build);
       this.world.players[playerId] = p;
       this.peers.set(link.id, { link, playerId });
       this.send(link, { t: 'welcome', playerId, world: this.world, ...(this.marks ? { chart: this.marks } : {}) });

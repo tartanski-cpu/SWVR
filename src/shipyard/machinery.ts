@@ -19,9 +19,10 @@
  * The engine's place along her comes from its shaft (`layShaft`, owner: "a reasonable prop
  * angle determines the position of your engine"): the shaft rises forward from the propeller
  * at a set angle (CONFIG.shipyard.shaftAngleDeg, 10°: small craft run about 8-12°), and the
- * engine, tilted to it, sits on it where it first clears her bottom (a hull dead flat aft
- * takes a steeper shaft, up to CONFIG.shipyard.shaftAngleMaxDeg). Only where it's drawn
- * and whether it fits: her weights and centre of gravity are as build.ts sets them.
+ * engine, tilted to it, sits on it where it clears her bottom: as near where her weights
+ * balance (owner, Oct 2026; build.ts works out where) as the shaft can reach, steeper as
+ * need be up to CONFIG.shipyard.shaftAngleMaxDeg. Or, on a stern drive (`sternDriveLine`),
+ * level against the transom. Her weights are carried there (build.ts).
  *
  * Plain numbers only (no drawing): build.ts checks the fit, the Shipyard's view draws it.
  */
@@ -103,10 +104,16 @@ export interface ShaftLine {
 /**
  * Lay the shaft and put the engine on it (owner: a reasonable shaft angle decides where the
  * engine goes). From the propeller, hung under her bottom, the shaft rises forward at
- * `angleDeg`; the engine, tilted to the same angle, is slid forward along it until its lower
- * part is `CLEAR` over her bottom all along its length: as far aft as it will go, on as
- * short a shaft as allows (at least `minShaft`). Then its top must be under what's over it
- * there (`ceilingAt`: the cabin floor under the house, the deck elsewhere), 3 cm clear.
+ * `angleDeg`; the engine, tilted to the same angle, sits on its end with its lower part
+ * `CLEAR` over her bottom all along its length. Its top must be under what's over it there
+ * (`ceilingAt`: the cabin floor under the house, the deck elsewhere), 3 cm clear.
+ *
+ * Where along the shaft (owner, Oct 2026: "looking for a place where the centre of gravity
+ * is good longitudinally", not always far forward): with `preferZ` (where her balance wants
+ * the engine's middle), the place that clears her bottom nearest it, the shaft steepened a
+ * degree at a time up to `maxAngleDeg` if that's what lets it sit there, the gentlest angle
+ * that does; aft of the shortest shaft (`minShaft`) it can't go. Without, as aft as it will
+ * go at `angleDeg` (steeper only if it can't clear at all): the shortest shaft.
  */
 export function layShaft(
   form: Pick<HullForm, 'stations'>,
@@ -116,12 +123,59 @@ export function layShaft(
   ceilingAt: (z: number) => number,
   angleDeg: number,
   maxAngleDeg = angleDeg,
+  preferZ: number | null = null,
 ): ShaftLine {
-  // A bottom too flat aft for the shaft to clear it at its angle within reach: a little
-  // steeper, a degree at a time, up to `maxAngleDeg`.
-  let line = layAt(form, size, x, prop, ceilingAt, angleDeg);
-  for (let a = angleDeg + 1; !line.clears && a <= maxAngleDeg; a++) line = layAt(form, size, x, prop, ceilingAt, a);
-  return line.shaft;
+  const L = size[0];
+  const minShaft = Math.max(0.6, prop.d);
+  const stem = Math.min(...form.stations.map((s) => s.z));
+  if (preferZ === null) {
+    let line = layAt(form, size, x, prop, ceilingAt, angleDeg);
+    for (let a = angleDeg + 1; !line.clears && a <= maxAngleDeg; a++) line = layAt(form, size, x, prop, ceilingAt, a);
+    return line.shaft;
+  }
+  // Every flange place, 5 cm apart from the shortest shaft forward, with the gentlest angle
+  // (from `angleDeg`) at which the engine clears there; the one nearest `preferZ`.
+  let best: { shaft: ShaftLine; off: number } | null = null;
+  // (No further forward than her forward third, as without.)
+  for (let zf = prop.z - minShaft; zf - L > stem + 0.3 * (prop.z - stem); zf -= 0.05) {
+    for (let a = angleDeg; a <= maxAngleDeg; a++) {
+      const at = flangeAt(form, size, x, prop, ceilingAt, a, zf);
+      if (at.dip > 0.005) continue;
+      // (One that fits under her floor or deck beats one that doesn't, wherever it is.)
+      const off = Math.abs(zf - L / 2 - preferZ) + (at.shaft.fits ? 0 : 100);
+      if (!best || off < best.off - 1e-9) best = { shaft: at.shaft, off };
+      break;
+    }
+  }
+  // (Nowhere clears: as before, as far forward as it would go.)
+  return best?.shaft ?? layShaft(form, size, x, prop, ceilingAt, angleDeg, maxAngleDeg);
+}
+
+/** The engine with its flange at `zf` on a shaft at `angleDeg`: how far it dips under the clearance line (m; <= 0 clears), and the line. */
+function flangeAt(
+  form: Pick<HullForm, 'stations'>,
+  size: readonly [number, number, number],
+  x: number,
+  prop: { x: number; z: number; d: number },
+  ceilingAt: (z: number) => number,
+  angleDeg: number,
+  zf: number,
+): { dip: number; shaft: ShaftLine } {
+  const [L, W, H] = size;
+  const t = Math.tan((angleDeg * Math.PI) / 180);
+  const half = (W * SUMP_SHARE) / 2;
+  const propY = propellerY(form, prop.x, prop.z, prop.d);
+  const flangeY = propY + (prop.z - zf) * t;
+  let dip = -Infinity;
+  let short = -Infinity;
+  for (let i = 0; i <= 6; i++) {
+    const s = (L * i) / 6;
+    const under = flangeY + s * t - FLANGE_SHARE * H;
+    for (const dx of [-half, 0, half]) dip = Math.max(dip, bottomAt(form, x + dx, zf - s) + CLEAR - under);
+    short = Math.max(short, under + H - (ceilingAt(zf - s) - 0.03));
+  }
+  const shortM = Math.max(0, Math.round(short * 100) / 100);
+  return { dip, shaft: { x, flangeY, flangeZ: zf, propY, angleDeg, topY: flangeY + L * t + (1 - FLANGE_SHARE) * H, fits: shortM === 0, shortM } };
 }
 
 function layAt(
@@ -132,39 +186,44 @@ function layAt(
   ceilingAt: (z: number) => number,
   angleDeg: number,
 ): { shaft: ShaftLine; clears: boolean } {
-  const [L, W, H] = size;
-  const t = Math.tan((angleDeg * Math.PI) / 180);
-  const half = (W * SUMP_SHARE) / 2;
-  const propY = propellerY(form, prop.x, prop.z, prop.d);
+  const L = size[0];
   const minShaft = Math.max(0.6, prop.d);
   const stem = Math.min(...form.stations.map((s) => s.z));
-  /** How far the engine's underside dips under the clearance line, with its flange at `zf` (m; ≤ 0 clears). */
-  const dip = (zf: number) => {
-    const fy = propY + (prop.z - zf) * t;
-    let worst = -Infinity;
-    for (let i = 0; i <= 6; i++) {
-      const s = (L * i) / 6;
-      const under = fy + s * t - FLANGE_SHARE * H;
-      for (const dx of [-half, 0, half]) worst = Math.max(worst, bottomAt(form, x + dx, zf - s) + CLEAR - under);
-    }
-    return worst;
-  };
   let zf = prop.z - minShaft;
-  let best = { zf, dip: dip(zf) };
+  let best = { zf, dip: flangeAt(form, size, x, prop, ceilingAt, angleDeg, zf).dip };
   // Forward in 5 cm steps until it clears (or the engine would run into her forward third).
   while (best.dip > 0 && zf - L > stem + 0.3 * (prop.z - stem)) {
     zf -= 0.05;
-    const d = dip(zf);
+    const d = flangeAt(form, size, x, prop, ceilingAt, angleDeg, zf).dip;
     if (d < best.dip) best = { zf, dip: d };
     if (d <= 0) break;
   }
-  zf = best.zf;
-  const flangeY = propY + (prop.z - zf) * t;
+  return { shaft: flangeAt(form, size, x, prop, ceilingAt, angleDeg, best.zf).shaft, clears: best.dip <= 0.005 };
+}
+
+/**
+ * A stern drive's engine (owner, Oct 2026: "so that engines can go right up the back"): level,
+ * its gearbox end `inset` forward of the transom (the leg's bell housing through it), as low as
+ * its lower part clears her bottom by `CLEAR` all along it. Its top must be under the deck or
+ * the cabin floor over it, 3 cm clear, as on a shaft. (`propY` here: the leg's input, the
+ * flange's height; the leg works out its own propeller.)
+ */
+export function sternDriveLine(
+  form: Pick<HullForm, 'stations'>,
+  size: readonly [number, number, number],
+  x: number,
+  transom: number,
+  ceilingAt: (z: number) => number,
+  inset: number,
+): ShaftLine {
+  const [L, W, H] = size;
+  const half = (W * SUMP_SHARE) / 2;
+  const zf = transom - inset;
+  let under = -Infinity;
+  for (let i = 0; i <= 6; i++) for (const dx of [-half, 0, half]) under = Math.max(under, bottomAt(form, x + dx, zf - (L * i) / 6) + CLEAR);
+  const flangeY = under + FLANGE_SHARE * H;
   let short = -Infinity;
-  for (let i = 0; i <= 6; i++) {
-    const s = (L * i) / 6;
-    short = Math.max(short, flangeY + s * t - FLANGE_SHARE * H + H - (ceilingAt(zf - s) - 0.03));
-  }
+  for (let i = 0; i <= 6; i++) short = Math.max(short, under + H - (ceilingAt(zf - (L * i) / 6) - 0.03));
   const shortM = Math.max(0, Math.round(short * 100) / 100);
-  return { shaft: { x, flangeY, flangeZ: zf, propY, angleDeg, topY: flangeY + L * t + (1 - FLANGE_SHARE) * H, fits: shortM === 0, shortM }, clears: best.dip <= 0.005 };
+  return { x, flangeY, flangeZ: zf, propY: flangeY, angleDeg: 0, topY: under + H, fits: shortM === 0, shortM };
 }

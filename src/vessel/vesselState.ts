@@ -148,6 +148,13 @@ export interface ContactState {
   slide: number;
   /** Largest approach speed of a point that touched this tick (m/s): impacts. */
   impact: number;
+  /**
+   * The same for her guards (fenders out, a rubbing strake, tyres, a push fender): the force
+   * they take and how fast they slide along a quay. Rubbing on a guard isn't hull damage
+   * (wear.ts), except a little in a storm. Absent on older states.
+   */
+  guardForce?: number;
+  guardSlide?: number;
 }
 
 /** Machinery state, advanced by the simulation. */

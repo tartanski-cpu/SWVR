@@ -4,32 +4,17 @@
  * the propeller, the propeller at the diameter her design gives it, and the rudder behind.
  * Shown inside a ghost of her hull and house, so you see what's fitted and where.
  *
- * Only here: the game never draws her engines (they're under the cabin floor, and leaving
- * them out keeps the Quest's draw calls down). Original, generic designs, coloured by type:
- *
- *   straight six (150 kW)   long and narrow: one row of six cylinders under a ribbed cover;
- *   V8s (280, 400 kW)       short and wide: two banks under angled covers, a turbo on top;
- *   tug diesel (450 kW)     big and tall, slow-revving: six separate heads in a row, a big
- *                           flywheel housing and a heavy gearbox for the big propeller.
- *
- * Sizes are in metres, about right for each engine's power and weight (build.ts ENGINES).
+ * The engines are the game's own models (vessel/view/engineModels.ts: the game draws them too,
+ * under their hatch, baked into the boat's fixed parts), sized as build.ts ENGINES says;
+ * the shafts, propellers and rudders are drawn only here.
  */
 import * as THREE from 'three';
 import type { HullForm } from '../vessel/hullForm';
+import { box, BRONZE, buildEngineModel, drum, ENGINE_LOOKS, mat, placeEngine, STEEL } from '../vessel/view/engineModels';
 import { ENGINES } from './build';
-import { bottomAt, FLANGE_SHARE, type ShaftLine } from './machinery';
+import { bottomAt, type ShaftLine } from './machinery';
 
-/**
- * Each engine type's look: its build and block colour. Its size is the engine's own
- * (build.ts ENGINES `size`): the model is scaled to exactly that, so what's drawn is what's
- * checked for fit (machinery.ts).
- */
-export const ENGINE_LOOKS = [
-  { kind: 'six', block: 0x5a84a6 },
-  { kind: 'v8', block: 0xa8483e },
-  { kind: 'v8', block: 0x7d8792 },
-  { kind: 'bigSix', block: 0x4f8a6c },
-] as const;
+export { ENGINE_LOOKS };
 
 /** What to draw (from her design: build.ts puts the engine bed, propeller and rudder). */
 export interface Machinery {
@@ -47,97 +32,13 @@ export interface Machinery {
   propD: number;
   propZ: number;
   rudderZ: number;
+  /** Stern drives: the engines only (no shaft, propeller or rudder: the legs are the outboard module's). */
+  sterndrive?: boolean;
 }
 
-const mats = new Map<number, THREE.MeshStandardMaterial>();
-function mat(colour: number, metal = 0.35): THREE.MeshStandardMaterial {
-  let m = mats.get(colour);
-  if (!m) mats.set(colour, (m = new THREE.MeshStandardMaterial({ color: colour, metalness: metal, roughness: 0.55 })));
-  return m;
-}
-const STEEL = 0xb4bcc4;
-const BRONZE = 0xd29a48;
-const DARK = 0x3a4046;
-
-function box(g: THREE.Group, w: number, h: number, l: number, x: number, y: number, z: number, colour: number): THREE.Mesh {
-  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, l), mat(colour));
-  m.position.set(x, y, z);
-  g.add(m);
-  return m;
-}
-/** A cylinder along her length (z). */
-function drum(g: THREE.Group, r: number, l: number, x: number, y: number, z: number, colour: number, sides = 14): THREE.Mesh {
-  const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, l, sides).rotateX(Math.PI / 2), mat(colour));
-  m.position.set(x, y, z);
-  g.add(m);
-  return m;
-}
-
-/**
- * One engine and its gearbox, crankshaft along her length, the gearbox aft (+z). Its origin
- * is the gearbox's output flange (where the shaft starts), so it's placed by that.
- */
+/** One engine and its gearbox (vessel/view/engineModels.ts), at its own size (ENGINES `size`). */
 export function buildEngine(type: number): { group: THREE.Group; length: number; height: number } {
-  const look = ENGINE_LOOKS[type] ?? ENGINE_LOOKS[0];
-  const [L0, W, H] = ENGINES[type]?.size ?? ENGINES[0].size;
-  const gearShare = look.kind === 'bigSix' ? 0.55 : 0.32;
-  const L = L0 - gearShare;
-  const g = new THREE.Group();
-  const gearL = gearShare;
-  // Everything forward of the gearbox: z from -(gearL + L) to -gearL; the crank at y = 0.
-  const zMid = -gearL - L / 2;
-  const crankY = H * 0.12;
-  // Sump and block.
-  box(g, W * 0.62, H * 0.28, L * 0.9, 0, crankY - H * 0.22, zMid, DARK);
-  if (look.kind === 'v8') {
-    box(g, W * 0.55, H * 0.42, L, 0, crankY + H * 0.08, zMid, look.block);
-    // Two banks at 45° each side, a cover on each.
-    for (const s of [-1, 1]) {
-      const bank = box(g, W * 0.36, H * 0.3, L * 0.86, s * W * 0.27, crankY + H * 0.34, zMid, look.block);
-      bank.rotation.z = -s * 0.5;
-      const cover = box(g, W * 0.3, H * 0.07, L * 0.8, s * W * 0.34, crankY + H * 0.5, zMid, STEEL);
-      cover.rotation.z = -s * 0.5;
-    }
-    // The turbo and its pipe, on top at the front; the intercooler across the vee.
-    drum(g, H * 0.11, W * 0.3, 0, crankY + H * 0.62, zMid - L * 0.38, STEEL).rotation.y = Math.PI / 2;
-    box(g, W * 0.3, H * 0.12, L * 0.55, 0, crankY + H * 0.52, zMid + L * 0.05, 0x9aa3ab);
-  } else {
-    // A straight row of cylinders: the block, then the head(s) on top.
-    box(g, W * 0.6, H * 0.5, L, 0, crankY + H * 0.12, zMid, look.block);
-    if (look.kind === 'bigSix') {
-      // Six separate heads, a gap between each, and the rocker covers on them.
-      for (let i = 0; i < 6; i++) {
-        const z = zMid - L * 0.42 + (i * L * 0.84) / 5;
-        box(g, W * 0.56, H * 0.16, L * 0.12, 0, crankY + H * 0.45, z, look.block);
-        box(g, W * 0.44, H * 0.08, L * 0.1, 0, crankY + H * 0.57, z, STEEL);
-      }
-      // Air manifold along one side, the exhaust along the other, the turbo at the back.
-      drum(g, H * 0.07, L * 0.9, -W * 0.38, crankY + H * 0.35, zMid, 0x9aa3ab);
-      drum(g, H * 0.08, L * 0.9, W * 0.38, crankY + H * 0.38, zMid, 0x6d5d4f);
-      drum(g, H * 0.14, W * 0.3, W * 0.25, crankY + H * 0.62, zMid + L * 0.42, STEEL).rotation.y = Math.PI / 2;
-    } else {
-      // One head and a ribbed cover over the six.
-      box(g, W * 0.55, H * 0.14, L * 0.92, 0, crankY + H * 0.44, zMid, look.block);
-      box(g, W * 0.42, H * 0.06, L * 0.86, 0, crankY + H * 0.54, zMid, STEEL);
-      for (let i = 0; i < 6; i++) box(g, W * 0.44, H * 0.02, L * 0.02, 0, crankY + H * 0.575, zMid - L * 0.36 + (i * L * 0.72) / 5, DARK);
-      drum(g, H * 0.07, L * 0.75, W * 0.36, crankY + H * 0.32, zMid, 0x6d5d4f); // the exhaust manifold
-      drum(g, H * 0.1, W * 0.22, W * 0.3, crankY + H * 0.5, zMid + L * 0.36, STEEL).rotation.y = Math.PI / 2; // turbo
-    }
-  }
-  // Front: the heat exchanger tank across the top, the crank pulley, the alternator.
-  box(g, W * 0.7, H * 0.16, L * 0.12, 0, crankY + H * 0.5, zMid - L * 0.48, 0x9aa3ab);
-  drum(g, H * 0.12, 0.05, 0, crankY, zMid - L / 2 - 0.03, DARK);
-  drum(g, H * 0.07, H * 0.14, -W * 0.33, crankY + H * 0.2, zMid - L * 0.42, 0xb8bdc2);
-  // The flywheel housing, then the gearbox down to the output flange.
-  drum(g, Math.max(W, H) * 0.36, 0.12, 0, crankY, -gearL - 0.06, DARK, 18);
-  box(g, W * 0.5, H * 0.55, gearL - 0.08, 0, crankY - H * 0.12, -gearL / 2 - 0.02, 0x2f3438);
-  drum(g, 0.07, 0.06, 0, 0, -0.03, STEEL);
-  // Mounting feet on the bed rails, each side.
-  for (const s of [-1, 1]) for (const k of [-0.42, 0.42]) box(g, 0.1, 0.08, 0.16, s * W * 0.42, crankY - H * 0.25, zMid + k * L, DARK);
-  // The crank above the output flange (a marine gearbox drops the shaft line): set the whole
-  // engine so the flange is at the origin.
-  g.position.set(0, 0, 0);
-  return { group: g, length: L + gearL, height: H };
+  return buildEngineModel(type, ENGINES[type]?.size ?? ENGINES[0].size);
 }
 
 /** A propeller of diameter `d`: a hub and four blades, its disc across her length (facing aft). */
@@ -175,24 +76,13 @@ export function buildMachinery(m: Machinery): THREE.Group {
   const sh = m.shaft;
   const tilt = (sh.angleDeg * Math.PI) / 180;
   for (const s of m.twin ? [-1, 1] : [0]) {
-    const e = buildEngine(m.engine).group;
-    // Scaled to exactly its size, its underside FLANGE_SHARE of its height under the flange
-    // (the origin), its aft end at the flange; then tilted to the shaft, forward end up.
-    const bb = new THREE.Box3().setFromObject(e);
-    const got = bb.getSize(new THREE.Vector3());
-    const inner = new THREE.Group();
-    inner.scale.set(size[1] / got.x, size[2] / got.y, size[0] / got.z);
-    inner.position.set(-((bb.min.x + bb.max.x) / 2) * inner.scale.x, -FLANGE_SHARE * size[2] - bb.min.y * inner.scale.y, -bb.max.z * inner.scale.z);
-    inner.add(e);
-    const holder = new THREE.Group();
-    holder.add(inner);
-    holder.rotation.x = tilt;
-    holder.position.set(s * sh.x, sh.flangeY, sh.flangeZ);
+    const { holder, model: e } = placeEngine(m.engine, size, { x: s * sh.x, flangeY: sh.flangeY, flangeZ: sh.flangeZ, angleDeg: sh.angleDeg });
     if (!sh.fits) e.traverse((o) => {
       const mesh = o as THREE.Mesh;
       if (mesh.isMesh) mesh.material = TOO_TALL;
     });
     out.add(holder);
+    if (m.sterndrive) continue;
     // The shaft, straight from the flange to the propeller, out through her bottom.
     const from = holder.position.clone();
     const px = s * (m.twin ? m.twinX : 0);

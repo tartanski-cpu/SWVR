@@ -391,6 +391,14 @@
             <button id="playTogether" class="primary" hidden title="Everyone in this session goes into the game in her, together, in one multiplayer game you host">Try her together</button>
             <button id="copy">Copy code</button>
           </div>
+          <h2>Share her</h2>
+          <div class="tools">
+            <button id="shareLink" title="A link to the Shipyard with her in it, her name too: paste it in a message">Copy link</button>
+            <button id="saveFile" title="Her design as a small file: send it, keep it, open it here again">Save file</button>
+            <button id="openFile" title="Open a design file">Open file</button>
+            <input id="fileIn" type="file" accept=".json,application/json" hidden />
+          </div>
+          <div id="shareMsg"></div>
           <h2>Favourites</h2>
           <div class="tools">
             <input id="favName" placeholder="Name her" maxlength="40" />
@@ -398,9 +406,9 @@
           </div>
           <div id="favMsg"></div>
           <div id="favs"></div>
-          <h2>Open a code</h2>
+          <h2>Open a code or a link</h2>
           <div class="tools">
-            <input id="load" placeholder="XXXXX-XXXXX-XXXXX" maxlength="20" />
+            <input id="load" placeholder="A code or a link" />
             <button id="loadBtn">Open</button>
           </div>
           <div id="loadMsg"></div>
@@ -464,6 +472,38 @@
         </div>
       </div>
     </div>
+    <!-- If the Shipyard can't start (an error while the page loads, often from something this
+         browser kept from an older Shipyard), say so and offer a fresh start, instead of a dead
+         page (owner, Oct 2026: the page "partially broken" in one browser, fine in another). -->
+    <script>
+      (function () {
+        var shown = false;
+        function fail(msg) {
+          if (shown) return;
+          shown = true;
+          var box = document.createElement('div');
+          box.id = 'startFail';
+          box.style.cssText = 'position:fixed;left:50%;top:16px;transform:translateX(-50%);z-index:9999;max-width:min(680px,92vw);background:#3a1e1e;color:#ffe9e9;border:1px solid #a55;border-radius:10px;padding:14px 18px;font:14px/1.45 system-ui,sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.5)';
+          box.innerHTML = '<b>The Shipyard could not start.</b><div style="margin:6px 0;white-space:pre-wrap;word-break:break-word;font-family:ui-monospace,monospace;font-size:12px;opacity:.9"></div>' +
+            'Something this browser kept from an earlier Shipyard may be in the way. <button id="startFresh" style="margin-left:6px;padding:4px 10px;border-radius:6px;border:1px solid #c88;background:#5a2a2a;color:#fff;cursor:pointer">Start afresh</button> (your favourites and projects are kept; the design on the table is not)';
+          box.querySelector('div').textContent = msg;
+          document.body.appendChild(box);
+          document.getElementById('startFresh').onclick = function () {
+            try {
+              Object.keys(localStorage).forEach(function (k) { if (/^swvr\.yard\.(session\.|step|project$)/.test(k)) localStorage.removeItem(k); });
+              sessionStorage.clear();
+            } catch (e) {}
+            location.replace(location.pathname + '?fresh=1&t=' + Date.now());
+          };
+        }
+        window.addEventListener('error', function (e) {
+          var m = (e.error && e.error.stack) || e.message || 'unknown error';
+          if (e.filename) m += '\n' + e.filename.replace(/^.*\//, '') + ':' + e.lineno;
+          fail(m);
+        });
+        window.addEventListener('unhandledrejection', function (e) { fail(String((e.reason && e.reason.stack) || e.reason || 'unknown error')); });
+      })();
+    </script>
     <script type="module" src="/src/shipyard/page.ts"></script>
   </body>
 </html>

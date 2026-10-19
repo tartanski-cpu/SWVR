@@ -117,6 +117,41 @@ describe('engine temperature', { timeout: 30000 }, () => {
     expect(e.coolantC).toBeLessThan(hot);
   });
 
+  it('flat out and free-running she keeps cool; held on a tow at full throttle she overheats and derates; easing off saves her (owner)', () => {
+    const b = boat();
+    const e = b.v.engine;
+    const th = b.def.engine.thermal;
+    b.world.geography = 'openSea';
+    b.start();
+    b.send('lever', 1);
+    b.run(600);
+    // Free-running at her top speed: near rated revs, the pump at full flow, the fuel eased.
+    expect(e.coolantC).toBeLessThan(th.alarmC);
+    expect(e.coolantC).toBeGreaterThan(th.thermostatOpenC - 2);
+    // Made fast and pulling (a towline, a tow she can't move): the revs held down, the rack full.
+    const pos = [...b.v.position];
+    for (let i = 0; i < 480 / DT; i++) {
+      b.v.position[0] = pos[0];
+      b.v.position[2] = pos[2];
+      b.v.linearVelocity[0] = 0;
+      b.v.linearVelocity[2] = 0;
+      stepWorld(b.world, [], DT);
+    }
+    expect(e.rpm).toBeLessThan(b.def.engine.ratedRpm * 0.85);
+    expect(engineAlarms(b.v, b.def).highTemp).toBe(true);
+    expect(e.coolantC).toBeGreaterThan(th.alarmC);
+    expect(e.coolantC).toBeLessThan(th.shutdownC); // the governor's derate would hold it short of the shutdown
+    expect(e.phase).toBe('running');
+    // Half throttle on the tow: it comes back under the alarm.
+    b.send('lever', 0.5);
+    for (let i = 0; i < 300 / DT; i++) {
+      b.v.linearVelocity[0] = 0;
+      b.v.linearVelocity[2] = 0;
+      stepWorld(b.world, [], DT);
+    }
+    expect(engineAlarms(b.v, b.def).highTemp).toBe(false);
+  });
+
   it('protection stops the engine if it overheats far enough', () => {
     const b = boat();
     b.start();

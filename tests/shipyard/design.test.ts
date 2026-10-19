@@ -1,13 +1,9 @@
-/** Shipyard designs: the choices round-trip through their 15-character code, typos are caught, older 10-, 11-, 13- and 14-character codes still read. */
+/** Shipyard designs: the choices round-trip through their 17-character (or longer) code, typos are caught; codes from before version 10 are retired. */
 import { describe, expect, it } from 'vitest';
-import { cleanDesign } from '../../src/shipyard/variants';
-import { COMBINATIONS, decodeDesign, DEFAULT_DESIGN, encodeDesign, encodeDesignV2, encodeDesignV3, encodeDesignV4, encodeDesignV5, encodeDesignV6, encodeDesignV7, encodeDesignV8, encodeDesignV9, FIELDS, PLACE_GRID, placeOf, placeValue, type OldDesign, type ShipDesign } from '../../src/shipyard/design';
+import { COMBINATIONS, decodeDesign, DEFAULT_DESIGN, encodeDesign, FIELDS, PLACE_GRID, placeOf, placeValue, type ShipDesign } from '../../src/shipyard/design';
 
-/** The starting design as versions 1-3 held it (a step-down floor, the house a box). */
-// The page's starting design without hull protection (version 12): what every older code reads as.
+// The page's starting design without hull protection.
 const BASE: ShipDesign = { ...DEFAULT_DESIGN, guard: 0 };
-const { floor: _f, visor: _v, roofThickness: _t, roofEdge: _e, roofPaint: _p, windowRake: _w, lowerFront: _l, searchlight: _s, fireMonitor: _m, ...rest } = BASE;
-const OLD: OldDesign = { ...rest, sunk: 1 };
 
 describe('Shipyard design codes', () => {
   it('are 17 characters (in fives, with dashes), and read back to the same choices', () => {
@@ -64,81 +60,8 @@ describe('Shipyard design codes', () => {
     expect('error' in decodeDesign(bad)).toBe(true);
   });
 
-  it('reads version 9 codes (before the working deck gear) as the same boats, without it', () => {
-    const { towWinch: _a, sternRoller: _b, aFrame: _c, lifeRing: _d, sideDoor: _e2, ...v9 } = { ...BASE, chartTable: 1, deckCrane: 2 };
-    const code = encodeDesignV9(v9);
-    expect(code.replace(/-/g, '')).toHaveLength(15);
-    expect(decodeDesign(code)).toEqual({ design: { ...v9, towWinch: 0, sternRoller: 0, aFrame: 0, lifeRing: 0, sideDoor: 0 } });
-    const gear = { ...BASE, towWinch: 1, sternRoller: 1, aFrame: 1, lifeRing: 2, sideDoor: 1 };
-    expect(decodeDesign(encodeDesign(gear))).toEqual({ design: gear });
-  });
-
-  it('reads version 8 codes (before the chart table) as the same boats, without one', () => {
-    const { chartTable: _t8, ...v8 } = { ...BASE, searchlight: 3, fireMonitor: 2 };
-    const code = encodeDesignV8(v8);
-    expect(code.replace(/-/g, '')).toHaveLength(15);
-    expect(decodeDesign(code)).toEqual({ design: { ...v8, chartTable: 0 } });
-    expect(encodeDesign({ ...BASE, chartTable: 1 })).not.toBe(encodeDesign(BASE));
-  });
-
-  it('reads version 7 codes (before the searchlight and monitor were placed) as the same boats: the searchlight on the roof with the advanced controls, no monitor', () => {
-    for (const controls of [0, 1]) {
-      const { searchlight: _s2, fireMonitor: _m2, ...v7 } = { ...BASE, deckCrane: 2, controls };
-      const code = encodeDesignV7(v7);
-      expect(code).toHaveLength(16);
-      expect(decodeDesign(code)).toEqual({ design: { ...v7, searchlight: controls, fireMonitor: 0 } });
-    }
-  });
-
-  it('a design saved in the browser before the searchlight was a choice keeps it as it was (with the advanced controls only)', () => {
-    const { searchlight: _s5, fireMonitor: _m5, ...saved } = BASE;
-    expect(cleanDesign({ ...saved, controls: 0 })).toEqual({ ...BASE, controls: 0, searchlight: 0 });
-    expect(cleanDesign({ ...saved, controls: 1 })).toEqual({ ...BASE, controls: 1, searchlight: 1 });
-    expect(cleanDesign({ ...BASE, controls: 0, searchlight: 3, fireMonitor: 2 })).toEqual({ ...BASE, controls: 0, searchlight: 3, fireMonitor: 2 });
-  });
-
-  it('reads version 6 codes (before the deck crane) as the same boats, without a crane', () => {
-    const { deckCrane: _c, searchlight: _s3, fireMonitor: _m3, ...v6 } = { ...BASE, roofPaint: 2, visor: 3 };
-    const code = encodeDesignV6(v6);
-    expect(code).toHaveLength(16);
-    expect(decodeDesign(code)).toEqual({ design: { ...v6, deckCrane: 0, searchlight: 1, fireMonitor: 0 } });
-    // And a crane makes a different code.
-    expect(encodeDesign({ ...BASE, deckCrane: 1 })).not.toBe(encodeDesign(BASE));
-  });
-
-  it('reads version 5 codes (13 characters) as the same boats, the roof the hull\'s colour', () => {
-    const { roofPaint: _p2, deckCrane: _c2, searchlight: _s4, fireMonitor: _m4, ...v5 } = { ...BASE, roofThickness: 2, roofEdge: 3, visor: 4 };
-    expect(decodeDesign(encodeDesignV5(v5))).toEqual({ design: { ...v5, roofPaint: 0, deckCrane: 0, searchlight: 1, fireMonitor: 0 } });
-  });
-
-  it('reads version 4 codes (the raked roof) as the same boats, the roof the thinnest slab, square at the front', () => {
-    const { roofThickness: _t2, roofEdge: _e2, roofPaint: _p3, ...v4rest } = BASE;
-    for (const roofRake of [0, 2, 4]) {
-      const code = encodeDesignV4({ ...v4rest, windowRake: 1, roofRake });
-      expect(decodeDesign(code)).toEqual({ design: { ...BASE, windowRake: 1, roofThickness: 0, roofEdge: 1 } });
-    }
-  });
-
-  it('reads version 2 (10-character) and version 3 (11-character) codes as the same boats, the house a box', () => {
-    for (const hull of [0, 1, 2, 3])
-      for (const sunk of [0, 1]) {
-        const old: OldDesign = { ...OLD, hull, sunk };
-        const want: ShipDesign = { ...BASE, hull, floor: sunk ? 2 : 3 };
-        const v2 = encodeDesignV2(old);
-        expect(v2).toMatch(/^[0-9A-Z]{5}-[0-9A-Z]{5}$/);
-        expect(decodeDesign(v2)).toEqual({ design: want });
-        const v3 = encodeDesignV3({ ...old, twin: 1 });
-        expect(v3).toMatch(/^[0-9A-Z]{5}-[0-9A-Z]{5}-[0-9A-Z]$/);
-        expect(decodeDesign(v3)).toEqual({ design: { ...want, twin: 1 } });
-      }
-  });
-
-  it('reads the first Shipyard\'s (version 1) codes as the same boats, with their bow as designed', () => {
-    // Two codes the version 1 page gave: its starting design, and a 12 m workboat-hull design.
-    const a = decodeDesign('4H228-BQ98A');
-    expect(a).toEqual({ design: { ...BASE, bow: 2 } });
-    const b = decodeDesign('6H22N-3QNJ7');
-    expect('design' in b && b.design).toMatchObject({ hull: 2, engine: 2, housePos: 10, houseLength: 8, paint: 2, controls: 0, bow: 2, windowRake: 4 });
+  it('codes from before version 10 (shorter than 17 characters) are retired: they say so', () => {
+    expect(decodeDesign('0123456789ABCD')).toEqual({ error: 'a design code has 17 characters (this has 14): codes from older Shipyards no longer open' });
   });
 
   it('is forgiving as typed: any case, no dash, I/L for 1 and O for 0', () => {

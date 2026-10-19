@@ -73,7 +73,11 @@ export class PeerClientTransport implements ClientTransport {
   constructor(code: string, peerId = peerIdForRoom(code)) {
     this.peer = new Peer();
     this.peer.on('open', () => {
-      const conn = this.peer.connect(peerId, { reliable: true, serialization: 'json' });
+      // Binary (the default, binarypack): it cuts a message into 16 KB pieces and joins them
+      // again. The 'json' channel sends each message whole and throws it away past 16 KB
+      // (owner, Oct 2026: a host with a career, potting and the regions in her world sent a
+      // welcome over that, and nobody could join; the crew sat at "connecting" with no error).
+      const conn = this.peer.connect(peerId, { reliable: true, serialization: 'binary' });
       this.conn = conn;
       conn.on('open', () => this.onOpen());
       conn.on('data', (d) => this.onMessage(d));

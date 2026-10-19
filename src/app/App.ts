@@ -39,7 +39,7 @@ import type { FireMonitorApi } from '../modules/fireMonitor';
 import type { FireGauge } from '../fire/fireGauge';
 import { DutyBoardView } from '../duties/dutyBoardView';
 import { TenderCraneView } from '../controls/TenderCraneView';
-import { hasWheelhouse, houseFloorAt, houseFloorLow, VESSEL_DEFS, type WheelhouseDef } from '../vessel/vesselDef';
+import { hasWheelhouse, houseFloorAt, houseFloorLow, housesOf, VESSEL_DEFS, type WheelhouseDef } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
 import { VesselView } from '../vessel/view/vesselView';
 import { hullPlan, STEP_HEIGHT, vesselWalkArea, type WalkArea } from '../vessel/layout';
@@ -130,8 +130,8 @@ import { countBoatParts } from '../debug/boatParts';
 import { assembleView } from '../modular/assemble';
 import { holdGroup } from '../modular/bus';
 import { HULLS, LIBRARY, RECIPES } from '../boats/library';
-import { decodeDesign, encodeDesign } from '../shipyard/design';
-import { cleanCode, groupCode, ShipyardCodes } from '../shipyard/takeHer';
+import { designToken, readDesign, sameDesign } from '../shipyard/designDoc';
+import { groupCode, ShipyardCodes } from '../shipyard/takeHer';
 import { DesktopPointer } from './desktopPointer';
 import { setupXR, xrSessionInfo } from './xrSession';
 import { applyPlayerIntent } from '../player/playerControl';
@@ -140,6 +140,7 @@ import { ClientSession } from '../net/clientSession';
 import { PeerClientTransport, PeerHostTransport, peerIdForRoom, randomRoomCode, type ClientTransport } from '../net/transport';
 import type Peer from 'peerjs';
 import { VoiceChat, type VoiceSpeaker } from '../net/voice';
+import { APP_BUILD } from '../build';
 import { RadioHandset } from '../player/radioHandset';
 import { vrFlySpeed, vrFlyStep } from '../player/vrFly';
 import { NET_RATE, type PlayerPose } from '../net/protocol';
@@ -208,13 +209,13 @@ const START_BOATS = ['workboat', 'landingCraft', 'alaskan38'];
 let startDesignCode: string | null = null;
 
 function startBoat(): string | undefined {
-  // A Shipyard design (?design=CODE, shipyard/design.ts): the 'design' vessel type made her.
+  // A Shipyard design (?design=CODE, or her document: shipyard/designDoc.ts): the 'design' vessel type made her.
   const code = new URLSearchParams(location.search).get('design');
   if (code) {
-    const read = decodeDesign(code);
+    const read = readDesign(code);
     if ('design' in read) {
       useDesign(read.design);
-      startDesignCode = encodeDesign(read.design);
+      startDesignCode = designToken(read.design);
       return 'design';
     }
     console.warn(`Shipyard code ${code}: ${read.error}`);
@@ -254,9 +255,6 @@ const START_TOGETHER = /^\d{5}$/.test(START_PARAMS.get('together') ?? '') ? STAR
 /** Reloaded once already to catch up with the host's version (`?fresh=`): don't again. */
 const START_FRESH = START_PARAMS.has('fresh');
 
-declare const __BUILD__: string | undefined;
-/** This page's version: commit and build time (vite.config.ts); 'dev' when not built. */
-const APP_BUILD = typeof __BUILD__ === 'string' ? __BUILD__ : 'dev';
 
 /** The address without the start-up parameters that are only for this load (join and the fit that came with it, host, together, the cache-buster). */
 function forgetStartParams(): void {
@@ -666,7 +664,6 @@ export class App {
     this.walkAreas.set(vessel.id, vesselWalkArea(def, def.layout, footprintsOf(vessel)));
     this.effects.set(vessel.id, new VesselEffects(def, view.root, this.scene, this.ocean.sharedUniforms));
     this.vesselRoots.set(vessel.id, view.root);
-    if (!def.tow) this.cargoView.attachVessel(view.root, vessel.defId);
     // Her modules, drawn and worked: her boat view, built from her recipe (M6c). The home
     // boat's controls send plain channels; another boat's go to her (the skiff's tiller). A
     // tow, a hull with no modules, has none.
@@ -880,7 +877,7 @@ export class App {
     // ocean shader's zones follow the resident regions).
     setRaceClock(this.world.environment.timeOfDay, this.world.environment.raceOverride);
     this.environment.update(this.world.environment, this.focus, this.world.time);
-    this.sky.update(this.environment, this.focus);
+    this.sky.update(this.environment, this.focus, this.world.environment, this.world.time);
     this.ocean.update(this.renderWaves, this.focus, this.environment, renderTime, windVector(this.world.environment, this.windNow));
     this.ocean.setGust(this.world.environment.weather?.gust);
     this.probes.update(this.renderWaves, this.camera);
@@ -1088,6 +1085,7 @@ export class App {
     this.listenerUp.set(0, 1, 0).applyQuaternion(this.camera.getWorldQuaternion(this.attQ));
     this.sound.whistle.setListener(this.focus, this.listenerFwd, this.listenerUp);
     this.updateVoice();
+    this.updateHandsetSound();
   }
 
   /**
@@ -1116,6 +1114,14 @@ export class App {
       list.push({ peerId: p.peerId, head: w, tx: !!p.avatar.radio?.tx });
     }
     this.voice.update({ head: this.focus, tx: this.radio.tx }, list);
+  }
+
+  /** The handset's talk button went down or up this frame: its click (solo too). */
+  private radioTxWas = false;
+  private updateHandsetSound(): void {
+    const tx = this.radio.tx;
+    if (tx !== this.radioTxWas) this.sound.handset.click(tx);
+    this.radioTxWas = tx;
   }
 
   /** Port floodlights, cargo, the desktop hand, our pose out and the crew's avatars in. */
@@ -2329,9 +2335,10 @@ export class App {
         if (defId === 'landingCraft') return 'The landing craft';
         if (defId === 'alaskan38') return 'The Alaskan 38';
         if (defId !== 'design') return defId;
-        const code = cleanCode(new URLSearchParams(location.search).get('design') ?? '');
-        const fav = this.shipyardCodes.favourites().find((f) => cleanCode(f.code) === code);
-        return fav ? `${fav.name} (Shipyard)` : `Shipyard boat ${groupCode(code)}`;
+        const token = new URLSearchParams(location.search).get('design') ?? '';
+        const fav = this.shipyardCodes.favourites().find((f) => sameDesign(f.code, token));
+        const read = readDesign(token);
+        return fav ? `${fav.name} (Shipyard)` : 'design' in read && read.name ? `${read.name} (Shipyard)` : `Shipyard boat ${groupCode(token)}`;
       },
       pasteCode: () => {
         const clip = navigator.clipboard;
@@ -2469,8 +2476,8 @@ export class App {
     this.client!.sendPose(pose);
   }
 
-  /** Host a game: register a room code with the PeerJS server, then accept crew. */
-  private hostGame(code = randomRoomCode()): void {
+  /** Host a game: register a room code with the PeerJS server, then accept crew. `tries`: again on a failure (below). */
+  private hostGame(code = randomRoomCode(), tries = CONFIG.net.hostTries): void {
     if (this.host || this.client || this.hostStarting) return;
     const transport = new PeerHostTransport(code);
     this.hostStarting = true;
@@ -2484,11 +2491,27 @@ export class App {
         this.hostPeerId = peerIdForRoom(code);
         this.netMessage = '';
         this.overlay.notify(`Hosting: game code ${code}`, 4);
+        // A crew-mate on a newer page than ours: they can't stay, and only we can put it right.
+        this.host.onOtherBuild = (name, theirs) => {
+          this.netMessage = `${name}'s page is another build (${theirs}; yours ${APP_BUILD}): reload this page (Ctrl+F5) and host again`;
+          this.overlay.notify(this.netMessage, 10);
+        };
       },
       (e: { type?: string }) => {
         this.hostStarting = false;
         transport.close();
-        this.netMessage = `Couldn't host (${e?.type ?? 'network'})`;
+        const why = e?.type ?? 'network';
+        // The broker can be slow, down for a moment, or still hold a room we had before (a page
+        // closed without saying): try again a few times. "Try her together" needs its room (the
+        // others are waiting in it); a menu host can take any code.
+        if (tries > 1) {
+          this.netMessage = `Couldn't host (${why}): trying again...`;
+          this.overlay.notify(this.netMessage, 4);
+          setTimeout(() => this.hostGame(code === START_HOST || why === 'unavailable-id' ? code : randomRoomCode(), tries - 1), CONFIG.net.hostRetryS * 1000);
+          return;
+        }
+        this.netMessage = `Couldn't host (${why}). Check the connection, then Menu > Crew > Host a game`;
+        this.overlay.notify(this.netMessage, 8);
       },
     );
   }
@@ -2565,7 +2588,7 @@ export class App {
 
   /** Become a client over `transport` (PeerJS, or the in-memory loopback in tests). */
   private connectClient(transport: ClientTransport): void {
-    const client = new ClientSession(transport, userSettings.playerName);
+    const client = new ClientSession(transport, userSettings.playerName, undefined, APP_BUILD);
     this.client = client;
     this.netMessage = '';
     client.onChart = (op) => applyChartOp(this.marks, op);
@@ -3587,8 +3610,8 @@ export class App {
     windVector(this.world.environment, this.windV, { x: this.focus.x, z: this.focus.z });
     const ax = this.windV.x - (v?.linearVelocity[0] ?? 0);
     const az = this.windV.z - (v?.linearVelocity[2] ?? 0);
-    const wh = this.testDef.layout.wheelhouse;
-    const inside = !!v && v.id === this.testVesselId && Math.abs(p.position[0]) < wh.halfWidth && p.position[2] > wh.front && p.position[2] < wh.aft && p.position[1] > houseFloorLow(wh) - 0.3;
+    // In any of her houses (P2a): the sound inside, out of the weather.
+    const inside = !!v && v.id === this.testVesselId && housesOf(this.testDef.layout).some((wh) => Math.abs(p.position[0]) < wh.halfWidth && p.position[2] > wh.front && p.position[2] < wh.aft && p.position[1] > houseFloorLow(wh) - 0.3);
     this.insideHouse = inside;
     // How shut-in the wheelhouse is: the aft door decides.
     const home = this.homeView;
@@ -3618,11 +3641,12 @@ export class App {
     // Rain streaks: none inside the wheelhouse box.
     let house: typeof this.rainHouse | null = null;
     if (view) {
-      const wh = this.testDef.layout.wheelhouse;
+      // Over all her houses (P2a: one box round them all).
+      const hs = housesOf(this.testDef.layout);
       const ov = this.testDef.layout.roof.overhang;
       this.rainHouse.matrixWorld.copy(view.root.matrixWorld);
-      this.rainHouse.min.set(-wh.halfWidth - ov, wh.floorY - 1.5, wh.front - ov);
-      this.rainHouse.max.set(wh.halfWidth + ov, wh.roofY + 0.3, wh.aft + ov);
+      this.rainHouse.min.set(-Math.max(...hs.map((h) => h.halfWidth)) - ov, Math.min(...hs.map((h) => h.floorY)) - 1.5, Math.min(...hs.map((h) => h.front)) - ov);
+      this.rainHouse.max.set(Math.max(...hs.map((h) => h.halfWidth)) + ov, Math.max(...hs.map((h) => h.roofY)) + 0.3, Math.max(...hs.map((h) => h.aft)) + ov);
       house = this.rainHouse;
     }
     windVector(env, this.windV);

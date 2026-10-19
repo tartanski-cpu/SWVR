@@ -139,7 +139,7 @@ function circuitKeys(): Record<`circuit.${BreakerName}.live`, BusKeySpec> {
  */
 type Lamp = 'off' | 'on' | 'blink';
 const LAMP = ['off', 'on', 'blink'] as const;
-function lamp(s: VesselState, which: 'oil' | 'charge' | 'glow' | 'neutral' | 'bilge'): Lamp | undefined {
+function lamp(s: VesselState, which: 'oil' | 'charge' | 'glow' | 'neutral' | 'bilge' | 'hull' | 'engine'): Lamp | undefined {
   const diesel = gearOf(s, 'diesel');
   if (!diesel) return undefined;
   const instr = isPowered(s, 'instruments');
@@ -159,6 +159,15 @@ function lamp(s: VesselState, which: 'oil' | 'charge' | 'glow' | 'neutral' | 'bi
       return !instr ? 'off' : leverDemand(diesel, s.controls.lever).gear === 0 ? 'on' : s.controls.start > 0 ? 'blink' : 'off';
     case 'bilge':
       return instr && (s.bilge ?? 0) >= (gearOf(s, 'bilgePump')?.alarmAt ?? 1) ? 'blink' : 'off';
+    case 'hull': {
+      // Her condition (wear.ts): on once worth a repair (the duty board's line), blinking when bad.
+      const d = s.damage ?? 0;
+      return !instr || d <= CONFIG.duties.damageAt ? 'off' : d > CONFIG.wear.badAt ? 'blink' : 'on';
+    }
+    case 'engine': {
+      const w = e.wear ?? 0;
+      return !instr || w <= CONFIG.duties.wearAt ? 'off' : w > CONFIG.wear.badAt ? 'blink' : 'on';
+    }
   }
 }
 
@@ -379,6 +388,8 @@ export const BUS_KEYS = {
   'lamp.glow': state('enum', (s) => lamp(s, 'glow'), 'GLOW lamp: on from the key going on until the glow plugs are hot enough (wait for it to go out, then START).', { values: LAMP }),
   'lamp.neutral': state('enum', (s) => lamp(s, 'neutral'), 'NEUTRAL lamp: on with the lever in neutral; blinking while START is held in gear.', { values: LAMP }),
   'lamp.bilge': state('enum', (s) => lamp(s, 'bilge'), 'BILGE lamp: blinking with the bilge over its alarm level.', { values: LAMP }),
+  'lamp.hull': state('enum', (s) => lamp(s, 'hull'), 'HULL lamp: on with hull damage worth a repair, blinking when bad.', { values: LAMP }),
+  'lamp.engine': state('enum', (s) => lamp(s, 'engine'), 'ENGINE lamp: on with engine wear worth an overhaul, blinking when bad.', { values: LAMP }),
 
   // ── Navigation (from her motion) ──
   'nav.speedKts': state('number', (s) => Math.hypot(s.linearVelocity[0], s.linearVelocity[2]) / KNOT, 'Speed over ground.', { unit: 'kn', writer: 'core' }),

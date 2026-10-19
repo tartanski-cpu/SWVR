@@ -5,6 +5,7 @@ import { ContactAudio } from '../audio/contactAudio';
 import { ElectricMotorAudio } from '../audio/electricMotorAudio';
 import { EngineAudio } from '../audio/engineAudio';
 import { FireAudio } from '../audio/fireAudio';
+import { HandsetAudio } from '../audio/handsetAudio';
 import { HornAudio } from '../audio/hornAudio';
 import { HydraulicsAudio } from '../audio/hydraulicsAudio';
 import { PaperAudio } from '../audio/paperAudio';
@@ -36,6 +37,8 @@ export class SoundBoard {
   /** The VHF (voice and squelch) and the survivors' whistle. */
   readonly radio = new RadioAudio();
   readonly whistle = new WhistleAudio();
+  /** Your handheld VHF's talk button (player/radioHandset.ts). */
+  readonly handset = new HandsetAudio();
   /** Rescue cues: shouts, the cheer, the tick when a duty's done. */
   readonly rescue = new RescueSounds();
   /** The skiff's electric outboard. */
@@ -61,7 +64,7 @@ export class SoundBoard {
   unlock(): void {
     this.engine.unlock();
     const ctx = this.engine.context;
-    for (const s of [this.horn, this.alarm, this.contact, this.water, this.radio, this.whistle, this.shipHorn, this.rescue, this.motor, this.wind, this.paper, this.fire, this.anchor, this.hydraulics, this.wildlife, this.fm, this.race]) s.attach(ctx);
+    for (const s of [this.horn, this.alarm, this.contact, this.water, this.radio, this.whistle, this.handset, this.shipHorn, this.rescue, this.motor, this.wind, this.paper, this.fire, this.anchor, this.hydraulics, this.wildlife, this.fm, this.race]) s.attach(ctx);
     watchVoices();
   }
 }

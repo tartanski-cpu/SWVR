@@ -132,10 +132,13 @@ const LAMPS = [
   { name: 'GLOW', on: 0xffa020, off: 0x2a1a06 },
   { name: 'NEUTRAL', on: 0x40e060, off: 0x0c2a12 },
   { name: 'BILGE', on: 0xff3020, off: 0x2a0c08 },
+  { name: 'HULL', on: 0xffa020, off: 0x2a1a06 },
+  { name: 'ENGINE', on: 0xffa020, off: 0x2a1a06 },
 ] as const;
 
 /**
- * The engine's warning lamps, as on a real panel: OIL, CHARGE, GLOW, NEUTRAL, BILGE. Each
+ * The engine's warning lamps, as on a real panel: OIL, CHARGE, GLOW, NEUTRAL, BILGE, and her
+ * condition, HULL and ENGINE (owner: damage and wear were invisible in a playtest). Each
  * is shown off, on or blinking (`show`); when each lights is decided by whoever writes its
  * bus key (modular/busKeys.ts, the lamp.* keys), not here. Colours change only when a lamp
  * changes. One instanced draw call.
