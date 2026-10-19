@@ -1406,6 +1406,17 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
         hook: [r2(ringSide * (q.halfBeam(sternCleat - 1.2) - 0.08)), r2(q.deckY(sternCleat - 1.2) + bulwarkHeight - 0.05), r2(Math.max(aft + 0.2, sternCleat - 2.6)), r2(sternCleat - 0.3)] as [number, number, number, number],
       }
     : null;
+  // The rod rack (owner, Oct 2026; design.rodRack): on the house's aft wall at the side the
+  // life ring isn't (starboard with no ring), the rod across two clips at hand height, its
+  // bucket on deck under it.
+  const rodSide: -1 | 1 = ringSide < 0 ? 1 : ringSide > 0 ? -1 : 1;
+  const rodRack = d.rodRack
+    ? {
+        stow: [r2(rodSide * Math.max(0.7, hw - 0.75)), r2(Math.min((deckhouse ? q.deckY(aft) : FA) + 1.3, F + sill - 0.2)), r2(aft + 0.06)] as V3,
+        bucket: [r2(rodSide * Math.max(0.5, hw - 0.75)), r2(q.deckY(aft + 0.5)), r2(aft + 0.5)] as V3,
+        side: rodSide,
+      }
+    : null;
   const sockets: Socket[] = [
     // (A stern drive: its engine and legs, weighed at the engine.)
     ...(sd ? [{ id: 'sternDrive', type: 'transom.outboards' as const, transform: { position: at.engineBed }, label: 'Against the transom: her engine and its stern drive' }] : []),
@@ -1473,6 +1484,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
           { id: 'trawl', type: 'deck.equipment' as const, transform: { position: winchAt! }, label: 'Aft deck: the net (nominal)' },
         ]
       : []),
+    ...(rodRack ? [{ id: 'rodRack', type: 'deck.fitting' as const, transform: { position: rodRack.stow }, label: `Wheelhouse aft wall, ${rodSide < 0 ? 'port' : 'starboard'}: the fishing rod's rack, its bucket on deck under it` }] : []),
     ...(ring
       ? [
           { id: 'lifeRing', type: 'deck.fitting' as const, transform: { position: ring.stow }, label: `Wheelhouse aft wall, ${ringSide < 0 ? 'port' : 'starboard'}: the life ring (its line on that quarter's cleat)` },
@@ -1806,6 +1818,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   if (sternRoller) recipe.modules.push({ socket: 'sternRoller', module: 'deck.stern-roller' });
   if (aFrame) recipe.modules.push({ socket: 'aFrame', module: 'deck.a-frame' }, { socket: 'trawl', module: 'fishing.trawl' });
   if (ring) recipe.modules.push({ socket: 'lifeRing', module: 'rescue.life-ring-station', config: { stow: ring.stow, cleat: ring.cleat } }, { socket: 'boatHook', module: 'rescue.boat-hook-rack', config: { stow: ring.hook } });
+  if (rodRack) recipe.modules.push({ socket: 'rodRack', module: 'deck.rod-rack', config: rodRack });
   if (sideDoor)
     recipe.modules.push(
       { socket: 'sideDoorIn', module: 'control.door-button', config: { label: 'Side door: open / shut' }, bind: { door: 'door.side.open' } },
@@ -1841,6 +1854,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
     ...(sternRoller ? [[wc.gear.sternRoller, transom] as [number, number]] : []),
     ...(skiffAt ? [[wc.gear.skiff, skiffAt[2]] as [number, number]] : []),
     ...(anchorAt ? [[wc.gear.anchor, anchorAt.at[2]] as [number, number]] : []),
+    ...(rodRack ? [[wc.gear.rodRack, rodRack.bucket[2]] as [number, number]] : []),
   ];
   const gearKg = gearAt.reduce((a, [m]) => a + m, 0);
   const gearKgZ = gearAt.reduce((a, [m, z]) => a + m * z, 0);
@@ -1878,7 +1892,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   const buildPrice = items.filter((it) => /^(Hull|Bulwarks|Wheelhouse|Deckhouse)/.test(it.name)).reduce((a, it) => a + it.kg, 0) * mat.pricePerKg + (items.find((it) => it.name.startsWith('Fit-out'))?.kg ?? 0) * wc.outfitPricePerKg;
 
   const gp = dg.price;
-  const gearPrice = (winchAt ? gp.towWinch : 0) + (sternRoller ? gp.sternRoller : 0) + (aFrame ? gp.aFrame : 0) + (ring ? gp.lifeRing : 0) + (sideDoor ? gp.sideDoor : 0) + (anchorAt ? gp.anchor : 0) + (skiffAt ? gp.skiff : 0);
+  const gearPrice = (winchAt ? gp.towWinch : 0) + (sternRoller ? gp.sternRoller : 0) + (aFrame ? gp.aFrame : 0) + (ring ? gp.lifeRing : 0) + (rodRack ? gp.rodRack : 0) + (sideDoor ? gp.sideDoor : 0) + (anchorAt ? gp.anchor : 0) + (skiffAt ? gp.skiff : 0);
   const guardPrice = (pushFender ? CONFIG.shipyard.pushFenderPrice : 0) + (basketAt ? pc.fendersPrice : 0) + strakeM * pc.strakePerM + (tyres.length ? 2 * tyres.length * pc.tyrePrice + pc.tyreFitting : 0);
   const price = Math.round((buildPrice + (nOb ? powerKw * obc.pricePerKw : kw * n * eng.pricePerKw) + (sd ? sdc.price * n : 0) + (nozzle ? CONFIG.nozzle.price * n : 0) + (d.controls ? 18000 : 6000) + (craneAt ? 25000 : 0) + (hasMonitor ? 15000 : 0) + gearPrice + guardPrice) / 1000) * 1000;
   return {

@@ -33,6 +33,7 @@ import { applyFuelIntent, isFuelIntent, stepFuelHoses } from '../fuel/fuelHose';
 import { applyTowIntent, isTowIntent, stepTow, towlineForces } from '../tow/tow';
 import { applySalvageIntent, isSalvageIntent, stepSalvage } from '../salvage/salvage';
 import { stepFishing, trawlForces } from '../fishing/fishing';
+import { stepRodSale } from '../fishing/rod';
 import { applyCareerIntent, isCareerIntent, stepCareer } from '../career/career';
 import { applyTutorialIntent, isTutorialIntent, stepTutorial } from '../career/tutorial';
 import { ENVIRONMENT_ID, type EntityId } from './ids';
@@ -184,6 +185,7 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
   stepTow(world, dt);
   stepExtinguisher(world, dt);
   stepPotting(world, dt);
+  stepRodSale(world);
   stepFuelHoses(world);
   stepFire(world, dt);
   stepSalvage(world, dt);

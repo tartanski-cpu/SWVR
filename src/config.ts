@@ -1783,6 +1783,49 @@ export const CONFIG = {
   slipway: { maxAngleDeg: 20, maxSpeed: 1.0, range: 4, across: 1.5, landSec: 2, landSpeed: 0.8, releaseLever: -0.25 },
 
   /**
+   * The handheld fishing rod (owner, Oct 2026; fishing/rodGame.ts, modules/rodRack): a rod on
+   * a rack on the wheelhouse's aft wall (a Shipyard fitting), a bucket on deck under it.
+   * Take the rod, cast (trigger / click) over the side, wait; a fish bites (the float dips,
+   * the rod buzzes): strike within `biteWindow` s, then play it: hold to reel (the line's
+   * tension rises, the fish comes in), let go to rest it (the tension falls). Over 1 the line
+   * parts. Landed at `landAt` m, it goes in the bucket; tied up at a port the bucket is sold.
+   *   castRange     how far the float flies (m, along the rod, level)
+   *   maxSpeed      the boat must be slower than this to fish (m/s)
+   *   wait          seconds to a bite in open water (range); in a fishing ground divided by
+   *                 (1 + richness × groundFactor)
+   *   biteWindow    seconds to strike once it bites
+   *   reelRate      line in per second while reeling (m/s), less as the fish pulls
+   *   tensionUp     how fast the tension rises while reeling, per unit of the fish's pull
+   *   tensionDown   how fast it falls resting (per s)
+   *   fightPeriod   the fish's runs (s): its pull swings between calm and full
+   *   pullPerKg     a fish's full pull in tension per kg (a 2 kg fish at 0.9 breaks the line if you don't rest it)
+   *   landAt        the float this close (m) and the fish is in
+   *   bucketMax     fish the bucket holds
+   *   pricePerKg    what the merchant pays (GBP), times the port's fish factor
+   *   species       what bites where: the coast's own mix, and each fishing ground's own
+   *                 species (FishingGroundDef.species) when you're in one; kg ranges
+   */
+  rod: {
+    castRange: 12,
+    maxSpeed: 1.5,
+    wait: [10, 35] as [number, number],
+    groundFactor: 1.5,
+    biteWindow: 2.5,
+    reelRate: 1.4,
+    tensionUp: 0.9,
+    tensionDown: 1.2,
+    fightPeriod: 3.2,
+    pullPerKg: 0.42,
+    landAt: 1.5,
+    bucketMax: 12,
+    pricePerKg: 5.5,
+    species: {
+      coast: ['mackerel', 'pollack', 'wrasse', 'mackerel', 'coalfish'] as string[],
+      kg: { mackerel: [0.3, 1.1], pollack: [0.6, 3.5], wrasse: [0.4, 1.6], coalfish: [0.5, 2.8], haddock: [0.7, 2.4], herring: [0.2, 0.5], cod: [1.0, 6.0] } as Record<string, [number, number]>,
+    },
+  },
+
+  /**
    * A Kort nozzle (owner, Oct 2026; the Shipyard's choice on a shaft-driven inboard): a duct
    * round the propeller. Ducting a heavily loaded propeller lets the duct itself carry part of
    * the thrust, so at a standstill (bollard pull) she pulls harder for the same power; at
@@ -2717,7 +2760,7 @@ export const CONFIG = {
       fuelDensity: 0.84,
       crewKg: 170,
       storesKg: 150,
-      gear: { towWinch: 450, aFrame: 350, sternRoller: 60, skiff: 500, anchor: 150 },
+      gear: { towWinch: 450, aFrame: 350, sternRoller: 60, skiff: 500, anchor: 150, rodRack: 12 },
     },
     engineHatch: { endRoom: 0.1, sideRoom: 0.2, minLength: 0.8, maxLength: 1.8, minWidth: 0.6, helmRoom: 0.1, deckMargin: 0.35, soleClear: 0.08 },
     /**
@@ -2804,7 +2847,7 @@ export const CONFIG = {
        * her wheelhouse), and at least `fromEnds` (m) inside the mooring cleats.
        */
       midCleats: { fromHouse: 0.4, fromEnds: 0.6 },
-      price: { towWinch: 12_000, sternRoller: 2_000, aFrame: 18_000, lifeRing: 600, sideDoor: 3_000, anchor: 3_500, skiff: 38_000 },
+      price: { towWinch: 12_000, sternRoller: 2_000, aFrame: 18_000, lifeRing: 600, sideDoor: 3_000, anchor: 3_500, skiff: 38_000, rodRack: 700 },
     },
     /**
      * The deckhouse a design can have under her wheelhouse (shipyard/build.ts): its walls and
@@ -3027,6 +3070,15 @@ export const CONFIG = {
      *  alongside (from the hull side, m) a hooked crate must be to lift aboard. */
     hookLength: 2.2,
     hookReach: 0.6,
+    /**
+     * Pushing off with the boat hook (owner, Oct 2026): its tip on a quay, a pier or the
+     * shore, each press of the trigger (VR) or click (desktop) gives the boat a shove of
+     * `impulse` N·s along the hook, away from what it's on (a person's hard push for a
+     * second or two), at the hand. She moves by impulse / her mass: a 4 t boat a fifth of a
+     * knot a push, a 60 t tug hardly at all, so a heavy boat takes many pushes. No feedback
+     * through the hand, so it's a nudge, not physics. `every`: no more often than this (s).
+     */
+    hookPush: { impulse: 900, every: 0.3 },
     /**
      * Auto-extend (menu option, on by default): pointed at a floating crate or a tow's bow
      * eye within this range (m), the hook telescopes out to it; it slides back to its own

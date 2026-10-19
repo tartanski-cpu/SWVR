@@ -106,6 +106,9 @@ import { aFrameOf } from '../fishing/fishing';
 import { footprintsOf, gearOf, useDesign, useWorkboatFit } from '../boats/sims';
 import type { TowWinchApi } from '../modules/towWinch';
 import { sosCondition, sosStatus } from '../rescue/sos';
+import { RodGame } from '../fishing/rodGame';
+import { distanceToHull } from '../rescue/recovery';
+import { RodView } from '../fishing/rodView';
 import { lineLength, nearestTowTarget, towAlertT, towStatus, winchStalled } from '../tow/tow';
 import { TargetsView } from '../rescue/targetView';
 import { RescueHands, type RescueHandsContext } from '../rescue/rescueHands';
@@ -348,7 +351,10 @@ export class App {
   /** Binoculars on the dash (VR: pick up and raise to the eyes; desktop: hold Z). */
   private binoculars!: Binoculars;
   /** Hand gear on brackets in the wheelhouse (player/handGear.ts). */
-  private readonly gear = [new HandGear('extinguisher'), new HandGear('torch')];
+  private readonly gear = [new HandGear('extinguisher'), new HandGear('torch'), new HandGear('rod')];
+  /** The handheld rod's game (fishing/rodGame.ts) and what it shows. */
+  private readonly rodGame = new RodGame();
+  private readonly rodView = new RodView();
   private readonly handGearView = new GearView();
   private extEmptySaid = false;
   /** Fire missions: the fire, and the monitor's jet. */
@@ -485,6 +491,7 @@ export class App {
   private readonly headFwd = new THREE.Vector3();
   private readonly gripW: Record<'left' | 'right', THREE.Vector3> = { left: new THREE.Vector3(), right: new THREE.Vector3() };
   private readonly tmpV = new THREE.Vector3();
+  private readonly tmpV2 = new THREE.Vector3();
   private readonly attQ = new THREE.Quaternion();
   /** Wave constants at the current *render* time (reused every frame). */
   private renderWaves: PreparedWave[] = [];
@@ -616,8 +623,17 @@ export class App {
     // The hand gear's places aboard are her hull's (M7): gear she has no place for isn't aboard.
     const stowage = VESSEL_DEFS[this.world.vessels[this.testVesselId].defId].stowage;
     if (tugView && stowage?.binoculars) this.binoculars.stow(tugView.root, stowage.binoculars.at, stowage.binoculars.yawDeg);
-    if (tugView) for (const g of this.gear) if (stowage?.[g.kind]) g.mount(tugView.root, stowage[g.kind]!);
-    this.scene.add(this.handGearView.root, this.camPreview.screen);
+    // The rod hangs on its rack (a module, deck.rod-rack), across the house's aft wall.
+    const rodRack = gearOf(this.world.vessels[this.testVesselId], 'rodRack');
+    if (tugView) {
+      for (const g of this.gear) {
+        if (g.kind === 'rod') {
+          if (rodRack) g.mount(tugView.root, rodRack.stow, Math.PI / 2);
+        } else if (stowage?.[g.kind]) g.mount(tugView.root, stowage[g.kind]!);
+      }
+      if (rodRack) this.rodView.attachBucket(tugView.root);
+    }
+    this.scene.add(this.handGearView.root, this.camPreview.screen, this.rodView.root);
     this.scene.add(this.towline.root, this.painter.root, this.fireView.root, this.jetView.root, this.logView.root, this.trawlView.root, this.potView.root, this.fuelView.root);
     this.setupBridge();
 
@@ -1407,6 +1423,68 @@ export class App {
   }
 
   /**
+   * The handheld rod (owner, Oct 2026): the game runs on what the hand does each frame
+   * (fishing/rodGame.ts); its events are told, felt and sent on (the catch, as an intent).
+   */
+  private updateRod(dt: number): void {
+    const rod = this.gear.find((g) => g.kind === 'rod');
+    const v = this.world.vessels[this.testVesselId];
+    if (!rod || !v) return;
+    const p = this.tmpV;
+    const d = this.tmpV2;
+    rod.tipWorld(p, d);
+    const held = !!rod.held;
+    const ev = this.rodGame.step(dt, {
+      held,
+      pressed: rod.pressed,
+      down: rod.on,
+      tip: p,
+      dir: d,
+      waterAt: (x, z) => surfaceHeight(this.renderWaves, x, z),
+      clearWater: (x, z) => distanceToHull(v, x, z) > 1.5 && groundHeight(x, z) < surfaceHeight(this.renderWaves, x, z) - 1,
+      boatSpeed: Math.hypot(v.linearVelocity[0], v.linearVelocity[2]),
+    });
+    rod.pressed = false;
+    this.rodView.update(this.world, this.testVesselId, this.rodGame, held ? p : null);
+    const hand = rod.held === 'left' || rod.held === 'right' ? rod.held : null;
+    // The fish's pull in the hand while it's on.
+    if (hand && this.rodGame.phase === 'playing' && this.rodGame.pull > 0.5) this.xrInput.pulse(hand, 0.25 * this.rodGame.pull, 30);
+    if (!ev) return;
+    const g = this.rodGame;
+    switch (ev) {
+      case 'cast':
+        this.overlay.notify('Cast. Wait for the float to dip, then press to strike', 3);
+        break;
+      case 'bite':
+        if (hand) this.xrInput.pulse(hand, 0.9, 150);
+        this.overlay.notify('A bite! Press to strike', 2);
+        break;
+      case 'missed':
+        this.overlay.notify('It let go. Wait for the next one', 2);
+        break;
+      case 'strike':
+        if (hand) this.xrInput.pulse(hand, 0.7, 80);
+        this.overlay.notify('Fish on! Hold to reel it in; let go when the line pulls hard', 4);
+        break;
+      case 'broke':
+        this.sound.rescue.snap();
+        this.overlay.notify('The line parted. Rest the fish when it pulls hard next time', 4);
+        break;
+      case 'landed': {
+        const f = g.landed;
+        if (!f) break;
+        if (hand) this.xrInput.pulse(hand, 0.5, 60);
+        const full = (v.rodCatch?.count ?? 0) >= CONFIG.rod.bucketMax;
+        this.pushVesselIntent('rodCatch', f.kg, f.species);
+        this.overlay.notify(full ? `A ${f.kg.toFixed(1)} kg ${f.species}, but the bucket is full: tie up at a port to sell it` : `A ${f.kg.toFixed(1)} kg ${f.species}! Into the bucket`, 4);
+        break;
+      }
+      case 'wound':
+        break;
+    }
+  }
+
+  /**
    * SOS (the menu's Boat > SOS, or the red button under the VHF): the salvage tug recovers
    * her to the nearest boatyard's port if she's over or under (rescue/sos.ts). Anyone off her
    * (in the water, say) comes along, at the helm, as the port shortcuts do.
@@ -1496,6 +1574,7 @@ export class App {
       local = { kind: mine.kind, on: mine.on, p, d };
     }
     this.handGearView.update(this.world, this.localPlayerId, local, this.vesselRoots, darkness, dt);
+    this.updateRod(dt);
     // On the bracket: hidden while a crew-mate has it (it's in their hand).
     for (const g of this.gear) if (!g.held) g.mesh.visible = !this.gearTakenByOther(g.kind);
     // Spraying an empty extinguisher: say so once.

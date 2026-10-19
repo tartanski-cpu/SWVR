@@ -25,7 +25,7 @@ export interface GearGroup {
 export const GEAR_GROUPS: GearGroup[] = [
   { name: 'Rescue and firefighting', items: ['skiff', 'lifeRing', 'searchlight', 'fireMonitor'] },
   { name: 'Towing', items: ['towWinch', 'sternRoller'] },
-  { name: 'Fishing', items: ['aFrame'] },
+  { name: 'Fishing', items: ['aFrame', 'rodRack'] },
   { name: 'Cargo', items: ['deckCrane'] },
   { name: 'Her fittings', items: ['anchor', 'sideDoor'] },
 ];
@@ -34,6 +34,7 @@ export const GEAR_GROUPS: GearGroup[] = [
 export const GEAR_ABOUT: Record<string, string> = {
   skiff: 'A small boat on deck, with its own crane to launch and recover her: for reaching people in the water and running to the beach.',
   lifeRing: 'Thrown on its line to someone in the water; the boat hook beside it to bring them alongside.',
+  rodRack: 'A handheld rod on a rack on the house, a bucket under it: cast over the side, play what bites, sell the bucket in port.',
   searchlight: 'A steerable lamp for searching at night.',
   fireMonitor: 'A water cannon for fighting fires on other boats and on the quay.',
   towWinch: 'A powered drum for the tow line: tows things far heavier than she is.',
@@ -57,6 +58,8 @@ export const GEAR_ICONS: Record<string, string> = {
   anchor: svg('<circle cx="12" cy="4.5" r="2"/><path d="M12 6.5V20.5M8.5 9.5h7M5 13.5c0 4 3 7 7 7s7-3 7-7M3.5 15l1.5-1.5 1.5 1.5M17.5 15l1.5-1.5 1.5 1.5"/>'),
   // The ring and its four bands of tape.
   lifeRing: svg('<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.8"/><path d="M12 4v4.2M12 15.8V20M4 12h4.2M15.8 12H20"/>'),
+  // A rod with its reel, the line down to a float.
+  rodRack: svg('<path d="M4 20L19 4M7 17l1.5 1.5M19 4c0 4-1 7-3 9.5M16 13.5v4"/><circle cx="7" cy="18.5" r="1.6"/><circle cx="16" cy="19" r="1.4"/>'),
   // The lamp on its yoke, and its beam.
   searchlight: svg('<rect x="3" y="8" width="7" height="6" rx="1"/><path d="M10 7.5l3-2v11l-3-2M16 7l5-2.5M16 11h5M16 15l5 2.5M6.5 14v4.5M3.5 20.5h6"/>'),
   // The nozzle on its post, throwing an arc of water.

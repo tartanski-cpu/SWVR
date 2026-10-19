@@ -39,7 +39,7 @@ import { significantWaveHeight } from '../ocean/waves';
 import type { TutorialState } from './tutorial';
 import { gearOf, hasModule } from '../boats/sims';
 
-export type JobKind = 'cargo' | 'fish' | 'log' | 'debris' | 'tow' | 'rescue' | 'fire' | 'crate' | 'catch';
+export type JobKind = 'cargo' | 'fish' | 'log' | 'debris' | 'tow' | 'rescue' | 'fire' | 'crate' | 'catch' | 'rod';
 export type ContractKind = 'cargo' | 'fish' | 'logs';
 
 export interface LedgerEntry {
@@ -157,7 +157,7 @@ function addRep(c: CareerState, port: string | null | undefined, d: number): voi
 function buyerFactor(port: string | null | undefined, kind: JobKind): number {
   const buys = PORTS.find((p) => p.id === port)?.economy?.buys;
   if (!buys) return 1;
-  const key = kind === 'fish' ? 'fish' : kind === 'catch' ? 'shellfish' : kind === 'log' ? 'log' : kind === 'cargo' ? 'cargo' : null;
+  const key = kind === 'fish' || kind === 'rod' ? 'fish' : kind === 'catch' ? 'shellfish' : kind === 'log' ? 'log' : kind === 'cargo' ? 'cargo' : null;
   return (key && buys[key]) || 1;
 }
 
@@ -188,6 +188,9 @@ function basePay(world: WorldState, kind: JobKind, o: EarnOpts): number {
     case 'catch':
       // A pot's crab and lobster, by the animal (lobster fetches far more).
       return (o.lobster ?? 0) * CONFIG.potting.price.lobster + (o.crab ?? 0) * CONFIG.potting.price.crab;
+    case 'rod':
+      // The rod's bucket, by weight (fishing/rod.ts).
+      return Math.round((o.kg ?? 0) * CONFIG.rod.pricePerKg);
   }
 }
 
@@ -198,6 +201,8 @@ export interface EarnOpts {
   from?: string;
   what?: string;
   people?: number;
+  /** The rod's bucket: its weight (kg). */
+  kg?: number;
   /** A pot's catch sold: how many of each. */
   lobster?: number;
   crab?: number;
@@ -215,6 +220,7 @@ const REP_GAIN: Record<JobKind, () => number> = {
   rescue: () => CONFIG.career.rep.rescue,
   fire: () => CONFIG.career.rep.fire,
   catch: () => CONFIG.career.rep.fish,
+  rod: () => 1,
 };
 
 /** A job done: pay it, raise the port's reputation, count it toward the contract. */

@@ -14,6 +14,7 @@ import { createModuleLibrary, parseRecipe, validateRecipe, type Mount, type Reci
 import { A_FRAME } from '../modules/aFrame';
 import { ANCHOR_WINDLASS } from '../modules/anchorWindlass';
 import { BOAT_HOOK_RACK } from '../modules/boatHookRack';
+import { ROD_RACK } from '../modules/rodRack';
 import { BATTERY_BANK } from '../modules/batteryBank';
 import { BATTERY_MASTER } from '../modules/batteryMaster';
 import { BILGE_PUMP } from '../modules/bilgePump';
@@ -104,7 +105,7 @@ export const MODULES = createModuleLibrary([
   DIESEL_INBOARD, OUTBOARD, RUDDER, FUEL_TANK, BATTERY_BANK, PTO_PUMP, BILGE_PUMP, CONSUMER,
   TENDER_CRANE, DECK_CRANE, TOW_WINCH, STERN_ROLLER, A_FRAME, TRAWL, ANCHOR_WINDLASS,
   SEARCHLIGHT, FIRE_MONITOR, MAST, CLEAT, BOAT_CLEAT, FENDERS, HULL_GUARD, PUSH_FENDER, SWIM_LADDER, LIFE_RING_STATION, BOAT_HOOK_RACK,
-  ELECTRIC_OUTBOARD,
+  ELECTRIC_OUTBOARD, ROD_RACK,
   NAV_LIGHTS, CABIN_LIGHT, FLOODLIGHT, RAIL_LIGHTS, TILLER,
 ]);
 

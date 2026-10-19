@@ -328,6 +328,8 @@ Out of harbour, with no rescue on, a tow call comes over the VHF every few minut
 
 Unanswered calls go away after two minutes. The menu's Debug → Missions section has buttons that put a tow just astern (**Small**, **Medium**, **Large** or **Ship**: a kind of that size at random), raise a call, or end the job.
 
+**Push off with the boat hook.** Put the hook's tip against a quay, a pier or the shore and press the trigger (VR) or click (desktop): the boat gets a shove along the hook, away from it, at your hand. Press again to push more. A light boat moves off at a walking pace in a few pushes; a 60 t tug barely moves, so it takes a great many.
+
 **Tow anything in the water.** The towline isn't only for tow jobs. Make it fast the same way (hook or menu) to:
 - **any boat afloat**, at her bow, e.g. our own skiff once she's off the crane;
 - **floating debris** (the planks-and-drum hazards). Towed slowly into a harbour, it's cleared away, and the harbour thanks you.
@@ -443,6 +445,19 @@ The boat has a trawl: a red A-frame over the transom with a block each side on i
 5. **Haul the net** (TRAWL switch off, or hold HAUL on the A-frame) and **carry the boxes ashore** to any port's goods stack to land them. If the deck's full, the catch waits in the net.
 
 **Debug → Missions → Side jobs → Fishing ground** takes you to the nearest ground.
+
+### Rod fishing (side job)
+
+A Shipyard fitting (Deck gear → Fishing → **Fishing rod and bucket**, £700): a handheld rod on a rack across the wheelhouse's aft wall, on the side the life ring isn't, with a bucket on deck under it.
+
+1. **Take the rod** from its rack (VR: grip it; desktop: click it). Slow the boat right down (under 3 knots) and point the rod over the side.
+2. **Cast:** press the trigger (left button). The float flies out about 12 m along the rod and lands on the water.
+3. **Wait.** In a fishing ground a bite comes in seconds; in open water, half a minute or so. The float dips and the rod buzzes in your hand.
+4. **Strike:** press again within a couple of seconds, or it lets go.
+5. **Play it:** hold the trigger to reel. The line's tension rises as the fish pulls (it runs in waves); let go to rest it and the tension falls. Hold on through a hard run and the line parts. Reel it to the rod's tip and it's in the bucket.
+6. **Sell:** tie up at any port and the bucket is sold to the fish merchant by weight (£5.50 a kilo, more where a port pays well for fish), with a line in the ledger. The bucket holds 12 fish.
+
+What bites is the ground's own species in a fishing ground (haddock, mackerel, cod...), and mackerel, pollack, wrasse or coalfish along the coast. Hang the rod back and the line is wound in, fish or no fish. Crew-mates see the rod in your hand and the fish in the bucket; the float and line are yours alone.
 
 ### Lobster and crab potting (new, being built)
 
