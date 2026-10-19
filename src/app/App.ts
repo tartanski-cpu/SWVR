@@ -107,6 +107,7 @@ import { footprintsOf, gearOf, useDesign, useWorkboatFit } from '../boats/sims';
 import type { TowWinchApi } from '../modules/towWinch';
 import { sosCondition, sosStatus } from '../rescue/sos';
 import { RodGame } from '../fishing/rodGame';
+import { HelmCamera } from '../player/helmCamera';
 import { distanceToHull } from '../rescue/recovery';
 import { RodView } from '../fishing/rodView';
 import { lineLength, nearestTowTarget, towAlertT, towStatus, winchStalled } from '../tow/tow';
@@ -455,6 +456,8 @@ export class App {
   private yardBoards: YardBoard[] = [];
   /** The recording camera (Menu > Crew > Be the camera; desktop): player/cameraMode.ts. */
   private readonly camMode = new CameraMode();
+  /** The camera views at the helm with a controller (player/helmCamera.ts): inside, orbit, flyby. */
+  private readonly helmCam = new HelmCamera();
   /** Our field of view before we became the camera (back to it after). */
   private camOldFov = 0;
   private camWasHeld = false;
@@ -756,6 +759,9 @@ export class App {
     this.menu.refresh();
     this.host?.tick(dt);
     const t2 = performance.now();
+
+    // The helm's outside views (a controller's Y): the camera put where they want it, last.
+    this.applyHelmCamera(dt, inXR);
 
     // 4. Render
     this.renderer.info.reset();
@@ -3067,6 +3073,7 @@ export class App {
     const toggle = (this.keyboard.actionPressed('helm') && !this.interaction?.steering) || !!pad?.pressed[PAD.a];
     if (toggle && near && v) {
       this.atHelm = !this.atHelm;
+      this.helmCam.reset();
       if (this.atHelm) {
         // At the helm, facing forward (the same spot boarding puts you).
         this.intents.push({ playerId: this.localPlayerId, targetId: this.localPlayerId, control: 'board', value: 1, ref: v.id });
@@ -3074,10 +3081,25 @@ export class App {
       }
     }
     const ctl = !!pad?.connected;
+    if (!this.atHelm && this.helmCam.view !== 'inside') this.helmCam.reset();
     if (pad && ctl) {
+      // At the helm, Y cycles the camera view (player/helmCamera.ts); in the orbit view the
+      // right stick swings the camera round her instead of looking.
+      if (this.atHelm && pad.pressed[PAD.y]) {
+        const view = this.helmCam.cycle();
+        this.overlay.notify(view === 'inside' ? 'Camera: at the helm' : view === 'orbit' ? 'Camera: orbit · right stick swings it round · RT / LT zoom' : 'Camera: flyby (she passes it) · RT / LT zoom', 2.5);
+      }
+      const external = this.atHelm && this.helmCam.view !== 'inside';
       // The right stick looks round, anywhere; the left walks, off the helm.
       const r = CONFIG.gamepad.lookRate * dt;
-      this.desktop.setLook(this.desktop.lookYaw - pad.rx * r, this.desktop.lookPitch - pad.ry * r);
+      if (!external) this.desktop.setLook(this.desktop.lookYaw - pad.rx * r, this.desktop.lookPitch - pad.ry * r);
+      this.helmStick.x = external ? pad.rx : 0;
+      this.helmStick.y = external ? pad.ry : 0;
+      // Outside views: the triggers zoom (RT in, LT out) instead of being the mouse buttons.
+      if (external) {
+        if (pad.down[PAD.rt]) this.helmCam.zoomBy(1, dt);
+        if (pad.down[PAD.lt]) this.helmCam.zoomBy(-1, dt);
+      }
       const walk = !this.atHelm && !cam;
       this.desktop.padMove.x = walk ? pad.lx : 0;
       this.desktop.padMove.z = walk ? pad.ly : 0;
@@ -3092,6 +3114,7 @@ export class App {
       }
       for (const [i, button] of Object.entries(PAD_MOUSE)) {
         const b = Number(i);
+        if (external && (b === PAD.rt || b === PAD.lt)) continue; // the triggers zoom the view
         if (pad.pressed[b]) this.pointer?.padButton(button!, true);
         if (pad.released[b]) this.pointer?.padButton(button!, false);
       }
@@ -3104,7 +3127,7 @@ export class App {
     this.helmPrompt.show(
       this.atHelm
         ? ctl
-          ? 'At the helm · left stick: steer · RB / LB: throttle · B: neutral · right stick: look · A: leave\nD-pad: anchor up ↑ / down ↓, horn ←, wipers → · left stick click: searchlight · right stick click: laser · X: fire pump'
+          ? 'At the helm · left stick: steer · RB / LB: throttle · B: neutral · right stick: look · Y: camera view · A: leave\nD-pad: anchor up ↑ / down ↓, horn ←, wipers → · left stick click: searchlight · right stick click: laser · X: fire pump'
           : 'At the helm · ← →: steer · ↑ ↓: throttle · X: neutral · F: leave (or plug in a game controller)'
         : near
           ? ctl
@@ -3113,6 +3136,55 @@ export class App {
           : '',
     );
   }
+
+  /** The right stick while an outside helm view is on (it swings the orbit camera). */
+  private readonly helmStick = { x: 0, y: 0 };
+
+  /**
+   * The orbit or flyby view at the helm (player/helmCamera.ts): after everything is posed,
+   * the camera is set to the view's world pose, in its parent's frame (the rig's), so the
+   * desktop controller's own pose is simply overridden this frame. Inside: nothing.
+   */
+  private applyHelmCamera(dt: number, inXR: boolean): void {
+    const hc = this.helmCam;
+    if (hc.view === 'inside') return this.restoreHelmFov();
+    const p = this.world.players[this.localPlayerId];
+    const v = p?.aboardVesselId ? this.world.vessels[p.aboardVesselId] : undefined;
+    const root = v && this.vesselRoots.get(v.id);
+    if (!this.atHelm || inXR || this.camMode.on || !v || !root) {
+      hc.reset();
+      this.restoreHelmFov();
+      return;
+    }
+    if (this.helmFovBase === null) this.helmFovBase = this.camera.fov;
+    root.updateWorldMatrix(true, false);
+    const boat = { pos: root.getWorldPosition(this.camW), quat: root.getWorldQuaternion(this.camQ), length: VESSEL_DEFS[v.defId].hull.params.length, vel: this.tmpV.fromArray(v.linearVelocity) };
+    if (!hc.update(dt, this.helmStick, boat, this.helmPos, this.helmQuat)) return;
+    const parent = this.camera.parent;
+    if (!parent) return;
+    parent.updateWorldMatrix(true, false);
+    this.camera.position.copy(parent.worldToLocal(this.helmPos));
+    this.camera.quaternion.copy(parent.getWorldQuaternion(this.camQ2).invert().multiply(this.helmQuat));
+    this.camera.updateMatrixWorld(true);
+    const fov = this.helmFovBase * (hc.view === 'flyby' ? hc.fovScale : 1);
+    if (Math.abs(this.camera.fov - fov) > 1e-3) {
+      this.camera.fov = fov;
+      this.camera.updateProjectionMatrix();
+    }
+  }
+
+  /** The lens back as it was once an outside view ends. */
+  private restoreHelmFov(): void {
+    if (this.helmFovBase === null) return;
+    this.camera.fov = this.helmFovBase;
+    this.camera.updateProjectionMatrix();
+    this.helmFovBase = null;
+  }
+
+  private helmFovBase: number | null = null;
+
+  private readonly helmPos = new THREE.Vector3();
+  private readonly helmQuat = new THREE.Quaternion();
 
   /**
    * At the helm, a game controller works her switches (owner's layout): the d-pad up heaves
