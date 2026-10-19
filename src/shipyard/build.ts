@@ -305,7 +305,7 @@ export const ENGINES = [
   { name: '150 kW diesel (straight six)', kw: 150, kg: 600, voice: 'inlineSix' as const, rackRise: 1.2, ratedRpm: 1800, propMaxM: 1.05, pricePerKw: 120, size: [1.47, 0.62, 0.78] as const },
   { name: '280 kW turbo diesel (V8)', kw: 280, kg: 800, voice: 'v8' as const, rackRise: 2.0, ratedRpm: 1800, propMaxM: 1.05, pricePerKw: 120, size: [1.32, 0.86, 0.8] as const },
   { name: '400 kW turbo diesel (V8)', kw: 400, kg: 1100, voice: 'v8' as const, rackRise: 2.0, ratedRpm: 1800, propMaxM: 1.05, pricePerKw: 120, size: [1.52, 0.96, 0.9] as const },
-  { name: '450 kW slow-revving tug diesel (big straight six, 1000 rpm; single only)', kw: 450, kg: 2200, voice: 'bigSix' as const, rackRise: 1.0, ratedRpm: 1000, propMaxM: 1.4, pricePerKw: 170, size: [2.65, 0.95, 1.35] as const, about: 'Slow-revving and heavy, for towing: more torque, turning a bigger propeller, so a harder pull for its power. Slower to answer the throttle.' },
+  { name: '450 kW slow-revving tug diesel (big straight six, 1000 rpm; single only)', kw: 450, kg: 2200, voice: 'bigSix' as const, rackRise: 1.0, ratedRpm: 1000, idleRpm: 450, propMaxM: 1.4, pricePerKw: 170, size: [2.65, 0.95, 1.35] as const, about: 'Slow-revving and heavy, for towing: more torque, turning a bigger propeller, so a harder pull for its power. Slower to answer the throttle.' },
 ];
 
 /** Paints: the hull mesh's colours (vessel/view/hullMesh.ts); `{}` is the workboat's own. */
@@ -1583,7 +1583,10 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
     frictionTorque: Math.round(40 * kq ** 0.6),
     inertia: Math.round(1.6 * kq * 10) / 10,
     starterTorque: Math.round(280 * Math.sqrt(kq)),
-    idleRpm: Math.round(engine.engine.idleRpm * rs),
+    // (Its own idle if it has one: the tug diesel's 450 rpm. Scaled from the 1800 rpm
+    // engine's it was 360, so slow its six fired 18 times a second, heard as one thumping
+    // cylinder, owner: "still sounds like a single cylinder"; 450 is usual for its kind.)
+    idleRpm: 'idleRpm' in eng ? eng.idleRpm : Math.round(engine.engine.idleRpm * rs),
     ratedRpm: eng.ratedRpm,
     droopRpm: Math.round(engine.engine.droopRpm * rs),
     starterMaxRpm: Math.round(engine.engine.starterMaxRpm * rs),

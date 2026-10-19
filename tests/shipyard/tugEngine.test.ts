@@ -28,14 +28,14 @@ describe('the tug engine: codes', () => {
 });
 
 describe('the tug engine: built', () => {
-  it('rated at 1000 rpm, idling at 333; more torque than the 400 kW V8 for its power; a bigger propeller and a lower gearbox; the recipe checks out', () => {
+  it('rated at 1000 rpm, idling at 450 (its own: usual for its kind); more torque than the 400 kW V8 for its power; a bigger propeller and a lower gearbox; the recipe checks out', () => {
     const v8 = useDesign(tug(2));
     const v8Torque = Math.max(...gearOf({ defId: 'design' }, 'diesel')!.engine.torqueCurve.map(([, t]) => t));
     const slow = useDesign(tug(3));
     expect(validateRecipe(RECIPES.design, LIBRARY)).toEqual([]);
     const e = gearOf({ defId: 'design' }, 'diesel')!.engine;
     expect(e.ratedRpm).toBe(1000);
-    expect(e.idleRpm).toBe(333);
+    expect(e.idleRpm).toBe(450);
     expect(e.powerKw).toBe(450);
     expect(Math.max(...e.torqueCurve.map(([, t]) => t))).toBeGreaterThan(1.7 * v8Torque);
     expect(Math.max(...e.torqueCurve.map(([r]) => r))).toBeLessThanOrEqual(1100);

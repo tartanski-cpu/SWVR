@@ -3973,6 +3973,9 @@ export const CONFIG = {
    *   cylinders      a four-stroke fires cylinders/2 times a revolution: the beat's pitch
    *   strength       each firing's loudness, in firing order (the cycle's lumpy rhythm)
    *   jitter         +- random spread on each firing's loudness
+   *   grit           how much of each pulse is noise (0.08 if left out)
+   *   mech           level of that noise above 400 Hz, beside the tone: the engine's
+   *                  mechanical clatter riding on each firing (0: none)
    *   pulseTau       how long each exhaust pulse rings (s), + pulseTauLow more at idle
    *   body, stack    the exhaust's two resonances (peaking filters: Hz, Q, dB)
    *   lp             the tone's low-pass: base + rpm * (rpm / rated) + load * load (Hz)
@@ -3992,6 +3995,8 @@ export const CONFIG = {
       cylinders: 6,
       strength: [1.0, 0.48, 1.1, 0.55, 1.03, 0.46],
       jitter: 0.1,
+      grit: 0.08,
+      mech: 0,
       pulseTau: 0.013,
       pulseTauLow: 0.006,
       body: { freq: 110, q: 0.9, gain: 4 },
@@ -4016,6 +4021,8 @@ export const CONFIG = {
       cylinders: 8,
       strength: [1.0, 0.94, 0.58, 0.55, 0.6, 1.03, 0.97, 0.56],
       jitter: 0.12,
+      grit: 0.08,
+      mech: 0,
       pulseTau: 0.011,
       pulseTauLow: 0.005,
       body: { freq: 85, q: 0.9, gain: 5 },
@@ -4027,30 +4034,34 @@ export const CONFIG = {
       turbo: { idleHz: 1400, boostHz: 3200, gain: 0.006 } as { idleHz: number; boostHz: number; gain: number } | null,
     },
     /**
-     * The tug's big slow straight six (owner, Oct 2026: "a better engine noise for the big
-     * straight six diesel"; it borrowed the workboat's six, which slowed to its 1000 rpm
-     * sounded like a small engine idling). A big medium-speed diesel: at its slow revs each
-     * firing is heard on its own (17 Hz at idle, 50 Hz flat out), so the pulses are longer
-     * (a deep "chuff" that rings through the big exhaust); its body resonance lower (a pipe
-     * twice the bore); the cylinders more even than the worn workboat's, the front
-     * three a touch stronger than the back three (their exhaust manifolds join apart, a slow
-     * one-a-revolution swell under the beat); a heavier thump and more grit under load; a
-     * bigger intake rush; and a large, slow turbo's low whistle as she digs in.
+     * The tug diesel (owner, Oct 2026: "a better engine noise for the big straight six
+     * diesel", then "still sounds like a single cylinder"), matched to the owner's recording
+     * of a tug with twin 450 hp engines idling (analysed: ref/tug.wav, PROGRESS.md). That
+     * recording fires 62 times a second at idle, its strongest line by 12 dB, with a lope
+     * once every eight firings (lines 7.8 Hz apart, -20 dB): an eight-beat engine, the
+     * pattern of a two-stroke V8 at ~470 rpm. A straight six at the tug diesel's 450 rpm idle
+     * fires only 22 times a second, each firing heard on its own: a single cylinder's thump.
+     * So its voice fires as the recording does: eight pulses a revolution (`cylinders` 16 in
+     * this four-stroke reckoning: 60 Hz at 450 rpm, 133 Hz flat out), lumpy once a revolution
+     * (`strength`); most of it a 40-80 Hz rumble (`body` broad at 66 Hz), a resonance at 250
+     * Hz (`stack`), and the mechanical clatter riding on each firing above 400 Hz (`grit`,
+     * `mech`) that the recording has and the other engines are kept free of. Rendered
+     * offline, its spectrum lies within a few per cent of the recording's in every band.
      */
     bigSix: {
-      cylinders: 6,
-      strength: [1.0, 0.84, 0.96, 0.8, 1.02, 0.86],
+      cylinders: 16,
+      strength: [1.37, 1.16, 0.85, 0.84, 0.93, 0.84, 0.85, 1.16],
       jitter: 0.06,
-      pulseTau: 0.028,
-      pulseTauLow: 0.022,
-      body: { freq: 70, q: 1.0, gain: 5 },
-      // (Its bark kept at 125 Hz, where a headset's speakers still play: the 70 Hz body under
-      // it is felt on headphones and big speakers, and a Quest's own can't play it.)
-      stack: { freq: 125, q: 1.6, gain: 6 },
-      lp: { base: 115, rpm: 110, load: 160 },
-      // (Its longer pulses carry more: a lower thump keeps it about as loud as the six was,
-      // rendered offline: within 1 dB overall and in the 100-400 Hz a headset plays.)
-      thump: { base: 0.45, rpm: 0.14, load: 0.25 },
+      grit: 0.35,
+      mech: 2.8,
+      pulseTau: 0.012,
+      pulseTauLow: 0.008,
+      body: { freq: 66, q: 0.7, gain: 6 },
+      stack: { freq: 250, q: 1.4, gain: 12 },
+      lp: { base: 600, rpm: 300, load: 400 },
+      // (Quiet at idle and swelling with the throttle as the six's did: rendered offline,
+      // within about 2 dB of it at idle, half and full throttle.)
+      thump: { base: 0.2, rpm: 0.2, load: 0.32 },
       drive: 1.5,
       hiss: { base: 0.003, load: 0.012 },
       turbo: { idleHz: 650, boostHz: 1700, gain: 0.007 } as { idleHz: number; boostHz: number; gain: number } | null,
@@ -4066,6 +4077,8 @@ export const CONFIG = {
       cylinders: 8,
       strength: [1.0, 0.94, 0.58, 0.55, 0.6, 1.03, 0.97, 0.56],
       jitter: 0.12,
+      grit: 0.08,
+      mech: 0,
       pulseTau: 0.011,
       pulseTauLow: 0.005,
       body: { freq: 85, q: 0.9, gain: 5 },
