@@ -117,10 +117,29 @@ export interface DesignHull {
    * and swing a big propeller (her propeller's size is bounded by her draught aft).
    */
   ballastKg?: number;
+  /**
+   * Her size range grows beyond the usual (owner, Oct 2026: the landing craft's layout
+   * "can actually extend to fairly big... proportionally in all directions"): the length
+   * slider's upper half takes her up to this many times her base size, her beam with it and
+   * her depth as its square root (see buildAt; the beam and depth sliders then tweak her
+   * proportions). Its lower half is as every hull's (SCALES.scale).
+   */
+  growsTo?: number;
 }
 
 /** What a hull and its houses are built of (CONFIG.shipyard.materials). */
 export type Material = 'aluminium' | 'steel';
+/**
+ * Her length as a factor of her type's base (the length slider's step `i`): every hull's
+ * 0.8 to 1.175 (SCALES.scale); a hull that `growsTo` more, the same up to her base size
+ * (step 8), then up in equal ratios to `growsTo` at the top (step 15).
+ */
+export function sizeScale(base: Pick<DesignHull, 'growsTo'>, i: number): number {
+  const top = base.growsTo;
+  if (!top || i <= 8) return SCALES.scale(i);
+  return Math.round(top ** ((i - 8) / 7) * 1000) / 1000;
+}
+
 /** What this design is built of: her hull type's own material, else her choice. */
 export function materialOf(d: Pick<ShipDesign, 'hull' | 'material'>): Material {
   return DESIGN_HULLS[d.hull]?.material ?? (d.material ? 'steel' : 'aluminium');
@@ -193,6 +212,7 @@ export const DESIGN_HULLS: DesignHull[] = [
   {
     name: 'Landing craft: 9 m aluminium, square landing bow with a ramp',
     material: 'aluminium',
+    growsTo: 2.5,
     // Her bow is her own: the landing bow (landingCraftLines), no bow choice.
     form: (L, B, D) => ({ kind: 'lofted', design: scaledStudy(landingCraftLines(), L, B, D, null) }),
     planing: true,
@@ -461,9 +481,17 @@ function riseFor(form: HullForm, massKg: number): { rise: number; sinks: boolean
 function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: number; cgY: number } | null): DesignedBoat {
   const warnings: string[] = [];
   const base = DESIGN_HULLS[d.hull];
-  const L = SCALES.scale(d.length);
-  const B = SCALES.scale(d.beam);
-  const D = SCALES.scale(d.depth);
+  // Her size: length, beam and depth as factors of her type's own. A hull that `growsTo` a
+  // bigger size grows past her base size in length and beam together, and in depth as the
+  // square root of it (and her plating thicker by as much: `grownPlate`): scaled fully in
+  // depth, a 22 m landing craft weighed 24 t and floated with 3 m of freeboard (a hull's
+  // weight goes with its area, its buoyancy with its volume). Big landing craft are
+  // relatively shallower and more heavily plated.
+  const L = sizeScale(base, d.length);
+  const grown = Math.max(1, L);
+  const grownPlate = Math.sqrt(grown);
+  const B = SCALES.scale(d.beam) * grown;
+  const D = SCALES.scale(d.depth) * grownPlate;
   const form = raised(base.form(L, B, D, d.bow), raise);
   const shape = hullFormOf(form);
   const st = shape.stations;
@@ -635,7 +663,12 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   // Her bow ramp (the landing craft's), across her square bow.
   const bowHalf = st[st.length - 1].halfBeamDeck;
   const lcRamp = CONFIG.vessels.landingCraft.layout.bowRamp;
-  const bowRamp = base.ramp ? { ...lcRamp, width: Math.round(2 * (bowHalf - 0.08) * 100) / 100, ram: { ...lcRamp.ram, x: Math.round((bowHalf - 0.07) * 100) / 100 }, button: { z: stem + 0.8, y: 0.42 } } : undefined;
+  // (Grown, her ramp is longer, its rams and toe flaps with it, as her depth grows: her bow
+  // stands that much higher off the beach.)
+  const rk = (v: number) => Math.round(v * grownPlate * 100) / 100;
+  const bowRamp = base.ramp
+    ? { ...lcRamp, width: Math.round(2 * (bowHalf - 0.08) * 100) / 100, length: rk(lcRamp.length), flap: { ...lcRamp.flap, length: rk(lcRamp.flap.length) }, ram: { ...lcRamp.ram, x: Math.round((bowHalf - 0.07) * 100) / 100, aft: rk(lcRamp.ram.aft), height: rk(lcRamp.ram.height), along: rk(lcRamp.ram.along) }, button: { z: stem + 0.8, y: 0.42 } }
+    : undefined;
 
   const layout = {
     // No roof rail or ladder (owner: simpler): the roof isn't walked.
@@ -775,7 +808,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   // trim her). Her fuel and ballast are taken to be about her centre of buoyancy; her deck
   // gear isn't placed yet, and left out.
   const restKgZ: [number, number][] = [
-    [shellM2 * mat.shellKgPerM2 * (base.scantlings ?? 1), shellM2z / shellM2],
+    [shellM2 * mat.shellKgPerM2 * (base.scantlings ?? 1) * grownPlate, shellM2z / shellM2],
     [(2 * (houseL + 2 * hw) * (roofY - floorY) + 4 * hw * houseL) * mat.houseKgPerM2, (front + aft) / 2],
     [dhArea * mat.houseKgPerM2, deckhouse ? (deckhouse.z0 + deckhouse.z1) / 2 : 0],
     [wc.outfitKgPerM2 * lengthM * beamDeck * 0.8, shellM2z / shellM2],
@@ -1761,7 +1794,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   const gearKgZ = gearAt.reduce((a, [m, z]) => a + m * z, 0);
   const pushKg = pushFender ? pf.knees * pf.kneeWidth * (pushFender.top - pushFender.bottom) * pf.kgPerM2 : 0;
   const items = [
-    { name: `Hull: ${material} plating and framing`, kg: shellM2 * mat.shellKgPerM2 * (base.scantlings ?? 1), y: shellM2y / shellM2, z: shellM2z / shellM2 },
+    { name: `Hull: ${material} plating and framing`, kg: shellM2 * mat.shellKgPerM2 * (base.scantlings ?? 1) * grownPlate, y: shellM2y / shellM2, z: shellM2z / shellM2 },
     { name: 'Bulwarks', kg: bulwarkRun * bulwarkHeight * mat.shellKgPerM2 * wc.bulwarkShare, y: deckMid + bulwarkHeight / 2, z: (stem + transom) / 2 },
     { name: 'Wheelhouse', kg: houseM2 * mat.houseKgPerM2, y: (floorY + roofY) / 2, z: (front + aft) / 2 },
     { name: 'Deckhouse', kg: dhArea * mat.houseKgPerM2, y: deckhouse ? (deckMid + deckhouse.top) / 2 : deckMid, z: deckhouse ? (deckhouse.z0 + deckhouse.z1) / 2 : 0 },
