@@ -1,6 +1,6 @@
 # Regions: growing the world
 
-Status: **agreed with the owner (Oct 2026); milestones 1 to 5 done, awaiting the owner's test.** The running record is PROGRESS.md "Regions".
+Status: **agreed with the owner (Oct 2026); milestones 1 to 6 done, awaiting the owner's test.** The running record is PROGRESS.md "Regions".
 
 The owner's brief, in short: grow the world by adding **regions** round home, each with its own geography, weather, fish, goods and towing jobs, reached by a short passage across open water, all still running in the browser on the Quest. The design intent, what a region defines, the tidal races as current zones, the four regions and the technical rules are the owner's; the decisions and the plan below are what was agreed in the session that started the work.
 
@@ -41,7 +41,7 @@ A region is **data, never code of its own**: one file in `src/world/regions/` ho
 3. **Current zones** (done): the race mechanic, surface effects, sound, knock points, chart symbol and forecast line, debug set-to-peak and set-to-slack; the trial race Sruth Tarsk in the sound on the crossing to the Sounds.
 4. **The Sounds** (done): the full region with spine, repair yard, two races, cliff inlet with leading line, directional shelter, species, goods, jobs; the per-port economy and job templates every later region uses; the archipelago sheet and the detail sheets; the regional weather profile.
 5. **The Fjord** (done): the fjord and its walls, the race in the narrows, the 100 m side fjord, katabatic gusts, the cheapest fuel, the fish farm (cages solid, the barge a port for feed and salmon), waterfalls, the region's look (theme). The new jobs that need new mechanics (the mooring block with the crane, the vet as a passenger) come after its first version, as agreed.
-6. **The Narrows:** the 12 kn race with the pinnacle, the buoyed dog-leg, wrecks, log booms, the night escort.
+6. **The Narrows** (done): the 12 kn race with the twin pinnacle, the buoyed dog-leg channel through the flats with two wrecks and their cardinals, the cannery's fish buyer, the radio mast landmark, morning fog. Log booms and deadheads as floating hazards and the night escort are new mechanics: after its first version, as agreed.
 7. **The Calanques:** Mediterranean theme, the strait with eddies, inlets, the Mistral event, the chandlery, stern-to mooring, the busiest traffic.
 8. **Polish and balance:** every region resident in turn on the headset within budget, chart and forecast complete, each region's reason to go actually pulling.
 

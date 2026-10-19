@@ -2120,6 +2120,9 @@ export const CONFIG = {
       { name: 'Feed pellets', mass: 40, size: [0.6, 0.3, 0.85] as [number, number, number], shape: 'box' as const, slots: 1 },
       { name: 'Salmon box', mass: 32, size: [0.9, 0.35, 0.5] as [number, number, number], shape: 'box' as const, slots: 1 },
       { name: 'Timber', mass: 70, size: [0.5, 0.4, 1.6] as [number, number, number], shape: 'box' as const, slots: 2 },
+      // The Narrows': the cannery's canned fish out; groceries in (fuel comes in the oil drums).
+      { name: 'Canned fish', mass: 45, size: [0.6, 0.4, 0.45] as [number, number, number], shape: 'box' as const, slots: 1 },
+      { name: 'Groceries', mass: 30, size: [0.55, 0.4, 0.45] as [number, number, number], shape: 'box' as const, slots: 1 },
       /**
        * A lobster / crab pot (potting/potting.ts): not trade cargo (never spawned at the
        * ports' goods stacks), but carried, stowed and lashed the same way. A creel: a
@@ -2128,7 +2131,7 @@ export const CONFIG = {
       { name: 'Pot', mass: 24, size: [0.75, 0.42, 0.5] as [number, number, number], shape: 'pot' as const, slots: 2 },
     ],
     /** How many of `kinds` (from the start) are trade cargo, spawned at the goods stacks. */
-    tradeKinds: 11,
+    tradeKinds: 13,
     twoHandKg: 60,
     /**
      * Unlashed cargo on deck slides when the apparent gravity along the deck (heel, trim,
@@ -3945,6 +3948,8 @@ export const CONFIG = {
     silhouetteDepthUnits: -4,
     /** A waterfall's ribbon stands this far off the rock, toward the water (m): the drawn walls are coarse. */
     fallStandOff: 4,
+    /** A `mast` landmark's radio mast stands this tall on its summit (m); its light is at the top. */
+    mastHeight: 40,
   },
 
   /**

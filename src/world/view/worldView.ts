@@ -254,6 +254,7 @@ function buildStructures(region: RegionDef): THREE.BufferGeometry[] {
   for (const l of region.lights) buildLightTower(l.x, l.z, l.y, l.color, l.tower, parts);
   for (const w of region.wrecks) buildWreck(w, parts);
   for (const l of region.landmarks) if (l.kind === 'hill') buildCairn(l.x, l.z, parts);
+  for (const l of region.landmarks) if (l.kind === 'mast') buildMast(l.x, l.z, parts);
   for (const f of region.falls ?? []) buildFall(f, parts);
   for (const f of region.farms ?? []) buildFarm(f, parts);
   // Lamp posts: a slim pole with a downward-facing head.
@@ -548,6 +549,24 @@ function buildCairn(x: number, z: number, parts: THREE.BufferGeometry[]): void {
   }
   // The pillar: concrete, 1.2 m, a little way off the heap.
   parts.push(part(new THREE.CylinderGeometry(0.22, 0.28, 1.2, 4).translate(top.x + 2.6, top.h + 0.55, top.z + 1.2), 0xd8d4cc, 'concrete'));
+}
+
+/**
+ * A radio mast on a peak (a `mast` landmark; the Narrows): a slim three-sided lattice,
+ * CONFIG.regions.mastHeight tall, banded red and white for aircraft, an equipment hut at its
+ * foot. Its red light is one of the region's lights (at the same summit, the mast's height up).
+ */
+function buildMast(x: number, z: number, parts: THREE.BufferGeometry[]): void {
+  const top = summitNear(x, z);
+  const H = CONFIG.regions.mastHeight;
+  const bands = 6;
+  for (let i = 0; i < bands; i++) {
+    const r0 = 1.1 - (0.8 * i) / bands;
+    const r1 = 1.1 - (0.8 * (i + 1)) / bands;
+    const h = H / bands;
+    parts.push(part(new THREE.CylinderGeometry(r1, r0, h, 3, 1, true).translate(top.x, top.h + h * (i + 0.5), top.z), i % 2 ? 0xf0eee8 : 0xc0281e));
+  }
+  parts.push(part(new THREE.BoxGeometry(3, 2.4, 2.2).translate(top.x + 3.5, top.h + 1.1, top.z), 0x9aa0a4, 'sheet'));
 }
 
 function buildLightTower(x: number, z: number, lampY: number, color: string, tower: string, parts: THREE.BufferGeometry[]): void {

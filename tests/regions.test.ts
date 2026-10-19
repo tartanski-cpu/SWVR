@@ -96,7 +96,7 @@ describe('regions', () => {
 
   it('home is v1.0 world, unchanged: the same places in the same spots', () => {
     // A few fixed points, so a slip while moving the data would show.
-    expect(PORTS.map((p) => p.id)).toEqual(['calder', 'brannock', 'selkie', 'tarsk', 'garbh', 'camas', 'kvassvik', 'kvassfarm', 'ytterbrygga', 'trangvika']);
+    expect(PORTS.map((p) => p.id)).toEqual(['calder', 'brannock', 'selkie', 'tarsk', 'garbh', 'camas', 'kvassvik', 'kvassfarm', 'ytterbrygga', 'trangvika', 'ashby', 'kestrel', 'otter']);
     expect(ISLANDS.find((i) => i.name === 'Calder Holm')).toMatchObject({ x: 960, z: 650, radius: 330, height: 44 });
     expect(LIGHTS.find((l) => l.tower === 'lighthouse')).toMatchObject({ x: 1400, z: -250, period: 10 });
     expect(WRECKS[0]).toMatchObject({ name: 'Margaret Ann', x: 41, z: 478 });

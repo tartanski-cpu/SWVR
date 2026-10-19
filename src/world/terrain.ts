@@ -8,6 +8,7 @@
  *             sinusoidal undulation); offshore the seabed falls away as
  *             −MAX_DEPTH·(1 − e^(−d/SHELF)), d = distance offshore.
  *   islands : combined with max() (the shallower wins), floor at −MAX_DEPTH.
+ *   shoals  : shallow banks: the seabed brought up to a depth (never lowered), blended at the rim.
  *   flats   : waterfronts: land brought down to a level (never raised), blended at the edge.
  *   cuts    : basins and bays lower everything inside to a fixed depth, with a sloped edge.
  *   channels: fjords and narrows: the same, along a line of varying width (ChannelDef).
@@ -15,7 +16,7 @@
  *   slipways: a concrete slip (SLIPWAYS) is its own plane, top - slope x (distance down it),
  *             wherever it lies (built up over the seabed, cut into the bank), square-edged.
  */
-import { CHANNELS, CUTS, FLATS, ISLANDS, MAX_DEPTH, RIDGES, SHELF, SLIPWAYS, type ChannelDef, type IslandDef } from './archipelago';
+import { CHANNELS, CUTS, FLATS, ISLANDS, MAX_DEPTH, RIDGES, SHELF, SHOALS, SLIPWAYS, type ChannelDef, type IslandDef } from './archipelago';
 
 /** Each slipway's axes: the unit vector up it (world x, z), for slipSurface. */
 const SLIP_AXES = SLIPWAYS.map((s) => {
@@ -113,6 +114,13 @@ export function groundHeight(x: number, z: number, ridges = true): number {
   for (const isl of ISLANDS) {
     if (Math.abs(x - isl.x) > isl.radius * 1.4 + INFLUENCE || Math.abs(z - isl.z) > isl.radius * 1.4 + INFLUENCE) continue;
     h = Math.max(h, islandHeight(isl, x, z));
+  }
+  for (const sh of SHOALS) {
+    if (h >= -sh.depth || Math.abs(x - sh.x) >= sh.radius || Math.abs(z - sh.z) >= sh.radius) continue;
+    const d = Math.hypot(x - sh.x, z - sh.z);
+    if (d >= sh.radius) continue;
+    const w = 1 - smoothstep(sh.radius - sh.edge, sh.radius, d);
+    h += (-sh.depth - h) * w;
   }
   for (const f of FLATS) {
     if (h <= f.height || Math.abs(x - f.x) >= f.radius || Math.abs(z - f.z) >= f.radius) continue;

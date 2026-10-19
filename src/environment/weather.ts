@@ -75,7 +75,7 @@ function targetFor(preset: WeatherPresetName, seq: number): WeatherValues {
 }
 
 /** The region's profile in force (RegionDef.weather), set by the host each tick; absent: the game's own tables. */
-export type WeatherProfile = { next: Record<string, Partial<Record<string, number>>>; hold?: [number, number] } | undefined;
+export type WeatherProfile = { next: Record<string, Partial<Record<string, number>>>; hold?: [number, number]; morningFog?: { from: number; to: number; chance: number } } | undefined;
 
 function pickNext(from: WeatherPresetName, seq: number, profile?: WeatherProfile): WeatherPresetName {
   const table = ((profile?.next[from] as Partial<Record<WeatherPresetName, number>> | undefined) ?? CONFIG.weather.next[from]) as Partial<Record<WeatherPresetName, number>>;
@@ -121,6 +121,13 @@ export function setWeatherPreset(w: WeatherState, preset: WeatherPresetName, tim
   w.preset = preset;
   w.target = targetFor(preset, w.seq);
   w.next = { preset: pickNext(preset, w.seq + 1, profile), at: time + holdFor(preset, w.seq + 2, profile) / w.speed };
+  // Morning fog (a region's profile): a change due to begin in the morning hours is to fog,
+  // `chance` of the time. The hour it begins: the clock now plus the hold, at the clock's rate.
+  const mf = profile?.morningFog;
+  if (mf && env && w.next.preset !== preset) {
+    const hourAt = wrap(env.timeOfDay + (w.next.at - time) * env.timeScale, 24);
+    if (hourAt >= mf.from && hourAt < mf.to && hash01(w.seq + 0.53) < mf.chance) w.next.preset = 'Fog';
+  }
   // A new plan: the coastguard puts out a fresh forecast shortly.
   w.forecastAt = Math.min(w.forecastAt, time + CONFIG.weather.forecast.afterChange / w.speed);
   if (instant) {
@@ -139,7 +146,7 @@ export function stepWeather(env: EnvironmentState, time: number, dt: number, pro
   if (!w) return;
   const c = CONFIG.weather;
   // Director: on to the planned preset when its time comes (the next one by the region's odds).
-  if (!w.fixed && time >= w.next.at) setWeatherPreset(w, w.next.preset, time, false, undefined, profile);
+  if (!w.fixed && time >= w.next.at) setWeatherPreset(w, w.next.preset, time, false, env, profile);
   // Ease the values toward the target.
   const k = 1 - Math.exp((-dt * w.speed) / c.transition);
   const n = w.now;

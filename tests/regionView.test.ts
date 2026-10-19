@@ -33,18 +33,19 @@ describe('terrain arrays', () => {
     expect(onGrid / triangles(t)).toBeGreaterThan(0.9);
   });
 
-  it('lean high ground draws fewer triangles than the full grid, and only above the line', () => {
+  it('lean terrain draws fewer triangles than the full grid, coarse only on high ground or wholly under water', () => {
     const full: RegionDef = { ...SOUNDS, leanTerrain: undefined };
     const a = buildTerrainArrays(full);
     const b = buildTerrainArrays(SOUNDS);
     expect(triangles(b)).toBeLessThan(triangles(a) * 0.8);
-    // A big (coarse) triangle lies wholly above the line.
+    // A big (coarse) triangle lies wholly above the line, or wholly under water (the sea is opaque).
     const span = SOUNDS.leanTerrain!.cells * CELL;
     for (let i = 0; i < b.position.length; i += 9) {
       const xs = [b.position[i], b.position[i + 3], b.position[i + 6]];
       if (Math.max(...xs) - Math.min(...xs) > CELL + 1e-6) {
         expect(Math.max(...xs) - Math.min(...xs)).toBeCloseTo(span, 3);
-        expect(Math.min(b.position[i + 1], b.position[i + 4], b.position[i + 7])).toBeGreaterThan(SOUNDS.leanTerrain!.above);
+        const ys = [b.position[i + 1], b.position[i + 4], b.position[i + 7]];
+        expect(Math.min(...ys) > SOUNDS.leanTerrain!.above || Math.max(...ys) < -0.6).toBe(true);
       }
     }
   });

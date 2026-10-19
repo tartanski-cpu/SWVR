@@ -184,7 +184,7 @@ describe('jobs and weather', () => {
   });
 
   it('the archipelago sheet takes in the Fjord and names every region', () => {
-    expect(SHEETS[0].title).toBe('SKERRY SOUND, THE SOUNDS AND THE FJORD');
+    expect(SHEETS[0].title).toBe('SKERRY SOUND, THE SOUNDS, THE FJORD AND THE NARROWS');
     expect(SHEETS.some((s) => s.id === 'fjord')).toBe(true);
   });
 });
