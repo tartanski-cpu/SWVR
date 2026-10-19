@@ -150,16 +150,16 @@ export class EngineSound {
         processorOptions: { cylinders, strength, jitter, pulseTau, pulseTauLow, ratedRpm, grit: voice.grit },
       });
       worklet.connect(dcBlock);
-      // Mechanical clatter riding on each firing (a voice with `mech`): the pulses' rasp
-      // above 400 Hz, beside the low-passed tone, to the same level control.
+      // Mechanical clatter riding on each firing (a voice with `mech`): the pulses' rasp in
+      // its band (`mechBand`), beside the low-passed tone, to the same level control.
       if (voice.mech) {
         const hp = ctx.createBiquadFilter();
         hp.type = 'highpass';
-        hp.frequency.value = 400;
+        hp.frequency.value = voice.mechBand?.[0] ?? 400;
         hp.Q.value = 0.7;
         const top = ctx.createBiquadFilter();
         top.type = 'lowpass';
-        top.frequency.value = 1400;
+        top.frequency.value = voice.mechBand?.[1] ?? 1400;
         top.Q.value = 0.5;
         const mech = ctx.createGain();
         mech.gain.value = voice.mech;
