@@ -2507,7 +2507,10 @@ export const CONFIG = {
      * the game draws it, and where its hatch goes (engineHatch, below).
      */
     shaftAngleDeg: 10,
-    /** ...steeper only if her bottom is so flat aft the engine can't clear it otherwise (deg). */
+    /**
+     * ...steeper (deg), a degree at a time, where that lets the engine sit nearer where her
+     * weights balance (owner, Oct 2026: not always far forward), or clear a bottom too flat aft.
+     */
     shaftAngleMaxDeg: 15,
     /**
      * The engine hatch and the engine space under it (build.ts; owner, Oct 2026: the engine
@@ -3725,6 +3728,26 @@ export const CONFIG = {
       alternatorAmps: 60,
       starterAmps: 120,
       pricePerKw: 130,
+    },
+    /**
+     * Stern drives (owner, Oct 2026: "so that engines can go right up the back"): the
+     * inboard engine package against the transom, level, driving an outdrive leg through it
+     * that swings to steer (modules/outboard, `sterndrive`: the outboards' steering, no
+     * rudder). A twin installation has a leg each.
+     *   transomInset  the engine's gearbox end this far forward of the transom (the leg's
+     *                 bell housing through it)
+     *   legKg, price  each leg (with its gimbal housing and the transom shield), and what it adds
+     *   propMaxM      the leg's propeller no bigger than this (a high-revving one: its own gears)
+     *   look          the leg's (outboard look keys): its steering axis `pivotAft` of the
+     *                 transom, the propeller `propAft` of that; its length is worked out (the
+     *                 anti-ventilation plate level with her bottom at the transom)
+     */
+    sternDrive: {
+      transomInset: 0.15,
+      legKg: 160,
+      price: 9000,
+      propMaxM: 0.55,
+      look: { cowlWidth: 0.45, cowlHeight: 0, cowlLength: 0.5, legWidth: 0.2, shaftLength: 0.6, gearDrop: 0.22, pivotAft: 0.3, propAft: 0.6 },
     },
 
     /** electrical.battery-bank (M6): each 12 V 100 Ah battery's mass (kg). */

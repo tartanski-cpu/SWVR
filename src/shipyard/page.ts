@@ -274,19 +274,22 @@ function addMachinery(root: THREE.Group): THREE.Group | null {
   const engine = cfg('engine');
   const prop = engine?.propeller?.position as [number, number, number] | undefined;
   const rudder = cfg('rudder')?.rudder?.position as [number, number, number] | undefined;
-  if (!bed || !prop || !rudder) return null;
+  // A stern drive: its engines only (the legs are its module's, shown at Engine too).
+  const sd = !!cfg('sternDrive');
+  if (!bed || (!sd && (!prop || !rudder))) return null;
   const twin = !!design.twin && !SINGLE_ONLY_ENGINES.includes(design.engine);
   const propD = boat.figures.propellerM;
   const fit = boat.shaft;
-  const g = buildMachinery({ engine: design.engine, twin, form: VESSEL_DEFS.design.hull, shaft: fit, twinX: engine?.twin?.x ?? 0, propD, propZ: prop[2], rudderZ: rudder[2] });
+  const g = buildMachinery({ engine: design.engine, twin, form: VESSEL_DEFS.design.hull, shaft: fit, twinX: engine?.twin?.x ?? 0, propD, propZ: prop?.[2] ?? 0, rudderZ: rudder?.[2] ?? 0, sterndrive: sd });
   g.name = 'machinery';
   const name = ENGINES[design.engine].name.split(' (')[0];
   const tag = nameTag(fit.fits ? (twin ? `2 × ${name}` : name) : `Too tall by ${Math.round(fit.shortM * 100)} cm`, fit.fits ? '#2f6aa8' : '#b23a2c');
   tag.position.set(0, fit.topY + 0.45, fit.flangeZ - ENGINES[design.engine].size[0] / 2);
   const lowest = Math.min(...g.children.filter((c) => c.name === 'propeller').map((c) => c.position.y));
   const ptag = nameTag(`Propeller ⌀ ${propD.toFixed(2)} m${twin ? ' (two)' : ''}`, '#8a5a1c');
-  ptag.position.set(0, lowest - propD / 2 - 0.35, prop[2]);
-  g.add(tag, ptag);
+  ptag.position.set(0, lowest - propD / 2 - 0.35, prop?.[2] ?? 0);
+  // (A stern drive's propellers are on its legs: no tag down there.)
+  g.add(...(sd ? [tag] : [tag, ptag]));
   root.add(g);
   return g;
 }
@@ -519,7 +522,7 @@ function choices(key: keyof ShipDesign, items: { name: string; note?: string }[]
 }
 const outputs: Partial<Record<keyof ShipDesign, (v: number) => string>> = {};
 /** Each field's label and, for a few set options, their names (the compare list shows them). */
-const labels: Partial<Record<keyof ShipDesign, string>> = { hull: 'Hull', engine: 'Engine', twin: 'Engines', outboards: 'Outboards', material: 'Built of', controls: 'Controls', paint: 'Paint', roofPaint: 'Roof colour' };
+const labels: Partial<Record<keyof ShipDesign, string>> = { hull: 'Hull', engine: 'Engine', twin: 'Engines', outboards: 'Outboards', sternDrive: 'Stern drive', material: 'Built of', controls: 'Controls', paint: 'Paint', roofPaint: 'Roof colour' };
 const optionNames: Partial<Record<keyof ShipDesign, string[]>> = {};
 function slider(key: keyof ShipDesign, label: string, show: (v: number) => string): void {
   labels[key] ??= label;
@@ -693,6 +696,15 @@ choices('engine', ENGINES.map((e) => ({ name: e.name, note: `${'about' in e ? `$
   box.onchange = () => change({ twin: box.checked ? 1 : 0 });
   controls.appendChild(row);
 }
+// Stern drives (owner, Oct 2026): the engine right at the back, a leg through the transom that steers.
+{
+  const row = document.createElement('label');
+  row.className = 'choice';
+  row.innerHTML = '<input type="checkbox" data-key="sternDrive"> Stern drive: the engine against the transom, driving a leg through it that swings to steer (no shaft or rudder; a leg each for twins). Frees her deck and balances her, with a smaller propeller';
+  const box = row.querySelector('input')!;
+  box.onchange = () => change({ sternDrive: box.checked ? 1 : 0 });
+  controls.appendChild(row);
+}
 // Or outboards (owner, Oct 2026): 2, 3 or 4 petrol V8s on a bracket off the transom, in place of the inboard above.
 {
   const o = CONFIG.modules.outboard;
@@ -769,6 +781,10 @@ function syncControls(): void {
   $('materialNote').textContent = ownMaterial
     ? `The ${DESIGN_HULLS[design.hull].name.split(':')[0].toLowerCase()} is built of ${ownMaterial}, as her type is.`
     : 'Her hull and houses: what she weighs, how deep she floats, how fast she goes and what she costs follow from it.';
+  const sdBox = document.querySelector('input[data-key=sternDrive]') as HTMLInputElement;
+  sdBox.checked = !!design.sternDrive;
+  // The tug diesel goes on a shaft; with outboards there's no inboard.
+  sdBox.disabled = SINGLE_ONLY_ENGINES.includes(design.engine) || !!design.outboards;
   // With outboards the engine packages stand aside (shown, not chosen).
   document.querySelectorAll<HTMLElement>('[data-key="engine"]').forEach((el) => el.classList.toggle('aside', !!design.outboards));
   // A tug's push bow and a landing craft's landing bow are their own: no bow rake to choose.
@@ -794,6 +810,8 @@ function showFigures(): void {
     ['Draught', `${f.draughtM.toFixed(2)} m`],
     ['Freeboard', `${f.freeboardM.toFixed(2)} m amidships`],
     ['Stability (GM)', `${f.gmM.toFixed(2)} m`],
+    // Where her weights put her centre of gravity, against her centre of buoyancy (her tanks and ballast trim the rest).
+    ['Balance (LCG)', Math.abs(boat.weights.balanceM) < 0.05 ? 'over her centre of buoyancy' : `${Math.abs(boat.weights.balanceM).toFixed(2)} m ${boat.weights.balanceM > 0 ? 'aft' : 'forward'} of her centre of buoyancy`],
     ['Deck cargo', deckWords(deckRoom())],
     ['Pots on deck', `${deckRoom().pots}`],
     ['Engine', f.engine],

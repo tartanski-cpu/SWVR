@@ -20,7 +20,7 @@
  * Anything doubtful (a cabin too narrow for the console, too little stability) comes back as
  * a plain-language warning; the page shows them, the game builds her anyway.
  */
-import { bottomAt as bottomUnder, FLANGE_SHARE, halfSection, layShaft, twinEngineX, type ShaftLine } from './machinery';
+import { bottomAt as bottomUnder, FLANGE_SHARE, halfSection, layShaft, sternDriveLine, twinEngineX, type ShaftLine } from './machinery';
 import { CONFIG } from '../config';
 import landingCraftRecipe from '../boats/landingCraft.json';
 import { DESIGNS } from '../hulls/designs';
@@ -330,7 +330,7 @@ export interface DesignedBoat {
    * (kg) and its centre's height (m, her axes as first drawn: buildDesign raises them with her
    * lines), and the total and its centre: her displacement and centre of gravity.
    */
-  weights: { material: Material; items: { name: string; kg: number; y: number }[]; massKg: number; cgY: number };
+  weights: { material: Material; items: { name: string; kg: number; y: number; z: number }[]; massKg: number; cgY: number; balanceM: number };
   /**
    * Where the gear placed by hand stands (boat axes, m), whether it had to move off its
    * pinned cell to stand there (`moved`), and on the roof or not; null if it couldn't stand
@@ -723,6 +723,12 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   const singleOnly = SINGLE_ONLY_ENGINES.includes(d.engine);
   if (d.twin && singleOnly) warnings.push(`The ${eng.name.split(' (')[0]} goes in singly: she has one.`);
   const twin = !!d.twin && !singleOnly;
+  // Stern drives (owner, Oct 2026; design.sternDrive): the engine against the transom, a
+  // leg through it that swings to steer (CONFIG.modules.sternDrive). Not the slow tug
+  // diesel (its big slow propeller wants a shaft); outboards, if chosen, instead.
+  const sdc = CONFIG.modules.sternDrive;
+  if (d.sternDrive && singleOnly && !outboardCount(d)) warnings.push(`The ${eng.name.split(' (')[0]} goes on a shaft (its big slow propeller): no stern drive.`);
+  const sd = !!d.sternDrive && !singleOnly && !outboardCount(d);
   const n = twin ? 2 : 1;
   const keelAft = st[0].polygon[2][1];
   const draughtAft = -keelAft;
@@ -736,8 +742,64 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   // propeller at a set angle and the engine sits on it where it clears her bottom. Its top
   // must be under the cabin floor (under the house) or the deck (elsewhere): a tall engine in
   // a shallow hull doesn't fit, which is a reason for more depth (owner).
+  // Her plating's area (every station's section all round, deck included, her transom and
+  // any square bow plate) and its centre (height y, place along her z): for her weights.
+  let shellM2 = 0;
+  let shellM2y = 0;
+  let shellM2z = 0;
+  const ring2 = (p: readonly (readonly [number, number])[]) => p.map((a, i) => [a, p[(i + 1) % p.length]] as const);
+  for (let i = 1; i < st.length; i++) {
+    const dz = Math.abs(st[i].z - st[i - 1].z) / 2;
+    for (const sec of [st[i - 1], st[i]])
+      for (const [a, b] of ring2(sec.polygon)) {
+        const m2 = Math.hypot(b[0] - a[0], b[1] - a[1]) * dz;
+        shellM2 += m2;
+        shellM2y += (m2 * (a[1] + b[1])) / 2;
+        shellM2z += m2 * (st[i - 1].z + st[i].z) / 2;
+      }
+  }
+  for (const end of [st[0], ...(st[st.length - 1].halfBeamDeck > 0.3 ? [st[st.length - 1]] : [])]) {
+    const p = end.polygon;
+    const m2 = Math.abs(p.reduce((a, [x, y], i) => a + x * p[(i + 1) % p.length][1] - p[(i + 1) % p.length][0] * y, 0)) / 2;
+    shellM2 += m2;
+    shellM2y += (m2 * p.reduce((a, [, y]) => a + y, 0)) / p.length;
+    shellM2z += m2 * end.z;
+  }
+  const material = materialOf(d);
+  const mat = CONFIG.shipyard.materials[material];
+  const wc = CONFIG.shipyard.weights;
+  // Where her balance wants the engine (owner, Oct 2026: "a place where the centre of gravity
+  // is good longitudinally"): her other main weights (plating, houses, fit-out, crew) and
+  // where they are; the engine, its shafting and the batteries placed so that, with them, her
+  // centre of gravity is over her centre of buoyancy (she floats level without ballast to
+  // trim her). Her fuel and ballast are taken to be about her centre of buoyancy; her deck
+  // gear isn't placed yet, and left out.
+  const restKgZ: [number, number][] = [
+    [shellM2 * mat.shellKgPerM2 * (base.scantlings ?? 1), shellM2z / shellM2],
+    [(2 * (houseL + 2 * hw) * (roofY - floorY) + 4 * hw * houseL) * mat.houseKgPerM2, (front + aft) / 2],
+    [dhArea * mat.houseKgPerM2, deckhouse ? (deckhouse.z0 + deckhouse.z1) / 2 : 0],
+    [wc.outfitKgPerM2 * lengthM * beamDeck * 0.8, shellM2z / shellM2],
+    [wc.crewKg + wc.storesKg, (front + aft) / 2],
+  ];
+  const engineGroupKg = eng.kg * n * (1 + wc.machineryShare) + 2 * CONFIG.modules.batteryBank.massKg;
+  const restKg = restKgZ.reduce((a, [m]) => a + m, 0);
+  const balanceZ = (h.lcb * (restKg + engineGroupKg) - restKgZ.reduce((a, [m, z]) => a + m * z, 0)) / engineGroupKg;
   const ceilingAt = (z: number) => (z >= front && z <= aft ? floorY : q.deckY(z));
-  const shaft = layShaft(shape, eng.size, twin ? twinEngineX(twinX, eng.size[1]) : 0, { x: twin ? twinX : 0, z: transom - 0.65, d: propD }, ceilingAt, CONFIG.shipyard.shaftAngleDeg, CONFIG.shipyard.shaftAngleMaxDeg);
+  const shaft = sd
+    ? sternDriveLine(shape, eng.size, twin ? twinEngineX(twinX, eng.size[1]) : 0, transom, ceilingAt, sdc.transomInset)
+    : layShaft(shape, eng.size, twin ? twinEngineX(twinX, eng.size[1]) : 0, { x: twin ? twinX : 0, z: transom - 0.65, d: propD }, ceilingAt, CONFIG.shipyard.shaftAngleDeg, CONFIG.shipyard.shaftAngleMaxDeg, balanceZ);
+  // A stern drive's legs: one behind each engine, through the transom; the top of each (its
+  // gimbal housing) over the engine's output, its anti-ventilation plate level with her
+  // bottom at the transom; its propeller a high-revving one, no bigger than `propMaxM`.
+  const sdPropD = Math.min(propD, sdc.propMaxM);
+  const sdLegs = sd
+    ? (() => {
+        const units = twin ? [-shaft.x, shaft.x].map(rnd) : [0];
+        const mount = { y: rnd(shaft.flangeY + 0.15), z: rnd(transom) };
+        const plateY = Math.max(...units.map((x) => bottomUnder(shape, x, transom))) - 0.02;
+        return { units, mount, look: { ...sdc.look, shaftLength: rnd(Math.max(0.3, mount.y - plateY)) } };
+      })()
+    : null;
   // Outboards instead (owner, Oct 2026; design.outboards): 2 to 4 of the petrol V8s
   // (CONFIG.modules.outboard) on a bracket off the transom, in place of the engine package,
   // its shaft and the rudder (they steer by swinging). The engine choice above then only
@@ -763,7 +825,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
     const bracket = { z0: Math.round((transom - 0.02) * 100) / 100, z1: mount.z, y0: 0, y1: Math.round((mount.y - obc.bracket.belowMount) * 100) / 100, halfWidth: Math.round(Math.min(halfT - 0.05, Math.max(...units.map(Math.abs)) + obc.bracket.margin) * 100) / 100 };
     return { units, mount, bracket, engine: { ...obc.engine, gearRatio: gear } };
   })();
-  if (!shaft.fits && !outboards) warnings.push(`The ${eng.name.split(' (')[0]} doesn't fit: on its shaft line it stands ${(shaft.shortM * 100).toFixed(0)} cm above the ${shaft.flangeZ - eng.size[0] / 2 >= front && shaft.flangeZ - eng.size[0] / 2 <= aft ? 'cabin floor' : 'deck'}. Give her more depth (Hull), raise the floor (Wheelhouse), or fit a smaller engine.`);
+  if (!shaft.fits && !outboards) warnings.push(`The ${eng.name.split(' (')[0]} doesn't fit: ${sd ? 'against the transom' : 'on its shaft line'} it stands ${(shaft.shortM * 100).toFixed(0)} cm above the ${shaft.flangeZ - eng.size[0] / 2 >= front && shaft.flangeZ - eng.size[0] / 2 <= aft ? 'cabin floor' : 'deck'}. Give her more depth (Hull), raise the floor (Wheelhouse), or fit a smaller engine.`);
 
   // ── The engine space and its hatch (owner, Oct 2026: the box under the wheelhouse "is not
   // where the engine will go") ──
@@ -1262,6 +1324,8 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
       }
     : null;
   const sockets: Socket[] = [
+    // (A stern drive: its engine and legs, weighed at the engine.)
+    ...(sd ? [{ id: 'sternDrive', type: 'transom.outboards' as const, transform: { position: at.engineBed }, label: 'Against the transom: her engine and its stern drive' }] : []),
     ...(outboards ? [{ id: 'outboards', type: 'transom.outboards' as const, transform: { position: [0, outboards.mount.y, outboards.mount.z] as V3 }, label: 'The bracket off the transom: her outboards' }] : []),
     { id: 'helm', type: 'helm.console', transform: { position: at.console }, capacity: { size: [2 * (hw - wall) - 0.04, 1.6, 1.0] }, label: 'Helm console, across the front of the cabin' },
     { id: 'breakerPanel', type: 'wall.panel', transform: { position: at.breakerPanel, rotationDeg: [-40, -90, 0] }, label: 'Starboard wall, by the helm' },
@@ -1381,7 +1445,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
     helm: { stand: [0, F, cf + 1.125], yawDeg: 0 },
     form,
     lightship: lightshipOf(weighed, [
-      outboards ? { massKg: obc.massKg * nOb, at: [0, outboards.mount.y, outboards.mount.z] as V3 } : { massKg: eng.kg * n, at: at.engineBed },
+      outboards ? { massKg: obc.massKg * nOb, at: [0, outboards.mount.y, outboards.mount.z] as V3 } : { massKg: (eng.kg + (sd ? sdc.legKg : 0)) * n, at: at.engineBed },
       { massKg: batteriesKg, at: at.engineSpace },
       // The deck crane, if she has one: designed in where its column stands, so she still
       // floats on her lines and upright with it (her hull and ballast lighter by its weight,
@@ -1464,6 +1528,32 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   const rudder = bySocket(recipe.modules, 'rudder')!.config as Record<string, any>;
   Object.assign(rudder.rudder, { area: rudderArea, position: rudderPos });
   rudder.propeller = { wake: prop.wake, diameter: propD };
+  if (sdLegs) {
+    // Her stern drives in place of the shaft and rudder: the outboards' module (the legs swing
+    // to steer) with her inboard engine package, drawn inside against the transom.
+    recipe.modules = recipe.modules.filter((m) => m.socket !== 'engine' && m.socket !== 'rudder');
+    recipe.modules.unshift({
+      socket: 'sternDrive',
+      module: 'propulsion.outboard',
+      config: {
+        engine: engine.engine,
+        propeller: { ...engine.propeller, diameter: sdPropD },
+        units: sdLegs.units,
+        mount: sdLegs.mount,
+        steering: obc.steering,
+        look: sdLegs.look,
+        // (The inboard's electrics and oil, as its module has them: CONFIG.modules.dieselInboard.)
+        alternatorAmps: engine.alternatorAmps ?? CONFIG.modules.dieselInboard.alternatorAmps,
+        oilUse: engine.oilUse ?? CONFIG.vessels.workboat.maintenance.use,
+        starterAmps: engine.starterAmps ?? CONFIG.modules.dieselInboard.starterAmps,
+        massKg: eng.kg + sdc.legKg,
+        maintenance: engine.maintenance,
+        voice: eng.voice,
+        sterndrive: true,
+        installed: engine.installed,
+      },
+    });
+  }
   if (outboards) {
     // Her outboards in place of the inboard and its rudder; her upkeep (the oil checks) at the hatch as before.
     const maintenance = engine.maintenance;
@@ -1652,53 +1742,49 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   // modules weigh. Her deck gear, hull protection, fit-out (wiring, interior, windows,
   // fittings, paint, by her deck area), and her load as she's trialled: half her fuel, crew
   // and stores (CONFIG.shipyard.weights).
-  const material = materialOf(d);
-  const mat = CONFIG.shipyard.materials[material];
-  const wc = CONFIG.shipyard.weights;
-  let shellM2 = 0;
-  let shellM2y = 0;
-  const ring2 = (p: readonly (readonly [number, number])[]) => p.map((a, i) => [a, p[(i + 1) % p.length]] as const);
-  for (let i = 1; i < st.length; i++) {
-    const dz = Math.abs(st[i].z - st[i - 1].z) / 2;
-    for (const sec of [st[i - 1], st[i]])
-      for (const [a, b] of ring2(sec.polygon)) {
-        const m2 = Math.hypot(b[0] - a[0], b[1] - a[1]) * dz;
-        shellM2 += m2;
-        shellM2y += (m2 * (a[1] + b[1])) / 2;
-      }
-  }
-  for (const end of [st[0], ...(st[st.length - 1].halfBeamDeck > 0.3 ? [st[st.length - 1]] : [])]) {
-    const p = end.polygon;
-    const m2 = Math.abs(p.reduce((a, [x, y], i) => a + x * p[(i + 1) % p.length][1] - p[(i + 1) % p.length][0] * y, 0)) / 2;
-    shellM2 += m2;
-    shellM2y += (m2 * p.reduce((a, [, y]) => a + y, 0)) / p.length;
-  }
   const bulwarkRun = 2 * lengthM + 2 * st[0].halfBeamDeck + (bowRamp ? 0 : 2 * st[st.length - 1].halfBeamDeck);
   const houseM2 = 2 * (houseL + 2 * hw) * (roofY - floorY) + 2 * (2 * hw * houseL);
   const machineKg = outboards ? obc.massKg * nOb : eng.kg * n;
   const machineY = outboards ? outboards.mount.y : at.engineBed[1];
-  const gearKg = (winchAt ? wc.gear.towWinch : 0) + (aFrame ? wc.gear.aFrame : 0) + (sternRoller ? wc.gear.sternRoller : 0) + (skiffAt ? wc.gear.skiff : 0) + (anchorAt ? wc.gear.anchor : 0);
+  const machineZ = outboards ? outboards.mount.z : at.engineBed[2];
+  const gearAt: [number, number][] = [
+    ...(winchAt ? [[wc.gear.towWinch, winchAt[2]] as [number, number]] : []),
+    ...(aFrame ? [[wc.gear.aFrame, transom - afc.footFromTransom] as [number, number]] : []),
+    ...(sternRoller ? [[wc.gear.sternRoller, transom] as [number, number]] : []),
+    ...(skiffAt ? [[wc.gear.skiff, skiffAt[2]] as [number, number]] : []),
+    ...(anchorAt ? [[wc.gear.anchor, anchorAt.at[2]] as [number, number]] : []),
+  ];
+  const gearKg = gearAt.reduce((a, [m]) => a + m, 0);
+  const gearKgZ = gearAt.reduce((a, [m, z]) => a + m * z, 0);
   const pushKg = pushFender ? pf.knees * pf.kneeWidth * (pushFender.top - pushFender.bottom) * pf.kgPerM2 : 0;
   const items = [
-    { name: `Hull: ${material} plating and framing`, kg: shellM2 * mat.shellKgPerM2 * (base.scantlings ?? 1), y: shellM2y / shellM2 },
-    { name: 'Bulwarks', kg: bulwarkRun * bulwarkHeight * mat.shellKgPerM2 * wc.bulwarkShare, y: deckMid + bulwarkHeight / 2 },
-    { name: 'Wheelhouse', kg: houseM2 * mat.houseKgPerM2, y: (floorY + roofY) / 2 },
-    { name: 'Deckhouse', kg: dhArea * mat.houseKgPerM2, y: deckhouse ? (deckMid + deckhouse.top) / 2 : deckMid },
-    { name: outboards ? 'Outboards' : n > 1 ? 'Engines and gearboxes' : 'Engine and gearbox', kg: machineKg, y: machineY },
-    { name: outboards ? 'Bracket, rigging and tanks' : 'Shafting, propeller, rudder, tanks, exhaust', kg: machineKg * wc.machineryShare, y: outboards ? deckMid : machineY },
-    { name: 'Batteries', kg: batteriesKg, y: at.engineSpace[1] },
-    { name: 'Deck crane', kg: craneAt ? cr.massKg : 0, y: craneAt ? craneAt[1] + cr.columnHeight / 2 : deckMid },
-    { name: 'Deck gear', kg: gearKg, y: deckMid + 0.5 },
-    { name: 'Hull protection', kg: guardKg + pushKg, y: guardKg + pushKg > 0 ? (guardKg * guardY + (pushFender ? (pushKg * (pushFender.top + pushFender.bottom)) / 2 : 0)) / (guardKg + pushKg) : deckMid },
-    { name: 'Fit-out: wiring, interior, windows, fittings, paint', kg: wc.outfitKgPerM2 * lengthM * beamDeck * 0.8, y: deckMid + 0.3 },
-    { name: 'Fuel (half her tanks)', kg: tankL * wc.fuelShare * wc.fuelDensity, y: keelMid + 0.35 * (deckMid - keelMid) },
-    { name: 'Crew and stores', kg: wc.crewKg + wc.storesKg, y: deckMid + 0.8 },
-    { name: 'Ballast', kg: base.ballastKg ?? 0, y: keelMid + 0.15 },
+    { name: `Hull: ${material} plating and framing`, kg: shellM2 * mat.shellKgPerM2 * (base.scantlings ?? 1), y: shellM2y / shellM2, z: shellM2z / shellM2 },
+    { name: 'Bulwarks', kg: bulwarkRun * bulwarkHeight * mat.shellKgPerM2 * wc.bulwarkShare, y: deckMid + bulwarkHeight / 2, z: (stem + transom) / 2 },
+    { name: 'Wheelhouse', kg: houseM2 * mat.houseKgPerM2, y: (floorY + roofY) / 2, z: (front + aft) / 2 },
+    { name: 'Deckhouse', kg: dhArea * mat.houseKgPerM2, y: deckhouse ? (deckMid + deckhouse.top) / 2 : deckMid, z: deckhouse ? (deckhouse.z0 + deckhouse.z1) / 2 : 0 },
+    { name: outboards ? 'Outboards' : n > 1 ? 'Engines and gearboxes' : 'Engine and gearbox', kg: machineKg, y: machineY, z: machineZ },
+    { name: outboards ? 'Bracket, rigging and tanks' : sd ? 'Stern drive legs, tanks, exhaust' : 'Shafting, propeller, rudder, tanks, exhaust', kg: sd ? sdc.legKg * n + machineKg * wc.machineryShare * 0.4 : machineKg * wc.machineryShare, y: outboards ? deckMid : machineY, z: outboards ? machineZ : sd ? transom : (machineZ + transom) / 2 },
+    { name: 'Batteries', kg: batteriesKg, y: at.engineSpace[1], z: at.engineSpace[2] },
+    { name: 'Deck crane', kg: craneAt ? cr.massKg : 0, y: craneAt ? craneAt[1] + cr.columnHeight / 2 : deckMid, z: craneAt ? craneAt[2] : 0 },
+    { name: 'Deck gear', kg: gearKg, y: deckMid + 0.5, z: gearKg > 0 ? gearKgZ / gearKg : 0 },
+    { name: 'Hull protection', kg: guardKg + pushKg, y: guardKg + pushKg > 0 ? (guardKg * guardY + (pushFender ? (pushKg * (pushFender.top + pushFender.bottom)) / 2 : 0)) / (guardKg + pushKg) : deckMid, z: guardKg + pushKg > 0 ? (guardKg * ((stem + transom) / 2) + (pushFender ? pushKg * pushFender.z : 0)) / (guardKg + pushKg) : 0 },
+    { name: 'Fit-out: wiring, interior, windows, fittings, paint', kg: wc.outfitKgPerM2 * lengthM * beamDeck * 0.8, y: deckMid + 0.3, z: shellM2z / shellM2 },
+    { name: 'Fuel (half her tanks)', kg: tankL * wc.fuelShare * wc.fuelDensity, y: keelMid + 0.35 * (deckMid - keelMid), z: h.lcb },
+    { name: 'Crew and stores', kg: wc.crewKg + wc.storesKg, y: deckMid + 0.8, z: (front + aft) / 2 },
+    { name: 'Ballast', kg: base.ballastKg ?? 0, y: keelMid + 0.15, z: h.lcb },
   ]
     .filter((it) => it.kg > 0)
-    .map((it) => ({ name: it.name, kg: Math.round(it.kg), y: Math.round(it.y * 1000) / 1000 }));
+    .map((it) => ({ name: it.name, kg: Math.round(it.kg), y: Math.round(it.y * 1000) / 1000, z: Math.round(it.z * 1000) / 1000 }));
   const weighedKg = items.reduce((a, it) => a + it.kg, 0);
-  const weights = { material, items, massKg: weighedKg, cgY: Math.round((items.reduce((a, it) => a + it.kg * it.y, 0) / weighedKg) * 1000) / 1000 };
+  const weights = {
+    material,
+    items,
+    massKg: weighedKg,
+    cgY: Math.round((items.reduce((a, it) => a + it.kg * it.y, 0) / weighedKg) * 1000) / 1000,
+    // Where her weights put her centre of gravity along her, against her centre of buoyancy
+    // (m, + aft): what her tanks and ballast trim out (she's built to float level).
+    balanceM: Math.round((items.reduce((a, it) => a + it.kg * it.z, 0) / weighedKg - h.lcb) * 100) / 100,
+  };
   // Her build: her structure (hull, bulwarks, houses) at the material's price a kilo, built
   // (aluminium dearer to buy and to weld; steel heavier, cheaper), and her fit-out.
   const buildPrice = items.filter((it) => /^(Hull|Bulwarks|Wheelhouse|Deckhouse)/.test(it.name)).reduce((a, it) => a + it.kg, 0) * mat.pricePerKg + (items.find((it) => it.name.startsWith('Fit-out'))?.kg ?? 0) * wc.outfitPricePerKg;
@@ -1706,11 +1792,11 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   const gp = dg.price;
   const gearPrice = (winchAt ? gp.towWinch : 0) + (sternRoller ? gp.sternRoller : 0) + (aFrame ? gp.aFrame : 0) + (ring ? gp.lifeRing : 0) + (sideDoor ? gp.sideDoor : 0) + (anchorAt ? gp.anchor : 0) + (skiffAt ? gp.skiff : 0);
   const guardPrice = (pushFender ? CONFIG.shipyard.pushFenderPrice : 0) + (basketAt ? pc.fendersPrice : 0) + strakeM * pc.strakePerM + (tyres.length ? 2 * tyres.length * pc.tyrePrice + pc.tyreFitting : 0);
-  const price = Math.round((buildPrice + (nOb ? powerKw * obc.pricePerKw : kw * n * eng.pricePerKw) + (d.controls ? 18000 : 6000) + (craneAt ? 25000 : 0) + (hasMonitor ? 15000 : 0) + gearPrice + guardPrice) / 1000) * 1000;
+  const price = Math.round((buildPrice + (nOb ? powerKw * obc.pricePerKw : kw * n * eng.pricePerKw) + (sd ? sdc.price * n : 0) + (d.controls ? 18000 : 6000) + (craneAt ? 25000 : 0) + (hasMonitor ? 15000 : 0) + gearPrice + guardPrice) / 1000) * 1000;
   return {
     hull,
     recipe,
-    figures: { lengthM, beamM: beamDeck, massT: mass / 1000, draughtM: -Math.min(...st.map((s) => s.polygon[2][1])), gmM: gm, propellerM: nOb ? obc.propeller.diameter : propD, engineShortM: nOb ? 0 : shaft.shortM, gear, engine: nOb ? `${['', 'One', 'Two', 'Three', 'Four'][nOb]} ${obc.engine.powerKw} kW petrol V8 outboards` : twin ? `Twin ${eng.name}` : eng.name, price, floorM: Math.round((floorY - level) * 100) / 100, floorOnDeckhouseM: deckhouse ? Math.round((floorY - onTop) * 100) / 100 : undefined, material, freeboardM: Math.round(deckMid * 100) / 100 },
+    figures: { lengthM, beamM: beamDeck, massT: mass / 1000, draughtM: -Math.min(...st.map((s) => s.polygon[2][1])), gmM: gm, propellerM: nOb ? obc.propeller.diameter : sd ? sdPropD : propD, engineShortM: nOb ? 0 : shaft.shortM, gear, engine: nOb ? `${['', 'One', 'Two', 'Three', 'Four'][nOb]} ${obc.engine.powerKw} kW petrol V8 outboards` : `${twin ? `Twin ${eng.name}` : eng.name}${sd ? (twin ? ', on stern drives' : ', on a stern drive') : ''}`, price, floorM: Math.round((floorY - level) * 100) / 100, floorOnDeckhouseM: deckhouse ? Math.round((floorY - onTop) * 100) / 100 : undefined, material, freeboardM: Math.round(deckMid * 100) / 100 },
     warnings,
     placed,
     shaft,

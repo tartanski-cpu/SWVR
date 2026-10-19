@@ -32,6 +32,8 @@ export interface Machinery {
   propD: number;
   propZ: number;
   rudderZ: number;
+  /** Stern drives: the engines only (no shaft, propeller or rudder: the legs are the outboard module's). */
+  sterndrive?: boolean;
 }
 
 /** One engine and its gearbox (vessel/view/engineModels.ts), at its own size (ENGINES `size`). */
@@ -80,6 +82,7 @@ export function buildMachinery(m: Machinery): THREE.Group {
       if (mesh.isMesh) mesh.material = TOO_TALL;
     });
     out.add(holder);
+    if (m.sterndrive) continue;
     // The shaft, straight from the flange to the propeller, out through her bottom.
     const from = holder.position.clone();
     const px = s * (m.twin ? m.twinX : 0);
