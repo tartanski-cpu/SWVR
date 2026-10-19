@@ -880,7 +880,7 @@ export class App {
     // ocean shader's zones follow the resident regions).
     setRaceClock(this.world.environment.timeOfDay, this.world.environment.raceOverride);
     this.environment.update(this.world.environment, this.focus, this.world.time);
-    this.sky.update(this.environment, this.focus);
+    this.sky.update(this.environment, this.focus, this.world.environment, this.world.time);
     this.ocean.update(this.renderWaves, this.focus, this.environment, renderTime, windVector(this.world.environment, this.windNow));
     this.ocean.setGust(this.world.environment.weather?.gust);
     this.probes.update(this.renderWaves, this.camera);

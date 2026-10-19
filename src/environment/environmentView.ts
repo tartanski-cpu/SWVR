@@ -26,6 +26,8 @@ export class EnvironmentView {
   private lastKey = '';
   /** Visibility where the viewer is (m), for anything that wants it (spotting, sounds). */
   visibility = Infinity;
+  /** A lightning flash now, 0..1 (the clouds light up with it: skyView.ts). */
+  flash = 0;
 
   constructor(scene: THREE.Scene) {
     this.fog = new THREE.Fog(0xffffff, CONFIG.environment.hazeFar * CONFIG.weather.hazeNearFraction, CONFIG.environment.hazeFar);
@@ -59,6 +61,7 @@ export class EnvironmentView {
     // The palette only changes when the time or the weather visibly does - or during a
     // lightning flash (a third of a second, recomputed each frame, then once more after).
     const flash = this.flashLevel(env, time);
+    this.flash = flash;
     const key = `${env.timeOfDay.toFixed(3)}|${cloud.toFixed(2)}|${rain.toFixed(2)}|${Math.round(Math.log(this.visibility) * 20)}`;
     if (key !== this.lastKey || flash > 0 || this.flashing) {
       this.lastKey = key;

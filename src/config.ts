@@ -2181,6 +2181,36 @@ export const CONFIG = {
     look: { darken: 0.3, spray: 0.4 },
   },
 
+  /**
+   * The cloud layer (environment/clouds.ts, drawn in the sky dome by skyView.ts: no extra
+   * draw call; two looks into a small noise picture per sky pixel).
+   *   lead        a change of weather shows on the upwind horizon this long before it comes (s)
+   *   rainDark / cloudDark  how dark a weather's cloud is: rain x rainDark + cover x cloudDark
+   *   scale       how many noise tiles across the cloud deck per deck height (bigger: smaller clouds)
+   *   drift       the deck moves with the wind: tiles per metre the wind blows (so clouds
+   *               cross the sky in a few minutes in a fresh breeze)
+   *   upwind      where across the sky the upwind side takes over: from `upwind[0]` to
+   *               `upwind[1]` deck heights out along the wind (0 overhead)
+   *   horizon     clouds thin into the haze over this height above the horizon (sky dir y)
+   *   baseDark    how dark the darkest cloud base is, as a fraction of the horizon's colour
+   *   minCover    even the clearest sky has this much fair-weather cloud (of the sky, 0..1)
+   *   flash       how much a lightning flash lights up the clouds
+   *   noiseSize   the noise picture (pixels square, tiling)
+   */
+  clouds: {
+    lead: 300,
+    rainDark: 1,
+    cloudDark: 0.25,
+    scale: 0.35,
+    drift: 0.0004,
+    upwind: [-0.4, 3] as [number, number],
+    horizon: 0.05,
+    baseDark: 0.16,
+    minCover: 0.15,
+    flash: 1.6,
+    noiseSize: 128,
+  },
+
   weather: {
     startPreset: 'Clear' as WeatherPresetName,
     /** Fix the weather to the start preset for a session (no director). */
