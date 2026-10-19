@@ -728,10 +728,9 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   const short = consoleHalf < hw - wall - 0.005;
   let side = d.consoleSide ?? 0;
   if (side && !short) side = 0; // (as wide as the cabin: nowhere to move to)
-  if (side && facet) {
-    side = 0;
-    warnings.push('With a faceted front the console wraps round the middle pane: it stays in the middle.');
-  }
+  // (The Shipyard only offers the side with a flat front: a side chosen before the front was
+  // faceted is set aside, quietly.)
+  if (facet) side = 0;
   const cx = Math.round((side === 1 ? -(hw - wall - consoleHalf) : side === 2 ? hw - wall - consoleHalf : 0) * 1000) / 1000;
   // Steps at the aft door, no rise over 0.35 m (a player steps up 0.4): outside for a
   // raised floor, inside for a deep sunk one.

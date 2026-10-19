@@ -608,7 +608,7 @@ const dhKinds: [HTMLElement, (d: ShipDesign) => boolean][] = [];
 /** When a row shown only where it applies (data-when / data-unless) is: a field set, or the deckhouse with side decks. */
 const rowApplies = (cond: string): boolean => (cond === 'dhSideDecks' ? !!design.dhLength && !design.dhNarrow && design.dhWidth > 0 : !!design[cond as keyof ShipDesign]);
 /** A few set options in a row, as buttons (for choices with only a handful of settings). */
-function options(key: keyof ShipDesign, label: string, names: string[]): void {
+function options(key: keyof ShipDesign, label: string, names: string[]): HTMLElement {
   labels[key] ??= label;
   optionNames[key] = names;
   const row = document.createElement('div');
@@ -627,6 +627,7 @@ function options(key: keyof ShipDesign, label: string, names: string[]): void {
     box.appendChild(c);
   });
   controls.appendChild(row);
+  return row;
 }
 /** The choices whose gear can also be placed by hand (pinGear.ts), and where that's kept. */
 const PLACED_BY: Partial<Record<keyof ShipDesign, PlaceKey>> = { deckCrane: 'craneAt', searchlight: 'lampAt', fireMonitor: 'monitorAt', towWinch: 'winchAt' };
@@ -725,7 +726,8 @@ section('2. Wheelhouse');
   group('Inside');
   // The helm console (owner): no longer than CONFIG.shipyard.helm.maxConsole, so on a wide
   // wheelhouse there's room beside it, and against the port or starboard wall if chosen.
-  options('consoleSide', 'Console', [...CONSOLE_SIDES]);
+  // (Only with a flat front: a faceted front's console wraps round its middle pane, so it stays there.)
+  options('consoleSide', 'Console', [...CONSOLE_SIDES]).dataset.unless = 'facets';
   options('chartTable', 'Chart table', ['None', 'Port wall, aft']);
 
   // The deckhouse (owner: pilot and rescue boats): the wheelhouse stands on it.
