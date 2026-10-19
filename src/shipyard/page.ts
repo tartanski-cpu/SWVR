@@ -529,7 +529,7 @@ function choices(key: keyof ShipDesign, items: { name: string; note?: string }[]
 }
 const outputs: Partial<Record<keyof ShipDesign, (v: number) => string>> = {};
 /** Each field's label and, for a few set options, their names (the compare list shows them). */
-const labels: Partial<Record<keyof ShipDesign, string>> = { hull: 'Hull', engine: 'Engine', twin: 'Engines', outboards: 'Outboards', sternDrive: 'Stern drive', material: 'Built of', controls: 'Controls', paint: 'Paint', roofPaint: 'Roof colour' };
+const labels: Partial<Record<keyof ShipDesign, string>> = { hull: 'Hull', engine: 'Engine', twin: 'Engines', outboards: 'Outboards', sternDrive: 'Stern drive', nozzle: 'Kort nozzle', material: 'Built of', controls: 'Controls', paint: 'Paint', roofPaint: 'Roof colour' };
 const optionNames: Partial<Record<keyof ShipDesign, string[]>> = {};
 function slider(key: keyof ShipDesign, label: string, show: (v: number) => string): void {
   labels[key] ??= label;
@@ -715,6 +715,15 @@ choices('engine', ENGINES.map((e) => ({ name: e.name, note: `${'about' in e ? `$
   box.onchange = () => change({ sternDrive: box.checked ? 1 : 0 });
   controls.appendChild(row);
 }
+// A Kort nozzle (owner, Oct 2026): a duct round a shaft-driven propeller, a tug's.
+{
+  const row = document.createElement('label');
+  row.className = 'choice';
+  row.innerHTML = "<input type=\"checkbox\" data-key=\"nozzle\"> Kort nozzle: a duct round the propeller (a tug's). About 30 % more pull at a standstill for the same power, and a rudder that answers at low speed and astern; slower free-running, and poorer going astern";
+  const box = row.querySelector('input')!;
+  box.onchange = () => change({ nozzle: box.checked ? 1 : 0 });
+  controls.appendChild(row);
+}
 // Or outboards (owner, Oct 2026): 2, 3 or 4 petrol V8s on a bracket off the transom, in place of the inboard above.
 {
   const o = CONFIG.modules.outboard;
@@ -795,6 +804,10 @@ function syncControls(): void {
   sdBox.checked = !!design.sternDrive;
   // The tug diesel goes on a shaft; with outboards there's no inboard.
   sdBox.disabled = SINGLE_ONLY_ENGINES.includes(design.engine) || !!design.outboards;
+  // A nozzle goes round a shaft-driven propeller: not with a stern drive or outboards.
+  const nzBox = document.querySelector('input[data-key=nozzle]') as HTMLInputElement;
+  nzBox.checked = !!design.nozzle;
+  nzBox.disabled = !!design.outboards || (!!design.sternDrive && !sdBox.disabled);
   // With outboards the engine packages stand aside (shown, not chosen).
   document.querySelectorAll<HTMLElement>('[data-key="engine"]').forEach((el) => el.classList.toggle('aside', !!design.outboards));
   // A tug's push bow and a landing craft's landing bow are their own: no bow rake to choose.

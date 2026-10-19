@@ -23,6 +23,9 @@ import { bowEyeLocal } from './tow';
  *             a gallows over the stern and a net drum.
  *   pontoon   a big crane pontoon (as the barge's hull, larger): a crawler crane on deck
  *             with its boom lowered onto a rest at the bow, over two containers.
+ *   coaster   a loaded coaster (a tug's tow): the lofted hull in dark red with a black
+ *             boot-top band, a long raised hatch coaming with its covers, a forecastle, the
+ *             accommodation block and funnel aft, a mast forward and a crane amidships.
  * Every one has an orange bow eye at the stem: what the boat hook goes for.
  */
 export function buildTowModel(def: VesselDef): THREE.Object3D {
@@ -142,6 +145,34 @@ export function buildTowModel(def: VesselDef): THREE.Object3D {
       box(2.44, 2.6, 6.06, -2.4, top + 1.3, -L + 4.5, 0x2a6aa8);
       box(2.44, 2.6, 6.06, 2.4, top + 1.3, -L + 4.5, 0xb8402a);
     }
+  }
+
+  if (look === 'coaster') {
+    g.add(buildVesselMesh(def.hull, def.layout));
+    const L = p.length / 2;
+    const top = plan.deckY(0);
+    const B = p.beamDeck;
+    // The hatch: a long coaming with pontoon covers, between the forecastle and the house.
+    box(B * 0.62, 0.9, L * 1.05, 0, top + 0.45, -L * 0.08, 0x6a2a20);
+    box(B * 0.64, 0.25, L * 1.07, 0, top + 1.02, -L * 0.08, 0x8a8c88);
+    for (let i = 0; i < 5; i++) box(B * 0.64, 0.08, 0.25, 0, top + 1.18, -L * 0.08 - L * 0.42 + i * L * 0.21, 0x3a3c3a);
+    // The forecastle: a raised deck at the bow with a windlass and the anchor hawse.
+    box(B * 0.7, 1.1, L * 0.22, 0, top + 0.55, -L + L * 0.14, 0x6a2a20);
+    box(1.4, 0.7, 1.2, 0, top + 1.45, -L + L * 0.16, 0x3a3e40);
+    // The accommodation aft: two tiers, the bridge with its windows, a funnel, davits.
+    box(B * 0.86, 2.6, L * 0.3, 0, top + 1.3, L - L * 0.22, 0xe8e4da);
+    box(B * 0.7, 2.4, L * 0.16, 0, top + 3.8, L - L * 0.2, 0xe8e4da);
+    box(B * 0.72, 0.9, 0.08, 0, top + 4.3, L - L * 0.28 - 0.04, 0x1c2a30);
+    box(B * 0.74, 0.2, L * 0.17, 0, top + 5.1, L - L * 0.2, 0xc8c4b8);
+    parts.push(part(new THREE.CylinderGeometry(0.9, 1.0, 3.2, 10).translate(0, top + 6.5, L - L * 0.1), 0x2a2a2a));
+    parts.push(part(new THREE.CylinderGeometry(0.9, 0.9, 0.5, 10).translate(0, top + 7.6, L - L * 0.1), 0xc0402a));
+    // A mast on the forecastle, a crane post amidships with its jib over the hatch.
+    parts.push(part(new THREE.CylinderGeometry(0.12, 0.16, 9, 8).translate(0, top + 5.6, -L + L * 0.1), 0xcccccc));
+    parts.push(part(new THREE.CylinderGeometry(0.3, 0.35, 5, 8).translate(B * 0.42, top + 3.5, L * 0.18), 0xe0b020));
+    parts.push(part(new THREE.BoxGeometry(0.3, 0.3, 12).rotateX(-0.35).translate(B * 0.42, top + 7.2, L * 0.18 - 5.2), 0xe0b020));
+    for (const [x, z] of [[-B / 2 + 0.6, L - L * 0.2], [B / 2 - 0.6, L - L * 0.2]]) box(0.3, 1.2, 3, x, top + 3.0, z, 0xdddddd);
+    // Bollards fore and aft.
+    for (const [x, z] of [[-B / 2 + 0.7, -L + 2.5], [B / 2 - 0.7, -L + 2.5], [-B / 2 + 0.7, L - 2.5], [B / 2 - 0.7, L - 2.5]]) parts.push(part(new THREE.CylinderGeometry(0.18, 0.2, 0.7, 8).translate(x, top + 0.35, z), 0x222222));
   }
 
   // The bow eye: an orange ring standing on the stem.

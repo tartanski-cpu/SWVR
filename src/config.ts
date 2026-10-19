@@ -46,6 +46,9 @@ const DORY_LCB = 1.04;
 const YACHT_MASS = 11010;
 const YACHT_LCB = 2.05;
 const TRAWLER_MASS = 70110;
+// The coaster (a tug's tow, Oct 2026): 1,064 t at her 3.4 m draught (uprightHydrostatics at her DWL).
+const COASTER_MASS = 1063840;
+const COASTER_LCB = 9.73;
 const TRAWLER_LCB = 3.26;
 const PONTOON_MASS = 123240;
 const PONTOON_LCB = 3.17;
@@ -1738,6 +1741,27 @@ export const CONFIG = {
       boardingSpot: [0, 1.0, 4] as [number, number, number],
       spawn: { x: 0, z: 0, dropHeight: 0.2, headingDeg: 0 },
     },
+    /**
+     * A tug's tow (owner, Oct 2026): a loaded coaster, 58 m and 1,400 t, her engine dead. Only
+     * offered to a tug (tow/tow.ts isTugClass); she passes her own heavy hawser (lineFactor
+     * 3). Her mass is what the workboat can't shift in any useful time: a tug's pull is.
+     */
+    coaster: {
+      tow: { look: 'coaster' as const, name: 'a loaded coaster with her engine dead', size: 'ship' as const, lineFactor: 3, needs: 'tug' as const },
+      hull: { length: 58, beamDeck: 10.5, beamChine: 9.8, keelY: -3.4, chineYAft: -2.2, chineYBow: -0.4, deckYAft: 3.2, deckYBow: 4.6, stations: 15, physicsStations: 7, deckParallel: 0.6 },
+      mass: COASTER_MASS,
+      cg: [0, 0.4, COASTER_LCB] as [number, number, number],
+      gyradius: { roll: 3.8, pitch: 14.5, yaw: 15 },
+      addedMass: { surge: 0.05, sway: 0.5, heave: 0.8, roll: 0.3, pitch: 0.7, yaw: 0.4 },
+      damping: { vertical: 800, verticalCd: 1.5, lateralLinear: 400, lateralLift: 1.2, lateralCd: 1.0, surgeLinear: 20, roll: 30000000, pitch: 60000000, yaw: 30000000 },
+      // A full, slow hull with a locked propeller: a big form factor, waves from low speed.
+      resistance: { lwl: 56, formFactor: 0.6, waveA: 1.2, waveB: 1.0, waveKnee: 0.22, waveCap: 0.15, asternFactor: 2.0, y: -1.6 },
+      layout: { bulwarkHeight: 1.0, railHeight: 0, deckEdgeMargin: 0.3, bodyRadius: BODY_RADIUS },
+      cargo: { maxPayloadKg: 0, slots: 0, bowClear: 0.6, aftClear: 0.6, fixed: true },
+      windage: { side: 220, front: 60, center: [0, 5, 0] as [number, number, number] },
+      boardingSpot: [0, 3.4, 15] as [number, number, number],
+      spawn: { x: 0, z: 0, dropHeight: 0.2, headingDeg: 0 },
+    },
   },
 
   /**
@@ -1757,6 +1781,22 @@ export const CONFIG = {
    * just touches the concrete); her ramp's toe flaps (`layout.bowRamp.flap`) rest on it.
    */
   slipway: { maxAngleDeg: 20, maxSpeed: 1.0, range: 4, across: 1.5, landSec: 2, landSpeed: 0.8, releaseLever: -0.25 },
+
+  /**
+   * A Kort nozzle (owner, Oct 2026; the Shipyard's choice on a shaft-driven inboard): a duct
+   * round the propeller. Ducting a heavily loaded propeller lets the duct itself carry part of
+   * the thrust, so at a standstill (bollard pull) she pulls harder for the same power; at
+   * speed the duct's own drag takes it back, so she's slower free-running. A rudder in the
+   * nozzle's concentrated jet answers better at low speed and astern (vessel/physics/
+   * propulsion.ts: propellerForces and rudderForceAt).
+   *   thrustGain   bollard thrust (K_T at J 0) times this
+   *   jFactor      the thrust's fall with advance (j0) times this: it drops off sooner
+   *   torqueGain   the torque absorbed times this (the duct loads the propeller a little more)
+   *   asternGain   astern thrust times this (a nozzle backs poorly: its flow is the wrong way round)
+   *   steerGain    the rudder's slipstream force (washFactor and its cap) times this
+   *   price        GBP, in the Shipyard
+   */
+  nozzle: { thrustGain: 1.3, jFactor: 0.75, torqueGain: 1.08, asternGain: 0.85, steerGain: 1.5, price: 12000 },
 
   docking: {
     /**
@@ -1817,7 +1857,16 @@ export const CONFIG = {
     every: [480, 1080] as [number, number],
     /** Relative odds of each kind (def ids). */
     /** The open-water calls' mix; a region's own job list (RegionDef.jobs) replaces it there. The cage section comes only from a region's list. */
-    weights: { derelict: 1, dory: 0.8, logRaft: 1, barge: 0.7, yacht: 0.8, trawler: 0.5, pontoon: 0.4, cage: 0 } as Record<string, number>,
+    weights: { derelict: 1, dory: 0.8, logRaft: 1, barge: 0.7, yacht: 0.8, trawler: 0.5, pontoon: 0.4, cage: 0, coaster: 0 } as Record<string, number>,
+    /**
+     * A tug's work (owner, Oct 2026): a boat that's tug class (isTugClass: her engine's rated
+     * speed at or under `tugRpm`, the slow-revving tug diesel; or the heavy towing post) gets
+     * the big tows (`tow.needs` 'tug': the coaster) `bigShare` of the time, from `bigWeights`.
+     * Other boats never hear those calls.
+     */
+    tugRpm: 1200,
+    bigShare: 0.5,
+    bigWeights: { coaster: 1 } as Record<string, number>,
     /** Where it's adrift: this far ahead (m), this far off to one side (m), in open water. */
     ahead: [450, 850] as [number, number],
     offset: [80, 260] as [number, number],
@@ -1900,7 +1949,7 @@ export const CONFIG = {
       log: 180,
       debris: 40,
       crate: 80,
-      tow: { dory: 350, derelict: 600, logRaft: 450, barge: 800, yacht: 900, trawler: 1600, pontoon: 2000, cage: 550 } as Record<string, number>,
+      tow: { dory: 350, derelict: 600, logRaft: 450, barge: 800, yacht: 900, trawler: 1600, pontoon: 2000, cage: 550, coaster: 6500 } as Record<string, number>,
       towDefault: 500,
       rescue: 400,
       rescuePerPerson: 150,

@@ -35,6 +35,8 @@ const wb = CONFIG.vessels.workboat;
 export interface DieselInboardConfig {
   engine: typeof wb.engine;
   propeller: typeof wb.propeller;
+  /** The propeller in a Kort nozzle (the Shipyard; CONFIG.nozzle): harder pull at a standstill, slower free-running. */
+  nozzle?: boolean;
   /** Where the propeller's inflow and immersion are taken (boat axes, m): just aft of it, at the rudder. */
   sampleAt: readonly [number, number, number];
   /** The alternator's full output (A, from the engine's idle speed up: 600 rpm on an 1800 rpm engine). */
@@ -107,7 +109,7 @@ export const DIESEL_INBOARD: ModuleDefinition<DieselInboardConfig, EngineState> 
   },
   needs: () => [{ fuel: 'diesel' }],
   provides: () => [{ power: 'pto' }, { gear: 'diesel' }],
-  gear: (c) => ({ diesel: { engine: c.engine, propeller: c.propeller, maintenance: c.maintenance, voice: c.voice, ...(c.twin ? { twin: true, twinX: c.twin.x } : {}) } }),
+  gear: (c) => ({ diesel: { engine: c.engine, propeller: c.propeller, maintenance: c.maintenance, voice: c.voice, ...(c.nozzle ? { nozzle: true } : {}), ...(c.twin ? { twin: true, twinX: c.twin.x } : {}) } }),
   // Its mass at its bed (the socket): it's part of the boat's mass, CG and inertia (M6).
   physical: (c) => ({ powerKw: c.engine.powerKw * (c.twin ? 2 : 1), massKg: c.massKg * (c.twin ? 2 : 1) }),
   power: (c) => [

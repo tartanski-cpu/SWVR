@@ -750,6 +750,7 @@ export function mainMenu(h: MenuHost): MainMenu {
             { text: 'Small', press: () => h.towNear('small') },
             { text: 'Medium', press: () => h.towNear('medium') },
             { text: 'Large', press: () => h.towNear('large') },
+            { text: 'Ship', press: () => h.towNear('ship') },
             { text: 'Call', press: () => h.towCall() },
             { text: 'End', press: () => h.towEnd() },
           ],

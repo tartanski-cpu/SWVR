@@ -4,14 +4,14 @@
  * boat, a dismasted yacht, a trawler and a crane pontoon. They float, drift and tow like any boat; their recipes mount
  * nothing (a tow is a hull with no modules). What's drawn over each and what the radio
  * calls it are built into the hull (its `fittings`, 6b). Shape and handling from
- * CONFIG.vessels.derelict / logRaft / barge / dory / yacht / trawler / pontoon.
+ * CONFIG.vessels.derelict / logRaft / barge / dory / yacht / trawler / pontoon / coaster.
  */
 import { CONFIG } from '../config';
 import type { HullDefinition } from '../modular/hull';
 import type { VesselConfig } from '../vessel/vesselDef';
 import { hullDataFrom } from './hullData';
 
-function towHull(id: string, name: string, kind: 'derelict' | 'logRaft' | 'barge' | 'dory' | 'yacht' | 'trawler' | 'pontoon' | 'cage'): HullDefinition {
+function towHull(id: string, name: string, kind: 'derelict' | 'logRaft' | 'barge' | 'dory' | 'yacht' | 'trawler' | 'pontoon' | 'cage' | 'coaster'): HullDefinition {
   const c: VesselConfig = CONFIG.vessels[kind];
   return { id, version: 1, name, helm: { stand: c.boardingSpot, yawDeg: 0 }, ...hullDataFrom(c), fittings: { tow: c.tow }, sockets: [] };
 }
@@ -24,3 +24,5 @@ export const YACHT_HULL = towHull('hull.sailing-yacht', 'Sailing yacht, 11 m (di
 export const TRAWLER_HULL = towHull('hull.fishing-trawler', 'Fishing trawler, 18 m', 'trawler');
 export const PONTOON_HULL = towHull('hull.crane-pontoon', 'Crane pontoon, 20 m', 'pontoon');
 export const CAGE_HULL = towHull('hull.cage-section', 'Fish-farm cage section, 8 m', 'cage');
+/** A tug's tow (owner, Oct 2026): a loaded coaster, dead in the water. */
+export const COASTER_HULL = towHull('hull.coaster', 'Coaster, 58 m (dead ship)', 'coaster');
