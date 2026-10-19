@@ -217,7 +217,7 @@ export interface ShipDesign {
   saloonFloor: number;
   /** A Kort nozzle round the propeller (CONFIG.nozzle; owner: a tug's): 1, or 0 an open propeller. On a shaft only. */
   nozzle: number;
-  /** A fishing rod on a rack on the house's aft wall, a bucket under it (modules/rodRack; owner): 1, or 0 none. */
+  /** A rack of fishing rods on the wheelhouse (modules/rodRack; owner): 0 none, 1 aft wall port, 2 aft wall starboard, 3 port wall, 4 starboard wall. */
   rodRack: number;
   /**
    * The saloon's roof (SCALES.saloonRoof; parametric boats P2b): as high as the wheelhouse's
@@ -381,7 +381,9 @@ export const SALOON_ROOFS = ['As high as the wheelhouse', 'One step lower', 'Two
 const SALOON_ROOF_FIELD: { key: 'saloonRoof'; steps: number } = { key: 'saloonRoof', steps: SALOON_ROOFS.length };
 /** How many roof-top choices there are (build.ts ROOF_TOPS: one colour, then the second colours). */
 const ROOF_TOP_FIELD: { key: 'roofTop'; steps: number } = { key: 'roofTop', steps: 5 };
-const ROD_RACK_FIELD: { key: 'rodRack'; steps: number } = { key: 'rodRack', steps: 2 };
+/** The rod rack's places (design.rodRack), as the page names them. */
+export const ROD_RACKS = ['', 'aft wall, port', 'aft wall, starboard', 'port wall', 'starboard wall'] as const;
+const ROD_RACK_FIELD: { key: 'rodRack'; steps: number } = { key: 'rodRack', steps: ROD_RACKS.length };
 /** How many outboards a design has (0: an inboard). */
 export const outboardCount = (d: Pick<ShipDesign, 'outboards'>): number => (d.outboards ? d.outboards + 1 : 0);
 /** What a guard choice fits: the crew's fenders, and a fixed strake or tyres. */
@@ -542,7 +544,7 @@ export function encodeDesign(d: ShipDesign): string {
   const nozzle = d.nozzle ?? 0;
   if (nozzle !== 0 && nozzle !== 1) throw new Error(`design nozzle ${nozzle} is off its scale (0..1)`);
   const rodRack = d.rodRack ?? 0;
-  if (rodRack !== 0 && rodRack !== 1) throw new Error(`design rodRack ${rodRack} is off its scale (0..1)`);
+  if (!Number.isInteger(rodRack) || rodRack < 0 || rodRack >= ROD_RACK_FIELD.steps) throw new Error(`design rodRack ${rodRack} is off its scale (0..${ROD_RACK_FIELD.steps - 1})`);
   // From the top: the rod rack, the roof's top colour and the saloon's roof, the nozzle, the saloon's floor and length, stern drives, the material, the outboards, the sills, the raked-out windows, a later engine, the facets, a later hull type, the skiff, no anchor, the narrow deckhouse,
   // no rails, protection (each 0: as before).
   const top = ((((((((((((((((BigInt(rodRack) * BigInt(ROOF_TOP_FIELD.steps) + BigInt(roofTop)) * BigInt(SALOON_ROOF_FIELD.steps) + BigInt(saloonRoof)) * BigInt(NOZZLE_FIELD.steps) + BigInt(nozzle)) * BigInt(SALOON_FLOOR_FIELD.steps) + BigInt(saloonFloor)) * BigInt(SALOON_FIELD.steps) + BigInt(saloon)) * BigInt(STERN_DRIVE_FIELD.steps) + BigInt(sternDrive)) * BigInt(MATERIAL_FIELD.steps) + BigInt(material)) * BigInt(OUTBOARDS_FIELD.steps) + BigInt(outboards)) * BigInt(SILLS_FIELD.steps) + BigInt(sills)) * BigInt(FLARE_FIELD.steps) + BigInt(flare)) * BigInt(MORE_ENGINES) + BigInt(moreEngine)) * BigInt(FACETS_FIELD.steps) + BigInt(facets)) * BigInt(MORE_HULLS) + BigInt(more)) * BigInt(SKIFF_FIELD.steps) + BigInt(skiff)) * 2n + BigInt(noAnchor)) * 2n + BigInt(narrow)) * BigInt(RAIL_FIELD.steps) + BigInt(rails);

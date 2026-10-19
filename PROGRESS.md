@@ -5027,6 +5027,15 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Tests:** `tests/hookPush.test.ts` (impulse over mass and the yaw; nothing without the hook; the same impulse on every boat with a hook), `tests/rodGame.test.ts` (no cast under way or onto the boat; bite, miss, strike; greedy reeling breaks the line, reeling by the tension lands it; letting go winds in), `tests/rod.test.ts` (the bucket fills to its size, is sold tied up at Calder by weight with the ledger line; species by ground), `tests/shipyard/rodRack.test.ts` (in the code, older codes read none; placed opposite the ring, priced and weighed; the boat's gear). The gear menu and pin tests list the rack.
 - **Checked:** `npm test`, typecheck. Headless Chromium with a design carrying the ring to port and the rack: the rod across the aft wall to starboard with the bucket under it; a desktop cast from the starboard side (the line and float out on the water, the notice); a scripted landing put a pollack in the bucket. **Not checked:** VR; the push off a quay in the live game (the tests cover the intent; the hands' tip test is the same `blockTop` the contacts use); the feel of the fight's tuning.
 
+### The rod rack: four rods, upright, placed on a wall of your choice (owner)
+
+- **The owner's correction:** the rack holds four individually usable rods, stored vertically (their tips may stand above the roof); one fitting, placed where you like on the wheelhouse (so, sockets); taking a rod never casts: you walk to the side and press; the rack is clicked to put a rod back.
+- **Four rods** (`CONFIG.rod.perRack 4, spacing 0.24`): the app carries four rod hand gears (`HandGear('rod', slot)`, each with its own bracket channel `gear:rod`, `gear:rod1`...; `GearPose.slot` so a crew-mate's taken rod is the right one hidden on the rack) and four games (`rodGames`); `RodView` draws a line and float per rod. They stand upright in cups on the deck against the wall (hung with the rod's tip up), a clip and a rail at 1.3 m (`modules/rodRack`: `rods[]`, `yawDeg`, `bucket`).
+- **Placed** (`design.rodRack` 0..4: aft wall port / starboard of the door, port wall, starboard wall; `ROD_RACKS`; `pinGear.ts` 'rack' is a place-kind: the pin's nearest wall, the aft wall if it's within a metre of the house's aft end or aft of it; `build.ts`): a side wall needs 0.4 m of side deck and the port door clear (the row moves forward of the door, or the rack goes on the aft wall with a warning).
+- **Taking is not casting** (`HandGear.take`: `CONFIG.rod.takeGrace` 0.5 s before a press counts; `tick(dt)`).
+- **Tests:** `tests/shipyard/rodRack.test.ts` rewritten (every place round-trips; the pin's wall; four rods in a spaced row on the aft wall and the starboard wall; priced and weighed), the gear menu's fit list without it.
+- **Checked:** typecheck, `npm test`. **Not checked:** by eye in headless Chromium this time; VR.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

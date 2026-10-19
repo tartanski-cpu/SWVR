@@ -1441,17 +1441,36 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
         hook: [r2(ringSide * (q.halfBeam(sternCleat - 1.2) - 0.08)), r2(q.deckY(sternCleat - 1.2) + bulwarkHeight - 0.05), r2(Math.max(aft + 0.2, sternCleat - 2.6)), r2(sternCleat - 0.3)] as [number, number, number, number],
       }
     : null;
-  // The rod rack (owner, Oct 2026; design.rodRack): on the house's aft wall at the side the
-  // life ring isn't (starboard with no ring), the rod across two clips at hand height, its
-  // bucket on deck under it.
-  const rodSide: -1 | 1 = ringSide < 0 ? 1 : ringSide > 0 ? -1 : 1;
-  const rodRack = d.rodRack
-    ? {
-        stow: [r2(rodSide * Math.max(0.7, hw - 0.75)), r2(Math.min((deckhouse ? q.deckY(aft) : FA) + 1.3, F + sill - 0.2)), r2(aft + 0.06)] as V3,
-        bucket: [r2(rodSide * Math.max(0.5, hw - 0.75)), r2(q.deckY(aft + 0.5)), r2(aft + 0.5)] as V3,
-        side: rodSide,
-      }
-    : null;
+  // The rod rack (owner, Oct 2026; design.rodRack: 1 aft wall port, 2 aft wall starboard, 3
+  // port wall, 4 starboard wall): CONFIG.rod.perRack rods standing upright in cups on the deck
+  // against the wall, spaced along it, the bucket on deck at the end of the row. A side wall
+  // needs a side deck to stand on (0.25 m: the cups are against the wall) and a port wall its
+  // door clear: no room, the aft wall.
+  const rc = CONFIG.rod;
+  const rackRow = rc.spacing * (rc.perRack - 1);
+  let rodRack: { rods: V3[]; yawDeg: number; bucket: V3; side: -1 | 1 } | null = null;
+  if (d.rodRack) {
+    const rodSide: -1 | 1 = d.rodRack === 1 || d.rodRack === 3 ? -1 : 1;
+    let onSide = d.rodRack >= 3;
+    // The side wall: the row's middle, aft of the door if the port door is there.
+    let zc = aft - 0.9 - rackRow / 2;
+    if (onSide && rodSide < 0 && sideDoor && zc - rackRow / 2 - 0.3 < sideDoor.z1 && zc + rackRow / 2 + 0.3 > sideDoor.z0) zc = sideDoor.z0 - 0.4 - rackRow / 2;
+    if (onSide && (q.halfBeam(zc) - hw < 0.25 || zc - rackRow / 2 < front + 0.2)) {
+      warnings.push(`No room on the ${rodSide < 0 ? 'port' : 'starboard'} side deck for the rod rack: it's on the aft wall.`);
+      onSide = false;
+    }
+    const rods: V3[] = [];
+    if (onSide) {
+      const x = rodSide * (hw + 0.09);
+      for (let i = 0; i < rc.perRack; i++) rods.push([r2(x), r2(q.deckY(zc) + 0.02), r2(zc - rackRow / 2 + i * rc.spacing)]);
+      rodRack = { rods, yawDeg: rodSide * 90, bucket: [r2(rodSide * (hw + 0.25)), r2(q.deckY(zc + rackRow / 2 + 0.45)), r2(zc + rackRow / 2 + 0.45)], side: rodSide };
+    } else {
+      const xc = rodSide * Math.max(0.55 + rackRow / 2, hw - 0.3 - rackRow / 2);
+      const y = r2((deckhouse ? q.deckY(aft + 0.1) : q.deckY(aft + 0.1)) + 0.02);
+      for (let i = 0; i < rc.perRack; i++) rods.push([r2(xc - rodSide * rackRow / 2 + rodSide * i * rc.spacing), y, r2(aft + 0.09)]);
+      rodRack = { rods, yawDeg: 0, bucket: [r2(xc + rodSide * (rackRow / 2 + 0.4)), r2(q.deckY(aft + 0.3)), r2(aft + 0.3)], side: rodSide };
+    }
+  }
   const sockets: Socket[] = [
     // (A stern drive: its engine and legs, weighed at the engine.)
     ...(sd ? [{ id: 'sternDrive', type: 'transom.outboards' as const, transform: { position: at.engineBed }, label: 'Against the transom: her engine and its stern drive' }] : []),
@@ -1519,7 +1538,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
           { id: 'trawl', type: 'deck.equipment' as const, transform: { position: winchAt! }, label: 'Aft deck: the net (nominal)' },
         ]
       : []),
-    ...(rodRack ? [{ id: 'rodRack', type: 'deck.fitting' as const, transform: { position: rodRack.stow }, label: `Wheelhouse aft wall, ${rodSide < 0 ? 'port' : 'starboard'}: the fishing rod's rack, its bucket on deck under it` }] : []),
+    ...(rodRack ? [{ id: 'rodRack', type: 'deck.fitting' as const, transform: { position: rodRack.rods[0] }, label: `Wheelhouse ${rodRack.yawDeg ? (rodRack.side < 0 ? 'port' : 'starboard') : 'aft'} wall${rodRack.yawDeg ? '' : rodRack.side < 0 ? ', port of the door' : ', starboard of the door'}: the fishing rods' rack, the bucket beside it` }] : []),
     ...(ring
       ? [
           { id: 'lifeRing', type: 'deck.fitting' as const, transform: { position: ring.stow }, label: `Wheelhouse aft wall, ${ringSide < 0 ? 'port' : 'starboard'}: the life ring (its line on that quarter's cleat)` },

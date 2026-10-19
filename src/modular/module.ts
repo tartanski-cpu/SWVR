@@ -163,8 +163,8 @@ export interface GearFacts {
   lifeRing: { stow: [number, number, number]; cleat: [number, number, number] };
   /** The boat hook: in its clips at (x, y), from z0 to z1. */
   boatHook: { stow: [number, number, number, number] };
-  /** The fishing rod's rack (owner, Oct 2026): where the rod hangs, its bucket on deck, which side of the house (-1 port, 1 starboard). */
-  rodRack: { stow: [number, number, number]; bucket: [number, number, number]; side: -1 | 1 };
+  /** The fishing rods' rack (owner, Oct 2026): each rod's butt (it stands upright there), the wall's facing (deg, 0 aft), the bucket on deck, which side (-1 port, 1 starboard). */
+  rodRack: { rods: [number, number, number][]; yawDeg: number; bucket: [number, number, number]; side: -1 | 1 };
   /** A midship cleat (the skiff's painter): its station and the line's height. */
   midCleat: { z: number; lineY: number };
   /** The inboard diesel: the engine, its propeller, and its upkeep (oil, and where the engine and its dipstick are). */

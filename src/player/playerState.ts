@@ -24,6 +24,8 @@ export interface HeldTool {
  */
 export interface GearPose {
   kind: 'extinguisher' | 'torch' | 'rod';
+  /** Which of the rack's rods (0, left out, for the first and for the other gear). */
+  slot?: number;
   on: boolean;
   p: Vec3;
   d: Vec3;

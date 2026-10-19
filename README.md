@@ -448,16 +448,16 @@ The boat has a trawl: a red A-frame over the transom with a block each side on i
 
 ### Rod fishing (side job)
 
-A Shipyard fitting (Deck gear → Fishing → **Fishing rod and bucket**, £700): a handheld rod on a rack across the wheelhouse's aft wall, on the side the life ring isn't, with a bucket on deck under it.
+A Shipyard fitting (Deck gear → Fishing → **Fishing rods and bucket**, £700): **four rods** standing upright in a rack on a wall of the wheelhouse, their tips above the roof, with a bucket on deck beside them. Place it with a pin: click near the aft wall (port or starboard of the door) or along a side wall. Every rod is its own, so four of you can fish at once.
 
-1. **Take the rod** from its rack (VR: grip it; desktop: click it). Slow the boat right down (under 3 knots) and point the rod over the side.
+1. **Take a rod** from the rack (VR: grip it; desktop: click it). Nothing happens yet: walk to the side, slow the boat right down (under 3 knots) and point the rod over the water.
 2. **Cast:** press the trigger (left button). The float flies out about 12 m along the rod and lands on the water.
 3. **Wait.** In a fishing ground a bite comes in seconds; in open water, half a minute or so. The float dips and the rod buzzes in your hand.
 4. **Strike:** press again within a couple of seconds, or it lets go.
 5. **Play it:** hold the trigger to reel. The line's tension rises as the fish pulls (it runs in waves); let go to rest it and the tension falls. Hold on through a hard run and the line parts. Reel it to the rod's tip and it's in the bucket.
 6. **Sell:** tie up at any port and the bucket is sold to the fish merchant by weight (£5.50 a kilo, more where a port pays well for fish), with a line in the ledger. The bucket holds 12 fish.
 
-What bites is the ground's own species in a fishing ground (haddock, mackerel, cod...), and mackerel, pollack, wrasse or coalfish along the coast. Hang the rod back and the line is wound in, fish or no fish. Crew-mates see the rod in your hand and the fish in the bucket; the float and line are yours alone.
+What bites is the ground's own species in a fishing ground (haddock, mackerel, cod...), and mackerel, pollack, wrasse or coalfish along the coast. To put the rod back, click its rack (desktop: or press U) or let go of the grip (VR): the line is wound in, fish or no fish. Crew-mates see the rod in your hand and the fish in the bucket; the float and line are yours alone.
 
 ### Lobster and crab potting (new, being built)
 

@@ -1639,7 +1639,7 @@ const USUAL: Record<string, string[]> = {
   aFrame: ['', 'over the transom, with the net and a winch'],
   lifeRing: ['', 'port side of the wheelhouse', 'starboard side of the wheelhouse'],
   sideDoor: ['', "in the wheelhouse's port wall"],
-  rodRack: ['', "on the wheelhouse's aft wall, its bucket on deck under it"],
+  rodRack: ['', "on the wheelhouse's aft wall, port of the door", "on the wheelhouse's aft wall, starboard of the door", "on the wheelhouse's port wall", "on the wheelhouse's starboard wall"],
   skiff: SKIFFS.map((s) => s.toLowerCase()),
 };
 /** Take a piece off her: with its pin, if a pin put it there. */

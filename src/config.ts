@@ -1800,6 +1800,9 @@ export const CONFIG = {
    *   fightPeriod   the fish's runs (s): its pull swings between calm and full
    *   pullPerKg     a fish's full pull in tension per kg (a 2 kg fish at 0.9 breaks the line if you don't rest it)
    *   landAt        the float this close (m) and the fish is in
+   *   perRack, spacing   rods on a rack (each one usable: the crew fish together), standing
+   *                 upright this far apart along the wall (m); their tips reach above the roof
+   *   takeGrace     seconds after taking a rod before a press counts (so the grab isn't a cast)
    *   bucketMax     fish the bucket holds
    *   pricePerKg    what the merchant pays (GBP), times the port's fish factor
    *   species       what bites where: the coast's own mix, and each fishing ground's own
@@ -1817,6 +1820,9 @@ export const CONFIG = {
     fightPeriod: 3.2,
     pullPerKg: 0.42,
     landAt: 1.5,
+    perRack: 4,
+    spacing: 0.24,
+    takeGrace: 0.5,
     bucketMax: 12,
     pricePerKg: 5.5,
     species: {

@@ -43,7 +43,7 @@ export const EQUIPMENT: Equipment[] = [
   { id: 'towWinch', name: 'Tow winch', how: 'grid', field: 'towWinch', key: 'winchAt', turns: true },
   { id: 'sternRoller', name: 'Stern roller (tow point)', how: 'transom', field: 'sternRoller' },
   { id: 'aFrame', name: 'Trawl A-frame and net', how: 'transom', field: 'aFrame' },
-  { id: 'rodRack', name: 'Fishing rod and bucket', how: 'rack', field: 'rodRack' },
+  { id: 'rodRack', name: 'Fishing rods and bucket', how: 'rack', field: 'rodRack' },
   { id: 'lifeRing', name: 'Life ring and boat hook', how: 'side', field: 'lifeRing' },
   { id: 'sideDoor', name: 'Side door (port wall)', how: 'wall', field: 'sideDoor' },
   { id: 'anchor', name: 'Anchor and windlass', how: 'anchor', field: 'noAnchor', off: 1 },
@@ -95,7 +95,14 @@ export function placeGear(eq: Equipment, p: readonly number[], house: HouseBox |
     return { patch: { skiff: (fore ? 1 : 3) + (x < 0 ? 1 : 0) }, words: `on the ${fore ? 'foredeck' : 'aft deck'}, its crane to ${x < 0 ? 'port' : 'starboard'}` };
   }
   if (eq.how === 'wall') return { patch: { [eq.field]: 1 } as Partial<ShipDesign>, words: "in the wheelhouse's port wall" };
-  if (eq.how === 'rack') return { patch: { rodRack: 1 }, words: "on the wheelhouse's aft wall (the side the life ring isn't), its bucket on deck under it" };
+  if (eq.how === 'rack') {
+    // The rack on the wall nearest the pin: the aft wall (port or starboard of the door) when
+    // the pin is aft of the house or near its aft end, else that side's wall.
+    const aftWall = !house || z > house.aft - 1.0;
+    const choice = aftWall ? (x < 0 ? 1 : 2) : x < 0 ? 3 : 4;
+    const words = aftWall ? `on the wheelhouse's aft wall, ${x < 0 ? 'port' : 'starboard'} of the door` : `on the wheelhouse's ${x < 0 ? 'port' : 'starboard'} wall`;
+    return { patch: { rodRack: choice }, words: `${words}, the rods standing upright, the bucket on deck beside them` };
+  }
   return { patch: { [eq.field]: 1 } as Partial<ShipDesign>, words: 'at the transom' };
 }
 
