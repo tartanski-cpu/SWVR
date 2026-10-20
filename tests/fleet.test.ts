@@ -12,6 +12,7 @@ import type { Intent } from '../src/core/intents';
 import { stepWorld } from '../src/core/simulation';
 import { createWorld } from '../src/core/world';
 import { buildDesign, DESIGN_HULLS } from '../src/shipyard/build';
+import { guardParts } from '../src/shipyard/design';
 import { hasWheelhouse, VESSEL_DEFS, VESSEL_IDS } from '../src/vessel/vesselDef';
 import { placeVessel } from '../src/vessel/vesselControl';
 
@@ -24,6 +25,15 @@ describe('the fleet', () => {
     const types = FLEET.filter((f) => f.id !== 'starterBoat').map((f) => f.design.hull).sort();
     expect(types).toEqual(DESIGN_HULLS.map((h, i) => (h.retired ? -1 : i)).filter((i) => i >= 0));
     expect(of('starterBoat').design.hull).toBe(of('fishingBoat').design.hull);
+  });
+
+  it('the fishing boat carries a rod rack; the pilot boat a rubbing strake and fenders (owner)', () => {
+    expect(of('fishingBoat').design.rodRack).toBeGreaterThan(0);
+    expect(buildDesign(of('fishingBoat').design).recipe.modules.some((m) => m.module === 'deck.rod-rack')).toBe(true);
+    expect(guardParts(of('pilotBoat').design.guard)).toEqual({ fenders: true, side: 'strake' });
+    const pilot = buildDesign(of('pilotBoat').design).recipe.modules.map((m) => m.module);
+    expect(pilot).toContain('deck.fenders');
+    expect(pilot).toContain('hull.guard');
   });
 
   it('each builds cleanly from her design file, a vessel type of her own the game can start in', () => {

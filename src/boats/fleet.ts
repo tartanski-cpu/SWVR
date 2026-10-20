@@ -12,7 +12,8 @@
  *                work pots over, a rod rack, searchlight, strake and fenders;
  *   pilotBoat    the deep-V pilot boat (or a rescue or patrol boat), shortened to 12.6 m, twin
  *                400 kW V8s on pod drives with the helm joystick (~35 kn; owner, Oct 2026),
- *                searchlight and fire monitor on the roof, chart table;
+ *                searchlight and fire monitor on the roof, chart table, strake and fenders
+ *                (owner: both, as standard);
  *   smallTug     the small tug: the slow tug diesel in a Kort nozzle, tow winch and stern
  *                roller, fire monitor and searchlight, tyres along her sides;
  *   starterBoat  the beginner boat, a new career's (CONFIG.career.boat): the gillnetter as basic

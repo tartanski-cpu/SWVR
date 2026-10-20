@@ -5125,6 +5125,13 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - `ui/wristMenu.ts` `openFlat`: the panel's own canvas (the same one the 3D quad is textured from; `MenuPanel.element`) is shown as a page element in the middle of the window over a dim surround, scaled to fit the window's height (at most its own 640 px wide), the mouse free: hover and click work it directly through `MenuPanel.hoverAt` (pixel coordinates). O again closes it, as does a click on the surround. App `toggleMenu`: on desktop (not in VR, and not with a game controller aiming by the reticle, which keeps the floating panel it can reach) it releases the pointer lock and opens flat; `CONFIG.menu.flatDesktop` (true) switches it off. The 3D panel is hidden meanwhile; `updateDesktop` returns nothing while flat. VR unchanged.
 - **Checked:** typecheck, `npm test`, headless desktop: O opens it flat (the mesh hidden), a mouse click on a tab switches the page, O closes it. **Not checked:** on a real monitor at full size; a touchscreen.
 
+### Fleet: the pilot boat's strake and fenders; the fishing boat's rod rack (owner)
+
+- **The owner:** the fishing boat should carry the rod rack as standard, and the pilot boat fenders and the rubbing strake.
+- `boats/fleet/pilotBoat.json`: `guard` 4 (strake and fenders; was the strake alone), so she builds with `deck.fenders` (the basket, and the roving fender) as well as `hull.guard`. The fishing boat's file already had `rodRack` 1 (aft wall, port; since the fleet houses were narrowed this morning, on the test address only), and builds with `deck.rod-rack`: nothing to change there. The fleet is rebuilt from the files at every load, so a career in either boat gets this without a restart of the career.
+- **Tests:** `tests/fleet.test.ts` (+1): the fishing boat's design names a rack and builds one; the pilot boat's guard is strake and fenders and she builds both modules.
+- **Checked:** typecheck, `npm test`. **Not checked:** by eye.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**
