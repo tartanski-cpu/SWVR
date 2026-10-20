@@ -254,6 +254,24 @@ export class MenuPanel {
     this.draw();
   }
 
+  /** The drawn canvas itself (the flat desktop menu shows it as a page element). */
+  get element(): HTMLCanvasElement {
+    return this.canvas;
+  }
+
+  /** The canvas's drawn size (px). */
+  get pixelSize(): { w: number; h: number } {
+    return { w: this.canvas.width, h: this.canvas.height };
+  }
+
+  /** Flat menu: the button under a canvas pixel, hovered. */
+  hoverAt(px: number, py: number): MenuButton | null {
+    const b = this.buttonAt(px, py);
+    this.setHover(b);
+    this.refresh();
+    return b;
+  }
+
   private buttonAt(px: number, py: number): MenuButton | null {
     for (const p of this.visible()) {
       // A button with no text is hidden (e.g. an empty cargo row) and can't be pressed.

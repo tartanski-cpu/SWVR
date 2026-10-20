@@ -2023,6 +2023,12 @@ export class App {
     }
     const left = this.controllers.grips.left;
     if (this.renderer.xr.isPresenting && left?.visible) this.menu.openOnWrist(left);
+    // Desktop: flat on the screen, the mouse freed to work it (a game controller aiming by
+    // the reticle keeps the panel in the world, where its reticle can reach it).
+    else if (!this.renderer.xr.isPresenting && CONFIG.menu.flatDesktop && !this.pointer?.padAim) {
+      if (document.pointerLockElement) document.exitPointerLock();
+      this.menu.openFlat();
+    }
     // The recording camera: on the camera itself, straight ahead (it flies and eases on its
     // own, apart from your body), as big on the screen whatever the zoom.
     else if (this.camMode.on) {

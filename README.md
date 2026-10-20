@@ -47,7 +47,7 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | Key | Action |
 |---|---|
 | Click the view | Capture the mouse for looking (Esc releases it) |
-| O | Menu, floating in front of you: aim and click (same menu as in VR) |
+| O | Menu, flat on the screen: the mouse is freed to hover and click it (O again, or a click beside it, closes it; click the game to take the mouse back). The same menu as in VR. With a game controller aiming, it floats in front of you instead: aim and click |
 | Right mouse button or Z (hold) | **Binoculars**: 7x zoom through two lens circles (Z is the key left of X, so Y on a German keyboard). Over the chart, right-drag still erases. Holding the wheel or a lever, it's free look instead (below) |
 | Y (hold) | **Wave:** your arm up over your head, swinging, for the crew to see. Overboard, it's how you call for the life ring (in VR, just wave your hand) |
 | W A S D | Walk (walls, furniture and the deck edge stop you; hold Shift to **run**) |
