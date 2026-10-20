@@ -3690,6 +3690,8 @@ export const CONFIG = {
     flatDesktop: true,
     /** Panel width (m); the height follows from the number of rows. */
     width: 0.24,
+    /** Rows a long list (the ports) shows at a time; ▲ / ▼ (and the desktop wheel) scroll it. */
+    portRows: 6,
     /** Bottom-centre of the panel on the left grip (m, grip axes: +Y up, -Z forward). */
     wristOffset: [0, 0.05, -0.02] as [number, number, number],
     /** Tilt about the grip's X axis; negative leans the top away so it faces you. */

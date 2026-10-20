@@ -484,3 +484,52 @@ describe('menu placement', () => {
     expect(facing.z).toBeGreaterThan(0.99);
   });
 });
+
+describe('a scrolling list (long port lists)', () => {
+  const list = (n: number) => Array.from({ length: n }, (_, i) => ({ label: '', buttons: [{ text: `Port ${i}`, press: () => {} }] }));
+
+  it('the panel is as tall for 200 rows as for 20: only `show` are laid out', async () => {
+    const { MenuPanel } = await import('../src/ui/menuPanel');
+    const a = new MenuPanel([], [{ name: 'A', rows: [{ scroll: list(20), show: 6 }] }], 0.24);
+    const b = new MenuPanel([], [{ name: 'A', rows: [{ scroll: list(200), show: 6 }] }], 0.24);
+    expect(b.height).toBeCloseTo(a.height, 6);
+  });
+
+  it('shows a window of rows; ▼ and ▲ move it a page at a time, the wheel a row; it stops at the ends', async () => {
+    const { MenuPanel } = await import('../src/ui/menuPanel');
+    const rows = list(20);
+    const p = new MenuPanel([], [{ name: 'A', rows: [{ scroll: rows, show: 6 }] }], 0.24);
+    const shown = () => rows.map((r, i) => (p.localCentreOf(r.buttons[0]) ? i : -1)).filter((i) => i >= 0);
+    expect(shown()).toEqual([0, 1, 2, 3, 4, 5]);
+    // The ▼ button: find it by pressing what's under its centre (right column, last slot).
+    const press = (label: string) => {
+      const s = p.pixelSize;
+      for (let y = 0; y < s.h; y += 4) {
+        const b = p.hoverAt(s.w - 30, y);
+        if (b && (typeof b.text === 'string' ? b.text : b.text()) === label) return b.press!();
+      }
+      throw new Error(`no ${label}`);
+    };
+    press('▼');
+    expect(shown()).toEqual([5, 6, 7, 8, 9, 10]);
+    press('▼');
+    press('▼');
+    press('▼');
+    expect(shown()).toEqual([14, 15, 16, 17, 18, 19]);
+    press('▲');
+    expect(shown()).toEqual([9, 10, 11, 12, 13, 14]);
+    // The wheel, over the list.
+    const c = p.localCentreOf(rows[9].buttons[0])!;
+    const py = (0.5 - c.y / p.height) * p.pixelSize.h;
+    expect(p.scrollAt(py, 1)).toBe(true);
+    expect(shown()[0]).toBe(10);
+  });
+
+  it('a short list has no arrows and its rows the full width', async () => {
+    const { MenuPanel } = await import('../src/ui/menuPanel');
+    const rows = list(3);
+    const p = new MenuPanel([], [{ name: 'A', rows: [{ scroll: rows, show: 6 }] }], 0.24);
+    expect(rows.every((r) => p.localCentreOf(r.buttons[0]))).toBe(true);
+    expect(p.localCentreOf(rows[0].buttons[0])!.x).toBeCloseTo(0, 6);
+  });
+});

@@ -6264,6 +6264,32 @@ Owner (with a map picture of the Firth): "Next id like a bigger area, as its onl
   - **Desktop:** open https://tartanski-cpu.github.io/SWVR/next/, choose Voyage → The Firth of Clyde. You start moored at Rothesay. Sail out of Rothesay Bay and north up the Firth past Toward toward Dunoon. Watch the shore sharpen as you near it, with no holes or steps in the ground. Use Menu → Debug → World → To port to jump to Largs, Millport (Cumbrae ferry terminal), Greenock or Helensburgh, and look round each.
   - **VR:** the same, with the perf panel: watch the triangle count and frame time as chunks arrive while under way.
 
+### Fix: long port lists in the menu scroll (owner, testing in VR)
+
+Owner: "the list of ports gets too big on the VR menu and it becomes very small, we probably need to do a scroll bar on the ports".
+
+- **Why:** the menu is one panel as tall as its tallest page.
+  - The Voyage tab listed every port on its own row. With the Clyde's 59 that made the panel over 3,000 px tall.
+  - Debug → World → To port put six names to a row, squeezing long names ("Cumbrae Ferry Terminal") into tiny text.
+- **Now** (`ui/menuPanel.ts`): a scrolling list (`{ scroll: rows, show: n }`).
+  - It shows `menu.portRows` (6) rows at a time.
+  - ▲ / ▼ at its side move it a page at a time (poke them, or point and pull the trigger in VR). A bar between them shows where you are.
+  - The mouse wheel scrolls it on desktop.
+  - A list short enough to fit shows no arrows and keeps the full width.
+- **Where it's used:**
+  - the Voyage tab's ports (bearing and range);
+  - Debug → World → To port, now two names to a row, so 12 ports at a time, readable.
+- **The panel:** in the Clyde it is now 1,300 px tall, set by the tallest other page (Debug → World).
+- **Tests:** `tests/menu.test.ts`, 3 new:
+  - the panel is as tall for 200 rows as for 20;
+  - ▼ / ▲ move by a page, the wheel by a row, and the list stops at its ends;
+  - a short list has no arrows.
+- **Checked headless:** the flat desktop menu in the Clyde (both lists, scrolled by wheel and ▼).
+- **Not checked:** the headset.
+- **Test steps:**
+  - **VR:** Voyage → The Firth of Clyde, open the menu (Y). On the Voyage tab the ports show six at a time: poke ▼ or point at it and pull the trigger. Then Settings → Debug menu on, Debug → World: the To port list scrolls the same way.
+  - **Desktop:** O for the menu, and the mouse wheel over either list.
+
 ### Settlements, woods and harbour boats (owner's brief): milestone 1, the baseline (done)
 
 The brief: varied houses from OpenStreetMap's tags (a kit of about seven types, regional palettes, lit windows at night), trees from the land cover (Poisson scatter, a library of four or five species, three distance bands with a far canopy), and harbour boats (moored, alongside and at anchor, bobbing and swinging to the wind), all within the present per-chunk budget on the Quest. Milestones: 1 baseline; 2 house tags and rules; 3 house kit and night windows; 4 tree placement and library; 5 distance bands and canopy; 6 harbour boats; 7 tuning across regions. **This milestone changes nothing you can see:** it records what the coast maps cost now, the numbers the new work must stay near.

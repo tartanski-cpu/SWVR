@@ -326,8 +326,11 @@ export function mainMenu(h: MenuHost): MainMenu {
     },
     { label: 'Time flow', buttons: TIME_FLOW.map(([label, rate]) => choice(label, rate, () => h.timeScale(), (v) => h.setTimeScale(v))) },
     { heading: 'Ports (bearing, range)' },
-    ...PORTS.map(
-      (_, i): MenuRow => ({
+    // A scrolling list: a coast map has dozens of ports (the Clyde 59), which would make the
+    // panel too tall to read in VR.
+    {
+      show: CONFIG.menu.portRows,
+      scroll: PORTS.map((_, i) => ({
         label: '',
         buttons: [
           {
@@ -337,8 +340,8 @@ export function mainMenu(h: MenuHost): MainMenu {
             },
           },
         ],
-      }),
-    ),
+      })),
+    },
     { label: 'Paper chart', buttons: [{ text: () => h.chartStatus(), weight: 1.6 }, { text: 'Clear marks', press: () => h.clearChart() }] },
   ];
 
@@ -675,12 +678,15 @@ export function mainMenu(h: MenuHost): MainMenu {
         { label: 'Running', buttons: [choice('By the clock', 0, () => h.raceOverride(), (v) => h.setRaceOverride(v)), choice('Peak', 1, () => h.raceOverride(), (v) => h.setRaceOverride(v)), choice('Slack', 2, () => h.raceOverride(), (v) => h.setRaceOverride(v))] },
         { heading: 'Katabatic gusts' },
         { label: '', buttons: [{ text: 'Gust now (nearest zone)', press: () => h.gustNow() }, { text: () => h.gustStatus(), weight: 1.6 }] },
-        { heading: 'Move' },
-        // Six to a row (a coast region brings many harbours).
-        ...Array.from({ length: Math.ceil(PORTS.length / 6) }, (_, row) => ({
-          label: row === 0 ? 'To port' : '',
-          buttons: PORTS.slice(row * 6, row * 6 + 6).map((_, k) => ({ text: () => h.ports()[row * 6 + k]?.name ?? '', press: () => h.teleportToPort(row * 6 + k) })),
-        })),
+        { heading: 'Move: to port' },
+        // Two to a row, in a scrolling list (a coast map brings dozens of harbours, and long names).
+        {
+          show: CONFIG.menu.portRows,
+          scroll: Array.from({ length: Math.ceil(PORTS.length / 2) }, (_, row) => ({
+            label: '',
+            buttons: PORTS.slice(row * 2, row * 2 + 2).map((_, k) => ({ text: () => h.ports()[row * 2 + k]?.name ?? '', press: () => h.teleportToPort(row * 2 + k) })),
+          })),
+        },
         { label: 'To region', buttons: REGIONS.map((r) => ({ text: r.name, press: () => h.teleportToRegion(r.id) })) },
         { label: '', buttons: [{ text: () => (h.aboard() ? 'Leave boat (to the quay)' : 'Board boat (at the helm)'), press: () => h.toggleBoard() }] },
       ],
