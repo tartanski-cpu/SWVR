@@ -2586,7 +2586,8 @@ export const CONFIG = {
      * and within its power it shows a faint grey haze only.
      *
      *   lambdaFull    the air–fuel ratio, relative to stoichiometric, at full rack and rated
-     *                 revs, warm: the maker's smoke limit (naturally aspirated / turbocharged)
+     *                 revs, warm: the maker's smoke limit (naturally aspirated / turbocharged);
+     *                 `slowEngine`, a slow-revving heavy one's
      *   smokeLambda   soot starts to show below this ratio; blackLambda: solid black
      *   turbo         boost at full exhaust energy (1 = twice the air) and how long it takes
      *                 to spool up (s; it falls off twice as fast). Turbocharged engines are
@@ -2610,6 +2611,13 @@ export const CONFIG = {
      */
     exhaust: {
       lambdaFull: { natural: 1.45, turbo: 1.7 },
+      /**
+       * A slow-revving heavy-duty engine's full-load ratio (owner, Oct 2026: the tug's smoke
+       * "wasn't black"): one rated at or under `ratedRpm` (the tug diesel) is set up rich for
+       * torque, `lambdaFull`, so worked hard it smokes: black opened up from idle, dark
+       * grey-black towing a heavy tow flat out; clean once she's running free.
+       */
+      slowEngine: { ratedRpm: 1200, lambdaFull: 1.15 },
       smokeLambda: 1.35,
       blackLambda: 0.95,
       turbo: { maxBoost: 1.0, lagS: 1.5 },
@@ -2966,13 +2974,15 @@ export const CONFIG = {
      * only. One pipe per engine, `radius` m round, each in an aft corner of the wheelhouse
      * (starboard; a twin's second to port), `inset` m clear of the walls, from `below` m under
      * the cabin floor (down to the engine space) up through the roof in a painted `casing`, its
-     * top `aboveRoof` m over the roof. Raked (design.stackStyle 0): leaning aft `rakeDeg`,
-     * tapering to `taper` of its radius, its top cut on a slant `cutDeg` facing aft; straight
+     * top `aboveRoof` m over the roof. Raked (design.stackStyle 0): upright, then its top
+     * `rakedShare` of that height bent aft `rakeDeg` at a joint (owner: "part of it to be
+     * vertical and then... the last 30% to be raked"), tapering to `taper` of its radius, its
+     * top cut on a slant `cutDeg` facing aft; straight
      * (1): upright, its top cut square. A weathered bronze-brown (`colour`). The smoke from
      * their tops. Her cooling water leaves by a hole `waterAbove` m over the waterline in her
      * side for each, abreast of her engines (CONFIG.effects.exhaust.water).
      */
-    exhaustStack: { radius: 0.14, inset: 0.05, below: 0.5, aboveRoof: 1.9, waterAbove: 0.3, rakeDeg: 12, cutDeg: 35, taper: 0.88, colour: 0x7a5236, casing: 0xd8d6d0 },
+    exhaustStack: { radius: 0.14, inset: 0.05, below: 0.5, aboveRoof: 1.9, waterAbove: 0.3, rakedShare: 0.3, rakeDeg: 25, cutDeg: 35, taper: 0.88, colour: 0x7a5236, casing: 0xd8d6d0 },
     helm: { maxConsole: 2.2, screenGap: 0.02, hungReach: 1.0, podJoystick: { throttleZ: 0.0, stickZ: 0.225, button: [0.085, -0.08] as [number, number] } },
     /**
      * The advanced interior's working lights (owner): the overhead switch panel (panel.overhead)

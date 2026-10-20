@@ -5434,6 +5434,22 @@ Owner, Oct 2026: a new career starts in one of the new fleet boats; hide the wor
 - **Tests:** tests/starterBoat.test.ts (3); starterWorkboat.test.ts's other-boat message now "Not for this boat".
 - **Next fleet steps:** move the tests and golden runs onto the fleet; then delete the old boats (owner: hide first, delete later).
 
+### The tug's smoke: black when she's worked hard (done, awaiting owner test)
+
+Owner, Oct 2026: "the smoke wasn't black on the tug's exhaust".
+
+- **Why it wasn't:** the smoke model (vessel/exhaust.ts) gave her what it gives every naturally aspirated engine: white while cold (coolant under 60 °C, which a big engine takes about a minute of hard running to pass), a short black puff when the throttle snaps open, and a clean haze otherwise. Her governor holds her at rated revs flat out with the fuel rack at about 0.8, well inside the smoke limit.
+- **Now:** a slow-revving heavy-duty engine (rated at or under `CONFIG.effects.exhaust.slowEngine.ratedRpm` 1200: the tug diesel) is set up rich for torque, its full-load air-fuel ratio `slowEngine.lambdaFull` 1.15 (the usual naturally aspirated one is 1.45). Warm, opened up from idle she smokes black for a couple of seconds and dark while she picks up way; towing the heavy crane pontoon flat out, a steady dark grey-black; running free at full throttle it clears to a haze once she's up to speed. (By her rated revs, not her voice: her engine now sounds as the 150 kW six does, the owner's choice, so the voice no longer marks her out.)
+- **Checked:** tests/exhaustStack.test.ts: opened up from idle, soot over 0.9; towing the pontoon after 25 s, over 0.3; free after 25 s, under 0.1. Full suite passes. Headless Chromium on the fleet tug, warm, opening up on the pontoon: dark grey-black puffs from the stack. **Not checked:** the Quest.
+
+### A tug's stacks: upright, the top part bent aft; seen in the Shipyard (done, awaiting owner test)
+
+Owner, Oct 2026: "you don't see the exhaust pipe for the tug when you're in wheelhouse view... in the shipyard... and definitely when you're doing the engines, and the raked version... isn't quite right. It's the whole thing is raked... part of it to be vertical and then... the last 30% to be raked."
+
+- **The shape** (module `fitting.exhaust-stack` v3): over the roof the pipe stands upright, then for its top `rakedShare` 0.3 of the height bends aft `rakeDeg` 25° at a joint (a rounded knuckle with a band round it), its top still cut on a slant facing aft. Straight is unchanged. The smoke leaves along the bent part (`stackOutlet`).
+- **In the Shipyard:** the pipes are now one mesh of their own, named 'exhaustStack' (they were baked in with every module's fixed parts, which the Wheelhouse and Engine steps hide). Shown at the Wheelhouse step (they go up through it) and the Engine step (they're her machinery). One more draw call, on tugs only; the water outlets stay merged.
+- **Checked:** tests/exhaustStack.test.ts (7) pass; full suite passes. Headless Chromium on the fleet's small tug only: the Shipyard's Wheelhouse and Engine steps from starboard and her stern quarter (the stack shows in each), and the game from her side and quarter (upright, then bent aft at the joint, the cut top). **Not checked:** the Quest.
+
 ### TOW LINE screen: the tension, and how near the line is to parting (done, awaiting owner test)
 
 Owner, Oct 2026: "a new instrument... built onto the advanced instrumentation, and it shows the tension... in the tow line. But what I'd like to see is... how close it is to snapping... on every vessel that has the ability to tow."
@@ -5906,6 +5922,87 @@ The third new region (`src/world/regions/narrows.ts`; original places, placehold
   - **Rocks on the passages** (owner: the straight lines between the regions' harbours should have rocks on them, so a crossing in fog must be navigated): charted, unlit rock groups 1-3.5 m high, deep water round them. **Sgeir a' Cheò** on the line Calder Haven-Loch Tarsk (at Sruth Tarsk's east edge), **Sgeir Fhada** and **Mellomskjæra** on Loch Tarsk-Kvassvik, **Bogha nan Ròn** and **Grey Seal Rocks** on Loch Tarsk-the narrows' entrance. Each is an island in its region's data; home is unchanged. The AI traffic checks its course for shallow water, so it steers round them.
   - Tests: the cove's mouth, islet, passages, basin and beach; the narrows' new width; a test that each passage's direct line meets a rock; the region-gap tests measure between real islands (100 m or more). `npm test`: 137 files, 955 tests pass; checked headless (the cove from seaward and from inside, the narrows, the rock in the sound).
 - **Next:** M7, the Calanques (docs/REGIONS.md), on the owner's word.
+
+## Real coastline regions (coast pipeline, owner brief, in progress)
+
+The owner's brief (Oct 2026): playable regions of real coastline in the game's style, generated from open geographic data (OpenStreetMap and its seamarks, Copernicus DEM, EMODnet and GEBCO bathymetry, ESA WorldCover), offline, fast. Plan, decisions and milestones: [`docs/COAST_PIPELINE.md`](docs/COAST_PIPELINE.md). Owner's answers: the pipeline lives in `tools/coast/` in this repository; the two small game changes it needs (height-grid regions, credits) are agreed for milestone 4; the first region is **Oban and its approaches** (the owner's picture: Kerrera to Connel), **full scale**, replacing the hand-built Sounds behind a debug toggle at first; Training mode is skipped for now.
+
+### M1: pipeline skeleton and the Oban box (done)
+
+- **The pipeline** (`tools/coast/`, its own `package.json`: geotiff, delaunator, js-yaml, offline only, 6.7 MB, nothing added to the game): `requests/oban.yaml` asks for the box `[-5.56, 56.375, -5.37, 56.475]` (11.7 x 11.1 km), theme `north-hebridean`, and the Falls of Lora as a hand-placed race (used in M2). Stage 1 `src/fetch.ts`: OpenStreetMap through the main API in eight 0.05 degree tiles (85,799 nodes, 7,862 ways; Overpass and Geofabrik are blocked from the cloud environment), Copernicus GLO-30 and ESA WorldCover as windows read straight from their cloud GeoTIFFs, EMODnet bathymetry from its coverage service; cached under `data/raw/` (git-ignored); `sources.yaml` with sources, dates and licences. Stages 2-3 `src/reconcile.ts`: a 10 m grid (1169 x 1112); the coast from OpenStreetMap's coastline ways by side seeds and flood fill (92 ways; 60 % land; 2 of 50 patches with mixed seeds); land from the DEM, lifted to 0.4-2 m within 40 m of the coast; the sea always under water, a procedural shelf blending into the bathymetry over 300 m; distance to the coast by a chamfer transform. Stages 4-5 `src/mesh.ts`: greedy-insertion Delaunay triangulation from the coastline (resampled every 20 m) to a 110,000-triangle budget (18 rounds; worst remaining error 2.5 m), faces below 3 m depth dropped (108,738 drawn, 61,715 vertices, 32 chunks of 2 km, the biggest 6,436 faces, 2.5 MB), coloured per face from WorldCover through the theme (`src/themes.ts`): rock where steep, sand on low gentle ground at the water, open grassland shading to heather moor from 40 to 160 m (WorldCover calls most open Argyll hill "grassland"), the seabed by depth.
+- **The product:** `public/regions/oban/` (`region.json`: box, projection, chunks, the coastline, credits, the ODbL licence; `terrain.bin`: vertices, faces, colours, land-cover classes; `report.json`; `sources.yaml`). Format `swvr-coast-region/0.1`; the game doesn't read it yet (M4).
+- **The viewer:** `coast.html` (code `tools/coast/viewer/main.ts`, a site page like the Shipyard): flies round a region (map controls, W A S D and arrows, Q and E), with toggles for the water, chunk borders, wireframe, heights and depths in bands, land-cover classes with a legend, and the OpenStreetMap coastline; From above and Boat eye views; the counts and the credits on its panel. `?region=<id>` picks the region. Water is a plain plane for now (the game's ocean comes with M4).
+- **Tests:** `tests/coastRegion.test.ts` (4): the box, faces' corners in it, heights from the seabed to the hills, the chunks in order within budget, the coastline, credits and licence present.
+- **Checked in headless Chromium:** from the air and from above (north up: Kerrera and its sound, Oban Bay and the town, Dunollie, Ganavan, Dunstaffnage, Connel, Loch Nell, matching the owner's picture), the land-cover overlay (the town built-up, the woods, Loch Nell water), a low oblique along the Kerrera shore (ridges, moor on the tops, woods, sand at the shore). No page errors (a missing favicon only).
+- **Not checked / later:** the Quest; the box's edges simply end (a skirt or fade comes with M4); inland lochs are drawn as land in water colour (one sea level); the DEM is a surface model, so woods and buildings add a few metres to it; 108k triangles for the whole box is about twice the Fjord, so in the game distant chunks will need a coarser version (M4).
+- **Test steps:** open https://tartanski-cpu.github.io/SWVR/next/coast.html (desktop or the Quest browser). Drag to turn, wheel to zoom, W A S D to move. Press From above and compare with the map; try Land cover, Heights & depths, OSM coastline and Chunks; fly low along Kerrera and into Oban Bay.
+- **Next:** M2, navigation and hazards, on the owner's word.
+
+### M2: navigation and hazards (done)
+
+Owner: "go ahead with milestone 2". The brief's test: drive a test boat through the gulf by its real marks.
+
+- **The stage** (`tools/coast/src/nav.ts`, `npm run nav` in `tools/coast`; also last in `npm run build` there): OpenSeaMap's seamark tags to `public/regions/oban/nav.json`, which `region.json` points at (`nav`). For Oban: **15 buoys and beacons** (port and starboard laterals, the Sgeir Rathaid south cardinal and the Oban Bay north cardinal), each with shape, colours, topmark and game kind; **19 lights** with character, group, period, sequence and sectors (Dunollie `Fl(2)GWR.6s` with five red, white and green sectors, Sgeir Dubha `Fl(2)W.12s`, Sgeir Rathaid `Q+LFl(6)W`, North Pier `FG`...); **2 fish farms** with outlines; **the Falls of Lora** race (polygon corrected to the narrows under Connel Bridge, 99 % water, set 090, 6 kn at peak, as a 603 x 256 m zone).
+- **Rocks:** OpenStreetMap has **no charted rocks or wrecks** in this box (the report says so: thin data). What it does have is **skerries**: islets and bare rock under 150 m across in the sea (loch islets and duplicates dropped). 10 of them; 5 the mesh lost under water (`drawn: false`), which the viewer stands up as rocks and the test boat can hit. One is the rock under the Sgeir Rathaid cardinal, 90 m north of it as a south cardinal should be. For the game (M4) a chart check of the box's rocks would be worth an hour.
+- **The viewer** (`tools/coast/viewer/nav.ts`, `boat.ts`, `main.ts`): marks in their shapes and colour bands with topmarks; lights as glows flashing their real rhythm (from the tagged sequence, else the IALA defaults), a sector light showing the colour of the sector you are in or nothing where obscured; light towers; farm outlines; the race zone with an arrow along its set; skerries; labels for the nearer ones (HTML tags; **Labels** toggle). **Night** darkens sky and land. **Drop test boat** puts a 10 m test boat (1.2 m draft, 10 kn, a simple model, not the game's physics) at the view's centre or the nearest water deep enough; W/S throttle, A/D rudder, space stop, chase camera you can still orbit; a readout of heading, throttle, speed over ground, depth ("deep" where the seabed isn't meshed, below 3 m) and current; **AGROUND** when her bow, stern or either side comes within her draft of the bottom. **Race** cycles the Falls between slack, flood (6 kn east) and ebb (6 kn west), faded over the zone's outer 60 m like the game's zones.
+- **Tests:** `tests/coastNav.test.ts` (6): `region.json` points at `nav.json`; buoys float in water deeper than 1 m inside the box; colours match kinds; light labels read as charted, Dunollie keeps red, white and green sectors, Sgeir Rathaid is `Q+LFl(6)W`; the lost skerry lies north of its south cardinal; the race lies across the Connel narrows, nearly all water.
+- **The brief's test, run headless:** the test boat on autopilot along a water route through the real marks' gates, from south of Kerrera Sound by Little Horseshoe, between the Ferry Rocks and Kerrera buoys, south of the Sgeir Rathaid cardinal, through Oban Bay past the north cardinal and out by Dunollie, up past Ganavan and in between the Dunstaffnage/Connel laterals to the foot of the Falls: **13.2 km, 61 minutes at 8 kn, no grounding, least depth 6 m**, every named mark passed within 250 m. Aimed at Kerrera's shore she ran aground at 1.6 m under her middle (her bow touched first). Screenshots: Oban Bay marks and labels by day and at night, the Kerrera gate, the boat aground and at the Falls. No page errors.
+- **Not checked / later:** the Quest; whether the light glows read well at night on a real screen (they are fixed-size sprites); labels are not hidden behind hills. The boat is a stand-in: the game's own vessel physics come with M4, when the region goes into the game.
+- **Test steps (desktop):** open https://tartanski-cpu.github.io/SWVR/next/coast.html. Fly into Oban Bay (or press Boat eye there); see the buoys, the cardinal topmarks, and the labels. Press **Night** and look toward Dunollie from different bearings: its colour changes red, white, green by sector. Press **Drop test boat** in open water, drive with W A S D (space to stop), go round by the marks, and try running onto a shore or a skerry. Fly to Connel, drop the boat below the Falls, press **Race** to flood and feel her pushed east. **VR:** the page opens in the Quest browser as a flat page (keys need a keyboard); the VR check comes with M4 in the game.
+- **Next:** M3, harbours and buildings, on the owner's word.
+
+### M3: harbours and buildings, and a better coast mesh (done, awaiting owner look)
+
+Owner: "go ahead with milestone 3", and: the coastline could be more detailed (a few janky bits); win the triangles back from inland ground no one sees from the water. The brief's test: tie up at a real pier.
+
+- **The coast mesh** (`tools/coast/src/mesh.ts`):
+  - **The coast's own shape:** it starts from OpenStreetMap's own coast vertices (`coastTol` 0.5 m: thinned only where within half a metre of straight; `coastStep` 25 m fill on straight runs; 5,849 points) instead of resampling every 20 m, which cut corners.
+  - **A shore band** (`band` 6 m, `bandSpacing` 8 m; 7,127 points): rows 6 m inland (at least 0.8 m up) and 6 m out (at least 0.8 m down), so the waterline runs crisply along the real coast instead of wherever a big triangle crosses it. These were the janky bits.
+  - **Hidden ground:** a viewshed from the water (`eyeHeight` 3 m, `viewRays` 32, `viewReach` 8 km, on 30 m cells): only **43 %** of the land in the box can be seen from anywhere on the sea.
+  - **Error weights:** the rest counts 0.03 (`hiddenWeight`). Seen land counts double within 80 m of the shore (`shoreReach`, `shoreWeight`) and halves by 1 km inland (`farHalf`).
+  - **No holes:** the hidden glens are still covered by a few big triangles rather than cut out. Cut out, they would leave holes from the air and from any hilltop.
+  - **Same budget:** 108,351 triangles (was 108,738), now spent on the shore and the faces you see.
+- **Harbours and buildings** (`tools/coast/src/harbours.ts`, the brief's stages 7 and 8):
+  - **The kit:** OSM piers, pontoons, quays, breakwaters and slipways become the game's own pieces: `BlockDef`-shaped boxes with deck heights (pier 2.4 m, quay 2.6 m, pontoon 0.5 m, breakwater 3.5 m above mean sea level), `SlipwayDef` and `BerthDef`. Rules:
+    - a pier line becomes a box per straight run (`pierWidth` 6 m, pontoons 2.5 m);
+    - a pier area becomes its smallest box;
+    - `floating=yes`, or an untagged pier inside a marina's outline (Kerrera Marina), is a pontoon;
+    - a quay, mostly coastline tagged `man_made=quay`, becomes a wall of boxes reaching 10 m inland from the real face.
+  - **Dredged basins** (`basinReach` 30 m; depth `berthDepth` 2 m + 0.5, pontoons 1.5 + 0.5): the water round each piece. The pipeline's procedural shelf had left about a metre at Oban's quays.
+  - **Quay walls:** at a quay face the ground drops straight down, so the face is a wall, not a beach. The stage writes `data/work/<id>/dredge.json` and the mesh stage carves it, so **the order is now** fetch, reconcile, nav, harbours, mesh (`npm run build` in `tools/coast`).
+  - **Berths:** one every 16 m (`berthSpacing`) along each face that looks onto open water.
+  - **Harbours:** pieces within 250 m (`clusterGap`) make one harbour, named from its marina, ferry terminal or named pier.
+  - **Spine roles** (the request's `spine`, all `auto` for Oban):
+    - sheltered harbour: the least mean fetch (open water seen round the compass), **Kerrera Marina**;
+    - exposed pier: the most, **the pier at Connel by the Falls**;
+    - anchorage: the most sheltered 4-15 m water clear of harbours and marks with room to swing, **off Dunbeg** (Dunstaffnage Bay).
+  - **Buildings:** within 400 m (`buildingReach`) of a harbour: 774 footprints, each the smallest box round it with a pitched roof (sheds flatter, sheet), height from `height` or `building:levels` tags, else by kind. Walls and roofs come from the theme (`themes.ts` `buildings`: white and cream harling, granite, slate). They stand on the lowest ground under them. The 3,176 farther out are left to the built-up land colour, as the brief says.
+  - **For Oban:** 12 harbours, 70 kit pieces, 258 berths, 5 slipways.
+- **Hand edits:** `tools/coast/requests/oban.edits.yaml` (remove pieces by OSM id, change any field of a piece or harbour, add pieces), applied at the end of every run, so re-running keeps them. The first one names the town harbour **Oban**; OSM names its cluster after the North Pier Pontoons.
+- **The viewer** (`tools/coast/viewer/harbours.ts`):
+  - **Draw calls:** the kit is one merged mesh (stone quays, timber piers on piles, grey pontoons), bollards at the berths one instanced mesh, and the buildings one merged mesh per 2 km chunk (12,384 triangles in 7 meshes). That's 9 draw calls for all of it.
+  - **Controls:** a **Harbours** toggle; harbour names with their spine roles in the labels; the anchorage as a ring; **Go to harbour**.
+  - **The test boat:** the pieces are solid to her. Slow (under 1 kn) within 6 m of a berth, **T** makes fast: she lies along the berth either way round, the readout says MADE FAST at the harbour, and W or S casts off.
+- **Tests:**
+  - `tests/coastHarbours.test.ts` (6): the kit is the game kinds, in the box, at sane deck heights; every berth is on its piece's face at its deck height; at least 80 % of Oban's quay and pier berths have more than 1.8 m under them in the mesh; each spine role is played once and the anchorage is deep; the hand edit survived; the buildings are near harbours, 2-30 m high.
+  - `tests/coastRegion.test.ts`: the per-chunk check is now 12,000 faces (the busiest chunk, Oban's waterfront, has 11,132).
+- **Checked headless:**
+  - **The brief's test:** the test boat on autopilot from Oban Bay, in alongside **the town quay at Oban** (berth `way/150031043#39`), made fast with 2.5 m alongside, about 5 minutes.
+  - **The M2 route** (Kerrera Sound to the Falls, 13.2 km) still runs clean on the new mesh (least depth 3.4 m).
+  - **Screenshots:** Oban from above (North Pier, the pontoons, the town), the quay with the boat made fast, Kerrera Marina's pontoons, Dunstaffnage Marina; old and new coast mesh side by side (wireframe: dense at the shore, coarse on hidden ground). No page errors.
+- **Not checked / later:**
+  - the Quest;
+  - auto-picking the exposed pier counts the box's edge as open sea, which favours Connel (Loch Etive runs on out of the box); name another in the request's `spine` if you prefer;
+  - Oban's other piers (the Railway Pier, the ferry linkspan) are mapped in OSM as coastline, so they appear as the quay's outline rather than as their own piers;
+  - buildings are boxes round each footprint, so L-shaped ones fill their corner;
+  - the busiest chunk is 11k triangles, and distant-chunk coarsening and the budget report come with M4.
+- **Test steps (desktop):**
+  1. Open https://tartanski-cpu.github.io/SWVR/next/coast.html and press **Wireframe** and **From above**. The shore is dense, the hidden glens coarse. Fly low along Kerrera and into Oban Bay and look for janky bits at the waterline.
+  2. **Go to harbour → Oban**: the North Pier, the pontoons, the town quay, the town.
+  3. Press **Drop test boat**, come alongside the quay or a pontoon dead slow (W a touch, then space), and press **T** when the readout says "At a berth".
+  4. Try Kerrera Marina, Dunstaffnage Marina and the Kerrera ferry.
+- **VR:** as before, the viewer is a flat page. The VR check comes with M4 in the game.
+- **Next:** M4, package and load in the game, on the owner's word.
 
 ## Next
 
