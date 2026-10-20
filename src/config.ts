@@ -3672,6 +3672,12 @@ export const CONFIG = {
 
   /** The in-game menu (Y in VR, O on desktop). */
   menu: {
+    /**
+     * Desktop: the menu opens flat on the screen (owner: easier to use than floating in the
+     * 3D view), the mouse freed to work it; VR and a game controller's aim keep the panel
+     * in the world. false: always in the world.
+     */
+    flatDesktop: true,
     /** Panel width (m); the height follows from the number of rows. */
     width: 0.24,
     /** Bottom-centre of the panel on the left grip (m, grip axes: +Y up, -Z forward). */
