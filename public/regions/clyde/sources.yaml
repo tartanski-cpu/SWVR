@@ -1,0 +1,20 @@
+# What region "clyde" was built from (written by fetch.ts).
+region: clyde
+bbox: [-5.27, 55.7, -4.7, 56.03]
+sources:
+  - what: "coastline, harbours, seamarks, buildings, land use"
+    source: "OpenStreetMap contributors (incl. OpenSeaMap seamarks), api.openstreetmap.org"
+    licence: "ODbL 1.0"
+    fetched: 2026-10-20
+  - what: "land height"
+    source: "Copernicus DEM GLO-30 (Copernicus_DSM_COG_10_N55_00_W006_00_DEM, Copernicus_DSM_COG_10_N55_00_W005_00_DEM, Copernicus_DSM_COG_10_N56_00_W006_00_DEM, Copernicus_DSM_COG_10_N56_00_W005_00_DEM), AWS Open Data"
+    licence: "Copernicus DEM licence: free use with attribution (\"produced using Copernicus WorldDEM-30 (c) DLR e.V. 2010-2014 and (c) Airbus Defence and Space GmbH 2014-2018 provided under COPERNICUS by the European Union and ESA\")"
+    fetched: 2026-10-20
+  - what: "land cover (colours)"
+    source: "ESA WorldCover 10 m 2021 v200 (ESA_WorldCover_10m_2021_v200_N54W006_Map)"
+    licence: "CC BY 4.0 (\"(c) ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021) processed by ESA WorldCover consortium\")"
+    fetched: 2026-10-20
+  - what: "sea depth"
+    source: "EMODnet Bathymetry DTM (emodnet:mean), ows.emodnet-bathymetry.eu"
+    licence: "free use with attribution (\"EMODnet Bathymetry Consortium\")"
+    fetched: 2026-10-20

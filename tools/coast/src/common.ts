@@ -19,6 +19,8 @@ export interface RegionRequest {
   /** [lonMin, latMin, lonMax, latMax] */
   bbox: [number, number, number, number];
   theme: string;
+  /** A big region (Voyage mode only): the mesh is written in chunk files the game streams in round the boat, plus a coarse grid of the whole (mesh.ts). */
+  chunked?: boolean;
   /** Spine roles: a harbour's name, "auto", or for the anchorage a named spot ({ name, at: [lon, lat] }). */
   spine?: Record<string, string | { name: string; at: [number, number] }>;
   currentZones?: { name: string; polygon: [number, number][]; direction: number; peakKts: number; periodHours: number }[];
@@ -71,3 +73,40 @@ export function projection(bbox: RegionRequest['bbox']): Projection {
 }
 
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// ── Names ──
+// The game's names and ids are in the Latin alphabet. OpenStreetMap's `name` is the local
+// one (Greek on Syros, Ερμούπολη); `name:en` or `int_name` is used where the map has one,
+// else the local name is transliterated letter by letter (ELOT 743, simplified).
+const GREEK: Record<string, string> = {
+  α: 'a', β: 'v', γ: 'g', δ: 'd', ε: 'e', ζ: 'z', η: 'i', θ: 'th', ι: 'i', κ: 'k', λ: 'l', μ: 'm', ν: 'n', ξ: 'x', ο: 'o', π: 'p', ρ: 'r', σ: 's', ς: 's', τ: 't', υ: 'y', φ: 'f', χ: 'ch', ψ: 'ps', ω: 'o',
+  ά: 'a', έ: 'e', ή: 'i', ί: 'i', ό: 'o', ύ: 'y', ώ: 'o', ϊ: 'i', ϋ: 'y', ΐ: 'i', ΰ: 'y',
+};
+// Pairs read as one sound.
+const GREEK_PAIRS: [RegExp, string][] = [[/ευ/g, 'ev'], [/εύ/g, 'ev'], [/αυ/g, 'av'], [/αύ/g, 'av'], [/ου/g, 'ou'], [/ού/g, 'ou'], [/αι/g, 'ai'], [/αί/g, 'ai'], [/ει/g, 'ei'], [/εί/g, 'ei'], [/οι/g, 'oi'], [/οί/g, 'oi'], [/μπ/g, 'b'], [/ντ/g, 'nt'], [/γκ/g, 'gk'], [/γγ/g, 'ng']];
+
+/** A name in the Latin alphabet: Greek transliterated (capitals kept); other text as it is. */
+export function latin(name: string): string {
+  if (!/[Ͱ-Ͽἀ-῿]/.test(name)) return name;
+  return name
+    .split(/(\s+|-)/)
+    .map((word) => {
+      const lower = word.toLowerCase();
+      let s = lower;
+      for (const [re, to] of GREEK_PAIRS) s = s.replace(re, to);
+      s = [...s].map((ch) => GREEK[ch] ?? ch).join('');
+      return word !== lower && s ? s[0].toUpperCase() + s.slice(1) : s;
+    })
+    .join('');
+}
+
+/** A feature's name for the game: its English name, its international one, or its own transliterated. */
+export function nameOf(tags: Record<string, string> | undefined, key = 'name'): string {
+  if (!tags) return '';
+  return tags[`${key}:en`] ?? tags.int_name ?? latin(tags[key] ?? '');
+}
+
+/** An id from a name: lower case, dashes. */
+export function slug(name: string): string {
+  return latin(name).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}

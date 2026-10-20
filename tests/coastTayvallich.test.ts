@@ -11,6 +11,7 @@ import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import type { WholeCoastTerrain } from '../src/world/coastRegion';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dir = join(root, 'public', 'regions', 'tayvallich');
@@ -37,8 +38,8 @@ beforeAll(async () => {
   };
   const r = m.regions.regionById('tayvallich')!;
   const c = r.coast!;
-  const bin = readFileSync(join(root, 'public', c.pkg.terrain.dir, c.pkg.terrain.file));
-  m.coast.registerCoastTerrain('tayvallich', bin.buffer.slice(bin.byteOffset, bin.byteOffset + bin.byteLength) as ArrayBuffer, c.pkg.terrain, c.pkg.box, c.x, c.z);
+  const bin = readFileSync(join(root, 'public', (c.pkg.terrain as WholeCoastTerrain).dir, (c.pkg.terrain as WholeCoastTerrain).file));
+  m.coast.registerCoastTerrain('tayvallich', bin.buffer.slice(bin.byteOffset, bin.byteOffset + bin.byteLength) as ArrayBuffer, (c.pkg.terrain as WholeCoastTerrain), c.pkg.box, c.x, c.z);
 });
 
 describe('the Tayvallich region: the pipeline files', () => {
@@ -57,7 +58,7 @@ describe('the Tayvallich region: the pipeline files', () => {
   });
 
   it("the package matches the mesh files (re-run the pipeline's package stage after the mesh)", () => {
-    const t = m.regions.regionById('tayvallich')!.coast!.pkg.terrain;
+    const t = m.regions.regionById('tayvallich')!.coast!.pkg.terrain as WholeCoastTerrain;
     expect(t.faces).toEqual(region.terrain.faces);
     expect(t.vertices).toEqual(region.terrain.vertices);
   });

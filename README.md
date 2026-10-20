@@ -2,7 +2,7 @@
 
 **Workboat World** (v1.0) is a browser-based VR sea rescue and operations game: chunky flat-shaded boats that you operate from the inside, with physical levers, wheels, switches and live instruments. It's built with TypeScript, Vite, Three.js and WebXR, and targets the Meta Quest 3 and desktop browsers.
 
-**Three ways to play, from the front page** (https://tartanski-cpu.github.io/SWVR/): **Career** (the game as it was: one boat, jobs, money and upgrades, your crew join aboard her playing your career), **Voyage** (a real stretch of coast made from map data, sailed for its own sake: pick a map, no career, nothing saved; Oban and Lorn, and Tayvallich and Loch Sween; later, several boats in one multiplayer game) and **Training** (later: small harbour maps with recording and review). Old links straight into the game, and shared game links, still work: the front page sends them on to the career game.
+**Three ways to play, from the front page** (https://tartanski-cpu.github.io/SWVR/): **Career** (the game as it was: one boat, jobs, money and upgrades, your crew join aboard her playing your career), **Voyage** (a real stretch of coast made from map data, sailed for its own sake: pick a map, no career, nothing saved; Oban and Lorn, Tayvallich and Loch Sween, the island of Syros in the Cyclades, and the whole Firth of Clyde (35 by 37 km with every harbour in the map data; its detailed shore loads round you as you sail); later, several boats in one multiplayer game) and **Training** (later: small harbour maps with recording and review). Old links straight into the game, and shared game links, still work: the front page sends them on to the career game.
 
 **Status:** v1.0 (tag `V1.0`; fixes since then are listed in PROGRESS.md; [release notes](docs/RELEASE_NOTES_v1.0.md); what's new since, on the test build: [release notes](docs/RELEASE_NOTES_next.md)). The MVP snapshot lives on the `mvp-1` branch. The code repository keeps its working name, SWVR. See [`PROGRESS.md`](PROGRESS.md) for what's done, what's next and known issues. Feature ideas and their status are in [`ideas.md`](ideas.md).
 
@@ -145,7 +145,7 @@ The menu is laid out for playing. Some tabs have sections, picked from a second 
 
 | Tab | What's on it |
 |---|---|
-| Voyage | The job you're on (contract, cargo run or rescue, with **Abandon**), what you've done; the **weather** now and what's coming; time of day ±1 h and time flow stopped / ×60 / ×600; bearing and range to each port; the paper chart's marks, with **Clear marks** |
+| Voyage | The job you're on (contract, cargo run or rescue, with **Abandon**), what you've done; the **weather** now and what's coming; time of day ±1 h and time flow stopped / ×60 / ×600; bearing and range to each port (a scrolling list: ▲ / ▼ at its side, or the mouse wheel); the paper chart's marks, with **Clear marks** |
 | Boat | **Deck:** tow (**Make fast** / **Cast off**), docking (**Dock** / **Cast off**), anchor status. **Skiff:** board, **LAUNCH** / **RECOVER**, battery. **Fuel** and **Refuel** (at a fuel berth). **FM radio:** power and station |
 | Cargo | Where you are, payload, deliveries; cargo aboard (lashed or loose), and what's in the skiff (up to five crates or two drums, 300 kg) |
 | Office | **Jobs:** balance, the contract on, the harbour office's job board, the first voyage (**Skip** / **Again**). **Career:** balance, reputation, ledger, the three save slots |

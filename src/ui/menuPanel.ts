@@ -20,7 +20,16 @@ export interface MenuButton {
   tab?: boolean;
 }
 
-export type MenuRow = { heading: string } | { label: string; buttons: MenuButton[] };
+export type ButtonRow = { label: string; buttons: MenuButton[] };
+
+/**
+ * A scrolling list: `show` of its rows at a time in a fixed space, with ▲ / ▼ at the side
+ * (a page at a time) and a bar showing where you are; on desktop the mouse wheel scrolls it
+ * too. For long lists (a coast map's dozens of ports), so the panel stays a sensible size.
+ */
+export type ScrollRows = { scroll: ButtonRow[]; show: number };
+
+export type MenuRow = { heading: string } | ButtonRow | ScrollRows;
 
 /** A section of a tab: its own rows, picked from a second, smaller tab bar. */
 export interface MenuSection {
@@ -45,11 +54,25 @@ interface Placed {
   h: number;
 }
 
+/** A scrolling list as laid out: its rows' buttons placed as if in the first slot, moved down by slot when shown. */
+interface Scroll {
+  rows: { label: string; placed: Placed[] }[];
+  show: number;
+  offset: number;
+  /** Top of its first slot (px). */
+  y: number;
+  /** Its ▲ and ▼ (only when there are more rows than slots). */
+  arrows: Placed[];
+}
+
 interface Layout {
   placed: Placed[];
   headings: { text: string; y: number }[];
   labels: { text: string; y: number }[];
+  scrolls: Scroll[];
 }
+
+const blankLayout = (): Layout => ({ placed: [], headings: [], labels: [], scrolls: [] });
 
 const W = 640;
 const PAD = 14;
@@ -57,6 +80,8 @@ const ROW_H = 54;
 const HEAD_H = 40;
 const LABEL_W = 206;
 const GAP = 8;
+/** A scrolling list's side column (▲, the bar, ▼). */
+const SCROLL_W = 52;
 
 const COLORS = {
   bg: 'rgba(14, 22, 26, 0.92)',
@@ -85,7 +110,7 @@ export class MenuPanel {
   private readonly canvas = document.createElement('canvas');
   private readonly g: CanvasRenderingContext2D;
   private readonly texture: THREE.CanvasTexture;
-  private readonly fixed: Layout = { placed: [], headings: [], labels: [] };
+  private readonly fixed: Layout = blankLayout();
   /** Per page: one layout per section (or one for a page of plain rows), and its section bar. */
   private readonly layouts: { content: Layout[]; bar: Layout | null }[] = [];
   private readonly pages: MenuPage[];
@@ -93,7 +118,7 @@ export class MenuPanel {
   /** The section shown on each page (remembered when you switch tabs and back). */
   private readonly section: number[];
   private readonly tabsY: number;
-  private tabs: Layout = { placed: [], headings: [], labels: [] };
+  private tabs: Layout = blankLayout();
   private tabsKey = '';
   private hover: MenuButton | null = null;
   private signature = '';
@@ -109,20 +134,20 @@ export class MenuPanel {
     let bottom = top;
     pages.forEach((p, i) => {
       if (p.sections) {
-        const bar: Layout = { placed: [], headings: [], labels: [] };
+        const bar: Layout = blankLayout();
         const sectionRow: MenuRow = {
           label: '',
           buttons: p.sections.map((sec, k) => ({ text: sec.name, tab: true, active: () => this.section[i] === k, press: () => (this.section[i] = k) })),
         };
         const y0 = this.layoutRows([sectionRow], top, bar);
         const content = p.sections.map((sec) => {
-          const l: Layout = { placed: [], headings: [], labels: [] };
+          const l: Layout = blankLayout();
           bottom = Math.max(bottom, this.layoutRows(sec.rows, y0 + 6, l));
           return l;
         });
         this.layouts.push({ content, bar });
       } else {
-        const l: Layout = { placed: [], headings: [], labels: [] };
+        const l: Layout = blankLayout();
         bottom = Math.max(bottom, this.layoutRows(p.rows ?? [], top + 6, l));
         this.layouts.push({ content: [l], bar: null });
       }
@@ -155,7 +180,7 @@ export class MenuPanel {
     const key = shown.join(',');
     if (key !== this.tabsKey) {
       this.tabsKey = key;
-      this.tabs = { placed: [], headings: [], labels: [] };
+      this.tabs = blankLayout();
       this.layoutRows([{ label: '', buttons: shown.map((i) => ({ text: this.pages[i].name, active: () => this.page === i, press: () => (this.page = i) })) }], this.tabsY, this.tabs);
     }
     if (!shown.includes(this.page)) this.page = shown[0] ?? 0;
@@ -169,19 +194,46 @@ export class MenuPanel {
         y += HEAD_H;
         continue;
       }
-      out.labels.push({ text: row.label, y });
-      const x0 = row.label ? LABEL_W : PAD;
-      const total = row.buttons.reduce((s, b) => s + (b.weight ?? 1), 0);
-      const span = W - PAD - x0 - GAP * (row.buttons.length - 1);
-      let x = x0;
-      for (const btn of row.buttons) {
-        const w = (span * (btn.weight ?? 1)) / total;
-        out.placed.push({ btn, x, y: y + 4, w, h: ROW_H - 8 });
-        x += w + GAP;
+      if ('scroll' in row) {
+        y = this.layoutScroll(row, y, out);
+        continue;
       }
+      out.labels.push({ text: row.label, y });
+      out.placed.push(...placeButtons(row, y, W - PAD));
       y += ROW_H;
     }
     return y;
+  }
+
+  /** A scrolling list: `show` slots, its rows narrowed for the side column when they don't all fit. */
+  private layoutScroll(row: ScrollRows, y: number, out: Layout): number {
+    const show = Math.max(1, Math.min(row.show, row.scroll.length));
+    const scrolls = row.scroll.length > show;
+    const right = W - PAD - (scrolls ? SCROLL_W + GAP : 0);
+    const sc: Scroll = { rows: row.scroll.map((r) => ({ label: r.label, placed: placeButtons(r, 0, right) })), show, offset: 0, y, arrows: [] };
+    if (scrolls) {
+      const step = Math.max(1, show - 1);
+      const x = W - PAD - SCROLL_W;
+      const h = ROW_H - 8;
+      sc.arrows.push(
+        { btn: { text: '▲', press: () => (sc.offset = Math.max(0, sc.offset - step)) }, x, y: y + 4, w: SCROLL_W, h },
+        { btn: { text: '▼', press: () => (sc.offset = Math.min(sc.rows.length - show, sc.offset + step)) }, x, y: y + (show - 1) * ROW_H + 4, w: SCROLL_W, h },
+      );
+    }
+    out.scrolls.push(sc);
+    return y + show * ROW_H;
+  }
+
+  /** Scroll the list under a canvas pixel by `rows` (desktop mouse wheel); true if there was one. */
+  scrollAt(py: number, rows: number): boolean {
+    for (const l of this.current())
+      for (const sc of l.scrolls) {
+        if (py < sc.y || py > sc.y + sc.show * ROW_H || sc.rows.length <= sc.show) continue;
+        sc.offset = Math.max(0, Math.min(sc.rows.length - sc.show, sc.offset + rows));
+        this.refresh();
+        return true;
+      }
+    return false;
   }
 
   /** Switch to the named tab, and section (for code and tests; players press the tabs). */
@@ -217,7 +269,7 @@ export class MenuPanel {
   }
 
   private visible(): Placed[] {
-    return this.current().flatMap((l) => l.placed);
+    return this.current().flatMap((l) => [...l.placed, ...l.scrolls.flatMap((sc) => [...shownRows(sc).flatMap((r) => r.placed), ...sc.arrows])]);
   }
 
   /** Button under a world ray within `far` metres, with the hit point and distance. */
@@ -248,7 +300,7 @@ export class MenuPanel {
 
   /** Redraw if anything shown changed (cheap check; call every frame while visible). */
   refresh(force = false): void {
-    const sig = `${this.page}.${this.section[this.page]}#` + this.visible().map((p) => `${text(p.btn)}|${p.btn.active?.() ? 1 : 0}|${p.btn === this.hover ? 1 : 0}`).join(';');
+    const sig = `${this.page}.${this.section[this.page]}.${this.current().flatMap((l) => l.scrolls.map((sc) => sc.offset)).join(',')}#` + this.visible().map((p) => `${text(p.btn)}|${p.btn.active?.() ? 1 : 0}|${p.btn === this.hover ? 1 : 0}`).join(';');
     if (!force && sig === this.signature) return;
     this.signature = sig;
     this.draw();
@@ -292,7 +344,24 @@ export class MenuPanel {
 
     const shown = this.current();
     const headings = shown.flatMap((l) => l.headings);
-    const labels = shown.flatMap((l) => l.labels);
+    const labels = [...shown.flatMap((l) => l.labels), ...shown.flatMap((l) => l.scrolls.flatMap((sc) => shownRows(sc).map((r, i) => ({ text: r.label, y: sc.y + i * ROW_H })))).filter((l) => l.text)];
+    // A scrolling list's bar, between its ▲ and ▼: the track, and the part of the list in view.
+    for (const l of shown)
+      for (const sc of l.scrolls) {
+        if (!sc.arrows.length) continue;
+        const x = W - PAD - SCROLL_W / 2 - 5;
+        const top = sc.y + ROW_H;
+        const len = (sc.show - 2) * ROW_H;
+        g.fillStyle = COLORS.tab;
+        roundRect(g, x, top, 10, Math.max(4, len), 5);
+        g.fill();
+        if (len > 0) {
+          g.fillStyle = COLORS.border;
+          const t0 = top + (len * sc.offset) / sc.rows.length;
+          roundRect(g, x, t0, 10, Math.max(8, (len * sc.show) / sc.rows.length), 5);
+          g.fill();
+        }
+      }
     // The section bar sits on a darker strip, so it reads as part of the tab above it.
     const bar = this.layouts[this.page]?.bar;
     if (bar?.placed.length) {
@@ -339,6 +408,25 @@ export class MenuPanel {
     }
     this.texture.needsUpdate = true;
   }
+}
+
+/** A row's buttons across the panel at height `y`, from after its label to `right` (px). */
+function placeButtons(row: ButtonRow, y: number, right: number): Placed[] {
+  const x0 = row.label ? LABEL_W : PAD;
+  const total = row.buttons.reduce((s, b) => s + (b.weight ?? 1), 0);
+  const span = right - x0 - GAP * (row.buttons.length - 1);
+  let x = x0;
+  return row.buttons.map((btn) => {
+    const w = (span * (btn.weight ?? 1)) / total;
+    const p = { btn, x, y: y + 4, w, h: ROW_H - 8 };
+    x += w + GAP;
+    return p;
+  });
+}
+
+/** The rows of a scrolling list in view now, each moved down to its slot. */
+function shownRows(sc: Scroll): { label: string; placed: Placed[] }[] {
+  return sc.rows.slice(sc.offset, sc.offset + sc.show).map((r, i) => ({ label: r.label, placed: r.placed.map((p) => ({ ...p, y: p.y + sc.y + i * ROW_H })) }));
 }
 
 function text(b: MenuButton): string {

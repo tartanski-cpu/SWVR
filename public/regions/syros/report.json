@@ -1,0 +1,246 @@
+{
+ "warnings": [
+  "only 3 buoys or beacons mapped (thin data?)",
+  "4 patches where the coastline's sides disagree (check the coast there)"
+ ],
+ "nav": {
+  "marks": 3,
+  "lights": 15,
+  "hazards": 43,
+  "farms": 0,
+  "currents": 0
+ },
+ "harbours": {
+  "harbours": 13,
+  "blocks": 38,
+  "berths": 99,
+  "slipways": 0,
+  "buildings": 2108,
+  "edits": 2,
+  "roles": {
+   "harbour.sheltered": "Ermoupoli",
+   "pier.exposed": "Lazareta pier",
+   "anchorage": "Vrysarakia anchorage"
+  }
+ },
+ "dredgedCells": 321,
+ "triangles": 204662,
+ "deepTriangles": 2588,
+ "vertices": 114830,
+ "bytes": 4946764,
+ "chunks": [
+  {
+   "id": 0,
+   "triangles": 350
+  },
+  {
+   "id": 1,
+   "triangles": 5416
+  },
+  {
+   "id": 2,
+   "triangles": 138
+  },
+  {
+   "id": 3,
+   "triangles": 3
+  },
+  {
+   "id": 9,
+   "triangles": 8224
+  },
+  {
+   "id": 10,
+   "triangles": 9851
+  },
+  {
+   "id": 11,
+   "triangles": 6654
+  },
+  {
+   "id": 17,
+   "triangles": 5047
+  },
+  {
+   "id": 18,
+   "triangles": 7090
+  },
+  {
+   "id": 19,
+   "triangles": 7697
+  },
+  {
+   "id": 20,
+   "triangles": 3151
+  },
+  {
+   "id": 25,
+   "triangles": 5591
+  },
+  {
+   "id": 26,
+   "triangles": 5760
+  },
+  {
+   "id": 27,
+   "triangles": 5838
+  },
+  {
+   "id": 28,
+   "triangles": 5447
+  },
+  {
+   "id": 33,
+   "triangles": 7520
+  },
+  {
+   "id": 34,
+   "triangles": 5488
+  },
+  {
+   "id": 35,
+   "triangles": 7687
+  },
+  {
+   "id": 36,
+   "triangles": 3316
+  },
+  {
+   "id": 40,
+   "triangles": 8042
+  },
+  {
+   "id": 41,
+   "triangles": 5412
+  },
+  {
+   "id": 42,
+   "triangles": 1804
+  },
+  {
+   "id": 43,
+   "triangles": 6280
+  },
+  {
+   "id": 44,
+   "triangles": 6162
+  },
+  {
+   "id": 45,
+   "triangles": 3466
+  },
+  {
+   "id": 46,
+   "triangles": 5
+  },
+  {
+   "id": 48,
+   "triangles": 8291
+  },
+  {
+   "id": 49,
+   "triangles": 2959
+  },
+  {
+   "id": 50,
+   "triangles": 1321
+  },
+  {
+   "id": 51,
+   "triangles": 2557
+  },
+  {
+   "id": 52,
+   "triangles": 5921
+  },
+  {
+   "id": 53,
+   "triangles": 1503
+  },
+  {
+   "id": 56,
+   "triangles": 5021
+  },
+  {
+   "id": 57,
+   "triangles": 7050
+  },
+  {
+   "id": 58,
+   "triangles": 5788
+  },
+  {
+   "id": 59,
+   "triangles": 8487
+  },
+  {
+   "id": 60,
+   "triangles": 6323
+  },
+  {
+   "id": 61,
+   "triangles": 68
+  },
+  {
+   "id": 62,
+   "triangles": 828
+  },
+  {
+   "id": 64,
+   "triangles": 1555
+  },
+  {
+   "id": 65,
+   "triangles": 10423
+  },
+  {
+   "id": 66,
+   "triangles": 4635
+  },
+  {
+   "id": 67,
+   "triangles": 20
+  },
+  {
+   "id": 68,
+   "triangles": 27
+  },
+  {
+   "id": 69,
+   "triangles": 2
+  },
+  {
+   "id": 72,
+   "triangles": 253
+  },
+  {
+   "id": 73,
+   "triangles": 190
+  },
+  {
+   "id": 74,
+   "triangles": 1
+  }
+ ],
+ "landShare": 0.3089685019564915,
+ "seenFromWater": 0.89,
+ "coastPoints": 7731,
+ "shoreBandPoints": 11166,
+ "chunkBudget": 12000,
+ "package": {
+  "ports": 10,
+  "berths": 14,
+  "blocks": 38,
+  "buildings": 2108,
+  "marks": 0,
+  "lights": 15,
+  "slipways": 0,
+  "fishingGrounds": 1,
+  "pottingGrounds": 43,
+  "landmarks": [
+   "Pyrgos",
+   "Nisis Dhidhimi FlW.6s"
+  ],
+  "bytes": 289289
+ }
+}

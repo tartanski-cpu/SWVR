@@ -15,6 +15,7 @@
 import { CONFIG } from '../../config';
 import { blockContact, type BlockHit } from '../../world/geography';
 import { groundHeight, groundNormal } from '../../world/terrain';
+import { coastGroundSolid } from '../../world/coastTerrain';
 import type { HullForm } from '../hullForm';
 
 export type ContactPoint = [number, number, number];
@@ -65,6 +66,9 @@ export function contactAt(px: number, py: number, pz: number, vx: number, vy: nu
     n.z = hit.nz;
     fendered = hit.fendered;
   } else {
+    // A big map's ground not streamed in yet is only its coarse grid: no contact there
+    // until the detailed mesh arrives (coastTerrain.ts coastGroundSolid).
+    if (!coastGroundSolid(px, pz)) return false;
     const h = groundHeight(px, pz);
     if (py >= h) return false;
     groundNormal(px, pz, n);

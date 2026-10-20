@@ -15,7 +15,7 @@ import { NARROWS } from './narrows';
 import { OBAN } from './oban';
 import { TAYVALLICH } from './tayvallich';
 import { MODE, VOYAGE_MAP_ID } from '../../mode';
-import { voyageMap } from '../maps';
+import { mapRegion, voyageMap } from '../maps';
 
 /**
  * The world (owner, Oct 2026): career mode is the hand-built archipelago, home and its
@@ -24,7 +24,7 @@ import { voyageMap } from '../maps';
  * (world/maps.ts), nothing else.
  */
 export const COAST_REGIONS: Record<string, RegionDef> = { oban: OBAN, tayvallich: TAYVALLICH };
-export const REGIONS: readonly RegionDef[] = MODE === 'voyage' ? [(voyageMap(VOYAGE_MAP_ID) ?? voyageMap('oban'))!.region] : [HOME, SOUNDS, FJORD, NARROWS];
+export const REGIONS: readonly RegionDef[] = MODE === 'voyage' ? [mapRegion((voyageMap(VOYAGE_MAP_ID) ?? voyageMap('oban'))!)] : [HOME, SOUNDS, FJORD, NARROWS];
 
 export function regionById(id: string): RegionDef | undefined {
   return REGIONS.find((r) => r.id === id);

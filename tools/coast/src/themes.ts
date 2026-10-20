@@ -43,4 +43,30 @@ const NORTH_HEBRIDEAN: Theme = {
   buildings: { walls: [0xf0eee6, 0xf0eee6, 0xe8e0c8, 0xd8d4cc, 0x9a958c, 0xc9b9a0], roofs: [0x4a4e54, 0x3e4248, 0x55595e], shedWalls: [0x8c9294, 0x5f7a5c, 0x9aa0a0], shedRoof: 0x6a7072 },
 };
 
-export const THEMES: Record<string, Theme> = { 'north-hebridean': NORTH_HEBRIDEAN };
+// The Aegean (Syros): dry hills of thyme and phrygana scrub, terraced slopes, bare marble
+// and schist, pine and olive in the valleys, white towns; bright sand under clear water.
+const AEGEAN: Theme = {
+  cover: {
+    10: 0x56683a, // tree cover: pine and olive groves
+    20: 0x9a9060, // shrubland: phrygana, grey-green scrub
+    30: 0x9e9158, // grassland: dry, straw-coloured most of the year
+    40: 0x9a8055, // cropland: terraces and fields
+    50: 0xb3a994, // built-up: pale stone and dust (bright white over a whole town reads as snow)
+    60: 0xa89a84, // bare / sparse: rock
+    70: 0xeef2f4, // snow (not here)
+    80: 0x3f7f9a, // permanent water
+    90: 0x8a8a5a, // herbaceous wetland
+    95: 0x4a6a3a, // mangroves (not here)
+    100: 0x9a9a7a, // moss and lichen
+  },
+  rock: 0x9b8b74,
+  sand: 0xe6d6a8,
+  // Higher up, the dry hills go stony grey-brown.
+  moor: { from: 120, to: 380, colour: 0x9c8f78 },
+  shallow: 0xd0c8a0,
+  deep: 0x2f5f78,
+  // Ermoupoli's neoclassical town (ochre, cream, terracotta tiles) and the Cyclades' white cubes.
+  buildings: { walls: [0xf4f2ec, 0xf4f2ec, 0xf0ece0, 0xe8d6a8, 0xd8b88a, 0xe2c8b0], roofs: [0xa8553a, 0xb86a48, 0xe8e4dc, 0x9a5038], shedWalls: [0xd8d2c4, 0xb8b0a0, 0x9aa0a0], shedRoof: 0x8a8a84 },
+};
+
+export const THEMES: Record<string, Theme> = { 'north-hebridean': NORTH_HEBRIDEAN, aegean: AEGEAN };

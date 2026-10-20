@@ -1,0 +1,20 @@
+# What region "syros" was built from (written by fetch.ts).
+region: syros
+bbox: [24.855, 37.355, 25.02, 37.525]
+sources:
+  - what: "coastline, harbours, seamarks, buildings, land use"
+    source: "OpenStreetMap contributors (incl. OpenSeaMap seamarks), api.openstreetmap.org"
+    licence: "ODbL 1.0"
+    fetched: 2026-10-20
+  - what: "land height"
+    source: "Copernicus DEM GLO-30 (Copernicus_DSM_COG_10_N37_00_E024_00_DEM, Copernicus_DSM_COG_10_N37_00_E025_00_DEM), AWS Open Data"
+    licence: "Copernicus DEM licence: free use with attribution (\"produced using Copernicus WorldDEM-30 (c) DLR e.V. 2010-2014 and (c) Airbus Defence and Space GmbH 2014-2018 provided under COPERNICUS by the European Union and ESA\")"
+    fetched: 2026-10-20
+  - what: "land cover (colours)"
+    source: "ESA WorldCover 10 m 2021 v200 (ESA_WorldCover_10m_2021_v200_N36E024_Map)"
+    licence: "CC BY 4.0 (\"(c) ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021) processed by ESA WorldCover consortium\")"
+    fetched: 2026-10-20
+  - what: "sea depth"
+    source: "EMODnet Bathymetry DTM (emodnet:mean), ows.emodnet-bathymetry.eu"
+    licence: "free use with attribution (\"EMODnet Bathymetry Consortium\")"
+    fetched: 2026-10-20

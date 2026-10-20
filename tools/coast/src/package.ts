@@ -1,6 +1,7 @@
 /**
  * Stage 10, package: the region in the game's own shapes (world/defs.ts RegionDef), for the
- * game to load as a region. Writes src/world/regions/<id>.coast.json, in the region's local
+ * game to load as a region. Writes src/world/regions/<id>.coast.json (a chunked region:
+ * public/regions/<id>/package.json, fetched when its Voyage map is chosen), in the region's local
  * metres (x east, z south, about the box's centre); the game places it in its world
  * (world/coastRegion.ts) and fetches the terrain (public/regions/<id>/terrain.bin) at start.
  *
@@ -22,7 +23,7 @@
  */
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { ROOT, dirs, loadRequest, projection } from './common.ts';
+import { ROOT, dirs, latin, loadRequest, nameOf, projection, slug } from './common.ts';
 
 const T = {
   berthsPerPort: 10,
@@ -237,7 +238,7 @@ const peaks = Object.entries(osm.nodeTags as Record<string, Record<string, strin
   .filter(([id, t]) => t.natural === 'peak' && t.name && osm.nodes[id])
   .map(([id, t]) => {
     const [x, z] = P.fwd(osm.nodes[id][0], osm.nodes[id][1]);
-    return { name: t.name, x: r1(x), z: r1(z), h: hAt(x, z) };
+    return { name: nameOf(t), x: r1(x), z: r1(z), h: hAt(x, z) };
   })
   .filter((p) => interior(p.x, p.z, 600))
   .sort((a, b) => b.h - a.h);
@@ -252,7 +253,7 @@ const pkg = {
   id: req.id,
   name: req.name,
   /** Where the terrain is, relative to the game's public folder, and how terrain.bin is laid out. */
-  terrain: { dir: `regions/${req.id}/`, ...region.terrain, chunks: region.chunks },
+  terrain: req.chunked ? { dir: `regions/${req.id}/`, ...region.terrain } : { dir: `regions/${req.id}/`, ...region.terrain, chunks: region.chunks },
   box,
   credits: region.credits,
   licence: region.licence,
@@ -271,7 +272,9 @@ const pkg = {
   fishingGrounds,
   currents,
 };
-const out = join(ROOT, '..', '..', 'src', 'world', 'regions', `${req.id}.coast.json`);
+// A chunked region (Voyage mode only) is fetched by the game when its map is chosen, so it
+// sits with its terrain in public/, not in the game's code (which Career mode loads whole).
+const out = req.chunked ? join(D.out, 'package.json') : join(ROOT, '..', '..', 'src', 'world', 'regions', `${req.id}.coast.json`);
 writeFileSync(out, JSON.stringify(pkg));
 const reportPath = join(D.out, 'report.json');
 const report = existsSync(reportPath) ? JSON.parse(readFileSync(reportPath, 'utf8')) : {};

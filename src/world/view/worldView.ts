@@ -182,7 +182,7 @@ class RegionView {
   mainMs = 0;
   distance = Infinity;
   /** The worker's arrays, waiting to be built up one step a frame (buildStep); no terrain arrays for a coast region. */
-  pending: { terrain: TerrainArrays | null; trees: Float32Array; step: number; parts?: THREE.BufferGeometry[]; making?: Generator<void> } | null = null;
+  pending: { terrain: TerrainArrays | null; trees: Float32Array; step: number; parts?: Map<string, THREE.BufferGeometry[]>; making?: Generator<void> } | null = null;
   /** A coast region's terrain (coastView.ts), once built. */
   coast: CoastTerrainView | null = null;
 
@@ -237,8 +237,19 @@ class RegionView {
     } else if (p.step === 1) {
       // The structures: all at once, or for a coast region (a harbourful of pieces) a few
       // milliseconds a frame, staying on this step until they're all made.
-      p.parts ??= [];
-      p.making ??= structureParts(this.region, p.parts);
+      // A coast region's are sorted into squares (`coastStructureCell` m), each its own mesh,
+      // drawn near the viewer only (coastView.ts); its lighthouses and landmarks into one
+      // drawn always. Elsewhere, one mesh.
+      const cell = CONFIG.regions.coastStructureCell;
+      const coast = !!this.region.coast;
+      p.parts ??= new Map();
+      const parts = p.parts;
+      p.making ??= structureParts(this.region, (x, z, far) => {
+        const key = !coast || far ? 'all' : `${Math.floor(x / cell)},${Math.floor(z / cell)}`;
+        let list = parts.get(key);
+        if (!list) parts.set(key, (list = []));
+        return list;
+      });
       const budget = this.region.coast ? 8 : Infinity;
       let done = false;
       while (performance.now() - t0 < budget) if ((done = !!p.making.next().done)) break;
@@ -247,9 +258,19 @@ class RegionView {
         this.buildMs += performance.now() - t0;
         return;
       }
-      const structures = new THREE.Mesh(mergeParts(p.parts), flatVertexColorMaterial());
-      structures.name = 'structures';
-      this.full.add(structures);
+      const mat = flatVertexColorMaterial();
+      const squares: { x: number; z: number; mesh: THREE.Mesh }[] = [];
+      for (const [key, list] of p.parts) {
+        if (!list.length) continue;
+        const structures = new THREE.Mesh(mergeParts(list), mat);
+        structures.name = 'structures';
+        this.full.add(structures);
+        if (key !== 'all') {
+          const [i, j] = key.split(',').map(Number);
+          squares.push({ x: (i + 0.5) * cell, z: (j + 0.5) * cell, mesh: structures });
+        }
+      }
+      this.coast?.setStructures(squares, cell);
     } else {
       this.full.add(buildTreesMesh(p.trees));
       this.full.traverse((o) => {
@@ -287,56 +308,59 @@ const BOLLARD = 0x2a2c30;
  * The region's structures, one piece at a time into `parts` (a generator: a coast region's
  * many are built a few milliseconds a frame, RegionView.buildStep; the others all at once).
  */
-function* structureParts(region: RegionDef, parts: THREE.BufferGeometry[]): Generator<void> {
+function* structureParts(region: RegionDef, at: (x: number, z: number, far?: boolean) => THREE.BufferGeometry[]): Generator<void> {
+  let parts: THREE.BufferGeometry[];
   for (const b of region.blocks) {
-    buildBlock(b, parts);
+    buildBlock(b, at(b.x, b.z));
     yield;
   }
   for (const s of region.slipways) {
-    buildSlipway(s, parts);
+    buildSlipway(s, at(s.x, s.z));
     yield;
   }
   for (const r of region.ridges) {
-    if (r.drawn !== false) buildBreakwater(r.ax, r.az, r.bx, r.bz, r.crest, r.halfWidth, r.slope, parts);
+    if (r.drawn !== false) buildBreakwater(r.ax, r.az, r.bx, r.bz, r.crest, r.halfWidth, r.slope, at(r.ax, r.az));
     yield;
   }
   // A coast region's buildings (a town's worth) go with its chunks instead (coastView.ts).
   if (!region.coast) {
     for (const bd of region.buildings) {
-      buildBuilding(bd, parts);
+      buildBuilding(bd, at(bd.x, bd.z));
       yield;
     }
   }
   for (const y of region.yards ?? []) {
-    buildYard(y, parts);
+    buildYard(y, at(y.crane.x, y.crane.z));
     yield;
   }
+  // Lighthouses and landmarks are seen from afar: `far`.
   for (const l of region.lights) {
-    buildLightTower(l.x, l.z, l.y, l.color, l.tower, parts);
+    buildLightTower(l.x, l.z, l.y, l.color, l.tower, at(l.x, l.z, true));
     yield;
   }
   for (const w of region.wrecks) {
-    buildWreck(w, parts);
+    buildWreck(w, at(w.x, w.z));
     yield;
   }
   for (const l of region.landmarks) {
-    if (l.kind === 'hill') buildCairn(l.x, l.z, parts);
+    if (l.kind === 'hill') buildCairn(l.x, l.z, at(l.x, l.z, true));
     yield;
   }
   for (const l of region.landmarks) {
-    if (l.kind === 'mast') buildMast(l.x, l.z, parts);
+    if (l.kind === 'mast') buildMast(l.x, l.z, at(l.x, l.z, true));
     yield;
   }
   for (const f of region.falls ?? []) {
-    buildFall(f, parts);
+    buildFall(f, at(f.x, f.z));
     yield;
   }
   for (const f of region.farms ?? []) {
-    buildFarm(f, parts);
+    buildFarm(f, at(f.x, f.z));
     yield;
   }
   // Lamp posts: a slim pole with a downward-facing head.
   for (const l of region.lamps) {
+    parts = at(l.x, l.z);
     const base = standingHeight(l.x, l.z);
     const h = l.y - base;
     parts.push(part(new THREE.CylinderGeometry(0.07, 0.1, h, 6).translate(l.x, base + h / 2, l.z), 0x50565c, 'worn'));
@@ -346,6 +370,7 @@ function* structureParts(region: RegionDef, parts: THREE.BufferGeometry[]): Gene
   // Berth marks: a yellow strip along the quay/pier edge for each named berth (fuel,
   // cargo); you can dock at any bollards, but these are where things happen.
   for (const b of region.berths) {
+    parts = at(b.x, b.z);
     const yaw = (b.headingDeg * Math.PI) / 180;
     const ex = b.x + b.shoreX * (b.shoreDist + 0.3);
     const ez = b.z + b.shoreZ * (b.shoreDist + 0.3);

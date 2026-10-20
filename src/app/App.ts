@@ -61,6 +61,7 @@ import { raceRoarLevel, raceStrength, setRaceClock } from '../world/currents';
 import { REGIONS, regionById } from '../world/regions';
 import { MODE, VOYAGE_MAP_ID } from '../mode';
 import { groundHeight } from '../world/terrain';
+import { coastStreamer } from '../world/coastStream';
 import { aboard, carriedBy, dropCarried, cargoLabel, cargoPortAt, kindOf, payloadMass, quickLoadable, quickPort, quickUnloadable, slotsUsed, type CargoItem } from '../cargo/cargo';
 import { groundAt, isPot, quickHaulable, quickPalletPots } from '../potting/potting';
 import { CargoHands, type CargoHandsContext } from '../cargo/cargoHands';
@@ -484,6 +485,8 @@ export class App {
   /** Last cheer count / shout id heard (null until the first frame). */
   private rescueHeard: { cheer: number; shout: number; ring: string } | null = null;
   private frameDt = 0;
+  /** Seconds since the coast streamer last looked (updateSceneViews). */
+  private sinceStream = 0;
   private readonly listenerFwd = new THREE.Vector3();
   private readonly listenerUp = new THREE.Vector3();
   /** Last radio message / alert played here (null until the first frame: don't replay old ones). */
@@ -1106,6 +1109,15 @@ export class App {
     // Regions: which are drawn in full for this viewer, which outlines are in sight today;
     // the ocean shader's shelter zones follow the resident set.
     this.worldView.update(this.focus, this.environment.visibility, dt);
+    // A big Voyage map's detailed ground: fetched round the eye and every boat (coastStream.ts).
+    this.sinceStream += dt;
+    const streamer = coastStreamer();
+    if (streamer && this.sinceStream > 0.25) {
+      this.sinceStream = 0;
+      const points = [{ x: this.focus.x, z: this.focus.z }];
+      for (const v of Object.values(this.world.vessels)) points.push({ x: v.position[0], z: v.position[2] });
+      streamer.update(points);
+    }
     if (this.worldView.residencyChanged) {
       this.ocean.setRaces(this.worldView.races);
       this.ocean.setShelters(this.worldView.shelters);

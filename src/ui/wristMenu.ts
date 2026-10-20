@@ -81,6 +81,14 @@ export class WristMenu {
         this.setHover(this.panel.hoverAt(px, py));
       });
       c.addEventListener('mouseleave', () => this.setHover(null));
+      // The wheel scrolls a long list (a coast map's ports) under the mouse.
+      c.addEventListener(
+        'wheel',
+        (e) => {
+          if (this.panel.scrollAt(at(e).py, Math.sign(e.deltaY))) e.preventDefault();
+        },
+        { passive: false },
+      );
       c.addEventListener('click', (e) => {
         const { px, py } = at(e);
         const b = this.panel.hoverAt(px, py);

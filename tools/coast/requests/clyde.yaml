@@ -1,0 +1,16 @@
+# Region request: the Firth of Clyde (owner, Oct 2026, from a map picture): Bute and Rothesay,
+# the Kyles of Bute and Loch Striven, Dunoon and Holy Loch, Gourock, Greenock and Helensburgh,
+# Largs and the Cumbraes. Full scale, about 35 x 37 km: for Voyage mode only, where the world
+# is the one map, so it is packaged in chunks the game streams in round the boat.
+id: clyde
+name: The Firth of Clyde
+bbox: [-5.27, 55.70, -4.70, 56.03]   # lon/lat min, max
+theme: north-hebridean
+chunked: true
+spine:
+  harbour.sheltered: auto
+  pier.exposed: auto
+  anchorage: auto
+weatherProfile: north-rough
+fish: [mackerel, cod, haddock, lobster]
+goods: [feed, building-materials, groceries]

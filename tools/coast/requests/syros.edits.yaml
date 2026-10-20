@@ -1,0 +1,12 @@
+# Hand edits for the Syros region (coast pipeline stage 7, src/harbours.ts), applied after
+# the harbours are generated, so re-running keeps them. See oban.edits.yaml for the syntax.
+# OpenStreetMap names the harbours in Greek after their fishing shelters ("Αλιευτικό
+# καταφύγιο", transliterated); the game calls them after their towns.
+
+change:
+  # Ermoupoli's harbour: the island's port, the sheltered harbour.
+  - match: alievtiko-katafygio-ermoupolis-karnagio
+    set: { name: Ermoupoli, id: ermoupoli, kind: harbour }
+  # Foinikas, the fishing harbour in the south-west bay.
+  - match: alievtiko-katafygio-foinika
+    set: { name: Foinikas, id: foinikas }
