@@ -356,11 +356,11 @@ export const ROOF_TOPS: { name: string; colour: number | null }[] = [
   { name: 'Dark grey', colour: 0x4a4f54 },
 ];
 
-/** Her livery with the roof's colour chosen, and its top's (the workboat orange livery is `{}`: the workboat's own orange topsides). */
+/** Her livery with the roof's colour chosen, and its top's (the workboat orange livery is `{}`: the workboat's own orange topsides), and the finish inside (none: the wood lining). */
 function liveryOf(d: ShipDesign): Livery {
   const l = LIVERIES[d.paint].livery;
   const top = ROOF_TOPS[d.roofTop ?? 0]?.colour;
-  return { ...l, roof: ROOF_PAINTS[d.roofPaint].colour ?? l.topsides ?? 0xd9622b, ...(top != null ? { roofTop: top } : {}) };
+  return { ...l, roof: ROOF_PAINTS[d.roofPaint].colour ?? l.topsides ?? 0xd9622b, ...(top != null ? { roofTop: top } : {}), ...(d.interior ? { interior: d.interior } : {}) };
 }
 
 /** The designed boat: her hull and recipe, her main figures, and anything to warn about. */

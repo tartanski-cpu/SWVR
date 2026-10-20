@@ -95,10 +95,32 @@ export const CONFIG = {
      * corrugated sheet and slates on the houses and sheds, concrete on the quays, stone on
      * the breakwaters.
      */
-    tileMetres: { nonSlip: 1, wood: 2, mat: 1, chequer: 0.5, crate: 1, sacking: 2, worn: 1.5, boards: 2, render: 2, sheet: 2, slates: 2, concrete: 4, stone: 3, window: 1, rust: 2 },
+    tileMetres: { nonSlip: 1, wood: 2, mat: 1, chequer: 0.5, crate: 1, sacking: 2, worn: 1.5, boards: 2, render: 2, sheet: 2, slates: 2, concrete: 4, stone: 3, window: 1, rust: 2, teak: 1.5, panels: 1.2, steel: 3, brushed: 2.4 },
     /** Width of the black window frames round the wheelhouse glass (m). */
     frameWidth: 0.06,
   },
+  /**
+   * The wheelhouse's interior finishes (owner, Oct 2026: "options for the interior textures";
+   * chosen in the Shipyard, Wheelhouse step). Each is a colour and a tile (pixelPaint) for the
+   * walls' inside faces, and one for the ceiling. From how real ones are lined:
+   * - wood: the planked lining every boat had before (and the first in the list, so a boat
+   *   with no choice keeps it);
+   * - teak & headliner: a yacht's pilothouse, varnished teak strip with a white ceiling;
+   * - white panels: the aluminium workboat's, foam-backed vinyl on ply panels screwed up
+   *   (light, wipe-clean, off in minutes to get at the wiring);
+   * - grey panels: the same in dark grey (it cuts the reflections in the windscreen by night);
+   * - painted steel: a tug's or a steel workboat's, the plating painted over in a pale
+   *   green (the old ship's interior colour, restful and hiding dirt) under a cream deckhead;
+   * - bare aluminium: the plain workboat's, the hull's own sheet left bare.
+   */
+  interiors: [
+    { name: 'Wood lining', walls: 0x8a5d3c, wallTile: 'wood', ceiling: 0x8a5d3c, ceilingTile: 'wood' },
+    { name: 'Teak & headliner', walls: 0xa86d3a, wallTile: 'teak', ceiling: 0xeeebe2, ceilingTile: 'panels' },
+    { name: 'White panels', walls: 0xf0ece2, wallTile: 'panels', ceiling: 0xf2efe8, ceilingTile: 'panels' },
+    { name: 'Grey panels', walls: 0x7d8288, wallTile: 'panels', ceiling: 0x5b6066, ceilingTile: 'panels' },
+    { name: 'Painted steel', walls: 0xb9c9ae, wallTile: 'steel', ceiling: 0xe2e2d6, ceilingTile: 'steel' },
+    { name: 'Bare aluminium', walls: 0xc3c8cd, wallTile: 'brushed', ceiling: 0xc2c5c8, ceilingTile: 'brushed' },
+  ] as const,
   render: {
     antialias: true,
     maxPixelRatio: 2,

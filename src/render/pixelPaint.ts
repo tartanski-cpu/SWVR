@@ -23,9 +23,10 @@ import { CONFIG } from '../config';
  * The tiles, in their order in the texture (0 is no paint). The first four are the boats';
  * the rest dress the cargo, the harbours and the sea marks (step 2, owner: the crates, the
  * houses, the buoys and nav marks). `crate` and `window` are whole pictures, one to a face
- * (`fitPaint`, render/geometryUtils); the others repeat every `tileMetres`.
+ * (`fitPaint`, render/geometryUtils); the others repeat every `tileMetres`. The last four are
+ * the wheelhouse's interior finishes (CONFIG.interiors, chosen in the Shipyard).
  */
-export const PAINTS = ['nonSlip', 'wood', 'mat', 'chequer', 'crate', 'sacking', 'worn', 'boards', 'render', 'sheet', 'slates', 'concrete', 'stone', 'window', 'rust'] as const;
+export const PAINTS = ['nonSlip', 'wood', 'mat', 'chequer', 'crate', 'sacking', 'worn', 'boards', 'render', 'sheet', 'slates', 'concrete', 'stone', 'window', 'rust', 'teak', 'panels', 'steel', 'brushed'] as const;
 export type PaintName = (typeof PAINTS)[number];
 
 /** A tile's index in the texture (0: none). */
@@ -263,6 +264,72 @@ const PAINTERS: Record<PaintName, () => (x: number, y: number) => number> = {
     if (Math.abs(x - 31.5) < 2 || Math.abs(y - 31.5) < 2) return 0.86; // glazing bars
     const glint = Math.abs(x + y - 70) < 5 || Math.abs(x + y - 84) < 2;
     return glint ? 0.5 : 0.3;
+  },
+  /** Teak strip lining, varnished: narrow strips (4 pixels, 9 cm at 1.5 m), dark seams between, a close even grain and a sheen along each strip. */
+  teak: () => {
+    const r = rng(127);
+    const rows = TILE / 4;
+    const strip = Array.from({ length: rows }, () => ({ tone: 0.5 + 0.08 * r(), end: Math.floor(r() * TILE), grain: Array.from({ length: TILE }, () => (r() - 0.5) * 0.08) }));
+    return (x, y) => {
+      const s = strip[Math.floor(y / 4)];
+      const k = y % 4;
+      if (k === 0) return 0.24; // the seam
+      if (x === s.end) return 0.3;
+      // The varnish's sheen on the strip's top row; the grain in fine streaks along it.
+      return s.tone + (k === 3 ? 0.06 : 0) + s.grain[(x * 3 + k * 11) % TILE];
+    };
+  },
+  /**
+   * Lining panels, the workboat's (foam-backed vinyl on ply, screwed up so they come off for
+   * the wiring): panels 0.6 m square (32 pixels at 1.2 m) with a shadowed joint
+   * between, a screw head every 15 cm along each joint, and the vinyl's fine grain.
+   */
+  panels: () => {
+    const r = rng(131);
+    const px = Array.from({ length: TILE * TILE }, () => 0.5 + (r() - 0.5) * 0.035);
+    return (x, y) => {
+      const jx = x % 32;
+      const jy = y % 32;
+      if (jx === 0 || jy === 0) return 0.2; // the joint
+      if (jx === 1 || jy === 1) return 0.64; // the panel's edge catching the light
+      // Screw heads, just in from the joints.
+      if ((jx === 3 && y % 8 === 4) || (jy === 3 && x % 8 === 4)) return 0.26;
+      return px[y * TILE + x];
+    };
+  },
+  /**
+   * Painted steel, a tug's or a steel workboat's: plates 1.5 m (32 pixels at 3 m) with a weld
+   * bead along each seam, the plates staggered row to row, a stiffener's shadow up the middle
+   * of each, and the paint a little uneven over them.
+   */
+  steel: () => {
+    const r = rng(137);
+    const mottle = noise(138, 16);
+    const px = Array.from({ length: TILE * TILE }, (_, i) => 0.49 + 0.05 * (mottle(i % TILE, Math.floor(i / TILE)) - 0.5) + (r() - 0.5) * 0.02);
+    return (x, y) => {
+      const xs = (x + (Math.floor(y / 32) % 2) * 16) % TILE;
+      const jy = y % 32;
+      const jx = xs % 32;
+      if (jy === 0 || jx === 0) return 0.66; // the weld bead, standing proud
+      if (jy === 1 || jx === 1) return 0.28; // its shadow
+      if (jx === 16 || jx === 17) return 0.4; // the stiffener behind
+      return px[y * TILE + x];
+    };
+  },
+  /**
+   * Bare aluminium, brushed: the sheet's streaks along it (each row of pixels its own shade),
+   * sheets 1.2 m (32 pixels at 2.4 m) butted, a line of rivets each side of every joint.
+   */
+  brushed: () => {
+    const r = rng(139);
+    const row = Array.from({ length: TILE }, () => (r() - 0.5) * 0.16);
+    const fleck = Array.from({ length: TILE * TILE }, () => (r() - 0.5) * 0.03);
+    return (x, y) => {
+      const jx = x % 32;
+      if (jx === 0 || jx === 31) return 0.26;
+      if ((jx === 2 || jx === 29) && y % 6 === 3) return 0.7; // rivet heads
+      return 0.5 + row[y] + fleck[y * TILE + x];
+    };
   },
 };
 
