@@ -1490,6 +1490,7 @@ export class App {
       const p = towPoint(this.world, key, new THREE.Vector3());
       return p ? [{ key, pos: { x: p.x, y: p.y, z: p.z } }] : [];
     }) : [];
+    const wasFlying = this.lineGun.phase === 'flying';
     const ev = this.lineGun.step(dt, { held, pressed: gun.pressed, tip, dir, targets, waterAt: (x, z) => surfaceHeight(this.renderWaves, x, z) });
     gun.pressed = false;
     this.lineGunView.update(this.lineGun, held ? tip : null, stern);
@@ -1498,8 +1499,11 @@ export class App {
     switch (ev) {
       case 'fired':
         if (hand) this.xrInput.pulse(hand, 0.9, 120);
+        this.sound.rescue.gunshot();
         break;
       case 'attached':
+        // Aimed true it lands at once, with no 'fired' before: this is the shot as well.
+        if (!wasFlying) this.sound.rescue.gunshot();
         if (hand) this.xrInput.pulse(hand, 0.9, 120);
         this.overlay.notify(`Line across! Her crew are hauling the hawser over to ${towName(this.world, this.lineGun.target!.key)}`, 4);
         break;

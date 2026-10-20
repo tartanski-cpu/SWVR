@@ -5104,6 +5104,12 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Fix:** a small lofting helper (`loft`): the forecastle is built station by station from her plan, each side 6 cm inside the hull's half-breadth there, its foot on the deck there (following the sheer), a flat top a metre over the deck at the stem, closed at both ends; flat-shaded, one part in the merged mesh as before. The windlass stands on it. The bollards go a pair on the forecastle and a pair aft, each 0.7 m inside the deck edge at its own station. No new draw calls (all merged).
 - **Checked:** typecheck, `npm test`, headless Chromium screenshots of her bow from both sides: the forecastle follows the plating, nothing stands proud, no bollard in the water. **Not checked:** VR.
 
+### The line gun's shot (owner)
+
+- **The owner:** the gun works in VR now; a small sound when it fires.
+- `audio/rescueSounds.ts` `gunshot()` (synthesised, like the board's other little sounds): a sharp crack (a bright noise burst, 90 ms) over a low thump (70 Hz, 220 ms), and the rocket's motor hissing away for half a second, falling in pitch. On the effects bus. Played by App on the gun's 'fired' event, and on 'attached' when the shot landed at once (aimed true, no flight), not when a flying rocket lands.
+- **Checked:** typecheck, `npm test`. **Not checked:** by ear (no speakers here); level against the engine is a guess, say if it's too loud or quiet.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**
