@@ -11,8 +11,10 @@ import type { WorldState } from '../core/world';
  *                  (its pose says so), not held already, not by a camera, not your own.
  *   cameraRelease  ref: the camera player's id: let go (only by whoever holds it).
  *   cameraFlip     ref: the camera player's id: turn it round in the hand (only by whoever
- *                  holds it). Picked up, it faces the holder (filming them, `back` false);
- *                  flipped, it looks out ahead of their hand (`back` true), and back again.
+ *                  holds it). Picked up, it is rigid with the hand and looks out along it
+ *                  (`back` false; owner: it moves exactly as the hand, angle and all);
+ *                  flipped, it's turned round in the hand to face the holder (`back` true),
+ *                  and back again.
  *
  * Held, the camera is locked to the hand (its own flying is off). A holder or camera that
  * leaves the game, or a camera that stops being one, is let go (stepCameraHolds).
