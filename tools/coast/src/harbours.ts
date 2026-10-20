@@ -14,7 +14,7 @@
  *              the real quay face. Breakwaters are wide, high boxes. Bollards, cleats and
  *              fenders come with the berths when drawn.
  *   Basins     The water within `basinReach` m of each pier, quay and pontoon is dredged to
- *              working depth (`berthDepth`, pontoons `pontoonDepth`, plus half a metre):
+ *              working depth (`berthDepth` plus half a metre, pontoons too: the game makes a berth where there is 2.2 m alongside):
  *              real harbours are, but the pipeline's procedural shelf would leave a metre of
  *              water at the wall. The basins go to the mesh stage (data/work/<id>/dredge.json),
  *              so run this stage before it. At a quay the ground from 2 m out to 4 m in
@@ -297,7 +297,7 @@ for (const [id, w] of Object.entries(osm.ways)) {
 const dredge: { x: number; z: number; halfLength: number; halfWidth: number; yawDeg: number; depth: number }[] = [];
 for (const b of blocks) {
   if (b.kind === 'breakwater') continue;
-  dredge.push({ x: r1(b.x), z: r1(b.z), halfLength: r1(b.halfLength + T.basinReach), halfWidth: r1(b.halfWidth + T.basinReach), yawDeg: b.yawDeg, depth: (b.kind === 'pontoon' ? T.pontoonDepth : T.berthDepth) + 0.5 });
+  dredge.push({ x: r1(b.x), z: r1(b.z), halfLength: r1(b.halfLength + T.basinReach), halfWidth: r1(b.halfWidth + T.basinReach), yawDeg: b.yawDeg, depth: T.berthDepth + 0.5 }); // pontoons too: the game makes its berths where there's 2.2 m alongside
 }
 function applyDredge(p: (typeof dredge)[number], wall: boolean): void {
   const a = (p.yawDeg * Math.PI) / 180;

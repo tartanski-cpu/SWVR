@@ -45,8 +45,8 @@ export class MooringLines {
     const legacy = !m.bow && !m.stern ? shoreSide(s, berth) : 0;
     // From her cleats (modules/cleat).
     for (const [side, cleat, along] of [
-      [m.bow || legacy, gearOf(s, 'bowCleat'), BOLLARD_HALF_SPACING], // the bow line leads forward to the forward bollard
-      [m.stern || legacy, gearOf(s, 'sternCleat'), -BOLLARD_HALF_SPACING], // the stern line aft
+      [m.bow || legacy, gearOf(s, 'bowCleat'), berth.bollardHalf ?? BOLLARD_HALF_SPACING], // the bow line leads forward to the forward bollard
+      [m.stern || legacy, gearOf(s, 'sternCleat'), -(berth.bollardHalf ?? BOLLARD_HALF_SPACING)], // the stern line aft
     ] as const) {
       if (!side || !cleat) continue;
       // From the cleat on the bulwark top (a small boat's: where it is)...

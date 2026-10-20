@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { coastHeight, registerCoastTerrain } from '../src/world/coastTerrain';
 
 const dir = join(dirname(fileURLToPath(import.meta.url)), '..', 'public', 'regions', 'oban');
 const region = JSON.parse(readFileSync(join(dir, 'region.json'), 'utf8'));
@@ -19,20 +20,10 @@ const inBox = (x: number, z: number) => x >= region.box.x0 && x <= region.box.x1
 const bin = readFileSync(join(dir, 'terrain.bin'));
 const ab = bin.buffer.slice(bin.byteOffset, bin.byteOffset + bin.byteLength) as ArrayBuffer;
 const t = region.terrain;
-const V = new Float32Array(ab, t.vertices.offset, t.vertices.count * 3);
-const F = new Uint32Array(ab, t.faces.offset, t.faces.count * 3);
+// The game's own lookup (coastTerrain.ts), the region at its own origin.
+registerCoastTerrain('oban-test', ab, { ...t, chunks: region.chunks }, region.box, 0, 0);
 function groundAt(x: number, z: number): number {
-  for (let f = 0; f < t.faces.count; f++) {
-    const [a, b, c] = [F[3 * f], F[3 * f + 1], F[3 * f + 2]];
-    const ax = V[3 * a], az = V[3 * a + 2], bx = V[3 * b], bz = V[3 * b + 2], cx = V[3 * c], cz = V[3 * c + 2]; // prettier-ignore
-    const det = (bz - cz) * (ax - cx) + (cx - bx) * (az - cz);
-    if (Math.abs(det) < 1e-9) continue;
-    const l1 = ((bz - cz) * (x - cx) + (cx - bx) * (z - cz)) / det;
-    const l2 = ((cz - az) * (x - cx) + (ax - cx) * (z - cz)) / det;
-    const l3 = 1 - l1 - l2;
-    if (l1 >= 0 && l2 >= 0 && l3 >= 0) return l1 * V[3 * a + 1] + l2 * V[3 * b + 1] + l3 * V[3 * c + 1];
-  }
-  return -60; // no face: deeper than the mesh draws (3 m)
+  return coastHeight(x, z) ?? -60;
 }
 
 describe('the Oban harbours (pipeline milestone 3)', () => {
