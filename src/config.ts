@@ -1953,6 +1953,14 @@ export const CONFIG = {
     heavyPostFactor: 1.75,
     maxStretch: 12,
     /**
+     * The TOW LINE screen (owner, Oct 2026: "how close it is to snapping"): its load bar is the
+     * nearer of the tension to its breaking force and the stretch to `maxStretch`. The highest
+     * load is held `peakHoldS` s (a snatch is over quicker than you can look); the bar turns
+     * amber from `amber` and red from `red` of breaking, and says EASE OFF; PARTED shows
+     * `partedShowS` s after it goes.
+     */
+    gauge: { peakHoldS: 6, amber: 0.5, red: 0.8, partedShowS: 20 },
+    /**
      * A ship (TowLook.needs 'tug': the coaster; owner, Oct 2026) is delivered only alongside a
      * quay or pier of the port: her middle within her half beam + `berthReach` m of the face,
      * slow, for deliverTime (push her in with your bow). The harbour's lines go on and she

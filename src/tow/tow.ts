@@ -344,6 +344,9 @@ export function towlineForces(world: WorldState): Map<EntityId, ExternalForce[]>
   const out = new Map<EntityId, ExternalForce[]>();
   const line = world.tow?.line;
   const v = tug(world);
+  // No line fast: her gauge reads nothing (PARTED a while after it went).
+  if (v?.towLine?.fast && !line) Object.assign(v.towLine, { fast: false, tension: 0, load: 0 });
+  if (v?.towLine?.parted && world.time - (v.towLine.partedAt ?? 0) > CONFIG.tow.gauge.partedShowS) v.towLine.parted = false;
   if (!line || !v) return out;
   const t = vesselOf(world, line.target);
   const d = debrisOf(world, line.target);
@@ -362,6 +365,7 @@ export function towlineForces(world: WorldState): Map<EntityId, ExternalForce[]>
   const stretch = len - lineLength(line);
   if (stretch <= 0) {
     line.tension = 0;
+    gauge(world, v, 0, 0);
     return out;
   }
   // Rate of stretch: the two points' relative velocity along the line. For debris, its
@@ -378,14 +382,35 @@ export function towlineForces(world: WorldState): Map<EntityId, ExternalForce[]>
   // The heavy towing post (an upgrade) holds more before the line parts, and so does a large
   // tow's own heavy hawser (`tow.lineFactor`).
   const hawser = t ? (VESSEL_DEFS[t.defId].tow?.lineFactor ?? 1) : 1;
-  if (T > cfg.breakForce * hawser * (hasUpgrade(world, 'towPost') ? cfg.heavyPostFactor : 1) || stretch > cfg.maxStretch) {
+  const breakAt = cfg.breakForce * hawser * (hasUpgrade(world, 'towPost') ? cfg.heavyPostFactor : 1);
+  // How near it is to parting, for her TOW LINE gauge: the nearer of the two.
+  gauge(world, v, T, Math.max(T / breakAt, stretch / cfg.maxStretch));
+  if (T > breakAt || stretch > cfg.maxStretch) {
     world.tow!.line = null;
+    Object.assign(v.towLine!, { fast: false, tension: 0, load: 0, partedAt: world.time, parted: true });
     sayRadio(world, 'info', 'The towline has parted! Come back round and make fast again.');
     return out;
   }
   if (t) out.set(t.id, [{ force: dir.clone().multiplyScalar(-T), point: pB.clone() }]);
   out.set(v.id, [{ force: dir.clone().multiplyScalar(T), point: pA.clone() }]);
   return out;
+}
+
+/**
+ * The towing boat's tow line gauge (VesselState.towLine; the TOW LINE screen): its tension and
+ * load toward parting this tick, and the highest load held a while (CONFIG.tow.gauge), so a
+ * snatch too quick to see on the bar still shows.
+ */
+function gauge(world: WorldState, v: VesselState, tension: number, load: number): void {
+  const g = (v.towLine ??= { fast: true, tension: 0, load: 0, peak: 0, peakAt: world.time });
+  g.fast = true;
+  g.parted = false;
+  g.tension = tension;
+  g.load = load;
+  if (load >= g.peak || world.time - g.peakAt > CONFIG.tow.gauge.peakHoldS) {
+    g.peak = load;
+    g.peakAt = world.time;
+  }
 }
 
 /**

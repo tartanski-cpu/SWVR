@@ -2022,7 +2022,13 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   }
   // Its screens in one row centred over the wheel, in their order, whichever she has (the basic
   // controls' two side by side), never spread with the dash; closer on a narrow one.
-  const screens = ['speed', 'heading', 'rpm', 'engineMonitor'].filter((id) => consoleMount.modules!.some((m) => m.socket === id && m.module === 'instrument.screen') && (d.controls || ['speed', 'rpm'].includes(id)));
+  // TOW LINE (owner, Oct 2026): with the advanced instruments, on a boat that can tow (her
+  // stern roller is her tow point): last in the row, starboard of the engine monitor.
+  if (sternRoller && d.controls) {
+    cc.slots.towline = { position: [0, cc.slots.engineMonitor.position[1], cc.slots.engineMonitor.position[2]] };
+    consoleMount.modules!.push({ socket: 'towline', module: 'instrument.screen', config: { screen: 'towline' } });
+  }
+  const screens = ['speed', 'heading', 'rpm', 'engineMonitor', 'towline'].filter((id) => consoleMount.modules!.some((m) => m.socket === id && m.module === 'instrument.screen') && (d.controls || ['speed', 'rpm'].includes(id)));
   const pitch = (CONFIG.modules.screen.dash.width + CONFIG.shipyard.helm.screenGap) * Math.min(1, sx);
   screens.forEach((id, i) => {
     const slot = cc.slots[id] as { position: V3 };
