@@ -88,7 +88,7 @@ export class WorldView {
     // trees), so no single frame carries the whole of it.
     for (const v of this.views) if (v.pending) v.buildStep();
     // A coast region's chunks: in full near the viewer, coarse beyond (coastView.ts).
-    for (const v of this.views) if (v.coast && v.resident) v.coast.update(viewer.x, viewer.z);
+    for (const v of this.views) if (v.coast && v.resident) v.coast.update(viewer.x, viewer.z, 2, Math.min(visibility, CONFIG.environment.hazeFar));
     this.sinceCheck += dt;
     if (this.sinceCheck < CONFIG.regions.residencyEvery) return;
     this.sinceCheck = 0;
@@ -100,10 +100,12 @@ export class WorldView {
       if (want && !v.built && !v.building) this.request(v);
       if (want && v.built && !v.resident) this.setResident(v, true);
       else if (!want && v.resident) this.setResident(v, false);
-      // The silhouette: when not drawn in full, and in sight.
-      const land = v.landmark;
-      const dl = Math.hypot(viewer.x - land.x, viewer.z - land.z);
-      v.silhouette.visible = !v.resident && dl < seenRange(land.h, visibility);
+      // The silhouette: when not drawn in full, and any of it can be seen: its nearest edge
+      // within the horizon of its highest land and short of where the fog is total (the
+      // scene fog ends at the visibility or the clearest day's haze, environmentView.ts),
+      // so it is gone only once the fog has already hidden it. (Judged by its landmark
+      // alone, it vanished while its nearer land still showed through the haze.)
+      v.silhouette.visible = !v.resident && d < seenRange(v.landmark.h, Math.min(visibility, CONFIG.environment.hazeFar));
     }
   }
 

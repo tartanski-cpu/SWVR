@@ -18,7 +18,7 @@
 import * as THREE from 'three';
 import { CONFIG } from '../../config';
 import type { BerthDef } from '../../world/archipelago';
-import { allBerths } from '../../world/berths';
+import { berthsNear, berthWithId } from '../../world/berths';
 import { gearOf } from '../../boats/sims';
 import { VESSEL_DEFS } from '../vesselDef';
 import type { VesselState } from '../vesselState';
@@ -47,7 +47,7 @@ export function berthInRange(s: VesselState): { berth: BerthDef; reversed: boole
   const cosMax = Math.cos((c.maxAngleDeg * Math.PI) / 180);
   let best: { berth: BerthDef; reversed: boolean } | null = null;
   let bestDist = Infinity;
-  for (const b of allBerths()) {
+  for (const b of berthsNear(s.position[0], s.position[2])) {
     const d = Math.hypot(s.position[0] - b.x, s.position[2] - b.z);
     if (d > c.range || d >= bestDist) continue;
     const a = berthAxis(b, false);
@@ -119,7 +119,7 @@ export function shoreSide(s: VesselState, b: BerthDef): number {
 }
 
 export function berthById(id: string | null): BerthDef | undefined {
-  return id ? allBerths().find((b) => b.id === id) : undefined;
+  return id ? berthWithId(id) : undefined;
 }
 
 type V = { x: number; y: number; z: number };

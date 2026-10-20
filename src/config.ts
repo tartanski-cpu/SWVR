@@ -4679,6 +4679,8 @@ export const CONFIG = {
     /** ...coarse out to coastMidDistance (m), and beyond that every coastFarCell m (a big region's far hills). */
     coastMidDistance: 6000,
     coastFarCell: 270,
+    /** The far chunks are one merged mesh, merged again at most this often (s) as the set of them changes. */
+    coastFarRebuild: 0.5,
     coastCoarseCell: 90,
     coastCoarseOverlap: 90,
     coastCoarseDrop: 1,

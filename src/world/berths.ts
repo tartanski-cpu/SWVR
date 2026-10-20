@@ -7,8 +7,14 @@
  */
 import { BERTHS, BLOCKS, PORTS, type BerthDef, type BlockDef } from './archipelago';
 import { groundHeight } from './terrain';
+import { GridIndex } from './gridIndex';
 
 let all: BerthDef[] | null = null;
+let near: GridIndex<BerthDef> | null = null;
+let byId: Map<string, BerthDef> | null = null;
+
+/** How far round a point `berthsNear` is sure to find every berth (m): more than the fender duty's 400 m and the docking range. */
+export const BERTH_NEAR_REACH = 500;
 
 /** A block's local (x across, z along) point to world, as the world view places it. */
 function toWorld(b: BlockDef, lx: number, lz: number): { x: number; z: number } {
@@ -120,4 +126,19 @@ export function shortCleat(half: number): number {
 /** All dockable berths: named, and one per bollard pair on every seaward face. */
 export function allBerths(): BerthDef[] {
   return (all ??= generate());
+}
+
+/**
+ * The berths within at least BERTH_NEAR_REACH of world (x, z) (a few more beyond it, never
+ * fewer). A real-coast map has over a thousand; the physics asks every tick.
+ */
+export function berthsNear(x: number, z: number): readonly BerthDef[] {
+  near ??= new GridIndex(allBerths(), (b) => [b.x - BERTH_NEAR_REACH, b.z - BERTH_NEAR_REACH, b.x + BERTH_NEAR_REACH, b.z + BERTH_NEAR_REACH]);
+  return near.at(x, z);
+}
+
+/** A berth by its id. */
+export function berthWithId(id: string): BerthDef | undefined {
+  byId ??= new Map(allBerths().map((b) => [b.id, b]));
+  return byId.get(id);
 }

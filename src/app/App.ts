@@ -62,6 +62,8 @@ import { REGIONS, regionById } from '../world/regions';
 import { MODE, VOYAGE_MAP_ID } from '../mode';
 import { groundHeight } from '../world/terrain';
 import { coastStreamer } from '../world/coastStream';
+import { MAX_SHELTERS } from '../world/shelter';
+import type { ShelterDef } from '../world/defs';
 import { aboard, carriedBy, dropCarried, cargoLabel, cargoPortAt, kindOf, payloadMass, quickLoadable, quickPort, quickUnloadable, slotsUsed, type CargoItem } from '../cargo/cargo';
 import { groundAt, isPot, quickHaulable, quickPalletPots } from '../potting/potting';
 import { CargoHands, type CargoHandsContext } from '../cargo/cargoHands';
@@ -487,6 +489,10 @@ export class App {
   private frameDt = 0;
   /** Seconds since the coast streamer last looked (updateSceneViews). */
   private sinceStream = 0;
+  /** The sheltered-water zones of the regions drawn in full, the nearest of which the ocean draws (updateSceneViews). */
+  private shelterPool: ShelterDef[] = [];
+  private sinceShelters = 0;
+  private shelterKey = '';
   private readonly listenerFwd = new THREE.Vector3();
   private readonly listenerUp = new THREE.Vector3();
   /** Last radio message / alert played here (null until the first frame: don't replay old ones). */
@@ -1118,9 +1124,27 @@ export class App {
       for (const v of Object.values(this.world.vessels)) points.push({ x: v.position[0], z: v.position[2] });
       streamer.update(points);
     }
-    if (this.worldView.residencyChanged) {
+    // The ocean shader holds MAX_SHELTERS sheltered-water zones: the nearest ones of the
+    // regions drawn in full, looked at again every second (a coast map has dozens of
+    // harbours, and the physics calms them all: the drawn sea must match where you are).
+    const residency = this.worldView.residencyChanged;
+    if (residency) {
       this.ocean.setRaces(this.worldView.races);
-      this.ocean.setShelters(this.worldView.shelters);
+      this.shelterPool = this.worldView.shelters;
+    }
+    this.sinceShelters += dt;
+    if (residency || this.sinceShelters > 1) {
+      this.sinceShelters = 0;
+      const { x, z } = this.focus;
+      const near = this.shelterPool
+        .map((s, i) => ({ s, i, d: Math.hypot(s.x - x, s.z - z) - s.rOut }))
+        .sort((a, b) => a.d - b.d)
+        .slice(0, MAX_SHELTERS);
+      const key = near.map((n) => n.i).join(',');
+      if (residency || key !== this.shelterKey) {
+        this.shelterKey = key;
+        this.ocean.setShelters(near.map((n) => n.s));
+      }
     }
     this.worldView.lights.update(renderTime, darkness, this.focus, this.environment.visibility);
     this.navMarks.update(this.renderWaves, renderTime, darkness);

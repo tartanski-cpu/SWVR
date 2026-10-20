@@ -3,6 +3,7 @@
  * piers), fuel berths, ports. Terrain height lives in terrain.ts.
  */
 import { BLOCKS, PORTS, type BlockDef, type PortDef } from './archipelago';
+import { GridIndex } from './gridIndex';
 import { groundHeight } from './terrain';
 
 /** Blocks are solid from this depth (m) up to their deck: piles and walls go to the seabed. */
@@ -21,6 +22,8 @@ const PREPARED: PreparedBlock[] = BLOCKS.map((def) => {
   const a = (def.yawDeg * Math.PI) / 180;
   return { def, ax: Math.sin(a), az: -Math.cos(a), reach: Math.hypot(def.halfLength, def.halfWidth) };
 });
+/** The blocks by where they are, for the point queries below (a coast map has hundreds). */
+const NEAR = new GridIndex(PREPARED, (b) => [b.def.x - b.reach, b.def.z - b.reach, b.def.x + b.reach, b.def.z + b.reach]);
 
 export interface BlockHit {
   /** Penetration depth (m) and outward unit normal (world) of the nearest face. */
@@ -38,7 +41,7 @@ export interface BlockHit {
 export function blockContact(x: number, y: number, z: number, out: BlockHit): boolean {
   let found = false;
   out.depth = Infinity;
-  for (const b of PREPARED) {
+  for (const b of NEAR.at(x, z)) {
     const d = b.def;
     const dx = x - d.x;
     const dz = z - d.z;
@@ -96,7 +99,7 @@ export function fuelBerthAt(x: number, z: number): PortDef | null {
  * (Used to set buildings, pumps and cargo stacks down.)
  */
 export function standingHeight(x: number, z: number): number {
-  for (const b of PREPARED) {
+  for (const b of NEAR.at(x, z)) {
     const dx = x - b.def.x;
     const dz = z - b.def.z;
     const l = dx * b.ax + dz * b.az;
@@ -108,7 +111,7 @@ export function standingHeight(x: number, z: number): number {
 
 /** Deck height of the quay or pier covering (x, z), or null if none does. */
 export function blockTop(x: number, z: number): number | null {
-  for (const b of PREPARED) {
+  for (const b of NEAR.at(x, z)) {
     const dx = x - b.def.x;
     const dz = z - b.def.z;
     const l = dx * b.ax + dz * b.az;

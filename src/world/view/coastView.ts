@@ -14,6 +14,9 @@
  *          always shows on top.
  *   far    beyond, a very coarse copy every `coastFarCell` m (a big region, the Clyde's
  *          37 km, would otherwise draw a quarter of a million triangles of distant hills).
+ *          All the chunks drawn far are ONE mesh, merged again (at most every
+ *          `coastFarRebuild` s) when the set of them changes as you move: the Clyde's 293
+ *          far chunks as separate meshes were 70 extra draw calls, and its frame rate.
  *   silhouette  the whole region far off: the same, every `coastSilhouetteCell` m.
  *   buildings   a town's worth: merged per chunk, built the first time the viewer comes
  *          within `coastBuildingDistance`, shown only within it.
@@ -116,7 +119,8 @@ export class CoastTerrainView {
     start: number;
     count: number;
     mid: THREE.Mesh | null;
-    far: THREE.Mesh | null;
+    /** Its very coarse copy, merged with the others drawn far into `farMesh`. */
+    far: TerrainArrays | null;
     fine: THREE.Mesh | null;
     buildings: BuildingDef[];
     town: THREE.Mesh | null;
@@ -125,6 +129,11 @@ export class CoastTerrainView {
   private readonly t: CoastTerrain;
   /** Triangles drawn now (near and far), for the debug overlay. */
   triangles = 0;
+  /** The chunks drawn far, as one mesh; which they are (their indices), and when it was last merged (ms). */
+  private farMesh: THREE.Mesh | null = null;
+  private farKey = '';
+  private farSet = new Set<number>();
+  private farAt = -Infinity;
   /** The region's harbour kit in squares (worldView), each shown near the viewer only. */
   private structures: { x: number; z: number; mesh: THREE.Mesh }[] = [];
   private structureHalf = 0;
@@ -171,10 +180,10 @@ export class CoastTerrainView {
 
   /**
    * The chunks for a viewer at (x, z): in full near, coarse out to `coastMidDistance`, very
-   * coarse beyond. Builds at most `maxBuilds` pieces a call (each a few milliseconds), the
+   * coarse beyond, out to `fogFar` (m, where the fog is total). Builds at most `maxBuilds` pieces a call (each a few milliseconds), the
    * nearest first.
    */
-  update(x: number, z: number, maxBuilds = 2): void {
+  update(x: number, z: number, maxBuilds = 2, fogFar = Infinity): void {
     const c = CONFIG.regions;
     let built = 0;
     let tris = 0;
@@ -189,10 +198,10 @@ export class CoastTerrainView {
     let farBuilt = 0;
     for (const { ch } of order) {
       if (ch.far || ch.count === 0 || farBuilt >= maxBuilds * 4) continue;
-      ch.far = grid(ch, c.coastFarCell, c.coastFarCell, c.coastCoarseDrop * 2, 'coast-far');
-      this.root.add(ch.far);
+      ch.far = gridArrays(ch.x0 - c.coastFarCell, ch.z0 - c.coastFarCell, ch.x1 + c.coastFarCell, ch.z1 + c.coastFarCell, c.coastFarCell, -0.5, c.coastCoarseDrop * 2);
       farBuilt++;
     }
+    const farList: (typeof this.chunks)[number][] = [];
     for (const { ch, d } of order) {
       // A chunked region's chunk that has been dropped: its full mesh goes with it.
       if (ch.fine && !this.t.piece && !this.t.pieces.has(ch.k)) {
@@ -219,8 +228,10 @@ export class CoastTerrainView {
       const showMid = mid && !!ch.mid;
       if (ch.fine) ch.fine.visible = full;
       if (ch.mid) ch.mid.visible = showMid;
-      if (ch.far) ch.far.visible = !full && !showMid;
-      tris += full ? ch.count : showMid ? count(ch.mid!) : ch.far ? count(ch.far) : 0;
+      // Past where the fog is total (the clearest day's haze, or today's visibility) a far
+      // chunk can't be seen: left out (a big map is mostly beyond it).
+      if (ch.far && !full && !showMid && d < fogFar) farList.push(ch);
+      tris += full ? ch.count : showMid ? count(ch.mid!) : 0;
       // The buildings, near only.
       const town = d < c.coastBuildingDistance && ch.buildings.length > 0;
       if (town && !ch.town && built < maxBuilds) {
@@ -235,6 +246,37 @@ export class CoastTerrainView {
         if (town) tris += count(ch.town);
       }
     }
+    // The far chunks, merged again when the set of them has changed. A chunk joining it (no
+    // longer drawn mid) is merged at once, or there'd be a hole where it is; one leaving it
+    // (now drawn mid or full, which sit higher) can wait coastFarRebuild s, as can the first
+    // fill while the far copies are still being made, so it isn't merged every frame.
+    const key = farList.map((ch) => ch.k).join(',');
+    const now = performance.now();
+    const joins = farList.some((ch) => !this.farSet.has(ch.k));
+    if (key !== this.farKey && ((joins && farBuilt === 0) || now - this.farAt > c.coastFarRebuild * 1000)) {
+      this.farKey = key;
+      this.farSet = new Set(farList.map((ch) => ch.k));
+      this.farAt = now;
+      if (this.farMesh) {
+        this.root.remove(this.farMesh);
+        this.farMesh.geometry.dispose();
+        this.farMesh = null;
+      }
+      const n = farList.reduce((t, ch) => t + ch.far!.position.length, 0);
+      if (n) {
+        const position = new Float32Array(n);
+        const color = new Float32Array(n);
+        let at = 0;
+        for (const ch of farList) {
+          position.set(ch.far!.position, at);
+          color.set(ch.far!.color, at);
+          at += ch.far!.position.length;
+        }
+        this.farMesh = toMesh({ position, color }, this.mat, 'coast-far');
+        this.root.add(this.farMesh);
+      }
+    }
+    if (this.farMesh) tris += count(this.farMesh);
     // The harbour kit, square by square.
     const hs = this.structureHalf;
     for (const sq of this.structures) {

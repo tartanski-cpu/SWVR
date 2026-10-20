@@ -6264,6 +6264,52 @@ Owner (with a map picture of the Firth): "Next id like a bigger area, as its onl
   - **Desktop:** open https://tartanski-cpu.github.io/SWVR/next/, choose Voyage → The Firth of Clyde. You start moored at Rothesay. Sail out of Rothesay Bay and north up the Firth past Toward toward Dunoon. Watch the shore sharpen as you near it, with no holes or steps in the ground. Use Menu → Debug → World → To port to jump to Largs, Millport (Cumbrae ferry terminal), Greenock or Helensburgh, and look round each.
   - **VR:** the same, with the perf panel: watch the triangle count and frame time as chunks arrive while under way.
 
+### Fix: the Clyde's frame rate, and distant regions vanishing before the fog (owner, testing on the Quest)
+
+Owner: "the Firth of Clyde, I get quite low frame rates in the Quest, like 50... I'd be aiming for 75. Syros was better." And: "you could see the stuff in the distance... but they then disappeared and then the fog came... they didn't fade out properly."
+
+**Why the Clyde was slow:** it's not the triangles (it drew about as many as Oban and Syros). It was work that grew with the size of the map, measured headless against Oban and Syros:
+- **Draw calls:** 106 at Rothesay (143 under way) against Syros's 73. Every 2 km chunk of distant land was its own small mesh: 256 of them in the scene, each checked and most drawn every frame.
+- **The simulation:** 3.2-3.5 ms a step against 1.4 ms. For every wave sample on the hull, and every hull point, every tick, the physics checked every sheltered harbour (about 59) and every pier (219) in the map, and the fender duty measured the distance to every berth (1,470).
+- **Not the chunking:** the detailed ground streams in and out as it should.
+
+**The fixes:**
+- **Distant land as one mesh** (`world/view/coastView.ts`):
+  - All the chunks drawn far are merged into a single mesh, merged again as the set changes.
+  - A chunk joining the far set is merged at once, so there's never a hole. One leaving it waits up to `regions.coastFarRebuild` (0.5 s), so a moving viewer doesn't re-merge every frame.
+  - Distant chunks past where the fog is total (the clearest day's haze, `environment.hazeFar`, 13.5 km, or today's visibility if less) are left out. On a clear day that's most of the Clyde; in fog, more.
+- **A spatial index** (`world/gridIndex.ts`): the world in 250 m squares, each listing what reaches into it. Shelter zones (`world/shelter.ts`), piers and quays (`world/geography.ts`: hull contacts, standing on a quay) and berths (`world/berths.ts`: the docking spot, the fender duty, berths by id) now check only what's near.
+- **The sea drawn calm in the right harbours:** the ocean shader holds 8 sheltered-water zones, and it took the first 8 listed in the map. In the Clyde, most harbours were drawn rough while the boat handled as if calm. It now takes the 8 nearest you, looked at again every second (App).
+
+**After** (headless, under way):
+
+| | draw calls | triangles | simulation per step |
+|---|---|---|---|
+| Clyde | 76 (was 106-143) | 189k (was 179-213k) | 1.4-1.6 ms (was 3.2-3.5) |
+| Oban | 75 | 179k | 1.2-1.6 ms |
+| Syros | 70 | 193k | 1.0-1.2 ms |
+
+The Clyde now costs about what Oban and Syros do.
+
+**Distant regions popping off** (career world, `world/view/worldView.ts`):
+- **Why:** a region not drawn in full shows as an outline (its land, coarse). Whether to show it was judged by the distance to one point, its tallest landmark. On a hazy day the landmark passed the visibility while the region's nearer land was still short of where the fog is total, so the outline vanished while you could still see it.
+- **Now:** it is shown until its nearest edge is past where the fog is total (or below the horizon of its highest land), so the fog has always hidden it first.
+- **Checked:** sailing south from home on a clear day, each outline went as its nearest edge passed 13.5 km.
+
+**Checked:**
+- typecheck, all tests;
+- headless frame costs in the three maps, before and after;
+- screenshots at Rothesay and Dunoon (the distant shores whole, no holes);
+- the career world's outlines, sailing away.
+
+**Not checked:** the Quest's frame rate. The Clyde should now run like Syros and Oban; please confirm.
+
+**Test steps:**
+- **VR:**
+  - Voyage → The Firth of Clyde with the perf panel (B/Y). Read the frame rate moored at Rothesay and under way up the Firth toward Dunoon. Draw calls should read about 75.
+  - Then Career: sail out of Calder Haven and watch the far regions. Their outlines should soften into the haze and be gone only once fully hazed out.
+- **Desktop:** the same; in the Clyde, look into a harbour (Rothesay, Largs). The water inside the breakwater should be drawn calmer than outside, as the boat feels it.
+
 ### Fix: long port lists in the menu scroll (owner, testing in VR)
 
 Owner: "the list of ports gets too big on the VR menu and it becomes very small, we probably need to do a scroll bar on the ports".

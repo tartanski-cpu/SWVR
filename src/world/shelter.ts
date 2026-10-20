@@ -9,9 +9,13 @@
  * is ignored in the surface normal - harmless because zones fade over tens of metres.
  */
 import { SHELTERS, type ShelterDef } from './archipelago';
+import { GridIndex } from './gridIndex';
 
-/** Zones the ocean shader can hold at once: those of the regions drawn in full (worldView.ts). */
+/** Zones the ocean shader can hold at once: the nearest of the regions drawn in full (App, worldView.ts). */
 export const MAX_SHELTERS = 8;
+
+/** The zones by where they are (a coast map has dozens; these are asked for every wave sample). */
+const NEAR = new GridIndex(SHELTERS, (z0) => [z0.x - z0.rOut, z0.z - z0.rOut, z0.x + z0.rOut, z0.z + z0.rOut]);
 
 /** A zone's factor at distance d from its centre (its `factor` inside rIn, 1 beyond rOut). */
 function zoneK(z0: ShelterDef, d: number): number {
@@ -22,7 +26,7 @@ function zoneK(z0: ShelterDef, d: number): number {
 /** The shelter at (x, z) from the zones with no gap (the same for every wave). */
 export function shelterFactor(x: number, z: number): number {
   let s = 1;
-  for (const z0 of SHELTERS) {
+  for (const z0 of NEAR.at(x, z)) {
     if (z0.openArcDeg) continue;
     const d = Math.hypot(x - z0.x, z - z0.z);
     if (d >= z0.rOut) continue;
@@ -42,7 +46,7 @@ const ARC_EDGE = 15;
  */
 export function arcShelter(x: number, z: number, dirX: number, dirZ: number): number {
   let s = 1;
-  for (const z0 of SHELTERS) {
+  for (const z0 of NEAR.at(x, z)) {
     if (!z0.openArcDeg) continue;
     if (Math.abs(x - z0.x) >= z0.rOut || Math.abs(z - z0.z) >= z0.rOut) continue;
     const d = Math.hypot(x - z0.x, z - z0.z);

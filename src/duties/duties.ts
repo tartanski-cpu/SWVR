@@ -37,7 +37,7 @@ import { towFast } from '../tow/tow';
 import { TUTORIAL } from '../career/tutorial';
 import { answerFogSignal } from '../traffic/traffic';
 import { PORTS } from '../world/archipelago';
-import { allBerths } from '../world/berths';
+import { BERTH_NEAR_REACH, berthsNear } from '../world/berths';
 import { oilCheckDue } from '../vessel/maintenance';
 import { leverDemand, preheatNeeded, type EngineSpec } from '../vessel/physics/propulsion';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
@@ -203,7 +203,9 @@ function stepFenders(world: WorldState, d: DutiesState, v: VesselState): void {
   if (!gearOf(v, 'fenders')) return;
   const now = world.time;
   const [x, , z] = v.position;
-  const berth = Math.min(...allBerths().map((b) => Math.hypot(b.x - x, b.z - z)));
+  // Distance to the nearest berth (beyond BERTH_NEAR_REACH it reads as that far: all the checks below are nearer).
+  let berth = BERTH_NEAR_REACH;
+  for (const b of berthsNear(x, z)) berth = Math.min(berth, Math.hypot(b.x - x, b.z - z));
   const speed = Math.hypot(v.linearVelocity[0], v.linearVelocity[2]);
   const under = v.engine.phase === 'running' && v.mooring.phase === 'free';
   let out = open(d, 'fendersOut');
