@@ -4,9 +4,9 @@
   "name": "Beginner boat",
   "design": {
     "hull": 1,
-    "length": 10,
-    "beam": 10,
-    "depth": 10,
+    "length": 8,
+    "beam": 8,
+    "depth": 8,
     "bulwark": 3,
     "bow": 2,
     "housePos": 0,

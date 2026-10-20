@@ -42,7 +42,8 @@ export type SocketType =
   | 'hull.rudder' //     a rudder stock and its steering gear
   | 'hull.side' //       along her sides: a rubbing strake or tyres
   | 'transom.mount' //  an outboard motor's bracket on the transom (M6a: the skiff's)
-  | 'transom.outboards'; // a row of outboards on a bracket off the transom (propulsion.outboard)
+  | 'transom.outboards' // a row of outboards on a bracket off the transom (propulsion.outboard)
+  | 'hull.pods'; // pod drives under her bottom (propulsion.pods)
 
 /** Position (m) and rotation (deg, applied in the order Y, X, Z) relative to the parent. */
 export interface Transform {

@@ -82,6 +82,12 @@ function kept(type: BusKeySpec['type'], get: (s: VesselState) => BusValue | unde
   return { ...state(type, get, doc, extra), writer: 'module', bind: { get, set } };
 }
 
+/** One way of the pod drives' helm joystick (-1..1 in `controls`): only on a boat with pods (VesselState.pods). */
+function podStick(field: 'joyX' | 'joyY' | 'joyR', doc: string): BusKeySpec {
+  const spec = setting(field, [-1, 1], '-1..1', doc, { hold: 'joyX' });
+  return { ...spec, bind: { ...spec.bind!, get: (s) => (s.pods ? (s.controls[field] ?? 0) : undefined) } };
+}
+
 /** A press: setting it true does `act` once; it always reads false (see BusKeySpec.press). */
 function press(doc: string, aliases: string[], act: (s: VesselState) => void): BusKeySpec {
   return {
@@ -340,6 +346,17 @@ export const BUS_KEYS = {
   'autopilot.engage': press('AUTOPILOT pressed: hold the heading she is on now, or let go. Turning the wheel lets go too.', [], (s) => engageAutopilot(s, !s.controls.autopilot)),
   'autopilot.on': state('boolean', (s) => (gearOf(s, 'autopilot') ? !!s.controls.autopilot : undefined), 'The autopilot is holding her heading.'),
   'autopilot.heading': state('number', (s) => (s.controls.autopilot ? s.controls.autopilotHeading : undefined), 'The heading the autopilot holds.', { unit: 'deg' }),
+  // ── Pod drives' joystick (owner, Oct 2026; modules/pods, modules/helmJoystick) ──
+  'joystick.x': podStick('joyX', 'Helm joystick sideways: -1 full to port, +1 full to starboard (0 let go).'),
+  'joystick.y': podStick('joyY', 'Helm joystick fore and aft: +1 full ahead, -1 full astern (0 let go).'),
+  'joystick.twist': podStick('joyR', 'Helm joystick twisted: +1 full clockwise (bow to starboard), -1 anticlockwise (0 let go).'),
+  'pods.joystickMode': press('JOYSTICK pressed: hand the pods to the helm joystick, or back to the wheel and throttle. Only with the throttle in neutral; moving it out of neutral hands them back.', [], (s) => {
+    s.controls.joyMode = s.controls.joyMode ? 0 : 1;
+    s.controls.joyX = s.controls.joyY = s.controls.joyR = 0;
+  }),
+  'pods.joystick': state('boolean', (s) => (s.pods ? !!s.controls.joyMode : undefined), 'The pods are on the helm joystick (vector mode).'),
+  'pods.angle.port': state('number', (s) => (s.pods ? s.pods.angles[0] * RAD : undefined), 'The port pod\'s heading, + its push turned to port (as the rudder angle).', { unit: 'deg', writer: 'module' }),
+  'pods.angle.stbd': state('number', (s) => (s.pods ? s.pods.angles[s.pods.angles.length - 1] * RAD : undefined), 'The starboard pod\'s heading.', { unit: 'deg', writer: 'module' }),
   'mooring.phase': state('enum', (s) => s.mooring.phase, 'Mooring: free, docking (lines going ashore) or moored.', { values: ['free', 'docking', 'moored'] }),
   'mooring.bow': state('number', (s) => s.mooring.bow ?? 0, 'Bow line: 0 not fast, else the side of the cleat it is on (-1 port, +1 starboard).', { unit: 'side', integer: true, range: [-1, 1] }),
   'mooring.stern': state('number', (s) => s.mooring.stern ?? 0, 'Stern line: 0 not fast, else the side of the cleat it is on.', { unit: 'side', integer: true, range: [-1, 1] }),

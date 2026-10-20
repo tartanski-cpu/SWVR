@@ -186,6 +186,23 @@ Every value on a boat's bus (modular boats; `src/modular/busKeys.ts`). Generated
 | `autopilot.on` | on / off | read only | legacy |  | The autopilot is holding her heading. |
 | `autopilot.heading` | deg | read only | legacy |  | The heading the autopilot holds. |
 
+## joystick
+
+| Key | Values | Use | Written by | Old names | What it is |
+|---|---|---|---|---|---|
+| `joystick.x` | -1..1 | player sets; held: joyX | legacy |  | Helm joystick sideways: -1 full to port, +1 full to starboard (0 let go). |
+| `joystick.y` | -1..1 | player sets; held: joyX | legacy |  | Helm joystick fore and aft: +1 full ahead, -1 full astern (0 let go). |
+| `joystick.twist` | -1..1 | player sets; held: joyX | legacy |  | Helm joystick twisted: +1 full clockwise (bow to starboard), -1 anticlockwise (0 let go). |
+
+## pods
+
+| Key | Values | Use | Written by | Old names | What it is |
+|---|---|---|---|---|---|
+| `pods.joystickMode` | on / off | press | legacy |  | JOYSTICK pressed: hand the pods to the helm joystick, or back to the wheel and throttle. Only with the throttle in neutral; moving it out of neutral hands them back. |
+| `pods.joystick` | on / off | read only | legacy |  | The pods are on the helm joystick (vector mode). |
+| `pods.angle.port` | deg | read only | module |  | The port pod's heading, + its push turned to port (as the rudder angle). |
+| `pods.angle.stbd` | deg | read only | module |  | The starboard pod's heading. |
+
 ## mooring
 
 | Key | Values | Use | Written by | Old names | What it is |

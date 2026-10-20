@@ -5314,6 +5314,16 @@ Owner, Oct 2026: before the cockpit roof, clean up the Shipyard's buttons. The o
 - **Checked:** headless Chromium, the Wheelhouse step with a saloon and a deckhouse, then with the windows raked out and the deckhouse "As the wheelhouse"; the owner's configuration (workboat type, three facets, saloon roof lower, a sand roof top) from the same angle as their screenshot: the step is clean. **Not checked:** the Quest (a desktop page).
 - **Next:** the other steps the same way, once the owner has tried this one.
 
+### The beginner boat: no skiff, ever; anchorage jobs say how the goods get ashore (done, awaiting owner test)
+
+Owner, Oct 2026: the beginner boat doesn't need the skiff. She does the cargo for ports she can reach without one; at an anchorage you can anchor and swim the goods ashore; a note should say a skiff does those jobs better. Asked: never on her (not even bought later), and the menu's one-click Unload stays as it is at anchorages.
+
+- **No skiff:** the skiff upgrade has no `design` for her now (CONFIG.career.upgrades), so the yard says "Not on this boat", as for the trawl gear.
+- **Back to 9.8 m** (size step 8; she'd been lengthened to 10.2 m only to fit the skiff): ~8.3 kn, £108k, stern roller kept, no searchlight until bought.
+- **The note:** `CONFIG.cargo.anchorageNote` ("no quay: land it by skiff, or anchor in the bay and swim it ashore"). It is on the label of goods bound for a port with only an anchorage (cargo.ts `cargoLabel`, `archipelago.ts anchorageOnly`), and on the job offers at such a port (career.ts `contractText`: the Office's list and the harbour office's radio).
+- **Swimming with goods** already works: nothing drops what you carry when you go into the water; set it down ashore by the goods stack and it's delivered.
+- **Tests:** starterBoat.test.ts (4): never a skiff or trawl; the note on labels and offers for an anchorage port, not for a quay.
+
 ### The fleet, step 2: a new career starts in the beginner boat; the old workboat and landing craft hidden (done, awaiting owner test)
 
 Owner, Oct 2026: a new career starts in one of the new fleet boats; hide the workboat and the landing craft.
@@ -5337,6 +5347,36 @@ Owner, Oct 2026: a new career starts in one of the new fleet boats; hide the wor
 - **Words:** the first voyage's "Step aboard your boat"; the Shipyard-code error "Starting in the beginner boat".
 - **Tests:** tests/starterBoat.test.ts (3); starterWorkboat.test.ts's other-boat message now "Not for this boat".
 - **Next fleet steps:** move the tests and golden runs onto the fleet; then delete the old boats (owner: hide first, delete later).
+
+### Pod drives with a helm joystick (done, awaiting owner test)
+
+Owner, Oct 2026: new modules for the planing hulls, "two drives... they attach to the bottom of the ship, and the propellers are at the front", "a more cool looking black throttle", and "a joystick... press a button and it goes on to vector mode... undock the ship by simply pressing left on the joystick and move it forward slowly and backwards... rotate the joystick to make it turn". The owner named a commercial system as the idea; what's built is our own design (project rule: original designs only): a generic pod with a strut, a torpedo nacelle, two propellers at its front and a fin under its tail.
+
+- **The pods** `propulsion.pods` (src/modules/pods, `CONFIG.modules.pods`):
+  - two pods under her bottom, each steering axis `forwardOfTransom` (1.3 m) forward of the transom, under its own engine's gearbox end (the engines placed as a stern drive's, level: `sternDriveLine`);
+  - each pod's strut goes down from her bottom to the nacelle, long enough that the propellers' tips clear her bottom (`look.strutLength` 0.45 m at least); its propellers are `look.propFwd` (0.62 m) forward of the axis and pull (a tractor drive: clean water, ahead of the strut), no bigger than `propMaxM` (0.55 m);
+  - engines as the outboards': one engine model for both, in lockstep, her engine state; fuel and power times two. Each pod pushes along its own heading from its propellers; each strut's side area (`steering.legArea` 0.14 m²) steers as a rudder from the water past it;
+  - **from the wheel** they swing together up to `steering.maxAngleDeg` (26°) at `rateDegPerS` (40°/s). On the ENGINE screen as DRIVES.
+  - each pod's own heading is kept in `VesselState.pods.angles` (sent to the crew, saved) and drawn by its own (one instanced mesh, one draw call for both). Their engines are drawn inside, as a stern drive's.
+- **Joystick (vector mode)**, `control.helm-joystick` (src/modules/helmJoystick, src/controls/HelmJoystick.ts):
+  - a spring-centred black stick with three ways to move (sideways, fore and aft, twist), sending where it is (-1..1 each; 0 when let go): `joystick.x`, `joystick.y`, `joystick.twist`; and a blue **JOYSTICK** button beside it (`pods.joystickMode`, lit while on: `pods.joystick`).
+  - JOYSTICK hands the pods to the stick; moving the throttle out of neutral hands them back.
+  - **How the pods share it** (`vessel/physics/podAllocation.ts`): the stick asks for a push sideways, a push ahead or astern and a turning moment. Two pods are four numbers (each one's push to starboard and aft) for three wants; we take the least push in all (the least-squares "minimum norm" answer, v = Aᵀ(AAᵀ)⁻¹b). For a sideways push from pods aft of her centre, that angles them in, one ahead and one astern, their pushes crossing about her centre of gravity, so she crabs without turning. A twist is one ahead, one astern, straight. Each pod then turns to its own heading (up to `joystick.maxAngleDeg` 50°, at 60°/s) and pushes its share only as it comes round.
+  - **The turn first:** the twist asks for a rate of turn (up to `turnRateDeg`, 6°/s), measured from the water past her bow and stern (as a real system's rate gyro); the pods turn her to it (`turnGain` 60), so with the stick untwisted she **holds her head** while she crabs or creeps. If the pods can't give both, the crabbing is cut back first (`combinePushes`).
+  - **How hard:** both engines run at what the busiest pod needs. Over the first `slip` (40 %) of the effort they idle in gear and the pods' clutches slip (fine control close in); past it the throttle opens up to `lever` (0.5) at the stop. The weights `side` 1, `surge` 1, `twist` 2 (shares of one pod's push): fore and aft is kept gentle (about 2.8 kn at the stop: "move it forward slowly").
+  - **Desktop:** click the stick, then W A S D lean it, Q / E twist it, Space presses JOYSTICK; click again to let go (Q and E do nothing else meanwhile). **VR:** grab the knob; your hand's offset leans it, your wrist's turn about the stick twists it.
+- **The black throttle:** `control.throttle-lever` `style: 'black'` (controls/Lever.ts): a satin-black quadrant with a bright inlay and its slot, a black arm, a broad black T-grip with a bright cap. The ahead/astern colours stay.
+- **On the console** (`CONFIG.shipyard.helm.podJoystick`): the throttle moves forward on the starboard pedestal (`throttleZ` 0), the joystick aft of it (`stickZ` 0.225 m), the button between, outboard (`button` [0.085, -0.08]). Kept with the basic controls too (it's part of the drive).
+- **Shipyard:** Engine step, **Pod drives** (`design.pods`, design code version 28, packed at the top of the extension: older codes read as no pods). On a planing hull only (landing craft, gillnetter, pilot boat; not the tug diesel; outboards win). Forces twin (the Twin box shows ticked and can't be unticked); replaces a stern drive; no Kort nozzle. £24,000 a pod (`price`), 260 kg each (`legKg`). Figures: "Twin … on pod drives". The Engine step shows the pods with the engines.
+- **Simulation keys:** `joystick.x`, `joystick.y`, `joystick.twist` (only on a boat with pods, so the golden runs are untouched), `pods.joystickMode`, `pods.joystick`, `pods.angle.port`, `pods.angle.stbd` (docs/BUS_KEYS.md regenerated). New socket type `hull.pods`; `controls.joyMode`, `joyX`, `joyY`, `joyR`.
+- **Measured** (the pilot boat, 280 kW twins; calm water): ahead and turning as on stern drives (sea trial 29.1 kn, tactical circle 104 m). Joystick: full stick sideways crabs about 16 m in 30 s (~1 kn) turning less than 5°; 0.3 sideways ~7 m; full forward ~1.4 m/s (2.8 kn), 0.3 forward ~0.3 m/s; full twist turns about 5°/s on the spot, moving under 2 m. The landing craft (lighter) crabs about twice as fast.
+- **Checked:**
+  - tests/pods.test.ts (12): the sharing maths (exact pushes, the turn kept first, headings within the swing); the Shipyard on hulls 0, 1, 3 (two pods, no shaft or rudder, black throttle and joystick, recipe valid), price, basic controls, not on the tug, the code; driving: ahead, the wheel, crab both ways, creep both ways and stop when let go, twist both ways, the throttle handing the pods back.
+  - Full suite 1042 pass; typecheck clean.
+  - Headless Chromium: the game's helm (black throttle, joystick leaning to starboard as held, JOYSTICK button), the pods from under the water, angled in while crabbing; the Shipyard's Engine step (both engines and both pods).
+  - **Not checked:** the Quest (the VR grab and wrist twist), and an Xbox controller (no pad mapping for the joystick yet).
+- **Draw calls:** the pods one instanced mesh; the fairings and engines merged with her fixed parts; the stick a handful of small meshes; the button cap the shared caps.
+- **On the fleet's pilot boat** (owner, Oct 2026: "add the IPS system to the pilot boat that's in the standard fleet"): `fleet/pilotBoat.json` `pods: 1`, her gear step re-matched to 1 (by trial: `matchGear`). On pods with the first propeller size (0.55 m) she made only 30 kn, against 38 on shafts: one small disc can't take 400 kW. The pod's two propellers in tandem are now modelled as one of `propMaxM` 0.65 m, the disc they work together: she makes about 35 kn (the landing craft on pods 35.3 kn, against 35.8 on shafts). tests/fleet.test.ts (her speed over 30 kn) passes.
 
 ### Helm assist panel: autopilot, dock and auto start (done, awaiting owner test)
 

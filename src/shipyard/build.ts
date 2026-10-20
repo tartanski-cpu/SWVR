@@ -872,16 +872,24 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   // (An engine that only goes in singly is built single, whatever the twin choice says.)
   const singleOnly = SINGLE_ONLY_ENGINES.includes(d.engine);
   if (d.twin && singleOnly) warnings.push(`The ${eng.name.split(' (')[0]} goes in singly: she has one.`);
-  const twin = !!d.twin && !singleOnly;
+  // Pod drives (owner, Oct 2026; design.pods; CONFIG.modules.pods): two steerable pods under
+  // her bottom, each with its own engine (so always twin). For a planing hull (a fast boat's
+  // small, quick propellers); not the slow tug diesel; outboards, if chosen, instead.
+  const pdc = CONFIG.modules.pods;
+  if (d.pods && !outboardCount(d) && base.regime !== 'planing') warnings.push('Pod drives are for a planing hull (the landing craft, the gillnetter or the pilot boat): she has a shaft.');
+  else if (d.pods && !outboardCount(d) && singleOnly) warnings.push(`The ${eng.name.split(' (')[0]} goes on a shaft (its big slow propeller): no pod drives.`);
+  const pods = !!d.pods && !outboardCount(d) && base.regime === 'planing' && !singleOnly;
+  const twin = (!!d.twin || pods) && !singleOnly;
   // Stern drives (owner, Oct 2026; design.sternDrive): the engine against the transom, a
   // leg through it that swings to steer (CONFIG.modules.sternDrive). Not the slow tug
   // diesel (its big slow propeller wants a shaft); outboards, if chosen, instead.
   const sdc = CONFIG.modules.sternDrive;
   if (d.sternDrive && singleOnly && !outboardCount(d)) warnings.push(`The ${eng.name.split(' (')[0]} goes on a shaft (its big slow propeller): no stern drive.`);
-  const sd = !!d.sternDrive && !singleOnly && !outboardCount(d);
+  if (d.sternDrive && pods) warnings.push('Pod drives in place of the stern drives.');
+  const sd = !!d.sternDrive && !singleOnly && !outboardCount(d) && !pods;
   // A Kort nozzle (owner, Oct 2026; design.nozzle; CONFIG.nozzle): on a shaft-driven propeller only.
-  if (d.nozzle && (sd || outboardCount(d))) warnings.push(`A Kort nozzle goes round a shaft-driven propeller: none on ${outboardCount(d) ? 'outboards' : 'a stern drive'}.`);
-  const nozzle = !!d.nozzle && !sd && !outboardCount(d);
+  if (d.nozzle && (sd || pods || outboardCount(d))) warnings.push(`A Kort nozzle goes round a shaft-driven propeller: none on ${outboardCount(d) ? 'outboards' : pods ? 'pod drives' : 'a stern drive'}.`);
+  const nozzle = !!d.nozzle && !sd && !pods && !outboardCount(d);
   const n = twin ? 2 : 1;
   const keelAft = st[0].polygon[2][1];
   const draughtAft = -keelAft;
@@ -939,8 +947,9 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   const restKg = restKgZ.reduce((a, [m]) => a + m, 0);
   const balanceZ = (h.lcb * (restKg + engineGroupKg) - restKgZ.reduce((a, [m, z]) => a + m * z, 0)) / engineGroupKg;
   const ceilingAt = (z: number) => (z >= front && z <= aft ? floorY : q.deckY(z));
-  const shaft = sd
-    ? sternDriveLine(shape, eng.size, twin ? twinEngineX(twinX, eng.size[1]) : 0, transom, ceilingAt, sdc.transomInset)
+  // (Pods: the engine level as a stern drive's, its gearbox end over the pod's axis.)
+  const shaft = sd || pods
+    ? sternDriveLine(shape, eng.size, twin ? twinEngineX(twinX, eng.size[1]) : 0, transom, ceilingAt, pods ? pdc.forwardOfTransom : sdc.transomInset)
     : layShaft(shape, eng.size, twin ? twinEngineX(twinX, eng.size[1]) : 0, { x: twin ? twinX : 0, z: transom - 0.65, d: propD }, ceilingAt, CONFIG.shipyard.shaftAngleDeg, CONFIG.shipyard.shaftAngleMaxDeg, balanceZ);
   // A stern drive's legs: one behind each engine, through the transom; the top of each (its
   // gimbal housing) over the engine's output, its anti-ventilation plate level with her
@@ -952,6 +961,17 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
         const mount = { y: rnd(shaft.flangeY + 0.15), z: rnd(transom) };
         const plateY = Math.max(...units.map((x) => bottomUnder(shape, x, transom))) - 0.02;
         return { units, mount, look: { ...sdc.look, shaftLength: rnd(Math.max(0.3, mount.y - plateY)) } };
+      })()
+    : null;
+  // The pods: one under each engine's gearbox end, its strut down from her bottom there long
+  // enough that its propellers' tips clear her bottom (and never shorter than the look's).
+  const podPropD = Math.min(propD, pdc.propMaxM);
+  const podSet = pods
+    ? (() => {
+        const units = [-shaft.x, shaft.x].map(rnd);
+        const z = rnd(shaft.flangeZ);
+        const y = rnd(Math.max(...units.map((x) => bottomUnder(shape, x, z))));
+        return { units, mount: { y, z }, strut: rnd(Math.max(pdc.look.strutLength, podPropD / 2 + 0.12)) };
       })()
     : null;
   // Outboards instead (owner, Oct 2026; design.outboards): 2 to 4 of the petrol V8s
@@ -982,7 +1002,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
     const [gMin, gMax] = obc.engine.gearRange;
     return { units, mount, bracket, engine: { ...obc.engine, gearRatio: Math.min(gMax, Math.max(gMin, gear)) } };
   })();
-  if (!shaft.fits && !outboards) warnings.push(`The ${eng.name.split(' (')[0]} doesn't fit: ${sd ? 'against the transom' : 'on its shaft line'} it stands ${(shaft.shortM * 100).toFixed(0)} cm above the ${shaft.flangeZ - eng.size[0] / 2 >= front && shaft.flangeZ - eng.size[0] / 2 <= aft ? 'cabin floor' : 'deck'}. Give her more depth (Hull), raise the floor (Wheelhouse), or fit a smaller engine.`);
+  if (!shaft.fits && !outboards) warnings.push(`The ${eng.name.split(' (')[0]} doesn't fit: ${sd ? 'against the transom' : pods ? 'over its pod' : 'on its shaft line'} it stands ${(shaft.shortM * 100).toFixed(0)} cm above the ${shaft.flangeZ - eng.size[0] / 2 >= front && shaft.flangeZ - eng.size[0] / 2 <= aft ? 'cabin floor' : 'deck'}. Give her more depth (Hull), raise the floor (Wheelhouse), or fit a smaller engine.`);
 
   // ── The engine space and its hatch (owner, Oct 2026: the box under the wheelhouse "is not
   // where the engine will go") ──
@@ -1525,6 +1545,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   const sockets: Socket[] = [
     // (A stern drive: its engine and legs, weighed at the engine.)
     ...(sd ? [{ id: 'sternDrive', type: 'transom.outboards' as const, transform: { position: at.engineBed }, label: 'Against the transom: her engine and its stern drive' }] : []),
+    ...(pods ? [{ id: 'pods', type: 'hull.pods' as const, transform: { position: at.engineBed }, label: 'Under her bottom: her pod drives, and their engines over them' }] : []),
     ...(outboards ? [{ id: 'outboards', type: 'transom.outboards' as const, transform: { position: [0, outboards.mount.y, outboards.mount.z] as V3 }, label: 'The bracket off the transom: her outboards' }] : []),
     { id: 'helm', type: 'helm.console', transform: { position: at.console }, capacity: { size: [2 * consoleHalf - 0.04, 1.6, 1.0] }, label: 'Helm console, across the front of the cabin' },
     { id: 'breakerPanel', type: 'wall.panel', transform: { position: at.breakerPanel, rotationDeg: [-40, -90, 0] }, label: 'Starboard wall, by the helm' },
@@ -1646,7 +1667,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
     helm: { stand: [cx, F, cf + 1.125], yawDeg: 0 },
     form,
     lightship: lightshipOf(weighed, [
-      outboards ? { massKg: obc.massKg * nOb, at: [0, outboards.mount.y, outboards.mount.z] as V3 } : { massKg: (eng.kg + (sd ? sdc.legKg : 0)) * n, at: at.engineBed },
+      outboards ? { massKg: obc.massKg * nOb, at: [0, outboards.mount.y, outboards.mount.z] as V3 } : { massKg: (eng.kg + (sd ? sdc.legKg : pods ? pdc.legKg : 0)) * n, at: at.engineBed },
       { massKg: batteriesKg, at: at.engineSpace },
       // The deck crane, if she has one: designed in where its column stands, so she still
       // floats on her lines and upright with it (her hull and ballast lighter by its weight,
@@ -1762,6 +1783,30 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
       },
     });
   }
+  if (podSet) {
+    // Her pod drives in place of the shafts and rudders, their engines drawn inside over them.
+    recipe.modules = recipe.modules.filter((m) => m.socket !== 'engine' && m.socket !== 'rudder');
+    recipe.modules.unshift({
+      socket: 'pods',
+      module: 'propulsion.pods',
+      config: {
+        engine: engine.engine,
+        propeller: { ...engine.propeller, diameter: podPropD, wake: 0.02 },
+        ...podSet,
+        steering: pdc.steering,
+        look: pdc.look,
+        joystick: pdc.joystick,
+        centreZ: rnd(h.lcb),
+        alternatorAmps: engine.alternatorAmps ?? CONFIG.modules.dieselInboard.alternatorAmps,
+        oilUse: engine.oilUse ?? CONFIG.vessels.workboat.maintenance.use,
+        starterAmps: engine.starterAmps ?? CONFIG.modules.dieselInboard.starterAmps,
+        massKg: eng.kg + pdc.legKg,
+        maintenance: engine.maintenance,
+        voice: eng.voice,
+        installed: engine.installed,
+      },
+    });
+  }
   if (outboards) {
     // Her outboards in place of the inboard and its rudder; her upkeep (the oil checks) at the hatch as before.
     const maintenance = engine.maintenance;
@@ -1847,6 +1892,16 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   cc.groups = cc.groups.map((gp: { x: [number, number] }) => ({ ...gp, x: gp.x.map((x) => Math.round(x * sx * 1000) / 1000) }));
   for (const slot of Object.values(cc.slots) as { position: V3 }[]) slot.position = [Math.round(slot.position[0] * sx * 1000) / 1000, slot.position[1], slot.position[2]];
   cc.slots.throttle.position = [throttleAt, cc.slots.throttle.position[1], cc.slots.throttle.position[2]];
+  if (pods) {
+    // Pod drives: the black throttle, moved forward on its pedestal, and the helm joystick
+    // aft of it with its JOYSTICK button between (CONFIG.shipyard.helm.podJoystick).
+    const pj = CONFIG.shipyard.helm.podJoystick;
+    cc.slots.throttle.position = [throttleAt, cc.slots.throttle.position[1], pj.throttleZ];
+    cc.slots.podJoystick = { position: [throttleAt, 0.01, pj.stickZ] };
+    const lever = consoleMount.modules!.find((m) => m.socket === 'throttle')!;
+    lever.config = { ...lever.config, style: 'black' };
+    consoleMount.modules!.push({ socket: 'podJoystick', module: 'control.helm-joystick', config: { button: pj.button } });
+  }
   // Its screens in one row centred over the wheel, in their order, whichever she has (the basic
   // controls' two side by side), never spread with the dash; closer on a narrow one.
   const screens = ['speed', 'heading', 'rpm', 'engineMonitor'].filter((id) => consoleMount.modules!.some((m) => m.socket === id && m.module === 'instrument.screen') && (d.controls || ['speed', 'rpm'].includes(id)));
@@ -1863,7 +1918,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
       k: Math.round((house.facet.depth / (hw - house.facet.centre)) * 1e4) / 1e4,
       turn: consoleMount.modules!.filter((m) => m.module === 'instrument.screen').map((m) => m.socket),
       // The throttle stays beside the wheel where it is on a flat console (owner: set back with the wing it was out of reach in VR).
-      fixed: ['throttle'],
+      fixed: ['throttle', 'podJoystick'],
     };
   // The advanced instruments (taken off again below for the basic controls), and the chart table.
   recipe.modules.push(
@@ -1911,7 +1966,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
     // depth, rpm, and the VHF (owner, Oct 2026: every boat answers calls, hears the forecasts
     // and the harbours). No lights, searchlight, horn, wipers, heading, engine monitor or FM radio.
     // The searchlight's and monitor's controls stay if they're worked from here.
-    const keep = ['wheel', 'throttle', 'start', 'key', 'lamps', 'card', 'speed', 'rpm', 'spotlight', 'spotJoystick', 'firePump', 'monJoystick', 'anchor'];
+    const keep = ['wheel', 'throttle', 'podJoystick', 'start', 'key', 'lamps', 'card', 'speed', 'rpm', 'spotlight', 'spotJoystick', 'firePump', 'monJoystick', 'anchor'];
     consoleMount.modules = consoleMount.modules!.filter((m) => keep.includes(m.socket));
     cc.groups = cc.groups.filter((gp: { title: string }) => ['ENGINE', 'SEARCH', 'FIRE', 'SEARCH · FIRE', 'DECK'].includes(gp.title));
     // (The FM set and the advanced instruments come with the advanced controls, owner.)
@@ -1983,7 +2038,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
     { name: 'Wheelhouse', kg: houseM2 * mat.houseKgPerM2, y: (floorY + roofY) / 2, z: (front + aft) / 2 },
     { name: 'Deckhouse', kg: dhArea * mat.houseKgPerM2, y: deckhouse ? (deckMid + deckhouse.top) / 2 : deckMid, z: deckhouse ? (deckhouse.z0 + deckhouse.z1) / 2 : 0 },
     { name: outboards ? 'Outboards' : n > 1 ? 'Engines and gearboxes' : 'Engine and gearbox', kg: machineKg, y: machineY, z: machineZ },
-    { name: outboards ? 'Bracket, rigging and tanks' : sd ? 'Stern drive legs, tanks, exhaust' : 'Shafting, propeller, rudder, tanks, exhaust', kg: sd ? sdc.legKg * n + machineKg * wc.machineryShare * 0.4 : machineKg * wc.machineryShare, y: outboards ? deckMid : machineY, z: outboards ? machineZ : sd ? transom : (machineZ + transom) / 2 },
+    { name: outboards ? 'Bracket, rigging and tanks' : sd ? 'Stern drive legs, tanks, exhaust' : pods ? 'Pod drives, tanks, exhaust' : 'Shafting, propeller, rudder, tanks, exhaust', kg: sd ? sdc.legKg * n + machineKg * wc.machineryShare * 0.4 : pods ? pdc.legKg * n + machineKg * wc.machineryShare * 0.4 : machineKg * wc.machineryShare, y: outboards ? deckMid : pods ? podSet!.mount.y : machineY, z: outboards ? machineZ : sd ? transom : pods ? podSet!.mount.z : (machineZ + transom) / 2 },
     { name: 'Batteries', kg: batteriesKg, y: at.engineSpace[1], z: at.engineSpace[2] },
     { name: 'Deck crane', kg: craneAt ? cr.massKg : 0, y: craneAt ? craneAt[1] + cr.columnHeight / 2 : deckMid, z: craneAt ? craneAt[2] : 0 },
     { name: 'Deck gear', kg: gearKg, y: deckMid + 0.5, z: gearKg > 0 ? gearKgZ / gearKg : 0 },
@@ -2012,11 +2067,11 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   const gp = dg.price;
   const gearPrice = (winchAt ? gp.towWinch : 0) + (sternRoller ? gp.sternRoller : 0) + (aFrame ? gp.aFrame : 0) + (ring ? gp.lifeRing : 0) + (rodRack ? gp.rodRack : 0) + (sideDoor ? gp.sideDoor : 0) + (anchorAt ? gp.anchor : 0) + (skiffAt ? gp.skiff : 0);
   const guardPrice = (pushFender ? CONFIG.shipyard.pushFenderPrice : 0) + (basketAt ? pc.fendersPrice : 0) + strakeM * pc.strakePerM + (tyres.length ? 2 * tyres.length * pc.tyrePrice + pc.tyreFitting : 0);
-  const price = Math.round((buildPrice + (nOb ? powerKw * obc.pricePerKw : kw * n * eng.pricePerKw) + (sd ? sdc.price * n : 0) + (nozzle ? CONFIG.nozzle.price * n : 0) + (d.controls ? 18000 : 6000) + (craneAt ? 25000 : 0) + (hasMonitor ? 15000 : 0) + gearPrice + guardPrice) / 1000) * 1000;
+  const price = Math.round((buildPrice + (nOb ? powerKw * obc.pricePerKw : kw * n * eng.pricePerKw) + (sd ? sdc.price * n : 0) + (pods ? pdc.price * n : 0) + (nozzle ? CONFIG.nozzle.price * n : 0) + (d.controls ? 18000 : 6000) + (craneAt ? 25000 : 0) + (hasMonitor ? 15000 : 0) + gearPrice + guardPrice) / 1000) * 1000;
   return {
     hull,
     recipe,
-    figures: { lengthM, beamM: beamDeck, massT: mass / 1000, draughtM: -Math.min(...st.map((s) => s.polygon[2][1])), gmM: gm, propellerM: nOb ? obc.propeller.diameter : sd ? sdPropD : propD, engineShortM: nOb ? 0 : shaft.shortM, gear, engine: nOb ? `${['', 'One', 'Two', 'Three', 'Four'][nOb]} ${obc.engine.powerKw} kW petrol V8 outboards` : `${twin ? `Twin ${eng.name}` : eng.name}${sd ? (twin ? ', on stern drives' : ', on a stern drive') : ''}${nozzle ? (twin ? ', in Kort nozzles' : ', in a Kort nozzle') : ''}`, price, floorM: Math.round((floorY - level) * 100) / 100, floorOnDeckhouseM: deckhouse ? Math.round((floorY - onTop) * 100) / 100 : undefined, material, freeboardM: Math.round(deckMid * 100) / 100 },
+    figures: { lengthM, beamM: beamDeck, massT: mass / 1000, draughtM: -Math.min(...st.map((s) => s.polygon[2][1])), gmM: gm, propellerM: nOb ? obc.propeller.diameter : sd ? sdPropD : pods ? podPropD : propD, engineShortM: nOb ? 0 : shaft.shortM, gear, engine: nOb ? `${['', 'One', 'Two', 'Three', 'Four'][nOb]} ${obc.engine.powerKw} kW petrol V8 outboards` : `${twin ? `Twin ${eng.name}` : eng.name}${sd ? (twin ? ', on stern drives' : ', on a stern drive') : pods ? ', on pod drives' : ''}${nozzle ? (twin ? ', in Kort nozzles' : ', in a Kort nozzle') : ''}`, price, floorM: Math.round((floorY - level) * 100) / 100, floorOnDeckhouseM: deckhouse ? Math.round((floorY - onTop) * 100) / 100 : undefined, material, freeboardM: Math.round(deckMid * 100) / 100 },
     warnings,
     placed,
     shaft,

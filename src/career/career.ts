@@ -30,7 +30,7 @@
 import { CONFIG } from '../config';
 import type { Intent } from '../core/intents';
 import { homeVessel, type WorldState } from '../core/world';
-import { PORTS, type PortDef } from '../world/archipelago';
+import { anchorageOnly, PORTS, type PortDef } from '../world/archipelago';
 import { fuelBerthAt } from '../world/geography';
 import type { VesselState } from '../vessel/vesselState';
 import { sayRadio } from '../rescue/rescue';
@@ -307,7 +307,8 @@ export function cargoLost(world: WorldState, from: string): void {
 }
 
 export function contractText(k: Contract): string {
-  const where = portName(k.port);
+  // (A port with only an anchorage: how the goods get ashore without a quay.)
+  const where = portName(k.port) + (anchorageOnly(k.port) ? ` (${CONFIG.cargo.anchorageNote})` : '');
   if (k.kind === 'cargo') return `deliver ${k.count} cargo to ${where}`;
   if (k.kind === 'fish') return `land ${k.count} boxes of fish at ${where}`;
   return `sell ${k.count} salvage ${k.count === 1 ? 'log' : 'logs'} at ${where}`;

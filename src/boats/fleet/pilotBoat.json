@@ -53,11 +53,12 @@
     "roofTop": 0,
     "rodRack": 0,
     "consoleSide": 0,
+    "pods": 1,
     "windowRake": 15,
     "lowerFront": 0,
     "twin": 1,
     "engine": 2,
-    "gear": 3,
+    "gear": 1,
     "controls": 1,
     "paint": 6,
     "helmAssist": 1

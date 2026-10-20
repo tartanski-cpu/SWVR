@@ -32,7 +32,7 @@ import type { WorldState } from '../core/world';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 import { hullPlan } from '../vessel/layout';
 import type { VesselState } from '../vessel/vesselState';
-import { PORTS, SLIPWAYS, type PortDef } from '../world/archipelago';
+import { anchorageOnly, PORTS, SLIPWAYS, type PortDef } from '../world/archipelago';
 import { standingHeight } from '../world/geography';
 import { deckSpot, onOpenDeck, type DeckFootprint } from './deck';
 import { compensatedHook, craneStateOf, cranesOf, hookOnBoat } from './craneHook';
@@ -747,5 +747,5 @@ export function cargoLabel(item: CargoItem): string {
     return `Lobster pot ${item.mass} kg, baited: shoot it over the side on a potting ground`;
   }
   const to = item.to === 'any' ? 'any harbour' : portById(item.to)?.name.replace(' (anchorage)', '');
-  return `${k.name}${item.species ? ` (${item.species})` : ''} ${item.mass} kg → ${to}`;
+  return `${k.name}${item.species ? ` (${item.species})` : ''} ${item.mass} kg → ${to}${anchorageOnly(item.to) ? ` (${CONFIG.cargo.anchorageNote})` : ''}`;
 }
