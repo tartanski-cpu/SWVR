@@ -2577,6 +2577,12 @@ export const CONFIG = {
    */
   chartPlotter: {
     buildMs: 4,
+    /**
+     * Its zoom (owner, Oct 2026: "add zoom buttons"): − and + under the screen step through
+     * these, the width of ground across the screen (m); AUTO (between them) goes back to
+     * choosing it for you (what matters now in view: 700 m to 5 km).
+     */
+    ranges: [250, 500, 1000, 2000, 4000, 8000, 16000, 32000],
   },
   /**
    * Pencil marks on the paper chart (chart/marks.ts). Strokes are stored in world metres

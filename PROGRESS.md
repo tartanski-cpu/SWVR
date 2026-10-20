@@ -5509,6 +5509,16 @@ Owner, Oct 2026: a new career starts in one of the new fleet boats; hide the wor
 - **Tests:** tests/starterBoat.test.ts (3); starterWorkboat.test.ts's other-boat message now "Not for this boat".
 - **Next fleet steps:** move the tests and golden runs onto the fleet; then delete the old boats (owner: hide first, delete later).
 
+### Chartplotter zoom buttons (done, awaiting owner test)
+
+Owner, Oct 2026: "yes add zoom buttons to the chartplotter".
+
+- **The buttons:** a strip under the plotter's screen with three push buttons facing the helm, **−**, **AUTO** (amber cap) and **+**, a white − and + beside the outer two. − and + step through `CONFIG.chartPlotter.ranges` (the ground across the screen: 250 m, 500 m, 1, 2, 4, 8, 16, 32 km) from whatever it shows now (so from AUTO they go to the next range in or out); AUTO hands it back to choosing the range for you, as before. The screen says ZOOM AUTO or ZOOM 2 km, top left.
+- **One for the boat:** bus key `chart.zoom` (`VesselControls.chartZoom`: 0 AUTO, k the k-th range), so in multiplayer the crew see the range the helmsman set. The buttons are pulse buttons that send the range they step to (Button's new optional `sends`).
+- Zoomed out past 8 km, only the destination's name is written (the others pile up); every port still has its dot.
+- **Cost:** the three caps are drawn with the boat's other button caps (shared instanced mesh): no new draw calls; the strip merges with the bezel.
+- **Checked:** tests/chartZoom.test.ts (a press sets the range, AUTO is 0, past the list the widest); powerPanels' shared-cap count 3 → 6; docs/BUS_KEYS.md regenerated. Headless Chromium on the Clyde: the screen at AUTO, 500 m, 8 km and 32 km, and the set with its buttons seen from the helm. **Not checked:** the Quest (pressing them by hand overhead).
+
 ### Chartplotter: a sharp coastline on the coast maps (done, awaiting owner test)
 
 Owner, Oct 2026: "On the big maps like Syros and the Firth of Clyde, the texture that's used in the chart plotter on the overhead instrument is too low. I was thinking of adding a zoom to that. Would that help? ... If you can improve that somehow without killing performance."

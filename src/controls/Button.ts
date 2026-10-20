@@ -26,6 +26,8 @@ export class Button extends Control {
     capColor: number,
     /** Optional: read a "lit" state from the vessel (e.g. engine running). */
     private readonly litWhen?: (s: VesselState) => boolean,
+    /** Optional: what a press sends (a pulse button; the chartplotter's zoom sends the range it steps to). Default 1. */
+    private readonly sends?: () => number,
   ) {
     super(id, channel);
     const k = CONFIG.interaction.switchScale;
@@ -52,7 +54,7 @@ export class Button extends Control {
     this.pressed = true;
     this.cap.position.y = this.capIn;
     this.ctx?.haptic(0.6, 40);
-    this.ctx?.emit(this.channel, 1);
+    this.ctx?.emit(this.channel, this.sends ? this.sends() : 1);
   }
 
   pressEnd(): void {

@@ -65,6 +65,12 @@ Every value on a boat's bus (modular boats; `src/modular/busKeys.ts`). Generated
 | `searchlight.pan` | deg, -170 to 170 | player sets; held: spotPan | legacy | `spotPan` | Searchlight pan, + to starboard. |
 | `searchlight.tilt` | deg, -35 to 12 | player sets; held: spotPan | legacy | `spotTilt` | Searchlight tilt, + up, 0 horizontal. |
 
+## chart
+
+| Key | Values | Use | Written by | Old names | What it is |
+|---|---|---|---|---|---|
+| `chart.zoom` | index, 0 to 8, whole | player sets | legacy |  | The chartplotter's zoom: 0 AUTO, k the k-th of CONFIG.chartPlotter.ranges (the ground across its screen). |
+
 ## fm
 
 | Key | Values | Use | Written by | Old names | What it is |

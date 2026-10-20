@@ -12,6 +12,7 @@ import { groundHeight } from '../world/terrain';
 import { CONFIG } from '../config';
 import type { ChartMarks } from '../chart/marks';
 import { towFast } from '../tow/tow';
+import { Button } from '../controls/Button';
 import { coastTerrains, type CoastPiece } from '../world/coastTerrain';
 import { CHART_LEVELS, cellOutlines, chartCells, type ChartCell } from './chartLand';
 
@@ -44,8 +45,13 @@ const css = ([r, g, b]: [number, number, number]) => `rgb(${r}, ${g}, ${b})`;
  * itself is not shown - you have to find it), own ship and its heading, a scale bar, and
  * the bearing and range to the search area or destination.
  *
- * Draw calls: bezel (merged) + screen. The screen redraws at a few Hz, and only when the
- * App says it could be seen.
+ * Zoom (owner, Oct 2026): three buttons on a strip under the screen, − AUTO +. − and + step
+ * through CONFIG.chartPlotter.ranges (the ground across the screen) from whatever it shows
+ * now; AUTO goes back to choosing for you. The zoom is the boat's (`chart.zoom`), so the crew
+ * see the range the helmsman set; the screen says which, top left.
+ *
+ * Draw calls: bezel (merged) + screen (+ the buttons' caps). The screen redraws at a few Hz,
+ * and only when the App says it could be seen.
  */
 export class ChartPlotter {
   readonly root = new THREE.Group();
@@ -66,13 +72,17 @@ export class ChartPlotter {
   marks: ChartMarks | null = null;
   /** Its case and its brackets to the roof (root axes), to be merged with the boat's other fixed parts. */
   readonly fixedParts: THREE.BufferGeometry[];
+  /** Its zoom buttons, − AUTO + (on the strip under the screen). */
+  readonly zoomButtons: Button[];
+  /** The ground across the screen at its last redraw (m): − and + step on from it. */
+  private shownSpan = 1000;
 
   /**
    * Built at its root's origin (the chartplotter module places it, turned toward the helm).
    * @param tiltDeg how far its screen is tilted down toward the helmsman
    * @param drop    from its root up to the roof (its brackets' length, m)
    */
-  constructor(tiltDeg: number, drop: number) {
+  constructor(tiltDeg: number, drop: number, zoomChannel = 'chart.zoom') {
     this.root.name = 'chartPlotter';
     const set = new THREE.Group();
     set.rotation.x = (tiltDeg * Math.PI) / 180;
@@ -80,10 +90,41 @@ export class ChartPlotter {
     const sw = 0.36;
     const sh = 0.27;
     const tilt = new THREE.Matrix4().makeRotationX(set.rotation.x);
+    // The zoom strip under the screen: − AUTO + (the buttons face you, as the screen does),
+    // a white − and + engraved beside the outer two.
+    const stripY = -sh / 2 - 0.02 - 0.035;
+    const glyph = (w: number, h: number, x: number) => part(new THREE.BoxGeometry(w, h, 0.004).translate(x, stripY, 0.002), 0xd8dadc).applyMatrix4(tilt);
     this.fixedParts = [
       part(new THREE.BoxGeometry(sw + 0.04, sh + 0.04, 0.05).translate(0, 0, -0.025), 0x24292d).applyMatrix4(tilt),
+      part(new THREE.BoxGeometry(sw + 0.04, 0.07, 0.05).translate(0, stripY, -0.025), 0x24292d).applyMatrix4(tilt),
+      glyph(0.024, 0.006, -0.125),
+      glyph(0.024, 0.006, 0.125),
+      glyph(0.006, 0.024, 0.125),
       ...[-0.12, 0.12].map((x) => part(new THREE.BoxGeometry(0.02, drop, 0.04).translate(x, drop / 2, -0.03), 0x3a3f44)),
     ];
+    const ranges = CONFIG.chartPlotter.ranges;
+    // The next range in (smaller than what it shows now), or out; as a zoom number (1 the first range).
+    const zoomIn = () => {
+      for (let k = ranges.length - 1; k >= 0; k--) if (ranges[k] < this.shownSpan * 0.99) return k + 1;
+      return 1;
+    };
+    const zoomOut = () => {
+      for (let k = 0; k < ranges.length; k++) if (ranges[k] > this.shownSpan * 1.01) return k + 1;
+      return ranges.length;
+    };
+    this.zoomButtons = (
+      [
+        ['chartZoomOut', 'Chartplotter: ZOOM OUT', 0x3a3f44, -0.075, zoomOut],
+        ['chartZoomAuto', 'Chartplotter: AUTO ZOOM (it chooses the range)', 0xe0a020, 0, () => 0],
+        ['chartZoomIn', 'Chartplotter: ZOOM IN', 0x3a3f44, 0.075, zoomIn],
+      ] as const
+    ).map(([id, label, colour, x, sends]) => {
+      const b = new Button(id, zoomChannel, label, 'pulse', colour, undefined, sends);
+      b.root.position.set(x, stripY, 0);
+      b.root.rotation.x = Math.PI / 2;
+      set.add(b.root);
+      return b;
+    });
     this.canvas.width = W;
     this.canvas.height = H;
     this.g = this.canvas.getContext('2d')!;
@@ -247,7 +288,10 @@ export class ChartPlotter {
     }
     const dist = Math.hypot(fx - sx, fz - sz);
     // Metres across the screen: own ship in the middle, the focus comfortably inside.
-    const span = Math.min(5000, Math.max(700, dist * 2.6 + (inc ? inc.radius * 2 : 0)));
+    // (Or the range chosen with the zoom buttons.)
+    const zoom = Math.min(v.controls.chartZoom ?? 0, CONFIG.chartPlotter.ranges.length);
+    const span = zoom > 0 ? CONFIG.chartPlotter.ranges[zoom - 1] : Math.min(5000, Math.max(700, dist * 2.6 + (inc ? inc.radius * 2 : 0)));
+    this.shownSpan = span;
     const mpp = span / W; // metres per pixel
     const toPx = (x: number, z: number): [number, number] => [W / 2 + (x - sx) / mpp, H / 2 + (z - sz) / mpp];
 
@@ -332,7 +376,8 @@ export class ChartPlotter {
         g.arc(px, py, 14, 0, Math.PI * 2);
         g.stroke();
       }
-      g.fillText(p.name.replace(' (anchorage)', ''), px + 10, py - 12);
+      // Zoomed out wide, the names would pile up: only the destination's.
+      if (isDest || span <= 8000) g.fillText(p.name.replace(' (anchorage)', ''), px + 10, py - 12);
     }
 
     // Tidal races (regions): the zone outlined, turned to its set, an arrow the way the water
@@ -557,6 +602,7 @@ export class ChartPlotter {
     g.fillStyle = '#e8e2cc';
     g.font = 'bold 18px system-ui, sans-serif';
     g.fillText('N ▲', W - 46, 18);
+    g.fillText(zoom > 0 ? `ZOOM ${span >= 1000 ? `${span / 1000} km` : `${span} m`}` : 'ZOOM AUTO', 12, 18);
     const bar = niceDistance(span / 4);
     g.fillRect(14, H - 22, bar / mpp, 4);
     g.fillText(bar >= 1000 ? `${bar / 1000} km` : `${bar} m`, 14, H - 36);

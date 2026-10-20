@@ -92,6 +92,8 @@ export interface VesselControls {
    * (0 when let go: it springs back).
    */
   joyMode?: number;
+  /** The chartplotter's zoom (nav/chartPlotter.ts): 0 AUTO, k the k-th of CONFIG.chartPlotter.ranges. One for the boat: the crew see what the helmsman set. */
+  chartZoom?: number;
   joyX?: number;
   joyY?: number;
   joyR?: number;
