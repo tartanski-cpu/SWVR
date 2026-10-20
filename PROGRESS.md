@@ -5413,6 +5413,25 @@ Owner, Oct 2026: a new career starts in one of the new fleet boats; hide the wor
 - **Tests:** tests/starterBoat.test.ts (3); starterWorkboat.test.ts's other-boat message now "Not for this boat".
 - **Next fleet steps:** move the tests and golden runs onto the fleet; then delete the old boats (owner: hide first, delete later).
 
+### A tug's exhaust stacks: modern pipes, raked or straight, one per engine (done, awaiting owner test)
+
+Owner, Oct 2026 (a photo of a modern tug's exhausts): "I don't want the exhaust pipe to look like an old steamship... more like this, so they can have a little bit of angle in them. Maybe that's an option in the shipyard. So they could be straight pipes, maybe one or two, depending on the engines."
+
+- **The look** (module `fitting.exhaust-stack` v2): no more black pipe with its band, lip and white lagging. Over the roof a plain weathered bronze-brown pipe (`colour`), tapering a little (`taper` 0.88), **raked aft** `rakeDeg` 12°, its top **cut on a slant** facing aft (`cutDeg` 35°), dark inside. Inside the wheelhouse it rises in a painted casing (`casing`, the house's pale grey), with a low collar where it goes out through the roof.
+- **Raked or straight** (Shipyard, Engine step, **Exhaust stacks**, shown on the tug hull only; `design.stackStyle`, design code version 29, packed at the top: older codes read as raked): straight is upright with a square-cut top.
+- **One per engine:** a twin has two, one in each aft corner of the wheelhouse; the smoke comes from both tops by turns (ExhaustFitting `more`), and her cooling water from a hole in each side (`water` is now a list), the pumps taking turns. The extinguisher and torch brackets on the aft wall move inboard of a port stack.
+- **The smoke** leaves along the pipe (raked: leaning aft with it) from the middle of its cut top (`stackOutlet`).
+- **Checked:** tests/exhaustStack.test.ts (7): the single stack's place and heights; the smoke from its top leaning aft; straight; twin (two stacks, smoke from both, water both sides, the hand gear clear, recipe valid); the code; none on other hulls. Full suite 1077 pass. Headless Chromium: the fleet tug (one raked), a twin tug raked and straight, each from her side, her quarter and inside; a close-up of the raked pipe's cut top. **Not checked:** the Quest.
+
+### A tug's dry exhaust stack, and her cooling water out of her side (done, awaiting owner test)
+
+Owner, Oct 2026: "the tugboats to have their exhaust pipe... it comes out the roof... in a corner of the wheelhouse, because it would need to route right through the wheelhouse and into where the engines are. And the smoke... should emit from the end of the pipe. It should be a nice beefy pipe, and... high enough to keep the smoke out of the way. And I'd like the tugboat only to have a water exhaust out the side... the cooling water spits out the side close to the water line from a hole... intermittently... as the pump spits out some water."
+
+- **The stack** (module `fitting.exhaust-stack`, src/modules/exhaustStack; `CONFIG.shipyard.exhaustStack`): on the small tug hull type (the fleet's tug, and any Shipyard design on it; not with outboards). A pipe 0.28 m across (`radius` 0.14) in the wheelhouse's aft starboard corner (`inset` 0.05 m off the walls), from `below` 0.5 m under the cabin floor (down to her engine space) up through the roof to `aboveRoof` 1.9 m over it. Inside it's lagged (a grey sleeve, as a real one is to keep its heat off the crew); a collar where it goes out through the roof; a band and a lip at its top. It's solid to walk into (its footprint). Merged with her fixed parts: no draw calls of its own. Her line-throwing gun moves forward along that wall, clear of it.
+- **The smoke** comes out of its top, blowing up (her exhaust fitting: `stack: true`, `direction` up); no wet outlet is drawn in her transom any more (`wetOutlet`).
+- **The cooling water** (ExhaustFitting `water`): a hole in her starboard side `waterAbove` 0.3 m over the waterline, abreast of her engine, a short stub with a dark mouth. While the engine runs it spits in spurts (`CONFIG.effects.exhaust.water`): one every 0.9-2.4 s (up to half as long apart at full revs: the raw-water pump turns with the engine), each 30 drops over 0.5 s, out at 3 m/s, falling into the sea. Its own small particle pool: one more draw call, only on a tug and only while drops are in the air.
+- **Checked:** tests/exhaustStack.test.ts (4): in the corner, from under the floor to 1.9 m over the roof; the smoke from its top, no transom outlet; the water's hole at her side over the waterline; no stack on the other hull types. Full suite passes. Headless Chromium: the tug from outside (the stack and its smoke), inside (the lagged pipe in the corner), and her side over 12 frames (the spurts come and go). **Not checked:** the Quest.
+
 ### The coaster drawn without a barge round her; the fleet's fishing boats and landing craft get narrower houses (done, awaiting owner test)
 
 Owner, Oct 2026: "When I did the ship towing mission, the coaster ship is inside the large barge"; "the fishing boat one is slightly too wide to walk past, but it should have like the forward raked windscreen and be a little bit more narrow. And the landing craft one should be much more narrow and slightly higher up and have the raked forward windscreens."
@@ -5895,3 +5914,47 @@ For performance on the Quest, read the debug panel's cpu/gpu lines in VR:
 ## Multiplayer
 
 Version 1 (shared boat and avatars, peer-to-peer) is done on the `multiplayer` branch; see above and [`docs/MULTIPLAYER.md`](docs/MULTIPLAYER.md).
+
+### Parametric boats P2b, third stop: a cockpit overhead with wings (done, awaiting owner test)
+
+Owner, Oct 2026: "when you're done building with the crane, you can continue with the build out of the different wheelhouse parts". The plan's P2b listed a cockpit overhead with wings next, then a pilothouse raised on a walkable deckhouse.
+
+- **What:** **Overhead aft** on the Wheelhouse step's Roof group (`design.overhead`, `SCALES.overhead`, 0.25 m a step, to 4 m): the house's aft roof carried on aft over the working deck, as on the Alaskan 38 or a sport-fishing boat, on a wing each side just inside the bulwarks. Each wing stands full height from the house to a knee on the deck, then sweeps up in a curve to the roof's aft edge, so the deck's corners stay open for working.
+- **The layout:** `layout.overhead` (`OverheadLayout`: z0 the house's aft face, z1 its aft edge, y the roof's underside, thickness, halfWidth, wing, kneeZ, deckY); `wingCurveY(o, z)` (vesselDef.ts) gives the wing's top edge at any point along her.
+- **Fitting** (build.ts, `CONFIG.shipyard.overhead`):
+  - `inset` 0.08 m in from the deck edge; wings `wing` 0.06 m thick; the knee `kneeShare` 0.45 of the way aft, at most `kneeMax` 1.2 m from the house.
+  - It stops `transomClear` 0.2 m short of the transom, and `gearClear` 0.3 m short of what stands up through it (a pole's searchlight or fire monitor aft of the house, the trawl A-frame); the Shipyard says when it's shortened.
+  - It isn't fitted when a deck crane or the skiff crane works her aft deck (their booms would strike it): the Shipyard says so.
+  - Shorter than `minLength` 0.6 m, it's left off; under `minHeadroom` 1.95 m over the deck, a warning.
+  - Asked 2 m on each type as she comes: landing craft 1.6 m (her short aft deck), gillnetter 0.8 m, workboat, pilot boat and small tug the full 2 m. Headroom 2.0 to 3.0 m.
+- **Weight and price:** a line "Cockpit overhead" in her weights, its plate area (roof and both wings) at the house's weight per m², priced like the house.
+- **Walking** (layout.ts): the roof slab and wings are solid; you stand and walk under it, and the deck under each wing is off the walkable deck.
+- **Drawing** (hullMesh `buildShapedHouse`): the slab with the house's chamfered edge and roof colour, the roof-top panel carried on with it when there is one, and the two wings in the house's colour. Merged into the house's own mesh: no extra draw calls.
+- **The code:** not in the short code (as the helm assist): a boat with one has no short code and travels as a link or file. Every older code and file reads as before (none).
+- **Tests:** `tests/shipyard/overhead.test.ts` (5): link/file only, none as before; fitted as far as asked, its weight and price; stopped short of the transom and left off with a deck crane aft; walked (solid slab and wing, standing room under it); drawn. `designDoc.test.ts`'s code fields leave it out. Full suite 1070 pass; typecheck clean; build OK.
+- **Checked:** headless Chromium: the pilot boat with a 2 m overhead from the quarter, the side and from under it on deck; the small tug; the Shipyard's slider ("2.00 m"), no warnings, "Cockpit overhead" in her figures. **Not checked:** the Quest; every combination with a saloon aft, a lower saloon roof or a raked-out house by eye.
+- **Test steps:**
+  - **Desktop:** Shipyard, pilot boat, Wheelhouse step, Roof: Overhead aft 2.00 m. Look at her from the quarter and the side. Deck gear: place a deck crane on her aft deck (the overhead is left off, and she says why); take it off. Landing craft: ask 3 m (it stops short of the transom). Trials & handover, play her: walk aft out of the house under it to the transom.
+  - **VR:** the same boat in the game: stand under it on deck and look up; walk out past the wing's knee; climb nothing (it's a roof, not a deck, for now).
+
+### Parametric boats P2b, fourth stop: a pilothouse raised on a walkable deckhouse (done, awaiting owner test)
+
+Owner, Oct 2026: "continue with the next step for the modular build out". The plan's P2b had one stop left: a pilothouse raised on a walkable deckhouse. Its inside stays solid (a cabin in it is P2c, the trunk cabin): this stop walks its top.
+
+- **What:** **Top** in the Wheelhouse step's Deckhouse group (`design.dhWalk`): not walked (as before), or walked, with a rail and a ladder. The deckhouse's top becomes a deck round the raised wheelhouse: forward of it, and beside it where the deckhouse is wider than the house.
+- **The layout:** `DeckhouseLayout.walk` (vessel/deckhouse.ts `DeckhouseWalk`): `z0` where the top is flat (aft of a raked front), `margin` in from the edge, `railHeight`, and the `ladder` (`face` aft or front, `x`, `width`, `depth`). `onDeckhouseTop`, `deckhouseLadderZone`.
+- **Fitting** (build.ts, `CONFIG.shipyard.deckhouse.walk`):
+  - Kept `margin` 0.25 m in from the edge, where the rail stands, `railHeight` 0.9 m.
+  - **The ladder** (`ladder` 0.45 m wide, its climbing zone 0.45 m out): on the deckhouse's aft face, starboard of the wheelhouse, when the strip beside the house has room; else up its front on the centreline, leaning with a raked front. Gear on the foredeck keeps clear of a front ladder.
+  - Not walked (and the Shipyard says why) if there's less than `minFore` 0.6 m of top forward of the house and no strip beside it wide enough for the ladder.
+- **The side door** can now open onto the top (it was left off with a deckhouse as wide as her): only if the strip beside the house is wide enough to step out on, and the wheelhouse floor is within 0.35 m of the top (one step); the Shipyard says which when not.
+- **Weight and price:** "Deckhouse rail and ladder" in her weights (`railKgPerM` 4 kg a metre of rail, `ladder.kg` 20), high on the deckhouse; priced at her material's price a kilo, as the deckhouse.
+- **Walking** (layout.ts): the top is a floor at the deckhouse's height, clear of the houses on it and of gear standing there; the ladder is climbed as the roof ladders are (from the deck to the top), with a landing at its head. You can't walk off its edge.
+- **Drawing** (hullMesh.ts `deckhouseRail`): a top rail and a mid rail on posts round the top's edge and across the aft ends of the strips beside the house, open at the ladder head; the ladder's stiles carried up past the top as grab handles. All thin bars, merged into the house's mesh: no extra draw calls.
+- **The code:** not in the short code (as the overhead): a boat with it travels as a link or file. Every older code and file reads as before (not walked).
+- **Tests:** `tests/shipyard/deckhouseTop.test.ts` (5): link/file only, needs a deckhouse; the ladder aft beside a narrower house, up the front beside a wide one, the flat top aft of a raked front, weighed and priced; walked on top forward of and beside the house, not past the rail or into the house, the ladder from deck to top and its landing; a side door walked out onto the top; drawn (the rail at its height by the edge). `designDoc.test.ts`'s code fields leave it out. Full suite 1075 pass; typecheck clean; build OK.
+- **Checked:** headless Chromium. The Shipyard: the pilot boat with a narrower wheelhouse on a deckhouse out to her sides, its top walked, from astern (the rail, the ladder on the aft face, no warnings, the line in her figures). In the game: her alongside, from forward; the ladder from the aft deck; standing on the strip beside the house; with the house as wide as she allows, the ladder up the raked front, and standing on the top forward of the wheelhouse looking aft through the windscreen. **Not checked:** climbing it with the player in the browser or on the Quest (the walking is checked in the tests, with the same walk area the game uses).
+- **Test steps:**
+  - **Desktop:** Shipyard, pilot boat, Wheelhouse step: Width (of the wheelhouse) down to 70 %; Deckhouse: Forward 2.0 m, Height 1.0 m, Width To her sides, Top **Walked**. Look from astern: the ladder beside the house. Deck gear: Fit the side door. Trials & handover, play her: walk to the ladder on the aft deck, Space to climb, walk forward along the side of the wheelhouse to the foredeck on top, and in at the side door. Then a wheelhouse as wide as she allows: the ladder is up the front.
+  - **VR:** the same boat: grip and pull down at the ladder to climb, walk round the wheelhouse on top, look over the rail.
+

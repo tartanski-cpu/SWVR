@@ -12,11 +12,11 @@
  * The vessel version is derived from the hull stations and the layout block in the config,
  * the same numbers the geometry is built from.
  */
-import { inDeckhouse } from './deckhouse';
+import { deckhouseLadderZone, inDeckhouse, onDeckhouseTop } from './deckhouse';
 import { gearOf } from '../boats/sims';
 import type { GearFootprint } from '../modular/module';
 import type { HullForm } from './hullForm';
-import { houseFloorAt, houseRoofAt, type VesselDef } from './vesselDef';
+import { houseFloorAt, houseRoofAt, wingCurveY, type VesselDef } from './vesselDef';
 
 export interface Ladder {
   bottom: number;
@@ -285,8 +285,17 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: reado
   // The deck cut away forward of the helm's house (a cabin under a trunk cabin there): not deck.
   const op = layout.deckOpening;
   const inOpening = (x: number, z: number) => !!op && z < wh.front + r && z > op.front - r && Math.abs(x) < deckHalfBeam(z) - op.inset + r;
-  // A deckhouse under the wheelhouse (vessel/deckhouse.ts): solid, and not walked on, for now.
+  // A deckhouse under the wheelhouse (vessel/deckhouse.ts): solid; its top walked if it has
+  // `walk` (P2b), round the houses standing on it, with a ladder up from the deck.
   const dh = layout.deckhouse;
+  const dhLadder = dh ? deckhouseLadderZone(dh) : null;
+  const inDhLadder = (x: number, z: number) => !!dhLadder && x >= dhLadder.x0 && x <= dhLadder.x1 && z >= dhLadder.z0 && z <= dhLadder.z1;
+  // The ladder's head: a landing on the top from its edge in to the walked part (as the roof's).
+  const onDhLanding = (x: number, z: number) => {
+    if (!dhLadder || !dh?.walk) return false;
+    if (x < dhLadder.x0 || x > dhLadder.x1) return false;
+    return dh.walk.ladder.face === 'aft' ? z > dh.z1 - dh.walk.margin - 0.3 && z <= dh.z1 + 0.05 : z >= dh.walk.z0 - 0.05 && z < dh.walk.z0 + dh.walk.margin + 0.3;
+  };
   let leafFolded = false;
   // The engine hatch in the helm house's floor (or in the deck, at its `y`): open, its hole
   // can't be walked into (you can still stand where you were if it opened under you; you
@@ -302,6 +311,16 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: reado
   const inGateway = (x: number, z: number, edge: number) =>
     !!gate && gateOpen && Math.sign(x) === gate.side && z > gate.z0 + r * 0.6 && z < gate.z1 - r * 0.6 && Math.abs(x) <= deckHalfBeam(z) - edge;
 
+  // A cockpit overhead (P2b): its roof slab, and the wing plates along the deck edge each side
+  // (solid from the deck up to the roof as far as the knee, then above its sweep).
+  const oh = layout.overhead;
+  const inWingBand = (x: number, z: number, m: number) => !!oh && z > oh.z0 - m && z < oh.z1 + m && Math.abs(x) > oh.halfWidth - oh.wing - m && Math.abs(x) < oh.halfWidth + m;
+  const overheadSolid = (x: number, y: number, z: number): boolean => {
+    if (!oh || z < oh.z0 || z > oh.z1 || Math.abs(x) > oh.halfWidth) return false;
+    if (y >= oh.y && y <= oh.y + oh.thickness) return true; // the roof
+    return inWingBand(x, z, 0) && y >= deckY(z) && y < oh.y && y >= wingCurveY(oh, z); // a wing
+  };
+
   // Her houses (P2a): the helm's, then any more, each walked as its own.
   const live = { leafFolded: () => leafFolded };
   const helmHouse = houseWalk(def, layout, wh, true, gear, deckY, live);
@@ -315,10 +334,20 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: reado
       contains: (x, z) => {
         const onDeck = (z <= transom - layout.deckEdgeMargin && Math.abs(x) <= deckHalfBeam(z) - layout.deckEdgeMargin) || inGateway(x, z, 0.08);
         const nearDeckhouse = !!dh && inDeckhouse(dh, x, z, r);
-        return onDeck && !houses.some((h) => h.near(x, z) || h.inSteps(x, z)) && !nearDeckhouse && !inOpening(x, z) && !onGear(gear, x, z, r, deckY(z));
+        return onDeck && !houses.some((h) => h.near(x, z) || h.inSteps(x, z)) && !nearDeckhouse && !inOpening(x, z) && !onGear(gear, x, z, r, deckY(z)) && !inWingBand(x, z, r);
       },
     },
     ...helmHouse.floors,
+    // The deckhouse's walked top: in from its edge (its rail), clear of the houses on it and of
+    // gear standing there; and the landing at the ladder head.
+    ...(dh?.walk
+      ? [
+          {
+            height: () => dh.top,
+            contains: (x: number, z: number) => (onDeckhouseTop(dh, x, z, r * 0.5) && !houses.some((h) => h.near(x, z)) && !onGear(gear, x, z, r, dh.top)) || onDhLanding(x, z),
+          },
+        ]
+      : []),
     // Other floors (the companionway's treads, the fore cabin's sole), a little short of
     // their edges each way so you don't stand half off them.
     ...(layout.extraFloors ?? []).map(
@@ -337,7 +366,7 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: reado
     },
 
     walkable(x, z, y) {
-      if (helmHouse.inLadder(x, z)) return true;
+      if (helmHouse.inLadder(x, z) || inDhLadder(x, z)) return true;
       if (inHatch(x, z) && Math.abs(y - hatchY) <= STEP_HEIGHT) return false;
       return surfaces.some((s) => s.contains(x, z) && Math.abs(s.height(x, z) - y) <= STEP_HEIGHT);
     },
@@ -355,7 +384,10 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: reado
     },
 
     ladderAt(x, z) {
-      return helmHouse.inLadder(x, z) ? helmHouse.ladderAt() : null;
+      if (helmHouse.inLadder(x, z)) return helmHouse.ladderAt();
+      // The deckhouse's ladder: from the deck at its foot to its top.
+      if (inDhLadder(x, z)) return { bottom: deckY(dh!.walk!.ladder.face === 'aft' ? dhLadder!.z1 : dhLadder!.z0), top: dh!.top };
+      return null;
     },
 
     inBounds(x, z) {
@@ -369,6 +401,7 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: reado
       if (house) return house.solid(x, y, z);
       // The deckhouse (solid, for now) up to its top.
       if (dh && inDeckhouse(dh, x, z) && y < dh.top) return true;
+      if (overheadSolid(x, y, z)) return true;
       // Below the open deck, within the hull.
       return z <= transom && Math.abs(x) <= deckHalfBeam(z) && y < deckY(z) - 0.15;
     },

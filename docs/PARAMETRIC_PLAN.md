@@ -60,8 +60,15 @@ can copy a link, open it on another machine, save and open a file.
     the wheelhouse's aft end, its windows coming down with it (`wheelhouse.saloonRoof`,
     `houseRoofAt`); and the roof's top in a second colour, a panel set in from its edges.
     Two more plain choices in the code (version 25).
-  - **Still to come:** a cockpit overhead with wings; a pilothouse raised on a walkable deckhouse
-    (today's deckhouse is solid).
+  - **Third stop, done (awaiting owner test): a cockpit overhead with wings.** The house's aft
+    roof carried on aft over the working deck (`design.overhead`, up to 4 m), on a curved wing
+    each side; fitted round the deck gear, walked under, its weight and price counted
+    (`layout.overhead`, `wingCurveY`). Not in the short code: she travels as a link or file.
+  - **Fourth stop, done (awaiting owner test): a pilothouse raised on a walkable deckhouse.** The
+    deckhouse's top walked (`design.dhWalk`): a deck round the wheelhouse, a rail along its edge,
+    a ladder up from the main deck (on its aft face beside the house, or up its front), a side
+    door from the wheelhouse onto it (`DeckhouseLayout.walk`). Not in the short code. Its
+    inside stays solid: a cabin in it is P2c's. P2b is complete.
 - **P2c, a trunk cabin with a cabin below (M):** the deckhouse becomes a walkable trunk cabin, the
   deck cut away beneath it, a fore cabin and a companionway (the layout fields from the Alaskan:
   floor holes, extra floors, hollows, the deck opening).

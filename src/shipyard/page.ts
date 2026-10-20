@@ -27,7 +27,7 @@ import { LIBRARY, RECIPES } from '../boats/library';
 import { gearOf, useDesign } from '../boats/sims';
 import { assembleView } from '../modular/assemble';
 import type { SeaTrialResults } from '../vessel/seaTrials';
-import { VESSEL_DEFS } from '../vessel/vesselDef';
+import { VESSEL_DEFS, wetOutlet } from '../vessel/vesselDef';
 import { isPlaneSheet, PLANES, PlaneInk, planeAt, planeFacing, planeSheet, toPlane, type PlaneName } from './planeSketch';
 import { buildMachinery } from './enginePreview';
 import { LiveTrial, type LiveSample, type LiveTest } from './liveTrial';
@@ -37,7 +37,7 @@ import { briefPaper } from './briefPaper';
 import { buildVesselMesh, buildVesselMeshParts } from '../vessel/view/hullMesh';
 import { DESIGN_HULLS, ENGINES, LIVERIES, ROOF_PAINTS, ROOF_TOPS, type DesignedBoat } from './build';
 import { docFileName, docFileText, docToken, designToken, readDesign, shortCode } from './designDoc';
-import { ALL_FIELDS, CONSOLE_SIDES, DEFAULT_DESIGN, GUARDS, MATERIALS, OUTBOARDS, RAILS, MEASURES, SILLS, type MeasureKey, SINGLE_ONLY_ENGINES, SKIFFS, outboardCount, placeOf, placeValue, SCALES, type PlaceKey, type ShipDesign } from './design';
+import { ALL_FIELDS, CONSOLE_SIDES, STACK_STYLES, DEFAULT_DESIGN, GUARDS, MATERIALS, OUTBOARDS, RAILS, MEASURES, SILLS, type MeasureKey, SINGLE_ONLY_ENGINES, SKIFFS, outboardCount, placeOf, placeValue, SCALES, type PlaceKey, type ShipDesign } from './design';
 import { hullPlan } from '../vessel/layout';
 import { UndoStack } from './undo';
 import { YardLink } from './yardLink';
@@ -229,7 +229,7 @@ function drawBoat(): void {
   const def = VESSEL_DEFS.design;
   const root = new THREE.Group();
   // Hull and house apart, so a step can show one on its own (focus, below).
-  const parts = buildVesselMeshParts(def.hull, def.layout, def.exhaust?.position, def.livery);
+  const parts = buildVesselMeshParts(def.hull, def.layout, wetOutlet(def), def.livery);
   root.add(parts.hull);
   if (parts.house) root.add(parts.house);
   // Her hull protection (strake, tyres, push fender, the fender basket) apart from the rest
@@ -268,7 +268,7 @@ function addSkiff(root: THREE.Group): void {
   const crane = gearOf({ defId: 'design' }, 'tenderCrane');
   if (!crane) return;
   const sk = VESSEL_DEFS.skiff;
-  const mesh = buildVesselMesh(sk.hull, sk.layout, sk.exhaust?.position, sk.livery);
+  const mesh = buildVesselMesh(sk.hull, sk.layout, wetOutlet(sk), sk.livery);
   mesh.position.set(...crane.stow);
   mesh.name = 'skiff';
   root.add(mesh);
@@ -638,7 +638,8 @@ function group(title: string, note = ''): void {
 /** The deckhouse's width buttons and when each is the one chosen (they set two fields: dhWidth, dhNarrow). */
 const dhKinds: [HTMLElement, (d: ShipDesign) => boolean][] = [];
 /** When a row shown only where it applies (data-when / data-unless) is: a field set, or the deckhouse with side decks. */
-const rowApplies = (cond: string): boolean => (cond === 'dhSideDecks' ? !!design.dhLength && !design.dhNarrow && design.dhWidth > 0 : !!design[cond as keyof ShipDesign]);
+const rowApplies = (cond: string): boolean =>
+  cond === 'dhSideDecks' ? !!design.dhLength && !design.dhNarrow && design.dhWidth > 0 : cond === 'tugStacks' ? design.hull === 4 && !design.outboards : !!design[cond as keyof ShipDesign];
 /** A few set options in a row, as buttons (for choices with only a handful of settings). */
 function options(key: keyof ShipDesign, label: string, names: string[]): HTMLElement {
   labels[key] ??= label;
@@ -754,6 +755,8 @@ section('2. Wheelhouse');
   group('Roof');
   measure('roofThickness', 'Thickness', (v) => `${Math.round(v * 100)} cm`);
   measure('roofEdge', 'Edge', (v) => `${v.toFixed(0)}° back`);
+  // The cockpit overhead (P2b): the aft roof carried on aft over the working deck, on a wing each side.
+  slider('overhead', 'Overhead aft', (v) => (v ? `${SCALES.overhead(v).toFixed(2)} m` : 'none'));
 
   group('Inside');
   // The helm console (owner): no longer than CONFIG.shipyard.helm.maxConsole, so on a wide
@@ -763,7 +766,7 @@ section('2. Wheelhouse');
   options('chartTable', 'Chart table', ['None', 'Port wall, aft']);
 
   // The deckhouse (owner: pilot and rescue boats): the wheelhouse stands on it.
-  group('Deckhouse', 'A lower deckhouse that the wheelhouse stands on, as on pilot and rescue boats: from the wheelhouse’s aft wall forward, the helm raised onto it with steps up to the door. Its floor height (above) is then from the deckhouse’s top: lower it to sink the cabin into the deckhouse. Solid for now (no way in but the wheelhouse, its top not walked).');
+  group('Deckhouse', 'A lower deckhouse that the wheelhouse stands on, as on pilot and rescue boats: from the wheelhouse’s aft wall forward, the helm raised onto it with steps up to the door. Its floor height (above) is then from the deckhouse’s top: lower it to sink the cabin into the deckhouse. Solid inside; its top can be walked, a deck round the wheelhouse with a rail and a ladder up from the main deck.');
   measure('dhLength', 'Forward', (v) => (v ? m(v, 1) : 'none'), { off: 0.4 });
   measure('dhHeight', 'Height', (v) => m(v)).dataset.when = 'dhLength';
   {
@@ -793,6 +796,8 @@ section('2. Wheelhouse');
   }
   measure('dhWidth', 'Side decks', (v) => m(v), { min: 0.1 }).dataset.when = 'dhSideDecks';
   measure('dhRake', 'Front', (v) => (v < 0.5 ? 'upright' : `raked ${v.toFixed(0)}°`)).dataset.when = 'dhLength';
+  // Its top walked (P2b): a rail round it and a ladder up from the deck.
+  options('dhWalk', 'Top', ['Not walked', 'Walked: rail and ladder']).dataset.when = 'dhLength';
 }
 section('3. Deck gear');
 {
@@ -842,6 +847,8 @@ choices('engine', ENGINES.map((e) => ({ name: e.name, note: `${'about' in e ? `$
   box.onchange = () => change({ nozzle: box.checked ? 1 : 0 });
   controls.appendChild(row);
 }
+// A tug's exhaust stacks (owner, Oct 2026): one per engine up through the wheelhouse's aft corners, raked or straight.
+options('stackStyle', 'Exhaust stacks', [...STACK_STYLES]).dataset.when = 'tugStacks';
 // Or outboards (owner, Oct 2026): 2, 3 or 4 petrol V8s on a bracket off the transom, in place of the inboard above.
 {
   const o = CONFIG.modules.outboard;
@@ -2505,7 +2512,7 @@ function boatFor(d: ShipDesign): { root: THREE.Group; boat: DesignedBoat; room: 
   const room = deckRoom();
   const def = VESSEL_DEFS.design;
   const root = new THREE.Group();
-  root.add(buildVesselMesh(def.hull, def.layout, def.exhaust?.position, def.livery));
+  root.add(buildVesselMesh(def.hull, def.layout, wetOutlet(def), def.livery));
   root.add(new BoatView('design', def, assembleView(RECIPES.design, def, LIBRARY), true).root);
   addSkiff(root);
   boat = useDesign(design);

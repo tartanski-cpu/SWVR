@@ -2620,6 +2620,15 @@ export const CONFIG = {
       greyAge: 0.08,
       rate: 10,
       ratePerOpacity: 60,
+      /**
+       * A tug's cooling water out of its hole in her side (owner, Oct 2026: "the cooling
+       * water spits out the side close to the water line... intermittently, as the pump spits
+       * out some water"; ExhaustFitting `water`): while the engine runs, a spurt every
+       * `everyS` seconds (a random time between the two; more often with more revs: `perRpm`
+       * shortens it by up to that share at rated revs), each `drops` drops over `spurtS`
+       * seconds, leaving at `speed` m/s (± `spread`), falling as water does.
+       */
+      water: { everyS: [0.9, 2.4] as [number, number], perRpm: 0.5, drops: 30, spurtS: 0.5, speed: 3.0, spread: 0.6, size: 0.32 },
     },
     wake: {
       /** Ring-buffer size; with the spacing below this must cover `life` at full speed. */
@@ -2927,6 +2936,21 @@ export const CONFIG = {
      * pedestal (`throttleZ`), the helm joystick aft of it (`stickZ`), its JOYSTICK button
      * `button` [x, z] from the stick (between the two, outboard).
      */
+    /**
+     * A tug's dry exhaust stacks (owner, Oct 2026: "a nice beefy pipe... it comes out the roof...
+     * in a corner of the wheelhouse... high enough to keep the smoke out of the way"; then, from
+     * a modern tug's photo, not an old steamship's: plain pipes "with a little bit of angle",
+     * one or two "depending on the engines"; module fitting.exhaust-stack). Small tug hulls
+     * only. One pipe per engine, `radius` m round, each in an aft corner of the wheelhouse
+     * (starboard; a twin's second to port), `inset` m clear of the walls, from `below` m under
+     * the cabin floor (down to the engine space) up through the roof in a painted `casing`, its
+     * top `aboveRoof` m over the roof. Raked (design.stackStyle 0): leaning aft `rakeDeg`,
+     * tapering to `taper` of its radius, its top cut on a slant `cutDeg` facing aft; straight
+     * (1): upright, its top cut square. A weathered bronze-brown (`colour`). The smoke from
+     * their tops. Her cooling water leaves by a hole `waterAbove` m over the waterline in her
+     * side for each, abreast of her engines (CONFIG.effects.exhaust.water).
+     */
+    exhaustStack: { radius: 0.14, inset: 0.05, below: 0.5, aboveRoof: 1.9, waterAbove: 0.3, rakeDeg: 12, cutDeg: 35, taper: 0.88, colour: 0x7a5236, casing: 0xd8d6d0 },
     helm: { maxConsole: 2.2, screenGap: 0.02, hungReach: 1.0, podJoystick: { throttleZ: 0.0, stickZ: 0.225, button: [0.085, -0.08] as [number, number] } },
     /**
      * The advanced interior's working lights (owner): the overhead switch panel (panel.overhead)
@@ -2959,7 +2983,21 @@ export const CONFIG = {
      * (GBP); it stops `fromStem` m short of her stem (the narrow bow) and `edge` m inside her
      * deck edge (the bulwark), when it's full width.
      */
-    deckhouse: { kgPerM2: 35, pricePerM2: 450, fromStem: 1.2, edge: 0.12 },
+    deckhouse: {
+      kgPerM2: 35,
+      pricePerM2: 450,
+      fromStem: 1.2,
+      edge: 0.12,
+      /**
+       * Its top walked (parametric boats P2b, design.dhWalk; owner): kept `margin` (m) in from
+       * its edge, where a rail `railHeight` high stands (`railKgPerM` kg a metre, two rails on
+       * posts); a ladder `ladder.width` wide up from the main deck, its climbing zone
+       * `ladder.depth` out from the face (`ladder.kg`). Walked only where there's at least
+       * `minFore` of top forward of the wheelhouse, or a strip beside it wide enough for the
+       * ladder.
+       */
+      walk: { margin: 0.25, railHeight: 0.9, railKgPerM: 4, minFore: 0.6, ladder: { width: 0.45, depth: 0.45, kg: 20 } },
+    },
     /**
      * A saloon aft of the wheelhouse (parametric boats P2b, design.saloon): the house runs on
      * aft, one house under one roof. Shorter than `minLength` (m) where her deck runs out, it's
@@ -2972,6 +3010,18 @@ export const CONFIG = {
      * a roof-top panel in a second colour (design.roofTop, the eyebrow) is set (m).
      */
     saloon: { minLength: 1.2, tread: 0.28, minBand: 0.35, roofInset: 0.1 },
+    /**
+     * A cockpit overhead (parametric boats P2b, design.overhead; owner): the house's aft roof
+     * carried on aft over the working deck, as the Alaskan 38's, on a wing each side. Fitted
+     * (m): `inset` in from the deck edge (just inside the bulwark), each wing a plate `wing`
+     * thick; the wing's knee on the deck `kneeShare` of the way aft (no more than `kneeMax` m
+     * from the house), its curve sweeping up from there to the roof's aft edge. It stops
+     * `transomClear` short of the transom and `gearClear` short of what stands up through it
+     * (a pole's searchlight or monitor, the A-frame), and isn't fitted over a deck crane's or
+     * the skiff crane's aft deck (their booms would strike it). Shorter than `minLength`, it's
+     * left off; under `minHeadroom` over the deck, the Shipyard says so.
+     */
+    overhead: { inset: 0.08, wing: 0.06, kneeShare: 0.45, kneeMax: 1.2, transomClear: 0.2, gearClear: 0.3, minLength: 0.6, minHeadroom: 1.95 },
     /**
      * Hull protection (owner): what keeps her sides off a quay (design.ts `guard`). Prices
      * (GBP): a set of fenders and their basket the cheapest; the rubbing strake and the

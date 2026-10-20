@@ -4,8 +4,8 @@
  * from `z0` (its front, at the deck) aft to `z1` (the wheelhouse's aft wall), out to
  * `plan`'s half widths (following her sides when it's full width, or set in from them),
  * and up to `top` (y, flat). Its front face rakes aft as it rises (`rakeDeg`, from the
- * vertical). For now it's solid: not walked on, nothing inside (a walkable top with rails,
- * and an interior, come with bigger boats).
+ * vertical). Solid, nothing inside (an interior comes with P2c, the trunk cabin); its top
+ * walked if it has `walk` (below).
  *
  * If the wheelhouse's floor is sunk into it (the Shipyard's floor height, measured from its
  * top), its top is left open over the cabin (`well`): the wheelhouse's own walls go down
@@ -23,6 +23,41 @@ export interface DeckhouseLayout {
   plan: [number, number][];
   /** Where its top is open for a wheelhouse sunk into it: inside the house's walls, from its front aft to `z1`. */
   well?: { halfWidth: number; z0: number };
+  /** Its top walked (parametric boats P2b, design.dhWalk): see DeckhouseWalk. */
+  walk?: DeckhouseWalk;
+}
+
+/**
+ * A deckhouse's walked top (parametric boats P2b; owner: a pilothouse raised on a walkable
+ * deckhouse): a deck round the wheelhouse standing on it, from `z0` (aft of the front's rake,
+ * where its top is flat) aft, kept `margin` in from its edge, where a rail `railHeight` high
+ * runs round it (open at the ladder head). The ladder goes up from the main deck: on its aft
+ * face beside the wheelhouse (`face` 'aft', at `x`), or up its front (`face` 'front', on the
+ * centreline, leaning with a raked front), `width` wide, its climbing zone `depth` out from the
+ * face. Walked by vessel/layout.ts, drawn by vessel/view/hullMesh.ts.
+ */
+export interface DeckhouseWalk {
+  z0: number;
+  margin: number;
+  railHeight: number;
+  ladder: { face: 'aft' | 'front'; x: number; width: number; depth: number };
+}
+
+/** Is (x, z) on its walked top (`pad` further in from its edge)? Not checked against the wheelhouse standing on it. */
+export function onDeckhouseTop(dh: DeckhouseLayout, x: number, z: number, pad = 0): boolean {
+  const w = dh.walk;
+  if (!w) return false;
+  const m = w.margin + pad;
+  if (z < w.z0 + m || z > dh.z1 - m) return false;
+  return Math.abs(x) <= deckhouseHalfWidth(dh, z) - m;
+}
+
+/** The ladder's climbing zone in plan: x across, z along (from the face out onto the deck, or up a raked front's slope). */
+export function deckhouseLadderZone(dh: DeckhouseLayout): { x0: number; x1: number; z0: number; z1: number } | null {
+  const l = dh.walk?.ladder;
+  if (!l) return null;
+  const [x0, x1] = [l.x - l.width / 2, l.x + l.width / 2];
+  return l.face === 'aft' ? { x0, x1, z0: dh.z1 + 0.02, z1: dh.z1 + l.depth } : { x0, x1, z0: dh.z0 - l.depth, z1: dh.walk!.z0 };
 }
 
 /** Its half width at z (interpolated along its plan; 0 outside it). */
