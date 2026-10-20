@@ -54,6 +54,12 @@ export const WRECKS: WreckDef[] = REGIONS.flatMap((r) => r.wrecks);
 export const LIGHTS: LightDef[] = REGIONS.flatMap((r) => r.lights);
 export const SHELTERS: ShelterDef[] = REGIONS.flatMap((r) => r.shelters);
 export const PORTS: PortDef[] = REGIONS.flatMap((r) => r.ports);
+
+/** A port with no quay to come alongside, only an anchorage (goods go ashore by skiff, or by swimming). */
+export function anchorageOnly(portId: string | null | undefined): boolean {
+  const p = PORTS.find((x) => x.id === portId);
+  return !!p?.cargo.anchorage && !p.cargo.berth;
+}
 export const BERTHS: BerthDef[] = REGIONS.flatMap((r) => r.berths);
 export const SLIPWAYS: SlipwayDef[] = REGIONS.flatMap((r) => r.slipways);
 export const LAMPS: LampDef[] = REGIONS.flatMap((r) => r.lamps);

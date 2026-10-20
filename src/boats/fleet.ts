@@ -15,10 +15,10 @@
  *   smallTug     the small tug: the slow tug diesel in a Kort nozzle, tow winch and stern
  *                roller, fire monitor and searchlight, tyres along her sides;
  *   starterBoat  the beginner boat, a new career's (CONFIG.career.boat): the gillnetter as basic
- *                as she comes, lengthened to 10.2 m so the skiff fits her foredeck once bought,
- *                the cheapest engine (150 kW straight six, ~8 kn), a stern roller to tow from,
- *                fenders, basic controls. The yard adds the searchlight, fire monitor and
- *                skiff to her design (CONFIG.career.upgrades `design`; library.ts setStarterKit).
+ *                as she comes, the cheapest engine (150 kW straight six, ~8 kn), a stern roller
+ *                to tow from, fenders, basic controls, no skiff (owner: never; at an anchorage
+ *                you swim the goods ashore). The yard adds the searchlight and fire monitor to
+ *                her design (CONFIG.career.upgrades `design`; library.ts setStarterKit).
  * Each but the beginner boat has the helm assist panel (autopilot, dock, auto start).
  * (Their ids live on in saves and multiplayer: never rename.)
  */

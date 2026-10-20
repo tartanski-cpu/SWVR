@@ -2044,7 +2044,7 @@ export const CONFIG = {
      */
     upgrades: [
       { id: 'trawlGear', name: 'Trawl gear', price: 2500, minRep: 5, fit: ['aFrame', 'trawl', 'helm/trawl'], desc: 'The A-frame over the transom, the net on its drum and the TRAWL switch' },
-      { id: 'skiff', name: 'Skiff and her crane', price: 4000, minRep: 10, fit: ['tenderCrane'], design: { skiff: 1 }, desc: 'The electric skiff in her cradle on the foredeck, and the crane to launch her' },
+      { id: 'skiff', name: 'Skiff and her crane', price: 4000, minRep: 10, fit: ['tenderCrane'], desc: 'The electric skiff in her cradle on the foredeck, and the crane to launch her' },
       { id: 'searchlight', name: 'Searchlight', price: 1500, minRep: 5, fit: ['searchlight', 'helm/spotlight', 'helm/spotJoystick'], design: { searchlight: 1 }, desc: 'The searchlight on the wheelhouse roof, its SPOT switch and joystick at the helm' },
       { id: 'fireMonitor', name: 'Fire monitor', price: 3000, minRep: 10, fit: ['fireMonitor', 'helm/firePump', 'helm/monJoystick'], design: { fireMonitor: 1 }, desc: 'The fire monitor on the roof, the FIRE PUMP switch, its joystick and gauge: the fire calls come once she has it' },
       { id: 'radar', name: 'Radar', price: 2400, minRep: 20, desc: 'Debris and floating crates on the plotter' },
@@ -2226,6 +2226,12 @@ export const CONFIG = {
     deliveryRadius: 12,
     /** Spacing of items waiting in a port's stack row (m). */
     stackSpacing: 0.9,
+    /**
+     * Said of goods for a port with no quay, only an anchorage (owner, Oct 2026: the beginner
+     * boat has no skiff; you can anchor and swim them ashore, but a boat with a skiff lands
+     * them easier): on the goods' labels and the job offers there.
+     */
+    anchorageNote: 'no quay: land it by skiff, or anchor in the bay and swim it ashore',
     /**
      * Kinds of cargo, all man-portable (carried by hand): name, mass (kg), size (m: across,
      * height, along) and shape. Above `twoHandKg` an item needs both hands. `slots`: room

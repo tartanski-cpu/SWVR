@@ -5298,6 +5298,16 @@ Owner, Oct 2026: before the cockpit roof, clean up the Shipyard's buttons. The o
 - **Checked:** headless Chromium, the Wheelhouse step with a saloon and a deckhouse, then with the windows raked out and the deckhouse "As the wheelhouse"; the owner's configuration (workboat type, three facets, saloon roof lower, a sand roof top) from the same angle as their screenshot: the step is clean. **Not checked:** the Quest (a desktop page).
 - **Next:** the other steps the same way, once the owner has tried this one.
 
+### The beginner boat: no skiff, ever; anchorage jobs say how the goods get ashore (done, awaiting owner test)
+
+Owner, Oct 2026: the beginner boat doesn't need the skiff. She does the cargo for ports she can reach without one; at an anchorage you can anchor and swim the goods ashore; a note should say a skiff does those jobs better. Asked: never on her (not even bought later), and the menu's one-click Unload stays as it is at anchorages.
+
+- **No skiff:** the skiff upgrade has no `design` for her now (CONFIG.career.upgrades), so the yard says "Not on this boat", as for the trawl gear.
+- **Back to 9.8 m** (size step 8; she'd been lengthened to 10.2 m only to fit the skiff): ~8.3 kn, £108k, stern roller kept, no searchlight until bought.
+- **The note:** `CONFIG.cargo.anchorageNote` ("no quay: land it by skiff, or anchor in the bay and swim it ashore"). It is on the label of goods bound for a port with only an anchorage (cargo.ts `cargoLabel`, `archipelago.ts anchorageOnly`), and on the job offers at such a port (career.ts `contractText`: the Office's list and the harbour office's radio).
+- **Swimming with goods** already works: nothing drops what you carry when you go into the water; set it down ashore by the goods stack and it's delivered.
+- **Tests:** starterBoat.test.ts (4): never a skiff or trawl; the note on labels and offers for an anchorage port, not for a quay.
+
 ### The fleet, step 2: a new career starts in the beginner boat; the old workboat and landing craft hidden (done, awaiting owner test)
 
 Owner, Oct 2026: a new career starts in one of the new fleet boats; hide the workboat and the landing craft.
