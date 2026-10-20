@@ -5368,6 +5368,17 @@ Owner, Oct 2026: a new career starts in one of the new fleet boats; hide the wor
 - **Tests:** tests/starterBoat.test.ts (3); starterWorkboat.test.ts's other-boat message now "Not for this boat".
 - **Next fleet steps:** move the tests and golden runs onto the fleet; then delete the old boats (owner: hide first, delete later).
 
+### The coaster drawn without a barge round her; the fleet's fishing boats and landing craft get narrower houses (done, awaiting owner test)
+
+Owner, Oct 2026: "When I did the ship towing mission, the coaster ship is inside the large barge"; "the fishing boat one is slightly too wide to walk past, but it should have like the forward raked windscreen and be a little bit more narrow. And the landing craft one should be much more narrow and slightly higher up and have the raked forward windscreens."
+
+- **The coaster in a barge:** the tow models (tow/towLook.ts) are picked through an if / else chain whose last branch, "everything else", drew the barge (and the pontoon). The coaster, added later and drawn after the chain, fell into it too: she got a barge's hull, deck and bollards drawn in the same place. That branch is now the barge and the pontoon only. tests/towModels.test.ts: the coaster's model carries none of the barge's hull colour (it fails on the old code).
+- **The fleet's houses** (src/boats/fleet/*.json; the beginner boat is the fishing boat, so both are changed):
+  - **Fishing boat and beginner boat:** `houseWidth` 1 → 0.82 (the house 4.0 m → 3.3 m wide, side decks 0.28 → ~0.65 m, room to walk past), `windowRake` 0 → 15 (the windscreen leaning forward at the top, a working boat's: no glare, and the rain runs off).
+  - **Landing craft:** `houseWidth` 1 → 0.79 (2.2 m → 1.7 m: as narrow as the console allows, side decks ~0.5 m), `floor` −0.2 → +0.2 (the house 0.4 m higher: she's seen over her ramp better), `windowRake` 0 → 15.
+  - No warnings from the build; the console fits each. Headless Chromium: each from outside, at the helm and along her side deck.
+- Full suite 1061 pass; typecheck clean.
+
 ### Bow spray from where her bow meets the water (done, awaiting owner test)
 
 Owner, Oct 2026 (a screenshot of the pilot boat): "the spray emitters are not at the point where the bow intersects with the water, it needs to take the rake into account".

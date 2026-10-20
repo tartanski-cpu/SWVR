@@ -103,7 +103,8 @@ export function buildTowModel(def: VesselDef): THREE.Object3D {
     for (const s of [-1, 1]) parts.push(part(new THREE.BoxGeometry(0.2, 3.6, 0.2).rotateX(-0.25).translate(s * 2.2, st + 1.7, tz - 0.7), 0xd6a020));
     box(4.6, 0.25, 0.25, 0, st + 3.45, tz - 0.25, 0xd6a020);
     parts.push(part(new THREE.CylinderGeometry(0.75, 0.75, 3.0, 12).rotateZ(Math.PI / 2).translate(0, st + 0.9, tz - 3.2), 0x3c5a3c));
-  } else {
+  } else if (look === 'barge' || look === 'pontoon') {
+    // (Only these: the coaster, drawn below, fell in here too and got a barge round her.)
     // Barge (and the pontoon, larger): side profile (z aft, y up) extruded across the beam. Shape x = -z (see below).
     const L = p.length / 2;
     const bottom = p.keelY;
