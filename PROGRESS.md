@@ -5478,6 +5478,14 @@ Owner, Oct 2026: a new career starts in one of the new fleet boats; hide the wor
 - **Tests:** tests/starterBoat.test.ts (3); starterWorkboat.test.ts's other-boat message now "Not for this boat".
 - **Next fleet steps:** move the tests and golden runs onto the fleet; then delete the old boats (owner: hide first, delete later).
 
+### Console screens never overlap on a small wheelhouse (done, awaiting owner test)
+
+Owner, Oct 2026 (a screenshot): "This is the smallest landing craft wheelhouse and the instruments overlap."
+
+- **Why:** the screens' spacing along the dash was shrunk with the console (`× sx`, the dash's width against the reference landing craft's) but the screens kept their full size, so on a narrow console they stood closer than their own width: the basic controls' SPEED and ENGINE screens overlapped on the smallest landing craft.
+- **Now** (shipyard/build.ts): side by side at full size with `screenGap` between them if the row fits the dash; if it doesn't, all of them smaller together until it does (their width and height in the screen module's config). The smallest landing craft: the basic two at full size; the advanced four at 84 %; the fleet tug's five at 98 %.
+- **Checked:** tests/shipyard/screenRow.test.ts (2): on every hull type, smallest and largest, basic and advanced (with a stern roller, for the TOW LINE screen), no two overlap and none runs off the dash; the basic two keep full size on the smallest landing craft. Full suite passes. Headless Chromium at the helm: the smallest landing craft basic and advanced, and the fleet's landing craft. **Not checked:** the Quest.
+
 ### The tug's smoke: black when she's worked hard (done, awaiting owner test)
 
 Owner, Oct 2026: "the smoke wasn't black on the tug's exhaust".
@@ -6187,6 +6195,14 @@ Owner: "the next area I'd like you to generate is around Tayvallich... the Fairy
 - **Test steps:**
   - **Desktop:** open https://tartanski-cpu.github.io/SWVR/next/?coast=tayvallich, board at Calder Haven and steer north (000) into Loch Sween. Follow the loch north-east past Taynish to Tayvallich's bay (Menu → Debug → World → To port → Tayvallich for the berth). Then go into Caol Scotnish, the narrow arm, to the Fairy Isles anchorage, and anchor there. `?coast=off` to go back.
   - **VR:** the same, with the perf panel.
+
+### Fix: wheelhouse buttons vanishing at the helm (owner, testing Tayvallich)
+
+Owner: "I went to pick up some cargo... the buttons and the joystick but not the throttle lever disappeared from the pilot boat." Those are exactly the parts the draw-call saving hides while you're outside the wheelhouse (`app/interiorDetail.ts`; the throttle lever is always kept). It judged "outside" by whether the game counted you aboard the boat. Some ways of getting about leave you in the world's frame even when you stand in her wheelhouse: VR fly does (Debug), and so can a camera mode. So the parts stayed hidden at the helm.
+- **The fix:** it now goes by where your eye is in her frame, whatever frame you're counted in (`App.updateDetail`).
+- **Checked headless** (the pilot boat at Tayvallich): aboard at the helm, 24/24 parts shown; the same spot not counted aboard, now 24/24 (it was none); ashore, 0/24.
+- **Not reproduced:** stepping ashore and back aboard showed them correctly, so the exact way you got there isn't known. If it happens again, say how you moved about (walked, jumped, flew, the menu's Board/Leave).
+- **Noticed on the way:** the menu's Leave boat always puts you on Calder Haven's quay, wherever the boat is (as before; worth fixing for the far regions).
 
 ## Next
 

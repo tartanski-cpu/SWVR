@@ -4097,11 +4097,11 @@ export class App {
       this.interior = new InteriorDetail([this.homeView.root, root], root, this.testDef);
       if (CONFIG.debug.logDetail) console.info(`interior detail: ${this.interior.count} parts`);
     }
-    const me = this.world.players[this.localPlayerId];
-    const aboard = me?.aboardVesselId === this.testVesselId;
-    const eye = this.camera.getWorldPosition(this.detailV);
-    if (aboard) root.worldToLocal(eye);
-    this.interior.update(aboard ? eye : null);
+    // By where the eye is in her frame, not by whether the game counts you aboard her: in her
+    // wheelhouse by any way (VR fly, a camera mode, stepping in from a quay) the parts show
+    // (owner: the buttons and joystick vanished at the helm after a cargo run).
+    const eye = root.worldToLocal(this.camera.getWorldPosition(this.detailV));
+    this.interior.update(eye);
     // The skiff's outboard and tiller, her painter cleat: under her tarpaulin in the cradle
     // (not drawn, not usable).
     for (const [id, boat] of this.boats) if (id !== this.testVesselId) boat.setCovered(this.world.vessels[id]?.tender?.phase === 'stowed');
