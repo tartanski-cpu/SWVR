@@ -6,6 +6,7 @@ import { drawPaperChart, type PaperChart } from '../../nav/paperChart';
 import { SHEETS, type ChartSheet } from '../../nav/chartSheets';
 import { flatVertexColorMaterial, mergeParts, part } from '../../render/geometryUtils';
 import type { CONFIG } from '../../config';
+import { REGIONS, regionById } from '../../world/regions';
 
 /** Its plan from its own corner, its lamp and switch (the chart-table module gives them). */
 type ChartTableConfig = typeof CONFIG.vessels.workboat.chartTable;
@@ -48,7 +49,7 @@ export class ChartTableView {
   private readonly bulbMat: THREE.MeshBasicMaterial;
   /** The sheet on the table now, and the others once drawn (nav/chartSheets.ts; drawn when first turned to). */
   private chart: PaperChart;
-  private sheetIndex = SHEETS.findIndex((s) => s.id === 'home');
+  private sheetIndex = Math.max(0, SHEETS.findIndex((s) => s.id === (regionById('home') ?? REGIONS[0]).id));
   private readonly drawn = new Map<string, PaperChart>();
   private readonly chartTex: THREE.CanvasTexture;
   /** Table metres per world metre on the chart, and the chart's centre on the table. */

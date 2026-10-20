@@ -24,6 +24,8 @@ import { createSalvageState, type SalvageState } from '../salvage/salvage';
 import { createFishingState, type FishingState } from '../fishing/fishing';
 import { createCareer, type CareerState } from '../career/career';
 import type { PottingState } from '../potting/potting';
+import { VOYAGE_MAP_ID } from '../mode';
+import { voyageMap } from '../world/maps';
 
 /**
  * The complete simulation state. Plain, JSON-serializable data only: no class
@@ -98,6 +100,8 @@ export interface WorldState {
     app?: string;
     /** The host's coast region test (regions/index.ts COAST_REGION), if on: crew switch to match and reload. */
     coast?: string;
+    /** Voyage mode: the host's map (world/maps.ts); a crew-mate on another map reloads into it. */
+    map?: string;
   };
   /**
    * No new emergency calls (rescues, tows, fires) while set: the menu's Voyage tab,
@@ -167,7 +171,9 @@ export function createWorld(
  * berth, afloat at her waterline, her mooring lines already fast (moored).
  */
 function mooredAtStart(v: VesselState): void {
-  const b = BERTHS.find((x) => x.id === CONFIG.start.berthId);
+  // Voyage mode: the map's own start berth (world/maps.ts); career: Calder Haven (CONFIG.start).
+  const berthId = voyageMap(VOYAGE_MAP_ID)?.startBerth ?? CONFIG.start.berthId;
+  const b = BERTHS.find((x) => x.id === berthId);
   if (!b) return dropVessel(v);
   const at = berthPose(v, b);
   placeVessel(v, at.x, 0, at.z, at.headingDeg);

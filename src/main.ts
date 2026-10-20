@@ -1,12 +1,14 @@
 // The boats first: every vessel type is built from her recipe (modular boats M6a).
 import './boats/library';
 import { App } from './app/App';
+import { MODE } from './mode';
 import { REGIONS } from './world/regions';
 import { loadCoastTerrains } from './world/coastRegion';
 
 declare const __CHANNEL__: string | undefined;
 // The work-in-progress copy (/SWVR/next/) says so in the browser tab.
-if (typeof __CHANNEL__ === 'string' && __CHANNEL__ === 'next') document.title = 'Workboat World: NEXT';
+const next = typeof __CHANNEL__ === 'string' && __CHANNEL__ === 'next';
+document.title = `Workboat World: ${MODE === 'voyage' ? `Voyage${next ? ' (NEXT)' : ''}` : next ? 'NEXT' : 'Career'}`;
 
 // A coast region's ground (real coastline, tools/coast) is a mesh fetched before the world
 // is built: everything that reads the ground (physics, drawing, charts) needs it from the start.

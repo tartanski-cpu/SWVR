@@ -47,7 +47,7 @@ npm run trials      # sea-trials report (speed, turning, stopping)
 npm run build
 ```
 
-Headless browser checks: Chromium is pre-installed for Playwright. Launch it with `--use-gl=angle --use-angle=swiftshader --enable-unsafe-swiftshader` against `https://localhost:5173/` and ignore HTTPS errors. The app is exposed as `window.app` for scripting.
+Headless browser checks: Chromium is pre-installed for Playwright. Launch it with `--use-gl=angle --use-angle=swiftshader --enable-unsafe-swiftshader` and ignore HTTPS errors. `https://localhost:5173/` is the landing page (career / voyage / training); the game pages are `career.html` (the career game, with all the `?design=` / `?game=` parameters) and `voyage.html?map=<id>` (a coast map on its own, `src/mode.ts`, `src/world/maps.ts`). The app is exposed as `window.app` for scripting.
 
 ## How the code is organised
 

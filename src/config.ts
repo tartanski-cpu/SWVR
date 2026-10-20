@@ -4373,6 +4373,15 @@ export const CONFIG = {
     desk: { reach: 3.2, hand: [0.18, -0.3, 0.55] as [number, number, number] },
   },
 
+  /**
+   * Voyage mode (mode.ts, world/maps.ts; owner, Oct 2026): a real-coastline map on its own,
+   * no career, no saves. `boat`: the boat it starts in (any other by Start in, a Shipyard
+   * code or a design file), fitted out in full.
+   */
+  voyage: {
+    boat: 'fishingBoat',
+  },
+
   start: {
     berthId: 'calder-cargo',
     quay: { x: 713, z: 661.5, yawDeg: 90 },

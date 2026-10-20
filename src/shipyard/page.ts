@@ -1059,7 +1059,7 @@ function showCode(): void {
   const code = shortCode(design);
   const token = designToken(design);
   el.textContent = code ?? 'No short code: share her by link or file';
-  ($('play') as HTMLAnchorElement).href = `./?design=${token}`;
+  ($('play') as HTMLAnchorElement).href = `./career.html?design=${token}`;
   history.replaceState(null, '', `#${token}`);
   markCurrent();
 }
@@ -1131,7 +1131,7 @@ function change(patch: Partial<ShipDesign>, by: 'me' | Person | null = 'me'): vo
 // ── Code tools ──
 /** The game's address for her; `t` (the time) makes the browser fetch the latest game, not a copy it kept. */
 function gameUrl(code: string, extra = ''): string {
-  return `./?design=${code}${extra}&t=${Date.now()}`;
+  return `./career.html?design=${code}${extra}&t=${Date.now()}`;
 }
 $('play').onclick = (e) => {
   e.preventDefault();
@@ -1266,7 +1266,7 @@ function showFavourites(): void {
     const when = new Date(f.savedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
     card.innerHTML = `${f.picture ? `<img alt="" src="${f.picture}">` : '<div class="nopic"></div>'}<div><b title="${esc(f.name)}">${esc(f.name)}</b><div class="meta">${esc(f.summary)}</div><div class="code">${esc(groupFavCode(f.code))} · ${when}</div><div class="acts"><button data-act="open">Open</button><button data-act="play">Try in game</button><button data-act="del">Delete</button></div></div>`;
     card.querySelector<HTMLElement>('[data-act=open]')!.onclick = () => openCode(f.code, $('favMsg'));
-    card.querySelector<HTMLElement>('[data-act=play]')!.onclick = () => (location.href = `./?design=${encodeURIComponent(f.code)}`);
+    card.querySelector<HTMLElement>('[data-act=play]')!.onclick = () => (location.href = `./career.html?design=${encodeURIComponent(f.code)}`);
     card.querySelector<HTMLElement>('[data-act=del]')!.onclick = () => {
       if (!confirm(`Delete “${f.name}” from your favourites?`)) return;
       writeFavourites(storage(), removeFavourite(readFavourites(storage()), f.name, f.savedAt));

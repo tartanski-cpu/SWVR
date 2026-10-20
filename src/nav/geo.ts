@@ -5,7 +5,7 @@
  */
 import { CONFIG } from '../config';
 import type { IslandDef } from '../world/archipelago';
-import { regionById } from '../world/regions';
+import { REGIONS, regionById } from '../world/regions';
 
 const M_PER_DEG = 1852 * 60;
 
@@ -37,7 +37,7 @@ export function formatPosition(x: number, z: number): string {
  * and the plotter stay the home sheet they were.
  */
 export function chartIslands(): readonly IslandDef[] {
-  return regionById('home')!.islands;
+  return (regionById('home') ?? REGIONS[0]).islands;
 }
 
 /** The area the charts cover (world m): the charted islands plus a margin of open water. */

@@ -14,6 +14,8 @@ import { NARROWS } from './narrows';
 
 import { OBAN } from './oban';
 import { TAYVALLICH } from './tayvallich';
+import { MODE, VOYAGE_MAP_ID } from '../../mode';
+import { voyageMap } from '../maps';
 
 /**
  * Debug (the coast pipeline, milestone 4): a region made from real map data, in place of the
@@ -34,7 +36,8 @@ function coastChoice(): string | null {
     return null; // no storage (a worker, the tests): the usual world
   }
 }
-const chosen = coastChoice();
+// (Career mode's only: voyage mode takes its map from the landing page, below.)
+const chosen = MODE !== 'voyage' ? coastChoice() : null;
 export const COAST_REGION: string | null = chosen && chosen in COAST_REGIONS ? chosen : null;
 
 /** Turn the coast region on or off, and reload into it. */
@@ -50,7 +53,12 @@ export function setCoastRegion(id: string | null): void {
   location.assign(url.toString());
 }
 
-export const REGIONS: readonly RegionDef[] = COAST_REGION ? [HOME, COAST_REGIONS[COAST_REGION], NARROWS] : [HOME, SOUNDS, FJORD, NARROWS];
+/**
+ * Voyage mode (mode.ts; owner, Oct 2026): the world is the one map chosen on the landing
+ * page (world/maps.ts), nothing else. Career mode: home and its neighbours as built, or a
+ * coast region in the Sounds' place on the debug toggle above.
+ */
+export const REGIONS: readonly RegionDef[] = MODE === 'voyage' ? [(voyageMap(VOYAGE_MAP_ID) ?? voyageMap('oban'))!.region] : COAST_REGION ? [HOME, COAST_REGIONS[COAST_REGION], NARROWS] : [HOME, SOUNDS, FJORD, NARROWS];
 
 export function regionById(id: string): RegionDef | undefined {
   return REGIONS.find((r) => r.id === id);
