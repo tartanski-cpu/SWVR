@@ -1,23 +1,19 @@
 {
- "triangles": 108131,
- "vertices": 60321,
- "bytes": 2483852,
+ "triangles": 108175,
+ "vertices": 60259,
+ "bytes": 2483108,
  "chunks": [
   {
-   "id": 0,
-   "triangles": 3
-  },
-  {
    "id": 3,
-   "triangles": 360
+   "triangles": 353
   },
   {
    "id": 4,
-   "triangles": 1760
+   "triangles": 1751
   },
   {
    "id": 5,
-   "triangles": 3131
+   "triangles": 3344
   },
   {
    "id": 8,
@@ -25,107 +21,107 @@
   },
   {
    "id": 9,
-   "triangles": 9480
+   "triangles": 9516
   },
   {
    "id": 10,
-   "triangles": 7260
+   "triangles": 7234
   },
   {
    "id": 11,
-   "triangles": 3684
+   "triangles": 3643
   },
   {
    "id": 13,
-   "triangles": 1529
+   "triangles": 1530
   },
   {
    "id": 14,
-   "triangles": 10470
+   "triangles": 10430
   },
   {
    "id": 15,
-   "triangles": 3637
+   "triangles": 3545
   },
   {
    "id": 16,
-   "triangles": 1128
+   "triangles": 1075
   },
   {
    "id": 17,
-   "triangles": 844
+   "triangles": 842
   },
   {
    "id": 18,
-   "triangles": 6450
+   "triangles": 6423
   },
   {
    "id": 19,
-   "triangles": 11288
+   "triangles": 11558
   },
   {
    "id": 20,
-   "triangles": 8845
+   "triangles": 8763
   },
   {
    "id": 21,
-   "triangles": 1983
+   "triangles": 1902
   },
   {
    "id": 22,
-   "triangles": 57
+   "triangles": 55
   },
   {
    "id": 23,
-   "triangles": 498
+   "triangles": 514
   },
   {
    "id": 24,
-   "triangles": 9442
+   "triangles": 9416
   },
   {
    "id": 25,
-   "triangles": 10687
+   "triangles": 10827
   },
   {
    "id": 26,
-   "triangles": 2373
+   "triangles": 2301
   },
   {
    "id": 27,
-   "triangles": 662
+   "triangles": 624
   },
   {
    "id": 28,
-   "triangles": 103
+   "triangles": 96
   },
   {
    "id": 29,
-   "triangles": 216
+   "triangles": 198
   },
   {
    "id": 30,
-   "triangles": 4544
+   "triangles": 4535
   },
   {
    "id": 31,
-   "triangles": 5094
+   "triangles": 5059
   },
   {
    "id": 32,
-   "triangles": 344
+   "triangles": 359
   },
   {
    "id": 33,
-   "triangles": 173
+   "triangles": 186
   },
   {
    "id": 34,
-   "triangles": 123
+   "triangles": 127
   },
   {
    "id": 35,
-   "triangles": 192
+   "triangles": 198
   }
  ],
  "landShare": 0.5968507486568487,
@@ -157,7 +153,7 @@
   }
  },
  "dredgedCells": 229,
- "deepTriangles": 1869,
+ "deepTriangles": 1825,
  "chunkBudget": 12000,
  "package": {
   "ports": 9,
@@ -173,6 +169,6 @@
    "Càrn Breugach",
    "Dunollie Fl(2)GWR.6s"
   ],
-  "bytes": 116903
+  "bytes": 116813
  }
 }

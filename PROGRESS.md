@@ -6097,6 +6097,7 @@ Owner: "go ahead with milestone 4". Agreed before: a region may carry its own gr
     4. Try the chart table's sheets, run aground on Kerrera, and check the plotter. Menu → Settings → Game shows the credits.
     5. `?coast=off` to go back.
   - **VR:** the same in the headset. Watch the perf panel's frame rate from Calder Haven up into Oban Bay and in the bay, and note any hitch as Oban loads (about 2.5 km out) or as chunks switch near and far.
+- **Coast fix (owner: "a few missing triangles, or the normals are inverted" on the coastline):** the mesh itself had no holes and every face wound the right way (checked: no open edges inside the box, all 108k faces facing up). What looked missing were **land faces coloured as water**: ESA WorldCover's coastline differs from OpenStreetMap's by a few metres, so a strip of shore faces took the "permanent water" colour and looked like holes through to the sea (about 10,000 faces, with the inland lochs). Now land the cover calls water within 60 m of the sea coast (`shoreWater`) takes the shore's colour (grass, or rock where steep); the lochs keep theirs. Also: skerries in the box's faded edge left needle spikes from the 40 m floor (no longer stood up there), and the row of points just inland is capped at a 1-in-2 rise (the surface model's trees and walls at the shore made needle-steep slivers). The steep faces left at the water (about 500) are real cliffs and quay walls.
 - **Next:** M5 (a second region, a Norwegian fjord) on the owner's word; or a permanent place in the world for real regions.
 
 ## Next
