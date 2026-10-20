@@ -5470,6 +5470,14 @@ Owner, Oct 2026: a new career starts in one of the new fleet boats; hide the wor
 - **Tests:** tests/starterBoat.test.ts (3); starterWorkboat.test.ts's other-boat message now "Not for this boat".
 - **Next fleet steps:** move the tests and golden runs onto the fleet; then delete the old boats (owner: hide first, delete later).
 
+### Console screens never overlap on a small wheelhouse (done, awaiting owner test)
+
+Owner, Oct 2026 (a screenshot): "This is the smallest landing craft wheelhouse and the instruments overlap."
+
+- **Why:** the screens' spacing along the dash was shrunk with the console (`× sx`, the dash's width against the reference landing craft's) but the screens kept their full size, so on a narrow console they stood closer than their own width: the basic controls' SPEED and ENGINE screens overlapped on the smallest landing craft.
+- **Now** (shipyard/build.ts): side by side at full size with `screenGap` between them if the row fits the dash; if it doesn't, all of them smaller together until it does (their width and height in the screen module's config). The smallest landing craft: the basic two at full size; the advanced four at 84 %; the fleet tug's five at 98 %.
+- **Checked:** tests/shipyard/screenRow.test.ts (2): on every hull type, smallest and largest, basic and advanced (with a stern roller, for the TOW LINE screen), no two overlap and none runs off the dash; the basic two keep full size on the smallest landing craft. Full suite passes. Headless Chromium at the helm: the smallest landing craft basic and advanced, and the fleet's landing craft. **Not checked:** the Quest.
+
 ### The tug's smoke: black when she's worked hard (done, awaiting owner test)
 
 Owner, Oct 2026: "the smoke wasn't black on the tug's exhaust".
