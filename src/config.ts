@@ -3023,12 +3023,12 @@ export const CONFIG = {
       /**
        * Its top walked (parametric boats P2b, design.dhWalk; owner): kept `margin` (m) in from
        * its edge, where a rail `railHeight` high stands (`railKgPerM` kg a metre, two rails on
-       * posts); a ladder `ladder.width` wide up from the main deck, its climbing zone
+       * posts no more than `postSpacing` apart, owner); a ladder `ladder.width` wide up from the main deck, its climbing zone
        * `ladder.depth` out from the face (`ladder.kg`). Walked only where there's at least
        * `minFore` of top forward of the wheelhouse, or a strip beside it wide enough for the
        * ladder.
        */
-      walk: { margin: 0.25, railHeight: 0.9, railKgPerM: 4, minFore: 0.6, ladder: { width: 0.45, depth: 0.45, kg: 20 } },
+      walk: { margin: 0.25, railHeight: 0.9, postSpacing: 1.2, railKgPerM: 4, minFore: 0.6, ladder: { width: 0.45, depth: 0.45, kg: 20 } },
     },
     /**
      * A saloon aft of the wheelhouse (parametric boats P2b, design.saloon): the house runs on

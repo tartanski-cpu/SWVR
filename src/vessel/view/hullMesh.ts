@@ -838,7 +838,7 @@ function buildDeckhouse(dh: DeckhouseLayout, baseAt: (z: number) => number, colo
 
 /**
  * A walked deckhouse top's rail and ladder (vessel/deckhouse.ts DeckhouseWalk): a top rail and
- * a mid rail on posts, just in from its edge, along both sides from the flat top's front aft,
+ * a mid rail on posts (evenly spaced, `postSpacing` apart at most), just in from its edge, along both sides from the flat top's front aft,
  * across its front, and across the aft ends of the strips beside the wheelhouse (`hw` its half
  * width); open at the ladder head. The ladder: two stiles carried up past the top as grab
  * handles, rungs 0.3 m apart; up the aft face beside the house, or up the front (leaning with
@@ -852,27 +852,39 @@ function deckhouseRail(dh: DeckhouseLayout, hw: number, deckY: (z: number) => nu
   const inset = 0.05;
   const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
   const half = (z: number) => deckhouseHalfWidth(dh, z) - inset;
-  const run = (a: [number, number], b: [number, number], posts = true) => {
-    for (const k of [1, 0.5]) parts.push(bar(V(a[0], top + h * k, a[1]), V(b[0], top + h * k, b[1]), k === 1 ? 0.045 : 0.035, k === 1 ? 0.045 : 0.035, color));
-    if (posts) for (const p of [a, b]) parts.push(bar(V(p[0], top, p[1]), V(p[0], top + h, p[1]), 0.04, 0.04, color));
+  // A rail along a line of points in plan (x, z): its top and mid rails through every point
+  // (so it follows the deckhouse's sides), its posts evenly spaced along it, ends included, no
+  // more than `postSpacing` apart (owner: the outline's points are only 0.25 m apart).
+  const railAlong = (pts: [number, number][]) => {
+    for (let i = 1; i < pts.length; i++) {
+      const [a, b] = [pts[i - 1], pts[i]];
+      for (const k of [1, 0.5]) parts.push(bar(V(a[0], top + h * k, a[1]), V(b[0], top + h * k, b[1]), k === 1 ? 0.045 : 0.035, k === 1 ? 0.045 : 0.035, color));
+    }
+    const seg = pts.slice(1).map((p, i) => Math.hypot(p[0] - pts[i][0], p[1] - pts[i][1]));
+    const total = seg.reduce((a, l) => a + l, 0);
+    const n = Math.max(1, Math.ceil(total / w.postSpacing - 1e-6));
+    for (let k = 0; k <= n; k++) {
+      // The point k/n of the way along the line.
+      let d = (total * k) / n;
+      let i = 0;
+      while (i < seg.length - 1 && d > seg[i]) d -= seg[i++];
+      const t = seg[i] > 0 ? Math.min(1, d / seg[i]) : 0;
+      const x = pts[i][0] + (pts[i + 1][0] - pts[i][0]) * t;
+      const z = pts[i][1] + (pts[i + 1][1] - pts[i][1]) * t;
+      parts.push(bar(V(x, top, z), V(x, top + h, z), 0.04, 0.04, color));
+    }
   };
   const lad = w.ladder;
   const gap = (x0: number, x1: number, z: number, open: boolean) => {
     // A run across at z from x0 to x1, open over the ladder's width.
     if (open && lad.x - lad.width / 2 > x0 && lad.x + lad.width / 2 < x1) {
-      run([x0, z], [lad.x - lad.width / 2, z]);
-      run([lad.x + lad.width / 2, z], [x1, z]);
-    } else run([x0, z], [x1, z]);
+      railAlong([[x0, z], [lad.x - lad.width / 2, z]]);
+      railAlong([[lad.x + lad.width / 2, z], [x1, z]]);
+    } else railAlong([[x0, z], [x1, z]]);
   };
-  // Along each side: through its plan's points from the flat top aft, posts at each (no more than 1.5 m apart).
+  // Along each side: through its plan's points from the flat top aft.
   const zs = [w.z0, ...dh.plan.map(([z]) => z).filter((z) => z > w.z0 + 0.05 && z < dh.z1 - 0.05), dh.z1 - inset];
-  const along: number[] = [zs[0]];
-  for (let i = 1; i < zs.length; i++) {
-    const n = Math.ceil((zs[i] - zs[i - 1]) / 1.5);
-    if (zs[i] - zs[i - 1] < 0.2 && i < zs.length - 1) continue;
-    for (let k = 1; k <= n; k++) along.push(zs[i - 1] + ((zs[i] - zs[i - 1]) * k) / n);
-  }
-  for (const sg of [-1, 1]) for (let i = 1; i < along.length; i++) run([sg * half(along[i - 1]), along[i - 1]], [sg * half(along[i]), along[i]]);
+  for (const sg of [-1, 1]) railAlong(zs.map((z): [number, number] => [sg * half(z), z]));
   // Across the front.
   const zf = w.z0 + inset;
   gap(-half(w.z0), half(w.z0), zf, lad.face === 'front');
