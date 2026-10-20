@@ -6171,6 +6171,14 @@ Owner: "the next area I'd like you to generate is around Tayvallich... the Fairy
   - **Desktop:** open https://tartanski-cpu.github.io/SWVR/next/?coast=tayvallich, board at Calder Haven and steer north (000) into Loch Sween. Follow the loch north-east past Taynish to Tayvallich's bay (Menu → Debug → World → To port → Tayvallich for the berth). Then go into Caol Scotnish, the narrow arm, to the Fairy Isles anchorage, and anchor there. `?coast=off` to go back.
   - **VR:** the same, with the perf panel.
 
+### Fix: wheelhouse buttons vanishing at the helm (owner, testing Tayvallich)
+
+Owner: "I went to pick up some cargo... the buttons and the joystick but not the throttle lever disappeared from the pilot boat." Those are exactly the parts the draw-call saving hides while you're outside the wheelhouse (`app/interiorDetail.ts`; the throttle lever is always kept). It judged "outside" by whether the game counted you aboard the boat. Some ways of getting about leave you in the world's frame even when you stand in her wheelhouse: VR fly does (Debug), and so can a camera mode. So the parts stayed hidden at the helm.
+- **The fix:** it now goes by where your eye is in her frame, whatever frame you're counted in (`App.updateDetail`).
+- **Checked headless** (the pilot boat at Tayvallich): aboard at the helm, 24/24 parts shown; the same spot not counted aboard, now 24/24 (it was none); ashore, 0/24.
+- **Not reproduced:** stepping ashore and back aboard showed them correctly, so the exact way you got there isn't known. If it happens again, say how you moved about (walked, jumped, flew, the menu's Board/Leave).
+- **Noticed on the way:** the menu's Leave boat always puts you on Calder Haven's quay, wherever the boat is (as before; worth fixing for the far regions).
+
 ## Next
 
 **Next big step: modular boats** (the owner's separate prompt; see "Direction: one engine, three games" above). The mobile and procedural games wait until the owner asks.

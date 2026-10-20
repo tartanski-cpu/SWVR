@@ -85,7 +85,7 @@ export class InteriorDetail {
     return this.small.length;
   }
 
-  /** @param viewer the viewer's position in the vessel's frame (null: not aboard her) */
+  /** @param viewer the viewer's eye in the vessel's frame (null: nowhere near her) */
   update(viewer: THREE.Vector3 | null): void {
     const wh = this.def.layout.wheelhouse;
     const m = 1.2; // at the door, or leaning in at a window: show them
