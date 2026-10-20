@@ -19,13 +19,17 @@ import { houseFloorLow, houseRoofAt, type WheelhouseDef } from '../vessel/vessel
  * holding a light: switching a light's visibility recompiles every lit material (a hitch),
  * and the cabin lamp lights the wheelhouse seen through the windows.
  */
-const KEEP = new Set(['control:lever', 'binoculars', 'chartPlotter', 'radio', 'gear:extinguisher', 'gear:torch']);
+const KEEP = new Set(['control:lever', 'binoculars', 'chartPlotter', 'radio']);
 
-/** Is it, or does it hold, one of the KEEP parts? (A module's group holds its controls.) */
+/**
+ * Is it, or does it hold, one of the KEEP parts, or any hand gear (`gear:` + its kind: the
+ * extinguisher, torch, line gun, rods; carried about, it would vanish in your hand on deck,
+ * which the line gun did, owner)? (A module's group holds its controls.)
+ */
 function holdsKept(o: THREE.Object3D): boolean {
   let found = false;
   o.traverse((c) => {
-    if (KEEP.has(c.name)) found = true;
+    if (KEEP.has(c.name) || c.name.startsWith('gear:')) found = true;
   });
   return found;
 }

@@ -166,6 +166,8 @@ export class HandGear {
   private readonly hangQuat = new THREE.Quaternion();
   /** The rod: seconds left before a press counts after taking it (so the grab isn't a cast). */
   private grace = 0;
+  /** VR: when the holding hand's tracking was lost (ms), or 0: it hangs back only after `CONFIG.handGear.lostGrace`. */
+  private lostAt = 0;
   /** The torch's own light (only the torch; only while lit, `realLight`). */
   readonly light: THREE.SpotLight | null = null;
   private home: THREE.Object3D | null = null;
@@ -213,6 +215,7 @@ export class HandGear {
 
   hangBack(): void {
     this.held = null;
+    this.lostAt = 0;
     this.pressed = false;
     this.setOn(false);
     if (!this.home) return;
@@ -250,11 +253,22 @@ export class HandGear {
     const held = this.held;
     if (held && held !== 'desk') {
       const f = hands[held];
+      if (!f.tracked) {
+        // The controller out of the headset's sight for a moment: keep it in hand where it
+        // was; only a long loss hangs it back.
+        const now = performance.now();
+        if (!this.lostAt) this.lostAt = now;
+        if (now - this.lostAt < CONFIG.handGear.lostGrace * 1000) {
+          used[held] = true;
+          return used;
+        }
+      }
       if (!f.tracked || !f.gripDown) {
         pulse(held, 0.3, 20);
         this.hangBack();
         return used;
       }
+      this.lostAt = 0;
       used[held] = true;
       this.mesh.position.copy(f.grip);
       if (f.quat) this.mesh.quaternion.copy(f.quat);

@@ -1,8 +1,8 @@
 /**
- * The tug diesel, the big straight six, has its own voice (owner, Oct 2026), matched to the
- * owner's recording of a six-cylinder marine diesel idling: six firings a revolution (70 a
- * second in the recording; a four-stroke six at the tug's idle fired 22: "a single
- * cylinder"), even, with clatter. Only the big six has it.
+ * The big-six voice (owner, Oct 2026) was matched to the owner's recording of a six-cylinder
+ * marine diesel idling: six firings a revolution, even, with clatter. The owner tried it on
+ * the tug and preferred her old voice, the plain straight six, so the voice stays in the
+ * config, unused: no engine names it.
  */
 import { describe, expect, it } from 'vitest';
 import { CONFIG } from '../../src/config';
@@ -10,9 +10,9 @@ import { buildDesign, DESIGN_HULLS, ENGINES } from '../../src/shipyard/build';
 import { DEFAULT_DESIGN } from '../../src/shipyard/design';
 
 describe('the tug diesel’s voice', () => {
-  it('fires six times a revolution, evenly, with clatter; only the big six has it', () => {
+  it('the tug diesel speaks with the plain straight six (owner); the big-six voice kept, fires six a revolution, evenly, with clatter', () => {
     const tug = ENGINES.findIndex((e) => e.ratedRpm === 1000);
-    expect(ENGINES[tug].voice).toBe('bigSix');
+    expect(ENGINES[tug].voice).toBe('inlineSix');
     expect(ENGINES.filter((_, i) => i !== tug).map((e) => e.voice)).toEqual(['inlineSix', 'v8', 'v8']);
     const big = CONFIG.engineVoices.bigSix;
     expect(ENGINES[tug].idleRpm).toBe(450);
@@ -27,9 +27,9 @@ describe('the tug diesel’s voice', () => {
     expect(big.mechBand![1]).toBeLessThan(1400);
     // The others keep their tone free of clatter.
     for (const v of ['inlineSix', 'v8', 'outboardV8'] as const) expect(CONFIG.engineVoices[v].mech).toBe(0);
-    // In her recipe: the game plays it.
+    // In her recipe: the game plays the straight six.
     const b = buildDesign({ ...DEFAULT_DESIGN, ...DESIGN_HULLS[4].defaults, hull: 4, engine: tug });
     const engine = b.recipe.modules.find((m) => m.socket === 'engine')!.config as { voice: string };
-    expect(engine.voice).toBe('bigSix');
+    expect(engine.voice).toBe('inlineSix');
   });
 });
