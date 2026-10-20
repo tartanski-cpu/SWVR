@@ -4,12 +4,16 @@
  * cut into chunks for the game's streaming.
  *
  *   Triangulation  greedy insertion (Garland and Heckbert's "fast polygonal approximation of
- *                  terrains"): start from the coastline's points (resampled every
- *                  `coastStep` m, so the mesh edge follows the real coast) and the box's
- *                  edges; triangulate (Delaunay); find in each triangle the grid cell it misses
- *                  most; add the worst points; repeat until the budget or the tolerance is met.
- *                  Error counts fully on land, half in the shallows, nothing in deep water (the
- *                  sea is opaque). So cliffs, shores and harbours get triangles; gentle hills few.
+ *                  terrains"): start from the coastline's own points (OpenStreetMap's vertices,
+ *                  thinned only where they lie within `coastTol` of straight, filled in on long
+ *                  straight runs), a shore band of points just inland and just out from it (so
+ *                  the waterline is crisp), and the box's edges; triangulate (Delaunay); find
+ *                  in each triangle the grid cell it misses most; add the worst points; repeat
+ *                  until the budget or the tolerance is met. How much an error counts: double
+ *                  at the shore, falling off inland with distance from the water, almost
+ *                  nothing on ground no boat can see (a viewshed from the sea), half in the
+ *                  shallows, nothing in deep water (the sea is opaque). So the shore, cliffs
+ *                  and harbours get the triangles; hidden glens get a few big ones.
  *   Colour         per face, from the land cover at its middle and the theme's palette; steep
  *                  faces are rock; low, gentle ground by the water is sand; under water the
  *                  seabed shades from sand to dark by depth.
@@ -17,9 +21,9 @@
  *
  * Writes public/regions/<id>/terrain.bin (vertices Float32 x, y, z; faces Uint32 a, b, c;
  * colours Uint8 r, g, b per face; land-cover class Uint8 per face; faces sorted by chunk) and region.json (where each array
- * starts, the chunks, the counts, the credits). Run: node src/mesh.ts [requestId].
+ * starts, the chunks, the counts, the credits). Run: node src/mesh.ts [requestId] (last: after harbours, whose basins it dredges).
  */
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import Delaunator from 'delaunator';
 import { dirs, loadRequest, projection } from './common.ts';
@@ -30,14 +34,33 @@ const T = {
   budget: 110000,
   /** Stop refining where every triangle is within this (m, weighted). */
   tolerance: 0.8,
-  coastStep: 20,
+  /** The coast: OSM's vertices kept where they bend more than this off a straight line (m)... */
+  coastTol: 0.5,
+  /** ...and points filled in on straight runs longer than this (m). */
+  coastStep: 25,
+  /** The shore band: rows this far inland and out from the coast (m)... */
+  band: 6,
+  /** ...with points at least this far apart along them (m). */
+  bandSpacing: 8,
   edgeStep: 300,
   chunk: 2000,
   /** Faces wholly deeper than this aren't drawn (the sea is opaque; as the game's terrain). */
   skipBelow: -3,
-  /** Error weight in the shallows (0 > h > shallowTo) and below. */
+  /** Error weight in the shallows (0 > h > shallowTo); none deeper. */
   shallowWeight: 0.5,
   shallowTo: -5,
+  /** Land within shoreReach m of the coast: error counts shoreWeight times (more triangles at the shore). */
+  shoreReach: 80,
+  shoreWeight: 2,
+  /** Seen land farther in: weight 1 / (1 + distance / farHalf), so half at farHalf m. */
+  farHalf: 1000,
+  /** Land no boat can see: almost nothing (big triangles still cover it). */
+  hiddenWeight: 0.03,
+  /** The viewshed: eye height above the water (m), bearings tried, how far out (m), coarse cells a side. */
+  eyeHeight: 3,
+  viewRays: 32,
+  viewReach: 8000,
+  viewCoarse: 3,
 };
 
 const req = loadRequest(process.argv[2]);
@@ -55,6 +78,38 @@ const heights = rd('heights.bin', Float32Array) as Float32Array;
 const cover = rd('cover.bin', Uint8Array) as Uint8Array;
 const dist = rd('dist.bin', Float32Array) as Float32Array;
 const coast = JSON.parse(readFileSync(join(D.work, 'coast.json'), 'utf8')) as [number, number][][];
+// The harbours' dredged basins (harbours.ts): at least their depth round the piers and quays.
+const dredgeFile = join(D.work, 'dredge.json');
+let dredged = 0;
+const basins = existsSync(dredgeFile) ? (JSON.parse(readFileSync(dredgeFile, 'utf8')) as { x: number; z: number; halfLength: number; halfWidth: number; yawDeg: number; depth: number; wall?: boolean }[]) : [];
+/** Inside a dredged area (m of margin), and is it a quay wall (land goes down too)? */
+const inArea = (p: (typeof basins)[number], x: number, z: number, margin = 0) => {
+  const a = (p.yawDeg * Math.PI) / 180;
+  const dx = x - p.x;
+  const dz = z - p.z;
+  return Math.abs(dx * Math.sin(a) - dz * Math.cos(a)) <= p.halfLength + margin && Math.abs(dx * Math.cos(a) + dz * Math.sin(a)) <= p.halfWidth + margin;
+};
+const wallDepth = (x: number, z: number): number | null => {
+  for (const p of basins) if (p.wall && inArea(p, x, z)) return -p.depth;
+  return null;
+};
+{
+  for (const p of basins) {
+    const a = (p.yawDeg * Math.PI) / 180;
+    const ux = Math.sin(a);
+    const uz = -Math.cos(a);
+    const r = Math.hypot(p.halfLength, p.halfWidth);
+    for (let j = Math.floor((p.z - r - grid.z0) / cell); j <= Math.ceil((p.z + r - grid.z0) / cell); j++)
+      for (let i = Math.floor((p.x - r - grid.x0) / cell); i <= Math.ceil((p.x + r - grid.x0) / cell); i++) {
+        if (i < 0 || j < 0 || i >= W || j >= H) continue;
+        const dx = grid.x0 + (i + 0.5) * cell - p.x;
+        const dz = grid.z0 + (j + 0.5) * cell - p.z;
+        if (Math.abs(dx * ux + dz * uz) > p.halfLength || Math.abs(-dx * uz + dz * ux) > p.halfWidth) continue;
+        const k = j * W + i;
+        if ((p.wall || heights[k] < 0) && heights[k] > -p.depth) (heights[k] = -p.depth), dredged++;
+      }
+  }
+}
 
 /** Grid height at a point (bilinear between cell centres). */
 function hAt(x: number, z: number): number {
@@ -84,29 +139,184 @@ for (let z = Z0 + T.edgeStep; z < Z1; z += T.edgeStep) (add(X0, z), add(X1, z));
 add(X1, Z0);
 add(X1, Z1);
 const inside = (x: number, z: number) => x > X0 && x < X1 && z > Z0 && z < Z1;
-for (const line of coast) {
-  let carry = 0;
+// The coast: OpenStreetMap's own vertices (thinned where they lie within `coastTol` of a
+// straight line, so the shape is kept, not resampled away), with points filled in on long
+// straight runs. Then a shore band: a row of points a few metres inland (at least just above
+// the water) and one a few metres out (just under it), so the waterline runs crisply along
+// the real coast instead of wherever a big triangle happens to cross it.
+const land = rd('land.bin', Uint8Array) as Uint8Array;
+const isLand = (x: number, z: number) => {
+  const i = Math.floor((x - X0) / cell);
+  const j = Math.floor((z - Z0) / cell);
+  return i >= 0 && j >= 0 && i < W && j < H && land[j * W + i] === 1;
+};
+const distAt = (x: number, z: number) => {
+  const i = Math.max(0, Math.min(W - 1, Math.floor((x - X0) / cell)));
+  const j = Math.max(0, Math.min(H - 1, Math.floor((z - Z0) / cell)));
+  return dist[j * W + i];
+};
+function simplify(pts: [number, number][], tol: number): [number, number][] {
+  const keep = new Uint8Array(pts.length);
+  keep[0] = keep[pts.length - 1] = 1;
+  const stack: [number, number][] = [[0, pts.length - 1]];
+  while (stack.length) {
+    const [a, b] = stack.pop()!;
+    const [ax, az] = pts[a];
+    const [bx, bz] = pts[b];
+    const L = Math.hypot(bx - ax, bz - az) || 1;
+    let m = -1;
+    let mi = -1;
+    for (let i = a + 1; i < b; i++) {
+      const d = Math.abs((bx - ax) * (az - pts[i][1]) - (ax - pts[i][0]) * (bz - az)) / L;
+      if (d > m) ((m = d), (mi = i));
+    }
+    if (m > tol) (keep[mi] = 1, stack.push([a, mi], [mi, b]));
+  }
+  return pts.filter((_, i) => keep[i]);
+}
+let coastPts = 0;
+let bandPts = 0;
+for (const raw of coast) {
+  const line = simplify(raw, T.coastTol);
+  const pts: [number, number][] = [];
   for (let s = 0; s + 1 < line.length; s++) {
     const [ax, az] = line[s];
     const [bx, bz] = line[s + 1];
-    const L = Math.hypot(bx - ax, bz - az);
-    for (let t = carry; t < L; t += T.coastStep) {
-      const x = ax + ((bx - ax) * t) / L;
-      const z = az + ((bz - az) * t) / L;
-      // On the coast: just above the water (the reconciled shore is lifted to this).
-      if (inside(x, z)) add(x, z, 0.3);
+    const n = Math.max(1, Math.ceil(Math.hypot(bx - ax, bz - az) / T.coastStep));
+    for (let k = 0; k < n; k++) pts.push([ax + ((bx - ax) * k) / n, az + ((bz - az) * k) / n]);
+  }
+  pts.push(line[line.length - 1]);
+  let lastBand: [number, number][] = [];
+  for (let s = 0; s < pts.length; s++) {
+    const [x, z] = pts[s];
+    if (!inside(x, z)) continue;
+    // On the coast: just above the water (the reconciled shore is lifted to this); at a quay, the foot of its wall.
+    add(x, z, wallDepth(x, z) ?? 0.3);
+    coastPts++;
+    // The shore band, across the coast's direction here.
+    const [px, pz] = pts[Math.max(0, s - 1)];
+    const [nx, nz] = pts[Math.min(pts.length - 1, s + 1)];
+    const L = Math.hypot(nx - px, nz - pz);
+    if (L < 1e-6) continue;
+    const ox = (-(nz - pz) / L) * T.band;
+    const oz = ((nx - px) / L) * T.band;
+    for (const sgn of [1, -1]) {
+      const bx = x + ox * sgn;
+      const bz = z + oz * sgn;
+      // Only where the band lies clear of other coast (not across a narrow spit or gut),
+      // and not crowding the last band point on this line.
+      if (!inside(bx, bz) || distAt(bx, bz) < T.band * 0.6) continue;
+      if (lastBand.some(([qx, qz]) => Math.hypot(qx - bx, qz - bz) < T.bandSpacing)) continue;
+      const h = wallDepth(bx, bz) ?? (isLand(bx, bz) ? Math.max(0.8, hAt(bx, bz)) : Math.min(-0.8, hAt(bx, bz)));
+      add(bx, bz, h);
+      bandPts++;
+      lastBand.push([bx, bz]);
+      if (lastBand.length > 4) lastBand.shift();
     }
-    carry = (carry + Math.ceil((L - carry) / T.coastStep) * T.coastStep) - L;
   }
 }
+// The basins: points inside their corners, so the mesh holds the dredged depth.
+for (const p of basins) {
+  const a = (p.yawDeg * Math.PI) / 180;
+  const ux = Math.sin(a);
+  const uz = -Math.cos(a);
+  for (const sa of [-0.8, 0.8])
+    for (const sc of [-0.6, 0.6]) {
+      const x = p.x + ux * sa * p.halfLength - uz * sc * p.halfWidth;
+      const z = p.z + uz * sa * p.halfLength + ux * sc * p.halfWidth;
+      if (inside(x, z) && !isLand(x, z)) add(x, z, Math.min(-p.depth, hAt(x, z)));
+    }
+}
 const fixedCount = xs.length;
-console.log(`start: ${fixedCount} points (${fixedCount - 4 * Math.ceil((X1 - X0) / T.edgeStep)} on the coast)`);
+console.log(`start: ${fixedCount} points (${coastPts} on the coast, ${bandPts} in the shore band)`);
+
+// ── What the water sees ──
+// A viewshed from the sea: a land cell counts as seen if, looking out from its top along any
+// of `viewRays` bearings, some sea point within `viewReach` has a clear line to it from a
+// wheelhouse eye (`eyeHeight` above the water). Worked on a coarse grid (`viewCoarse` cells
+// a side) for speed. Ground no boat can see gets almost no triangles (big flat ones still
+// cover it, so there are no holes from the air); seen ground gets fewer the farther it lies
+// from the shore; the shore itself gets more.
+const seen = (() => {
+  const F = T.viewCoarse;
+  const CWc = Math.ceil(W / F);
+  const CHc = Math.ceil(H / F);
+  const top = new Float32Array(CWc * CHc);
+  const sea = new Uint8Array(CWc * CHc);
+  for (let cj = 0; cj < CHc; cj++)
+    for (let ci = 0; ci < CWc; ci++) {
+      let m = -Infinity;
+      let any = 0;
+      for (let j = cj * F; j < Math.min(H, cj * F + F); j++)
+        for (let i = ci * F; i < Math.min(W, ci * F + F); i++) {
+          m = Math.max(m, heights[j * W + i]);
+          if (!land[j * W + i]) any++;
+        }
+      top[cj * CWc + ci] = Math.max(0, m);
+      sea[cj * CWc + ci] = any > (F * F) / 2 ? 1 : 0;
+    }
+  const vis = new Uint8Array(CWc * CHc);
+  const step = F * cell;
+  const steps = Math.ceil(T.viewReach / step);
+  for (let cj = 0; cj < CHc; cj++)
+    for (let ci = 0; ci < CWc; ci++) {
+      const c = cj * CWc + ci;
+      if (sea[c]) {
+        vis[c] = 1;
+        continue;
+      }
+      const h0 = top[c];
+      rays: for (let r = 0; r < T.viewRays; r++) {
+        const a = (r / T.viewRays) * Math.PI * 2;
+        const dx = Math.cos(a);
+        const dz = Math.sin(a);
+        let maxA = -Infinity;
+        for (let s = 1; s <= steps; s++) {
+          const i = Math.round(ci + dx * s);
+          const j = Math.round(cj + dz * s);
+          if (i < 0 || j < 0 || i >= CWc || j >= CHc) break;
+          const d = s * step;
+          const k = j * CWc + i;
+          const eye = (T.eyeHeight - h0) / d;
+          if (sea[k]) {
+            if (eye >= maxA) {
+              vis[c] = 1;
+              break rays;
+            }
+          } else maxA = Math.max(maxA, (top[k] - h0) / d);
+          if (maxA > 0 && maxA >= eye) break; // blocked for good along this bearing
+        }
+      }
+    }
+  // Grow the seen area by a coarse cell, so faces on its rim count as seen.
+  const grown = vis.slice();
+  for (let cj = 0; cj < CHc; cj++)
+    for (let ci = 0; ci < CWc; ci++)
+      if (vis[cj * CWc + ci])
+        for (let dj = -1; dj <= 1; dj++)
+          for (let di = -1; di <= 1; di++) {
+            const i = ci + di;
+            const j = cj + dj;
+            if (i >= 0 && j >= 0 && i < CWc && j < CHc) grown[j * CWc + i] = 1;
+          }
+  const out = new Uint8Array(W * H);
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) out[j * W + i] = grown[Math.floor(j / F) * CWc + Math.floor(i / F)];
+  return out;
+})();
+let landCells = 0;
+let seenCells = 0;
+for (let k = 0; k < W * H; k++) if (land[k]) (landCells++, seen[k] && seenCells++);
+console.log(`viewshed: ${((100 * seenCells) / landCells).toFixed(0)} % of the land is seen from the water`);
 
 // ── Greedy refinement ──
-function weight(h: number): number {
-  if (h > 0) return 1;
-  if (h > T.shallowTo) return T.shallowWeight;
-  return 0;
+/** How much a height error at grid cell k counts (see the header and `T`). */
+const cellWeight = new Float32Array(W * H);
+for (let k = 0; k < W * H; k++) {
+  const h = heights[k];
+  if (h <= 0) cellWeight[k] = h > T.shallowTo ? T.shallowWeight : 0;
+  else if (!seen[k]) cellWeight[k] = T.hiddenWeight;
+  else if (dist[k] < T.shoreReach) cellWeight[k] = T.shoreWeight;
+  else cellWeight[k] = 1 / (1 + dist[k] / T.farHalf);
 }
 let tri: Uint32Array = new Uint32Array();
 for (let round = 0; ; round++) {
@@ -141,7 +351,9 @@ for (let round = 0; ; round++) {
         if (l1 < 0 || l2 < 0 || l3 < 0) continue;
         const g = heights[j * W + i];
         const p = l1 * hs[a] + l2 * hs[b] + l3 * hs[c];
-        const e = Math.abs(g - p) * Math.max(weight(g), weight(p));
+        // Land where the sea should be (or sea where land should be) always counts in full.
+        const w = (p > 0) !== (g > 0) ? Math.max(1, cellWeight[j * W + i]) : cellWeight[j * W + i];
+        const e = Math.abs(g - p) * w;
         if (e > best) ((best = e), (bi = i), (bj = j));
       }
     }
@@ -263,16 +475,31 @@ const region = {
   credits: '© OpenStreetMap contributors (ODbL), OpenSeaMap, Copernicus DEM GLO-30 (© DLR, © Airbus), EMODnet Bathymetry, ESA WorldCover (CC BY 4.0)',
   licence: 'Region data derived from OpenStreetMap: Open Database License (ODbL) 1.0. See sources.yaml.',
 };
-writeFileSync(join(D.out, 'region.json'), JSON.stringify(region, null, 1));
+// Keep what the later stages added (nav.ts, harbours.ts), so re-meshing alone doesn't drop them.
+const regionPath = join(D.out, 'region.json');
+if (existsSync(regionPath)) {
+  const before = JSON.parse(readFileSync(regionPath, 'utf8'));
+  for (const k of ['nav', 'harbours']) if (before[k]) (region as Record<string, unknown>)[k] = before[k];
+}
+for (const k of ['nav', 'harbours']) if (existsSync(join(D.out, `${k}.json`))) (region as Record<string, unknown>)[k] = `${k}.json`;
+writeFileSync(regionPath, JSON.stringify(region, null, 1));
 writeFileSync(join(D.out, 'sources.yaml'), sources);
+const reportPath = join(D.out, 'report.json');
+const earlier = existsSync(reportPath) ? JSON.parse(readFileSync(reportPath, 'utf8')) : {};
 const report = {
+  ...earlier,
+  dredgedCells: dredged,
   triangles: faces.length,
   vertices: nv,
   bytes: out.byteLength,
   chunks: chunks.map((c) => ({ id: c.id, triangles: c.count })),
   landShare: grid.landShare,
-  warnings: [...(grid.conflicts ? [`${grid.conflicts} patches where the coastline's sides disagree (check the coast there)`] : []), ...(grid.missingDepth ? [`${grid.missingDepth} sea cells without bathymetry (shelf used)`] : [])],
+  /** Share of the land a boat can see (the rest gets almost no triangles), and the coast's points. */
+  seenFromWater: Math.round((100 * seenCells) / landCells) / 100,
+  coastPoints: coastPts,
+  shoreBandPoints: bandPts,
+  warnings: [...(earlier.warnings ?? []).filter((w: string) => !/coastline's sides|without bathymetry/.test(w)), ...(grid.conflicts ? [`${grid.conflicts} patches where the coastline's sides disagree (check the coast there)`] : []), ...(grid.missingDepth ? [`${grid.missingDepth} sea cells without bathymetry (shelf used)`] : [])],
 };
-writeFileSync(join(D.out, 'report.json'), JSON.stringify(report, null, 1));
+writeFileSync(reportPath, JSON.stringify(report, null, 1));
 console.log(`mesh: ${faces.length} faces drawn (${tri.length / 3} before deep water dropped), ${nv} vertices, ${chunks.length} chunks, ${(out.byteLength / 1e6).toFixed(2)} MB`);
 console.log(`chunk faces: max ${Math.max(...chunks.map((c) => c.count))}, mean ${Math.round(faces.length / chunks.length)}`);

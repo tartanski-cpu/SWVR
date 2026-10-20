@@ -1,141 +1,144 @@
 {
- "triangles": 108738,
- "vertices": 61715,
- "bytes": 2480392,
+ "triangles": 108351,
+ "vertices": 59919,
+ "bytes": 2452648,
  "chunks": [
   {
    "id": 0,
-   "triangles": 201
+   "triangles": 385
   },
   {
    "id": 1,
-   "triangles": 15
+   "triangles": 27
   },
   {
    "id": 3,
-   "triangles": 260
+   "triangles": 472
   },
   {
    "id": 4,
-   "triangles": 863
+   "triangles": 1999
   },
   {
    "id": 5,
-   "triangles": 1892
+   "triangles": 3408
   },
   {
    "id": 8,
-   "triangles": 628
+   "triangles": 1731
   },
   {
    "id": 9,
-   "triangles": 4036
+   "triangles": 9108
   },
   {
    "id": 10,
-   "triangles": 4158
+   "triangles": 6673
   },
   {
    "id": 11,
-   "triangles": 3167
+   "triangles": 4692
   },
   {
    "id": 13,
-   "triangles": 412
+   "triangles": 1513
   },
   {
    "id": 14,
-   "triangles": 4839
+   "triangles": 10195
   },
   {
    "id": 15,
-   "triangles": 5639
+   "triangles": 2284
   },
   {
    "id": 16,
-   "triangles": 4162
+   "triangles": 908
   },
   {
    "id": 17,
-   "triangles": 3240
+   "triangles": 854
   },
   {
    "id": 18,
-   "triangles": 3067
+   "triangles": 6917
   },
   {
    "id": 19,
-   "triangles": 4446
+   "triangles": 11132
   },
   {
    "id": 20,
-   "triangles": 4700
+   "triangles": 8452
   },
   {
    "id": 21,
-   "triangles": 6407
+   "triangles": 1365
   },
   {
    "id": 22,
-   "triangles": 3600
+   "triangles": 41
   },
   {
    "id": 23,
-   "triangles": 4114
+   "triangles": 492
   },
   {
    "id": 24,
-   "triangles": 6436
+   "triangles": 8925
   },
   {
    "id": 25,
-   "triangles": 5385
+   "triangles": 10314
   },
   {
    "id": 26,
-   "triangles": 5610
+   "triangles": 2133
   },
   {
    "id": 27,
-   "triangles": 5277
+   "triangles": 639
   },
   {
    "id": 28,
-   "triangles": 3939
+   "triangles": 115
   },
   {
    "id": 29,
-   "triangles": 4282
+   "triangles": 140
   },
   {
    "id": 30,
-   "triangles": 3009
+   "triangles": 6937
   },
   {
    "id": 31,
-   "triangles": 4109
+   "triangles": 6059
   },
   {
    "id": 32,
-   "triangles": 3328
+   "triangles": 242
   },
   {
    "id": 33,
-   "triangles": 2620
+   "triangles": 47
   },
   {
    "id": 34,
-   "triangles": 2840
+   "triangles": 101
   },
   {
    "id": 35,
-   "triangles": 2057
+   "triangles": 51
   }
  ],
  "landShare": 0.5968507486568487,
+ "seenFromWater": 0.43,
+ "coastPoints": 5849,
+ "shoreBandPoints": 7127,
  "warnings": [
-  "2 patches where the coastline's sides disagree (check the coast there)",
-  "no charted rocks, reefs or wrecks in the sea in OpenStreetMap for this box, only skerries (thin data: check a chart)"
+  "no charted rocks, reefs or wrecks in the sea in OpenStreetMap for this box, only skerries (thin data: check a chart)",
+  "2 patches where the coastline's sides disagree (check the coast there)"
  ],
  "nav": {
   "marks": 15,
@@ -143,5 +146,19 @@
   "hazards": 10,
   "farms": 2,
   "currents": 1
- }
+ },
+ "harbours": {
+  "harbours": 12,
+  "blocks": 70,
+  "berths": 258,
+  "slipways": 5,
+  "buildings": 774,
+  "edits": 1,
+  "roles": {
+   "harbour.sheltered": "Kerrera Marina",
+   "pier.exposed": "Falls of Lora pier",
+   "anchorage": "Dunbeg anchorage"
+  }
+ },
+ "dredgedCells": 229
 }

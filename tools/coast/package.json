@@ -8,7 +8,8 @@
     "reconcile": "node src/reconcile.ts",
     "mesh": "node src/mesh.ts",
     "nav": "node src/nav.ts",
-    "build": "node src/fetch.ts && node src/reconcile.ts && node src/mesh.ts && node src/nav.ts"
+    "harbours": "node src/harbours.ts",
+    "build": "node src/fetch.ts && node src/reconcile.ts && node src/nav.ts && node src/harbours.ts && node src/mesh.ts"
   },
   "devDependencies": {
     "geotiff": "2.1.3",

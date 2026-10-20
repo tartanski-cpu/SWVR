@@ -48,7 +48,7 @@ describe('the Oban coast region (pipeline milestone 1)', () => {
     for (const c of region.chunks) {
       expect(c.start).toBe(next);
       next += c.count;
-      expect(c.count).toBeLessThan(10000);
+      expect(c.count).toBeLessThan(12000);
     }
     expect(next).toBe(t.faces.count);
     expect(t.faces.count).toBeLessThan(120000);

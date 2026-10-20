@@ -12,6 +12,7 @@
       #panel h2 { font-size: 18px; margin: 4px 0; }
       .row { display: flex; flex-wrap: wrap; gap: 5px; margin: 6px 0; }
       button { font: inherit; font-size: 13px; padding: 4px 8px; border-radius: 6px; border: 1px solid #8aa; background: #eef3f5; cursor: pointer; }
+      select { font: inherit; font-size: 13px; padding: 3px 4px; border-radius: 6px; border: 1px solid #8aa; background: #eef3f5; max-width: 170px; }
       button.on { background: #2f5d8a; color: #fff; border-color: #2f5d8a; }
       #stats { font-variant-numeric: tabular-nums; font-size: 13px; }
       #legend { font-size: 12px; display: none; }
@@ -22,6 +23,7 @@
       .label { position: absolute; left: 0; top: 0; font-size: 11px; white-space: nowrap; color: #fff; background: rgba(16, 32, 42, 0.7); padding: 1px 4px; border-radius: 3px; }
       #hud { position: fixed; right: 12px; bottom: 12px; display: none; background: rgba(16, 32, 42, 0.85); color: #eaf2f6; border-radius: 8px; padding: 8px 12px; font-variant-numeric: tabular-nums; }
       .aground { color: #ff6a50; }
+      .fast { color: #7ae08a; }
     </style>
   </head>
   <body>
@@ -35,7 +37,7 @@
       <div class="row" id="views"></div>
       <div class="row" id="boatrow" style="display: none"></div>
       <div id="legend"></div>
-      <div id="hint">Drag to turn, right-drag to pan, wheel to zoom. W A S D / arrows move, Q E down and up. In the test boat: W S throttle, A D rudder, space stop.</div>
+      <div id="hint">Drag to turn, right-drag to pan, wheel to zoom. W A S D / arrows move, Q E down and up. In the test boat: W S throttle, A D rudder, space stop, T make fast at a berth.</div>
       <div id="credits"></div>
     </div>
     <script type="module" src="/tools/coast/viewer/main.ts"></script>

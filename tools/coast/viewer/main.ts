@@ -11,6 +11,7 @@ import * as THREE from 'three';
 import { MapControls } from 'three/addons/controls/MapControls.js';
 import { NavLayer, type NavFile } from './nav';
 import { TestBoat, DRAFT } from './boat';
+import { HarbourLayer, type HarbourFile } from './harbours';
 
 interface RegionFile {
   id: string;
@@ -21,6 +22,7 @@ interface RegionFile {
   coast: number[][];
   credits: string;
   nav?: string;
+  harbours?: string;
 }
 
 const id = new URLSearchParams(location.search).get('region') ?? 'oban';
@@ -57,13 +59,16 @@ const CLASSES: Record<number, [string, number]> = {
   100: ['moss', 0xd0e0b0],
 };
 
-const toggles: Record<string, boolean> = { water: true, chunks: false, wireframe: false, depth: false, cover: false, coast: false, marks: true, labels: true, night: false };
+const toggles: Record<string, boolean> = { water: true, chunks: false, wireframe: false, depth: false, cover: false, coast: false, marks: true, harbours: true, labels: true, night: false };
 const groups = { terrain: new THREE.Group(), chunks: new THREE.Group(), coast: new THREE.Group() };
 scene.add(groups.terrain, groups.chunks, groups.coast);
 let water: THREE.Mesh;
 let geos: { geo: THREE.BufferGeometry; natural: Float32Array; depth: Float32Array; cover: Float32Array }[] = [];
 const mat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
 let nav: NavLayer | null = null;
+let harbours: HarbourLayer | null = null;
+/** Made fast at a berth: the berth and its harbour (the boat doesn't move until cast off). */
+let moored: { name: string; harbour: string } | null = null;
 const boat = new TestBoat();
 boat.root.visible = false;
 scene.add(boat.root);
@@ -172,6 +177,26 @@ async function load(): Promise<void> {
     document.getElementById('stats')!.innerHTML += `<br>${file.marks.length} buoys and beacons, ${file.lights.length} lights, ${file.hazards.length} charted rocks and wrecks, ${file.currents.length} race zone${file.currents.length === 1 ? '' : 's'}`;
     document.getElementById('boatrow')!.style.display = 'flex';
   }
+  if (region.harbours) {
+    const file = (await (await fetch(`${base}${region.harbours}`)).json()) as HarbourFile;
+    harbours = new HarbourLayer(file);
+    scene.add(harbours.root);
+    const roles = file.harbours.filter((h) => h.role).length;
+    // Go to a harbour: a view from 250 m off and 120 m up, looking at it.
+    const pick = document.createElement('select');
+    pick.innerHTML = `<option value="">Go to harbour...</option>` + file.harbours.map((h, i) => `<option value="${i}">${h.name}${h.role ? ` (${h.role})` : ''}</option>`).join('');
+    pick.onchange = () => {
+      const h = file.harbours[Number(pick.value)];
+      if (!h) return;
+      if (driving) leaveBoat();
+      camera.position.set(h.x + 180, 120, h.z + 180);
+      controls.target.set(h.x, 0, h.z);
+      controls.update();
+      pick.value = '';
+    };
+    document.getElementById('views')!.appendChild(pick);
+    document.getElementById('stats')!.innerHTML += `<br>${file.harbours.length} harbours (${roles} spine roles), ${file.blocks.length} kit pieces, ${file.berths.length} berths, ${file.buildings.length} buildings (${harbours.buildingTriangles.toLocaleString()} triangles in ${harbours.drawCalls - 2} chunk meshes)`;
+  }
   apply();
 }
 
@@ -186,7 +211,8 @@ function apply(): void {
   groups.chunks.visible = toggles.chunks;
   groups.coast.visible = toggles.coast;
   if (nav) nav.root.visible = toggles.marks;
-  labelBox.style.display = toggles.labels && toggles.marks ? 'block' : 'none';
+  if (harbours) harbours.root.visible = toggles.harbours;
+  labelBox.style.display = toggles.labels ? 'block' : 'none';
   // Night: the sky and the land go dark so the lights read as they would from the wheelhouse.
   const night = toggles.night;
   (scene.background as THREE.Color).setHex(night ? 0x0b1420 : 0xb8cfdc);
@@ -200,7 +226,7 @@ function apply(): void {
 }
 
 const buttons = new Map<string, HTMLButtonElement>();
-const labels: Record<string, string> = { water: 'Water', chunks: 'Chunks', wireframe: 'Wireframe', depth: 'Heights & depths', cover: 'Land cover', coast: 'OSM coastline', marks: 'Buoys & lights', labels: 'Labels', night: 'Night' };
+const labels: Record<string, string> = { water: 'Water', chunks: 'Chunks', wireframe: 'Wireframe', depth: 'Heights & depths', cover: 'Land cover', coast: 'OSM coastline', marks: 'Buoys & lights', harbours: 'Harbours', labels: 'Labels', night: 'Night' };
 for (const k of Object.keys(toggles)) {
   const b = document.createElement('button');
   b.textContent = labels[k];
@@ -230,10 +256,11 @@ const labelBox = document.getElementById('labels')!;
 const labelEls: HTMLDivElement[] = [];
 const proj = new THREE.Vector3();
 function drawLabels(): void {
-  if (!nav || labelBox.style.display === 'none') return;
+  if (labelBox.style.display === 'none') return;
   const near = Math.max(2500, camera.position.y * 3);
   let n = 0;
-  for (const l of nav.labels) {
+  const all = [...(toggles.marks && nav ? nav.labels : []), ...(toggles.harbours && harbours ? harbours.labels : [])];
+  for (const l of all) {
     if (camera.position.distanceTo(l.pos) > near) continue;
     proj.copy(l.pos).project(camera);
     if (proj.z > 1 || Math.abs(proj.x) > 1 || Math.abs(proj.y) > 1) continue;
@@ -260,7 +287,8 @@ function dropBoat(x: number, z: number, heading = 0): boolean {
       const a = (i / steps) * Math.PI * 2;
       const px = x + Math.cos(a) * r;
       const pz = z + Math.sin(a) * r;
-      if (groundAt(px, pz) < -(DRAFT + 1.5)) {
+      if (boatGround(px, pz) < -(DRAFT + 1.5)) {
+        moored = null;
         boat.place(px, pz, heading);
         boat.throttle = 0;
         boat.rudder = 0;
@@ -280,6 +308,7 @@ function dropBoat(x: number, z: number, heading = 0): boolean {
 }
 function leaveBoat(): void {
   driving = false;
+  moored = null;
   boat.root.visible = false;
   hud.style.display = 'none';
   boatBtn.textContent = 'Drop test boat';
@@ -316,14 +345,46 @@ renderer.setAnimationLoop(() => {
   drawLabels();
 });
 
-/** Boat mode: W/S open and close the throttle, A/D put the rudder over, space stops her. */
+/** What the test boat feels under her: the terrain, the skerries, and the harbour pieces (solid). */
+function boatGround(x: number, z: number): number {
+  if (nav?.onRock(x, z)) return 1;
+  const deck = harbours?.pieceAt(x, z);
+  if (deck != null) return deck;
+  return groundAt(x, z);
+}
+
+/** Make fast at the nearest berth, if she's close (within 6 m) and nearly stopped (under 1 kn). */
+function makeFast(): boolean {
+  if (!harbours || moored) return false;
+  const p = boat.root.position;
+  const near = harbours.berthNear(p.x, p.z, 6);
+  if (!near || boat.sog > 0.514444) return false;
+  const b = near.berth;
+  // Lie along the berth, whichever way round she came in.
+  let h = (b.headingDeg * Math.PI) / 180;
+  const d = Math.atan2(Math.sin(h - boat.heading), Math.cos(h - boat.heading));
+  if (Math.abs(d) > Math.PI / 2) h += Math.PI;
+  boat.place(b.x, b.z, h);
+  boat.throttle = 0;
+  boat.rudder = 0;
+  boat.sog = 0;
+  moored = { name: b.id, harbour: near.harbour };
+  return true;
+}
+
+/** Boat mode: W/S open and close the throttle, A/D put the rudder over, space stops her, T makes fast. */
 function driveStep(dt: number): void {
   if (keys.has('w') || keys.has('arrowup')) boat.throttle = Math.min(1, boat.throttle + 0.5 * dt);
   if (keys.has('s') || keys.has('arrowdown')) boat.throttle = Math.max(-0.3, boat.throttle - 0.5 * dt);
   if (keys.has(' ')) boat.throttle = 0;
+  if (keys.has('t')) makeFast();
   boat.rudder = (keys.has('d') || keys.has('arrowright') ? 1 : 0) - (keys.has('a') || keys.has('arrowleft') ? 1 : 0);
   const before = boat.root.position.clone();
-  boat.step(dt, (x, z) => (nav?.onRock(x, z) ? 1 : groundAt(x, z)), (x, z) => (nav ? nav.currentAt(x, z, race) : [0, 0]));
+  if (moored) {
+    // Made fast: she stays put until the throttle is touched (that casts her off).
+    if (keys.has('w') || keys.has('s') || keys.has('arrowup') || keys.has('arrowdown')) moored = null;
+  }
+  if (!moored) boat.step(dt, boatGround, (x, z) => (nav ? nav.currentAt(x, z, race) : [0, 0]));
   // The camera rides along, so the owner can still orbit round her with the mouse.
   const moved = boat.root.position.clone().sub(before);
   camera.position.add(moved);
@@ -335,7 +396,8 @@ function driveStep(dt: number): void {
     `Heading ${hdg.toFixed(0).padStart(3, '0')}°  Throttle ${(boat.throttle * 100).toFixed(0)}%<br>` +
     `Speed over ground ${(boat.sog / 0.514444).toFixed(1)} kn  Depth ${boat.depth >= 59 ? 'deep' : `${boat.depth.toFixed(1)} m`}` +
     (cur > 0.05 ? `<br>Current ${cur.toFixed(1)} kn` : '') +
-    (boat.aground ? '<br><b class="aground">AGROUND</b> (back her off: S)' : '');
+    (boat.aground ? '<br><b class="aground">AGROUND</b> (back her off: S)' : '') +
+    (moored ? `<br><b class="fast">MADE FAST</b> at ${moored.harbour} (W or S casts off)` : harbours && !boat.aground && boat.sog < 0.52 && harbours.berthNear(boat.root.position.x, boat.root.position.z, 6) ? '<br>At a berth: T to make fast' : '');
 }
 
 function fly(dt: number): void {
@@ -370,6 +432,14 @@ function fly(dt: number): void {
   groundAt,
   dropBoat,
   leaveBoat,
+  makeFast,
+  boatGround,
+  get moored() {
+    return moored;
+  },
+  get harbours() {
+    return harbours;
+  },
   setRace: (r: number) => ((race = r), (raceBtn.textContent = RACE_NAMES[r])),
   get nav() {
     return nav;

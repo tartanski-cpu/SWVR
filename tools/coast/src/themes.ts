@@ -16,6 +16,8 @@ export interface Theme {
   /** The seabed: shallow (sand) to deep. */
   shallow: number;
   deep: number;
+  /** Buildings near harbours: house walls and roofs (one picked per building), and sheds'. */
+  buildings: { walls: number[]; roofs: number[]; shedWalls: number[]; shedRoof: number };
 }
 
 const NORTH_HEBRIDEAN: Theme = {
@@ -37,6 +39,8 @@ const NORTH_HEBRIDEAN: Theme = {
   moor: { from: 40, to: 160, colour: 0x7a6e4e },
   shallow: 0xa99a70,
   deep: 0x3e5a58,
+  // West Highland towns: white and cream harling, grey granite, slate roofs; grey or green sheds.
+  buildings: { walls: [0xf0eee6, 0xf0eee6, 0xe8e0c8, 0xd8d4cc, 0x9a958c, 0xc9b9a0], roofs: [0x4a4e54, 0x3e4248, 0x55595e], shedWalls: [0x8c9294, 0x5f7a5c, 0x9aa0a0], shedRoof: 0x6a7072 },
 };
 
 export const THEMES: Record<string, Theme> = { 'north-hebridean': NORTH_HEBRIDEAN };

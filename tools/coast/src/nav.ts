@@ -21,7 +21,7 @@
  *             rectangle along its set the game's current zones use (CurrentZoneDef).
  *
  * Writes public/regions/<id>/nav.json and adds its warnings (thin data, a zone over land)
- * to report.json. Run: node src/nav.ts [requestId] (after reconcile and mesh).
+ * to report.json. Run: node src/nav.ts [requestId] (after reconcile; before harbours and mesh).
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -257,10 +257,13 @@ if (!hazards.some((h) => (h as { kind: string }).kind !== 'skerry')) warnings.pu
 if (marks.length < 5) warnings.push(`only ${marks.length} buoys or beacons mapped (thin data?)`);
 const nav = { marks, lights, hazards, farms, currents };
 writeFileSync(join(D.out, 'nav.json'), JSON.stringify(nav, null, 1));
+// Point region.json at it (the mesh stage does this too, when it writes region.json).
 const regionFile = join(D.out, 'region.json');
-const region = JSON.parse(readFileSync(regionFile, 'utf8'));
-region.nav = 'nav.json';
-writeFileSync(regionFile, JSON.stringify(region, null, 1));
+if (existsSync(regionFile)) {
+  const region = JSON.parse(readFileSync(regionFile, 'utf8'));
+  region.nav = 'nav.json';
+  writeFileSync(regionFile, JSON.stringify(region, null, 1));
+}
 const reportFile = join(D.out, 'report.json');
 const report = existsSync(reportFile) ? JSON.parse(readFileSync(reportFile, 'utf8')) : { warnings: [] };
 report.nav = { marks: marks.length, lights: lights.length, hazards: hazards.length, farms: farms.length, currents: currents.length };

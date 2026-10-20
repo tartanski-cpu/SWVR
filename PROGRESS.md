@@ -5916,7 +5916,7 @@ The owner's brief (Oct 2026): playable regions of real coastline in the game's s
 - **Test steps:** open https://tartanski-cpu.github.io/SWVR/next/coast.html (desktop or the Quest browser). Drag to turn, wheel to zoom, W A S D to move. Press From above and compare with the map; try Land cover, Heights & depths, OSM coastline and Chunks; fly low along Kerrera and into Oban Bay.
 - **Next:** M2, navigation and hazards, on the owner's word.
 
-### M2: navigation and hazards (done, awaiting owner look)
+### M2: navigation and hazards (done)
 
 Owner: "go ahead with milestone 2". The brief's test: drive a test boat through the gulf by its real marks.
 
@@ -5928,6 +5928,59 @@ Owner: "go ahead with milestone 2". The brief's test: drive a test boat through 
 - **Not checked / later:** the Quest; whether the light glows read well at night on a real screen (they are fixed-size sprites); labels are not hidden behind hills. The boat is a stand-in: the game's own vessel physics come with M4, when the region goes into the game.
 - **Test steps (desktop):** open https://tartanski-cpu.github.io/SWVR/next/coast.html. Fly into Oban Bay (or press Boat eye there); see the buoys, the cardinal topmarks, and the labels. Press **Night** and look toward Dunollie from different bearings: its colour changes red, white, green by sector. Press **Drop test boat** in open water, drive with W A S D (space to stop), go round by the marks, and try running onto a shore or a skerry. Fly to Connel, drop the boat below the Falls, press **Race** to flood and feel her pushed east. **VR:** the page opens in the Quest browser as a flat page (keys need a keyboard); the VR check comes with M4 in the game.
 - **Next:** M3, harbours and buildings, on the owner's word.
+
+### M3: harbours and buildings, and a better coast mesh (done, awaiting owner look)
+
+Owner: "go ahead with milestone 3", and: the coastline could be more detailed (a few janky bits); win the triangles back from inland ground no one sees from the water. The brief's test: tie up at a real pier.
+
+- **The coast mesh** (`tools/coast/src/mesh.ts`):
+  - **The coast's own shape:** it starts from OpenStreetMap's own coast vertices (`coastTol` 0.5 m: thinned only where within half a metre of straight; `coastStep` 25 m fill on straight runs; 5,849 points) instead of resampling every 20 m, which cut corners.
+  - **A shore band** (`band` 6 m, `bandSpacing` 8 m; 7,127 points): rows 6 m inland (at least 0.8 m up) and 6 m out (at least 0.8 m down), so the waterline runs crisply along the real coast instead of wherever a big triangle crosses it. These were the janky bits.
+  - **Hidden ground:** a viewshed from the water (`eyeHeight` 3 m, `viewRays` 32, `viewReach` 8 km, on 30 m cells): only **43 %** of the land in the box can be seen from anywhere on the sea.
+  - **Error weights:** the rest counts 0.03 (`hiddenWeight`). Seen land counts double within 80 m of the shore (`shoreReach`, `shoreWeight`) and halves by 1 km inland (`farHalf`).
+  - **No holes:** the hidden glens are still covered by a few big triangles rather than cut out. Cut out, they would leave holes from the air and from any hilltop.
+  - **Same budget:** 108,351 triangles (was 108,738), now spent on the shore and the faces you see.
+- **Harbours and buildings** (`tools/coast/src/harbours.ts`, the brief's stages 7 and 8):
+  - **The kit:** OSM piers, pontoons, quays, breakwaters and slipways become the game's own pieces: `BlockDef`-shaped boxes with deck heights (pier 2.4 m, quay 2.6 m, pontoon 0.5 m, breakwater 3.5 m above mean sea level), `SlipwayDef` and `BerthDef`. Rules:
+    - a pier line becomes a box per straight run (`pierWidth` 6 m, pontoons 2.5 m);
+    - a pier area becomes its smallest box;
+    - `floating=yes`, or an untagged pier inside a marina's outline (Kerrera Marina), is a pontoon;
+    - a quay, mostly coastline tagged `man_made=quay`, becomes a wall of boxes reaching 10 m inland from the real face.
+  - **Dredged basins** (`basinReach` 30 m; depth `berthDepth` 2 m + 0.5, pontoons 1.5 + 0.5): the water round each piece. The pipeline's procedural shelf had left about a metre at Oban's quays.
+  - **Quay walls:** at a quay face the ground drops straight down, so the face is a wall, not a beach. The stage writes `data/work/<id>/dredge.json` and the mesh stage carves it, so **the order is now** fetch, reconcile, nav, harbours, mesh (`npm run build` in `tools/coast`).
+  - **Berths:** one every 16 m (`berthSpacing`) along each face that looks onto open water.
+  - **Harbours:** pieces within 250 m (`clusterGap`) make one harbour, named from its marina, ferry terminal or named pier.
+  - **Spine roles** (the request's `spine`, all `auto` for Oban):
+    - sheltered harbour: the least mean fetch (open water seen round the compass), **Kerrera Marina**;
+    - exposed pier: the most, **the pier at Connel by the Falls**;
+    - anchorage: the most sheltered 4-15 m water clear of harbours and marks with room to swing, **off Dunbeg** (Dunstaffnage Bay).
+  - **Buildings:** within 400 m (`buildingReach`) of a harbour: 774 footprints, each the smallest box round it with a pitched roof (sheds flatter, sheet), height from `height` or `building:levels` tags, else by kind. Walls and roofs come from the theme (`themes.ts` `buildings`: white and cream harling, granite, slate). They stand on the lowest ground under them. The 3,176 farther out are left to the built-up land colour, as the brief says.
+  - **For Oban:** 12 harbours, 70 kit pieces, 258 berths, 5 slipways.
+- **Hand edits:** `tools/coast/requests/oban.edits.yaml` (remove pieces by OSM id, change any field of a piece or harbour, add pieces), applied at the end of every run, so re-running keeps them. The first one names the town harbour **Oban**; OSM names its cluster after the North Pier Pontoons.
+- **The viewer** (`tools/coast/viewer/harbours.ts`):
+  - **Draw calls:** the kit is one merged mesh (stone quays, timber piers on piles, grey pontoons), bollards at the berths one instanced mesh, and the buildings one merged mesh per 2 km chunk (12,384 triangles in 7 meshes). That's 9 draw calls for all of it.
+  - **Controls:** a **Harbours** toggle; harbour names with their spine roles in the labels; the anchorage as a ring; **Go to harbour**.
+  - **The test boat:** the pieces are solid to her. Slow (under 1 kn) within 6 m of a berth, **T** makes fast: she lies along the berth either way round, the readout says MADE FAST at the harbour, and W or S casts off.
+- **Tests:**
+  - `tests/coastHarbours.test.ts` (6): the kit is the game kinds, in the box, at sane deck heights; every berth is on its piece's face at its deck height; at least 80 % of Oban's quay and pier berths have more than 1.8 m under them in the mesh; each spine role is played once and the anchorage is deep; the hand edit survived; the buildings are near harbours, 2-30 m high.
+  - `tests/coastRegion.test.ts`: the per-chunk check is now 12,000 faces (the busiest chunk, Oban's waterfront, has 11,132).
+- **Checked headless:**
+  - **The brief's test:** the test boat on autopilot from Oban Bay, in alongside **the town quay at Oban** (berth `way/150031043#39`), made fast with 2.5 m alongside, about 5 minutes.
+  - **The M2 route** (Kerrera Sound to the Falls, 13.2 km) still runs clean on the new mesh (least depth 3.4 m).
+  - **Screenshots:** Oban from above (North Pier, the pontoons, the town), the quay with the boat made fast, Kerrera Marina's pontoons, Dunstaffnage Marina; old and new coast mesh side by side (wireframe: dense at the shore, coarse on hidden ground). No page errors.
+- **Not checked / later:**
+  - the Quest;
+  - auto-picking the exposed pier counts the box's edge as open sea, which favours Connel (Loch Etive runs on out of the box); name another in the request's `spine` if you prefer;
+  - Oban's other piers (the Railway Pier, the ferry linkspan) are mapped in OSM as coastline, so they appear as the quay's outline rather than as their own piers;
+  - buildings are boxes round each footprint, so L-shaped ones fill their corner;
+  - the busiest chunk is 11k triangles, and distant-chunk coarsening and the budget report come with M4.
+- **Test steps (desktop):**
+  1. Open https://tartanski-cpu.github.io/SWVR/next/coast.html and press **Wireframe** and **From above**. The shore is dense, the hidden glens coarse. Fly low along Kerrera and into Oban Bay and look for janky bits at the waterline.
+  2. **Go to harbour → Oban**: the North Pier, the pontoons, the town quay, the town.
+  3. Press **Drop test boat**, come alongside the quay or a pontoon dead slow (W a touch, then space), and press **T** when the readout says "At a berth".
+  4. Try Kerrera Marina, Dunstaffnage Marina and the Kerrera ferry.
+- **VR:** as before, the viewer is a flat page. The VR check comes with M4 in the game.
+- **Next:** M4, package and load in the game, on the owner's word.
 
 ## Next
 
