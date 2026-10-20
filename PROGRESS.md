@@ -6116,6 +6116,49 @@ Owner: "go ahead with milestone 4". Agreed before: a region may carry its own gr
 - **Test housekeeping:** `tests/weather.test.ts` takes ~50 s alone (before today too) and its longest test sits near the 20 s limit; under a busy full run it timed out twice. The coast tests were made lighter (`coastRegion` 9.5 s to 4.9 s; `coastHarbours` uses the game's mesh lookup instead of trying every face).
 - **Next:** M5 (a second region, a Norwegian fjord) on the owner's word; or a permanent place in the world for real regions.
 
+### A second real region: Tayvallich and Loch Sween (done, awaiting owner test)
+
+Owner: "the next area I'd like you to generate is around Tayvallich... the Fairy Isles... Caol Scotnish... capture as much coastline as possible, including Tayvallich as a harbour and some of Loch Sween."
+
+- **The request** (`tools/coast/requests/tayvallich.yaml`):
+  - **The box:** `[-5.72, 55.925, -5.54, 56.065]`, 11.2 x 15.6 km at full scale. It runs from Loch Sween's mouth by Castle Sween to Achnamara and the head of Caol Scotnish, with the Taynish peninsula and the Sound of Jura shore by Carsaig and Keills. OpenStreetMap's place search gave the positions.
+  - **The spine:** Tayvallich the sheltered harbour (the map has it as "Tayvallich Jetty"; a hand edit, `tayvallich.edits.yaml`, names it Tayvallich and makes it a harbour). The exposed pier is picked automatically (Ashfield). The anchorage is **the Fairy Isles**, placed by name and position. The automatic search had chosen Keills, and OpenStreetMap doesn't name the islets.
+- **Pipeline changes:**
+  - Fetch joins height tiles when a box crosses a 1-degree line. This one crosses 56 N: two Copernicus tiles, one raster.
+  - A request's anchorage can be `{ name, at: [lon, lat] }`.
+  - A hand edit that leaves a piece of an unknown kind now stops the stage with a plain message. Matching by name also matches the pieces carrying that name, which is how the first try turned the jetty itself into a "harbour". Match a harbour by its id.
+- **What came out:**
+  - **Mesh:** 108,750 triangles drawn in 44 chunks (the busiest 8,758), 2.4 MB. It is coastline-heavy: 7,732 coast points and 13,605 in the shore band. 67 % of the land is seen from the water: lochs on every side.
+  - **Harbours:** 5 ports (Tayvallich, Achnamara, Ashfield and Keills piers, the Fairy Isles anchorage), 7 kit pieces, 94 buildings, a slipway.
+  - **Grounds:** mackerel and pollack grounds; lobster round the skerries.
+  - **Landmark:** Cruach Lusach.
+  - **Thin data, reported:** OpenStreetMap has **no buoys, beacons or lights** in the box, and no charted rocks (6 skerries).
+- **In the game:**
+  - **Toggle:** the same coast region test, now a choice: `?coast=tayvallich`, or Menu → Debug → World → Coast region test → **Tayvallich and Loch Sween** (`COAST_REGIONS`, `regions/index.ts`).
+  - **Where it sits:** like Oban, in place of the Sounds and the Fjord, its south edge at z -1900. The channel from its south edge up to Loch Sween's mouth (x -3100 in the package) is due north of Calder Haven, so you steer 000 from home into the loch (`regions/tayvallich.ts`, x 3670, z -9686).
+  - **Careers:** test careers are now kept per region (`swvr.coastTest.<id>.*`); the Oban test career from earlier today starts fresh.
+- **Tests:** `tests/coastTayvallich.test.ts` (8):
+  - the box, the chunk budget, the deep range, the credits;
+  - the package matches the mesh;
+  - the regions apart, ids unique;
+  - the ground the mesh (Loch Sween and Caol Scotnish water, the Taynish woods land, the sea floor at the edge);
+  - Tayvallich a harbour with water at its cargo berth and its goods ashore;
+  - the Fairy Isles anchorage in water with its goods ashore;
+  - every port workable;
+  - the way in: open water north of Calder Haven, Loch Sween's mouth and the Sound of Jura deep.
+- **Checked headless:**
+  - **The viewer:** the whole region from the air; Loch Sween and Caol Scotnish low down.
+  - **The game, every 500 m from Calder Haven up Loch Sween to Tayvallich:** 131k-178k triangles, under home's own 213k, 30-67 draws, no page errors.
+  - **Screenshots:** the loch's mouth, Loch Sween, Tayvallich's bay, moored at Tayvallich's cargo berth with the goods on the jetty and the village behind, Caol Scotnish toward the Fairy Isles.
+- **Not checked / later:**
+  - the Quest;
+  - the approach from the south is about 3 m deep where it leaves the box (open water, fine for a workboat);
+  - no marks or lights (to add by hand if you want them: the edits file can't add marks yet);
+  - steep woodland edges show as grey rock in places (the height data's tree canopy).
+- **Test steps:**
+  - **Desktop:** open https://tartanski-cpu.github.io/SWVR/next/?coast=tayvallich, board at Calder Haven and steer north (000) into Loch Sween. Follow the loch north-east past Taynish to Tayvallich's bay (Menu → Debug → World → To port → Tayvallich for the berth). Then go into Caol Scotnish, the narrow arm, to the Fairy Isles anchorage, and anchor there. `?coast=off` to go back.
+  - **VR:** the same, with the perf panel.
+
 ## Next
 
 **Next big step: modular boats** (the owner's separate prompt; see "Direction: one engine, three games" above). The mobile and procedural games wait until the owner asks.

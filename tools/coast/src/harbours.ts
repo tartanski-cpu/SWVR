@@ -431,14 +431,22 @@ const byName = (v: string) => harbours.find((h) => h.name.toLowerCase() === v.to
 const usable = harbours.filter((h) => h.berths > 0);
 const assign = (role: string, pick: () => Harbour | undefined) => {
   const v = spine[role];
-  if (!v) return;
+  if (!v || typeof v !== 'string') return;
   const h = v === 'auto' ? pick() : byName(v);
   if (h) h.role = role;
   else warnings.push(`spine role ${role}: no harbour "${v}" found`);
 };
 assign('harbour.sheltered', () => usable.filter((h) => h.kind === 'harbour' && !h.role).sort((a, b) => a.fetch - b.fetch)[0]);
 assign('pier.exposed', () => usable.filter((h) => !h.role).sort((a, b) => b.fetch - a.fetch)[0]);
-if (spine.anchorage) {
+const namedAnchorage = typeof spine.anchorage === 'object' ? spine.anchorage : null;
+if (namedAnchorage) {
+  // The anchorage, placed by the request (a famous one the search below wouldn't choose).
+  const [x, z] = P.fwd(namedAnchorage.at[0], namedAnchorage.at[1]);
+  const d = -hAt(x, z);
+  if (d < 2) warnings.push(`anchorage ${namedAnchorage.name}: only ${d.toFixed(1)} m of water there`);
+  const name = `${namedAnchorage.name} anchorage`;
+  harbours.push({ id: name.toLowerCase().replace(/[^a-z0-9]+/g, '-'), name, kind: 'anchorage', x: r1(x), z: r1(z), pieces: [], berths: 0, fetch: Math.round(fetch(x, z)), role: 'anchorage' });
+} else if (spine.anchorage) {
   // The anchorage: the most sheltered water of the right depth, clear of harbours and marks.
   let best: { x: number; z: number; f: number } | null = null;
   for (let z = P.z0 + 200; z < P.z1 - 200; z += 100)
@@ -533,6 +541,9 @@ if (existsSync(editsFile)) {
     editCount += (list as unknown[]).length;
   }
 }
+
+// A hand edit can set any field: catch one that leaves a piece the game can't build.
+for (const b of out.blocks) if (!['quay', 'pier', 'pontoon', 'breakwater'].includes(b.kind)) throw new Error(`edit left ${b.source} as kind "${b.kind}" (a name matches pieces as well as harbours: match a harbour by its id)`);
 
 // ── Write ──
 const round = <X>(a: X[]) => a.map((x) => Object.fromEntries(Object.entries(x as object).map(([k, v]) => [k, typeof v === 'number' && !Number.isInteger(v) ? r1(v) : v])));

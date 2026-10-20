@@ -30,7 +30,7 @@ import { COAST_REGION } from '../world/regions';
 // With the coast region on (the debug test of Oban, regions/index.ts) the careers are kept
 // apart: the Sounds' and the Fjord's ports aren't in that world, and a career saved there
 // would drop their reputation and contracts. Your real careers are never touched by it.
-const KEY_PREFIX = COAST_REGION ? 'swvr.coastTest' : 'swvr';
+const KEY_PREFIX = COAST_REGION ? `swvr.coastTest.${COAST_REGION}` : 'swvr';
 const CAREER_KEY = `${KEY_PREFIX}.fleetCareer`;
 export const CAREER_SLOTS = 3;
 const SLOT_KEY = `${KEY_PREFIX}.fleetCareerSlot`;

@@ -1,0 +1,17 @@
+# Region request: Tayvallich and Loch Sween (owner, Oct 2026): Tayvallich as the harbour, the
+# Fairy Isles at the head of Caol Scotnish, and as much of Loch Sween as the box takes, from
+# its mouth by Castle Sween to Achnamara; the Sound of Jura shore by Carsaig on the west.
+# Full scale.
+id: tayvallich
+name: Tayvallich and Loch Sween
+bbox: [-5.72, 55.925, -5.54, 56.065]   # lon/lat min, max: about 11.2 x 15.6 km
+theme: north-hebridean
+spine:
+  harbour.sheltered: Tayvallich Jetty   # the village's bay (renamed Tayvallich in the edits)
+  pier.exposed: auto
+  # The pool among the Fairy Isles near the head of Caol Scotnish (not named in OpenStreetMap:
+  # the islets inside the loch's head).
+  anchorage: { name: Fairy Isles, at: [-5.5805, 56.0512] }
+weatherProfile: north-rough
+fish: [mackerel, pollack, lobster]
+goods: [feed, building-materials, groceries]

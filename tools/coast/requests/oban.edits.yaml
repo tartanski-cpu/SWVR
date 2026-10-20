@@ -1,7 +1,7 @@
 # Hand edits for the Oban region (coast pipeline stage 7, src/harbours.ts). Applied after the
 # harbours and buildings are generated from OpenStreetMap, so re-running the pipeline keeps
 # them. Pieces are matched by their source (an OSM id such as way/150031043), a harbour by
-# its id or name.
+# its id or name (a name also matches the pieces carrying it: use the id to change a harbour alone).
 #
 #   remove: [way/123, ...]                    drop pieces or harbours
 #   change: [{match: ..., set: {field: value}}]  change any field (name, role, top, kind ...)
