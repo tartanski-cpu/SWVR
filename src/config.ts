@@ -3445,7 +3445,10 @@ export const CONFIG = {
   /**
    * Binoculars (player/binoculars.ts): 7x. They lie on top of the dash, port end (vessel
    * axes, `stowYawDeg` turned). VR: grip within `grabRange` to take them; held within
-   * `eyeRange` of your eyes you look through them (a `renderSize` square view). Desktop:
+   * `eyeRange` of your eyes you look through them: two lens circles each `lensDeg` wide,
+   * black all round (owner: so nothing outside them is drawn, and the picture, `renderSize`
+   * pixels wide and half as high, is the only scene render while you look: it goes out to
+   * the full draw distance). Desktop:
    * hold the right mouse button (or Z). The view through them is steadied: it eases onto
    * where you look over `steady` s (VR: the scope's orientation; desktop: the mouse look),
    * since the zoom magnifies every tremor too. 0 is direct.
@@ -3457,7 +3460,8 @@ export const CONFIG = {
     stowYawDeg: 20,
     grabRange: 0.2,
     eyeRange: 0.2,
-    renderSize: 640,
+    lensDeg: 70,
+    renderSize: 1280,
   },
 
   /**

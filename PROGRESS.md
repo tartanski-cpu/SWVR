@@ -5084,6 +5084,12 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Steadied view** (`CONFIG.binoculars.steady 0.12` s; 0 is direct): VR: the scope camera's orientation eases onto the head's over that time constant (a slerp), so the shake is smoothed and a fast turn lags a little; the lenses stay head-locked. Desktop: the mouse look shown eases the same way while zoomed (`DesktopController.lookTau`, set by App only while the binoculars are up). Cost: nothing new per frame.
 - **Checked:** typecheck, `npm test`, headless desktop: zoom on, the look eases to a step of 0.3 rad over the following second, back to normal on release. **Not checked:** VR (the owner's Quest; the fix is by reading three.js's WebXRManager, which sets the XR render target each frame).
 
+### Binoculars in VR: the lenses fill the view, nothing else drawn, full draw distance (owner)
+
+- **The owner:** the draw distance through the VR binoculars was poor; make them cover the whole field of view, so nothing outside them need be drawn.
+- **Done** (`player/binoculars.ts`): the lens quad is now 1.6 m square 0.2 m ahead of the eyes (the headset's whole field), black outside two lens circles each `CONFIG.binoculars.lensDeg` (70°) wide, with the picture centred in them. While looking in VR, `Binoculars.renderMain` (App's main render goes through it) draws the main pass with the camera on the quad's own layer alone, so the scene is drawn once per frame, for the scope, instead of twice: one draw call for the lenses against about 75 for the scene from the helm. The scope camera's far plane was 5 km (the cut-off the owner saw); it's now the game's full `render.far` (14 km), with the fog as the day's visibility allows. The picture is `renderSize` 1280 wide and 640 high (was 640 square): sharper, and affordable now that it's the only scene render. Desktop is as before (the zoom is the camera's own).
+- **Checked:** typecheck, `npm test`, headless desktop driving the VR path (scope pass then lens-only main pass: 1 draw call, the layer mask restored, far 14000, 10° scope field, a 1280×640 picture; a screenshot of the lenses with the zoomed scene and black around). **Not checked:** in the headset (the owner's Quest): the lens size against the Quest's field, and the frame time while looking.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

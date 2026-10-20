@@ -788,7 +788,7 @@ export class App {
     this.gpuTimer.begin();
     if (inXR) this.binoculars.renderScope(this.renderer, this.scene);
     if (inXR) this.camPreview.render(this.renderer, this.scene);
-    this.renderer.render(this.scene, this.camera);
+    this.binoculars.renderMain(this.renderer, this.scene, inXR);
     this.gpuTimer.end();
     const t3 = performance.now();
 
