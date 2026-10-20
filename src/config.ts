@@ -2586,7 +2586,8 @@ export const CONFIG = {
      * and within its power it shows a faint grey haze only.
      *
      *   lambdaFull    the air–fuel ratio, relative to stoichiometric, at full rack and rated
-     *                 revs, warm: the maker's smoke limit (naturally aspirated / turbocharged)
+     *                 revs, warm: the maker's smoke limit (naturally aspirated / turbocharged);
+     *                 `slowEngine`, a slow-revving heavy one's
      *   smokeLambda   soot starts to show below this ratio; blackLambda: solid black
      *   turbo         boost at full exhaust energy (1 = twice the air) and how long it takes
      *                 to spool up (s; it falls off twice as fast). Turbocharged engines are
@@ -2610,6 +2611,13 @@ export const CONFIG = {
      */
     exhaust: {
       lambdaFull: { natural: 1.45, turbo: 1.7 },
+      /**
+       * A slow-revving heavy-duty engine's full-load ratio (owner, Oct 2026: the tug's smoke
+       * "wasn't black"): one rated at or under `ratedRpm` (the tug diesel) is set up rich for
+       * torque, `lambdaFull`, so worked hard it smokes: black opened up from idle, dark
+       * grey-black towing a heavy tow flat out; clean once she's running free.
+       */
+      slowEngine: { ratedRpm: 1200, lambdaFull: 1.15 },
       smokeLambda: 1.35,
       blackLambda: 0.95,
       turbo: { maxBoost: 1.0, lagS: 1.5 },

@@ -5,6 +5,13 @@
  * waterline. Other boats keep their wet exhaust in the transom.
  */
 import { afterAll, describe, expect, it } from 'vitest';
+import type { Intent } from '../src/core/intents';
+import { IdFactory } from '../src/core/ids';
+import { stepWorld } from '../src/core/simulation';
+import { createWorld } from '../src/core/world';
+import { placeVessel } from '../src/vessel/vesselControl';
+import { ExhaustModel } from '../src/vessel/exhaust';
+import { gearOf } from '../src/boats/sims';
 import { LIBRARY, RECIPES } from '../src/boats/library';
 import { FLEET } from '../src/boats/fleet';
 import { useDesign } from '../src/boats/sims';
@@ -99,5 +106,41 @@ describe("a tug's exhaust stacks", () => {
       expect(c, `hull ${hull}`).toBeUndefined();
       expect(b.hull.fittings!.exhaust!.stack).toBeFalsy();
     }
+  });
+});
+
+describe("the tug's smoke (owner: it \"wasn't black\")", () => {
+  /** The fleet tug, warm, `lever` from idle (towing the crane pontoon or free): the soot after `secs`, and the most along the way. */
+  const smoke = (tow: boolean, secs: number) => {
+    const { world, vesselId } = createWorld(new IdFactory(), 'smallTug');
+    world.environment.waves = [];
+    world.geography = 'openSea';
+    const v = world.vessels[vesselId];
+    const diesel = gearOf(v, 'diesel')!;
+    const m = new ExhaustModel(false, diesel);
+    const send = (c: string, x = 1, ref?: string) => stepWorld(world, [{ playerId: 'p', targetId: v.id, control: c, value: x, ref } as Intent], 1 / 60);
+    placeVessel(v, 0, 0, -400, 0);
+    send('quickStart');
+    v.engine.coolantC = 75;
+    for (let i = 0; i < 600; i++) stepWorld(world, [], 1 / 60);
+    if (tow) {
+      send('towDebugNear', 1, 'pontoon');
+      send('towMake');
+    }
+    send('lever', 1);
+    let most = 0;
+    let now = 0;
+    for (let i = 0; i < secs * 60; i++) {
+      stepWorld(world, [], 1 / 60);
+      now = m.step(1 / 60, v.engine).soot;
+      most = Math.max(most, now);
+    }
+    return { most, now };
+  };
+
+  it('opened up from idle she smokes black; towing a heavy tow flat out, dark; running free, it clears', () => {
+    expect(smoke(false, 3).most).toBeGreaterThan(0.9);
+    expect(smoke(true, 25).now).toBeGreaterThan(0.3);
+    expect(smoke(false, 25).now).toBeLessThan(0.1);
   });
 });
