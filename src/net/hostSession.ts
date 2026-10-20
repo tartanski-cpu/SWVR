@@ -122,6 +122,11 @@ export class HostSession {
     for (const { link } of this.peers.values()) if (link !== except) this.send(link, { t: 'chart', op });
   }
 
+  /** Tell every client (the restart notice: the host's page is starting again in another boat). */
+  broadcast(msg: HostMessage): void {
+    for (const { link } of this.peers.values()) this.send(link, msg);
+  }
+
   /** Call every frame: broadcasts a snapshot NET_RATE times a second. */
   tick(dt: number): void {
     this.sinceSend += dt;

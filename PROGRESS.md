@@ -5132,6 +5132,14 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Tests:** `tests/fleet.test.ts` (+1): the fishing boat's design names a rack and builds one; the pilot boat's guard is strake and fenders and she builds both modules.
 - **Checked:** typecheck, `npm test`. **Not checked:** by eye.
 
+### Multiplayer: changing boat keeps the game together (owner)
+
+- **The owner:** joining fell apart as soon as someone used Start in: the boat goes into the page's address and the page starts again, so the host's game closed and everyone was in a different boat. Changing the map (a debug option) didn't break it.
+- **Cause:** Start in (and a Shipyard design, and a yard refit) start the page again (`?boat=` / `?design=`): the host's room closed with it, the crew got "the host left", and anyone joining afterwards was in another boat than the host.
+- **Fix** (`app/App.ts` `restartPage`, `followRestart`; `net/protocol.ts` `RestartNotice`; `HostSession.broadcast`, `ClientSession.onRestart`): every such restart goes through `restartPage`. Hosting: the crew are sent a `restart` notice naming the new boat (the `boat` / `design` / `fit` parameters of the host's new address), the host's page waits `CONFIG.net.restartLeadS` (0.8 s) for it to get through, then starts again with `?host=CODE`, hosting the same code again (the broker's old room is retried if still held). Each crew page builds her the same way and starts again `CONFIG.net.restartFollowS` (1.5 s) later with `?together=CODE`, which joins as "sent in together" does: retrying for ~40 s until the host's new page is up. Any leftover difference on the welcome (a fit the host's career kits) still goes through `sameBoatAsHost` as before. Crew pressing Start in aboard the host's boat are told only the host can change her (Leave game first). Solo: as before.
+- **Tests:** `tests/net.test.ts` (+1): the restart notice reaches the client over the loopback.
+- **Checked:** typecheck, `npm test`. **Not checked:** on real devices through the broker (the sandbox can't reach it): the timing of the old room closing against the crew's rejoin is covered by the together retries, but needs a try with two devices.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**
