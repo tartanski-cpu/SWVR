@@ -267,6 +267,38 @@ const START_HOST = /^\d{5}$/.test(START_PARAMS.get('host') ?? '') ? START_PARAMS
 const START_TOGETHER = /^\d{5}$/.test(START_PARAMS.get('together') ?? '') ? START_PARAMS.get('together')! : null;
 /** Reloaded once already to catch up with the host's version (`?fresh=`): don't again. */
 const START_FRESH = START_PARAMS.has('fresh');
+/**
+ * The game this page is in (owner, Oct 2026: one address to share): `?game=CODE` is put on
+ * the address once you host or join, so the address carries the game. Opened by a friend it
+ * joins that game (waiting for the host as "sent in together" does); reloaded by the host's
+ * own tab (this tab remembers it hosts, `HOSTING_KEY`) it hosts the code again. Taken off
+ * the address on leaving.
+ */
+const START_GAME = /^\d{5}$/.test(START_PARAMS.get('game') ?? '') ? START_PARAMS.get('game')! : null;
+const HOSTING_KEY = 'swvr.hostingGame';
+/** Does this tab host `code` (remembered across its own reloads)? */
+function tabHosts(code: string): boolean {
+  try {
+    return sessionStorage.getItem(HOSTING_KEY) === code;
+  } catch {
+    return false;
+  }
+}
+function rememberHosting(code: string | null): void {
+  try {
+    if (code) sessionStorage.setItem(HOSTING_KEY, code);
+    else sessionStorage.removeItem(HOSTING_KEY);
+  } catch {
+    // No storage: a reload of the host's tab joins its own old code instead (and finds nothing).
+  }
+}
+/** The game code on the address (shareable), or none. */
+function showGameOnAddress(code: string | null): void {
+  const url = new URL(location.href);
+  if (code) url.searchParams.set('game', code);
+  else url.searchParams.delete('game');
+  if (url.toString() !== location.href) history.replaceState(null, '', url.toString());
+}
 
 
 /** The address without the start-up parameters that are only for this load (join and the fit that came with it, host, together, the cache-buster). */
@@ -2747,7 +2779,9 @@ export class App {
         this.hostPeerId = peerIdForRoom(code);
         this.hostCode = code;
         this.netMessage = '';
-        this.overlay.notify(`Hosting: game code ${code}`, 4);
+        rememberHosting(code);
+        showGameOnAddress(code);
+        this.overlay.notify(`Hosting: game code ${code} (the page's address carries it: share the link)`, 5);
         // A crew-mate on a newer page than ours: they can't stay, and only we can put it right.
         this.host.onOtherBuild = (name, theirs) => {
           this.netMessage = `${name}'s page is another build (${theirs}; yours ${APP_BUILD}): reload this page (Ctrl+F5) and host again`;
@@ -2805,6 +2839,7 @@ export class App {
     this.toSolo();
     if (this.togetherTries <= 0) {
       this.netMessage = 'Couldn\'t find the host\'s game: ask them for the game code (menu, Crew)';
+      showGameOnAddress(null);
       return;
     }
     this.togetherTries--;
@@ -2866,6 +2901,8 @@ export class App {
         return;
       }
       this.togetherTries = 0; // in: no more retries if this game ends
+      this.inSharedGame = true;
+      showGameOnAddress(this.joinCode);
       // Become the player the host made for us; keep standing where we are.
       this.movePlayer(playerId);
       this.overlay.notify('Joined: you are aboard the host\'s world', 3);
@@ -2874,6 +2911,13 @@ export class App {
       if (this.client !== client) return;
       // Sent in together from the Shipyard: the host's game may not be open yet; try again.
       if (this.togetherTries > 0 && client.status !== 'connected' && reason === 'No game with that code') return this.retryTogether(client);
+      if (this.inSharedGame && !this.restarting && reason === 'The host left') {
+        // The host's page may be reloading (it hosts the same code again): wait for it.
+        this.inSharedGame = false;
+        this.togetherTries = CONFIG.net.togetherTries;
+        this.overlay.notify('Lost the host: waiting for their game to come back...', 4);
+        return this.retryTogether(client);
+      }
       this.netMessage = reason;
       this.toSolo();
     };
@@ -2881,6 +2925,8 @@ export class App {
 
   /** Joining from "Try her together": tries left while the host's game isn't open yet. */
   private togetherTries = 0;
+  /** In a game whose code is on the address (joined and welcomed): a lost host is waited for. */
+  private inSharedGame = false;
 
   /**
    * A crew-mate's check on the host's welcome: is their page the same version as ours? A
@@ -3008,6 +3054,11 @@ export class App {
 
   /** Stop hosting, or leave the game we joined; play on alone from where things are. */
   private leaveGame(): void {
+    if (!this.restarting) {
+      rememberHosting(null);
+      showGameOnAddress(null);
+      this.inSharedGame = false;
+    }
     if (this.host) {
       this.host.close();
       this.host = null;
@@ -3149,6 +3200,14 @@ export class App {
     } else if (START_HOST) {
       // Pressed "Try her together": host in the room the others were sent to.
       setTimeout(() => this.hostGame(START_HOST), 300);
+    } else if (START_GAME) {
+      // The address carries a game: this tab hosted it (reloaded), or a friend's link: join it.
+      if (tabHosts(START_GAME)) setTimeout(() => this.hostGame(START_GAME), 300);
+      else {
+        this.joinCode = START_GAME;
+        this.togetherTries = CONFIG.net.togetherTries;
+        setTimeout(() => this.joinGame(), 500);
+      }
     }
     this.interaction = new InteractionSystem(
       // Every boat's controls (the home boat's first), the crane's buttons, the gear brackets.

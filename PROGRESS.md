@@ -5140,6 +5140,18 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Tests:** `tests/net.test.ts` (+1): the restart notice reaches the client over the loopback.
 - **Checked:** typecheck, `npm test`. **Not checked:** on real devices through the broker (the sandbox can't reach it): the timing of the old room closing against the crew's rejoin is covered by the together retries, but needs a try with two devices.
 
+### Multiplayer: one address carries the game (owner)
+
+- **The owner:** one address to go to, share a code, and nothing should take you out of the game: changing boats, weather or maps should follow, boats from a player's own files included. (The session-id-in-the-address idea from another chat.)
+- **Already so:** weather and the world travel in every snapshot; the map (the coast toggle) and the boat follow on the welcome; since the last entry the host changing boat carries the crew along with the same code. A boat from a file travels as her design token (`shipyard/designDoc.ts` `designToken`: her short code, or the whole document in a `doc.` token when a code can't hold her), in `world.build.design` and in the restart notice, so the crew build exactly her.
+- **New** (`app/App.ts` `START_GAME`, `showGameOnAddress`, `tabHosts`, `inSharedGame`): the game code goes on the address (`?game=CODE`) when hosting opens or a join is welcomed, and comes off on leaving. A page opened with it joins the code the way "sent in together" does (retrying up to ~40 s for the host); the host's own tab remembers it hosts (`sessionStorage`), so its reload hosts the same code again, and a crew-mate who loses the host in such a game waits and retries for the same ~40 s instead of dropping to solo at once. So a friend can be sent the link itself, and a reload on either side keeps the game.
+- **Checked:** typecheck, `npm test`, headless: a page opened with `?game=12345` sets the code and starts the retrying join; a tab that remembers hosting 12345 tries to host it on reload. **Not checked:** through the introducing server (unreachable here): the real rejoin after a host's reload needs two devices.
+
+### Multi-boat multiplayer: the plan (owner brief, not started)
+
+- **The owner:** up to four players each driving their own boat (fleet or Shipyard, from a file too), a spawn menu, four parking slots per default harbour with the biggest boats anchored in the bay, boarding and driving each other's boats, physics and effects by distance. Analyse and plan first.
+- **The plan:** `docs/MULTI_BOAT.md`: what the engine does today and what blocks the brief (one home boat assumed in ~90 places and in every game system; boat types static with one Shipyard slot; no slots or occupancy; no physics level of detail; whole-world snapshots), the design decisions proposed, five milestones (M1 boats by token, M2 your boat is the one you're aboard, M3 slots and the launch menu, M4 level of detail, M5 gameplay and polish) and four questions for the owner. Nothing built yet.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**
