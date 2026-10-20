@@ -31,7 +31,7 @@ import { inertiaFromGyradius, lightshipOf } from '../modular/massProperties';
 import type { Mount, Recipe } from '../modular/recipe';
 import type { Socket } from '../modular/socket';
 import type { HullForm } from '../vessel/hullForm';
-import type { DoorStep, FloorLevel, HouseShape, LayoutConfig, Livery, OverheadLayout } from '../vessel/vesselDef';
+import type { CabinBelow, DoorStep, FloorLevel, FloorPatch, Hollow, HouseShape, LayoutConfig, Livery, OverheadLayout } from '../vessel/vesselDef';
 import { deckhouseHalfWidth, type DeckhouseLayout } from '../vessel/deckhouse';
 import { houseFlare } from '../vessel/houseFlare';
 import { BREAKERS } from '../vessel/vesselState';
@@ -1377,7 +1377,16 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   // spread along her, each side, when they're out.
   const pc = CONFIG.shipyard.protection;
   let basketAt: [number, number] | null = null;
-  const fenderZs = [0.3, 0.55, 0.825].slice(0, pc.fenders).map((f) => r2(stem + f * (transom - stem)));
+  // (A station where a deckhouse covers the deck by the bulwark, where they're stowed, moves
+  // to the open deck just forward or aft of it, whichever is nearer: else they lay inside it.)
+  const fenderZs = [0.3, 0.55, 0.825].slice(0, pc.fenders).map((f) => {
+    const z = stem + f * (transom - stem);
+    if (!deckhouse) return r2(z);
+    const covered = z > deckhouse.z0 - 0.3 && z < deckhouse.z1 + 0.3 && q.halfBeam(z) - 0.25 < deckhouseHalfWidth(deckhouse, Math.min(Math.max(z, deckhouse.z0), deckhouse.z1)) + 0.15;
+    if (!covered) return r2(z);
+    const [fwd, back] = [deckhouse.z0 - 0.4, deckhouse.z1 + 0.4];
+    return r2(z - fwd < back - z && fwd > stem + 1 ? fwd : back);
+  });
   if (prot.fenders) {
     for (const [sd, z] of [[1, transom - 0.6], [-1, transom - 0.6], [1, aft + 1.0], [-1, aft + 1.0], [1, foreEnd - 0.6], [-1, foreEnd - 0.6]]) {
       const x = sd * (q.halfBeam(z) - 0.45);
@@ -1567,6 +1576,109 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
     else sideDoor = { z0: r2(z0), z1: r2(z0 + sdc.width), height: r2(height), buttonHeight: sdc.buttonHeight };
   }
   if (sideDoor) layout.wheelhouse!.sideDoor = sideDoor;
+
+  // ── A cabin below (P2c, design.foreCabin; owner) ──
+  // Under the deckhouse forward of the wheelhouse (its trunk), the deck cut away and the sole
+  // sunk into her hull for standing headroom (CONFIG.shipyard.deckhouse.cabin), reaching aft under the
+  // wheelhouse floor to the foot of a companionway that steps down forward from the wheelhouse
+  // floor, beside the helm (on the side away from a console against a wall). A V-berth across
+  // her forward end. Its walls stand straight up from the sole, inside the trunk's walls and
+  // inside her sides at the sole (where a V hull is narrowest), so they're inside her
+  // everywhere above. Walked through extraFloors, hollows, floorHoles and deckOpening (as the
+  // Alaskan 38's cabin is); drawn by hullMesh.ts from layout.cabin.
+  let cabinM2 = 0;
+  if (d.foreCabin && !deckhouse) warnings.push('The cabin below needs a deckhouse forward of the wheelhouse, for its trunk: none.');
+  else if (d.foreCabin && deckhouse) {
+    const cc = CONFIG.shipyard.deckhouse.cabin;
+    const why = (() => {
+      // Her hull's half breadth at height y, at z between the stations either side; her bottom there.
+      const between = (z: number, f: (poly: readonly (readonly [number, number])[]) => number) => {
+        let i = 0;
+        while (i < st.length - 2 && st[i + 1].z > z) i++;
+        const t = Math.min(1, Math.max(0, (z - st[i].z) / (st[i + 1].z - st[i].z || 1)));
+        return f(st[i].polygon) * (1 - t) + f(st[i + 1].polygon) * t;
+      };
+      const hullHalf = (z: number, y: number) => between(z, (p) => halfBreadthAt(p, y));
+      const keelAt = (z: number) => between(z, (p) => p[2][1]);
+      // The trunk's top is flat aft of its front's rake (hullMesh.ts buildDeckhouse: the same slope).
+      const foot = q.deckY(deckhouse.z0) - 0.06;
+      const flat = deckhouse.z0 + (deckhouse.top - foot) * Math.tan((deckhouse.rakeDeg * Math.PI) / 180);
+      let zFront = Math.max(flat, deckhouse.z0 + 0.1) + cc.wall;
+      const trunkCeil = deckhouse.top - 0.05;
+      const houseCeil = floorY - 0.1;
+      // The companionway: beside the helm, on the side away from a console against a wall.
+      const comSide = side === 2 ? -1 : 1;
+      const xOut = comSide * (hw - wall - 0.03);
+      const [sx0, sx1] = comSide > 0 ? [xOut - cc.stairWidth, xOut] : [xOut, xOut + cc.stairWidth];
+      if (hw - wall - 0.03 - cc.stairWidth < cc.helmRoom) return 'her wheelhouse is too narrow for a companionway beside the helm';
+      // Its sole: `headroom` under the trunk's top, raised until it's wide enough and clear of her bottom.
+      const zs = (a: number, b: number, n: number) => Array.from({ length: n + 1 }, (_, i) => a + ((b - a) * i) / n);
+      const along = zs((zFront + front) / 2, Math.min(front + 1, aft), 8);
+      let sole = trunkCeil - cc.headroom;
+      const fits = (y: number) => along.every((z) => hullHalf(z, y) - cc.hullClear >= cc.minHalf && y >= keelAt(z) + cc.keelClear);
+      while (!fits(sole) && sole < deckLo) sole += 0.05;
+      sole = rnd(sole);
+      if (trunkCeil - sole < cc.minHeadroom - 1e-6) return `there'd be only ${(trunkCeil - sole).toFixed(2)} m of headroom under the trunk (${cc.minHeadroom} m at least): make the deckhouse higher`;
+      // Its half width at z: inside the trunk's walls (the wheelhouse's, under it), and her sides at the sole.
+      const half = (z: number) => Math.min(z < front ? deckhouseHalfWidth(deckhouse, Math.min(z, deckhouse.z1)) - cc.wall : hw - wall, hullHalf(z, sole + 0.02) - cc.hullClear);
+      // Its forward end: where it's wide enough to be worth having (the V-berth's narrow end).
+      while (zFront < front && half(zFront) < 0.3) zFront += 0.05;
+      // The steps: down from the wheelhouse floor to the sole, the opening just aft of the console.
+      const drop = floorY - sole;
+      const n = Math.ceil(drop / cc.rise - 1e-6);
+      const r = drop / n;
+      const zs0 = rnd(cf + sb((sx0 + sx1) / 2) + 0.5 + 0.1);
+      const zs1 = rnd(zs0 + n * cc.tread);
+      const room = (saloonL ? helmAft : aft - wall) - 0.15;
+      if (zs1 > room) return `her wheelhouse is too short for the companionway's ${n} steps aft of the console (${(n * cc.tread).toFixed(2)} m)`;
+      if (comSide < 0 && chartTableAt && zs1 > chartTableAt[2] && zs0 < chartTableAt[2] + ctab.depth) return 'the chart table is where the companionway would come down (put the console to port, or no chart table)';
+      if (comSide < 0 && sideDoor && zs1 > sideDoor.z0 - 0.1 && zs0 < sideDoor.z1 + 0.1) return 'the side door is where the companionway would come down';
+      if (zs0 - zFront < cc.minAhead) return 'the deckhouse doesn’t reach far enough forward of the wheelhouse for a cabin (make it longer)';
+      if (!outboards && engZ1 > zFront - 0.1 && engZ0 < zs1 + 0.1) return 'her engine is under the wheelhouse, where the cabin would be (pod drives, stern drives or outboards put it aft)';
+      // Its plan, every 0.25 m and at the wheelhouse front (where its ceiling steps).
+      const pz = [...zs(zFront, zs1, Math.max(1, Math.ceil((zs1 - zFront) / 0.25))), front].filter((z) => z >= zFront && z <= zs1).sort((a, b) => a - b);
+      const plan = pz.map((z): [number, number] => [rnd(z), rnd(half(z))]);
+      const treads = Array.from({ length: n - 1 }, (_, k) => ({ z0: rnd(zs1 - (k + 1) * cc.tread), z1: rnd(zs1 - k * cc.tread), y: rnd(floorY - (k + 1) * r) }));
+      const berth = zs0 - zFront >= cc.berth.minCabin ? { z1: rnd(zFront + cc.berth.length), top: rnd(sole + cc.berth.top) } : undefined;
+      const cabin: CabinBelow = { z0: rnd(zFront), z1: zs1, sole, plan, ceiling: { front, trunk: rnd(trunkCeil), house: rnd(houseCeil) }, stair: { x0: rnd(sx0), x1: rnd(sx1), z0: zs0, z1: zs1, treads }, ...(berth ? { berth } : {}) };
+      layout.cabin = cabin;
+      layout.wheelhouse!.floorHoles = [{ x0: cabin.stair.x0, x1: cabin.stair.x1, z0: zs0, z1: zs1 }];
+      // Walked: the treads, and the sole (aft of the berth, up to the foot of the steps), in
+      // strips each as wide as the cabin's narrowest along it.
+      const soleZ0 = berth ? berth.z1 : cabin.z0;
+      const soleZ1 = rnd(zs0 + cc.tread);
+      const strips = zs(soleZ0, soleZ1, Math.max(1, Math.ceil((soleZ1 - soleZ0) / 0.5)));
+      const soles: FloorPatch[] = strips.slice(1).map((z, i) => {
+        const w = rnd(Math.min(half(strips[i]), half(z)));
+        return { x0: -w, x1: w, z0: rnd(strips[i]), z1: rnd(z), y: sole };
+      });
+      // (The top tread reaches back under the floor's edge, by the half body the walk keeps off an
+      // opening's edge (vessel/layout.ts floorHoles): so the floor and it meet.)
+      const treadPatches = treads.map((t, k): FloorPatch => ({ x0: cabin.stair.x0, x1: cabin.stair.x1, ...t, ...(k === 0 ? { z1: rnd(t.z1 + BODY_RADIUS * 0.5 + 0.03) } : {}) }));
+      layout.extraFloors = [...(layout.extraFloors ?? []), ...treadPatches, ...soles];
+      // Open space: the companionway (up through the floor), and the cabin under its ceiling.
+      const hollows: Hollow[] = [{ x0: cabin.stair.x0, x1: cabin.stair.x1, y0: sole - 0.1, y1: floorY + 0.5, z0: zs0, z1: zs1 }];
+      for (let i = 1; i < plan.length; i++) {
+        const [za, wa] = plan[i - 1];
+        const [zb, wb] = plan[i];
+        const w = Math.min(wa, wb);
+        hollows.push({ x0: -w, x1: w, y0: sole - 0.1, y1: (za + zb) / 2 < front ? trunkCeil : houseCeil, z0: za, z1: zb });
+      }
+      layout.hollows = [...(layout.hollows ?? []), ...hollows];
+      // The deck cut away over it (its plan), so it isn't across the cabin.
+      layout.deckOpening = { front: cabin.z0, inset: 0, plan };
+      // Its lining (sole, sides, the bulkheads at each end) and the berth, for its weight.
+      for (let i = 1; i < plan.length; i++) {
+        const [za, wa] = plan[i - 1];
+        const [zb, wb] = plan[i];
+        const ceil = (za + zb) / 2 < front ? trunkCeil : houseCeil;
+        cabinM2 += (zb - za) * (wa + wb) + 2 * (zb - za) * (ceil - sole);
+      }
+      cabinM2 += 2 * plan[0][1] * (trunkCeil - sole) + 2 * plan[plan.length - 1][1] * (houseCeil - sole) + (berth ? 2 * half(berth.z1) * (berth.z1 - cabin.z0) * 2 : 0);
+      return '';
+    })();
+    if (why) warnings.push(`There's no cabin below: ${why}.`);
+  }
   // The life ring on the house's aft wall at the chosen side, its line made fast to that
   // quarter's cleat; the boat-hook clips along that bulwark, aft.
   const ringSide = d.lifeRing === 1 ? -1 : d.lifeRing === 2 ? 1 : 0;
@@ -2173,6 +2285,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
     { name: `Hull: ${material} plating and framing`, kg: shellM2 * mat.shellKgPerM2 * (base.scantlings ?? 1) * grownPlate, y: shellM2y / shellM2, z: shellM2z / shellM2 },
     { name: 'Bulwarks', kg: bulwarkRun * bulwarkHeight * mat.shellKgPerM2 * wc.bulwarkShare, y: deckMid + bulwarkHeight / 2, z: (stem + transom) / 2 },
     { name: 'Wheelhouse', kg: houseM2 * mat.houseKgPerM2, y: (floorY + roofY) / 2, z: (front + aft) / 2 },
+    { name: 'Deckhouse: the cabin below (sole, lining, berth)', kg: cabinM2 * CONFIG.shipyard.deckhouse.cabin.kgPerM2, y: layout.cabin ? layout.cabin.sole + 0.6 : deckMid, z: layout.cabin ? (layout.cabin.z0 + layout.cabin.z1) / 2 : 0 },
     { name: 'Deckhouse rail and ladder', kg: deckhouse?.walk ? dhRailM * CONFIG.shipyard.deckhouse.walk.railKgPerM + CONFIG.shipyard.deckhouse.walk.ladder.kg : 0, y: deckhouse ? deckhouse.top + 0.4 : deckMid, z: deckhouse ? (deckhouse.z0 + deckhouse.z1) / 2 : 0 },
     { name: 'Cockpit overhead', kg: overheadM2(layout.overhead) * mat.houseKgPerM2, y: layout.overhead ? layout.overhead.y - 0.3 : deckMid, z: layout.overhead ? (layout.overhead.z0 + layout.overhead.z1) / 2 : 0 },
     { name: 'Deckhouse', kg: dhArea * mat.houseKgPerM2, y: deckhouse ? (deckMid + deckhouse.top) / 2 : deckMid, z: deckhouse ? (deckhouse.z0 + deckhouse.z1) / 2 : 0 },

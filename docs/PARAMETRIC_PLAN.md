@@ -72,6 +72,11 @@ can copy a link, open it on another machine, save and open a file.
 - **P2c, a trunk cabin with a cabin below (M):** the deckhouse becomes a walkable trunk cabin, the
   deck cut away beneath it, a fore cabin and a companionway (the layout fields from the Alaskan:
   floor holes, extra floors, hollows, the deck opening).
+  - **Done (awaiting owner test): a cabin below.** `design.foreCabin`, `layout.cabin`
+    (`CabinBelow`): under the deckhouse forward of the wheelhouse (its trunk), the deck cut away,
+    the sole sunk into the hull for standing headroom, reaching aft under the wheelhouse floor to
+    the foot of a companionway beside the helm; a V-berth forward. Walked through the Alaskan's
+    general fields, drawn with a lining facing in. Not in the short code.
 
 ## P3. Richer sections (M)
 

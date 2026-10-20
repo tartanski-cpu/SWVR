@@ -34,8 +34,8 @@ function designs(): ShipDesign[] {
     return r.design;
   });
 }
-/** The choices her short code holds: all but the helm assist panel, the cockpit overhead and the walked deckhouse top (a design with one travels as a document). */
-const CODE_FIELDS = ALL_FIELDS.filter((f) => f.key !== 'helmAssist' && f.key !== 'overhead' && f.key !== 'dhWalk');
+/** The choices her short code holds: all but the helm assist panel, the cockpit overhead, the walked deckhouse top and the cabin below (a design with one travels as a document). */
+const CODE_FIELDS = ALL_FIELDS.filter((f) => f.key !== 'helmAssist' && f.key !== 'overhead' && f.key !== 'dhWalk' && f.key !== 'foreCabin');
 function rawDesigns(): ShipDesign[] {
   const out: ShipDesign[] = [{ ...DEFAULT_DESIGN }];
   for (const f of CODE_FIELDS) out.push({ ...DEFAULT_DESIGN, ...fromSteps({ [f.key]: f.steps - 1 }) });
