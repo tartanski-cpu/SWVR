@@ -39,6 +39,11 @@ export class Keyboard {
     this.claimed = new Set(codes);
   }
 
+  /** True only on the frame this physical key went down (for whoever has claimed it). */
+  wasPressed(code: string): boolean {
+    return this.pressed.has(code);
+  }
+
   /** True while this physical key is held (for whoever has claimed it). */
   isDown(code: string): boolean {
     return this.down.has(code);

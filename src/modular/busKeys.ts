@@ -346,14 +346,14 @@ export const BUS_KEYS = {
   'fenders.out': control('fenders', 'Fenders over the side (on) or stowed.', { aliases: ['fenders'] }),
   'winch.heaveIn': control('winchHeave', 'Tow winch HEAVE IN button held.', { aliases: ['winchHeave'] }),
   'winch.payOut': control('winchPayOut', 'Tow winch PAY OUT button held.', { aliases: ['winchPayOut'] }),
-  // The deck crane (modules/deckCrane): its joystick asks for slew and boom angles, its
-  // buttons hoist and hook. Only on a boat that has one.
-  'crane.slew': craneKey(setting('craneSlew', [-crane.slewLimitDeg, crane.slewLimitDeg], 'deg', 'Deck crane: the slew its joystick asks for, + to starboard of straight ahead (the crane follows at its own rate).', { hold: 'crane', writer: 'module' }), { field: 'craneSlew', value: crane.stow.slewDeg }),
-  'crane.luff': craneKey(setting('craneLuff', [crane.luffMinDeg, crane.luffMaxDeg], 'deg', 'Deck crane: the boom angle its joystick asks for, above level.', { hold: 'crane', writer: 'module' }), { field: 'craneLuff', value: crane.stow.luffDeg }),
-  'crane.hoistUp': craneKey(control('craneHoistUp', 'Deck crane HOIST UP button held.', { writer: 'module' })),
-  'crane.hoistDown': craneKey(control('craneHoistDown', 'Deck crane HOIST DOWN button held.', { writer: 'module' })),
-  'crane.boomOut': craneKey(control('craneBoomOut', 'Deck crane BOOM OUT button held: runs the telescopic boom out.', { writer: 'module' })),
-  'crane.boomIn': craneKey(control('craneBoomIn', 'Deck crane BOOM IN button held: runs the telescopic boom in.', { writer: 'module' })),
+  // The deck crane (modules/deckCrane): two joysticks, as on a crane's radio remote (owner,
+  // Oct 2026). The left asks for slew and boom angles, the right for how far the telescopic
+  // boom is run out and how much wire is paid out; the crane follows each at its own rate.
+  // HOOK takes or sets down the load. Only on a boat that has one.
+  'crane.slew': craneKey(setting('craneSlew', [-crane.slewLimitDeg, crane.slewLimitDeg], 'deg', 'Deck crane: the slew its left joystick asks for, + to starboard of straight ahead (the crane follows at its own rate).', { hold: 'crane', writer: 'module' }), { field: 'craneSlew', value: crane.stow.slewDeg }),
+  'crane.luff': craneKey(setting('craneLuff', [crane.luffMinDeg, crane.luffMaxDeg], 'deg', 'Deck crane: the boom angle its left joystick asks for, above level.', { hold: 'crane', writer: 'module' }), { field: 'craneLuff', value: crane.stow.luffDeg }),
+  'crane.extend': craneKey(setting('craneExtend', [0, crane.extendMax], 'm', 'Deck crane: how far its right joystick asks the telescopic boom to be run out (the crane follows at its own rate).', { hold: 'crane', writer: 'module' }), { field: 'craneExtend', value: 0 }),
+  'crane.wire': craneKey(setting('craneWire', [crane.wireMin, crane.wireMax], 'm', 'Deck crane: how much wire its right joystick asks to be paid out from the boom tip (more: the hook lower).', { hold: 'crane', writer: 'module', default: crane.stow.wire }), { field: 'craneWire', value: crane.stow.wire }),
   'crane.hook': craneKey(control('craneHook', 'Deck crane HOOK button held: a press takes the item under the hook, or sets down the one on it.', { writer: 'module' })),
   'trawl.shoot': control('trawl', 'TRAWL switch: shoot the net (on) / haul it (off). It follows the net when worked by hand.', {
     aliases: ['trawl'],

@@ -3772,7 +3772,10 @@ export const CONFIG = {
        * `x`: how far to the side of the column; at the edge the post stands inboard of it (on
        * a 'socket' crane, + is the socket's starboard).
        */
-      post: { x: 0.55, z: 0.45, height: 1.05, deskWidth: 0.5, deskDepth: 0.28 },
+      // `stickSpacing`: between its two joysticks (m).
+      post: { x: 0.55, z: 0.45, height: 1.05, deskWidth: 0.56, deskDepth: 0.3, stickSpacing: 0.3 },
+      /** The radio remote on its hook on the post's near side (app/craneRemote.ts): its size, its height on the post (m). */
+      remote: { width: 0.18, height: 0.11, depth: 0.05, y: 0.82 },
       /** How close the hook must be to an item's lifting point to take it (m). */
       hookReach: 0.6,
       /**

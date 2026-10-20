@@ -58,7 +58,8 @@ Keys are bound by **physical position**, so they work the same on QWERTZ (German
 | Q on cargo on deck | Lash it down where it stands / release it (anywhere on open deck, clear of the house and gear) |
 | Middle mouse button (hold) | **Laser pointer** to the reticle (the beam comes from your lower right); the crew sees the beam and dot |
 | Click the searchlight or fire monitor joystick, or the skiff's tiller or gear lever | Steer it with **W A S D** (you don't walk meanwhile) while the mouse still looks around; click again to let go. You don't walk while dragging a lever or the wheel either |
-| Click the deck crane's joystick | **W A S D** slew and raise / lower the boom, **R / F** hoist up / down, **E / Q** boom out / in, **Space** hook (those keys do nothing else meanwhile); click again to let go |
+| **F** by the deck crane's post | **Take its radio remote** (and F again hangs it back): **W A S D** slew and raise / lower the boom, **← →** run the telescope in / out, **↑ ↓** hoist / lower the hook, **Space** hook. You stay where you stand while you hold it; the mouse still looks round. With a game controller: **A** takes it, left stick slew and boom, right stick telescope (sideways) and hoist (pull back) / lower (push), A hook, LB + right stick look, B hangs it back |
+| Click one of the deck crane's joysticks | **W A S D** move that stick, **Space** hook; click again to let go |
 | B | Board the boat (you appear at the helm) / go ashore onto the quay |
 | Aim **+** and click / drag | Operate the bridge controls (see below) |
 | Holding the wheel or a lever, hold the **right mouse button** | **Look round freely:** the mouse turns your view and the wheel (or lever) stays where you left it, still in your hand; no binoculars. Let go of the right button and the mouse steers again. Off the wheel, the right button is the binoculars again |
@@ -624,16 +625,15 @@ Then the choices, a step at a time:
 4. Choose basic or advanced controls. Every boat has the **VHF** (calls, forecasts, the harbours). Advanced adds the lights, wipers, horn, FM radio, the chartplotter, the NAV / WIND screen, the task board, an **overhead switch panel** over the helm for her **foredeck and aft deck floodlights** (on the DECK LTS breaker), and a **pull-down whiteboard**: pull its handle and it unrolls from its box under the roof by the aft wall; pull again and it rolls up.
 5. Choose an engine, single or twin (its propeller is matched by trial). The **slow-revving tug diesel** (450 kW, 1000 rpm, single only) turns a bigger propeller for a harder pull, with a voice of its own, matched to a recording of a real six-cylinder marine diesel: an even, busy rumble with a mechanical clatter, and a big turbo's low whistle as she digs in. **Twin engines** each have their own sound, slightly out of step, so they drone in and out of phase as on a real twin-screw boat. Then choose basic or advanced controls, a paint, and the roof's colour (the hull's, or orange, white, grey or black).
 
-**The deck crane** is worked from the post beside it, once the engine is running and the DECK HYD breaker is on:
-
-- the joystick slews it (sideways) and raises or lowers the boom (push to raise);
-- HOIST UP and HOIST DOWN (hold) haul in and pay out the wire;
-- BOOM OUT and BOOM IN (hold, the blue pair) run its telescopic boom out up to 2 m further, and back;
-- HOOK takes the crate or drum under the hook, and pressed again sets it down on the deck, the quay, or into the sea.
+**The deck crane** is worked from the post beside it, once the engine is running and the DECK HYD breaker is on. Its desk is laid out like a crane's radio remote, two joysticks, one for each hand:
+- **Left stick (yellow):** sideways slews the crane; push to raise the boom, pull to lower it.
+- **Right stick (green):** sideways runs the telescopic boom out (right) and in (left); pull back to hoist the hook, push to lower it.
+- **HOOK** (red, between them): takes the load under the hook, or sets down the one on it.
+- Each works at a rate, as far as you push it, and springs back to centre when you let go: the crane stays where it got to. In VR, take one stick in each hand.
+- **On desktop or with a game controller,** take the **radio remote** off the post (F, or A) and work both sticks from where you stand (see Controls).
+- Its telescopic boom runs out up to 2 m further; HOOK sets a load down on the deck, the quay, or into the sea.
 
 It lifts up to 800 kg out to the base boom's reach, and less the further out (its load-moment limit): it won't take a load it can't hold there, and stops the boom going further out with one on.
-
-**On desktop,** click the crane's joystick and work it all from the keyboard while the mouse still looks around: **W A S D** slew and raise or lower the boom, **R / F** hoist up / down, **E / Q** boom out / in, **Space** the hook. Click again to let go.
 
 The page shows her in 3D (around her and at the helm), her figures and her sea trials, then gives her **code**: 17 characters, like `XXXXX-XXXXX-XXXXX-XX`, a few more for each piece of gear placed by hand, a deckhouse, or hull protection (older 10- to 15-character codes still work, and read with no hull protection). **Try her in the game** opens the game in her. Or add `?design=` and the code to the game's address, also on the Quest. Buying her at the boatyard in the game comes next.
 

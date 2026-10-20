@@ -3,15 +3,17 @@
  * skiff's crane (deck.tender-crane). A column that slews on its plinth, a boom that luffs
  * from the column's head on a ram, and a wire hanging from the boom's tip to a hook.
  *
- * Worked from a control post at its foot: the joystick asks for slew (sideways) and boom
- * angle (fore and aft: push to raise), and the crane follows at its own rates while there's
- * hydraulic pressure ('hydraulics.on'); HOIST UP / DOWN (hold) haul and pay out the wire;
- * BOOM OUT / IN (hold) run its telescopic inner section out of the boom's tip and back
- * (owner: to reach out over the deck); HOOK takes the cargo under the hook or sets down
- * what's on it. A load-moment limiter (`safeLoadAt`) keeps a load within what the crane can
+ * Worked from a control post at its foot, laid out as a crane's radio remote (owner, Oct
+ * 2026: two joysticks, one for each hand, in VR): the left stick asks for slew (sideways)
+ * and boom angle (push to raise); the right for the telescopic inner section run out of the
+ * boom's tip (sideways: right out; owner: to reach out over the deck) and the wire (pull
+ * back to hoist, push to lower). The crane follows each at its own rate while there's
+ * hydraulic pressure ('hydraulics.on'). HOOK takes the cargo under the hook or sets down
+ * what's on it. On desktop, or with a game controller, the radio remote hanging on the post
+ * works both sticks from wherever you stand aboard (app/craneRemote.ts). A load-moment limiter (`safeLoadAt`) keeps a load within what the crane can
  * hold at that reach. Bought as an upgrade, motion compensation holds the hook steady
- * against her roll, pitch and heave (the world works it: cargo/craneHook.ts). On desktop, clicking the joystick steers it with W A S D, and keys work
- * the buttons too (`keyExtras`: R / F hoist, Q / E boom in / out, Space the hook). The hooking is the
+ * against her roll, pitch and heave (the world works it: cargo/craneHook.ts). On desktop, a
+ * clicked stick steers with W A S D, Space the hook. The hooking is the
  * world.s (cargo/cargo.ts, stepCraneCargo): the crane only says, through its state, that HOOK was
  * pressed (`press`), and the world says what's on the hook (`hooked`). The load hangs rigid
  * under the hook (no swing: owner's choice); its weight bears on the boat there (cargo
@@ -130,10 +132,8 @@ export const DECK_CRANE: ModuleDefinition<DeckCraneConfig, DeckCraneState> = {
   ports: {
     slew: { dir: 'write', key: 'crane.slew' },
     luff: { dir: 'write', key: 'crane.luff' },
-    hoistUp: { dir: 'write', key: 'crane.hoistUp' },
-    hoistDown: { dir: 'write', key: 'crane.hoistDown' },
-    boomOut: { dir: 'write', key: 'crane.boomOut' },
-    boomIn: { dir: 'write', key: 'crane.boomIn' },
+    extend: { dir: 'write', key: 'crane.extend' },
+    wire: { dir: 'write', key: 'crane.wire' },
     hook: { dir: 'write', key: 'crane.hook' },
     pressure: { dir: 'read', key: 'hydraulics.on' },
   },
@@ -162,13 +162,11 @@ export const DECK_CRANE: ModuleDefinition<DeckCraneConfig, DeckCraneState> = {
       s.held = hook;
       if (!io.get('pressure')) return; // no hydraulic pressure: it holds where it is
       s.slew = toward(s.slew, io.num('slew'), c.slewRateDeg * dt);
-      const run = (io.get('hoistDown') ? 1 : 0) - (io.get('hoistUp') ? 1 : 0);
-      s.wire = Math.max(c.wireMin, Math.min(c.wireMax, s.wire + run * c.hoistRate * dt));
+      s.wire = Math.max(c.wireMin, Math.min(c.wireMax, toward(s.wire, io.num('wire'), c.hoistRate * dt)));
       // The boom's angle and length: held by the load-moment limiter if they'd take a load on
       // the hook past what it may hold that far out (it may always come back in).
       const luff = toward(s.luff, io.num('luff'), c.luffRateDeg * dt);
-      const out = (io.get('boomOut') ? 1 : 0) - (io.get('boomIn') ? 1 : 0);
-      const extend = Math.max(0, Math.min(c.extendMax, s.extend + out * c.extendRate * dt));
+      const extend = Math.max(0, Math.min(c.extendMax, toward(s.extend, io.num('extend'), c.extendRate * dt)));
       const further = craneRadius(c, luff, extend) > craneRadius(c, s.luff, s.extend);
       if (further && s.loadKg > safeLoadAt(c, { luff, extend })) return;
       s.luff = luff;
@@ -183,7 +181,7 @@ export const DECK_CRANE: ModuleDefinition<DeckCraneConfig, DeckCraneState> = {
       // the column at `dx`, everything else from there.
       const { dx, postX } = craneSeatAt(c, hull, matrixOf(socket.transform));
       const p = { ...c.post, x: dx + postX };
-      const staticParts = [
+      const staticParts: THREE.BufferGeometry[] = [
         part(new THREE.CylinderGeometry(c.plinthRadius, c.plinthRadius * 1.1, c.plinthHeight, 16).translate(dx, c.plinthHeight / 2, 0), steel),
         // The control post: a pillar and a desk on top.
         part(new THREE.BoxGeometry(0.16, p.height, 0.16).translate(p.x, p.height / 2, p.z), steel),
@@ -235,37 +233,42 @@ export const DECK_CRANE: ModuleDefinition<DeckCraneConfig, DeckCraneState> = {
         flatVertexColorMaterial(),
       );
 
-      // Controls on the post's desk, as you stand at it: the joystick in the middle, HOIST UP
-      // and DOWN to its right with HOOK beyond, BOOM OUT and IN to its left (the far button of
-      // each pair takes the hook up or out, the near one down or in).
+      // Controls on the post's desk, as you stand at it, laid out as a crane's radio remote
+      // (owner, Oct 2026: two joysticks, one for each hand): the left stick slews (sideways)
+      // and luffs the boom (push to raise); the right runs the telescope out and in
+      // (sideways: right out) and the wire (pull back to hoist, push to lower); HOOK between
+      // them, nearest you. Each stick works at a rate, as far as it's pushed.
       const top = p.height + 0.06;
-      const stick = new Joystick(
+      const sx = c.post.stickSpacing / 2;
+      const left = new Joystick(
         `${socket.id}Joystick`,
         { panRateDeg: c.slewRateDeg, tiltRateDeg: c.luffRateDeg, panLimitDeg: c.slewLimitDeg, tiltMinDeg: c.luffMinDeg, tiltMaxDeg: c.luffMaxDeg },
         { pan: keys.slew, tilt: keys.luff },
-        'Deck crane: slew (sideways) and boom (push to raise)',
+        'Deck crane, left stick: slew (sideways) and boom (push to raise)',
         yellow,
         { pan: (s) => busOf(s).num(keys.slew), tilt: (s) => busOf(s).num(keys.luff) },
       );
-      stick.root.position.set(p.x, top, p.z);
-      const button = (id: string, key: string, label: string, colour: number, dx: number, dz: number) => {
-        const b = new Button(`${socket.id}${id}`, key, `Deck crane: ${label}`, 'momentary', colour);
-        b.root.position.set(p.x + dx, top, p.z + dz);
-        return b;
-      };
-      const up = button('HoistUp', keys.hoistUp, 'HOIST UP (hold)', 0x3a9a4a, 0.1, -0.06);
-      const down = button('HoistDown', keys.hoistDown, 'HOIST DOWN (hold)', 0xe0a020, 0.1, 0.06);
-      const boomOut = button('BoomOut', keys.boomOut, 'BOOM OUT (hold)', 0x3a7ac8, -0.1, -0.06);
-      const boomIn = button('BoomIn', keys.boomIn, 'BOOM IN (hold)', 0x3a7ac8, -0.1, 0.06);
-      const hookBtn = button('Hook', keys.hook, 'HOOK (take or set down the load)', 0xc0302a, 0.2, 0);
-      // Desktop: clicked, the joystick steers with W A S D, and these keys work the buttons.
-      stick.keyExtras = [
-        { code: 'KeyR', key: 'R', does: 'hoist up', target: up },
-        { code: 'KeyF', key: 'F', does: 'hoist down', target: down },
-        { code: 'KeyE', key: 'E', does: 'boom out', target: boomOut },
-        { code: 'KeyQ', key: 'Q', does: 'boom in', target: boomIn },
-        { code: 'Space', key: 'Space', does: 'hook', target: hookBtn },
-      ];
+      left.root.position.set(p.x - sx, top, p.z);
+      const right = new Joystick(
+        `${socket.id}Joystick2`,
+        { panRateDeg: c.extendRate, tiltRateDeg: c.hoistRate, panMinDeg: 0, panLimitDeg: c.extendMax, tiltMinDeg: c.wireMin, tiltMaxDeg: c.wireMax },
+        { pan: keys.extend, tilt: keys.wire },
+        'Deck crane, right stick: telescope (sideways: right out) and hoist (pull back to hoist, push to lower)',
+        0x3a9a4a,
+        { pan: (s) => busOf(s).num(keys.extend), tilt: (s) => busOf(s).num(keys.wire) },
+      );
+      right.root.position.set(p.x + sx, top, p.z);
+      const hookBtn = new Button(`${socket.id}Hook`, keys.hook, 'Deck crane: HOOK (take or set down the load)', 'momentary', 0xc0302a);
+      hookBtn.root.position.set(p.x, top, p.z + 0.07);
+      // Desktop: a clicked stick steers with W A S D; Space works the hook meanwhile.
+      for (const stick of [left, right]) stick.keyExtras = [{ code: 'Space', key: 'Space', does: 'hook', target: hookBtn }];
+      // The radio remote on its hook on the post's near side (desktop and a game controller:
+      // app/craneRemote.ts takes it): a yellow box with two stick stubs.
+      const remote = c.remote;
+      staticParts.push(
+        part(new THREE.BoxGeometry(remote.width, remote.height, remote.depth).translate(p.x, remote.y, p.z + 0.08 + remote.depth / 2), yellow),
+        ...[-1, 1].map((k) => part(new THREE.CylinderGeometry(0.008, 0.008, 0.03, 6).rotateX(Math.PI / 2).translate(p.x + k * remote.width * 0.25, remote.y + 0.01, p.z + 0.08 + remote.depth + 0.015), 0x15181a)),
+      );
 
       const a = new THREE.Vector3();
       const b = new THREE.Vector3();
@@ -274,12 +277,12 @@ export const DECK_CRANE: ModuleDefinition<DeckCraneConfig, DeckCraneState> = {
       return {
         staticParts,
         movingParts: [slewing, wire, hookMesh],
-        controls: [stick, up, down, boomOut, boomIn, hookBtn],
+        controls: [left, right, hookBtn],
         labels: [
           // (Each lies LABEL_OFFSET nearer you than its point: along the desk's near edge.)
-          { text: 'HOIST', at: [p.x + 0.1, top, p.z + 0.035] },
-          { text: 'BOOM', at: [p.x - 0.1, top, p.z + 0.035] },
-          { text: 'HOOK', at: [p.x + 0.2, top, p.z + 0.035] },
+          { text: 'SLEW · BOOM', at: [p.x - sx, top, p.z + 0.035] },
+          { text: 'TELE · HOIST', at: [p.x + sx, top, p.z + 0.035] },
+          { text: 'HOOK', at: [p.x, top, p.z + 0.1] },
         ],
         update(_read, s) {
           const st = s ?? DECK_CRANE.sim!.init(c);
