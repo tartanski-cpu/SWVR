@@ -5419,6 +5419,16 @@ Owner, Oct 2026: a new career starts in one of the new fleet boats; hide the wor
 - **Tests:** tests/starterBoat.test.ts (3); starterWorkboat.test.ts's other-boat message now "Not for this boat".
 - **Next fleet steps:** move the tests and golden runs onto the fleet; then delete the old boats (owner: hide first, delete later).
 
+### TOW LINE screen: the tension, and how near the line is to parting (done, awaiting owner test)
+
+Owner, Oct 2026: "a new instrument... built onto the advanced instrumentation, and it shows the tension... in the tow line. But what I'd like to see is... how close it is to snapping... on every vessel that has the ability to tow."
+
+- **The screen** `towline` (controls/instruments.ts, one more screen on the boat's shared display: no extra draw call): TOW LINE; the pull in kN, big; SLACK / TAUT / EASE OFF (red) or NO LINE / PARTED (red, for `partedShowS` 20 s after it goes); a bar of its **load to breaking**, green, amber from `amber` 50 %, red from `red` 80 %, marked at both, BREAK at its end; and a white mark at the **highest load lately**, held `peakHoldS` 6 s (a snatch is over before you can look at the bar).
+- **The load** (tow/tow.ts `gauge`, each tick in `towlineForces`): the nearer of the two things that part the line: its tension against its breaking force (CONFIG.tow.breakForce 40 kN, ×1.75 with the heavy towing post, × a large tow's own hawser), and its stretch against the most it takes (`maxStretch` 12 m: aground or snagged). Kept on the towing boat (`VesselState.towLine`), so the crew's screens show it too. Tunables: `CONFIG.tow.gauge`.
+- **Where:** last in the console's screen row, on a Shipyard boat that can tow (a stern roller: her tow point) with the advanced controls. The fleet's small tug has it. Basic controls don't (it's an advanced instrument).
+- **When the line parts** (unchanged, measured): pulling flat out from a standing start doesn't part it. The tug at full throttle peaks at 43 % of breaking on a barge, 52 % on the big crane pontoon; the beginner boat 26 %. What parts it is the boats being pulled apart: the tow stuck (aground, snagged: stretched past 12 m), a squall pushing one away from the other, or a hard snatch on a slack line. The owner's view of when a line should part; no change made.
+- **Checked:** tests/towGauge.test.ts (6): half the breaking force reads half; a heavy hawser reads less for the same pull; the peak held, then let go; PARTED, then cleared; the screen on the fleet tug, not without a stern roller or with basic controls. Full suite 1088 pass. Headless Chromium, the fleet tug towing a barge: the screen reads 8.3 kN, TAUT, 21 %, the peak mark at 25 %. **Not checked:** the Quest.
+
 ### A tug's exhaust stacks: modern pipes, raked or straight, one per engine (done, awaiting owner test)
 
 Owner, Oct 2026 (a photo of a modern tug's exhausts): "I don't want the exhaust pipe to look like an old steamship... more like this, so they can have a little bit of angle in them. Maybe that's an option in the shipyard. So they could be straight pipes, maybe one or two, depending on the engines."

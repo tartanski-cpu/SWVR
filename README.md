@@ -273,6 +273,7 @@ The dash shows:
 - **Speed** (kn) and **depth under the keel** (red below 2 m), side by side, with heading, course over ground and the anchor.
 - **Heading** (compass tape), with course over ground and **rate of turn** (degrees a minute, S or P).
 - **Engine**: rpm, gear, engine state, load, fuel burn and coolant temperature, and the **rudder's actual angle** (the needle) against the helm's order (the ring), so you can see it catching up with the wheel. With outboards, stern drives or pod drives it shows their legs (DRIVES).
+- **Tow line** (advanced instruments, on a boat that can tow: she has a stern roller): the towline's pull in kN, and a bar of how near it is to **parting**: green, amber past half, red near breaking (EASE OFF). A white mark holds the highest load for a few seconds, so a sudden snatch still shows. NO LINE when nothing's made fast; PARTED when it goes. A steady pull, even flat out, won't part it: a tow that's stuck, a squall pushing you apart, or a hard snatch on a slack line will.
 - **Rudder angle**: the needle is the actual rudder, the ring is the helm order (also in figures, top right).
 - The **engine monitor**, behind the wheel (read it through the spokes): coolant and oil temperature, fuel litres and L/h, battery volts, and HIGH TEMP / LOW FUEL lamps. A buzzer sounds with the alarms.
 
