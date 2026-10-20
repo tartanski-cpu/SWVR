@@ -5368,6 +5368,15 @@ Owner, Oct 2026: a new career starts in one of the new fleet boats; hide the wor
 - **Tests:** tests/starterBoat.test.ts (3); starterWorkboat.test.ts's other-boat message now "Not for this boat".
 - **Next fleet steps:** move the tests and golden runs onto the fleet; then delete the old boats (owner: hide first, delete later).
 
+### Bow spray from where her bow meets the water (done, awaiting owner test)
+
+Owner, Oct 2026 (a screenshot of the pilot boat): "the spray emitters are not at the point where the bow intersects with the water, it needs to take the rake into account".
+
+- **Why:** the bow wave came off a fixed point 46 % of her length forward of amidships, at the water's height there. With a raked stem that point is ahead of where she meets the water (the fleet's pilot boat by 0.8 m, the landing craft by 1.5 m), so the spray came off thin air in front of her. The planing sheets came off a fixed point too (`rootFrac`, 18 % of her length forward of amidships), whatever her trim.
+- **Now** (vessel/view/spray.ts): each frame, her keel line (each section's bottom) is checked from forward for the first point under the surface, as she rides: trimmed by the head or the stern, pitching, lifted planing. The bow wave comes off both sides there at her waterline breadth (while it's forward of amidships: running up on the plane, her forefoot clear, it stops and the sheets take over). The planing sheets come off the same point, out at her chines. `rootFrac` is gone from `CONFIG.effects.spray.planing`.
+- **The slam probes** now stand just aft of her stem's real waterline (`stemAtWaterline`, from her sections) instead of the fixed 43 % and 33 %.
+- **Checked:** tests/sprayStem.test.ts (2): a section's waterline breadth; on every fleet boat the stem point is in the water with clear water ahead of it (pilot boat −5.00 m against the old −5.80, landing craft −2.62 against −4.14). Headless Chromium, the pilot boat at 3.3 and 7.5 m/s: at speed the spray comes off right under her forefoot. **Not checked:** in a seaway, and on the Quest.
+
 ### Pod drives with a helm joystick (done, awaiting owner test)
 
 Owner, Oct 2026: new modules for the planing hulls, "two drives... they attach to the bottom of the ship, and the propellers are at the front", "a more cool looking black throttle", and "a joystick... press a button and it goes on to vector mode... undock the ship by simply pressing left on the joystick and move it forward slowly and backwards... rotate the joystick to make it turn". The owner named a commercial system as the idea; what's built is our own design (project rule: original designs only): a generic pod with a strut, a torpedo nacelle, two propellers at its front and a fin under its tail.
