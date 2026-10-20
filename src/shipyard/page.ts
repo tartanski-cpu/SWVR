@@ -461,15 +461,20 @@ function frameMachinery(): void {
   // (Her outboards, if that's her machinery.)
   const m = shown?.machinery ?? shown?.modules.getObjectByName('outboards');
   if (!m) return;
+  // Where everything is first: the engines sit nested in their holders (placed and tilted on
+  // the shaft line), whose positions aren't worked out until the scene is drawn. Measured
+  // before that, a stern drive's engines (all there is of its machinery) were taken to be at
+  // her origin, and the view zoomed into the middle of her (owner, Oct 2026).
+  boatRoot?.updateMatrixWorld(true);
   const box = new THREE.Box3();
-  // (And her pod drives under her, with their engines.)
-  for (const part of [m, shown?.modules.getObjectByName('pods')])
+  // (And a stern drive's legs or her pod drives under her, with their engines.)
+  for (const part of new Set([m, shown?.modules.getObjectByName('outboards'), shown?.modules.getObjectByName('pods')]))
     part?.traverse((o) => {
       if ((o as THREE.Mesh).isMesh) box.expandByObject(o);
     });
   if (box.isEmpty()) return;
   const at = box.getCenter(new THREE.Vector3());
-  const r = Math.max(3, box.getSize(new THREE.Vector3()).length() * 1.1);
+  const r = Math.max(4, box.getSize(new THREE.Vector3()).length() * 1.4);
   if (flat) flatBtn.click();
   look([at.x + 0.75 * r, at.y + 0.55 * r, at.z + 0.6 * r], at.toArray());
 }
