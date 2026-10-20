@@ -45,7 +45,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import yaml from 'js-yaml';
-import { ROOT, dirs, loadRequest, projection } from './common.ts';
+import { ROOT, dirs, latin, loadRequest, nameOf, projection, slug } from './common.ts';
 import { THEMES } from './themes.ts';
 
 const T = {
@@ -240,7 +240,7 @@ for (const [id, w] of Object.entries(osm.ways)) {
   if (!inBox(c[0], c[1])) continue;
   const source = `way/${id}`;
   const closed = w.nodes[0] === w.nodes[w.nodes.length - 1] && p.length > 3;
-  const name = t.name ?? '';
+  const name = nameOf(t);
   const width = Number.parseFloat(t.width ?? '') || 0;
   if (t.leisure === 'marina' || t.amenity === 'ferry_terminal' || t.landuse === 'harbour' || t['seamark:type'] === 'harbour') {
     areas.push({ source, kind: t.leisure === 'marina' ? 'marina' : t.amenity === 'ferry_terminal' ? 'ferry terminal' : 'harbour', name, x: c[0], z: c[1] });
@@ -379,7 +379,7 @@ items.forEach((it, i) => clusters.set(find(i), [...(clusters.get(find(i)) ?? [])
 const places = Object.values(osm.nodeTags)
   .map((t, i) => ({ t, p: osm.nodes[Object.keys(osm.nodeTags)[i]] }))
   .filter(({ t, p }) => p && t.name && ['town', 'village', 'hamlet', 'suburb', 'locality'].includes(t.place))
-  .map(({ t, p }) => ({ name: t.name, at: P.fwd(p[0], p[1]) }));
+  .map(({ t, p }) => ({ name: nameOf(t), at: P.fwd(p[0], p[1]) }));
 
 /** Open water seen from (x, z): the mean fetch round the compass (m). The box's edge counts as open sea. */
 function fetch(x: number, z: number): number {
@@ -417,7 +417,7 @@ for (const list of clusters.values()) {
   // Fetch from the harbour's berths (where boats lie), else its middle.
   const at = nb.length ? nb : [{ x: cx, z: cz }];
   const f = at.reduce((s, b) => s + fetch(b.x, b.z), 0) / at.length;
-  const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const id = slug(name);
   harbours.push({ id, name, kind: isHarbour ? 'harbour' : 'pier', x: r1(cx), z: r1(cz), pieces: [...new Set(sources)], berths: nb.length, fetch: Math.round(f) });
 }
 // Unique ids.
@@ -448,7 +448,7 @@ if (namedAnchorage) {
   const d = -hAt(x, z);
   if (d < 2) warnings.push(`anchorage ${namedAnchorage.name}: only ${d.toFixed(1)} m of water there`);
   const name = `${namedAnchorage.name} anchorage`;
-  harbours.push({ id: name.toLowerCase().replace(/[^a-z0-9]+/g, '-'), name, kind: 'anchorage', x: r1(x), z: r1(z), pieces: [], berths: 0, fetch: Math.round(fetch(x, z)), role: 'anchorage' });
+  harbours.push({ id: slug(name), name, kind: 'anchorage', x: r1(x), z: r1(z), pieces: [], berths: 0, fetch: Math.round(fetch(x, z)), role: 'anchorage' });
 } else if (spine.anchorage) {
   // The anchorage: the most sheltered water of the right depth, clear of harbours and marks.
   let best: { x: number; z: number; f: number } | null = null;
@@ -466,7 +466,7 @@ if (namedAnchorage) {
   if (best) {
     const place = places.sort((a, b) => Math.hypot(a.at[0] - best!.x, a.at[1] - best!.z) - Math.hypot(b.at[0] - best!.x, b.at[1] - best!.z))[0];
     const name = `${place?.name ?? 'The'} anchorage`;
-    harbours.push({ id: name.toLowerCase().replace(/[^a-z0-9]+/g, '-'), name, kind: 'anchorage', x: best.x, z: best.z, pieces: [], berths: 0, fetch: Math.round(best.f), role: 'anchorage' });
+    harbours.push({ id: slug(name), name, kind: 'anchorage', x: best.x, z: best.z, pieces: [], berths: 0, fetch: Math.round(best.f), role: 'anchorage' });
   } else warnings.push('anchorage: no sheltered water 4-15 m deep found');
 }
 if (!harbours.some((h) => h.role === 'harbour.sheltered') && spine['harbour.sheltered']) warnings.push('no sheltered harbour found');

@@ -23,6 +23,10 @@ The owner's brief, in short: generate playable regions of real coastline in the 
 6. **Package** (`src/package.ts`, the brief's stage 10, run last): the region in the game's own shapes (`RegionDef`: ports with cargo and fuel berths, stacks, lamps and floods, trade from the request's `economy`; the kit as `BlockDef`s, pontoons as low piers; buildings; slipways; marks with a game kind; lights, one colour each since the game has no sector lights yet; race zones; shelter by fetch; fishing grounds for the request's fish; potting grounds round the skerries; landmarks: the highest named summit and the tallest lighthouse) to `src/world/regions/<id>.coast.json`, in the region's own metres. The game places it (`regions/oban.ts`) and fetches the terrain.
    The mesh stage also, for the game: fades land and sea at the box's edges to the game's open-sea floor (40 m) over 400 m, so the region ends in open sea as its islands do; keeps the deep faces (not drawn) after the chunks for the physics; stands the lost skerries back up in the mesh; and **fails** (exit code 1, and a warning in the report) if a chunk is over 12,000 triangles. The game's tests check the same, so the site's build fails too.
 
+## Names
+
+The game's names and ids are in the Latin alphabet. A feature's name is its `name:en`, else its `int_name`, else its own name transliterated (Greek, ELOT 743 simplified: `common.ts` `nameOf`, `latin`; ids from `slug`). Rename anything clumsy in the region's edits file (Syros: the harbours are named after their fishing shelters in the map data).
+
 ## Big maps, in chunks (Voyage mode only)
 
 A request with `chunked: true` (the Clyde, 36 x 37 km) is written for streaming:

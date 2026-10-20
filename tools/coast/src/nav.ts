@@ -25,7 +25,7 @@
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { dirs, loadRequest, projection } from './common.ts';
+import { dirs, latin, loadRequest, nameOf, projection } from './common.ts';
 
 const req = loadRequest(process.argv[2]);
 const D = dirs(req.id);
@@ -163,7 +163,7 @@ for (const f of features) {
   const { t, x, z } = f;
   if (!inBox(x, z)) continue;
   const type = t['seamark:type'];
-  const name = t['seamark:name'] ?? t.name ?? '';
+  const name = t['seamark:name'] ? latin(t['seamark:name']) : nameOf(t);
   if (type && /^(buoy|beacon)_/.test(type)) {
     const kind = type.replace(/^(buoy|beacon)_/, '');
     const light = lightOf(t, x, z, name, type.startsWith('buoy') ? 'buoy' : 'beacon');

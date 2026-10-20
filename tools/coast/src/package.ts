@@ -23,7 +23,7 @@
  */
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { ROOT, dirs, loadRequest, projection } from './common.ts';
+import { ROOT, dirs, latin, loadRequest, nameOf, projection, slug } from './common.ts';
 
 const T = {
   berthsPerPort: 10,
@@ -238,7 +238,7 @@ const peaks = Object.entries(osm.nodeTags as Record<string, Record<string, strin
   .filter(([id, t]) => t.natural === 'peak' && t.name && osm.nodes[id])
   .map(([id, t]) => {
     const [x, z] = P.fwd(osm.nodes[id][0], osm.nodes[id][1]);
-    return { name: t.name, x: r1(x), z: r1(z), h: hAt(x, z) };
+    return { name: nameOf(t), x: r1(x), z: r1(z), h: hAt(x, z) };
   })
   .filter((p) => interior(p.x, p.z, 600))
   .sort((a, b) => b.h - a.h);

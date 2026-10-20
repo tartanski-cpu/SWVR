@@ -1,0 +1,17 @@
+# Region request: Syros, in the Cyclades (owner, Oct 2026, from a map picture): the whole
+# island, Ermoupoli and its harbour, Ano Syros, Foinikas and Posidonia in the south-west,
+# Vari and Azolimnos in the south-east, Kini in the west, and the islets off its east coast.
+# Full scale, about 14.6 x 18.9 km. Voyage mode only, in chunks the game streams in round
+# the boat. The first region with the Aegean theme (themes.ts).
+id: syros
+name: Syros
+bbox: [24.855, 37.355, 25.02, 37.525]   # lon/lat min, max
+theme: aegean
+chunked: true
+spine:
+  harbour.sheltered: alievtiko-katafygio-ermoupolis-karnagio   # Ermoupoli (renamed in syros.edits.yaml)
+  pier.exposed: auto
+  anchorage: auto
+weatherProfile: aegean-meltemi
+fish: [mackerel, lobster]
+goods: [building-materials, groceries]

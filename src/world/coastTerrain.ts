@@ -218,6 +218,26 @@ export function coastHeight(x: number, z: number): number | null {
   return coastSample(x, z, SAMPLE) ? SAMPLE.h : null;
 }
 
+/**
+ * Is the ground at world (x, z) solid enough for a hull to touch? Everywhere but in a
+ * chunked region's square whose detailed mesh hasn't streamed in yet: there the ground is
+ * the coarse grid (a height every 50 m), which near a shore can put land under a berth, so a
+ * boat that has just jumped there (Debug → To port) would be thrown onto it before her
+ * square arrives a moment later (vessel/physics/contacts.ts).
+ */
+export function coastGroundSolid(x: number, z: number): boolean {
+  for (const t of TERRAINS) {
+    if (x < t.x0 || x >= t.x1 || z < t.z0 || z >= t.z1) continue;
+    if (t.piece) return true;
+    const i = Math.floor((x - t.chunkX0) / t.chunkSize);
+    const j = Math.floor((z - t.chunkZ0) / t.chunkSize);
+    if (i < 0 || j < 0 || i >= t.chunkW || j >= t.chunkGrid!.length / t.chunkW) return true; // no chunk: open sea, the coarse grid is right
+    const k = t.chunkGrid![j * t.chunkW + i];
+    return k < 0 || t.pieces.has(k);
+  }
+  return true;
+}
+
 /** What `coastSample` finds: the height, and the colour there (sRGB bytes; a mesh face's or the coarse grid's). */
 export interface CoastSample {
   h: number;

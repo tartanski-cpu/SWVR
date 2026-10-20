@@ -6264,6 +6264,105 @@ Owner (with a map picture of the Firth): "Next id like a bigger area, as its onl
   - **Desktop:** open https://tartanski-cpu.github.io/SWVR/next/, choose Voyage → The Firth of Clyde. You start moored at Rothesay. Sail out of Rothesay Bay and north up the Firth past Toward toward Dunoon. Watch the shore sharpen as you near it, with no holes or steps in the ground. Use Menu → Debug → World → To port to jump to Largs, Millport (Cumbrae ferry terminal), Greenock or Helensburgh, and look round each.
   - **VR:** the same, with the perf panel: watch the triangle count and frame time as chunks arrive while under way.
 
+### Settlements, woods and harbour boats (owner's brief): milestone 1, the baseline (done)
+
+The brief: varied houses from OpenStreetMap's tags (a kit of about seven types, regional palettes, lit windows at night), trees from the land cover (Poisson scatter, a library of four or five species, three distance bands with a far canopy), and harbour boats (moored, alongside and at anchor, bobbing and swinging to the wind), all within the present per-chunk budget on the Quest. Milestones: 1 baseline; 2 house tags and rules; 3 house kit and night windows; 4 tree placement and library; 5 distance bands and canopy; 6 harbour boats; 7 tuning across regions. **This milestone changes nothing you can see:** it records what the coast maps cost now, the numbers the new work must stay near.
+
+**How it works today:**
+- **Land:** the pipeline's triangle mesh (`tools/coast/src/mesh.ts`), cut into 2 km chunks.
+  - **Land cover:** each face takes its colour from ESA WorldCover's class under its middle, through the region's theme (`tools/coast/src/themes.ts`). Steep faces (normal less than 0.7 up) are rock; low flat faces near the coast are sand; open grass shades into moor with height. The colour is baked into the mesh, one flat colour per face, no texture.
+  - **Drawing:** in the game each chunk is drawn one of three ways (`world/view/coastView.ts`):
+    - in full within `regions.coastFineDistance` (1000 m);
+    - a coarse copy every 90 m out to `coastMidDistance` (6000 m);
+    - a very coarse copy every 270 m beyond that.
+  - **Draw calls:** one per chunk, whichever way it's drawn.
+- **Buildings** (`tools/coast/src/harbours.ts`, the pipeline's buildings step):
+  - **Which:** only those within 400 m of a harbour (`buildingReach`); the rest are left to the land cover's built-up colour (31,344 in the Clyde).
+  - **Shape:** each OpenStreetMap footprint becomes the smallest box round it, height from `height` / `building:levels`, else by kind; wall and roof colours picked from the theme.
+  - **In the game** (`buildBuilding` in `worldView.ts`, `plain`): a box and a gable prism, **20 triangles each, every building the same shape**, pixel-painted (render and slates, a shader pattern, no image files).
+  - **Merged per 2 km chunk:** one mesh, one draw call, drawn within `coastBuildingDistance` (2000 m).
+  - **Not read yet:** roof shape, building type, amenity, materials.
+- **Harbour kit** (piers on piles, quays, pontoons, slipways, lamps, berth marks):
+  - merged per 1 km square (`coastStructureCell`), one draw call each, drawn within `coastStructureDistance` (2500 m), so up to four per chunk;
+  - lighthouses and landmarks are one mesh for the whole map, always drawn.
+- **Trees:** none on the coast maps. The hand-built regions have one instanced conifer mesh each (`buildTreesMesh`); the coast maps send no tree spots.
+- **Boats in harbours:** none apart from the players' own and the traffic.
+
+**The numbers** (measured headless in the game by building every chunk's full ground and town, `voyage.html?map=<id>`; triangles per chunk with any land):
+
+| | Oban (30 chunks) | Tayvallich (44) | Clyde (293 of 331) |
+|---|---|---|---|
+| Land in full, per chunk | max 11,548, mean 3,606 | max 8,758, mean 2,472 | max 10,490, mean 2,687 |
+| Land coarse / very coarse | max 1,250 / 200 | max 1,250 / 200 | max 1,250 / 200 |
+| Buildings, per chunk | max 643 (12,860 tris), mean 26 | max 67 (1,340 tris) | max 477 (9,540 tris), mean 18 |
+| Buildings, whole map | 774 (15,480 tris) | 94 | 5,415 (108,300 tris) |
+| Harbour kit, per chunk | max 12,292 tris in 4 squares | max 1,256 in 2 | max 26,744 in 1 square |
+| Lighthouses, landmarks (always) | 1,182 | 246 | 3,410 |
+| **Draw calls per chunk** (land + town + kit) | at most 1 + 1 + 4 | 1 + 1 + 2 | 1 + 1 + 3 |
+| Whole scene, aboard at the start berth | 171k tris, 76 calls | 149k, 83 | 179k, 110 |
+
+- **Heaviest chunk:** Oban town (chunk 14): land 8,767, 643 buildings 12,860, harbour kit 12,292 in 4 squares: **33,919 triangles, 6 draw calls**. It's the test chunk for this work.
+- **Heaviest harbour square:** the Clyde's chunk 278: 26,744 triangles of piers on piles in one square (a long jetty: every pile is drawn). Worth thinning before boats are added there.
+- **For comparison:** home, the hand-built start, is 213k triangles.
+- **Quest frame time: not measured.** I can't reach the headset; headless software rendering says nothing about the Quest's GPU. **The baseline's frame time is yours to read:**
+  - **Where:** Voyage → Oban and Lorn, aboard at the start berth (Oban's cargo berth, in the heaviest chunk), looking over the town.
+  - **What:** turn on the perf panel (B/Y), and note the average and max frame time and the draw calls.
+  - Then the same at Rothesay in the Clyde.
+  - Those two readings become the budget the later milestones are held to.
+
+**Points to settle before milestone 2** (the brief, read against the code):
+- **Draw calls for buildings:** the brief says both "walls, roofs, emissive windows: three draw calls per chunk" and "draw calls unchanged". Today it is one per chunk. I'd keep **one**: walls, roofs and windows in the same merged mesh, with lit windows a per-vertex "glows at night" flag in the one material. That meets "unchanged" and costs nothing extra.
+- **Flat colour or pixel paint:** the brief says flat colour, no textures. The game's buildings, piers and boats all use the pixel paint (a shader pattern, no image files). I'd keep it on the kit so the new houses match the rest of the world.
+- **"Two resident regions":** a Voyage map is the one region in its world, and Career mode no longer carries the coast maps, so the frame-time test is one region at a time.
+- **Tuning for Norway and British Columbia (milestone 7):** there are no real-coast maps of either yet; they'd have to be made first (a request each). The Aegean is next (Syros, below), so the brief's Mediterranean palette and species get a real test.
+- **The forest canopy** must be drawing only: raising the ground under forest in the mesh itself would stand people walking ashore on the treetops. It'll be its own low mesh per chunk, following the ground.
+- **Harbour boats on the Quest:** a marina of fifty boats bobbing means about 50 matrix updates a frame, a few wave samples each: cheap. The Clyde has 1,470 berths, so the number shown near you will be capped (a config number).
+
+### Syros: the first Aegean map (done, awaiting owner test)
+
+Owner (a map picture of Syros): "Next Area to Map".
+
+- **The request** (`tools/coast/requests/syros.yaml`):
+  - **The box:** `[24.855, 37.355, 25.02, 37.525]`, 14.6 x 18.9 km. It takes in the whole island and the islets off its east coast.
+  - Chunked, Voyage mode only.
+- **New theme `aegean`** (`tools/coast/src/themes.ts`):
+  - **Ground:** dry straw grassland, grey-green phrygana scrub, terraced fields, pale stone for built-up land, pine and olive for tree cover, stony grey-brown on the high ground (from 120 to 380 m); bright sand under clear water.
+  - **Buildings:** white, cream and ochre walls; terracotta roofs.
+  - **Tuned by eye:** the first built-up colour, near white, read as snow over a whole town, and the grassland as bleached white in the midday light. Both are darker now.
+- **Names in Greek** (`tools/coast/src/common.ts` `nameOf`, `latin`, `slug`):
+  - OpenStreetMap's names are local, and the ids made from them came out empty.
+  - The pipeline now takes `name:en` or `int_name` where the map has one, else it transliterates Greek letter by letter (ELOT 743, simplified: ευ ev, ου ou, μπ b...).
+  - Ids are made from the Latin name.
+  - Scottish names are unchanged, but a re-run of Oban, Tayvallich or the Clyde would now prefer `name:en` where the map has one (none of them has been re-run).
+- **Hand edits** (`syros.edits.yaml`): the map calls the harbours after their fishing shelters ("Alievtiko katafygio Ermoupolis (karnagio)"). They're renamed **Ermoupoli** (now the sheltered harbour, set in the request; the automatic choice was tiny Achladi) and **Foinikas**.
+- **What came out:**
+  - **Mesh:** 204,662 triangles in 74 chunk files (the busiest 10,423), 5 MB. The island is steep all round: 89 % of its land is seen from the water.
+  - **Ports:** 10 (Ermoupoli, Syros Marina, Lazareta, Foinikas, the Voulgari piers, Achladi, Ampela, Kini, and the Vrysarakia anchorage off Ermoupoli). 99 berths found, 38 kit pieces, 2,108 buildings near the harbours.
+  - **Sea:** 15 lights (Limin Ermoupolis, Akra Trimeson, Nisis Aspro, Nisis Dhidhimi...). Only 3 buoys or beacons are mapped: thin data, reported.
+  - **Landmarks:** Pyrgos (389 m); Nisis Dhidhimi light.
+- **In the game** (`world/maps.ts`, front page):
+  - `voyage.html?map=syros`, starting moored at Ermoupoli's cargo berth.
+  - **Its own weather:** clear spells long and common, the odd grey or hazy one, rarely rain, fog almost never, a squall now and then for the meltemi.
+  - **Not yet themed:** the sea's colour, the sky and the haze are still the northern ones (a sea and sky theme per region is planned for the Calanques).
+- **Fix, for every big map:** after a jump (Debug → To port) the boat lay hard over at Foinikas.
+  - **Why:** she arrived before her square's detailed ground had streamed in, and the hull met the coarse 50 m grid, which near a shore can put land under a berth.
+  - **Now:** a hull touches the ground only where the detailed mesh is in (`coastTerrain.ts` `coastGroundSolid`, `vessel/physics/contacts.ts`). Piers and quays always count. Under way this never mattered: squares arrive 1.5 km ahead.
+- **Tests:** `tests/coastSyros.test.ts` (4):
+  - chunked, every chunk within the budget;
+  - names and ids in the Latin alphabet, unique;
+  - the map starts at Ermoupoli, a harbour, in water, with hills behind and open sea at the edge;
+  - every cargo berth has water under it.
+- **Checked headless:**
+  - **Load:** 3 s on the dev server.
+  - **Moored at Ermoupoli:** 190k triangles, 74 draws; the town's white and terracotta houses up the hill, the breakwater light.
+  - **At Foinikas after a jump:** level alongside, 167k triangles; the village behind the beach.
+- **Not checked:**
+  - the Quest;
+  - the map viewer (it can't show a chunked map yet).
+- **Test steps:**
+  - **Desktop:** open https://tartanski-cpu.github.io/SWVR/next/, choose Voyage → Syros. You start at Ermoupoli. Sail out past the breakwater light and south down the east coast past Vari to the south cape, round to Foinikas and Posidonia, or north-west to Kini. Debug → World → To port jumps between harbours.
+  - **VR:** the same, with the perf panel.
+
 ### Fix: wheelhouse buttons vanishing at the helm (owner, testing Tayvallich)
 
 Owner: "I went to pick up some cargo... the buttons and the joystick but not the throttle lever disappeared from the pilot boat." Those are exactly the parts the draw-call saving hides while you're outside the wheelhouse (`app/interiorDetail.ts`; the throttle lever is always kept). It judged "outside" by whether the game counted you aboard the boat. Some ways of getting about leave you in the world's frame even when you stand in her wheelhouse: VR fly does (Debug), and so can a camera mode. So the parts stayed hidden at the helm.
