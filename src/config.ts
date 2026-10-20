@@ -95,10 +95,32 @@ export const CONFIG = {
      * corrugated sheet and slates on the houses and sheds, concrete on the quays, stone on
      * the breakwaters.
      */
-    tileMetres: { nonSlip: 1, wood: 2, mat: 1, chequer: 0.5, crate: 1, sacking: 2, worn: 1.5, boards: 2, render: 2, sheet: 2, slates: 2, concrete: 4, stone: 3, window: 1, rust: 2 },
+    tileMetres: { nonSlip: 1, wood: 2, mat: 1, chequer: 0.5, crate: 1, sacking: 2, worn: 1.5, boards: 2, render: 2, sheet: 2, slates: 2, concrete: 4, stone: 3, window: 1, rust: 2, teak: 1.5, panels: 1.2, steel: 3, brushed: 2.4 },
     /** Width of the black window frames round the wheelhouse glass (m). */
     frameWidth: 0.06,
   },
+  /**
+   * The wheelhouse's interior finishes (owner, Oct 2026: "options for the interior textures";
+   * chosen in the Shipyard, Wheelhouse step). Each is a colour and a tile (pixelPaint) for the
+   * walls' inside faces, and one for the ceiling. From how real ones are lined:
+   * - wood: the planked lining every boat had before (and the first in the list, so a boat
+   *   with no choice keeps it);
+   * - teak & headliner: a yacht's pilothouse, varnished teak strip with a white ceiling;
+   * - white panels: the aluminium workboat's, foam-backed vinyl on ply panels screwed up
+   *   (light, wipe-clean, off in minutes to get at the wiring);
+   * - grey panels: the same in dark grey (it cuts the reflections in the windscreen by night);
+   * - painted steel: a tug's or a steel workboat's, the plating painted over in a pale
+   *   green (the old ship's interior colour, restful and hiding dirt) under a cream deckhead;
+   * - bare aluminium: the plain workboat's, the hull's own sheet left bare.
+   */
+  interiors: [
+    { name: 'Wood lining', walls: 0x8a5d3c, wallTile: 'wood', ceiling: 0x8a5d3c, ceilingTile: 'wood' },
+    { name: 'Teak & headliner', walls: 0xa86d3a, wallTile: 'teak', ceiling: 0xeeebe2, ceilingTile: 'panels' },
+    { name: 'White panels', walls: 0xf0ece2, wallTile: 'panels', ceiling: 0xf2efe8, ceilingTile: 'panels' },
+    { name: 'Grey panels', walls: 0x7d8288, wallTile: 'panels', ceiling: 0x5b6066, ceilingTile: 'panels' },
+    { name: 'Painted steel', walls: 0xb9c9ae, wallTile: 'steel', ceiling: 0xe2e2d6, ceilingTile: 'steel' },
+    { name: 'Bare aluminium', walls: 0xc3c8cd, wallTile: 'brushed', ceiling: 0xc2c5c8, ceilingTile: 'brushed' },
+  ] as const,
   render: {
     antialias: true,
     maxPixelRatio: 2,
@@ -195,6 +217,17 @@ export const CONFIG = {
     ],
     /** Largest sea scale the fine control allows, and its step. */
     maxSeaScale: 3,
+    /**
+     * Added resistance in waves (vessel/physics/vesselPhysics.ts): the drag a sea puts on a
+     * hull beyond calm water, ∝ ρ g ζ² B²/L (ζ the local wave amplitude, B her beam, L her
+     * length: the classic scaling), × `gain`; full in a head sea, `following` of it with the
+     * sea astern. It is what makes the overfalls hard to travel through: the standing,
+     * steepened waves there put ζ up two or three times, so the resistance four to nine.
+     * `fullAt`: it comes in over the first m/s of way (full at `fullAt` m/s), so a boat lying
+     * stopped isn't held or set adrift by it. gain 0.4: the workboat flat out into a sea of
+     * 1.5 loses about a fifth of her speed in open water; in the overfalls, half or more.
+     */
+    addedResistance: { gain: 0.4, following: 0.15, fullAt: 2 },
     seaScaleStep: 0.1,
     mesh: {
       /** Grid spacing (m) in the dense centre around the viewer. */
@@ -2536,6 +2569,16 @@ export const CONFIG = {
   nav: { originLat: 56.62, originLon: -5.95 },
 
   /**
+   * The overhead chartplotter (nav/chartPlotter.ts). On a coast map its land, shallows and sea
+   * are drawn as shapes cut from the ground's mesh (nav/chartLand.ts), sharp at any zoom; a
+   * square's shapes are made the first time it's in view, for at most `buildMs` each redraw
+   * (a few times a second), nearest first, so a map's first look never stalls a frame (the
+   * map's coarse picture shows meanwhile).
+   */
+  chartPlotter: {
+    buildMs: 4,
+  },
+  /**
    * Pencil marks on the paper chart (chart/marks.ts). Strokes are stored in world metres
    * (so they line up with the map), points kept at least `minStepM` m of chart apart and
    * rounded to `quantM`. Over `maxPoints` in all, the oldest strokes go (the oldest ones
@@ -3029,6 +3072,36 @@ export const CONFIG = {
        * ladder.
        */
       walk: { margin: 0.25, railHeight: 0.9, postSpacing: 1.2, railKgPerM: 4, minFore: 0.6, ladder: { width: 0.45, depth: 0.45, kg: 20 } },
+      /**
+       * A cabin below it (parametric boats P2c, design.foreCabin; owner): its sole sunk so there's
+       * `headroom` (m) under the trunk's top, but no lower than leaves the sole `minHalf` wide each
+       * side of the centreline inside her hull (`hullClear` in from her plating) and `keelClear`
+       * over her bottom; under `minHeadroom` it's left off. Its walls `wall` inside the trunk's.
+       * The companionway: `stairWidth` wide beside the helm (`helmRoom` left for the helmsman),
+       * steps no more than `rise` high (a walk step is 0.4: vessel/layout.ts) and `tread` deep,
+       * stepping down forward from the wheelhouse floor; at least `minAhead` of cabin forward of
+       * it. A V-berth across her forward end, `berth.length` long and `berth.top` over the sole,
+       * if the cabin's at least `berth.minCabin` long. Its sole, lining and berth `kgPerM2` of
+       * lining; drawn in `lining`, `trim` (the berth front, the treads) and `cushion`.
+       */
+      cabin: {
+        headroom: 1.9,
+        minHeadroom: 1.65,
+        minHalf: 0.4,
+        hullClear: 0.08,
+        keelClear: 0.2,
+        wall: 0.06,
+        stairWidth: 0.7,
+        helmRoom: 0.45,
+        rise: 0.32,
+        tread: 0.26,
+        minAhead: 0.8,
+        berth: { length: 1.1, top: 0.5, minCabin: 2.2 },
+        kgPerM2: 12,
+        lining: 0xd8d2c4,
+        trim: 0x8a5d3c,
+        cushion: 0x2b3a55,
+      },
     },
     /**
      * A saloon aft of the wheelhouse (parametric boats P2b, design.saloon): the house runs on
@@ -4712,6 +4785,26 @@ export const CONFIG = {
    */
   currents: {
     edgeFade: 60,
+    /**
+     * Overfalls (owner, Oct 2026: steeper seas in some places, harder to travel through):
+     * wind waves meeting a tidal race running against them shorten and stand up. Inside a
+     * running race, for each wave by how much it opposes the flow (`opp` = -(wave direction ·
+     * flow) × strength × how far in, -1..1; the CPU and the ocean shader alike):
+     *   heighten  the wave's height × (1 + heighten × opp) when opposing (on top of the
+     *             zone's own waveFactor);
+     *   steepen   its crest sharpness (the Gerstner orbit) × (1 + steepen × opp) more still;
+     *   flatten   with the flow (opp < 0): height × (1 - flatten × |opp|), the sea eases;
+     *   chop      two short wind-wave components in the sea, `amplitude` m (× the sea scale)
+     *             at `periods` s, travelling `spreadDeg` either side of the main wave: nowhere
+     *             but where they oppose a running race (× max(opp, 0)).
+     * The crest-loop limit (Σ Q·k·A < 1) is kept at the worst case (tests/overfalls.test.ts).
+     */
+    overfalls: {
+      heighten: 0.35,
+      steepen: 0.45,
+      flatten: 0.3,
+      chop: { amplitude: 0.12, periods: [2.6, 2.1] as readonly number[], spreadDeg: 15 },
+    },
     slackBelowKn: 1.5,
     knock: { radius: 28, yaw: 0.07, roll: 0.08 },
     roar: { hearRange: 700, gain: 0.55 },

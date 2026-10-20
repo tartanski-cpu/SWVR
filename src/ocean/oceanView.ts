@@ -6,7 +6,7 @@ import { createOceanGeometry, distanceForCellSize } from './oceanGeometry';
 import fragmentShader from './shaders/ocean.frag.glsl?raw';
 import oceanVertex from './shaders/ocean.vert.glsl?raw';
 import gerstnerChunk from './shaders/gerstner.glsl?raw';
-import type { PreparedWave } from './waves';
+import { LOOP_CAP, loopSums, type PreparedWave } from './waves';
 import { createRippleTexture } from './rippleTexture';
 import { foamNoiseTexture } from './foamNoise';
 import { SHELTERS, type CurrentZoneDef, type ShelterDef } from '../world/archipelago';
@@ -47,6 +47,8 @@ export class OceanView {
       uRaceB: u.uRaceB,
       uRaceCount: u.uRaceCount,
       uRaceFade: u.uRaceFade,
+      uOverfalls: u.uOverfalls,
+      uLoop: u.uLoop,
       uSunIntensity: u.uSunIntensity,
       uAmbient: u.uAmbient,
       uFogColor: u.uFogColor,
@@ -69,6 +71,8 @@ export class OceanView {
     uRaceB: { value: Array.from({ length: MAX_RACES }, () => new THREE.Vector4(1, 0, 0, 1)) },
     uRaceCount: { value: 0 },
     uRaceFade: { value: CONFIG.currents.edgeFade },
+    uOverfalls: { value: new THREE.Vector3(CONFIG.currents.overfalls.heighten, CONFIG.currents.overfalls.steepen, CONFIG.currents.overfalls.flatten) },
+    uLoop: { value: new THREE.Vector3(0, 0, LOOP_CAP) },
     uKnock: { value: Array.from({ length: MAX_KNOCKS }, () => new THREE.Vector4()) },
     uKnockCount: { value: 0 },
     // A katabatic gust's patch on the water (setGust): x, z, radius, strength; the way it blows.
@@ -298,13 +302,15 @@ export class OceanView {
     this.setRaceStrengths(time);
     const count = Math.min(waves.length, MAX_WAVES);
     u.uWaveCount.value = count;
+    const loops = loopSums(waves);
+    u.uLoop.value.set(loops.sea, loops.chop, LOOP_CAP);
     let crest = 0;
     let steep = 0;
     for (let i = 0; i < count; i++) {
       const w = waves[i];
       const fadeEnd = distanceForCellSize(w.wavelength / CONFIG.ocean.mesh.minCellsPerWavelength);
       u.uWaveA.value[i].set(w.dirX, w.dirZ, w.k, w.amplitude);
-      u.uWaveB.value[i].set(w.horizontal, w.phase, fadeEnd, 0);
+      u.uWaveB.value[i].set(w.horizontal, w.phase, fadeEnd, w.chop ? 1 : 0);
       crest += w.amplitude;
       steep += w.k * w.horizontal;
     }

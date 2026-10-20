@@ -123,22 +123,56 @@ export function currentKnAt(x: number, z: number): number {
   return Math.hypot(v.x, v.z) / KN;
 }
 
+/** The races at a point: the amplitude factor, and the strongest running race's set and signed, weighted strength. */
+export interface RaceHere {
+  /** The standing waves' amplitude factor (>= 1). */
+  f: number;
+  /** The strongest running race's set (unit, world x z); meaningless when sw is 0. */
+  setX: number;
+  setZ: number;
+  /** Its signed strength × how far in (-1..1; 0: no race running here). */
+  sw: number;
+}
+
 /**
- * The wave amplitude multiplier at rest position (x0, z0) from the races: the waves stand
- * up inside a running one, waveFactor x at full strength. Multiplied with the shelter factor
- * (ocean/waves.ts and gerstner.glsl, the same formula).
+ * The races at rest position (x0, z0): the wave amplitude multiplier (the waves stand up
+ * inside a running one, waveFactor x at full strength; multiplied with the shelter factor
+ * in ocean/waves.ts and gerstner.glsl, the same formula), and which race runs strongest
+ * there, for the overfalls (raceOpposition).
  */
-export function raceWaveFactor(x0: number, z0: number): number {
-  let f = 1;
+export function raceAt(x0: number, z0: number, out: RaceHere = { f: 1, setX: 0, setZ: 0, sw: 0 }): RaceHere {
+  out.f = 1;
+  out.sw = 0;
   for (let i = 0; i < CURRENTS.length; i++) {
     const zn = CURRENTS[i];
     const reach = Math.hypot(zn.length, zn.width) / 2;
     if (Math.abs(x0 - zn.x) > reach || Math.abs(z0 - zn.z) > reach) continue;
     const w = zoneWeight(zn, x0, z0);
     if (w <= 0) continue;
-    f = Math.max(f, 1 + (zn.waveFactor - 1) * Math.abs(strength[i]) * w);
+    const sw = strength[i] * w;
+    out.f = Math.max(out.f, 1 + (zn.waveFactor - 1) * Math.abs(sw));
+    if (Math.abs(sw) > Math.abs(out.sw)) {
+      const s = setVector(zn);
+      out.sw = sw;
+      out.setX = s.x;
+      out.setZ = s.z;
+    }
   }
-  return f;
+  return out;
+}
+
+/** The wave amplitude multiplier at rest position (x0, z0) from the races (raceAt's `f`). */
+export function raceWaveFactor(x0: number, z0: number): number {
+  return raceAt(x0, z0).f;
+}
+
+/**
+ * How much a wave travelling along (dirX, dirZ) runs against the race at `race` (raceAt):
+ * +1 head on into a full flow against it, -1 carried along with it, 0 at slack or across.
+ * The overfalls (CONFIG.currents.overfalls) stand the opposing waves up.
+ */
+export function raceOpposition(race: RaceHere, dirX: number, dirZ: number): number {
+  return -(dirX * race.setX + dirZ * race.setZ) * race.sw;
 }
 
 // ── Whirl points ───────────────────────────────────────────────────────────────

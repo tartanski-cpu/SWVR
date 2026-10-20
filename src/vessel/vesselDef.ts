@@ -34,7 +34,14 @@ export type LayoutConfig = Omit<WorkboatLayout, 'wheelhouse' | 'roof' | 'ladder'
      */
     hollows?: Hollow[];
     /** The deck cut away forward of the house too, from `front` to the house, `inset` in from the deck edge: a cabin under a trunk cabin there (hullMesh.ts sunkenHouse). */
-    deckOpening?: { front: number; inset: number };
+    deckOpening?: {
+      front: number;
+      inset: number;
+      /** Its half width along her instead ([z, half width], front to aft; a Shipyard cabin below, P2c): the cut ends at its last z. */
+      plan?: [number, number][];
+    };
+    /** A cabin below the deck under the deckhouse (parametric boats P2c, a Shipyard design's): see CabinBelow. */
+    cabin?: CabinBelow;
     /**
      * A cockpit overhead (parametric boats P2b, owner): the house's aft roof carried on aft over
      * the working deck, from `z0` (the house's aft wall) to `z1`, its underside at `y`, `thickness`
@@ -96,6 +103,45 @@ export function wingCurveY(o: OverheadLayout, z: number): number {
   return (1 - t) * (1 - t) * o.deckY + 2 * (1 - t) * t * cy + t * t * o.y;
 }
 
+/**
+ * A cabin below (parametric boats P2c; owner): under a Shipyard design's deckhouse forward of
+ * the wheelhouse (its trunk), its sole sunk into the hull for standing headroom, reaching aft
+ * under the wheelhouse floor to the foot of the companionway, which comes down from the
+ * wheelhouse floor beside the helm. From `z0` (forward) to `z1`, its sole at `sole`, its half
+ * width along her (`plan`, [z, half width] front to aft: inside the trunk's walls and her
+ * hull's sides at the sole). Its ceiling: the trunk's top forward of `ceiling.front` (the
+ * wheelhouse front, at `ceiling.trunk`), the wheelhouse floor's underside aft of it
+ * (`ceiling.house`). The companionway: an opening `stair` in the wheelhouse floor, its treads
+ * stepping down forward. A V-berth across her forward end to `berth.z1`, `berth.top` high.
+ *
+ * Drawn by vessel/view/hullMesh.ts (a lining facing in: the hull and deckhouse are drawn to
+ * be seen from outside). Walked through the general fields the Alaskan 38's cabin uses: the
+ * treads and sole are extraFloors, the space is hollows, the opening the house's floorHoles,
+ * the deck cut away over it deckOpening.
+ */
+export interface CabinBelow {
+  z0: number;
+  z1: number;
+  sole: number;
+  plan: [number, number][];
+  ceiling: { front: number; trunk: number; house: number };
+  stair: { x0: number; x1: number; z0: number; z1: number; treads: { z0: number; z1: number; y: number }[] };
+  berth?: { z1: number; top: number };
+}
+
+/** A [z, half width] plan's half width at z (front to aft; interpolated; 0 outside it): a cabin below's, a deck opening's. */
+export function planHalfWidth(p: readonly (readonly [number, number])[], z: number): number {
+  if (z < p[0][0] || z > p[p.length - 1][0]) return 0;
+  for (let i = 1; i < p.length; i++) {
+    if (z <= p[i][0]) {
+      const [za, wa] = p[i - 1];
+      const [zb, wb] = p[i];
+      return zb === za ? wb : wa + ((wb - wa) * (z - za)) / (zb - za);
+    }
+  }
+  return p[p.length - 1][1];
+}
+
 /** A level rectangle of floor at a height (LayoutConfig.extraFloors). */
 export interface FloorPatch {
   x0: number;
@@ -135,8 +181,12 @@ export type BowRampLayout = (typeof CONFIG.vessels.landingCraft.layout)['bowRamp
  * A hull's paint, by part (vessel/view/hullMesh.ts draws her in it); a part not given keeps
  * the workboat's colour. 0xRRGGBB.
  */
-/** `roofTop`: a panel set in from the roof top's edges in its own colour (the eyebrow; none: the roof is one colour). */
-export type Livery = Partial<Record<'bottom' | 'topsides' | 'deck' | 'house' | 'windows' | 'roof' | 'roofTop' | 'mast' | 'rail' | 'floor' | 'console' | 'panel', number>>;
+/**
+ * `roofTop`: a panel set in from the roof top's edges in its own colour (the eyebrow; none: the
+ * roof is one colour). `interior`: the wheelhouse's finish inside, an index into
+ * CONFIG.interiors (none: the wood lining).
+ */
+export type Livery = Partial<Record<'bottom' | 'topsides' | 'deck' | 'house' | 'windows' | 'roof' | 'roofTop' | 'mast' | 'rail' | 'floor' | 'console' | 'panel' | 'interior', number>>;
 
 /**
  * A wheelhouse: the workboat's, with what not every house has optional (M7): a port side

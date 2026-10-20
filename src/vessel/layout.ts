@@ -16,7 +16,7 @@ import { deckhouseLadderZone, inDeckhouse, onDeckhouseTop } from './deckhouse';
 import { gearOf } from '../boats/sims';
 import type { GearFootprint } from '../modular/module';
 import type { HullForm } from './hullForm';
-import { houseFloorAt, houseRoofAt, wingCurveY, type VesselDef } from './vesselDef';
+import { houseFloorAt, houseRoofAt, planHalfWidth, wingCurveY, type VesselDef } from './vesselDef';
 
 export interface Ladder {
   bottom: number;
@@ -284,7 +284,13 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: reado
   const inHollow = (x: number, y: number, z: number) => hollows.some((o) => x > o.x0 && x < o.x1 && y > o.y0 && y < o.y1 && z > o.z0 && z < o.z1);
   // The deck cut away forward of the helm's house (a cabin under a trunk cabin there): not deck.
   const op = layout.deckOpening;
-  const inOpening = (x: number, z: number) => !!op && z < wh.front + r && z > op.front - r && Math.abs(x) < deckHalfBeam(z) - op.inset + r;
+  // (A Shipyard cabin below's: its own plan, P2c.)
+  const opPlan = op?.plan;
+  const inOpening = (x: number, z: number) =>
+    !!op &&
+    (opPlan
+      ? z > opPlan[0][0] - r && z < opPlan[opPlan.length - 1][0] + r && Math.abs(x) < planHalfWidth(opPlan, Math.min(Math.max(z, opPlan[0][0]), opPlan[opPlan.length - 1][0])) + r
+      : z < wh.front + r && z > op.front - r && Math.abs(x) < deckHalfBeam(z) - op.inset + r);
   // A deckhouse under the wheelhouse (vessel/deckhouse.ts): solid; its top walked if it has
   // `walk` (P2b), round the houses standing on it, with a ladder up from the deck.
   const dh = layout.deckhouse;

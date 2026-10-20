@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { HullForm } from '../hullForm';
 import { hullPlan, type LayoutConfig } from '../layout';
-import { houseFloorAt, houseFloorLow, housesOf, wingCurveY, type Livery } from '../vesselDef';
+import { houseFloorAt, houseFloorLow, housesOf, planHalfWidth, wingCurveY, type CabinBelow, type Livery } from '../vesselDef';
 import { flatVertexColorMaterial, mergeParts, part } from '../../render/geometryUtils';
 import { CONFIG } from '../../config';
 import { paintIndex, type PaintName } from '../../render/pixelPaint';
@@ -24,17 +24,22 @@ const COLORS = {
   panel: 0x22272b,
   /** The window frames round the wheelhouse glass. */
   frame: 0x16191b,
-  /** The wheelhouse's wood lining, inside. */
+  /** The wheelhouse's lining inside, its walls and its ceiling (her livery's `interior` sets them: CONFIG.interiors). */
   lining: 0x8a5d3c,
+  ceiling: 0x8a5d3c,
 };
 
-/** Every part's colour, for a hull's livery (`roofTop`: only a roof with an inset top in a second colour has one). */
-type Paint = typeof COLORS & { roofTop?: number };
+/**
+ * Every part's colour, for a hull's livery (`roofTop`: only a roof with an inset top in a
+ * second colour has one), and the tiles the wheelhouse's lining wears inside.
+ */
+type Paint = typeof COLORS & { roofTop?: number; liningTile: PaintName; ceilingTile: PaintName };
 
-/** A hull's colours: her livery over the workboat's. */
+/** A hull's colours: her livery over the workboat's; inside, her interior finish (the wood lining if none). */
 export function paintOf(livery?: Livery): Paint {
-  const paint = { ...COLORS };
-  for (const [k, v] of Object.entries(livery ?? {})) if (v !== undefined) (paint as Record<string, number>)[k] = v;
+  const fin = CONFIG.interiors[livery?.interior ?? 0] ?? CONFIG.interiors[0];
+  const paint: Paint = { ...COLORS, lining: fin.walls, ceiling: fin.ceiling, liningTile: fin.wallTile, ceilingTile: fin.ceilingTile };
+  for (const [k, v] of Object.entries(livery ?? {})) if (v !== undefined && k !== 'interior') (paint as unknown as Record<string, number>)[k] = v;
   return paint;
 }
 
@@ -135,8 +140,8 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
   // outboard of its inner edge on each side (`inner`, by side -1 port, 1 starboard).
   const deckHatch = layout.engineHatch?.y !== undefined ? layout.engineHatch : undefined;
   const deckCuts = [
-    ...cuts.map((c) => ({ front: c.front, aft: c.aft, inner: (side: number, z: number) => side * c.halfWidth(z) })),
-    ...(deckHatch ? [{ front: deckHatch.z0, aft: deckHatch.z1, inner: (side: number) => (side < 0 ? deckHatch.x0 : deckHatch.x1) }] : []),
+    ...cuts.map((c) => ({ front: c.front, aft: c.aft, zs: c.zs ?? [], inner: (side: number, z: number) => side * c.halfWidth(z) })),
+    ...(deckHatch ? [{ front: deckHatch.z0, aft: deckHatch.z1, zs: [] as number[], inner: (side: number) => (side < 0 ? deckHatch.x0 : deckHatch.x1) }] : []),
   ];
   for (let i = 0; i < st.length - 1; i++) {
     // Interior reference midway between the two stations.
@@ -152,7 +157,7 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
       const za = st[i].z;
       const zb = st[i + 1].z;
       const at = (z: number, k: number) => P(i, k).lerp(P(i + 1, k), (z - za) / (zb - za));
-      const breaks = [za, zb, ...deckCuts.flatMap((c) => [c.front, c.aft])].filter((z) => z <= Math.max(za, zb) && z >= Math.min(za, zb)).sort((a, b) => b - a);
+      const breaks = [za, zb, ...deckCuts.flatMap((c) => [c.front, c.aft, ...c.zs])].filter((z) => z <= Math.max(za, zb) && z >= Math.min(za, zb)).sort((a, b) => b - a);
       for (let j = 0; j < breaks.length - 1; j++) {
         const z0 = breaks[j];
         const z1 = breaks[j + 1];
@@ -216,7 +221,9 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
   // under each part of it (her sides tuck in below the deck: lower, it showed through them).
   if (layout.deckhouse) {
     const plan = hullPlan({ hull: form });
-    parts.push(buildDeckhouse(layout.deckhouse, (z) => plan.deckY(z) - 0.06, col.house));
+    // (A cabin below's companionway comes down through its top as well as the wheelhouse floor.)
+    parts.push(buildDeckhouse(layout.deckhouse, (z) => plan.deckY(z) - 0.06, col.house, layout.cabin ? [layout.cabin.stair] : []));
+    if (layout.cabin) parts.push(...cabinParts(layout.cabin));
     if (layout.deckhouse.walk) parts.push(...deckhouseRail(layout.deckhouse, layout.wheelhouse?.halfWidth ?? 0, plan.deckY, col.rail));
   }
   // Her houses (P2a: the list), the helm's first: each drawn as the helm's is, from a layout
@@ -232,7 +239,8 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
       // house's walls go down to its floor (the Shipyard keeps those where her hull is wide).
       const deckLo = Math.min(...Array.from({ length: 9 }, (_, i) => plan.deckY(wh.front + ((wh.aft - wh.front) * i) / 8)));
       const low = Math.min(0.9, houseFloorLow(wh) - 0.15);
-      const base = sunkHere ? low : Math.max(low, deckLo - 0.06);
+      // (With a cabin below under it, P2c: from its floor's underside, so they don't stand across the cabin.)
+      const base = k === 0 && layout.cabin ? Math.max(low, wh.floorY - 0.12) : sunkHere ? low : Math.max(low, deckLo - 0.06);
       if (wh.shell === 'oneOff') {
         // Her own walls, floors, console body and roof (boats/oneOffViews.ts): nothing here.
       } else parts.push(...(wh.shape ? buildShapedHouse(own, col, base) : buildWheelhouse(own, col, base)));
@@ -251,17 +259,17 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
 
 /**
  * Lines a house wall inside: its faces that stand upright and look in towards `centre` (in
- * plan) take the lining's colour and the wood paint. Only a part in the house's own colour
- * (the window frames stay black inside too).
+ * plan) take the lining's colour and tile (the interior finish's). Only a part in the house's
+ * own colour (the window frames stay black inside too).
  */
-function lineInside(g: THREE.BufferGeometry, house: number, lining: number, centre: THREE.Vector3): void {
+function lineInside(g: THREE.BufferGeometry, house: number, lining: number, tile: PaintName, centre: THREE.Vector3): void {
   const col = g.attributes.color;
   const pos = g.attributes.position;
   const paint = g.attributes.paint;
   const h = new THREE.Color(house);
   if (Math.abs(col.getX(0) - h.r) + Math.abs(col.getY(0) - h.g) + Math.abs(col.getZ(0) - h.b) > 1e-3) return;
   const c = new THREE.Color(lining);
-  const wood = paintIndex('wood');
+  const wood = paintIndex(tile);
   const a = new THREE.Vector3();
   const b = new THREE.Vector3();
   const d = new THREE.Vector3();
@@ -415,16 +423,22 @@ export function sunkenHouse(form: HullForm, layout: LayoutConfig): { front: numb
 }
 
 /** Where the deck is cut away for her houses (P2a: every house sunk below the deck; the helm's, `house` 0, with any deck opening forward of it). */
-export function sunkenHouses(form: HullForm, layout: LayoutConfig): { house: number; helm: boolean; front: number; aft: number; halfWidth: (z: number) => number }[] {
+export function sunkenHouses(form: HullForm, layout: LayoutConfig): { house: number; helm: boolean; front: number; aft: number; halfWidth: (z: number) => number; zs?: number[] }[] {
   const plan = hullPlan({ hull: form });
-  const out: { house: number; helm: boolean; front: number; aft: number; halfWidth: (z: number) => number }[] = [];
+  // (`zs`: where its edge bends, a plan's points, so the deck's cut edge follows it.)
+  const out: { house: number; helm: boolean; front: number; aft: number; halfWidth: (z: number) => number; zs?: number[] }[] = [];
   for (const [k, wh] of housesOf(layout).entries()) {
     const helm = k === 0 && !!layout.wheelhouse;
     const deck = Math.max(plan.deckY(wh.front), plan.deckY(wh.aft));
     // A cabin below the deck forward of the helm's house (layout.deckOpening: under a trunk
     // cabin): the cut runs on forward, `inset` in from the deck edge there.
     const op = helm ? layout.deckOpening : undefined;
-    if (op) out.push({ house: k, helm, front: Math.min(wh.front, op.front), aft: wh.aft, halfWidth: (z) => (z < wh.front ? Math.max(0.2, plan.halfBeam(z) - op.inset) : wh.halfWidth) });
+    // (A Shipyard cabin below, P2c: cut to its own plan, from its front to its aft end. The house above stands on its deckhouse.)
+    if (op?.plan) {
+      const plan = op.plan;
+      out.push({ house: k, helm, front: plan[0][0], aft: plan[plan.length - 1][0], halfWidth: (z) => planHalfWidth(plan, z), zs: plan.map(([z]) => z) });
+      if (houseFloorLow(wh) < deck) out.push({ house: k, helm: false, front: wh.front, aft: wh.aft, halfWidth: () => wh.halfWidth });
+    } else if (op) out.push({ house: k, helm, front: Math.min(wh.front, op.front), aft: wh.aft, halfWidth: (z) => (z < wh.front ? Math.max(0.2, plan.halfBeam(z) - op.inset) : wh.halfWidth) });
     else if (houseFloorLow(wh) < deck) out.push({ house: k, helm, front: wh.front, aft: wh.aft, halfWidth: () => wh.halfWidth });
   }
   return out;
@@ -654,9 +668,9 @@ function buildShapedHouse(layout: HouseLayout, col: Paint, base: number): THREE.
   // the wall (zH): the zone reaches past that too, or the tops of its posts were left behind
   // and crossed the bottoms (owner).
   if (sh.facet) setBack(parts.slice(wallsFrom), facetDz(wh), Math.max(zF, zH) + w + 0.13);
-  // The walls' inside faces: wood lining (pixel painting, owner).
+  // The walls' inside faces: the lining (pixel painting, owner; the interior finish's).
   const centre = new THREE.Vector3(0, 0, mid);
-  for (const g of parts.slice(wallsFrom)) lineInside(g, H, col.lining, centre);
+  for (const g of parts.slice(wallsFrom)) lineInside(g, H, col.lining, col.liningTile, centre);
   // Raked out all round: the walls (not the aft doorway's lintel) lean out, and plates beside
   // the doorway close them off to it, from the sill up to the roof.
   const fl = houseFlare(wh);
@@ -675,7 +689,7 @@ function buildShapedHouse(layout: HouseLayout, col: Paint, base: number): THREE.
   // Roof: one flat slab from the visor's edge to aft of the house. Its front and sides are
   // chamfered back as they rise (owner: never square, always back; the visor look): the
   // underside reaches furthest out, the top is set in by roofEdgeDeg; the aft face square.
-  // The wood ceiling under it.
+  // The ceiling under it.
   const rf = layout.roof;
   const ov = rf.overhang;
   const t = rf.thickness;
@@ -700,10 +714,10 @@ function buildShapedHouse(layout: HouseLayout, col: Paint, base: number): THREE.
     if (sr) parts.push(planSlab([[-wi, zRoofEnd + k], [wi, zRoofEnd + k], [wi, zA + ov - k], [-wi, zA + ov - k]], roofS + t, roofS + t + 0.02, col.roofTop));
   }
   const ceilFrom = parts.length;
-  for (const [a, b] of spans) parts.push(box(Math.max(a, -hw + w), Math.min(b, hw - w), roofY - 0.012, roofY, Math.max(zF, zH) + w, zStep - w, col.lining, 'wood'));
+  for (const [a, b] of spans) parts.push(box(Math.max(a, -hw + w), Math.min(b, hw - w), roofY - 0.012, roofY, Math.max(zF, zH) + w, zStep - w, col.ceiling, col.ceilingTile));
   // (Only its front: its aft end, at the step to a lower saloon roof or the aft wall, stays put.)
   if (sh.facet) setBack(parts.slice(ceilFrom), facetDz(wh), zStep - w - 0.01);
-  if (sr) parts.push(box(-hw + w, hw - w, roofS - 0.012, roofS, zStep, zA - w, col.lining, 'wood'));
+  if (sr) parts.push(box(-hw + w, hw - w, roofS - 0.012, roofS, zStep, zA - w, col.ceiling, col.ceilingTile));
   // Raked out all round: the roof and the ceiling go out with the walls' tops.
   if (fl) applyFlare(parts.slice(roofFrom), fl);
   // A cockpit overhead (P2b): the aft roof carried on aft over the working deck (its edges
@@ -788,7 +802,7 @@ function chamferedSlab(halfW: number, z0: number, z1: number, y0: number, t: num
  * the front is one sloping face that follows her sides. One geometry: its sides, top, front
  * and aft faces.
  */
-function buildDeckhouse(dh: DeckhouseLayout, baseAt: (z: number) => number, color: number): THREE.BufferGeometry {
+function buildDeckhouse(dh: DeckhouseLayout, baseAt: (z: number) => number, color: number, holes: readonly { x0: number; x1: number; z0: number; z1: number }[] = []): THREE.BufferGeometry {
   const foot = baseAt(dh.z0);
   const shift = (dh.top - foot) * Math.tan((dh.rakeDeg * Math.PI) / 180);
   // Sections every 0.25 m, and where the rake ends.
@@ -798,6 +812,7 @@ function buildDeckhouse(dh: DeckhouseLayout, baseAt: (z: number) => number, colo
   // A wheelhouse sunk into it: no top over the cabin, nor aft face across its door (see deckhouse.ts).
   const well = dh.well;
   if (well) zs.add(well.z0);
+  for (const h of holes) zs.add(h.z0).add(h.z1);
   const sec = [...zs].sort((a, b) => a - b).map((z) => {
     const b = baseAt(z);
     const y = shift > 0 && z < dh.z0 + shift ? foot + ((z - dh.z0) / shift) * (dh.top - foot) : dh.top;
@@ -818,7 +833,15 @@ function buildDeckhouse(dh: DeckhouseLayout, baseAt: (z: number) => number, colo
         quad([ww, p.y, p.z], [p.w, p.y, p.z], [q.w, q.y, q.z], [ww, q.y, q.z]);
         quad([-p.w, p.y, p.z], [-ww, p.y, p.z], [-ww, q.y, q.z], [-q.w, q.y, q.z]);
       }
-    } else quad([-p.w, p.y, p.z], [p.w, p.y, p.z], [q.w, q.y, q.z], [-q.w, q.y, q.z]); // the top (and the raked front)
+    } else {
+      // The top (and the raked front), less any opening through it here (a companionway: across, either side of it).
+      const hole = holes.find((h) => p.z >= h.z0 - 1e-6 && q.z <= h.z1 + 1e-6);
+      if (!hole) quad([-p.w, p.y, p.z], [p.w, p.y, p.z], [q.w, q.y, q.z], [-q.w, q.y, q.z]);
+      else {
+        if (hole.x0 > -p.w) quad([-p.w, p.y, p.z], [hole.x0, p.y, p.z], [hole.x0, q.y, q.z], [-q.w, q.y, q.z]);
+        if (hole.x1 < p.w) quad([hole.x1, p.y, p.z], [p.w, p.y, p.z], [q.w, q.y, q.z], [hole.x1, q.y, q.z]);
+      }
+    }
   }
   const f = sec[0];
   const a = sec[sec.length - 1];
@@ -976,7 +999,89 @@ function buildFloor(layout: HouseLayout, col: Paint, parts: THREE.BufferGeometry
     parts.push(box(eh.x0, eh.x1, fy0, wh.floorY, fz0, eh.z0, col.floor, 'mat'));
     parts.push(box(eh.x0, eh.x1, fy0, wh.floorY, eh.z1, fz1, col.floor, 'mat'));
     parts.push(...engineSpaceParts(eh, wh.floorY, fy0));
-  } else parts.push(box(fx0, fx1, fy0, wh.floorY, fz0, fz1, col.floor, 'mat'));
+  } else parts.push(...boxWithHoles(fx0, fx1, fy0, wh.floorY, fz0, fz1, wh.floorHoles ?? [], col.floor, 'mat'));
+}
+
+/**
+ * A box (a floor) with rectangular openings through it (a companionway: wheelhouse.floorHoles):
+ * in strips along z between the openings' ends, each strip in pieces across between them.
+ */
+function boxWithHoles(x0: number, x1: number, y0: number, y1: number, z0: number, z1: number, holes: readonly { x0: number; x1: number; z0: number; z1: number }[], color: number, paint?: PaintName): THREE.BufferGeometry[] {
+  if (!holes.length) return [box(x0, x1, y0, y1, z0, z1, color, paint)];
+  const out: THREE.BufferGeometry[] = [];
+  const zs = [...new Set([z0, z1, ...holes.flatMap((h) => [h.z0, h.z1])])].filter((z) => z >= z0 && z <= z1).sort((a, b) => a - b);
+  for (let i = 1; i < zs.length; i++) {
+    const [za, zb] = [zs[i - 1], zs[i]];
+    if (zb - za < 1e-4) continue;
+    const across = holes.filter((h) => h.z0 < (za + zb) / 2 && h.z1 > (za + zb) / 2).sort((a, b) => a.x0 - b.x0);
+    let x = x0;
+    for (const h of across) {
+      if (h.x0 - x > 1e-4) out.push(box(x, Math.min(h.x0, x1), y0, y1, za, zb, color, paint));
+      x = Math.max(x, h.x1);
+    }
+    if (x1 - x > 1e-4) out.push(box(x, x1, y0, y1, za, zb, color, paint));
+  }
+  return out;
+}
+
+/**
+ * A cabin below (vessel/vesselDef.ts CabinBelow, P2c): its lining, facing in (the hull and the
+ * deckhouse are drawn to be seen from outside: from in here they'd be see-through), up each
+ * side and across each end, and under the trunk's top (aft of the wheelhouse front, the
+ * wheelhouse floor's own underside is its ceiling); its sole; the V-berth and its cushion;
+ * the companionway's steps, a solid block up to each tread. All merged with the hull.
+ */
+function cabinParts(c: CabinBelow): THREE.BufferGeometry[] {
+  const cc = CONFIG.shipyard.deckhouse.cabin;
+  const parts: THREE.BufferGeometry[] = [];
+  const v: number[] = [];
+  const P = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
+  // A quad facing toward `inner` (whichever way round its corners come).
+  const face = (a: THREE.Vector3, b: THREE.Vector3, d: THREE.Vector3, e: THREE.Vector3, inner: THREE.Vector3) => {
+    const n = new THREE.Vector3().subVectors(b, a).cross(new THREE.Vector3().subVectors(d, a));
+    const [p, q, r, t] = n.dot(new THREE.Vector3().subVectors(inner, a)) >= 0 ? [a, b, d, e] : [a, e, d, b];
+    for (const k of [p, q, r, p, r, t]) v.push(k.x, k.y, k.z);
+  };
+  const ceilAt = (z: number) => (z < c.ceiling.front ? c.ceiling.trunk : c.ceiling.house);
+  const plan = c.plan;
+  for (let i = 1; i < plan.length; i++) {
+    const [za, wa] = plan[i - 1];
+    const [zb, wb] = plan[i];
+    const top = ceilAt((za + zb) / 2);
+    const mid = P(0, (c.sole + top) / 2, (za + zb) / 2);
+    for (const sg of [-1, 1]) face(P(sg * wa, c.sole, za), P(sg * wb, c.sole, zb), P(sg * wb, top, zb), P(sg * wa, top, za), mid);
+    if ((za + zb) / 2 < c.ceiling.front) face(P(-wa, top, za), P(wa, top, za), P(wb, top, zb), P(-wb, top, zb), mid);
+    parts.push(planSlab([[-wa, za], [wa, za], [wb, zb], [-wb, zb]], c.sole - 0.05, c.sole, COLORS.floor));
+  }
+  // The bulkheads at each end, and the step in its ceiling under the wheelhouse front.
+  const [f, a] = [plan[0], plan[plan.length - 1]];
+  face(P(-f[1], c.sole, f[0]), P(f[1], c.sole, f[0]), P(f[1], ceilAt(f[0]), f[0]), P(-f[1], ceilAt(f[0]), f[0]), P(0, c.sole + 1, f[0] + 1));
+  face(P(-a[1], c.sole, a[0]), P(a[1], c.sole, a[0]), P(a[1], ceilAt(a[0]), a[0]), P(-a[1], ceilAt(a[0]), a[0]), P(0, c.sole + 1, a[0] - 1));
+  const { trunk, house, front } = c.ceiling;
+  if (Math.abs(trunk - house) > 0.01 && front > c.z0 && front < c.z1) {
+    const w = planHalfWidth(plan, front);
+    const [lo, hi] = [Math.min(trunk, house), Math.max(trunk, house)];
+    face(P(-w, lo, front), P(w, lo, front), P(w, hi, front), P(-w, hi, front), P(0, lo, front + (house > trunk ? 1 : -1)));
+  }
+  const lining = new THREE.BufferGeometry();
+  lining.setAttribute('position', new THREE.Float32BufferAttribute(v, 3));
+  lining.computeVertexNormals();
+  parts.push(part(lining, cc.lining));
+  // The V-berth: following her sides forward, its front (aft edge) in trim, a cushion on top.
+  const b = c.berth;
+  if (b) {
+    const zs = plan.map(([z]) => z).filter((z) => z < b.z1);
+    const outline = (inset: number): [number, number][] => [...zs.map((z): [number, number] => [-(planHalfWidth(plan, z) - inset), z]), [-(planHalfWidth(plan, b.z1) - inset), b.z1]];
+    const ring = (inset: number): [number, number][] => {
+      const port = outline(inset);
+      return [port[0], [-port[0][0], port[0][1]], ...port.slice(1).map(([x, z]): [number, number] => [-x, z]), ...port.slice(1).reverse()];
+    };
+    parts.push(planSlab(ring(0), c.sole, b.top - cc.berth.top * 0.25, cc.trim));
+    parts.push(planSlab(ring(0.04), b.top - cc.berth.top * 0.25, b.top, cc.cushion));
+  }
+  // The companionway's steps.
+  for (const t of c.stair.treads) parts.push(box(c.stair.x0, c.stair.x1, c.sole, t.y, t.z0, t.z1, cc.trim));
+  return parts;
 }
 
 /**
@@ -1125,11 +1230,11 @@ function buildWheelhouse(layout: HouseLayout, col: Paint, base: number): THREE.B
   }
   const doorFloor = houseFloorAt(wh, wh.aft);
   parts.push(box(-door, door, doorFloor + wh.doorHeight, roof, wh.aft - w, wh.aft, H));
-  // The walls' inside faces: wood lining (pixel painting, owner).
+  // The walls' inside faces: the lining (pixel painting, owner; the interior finish's).
   const centre = new THREE.Vector3(0, 0, (wh.front + wh.aft) / 2);
-  for (const g of parts.slice(wallsFrom)) lineInside(g, H, col.lining, centre);
-  // The ceiling: wood lining just under the roof.
-  parts.push(box(-hw + w, hw - w, roof - 0.012, roof, wh.front + w, wh.aft - w, col.lining, 'wood'));
+  for (const g of parts.slice(wallsFrom)) lineInside(g, H, col.lining, col.liningTile, centre);
+  // The ceiling, just under the roof.
+  parts.push(box(-hw + w, hw - w, roof - 0.012, roof, wh.front + w, wh.aft - w, col.ceiling, col.ceilingTile));
   // Door sill.
   parts.push(box(-door, door, base, doorFloor + 0.02, wh.aft - w, wh.aft, col.floor));
 

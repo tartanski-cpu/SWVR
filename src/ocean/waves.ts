@@ -34,20 +34,80 @@
 import { CONFIG } from '../config';
 import { wrap } from '../core/math';
 import { arcShelter, shelterFactor } from '../world/shelter';
-import { addCurrent, raceWaveFactor } from '../world/currents';
+import { addCurrent, raceAt, raceOpposition, type RaceHere } from '../world/currents';
 
 /**
  * The amplitude factor at rest position (x0, z0) that is the same for every wave: sheltered
  * water (<= 1) times the tidal races' standing waves (>= 1 while one runs). A bay with a gap
  * (ShelterDef.openArcDeg) is applied per wave on top, by its direction: arcShelter. The
- * shader applies the same (gerstner.glsl).
+ * shader applies the same (gerstner.glsl). `race` is filled with the strongest running race
+ * there, for the overfalls (waveFactors below).
  */
-export function waveFactorAt(x0: number, z0: number): number {
-  return shelterFactor(x0, z0) * raceWaveFactor(x0, z0);
+export function waveFactorAt(x0: number, z0: number, race: RaceHere = RACE): number {
+  return shelterFactor(x0, z0) * raceAt(x0, z0, race).f;
 }
 /** The whole factor for one wave: the common part times the gapped bays' shelter from its direction. */
 export function waveFactorFor(x0: number, z0: number, w: PreparedWave, common: number): number {
   return common * arcShelter(x0, z0, w.dirX, w.dirZ);
+}
+
+/** The factors for one wave: on its height (`amp`) and on its crest sharpness (`hor`, the orbit). */
+export interface WaveFactors {
+  amp: number;
+  hor: number;
+}
+const RACE: RaceHere = { f: 1, setX: 0, setZ: 0, sw: 0 };
+const FACTORS: WaveFactors = { amp: 1, hor: 1 };
+
+/** Σ Q·k·A of a prepared set, the sea's waves and the chop apart (prepareWaves), for the crest-loop cap. */
+const LOOPS = new WeakMap<readonly PreparedWave[], { sea: number; chop: number }>();
+/** The crests may loop over past Σ Q·k·A = 1: the overfalls' orbits are capped at this. */
+export const LOOP_CAP = 0.92;
+let capHere = 1;
+
+/**
+ * The common factor at (x0, z0) for a prepared set (waveFactorAt), with the race there in
+ * RACE and the crest-loop cap for the overfalls: where the race's standing waves and the
+ * overfalls would push Σ Q·k·A past LOOP_CAP, the orbits (not the heights) are scaled back
+ * so the crests never fold over. The shader does the same (gerstner.glsl).
+ */
+function commonFactors(waves: readonly PreparedWave[], x0: number, z0: number): number {
+  const common = waveFactorAt(x0, z0, RACE);
+  capHere = 1;
+  if (RACE.sw !== 0) {
+    const l = LOOPS.get(waves);
+    if (l) {
+      const o = CONFIG.currents.overfalls;
+      const a = Math.abs(RACE.sw);
+      const worst = l.sea * RACE.f * (1 + o.heighten * a) * (1 + o.steepen * a) + l.chop * a;
+      if (worst > LOOP_CAP) capHere = LOOP_CAP / worst;
+    }
+  }
+  return common;
+}
+
+/**
+ * One wave's factors at (x0, z0), with the overfalls (CONFIG.currents.overfalls): in a race
+ * running against it, a wave stands higher and sharper; with the flow, a little lower. The
+ * chop waves are nothing but where they oppose a running race. `common` is waveFactorAt
+ * (shelter × the race's own factor), with `race` as it filled it.
+ */
+export function waveFactors(x0: number, z0: number, w: PreparedWave, common: number, race: RaceHere = RACE, out: WaveFactors = FACTORS): WaveFactors {
+  const s = waveFactorFor(x0, z0, w, common);
+  const o = CONFIG.currents.overfalls;
+  const opp = race.sw === 0 ? 0 : raceOpposition(race, w.dirX, w.dirZ);
+  if (w.chop) {
+    // Shelter and the bays as the others, but not the race's own standing-wave factor.
+    const f = (s / race.f) * Math.max(0, opp);
+    out.amp = f;
+    out.hor = f * (race === RACE ? capHere : 1);
+    return out;
+  }
+  const against = Math.max(0, opp);
+  const amp = s * (1 + o.heighten * against - o.flatten * Math.max(0, -opp));
+  out.amp = amp;
+  out.hor = amp * (1 + o.steepen * against) * (race === RACE ? capHere : 1);
+  return out;
 }
 
 const TWO_PI = Math.PI * 2;
@@ -59,6 +119,8 @@ export interface WaveComponent {
   directionDeg: number;
   steepness: number;
   phase: number;
+  /** The overfalls' chop (CONFIG.currents.overfalls): nowhere but in a race running against it. */
+  chop?: boolean;
 }
 
 /** Per-frame/per-tick evaluated constants for one component. */
@@ -75,6 +137,7 @@ export interface PreparedWave {
   /** (ω·t − φ) wrapped to [0, 2π). */
   phase: number;
   wavelength: number;
+  chop: boolean;
 }
 
 export function wavenumberFromPeriod(period: number, g = CONFIG.ocean.gravity): number {
@@ -99,18 +162,31 @@ export function prepareWaves(components: readonly WaveComponent[], t: number, ou
     w.horizontal = c.steepness * c.amplitude;
     w.phase = wrap(omega * t - c.phase, TWO_PI);
     w.wavelength = TWO_PI / k;
+    w.chop = !!c.chop;
     out[i] = w;
   }
+  let sea = 0;
+  let chop = 0;
+  for (const w of out) {
+    if (w.chop) chop += w.horizontal * w.k;
+    else sea += w.horizontal * w.k;
+  }
+  LOOPS.set(out, { sea, chop });
   return out;
+}
+
+/** The set's Σ Q·k·A, the sea's waves and the chop apart (for the ocean shader's cap). */
+export function loopSums(waves: readonly PreparedWave[]): { sea: number; chop: number } {
+  return LOOPS.get(waves) ?? { sea: 0, chop: 0 };
 }
 
 /** Horizontal displacement H(p0) of the particle with rest position (x0, z0). */
 function horizontalDisplacement(waves: readonly PreparedWave[], x0: number, z0: number, out: { x: number; z: number }) {
   let hx = 0;
   let hz = 0;
-  const common = waves.length > 0 ? waveFactorAt(x0, z0) : 1;
+  const common = waves.length > 0 ? commonFactors(waves, x0, z0) : 1;
   for (const w of waves) {
-    const s = waveFactorFor(x0, z0, w, common);
+    const s = waveFactors(x0, z0, w, common).hor;
     const c = Math.cos(w.k * (w.dirX * x0 + w.dirZ * z0) - w.phase) * s;
     hx += w.horizontal * w.dirX * c;
     hz += w.horizontal * w.dirZ * c;
@@ -139,18 +215,18 @@ export function restPosition(waves: readonly PreparedWave[], x: number, z: numbe
 
 /** Full displaced position of the particle with rest position (x0, z0). */
 export function displacedPosition(waves: readonly PreparedWave[], x0: number, z0: number): [number, number, number] {
-  const common = waves.length > 0 ? waveFactorAt(x0, z0) : 1;
+  const common = waves.length > 0 ? commonFactors(waves, x0, z0) : 1;
   let x = x0;
   let y = 0;
   let z = z0;
   for (const w of waves) {
-    const sh = waveFactorFor(x0, z0, w, common);
+    const f = waveFactors(x0, z0, w, common);
     const theta = w.k * (w.dirX * x0 + w.dirZ * z0) - w.phase;
     const s = Math.sin(theta);
     const c = Math.cos(theta);
-    x += sh * w.horizontal * w.dirX * c;
-    y += sh * w.amplitude * s;
-    z += sh * w.horizontal * w.dirZ * c;
+    x += f.hor * w.horizontal * w.dirX * c;
+    y += f.amp * w.amplitude * s;
+    z += f.hor * w.horizontal * w.dirZ * c;
   }
   return [x, y, z];
 }
@@ -159,9 +235,9 @@ export function displacedPosition(waves: readonly PreparedWave[], x0: number, z0
 export function surfaceHeight(waves: readonly PreparedWave[], x: number, z: number): number {
   if (waves.length === 0) return 0;
   const [x0, z0] = restPosition(waves, x, z);
-  const common = waveFactorAt(x0, z0);
+  const common = commonFactors(waves, x0, z0);
   let y = 0;
-  for (const w of waves) y += w.amplitude * waveFactorFor(x0, z0, w, common) * Math.sin(w.k * (w.dirX * x0 + w.dirZ * z0) - w.phase);
+  for (const w of waves) y += w.amplitude * waveFactors(x0, z0, w, common).amp * Math.sin(w.k * (w.dirX * x0 + w.dirZ * z0) - w.phase);
   return y;
 }
 
@@ -181,7 +257,7 @@ export interface SurfaceSample {
  */
 export function sampleSurface(waves: readonly PreparedWave[], x: number, z: number): SurfaceSample {
   const [x0, z0] = restPosition(waves, x, z);
-  const common = waves.length > 0 ? waveFactorAt(x0, z0) : 1;
+  const common = waves.length > 0 ? commonFactors(waves, x0, z0) : 1;
   let y = 0;
   // Tangent along x0: (1 + txx, txy, txz); along z0: (tzx, tzy, 1 + tzz)
   let txx = 0, txy = 0, txz = 0, tzy = 0, tzz = 0; // prettier-ignore
@@ -190,9 +266,9 @@ export function sampleSurface(waves: readonly PreparedWave[], x: number, z: numb
     const theta = w.k * (w.dirX * x0 + w.dirZ * z0) - w.phase;
     const s = Math.sin(theta);
     const c = Math.cos(theta);
-    const sh = waveFactorFor(x0, z0, w, common);
-    const amp = w.amplitude * sh;
-    const hor = w.horizontal * sh;
+    const f = waveFactors(x0, z0, w, common);
+    const amp = w.amplitude * f.amp;
+    const hor = w.horizontal * f.hor;
     y += amp * s;
     const qks = hor * w.k * s;
     const akc = amp * w.k * c;
@@ -222,13 +298,42 @@ export function sampleSurface(waves: readonly PreparedWave[], x: number, z: numb
   return { height: y, normal: [nx, ny, nz], velocity: [vx + cur.x, vy, vz + cur.z] };
 }
 
+/**
+ * The sea at a point as a hull feels it (vessel/physics added resistance): the waves'
+ * amplitudes there added up (with the shelter and the overfalls), and the direction they
+ * travel, weighted by amplitude (unit vector; zero in a flat calm).
+ */
+export function localSeaAt(waves: readonly PreparedWave[], x: number, z: number, out = { amp: 0, dirX: 0, dirZ: 0 }): { amp: number; dirX: number; dirZ: number } {
+  out.amp = 0;
+  out.dirX = 0;
+  out.dirZ = 0;
+  if (waves.length === 0) return out;
+  const common = commonFactors(waves, x, z);
+  for (const w of waves) {
+    const a = w.amplitude * waveFactors(x, z, w, common).amp;
+    out.amp += a;
+    out.dirX += a * w.dirX;
+    out.dirZ += a * w.dirZ;
+  }
+  const n = Math.hypot(out.dirX, out.dirZ);
+  if (n > 1e-9) {
+    out.dirX /= n;
+    out.dirZ /= n;
+  }
+  return out;
+}
+
 /** Significant wave height of a sum of sinusoids: Hs = 4σ, σ² = Σ A²/2. */
 export function significantWaveHeight(components: readonly WaveComponent[]): number {
   const variance = components.reduce((s, c) => s + (c.amplitude * c.amplitude) / 2, 0);
   return 4 * Math.sqrt(variance);
 }
 
-/** Σ Q·k·A. Must be < 1: guarantees no looping crests AND convergence of restPosition(). */
+/**
+ * Σ Q·k·A of the open sea. Must be < 1: guarantees no looping crests AND convergence of
+ * restPosition(). The overfalls' chop is left out: it is nothing outside a running race,
+ * and inside one the orbits are capped (commonFactors, LOOP_CAP).
+ */
 export function crestLoopFactor(components: readonly WaveComponent[]): number {
-  return components.reduce((s, c) => s + c.steepness * wavenumberFromPeriod(c.period) * c.amplitude, 0);
+  return components.reduce((s, c) => s + (c.chop ? 0 : c.steepness * wavenumberFromPeriod(c.period) * c.amplitude), 0);
 }

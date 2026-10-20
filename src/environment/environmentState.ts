@@ -32,7 +32,13 @@ export interface EnvironmentState {
 export function seaStateWaves(s: number): WaveComponent[] {
   if (s <= 0) return [];
   const tScale = Math.pow(s, CONFIG.ocean.seaPeriodExponent);
-  return CONFIG.ocean.waves.map((w) => ({ ...w, amplitude: w.amplitude * s, period: w.period * tScale }));
+  const sea = CONFIG.ocean.waves.map((w) => ({ ...w, amplitude: w.amplitude * s, period: w.period * tScale }));
+  // The overfalls' chop (CONFIG.currents.overfalls.chop): short wind waves either side of
+  // the main wave's direction, nowhere but in a race running against them (ocean/waves.ts).
+  const c = CONFIG.currents.overfalls.chop;
+  const main = sea[0]?.directionDeg ?? 0;
+  const chop: WaveComponent[] = c.periods.map((period, i) => ({ amplitude: c.amplitude * s, period, directionDeg: main + (i % 2 ? -1 : 1) * c.spreadDeg, steepness: 1, phase: 1.3 * (i + 1), chop: true }));
+  return [...sea, ...chop];
 }
 
 export function createEnvironment(): EnvironmentState {
