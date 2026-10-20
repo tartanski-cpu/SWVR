@@ -5161,6 +5161,14 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Tests:** `tests/voyageMode.test.ts` (+2): each map starts at one of its own berths in a harbour, ids unique; the tests run as the career game.
 - **Checked:** typecheck, `npm test`, headless: the landing page and its links, `/?game=12345` sent on to `career.html?game=12345`, `voyage.html?map=oban` loads with the world `[oban]` only, the fishing boat moored at the Oban quay, no career tutorial, no save keys touched, the menu header; `career.html` as before (home world, Calder). **Not checked:** VR; the Quest's frame rate on Oban alone (the coast test showed it bearable); the traffic and the calls on a map with no home region over a long play.
 
+### The beginner boat is the owner's "Gillnetter 7.8 m" (owner)
+
+- **The owner:** a design file from the Shipyard, "the near cheapest, most basic, slow boat", to be the starter boat.
+- `boats/fleet/starterBoat.json` is now that file: the gillnetter hull at its smallest (7.8 m, 10.1 t), the 150 kW straight six on a stern drive (gear 5), a stern roller, rails, basic controls, red paint; no fenders, no life ring, no searchlight; £86,000, the cheapest of the fleet. It reads with no warnings and builds clean; the career's kit (the yard's searchlight and fire monitor) applies to her design as before.
+- **Flagged:** with `guard` 0 she has no fenders, so every knock alongside counts on her hull (the roving fender needs fenders too), and with `lifeRing` 0 she gets no rescue calls; the yard's upgrades don't sell fenders or a life ring today. If that's meant as the starting hardship, fine; otherwise two yard upgrades (fenders, life ring) would let a career earn them.
+- **Tests:** the fleet, starter-boat, career and helm-assist tests pass as they are (cheapest of the fleet, basic controls, over 6 kn, no helm assist).
+- **Checked:** typecheck, `npm test`, headless: a new career starts in her at Calder (screenshots from the quay and at her helm). **Not checked:** VR; her handling on a stern drive at her length.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**
