@@ -649,7 +649,8 @@ export function stepTow(world: WorldState, dt: number): void {
 
 /**
  * Tow intents (targetId: the workboat or env):
- *   towMake        make the towline fast (the hook on the bow eye; in range)
+ *   towMake        make the towline fast (the hook on the bow eye; in range; args [1]: by the
+ *                  line gun, within its range)
  *   towCast        cast it off
  *   towToggle      the menu: make fast if in range, else cast off
  *   towDebugNear   a tow job lying just astern, accepted (to try towing)
@@ -667,7 +668,9 @@ export function applyTowIntent(world: WorldState, intent: Intent): void {
       if (!key || t.line || !towTargets(world).includes(key)) break;
       // A tow that's been handed over is the harbour's now.
       if (job && key === vesselKey(job.vesselId) && job.phase !== 'accepted') break;
-      if (towReach(world, key) <= lineFor(key).attach) t.line = newLine(world, key);
+      // By the line gun (tow/lineGun.ts; args [1]): made fast at the gun's range, not the hook's.
+      const byGun = (intent.args?.[0] ?? 0) > 0.5;
+      if (towReach(world, key) <= (byGun ? CONFIG.lineGun.range : lineFor(key).attach)) t.line = newLine(world, key);
       break;
     }
     case 'towToggle': {

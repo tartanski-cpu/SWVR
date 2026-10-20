@@ -298,9 +298,10 @@ function addMachinery(root: THREE.Group): THREE.Group | null {
   const prop = engine?.propeller?.position as [number, number, number] | undefined;
   const rudder = cfg('rudder')?.rudder?.position as [number, number, number] | undefined;
   // A stern drive: its engines only (the legs are its module's, shown at Engine too).
-  const sd = !!cfg('sternDrive');
+  const sd = !!cfg('sternDrive') || !!cfg('pods');
   if (!bed || (!sd && (!prop || !rudder))) return null;
-  const twin = !!design.twin && !SINGLE_ONLY_ENGINES.includes(design.engine);
+  // (Pod drives are always twin.)
+  const twin = (!!design.twin || !!cfg('pods')) && !SINGLE_ONLY_ENGINES.includes(design.engine);
   const propD = boat.figures.propellerM;
   const fit = boat.shaft;
   const g = buildMachinery({ engine: design.engine, twin, form: VESSEL_DEFS.design.hull, shaft: fit, twinX: engine?.twin?.x ?? 0, propD, propZ: prop?.[2] ?? 0, rudderZ: rudder?.[2] ?? 0, sterndrive: sd });
@@ -460,13 +461,20 @@ function frameMachinery(): void {
   // (Her outboards, if that's her machinery.)
   const m = shown?.machinery ?? shown?.modules.getObjectByName('outboards');
   if (!m) return;
+  // Where everything is first: the engines sit nested in their holders (placed and tilted on
+  // the shaft line), whose positions aren't worked out until the scene is drawn. Measured
+  // before that, a stern drive's engines (all there is of its machinery) were taken to be at
+  // her origin, and the view zoomed into the middle of her (owner, Oct 2026).
+  boatRoot?.updateMatrixWorld(true);
   const box = new THREE.Box3();
-  m.traverse((o) => {
-    if ((o as THREE.Mesh).isMesh) box.expandByObject(o);
-  });
+  // (And a stern drive's legs or her pod drives under her, with their engines.)
+  for (const part of new Set([m, shown?.modules.getObjectByName('outboards'), shown?.modules.getObjectByName('pods')]))
+    part?.traverse((o) => {
+      if ((o as THREE.Mesh).isMesh) box.expandByObject(o);
+    });
   if (box.isEmpty()) return;
   const at = box.getCenter(new THREE.Vector3());
-  const r = Math.max(3, box.getSize(new THREE.Vector3()).length() * 1.1);
+  const r = Math.max(4, box.getSize(new THREE.Vector3()).length() * 1.4);
   if (flat) flatBtn.click();
   look([at.x + 0.75 * r, at.y + 0.55 * r, at.z + 0.6 * r], at.toArray());
 }
@@ -504,8 +512,8 @@ function focusStep(): void {
   const inHouse = house ? new THREE.Box3().setFromObject(house).expandByVector(new THREE.Vector3(-0.15, 0.05, 0.05)) : null;
   const c = new THREE.Vector3();
   for (const m of modules.children) {
-    // (Her outboards are her machinery: shown at Engine, as her inboard is.)
-    if (step === 'engine') m.visible = !!m.getObjectByName('outboards');
+    // (Her outboards, stern drive legs and pods are her machinery: shown at Engine, as her inboard is.)
+    if (step === 'engine') m.visible = !!m.getObjectByName('outboards') || !!m.getObjectByName('pods');
     else if (step === 'hull') m.visible = false;
     else if (step === 'wheelhouse') m.visible = !!inHouse && inHouse.containsPoint(new THREE.Box3().setFromObject(m).getCenter(c));
     else m.visible = true;
@@ -554,7 +562,7 @@ function choices(key: keyof ShipDesign, items: { name: string; note?: string }[]
 }
 const outputs: Partial<Record<keyof ShipDesign, (v: number) => string>> = {};
 /** Each field's label and, for a few set options, their names (the compare list shows them). */
-const labels: Partial<Record<keyof ShipDesign, string>> = { hull: 'Hull', engine: 'Engine', twin: 'Engines', outboards: 'Outboards', sternDrive: 'Stern drive', nozzle: 'Kort nozzle', material: 'Built of', controls: 'Controls', paint: 'Paint', roofPaint: 'Roof colour' };
+const labels: Partial<Record<keyof ShipDesign, string>> = { hull: 'Hull', engine: 'Engine', twin: 'Engines', outboards: 'Outboards', sternDrive: 'Stern drive', pods: 'Pod drives', nozzle: 'Kort nozzle', material: 'Built of', controls: 'Controls', paint: 'Paint', roofPaint: 'Roof colour' };
 const optionNames: Partial<Record<keyof ShipDesign, string[]>> = {};
 function slider(key: keyof ShipDesign, label: string, show: (v: number) => string): void {
   labels[key] ??= label;
@@ -816,6 +824,15 @@ choices('engine', ENGINES.map((e) => ({ name: e.name, note: `${'about' in e ? `$
   box.onchange = () => change({ sternDrive: box.checked ? 1 : 0 });
   controls.appendChild(row);
 }
+// Pod drives (owner, Oct 2026): two steerable pods under a planing hull, propellers forward, and a helm joystick.
+{
+  const row = document.createElement('label');
+  row.className = 'choice';
+  row.innerHTML = '<input type="checkbox" data-key="pods"> Pod drives (planing hulls): two pods under her bottom that swing to steer, their propellers at the front pulling, an engine each. A black throttle, and a helm joystick: press JOYSTICK, then lean it to crab sideways or creep, twist it to turn on the spot';
+  const box = row.querySelector('input')!;
+  box.onchange = () => change({ pods: box.checked ? 1 : 0 });
+  controls.appendChild(row);
+}
 // A Kort nozzle (owner, Oct 2026): a duct round a shaft-driven propeller, a tug's.
 {
   const row = document.createElement('label');
@@ -900,9 +917,11 @@ function syncControls(): void {
     el.textContent = outputs[k]!(design[k]);
   });
   const twinBox = document.querySelector('input[data-key=twin]') as HTMLInputElement;
-  twinBox.checked = !!design.twin;
+  // Pod drives come in pairs: twin, and the box can't be unticked.
+  const podsOn = !!design.pods && !design.outboards && DESIGN_HULLS[design.hull].regime === 'planing' && !SINGLE_ONLY_ENGINES.includes(design.engine);
+  twinBox.checked = !!design.twin || podsOn;
   // The tug diesel goes in singly only; with outboards there's no inboard to twin.
-  twinBox.disabled = SINGLE_ONLY_ENGINES.includes(design.engine) || !!design.outboards;
+  twinBox.disabled = SINGLE_ONLY_ENGINES.includes(design.engine) || !!design.outboards || podsOn;
   // A hull type built of its own material: the choice stands aside, and says why.
   const ownMaterial = DESIGN_HULLS[design.hull].material;
   document.querySelectorAll<HTMLElement>('[data-key="material"]').forEach((el) => {
@@ -915,11 +934,15 @@ function syncControls(): void {
   const sdBox = document.querySelector('input[data-key=sternDrive]') as HTMLInputElement;
   sdBox.checked = !!design.sternDrive;
   // The tug diesel goes on a shaft; with outboards there's no inboard.
-  sdBox.disabled = SINGLE_ONLY_ENGINES.includes(design.engine) || !!design.outboards;
+  sdBox.disabled = SINGLE_ONLY_ENGINES.includes(design.engine) || !!design.outboards || podsOn;
+  // Pod drives: on a planing hull, not the tug diesel, not with outboards.
+  const podBox = document.querySelector('input[data-key=pods]') as HTMLInputElement;
+  podBox.checked = !!design.pods;
+  podBox.disabled = DESIGN_HULLS[design.hull].regime !== 'planing' || SINGLE_ONLY_ENGINES.includes(design.engine) || !!design.outboards;
   // A nozzle goes round a shaft-driven propeller: not with a stern drive or outboards.
   const nzBox = document.querySelector('input[data-key=nozzle]') as HTMLInputElement;
   nzBox.checked = !!design.nozzle;
-  nzBox.disabled = !!design.outboards || (!!design.sternDrive && !sdBox.disabled);
+  nzBox.disabled = !!design.outboards || podsOn || (!!design.sternDrive && !sdBox.disabled);
   // With outboards the engine packages stand aside (shown, not chosen).
   document.querySelectorAll<HTMLElement>('[data-key="engine"]').forEach((el) => el.classList.toggle('aside', !!design.outboards));
   // A tug's push bow and a landing craft's landing bow are their own: no bow rake to choose.

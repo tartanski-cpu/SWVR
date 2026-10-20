@@ -30,7 +30,7 @@ import type { Handedness } from './xrInput';
  * (modules/rodRack), taken the same way; its trigger / left button is the rod game's cast,
  * strike and reel (fishing/rodGame.ts reads `pressed` and `on` each frame).
  */
-export type GearKind = 'extinguisher' | 'torch' | 'rod';
+export type GearKind = 'extinguisher' | 'torch' | 'rod' | 'lineGun';
 
 /** The extinguisher: red bottle hanging under the handle, a short black hose to the nozzle. */
 function extinguisherMesh(): { mesh: THREE.Mesh; tip: THREE.Vector3 } {
@@ -78,8 +78,22 @@ function rodMesh(): { mesh: THREE.Mesh; tip: THREE.Vector3 } {
   return { mesh: new THREE.Mesh(geo, flatVertexColorMaterial()), tip: new THREE.Vector3(0, 0.01, -2.25) };
 }
 
+/** The line-throwing gun: an orange launcher with a pistol grip, the rocket's muzzle forward (-z), the line canister under it. */
+function lineGunMesh(): { mesh: THREE.Mesh; tip: THREE.Vector3 } {
+  const orange = 0xe8641a;
+  const black = 0x1e2124;
+  const geo = mergeParts([
+    part(new THREE.CylinderGeometry(0.035, 0.035, 0.42, 10).rotateX(Math.PI / 2).translate(0, 0.05, -0.2), orange), // the launcher tube
+    part(new THREE.CylinderGeometry(0.03, 0.03, 0.08, 10).rotateX(Math.PI / 2).translate(0, 0.05, -0.44), black), // the rocket's nose in the muzzle
+    part(new THREE.BoxGeometry(0.04, 0.12, 0.05).rotateX(0.25).translate(0, -0.06, 0.0), black), // the pistol grip
+    part(new THREE.BoxGeometry(0.05, 0.04, 0.16).translate(0, -0.01, -0.14), black), // the trigger housing
+    part(new THREE.CylinderGeometry(0.05, 0.05, 0.14, 10).rotateX(Math.PI / 2).translate(0, -0.04, -0.3), 0xf2f2ee), // the line canister
+  ]);
+  return { mesh: new THREE.Mesh(geo, flatVertexColorMaterial()), tip: new THREE.Vector3(0, 0.05, -0.48) };
+}
+
 export function gearMesh(kind: GearKind): { mesh: THREE.Mesh; tip: THREE.Vector3 } {
-  return kind === 'extinguisher' ? extinguisherMesh() : kind === 'rod' ? rodMesh() : torchMesh();
+  return kind === 'extinguisher' ? extinguisherMesh() : kind === 'rod' ? rodMesh() : kind === 'lineGun' ? lineGunMesh() : torchMesh();
 }
 
 /**
@@ -100,7 +114,7 @@ export class GearBracket extends Control {
     channel = `gear:${gear}`,
   ) {
     super(channel, channel);
-    this.label = gear === 'extinguisher' ? 'Fire extinguisher: take / hang back' : gear === 'rod' ? 'Fishing rod: take / hang back' : 'Torch: take / hang back';
+    this.label = gear === 'extinguisher' ? 'Fire extinguisher: take / hang back' : gear === 'rod' ? 'Fishing rod: take / hang back' : gear === 'lineGun' ? 'Line-throwing gun: take / hang back' : 'Torch: take / hang back';
     const h = gear === 'extinguisher' ? 0.55 : 0.2;
     // The rod lies across its clips: a long hit box along x.
     const hit = new THREE.Mesh(new THREE.BoxGeometry(gear === 'rod' ? 1.2 : 0.2, h, 0.2), new THREE.MeshBasicMaterial({ visible: false }));
@@ -245,7 +259,7 @@ export class HandGear {
       this.mesh.position.copy(f.grip);
       if (f.quat) this.mesh.quaternion.copy(f.quat);
       this.pressed = f.triggerPressed && this.grace <= 0;
-      if (this.kind === 'extinguisher' || this.kind === 'rod') this.setOn(f.triggerDown);
+      if (this.kind === 'extinguisher' || this.kind === 'rod' || this.kind === 'lineGun') this.setOn(f.triggerDown);
       else if (f.triggerPressed) {
         this.setOn(!this.on);
         pulse(held, 0.3, 20);
@@ -288,7 +302,7 @@ export class HandGear {
     this.mesh.lookAt(target);
     this.mesh.rotateY(Math.PI); // lookAt points +z at the target; the nozzle is -z
     this.pressed = pressed && this.grace <= 0;
-    if (this.kind === 'extinguisher' || this.kind === 'rod') this.setOn(down);
+    if (this.kind === 'extinguisher' || this.kind === 'rod' || this.kind === 'lineGun') this.setOn(down);
     else if (pressed) this.setOn(!this.on);
   }
 

@@ -39,6 +39,9 @@ export class Binoculars {
   private readonly mask: HTMLDivElement | null = null;
   private readonly tmp = new THREE.Vector3();
   private readonly tmpQ = new THREE.Quaternion();
+  /** VR: the scope's eased orientation (see renderScope); is it worth easing from? */
+  private steadyFrom = false;
+  private lastRender = 0;
 
   constructor(private readonly camera: THREE.PerspectiveCamera) {
     const c = CONFIG.binoculars;
@@ -181,20 +184,49 @@ export class Binoculars {
 
   /** VR, before the main render: the view through the lenses (only while looking). */
   renderScope(renderer: THREE.WebGLRenderer, scene: THREE.Scene): void {
-    if (!this.view.visible) return;
+    if (!this.view.visible) {
+      this.steadyFrom = false;
+      return;
+    }
     // From the head, looking where it looks (last frame's pose: one frame behind, unseen).
+    // The orientation is eased over `steady` s (owner: at 7x every tremor of the head is
+    // magnified too; real binoculars are steadied against the brow), so the view lags a
+    // quick turn of the head a little and the shake is smoothed out. The lenses themselves
+    // stay head-locked, so turning still feels direct.
+    const now = performance.now() / 1000;
+    const dt = this.steadyFrom ? Math.min(0.1, now - this.lastRender) : 0;
+    this.lastRender = now;
     this.camera.getWorldPosition(this.scopeCam.position);
     this.camera.getWorldQuaternion(this.tmpQ);
-    this.scopeCam.quaternion.copy(this.tmpQ);
+    const tau = CONFIG.binoculars.steady;
+    if (this.steadyFrom && tau > 0) this.scopeCam.quaternion.slerp(this.tmpQ, 1 - Math.exp(-dt / tau));
+    else this.scopeCam.quaternion.copy(this.tmpQ);
+    this.steadyFrom = true;
     this.scopeCam.updateMatrixWorld();
     const xr = renderer.xr.enabled;
     renderer.xr.enabled = false;
     this.view.visible = false;
+    // Back to the frame's own target afterwards: in VR that's the headset's framebuffer,
+    // set by three.js at the start of each frame (null would be the hidden canvas: the
+    // headset's view would never change).
+    const target = renderer.getRenderTarget();
     renderer.setRenderTarget(this.rt);
     renderer.render(scene, this.scopeCam);
-    renderer.setRenderTarget(null);
+    renderer.setRenderTarget(target);
     this.view.visible = true;
     renderer.xr.enabled = xr;
+  }
+
+  /**
+   * Entering VR: compile the lens shader and draw the scope once now, so the first look
+   * through them doesn't stall for the compile (owner: a hitch when raised).
+   */
+  warm(renderer: THREE.WebGLRenderer, scene: THREE.Scene): void {
+    this.view.visible = true;
+    renderer.compile(scene, this.camera);
+    this.renderScope(renderer, scene);
+    this.view.visible = false;
+    this.steadyFrom = false;
   }
 
   /** Leaving VR: put them back. */

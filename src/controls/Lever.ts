@@ -41,7 +41,7 @@ export class Lever extends Control {
    */
   constructor(
     id: string,
-    opts: { maxAngleDeg: number; length: number },
+    opts: { maxAngleDeg: number; length: number; style?: 'standard' | 'black' },
     private readonly detent = 0.15,
     wiring: Wiring = {},
     private readonly feel: { hold: number; click: { strength: number; ms: number }; release: { strength: number; ms: number } } = {
@@ -56,19 +56,37 @@ export class Lever extends Control {
     this.length = opts.length;
 
     // Quadrant base (static part of the control) with ahead/astern colour marks.
-    const base = this.fixed(new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.05, 0.16), new THREE.MeshLambertMaterial({ color: 0x2a2f33 })));
+    // 'black' (owner, Oct 2026: the pod drives' "more cool looking black throttle"): a
+    // satin-black quadrant with a bright inlay, a black arm, and a broad black grip in place
+    // of the red ball, its top a slim bright cap.
+    const black = opts.style === 'black';
+    const base = this.fixed(new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.05, 0.16), new THREE.MeshLambertMaterial({ color: black ? 0x121416 : 0x2a2f33 })));
     base.position.y = 0.025;
     const ahead = this.fixed(new THREE.Mesh(new THREE.BoxGeometry(0.104, 0.006, 0.05), new THREE.MeshLambertMaterial({ color: 0x2f8f3a })));
     ahead.position.set(0, 0.051, -0.05);
     const astern = this.fixed(new THREE.Mesh(new THREE.BoxGeometry(0.104, 0.006, 0.05), new THREE.MeshLambertMaterial({ color: 0xa8402a })));
     astern.position.set(0, 0.051, 0.05);
     this.root.add(base, ahead, astern);
+    if (black) {
+      // The bright inlay round the quadrant's top, and its slot.
+      const inlay = this.fixed(new THREE.Mesh(new THREE.BoxGeometry(0.106, 0.004, 0.164), new THREE.MeshLambertMaterial({ color: 0xb9bec3 })));
+      inlay.position.y = 0.047;
+      const slot = this.fixed(new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.008, 0.13), new THREE.MeshLambertMaterial({ color: 0x050506 })));
+      slot.position.y = 0.052;
+      this.root.add(inlay, slot);
+    }
 
     // Arm + knob rotate about the pivot (local origin, slightly above the base).
     this.arm.position.y = 0.04;
-    const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.014, this.length, 8), this.material(0xb8bcc0));
+    const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.014, this.length, 8), this.material(black ? 0x1b1d20 : 0xb8bcc0));
     rod.position.y = this.length / 2;
-    this.knob = new THREE.Mesh(new THREE.SphereGeometry(0.03, 12, 8), this.material(0xd23c2a));
+    if (black) {
+      // A grip across the top, as wide as a hand, rounded at its ends, with a bright cap.
+      this.knob = new THREE.Mesh(new THREE.CapsuleGeometry(0.02, 0.07, 4, 10).rotateZ(Math.PI / 2), this.material(0x0e0f11));
+      const cap = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.006, 0.012), this.material(0xc8ccd0));
+      cap.position.y = 0.02;
+      this.knob.add(cap);
+    } else this.knob = new THREE.Mesh(new THREE.SphereGeometry(0.03, 12, 8), this.material(0xd23c2a));
     this.knob.position.y = this.length;
     this.arm.add(rod, this.knob);
     this.root.add(this.arm);

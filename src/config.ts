@@ -2656,12 +2656,14 @@ export const CONFIG = {
       maxParticles: 900,
       /**
        * Planing (owner: planing boats throw up a lot of spray), from her hull's `planing`
-       * Froude range (fnStart .. fnFull): sheets of spray thrown out from both sides where
-       * her bottom meets the water (`rootFrac` of her length forward of amidships), `sheetRate`
-       * particles/s per m/s at full planing; and a mist kicked up behind her transom
-       * (`sternRate` per m/s), left behind as she runs on.
+       * Froude range (fnStart .. fnFull): sheets of spray thrown out from both chines where
+       * her bottom meets the water (found each frame: where her keel line goes under the
+       * surface, as she trims and pitches; owner, Oct 2026), `sheetRate` particles/s per m/s
+       * at full planing; and a mist kicked up behind her transom (`sternRate` per m/s), left
+       * behind as she runs on. The bow wave comes off the same point while it's forward of
+       * amidships.
        */
-      planing: { rootFrac: 0.18, sheetRate: 18, sternRate: 3 },
+      planing: { sheetRate: 18, sternRate: 3 },
       /** Bow wave "moustache": starts above this speed (m/s), particles/s per m/s above it. */
       bowSpeed: 2.2,
       bowRate: 18,
@@ -2921,8 +2923,11 @@ export const CONFIG = {
      * chosen. Its screens stand in one row centred over the wheel, `screenGap` (m) between
      * them. The units hung from the roof out to the sides (the VHF, the chartplotter, the FM
      * set) come no further than `hungReach` (m) from the wheel.
+     * With pod drives (`podJoystick`, the console's axes, m, z aft): the throttle forward on its
+     * pedestal (`throttleZ`), the helm joystick aft of it (`stickZ`), its JOYSTICK button
+     * `button` [x, z] from the stick (between the two, outboard).
      */
-    helm: { maxConsole: 2.2, screenGap: 0.02, hungReach: 1.0 },
+    helm: { maxConsole: 2.2, screenGap: 0.02, hungReach: 1.0, podJoystick: { throttleZ: 0.0, stickZ: 0.225, button: [0.085, -0.08] as [number, number] } },
     /**
      * The advanced interior's working lights (owner): the overhead switch panel (panel.overhead)
      * and the foredeck and aft deck floodlights (light.flood). No rail lights for now (owner).
@@ -3170,6 +3175,21 @@ export const CONFIG = {
     /** In gear with a survivor within this of the stern: they swim away from the propeller at this speed (m/s). */
     propRadius: 7,
     swimAway: 0.8,
+    /**
+     * A survivor in the water swims for the ring once it floats within `swimToRing` m of
+     * them (owner: a hard throw to land right on them in VR), at `swimSpeed` m/s, while no
+     * one else is on the line.
+     */
+    swimToRing: 14,
+    swimSpeed: 0.7,
+    /**
+     * People on a liferaft or a sinking boat (rescueDefs `prop`) climb aboard straight from
+     * it: your stern within `raftRange` m of it and in neutral, one after another. A
+     * sinking boat goes down `sinkTime` s after the call (its people into the water then,
+     * for the ring); the raft and the upturned dinghy drift as everything does.
+     */
+    raftRange: 4.5,
+    sinkTime: 300,
     /** Boat hook: length (m), how close its tip must come to a crate to hook it, and how close
      *  alongside (from the hull side, m) a hooked crate must be to lift aboard. */
     hookLength: 2.2,
@@ -3340,6 +3360,18 @@ export const CONFIG = {
   },
 
   /**
+   * The line-throwing gun (owner, Oct 2026; tow/lineGun.ts, player/handGear.ts kind
+   * 'lineGun'): a tug's hand tool for passing a hawser to a ship she can't reach with the
+   * boat hook. On its bracket in every tug's wheelhouse (a tug hull or the tug diesel, the
+   * Shipyard). Take it, aim at the ship's bow eye and fire: a rocket carries a thin messenger
+   * line across; landed by the eye (within `hitRadius` m of it, or aimed within `aimDeg` of
+   * it inside `range` m), the ship's crew make it fast and haul the hawser over on it
+   * (`haulS` s), and the towline is then fast as if hooked on. A miss splashes; `reloadS` s
+   * to the next shot. The rocket flies at `speed` m/s under gravity.
+   */
+  lineGun: { range: 55, speed: 38, aimDeg: 8, hitRadius: 4, haulS: 6, reloadS: 3 },
+
+  /**
    * Camera views at the helm with a game controller (player/helmCamera.ts; owner, Oct 2026):
    * Y cycles inside, orbit and flyby while you drive from the helm.
    *   orbit   `lengths` of her length off (at least `minDist` m), the right stick turning it
@@ -3402,10 +3434,13 @@ export const CONFIG = {
    * Binoculars (player/binoculars.ts): 7x. They lie on top of the dash, port end (vessel
    * axes, `stowYawDeg` turned). VR: grip within `grabRange` to take them; held within
    * `eyeRange` of your eyes you look through them (a `renderSize` square view). Desktop:
-   * hold the right mouse button (or Z).
+   * hold the right mouse button (or Z). The view through them is steadied: it eases onto
+   * where you look over `steady` s (VR: the scope's orientation; desktop: the mouse look),
+   * since the zoom magnifies every tremor too. 0 is direct.
    */
   binoculars: {
     magnification: 7,
+    steady: 0.12,
     stow: [-1.05, 2.6, -1.74] as [number, number, number],
     stowYawDeg: 20,
     grabRange: 0.2,
@@ -4120,6 +4155,49 @@ export const CONFIG = {
       price: 9000,
       propMaxM: 0.55,
       look: { cowlWidth: 0.45, cowlHeight: 0, cowlLength: 0.5, legWidth: 0.2, shaftLength: 0.6, gearDrop: 0.22, pivotAft: 0.3, propAft: 0.6 },
+    },
+
+    /**
+     * Pod drives (owner, Oct 2026: for the planing hulls; modules/pods): two steerable drive
+     * units hung under her bottom, forward of the transom, each driven by its own inboard engine
+     * just forward of it. Each pod's propellers are at its FRONT and pull (a tractor drive: they
+     * work in clean water, ahead of the strut). The pods swing to steer, as one with the wheel,
+     * and with the advanced controls a JOYSTICK button hands them to the helm joystick.
+     *   forwardOfTransom  each pod's steering axis this far forward of the transom (m); its
+     *                     engine's gearbox end over it
+     *   legKg, price      each pod (its strut, nacelle, gears and twin propellers), and what it adds
+     *   propMaxM          its propellers no bigger than this (they turn fast: the pod's own gears).
+     *                     The two in tandem are modelled as one of this diameter, the disc they
+     *                     work together (0.55 m was too small to take 400 kW: 30 kn on the pilot
+     *                     boat against 38 on shafts; at 0.65, 35 kn)
+     *   steering          from the wheel: up to `maxAngleDeg` either way at `rateDegPerS`; each
+     *                     strut's side area `legArea` steers as a rudder from the water past it
+     *   look              (m) the strut from her bottom down to the nacelle's centre, `strutLength`
+     *                     (the propellers' tips clear of her bottom: worked out from the diameter,
+     *                     never less), `strutChord` long, `strutWidth` thick; the nacelle `podLength`
+     *                     long, `podRadius` round; its propellers `propFwd` forward of the axis
+     *   joystick          vector mode (the helm joystick; physics/podAllocation.ts):
+     *     maxAngleDeg     each pod swings this far either way on its own (further than from the
+     *                     wheel), at `rateDegPerS`
+     *     lever           both engines' throttle at the stick's stop (0..1 of the lever's travel:
+     *                     low, it's for berthing)
+     *     slip            over the first share of the stick's travel the engines idle in gear and
+     *                     the pods' clutches slip, giving that share of their idling push (fine
+     *                     control close in); past it the throttle opens
+     *     side, surge, twist  how hard each way of the stick asks (a share of one pod's push;
+     *                     twist: of one pod's push at the pods' half spacing, as a turning moment)
+     *     turnRateDeg     the twist at its stop asks for this rate of turn (deg/s); the pods
+     *                     turn her to it, `turnGain` (per rad/s of error) giving full twist for
+     *                     an error of 1/turnGain, and hold her head (no turn) while she crabs
+     */
+    pods: {
+      forwardOfTransom: 1.3,
+      legKg: 260,
+      price: 24000,
+      propMaxM: 0.65,
+      steering: { maxAngleDeg: 26, rateDegPerS: 40, legArea: 0.14 },
+      look: { strutLength: 0.45, strutChord: 0.6, strutWidth: 0.12, podLength: 1.25, podRadius: 0.14, propFwd: 0.62 },
+      joystick: { maxAngleDeg: 50, rateDegPerS: 60, lever: 0.5, slip: 0.4, side: 1, surge: 1, twist: 2, turnRateDeg: 6, turnGain: 60 },
     },
 
     /** electrical.battery-bank (M6): each 12 V 100 Ah battery's mass (kg). */

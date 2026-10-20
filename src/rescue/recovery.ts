@@ -190,10 +190,31 @@ export function stepRecovery(world: WorldState, v: VesselState, waves: readonly 
   const inc = r.active;
   if (!inc) return;
   const stern = vesselToWorld(v, gear.stern);
+  // Nobody on the line yet: the ring in the water is for the taking.
+  const ringFree = ring.state === 'water' && !ring.player && !persons(r).some((t) => t.phase === 'onLine');
+  // People on a raft or a sinking boat: with our stern alongside it and the propeller stopped,
+  // they come across one at a time (the next once the one before is up).
+  const prop = inc.prop;
+  const climbingNow = inc.targets.some((t) => t.phase === 'climbing');
+  const alongsideProp = !!prop && !prop.sunk && inc.phase === 'accepted' && v.engine.gear === 0 && Math.hypot(prop.x - stern.x, prop.z - stern.z) < cfg.raftRange;
+  let tookOne = climbingNow;
   for (const t of inc.targets) {
     if (t.kind === 'person') {
+      if (t.phase === 'raft' && alongsideProp && !tookOne) {
+        tookOne = true;
+        t.phase = 'climbing';
+        t.t = 0;
+        t.seat = freeSeat(r, v);
+      }
       if ((!t.phase || t.phase === 'floating') && ring.state === 'water' && inc.phase === 'accepted') {
-        if (Math.hypot(t.x - ring.pos[0], t.z - ring.pos[2]) < cfg.catchRadius) t.phase = 'onLine';
+        const toRing = Math.hypot(t.x - ring.pos[0], t.z - ring.pos[2]);
+        if (toRing < cfg.catchRadius) t.phase = 'onLine';
+        else if (ringFree && toRing < cfg.swimToRing) {
+          // Near enough to see it: they swim for it (owner: hard to land it right on them in VR).
+          const step = Math.min(cfg.swimSpeed * dt, toRing - cfg.catchRadius * 0.5);
+          t.x += ((ring.pos[0] - t.x) / toRing) * step;
+          t.z += ((ring.pos[2] - t.z) / toRing) * step;
+        }
       }
       if (t.phase === 'onLine') {
         t.x = ring.pos[0];
