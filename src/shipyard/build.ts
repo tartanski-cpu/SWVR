@@ -661,7 +661,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
       const ladder = roomAft
         ? { face: 'aft' as const, x: rnd(hw + (stripAft - wk.margin) / 2 + 0.05), width: wk.ladder.width, depth: wk.ladder.depth }
         : { face: 'front' as const, x: 0, width: wk.ladder.width, depth: wk.ladder.depth };
-      deckhouse.walk = { z0: flat, margin: wk.margin, railHeight: wk.railHeight, ladder };
+      deckhouse.walk = { z0: flat, margin: wk.margin, railHeight: wk.railHeight, postSpacing: wk.postSpacing, ladder };
       // The rail's run: both sides from the flat top's front aft (beside the house too), and across the front.
       const w0 = deckhouseHalfWidth(deckhouse, flat);
       if (ladder.face === 'front') foreEndAt = deckhouse.z0 - ladder.depth;

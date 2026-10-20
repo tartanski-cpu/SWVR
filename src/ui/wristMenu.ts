@@ -26,6 +26,9 @@ export class WristMenu {
   /** Fingertip depth in front of the panel last frame (null = not over the panel). */
   private lastDepth: number | null = null;
   private hover: MenuButton | null = null;
+  /** The flat desktop menu (owner): the panel's canvas as a page element, centred, mouse-driven. */
+  private flat: HTMLDivElement | null = null;
+  private flatOpen = false;
 
   /**
    * @param widthM the panel's width (m): the wrist menu's by default; a board in the world, wider.
@@ -47,7 +50,68 @@ export class WristMenu {
   }
 
   get isOpen(): boolean {
-    return this.root.visible;
+    return this.root.visible || this.flatOpen;
+  }
+
+  /** Open flat on the page (desktop; not in 3D). */
+  get isFlat(): boolean {
+    return this.flatOpen;
+  }
+
+  /**
+   * Desktop: the menu flat on the screen (owner request: easier to use than floating in
+   * the 3D view). The same canvas the panel draws, shown as a page element in the middle of
+   * the window, as tall as fits; the mouse hovers and clicks it directly. The mouse must be
+   * free: the caller releases the pointer lock. Closed by `close()` (O again).
+   */
+  openFlat(): void {
+    if (!this.flat && typeof document !== 'undefined') {
+      const d = document.createElement('div');
+      d.style.cssText = 'position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:100;background:rgba(0,0,0,0.25);cursor:default;';
+      const c = this.panel.element;
+      c.style.cssText = 'display:block;border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,0.5);cursor:pointer;';
+      d.appendChild(c);
+      const at = (e: MouseEvent) => {
+        const r = c.getBoundingClientRect();
+        const s = this.panel.pixelSize;
+        return { px: ((e.clientX - r.left) / r.width) * s.w, py: ((e.clientY - r.top) / r.height) * s.h };
+      };
+      c.addEventListener('mousemove', (e) => {
+        const { px, py } = at(e);
+        this.setHover(this.panel.hoverAt(px, py));
+      });
+      c.addEventListener('mouseleave', () => this.setHover(null));
+      c.addEventListener('click', (e) => {
+        const { px, py } = at(e);
+        const b = this.panel.hoverAt(px, py);
+        if (b) this.press(b, () => {});
+        e.stopPropagation();
+      });
+      // A click on the dark surround closes it, as a dialog does.
+      d.addEventListener('click', () => this.close());
+      c.addEventListener('contextmenu', (e) => e.preventDefault());
+      document.body.appendChild(d);
+      this.flat = d;
+    }
+    this.root.visible = false;
+    this.flatOpen = true;
+    if (this.flat) {
+      this.flat.style.display = 'flex';
+      this.fitFlat();
+    }
+    this.rayLine.visible = false;
+    this.setHover(null);
+    this.panel.refresh(true);
+  }
+
+  /** The flat menu as tall as the window allows (its own pixels at most), keeping its shape. */
+  private fitFlat(): void {
+    if (!this.flat) return;
+    const s = this.panel.pixelSize;
+    const scale = Math.min(1, (window.innerHeight * 0.92) / s.h, (window.innerWidth * 0.94) / s.w);
+    const c = this.panel.element;
+    c.style.width = `${Math.round(s.w * scale)}px`;
+    c.style.height = `${Math.round(s.h * scale)}px`;
   }
 
   /** Wear the menu on a (left) controller grip. */
@@ -88,6 +152,11 @@ export class WristMenu {
   }
 
   private show(on: boolean): void {
+    if (this.flatOpen) {
+      this.flatOpen = false;
+      if (this.flat) this.flat.style.display = 'none';
+      // The canvas texture is drawn from the same canvas: nothing to put back.
+    }
     this.root.visible = on;
     this.rayLine.visible = false;
     this.pokeLatched = false;
@@ -145,6 +214,10 @@ export class WristMenu {
 
   /** Desktop: reticle ray + click. Returns true if the reticle is on the menu. */
   updateDesktop(ray: THREE.Ray | null, pressed: boolean): boolean {
+    if (this.flatOpen) {
+      this.fitFlat();
+      return false; // the mouse works it directly
+    }
     if (!this.isOpen || !ray) return false;
     this.root.updateWorldMatrix(true, true);
     const hit = this.panel.hitRay(ray, this.reach.desktop);

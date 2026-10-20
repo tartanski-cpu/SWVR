@@ -5119,6 +5119,19 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Tests:** `tests/walkFender.test.ts` (+2): the intent refused with the fenders in; hung at a station and side, probe where the fixed fenders hang, clamped to her length, moved by another press, in on its own and with the rest; against the Calder cargo quay a roving fender hung between two fixed stations adds to the guard force.
 - **Checked:** typecheck, `npm test`, headless desktop: the aim on the quay from the rail gives the label, the click hangs it (state set), with the hook in hand nothing; a screenshot of the roving fender hanging as a fourth fender on the quay side. **Not checked:** VR; the closed basket by eye; the feel of the reach at a wide gap; another boat alongside.
 
+### The menu flat on the screen for desktop (owner)
+
+- **The owner:** open the menu as a flat page element on desktop, not in the 3D view, so it's easier to use.
+- `ui/wristMenu.ts` `openFlat`: the panel's own canvas (the same one the 3D quad is textured from; `MenuPanel.element`) is shown as a page element in the middle of the window over a dim surround, scaled to fit the window's height (at most its own 640 px wide), the mouse free: hover and click work it directly through `MenuPanel.hoverAt` (pixel coordinates). O again closes it, as does a click on the surround. App `toggleMenu`: on desktop (not in VR, and not with a game controller aiming by the reticle, which keeps the floating panel it can reach) it releases the pointer lock and opens flat; `CONFIG.menu.flatDesktop` (true) switches it off. The 3D panel is hidden meanwhile; `updateDesktop` returns nothing while flat. VR unchanged.
+- **Checked:** typecheck, `npm test`, headless desktop: O opens it flat (the mesh hidden), a mouse click on a tab switches the page, O closes it. **Not checked:** on a real monitor at full size; a touchscreen.
+
+### Fleet: the pilot boat's strake and fenders; the fishing boat's rod rack (owner)
+
+- **The owner:** the fishing boat should carry the rod rack as standard, and the pilot boat fenders and the rubbing strake.
+- `boats/fleet/pilotBoat.json`: `guard` 4 (strake and fenders; was the strake alone), so she builds with `deck.fenders` (the basket, and the roving fender) as well as `hull.guard`. The fishing boat's file already had `rodRack` 1 (aft wall, port; since the fleet houses were narrowed this morning, on the test address only), and builds with `deck.rod-rack`: nothing to change there. The fleet is rebuilt from the files at every load, so a career in either boat gets this without a restart of the career.
+- **Tests:** `tests/fleet.test.ts` (+1): the fishing boat's design names a rack and builds one; the pilot boat's guard is strake and fenders and she builds both modules.
+- **Checked:** typecheck, `npm test`. **Not checked:** by eye.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**
@@ -6167,4 +6180,8 @@ Owner, Oct 2026: "continue with the next step for the modular build out". The pl
 - **Test steps:**
   - **Desktop:** Shipyard, pilot boat, Wheelhouse step: Width (of the wheelhouse) down to 70 %; Deckhouse: Forward 2.0 m, Height 1.0 m, Width To her sides, Top **Walked**. Look from astern: the ladder beside the house. Deck gear: Fit the side door. Trials & handover, play her: walk to the ladder on the aft deck, Space to climb, walk forward along the side of the wheelhouse to the foredeck on top, and in at the side door. Then a wheelhouse as wide as she allows: the ladder is up the front.
   - **VR:** the same boat: grip and pull down at the ladder to climb, walk round the wheelhouse on top, look over the rail.
+
+### Fix: the walked deckhouse top's rail posts too close together
+
+Owner, Oct 2026 (with a screenshot): "the railings are too closely spaced on the deck house". A post stood at every point of the deckhouse's outline, which is 0.25 m apart along her sides. Now the rail still follows the outline, but its posts are spaced evenly along each run, ends included, no more than `CONFIG.shipyard.deckhouse.walk.postSpacing` (1.2 m) apart, about as her bulwark handrail's (hullMesh.ts `deckhouseRail`, `DeckhouseWalk.postSpacing`). Fewer bars in the house's mesh too. Checked: headless Chromium, the pilot boat with a walked deckhouse alongside; typecheck, full suite.
 
