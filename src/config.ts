@@ -95,31 +95,45 @@ export const CONFIG = {
      * corrugated sheet and slates on the houses and sheds, concrete on the quays, stone on
      * the breakwaters.
      */
-    tileMetres: { nonSlip: 1, wood: 2, mat: 1, chequer: 0.5, crate: 1, sacking: 2, worn: 1.5, boards: 2, render: 2, sheet: 2, slates: 2, concrete: 4, stone: 3, window: 1, rust: 2, teak: 1.5, panels: 1.2, steel: 3, brushed: 2.4 },
+    tileMetres: { nonSlip: 1, wood: 2, mat: 1, chequer: 0.5, crate: 1, sacking: 2, worn: 1.5, boards: 2, render: 2, sheet: 2, slates: 2, concrete: 4, stone: 3, window: 1, rust: 2, teak: 1.5, deckTeak: 1.2, steel: 3, brushed: 2.4 },
     /** Width of the black window frames round the wheelhouse glass (m). */
     frameWidth: 0.06,
   },
   /**
    * The wheelhouse's interior finishes (owner, Oct 2026: "options for the interior textures";
-   * chosen in the Shipyard, Wheelhouse step). Each is a colour and a tile (pixelPaint) for the
-   * walls' inside faces, and one for the ceiling. From how real ones are lined:
-   * - wood: the planked lining every boat had before (and the first in the list, so a boat
-   *   with no choice keeps it);
-   * - teak & headliner: a yacht's pilothouse, varnished teak strip with a white ceiling;
-   * - white panels: the aluminium workboat's, foam-backed vinyl on ply panels screwed up
-   *   (light, wipe-clean, off in minutes to get at the wiring);
-   * - grey panels: the same in dark grey (it cuts the reflections in the windscreen by night);
-   * - painted steel: a tug's or a steel workboat's, the plating painted over in a pale
-   *   green (the old ship's interior colour, restful and hiding dirt) under a cream deckhead;
+   * then, from photos of real ones: "quite often there's a wood floor and then... either a
+   * light ceiling liner or a dark ceiling liner... and I like this one with the wooden beams
+   * across it"; chosen in the Shipyard, Wheelhouse step, Lining). Each is a colour and a tile
+   * (pixelPaint) for the walls' inside faces and for the ceiling, and whether varnished wooden
+   * battens run across the ceiling (`beams`, at `beamPitch` m, `beamWidth` x `beamDepth`,
+   * with a wood trim strip round its edge, `trimDepth` deep: CONFIG.cabinTrim):
+   * - wood: the planked lining every boat had before (first, so a boat with no choice keeps it);
+   * - light liner: a pale speckled vinyl headliner between the battens, dark charcoal walls
+   *   (the aluminium pilothouse in the owner's photos);
+   * - dark liner: the same with a charcoal headliner;
+   * - light all round: pale walls and headliner, the battens;
+   * - painted steel: a tug's, the plating painted pale green under a cream deckhead;
    * - bare aluminium: the plain workboat's, the hull's own sheet left bare.
    */
   interiors: [
-    { name: 'Wood lining', walls: 0x8a5d3c, wallTile: 'wood', ceiling: 0x8a5d3c, ceilingTile: 'wood' },
-    { name: 'Teak & headliner', walls: 0xa86d3a, wallTile: 'teak', ceiling: 0xeeebe2, ceilingTile: 'panels' },
-    { name: 'White panels', walls: 0xf0ece2, wallTile: 'panels', ceiling: 0xf2efe8, ceilingTile: 'panels' },
-    { name: 'Grey panels', walls: 0x7d8288, wallTile: 'panels', ceiling: 0x5b6066, ceilingTile: 'panels' },
-    { name: 'Painted steel', walls: 0xb9c9ae, wallTile: 'steel', ceiling: 0xe2e2d6, ceilingTile: 'steel' },
-    { name: 'Bare aluminium', walls: 0xc3c8cd, wallTile: 'brushed', ceiling: 0xc2c5c8, ceilingTile: 'brushed' },
+    { name: 'Wood lining', walls: 0x8a5d3c, wallTile: 'wood', ceiling: 0x8a5d3c, ceilingTile: 'wood', beams: false },
+    { name: 'Light liner, beams', walls: 0x34383c, wallTile: 'mat', ceiling: 0xe2e1db, ceilingTile: 'mat', beams: true },
+    { name: 'Dark liner, beams', walls: 0x34383c, wallTile: 'mat', ceiling: 0x3c4044, ceilingTile: 'mat', beams: true },
+    { name: 'Light all round, beams', walls: 0xc8cac6, wallTile: 'mat', ceiling: 0xe2e1db, ceilingTile: 'mat', beams: true },
+    { name: 'Painted steel', walls: 0xb9c9ae, wallTile: 'steel', ceiling: 0xe2e2d6, ceilingTile: 'steel', beams: false },
+    { name: 'Bare aluminium', walls: 0xc3c8cd, wallTile: 'brushed', ceiling: 0xc2c5c8, ceilingTile: 'brushed', beams: false },
+  ] as const,
+  /** The ceiling's battens and trim (CONFIG.interiors' `beams`): varnished wood, sizes in m. */
+  cabinTrim: { colour: 0x8e5a32, beamPitch: 0.42, beamWidth: 0.045, beamDepth: 0.035, trimDepth: 0.06 },
+  /**
+   * The wheelhouse floor (owner, Oct 2026, from photos: a wood floor, or "a grippy deck kind of
+   * utility floor"; Shipyard, Wheelhouse step, Floor): its colour (null: the livery's floor
+   * colour, as before) and tile.
+   */
+  cabinFloors: [
+    { name: 'Matting', colour: null, tile: 'mat' },
+    { name: 'Teak planks', colour: 0x6a3e22, tile: 'deckTeak' },
+    { name: 'Grippy utility', colour: 0x33373b, tile: 'nonSlip' },
   ] as const,
   render: {
     antialias: true,
@@ -2577,6 +2591,12 @@ export const CONFIG = {
    */
   chartPlotter: {
     buildMs: 4,
+    /**
+     * Its zoom (owner, Oct 2026: "add zoom buttons"): − and + under the screen step through
+     * these, the width of ground across the screen (m); AUTO (between them) goes back to
+     * choosing it for you (what matters now in view: 700 m to 5 km).
+     */
+    ranges: [250, 500, 1000, 2000, 4000, 8000, 16000, 32000],
   },
   /**
    * Pencil marks on the paper chart (chart/marks.ts). Strokes are stored in world metres
@@ -4625,6 +4645,9 @@ export const CONFIG = {
    * session is sent into the game at once, and the crew may arrive before the one who pressed
    * it has the game open. So a crew-mate who finds no game yet tries again every
    * `togetherRetryS` seconds, up to `togetherTries` times (~40 s in all, a slow phone included).
+   * A host lost (net/takeover.ts): the crew-mate who joined first hosts the game on under the
+   * same code after `takeoverDelayS` s (time for a host whose page merely reloaded to come
+   * back first); the rest rejoin by the retries above.
    * The host changing boat (App `restartPage`): the host's page waits `restartLeadS` s after
    * telling the crew before it starts again (the notice on its way), each crew page
    * `restartFollowS` s before it starts again in her (the host's old room closed by then),
@@ -4636,7 +4659,7 @@ export const CONFIG = {
    * Hosting that fails at the broker (slow, down, or a room still held by a page that closed
    * without saying) is tried again `hostTries` times in all, `hostRetryS` apart.
    */
-  net: { togetherRetryS: 2, togetherTries: 20, togetherConnectS: 8, togetherLeadS: 0.6, hostTries: 4, hostRetryS: 3, restartLeadS: 0.8, restartFollowS: 1.5 },
+  net: { togetherRetryS: 2, togetherTries: 20, togetherConnectS: 8, togetherLeadS: 0.6, hostTries: 4, hostRetryS: 3, restartLeadS: 0.8, restartFollowS: 1.5, takeoverDelayS: 12 },
 
   /**
    * Voice between the crew (net/voice.ts; owner request: up to four players). Everyone's

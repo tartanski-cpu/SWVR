@@ -5193,6 +5193,13 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Tests:** `tests/overfalls.test.ts` (+6): the opposition's sign; the chop nothing outside a race; against the ebb the sea in the race is 1.6× steeper than at slack and than beside it and its crests 1.4× higher, with the flood it eases; no overhanging slope anywhere in the roughest sea in the strongest race; the forecast's warning on the ebb and not the flood; the workboat slower through the overfalls with the added resistance than without. `tests/currents.test.ts`: the standing-wave test now allows the flatten on the flood and checks the ebb stands higher still.
 - **Checked:** typecheck, `npm test` (the maths: the slopes, crests and chop in the race against the ebb, measured in the tests). Headless screenshots of Sruth Tarsk at slack and on the ebb from sea level were taken but the steepening is not plain in them at that size (the Gerstner sum reads the same at a glance): judged by the numbers, not by eye. **Not checked:** by eye in the game or VR; the feel of the added resistance on the fleet boats at other sea states (tune `gain` if a moderate sea slows them too much; it applies everywhere, not only in the races); shoaling and the gusts' chop, which come next if wanted.
 
+### Host handover: a lost host's game carries on (owner)
+
+- **The owner:** when the host dies there's no handover of hosting; can it be done?
+- **Done** (`net/takeover.ts`, App `takeOver`, `CONFIG.net.takeoverDelayS` 12): on "The host left" in a shared game every crew page elects the same successor without a word between them: the crew-mate who joined first (the lowest `player-N`, N the host's join numbering; the host's own player, whose peer id is the room id, never). All keep retrying the code as before (a host whose page merely reloaded hosts it again and they find it). After 12 s with no host back, the successor stops retrying, keeps the world they hold from the last snapshot (`toSolo` had already kept it and dropped the others' players), and hosts it under the same code (`hostGame`; the broker's old room is free once the dead page's socket closed, and `unavailable-id` is retried). The rest find the new host within their ~40 s of retries. The host's career carries on in the new host's world but is never saved there (`borrowedCareer` makes the career session treat it as a client's). Notices on both sides say what's happening.
+- **Tests:** `tests/takeover.test.ts` (+1): the election picks the earliest-joined by number (player-3 before player-10), never the host, the same from the same world.
+- **Checked:** typecheck, `npm test`. **Not checked:** through the broker with real devices (the sandbox can't): the timing of the old room's release against the successor's hosting attempt; a host lost during a boat change.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**
@@ -5502,6 +5509,16 @@ Owner, Oct 2026: a new career starts in one of the new fleet boats; hide the wor
 - **Tests:** tests/starterBoat.test.ts (3); starterWorkboat.test.ts's other-boat message now "Not for this boat".
 - **Next fleet steps:** move the tests and golden runs onto the fleet; then delete the old boats (owner: hide first, delete later).
 
+### Chartplotter zoom buttons (done, awaiting owner test)
+
+Owner, Oct 2026: "yes add zoom buttons to the chartplotter".
+
+- **The buttons:** a strip under the plotter's screen with three push buttons facing the helm, **−**, **AUTO** (amber cap) and **+**, a white − and + beside the outer two. − and + step through `CONFIG.chartPlotter.ranges` (the ground across the screen: 250 m, 500 m, 1, 2, 4, 8, 16, 32 km) from whatever it shows now (so from AUTO they go to the next range in or out); AUTO hands it back to choosing the range for you, as before. The screen says ZOOM AUTO or ZOOM 2 km, top left.
+- **One for the boat:** the control `chartZoom` (`VesselControls.chartZoom`: 0 AUTO, k the k-th range; a plain control like the chart lamp, not a bus key, so the recorded golden runs don't change), so in multiplayer the crew see the range the helmsman set. The buttons are pulse buttons that send the range they step to (Button's new optional `sends`).
+- Zoomed out past 8 km, only the destination's name is written (the others pile up); every port still has its dot.
+- **Cost:** the three caps are drawn with the boat's other button caps (shared instanced mesh): no new draw calls; the strip merges with the bezel.
+- **Checked:** tests/chartZoom.test.ts (a press sets the range, AUTO is 0, past the list the widest); powerPanels' shared-cap count 3 → 6. Headless Chromium on the Clyde: the screen at AUTO, 500 m, 8 km and 32 km, and the set with its buttons seen from the helm. **Not checked:** the Quest (pressing them by hand overhead).
+
 ### Chartplotter: a sharp coastline on the coast maps (done, awaiting owner test)
 
 Owner, Oct 2026: "On the big maps like Syros and the Firth of Clyde, the texture that's used in the chart plotter on the overhead instrument is too low. I was thinking of adding a zoom to that. Would that help? ... If you can improve that somehow without killing performance."
@@ -5511,6 +5528,16 @@ Owner, Oct 2026: "On the big maps like Syros and the Firth of Clyde, the texture
 - **Cost:** the shapes are made the first time a square comes into view, nearest first, at most `CONFIG.chartPlotter.buildMs` (4 ms) a redraw (the plotter redraws ~2.5 times a second, only when it can be seen), and kept while the square's loaded; each square's shapes are written as one SVG path text that the canvas reads in a single call (drawing them corner by corner cost ~1 s on the Clyde; this, ~10 ms). Headless Chromium on desktop: the first redraw on a fresh map 13 ms (Clyde) to 26 ms (Oban, whose whole mesh is sorted into squares once); after that the redraw costs the same as before. No new draw calls, textures or memory to speak of (a few MB of path text on Oban).
 - **Not changed:** the career maps (their islands are drawn from formulas, already sampled at 8 m a pixel), the paper chart, the plotter's screen resolution (512 x 384).
 - **Checked:** tests/chartLand.test.ts (4): a triangle cut at the waterline (its dry part's corners and area), wholly above or below, always one way round; faces into squares, all-deep squares kept; each level's path, and a face wholly above the next level giving nothing for this one. Full suite passes. Headless Chromium, the plotter's screen before and after at Rothesay, and after at Ermoupoli, Oban, Tayvallich and out in the Clyde. **Not checked:** the Quest (watch for a stutter the first time a part of a map comes on the plotter).
+
+### Interior finishes, round 2: wood or grippy floors, liners with wooden beams (done, awaiting owner test)
+
+Owner, Oct 2026 (with two photos: an aluminium pilothouse with a pale headliner between varnished battens and charcoal walls, and a cabin with a teak sole and a speckled light headliner with wooden battens): "not happy with the interior textures... quite often there's a wood floor and then some kind of either a light ceiling liner or a dark ceiling liner. Or... a grippy deck kind of utility floor with, again... a light liner. And I like this one with the wooden beams across it."
+
+- **Lining** (`CONFIG.interiors`, same Shipyard row): Wood lining (as before), **Light liner, beams** (pale speckled headliner, charcoal walls), **Dark liner, beams** (charcoal headliner and walls), **Light all round, beams**, Painted steel, Bare aluminium. The first round's teak-and-headliner and white/grey panel options are gone (and the `panels` tile with them); the liners use the fine speckle tile (`mat`).
+- **The beams** (`beams: true`; `CONFIG.cabinTrim`): varnished wooden battens across the ceiling every ~0.42 m (`beamPitch`, `beamWidth` 4.5 cm, `beamDepth` 3.5 cm), and a 6 cm wood trim strip round the ceiling's edge where it meets the walls (`trimDepth`), under every ceiling (the wheelhouse's, a lower saloon roof's, the box house's). Merged with her fixed parts: no extra draw calls.
+- **Floor** (new Shipyard row, Inside group; `CONFIG.cabinFloors`, `design.cabinFloor`, design code **version 31**, packed above the lining; older codes read as matting): Matting (as before, the livery's floor colour), **Teak planks** (new tile `deckTeak`: dark teak strips 7.5 cm wide laid fore and aft with pale caulked seams), **Grippy utility** (dark charcoal, the non-slip tile). Livery key `cabinFloor`; hullMesh's `paintOf` sets the floor's colour and tile.
+- **Still known:** a ceiling looks darker than its paint by day (it faces down; the daytime light reaches it only dimly), so the light liner reads pale slate rather than white. Brightening it means a lighting change for the whole game (a fill light inside costs on the Quest); not done without the owner's say.
+- **Checked:** tests/interiors.test.ts (5): every lining's and floor's tiles exist and the Shipyard lists them all; a liner's beams are drawn (teak tile) and painted steel has none; teak planks and grippy floors appear when chosen; lining, floor and stack style round-trip through the code, off-scale refused. Full suite passes. Headless Chromium at the helm looking aft: light liner + teak, dark liner + teak, light liner + grippy, light all round + grippy. **Not checked:** the Quest.
 
 ### Interior finishes: a choice of lining in the wheelhouse (done, awaiting owner test)
 

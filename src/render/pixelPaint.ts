@@ -23,10 +23,10 @@ import { CONFIG } from '../config';
  * The tiles, in their order in the texture (0 is no paint). The first four are the boats';
  * the rest dress the cargo, the harbours and the sea marks (step 2, owner: the crates, the
  * houses, the buoys and nav marks). `crate` and `window` are whole pictures, one to a face
- * (`fitPaint`, render/geometryUtils); the others repeat every `tileMetres`. The last four are
- * the wheelhouse's interior finishes (CONFIG.interiors, chosen in the Shipyard).
+ * (`fitPaint`, render/geometryUtils); the others repeat every `tileMetres`. The last four dress
+ * the wheelhouse inside (CONFIG.interiors and CONFIG.cabinFloors, chosen in the Shipyard).
  */
-export const PAINTS = ['nonSlip', 'wood', 'mat', 'chequer', 'crate', 'sacking', 'worn', 'boards', 'render', 'sheet', 'slates', 'concrete', 'stone', 'window', 'rust', 'teak', 'panels', 'steel', 'brushed'] as const;
+export const PAINTS = ['nonSlip', 'wood', 'mat', 'chequer', 'crate', 'sacking', 'worn', 'boards', 'render', 'sheet', 'slates', 'concrete', 'stone', 'window', 'rust', 'teak', 'deckTeak', 'steel', 'brushed'] as const;
 export type PaintName = (typeof PAINTS)[number];
 
 /** A tile's index in the texture (0: none). */
@@ -280,21 +280,20 @@ const PAINTERS: Record<PaintName, () => (x: number, y: number) => number> = {
     };
   },
   /**
-   * Lining panels, the workboat's (foam-backed vinyl on ply, screwed up so they come off for
-   * the wiring): panels 0.6 m square (32 pixels at 1.2 m) with a shadowed joint
-   * between, a screw head every 15 cm along each joint, and the vinyl's fine grain.
+   * A teak cabin sole, laid fore and aft (owner, Oct 2026, from a photo of one): dark teak
+   * strips 7.5 cm wide (4 pixels at 1.2 m) running up the tile (fore and aft on a floor: a
+   * floor's tile runs across her one way, along her the other), a pale caulked seam between
+   * each, the strips' butt joints staggered.
    */
-  panels: () => {
+  deckTeak: () => {
     const r = rng(131);
-    const px = Array.from({ length: TILE * TILE }, () => 0.5 + (r() - 0.5) * 0.035);
+    const cols = TILE / 4;
+    const strip = Array.from({ length: cols }, () => ({ tone: 0.42 + 0.08 * r(), end: Math.floor(r() * TILE), grain: Array.from({ length: TILE }, () => (r() - 0.5) * 0.07) }));
     return (x, y) => {
-      const jx = x % 32;
-      const jy = y % 32;
-      if (jx === 0 || jy === 0) return 0.2; // the joint
-      if (jx === 1 || jy === 1) return 0.64; // the panel's edge catching the light
-      // Screw heads, just in from the joints.
-      if ((jx === 3 && y % 8 === 4) || (jy === 3 && x % 8 === 4)) return 0.26;
-      return px[y * TILE + x];
+      const s = strip[Math.floor(x / 4)];
+      if (x % 4 === 0) return 0.78; // the seam's pale caulking
+      if (y === s.end) return 0.3;
+      return s.tone + s.grain[(y * 3 + (x % 4) * 11) % TILE];
     };
   },
   /**

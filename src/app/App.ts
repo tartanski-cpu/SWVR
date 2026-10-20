@@ -153,6 +153,7 @@ import { applyPlayerIntent } from '../player/playerControl';
 import { HostSession } from '../net/hostSession';
 import { ClientSession } from '../net/clientSession';
 import type { RestartNotice } from '../net/protocol';
+import { electedHost } from '../net/takeover';
 import { PeerClientTransport, PeerHostTransport, peerIdForRoom, randomRoomCode, type ClientTransport } from '../net/transport';
 import type Peer from 'peerjs';
 import { VoiceChat, type VoiceSpeaker } from '../net/voice';
@@ -569,7 +570,7 @@ export class App {
   private readonly career = new CareerSession({
     world: () => this.world,
     vesselId: () => this.testVesselId,
-    isClient: () => !!this.client,
+    isClient: () => !!this.client || this.borrowedCareer,
     notify: (t, sec) => this.overlay.notify(t, sec),
     pushEnv: (c, v, r) => this.pushEnvIntent(c, v, r),
   });
@@ -2953,10 +2954,17 @@ export class App {
       // Sent in together from the Shipyard: the host's game may not be open yet; try again.
       if (this.togetherTries > 0 && client.status !== 'connected' && reason === 'No game with that code') return this.retryTogether(client);
       if (this.inSharedGame && !this.restarting && reason === 'The host left') {
-        // The host's page may be reloading (it hosts the same code again): wait for it.
+        // The host's page may be reloading (it hosts the same code again): wait for it. If
+        // it doesn't come back, the crew-mate who joined first hosts the game on from the
+        // last snapshot (net/takeover.ts); the rest keep retrying and find them.
         this.inSharedGame = false;
         this.togetherTries = CONFIG.net.togetherTries;
-        this.overlay.notify('Lost the host: waiting for their game to come back...', 4);
+        const code = this.joinCode;
+        const heir = electedHost(this.world, peerIdForRoom(code));
+        if (heir?.id === this.localPlayerId) {
+          this.overlay.notify(`Lost the host: if they're not back in ${CONFIG.net.takeoverDelayS} s, you host the game on (code ${code})`, 5);
+          setTimeout(() => this.takeOver(code), CONFIG.net.takeoverDelayS * 1000);
+        } else this.overlay.notify(`Lost the host: waiting for ${heir?.name ?? 'the game'} to come back or take over...`, 4);
         return this.retryTogether(client);
       }
       this.netMessage = reason;
@@ -2966,6 +2974,29 @@ export class App {
 
   /** Joining from "Try her together": tries left while the host's game isn't open yet. */
   private togetherTries = 0;
+  /** Hosting a game taken over from a lost host (net/takeover.ts): their career, played on, never saved here. */
+  private borrowedCareer = false;
+
+  /**
+   * The lost host hasn't come back: host their game on from the last snapshot under the same
+   * code (the world is ours since toSolo; the crew rejoin by their retries). The career in it
+   * is theirs: it carries on but is never saved into our slots.
+   */
+  private takeOver(code: string): void {
+    if (this.host || this.hostStarting || this.restarting) return;
+    if (this.client?.status === 'connected' || this.inSharedGame) return; // the host came back
+    if (this.client) {
+      const c = this.client;
+      this.client = null;
+      c.close();
+      this.toSolo();
+    }
+    this.togetherTries = 0;
+    this.joinCode = code;
+    this.borrowedCareer = true;
+    this.overlay.notify(`The host hasn't come back: you're hosting the game on, code ${code}. The crew rejoin by themselves. (Their career plays on but isn't saved here.)`, 8);
+    this.hostGame(code);
+  }
   /** In a game whose code is on the address (joined and welcomed): a lost host is waited for. */
   private inSharedGame = false;
 
