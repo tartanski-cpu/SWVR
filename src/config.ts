@@ -195,6 +195,17 @@ export const CONFIG = {
     ],
     /** Largest sea scale the fine control allows, and its step. */
     maxSeaScale: 3,
+    /**
+     * Added resistance in waves (vessel/physics/vesselPhysics.ts): the drag a sea puts on a
+     * hull beyond calm water, ∝ ρ g ζ² B²/L (ζ the local wave amplitude, B her beam, L her
+     * length: the classic scaling), × `gain`; full in a head sea, `following` of it with the
+     * sea astern. It is what makes the overfalls hard to travel through: the standing,
+     * steepened waves there put ζ up two or three times, so the resistance four to nine.
+     * `fullAt`: it comes in over the first m/s of way (full at `fullAt` m/s), so a boat lying
+     * stopped isn't held or set adrift by it. gain 0.4: the workboat flat out into a sea of
+     * 1.5 loses about a fifth of her speed in open water; in the overfalls, half or more.
+     */
+    addedResistance: { gain: 0.4, following: 0.15, fullAt: 2 },
     seaScaleStep: 0.1,
     mesh: {
       /** Grid spacing (m) in the dense centre around the viewer. */
@@ -4693,6 +4704,26 @@ export const CONFIG = {
    */
   currents: {
     edgeFade: 60,
+    /**
+     * Overfalls (owner, Oct 2026: steeper seas in some places, harder to travel through):
+     * wind waves meeting a tidal race running against them shorten and stand up. Inside a
+     * running race, for each wave by how much it opposes the flow (`opp` = -(wave direction ·
+     * flow) × strength × how far in, -1..1; the CPU and the ocean shader alike):
+     *   heighten  the wave's height × (1 + heighten × opp) when opposing (on top of the
+     *             zone's own waveFactor);
+     *   steepen   its crest sharpness (the Gerstner orbit) × (1 + steepen × opp) more still;
+     *   flatten   with the flow (opp < 0): height × (1 - flatten × |opp|), the sea eases;
+     *   chop      two short wind-wave components in the sea, `amplitude` m (× the sea scale)
+     *             at `periods` s, travelling `spreadDeg` either side of the main wave: nowhere
+     *             but where they oppose a running race (× max(opp, 0)).
+     * The crest-loop limit (Σ Q·k·A < 1) is kept at the worst case (tests/overfalls.test.ts).
+     */
+    overfalls: {
+      heighten: 0.35,
+      steepen: 0.45,
+      flatten: 0.3,
+      chop: { amplitude: 0.12, periods: [2.6, 2.1] as readonly number[], spreadDeg: 15 },
+    },
     slackBelowKn: 1.5,
     knock: { radius: 28, yaw: 0.07, roll: 0.08 },
     roar: { hearRange: 700, gain: 0.55 },

@@ -56,6 +56,10 @@ import { calmWaterResistance } from './propulsion';
 import { submergedSection, type SubmergedSection } from './sectionClip';
 import { physicsStations } from '../hullForm';
 import { contactAt, guardContactAt, hullContactPoints, type ContactResult, type GuardMaterial } from './contacts';
+import { localSeaAt } from '../../ocean/waves';
+
+/** Scratch for the added resistance's local sea (no allocation per tick). */
+const localSea = { amp: 0, dirX: 0, dirZ: 0 };
 import { blockNear } from '../../world/geography';
 import { stepMooring } from './mooring';
 import type { ExternalForce } from './vesselContact';
@@ -340,6 +344,28 @@ export function stepVessel(
   const vSway = tmp.x; // sideways through the water, + to starboard
   const R = calmWaterResistance(def, U) * immersion;
   addForceAt(tmp.set(0, 0, Math.sign(U) * R).applyQuaternion(q), resW);
+  // Added resistance in waves (CONFIG.ocean.addedResistance): the sea's drag on a hull
+  // beyond calm water, ρ g ζ² B²/L × gain (the classic scaling), ζ the waves' amplitude
+  // where she is (the shelter and the overfalls counted: ocean/waves.ts localSeaAt). Full
+  // with the sea ahead, `following` of it with the sea astern; against her way through the
+  // water, coming in over the first `fullAt` m/s so a boat lying stopped isn't set adrift
+  // by it (the mean drift force of a real sea is left out: too strong a push at rest in a
+  // model with this little low-speed drag).
+  if (Math.abs(U) > 0.05) {
+    const ar = CONFIG.ocean.addedResistance;
+    const sea = localSeaAt(waves, resW.x, resW.z, localSea);
+    if (sea.amp > 0 && ar.gain > 0) {
+      const p = def.hull.params;
+      const fwd = tmp.set(0, 0, -1).applyQuaternion(q);
+      // The sea travelling against her way: head sea 1, following sea `following`.
+      const along = (sea.dirX * fwd.x + sea.dirZ * fwd.z) * Math.sign(U);
+      const head = (1 - along) / 2;
+      const heading = ar.following + (1 - ar.following) * head;
+      const way = Math.min(1, Math.abs(U) / ar.fullAt);
+      const Raw = ar.gain * rho * g * sea.amp * sea.amp * ((p.beamDeck * p.beamDeck) / p.length) * heading * way * immersion;
+      addForceAt(tmp.set(0, 0, Math.sign(U) * Raw).applyQuaternion(q), resW);
+    }
+  }
 
   // ── A planing hull in a turn (def.planing) ──
   // Planing, her weight rides on her bottom's lift, from Fn `fnStart` (off the hump) to

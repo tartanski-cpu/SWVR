@@ -57,8 +57,23 @@ export function racesText(env: EnvironmentState): string {
     const r = raceReading(z, env.timeOfDay, env.raceOverride);
     const slackAt = clock(r.nextSlackH);
     if (r.slack) return `${z.name}: slack water, the race running again by ${clock((r.nextSlackH + 0.5) % 24)}.`;
-    return `${z.name}: race running ${compass8(r.dirDeg)} ${r.kn.toFixed(0)} knots, slack about ${slackAt}.`;
+    return `${z.name}: race running ${compass8(r.dirDeg)} ${r.kn.toFixed(0)} knots${overfallsWarning(env, r.dirDeg)}, slack about ${slackAt}.`;
   }).join(' ');
+}
+
+/**
+ * The overfalls (world/currents.ts raceOpposition): the sea's main wave running against
+ * the race's flow now stands the sea up there. A warning when it does, by how much.
+ */
+function overfallsWarning(env: EnvironmentState, flowDeg: number): string {
+  const main = env.waves.find((w) => !w.chop);
+  if (!main || env.seaScale <= 0) return '';
+  const a = (main.directionDeg * Math.PI) / 180;
+  const b = (flowDeg * Math.PI) / 180;
+  // Both as travel directions: the wave's, and the flow's.
+  const opp = -(Math.sin(a) * Math.sin(b) + Math.cos(a) * Math.cos(b));
+  if (opp < 0.3) return '';
+  return opp > 0.8 && env.seaScale >= 1.2 ? ', wind against tide: heavy overfalls, steep breaking seas' : ', wind against tide: overfalls';
 }
 
 /**

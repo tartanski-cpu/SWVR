@@ -23,6 +23,15 @@ uniform vec4 uRace[MAX_RACES];
 uniform vec4 uRaceB[MAX_RACES];
 uniform int uRaceCount;
 uniform float uRaceFade;
+// The overfalls (world/currents.ts raceOpposition, ocean/waves.ts waveFactors; CONFIG
+// currents.overfalls): heighten, steepen, flatten. A wave running against the strongest
+// race here stands higher and sharper; with it, a little lower. uWaveB.w = 1 marks the
+// chop waves: nothing but where they oppose a running race.
+uniform vec3 uOverfalls;
+// Σ Q·k·A of the sea's waves and of the chop (waves.ts loopSums), and the crest-loop cap:
+// where the standing waves and the overfalls would push the sum past the cap, the orbits
+// are scaled back (waves.ts commonFactors).
+uniform vec3 uLoop; // sea, chop, cap
 
 /** How much of race j the rest position p0 is in, 0..1 (currents.ts zoneWeight). */
 float raceWeight(int j, vec2 p0) {
@@ -37,19 +46,30 @@ float raceWeight(int j, vec2 p0) {
   return t * t * (3.0 - 2.0 * t);
 }
 
-/** The races' amplitude factor at p0 (>= 1), and (out) the strongest running race's signed strength there. */
-float raceAt(vec2 p0, out float running) {
+/**
+ * The races' amplitude factor at p0 (>= 1), and (out) the strongest running race's signed,
+ * weighted strength there and its set (currents.ts raceAt).
+ */
+float raceAtSet(vec2 p0, out float running, out vec2 set) {
   float f = 1.0;
   running = 0.0;
+  set = vec2(0.0);
   for (int j = 0; j < MAX_RACES; j++) {
     if (j >= uRaceCount) break;
     float w = raceWeight(j, p0);
     if (w <= 0.0) continue;
     float st = uRaceB[j].z;
     f = max(f, 1.0 + (uRaceB[j].w - 1.0) * abs(st) * w);
-    if (abs(st * w) > abs(running)) running = st * w;
+    if (abs(st * w) > abs(running)) {
+      running = st * w;
+      set = uRaceB[j].xy;
+    }
   }
   return f;
+}
+float raceAt(vec2 p0, out float running) {
+  vec2 set;
+  return raceAtSet(p0, running, set);
 }
 
 float shelterAt(vec2 p0) {
@@ -89,16 +109,36 @@ float arcShelterAt(vec2 p0, vec2 dir) {
 vec3 gerstnerDisplacement(vec2 p0) {
   float dist = distance(p0, uCenter);
   float running;
-  float shelter = shelterAt(p0) * raceAt(p0, running);
+  vec2 set;
+  float shelterOnly = shelterAt(p0);
+  float raceF = raceAtSet(p0, running, set);
+  float cap = 1.0;
+  if (running != 0.0) {
+    float a = abs(running);
+    float worst = uLoop.x * raceF * (1.0 + uOverfalls.x * a) * (1.0 + uOverfalls.y * a) + uLoop.y * a;
+    if (worst > uLoop.z) cap = uLoop.z / worst;
+  }
   vec3 disp = vec3(0.0);
   for (int i = 0; i < MAX_WAVES; i++) {
     if (i >= uWaveCount) break;
     vec4 a = uWaveA[i];
     vec4 b = uWaveB[i];
-    float fade = (1.0 - smoothstep(b.z * 0.6, b.z, dist)) * shelter * arcShelterAt(p0, a.xy);
+    float fade = (1.0 - smoothstep(b.z * 0.6, b.z, dist)) * shelterOnly * arcShelterAt(p0, a.xy);
+    // The overfalls (waves.ts waveFactors): by how much this wave runs against the race.
+    float opp = -dot(a.xy, set) * running;
+    float against = max(opp, 0.0);
+    float ampF;
+    float horF;
+    if (b.w > 0.5) {
+      ampF = fade * against;
+      horF = ampF * cap;
+    } else {
+      ampF = fade * raceF * (1.0 + uOverfalls.x * against - uOverfalls.z * max(-opp, 0.0));
+      horF = ampF * (1.0 + uOverfalls.y * against) * cap;
+    }
     float theta = a.z * dot(a.xy, p0) - b.y;
-    disp.y += a.w * sin(theta) * fade;
-    disp.xz += a.xy * (b.x * cos(theta) * fade);
+    disp.y += a.w * sin(theta) * ampF;
+    disp.xz += a.xy * (b.x * cos(theta) * horF);
   }
   return disp;
 }

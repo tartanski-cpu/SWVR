@@ -134,8 +134,16 @@ describe('the water in the zone', () => {
         maxIn = Math.max(maxIn, surfaceHeight(waves, RACE.x + x, RACE.z + z));
         maxOut = Math.max(maxOut, surfaceHeight(waves, RACE.x + x + 3000, RACE.z + z));
       }
-    expect(maxIn / maxOut).toBeGreaterThan(1.5);
+    // At 01:30 the flood runs north and the sea travels NE, with it: the standing waves
+    // stand up, eased a little by the overfalls' flatten (CONFIG.currents.overfalls).
+    expect(maxIn / maxOut).toBeGreaterThan(1.3);
     expect(maxIn / maxOut).toBeLessThan(RACE.waveFactor + 0.1);
+    // Against the ebb (04:30) the sea stands higher still: the overfalls.
+    setRaceClock(4.5);
+    let maxEbb = 0;
+    for (let x = -150; x <= 150; x += 2) for (let z = -300; z <= 300; z += 10) maxEbb = Math.max(maxEbb, surfaceHeight(waves, RACE.x + x, RACE.z + z));
+    expect(maxEbb / maxOut).toBeGreaterThan(RACE.waveFactor);
+    setRaceClock(1.5);
     // The rest-position iteration still lands on the point (the steepness stays under 1).
     const [x0, z0] = restPosition(waves, RACE.x + 7, RACE.z + 3);
     expect(Number.isFinite(x0 + z0)).toBe(true);
@@ -229,6 +237,6 @@ describe('the forecast', () => {
     env.timeOfDay = 3.05;
     expect(racesText(env)).toMatch(/Sruth Tarsk: slack water, the race running again by/);
     env.timeOfDay = 4.5;
-    expect(racesText(env)).toMatch(/running south 9 knots, slack about 06:00/);
+    expect(racesText(env)).toMatch(/running south 9 knots(, wind against tide[^,]*)?, slack about 06:00/);
   });
 });
