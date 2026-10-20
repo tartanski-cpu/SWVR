@@ -15,6 +15,7 @@ import { regionById } from '../world/regions';
 import type { VesselState } from './vesselState';
 import { applyBusIntent, holdGroup, isKeyName } from '../modular/bus';
 import { fuelTankL } from './fuelTank';
+import { quickStart } from './autopilot';
 
 const q = new THREE.Quaternion();
 const e = new THREE.Euler();
@@ -189,14 +190,7 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
       break;
     case 'quickStart':
       // One press does it all (quick-start option / debug): master, main breakers, start.
-      if (s.electrics) {
-        s.electrics.master = 1;
-        for (const k of ['instruments', 'chart', 'radio', 'navLights', 'hydraulics'] as const) s.electrics.breakers[k] = 1;
-      }
-      {
-        const diesel = gearOf(s, 'diesel');
-        if (s.engine.phase === 'off' && diesel) toggleEngine(s, diesel);
-      }
+      quickStart(s);
       break;
     case 'master':
       // Battery master switch: 1 on / 0 off.

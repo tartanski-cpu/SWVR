@@ -13,6 +13,7 @@ import { applyRescueIntent, isRescueIntent, stepRescue } from '../rescue/rescue'
 import { applySosIntent } from '../rescue/sos';
 import { applyBoardIntent, isBoardIntent } from '../board/board';
 import { applyVesselIntent, stepRefuelling } from '../vessel/vesselControl';
+import { stepAutopilot } from '../vessel/autopilot';
 import { applyCargoIntent, deckVelocitiesBefore, isCargoIntent, payloadOf, stepCraneCargo, stepDeckCargo } from '../cargo/cargo';
 import * as THREE from 'three';
 import { CONFIG } from '../config';
@@ -159,6 +160,8 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
     const wind = windForce(vessel, VESSEL_DEFS[vessel.defId], world.environment);
     const ext = touching.get(vessel.id);
     const external = wind ? [...(ext ?? []), wind] : ext;
+    // The autopilot (the helm assist panel) sets the wheel before her steering reads it.
+    stepAutopilot(vessel);
     stepVessel(vessel, VESSEL_DEFS[vessel.defId], simWaves, dt, dbg, world.geography === 'archipelago', payload, external);
     // In a running race, its whirl points knock her head and heel about.
     if (world.geography === 'archipelago') stepRaceKnocks(vessel, world.time, dt);

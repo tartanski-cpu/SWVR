@@ -38,7 +38,7 @@ const meAboard = (world: WorldState, v: VesselState) => Object.values(world.play
 
 export const TUTORIAL: Step[] = [
   {
-    text: 'Step aboard the workboat from the quay (walk on, or B / left stick click)',
+    text: 'Step aboard your boat from the quay (walk on, or B / left stick click)',
     say: 'Good morning, skipper, Calder harbour master here. Welcome to the islands. That is your boat alongside the quay: step aboard and we will get her going.',
     done: (w, v) => meAboard(w, v),
   },

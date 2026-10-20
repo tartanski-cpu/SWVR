@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { FLEET, FLEET_IDS } from '../boats/fleet';
 import { CONFIG } from '../config';
 import { IdFactory, ENVIRONMENT_ID, type EntityId } from '../core/ids';
 import { IntentQueue } from '../core/intents';
@@ -98,12 +99,12 @@ import { FireView, JetView } from '../fire/fireView';
 import { WildlifeView } from '../wildlife/wildlifeView';
 import { LogView } from '../salvage/logView';
 import { CareerSession, savedCareer } from './careerSession';
-import { equipmentWithout, socketsWithout } from '../career/career';
+import { equipmentWithout, KIT_BOATS, socketsWithout } from '../career/career';
 import { TrawlView } from '../fishing/trawlView';
 import { InteriorDetail } from './interiorDetail';
 import { jetOn } from '../fire/fire';
 import { aFrameOf } from '../fishing/fishing';
-import { footprintsOf, gearOf, useDesign, useWorkboatFit } from '../boats/sims';
+import { footprintsOf, gearOf, useDesign, useStarterKit, useWorkboatFit } from '../boats/sims';
 import type { TowWinchApi } from '../modules/towWinch';
 import { sosCondition, sosStatus } from '../rescue/sos';
 import { RodGame } from '../fishing/rodGame';
@@ -174,8 +175,9 @@ let designCodeError: string | null = null;
 
 /**
  * A fresh start in another boat (the page's `?boat=`, the rest of the address kept): a new
- * world, her views and controls. 'workboat:all': the workboat with all her equipment, whatever
- * the career has (`?fit=all`, for testing); 'workboat': as the career has her.
+ * world, her views and controls. The boat a career kits out (career.ts KIT_BOATS) is built as
+ * the career has her; 'workboat:all': the old workboat with all her equipment (`?fit=all`,
+ * for testing). The game's own start boat (CONFIG.career.boat) needs no `?boat=`.
  */
 function restartIn(defId: string): void {
   const url = new URL(location.href);
@@ -185,7 +187,7 @@ function restartIn(defId: string): void {
     url.searchParams.set('fit', 'all');
     defId = 'workboat';
   }
-  if (defId === 'workboat') url.searchParams.delete('boat');
+  if (defId === CONFIG.career.boat) url.searchParams.delete('boat');
   else url.searchParams.set('boat', defId);
   location.assign(url.toString());
 }
@@ -208,7 +210,7 @@ function browserStorage(): Storage | null {
 }
 
 /** The boats you can start in (a home boat needs a wheelhouse for now). */
-const START_BOATS = ['workboat', 'landingCraft', 'alaskan38'];
+const START_BOATS = [...FLEET_IDS, 'alaskan38'];
 
 /** The Shipyard code of the design the game started in, if it did. */
 let startDesignCode: string | null = null;
@@ -233,9 +235,9 @@ function startBoat(): string | undefined {
 const RESCUES_KEY = 'swvr.rescues';
 
 /**
- * The workboat's equipment she starts without (career upgrade ids, CONFIG.career.upgrades
- * `fit`; owner, Oct 2026: a new career starts in a simpler workboat and buys the rest at the
- * yard). The page's `?fit=` says what's fitted (a list, or "all"; Debug > Start in, and crew
+ * The equipment the career's boat (the beginner boat; the old workboat, for testing) starts
+ * without (career upgrade ids, CONFIG.career.upgrades `fit`; owner, Oct 2026: a new career
+ * starts in a simple boat and buys the rest at the yard). The page's `?fit=` says what's fitted (a list, or "all"; Debug > Start in, and crew
  * joining a host build the host's boat with it); else the career in the slot last used: a
  * new career has none of it, one saved before this has it all (career.ts parseCareer).
  */
@@ -563,10 +565,11 @@ export class App {
       CONFIG.render.far,
     );
 
-    const boat = startBoat() ?? CONFIG.testScene.vesselDefId;
-    // The workboat fitted out as the career has her (a design or the landing craft as they are).
-    const without = boat === 'workboat' ? startFit() : [];
-    useWorkboatFit(socketsWithout(without));
+    const boat = startBoat() ?? CONFIG.career.boat;
+    // The career's boat kitted out as the career has her (any other boat as she is).
+    const without = KIT_BOATS.includes(boat) ? startFit() : [];
+    useWorkboatFit(socketsWithout(boat === 'workboat' ? without : []));
+    if (boat === 'starterBoat') useStarterKit(without);
     forgetStartParams();
     const created = createWorld(this.ids, boat, { tender: true, cold: true, weather: true, tows: true, fires: true, logs: true, harbour: true });
     this.world = created.world;
@@ -645,7 +648,7 @@ export class App {
     setupXR(this.renderer, this.camera);
     window.addEventListener('resize', () => this.onResize());
     if (wantsTouchControls()) this.setupTouch();
-    if (designCodeError) this.overlay.notify(`Shipyard code not read: ${designCodeError}. Starting in the workboat.`, 8);
+    if (designCodeError) this.overlay.notify(`Shipyard code not read: ${designCodeError}. Starting in the beginner boat.`, 8);
     // Audio may only start after a user gesture.
     const unlock = () => this.sound.unlock();
     window.addEventListener('pointerdown', unlock);
@@ -2444,12 +2447,14 @@ export class App {
         this.overlay.notify('Restarting in her (in VR: enter VR again once she is loaded)', 4);
         restartInDesign(code);
       },
-      workboatAgain: () => restartIn('workboat'),
+      workboatAgain: () => restartIn(CONFIG.career.boat),
       boatNow: () => {
         const defId = this.world.vessels[this.testVesselId]?.defId ?? 'workboat';
         if (defId === 'workboat') return 'The workboat';
         if (defId === 'landingCraft') return 'The landing craft';
         if (defId === 'alaskan38') return 'The Alaskan 38';
+        const fleet = FLEET.find((f) => f.id === defId);
+        if (fleet) return `The ${fleet.name.toLowerCase()}`;
         if (defId !== 'design') return defId;
         const token = new URLSearchParams(location.search).get('design') ?? '';
         const fav = this.shipyardCodes.favourites().find((f) => sameDesign(f.code, token));
@@ -2777,10 +2782,10 @@ export class App {
     else if (was) this.overlay.notify('Off the slip', 2.5);
   }
 
-  /** The workboat's equipment the career has not got (upgrade ids, comma-joined), or null if she isn't the workboat. */
+  /** The equipment the career has not got (upgrade ids, comma-joined), or null if she isn't a boat the career kits out. */
   private wantedFit(): string | null {
     const c = this.world.career;
-    return c && this.world.vessels[this.testVesselId]?.defId === 'workboat' ? equipmentWithout(c.upgrades).join(',') : null;
+    return c && KIT_BOATS.includes(this.world.vessels[this.testVesselId]?.defId ?? '') ? equipmentWithout(c.upgrades).join(',') : null;
   }
 
   /**
@@ -2833,8 +2838,8 @@ export class App {
     const url = new URL(location.href);
     for (const k of ['design', 'boat', 'fit']) url.searchParams.delete(k);
     if (theirs === 'design') url.searchParams.set('design', b.design!);
-    else if (theirs !== 'workboat') url.searchParams.set('boat', theirs);
-    if (theirs === 'workboat') {
+    else if (theirs !== CONFIG.career.boat) url.searchParams.set('boat', theirs);
+    if (KIT_BOATS.includes(theirs)) {
       const fitted = CONFIG.career.upgrades.filter((u) => u.fit && !(b.without ?? []).includes(u.id)).map((u) => u.id);
       url.searchParams.set('fit', b.without?.length ? fitted.join(',') : 'all');
     }

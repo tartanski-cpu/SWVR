@@ -34,15 +34,17 @@ function designs(): ShipDesign[] {
     return r.design;
   });
 }
+/** The choices her short code holds: all but the helm assist panel (a design with it travels as a document). */
+const CODE_FIELDS = ALL_FIELDS.filter((f) => f.key !== 'helmAssist');
 function rawDesigns(): ShipDesign[] {
   const out: ShipDesign[] = [{ ...DEFAULT_DESIGN }];
-  for (const f of ALL_FIELDS) out.push({ ...DEFAULT_DESIGN, ...fromSteps({ [f.key]: f.steps - 1 }) });
+  for (const f of CODE_FIELDS) out.push({ ...DEFAULT_DESIGN, ...fromSteps({ [f.key]: f.steps - 1 }) });
   let seed = 7;
   const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
   for (let i = 0; i < 40; i++) {
     // (In the code's steps, then the wheelhouse's measurements as values.)
     const d = { ...toSteps(DEFAULT_DESIGN)! };
-    for (const f of ALL_FIELDS) if (rnd() < 0.4) d[f.key] = Math.floor(rnd() * Math.min(f.steps, 40));
+    for (const f of CODE_FIELDS) if (rnd() < 0.4) d[f.key] = Math.floor(rnd() * Math.min(f.steps, 40));
     out.push(fromSteps(d));
   }
   return out;
@@ -86,6 +88,10 @@ describe('the design document: tokens, links and files', () => {
     const off = { ...DEFAULT_DESIGN, length: 20 } as ShipDesign;
     expect(shortCode(off)).toBeNull();
     expect(isDocToken(designToken(off))).toBe(true);
+    // The helm assist panel isn't in the code either: a document, and it reads back.
+    const assist = { ...DEFAULT_DESIGN, controls: 1, helmAssist: 1 };
+    expect(shortCode(assist)).toBeNull();
+    expect(readDesign(designToken(assist))).toMatchObject({ design: assist, warnings: [] });
   });
 
   it('a compact token holds only what differs from the starting design: a short link', () => {

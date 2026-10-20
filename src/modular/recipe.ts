@@ -266,6 +266,7 @@ const GEAR_WORDS: Record<GearKind, string> = {
   batteries: 'house batteries',
   bilgePump: 'a bilge pump',
   chartTable: 'a chart table',
+  autopilot: 'an autopilot',
 };
 
 function describeNeed(r: Requirement): string {

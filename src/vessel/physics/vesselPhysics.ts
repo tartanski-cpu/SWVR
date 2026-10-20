@@ -55,7 +55,6 @@ import type { VesselState } from '../vesselState';
 import { calmWaterResistance } from './propulsion';
 import { submergedSection, type SubmergedSection } from './sectionClip';
 import { physicsStations } from '../hullForm';
-import { uprightHydrostatics } from '../hydrostatics';
 import { contactAt, guardContactAt, hullContactPoints, type ContactResult, type GuardMaterial } from './contacts';
 import { blockNear } from '../../world/geography';
 import { stepMooring } from './mooring';
@@ -113,8 +112,6 @@ function chineY(st: { polygon: readonly (readonly number[])[] }): number {
   }
   return y;
 }
-/** Each hull's upright GM (m), worked out once (hydrostatics.ts). */
-const uprightGM = new WeakMap<VesselDef, number>();
 const inertia = new THREE.Vector3();
 
 /** Add a point mass m at offset d from the CG to the inertia (diagonal terms). */
@@ -364,7 +361,9 @@ export function stepVessel(
   //     with her turn's centripetal acceleration), not the true one, so she leans into the
   //     turn as a cyclist does: toward `lean` x that angle (a deeper vee leans more: the
   //     Shipyard sets it from her deadrise), no more than `maxLeanDeg`. A spring toward that
-  //     lean, `stiffness` x W GM sin(lean - heel): it also rights her if she's thrown past it.
+  //     lean, `stiffness` x W b sin(lean - heel) (b her half-beam at the chines: her bottom's lift
+  //     spread across her beam, not her GM, gives the stiffness): it also rights her if she's
+  //     thrown past it.
   //   With how much of her is in the water.
   const pl = def.planing;
   if (pl && immersion > 0) {
@@ -386,13 +385,13 @@ export function stepVessel(
     if (fade > 0 && pl.lean) {
       // As a couple: + at 1 m above her CG, - at her CG (vessel x). Her heel from her
       // orientation's x axis (+ to port, as the couple's moment).
-      let gm = uprightGM.get(def);
-      if (gm === undefined) uprightGM.set(def, (gm = Math.max(0.3, uprightHydrostatics(def).gmt)));
+      let b = 0;
+      for (const st of def.hull.stations) b = Math.max(b, st.halfBeamChine);
       const pt = CONFIG.planingTurn;
       const maxLean = (pt.maxLeanDeg * Math.PI) / 180;
       const lean = maxLean * Math.tanh((pl.lean * Math.atan((U * w.y) / g)) / maxLean);
       const heel = Math.asin(Math.max(-1, Math.min(1, 2 * (q.x * q.y + q.w * q.z))));
-      const up = fade * immersion * (pt.alpha * sideToCG + (1 - pt.alpha) * sideToChines - pt.stiffness * def.mass * g * gm * Math.sin(lean - heel));
+      const up = fade * immersion * (pt.alpha * sideToCG + (1 - pt.alpha) * sideToChines - pt.stiffness * def.mass * g * b * Math.sin(lean - heel));
       addForceAt(tmp.set(up, 0, 0).applyQuaternion(q), toWorld(0, cgL.y + 1, cgL.z, portP));
       addForceAt(tmp.set(-up, 0, 0).applyQuaternion(q), toWorld(0, cgL.y, cgL.z, portP));
     }

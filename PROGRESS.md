@@ -5306,6 +5306,92 @@ Owner, Oct 2026: before the cockpit roof, clean up the Shipyard's buttons. The o
 - **Checked:** headless Chromium, the Wheelhouse step with a saloon and a deckhouse, then with the windows raked out and the deckhouse "As the wheelhouse"; the owner's configuration (workboat type, three facets, saloon roof lower, a sand roof top) from the same angle as their screenshot: the step is clean. **Not checked:** the Quest (a desktop page).
 - **Next:** the other steps the same way, once the owner has tried this one.
 
+### The fleet, step 2: a new career starts in the beginner boat; the old workboat and landing craft hidden (done, awaiting owner test)
+
+Owner, Oct 2026: a new career starts in one of the new fleet boats; hide the workboat and the landing craft.
+
+- **Start boat:** the game starts in `CONFIG.career.boat` = `starterBoat` (no `?boat=` needed). `CONFIG.testScene.vesselDefId` stays `workboat`: a new world's default in the tests, so the golden runs are unchanged (moving them is the next step).
+- **Saves (CLAUDE.md: the test address shares storage with the live game):**
+  - careers now live in their own keys, `swvr.fleetCareer.1..3` and `swvr.fleetCareerSlot` (app/careerSession.ts);
+  - the old careers in `swvr.career.*` are never read or written here, so they're kept for the live game;
+  - on this version a career starts afresh (the owner's choice); the old single-save migration is gone.
+  - Checked in the browser with an old career planted in `swvr.career.1`: the game started a fresh £500 career in the beginner boat and left the old one byte for byte.
+- **The beginner boat changed for her career** (fleet/starterBoat.json):
+  - lengthened 9.8 → 10.2 m (size step 10), so the skiff's 3.9 m cradle fits her foredeck once bought;
+  - no searchlight (the yard sells it);
+  - a stern roller, so she tows and salvages from day one, as the old workboat did.
+  - She's now 10.2 m, ~8.2 kn, £122k (still the cheapest), GM 2.44 m, no warnings.
+- **The yard kits her out through her design:** `CONFIG.career.upgrades[].design` gives each add-on's change to a Shipyard design (searchlight `{searchlight: 1}`, fire monitor `{fireMonitor: 1}`, skiff `{skiff: 1}`).
+  - `library.ts setStarterKit` / `sims.ts useStarterKit` rebuild her with what the career has.
+  - The refit, and a crew-mate building the host's boat, go through the same `fit` path as the old workboat (`career.ts KIT_BOATS`).
+  - The trawl gear has no `design` (her house is right aft): the yard says "Not on this boat". Other boats' equipment: "Not for this boat".
+- **Hidden:** Debug > Boat > **Start in** lists the fleet and the Alaskan 38; the old workboat (and "all gear") and landing craft are gone from it and from the touch controls' boat switch. `?boat=workboat` / `?boat=landingCraft` still start them (testing, golden runs). Office > "Back to the beginner boat".
+- **Words:** the first voyage's "Step aboard your boat"; the Shipyard-code error "Starting in the beginner boat".
+- **Tests:** tests/starterBoat.test.ts (3); starterWorkboat.test.ts's other-boat message now "Not for this boat".
+- **Next fleet steps:** move the tests and golden runs onto the fleet; then delete the old boats (owner: hide first, delete later).
+
+### Helm assist panel: autopilot, dock and auto start (done, awaiting owner test)
+
+Owner, Oct 2026: an autopilot, a dock button and an auto start button on a module: an individual option, a checkbox with the instruments in the Shipyard, a small box next to the circuit breaker box.
+
+- **The module** `panel.helm-assist` (src/modules/helmAssist): a 0.30 × 0.14 m box on the starboard wall, 4 cm aft of the breaker panel, on the same slope. It has three push buttons under a HELM ASSIST engraving (`CONFIG.modules.helmAssist`):
+  - **AUTO START** (green, `helmAssist.autoStart`): the debug's quick start, moved into `vessel/autopilot.ts quickStart`: master, main breakers, engine started.
+  - **DOCK** (blue, `helmAssist.dock`): the menu's Dock / Cast off (`toggleDock`), exactly.
+  - **AUTOPILOT** (amber, lit while engaged, `autopilot.engage`): holds the compass heading she was on when pressed. Another press lets it go; so does turning the wheel, or the INSTR circuit going dead.
+- **How the autopilot steers** (`vessel/autopilot.ts stepAutopilot`, each tick before her steering is read): as a helmsman would, wheel = `helmPerDeg` (0.04) × heading error − `helmPerDegS` (0.25) × rate of turn, never more than `maxHelm` (0.5) of the wheel's travel. The rate term is the damping: she comes back to her heading without overshooting. The wheel visibly turns with it.
+  - **Measured:** engaged while swinging at 50 % or full throttle, every fleet boat with the panel comes back within 2-5° and settles on her heading, in calm water and in waves.
+- **Shipyard:** Controls step, **Helm assist** (`design.helmAssist`), shown only with the Advanced controls; fitted only with them.
+  - It isn't in the short code: a design with it travels as a link or file (as the free wheelhouse measurements do), so the code's packing is untouched.
+  - The fleet's landing craft, fishing boat, pilot boat and tug have it; the beginner boat (basic controls) doesn't.
+- **Simulation keys:** `helmAssist.autoStart`, `helmAssist.dock`, `autopilot.engage`, `autopilot.on`, `autopilot.heading` (docs/BUS_KEYS.md regenerated). New gear kind `autopilot`; `controls.autopilot`, `autopilotHeading`, `autopilotHelm`.
+- **Checked:**
+  - tests/helmAssist.test.ts (6): placement, the Shipyard choice, auto start, the autopilot holding and letting go, power, dock = menu dock;
+  - screenshots from inside all four fleet boats: the panel sits clear of the duty board and battery switches.
+- **Draw calls:** the box is merged into the boat's fixed parts; the engraving is one mesh; the caps are the shared button caps.
+
+### The fleet, step 1: the game's own boats, designed in the Shipyard (done, awaiting owner test)
+
+Owner, Oct 2026: build a selection of boats with the Shipyard, one of each hull type and a basic beginner boat, use them in the main game and for testing from now on ("eat our own dog food"), spawnable from the debug menu. The old workboat, landing craft and Alaskan are to be hidden later, then deleted (owner's choice). New careers will start afresh in the beginner boat; old saves won't carry over (owner's choice).
+
+- **The boats** (`src/boats/fleet/*.json`, each a Shipyard design file: open it in the Shipyard's Projects; `src/boats/fleet.ts` lists them). Vessel type ids (kept in saves and multiplayer, never rename): `lander`, `fishingBoat`, `pilotBoat`, `smallTug`, `starterBoat`.
+
+| Boat | Hull type, size | Power | Speed | GM | Price | Kit |
+|---|---|---|---|---|---|---|
+| Fast landing craft | landing craft, 9 m | 400 kW V8 | 29.7 kn | 0.65 m | £149k | searchlight, strake and fenders, life ring, advanced controls |
+| Fishing boat | gillnetter, 9.8 m | 280 kW V8 | 10.2 kn | 1.80 m | £139k | rod rack, searchlight, strake and fenders, life ring, advanced controls |
+| Pilot boat | pilot boat, 12.6 m | twin 400 kW V8 | 37.8 kn | 0.98 m | £265k | searchlight and fire monitor on the roof, chart table, strake, life ring, pilot yellow |
+| Small tug | tug, 13 m | 450 kW tug diesel in a Kort nozzle | 8.7 kn | 1.53 m | £317k | tow winch, stern roller, fire monitor, searchlight, tyres, black |
+| Beginner boat | gillnetter, 9.8 m | 150 kW straight six | 8.3 kn | 1.85 m | £108k | fenders, life ring, basic controls, workboat orange |
+
+- **Left off on purpose:**
+  - the fishing boat's trawl A-frame (her house is right aft: no aft deck; she works pots over her open foredeck);
+  - the pilot boat's side door (her house is full width: no side deck);
+  - the landing craft's crane (it brought her GM down to 0.52 m; she loads over her ramp).
+- **How:** the Shipyard's builder takes a vessel type id (`buildDesign(d, code, id)`: hull `hull.<id>`, recipe `vessel.<id>`). The boats library builds each fleet boat when the game loads (boats/library.ts `FLEET_BOATS`, in `HULLS` and `RECIPES`), and they are in `VESSEL_IDS`.
+- **In the game:**
+  - Debug > Boat > **Start in fleet** (`?boat=<id>`);
+  - the touch controls' boat switch cycles through them too (`START_BOATS`);
+  - the boat's name in the menus comes from her design file.
+- **Checked:**
+  - each builds with no warnings and reaches her Shipyard speed in the game;
+  - in the browser, each loads with no errors and draws fewer objects than the old workboat from the quay (81-106 draw calls, against 116).
+- **Tests:** `tests/fleet.test.ts` (3); the boat-wide tests over `VESSEL_IDS` now cover the fleet too.
+- **Next steps (each tried by the owner first):**
+  - a new career starts in the beginner boat, with the upgrades working on her;
+  - the tests and golden runs move onto the fleet;
+  - the old workboat, landing craft and Alaskan are hidden, then deleted.
+- **Then, owner's request:** an autopilot, dock and auto-start panel as a module, a Shipyard choice with the instruments (next).
+
+### Shipyard: the workboat hull type retired (done, awaiting owner test)
+
+Owner, Oct 2026: "the workboat is not really a class of hull... it's a role." The Shipyard's types are now the landing craft (a fast planing vee with a flat square platform on top), the gillnetter (the fishing boat, built to carry load), the pilot boat (deep-V planing; also the rescue or patrol boat) and the small tug. The beginner boat is to be based on the fishing boat (fleet plan).
+
+- **Retired, not deleted** (build.ts DESIGN_HULLS `retired`, typeFit.ts TYPE_FACTS `retired`): a design code holds her hull's index, so removing her would renumber the pilot boat and tug and turn saved designs into the wrong boats.
+  - Not in the Hull step's choices, nor the brief's hull types (`rankTypes` leaves her out).
+  - A design already on her still opens and builds as before: she shows in the Hull step's list while chosen, and the warnings say she's retired.
+  - Building is unchanged, so the tests that use her as a test boat stand.
+- **Tests:** brief.test.ts: the cargo-and-towing brief no longer names her; deck room checked on the gillnetter; a new test that she's never offered.
+
 ### Hull types ride as their kind: semi-displacement workboat, deep-V pilot boat; boats lean into turns, none capsizes (done, awaiting owner test)
 
 Owner, Oct 2026, answering the heel report below: the workboat should be a semi-displacement hull, partly planing, as is typical for workboats; the pilot boat a deep-V planing hull, made to go fast in waves; both designed for seakeeping, while the flatter, faster landing craft type isn't the best sea boat.
@@ -5334,6 +5420,13 @@ Owner, Oct 2026, answering the heel report below: the workboat should be a semi-
 | Built-in landing craft, Alaskan | | unchanged (identical) |
 | Tug, gillnetter | 1-4° out | unchanged |
 
+- **Follow-up (owner: "you took away their really nice lean into corners"; the landing craft should lean in more, the small ones especially, the big ones can differ):**
+  - **Every planing hull now gets a base lean** (`CONFIG.shipyard.leanBase` 0.7, plus `leanPerSine` 1.0 × sin(deadrise aft); × lift): the landing craft type 0.84, the pilot boat 1.07, the workboat 0.5.
+  - **The leaning stiffness comes from her beam, not her GM** (`stiffness` 1.5 × W × half-beam at the chines). A planing bottom's roll stiffness is its lift spread across her beam. With GM, small tender boats leant least, the opposite of what was wanted.
+  - **The propellers already help:** an outboard's or a stern drive's thrust, and a rudder's force, act low at the propeller, so swinging them pushes her stern out from below and leans her in. Unchanged.
+  - **Measured, 40 % helm, landing craft type:** 7.2 m leans 9° in, 8.1 m 8°, 9 m 6° (built-in landing craft 7°). Hard over, the 9 m one leans 13° in, then comes upright as she slows (built-in: 15° in, then 3° out). From 15 m up, on her standard engine she makes only ~10 kn, so she barely heels: too slow to plane.
+  - **Pilot boat:** about 15° in on a 40 % helm; hard over a ~30° snap in, settling ~8° in. **Workboat type:** 5° in on a 40 % helm, ~5° out hard over (slowed to 10 kn). With four outboards: ~7° in.
+  - **Still capsizes: the 7.2 m landing craft type with two 400 hp outboards.** Not the turning model: her GM is 0.14 m and her GZ peaks at 0.06 m. The outboards are too heavy, sitting high on a 4.4 t hull, and she makes 43 kn. The Shipyard already warns ("Her stability is low"). Give her more beam, or the diesel.
 - **In waves** (default sea scaled to Hs 3.6 m, head on, about 20 kn): vertical acceleration rms 0.27 g for the landing craft type, 0.18 g for the workboat type, 0.09 g for the pilot boat. The deep vee rides about three times softer.
 - **Also:** the workboat type now shows planing spray and a planing wake at speed (they read `planing`).
 - **Unchanged:** the built-in workboat, skiff, landing craft and Alaskan (golden runs equal); the tug.

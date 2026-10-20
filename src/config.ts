@@ -21,6 +21,11 @@ export interface CareerUpgrade {
    * new career's workboat is built without, until it's bought.
    */
   fit?: string[];
+  /**
+   * The same equipment on the beginner boat (boats/fleet.ts, a Shipyard design): the choices
+   * it sets in her design (shipyard/design.ts ShipDesign). None: it doesn't fit her.
+   */
+  design?: Record<string, number>;
 }
 
 /**
@@ -2035,16 +2040,21 @@ export const CONFIG = {
     },
     /** The bigger fuel tank upgrade: her tank's size times this. */
     bigTankFactor: 1.6,
+    /** The boat the game starts in, and a new career's (owner, Oct 2026: the fleet's beginner boat, boats/fleet.ts). */
+    boat: 'starterBoat',
     /**
      * What the boatyard at Calder Haven sells (its board on the shed: ui/yardBoard.ts). With
-     * `fit`: add-ons, her equipment (the starter workboat comes without it; fitted, the game
-     * starts again with her refitted). Without: upgrades to what she has.
+     * `fit`: add-ons, her equipment (a new career's boat comes without it; fitted, the game
+     * starts again with her refitted): on the old workboat the sockets her recipe leaves empty
+     * without it; on the beginner boat (boats/fleet.ts, a Shipyard design) the change to her
+     * design it makes (`design`; none: it doesn't fit her). Without `fit`: upgrades to what she
+     * has.
      */
     upgrades: [
       { id: 'trawlGear', name: 'Trawl gear', price: 2500, minRep: 5, fit: ['aFrame', 'trawl', 'helm/trawl'], desc: 'The A-frame over the transom, the net on its drum and the TRAWL switch' },
-      { id: 'skiff', name: 'Skiff and her crane', price: 4000, minRep: 10, fit: ['tenderCrane'], desc: 'The electric skiff in her cradle on the foredeck, and the crane to launch her' },
-      { id: 'searchlight', name: 'Searchlight', price: 1500, minRep: 5, fit: ['searchlight', 'helm/spotlight', 'helm/spotJoystick'], desc: 'The searchlight on the wheelhouse roof, its SPOT switch and joystick at the helm' },
-      { id: 'fireMonitor', name: 'Fire monitor', price: 3000, minRep: 10, fit: ['fireMonitor', 'helm/firePump', 'helm/monJoystick'], desc: 'The fire monitor on the roof, the FIRE PUMP switch, its joystick and gauge: the fire calls come once she has it' },
+      { id: 'skiff', name: 'Skiff and her crane', price: 4000, minRep: 10, fit: ['tenderCrane'], design: { skiff: 1 }, desc: 'The electric skiff in her cradle on the foredeck, and the crane to launch her' },
+      { id: 'searchlight', name: 'Searchlight', price: 1500, minRep: 5, fit: ['searchlight', 'helm/spotlight', 'helm/spotJoystick'], design: { searchlight: 1 }, desc: 'The searchlight on the wheelhouse roof, its SPOT switch and joystick at the helm' },
+      { id: 'fireMonitor', name: 'Fire monitor', price: 3000, minRep: 10, fit: ['fireMonitor', 'helm/firePump', 'helm/monJoystick'], design: { fireMonitor: 1 }, desc: 'The fire monitor on the roof, the FIRE PUMP switch, its joystick and gauge: the fire calls come once she has it' },
       { id: 'radar', name: 'Radar', price: 2400, minRep: 20, desc: 'Debris and floating crates on the plotter' },
       { id: 'ais', name: 'AIS receiver', price: 900, minRep: 0, desc: 'Passing ships on the plotter, by name and course, in any visibility' },
       { id: 'bigTank', name: 'Bigger fuel tank', price: 1400, minRep: 5, desc: 'Her fuel tank enlarged by 60 %: further between fills' },
@@ -2717,13 +2727,15 @@ export const CONFIG = {
    * A planing hull in a turn (vesselPhysics.ts; each hull's `planing`): her side force's
    * heeling moment reckoned with it acting `alpha` of the way from her chines up to her CG
    * (her bottom's lift carries it, not her keel); her lift's roll stiffness, `stiffness` x
-   * W GM, toward a lean into the turn of her `lean` x the apparent vertical's angle (gravity
-   * with U r), at most `maxLeanDeg`. Tuned on sea trials, flat out then the helm put over:
-   * the Shipyard's deep-V pilot boat leans ~10 deg in at 26 kn on a 40 % helm, and settles
-   * ~4 deg in hard over at 13 kn; the semi-displacement workboat type heels ~6 deg out; the
-   * flat landing craft type ~5 deg out; none capsizes, even with four outboards.
+   * W x her half-beam at the chines, toward a lean into the turn of her `lean` x the
+   * apparent vertical's angle (gravity with U r), at most `maxLeanDeg`. Tuned on sea trials,
+   * flat out then the helm put over (owner: the landing craft should lean in, the small ones
+   * most): on a 40 % helm the Shipyard's landing craft type leans ~9 deg in at 7.2 m, ~6 at
+   * 9 m (the built-in landing craft ~7); the deep-V pilot boat ~15; the semi-displacement
+   * workboat ~5. Hard over the 9 m landing craft leans ~13 deg in, then comes upright as she
+   * slows; the workboat heels ~5 deg out; none capsizes, even with four outboards.
    */
-  planingTurn: { maxLeanDeg: 20, alpha: 0.6, stiffness: 2 },
+  planingTurn: { maxLeanDeg: 20, alpha: 0.6, stiffness: 1.5 },
 
   shipyard: {
     /**
@@ -2735,19 +2747,20 @@ export const CONFIG = {
      *   semi          a semi-displacement hull: only part of her weight (`lift`) carried by
      *                 lift, coming in later and more gradually (Fn 0.4 to 1.0);
      *   displacement  none (the tug).
-     * Leaning into a turn (vesselPhysics.ts, CONFIG.planingTurn): a vee bottom's lift leans
-     * her in toward `lean` x the angle a cyclist would lean; a deeper vee more, so from her
-     * deadrise aft (`deadriseAt` of her length from the transom, where her planing pressure
-     * acts): lean = `leanPerSine` x sin(deadrise) x lift. The landing craft type's 8 deg:
-     * 0.21; the 22 deg deep-V pilot boat: 0.56; the semi-displacement workboat's 18 deg at
-     * half lift: 0.23.
+     * Leaning into a turn (vesselPhysics.ts, CONFIG.planingTurn): a planing bottom's lift
+     * leans her in toward `lean` x the angle a cyclist would lean; every planing hull
+     * `leanBase`, a deeper vee more, from her deadrise aft (`deadriseAt` of her length from the
+     * transom, where her planing pressure acts): lean = (`leanBase` + `leanPerSine` x
+     * sin(deadrise)) x lift. The landing craft type's 8 deg: 0.84; the 22 deg deep-V pilot
+     * boat: 1.07; the semi-displacement workboat's 18 deg at half lift: 0.5.
      * Slamming (the vertical damping's quadratic term, vesselPhysics.ts, standing in for
      * water-entry loads): a flat bottom slams, a deep vee enters gently. Scaled as
      * tan(`slamRefDeg`) / tan(deadrise), the landing craft's 9 deg amidships the reference,
      * between `slamMin` and `slamMax`; her deadrise amidships, where she meets the waves.
      */
     regimes: { planing: { lift: 1, fnStart: 0.3, fnFull: 0.7 }, semi: { lift: 0.5, fnStart: 0.3, fnFull: 0.9 } },
-    leanPerSine: 1.5,
+    leanBase: 0.7,
+    leanPerSine: 1.0,
     deadriseAt: 0.25,
     slamRefDeg: 9,
     slamMin: 0.35,
@@ -3581,6 +3594,7 @@ export const CONFIG = {
 
   /** The boat the game is played in (a key of CONFIG.vessels / VESSEL_DEFS). */
   testScene: {
+    // A new world's boat when none is named (the tests and their golden runs). The game starts in CONFIG.career.boat.
     vesselDefId: 'workboat',
   },
 
@@ -3901,6 +3915,18 @@ export const CONFIG = {
         { name: 'hydraulics', engrave: 'DECK HYD' },
       ],
     },
+
+    /**
+     * panel.helm-assist (owner, Oct 2026; modules/helmAssist): a small box by the breaker panel
+     * with three buttons, AUTO START, DOCK and AUTOPILOT. `width`, `height` (m), `pitch` between
+     * the buttons, `amps` with the master on (INSTRUMENTS circuit; it works only with it live).
+     * `gap`: how far aft of the breaker panel it hangs (m, between their edges).
+     * `autopilot` (vessel/autopilot.ts): it steers to hold her heading as a helmsman would, the
+     * wheel turned in proportion to how far she is off her heading (`helmPerDeg`, helm travel
+     * per degree off) less how fast she is already swinging back (`helmPerDegS`, per degree a
+     * second: so she doesn't overshoot), never more than `maxHelm` of the wheel's travel.
+     */
+    helmAssist: { width: 0.3, height: 0.14, pitch: 0.085, amps: 0.6, gap: 0.04, autopilot: { helmPerDeg: 0.04, helmPerDegS: 0.25, maxHelm: 0.5 } },
 
     /** radio.vhf (M3c): the VHF set hung from the roof; how far its face tilts down toward you; its draw (A, RADIO circuit). */
     vhf: { tiltDeg: 35, amps: 1.5 },

@@ -86,6 +86,8 @@ import towCoaster from './tow-coaster.json';
 import towCage from './tow-cage.json';
 import { BARGE_HULL, CAGE_HULL, COASTER_HULL, DERELICT_HULL, DORY_HULL, LOG_RAFT_HULL, PONTOON_HULL, TRAWLER_HULL, YACHT_HULL } from './towHulls';
 import { WORKBOAT_HULL } from './workboatHull';
+import { HELM_ASSIST } from '../modules/helmAssist';
+import { FLEET } from './fleet';
 
 const FIXED_HULLS = createHullLibrary([WORKBOAT_HULL, SKIFF_HULL, DERELICT_HULL, LOG_RAFT_HULL, BARGE_HULL, DORY_HULL, YACHT_HULL, TRAWLER_HULL, PONTOON_HULL, CAGE_HULL, COASTER_HULL, LANDING_CRAFT_HULL, ALASKAN_38_HULL]);
 
@@ -96,7 +98,11 @@ const FIXED_HULLS = createHullLibrary([WORKBOAT_HULL, SKIFF_HULL, DERELICT_HULL,
  */
 let designed: DesignedBoat = buildDesign(DEFAULT_DESIGN, shortCode(DEFAULT_DESIGN) ?? 'custom');
 
-export const HULLS: HullLibrary = { get: (id) => (id === designed.hull.id ? designed.hull : FIXED_HULLS.get(id)) };
+/** The fleet's boats (boats/fleet.ts), each built from her design under her own id. */
+const FLEET_BOATS: Record<string, DesignedBoat> = Object.fromEntries(FLEET.map((f) => [f.id, buildDesign(f.design, shortCode(f.design) ?? 'custom', f.id)]));
+const FLEET_HULLS = new Map(Object.values(FLEET_BOATS).map((b) => [b.hull.id, b.hull]));
+
+export const HULLS: HullLibrary = { get: (id) => (id === designed.hull.id ? designed.hull : (FLEET_HULLS.get(id) ?? FIXED_HULLS.get(id))) };
 
 export const MODULES = createModuleLibrary([
   CONSOLE, WHEEL, THROTTLE_LEVER, TOGGLE, PUSH_BUTTON, KEY_SWITCH, JOYSTICK, WARNING_LAMPS, START_CARD, SCREEN,
@@ -105,7 +111,7 @@ export const MODULES = createModuleLibrary([
   DIESEL_INBOARD, OUTBOARD, RUDDER, FUEL_TANK, BATTERY_BANK, PTO_PUMP, BILGE_PUMP, CONSUMER,
   TENDER_CRANE, DECK_CRANE, TOW_WINCH, STERN_ROLLER, A_FRAME, TRAWL, ANCHOR_WINDLASS,
   SEARCHLIGHT, FIRE_MONITOR, MAST, CLEAT, BOAT_CLEAT, FENDERS, HULL_GUARD, PUSH_FENDER, SWIM_LADDER, LIFE_RING_STATION, BOAT_HOOK_RACK,
-  ELECTRIC_OUTBOARD, ROD_RACK,
+  ELECTRIC_OUTBOARD, ROD_RACK, HELM_ASSIST,
   NAV_LIGHTS, CABIN_LIGHT, FLOODLIGHT, RAIL_LIGHTS, TILLER,
 ]);
 
@@ -136,6 +142,7 @@ export const RECIPES: Record<string, Recipe> = {
   landingCraft: loadRecipe(landingCraft),
   alaskan38: loadRecipe(alaskan38),
   design: loadRecipe(designed.recipe),
+  ...Object.fromEntries(Object.entries(FLEET_BOATS).map(([id, b]) => [id, loadRecipe(b.recipe)])),
 };
 
 /**
@@ -179,6 +186,23 @@ export function setWorkboatFit(without: readonly string[]): void {
     helm.config = { ...helm.config, groups: c.groups.filter((g) => xs.some((x) => x >= g.x[0] && x <= g.x[1])) };
   }
   RECIPES.workboat = loadRecipe(recipe);
+  registerVesselDefs(buildDefs);
+}
+
+/**
+ * The beginner boat as the career has her kitted out (owner, Oct 2026: a new career starts in
+ * her, the fleet's simplest boat, and buys equipment at the yard): her design (boats/fleet.ts)
+ * with each yard add-on's change to it (CONFIG.career.upgrades `design`), all but those
+ * `without` (upgrade ids). None left off: her design as it is. Use boats/sims.ts `useStarterKit`.
+ */
+export function setStarterKit(without: readonly string[]): void {
+  const base = FLEET.find((f) => f.id === 'starterBoat')!.design;
+  const kit = CONFIG.career.upgrades.filter((u) => u.design && !without.includes(u.id));
+  const d: ShipDesign = Object.assign({ ...base }, ...kit.map((u) => u.design as Partial<ShipDesign>));
+  const b = buildDesign(d, shortCode(d) ?? 'custom', 'starterBoat');
+  FLEET_BOATS.starterBoat = b;
+  FLEET_HULLS.set(b.hull.id, b.hull);
+  RECIPES.starterBoat = loadRecipe(b.recipe);
   registerVesselDefs(buildDefs);
 }
 

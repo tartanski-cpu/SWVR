@@ -19,21 +19,27 @@ import {
 import { tutorialLine } from '../career/tutorial';
 import { PORTS } from '../world/archipelago';
 
-const CAREER_KEY = 'swvr.career';
-/** Career save slots (phase 3): swvr.career.1..3, and which one is in use. */
+/**
+ * Career save slots (phase 3): swvr.fleetCareer.1..3, and which one is in use. Careers in the
+ * fleet's beginner boat (owner, Oct 2026: new careers start afresh in her) have their own
+ * keys: the careers saved before, in the old workboat (swvr.career.1..3, swvr.careerSlot),
+ * are left as they are, never read or overwritten here (the live game and the test address
+ * share one browser storage).
+ */
+const CAREER_KEY = 'swvr.fleetCareer';
 export const CAREER_SLOTS = 3;
-const SLOT_KEY = 'swvr.careerSlot';
+const SLOT_KEY = 'swvr.fleetCareerSlot';
 const slotKey = (n: number) => `${CAREER_KEY}.${n}`;
 
 /**
  * The career in the slot last used, as saved (null: none yet, a new career), read before the
- * game is built: the workboat is fitted out as it has her (App startFit).
+ * game is built: her boat is kitted out as it has her (App startFit).
  */
 export function savedCareer(): CareerState | null {
   try {
     const n = Number(localStorage.getItem(SLOT_KEY));
     const slot = n >= 1 && n <= CAREER_SLOTS ? n : 1;
-    return parseCareer(localStorage.getItem(slotKey(slot)) ?? (slot === 1 ? localStorage.getItem(CAREER_KEY) : null));
+    return parseCareer(localStorage.getItem(slotKey(slot)));
   } catch {
     return null;
   }
@@ -67,12 +73,10 @@ export class CareerSession {
 
   constructor(private readonly h: CareerHost) {}
 
-  /** At start-up (host / solo): the slot last used (the old single save moves into slot 1). */
+  /** At start-up (host / solo): the slot last used. */
   restore(): void {
     const n = Number(localStorage.getItem(SLOT_KEY));
     this.slot = n >= 1 && n <= CAREER_SLOTS ? n : 1;
-    const old = localStorage.getItem(CAREER_KEY);
-    if (old && !localStorage.getItem(slotKey(1))) localStorage.setItem(slotKey(1), old);
     this.load(this.slot);
   }
 

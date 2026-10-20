@@ -104,6 +104,12 @@ export interface DesignHull {
    * ramp, so she rides up a beach or a slipway. No bow choice: never plumb, never the deep stem.
    */
   landingBow?: boolean;
+  /**
+   * No longer offered (owner, Oct 2026: "the workboat is not really a class of hull, it's a
+   * role"): not in the Hull step nor the brief's hull types. Kept, and in her place in this
+   * list (a design code holds her index), so a design already on her still opens and builds.
+   */
+  retired?: boolean;
   /** Minimum open deck (m) aft of the house (cockpit) and forward of it. */
   cockpit: number;
   foredeck: number;
@@ -240,6 +246,7 @@ export const DESIGN_HULLS: DesignHull[] = [
   },
   {
     name: 'Workboat: 12 m semi-displacement, hard chine, fine entry',
+    retired: true,
     form: (L, B, D, bow) => {
       const h = CONFIG.vessels.workboat.hull;
       return {
@@ -455,11 +462,13 @@ const BASE_TORQUE: [number, number][] = [
  * plating, houses, machinery, gear and load are what they are); then with her lines raised
  * (lighter than they displace) or lowered (heavier) until she displaces exactly that
  * weight, so her draught, freeboard and hydrostatics are those of the boat as built.
+ * `id`: her vessel type's id (her hull is `hull.<id>`, her recipe `vessel.<id>`): the
+ * Shipyard's one-at-a-time 'design', or a fleet boat's own (boats/fleet.ts).
  */
-export function buildDesign(d: ShipDesign, code = 'design'): DesignedBoat {
-  const first = buildAt(d, code, 0, null);
+export function buildDesign(d: ShipDesign, code = 'design', id = 'design'): DesignedBoat {
+  const first = buildAt(d, code, 0, null, id);
   const { rise, sinks } = riseFor(hullFormOf(first.hull.form), first.weights.massKg);
-  const boat = buildAt(d, code, rise, { massKg: first.weights.massKg, cgY: first.weights.cgY });
+  const boat = buildAt(d, code, rise, { massKg: first.weights.massKg, cgY: first.weights.cgY }, id);
   if (sinks) boat.warnings.unshift(`She's too heavy for her hull (${(first.weights.massKg / 1000).toFixed(1)} t): she'd float with her deck awash. Make her lighter (aluminium, a smaller engine, less gear) or bigger.`);
   else if (boat.figures.freeboardM < 0.3) boat.warnings.unshift(`She floats deep for her weight: ${Math.round(boat.figures.freeboardM * 100)} cm of freeboard amidships. Give her more depth (Hull) or make her lighter.`);
   return boat;
@@ -498,7 +507,7 @@ function riseFor(form: HullForm, massKg: number): { rise: number; sinks: boolean
   return { rise: Math.round(((lo + hi) / 2) * 1000) / 1000, sinks: false };
 }
 
-function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: number; cgY: number } | null): DesignedBoat {
+function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: number; cgY: number } | null, id: string): DesignedBoat {
   const warnings: string[] = [];
   const base = DESIGN_HULLS[d.hull];
   // Her size: length, beam and depth as factors of her type's own. A hull that `growsTo` a
@@ -850,7 +859,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   const deadriseMid = deadrise(0.5);
   const slam = Math.min(sy.slamMax, Math.max(sy.slamMin, Math.tan((sy.slamRefDeg * Math.PI) / 180) / Math.tan(Math.max(0.02, deadriseMid))));
   const regime = base.regime === 'displacement' ? null : sy.regimes[base.regime];
-  const planing = regime ? { lean: Math.round(sy.leanPerSine * Math.sin(deadriseAft) * regime.lift * 1000) / 1000, fnStart: regime.fnStart, fnFull: regime.fnFull } : null;
+  const planing = regime ? { lean: Math.round((sy.leanBase + sy.leanPerSine * Math.sin(deadriseAft)) * regime.lift * 1000) / 1000, fnStart: regime.fnStart, fnFull: regime.fnFull } : null;
   const damping = { ...perArea, rollLift: sy.rollLift, verticalCd: Math.round(perArea.verticalCd * slam * 100) / 100, roll: Math.round(0.28 * rollCritical), pitch: Math.round(lc.damping.pitch * sizeK), yaw: Math.round(lc.damping.yaw * sizeK) };
 
   // ── Machinery ──
@@ -1011,10 +1020,14 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   const toPort = (out: number) => Math.round(Math.max(-out, cx - CONFIG.shipyard.helm.hungReach) * 1000) / 1000;
   const toStbd = (out: number) => Math.round(Math.min(out, cx + CONFIG.shipyard.helm.hungReach) * 1000) / 1000;
   const wl = CONFIG.shipyard.workLights;
+  // The helm assist panel (design.helmAssist): with the advanced controls only.
+  const helmAssist = !!d.helmAssist && !!d.controls;
   const at = {
     console: [cx, F + 0.9, cf + 0.56] as V3,
     // (Below the window sill: low windows bring it down.)
     breakerPanel: [hw - 0.185, F + Math.min(0.6, sill - 0.2), cf + 0.875 + sb(hw - 0.185)] as V3,
+    // The helm assist panel: on the same wall, aft of the breaker panel.
+    helmAssist: [hw - 0.185, F + Math.min(0.6, sill - 0.2), cf + 0.875 + sb(hw - 0.185) + CONFIG.modules.breakerPanel.width / 2 + CONFIG.modules.helmAssist.gap + CONFIG.modules.helmAssist.width / 2] as V3,
     rampButton: [-(hw - 0.07), F + Math.min(0.73, sill - 0.08), cf + 0.775 + sb(hw - 0.07)] as V3,
     // (On the aft wall: from the saloon's floor, if she has one.)
     batteryMaster: [hw - 0.45, FA + 0.48, aft - 0.065] as V3,
@@ -1515,6 +1528,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
     ...(outboards ? [{ id: 'outboards', type: 'transom.outboards' as const, transform: { position: [0, outboards.mount.y, outboards.mount.z] as V3 }, label: 'The bracket off the transom: her outboards' }] : []),
     { id: 'helm', type: 'helm.console', transform: { position: at.console }, capacity: { size: [2 * consoleHalf - 0.04, 1.6, 1.0] }, label: 'Helm console, across the front of the cabin' },
     { id: 'breakerPanel', type: 'wall.panel', transform: { position: at.breakerPanel, rotationDeg: [-40, -90, 0] }, label: 'Starboard wall, by the helm' },
+    ...(helmAssist ? [{ id: 'helmAssist', type: 'wall.panel' as const, transform: { position: at.helmAssist, rotationDeg: [-40, -90, 0] as V3 }, label: 'Starboard wall, aft of the breaker panel' }] : []),
     { id: 'batteryMaster', type: 'wall.panel', transform: { position: at.batteryMaster, rotationDeg: [0, 180, 0] }, label: 'Aft wall, starboard of the door, low' },
     { id: 'batterySelector', type: 'wall.panel', transform: { position: at.batterySelector, rotationDeg: [0, 180, 0] }, label: 'Aft wall, beside the battery master' },
     { id: 'vhf', type: 'cabin.overhead', transform: { position: at.vhf, rotationDeg: [0, 20, 0] }, label: 'Under the roof, out to port' },
@@ -1626,7 +1640,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   const sunkBy = CONFIG.shipyard.weights.payloadFreeboard * deckMid;
   const payloadKg = Math.max(0, Math.round((atDWL({ ...shape, stations: st.map((s) => ({ ...s, polygon: s.polygon.map(([x, y]) => [x, y - sunkBy] as [number, number]) })) }).volume * rho - mass) / 100) * 100);
   const hull: HullDefinition = {
-    id: 'hull.design',
+    id: `hull.${id}`,
     version: 1,
     name: `Shipyard design ${code}`,
     helm: { stand: [cx, F, cf + 1.125], yawDeg: 0 },
@@ -1674,9 +1688,9 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
 
   // ── Recipe: the landing craft's, with her machinery, controls and places ──
   const recipe = structuredClone(landingCraftRecipe) as unknown as Recipe;
-  recipe.id = 'vessel.design';
+  recipe.id = `vessel.${id}`;
   recipe.name = `Shipyard design ${code}`;
-  recipe.hull = 'hull.design';
+  recipe.hull = `hull.${id}`;
   const k = kw / 150;
   // (A slower-revving engine, ENGINES ratedRpm, `rs` above: every rpm of the 1800 rpm curve
   // scaled by rs, its torque by k / rs (the same power at fewer revs is more torque). Its
@@ -1889,6 +1903,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
     },
   );
   if (chartTableAt) recipe.modules.push({ socket: 'chartTable', module: 'furniture.chart-table' });
+  if (helmAssist) recipe.modules.push({ socket: 'helmAssist', module: 'panel.helm-assist' });
   if (!d.controls) {
     // Basic: wheel, throttle, starting (key, START, the lamps and the card), speed with
     // depth, rpm, and the VHF (owner, Oct 2026: every boat answers calls, hears the forecasts

@@ -86,11 +86,14 @@ describe('the brief', () => {
 });
 
 describe('hull types for a brief', () => {
-  it('cargo and towing at harbour speed: the workboat (the landing craft pulls 3 t only with twin V8s, a twin\'s pull counting both propellers)', () => {
+  it('cargo and towing at harbour speed: a type that can do it all (the landing craft pulls 3 t only with twin V8s, a twin\'s pull counting both propellers)', () => {
     const r = rankTypes(brief({ jobs: ['cargo', 'towing', 'fire'], speedKn: 10, rangeNm: 50, budget: 230_000 }));
-    expect(r[0].hull).toBe(WORKBOAT);
     expect(r[0].misses).toBe(0);
     expect(r.find((t) => t.hull === LANDING)!.lines.find((l) => l.label === 'Pull')!.ok).toBe(true);
+  });
+
+  it('the workboat type is retired (owner: a role, not a hull type): never offered', () => {
+    for (const b of [brief({ jobs: ['cargo', 'towing', 'fire'], speedKn: 10, rangeNm: 50, budget: 230_000 }), brief({})]) expect(rankTypes(b).some((t) => t.hull === WORKBOAT)).toBe(false);
   });
 
   it('pots: the gillnetter, built for them, ahead of others that could also do it', () => {
@@ -112,7 +115,7 @@ describe('hull types for a brief', () => {
     const r = rankTypes(brief({ jobs: ['cargo'], crates: 30 }));
     const deck = (h: number) => r.find((t) => t.hull === h)!.lines.find((l) => l.label === 'Deck')!;
     expect(deck(LANDING)).toMatchObject({ ok: true, value: '30 crates, stretched' });
-    expect(deck(WORKBOAT)).toMatchObject({ ok: true, value: '54 crates' });
+    expect(deck(GILL)).toMatchObject({ ok: true, value: '34 crates' });
     expect(rankTypes(brief({ jobs: ['cargo'], crates: 40 })).find((t) => t.hull === LANDING)!.lines[0]).toMatchObject({ ok: false, value: '35 crates at most' });
   });
 
