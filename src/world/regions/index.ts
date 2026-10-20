@@ -12,7 +12,41 @@ import { SOUNDS } from './sounds';
 import { FJORD } from './fjord';
 import { NARROWS } from './narrows';
 
-export const REGIONS: readonly RegionDef[] = [HOME, SOUNDS, FJORD, NARROWS];
+import { OBAN } from './oban';
+
+/**
+ * Debug (the coast pipeline, milestone 4): Oban, a region made from real map data, in place
+ * of the hand-built Sounds (and the Fjord, which its full-scale box covers). Set by the
+ * Debug menu or `?coast=oban` in the address (`?coast=off` to go back); kept in this
+ * browser. Read once at start: changing it reloads the page.
+ */
+export const COAST_KEY = 'swvr.coastRegion';
+function coastChoice(): string | null {
+  try {
+    const q = new URLSearchParams(globalThis.location?.search ?? '').get('coast');
+    if (q === 'off') localStorage.removeItem(COAST_KEY);
+    else if (q) localStorage.setItem(COAST_KEY, q);
+    return localStorage.getItem(COAST_KEY);
+  } catch {
+    return null; // no storage (a worker, the tests): the usual world
+  }
+}
+export const COAST_REGION: string | null = coastChoice() === 'oban' ? 'oban' : null;
+
+/** Turn the coast region on or off, and reload into it. */
+export function setCoastRegion(id: string | null): void {
+  try {
+    if (id) localStorage.setItem(COAST_KEY, id);
+    else localStorage.removeItem(COAST_KEY);
+  } catch {
+    /* no storage: nothing to keep */
+  }
+  const url = new URL(location.href);
+  url.searchParams.delete('coast');
+  location.assign(url.toString());
+}
+
+export const REGIONS: readonly RegionDef[] = COAST_REGION === 'oban' ? [HOME, OBAN, NARROWS] : [HOME, SOUNDS, FJORD, NARROWS];
 
 export function regionById(id: string): RegionDef | undefined {
   return REGIONS.find((r) => r.id === id);

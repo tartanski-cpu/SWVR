@@ -12,6 +12,7 @@ import { seenRange } from '../sight';
 import { buildSilhouetteArrays, buildTerrainArrays, hash, summitNear, treeSpots, type TerrainArrays } from './terrainMesh';
 import type { TerrainRequest, TerrainResult } from './terrainWorker';
 import { glowSprite, LightPointsMaterial } from '../../render/lightPoints';
+import { CoastTerrainView, coastSilhouetteArrays } from './coastView';
 
 /**
  * Everything static in the world, region by region (regions, milestone 2):
@@ -84,6 +85,8 @@ export class WorldView {
     // A region whose arrays have arrived is built one step a frame (terrain, structures,
     // trees), so no single frame carries the whole of it.
     for (const v of this.views) if (v.pending) v.buildStep();
+    // A coast region's chunks: in full near the viewer, coarse beyond (coastView.ts).
+    for (const v of this.views) if (v.coast && v.resident) v.coast.update(viewer.x, viewer.z);
     this.sinceCheck += dt;
     if (this.sinceCheck < CONFIG.regions.residencyEvery) return;
     this.sinceCheck = 0;
@@ -129,6 +132,11 @@ export class WorldView {
   /** Ask the worker for a region's terrain and trees (or build them now where there is no worker). */
   private request(v: RegionView): void {
     v.building = true;
+    // A coast region's ground is its ready-made mesh (coastView.ts): no worker needed.
+    if (v.region.coast) {
+      v.pending = { terrain: null, trees: new Float32Array(0), step: 0 };
+      return;
+    }
     if (typeof Worker === 'undefined') {
       const t0 = performance.now();
       v.build(buildTerrainArrays(v.region), treeSpots(v.region));
@@ -171,12 +179,14 @@ class RegionView {
   buildMs = 0;
   mainMs = 0;
   distance = Infinity;
-  /** The worker's arrays, waiting to be built up one step a frame (buildStep). */
-  pending: { terrain: TerrainArrays; trees: Float32Array; step: number } | null = null;
+  /** The worker's arrays, waiting to be built up one step a frame (buildStep); no terrain arrays for a coast region. */
+  pending: { terrain: TerrainArrays | null; trees: Float32Array; step: number; parts?: THREE.BufferGeometry[]; making?: Generator<void> } | null = null;
+  /** A coast region's terrain (coastView.ts), once built. */
+  coast: CoastTerrainView | null = null;
 
   constructor(readonly region: RegionDef) {
     this.full.name = `region:${region.id}`;
-    const sil = buildSilhouetteArrays(region);
+    const sil = region.coast ? coastSilhouetteArrays(region) : buildSilhouetteArrays(region);
     const mat = flatVertexColorMaterial();
     // Far-off land: nudged toward the camera in depth, so the sea behind it never bleeds
     // through its coast where the depth buffer is coarse (render.far).
@@ -205,11 +215,37 @@ class RegionView {
     if (!p) return;
     const t0 = performance.now();
     if (p.step === 0) {
-      const terrainMesh = new THREE.Mesh(arraysToGeometry(p.terrain), flatVertexColorMaterial());
-      terrainMesh.name = 'terrain';
-      this.full.add(terrainMesh);
+      if (this.region.coast) {
+        // Its buildings go with its chunks (built and shown near the viewer only).
+        this.coast = new CoastTerrainView(
+          this.region,
+          (list) => {
+            const parts: THREE.BufferGeometry[] = [];
+            for (const bd of list) buildBuilding(bd, parts, true);
+            return mergeParts(parts);
+          },
+          flatVertexColorMaterial(),
+        );
+        this.full.add(this.coast.root);
+      } else if (p.terrain) {
+        const terrainMesh = new THREE.Mesh(arraysToGeometry(p.terrain), flatVertexColorMaterial());
+        terrainMesh.name = 'terrain';
+        this.full.add(terrainMesh);
+      }
     } else if (p.step === 1) {
-      const structures = new THREE.Mesh(mergeParts(buildStructures(this.region)), flatVertexColorMaterial());
+      // The structures: all at once, or for a coast region (a harbourful of pieces) a few
+      // milliseconds a frame, staying on this step until they're all made.
+      p.parts ??= [];
+      p.making ??= structureParts(this.region, p.parts);
+      const budget = this.region.coast ? 8 : Infinity;
+      let done = false;
+      while (performance.now() - t0 < budget) if ((done = !!p.making.next().done)) break;
+      if (!done) {
+        this.mainMs = Math.max(this.mainMs, performance.now() - t0);
+        this.buildMs += performance.now() - t0;
+        return;
+      }
+      const structures = new THREE.Mesh(mergeParts(p.parts), flatVertexColorMaterial());
       structures.name = 'structures';
       this.full.add(structures);
     } else {
@@ -245,19 +281,58 @@ const PILE = 0x3d3a36;
 const FENDER = 0x1e1e1e;
 const BOLLARD = 0x2a2c30;
 
-function buildStructures(region: RegionDef): THREE.BufferGeometry[] {
-  const parts: THREE.BufferGeometry[] = [];
-  for (const b of region.blocks) buildBlock(b, parts);
-  for (const s of region.slipways) buildSlipway(s, parts);
-  for (const r of region.ridges) if (r.drawn !== false) buildBreakwater(r.ax, r.az, r.bx, r.bz, r.crest, r.halfWidth, r.slope, parts);
-  for (const bd of region.buildings) buildBuilding(bd, parts);
-  for (const y of region.yards ?? []) buildYard(y, parts);
-  for (const l of region.lights) buildLightTower(l.x, l.z, l.y, l.color, l.tower, parts);
-  for (const w of region.wrecks) buildWreck(w, parts);
-  for (const l of region.landmarks) if (l.kind === 'hill') buildCairn(l.x, l.z, parts);
-  for (const l of region.landmarks) if (l.kind === 'mast') buildMast(l.x, l.z, parts);
-  for (const f of region.falls ?? []) buildFall(f, parts);
-  for (const f of region.farms ?? []) buildFarm(f, parts);
+/**
+ * The region's structures, one piece at a time into `parts` (a generator: a coast region's
+ * many are built a few milliseconds a frame, RegionView.buildStep; the others all at once).
+ */
+function* structureParts(region: RegionDef, parts: THREE.BufferGeometry[]): Generator<void> {
+  for (const b of region.blocks) {
+    buildBlock(b, parts);
+    yield;
+  }
+  for (const s of region.slipways) {
+    buildSlipway(s, parts);
+    yield;
+  }
+  for (const r of region.ridges) {
+    if (r.drawn !== false) buildBreakwater(r.ax, r.az, r.bx, r.bz, r.crest, r.halfWidth, r.slope, parts);
+    yield;
+  }
+  // A coast region's buildings (a town's worth) go with its chunks instead (coastView.ts).
+  if (!region.coast) {
+    for (const bd of region.buildings) {
+      buildBuilding(bd, parts);
+      yield;
+    }
+  }
+  for (const y of region.yards ?? []) {
+    buildYard(y, parts);
+    yield;
+  }
+  for (const l of region.lights) {
+    buildLightTower(l.x, l.z, l.y, l.color, l.tower, parts);
+    yield;
+  }
+  for (const w of region.wrecks) {
+    buildWreck(w, parts);
+    yield;
+  }
+  for (const l of region.landmarks) {
+    if (l.kind === 'hill') buildCairn(l.x, l.z, parts);
+    yield;
+  }
+  for (const l of region.landmarks) {
+    if (l.kind === 'mast') buildMast(l.x, l.z, parts);
+    yield;
+  }
+  for (const f of region.falls ?? []) {
+    buildFall(f, parts);
+    yield;
+  }
+  for (const f of region.farms ?? []) {
+    buildFarm(f, parts);
+    yield;
+  }
   // Lamp posts: a slim pole with a downward-facing head.
   for (const l of region.lamps) {
     const base = standingHeight(l.x, l.z);
@@ -276,7 +351,6 @@ function buildStructures(region: RegionDef): THREE.BufferGeometry[] {
     parts.push(part(strip, 0xf2c200));
   }
   // The fuel pumps are drawn with their hoses (fuel/fuelView.ts).
-  return parts;
 }
 
 /**
@@ -306,6 +380,11 @@ function buildBlock(b: BlockDef, parts: THREE.BufferGeometry[]): void {
     add(new THREE.BoxGeometry(2 * W - 1.0, 0.2, 5).translate(0, b.top + 2.7, -L + 3), 0x3a3f44);
     add(new THREE.CylinderGeometry(W * 0.55, W * 0.55, 5.5, 12).translate(0, b.top + 2.75, L - 4), 0xc9ccc8, 'sheet');
     add(new THREE.ConeGeometry(W * 0.55, 1.2, 12).translate(0, b.top + 6.1, L - 4), 0xa8aca8);
+  } else if (b.top < 1) {
+    // A pontoon (a coast region's marina berths): a low deck on floats, rising and falling
+    // with the tide in life (here it stays at its height); no piles.
+    add(new THREE.BoxGeometry(2 * W, 0.3, 2 * L).translate(0, b.top - 0.15, 0), 0xa8a49a, 'concrete');
+    add(new THREE.BoxGeometry(2 * W - 0.3, 0.6, 2 * L - 0.3).translate(0, b.top - 0.6, 0), 0x2c3236);
   } else {
     // Deck planks laid across the pier.
     add(new THREE.BoxGeometry(2 * W, 0.45, 2 * L).translate(0, b.top - 0.225, 0), TIMBER, 'wood');
@@ -322,6 +401,12 @@ function buildBlock(b: BlockDef, parts: THREE.BufferGeometry[]): void {
     { nx: 0, nz: 1, half: W, offset: L, alongX: true },
     { nx: 0, nz: -1, half: W, offset: L, alongX: true },
   ];
+  // A pontoon: a cleat every 12 m along each long side, no fenders (it has a rubbing strip).
+  if (b.kind === 'pier' && b.top < 1) {
+    for (const side of [-1, 1]) for (let s = -L + 3; s <= L - 3; s += 12) add(new THREE.BoxGeometry(0.22, 0.12, 0.5).translate(side * (W - 0.2), b.top + 0.06, s), BOLLARD);
+    for (const g of local) parts.push(g.applyMatrix4(m));
+    return;
+  }
   for (const f of faces) {
     const probe = toWorld(f.nx * (f.offset + 2), f.nz * (f.offset + 2));
     if (groundHeight(probe.x, probe.z) > -1) continue; // land or shallows: no berth
@@ -429,7 +514,7 @@ function buildBreakwater(ax: number, az: number, bx: number, bz: number, crest: 
   }
 }
 
-function buildBuilding(bd: BuildingDef, parts: THREE.BufferGeometry[]): void {
+function buildBuilding(bd: BuildingDef, parts: THREE.BufferGeometry[], plain = false): void {
   const yaw = (bd.yawDeg * Math.PI) / 180;
   const hw = bd.width / 2;
   const hd = bd.depth / 2;
@@ -459,12 +544,8 @@ function buildBuilding(bd: BuildingDef, parts: THREE.BufferGeometry[]): void {
   // Pixel paint, set in the building's own frame before it's turned to its bearing: the
   // cladding on the walls; slates on the roof, or sheet on a shed's (turned to run down the slope).
   const cladding = bd.cladding ?? 'render';
-  parts.push(
-    paintLocal(part(walls, bd.wall, cladding)).applyMatrix4(m),
-    paintLocal(part(roof, bd.roof, cladding === 'sheet' ? 'sheet' : 'slates'), true).applyMatrix4(m),
-    paintLocal(part(door, 0x3a2a22, 'wood')).applyMatrix4(m),
-    fitPaint(part(win, 0x6a7a88, 'window')).applyMatrix4(m),
-  );
+  parts.push(paintLocal(part(walls, bd.wall, cladding)).applyMatrix4(m), paintLocal(part(roof, bd.roof, cladding === 'sheet' ? 'sheet' : 'slates'), true).applyMatrix4(m));
+  if (!plain) parts.push(paintLocal(part(door, 0x3a2a22, 'wood')).applyMatrix4(m), fitPaint(part(win, 0x6a7a88, 'window')).applyMatrix4(m));
 }
 
 /**

@@ -163,7 +163,8 @@ export function drawPaperChart(widthPx = 2048, sheet: ChartSheet = sheetById('ho
     g.beginPath();
     g.arc(px(p.x), pz(p.z), 6 * u, 0, Math.PI * 2);
     g.fill();
-    const home = sheet.islands.reduce((a, i) => (Math.hypot(i.x - p.x, i.z - p.z) - i.radius < Math.hypot(a.x - p.x, a.z - p.z) - a.radius ? i : a));
+    // (No islands on the sheet, a coast region's: the name goes to the east.)
+    const home = sheet.islands.reduce((a, i) => (Math.hypot(i.x - p.x, i.z - p.z) - i.radius < Math.hypot(a.x - p.x, a.z - p.z) - a.radius ? i : a), sheet.islands[0] ?? { x: p.x - 1, z: p.z, radius: 0 });
     const dx = p.x - home.x;
     const dz = p.z - home.z;
     const font = `italic bold ${26 * u}px Georgia, serif`;

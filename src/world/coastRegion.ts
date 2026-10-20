@@ -1,0 +1,109 @@
+/**
+ * A coast region (the coast pipeline's milestone 4): a region made by tools/coast from open
+ * map data, in the game's own shapes. The pipeline's package (src/world/regions/<id>.coast.json,
+ * written by tools/coast/src/package.ts) is in the region's own metres about its box's
+ * centre; `fromCoastPackage` places it in the world at (x, z) and makes a RegionDef like any
+ * other. Its ground is its mesh (coastTerrain.ts), fetched at start: `loadCoastTerrains`.
+ *
+ * No code of the region's own: the region's file is its package plus where it goes.
+ */
+import type { BerthDef, BlockDef, BuildingDef, CurrentZoneDef, FishingGroundDef, LampDef, LandmarkDef, LightDef, MarkDef, PortDef, PortFloodDef, PottingGround, RegionDef, ShelterDef, SlipwayDef } from './defs';
+import { registerCoastTerrain, type CoastTerrainLayout } from './coastTerrain';
+
+/** The package's shape (tools/coast/src/package.ts). */
+export interface CoastPackage {
+  format: string;
+  id: string;
+  name: string;
+  terrain: CoastTerrainLayout & { dir: string; file: string };
+  box: { x0: number; x1: number; z0: number; z1: number };
+  credits: string;
+  licence: string;
+  landmarks: LandmarkDef[];
+  blocks: BlockDef[];
+  buildings: BuildingDef[];
+  marks: MarkDef[];
+  lights: LightDef[];
+  shelters: ShelterDef[];
+  ports: PortDef[];
+  berths: BerthDef[];
+  slipways: SlipwayDef[];
+  lamps: LampDef[];
+  portFloods: PortFloodDef[];
+  pottingGrounds: PottingGround[];
+  fishingGrounds: FishingGroundDef[];
+  currents: CurrentZoneDef[];
+}
+
+/** Where a coast region sits, and what it brings beyond the package (its weather, jobs...). */
+export type CoastPlacement = { x: number; z: number } & Partial<Pick<RegionDef, 'weather' | 'jobs' | 'theme' | 'fogBanks'>>;
+
+/** A RegionDef's `coast`: the package's terrain and where its origin is in the world. */
+export interface RegionCoast {
+  pkg: CoastPackage;
+  x: number;
+  z: number;
+}
+
+const shift = <T extends { x: number; z: number }>(list: T[], dx: number, dz: number): T[] => list.map((o) => ({ ...o, x: o.x + dx, z: o.z + dz }));
+
+export function fromCoastPackage(pkg: CoastPackage, at: CoastPlacement): RegionDef {
+  const { x: dx, z: dz } = at;
+  return {
+    id: pkg.id,
+    name: pkg.name,
+    bounds: { x0: pkg.box.x0 + dx, x1: pkg.box.x1 + dx, z0: pkg.box.z0 + dz, z1: pkg.box.z1 + dz },
+    landmarks: shift(pkg.landmarks, dx, dz),
+    islands: [],
+    cuts: [],
+    flats: [],
+    ridges: [],
+    blocks: shift(pkg.blocks, dx, dz),
+    buildings: shift(pkg.buildings, dx, dz),
+    marks: shift(pkg.marks, dx, dz),
+    wrecks: [],
+    lights: shift(pkg.lights, dx, dz),
+    shelters: shift(pkg.shelters, dx, dz),
+    ports: pkg.ports.map((p) => ({
+      ...p,
+      x: p.x + dx,
+      z: p.z + dz,
+      ...(p.fuel ? { fuel: { ...p.fuel, x: p.fuel.x + dx, z: p.fuel.z + dz, pumpX: p.fuel.pumpX + dx, pumpZ: p.fuel.pumpZ + dz } } : {}),
+      cargo: {
+        ...p.cargo,
+        ...(p.cargo.berth ? { berth: { ...p.cargo.berth, x: p.cargo.berth.x + dx, z: p.cargo.berth.z + dz } } : {}),
+        ...(p.cargo.anchorage ? { anchorage: { ...p.cargo.anchorage, x: p.cargo.anchorage.x + dx, z: p.cargo.anchorage.z + dz } } : {}),
+        stackX: p.cargo.stackX + dx,
+        stackZ: p.cargo.stackZ + dz,
+      },
+    })),
+    berths: shift(pkg.berths, dx, dz),
+    slipways: shift(pkg.slipways, dx, dz),
+    lamps: shift(pkg.lamps, dx, dz),
+    portFloods: shift(pkg.portFloods, dx, dz),
+    pottingGrounds: shift(pkg.pottingGrounds, dx, dz),
+    fishingGrounds: shift(pkg.fishingGrounds, dx, dz),
+    fogBanks: at.fogBanks ?? [],
+    currents: shift(pkg.currents, dx, dz),
+    ...(at.weather ? { weather: at.weather } : {}),
+    ...(at.jobs ? { jobs: at.jobs } : {}),
+    ...(at.theme ? { theme: at.theme } : {}),
+    coast: { pkg, x: dx, z: dz },
+  };
+}
+
+/**
+ * Fetch every coast region's terrain and register it (App, before the world starts).
+ * `base` is the site's root (import.meta.env.BASE_URL).
+ */
+export async function loadCoastTerrains(regions: readonly RegionDef[], base: string): Promise<void> {
+  await Promise.all(
+    regions.map(async (r) => {
+      const c = r.coast;
+      if (!c) return;
+      const res = await fetch(`${base}${c.pkg.terrain.dir}${c.pkg.terrain.file}`);
+      if (!res.ok) throw new Error(`coast region ${r.id}: terrain ${res.status}`);
+      registerCoastTerrain(r.id, await res.arrayBuffer(), c.pkg.terrain, c.pkg.box, c.x, c.z);
+    }),
+  );
+}

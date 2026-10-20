@@ -88,6 +88,8 @@ export class ChartPlotter {
     let x1 = -Infinity;
     let z0 = Infinity;
     let z1 = -Infinity;
+    // A coast region (real coastline) has no islands: its whole box.
+    if (region.coast) ({ x0, x1, z0, z1 } = { x0: region.bounds.x0 + MARGIN, x1: region.bounds.x1 - MARGIN, z0: region.bounds.z0 + MARGIN, z1: region.bounds.z1 - MARGIN });
     for (const i of region.islands) {
       x0 = Math.min(x0, i.x - i.radius);
       x1 = Math.max(x1, i.x + i.radius);

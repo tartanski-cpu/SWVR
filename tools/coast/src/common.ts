@@ -24,6 +24,8 @@ export interface RegionRequest {
   weatherProfile?: string;
   fish?: string[];
   goods?: string[];
+  /** The game's trade per harbour id (package.ts): products, needs, repairs. */
+  economy?: Record<string, { products?: string[]; needs?: string[]; repairs?: { hull: number; engine: number } }>;
 }
 
 export function loadRequest(id = process.argv[2] ?? 'oban'): RegionRequest {

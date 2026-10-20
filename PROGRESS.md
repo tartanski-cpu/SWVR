@@ -5945,7 +5945,7 @@ Owner: "go ahead with milestone 2". The brief's test: drive a test boat through 
 - **Test steps (desktop):** open https://tartanski-cpu.github.io/SWVR/next/coast.html. Fly into Oban Bay (or press Boat eye there); see the buoys, the cardinal topmarks, and the labels. Press **Night** and look toward Dunollie from different bearings: its colour changes red, white, green by sector. Press **Drop test boat** in open water, drive with W A S D (space to stop), go round by the marks, and try running onto a shore or a skerry. Fly to Connel, drop the boat below the Falls, press **Race** to flood and feel her pushed east. **VR:** the page opens in the Quest browser as a flat page (keys need a keyboard); the VR check comes with M4 in the game.
 - **Next:** M3, harbours and buildings, on the owner's word.
 
-### M3: harbours and buildings, and a better coast mesh (done, awaiting owner look)
+### M3: harbours and buildings, and a better coast mesh (done)
 
 Owner: "go ahead with milestone 3", and: the coastline could be more detailed (a few janky bits); win the triangles back from inland ground no one sees from the water. The brief's test: tie up at a real pier.
 
@@ -5997,6 +5997,94 @@ Owner: "go ahead with milestone 3", and: the coastline could be more detailed (a
   4. Try Kerrera Marina, Dunstaffnage Marina and the Kerrera ferry.
 - **VR:** as before, the viewer is a flat page. The VR check comes with M4 in the game.
 - **Next:** M4, package and load in the game, on the owner's word.
+
+### M4: package and load in the game (done, awaiting owner test)
+
+Owner: "go ahead with milestone 4". Agreed before: a region may carry its own ground (physics, drawing and charts read it), a credits entry, and Oban **full scale, replacing the hand-built Sounds behind a debug toggle**. The brief's test: sail from home into the real region at a steady frame rate on the Quest.
+
+- **Where it goes, and a choice I made:** at full scale Oban is 11.7 x 11.1 km. The Sounds' slot between home, the Narrows and the Fjord is about 4 km. With the toggle on, Oban sits where the Sounds was:
+  - its south edge at z -1900, 1.2 km north of home;
+  - the south entrance of Kerrera Sound due north of Calder Haven, about 2.5 km off (the way you would come in from the south);
+  - it covers the Fjord's place too, so **the Fjord is left out while it's on**;
+  - the Narrows stay, to the west.
+
+  Turned off, the world is exactly as before. A permanent place for real regions is a decision for later (say where you want them).
+- **The toggle** (`src/world/regions/index.ts`):
+  - **How to set it:** Menu → Debug → World → **Coast region test**: The Sounds (as built) / Oban (from the map). Or `?coast=oban` in the address (`?coast=off` to go back).
+  - **How it works:** it is kept in this browser (`swvr.coastRegion`), read once at start, and the page reloads when it changes, since every list in the world is built from the regions at start.
+  - **Careers kept apart:** while it's on, careers are saved under their own keys (`swvr.coastTest.fleetCareer.*`). A career saved without the Sounds' and the Fjord's ports would lose their reputation, so your real careers are never touched.
+  - **Multiplayer:** the host's world carries the toggle (`world.build.coast`). A crew-mate whose page differs takes the host's setting and reloads into the game.
+- **The ground** (`src/world/coastTerrain.ts`):
+  - **What it reads:** the pipeline's mesh (`public/regions/oban/terrain.bin`, 2.5 MB). It is fetched before the world is built (`main.ts` shows "Loading the coast..."), so everything that reads the ground has it from the start: hull contacts, the anchor, the sounder, mooring, berths, jobs, the ocean's surf, the charts.
+  - **How it looks it up:** `groundHeight` asks it first inside the box. It sorts the faces into 40 m buckets and finds the one under the point.
+  - **Deep water:** the deep faces (not drawn) come too, so the seabed is real everywhere.
+  - **What you see is what you hit,** as for the islands.
+- **Pipeline additions** (`tools/coast`):
+  - **Edge fade:** land and sea fade at the box's edges to the game's 40 m open-sea floor over 400 m (`edgeFade`, `edgeFloor`), so the region ends in open sea and meets the game's ocean without a seam.
+  - **Deep seabed:** the deep faces are written after the chunks (`terrain.deep`).
+  - **Skerries:** the skerries the grid lost are now stood up in the mesh itself (`skerryHeight` 1.8 m), so the game needs nothing special for them.
+  - **Budget:** a chunk over `chunkBudget` (12,000 triangles) fails the stage, and `tests/coastRegion.test.ts` checks the same, so the site's build fails too.
+  - **Package stage** (`src/package.ts`) writes `src/world/regions/oban.coast.json` (117 kB) in the game's shapes:
+    - 9 ports (Oban, Kerrera Marina, Dunstaffnage Marina, the Kerrera ferry, the piers, the Dunbeg anchorage), each with a cargo berth, fuel at the bigger harbours, and trade from the request's new `economy`;
+    - 70 kit pieces, 774 buildings, 5 slipways;
+    - 15 marks and 11 lights (one colour each: the game has no sector lights yet, so Dunollie shows white);
+    - the Falls of Lora race;
+    - shelter by fetch;
+    - mackerel and haddock grounds, and potting grounds round the skerries;
+    - landmarks: Càrn Breugach (the highest named summit) and Dunollie light.
+
+    `src/world/regions/oban.ts` is the package plus where it goes (`fromCoastPackage`, `src/world/coastRegion.ts`), with the Sounds' rough weather.
+- **Drawing** (`src/world/view/coastView.ts`; `CONFIG.regions.coast*`):
+  - **Near chunks** (within `coastFineDistance` 1 km) are the pipeline's mesh in full.
+  - **Far chunks** are a coarse copy: the ground sampled every `coastCoarseCell` 90 m, land and shore only (22k triangles for the whole region; 48k at 60 m). Each reaches 90 m into its neighbours and sits 1 m lower, so no gap shows where near meets far.
+  - **The silhouette** from far off is sampled every 150 m.
+  - **Buildings:** merged per chunk and shown only within `coastBuildingDistance` 2 km. They are drawn plain, with no door or window.
+  - **Pontoons:** a low deck on floats with cleats; no piles, no fenders.
+  - **Built a few pieces a frame:** coarse chunks first, then full ones and towns, and the harbours' structures about 8 ms a frame. The worst build frame fell from 685 ms to 41 ms (home's own build is 117 ms).
+- **Charts:**
+  - the archipelago sheet now reads "Skerry Sound, Oban and Lorn and the Narrows";
+  - Oban has its own sheet (1-minute grid, sparser soundings);
+  - the plotter uses the region's box.
+  - Fixed on the way: a paper chart crashed on a region without islands (port labels).
+- **Credits:** Menu → Settings → Game lists the open data (OpenStreetMap contributors (ODbL), OpenSeaMap, Copernicus DEM, EMODnet, ESA WorldCover) whenever a coast region is in the world.
+- **Other fixes for a world without the Sounds:** yard boards only for yards whose port is in the world (Loch Tarsk's isn't); the To-port buttons wrap, six to a row.
+- **Tests:** `tests/coastGame.test.ts` (8), with the toggle on:
+  - the regions stand apart and ids are unique;
+  - the ground is the mesh: the town above the water, the bay below, the open-sea floor at the edge;
+  - every port is workable: water at its cargo berth, its goods ashore, a fuel berth where it sells fuel;
+  - the marks float and the race lies in the water;
+  - the way in from home is open water north of Calder;
+  - the Oban and archipelago chart sheets;
+  - the package matches the mesh files.
+
+  `tests/coastRegion.test.ts` covers the deep faces and the 12,000 budget. Full run: 166 files, 1,115 tests pass.
+- **Checked headless** (SwiftShader: triangle and draw counts exact, timings not meaningful for the Quest):
+  - **The usual world:** unchanged (205k triangles at Calder).
+  - **The way in, every 250 m from Calder Haven to Oban Bay:** 178k-253k triangles. The most is near home with both regions drawn, about 20 % over home alone, inside the agreed 30 %. In Oban Bay 195k, at the Falls 131k. 46-58 draws. No page errors.
+  - **Screenshots:**
+    - the entrance and up Kerrera Sound;
+    - Oban Bay and the town;
+    - the boat moored at Oban's town quay (the cargo berth's yellow strip, bollards, the quay wall, the town behind);
+    - the Falls of Lora;
+    - the Oban and archipelago chart sheets.
+- **Not checked / later:**
+  - **The Quest frame rate** (your test).
+  - **Sector lights:** Dunollie's red and green sectors need sector lights in the game.
+  - **Boatyard:** no yard board in Oban yet (its repairs need one).
+  - **Trees:** none (the woods are coloured ground).
+  - **Place names:** none on the Oban chart other than the harbours.
+  - **The town front:** the height data is a surface model, so it rises in grey slopes behind the quay.
+  - **Salvage logs:** they don't wash up in Oban (their beaches come from islands).
+  - **Map edges:** Kerrera's west side and Loch Etive are cut where the box ends, and fade into the sea there.
+- **Test steps:**
+  - **Desktop:**
+    1. Open https://tartanski-cpu.github.io/SWVR/next/?coast=oban; it says "Loading the coast..." for a moment.
+    2. Board at Calder Haven and steer north (000): Kerrera Sound's entrance is about 2.5 km off. Go up the sound (the Little Horseshoe, Ferry Rocks and Kerrera buoys), into Oban Bay past the cardinals.
+    3. Moor at Oban's town quay (Menu → Debug → World → To port → Oban).
+    4. Try the chart table's sheets, run aground on Kerrera, and check the plotter. Menu → Settings → Game shows the credits.
+    5. `?coast=off` to go back.
+  - **VR:** the same in the headset. Watch the perf panel's frame rate from Calder Haven up into Oban Bay and in the bay, and note any hitch as Oban loads (about 2.5 km out) or as chunks switch near and far.
+- **Next:** M5 (a second region, a Norwegian fjord) on the owner's word; or a permanent place in the world for real regions.
 
 ## Next
 

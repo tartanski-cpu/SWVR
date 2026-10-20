@@ -4645,6 +4645,21 @@ export const CONFIG = {
     fallStandOff: 4,
     /** A `mast` landmark's radio mast stands this tall on its summit (m); its light is at the top. */
     mastHeight: 40,
+    /**
+     * Coast regions (real coastline from tools/coast; world/view/coastView.ts): a 2 km chunk of
+     * the ground is drawn in full within coastFineDistance of the viewer (m); farther ones are a
+     * coarse copy sampled every coastCoarseCell m, reaching coastCoarseOverlap m into their
+     * neighbours and coastCoarseDrop m lower (so no gap shows where near meets far); the region
+     * seen from far off is sampled every coastSilhouetteCell m. Its buildings, many of them,
+     * are drawn plain (no door or window), merged per chunk, only within coastBuildingDistance (m).
+     * Oban, all far: 22k triangles at 90 m (48k at 60 m); its silhouette ~7k at 150 m.
+     */
+    coastFineDistance: 1000,
+    coastCoarseCell: 90,
+    coastCoarseOverlap: 90,
+    coastCoarseDrop: 1,
+    coastSilhouetteCell: 150,
+    coastBuildingDistance: 2000,
   },
 
   /**

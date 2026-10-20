@@ -46,7 +46,10 @@ function islandBox(islands: readonly IslandDef[], margin: number): ChartSheet['b
  * reach well beyond its islands).
  */
 function regionBox(r: RegionDef, margin: number): ChartSheet['bounds'] {
-  const b = islandBox(r.islands, margin);
+  // A coast region (real coastline) has no islands: its box, less the edge where its land
+  // fades into the open sea (coast pipeline, mesh.ts edgeFade).
+  const fade = 400;
+  const b = r.coast ? { x0: r.bounds.x0 + fade, x1: r.bounds.x1 - fade, z0: r.bounds.z0 + fade, z1: r.bounds.z1 - fade } : islandBox(r.islands, margin);
   for (const sh of r.shoals ?? []) {
     b.x0 = Math.min(b.x0, sh.x - sh.radius - 150);
     b.x1 = Math.max(b.x1, sh.x + sh.radius + 150);
@@ -86,8 +89,9 @@ function detailSheet(regionId: string): ChartSheet {
     id: r.id,
     title: r.name.toUpperCase(),
     bounds: padToAspect(regionBox(r, MARGIN), SHEET_ASPECT),
-    gridMinutes: 0.5,
-    soundingStep: 280,
+    // A big region (a real coast at full scale) gets a coarser grid and sparser soundings.
+    gridMinutes: r.coast ? 1 : 0.5,
+    soundingStep: r.coast ? 450 : 280,
     textScale: 1,
     islands: r.islands,
   };

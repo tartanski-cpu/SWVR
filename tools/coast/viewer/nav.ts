@@ -128,8 +128,6 @@ export class NavLayer {
   readonly labels: { text: string; pos: THREE.Vector3 }[] = [];
   private readonly lamps: { sprite: THREE.Sprite; light: NavFile['lights'][number]; r: number[]; offset: number }[] = [];
   readonly zones: NavFile['currents'];
-  /** Skerries the mesh lost (drawn: false): stood up here as rocks, and solid to the test boat. */
-  private readonly rocks: { x: number; z: number; r: number }[] = [];
 
   constructor(nav: NavFile, groundAt: (x: number, z: number) => number) {
     this.zones = nav.currents;
@@ -153,15 +151,8 @@ export class NavLayer {
         this.root.add(tower);
       }
     });
-    const rockMat = new THREE.MeshLambertMaterial({ color: 0x4a4640, flatShading: true });
+    // The skerries the 10 m grid lost are stood back up in the mesh itself (mesh.ts); here, their names.
     for (const h of nav.hazards) {
-      if (h.kind === 'skerry' && !h.drawn) {
-        const r = Math.min(30, h.radius ?? 8);
-        const rock = new THREE.Mesh(new THREE.ConeGeometry(r, 2.5 + r * 0.05, 7), rockMat);
-        rock.position.set(h.x, 0.6, h.z);
-        this.root.add(rock);
-        this.rocks.push({ x: h.x, z: h.z, r });
-      }
       this.labels.push({ text: h.name || h.kind, pos: new THREE.Vector3(h.x, 4, h.z) });
     }
     for (const f of nav.farms) {
@@ -204,11 +195,6 @@ export class NavLayer {
       lp.sprite.visible = colour !== null && isOn(lp.r, time, lp.offset);
       if (colour) (lp.sprite.material as THREE.SpriteMaterial).color.setHex(LIGHT[colour] ?? LIGHT.white);
     }
-  }
-
-  /** Is (x, z) on one of the skerries stood up here? */
-  onRock(x: number, z: number): boolean {
-    return this.rocks.some((k) => Math.hypot(x - k.x, z - k.z) < k.r);
   }
 
   /** The current at (x, z) now (m/s, x and z) from the zones, at `strength` of peak (signed: + floods along the set). */

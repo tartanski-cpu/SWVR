@@ -96,6 +96,8 @@ export interface WorldState {
     without?: string[];
     /** The game's own version (commit and build time) on the host: crew on another reload (App.ts). */
     app?: string;
+    /** The host's coast region test (regions/index.ts COAST_REGION), if on: crew switch to match and reload. */
+    coast?: string;
   };
   /**
    * No new emergency calls (rescues, tows, fires) while set: the menu's Voyage tab,

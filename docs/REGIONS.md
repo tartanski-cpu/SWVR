@@ -17,6 +17,8 @@ The owner's brief, in short: grow the world by adding **regions** round home, ea
 
 A region is **data, never code of its own**: one file in `src/world/regions/` holding a `RegionDef` (`src/world/defs.ts`): its footprint (`bounds`), landmarks, islands, cuts, flats, breakwaters, quays and piers, buildings, sea marks, wrecks, lights, shelter zones, ports, berths, slipways, lamps, port floods, potting and fishing grounds, fog banks. The brief's other layers are added to `RegionDef` by the milestones that use them: the drawing theme and weather profile, fish species and goods, job templates, current zones.
 
+A **coast region** (real coastline from open map data, made by the coast pipeline in `tools/coast/`; `docs/COAST_PIPELINE.md`) is the same `RegionDef`, made from the pipeline's package (`src/world/regions/<id>.coast.json`) by `fromCoastPackage` (`src/world/coastRegion.ts`) and placed in the world by its region file (`regions/oban.ts`: the package and where it goes). It has no islands: its `coast` field names its ground, a ready-made mesh (`public/regions/<id>/terrain.bin`) fetched at start (`main.ts`) and read by `groundHeight` through `src/world/coastTerrain.ts`, drawn by `src/world/view/coastView.ts` (near chunks in full, far ones coarse). The first is Oban, behind a debug toggle in place of the Sounds and the Fjord.
+
 `src/world/archipelago.ts` joins every region's lists into the flat lists the rest of the game reads (`ISLANDS`, `PORTS`, ...), home's first. Nothing else needs to know which region a thing is in; `regionAt(x, z)` (`src/world/regions/index.ts`) answers when something does.
 
 ## Decisions

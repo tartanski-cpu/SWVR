@@ -454,7 +454,8 @@ if (spine.anchorage) {
     }
   if (best) {
     const place = places.sort((a, b) => Math.hypot(a.at[0] - best!.x, a.at[1] - best!.z) - Math.hypot(b.at[0] - best!.x, b.at[1] - best!.z))[0];
-    harbours.push({ id: 'anchorage', name: `${place?.name ?? 'The'} anchorage`, kind: 'anchorage', x: best.x, z: best.z, pieces: [], berths: 0, fetch: Math.round(best.f), role: 'anchorage' });
+    const name = `${place?.name ?? 'The'} anchorage`;
+    harbours.push({ id: name.toLowerCase().replace(/[^a-z0-9]+/g, '-'), name, kind: 'anchorage', x: best.x, z: best.z, pieces: [], berths: 0, fetch: Math.round(best.f), role: 'anchorage' });
   } else warnings.push('anchorage: no sheltered water 4-15 m deep found');
 }
 if (!harbours.some((h) => h.role === 'harbour.sheltered') && spine['harbour.sheltered']) warnings.push('no sheltered harbour found');

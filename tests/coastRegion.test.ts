@@ -48,10 +48,12 @@ describe('the Oban coast region (pipeline milestone 1)', () => {
     for (const c of region.chunks) {
       expect(c.start).toBe(next);
       next += c.count;
-      expect(c.count).toBeLessThan(12000);
+      expect(c.count).toBeLessThanOrEqual(12000); // the Quest's budget per chunk (mesh.ts chunkBudget)
     }
-    expect(next).toBe(t.faces.count);
-    expect(t.faces.count).toBeLessThan(120000);
+    // Then the deep seabed: not drawn, there for the game's physics.
+    expect(next).toBe(t.deep.start);
+    expect(t.deep.start + t.deep.count).toBe(t.faces.count);
+    expect(t.deep.start).toBeLessThan(120000);
   });
 
   it('the coastline came with it, and the credits and the ODbL licence', () => {

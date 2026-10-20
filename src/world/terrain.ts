@@ -13,9 +13,12 @@
  *   cuts    : basins and bays lower everything inside to a fixed depth, with a sloped edge.
  *   channels: fjords and narrows: the same, along a line of varying width (ChannelDef).
  *   ridges  : breakwaters raise a trapezoidal mound along a segment.
+ *   coast   : a coast region (real coastline, tools/coast) brings its own mesh: inside its box
+ *             that is the ground the rest is laid on (coastTerrain.ts), instead of the floor.
  *   slipways: a concrete slip (SLIPWAYS) is its own plane, top - slope x (distance down it),
  *             wherever it lies (built up over the seabed, cut into the bank), square-edged.
  */
+import { coastHeight } from './coastTerrain';
 import { CHANNELS, CUTS, FLATS, ISLANDS, MAX_DEPTH, RIDGES, SHELF, SHOALS, SLIPWAYS, type ChannelDef, type IslandDef } from './archipelago';
 
 /** Each slipway's axes: the unit vector up it (world x, z), for slipSurface. */
@@ -110,7 +113,8 @@ function islandHeight(isl: IslandDef, x: number, z: number): number {
  *               their own rock-armour mesh)
  */
 export function groundHeight(x: number, z: number, ridges = true): number {
-  let h = -MAX_DEPTH;
+  // A coast region's mesh (coastTerrain.ts) is the ground in its box; the open-sea floor elsewhere.
+  let h = coastHeight(x, z) ?? -MAX_DEPTH;
   for (const isl of ISLANDS) {
     if (Math.abs(x - isl.x) > isl.radius * 1.4 + INFLUENCE || Math.abs(z - isl.z) > isl.radius * 1.4 + INFLUENCE) continue;
     h = Math.max(h, islandHeight(isl, x, z));

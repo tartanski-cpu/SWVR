@@ -18,3 +18,13 @@ currentZones:                  # tidal races are not in open data: placed by han
 weatherProfile: north-rough
 fish: [mackerel, haddock, lobster]
 goods: [feed, building-materials, whisky]
+# What each harbour trades in the game (milestone 4), by harbour id (harbours.json). The
+# game's cargo kinds (CONFIG.cargo.kinds): products ship out of here, needs are wanted here.
+# repairs: the yard's prices as a factor on the game's standard rate. Unlisted harbours take
+# part in every run.
+economy:
+  oban: { repairs: { hull: 1, engine: 1 }, products: [Whisky cask, Canned fish], needs: [Building materials, Groceries] }
+  kerrera-marina: { needs: [Groceries, Gas bottle] }
+  dunstaffnage-marina: { products: [Timber], needs: [Crate, Gas bottle] }
+  kerrera-ferry-terminal: { needs: [Sack, Crate] }
+  dunbeg-anchorage: { needs: [Feed sack] }
