@@ -2569,6 +2569,16 @@ export const CONFIG = {
   nav: { originLat: 56.62, originLon: -5.95 },
 
   /**
+   * The overhead chartplotter (nav/chartPlotter.ts). On a coast map its land, shallows and sea
+   * are drawn as shapes cut from the ground's mesh (nav/chartLand.ts), sharp at any zoom; a
+   * square's shapes are made the first time it's in view, for at most `buildMs` each redraw
+   * (a few times a second), nearest first, so a map's first look never stalls a frame (the
+   * map's coarse picture shows meanwhile).
+   */
+  chartPlotter: {
+    buildMs: 4,
+  },
+  /**
    * Pencil marks on the paper chart (chart/marks.ts). Strokes are stored in world metres
    * (so they line up with the map), points kept at least `minStepM` m of chart apart and
    * rounded to `quantM`. Over `maxPoints` in all, the oldest strokes go (the oldest ones
