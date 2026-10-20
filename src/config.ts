@@ -2696,6 +2696,20 @@ export const CONFIG = {
    * keel, chines and deck edges (vessel physics). Per point: F_n = k·depth − c·v_n (pushing
    * only), friction ≤ μ·F_n opposing sliding. Fendered faces are softer and slippery.
    */
+  /**
+   * The roving fender (vessel/walkFender.ts, player/fenderHands.ts; owner): with the
+   * fenders out, stand at the rail, look at the quay or the boat alongside, press with an
+   * empty hand, and a fender is hung there at your station. It counts only if what you're
+   * looking at is within `reach` m of her side (the far side of a wide gap is no use), and
+   * only along the ray's first `rayLength` m. It can't hang within `endClear` m of her stem
+   * or transom. Hung by the first press; another press elsewhere moves it.
+   */
+  fenderWalk: {
+    reach: 3.0,
+    rayLength: 6,
+    endClear: 0.4,
+  },
+
   contacts: {
     /** The values below are for a boat of this mass (the workboat); lighter ones scale them down. */
     referenceMass: 18300,

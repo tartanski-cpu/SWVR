@@ -113,6 +113,8 @@ import { HelmCamera } from '../player/helmCamera';
 import { distanceToHull } from '../rescue/recovery';
 import { RodView } from '../fishing/rodView';
 import { LineGun } from '../tow/lineGun';
+import { FenderHands, type FenderHandsContext } from '../player/fenderHands';
+import type { FendersApi } from '../modules/fenders';
 import { LineGunView } from '../tow/lineGunView';
 import { lineLength, nearestTowTarget, towAlertT, towName, towPoint, towPostLocal, towStatus, towTargets, winchStalled } from '../tow/tow';
 import { TargetsView } from '../rescue/targetView';
@@ -358,6 +360,8 @@ export class App {
   private binoculars!: Binoculars;
   /** Hand gear on brackets in the wheelhouse (player/handGear.ts). */
   private readonly gear = [new HandGear('extinguisher'), new HandGear('torch'), new HandGear('lineGun'), ...Array.from({ length: CONFIG.rod.perRack }, (_, i) => new HandGear('rod', i))];
+  /** The roving fender (player/fenderHands.ts): hung where you stand, looking at the quay. */
+  private readonly fenderHands = new FenderHands();
   /** The line-throwing gun's game (tow/lineGun.ts) and what it shows. */
   private readonly lineGun = new LineGun();
   private readonly lineGunView = new LineGunView();
@@ -964,6 +968,7 @@ export class App {
         const free = p?.phase === 'free';
         for (const c of this.homeView.cleats) c.painterOn = free && (p?.painter?.cleat === c.index || p?.sternPainter?.cleat === c.index);
       }
+      this.homeView.api<FendersApi>('deck.fenders')?.setWalk(testVessel.walkFender);
       this.homeView.update(testVessel, dt, this.dashInView(), this.world.environment, frame);
       this.homeView.radio?.update(this.world.rescue, runStatus(this.world), dt, isPowered(testVessel, 'radio'), towAlertT(this.world) >= 0 || fireAlertT(this.world) >= 0, sosCondition(testVessel) === 'upright' ? null : sosStatus(testVessel));
       // Say so when the anchor is up or holding (the speed screen shows it all the time).
@@ -3665,6 +3670,11 @@ export class App {
       for (const h of ['left', 'right'] as const) if (this.cargoHands.busy(h)) this.busyHands[h] = true;
       this.rescueHands.updateXR(this.rescueCtx(), this.hands, this.busyHands, this.frameDt);
       for (const h of ['left', 'right'] as const) if (this.rescueHands.busy(h)) this.busyHands[h] = true;
+      // The roving fender: a free hand's trigger, pointed at the quayside.
+      {
+        const onFender = this.fenderHands.updateXR(this.fenderCtx(), this.hands, this.busyHands);
+        for (const h of ['left', 'right'] as const) if (onFender[h]) this.busyHands[h] = true;
+      }
       if (this.world.potting) {
         const onPots = this.potHands.updateXR(this.potCtx(), this.hands, this.busyHands, this.frameDt);
         for (const h of ['left', 'right'] as const) if (onPots[h] || this.potHands.busy(h)) this.busyHands[h] = true;
@@ -3721,7 +3731,8 @@ export class App {
         const fuel = free && !board && !this.rescueHands.deskBusy ? this.fuelHands.label(this.fuelCtx(), ray, this.frameDt) : null;
         const pots = free && !board && !fuel && this.world.potting ? this.potHands.updateDesktop(this.potCtx(), ray, this.frameDt) : null;
         const gear = free && !board && !fuel ? this.rescueHands.updateDesktop(this.rescueCtx(), ray, this.headW, this.headFwd, this.frameDt) : null;
-        return board ?? fuel ?? pots ?? gear ?? this.cargoHands.updateDesktop(this.cargoCtx(), ray, this.headW, this.headFwd);
+        const fender = free && !board && !fuel && !pots && !gear ? this.fenderHands.updateDesktop(this.fenderCtx(), ray) : null;
+        return board ?? fuel ?? pots ?? gear ?? fender ?? this.cargoHands.updateDesktop(this.cargoCtx(), ray, this.headW, this.headFwd);
       },
       click: (ray: THREE.Ray | null) => {
         if (this.yardBoards.some((b) => b.menu.updateDesktop(ray, true))) return true;
@@ -3730,6 +3741,7 @@ export class App {
         if (!this.cargoHands.carrying && !this.rescueHands.deskBusy && this.fuelHands.click(this.fuelCtx(), ray)) return true;
         if (!this.cargoHands.carrying && this.world.potting && this.potHands.desktopClick(this.potCtx(), ray)) return true;
         if (!this.cargoHands.carrying && this.rescueHands.desktopClick(this.rescueCtx(), ray, this.headFwd)) return true;
+        if (!this.cargoHands.carrying && this.fenderHands.desktopClick(this.fenderCtx(), ray)) return true;
         return this.cargoHands.desktopClick(this.cargoCtx(), ray);
       },
     };
@@ -3850,6 +3862,18 @@ export class App {
   }
 
   /** The rescue hands' view of the app. */
+  private fenderCtx(): FenderHandsContext {
+    return {
+      world: this.world,
+      vesselId: this.testVesselId,
+      vesselRoot: this.vesselRoots.get(this.testVesselId),
+      hookInHand: this.rescueHands.hookInHand,
+      push: (control, value, args) => this.intents.push({ playerId: this.localPlayerId, targetId: this.testVesselId, control, value, args }),
+      notify: (text) => this.overlay.notify(text, 2.5),
+      pulse: (h, i, ms) => this.xrInput.pulse(h, i, ms),
+    };
+  }
+
   private rescueCtx(): RescueHandsContext {
     return {
       world: this.world,

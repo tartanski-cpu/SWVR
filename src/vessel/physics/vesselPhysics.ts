@@ -61,6 +61,7 @@ import { stepMooring } from './mooring';
 import type { ExternalForce } from './vesselContact';
 import type { PhysicsPort } from '../../modular/module';
 import { gearOf, vesselRuntime } from '../../boats/sims';
+import { walkFenderProbe } from '../walkFender';
 
 /** Optional per-tick diagnostics for the debug view (vessel-local coordinates). */
 export interface HydroDebug {
@@ -448,6 +449,9 @@ export function stepVessel(
         }
       };
       if (fendersOut) guard(fenders.probes, CONFIG.contacts.guards.fenders);
+      // The roving fender a deckhand hung where she's about to touch (vessel/walkFender.ts).
+      const walk = fendersOut ? walkFenderProbe(state) : null;
+      if (walk) guard([walk], CONFIG.contacts.guards.fenders);
       if (sideGuard) guard(sideGuard.probes, CONFIG.contacts.guards[sideGuard.kind]);
       if (pushFender) guard(pushFender.probes, CONFIG.contacts.guards.pushFender);
     }

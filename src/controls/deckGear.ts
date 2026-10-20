@@ -30,7 +30,9 @@ export class FenderBasket extends Control {
   constructor(id = 'fenders', wiring: Wiring = {}) {
     super(id, wiring.channel ?? 'fenders');
     this.read = wiring.read ?? ((s) => s.controls.fenders);
-    const basket = this.fixed(new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.18, 0.35, 10, 1, true).translate(0, 0.175, 0), new THREE.MeshLambertMaterial({ color: 0x3a3f44, side: THREE.DoubleSide })));
+    // A closed basket (owner: open-ended, its far side was culled once baked into the boat's
+    // one-sided mesh, so you saw through its back).
+    const basket = this.fixed(new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.18, 0.35, 10, 1, false).translate(0, 0.175, 0), new THREE.MeshLambertMaterial({ color: 0x3a3f44 })));
     // A couple of fenders poking out of it (while they're in).
     const f = new THREE.Mesh(
       mergeParts([part(new THREE.CapsuleGeometry(0.09, 0.3, 4, 8).translate(-0.06, 0.4, 0), 0x1a3a6a), part(new THREE.CapsuleGeometry(0.09, 0.3, 4, 8).rotateZ(0.3).translate(0.07, 0.38, 0.04), 0x1a3a6a)]),
@@ -68,21 +70,41 @@ export class FendersView {
   readonly mesh: THREE.InstancedMesh;
   private shown = -1;
   private readonly spots: { z: number; side: number; halfBeam: number; deckY: number }[] = [];
+  /** The roving fender (vessel/walkFender.ts): the last instance, drawn where it's hung, or hidden. */
+  private walk: { side: number; z: number } | null = null;
+  private walkShown = '';
+  private readonly plan: { halfBeam(z: number): number; deckY(z: number): number };
 
   constructor(zs: readonly number[], plan: { halfBeam(z: number): number; deckY(z: number): number }) {
+    this.plan = plan;
     // The fender and its line up to the rail (visible from on board; laid out on deck when stowed).
     const geo = mergeParts([part(new THREE.CapsuleGeometry(FENDER_HANG.radius, 0.45, 4, 8), 0x1a3a6a), part(new THREE.CylinderGeometry(0.008, 0.008, 0.95).translate(0, 0.8, 0), 0xe8e0c8)]);
     for (const side of [-1, 1]) for (const z of zs) this.spots.push({ z, side, halfBeam: plan.halfBeam(z), deckY: plan.deckY(z) });
-    this.mesh = new THREE.InstancedMesh(geo, flatVertexColorMaterial(), this.spots.length);
+    this.mesh = new THREE.InstancedMesh(geo, flatVertexColorMaterial(), this.spots.length + 1);
     this.mesh.name = 'fenders';
     this.update(false); // stowed until told otherwise (the Shipyard's preview never updates her)
+  }
+
+  /** Where the roving fender hangs (her axes), or null: none out. */
+  setWalk(f: { side: number; z: number } | null | undefined): void {
+    this.walk = f ?? null;
   }
 
   /** @param over  the fenders are out over the side */
   update(over: boolean): void {
     const out = over ? 1 : 0;
-    if (out === this.shown) return;
+    const walkKey = out && this.walk ? `${this.walk.side}:${this.walk.z}` : '';
+    if (out === this.shown && walkKey === this.walkShown) return;
     this.shown = out;
+    this.walkShown = walkKey;
+    {
+      // The roving fender: hung at its station, or tucked away (scaled to nothing).
+      const m = new THREE.Matrix4();
+      const w = this.walk;
+      if (out && w) m.compose(new THREE.Vector3(w.side * (this.plan.halfBeam(w.z) + FENDER_HANG.off), this.plan.deckY(w.z) - FENDER_HANG.drop, w.z), new THREE.Quaternion(), new THREE.Vector3(1, 1, 1));
+      else m.makeScale(0, 0, 0);
+      this.mesh.setMatrixAt(this.spots.length, m);
+    }
     const m = new THREE.Matrix4();
     const q = new THREE.Quaternion();
     const one = new THREE.Vector3(1, 1, 1);

@@ -17,6 +17,11 @@ import { fenderProbes } from '../../vessel/physics/guards';
 
 export type FendersConfig = typeof CONFIG.vessels.workboat.fenders;
 
+/** What the app feeds the view: the roving fender's place (vessel/walkFender.ts), from the boat's state. */
+export interface FendersApi {
+  setWalk(f: { side: number; z: number } | null | undefined): void;
+}
+
 export const FENDERS: ModuleDefinition<FendersConfig> = {
   id: 'deck.fenders',
   version: 1,
@@ -35,11 +40,13 @@ export const FENDERS: ModuleDefinition<FendersConfig> = {
       const [fx, fz] = c.basket;
       basket.root.position.set(fx, hull.deckY(fz), fz);
       const fenders = new FendersView(c.z, hull);
+      const api: FendersApi = { setWalk: (f) => fenders.setWalk(f) };
       return {
         staticParts: [],
         movingParts: [fenders.mesh],
         controls: [basket],
         update: (read) => fenders.update(!!read.get(key)),
+        api,
       };
     },
   },

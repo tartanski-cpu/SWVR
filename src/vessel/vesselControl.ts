@@ -16,6 +16,7 @@ import type { VesselState } from './vesselState';
 import { applyBusIntent, holdGroup, isKeyName } from '../modular/bus';
 import { fuelTankL } from './fuelTank';
 import { quickStart } from './autopilot';
+import { applyWalkFenderIntent } from './walkFender';
 
 const q = new THREE.Quaternion();
 const e = new THREE.Euler();
@@ -112,6 +113,10 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
       break;
     case 'fenders':
       s.controls.fenders = intent.value > 0.5 ? 1 : 0;
+      if (!s.controls.fenders) s.walkFender = null; // in with the rest
+      break;
+    case 'fenderWalk':
+      applyWalkFenderIntent(s, intent);
       break;
     case 'trawl':
       s.controls.trawl = intent.value > 0.5 ? 1 : 0;
