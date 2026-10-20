@@ -5368,6 +5368,7 @@ Owner, Oct 2026: new modules for the planing hulls, "two drives... they attach t
   - Headless Chromium: the game's helm (black throttle, joystick leaning to starboard as held, JOYSTICK button), the pods from under the water, angled in while crabbing; the Shipyard's Engine step (both engines and both pods).
   - **Not checked:** the Quest (the VR grab and wrist twist), and an Xbox controller (no pad mapping for the joystick yet).
 - **Draw calls:** the pods one instanced mesh; the fairings and engines merged with her fixed parts; the stick a handful of small meshes; the button cap the shared caps.
+- **On the fleet's pilot boat** (owner, Oct 2026: "add the IPS system to the pilot boat that's in the standard fleet"): `fleet/pilotBoat.json` `pods: 1`, her gear step re-matched to 1 (by trial: `matchGear`). On pods with the first propeller size (0.55 m) she made only 30 kn, against 38 on shafts: one small disc can't take 400 kW. The pod's two propellers in tandem are now modelled as one of `propMaxM` 0.65 m, the disc they work together: she makes about 35 kn (the landing craft on pods 35.3 kn, against 35.8 on shafts). tests/fleet.test.ts (her speed over 30 kn) passes.
 
 ### Helm assist panel: autopilot, dock and auto start (done, awaiting owner test)
 

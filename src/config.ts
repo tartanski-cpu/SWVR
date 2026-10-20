@@ -4131,7 +4131,10 @@ export const CONFIG = {
      *   forwardOfTransom  each pod's steering axis this far forward of the transom (m); its
      *                     engine's gearbox end over it
      *   legKg, price      each pod (its strut, nacelle, gears and twin propellers), and what it adds
-     *   propMaxM          its propellers no bigger than this (they turn fast: the pod's own gears)
+     *   propMaxM          its propellers no bigger than this (they turn fast: the pod's own gears).
+     *                     The two in tandem are modelled as one of this diameter, the disc they
+     *                     work together (0.55 m was too small to take 400 kW: 30 kn on the pilot
+     *                     boat against 38 on shafts; at 0.65, 35 kn)
      *   steering          from the wheel: up to `maxAngleDeg` either way at `rateDegPerS`; each
      *                     strut's side area `legArea` steers as a rudder from the water past it
      *   look              (m) the strut from her bottom down to the nacelle's centre, `strutLength`
@@ -4156,7 +4159,7 @@ export const CONFIG = {
       forwardOfTransom: 1.3,
       legKg: 260,
       price: 24000,
-      propMaxM: 0.55,
+      propMaxM: 0.65,
       steering: { maxAngleDeg: 26, rateDegPerS: 40, legArea: 0.14 },
       look: { strutLength: 0.45, strutChord: 0.6, strutWidth: 0.12, podLength: 1.25, podRadius: 0.14, propFwd: 0.62 },
       joystick: { maxAngleDeg: 50, rateDegPerS: 60, lever: 0.5, slip: 0.4, side: 1, surge: 1, twist: 2, turnRateDeg: 6, turnGain: 60 },
