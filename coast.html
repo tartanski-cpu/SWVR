@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Workboat World coast viewer</title>
+    <style>
+      html, body { margin: 0; height: 100%; overflow: hidden; background: #9fb8c8; font: 14px/1.4 system-ui, sans-serif; color: #10202a; }
+      canvas { display: block; }
+      #panel { position: fixed; left: 12px; top: 12px; width: 330px; background: rgba(250, 252, 253, 0.92); border-radius: 8px; padding: 10px 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.15); }
+      #panel h1 { font-size: 14px; margin: 0 0 6px; color: #456; letter-spacing: 0.04em; text-transform: uppercase; }
+      #panel h2 { font-size: 18px; margin: 4px 0; }
+      .row { display: flex; flex-wrap: wrap; gap: 5px; margin: 6px 0; }
+      button { font: inherit; font-size: 13px; padding: 4px 8px; border-radius: 6px; border: 1px solid #8aa; background: #eef3f5; cursor: pointer; }
+      select { font: inherit; font-size: 13px; padding: 3px 4px; border-radius: 6px; border: 1px solid #8aa; background: #eef3f5; max-width: 170px; }
+      button.on { background: #2f5d8a; color: #fff; border-color: #2f5d8a; }
+      #stats { font-variant-numeric: tabular-nums; font-size: 13px; }
+      #legend { font-size: 12px; display: none; }
+      #legend span { display: inline-block; width: 10px; height: 10px; margin: 0 3px 0 8px; border: 1px solid #0003; }
+      #credits { font-size: 11px; color: #456; margin-top: 6px; }
+      #hint { font-size: 12px; color: #567; }
+      #labels { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+      .label { position: absolute; left: 0; top: 0; font-size: 11px; white-space: nowrap; color: #fff; background: rgba(16, 32, 42, 0.7); padding: 1px 4px; border-radius: 3px; }
+      #hud { position: fixed; right: 12px; bottom: 12px; display: none; background: rgba(16, 32, 42, 0.85); color: #eaf2f6; border-radius: 8px; padding: 8px 12px; font-variant-numeric: tabular-nums; }
+      .aground { color: #ff6a50; }
+      .fast { color: #7ae08a; }
+    </style>
+  </head>
+  <body>
+    <div id="labels"></div>
+    <div id="hud"></div>
+    <div id="panel">
+      <h1>Workboat World coast viewer</h1>
+      <h2 id="name">Loading...</h2>
+      <div id="stats"></div>
+      <div class="row" id="toggles"></div>
+      <div class="row" id="views"></div>
+      <div class="row" id="boatrow" style="display: none"></div>
+      <div id="legend"></div>
+      <div id="hint">Drag to turn, right-drag to pan, wheel to zoom. W A S D / arrows move, Q E down and up. In the test boat: W S throttle, A D rudder, space stop, T make fast at a berth.</div>
+      <div id="credits"></div>
+    </div>
+    <script type="module" src="/tools/coast/viewer/main.ts"></script>
+  </body>
+</html>

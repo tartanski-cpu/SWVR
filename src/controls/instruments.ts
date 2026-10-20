@@ -628,6 +628,60 @@ const paintNav: Painter = (g, s, def, env) => {
   text(g, `APP ${Math.abs(Math.round(w.appRel))}°${side} ${(w.appSpd * toKn).toFixed(0)} kn`, cx, 208, GREEN, SMALL_PX, 'center');
 };
 
+/**
+ * TOW LINE (owner, Oct 2026: the tension, and "how close it is to snapping"; on a boat that
+ * can tow, with the advanced instruments): the line's pull in kN, and a bar of its load
+ * toward parting (CONFIG.tow.gauge: the nearer of its tension to its breaking force and its
+ * stretch to the most it takes), green, amber from half, red near breaking, with the highest
+ * load lately held as a white mark (a snatch is over before you can look). Says SLACK, TAUT,
+ * EASE OFF, PARTED, or NO LINE.
+ */
+const paintTowline: Painter = (g, s) => {
+  const t = s.towLine;
+  const c = CONFIG.tow.gauge;
+  title(g, 'TOW LINE');
+  text(g, 'LOAD TO BREAKING', 492, 16, DIM, SMALL_PX, 'right');
+  const load = t?.fast ? Math.min(1, t.load) : 0;
+  const colour = load >= c.red ? RED : load >= c.amber ? AMBER : GREEN;
+  g.textAlign = 'left'; // (the big reading from the left edge, whatever was right-aligned above)
+  if (!t?.fast) {
+    big(g, t?.parted ? 'PARTED' : 'NO LINE', 20, 92, 56, t?.parted ? RED : DIM);
+  } else {
+    big(g, (t.tension / 1000).toFixed(1), 20, 92, 72, AMBER);
+    text(g, 'kN', 20 + g.measureText((t.tension / 1000).toFixed(1)).width + 10, 104, DIM);
+    const state = t.tension < 50 ? 'SLACK' : load >= c.red ? 'EASE OFF' : 'TAUT';
+    text(g, state, 492, 76, state === 'EASE OFF' ? RED : state === 'SLACK' ? DIM : GREEN, 28, 'right');
+    text(g, `${Math.round(load * 100)} %`, 492, 112, colour, TEXT_PX, 'right');
+  }
+  // The bar: its frame, the load, the amber and red marks, the peak held.
+  const x0 = 20;
+  const x1 = 492;
+  const y0 = 160;
+  const bh = 34;
+  g.strokeStyle = DIM;
+  g.lineWidth = 2;
+  g.strokeRect(x0, y0, x1 - x0, bh);
+  if (load > 0) {
+    g.fillStyle = colour;
+    g.fillRect(x0 + 3, y0 + 3, (x1 - x0 - 6) * load, bh - 6);
+  }
+  for (const [f, col] of [
+    [c.amber, AMBER],
+    [c.red, RED],
+  ] as const) {
+    const x = x0 + (x1 - x0) * f;
+    g.fillStyle = col;
+    g.fillRect(x - 1, y0 - 6, 3, bh + 12);
+  }
+  if (t?.fast && t.peak > load + 0.02) {
+    const x = x0 + (x1 - x0) * Math.min(1, t.peak);
+    g.fillStyle = '#ffffff';
+    g.fillRect(x - 2, y0 - 2, 4, bh + 4);
+  }
+  text(g, '0', x0, y0 + bh + 10, DIM, SMALL_PX);
+  text(g, 'BREAK', x1, y0 + bh + 10, RED, SMALL_PX, 'right');
+};
+
 /** The screens there are, for the screen module (modules/screen) to pick from. */
 export const SCREENS = {
   speed: { paint: paintSpeed, key: speedKey },
@@ -636,6 +690,7 @@ export const SCREENS = {
   rudder: { paint: paintRudder, key: (s) => [Math.round(((s.rudder * 180) / Math.PI) * 2), Math.round(s.controls.helm * 100)].join('|') },
   engineMonitor: { paint: paintEngineMonitor, key: engineKey },
   nav: { paint: paintNav, key: (s, def, env) => navKey(s, def, env) },
+  towline: { paint: paintTowline, key: (s) => (s.towLine ? [s.towLine.fast ? 1 : 0, s.towLine.parted ? 1 : 0, Math.round(s.towLine.tension / 100), Math.round(s.towLine.load * 100), Math.round(s.towLine.peak * 100)].join('|') : '') },
 } satisfies Record<string, Screen>;
 
 export type ScreenName = keyof typeof SCREENS;

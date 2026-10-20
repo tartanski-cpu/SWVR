@@ -56,9 +56,11 @@ export default defineConfig({
     target: 'es2022',
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
-      // Three pages: the game, the hull study viewer (hulls.html; src/hulls/, not part of the
-      // game) and the Shipyard (shipyard.html; src/shipyard/, which builds boats for it).
-      input: { main: 'index.html', hulls: 'hulls.html', shipyard: 'shipyard.html' },
+      // Four pages: the game, the hull study viewer (hulls.html; src/hulls/, not part of the
+      // game), the Shipyard (shipyard.html; src/shipyard/, which builds boats for it) and the
+      // coast viewer (coast.html; tools/coast/viewer/: real-coastline regions from the coast
+      // pipeline, judged before they go into the game).
+      input: { main: 'index.html', hulls: 'hulls.html', shipyard: 'shipyard.html', coast: 'coast.html' },
       output: {
         // three.js in its own chunk: it only changes when we upgrade it, so the headset
         // browser keeps it cached across our (frequent) game-code deploys.

@@ -126,6 +126,11 @@ export class RescueHands {
     return this.line !== null;
   }
   /** Is the mouse busy with rescue gear (so a click is ours, not the cargo's)? */
+  /** The boat hook is in a hand (yours): no fender work with it (owner: never push off with it). */
+  get hookInHand(): boolean {
+    return this.hook !== null;
+  }
+
   get deskBusy(): boolean {
     return this.ring === 'desk' || this.hook === 'desk';
   }

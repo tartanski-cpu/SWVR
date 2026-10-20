@@ -28,6 +28,42 @@ import { bowEyeLocal } from './tow';
  *             accommodation block and funnel aft, a mast forward and a crane amidships.
  * Every one has an orange bow eye at the stem: what the boat hook goes for.
  */
+/**
+ * A deck structure lofted along the hull from `zAft` to `zFwd`: flat top at `yTop`, each
+ * side `inset` m inside the hull's half-breadth at its station, its foot on the deck there
+ * (so nothing shows below the deck edge where the sheer rises); closed at both ends.
+ * Flat-shaded triangles, no index.
+ */
+function loft(plan: ReturnType<typeof hullPlan>, zAft: number, zFwd: number, inset: number, yTop: number, n: number): THREE.BufferGeometry {
+  const st: { z: number; hw: number; yb: number }[] = [];
+  for (let i = 0; i <= n; i++) {
+    const z = zAft + ((zFwd - zAft) * i) / n;
+    st.push({ z, hw: Math.max(0.15, plan.halfBeam(z) - inset), yb: plan.deckY(z) - 0.05 });
+  }
+  const v: number[] = [];
+  const tri = (a: number[], b: number[], c: number[]) => v.push(...a, ...b, ...c);
+  const quad = (a: number[], b: number[], c: number[], d: number[]) => {
+    tri(a, b, c);
+    tri(a, c, d);
+  };
+  for (let i = 0; i < n; i++) {
+    const a = st[i];
+    const b = st[i + 1];
+    // Port side (x < 0), top, starboard side: wound to face outward.
+    quad([-a.hw, a.yb, a.z], [-a.hw, yTop, a.z], [-b.hw, yTop, b.z], [-b.hw, b.yb, b.z]);
+    quad([-a.hw, yTop, a.z], [a.hw, yTop, a.z], [b.hw, yTop, b.z], [-b.hw, yTop, b.z]);
+    quad([a.hw, a.yb, a.z], [b.hw, b.yb, b.z], [b.hw, yTop, b.z], [a.hw, yTop, a.z]);
+  }
+  const s0 = st[0];
+  quad([-s0.hw, s0.yb, s0.z], [s0.hw, s0.yb, s0.z], [s0.hw, yTop, s0.z], [-s0.hw, yTop, s0.z]); // the aft bulkhead
+  const s1 = st[n];
+  quad([s1.hw, s1.yb, s1.z], [-s1.hw, s1.yb, s1.z], [-s1.hw, yTop, s1.z], [s1.hw, yTop, s1.z]); // the stem end
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3));
+  g.computeVertexNormals();
+  return g;
+}
+
 export function buildTowModel(def: VesselDef): THREE.Object3D {
   const look = def.tow?.look ?? 'derelict';
   const g = new THREE.Group();
@@ -157,9 +193,15 @@ export function buildTowModel(def: VesselDef): THREE.Object3D {
     box(B * 0.62, 0.9, L * 1.05, 0, top + 0.45, -L * 0.08, 0x6a2a20);
     box(B * 0.64, 0.25, L * 1.07, 0, top + 1.02, -L * 0.08, 0x8a8c88);
     for (let i = 0; i < 5; i++) box(B * 0.64, 0.08, 0.25, 0, top + 1.18, -L * 0.08 - L * 0.42 + i * L * 0.21, 0x3a3c3a);
-    // The forecastle: a raised deck at the bow with a windlass and the anchor hawse.
-    box(B * 0.7, 1.1, L * 0.22, 0, top + 0.55, -L + L * 0.14, 0x6a2a20);
-    box(1.4, 0.7, 1.2, 0, top + 1.45, -L + L * 0.16, 0x3a3e40);
+    // The forecastle: a raised deck at the bow, lofted station by station so its sides
+    // follow the hull's half-breadths and its foot follows the sheer (owner: a plain box
+    // stuck out through the bow's plating, and the bow is where the hull narrows and the
+    // deck rises). A windlass stands on it.
+    const fcAft = -L + L * 0.25;
+    const fcFwd = plan.stem + 0.25;
+    const fcTop = plan.deckY(fcFwd) + 1.0;
+    parts.push(part(loft(plan, fcAft, fcFwd, 0.06, fcTop, 8), 0x6a2a20));
+    box(1.4, 0.7, 1.2, 0, fcTop + 0.35, -L + L * 0.16, 0x3a3e40);
     // The accommodation aft: two tiers, the bridge with its windows, a funnel, davits.
     box(B * 0.86, 2.6, L * 0.3, 0, top + 1.3, L - L * 0.22, 0xe8e4da);
     box(B * 0.7, 2.4, L * 0.16, 0, top + 3.8, L - L * 0.2, 0xe8e4da);
@@ -172,8 +214,12 @@ export function buildTowModel(def: VesselDef): THREE.Object3D {
     parts.push(part(new THREE.CylinderGeometry(0.3, 0.35, 5, 8).translate(B * 0.42, top + 3.5, L * 0.18), 0xe0b020));
     parts.push(part(new THREE.BoxGeometry(0.3, 0.3, 12).rotateX(-0.35).translate(B * 0.42, top + 7.2, L * 0.18 - 5.2), 0xe0b020));
     for (const [x, z] of [[-B / 2 + 0.6, L - L * 0.2], [B / 2 - 0.6, L - L * 0.2]]) box(0.3, 1.2, 3, x, top + 3.0, z, 0xdddddd);
-    // Bollards fore and aft.
-    for (const [x, z] of [[-B / 2 + 0.7, -L + 2.5], [B / 2 - 0.7, -L + 2.5], [-B / 2 + 0.7, L - 2.5], [B / 2 - 0.7, L - 2.5]]) parts.push(part(new THREE.CylinderGeometry(0.18, 0.2, 0.7, 8).translate(x, top + 0.35, z), 0x222222));
+    // Bollards: a pair on the forecastle, a pair aft, each inside the deck edge there.
+    for (const z of [-L + 4.5, L - 2.5]) {
+      const hw = plan.halfBeam(z) - 0.7;
+      const y = z < 0 ? fcTop : top;
+      for (const s of [-1, 1]) parts.push(part(new THREE.CylinderGeometry(0.18, 0.2, 0.7, 8).translate(s * hw, y + 0.35, z), 0x222222));
+    }
   }
 
   // The bow eye: an orange ring standing on the stem.

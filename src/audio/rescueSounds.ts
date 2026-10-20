@@ -9,7 +9,9 @@ import { noiseBuffer } from './engineAudio';
  *   - shout: what a survivor calls out, read with the browser's speech synthesis (higher
  *     and quicker than the radio voice, not through the radio's little speaker), or a
  *     babble where the browser can't speak;
- *   - snap: a cargo item set down on deck - a short wooden knock and a small ding.
+ *   - snap: a cargo item set down on deck - a short wooden knock and a small ding;
+ *   - gunshot: the line-throwing gun fired (owner request) - a sharp crack with a low thump
+ *     under it, and the rocket's motor hissing away for half a second.
  */
 export class RescueSounds {
   private ctx: AudioContext | null = null;
@@ -84,6 +86,43 @@ export class RescueSounds {
       },
       false,
     );
+  }
+
+  gunshot(): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const t = ctx.currentTime + 0.01;
+    const out = mixer.bus(ctx, 'effects');
+    // The crack: a short bright noise burst.
+    const crack = ctx.createBufferSource();
+    crack.buffer = this.noise;
+    const hp = ctx.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = 900;
+    const gc = ctx.createGain();
+    gc.gain.setValueAtTime(0.9, t);
+    gc.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
+    crack.connect(hp).connect(gc).connect(out);
+    crack.start(t, Math.random());
+    crack.stop(t + 0.1);
+    // The thump under it: the charge, felt more than heard.
+    this.tone(70, t, 0.22, 0.6, 'triangle');
+    this.tone(140, t, 0.1, 0.25, 'sine');
+    // The rocket's motor: a hiss that tails off as it flies away.
+    const hiss = ctx.createBufferSource();
+    hiss.buffer = this.noise;
+    hiss.loop = true;
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.setValueAtTime(2600, t);
+    bp.frequency.exponentialRampToValueAtTime(1200, t + 0.6);
+    bp.Q.value = 0.8;
+    const gh = ctx.createGain();
+    gh.gain.setValueAtTime(0.25, t + 0.04);
+    gh.gain.exponentialRampToValueAtTime(0.001, t + 0.65);
+    hiss.connect(bp).connect(gh).connect(out);
+    hiss.start(t + 0.04, Math.random());
+    hiss.stop(t + 0.7);
   }
 
   snap(): void {

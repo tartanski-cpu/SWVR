@@ -1,10 +1,11 @@
 // Minimal Node typings for the few tests that read and write files (the golden-run
-// fixtures, the module-boundary check), and for vite.config.ts's `process.env`. The
+// fixtures, the module-boundary check, the coast region's files), and for vite.config.ts's `process.env`. The
 // project has no @types/node, and these few lines spare a large dev dependency.
 declare module 'node:fs' {
   export function existsSync(path: string): boolean;
   export function mkdirSync(path: string, options?: { recursive?: boolean }): void;
   export function readFileSync(path: string, encoding: 'utf8'): string;
+  export function readFileSync(path: string): Uint8Array;
   export function writeFileSync(path: string, data: string): void;
   export function readdirSync(path: string): string[];
   export function statSync(path: string): { isDirectory(): boolean };

@@ -1953,6 +1953,14 @@ export const CONFIG = {
     heavyPostFactor: 1.75,
     maxStretch: 12,
     /**
+     * The TOW LINE screen (owner, Oct 2026: "how close it is to snapping"): its load bar is the
+     * nearer of the tension to its breaking force and the stretch to `maxStretch`. The highest
+     * load is held `peakHoldS` s (a snatch is over quicker than you can look); the bar turns
+     * amber from `amber` and red from `red` of breaking, and says EASE OFF; PARTED shows
+     * `partedShowS` s after it goes.
+     */
+    gauge: { peakHoldS: 6, amber: 0.5, red: 0.8, partedShowS: 20 },
+    /**
      * A ship (TowLook.needs 'tug': the coaster; owner, Oct 2026) is delivered only alongside a
      * quay or pier of the port: her middle within her half beam + `berthReach` m of the face,
      * slow, for deliverTime (push her in with your bow). The harbour's lines go on and she
@@ -2578,7 +2586,8 @@ export const CONFIG = {
      * and within its power it shows a faint grey haze only.
      *
      *   lambdaFull    the air–fuel ratio, relative to stoichiometric, at full rack and rated
-     *                 revs, warm: the maker's smoke limit (naturally aspirated / turbocharged)
+     *                 revs, warm: the maker's smoke limit (naturally aspirated / turbocharged);
+     *                 `slowEngine`, a slow-revving heavy one's
      *   smokeLambda   soot starts to show below this ratio; blackLambda: solid black
      *   turbo         boost at full exhaust energy (1 = twice the air) and how long it takes
      *                 to spool up (s; it falls off twice as fast). Turbocharged engines are
@@ -2602,6 +2611,13 @@ export const CONFIG = {
      */
     exhaust: {
       lambdaFull: { natural: 1.45, turbo: 1.7 },
+      /**
+       * A slow-revving heavy-duty engine's full-load ratio (owner, Oct 2026: the tug's smoke
+       * "wasn't black"): one rated at or under `ratedRpm` (the tug diesel) is set up rich for
+       * torque, `lambdaFull`, so worked hard it smokes: black opened up from idle, dark
+       * grey-black towing a heavy tow flat out; clean once she's running free.
+       */
+      slowEngine: { ratedRpm: 1200, lambdaFull: 1.15 },
       smokeLambda: 1.35,
       blackLambda: 0.95,
       turbo: { maxBoost: 1.0, lagS: 1.5 },
@@ -2688,6 +2704,20 @@ export const CONFIG = {
    * keel, chines and deck edges (vessel physics). Per point: F_n = k·depth − c·v_n (pushing
    * only), friction ≤ μ·F_n opposing sliding. Fendered faces are softer and slippery.
    */
+  /**
+   * The roving fender (vessel/walkFender.ts, player/fenderHands.ts; owner): with the
+   * fenders out, stand at the rail, look at the quay or the boat alongside, press with an
+   * empty hand, and a fender is hung there at your station. It counts only if what you're
+   * looking at is within `reach` m of her side (the far side of a wide gap is no use), and
+   * only along the ray's first `rayLength` m. It can't hang within `endClear` m of her stem
+   * or transom. Hung by the first press; another press elsewhere moves it.
+   */
+  fenderWalk: {
+    reach: 3.0,
+    rayLength: 6,
+    endClear: 0.4,
+  },
+
   contacts: {
     /** The values below are for a boat of this mass (the workboat); lighter ones scale them down. */
     referenceMass: 18300,
@@ -2944,13 +2974,15 @@ export const CONFIG = {
      * only. One pipe per engine, `radius` m round, each in an aft corner of the wheelhouse
      * (starboard; a twin's second to port), `inset` m clear of the walls, from `below` m under
      * the cabin floor (down to the engine space) up through the roof in a painted `casing`, its
-     * top `aboveRoof` m over the roof. Raked (design.stackStyle 0): leaning aft `rakeDeg`,
-     * tapering to `taper` of its radius, its top cut on a slant `cutDeg` facing aft; straight
+     * top `aboveRoof` m over the roof. Raked (design.stackStyle 0): upright, then its top
+     * `rakedShare` of that height bent aft `rakeDeg` at a joint (owner: "part of it to be
+     * vertical and then... the last 30% to be raked"), tapering to `taper` of its radius, its
+     * top cut on a slant `cutDeg` facing aft; straight
      * (1): upright, its top cut square. A weathered bronze-brown (`colour`). The smoke from
      * their tops. Her cooling water leaves by a hole `waterAbove` m over the waterline in her
      * side for each, abreast of her engines (CONFIG.effects.exhaust.water).
      */
-    exhaustStack: { radius: 0.14, inset: 0.05, below: 0.5, aboveRoof: 1.9, waterAbove: 0.3, rakeDeg: 12, cutDeg: 35, taper: 0.88, colour: 0x7a5236, casing: 0xd8d6d0 },
+    exhaustStack: { radius: 0.14, inset: 0.05, below: 0.5, aboveRoof: 1.9, waterAbove: 0.3, rakedShare: 0.3, rakeDeg: 25, cutDeg: 35, taper: 0.88, colour: 0x7a5236, casing: 0xd8d6d0 },
     helm: { maxConsole: 2.2, screenGap: 0.02, hungReach: 1.0, podJoystick: { throttleZ: 0.0, stickZ: 0.225, button: [0.085, -0.08] as [number, number] } },
     /**
      * The advanced interior's working lights (owner): the overhead switch panel (panel.overhead)

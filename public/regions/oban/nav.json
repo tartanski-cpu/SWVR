@@ -1,0 +1,693 @@
+{
+ "marks": [
+  {
+   "name": "Little Horseshoe",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": "can",
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "port",
+   "x": -4021,
+   "z": 4237,
+   "depth": -23.5,
+   "light": "FlR.12s"
+  },
+  {
+   "name": "Ferry Rks NW",
+   "type": "buoy_lateral",
+   "category": "starboard",
+   "shape": "conical",
+   "colour": "green",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "stbd",
+   "x": -2868.7,
+   "z": 2569.9,
+   "depth": -11.6,
+   "light": "QG"
+  },
+  {
+   "name": "Kerrera",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": "can",
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "port",
+   "x": -2978,
+   "z": 2507,
+   "depth": -8.4,
+   "light": "QR"
+  },
+  {
+   "name": "Sgeir Rathaid",
+   "type": "buoy_cardinal",
+   "category": "south",
+   "shape": "pillar",
+   "colour": "yellow;black",
+   "pattern": "horizontal",
+   "topmark": "2 cones down",
+   "gameKind": "S",
+   "x": -1506.8,
+   "z": 1389.9,
+   "depth": -15.4,
+   "light": "Q+LFl(6)W"
+  },
+  {
+   "name": "Oban Bay",
+   "type": "buoy_cardinal",
+   "category": "north",
+   "shape": "pillar",
+   "colour": "black;yellow",
+   "pattern": "horizontal",
+   "topmark": "2 cones up",
+   "gameKind": "N",
+   "x": -1372.7,
+   "z": 1082.2,
+   "depth": -7.9,
+   "light": "QW"
+  },
+  {
+   "name": "",
+   "type": "buoy_lateral",
+   "category": "starboard",
+   "shape": "pillar",
+   "colour": "green",
+   "pattern": null,
+   "topmark": "cone, point up",
+   "gameKind": "stbd",
+   "x": -1069,
+   "z": 738.1,
+   "depth": -21.4
+  },
+  {
+   "name": "",
+   "type": "buoy_lateral",
+   "category": "starboard",
+   "shape": "pillar",
+   "colour": "green",
+   "pattern": null,
+   "topmark": "cone, point up",
+   "gameKind": "stbd",
+   "x": -1181.3,
+   "z": 641.3,
+   "depth": -19.7
+  },
+  {
+   "name": "",
+   "type": "buoy_lateral",
+   "category": "starboard",
+   "shape": "pillar",
+   "colour": "green",
+   "pattern": null,
+   "topmark": "cone, point up",
+   "gameKind": "stbd",
+   "x": -1222.7,
+   "z": 528.5,
+   "depth": -14.9
+  },
+  {
+   "name": "",
+   "type": "buoy_lateral",
+   "category": "starboard",
+   "shape": "pillar",
+   "colour": "green",
+   "pattern": null,
+   "topmark": "cone, point up",
+   "gameKind": "stbd",
+   "x": -1200.3,
+   "z": 429.4,
+   "depth": -8.1
+  },
+  {
+   "name": "",
+   "type": "buoy_lateral",
+   "category": "starboard",
+   "shape": "pillar",
+   "colour": "green",
+   "pattern": null,
+   "topmark": "cone, point up",
+   "gameKind": "stbd",
+   "x": -1209.8,
+   "z": 321.1,
+   "depth": -4.5
+  },
+  {
+   "name": "",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": "pillar",
+   "colour": "red",
+   "pattern": null,
+   "topmark": "cylinder",
+   "gameKind": "port",
+   "x": -1389.9,
+   "z": 293.8,
+   "depth": -8.6
+  },
+  {
+   "name": "",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": "pillar",
+   "colour": "red",
+   "pattern": null,
+   "topmark": "cylinder",
+   "gameKind": "port",
+   "x": -1379.2,
+   "z": 425.6,
+   "depth": -10.9
+  },
+  {
+   "name": "",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": "can",
+   "colour": "red",
+   "pattern": null,
+   "topmark": "cylinder",
+   "gameKind": "port",
+   "x": 1967.5,
+   "z": -3284,
+   "depth": -14.7,
+   "light": "Fl(2)R.6s"
+  },
+  {
+   "name": "",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": "can",
+   "colour": "red",
+   "pattern": null,
+   "topmark": "cylinder",
+   "gameKind": "port",
+   "x": 1867.1,
+   "z": -3113.7,
+   "depth": -11.4,
+   "light": "FlR.3s"
+  },
+  {
+   "name": "",
+   "type": "buoy_lateral",
+   "category": "starboard",
+   "shape": "conical",
+   "colour": "green",
+   "pattern": null,
+   "topmark": "cone, point up",
+   "gameKind": "stbd",
+   "x": 1831.4,
+   "z": -3083.9,
+   "depth": -11.2,
+   "light": "Fl(2)G.6s"
+  }
+ ],
+ "lights": [
+  {
+   "name": "Dunollie",
+   "x": -1168.8,
+   "z": 235.3,
+   "height": 7,
+   "range": 4,
+   "character": "Fl",
+   "group": "2",
+   "period": 6,
+   "sequence": "0.6+(1),0.6+(3.8)",
+   "sectors": [
+    {
+     "colour": "green",
+     "from": 351,
+     "to": 9
+    },
+    {
+     "colour": "white",
+     "from": 9,
+     "to": 47
+    },
+    {
+     "colour": "red",
+     "from": 47,
+     "to": 120
+    },
+    {
+     "colour": "white",
+     "from": 120,
+     "to": 138
+    },
+    {
+     "colour": "green",
+     "from": 138,
+     "to": 143
+    }
+   ],
+   "label": "Fl(2)GWR.6s",
+   "on": "lighthouse"
+  },
+  {
+   "name": "",
+   "x": -912.1,
+   "z": 1553.9,
+   "height": 7,
+   "range": 4,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FG",
+   "on": "light"
+  },
+  {
+   "name": "Sgeir Dubha",
+   "x": -4469.5,
+   "z": 4978.3,
+   "height": 7,
+   "range": 5,
+   "character": "Fl",
+   "group": "2",
+   "period": 12,
+   "sequence": "0.5+(1.5)+0.5+(9.5)",
+   "sectors": [
+    {
+     "colour": "white"
+    }
+   ],
+   "label": "Fl(2)W.12s",
+   "on": "lighthouse"
+  },
+  {
+   "name": "",
+   "x": -994.8,
+   "z": 1478.9,
+   "height": 10,
+   "range": 3,
+   "character": "Oc",
+   "period": 6,
+   "sequence": "4+(2)",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "OcG.6s",
+   "on": "light"
+  },
+  {
+   "name": "North Pier",
+   "x": -613.6,
+   "z": 1139.6,
+   "height": 8,
+   "range": 5,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FG",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 1795.6,
+   "z": -3163.5,
+   "height": 4,
+   "range": 2,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FG",
+   "on": "light"
+  },
+  {
+   "name": "N spit of Kerrera",
+   "x": -1698.3,
+   "z": 24.1,
+   "height": 9,
+   "range": 5,
+   "character": "Fl",
+   "period": 3,
+   "sequence": "0.3+(2.7)",
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FlR.3s",
+   "on": "light"
+  },
+  {
+   "name": "Rubha a' Chruid",
+   "x": -1422.6,
+   "z": 329.9,
+   "height": 3,
+   "range": 2,
+   "character": "Q",
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "QR",
+   "on": "light"
+  },
+  {
+   "name": "Little Horseshoe",
+   "x": -4021,
+   "z": 4237,
+   "character": "Fl",
+   "period": 12,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FlR.12s",
+   "on": "buoy"
+  },
+  {
+   "name": "Ferry Rks NW",
+   "x": -2868.7,
+   "z": 2569.9,
+   "character": "Q",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "QG",
+   "on": "buoy"
+  },
+  {
+   "name": "Kerrera",
+   "x": -2978,
+   "z": 2507,
+   "character": "Q",
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "QR",
+   "on": "buoy"
+  },
+  {
+   "name": "Oban Transit Marina",
+   "x": -686.2,
+   "z": 925.9,
+   "character": "Fl",
+   "period": 5,
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FlG.5s",
+   "on": "light"
+  },
+  {
+   "name": "Heather Island",
+   "x": -2398.9,
+   "z": 2019.9,
+   "height": 11,
+   "range": 2,
+   "character": "Fl",
+   "period": 2.5,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FlR.2.5s",
+   "on": "light"
+  },
+  {
+   "name": "Sgeir Rathaid",
+   "x": -1506.8,
+   "z": 1389.9,
+   "character": "Q+LFl",
+   "group": "6",
+   "sectors": [
+    {
+     "colour": "white"
+    }
+   ],
+   "label": "Q+LFl(6)W",
+   "on": "buoy"
+  },
+  {
+   "name": "Oban Bay",
+   "x": -1372.7,
+   "z": 1082.2,
+   "character": "Q",
+   "sectors": [
+    {
+     "colour": "white"
+    }
+   ],
+   "label": "QW",
+   "on": "buoy"
+  },
+  {
+   "name": "",
+   "x": 1967.5,
+   "z": -3284,
+   "character": "Fl",
+   "group": "2",
+   "period": 6,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "Fl(2)R.6s",
+   "on": "buoy"
+  },
+  {
+   "name": "",
+   "x": 1867.1,
+   "z": -3113.7,
+   "character": "Fl",
+   "period": 3,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FlR.3s",
+   "on": "buoy"
+  },
+  {
+   "name": "",
+   "x": 1831.4,
+   "z": -3083.9,
+   "character": "Fl",
+   "group": "2",
+   "period": 6,
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "Fl(2)G.6s",
+   "on": "buoy"
+  },
+  {
+   "name": "",
+   "x": 1947.1,
+   "z": -2964.2,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FR",
+   "on": "light"
+  }
+ ],
+ "hazards": [
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -356.1,
+   "z": -1685.3,
+   "depth": -8.4,
+   "radius": 56.5,
+   "drawn": false
+  },
+  {
+   "name": "Rubha Garbh-aird",
+   "kind": "skerry",
+   "x": 344,
+   "z": -5508.3,
+   "depth": -2.7,
+   "radius": 36.1,
+   "drawn": false
+  },
+  {
+   "name": "Sgeir an Eitich",
+   "kind": "skerry",
+   "x": -1180.5,
+   "z": -1350,
+   "depth": 1,
+   "radius": 35.3,
+   "drawn": true
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -4538.2,
+   "z": 1322,
+   "depth": 1,
+   "radius": 42.3,
+   "drawn": true
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 1881,
+   "z": -3602.3,
+   "depth": 1,
+   "radius": 32.3,
+   "drawn": true
+  },
+  {
+   "name": "Sgeir Sgoraig",
+   "kind": "skerry",
+   "x": -5675.1,
+   "z": -5382.2,
+   "depth": -8.1,
+   "radius": 38.2,
+   "drawn": false
+  },
+  {
+   "name": "Sgeir-mrethhaid",
+   "kind": "skerry",
+   "x": -1454.9,
+   "z": 1298.3,
+   "depth": -8.9,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 3634.3,
+   "z": -3105.8,
+   "depth": 0.6,
+   "radius": 16.5,
+   "drawn": true
+  },
+  {
+   "name": "A' Bhratag",
+   "kind": "skerry",
+   "x": 2234.9,
+   "z": -4131.5,
+   "depth": -9.1,
+   "radius": 8,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 2337.2,
+   "z": -4045.6,
+   "depth": 1.2,
+   "radius": 71.5,
+   "drawn": true
+  }
+ ],
+ "farms": [
+  {
+   "name": "",
+   "category": null,
+   "outline": [
+    [
+     -6.4,
+     -3019.7
+    ],
+    [
+     60.5,
+     -2939.4
+    ],
+    [
+     -193.8,
+     -2727.8
+    ],
+    [
+     -260.7,
+     -2808.2
+    ],
+    [
+     -6.4,
+     -3019.7
+    ]
+   ]
+  },
+  {
+   "name": "",
+   "category": "fish",
+   "outline": [
+    [
+     -2865.6,
+     516.6
+    ],
+    [
+     -2820.9,
+     544.8
+    ],
+    [
+     -3027.6,
+     871.9
+    ],
+    [
+     -3072.3,
+     843.6
+    ],
+    [
+     -2865.6,
+     516.6
+    ]
+   ]
+  }
+ ],
+ "currents": [
+  {
+   "id": "falls-of-lora",
+   "name": "Falls of Lora",
+   "polygon": [
+    [
+     4526,
+     -3413.7
+    ],
+    [
+     5128.6,
+     -3413.7
+    ],
+    [
+     5128.6,
+     -3669.4
+    ],
+    [
+     4526,
+     -3669.4
+    ]
+   ],
+   "x": 4827.3,
+   "z": -3541.6,
+   "length": 602.6,
+   "width": 255.7,
+   "setDeg": 90,
+   "peakKn": 6,
+   "periodH": 6,
+   "waterShare": 0.99
+  }
+ ]
+}

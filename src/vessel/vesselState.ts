@@ -258,12 +258,23 @@ export interface VesselState {
    * path on her ('deckCrane'): plain JSON, so it is sent to crew and saved like the rest.
    */
   modules?: Record<string, ModuleStateEnvelope>;
+  /**
+   * The towline's gauge (owner, Oct 2026; tow/tow.ts towlineForces, the TOW LINE screen): on
+   * the towing boat while she has a line fast or has just lost one. `tension` (N); `load`, how
+   * near it is to parting, 0 .. 1 (the nearer of its tension to its breaking force and its
+   * stretch to the most it takes); `peak`, the highest load lately (held CONFIG.tow.gauge.peakHoldS
+   * from `peakAt`, world time s); `parted`, it parted lately (CONFIG.tow.gauge.partedShowS
+   * after `partedAt`).
+   */
+  towLine?: { fast: boolean; tension: number; load: number; peak: number; peakAt: number; parted?: boolean; partedAt?: number };
   /** Pod drives (modules/pods): each pod's own heading (rad, port pod first; the pods' swing convention), apart in joystick mode. */
   pods?: { angles: number[] };
   /** Water in the bilge, 0 (dry) .. 1 (full), boats with a bilge pump (vessel/bilge.ts). */
   bilge?: number;
   /** Hull damage, 0 (sound) .. 1: it leaks into the bilge (vessel/wear.ts). */
   damage?: number;
+  /** The roving fender hung over the side by a deckhand (vessel/walkFender.ts); null or unset: none. */
+  walkFender?: { side: -1 | 1; z: number; by?: string } | null;
 }
 
 /** Batteries, master switch and the last tick's readings (vessel/electrics.ts). */
