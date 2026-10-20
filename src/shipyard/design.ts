@@ -254,6 +254,13 @@ export interface ShipDesign {
    */
   dhWalk: number;
   /**
+   * A cabin below (parametric boats P2c; owner): 1, under the deckhouse forward of the
+   * wheelhouse, its sole sunk into the hull, a companionway down from the wheelhouse floor
+   * and a V-berth forward; 0, the deckhouse solid. Only with a deckhouse. Not in the short
+   * code: she travels as a link or file.
+   */
+  foreCabin: number;
+  /**
    * The saloon's roof (SCALES.saloonRoof; parametric boats P2b): as high as the wheelhouse's
    * (one roof), or 1 to 3 steps of 0.2 m lower, its own roof aft of a step in the roofline (the
    * raised pilothouse look). Its windows come down with it.
@@ -431,6 +438,8 @@ const HELM_ASSIST_FIELD: { key: 'helmAssist'; steps: number } = { key: 'helmAssi
 const OVERHEAD_FIELD: { key: 'overhead'; steps: number } = { key: 'overhead', steps: 17 };
 /** The deckhouse's top walked (design.dhWalk): 0 solid, 1 walked. Not in the code. */
 const DH_WALK_FIELD: { key: 'dhWalk'; steps: number } = { key: 'dhWalk', steps: 2 };
+/** A cabin below the deckhouse (design.foreCabin): 0 none, 1 fitted. Not in the code. */
+const FORE_CABIN_FIELD: { key: 'foreCabin'; steps: number } = { key: 'foreCabin', steps: 2 };
 /** How many outboards a design has (0: an inboard). */
 export const outboardCount = (d: Pick<ShipDesign, 'outboards'>): number => (d.outboards ? d.outboards + 1 : 0);
 /** What a guard choice fits: the crew's fenders, and a fixed strake or tyres. */
@@ -439,7 +448,7 @@ export function guardParts(guard: number): { fenders: boolean; side: 'strake' | 
 }
 
 /** Every choice with its number of steps, the placed-by-hand ones, the deckhouse's and hull protection too (for checking and merging designs). */
-export const ALL_FIELDS: { key: keyof ShipDesign; steps: number }[] = [...FIELDS.map((f) => (f.key === 'hull' ? { ...f, steps: HULL_TYPES } : f.key === 'engine' ? { ...f, steps: ENGINE_TYPES } : f)), ...PLACE_FIELDS, ...DECKHOUSE_FIELDS, GUARD_FIELD, RAIL_FIELD, NARROW_FIELD, NO_ANCHOR_FIELD, SKIFF_FIELD, FACETS_FIELD, FLARE_FIELD, SILLS_FIELD, OUTBOARDS_FIELD, MATERIAL_FIELD, STERN_DRIVE_FIELD, SALOON_FIELD, SALOON_FLOOR_FIELD, SALOON_ROOF_FIELD, ROOF_TOP_FIELD, NOZZLE_FIELD, ROD_RACK_FIELD, CONSOLE_SIDE_FIELD, PODS_FIELD, STACK_STYLE_FIELD, HELM_ASSIST_FIELD, OVERHEAD_FIELD, DH_WALK_FIELD];
+export const ALL_FIELDS: { key: keyof ShipDesign; steps: number }[] = [...FIELDS.map((f) => (f.key === 'hull' ? { ...f, steps: HULL_TYPES } : f.key === 'engine' ? { ...f, steps: ENGINE_TYPES } : f)), ...PLACE_FIELDS, ...DECKHOUSE_FIELDS, GUARD_FIELD, RAIL_FIELD, NARROW_FIELD, NO_ANCHOR_FIELD, SKIFF_FIELD, FACETS_FIELD, FLARE_FIELD, SILLS_FIELD, OUTBOARDS_FIELD, MATERIAL_FIELD, STERN_DRIVE_FIELD, SALOON_FIELD, SALOON_FLOOR_FIELD, SALOON_ROOF_FIELD, ROOF_TOP_FIELD, NOZZLE_FIELD, ROD_RACK_FIELD, CONSOLE_SIDE_FIELD, PODS_FIELD, STACK_STYLE_FIELD, HELM_ASSIST_FIELD, OVERHEAD_FIELD, DH_WALK_FIELD, FORE_CABIN_FIELD];
 
 /** What the steps mean (the build reads these; the page labels its sliders with them). */
 export const SCALES = {
@@ -579,6 +588,7 @@ export const DEFAULT_DESIGN: ShipDesign = fromSteps({
   helmAssist: 0,
   overhead: 0,
   dhWalk: 0,
+  foreCabin: 0,
   ...NO_V10_GEAR,
   // The crew's fenders: what every boat has, at the least.
   guard: 1,
@@ -624,6 +634,7 @@ export function encodeDesign(design: ShipDesign): string {
   if (d.helmAssist) throw new Error('the helm assist panel isn’t in the code: she travels as a link or file');
   if (d.overhead) throw new Error('the cockpit overhead isn’t in the code: she travels as a link or file');
   if (d.dhWalk) throw new Error('the deckhouse’s walked top isn’t in the code: she travels as a link or file');
+  if (d.foreCabin) throw new Error('the cabin below isn’t in the code: she travels as a link or file');
   if (!Number.isInteger(d.hull) || d.hull < 0 || d.hull >= HULL_TYPES) throw new Error(`design hull ${d.hull} is off its scale (0..${HULL_TYPES - 1})`);
   // A hull type after the first four: 0 in the first 16 characters, its number in the extension.
   const more = d.hull >= BASE_HULLS ? d.hull - BASE_HULLS + 1 : 0;
@@ -809,7 +820,7 @@ export function decodeDesign(code: string): { design: ShipDesign } | { error: st
     if (more && v10.design.hull !== 0) return { error: 'that code is off the scales (no design has it)' };
     // A later engine: its first 16 characters hold engine 0.
     if (moreEngine && v10.design.engine !== 0) return { error: 'that code is off the scales (no design has it)' };
-    return { design: fromSteps({ ...tidy(v10.design), ...places, helmAssist: 0, overhead: 0, dhWalk: 0, ...(more ? { hull: BASE_HULLS - 1 + more } : {}), ...(moreEngine ? { engine: BASE_ENGINES - 1 + moreEngine } : {}) }) };
+    return { design: fromSteps({ ...tidy(v10.design), ...places, helmAssist: 0, overhead: 0, dhWalk: 0, foreCabin: 0, ...(more ? { hull: BASE_HULLS - 1 + more } : {}), ...(moreEngine ? { engine: BASE_ENGINES - 1 + moreEngine } : {}) }) };
   }
   // Codes from before version 10 (shorter than 17 characters) are retired (owner, Oct 2026: no need to keep old designs).
   return { error: `a design code has 17 characters (this has ${s.length})${s.length >= 10 ? ': codes from older Shipyards no longer open' : ''}` };

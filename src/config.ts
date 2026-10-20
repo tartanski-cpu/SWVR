@@ -3040,6 +3040,36 @@ export const CONFIG = {
        * ladder.
        */
       walk: { margin: 0.25, railHeight: 0.9, postSpacing: 1.2, railKgPerM: 4, minFore: 0.6, ladder: { width: 0.45, depth: 0.45, kg: 20 } },
+      /**
+       * A cabin below it (parametric boats P2c, design.foreCabin; owner): its sole sunk so there's
+       * `headroom` (m) under the trunk's top, but no lower than leaves the sole `minHalf` wide each
+       * side of the centreline inside her hull (`hullClear` in from her plating) and `keelClear`
+       * over her bottom; under `minHeadroom` it's left off. Its walls `wall` inside the trunk's.
+       * The companionway: `stairWidth` wide beside the helm (`helmRoom` left for the helmsman),
+       * steps no more than `rise` high (a walk step is 0.4: vessel/layout.ts) and `tread` deep,
+       * stepping down forward from the wheelhouse floor; at least `minAhead` of cabin forward of
+       * it. A V-berth across her forward end, `berth.length` long and `berth.top` over the sole,
+       * if the cabin's at least `berth.minCabin` long. Its sole, lining and berth `kgPerM2` of
+       * lining; drawn in `lining`, `trim` (the berth front, the treads) and `cushion`.
+       */
+      cabin: {
+        headroom: 1.9,
+        minHeadroom: 1.65,
+        minHalf: 0.4,
+        hullClear: 0.08,
+        keelClear: 0.2,
+        wall: 0.06,
+        stairWidth: 0.7,
+        helmRoom: 0.45,
+        rise: 0.32,
+        tread: 0.26,
+        minAhead: 0.8,
+        berth: { length: 1.1, top: 0.5, minCabin: 2.2 },
+        kgPerM2: 12,
+        lining: 0xd8d2c4,
+        trim: 0x8a5d3c,
+        cushion: 0x2b3a55,
+      },
     },
     /**
      * A saloon aft of the wheelhouse (parametric boats P2b, design.saloon): the house runs on
