@@ -5097,6 +5097,13 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **The line gun** (`app/interiorDetail.ts`): the wheelhouse's small-parts culling hides every small object inside the house while you're out on deck, to save draw calls. The extinguisher and torch were on its keep list; the line gun (and the rods) were not, so the gun was hidden in your hand the moment you stepped out of the door (the same mesh, wherever it is): it looked as if it had gone back, and letting go of the grip then did hang it back and wind the line in. Now anything named `gear:` is kept. Also (`player/handGear.ts`, `CONFIG.handGear.lostGrace` 1 s): a held piece stays in hand through a loss of the controller's tracking shorter than a second (the Quest loses a controller out of the headset's sight for a moment), where before it hung back at once.
 - **Checked:** typecheck, `npm test`. **Not checked:** VR (the owner's Quest); the fix is from reading the culling code, which plainly hides the gun's mesh outside the house.
 
+### The coaster's bow: the forecastle lofted to her lines (owner)
+
+- **The owner:** "weird geometry in the bow of the coaster", a box intersecting the top part of the bow.
+- **Cause** (`tow/towLook.ts`): her forecastle was a plain box, 0.7 of her beam wide and a quarter of her length long, set at the midship deck height. Her bow narrows to nothing and her deck sheers up a metre there, so the box's corners stood out through the plating either side of the stem, and its foot showed under the deck edge. Her forward bollards were at 0.7 m inside the *midship* beam, out in the water off the bow.
+- **Fix:** a small lofting helper (`loft`): the forecastle is built station by station from her plan, each side 6 cm inside the hull's half-breadth there, its foot on the deck there (following the sheer), a flat top a metre over the deck at the stem, closed at both ends; flat-shaded, one part in the merged mesh as before. The windlass stands on it. The bollards go a pair on the forecastle and a pair aft, each 0.7 m inside the deck edge at its own station. No new draw calls (all merged).
+- **Checked:** typecheck, `npm test`, headless Chromium screenshots of her bow from both sides: the forecastle follows the plating, nothing stands proud, no bollard in the water. **Not checked:** VR.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**
