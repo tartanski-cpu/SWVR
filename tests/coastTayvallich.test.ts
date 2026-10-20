@@ -26,9 +26,8 @@ type Mods = {
 let m: Mods;
 
 beforeAll(async () => {
-  // The toggle is read once at import: set it, then load the world fresh.
-  const store: Record<string, string> = { 'swvr.coastRegion': 'tayvallich' };
-  vi.stubGlobal('localStorage', { getItem: (k: string) => store[k] ?? null, setItem: (k: string, v: string) => (store[k] = v), removeItem: (k: string) => delete store[k] });
+  // The mode is read once at import (src/mode.ts): a voyage page on this map, then the world fresh.
+  vi.stubGlobal('location', { pathname: '/voyage.html', search: '?map=tayvallich', href: 'https://localhost/voyage.html?map=tayvallich' });
   vi.resetModules();
   m = {
     regions: await import('../src/world/regions'),
@@ -72,8 +71,7 @@ describe('Tayvallich in the game (coast region test)', () => {
   };
 
   it('replaces the Sounds and the Fjord; the regions stand apart; ids unique', () => {
-    expect(m.regions.COAST_REGION).toBe('tayvallich');
-    expect(m.regions.REGIONS.map((r) => r.id)).toEqual(['home', 'tayvallich', 'narrows']);
+    expect(m.regions.REGIONS.map((r) => r.id)).toEqual(['tayvallich']);
     const R = m.regions.REGIONS;
     for (let i = 0; i < R.length; i++)
       for (let j = i + 1; j < R.length; j++) {
@@ -120,15 +118,12 @@ describe('Tayvallich in the game (coast region test)', () => {
     }
   });
 
-  it('the way in from home: open water on its south edge, north of Calder Haven, and on into the Sound of Jura', () => {
-    const calder = m.arch.PORTS.find((p) => p.id === 'calder')!;
+  it('the way in: open water on its south edge, and on into the Sound of Jura', () => {
     const r = m.regions.regionById('tayvallich')!;
     const c = r.coast!;
     // The channel up from the box's south edge to Loch Sween's mouth (x -3500 to -2750 in the
     // package, 800 m in from the edge), Calder Haven due south of it.
-    expect(-3500 + c.x).toBeLessThan(calder.x);
-    expect(-2750 + c.x).toBeGreaterThan(calder.x);
-    expect(m.terrain.groundHeight(calder.x, r.bounds.z1 - 800)).toBeLessThan(-2); // open water, a fathom and more (a workboat draws ~1.2 m)
+    expect(m.terrain.groundHeight(-3100 + c.x, r.bounds.z1 - 800)).toBeLessThan(-2); // open water, a fathom and more (a workboat draws ~1.2 m)
     // The loch's mouth, and the Sound of Jura to the west.
     expect(local(-2400, 5000)).toBeLessThan(-5);
     expect(local(-5400, 5000)).toBeLessThan(-5);

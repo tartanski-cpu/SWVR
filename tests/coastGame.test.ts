@@ -24,9 +24,8 @@ type Mods = {
 let m: Mods;
 
 beforeAll(async () => {
-  // The toggle is read once at import: set it, then load the world fresh.
-  const store: Record<string, string> = { 'swvr.coastRegion': 'oban' };
-  vi.stubGlobal('localStorage', { getItem: (k: string) => store[k] ?? null, setItem: (k: string, v: string) => (store[k] = v), removeItem: (k: string) => delete store[k] });
+  // The mode is read once at import (src/mode.ts): a voyage page on this map, then the world fresh.
+  vi.stubGlobal('location', { pathname: '/voyage.html', search: '?map=oban', href: 'https://localhost/voyage.html?map=oban' });
   vi.resetModules();
   m = {
     regions: await import('../src/world/regions'),
@@ -43,8 +42,7 @@ beforeAll(async () => {
 
 describe('Oban in the game (coast region test)', () => {
   it('replaces the Sounds and the Fjord; the regions stand apart', () => {
-    expect(m.regions.COAST_REGION).toBe('oban');
-    expect(m.regions.REGIONS.map((r) => r.id)).toEqual(['home', 'oban', 'narrows']);
+    expect(m.regions.REGIONS.map((r) => r.id)).toEqual(['oban']);
     const R = m.regions.REGIONS;
     for (let i = 0; i < R.length; i++)
       for (let j = i + 1; j < R.length; j++) {
@@ -94,13 +92,11 @@ describe('Oban in the game (coast region test)', () => {
     expect(m.terrain.groundHeight(oban.currents[0].x, oban.currents[0].z)).toBeLessThan(0);
   });
 
-  it("the way in from home: Kerrera Sound's south entrance is open water, north of Calder Haven", () => {
-    const calder = m.arch.PORTS.find((p) => p.id === 'calder')!;
+  it("the way in: Kerrera Sound's south entrance is open water", () => {
     const oban = m.regions.regionById('oban')!;
     // In the package's metres: the entrance (-4300, 4700), and up the sound (-3700, 3700), as
     // the pipeline's test boat ran it (milestone 2).
     const ex = -4300 + oban.coast!.x;
-    expect(Math.abs(ex - calder.x)).toBeLessThan(300);
     expect(m.terrain.groundHeight(ex, 4700 + oban.coast!.z)).toBeLessThan(-3);
     expect(m.terrain.groundHeight(-3700 + oban.coast!.x, 3700 + oban.coast!.z)).toBeLessThan(-3);
     // And the entrance faces the open sea south of it (the box's faded edge, then the sea floor).

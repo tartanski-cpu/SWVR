@@ -5161,6 +5161,20 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Tests:** `tests/voyageMode.test.ts` (+2): each map starts at one of its own berths in a harbour, ids unique; the tests run as the career game.
 - **Checked:** typecheck, `npm test`, headless: the landing page and its links, `/?game=12345` sent on to `career.html?game=12345`, `voyage.html?map=oban` loads with the world `[oban]` only, the fishing boat moored at the Oban quay, no career tutorial, no save keys touched, the menu header; `career.html` as before (home world, Calder). **Not checked:** VR; the Quest's frame rate on Oban alone (the coast test showed it bearable); the traffic and the calls on a map with no home region over a long play.
 
+### The beginner boat is the owner's "Gillnetter 7.8 m" (owner)
+
+- **The owner:** a design file from the Shipyard, "the near cheapest, most basic, slow boat", to be the starter boat.
+- `boats/fleet/starterBoat.json` is now that file: the gillnetter hull at its smallest (7.8 m, 10.1 t), the 150 kW straight six on a stern drive (gear 5), a stern roller, rails, basic controls, red paint; no fenders, no life ring, no searchlight; £86,000, the cheapest of the fleet. It reads with no warnings and builds clean; the career's kit (the yard's searchlight and fire monitor) applies to her design as before.
+- **Flagged:** with `guard` 0 she has no fenders, so every knock alongside counts on her hull (the roving fender needs fenders too), and with `lifeRing` 0 she gets no rescue calls; the yard's upgrades don't sell fenders or a life ring today. If that's meant as the starting hardship, fine; otherwise two yard upgrades (fenders, life ring) would let a career earn them.
+- **Tests:** the fleet, starter-boat, career and helm-assist tests pass as they are (cheapest of the fleet, basic controls, over 6 kn, no helm assist).
+- **Checked:** typecheck, `npm test`, headless: a new career starts in her at Calder (screenshots from the quay and at her helm). **Not checked:** VR; her handling on a stern drive at her length.
+
+### Career mode is the hand-built archipelago, always (owner)
+
+- **The owner:** career mode back to the hand-built map with its regions; the Scottish maps out of it.
+- `world/regions/index.ts`: the career world is home, the Sounds, the Fjord and the Narrows, with no toggle; the coast maps are Voyage mode's only. Gone with the toggle: the `?coast=` address parameter and the Debug menu's "Coast region test" rows, the crew's reload-to-match on the welcome (`world.build.coast`), and the separate `swvr.coastTest` career keys (careers are one set again; nothing in them changes). The coast tests (`tests/coastGame.test.ts`, `tests/coastTayvallich.test.ts`) now load their map as a voyage page (`location` stubbed to `voyage.html?map=`), and the two "way in from home" checks, which measured the map's entrance against Calder Haven, go: the maps stand alone now.
+- **Checked:** typecheck, `npm test`. **Not checked:** by eye (nothing visible changed in career mode beyond the Sounds being back where a tester had Oban on).
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**
@@ -5469,6 +5483,14 @@ Owner, Oct 2026: a new career starts in one of the new fleet boats; hide the wor
 - **Words:** the first voyage's "Step aboard your boat"; the Shipyard-code error "Starting in the beginner boat".
 - **Tests:** tests/starterBoat.test.ts (3); starterWorkboat.test.ts's other-boat message now "Not for this boat".
 - **Next fleet steps:** move the tests and golden runs onto the fleet; then delete the old boats (owner: hide first, delete later).
+
+### Console screens never overlap on a small wheelhouse (done, awaiting owner test)
+
+Owner, Oct 2026 (a screenshot): "This is the smallest landing craft wheelhouse and the instruments overlap."
+
+- **Why:** the screens' spacing along the dash was shrunk with the console (`× sx`, the dash's width against the reference landing craft's) but the screens kept their full size, so on a narrow console they stood closer than their own width: the basic controls' SPEED and ENGINE screens overlapped on the smallest landing craft.
+- **Now** (shipyard/build.ts): side by side at full size with `screenGap` between them if the row fits the dash; if it doesn't, all of them smaller together until it does (their width and height in the screen module's config). The smallest landing craft: the basic two at full size; the advanced four at 84 %; the fleet tug's five at 98 %.
+- **Checked:** tests/shipyard/screenRow.test.ts (2): on every hull type, smallest and largest, basic and advanced (with a stern roller, for the TOW LINE screen), no two overlap and none runs off the dash; the basic two keep full size on the smallest landing craft. Full suite passes. Headless Chromium at the helm: the smallest landing craft basic and advanced, and the fleet's landing craft. **Not checked:** the Quest.
 
 ### The tug's smoke: black when she's worked hard (done, awaiting owner test)
 

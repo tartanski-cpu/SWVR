@@ -2030,10 +2030,21 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
     consoleMount.modules!.push({ socket: 'towline', module: 'instrument.screen', config: { screen: 'towline' } });
   }
   const screens = ['speed', 'heading', 'rpm', 'engineMonitor', 'towline'].filter((id) => consoleMount.modules!.some((m) => m.socket === id && m.module === 'instrument.screen') && (d.controls || ['speed', 'rpm'].includes(id)));
-  const pitch = (CONFIG.modules.screen.dash.width + CONFIG.shipyard.helm.screenGap) * Math.min(1, sx);
+  // Each at its full size, side by side, if the row fits along the dash; if not (a small
+  // wheelhouse: owner, Oct 2026, the smallest landing craft's overlapped), all of them smaller
+  // together until it does. (Spacing them closer without shrinking them overlapped them.)
+  const sc = CONFIG.modules.screen.dash;
+  const gap = CONFIG.shipyard.helm.screenGap;
+  const rowRoom = 2 * dashHalf - 2 * gap;
+  const shrink = Math.min(1, rowRoom / (screens.length * sc.width + (screens.length - 1) * gap));
+  const pitch = (sc.width + gap) * shrink;
   screens.forEach((id, i) => {
     const slot = cc.slots[id] as { position: V3 };
     slot.position = [Math.round((i - (screens.length - 1) / 2) * pitch * 1000) / 1000, slot.position[1], slot.position[2]];
+    if (shrink < 1) {
+      const m = consoleMount.modules!.find((x) => x.socket === id)!;
+      m.config = { ...m.config, width: Math.round(sc.width * shrink * 1000) / 1000, height: Math.round(sc.height * shrink * 1000) / 1000 };
+    }
   });
   // A faceted front: the dash wraps round with it (console.standard's `wrap`), its wings set back as the outer windows are.
   // Its controls stay square to her (owner: forward is forward); its screens turn with the wings, flush with the dash's face.
