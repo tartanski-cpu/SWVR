@@ -5875,3 +5875,26 @@ For performance on the Quest, read the debug panel's cpu/gpu lines in VR:
 ## Multiplayer
 
 Version 1 (shared boat and avatars, peer-to-peer) is done on the `multiplayer` branch; see above and [`docs/MULTIPLAYER.md`](docs/MULTIPLAYER.md).
+
+### Parametric boats P2b, third stop: a cockpit overhead with wings (done, awaiting owner test)
+
+Owner, Oct 2026: "when you're done building with the crane, you can continue with the build out of the different wheelhouse parts". The plan's P2b listed a cockpit overhead with wings next, then a pilothouse raised on a walkable deckhouse.
+
+- **What:** **Overhead aft** on the Wheelhouse step's Roof group (`design.overhead`, `SCALES.overhead`, 0.25 m a step, to 4 m): the house's aft roof carried on aft over the working deck, as on the Alaskan 38 or a sport-fishing boat, on a wing each side just inside the bulwarks. Each wing stands full height from the house to a knee on the deck, then sweeps up in a curve to the roof's aft edge, so the deck's corners stay open for working.
+- **The layout:** `layout.overhead` (`OverheadLayout`: z0 the house's aft face, z1 its aft edge, y the roof's underside, thickness, halfWidth, wing, kneeZ, deckY); `wingCurveY(o, z)` (vesselDef.ts) gives the wing's top edge at any point along her.
+- **Fitting** (build.ts, `CONFIG.shipyard.overhead`):
+  - `inset` 0.08 m in from the deck edge; wings `wing` 0.06 m thick; the knee `kneeShare` 0.45 of the way aft, at most `kneeMax` 1.2 m from the house.
+  - It stops `transomClear` 0.2 m short of the transom, and `gearClear` 0.3 m short of what stands up through it (a pole's searchlight or fire monitor aft of the house, the trawl A-frame); the Shipyard says when it's shortened.
+  - It isn't fitted when a deck crane or the skiff crane works her aft deck (their booms would strike it): the Shipyard says so.
+  - Shorter than `minLength` 0.6 m, it's left off; under `minHeadroom` 1.95 m over the deck, a warning.
+  - Asked 2 m on each type as she comes: landing craft 1.6 m (her short aft deck), gillnetter 0.8 m, workboat, pilot boat and small tug the full 2 m. Headroom 2.0 to 3.0 m.
+- **Weight and price:** a line "Cockpit overhead" in her weights, its plate area (roof and both wings) at the house's weight per m², priced like the house.
+- **Walking** (layout.ts): the roof slab and wings are solid; you stand and walk under it, and the deck under each wing is off the walkable deck.
+- **Drawing** (hullMesh `buildShapedHouse`): the slab with the house's chamfered edge and roof colour, the roof-top panel carried on with it when there is one, and the two wings in the house's colour. Three more parts to draw, merged with the house.
+- **The code:** not in the short code (as the helm assist): a boat with one has no short code and travels as a link or file. Every older code and file reads as before (none).
+- **Tests:** `tests/shipyard/overhead.test.ts` (5): link/file only, none as before; fitted as far as asked, its weight and price; stopped short of the transom and left off with a deck crane aft; walked (solid slab and wing, standing room under it); drawn. `designDoc.test.ts`'s code fields leave it out. Full suite 1070 pass; typecheck clean; build OK.
+- **Checked:** headless Chromium: the pilot boat with a 2 m overhead from the quarter, the side and from under it on deck; the small tug; the Shipyard's slider ("2.00 m"), no warnings, "Cockpit overhead" in her figures. **Not checked:** the Quest; every combination with a saloon aft, a lower saloon roof or a raked-out house by eye.
+- **Test steps:**
+  - **Desktop:** Shipyard, pilot boat, Wheelhouse step, Roof: Overhead aft 2.00 m. Look at her from the quarter and the side. Deck gear: place a deck crane on her aft deck (the overhead is left off, and she says why); take it off. Landing craft: ask 3 m (it stops short of the transom). Trials & handover, play her: walk aft out of the house under it to the transom.
+  - **VR:** the same boat in the game: stand under it on deck and look up; walk out past the wing's knee; climb nothing (it's a roof, not a deck, for now).
+

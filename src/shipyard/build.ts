@@ -30,7 +30,7 @@ import { inertiaFromGyradius, lightshipOf } from '../modular/massProperties';
 import type { Mount, Recipe } from '../modular/recipe';
 import type { Socket } from '../modular/socket';
 import type { HullForm } from '../vessel/hullForm';
-import type { DoorStep, FloorLevel, HouseShape, LayoutConfig, Livery } from '../vessel/vesselDef';
+import type { DoorStep, FloorLevel, HouseShape, LayoutConfig, Livery, OverheadLayout } from '../vessel/vesselDef';
 import type { DeckhouseLayout } from '../vessel/deckhouse';
 import { houseFlare } from '../vessel/houseFlare';
 import { BREAKERS } from '../vessel/vesselState';
@@ -775,6 +775,8 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
     // No roof rail or ladder (owner: simpler): the roof isn't walked.
     wheelhouse: { halfWidth: hw, front, aft, floorY, roofY, wall, doorWidth: 0.7, doorHeight, windowSill: sill, windowHead, frontSill: sill, frontRakeDeg: windowRake, ...(d.flare ? { doorHinged: true } : {}), consoleDepth: 0.5, ...(consoleBack ? { consoleBack } : {}), consoleHeight: 0.9, viewSill: d.sills ? 0.9 : Math.max(sill, 0.9 + CONFIG.modules.helmConsole.dash.top), shape: house, ...(short ? { consoleSpan: { x0: Math.round((cx - consoleHalf) * 1000) / 1000, x1: Math.round((cx + consoleHalf) * 1000) / 1000 } } : {}), ...(steps.length ? { steps } : {}), ...(levels.length ? { levels } : {}), ...(saloonRoof ? { saloonRoof } : {}) },
     roof: { thickness: roofThickness, overhang: 0.15, railHeight: 0, edgeMargin: 0.25 },
+    // A cockpit overhead (design.overhead): fitted below, once the deck gear has its places.
+    overhead: undefined as OverheadLayout | undefined,
     // (Their height from the wheelhouse's floor: 1.1 m above the saloon's at its aft door.)
     doorButtons: { x: 0.45, height: rnd(1.1 - saloonDrop) },
     ...(bowRamp ? { bowRamp } : {}),
@@ -1386,6 +1388,36 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
     if (!anchorAt) warnings.push(`There's no room for the anchor's windlass ${bowRamp ? 'along her transom (clear of the stern gear)' : 'behind her bow roller (clear of the deckhouse)'}: left off.`);
   }
 
+
+  // ── The cockpit overhead (P2b, design.overhead; owner) ──
+  // The house's aft roof carried on aft over the working deck, on a wing each side just
+  // inside the bulwarks (CONFIG.shipyard.overhead). Fitted now the deck gear has its places:
+  // it stops short of what stands up through it, and isn't fitted over a deck crane's or the
+  // skiff crane's aft deck.
+  const ohc = CONFIG.shipyard.overhead;
+  if (d.overhead) {
+    const want = SCALES.overhead(d.overhead);
+    const booms = [craneAt && craneAt[2] > aft ? 'the deck crane' : null, skiffAt && skiffAt[2] > aft ? "the skiff's crane" : null].filter((b): b is string => !!b);
+    let z1 = Math.min(aft + want, transom - ohc.transomClear);
+    let shortOf = z1 < aft + want - 0.01 ? 'the transom' : '';
+    const stopAt = (z: number, what: string) => {
+      if (z < z1) [z1, shortOf] = [z, what];
+    };
+    if (aFrame) stopAt(transom - afc.footFromTransom - ohc.gearClear, 'the A-frame');
+    if (lampFoot && lampFoot[2] > aft) stopAt(lampFoot[2] - ohc.gearClear, "the searchlight's pole");
+    if (monitorFoot && monitorFoot[2] > aft) stopAt(monitorFoot[2] - ohc.gearClear, "the fire monitor's pole");
+    if (booms.length) warnings.push(`The cockpit overhead is left off: ${booms.join(' and ')} works her aft deck, and its boom would strike it.`);
+    else if (z1 - aft < ohc.minLength) warnings.push(`There's no room aft of the house for the cockpit overhead${shortOf ? ` (${shortOf} is in the way)` : ''}: left off.`);
+    else {
+      if (shortOf) warnings.push(`The cockpit overhead stops short of ${shortOf}: ${(z1 - aft).toFixed(2)} m long, not ${want.toFixed(2)} m.`);
+      const zs = Array.from({ length: 9 }, (_, i) => aft + ((z1 - aft) * i) / 8);
+      const y = roofAt(aft - 0.01);
+      const kneeZ = aft + Math.min(ohc.kneeMax, (z1 - aft) * ohc.kneeShare);
+      const headroom = y - Math.max(...zs.map((z) => q.deckY(z)));
+      if (headroom < ohc.minHeadroom) warnings.push(`There's only ${headroom.toFixed(2)} m of headroom under the cockpit overhead: raise the wheelhouse floor or its headroom.`);
+      layout.overhead = { z0: rnd(aft), z1: rnd(z1), y: rnd(y), thickness: roofThickness, halfWidth: rnd(Math.min(...zs.map((z) => q.halfBeam(z))) - ohc.inset), wing: ohc.wing, kneeZ: rnd(kneeZ), deckY: rnd(q.deckY(kneeZ)) };
+    }
+  }
 
   // Her engine hatch (planned above, with the engine), now the deck gear has its places.
   const ctabW = d.chartTable ? CONFIG.modules.chartTable.width + 0.1 : 0;
@@ -2036,6 +2068,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
     { name: `Hull: ${material} plating and framing`, kg: shellM2 * mat.shellKgPerM2 * (base.scantlings ?? 1) * grownPlate, y: shellM2y / shellM2, z: shellM2z / shellM2 },
     { name: 'Bulwarks', kg: bulwarkRun * bulwarkHeight * mat.shellKgPerM2 * wc.bulwarkShare, y: deckMid + bulwarkHeight / 2, z: (stem + transom) / 2 },
     { name: 'Wheelhouse', kg: houseM2 * mat.houseKgPerM2, y: (floorY + roofY) / 2, z: (front + aft) / 2 },
+    { name: 'Cockpit overhead', kg: overheadM2(layout.overhead) * mat.houseKgPerM2, y: layout.overhead ? layout.overhead.y - 0.3 : deckMid, z: layout.overhead ? (layout.overhead.z0 + layout.overhead.z1) / 2 : 0 },
     { name: 'Deckhouse', kg: dhArea * mat.houseKgPerM2, y: deckhouse ? (deckMid + deckhouse.top) / 2 : deckMid, z: deckhouse ? (deckhouse.z0 + deckhouse.z1) / 2 : 0 },
     { name: outboards ? 'Outboards' : n > 1 ? 'Engines and gearboxes' : 'Engine and gearbox', kg: machineKg, y: machineY, z: machineZ },
     { name: outboards ? 'Bracket, rigging and tanks' : sd ? 'Stern drive legs, tanks, exhaust' : pods ? 'Pod drives, tanks, exhaust' : 'Shafting, propeller, rudder, tanks, exhaust', kg: sd ? sdc.legKg * n + machineKg * wc.machineryShare * 0.4 : pods ? pdc.legKg * n + machineKg * wc.machineryShare * 0.4 : machineKg * wc.machineryShare, y: outboards ? deckMid : pods ? podSet!.mount.y : machineY, z: outboards ? machineZ : sd ? transom : pods ? podSet!.mount.z : (machineZ + transom) / 2 },
@@ -2062,7 +2095,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   };
   // Her build: her structure (hull, bulwarks, houses) at the material's price a kilo, built
   // (aluminium dearer to buy and to weld; steel heavier, cheaper), and her fit-out.
-  const buildPrice = items.filter((it) => /^(Hull|Bulwarks|Wheelhouse|Deckhouse)/.test(it.name)).reduce((a, it) => a + it.kg, 0) * mat.pricePerKg + (items.find((it) => it.name.startsWith('Fit-out'))?.kg ?? 0) * wc.outfitPricePerKg;
+  const buildPrice = items.filter((it) => /^(Hull|Bulwarks|Wheelhouse|Cockpit overhead|Deckhouse)/.test(it.name)).reduce((a, it) => a + it.kg, 0) * mat.pricePerKg + (items.find((it) => it.name.startsWith('Fit-out'))?.kg ?? 0) * wc.outfitPricePerKg;
 
   const gp = dg.price;
   const gearPrice = (winchAt ? gp.towWinch : 0) + (sternRoller ? gp.sternRoller : 0) + (aFrame ? gp.aFrame : 0) + (ring ? gp.lifeRing : 0) + (rodRack ? gp.rodRack : 0) + (sideDoor ? gp.sideDoor : 0) + (anchorAt ? gp.anchor : 0) + (skiffAt ? gp.skiff : 0);
@@ -2077,4 +2110,11 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
     shaft,
     weights,
   };
+}
+
+/** A cockpit overhead's plating (m2): its roof, and its two wings (full height to the knee, the swept part about 0.4 of its box). */
+function overheadM2(o: OverheadLayout | undefined): number {
+  if (!o) return 0;
+  const h = o.y - o.deckY;
+  return 2 * o.halfWidth * (o.z1 - o.z0) + 2 * ((o.kneeZ - o.z0) * h + 0.4 * (o.z1 - o.kneeZ) * h);
 }

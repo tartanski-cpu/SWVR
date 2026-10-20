@@ -36,6 +36,15 @@ export type LayoutConfig = Omit<WorkboatLayout, 'wheelhouse' | 'roof' | 'ladder'
     /** The deck cut away forward of the house too, from `front` to the house, `inset` in from the deck edge: a cabin under a trunk cabin there (hullMesh.ts sunkenHouse). */
     deckOpening?: { front: number; inset: number };
     /**
+     * A cockpit overhead (parametric boats P2b, owner): the house's aft roof carried on aft over
+     * the working deck, from `z0` (the house's aft wall) to `z1`, its underside at `y`, `thickness`
+     * thick, out to `halfWidth` each side. It stands on a wing each side: a plate `wing` thick
+     * just inside the bulwark, as high as the roof from the house aft to the knee at `kneeZ`
+     * (on the deck, `deckY` there), then sweeping up in a hollow curve to the roof's aft edge.
+     * Solid where it is (layout.ts); open air under it (it's the deck, outside).
+     */
+    overhead?: OverheadLayout;
+    /**
      * More houses besides the helm's (`wheelhouse`), parametric boats P2a: each a house of its
      * own (a saloon aft of the pilothouse, a deckhouse, a trunk cabin), walked, drawn, kept
      * off the deck and solid in its walls, as the helm's is. What belongs to the helm stays
@@ -49,6 +58,42 @@ export type LayoutConfig = Omit<WorkboatLayout, 'wheelhouse' | 'roof' | 'ladder'
 /** Every house she has, the helm's first (none: an open boat). */
 export function housesOf(layout: { wheelhouse?: WheelhouseLayout; houses?: WheelhouseLayout[] }): WheelhouseLayout[] {
   return [...(layout.wheelhouse ? [layout.wheelhouse] : []), ...(layout.houses ?? [])];
+}
+
+/** A cockpit overhead (LayoutConfig.overhead). */
+export interface OverheadLayout {
+  z0: number;
+  z1: number;
+  y: number;
+  thickness: number;
+  halfWidth: number;
+  wing: number;
+  kneeZ: number;
+  deckY: number;
+}
+
+/**
+ * The top of an overhead's wing at z (its plate solid below it, down to the deck): the roof
+ * from the house aft to the knee, then a hollow curve down to the deck... read the other way:
+ * from the knee on the deck up to the roof's aft edge (a quadratic, as the Alaskan's).
+ * Aft of the knee the plate is the part above the curve: `wingBelow` is that curve's height.
+ */
+export function wingCurveY(o: OverheadLayout, z: number): number {
+  if (z <= o.kneeZ) return o.deckY;
+  // The quadratic Bezier from (kneeZ, deckY) through the control point to (z1, y), as the Alaskan's wing.
+  const cz = o.kneeZ + (o.z1 - o.kneeZ) * 0.2;
+  const cy = o.y - (o.y - o.deckY) * 0.25;
+  // Solve z(t) = z for t (monotonic in t), then y(t).
+  let lo = 0;
+  let hi = 1;
+  for (let i = 0; i < 24; i++) {
+    const t = (lo + hi) / 2;
+    const zt = (1 - t) * (1 - t) * o.kneeZ + 2 * (1 - t) * t * cz + t * t * o.z1;
+    if (zt < z) lo = t;
+    else hi = t;
+  }
+  const t = (lo + hi) / 2;
+  return (1 - t) * (1 - t) * o.deckY + 2 * (1 - t) * t * cy + t * t * o.y;
 }
 
 /** A level rectangle of floor at a height (LayoutConfig.extraFloors). */

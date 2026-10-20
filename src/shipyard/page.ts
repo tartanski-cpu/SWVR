@@ -754,6 +754,8 @@ section('2. Wheelhouse');
   group('Roof');
   measure('roofThickness', 'Thickness', (v) => `${Math.round(v * 100)} cm`);
   measure('roofEdge', 'Edge', (v) => `${v.toFixed(0)}° back`);
+  // The cockpit overhead (P2b): the aft roof carried on aft over the working deck, on a wing each side.
+  slider('overhead', 'Overhead aft', (v) => (v ? `${SCALES.overhead(v).toFixed(2)} m` : 'none'));
 
   group('Inside');
   // The helm console (owner): no longer than CONFIG.shipyard.helm.maxConsole, so on a wide

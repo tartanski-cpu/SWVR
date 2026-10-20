@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { HullForm } from '../hullForm';
 import { hullPlan, type LayoutConfig } from '../layout';
-import { houseFloorAt, houseFloorLow, housesOf, type Livery } from '../vesselDef';
+import { houseFloorAt, houseFloorLow, housesOf, wingCurveY, type Livery } from '../vesselDef';
 import { flatVertexColorMaterial, mergeParts, part } from '../../render/geometryUtils';
 import { CONFIG } from '../../config';
 import { paintIndex, type PaintName } from '../../render/pixelPaint';
@@ -223,7 +223,7 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
   if (hasHouse(layout)) {
     const plan = hullPlan({ hull: form });
     for (const [k, wh] of housesOf(layout).entries()) {
-      const own: HouseLayout = k === 0 ? layout : { ...layout, wheelhouse: wh, engineHatch: undefined, ladder: undefined };
+      const own: HouseLayout = k === 0 ? layout : { ...layout, wheelhouse: wh, engineHatch: undefined, ladder: undefined, overhead: undefined };
       const sunkHere = cuts.some((c) => c.house === k);
       // Its walls start below the deck so there's never a gap there, but no lower than 0.06 m
       // under it, where the hull's sides are still wider than the house: on a fine entry the
@@ -705,6 +705,26 @@ function buildShapedHouse(layout: HouseLayout, col: Paint, base: number): THREE.
   if (sr) parts.push(box(-hw + w, hw - w, roofS - 0.012, roofS, zStep, zA - w, col.lining, 'wood'));
   // Raked out all round: the roof and the ceiling go out with the walls' tops.
   if (fl) applyFlare(parts.slice(roofFrom), fl);
+  // A cockpit overhead (P2b): the aft roof carried on aft over the working deck (its edges
+  // chamfered as the roof's, its top panel in the roof top's colour too), on a wing each side
+  // in the house's colour: full height from the house to the knee on the deck, then a hollow
+  // curve sweeping up to the roof's aft edge.
+  const oh = layout.overhead;
+  if (oh) {
+    parts.push(chamferedSlab(oh.halfWidth, oh.z0 - w, oh.z1, oh.y, oh.thickness, back, col.roof));
+    if (col.roofTop !== undefined) {
+      const k = CONFIG.shipyard.saloon.roofInset;
+      const wi = oh.halfWidth - back - k;
+      parts.push(planSlab([[-wi, oh.z0 + k], [wi, oh.z0 + k], [wi, oh.z1 - k], [-wi, oh.z1 - k]], oh.y + oh.thickness, oh.y + oh.thickness + 0.02, col.roofTop));
+    }
+    const n = 10;
+    const sweep: [number, number][] = Array.from({ length: n + 1 }, (_, i) => {
+      const z = oh.kneeZ + ((oh.z1 - oh.kneeZ) * i) / n;
+      return [z, i === n ? oh.y : wingCurveY(oh, z)];
+    });
+    const outline: [number, number][] = [[oh.z0, oh.deckY - 0.05], [oh.kneeZ, oh.deckY - 0.05], ...sweep.slice(1), [oh.z0, oh.y]];
+    for (const sgn of [-1, 1]) parts.push(prism(sgn > 0 ? oh.halfWidth - oh.wing : -oh.halfWidth, sgn > 0 ? oh.halfWidth : -oh.halfWidth + oh.wing, outline, H));
+  }
   return parts;
 }
 

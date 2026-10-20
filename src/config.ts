@@ -2973,6 +2973,18 @@ export const CONFIG = {
      */
     saloon: { minLength: 1.2, tread: 0.28, minBand: 0.35, roofInset: 0.1 },
     /**
+     * A cockpit overhead (parametric boats P2b, design.overhead; owner): the house's aft roof
+     * carried on aft over the working deck, as the Alaskan 38's, on a wing each side. Fitted
+     * (m): `inset` in from the deck edge (just inside the bulwark), each wing a plate `wing`
+     * thick; the wing's knee on the deck `kneeShare` of the way aft (no more than `kneeMax` m
+     * from the house), its curve sweeping up from there to the roof's aft edge. It stops
+     * `transomClear` short of the transom and `gearClear` short of what stands up through it
+     * (a pole's searchlight or monitor, the A-frame), and isn't fitted over a deck crane's or
+     * the skiff crane's aft deck (their booms would strike it). Shorter than `minLength`, it's
+     * left off; under `minHeadroom` over the deck, the Shipyard says so.
+     */
+    overhead: { inset: 0.08, wing: 0.06, kneeShare: 0.45, kneeMax: 1.2, transomClear: 0.2, gearClear: 0.3, minLength: 0.6, minHeadroom: 1.95 },
+    /**
      * Hull protection (owner): what keeps her sides off a quay (design.ts `guard`). Prices
      * (GBP): a set of fenders and their basket the cheapest; the rubbing strake and the
      * tyres by the metre of her and per tyre (the build counts them). `fenders`: how many

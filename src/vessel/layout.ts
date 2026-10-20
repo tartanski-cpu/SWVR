@@ -16,7 +16,7 @@ import { inDeckhouse } from './deckhouse';
 import { gearOf } from '../boats/sims';
 import type { GearFootprint } from '../modular/module';
 import type { HullForm } from './hullForm';
-import { houseFloorAt, houseRoofAt, type VesselDef } from './vesselDef';
+import { houseFloorAt, houseRoofAt, wingCurveY, type VesselDef } from './vesselDef';
 
 export interface Ladder {
   bottom: number;
@@ -302,6 +302,16 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: reado
   const inGateway = (x: number, z: number, edge: number) =>
     !!gate && gateOpen && Math.sign(x) === gate.side && z > gate.z0 + r * 0.6 && z < gate.z1 - r * 0.6 && Math.abs(x) <= deckHalfBeam(z) - edge;
 
+  // A cockpit overhead (P2b): its roof slab, and the wing plates along the deck edge each side
+  // (solid from the deck up to the roof as far as the knee, then above its sweep).
+  const oh = layout.overhead;
+  const inWingBand = (x: number, z: number, m: number) => !!oh && z > oh.z0 - m && z < oh.z1 + m && Math.abs(x) > oh.halfWidth - oh.wing - m && Math.abs(x) < oh.halfWidth + m;
+  const overheadSolid = (x: number, y: number, z: number): boolean => {
+    if (!oh || z < oh.z0 || z > oh.z1 || Math.abs(x) > oh.halfWidth) return false;
+    if (y >= oh.y && y <= oh.y + oh.thickness) return true; // the roof
+    return inWingBand(x, z, 0) && y >= deckY(z) && y < oh.y && y >= wingCurveY(oh, z); // a wing
+  };
+
   // Her houses (P2a): the helm's, then any more, each walked as its own.
   const live = { leafFolded: () => leafFolded };
   const helmHouse = houseWalk(def, layout, wh, true, gear, deckY, live);
@@ -315,7 +325,7 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: reado
       contains: (x, z) => {
         const onDeck = (z <= transom - layout.deckEdgeMargin && Math.abs(x) <= deckHalfBeam(z) - layout.deckEdgeMargin) || inGateway(x, z, 0.08);
         const nearDeckhouse = !!dh && inDeckhouse(dh, x, z, r);
-        return onDeck && !houses.some((h) => h.near(x, z) || h.inSteps(x, z)) && !nearDeckhouse && !inOpening(x, z) && !onGear(gear, x, z, r, deckY(z));
+        return onDeck && !houses.some((h) => h.near(x, z) || h.inSteps(x, z)) && !nearDeckhouse && !inOpening(x, z) && !onGear(gear, x, z, r, deckY(z)) && !inWingBand(x, z, r);
       },
     },
     ...helmHouse.floors,
@@ -369,6 +379,7 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: reado
       if (house) return house.solid(x, y, z);
       // The deckhouse (solid, for now) up to its top.
       if (dh && inDeckhouse(dh, x, z) && y < dh.top) return true;
+      if (overheadSolid(x, y, z)) return true;
       // Below the open deck, within the hull.
       return z <= transom && Math.abs(x) <= deckHalfBeam(z) && y < deckY(z) - 0.15;
     },
