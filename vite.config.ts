@@ -60,7 +60,9 @@ export default defineConfig({
       // game), the Shipyard (shipyard.html; src/shipyard/, which builds boats for it) and the
       // coast viewer (coast.html; tools/coast/viewer/: real-coastline regions from the coast
       // pipeline, judged before they go into the game).
-      input: { main: 'index.html', hulls: 'hulls.html', shipyard: 'shipyard.html', coast: 'coast.html' },
+      // The landing page (index.html: career / voyage / training), the two game pages
+      // (career.html, voyage.html: the same game, src/mode.ts tells them apart by their path).
+      input: { main: 'index.html', career: 'career.html', voyage: 'voyage.html', hulls: 'hulls.html', shipyard: 'shipyard.html', coast: 'coast.html' },
       output: {
         // three.js in its own chunk: it only changes when we upgrade it, so the headset
         // browser keeps it cached across our (frequent) game-code deploys.

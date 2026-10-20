@@ -19,6 +19,7 @@ import {
 import { tutorialLine } from '../career/tutorial';
 import { PORTS } from '../world/archipelago';
 import { COAST_REGION } from '../world/regions';
+import { MODE } from '../mode';
 
 /**
  * Career save slots (phase 3): swvr.fleetCareer.1..3, and which one is in use. Careers in the
@@ -78,8 +79,9 @@ export class CareerSession {
 
   constructor(private readonly h: CareerHost) {}
 
-  /** At start-up (host / solo): the slot last used. */
+  /** At start-up (host / solo): the slot last used. Voyage mode: no slots, nothing read. */
   restore(): void {
+    if (MODE === 'voyage') return;
     const n = Number(localStorage.getItem(SLOT_KEY));
     this.slot = n >= 1 && n <= CAREER_SLOTS ? n : 1;
     this.load(this.slot);
@@ -127,7 +129,7 @@ export class CareerSession {
     if (career && !this.h.isClient() && career.seq !== this.saved) {
       this.saved = career.seq;
       try {
-        localStorage.setItem(slotKey(this.slot), serializeCareer(career));
+        if (MODE !== 'voyage') localStorage.setItem(slotKey(this.slot), serializeCareer(career));
       } catch {
         // Not saved.
       }

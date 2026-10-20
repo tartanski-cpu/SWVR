@@ -50,8 +50,9 @@ export class WorldView {
     this.views = REGIONS.map((r) => new RegionView(r));
     for (const v of this.views) {
       this.root.add(v.silhouette);
-      // Home is here before the first frame (it was always built at start-up); the rest when wanted.
-      if (v.region.id === 'home') {
+      // Home (the first region: the map itself in voyage mode) is here before the first frame
+      // (it was always built at start-up); the rest when wanted.
+      if (v.region.id === REGIONS[0].id) {
         v.build(buildTerrainArrays(v.region), treeSpots(v.region));
         this.setResident(v, true);
       }

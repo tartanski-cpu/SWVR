@@ -3,6 +3,8 @@ import { FLEET } from '../boats/fleet';
 import { CONFIG } from '../config';
 import { PORTS } from '../world/archipelago';
 import { COAST_REGION, REGIONS, setCoastRegion } from '../world/regions';
+import { MODE, VOYAGE_MAP_ID } from '../mode';
+import { voyageMap } from '../world/maps';
 import type { MenuPage, MenuRow, MenuSection } from './menuPanel';
 import { ALPHABET } from '../shipyard/design';
 import { groupCode, PER_PAGE, type ShipyardCodes } from '../shipyard/takeHer';
@@ -289,7 +291,8 @@ export function mainMenu(h: MenuHost): MainMenu {
     active: () => get() === value,
     press: () => set(value),
   });
-  const header: MenuRow[] = [{ label: '', buttons: [{ text: `Workboat World  ${BUILD}`, weight: 3 }, { text: 'Close ✕', press: () => h.close(), weight: 1.4 }] }];
+  const title = MODE === 'voyage' ? `Voyage: ${voyageMap(VOYAGE_MAP_ID)?.name ?? VOYAGE_MAP_ID}` : 'Workboat World';
+  const header: MenuRow[] = [{ label: '', buttons: [{ text: `${title}  ${BUILD}`, weight: 3 }, { text: 'Close ✕', press: () => h.close(), weight: 1.4 }] }];
 
   // ---------------------------------------------------------------------------------
   // The menu is laid out for playing: Voyage, Boat, Cargo, Office and Crew are the game;
@@ -829,7 +832,7 @@ export function mainMenu(h: MenuHost): MainMenu {
       { name: 'Voyage', rows: voyage },
       { name: 'Boat', rows: boat },
       { name: 'Cargo', rows: cargo },
-      { name: 'Office', sections: office },
+      { name: 'Office', sections: office, hidden: () => MODE === 'voyage' },
       { name: 'Crew', rows: crew },
       { name: 'Settings', sections: settings },
       { name: 'Debug', sections: debug, hidden: () => !h.debugMenu() },

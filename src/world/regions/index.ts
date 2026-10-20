@@ -13,6 +13,8 @@ import { FJORD } from './fjord';
 import { NARROWS } from './narrows';
 
 import { OBAN } from './oban';
+import { MODE, VOYAGE_MAP_ID } from '../../mode';
+import { voyageMap } from '../maps';
 
 /**
  * Debug (the coast pipeline, milestone 4): Oban, a region made from real map data, in place
@@ -31,7 +33,7 @@ function coastChoice(): string | null {
     return null; // no storage (a worker, the tests): the usual world
   }
 }
-export const COAST_REGION: string | null = coastChoice() === 'oban' ? 'oban' : null;
+export const COAST_REGION: string | null = MODE !== 'voyage' && coastChoice() === 'oban' ? 'oban' : null;
 
 /** Turn the coast region on or off, and reload into it. */
 export function setCoastRegion(id: string | null): void {
@@ -46,7 +48,12 @@ export function setCoastRegion(id: string | null): void {
   location.assign(url.toString());
 }
 
-export const REGIONS: readonly RegionDef[] = COAST_REGION === 'oban' ? [HOME, OBAN, NARROWS] : [HOME, SOUNDS, FJORD, NARROWS];
+/**
+ * Voyage mode (mode.ts; owner, Oct 2026): the world is the one map chosen on the landing
+ * page (world/maps.ts), nothing else. Career mode: home and its neighbours as built, or
+ * Oban in the Sounds' place on the debug toggle above.
+ */
+export const REGIONS: readonly RegionDef[] = MODE === 'voyage' ? [(voyageMap(VOYAGE_MAP_ID) ?? voyageMap('oban'))!.region] : COAST_REGION === 'oban' ? [HOME, OBAN, NARROWS] : [HOME, SOUNDS, FJORD, NARROWS];
 
 export function regionById(id: string): RegionDef | undefined {
   return REGIONS.find((r) => r.id === id);

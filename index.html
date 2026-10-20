@@ -4,32 +4,63 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Workboat World</title>
+    <script>
+      // A game address with its parameters at the root (an old link, a shared game, the
+      // Shipyard's "try her"): on to the career game with them, as before the landing page.
+      (function () {
+        var p = new URLSearchParams(location.search);
+        var keys = ['design', 'boat', 'fit', 'game', 'join', 'together', 'host', 'fresh', 'coast', 'bike'];
+        for (var i = 0; i < keys.length; i++) if (p.has(keys[i])) { location.replace('career.html' + location.search + location.hash); return; }
+      })();
+    </script>
     <style>
-      html, body { margin: 0; height: 100%; overflow: hidden; background: #000; }
-      canvas { display: block; }
-      #help {
-        position: fixed; left: 12px; bottom: 12px; max-width: 430px;
-        font: 12px/1.3 system-ui, sans-serif; color: #e8eef2;
-        background: rgba(10, 20, 30, 0.72); padding: 10px 12px; border-radius: 6px;
-        pointer-events: none;
-      }
-      #help[hidden] { display: none; }
-      #help .title { font-weight: 600; color: #fff; margin: 4px 0 2px; }
-      #help .hint { color: #b9c7d2; margin-bottom: 4px; }
-      #help table { border-collapse: collapse; margin-bottom: 4px; }
-      #help td { padding: 1px 10px 1px 0; vertical-align: middle; }
-      #help td:first-child { white-space: nowrap; }
-      #help kbd {
-        display: inline-block; min-width: 1.4em; padding: 1px 5px; text-align: center;
-        font: 600 12px/1.3 ui-monospace, Menlo, Consolas, monospace; color: #fff;
-        background: #2b3a48; border: 1px solid #5a6e80; border-bottom-width: 2px; border-radius: 4px;
-      }
-      #help b { color: #fff; }
-      /* The recording camera's clean screen (player/cameraMode.ts): only the picture. */
-      body.camera-clean > :not(canvas) { visibility: hidden !important; }
+      :root { color-scheme: dark; }
+      html, body { margin: 0; min-height: 100%; background: #0b1419; color: #e8eef2; font: 16px/1.45 system-ui, sans-serif; }
+      body { background: radial-gradient(120% 80% at 50% 0%, #163040 0%, #0b1419 60%); }
+      main { max-width: 980px; margin: 0 auto; padding: 48px 20px 40px; }
+      h1 { font-size: 40px; margin: 0 0 4px; letter-spacing: 0.5px; }
+      h1 small { display: block; font-size: 15px; font-weight: 400; color: #9fb3bf; margin-top: 6px; }
+      .modes { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; margin-top: 30px; }
+      .card { display: block; background: rgba(20, 36, 46, 0.85); border: 1px solid #2f4a58; border-radius: 14px; padding: 20px 20px 18px; color: inherit; text-decoration: none; }
+      a.card:hover { border-color: #ffb347; background: rgba(28, 50, 64, 0.95); }
+      .card h2 { margin: 0 0 6px; font-size: 22px; color: #ffd27a; }
+      .card p { margin: 0 0 10px; color: #c9d6dd; }
+      .card.soon { opacity: 0.55; }
+      .card.soon h2 { color: #9fb3bf; }
+      .maps { list-style: none; padding: 0; margin: 10px 0 0; }
+      .maps li { margin: 6px 0; }
+      .maps a { display: block; padding: 10px 12px; border-radius: 8px; background: #1d3340; color: #fff; text-decoration: none; border: 1px solid #35505e; }
+      .maps a:hover { border-color: #ffb347; }
+      .maps a span { display: block; font-size: 13px; color: #b9c7d2; }
+      .tag { display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 10px; background: #2b3a48; color: #cfd9e0; margin-left: 6px; vertical-align: middle; }
+      footer { margin-top: 36px; color: #8fa3af; font-size: 14px; }
+      footer a { color: #cfd9e0; }
     </style>
   </head>
   <body>
-    <script type="module" src="/src/main.ts"></script>
+    <main>
+      <h1>Workboat World<small>Chunky workboats, operated from the inside. VR on the Quest, or desktop. Pick how you want to play.</small></h1>
+      <div class="modes">
+        <a class="card" href="career.html">
+          <h2>Career</h2>
+          <p>Start in a basic boat, take jobs, earn and buy her equipment. One boat; your crew join aboard her, playing your career.</p>
+          <p>Cargo runs, rescues, tows, fires, potting and fishing across the archipelago.</p>
+        </a>
+        <div class="card">
+          <h2>Voyage</h2>
+          <p>Real coastline from map data, sailed for its own sake. No career, nothing saved. Pick a map:</p>
+          <ul class="maps">
+            <li><a href="voyage.html?map=oban">Oban and Lorn<span>Oban Bay, Kerrera and its sound, Dunstaffnage and the Falls of Lora: 12 km of Argyll at full scale.</span></a></li>
+          </ul>
+        </div>
+        <div class="card soon">
+          <h2>Training <span class="tag">later</span></h2>
+          <p>Small harbour maps for practising boat handling, with recording and review of your sessions. Not built yet.</p>
+        </div>
+      </div>
+      <footer>
+        Design a boat in the <a href="shipyard.html">Shipyard</a>; take her into the career game from there. The hull study is at <a href="hulls.html">hulls</a>.
+      </footer>
+    </main>
   </body>
 </html>

@@ -59,6 +59,7 @@ import { canRefuel, releaseHolds } from '../vessel/vesselControl';
 import { CURRENTS, FISHING_GROUNDS, GUSTS, PORTS } from '../world/archipelago';
 import { raceRoarLevel, raceStrength, setRaceClock } from '../world/currents';
 import { COAST_KEY, COAST_REGION, REGIONS, regionById } from '../world/regions';
+import { MODE, VOYAGE_MAP_ID } from '../mode';
 import { groundHeight } from '../world/terrain';
 import { aboard, carriedBy, dropCarried, cargoLabel, cargoPortAt, kindOf, payloadMass, quickLoadable, quickPort, quickUnloadable, slotsUsed, type CargoItem } from '../cargo/cargo';
 import { groundAt, isPot, quickHaulable, quickPalletPots } from '../potting/potting';
@@ -616,9 +617,10 @@ export class App {
       CONFIG.render.far,
     );
 
-    const boat = startBoat() ?? CONFIG.career.boat;
+    // Voyage mode starts in its own boat (CONFIG.voyage.boat), fitted out in full; no career kit.
+    const boat = startBoat() ?? (MODE === 'voyage' ? CONFIG.voyage.boat : CONFIG.career.boat);
     // The career's boat kitted out as the career has her (any other boat as she is).
-    const without = KIT_BOATS.includes(boat) ? startFit() : [];
+    const without = KIT_BOATS.includes(boat) && MODE !== 'voyage' ? startFit() : [];
     useWorkboatFit(socketsWithout(boat === 'workboat' ? without : []));
     if (boat === 'starterBoat') useStarterKit(without);
     forgetStartParams();
@@ -629,6 +631,7 @@ export class App {
     // Sent to crew with the boat, so a crew-mate on an older page knows (not part of her build).
     this.world.build.app = APP_BUILD;
     if (COAST_REGION) this.world.build.coast = COAST_REGION;
+    if (VOYAGE_MAP_ID) this.world.build.map = VOYAGE_MAP_ID;
     this.localPlayerId = created.localPlayerId;
     this.soloPlayerId = created.localPlayerId;
     this.testVesselId = created.vesselId;
@@ -2937,8 +2940,17 @@ export class App {
   private sameVersionAsHost(world: WorldState): boolean {
     // The world itself must match: the host's coast region test on or off (regions/index.ts).
     // Take theirs and reload into it (it's kept in this browser until changed back).
+    // Voyage mode: the host's map (the address's `?map=`): reload into it.
+    if (MODE === 'voyage' && world.build?.map && world.build.map !== VOYAGE_MAP_ID) {
+      const url = new URL(location.href);
+      url.searchParams.set('map', world.build.map);
+      url.searchParams.set('join', this.joinCode);
+      this.leaveGame();
+      location.replace(url.toString());
+      return false;
+    }
     const coast = world.build?.coast ?? null;
-    if (coast !== COAST_REGION) {
+    if (MODE !== 'voyage' && coast !== COAST_REGION) {
       try {
         if (coast) localStorage.setItem(COAST_KEY, coast);
         else localStorage.removeItem(COAST_KEY);

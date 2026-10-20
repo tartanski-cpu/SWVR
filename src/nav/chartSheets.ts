@@ -79,9 +79,13 @@ function padToAspect(b: ChartSheet['bounds'], a: number): ChartSheet['bounds'] {
   return { x0: b.x0, x1: b.x1, z0: cz - nh / 2, z1: cz + nh / 2 };
 }
 
-/** The sheets' common shape: home's detail sheet as it always was. */
-const HOME_BOX = islandBox(regionById('home')!.islands, MARGIN);
-export const SHEET_ASPECT = (HOME_BOX.x1 - HOME_BOX.x0) / (HOME_BOX.z1 - HOME_BOX.z0);
+/**
+ * The sheets' common shape: home's detail sheet as it always was. Without home in the world
+ * (voyage mode: one coast map on its own, mode.ts) the first region's box sets it.
+ */
+const FIRST = regionById('home') ?? REGIONS[0];
+const HOME_BOX = regionById('home') ? islandBox(FIRST.islands, MARGIN) : regionBox(FIRST, MARGIN);
+export const SHEET_ASPECT = HOME_BOX.x1 > HOME_BOX.x0 && HOME_BOX.z1 > HOME_BOX.z0 ? (HOME_BOX.x1 - HOME_BOX.x0) / (HOME_BOX.z1 - HOME_BOX.z0) : 1.45;
 
 function detailSheet(regionId: string): ChartSheet {
   const r = regionById(regionId)!;
