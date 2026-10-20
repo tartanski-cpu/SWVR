@@ -19,6 +19,8 @@ export interface RegionRequest {
   /** [lonMin, latMin, lonMax, latMax] */
   bbox: [number, number, number, number];
   theme: string;
+  /** A big region (Voyage mode only): the mesh is written in chunk files the game streams in round the boat, plus a coarse grid of the whole (mesh.ts). */
+  chunked?: boolean;
   /** Spine roles: a harbour's name, "auto", or for the anchorage a named spot ({ name, at: [lon, lat] }). */
   spine?: Record<string, string | { name: string; at: [number, number] }>;
   currentZones?: { name: string; polygon: [number, number][]; direction: number; peakKts: number; periodHours: number }[];

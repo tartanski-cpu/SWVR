@@ -15,7 +15,7 @@ import { NARROWS } from './narrows';
 import { OBAN } from './oban';
 import { TAYVALLICH } from './tayvallich';
 import { MODE, VOYAGE_MAP_ID } from '../../mode';
-import { voyageMap } from '../maps';
+import { mapRegion, voyageMap } from '../maps';
 
 /**
  * Debug (the coast pipeline, milestone 4): a region made from real map data, in place of the
@@ -58,7 +58,7 @@ export function setCoastRegion(id: string | null): void {
  * page (world/maps.ts), nothing else. Career mode: home and its neighbours as built, or a
  * coast region in the Sounds' place on the debug toggle above.
  */
-export const REGIONS: readonly RegionDef[] = MODE === 'voyage' ? [(voyageMap(VOYAGE_MAP_ID) ?? voyageMap('oban'))!.region] : COAST_REGION ? [HOME, COAST_REGIONS[COAST_REGION], NARROWS] : [HOME, SOUNDS, FJORD, NARROWS];
+export const REGIONS: readonly RegionDef[] = MODE === 'voyage' ? [mapRegion((voyageMap(VOYAGE_MAP_ID) ?? voyageMap('oban'))!)] : COAST_REGION ? [HOME, COAST_REGIONS[COAST_REGION], NARROWS] : [HOME, SOUNDS, FJORD, NARROWS];
 
 export function regionById(id: string): RegionDef | undefined {
   return REGIONS.find((r) => r.id === id);

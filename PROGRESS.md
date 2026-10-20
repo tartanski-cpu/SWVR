@@ -6180,6 +6180,61 @@ Owner: "the next area I'd like you to generate is around Tayvallich... the Fairy
   - **Desktop:** open https://tartanski-cpu.github.io/SWVR/next/?coast=tayvallich, board at Calder Haven and steer north (000) into Loch Sween. Follow the loch north-east past Taynish to Tayvallich's bay (Menu → Debug → World → To port → Tayvallich for the berth). Then go into Caol Scotnish, the narrow arm, to the Fairy Isles anchorage, and anchor there. `?coast=off` to go back.
   - **VR:** the same, with the perf panel.
 
+### A big Voyage map, in chunks: the Firth of Clyde (done, awaiting owner test)
+
+Owner (with a map picture of the Firth): "Next id like a bigger area, as its only for use in Voyages mod it can be chunked for that". And, while it was being built: "do not restrict the game environment to 3 harbours that were for each hand crafted region, model all harbours that are in the open sea map or equivalent data."
+
+- **The request** (`tools/coast/requests/clyde.yaml`):
+  - **The box:** `[-5.27, 55.70, -4.70, 56.03]`, 35.6 x 36.7 km at full scale, ten times Oban. It covers Bute and Rothesay, the Kyles of Bute and Loch Striven, Dunoon and the Holy Loch, Gourock, Greenock and Helensburgh, Largs and the Cumbraes.
+  - **New key:** `chunked: true`. Voyage mode only.
+- **Every harbour:** the pipeline already modelled every harbour it found. The spine roles only label which harbour plays which part; they never limited the list. That is now written down as a rule (`harbours.ts` header, `docs/COAST_PIPELINE.md`, CLAUDE.md).
+  - The Clyde has 78 harbours. 59 are ports the game sends work to; the other 19 are drying piers and slips with no water alongside (Strone, Branchton, Largs slip...), drawn but not worked.
+  - Oban has 9 ports and Tayvallich 5, by the same rule.
+- **Pipeline at scale:**
+  - **Fetch:** an OpenStreetMap tile the server refuses as too big ("too many nodes", Greenock) is split in four and asked again.
+  - **Mesh, for a chunked request:**
+    - The triangle budget goes by area (`budgetPerKm2` 850, about Oban's density) and the viewshed uses a coarser grid (`viewCoarseChunked` 6) for speed.
+    - Instead of one `terrain.bin` it writes a file per 2 km chunk (`chunks/<n>.bin`: just its own vertices, its drawn faces then its deep ones, colours).
+    - It also writes `coarse.bin`: the whole map every 50 m (`coarseCell`), sampled from the same mesh.
+  - **Package, for a chunked request:** writes `public/regions/<id>/package.json`, not into the game's code, so Career mode never carries it.
+  - The whole map runs in about 2 minutes.
+- **What came out:**
+  - **Mesh:** 787,175 triangles in 331 chunk files, the busiest chunk 10,490 (budget 12,000); 19.5 MB of chunks plus a 2.6 MB coarse grid.
+  - **Harbours:** 59 ports, 1,470 berths found, 219 kit pieces, 5,415 buildings, 13 slipways.
+  - **Sea:** 81 marks and 44 lights from OpenSeaMap (the Clyde is well charted), 24 hazards.
+  - **Grounds:** 3 fishing grounds, 24 potting grounds.
+  - **Landmarks:** Cruach nan Capull; Cloch Point lighthouse.
+- **In the game:**
+  - **Starting:** `voyage.html?map=clyde` (front page: The Firth of Clyde). The page fetches the map's package, then its coarse grid, then the chunks round the start berth (Rothesay Harbour), and only then builds the world (`main.ts` now loads the world after the map).
+  - **The ground streams** (`world/coastStream.ts`): a chunk's detailed ground is fetched when your eye or any boat comes within `regions.coastLoadDistance` (1500 m) of it, and dropped beyond `coastUnloadDistance` (2600 m), `coastLoadsAtOnce` (4) at a time. Elsewhere the ground is the coarse grid: the far view, the charts, and the traffic all use it.
+  - **Drawing a big map** (`coastView.ts`, `worldView.ts`):
+    - The near ground is built first. It used to wait for every far tile, which on 331 chunks left the boat on coarse ground for a long while.
+    - Open-sea chunks get no far tile.
+    - New tier `coastMidDistance` 6000 m: beyond it, `coastFarCell` 270 m.
+    - The harbour kit (piers, quays, slipways, lamps, berth marks) is in 1 km squares (`coastStructureCell`), drawn within `coastStructureDistance` (2500 m). Lighthouses and landmarks are always drawn. Before this, all 59 harbours' kit was one mesh, 254k triangles drawn everywhere. Oban and Tayvallich get the same, so they draw a little less too.
+- **Tests:** `tests/coastClyde.test.ts` (6):
+  - the box, every chunk file present, the right size and within the budget;
+  - the package matches the mesh, and the coarse grid covers the box;
+  - the map starts at Rothesay, a harbour, in water;
+  - the coarse grid alone (Firth water, Bute land, the edge open sea);
+  - streaming: chunks round a point fetched, the ground there becomes the mesh, the coarse grid agrees within 4 m, and the chunks are dropped when the point leaves;
+  - the region made from the package sits on its terrain.
+  - `voyageMode.test.ts` now covers fetched maps too.
+- **Checked headless** (`voyage.html?map=clyde`):
+  - It loads in 7-10 s on the dev server.
+  - **At Rothesay's cargo berth:** 150-184k triangles, 90-138 draws. Before the two drawing fixes it was 396k.
+  - **After a 12.6 km jump to Dunoon pier:** the ground there streamed in, 178k triangles.
+  - **Screenshots:** Rothesay with the town and the hills behind; Dunoon pier looking across the Firth.
+  - **Errors:** one 404 in the console, the same one the earlier checks filtered out.
+- **Not checked / later:**
+  - the Quest (chunks arrive over the network: on a slow connection, sail slowly the first time);
+  - port names straight from the map can be clumsy ("Fairlie Pier pier", "Dunoon pier 2", "Thirdpart Holdings pier"); a hand-edits file can tidy them;
+  - the map viewer (`coast.html`) can't show a chunked map yet;
+  - the edges of the box are projected flat, about 70 m out at the corners: harmless in the game.
+- **Test steps:**
+  - **Desktop:** open https://tartanski-cpu.github.io/SWVR/next/, choose Voyage → The Firth of Clyde. You start moored at Rothesay. Sail out of Rothesay Bay and north up the Firth past Toward toward Dunoon. Watch the shore sharpen as you near it, with no holes or steps in the ground. Use Menu → Debug → World → To port to jump to Largs, Millport (Cumbrae ferry terminal), Greenock or Helensburgh, and look round each.
+  - **VR:** the same, with the perf panel: watch the triangle count and frame time as chunks arrive while under way.
+
 ### Fix: wheelhouse buttons vanishing at the helm (owner, testing Tayvallich)
 
 Owner: "I went to pick up some cargo... the buttons and the joystick but not the throttle lever disappeared from the pilot boat." Those are exactly the parts the draw-call saving hides while you're outside the wheelhouse (`app/interiorDetail.ts`; the throttle lever is always kept). It judged "outside" by whether the game counted you aboard the boat. Some ways of getting about leave you in the world's frame even when you stand in her wheelhouse: VR fly does (Debug), and so can a camera mode. So the parts stayed hidden at the helm.

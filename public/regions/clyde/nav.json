@@ -1,0 +1,3094 @@
+{
+ "marks": [
+  {
+   "name": "",
+   "type": "buoy_lateral",
+   "category": "starboard",
+   "shape": "conical",
+   "colour": "green",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "stbd",
+   "x": 6513.9,
+   "z": -4765.1,
+   "depth": -9.3
+  },
+  {
+   "name": "Hun 7",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": "can",
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "port",
+   "x": 5371.5,
+   "z": 12844.3,
+   "depth": -31.8
+  },
+  {
+   "name": "",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": "can",
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "port",
+   "x": 4681.4,
+   "z": -902.7,
+   "depth": -37.1
+  },
+  {
+   "name": "Hun 5",
+   "type": "buoy_lateral",
+   "category": "starboard",
+   "shape": "conical",
+   "colour": "green",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "stbd",
+   "x": 6852,
+   "z": 11156.4,
+   "depth": -40
+  },
+  {
+   "name": "Hun 9",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": "can",
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "port",
+   "x": 4817.1,
+   "z": 13412.6,
+   "depth": -35.3
+  },
+  {
+   "name": "",
+   "type": "buoy_lateral",
+   "category": "starboard",
+   "shape": "conical",
+   "colour": "green",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "stbd",
+   "x": 4870.6,
+   "z": -3022.6,
+   "depth": -60
+  },
+  {
+   "name": "A",
+   "type": "buoy_lateral",
+   "category": "starboard",
+   "shape": "conical",
+   "colour": "green",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "stbd",
+   "x": 1391.8,
+   "z": 10000.4,
+   "depth": -60
+  },
+  {
+   "name": "Largs Yacht Haven",
+   "type": "buoy_safe_water",
+   "category": "safe_water",
+   "shape": "spherical",
+   "colour": "red;white",
+   "pattern": "vertical",
+   "topmark": null,
+   "gameKind": null,
+   "x": 7536,
+   "z": 10172.9,
+   "depth": -11.3,
+   "light": "FlW.10s"
+  },
+  {
+   "name": "B",
+   "type": "buoy_special_purpose",
+   "category": "special_purpose",
+   "shape": "spherical",
+   "colour": "yellow",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": null,
+   "x": 1655.1,
+   "z": 8845.8,
+   "depth": -53.9
+  },
+  {
+   "name": "J",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": "can",
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "port",
+   "x": 4550.1,
+   "z": 695,
+   "depth": -51.6
+  },
+  {
+   "name": "Portachur",
+   "type": "buoy_cardinal",
+   "category": "south",
+   "shape": "pillar",
+   "colour": "yellow;black",
+   "pattern": "horizontal",
+   "topmark": "2 cones down",
+   "gameKind": "S",
+   "x": 2028.7,
+   "z": 13832.5,
+   "depth": -11.7
+  },
+  {
+   "name": "Hun 3",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": "can",
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "port",
+   "x": 5832.3,
+   "z": 7966.8,
+   "depth": -40.1
+  },
+  {
+   "name": "C",
+   "type": "buoy_lateral",
+   "category": "starboard",
+   "shape": "conical",
+   "colour": "green",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "stbd",
+   "x": 3989.9,
+   "z": 7027.6,
+   "depth": -31.2
+  },
+  {
+   "name": "Ardmaleish",
+   "type": "buoy_cardinal",
+   "category": "north",
+   "shape": "pillar",
+   "colour": "black;yellow",
+   "pattern": "horizontal",
+   "topmark": "2 cones up",
+   "gameKind": "N",
+   "x": -5807.8,
+   "z": -2093.7,
+   "depth": -6.2
+  },
+  {
+   "name": "Eilean Buidhe East",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": "can",
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "port",
+   "x": -11734.3,
+   "z": -7150.8,
+   "depth": -6.5
+  },
+  {
+   "name": "Eilean Buidhe West",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": "can",
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "port",
+   "x": -11813.3,
+   "z": -7225.7,
+   "depth": -6.2
+  },
+  {
+   "name": "Eilean Mor",
+   "type": "buoy_lateral",
+   "category": "starboard",
+   "shape": "conical",
+   "colour": "green",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "stbd",
+   "x": -11723.8,
+   "z": -7105.8,
+   "depth": -7.1
+  },
+  {
+   "name": "Eilean Fraoich",
+   "type": "buoy_lateral",
+   "category": "starboard",
+   "shape": "conical",
+   "colour": "green",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "stbd",
+   "x": -11834.1,
+   "z": -7197.5,
+   "depth": -8.1
+  },
+  {
+   "name": "Rubha a Bhodach",
+   "type": "buoy_lateral",
+   "category": "starboard",
+   "shape": "conical",
+   "colour": "green",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "stbd",
+   "x": -10925.5,
+   "z": -6469.1,
+   "depth": -11.4
+  },
+  {
+   "name": "",
+   "type": "buoy_lateral",
+   "category": "starboard",
+   "shape": "conical",
+   "colour": "green",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "stbd",
+   "x": -4266.5,
+   "z": -395.3,
+   "depth": -51.4
+  },
+  {
+   "name": "",
+   "type": "beacon_cardinal",
+   "category": "north",
+   "shape": "pile",
+   "colour": "black;yellow",
+   "pattern": "horizontal",
+   "topmark": "2 cones up",
+   "gameKind": "N",
+   "x": -11658.9,
+   "z": -6515.4,
+   "depth": -8.4
+  },
+  {
+   "name": "",
+   "type": "buoy_lateral",
+   "category": "starboard",
+   "shape": "conical",
+   "colour": "green",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "stbd",
+   "x": -11991,
+   "z": -6798.6,
+   "depth": -8.4
+  },
+  {
+   "name": "",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": "can",
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "port",
+   "x": -12267.5,
+   "z": -7007.9,
+   "depth": -16.6
+  },
+  {
+   "name": "",
+   "type": "beacon_lateral",
+   "category": "port",
+   "shape": null,
+   "colour": "red",
+   "pattern": null,
+   "topmark": "cylinder",
+   "gameKind": "port",
+   "x": -11735.7,
+   "z": -7192.1,
+   "depth": -3.2
+  },
+  {
+   "name": "Hun 11",
+   "type": "buoy_lateral",
+   "category": "starboard",
+   "shape": "conical",
+   "colour": "green",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "stbd",
+   "x": 4065.1,
+   "z": 15621,
+   "depth": -57.2
+  },
+  {
+   "name": "",
+   "type": "beacon_lateral",
+   "category": "starboard",
+   "shape": "pile",
+   "colour": "white;green;white",
+   "pattern": "horizontal",
+   "topmark": null,
+   "gameKind": "stbd",
+   "x": 12223.5,
+   "z": -16569.9,
+   "depth": -11.2,
+   "light": "FlW.3s"
+  },
+  {
+   "name": "No.2N",
+   "type": "beacon_lateral",
+   "category": "port",
+   "shape": null,
+   "colour": "red",
+   "pattern": null,
+   "topmark": "cylinder",
+   "gameKind": "port",
+   "x": 11837.3,
+   "z": -16254,
+   "depth": -5,
+   "light": "AlGWR"
+  },
+  {
+   "name": "No.7N",
+   "type": "beacon_lateral",
+   "category": "starboard",
+   "shape": "pile",
+   "colour": "green",
+   "pattern": null,
+   "topmark": "cone, point up",
+   "gameKind": "stbd",
+   "x": 14291.9,
+   "z": -15113.3,
+   "depth": -11.5,
+   "light": "AlGWR"
+  },
+  {
+   "name": "No.1",
+   "type": "beacon_special_purpose",
+   "category": "special_purpose",
+   "shape": null,
+   "colour": "yellow",
+   "pattern": null,
+   "topmark": "x-shape",
+   "gameKind": null,
+   "x": 15824.8,
+   "z": -13367.5,
+   "depth": -4.9,
+   "light": "VQ(4)Y.5s"
+  },
+  {
+   "name": "",
+   "type": "beacon_isolated_danger",
+   "category": "isolated_danger",
+   "shape": "pile",
+   "colour": "black;red;black",
+   "pattern": "horizontal",
+   "topmark": "2 spheres",
+   "gameKind": "isolated",
+   "x": 12148.8,
+   "z": -12257.4,
+   "depth": -3.3,
+   "light": "Fl(2)W.10s"
+  },
+  {
+   "name": "No.8N",
+   "type": "beacon_special_purpose",
+   "category": "special_purpose",
+   "shape": "pile",
+   "colour": "yellow",
+   "pattern": null,
+   "topmark": "x-shape",
+   "gameKind": null,
+   "x": 15491,
+   "z": -13319.3,
+   "depth": -5.5,
+   "light": "FGWR"
+  },
+  {
+   "name": "No.13",
+   "type": "beacon_isolated_danger",
+   "category": "isolated_danger",
+   "shape": null,
+   "colour": "black;red;black",
+   "pattern": "horizontal",
+   "topmark": "2 spheres",
+   "gameKind": "isolated",
+   "x": -1188.7,
+   "z": 4073.4,
+   "depth": -13.8,
+   "light": "Fl(2)W.10s"
+  },
+  {
+   "name": "",
+   "type": "beacon_lateral",
+   "category": "port",
+   "shape": null,
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "port",
+   "x": 7730.8,
+   "z": 10251.7,
+   "depth": -0.7,
+   "light": "OcR.10s"
+  },
+  {
+   "name": "",
+   "type": "beacon_lateral",
+   "category": "starboard",
+   "shape": null,
+   "colour": "green",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "stbd",
+   "x": 7673.8,
+   "z": 10285.1,
+   "depth": -0.5,
+   "light": "OcG.10s"
+  },
+  {
+   "name": "No 32",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": "can",
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "port",
+   "x": 17292,
+   "z": -8782.2,
+   "depth": -9.1,
+   "light": "FlR.2s"
+  },
+  {
+   "name": "No 30",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": "can",
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "port",
+   "x": 16941.9,
+   "z": -8969.5,
+   "depth": -11.8,
+   "light": "FlR.2s"
+  },
+  {
+   "name": "No 28",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": "can",
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "port",
+   "x": 16411.5,
+   "z": -9254.3,
+   "depth": -12,
+   "light": "FlR.2s"
+  },
+  {
+   "name": "Garvel No 24",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": "can",
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "port",
+   "x": 16114.1,
+   "z": -9378.3,
+   "depth": -8.9,
+   "light": "FlR.4s"
+  },
+  {
+   "name": "",
+   "type": "buoy_cardinal",
+   "category": "west",
+   "shape": "pillar",
+   "colour": "yellow;black;yellow",
+   "pattern": "horizontal",
+   "topmark": "2 cones point together",
+   "gameKind": "W",
+   "x": 15025.4,
+   "z": -12392.1,
+   "depth": -8.5,
+   "light": "Q(9)W.15s"
+  },
+  {
+   "name": "",
+   "type": "buoy_lateral",
+   "category": "starboard",
+   "shape": null,
+   "colour": "green",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "stbd",
+   "x": 7921.4,
+   "z": 9762.1,
+   "depth": 1.1
+  },
+  {
+   "name": "",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": null,
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "port",
+   "x": 7931.2,
+   "z": 9803.7,
+   "depth": 3.8
+  },
+  {
+   "name": "Hun 10",
+   "type": "buoy_lateral",
+   "category": "starboard",
+   "shape": "conical",
+   "colour": "green",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "stbd",
+   "x": 4378.3,
+   "z": 14362.7,
+   "depth": -36.5
+  },
+  {
+   "name": "Carry",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": null,
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "port",
+   "x": -13564.5,
+   "z": 922.8,
+   "depth": -14.7
+  },
+  {
+   "name": "",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": null,
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "port",
+   "x": -13813.3,
+   "z": -5662.5,
+   "depth": -10.9
+  },
+  {
+   "name": "",
+   "type": "buoy_special_purpose",
+   "category": "special_purpose",
+   "shape": "conical",
+   "colour": "yellow",
+   "pattern": null,
+   "topmark": "x-shape",
+   "gameKind": null,
+   "x": -5251.7,
+   "z": -5040.8,
+   "depth": -21.4,
+   "light": "Fl(5)Y.20s"
+  },
+  {
+   "name": "Ashton",
+   "type": "buoy_safe_water",
+   "category": "safe_water",
+   "shape": "pillar",
+   "colour": "red;white",
+   "pattern": "vertical",
+   "topmark": "sphere",
+   "gameKind": null,
+   "x": 8770.9,
+   "z": -11508.4,
+   "depth": -31.1,
+   "light": "IsoW.5s"
+  },
+  {
+   "name": "",
+   "type": "buoy_lateral",
+   "category": "starboard",
+   "shape": null,
+   "colour": "green",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "stbd",
+   "x": 3575.9,
+   "z": 13004.5,
+   "depth": -8.1
+  },
+  {
+   "name": "",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": null,
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "port",
+   "x": 3639.5,
+   "z": 17338.5,
+   "depth": -36.6
+  },
+  {
+   "name": "",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": null,
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "port",
+   "x": 3587.7,
+   "z": 15636.7,
+   "depth": -49.6
+  },
+  {
+   "name": "",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": null,
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "port",
+   "x": 3161.9,
+   "z": 12918.9,
+   "depth": -6.4
+  },
+  {
+   "name": "",
+   "type": "buoy_lateral",
+   "category": "starboard",
+   "shape": null,
+   "colour": "green",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "stbd",
+   "x": 3248.8,
+   "z": 13024.6,
+   "depth": -9.3
+  },
+  {
+   "name": "",
+   "type": "buoy_special_purpose",
+   "category": "special_purpose",
+   "shape": "pillar",
+   "colour": "yellow",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": null,
+   "x": 4033.2,
+   "z": -9084,
+   "depth": -9.7,
+   "light": "Fl(5)Y.20s"
+  },
+  {
+   "name": "",
+   "type": "buoy_lateral",
+   "category": "starboard",
+   "shape": null,
+   "colour": "green",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "stbd",
+   "x": 4102.1,
+   "z": 17345.2,
+   "depth": -34.8
+  },
+  {
+   "name": "",
+   "type": "buoy_lateral",
+   "category": "starboard",
+   "shape": null,
+   "colour": "green",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "stbd",
+   "x": 5591.6,
+   "z": 13149.8,
+   "depth": -30.5
+  },
+  {
+   "name": "",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": null,
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "port",
+   "x": 4321.7,
+   "z": 6078.2,
+   "depth": -35.3
+  },
+  {
+   "name": "Hun 1",
+   "type": "buoy_special_purpose",
+   "category": "channel_separation",
+   "shape": null,
+   "colour": "yellow",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": null,
+   "x": 5074.5,
+   "z": 7033.9,
+   "depth": -41.2
+  },
+  {
+   "name": "Cowal",
+   "type": "buoy_safe_water",
+   "category": "safe_water",
+   "shape": "pillar",
+   "colour": "red;white",
+   "pattern": "vertical",
+   "topmark": "sphere",
+   "gameKind": null,
+   "x": 4420.1,
+   "z": -7610.6,
+   "depth": -60,
+   "light": "LFlW.10s"
+  },
+  {
+   "name": "",
+   "type": "buoy_cardinal",
+   "category": "east",
+   "shape": "pillar",
+   "colour": "black;yellow;black",
+   "pattern": "horizontal",
+   "topmark": "2 cones base together",
+   "gameKind": "E",
+   "x": 5129.4,
+   "z": -8792.4,
+   "depth": -34.3,
+   "light": "Q(3)W.10s"
+  },
+  {
+   "name": "No 31",
+   "type": "buoy_cardinal",
+   "category": "north",
+   "shape": "pillar",
+   "colour": "black;yellow",
+   "pattern": "horizontal",
+   "topmark": "2 cones up",
+   "gameKind": "N",
+   "x": 4114,
+   "z": -8620.7,
+   "depth": -12.9,
+   "light": "QW"
+  },
+  {
+   "name": "Loch Long",
+   "type": "buoy_safe_water",
+   "category": "safe_water",
+   "shape": "pillar",
+   "colour": "red;white",
+   "pattern": "vertical",
+   "topmark": "sphere",
+   "gameKind": null,
+   "x": 6944.7,
+   "z": -13474.5,
+   "depth": -55.2,
+   "light": "OcW.6s"
+  },
+  {
+   "name": "Kirn",
+   "type": "buoy_special_purpose",
+   "category": "special_purpose",
+   "shape": "can",
+   "colour": "yellow",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": null,
+   "x": 5055.2,
+   "z": -10543.9,
+   "depth": -50.4,
+   "light": "Fl(4)Y.12s"
+  },
+  {
+   "name": "No 30",
+   "type": "buoy_cardinal",
+   "category": "south",
+   "shape": "pillar",
+   "colour": "yellow;black",
+   "pattern": "horizontal",
+   "topmark": "2 cones down",
+   "gameKind": "S",
+   "x": 5478.3,
+   "z": -12699.8,
+   "depth": -16.5,
+   "light": "Q+LFl(6)W.15s"
+  },
+  {
+   "name": "Kil No 3",
+   "type": "buoy_lateral",
+   "category": "starboard",
+   "shape": "conical",
+   "colour": "green",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "stbd",
+   "x": 7960,
+   "z": -13534.4,
+   "depth": -22.7,
+   "light": "FlG.5s"
+  },
+  {
+   "name": "Kil No 1",
+   "type": "buoy_lateral",
+   "category": "starboard",
+   "shape": "conical",
+   "colour": "green",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "stbd",
+   "x": 9167.8,
+   "z": -12555.2,
+   "depth": -38.2,
+   "light": "FlG.5s"
+  },
+  {
+   "name": "Kil No 2",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": "can",
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "port",
+   "x": 9242.1,
+   "z": -12823.6,
+   "depth": -20.3,
+   "light": "FlR.2s"
+  },
+  {
+   "name": "M1",
+   "type": "buoy_special_purpose",
+   "category": "special_purpose",
+   "shape": "pillar",
+   "colour": "yellow",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": null,
+   "x": 10583.1,
+   "z": -10900.2,
+   "depth": -8.4,
+   "light": "Fl(5)Y.20s"
+  },
+  {
+   "name": "Ard No 8",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": "can",
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "port",
+   "x": 12849.4,
+   "z": -13084.7,
+   "depth": -40.3,
+   "light": "FlR.2s"
+  },
+  {
+   "name": "Whiteforeland",
+   "type": "buoy_safe_water",
+   "category": "safe_water",
+   "shape": "pillar",
+   "colour": "red;white",
+   "pattern": "vertical",
+   "topmark": "sphere",
+   "gameKind": null,
+   "x": 12275.2,
+   "z": -11527.2,
+   "depth": -28.3,
+   "light": "LFlW.10s"
+  },
+  {
+   "name": "No 27",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": "can",
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "port",
+   "x": 12282.7,
+   "z": -11867.8,
+   "depth": -20.8,
+   "light": "FlR.2s"
+  },
+  {
+   "name": "",
+   "type": "buoy_special_purpose",
+   "category": "special_purpose",
+   "shape": "spherical",
+   "colour": "yellow",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": null,
+   "x": 11119,
+   "z": -11984.7,
+   "depth": -24.6,
+   "light": "FlY.3s"
+  },
+  {
+   "name": "Ard No 4",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": "can",
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "port",
+   "x": 11136.2,
+   "z": -12692,
+   "depth": -24.3,
+   "light": "FlR.2s"
+  },
+  {
+   "name": "Ard No 5",
+   "type": "buoy_lateral",
+   "category": "starboard",
+   "shape": "conical",
+   "colour": "green",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "stbd",
+   "x": 12040.7,
+   "z": -12548.3,
+   "depth": -14.3,
+   "light": "FlG.5s"
+  },
+  {
+   "name": "6",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": "can",
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "port",
+   "x": 12500.1,
+   "z": -15789.7,
+   "depth": -12.7,
+   "light": "FlR.2s"
+  },
+  {
+   "name": "Rhu SW",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": "can",
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "port",
+   "x": 12034.7,
+   "z": -16236.4,
+   "depth": -17.5,
+   "light": "QR"
+  },
+  {
+   "name": "",
+   "type": "buoy_lateral",
+   "category": "starboard",
+   "shape": "conical",
+   "colour": "green",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "stbd",
+   "x": 13075.7,
+   "z": -16147.7,
+   "depth": -3.2,
+   "light": "FlG.4s"
+  },
+  {
+   "name": "Rhu SE",
+   "type": "buoy_lateral",
+   "category": "starboard",
+   "shape": "conical",
+   "colour": "green",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "stbd",
+   "x": 12413.9,
+   "z": -16188.4,
+   "depth": -14.4,
+   "light": "FlG.3s"
+  },
+  {
+   "name": "Rhu NE",
+   "type": "buoy_lateral",
+   "category": "starboard",
+   "shape": "conical",
+   "colour": "green",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "stbd",
+   "x": 11976.9,
+   "z": -16911.3,
+   "depth": -18.1,
+   "light": "QG"
+  },
+  {
+   "name": "Rhu NW",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": "can",
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "port",
+   "x": 11766,
+   "z": -16727.1,
+   "depth": -16.3,
+   "light": "FlR.5s"
+  },
+  {
+   "name": "No 5",
+   "type": "buoy_lateral",
+   "category": "starboard",
+   "shape": "conical",
+   "colour": "green",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "stbd",
+   "x": 15990.1,
+   "z": -9196.9,
+   "depth": -8.7,
+   "light": "FlG.2s"
+  },
+  {
+   "name": "No 20",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": "can",
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "port",
+   "x": 15822.1,
+   "z": -9357.3,
+   "depth": -9.2,
+   "light": "FlR.2s"
+  },
+  {
+   "name": "No 3",
+   "type": "buoy_lateral",
+   "category": "starboard",
+   "shape": "conical",
+   "colour": "green",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "stbd",
+   "x": 15771.8,
+   "z": -9169.2,
+   "depth": -8.4,
+   "light": "FlG.5s"
+  },
+  {
+   "name": "",
+   "type": "buoy_special_purpose",
+   "category": "special_purpose",
+   "shape": "can",
+   "colour": "yellow",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": null,
+   "x": 15544.9,
+   "z": -9053.9,
+   "depth": -4.5,
+   "light": "FlY.2s"
+  },
+  {
+   "name": "No 16",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": "can",
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "port",
+   "x": 15411.8,
+   "z": -9304.3,
+   "depth": -8.1,
+   "light": "FlR.4s"
+  },
+  {
+   "name": "No 14",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": "can",
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "port",
+   "x": 15119.4,
+   "z": -9300,
+   "depth": -8.6,
+   "light": "FlR.2s"
+  },
+  {
+   "name": "2",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": "can",
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "port",
+   "x": 14162.3,
+   "z": -14563.5,
+   "depth": -17.5,
+   "light": "FlR.2s"
+  },
+  {
+   "name": "",
+   "type": "buoy_special_purpose",
+   "category": "special_purpose",
+   "shape": "can",
+   "colour": "yellow",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": null,
+   "x": 13998.8,
+   "z": -13981.9,
+   "depth": -8.5
+  },
+  {
+   "name": "Row",
+   "type": "buoy_lateral",
+   "category": "starboard",
+   "shape": "conical",
+   "colour": "green",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "stbd",
+   "x": 14525.3,
+   "z": -14732.6,
+   "depth": -12.4,
+   "light": "FlG.5s"
+  },
+  {
+   "name": "Ard No 10",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": "can",
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "port",
+   "x": 13939.1,
+   "z": -13191,
+   "depth": -17.1,
+   "light": "FlR.2s"
+  },
+  {
+   "name": "No 24",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": "can",
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "port",
+   "x": 14093.2,
+   "z": -13884.2,
+   "depth": -12.3,
+   "light": "FlR.5s"
+  },
+  {
+   "name": "No 12",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": "can",
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "port",
+   "x": 14724.5,
+   "z": -9466.8,
+   "depth": -11.8,
+   "light": "FlR.2s"
+  },
+  {
+   "name": "",
+   "type": "buoy_lateral",
+   "category": "starboard",
+   "shape": "conical",
+   "colour": "green",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "stbd",
+   "x": 14381.3,
+   "z": -9626.1,
+   "depth": -6,
+   "light": "FlG.5s"
+  },
+  {
+   "name": "No 8",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": "can",
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "port",
+   "x": 14508.6,
+   "z": -9690.6,
+   "depth": -11.8,
+   "light": "FlR.4s"
+  },
+  {
+   "name": "No 4",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": "can",
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "port",
+   "x": 14176.6,
+   "z": -10273.6,
+   "depth": -12,
+   "light": "FlR.2s"
+  },
+  {
+   "name": "No 2",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": "can",
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "port",
+   "x": 14114.3,
+   "z": -10405.2,
+   "depth": -12,
+   "light": "FlR.2s"
+  },
+  {
+   "name": "No 1",
+   "type": "buoy_lateral",
+   "category": "starboard",
+   "shape": "conical",
+   "colour": "green",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "stbd",
+   "x": 13664.6,
+   "z": -10582.5,
+   "depth": -10.5,
+   "light": "FlG.5s"
+  },
+  {
+   "name": "4",
+   "type": "buoy_lateral",
+   "category": "port",
+   "shape": "can",
+   "colour": "red",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "port",
+   "x": 13458.7,
+   "z": -15311,
+   "depth": -15.3,
+   "light": "FlR.4s"
+  },
+  {
+   "name": "Cairndhu",
+   "type": "buoy_lateral",
+   "category": "starboard",
+   "shape": "conical",
+   "colour": "green",
+   "pattern": null,
+   "topmark": null,
+   "gameKind": "stbd",
+   "x": 13639.6,
+   "z": -15660,
+   "depth": -13.3,
+   "light": "FlG.2.5s"
+  }
+ ],
+ "lights": [
+  {
+   "name": "Largs Yacht Haven",
+   "x": 7536,
+   "z": 10172.9,
+   "character": "Fl",
+   "period": 10,
+   "sectors": [
+    {
+     "colour": "white"
+    }
+   ],
+   "label": "FlW.10s",
+   "on": "buoy"
+  },
+  {
+   "name": "",
+   "x": 16898,
+   "z": -8717.7,
+   "height": 7,
+   "range": 2,
+   "character": "Q",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "QG",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 16168,
+   "z": -9088.3,
+   "height": 9,
+   "range": 4,
+   "character": "Oc",
+   "period": 10,
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "OcG.10s",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 14973.1,
+   "z": -9017.9,
+   "height": 7,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FG",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 13633.6,
+   "z": -9927.9,
+   "height": 33,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FG",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 13722,
+   "z": -10280,
+   "height": 18,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FG",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 13726.2,
+   "z": -10294.8,
+   "height": 8,
+   "range": 8,
+   "character": "Q",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "QG",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 13014.9,
+   "z": -10578.4,
+   "height": 9,
+   "range": 12,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FG",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 13022.2,
+   "z": -10604.3,
+   "height": 7,
+   "range": 12,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FG",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 12223.5,
+   "z": -16569.9,
+   "height": 6,
+   "range": 6,
+   "character": "Fl",
+   "period": 3,
+   "sequence": "0.4+(2.6)",
+   "sectors": [
+    {
+     "colour": "white"
+    }
+   ],
+   "label": "FlW.3s",
+   "on": "beacon"
+  },
+  {
+   "name": "",
+   "x": 13102.2,
+   "z": -15363.5,
+   "height": 8,
+   "range": 6,
+   "character": "Fl",
+   "group": "2",
+   "period": 10,
+   "sequence": "0.8+(1.4)+0.8+(7)",
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "Fl(2)R.10s",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 12380.5,
+   "z": -16764.5,
+   "height": 9,
+   "range": 13,
+   "character": "Q",
+   "group": "3",
+   "period": 6,
+   "sectors": [
+    {
+     "colour": "green",
+     "from": 270,
+     "to": 0
+    },
+    {
+     "colour": "white",
+     "from": 0,
+     "to": 114
+    },
+    {
+     "colour": "red",
+     "from": 114,
+     "to": 188
+    },
+    {
+     "colour": "green;white",
+     "from": 315,
+     "to": 317
+    },
+    {
+     "colour": "white",
+     "from": 317,
+     "to": 319
+    },
+    {
+     "colour": "red;white",
+     "from": 319,
+     "to": 321
+    },
+    {
+     "colour": "red",
+     "from": 321,
+     "to": 325
+    }
+   ],
+   "label": "Q(3)GWR.6s",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 12066.4,
+   "z": -15734.1,
+   "range": 5,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FR",
+   "on": "light"
+  },
+  {
+   "name": "No.2N",
+   "x": 11837.3,
+   "z": -16254,
+   "height": 5,
+   "range": 13,
+   "character": "Al",
+   "sectors": [
+    {
+     "colour": "green;white",
+     "from": 291,
+     "to": 294
+    },
+    {
+     "colour": "white",
+     "from": 294,
+     "to": 296
+    },
+    {
+     "colour": "red;white",
+     "from": 296,
+     "to": 299
+    },
+    {
+     "colour": "red",
+     "from": 299,
+     "to": 301
+    }
+   ],
+   "label": "AlGWR",
+   "on": "beacon"
+  },
+  {
+   "name": "No.3N",
+   "x": 12880.7,
+   "z": -15146.6,
+   "height": 9,
+   "range": 13,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "green",
+     "from": 144,
+     "to": 145
+    },
+    {
+     "colour": "green;white",
+     "from": 145,
+     "to": 148
+    },
+    {
+     "colour": "white",
+     "from": 148,
+     "to": 150
+    },
+    {
+     "colour": "red;white",
+     "from": 150,
+     "to": 153
+    },
+    {
+     "colour": "red",
+     "from": 153,
+     "to": 154
+    }
+   ],
+   "label": "FGWR",
+   "on": "light"
+  },
+  {
+   "name": "No.7N",
+   "x": 14291.9,
+   "z": -15113.3,
+   "height": 5,
+   "range": 13,
+   "character": "Al",
+   "sectors": [
+    {
+     "colour": "green;white",
+     "from": 353,
+     "to": 355
+    },
+    {
+     "colour": "white",
+     "from": 355,
+     "to": 357
+    },
+    {
+     "colour": "red;white",
+     "from": 357,
+     "to": 0
+    },
+    {
+     "colour": "red",
+     "from": 0,
+     "to": 2
+    },
+    {
+     "colour": "green;white",
+     "from": 111,
+     "to": 114
+    },
+    {
+     "colour": "white",
+     "from": 114,
+     "to": 116
+    },
+    {
+     "colour": "red;white",
+     "from": 116,
+     "to": 119
+    },
+    {
+     "colour": "red",
+     "from": 119,
+     "to": 121
+    }
+   ],
+   "label": "AlGWR",
+   "on": "beacon"
+  },
+  {
+   "name": "No.1",
+   "x": 15824.8,
+   "z": -13367.5,
+   "height": 9,
+   "character": "VQ",
+   "group": "4",
+   "period": 5,
+   "sectors": [
+    {
+     "colour": "yellow"
+    }
+   ],
+   "label": "VQ(4)Y.5s",
+   "on": "beacon"
+  },
+  {
+   "name": "",
+   "x": 12148.8,
+   "z": -12257.4,
+   "height": 5,
+   "range": 10,
+   "character": "Fl",
+   "group": "2",
+   "period": 10,
+   "sectors": [
+    {
+     "colour": "white"
+    }
+   ],
+   "label": "Fl(2)W.10s",
+   "on": "beacon"
+  },
+  {
+   "name": "No.8N",
+   "x": 15491,
+   "z": -13319.3,
+   "height": 4,
+   "range": 13,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "green",
+     "from": 75,
+     "to": 77.5
+    },
+    {
+     "colour": "green;white",
+     "from": 77.5,
+     "to": 79.5
+    },
+    {
+     "colour": "white",
+     "from": 79.5,
+     "to": 80.5
+    },
+    {
+     "colour": "red;white",
+     "from": 80.5,
+     "to": 82.5
+    },
+    {
+     "colour": "red",
+     "from": 82.5,
+     "to": 85
+    },
+    {
+     "colour": "green",
+     "from": 132,
+     "to": 134
+    },
+    {
+     "colour": "green;white",
+     "from": 134,
+     "to": 137
+    },
+    {
+     "colour": "white",
+     "from": 137,
+     "to": 139
+    },
+    {
+     "colour": "red;white",
+     "from": 139,
+     "to": 142
+    }
+   ],
+   "label": "FGWR",
+   "on": "beacon"
+  },
+  {
+   "name": "",
+   "x": 10992.2,
+   "z": -10407.9,
+   "height": 4,
+   "range": 3,
+   "character": "Fl",
+   "period": 5,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FlR.5s",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 10900.7,
+   "z": -10339.3,
+   "height": 4,
+   "range": 3,
+   "character": "Fl",
+   "period": 5,
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FlG.5s",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 4803.4,
+   "z": -11788.2,
+   "height": 6,
+   "range": 6,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FR",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 8257.1,
+   "z": -9683.2,
+   "height": 5,
+   "range": 6,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FG",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 5806.8,
+   "z": -1213.9,
+   "height": 7,
+   "range": 5,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FG",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 3989.9,
+   "z": -9141.2,
+   "height": 5,
+   "range": 6,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FR",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": -3994.8,
+   "z": -3427.8,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FG",
+   "on": "light"
+  },
+  {
+   "name": "Gantock Rocks Light",
+   "x": 4193.7,
+   "z": -8431.1,
+   "height": 12,
+   "range": 6,
+   "character": "Fl",
+   "period": 6,
+   "sequence": "0.8+(5.2)",
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FlR.6s",
+   "on": "lighthouse"
+  },
+  {
+   "name": "",
+   "x": -3997.7,
+   "z": -3373.1,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FG",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": -4370,
+   "z": 2886.4,
+   "height": 7,
+   "range": 5,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FR",
+   "on": "light"
+  },
+  {
+   "name": "Toward Point Lighthouse",
+   "x": 330,
+   "z": 325.7,
+   "height": 21,
+   "range": 22,
+   "character": "Fl",
+   "period": 10,
+   "sequence": "0.2+(9.8)",
+   "sectors": [
+    {
+     "colour": "white"
+    }
+   ],
+   "label": "FlW.10s",
+   "on": "lighthouse"
+  },
+  {
+   "name": "",
+   "x": -4159.5,
+   "z": 2928.3,
+   "height": 7,
+   "range": 2,
+   "character": "Fl",
+   "period": 3,
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FlG.3s",
+   "on": "light"
+  },
+  {
+   "name": "No.13",
+   "x": -1188.7,
+   "z": 4073.4,
+   "height": 5,
+   "range": 5,
+   "character": "Fl",
+   "group": "2",
+   "period": 10,
+   "sectors": [
+    {
+     "colour": "white"
+    }
+   ],
+   "label": "Fl(2)W.10s",
+   "on": "beacon"
+  },
+  {
+   "name": "",
+   "x": 7031.1,
+   "z": 7717.5,
+   "height": 7,
+   "range": 5,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FG",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 7730.8,
+   "z": 10251.7,
+   "height": 4,
+   "range": 4,
+   "character": "Oc",
+   "period": 10,
+   "sequence": "7+(3)",
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "OcR.10s",
+   "on": "beacon"
+  },
+  {
+   "name": "",
+   "x": 7673.8,
+   "z": 10285.1,
+   "height": 4,
+   "range": 4,
+   "character": "Oc",
+   "period": 10,
+   "sequence": "7+(3)",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "OcG.10s",
+   "on": "beacon"
+  },
+  {
+   "name": "",
+   "x": 7622.7,
+   "z": 11005.3,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FG",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 7611.7,
+   "z": 10828.4,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FG",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 3317.4,
+   "z": 12596.5,
+   "height": 9,
+   "range": 5,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FR",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 3380.9,
+   "z": 12726.3,
+   "height": 7,
+   "range": 5,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FR",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 3664.8,
+   "z": 12989.4,
+   "height": 5,
+   "range": 2,
+   "character": "Q",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "QG",
+   "on": "light"
+  },
+  {
+   "name": "Sheanawally Point",
+   "x": 2863,
+   "z": 14464.6,
+   "height": 6,
+   "range": 5,
+   "character": "Fl",
+   "period": 10,
+   "sectors": [
+    {
+     "colour": "white",
+     "from": 61,
+     "to": 300
+    }
+   ],
+   "label": "FlW.10s",
+   "on": "light"
+  },
+  {
+   "name": "",
+   "x": 1106.2,
+   "z": 16079.3,
+   "height": 28,
+   "range": 14,
+   "character": "Fl",
+   "period": 6,
+   "sectors": [
+    {
+     "colour": "white",
+     "from": 334,
+     "to": 193
+    }
+   ],
+   "label": "FlW.6s",
+   "on": "light"
+  },
+  {
+   "name": "Runnaneun Point",
+   "x": -1167.9,
+   "z": 15018.8,
+   "height": 8,
+   "range": 12,
+   "character": "Fl",
+   "period": 6,
+   "sequence": "1+(5)",
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FlR.6s",
+   "on": "light"
+  },
+  {
+   "name": "No 32",
+   "x": 17292,
+   "z": -8782.2,
+   "character": "Fl",
+   "period": 2,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FlR.2s",
+   "on": "buoy"
+  },
+  {
+   "name": "No 30",
+   "x": 16941.9,
+   "z": -8969.5,
+   "character": "Fl",
+   "period": 2,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FlR.2s",
+   "on": "buoy"
+  },
+  {
+   "name": "No 28",
+   "x": 16411.5,
+   "z": -9254.3,
+   "character": "Fl",
+   "period": 2,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FlR.2s",
+   "on": "buoy"
+  },
+  {
+   "name": "Garvel No 24",
+   "x": 16114.1,
+   "z": -9378.3,
+   "character": "Fl",
+   "period": 4,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FlR.4s",
+   "on": "buoy"
+  },
+  {
+   "name": "",
+   "x": 15025.4,
+   "z": -12392.1,
+   "character": "Q",
+   "group": "9",
+   "period": 15,
+   "sectors": [
+    {
+     "colour": "white"
+    }
+   ],
+   "label": "Q(9)W.15s",
+   "on": "buoy"
+  },
+  {
+   "name": "",
+   "x": -5251.7,
+   "z": -5040.8,
+   "character": "Fl",
+   "group": "5",
+   "period": 20,
+   "sectors": [
+    {
+     "colour": "yellow"
+    }
+   ],
+   "label": "Fl(5)Y.20s",
+   "on": "buoy"
+  },
+  {
+   "name": "Ashton",
+   "x": 8770.9,
+   "z": -11508.4,
+   "character": "Iso",
+   "period": 5,
+   "sectors": [
+    {
+     "colour": "white"
+    }
+   ],
+   "label": "IsoW.5s",
+   "on": "buoy"
+  },
+  {
+   "name": "",
+   "x": 4033.2,
+   "z": -9084,
+   "character": "Fl",
+   "group": "5",
+   "period": 20,
+   "sectors": [
+    {
+     "colour": "yellow"
+    }
+   ],
+   "label": "Fl(5)Y.20s",
+   "on": "buoy"
+  },
+  {
+   "name": "Cowal",
+   "x": 4420.1,
+   "z": -7610.6,
+   "character": "LFl",
+   "period": 10,
+   "sectors": [
+    {
+     "colour": "white"
+    }
+   ],
+   "label": "LFlW.10s",
+   "on": "buoy"
+  },
+  {
+   "name": "",
+   "x": 5129.4,
+   "z": -8792.4,
+   "character": "Q",
+   "group": "3",
+   "period": 10,
+   "sectors": [
+    {
+     "colour": "white"
+    }
+   ],
+   "label": "Q(3)W.10s",
+   "on": "buoy"
+  },
+  {
+   "name": "No 31",
+   "x": 4114,
+   "z": -8620.7,
+   "character": "Q",
+   "sectors": [
+    {
+     "colour": "white"
+    }
+   ],
+   "label": "QW",
+   "on": "buoy"
+  },
+  {
+   "name": "Loch Long",
+   "x": 6944.7,
+   "z": -13474.5,
+   "character": "Oc",
+   "period": 6,
+   "sectors": [
+    {
+     "colour": "white"
+    }
+   ],
+   "label": "OcW.6s",
+   "on": "buoy"
+  },
+  {
+   "name": "Kirn",
+   "x": 5055.2,
+   "z": -10543.9,
+   "character": "Fl",
+   "group": "4",
+   "period": 12,
+   "sectors": [
+    {
+     "colour": "yellow"
+    }
+   ],
+   "label": "Fl(4)Y.12s",
+   "on": "buoy"
+  },
+  {
+   "name": "No 30",
+   "x": 5478.3,
+   "z": -12699.8,
+   "character": "Q+LFl",
+   "group": "6",
+   "period": 15,
+   "sectors": [
+    {
+     "colour": "white"
+    }
+   ],
+   "label": "Q+LFl(6)W.15s",
+   "on": "buoy"
+  },
+  {
+   "name": "Kil No 3",
+   "x": 7960,
+   "z": -13534.4,
+   "character": "Fl",
+   "period": 5,
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FlG.5s",
+   "on": "buoy"
+  },
+  {
+   "name": "Kil No 1",
+   "x": 9167.8,
+   "z": -12555.2,
+   "character": "Fl",
+   "period": 5,
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FlG.5s",
+   "on": "buoy"
+  },
+  {
+   "name": "Kil No 2",
+   "x": 9242.1,
+   "z": -12823.6,
+   "character": "Fl",
+   "period": 2,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FlR.2s",
+   "on": "buoy"
+  },
+  {
+   "name": "M1",
+   "x": 10583.1,
+   "z": -10900.2,
+   "character": "Fl",
+   "group": "5",
+   "period": 20,
+   "sectors": [
+    {
+     "colour": "yellow"
+    }
+   ],
+   "label": "Fl(5)Y.20s",
+   "on": "buoy"
+  },
+  {
+   "name": "Ard No 8",
+   "x": 12849.4,
+   "z": -13084.7,
+   "character": "Fl",
+   "period": 2,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FlR.2s",
+   "on": "buoy"
+  },
+  {
+   "name": "Whiteforeland",
+   "x": 12275.2,
+   "z": -11527.2,
+   "character": "LFl",
+   "period": 10,
+   "sectors": [
+    {
+     "colour": "white"
+    }
+   ],
+   "label": "LFlW.10s",
+   "on": "buoy"
+  },
+  {
+   "name": "No 27",
+   "x": 12282.7,
+   "z": -11867.8,
+   "character": "Fl",
+   "period": 2,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FlR.2s",
+   "on": "buoy"
+  },
+  {
+   "name": "",
+   "x": 11119,
+   "z": -11984.7,
+   "character": "Fl",
+   "period": 3,
+   "sectors": [
+    {
+     "colour": "yellow"
+    }
+   ],
+   "label": "FlY.3s",
+   "on": "buoy"
+  },
+  {
+   "name": "Ard No 4",
+   "x": 11136.2,
+   "z": -12692,
+   "character": "Fl",
+   "period": 2,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FlR.2s",
+   "on": "buoy"
+  },
+  {
+   "name": "Ard No 5",
+   "x": 12040.7,
+   "z": -12548.3,
+   "character": "Fl",
+   "period": 5,
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FlG.5s",
+   "on": "buoy"
+  },
+  {
+   "name": "6",
+   "x": 12500.1,
+   "z": -15789.7,
+   "character": "Fl",
+   "period": 2,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FlR.2s",
+   "on": "buoy"
+  },
+  {
+   "name": "Rhu SW",
+   "x": 12034.7,
+   "z": -16236.4,
+   "character": "Q",
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "QR",
+   "on": "buoy"
+  },
+  {
+   "name": "",
+   "x": 13075.7,
+   "z": -16147.7,
+   "character": "Fl",
+   "period": 4,
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FlG.4s",
+   "on": "buoy"
+  },
+  {
+   "name": "Rhu SE",
+   "x": 12413.9,
+   "z": -16188.4,
+   "character": "Fl",
+   "period": 3,
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FlG.3s",
+   "on": "buoy"
+  },
+  {
+   "name": "Rhu NE",
+   "x": 11976.9,
+   "z": -16911.3,
+   "character": "Q",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "QG",
+   "on": "buoy"
+  },
+  {
+   "name": "Rhu NW",
+   "x": 11766,
+   "z": -16727.1,
+   "character": "Fl",
+   "period": 5,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FlR.5s",
+   "on": "buoy"
+  },
+  {
+   "name": "No 5",
+   "x": 15990.1,
+   "z": -9196.9,
+   "character": "Fl",
+   "period": 2,
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FlG.2s",
+   "on": "buoy"
+  },
+  {
+   "name": "No 20",
+   "x": 15822.1,
+   "z": -9357.3,
+   "character": "Fl",
+   "period": 2,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FlR.2s",
+   "on": "buoy"
+  },
+  {
+   "name": "No 3",
+   "x": 15771.8,
+   "z": -9169.2,
+   "character": "Fl",
+   "period": 5,
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FlG.5s",
+   "on": "buoy"
+  },
+  {
+   "name": "",
+   "x": 15544.9,
+   "z": -9053.9,
+   "character": "Fl",
+   "period": 2,
+   "sectors": [
+    {
+     "colour": "yellow"
+    }
+   ],
+   "label": "FlY.2s",
+   "on": "buoy"
+  },
+  {
+   "name": "No 16",
+   "x": 15411.8,
+   "z": -9304.3,
+   "character": "Fl",
+   "period": 4,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FlR.4s",
+   "on": "buoy"
+  },
+  {
+   "name": "No 14",
+   "x": 15119.4,
+   "z": -9300,
+   "character": "Fl",
+   "period": 2,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FlR.2s",
+   "on": "buoy"
+  },
+  {
+   "name": "2",
+   "x": 14162.3,
+   "z": -14563.5,
+   "character": "Fl",
+   "period": 2,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FlR.2s",
+   "on": "buoy"
+  },
+  {
+   "name": "Row",
+   "x": 14525.3,
+   "z": -14732.6,
+   "character": "Fl",
+   "period": 5,
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FlG.5s",
+   "on": "buoy"
+  },
+  {
+   "name": "Ard No 10",
+   "x": 13939.1,
+   "z": -13191,
+   "character": "Fl",
+   "period": 2,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FlR.2s",
+   "on": "buoy"
+  },
+  {
+   "name": "No 24",
+   "x": 14093.2,
+   "z": -13884.2,
+   "character": "Fl",
+   "period": 5,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FlR.5s",
+   "on": "buoy"
+  },
+  {
+   "name": "No 12",
+   "x": 14724.5,
+   "z": -9466.8,
+   "character": "Fl",
+   "period": 2,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FlR.2s",
+   "on": "buoy"
+  },
+  {
+   "name": "",
+   "x": 14381.3,
+   "z": -9626.1,
+   "character": "Fl",
+   "period": 5,
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FlG.5s",
+   "on": "buoy"
+  },
+  {
+   "name": "No 8",
+   "x": 14508.6,
+   "z": -9690.6,
+   "character": "Fl",
+   "period": 4,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FlR.4s",
+   "on": "buoy"
+  },
+  {
+   "name": "No 4",
+   "x": 14176.6,
+   "z": -10273.6,
+   "character": "Fl",
+   "period": 2,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FlR.2s",
+   "on": "buoy"
+  },
+  {
+   "name": "No 2",
+   "x": 14114.3,
+   "z": -10405.2,
+   "character": "Fl",
+   "period": 2,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FlR.2s",
+   "on": "buoy"
+  },
+  {
+   "name": "No 1",
+   "x": 13664.6,
+   "z": -10582.5,
+   "character": "Fl",
+   "period": 5,
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FlG.5s",
+   "on": "buoy"
+  },
+  {
+   "name": "4",
+   "x": 13458.7,
+   "z": -15311,
+   "character": "Fl",
+   "period": 4,
+   "sectors": [
+    {
+     "colour": "red"
+    }
+   ],
+   "label": "FlR.4s",
+   "on": "buoy"
+  },
+  {
+   "name": "Cairndhu",
+   "x": 13639.6,
+   "z": -15660,
+   "character": "Fl",
+   "period": 2.5,
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FlG.2.5s",
+   "on": "buoy"
+  },
+  {
+   "name": "Ardencaple Castle",
+   "x": 14226,
+   "z": -16026.2,
+   "height": 26,
+   "range": 12,
+   "character": "F",
+   "sectors": [
+    {
+     "colour": "green"
+    }
+   ],
+   "label": "FG",
+   "on": "light"
+  },
+  {
+   "name": "Cloch Point",
+   "x": 6629.4,
+   "z": -8597.8,
+   "height": 24,
+   "range": 8,
+   "character": "Fl",
+   "period": 3,
+   "sequence": "0.6+(2.4)",
+   "sectors": [
+    {
+     "colour": "white"
+    }
+   ],
+   "label": "FlW.3s",
+   "on": "lighthouse"
+  }
+ ],
+ "hazards": [
+  {
+   "name": "",
+   "kind": "rock",
+   "x": -11612.4,
+   "z": -7349.8,
+   "depth": -8.6,
+   "category": null,
+   "waterLevel": "awash"
+  },
+  {
+   "name": "",
+   "kind": "rock",
+   "x": -11671.6,
+   "z": -7397.9,
+   "depth": -7,
+   "category": null,
+   "waterLevel": "awash"
+  },
+  {
+   "name": "",
+   "kind": "rock",
+   "x": -11667.9,
+   "z": -7429.3,
+   "depth": -4.9,
+   "category": null,
+   "waterLevel": "awash"
+  },
+  {
+   "name": "",
+   "kind": "rock",
+   "x": -11715.5,
+   "z": -7376.9,
+   "depth": -7.3,
+   "category": null,
+   "waterLevel": "awash"
+  },
+  {
+   "name": "",
+   "kind": "rock",
+   "x": -13235.1,
+   "z": -7367.5,
+   "depth": -5.8,
+   "category": null,
+   "waterLevel": "awash"
+  },
+  {
+   "name": "",
+   "kind": "rock",
+   "x": -12966.8,
+   "z": -7407,
+   "depth": -4.2,
+   "category": null,
+   "waterLevel": "awash"
+  },
+  {
+   "name": "Puffin Rock",
+   "kind": "rock",
+   "x": 4803.9,
+   "z": -11323.3,
+   "depth": -2.3,
+   "category": null,
+   "waterLevel": null
+  },
+  {
+   "name": "Eilean Dhearg",
+   "kind": "skerry",
+   "x": -12877.6,
+   "z": -8960.3,
+   "depth": 1,
+   "radius": 31.6,
+   "drawn": true
+  },
+  {
+   "name": "Eilean Buidhe",
+   "kind": "skerry",
+   "x": -11730,
+   "z": -7264.2,
+   "depth": 1.4,
+   "radius": 52.3,
+   "drawn": true
+  },
+  {
+   "name": "Eilean Fraoich",
+   "kind": "skerry",
+   "x": -11945.3,
+   "z": -7020,
+   "depth": 1.6,
+   "radius": 39.9,
+   "drawn": true
+  },
+  {
+   "name": "The Clach",
+   "kind": "skerry",
+   "x": 3065.4,
+   "z": 13432.1,
+   "depth": -6.3,
+   "radius": 24.1,
+   "drawn": false
+  },
+  {
+   "name": "The Leug",
+   "kind": "skerry",
+   "x": 3308.3,
+   "z": 13029.6,
+   "depth": -9.5,
+   "radius": 10.7,
+   "drawn": false
+  },
+  {
+   "name": "The Spoig",
+   "kind": "skerry",
+   "x": 3434.2,
+   "z": 13115.2,
+   "depth": 1,
+   "radius": 31.5,
+   "drawn": true
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 10374.7,
+   "z": -10822.8,
+   "depth": 0.6,
+   "radius": 41.9,
+   "drawn": true
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 3524.4,
+   "z": 12559.6,
+   "depth": -6,
+   "radius": 44.5,
+   "drawn": false
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": 3437.5,
+   "z": 12533.5,
+   "depth": -2.3,
+   "radius": 52.4,
+   "drawn": false
+  },
+  {
+   "name": "Gantock Rocks",
+   "kind": "rock",
+   "x": 4187.3,
+   "z": -8478.9,
+   "depth": -4.1,
+   "category": null,
+   "waterLevel": "dry"
+  },
+  {
+   "name": "",
+   "kind": "skerry",
+   "x": -1177,
+   "z": 15017.3,
+   "depth": -2.7,
+   "radius": 13.5,
+   "drawn": false
+  },
+  {
+   "name": "Green Island",
+   "kind": "skerry",
+   "x": 13628.7,
+   "z": -13954.1,
+   "depth": 1,
+   "radius": 32.6,
+   "drawn": true
+  },
+  {
+   "name": "MV Captayannis",
+   "kind": "wreck",
+   "x": 15169.4,
+   "z": -12322.7,
+   "depth": -8.2,
+   "category": "hull_showing",
+   "waterLevel": null
+  },
+  {
+   "name": "Eilean Buidhe",
+   "kind": "skerry",
+   "x": -11701.4,
+   "z": -7323.2,
+   "depth": -4.9,
+   "radius": 16,
+   "drawn": false
+  },
+  {
+   "name": "Eilean Mòr",
+   "kind": "skerry",
+   "x": -11687.8,
+   "z": -6816.1,
+   "depth": 1.2,
+   "radius": 31.2,
+   "drawn": true
+  },
+  {
+   "name": "Eilean Mòr",
+   "kind": "skerry",
+   "x": -11657.9,
+   "z": -6721.4,
+   "depth": 0.7,
+   "radius": 24.6,
+   "drawn": true
+  },
+  {
+   "name": "Eilean Fraoich",
+   "kind": "skerry",
+   "x": -11985.9,
+   "z": -6929.1,
+   "depth": 0.6,
+   "radius": 22.2,
+   "drawn": true
+  }
+ ],
+ "farms": [
+  {
+   "name": "",
+   "category": null,
+   "outline": [
+    [
+     -13346.2,
+     -7084.7
+    ],
+    [
+     -13255.8,
+     -7028.2
+    ],
+    [
+     -13358.1,
+     -6864.9
+    ],
+    [
+     -13448.5,
+     -6921.4
+    ],
+    [
+     -13346.2,
+     -7084.7
+    ]
+   ]
+  }
+ ],
+ "currents": []
+}

@@ -1,0 +1,1225 @@
+{
+ "warnings": [
+  "7 patches where the coastline's sides disagree (check the coast there)"
+ ],
+ "nav": {
+  "marks": 97,
+  "lights": 93,
+  "hazards": 24,
+  "farms": 1,
+  "currents": 0
+ },
+ "harbours": {
+  "harbours": 78,
+  "blocks": 219,
+  "berths": 1470,
+  "slipways": 13,
+  "buildings": 5415,
+  "edits": 0,
+  "roles": {
+   "pier.exposed": "Portencross Pier",
+   "harbour.sheltered": "James Watt Dock Marina",
+   "anchorage": "Lochhead anchorage"
+  }
+ },
+ "dredgedCells": 2114,
+ "triangles": 787175,
+ "deepTriangles": 7609,
+ "vertices": 438843,
+ "bytes": 19507166,
+ "chunks": [
+  {
+   "id": 0,
+   "triangles": 343
+  },
+  {
+   "id": 1,
+   "triangles": 445
+  },
+  {
+   "id": 2,
+   "triangles": 194
+  },
+  {
+   "id": 3,
+   "triangles": 304
+  },
+  {
+   "id": 4,
+   "triangles": 4065
+  },
+  {
+   "id": 5,
+   "triangles": 630
+  },
+  {
+   "id": 6,
+   "triangles": 786
+  },
+  {
+   "id": 7,
+   "triangles": 812
+  },
+  {
+   "id": 8,
+   "triangles": 1370
+  },
+  {
+   "id": 9,
+   "triangles": 2457
+  },
+  {
+   "id": 10,
+   "triangles": 3274
+  },
+  {
+   "id": 11,
+   "triangles": 4526
+  },
+  {
+   "id": 12,
+   "triangles": 2757
+  },
+  {
+   "id": 13,
+   "triangles": 1634
+  },
+  {
+   "id": 14,
+   "triangles": 3316
+  },
+  {
+   "id": 15,
+   "triangles": 6771
+  },
+  {
+   "id": 16,
+   "triangles": 2321
+  },
+  {
+   "id": 17,
+   "triangles": 742
+  },
+  {
+   "id": 18,
+   "triangles": 183
+  },
+  {
+   "id": 19,
+   "triangles": 1092
+  },
+  {
+   "id": 20,
+   "triangles": 2519
+  },
+  {
+   "id": 21,
+   "triangles": 1679
+  },
+  {
+   "id": 22,
+   "triangles": 9954
+  },
+  {
+   "id": 23,
+   "triangles": 2852
+  },
+  {
+   "id": 24,
+   "triangles": 289
+  },
+  {
+   "id": 25,
+   "triangles": 1067
+  },
+  {
+   "id": 26,
+   "triangles": 3078
+  },
+  {
+   "id": 27,
+   "triangles": 5231
+  },
+  {
+   "id": 28,
+   "triangles": 6595
+  },
+  {
+   "id": 29,
+   "triangles": 6178
+  },
+  {
+   "id": 30,
+   "triangles": 1695
+  },
+  {
+   "id": 31,
+   "triangles": 2537
+  },
+  {
+   "id": 32,
+   "triangles": 5711
+  },
+  {
+   "id": 33,
+   "triangles": 3907
+  },
+  {
+   "id": 34,
+   "triangles": 3661
+  },
+  {
+   "id": 35,
+   "triangles": 2878
+  },
+  {
+   "id": 36,
+   "triangles": 103
+  },
+  {
+   "id": 37,
+   "triangles": 2706
+  },
+  {
+   "id": 38,
+   "triangles": 7286
+  },
+  {
+   "id": 39,
+   "triangles": 2504
+  },
+  {
+   "id": 40,
+   "triangles": 9278
+  },
+  {
+   "id": 41,
+   "triangles": 8300
+  },
+  {
+   "id": 42,
+   "triangles": 2280
+  },
+  {
+   "id": 43,
+   "triangles": 735
+  },
+  {
+   "id": 44,
+   "triangles": 1257
+  },
+  {
+   "id": 45,
+   "triangles": 5913
+  },
+  {
+   "id": 46,
+   "triangles": 5587
+  },
+  {
+   "id": 47,
+   "triangles": 5112
+  },
+  {
+   "id": 48,
+   "triangles": 302
+  },
+  {
+   "id": 49,
+   "triangles": 3685
+  },
+  {
+   "id": 50,
+   "triangles": 4352
+  },
+  {
+   "id": 51,
+   "triangles": 3417
+  },
+  {
+   "id": 52,
+   "triangles": 3
+  },
+  {
+   "id": 53,
+   "triangles": 408
+  },
+  {
+   "id": 54,
+   "triangles": 128
+  },
+  {
+   "id": 55,
+   "triangles": 3800
+  },
+  {
+   "id": 56,
+   "triangles": 8759
+  },
+  {
+   "id": 57,
+   "triangles": 2362
+  },
+  {
+   "id": 58,
+   "triangles": 8398
+  },
+  {
+   "id": 59,
+   "triangles": 9355
+  },
+  {
+   "id": 60,
+   "triangles": 4256
+  },
+  {
+   "id": 61,
+   "triangles": 1314
+  },
+  {
+   "id": 62,
+   "triangles": 218
+  },
+  {
+   "id": 63,
+   "triangles": 2905
+  },
+  {
+   "id": 64,
+   "triangles": 4475
+  },
+  {
+   "id": 65,
+   "triangles": 3335
+  },
+  {
+   "id": 67,
+   "triangles": 513
+  },
+  {
+   "id": 68,
+   "triangles": 2219
+  },
+  {
+   "id": 69,
+   "triangles": 1267
+  },
+  {
+   "id": 70,
+   "triangles": 47
+  },
+  {
+   "id": 71,
+   "triangles": 45
+  },
+  {
+   "id": 72,
+   "triangles": 245
+  },
+  {
+   "id": 73,
+   "triangles": 4676
+  },
+  {
+   "id": 74,
+   "triangles": 10366
+  },
+  {
+   "id": 75,
+   "triangles": 4702
+  },
+  {
+   "id": 76,
+   "triangles": 4281
+  },
+  {
+   "id": 77,
+   "triangles": 7659
+  },
+  {
+   "id": 78,
+   "triangles": 7070
+  },
+  {
+   "id": 79,
+   "triangles": 1385
+  },
+  {
+   "id": 80,
+   "triangles": 643
+  },
+  {
+   "id": 81,
+   "triangles": 3216
+  },
+  {
+   "id": 82,
+   "triangles": 5841
+  },
+  {
+   "id": 83,
+   "triangles": 510
+  },
+  {
+   "id": 84,
+   "triangles": 3597
+  },
+  {
+   "id": 85,
+   "triangles": 5241
+  },
+  {
+   "id": 86,
+   "triangles": 4401
+  },
+  {
+   "id": 87,
+   "triangles": 5116
+  },
+  {
+   "id": 88,
+   "triangles": 5544
+  },
+  {
+   "id": 89,
+   "triangles": 1775
+  },
+  {
+   "id": 90,
+   "triangles": 932
+  },
+  {
+   "id": 91,
+   "triangles": 4893
+  },
+  {
+   "id": 92,
+   "triangles": 10490
+  },
+  {
+   "id": 93,
+   "triangles": 7573
+  },
+  {
+   "id": 94,
+   "triangles": 1926
+  },
+  {
+   "id": 95,
+   "triangles": 6252
+  },
+  {
+   "id": 96,
+   "triangles": 3955
+  },
+  {
+   "id": 97,
+   "triangles": 1774
+  },
+  {
+   "id": 98,
+   "triangles": 875
+  },
+  {
+   "id": 99,
+   "triangles": 3204
+  },
+  {
+   "id": 100,
+   "triangles": 6415
+  },
+  {
+   "id": 101,
+   "triangles": 2
+  },
+  {
+   "id": 102,
+   "triangles": 5536
+  },
+  {
+   "id": 103,
+   "triangles": 1192
+  },
+  {
+   "id": 104,
+   "triangles": 1271
+  },
+  {
+   "id": 105,
+   "triangles": 1627
+  },
+  {
+   "id": 106,
+   "triangles": 2741
+  },
+  {
+   "id": 107,
+   "triangles": 2465
+  },
+  {
+   "id": 108,
+   "triangles": 5397
+  },
+  {
+   "id": 109,
+   "triangles": 9207
+  },
+  {
+   "id": 110,
+   "triangles": 7766
+  },
+  {
+   "id": 111,
+   "triangles": 7443
+  },
+  {
+   "id": 112,
+   "triangles": 5758
+  },
+  {
+   "id": 113,
+   "triangles": 5393
+  },
+  {
+   "id": 114,
+   "triangles": 5321
+  },
+  {
+   "id": 115,
+   "triangles": 3952
+  },
+  {
+   "id": 116,
+   "triangles": 1546
+  },
+  {
+   "id": 117,
+   "triangles": 4479
+  },
+  {
+   "id": 118,
+   "triangles": 2871
+  },
+  {
+   "id": 120,
+   "triangles": 7643
+  },
+  {
+   "id": 121,
+   "triangles": 2096
+  },
+  {
+   "id": 122,
+   "triangles": 616
+  },
+  {
+   "id": 123,
+   "triangles": 49
+  },
+  {
+   "id": 124,
+   "triangles": 284
+  },
+  {
+   "id": 125,
+   "triangles": 121
+  },
+  {
+   "id": 126,
+   "triangles": 5075
+  },
+  {
+   "id": 127,
+   "triangles": 4630
+  },
+  {
+   "id": 128,
+   "triangles": 3170
+  },
+  {
+   "id": 129,
+   "triangles": 1083
+  },
+  {
+   "id": 130,
+   "triangles": 6114
+  },
+  {
+   "id": 131,
+   "triangles": 4528
+  },
+  {
+   "id": 132,
+   "triangles": 2759
+  },
+  {
+   "id": 133,
+   "triangles": 4854
+  },
+  {
+   "id": 134,
+   "triangles": 2439
+  },
+  {
+   "id": 135,
+   "triangles": 7562
+  },
+  {
+   "id": 136,
+   "triangles": 41
+  },
+  {
+   "id": 137,
+   "triangles": 3445
+  },
+  {
+   "id": 138,
+   "triangles": 4444
+  },
+  {
+   "id": 139,
+   "triangles": 1163
+  },
+  {
+   "id": 140,
+   "triangles": 280
+  },
+  {
+   "id": 141,
+   "triangles": 83
+  },
+  {
+   "id": 142,
+   "triangles": 21
+  },
+  {
+   "id": 143,
+   "triangles": 128
+  },
+  {
+   "id": 144,
+   "triangles": 2943
+  },
+  {
+   "id": 145,
+   "triangles": 5613
+  },
+  {
+   "id": 146,
+   "triangles": 4111
+  },
+  {
+   "id": 147,
+   "triangles": 1007
+  },
+  {
+   "id": 148,
+   "triangles": 1535
+  },
+  {
+   "id": 149,
+   "triangles": 3742
+  },
+  {
+   "id": 150,
+   "triangles": 839
+  },
+  {
+   "id": 151,
+   "triangles": 6233
+  },
+  {
+   "id": 152,
+   "triangles": 3426
+  },
+  {
+   "id": 153,
+   "triangles": 3874
+  },
+  {
+   "id": 155,
+   "triangles": 3257
+  },
+  {
+   "id": 156,
+   "triangles": 2622
+  },
+  {
+   "id": 157,
+   "triangles": 427
+  },
+  {
+   "id": 158,
+   "triangles": 84
+  },
+  {
+   "id": 159,
+   "triangles": 54
+  },
+  {
+   "id": 160,
+   "triangles": 24
+  },
+  {
+   "id": 161,
+   "triangles": 141
+  },
+  {
+   "id": 162,
+   "triangles": 3879
+  },
+  {
+   "id": 163,
+   "triangles": 6648
+  },
+  {
+   "id": 164,
+   "triangles": 2045
+  },
+  {
+   "id": 165,
+   "triangles": 3707
+  },
+  {
+   "id": 166,
+   "triangles": 1724
+  },
+  {
+   "id": 167,
+   "triangles": 4403
+  },
+  {
+   "id": 168,
+   "triangles": 3397
+  },
+  {
+   "id": 169,
+   "triangles": 1168
+  },
+  {
+   "id": 170,
+   "triangles": 2809
+  },
+  {
+   "id": 171,
+   "triangles": 998
+  },
+  {
+   "id": 173,
+   "triangles": 2552
+  },
+  {
+   "id": 174,
+   "triangles": 2988
+  },
+  {
+   "id": 175,
+   "triangles": 689
+  },
+  {
+   "id": 176,
+   "triangles": 425
+  },
+  {
+   "id": 177,
+   "triangles": 55
+  },
+  {
+   "id": 178,
+   "triangles": 27
+  },
+  {
+   "id": 179,
+   "triangles": 87
+  },
+  {
+   "id": 180,
+   "triangles": 2399
+  },
+  {
+   "id": 181,
+   "triangles": 4509
+  },
+  {
+   "id": 182,
+   "triangles": 933
+  },
+  {
+   "id": 183,
+   "triangles": 1060
+  },
+  {
+   "id": 184,
+   "triangles": 3147
+  },
+  {
+   "id": 185,
+   "triangles": 1091
+  },
+  {
+   "id": 186,
+   "triangles": 5375
+  },
+  {
+   "id": 187,
+   "triangles": 5320
+  },
+  {
+   "id": 191,
+   "triangles": 2864
+  },
+  {
+   "id": 192,
+   "triangles": 2321
+  },
+  {
+   "id": 193,
+   "triangles": 1307
+  },
+  {
+   "id": 194,
+   "triangles": 503
+  },
+  {
+   "id": 195,
+   "triangles": 44
+  },
+  {
+   "id": 196,
+   "triangles": 52
+  },
+  {
+   "id": 197,
+   "triangles": 118
+  },
+  {
+   "id": 199,
+   "triangles": 1337
+  },
+  {
+   "id": 200,
+   "triangles": 582
+  },
+  {
+   "id": 201,
+   "triangles": 2
+  },
+  {
+   "id": 202,
+   "triangles": 3804
+  },
+  {
+   "id": 203,
+   "triangles": 1462
+  },
+  {
+   "id": 204,
+   "triangles": 2083
+  },
+  {
+   "id": 205,
+   "triangles": 5207
+  },
+  {
+   "id": 209,
+   "triangles": 2371
+  },
+  {
+   "id": 210,
+   "triangles": 3812
+  },
+  {
+   "id": 211,
+   "triangles": 1957
+  },
+  {
+   "id": 212,
+   "triangles": 138
+  },
+  {
+   "id": 213,
+   "triangles": 63
+  },
+  {
+   "id": 214,
+   "triangles": 52
+  },
+  {
+   "id": 215,
+   "triangles": 144
+  },
+  {
+   "id": 219,
+   "triangles": 1665
+  },
+  {
+   "id": 220,
+   "triangles": 4165
+  },
+  {
+   "id": 221,
+   "triangles": 1741
+  },
+  {
+   "id": 222,
+   "triangles": 1317
+  },
+  {
+   "id": 223,
+   "triangles": 6898
+  },
+  {
+   "id": 224,
+   "triangles": 225
+  },
+  {
+   "id": 227,
+   "triangles": 2
+  },
+  {
+   "id": 228,
+   "triangles": 4437
+  },
+  {
+   "id": 229,
+   "triangles": 1913
+  },
+  {
+   "id": 230,
+   "triangles": 381
+  },
+  {
+   "id": 231,
+   "triangles": 88
+  },
+  {
+   "id": 232,
+   "triangles": 92
+  },
+  {
+   "id": 233,
+   "triangles": 102
+  },
+  {
+   "id": 237,
+   "triangles": 3265
+  },
+  {
+   "id": 238,
+   "triangles": 2932
+  },
+  {
+   "id": 239,
+   "triangles": 3047
+  },
+  {
+   "id": 240,
+   "triangles": 1134
+  },
+  {
+   "id": 241,
+   "triangles": 5116
+  },
+  {
+   "id": 242,
+   "triangles": 2676
+  },
+  {
+   "id": 244,
+   "triangles": 2558
+  },
+  {
+   "id": 245,
+   "triangles": 4767
+  },
+  {
+   "id": 246,
+   "triangles": 3877
+  },
+  {
+   "id": 247,
+   "triangles": 3495
+  },
+  {
+   "id": 248,
+   "triangles": 769
+  },
+  {
+   "id": 249,
+   "triangles": 341
+  },
+  {
+   "id": 250,
+   "triangles": 57
+  },
+  {
+   "id": 251,
+   "triangles": 171
+  },
+  {
+   "id": 255,
+   "triangles": 322
+  },
+  {
+   "id": 256,
+   "triangles": 1798
+  },
+  {
+   "id": 257,
+   "triangles": 2473
+  },
+  {
+   "id": 258,
+   "triangles": 3017
+  },
+  {
+   "id": 259,
+   "triangles": 2729
+  },
+  {
+   "id": 260,
+   "triangles": 3341
+  },
+  {
+   "id": 262,
+   "triangles": 4963
+  },
+  {
+   "id": 263,
+   "triangles": 4571
+  },
+  {
+   "id": 264,
+   "triangles": 2879
+  },
+  {
+   "id": 265,
+   "triangles": 4482
+  },
+  {
+   "id": 266,
+   "triangles": 553
+  },
+  {
+   "id": 267,
+   "triangles": 57
+  },
+  {
+   "id": 268,
+   "triangles": 25
+  },
+  {
+   "id": 269,
+   "triangles": 130
+  },
+  {
+   "id": 276,
+   "triangles": 2925
+  },
+  {
+   "id": 277,
+   "triangles": 5210
+  },
+  {
+   "id": 278,
+   "triangles": 702
+  },
+  {
+   "id": 279,
+   "triangles": 714
+  },
+  {
+   "id": 280,
+   "triangles": 7748
+  },
+  {
+   "id": 281,
+   "triangles": 5703
+  },
+  {
+   "id": 282,
+   "triangles": 4526
+  },
+  {
+   "id": 283,
+   "triangles": 2978
+  },
+  {
+   "id": 284,
+   "triangles": 438
+  },
+  {
+   "id": 285,
+   "triangles": 32
+  },
+  {
+   "id": 286,
+   "triangles": 39
+  },
+  {
+   "id": 287,
+   "triangles": 98
+  },
+  {
+   "id": 288,
+   "triangles": 3
+  },
+  {
+   "id": 294,
+   "triangles": 2980
+  },
+  {
+   "id": 295,
+   "triangles": 8494
+  },
+  {
+   "id": 296,
+   "triangles": 5180
+  },
+  {
+   "id": 297,
+   "triangles": 1704
+  },
+  {
+   "id": 298,
+   "triangles": 2397
+  },
+  {
+   "id": 299,
+   "triangles": 2280
+  },
+  {
+   "id": 300,
+   "triangles": 6404
+  },
+  {
+   "id": 301,
+   "triangles": 1982
+  },
+  {
+   "id": 302,
+   "triangles": 126
+  },
+  {
+   "id": 303,
+   "triangles": 26
+  },
+  {
+   "id": 304,
+   "triangles": 70
+  },
+  {
+   "id": 305,
+   "triangles": 88
+  },
+  {
+   "id": 306,
+   "triangles": 5085
+  },
+  {
+   "id": 307,
+   "triangles": 2658
+  },
+  {
+   "id": 313,
+   "triangles": 1371
+  },
+  {
+   "id": 315,
+   "triangles": 4516
+  },
+  {
+   "id": 316,
+   "triangles": 2151
+  },
+  {
+   "id": 317,
+   "triangles": 4737
+  },
+  {
+   "id": 318,
+   "triangles": 1233
+  },
+  {
+   "id": 319,
+   "triangles": 904
+  },
+  {
+   "id": 320,
+   "triangles": 276
+  },
+  {
+   "id": 321,
+   "triangles": 29
+  },
+  {
+   "id": 322,
+   "triangles": 30
+  },
+  {
+   "id": 323,
+   "triangles": 102
+  },
+  {
+   "id": 324,
+   "triangles": 286
+  },
+  {
+   "id": 325,
+   "triangles": 3065
+  },
+  {
+   "id": 326,
+   "triangles": 266
+  },
+  {
+   "id": 335,
+   "triangles": 863
+  },
+  {
+   "id": 336,
+   "triangles": 353
+  },
+  {
+   "id": 337,
+   "triangles": 222
+  },
+  {
+   "id": 338,
+   "triangles": 116
+  },
+  {
+   "id": 339,
+   "triangles": 89
+  },
+  {
+   "id": 340,
+   "triangles": 96
+  },
+  {
+   "id": 341,
+   "triangles": 90
+  }
+ ],
+ "landShare": 0.6247866776873938,
+ "seenFromWater": 0.62,
+ "coastPoints": 21065,
+ "shoreBandPoints": 36314,
+ "chunkBudget": 12000,
+ "package": {
+  "ports": 59,
+  "berths": 85,
+  "blocks": 219,
+  "buildings": 5415,
+  "marks": 81,
+  "lights": 44,
+  "slipways": 13,
+  "fishingGrounds": 3,
+  "pottingGrounds": 24,
+  "landmarks": [
+   "Cruach nan Capull",
+   "Cloch Point FlW.3s"
+  ],
+  "bytes": 794123
+ }
+}

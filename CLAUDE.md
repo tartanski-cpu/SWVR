@@ -72,7 +72,7 @@ Headless browser checks: Chromium is pre-installed for Playwright. Launch it wit
 ## Direction (see PROGRESS.md, "Direction: one engine, three games")
 
 - **Next big step: modular boats, built in this game.** The owner will bring a detailed plan in its own prompt. Don't design or start it ahead of that.
-- **Regions (growing the world), under way** on the owner's brief: see `docs/REGIONS.md` and PROGRESS.md "Regions". A region is a data file in `src/world/regions/`, never code of its own.
+- **Regions (growing the world), under way** on the owner's brief: see `docs/REGIONS.md` and PROGRESS.md "Regions". A region is a data file in `src/world/regions/`, never code of its own. A real-coast map models every harbour in the map data, never just three like the hand-built regions.
 - **Later, only when the owner asks:**
   - a mobile touchscreen driving version;
   - a procedural free-sail world.

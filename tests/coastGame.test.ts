@@ -11,6 +11,7 @@ import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import type { WholeCoastTerrain } from '../src/world/coastRegion';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 type Mods = {
@@ -36,8 +37,8 @@ beforeAll(async () => {
   };
   const oban = m.regions.regionById('oban')!;
   const c = oban.coast!;
-  const bin = readFileSync(join(root, 'public', c.pkg.terrain.dir, c.pkg.terrain.file));
-  m.coast.registerCoastTerrain('oban', bin.buffer.slice(bin.byteOffset, bin.byteOffset + bin.byteLength) as ArrayBuffer, c.pkg.terrain, c.pkg.box, c.x, c.z);
+  const bin = readFileSync(join(root, 'public', (c.pkg.terrain as WholeCoastTerrain).dir, (c.pkg.terrain as WholeCoastTerrain).file));
+  m.coast.registerCoastTerrain('oban', bin.buffer.slice(bin.byteOffset, bin.byteOffset + bin.byteLength) as ArrayBuffer, (c.pkg.terrain as WholeCoastTerrain), c.pkg.box, c.x, c.z);
 });
 
 describe('Oban in the game (coast region test)', () => {
@@ -120,7 +121,7 @@ describe('Oban in the game (coast region test)', () => {
   it("the package matches the region's files (re-run the pipeline's package stage after the mesh)", () => {
     const oban = m.regions.regionById('oban')!;
     const region = JSON.parse(readFileSync(join(root, 'public', 'regions', 'oban', 'region.json'), 'utf8'));
-    const t = oban.coast!.pkg.terrain;
+    const t = oban.coast!.pkg.terrain as WholeCoastTerrain;
     expect(t.faces).toEqual(region.terrain.faces);
     expect(t.vertices).toEqual(region.terrain.vertices);
     expect(t.chunks.length).toBe(region.chunks.length);

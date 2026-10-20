@@ -102,26 +102,38 @@ async function fetchOsm(): Promise<void> {
     for (const m of body.matchAll(/<tag k="([^"]*)" v="([^"]*)"\/>/g)) t[decode(m[1])] = decode(m[2]);
     return t;
   };
-  for (let lon = lonA; lon < lonB - 1e-9; lon += step) {
-    for (let lat = latA; lat < latB - 1e-9; lat += step) {
-      const b = [lon, lat, Math.min(lon + step, lonB), Math.min(lat + step, latB)].map((v) => v.toFixed(5)).join(',');
-      const cache = join(D.raw, `osm-${b}.xml`);
-      let xml: string;
-      if (!force && existsSync(cache)) xml = readFileSync(cache, 'utf8');
-      else {
-        for (let attempt = 0; ; attempt++) {
-          const r = await fetch(`https://api.openstreetmap.org/api/0.6/map?bbox=${b}`, { headers: UA });
-          if (r.ok) {
-            xml = await r.text();
-            break;
-          }
-          if (attempt >= 5) throw new Error(`OSM ${b}: HTTP ${r.status} ${await r.text()}`);
-          console.log(`osm ${b}: HTTP ${r.status}, waiting`);
-          await sleep(5000 * (attempt + 1));
-        }
-        writeFileSync(cache, xml);
+  // One tile: from the cache, or the API. A tile the API refuses as too busy (a town: it
+  // serves at most 50,000 nodes a call) is split in four, and so on down.
+  const tiles: string[] = [];
+  const fetchTile = async (lo0: number, la0: number, lo1: number, la1: number): Promise<void> => {
+    const b = [lo0, la0, lo1, la1].map((v) => v.toFixed(5)).join(',');
+    const cache = join(D.raw, `osm-${b}.xml`);
+    if (!force && existsSync(cache)) return void tiles.push(cache);
+    for (let attempt = 0; ; attempt++) {
+      const r = await fetch(`https://api.openstreetmap.org/api/0.6/map?bbox=${b}`, { headers: UA });
+      if (r.ok) {
+        writeFileSync(cache, await r.text());
+        tiles.push(cache);
         await sleep(1500); // be polite to the main API
+        return;
       }
+      const msg = await r.text();
+      if (r.status === 400 && /too many nodes/i.test(msg)) {
+        console.log(`osm ${b}: too busy, splitting`);
+        const mlo = (lo0 + lo1) / 2;
+        const mla = (la0 + la1) / 2;
+        for (const [a, c, d, e] of [[lo0, la0, mlo, mla], [mlo, la0, lo1, mla], [lo0, mla, mlo, la1], [mlo, mla, lo1, la1]]) await fetchTile(a, c, d, e);
+        return;
+      }
+      if (attempt >= 5) throw new Error(`OSM ${b}: HTTP ${r.status} ${msg}`);
+      console.log(`osm ${b}: HTTP ${r.status}, waiting`);
+      await sleep(5000 * (attempt + 1));
+    }
+  };
+  for (let lon = lonA; lon < lonB - 1e-9; lon += step) for (let lat = latA; lat < latB - 1e-9; lat += step) await fetchTile(lon, lat, Math.min(lon + step, lonB), Math.min(lat + step, latB));
+  for (const cache of tiles) {
+    {
+      const xml = readFileSync(cache, 'utf8');
       for (const m of xml.matchAll(/<node id="(-?\d+)"[^>]*?lat="([-\d.]+)" lon="([-\d.]+)"[^>]*?(\/>|>([\s\S]*?)<\/node>)/g)) {
         const id = Number(m[1]);
         nodes.set(id, [Number(m[3]), Number(m[2])]);
@@ -136,7 +148,7 @@ async function fetchOsm(): Promise<void> {
           tags: tagsOf(m[2]),
         });
       }
-      console.log(`osm ${b}: ${nodes.size} nodes, ${ways.size} ways so far`);
+      console.log(`osm ${cache.replace(/^.*osm-|\.xml$/g, '')}: ${nodes.size} nodes, ${ways.size} ways so far`);
     }
   }
   writeFileSync(

@@ -24,6 +24,9 @@
  *   Harbours   Kit pieces within `clusterGap` m of each other make one harbour, named after
  *              its marina, ferry terminal or named pier, else the nearest place. Its kind:
  *              harbour (quays, a marina, or a big pier), else pier.
+ *              Every harbour found is modelled (the owner's rule, Oct 2026: a real-coast map is
+ *              not cut down to the hand-built regions' three harbours); the package makes each
+ *              one with a berth a port the game sends work to.
  *   Spine      The request's spine roles (harbour.sheltered, pier.exposed, anchorage), by a
  *              harbour's name or "auto": the sheltered harbour is the one with the least
  *              fetch (open water it can see across, averaged round the compass); the exposed

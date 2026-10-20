@@ -23,7 +23,7 @@
  * colours Uint8 r, g, b per face; land-cover class Uint8 per face; faces sorted by chunk) and region.json (where each array
  * starts, the chunks, the counts, the credits). Run: node src/mesh.ts [requestId] (last: after harbours, whose basins it dredges).
  */
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import Delaunator from 'delaunator';
 import { dirs, loadRequest, projection } from './common.ts';
@@ -70,6 +70,10 @@ const T = {
   viewRays: 32,
   viewReach: 8000,
   viewCoarse: 3,
+  /** A chunked (big) region: its triangle budget by area instead (per km², about Oban's density), a coarser viewshed (for speed), and its coarse grid's cell (m). */
+  budgetPerKm2: 850,
+  viewCoarseChunked: 6,
+  coarseCell: 50,
 };
 
 const req = loadRequest(process.argv[2]);
@@ -79,6 +83,10 @@ const theme = THEMES[req.theme];
 if (!theme) throw new Error(`no theme "${req.theme}"`);
 const grid = JSON.parse(readFileSync(join(D.work, 'grid.json'), 'utf8'));
 const { width: W, height: H, cell } = grid;
+if (req.chunked) {
+  T.budget = Math.round(((W * cell * H * cell) / 1e6) * T.budgetPerKm2);
+  T.viewCoarse = T.viewCoarseChunked;
+}
 const rd = (name: string, Ctor: Float32ArrayConstructor | Uint8ArrayConstructor) => {
   const b = readFileSync(join(D.work, name));
   return new Ctor(b.buffer, b.byteOffset, b.byteLength / Ctor.BYTES_PER_ELEMENT);
@@ -500,17 +508,118 @@ faces.forEach((f, n) => {
   if (!last || last.id !== f.chunk) chunks.push({ id: f.chunk, x0: X0 + (f.chunk % CW) * T.chunk, z0: Z0 + Math.floor(f.chunk / CW) * T.chunk, size: T.chunk, start: n, count: 1 });
   else last.count++;
 });
-const parts = [vbuf, ibuf, cbuf, kbuf];
-const offsets: number[] = [];
-let off = 0;
-for (const p of parts) {
-  offsets.push(off);
-  off += p.byteLength;
-  off = Math.ceil(off / 4) * 4;
+// A whole region: one file. A chunked one (a big region, Voyage mode): a file per chunk and
+// a coarse grid of the whole (writeChunked, below).
+let bytes = 0;
+let terrain: Record<string, unknown>;
+if (!req.chunked) {
+  const parts = [vbuf, ibuf, cbuf, kbuf];
+  const offsets: number[] = [];
+  let off = 0;
+  for (const p of parts) {
+    offsets.push(off);
+    off += p.byteLength;
+    off = Math.ceil(off / 4) * 4;
+  }
+  const out = Buffer.alloc(off);
+  parts.forEach((p, i) => Buffer.from(p.buffer, p.byteOffset, p.byteLength).copy(out, offsets[i]));
+  writeFileSync(join(D.out, 'terrain.bin'), out);
+  bytes = out.byteLength;
+  terrain = {
+    file: 'terrain.bin',
+    vertices: { offset: offsets[0], count: nv },
+    faces: { offset: offsets[1], count: faces.length },
+    /** Faces after the chunks: the deep seabed, not drawn, for the physics and the depth sounder. */
+    deep: { start: drawn, count: faces.length - drawn },
+    colours: { offset: offsets[2] },
+    classes: { offset: offsets[3], note: 'ESA WorldCover class per face; 0 under water' },
+  };
+  if (existsSync(join(D.out, 'chunks'))) rmSync(join(D.out, 'chunks'), { recursive: true });
+} else terrain = writeChunked();
+
+/**
+ * The chunked files. Each chunk (`T.chunk` m square) gets chunks/<id>.bin: Uint32 vertex and
+ * face counts, Float32 vertices (x, y, z, region metres; only the ones its faces use), Uint32
+ * faces (its drawn faces first, then its deep ones), RGB bytes per face. A face belongs to the
+ * chunk its middle is in. And coarse.bin: the whole region every `coarseCell` m, rasterised from
+ * the same mesh (so it agrees with it), Int16 heights in decimetres then RGB bytes, rows
+ * running south from the north-west corner: the game's far view, charts, and the ground
+ * wherever a chunk isn't loaded.
+ */
+function writeChunked() {
+  const dir = join(D.out, 'chunks');
+  if (existsSync(dir)) rmSync(dir, { recursive: true });
+  mkdirSync(dir, { recursive: true });
+  if (existsSync(join(D.out, 'terrain.bin'))) rmSync(join(D.out, 'terrain.bin'));
+  const home = (f: Face) => {
+    const mx = (xs[f.a] + xs[f.b] + xs[f.c]) / 3;
+    const mz = (zs[f.a] + zs[f.b] + zs[f.c]) / 3;
+    return Math.min(CH - 1, Math.floor((mz - Z0) / T.chunk)) * CW + Math.min(CW - 1, Math.floor((mx - X0) / T.chunk));
+  };
+  const CH = Math.ceil((Z1 - Z0) / T.chunk);
+  const byChunk = new Map<number, Face[]>();
+  for (const f of faces) {
+    const k = home(f);
+    if (!byChunk.has(k)) byChunk.set(k, []);
+    byChunk.get(k)!.push(f); // faces are sorted drawn first, so each list is too
+  }
+  const list: { id: number; x0: number; z0: number; size: number; file: string; drawn: number; faces: number }[] = [];
+  for (const id of [...byChunk.keys()].sort((p, q) => p - q)) {
+    const fs = byChunk.get(id)!;
+    const remap = new Map<number, number>();
+    const vs: number[] = [];
+    const ix = new Uint32Array(fs.length * 3);
+    const col = new Uint8Array(fs.length * 3);
+    fs.forEach((f, n) => {
+      [f.a, f.b, f.c].forEach((v, q) => {
+        let r = remap.get(v);
+        if (r === undefined) (remap.set(v, (r = remap.size)), vs.push(xs[v], hs[v], zs[v]));
+        ix[n * 3 + q] = r;
+      });
+      col.set(f.col.map(Math.round), n * 3);
+    });
+    const head = new Uint32Array([remap.size, fs.length]);
+    const buf = Buffer.concat([head, new Float32Array(vs), ix, col].map((a) => Buffer.from(a.buffer, a.byteOffset, a.byteLength)));
+    const file = `chunks/${id}.bin`;
+    writeFileSync(join(D.out, file), buf);
+    bytes += buf.byteLength;
+    list.push({ id, x0: X0 + (id % CW) * T.chunk, z0: Z0 + Math.floor(id / CW) * T.chunk, size: T.chunk, file, drawn: fs.filter((f) => f.chunk !== DEEP).length, faces: fs.length });
+  }
+  // The coarse grid: each cell centre takes the height and colour of the face over it.
+  const c = T.coarseCell;
+  const gw = Math.floor((X1 - X0) / c);
+  const gh = Math.floor((Z1 - Z0) / c);
+  const gx0 = X0 + c / 2;
+  const gz0 = Z0 + c / 2;
+  const gH = new Int16Array(gw * gh);
+  const gC = new Uint8Array(gw * gh * 3);
+  for (const f of faces) {
+    const ax = xs[f.a], az = zs[f.a], bx = xs[f.b], bz = zs[f.b], cx = xs[f.c], cz = zs[f.c]; // prettier-ignore
+    const det = (bz - cz) * (ax - cx) + (cx - bx) * (az - cz);
+    if (Math.abs(det) < 1e-9) continue;
+    const i0 = Math.max(0, Math.ceil((Math.min(ax, bx, cx) - gx0) / c));
+    const i1 = Math.min(gw - 1, Math.floor((Math.max(ax, bx, cx) - gx0) / c));
+    const j0 = Math.max(0, Math.ceil((Math.min(az, bz, cz) - gz0) / c));
+    const j1 = Math.min(gh - 1, Math.floor((Math.max(az, bz, cz) - gz0) / c));
+    for (let j = j0; j <= j1; j++)
+      for (let i = i0; i <= i1; i++) {
+        const x = gx0 + i * c;
+        const z = gz0 + j * c;
+        const l1 = ((bz - cz) * (x - cx) + (cx - bx) * (z - cz)) / det;
+        const l2 = ((cz - az) * (x - cx) + (ax - cx) * (z - cz)) / det;
+        const l3 = 1 - l1 - l2;
+        if (l1 < -1e-6 || l2 < -1e-6 || l3 < -1e-6) continue;
+        const k = j * gw + i;
+        gH[k] = Math.round((l1 * hs[f.a] + l2 * hs[f.b] + l3 * hs[f.c]) * 10);
+        gC.set(f.col.map(Math.round), k * 3);
+      }
+  }
+  const coarse = Buffer.concat([Buffer.from(gH.buffer), Buffer.from(gC.buffer)]);
+  writeFileSync(join(D.out, 'coarse.bin'), coarse);
+  bytes += coarse.byteLength;
+  console.log(`chunked: ${list.length} chunk files, coarse grid ${gw} x ${gh} at ${c} m (${(coarse.byteLength / 1e6).toFixed(2)} MB)`);
+  return { chunked: true, coarse: { file: 'coarse.bin', x0: gx0, z0: gz0, cell: c, width: gw, height: gh }, chunks: list, vertices: { count: nv }, faces: { count: faces.length }, deep: { count: faces.length - drawn } };
 }
-const out = Buffer.alloc(off);
-parts.forEach((p, i) => Buffer.from(p.buffer, p.byteOffset, p.byteLength).copy(out, offsets[i]));
-writeFileSync(join(D.out, 'terrain.bin'), out);
 const sources = readFileSync(join(D.raw, 'sources.yaml'), 'utf8');
 const region = {
   format: 'swvr-coast-region/0.1',
@@ -519,15 +628,7 @@ const region = {
   bbox: req.bbox,
   projection: { lon0: P.lon0, lat0: P.lat0, note: 'equirectangular about (lon0, lat0); x east, z south, metres' },
   box: { x0: X0, x1: X1, z0: Z0, z1: Z1 },
-  terrain: {
-    file: 'terrain.bin',
-    vertices: { offset: offsets[0], count: nv },
-    faces: { offset: offsets[1], count: faces.length },
-    /** Faces after the chunks: the deep seabed, not drawn, for the physics and the depth sounder. */
-    deep: { start: drawn, count: faces.length - drawn },
-    colours: { offset: offsets[2] },
-    classes: { offset: offsets[3], note: 'ESA WorldCover class per face; 0 under water' },
-  },
+  terrain,
   /** The coastline (OpenStreetMap), local metres, 0.1 m: for charts and the viewer. */
   coast: coast.map((l) => l.flat()),
   chunks,
@@ -551,7 +652,7 @@ const report = {
   triangles: drawn,
   deepTriangles: faces.length - drawn,
   vertices: nv,
-  bytes: out.byteLength,
+  bytes,
   chunks: chunks.map((c) => ({ id: c.id, triangles: c.count })),
   landShare: grid.landShare,
   /** Share of the land a boat can see (the rest gets almost no triangles), and the coast's points. */
@@ -562,7 +663,7 @@ const report = {
   warnings: [...(earlier.warnings ?? []).filter((w: string) => !/coastline's sides|without bathymetry|over the triangle budget/.test(w)), ...chunks.filter((c) => c.count > T.chunkBudget).map((c) => `chunk ${c.id} is over the triangle budget (${c.count} > ${T.chunkBudget})`), ...(grid.conflicts ? [`${grid.conflicts} patches where the coastline's sides disagree (check the coast there)`] : []), ...(grid.missingDepth ? [`${grid.missingDepth} sea cells without bathymetry (shelf used)`] : [])],
 };
 writeFileSync(reportPath, JSON.stringify(report, null, 1));
-console.log(`mesh: ${drawn} faces drawn, ${faces.length - drawn} deep (physics only), ${nv} vertices, ${chunks.length} chunks, ${(out.byteLength / 1e6).toFixed(2)} MB`);
+console.log(`mesh: ${drawn} faces drawn, ${faces.length - drawn} deep (physics only), ${nv} vertices, ${chunks.length} chunks, ${(bytes / 1e6).toFixed(2)} MB`);
 console.log(`chunk faces: max ${Math.max(...chunks.map((c) => c.count))}, mean ${Math.round(drawn / chunks.length)}`);
 // The budget: a chunk over it fails the stage (the game's tests check the same, so its build fails too).
 const over = chunks.filter((c) => c.count > T.chunkBudget);

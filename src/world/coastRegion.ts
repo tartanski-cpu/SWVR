@@ -8,14 +8,18 @@
  * No code of the region's own: the region's file is its package plus where it goes.
  */
 import type { BerthDef, BlockDef, BuildingDef, CurrentZoneDef, FishingGroundDef, LampDef, LandmarkDef, LightDef, MarkDef, PortDef, PortFloodDef, PottingGround, RegionDef, ShelterDef, SlipwayDef } from './defs';
-import { registerCoastTerrain, type CoastTerrainLayout } from './coastTerrain';
+import { registerChunkedCoast, registerCoastTerrain, type ChunkedCoastLayout, type CoastTerrainLayout } from './coastTerrain';
+
+export type WholeCoastTerrain = CoastTerrainLayout & { dir: string; file: string; chunked?: undefined };
+export type ChunkedCoastTerrain = ChunkedCoastLayout & { dir: string };
 
 /** The package's shape (tools/coast/src/package.ts). */
 export interface CoastPackage {
   format: string;
   id: string;
   name: string;
-  terrain: CoastTerrainLayout & { dir: string; file: string };
+  /** A whole region's terrain.bin layout, or a chunked region's coarse grid and chunk files. */
+  terrain: WholeCoastTerrain | ChunkedCoastTerrain;
   box: { x0: number; x1: number; z0: number; z1: number };
   credits: string;
   licence: string;
@@ -93,17 +97,34 @@ export function fromCoastPackage(pkg: CoastPackage, at: CoastPlacement): RegionD
 }
 
 /**
- * Fetch every coast region's terrain and register it (App, before the world starts).
- * `base` is the site's root (import.meta.env.BASE_URL).
+ * Fetch every coast region's terrain and register it (main.ts, before the world starts): a
+ * whole region's mesh, or a chunked region's coarse grid (its chunks stream in later,
+ * coastStream.ts). `base` is the site's root (import.meta.env.BASE_URL).
  */
 export async function loadCoastTerrains(regions: readonly RegionDef[], base: string): Promise<void> {
   await Promise.all(
     regions.map(async (r) => {
       const c = r.coast;
       if (!c) return;
-      const res = await fetch(`${base}${c.pkg.terrain.dir}${c.pkg.terrain.file}`);
+      const t = c.pkg.terrain;
+      const res = await fetch(`${base}${t.dir}${t.chunked ? t.coarse.file : t.file}`);
       if (!res.ok) throw new Error(`coast region ${r.id}: terrain ${res.status}`);
-      registerCoastTerrain(r.id, await res.arrayBuffer(), c.pkg.terrain, c.pkg.box, c.x, c.z);
+      const bin = await res.arrayBuffer();
+      if (t.chunked) registerChunkedCoast(r.id, bin, t, c.pkg.box, c.x, c.z);
+      else registerCoastTerrain(r.id, bin, t, c.pkg.box, c.x, c.z);
     }),
   );
+}
+
+/**
+ * A big Voyage map's package (the Clyde: public/regions/<id>/package.json) is fetched when
+ * the map is chosen (main.ts), not built into the game, so Career mode never carries it. It
+ * is kept here, by region id, until the region is made from it (world/maps.ts).
+ */
+const REMOTE = new Map<string, CoastPackage>();
+export function setRemotePackage(pkg: CoastPackage): void {
+  REMOTE.set(pkg.id, pkg);
+}
+export function remotePackage(id: string): CoastPackage | undefined {
+  return REMOTE.get(id);
 }

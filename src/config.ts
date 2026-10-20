@@ -4674,11 +4674,26 @@ export const CONFIG = {
      * Oban, all far: 22k triangles at 90 m (48k at 60 m); its silhouette ~7k at 150 m.
      */
     coastFineDistance: 1000,
+    /** ...coarse out to coastMidDistance (m), and beyond that every coastFarCell m (a big region's far hills). */
+    coastMidDistance: 6000,
+    coastFarCell: 270,
     coastCoarseCell: 90,
     coastCoarseOverlap: 90,
     coastCoarseDrop: 1,
     coastSilhouetteCell: 150,
     coastBuildingDistance: 2000,
+    /**
+     * A chunked coast region (a big Voyage map, the Clyde; world/coastStream.ts): a chunk's
+     * detailed ground is fetched when the viewer or any boat comes within coastLoadDistance (m)
+     * of its square, and dropped (memory back) beyond coastUnloadDistance; at most
+     * coastLoadsAtOnce downloads at a time. Elsewhere the ground is the map's coarse grid.
+     */
+    /** A coast region's harbour kit (piers, quays, slipways, lamps) in squares this big (m), each drawn only within coastStructureDistance (m) of the viewer; lighthouses always. */
+    coastStructureCell: 1000,
+    coastStructureDistance: 2500,
+    coastLoadDistance: 1500,
+    coastUnloadDistance: 2600,
+    coastLoadsAtOnce: 4,
   },
 
   /**
