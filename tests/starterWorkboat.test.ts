@@ -142,6 +142,6 @@ describe('the starter workboat in the career', () => {
     send('teleportToPort', 'calder', vesselId);
     for (let i = 0; i < 0.5 / DT; i++) stepWorld(world, [], DT);
     send('careerDebugCash');
-    expect(buyBlocker(world, 'skiff')).toBe('Workboat only');
+    expect(buyBlocker(world, 'skiff')).toBe('Not for this boat');
   });
 });

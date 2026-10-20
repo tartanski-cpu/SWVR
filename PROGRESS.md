@@ -5298,6 +5298,30 @@ Owner, Oct 2026: before the cockpit roof, clean up the Shipyard's buttons. The o
 - **Checked:** headless Chromium, the Wheelhouse step with a saloon and a deckhouse, then with the windows raked out and the deckhouse "As the wheelhouse"; the owner's configuration (workboat type, three facets, saloon roof lower, a sand roof top) from the same angle as their screenshot: the step is clean. **Not checked:** the Quest (a desktop page).
 - **Next:** the other steps the same way, once the owner has tried this one.
 
+### The fleet, step 2: a new career starts in the beginner boat; the old workboat and landing craft hidden (done, awaiting owner test)
+
+Owner, Oct 2026: a new career starts in one of the new fleet boats; hide the workboat and the landing craft.
+
+- **Start boat:** the game starts in `CONFIG.career.boat` = `starterBoat` (no `?boat=` needed). `CONFIG.testScene.vesselDefId` stays `workboat`: a new world's default in the tests, so the golden runs are unchanged (moving them is the next step).
+- **Saves (CLAUDE.md: the test address shares storage with the live game):**
+  - careers now live in their own keys, `swvr.fleetCareer.1..3` and `swvr.fleetCareerSlot` (app/careerSession.ts);
+  - the old careers in `swvr.career.*` are never read or written here, so they're kept for the live game;
+  - on this version a career starts afresh (the owner's choice); the old single-save migration is gone.
+  - Checked in the browser with an old career planted in `swvr.career.1`: the game started a fresh £500 career in the beginner boat and left the old one byte for byte.
+- **The beginner boat changed for her career** (fleet/starterBoat.json):
+  - lengthened 9.8 → 10.2 m (size step 10), so the skiff's 3.9 m cradle fits her foredeck once bought;
+  - no searchlight (the yard sells it);
+  - a stern roller, so she tows and salvages from day one, as the old workboat did.
+  - She's now 10.2 m, ~8.2 kn, £122k (still the cheapest), GM 2.44 m, no warnings.
+- **The yard kits her out through her design:** `CONFIG.career.upgrades[].design` gives each add-on's change to a Shipyard design (searchlight `{searchlight: 1}`, fire monitor `{fireMonitor: 1}`, skiff `{skiff: 1}`).
+  - `library.ts setStarterKit` / `sims.ts useStarterKit` rebuild her with what the career has.
+  - The refit, and a crew-mate building the host's boat, go through the same `fit` path as the old workboat (`career.ts KIT_BOATS`).
+  - The trawl gear has no `design` (her house is right aft): the yard says "Not on this boat". Other boats' equipment: "Not for this boat".
+- **Hidden:** Debug > Boat > **Start in** lists the fleet and the Alaskan 38; the old workboat (and "all gear") and landing craft are gone from it and from the touch controls' boat switch. `?boat=workboat` / `?boat=landingCraft` still start them (testing, golden runs). Office > "Back to the beginner boat".
+- **Words:** the first voyage's "Step aboard your boat"; the Shipyard-code error "Starting in the beginner boat".
+- **Tests:** tests/starterBoat.test.ts (3); starterWorkboat.test.ts's other-boat message now "Not for this boat".
+- **Next fleet steps:** move the tests and golden runs onto the fleet; then delete the old boats (owner: hide first, delete later).
+
 ### Helm assist panel: autopilot, dock and auto start (done, awaiting owner test)
 
 Owner, Oct 2026: an autopilot, a dock button and an auto start button on a module: an individual option, a checkbox with the instruments in the Shipyard, a small box next to the circuit breaker box.

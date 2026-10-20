@@ -198,7 +198,7 @@ export interface MenuHost {
   gustStatus(): string;
   seaTrialsShown(): boolean;
   toggleSeaTrials(): void;
-  /** Which boat you start in (modular boats M7: the workboat, or the landing craft); choosing one restarts the game in her. */
+  /** Which boat you start in (the fleet, the Alaskan); choosing one restarts the game in her. */
   homeBoat(): string;
   setHomeBoat(defId: string): void;
   debugPanel(): boolean;
@@ -240,7 +240,7 @@ export interface MenuHost {
   leaveGame(): void;
   /** Office > Your boats (shipyard/takeHer.ts): the favourites' page and the code being typed. */
   shipyardCodes(): ShipyardCodes;
-  /** Restart the game in a Shipyard boat by her code; or back in the workboat. */
+  /** Restart the game in a Shipyard boat by her code; or back in the game's start boat (the beginner boat). */
   takeDesign(code: string): void;
   workboatAgain(): void;
   /** What she is now: "the workboat", or a Shipyard boat's name or code. */
@@ -680,19 +680,11 @@ export function mainMenu(h: MenuHost): MainMenu {
       name: 'Boat',
       rows: [
         {
+          // The fleet (boats/fleet.ts): the game's own boats, designed in the Shipyard (the
+          // beginner boat as your career has her kitted out), and the Alaskan 38. The old
+          // workboat and landing craft are hidden (owner, Oct 2026; ?boat= still starts them).
           label: 'Start in',
-          buttons: [
-            // The workboat as your career has her fitted out, or with all her equipment (for testing).
-            choice('Workboat', 'workboat', () => h.homeBoat(), (v) => h.setHomeBoat(v)),
-            choice('Workboat, all gear', 'workboat:all', () => h.homeBoat(), (v) => h.setHomeBoat(v)),
-            choice('Landing craft', 'landingCraft', () => h.homeBoat(), (v) => h.setHomeBoat(v)),
-            choice('Alaskan 38', 'alaskan38', () => h.homeBoat(), (v) => h.setHomeBoat(v)),
-          ],
-        },
-        {
-          // The fleet (boats/fleet.ts): the game's own boats, designed in the Shipyard.
-          label: 'Start in fleet',
-          buttons: FLEET.map((f) => choice(f.name, f.id, () => h.homeBoat(), (v) => h.setHomeBoat(v))),
+          buttons: [...FLEET.map((f) => choice(f.name, f.id, () => h.homeBoat(), (v) => h.setHomeBoat(v))), choice('Alaskan 38', 'alaskan38', () => h.homeBoat(), (v) => h.setHomeBoat(v))],
         },
         {
           label: 'Hull',
@@ -850,7 +842,7 @@ function yourBoats(h: MenuHost): MenuRow[] {
       label: 'Now',
       buttons: [
         { text: () => h.boatNow(), weight: 2.4 },
-        { text: () => (h.boatNow() === 'The workboat' ? '' : 'Back to the workboat'), press: () => h.workboatAgain(), weight: 1.4 },
+        { text: () => (h.boatNow() === 'The beginner boat' ? '' : 'Back to the beginner boat'), press: () => h.workboatAgain(), weight: 1.4 },
       ],
     },
     { heading: 'Shipyard favourites (saved in this browser)' },

@@ -131,6 +131,13 @@ export function equipmentWithout(upgrades: readonly string[]): string[] {
   return CONFIG.career.upgrades.filter((u) => u.fit && !upgrades.includes(u.id)).map((u) => u.id);
 }
 
+/**
+ * The boats a career kits out at the yard (built without the equipment she hasn't bought):
+ * the beginner boat (owner, Oct 2026: a new career starts in her; boats/sims.ts
+ * useStarterKit), and the old workboat (hidden, kept for testing; useWorkboatFit).
+ */
+export const KIT_BOATS: readonly string[] = ['starterBoat', 'workboat'];
+
 /** The sockets of the workboat's recipe left empty for that equipment (boats/sims.ts useWorkboatFit). */
 export function socketsWithout(equipment: readonly string[]): string[] {
   return CONFIG.career.upgrades.filter((u) => u.fit && equipment.includes(u.id)).flatMap((u) => u.fit!);
@@ -393,8 +400,10 @@ export function buyBlocker(world: WorldState, id: string): string | null {
   // Gear for something she hasn't got (the crane's motion compensation, on a boat without a crane).
   const v = workboat(world);
   if (u.needs && !(v && hasModule(v.defId, u.needs))) return `Needs ${u.needsName ?? u.needs}`;
-  // The yard fits the workboat's equipment to the workboat only.
-  if (u.fit && v?.defId !== 'workboat') return 'Workboat only';
+  // The yard fits her equipment to the boats a career kits out (KIT_BOATS): the old workboat
+  // (in her sockets), the beginner boat (in her design: not what doesn't fit her).
+  if (u.fit && v?.defId === 'starterBoat' && !u.design) return 'Not on this boat';
+  if (u.fit && !KIT_BOATS.includes(v?.defId ?? '')) return 'Not for this boat';
   const y = yardAt(world);
   if (!y) return 'Bring her into a boatyard';
   // Each yard sells its own list (PortDef.economy.sells; none listed: everything).

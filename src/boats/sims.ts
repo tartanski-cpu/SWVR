@@ -9,7 +9,7 @@ import { hullQueries } from '../modular/hull';
 import { initModuleState, type GearFacts, type GearFootprint, type GearKind, type ModuleStateEnvelope } from '../modular/module';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 import { flattenMounts, type Recipe } from '../modular/recipe';
-import { LIBRARY, RECIPES, setDesignBoat, setWorkboatFit } from './library';
+import { LIBRARY, RECIPES, setDesignBoat, setStarterKit, setWorkboatFit } from './library';
 import type { DesignedBoat } from '../shipyard/build';
 import type { ShipDesign } from '../shipyard/design';
 
@@ -42,6 +42,12 @@ export function useDesign(d: ShipDesign): DesignedBoat {
 export function useWorkboatFit(without: readonly string[]): void {
   setWorkboatFit(without);
   sims.delete('workboat');
+}
+
+/** Kit the beginner boat out without these yard add-ons (library.ts setStarterKit). For a new world, as useDesign. */
+export function useStarterKit(without: readonly string[]): void {
+  setStarterKit(without);
+  sims.delete('starterBoat');
 }
 
 /** Her recipe's simulation side (null: she has none). */

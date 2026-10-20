@@ -189,6 +189,23 @@ export function setWorkboatFit(without: readonly string[]): void {
   registerVesselDefs(buildDefs);
 }
 
+/**
+ * The beginner boat as the career has her kitted out (owner, Oct 2026: a new career starts in
+ * her, the fleet's simplest boat, and buys equipment at the yard): her design (boats/fleet.ts)
+ * with each yard add-on's change to it (CONFIG.career.upgrades `design`), all but those
+ * `without` (upgrade ids). None left off: her design as it is. Use boats/sims.ts `useStarterKit`.
+ */
+export function setStarterKit(without: readonly string[]): void {
+  const base = FLEET.find((f) => f.id === 'starterBoat')!.design;
+  const kit = CONFIG.career.upgrades.filter((u) => u.design && !without.includes(u.id));
+  const d: ShipDesign = Object.assign({ ...base }, ...kit.map((u) => u.design as Partial<ShipDesign>));
+  const b = buildDesign(d, shortCode(d) ?? 'custom', 'starterBoat');
+  FLEET_BOATS.starterBoat = b;
+  FLEET_HULLS.set(b.hull.id, b.hull);
+  RECIPES.starterBoat = loadRecipe(b.recipe);
+  registerVesselDefs(buildDefs);
+}
+
 /** The design the 'design' vessel type is now. */
 export function currentDesign(): DesignedBoat {
   return designed;

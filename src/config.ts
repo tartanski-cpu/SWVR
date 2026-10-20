@@ -21,6 +21,11 @@ export interface CareerUpgrade {
    * new career's workboat is built without, until it's bought.
    */
   fit?: string[];
+  /**
+   * The same equipment on the beginner boat (boats/fleet.ts, a Shipyard design): the choices
+   * it sets in her design (shipyard/design.ts ShipDesign). None: it doesn't fit her.
+   */
+  design?: Record<string, number>;
 }
 
 /**
@@ -2027,16 +2032,21 @@ export const CONFIG = {
     },
     /** The bigger fuel tank upgrade: her tank's size times this. */
     bigTankFactor: 1.6,
+    /** The boat the game starts in, and a new career's (owner, Oct 2026: the fleet's beginner boat, boats/fleet.ts). */
+    boat: 'starterBoat',
     /**
      * What the boatyard at Calder Haven sells (its board on the shed: ui/yardBoard.ts). With
-     * `fit`: add-ons, her equipment (the starter workboat comes without it; fitted, the game
-     * starts again with her refitted). Without: upgrades to what she has.
+     * `fit`: add-ons, her equipment (a new career's boat comes without it; fitted, the game
+     * starts again with her refitted): on the old workboat the sockets her recipe leaves empty
+     * without it; on the beginner boat (boats/fleet.ts, a Shipyard design) the change to her
+     * design it makes (`design`; none: it doesn't fit her). Without `fit`: upgrades to what she
+     * has.
      */
     upgrades: [
       { id: 'trawlGear', name: 'Trawl gear', price: 2500, minRep: 5, fit: ['aFrame', 'trawl', 'helm/trawl'], desc: 'The A-frame over the transom, the net on its drum and the TRAWL switch' },
-      { id: 'skiff', name: 'Skiff and her crane', price: 4000, minRep: 10, fit: ['tenderCrane'], desc: 'The electric skiff in her cradle on the foredeck, and the crane to launch her' },
-      { id: 'searchlight', name: 'Searchlight', price: 1500, minRep: 5, fit: ['searchlight', 'helm/spotlight', 'helm/spotJoystick'], desc: 'The searchlight on the wheelhouse roof, its SPOT switch and joystick at the helm' },
-      { id: 'fireMonitor', name: 'Fire monitor', price: 3000, minRep: 10, fit: ['fireMonitor', 'helm/firePump', 'helm/monJoystick'], desc: 'The fire monitor on the roof, the FIRE PUMP switch, its joystick and gauge: the fire calls come once she has it' },
+      { id: 'skiff', name: 'Skiff and her crane', price: 4000, minRep: 10, fit: ['tenderCrane'], design: { skiff: 1 }, desc: 'The electric skiff in her cradle on the foredeck, and the crane to launch her' },
+      { id: 'searchlight', name: 'Searchlight', price: 1500, minRep: 5, fit: ['searchlight', 'helm/spotlight', 'helm/spotJoystick'], design: { searchlight: 1 }, desc: 'The searchlight on the wheelhouse roof, its SPOT switch and joystick at the helm' },
+      { id: 'fireMonitor', name: 'Fire monitor', price: 3000, minRep: 10, fit: ['fireMonitor', 'helm/firePump', 'helm/monJoystick'], design: { fireMonitor: 1 }, desc: 'The fire monitor on the roof, the FIRE PUMP switch, its joystick and gauge: the fire calls come once she has it' },
       { id: 'radar', name: 'Radar', price: 2400, minRep: 20, desc: 'Debris and floating crates on the plotter' },
       { id: 'ais', name: 'AIS receiver', price: 900, minRep: 0, desc: 'Passing ships on the plotter, by name and course, in any visibility' },
       { id: 'bigTank', name: 'Bigger fuel tank', price: 1400, minRep: 5, desc: 'Her fuel tank enlarged by 60 %: further between fills' },
@@ -3569,6 +3579,7 @@ export const CONFIG = {
 
   /** The boat the game is played in (a key of CONFIG.vessels / VESSEL_DEFS). */
   testScene: {
+    // A new world's boat when none is named (the tests and their golden runs). The game starts in CONFIG.career.boat.
     vesselDefId: 'workboat',
   },
 
