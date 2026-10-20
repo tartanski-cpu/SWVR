@@ -2,7 +2,7 @@ import { BUSES } from '../audio/mixer';
 import { FLEET } from '../boats/fleet';
 import { CONFIG } from '../config';
 import { PORTS } from '../world/archipelago';
-import { REGIONS } from '../world/regions';
+import { COAST_REGION, REGIONS, setCoastRegion } from '../world/regions';
 import type { MenuPage, MenuRow, MenuSection } from './menuPanel';
 import { ALPHABET } from '../shipyard/design';
 import { groupCode, PER_PAGE, type ShipyardCodes } from '../shipyard/takeHer';
@@ -603,6 +603,8 @@ export function mainMenu(h: MenuHost): MainMenu {
         },
         { label: 'Potting (new, in progress)', buttons: [choice('Off', false, () => h.potting(), (v) => h.setPotting(v)), choice('On', true, () => h.potting(), (v) => h.setPotting(v))] },
         { label: 'Debug tab', buttons: [choice('Hidden', false, () => h.debugMenu(), (v) => h.setDebugMenu(v)), choice('Shown', true, () => h.debugMenu(), (v) => h.setDebugMenu(v))] },
+        // Credits: the open data a region made from real maps is built from (its licence asks for them).
+        ...REGIONS.filter((r) => r.coast).flatMap((r) => [{ heading: `Credits: ${r.name}` }, ...creditLines(r.coast!.pkg.credits).map((t) => ({ heading: t }))]),
       ],
     },
   ];
@@ -671,9 +673,22 @@ export function mainMenu(h: MenuHost): MainMenu {
         { heading: 'Katabatic gusts' },
         { label: '', buttons: [{ text: 'Gust now (nearest zone)', press: () => h.gustNow() }, { text: () => h.gustStatus(), weight: 1.6 }] },
         { heading: 'Move' },
-        { label: 'To port', buttons: PORTS.map((_, i) => ({ text: () => h.ports()[i]?.name ?? '', press: () => h.teleportToPort(i) })) },
+        // Six to a row (a coast region brings many harbours).
+        ...Array.from({ length: Math.ceil(PORTS.length / 6) }, (_, row) => ({
+          label: row === 0 ? 'To port' : '',
+          buttons: PORTS.slice(row * 6, row * 6 + 6).map((_, k) => ({ text: () => h.ports()[row * 6 + k]?.name ?? '', press: () => h.teleportToPort(row * 6 + k) })),
+        })),
         { label: 'To region', buttons: REGIONS.map((r) => ({ text: r.name, press: () => h.teleportToRegion(r.id) })) },
         { label: '', buttons: [{ text: () => (h.aboard() ? 'Leave boat (to the quay)' : 'Board boat (at the helm)'), press: () => h.toggleBoard() }] },
+        { heading: 'Coast region test (real map data; reloads the game)' },
+        {
+          label: 'North of home',
+          buttons: [
+            { text: 'The Sounds (as built)', active: () => !COAST_REGION, press: () => COAST_REGION && setCoastRegion(null) },
+            { text: 'Oban (from the map)', active: () => COAST_REGION === 'oban', press: () => COAST_REGION !== 'oban' && setCoastRegion('oban') },
+          ],
+        },
+        { heading: 'Oban replaces the Sounds and the Fjord; careers there are kept apart from your own' },
       ],
     },
     {
@@ -881,4 +896,19 @@ export function formatHours(t: number): string {
   const hh = Math.floor(total / 60) % 24;
   const mm = total % 60;
   return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+}
+
+/** A credits line broken at its commas into lines that fit the menu. */
+function creditLines(text: string, width = 60): string[] {
+  const out: string[] = [];
+  let line = '';
+  for (const part of text.split(', ')) {
+    const next = line ? `${line}, ${part}` : part;
+    if (next.length > width && line) {
+      out.push(`${line},`);
+      line = part;
+    } else line = next;
+  }
+  if (line) out.push(line);
+  return out;
 }

@@ -42,10 +42,19 @@ const T = {
   band: 6,
   /** ...with points at least this far apart along them (m). */
   bandSpacing: 8,
+  /** Land the land cover calls water within this of the sea coast is shore, not a loch (m). */
+  shoreWater: 60,
   edgeStep: 300,
   chunk: 2000,
   /** Faces wholly deeper than this aren't drawn (the sea is opaque; as the game's terrain). */
   skipBelow: -3,
+  /** The box's edges ease down to this (the game's open-sea floor, world/terrain.ts MAX_DEPTH) over this far (m). */
+  edgeFloor: -40,
+  edgeFade: 400,
+  /** Most faces a chunk may draw: more and the stage fails (and the game's test with it). The Quest's budget. */
+  chunkBudget: 12000,
+  /** A lost skerry stands this high at its middle (m above MSL). */
+  skerryHeight: 1.8,
   /** Error weight in the shallows (0 > h > shallowTo); none deeper. */
   shallowWeight: 0.5,
   shallowTo: -5,
@@ -110,6 +119,39 @@ const wallDepth = (x: number, z: number): number | null => {
       }
   }
 }
+
+// The skerries the 10 m grid lost (nav.ts lists them with drawn: false): stood back up as
+// low rocks, `skerryHeight` m at the middle falling to the seabed at their radius, so the
+// mesh draws them and a boat in the game runs onto them like any shore.
+const navFile = join(D.out, 'nav.json');
+const skerries = existsSync(navFile) ? (JSON.parse(readFileSync(navFile, 'utf8')).hazards as { kind: string; x: number; z: number; radius?: number; drawn?: boolean }[]).filter((h) => h.kind === 'skerry' && !h.drawn) : [];
+for (const sk of skerries) {
+  if (sk.x - grid.x0 < T.edgeFade || grid.x0 + W * cell - sk.x < T.edgeFade || sk.z - grid.z0 < T.edgeFade || grid.z0 + H * cell - sk.z < T.edgeFade) continue;
+  const r = Math.min(30, Math.max(8, sk.radius ?? 8));
+  for (let j = Math.floor((sk.z - r - grid.z0) / cell); j <= Math.ceil((sk.z + r - grid.z0) / cell); j++)
+    for (let i = Math.floor((sk.x - r - grid.x0) / cell); i <= Math.ceil((sk.x + r - grid.x0) / cell); i++) {
+      if (i < 0 || j < 0 || i >= W || j >= H) continue;
+      const d = Math.hypot(grid.x0 + (i + 0.5) * cell - sk.x, grid.z0 + (j + 0.5) * cell - sk.z);
+      if (d >= r) continue;
+      const k = j * W + i;
+      const top = T.skerryHeight - (T.skerryHeight - heights[k]) * (d / r) ** 1.5;
+      heights[k] = Math.max(heights[k], top);
+    }
+}
+
+// The box's edges: land and sea ease to the game's open-sea floor (`edgeFloor`) over the
+// last `edgeFade` m, so in the game the region ends in open sea, as its islands do, not in
+// a sheer cut-off face with nothing beyond it.
+const edgeDist = (x: number, z: number) => Math.min(x - grid.x0, grid.x0 + W * cell - x, z - grid.z0, grid.z0 + H * cell - z);
+for (let j = 0; j < H; j++)
+  for (let i = 0; i < W; i++) {
+    const d = edgeDist(grid.x0 + (i + 0.5) * cell, grid.z0 + (j + 0.5) * cell);
+    if (d >= T.edgeFade) continue;
+    const t = Math.max(0, d / T.edgeFade);
+    const w = t * t * (3 - 2 * t);
+    const k = j * W + i;
+    heights[k] = T.edgeFloor + (heights[k] - T.edgeFloor) * w;
+  }
 
 /** Grid height at a point (bilinear between cell centres). */
 function hAt(x: number, z: number): number {
@@ -189,7 +231,7 @@ for (const raw of coast) {
   let lastBand: [number, number][] = [];
   for (let s = 0; s < pts.length; s++) {
     const [x, z] = pts[s];
-    if (!inside(x, z)) continue;
+    if (!inside(x, z) || edgeDist(x, z) < T.edgeFade) continue; // the edge fade has put it under water
     // On the coast: just above the water (the reconciled shore is lifted to this); at a quay, the foot of its wall.
     add(x, z, wallDepth(x, z) ?? 0.3);
     coastPts++;
@@ -205,9 +247,11 @@ for (const raw of coast) {
       const bz = z + oz * sgn;
       // Only where the band lies clear of other coast (not across a narrow spit or gut),
       // and not crowding the last band point on this line.
-      if (!inside(bx, bz) || distAt(bx, bz) < T.band * 0.6) continue;
+      if (!inside(bx, bz) || edgeDist(bx, bz) < T.edgeFade || distAt(bx, bz) < T.band * 0.6) continue;
       if (lastBand.some(([qx, qz]) => Math.hypot(qx - bx, qz - bz) < T.bandSpacing)) continue;
-      const h = wallDepth(bx, bz) ?? (isLand(bx, bz) ? Math.max(0.8, hAt(bx, bz)) : Math.min(-0.8, hAt(bx, bz)));
+      // Inland: at least just above the water, at most a 1-in-2 rise from the coast (the
+      // height data is a surface model: trees and walls at the shore made needle-steep slivers).
+      const h = wallDepth(bx, bz) ?? (isLand(bx, bz) ? Math.min(0.8 + T.band / 2, Math.max(0.8, hAt(bx, bz))) : Math.min(-0.8, hAt(bx, bz)));
       add(bx, bz, h);
       bandPts++;
       lastBand.push([bx, bz]);
@@ -227,6 +271,9 @@ for (const p of basins) {
       if (inside(x, z) && !isLand(x, z)) add(x, z, Math.min(-p.depth, hAt(x, z)));
     }
 }
+// Each skerry's top as a point, so it isn't smoothed away.
+// (Not in the faded edge: there the ground round it has gone down to the open-sea floor.)
+for (const sk of skerries) if (inside(sk.x, sk.z) && edgeDist(sk.x, sk.z) >= T.edgeFade) add(sk.x, sk.z, T.skerryHeight);
 const fixedCount = xs.length;
 console.log(`start: ${fixedCount} points (${coastPts} on the coast, ${bandPts} in the shore band)`);
 
@@ -385,11 +432,12 @@ interface Face {
 }
 const CW = Math.ceil((X1 - X0) / T.chunk);
 const faces: Face[] = [];
+const DEEP = 1e9;
 for (let t = 0; t < tri.length / 3; t++) {
   const a = tri[3 * t];
   const b = tri[3 * t + 1];
   const c = tri[3 * t + 2];
-  if (Math.max(hs[a], hs[b], hs[c]) < T.skipBelow) continue;
+  const deep = Math.max(hs[a], hs[b], hs[c]) < T.skipBelow;
   const mx = (xs[a] + xs[b] + xs[c]) / 3;
   const mz = (zs[a] + zs[b] + zs[c]) / 3;
   const mh = (hs[a] + hs[b] + hs[c]) / 3;
@@ -412,7 +460,11 @@ for (let t = 0; t < tri.length / 3; t++) {
   } else if (up < 0.7) col = rgb(theme.rock);
   else if (mh < 2.2 && dist[k] < 30 && up > 0.85 && cover[k] !== 10 && cover[k] !== 50) col = rgb(theme.sand);
   else {
-    col = rgb(theme.cover[cover[k]] ?? theme.cover[30]);
+    // Land the land cover calls water: right at the sea coast that's the satellite's coastline
+    // disagreeing with the map's by a few metres (it would show as blue holes in the shore),
+    // so it takes the shore's colour; inland, a loch (drawn as land in water colour for now).
+    const cls = (cover[k] === 80 || cover[k] === 0) && dist[k] < T.shoreWater ? (up < 0.7 ? 60 : 30) : cover[k];
+    col = rgb(theme.cover[cls] ?? theme.cover[30]);
     // Open hill above the fields: grass shading into moor (themes.ts moor).
     if (theme.moor && (cover[k] === 30 || cover[k] === 100)) {
       const t = Math.min(1, Math.max(0, (mh - theme.moor.from) / (theme.moor.to - theme.moor.from)));
@@ -423,9 +475,13 @@ for (let t = 0; t < tri.length / 3; t++) {
   const v = 0.93 + 0.14 * hash(Math.round(mx), Math.round(mz));
   col = [Math.min(255, col[0] * v), Math.min(255, col[1] * v), Math.min(255, col[2] * v)];
   const chunk = Math.floor((mz - Z0) / T.chunk) * CW + Math.floor((mx - X0) / T.chunk);
-  faces.push({ a, b, c, chunk, col, cls: mh < -0.3 ? 0 : cover[k] });
+  // Deep faces aren't drawn (the sea is opaque) but the game's physics and depth sounder
+  // need the seabed there: they go after all the chunks, in a range of their own.
+  faces.push({ a, b, c, chunk: deep ? DEEP : chunk, col, cls: mh < -0.3 ? 0 : cover[k] });
 }
 faces.sort((p, q) => p.chunk - q.chunk);
+const deepStart = faces.findIndex((f) => f.chunk === DEEP);
+const drawn = deepStart < 0 ? faces.length : deepStart;
 
 // ── Write ──
 const nv = xs.length;
@@ -439,6 +495,7 @@ faces.forEach((f, n) => {
   ibuf.set([f.a, f.b, f.c], n * 3);
   cbuf.set(f.col.map(Math.round), n * 3);
   kbuf[n] = f.cls;
+  if (f.chunk === DEEP) return;
   const last = chunks[chunks.length - 1];
   if (!last || last.id !== f.chunk) chunks.push({ id: f.chunk, x0: X0 + (f.chunk % CW) * T.chunk, z0: Z0 + Math.floor(f.chunk / CW) * T.chunk, size: T.chunk, start: n, count: 1 });
   else last.count++;
@@ -466,6 +523,8 @@ const region = {
     file: 'terrain.bin',
     vertices: { offset: offsets[0], count: nv },
     faces: { offset: offsets[1], count: faces.length },
+    /** Faces after the chunks: the deep seabed, not drawn, for the physics and the depth sounder. */
+    deep: { start: drawn, count: faces.length - drawn },
     colours: { offset: offsets[2] },
     classes: { offset: offsets[3], note: 'ESA WorldCover class per face; 0 under water' },
   },
@@ -489,7 +548,8 @@ const earlier = existsSync(reportPath) ? JSON.parse(readFileSync(reportPath, 'ut
 const report = {
   ...earlier,
   dredgedCells: dredged,
-  triangles: faces.length,
+  triangles: drawn,
+  deepTriangles: faces.length - drawn,
   vertices: nv,
   bytes: out.byteLength,
   chunks: chunks.map((c) => ({ id: c.id, triangles: c.count })),
@@ -498,8 +558,15 @@ const report = {
   seenFromWater: Math.round((100 * seenCells) / landCells) / 100,
   coastPoints: coastPts,
   shoreBandPoints: bandPts,
-  warnings: [...(earlier.warnings ?? []).filter((w: string) => !/coastline's sides|without bathymetry/.test(w)), ...(grid.conflicts ? [`${grid.conflicts} patches where the coastline's sides disagree (check the coast there)`] : []), ...(grid.missingDepth ? [`${grid.missingDepth} sea cells without bathymetry (shelf used)`] : [])],
+  chunkBudget: T.chunkBudget,
+  warnings: [...(earlier.warnings ?? []).filter((w: string) => !/coastline's sides|without bathymetry|over the triangle budget/.test(w)), ...chunks.filter((c) => c.count > T.chunkBudget).map((c) => `chunk ${c.id} is over the triangle budget (${c.count} > ${T.chunkBudget})`), ...(grid.conflicts ? [`${grid.conflicts} patches where the coastline's sides disagree (check the coast there)`] : []), ...(grid.missingDepth ? [`${grid.missingDepth} sea cells without bathymetry (shelf used)`] : [])],
 };
 writeFileSync(reportPath, JSON.stringify(report, null, 1));
-console.log(`mesh: ${faces.length} faces drawn (${tri.length / 3} before deep water dropped), ${nv} vertices, ${chunks.length} chunks, ${(out.byteLength / 1e6).toFixed(2)} MB`);
-console.log(`chunk faces: max ${Math.max(...chunks.map((c) => c.count))}, mean ${Math.round(faces.length / chunks.length)}`);
+console.log(`mesh: ${drawn} faces drawn, ${faces.length - drawn} deep (physics only), ${nv} vertices, ${chunks.length} chunks, ${(out.byteLength / 1e6).toFixed(2)} MB`);
+console.log(`chunk faces: max ${Math.max(...chunks.map((c) => c.count))}, mean ${Math.round(drawn / chunks.length)}`);
+// The budget: a chunk over it fails the stage (the game's tests check the same, so its build fails too).
+const over = chunks.filter((c) => c.count > T.chunkBudget);
+if (over.length) {
+  console.error(`over budget: ${over.map((c) => `chunk ${c.id} ${c.count} faces`).join(', ')} (budget ${T.chunkBudget})`);
+  process.exitCode = 1;
+}

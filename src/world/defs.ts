@@ -6,6 +6,8 @@
  * World axes: +X east, -Z north, metres; heights above mean sea level (MSL = y 0).
  */
 
+import type { RegionCoast } from './coastRegion';
+
 export interface IslandDef {
   name: string;
   x: number;
@@ -550,4 +552,10 @@ export interface RegionDef {
   falls?: FallDef[];
   farms?: FarmDef[];
   gusts?: GustZoneDef[];
+  /**
+   * A coast region (real coastline from open map data, tools/coast; coastRegion.ts): its
+   * package and where its origin sits in the world. Its ground is the package's mesh
+   * (coastTerrain.ts), not islands.
+   */
+  coast?: RegionCoast;
 }

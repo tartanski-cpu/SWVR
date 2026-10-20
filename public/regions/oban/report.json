@@ -1,141 +1,133 @@
 {
- "triangles": 108351,
- "vertices": 59919,
- "bytes": 2452648,
+ "triangles": 108175,
+ "vertices": 60259,
+ "bytes": 2483108,
  "chunks": [
   {
-   "id": 0,
-   "triangles": 385
-  },
-  {
-   "id": 1,
-   "triangles": 27
-  },
-  {
    "id": 3,
-   "triangles": 472
+   "triangles": 353
   },
   {
    "id": 4,
-   "triangles": 1999
+   "triangles": 1751
   },
   {
    "id": 5,
-   "triangles": 3408
+   "triangles": 3344
   },
   {
    "id": 8,
-   "triangles": 1731
+   "triangles": 1771
   },
   {
    "id": 9,
-   "triangles": 9108
+   "triangles": 9516
   },
   {
    "id": 10,
-   "triangles": 6673
+   "triangles": 7234
   },
   {
    "id": 11,
-   "triangles": 4692
+   "triangles": 3643
   },
   {
    "id": 13,
-   "triangles": 1513
+   "triangles": 1530
   },
   {
    "id": 14,
-   "triangles": 10195
+   "triangles": 10430
   },
   {
    "id": 15,
-   "triangles": 2284
+   "triangles": 3545
   },
   {
    "id": 16,
-   "triangles": 908
+   "triangles": 1075
   },
   {
    "id": 17,
-   "triangles": 854
+   "triangles": 842
   },
   {
    "id": 18,
-   "triangles": 6917
+   "triangles": 6423
   },
   {
    "id": 19,
-   "triangles": 11132
+   "triangles": 11558
   },
   {
    "id": 20,
-   "triangles": 8452
+   "triangles": 8763
   },
   {
    "id": 21,
-   "triangles": 1365
+   "triangles": 1902
   },
   {
    "id": 22,
-   "triangles": 41
+   "triangles": 55
   },
   {
    "id": 23,
-   "triangles": 492
+   "triangles": 514
   },
   {
    "id": 24,
-   "triangles": 8925
+   "triangles": 9416
   },
   {
    "id": 25,
-   "triangles": 10314
+   "triangles": 10827
   },
   {
    "id": 26,
-   "triangles": 2133
+   "triangles": 2301
   },
   {
    "id": 27,
-   "triangles": 639
+   "triangles": 624
   },
   {
    "id": 28,
-   "triangles": 115
+   "triangles": 96
   },
   {
    "id": 29,
-   "triangles": 140
+   "triangles": 198
   },
   {
    "id": 30,
-   "triangles": 6937
+   "triangles": 4535
   },
   {
    "id": 31,
-   "triangles": 6059
+   "triangles": 5059
   },
   {
    "id": 32,
-   "triangles": 242
+   "triangles": 359
   },
   {
    "id": 33,
-   "triangles": 47
+   "triangles": 186
   },
   {
    "id": 34,
-   "triangles": 101
+   "triangles": 127
   },
   {
    "id": 35,
-   "triangles": 51
+   "triangles": 198
   }
  ],
  "landShare": 0.5968507486568487,
- "seenFromWater": 0.43,
- "coastPoints": 5849,
- "shoreBandPoints": 7127,
+ "seenFromWater": 0.45,
+ "coastPoints": 5235,
+ "shoreBandPoints": 6424,
  "warnings": [
   "no charted rocks, reefs or wrecks in the sea in OpenStreetMap for this box, only skerries (thin data: check a chart)",
   "2 patches where the coastline's sides disagree (check the coast there)"
@@ -160,5 +152,23 @@
    "anchorage": "Dunbeg anchorage"
   }
  },
- "dredgedCells": 229
+ "dredgedCells": 229,
+ "deepTriangles": 1825,
+ "chunkBudget": 12000,
+ "package": {
+  "ports": 9,
+  "berths": 11,
+  "blocks": 70,
+  "buildings": 774,
+  "marks": 15,
+  "lights": 11,
+  "slipways": 5,
+  "fishingGrounds": 2,
+  "pottingGrounds": 8,
+  "landmarks": [
+   "Càrn Breugach",
+   "Dunollie Fl(2)GWR.6s"
+  ],
+  "bytes": 116813
+ }
 }

@@ -17,7 +17,7 @@ interface RegionFile {
   id: string;
   name: string;
   box: { x0: number; x1: number; z0: number; z1: number };
-  terrain: { file: string; vertices: { offset: number; count: number }; faces: { offset: number; count: number }; colours: { offset: number }; classes: { offset: number } };
+  terrain: { file: string; vertices: { offset: number; count: number }; faces: { offset: number; count: number }; colours: { offset: number }; classes: { offset: number }; deep?: { start: number; count: number } };
   chunks: { id: number; x0: number; z0: number; size: number; start: number; count: number }[];
   coast: number[][];
   credits: string;
@@ -167,7 +167,7 @@ async function load(): Promise<void> {
   controls.update();
   const verts = t.vertices.count;
   document.getElementById('name')!.textContent = region.name;
-  document.getElementById('stats')!.innerHTML = `${t.faces.count.toLocaleString()} triangles, ${verts.toLocaleString()} vertices, ${region.chunks.length} chunks of ${region.chunks[0].size / 1000} km<br>${((b.x1 - b.x0) / 1000).toFixed(1)} × ${((b.z1 - b.z0) / 1000).toFixed(1)} km, ${(bin.byteLength / 1e6).toFixed(1)} MB`;
+  document.getElementById('stats')!.innerHTML = `${(t.deep?.start ?? t.faces.count).toLocaleString()} triangles drawn, ${verts.toLocaleString()} vertices, ${region.chunks.length} chunks of ${region.chunks[0].size / 1000} km<br>${((b.x1 - b.x0) / 1000).toFixed(1)} × ${((b.z1 - b.z0) / 1000).toFixed(1)} km, ${(bin.byteLength / 1e6).toFixed(1)} MB`;
   document.getElementById('credits')!.textContent = region.credits;
   if (region.nav) {
     scene.updateMatrixWorld();
@@ -345,9 +345,8 @@ renderer.setAnimationLoop(() => {
   drawLabels();
 });
 
-/** What the test boat feels under her: the terrain, the skerries, and the harbour pieces (solid). */
+/** What the test boat feels under her: the terrain (skerries included) and the harbour pieces (solid). */
 function boatGround(x: number, z: number): number {
-  if (nav?.onRock(x, z)) return 1;
   const deck = harbours?.pieceAt(x, z);
   if (deck != null) return deck;
   return groundAt(x, z);

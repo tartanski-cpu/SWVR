@@ -58,7 +58,7 @@ import { placeInFront } from '../ui/placeInFront';
 import { canRefuel, releaseHolds } from '../vessel/vesselControl';
 import { CURRENTS, FISHING_GROUNDS, GUSTS, PORTS } from '../world/archipelago';
 import { raceRoarLevel, raceStrength, setRaceClock } from '../world/currents';
-import { REGIONS, regionById } from '../world/regions';
+import { COAST_KEY, COAST_REGION, REGIONS, regionById } from '../world/regions';
 import { groundHeight } from '../world/terrain';
 import { aboard, carriedBy, dropCarried, cargoLabel, cargoPortAt, kindOf, payloadMass, quickLoadable, quickPort, quickUnloadable, slotsUsed, type CargoItem } from '../cargo/cargo';
 import { groundAt, isPot, quickHaulable, quickPalletPots } from '../potting/potting';
@@ -596,6 +596,7 @@ export class App {
     this.builtAs = structuredClone(this.world.build);
     // Sent to crew with the boat, so a crew-mate on an older page knows (not part of her build).
     this.world.build.app = APP_BUILD;
+    if (COAST_REGION) this.world.build.coast = COAST_REGION;
     this.localPlayerId = created.localPlayerId;
     this.soloPlayerId = created.localPlayerId;
     this.testVesselId = created.vesselId;
@@ -611,7 +612,8 @@ export class App {
     const host = this.menuHost();
     this.menu = new WristMenu(mainMenu(host));
     // The boatyard's board on its shed at Calder Haven (the add-ons, upgrades and repairs).
-    this.yardBoards = CONFIG.boatyards.map((y) => new YardBoard(host, y));
+    // Only the yards whose port is in this world (the coast region test leaves the Sounds out).
+    this.yardBoards = CONFIG.boatyards.filter((y) => PORTS.some((p) => p.id === y.port)).map((y) => new YardBoard(host, y));
     this.scene.add(this.menu.rayLine, this.noteKeys.menu.root, this.noteKeys.menu.rayLine, ...this.yardBoards.map((b) => b.menu.rayLine));
 
     this.desktop = new DesktopController(this.camera, this.renderer.domElement, this.keyboard);
@@ -2887,6 +2889,23 @@ export class App {
    * Returns false if we're leaving for that.
    */
   private sameVersionAsHost(world: WorldState): boolean {
+    // The world itself must match: the host's coast region test on or off (regions/index.ts).
+    // Take theirs and reload into it (it's kept in this browser until changed back).
+    const coast = world.build?.coast ?? null;
+    if (coast !== COAST_REGION) {
+      try {
+        if (coast) localStorage.setItem(COAST_KEY, coast);
+        else localStorage.removeItem(COAST_KEY);
+      } catch {
+        /* no storage: nothing we can do but say so */
+      }
+      const url = new URL(location.href);
+      url.searchParams.set('join', this.joinCode);
+      url.searchParams.delete('coast');
+      this.leaveGame();
+      location.replace(url.toString());
+      return false;
+    }
     const theirs = world.build?.app;
     if (!theirs || theirs === APP_BUILD || theirs === 'dev' || APP_BUILD === 'dev') return true;
     if (START_FRESH) {
