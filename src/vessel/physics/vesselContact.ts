@@ -10,12 +10,16 @@
  *
  *   F = max(0, k * depth - c * v_n)   along that outward normal, at the point,
  *
- * on A, and the opposite on B (v_n: approach speed of the point relative to B). Forces are
+ * on A, and the opposite on B (v_n: approach speed of the point relative to B), plus
+ * friction across the touch (CONFIG.contacts.boatFriction x F against the sliding, viscous
+ * below stickSpeed so a resting touch settles; a push fender grips harder, the crew's
+ * fenders less), so a tug's bow holds on a ship's side as she pushes. Forces are
  * evaluated from the start-of-tick states, before the vessels are stepped, so the result
  * does not depend on which boat is stepped first. With the workboat 50x the skiff's mass,
  * the skiff does the bouncing.
  */
 import * as THREE from 'three';
+import { CONFIG } from '../../config';
 import type { Vec3 } from '../../core/math';
 import { gearOf } from '../../boats/sims';
 import { hullPlan } from '../layout';
@@ -73,15 +77,20 @@ function samples(def: VesselDef): Vec3[] {
   return s;
 }
 
-/** Her guards' points (her own axes): fenders while they're out, a strake or tyres, a push fender. */
-function guardSamples(s: VesselState): readonly (readonly [number, number, number])[] {
+/** Her guards' points (her own axes) with each one's friction: fenders while they're out, a strake or tyres, a push fender. */
+function guardSamples(s: VesselState): readonly { p: readonly [number, number, number]; mu: number }[] {
   const fenders = gearOf(s, 'fenders');
   const side = gearOf(s, 'sideGuard');
   const push = gearOf(s, 'pushFender');
   if (!push && !side && !(fenders && s.controls.fenders > 0)) return NONE;
-  return [...(fenders && s.controls.fenders > 0 ? fenders.probes : []), ...(side?.probes ?? []), ...(push?.probes ?? [])];
+  const c = CONFIG.contacts;
+  return [
+    ...(fenders && s.controls.fenders > 0 ? fenders.probes.map((p) => ({ p, mu: c.fenderFriction })) : []),
+    ...(side?.probes ?? []).map((p) => ({ p, mu: c.fenderFriction })),
+    ...(push?.probes ?? []).map((p) => ({ p, mu: c.guards.pushFender.friction })),
+  ];
 }
-const NONE: readonly (readonly [number, number, number])[] = [];
+const NONE: readonly { p: readonly [number, number, number]; mu: number }[] = [];
 
 /** Points of A inside B: push them apart. Adds to `outA` / `outB`. */
 function pushOut(a: VesselState, defA: VesselDef, b: VesselState, defB: VesselDef, outA: ExternalForce[], outB: ExternalForce[]): void {
@@ -92,7 +101,8 @@ function pushOut(a: VesselState, defA: VesselDef, b: VesselState, defB: VesselDe
   const keelB = Math.min(...defB.hull.stations.map((st) => st.polygon[2][1]));
   const cgA = cgWorld(a, defA, qA);
   const cgB = cgWorld(b, defB, qB);
-  for (const s of [...samples(defA), ...guardSamples(a)]) {
+  const c = CONFIG.contacts;
+  for (const { p: s, mu } of [...samples(defA).map((p) => ({ p, mu: c.boatFriction })), ...guardSamples(a)]) {
     p.fromArray(s).applyQuaternion(qA).add(tmp.fromArray(a.position));
     // In B's axes.
     l.copy(p).sub(tmp.fromArray(b.position)).applyQuaternion(qBInv);
@@ -113,11 +123,18 @@ function pushOut(a: VesselState, defA: VesselDef, b: VesselState, defB: VesselDe
     n.normalize();
     pointVelocity(a, cgA, p, vA);
     pointVelocity(b, cgB, p, vB);
-    const vn = vA.sub(vB).dot(n); // < 0: moving further in
+    const rel = vA.sub(vB);
+    const vn = rel.dot(n); // < 0: moving further in
     const f = Math.max(0, STIFFNESS * depth - DAMPING * vn);
     if (f <= 0) continue;
-    outA.push({ force: n.clone().multiplyScalar(f), point: p.clone() });
-    outB.push({ force: n.clone().multiplyScalar(-f), point: p.clone() });
+    const force = n.clone().multiplyScalar(f);
+    // Friction across the touch: against the sliding, Coulomb above stickSpeed, viscous below.
+    const vt = rel.addScaledVector(n, -vn);
+    vt.y = 0;
+    const slip = vt.length();
+    if (slip > 1e-4) force.addScaledVector(vt, (-mu * f * Math.min(1, slip / c.stickSpeed)) / slip);
+    outA.push({ force, point: p.clone() });
+    outB.push({ force: force.clone().negate(), point: p.clone() });
   }
 }
 

@@ -5048,6 +5048,14 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Tests:** `tests/helmCamera.test.ts` (the cycle; orbit astern and turning with her heading, the stick's swing, the zoom; flyby's spot ahead and to the side, static as she passes, re-placed the other side once she's by, the lens' zoom).
 - **Checked:** typecheck, `npm test`. Headless Chromium: the orbit and flyby views forced on (no controller in the headless browser) and rendered. **Not checked:** with a real controller in hand.
 
+### Berthing the ship: push her onto the quay (owner)
+
+- **The owner's choices:** a dead ship, a VHF call, delivered by pushing her against any berth face of the destination port until she's slow and within reach of the quay.
+- `tow/tow.ts shipBerthed / isShipJob`, `CONFIG.tow.berthReach 2.5, shipRemoveAfter 120`: a ship job (TowLook.needs 'tug': the coaster) is delivered only when, slow inside the port, her middle is within her half beam + 2.5 m of a quay or pier face (`nearestBlockEdge`), for deliverTime; the call says so ("tow her in, then push her onto the berth with your bow"), the status line too, and the harbour answers "her lines are ashore". She lies there two minutes before she's taken over. Ordinary tows are delivered as before (slow anywhere in the port).
+- **Boats have friction against each other** (`vessel/physics/vesselContact.ts`, `CONFIG.contacts.boatFriction 0.35`): the touch's force now has a part across it against the sliding (Coulomb above stickSpeed, viscous below), plating 0.35, the crew's fenders and strakes 0.12, a push fender 0.8. Before, the workboat's bow skated off the coaster's side within ten seconds of pushing (no friction at all boat-to-boat); now she holds and pushes her at 0.1 m/s with 47 kN. The coaster against the quay: she meets it on the hull springs, sinks half a metre in and eases off; no damage at docking speeds.
+- **Tests:** `tests/tugTows.test.ts` (+2): stopped in the middle of Calder she isn't delivered, laid a metre off the quay face she is, with the message, and still lies there 30 s on; the workboat pushing bow-on moves her north and she keeps way on.
+- **Checked:** typecheck, `npm test`. **Not checked:** by eye, VR, the tug design's push fender on her (the test used the workboat's plain bow).
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

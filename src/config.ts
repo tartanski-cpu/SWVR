@@ -1952,6 +1952,14 @@ export const CONFIG = {
     /** With the heavy towing post (career upgrade): this much more. */
     heavyPostFactor: 1.75,
     maxStretch: 12,
+    /**
+     * A ship (TowLook.needs 'tug': the coaster; owner, Oct 2026) is delivered only alongside a
+     * quay or pier of the port: her middle within her half beam + `berthReach` m of the face,
+     * slow, for deliverTime (push her in with your bow). The harbour's lines go on and she
+     * lies there `shipRemoveAfter` s before she's taken over (long enough to look at).
+     */
+    berthReach: 2.5,
+    shipRemoveAfter: 120,
     /** Delivered: the tow within this of a port (m), slower than this (m/s), for this long (s). */
     deliverRadius: 170,
     deliverSpeed: 0.8,
@@ -2680,6 +2688,13 @@ export const CONFIG = {
     fenderFriction: 0.12,
     /** Below this sliding speed friction becomes viscous, so a grounded boat settles (m/s). */
     stickSpeed: 0.08,
+    /**
+     * Boat against boat (vessel/physics/vesselContact.ts): friction across the touch, as a
+     * fraction of the push, so a tug's bow holds on a ship's side instead of skating along
+     * it (owner, Oct 2026: pushing a ship onto her berth). Plain plating on plating; a push
+     * fender's own `pushFender.friction`, the crew's fenders' `fenderFriction`.
+     */
+    boatFriction: 0.35,
     /**
      * What a boat hangs or fits on her own sides to keep her topsides off a quay (owner: a
      * Shipyard choice; vessel/physics/guards.ts). Each is probed at its own points, standing

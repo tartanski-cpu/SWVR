@@ -14,6 +14,10 @@
  *              it's 'delivered': the harbour takes it over, the line is cast off, the job
  *              counts as a completed mission. The tow is taken away
  *              a few seconds later (CONFIG.tow.removeAfter).
+ *              A ship (a tug's job, TowLook.needs 'tug') has to be laid alongside: slow
+ *              with her middle within her half beam + berthReach of a quay or pier face
+ *              (shipBerthed): tow her to the approach, cast off, push her in with your
+ *              bow. She lies there shipRemoveAfter s with her lines ashore.
  *   towline    one straight spring-damper between our stern roller and what it's made fast
  *              to (see CONFIG.tow and towlineForces below). It parts if snatched too hard.
  *              It isn't only for the job (owner request: "tow anything in the water"): it
@@ -39,6 +43,7 @@ import { placeVessel } from '../vessel/vesselControl';
 import { isPowered, hydraulicsOn } from '../vessel/electrics';
 import { groundHeight } from '../world/terrain';
 import { PORTS } from '../world/archipelago';
+import { nearestBlockEdge } from '../world/geography';
 import { regionAt } from '../world/regions';
 import type { ExternalForce } from '../vessel/physics/vesselContact';
 import { createRescueState, nearestPort, sayRadio } from '../rescue/rescue';
@@ -142,6 +147,19 @@ export function towPostLocal(v: { defId: string }): [number, number, number] {
 /** Where the towline comes off her tow winch's drum (vessel axes), or null: no winch. */
 export function winchLeadLocal(v: { defId: string }): [number, number, number] | null {
   return gearOf(v, 'towWinch')?.lead ?? null;
+}
+
+/** Is this ship alongside: her middle within her half beam + CONFIG.tow.berthReach of a quay or pier face? */
+export function shipBerthed(tow: VesselState): boolean {
+  const def = VESSEL_DEFS[tow.defId];
+  const halfBeam = Math.max(...def.hull.stations.map((st) => st.halfBeamDeck));
+  // (nearestBlockEdge measures to a point 0.6 m inside the face.)
+  return !!nearestBlockEdge(tow.position[0], tow.position[2], halfBeam + 0.6 + CONFIG.tow.berthReach);
+}
+
+/** A tug's job: a ship that has to be laid alongside (TowLook.needs 'tug'). */
+export function isShipJob(job: TowJob | null | undefined): boolean {
+  return !!job && VESSEL_DEFS[job.defId]?.tow?.needs === 'tug';
 }
 
 /** The tow's bow eye (vessel axes): at the stem, just above the deck edge. */
@@ -482,7 +500,7 @@ export function startTowCall(world: WorldState, v: VesselState, defId?: string, 
     : `bearing ${bearing(bx, bz, x, z).toFixed(0).padStart(3, '0')}°, ${(Math.hypot(x - bx, z - bz) / 1852).toFixed(1)} miles from you`;
   const heavy = (VESSEL_DEFS[kind].tow?.lineFactor ?? 1) > 1 ? ' She is a big one: she will pass you her own heavy hawser. Take up the strain gently.' : '';
   const ship = VESSEL_DEFS[kind].tow?.needs === 'tug';
-  sayRadio(world, 'distress', ship ? `PAN PAN. Tug wanted: ${name}, drifting ${where}. She needs a tug to bring her into harbour; nothing smaller will shift her.${heavy}` : `SÉCURITÉ. Tow wanted: ${name}, adrift ${where}. Can you take her in tow to any harbour?${heavy}`);
+  sayRadio(world, 'distress', ship ? `PAN PAN. Tug wanted: ${name}, drifting ${where}. She needs a tug to bring her into harbour and lay her alongside a quay: tow her in, then push her onto the berth with your bow. Nothing smaller will shift her.${heavy}` : `SÉCURITÉ. Tow wanted: ${name}, adrift ${where}. Can you take her in tow to any harbour?${heavy}`);
   return job;
 }
 
@@ -599,7 +617,10 @@ export function stepTow(world: WorldState, dt: number): void {
     // been let go to drift the last bit in).
     const port = PORTS.find((p) => Math.hypot(p.x - tow.position[0], p.z - tow.position[2]) < cfg.deliverRadius);
     const speed = Math.hypot(tow.linearVelocity[0], tow.linearVelocity[2]);
-    job.inPort = port && speed < cfg.deliverSpeed ? job.inPort + dt : 0;
+    // A ship has to lie alongside a quay, not just inside the harbour.
+    const ship = isShipJob(job);
+    const alongside = !ship || shipBerthed(tow);
+    job.inPort = port && speed < cfg.deliverSpeed && alongside ? job.inPort + dt : 0;
     if (port && job.inPort >= cfg.deliverTime) {
       const name = port.name.replace(' (anchorage)', '');
       job.phase = 'delivered';
@@ -611,7 +632,7 @@ export function stepTow(world: WorldState, dt: number): void {
       const r = (world.rescue ??= createRescueState());
       r.completed += 1;
       earn(world, 'tow', { port: port.id, what: job.defId, text: `Tow into ${name}` });
-      sayRadio(world, 'info', `${name} harbour: we have her, skipper, cast off your line. Thank you, a fine tow.`);
+      sayRadio(world, 'info', ship ? `${name} harbour: her lines are ashore, skipper. Well berthed. Thank you, a fine job.` : `${name} harbour: we have her, skipper, cast off your line. Thank you, a fine tow.`);
     }
     return;
   }
@@ -619,7 +640,7 @@ export function stepTow(world: WorldState, dt: number): void {
   // The harbour takes her over: she's gone a few seconds after the hand-over (owner
   // feedback: delivered tows were left drifting about the harbour).
   if (job.phase === 'delivered' && tow) {
-    if (world.time - (job.doneT ?? 0) > cfg.removeAfter && removeTow(world, job)) {
+    if (world.time - (job.doneT ?? 0) > (isShipJob(job) ? cfg.shipRemoveAfter : cfg.removeAfter) && removeTow(world, job)) {
       t.job = null;
       t.nextAt = world.time + between(t, cfg.every);
     }
@@ -702,7 +723,7 @@ export function towStatus(world: WorldState): string | null {
   if (!job) return null;
   if (job.phase === 'calling') return 'Tow wanted: pick up the handset';
   if (job.phase === 'delivered') return `Tow delivered to ${job.port ?? 'harbour'}`;
-  if (towFast(world)) return `Towing: bring her into any harbour (${kN})`;
+  if (towFast(world)) return isShipJob(job) ? `Towing the ship: into harbour, then cast off and push her onto a quay (${kN})` : `Towing: bring her into any harbour (${kN})`;
   const d = towReach(world);
   return d <= CONFIG.tow.attachRange ? 'Tow alongside: hook her bow eye to make fast' : `Tow adrift ${Math.round(d)} m off: go and get her`;
 }
