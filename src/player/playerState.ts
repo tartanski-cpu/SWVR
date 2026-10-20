@@ -23,7 +23,7 @@ export interface HeldTool {
  * aboard (or world). The host uses the extinguisher's to put fires out; everyone draws it.
  */
 export interface GearPose {
-  kind: 'extinguisher' | 'torch' | 'rod';
+  kind: 'extinguisher' | 'torch' | 'rod' | 'lineGun';
   /** Which of the rack's rods (0, left out, for the first and for the other gear). */
   slot?: number;
   on: boolean;

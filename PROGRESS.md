@@ -5056,6 +5056,14 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Tests:** `tests/tugTows.test.ts` (+2): stopped in the middle of Calder she isn't delivered, laid a metre off the quay face she is, with the message, and still lies there 30 s on; the workboat pushing bow-on moves her north and she keeps way on.
 - **Checked:** typecheck, `npm test`. **Not checked:** by eye, VR, the tug design's push fender on her (the test used the workboat's plain bow).
 
+### The line-throwing gun: passing a hawser to a ship (owner)
+
+- **The owner:** a hand tool, standard on tugs, to fire the messenger line up to a big ship's towing eye (the hook can't reach); it attaches and pulls the thick tow line over; undoing it to be settled later.
+- `tow/lineGun.ts` (`LineGun`, `CONFIG.lineGun`): hand gear kind 'lineGun' (`player/handGear.ts`: an orange launcher with its line canister), on its bracket on the wheelhouse's starboard wall aft (`stowage.lineGun`, `shipyard/build.ts`: every design with the tug hull or the tug diesel). In hand, a press fires: the rocket leaves at 38 m/s along the gun under gravity, trailing the messenger; aimed within 8° of a tow target's bow eye inside 55 m it lands there at once, or when it passes within 4 m of one in flight; into the water or past 1.3 × range it's a miss and the gun reloads (3 s). Landed, the ship's crew haul the hawser over for 6 s (`tow/lineGunView.ts`: the rocket and messenger in flight; the messenger from the eye to our stern roller and the hawser creeping across), then the app sends `towMake` with args [1]: by the gun, so `tow.ts` makes fast within the gun's range (55 m) instead of the hook's (16 m); the line is paid out to the distance as always (the winch's 60 m holds it). Hanging the gun back winds the messenger in. Notices and VR haptics at each step; others see the gun in your hand (GearPose), not the rocket (local).
+- **Not done:** undoing it (the owner will say); the ship's crew letting go. Cast off works as for any towline.
+- **Tests:** `tests/lineGun.test.ts` (aimed in range: attached, hauled, made; wide: a miss and a reload, a close pass lands, hung back winds in; out of range no hit by aim; towMake by the gun makes fast at 40 m where the hook's 16 m would not; the tug hull and the tug engine carry the gun, the workboat type doesn't).
+- **Checked:** typecheck, `npm test`. **Not checked:** by eye or in VR (the gun's mesh and the lines drawn are unseen); the aim feel.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

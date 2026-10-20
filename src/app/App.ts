@@ -111,7 +111,9 @@ import { RodGame } from '../fishing/rodGame';
 import { HelmCamera } from '../player/helmCamera';
 import { distanceToHull } from '../rescue/recovery';
 import { RodView } from '../fishing/rodView';
-import { lineLength, nearestTowTarget, towAlertT, towStatus, winchStalled } from '../tow/tow';
+import { LineGun } from '../tow/lineGun';
+import { LineGunView } from '../tow/lineGunView';
+import { lineLength, nearestTowTarget, towAlertT, towName, towPoint, towPostLocal, towStatus, towTargets, winchStalled } from '../tow/tow';
 import { TargetsView } from '../rescue/targetView';
 import { RescueHands, type RescueHandsContext } from '../rescue/rescueHands';
 import { RescueGearView, type AvatarHands } from '../rescue/rescueGearView';
@@ -354,7 +356,10 @@ export class App {
   /** Binoculars on the dash (VR: pick up and raise to the eyes; desktop: hold Z). */
   private binoculars!: Binoculars;
   /** Hand gear on brackets in the wheelhouse (player/handGear.ts). */
-  private readonly gear = [new HandGear('extinguisher'), new HandGear('torch'), ...Array.from({ length: CONFIG.rod.perRack }, (_, i) => new HandGear('rod', i))];
+  private readonly gear = [new HandGear('extinguisher'), new HandGear('torch'), new HandGear('lineGun'), ...Array.from({ length: CONFIG.rod.perRack }, (_, i) => new HandGear('rod', i))];
+  /** The line-throwing gun's game (tow/lineGun.ts) and what it shows. */
+  private readonly lineGun = new LineGun();
+  private readonly lineGunView = new LineGunView();
   /** Each rod's game (fishing/rodGame.ts; the rack's rods, in order) and what they show. */
   private readonly rodGames = this.gear.filter((g) => g.kind === 'rod').map(() => new RodGame());
   private readonly rodView = new RodView();
@@ -641,7 +646,7 @@ export class App {
       }
       if (rodRack) this.rodView.attachBucket(tugView.root);
     }
-    this.scene.add(this.handGearView.root, this.camPreview.screen, this.rodView.root);
+    this.scene.add(this.handGearView.root, this.camPreview.screen, this.rodView.root, this.lineGunView.root);
     this.scene.add(this.towline.root, this.painter.root, this.fireView.root, this.jetView.root, this.logView.root, this.trawlView.root, this.potView.root, this.fuelView.root);
     this.setupBridge();
 
@@ -1451,6 +1456,54 @@ export class App {
     this.rodView.update(this.world, this.testVesselId, shown);
   }
 
+  /**
+   * The line-throwing gun (tow/lineGun.ts): fired at a tow target's bow eye, the messenger
+   * lands, the ship's crew haul the hawser over, and the towline is made fast (towMake, by
+   * the gun: at its range).
+   */
+  private updateLineGun(dt: number): void {
+    const gun = this.gear.find((g) => g.kind === 'lineGun');
+    const v = this.world.vessels[this.testVesselId];
+    if (!gun || !v) return;
+    gun.tick(dt);
+    const root = this.vesselRoots.get(v.id);
+    const stern = root ? root.localToWorld(this.tmpV.fromArray(towPostLocal(v))) : this.tmpV.fromArray(v.position);
+    const tip = new THREE.Vector3();
+    const dir = this.tmpV2;
+    gun.tipWorld(tip, dir);
+    const held = !!gun.held;
+    const targets = held || this.lineGun.phase !== 'ready' ? towTargets(this.world).flatMap((key) => {
+      const p = towPoint(this.world, key, new THREE.Vector3());
+      return p ? [{ key, pos: { x: p.x, y: p.y, z: p.z } }] : [];
+    }) : [];
+    const ev = this.lineGun.step(dt, { held, pressed: gun.pressed, tip, dir, targets, waterAt: (x, z) => surfaceHeight(this.renderWaves, x, z) });
+    gun.pressed = false;
+    this.lineGunView.update(this.lineGun, held ? tip : null, stern);
+    const hand = gun.held === 'left' || gun.held === 'right' ? gun.held : null;
+    if (!ev) return;
+    switch (ev) {
+      case 'fired':
+        if (hand) this.xrInput.pulse(hand, 0.9, 120);
+        break;
+      case 'attached':
+        if (hand) this.xrInput.pulse(hand, 0.9, 120);
+        this.overlay.notify(`Line across! Her crew are hauling the hawser over to ${towName(this.world, this.lineGun.target!.key)}`, 4);
+        break;
+      case 'missed':
+        this.overlay.notify('Missed: the line is in the water. Winding in; aim at her bow eye and fire again', 3);
+        break;
+      case 'made': {
+        const key = this.lineGun.madeKey;
+        if (!key) break;
+        if (this.world.tow?.line) this.overlay.notify('Our towline is already fast: cast it off first', 3);
+        else this.intents.push({ playerId: this.localPlayerId, targetId: this.testVesselId, control: 'towMake', value: 1, ref: key, args: [1] });
+        break;
+      }
+      case 'wound':
+        break;
+    }
+  }
+
   /** One rod's frame: its game stepped from the hand; what it says, told, felt and sent on. Returns its tip if in hand. */
   private rodStep(dt: number, v: VesselState, rod: HandGear, game: RodGame): THREE.Vector3 | null {
     const p = new THREE.Vector3();
@@ -1598,6 +1651,7 @@ export class App {
     }
     this.handGearView.update(this.world, this.localPlayerId, local, this.vesselRoots, darkness, dt);
     this.updateRod(dt);
+    this.updateLineGun(dt);
     // On the bracket: hidden while a crew-mate has it (it's in their hand).
     for (const g of this.gear) if (!g.held) g.mesh.visible = !this.gearTakenByOther(g.kind, g.slot);
     // Spraying an empty extinguisher: say so once.

@@ -1670,6 +1670,8 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
       exhaust: { position: [0.55, 0.2, transom + 0.05], direction: [0, -0.12, 1] },
       stowage: {
         extinguisher: [-(hw - 0.2), F + 0.58, aft - 0.15],
+        // A tug's line-throwing gun (CONFIG.lineGun): on the starboard wall aft, inside.
+        ...(d.hull === 4 || singleOnly ? { lineGun: [hw - 0.2, F + 1.0, aft - 0.35] as V3 } : {}),
         torch: [-(hw - 0.45), F + 0.68, aft - 0.12],
         binoculars: { at: [-(hw - 0.35), F + 1.35, cf + 0.14 + sb(hw - 0.35)], yawDeg: 20 },
       },

@@ -3334,6 +3334,18 @@ export const CONFIG = {
   },
 
   /**
+   * The line-throwing gun (owner, Oct 2026; tow/lineGun.ts, player/handGear.ts kind
+   * 'lineGun'): a tug's hand tool for passing a hawser to a ship she can't reach with the
+   * boat hook. On its bracket in every tug's wheelhouse (a tug hull or the tug diesel, the
+   * Shipyard). Take it, aim at the ship's bow eye and fire: a rocket carries a thin messenger
+   * line across; landed by the eye (within `hitRadius` m of it, or aimed within `aimDeg` of
+   * it inside `range` m), the ship's crew make it fast and haul the hawser over on it
+   * (`haulS` s), and the towline is then fast as if hooked on. A miss splashes; `reloadS` s
+   * to the next shot. The rocket flies at `speed` m/s under gravity.
+   */
+  lineGun: { range: 55, speed: 38, aimDeg: 8, hitRadius: 4, haulS: 6, reloadS: 3 },
+
+  /**
    * Camera views at the helm with a game controller (player/helmCamera.ts; owner, Oct 2026):
    * Y cycles inside, orbit and flyby while you drive from the helm.
    *   orbit   `lengths` of her length off (at least `minDist` m), the right stick turning it
