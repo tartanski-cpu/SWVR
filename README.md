@@ -250,6 +250,8 @@ Out of harbour, the VHF brings rescues (on cargo runs), tows and fires now and t
 
 To work in peace, set **Menu → Voyage → Emergency calls → Off (quiet)**. No new calls come while it's off; one already ringing runs its course. Shipping forecasts and harbour messages still come. Turn the RADIO breaker off for silence altogether, or turn the VHF down in Settings → Sound.
 
+**Rescue calls** (on the test address) come in several kinds, each with its own call and its own search area: a **person in the water**; an **upturned dinghy** with two or three people spread around her; a **liferaft** with three or four sat on her tube; a **motor boat sinking** with two aboard, who go into the water in lifejackets if she goes down before you get there (about five minutes after the call); and **three divers** who surfaced apart, spread over a wide area. Survivors are built like the crew's avatars, in a lifejacket with its light. **The ring need not land on them:** a survivor within about 14 m of the ring swims for it (one at a time), so throw it near and haul when they've got it. People on a raft or a sinking boat climb straight aboard: lay your stern alongside, within about 4 m, and go to neutral; they come over one after another. The dinghy and the raft drift with the wind and tide as everything does.
+
 ### Weather work
 
 - **Shipping forecast:** the coastguard reads it out on the VHF every 12 minutes and soon after the weather turns: wind, sky, visibility, and what's coming and when. You only hear it with the RADIO breaker on. The last one received stays on the **duty board** (starboard wall) with its time.

@@ -5,7 +5,8 @@ import { sampleSurface, type PreparedWave } from '../ocean/waves';
 import { fitPaint, flatVertexColorMaterial, mergeParts, part } from '../render/geometryUtils';
 import { rescuePlaces } from './recovery';
 import { standingHeight } from '../world/geography';
-import type { RescueTarget } from './rescue';
+import type { Incident, RescueTarget } from './rescue';
+import { armGeometry, decodeLook, headGeometry, lookFromId } from '../net/avatarOutfits';
 
 const ORANGE = 0xff6a10;
 const SKIN = 0xd8a07a;
@@ -26,10 +27,15 @@ interface Marker {
 
 /**
  * What's in the water during a rescue, made easy to spot:
- *   - a survivor: bright orange lifejacket up to the chin, head above water, facing the
- *     boat; waves an arm when you're within CONFIG.rescue.waveRange and blows the
- *     lifejacket whistle (spatial sound, via onWhistle) every few seconds;
- *   - crates: bright orange, banded, floating low and tilting with the waves.
+ *   - a survivor: a figure built as the crew's avatars are (net/avatarOutfits.ts: their
+ *     head with its face and skin, a beard maybe, each their own from their id; owner, Oct
+ *     2026) in a bright orange lifejacket up to the chin with its collar, reflective band
+ *     and strobe, head above water, facing the boat; waves an arm when you're within
+ *     CONFIG.rescue.waveRange and blows the lifejacket whistle (spatial sound, via
+ *     onWhistle) every few seconds;
+ *   - crates: bright orange, banded, floating low and tilting with the waves;
+ *   - what they're in or by (Incident.prop): an upturned dinghy, a liferaft with its
+ *     canopy (its people sitting in it), a motor boat settling and listing as she sinks.
  * Both ride the wave surface (sampled at their position; no physics body). A survivor's
  * lifejacket carries a flashing strobe at night: a glowing sprite, not a real light, kept a
  * readable size at any distance. Crates have none (owner request: too easy to find).
@@ -42,8 +48,13 @@ interface Marker {
 export class TargetsView {
   readonly root = new THREE.Group();
   private readonly markers = new Map<string, Marker>();
+  /** The lifejacket and the waving arm are shared; each survivor's head is their own (by id). */
   private readonly personGeo: THREE.BufferGeometry;
   private readonly armGeo: THREE.BufferGeometry;
+  private readonly props = new Map<string, { root: THREE.Group; kind: 'dinghy' | 'liferaft' | 'sinking'; hull: THREE.Object3D }>();
+  private readonly dinghyGeo: THREE.BufferGeometry;
+  private readonly raftGeo: THREE.BufferGeometry;
+  private readonly sinkingGeo: THREE.BufferGeometry;
   private readonly legsGeo: THREE.BufferGeometry;
   private readonly crateGeo: THREE.BufferGeometry;
   /** A little self-lit so the orange stays bright in shadow and at dusk. */
@@ -65,20 +76,43 @@ export class TargetsView {
 
   constructor() {
     this.root.name = 'rescueTargets';
-    // Survivor, origin at the waterline, facing +z: lifejacket (with collar) and head.
+    // Survivor, origin at the waterline, facing +z: the lifejacket (a foam vest with its
+    // collar round the neck, a reflective band, the whistle on its cord, a light), a dark
+    // jumper under it, and the other arm resting on the water. The head is each one's own.
     this.personGeo = mergeParts([
-      part(new THREE.BoxGeometry(0.44, 0.5, 0.3).translate(0, -0.1, 0), ORANGE),
-      part(new THREE.BoxGeometry(0.46, 0.12, 0.32).translate(0, 0.2, 0), 0xff8a30), // collar
-      part(new THREE.BoxGeometry(0.46, 0.04, 0.32).translate(0, 0.02, 0), 0xe8e8e0), // reflective band
-      part(new THREE.SphereGeometry(0.11, 10, 8).translate(0, 0.38, 0.02), SKIN),
-      part(new THREE.SphereGeometry(0.115, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2).translate(0, 0.41, 0.0), 0x2b2118), // hair
-      // The other arm, resting on the water.
-      part(new THREE.BoxGeometry(0.09, 0.09, 0.4).translate(-0.3, 0.02, 0.12), ORANGE),
+      part(new THREE.BoxGeometry(0.42, 0.5, 0.26).translate(0, -0.1, 0), 0x2a3340), // the jumper (torso)
+      part(new THREE.BoxGeometry(0.46, 0.44, 0.32).translate(0, -0.06, 0), ORANGE), // the vest
+      part(new THREE.BoxGeometry(0.16, 0.14, 0.06).translate(0, 0.22, -0.11), 0xff8a30), // the collar, in front of the neck
+      part(new THREE.BoxGeometry(0.46, 0.16, 0.14).translate(0, 0.2, 0.1), 0xff8a30), // the collar, round the back of the neck
+      part(new THREE.BoxGeometry(0.47, 0.04, 0.33).translate(0, 0.0, 0), 0xe8e8e0), // reflective band
+      part(new THREE.BoxGeometry(0.03, 0.05, 0.02).translate(0.12, 0.1, -0.165), 0xf2f2ee), // the whistle
+      part(new THREE.BoxGeometry(0.03, 0.03, 0.02).translate(-0.15, 0.3, -0.16), 0xd8d8d0), // the light
+      part(new THREE.CylinderGeometry(0.045, 0.045, 0.4, 7).rotateX(Math.PI / 2).translate(-0.3, 0.02, 0.12), 0x2a3340), // the other arm, sleeve
+      part(new THREE.SphereGeometry(0.05, 8, 6).translate(-0.3, 0.02, 0.33), SKIN), // its hand
     ]);
-    // Waving arm: pivot at the shoulder, pointing up.
-    this.armGeo = mergeParts([
-      part(new THREE.BoxGeometry(0.09, 0.42, 0.09).translate(0, 0.21, 0), ORANGE),
-      part(new THREE.SphereGeometry(0.055, 8, 6).translate(0, 0.46, 0), SKIN),
+    // Waving arm: pivot at the shoulder, pointing up (the jumper's sleeve, a hand).
+    this.armGeo = mergeParts([part(armGeometry(decodeLook(0), 0.42, false).rotateX(Math.PI).translate(0, 0, 0), 0x2a3340), part(new THREE.SphereGeometry(0.055, 8, 6).translate(0, 0.46, 0), SKIN)]);
+    // The upturned dinghy: a hull keel-up, awash, her centreboard sticking up.
+    this.dinghyGeo = mergeParts([
+      part(new THREE.BoxGeometry(1.5, 0.45, 3.6).translate(0, 0.02, 0), 0xe8e4dc),
+      part(new THREE.BoxGeometry(1.2, 0.1, 3.0).translate(0, 0.28, 0), 0x3a5a9a), // the bottom, antifouled
+      part(new THREE.BoxGeometry(0.04, 0.5, 0.7).translate(0, 0.55, -0.2), 0xd8d4cc), // the centreboard
+    ]);
+    // The liferaft: an orange ring of buoyancy tubes with a canopy over it.
+    this.raftGeo = mergeParts([
+      part(new THREE.CylinderGeometry(1.3, 1.3, 0.4, 8).translate(0, 0.15, 0), ORANGE),
+      part(new THREE.CylinderGeometry(1.0, 1.0, 0.05, 8).translate(0, 0.33, 0), 0x3a3a3a), // the floor
+      // The canopy is a tent over the middle, so her people (sat round the tube) stay in view.
+      part(new THREE.ConeGeometry(0.85, 0.9, 8, 1, true).translate(0, 0.8, 0), 0xf08a28),
+      part(new THREE.BoxGeometry(0.9, 0.06, 0.05).translate(0, 0.38, -1.3), 0x222222), // the grab line's strap
+    ]);
+    // The sinking motor boat: a small cabin boat, drawn settling and listing as she goes.
+    this.sinkingGeo = mergeParts([
+      part(new THREE.BoxGeometry(2.2, 0.9, 6.0).translate(0, 0.1, 0), 0xf0ece4),
+      part(new THREE.BoxGeometry(2.2, 0.08, 6.0).translate(0, 0.58, 0), 0x6a4a2a), // the gunwale
+      part(new THREE.BoxGeometry(1.8, 0.8, 2.0).translate(0, 0.95, -0.8), 0xf0ece4), // the cuddy
+      part(new THREE.BoxGeometry(1.82, 0.3, 0.6).translate(0, 1.0, 0.25), 0x1a2a30), // its windscreen
+      part(new THREE.BoxGeometry(0.5, 0.6, 0.3).translate(0, 0.8, 2.8), 0x222222), // the outboard
     ]);
     // Legs and boots under the lifejacket, for standing (the bust's hem is at y = -0.35).
     this.legsGeo = mergeParts([
@@ -115,6 +149,11 @@ export class TargetsView {
     let legs: THREE.Object3D | null = null;
     if (t.kind === 'person') {
       root.add(new THREE.Mesh(this.personGeo, this.mat));
+      // Their own head (as the avatars': face, skin, maybe a beard), facing +z with the body.
+      const look = decodeLook(lookFromId(t.id));
+      const head = new THREE.Mesh(headGeometry(look, 0xff8a30).rotateY(Math.PI), this.mat);
+      head.position.set(0, 0.38, 0.0);
+      root.add(head);
       arm = new THREE.Mesh(this.armGeo, this.mat);
       arm.position.set(0.27, 0.12, 0);
       legs = new THREE.Mesh(this.legsGeo, this.mat);
@@ -145,10 +184,13 @@ export class TargetsView {
 
   update(world: WorldState, waves: readonly PreparedWave[], viewer: THREE.Vector3, darkness: number, time: number, dt: number, vesselId: string, vesselRoot?: THREE.Object3D): void {
     const cfg = CONFIG.rescue;
-    const targets = world.rescue?.active?.targets ?? [];
+    const inc = world.rescue?.active;
+    const targets = inc?.targets ?? [];
     const v = world.vessels[vesselId];
     const seen = new Set<string>();
     let whistle: THREE.Vector3 | null = null;
+    this.updateProp(inc, waves, time);
+    let seatOnProp = 0;
     for (const t of targets) {
       seen.add(t.id);
       const m = this.markers.get(t.id) ?? this.create(t);
@@ -162,6 +204,10 @@ export class TargetsView {
       }
       if ((t.phase === 'landing' || t.phase === 'ashore') && t.shore) {
         this.poseLanding(m, t, t.shore, vesselRoot, time);
+        continue;
+      }
+      if (t.phase === 'raft' && inc?.prop) {
+        this.poseOnProp(m, inc.prop, seatOnProp++, waves, viewer, time);
         continue;
       }
       // Smooth the drift and tow (big jumps snap).
@@ -205,6 +251,59 @@ export class TargetsView {
       this.whistleT = cfg.whistleEvery * (0.8 + Math.random() * 0.4);
       this.onWhistle(whistle);
     }
+  }
+
+  /** The dinghy, raft or sinking boat: riding the waves where it drifts; the boat settling and listing as her time runs out. */
+  private updateProp(inc: Incident | null | undefined, waves: readonly PreparedWave[], time: number): void {
+    const want = inc?.prop && !inc.prop.sunk ? inc.prop : null;
+    for (const [id, p] of this.props) {
+      if (want && id === inc!.defId + ':' + inc!.callT) continue;
+      p.root.removeFromParent();
+      this.props.delete(id);
+    }
+    if (!want || !inc) return;
+    const id = inc.defId + ':' + inc.callT;
+    let p = this.props.get(id);
+    if (!p) {
+      const root = new THREE.Group();
+      root.name = `rescueProp:${want.kind}`;
+      const hull = new THREE.Mesh(want.kind === 'dinghy' ? this.dinghyGeo : want.kind === 'liferaft' ? this.raftGeo : this.sinkingGeo, this.mat);
+      root.add(hull);
+      this.root.add(root);
+      p = { root, kind: want.kind, hull };
+      this.props.set(id, p);
+    }
+    const s = sampleSurface(waves, want.x, want.z);
+    p.root.position.set(want.x, s.height, want.z);
+    this.n.fromArray(s.normal).lerp(this.up, 0.5).normalize();
+    this.q.setFromUnitVectors(this.up, this.n);
+    p.root.quaternion.copy(this.q).multiply(this.qYaw.setFromAxisAngle(this.up, inc.x * 0.01));
+    if (want.kind === 'sinking') {
+      // Settling by the stern and listing, further the longer she's been going.
+      const f = Math.min(1, Math.max(0, (time - inc.callT) / CONFIG.rescue.sinkTime));
+      p.hull.position.y = -0.9 * f;
+      p.hull.rotation.z = 0.4 * f;
+      p.hull.rotation.x = -0.25 * f;
+    }
+  }
+
+  /** Sitting on the raft's buoyancy tube or in the sinking boat's cockpit, facing the viewer. */
+  private poseOnProp(m: Marker, prop: NonNullable<Incident['prop']>, i: number, waves: readonly PreparedWave[], viewer: THREE.Vector3, time: number): void {
+    const a = (i / 4) * Math.PI * 2 + 0.6;
+    const r = prop.kind === 'liferaft' ? 1.1 : 0.45;
+    const dx = Math.cos(a) * r;
+    const dz = prop.kind === 'sinking' ? 0.6 + 0.9 * (i % 2) : Math.sin(a) * r;
+    const x = prop.x + dx;
+    const z = prop.z + dz;
+    const s = sampleSurface(waves, x, z);
+    const lift = prop.kind === 'liferaft' ? 0.6 : 0.75; // bust origin above the tube / the cockpit sole
+    m.x = x;
+    m.z = z;
+    m.root.position.set(x, s.height + lift, z);
+    m.root.quaternion.setFromAxisAngle(this.up, Math.atan2(viewer.x - x, viewer.z - z));
+    m.root.visible = true;
+    if (m.arm) m.arm.rotation.z = -0.25 - 0.45 * (0.5 + 0.5 * Math.sin(time * 6 + m.phase));
+    if (m.legs) m.legs.visible = false;
   }
 
   /**

@@ -65,7 +65,7 @@ export interface RescueTarget {
   x: number;
   z: number;
   /** Recovery (rescue/recovery.ts). Absent = floating. */
-  phase?: 'floating' | 'onLine' | 'climbing' | 'aboard' | 'hooked' | 'landing' | 'ashore';
+  phase?: 'floating' | 'onLine' | 'climbing' | 'aboard' | 'hooked' | 'landing' | 'ashore' | 'raft';
   /** Climbing: seconds since they reached the stern. Landing: since they got up. */
   t?: number;
   /** Landing / ashore: where they stand ashore (world x, z). */
@@ -98,6 +98,8 @@ export interface Incident {
   z: number;
   radius: number;
   count: number;
+  /** What they're in or by (rescueDefs `prop`): where it floats; sinking: when it goes under. */
+  prop?: { kind: 'dinghy' | 'liferaft' | 'sinking'; x: number; z: number; sunk?: boolean };
   /** World time of the call (s). */
   callT: number;
   /** Last time the alert sounded (s). */
@@ -255,7 +257,8 @@ export function startIncident(world: WorldState, v: VesselState, toward: string 
     break;
   }
   const count = Math.round(between(r, [def.count[0], def.count[1] + 0.999]) - 0.499);
-  const inc: Incident = { defId: def.id, phase: 'calling', x, z, radius: def.searchRadius, count, callT: world.time, alertT: world.time, targets: placeTargets(r, def, x, z, count) };
+  const placed = placeTargets(r, def, x, z, count);
+  const inc: Incident = { defId: def.id, phase: 'calling', x, z, radius: def.searchRadius, count, callT: world.time, alertT: world.time, targets: placed.targets, ...(placed.prop ? { prop: placed.prop } : {}) };
   r.active = inc;
   // Plot-it-yourself mode: the call gives the position only; the crew plots it on the chart.
   const call = cfg.plotYourself ? def.call.replace('bearing {bearing}, {range} miles from you', `last seen in position ${formatPosition(x, z)}`) : def.call;
@@ -269,21 +272,24 @@ export function startIncident(world: WorldState, v: VesselState, toward: string 
 
 /**
  * Where the people or crates are: somewhere inside the search area (not at its centre - the
- * area is where to look, not where they are), crates in a loose group.
+ * area is where to look, not where they are), crates in a loose group, people as the def
+ * spreads them. With a prop (a dinghy, a raft, a sinking boat) it's at the group's middle:
+ * the dinghy's people in the water round it, a raft's or a sinking boat's people on it.
  */
-function placeTargets(r: RescueState, def: RescueDef, cx: number, cz: number, count: number): RescueTarget[] {
+function placeTargets(r: RescueState, def: RescueDef, cx: number, cz: number, count: number): { targets: RescueTarget[]; prop?: Incident['prop'] } {
   const cfg = CONFIG.rescue;
   const ang = rand(r) * Math.PI * 2;
   const dist = Math.sqrt(rand(r)) * def.searchRadius * cfg.targetSpread;
   const gx = cx + Math.cos(ang) * dist;
   const gz = cz + Math.sin(ang) * dist;
   const out: RescueTarget[] = [];
+  const onProp = def.prop === 'liferaft' || def.prop === 'sinking';
   for (let i = 0; i < count; i++) {
     const a = rand(r) * Math.PI * 2;
-    const d = i === 0 ? 0 : between(r, cfg.crateSpacing);
-    out.push({ id: `t${r.seq}-${i}`, kind: def.target === 'person' ? 'person' : 'crate', x: gx + Math.cos(a) * d, z: gz + Math.sin(a) * d });
+    const d = onProp ? 0 : i === 0 && !def.prop ? 0 : between(r, def.spread ?? cfg.crateSpacing);
+    out.push({ id: `t${r.seq}-${i}`, kind: def.target === 'person' ? 'person' : 'crate', x: gx + Math.cos(a) * d, z: gz + Math.sin(a) * d, ...(onProp ? { phase: 'raft' as const } : {}) });
   }
-  return out;
+  return { targets: out, ...(def.prop ? { prop: { kind: def.prop, x: gx, z: gz } } : {}) };
 }
 
 /** End the active rescue: closing message naming where to land what was recovered. */
@@ -427,6 +433,34 @@ export function stepRescue(world: WorldState, dt: number, waves: readonly Prepar
         t.z += d.z * dt;
       }
     }
+    const prop = inc.prop;
+    if (prop && !prop.sunk) {
+      // The dinghy, the raft or the boat drift too (a boat full of water, slowly); people on
+      // it go with it.
+      const d = driftVelocity(world.environment, prop.x, prop.z, driftV);
+      const k = prop.kind === 'sinking' ? 0.4 : 1;
+      prop.x += d.x * k * dt;
+      prop.z += d.z * k * dt;
+      for (const t of inc.targets) {
+        if (t.phase === 'raft') {
+          t.x = prop.x;
+          t.z = prop.z;
+        }
+      }
+      // The sinking boat goes down in her time: whoever is still on her is in the water.
+      if (prop.kind === 'sinking' && world.time - inc.callT > cfg.sinkTime) {
+        prop.sunk = true;
+        let i = 0;
+        for (const t of inc.targets) {
+          if (t.phase !== 'raft') continue;
+          const a = (i++ / Math.max(1, inc.targets.length)) * Math.PI * 2;
+          t.phase = 'floating';
+          t.x = prop.x + Math.cos(a) * 3;
+          t.z = prop.z + Math.sin(a) * 3;
+        }
+        say(r, 'distress', 'MAYDAY. The motor boat has gone down. Her people are in the water in lifejackets.', world.time);
+      }
+    }
   }
   stepRecovery(world, v, waves, dt);
   if (inc && (inc.phase === 'recovered' || inc.phase === 'landed')) stepLanding(world, r, inc, v, dt);
@@ -434,7 +468,7 @@ export function stepRescue(world: WorldState, dt: number, waves: readonly Prepar
     inc.doneSaid = true;
     const def = RESCUE_DEFS.find((d) => d.id === inc.defId);
     const harbour = nearestPort(x, z).port.name.replace(' (anchorage)', '');
-    say(r, 'info', (def?.done ?? 'Thank you, skipper.').replace('{harbour}', harbour), world.time);
+    say(r, 'info', (def?.done ?? 'Thank you, skipper.').replace('{harbour}', harbour).replace('{count}', String(inc.count)), world.time);
     // Only crates: they're cargo now (land them at any harbour), so the rescue is over.
     if (!inc.targets.some((t) => t.kind === 'person')) {
       r.active = null;
@@ -491,8 +525,8 @@ export function applyRescueIntent(world: WorldState, intent: Intent): void {
       const x = v.position[0] + (fx / len) * d;
       const z = v.position[2] + (fz / len) * d;
       const count = def.count[1];
-      const targets = placeTargets(r, { ...def, searchRadius: 0 }, x, z, count);
-      r.active = { defId: def.id, phase: 'accepted', x, z, radius: def.searchRadius, count, callT: world.time, alertT: world.time, targets };
+      const placed = placeTargets(r, { ...def, searchRadius: 0 }, x, z, count);
+      r.active = { defId: def.id, phase: 'accepted', x, z, radius: def.searchRadius, count, callT: world.time, alertT: world.time, targets: placed.targets, ...(placed.prop ? { prop: placed.prop } : {}) };
       say(r, 'info', `Debug: ${def.target === 'person' ? 'a person' : 'crates'} in the water off your bow.`, world.time);
       break;
     }

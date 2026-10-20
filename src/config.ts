@@ -3173,6 +3173,21 @@ export const CONFIG = {
     /** In gear with a survivor within this of the stern: they swim away from the propeller at this speed (m/s). */
     propRadius: 7,
     swimAway: 0.8,
+    /**
+     * A survivor in the water swims for the ring once it floats within `swimToRing` m of
+     * them (owner: a hard throw to land right on them in VR), at `swimSpeed` m/s, while no
+     * one else is on the line.
+     */
+    swimToRing: 14,
+    swimSpeed: 0.7,
+    /**
+     * People on a liferaft or a sinking boat (rescueDefs `prop`) climb aboard straight from
+     * it: your stern within `raftRange` m of it and in neutral, one after another. A
+     * sinking boat goes down `sinkTime` s after the call (its people into the water then,
+     * for the ring); the raft and the upturned dinghy drift as everything does.
+     */
+    raftRange: 4.5,
+    sinkTime: 300,
     /** Boat hook: length (m), how close its tip must come to a crate to hook it, and how close
      *  alongside (from the hull side, m) a hooked crate must be to lift aboard. */
     hookLength: 2.2,
