@@ -74,7 +74,8 @@ export class ExhaustModel {
     this.lastRack = rack;
     const torque = fullLoadTorque(this.spec, Math.max(0, e.rpm)) / this.torqueRated;
     const fuel = rack * torque * (1 + c.lugFuel * Math.max(0, 1 - rpmFrac)) + c.snapFuel * rackRate;
-    const lambdaFull = this.turbo ? c.lambdaFull.turbo : c.lambdaFull.natural;
+    // (A slow-revving heavy engine runs richer: CONFIG.effects.exhaust.slowEngine.)
+    const lambdaFull = this.ratedRpm <= c.slowEngine.ratedRpm ? c.slowEngine.lambdaFull : this.turbo ? c.lambdaFull.turbo : c.lambdaFull.natural;
     const lambda = fuel > 0.001 ? (lambdaFull * air) / fuel : 99;
     const soot = running ? clamp((c.smokeLambda - lambda) / (c.smokeLambda - c.blackLambda)) : 0;
     const cold = clamp((c.coldClearC - e.coolantC) / (c.coldClearC - c.coldC));

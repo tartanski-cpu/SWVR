@@ -1643,6 +1643,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
           floor: rnd(F),
           roof,
           above: esc.aboveRoof,
+          rakedShare: esc.rakedShare,
           rakeDeg: raked ? esc.rakeDeg : 0,
           cutDeg: raked ? esc.cutDeg : 0,
           taper: raked ? esc.taper : 1,

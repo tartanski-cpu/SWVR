@@ -5428,6 +5428,22 @@ Owner, Oct 2026: a new career starts in one of the new fleet boats; hide the wor
 - **Tests:** tests/starterBoat.test.ts (3); starterWorkboat.test.ts's other-boat message now "Not for this boat".
 - **Next fleet steps:** move the tests and golden runs onto the fleet; then delete the old boats (owner: hide first, delete later).
 
+### The tug's smoke: black when she's worked hard (done, awaiting owner test)
+
+Owner, Oct 2026: "the smoke wasn't black on the tug's exhaust".
+
+- **Why it wasn't:** the smoke model (vessel/exhaust.ts) gave her what it gives every naturally aspirated engine: white while cold (coolant under 60 °C, which a big engine takes about a minute of hard running to pass), a short black puff when the throttle snaps open, and a clean haze otherwise. Her governor holds her at rated revs flat out with the fuel rack at about 0.8, well inside the smoke limit.
+- **Now:** a slow-revving heavy-duty engine (rated at or under `CONFIG.effects.exhaust.slowEngine.ratedRpm` 1200: the tug diesel) is set up rich for torque, its full-load air-fuel ratio `slowEngine.lambdaFull` 1.15 (the usual naturally aspirated one is 1.45). Warm, opened up from idle she smokes black for a couple of seconds and dark while she picks up way; towing the heavy crane pontoon flat out, a steady dark grey-black; running free at full throttle it clears to a haze once she's up to speed. (By her rated revs, not her voice: her engine now sounds as the 150 kW six does, the owner's choice, so the voice no longer marks her out.)
+- **Checked:** tests/exhaustStack.test.ts: opened up from idle, soot over 0.9; towing the pontoon after 25 s, over 0.3; free after 25 s, under 0.1. Full suite passes. Headless Chromium on the fleet tug, warm, opening up on the pontoon: dark grey-black puffs from the stack. **Not checked:** the Quest.
+
+### A tug's stacks: upright, the top part bent aft; seen in the Shipyard (done, awaiting owner test)
+
+Owner, Oct 2026: "you don't see the exhaust pipe for the tug when you're in wheelhouse view... in the shipyard... and definitely when you're doing the engines, and the raked version... isn't quite right. It's the whole thing is raked... part of it to be vertical and then... the last 30% to be raked."
+
+- **The shape** (module `fitting.exhaust-stack` v3): over the roof the pipe stands upright, then for its top `rakedShare` 0.3 of the height bends aft `rakeDeg` 25° at a joint (a rounded knuckle with a band round it), its top still cut on a slant facing aft. Straight is unchanged. The smoke leaves along the bent part (`stackOutlet`).
+- **In the Shipyard:** the pipes are now one mesh of their own, named 'exhaustStack' (they were baked in with every module's fixed parts, which the Wheelhouse and Engine steps hide). Shown at the Wheelhouse step (they go up through it) and the Engine step (they're her machinery). One more draw call, on tugs only; the water outlets stay merged.
+- **Checked:** tests/exhaustStack.test.ts (7) pass; full suite passes. Headless Chromium on the fleet's small tug only: the Shipyard's Wheelhouse and Engine steps from starboard and her stern quarter (the stack shows in each), and the game from her side and quarter (upright, then bent aft at the joint, the cut top). **Not checked:** the Quest.
+
 ### TOW LINE screen: the tension, and how near the line is to parting (done, awaiting owner test)
 
 Owner, Oct 2026: "a new instrument... built onto the advanced instrumentation, and it shows the tension... in the tow line. But what I'd like to see is... how close it is to snapping... on every vessel that has the ability to tow."

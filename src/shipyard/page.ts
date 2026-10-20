@@ -512,8 +512,10 @@ function focusStep(): void {
   const inHouse = house ? new THREE.Box3().setFromObject(house).expandByVector(new THREE.Vector3(-0.15, 0.05, 0.05)) : null;
   const c = new THREE.Vector3();
   for (const m of modules.children) {
-    // (Her outboards, stern drive legs and pods are her machinery: shown at Engine, as her inboard is.)
-    if (step === 'engine') m.visible = !!m.getObjectByName('outboards') || !!m.getObjectByName('pods');
+    // (Her outboards, stern drive legs, pods and a tug's exhaust stacks are her machinery: shown at Engine, as her inboard is.)
+    if (step === 'engine') m.visible = !!m.getObjectByName('outboards') || !!m.getObjectByName('pods') || !!m.getObjectByName('exhaustStack');
+    // (A tug's stacks go up through the wheelhouse: shown with it.)
+    else if (step === 'wheelhouse' && m.getObjectByName('exhaustStack')) m.visible = true;
     else if (step === 'hull') m.visible = false;
     else if (step === 'wheelhouse') m.visible = !!inHouse && inHouse.containsPoint(new THREE.Box3().setFromObject(m).getCenter(c));
     else m.visible = true;
