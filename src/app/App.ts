@@ -130,7 +130,7 @@ import { NoteKeyboard } from '../board/noteKeyboard';
 import { parseBoard } from '../board/board';
 import { DesktopHand } from '../player/desktopHand';
 import { playerColor } from '../net/avatarView';
-import { CameraPreview, faceHolder } from '../player/cameraPreview';
+import { CameraPreview } from '../player/cameraPreview';
 import { createRescueState, nearestPort, runStatus } from '../rescue/rescue';
 import { engineAlarms } from '../vessel/physics/engineThermal';
 import { VesselEffects } from '../vessel/view/vesselEffects';
@@ -294,6 +294,9 @@ function rememberHosting(code: string | null): void {
     // No storage: a reload of the host's tab joins its own old code instead (and finds nothing).
   }
 }
+/** A camera held flipped (player/cameraHold.ts `back`): a half turn about the hand's up, so it faces the holder. */
+const FLIPPED = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
+
 /** The game code on the address (shareable), or none. */
 function showGameOnAddress(code: string | null): void {
   const url = new URL(location.href);
@@ -3592,10 +3595,9 @@ export class App {
       hf.updateMatrixWorld();
       const quat = hf.getWorldQuaternion(this.camQ).multiply(this.camQ2.set(hq[0], hq[1], hq[2], hq[3]));
       const pos = hf.localToWorld(this.camW.fromArray(hand)).add(this.camLens.fromArray(CONFIG.camera.lens).applyQuaternion(quat));
-      // Facing the holder (at their head, player/cameraPreview.ts) unless they've flipped it
-      // to look out ahead of their hand.
-      const head = hp.avatar!.head;
-      if (!hold!.back) faceHolder(pos, hf.localToWorld(this.camLens.set(head[0], head[1], head[2])), quat);
+      // Rigid with the hand (owner: it moves exactly as the hand, angle and all): the lens
+      // looks out along the hand; flipped, it's turned round in the hand to face the holder.
+      if (hold!.back) quat.multiply(FLIPPED);
       held = { pos, quat };
       this.camHolderBoat = hp.aboardVesselId;
       // In their hand it rides with their boat (eased in her axes, so it doesn't trail).

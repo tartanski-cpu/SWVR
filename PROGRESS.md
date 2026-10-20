@@ -5175,6 +5175,13 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - `world/regions/index.ts`: the career world is home, the Sounds, the Fjord and the Narrows, with no toggle; the coast maps are Voyage mode's only. Gone with the toggle: the `?coast=` address parameter and the Debug menu's "Coast region test" rows, the crew's reload-to-match on the welcome (`world.build.coast`), and the separate `swvr.coastTest` career keys (careers are one set again; nothing in them changes). The coast tests (`tests/coastGame.test.ts`, `tests/coastTayvallich.test.ts`) now load their map as a voyage page (`location` stubbed to `voyage.html?map=`), and the two "way in from home" checks, which measured the map's entrance against Calder Haven, go: the maps stand alone now.
 - **Checked:** typecheck, `npm test`. **Not checked:** by eye (nothing visible changed in career mode beyond the Sounds being back where a tester had Oban on).
 
+### The held camera moves exactly as the hand (owner)
+
+- **The owner:** gripping the recording camera in VR moved its place but not its angle; it should move exactly as the hand, angle and all.
+- **Cause:** picked up, the camera was aimed at the holder's head wherever the hand went (a selfie by default, `faceHolder`), so turning the hand changed nothing; the flip looked out along the hand instead.
+- **Now** (`app/App.ts` the held pose, `net/avatarView.ts` the camera body in the hand, `player/cameraHold.ts`): the camera is rigid with the hand: its lens looks out along the hand (the controller's pointing direction), with the lens offset as before, so the picture turns as the hand turns. The trigger's flip is a half turn in the hand (`back`): it faces the holder, still rigid. The preview screen above it draws the same view. The eased follow (`CONFIG.camera.heldTau` 0.08 s) is as before.
+- **Checked:** typecheck, `npm test`. **Not checked:** in VR (the owner's Quest, with a desktop camera player to hold).
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**
