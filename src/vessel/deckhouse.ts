@@ -40,6 +40,8 @@ export interface DeckhouseWalk {
   z0: number;
   margin: number;
   railHeight: number;
+  /** Its rail's posts no further apart than this (m). */
+  postSpacing: number;
   ladder: { face: 'aft' | 'front'; x: number; width: number; depth: number };
 }
 

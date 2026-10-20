@@ -5951,3 +5951,7 @@ Owner, Oct 2026: "continue with the next step for the modular build out". The pl
   - **Desktop:** Shipyard, pilot boat, Wheelhouse step: Width (of the wheelhouse) down to 70 %; Deckhouse: Forward 2.0 m, Height 1.0 m, Width To her sides, Top **Walked**. Look from astern: the ladder beside the house. Deck gear: Fit the side door. Trials & handover, play her: walk to the ladder on the aft deck, Space to climb, walk forward along the side of the wheelhouse to the foredeck on top, and in at the side door. Then a wheelhouse as wide as she allows: the ladder is up the front.
   - **VR:** the same boat: grip and pull down at the ladder to climb, walk round the wheelhouse on top, look over the rail.
 
+### Fix: the walked deckhouse top's rail posts too close together
+
+Owner, Oct 2026 (with a screenshot): "the railings are too closely spaced on the deck house". A post stood at every point of the deckhouse's outline, which is 0.25 m apart along her sides. Now the rail still follows the outline, but its posts are spaced evenly along each run, ends included, no more than `CONFIG.shipyard.deckhouse.walk.postSpacing` (1.2 m) apart, about as her bulwark handrail's (hullMesh.ts `deckhouseRail`, `DeckhouseWalk.postSpacing`). Fewer bars in the house's mesh too. Checked: headless Chromium, the pilot boat with a walked deckhouse alongside; typecheck, full suite.
+
