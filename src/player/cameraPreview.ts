@@ -76,9 +76,13 @@ export class CameraPreview {
     const xr = renderer.xr.enabled;
     renderer.xr.enabled = false;
     this.screen.visible = false;
+    // Back to the frame's own target afterwards: in VR that's the headset's framebuffer,
+    // set by three.js at the start of each frame (null would be the hidden canvas: the
+    // headset's view would never change).
+    const target = renderer.getRenderTarget();
     renderer.setRenderTarget(this.rt);
     renderer.render(scene, this.cam);
-    renderer.setRenderTarget(null);
+    renderer.setRenderTarget(target);
     this.screen.visible = true;
     renderer.xr.enabled = xr;
   }

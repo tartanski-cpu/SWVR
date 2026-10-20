@@ -675,7 +675,10 @@ export class App {
     this.renderer.xr.addEventListener('sessionstart', closePanels);
     this.renderer.xr.addEventListener('sessionend', closePanels);
     // Binoculars go back on the dash (and the desktop zoom ends) when switching modes.
-    this.renderer.xr.addEventListener('sessionstart', () => this.binoculars.updateDesktop(false));
+    this.renderer.xr.addEventListener('sessionstart', () => {
+      this.binoculars.updateDesktop(false);
+      this.binoculars.warm(this.renderer, this.scene);
+    });
     this.renderer.xr.addEventListener('sessionend', () => this.binoculars.drop());
     // Changing between VR and desktop, gear in hand goes back on its bracket.
     for (const ev of ['sessionstart', 'sessionend'] as const) this.renderer.xr.addEventListener(ev, () => this.gear.forEach((g) => g.hangBack()));
@@ -855,6 +858,7 @@ export class App {
     if (!inXR) {
       // Binoculars (hold Z): zoomed in, the mouse look slows to match.
       this.desktop.lookScale = this.binoculars.updateDesktop(this.keyboard.action('binoculars') || !!this.pointer?.binocularsDown) / this.camera.zoom;
+      this.desktop.lookTau = this.binoculars.looking ? CONFIG.binoculars.steady : 0;
       this.desktop.update(dt);
     }
     // The boat we're on, posed for this frame before hit-testing its controls (else they're

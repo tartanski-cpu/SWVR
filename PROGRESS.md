@@ -5076,6 +5076,14 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Tests:** `tests/rescueVariety.test.ts` (+5): a survivor 9 m from the ring swims to it and ends on the line; the dinghy's people lie within 12 m of her and she drifts; the raft: stern in range in neutral boards them one at a time, all aboard, recovered, radio text; the sinking boat goes down after `sinkTime` with everyone floating and the MAYDAY; the divers are spread over 15 m and every def has its texts. Existing rescue and recovery tests unchanged.
 - **Checked:** typecheck, `npm test` (1058), by eye in headless Chromium (the survivor afloat, the dinghy and her people, the raft with four on the tube, the sinking boat whole and gone down by the stern). **Not checked:** VR, the swim's feel at the catch, how often each kind comes over a long career.
 
+### Binoculars: working again in VR, and the view steadied (owner)
+
+- **The owner:** raised to the eyes in VR the game froze for a second and the view didn't change. And the view through them should be a little smoothed, on both VR and desktop, if that's cheap.
+- **The bug** (`player/binoculars.ts`, `renderScope`): after drawing the scope's view into its render target the code set the render target back to `null` (the canvas). In VR, three.js sets the headset's framebuffer as the frame's render target at the start of every frame, so from then on the main render went to the hidden canvas and the headset kept its last frame: that was the "freeze", and the lenses never showed. Fixed: the render target in force before the scope pass is saved and restored. The **camera preview** (`player/cameraPreview.ts`) had the same fault and the same fix.
+- **Warm-up:** on entering VR the lens shader is compiled and the scope drawn once (`Binoculars.warm`), so the first look doesn't stall for the compile.
+- **Steadied view** (`CONFIG.binoculars.steady 0.12` s; 0 is direct): VR: the scope camera's orientation eases onto the head's over that time constant (a slerp), so the shake is smoothed and a fast turn lags a little; the lenses stay head-locked. Desktop: the mouse look shown eases the same way while zoomed (`DesktopController.lookTau`, set by App only while the binoculars are up). Cost: nothing new per frame.
+- **Checked:** typecheck, `npm test`, headless desktop: zoom on, the look eases to a step of 0.3 rad over the following second, back to normal on release. **Not checked:** VR (the owner's Quest; the fix is by reading three.js's WebXRManager, which sets the XR render target each frame).
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

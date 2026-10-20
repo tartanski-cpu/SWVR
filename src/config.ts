@@ -3432,10 +3432,13 @@ export const CONFIG = {
    * Binoculars (player/binoculars.ts): 7x. They lie on top of the dash, port end (vessel
    * axes, `stowYawDeg` turned). VR: grip within `grabRange` to take them; held within
    * `eyeRange` of your eyes you look through them (a `renderSize` square view). Desktop:
-   * hold the right mouse button (or Z).
+   * hold the right mouse button (or Z). The view through them is steadied: it eases onto
+   * where you look over `steady` s (VR: the scope's orientation; desktop: the mouse look),
+   * since the zoom magnifies every tremor too. 0 is direct.
    */
   binoculars: {
     magnification: 7,
+    steady: 0.12,
     stow: [-1.05, 2.6, -1.74] as [number, number, number],
     stowYawDeg: 20,
     grabRange: 0.2,

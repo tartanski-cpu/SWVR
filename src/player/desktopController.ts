@@ -54,6 +54,13 @@ export class DesktopController {
 
   /** Mouse-look speed factor (slower through the binoculars). */
   lookScale = 1;
+  /**
+   * The view eases toward the mouse look over this time constant (s); 0 is direct. Set
+   * while looking through the binoculars (App), where the zoom magnifies every jitter.
+   */
+  lookTau = 0;
+  private shownYaw = 0;
+  private shownPitch = 0;
   /** Never capture the mouse (the touch controls are showing). */
   noPointerLock = false;
 
@@ -130,7 +137,16 @@ export class DesktopController {
       this.position.addScaledVector(this.move, speed * dt);
     }
 
-    this.euler.set(this.pitch, this.yaw, 0);
+    if (this.lookTau > 0) {
+      // Ease the shown view onto the mouse look (first-order lag; the zoomed view is steadied).
+      const k = 1 - Math.exp(-dt / this.lookTau);
+      this.shownYaw += (this.yaw - this.shownYaw) * k;
+      this.shownPitch += (this.pitch - this.shownPitch) * k;
+    } else {
+      this.shownYaw = this.yaw;
+      this.shownPitch = this.pitch;
+    }
+    this.euler.set(this.shownPitch, this.shownYaw, 0);
     this.camera.quaternion.setFromEuler(this.euler);
     this.camera.position.copy(this.position);
   }
