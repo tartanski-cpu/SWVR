@@ -23,6 +23,7 @@ import { CONFIG } from '../../config';
 import type { Vec3 } from '../../core/math';
 import { gearOf } from '../../boats/sims';
 import { hullPlan } from '../layout';
+import { walkFenderProbe } from '../walkFender';
 import type { VesselDef } from '../vesselDef';
 import type { VesselState } from '../vesselState';
 
@@ -84,8 +85,10 @@ function guardSamples(s: VesselState): readonly { p: readonly [number, number, n
   const push = gearOf(s, 'pushFender');
   if (!push && !side && !(fenders && s.controls.fenders > 0)) return NONE;
   const c = CONFIG.contacts;
+  const walk = walkFenderProbe(s);
   return [
     ...(fenders && s.controls.fenders > 0 ? fenders.probes.map((p) => ({ p, mu: c.fenderFriction })) : []),
+    ...(walk ? [{ p: walk, mu: c.fenderFriction }] : []),
     ...(side?.probes ?? []).map((p) => ({ p, mu: c.fenderFriction })),
     ...(push?.probes ?? []).map((p) => ({ p, mu: c.guards.pushFender.friction })),
   ];

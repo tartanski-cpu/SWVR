@@ -215,6 +215,7 @@ Above it, a lamp on the wall with its own small switch on the wooden batten the 
 ### Transit jobs and closing up
 
 - **Fenders:** press the fender basket on the aft deck (starboard) to put all six out over the side, or take them in. Out, they cushion her against a quay: a knock coming alongside a bit fast does less damage to her hull (or none).
+- **The roving fender** (any boat with fenders, once they're out): what a deckhand does coming alongside. The fixed fenders hang at their stations; whatever part of her is about to touch the quay (or another boat) between them, walk there, look at the quayside and press with an empty hand: desktop, the reticle on the quay says "click to hang a fender here", click; VR, point a free hand at it and pull the trigger. The fender is hung at your station on that side, and stays there until you hang it somewhere else or take the fenders in. Not with the boat hook in your hand: never push off with a hook or a foot, that's how legs get broken; hang a fender.
   - Coming up to a berth with them in puts "Coming alongside: fenders out" on the duty board.
   - Out of harbour with them still out gives "Under way: fenders in".
 - **Lash the cargo:** under way with loose cargo on deck, "Under way: lash the deck cargo" comes up.
