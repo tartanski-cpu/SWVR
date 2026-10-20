@@ -5157,7 +5157,7 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **The owner:** before multi-boat, split the game: one landing page with three modes. **Career** as it is (one boat, the host's career, multiplayer aboard her). **Voyage**: the maps made by the coast pipeline, each on its own, no career and no saves; later the only mode with several boats spawning. **Training**: a placeholder for small harbour maps with session recording. Build Voyage now with the Scottish coast maps; multiplayer there comes next.
 - **Pages:** `index.html` is now the landing page (three cards; the Voyage card lists the maps; a link to the Shipyard). The game is `career.html` (the old page as it was) and `voyage.html?map=<id>`: the same build, told apart by the page's path (`src/mode.ts` `MODE`, `VOYAGE_MAP_ID`). An old game address at the root with any of its parameters (`?design=`, `?game=`, `?join=`, `?coast=` ...) is sent on to `career.html` with them by a line of script, so shared game links and the Shipyard's links keep working (the Shipyard's own "play" links now point at `career.html`). Vite builds the six pages.
 - **Voyage** (`src/world/maps.ts` `VOYAGE_MAPS`: id, name, blurb, region, start berth): the world is the one map (`REGIONS` in `regions/index.ts` by mode); she starts moored at the map's start berth (`core/world.ts` `mooredAtStart`; Oban: the town quay, `oban-cargo`) in `CONFIG.voyage.boat` (the fishing boat, fitted out in full; any other by Start in, a Shipyard code or a design file as before). The career object stays in the world so money, fuel and the job systems keep working, but nothing is read from or written to the save slots (`careerSession.ts`: `restore` and the save skip in voyage), no first-voyage tutorial, and the Office tab (careers, saves, your boats) is hidden. The menu header reads "Voyage: Oban and Lorn", the tab title "Workboat World: Voyage". The debug coast toggle (`?coast=`) is career mode's only. Multiplayer in voyage: the host's map travels in `world.build.map`; a crew-mate on another map reloads into the host's.
-- **Only one coast map is in the repository** (Oban and Lorn). The owner spoke of two Scottish maps: the second isn't here (the pipeline's requests folder has only Oban); adding one is a data step (run the pipeline, place the region, one line in `maps.ts`).
+- **Two maps:** Oban and Lorn, and Tayvallich and Loch Sween (which arrived from another session as this was built; starts at the Tayvallich quay). A new map is a data step: run the pipeline, place the region, one line in `maps.ts` and one on the landing page.
 - **Tests:** `tests/voyageMode.test.ts` (+2): each map starts at one of its own berths in a harbour, ids unique; the tests run as the career game.
 - **Checked:** typecheck, `npm test`, headless: the landing page and its links, `/?game=12345` sent on to `career.html?game=12345`, `voyage.html?map=oban` loads with the world `[oban]` only, the fishing boat moored at the Oban quay, no career tutorial, no save keys touched, the menu header; `career.html` as before (home world, Calder). **Not checked:** VR; the Quest's frame rate on Oban alone (the coast test showed it bearable); the traffic and the calls on a map with no home region over a long play.
 
@@ -6136,6 +6136,49 @@ Owner: "go ahead with milestone 4". Agreed before: a region may carry its own gr
   - Tests (`coastGame.test.ts`): 80 % of Oban's pontoons have a berth beside them (fingers about 6 m apart have no room for a 3.6 m-beam boat between them); every pontoon berth's two line ends land on a pontoon deck at its height.
 - **Test housekeeping:** `tests/weather.test.ts` takes ~50 s alone (before today too) and its longest test sits near the 20 s limit; under a busy full run it timed out twice. The coast tests were made lighter (`coastRegion` 9.5 s to 4.9 s; `coastHarbours` uses the game's mesh lookup instead of trying every face).
 - **Next:** M5 (a second region, a Norwegian fjord) on the owner's word; or a permanent place in the world for real regions.
+
+### A second real region: Tayvallich and Loch Sween (done, awaiting owner test)
+
+Owner: "the next area I'd like you to generate is around Tayvallich... the Fairy Isles... Caol Scotnish... capture as much coastline as possible, including Tayvallich as a harbour and some of Loch Sween."
+
+- **The request** (`tools/coast/requests/tayvallich.yaml`):
+  - **The box:** `[-5.72, 55.925, -5.54, 56.065]`, 11.2 x 15.6 km at full scale. It runs from Loch Sween's mouth by Castle Sween to Achnamara and the head of Caol Scotnish, with the Taynish peninsula and the Sound of Jura shore by Carsaig and Keills. OpenStreetMap's place search gave the positions.
+  - **The spine:** Tayvallich the sheltered harbour (the map has it as "Tayvallich Jetty"; a hand edit, `tayvallich.edits.yaml`, names it Tayvallich and makes it a harbour). The exposed pier is picked automatically (Ashfield). The anchorage is **the Fairy Isles**, placed by name and position. The automatic search had chosen Keills, and OpenStreetMap doesn't name the islets.
+- **Pipeline changes:**
+  - Fetch joins height tiles when a box crosses a 1-degree line. This one crosses 56 N: two Copernicus tiles, one raster.
+  - A request's anchorage can be `{ name, at: [lon, lat] }`.
+  - A hand edit that leaves a piece of an unknown kind now stops the stage with a plain message. Matching by name also matches the pieces carrying that name, which is how the first try turned the jetty itself into a "harbour". Match a harbour by its id.
+- **What came out:**
+  - **Mesh:** 108,750 triangles drawn in 44 chunks (the busiest 8,758), 2.4 MB. It is coastline-heavy: 7,732 coast points and 13,605 in the shore band. 67 % of the land is seen from the water: lochs on every side.
+  - **Harbours:** 5 ports (Tayvallich, Achnamara, Ashfield and Keills piers, the Fairy Isles anchorage), 7 kit pieces, 94 buildings, a slipway.
+  - **Grounds:** mackerel and pollack grounds; lobster round the skerries.
+  - **Landmark:** Cruach Lusach.
+  - **Thin data, reported:** OpenStreetMap has **no buoys, beacons or lights** in the box, and no charted rocks (6 skerries).
+- **In the game:**
+  - **Toggle:** the same coast region test, now a choice: `?coast=tayvallich`, or Menu → Debug → World → Coast region test → **Tayvallich and Loch Sween** (`COAST_REGIONS`, `regions/index.ts`).
+  - **Where it sits:** like Oban, in place of the Sounds and the Fjord, its south edge at z -1900. The channel from its south edge up to Loch Sween's mouth (x -3100 in the package) is due north of Calder Haven, so you steer 000 from home into the loch (`regions/tayvallich.ts`, x 3670, z -9686).
+  - **Careers:** test careers are now kept per region (`swvr.coastTest.<id>.*`); the Oban test career from earlier today starts fresh.
+- **Tests:** `tests/coastTayvallich.test.ts` (8):
+  - the box, the chunk budget, the deep range, the credits;
+  - the package matches the mesh;
+  - the regions apart, ids unique;
+  - the ground the mesh (Loch Sween and Caol Scotnish water, the Taynish woods land, the sea floor at the edge);
+  - Tayvallich a harbour with water at its cargo berth and its goods ashore;
+  - the Fairy Isles anchorage in water with its goods ashore;
+  - every port workable;
+  - the way in: open water north of Calder Haven, Loch Sween's mouth and the Sound of Jura deep.
+- **Checked headless:**
+  - **The viewer:** the whole region from the air; Loch Sween and Caol Scotnish low down.
+  - **The game, every 500 m from Calder Haven up Loch Sween to Tayvallich:** 131k-178k triangles, under home's own 213k, 30-67 draws, no page errors.
+  - **Screenshots:** the loch's mouth, Loch Sween, Tayvallich's bay, moored at Tayvallich's cargo berth with the goods on the jetty and the village behind, Caol Scotnish toward the Fairy Isles.
+- **Not checked / later:**
+  - the Quest;
+  - the approach from the south is about 3 m deep where it leaves the box (open water, fine for a workboat);
+  - no marks or lights (to add by hand if you want them: the edits file can't add marks yet);
+  - steep woodland edges show as grey rock in places (the height data's tree canopy).
+- **Test steps:**
+  - **Desktop:** open https://tartanski-cpu.github.io/SWVR/next/?coast=tayvallich, board at Calder Haven and steer north (000) into Loch Sween. Follow the loch north-east past Taynish to Tayvallich's bay (Menu → Debug → World → To port → Tayvallich for the berth). Then go into Caol Scotnish, the narrow arm, to the Fairy Isles anchorage, and anchor there. `?coast=off` to go back.
+  - **VR:** the same, with the perf panel.
 
 ## Next
 

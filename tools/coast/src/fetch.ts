@@ -42,9 +42,38 @@ function saveRaster(name: string, data: ArrayLike<number>, meta: RasterMeta): vo
   writeFileSync(join(D.raw, `${name}.json`), JSON.stringify(meta, null, 1));
 }
 
-/** A window of a cloud GeoTIFF covering the box (with a margin of a few pixels). */
-async function cogWindow(name: string, url: string, margin = 4): Promise<void> {
+/**
+ * Windows of one or more cloud GeoTIFF tiles covering the box (with a margin of a few
+ * pixels), joined into one raster when the box crosses a tile edge (the tiles share a pixel
+ * size: Copernicus GLO-30's longitude spacing changes only at 50 and 60 degrees north).
+ */
+async function cogWindow(name: string, urls: string[], margin = 4): Promise<void> {
   if (!force && existsSync(join(D.raw, `${name}.bin`))) return console.log(`${name}: cached`);
+  const parts: { band: ArrayLike<number>; meta: RasterMeta }[] = [];
+  for (const url of urls) parts.push(await cogPart(url, margin));
+  if (parts.length === 1) {
+    saveRaster(name, parts[0].band, parts[0].meta);
+    console.log(`${name}: ${parts[0].meta.width} x ${parts[0].meta.height} px at ${(parts[0].meta.dlon * 3600).toFixed(2)}" x ${(parts[0].meta.dlat * 3600).toFixed(2)}"`);
+    return;
+  }
+  const { dlon, dlat, noData } = parts[0].meta;
+  for (const p of parts) if (Math.abs(p.meta.dlon - dlon) > 1e-12 || Math.abs(p.meta.dlat - dlat) > 1e-12) throw new Error(`${name}: tiles of different pixel sizes`);
+  const lon0 = Math.min(...parts.map((p) => p.meta.lon0));
+  const lat0 = Math.max(...parts.map((p) => p.meta.lat0));
+  const width = Math.round((Math.max(...parts.map((p) => p.meta.lon0 + p.meta.width * dlon)) - lon0) / dlon);
+  const height = Math.round((lat0 - Math.min(...parts.map((p) => p.meta.lat0 - p.meta.height * dlat))) / dlat);
+  const out = new Float32Array(width * height).fill(noData ?? -9999);
+  for (const p of parts) {
+    const ox = Math.round((p.meta.lon0 - lon0) / dlon);
+    const oy = Math.round((lat0 - p.meta.lat0) / dlat);
+    for (let j = 0; j < p.meta.height; j++) for (let i = 0; i < p.meta.width; i++) out[(oy + j) * width + ox + i] = p.band[j * p.meta.width + i];
+  }
+  saveRaster(name, out, { width, height, lon0, lat0, dlon, dlat, noData });
+  console.log(`${name}: ${width} x ${height} px from ${parts.length} tiles at ${(dlon * 3600).toFixed(2)}" x ${(dlat * 3600).toFixed(2)}"`);
+}
+
+/** One tile's window over the box. */
+async function cogPart(url: string, margin: number): Promise<{ band: ArrayLike<number>; meta: RasterMeta }> {
   const tiff = await fromUrl(url, { headers: UA });
   const img = await tiff.getImage();
   const [minX, minY, maxX, maxY] = img.getBoundingBox();
@@ -57,8 +86,7 @@ async function cogWindow(name: string, url: string, margin = 4): Promise<void> {
   const py0 = Math.max(0, Math.floor((maxY - latB) / dlat) - margin);
   const py1 = Math.min(H, Math.ceil((maxY - latA) / dlat) + margin);
   const [band] = (await img.readRasters({ window: [px0, py0, px1, py1] })) as unknown as ArrayLike<number>[];
-  saveRaster(name, band, { width: px1 - px0, height: py1 - py0, lon0: minX + px0 * dlon, lat0: maxY - py0 * dlat, dlon, dlat, noData: img.getGDALNoData() });
-  console.log(`${name}: ${px1 - px0} x ${py1 - py0} px at ${(dlon * 3600).toFixed(2)}" x ${(dlat * 3600).toFixed(2)}"`);
+  return { band, meta: { width: px1 - px0, height: py1 - py0, lon0: minX + px0 * dlon, lat0: maxY - py0 * dlat, dlon, dlat, noData: img.getGDALNoData() } };
 }
 
 async function fetchOsm(): Promise<void> {
@@ -146,22 +174,24 @@ async function fetchEmodnet(): Promise<void> {
   console.log(`${name}: ${img.getWidth()} x ${img.getHeight()} px`);
 }
 
-/** Copernicus GLO-30 and WorldCover tiles are named by their south-west corner. */
-const tileLat = Math.floor(latA);
-const tileLon = Math.floor(lonA);
-if (Math.floor(latB) !== tileLat || Math.floor(lonB) !== tileLon) throw new Error('the box crosses a 1-degree tile edge: not handled yet');
+/** Copernicus GLO-30 (1 degree) and WorldCover (3 degree) tiles are named by their south-west corners; every tile the box touches. */
 const ns = (v: number, n: number) => `${v >= 0 ? 'N' : 'S'}${String(Math.abs(v)).padStart(n, '0')}`;
 const ew = (v: number, n: number) => `${v >= 0 ? 'E' : 'W'}${String(Math.abs(v)).padStart(n, '0')}`;
-const dem = `Copernicus_DSM_COG_10_${ns(tileLat, 2)}_00_${ew(tileLon, 3)}_00_DEM`;
-const wcLat = Math.floor(latA / 3) * 3;
-const wcLon = Math.floor(lonA / 3) * 3;
-const wc = `ESA_WorldCover_10m_2021_v200_${ns(wcLat, 2)}${ew(wcLon, 3)}_Map`;
+const corners = (size: number) => {
+  const out: [number, number][] = [];
+  for (let la = Math.floor(latA / size) * size; la < latB; la += size) for (let lo = Math.floor(lonA / size) * size; lo < lonB; lo += size) out.push([la, lo]);
+  return out;
+};
+const dems = corners(1).map(([la, lo]) => `Copernicus_DSM_COG_10_${ns(la, 2)}_00_${ew(lo, 3)}_00_DEM`);
+const wcs = corners(3).map(([la, lo]) => `ESA_WorldCover_10m_2021_v200_${ns(la, 2)}${ew(lo, 3)}_Map`);
+const dem = dems.join(', ');
+const wc = wcs.join(', ');
 
 await fetchOsm();
 sources.push({ what: 'coastline, harbours, seamarks, buildings, land use', source: 'OpenStreetMap contributors (incl. OpenSeaMap seamarks), api.openstreetmap.org', licence: 'ODbL 1.0', fetched: now });
-await cogWindow('dem', `https://copernicus-dem-30m.s3.amazonaws.com/${dem}/${dem}.tif`);
+await cogWindow('dem', dems.map((d) => `https://copernicus-dem-30m.s3.amazonaws.com/${d}/${d}.tif`));
 sources.push({ what: 'land height', source: `Copernicus DEM GLO-30 (${dem}), AWS Open Data`, licence: 'Copernicus DEM licence: free use with attribution ("produced using Copernicus WorldDEM-30 (c) DLR e.V. 2010-2014 and (c) Airbus Defence and Space GmbH 2014-2018 provided under COPERNICUS by the European Union and ESA")', fetched: now });
-await cogWindow('landcover', `https://esa-worldcover.s3.eu-central-1.amazonaws.com/v200/2021/map/${wc}.tif`, 2);
+await cogWindow('landcover', wcs.map((w) => `https://esa-worldcover.s3.eu-central-1.amazonaws.com/v200/2021/map/${w}.tif`), 2);
 sources.push({ what: 'land cover (colours)', source: `ESA WorldCover 10 m 2021 v200 (${wc})`, licence: 'CC BY 4.0 ("(c) ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021) processed by ESA WorldCover consortium")', fetched: now });
 await fetchEmodnet();
 sources.push({ what: 'sea depth', source: 'EMODnet Bathymetry DTM (emodnet:mean), ows.emodnet-bathymetry.eu', licence: 'free use with attribution ("EMODnet Bathymetry Consortium")', fetched: now });

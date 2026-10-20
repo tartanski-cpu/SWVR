@@ -1,0 +1,8 @@
+# Hand edits for the Tayvallich region (coast pipeline stage 7, src/harbours.ts), applied
+# after the harbours are generated, so re-running keeps them. See oban.edits.yaml for the syntax.
+
+change:
+  # The village's jetty and its moorings in the bay are Tayvallich's harbour: call it that, and
+  # a harbour (the game gives a harbour fuel and a cargo berth).
+  - match: tayvallich-jetty   # the harbour's id (its name would also match the jetty itself)
+    set: { name: Tayvallich, id: tayvallich, kind: harbour }

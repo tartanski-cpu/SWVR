@@ -2,7 +2,7 @@ import { BUSES } from '../audio/mixer';
 import { FLEET } from '../boats/fleet';
 import { CONFIG } from '../config';
 import { PORTS } from '../world/archipelago';
-import { COAST_REGION, REGIONS, setCoastRegion } from '../world/regions';
+import { COAST_REGION, COAST_REGIONS, REGIONS, setCoastRegion } from '../world/regions';
 import { MODE, VOYAGE_MAP_ID } from '../mode';
 import { voyageMap } from '../world/maps';
 import type { MenuPage, MenuRow, MenuSection } from './menuPanel';
@@ -688,10 +688,10 @@ export function mainMenu(h: MenuHost): MainMenu {
           label: 'North of home',
           buttons: [
             { text: 'The Sounds (as built)', active: () => !COAST_REGION, press: () => COAST_REGION && setCoastRegion(null) },
-            { text: 'Oban (from the map)', active: () => COAST_REGION === 'oban', press: () => COAST_REGION !== 'oban' && setCoastRegion('oban') },
+            ...Object.entries(COAST_REGIONS).map(([id, r]) => ({ text: r.name, active: () => COAST_REGION === id, press: () => COAST_REGION !== id && setCoastRegion(id) })),
           ],
         },
-        { heading: 'Oban replaces the Sounds and the Fjord; careers there are kept apart from your own' },
+        { heading: 'A map region replaces the Sounds and the Fjord; careers there are kept apart from your own' },
       ],
     },
     {

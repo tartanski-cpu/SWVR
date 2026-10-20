@@ -1,0 +1,230 @@
+{
+ "warnings": [
+  "no charted rocks, reefs or wrecks in the sea in OpenStreetMap for this box, only skerries (thin data: check a chart)",
+  "only 0 buoys or beacons mapped (thin data?)",
+  "23 patches where the coastline's sides disagree (check the coast there)"
+ ],
+ "nav": {
+  "marks": 0,
+  "lights": 0,
+  "hazards": 6,
+  "farms": 0,
+  "currents": 0
+ },
+ "harbours": {
+  "harbours": 6,
+  "blocks": 7,
+  "berths": 13,
+  "slipways": 1,
+  "buildings": 94,
+  "edits": 1,
+  "roles": {
+   "harbour.sheltered": "Tayvallich",
+   "pier.exposed": "Ashfield pier",
+   "anchorage": "Fairy Isles anchorage"
+  }
+ },
+ "dredgedCells": 60,
+ "triangles": 108750,
+ "deepTriangles": 1250,
+ "vertices": 56951,
+ "bytes": 2443412,
+ "chunks": [
+  {
+   "id": 2,
+   "triangles": 1886
+  },
+  {
+   "id": 3,
+   "triangles": 1880
+  },
+  {
+   "id": 4,
+   "triangles": 3643
+  },
+  {
+   "id": 5,
+   "triangles": 288
+  },
+  {
+   "id": 7,
+   "triangles": 1
+  },
+  {
+   "id": 8,
+   "triangles": 3523
+  },
+  {
+   "id": 9,
+   "triangles": 4728
+  },
+  {
+   "id": 10,
+   "triangles": 8758
+  },
+  {
+   "id": 11,
+   "triangles": 572
+  },
+  {
+   "id": 13,
+   "triangles": 2660
+  },
+  {
+   "id": 14,
+   "triangles": 4706
+  },
+  {
+   "id": 15,
+   "triangles": 8407
+  },
+  {
+   "id": 16,
+   "triangles": 6494
+  },
+  {
+   "id": 17,
+   "triangles": 550
+  },
+  {
+   "id": 18,
+   "triangles": 8
+  },
+  {
+   "id": 19,
+   "triangles": 3041
+  },
+  {
+   "id": 20,
+   "triangles": 7069
+  },
+  {
+   "id": 21,
+   "triangles": 2974
+  },
+  {
+   "id": 22,
+   "triangles": 803
+  },
+  {
+   "id": 23,
+   "triangles": 361
+  },
+  {
+   "id": 24,
+   "triangles": 892
+  },
+  {
+   "id": 25,
+   "triangles": 6617
+  },
+  {
+   "id": 26,
+   "triangles": 3440
+  },
+  {
+   "id": 27,
+   "triangles": 2056
+  },
+  {
+   "id": 28,
+   "triangles": 216
+  },
+  {
+   "id": 29,
+   "triangles": 122
+  },
+  {
+   "id": 30,
+   "triangles": 3515
+  },
+  {
+   "id": 31,
+   "triangles": 6615
+  },
+  {
+   "id": 32,
+   "triangles": 1879
+  },
+  {
+   "id": 33,
+   "triangles": 195
+  },
+  {
+   "id": 34,
+   "triangles": 59
+  },
+  {
+   "id": 35,
+   "triangles": 146
+  },
+  {
+   "id": 36,
+   "triangles": 3774
+  },
+  {
+   "id": 37,
+   "triangles": 4243
+  },
+  {
+   "id": 38,
+   "triangles": 784
+  },
+  {
+   "id": 39,
+   "triangles": 228
+  },
+  {
+   "id": 40,
+   "triangles": 1147
+  },
+  {
+   "id": 41,
+   "triangles": 389
+  },
+  {
+   "id": 42,
+   "triangles": 1762
+  },
+  {
+   "id": 43,
+   "triangles": 1634
+  },
+  {
+   "id": 44,
+   "triangles": 288
+  },
+  {
+   "id": 45,
+   "triangles": 2730
+  },
+  {
+   "id": 46,
+   "triangles": 3426
+  },
+  {
+   "id": 47,
+   "triangles": 241
+  }
+ ],
+ "landShare": 0.6103432654371961,
+ "seenFromWater": 0.67,
+ "coastPoints": 7732,
+ "shoreBandPoints": 13605,
+ "chunkBudget": 12000,
+ "package": {
+  "ports": 5,
+  "berths": 5,
+  "blocks": 7,
+  "buildings": 94,
+  "marks": 0,
+  "lights": 0,
+  "slipways": 1,
+  "fishingGrounds": 2,
+  "pottingGrounds": 6,
+  "landmarks": [
+   "Cruach Lusach"
+  ],
+  "bytes": 21273
+ }
+}

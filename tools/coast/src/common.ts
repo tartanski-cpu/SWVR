@@ -19,7 +19,8 @@ export interface RegionRequest {
   /** [lonMin, latMin, lonMax, latMax] */
   bbox: [number, number, number, number];
   theme: string;
-  spine?: Record<string, string>;
+  /** Spine roles: a harbour's name, "auto", or for the anchorage a named spot ({ name, at: [lon, lat] }). */
+  spine?: Record<string, string | { name: string; at: [number, number] }>;
   currentZones?: { name: string; polygon: [number, number][]; direction: number; peakKts: number; periodHours: number }[];
   weatherProfile?: string;
   fish?: string[];
