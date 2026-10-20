@@ -217,6 +217,7 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
   if (layout.deckhouse) {
     const plan = hullPlan({ hull: form });
     parts.push(buildDeckhouse(layout.deckhouse, (z) => plan.deckY(z) - 0.06, col.house));
+    if (layout.deckhouse.walk) parts.push(...deckhouseRail(layout.deckhouse, layout.wheelhouse?.halfWidth ?? 0, plan.deckY, col.rail));
   }
   // Her houses (P2a: the list), the helm's first: each drawn as the helm's is, from a layout
   // that is its own (a further house has no engine hatch in its floor, no ladder to its roof).
@@ -833,6 +834,66 @@ function buildDeckhouse(dh: DeckhouseLayout, baseAt: (z: number) => number, colo
   g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3));
   g.computeVertexNormals();
   return part(g, color);
+}
+
+/**
+ * A walked deckhouse top's rail and ladder (vessel/deckhouse.ts DeckhouseWalk): a top rail and
+ * a mid rail on posts, just in from its edge, along both sides from the flat top's front aft,
+ * across its front, and across the aft ends of the strips beside the wheelhouse (`hw` its half
+ * width); open at the ladder head. The ladder: two stiles carried up past the top as grab
+ * handles, rungs 0.3 m apart; up the aft face beside the house, or up the front (leaning with
+ * a raked front). All bars, merged with the hull.
+ */
+function deckhouseRail(dh: DeckhouseLayout, hw: number, deckY: (z: number) => number, color: number): THREE.BufferGeometry[] {
+  const w = dh.walk!;
+  const parts: THREE.BufferGeometry[] = [];
+  const top = dh.top;
+  const h = w.railHeight;
+  const inset = 0.05;
+  const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
+  const half = (z: number) => deckhouseHalfWidth(dh, z) - inset;
+  const run = (a: [number, number], b: [number, number], posts = true) => {
+    for (const k of [1, 0.5]) parts.push(bar(V(a[0], top + h * k, a[1]), V(b[0], top + h * k, b[1]), k === 1 ? 0.045 : 0.035, k === 1 ? 0.045 : 0.035, color));
+    if (posts) for (const p of [a, b]) parts.push(bar(V(p[0], top, p[1]), V(p[0], top + h, p[1]), 0.04, 0.04, color));
+  };
+  const lad = w.ladder;
+  const gap = (x0: number, x1: number, z: number, open: boolean) => {
+    // A run across at z from x0 to x1, open over the ladder's width.
+    if (open && lad.x - lad.width / 2 > x0 && lad.x + lad.width / 2 < x1) {
+      run([x0, z], [lad.x - lad.width / 2, z]);
+      run([lad.x + lad.width / 2, z], [x1, z]);
+    } else run([x0, z], [x1, z]);
+  };
+  // Along each side: through its plan's points from the flat top aft, posts at each (no more than 1.5 m apart).
+  const zs = [w.z0, ...dh.plan.map(([z]) => z).filter((z) => z > w.z0 + 0.05 && z < dh.z1 - 0.05), dh.z1 - inset];
+  const along: number[] = [zs[0]];
+  for (let i = 1; i < zs.length; i++) {
+    const n = Math.ceil((zs[i] - zs[i - 1]) / 1.5);
+    if (zs[i] - zs[i - 1] < 0.2 && i < zs.length - 1) continue;
+    for (let k = 1; k <= n; k++) along.push(zs[i - 1] + ((zs[i] - zs[i - 1]) * k) / n);
+  }
+  for (const sg of [-1, 1]) for (let i = 1; i < along.length; i++) run([sg * half(along[i - 1]), along[i - 1]], [sg * half(along[i]), along[i]]);
+  // Across the front.
+  const zf = w.z0 + inset;
+  gap(-half(w.z0), half(w.z0), zf, lad.face === 'front');
+  // Across the aft ends of the strips beside the house.
+  const za = dh.z1 - inset;
+  const ha = half(dh.z1);
+  if (ha - hw > 0.2) {
+    gap(-ha, -hw - 0.02, za, lad.face === 'aft' && lad.x < 0);
+    gap(hw + 0.02, ha, za, lad.face === 'aft' && lad.x > 0);
+  }
+  // The ladder.
+  const sx = lad.width / 2 - 0.04;
+  const [zFoot, zHead] = lad.face === 'aft' ? [dh.z1 + 0.12, dh.z1 + 0.12] : [dh.z0 - 0.12, w.z0 - 0.12];
+  const yFoot = deckY(zFoot);
+  const zAt = (y: number) => zFoot + ((y - yFoot) / (top - yFoot)) * (zHead - zFoot);
+  for (const sg of [-1, 1]) {
+    parts.push(bar(V(lad.x + sg * sx, yFoot, zFoot), V(lad.x + sg * sx, top, zHead), 0.045, 0.045, color));
+    parts.push(bar(V(lad.x + sg * sx, top, zHead), V(lad.x + sg * sx, top + 1.0, zHead), 0.045, 0.045, color));
+  }
+  for (let y = yFoot + 0.3; y < top - 0.05; y += 0.3) parts.push(bar(V(lad.x - sx, y, zAt(y)), V(lad.x + sx, y, zAt(y)), 0.035, 0.035, color));
+  return parts;
 }
 
 /**

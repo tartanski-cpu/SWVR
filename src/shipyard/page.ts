@@ -765,7 +765,7 @@ section('2. Wheelhouse');
   options('chartTable', 'Chart table', ['None', 'Port wall, aft']);
 
   // The deckhouse (owner: pilot and rescue boats): the wheelhouse stands on it.
-  group('Deckhouse', 'A lower deckhouse that the wheelhouse stands on, as on pilot and rescue boats: from the wheelhouse’s aft wall forward, the helm raised onto it with steps up to the door. Its floor height (above) is then from the deckhouse’s top: lower it to sink the cabin into the deckhouse. Solid for now (no way in but the wheelhouse, its top not walked).');
+  group('Deckhouse', 'A lower deckhouse that the wheelhouse stands on, as on pilot and rescue boats: from the wheelhouse’s aft wall forward, the helm raised onto it with steps up to the door. Its floor height (above) is then from the deckhouse’s top: lower it to sink the cabin into the deckhouse. Solid inside; its top can be walked, a deck round the wheelhouse with a rail and a ladder up from the main deck.');
   measure('dhLength', 'Forward', (v) => (v ? m(v, 1) : 'none'), { off: 0.4 });
   measure('dhHeight', 'Height', (v) => m(v)).dataset.when = 'dhLength';
   {
@@ -795,6 +795,8 @@ section('2. Wheelhouse');
   }
   measure('dhWidth', 'Side decks', (v) => m(v), { min: 0.1 }).dataset.when = 'dhSideDecks';
   measure('dhRake', 'Front', (v) => (v < 0.5 ? 'upright' : `raked ${v.toFixed(0)}°`)).dataset.when = 'dhLength';
+  // Its top walked (P2b): a rail round it and a ladder up from the deck.
+  options('dhWalk', 'Top', ['Not walked', 'Walked: rail and ladder']).dataset.when = 'dhLength';
 }
 section('3. Deck gear');
 {

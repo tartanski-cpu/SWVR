@@ -31,7 +31,7 @@ import type { Mount, Recipe } from '../modular/recipe';
 import type { Socket } from '../modular/socket';
 import type { HullForm } from '../vessel/hullForm';
 import type { DoorStep, FloorLevel, HouseShape, LayoutConfig, Livery, OverheadLayout } from '../vessel/vesselDef';
-import type { DeckhouseLayout } from '../vessel/deckhouse';
+import { deckhouseHalfWidth, type DeckhouseLayout } from '../vessel/deckhouse';
 import { houseFlare } from '../vessel/houseFlare';
 import { BREAKERS } from '../vessel/vesselState';
 import { strakeLine, tyreSpots } from '../vessel/physics/guards';
@@ -637,6 +637,36 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
     deckhouse.well = { halfWidth: rnd(hw - 0.03), z0: rnd(front + 0.03) };
     dhArea -= 2 * (hw - 0.03) * (deckhouse.z1 - front - 0.03);
   }
+  // ── The deckhouse's top walked (P2b, design.dhWalk; owner: a pilothouse raised on a walkable
+  // deckhouse) ── A deck round the wheelhouse: forward of it, and beside it where the deckhouse
+  // is wider; a rail along its edge, and a ladder up from the main deck (CONFIG.shipyard.
+  // deckhouse.walk). On its aft face beside the house if there's room, else up its front.
+  let dhRailM = 0;
+  // (A side door onto it wants the wheelhouse floor within 0.35 m of its top: a step, vessel/layout.ts STEP_HEIGHT 0.4.)
+  /** The forward end of what stands on her deck amidships (the deckhouse's front, and a ladder up it), set below. */
+  let foreEndAt = front;
+  if (d.dhWalk && !deckhouse) warnings.push('The walked deckhouse top needs a deckhouse: none.');
+  if (deckhouse) foreEndAt = Math.min(front, deckhouse.z0);
+  if (d.dhWalk && deckhouse) {
+    const wk = dhc.walk;
+    // Its top is flat aft of the front's rake (hullMesh.ts buildDeckhouse: the same slope).
+    const foot = q.deckY(deckhouse.z0) - 0.06;
+    const flat = rnd(deckhouse.z0 + (deckhouse.top - foot) * Math.tan((deckhouse.rakeDeg * Math.PI) / 180));
+    const fore = front - flat - 2 * wk.margin;
+    const stripAft = deckhouseHalfWidth(deckhouse, deckhouse.z1) - hw;
+    const roomAft = !d.dhNarrow && stripAft - wk.margin >= wk.ladder.width + 0.1;
+    if (fore < wk.minFore && !roomAft) warnings.push('The deckhouse’s top has no room to walk round the wheelhouse (make it reach further forward, or wider than the house): not walked.');
+    else {
+      const ladder = roomAft
+        ? { face: 'aft' as const, x: rnd(hw + (stripAft - wk.margin) / 2 + 0.05), width: wk.ladder.width, depth: wk.ladder.depth }
+        : { face: 'front' as const, x: 0, width: wk.ladder.width, depth: wk.ladder.depth };
+      deckhouse.walk = { z0: flat, margin: wk.margin, railHeight: wk.railHeight, ladder };
+      // The rail's run: both sides from the flat top's front aft (beside the house too), and across the front.
+      const w0 = deckhouseHalfWidth(deckhouse, flat);
+      if (ladder.face === 'front') foreEndAt = deckhouse.z0 - ladder.depth;
+      dhRailM = 2 * (deckhouse.z1 - flat) + 2 * w0 + (roomAft ? 2 * stripAft : 0);
+    }
+  }
   const roofY = floorY + headroom;
   const wall = 0.06;
   // The saloon's floor (owner: "two steps down into the saloon", as on the Alaskan): level with
@@ -1089,7 +1119,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   // working her alongside stand; kept inside the mooring cleats.
   const mc = CONFIG.shipyard.deckGear.midCleats;
   const midCleat = d.skiff
-    ? Math.round(100 * Math.min(sternCleat - mc.fromEnds, Math.max(bowCleat + mc.fromEnds, d.skiff <= 2 ? (deckhouse ? Math.min(front, deckhouse.z0) : front) - mc.fromHouse : aft + mc.fromHouse))) / 100
+    ? Math.round(100 * Math.min(sternCleat - mc.fromEnds, Math.max(bowCleat + mc.fromEnds, d.skiff <= 2 ? foreEndAt - mc.fromHouse : aft + mc.fromHouse))) / 100
     : null;
   const cleat = (side: number, z: number): V3 => [side * (q.halfBeam(z) - 0.03), q.deckY(z) + bulwarkHeight, z];
   const rampBow: V3 | null = bowRamp ? [-(q.halfBeam(bowRamp.button.z) - 0.06), q.deckY(bowRamp.button.z) + bowRamp.button.y, bowRamp.button.z] : null;
@@ -1153,9 +1183,9 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   const poleShape: Rect[] = [{ x0: -dp.box.width / 2 - 0.05, x1: dp.box.width / 2 + 0.05, z0: -0.12, z1: dp.box.depth + 0.45 }];
   // The house in plan with a margin, and its door's steps aft.
   const dhW = deckhouse ? Math.max(...deckhouse.plan.map(([, w]) => w)) : 0;
-  const houseRect: Rect = { x0: -Math.max(hw, dhW) - 0.3, x1: Math.max(hw, dhW) + 0.3, z0: (deckhouse ? Math.min(front, deckhouse.z0) : front) - 0.3, z1: aft + 0.7 };
+  const houseRect: Rect = { x0: -Math.max(hw, dhW) - 0.3, x1: Math.max(hw, dhW) + 0.3, z0: foreEndAt - 0.3, z1: aft + 0.7 };
   /** The forward end of what stands on her deck amidships: the deckhouse's front, or the wheelhouse's. */
-  const foreEnd = deckhouse ? Math.min(front, deckhouse.z0) : front;
+  const foreEnd = foreEndAt;
   const onDeck = (r: Rect) => r.z0 > bowClear && r.z1 < transom - 0.15 && [r.z0, r.z1].every((z) => Math.max(Math.abs(r.x0), Math.abs(r.x1)) <= q.halfBeam(z) - 0.15);
   const standsOnDeck = (rects: Rect[]) => rects.every((r) => onDeck(r) && !overlaps(r, houseRect) && !taken.some((o) => overlaps(o, r)));
   // The roof: its edges, the masthead light's pole and the horn, and what's already on it.
@@ -1424,7 +1454,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   const zones: HatchZone[] = [];
   // (In the wheelhouse's floor: a saloon a step down has its own, at another height.)
   if (!deckhouse) zones.push({ floor: true, z0: cf + 0.5 + ehc.helmRoom, z1: saloonDrop ? helmAft - 0.05 : aft - wall - inside - 0.05, x0: () => -(hw - wall) + 0.05 + ctabW, x1: () => hw - wall - 0.05 });
-  const houseZ0 = (deckhouse ? Math.min(front, deckhouse.z0) : front) - 0.3;
+  const houseZ0 = foreEndAt - 0.3;
   const houseZ1 = aft + Math.max(0.7, (rise > 0 ? nSteps * tread : 0) + 0.3);
   const deckX = (z: number) => q.halfBeam(z) - ehc.deckMargin;
   zones.push({ floor: false, z0: stem + (bowRamp ? 1.8 : 1.0), z1: houseZ0, x0: (z) => -deckX(z), x1: deckX });
@@ -1521,12 +1551,15 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
     const zEnd = Math.min(chartTableAt ? chartTableAt[2] - 0.05 : aft - wall - 0.15, saloonDrop ? helmAft - 0.05 : Infinity);
     // Up to the window band's top edge (the door's opening runs up through the band).
     const height = Math.min(2.0, windowHead - 0.04, roofY - F - 0.12);
-    const deckOutside = q.halfBeam(z0 + sdc.width / 2) - hw;
+    // (Onto the deckhouse's walked top, when the house stands on one as wide as her: below.)
+    const deckOutside = deckhouse?.walk && !d.dhNarrow ? Infinity : q.halfBeam(z0 + sdc.width / 2) - hw;
     // On a house raised on a deckhouse as wide as it, the door opens onto the side deck below
     // with no steps (owner: the crew jump in and out; if that's too high it's a bad design).
     // A sliding door wants a flat wall to slide along (owner): not with the windows raked out.
     if (d.flare) warnings.push('The side door slides along an upright wall: it needs upright side windows (not raked out all round): left off.');
-    else if (deckhouse && !d.dhNarrow) warnings.push('The side door would open onto the deckhouse’s top, which isn’t walked yet (make the deckhouse as wide as the wheelhouse for one): left off.');
+    else if (deckhouse && !d.dhNarrow && !deckhouse.walk) warnings.push('The side door would open onto the deckhouse’s top, which isn’t walked (walk its top, or make the deckhouse as wide as the wheelhouse): left off.');
+    else if (deckhouse?.walk && !d.dhNarrow && Math.abs(floorY - deckhouse.top) > 0.35) warnings.push('The wheelhouse floor is too far from the deckhouse’s top for a side door onto it (bring its floor level with the top): left off.');
+    else if (deckhouse?.walk && !d.dhNarrow && deckhouseHalfWidth(deckhouse, z0 + sdc.width / 2) - hw - deckhouse.walk.margin < sdc.sideDeck) warnings.push('The deckhouse’s top is too narrow beside the wheelhouse to step out of a side door onto (set its side decks narrower): left off.');
     else if (zEnd - z0 < sdc.width) warnings.push(`Her wheelhouse is too short for a side door between the helm and ${chartTableAt ? 'the chart table' : 'the aft wall'}: left off.`);
     else if (deckOutside < sdc.sideDeck) warnings.push('There\'s no side deck outside her wheelhouse to step out onto (a narrower house leaves one): the side door is left off.');
     else if (height < 1.7) warnings.push('Her wheelhouse is too low inside for a side door: left off.');
@@ -2068,6 +2101,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
     { name: `Hull: ${material} plating and framing`, kg: shellM2 * mat.shellKgPerM2 * (base.scantlings ?? 1) * grownPlate, y: shellM2y / shellM2, z: shellM2z / shellM2 },
     { name: 'Bulwarks', kg: bulwarkRun * bulwarkHeight * mat.shellKgPerM2 * wc.bulwarkShare, y: deckMid + bulwarkHeight / 2, z: (stem + transom) / 2 },
     { name: 'Wheelhouse', kg: houseM2 * mat.houseKgPerM2, y: (floorY + roofY) / 2, z: (front + aft) / 2 },
+    { name: 'Deckhouse rail and ladder', kg: deckhouse?.walk ? dhRailM * CONFIG.shipyard.deckhouse.walk.railKgPerM + CONFIG.shipyard.deckhouse.walk.ladder.kg : 0, y: deckhouse ? deckhouse.top + 0.4 : deckMid, z: deckhouse ? (deckhouse.z0 + deckhouse.z1) / 2 : 0 },
     { name: 'Cockpit overhead', kg: overheadM2(layout.overhead) * mat.houseKgPerM2, y: layout.overhead ? layout.overhead.y - 0.3 : deckMid, z: layout.overhead ? (layout.overhead.z0 + layout.overhead.z1) / 2 : 0 },
     { name: 'Deckhouse', kg: dhArea * mat.houseKgPerM2, y: deckhouse ? (deckMid + deckhouse.top) / 2 : deckMid, z: deckhouse ? (deckhouse.z0 + deckhouse.z1) / 2 : 0 },
     { name: outboards ? 'Outboards' : n > 1 ? 'Engines and gearboxes' : 'Engine and gearbox', kg: machineKg, y: machineY, z: machineZ },
