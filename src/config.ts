@@ -3537,6 +3537,8 @@ export const CONFIG = {
    */
   handGear: {
     grabRange: 0.2,
+    /** VR: a held piece stays in hand through a loss of the controller's tracking shorter than this (s). */
+    lostGrace: 1.0,
     deskHold: [0.22, -0.3, -0.5] as [number, number, number],
     /**
      * A 6 kg water-mist / foam extinguisher (hold the trigger, or the left mouse button, to
