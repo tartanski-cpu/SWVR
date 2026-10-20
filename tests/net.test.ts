@@ -82,6 +82,15 @@ describe('multiplayer (loopback)', () => {
     expect(br.alpha).toBeLessThanOrEqual(1);
   });
 
+  it("the host changing boat tells the crew which boat to build (they start again in her and join the same code)", async () => {
+    const { host, client } = await setup();
+    const got: unknown[] = [];
+    client.onRestart = (n) => got.push(n);
+    host.broadcast({ t: 'restart', boat: 'pilotBoat', fit: 'all' });
+    await flush();
+    expect(got).toEqual([{ t: 'restart', boat: 'pilotBoat', fit: 'all' }]);
+  });
+
   it('a player who leaves is removed from the world', async () => {
     const { world, client } = await setup();
     expect(world.players['player-2']).toBeDefined();

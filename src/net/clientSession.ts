@@ -1,7 +1,7 @@
 import type { EntityId } from '../core/ids';
 import type { Intent } from '../core/intents';
 import type { WorldState } from '../core/world';
-import { INTERP_DELAY, type HostMessage, type PlayerPose } from './protocol';
+import { INTERP_DELAY, type HostMessage, type PlayerPose, type RestartNotice } from './protocol';
 import type { ClientTransport } from './transport';
 import type { ChartMarks, ChartOp } from '../chart/marks';
 
@@ -28,6 +28,8 @@ export class ClientSession {
   /** A chart op from the host (someone else's pencil). */
   onChart: (op: ChartOp) => void = () => {};
   onClosed: (reason: string) => void = () => {};
+  /** The host's page is starting again in another boat: build her and join again (App). */
+  onRestart: (notice: RestartNotice) => void = () => {};
 
   constructor(
     private readonly transport: ClientTransport,
@@ -56,6 +58,8 @@ export class ClientSession {
       this.push(msg.world);
     } else if (msg.t === 'chart') {
       this.onChart(msg.op);
+    } else if (msg.t === 'restart') {
+      this.onRestart(msg);
     }
   }
 

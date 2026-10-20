@@ -4541,6 +4541,10 @@ export const CONFIG = {
    * session is sent into the game at once, and the crew may arrive before the one who pressed
    * it has the game open. So a crew-mate who finds no game yet tries again every
    * `togetherRetryS` seconds, up to `togetherTries` times (~40 s in all, a slow phone included).
+   * The host changing boat (App `restartPage`): the host's page waits `restartLeadS` s after
+   * telling the crew before it starts again (the notice on its way), each crew page
+   * `restartFollowS` s before it starts again in her (the host's old room closed by then),
+   * then joins as "sent in together" (the retries above, while the host's new page opens).
    * An attempt not in after `togetherConnectS` seconds is dropped and tried again (one
    * can hang if made just as the host's game opens).
    * `togetherLeadS`: the Shipyard waits this long after telling the others before going into
@@ -4548,7 +4552,7 @@ export const CONFIG = {
    * Hosting that fails at the broker (slow, down, or a room still held by a page that closed
    * without saying) is tried again `hostTries` times in all, `hostRetryS` apart.
    */
-  net: { togetherRetryS: 2, togetherTries: 20, togetherConnectS: 8, togetherLeadS: 0.6, hostTries: 4, hostRetryS: 3 },
+  net: { togetherRetryS: 2, togetherTries: 20, togetherConnectS: 8, togetherLeadS: 0.6, hostTries: 4, hostRetryS: 3, restartLeadS: 0.8, restartFollowS: 1.5 },
 
   /**
    * Voice between the crew (net/voice.ts; owner request: up to four players). Everyone's

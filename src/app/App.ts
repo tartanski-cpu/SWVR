@@ -148,6 +148,7 @@ import { setupXR, xrSessionInfo } from './xrSession';
 import { applyPlayerIntent } from '../player/playerControl';
 import { HostSession } from '../net/hostSession';
 import { ClientSession } from '../net/clientSession';
+import type { RestartNotice } from '../net/protocol';
 import { PeerClientTransport, PeerHostTransport, peerIdForRoom, randomRoomCode, type ClientTransport } from '../net/transport';
 import type Peer from 'peerjs';
 import { VoiceChat, type VoiceSpeaker } from '../net/voice';
@@ -184,7 +185,7 @@ let designCodeError: string | null = null;
  * the career has her; 'workboat:all': the old workboat with all her equipment (`?fit=all`,
  * for testing). The game's own start boat (CONFIG.career.boat) needs no `?boat=`.
  */
-function restartIn(defId: string): void {
+function restartIn(defId: string): URL {
   const url = new URL(location.href);
   url.searchParams.delete('design');
   url.searchParams.delete('fit');
@@ -194,15 +195,15 @@ function restartIn(defId: string): void {
   }
   if (defId === CONFIG.career.boat) url.searchParams.delete('boat');
   else url.searchParams.set('boat', defId);
-  location.assign(url.toString());
+  return url;
 }
 
 /** A fresh start in a Shipyard boat (the page's `?design=`): Office > Your boats (shipyard/takeHer.ts). */
-function restartInDesign(code: string): void {
+function restartInDesign(code: string): URL {
   const url = new URL(location.href);
   url.searchParams.delete('boat');
   url.searchParams.set('design', code);
-  location.assign(url.toString());
+  return url;
 }
 
 /** The browser's storage, if it lets us have it (a private window may not). */
@@ -2453,7 +2454,7 @@ export class App {
         const defId = this.world.vessels[this.testVesselId]?.defId ?? 'workboat';
         return defId === 'workboat' && new URLSearchParams(location.search).get('fit') === 'all' ? 'workboat:all' : defId;
       },
-      setHomeBoat: (defId) => restartIn(defId),
+      setHomeBoat: (defId) => this.restartPage(restartIn(defId)),
       seaTrialsShown: () => this.trialsPanel.shown,
       toggleSeaTrials: () => this.toggleSeaTrials(),
       debugPanel: () => this.overlay.visible,
@@ -2530,9 +2531,9 @@ export class App {
       shipyardCodes: () => this.shipyardCodes,
       takeDesign: (code) => {
         this.overlay.notify('Restarting in her (in VR: enter VR again once she is loaded)', 4);
-        restartInDesign(code);
+        this.restartPage(restartInDesign(code));
       },
-      workboatAgain: () => restartIn(CONFIG.career.boat),
+      workboatAgain: () => this.restartPage(restartIn(CONFIG.career.boat)),
       boatNow: () => {
         const defId = this.world.vessels[this.testVesselId]?.defId ?? 'workboat';
         if (defId === 'workboat') return 'The workboat';
@@ -2683,6 +2684,55 @@ export class App {
   }
 
   /** Host a game: register a room code with the PeerJS server, then accept crew. `tries`: again on a failure (below). */
+  /** The game code we host (while hosting). */
+  private hostCode = '';
+  /** Leaving for another boat (the page about to start again): no more restarts meanwhile. */
+  private restarting = false;
+
+  /**
+   * Send this page to `url`: a fresh start in another boat (Debug > Start in, a Shipyard
+   * design, a yard refit). Hosting (owner, Oct 2026: changing boat broke the game for the
+   * crew, each page then in a different boat): the new page hosts the same game code again
+   * (`?host=`), and the crew are told which boat to build; their pages start again in her and
+   * join again on their own. Aboard a host's boat as crew: only the host changes her.
+   */
+  private restartPage(url: URL): void {
+    if (this.restarting) return;
+    if (this.client) {
+      this.overlay.notify("You're aboard the host's boat: only the host can change her (Leave game first to go your own way)", 5);
+      return;
+    }
+    if (this.host) {
+      this.restarting = true;
+      const p = url.searchParams;
+      url.searchParams.set('host', this.hostCode);
+      this.host.broadcast({ t: 'restart', ...(p.has('boat') ? { boat: p.get('boat')! } : {}), ...(p.has('design') ? { design: p.get('design')! } : {}), ...(p.has('fit') ? { fit: p.get('fit')! } : {}) });
+      this.overlay.notify(`Starting again in her, hosting game ${this.hostCode} again: the crew follow (in VR: enter VR again)`, 5);
+      // The notice on its way to everyone before the room closes.
+      setTimeout(() => {
+        this.leaveGame();
+        location.assign(url.toString());
+      }, CONFIG.net.restartLeadS * 1000);
+      return;
+    }
+    location.assign(url.toString());
+  }
+
+  /** Crew: the host's page is starting again in another boat; build her and join the same code again. */
+  private followRestart(notice: RestartNotice): void {
+    if (this.restarting) return;
+    this.restarting = true;
+    const url = new URL(location.href);
+    for (const k of ['design', 'boat', 'fit', 'join', 'host', 'fresh', 't']) url.searchParams.delete(k);
+    if (notice.design) url.searchParams.set('design', notice.design);
+    else if (notice.boat) url.searchParams.set('boat', notice.boat);
+    if (notice.fit) url.searchParams.set('fit', notice.fit);
+    url.searchParams.set('together', this.joinCode);
+    this.overlay.notify('The host is changing boat: starting again in her and joining again (in VR: enter VR again)', 5);
+    this.leaveGame();
+    setTimeout(() => location.assign(url.toString()), CONFIG.net.restartFollowS * 1000);
+  }
+
   private hostGame(code = randomRoomCode(), tries = CONFIG.net.hostTries): void {
     if (this.host || this.client || this.hostStarting) return;
     const transport = new PeerHostTransport(code);
@@ -2695,6 +2745,7 @@ export class App {
         this.host.marks = this.marks;
         this.netPeer = transport.peer;
         this.hostPeerId = peerIdForRoom(code);
+        this.hostCode = code;
         this.netMessage = '';
         this.overlay.notify(`Hosting: game code ${code}`, 4);
         // A crew-mate on a newer page than ours: they can't stay, and only we can put it right.
@@ -2798,6 +2849,9 @@ export class App {
     this.client = client;
     this.netMessage = '';
     client.onChart = (op) => applyChartOp(this.marks, op);
+    client.onRestart = (n) => {
+      if (this.client === client) this.followRestart(n);
+    };
     client.onWelcome = (playerId, world, chart) => {
       // The host's chart: their marks replace ours while we're aboard their boat.
       this.marks = chart ? { strokes: chart.strokes, tokens: chart.tokens ?? [], seq: this.marks.seq + 1 } : createMarks();
@@ -2902,7 +2956,7 @@ export class App {
       this.refitAt = 0;
       const url = new URL(location.href);
       url.searchParams.delete('fit');
-      location.assign(url.toString());
+      this.restartPage(url);
       return;
     }
     if (this.client) return;
@@ -4326,7 +4380,7 @@ export class App {
         },
         switchBoat: () => {
           const next = this.nextStartBoat();
-          if (next) restartIn(next);
+          if (next) this.restartPage(restartIn(next));
         },
         drive: (lever, helm) => this.driveTo(this.drivenVesselId(), lever, helm),
         reading: () => {

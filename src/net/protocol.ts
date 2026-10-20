@@ -58,7 +58,19 @@ export interface PlayerPose {
 
 export type ClientMessage = { t: 'hello'; name: string; build?: string } | { t: 'intents'; intents: Intent[] } | { t: 'pose'; pose: PlayerPose } | { t: 'chart'; op: ChartOp };
 
-export type HostMessage = { t: 'welcome'; playerId: EntityId; world: WorldState; chart?: ChartMarks } | { t: 'snapshot'; world: WorldState } | { t: 'chart'; op: ChartOp };
+/**
+ * The host's page is starting again in another boat (Debug > Start in, a Shipyard design, a
+ * yard refit) and will host the same game code again: the crew build her too (the page's
+ * `?boat=` / `?design=` / `?fit=`, as the host's page has them) and join again on their own.
+ */
+export interface RestartNotice {
+  t: 'restart';
+  boat?: string;
+  design?: string;
+  fit?: string;
+}
+
+export type HostMessage = { t: 'welcome'; playerId: EntityId; world: WorldState; chart?: ChartMarks } | { t: 'snapshot'; world: WorldState } | { t: 'chart'; op: ChartOp } | RestartNotice;
 
 /** Snapshot / pose send rate (Hz). */
 export const NET_RATE = 20;
