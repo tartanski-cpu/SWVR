@@ -551,7 +551,7 @@ The world is growing: new map areas round home, each with its own harbours, weat
 
 ### The coast viewer (work in progress)
 
-https://tartanski-cpu.github.io/SWVR/next/coast.html shows the first real-coastline region made from open map data: Oban and its approaches, from Kerrera to Connel, at full scale. Fly round it (drag, wheel, W A S D) and switch on the overlays. It isn't in the game yet; when it is, it will stand in for the Sounds behind a debug switch.
+https://tartanski-cpu.github.io/SWVR/next/coast.html shows the first real-coastline region made from open map data: Oban and its approaches, from Kerrera to Connel, at full scale. Fly round it (drag, wheel, W A S D) and switch on the overlays. Its real buoys and lights are there (the lights flash their charted characters; try **Night**), with the skerries and the Falls of Lora race. Press **Drop test boat** to drive a simple boat by the marks: W and S for the throttle, A and D for the rudder, space to stop; she runs aground where the water is too shallow, and **Race** switches the Falls between slack, flood and ebb. It isn't in the game yet; when it is, it will stand in for the Sounds behind a debug switch.
 
 ### Cargo
 

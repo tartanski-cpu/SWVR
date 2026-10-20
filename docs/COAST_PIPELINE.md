@@ -1,6 +1,6 @@
 # Coast pipeline: real coastline regions from open data
 
-Status: **milestone 1 done (Oct 2026), awaiting the owner's look.** The running record is PROGRESS.md "Real coastline regions".
+Status: **milestones 1 and 2 done (Oct 2026), M2 awaiting the owner's look.** The running record is PROGRESS.md "Real coastline regions".
 
 The owner's brief, in short: generate playable regions of real coastline in the game's flat-shaded low-poly style from open geographic data, fast; the data designs the place and the work moves to cleaning and styling it. Offline processing only: the game never calls the data servers. The product is region files plus a standalone viewer to judge them.
 
@@ -18,11 +18,12 @@ The owner's brief, in short: generate playable regions of real coastline in the 
 1. **Fetch** (`src/fetch.ts`): downloads, cached under `data/raw/<id>/`; `sources.yaml`.
 2. **Project and reconcile** (`src/reconcile.ts`): a 10 m grid. OpenStreetMap's coastline decides land and sea (its ways have land on the left: each segment seeds the cells beside it, each patch the coast encloses takes the side most seeds say, so a coast running off the box needs no closing). Land keeps the DEM's height, lifted a little at the shore (within 40 m) so the DEM can't smear it into the sea; cliffs stay (high ground is never lowered). The sea is always under water: a procedural shelf near the shore (the 115 m bathymetry misses the shallows) blending into the bathymetry over 300 m.
 3. **Mesh and style** (`src/mesh.ts`): greedy-insertion triangulation (start from the coastline resampled every 20 m and the box's edges; add each triangle's worst-fitting cell; repeat to a triangle budget). Error counts on land, half in the shallows, not at all in deep water (opaque sea). Faces wholly below 3 m depth are dropped. Colours per face from WorldCover through the region theme (`src/themes.ts`): steep faces rock, low gentle ground by the water sand, open grassland shading to heather moor with height. 2 km chunks.
+4. **Navigation** (`src/nav.ts`, the brief's stage 6): OpenSeaMap's seamarks to `nav.json`. Every buoy and beacon with its category, shape, colours, topmark and the game kind it maps to (port, starboard, the four cardinals, isolated danger); every light with its character, group, period, sequence, height, range and sectors, and a chart label (`Fl(2)GWR.6s`); charted rocks, reefs and wrecks in the sea; **skerries** (islets and bare rock under 150 m across, in the sea), flagged `drawn: false` where the mesh lost them so the viewer and the game stand them up; marine farms with their outlines; and the request's hand-placed current zones, as the polygon and as the oriented rectangle along the set the game's zones use (warned if under 70 % water). Thin data is reported, not hidden: for Oban, OpenStreetMap has no charted rocks or wrecks in the box, only the skerries.
 
 ## Milestones (the owner's)
 
 1. **Pipeline skeleton and the first box** (done): fetch, project, reconcile, mesh, colour; the viewer.
-2. **Navigation and hazards:** seamarks to buoys, lights with characteristics, charted rocks and wrecks, the hand-placed race zone (the Falls of Lora at Connel is in the request).
+2. **Navigation and hazards** (done): seamarks to buoys, lights with characteristics, charted rocks and wrecks (and skerries), the hand-placed race zone (the Falls of Lora at Connel). In the viewer: the marks in their shapes and colours, the lights flashing their characters (sector lights by bearing), labels, night, and a test boat to drive by the marks.
 3. **Harbours and buildings:** harbour kit from OSM outlines, spine roles, building blocks near harbours, the hand-edit overlay.
 4. **Package and load in the game:** the height-grid region and credits in the game, distant chunks coarser, the budget report failing the build, sail in from home (the Sounds' toggle).
 5. **Second and third regions:** a Norwegian fjord (Kartverket depths); the German training harbour is skipped for now.

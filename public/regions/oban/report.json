@@ -134,6 +134,14 @@
  ],
  "landShare": 0.5968507486568487,
  "warnings": [
-  "2 patches where the coastline's sides disagree (check the coast there)"
- ]
+  "2 patches where the coastline's sides disagree (check the coast there)",
+  "no charted rocks, reefs or wrecks in the sea in OpenStreetMap for this box, only skerries (thin data: check a chart)"
+ ],
+ "nav": {
+  "marks": 15,
+  "lights": 19,
+  "hazards": 10,
+  "farms": 2,
+  "currents": 1
+ }
 }

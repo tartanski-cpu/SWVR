@@ -1,12 +1,16 @@
 /**
- * The coast viewer (the coast pipeline's milestone 1): load a generated region (region.json
- * and terrain.bin from public/regions/<id>/, written by tools/coast/src/mesh.ts), fly round
- * it, and toggle overlays: chunk borders, wireframe, depth bands, land-cover classes, the
- * OpenStreetMap coastline, the water. ?region=<id> picks the region (default oban). Not part
- * of the game: a page to judge regions before they go into it.
+ * The coast viewer (the coast pipeline's milestones 1 and 2): load a generated region
+ * (region.json and terrain.bin from public/regions/<id>/, written by tools/coast/src/mesh.ts,
+ * and nav.json from tools/coast/src/nav.ts), fly round it, and toggle overlays: chunk
+ * borders, wireframe, depth bands, land-cover classes, the OpenStreetMap coastline, the
+ * water, the buoys and lights with their labels, night. Drop a test boat and drive her by
+ * the marks, with the tidal race at slack, flood or ebb. ?region=<id> picks the region
+ * (default oban). Not part of the game: a page to judge regions before they go into it.
  */
 import * as THREE from 'three';
 import { MapControls } from 'three/addons/controls/MapControls.js';
+import { NavLayer, type NavFile } from './nav';
+import { TestBoat, DRAFT } from './boat';
 
 interface RegionFile {
   id: string;
@@ -16,6 +20,7 @@ interface RegionFile {
   chunks: { id: number; x0: number; z0: number; size: number; start: number; count: number }[];
   coast: number[][];
   credits: string;
+  nav?: string;
 }
 
 const id = new URLSearchParams(location.search).get('region') ?? 'oban';
@@ -29,7 +34,8 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xb8cfdc);
 scene.fog = new THREE.Fog(0xb8cfdc, 6000, 22000);
 const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 1, 40000);
-scene.add(new THREE.HemisphereLight(0xdfeaf2, 0x40463a, 1.6));
+const hemi = new THREE.HemisphereLight(0xdfeaf2, 0x40463a, 1.6);
+scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff3e0, 2.2);
 sun.position.set(-3000, 5000, 4000);
 scene.add(sun);
@@ -51,12 +57,41 @@ const CLASSES: Record<number, [string, number]> = {
   100: ['moss', 0xd0e0b0],
 };
 
-const toggles: Record<string, boolean> = { water: true, chunks: false, wireframe: false, depth: false, cover: false, coast: false };
+const toggles: Record<string, boolean> = { water: true, chunks: false, wireframe: false, depth: false, cover: false, coast: false, marks: true, labels: true, night: false };
 const groups = { terrain: new THREE.Group(), chunks: new THREE.Group(), coast: new THREE.Group() };
 scene.add(groups.terrain, groups.chunks, groups.coast);
 let water: THREE.Mesh;
 let geos: { geo: THREE.BufferGeometry; natural: Float32Array; depth: Float32Array; cover: Float32Array }[] = [];
 const mat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
+let nav: NavLayer | null = null;
+const boat = new TestBoat();
+boat.root.visible = false;
+scene.add(boat.root);
+let driving = false;
+/** The tidal race's strength as a share of peak: 0 slack, +1 flood (along its set), -1 ebb. */
+let race = 0;
+
+/** Chunk meshes by their south-west corner, so a height probe tests one chunk, not all. */
+const chunkMeshes = new Map<string, THREE.Mesh>();
+let chunkSize = 2000;
+const ray = new THREE.Raycaster();
+const down = new THREE.Vector3(0, -1, 0);
+const hits: THREE.Intersection[] = [];
+/**
+ * Ground height (m above mean sea level) at (x, z), from the mesh. The mesher leaves out the
+ * seabed where it's all deeper than 3 m (the water hides it), so a miss there means deep:
+ * -60, which the boat's depth sounder shows as "deep".
+ */
+function groundAt(x: number, z: number): number {
+  ray.set(new THREE.Vector3(x, 2000, z), down);
+  const key = `${Math.floor(x / chunkSize) * chunkSize},${Math.floor(z / chunkSize) * chunkSize}`;
+  const own = chunkMeshes.get(key);
+  hits.length = 0;
+  if (own) ray.intersectObject(own, false, hits);
+  // A face near a chunk border can belong to its neighbour: fall back to every chunk.
+  if (!hits.length) ray.intersectObjects(groups.terrain.children, false, hits);
+  return hits.length ? 2000 - hits[0].distance : -60;
+}
 
 async function load(): Promise<void> {
   const region = (await (await fetch(`${base}region.json`)).json()) as RegionFile;
@@ -96,7 +131,10 @@ async function load(): Promise<void> {
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     geo.setAttribute('color', new THREE.BufferAttribute(natural.slice(), 3));
     geo.computeVertexNormals();
-    groups.terrain.add(new THREE.Mesh(geo, mat));
+    const mesh = new THREE.Mesh(geo, mat);
+    groups.terrain.add(mesh);
+    chunkMeshes.set(`${ch.x0},${ch.z0}`, mesh);
+    chunkSize = ch.size;
     geos.push({ geo, natural, depth, cover });
     // Chunk border.
     const s = ch.size;
@@ -126,6 +164,14 @@ async function load(): Promise<void> {
   document.getElementById('name')!.textContent = region.name;
   document.getElementById('stats')!.innerHTML = `${t.faces.count.toLocaleString()} triangles, ${verts.toLocaleString()} vertices, ${region.chunks.length} chunks of ${region.chunks[0].size / 1000} km<br>${((b.x1 - b.x0) / 1000).toFixed(1)} × ${((b.z1 - b.z0) / 1000).toFixed(1)} km, ${(bin.byteLength / 1e6).toFixed(1)} MB`;
   document.getElementById('credits')!.textContent = region.credits;
+  if (region.nav) {
+    scene.updateMatrixWorld();
+    const file = (await (await fetch(`${base}${region.nav}`)).json()) as NavFile;
+    nav = new NavLayer(file, groundAt);
+    scene.add(nav.root);
+    document.getElementById('stats')!.innerHTML += `<br>${file.marks.length} buoys and beacons, ${file.lights.length} lights, ${file.hazards.length} charted rocks and wrecks, ${file.currents.length} race zone${file.currents.length === 1 ? '' : 's'}`;
+    document.getElementById('boatrow')!.style.display = 'flex';
+  }
   apply();
 }
 
@@ -139,6 +185,14 @@ function apply(): void {
   if (water) water.visible = toggles.water;
   groups.chunks.visible = toggles.chunks;
   groups.coast.visible = toggles.coast;
+  if (nav) nav.root.visible = toggles.marks;
+  labelBox.style.display = toggles.labels && toggles.marks ? 'block' : 'none';
+  // Night: the sky and the land go dark so the lights read as they would from the wheelhouse.
+  const night = toggles.night;
+  (scene.background as THREE.Color).setHex(night ? 0x0b1420 : 0xb8cfdc);
+  scene.fog!.color.setHex(night ? 0x0b1420 : 0xb8cfdc);
+  hemi.intensity = night ? 0.12 : 1.6;
+  sun.intensity = night ? 0.05 : 2.2;
   const legend = document.getElementById('legend')!;
   legend.style.display = toggles.cover ? 'block' : 'none';
   legend.innerHTML = Object.values(CLASSES).map(([n, c]) => `<span style="background:#${c.toString(16).padStart(6, '0')}"></span>${n}`).join(' ');
@@ -146,7 +200,7 @@ function apply(): void {
 }
 
 const buttons = new Map<string, HTMLButtonElement>();
-const labels: Record<string, string> = { water: 'Water', chunks: 'Chunks', wireframe: 'Wireframe', depth: 'Heights & depths', cover: 'Land cover', coast: 'OSM coastline' };
+const labels: Record<string, string> = { water: 'Water', chunks: 'Chunks', wireframe: 'Wireframe', depth: 'Heights & depths', cover: 'Land cover', coast: 'OSM coastline', marks: 'Buoys & lights', labels: 'Labels', night: 'Night' };
 for (const k of Object.keys(toggles)) {
   const b = document.createElement('button');
   b.textContent = labels[k];
@@ -171,6 +225,78 @@ for (const [n, f] of views) {
   document.getElementById('views')!.appendChild(b);
 }
 
+/** Labels: HTML tags over the scene for the nearer marks, lights, farms and race zones. */
+const labelBox = document.getElementById('labels')!;
+const labelEls: HTMLDivElement[] = [];
+const proj = new THREE.Vector3();
+function drawLabels(): void {
+  if (!nav || labelBox.style.display === 'none') return;
+  const near = Math.max(2500, camera.position.y * 3);
+  let n = 0;
+  for (const l of nav.labels) {
+    if (camera.position.distanceTo(l.pos) > near) continue;
+    proj.copy(l.pos).project(camera);
+    if (proj.z > 1 || Math.abs(proj.x) > 1 || Math.abs(proj.y) > 1) continue;
+    let el = labelEls[n];
+    if (!el) {
+      el = document.createElement('div');
+      el.className = 'label';
+      labelBox.appendChild(el);
+      labelEls.push(el);
+    }
+    el.style.display = 'block';
+    el.textContent = l.text;
+    el.style.transform = `translate(${((proj.x + 1) / 2) * innerWidth}px, ${((1 - proj.y) / 2) * innerHeight}px) translate(-50%, -100%)`;
+    if (++n >= 60) break;
+  }
+  for (let i = n; i < labelEls.length; i++) labelEls[i].style.display = 'none';
+}
+
+/** Put the test boat at (x, z), or the nearest water deep enough for her (spiral search). */
+function dropBoat(x: number, z: number, heading = 0): boolean {
+  for (let r = 0; r <= 1500; r += 25) {
+    const steps = Math.max(1, Math.round((2 * Math.PI * r) / 25));
+    for (let i = 0; i < steps; i++) {
+      const a = (i / steps) * Math.PI * 2;
+      const px = x + Math.cos(a) * r;
+      const pz = z + Math.sin(a) * r;
+      if (groundAt(px, pz) < -(DRAFT + 1.5)) {
+        boat.place(px, pz, heading);
+        boat.throttle = 0;
+        boat.rudder = 0;
+        boat.root.visible = true;
+        driving = true;
+        // Chase view: behind and above her.
+        camera.position.set(px - Math.sin(heading) * 30, 10, pz + Math.cos(heading) * 30);
+        controls.target.set(px, 1, pz);
+        controls.update();
+        hud.style.display = 'block';
+        boatBtn.textContent = 'Leave boat';
+        return true;
+      }
+    }
+  }
+  return false;
+}
+function leaveBoat(): void {
+  driving = false;
+  boat.root.visible = false;
+  hud.style.display = 'none';
+  boatBtn.textContent = 'Drop test boat';
+}
+const hud = document.getElementById('hud')!;
+const boatBtn = document.createElement('button');
+boatBtn.textContent = 'Drop test boat';
+boatBtn.onclick = () => (driving ? leaveBoat() : dropBoat(controls.target.x, controls.target.z, 0));
+const raceBtn = document.createElement('button');
+const RACE_NAMES: Record<number, string> = { 0: 'Race: slack', 1: 'Race: flood', [-1]: 'Race: ebb' };
+raceBtn.textContent = RACE_NAMES[race];
+raceBtn.onclick = () => {
+  race = race === 0 ? 1 : race === 1 ? -1 : 0;
+  raceBtn.textContent = RACE_NAMES[race];
+};
+document.getElementById('boatrow')!.append(boatBtn, raceBtn);
+
 const keys = new Set<string>();
 addEventListener('keydown', (e) => keys.add(e.key.toLowerCase()));
 addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
@@ -182,6 +308,37 @@ addEventListener('resize', () => {
 const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
   const dt = Math.min(0.1, clock.getDelta());
+  if (driving) driveStep(dt);
+  else fly(dt);
+  controls.update();
+  nav?.update(clock.elapsedTime, camera);
+  renderer.render(scene, camera);
+  drawLabels();
+});
+
+/** Boat mode: W/S open and close the throttle, A/D put the rudder over, space stops her. */
+function driveStep(dt: number): void {
+  if (keys.has('w') || keys.has('arrowup')) boat.throttle = Math.min(1, boat.throttle + 0.5 * dt);
+  if (keys.has('s') || keys.has('arrowdown')) boat.throttle = Math.max(-0.3, boat.throttle - 0.5 * dt);
+  if (keys.has(' ')) boat.throttle = 0;
+  boat.rudder = (keys.has('d') || keys.has('arrowright') ? 1 : 0) - (keys.has('a') || keys.has('arrowleft') ? 1 : 0);
+  const before = boat.root.position.clone();
+  boat.step(dt, (x, z) => (nav?.onRock(x, z) ? 1 : groundAt(x, z)), (x, z) => (nav ? nav.currentAt(x, z, race) : [0, 0]));
+  // The camera rides along, so the owner can still orbit round her with the mouse.
+  const moved = boat.root.position.clone().sub(before);
+  camera.position.add(moved);
+  controls.target.copy(boat.root.position).setY(1);
+  const hdg = ((((boat.heading * 180) / Math.PI) % 360) + 360) % 360;
+  const set = nav ? nav.currentAt(boat.root.position.x, boat.root.position.z, race) : [0, 0];
+  const cur = Math.hypot(set[0], set[1]) / 0.514444;
+  hud.innerHTML =
+    `Heading ${hdg.toFixed(0).padStart(3, '0')}°  Throttle ${(boat.throttle * 100).toFixed(0)}%<br>` +
+    `Speed over ground ${(boat.sog / 0.514444).toFixed(1)} kn  Depth ${boat.depth >= 59 ? 'deep' : `${boat.depth.toFixed(1)} m`}` +
+    (cur > 0.05 ? `<br>Current ${cur.toFixed(1)} kn` : '') +
+    (boat.aground ? '<br><b class="aground">AGROUND</b> (back her off: S)' : '');
+}
+
+function fly(dt: number): void {
   // Fly: speed grows with height, so it's slow at a boat's eye and fast from the air.
   const v = Math.max(20, camera.position.y * 1.2) * dt;
   const fwd = new THREE.Vector3();
@@ -201,11 +358,22 @@ renderer.setAnimationLoop(() => {
     camera.position.add(move);
     controls.target.add(new THREE.Vector3(move.x, 0, move.z));
   }
-  controls.update();
-  renderer.render(scene, camera);
-});
+}
 
-// For scripted checks (headless screenshots): the camera and its controls.
-(window as unknown as { viewer: unknown }).viewer = { camera, controls, toggles, apply };
+// For scripted checks (headless screenshots): the camera, controls, toggles and the test boat.
+(window as unknown as { viewer: unknown }).viewer = {
+  camera,
+  controls,
+  toggles,
+  apply,
+  boat,
+  groundAt,
+  dropBoat,
+  leaveBoat,
+  setRace: (r: number) => ((race = r), (raceBtn.textContent = RACE_NAMES[r])),
+  get nav() {
+    return nav;
+  },
+};
 
 load().catch((e) => (document.getElementById('name')!.textContent = `Could not load region "${id}": ${e.message}`));

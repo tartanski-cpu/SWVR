@@ -21132,5 +21132,6 @@
   }
  ],
  "credits": "© OpenStreetMap contributors (ODbL), OpenSeaMap, Copernicus DEM GLO-30 (© DLR, © Airbus), EMODnet Bathymetry, ESA WorldCover (CC BY 4.0)",
- "licence": "Region data derived from OpenStreetMap: Open Database License (ODbL) 1.0. See sources.yaml."
+ "licence": "Region data derived from OpenStreetMap: Open Database License (ODbL) 1.0. See sources.yaml.",
+ "nav": "nav.json"
 }

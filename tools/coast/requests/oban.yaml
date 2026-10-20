@@ -10,7 +10,8 @@ spine:
   anchorage: auto
 currentZones:                  # tidal races are not in open data: placed by hand (milestone 2)
   - name: Falls of Lora
-    polygon: [[-5.3925, 56.4548], [-5.3830, 56.4560], [-5.3828, 56.4540], [-5.3920, 56.4532]]
+    # The narrows under Connel Bridge, 600 m along the channel, 250 m across; floods east into Loch Etive.
+    polygon: [[-5.3914, 56.4557], [-5.3816, 56.4557], [-5.3816, 56.4580], [-5.3914, 56.4580]]
     direction: 90
     peakKts: 6
     periodHours: 6

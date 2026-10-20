@@ -18,17 +18,24 @@
       #legend span { display: inline-block; width: 10px; height: 10px; margin: 0 3px 0 8px; border: 1px solid #0003; }
       #credits { font-size: 11px; color: #456; margin-top: 6px; }
       #hint { font-size: 12px; color: #567; }
+      #labels { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+      .label { position: absolute; left: 0; top: 0; font-size: 11px; white-space: nowrap; color: #fff; background: rgba(16, 32, 42, 0.7); padding: 1px 4px; border-radius: 3px; }
+      #hud { position: fixed; right: 12px; bottom: 12px; display: none; background: rgba(16, 32, 42, 0.85); color: #eaf2f6; border-radius: 8px; padding: 8px 12px; font-variant-numeric: tabular-nums; }
+      .aground { color: #ff6a50; }
     </style>
   </head>
   <body>
+    <div id="labels"></div>
+    <div id="hud"></div>
     <div id="panel">
       <h1>Workboat World coast viewer</h1>
       <h2 id="name">Loading...</h2>
       <div id="stats"></div>
       <div class="row" id="toggles"></div>
       <div class="row" id="views"></div>
+      <div class="row" id="boatrow" style="display: none"></div>
       <div id="legend"></div>
-      <div id="hint">Drag to turn, right-drag to pan, wheel to zoom. W A S D / arrows move, Q E down and up.</div>
+      <div id="hint">Drag to turn, right-drag to pan, wheel to zoom. W A S D / arrows move, Q E down and up. In the test boat: W S throttle, A D rudder, space stop.</div>
       <div id="credits"></div>
     </div>
     <script type="module" src="/tools/coast/viewer/main.ts"></script>
