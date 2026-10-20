@@ -5502,6 +5502,19 @@ Owner, Oct 2026: a new career starts in one of the new fleet boats; hide the wor
 - **Tests:** tests/starterBoat.test.ts (3); starterWorkboat.test.ts's other-boat message now "Not for this boat".
 - **Next fleet steps:** move the tests and golden runs onto the fleet; then delete the old boats (owner: hide first, delete later).
 
+### Interior finishes: a choice of lining in the wheelhouse (done, awaiting owner test)
+
+Owner, Oct 2026: "I'd like to have some options for the interior textures. At the moment, it's just a wooden one. Take a look at some pictures on the internet of yachts and workboats on the inside and come up with some options that you can pick when you're configuring the wheelhouse in the shipyard app."
+
+- **From the pictures:** aluminium workboats line their wheelhouses with foam-backed vinyl on ply panels, screwed up so they come off for the wiring (light, wipe-clean); yacht pilothouses are varnished teak under a white headliner; steel tugs are painted plating; plain workboats leave the aluminium bare.
+- **Six finishes** (`CONFIG.interiors`, each a wall colour and tile and a ceiling colour and tile): **Wood lining** (as before, the first: every boat without a choice keeps it), **Teak & headliner**, **White panels**, **Grey panels** (dark, against windscreen reflections at night), **Painted steel** (pale green walls, cream deckhead), **Bare aluminium**.
+- **Four new pixel-paint tiles** (render/pixelPaint.ts; repeat sizes in `CONFIG.pixelPaint.tileMetres`): `teak` (9 cm strips, dark seams, a varnish sheen; 1.5 m), `panels` (0.6 m squares, shadowed joints, screw heads every 15 cm; 1.2 m), `steel` (1.5 m plates staggered, weld beads, a stiffener's shadow; 3 m), `brushed` (streaks along the sheet, butt joints with rivet lines; 2.4 m). Same texture as the others: no extra draw calls or memory to speak of.
+- **Plumbing:** a livery key `interior` (vesselDef.ts `Livery`); `paintOf` (vessel/view/hullMesh.ts) turns it into the lining's and ceiling's colours and tiles, used by `lineInside` and the ceiling boxes on both house builders. The Alaskan 38's own interior is unchanged.
+- **Shipyard:** Wheelhouse step, Inside group, **Lining**. `design.interior`, **design code version 30**, packed at the top above the exhaust stacks' style (older codes read as the wood lining).
+- **Fleet boats unchanged** (all wood lining) until the owner picks finishes for them.
+- **Known:** ceilings look darker than their paint by day: they face down and the daytime lighting reaches them only as dim ambient (so the white headliner reads light grey-blue). The cabin light at night lights them properly. A lighting change would be its own job.
+- **Checked:** tests/interiors.test.ts (3): every finish's tiles exist and the Shipyard offers all of them; a plain boat is wood-lined, steel and teak-with-headliner replace the wood on her walls and ceiling; the finish round-trips through the code with each stack style and an off-scale one is refused. pixelPaint's mean-grey test covers the new tiles. Full suite passes. Headless Chromium: the default Shipyard boat at the helm in all six finishes; the Shipyard's Inside group. **Not checked:** the Quest.
+
 ### Console screens never overlap on a small wheelhouse (done, awaiting owner test)
 
 Owner, Oct 2026 (a screenshot): "This is the smallest landing craft wheelhouse and the instruments overlap."

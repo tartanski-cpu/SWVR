@@ -181,8 +181,12 @@ export type BowRampLayout = (typeof CONFIG.vessels.landingCraft.layout)['bowRamp
  * A hull's paint, by part (vessel/view/hullMesh.ts draws her in it); a part not given keeps
  * the workboat's colour. 0xRRGGBB.
  */
-/** `roofTop`: a panel set in from the roof top's edges in its own colour (the eyebrow; none: the roof is one colour). */
-export type Livery = Partial<Record<'bottom' | 'topsides' | 'deck' | 'house' | 'windows' | 'roof' | 'roofTop' | 'mast' | 'rail' | 'floor' | 'console' | 'panel', number>>;
+/**
+ * `roofTop`: a panel set in from the roof top's edges in its own colour (the eyebrow; none: the
+ * roof is one colour). `interior`: the wheelhouse's finish inside, an index into
+ * CONFIG.interiors (none: the wood lining).
+ */
+export type Livery = Partial<Record<'bottom' | 'topsides' | 'deck' | 'house' | 'windows' | 'roof' | 'roofTop' | 'mast' | 'rail' | 'floor' | 'console' | 'panel' | 'interior', number>>;
 
 /**
  * A wheelhouse: the workboat's, with what not every house has optional (M7): a port side

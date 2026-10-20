@@ -24,17 +24,22 @@ const COLORS = {
   panel: 0x22272b,
   /** The window frames round the wheelhouse glass. */
   frame: 0x16191b,
-  /** The wheelhouse's wood lining, inside. */
+  /** The wheelhouse's lining inside, its walls and its ceiling (her livery's `interior` sets them: CONFIG.interiors). */
   lining: 0x8a5d3c,
+  ceiling: 0x8a5d3c,
 };
 
-/** Every part's colour, for a hull's livery (`roofTop`: only a roof with an inset top in a second colour has one). */
-type Paint = typeof COLORS & { roofTop?: number };
+/**
+ * Every part's colour, for a hull's livery (`roofTop`: only a roof with an inset top in a
+ * second colour has one), and the tiles the wheelhouse's lining wears inside.
+ */
+type Paint = typeof COLORS & { roofTop?: number; liningTile: PaintName; ceilingTile: PaintName };
 
-/** A hull's colours: her livery over the workboat's. */
+/** A hull's colours: her livery over the workboat's; inside, her interior finish (the wood lining if none). */
 export function paintOf(livery?: Livery): Paint {
-  const paint = { ...COLORS };
-  for (const [k, v] of Object.entries(livery ?? {})) if (v !== undefined) (paint as Record<string, number>)[k] = v;
+  const fin = CONFIG.interiors[livery?.interior ?? 0] ?? CONFIG.interiors[0];
+  const paint: Paint = { ...COLORS, lining: fin.walls, ceiling: fin.ceiling, liningTile: fin.wallTile, ceilingTile: fin.ceilingTile };
+  for (const [k, v] of Object.entries(livery ?? {})) if (v !== undefined && k !== 'interior') (paint as unknown as Record<string, number>)[k] = v;
   return paint;
 }
 
@@ -254,17 +259,17 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
 
 /**
  * Lines a house wall inside: its faces that stand upright and look in towards `centre` (in
- * plan) take the lining's colour and the wood paint. Only a part in the house's own colour
- * (the window frames stay black inside too).
+ * plan) take the lining's colour and tile (the interior finish's). Only a part in the house's
+ * own colour (the window frames stay black inside too).
  */
-function lineInside(g: THREE.BufferGeometry, house: number, lining: number, centre: THREE.Vector3): void {
+function lineInside(g: THREE.BufferGeometry, house: number, lining: number, tile: PaintName, centre: THREE.Vector3): void {
   const col = g.attributes.color;
   const pos = g.attributes.position;
   const paint = g.attributes.paint;
   const h = new THREE.Color(house);
   if (Math.abs(col.getX(0) - h.r) + Math.abs(col.getY(0) - h.g) + Math.abs(col.getZ(0) - h.b) > 1e-3) return;
   const c = new THREE.Color(lining);
-  const wood = paintIndex('wood');
+  const wood = paintIndex(tile);
   const a = new THREE.Vector3();
   const b = new THREE.Vector3();
   const d = new THREE.Vector3();
@@ -663,9 +668,9 @@ function buildShapedHouse(layout: HouseLayout, col: Paint, base: number): THREE.
   // the wall (zH): the zone reaches past that too, or the tops of its posts were left behind
   // and crossed the bottoms (owner).
   if (sh.facet) setBack(parts.slice(wallsFrom), facetDz(wh), Math.max(zF, zH) + w + 0.13);
-  // The walls' inside faces: wood lining (pixel painting, owner).
+  // The walls' inside faces: the lining (pixel painting, owner; the interior finish's).
   const centre = new THREE.Vector3(0, 0, mid);
-  for (const g of parts.slice(wallsFrom)) lineInside(g, H, col.lining, centre);
+  for (const g of parts.slice(wallsFrom)) lineInside(g, H, col.lining, col.liningTile, centre);
   // Raked out all round: the walls (not the aft doorway's lintel) lean out, and plates beside
   // the doorway close them off to it, from the sill up to the roof.
   const fl = houseFlare(wh);
@@ -684,7 +689,7 @@ function buildShapedHouse(layout: HouseLayout, col: Paint, base: number): THREE.
   // Roof: one flat slab from the visor's edge to aft of the house. Its front and sides are
   // chamfered back as they rise (owner: never square, always back; the visor look): the
   // underside reaches furthest out, the top is set in by roofEdgeDeg; the aft face square.
-  // The wood ceiling under it.
+  // The ceiling under it.
   const rf = layout.roof;
   const ov = rf.overhang;
   const t = rf.thickness;
@@ -709,10 +714,10 @@ function buildShapedHouse(layout: HouseLayout, col: Paint, base: number): THREE.
     if (sr) parts.push(planSlab([[-wi, zRoofEnd + k], [wi, zRoofEnd + k], [wi, zA + ov - k], [-wi, zA + ov - k]], roofS + t, roofS + t + 0.02, col.roofTop));
   }
   const ceilFrom = parts.length;
-  for (const [a, b] of spans) parts.push(box(Math.max(a, -hw + w), Math.min(b, hw - w), roofY - 0.012, roofY, Math.max(zF, zH) + w, zStep - w, col.lining, 'wood'));
+  for (const [a, b] of spans) parts.push(box(Math.max(a, -hw + w), Math.min(b, hw - w), roofY - 0.012, roofY, Math.max(zF, zH) + w, zStep - w, col.ceiling, col.ceilingTile));
   // (Only its front: its aft end, at the step to a lower saloon roof or the aft wall, stays put.)
   if (sh.facet) setBack(parts.slice(ceilFrom), facetDz(wh), zStep - w - 0.01);
-  if (sr) parts.push(box(-hw + w, hw - w, roofS - 0.012, roofS, zStep, zA - w, col.lining, 'wood'));
+  if (sr) parts.push(box(-hw + w, hw - w, roofS - 0.012, roofS, zStep, zA - w, col.ceiling, col.ceilingTile));
   // Raked out all round: the roof and the ceiling go out with the walls' tops.
   if (fl) applyFlare(parts.slice(roofFrom), fl);
   // A cockpit overhead (P2b): the aft roof carried on aft over the working deck (its edges
@@ -1225,11 +1230,11 @@ function buildWheelhouse(layout: HouseLayout, col: Paint, base: number): THREE.B
   }
   const doorFloor = houseFloorAt(wh, wh.aft);
   parts.push(box(-door, door, doorFloor + wh.doorHeight, roof, wh.aft - w, wh.aft, H));
-  // The walls' inside faces: wood lining (pixel painting, owner).
+  // The walls' inside faces: the lining (pixel painting, owner; the interior finish's).
   const centre = new THREE.Vector3(0, 0, (wh.front + wh.aft) / 2);
-  for (const g of parts.slice(wallsFrom)) lineInside(g, H, col.lining, centre);
-  // The ceiling: wood lining just under the roof.
-  parts.push(box(-hw + w, hw - w, roof - 0.012, roof, wh.front + w, wh.aft - w, col.lining, 'wood'));
+  for (const g of parts.slice(wallsFrom)) lineInside(g, H, col.lining, col.liningTile, centre);
+  // The ceiling, just under the roof.
+  parts.push(box(-hw + w, hw - w, roof - 0.012, roof, wh.front + w, wh.aft - w, col.ceiling, col.ceilingTile));
   // Door sill.
   parts.push(box(-door, door, base, doorFloor + 0.02, wh.aft - w, wh.aft, col.floor));
 
