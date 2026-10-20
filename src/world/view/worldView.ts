@@ -13,6 +13,7 @@ import { buildSilhouetteArrays, buildTerrainArrays, hash, summitNear, treeSpots,
 import type { TerrainRequest, TerrainResult } from './terrainWorker';
 import { glowSprite, LightPointsMaterial } from '../../render/lightPoints';
 import { CoastTerrainView, coastSilhouetteArrays } from './coastView';
+import { shortCleat } from '../berths';
 
 /**
  * Everything static in the world, region by region (regions, milestone 2):
@@ -401,9 +402,13 @@ function buildBlock(b: BlockDef, parts: THREE.BufferGeometry[]): void {
     { nx: 0, nz: 1, half: W, offset: L, alongX: true },
     { nx: 0, nz: -1, half: W, offset: L, alongX: true },
   ];
-  // A pontoon: a cleat every 12 m along each long side, no fenders (it has a rubbing strip).
+  // A pontoon: a cleat every 12 m along each long side (on a short finger, one near each
+  // end: world/berths.ts makes its one berth between them), no fenders (it has a rubbing strip).
   if (b.kind === 'pier' && b.top < 1) {
-    for (const side of [-1, 1]) for (let s = -L + 3; s <= L - 3; s += 12) add(new THREE.BoxGeometry(0.22, 0.12, 0.5).translate(side * (W - 0.2), b.top + 0.06, s), BOLLARD);
+    const at: number[] = [];
+    if (2 * L < 18 && L >= 3) at.push(-shortCleat(L), shortCleat(L));
+    else for (let s = -L + 3; s <= L - 3; s += 12) at.push(s);
+    for (const side of [-1, 1]) for (const s of at) add(new THREE.BoxGeometry(0.22, 0.12, 0.5).translate(side * (W - 0.5), b.top + 0.06, s), BOLLARD);
     for (const g of local) parts.push(g.applyMatrix4(m));
     return;
   }

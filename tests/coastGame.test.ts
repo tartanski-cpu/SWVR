@@ -125,5 +125,53 @@ describe('Oban in the game (coast region test)', () => {
     expect(t.vertices).toEqual(region.terrain.vertices);
     expect(t.chunks.length).toBe(region.chunks.length);
   });
+
+  it('the pontoons can be moored to: a berth beside each, its cleats on the pontoon (short fingers too)', async () => {
+    const { allBerths, BOLLARD_HALF_SPACING } = await import('../src/world/berths');
+    const oban = m.regions.regionById('oban')!;
+    const pontoons = oban.blocks.filter((b) => b.kind === 'pier' && b.top < 1);
+    expect(pontoons.length).toBeGreaterThan(20);
+    const berths = allBerths();
+    let moored = 0;
+    const lacking: string[] = [];
+    for (const p of pontoons) {
+      const a = (p.yawDeg * Math.PI) / 180;
+      const on = berths.filter((b) => {
+        const dx = b.x - p.x;
+        const dz = b.z - p.z;
+        const along = Math.abs(((b.headingDeg - p.yawDeg + 540) % 180) - 90) > 80; // lying along this pontoon
+        return along && b.deckY === p.top && Math.abs(dx * Math.sin(a) - dz * Math.cos(a)) <= p.halfLength && Math.abs(dx * Math.cos(a) + dz * Math.sin(a)) <= p.halfWidth + 8; // beside it (one berth to each gap between fingers: room for one boat)
+      });
+      if (on.length) moored++;
+      else lacking.push(`${Math.round(p.x)},${Math.round(p.z)} L${(p.halfLength * 2).toFixed(0)} d${m.terrain.groundHeight(p.x + Math.cos(a) * (p.halfWidth + 2.5), p.z + Math.sin(a) * (p.halfWidth + 2.5)).toFixed(1)}`);
+      // A short finger's one berth has its two cleats on the finger, not off its ends.
+      const own = on.filter((b) => {
+        const fx = b.x + b.shoreX * b.shoreDist - p.x;
+        const fz = b.z + b.shoreZ * b.shoreDist - p.z;
+        return Math.abs(fx * Math.sin(a) - fz * Math.cos(a)) <= p.halfLength && Math.abs(fx * Math.cos(a) + fz * Math.sin(a)) <= p.halfWidth + 0.1;
+      });
+      if (p.halfLength * 2 < 18) for (const b of own) expect(b.bollardHalf ?? BOLLARD_HALF_SPACING).toBeLessThanOrEqual(p.halfLength);
+    }
+    // Not all: where OpenStreetMap's fingers stand about 6 m apart there's no room for a workboat between them.
+    expect(moored / pontoons.length, lacking.join(' | ')).toBeGreaterThan(0.75);
+  });
+
+  it("every pontoon berth's lines go to cleats on a pontoon, not to the quay above", async () => {
+    const { allBerths, BOLLARD_HALF_SPACING } = await import('../src/world/berths');
+    const oban = m.regions.regionById('oban')!;
+    const box = oban.bounds;
+    const low = allBerths().filter((b) => b.deckY < 1 && b.x > box.x0 && b.x < box.x1 && b.z > box.z0 && b.z < box.z1);
+    expect(low.length).toBeGreaterThan(30);
+    for (const b of low) {
+      const h = (b.headingDeg * Math.PI) / 180;
+      const half = b.bollardHalf ?? BOLLARD_HALF_SPACING;
+      for (const s of [-1, 1]) {
+        // Where mooringLines.ts takes the line: along the face, half a metre in from its edge.
+        const x = b.x + Math.sin(h) * half * s + b.shoreX * (b.shoreDist + 0.5);
+        const z = b.z - Math.cos(h) * half * s + b.shoreZ * (b.shoreDist + 0.5);
+        expect(m.geo.standingHeight(x, z), `${b.id} cleat ${s}`).toBeCloseTo(b.deckY, 1);
+      }
+    }
+  });
 });
 

@@ -300,6 +300,8 @@ export interface BerthDef {
   shoreZ: number;
   shoreDist: number;
   deckY: number;
+  /** How far each of its two bollards (or cleats) stands from its middle, along the face (m); unset: 6 (world/berths.ts). */
+  bollardHalf?: number;
 }
 
 

@@ -27,18 +27,21 @@ describe('the Oban coast region (pipeline milestone 1)', () => {
   });
 
   it('every face has real corners inside the box; heights from the seabed to the hills', () => {
+    // Counted, then checked once (an expect per vertex made this slow enough to crowd other tests).
     let lo = Infinity;
     let hi = -Infinity;
-    for (let i = 0; i < F.length; i++) expect(F[i]).toBeLessThan(t.vertices.count);
+    let badFace = 0;
+    let outside = 0;
+    for (let i = 0; i < F.length; i++) if (F[i] >= t.vertices.count) badFace++;
+    const b = region.box;
     for (let v = 0; v < t.vertices.count; v++) {
       const [x, y, z] = [V[v * 3], V[v * 3 + 1], V[v * 3 + 2]];
-      expect(x).toBeGreaterThanOrEqual(region.box.x0 - 1);
-      expect(x).toBeLessThanOrEqual(region.box.x1 + 1);
-      expect(z).toBeGreaterThanOrEqual(region.box.z0 - 1);
-      expect(z).toBeLessThanOrEqual(region.box.z1 + 1);
+      if (x < b.x0 - 1 || x > b.x1 + 1 || z < b.z0 - 1 || z > b.z1 + 1) outside++;
       lo = Math.min(lo, y);
       hi = Math.max(hi, y);
     }
+    expect(badFace).toBe(0);
+    expect(outside).toBe(0);
     expect(lo).toBeLessThan(-10); // the sea floor
     expect(hi).toBeGreaterThan(150); // the hills behind Oban
   });
