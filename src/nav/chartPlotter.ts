@@ -12,6 +12,8 @@ import { groundHeight } from '../world/terrain';
 import { CONFIG } from '../config';
 import type { ChartMarks } from '../chart/marks';
 import { towFast } from '../tow/tow';
+import { coastTerrains, type CoastPiece } from '../world/coastTerrain';
+import { CHART_LEVELS, cellOutlines, chartCells, type ChartCell } from './chartLand';
 
 const W = 512;
 const H = 384;
@@ -23,6 +25,14 @@ const MARGIN = 700;
  * view): a big region (the Fjord's mountain) is sampled coarser than RES so it doesn't hitch.
  */
 const MAX_SAMPLES = 260_000;
+/** The chart's colours: deep water, then each of CHART_LEVELS' (the shallows, the beach, the land). */
+const DEEP: [number, number, number] = [16, 46, 66];
+const BANDS: [number, number, number][] = [
+  [44, 98, 118],
+  [196, 178, 126],
+  [118, 128, 86],
+];
+const css = ([r, g, b]: [number, number, number]) => `rgb(${r}, ${g}, ${b})`;
 
 /**
  * A simple overhead chartplotter, north up, centred on own ship. It zooms to keep in view
@@ -44,6 +54,8 @@ export class ChartPlotter {
   private readonly texture: THREE.CanvasTexture;
   /** The land, shallows and sea of each region, sampled from the terrain once when first in view (regions). */
   private readonly lands = new Map<string, { canvas: HTMLCanvasElement; x0: number; z0: number; res: number }>();
+  /** A coast map's mesh as outlines (chartLand.ts), square by square, and their canvas paths once drawn; kept while the mesh is loaded. */
+  private readonly outlines = new WeakMap<CoastPiece, { cells: ChartCell[]; paths: (Path2D[] | undefined)[] }>();
   private dark = false;
   private since = Infinity;
   /** Debug: draw the targets too. */
@@ -112,7 +124,7 @@ export class ChartPlotter {
       for (let i = 0; i < cw; i++) {
         const h = groundHeight(x0 + (i + 0.5) * res, z0 + (j + 0.5) * res);
         // Deep water, shallows (< 6 m), beach, land.
-        const [r, gg, b] = h > 3 ? [118, 128, 86] : h > 0 ? [196, 178, 126] : h > -6 ? [44, 98, 118] : [16, 46, 66];
+        const [r, gg, b] = h > CHART_LEVELS[2] ? BANDS[2] : h > CHART_LEVELS[1] ? BANDS[1] : h > CHART_LEVELS[0] ? BANDS[0] : DEEP;
         const k = (j * cw + i) * 4;
         img.data[k] = r;
         img.data[k + 1] = gg;
@@ -122,6 +134,65 @@ export class ChartPlotter {
     }
     g.putImageData(img, 0, 0);
     this.lands.set(region.id, { canvas: c, x0, z0, res });
+  }
+
+  /**
+   * A coast map's land, shallows and sea from its mesh (chartLand.ts) over the screen, centred
+   * on (sx, sz) at `mpp` metres a pixel. Square by square (a whole map's mesh on a 2 km grid,
+   * a big map's streamed squares each its own): deep water over each square that's ready,
+   * then each level's outlines, all squares' for one level before the next (a face can reach
+   * past its square). A square's outlines are made the first time it's in view, the nearest
+   * first and only for CONFIG.chartPlotter.buildMs each redraw, so a map's first look doesn't
+   * stall the frame: until a square's ready, the map's coarse picture shows there.
+   */
+  private drawCoast(sx: number, sz: number, mpp: number, reachX: number, reachZ: number): void {
+    const g = this.g;
+    const vx0 = sx - reachX;
+    const vx1 = sx + reachX;
+    const vz0 = sz - reachZ;
+    const vz1 = sz + reachZ;
+    const reach = 400; // how far a face may reach past its square (m)
+    const meets = (c: ChartCell) => c.x0 + c.size + reach > vx0 && c.x0 - reach < vx1 && c.z0 + c.size + reach > vz0 && c.z0 - reach < vz1;
+    const shown: { piece: CoastPiece; paths: (Path2D[] | undefined)[]; cell: ChartCell; k: number }[] = [];
+    const add = (piece: CoastPiece, box?: { x0: number; z0: number; size: number }) => {
+      let o = this.outlines.get(piece);
+      if (!o) {
+        const cells = chartCells(piece, box);
+        this.outlines.set(piece, (o = { cells, paths: cells.map(() => undefined) }));
+      }
+      o.cells.forEach((cell, k) => {
+        if (meets(cell)) shown.push({ piece, paths: o!.paths, cell, k });
+      });
+    };
+    for (const t of coastTerrains()) {
+      if (t.x1 < vx0 || t.x0 > vx1 || t.z1 < vz0 || t.z0 > vz1) continue;
+      if (t.piece) add(t.piece);
+      else
+        for (const [k, p] of t.pieces) {
+          const c = t.chunked!.chunks[k];
+          add(p, { x0: c.x0 + t.ox, z0: c.z0 + t.oz, size: c.size });
+        }
+    }
+    if (!shown.length) return;
+    // Make the missing outlines, nearest first, while there's time.
+    const t0 = performance.now();
+    const todo = shown.filter((s) => !s.paths[s.k]);
+    todo.sort((a, b) => Math.hypot(a.cell.x0 + a.cell.size / 2 - sx, a.cell.z0 + a.cell.size / 2 - sz) - Math.hypot(b.cell.x0 + b.cell.size / 2 - sx, b.cell.z0 + b.cell.size / 2 - sz));
+    for (const s of todo) {
+      if (performance.now() - t0 > CONFIG.chartPlotter.buildMs) break;
+      s.paths[s.k] = cellOutlines(s.piece, s.cell).map((d) => new Path2D(d));
+    }
+    const ready = shown.filter((s) => s.paths[s.k]);
+    g.save();
+    // In world metres from here on.
+    g.setTransform(1 / mpp, 0, 0, 1 / mpp, W / 2 - sx / mpp, H / 2 - sz / mpp);
+    g.fillStyle = css(DEEP);
+    for (const s of ready) g.fillRect(s.cell.x0, s.cell.z0, s.cell.size, s.cell.size);
+    CHART_LEVELS.forEach((_, l) => {
+      g.fillStyle = css(BANDS[l]);
+      for (const s of ready) g.fill(s.paths[s.k]![l]);
+    });
+    g.restore();
   }
 
   update(world: WorldState, vesselId: string, dt: number, visible: boolean): void {
@@ -194,6 +265,8 @@ export class ChartPlotter {
       const [dx, dz] = toPx(land.x0, land.z0);
       g.drawImage(land.canvas, dx, dz, (land.canvas.width * land.res) / mpp, (land.canvas.height * land.res) / mpp);
     }
+    // Over a coast map's picture (coarse), its ground as outlines wherever its mesh is in.
+    this.drawCoast(sx, sz, mpp, reachX, reachZ);
 
     // The crew's pencil marks from the paper chart, faint.
     if (this.marks?.strokes.length) {
