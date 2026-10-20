@@ -275,7 +275,7 @@ export interface VesselConfig {
   outboard?: OutboardConfig;
   bridge?: Workboat['bridge'];
   navLights?: Workboat['navLights'];
-  exhaust?: Workboat['exhaust'];
+  exhaust?: ExhaustFitting;
   anchor?: Workboat['anchor'];
   rescueGear?: Workboat['rescueGear'];
   cabinLight?: Workboat['cabinLight'];
@@ -370,9 +370,26 @@ export function hasWheelhouse(def: VesselDef): def is WheelhouseDef {
   return !!(def.layout.wheelhouse && def.layout.roof && def.layout.doorButtons);
 }
 
+/**
+ * Her exhaust: where the smoke comes out and which way it blows (vessel axes). Most boats have
+ * a wet exhaust, smoke and cooling water out of one outlet in the transom (drawn as a stub
+ * there). A tug (owner, Oct 2026) has a dry stack instead (`stack`: the smoke out of its top,
+ * the pipe drawn by its module, fitting.exhaust-stack) and her cooling water out of its own
+ * hole in her side near the waterline (`water`), spat out in bursts as the pump delivers it.
+ */
+export type ExhaustFitting = Workboat['exhaust'] & {
+  stack?: boolean;
+  water?: { position: Vec3; direction: Vec3 };
+};
+
+/** The transom outlet the hull draws (none for a dry stack). */
+export function wetOutlet(def: { exhaust?: ExhaustFitting }): Vec3 | undefined {
+  return def.exhaust && !def.exhaust.stack ? def.exhaust.position : undefined;
+}
+
 /** What's built into a hull (see VesselDef). */
 export interface HullFittings {
-  exhaust?: Workboat['exhaust'];
+  exhaust?: ExhaustFitting;
   rescueGear?: Workboat['rescueGear'];
   /**
    * Where the hand gear lives aboard (M7: it was always the workboat's places): the

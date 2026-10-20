@@ -27,7 +27,7 @@ import { LIBRARY, RECIPES } from '../boats/library';
 import { gearOf, useDesign } from '../boats/sims';
 import { assembleView } from '../modular/assemble';
 import type { SeaTrialResults } from '../vessel/seaTrials';
-import { VESSEL_DEFS } from '../vessel/vesselDef';
+import { VESSEL_DEFS, wetOutlet } from '../vessel/vesselDef';
 import { isPlaneSheet, PLANES, PlaneInk, planeAt, planeFacing, planeSheet, toPlane, type PlaneName } from './planeSketch';
 import { buildMachinery } from './enginePreview';
 import { LiveTrial, type LiveSample, type LiveTest } from './liveTrial';
@@ -229,7 +229,7 @@ function drawBoat(): void {
   const def = VESSEL_DEFS.design;
   const root = new THREE.Group();
   // Hull and house apart, so a step can show one on its own (focus, below).
-  const parts = buildVesselMeshParts(def.hull, def.layout, def.exhaust?.position, def.livery);
+  const parts = buildVesselMeshParts(def.hull, def.layout, wetOutlet(def), def.livery);
   root.add(parts.hull);
   if (parts.house) root.add(parts.house);
   // Her hull protection (strake, tyres, push fender, the fender basket) apart from the rest
@@ -268,7 +268,7 @@ function addSkiff(root: THREE.Group): void {
   const crane = gearOf({ defId: 'design' }, 'tenderCrane');
   if (!crane) return;
   const sk = VESSEL_DEFS.skiff;
-  const mesh = buildVesselMesh(sk.hull, sk.layout, sk.exhaust?.position, sk.livery);
+  const mesh = buildVesselMesh(sk.hull, sk.layout, wetOutlet(sk), sk.livery);
   mesh.position.set(...crane.stow);
   mesh.name = 'skiff';
   root.add(mesh);
@@ -2507,7 +2507,7 @@ function boatFor(d: ShipDesign): { root: THREE.Group; boat: DesignedBoat; room: 
   const room = deckRoom();
   const def = VESSEL_DEFS.design;
   const root = new THREE.Group();
-  root.add(buildVesselMesh(def.hull, def.layout, def.exhaust?.position, def.livery));
+  root.add(buildVesselMesh(def.hull, def.layout, wetOutlet(def), def.livery));
   root.add(new BoatView('design', def, assembleView(RECIPES.design, def, LIBRARY), true).root);
   addSkiff(root);
   boat = useDesign(design);

@@ -1574,7 +1574,45 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
       rodRack = { rods, yawDeg: 0, bucket: [r2(xc + rodSide * (rackRow / 2 + 0.4)), r2(q.deckY(aft + 0.3)), r2(aft + 0.3)], side: rodSide };
     }
   }
+  // A tug's dry exhaust stack (owner, Oct 2026; CONFIG.shipyard.exhaustStack): in the
+  // wheelhouse's aft starboard corner, from under the floor (down to her engine space) up
+  // through the roof and well over it, the smoke out of its top; her cooling water out of a
+  // hole in her starboard side near the waterline, abreast of the engine. Not with outboards
+  // (theirs goes out through their legs).
+  const esc = CONFIG.shipyard.exhaustStack;
+  // (Only through a wheelhouse it can stand in: one at least a metre long and high.)
+  const stack = d.hull === 4 && !nOb && aft - front >= 1 && roofTopAt(aft - 0.3) - F >= 1
+    ? (() => {
+        const r = esc.radius;
+        const x = rnd(hw - wall - esc.inset - r);
+        const z = rnd(aft - wall - esc.inset - r);
+        const roof = rnd(roofTopAt(z));
+        // The water's hole: where her starboard side is `waterAbove` over the waterline, abreast of the engine.
+        const zw = rnd(Math.min(transom - 0.8, Math.max(engZ0, engMid)));
+        const sec = halfSection(shape, zw);
+        let xw = sec[sec.length - 1][0];
+        for (let k = 1; k < sec.length; k++) {
+          const [x0, y0] = sec[k - 1];
+          const [x1, y1] = sec[k];
+          if (y0 <= esc.waterAbove && y1 >= esc.waterAbove) {
+            xw = x0 + ((x1 - x0) * (esc.waterAbove - y0)) / (y1 - y0 || 1);
+            break;
+          }
+        }
+        return {
+          x,
+          z,
+          radius: r,
+          foot: rnd(F - esc.below),
+          floor: rnd(F),
+          roof,
+          top: rnd(roof + esc.aboveRoof),
+          water: { position: [rnd(xw), esc.waterAbove, zw] as V3, direction: [1, -0.15, 0] as V3 },
+        };
+      })()
+    : null;
   const sockets: Socket[] = [
+    ...(stack ? [{ id: 'exhaustStack', type: 'deck.fitting' as const, transform: { position: [stack.x, stack.floor, stack.z] as V3 }, label: 'The wheelhouse\'s aft starboard corner: her exhaust stack' }] : []),
     // (A stern drive: its engine and legs, weighed at the engine.)
     ...(sd ? [{ id: 'sternDrive', type: 'transom.outboards' as const, transform: { position: at.engineBed }, label: 'Against the transom: her engine and its stern drive' }] : []),
     ...(pods ? [{ id: 'pods', type: 'hull.pods' as const, transform: { position: at.engineBed }, label: 'Under her bottom: her pod drives, and their engines over them' }] : []),
@@ -1720,11 +1758,14 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
     cargo: { maxPayloadKg: payloadKg, slots: 0, bowClear: 0.4, aftClear: 0.25, fixed: false },
     spawn: { x: 0, z: -22, dropHeight: 3, headingDeg: 90 },
     fittings: {
-      exhaust: { position: [0.55, 0.2, transom + 0.05], direction: [0, -0.12, 1] },
+      exhaust: stack
+        ? { position: [stack.x, stack.top + 0.02, stack.z], direction: [0, 1, 0], stack: true, water: stack.water }
+        : { position: [0.55, 0.2, transom + 0.05], direction: [0, -0.12, 1] },
       stowage: {
         extinguisher: [-(hw - 0.2), F + 0.58, aft - 0.15],
         // A tug's line-throwing gun (CONFIG.lineGun): on the starboard wall aft, inside.
-        ...(d.hull === 4 || singleOnly ? { lineGun: [hw - 0.2, F + 1.0, aft - 0.35] as V3 } : {}),
+        // (Forward of the exhaust stack in that corner, if she has one.)
+        ...(d.hull === 4 || singleOnly ? { lineGun: [hw - 0.2, F + 1.0, aft - 0.35 - (stack ? 2 * esc.radius + 0.25 : 0)] as V3 } : {}),
         torch: [-(hw - 0.45), F + 0.68, aft - 0.12],
         binoculars: { at: [-(hw - 0.35), F + 1.35, cf + 0.14 + sb(hw - 0.35)], yawDeg: 20 },
       },
@@ -1993,6 +2034,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   );
   if (chartTableAt) recipe.modules.push({ socket: 'chartTable', module: 'furniture.chart-table' });
   if (helmAssist) recipe.modules.push({ socket: 'helmAssist', module: 'panel.helm-assist' });
+  if (stack) recipe.modules.push({ socket: 'exhaustStack', module: 'fitting.exhaust-stack', config: stack });
   if (!d.controls) {
     // Basic: wheel, throttle, starting (key, START, the lamps and the card), speed with
     // depth, rpm, and the VHF (owner, Oct 2026: every boat answers calls, hears the forecasts

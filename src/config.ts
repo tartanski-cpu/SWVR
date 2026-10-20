@@ -2620,6 +2620,15 @@ export const CONFIG = {
       greyAge: 0.08,
       rate: 10,
       ratePerOpacity: 60,
+      /**
+       * A tug's cooling water out of its hole in her side (owner, Oct 2026: "the cooling
+       * water spits out the side close to the water line... intermittently, as the pump spits
+       * out some water"; ExhaustFitting `water`): while the engine runs, a spurt every
+       * `everyS` seconds (a random time between the two; more often with more revs: `perRpm`
+       * shortens it by up to that share at rated revs), each `drops` drops over `spurtS`
+       * seconds, leaving at `speed` m/s (± `spread`), falling as water does.
+       */
+      water: { everyS: [0.9, 2.4] as [number, number], perRpm: 0.5, drops: 30, spurtS: 0.5, speed: 3.0, spread: 0.6, size: 0.32 },
     },
     wake: {
       /** Ring-buffer size; with the spacing below this must cover `life` at full speed. */
@@ -2927,6 +2936,16 @@ export const CONFIG = {
      * pedestal (`throttleZ`), the helm joystick aft of it (`stickZ`), its JOYSTICK button
      * `button` [x, z] from the stick (between the two, outboard).
      */
+    /**
+     * A tug's dry exhaust stack (owner, Oct 2026: "a nice beefy pipe... it comes out the roof...
+     * in a corner of the wheelhouse... high enough to keep the smoke out of the way"; module
+     * fitting.exhaust-stack). Small tug hulls only. A pipe `radius` m round in the wheelhouse's
+     * aft starboard corner, `inset` m clear of the walls, from `below` m under the cabin floor
+     * (down to the engine space) up through the roof to `aboveRoof` m over it; the smoke out
+     * of its top. Her cooling water leaves by a hole `waterAbove` m over the waterline in her
+     * starboard side, abreast of the engine (CONFIG.effects.exhaust.water).
+     */
+    exhaustStack: { radius: 0.14, inset: 0.05, below: 0.5, aboveRoof: 1.9, waterAbove: 0.3 },
     helm: { maxConsole: 2.2, screenGap: 0.02, hungReach: 1.0, podJoystick: { throttleZ: 0.0, stickZ: 0.225, button: [0.085, -0.08] as [number, number] } },
     /**
      * The advanced interior's working lights (owner): the overhead switch panel (panel.overhead)
