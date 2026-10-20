@@ -67,9 +67,9 @@ describe('deck crane', { timeout: 30000 }, () => {
     expect(s.slew).toBeCloseTo(90, 5);
     expect(s.luff).toBeCloseTo(40, 5);
     const wire = s.wire;
-    send('crane.hoistDown', 1);
+    // The right stick asks for more wire: it pays out at its own rate.
+    send('crane.wire', crane.wireMax);
     run(2);
-    send('crane.hoistDown', 0);
     expect(s.wire).toBeCloseTo(wire + 2 * crane.hoistRate, 1);
   });
 
@@ -90,6 +90,7 @@ describe('deck crane', { timeout: 30000 }, () => {
     const item: CargoItem = { id: 'c1', kind, mass: CONFIG.cargo.kinds[kind].mass, from: 'calder', to: 'brannock', at: { vessel: v.id, pos: [hook.x, deckY, hook.z], yaw: 0, vel: [0, 0], lashed: false } };
     world.cargo.c1 = item;
     s.wire += hook.y - (deckY + h);
+    send('crane.wire', s.wire);
     send('crane.hook', 1);
     send('crane.hook', 0);
     expect(item.at).toEqual({ hook: v.id, crane: path });
@@ -98,15 +99,14 @@ describe('deck crane', { timeout: 30000 }, () => {
     const p = payloadOf(world, v.id);
     expect(p.reduce((m, x) => m + x.mass, 0)).toBeGreaterThanOrEqual(item.mass);
     // Hoist it up and down again, then set it down: back on her deck.
-    send('crane.hoistUp', 1);
+    const low = s.wire;
+    send('crane.wire', crane.wireMin);
     run(3);
-    send('crane.hoistUp', 0);
     send('crane.hook', 1);
     send('crane.hook', 0);
     expect('hook' in item.at).toBe(true); // too high to set down
-    send('crane.hoistDown', 1);
-    run(3);
-    send('crane.hoistDown', 0);
+    send('crane.wire', low);
+    run(4);
     send('crane.hook', 1);
     send('crane.hook', 0);
     expect('vessel' in item.at).toBe(true);
@@ -123,6 +123,7 @@ describe('deck crane', { timeout: 30000 }, () => {
     const deckY = deckHeightAt(v.defId, hook.z);
     world.cargo.big = { id: 'big', kind: 0, mass: crane.swlKg + 100, from: 'calder', to: 'brannock', at: { vessel: v.id, pos: [hook.x, deckY, hook.z], yaw: 0, vel: [0, 0], lashed: false } };
     s.wire += hook.y - (deckY + CONFIG.cargo.kinds[0].size[1]);
+    send('crane.wire', s.wire);
     send('crane.hook', 1);
     send('crane.hook', 0);
     expect('vessel' in world.cargo.big.at).toBe(true);
@@ -134,15 +135,14 @@ describe('deck crane', { timeout: 30000 }, () => {
     startEngine(world, v);
     const s = craneStateOf(v, path!)!;
     const before = hookOnBoat(v, path!)!.clone();
-    send('crane.boomOut', 1);
+    send('crane.extend', crane.extendMax);
     run(2);
     expect(s.extend).toBeCloseTo(2 * crane.extendRate, 1);
     // Stowed pointing forward: the hook goes further forward (-z) by as much.
     expect(before.z - hookOnBoat(v, path!)!.z).toBeCloseTo(s.extend * Math.cos((s.luff * Math.PI) / 180), 6);
     run(20);
     expect(s.extend).toBe(crane.extendMax);
-    send('crane.boomOut', 0);
-    send('crane.boomIn', 1);
+    send('crane.extend', 0);
     run(20);
     expect(s.extend).toBe(0);
   });
@@ -167,16 +167,16 @@ describe('deck crane', { timeout: 30000 }, () => {
     const deckY = deckHeightAt(v.defId, hook.z);
     world.cargo.big = { id: 'big', kind: 0, mass: 700, from: 'calder', to: 'brannock', at: { vessel: v.id, pos: [hook.x, deckY, hook.z], yaw: 0, vel: [0, 0], lashed: false } };
     s.wire += hook.y - (deckY + CONFIG.cargo.kinds[0].size[1]);
+    send('crane.wire', s.wire);
     send('crane.hook', 1);
     send('crane.hook', 0);
     expect(s.loadKg).toBe(700);
-    send('crane.boomOut', 1);
+    send('crane.extend', crane.extendMax);
     run(10);
     // It stops where 700 kg is all it may hold.
     expect(safeLoadAt(crane, s)).toBeGreaterThanOrEqual(700);
     expect(safeLoadAt(crane, { luff: s.luff, extend: s.extend + crane.extendRate / 30 })).toBeLessThan(700);
-    send('crane.boomOut', 0);
-    send('crane.boomIn', 1);
+    send('crane.extend', 0);
     run(1);
     expect(s.extend).toBeLessThan(0.5);
   });
@@ -185,9 +185,8 @@ describe('deck crane', { timeout: 30000 }, () => {
     const { world, v, send, run, path } = setup(1);
     startEngine(world, v);
     send('crane.luff', 30);
-    send('crane.boomOut', 1);
+    send('crane.extend', crane.extendMax);
     run(8);
-    send('crane.boomOut', 0);
     const s = craneStateOf(v, path!)!;
     const hook = hookOnBoat(v, path!)!;
     const deckY = deckHeightAt(v.defId, hook.z);
@@ -195,16 +194,17 @@ describe('deck crane', { timeout: 30000 }, () => {
     expect(mass).toBeLessThan(crane.swlKg);
     world.cargo.heavy = { id: 'heavy', kind: 0, mass, from: 'calder', to: 'brannock', at: { vessel: v.id, pos: [hook.x, deckY, hook.z], yaw: 0, vel: [0, 0], lashed: false } };
     s.wire += hook.y - (deckY + CONFIG.cargo.kinds[0].size[1]);
+    send('crane.wire', s.wire);
     send('crane.hook', 1);
     send('crane.hook', 0);
     expect('vessel' in world.cargo.heavy.at).toBe(true);
     // Run in, and it takes it.
-    send('crane.boomIn', 1);
+    send('crane.extend', 0);
     run(10);
-    send('crane.boomIn', 0);
     const h2 = hookOnBoat(v, path!)!;
     world.cargo.heavy.at = { vessel: v.id, pos: [h2.x, deckHeightAt(v.defId, h2.z), h2.z], yaw: 0, vel: [0, 0], lashed: false };
     s.wire += h2.y - (deckHeightAt(v.defId, h2.z) + CONFIG.cargo.kinds[0].size[1]);
+    send('crane.wire', s.wire);
     send('crane.hook', 1);
     send('crane.hook', 0);
     expect(world.cargo.heavy.at).toEqual({ hook: v.id, crane: path });

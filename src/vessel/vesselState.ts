@@ -75,17 +75,15 @@ export interface VesselControls {
   winchHeave?: number;
   winchPayOut?: number;
   /**
-   * The deck crane's controls (modules/deckCrane): the slew and boom angles its joystick
-   * asks for (deg; the crane follows at its own rates), and its hold-to-run HOIST UP / DOWN
-   * and HOOK buttons (1 while held). Unset until a boat has a crane.
+   * The deck crane's controls (modules/deckCrane): what its two joysticks ask for, the slew
+   * and boom angles (deg), the telescope run out and the wire paid out (m; the crane follows
+   * each at its own rate), and its HOOK button (1 while held). Unset until a boat has a crane.
    */
   craneSlew?: number;
   craneLuff?: number;
-  craneHoistUp?: number;
-  craneHoistDown?: number;
+  craneExtend?: number;
+  craneWire?: number;
   craneHook?: number;
-  craneBoomOut?: number;
-  craneBoomIn?: number;
   netOut?: number;
   netIn?: number;
   /**

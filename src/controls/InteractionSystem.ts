@@ -228,6 +228,7 @@ export class InteractionSystem {
     for (const h of Object.values(this.hands)) if (h.held) now.add(h.held);
     if (this.dragging) now.add(this.dragging);
     if (this.steering) now.add(this.steering);
+    for (const c of this.remoteHeld) now.add(c);
     for (const c of now) if (!this.localHolds.has(c)) this.rules.holdChanged(c, true);
     for (const c of this.localHolds) if (!now.has(c)) this.rules.holdChanged(c, false);
     this.localHolds.clear();
@@ -364,6 +365,65 @@ export class InteractionSystem {
   /** The control the desktop mouse holds right now (dragging or keyboard-steering), if any. */
   get desktopHeld(): Control | null {
     return this.dragging ?? this.steering;
+  }
+
+  // ── A remote control (the deck crane's radio remote, app/craneRemote.ts) ──
+  // It works controls by their ids, as a hand on them would: its sticks deflect rate
+  // controls (keySteer: each moves what it drives, and is seen to move), its buttons press.
+
+  /** Controls a remote is working now (held: crew see them taken, and can't take them). */
+  private readonly remoteHeld = new Set<Control>();
+  private readonly remotePressed = new Set<Control>();
+
+  /** Every control's id. */
+  get controlIds(): string[] {
+    return this.controls.map((c) => c.id);
+  }
+
+  /** A control by its id (null: none here). */
+  controlById(id: string): Control | null {
+    return this.controls.find((c) => c.id === id) ?? null;
+  }
+
+  /**
+   * Work these controls from a remote this frame: each stick deflected (x right, y forward,
+   * -1..1), each button down or up. A control a crew-mate holds is left alone.
+   */
+  remoteDrive(sticks: { id: string; x: number; y: number }[], buttons: { id: string; down: boolean }[]): void {
+    for (const st of sticks) {
+      const c = this.controlById(st.id);
+      if (!c?.keySteerable || this.rules.lockedByOther(c)) continue;
+      if (!this.remoteHeld.has(c)) {
+        c.bind(this.context(null, c));
+        this.remoteHeld.add(c);
+      }
+      c.keySteer(st.x, st.y);
+    }
+    for (const b of buttons) {
+      const c = this.controlById(b.id);
+      if (!c?.enabled) continue;
+      if (b.down && !this.remotePressed.has(c)) {
+        c.bind(this.context(null, c));
+        c.pressStart();
+        this.remotePressed.add(c);
+      } else if (!b.down && this.remotePressed.has(c)) {
+        c.pressEnd();
+        this.remotePressed.delete(c);
+      }
+    }
+    this.syncHolds();
+  }
+
+  /** Let go of everything a remote was working (its sticks spring back to centre). */
+  remoteRelease(): void {
+    for (const c of this.remoteHeld) {
+      c.grabEnd(this.deskPointer);
+      c.held = false;
+    }
+    for (const c of this.remotePressed) c.pressEnd();
+    this.remoteHeld.clear();
+    this.remotePressed.clear();
+    this.syncHolds();
   }
 
   /** Desktop keyboard steering of the clicked rate control (x right, y forward). */

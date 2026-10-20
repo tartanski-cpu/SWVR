@@ -5340,6 +5340,31 @@ Owner, Oct 2026: before the cockpit roof, clean up the Shipyard's buttons. The o
 - **Checked:** headless Chromium, the Wheelhouse step with a saloon and a deckhouse, then with the windows raked out and the deckhouse "As the wheelhouse"; the owner's configuration (workboat type, three facets, saloon roof lower, a sand roof top) from the same angle as their screenshot: the step is clean. **Not checked:** the Quest (a desktop page).
 - **Next:** the other steps the same way, once the owner has tried this one.
 
+### Deck crane controls redesigned: two joysticks, and a radio remote for desktop and controllers (done, awaiting owner test)
+
+Owner, Oct 2026: look at real crane controls. For desktop players, perhaps a remote you pick up, as in Stormworks, worked with a controller's two sticks. For VR, buttons plus one joystick isn't intuitive: it should be two joysticks.
+
+- **What real cranes use:**
+  - small marine knuckle and telescopic cranes are worked by a radio remote, the "belly box": two proportional joysticks, the operator standing where they can see the load;
+  - left stick: slew and main boom; right stick: telescope and winch;
+  - older ones have a lever bank at the pedestal, a lever per function.
+- **The post's desk** (modules/deckCrane), laid out as that remote:
+  - **left stick** (yellow knob): slew (sideways) and boom (push to raise), as before;
+  - **right stick** (green knob): telescope (sideways: right out) and the wire (pull back to hoist, push to lower);
+  - **HOOK** between them, nearest you.
+  - The HOIST UP / DOWN and BOOM OUT / IN hold-buttons are gone. In VR you take one stick in each hand.
+- **Proportional wire and telescope:** the sim keys `crane.hoistUp/hoistDown/boomOut/boomIn` are replaced by `crane.extend` (m run out) and `crane.wire` (m paid out). They are targets, as `crane.slew` / `crane.luff` already were: the stick moves them at a rate as far as it's pushed (squared, for fine control near centre), and the crane follows at its own rate (`extendRate`, `hoistRate`). The load-moment limiter is unchanged. Joystick gained an optional lower limit (`panMinDeg`) for the telescope's 0 to 2 m. docs/BUS_KEYS.md regenerated.
+- **The radio remote** (app/craneRemote.ts; desktop and game controller, not VR): a yellow box hanging on the post (`CONFIG.modules.deckCrane.remote`).
+  - By the post, F (or A) takes it; F (or B) hangs it back.
+  - Held: W A S D or the left stick work the left joystick; the arrows or the right stick the right (↑ hoists); Space or A is HOOK; LB + right stick looks round.
+  - You stand where you are while you hold it; the mouse still looks.
+  - It works the post's own sticks and button (InteractionSystem `remoteDrive` / `remoteRelease`): they're seen to move, crew see them held, and the simulation gets exactly what hands on them would send.
+  - By both the wheel and a crane's post, F / A goes to the nearer.
+- **Checked:**
+  - in the browser (a Shipyard design with a foredeck crane, engine running): F took the remote with its prompt; 3 s of W, D, ↓ and → slewed it round, raised the boom to 55°, paid out wire and ran the telescope out 1.25 m; the player stayed put; F hung it back; screenshot with both sticks deflected;
+  - tests/craneRemote.test.ts (4); deckCrane.test.ts on the new keys; searchlight.test.ts's companion-button case on HOOK.
+- **Not done:** walking about while holding the remote (it would need the sticks for walking too). Possible later: hold the remote, walk, and press a key to start working it.
+
 ### The beginner boat: no skiff, ever; anchorage jobs say how the goods get ashore (done, awaiting owner test)
 
 Owner, Oct 2026: the beginner boat doesn't need the skiff. She does the cargo for ports she can reach without one; at an anchorage you can anchor and swim the goods ashore; a note should say a skiff does those jobs better. Asked: never on her (not even bought later), and the menu's one-click Unload stays as it is at anchorages.
@@ -5373,6 +5398,17 @@ Owner, Oct 2026: a new career starts in one of the new fleet boats; hide the wor
 - **Words:** the first voyage's "Step aboard your boat"; the Shipyard-code error "Starting in the beginner boat".
 - **Tests:** tests/starterBoat.test.ts (3); starterWorkboat.test.ts's other-boat message now "Not for this boat".
 - **Next fleet steps:** move the tests and golden runs onto the fleet; then delete the old boats (owner: hide first, delete later).
+
+### The coaster drawn without a barge round her; the fleet's fishing boats and landing craft get narrower houses (done, awaiting owner test)
+
+Owner, Oct 2026: "When I did the ship towing mission, the coaster ship is inside the large barge"; "the fishing boat one is slightly too wide to walk past, but it should have like the forward raked windscreen and be a little bit more narrow. And the landing craft one should be much more narrow and slightly higher up and have the raked forward windscreens."
+
+- **The coaster in a barge:** the tow models (tow/towLook.ts) are picked through an if / else chain whose last branch, "everything else", drew the barge (and the pontoon). The coaster, added later and drawn after the chain, fell into it too: she got a barge's hull, deck and bollards drawn in the same place. That branch is now the barge and the pontoon only. tests/towModels.test.ts: the coaster's model carries none of the barge's hull colour (it fails on the old code).
+- **The fleet's houses** (src/boats/fleet/*.json; the beginner boat is the fishing boat, so both are changed):
+  - **Fishing boat and beginner boat:** `houseWidth` 1 → 0.82 (the house 4.0 m → 3.3 m wide, side decks 0.28 → ~0.65 m, room to walk past), `windowRake` 0 → 15 (the windscreen leaning forward at the top, a working boat's: no glare, and the rain runs off).
+  - **Landing craft:** `houseWidth` 1 → 0.79 (2.2 m → 1.7 m: as narrow as the console allows, side decks ~0.5 m), `floor` −0.2 → +0.2 (the house 0.4 m higher: she's seen over her ramp better), `windowRake` 0 → 15.
+  - No warnings from the build; the console fits each. Headless Chromium: each from outside, at the helm and along her side deck.
+- Full suite 1061 pass; typecheck clean.
 
 ### Bow spray from where her bow meets the water (done, awaiting owner test)
 

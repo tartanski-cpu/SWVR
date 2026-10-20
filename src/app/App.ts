@@ -99,6 +99,7 @@ import { FireView, JetView } from '../fire/fireView';
 import { WildlifeView } from '../wildlife/wildlifeView';
 import { LogView } from '../salvage/logView';
 import { CareerSession, savedCareer } from './careerSession';
+import { cranePosts, REMOTE_CODES, REMOTE_REACH, remoteInput, type CranePost } from './craneRemote';
 import { equipmentWithout, KIT_BOATS, socketsWithout } from '../career/career';
 import { TrawlView } from '../fishing/trawlView';
 import { InteriorDetail } from './interiorDetail';
@@ -457,6 +458,14 @@ export class App {
   /** Desktop: a game controller, and standing at the helm to drive with it (F, or A). */
   private readonly pad = new GamepadInput();
   private atHelm = false;
+  /** Desktop: the deck crane's radio remote in hand (app/craneRemote.ts), the crane it works; and whether you stand by a crane's post (where it hangs). */
+  private craneRemote: CranePost | null = null;
+  private craneNear: CranePost | null = null;
+  /** How far from the crane post's desk and from the helm you stand (m, level), to give F / A to the nearer. */
+  private craneNearDist = Infinity;
+  private helmDist = Infinity;
+  /** What the remote's prompt says (empty: nothing). */
+  private craneRemotePrompt = '';
   private padSteering = false;
   private readonly helmPrompt = new HelmPrompt();
   /** The boatyards' boards (ui/yardBoard.ts), one per yard (CONFIG.boatyards). */
@@ -812,7 +821,7 @@ export class App {
     );
     this.keyboard.endFrame();
     // The keys a keyboard-steered control's buttons use do only that while it's steered.
-    this.keyboard.claim(this.renderer.xr.isPresenting ? [] : (this.interaction?.steeringCodes ?? []));
+    this.keyboard.claim(this.renderer.xr.isPresenting ? [] : [...(this.interaction?.steeringCodes ?? []), ...(this.craneRemote ? REMOTE_CODES : [])]);
   }
 
   /** Fixed sim ticks (alone or hosting), or the host's snapshots (client); returns the render time. */
@@ -1244,6 +1253,7 @@ export class App {
     // The game controller first: its buttons press keys the rest of this reads.
     const cam = this.camMode.on;
     this.updateHelmSeat(dt, cam);
+    this.updateCraneRemote(cam);
     if (k.actionPressed('toggleOverlay') || this.xrInput.wasPressed('right', XR_BUTTON.secondary)) this.overlay.toggle();
     if (k.actionPressed('menu') || this.xrInput.wasPressed('left', XR_BUTTON.secondary)) this.toggleMenu();
     if (k.actionPressed('toggleHelp')) this.help.toggle();
@@ -1939,7 +1949,7 @@ export class App {
       this.interaction!.steerKeys((k.action('right') ? 1 : 0) - (k.action('left') ? 1 : 0), (k.action('forward') ? 1 : 0) - (k.action('back') ? 1 : 0));
       // Its companion buttons on their keys (the deck crane's hoist, boom and hook).
       this.interaction!.steerExtras((code) => k.isDown(code));
-    } else if (!inXR && this.desktop.mode === 'walk' && !this.interaction?.desktopHeld && !this.atHelm) {
+    } else if (!inXR && this.desktop.mode === 'walk' && !this.interaction?.desktopHeld && !this.atHelm && !this.craneRemote) {
       // (Not while the mouse holds a control - dragging a lever or the wheel: you stay put.)
       const { x, y, z } = this.desktop.walk;
       const c = Math.cos(p.yaw);
@@ -3131,7 +3141,9 @@ export class App {
     const p = this.world.players[this.localPlayerId];
     const v = p?.aboardVesselId ? this.world.vessels[p.aboardVesselId] : undefined;
     const spot = v && VESSEL_DEFS[v.defId]?.boardingSpot;
-    const near = !!spot && !inXR && !cam && (p.mode ?? 'walk') === 'walk' && Math.hypot(p.position[0] - spot[0], p.position[2] - spot[2]) < CONFIG.gamepad.helmReach;
+    // (By the wheel and a crane's post both: the nearer takes F / A.)
+    this.helmDist = spot ? Math.hypot(p.position[0] - spot[0], p.position[2] - spot[2]) : Infinity;
+    const near = !!spot && !inXR && !cam && (p.mode ?? 'walk') === 'walk' && this.helmDist < CONFIG.gamepad.helmReach && !(this.craneNear && this.craneNearDist < this.helmDist);
     if (this.atHelm && !near) this.atHelm = false;
     const toggle = (this.keyboard.actionPressed('helm') && !this.interaction?.steering) || !!pad?.pressed[PAD.a];
     if (toggle && near && v) {
@@ -3155,7 +3167,8 @@ export class App {
       const external = this.atHelm && this.helmCam.view !== 'inside';
       // The right stick looks round, anywhere; the left walks, off the helm.
       const r = CONFIG.gamepad.lookRate * dt;
-      if (!external) this.desktop.setLook(this.desktop.lookYaw - pad.rx * r, this.desktop.lookPitch - pad.ry * r);
+      // (With the crane's remote the right stick works the crane: it looks only while LB is held.)
+      if (!external && (!this.craneRemote || pad.down[PAD.lb])) this.desktop.setLook(this.desktop.lookYaw - pad.rx * r, this.desktop.lookPitch - pad.ry * r);
       this.helmStick.x = external ? pad.rx : 0;
       this.helmStick.y = external ? pad.ry : 0;
       // Outside views: the triggers zoom (RT in, LT out) instead of being the mouse buttons.
@@ -3163,15 +3176,16 @@ export class App {
         if (pad.down[PAD.rt]) this.helmCam.zoomBy(1, dt);
         if (pad.down[PAD.lt]) this.helmCam.zoomBy(-1, dt);
       }
-      const walk = !this.atHelm && !cam;
+      // (Holding the crane's remote, its sticks work the crane: no walking.)
+      const walk = !this.atHelm && !cam && !this.craneRemote;
       this.desktop.padMove.x = walk ? pad.lx : 0;
       this.desktop.padMove.z = walk ? pad.ly : 0;
       this.desktop.padMove.run = walk && !!pad.down[PAD.ls];
       // Its buttons as the keys and mouse buttons (player/gamepad.ts PAD_KEYS, PAD_MOUSE).
-      const keys = this.atHelm ? PAD_KEYS_AT_HELM : PAD_KEYS;
+      const keys = this.atHelm || this.craneRemote ? PAD_KEYS_AT_HELM : PAD_KEYS;
       for (const [i, code] of Object.entries(keys)) {
         const b = Number(i);
-        if (b === PAD.a && near) continue; // by the wheel, A takes the helm instead of jumping
+        if (b === PAD.a && (near || this.craneNear)) continue; // by the wheel (a crane's post), A takes the helm (its remote) instead of jumping
         if (pad.pressed[b]) this.keyboard.inject(code!, true);
         if (pad.released[b]) this.keyboard.inject(code!, false);
       }
@@ -3188,7 +3202,9 @@ export class App {
     }
     if (this.pointer) this.pointer.padAim = ctl;
     this.helmPrompt.show(
-      this.atHelm
+      this.craneRemotePrompt
+        ? this.craneRemotePrompt
+        : this.atHelm
         ? ctl
           ? 'At the helm · left stick: steer · RB / LB: throttle · B: neutral · right stick: look · Y: camera view · A: leave\nD-pad: anchor up ↑ / down ↓, horn ←, wipers → · left stick click: searchlight · right stick click: laser · X: fire pump'
           : 'At the helm · ← →: steer · ↑ ↓: throttle · X: neutral · F: leave (or plug in a game controller)'
@@ -3199,6 +3215,71 @@ export class App {
           : '',
     );
   }
+
+  /**
+   * Desktop and a game controller: the deck crane's radio remote (app/craneRemote.ts). By a
+   * crane's post, F (or A) takes it off its hook; held, its sticks work the crane's two
+   * joysticks (W A S D and the arrow keys, or the controller's sticks), Space (or A) HOOK, and
+   * F (or B) hangs it back. Not in VR (there you work the joysticks by hand), at the helm, or
+   * with the camera off you.
+   */
+  private updateCraneRemote(cam: boolean): void {
+    const ia = this.interaction;
+    const inXR = this.renderer.xr.isPresenting;
+    const p = this.world.players[this.localPlayerId];
+    const off = !ia || inXR || cam || this.atHelm || !p?.aboardVesselId || (p.mode ?? 'walk') !== 'walk';
+    const drop = () => {
+      if (this.craneRemote) ia?.remoteRelease();
+      this.craneRemote = null;
+    };
+    if (off) {
+      drop();
+      this.craneNear = null;
+      this.craneRemotePrompt = '';
+      return;
+    }
+    // By a crane's post: within reach of its desk, where the remote hangs.
+    const eye = this.camera.getWorldPosition(this.remoteEye);
+    this.craneNear = null;
+    this.craneNearDist = Infinity;
+    for (const post of cranePosts(ia.controlIds)) {
+      const c = ia.controlById(post.left);
+      if (!c) continue;
+      const at = c.root.getWorldPosition(this.remoteAt);
+      const d = Math.hypot(at.x - eye.x, at.z - eye.z);
+      if (d < REMOTE_REACH && d < this.craneNearDist) [this.craneNear, this.craneNearDist] = [post, d];
+    }
+    const pad = this.pad.state.connected ? this.pad.state : null;
+    const k = this.keyboard;
+    if (this.craneRemote) {
+      if (k.wasPressed('KeyF') || pad?.pressed[PAD.b]) {
+        drop();
+        this.overlay.notify('Crane remote hung back on its post', 2);
+      } else {
+        const i = remoteInput((code) => k.isDown(code), pad);
+        ia.remoteDrive(
+          [
+            { id: this.craneRemote.left, ...i.left },
+            { id: this.craneRemote.right, ...i.right },
+          ],
+          [{ id: this.craneRemote.hook, down: i.hook }],
+        );
+      }
+    } else if (this.craneNear && (k.actionPressed('helm') || pad?.pressed[PAD.a])) {
+      this.craneRemote = this.craneNear;
+    }
+    this.craneRemotePrompt = this.craneRemote
+      ? pad
+        ? 'Crane remote · left stick: slew, boom up / down · right stick: telescope (sideways), hoist (pull back) / lower (push) · A: hook · LB + right stick: look · B: hang it back'
+        : 'Crane remote · W A S D: slew, boom up / down · ← →: telescope in / out · ↑ ↓: hoist / lower · Space: hook · F: hang it back'
+      : this.craneNear
+        ? pad
+          ? 'Press A (or F) to take the crane remote'
+          : 'Press F to take the crane remote'
+        : '';
+  }
+  private readonly remoteEye = new THREE.Vector3();
+  private readonly remoteAt = new THREE.Vector3();
 
   /** The right stick while an outside helm view is on (it swings the orbit camera). */
   private readonly helmStick = { x: 0, y: 0 };

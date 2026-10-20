@@ -40,7 +40,8 @@ export class Joystick extends Control {
    */
   constructor(
     id: string,
-    private readonly opts: { panRateDeg: number; tiltRateDeg: number; panLimitDeg: number; tiltMinDeg: number; tiltMaxDeg: number },
+    /** Rates and limits (degrees for a searchlight; any unit for what else it drives: metres on the crane's right stick). `panMinDeg`: the pan's lower limit (default -panLimitDeg). */
+    private readonly opts: { panRateDeg: number; tiltRateDeg: number; panLimitDeg: number; tiltMinDeg: number; tiltMaxDeg: number; panMinDeg?: number },
     private readonly channels: { pan: string; tilt: string } = { pan: 'spotPan', tilt: 'spotTilt' },
     label = 'Searchlight joystick',
     knobColor = 0xe0b020,
@@ -123,7 +124,7 @@ export class Joystick extends Control {
 
   private setAngles(pan: number, tilt: number): void {
     const o = this.opts;
-    this.pan = clamp(pan, -o.panLimitDeg, o.panLimitDeg);
+    this.pan = clamp(pan, o.panMinDeg ?? -o.panLimitDeg, o.panLimitDeg);
     this.tilt = clamp(tilt, o.tiltMinDeg, o.tiltMaxDeg);
     if (Math.abs(this.pan - this.lastPan) > 0.05) {
       this.ctx?.emit(this.channels.pan, this.pan);

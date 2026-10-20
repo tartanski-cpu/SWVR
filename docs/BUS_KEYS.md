@@ -228,12 +228,10 @@ Every value on a boat's bus (modular boats; `src/modular/busKeys.ts`). Generated
 
 | Key | Values | Use | Written by | Old names | What it is |
 |---|---|---|---|---|---|
-| `crane.slew` | deg, -170 to 170 | player sets; held: crane | module |  | Deck crane: the slew its joystick asks for, + to starboard of straight ahead (the crane follows at its own rate). |
-| `crane.luff` | deg, -5 to 70 | player sets; held: crane | module |  | Deck crane: the boom angle its joystick asks for, above level. |
-| `crane.hoistUp` | on / off | player sets | module |  | Deck crane HOIST UP button held. |
-| `crane.hoistDown` | on / off | player sets | module |  | Deck crane HOIST DOWN button held. |
-| `crane.boomOut` | on / off | player sets | module |  | Deck crane BOOM OUT button held: runs the telescopic boom out. |
-| `crane.boomIn` | on / off | player sets | module |  | Deck crane BOOM IN button held: runs the telescopic boom in. |
+| `crane.slew` | deg, -170 to 170 | player sets; held: crane | module |  | Deck crane: the slew its left joystick asks for, + to starboard of straight ahead (the crane follows at its own rate). |
+| `crane.luff` | deg, -5 to 70 | player sets; held: crane | module |  | Deck crane: the boom angle its left joystick asks for, above level. |
+| `crane.extend` | m, 0 to 2 | player sets; held: crane | module |  | Deck crane: how far its right joystick asks the telescopic boom to be run out (the crane follows at its own rate). |
+| `crane.wire` | m, 0.4 to 6 | player sets; held: crane | module |  | Deck crane: how much wire its right joystick asks to be paid out from the boom tip (more: the hook lower). |
 | `crane.hook` | on / off | player sets | module |  | Deck crane HOOK button held: a press takes the item under the hook, or sets down the one on it. |
 
 ## trawl
