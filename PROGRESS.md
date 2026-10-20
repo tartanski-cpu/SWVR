@@ -5428,6 +5428,14 @@ Owner, Oct 2026: a new career starts in one of the new fleet boats; hide the wor
 - **Tests:** tests/starterBoat.test.ts (3); starterWorkboat.test.ts's other-boat message now "Not for this boat".
 - **Next fleet steps:** move the tests and golden runs onto the fleet; then delete the old boats (owner: hide first, delete later).
 
+### A tug's stacks: upright, the top part bent aft; seen in the Shipyard (done, awaiting owner test)
+
+Owner, Oct 2026: "you don't see the exhaust pipe for the tug when you're in wheelhouse view... in the shipyard... and definitely when you're doing the engines, and the raked version... isn't quite right. It's the whole thing is raked... part of it to be vertical and then... the last 30% to be raked."
+
+- **The shape** (module `fitting.exhaust-stack` v3): over the roof the pipe stands upright, then for its top `rakedShare` 0.3 of the height bends aft `rakeDeg` 25° at a joint (a rounded knuckle with a band round it), its top still cut on a slant facing aft. Straight is unchanged. The smoke leaves along the bent part (`stackOutlet`).
+- **In the Shipyard:** the pipes are now one mesh of their own, named 'exhaustStack' (they were baked in with every module's fixed parts, which the Wheelhouse and Engine steps hide). Shown at the Wheelhouse step (they go up through it) and the Engine step (they're her machinery). One more draw call, on tugs only; the water outlets stay merged.
+- **Checked:** tests/exhaustStack.test.ts (7) pass; full suite passes. Headless Chromium on the fleet's small tug only: the Shipyard's Wheelhouse and Engine steps from starboard and her stern quarter (the stack shows in each), and the game from her side and quarter (upright, then bent aft at the joint, the cut top). **Not checked:** the Quest.
+
 ### TOW LINE screen: the tension, and how near the line is to parting (done, awaiting owner test)
 
 Owner, Oct 2026: "a new instrument... built onto the advanced instrumentation, and it shows the tension... in the tow line. But what I'd like to see is... how close it is to snapping... on every vessel that has the ability to tow."

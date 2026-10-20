@@ -2966,13 +2966,15 @@ export const CONFIG = {
      * only. One pipe per engine, `radius` m round, each in an aft corner of the wheelhouse
      * (starboard; a twin's second to port), `inset` m clear of the walls, from `below` m under
      * the cabin floor (down to the engine space) up through the roof in a painted `casing`, its
-     * top `aboveRoof` m over the roof. Raked (design.stackStyle 0): leaning aft `rakeDeg`,
-     * tapering to `taper` of its radius, its top cut on a slant `cutDeg` facing aft; straight
+     * top `aboveRoof` m over the roof. Raked (design.stackStyle 0): upright, then its top
+     * `rakedShare` of that height bent aft `rakeDeg` at a joint (owner: "part of it to be
+     * vertical and then... the last 30% to be raked"), tapering to `taper` of its radius, its
+     * top cut on a slant `cutDeg` facing aft; straight
      * (1): upright, its top cut square. A weathered bronze-brown (`colour`). The smoke from
      * their tops. Her cooling water leaves by a hole `waterAbove` m over the waterline in her
      * side for each, abreast of her engines (CONFIG.effects.exhaust.water).
      */
-    exhaustStack: { radius: 0.14, inset: 0.05, below: 0.5, aboveRoof: 1.9, waterAbove: 0.3, rakeDeg: 12, cutDeg: 35, taper: 0.88, colour: 0x7a5236, casing: 0xd8d6d0 },
+    exhaustStack: { radius: 0.14, inset: 0.05, below: 0.5, aboveRoof: 1.9, waterAbove: 0.3, rakedShare: 0.3, rakeDeg: 25, cutDeg: 35, taper: 0.88, colour: 0x7a5236, casing: 0xd8d6d0 },
     helm: { maxConsole: 2.2, screenGap: 0.02, hungReach: 1.0, podJoystick: { throttleZ: 0.0, stickZ: 0.225, button: [0.085, -0.08] as [number, number] } },
     /**
      * The advanced interior's working lights (owner): the overhead switch panel (panel.overhead)
