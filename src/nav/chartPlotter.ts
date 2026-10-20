@@ -47,7 +47,7 @@ const css = ([r, g, b]: [number, number, number]) => `rgb(${r}, ${g}, ${b})`;
  *
  * Zoom (owner, Oct 2026): three buttons on a strip under the screen, − AUTO +. − and + step
  * through CONFIG.chartPlotter.ranges (the ground across the screen) from whatever it shows
- * now; AUTO goes back to choosing for you. The zoom is the boat's (`chart.zoom`), so the crew
+ * now; AUTO goes back to choosing for you. The zoom is the boat's (`chartZoom`), so the crew
  * see the range the helmsman set; the screen says which, top left.
  *
  * Draw calls: bezel (merged) + screen (+ the buttons' caps). The screen redraws at a few Hz,
@@ -82,7 +82,7 @@ export class ChartPlotter {
    * @param tiltDeg how far its screen is tilted down toward the helmsman
    * @param drop    from its root up to the roof (its brackets' length, m)
    */
-  constructor(tiltDeg: number, drop: number, zoomChannel = 'chart.zoom') {
+  constructor(tiltDeg: number, drop: number, zoomChannel = 'chartZoom') {
     this.root.name = 'chartPlotter';
     const set = new THREE.Group();
     set.rotation.x = (tiltDeg * Math.PI) / 180;

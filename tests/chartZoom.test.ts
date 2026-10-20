@@ -1,6 +1,6 @@
 /**
  * The chartplotter's zoom buttons (owner, Oct 2026): − AUTO + under its screen write the
- * boat's `chart.zoom` (0 AUTO, k the k-th of CONFIG.chartPlotter.ranges).
+ * boat's `chartZoom` (0 AUTO, k the k-th of CONFIG.chartPlotter.ranges).
  */
 import { describe, expect, it } from 'vitest';
 import type { Intent } from '../src/core/intents';
@@ -13,7 +13,7 @@ describe('the chartplotter zoom', () => {
   it('a press sets the range for the boat; AUTO is 0; past the list, the widest', () => {
     const { world, vesselId } = createWorld(new IdFactory(), 'smallTug');
     const v = world.vessels[vesselId];
-    const send = (value: number) => stepWorld(world, [{ playerId: 'p', targetId: v.id, control: 'chart.zoom', value } as Intent], 1 / 60);
+    const send = (value: number) => stepWorld(world, [{ playerId: 'p', targetId: v.id, control: 'chartZoom', value } as Intent], 1 / 60);
     expect(v.controls.chartZoom ?? 0).toBe(0);
     send(3);
     expect(v.controls.chartZoom).toBe(3);

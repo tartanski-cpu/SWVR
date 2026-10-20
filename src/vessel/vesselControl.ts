@@ -111,6 +111,10 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
     case 'chartLamp':
       s.controls.chartLamp = intent.value > 0.5 ? 1 : 0;
       break;
+    case 'chartZoom':
+      // The chartplotter's zoom buttons (nav/chartPlotter.ts): 0 AUTO, k the k-th range.
+      s.controls.chartZoom = clamp(Math.round(intent.value), 0, CONFIG.chartPlotter.ranges.length);
+      break;
     case 'fenders':
       s.controls.fenders = intent.value > 0.5 ? 1 : 0;
       if (!s.controls.fenders) s.walkFender = null; // in with the rest

@@ -252,7 +252,6 @@ export const BUS_KEYS = {
   'searchlight.tilt': setting('spotTilt', [spot.tiltMinDeg, spot.tiltMaxDeg], 'deg', 'Searchlight tilt, + up, 0 horizontal.', { hold: 'spotPan', aliases: ['spotTilt'], default: -4 }),
 
   // ── Radios ──
-  'chart.zoom': setting('chartZoom', [0, CONFIG.chartPlotter.ranges.length], 'index', 'The chartplotter\'s zoom: 0 AUTO, k the k-th of CONFIG.chartPlotter.ranges (the ground across its screen).', { integer: true }),
   'fm.on': control('fmOn', 'FM radio power.', { aliases: ['fmOn'] }),
   // (Absent until a pull-down board is first pulled: boats without one read as before.)
   'whiteboard.down': ((spec) => ({ ...spec, bind: { ...spec.bind, get: (s: VesselState) => (s.controls.boardDown === undefined ? undefined : s.controls.boardDown > 0.5) } }))(
