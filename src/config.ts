@@ -2921,8 +2921,11 @@ export const CONFIG = {
      * chosen. Its screens stand in one row centred over the wheel, `screenGap` (m) between
      * them. The units hung from the roof out to the sides (the VHF, the chartplotter, the FM
      * set) come no further than `hungReach` (m) from the wheel.
+     * With pod drives (`podJoystick`, the console's axes, m, z aft): the throttle forward on its
+     * pedestal (`throttleZ`), the helm joystick aft of it (`stickZ`), its JOYSTICK button
+     * `button` [x, z] from the stick (between the two, outboard).
      */
-    helm: { maxConsole: 2.2, screenGap: 0.02, hungReach: 1.0 },
+    helm: { maxConsole: 2.2, screenGap: 0.02, hungReach: 1.0, podJoystick: { throttleZ: 0.0, stickZ: 0.225, button: [0.085, -0.08] as [number, number] } },
     /**
      * The advanced interior's working lights (owner): the overhead switch panel (panel.overhead)
      * and the foredeck and aft deck floodlights (light.flood). No rail lights for now (owner).
@@ -4117,6 +4120,46 @@ export const CONFIG = {
       price: 9000,
       propMaxM: 0.55,
       look: { cowlWidth: 0.45, cowlHeight: 0, cowlLength: 0.5, legWidth: 0.2, shaftLength: 0.6, gearDrop: 0.22, pivotAft: 0.3, propAft: 0.6 },
+    },
+
+    /**
+     * Pod drives (owner, Oct 2026: for the planing hulls; modules/pods): two steerable drive
+     * units hung under her bottom, forward of the transom, each driven by its own inboard engine
+     * just forward of it. Each pod's propellers are at its FRONT and pull (a tractor drive: they
+     * work in clean water, ahead of the strut). The pods swing to steer, as one with the wheel,
+     * and with the advanced controls a JOYSTICK button hands them to the helm joystick.
+     *   forwardOfTransom  each pod's steering axis this far forward of the transom (m); its
+     *                     engine's gearbox end over it
+     *   legKg, price      each pod (its strut, nacelle, gears and twin propellers), and what it adds
+     *   propMaxM          its propellers no bigger than this (they turn fast: the pod's own gears)
+     *   steering          from the wheel: up to `maxAngleDeg` either way at `rateDegPerS`; each
+     *                     strut's side area `legArea` steers as a rudder from the water past it
+     *   look              (m) the strut from her bottom down to the nacelle's centre, `strutLength`
+     *                     (the propellers' tips clear of her bottom: worked out from the diameter,
+     *                     never less), `strutChord` long, `strutWidth` thick; the nacelle `podLength`
+     *                     long, `podRadius` round; its propellers `propFwd` forward of the axis
+     *   joystick          vector mode (the helm joystick; physics/podAllocation.ts):
+     *     maxAngleDeg     each pod swings this far either way on its own (further than from the
+     *                     wheel), at `rateDegPerS`
+     *     lever           both engines' throttle at the stick's stop (0..1 of the lever's travel:
+     *                     low, it's for berthing)
+     *     slip            over the first share of the stick's travel the engines idle in gear and
+     *                     the pods' clutches slip, giving that share of their idling push (fine
+     *                     control close in); past it the throttle opens
+     *     side, surge, twist  how hard each way of the stick asks (a share of one pod's push;
+     *                     twist: of one pod's push at the pods' half spacing, as a turning moment)
+     *     turnRateDeg     the twist at its stop asks for this rate of turn (deg/s); the pods
+     *                     turn her to it, `turnGain` (per rad/s of error) giving full twist for
+     *                     an error of 1/turnGain, and hold her head (no turn) while she crabs
+     */
+    pods: {
+      forwardOfTransom: 1.3,
+      legKg: 260,
+      price: 24000,
+      propMaxM: 0.55,
+      steering: { maxAngleDeg: 26, rateDegPerS: 40, legArea: 0.14 },
+      look: { strutLength: 0.45, strutChord: 0.6, strutWidth: 0.12, podLength: 1.25, podRadius: 0.14, propFwd: 0.62 },
+      joystick: { maxAngleDeg: 50, rateDegPerS: 60, lever: 0.5, slip: 0.4, side: 1, surge: 1, twist: 2, turnRateDeg: 6, turnGain: 60 },
     },
 
     /** electrical.battery-bank (M6): each 12 V 100 Ah battery's mass (kg). */

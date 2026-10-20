@@ -88,6 +88,15 @@ export interface VesselControls {
   craneBoomIn?: number;
   netOut?: number;
   netIn?: number;
+  /**
+   * Pod drives' joystick (modules/pods): vector mode on (1) or off (0 / unset), and the stick:
+   * `joyX` to starboard, `joyY` ahead, `joyR` twisted clockwise (bow to starboard), each -1..1
+   * (0 when let go: it springs back).
+   */
+  joyMode?: number;
+  joyX?: number;
+  joyY?: number;
+  joyR?: number;
 }
 
 /**
@@ -251,6 +260,8 @@ export interface VesselState {
    * path on her ('deckCrane'): plain JSON, so it is sent to crew and saved like the rest.
    */
   modules?: Record<string, ModuleStateEnvelope>;
+  /** Pod drives (modules/pods): each pod's own heading (rad, port pod first; the pods' swing convention), apart in joystick mode. */
+  pods?: { angles: number[] };
   /** Water in the bilge, 0 (dry) .. 1 (full), boats with a bilge pump (vessel/bilge.ts). */
   bilge?: number;
   /** Hull damage, 0 (sound) .. 1: it leaks into the bilge (vessel/wear.ts). */

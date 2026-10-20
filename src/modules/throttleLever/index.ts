@@ -33,6 +33,8 @@ export interface ThrottleLeverConfig {
   release: { strength: number; ms: number };
   /** Engraved beside it ('' for none). */
   engrave: string;
+  /** Its look: the standard red ball, or 'black' (the pod drives' black throttle). */
+  style?: 'standard' | 'black';
 }
 
 export const THROTTLE_LEVER: ModuleDefinition<ThrottleLeverConfig> = {
