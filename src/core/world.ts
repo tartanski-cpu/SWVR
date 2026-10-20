@@ -98,8 +98,6 @@ export interface WorldState {
     without?: string[];
     /** The game's own version (commit and build time) on the host: crew on another reload (App.ts). */
     app?: string;
-    /** The host's coast region test (regions/index.ts COAST_REGION), if on: crew switch to match and reload. */
-    coast?: string;
     /** Voyage mode: the host's map (world/maps.ts); a crew-mate on another map reloads into it. */
     map?: string;
   };

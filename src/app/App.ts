@@ -58,7 +58,7 @@ import { placeInFront } from '../ui/placeInFront';
 import { canRefuel, releaseHolds } from '../vessel/vesselControl';
 import { CURRENTS, FISHING_GROUNDS, GUSTS, PORTS } from '../world/archipelago';
 import { raceRoarLevel, raceStrength, setRaceClock } from '../world/currents';
-import { COAST_KEY, COAST_REGION, REGIONS, regionById } from '../world/regions';
+import { REGIONS, regionById } from '../world/regions';
 import { MODE, VOYAGE_MAP_ID } from '../mode';
 import { groundHeight } from '../world/terrain';
 import { aboard, carriedBy, dropCarried, cargoLabel, cargoPortAt, kindOf, payloadMass, quickLoadable, quickPort, quickUnloadable, slotsUsed, type CargoItem } from '../cargo/cargo';
@@ -630,7 +630,6 @@ export class App {
     this.builtAs = structuredClone(this.world.build);
     // Sent to crew with the boat, so a crew-mate on an older page knows (not part of her build).
     this.world.build.app = APP_BUILD;
-    if (COAST_REGION) this.world.build.coast = COAST_REGION;
     if (VOYAGE_MAP_ID) this.world.build.map = VOYAGE_MAP_ID;
     this.localPlayerId = created.localPlayerId;
     this.soloPlayerId = created.localPlayerId;
@@ -2938,28 +2937,11 @@ export class App {
    * Returns false if we're leaving for that.
    */
   private sameVersionAsHost(world: WorldState): boolean {
-    // The world itself must match: the host's coast region test on or off (regions/index.ts).
-    // Take theirs and reload into it (it's kept in this browser until changed back).
     // Voyage mode: the host's map (the address's `?map=`): reload into it.
     if (MODE === 'voyage' && world.build?.map && world.build.map !== VOYAGE_MAP_ID) {
       const url = new URL(location.href);
       url.searchParams.set('map', world.build.map);
       url.searchParams.set('join', this.joinCode);
-      this.leaveGame();
-      location.replace(url.toString());
-      return false;
-    }
-    const coast = world.build?.coast ?? null;
-    if (MODE !== 'voyage' && coast !== COAST_REGION) {
-      try {
-        if (coast) localStorage.setItem(COAST_KEY, coast);
-        else localStorage.removeItem(COAST_KEY);
-      } catch {
-        /* no storage: nothing we can do but say so */
-      }
-      const url = new URL(location.href);
-      url.searchParams.set('join', this.joinCode);
-      url.searchParams.delete('coast');
       this.leaveGame();
       location.replace(url.toString());
       return false;

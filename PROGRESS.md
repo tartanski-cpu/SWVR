@@ -5169,6 +5169,12 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Tests:** the fleet, starter-boat, career and helm-assist tests pass as they are (cheapest of the fleet, basic controls, over 6 kn, no helm assist).
 - **Checked:** typecheck, `npm test`, headless: a new career starts in her at Calder (screenshots from the quay and at her helm). **Not checked:** VR; her handling on a stern drive at her length.
 
+### Career mode is the hand-built archipelago, always (owner)
+
+- **The owner:** career mode back to the hand-built map with its regions; the Scottish maps out of it.
+- `world/regions/index.ts`: the career world is home, the Sounds, the Fjord and the Narrows, with no toggle; the coast maps are Voyage mode's only. Gone with the toggle: the `?coast=` address parameter and the Debug menu's "Coast region test" rows, the crew's reload-to-match on the welcome (`world.build.coast`), and the separate `swvr.coastTest` career keys (careers are one set again; nothing in them changes). The coast tests (`tests/coastGame.test.ts`, `tests/coastTayvallich.test.ts`) now load their map as a voyage page (`location` stubbed to `voyage.html?map=`), and the two "way in from home" checks, which measured the map's entrance against Calder Haven, go: the maps stand alone now.
+- **Checked:** typecheck, `npm test`. **Not checked:** by eye (nothing visible changed in career mode beyond the Sounds being back where a tester had Oban on).
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**
