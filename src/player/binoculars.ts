@@ -21,6 +21,9 @@ import type { Handedness } from './xrInput';
  * head (non-XR, into a render target) and shown on a quad just in front of the eyes,
  * masked to the two lenses. In VR that quad is head-locked, as real binoculars are.
  */
+/** The lens quad's own layer: while looking (VR) the main pass draws nothing else. */
+const LENS_LAYER = 30;
+
 export class Binoculars {
   /** The binoculars themselves (in the workboat's frame when on the dash). */
   readonly mesh: THREE.Group;
@@ -57,34 +60,43 @@ export class Binoculars {
     }
     this.mesh.add(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.02, 0.06), body));
 
-    this.rt = new THREE.WebGLRenderTarget(c.renderSize, c.renderSize);
+    // The image: a 2:1 picture `renderSize` wide, drawn with a field `magnification` times
+    // narrower than the lenses span, so things look that much bigger.
+    this.rt = new THREE.WebGLRenderTarget(c.renderSize, c.renderSize / 2);
     this.rt.texture.colorSpace = THREE.SRGBColorSpace;
-    // The lens quad below spans 2 atan(0.085 / 0.2) ~ 46 deg of your view; the scene is
-    // drawn into it with a field `magnification` times narrower, so things look that much bigger.
-    const quadDeg = (2 * Math.atan(0.085 / 0.2) * 180) / Math.PI;
-    this.scopeCam = new THREE.PerspectiveCamera(quadDeg / c.magnification, 2, 0.5, 5000);
-    // The view: two overlapping lens circles cut out of a quad by the shader (soft edge).
+    // The lenses: two overlapping circles, each spanning `lensDeg` of your view, cut out of
+    // the picture 0.2 m ahead of the eyes. The picture's height is the lens's diameter.
+    const EYE = 0.2;
+    const lensR = EYE * Math.tan((c.lensDeg / 2) * (Math.PI / 180));
+    const picH = 2 * lensR;
+    this.scopeCam = new THREE.PerspectiveCamera(c.lensDeg / c.magnification, 2, 0.5, CONFIG.render.far);
+    // The view quad fills the headset's whole field (owner: nothing outside the binoculars,
+    // so the scene itself need not be drawn while you look; see renderMain). Black outside
+    // the lens circles, a soft edge.
+    const QUAD = 1.6;
     const mat = new THREE.ShaderMaterial({
-      uniforms: { map: { value: this.rt.texture } },
+      uniforms: { map: { value: this.rt.texture }, quad: { value: QUAD }, pic: { value: new THREE.Vector2(2 * picH, picH) }, lensR: { value: lensR } },
       vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
       fragmentShader: `
-        uniform sampler2D map; varying vec2 vUv;
+        uniform sampler2D map; uniform float quad; uniform vec2 pic; uniform float lensR; varying vec2 vUv;
         void main(){
-          vec2 p = vUv * vec2(2.0, 1.0);
-          float d = min(distance(p, vec2(0.72, 0.5)), distance(p, vec2(1.28, 0.5)));
-          float a = 1.0 - smoothstep(0.46, 0.5, d);
-          vec4 c = texture2D(map, vUv);
+          vec2 m = (vUv - 0.5) * quad;              // metres on the quad, from its centre
+          float d = min(distance(m, vec2(-0.56 * lensR, 0.0)), distance(m, vec2(0.56 * lensR, 0.0)));
+          float a = 1.0 - smoothstep(0.92 * lensR, lensR, d);
+          vec2 uv = clamp(m / pic + 0.5, 0.0, 1.0);  // the picture is centred on the quad
+          vec4 c = texture2D(map, uv);
           gl_FragColor = vec4(c.rgb * a, 1.0);
         }`,
       depthTest: false,
       depthWrite: false,
     });
-    // 2:1 quad 0.2 m ahead of the eyes, wide enough to fill most of the view.
-    this.view = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.17), mat);
-    this.view.position.set(0, 0, -0.2);
+    this.view = new THREE.Mesh(new THREE.PlaneGeometry(QUAD, QUAD), mat);
+    this.view.position.set(0, 0, -EYE);
     this.view.renderOrder = 999;
     this.view.visible = false;
     this.view.frustumCulled = false;
+    this.view.layers.set(LENS_LAYER);
+    this.view.layers.enable(0);
     camera.add(this.view);
 
     if (typeof document !== 'undefined' && document.body) {
@@ -215,6 +227,22 @@ export class Binoculars {
     renderer.setRenderTarget(target);
     this.view.visible = true;
     renderer.xr.enabled = xr;
+  }
+
+  /**
+   * The frame's main render. VR, looking through them: the lens quad covers the whole
+   * field, so only it is drawn (the camera sees its layer alone): the scene is drawn once,
+   * for the scope, at full draw distance, instead of twice.
+   */
+  renderMain(renderer: THREE.WebGLRenderer, scene: THREE.Scene, inXR: boolean): void {
+    if (!(inXR && this.view.visible)) {
+      renderer.render(scene, this.camera);
+      return;
+    }
+    const mask = this.camera.layers.mask;
+    this.camera.layers.set(LENS_LAYER);
+    renderer.render(scene, this.camera);
+    this.camera.layers.mask = mask;
   }
 
   /**
