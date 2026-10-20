@@ -1,0 +1,17 @@
+{
+  "name": "swvr-coast",
+  "private": true,
+  "description": "Offline pipeline: real coastline regions from open geographic data, for Workboat World. Not part of the game build.",
+  "type": "module",
+  "scripts": {
+    "fetch": "node src/fetch.ts",
+    "reconcile": "node src/reconcile.ts",
+    "mesh": "node src/mesh.ts",
+    "build": "node src/fetch.ts && node src/reconcile.ts && node src/mesh.ts"
+  },
+  "devDependencies": {
+    "geotiff": "2.1.3",
+    "delaunator": "5.0.1",
+    "js-yaml": "4.1.0"
+  }
+}

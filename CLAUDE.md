@@ -59,6 +59,7 @@ Headless browser checks: Chromium is pre-installed for Playwright. Launch it wit
 - Gameplay systems each have a folder: `rescue/`, `tow/`, `fire/`, `fishing/`, `salvage/`, `cargo/`, `career/`, `duties/`, `traffic/`, `wildlife/`, `environment/`, `ocean/`, `world/`, `nav/`, `chart/`, `net/` (multiplayer), `audio/`, `ui/`.
 - `tests/`: vitest tests, mostly against the plain-JSON simulation.
 - `src/shipyard/` + `shipyard.html`: the Shipyard (design a boat, get her 10-character code; `?design=CODE` starts the game in her). `design.ts` the choices and code, `build.ts` design to hull + recipe, `trial.ts` gearbox matching, `page.ts` the page.
+- `tools/coast/` + `coast.html`: the coast pipeline (offline: real coastline regions from open data, its own tools) and its viewer; its product goes to `public/regions/<id>/`. See `docs/COAST_PIPELINE.md`.
 - `src/hulls/` + `hulls.html`: the hull study (lines-plan hull generator, type designs, viewer). Separate from the game; groundwork for modular boats.
 
 ## Docs

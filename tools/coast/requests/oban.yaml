@@ -1,0 +1,19 @@
+# Region request: Oban and its approaches (owner's choice, Oct 2026). Replaces the hand-built
+# Sounds behind a debug toggle once it loads in the game (milestone 4). Full scale.
+id: oban
+name: Oban and Lorn
+bbox: [-5.56, 56.375, -5.37, 56.475]   # lon/lat min, max: Kerrera to Connel, about 11.7 x 11.1 km
+theme: north-hebridean
+spine:
+  harbour.sheltered: auto      # milestone 3 (Oban's piers or Dunstaffnage marina)
+  pier.exposed: auto
+  anchorage: auto
+currentZones:                  # tidal races are not in open data: placed by hand (milestone 2)
+  - name: Falls of Lora
+    polygon: [[-5.3925, 56.4548], [-5.3830, 56.4560], [-5.3828, 56.4540], [-5.3920, 56.4532]]
+    direction: 90
+    peakKts: 6
+    periodHours: 6
+weatherProfile: north-rough
+fish: [mackerel, haddock, lobster]
+goods: [feed, building-materials, whisky]

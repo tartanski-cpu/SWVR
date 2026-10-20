@@ -1,0 +1,139 @@
+{
+ "triangles": 108738,
+ "vertices": 61715,
+ "bytes": 2480392,
+ "chunks": [
+  {
+   "id": 0,
+   "triangles": 201
+  },
+  {
+   "id": 1,
+   "triangles": 15
+  },
+  {
+   "id": 3,
+   "triangles": 260
+  },
+  {
+   "id": 4,
+   "triangles": 863
+  },
+  {
+   "id": 5,
+   "triangles": 1892
+  },
+  {
+   "id": 8,
+   "triangles": 628
+  },
+  {
+   "id": 9,
+   "triangles": 4036
+  },
+  {
+   "id": 10,
+   "triangles": 4158
+  },
+  {
+   "id": 11,
+   "triangles": 3167
+  },
+  {
+   "id": 13,
+   "triangles": 412
+  },
+  {
+   "id": 14,
+   "triangles": 4839
+  },
+  {
+   "id": 15,
+   "triangles": 5639
+  },
+  {
+   "id": 16,
+   "triangles": 4162
+  },
+  {
+   "id": 17,
+   "triangles": 3240
+  },
+  {
+   "id": 18,
+   "triangles": 3067
+  },
+  {
+   "id": 19,
+   "triangles": 4446
+  },
+  {
+   "id": 20,
+   "triangles": 4700
+  },
+  {
+   "id": 21,
+   "triangles": 6407
+  },
+  {
+   "id": 22,
+   "triangles": 3600
+  },
+  {
+   "id": 23,
+   "triangles": 4114
+  },
+  {
+   "id": 24,
+   "triangles": 6436
+  },
+  {
+   "id": 25,
+   "triangles": 5385
+  },
+  {
+   "id": 26,
+   "triangles": 5610
+  },
+  {
+   "id": 27,
+   "triangles": 5277
+  },
+  {
+   "id": 28,
+   "triangles": 3939
+  },
+  {
+   "id": 29,
+   "triangles": 4282
+  },
+  {
+   "id": 30,
+   "triangles": 3009
+  },
+  {
+   "id": 31,
+   "triangles": 4109
+  },
+  {
+   "id": 32,
+   "triangles": 3328
+  },
+  {
+   "id": 33,
+   "triangles": 2620
+  },
+  {
+   "id": 34,
+   "triangles": 2840
+  },
+  {
+   "id": 35,
+   "triangles": 2057
+  }
+ ],
+ "landShare": 0.5968507486568487,
+ "warnings": [
+  "2 patches where the coastline's sides disagree (check the coast there)"
+ ]
+}

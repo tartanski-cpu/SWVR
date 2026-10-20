@@ -548,6 +548,10 @@ The world is growing: new map areas round home, each with its own harbours, weat
 - **The chart has sheets:** press the chart rack on the wall above the chart table (the pigeonhole with the folded charts, at the table's forward end) to turn the sheet: home, then the Sounds, then the Fjord, then the Narrows, then the archipelago sheet (every region), then home again. Lighthouses are charted with their light (Fl W 10s is a white flash every 10 seconds), and on the detail sheets the smaller pier and channel lights too. Your pencil marks are places on the sea, not on the paper: a plot drawn on one sheet shows on any sheet that covers that water, in its place, and not on the others. The plotter follows you anywhere.
 - Debug (Settings → Game → Debug tab → Shown): **World → To region** moves the boat between regions; **World → Katabatic gusts → Gust now** drops a gust on the gust zone nearest the boat (beside it: what the gusts are doing); **Views → Region map** shows the regions, what's loaded, the races and the gust zones (filled while a gust is blowing) on the perf panel.
 
+### The coast viewer (work in progress)
+
+https://tartanski-cpu.github.io/SWVR/next/coast.html shows the first real-coastline region made from open map data: Oban and its approaches, from Kerrera to Connel, at full scale. Fly round it (drag, wheel, W A S D) and switch on the overlays. It isn't in the game yet; when it is, it will stand in for the Sounds behind a debug switch.
+
 ### Cargo
 
 Each port has three items waiting ashore, each bound for another port. The box colour shows the destination: **blue** Calder Haven, **orange** Brannock Pier, **green** Selkie Bay.
