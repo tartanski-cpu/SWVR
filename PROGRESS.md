@@ -5406,6 +5406,16 @@ Owner, Oct 2026: a new career starts in one of the new fleet boats; hide the wor
 - **Tests:** tests/starterBoat.test.ts (3); starterWorkboat.test.ts's other-boat message now "Not for this boat".
 - **Next fleet steps:** move the tests and golden runs onto the fleet; then delete the old boats (owner: hide first, delete later).
 
+### A tug's exhaust stacks: modern pipes, raked or straight, one per engine (done, awaiting owner test)
+
+Owner, Oct 2026 (a photo of a modern tug's exhausts): "I don't want the exhaust pipe to look like an old steamship... more like this, so they can have a little bit of angle in them. Maybe that's an option in the shipyard. So they could be straight pipes, maybe one or two, depending on the engines."
+
+- **The look** (module `fitting.exhaust-stack` v2): no more black pipe with its band, lip and white lagging. Over the roof a plain weathered bronze-brown pipe (`colour`), tapering a little (`taper` 0.88), **raked aft** `rakeDeg` 12°, its top **cut on a slant** facing aft (`cutDeg` 35°), dark inside. Inside the wheelhouse it rises in a painted casing (`casing`, the house's pale grey), with a low collar where it goes out through the roof.
+- **Raked or straight** (Shipyard, Engine step, **Exhaust stacks**, shown on the tug hull only; `design.stackStyle`, design code version 29, packed at the top: older codes read as raked): straight is upright with a square-cut top.
+- **One per engine:** a twin has two, one in each aft corner of the wheelhouse; the smoke comes from both tops by turns (ExhaustFitting `more`), and her cooling water from a hole in each side (`water` is now a list), the pumps taking turns. The extinguisher and torch brackets on the aft wall move inboard of a port stack.
+- **The smoke** leaves along the pipe (raked: leaning aft with it) from the middle of its cut top (`stackOutlet`).
+- **Checked:** tests/exhaustStack.test.ts (7): the single stack's place and heights; the smoke from its top leaning aft; straight; twin (two stacks, smoke from both, water both sides, the hand gear clear, recipe valid); the code; none on other hulls. Full suite 1077 pass. Headless Chromium: the fleet tug (one raked), a twin tug raked and straight, each from her side, her quarter and inside; a close-up of the raked pipe's cut top. **Not checked:** the Quest.
+
 ### A tug's dry exhaust stack, and her cooling water out of her side (done, awaiting owner test)
 
 Owner, Oct 2026: "the tugboats to have their exhaust pipe... it comes out the roof... in a corner of the wheelhouse, because it would need to route right through the wheelhouse and into where the engines are. And the smoke... should emit from the end of the pipe. It should be a nice beefy pipe, and... high enough to keep the smoke out of the way. And I'd like the tugboat only to have a water exhaust out the side... the cooling water spits out the side close to the water line from a hole... intermittently... as the pump spits out some water."

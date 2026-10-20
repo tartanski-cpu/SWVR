@@ -44,6 +44,10 @@ export class ExhaustSmoke {
   private nextSpurt = 1;
   private spurtLeft = 0;
   private dropAccum = 0;
+  /** Which outlet the next puff (a twin's stacks share it) or the next spurt's drops come from. */
+  private turn = 0;
+  private spurtFrom = 0;
+  private readonly at = new THREE.Vector3();
 
   /** @param turbo her engine is turbocharged; spec: her diesel (rated speed, torque curve) */
   constructor(turbo: boolean, spec: EngineSpec) {
@@ -88,11 +92,17 @@ export class ExhaustSmoke {
     while (this.smokeAccum >= 1) {
       this.smokeAccum -= 1;
       const jet = submerged ? 0.3 : c.jet + c.jetPerRpm * rpmFrac;
-      const y = submerged ? surface + 0.05 : this.outlet.y;
+      // A twin's stacks: each puff from the next one's top.
+      const more = exhaust.more;
+      if (more?.length) {
+        this.turn = (this.turn + 1) % (more.length + 1);
+        root.localToWorld(this.at.fromArray(this.turn ? more[this.turn - 1] : exhaust.position));
+      } else this.at.copy(this.outlet);
+      const y = submerged ? surface + 0.05 : this.at.y;
       this.smoke.emit(
-        this.outlet.x,
+        this.at.x,
         y,
-        this.outlet.z,
+        this.at.z,
         vx + this.dir.x * jet + jitter(0.4),
         vy + this.dir.y * jet + c.lift * (1 + Math.random()),
         vz + this.dir.z * jet + jitter(0.4),
@@ -109,7 +119,7 @@ export class ExhaustSmoke {
   }
 
   /** Her cooling water out of its hole in her side, in spurts while the engine runs. */
-  private spit(dt: number, s: VesselState, w: NonNullable<NonNullable<VesselDef['exhaust']>['water']>, root: THREE.Object3D, viewer: THREE.Vector3): void {
+  private spit(dt: number, s: VesselState, holes: NonNullable<NonNullable<VesselDef['exhaust']>['water']>, root: THREE.Object3D, viewer: THREE.Vector3): void {
     const c = CONFIG.effects.exhaust.water;
     if (!this.water) {
       this.water = new ParticlePool(90, c.size, sprayTexture());
@@ -124,11 +134,14 @@ export class ExhaustSmoke {
         const rpm = Math.min(1, e.rpm / this.model.ratedRpm);
         this.nextSpurt = (c.everyS[0] + Math.random() * (c.everyS[1] - c.everyS[0])) * (1 - c.perRpm * rpm);
         this.spurtLeft = c.spurtS;
+        // (A twin's pumps take turns, near enough.)
+        this.spurtFrom = (this.spurtFrom + 1) % holes.length;
       }
     }
     if (this.spurtLeft > 0) {
       this.spurtLeft -= dt;
       this.dropAccum += (c.drops / c.spurtS) * dt;
+      const w = holes[this.spurtFrom % holes.length];
       root.localToWorld(this.outlet.fromArray(w.position));
       root.getWorldQuaternion(this.q);
       this.dir.fromArray(w.direction).normalize().applyQuaternion(this.q);

@@ -37,7 +37,7 @@ import { briefPaper } from './briefPaper';
 import { buildVesselMesh, buildVesselMeshParts } from '../vessel/view/hullMesh';
 import { DESIGN_HULLS, ENGINES, LIVERIES, ROOF_PAINTS, ROOF_TOPS, type DesignedBoat } from './build';
 import { docFileName, docFileText, docToken, designToken, readDesign, shortCode } from './designDoc';
-import { ALL_FIELDS, CONSOLE_SIDES, DEFAULT_DESIGN, GUARDS, MATERIALS, OUTBOARDS, RAILS, MEASURES, SILLS, type MeasureKey, SINGLE_ONLY_ENGINES, SKIFFS, outboardCount, placeOf, placeValue, SCALES, type PlaceKey, type ShipDesign } from './design';
+import { ALL_FIELDS, CONSOLE_SIDES, STACK_STYLES, DEFAULT_DESIGN, GUARDS, MATERIALS, OUTBOARDS, RAILS, MEASURES, SILLS, type MeasureKey, SINGLE_ONLY_ENGINES, SKIFFS, outboardCount, placeOf, placeValue, SCALES, type PlaceKey, type ShipDesign } from './design';
 import { hullPlan } from '../vessel/layout';
 import { UndoStack } from './undo';
 import { YardLink } from './yardLink';
@@ -638,7 +638,8 @@ function group(title: string, note = ''): void {
 /** The deckhouse's width buttons and when each is the one chosen (they set two fields: dhWidth, dhNarrow). */
 const dhKinds: [HTMLElement, (d: ShipDesign) => boolean][] = [];
 /** When a row shown only where it applies (data-when / data-unless) is: a field set, or the deckhouse with side decks. */
-const rowApplies = (cond: string): boolean => (cond === 'dhSideDecks' ? !!design.dhLength && !design.dhNarrow && design.dhWidth > 0 : !!design[cond as keyof ShipDesign]);
+const rowApplies = (cond: string): boolean =>
+  cond === 'dhSideDecks' ? !!design.dhLength && !design.dhNarrow && design.dhWidth > 0 : cond === 'tugStacks' ? design.hull === 4 && !design.outboards : !!design[cond as keyof ShipDesign];
 /** A few set options in a row, as buttons (for choices with only a handful of settings). */
 function options(key: keyof ShipDesign, label: string, names: string[]): HTMLElement {
   labels[key] ??= label;
@@ -844,6 +845,8 @@ choices('engine', ENGINES.map((e) => ({ name: e.name, note: `${'about' in e ? `$
   box.onchange = () => change({ nozzle: box.checked ? 1 : 0 });
   controls.appendChild(row);
 }
+// A tug's exhaust stacks (owner, Oct 2026): one per engine up through the wheelhouse's aft corners, raked or straight.
+options('stackStyle', 'Exhaust stacks', [...STACK_STYLES]).dataset.when = 'tugStacks';
 // Or outboards (owner, Oct 2026): 2, 3 or 4 petrol V8s on a bracket off the transom, in place of the inboard above.
 {
   const o = CONFIG.modules.outboard;

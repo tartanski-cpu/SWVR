@@ -373,13 +373,16 @@ export function hasWheelhouse(def: VesselDef): def is WheelhouseDef {
 /**
  * Her exhaust: where the smoke comes out and which way it blows (vessel axes). Most boats have
  * a wet exhaust, smoke and cooling water out of one outlet in the transom (drawn as a stub
- * there). A tug (owner, Oct 2026) has a dry stack instead (`stack`: the smoke out of its top,
- * the pipe drawn by its module, fitting.exhaust-stack) and her cooling water out of its own
- * hole in her side near the waterline (`water`), spat out in bursts as the pump delivers it.
+ * there). A tug (owner, Oct 2026) has dry stacks instead, one per engine (`stack`: the smoke
+ * out of their tops, `position` and any `more`; the pipes drawn by their module,
+ * fitting.exhaust-stack) and her cooling water out of a hole in her side near the waterline
+ * for each (`water`), spat out in bursts as the pump delivers it.
  */
 export type ExhaustFitting = Workboat['exhaust'] & {
   stack?: boolean;
-  water?: { position: Vec3; direction: Vec3 };
+  /** A twin's second stack: its top (the smoke shares itself between them). */
+  more?: Vec3[];
+  water?: { position: Vec3; direction: Vec3 }[];
 };
 
 /** The transom outlet the hull draws (none for a dry stack). */
