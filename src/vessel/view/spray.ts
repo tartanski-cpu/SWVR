@@ -32,32 +32,61 @@ export class Spray {
   private readonly p = new THREE.Vector3();
   private readonly out = new THREE.Vector3();
   private readonly q = new THREE.Quaternion();
-  private readonly stem: THREE.Vector3;
-  /** Planing: where her spray sheets come off each side, her transom, her length and planing range. */
-  private readonly roots: THREE.Vector3[];
+  /** Her keel line, bow first (each section's z and its bottom's height), and her waterline half-breadth along her. */
+  private readonly keel: { z: number; y: number }[];
+  private readonly wl: (z: number) => number;
+  private readonly chine: (z: number) => number;
+  private readonly entry = new THREE.Vector3();
+  /** Planing: her transom, her length and planing range. */
   private readonly transom: THREE.Vector3;
   private readonly length: number;
   private readonly planing: VesselDef['planing'];
   private sheetAccum = 0;
   private sternAccum = 0;
 
+  /** Where her keel line first goes under the surface from forward (vessel axes), or null if none of it is (airborne). */
+  private bowEntry(root: THREE.Object3D, waves: readonly PreparedWave[]): THREE.Vector3 | null {
+    let last = 0;
+    for (let i = 0; i < this.keel.length; i++) {
+      const k = this.keel[i];
+      root.localToWorld(this.p.set(0, k.y, k.z));
+      const under = surfaceHeight(waves, this.p.x, this.p.z) - this.p.y;
+      if (under > 0) {
+        // Between this section and the one ahead, where the keel crosses the surface.
+        if (i === 0) return this.entry.set(0, k.y, k.z);
+        const a = this.keel[i - 1];
+        const t = last / (last + under);
+        return this.entry.set(0, a.y + t * (k.y - a.y), a.z + t * (k.z - a.z));
+      }
+      last = -under;
+    }
+    return null;
+  }
+
   constructor(def: VesselDef) {
     this.pool = new ParticlePool(this.cfg.maxParticles, 0.6, sprayTexture());
     this.points = this.pool.points;
     this.points.name = 'spray';
-    // Waterline half-beam at a station: midway between chine and deck edge (hard chine).
-    const st = def.hull.stations;
+    // Her half-breadth at the design waterline along her, and where her stem meets it
+    // (owner, Oct 2026: with a raked stem the bow spray came off thin air ahead of her: it
+    // was put at a fixed 46 % of her length forward of amidships). From her sections.
+    const st = [...def.hull.stations].sort((a, b) => a.z - b.z);
+    const halves = st.map((s) => waterlineHalf(s.polygon));
     const wl = (z: number) => {
-      const s = st.reduce((a, b) => (Math.abs(b.z - z) < Math.abs(a.z - z) ? b : a));
-      return 0.5 * (s.halfBeamChine + s.halfBeamDeck);
+      const i = st.findIndex((s) => s.z >= z);
+      if (i <= 0) return halves[i < 0 ? halves.length - 1 : 0];
+      const t = (z - st[i - 1].z) / (st[i].z - st[i - 1].z);
+      return halves[i - 1] + t * (halves[i] - halves[i - 1]);
     };
     const L = def.hull.params.length;
-    const zs = [-0.43 * L, -0.33 * L];
+    const stemZ = stemAtWaterline(st);
+    // The slam probes on both bows just aft of the stem (where the old fixed ones stood from it).
+    const zs = [stemZ + 0.03 * L, stemZ + 0.13 * L];
     this.probes = zs.flatMap((z) => [new THREE.Vector3(-wl(z), 0, z), new THREE.Vector3(wl(z), 0, z)]);
     this.lastDepth = this.probes.map(() => 0);
-    this.stem = new THREE.Vector3(0, 0, -0.46 * L);
-    const zr = -this.cfg.planing.rootFrac * L;
-    this.roots = [new THREE.Vector3(-wl(zr), 0, zr), new THREE.Vector3(wl(zr), 0, zr)];
+    this.keel = st.map((s) => ({ z: s.z, y: Math.min(...s.polygon.map(([, y]) => y)) }));
+    this.wl = wl;
+    this.chine = (z) => st.reduce((a, b) => (Math.abs(b.z - z) < Math.abs(a.z - z) ? b : a)).halfBeamChine;
     this.transom = new THREE.Vector3(0, 0, 0.48 * L);
     this.length = L;
     this.planing = def.planing;
@@ -111,21 +140,26 @@ export class Spray {
       });
 
       // ── Bow wave ──
+      // From where her bow meets the water as she rides now (trimmed by the head or the stern,
+      // pitching in a sea): the first point of her keel line, from forward, that is under the
+      // surface. The sheet comes off both sides there, at her waterline breadth.
       if (speed > c.bowSpeed) {
         this.bowAccum += c.bowRate * (speed - c.bowSpeed) * dt;
-        root.localToWorld(this.p.copy(this.stem));
-        const h = surfaceHeight(waves, this.p.x, this.p.z);
-        const near = Math.abs(h - this.p.y) < 0.8; // stem in the water, not flying
+        const at = this.bowEntry(root, waves);
         while (this.bowAccum >= 1) {
           this.bowAccum -= 1;
-          if (!near) continue;
+          // (Her forefoot flying clear, the water meeting her aft of amidships: planing, the
+          // sheets below take over.)
+          if (!at || at.z > 0) continue;
           const side = Math.random() < 0.5 ? -1 : 1;
+          root.localToWorld(this.p.set(side * this.wl(at.z), 0, at.z));
+          const h = surfaceHeight(waves, this.p.x, this.p.z);
           this.out.set(side, 0, -0.2).applyQuaternion(this.q);
           const sideways = 0.8 + speed * 0.35 + Math.random();
           this.pool.emit(
-            this.p.x + this.out.x * 0.3,
+            this.p.x + this.out.x * 0.1,
             h + 0.05,
-            this.p.z + this.out.z * 0.3,
+            this.p.z + this.out.z * 0.1,
             vx + this.out.x * sideways,
             1.0 + speed * 0.3 + Math.random() * 0.9,
             vz + this.out.z * sideways,
@@ -143,15 +177,16 @@ export class Spray {
       if (planing > 0) {
         const pc = c.planing;
         this.sheetAccum += pc.sheetRate * planing * speed * dt;
+        // (Planing, she rides up: her waterline stands a metre or so over the water. The
+        // spray comes off where her bottom meets it: where her keel goes under, out at her
+        // chines. Lifted right clear, she throws none.)
+        const at = this.sheetAccum >= 1 ? this.bowEntry(root, waves) : null;
         while (this.sheetAccum >= 1) {
           this.sheetAccum -= 1;
+          if (!at) continue;
           const i = Math.random() < 0.5 ? 0 : 1;
-          root.localToWorld(this.p.copy(this.roots[i]));
+          root.localToWorld(this.p.set((i ? 1 : -1) * this.chine(at.z), 0, at.z));
           const h = surfaceHeight(waves, this.p.x, this.p.z);
-          // (Planing, she rides up: her waterline stands a metre or so over the water. The
-          // spray comes off where her bottom meets it, so only a side lifted right clear, or
-          // buried, throws none.)
-          if (this.p.y - h > 2 || h - this.p.y > 0.9) continue;
           this.out.set(i ? 1 : -1, 0, 0.25).applyQuaternion(this.q);
           const sideways = 1.5 + speed * 0.3 + Math.random() * 1.2;
           const up = 2.5 + speed * 0.2 + Math.random() * 1.5;
@@ -226,4 +261,28 @@ export function sprayTexture(): THREE.Texture {
   g.fillStyle = grad;
   g.fillRect(0, 0, s, s);
   return new THREE.CanvasTexture(canvas);
+}
+
+/** A section's half-breadth where it crosses the design waterline (y = 0): its widest crossing; 0 if it doesn't reach the water. */
+export function waterlineHalf(poly: readonly (readonly [number, number])[]): number {
+  let half = 0;
+  for (let i = 0; i < poly.length; i++) {
+    const [x0, y0] = poly[i];
+    const [x1, y1] = poly[(i + 1) % poly.length];
+    if ((y0 <= 0 && y1 >= 0) || (y0 >= 0 && y1 <= 0)) {
+      const x = y0 === y1 ? Math.max(Math.abs(x0), Math.abs(x1)) : Math.abs(x0 + ((x1 - x0) * (0 - y0)) / (y1 - y0));
+      half = Math.max(half, x);
+    }
+  }
+  return half;
+}
+
+/** Where her stem meets the design waterline (z, m): the first section from forward whose bottom is under it, between it and the one ahead. Sections sorted bow first. */
+export function stemAtWaterline(st: readonly { z: number; polygon: readonly (readonly [number, number])[] }[]): number {
+  const bottom = (s: (typeof st)[number]) => Math.min(...s.polygon.map(([, y]) => y));
+  const i = st.findIndex((s) => bottom(s) < 0);
+  if (i <= 0) return st[Math.max(0, i)].z;
+  const a = bottom(st[i - 1]);
+  const b = bottom(st[i]);
+  return st[i - 1].z + ((st[i].z - st[i - 1].z) * a) / (a - b);
 }

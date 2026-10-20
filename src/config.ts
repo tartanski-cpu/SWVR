@@ -2656,12 +2656,14 @@ export const CONFIG = {
       maxParticles: 900,
       /**
        * Planing (owner: planing boats throw up a lot of spray), from her hull's `planing`
-       * Froude range (fnStart .. fnFull): sheets of spray thrown out from both sides where
-       * her bottom meets the water (`rootFrac` of her length forward of amidships), `sheetRate`
-       * particles/s per m/s at full planing; and a mist kicked up behind her transom
-       * (`sternRate` per m/s), left behind as she runs on.
+       * Froude range (fnStart .. fnFull): sheets of spray thrown out from both chines where
+       * her bottom meets the water (found each frame: where her keel line goes under the
+       * surface, as she trims and pitches; owner, Oct 2026), `sheetRate` particles/s per m/s
+       * at full planing; and a mist kicked up behind her transom (`sternRate` per m/s), left
+       * behind as she runs on. The bow wave comes off the same point while it's forward of
+       * amidships.
        */
-      planing: { rootFrac: 0.18, sheetRate: 18, sternRate: 3 },
+      planing: { sheetRate: 18, sternRate: 3 },
       /** Bow wave "moustache": starts above this speed (m/s), particles/s per m/s above it. */
       bowSpeed: 2.2,
       bowRate: 18,
