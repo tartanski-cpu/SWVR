@@ -51,7 +51,8 @@ describe('the helm assist panel', () => {
     // No short code holds it; her link does.
     expect(shortCode(design('pilotBoat'))).toBeNull();
     expect(readDesign(designToken(design('pilotBoat')))).toMatchObject({ design: design('pilotBoat') });
-    expect(shortCode({ ...design('pilotBoat'), helmAssist: 0 })).not.toBeNull();
+    // (The default design has a short code; the fleet's pilot boat has other link-only choices.)
+    expect(shortCode({ ...DEFAULT_DESIGN, controls: 1, helmAssist: 0 })).not.toBeNull();
   });
 
   it('every fleet boat with the advanced controls has it; the beginner boat does not', () => {

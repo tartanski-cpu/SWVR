@@ -5224,6 +5224,14 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Tests:** `tests/voyagePlace.test.ts` (+3): Oban and Tayvallich start you within 8 m of the berth with a floor under you, facing her, Calder's spot as before; a place moored or afloat round-trips through the store and a fresh world, you aboard or ashore; land and a lost berth are refused.
 - **Checked:** typecheck, `npm test`, headless: the Oban start (on the quay, the pilot boat and the town before you), the Clyde start at Rothesay (on the pier beside her), and a remembered spot in the Sound of Kerrera taken back aboard, heading 225. **Not checked:** VR; a page closed on the Quest (pagehide fires there too, and the 5 s save covers a crash).
 
+### The pilot boat is the owner's "Pilot boat 11.2 m" (owner)
+
+- **The owner:** replace the pilot boat in the fleet and Voyage mode with this design file.
+- `boats/fleet/pilotBoat.json` is now that file (the same id, so saves, codes and multiplayer go on as before; Voyage mode's `CONFIG.voyage.boat` is still `pilotBoat`, so it starts in her): 11.2 m, 3.6 m beam, 9.6 t in aluminium, a faceted hull with sheer and a raised foredeck, twin 400 kW V8s on pod drives, a side door, chart table, searchlight and fire monitor, stern roller, rod rack, two life rings, the advanced controls with the helm assist; £295,000; 36 kn flat out in the test.
+- **Two changes to the file, to flag:** (1) it had **no hull protection** (`guard` 0); the owner's standing request is the strake and fenders on the pilot boat, and the roving fender needs fenders, so `guard` is kept at "Strake and fenders" as before: say if she should go without. (2) Its **fore cabin** (`foreCabin` 1) can't be fitted without a deckhouse forward of the wheelhouse (the Shipyard's own warning, and a fleet boat must build with none), so it's off; she has no cabin either way.
+- **Tests:** the fleet tests as they are (builds with no warnings, strake and fenders, over 30 kn, dearer than the beginner boat). `tests/helmAssist.test.ts`: the "a design with the panel has no short code, without it has one" check used the pilot boat, whose new design has other link-only choices (sheer, facets, the raised foredeck): it now uses the Shipyard's default design.
+- **Checked:** typecheck, `npm test`, headless: Voyage Oban starts in her on the quay (screenshot). **Not checked:** VR; her handling at 11.2 m on pods (the owner's to judge).
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**
