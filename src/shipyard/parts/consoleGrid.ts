@@ -93,3 +93,46 @@ export function placeOnDash(p: GridPlace, all: GridPlace[], cols: number, rows: 
   const rise = ((rows - h) / 2 - r0) * cellH;
   return { x, rise, width: p.w * pitch - gap, height: p.h === rows ? rows * cellH : p.h * cellH - gap / 2 };
 }
+
+/**
+ * The switch panel (CS2): the flat panel in front of the dash, a row of switch cells along
+ * the console (`pitch` m apart, CONFIG.shipyard.helm.switchPitch). A group (LIGHTS, ENGINE...)
+ * is a run of cells, at least `cells` long, its members side by side in the middle of it. The
+ * port groups are packed in from the port end of the panel, in order; the starboard ones in
+ * from the starboard end; neither nearer the wheel's middle than `groupClear` (behind its rim
+ * a switch is hard to see and reach). One beside the wheel (`wheelPort`: the horn) goes out
+ * from `wheelClear` port of its middle, under the rim beside the hub. If a side's groups won't
+ * fit, the cells close up (both sides alike) until they do, but not under `minPitch` (then
+ * the groups nearest the wheel reach in under it).
+ */
+export interface PanelGroup {
+  title: string;
+  color: number;
+  side: 'port' | 'starboard' | 'wheelPort';
+  members: string[];
+  cells?: number;
+}
+
+/** Each member's place across the panel (m, + starboard), each group's run of cells (m), and the pitch used. */
+export function packPanel(groups: PanelGroup[], half: number, pitch: number, wheelClear: number, groupClear = wheelClear, minPitch = 0): { at: Record<string, number>; runs: { group: PanelGroup; x0: number; x1: number }[]; pitch: number } {
+  const n = (g: PanelGroup) => Math.max(g.cells ?? 0, g.members.length);
+  const sum = (side: PanelGroup['side']) => groups.filter((g) => g.side === side && g.members.length).reduce((a, g) => a + n(g), 0);
+  // Close up if needed: each side's groups between its end and `groupClear` from the wheel.
+  const room = Math.max(0.01, half - groupClear);
+  const p = Math.max(Math.min(minPitch, pitch), Math.min(pitch, sum('port') ? room / sum('port') : pitch, sum('starboard') ? room / sum('starboard') : pitch));
+  const at: Record<string, number> = {};
+  const runs: { group: PanelGroup; x0: number; x1: number }[] = [];
+  const cursor = { port: -half, starboard: half, wheelPort: -wheelClear };
+  for (const g of groups) {
+    if (!g.members.length) continue;
+    const len = n(g) * p;
+    const x0 = g.side === 'port' ? cursor.port : cursor[g.side] - len;
+    if (g.side === 'port') cursor.port += len;
+    else cursor[g.side] -= len;
+    const first = (n(g) - g.members.length) / 2;
+    g.members.forEach((id, i) => (at[id] = x0 + (first + i + 0.5) * p));
+    runs.push({ group: g, x0, x1: x0 + len });
+  }
+  return { at, runs, pitch: p };
+}
+

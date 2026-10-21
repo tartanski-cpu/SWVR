@@ -8,7 +8,7 @@ import landingCraftRecipe from '../../boats/landingCraft.json';
 import type { Mount, Recipe } from '../../modular/recipe';
 import { houseFlare } from '../../vessel/houseFlare';
 import { cellsOf, SCREENS, type ScreenName } from '../../controls/instruments';
-import { packDash, placeOnDash } from './consoleGrid';
+import { packDash, packPanel, placeOnDash, type PanelGroup } from './consoleGrid';
 import { BASE_TORQUE, type BuildArgs, type V3 } from './common';
 import type { HullPart } from './hull';
 import type { HousePart, LayoutPart, OverheadPart, InteriorPart } from './house';
@@ -167,33 +167,22 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   // place to work it from); for one on a pole (which has its own) with the advanced controls.
   const lampAtHelm = lampOnRoof || (!!lampFoot && !!d.controls);
   const monitorAtHelm = monitorOnRoof || (!!monitorFoot && !!d.controls);
-  const searchGroup = cc.groups.find((gp: { title: string }) => gp.title === 'SEARCH');
-  if (!lampAtHelm) {
-    consoleMount.modules = consoleMount.modules!.filter((m) => m.socket !== 'spotlight' && m.socket !== 'spotJoystick');
-    cc.groups = cc.groups.filter((gp: { title: string }) => gp !== searchGroup);
-  }
+  // The panel's group colours (the reference console's), for the switch panel below (CS2).
+  const colourOf = Object.fromEntries((cc.groups as { title: string; color: number }[]).map((gp) => [gp.title, gp.color]));
+  if (!lampAtHelm) consoleMount.modules = consoleMount.modules!.filter((m) => m.socket !== 'spotlight' && m.socket !== 'spotJoystick');
   if (monitorAtHelm) {
     // FIRE PUMP beside SPOT (or in its place), the monitor's joystick aft on the same pedestal
     // as the searchlight's, and its FIRE gauge between them.
     const [px] = cc.pedestals.x.filter((x: number) => x < 0);
-    cc.slots.firePump = { position: [lampAtHelm ? -0.3 : -0.39, 0.01, -0.2] };
     cc.slots.monJoystick = { position: [px, 0.01, 0.23] };
     if (lampAtHelm) cc.slots.spotJoystick.position = [px, 0.01, -0.01];
     consoleMount.modules!.push(
       { socket: 'firePump', module: 'control.toggle', config: { label: 'FIRE PUMP (needs the engine running)', engrave: 'FIRE PUMP' }, bind: { value: 'firePump.on' } },
       { socket: 'monJoystick', module: 'control.joystick', config: { label: 'Fire monitor joystick', engrave: 'MONITOR', knob: '#d8301a', panRateDeg: 40 }, bind: { pan: 'monitor.pan', tilt: 'monitor.tilt' } },
     );
-    if (lampAtHelm) Object.assign(searchGroup, { title: 'SEARCH · FIRE', x: [-0.48, -0.24] });
-    else cc.groups.push({ ...searchGroup, title: 'FIRE' });
   }
-  // The ANCHOR switch, and the skiff crane's button's place, starboard of the wheel (the
-  // gap between the SEARCH and ENGINE groups), in a DECK group.
-  if (anchorAt || d.skiff) {
-    cc.slots.anchor = { position: [0.12, 0.01, -0.2] };
-    cc.slots.skiffCrane = { position: [0.27, 0.01, -0.2] };
-    cc.groups.push({ title: 'DECK', x: [0.04, 0.35], color: 0x8a6d2a });
-    if (anchorAt) consoleMount.modules!.push({ socket: 'anchor', module: 'control.toggle', config: { label: 'Anchor: let go / heave in', engrave: 'ANCHOR' }, bind: { value: 'anchor.letGo' } });
-  }
+  // The ANCHOR switch (in the DECK group with the skiff crane's button: the switch panel, below).
+  if (anchorAt) consoleMount.modules!.push({ socket: 'anchor', module: 'control.toggle', config: { label: 'Anchor: let go / heave in', engrave: 'ANCHOR' }, bind: { value: 'anchor.letGo' } });
   // The dash along the console (cut short on a wide wheelhouse: consoleHalf), what's on it spread or closed up with it.
   const dashHalf = consoleHalf - 0.11;
   const sx = dashHalf / cc.dash.halfWidth;
@@ -203,7 +192,6 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   const throttleX = cc.slots.throttle.position[0] as number;
   const throttleAt = Math.round(throttleX * Math.min(1, sx) * 1000) / 1000;
   cc.pedestals.x = cc.pedestals.x.map((x: number) => (x === throttleX ? throttleAt : Math.round(x * sx * 1000) / 1000));
-  cc.groups = cc.groups.map((gp: { x: [number, number] }) => ({ ...gp, x: gp.x.map((x) => Math.round(x * sx * 1000) / 1000) }));
   for (const slot of Object.values(cc.slots) as { position: V3 }[]) slot.position = [Math.round(slot.position[0] * sx * 1000) / 1000, slot.position[1], slot.position[2]];
   cc.slots.throttle.position = [throttleAt, cc.slots.throttle.position[1], cc.slots.throttle.position[2]];
   if (pods) {
@@ -319,9 +307,39 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
     // engine monitor or FM radio. The searchlight's and monitor's controls stay if they're worked from here.
     const keep = ['wheel', 'throttle', 'podJoystick', 'start', 'key', 'lamps', 'card', 'speed', 'anchorScreen', 'rpm', 'spotlight', 'spotJoystick', 'firePump', 'monJoystick', 'anchor'];
     consoleMount.modules = consoleMount.modules!.filter((m) => keep.includes(m.socket));
-    cc.groups = cc.groups.filter((gp: { title: string }) => ['ENGINE', 'SEARCH', 'FIRE', 'SEARCH · FIRE', 'DECK'].includes(gp.title));
     // (The FM set and the advanced instruments come with the advanced controls, owner.)
     recipe.modules = recipe.modules.filter((m) => !['cabinLight', 'horn', 'wipers', 'fm', 'navLights', 'chartplotter', 'navDisplay', 'whiteboard', 'dutyBoard', 'overhead', 'floodFore', 'floodAft'].includes(m.socket));
+  }
+  // The switch panel as a row of switch cells (dynamic console sockets CS2; consoleGrid.ts
+  // packPanel): LIGHTS, then SEARCH / FIRE, in from the port end; ENGINE, then DECK (the
+  // ANCHOR switch, the skiff crane's button), in from the starboard end; the horn just port of
+  // the wheel. Each group's members side by side in the middle of its run of cells, under its
+  // coloured plate; the warning lamps and the start-up card in the middle of ENGINE's.
+  {
+    const hc = CONFIG.shipyard.helm;
+    const has = (id: string) => consoleMount.modules!.some((m) => m.socket === id);
+    const search = ['spotlight', 'firePump'].filter(has);
+    const panel: PanelGroup[] = [
+      { title: 'LIGHTS', color: colourOf.LIGHTS, side: 'port', members: ['navLights', 'cabinLight', 'wipers'].filter(has) },
+      { title: search.length === 2 ? 'SEARCH · FIRE' : search[0] === 'firePump' ? 'FIRE' : 'SEARCH', color: colourOf.SEARCH, side: 'port', members: search },
+      { title: '', color: 0, side: 'wheelPort', members: ['horn'].filter(has) },
+      { title: 'ENGINE', color: colourOf.ENGINE, side: 'starboard', members: ['start', 'key'].filter(has) },
+      { title: 'DECK', color: 0x8a6d2a, side: 'starboard', members: [...(anchorAt ? ['anchor'] : []), ...(skiffAt ? ['skiffCrane'] : [])] },
+    ];
+    const laid = packPanel(panel, dashHalf, hc.switchPitch, hc.wheelClear, hc.groupClear, hc.minPitch);
+    const r3 = (v: number) => Math.round(v * 1000) / 1000;
+    for (const [id, x] of Object.entries(laid.at)) {
+      const was = cc.slots[id]?.position as V3 | undefined;
+      cc.slots[id] = { position: [r3(x), was?.[1] ?? 0.01, was?.[2] ?? -0.2] };
+    }
+    cc.groups = laid.runs.filter((r) => r.group.title).map((r) => ({ title: r.group.title, color: r.group.color, x: [r3(r.x0 + hc.plateInset), r3(r.x1 - hc.plateInset)] }));
+    const engine = laid.runs.find((r) => r.group.title === 'ENGINE');
+    if (engine) {
+      const mid = r3((engine.x0 + engine.x1) / 2);
+      for (const id of ['lamps', 'card']) if (cc.slots[id]) cc.slots[id].position = [mid, cc.slots[id].position[1], cc.slots[id].position[2]];
+    }
+    // Her switch panel, for the Shipyard (CS3) and the tests: its pitch and each group's cells.
+    cc.panelGrid = { pitch: r3(laid.pitch), runs: laid.runs.map((r) => ({ title: r.group.title, members: r.group.members, x: [r3(r.x0), r3(r.x1)] })) };
   }
   // Low windows (owner): the console's upright panel comes off, so you see down past it; its
   // screens stay where they were, each on a stalk from the desk (console.standard's `bare`).
