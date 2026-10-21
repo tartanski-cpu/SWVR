@@ -28,7 +28,6 @@ export const GEAR_GROUPS: GearGroup[] = [
   { name: 'Fishing', items: ['aFrame', 'rodRack'] },
   { name: 'Cargo', items: ['deckCrane'] },
   { name: 'Her fittings', items: ['anchor', 'sideDoor'] },
-  { name: 'Inside: furniture', items: ['berth', 'settee', 'galley', 'seat', 'locker', 'head'] },
 ];
 
 /** What each piece is for, in a line. */
@@ -54,14 +53,14 @@ export const GEAR_ABOUT: Record<string, string> = {
 
 /** How it goes on her (above). */
 export function gearKind(eq: Equipment): 'place' | 'fit' {
-  return eq.how === 'grid' || eq.how === 'side' || eq.how === 'skiff' || eq.how === 'rack' || eq.how === 'inside' ? 'place' : 'fit';
+  return eq.how === 'grid' || eq.how === 'side' || eq.how === 'skiff' || eq.how === 'rack' ? 'place' : 'fit';
 }
 
 const svg = (body: string) => `<svg class="gearIcon" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
 
 /** Each piece's icon (SVG markup). */
 export const GEAR_ICONS: Record<string, string> = {
-  // Furniture (P5): each seen from the side, as a plain line drawing.
+  // Furniture (P5; the Furniture step, page.ts): each seen from the side, as a plain line drawing.
   berth: svg('<path d="M3 17V10M3 13h18v4M21 13v4M5 13v-2.5h5V13"/>'),
   settee: svg('<path d="M4 18v-6h16v6M4 12V7h16v5M6 15h12"/>'),
   galley: svg('<path d="M3 10h18M4 10v10h16V10M12 10v10M6 8.5h4M15 7.5a1.5 1.5 0 0 0 3 0"/>'),

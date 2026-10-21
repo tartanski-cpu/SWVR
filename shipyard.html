@@ -11,13 +11,19 @@
        *   header   her name, the steps (Brief → Hull → … → Trials & handover), undo, and
        *            designing together (who's here, the link)
        *   left     the step you're on: only its choices, with a line of guidance, Back / Next
+       *   keys     her key figures, big, each against the brief's target (owner, Oct 2026:
+       *            "the price and the speed ... the main design criteria to be more obvious")
        *   middle   her 3D view, the variants as tabs over it, the views, the pin and sketch
-       *            tools, and a line of her key figures
+       *            tools, and the view-size switch
        *   right    the brief checked line by line (with where to go when a line isn't met),
-       *            her sea trial, her figures, and the to-do: pins and sketches
+       *            what needs attention, her figures in groups that fold, her sea trial, the
+       *            pins and sketches
        *
-       * Narrower, the right column goes under a shorter view; on a phone it's one column with
-       * the view pinned at the top.
+       * The view's size (owner: "I don't mind if you make the 3D window much smaller, as long
+       * as you've got an option to make it bigger and push the other panels out of the way"):
+       * Design (wide panels, the default), Balanced (the view wider) or Big view (the view the
+       * whole width, the panels sliding in over it when wanted). Narrower, the right column
+       * goes under a shorter view; on a phone it's one column with the view pinned at the top.
        */
       :root {
         /*
@@ -38,7 +44,10 @@
         --glass: rgba(21,33,42,0.88); --scrim: rgba(0,0,0,0.6); --chart: #111c24;
       }
       html, body { margin: 0; height: 100%; background: var(--bg); font: 14px/1.4 system-ui, sans-serif; color: var(--ink); }
-      body { display: grid; grid-template-columns: 380px minmax(0, 1fr) 340px; grid-template-rows: auto auto minmax(0, 1fr); grid-template-areas: 'top top top' 'flow flow flow' 'side view results'; }
+      /* Design (the default): the panels wide enough for their figures, the view what's left. */
+      body { display: grid; grid-template-columns: clamp(360px, 26vw, 460px) minmax(0, 1fr) clamp(340px, 25vw, 440px); grid-template-rows: auto auto auto minmax(0, 1fr); grid-template-areas: 'top top top' 'flow flow flow' 'keys keys keys' 'side view results'; }
+      /* Balanced: the panels as narrow as they were, the view wider. */
+      body.vsBalanced { grid-template-columns: 380px minmax(0, 1fr) 340px; }
       button { font: inherit; padding: 5px 10px; border-radius: 6px; border: 1px solid var(--edge); background: var(--raised); cursor: pointer; color: var(--ink); }
       button:hover:not(:disabled) { background: var(--hover); }
       button.primary, button.primary:hover:not(:disabled) { background: var(--accent-strong); color: var(--on-accent); border-color: var(--accent-strong); }
@@ -149,6 +158,49 @@
       .start button small { display: block; font-size: 12px; opacity: 0.8; }
       #suggestMsg { font-size: 13px; margin-top: 8px; }
 
+      /* ── Her key figures (page.ts showKeys) ── */
+      #keys { grid-area: keys; display: flex; gap: 8px; padding: 8px 14px; background: var(--bg); border-bottom: 1px solid var(--line); overflow-x: auto; z-index: 3; }
+      .key { flex: 1 1 0; min-width: 118px; background: var(--card); border: 1px solid var(--edge); border-radius: 8px; padding: 6px 10px 7px; box-shadow: inset 4px 0 0 var(--wait); }
+      .key .k { font-size: 11px; color: var(--head); letter-spacing: 0.05em; text-transform: uppercase; white-space: nowrap; }
+      .key .v { font: 600 22px/1.15 system-ui, sans-serif; font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; }
+      .key .t { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .key .t .mark { font-weight: 700; margin-right: 3px; }
+      .key.ok { box-shadow: inset 4px 0 0 var(--ok); }
+      .key.ok .t .mark { color: var(--ok); }
+      .key.bad { box-shadow: inset 4px 0 0 var(--bad); border-color: color-mix(in srgb, var(--bad) 55%, var(--edge)); }
+      .key.bad .t .mark { color: var(--bad); }
+      .key.busy .v { color: var(--wait); }
+      .key.none { box-shadow: none; }
+      /* The verdict: how much of the brief she meets; a press goes to the brief's lines. */
+      .key.verdict { flex: 0 1 auto; min-width: 150px; cursor: pointer; }
+      .key.verdict:hover { background: var(--hover); }
+
+      /* ── The view's size (page.ts setViewSize) ── */
+      #viewSize { position: absolute; top: 10px; right: 10px; display: flex; z-index: 3; }
+      #viewSize button { background: var(--glass); border-radius: 0; padding: 4px 9px; font-size: 12px; }
+      #viewSize button:first-child { border-radius: 6px 0 0 6px; }
+      #viewSize button:last-child { border-radius: 0 6px 6px 0; }
+      #viewSize button + button { border-left: none; }
+      #viewSize button.on { background: var(--accent-strong); color: var(--on-accent); border-color: var(--accent-strong); }
+      /* Big view: the view the whole width; the step and the figures slide in over it from the edges. */
+      .panelTab { display: none; }
+      @media (min-width: 761px) {
+        body.vsBig { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'top' 'flow' 'keys' 'view'; }
+        body.vsBig #side, body.vsBig #results { position: fixed; top: var(--panelTop, 150px); bottom: 0; width: min(440px, 45vw); box-sizing: border-box; z-index: 6; transition: transform 0.2s ease-out; }
+        body.vsBig #side { left: 0; transform: translateX(-100%); }
+        body.vsBig #results { right: 0; transform: translateX(100%); }
+        body.vsBig.showSide #side, body.vsBig.showResults #results { transform: none; }
+        body.vsBig .panelTab { display: block; position: absolute; top: 50%; z-index: 3; padding: 14px 6px; background: var(--glass); writing-mode: vertical-rl; font-size: 12px; }
+        body.vsBig #sideTab { left: 0; border-radius: 0 8px 8px 0; transform: translateY(-50%) rotate(180deg); }
+        body.vsBig #resultsTab { right: 0; border-radius: 8px 0 0 8px; transform: translateY(-50%); }
+        body.vsBig.showSide #sideTab, body.vsBig.showResults #resultsTab { background: var(--accent-strong); color: var(--on-accent); }
+        /* A panel open: its tab and the size switch move out to its edge, still to hand. */
+        body.vsBig.showSide #sideTab { left: min(440px, 45vw); }
+        body.vsBig.showResults #resultsTab { right: min(440px, 45vw); }
+        body.vsBig.showResults #viewSize { right: calc(min(440px, 45vw) + 10px); }
+        body.vsBig #tabs { right: 230px; }
+      }
+
       /* ── Middle: the view ── */
       #view { grid-area: view; position: relative; min-width: 0; min-height: 0; overflow: hidden; }
       #view canvas { display: block; }
@@ -156,7 +208,7 @@
       #briefPaper { position: absolute; inset: 0; overflow-y: auto; padding: 24px 16px 40px; background: radial-gradient(ellipse at 50% 30%, #2a4152, #1a2731); z-index: 3; }
       #briefPaper[hidden] { display: none; }
       /* Live sea trials (liveTrial.ts) at the Trials step. */
-      #livePanel { position: absolute; left: 10px; bottom: 64px; width: min(540px, calc(100% - 20px)); background: var(--glass); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; z-index: 2; }
+      #livePanel { position: absolute; left: 10px; bottom: 10px; width: min(540px, calc(100% - 20px)); background: var(--glass); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; z-index: 2; }
       #livePanel[hidden] { display: none; }
       #livePanel .liveHead { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; margin-bottom: 6px; }
       #livePanel .liveBtns { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
@@ -194,7 +246,7 @@
       .paper .stamp.draft { color: #8a3a2c; }
       .paper .stamp.agreed { color: #2f6a3e; }
       @media (max-width: 760px) { .paper { padding: 22px 18px 28px; font-size: 13px; } .paper ul.duties { columns: 1; } .paper .stamp { bottom: 50px; right: 20px; font-size: 14px; } }
-      #tabs { position: absolute; top: 10px; left: 10px; right: 10px; display: flex; flex-wrap: wrap; gap: 4px; z-index: 2; }
+      #tabs { position: absolute; top: 10px; left: 10px; right: 230px; display: flex; flex-wrap: wrap; gap: 4px; z-index: 2; }
       .tab { background: var(--glass); border-radius: 8px 8px 0 0; border-bottom: 2px solid transparent; }
       .tab.on { background: var(--card); border-color: var(--edge); border-bottom-color: var(--accent); font-weight: 600; }
       .tab i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-left: 5px; }
@@ -207,8 +259,15 @@
       #views button.sketchOnly { display: none; }
       #view.sketching #views button.sketchOnly { display: inline-block; }
       #views button.tool.on { background: var(--accent-strong); color: var(--on-accent); border-color: var(--accent-strong); }
-      #toolHint { position: absolute; bottom: 64px; left: 50%; transform: translateX(-50%); background: var(--glass); padding: 4px 10px; border-radius: 6px; font-size: 12px; color: #fff; text-shadow: 0 0 3px #000; pointer-events: none; }
+      #toolHint { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); background: var(--glass); padding: 4px 10px; border-radius: 6px; font-size: 12px; color: #fff; text-shadow: 0 0 3px #000; pointer-events: none; }
       #toolHint:empty { display: none; }
+      /* The section tool (page.ts sectionTool): which plane, the slider along her, flip, look, off. */
+      #sectionPanel { position: absolute; right: 10px; bottom: 64px; width: min(340px, calc(100% - 20px)); background: var(--glass); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; z-index: 2; display: flex; flex-direction: column; gap: 6px; }
+      #sectionPanel[hidden] { display: none; }
+      #sectionPanel .row { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+      #sectionPanel button.on { background: var(--accent-strong); color: var(--on-accent); border-color: var(--accent-strong); }
+      #sectionPanel input { width: 100%; }
+      #secLabel { font-size: 12px; }
       #pinEditor { position: absolute; width: 240px; background: var(--paper); border-radius: 8px; padding: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.5); border: 1px solid var(--line); z-index: 3; }
       #pinEditor input, #pinEditor select { width: 100%; box-sizing: border-box; font: inherit; padding: 5px; margin-bottom: 4px; }
       #fromPins { margin: 4px 0 10px; }
@@ -228,19 +287,38 @@
       .gearActs { grid-column: 2; display: flex; flex-wrap: wrap; gap: 6px; }
       .gearActs button { padding: 2px 9px; font-size: 12px; }
       .gearActs button.on { background: var(--accent-strong); color: var(--on-accent); border-color: var(--accent-strong); }
+      /* The Furniture step (page.ts showFurniture): a card a piece, each one on her listed under it. */
+      #furnMenu { border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
+      #furnMenu .gearCard:first-child { border-top: none; }
+      .furnList { grid-column: 2; }
+      .furnItem { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 5px 0; border-top: 1px dashed var(--line); }
+      .furnItem .meta { display: block; }
+      .furnItem .gearActs { flex: none; flex-wrap: nowrap; }
       #fromPins .item { display: grid; grid-template-columns: 24px 1fr; gap: 6px; padding: 5px 0; border-top: 1px solid var(--line); font-size: 13px; }
       #fromPins .item .meta { display: block; }
       #onHer .item { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 5px 0; border-top: 1px solid var(--line); font-size: 13px; }
       #onHer .item .meta { display: block; }
       #onHer button { padding: 2px 8px; font-size: 12px; flex: none; }
       .todo .gear { font-weight: 600; }
-      #quick { position: absolute; left: 10px; right: 10px; bottom: 10px; background: var(--glass); border-radius: 8px; padding: 6px 10px; font-size: 13px; font-variant-numeric: tabular-nums; display: flex; flex-wrap: wrap; gap: 4px 14px; pointer-events: none; }
-      #quick b { color: var(--accent); }
-      #quick .busy { color: var(--wait); }
 
       /* ── Right: the brief, the trial, the to-do ── */
       #results { grid-area: results; overflow-y: auto; background: var(--paper); padding: 12px 16px 24px; box-sizing: border-box; box-shadow: -2px 0 10px rgba(0,0,0,0.4); z-index: 1; min-height: 0; }
       #results h2:first-child { border-top: none; margin-top: 0; padding-top: 0; }
+      /* Groups that fold (their open or shut kept in this browser: page.ts). */
+      .fold { border-top: 1px solid var(--line); margin-top: 12px; }
+      .fold > summary { list-style: none; cursor: pointer; display: flex; align-items: baseline; gap: 6px; padding: 10px 0 6px; font-size: 12px; color: var(--head); letter-spacing: 0.05em; text-transform: uppercase; font-weight: 700; }
+      .fold > summary::-webkit-details-marker { display: none; }
+      .fold > summary::before { content: '▸'; color: var(--muted); transition: transform 0.15s; }
+      .fold[open] > summary::before { transform: rotate(90deg); }
+      .fold > summary .sum { margin-left: auto; text-transform: none; letter-spacing: 0; font-weight: 400; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+      .fold .fold { margin-top: 4px; border-top: none; }
+      .fold .fold > summary { padding-top: 4px; }
+      .count { display: inline-block; min-width: 18px; padding: 0 6px; border-radius: 9px; background: var(--warn-edge); color: #1a1405; font-size: 11px; line-height: 18px; text-align: center; letter-spacing: 0; }
+      /* Her figures: the label column fixed, values wrap (never clipped off the panel's edge). */
+      table.figs { table-layout: fixed; }
+      table.figs td:first-child { width: 44%; color: var(--ink-2); }
+      table.figs td:last-child { white-space: normal; overflow-wrap: anywhere; }
+      table.figs tr.sub td:first-child { padding-left: 12px; color: var(--muted); }
       #briefCheck .verdict { font-weight: 600; margin-bottom: 4px; }
       #briefCheck .line { display: grid; grid-template-columns: 18px 1fr auto; gap: 6px; padding: 4px 0; border-top: 1px solid var(--line); align-items: baseline; }
       #briefCheck .mark { font-weight: 700; }
@@ -314,7 +392,9 @@
       .sheetArea canvas { border-radius: 6px; box-shadow: 0 1px 6px rgba(0,0,0,0.5); touch-action: none; cursor: crosshair; background: var(--chart); }
 
       @media (max-width: 1199px) {
-        body { grid-template-columns: 360px minmax(0, 1fr); grid-template-rows: auto auto 48% minmax(0, 1fr); grid-template-areas: 'top top' 'flow flow' 'side view' 'side results'; }
+        body, body.vsBalanced { grid-template-columns: 360px minmax(0, 1fr); grid-template-rows: auto auto auto 48% minmax(0, 1fr); grid-template-areas: 'top top' 'flow flow' 'keys keys' 'side view' 'side results'; }
+        /* Too narrow for two sizes of panel: Design and Balanced are the same here. */
+        #viewSize button[data-size=balanced] { display: none; }
         #results { box-shadow: 0 -2px 10px rgba(0,0,0,0.4); }
       }
       @media (max-width: 760px) {
@@ -330,7 +410,10 @@
         #side, #results { overflow: visible; }
         #stepBody { overflow: visible; }
         .cmpBody { grid-template-columns: 1fr; }
-        #quick { font-size: 12px; gap: 2px 10px; }
+        #keys { order: -2; padding: 6px 8px; gap: 6px; }
+        .key { min-width: 96px; padding: 4px 8px; }
+        .key .v { font-size: 17px; }
+        #viewSize { display: none; }
       }
     </style>
   </head>
@@ -364,6 +447,8 @@
       <span id="flowWho"></span>
       <button id="stepNext" class="primary">Next →</button>
     </div>
+
+    <div id="keys" aria-label="Her key figures against the brief"></div>
 
     <section id="side">
       <div id="stepBody">
@@ -432,8 +517,18 @@
     <section id="view">
       <div id="tabs"></div>
       <div id="views"></div>
-      <div id="quick"></div>
+      <div id="viewSize" role="group" aria-label="The view's size">
+        <button data-size="design" title="Wide panels, a smaller view">Design</button><button data-size="balanced" title="Narrower panels, a wider view">Balanced</button><button data-size="big" title="The view the whole width: the step and her figures slide in from the edges">Big view</button>
+      </div>
+      <button id="sideTab" class="panelTab" title="Show or hide the step">Step</button>
+      <button id="resultsTab" class="panelTab" title="Show or hide the brief and her figures">Brief &amp; figures</button>
       <div id="toolHint"></div>
+      <div id="sectionPanel" hidden>
+        <div class="row"><button data-cut="waterline" title="A level cut: her waterplane, or her decks and floors seen from above">Waterline</button><button data-cut="buttock" title="An upright cut fore and aft: her profile inside">Buttock</button><button data-cut="station" title="An upright cut across her: her body section">Station</button></div>
+        <input id="secAt" type="range" title="Slide the cut along her" />
+        <div id="secLabel"></div>
+        <div class="row"><button id="secFlip" title="Keep the other side of the cut">⇄ Flip</button><button id="secLook" title="Look square on at the cut, flat">Look at the cut</button><button id="secOff" title="Put her back whole">Off</button></div>
+      </div>
       <div id="briefPaper" hidden></div>
       <div id="livePanel" hidden>
         <div class="liveHead"><b>Live trials</b><span class="meta">the game’s physics, on her as designed, in calm water</span></div>
@@ -453,15 +548,23 @@
     <aside id="results">
       <h2>The brief</h2>
       <div id="briefCheck"></div>
-      <h2>Sea trial</h2>
-      <div id="status"></div>
-      <div id="charts"></div>
-      <table id="trial"></table>
-      <h2>Her figures</h2>
-      <table id="figures"></table>
-      <div id="warnings"></div>
+      <div id="attention">
+        <h2>Needs attention <span id="warnCount" class="count"></span></h2>
+        <div id="warnings"></div>
+      </div>
       <h2>To do <span id="todoCount"></span></h2>
       <div id="todo"></div>
+      <!-- Her figures, in groups that fold (page.ts showFigures). -->
+      <div id="figures"></div>
+      <details class="fold" data-fold="trial" open>
+        <summary>Sea trial <span class="sum" id="trialSum"></span></summary>
+        <div id="status"></div>
+        <table id="trial" class="figs"></table>
+        <details class="fold" data-fold="charts">
+          <summary>Charts</summary>
+          <div id="charts"></div>
+        </details>
+      </details>
       <h2>Sketches</h2>
       <div id="sketches"></div>
     </aside>

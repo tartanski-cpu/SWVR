@@ -45,13 +45,15 @@ import { Keeper, newSessionId, sessionIdFrom, type DesignPatch, type Person, typ
 import { cleanDoc, diffFields, fork, MAIN, mergePatch, newDoc, promote, type Variant, type YardDoc } from './variants';
 import { LoopbackHost, randomRoomCode } from '../net/transport';
 import { fromFrac, inkOf, MAX_POINTS, noteId, sheetsOf, toFrac, todo, type Frac, type Ink, type Note, type Pin, type Sheet } from './notes';
-import { bareHull, checkBrief, engineOptions, JOBS, jobOf, newBrief, pickEngine, type Brief, type JobId, type Tried } from './brief';
+import { bareHull, checkBrief, engineOptions, JOBS, jobOf, newBrief, pickEngine, type Brief, type Check, type JobId, type Tried } from './brief';
 import { rankTypes } from './typeFit';
 import { deckRoom, sizeForDeck, type DeckRoom } from './deckRoom';
 import { trialCharts } from './trialCharts';
 import type { GearKind } from '../modular/module';
 import { GEAR_ABOUT, GEAR_GROUPS, GEAR_ICONS, gearKind } from './gearMenu';
 import { EQUIPMENT, equipmentOf, fitted, placeGear, removeGear, type Equipment } from './pinGear';
+import { FURNITURE_MENU, nextSlot, placedOf, placeFurniture, removeFurniture, slotOf } from './furnishing';
+import { furnitureName, furnitureSocketId } from './parts/furniture';
 import { SheetEditor } from './sheetEditor';
 import { addProject, readProjects, removeProject, writeProjects, type Project } from './projects';
 import { addFavourite, cleanName, readFavourites, removeFavourite, writeFavourites, type Favourite, type Store } from './favourites';
@@ -113,6 +115,10 @@ const camera = new THREE.PerspectiveCamera(45, 1, 0.05, 1000);
 const orbit = new OrbitControls(camera, renderer.domElement);
 orbit.enableDamping = true;
 let boatRoot: THREE.Object3D | null = null;
+/** The section tool's cut (sectionTool, below): which plane, where along her each sits (world m), which side is kept. */
+type SectionKind = 'waterline' | 'buttock' | 'station';
+const cut: { kind: SectionKind | null; at: Record<SectionKind, number | null>; flip: boolean } = { kind: null, at: { waterline: null, buttock: null, station: null }, flip: false };
+const sectionPlane = new THREE.Plane();
 
 function resize(): void {
   const w = view.clientWidth;
@@ -247,6 +253,7 @@ function drawBoat(): void {
   const machinery = addMachinery(root);
   scene.add(root);
   boatRoot = root;
+  recut();
   shown = { hull: parts.hull, house: parts.house, modules: modulesRoot, guard, skiff: root.children.find((c) => c.name === 'skiff') ?? null, machinery };
   focusStep();
   // A different engine (or one more) at the Engine step: look at it afresh.
@@ -259,6 +266,11 @@ function drawBoat(): void {
   hullMax = box.max.toArray();
   if (typeof drawNotes === 'function') drawNotes();
   if (typeof drawInk === 'function') drawInk();
+  // A section cut stays through her changes (kept within her new extent).
+  if (cut.kind) {
+    setSection(cut.kind);
+    applyCuts();
+  }
 }
 /**
  * The skiff in her cradle, if she carries one (the crane's tenderCrane gear): in the game
@@ -530,6 +542,7 @@ const STEP_GUIDE: Record<string, string> = {
   Hull: 'Her type and proportions. Length and beam set her size and stability; depth her freeboard; a raked bow throws spray aside and takes a head sea more softly.',
   Wheelhouse: 'Where the crew stand and what they can see. Forward gives a long working deck aft; aft, a foredeck to work over. Keep it low and light for stability.',
   Engine: 'Power for the speed in the brief. The propeller and gearbox are matched to her by trial each time; twin engines add power and handling, and cost.',
+  Furniture: 'What’s inside her houses: berths, settees, a galley, seats, lockers and a head. <b>Add</b> a piece, then click where it goes, seen from above with the roof cut away (forward of the wheelhouse for the cabin below): it’s put against the nearest wall there, clear of the helm and the doorways. Add as many as fit, up to four of each (one head). Its weight and price are designed in.',
   'Deck gear': 'Her equipment, by the work it’s for. <b>Place</b> it, then click on her where it goes: it’s put there (on the wheelhouse roof, the foredeck or the aft deck, whichever is nearest). Gear with only one place on any boat (the anchor, the stern roller, the A-frame, the side door) is simply <b>Fit</b>ted. Its weight is designed in.',
   Controls: 'What the skipper has at the helm.',
   Paint: 'Her colours, hull and roof.',
@@ -828,7 +841,14 @@ section('3. Deck gear');
   box.id = 'fromPins';
   controls.append(menu, box);
 }
-section('4. Engine');
+section('4. Furniture');
+{
+  // Her furniture (furnishing.ts): a card a piece, Add as many as fit; under it, each one on her.
+  const menu = document.createElement('div');
+  menu.id = 'furnMenu';
+  controls.append(menu);
+}
+section('5. Engine');
 choices('engine', ENGINES.map((e) => ({ name: e.name, note: `${'about' in e ? `${e.about} ` : ''}${e.kg} kg with its gearbox. Propeller and gearbox matched to her by trial.` })), (i) => (SINGLE_ONLY_ENGINES.includes(i) ? { twin: 0 } : {}));
 {
   const row = document.createElement('label');
@@ -876,7 +896,7 @@ options('stackStyle', 'Exhaust stacks', [...STACK_STYLES]).dataset.when = 'tugSt
   controls.appendChild(head);
   choices('outboards', OUTBOARDS.map((name) => ({ name })));
 }
-section('5. Controls');
+section('6. Controls');
 choices('controls', [
   { name: 'Basic', note: 'Wheel, throttle, key and start, speed and depth, rpm, and the VHF radio.' },
   { name: 'Advanced', note: 'Adds lights, wipers, horn, heading, engine monitor, an FM radio, the chartplotter, the NAV / WIND screen, the task board and the whiteboard, an overhead switch panel for the foredeck and aft deck floodlights, and the searchlight and fire monitor controls at the helm when they’re on poles.' },
@@ -884,7 +904,7 @@ choices('controls', [
 // The helm assist panel (owner, Oct 2026): with the advanced controls (the instruments) only.
 options('helmAssist', 'Helm assist', ['None', 'Autopilot, dock, auto start']).dataset.when = 'controls';
 const hex = (c: number) => `#${c.toString(16).padStart(6, '0')}`;
-section('6. Paint');
+section('7. Paint');
 {
   const box = document.createElement('div');
   box.className = 'swatches';
@@ -1009,31 +1029,88 @@ function syncControls(): void {
 function rows(el: HTMLElement, r: [string, string][]): void {
   el.innerHTML = r.map(([a, b]) => `<tr><td>${a}</td><td>${b}</td></tr>`).join('');
 }
+/**
+ * The groups on the right that fold (owner, Oct 2026: the right-hand side "a little bit too
+ * constrained"): each open or shut as you left it, kept in this browser. Its default if never
+ * touched: `open`.
+ */
+const FOLDS_KEY = 'swvr.shipyard.folds';
+const folds: Record<string, boolean> = (() => {
+  try {
+    return JSON.parse(storage()?.getItem(FOLDS_KEY) ?? '{}') as Record<string, boolean>;
+  } catch {
+    return {};
+  }
+})();
+function isOpen(name: string, open: boolean): boolean {
+  return folds[name] ?? open;
+}
+/** Keep a fold's open or shut when it's toggled (once for the page: the toggle event doesn't bubble). */
+document.addEventListener(
+  'toggle',
+  (e) => {
+    const el = e.target as HTMLElement;
+    if (!(el instanceof HTMLDetailsElement) || !el.dataset.fold) return;
+    folds[el.dataset.fold] = el.open;
+    try {
+      storage()?.setItem(FOLDS_KEY, JSON.stringify(folds));
+    } catch {
+      /* not kept: it still folds */
+    }
+  },
+  true,
+);
+document.querySelectorAll<HTMLDetailsElement>('details[data-fold]').forEach((el) => (el.open = isOpen(el.dataset.fold!, el.open)));
+/** A group of figures that folds: its name, a summary shown on its title (seen shut too), its rows ('sub' rows indented). */
+function figureGroup(key: string, title: string, sum: string, r: ([string, string] | [string, string, 'sub'])[], open = true, inner = ''): string {
+  const body = r.map(([a, b, sub]) => `<tr${sub ? ' class="sub"' : ''}><td>${a}</td><td>${b}</td></tr>`).join('');
+  return `<details class="fold" data-fold="${key}"${isOpen(key, open) ? ' open' : ''}><summary>${title}<span class="sum">${sum}</span></summary><table class="figs">${body}</table>${inner}</details>`;
+}
+const pounds = (x: number) => `£${Math.round(x).toLocaleString('en-GB')}`;
 function showFigures(): void {
   const f = boat.figures;
   const matched = matchedFor === matchKey(design);
-  rows($('figures'), [
-    ['Length overall x beam', `${f.lengthM.toFixed(2)} x ${f.beamM.toFixed(2)} m`],
-    ['Built of', f.material === 'steel' ? 'Steel' : 'Aluminium'],
-    ['Displacement', `${f.massT.toFixed(2)} t (her weight, as below)`],
-    ['Draught', `${f.draughtM.toFixed(2)} m`],
-    ['Freeboard', `${f.freeboardM.toFixed(2)} m amidships`],
-    ['Stability (GM)', `${f.gmM.toFixed(2)} m`],
+  const room = deckRoom();
+  const t = currentTrial();
+  const balance = Math.abs(boat.weights.balanceM) < 0.05 ? 'over her centre of buoyancy' : `${Math.abs(boat.weights.balanceM).toFixed(2)} m ${boat.weights.balanceM > 0 ? 'aft' : 'forward'} of her centre of buoyancy`;
+  const weights = boat.weights.items.map((it): [string, string, 'sub'] => [it.name, `${(it.kg / 1000).toFixed(2)} t`, 'sub']);
+  $('figures').innerHTML = [
+    figureGroup('size', 'Size &amp; form', `${f.lengthM.toFixed(2)} × ${f.beamM.toFixed(2)} m`, [
+      ['Length × beam', `${f.lengthM.toFixed(2)} × ${f.beamM.toFixed(2)} m`],
+      ['Built of', f.material === 'steel' ? 'Steel' : 'Aluminium'],
+      ['Displacement', `${f.massT.toFixed(2)} t`],
+      ['Draught', `${f.draughtM.toFixed(2)} m`],
+      ['Freeboard', `${f.freeboardM.toFixed(2)} m amidships`],
+    ]),
     // Where her weights put her centre of gravity, against her centre of buoyancy (her tanks and ballast trim the rest).
-    ['Balance (LCG)', Math.abs(boat.weights.balanceM) < 0.05 ? 'over her centre of buoyancy' : `${Math.abs(boat.weights.balanceM).toFixed(2)} m ${boat.weights.balanceM > 0 ? 'aft' : 'forward'} of her centre of buoyancy`],
-    ['Deck cargo', deckWords(deckRoom())],
-    ['Pots on deck', `${deckRoom().pots}`],
-    ['Engine', f.engine],
-    ['Propeller', `${f.propellerM.toFixed(2)} m`],
-    ['Gearbox', matched ? `${f.gear.toFixed(2)} : 1 (matched)` : 'matching...'],
-    ['Price', `£${f.price.toLocaleString('en-GB')}`],
+    figureGroup('stability', 'Stability &amp; balance', `GM ${f.gmM.toFixed(2)} m`, [
+      ['Stability (GM)', `${f.gmM.toFixed(2)} m`],
+      ['Balance (LCG)', balance],
+      ['Roll period', t ? `${t.motions.rollPeriod.toFixed(1)} s` : 'trial running…'],
+    ]),
+    figureGroup('deck', 'Deck', `${room.crates} crates`, [
+      ['Deck cargo', deckWords(room)],
+      ['Pots on deck', `${room.pots}`],
+    ]),
+    figureGroup('machinery', 'Machinery', f.engine.split(',')[0], [
+      ['Engine', f.engine],
+      ['Propeller', `${f.propellerM.toFixed(2)} m`],
+      ['Gearbox', matched ? `${f.gear.toFixed(2)} : 1 (matched)` : 'matching...'],
+    ], false),
     // Her weights, part by part (build.ts): she floats where they add up to.
-    ...boat.weights.items.map((it): [string, string] => [`&nbsp;&nbsp;${it.name}`, `${(it.kg / 1000).toFixed(2)} t`]),
-  ]);
+    figureGroup('cost', 'Price &amp; weight', pounds(f.price), [
+      ['Price', pounds(f.price)],
+      ['Weight', `${f.massT.toFixed(2)} t, as below`],
+      ...weights,
+    ], false),
+  ].join('');
   // A design on a retired hull type (build.ts DESIGN_HULLS `retired`) still builds; it says so.
   const retired = DESIGN_HULLS[design.hull].retired ? [`The ${DESIGN_HULLS[design.hull].name.split(':')[0].toLowerCase()} hull type is retired: start her again from another type (Brief).`] : [];
-  $('warnings').innerHTML = [...retired, ...boat.warnings].map((w) => `<div>${w}</div>`).join('');
-  showQuick();
+  const warnings = [...retired, ...boat.warnings];
+  $('warnings').innerHTML = warnings.map((w) => `<div>${w}</div>`).join('');
+  $('warnCount').textContent = String(warnings.length);
+  $('attention').hidden = !warnings.length;
+  showKeys();
   if (typeof showBriefCheck === 'function' && $('briefCheck')) showBriefCheck();
 }
 
@@ -1043,32 +1120,53 @@ function deckWords(r: DeckRoom): string {
   return r.crates < r.crateRoom ? `${r.crates} crates (room for ${r.crateRoom}; ${t})` : `${r.crates} crates (${t})`;
 }
 /**
- * The line of key figures on the 3D view (always in sight, also on a phone): her
- * stability, displacement and the trial's headline numbers, greyed while a new trial runs.
+ * Her key figures across the top, big, each against the brief's target (owner, Oct 2026: "I
+ * want to see the price and the speed ... or the main design criteria to be kind of more
+ * obvious"): price, top speed, range, stability, what she carries on deck (and her bollard
+ * pull when she's to tow), then how much of the brief she meets. A tick or cross with each
+ * target (never colour alone); the trial's figures greyed while a new trial runs.
  */
-function showQuick(): void {
+function showKeys(): void {
   const f = boat.figures;
   const t = trial;
-  const stale = trialFor !== matchKey(design);
-  const items: [string, string][] = [
-    ['GM', `${f.gmM.toFixed(2)} m`],
-    ['Disp.', `${f.massT.toFixed(1)} t`],
-    ['Draught', `${f.draughtM.toFixed(2)} m`],
-    ['Deck', `${deckRoom().crates} crates`],
+  const fresh = !!t && trialFor === matchKey(design);
+  const all = checkBrief(brief, measured());
+  const line = (test: (l: Check) => boolean) => all.find((l) => !l.na && test(l));
+  const room = deckRoom();
+  const pots = brief.jobs.includes('potting') && brief.pots > 0 && !(brief.jobs.includes('cargo') && brief.crates > 0);
+  const tiles: { k: string; v: string; busy?: boolean; l?: Check; none?: string }[] = [
+    { k: 'Price', v: pounds(f.price), l: line((l) => l.label === 'Price'), none: 'no limit set' },
+    { k: 'Top speed', v: t ? `${t.topSpeedKn.toFixed(1)} kn` : '…', busy: !fresh, l: line((l) => l.label === 'Top speed') },
+    { k: 'Range flat out', v: t ? `${(t.speedTable.at(-1)?.rangeNm ?? 0).toFixed(0)} nm` : '…', busy: !fresh, l: line((l) => l.label === 'Range flat out') },
+    { k: 'Stability (GM)', v: `${f.gmM.toFixed(2)} m`, l: line((l) => l.label === 'Stability (GM)') },
+    pots ? { k: 'Pots on deck', v: `${room.pots}`, l: line((l) => l.label.endsWith('pots on deck')) } : { k: 'Deck cargo', v: `${room.crates} crates`, l: line((l) => l.label.endsWith('crates on deck')) },
   ];
-  if (t) {
-    items.push(['Top', `${t.topSpeedKn.toFixed(1)} kn`], ['Turn', `${t.tacticalDiameter.toFixed(0)} m`], ['Stop', `${t.crashStopDistance.toFixed(0)} m`], ['Roll', `${t.motions.rollPeriod.toFixed(1)} s`]);
-  }
-  $('quick').innerHTML =
-    items.map(([k, v], i) => `<span${i >= 4 && stale ? ' class="busy"' : ''}>${k} <b>${v}</b></span>`).join('') + (stale || !t ? '<span class="busy">trial running…</span>' : '');
+  if (brief.jobs.includes('towing')) tiles.push({ k: 'Bollard pull', v: t ? `${(t.bollard.aheadKN / 9.81).toFixed(1)} t` : '…', busy: !fresh, l: line((l) => l.label.endsWith('bollard pull')) });
+  const state = (l?: Check) => (!l ? 'none' : l.ok === null ? 'wait' : l.ok ? 'ok' : 'bad');
+  const mark = (l: Check) => (l.ok === null ? '…' : l.ok ? '✓' : '✗');
+  let html = tiles
+    .map((x) => `<div class="key ${state(x.l)}${x.busy ? ' busy' : ''}"><div class="k">${x.k}</div><div class="v">${x.v}</div><div class="t">${x.l ? `<span class="mark">${mark(x.l)}</span>brief ${esc(x.l.target)}` : (x.none ?? 'no target set')}</div></div>`)
+    .join('');
+  const counted = all.filter((l) => !l.na);
+  const met = counted.filter((l) => l.ok).length;
+  const verdict = briefVerdict();
+  const vState = verdict === true ? 'ok' : verdict === false ? 'bad' : counted.length ? 'wait' : 'none';
+  const vText = !counted.length ? 'No brief yet' : verdict === null ? 'Checking…' : `${met} of ${counted.length} met`;
+  html += `<div class="key verdict ${vState}" id="keyVerdict" title="The brief, line by line"><div class="k">The brief</div><div class="v">${vText}</div><div class="t">${verdict === false ? `<span class="mark">✗</span>${counted.length - met} short: see them` : verdict === true ? '<span class="mark">✓</span>every line met' : 'set it at step 1'}</div></div>`;
+  $('keys').innerHTML = html;
+  $('keyVerdict').onclick = () => {
+    if (document.body.classList.contains('vsBig')) showPanel('results', true);
+    $('briefCheck').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 }
 function showTrial(): void {
   const t = trial;
-  showQuick();
+  showKeys();
   showBriefCheck();
   if (!t) {
     $('trial').innerHTML = '';
     $('charts').innerHTML = '';
+    $('trialSum').textContent = '';
     return;
   }
   // Greyed while it's the last design's trial and a new one is running.
@@ -1078,6 +1176,7 @@ function showTrial(): void {
   $('charts').innerHTML = trialCharts(t, boat.figures.lengthM, brief);
   const top = t.speedTable[t.speedTable.length - 1];
   const three = t.speedTable[2];
+  $('trialSum').textContent = `${t.topSpeedKn.toFixed(1)} kn`;
   rows($('trial'), [
     ['Top speed', `${t.topSpeedKn.toFixed(1)} kn at ${Math.round(top.rpm)} rpm`],
     ['Three-quarter lever', `${three.knots.toFixed(1)} kn`],
@@ -1088,6 +1187,46 @@ function showTrial(): void {
     ['Bollard pull', `${(t.bollard.aheadKN / 9.81).toFixed(2)} t`],
     ['Roll period', `${t.motions.rollPeriod.toFixed(1)} s`],
   ]);
+}
+
+// ── The view's size (owner, Oct 2026: the 3D view "much smaller, as long as you've got an
+// option to kind of make it bigger and push the other panels out of the way") ──
+type ViewSize = 'design' | 'balanced' | 'big';
+const VIEW_SIZE_KEY = 'swvr.shipyard.viewSize';
+function setViewSize(size: ViewSize): void {
+  const b = document.body;
+  b.classList.toggle('vsBalanced', size === 'balanced');
+  b.classList.toggle('vsBig', size === 'big');
+  b.classList.remove('showSide', 'showResults');
+  document.querySelectorAll<HTMLElement>('#viewSize [data-size]').forEach((el) => el.classList.toggle('on', el.dataset.size === size));
+  placePanels();
+  try {
+    storage()?.setItem(VIEW_SIZE_KEY, size);
+  } catch {
+    /* not kept: this visit only */
+  }
+}
+/** Big view: the panels slide in under the key figures, over the view. */
+function placePanels(): void {
+  document.body.style.setProperty('--panelTop', `${Math.round($('view').getBoundingClientRect().top + window.scrollY)}px`);
+}
+/** Big view: show or hide the step (left) or the brief and figures (right); `on` to show it whatever it was. */
+function showPanel(which: 'side' | 'results', on?: boolean): void {
+  const c = which === 'side' ? 'showSide' : 'showResults';
+  document.body.classList.toggle(c, on ?? !document.body.classList.contains(c));
+}
+document.querySelectorAll<HTMLElement>('#viewSize [data-size]').forEach((el) => (el.onclick = () => setViewSize(el.dataset.size as ViewSize)));
+$('sideTab').onclick = () => showPanel('side');
+$('resultsTab').onclick = () => showPanel('results');
+window.addEventListener('resize', placePanels);
+{
+  let size: string | null = null;
+  try {
+    size = storage()?.getItem(VIEW_SIZE_KEY) ?? null;
+  } catch {
+    /* none kept */
+  }
+  setViewSize(size === 'balanced' || size === 'big' ? size : 'design');
 }
 function showCode(): void {
   const matched = matchedFor === matchKey(design);
@@ -1640,6 +1779,8 @@ function lookAt(p: THREE.Vector3): void {
 let tool: 'pin' | 'sketch' | null = null;
 /** Equipment picked on the Deck gear palette: the next click on her pins it there. */
 let presetGear: string | null = null;
+/** The Furniture step: the piece (its field) being put where she's clicked next, if any. */
+let placingFurniture: FurnitureKey | null = null;
 const toolBtns: Record<string, HTMLButtonElement> = {};
 {
   const gap = document.createElement('span');
@@ -1680,6 +1821,7 @@ const toolBtns: Record<string, HTMLButtonElement> = {};
 function setTool(t: typeof tool): void {
   tool = t;
   presetGear = null;
+  placingFurniture = null;
   document.querySelectorAll<HTMLElement>('#gearMenu [data-place]').forEach((b) => b.classList.remove('on'));
   // Sketching: the view stays square on (no turning it; the wheel still zooms) and flat.
   orbit.enabled = t !== 'pin';
@@ -1691,14 +1833,184 @@ function setTool(t: typeof tool): void {
   $('toolHint').textContent = t === 'pin' ? 'Click on her where the pin goes' : t === 'sketch' ? 'Draw on the sheet: everyone with it open sees it as you draw. Port, Starboard, Plan, Bow or Stern for another view’s sketch; ✏ Sketch again to close' : '';
   drawInk();
   if (t !== 'pin') ($('pinEditor') as HTMLElement).hidden = true;
+  // (The Furniture step keeps her cut away, seen from above, the whole time it's open.)
+  if (t !== 'pin' && shownStep !== 'furniture') cutOpen(false);
+  if (!t && shownStep === 'furniture') $('toolHint').textContent = FURNITURE_HINT;
+}
+/** What the view shows at the Furniture step, when nothing is being placed. */
+const FURNITURE_HINT = 'Seen from above with the roof cut away: Add a piece, then click where it goes';
+/**
+ * Placing furniture (P5; owner: the roof is in the way): seen from straight above, flat, with
+ * her cut away above a level just over the wheelhouse floor (CONFIG.shipyard.furniture.planCut),
+ * so the floor, the console, the companionway and the furniture already there show and take the
+ * click. The whole time the Furniture step is open (owner, Oct 2026: "keep the view from above
+ * on the Furniture step"), so piece after piece goes in without the view moving; put back as it
+ * was (view, flat or not) on leaving the step, or (another step's Place) once it's placed.
+ */
+let cutAway: { y: number; eye: THREE.Vector3; at: THREE.Vector3; flat: boolean } | null = null;
+const cutPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), 0);
+renderer.localClippingEnabled = true;
+function cutOpen(on: boolean): void {
+  if (!boatRoot || on === !!cutAway) return;
+  if (on) {
+    const floor = boat.hull.layout.wheelhouse?.floorY ?? 1;
+    const y = boatRoot.localToWorld(new THREE.Vector3(0, floor + CONFIG.shipyard.furniture.planCut, 0)).y;
+    cutAway = { y, eye: camera.position.clone(), at: orbit.target.clone(), flat };
+    cutPlane.constant = y;
+    applyCuts();
+    setView('Plan');
+    // Closer in: over her houses (and a deckhouse forward of them), filling most of the view.
+    const wh = boat.hull.layout.wheelhouse;
+    if (wh) {
+      const dh = boat.hull.layout.deckhouse;
+      const z0 = Math.min(wh.front, dh?.z0 ?? wh.front);
+      const at = boatRoot.localToWorld(new THREE.Vector3(0, floor, (z0 + wh.aft) / 2));
+      const span = (wh.aft - z0) * 1.35;
+      orbit.target.copy(at);
+      camera.position.set(at.x + 0.01, at.y + Math.max(0.9, 1.55 / camera.aspect) * span, at.z);
+      orbit.update();
+    }
+    if (!flat) flatBtn.click();
+  } else {
+    const was = cutAway!;
+    cutAway = null;
+    applyCuts();
+    camera.position.copy(was.eye);
+    orbit.target.copy(was.at);
+    orbit.update();
+    if (flat !== was.flat) flatBtn.click();
+  }
+}
+/** She's been built again while cut away (a piece added at the Furniture step): cut the new her, at her floor as it is now. */
+function recut(): void {
+  if (!cutAway || !boatRoot) return;
+  const floor = boat.hull.layout.wheelhouse?.floorY ?? 1;
+  cutAway.y = cutPlane.constant = boatRoot.localToWorld(new THREE.Vector3(0, floor + CONFIG.shipyard.furniture.planCut, 0)).y;
+  applyCuts();
 }
 const noteRay = new THREE.Raycaster();
 function hitBoat(e: PointerEvent): THREE.Vector3 | null {
   if (!boatRoot) return null;
   const r = renderer.domElement.getBoundingClientRect();
   noteRay.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), viewCam());
-  return noteRay.intersectObject(boatRoot, true)[0]?.point ?? null;
+  // (Cut away, to place furniture or by the section tool: what's cut off isn't there to click.)
+  const planes = cutPlanes();
+  return noteRay.intersectObject(boatRoot, true).find((h) => planes.every((pl) => pl.distanceToPoint(h.point) >= -0.01))?.point ?? null;
 }
+/** The planes she's cut by now: the section tool's, and the one over the floor placing furniture. */
+function cutPlanes(): THREE.Plane[] {
+  return [...(cut.kind ? [sectionPlane] : []), ...(cutAway ? [cutPlane] : [])];
+}
+/**
+ * Cut her drawing by those planes (three.js clips what's on the far side of each). Cut, her
+ * materials are drawn from both sides, so what's left shows its inside (her plating from within)
+ * rather than letting you see through it. Only needed when a plane comes or goes, or she's
+ * redrawn: moving a plane moves the cut without it.
+ */
+function applyCuts(): void {
+  if (!boatRoot) return;
+  const planes = cutPlanes();
+  const mats = new Set<THREE.Material>([ghostFill, ghostEdge]);
+  boatRoot.traverse((o) => {
+    const m = o as THREE.Mesh;
+    for (const mat of [m.material, m.userData.solid].flat()) if (mat) mats.add(mat as THREE.Material);
+  });
+  for (const mat of mats) {
+    mat.userData.side ??= mat.side;
+    mat.clippingPlanes = planes.length ? planes : null;
+    mat.side = planes.length ? THREE.DoubleSide : (mat.userData.side as THREE.Side);
+    mat.needsUpdate = true;
+  }
+}
+
+// ── The section tool (owner: "a section cutting tool so you can cut the ship through as you want") ──
+// Her drawing cut by one of the three planes of her lines plan: a waterline (level), a buttock
+// (upright, fore and aft) or a station (upright, athwartships), slid along her with a slider.
+// Flip keeps the other side; Look at the cut turns the view square on to the cut face.
+const SECTION_LOOK: Record<SectionKind, [string, string]> = { waterline: ['Plan', 'Plan'], buttock: ['Starboard', 'Port'], station: ['Bow', 'Stern'] };
+/** Her extent along a section's axis (world m), and where it starts. */
+function sectionRange(kind: SectionKind): { min: number; max: number; start: number } {
+  const i = kind === 'waterline' ? 1 : kind === 'buttock' ? 0 : 2;
+  const plan = hullPlan(VESSEL_DEFS.design);
+  const start = kind === 'waterline' ? 0 : kind === 'buttock' ? 0 : plan.transom + (plan.stem - plan.transom) * CONFIG.shipyard.section.stationAt;
+  return { min: hullMin[i], max: hullMax[i], start };
+}
+/** Where the plane is, in a naval architect's words. */
+function sectionWords(kind: SectionKind, v: number): string {
+  const m = (x: number) => `${Math.abs(x).toFixed(2)} m`;
+  if (kind === 'waterline') return Math.abs(v) < 0.005 ? 'Waterline: the design waterline' : `Waterline: ${m(v)} ${v > 0 ? 'above' : 'below'} the design waterline`;
+  if (kind === 'buttock') return Math.abs(v) < 0.005 ? 'Buttock: the centreline' : `Buttock: ${m(v)} to ${v > 0 ? 'starboard' : 'port'}`;
+  const f = hullPlan(VESSEL_DEFS.design).transom - v;
+  return `Station: ${m(f)} ${f >= 0 ? 'forward of' : 'aft of'} the transom`;
+}
+/** Put the plane where cut.at says (kept inside her), the slider and words to match. */
+function setSection(kind: SectionKind): void {
+  const r = sectionRange(kind);
+  const v = THREE.MathUtils.clamp(cut.at[kind] ?? r.start, r.min, r.max);
+  cut.at[kind] = v;
+  // The side kept: below the waterline, to port of the buttock, aft of the station (bow is -z), or flipped.
+  const n = kind === 'waterline' ? new THREE.Vector3(0, -1, 0) : kind === 'buttock' ? new THREE.Vector3(-1, 0, 0) : new THREE.Vector3(0, 0, 1);
+  if (cut.flip) n.negate();
+  const at = new THREE.Vector3();
+  at.setComponent(kind === 'waterline' ? 1 : kind === 'buttock' ? 0 : 2, v);
+  sectionPlane.setFromNormalAndCoplanarPoint(n, at);
+  const slider = $('secAt') as HTMLInputElement;
+  Object.assign(slider, { min: String(r.min), max: String(r.max), step: String(CONFIG.shipyard.section.step) });
+  slider.value = String(v);
+  $('secLabel').textContent = sectionWords(kind, v);
+}
+function sectionTool(kind: SectionKind | null): void {
+  const was = cut.kind;
+  cut.kind = kind;
+  sectionBtn.classList.toggle('on', !!kind);
+  $('sectionPanel').hidden = !kind;
+  $('sectionPanel').querySelectorAll<HTMLElement>('[data-cut]').forEach((b) => b.classList.toggle('on', b.dataset.cut === kind));
+  if (kind) setSection(kind);
+  if (!was !== !kind) applyCuts();
+}
+/** Square on to the cut face, flat, as a section is drawn. */
+function lookAtCut(): void {
+  if (!cut.kind) return;
+  setView(SECTION_LOOK[cut.kind][cut.flip ? 1 : 0]);
+  // Aimed at the cut; a station, filling the view with her section (she's far narrower than long).
+  const v = cut.at[cut.kind]!;
+  const mid = new THREE.Vector3().fromArray(hullMin).add(new THREE.Vector3().fromArray(hullMax)).multiplyScalar(0.5);
+  const back = camera.position.clone().sub(orbit.target);
+  const at = cut.kind === 'waterline' ? new THREE.Vector3(0, v, mid.z) : cut.kind === 'buttock' ? new THREE.Vector3(v, mid.y, mid.z) : new THREE.Vector3(0, mid.y, v);
+  if (cut.kind === 'station') back.setLength(Math.max(hullMax[0] - hullMin[0], hullMax[1] - hullMin[1]) * 0.8 / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
+  orbit.target.copy(at);
+  camera.position.copy(at).add(back);
+  orbit.update();
+  if (!flat) flatBtn.click();
+}
+const sectionBtn = document.createElement('button');
+sectionBtn.textContent = '✂ Section';
+sectionBtn.className = 'tool';
+sectionBtn.title = 'Cut her through: a waterline, a buttock or a station, anywhere along her';
+sectionBtn.onclick = () => {
+  if (cut.kind) return sectionTool(null);
+  sectionTool('station');
+  lookAtCut();
+};
+$('views').appendChild(sectionBtn);
+$('sectionPanel').querySelectorAll<HTMLElement>('[data-cut]').forEach((b) => {
+  b.onclick = () => {
+    sectionTool(b.dataset.cut as SectionKind);
+    lookAtCut();
+  };
+});
+($('secAt') as HTMLInputElement).oninput = (e) => {
+  if (!cut.kind) return;
+  cut.at[cut.kind] = Number((e.target as HTMLInputElement).value);
+  setSection(cut.kind);
+};
+$('secFlip').onclick = () => {
+  cut.flip = !cut.flip;
+  if (cut.kind) setSection(cut.kind);
+  lookAtCut();
+};
+$('secLook').onclick = lookAtCut;
+$('secOff').onclick = () => sectionTool(null);
 let pendingPin: Frac | null = null;
 let downAt: { x: number; y: number } | null = null;
 renderer.domElement.addEventListener('pointerdown', (e) => {
@@ -1708,6 +2020,14 @@ renderer.domElement.addEventListener('pointerdown', (e) => {
   const hit = hitBoat(e);
   if (tool === 'pin') {
     if (!hit) return;
+    // The Furniture step: the piece goes where she's clicked (no pin), the view put back first.
+    if (placingFurniture) {
+      const key = placingFurniture;
+      const at = fromFrac(toFrac(hit.toArray(), hullMin, hullMax), hullMin, hullMax);
+      setTool(null);
+      change(placeFurniture(key, at, hullPlan(VESSEL_DEFS.design).transom));
+      return;
+    }
     pendingPin = toFrac(hit.toArray(), hullMin, hullMax);
     // From the Deck gear palette: the equipment's chosen already, so it's pinned and placed at once.
     if (presetGear) return addPin(presetGear);
@@ -1751,7 +2071,8 @@ function pinGearTool(id: string): void {
   setTool('pin');
   presetGear = id;
   document.querySelectorAll<HTMLElement>('#gearMenu [data-place]').forEach((b) => b.classList.toggle('on', b.dataset.place === id));
-  $('toolHint').textContent = `Click on her where the ${equipmentOf(id)!.name.toLowerCase()} goes`;
+  const eq = equipmentOf(id)!;
+  $('toolHint').textContent = `Click on her where the ${eq.name.toLowerCase()} goes`;
 }
 function addPin(gearPicked?: string): void {
   if (!pendingPin) return;
@@ -1850,13 +2171,6 @@ function whereOnHer(eq: Equipment): string {
   const leftOff = short && boat.warnings.some((w) => w.toLowerCase().includes(short) && /left off/.test(w)) ? ' (no room: left off, see the warnings)' : '';
   const ramp = DESIGN_HULLS[design.hull].ramp;
   if (eq.id === 'anchor') return (ramp ? 'a kedge at the stern (her bow is the ramp)' : 'at the bow roller') + leftOff;
-  // Furniture (P5): where the builder put it (its place's label), or that it didn't fit.
-  if (eq.how === 'inside') {
-    const placed = boat.placed[eq.field as FurnitureKey];
-    if (placed === null) return 'no room where pinned: left off (see the warnings)';
-    const label = boat.hull.sockets.find((s) => s.id === `furniture.${eq.id}`)?.label ?? '';
-    return `${label.split(':')[0].toLowerCase()}${placed?.moved ? ' (moved along the wall from the pin, to fit)' : ''}`;
-  }
   if (eq.key && design[eq.key] && at) return `${USUAL[eq.id]?.[v] ?? ''}, where pinned: ${at.x === 0 ? 'on the centreline' : `${Math.abs(at.x).toFixed(2)} m to ${at.x < 0 ? 'port' : 'starboard'}`}`;
   return (USUAL[eq.id]?.[v] ?? '') + leftOff;
 }
@@ -1864,6 +2178,7 @@ function whereOnHer(eq: Equipment): string {
 const closedGroups = new Set<string>();
 /** The Deck gear step's menu: her equipment by group, each a card with its state and actions. */
 function showOnHer(): void {
+  showFurniture();
   const menu = document.getElementById('gearMenu');
   if (!menu) return;
   menu.innerHTML = '';
@@ -1902,6 +2217,68 @@ function showOnHer(): void {
       det.appendChild(card);
     }
     menu.appendChild(det);
+  }
+}
+/**
+ * Click on her where a piece of furniture goes (its field `key`: a new one's, or one on her to
+ * move it), seen from straight above with the roof cut away (cutOpen).
+ */
+function furnitureTool(key: FurnitureKey): void {
+  setTool('pin');
+  placingFurniture = key;
+  cutOpen(true);
+  const { kind, i } = slotOf(key);
+  $('toolHint').textContent = `Seen from above with the roof cut away: click where the ${furnitureName(kind, i)} goes (forward of the wheelhouse for the cabin below)`;
+  showFurniture();
+}
+/** Where a piece of furniture is, in words (its place's label), or that it didn't fit. */
+function furnitureWhere(key: FurnitureKey): string {
+  const { kind, i } = slotOf(key);
+  const placed = boat.placed[key];
+  if (placed === null) return 'no room where you put it: left off (see Needs attention)';
+  const label = boat.hull.sockets.find((s) => s.id === furnitureSocketId(kind, i))?.label ?? '';
+  return `${label.split(':')[0].toLowerCase()}${placed?.moved ? ' (moved along the wall to fit)' : ''}`;
+}
+/** The Furniture step: a card a piece (Add another while she has room for one), each one on her under it (Move, Take off). */
+function showFurniture(): void {
+  const menu = document.getElementById('furnMenu');
+  if (!menu) return;
+  menu.innerHTML = '';
+  for (const { kind, name } of FURNITURE_MENU) {
+    const on = placedOf(kind, design);
+    const next = nextSlot(kind, design);
+    const card = document.createElement('div');
+    card.className = `gearCard furnCard${on.length ? ' fitted' : ''}`;
+    card.innerHTML = `${GEAR_ICONS[kind] ?? ''}<div class="gearText"><b>${esc(name)}</b><span class="meta">${esc(GEAR_ABOUT[kind] ?? '')}</span><span class="gearState">${on.length ? `✓ ${on.length} on her` : 'None on her'}</span></div><div class="gearActs"></div><div class="furnList"></div>`;
+    const button = (box: Element, text: string, title: string, go: () => void, primary = false) => {
+      const b = document.createElement('button');
+      b.textContent = text;
+      b.title = title;
+      if (primary) b.className = 'primary';
+      b.onclick = go;
+      box.appendChild(b);
+      return b;
+    };
+    const acts = card.querySelector('.gearActs')!;
+    const add = button(acts, on.length ? 'Add another' : 'Add', `Then click on her where it goes`, () => next && furnitureTool(next), true);
+    if (!next) {
+      add.disabled = true;
+      add.title = kind === 'head' ? 'One head a boat' : 'Four is the most of a piece';
+    }
+    if (placingFurniture && placingFurniture === next) add.classList.add('on');
+    const list = card.querySelector('.furnList')!;
+    for (const key of on) {
+      const { i } = slotOf(key);
+      const row = document.createElement('div');
+      row.className = 'furnItem';
+      row.innerHTML = `<span><b>${esc(furnitureName(kind, i)[0].toUpperCase() + furnitureName(kind, i).slice(1))}</b> <span class="meta">${esc(furnitureWhere(key))}</span></span><span class="gearActs"></span>`;
+      const ra = row.querySelector('.gearActs')!;
+      const mv = button(ra, 'Move', 'Then click on her where it goes instead', () => furnitureTool(key));
+      if (placingFurniture === key) mv.classList.add('on');
+      button(ra, 'Take off', 'Take it off her (the ones after it move up a number)', () => change(removeFurniture(key, design)));
+      list.appendChild(row);
+    }
+    menu.appendChild(card);
   }
 }
 /** The Deck gear step's list of what pins asked for, and what became of it. */
@@ -2100,6 +2477,11 @@ function goStep(to: number | string, share = true): void {
   // Arriving at Engine: look at her machinery.
   if (els[i].dataset.step === 'engine' && shownStep !== 'engine') frameMachinery();
   shownStep = els[i].dataset.step!;
+  // The Furniture step: her from above, cut away, while it's open (cutOpen).
+  if (tool && shownStep !== 'furniture') setTool(null);
+  cutOpen(shownStep === 'furniture');
+  if (shownStep === 'furniture' && !tool) $('toolHint').textContent = FURNITURE_HINT;
+  else if (!tool && $('toolHint').textContent === FURNITURE_HINT) $('toolHint').textContent = '';
 }
 function showStepNav(): void {
   const nav = $('stepNav');

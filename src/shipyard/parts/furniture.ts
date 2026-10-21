@@ -10,7 +10,7 @@ import type { Mount } from '../../modular/recipe';
 import type { Socket } from '../../modular/socket';
 import type { FurnitureConfig, FurnitureKind } from '../../modules/furniture';
 import { planHalfWidth } from '../../vessel/vesselDef';
-import { furnitureAt, type FurnitureKey } from '../design';
+import { FURNITURE_SLOTS, furnitureAt, type FurnitureKey } from '../design';
 import type { BuildArgs, V3 } from './common';
 import type { HullPart } from './hull';
 import type { HousePart, LayoutPart, InteriorPart } from './house';
@@ -32,15 +32,22 @@ interface Floor {
 type Rect = [number, number, number, number];
 const overlaps = (a: Rect, b: Rect) => a[0] < b[1] && b[0] < a[1] && a[2] < b[3] && b[2] < a[3];
 
-/** The pieces, in the order they're placed (the biggest first), their pin's field, and their name in words. */
-const PIECES: { kind: FurnitureKind; key: FurnitureKey; name: string }[] = [
-  { kind: 'head', key: 'headAt', name: 'head' },
-  { kind: 'locker', key: 'lockerAt', name: 'locker' },
-  { kind: 'galley', key: 'galleyAt', name: 'galley' },
-  { kind: 'settee', key: 'setteeAt', name: 'settee' },
-  { kind: 'berth', key: 'berthAt', name: 'berth' },
-  { kind: 'seat', key: 'seatAt', name: 'seat' },
-];
+/**
+ * The pieces, in the order they're placed (the biggest first; of a kind, the first placed
+ * first), their field, their place's id and their name in words: "the berth", the second
+ * one "berth 2" (furnitureSocketId, furnitureName).
+ */
+const PIECES: { kind: FurnitureKind; key: FurnitureKey; id: string; name: string }[] = (['head', 'locker', 'galley', 'settee', 'berth', 'seat'] as const).flatMap((kind) =>
+  FURNITURE_SLOTS[kind].map((key, i) => ({ kind, key, id: furnitureSocketId(kind, i), name: furnitureName(kind, i) })),
+);
+/** A piece's place id: furniture.berth for the first, furniture.berth2 for the second. */
+export function furnitureSocketId(kind: FurnitureKind, i: number): string {
+  return `furniture.${kind}${i ? i + 1 : ''}`;
+}
+/** A piece's name in words: berth, berth 2. */
+export function furnitureName(kind: FurnitureKind, i: number): string {
+  return `${kind}${i ? ` ${i + 1}` : ''}`;
+}
 
 /**
  * Her furniture, each piece where its pin is: on the floor the pin lands on (the wheelhouse's,
@@ -169,7 +176,7 @@ export function furniturePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
     // Its turn: its back (+z its axes) to the wall.
     const yaw = found.wall === 'starboard' ? 90 : found.wall === 'port' ? -90 : 0;
     blocked.push({ rect: [x0 - 0.02, x1 + 0.02, z0 - 0.02, z1 + 0.02], house: onHouse });
-    const id = `furniture.${piece.kind}`;
+    const id = piece.id;
     const where = `${floor.name[0].toUpperCase()}${floor.name.slice(1)}, ${found.wall === 'free' ? 'standing free' : `against the ${found.wall} wall`}`;
     furnitureSockets.push({ id, type: 'cabin.furniture', transform: { position: mid, rotationDeg: [0, yaw, 0] }, label: `${where}: the ${piece.name}` });
     const config: FurnitureConfig = { kind: piece.kind, length: L, depth: D, height };
