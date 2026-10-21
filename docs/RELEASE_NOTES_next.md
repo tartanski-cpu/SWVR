@@ -1,181 +1,127 @@
 # Workboat World: what's new since v1.0
 
-**Covers:** Friday 16 October (after the v1.0 release notes) to Sunday 18 October 2026.
+**Covers:** Friday 16 October (after the v1.0 release notes) to Wednesday 21 October 2026. Six days, about four hundred changes, summarised by theme.
 
-**Try it:** https://tartanski-cpu.github.io/SWVR/next/ (the test build: its menu says NEXT). It runs in the Meta Quest 3 browser (press Enter VR), on a desktop browser or on a phone. There's nothing to install.
+**Try it:** https://tartanski-cpu.github.io/SWVR/next/ (the test build: its menu says NEXT). It runs in the Meta Quest 3 browser (press Enter VR), on a desktop browser or on a phone. Nothing to install.
 
-**What's where:**
-- The live game, https://tartanski-cpu.github.io/SWVR/, has the first group below ("Already in the live game").
-- Everything else is on the test build only, waiting for your OK.
-
-Both addresses share one browser storage, so your careers and settings are the same on both.
+**What's where:** the live game at https://tartanski-cpu.github.io/SWVR/ is still v1.0 with the first weekend's fixes. Everything below is on the test build, waiting for your OK to move across. Both addresses share one browser storage, so your careers and settings are the same on both.
 
 ## Highlights
 
-- **The Shipyard:** design your own boat on its own page. You get a code for her, then sail her in the game, alone or with friends.
-- **A starter workboat:** a new career begins in a simpler workboat. You buy the rest of her gear as you earn.
-- **Landing craft and landing slipways:**
-  - a second boat with a bow ramp, built from modules;
-  - concrete slipways at Calder Haven and Selkie Bay, where she lands bow first and you walk off down the ramp.
-- **Lobster and crab potting:** a new job from shooting the pots to selling the catch.
-- **Refuelling by hand:** the pump's hose to her filler.
-- **Phones and tablets:** first touchscreen controls.
+- **Three ways to play** from one front page: **Career** (the game as it was), **Voyage** (real stretches of coast made from map data, no career) and **Training** (a placeholder for now).
+- **Four real maps:** Oban and Lorn, Tayvallich and Loch Sween, the whole Firth of Clyde, and the island of Syros, with every harbour in the map data, towns built from the map's buildings and woods planted from its forests.
+- **The Shipyard:** design your own boat on its own page, hull to paint, from a brief to sea trials; take her into the game by code, link or file, alone or with friends.
+- **A fleet of five** designed in the Shipyard: the fast landing craft, the gillnetter, the pilot boat, the small tug, and the beginner boat every new career starts in. Two of them are your own designs.
+- **A bigger archipelago:** the Sounds, the Fjord and the Narrows beyond the home islands, with tidal races, overfalls and their own trade.
+- **More to do:** potting, refuelling by hand, towing a ship with a line gun, berthing a ship, a crew-mate overboard, rescues of every kind, rod fishing, a roving fender.
+- **Playing together, fixed and finished:** one address to share, boat changes that keep the game, a lost host handed over to the crew, voice chat and a handheld VHF.
+- **Controls:** your own hands and gestures in VR, a recording camera, a game controller, a flat desktop menu, binoculars that work in VR.
 
-## Already in the live game (Friday evening)
+## Three ways to play
 
-- **Potting**, in three steps:
-  - pots wait on a pallet on the Calder Haven quay; shoot them over the side on a potting ground; their marker buoys ride the waves;
-  - mark them on the paper chart and find the grounds on the plotter. They need time to soak, a buoy's flag turns green when it's ready, and a gale drags them. A local fisherman gives tips on the VHF;
-  - hook the buoy with the boat hook, haul the line hand over hand and land the pot. The catch stays in it (you can see it through the netting) and is sold on a harbour quay.
-- **Every crate and pot job by hand or by one click** in the menu's Cargo tab.
-- **Hand gear:**
-  - a fire extinguisher and a torch on wheelhouse brackets;
-  - the torch lights the water;
-  - the extinguisher sprays, with droplets, splashes and a hiss.
-- **Desktop mouse:** the binoculars on the right button, the laser pointer on the middle one.
-- **The skiff:**
-  - her painter is made fast as she's launched;
-  - a bow cleat on her, and midship cleats on the ship's working deck;
-  - a **deck gate** in the starboard bulwark, worked by a button, to step down into her and hop back up.
-- **Charted hazards:** a wreck, a reef and a rock, marked with lit IALA buoys.
-- **At night:**
-  - the panel lighting goes red by itself;
-  - the start-up card sits on the console's face.
-- **The anchor** pays out five times the water depth.
-- **Fish boxes:** the trawl's catch comes in wooden fish boxes, on ice once you have the ice machine.
-- **Crew-mates:**
-  - shown as upper-body figures in random working clothes (oilskins, float coats, fishermen's jumpers, hi-vis…);
-  - they wear woollen mitts.
-- **Fire:** clearer feedback, fewer calls, and an off switch for emergency calls.
-- **Fixes:**
-  - lifting a hooked crate aboard in VR;
-  - no strobes on crates;
-  - door window openings have no glass;
-  - no synthetic voice babble on the Quest.
+- **The front page** lists the modes. Old links into the game, and shared game links, still work: they go straight to the career game.
+- **Career** is unchanged in shape: one boat, jobs, money and upgrades; your crew join aboard her and play your career. New careers start in the beginner boat (below). The career world is always the hand-built archipelago.
+- **Voyage** is a coast map sailed for its own sake: pick a map, you start on the quay beside the pilot boat, no money, no jobs to accept. Where you are on each map is remembered: close the browser, come back to the map, and you're where you left her, moored or afloat, aboard or ashore. Add `&start` to the address to begin at the harbour again.
+- **Training** will be small harbour maps with recording and review. Not built yet.
 
-## Your career and the starter boat
+## Real coastline maps
 
-- **A new career starts in the workboat as the yard delivers her.** She has no trawl gear, no skiff and her crane, no searchlight and no fire monitor. That leaves cargo runs, towing, rescues (the hand torch finds people at night) and potting.
-- **Buy her gear at the chandlery** (Office → Yard):
+- **Made from open map data** by a pipeline outside the game: real coastline, heights and depths, every pier, pontoon, quay and slipway, the buildings within reach of each harbour, the woods. Every harbour with water alongside is a port the game knows; a drying pier is drawn but not worked.
+- **Oban and Lorn:** Oban Bay, Kerrera and its sound, Dunstaffnage and the Falls of Lora, 12 km at full scale.
+- **Tayvallich and Loch Sween:** the loch, Caol Scotnish and the Fairy Isles, Achnamara, the Sound of Jura shore, 11 by 16 km.
+- **The Firth of Clyde:** Bute and Rothesay, the Kyles and Loch Striven, Dunoon and the Holy Loch, Gourock, Greenock, Helensburgh, Largs and the Cumbraes, 35 by 37 km. It streams in 2 km pieces round you as you sail, so the Quest keeps its frame rate; distant land fades into the haze.
+- **Syros:** the whole island in the Cyclades, Ermoupoli's harbour under Ano Syros, Foinikas, Kini and the islets off the east coast, 15 by 19 km. Pines and olives instead of conifers.
+- **Towns and woods:** houses by type from the map (cottages, terraces with painted fronts, churches, warehouses on the quays), windows lit at dusk; conifer plantations in rows, birch and oak woods, gorse, the far hills reading as forest from the sea.
+- **The chartplotter** draws the coastline and the shallows from the ground itself on every map, sharp at every zoom, with zoom buttons (−, AUTO, +) under the screen. The career archipelago gets the same sharp coast.
+- **Traffic:** the four AI ships are about on the coast maps too. In a bay or a loch they take the longest clear run of water near you (the coaster keeps to 8 m, a yacht gets by in 3), alter course when it shoals ahead, and slip away where it ends.
 
-  | Item | Price |
-  |---|---|
-  | Trawl gear | £2,500 |
-  | Skiff and her crane | £4,000 |
-  | Searchlight | £1,500 |
-  | Fire monitor | £3,000 (the fire calls come once she has it) |
+## The fleet and the beginner boat
 
-  The game starts again in a couple of seconds with her refitted (in VR, enter VR again).
-- **Careers you already have keep the whole boat.**
-- **Bigger trawl** and the **ice machine** need the trawl gear first.
-- **Debug → Boat → Start in → Workboat, all gear** is there for testing.
+- **Five boats, each a Shipyard design** you can open in the Shipyard's Projects: the **fast landing craft** (a 9 m planing vee with a bow ramp, about 30 knots), the **fishing boat** (a gillnetter with a rod rack and walkable side decks), the **pilot boat** (your own "Pilot boat 11.2 m": aluminium deep-V, twin V8s on pod drives with a helm joystick, about 36 knots, searchlight and fire monitor, chart table, side door), the **small tug** (slow tug diesel in a Kort nozzle, tow winch, stern roller, exhaust stacks up through her wheelhouse) and the **beginner boat** (your "Gillnetter 7.8 m": the cheapest engine on a stern drive, basic controls, no fenders, no life ring, no skiff; at an anchorage you swim the goods ashore).
+- **New careers start in the beginner boat.** The old workboat and landing craft are hidden; careers already in them keep them.
+- **The boatyard** stands on the Calder Haven quay by the berths: add-ons, upgrades and repairs at its board, out of the menu.
+- **Helm assist panel** on every fleet boat but the beginner: autopilot, dock, and one-press auto start from cold.
+- **Her condition on the panel:** HULL and ENGINE lamps, bars on the engine monitor. Rubbing a quay on fenders or a strake costs no hull damage.
 
 ## The Shipyard
 
-A design page of its own: https://tartanski-cpu.github.io/SWVR/next/shipyard.html. Start from what she's for, shape her, try her, and take her into the game.
+Design your own boat on its own page (Shipyard on the front page). It has grown from a sketch tool into a yard.
 
-- **Start from a brief:**
-  - the jobs she's for (cargo, potting, towing, fire, rescue, trawling) and your targets (speed, range, budget, stability, a crane, deck room);
-  - the hull types ranked against it from measured sea trials;
-  - she's sized for the deck cargo you want.
-- **Five hull types:**
-  - a landing craft with a bow ramp;
-  - a gillnetter;
-  - a workboat;
-  - a deep-V pilot boat with a spray chine;
-  - a small tug with a rubber push fender.
-- **Shape her:**
-  - **hull:** length, beam, depth and freeboard; bow rake 0–50° (the landing craft and the tug have their own bows); handrails or none; hull protection (crew's fenders, a rubbing strake, tyres);
-  - **wheelhouse:** its place, size and floor height; window rake, flat or three-facet fronts; the roof slab and its edge; an optional **deckhouse** under it; a side door;
-  - **engines:** a 150 kW six, a 280 kW or 400 kW V8, a slow-revving tug diesel, single or twin, the gearbox matched by trial.
-- **Equipment by pin.** Click on her where it goes and it's placed there, on a 25 cm grid:
-  - a deck crane;
-  - a searchlight and a fire monitor (roof or deck pole);
-  - a tow winch, stern roller and trawl A-frame;
-  - an anchor;
-  - the skiff with her crane;
-  - a life ring and boat hook.
+- **From a brief:** tick her duties and requirements and the brief is typed on the yard's paper; the steps run from hull to paint on one shared step bar.
+- **Four hull types** (the workboat type is retired; a design already on her still opens): landing craft up to 22.5 m, gillnetter, pilot boat, small tug with a rubber push bow. Size her, pick her bow from plumb to raked, sheer on every hull, a faceted hull, a raised foredeck on the gillnetter with a steep ladder at the break.
+- **Steel or aluminium,** and she floats at what she weighs: every part is on her weights list.
+- **The wheelhouse:** flat or three-facet front, windows raked out all round, sills high or low with screens on stalks, wipers sized to their panes, more front windows on a wide house, the roof overhanging by a set amount, a roof-top colour, white or black window frames. Inside: a choice of lining (wood, teak and headliner, white or grey panels, painted steel, bare aluminium), liners with wooden beams across the ceiling, teak-plank or grippy floors, from your photos.
+- **Houses:** a saloon aft of the wheelhouse, level or steps down, with its own lower roof; a deckhouse forward with a cabin below and a companionway; a pilothouse raised on a walkable deckhouse with rail and ladder; a cockpit overhead carried aft on wings; a cabin under a raised foredeck the wheelhouse stands on; a deckhouse out to her sides with a raised deck you walk.
+- **Engines:** placed for her balance where the shaft line puts them, with the hatch over them; stern drives; outboards on a bracket, two, three or four, their gearing matched by trial; pod drives with the helm joystick on planing hulls; a Kort nozzle for a tug; a slow-revving tug diesel, twins that drone, a turbo V8. Big engines get a trolling valve.
+- **Deck gear by job, with icons:** searchlight and fire monitor on the roof or a pole, a deck crane, tow winch, stern roller, A-frame, life rings, side door, rod rack, chart table, the skiff with her crane off to one side, the anchor (a kedge on the ramp boat), midship cleats. Hull protection: fenders, a rubbing strake, tyres, or strake and fenders.
+- **The helm:** the console wraps a faceted front; screens in one row over the wheel; the console cut short to port, middle or starboard on a wide house; the throttle always beside the wheel.
+- **Live sea trials** at the Trials step: a drop, roll decay and an inclining experiment, with charts, her figures always in sight; her engines, shafts, propellers and rudders drawn at the Engine step; see-through hull and house on any step.
+- **Design together:** share a link and edit the same boat live; sketch together on her side, plan, bow and stern views; **Try her together** puts everyone in the session into one multiplayer game.
+- **Into the game:** a 10-character code for a plain design; a link or a file for one with the newer choices. Office → **Your boats** lists your favourites, or paste her code; favourites and projects stay in the browser.
 
-  **On her now** lists everything aboard, each with **Take off**.
-- **Controls:**
-  - **basic:** wheel, throttle, starting, speed and depth, rpm and **the VHF**;
-  - **advanced:** adds lights, wipers, horn, heading, engine monitor, FM radio, chartplotter, NAV / WIND screen, task board, a pull-down whiteboard and an overhead panel for the deck floodlights.
-- **Sea trials** with charts, and her figures always in sight.
-- **Design together:** share a link and edit the same boat live:
-  - presence, sketches and pins as a to-do list;
-  - variants as tabs, compared side by side, then merged or promoted.
-- **Favourites and projects** keep your designs in the browser.
-- **Dark mode.**
-- **Into the game:** Office → **Your boats** lists your favourites, or type or paste her code. **Take her** starts the game in her.
-- **A life ring brings the rescue calls** to a Shipyard boat: survivors climb over her transom and sit on her open deck.
-- **Your boat in multiplayer:** your crew get your boat. If they're in a different one, their game starts again in yours and joins again by itself.
+## The archipelago grows
 
-## Boats built from modules, and the landing craft
+- **Regions beyond the home islands:** the **Sounds** in full (its own ports, economy, weather and chart sheet), the **Fjord** (katabatic gusts off the heights) and the **Narrows** (rocks on the passages). Each is a data file; the world streams them as you near them.
+- **Tidal races** as current zones that turn with the clock. Time flows by default: a game hour every five real minutes.
+- **Overfalls:** wind against a running race stands the sea up and sharpens it, with a short chop on top; it costs you speed through it; the forecast warns of it.
+- **Chart sheets:** a rack on the wall turns the paper chart's sheet by region; pencil marks follow the sheet. Night mode dims the chart, the whiteboard and the task board red after dark. The chart lamp is a black gooseneck reading lamp on the table.
+- **Per-port economy** and region jobs; Loch Tarsk's slip on the shore; boats laid off the quay by their beam; pontoons you can moor to.
 
-- **Every boat is now built from modules.** Her engine, controls, instruments, deck gear and fittings are parts listed in her recipe. This is the groundwork the Shipyard builds on; the workboat sails exactly as before.
-- **The landing craft** (Debug → Boat → Start in):
-  - a 9 m aluminium boat that does 20 knots on a turbocharged V8 with its own sound;
-  - a step down into her cabin;
-  - her **bow ramp** is worked by buttons at the bow and in the cabin. Its **toe flaps** flop over as it comes down.
-- **The Shipyard's landing craft** has a proper landing bow, from your references. Her V bottom sweeps up a steep beach plate to a square box section under the ramp, so she rides up a beach or a slip.
-- **Big engines get a trolling valve:** dead slow without the throttle opening, so twin V8s aren't a handful in gear.
-- **A deck crane** you can place:
-  - a telescopic boom with a load-moment limit;
-  - worked by keyboard on desktop;
-  - motion compensation as an upgrade.
-- **The searchlight and fire monitor** can stand on the roof or on a deck pole.
-- **A light mast** under the masthead light.
+## Jobs and gear
 
-## New jobs and gear
+- **Potting:** pots from the pallet on the quay, shot on a potting ground, marked on the chart, left to soak (the buoy's flag turns green), hooked with the boat hook, hauled hand over hand and sold on a quay. A gale drags them; a fisherman on the VHF gives tips.
+- **Refuelling by hand:** the pump's hose to her filler, the gauge counting from START.
+- **Towing a ship:** a tug's line-throwing gun passes a hawser to a coaster (lofted to her lines now, no barge round her); the TOW LINE screen shows the pull and how near it is to parting; tows in three sizes up to a 70 t trawler and a 123 t pontoon.
+- **Berthing a ship:** push her onto the quay; boats rub against each other with friction.
+- **Rescues of every kind:** survivors swim for the life ring once it's near them, built as proper avatars; dinghy, liferaft, sinking-boat and divers calls. A **crew-mate overboard**: wave, throw them the ring, haul them in. **Into the propeller:** red spray, a thud, the view red then black, and you're back aboard.
+- **A rod and a boat hook** in hand: fish from the rod rack; push off a quay with the hook.
+- **The roving fender:** with fenders fitted, walk to your station and hang a fender between her and the quay with a free hand; the fender basket is closed.
+- **Cargo:** lash crates anywhere on open deck (the D-rings are gone); the skiff carries five crates and has a stern cleat for lines ashore or to the ship.
+- **The deck crane:** a two-joystick desk, and a radio remote for desktop and controllers.
+- **Engine heat:** flat out is fine, lugging on a tow overheats.
 
-- **Landing slipways** at **Calder Haven** (south of the quay) and **Selkie Bay** (up the beach by the goods stack):
-  1. lower the ramp;
-  2. come in slowly, bow first;
-  3. she's drawn up onto the slip and held there: the waves no longer move her;
-  4. walk off down the ramp onto the concrete, and back.
+## Boats and the water
 
-  She's in port while she's landed. Go astern to come off. **Debug → Boat → On a slip** lands her straight away.
-- **Refuelling by hand:**
-  - take the nozzle from the pump, walk the hose to her filler and plug it in;
-  - press START: the gauge counts the litres and the price;
-  - it stops when she's full, or press STOP;
-  - hang the nozzle back up. The menu's one-click Refuel stays.
-- **Potting made simpler:** every pot is baited. The bait tub is gone.
-- **More tows,** in three sizes (Debug → Tow: Small / Medium / Large), up to a 70 t trawler and a 123 t pontoon, to test the bigger Shipyard boats.
-- **Calder Haven:** the goods stack and the pot pallet now sit beside the boat's berth.
+- **Hulls ride as their kind:** planing hulls lean into turns, displacement hulls roll; none capsizes.
+- **Wake and spray:** prop wash, a planing wake, bow spray from where her bow meets the water, white horses and wind streaks on the sea, surf on the beaches.
+- **Smoke and stacks:** the tug's dry exhaust up through her wheelhouse, raked or straight, one per engine, her cooling water spitting from her side; smoke black when she's worked hard; engines voiced from your recordings (the tug's big slow six, the six-cylinder).
+- **Fixed:** the waves no longer stutter while the sea changes.
 
 ## Looks and sound
 
-- **Pixel painting:** crisp low-resolution detail on the boats, in the style of Stormworks:
-  - non-slip decks, wood-lined wheelhouses, window frames;
-  - cargo crates and sacks, the harbour buildings (boards, render, sheet, slates), and the sea marks.
-- **The FM radio comes from the set:** it's quieter and duller outside the wheelhouse, more so with the doors shut.
-- **Engine voices:** a turbo V8 for the landing craft; twin engines drone; a slow-revving tug diesel.
-- **Engine start:** the glow plugs preheat with the key, and an oil-pressure buzzer sounds until she starts.
-- **Dolphins** only keep up with you up to 9 knots.
+- **Sky and night:** a cloud layer that shows the weather, a storm coming upwind; a moon so nights aren't black; lights that shrink with distance.
+- **Pixel painting:** crisp low-resolution detail on the boats. Smaller switches and screen lettering; screens show more; wheelhouse buttons show whenever your eye is inside.
+- **Sound:** the FM radio comes from the set, quieter outside; glow plugs preheat with the key and an oil-pressure buzzer sounds until she starts; the handheld VHF's talk button clicks with a squelch burst; the line gun's shot.
 
-## Controls
+## Controls and VR
 
-- **Desktop: look round at the wheel.** While you hold the wheel or a lever, hold the right mouse button to look round freely. The wheel stays where you left it. Off the wheel, the right button is the binoculars as before.
-- **Phones and tablets** (first version): throttle and helm sliders, one-button start, board and go ashore, switch boat.
-- **The throttle lever** has a wider, stickier neutral notch with a firmer click.
-- **The desktop help panel** is hidden at the start.
-- **Door steps** are climbed, not walked through.
+- **Your own hands in VR,** fitted to the controllers, with gestures (fist, point, middle finger).
+- **The recording camera:** a desktop player flies it; a VR player picks it up and it moves exactly as the hand, with a preview screen; it rides a moving boat; the O menu stays on it.
+- **Binoculars** work in VR: the lenses fill your view, the scope sees out to the horizon, the picture is steadied. On desktop they're on the right mouse button.
+- **Desktop:** the menu opens flat on the screen, mouse-driven; hold the right button to look round while you hold the wheel; F takes the helm; arrow keys drive; long port lists scroll.
+- **Game controller:** throttle and helm, the helm switches (anchor, wipers, horn, searchlight, fire pump, laser), walking off the helm, camera views at the helm (orbit and flyby).
+- **Phones and tablets:** a first set of touch controls (throttle and helm sliders, start, board and go ashore).
+- **VR fly** in the Debug menu for looking round the world.
 
 ## Playing together
 
-- **Crew build the host's boat:** a Shipyard design, the landing craft, or the workboat as the host's career has her fitted. If the crew are in a different boat, their game starts again in the host's and joins again by itself.
-- **Fixed:** crew didn't see the host's lobster pots or the fuel hoses. They now get every part of the world.
+- **One address to share:** the game code goes on the page's address once you host or join; a reload keeps the game; a friend opening the link joins it.
+- **Boat changes keep the game:** when the host changes boat, the crew rebuild her and rejoin the same code without leaving.
+- **Host handover:** if the host's page dies, the crew-mate who joined first takes over hosting under the same code after 12 s; the rest find them.
+- **Crew build the host's boat** in memory: a Shipyard design, a fleet boat or the workboat as the career has her.
+- **Voice:** proximity chat between crew (off by default: Menu → Crew → Voice chat) and a handheld VHF on everyone's left shoulder.
+- **Fixed:** nobody could join a game whose welcome was over 16 KB (the connection now uses a chunked channel); pages keep themselves on the latest build; hosting retries and says why it can't; crew see the host's pots and fuel hoses.
 
 ## Known limits
 
-- **Buying gear restarts the game.** In VR you enter VR again, and crew aboard are dropped and must rejoin. Joining a host in a different boat restarts the joiner's game too.
-- **Only one Shipyard design** can be in the game at a time.
-- **Not yet tried on the Quest:** walking the ramp, refuelling by hand, the starter boat's refits, and rejoining a host after a rebuild.
-- **Deep Shipyard landing craft:** at her deepest hull settings, her ramp flaps stop just short of a slip.
-- **Two kinds of landing craft:** the game's own (Debug → Start in) still has the study's gentler bow. The new lines are on the Shipyard's.
+- **Buying gear restarts the game.** In VR you enter VR again; crew aboard rejoin by the code on the address.
+- **One boat per game.** Each player driving their own boat is planned (see `docs/MULTI_BOAT.md`) and waits on your answers to its questions.
+- **Not yet tried on the Quest:** most of this week's work was checked on desktop and headless only. In particular: the roving fender, the flat desktop menu's VR fallback, the held camera, the Voyage start and remembered place, the new pilot boat's handling, the Clyde's streaming at speed.
+- **The pilot boat file:** her raised foredeck and fore cabin are left off (the pilot boat hull type has no raised foredeck); strake and fenders kept.
+- **Coast maps:** a ship far from you on the Clyde or Syros steers by the coarse ground, so it may cut a corner the fine shore would not.
 
 ## Next
 
-- Leave more off the starter boat: the advanced instruments, and a fixed towline on the post with the winch as an upgrade.
-- Buy a Shipyard boat with your career money, selling the starter boat towards her.
+- Your answers on multi-boat multiplayer (big boats anchoring off, a boat whose player leaves, where a game starts), then its first milestone: boats by token.
+- Training mode.
+- Modular boats in the game, on your plan.

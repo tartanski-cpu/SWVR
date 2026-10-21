@@ -5232,6 +5232,11 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Tests:** the fleet tests as they are (builds with no warnings, strake and fenders, over 30 kn, dearer than the beginner boat). `tests/helmAssist.test.ts`: the "a design with the panel has no short code, without it has one" check used the pilot boat, whose new design has other link-only choices (sheer, facets): it now uses the Shipyard's default design.
 - **Checked:** typecheck, `npm test`, headless: Voyage Oban starts in her on the quay (screenshot). **Not checked:** VR; her handling at 11.2 m on pods (the owner's to judge).
 
+### Release notes since v1.0, brought up to date (owner)
+
+- **The owner:** an updated release note since version one, summarised well because it's getting long.
+- `docs/RELEASE_NOTES_next.md` rewritten to cover 16 to 21 October in full, by theme (three modes, the real maps, the fleet, the Shipyard, the archipelago, jobs and gear, boats and water, looks and sound, controls, playing together, known limits, next), from every commit since the `V1.0` tag. The live game is still v1.0 with the first weekend's fixes, so the note says plainly that everything in it is on the test build.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**
