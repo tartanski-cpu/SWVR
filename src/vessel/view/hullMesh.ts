@@ -217,10 +217,28 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
   // Wet-exhaust outlet: a short pipe stub through the transom.
   const ex = exhaustOutlet;
   if (ex) parts.push(bar(new THREE.Vector3(ex[0], ex[1], ex[2] - 0.12), new THREE.Vector3(ex[0], ex[1], ex[2]), 0.13, 0.13, col.mast));
-  // Steps up to a raised foredeck (Shipyard): each tread a block from her deck up, in the deck's colour, non-slip.
+  // Ladders up to a raised foredeck (Shipyard): each tread a block from her deck up, in the
+  // deck's colour, non-slip; and a handrail up each ladder's inboard side, on a post at its foot
+  // and one at its head on the raised deck (her bulwark is its other side).
   if (layout.deckSteps?.length) {
     const plan = hullPlan({ hull: form });
     for (const t of layout.deckSteps) parts.push(box(t.x0, t.x1, plan.deckY(t.z1) - 0.02, t.y, t.z0, t.z1, col.deck, 'nonSlip'));
+    const rail = CONFIG.shipyard.foredeck.rail;
+    for (const side of [-1, 1]) {
+      const ladder = layout.deckSteps.filter((t) => Math.sign(t.x0 + t.x1) === side);
+      if (!ladder.length) continue;
+      const x = side < 0 ? Math.max(...ladder.map((t) => t.x1)) : Math.min(...ladder.map((t) => t.x0));
+      const zHead = Math.min(...ladder.map((t) => t.z0));
+      const zFoot = Math.max(...ladder.map((t) => t.z1));
+      const yHead = Math.max(...ladder.map((t) => t.y)) + (Math.max(...ladder.map((t) => t.y)) - Math.min(...ladder.map((t) => t.y))) / Math.max(1, ladder.length - 1);
+      const yFoot = plan.deckY(zFoot + 0.05);
+      const head = new THREE.Vector3(x, yHead + rail, zHead - 0.25);
+      const foot = new THREE.Vector3(x, yFoot + rail, zFoot);
+      parts.push(bar(new THREE.Vector3(x, yHead, head.z), head, 0.04, 0.04, col.rail));
+      parts.push(bar(new THREE.Vector3(x, yFoot, zFoot), foot, 0.04, 0.04, col.rail));
+      parts.push(bar(new THREE.Vector3(x, yHead + rail, zHead), foot, 0.04, 0.04, col.rail));
+      parts.push(bar(new THREE.Vector3(x, yHead + rail, head.z), new THREE.Vector3(x, yHead + rail, zHead), 0.04, 0.04, col.rail));
+    }
   }
   // The house's parts from here on (buildVesselMeshParts).
   if (at) at.house = parts.length;
