@@ -5553,6 +5553,14 @@ Owner, Oct 2026: "On the big maps like Syros and the Firth of Clyde, the texture
 - **Not changed:** the career maps (their islands are drawn from formulas, already sampled at 8 m a pixel), the paper chart, the plotter's screen resolution (512 x 384).
 - **Checked:** tests/chartLand.test.ts (4): a triangle cut at the waterline (its dry part's corners and area), wholly above or below, always one way round; faces into squares, all-deep squares kept; each level's path, and a face wholly above the next level giving nothing for this one. Full suite passes. Headless Chromium, the plotter's screen before and after at Rothesay, and after at Ermoupoli, Oban, Tayvallich and out in the Clyde. **Not checked:** the Quest (watch for a stutter the first time a part of a map comes on the plotter).
 
+### Gillnetter: the wheelhouse forward by default (done, awaiting owner test)
+
+Owner, Oct 2026: the raised foredeck's sliders seemed to jump back while sliding. Why: the gillnetter's house started right aft (a bowpicker's, housePos 0), so almost any foredeck length put the break under the house. The break then ran on past the house (as built in "Raised foredeck"), nearly to the transom, and the deck looked to jump. The owner: "for this fishing boat type, I would place the wheelhouse at the front by default, not all the way at the front, but closer to the front."
+
+- **Now** (shipyard/parts/catalog.ts, DESIGN_HULLS gillnetter `defaults`): `housePos` 11 of 15 (0.73 of the free deck, forward of amidships), her working deck aft, as on the trawler she was shown with. Only a freshly picked hull is affected; saved designs and the game's fleet (their own files) keep their house where it is.
+- **Still so:** with the house forward, a foredeck ending 1 to 1.5 m aft of the bow stops forward of the house; longer ones run on under it to the landing aft of the house's door, and only the longest go further aft. Between, the slider moves the label but not the break. If that reads as broken, the label could show where the break really is.
+- **Checked:** headless Chromium, the Hull step: picking the gillnetter gives housePos 0.73; Raised foredeck swept 0 to 15: no jump to the transom (break forward of the house at 1.5 m, aft of it from 2 m). Full suite (below). **Not checked:** the Quest.
+
 ### A cabin below under the raised foredeck (done, awaiting owner test)
 
 Owner, Oct 2026: "it also looks like the cabin below the raised poop deck doesn't work at the moment." (Confirmed: a fo'c'sle cabin under the raised foredeck.) It only went under a deckhouse.
