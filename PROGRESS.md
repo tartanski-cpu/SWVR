@@ -5529,12 +5529,20 @@ Owner, Oct 2026: "On the big maps like Syros and the Firth of Clyde, the texture
 - **Not changed:** the career maps (their islands are drawn from formulas, already sampled at 8 m a pixel), the paper chart, the plotter's screen resolution (512 x 384).
 - **Checked:** tests/chartLand.test.ts (4): a triangle cut at the waterline (its dry part's corners and area), wholly above or below, always one way round; faces into squares, all-deep squares kept; each level's path, and a face wholly above the next level giving nothing for this one. Full suite passes. Headless Chromium, the plotter's screen before and after at Rothesay, and after at Ermoupoli, Oban, Tayvallich and out in the Clyde. **Not checked:** the Quest (watch for a stutter the first time a part of a map comes on the plotter).
 
+### Ceiling beams painted, not built (done, awaiting owner test)
+
+Owner, Oct 2026: "just something to improve performance a bit and make things simpler. The ceiling liner, which has beams, you can just paint those with textures. They don't need to be 3D."
+
+- **Now:** the liners' battens are painted into the ceiling's own tile (render/pixelPaint.ts `beamsLight`, `beamsDark`; `CONFIG.cabinBeams`): a band of varnished wood (`colour`) 3 pixels wide every 16 (8 cm every 0.42 m: the tile repeats every 1.68 m), a pixel of shadow on the liner beside each, the liner's fine speckle between. The 3D battens and the wood trim round the ceiling's edge are gone (hullMesh's `ceilingBeams` removed): fewer triangles in every lined wheelhouse, the same one draw call.
+- **Tiles in colour:** the beamed liners are the first tiles that aren't grey (`TINTED`): each is made for one ceiling colour, since the shader multiplies the part's colour by the tile's (x2). A tile can at most double the colour under it, too little to bring a wood-brown beam up from charcoal, so the dark liner's ceiling is a mid grey (`LINER_DARK_BASE`) and its tile darkens the liner to charcoal and keeps the beams brown. Colours worked in the renderer's linear space, as they meet in the shader.
+- **Checked:** tests/interiors.test.ts (6): the liners' ceilings wear their beamed tile (no teak battens); on either tile, a beam's pixel comes out near the wood's colour and brown, and between the beams near the liner's. pixelPaint's mean-grey test skips the tinted tiles. Full suite passes. Headless Chromium: light and dark liner with teak floor at the helm, and the ceiling close up. **Not checked:** the Quest.
+
 ### Interior finishes, round 2: wood or grippy floors, liners with wooden beams (done, awaiting owner test)
 
 Owner, Oct 2026 (with two photos: an aluminium pilothouse with a pale headliner between varnished battens and charcoal walls, and a cabin with a teak sole and a speckled light headliner with wooden battens): "not happy with the interior textures... quite often there's a wood floor and then some kind of either a light ceiling liner or a dark ceiling liner. Or... a grippy deck kind of utility floor with, again... a light liner. And I like this one with the wooden beams across it."
 
 - **Lining** (`CONFIG.interiors`, same Shipyard row): Wood lining (as before), **Light liner, beams** (pale speckled headliner, charcoal walls), **Dark liner, beams** (charcoal headliner and walls), **Light all round, beams**, Painted steel, Bare aluminium. The first round's teak-and-headliner and white/grey panel options are gone (and the `panels` tile with them); the liners use the fine speckle tile (`mat`).
-- **The beams** (`beams: true`; `CONFIG.cabinTrim`): varnished wooden battens across the ceiling every ~0.42 m (`beamPitch`, `beamWidth` 4.5 cm, `beamDepth` 3.5 cm), and a 6 cm wood trim strip round the ceiling's edge where it meets the walls (`trimDepth`), under every ceiling (the wheelhouse's, a lower saloon roof's, the box house's). Merged with her fixed parts: no extra draw calls.
+- **The beams** (first built in 3D, `CONFIG.cabinTrim`; since painted into the ceiling's tile, see "Ceiling beams painted, not built" above): varnished wooden battens across the ceiling every ~0.42 m, under every ceiling (the wheelhouse's, a lower saloon roof's, the box house's).
 - **Floor** (new Shipyard row, Inside group; `CONFIG.cabinFloors`, `design.cabinFloor`, design code **version 31**, packed above the lining; older codes read as matting): Matting (as before, the livery's floor colour), **Teak planks** (new tile `deckTeak`: dark teak strips 7.5 cm wide laid fore and aft with pale caulked seams), **Grippy utility** (dark charcoal, the non-slip tile). Livery key `cabinFloor`; hullMesh's `paintOf` sets the floor's colour and tile.
 - **Still known:** a ceiling looks darker than its paint by day (it faces down; the daytime light reaches it only dimly), so the light liner reads pale slate rather than white. Brightening it means a lighting change for the whole game (a fill light inside costs on the Quest); not done without the owner's say.
 - **Checked:** tests/interiors.test.ts (5): every lining's and floor's tiles exist and the Shipyard lists them all; a liner's beams are drawn (teak tile) and painted steel has none; teak planks and grippy floors appear when chosen; lining, floor and stack style round-trip through the code, off-scale refused. Full suite passes. Headless Chromium at the helm looking aft: light liner + teak, dark liner + teak, light liner + grippy, light all round + grippy. **Not checked:** the Quest.
@@ -6324,6 +6332,53 @@ Owner (with a map picture of the Firth): "Next id like a bigger area, as its onl
 - **Test steps:**
   - **Desktop:** open https://tartanski-cpu.github.io/SWVR/next/, choose Voyage → The Firth of Clyde. You start moored at Rothesay. Sail out of Rothesay Bay and north up the Firth past Toward toward Dunoon. Watch the shore sharpen as you near it, with no holes or steps in the ground. Use Menu → Debug → World → To port to jump to Largs, Millport (Cumbrae ferry terminal), Greenock or Helensburgh, and look round each.
   - **VR:** the same, with the perf panel: watch the triangle count and frame time as chunks arrive while under way.
+
+### Settlements, part B: trees, milestone 5: distance bands and the canopy (done, awaiting owner test)
+
+Owner: "Next milestone". The brief's milestone 5. Test: a forested hillside reads as forest from a mile offshore, at budget.
+
+**Three bands** (`world/view/treesView.ts`, settings in `CONFIG.trees`):
+- **Near** (milestone 4, unchanged): the full trees within `nearDistance` (320 m), up to `maxNear` (1,500).
+- **Middle**, out to `midDistance` (800 m):
+  - a sparser scatter: a jittered grid, about one tree in `midThin`² (1.7², so about a third) of the near band's, cheap to make for the many squares out there;
+  - cheaper models: a five-sided cone for a conifer, an octahedron crown for the others (5-8 triangles; the pine keeps its trunk, 16), no trunks, since the canopy hides their feet;
+  - crowns `midScale` (1.2) bigger, so the woods read as thick;
+  - up to `maxMid` (2,500), placed again after `midMoveAgain` (40 m);
+  - five more instanced meshes.
+- **Far, the canopy**, out to `canopyDistance` (5 km):
+  - a bumpy, flat-shaded surface over the woods, as high as the kind of wood (`canopyHeight`: plantation 14 m, mixed 12, broadleaf 11, natural 9, orchard 4, scrub 1.4), none where the map is thinner than `canopyMinDensity` (6 of 15);
+  - each corner the mean of the four cells round it, so it slopes down at the wood's edge, with a skirt down to the ground along the edge;
+  - coloured by the kind's species mix, a shade darker, each cell lighter or darker; bumps up to `canopyBump` (3 m);
+  - built on a `canopyCell` (40 m) grid, a 2 km square a frame, all merged into one mesh (merged again at most every `canopyRebuild`, 0.5 s);
+  - not drawn within `canopyFrom` (290 m) of the viewer, where the full trees stand, fading in over `canopyFade` (50 m) by a dither: no transparency, so nothing to sort.
+- **The canopy is its own mesh, drawing only:** the ground under it is unchanged, so walking ashore you're on the ground, not the treetops.
+
+**Cost** (headless, Oban):
+
+| Where | Near | Middle | Canopy | Tree triangles | Scene | Draw calls |
+|---|---|---|---|---|---|---|
+| Dunstaffnage (in the woods) | 727 trees | 2,211 trees | 10k | 46k | 200k (was 177-183k) | 72 (was 67) |
+| A mile offshore | | | 22k | 22k | 168k | 59 |
+
+At Dunstaffnage the near trees are 23k triangles and the middle band 13k.
+
+**Tests:** `tests/trees.test.ts`, 2 more:
+- the middle band sparser than the near one and its models cheaper;
+- the canopy over the woods only, a plantation's height over its skirts, none over open sea.
+- (The first try at the middle band was as thick as the near one; the test caught it. Each grid point is now thinned against its wood's own spacing.)
+
+**Checked headless:**
+- **At Dunstaffnage:** the plantation climbs the hill behind the marina, the full trees by the shore giving way to the middle band and the canopy up to the ridge.
+- **A mile offshore:** the woods along the shore stand as dark raised masses, plantations darker than the broadleaf woods.
+
+**Not checked:** the Quest. This adds about 20k triangles where the woods are thickest. If the frame rate drops, the levers are `maxMid` (fewer middle trees), `canopyDistance` and `canopyCell` (a coarser or shorter canopy).
+
+**Test steps:**
+- **VR:**
+  - Voyage → Oban and Lorn, Debug → World → To port → Dunstaffnage Marina. Look up the wooded hill behind: the trees should run from the shore up over the ridge with no line where the bands meet.
+  - Then take her out a mile (or Debug → To port elsewhere and look back): the woods should read as forest.
+  - Perf panel throughout.
+- **Desktop:** the same; also Tayvallich (Loch Sween's wooded shores) and the Clyde (the Cowal plantations above Dunoon).
 
 ### Settlements, part B: trees, milestone 4 (done, awaiting owner test)
 

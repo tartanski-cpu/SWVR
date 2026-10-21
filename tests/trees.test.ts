@@ -76,3 +76,34 @@ describe('scattering the trees', () => {
     for (const m of ['conifer', 'broadleaf', 'birch', 'scrub', 'pine'] as TreeModel[]) expect(treeGeometry(m).attributes.position.count / 3).toBeLessThan(50);
   });
 });
+
+describe('the far bands (milestone 5)', () => {
+  it('the middle band is sparser than the near one, and its models cheaper', async () => {
+    const { scatterMid, midTreeGeometry } = await import('../src/world/view/treesView');
+    const [x, z] = tileOf(4);
+    const near = scatterTile(f, 7, x, z, 100).length;
+    const mid = scatterMid(f, 7, x, z, 100).length;
+    expect(mid).toBeGreaterThan(0);
+    expect(mid).toBeLessThan(near * 0.75);
+    for (const m of ['conifer', 'broadleaf', 'birch', 'scrub', 'pine'] as TreeModel[]) expect(midTreeGeometry(m).attributes.position.count / 3).toBeLessThan(treeGeometry(m).attributes.position.count / 3);
+  });
+
+  it('the canopy stands over the woods only, above the ground, highest over a plantation', async () => {
+    const { canopyArrays } = await import('../src/world/view/treesView');
+    const { CONFIG } = await import('../src/config');
+    const [x, z] = tileOf(1);
+    const S = CONFIG.trees.canopySquare;
+    const sx = Math.floor(x / S) * S;
+    const sz = Math.floor(z / S) * S;
+    const a = canopyArrays(f, sx, sz);
+    expect(a.position.length).toBeGreaterThan(0);
+    expect(a.position.length / 9).toBeLessThan((S / CONFIG.trees.canopyCell) ** 2 * 10);
+    // Its top stands a plantation's height over its skirts' feet (on the ground).
+    let top = -Infinity;
+    let foot = Infinity;
+    for (let i = 1; i < a.position.length; i += 3) ((top = Math.max(top, a.position[i])), (foot = Math.min(foot, a.position[i])));
+    expect(top - foot).toBeGreaterThan(CONFIG.trees.canopyHeight.plantation * 0.6);
+    // And a square of open sea has none.
+    expect(canopyArrays(f, f.layout.x0 - 4 * S, f.layout.z0 - 4 * S).position.length).toBe(0);
+  });
+});

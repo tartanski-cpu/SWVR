@@ -7,7 +7,8 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { useDesign } from '../src/boats/sims';
 import { VESSEL_DEFS } from '../src/vessel/vesselDef';
 import { CONFIG } from '../src/config';
-import { paintIndex, PAINTS } from '../src/render/pixelPaint';
+import * as THREE from 'three';
+import { paintIndex, paintPixels, PAINTS, TILE, type PaintName } from '../src/render/pixelPaint';
 import { DESIGN_HULLS } from '../src/shipyard/build';
 import { CABIN_FLOOR_FIELD, decodeDesign, DEFAULT_DESIGN, encodeDesign, INTERIOR_FIELD, type ShipDesign } from '../src/shipyard/design';
 import { buildVesselMeshParts } from '../src/vessel/view/hullMesh';
@@ -49,11 +50,37 @@ describe('interior finishes', () => {
     const steel = tiles({ ...plain, interior: 4 });
     expect(steel.steel).toBeGreaterThan(0);
     expect(steel.wood ?? 0).toBe(0);
-    // A liner with the wooden beams across: the battens and trim wear the teak tile.
+    // A liner with the wooden beams across, painted into its ceiling's tile (no 3D battens).
     const liner = tiles({ ...plain, interior: 1 });
-    expect(liner.teak).toBeGreaterThan(0);
+    expect(liner.beamsLight).toBeGreaterThan(0);
     expect(liner.wood ?? 0).toBe(0);
-    expect(tiles({ ...plain, interior: 4 }).teak ?? 0).toBe(0); // no beams under painted steel
+    expect(liner.teak ?? 0).toBe(0);
+    expect(tiles({ ...plain, interior: 2 }).beamsDark).toBeGreaterThan(0);
+  });
+
+  it("the painted beams: the liner's colour between them and the wood's on them, under either liner", () => {
+    const px = paintPixels();
+    const at = (name: PaintName, x: number, y: number) => {
+      const i = (PAINTS.indexOf(name) + 1) * TILE * TILE * 4 + (y * TILE + x) * 4;
+      return [0, 1, 2].map((c) => (px[i + c] / 255) * 2); // the tile's factor on the colour under it
+    };
+    const shown = (ceiling: number, f: number[]) => {
+      const c = new THREE.Color(ceiling);
+      return new THREE.Color(c.r * f[0], c.g * f[1], c.b * f[2]);
+    };
+    const { colour, pitchPx, widthPx, light, dark } = CONFIG.cabinBeams;
+    const wood = new THREE.Color(colour);
+    for (const [name, spec] of [['beamsLight', light], ['beamsDark', dark]] as const) {
+      const beam = shown(spec.ceiling, at(name, 10, 1));
+      const between = shown(spec.ceiling, at(name, 10, widthPx + Math.floor(pitchPx / 2)));
+      // On a beam: near the wood's colour (its grain aside); between: near the liner's.
+      expect(beam.r / wood.r, name).toBeGreaterThan(0.7);
+      expect(beam.r / wood.r, name).toBeLessThan(1.3);
+      expect(beam.r).toBeGreaterThan(beam.b * 2); // brown, not grey
+      const liner = new THREE.Color(spec.liner);
+      expect(between.g / liner.g, name).toBeGreaterThan(0.75);
+      expect(between.g / liner.g, name).toBeLessThan(1.25);
+    }
   });
 
   it('the floor: matting as she comes; teak planks or grippy utility when chosen', () => {
