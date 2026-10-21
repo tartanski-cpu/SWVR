@@ -280,6 +280,13 @@
       .gearActs { grid-column: 2; display: flex; flex-wrap: wrap; gap: 6px; }
       .gearActs button { padding: 2px 9px; font-size: 12px; }
       .gearActs button.on { background: var(--accent-strong); color: var(--on-accent); border-color: var(--accent-strong); }
+      /* The Furniture step (page.ts showFurniture): a card a piece, each one on her listed under it. */
+      #furnMenu { border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
+      #furnMenu .gearCard:first-child { border-top: none; }
+      .furnList { grid-column: 2; }
+      .furnItem { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 5px 0; border-top: 1px dashed var(--line); }
+      .furnItem .meta { display: block; }
+      .furnItem .gearActs { flex: none; flex-wrap: nowrap; }
       #fromPins .item { display: grid; grid-template-columns: 24px 1fr; gap: 6px; padding: 5px 0; border-top: 1px solid var(--line); font-size: 13px; }
       #fromPins .item .meta { display: block; }
       #onHer .item { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 5px 0; border-top: 1px solid var(--line); font-size: 13px; }

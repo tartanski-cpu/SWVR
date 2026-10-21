@@ -52,6 +52,8 @@ import { trialCharts } from './trialCharts';
 import type { GearKind } from '../modular/module';
 import { GEAR_ABOUT, GEAR_GROUPS, GEAR_ICONS, gearKind } from './gearMenu';
 import { EQUIPMENT, equipmentOf, fitted, placeGear, removeGear, type Equipment } from './pinGear';
+import { FURNITURE_MENU, nextSlot, placedOf, placeFurniture, removeFurniture, slotOf } from './furnishing';
+import { furnitureName, furnitureSocketId } from './parts/furniture';
 import { SheetEditor } from './sheetEditor';
 import { addProject, readProjects, removeProject, writeProjects, type Project } from './projects';
 import { addFavourite, cleanName, readFavourites, removeFavourite, writeFavourites, type Favourite, type Store } from './favourites';
@@ -530,6 +532,7 @@ const STEP_GUIDE: Record<string, string> = {
   Hull: 'Her type and proportions. Length and beam set her size and stability; depth her freeboard; a raked bow throws spray aside and takes a head sea more softly.',
   Wheelhouse: 'Where the crew stand and what they can see. Forward gives a long working deck aft; aft, a foredeck to work over. Keep it low and light for stability.',
   Engine: 'Power for the speed in the brief. The propeller and gearbox are matched to her by trial each time; twin engines add power and handling, and cost.',
+  Furniture: 'What’s inside her houses: berths, settees, a galley, seats, lockers and a head. <b>Add</b> a piece, then click where it goes, seen from above with the roof cut away (forward of the wheelhouse for the cabin below): it’s put against the nearest wall there, clear of the helm and the doorways. Add as many as fit, up to four of each (one head). Its weight and price are designed in.',
   'Deck gear': 'Her equipment, by the work it’s for. <b>Place</b> it, then click on her where it goes: it’s put there (on the wheelhouse roof, the foredeck or the aft deck, whichever is nearest). Gear with only one place on any boat (the anchor, the stern roller, the A-frame, the side door) is simply <b>Fit</b>ted. Its weight is designed in.',
   Controls: 'What the skipper has at the helm.',
   Paint: 'Her colours, hull and roof.',
@@ -828,7 +831,14 @@ section('3. Deck gear');
   box.id = 'fromPins';
   controls.append(menu, box);
 }
-section('4. Engine');
+section('4. Furniture');
+{
+  // Her furniture (furnishing.ts): a card a piece, Add as many as fit; under it, each one on her.
+  const menu = document.createElement('div');
+  menu.id = 'furnMenu';
+  controls.append(menu);
+}
+section('5. Engine');
 choices('engine', ENGINES.map((e) => ({ name: e.name, note: `${'about' in e ? `${e.about} ` : ''}${e.kg} kg with its gearbox. Propeller and gearbox matched to her by trial.` })), (i) => (SINGLE_ONLY_ENGINES.includes(i) ? { twin: 0 } : {}));
 {
   const row = document.createElement('label');
@@ -876,7 +886,7 @@ options('stackStyle', 'Exhaust stacks', [...STACK_STYLES]).dataset.when = 'tugSt
   controls.appendChild(head);
   choices('outboards', OUTBOARDS.map((name) => ({ name })));
 }
-section('5. Controls');
+section('6. Controls');
 choices('controls', [
   { name: 'Basic', note: 'Wheel, throttle, key and start, speed and depth, rpm, and the VHF radio.' },
   { name: 'Advanced', note: 'Adds lights, wipers, horn, heading, engine monitor, an FM radio, the chartplotter, the NAV / WIND screen, the task board and the whiteboard, an overhead switch panel for the foredeck and aft deck floodlights, and the searchlight and fire monitor controls at the helm when they’re on poles.' },
@@ -884,7 +894,7 @@ choices('controls', [
 // The helm assist panel (owner, Oct 2026): with the advanced controls (the instruments) only.
 options('helmAssist', 'Helm assist', ['None', 'Autopilot, dock, auto start']).dataset.when = 'controls';
 const hex = (c: number) => `#${c.toString(16).padStart(6, '0')}`;
-section('6. Paint');
+section('7. Paint');
 {
   const box = document.createElement('div');
   box.className = 'swatches';
@@ -1759,6 +1769,8 @@ function lookAt(p: THREE.Vector3): void {
 let tool: 'pin' | 'sketch' | null = null;
 /** Equipment picked on the Deck gear palette: the next click on her pins it there. */
 let presetGear: string | null = null;
+/** The Furniture step: the piece (its field) being put where she's clicked next, if any. */
+let placingFurniture: FurnitureKey | null = null;
 const toolBtns: Record<string, HTMLButtonElement> = {};
 {
   const gap = document.createElement('span');
@@ -1799,6 +1811,7 @@ const toolBtns: Record<string, HTMLButtonElement> = {};
 function setTool(t: typeof tool): void {
   tool = t;
   presetGear = null;
+  placingFurniture = null;
   document.querySelectorAll<HTMLElement>('#gearMenu [data-place]').forEach((b) => b.classList.remove('on'));
   // Sketching: the view stays square on (no turning it; the wheel still zooms) and flat.
   orbit.enabled = t !== 'pin';
@@ -1879,6 +1892,14 @@ renderer.domElement.addEventListener('pointerdown', (e) => {
   const hit = hitBoat(e);
   if (tool === 'pin') {
     if (!hit) return;
+    // The Furniture step: the piece goes where she's clicked (no pin), the view put back first.
+    if (placingFurniture) {
+      const key = placingFurniture;
+      const at = fromFrac(toFrac(hit.toArray(), hullMin, hullMax), hullMin, hullMax);
+      setTool(null);
+      change(placeFurniture(key, at, hullPlan(VESSEL_DEFS.design).transom));
+      return;
+    }
     pendingPin = toFrac(hit.toArray(), hullMin, hullMax);
     // From the Deck gear palette: the equipment's chosen already, so it's pinned and placed at once.
     if (presetGear) return addPin(presetGear);
@@ -1924,9 +1945,6 @@ function pinGearTool(id: string): void {
   document.querySelectorAll<HTMLElement>('#gearMenu [data-place]').forEach((b) => b.classList.toggle('on', b.dataset.place === id));
   const eq = equipmentOf(id)!;
   $('toolHint').textContent = `Click on her where the ${eq.name.toLowerCase()} goes`;
-  // Furniture: from above with the roof cut away (cutOpen); other gear as she's seen.
-  cutOpen(eq.how === 'inside');
-  if (eq.how === 'inside') $('toolHint').textContent = `Seen from above with the roof cut away: click where the ${eq.name.toLowerCase()} goes (over the deckhouse for the cabin below)`;
 }
 function addPin(gearPicked?: string): void {
   if (!pendingPin) return;
@@ -2025,13 +2043,6 @@ function whereOnHer(eq: Equipment): string {
   const leftOff = short && boat.warnings.some((w) => w.toLowerCase().includes(short) && /left off/.test(w)) ? ' (no room: left off, see the warnings)' : '';
   const ramp = DESIGN_HULLS[design.hull].ramp;
   if (eq.id === 'anchor') return (ramp ? 'a kedge at the stern (her bow is the ramp)' : 'at the bow roller') + leftOff;
-  // Furniture (P5): where the builder put it (its place's label), or that it didn't fit.
-  if (eq.how === 'inside') {
-    const placed = boat.placed[eq.field as FurnitureKey];
-    if (placed === null) return 'no room where pinned: left off (see the warnings)';
-    const label = boat.hull.sockets.find((s) => s.id === `furniture.${eq.id}`)?.label ?? '';
-    return `${label.split(':')[0].toLowerCase()}${placed?.moved ? ' (moved along the wall from the pin, to fit)' : ''}`;
-  }
   if (eq.key && design[eq.key] && at) return `${USUAL[eq.id]?.[v] ?? ''}, where pinned: ${at.x === 0 ? 'on the centreline' : `${Math.abs(at.x).toFixed(2)} m to ${at.x < 0 ? 'port' : 'starboard'}`}`;
   return (USUAL[eq.id]?.[v] ?? '') + leftOff;
 }
@@ -2039,6 +2050,7 @@ function whereOnHer(eq: Equipment): string {
 const closedGroups = new Set<string>();
 /** The Deck gear step's menu: her equipment by group, each a card with its state and actions. */
 function showOnHer(): void {
+  showFurniture();
   const menu = document.getElementById('gearMenu');
   if (!menu) return;
   menu.innerHTML = '';
@@ -2077,6 +2089,68 @@ function showOnHer(): void {
       det.appendChild(card);
     }
     menu.appendChild(det);
+  }
+}
+/**
+ * Click on her where a piece of furniture goes (its field `key`: a new one's, or one on her to
+ * move it), seen from straight above with the roof cut away (cutOpen).
+ */
+function furnitureTool(key: FurnitureKey): void {
+  setTool('pin');
+  placingFurniture = key;
+  cutOpen(true);
+  const { kind, i } = slotOf(key);
+  $('toolHint').textContent = `Seen from above with the roof cut away: click where the ${furnitureName(kind, i)} goes (forward of the wheelhouse for the cabin below)`;
+  showFurniture();
+}
+/** Where a piece of furniture is, in words (its place's label), or that it didn't fit. */
+function furnitureWhere(key: FurnitureKey): string {
+  const { kind, i } = slotOf(key);
+  const placed = boat.placed[key];
+  if (placed === null) return 'no room where you put it: left off (see Needs attention)';
+  const label = boat.hull.sockets.find((s) => s.id === furnitureSocketId(kind, i))?.label ?? '';
+  return `${label.split(':')[0].toLowerCase()}${placed?.moved ? ' (moved along the wall to fit)' : ''}`;
+}
+/** The Furniture step: a card a piece (Add another while she has room for one), each one on her under it (Move, Take off). */
+function showFurniture(): void {
+  const menu = document.getElementById('furnMenu');
+  if (!menu) return;
+  menu.innerHTML = '';
+  for (const { kind, name } of FURNITURE_MENU) {
+    const on = placedOf(kind, design);
+    const next = nextSlot(kind, design);
+    const card = document.createElement('div');
+    card.className = `gearCard furnCard${on.length ? ' fitted' : ''}`;
+    card.innerHTML = `${GEAR_ICONS[kind] ?? ''}<div class="gearText"><b>${esc(name)}</b><span class="meta">${esc(GEAR_ABOUT[kind] ?? '')}</span><span class="gearState">${on.length ? `✓ ${on.length} on her` : 'None on her'}</span></div><div class="gearActs"></div><div class="furnList"></div>`;
+    const button = (box: Element, text: string, title: string, go: () => void, primary = false) => {
+      const b = document.createElement('button');
+      b.textContent = text;
+      b.title = title;
+      if (primary) b.className = 'primary';
+      b.onclick = go;
+      box.appendChild(b);
+      return b;
+    };
+    const acts = card.querySelector('.gearActs')!;
+    const add = button(acts, on.length ? 'Add another' : 'Add', `Then click on her where it goes`, () => next && furnitureTool(next), true);
+    if (!next) {
+      add.disabled = true;
+      add.title = kind === 'head' ? 'One head a boat' : 'Four is the most of a piece';
+    }
+    if (placingFurniture && placingFurniture === next) add.classList.add('on');
+    const list = card.querySelector('.furnList')!;
+    for (const key of on) {
+      const { i } = slotOf(key);
+      const row = document.createElement('div');
+      row.className = 'furnItem';
+      row.innerHTML = `<span><b>${esc(furnitureName(kind, i)[0].toUpperCase() + furnitureName(kind, i).slice(1))}</b> <span class="meta">${esc(furnitureWhere(key))}</span></span><span class="gearActs"></span>`;
+      const ra = row.querySelector('.gearActs')!;
+      const mv = button(ra, 'Move', 'Then click on her where it goes instead', () => furnitureTool(key));
+      if (placingFurniture === key) mv.classList.add('on');
+      button(ra, 'Take off', 'Take it off her (the ones after it move up a number)', () => change(removeFurniture(key, design)));
+      list.appendChild(row);
+    }
+    menu.appendChild(card);
   }
 }
 /** The Deck gear step's list of what pins asked for, and what became of it. */

@@ -108,7 +108,7 @@ const MORE_ENGINES = ENGINE_TYPES - BASE_ENGINES + 1;
 export const SINGLE_ONLY_ENGINES: readonly number[] = [3];
 
 /** One choice: its index on its scale, 0 .. steps-1. */
-export interface ShipDesign {
+export interface ShipDesign extends Record<FurnitureKey, number> {
   /** The base hull (DESIGN_HULLS). */
   hull: number;
   /** Hull length, beam and depth, each scaled (SCALES). */
@@ -277,19 +277,13 @@ export interface ShipDesign {
    * code: she travels as a link or file.
    */
   foreCabin: number;
-  /**
-   * Furniture (parametric boats P5; owner): each piece where it's pinned, a cell of the deck's
-   * 25 cm grid (furnitureCell: 0 none, else 1 + its cell), on the floor it lands on (the
-   * wheelhouse's, the saloon's, the cabin below's sole); the builder puts it against the
-   * nearest wall there, clear of what's in the way (shipyard/parts/furniture.ts). Not in the
-   * short code: she travels as a link or file.
+  /*
+   * Furniture (parametric boats P5; owner): FurnitureKey's fields (berthAt, berthAt2 ... headAt,
+   * below), each piece where it's placed, a cell of the deck's 25 cm grid (furnitureCell: 0
+   * none, else 1 + its cell), on the floor it lands on (the wheelhouse's, the saloon's, the
+   * cabin below's sole); the builder puts it against the nearest wall there, clear of what's in
+   * the way (shipyard/parts/furniture.ts). Not in the short code: she travels as a link or file.
    */
-  berthAt: number;
-  setteeAt: number;
-  galleyAt: number;
-  seatAt: number;
-  lockerAt: number;
-  headAt: number;
   /**
    * The saloon's roof (SCALES.saloonRoof; parametric boats P2b): as high as the wheelhouse's
    * (one roof), or 1 to 3 steps of 0.2 m lower, its own roof aft of a step in the roofline (the
@@ -480,9 +474,30 @@ const FC_LENGTH_FIELD: { key: 'fcLength'; steps: number } = { key: 'fcLength', s
 const FC_HEIGHT_FIELD: { key: 'fcHeight'; steps: number } = { key: 'fcHeight', steps: 4 };
 /** The deckhouse's top walked (design.dhWalk): 0 solid, 1 walked. Not in the code. */
 const DH_WALK_FIELD: { key: 'dhWalk'; steps: number } = { key: 'dhWalk', steps: 2 };
-/** Furniture's pins (design.berthAt and the rest): 0 none, else 1 + a cell of the grid. Not in the code. */
-export type FurnitureKey = 'berthAt' | 'setteeAt' | 'galleyAt' | 'seatAt' | 'lockerAt' | 'headAt';
-export const FURNITURE_FIELDS: { key: FurnitureKey; steps: number }[] = (['berthAt', 'setteeAt', 'galleyAt', 'seatAt', 'lockerAt', 'headAt'] as const).map((key) => ({ key, steps: 1 + CELLS }));
+/**
+ * Furniture's places (design.berthAt and the rest): 0 none, else 1 + a cell of the grid. Not in
+ * the code. Several of a piece (owner, Oct 2026: "the furniture should be allowed to place
+ * multiple"): a field each, the first as it always was (berthAt), the rest numbered (berthAt2,
+ * berthAt3, berthAt4). Up to four of each; one head (its door is the boat's one head door).
+ */
+export type FurniturePiece = 'berth' | 'settee' | 'galley' | 'seat' | 'locker' | 'head';
+export type FurnitureKey = `${FurniturePiece}At${'' | '2' | '3' | '4'}`;
+/** Each piece's fields, the first first. */
+export const FURNITURE_SLOTS: Record<FurniturePiece, FurnitureKey[]> = {
+  berth: ['berthAt', 'berthAt2', 'berthAt3', 'berthAt4'],
+  settee: ['setteeAt', 'setteeAt2', 'setteeAt3', 'setteeAt4'],
+  galley: ['galleyAt', 'galleyAt2', 'galleyAt3', 'galleyAt4'],
+  seat: ['seatAt', 'seatAt2', 'seatAt3', 'seatAt4'],
+  locker: ['lockerAt', 'lockerAt2', 'lockerAt3', 'lockerAt4'],
+  head: ['headAt'],
+};
+/** Every furniture field (a design's other head fields, headAt2 and on, are always 0). */
+export const FURNITURE_KEYS = Object.values(FURNITURE_SLOTS).flat();
+/** The head's spare fields: never set (one head), but the type has them. */
+const SPARE_HEADS: FurnitureKey[] = ['headAt2', 'headAt3', 'headAt4'];
+export const FURNITURE_FIELDS: { key: FurnitureKey; steps: number }[] = [...FURNITURE_KEYS.map((key) => ({ key, steps: 1 + CELLS })), ...SPARE_HEADS.map((key) => ({ key, steps: 1 }))];
+/** No furniture: every field 0. */
+export const NO_FURNITURE = Object.fromEntries(FURNITURE_FIELDS.map((f) => [f.key, 0])) as Record<FurnitureKey, number>;
 /** A cell of the grid as a furniture pin's value (`x` m from the centreline, `fromTransom` m forward of the transom). */
 export function furnitureCell(x: number, fromTransom: number): number {
   const xi = Math.max(-PLACE_GRID.halfX, Math.min(PLACE_GRID.halfX, Math.round(x / PLACE_GRID.step)));
@@ -655,12 +670,7 @@ export const DEFAULT_DESIGN: ShipDesign = fromSteps({
   fcHeight: 2,
   dhWalk: 0,
   foreCabin: 0,
-  berthAt: 0,
-  setteeAt: 0,
-  galleyAt: 0,
-  seatAt: 0,
-  lockerAt: 0,
-  headAt: 0,
+  ...NO_FURNITURE,
   ...NO_V10_GEAR,
   // The crew's fenders: what every boat has, at the least.
   guard: 1,
@@ -915,7 +925,7 @@ export function decodeDesign(code: string): { design: ShipDesign } | { error: st
     if (more && v10.design.hull !== 0) return { error: 'that code is off the scales (no design has it)' };
     // A later engine: its first 16 characters hold engine 0.
     if (moreEngine && v10.design.engine !== 0) return { error: 'that code is off the scales (no design has it)' };
-    return { design: fromSteps({ ...tidy(v10.design), ...places, helmAssist: 0, overhead: 0, sheer: 0, fcLength: 0, fcHeight: 2, dhWalk: 0, foreCabin: 0, berthAt: 0, setteeAt: 0, galleyAt: 0, seatAt: 0, lockerAt: 0, headAt: 0, ...(more ? { hull: BASE_HULLS - 1 + more } : {}), ...(moreEngine ? { engine: BASE_ENGINES - 1 + moreEngine } : {}) }) };
+    return { design: fromSteps({ ...tidy(v10.design), ...places, helmAssist: 0, overhead: 0, sheer: 0, fcLength: 0, fcHeight: 2, dhWalk: 0, foreCabin: 0, ...NO_FURNITURE, ...(more ? { hull: BASE_HULLS - 1 + more } : {}), ...(moreEngine ? { engine: BASE_ENGINES - 1 + moreEngine } : {}) }) };
   }
   // Codes from before version 10 (shorter than 17 characters) are retired (owner, Oct 2026: no need to keep old designs).
   return { error: `a design code has 17 characters (this has ${s.length})${s.length >= 10 ? ': codes from older Shipyards no longer open' : ''}` };

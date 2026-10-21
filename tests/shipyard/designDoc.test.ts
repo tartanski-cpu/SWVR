@@ -4,7 +4,7 @@
  * and says so; a field a document lacks is the starting design's.
  */
 import { describe, expect, it } from 'vitest';
-import { ALL_FIELDS, DEFAULT_DESIGN, decodeDesign, encodeDesign, type ShipDesign, fromSteps, toSteps } from '../../src/shipyard/design';
+import { ALL_FIELDS, DEFAULT_DESIGN, FURNITURE_FIELDS, decodeDesign, encodeDesign, type ShipDesign, fromSteps, toSteps } from '../../src/shipyard/design';
 import {
   DOC_FIELDS,
   designDoc,
@@ -35,7 +35,7 @@ function designs(): ShipDesign[] {
   });
 }
 /** The choices her short code holds: all but the helm assist panel, the cockpit overhead, the walked deckhouse top, the cabin below, extra sheer and a raised foredeck (a design with one travels as a document). */
-const NOT_IN_CODE: (keyof ShipDesign)[] = ['helmAssist', 'overhead', 'dhWalk', 'foreCabin', 'sheer', 'fcLength', 'fcHeight', 'berthAt', 'setteeAt', 'galleyAt', 'seatAt', 'lockerAt', 'headAt'];
+const NOT_IN_CODE: (keyof ShipDesign)[] = ['helmAssist', 'overhead', 'dhWalk', 'foreCabin', 'sheer', 'fcLength', 'fcHeight', ...FURNITURE_FIELDS.map((f) => f.key)];
 const CODE_FIELDS = ALL_FIELDS.filter((f) => !NOT_IN_CODE.includes(f.key));
 function rawDesigns(): ShipDesign[] {
   const out: ShipDesign[] = [{ ...DEFAULT_DESIGN }];
