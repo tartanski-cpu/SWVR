@@ -5297,6 +5297,14 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Tests:** `tests/lod.test.ts` (+3): reduced stations keep her displacement and her ends, near is every station; the level follows the nearest player (aboard, another boat, ashore) and what holds her; a far free boat floats as a near one and is stepped every other tick while the home boat is stepped every tick, both making the same way.
 - **Checked:** typecheck, `npm test`, headless as above (a far tug, pilot boat and landing craft in real waves: no blow-up over 30 s at any setting, `CONFIG.lod.everyOtherTick` on or off). **Not checked:** VR (the frame-time check on the Quest is the owner's); a crew-mate's view of a far boat stepped every other tick (the snapshots interpolate as before).
 
+### The desktop fly camera no longer sinks over the water (owner)
+
+- **The owner:** the debug fly camera doesn't fly properly over the water: it drops into the water like a human; it should fly wherever it goes.
+- **Why:** the desktop's fly camera (J) flies inside the rig while the body stays where it was, and each frame the locomotion settles the rig onto the floor under the *head*, the camera. Over land that floor was the quay you stood on; over the harbour it was the seabed's wading level, 1.4 m lower, so the rig and the camera with it sank. (The VR fly in the headset has no floor at all and was fine.)
+- **Now** (`player/locomotion.ts` `LocomotionInput.noFloor`, set by `App.runLocomotion` while the desktop camera is in fly mode): no floor settling while the camera is flying; the body keeps its height and the camera flies free. Walking resumes as before when fly is switched off.
+- **Tests:** `tests/flyCamera.test.ts` (+1): with a floor under the head 1.4 m lower, the rig settles to it walking and stays put with `noFloor`.
+- **Checked:** typecheck, `npm test`, headless: the career start, J, the camera flown 40 m over the harbour: the feet stayed at the quay's 1.6 m (they went to 0.2 m before). **Not checked:** VR (unchanged).
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

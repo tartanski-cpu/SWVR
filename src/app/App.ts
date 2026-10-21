@@ -2111,6 +2111,8 @@ export class App {
       turnStick: inXR && !this.gestures.ownsStick('right') ? this.xrInput.hands.right.stick[0] : 0,
       desktopDelta,
       fly,
+      // The desktop's fly camera (J): the body stays at its height, whatever is under the camera.
+      noFloor: !inXR && this.desktop.mode === 'fly',
     });
     for (const h of ['left', 'right'] as const) if (this.locomotion.grabStarted[h]) this.xrInput.pulse(h, 0.3, 30);
 

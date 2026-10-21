@@ -56,6 +56,12 @@ export interface LocomotionInput {
   desktopDelta: { x: number; y?: number; z: number } | null;
   /** VR on foot: grabs move in 3D and the stick ignores walls, fenced at the edge (false: swimming, desktop). */
   fly: boolean;
+  /**
+   * Don't settle onto a floor this frame: the desktop's fly camera is away from the body
+   * (the owner, Oct 2026: flown over the water, the rig settled to the seabed's wading
+   * level under the camera and the view sank with it).
+   */
+  noFloor?: boolean;
 }
 
 const headL = new THREE.Vector3();
@@ -167,8 +173,8 @@ export class Locomotion {
     // ── Ladder or floor ──
     const ladder = area.ladderAt(headL.x, headL.z);
     const y = p.position[1];
-    if (this.free) {
-      // Pulled ourselves here: stay at this height.
+    if (this.free || inp.noFloor) {
+      // Pulled ourselves here, or the desktop camera is off flying: stay at this height.
     } else if (ladder && y > ladder.bottom + 0.03) {
       // Holding on to the ladder: stay at this height.
       p.position[1] = Math.min(y, ladder.top);
