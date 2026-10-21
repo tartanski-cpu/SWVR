@@ -6333,6 +6333,53 @@ Owner (with a map picture of the Firth): "Next id like a bigger area, as its onl
   - **Desktop:** open https://tartanski-cpu.github.io/SWVR/next/, choose Voyage → The Firth of Clyde. You start moored at Rothesay. Sail out of Rothesay Bay and north up the Firth past Toward toward Dunoon. Watch the shore sharpen as you near it, with no holes or steps in the ground. Use Menu → Debug → World → To port to jump to Largs, Millport (Cumbrae ferry terminal), Greenock or Helensburgh, and look round each.
   - **VR:** the same, with the perf panel: watch the triangle count and frame time as chunks arrive while under way.
 
+### Settlements, part B: trees, milestone 5: distance bands and the canopy (done, awaiting owner test)
+
+Owner: "Next milestone". The brief's milestone 5. Test: a forested hillside reads as forest from a mile offshore, at budget.
+
+**Three bands** (`world/view/treesView.ts`, settings in `CONFIG.trees`):
+- **Near** (milestone 4, unchanged): the full trees within `nearDistance` (320 m), up to `maxNear` (1,500).
+- **Middle**, out to `midDistance` (800 m):
+  - a sparser scatter: a jittered grid, about one tree in `midThin`² (1.7², so about a third) of the near band's, cheap to make for the many squares out there;
+  - cheaper models: a five-sided cone for a conifer, an octahedron crown for the others (5-8 triangles; the pine keeps its trunk, 16), no trunks, since the canopy hides their feet;
+  - crowns `midScale` (1.2) bigger, so the woods read as thick;
+  - up to `maxMid` (2,500), placed again after `midMoveAgain` (40 m);
+  - five more instanced meshes.
+- **Far, the canopy**, out to `canopyDistance` (5 km):
+  - a bumpy, flat-shaded surface over the woods, as high as the kind of wood (`canopyHeight`: plantation 14 m, mixed 12, broadleaf 11, natural 9, orchard 4, scrub 1.4), none where the map is thinner than `canopyMinDensity` (6 of 15);
+  - each corner the mean of the four cells round it, so it slopes down at the wood's edge, with a skirt down to the ground along the edge;
+  - coloured by the kind's species mix, a shade darker, each cell lighter or darker; bumps up to `canopyBump` (3 m);
+  - built on a `canopyCell` (40 m) grid, a 2 km square a frame, all merged into one mesh (merged again at most every `canopyRebuild`, 0.5 s);
+  - not drawn within `canopyFrom` (290 m) of the viewer, where the full trees stand, fading in over `canopyFade` (50 m) by a dither: no transparency, so nothing to sort.
+- **The canopy is its own mesh, drawing only:** the ground under it is unchanged, so walking ashore you're on the ground, not the treetops.
+
+**Cost** (headless, Oban):
+
+| Where | Near | Middle | Canopy | Tree triangles | Scene | Draw calls |
+|---|---|---|---|---|---|---|
+| Dunstaffnage (in the woods) | 727 trees | 2,211 trees | 10k | 46k | 200k (was 177-183k) | 72 (was 67) |
+| A mile offshore | | | 22k | 22k | 168k | 59 |
+
+At Dunstaffnage the near trees are 23k triangles and the middle band 13k.
+
+**Tests:** `tests/trees.test.ts`, 2 more:
+- the middle band sparser than the near one and its models cheaper;
+- the canopy over the woods only, a plantation's height over its skirts, none over open sea.
+- (The first try at the middle band was as thick as the near one; the test caught it. Each grid point is now thinned against its wood's own spacing.)
+
+**Checked headless:**
+- **At Dunstaffnage:** the plantation climbs the hill behind the marina, the full trees by the shore giving way to the middle band and the canopy up to the ridge.
+- **A mile offshore:** the woods along the shore stand as dark raised masses, plantations darker than the broadleaf woods.
+
+**Not checked:** the Quest. This adds about 20k triangles where the woods are thickest. If the frame rate drops, the levers are `maxMid` (fewer middle trees), `canopyDistance` and `canopyCell` (a coarser or shorter canopy).
+
+**Test steps:**
+- **VR:**
+  - Voyage → Oban and Lorn, Debug → World → To port → Dunstaffnage Marina. Look up the wooded hill behind: the trees should run from the shore up over the ridge with no line where the bands meet.
+  - Then take her out a mile (or Debug → To port elsewhere and look back): the woods should read as forest.
+  - Perf panel throughout.
+- **Desktop:** the same; also Tayvallich (Loch Sween's wooded shores) and the Clyde (the Cowal plantations above Dunoon).
+
 ### Settlements, part B: trees, milestone 4 (done, awaiting owner test)
 
 Owner: "Next milestone". The brief's milestone 4: tree placement and a tree library. Test: a woodland looks varied up close.
