@@ -115,6 +115,10 @@ const camera = new THREE.PerspectiveCamera(45, 1, 0.05, 1000);
 const orbit = new OrbitControls(camera, renderer.domElement);
 orbit.enableDamping = true;
 let boatRoot: THREE.Object3D | null = null;
+/** The section tool's cut (sectionTool, below): which plane, where along her each sits (world m), which side is kept. */
+type SectionKind = 'waterline' | 'buttock' | 'station';
+const cut: { kind: SectionKind | null; at: Record<SectionKind, number | null>; flip: boolean } = { kind: null, at: { waterline: null, buttock: null, station: null }, flip: false };
+const sectionPlane = new THREE.Plane();
 
 function resize(): void {
   const w = view.clientWidth;
@@ -249,6 +253,7 @@ function drawBoat(): void {
   const machinery = addMachinery(root);
   scene.add(root);
   boatRoot = root;
+  recut();
   shown = { hull: parts.hull, house: parts.house, modules: modulesRoot, guard, skiff: root.children.find((c) => c.name === 'skiff') ?? null, machinery };
   focusStep();
   // A different engine (or one more) at the Engine step: look at it afresh.
@@ -261,6 +266,11 @@ function drawBoat(): void {
   hullMax = box.max.toArray();
   if (typeof drawNotes === 'function') drawNotes();
   if (typeof drawInk === 'function') drawInk();
+  // A section cut stays through her changes (kept within her new extent).
+  if (cut.kind) {
+    setSection(cut.kind);
+    applyCuts();
+  }
 }
 /**
  * The skiff in her cradle, if she carries one (the crane's tenderCrane gear): in the game
@@ -1823,35 +1833,31 @@ function setTool(t: typeof tool): void {
   $('toolHint').textContent = t === 'pin' ? 'Click on her where the pin goes' : t === 'sketch' ? 'Draw on the sheet: everyone with it open sees it as you draw. Port, Starboard, Plan, Bow or Stern for another view’s sketch; ✏ Sketch again to close' : '';
   drawInk();
   if (t !== 'pin') ($('pinEditor') as HTMLElement).hidden = true;
-  if (t !== 'pin') cutOpen(false);
+  // (The Furniture step keeps her cut away, seen from above, the whole time it's open.)
+  if (t !== 'pin' && shownStep !== 'furniture') cutOpen(false);
+  if (!t && shownStep === 'furniture') $('toolHint').textContent = FURNITURE_HINT;
 }
+/** What the view shows at the Furniture step, when nothing is being placed. */
+const FURNITURE_HINT = 'Seen from above with the roof cut away: Add a piece, then click where it goes';
 /**
  * Placing furniture (P5; owner: the roof is in the way): seen from straight above, flat, with
  * her cut away above a level just over the wheelhouse floor (CONFIG.shipyard.furniture.planCut),
  * so the floor, the console, the companionway and the furniture already there show and take the
- * click. Put back as it was (view, flat or not) when the pin is placed or the tool put down.
+ * click. The whole time the Furniture step is open (owner, Oct 2026: "keep the view from above
+ * on the Furniture step"), so piece after piece goes in without the view moving; put back as it
+ * was (view, flat or not) on leaving the step, or (another step's Place) once it's placed.
  */
 let cutAway: { y: number; eye: THREE.Vector3; at: THREE.Vector3; flat: boolean } | null = null;
 const cutPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), 0);
 renderer.localClippingEnabled = true;
 function cutOpen(on: boolean): void {
   if (!boatRoot || on === !!cutAway) return;
-  const meshes: THREE.Mesh[] = [];
-  boatRoot.traverse((o) => {
-    if ((o as THREE.Mesh).isMesh) meshes.push(o as THREE.Mesh);
-  });
-  const setPlanes = (planes: THREE.Plane[] | null) => {
-    for (const m of meshes) for (const mat of Array.isArray(m.material) ? m.material : [m.material]) {
-      mat.clippingPlanes = planes;
-      mat.needsUpdate = true;
-    }
-  };
   if (on) {
     const floor = boat.hull.layout.wheelhouse?.floorY ?? 1;
     const y = boatRoot.localToWorld(new THREE.Vector3(0, floor + CONFIG.shipyard.furniture.planCut, 0)).y;
     cutAway = { y, eye: camera.position.clone(), at: orbit.target.clone(), flat };
     cutPlane.constant = y;
-    setPlanes([cutPlane]);
+    applyCuts();
     setView('Plan');
     // Closer in: over her houses (and a deckhouse forward of them), filling most of the view.
     const wh = boat.hull.layout.wheelhouse;
@@ -1868,21 +1874,143 @@ function cutOpen(on: boolean): void {
   } else {
     const was = cutAway!;
     cutAway = null;
-    setPlanes(null);
+    applyCuts();
     camera.position.copy(was.eye);
     orbit.target.copy(was.at);
     orbit.update();
     if (flat !== was.flat) flatBtn.click();
   }
 }
+/** She's been built again while cut away (a piece added at the Furniture step): cut the new her, at her floor as it is now. */
+function recut(): void {
+  if (!cutAway || !boatRoot) return;
+  const floor = boat.hull.layout.wheelhouse?.floorY ?? 1;
+  cutAway.y = cutPlane.constant = boatRoot.localToWorld(new THREE.Vector3(0, floor + CONFIG.shipyard.furniture.planCut, 0)).y;
+  applyCuts();
+}
 const noteRay = new THREE.Raycaster();
 function hitBoat(e: PointerEvent): THREE.Vector3 | null {
   if (!boatRoot) return null;
   const r = renderer.domElement.getBoundingClientRect();
   noteRay.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), viewCam());
-  // (Cut away to place furniture: what's cut off isn't there to click.)
-  return noteRay.intersectObject(boatRoot, true).find((h) => !cutAway || h.point.y <= cutAway.y + 0.01)?.point ?? null;
+  // (Cut away, to place furniture or by the section tool: what's cut off isn't there to click.)
+  const planes = cutPlanes();
+  return noteRay.intersectObject(boatRoot, true).find((h) => planes.every((pl) => pl.distanceToPoint(h.point) >= -0.01))?.point ?? null;
 }
+/** The planes she's cut by now: the section tool's, and the one over the floor placing furniture. */
+function cutPlanes(): THREE.Plane[] {
+  return [...(cut.kind ? [sectionPlane] : []), ...(cutAway ? [cutPlane] : [])];
+}
+/**
+ * Cut her drawing by those planes (three.js clips what's on the far side of each). Cut, her
+ * materials are drawn from both sides, so what's left shows its inside (her plating from within)
+ * rather than letting you see through it. Only needed when a plane comes or goes, or she's
+ * redrawn: moving a plane moves the cut without it.
+ */
+function applyCuts(): void {
+  if (!boatRoot) return;
+  const planes = cutPlanes();
+  const mats = new Set<THREE.Material>([ghostFill, ghostEdge]);
+  boatRoot.traverse((o) => {
+    const m = o as THREE.Mesh;
+    for (const mat of [m.material, m.userData.solid].flat()) if (mat) mats.add(mat as THREE.Material);
+  });
+  for (const mat of mats) {
+    mat.userData.side ??= mat.side;
+    mat.clippingPlanes = planes.length ? planes : null;
+    mat.side = planes.length ? THREE.DoubleSide : (mat.userData.side as THREE.Side);
+    mat.needsUpdate = true;
+  }
+}
+
+// ── The section tool (owner: "a section cutting tool so you can cut the ship through as you want") ──
+// Her drawing cut by one of the three planes of her lines plan: a waterline (level), a buttock
+// (upright, fore and aft) or a station (upright, athwartships), slid along her with a slider.
+// Flip keeps the other side; Look at the cut turns the view square on to the cut face.
+const SECTION_LOOK: Record<SectionKind, [string, string]> = { waterline: ['Plan', 'Plan'], buttock: ['Starboard', 'Port'], station: ['Bow', 'Stern'] };
+/** Her extent along a section's axis (world m), and where it starts. */
+function sectionRange(kind: SectionKind): { min: number; max: number; start: number } {
+  const i = kind === 'waterline' ? 1 : kind === 'buttock' ? 0 : 2;
+  const plan = hullPlan(VESSEL_DEFS.design);
+  const start = kind === 'waterline' ? 0 : kind === 'buttock' ? 0 : plan.transom + (plan.stem - plan.transom) * CONFIG.shipyard.section.stationAt;
+  return { min: hullMin[i], max: hullMax[i], start };
+}
+/** Where the plane is, in a naval architect's words. */
+function sectionWords(kind: SectionKind, v: number): string {
+  const m = (x: number) => `${Math.abs(x).toFixed(2)} m`;
+  if (kind === 'waterline') return Math.abs(v) < 0.005 ? 'Waterline: the design waterline' : `Waterline: ${m(v)} ${v > 0 ? 'above' : 'below'} the design waterline`;
+  if (kind === 'buttock') return Math.abs(v) < 0.005 ? 'Buttock: the centreline' : `Buttock: ${m(v)} to ${v > 0 ? 'starboard' : 'port'}`;
+  const f = hullPlan(VESSEL_DEFS.design).transom - v;
+  return `Station: ${m(f)} ${f >= 0 ? 'forward of' : 'aft of'} the transom`;
+}
+/** Put the plane where cut.at says (kept inside her), the slider and words to match. */
+function setSection(kind: SectionKind): void {
+  const r = sectionRange(kind);
+  const v = THREE.MathUtils.clamp(cut.at[kind] ?? r.start, r.min, r.max);
+  cut.at[kind] = v;
+  // The side kept: below the waterline, to port of the buttock, aft of the station (bow is -z), or flipped.
+  const n = kind === 'waterline' ? new THREE.Vector3(0, -1, 0) : kind === 'buttock' ? new THREE.Vector3(-1, 0, 0) : new THREE.Vector3(0, 0, 1);
+  if (cut.flip) n.negate();
+  const at = new THREE.Vector3();
+  at.setComponent(kind === 'waterline' ? 1 : kind === 'buttock' ? 0 : 2, v);
+  sectionPlane.setFromNormalAndCoplanarPoint(n, at);
+  const slider = $('secAt') as HTMLInputElement;
+  Object.assign(slider, { min: String(r.min), max: String(r.max), step: String(CONFIG.shipyard.section.step) });
+  slider.value = String(v);
+  $('secLabel').textContent = sectionWords(kind, v);
+}
+function sectionTool(kind: SectionKind | null): void {
+  const was = cut.kind;
+  cut.kind = kind;
+  sectionBtn.classList.toggle('on', !!kind);
+  $('sectionPanel').hidden = !kind;
+  $('sectionPanel').querySelectorAll<HTMLElement>('[data-cut]').forEach((b) => b.classList.toggle('on', b.dataset.cut === kind));
+  if (kind) setSection(kind);
+  if (!was !== !kind) applyCuts();
+}
+/** Square on to the cut face, flat, as a section is drawn. */
+function lookAtCut(): void {
+  if (!cut.kind) return;
+  setView(SECTION_LOOK[cut.kind][cut.flip ? 1 : 0]);
+  // Aimed at the cut; a station, filling the view with her section (she's far narrower than long).
+  const v = cut.at[cut.kind]!;
+  const mid = new THREE.Vector3().fromArray(hullMin).add(new THREE.Vector3().fromArray(hullMax)).multiplyScalar(0.5);
+  const back = camera.position.clone().sub(orbit.target);
+  const at = cut.kind === 'waterline' ? new THREE.Vector3(0, v, mid.z) : cut.kind === 'buttock' ? new THREE.Vector3(v, mid.y, mid.z) : new THREE.Vector3(0, mid.y, v);
+  if (cut.kind === 'station') back.setLength(Math.max(hullMax[0] - hullMin[0], hullMax[1] - hullMin[1]) * 0.8 / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
+  orbit.target.copy(at);
+  camera.position.copy(at).add(back);
+  orbit.update();
+  if (!flat) flatBtn.click();
+}
+const sectionBtn = document.createElement('button');
+sectionBtn.textContent = '✂ Section';
+sectionBtn.className = 'tool';
+sectionBtn.title = 'Cut her through: a waterline, a buttock or a station, anywhere along her';
+sectionBtn.onclick = () => {
+  if (cut.kind) return sectionTool(null);
+  sectionTool('station');
+  lookAtCut();
+};
+$('views').appendChild(sectionBtn);
+$('sectionPanel').querySelectorAll<HTMLElement>('[data-cut]').forEach((b) => {
+  b.onclick = () => {
+    sectionTool(b.dataset.cut as SectionKind);
+    lookAtCut();
+  };
+});
+($('secAt') as HTMLInputElement).oninput = (e) => {
+  if (!cut.kind) return;
+  cut.at[cut.kind] = Number((e.target as HTMLInputElement).value);
+  setSection(cut.kind);
+};
+$('secFlip').onclick = () => {
+  cut.flip = !cut.flip;
+  if (cut.kind) setSection(cut.kind);
+  lookAtCut();
+};
+$('secLook').onclick = lookAtCut;
+$('secOff').onclick = () => sectionTool(null);
 let pendingPin: Frac | null = null;
 let downAt: { x: number; y: number } | null = null;
 renderer.domElement.addEventListener('pointerdown', (e) => {
@@ -2349,6 +2477,11 @@ function goStep(to: number | string, share = true): void {
   // Arriving at Engine: look at her machinery.
   if (els[i].dataset.step === 'engine' && shownStep !== 'engine') frameMachinery();
   shownStep = els[i].dataset.step!;
+  // The Furniture step: her from above, cut away, while it's open (cutOpen).
+  if (tool && shownStep !== 'furniture') setTool(null);
+  cutOpen(shownStep === 'furniture');
+  if (shownStep === 'furniture' && !tool) $('toolHint').textContent = FURNITURE_HINT;
+  else if (!tool && $('toolHint').textContent === FURNITURE_HINT) $('toolHint').textContent = '';
 }
 function showStepNav(): void {
   const nav = $('stepNav');
