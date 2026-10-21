@@ -124,6 +124,15 @@ same points; only the list's order changed), and `tests/shipyard/places.test.ts`
 Berth, settee, galley run, seat, locker, head with a door: placed on a floor level, each a
 furniture part with its footprint for walking.
 
+**Done (awaiting owner test).** One module, `furniture.piece` (modules/furniture), its `kind` a
+berth, settee, galley, seat, locker or head (a compartment with a hinged door, key
+`furniture.headDoor`), each with its footprint for walking; the floors inside the houses (and a
+cabin's sole) now keep clear of footprints, as the deck and roof did. In the Shipyard each is
+pinned (`design.berthAt` and the rest; Deck gear, "Inside: furniture") and placed by
+`parts/furniture.ts` on the floor the pin is over, its back to the nearest wall, clear of the helm,
+doorways, companionway, chart table, engine hatch, stacks and each other; it offers a place of its
+own (P4b) and its module goes in her recipe. Not in the short code.
+
 ## P6. Photographs to designs (S each time, once P1 to P3 are in)
 
 The owner sends profile, plan, bow and stern photographs; the hull's curves are fitted and the

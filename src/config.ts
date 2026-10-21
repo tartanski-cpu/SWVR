@@ -3139,6 +3139,17 @@ export const CONFIG = {
      * (GBP); it stops `fromStem` m short of her stem (the narrow bow) and `edge` m inside her
      * deck edge (the bulwark), when it's full width.
      */
+    /**
+     * Furniture (parametric boats P5, design.berthAt and the rest; shipyard/parts/furniture.ts;
+     * the pieces' sizes are CONFIG.modules.furniture). Kept clear of: the helm's standing room
+     * (`helmRoom`: either side of the wheel, aft of the console), the doorways (`doorWay`: across
+     * the aft door, and in from the side door), room to sit at the chart table (`chartRoom` out
+     * from it), the companionway and other openings (`holeClear` round them). A piece slides
+     * along its wall up to `reach` each way from its pin to fit; more than `movedOver` from it,
+     * the Shipyard says it moved. A head wants `headroom` under the ceiling. Priced as fit-out
+     * (`pricePerKg`, GBP).
+     */
+    furniture: { helmRoom: { halfWidth: 0.45, depth: 0.9 }, doorWay: { halfWidth: 0.5, depth: 0.9 }, chartRoom: 0.45, holeClear: 0.15, reach: 1.5, movedOver: 0.3, headroom: 1.9, pricePerKg: 40 },
     deckhouse: {
       kgPerM2: 35,
       pricePerM2: 450,
@@ -4227,6 +4238,33 @@ export const CONFIG = {
 
     /** nav.chartplotter (M3c): the chartplotter hung from the roof; its screen's tilt; its draw (A, CHART circuit). */
     chartplotter: { tiltDeg: 35, amps: 2.0 },
+
+    /**
+     * furniture.piece (parametric boats P5; owner): a Shipyard boat's furniture, each piece on a
+     * floor with its back to a wall (the seat stands free, facing forward). Its socket is the
+     * middle of its foot on the floor; in its own axes x runs along the wall and +z toward the
+     * wall (its back), so you face it from -z. For each kind its length along the wall and depth
+     * out from it (m), its weight (kg), and:
+     *   berth   a bunk: its platform `top` high, a `cushion` on it;
+     *   settee  its seat `seat` high, its back `back` high against the wall;
+     *   galley  a counter `top` high, a sink and a two-burner stove let into its top;
+     *   seat    a helm or companion seat on a pedestal, its seat `seat` high, its back `back`;
+     *   locker  a cupboard to the ceiling;
+     *   head    a compartment to the ceiling, its walls `wall` thick, a toilet inside, a hinged
+     *           door `door` wide in the side facing the room (a press on it opens or shuts it).
+     * A piece to the ceiling stops `ceilingGap` short of it. `colours`: the joinery, the worktop
+     * and walls, the cushions, steel, porcelain, and the dark of a sink or a stove's top.
+     */
+    furniture: {
+      berth: { length: 1.95, depth: 0.7, top: 0.45, cushion: 0.1, kg: 45 },
+      settee: { length: 1.4, depth: 0.55, seat: 0.45, back: 0.85, kg: 35 },
+      galley: { length: 1.3, depth: 0.6, top: 0.9, kg: 70 },
+      seat: { length: 0.5, depth: 0.5, seat: 0.62, back: 1.05, kg: 20 },
+      locker: { length: 0.6, depth: 0.55, kg: 30 },
+      head: { length: 1.0, depth: 1.0, wall: 0.04, door: 0.6, kg: 60 },
+      ceilingGap: 0.05,
+      colours: { joinery: 0xb08a5c, top: 0xdedbd2, cushion: 0x2b3a55, steel: 0x9aa0a6, porcelain: 0xf2f2ee, dark: 0x2a2d30 },
+    },
 
     /**
      * furniture.chart-table (M3c): the drop-leaf chart table on a wall. From its socket (the

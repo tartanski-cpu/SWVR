@@ -207,7 +207,8 @@ function houseWalk(
         // a floor sunk more than a step below the deck stops at the wall: a threshold below).
         height: (_x, z) => floorAt(z),
         contains: (x, z) =>
-          (Math.abs(x) <= int.x - r && z >= (byConsole(x, r) ? consoleAftAt(Math.abs(x) + r) + r : int.z0 + r) && z <= int.z1 - r && !atFurniture(x, z, r) && !inSteps(x, z) && !inHole(x, z)) ||
+          // (Clear of her gear standing on it: furniture, a stack's casing; module footprints at this floor's height.)
+          (Math.abs(x) <= int.x - r && z >= (byConsole(x, r) ? consoleAftAt(Math.abs(x) + r) + r : int.z0 + r) && z <= int.z1 - r && !atFurniture(x, z, r) && !inSteps(x, z) && !inHole(x, z) && !onGear(gear, x, z, r, floorAt(z))) ||
           (Math.abs(x) <= doorHalf - r * 0.6 && z > int.z1 - r - 0.02 && z < (deepSunk ? int.z1 : ext.z1 + r + 0.02)) ||
           // The port side door, out to the side deck.
           (!!sd && x < -int.x + r + 0.02 && x > -ext.x - r - 0.02 && z > sd.z0 + r * 0.6 && z < sd.z1 - r * 0.6),
@@ -359,7 +360,8 @@ export function vesselWalkArea(def: VesselDef, layout: LayoutConfig, gear: reado
     ...(layout.extraFloors ?? []).map(
       (f): Surface => ({
         height: () => f.y,
-        contains: (x, z) => x >= f.x0 + r * 0.5 && x <= f.x1 - r * 0.5 && z >= f.z0 && z <= f.z1,
+        // (Clear of furniture standing on it: P5.)
+        contains: (x, z) => x >= f.x0 + r * 0.5 && x <= f.x1 - r * 0.5 && z >= f.z0 && z <= f.z1 && !onGear(gear, x, z, r, f.y),
       }),
     ),
     ...helmHouse.steps,

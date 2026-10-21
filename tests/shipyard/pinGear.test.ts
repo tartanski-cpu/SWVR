@@ -1,6 +1,6 @@
 /** Pins that ask for equipment: where the Shipyard puts it. */
 import { describe, expect, it } from 'vitest';
-import { placeOf } from '../../src/shipyard/design';
+import { furnitureAt, furnitureCell, placeOf } from '../../src/shipyard/design';
 import { EQUIPMENT, equipmentOf, placeGear, removeGear } from '../../src/shipyard/pinGear';
 
 // A house from 1.5 m forward of amidships to 1.5 m aft (z forward negative); her transom at z 6.
@@ -40,9 +40,18 @@ describe('pinned equipment', () => {
   });
 
   it('every piece on the list can be placed; older pins’ ids still read', () => {
-    expect(EQUIPMENT.map((e) => e.id)).toEqual(['fireMonitor', 'searchlight', 'deckCrane', 'towWinch', 'sternRoller', 'aFrame', 'rodRack', 'lifeRing', 'sideDoor', 'anchor', 'skiff']);
+    expect(EQUIPMENT.map((e) => e.id)).toEqual(['fireMonitor', 'searchlight', 'deckCrane', 'towWinch', 'sternRoller', 'aFrame', 'rodRack', 'lifeRing', 'sideDoor', 'anchor', 'skiff', 'berth', 'settee', 'galley', 'seat', 'locker', 'head']);
     expect(equipmentOf('towPost')!.id).toBe('sternRoller');
     expect(equipmentOf('door')!.id).toBe('sideDoor');
     expect(equipmentOf('potHauler')).toBeUndefined();
+  });
+
+  it('furniture (P5): its pin sets its place, on the grid; taken off, none', () => {
+    const galley = equipmentOf('galley')!;
+    const put = placeGear(galley, [1.25, 3, -1], { front: -3, aft: 2, halfWidth: 1.5 }, 7);
+    expect(put.patch).toEqual({ galleyAt: furnitureCell(1.25, 8) });
+    expect(furnitureAt(put.patch.galleyAt!)).toEqual({ x: 1.25, fromTransom: 8 });
+    expect(put.words).toMatch(/in the wheelhouse/);
+    expect(removeGear(galley)).toEqual({ galleyAt: 0 });
   });
 });

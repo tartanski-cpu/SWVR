@@ -28,6 +28,7 @@ export const GEAR_GROUPS: GearGroup[] = [
   { name: 'Fishing', items: ['aFrame', 'rodRack'] },
   { name: 'Cargo', items: ['deckCrane'] },
   { name: 'Her fittings', items: ['anchor', 'sideDoor'] },
+  { name: 'Inside: furniture', items: ['berth', 'settee', 'galley', 'seat', 'locker', 'head'] },
 ];
 
 /** What each piece is for, in a line. */
@@ -43,17 +44,30 @@ export const GEAR_ABOUT: Record<string, string> = {
   deckCrane: 'A small crane for lifting cargo on and off her deck.',
   anchor: 'An anchor and its windlass, to hold her in one place. Every boat should have one.',
   sideDoor: 'A sliding door in the wheelhouse’s port wall, out to the side deck.',
+  berth: 'A bunk with its cushion, against a wall: in the wheelhouse, the saloon or the cabin below.',
+  settee: 'A seat with a cushioned back against a wall.',
+  galley: 'A counter with a sink and a two-burner stove.',
+  seat: 'A seat on a pedestal, standing free, facing forward: beside the helm, or for a passenger.',
+  locker: 'A cupboard to the ceiling, for oilskins and gear.',
+  head: 'A small compartment with a toilet, and a door you open and shut.',
 };
 
 /** How it goes on her (above). */
 export function gearKind(eq: Equipment): 'place' | 'fit' {
-  return eq.how === 'grid' || eq.how === 'side' || eq.how === 'skiff' || eq.how === 'rack' ? 'place' : 'fit';
+  return eq.how === 'grid' || eq.how === 'side' || eq.how === 'skiff' || eq.how === 'rack' || eq.how === 'inside' ? 'place' : 'fit';
 }
 
 const svg = (body: string) => `<svg class="gearIcon" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
 
 /** Each piece's icon (SVG markup). */
 export const GEAR_ICONS: Record<string, string> = {
+  // Furniture (P5): each seen from the side, as a plain line drawing.
+  berth: svg('<path d="M3 17V10M3 13h18v4M21 13v4M5 13v-2.5h5V13"/>'),
+  settee: svg('<path d="M4 18v-6h16v6M4 12V7h16v5M6 15h12"/>'),
+  galley: svg('<path d="M3 10h18M4 10v10h16V10M12 10v10M6 8.5h4M15 7.5a1.5 1.5 0 0 0 3 0"/>'),
+  seat: svg('<path d="M8 4v7h8M7 11h10M12 11v7M8 20h8"/>'),
+  locker: svg('<path d="M6 3h12v18H6zM12 3v18M10 12h0.5M13.5 12h0.5"/>'),
+  head: svg('<path d="M5 3h14v18H5zM8 21V12h6v9M12.5 16.5h0.5"/>'),
   // The ring, its shank and stock, the curved arms with their flukes.
   anchor: svg('<circle cx="12" cy="4.5" r="2"/><path d="M12 6.5V20.5M8.5 9.5h7M5 13.5c0 4 3 7 7 7s7-3 7-7M3.5 15l1.5-1.5 1.5 1.5M17.5 15l1.5-1.5 1.5 1.5"/>'),
   // The ring and its four bands of tape.

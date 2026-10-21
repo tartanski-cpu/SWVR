@@ -389,6 +389,7 @@ export const BUS_KEYS = {
   'gate.side.open': control('sideGate', 'The gate in the working-deck bulwark open (starts shut).', { aliases: ['sideGate'] }),
   'ramp.bow.down': control('bowRamp', 'The bow ramp lowered (starts raised; the landing craft).', { aliases: ['bowRamp'] }),
   'hatch.engine.open': control('engineHatch', 'The engine hatch in the wheelhouse floor open.', { aliases: ['engineHatch'] }),
+  'furniture.headDoor': control('headDoor', "The head's door open (starts shut; a Shipyard boat's furniture).", { aliases: ['headDoor'] }),
   'chartTable.leafOpen': {
     ...control('chartLeaf', "The chart table's drop leaf unfolded (folded: against the wall).", { aliases: ['chartLeaf'], default: true }),
     bind: {

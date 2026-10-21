@@ -291,6 +291,12 @@ Every value on a boat's bus (modular boats; `src/modular/busKeys.ts`). Generated
 |---|---|---|---|---|---|
 | `hatch.engine.open` | on / off | player sets | legacy | `engineHatch` | The engine hatch in the wheelhouse floor open. |
 
+## furniture
+
+| Key | Values | Use | Written by | Old names | What it is |
+|---|---|---|---|---|---|
+| `furniture.headDoor` | on / off | player sets | legacy | `headDoor` | The head's door open (starts shut; a Shipyard boat's furniture). |
+
 ## chartTable
 
 | Key | Values | Use | Written by | Old names | What it is |

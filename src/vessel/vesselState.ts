@@ -62,6 +62,8 @@ export interface VesselControls {
   engineHatch?: number;
   /** The chart table's drop leaf unfolded (1, or unset) or folded against the wall (0). */
   chartLeaf?: number;
+  /** The head's door (a Shipyard boat's furniture, P5) open (1) or shut (0, or unset). */
+  headDoor?: number;
   /** Fire monitor on the roof: pump on (0/1), and its pan (deg, + to starboard) and elevation (deg). */
   firePump: number;
   monPan: number;

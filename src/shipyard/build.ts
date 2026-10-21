@@ -31,7 +31,7 @@ import { CONFIG } from '../config';
 import { hullFormOf, type HullDefinition } from '../modular/hull';
 import type { Recipe } from '../modular/recipe';
 import type { HullForm } from '../vessel/hullForm';
-import type { PlaceKey, ShipDesign } from './design';
+import type { FurnitureKey, PlaceKey, ShipDesign } from './design';
 
 import { hullPart } from './parts/hull';
 import { housePart, layoutPart, overheadPart, interiorPart } from './parts/house';
@@ -40,6 +40,7 @@ import { machineryPart, engineHatchPart } from './parts/engineRoom';
 import { placesPart } from './parts/places';
 import { deckGearPart, houseGearPart } from './parts/deckGear';
 import { hullDefPart } from './parts/hullDef';
+import { furniturePart } from './parts/furniture';
 import { recipePart } from './parts/recipe';
 import { weightsPart } from './parts/weights';
 import { atDWL, type BuildArgs } from './parts/common';
@@ -67,7 +68,7 @@ export interface DesignedBoat {
    * pinned cell to stand there (`moved`), and on the roof or not; null if it couldn't stand
    * within a metre of its pin and is in its usual place.
    */
-  placed: Partial<Record<PlaceKey, { x: number; z: number; moved: boolean; onRoof?: boolean } | null>>;
+  placed: Partial<Record<PlaceKey | FurnitureKey, { x: number; z: number; moved: boolean; onRoof?: boolean } | null>>;
 }
 
 /**
@@ -126,6 +127,7 @@ function buildAt(d: ShipDesign, code: string, raise: number, given: { massKg: nu
   const p9 = { ...p8, ...interiorPart(a, p8) };
   const p10 = { ...p9, ...houseGearPart(a, p9) };
   const p11 = { ...p10, ...hullDefPart(a, p10) };
-  const p12 = { ...p11, ...recipePart(a, p11) };
-  return weightsPart(a, p12);
+  const p12 = { ...p11, ...furniturePart(a, p11) };
+  const p13 = { ...p12, ...recipePart(a, p12) };
+  return weightsPart(a, p13);
 }

@@ -134,6 +134,9 @@ export function applyVesselIntent(s: VesselState, intent: Intent): void {
     case 'chartLeaf':
       s.controls.chartLeaf = intent.value > 0.5 ? 1 : 0;
       break;
+    case 'headDoor':
+      s.controls.headDoor = intent.value > 0.5 ? 1 : 0;
+      break;
     case 'engineHatch':
       s.controls.engineHatch = intent.value > 0.5 ? 1 : 0;
       break;
