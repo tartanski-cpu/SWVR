@@ -189,7 +189,7 @@ export type BowRampLayout = (typeof CONFIG.vessels.landingCraft.layout)['bowRamp
  * CONFIG.interiors (none: the wood lining); `cabinFloor`: its floor, into CONFIG.cabinFloors
  * (none: matting).
  */
-export type Livery = Partial<Record<'bottom' | 'topsides' | 'deck' | 'house' | 'windows' | 'roof' | 'roofTop' | 'mast' | 'rail' | 'floor' | 'console' | 'panel' | 'interior' | 'cabinFloor', number>>;
+export type Livery = Partial<Record<'bottom' | 'topsides' | 'deck' | 'house' | 'windows' | 'roof' | 'roofTop' | 'mast' | 'rail' | 'floor' | 'console' | 'panel' | 'frame' | 'interior' | 'cabinFloor', number>>;
 
 /**
  * A wheelhouse: the workboat's, with what not every house has optional (M7): a port side
