@@ -4945,6 +4945,52 @@ export const CONFIG = {
    *                   out to this times the visibility
    */
   /**
+   * Harbour boats (the settlements brief, Part C; world/harbourBoats.ts, drawn by
+   * world/view/harbourBoatsView.ts): boats lying in a coast map's harbours, alongside, on
+   * moorings and at anchor. Solid to a hull (a soft, fendered bump), not driven: they lie
+   * where they are, swinging to the wind.
+   *   pontoonShare / quayShare  the share of the berths along the pontoons / quays and piers
+   *                    with a boat in (picked by each berth's id, so the same every time)
+   *   namedClear       no boat alongside within this of a named berth (m: the cargo, fuel
+   *                    and start berths, and their neighbours, stay free for you)
+   *   kinds            each design's length, beam, draught and freeboard (m): her hull's box
+   *                    for the collision; the drawing is made to the same size
+   *   pennant          a moored boat lies this far beyond her length's half from the buoy
+   *                    (m: the mooring pennant and the riser's scope); at anchor `anchorScope`
+   *                    x the depth (the chain out)
+   *   wanderDeg / wanderPeriod  how far she yaws about her lie (deg) and how slowly (s)
+   *   calmWind         below this wind (m/s) she lies more and more to her own whim (the tide)
+   *   stepReach        the collision follows the boats within this of any vessel (m)
+   *   drawDistance / maxShown  drawn within this of the viewer (m), the nearest this many;
+   *                    `bobDistance` the nearer ones ride the waves (pitch and roll from
+   *                    three wave samples), the farther just rise and fall; re-picked every
+   *                    `refresh` s. `desktop`: farther on a desktop (Settings > Trees: the same
+   *                    device level as the trees, render/device.ts).
+   */
+  harbourBoats: {
+    pontoonShare: 0.55,
+    quayShare: 0.2,
+    namedClear: 25,
+    kinds: {
+      creel: { length: 9.5, beam: 3.6, draught: 1.2, freeboard: 1.3 },
+      yacht: { length: 10.5, beam: 3.4, draught: 1.7, freeboard: 1.1 },
+      cruiser: { length: 9, beam: 3.2, draught: 0.9, freeboard: 1.4 },
+      rib: { length: 5.8, beam: 2.3, draught: 0.4, freeboard: 0.8 },
+      caique: { length: 9, beam: 3.2, draught: 1.1, freeboard: 1.2 },
+    } as Record<'creel' | 'yacht' | 'cruiser' | 'rib' | 'caique', { length: number; beam: number; draught: number; freeboard: number }>,
+    pennant: 3,
+    anchorScope: 3,
+    wanderDeg: 14,
+    wanderPeriod: 45,
+    calmWind: 3,
+    stepReach: 250,
+    drawDistance: 1500,
+    maxShown: 120,
+    bobDistance: 400,
+    refresh: 1,
+    desktop: { drawDistance: 3500, maxShown: 400, bobDistance: 900 },
+  },
+  /**
    * A coast region's trees (the settlements brief, Part B; world/view/treesView.ts), scattered
    * from its forest map near the viewer: every tree within `nearDistance` (m), nearest first,
    * at most `maxNear` of them (the Quest's budget: each tree is 20-32 triangles), scattered

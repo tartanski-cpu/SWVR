@@ -27,6 +27,28 @@ export interface ForestStyle {
   colours: Record<TreeSpecies, number[]>;
 }
 
+/** The game's harbour-boat designs (world/view/harbourBoatKit.ts): original small craft, not copies of real ones. */
+export type HarbourBoatKind = 'creel' | 'yacht' | 'cruiser' | 'rib' | 'caique';
+
+/**
+ * A theme's harbour boats (the settlements brief, Part C; boats.ts): which kinds lie where,
+ * by weight, and their hull colours (one picked per boat).
+ *   alongside  at the pontoons and quays (the game fills a share of the berths)
+ *   moored     on the swinging moorings in the harbours' sheltered water
+ *   anchored   at anchor in the anchorages
+ */
+export interface BoatStyle {
+  alongside: [HarbourBoatKind, number][];
+  moored: [HarbourBoatKind, number][];
+  anchored: [HarbourBoatKind, number][];
+  hulls: number[];
+  /**
+   * How many swinging moorings a harbour has here, as a share of boats.ts's full field (1):
+   * a West Highland bay is full of them; Aegean boats mostly lie stern-to along the quays.
+   */
+  moorings: number;
+}
+
 /**
  * Region themes: the colours a region's ground takes from its land cover (ESA WorldCover
  * classes), flat per face, no textures. One per family of places; the request names it.
@@ -48,6 +70,7 @@ export interface Theme {
   /** Buildings near harbours: colours, floors and roofs by type (houses.ts). */
   houses: HouseStyle;
   forest: ForestStyle;
+  boats: BoatStyle;
 }
 
 const NORTH_HEBRIDEAN: Theme = {
@@ -110,6 +133,15 @@ const NORTH_HEBRIDEAN: Theme = {
       pine: [0x3a5a34, 0x46663a],
       olive: [0x7a8a6a, 0x8a9a78],
     },
+  },
+  // West Highland harbours: creel boats at the quays, yachts on the moorings and at the
+  // marina pontoons, a few motor cruisers and RIBs.
+  boats: {
+    alongside: [['creel', 3], ['yacht', 3], ['cruiser', 2], ['rib', 2]],
+    moored: [['yacht', 6], ['creel', 2], ['cruiser', 1], ['rib', 1]],
+    anchored: [['yacht', 1]],
+    moorings: 1,
+    hulls: [0xf2f0ea, 0xf2f0ea, 0x1e2f4a, 0x2a4a3a, 0x8a2a24, 0x2a2a2e, 0x3a5a7a],
   },
 };
 
@@ -174,6 +206,15 @@ const AEGEAN: Theme = {
       pine: [0x3e5c32, 0x4a6838, 0x36522e],
       olive: [0x7a8a68, 0x86967a, 0x6e7e60],
     },
+  },
+  // Aegean harbours: painted wooden caiques at the quays and on the moorings, charter yachts
+  // at the marina pontoons and at anchor in the bays.
+  boats: {
+    alongside: [['caique', 4], ['yacht', 3], ['cruiser', 2], ['rib', 2]],
+    moored: [['caique', 3], ['yacht', 4], ['rib', 1]],
+    anchored: [['yacht', 3], ['cruiser', 1]],
+    moorings: 0.35,
+    hulls: [0xf4f2ec, 0xf4f2ec, 0x2a5a9a, 0x3a7ab8, 0xb83a2a, 0x3a7a5a, 0xd8a83a],
   },
 };
 

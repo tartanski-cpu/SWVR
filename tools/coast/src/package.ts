@@ -19,7 +19,7 @@
  *              its tallest lighthouse).
  *   Terrain    where terrain.bin keeps what, the chunks, the box; the credits and licence.
  *
- * Run: node src/package.ts [requestId] (last, after mesh and trees).
+ * Run: node src/package.ts [requestId] (last, after mesh, trees and boats).
  */
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -320,6 +320,8 @@ const pkg = {
   box,
   /** The forest map (trees.ts), for the game's trees; absent if the trees stage hasn't run. */
   ...(existsSync(join(D.out, 'trees.json')) ? { trees: JSON.parse(readFileSync(join(D.out, 'trees.json'), 'utf8')) } : {}),
+  /** The harbour boats' moorings and anchor spots and the theme's boat mix (boats.ts); absent if that stage hasn't run. */
+  ...(existsSync(join(D.out, 'boats.json')) ? { boats: (({ counts: _c, ...b }) => b)(JSON.parse(readFileSync(join(D.out, 'boats.json'), 'utf8'))) } : {}),
   credits: region.credits,
   licence: region.licence,
   landmarks,

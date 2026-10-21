@@ -471,6 +471,34 @@ export interface FallDef {
  * low block). The farm's feed barge is one of the region's blocks (`barge`); its goods and
  * berth are a port's.
  */
+/** The game's harbour-boat designs (world/view/harbourBoatKit.ts): original small craft. */
+export type HarbourBoatKind = 'creel' | 'yacht' | 'cruiser' | 'rib' | 'caique';
+
+/** Where a harbour boat lies on a mooring or at anchor (the coast pipeline's boats stage). */
+export interface HarbourBoatSpot {
+  x: number;
+  z: number;
+  /** Water there (m). */
+  depth: number;
+  /** The harbour or anchorage it belongs to. */
+  harbour: string;
+  kind: 'mooring' | 'anchor';
+  /** One of the map's own mooring buoys (else laid by the pipeline). */
+  mapped?: boolean;
+}
+
+/** A region's harbour boats (the settlements brief, Part C): its moorings and anchor spots, and which kinds lie where. */
+export interface HarbourBoatsDef {
+  style: {
+    alongside: [HarbourBoatKind, number][];
+    moored: [HarbourBoatKind, number][];
+    anchored: [HarbourBoatKind, number][];
+    hulls: number[];
+    moorings: number;
+  };
+  spots: HarbourBoatSpot[];
+}
+
 export interface FarmDef {
   name: string;
   x: number;
@@ -572,6 +600,8 @@ export interface RegionDef {
   /** Waterfalls, fish farms, katabatic gust zones (milestone 5: the Fjord). */
   falls?: FallDef[];
   farms?: FarmDef[];
+  /** Boats lying in its harbours, on moorings and at anchor (a coast map's; world/harbourBoats.ts). */
+  harbourBoats?: HarbourBoatsDef;
   gusts?: GustZoneDef[];
   /**
    * A coast region (real coastline from open map data, tools/coast; coastRegion.ts): its

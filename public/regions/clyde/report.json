@@ -3,6 +3,9 @@
   "7 patches where the coastline's sides disagree (check the coast there)",
   "ormidale-lodge-pier: no berth with room for a boat (best blocked at 12 points): not a port",
   "kilchattan-bay-pier-2: no berth with room for a boat (best blocked at 4 points): not a port",
+  "the-lorn-pier-2: no berth with room for a boat (best blocked at 3 points): not a port",
+  "ormidale-lodge-pier: no berth with room for a boat (best blocked at 12 points): not a port",
+  "kilchattan-bay-pier-2: no berth with room for a boat (best blocked at 4 points): not a port",
   "the-lorn-pier-2: no berth with room for a boat (best blocked at 3 points): not a port"
  ],
  "nav": {
@@ -1223,7 +1226,7 @@
    "Cruach nan Capull",
    "Cloch Point FlW.3s"
   ],
-  "bytes": 1382567
+  "bytes": 1454505
  },
  "houses": {
   "byType": {
