@@ -10,6 +10,7 @@ import { REGIONS } from '../world/regions';
 import type { RegionDef } from '../world/defs';
 import { groundHeight } from '../world/terrain';
 import { CONFIG } from '../config';
+import { boatOwnerName, playerBoats } from '../core/launch';
 import type { ChartMarks } from '../chart/marks';
 import { towFast } from '../tow/tow';
 import { Button } from '../controls/Button';
@@ -602,6 +603,37 @@ export class ChartPlotter {
       g.fillStyle = '#7af0c0';
       g.font = 'bold 14px system-ui, sans-serif';
       g.fillText(ship.name.toUpperCase(), px + 10, py + 14);
+    }
+
+    // The crew's boats (multi-boat M5): every other player's boat as an AIS-like target in
+    // the crew's colour, with whose she is; no receiver needed (you're one crew).
+    for (const b of playerBoats(world)) {
+      if (b.id === vesselId) continue;
+      const [px, py] = toPx(b.position[0], b.position[2]);
+      if (px < -40 || px > W + 40 || py < -40 || py > H + 40) continue;
+      const [bx, by, bz, bw] = b.orientation;
+      const course = Math.atan2(-(2 * (bx * bz + bw * by)), 1 - 2 * (bx * bx + by * by));
+      const sp = Math.hypot(b.linearVelocity[0], b.linearVelocity[2]);
+      const [ex, ey] = toPx(b.position[0] + Math.sin(course) * sp * 360, b.position[2] - Math.cos(course) * sp * 360);
+      g.strokeStyle = '#ffd27a';
+      g.lineWidth = 2;
+      g.beginPath();
+      g.moveTo(px, py);
+      g.lineTo(ex, ey);
+      g.stroke();
+      g.save();
+      g.translate(px, py);
+      g.rotate(course);
+      g.beginPath();
+      g.moveTo(0, -10);
+      g.lineTo(6, 7);
+      g.lineTo(-6, 7);
+      g.closePath();
+      g.stroke();
+      g.restore();
+      g.fillStyle = '#ffd27a';
+      g.font = 'bold 14px system-ui, sans-serif';
+      g.fillText(boatOwnerName(world, b).toUpperCase(), px + 10, py + 14);
     }
 
     // Own ship: a triangle pointing along the heading.

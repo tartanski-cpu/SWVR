@@ -27,7 +27,7 @@ import { vesselRuntime } from '../boats/sims';
 import { stepForecast } from '../environment/forecast';
 import { applyTrafficIntent, stepTraffic } from '../traffic/traffic';
 import { applySpawnBoatIntent } from './spawnBoat';
-import { applyLaunchIntent, isLaunchIntent, stepLaunched } from './launch';
+import { applyLaunchIntent, isLaunchIntent, stepLaunched, teleportToPortSlot } from './launch';
 import { heldInPlace, lodStations, vesselLod } from './lod';
 import { stepDuties } from '../duties/duties';
 import { applyCraneIntent, onCrane, stepTender } from '../vessel/tenderCrane';
@@ -122,6 +122,9 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
       applySpawnBoatIntent(world, intent);
     } else if (isLaunchIntent(intent.control)) {
       applyLaunchIntent(world, intent);
+    } else if (intent.control === 'teleportToPort' && intent.ref && world.vessels[intent.targetId]) {
+      // With several boats about (multi-boat M5): a free berth, else the bay.
+      if (!teleportToPortSlot(world, world.vessels[intent.targetId], intent.ref)) applyVesselIntent(world.vessels[intent.targetId], intent);
     } else if (isCargoIntent(intent.control)) {
       applyCargoIntent(world, intent);
     } else if (intent.targetId === ENVIRONMENT_ID) {

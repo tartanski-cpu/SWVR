@@ -38,6 +38,8 @@ function fakeHost() {
     launchBoat: (ref) => calls.push(`launch ${ref}`),
     withdrawBoat: () => calls.push('withdraw'),
     myBoat: () => 'None',
+    lastBoat: () => null,
+    launchLast: () => calls.push('launch last'),
     shiftTime: (h) => calls.push(`shift ${h.toFixed(3)}`),
     timeScale: () => state.scale,
     setTimeScale: (v) => (state.scale = v),

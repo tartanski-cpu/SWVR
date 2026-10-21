@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { CONFIG } from '../config';
-import { homeVessel, type WorldState } from '../core/world';
+import type { WorldState } from '../core/world';
+import { boatOf } from '../core/launch';
+import type { EntityId } from '../core/ids';
 import type { PlayerState } from '../player/playerState';
 import type { VesselState } from '../vessel/vesselState';
 import { groundHeight } from '../world/terrain';
@@ -26,9 +28,9 @@ const p0 = new THREE.Vector3();
 const d0 = new THREE.Vector3();
 const path = Array.from({ length: 40 }, () => new THREE.Vector3());
 
-/** The ship that carries the extinguisher (the first workboat). */
-export function extinguisherShip(world: WorldState): VesselState | undefined {
-  return homeVessel(world);
+/** The ship that carries the extinguisher: the player's boat (the one they're aboard; multi-boat M5), else the home boat. */
+export function extinguisherShip(world: WorldState, playerId?: EntityId | null): VesselState | undefined {
+  return boatOf(world, playerId);
 }
 
 /** A player's hand-gear nozzle and direction in the world (from their pose's frame), or false. */
@@ -84,9 +86,10 @@ function holders(world: WorldState): { held: boolean; spraying: PlayerState[] } 
 
 /** One tick, before stepFire: run the charge down while spraying, and wet the fire. */
 export function stepExtinguisher(world: WorldState, dt: number): void {
-  const ship = extinguisherShip(world);
-  if (!ship) return;
   const { held, spraying } = holders(world);
+  // The charge is the boat's whose extinguisher it is: the holder's boat (multi-boat M5).
+  const ship = extinguisherShip(world, spraying[0]?.id);
+  if (!ship) return;
   if (!held) {
     ship.extCharge = 1; // on its bracket: a full one
   } else if (spraying.length) {

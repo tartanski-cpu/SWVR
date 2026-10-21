@@ -15,6 +15,7 @@ import { berthWithId } from '../world/berths';
 import { anchorSpotFor, freeBerthFor, vesselLength } from '../world/slots';
 import { groundHeight } from '../world/terrain';
 import { placeVessel } from '../vessel/vesselControl';
+import { berthPose } from '../vessel/physics/mooring';
 import { hasWheelhouse, VESSEL_DEFS } from '../vessel/vesselDef';
 import { createVesselState, type VesselState } from '../vessel/vesselState';
 import type { EntityId } from './ids';
@@ -32,6 +33,54 @@ export function launchType(ref: string): string | null {
   const def = VESSEL_DEFS[ref];
   if (def) return hasWheelhouse(def) && !def.tow ? ref : null;
   return resolveToken(ref);
+}
+
+/** The players' boats (multi-boat M5): the home boat and every launched one; boats with a wheelhouse, not tows or tenders. */
+export function playerBoats(world: WorldState): VesselState[] {
+  return Object.values(world.vessels).filter((v) => {
+    const def = VESSEL_DEFS[v.defId];
+    return !!def && hasWheelhouse(def) && !def.tow && !v.tender && (v.id === world.homeVesselId || !!v.owner);
+  });
+}
+
+/** The boat a player is aboard if it's one of the players' boats, else the home boat. */
+export function boatOf(world: WorldState, playerId: EntityId | null | undefined): VesselState | undefined {
+  const aboard = playerId ? world.players[playerId]?.aboardVesselId : null;
+  const v = aboard ? world.vessels[aboard] : undefined;
+  return v && playerBoats(world).includes(v) ? v : homeVessel(world);
+}
+
+/** Whose boat she is, for the chart and the lookout: her owner's name, the host's boat the name of whoever is aboard, else "the host". */
+export function boatOwnerName(world: WorldState, v: VesselState): string {
+  if (v.owner) return world.players[v.owner]?.name ?? 'a crew-mate';
+  const aboard = Object.values(world.players).find((p) => p.aboardVesselId === v.id);
+  return aboard?.name ?? 'the host';
+}
+
+/**
+ * The Voyage tab's Go (the `teleportToPort` intent, with several boats about): her at the
+ * port's berth as before when it's free for her; another boat lying there, at the next free
+ * berth her length fits; none, in the bay or at the anchorage spot (world/slots.ts). Returns
+ * false when the port has no room at all (she stays where she is).
+ */
+export function teleportToPortSlot(world: WorldState, v: VesselState, portId: string): boolean {
+  const port = PORTS.find((p) => p.id === portId);
+  if (!port) return false;
+  const berth = freeBerthFor(world.vessels, port.id, v.defId, v.id);
+  const at = berth ? berthPose(v, berth) : null;
+  const spot = at ? { x: at.x, z: at.z, headingDeg: at.headingDeg } : (() => {
+    const a = port.cargo.anchorage ? { x: port.cargo.anchorage.x, z: port.cargo.anchorage.z } : null;
+    const clear = a && !Object.values(world.vessels).some((o) => o.id !== v.id && Math.hypot(o.position[0] - a.x, o.position[2] - a.z) < CONFIG.spawn.anchorClear) ? a : anchorSpotFor({ ...world.vessels, [v.id]: undefined as unknown as VesselState }, port, vesselLength(v.defId));
+    return clear ? { ...clear, headingDeg: 0 } : null;
+  })();
+  if (!spot) return false;
+  placeVessel(v, spot.x, 0, spot.z, spot.headingDeg);
+  v.controls.lever = 0;
+  v.anchor = { phase: 'stowed', x: 0, z: 0, rodeM: 0, tension: 0, dragging: false };
+  v.controls.anchor = 0;
+  v.mooring = { phase: 'free', berthId: null, reversed: false, t: 0 };
+  v.refuelling = false;
+  return true;
 }
 
 /** The boat this player launched, if any. */

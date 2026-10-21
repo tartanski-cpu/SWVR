@@ -63,7 +63,7 @@ import { raceRoarLevel, raceStrength, setRaceClock } from '../world/currents';
 import { REGIONS, regionById } from '../world/regions';
 import { MODE, VOYAGE_MAP_ID } from '../mode';
 import { forgetPlace, placeOf, rememberPlace, restorePlace, savedPlace } from './voyagePlace';
-import { ownedBoat } from '../core/launch';
+import { boatOwnerName, launchType, ownedBoat, playerBoats } from '../core/launch';
 import { berthWithId } from '../world/berths';
 import { groundHeight } from '../world/terrain';
 import { coastStreamer } from '../world/coastStream';
@@ -184,6 +184,8 @@ const LAST_CODE_KEY = 'swvr.lastGameCode';
 const CHART_KEY = 'swvr.chart';
 /** ...and the batteries when we left (only with electrics.drainBetweenSessions). */
 const BATTERY_KEY = 'swvr.battery';
+/** ...and the boat you launched last in a Voyage game (multi-boat M5). */
+const LAST_BOAT_KEY = 'swvr.voyage.lastBoat';
 
 /**
  * The boat the game starts in: the page's `?boat=` (Debug > Boat > Start in, modular boats
@@ -802,18 +804,7 @@ export class App {
   private syncVesselViews(): void {
     const vessels = this.world.vessels;
     for (const v of Object.values(vessels)) if (!this.vesselViews.has(v.id)) this.addVesselView(v);
-    for (const [id, view] of this.vesselViews) {
-      if (vessels[id]) continue;
-      view.root.removeFromParent();
-      view.root.traverse((o) => {
-        const m = o as THREE.Mesh;
-        if (m.isMesh) m.geometry.dispose();
-      });
-      this.effects.get(id)?.dispose();
-      const gone = this.boats.get(id);
-      if (gone) this.interaction?.removeControls(gone.controls);
-      for (const map of [this.vesselViews, this.hydroViews, this.walkAreas, this.effects, this.vesselRoots, this.hullPlans, this.boats] as Map<EntityId, unknown>[]) map.delete(id);
-    }
+    for (const id of [...this.vesselViews.keys()]) if (!vessels[id]) this.dropVesselView(id);
   }
 
   start(): void {
@@ -1763,7 +1754,7 @@ export class App {
    * a crew-mate's, falling off with distance. Nothing once it's empty.
    */
   private extinguisherLoudness(): number {
-    if ((extinguisherShip(this.world)?.extCharge ?? 1) <= 0) return 0;
+    if ((extinguisherShip(this.world, this.localPlayerId)?.extCharge ?? 1) <= 0) return 0;
     const mine = this.gear[0];
     if (mine.held) return mine.on ? 1 : 0;
     let best = 0;
@@ -1795,7 +1786,7 @@ export class App {
     for (const g of this.gear) if (!g.held) g.mesh.visible = !this.gearTakenByOther(g.kind, g.slot);
     // Spraying an empty extinguisher: say so once.
     const ext = this.gear[0];
-    const empty = (extinguisherShip(this.world)?.extCharge ?? 1) <= 0;
+    const empty = (extinguisherShip(this.world, this.localPlayerId)?.extCharge ?? 1) <= 0;
     if (ext.held && ext.on && empty && !this.extEmptySaid) this.overlay.notify('Extinguisher empty: hang it back on its bracket for a full one', 4);
     this.extEmptySaid = !!ext.held && empty;
   }
@@ -2618,6 +2609,21 @@ export class App {
         this.pushEnvIntent('launchBoat', 1, ref);
         this.launchAskedAt = performance.now();
         this.overlay.notify('Asking the harbour for a berth for her...', 3);
+        try {
+          localStorage.setItem(LAST_BOAT_KEY, ref);
+        } catch {
+          // Not remembered.
+        }
+      },
+      lastBoat: () => {
+        const ref = this.lastBoatRef();
+        if (!ref) return null;
+        const id = launchType(ref);
+        return id ? this.boatLabel(id) : null;
+      },
+      launchLast: () => {
+        const ref = this.lastBoatRef();
+        if (ref) this.menuHost().launchBoat(ref);
       },
       withdrawBoat: () => this.pushEnvIntent('withdrawBoat', 1),
       myBoat: () => {
@@ -3041,14 +3047,9 @@ export class App {
       if (!this.sameVersionAsHost(world)) return;
       // The host's boats this page hasn't got: built from their tokens (multi-boat M1).
       ensureBoatTypes(world);
-      // The host's boat built here as theirs is (else we start again in hers and join again).
-      if (!this.sameBoatAsHost(world)) return;
-      // Same boats on both sides (tows come and go, so they don't count).
-      if (!Object.values(world.vessels).every((v) => this.vesselViews.has(v.id) || VESSEL_DEFS[v.defId]?.tow)) {
-        this.netMessage = 'That game is a different version';
-        this.leaveGame();
-        return;
-      }
+      // The host's boats become ours to draw (multi-boat M5: no restart to become the host's
+      // boat; a view here for a boat of another type is rebuilt for hers).
+      this.adoptHostWorld(world);
       this.togetherTries = 0; // in: no more retries if this game ends
       this.inSharedGame = true;
       showGameOnAddress(this.joinCode);
@@ -3191,39 +3192,58 @@ export class App {
   }
 
   /**
-   * A crew-mate's check on the host's welcome: is their boat built as ours? If not, the page
-   * starts again building hers (her Shipyard code, the workboat's fit-out) and joins again.
-   * Returns false if we're leaving for that.
+   * On the host's welcome (multi-boat M5): every boat of theirs gets a view here, and a view
+   * we had for a vessel of theirs of another type (our start boat under the same id, when
+   * the host is in a different boat) is rebuilt for theirs; the home wiring follows. Our body
+   * stays where it is, unless it was aboard a boat that changed under it or stands far from
+   * the host's boat: then it boards hers.
    */
-  private sameBoatAsHost(world: WorldState): boolean {
-    const home = world.homeVesselId ? world.vessels[world.homeVesselId] : undefined;
-    const theirs = home?.defId ?? 'workboat';
-    const b = world.build ?? {};
-    // Her token: on her (multi-boat M1), or from an older host, on the world's build.
-    const token = home?.build ?? b.design;
-    const ours = this.world.vessels[this.startVesselId]?.defId;
-    const same = theirs === ours && (token ?? '') === (this.builtAs.design ?? '') && (b.without ?? []).join(',') === (this.builtAs.without ?? []).join(',');
-    if (same) return true;
-    // Already rebuilt for this game once (or her code can't be read): a different version.
-    const buildable = (!isBoatType(theirs) || !!token) && !!RECIPES[theirs];
-    if (START_JOIN === this.joinCode || !buildable) {
-      this.netMessage = 'That game is a different version';
-      this.leaveGame();
-      return false;
+  private adoptHostWorld(world: WorldState): void {
+    const me = this.world.players[this.localPlayerId];
+    const myVessel = me?.aboardVesselId;
+    let rewire = false;
+    for (const v of Object.values(world.vessels)) {
+      const view = this.vesselViews.get(v.id);
+      if (!view) continue;
+      if (this.world.vessels[v.id]?.defId === v.defId) continue;
+      this.dropVesselView(v.id);
+      if (v.id === this.testVesselId) rewire = true;
     }
-    const url = new URL(location.href);
-    for (const k of ['design', 'boat', 'fit']) url.searchParams.delete(k);
-    if (isBoatType(theirs)) url.searchParams.set('design', token!);
-    else if (theirs !== CONFIG.career.boat) url.searchParams.set('boat', theirs);
-    if (KIT_BOATS.includes(theirs)) {
-      const fitted = CONFIG.career.upgrades.filter((u) => u.fit && !(b.without ?? []).includes(u.id)).map((u) => u.id);
-      url.searchParams.set('fit', b.without?.length ? fitted.join(',') : 'all');
+    const w = this.world as unknown as Record<string, unknown>;
+    for (const [k, val] of Object.entries(world)) if (k !== 'players') w[k] = val;
+    this.world.players = { ...world.players, ...(me ? { [this.localPlayerId]: me } : {}) };
+    this.syncVesselViews();
+    if (rewire) {
+      this.boats.get(this.testVesselId)?.setHome(true);
+      this.interior?.showAll();
+      this.interior = null;
+      this.mountOnHomeBoat();
+      this.wireHomeBoat();
     }
-    url.searchParams.set('join', this.joinCode);
-    this.overlay.notify("Building the host's boat: joining again in a moment", 4);
-    this.leaveGame();
-    setTimeout(() => location.assign(url.toString()), 1500);
-    return false;
+    const home = world.homeVesselId && world.vessels[world.homeVesselId];
+    if (me && home) {
+      const at = myVessel ? home.position : me.position;
+      const far = Math.hypot(at[0] - home.position[0], at[2] - home.position[2]) > CONFIG.lod.near;
+      if ((myVessel && (myVessel === home.id ? rewire : !world.vessels[myVessel])) || (!myVessel && far)) {
+        this.intents.push({ playerId: this.localPlayerId, targetId: this.localPlayerId, control: 'board', value: 1, ref: home.id });
+      }
+    }
+  }
+
+  /** A vessel's views taken out of the scene (she's gone, or she's being rebuilt as another type). */
+  private dropVesselView(id: EntityId): void {
+    const view = this.vesselViews.get(id);
+    if (!view) return;
+    view.root.removeFromParent();
+    view.root.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (m.isMesh) m.geometry.dispose();
+    });
+    this.effects.get(id)?.dispose();
+    const gone = this.boats.get(id);
+    if (gone) this.interaction?.removeControls(gone.controls);
+    this.interiors.delete(id);
+    for (const map of [this.vesselViews, this.hydroViews, this.walkAreas, this.effects, this.vesselRoots, this.hullPlans, this.boats] as Map<EntityId, unknown>[]) map.delete(id);
   }
 
   /** Stop hosting, or leave the game we joined; play on alone from where things are. */
@@ -3388,6 +3408,18 @@ export class App {
 
   /** The other boats' interior detail (multi-boat M4), by vessel id. */
   private readonly interiors = new Map<EntityId, InteriorDetail>();
+
+  /** The crew's boats the lookout has called (multi-boat M5). */
+  private readonly boatsCalled = new Set<EntityId>();
+
+  /** The boat you asked for last time, as remembered on this device (multi-boat M5). */
+  private lastBoatRef(): string | null {
+    try {
+      return localStorage.getItem(LAST_BOAT_KEY);
+    } catch {
+      return null;
+    }
+  }
 
   /** The boat you launched last (multi-boat M3), so a new one is boarded once. */
   private ownedSeen: EntityId | null = null;
@@ -4648,6 +4680,19 @@ export class App {
     if (!v) return;
     const fwd = this.tmpV.set(0, 0, -1).applyQuaternion(this.lookQ.fromArray(v.orientation));
     const heading = Math.atan2(fwd.x, -fwd.z);
+    // A crew-mate's boat coming into sight (multi-boat M5): called out once, by whose she is.
+    const sight = Math.min(CONFIG.traffic.sightRange, visibilityAt(this.world.environment, v.position[0], v.position[2]) * CONFIG.traffic.sightVis);
+    for (const b of playerBoats(this.world)) {
+      if (b.id === v.id || this.boatsCalled.has(b.id)) continue;
+      const dx = b.position[0] - v.position[0];
+      const dz = b.position[2] - v.position[2];
+      const d = Math.hypot(dx, dz);
+      if (d > sight || d < 60) continue;
+      this.boatsCalled.add(b.id);
+      const rel = (Math.atan2(dx, -dz) - heading + Math.PI * 4) % (Math.PI * 2);
+      const clock = Math.round((rel / (Math.PI * 2)) * 12) || 12;
+      this.overlay.notify(`Lookout: ${boatOwnerName(this.world, b)}'s boat, ${clock} o'clock, ${d >= 1000 ? `${(d / 1000).toFixed(1)} km` : `${Math.round(d / 10) * 10} m`}`, 5);
+    }
     for (const s of t.ships) {
       if (!s.sighted || this.shipsCalled.has(s.id)) continue;
       this.shipsCalled.add(s.id);

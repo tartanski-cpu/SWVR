@@ -6,7 +6,8 @@
  * Missed (radio off), the board keeps showing the last one received, with its time.
  */
 import { CONFIG, type WeatherPresetName } from '../config';
-import { homeVessel, type WorldState } from '../core/world';
+import type { WorldState } from '../core/world';
+import { playerBoats } from '../core/launch';
 import { isPowered } from '../vessel/electrics';
 import { beaufort, compass8, type WeatherState } from './weather';
 import { CURRENTS } from '../world/archipelago';
@@ -116,8 +117,8 @@ export function stepForecast(world: WorldState): void {
   const w = world.environment.weather;
   if (!w || world.time < w.forecastAt) return;
   w.forecastAt = world.time + CONFIG.weather.forecast.every / w.speed;
-  const v = homeVessel(world);
-  if (!v || !isPowered(v, 'radio')) return; // nobody listening
+  // Anybody's boat with the radio on hears it (multi-boat M5).
+  if (!playerBoats(world).some((v) => isPowered(v, 'radio'))) return; // nobody listening
   world.forecast = {
     text: forecastText(w, world.time, world.environment),
     receivedAt: clock(world.environment.timeOfDay),

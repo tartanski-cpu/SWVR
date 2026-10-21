@@ -2,7 +2,7 @@
 
 The owner's brief (Oct 2026): up to four players (three is the likely case, Quest and desktop mixed), each driving their own boat, joined with the one game code as today. A spawn menu where each player picks a boat: one of the fleet, or a boat of their own from the Shipyard (a saved design, a code, or a file on their disk). Harbours get at least four parking places; the biggest boats spawn anchored in the bay instead; the rest on marked slots along the quay. Anyone can board and drive anyone's boat, so the crew can play as one boat, or as three. Physics and effects get a level of detail by distance: boats near you move in the waves exactly, far ones are simulated cheaply.
 
-This document is the plan. M1 to M4 are built (Oct 2026, see PROGRESS "Multi-boat M1" to "M4"); M5 is next. **Voyage mode only** to begin with (the owner, 21 Oct): the Career game stays one boat.
+This document is the plan. M1 to M5 are built (Oct 2026, see PROGRESS "Multi-boat M1" to "M5"); what's left of M5 is listed under it. **Voyage mode only** to begin with (the owner, 21 Oct): the Career game stays one boat.
 
 ## What the engine does today, and what blocks the brief
 
@@ -50,8 +50,10 @@ Each lands on `/next/` for the owner to try, with tests, in this order. Rough si
 - Measure: tick time and draw calls with four boats alongside at Calder and spread over the sound, headless; a frame-time check on the Quest by the owner.
 - **As built:** `core/lod.ts` (`CONFIG.lod`): the other players' boats only (the home boat, tows and the skiff are simulated as before); each such boat's level by the nearest player, set by the host on her state each tick; near: every station; mid: half of them, their weights carried; far: four stations, and every other tick at twice the step when nothing holds her (`heldInPlace`). Views by the viewer's distance: wake and spray within `mid`, smoke within `near`; a far boat's controls and screens aren't moved; every wheelhouse's small parts are managed as the home boat's were (shown only with the eye in her). Beyond `far` (1500 m) her controls, labels and screens aren't drawn (`BoatView.setFar`). Four boats' tick: 4.5 ms near, 1.7 ms spread; each far boat draws about 24 objects fewer. **Not done:** a merged static mesh beyond `far`, and thinner snapshots for far boats (the whole world at 20 Hz is a few KB; the chunked channel carries it).
 
-### M5: gameplay and polish (1 session, then as found)
+### M5: gameplay and polish (1 session, then as found) — done, the first pass
 - Several boats on one job (a rescue with two boats, a tow with an escort, pots in company), the VHF and name tags between boats, the duty board per boat, each player's boat choice remembered, docs and README.
+- **As built:** `core/launch.ts` `playerBoats` (the home boat and the launched ones), `boatOf` (the boat a player is aboard), `boatOwnerName`. A fire is wetted by every player boat's monitor (`fire.ts wettingAll`); the forecast is heard on any boat's radio; each boat sells her own rod catch; the hand extinguisher is the holder's boat's. The chartplotter draws the crew's boats as AIS-like targets in the crew's colour with whose they are (no receiver needed); the lookout calls a crew-mate's boat once as she comes into sight. The Go button (Voyage tab) takes a free berth her length fits, else the bay (`teleportToPortSlot`). The crew's page no longer restarts to become the host's boat: on the welcome it adopts the host's world, rebuilding a view whose type differs and rewiring the home boat (`App.adoptHostWorld`); a joiner far from the host's boat boards her. The boat you launched last is remembered on the device (Crew → Your boat → Launch again). **Where a game starts** (the open question): at the host's harbour: a joiner is aboard the host's boat, and a launch puts their boat at the harbour the host's boat is at or nearest.
+- **Left for later:** a rescue worked by two boats (the ring, the line and the survivors' places are one boat's in `rescue/recovery.ts`), a tow with an escort, pots in company (pots belong to the home boat), the duty board per boat, the VHF between boats by name.
 
 ## The owner's answers (21 Oct 2026)
 
