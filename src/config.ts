@@ -3162,8 +3162,8 @@ export const CONFIG = {
      * from it), the companionway and other openings (`holeClear` round them). A piece slides
      * along its wall up to `reach` each way from its pin to fit; more than `movedOver` from it,
      * the Shipyard says it moved. A head wants `headroom` under the ceiling. Priced as fit-out
-     * (`pricePerKg`, GBP). Placing one, the Shipyard shows her from above cut away `planCut` (m)
-     * over the wheelhouse floor (the roof and the top of the walls off).
+     * (`pricePerKg`, GBP). The Furniture step opens with the section tool cut at a waterline
+     * `planCut` (m) over the wheelhouse floor, seen from above (the roof and the top of the walls off).
      */
     furniture: { helmRoom: { halfWidth: 0.45, depth: 0.9 }, doorWay: { halfWidth: 0.5, depth: 0.9 }, chartRoom: 0.45, holeClear: 0.15, reach: 1.5, movedOver: 0.3, headroom: 1.9, pricePerKg: 40, planCut: 1.25 },
     /**
