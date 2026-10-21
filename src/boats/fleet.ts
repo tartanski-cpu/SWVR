@@ -12,12 +12,13 @@
  *                work pots over, a rod rack, searchlight, strake and fenders;
  *   pilotBoat    the owner's own design "Pilot boat 11.2 m" (Oct 2026): the deep-V pilot boat
  *                (or a rescue or patrol boat) at 11.2 m in aluminium, a faceted hull with
- *                sheer and a raised foredeck, twin 400 kW V8s on pod drives with the helm
+ *                sheer, twin 400 kW V8s on pod drives with the helm
  *                joystick (~36 kn), searchlight and fire monitor on the roof, chart table,
  *                side door, stern roller, rod rack, two life rings; strake and fenders kept
  *                from before (owner: both, as standard; the file had none); her fore cabin
- *                left out (it needs a deckhouse forward, which she hasn't: the Shipyard's
- *                own warning);
+ *                and raised foredeck left out (the pilot boat hull has no raised foredeck,
+ *                and the cabin below needs one, or a deckhouse forward: the Shipyard's own
+ *                warning);
  *   smallTug     the small tug: the slow tug diesel in a Kort nozzle, tow winch and stern
  *                roller, fire monitor and searchlight, tyres along her sides;
  *   starterBoat  the beginner boat, a new career's (CONFIG.career.boat): the owner's own
