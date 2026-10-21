@@ -217,10 +217,28 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
   // Wet-exhaust outlet: a short pipe stub through the transom.
   const ex = exhaustOutlet;
   if (ex) parts.push(bar(new THREE.Vector3(ex[0], ex[1], ex[2] - 0.12), new THREE.Vector3(ex[0], ex[1], ex[2]), 0.13, 0.13, col.mast));
-  // Steps up to a raised foredeck (Shipyard): each tread a block from her deck up, in the deck's colour, non-slip.
+  // Ladders up to a raised foredeck (Shipyard): each tread a block from her deck up, in the
+  // deck's colour, non-slip; and a handrail up each ladder's inboard side, on a post at its foot
+  // and one at its head on the raised deck (her bulwark is its other side).
   if (layout.deckSteps?.length) {
     const plan = hullPlan({ hull: form });
     for (const t of layout.deckSteps) parts.push(box(t.x0, t.x1, plan.deckY(t.z1) - 0.02, t.y, t.z0, t.z1, col.deck, 'nonSlip'));
+    const rail = CONFIG.shipyard.foredeck.rail;
+    for (const side of [-1, 1]) {
+      const ladder = layout.deckSteps.filter((t) => Math.sign(t.x0 + t.x1) === side);
+      if (!ladder.length) continue;
+      const x = side < 0 ? Math.max(...ladder.map((t) => t.x1)) : Math.min(...ladder.map((t) => t.x0));
+      const zHead = Math.min(...ladder.map((t) => t.z0));
+      const zFoot = Math.max(...ladder.map((t) => t.z1));
+      const yHead = Math.max(...ladder.map((t) => t.y)) + (Math.max(...ladder.map((t) => t.y)) - Math.min(...ladder.map((t) => t.y))) / Math.max(1, ladder.length - 1);
+      const yFoot = plan.deckY(zFoot + 0.05);
+      const head = new THREE.Vector3(x, yHead + rail, zHead - 0.25);
+      const foot = new THREE.Vector3(x, yFoot + rail, zFoot);
+      parts.push(bar(new THREE.Vector3(x, yHead, head.z), head, 0.04, 0.04, col.rail));
+      parts.push(bar(new THREE.Vector3(x, yFoot, zFoot), foot, 0.04, 0.04, col.rail));
+      parts.push(bar(new THREE.Vector3(x, yHead + rail, zHead), foot, 0.04, 0.04, col.rail));
+      parts.push(bar(new THREE.Vector3(x, yHead + rail, head.z), new THREE.Vector3(x, yHead + rail, zHead), 0.04, 0.04, col.rail));
+    }
   }
   // The house's parts from here on (buildVesselMeshParts).
   if (at) at.house = parts.length;
@@ -230,9 +248,10 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
     const plan = hullPlan({ hull: form });
     // (A cabin below's companionway comes down through its top as well as the wheelhouse floor.)
     parts.push(buildDeckhouse(layout.deckhouse, (z) => plan.deckY(z) - 0.06, col.house, layout.cabin ? [layout.cabin.stair] : []));
-    if (layout.cabin) parts.push(...cabinParts(layout.cabin));
     if (layout.deckhouse.walk) parts.push(...deckhouseRail(layout.deckhouse, layout.wheelhouse?.halfWidth ?? 0, plan.deckY, col.rail));
   }
+  // A cabin below (P2c): under the deckhouse, or under a raised foredeck the wheelhouse stands on.
+  if (layout.cabin) parts.push(...cabinParts(layout.cabin));
   // Her houses (P2a: the list), the helm's first: each drawn as the helm's is, from a layout
   // that is its own (a further house has no engine hatch in its floor, no ladder to its roof).
   if (hasHouse(layout)) {
@@ -343,6 +362,10 @@ function buildDeckFittings(form: HullForm, layout: LayoutConfig, col: Paint): TH
   // The working-deck gate (layout.sideGate): its bulwark and rail section is a separate,
   // moving part (controls/SideGate.ts); here the gap is left, with a post at each end.
   const gate = layout.sideGate;
+  // A deckhouse out to her sides (a raised deck, owner): along it her bulwark plate and rail
+  // rise by as much as its top stands over her deck, so they guard its top as they do the deck.
+  const dh = layout.deckhouse?.full ? layout.deckhouse : undefined;
+  const risen = (z: number) => !!dh && z > dh.z0 && z < dh.z1;
   for (const side of [-1, 1]) {
     for (let i = 0; i < st.length - 1; i++) {
       const a = edge(i, side, 0);
@@ -355,15 +378,27 @@ function buildDeckFittings(form: HullForm, layout: LayoutConfig, col: Paint): TH
         const hi = Math.min(1, Math.max(f(gate.z0), f(gate.z1)));
         if (hi > lo) pieces = [[0, lo], [hi, 1]].filter(([u, v]) => v - u > 1e-3) as [number, number][];
       }
+      // (Split where a full-width deckhouse starts and ends: its bulwark is risen between.)
+      if (dh) {
+        const f = (z: number) => (z - a.z) / (b.z - a.z);
+        const cuts = [f(dh.z0), f(dh.z1)].filter((t) => t > 1e-3 && t < 1 - 1e-3);
+        pieces = pieces.flatMap(([u, v]) => {
+          const ts = [u, ...cuts.filter((t) => t > u && t < v).sort((x, y) => x - y), v];
+          return ts.slice(1).map((t, k): [number, number] => [ts[k], t]);
+        });
+      }
       for (const [u, v] of pieces) {
         const p0 = a.clone().lerp(b, u);
         const p1 = a.clone().lerp(b, v);
+        // Risen along a full-width deckhouse: the deck under her plate here is its top.
+        const up = risen((p0.z + p1.z) / 2) ? dh!.top - (p0.y + p1.y) / 2 : 0;
         // Bulwark plate (a thin bar standing on the deck edge).
-        parts.push(bar(p0.clone().setY(p0.y + bh / 2), p1.clone().setY(p1.y + bh / 2), 0.05, bh, col.topsides));
-        if (rh > 0) parts.push(bar(p0.clone().setY(p0.y + rh), p1.clone().setY(p1.y + rh), 0.05, 0.05, col.rail));
+        parts.push(bar(p0.clone().setY(p0.y + (bh + up) / 2), p1.clone().setY(p1.y + (bh + up) / 2), 0.05, bh + up, col.topsides));
+        if (rh > 0) parts.push(bar(p0.clone().setY(p0.y + up + rh), p1.clone().setY(p1.y + up + rh), 0.05, 0.05, col.rail));
       }
       const inGap = !!gate && side === gate.side && a.z > gate.z0 && a.z < gate.z1;
-      if (rh > 0 && !inGap) parts.push(bar(edge(i, side, bh), edge(i, side, rh), 0.04, 0.04, col.rail));
+      const upAt = risen(a.z) ? dh!.top - a.y : 0;
+      if (rh > 0 && !inGap) parts.push(bar(edge(i, side, bh + upAt), edge(i, side, rh + upAt), 0.04, 0.04, col.rail));
     }
   }
   if (gate) {
@@ -914,7 +949,8 @@ function deckhouseRail(dh: DeckhouseLayout, hw: number, deckY: (z: number) => nu
   };
   // Along each side: through its plan's points from the flat top aft.
   const zs = [w.z0, ...dh.plan.map(([z]) => z).filter((z) => z > w.z0 + 0.05 && z < dh.z1 - 0.05), dh.z1 - inset];
-  for (const sg of [-1, 1]) railAlong(zs.map((z): [number, number] => [sg * half(z), z]));
+  // (Out to her sides: none; her bulwarks are risen along it.)
+  if (!dh.full) for (const sg of [-1, 1]) railAlong(zs.map((z): [number, number] => [sg * half(z), z]));
   // Across the front.
   const zf = w.z0 + inset;
   gap(-half(w.z0), half(w.z0), zf, lad.face === 'front');

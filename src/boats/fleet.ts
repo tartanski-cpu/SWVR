@@ -10,10 +10,15 @@
  *                and a bow ramp, a 400 kW V8 (~30 kn), searchlight, strake and fenders;
  *   fishingBoat  the gillnetter, built to carry load: 280 kW (~10 kn), her open foredeck to
  *                work pots over, a rod rack, searchlight, strake and fenders;
- *   pilotBoat    the deep-V pilot boat (or a rescue or patrol boat), shortened to 12.6 m, twin
- *                400 kW V8s on pod drives with the helm joystick (~35 kn; owner, Oct 2026),
- *                searchlight and fire monitor on the roof, chart table, strake and fenders
- *                (owner: both, as standard);
+ *   pilotBoat    the owner's own design "Pilot boat 11.2 m" (Oct 2026): the deep-V pilot boat
+ *                (or a rescue or patrol boat) at 11.2 m in aluminium, a faceted hull with
+ *                sheer, twin 400 kW V8s on pod drives with the helm
+ *                joystick (~36 kn), searchlight and fire monitor on the roof, chart table,
+ *                side door, stern roller, rod rack, two life rings; strake and fenders kept
+ *                from before (owner: both, as standard; the file had none); her fore cabin
+ *                and raised foredeck left out (the pilot boat hull has no raised foredeck,
+ *                and the cabin below needs one, or a deckhouse forward: the Shipyard's own
+ *                warning);
  *   smallTug     the small tug: the slow tug diesel in a Kort nozzle, tow winch and stern
  *                roller, fire monitor and searchlight, tyres along her sides;
  *   starterBoat  the beginner boat, a new career's (CONFIG.career.boat): the owner's own

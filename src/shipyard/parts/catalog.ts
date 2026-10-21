@@ -262,8 +262,10 @@ export const DESIGN_HULLS: DesignHull[] = [
     ramp: false,
     cockpit: 1.0,
     foredeck: 1.5,
-    // A bowpicker: the house right aft, the open foredeck for the net reel.
-    defaults: fromSteps({ length: 8, beam: 8, depth: 8, bulwark: 3, bow: 2, housePos: 0, houseLength: 6, houseWidth: 7, headroom: 3, floor: 3, visor: 1, roofThickness: 0, roofEdge: 1, windowRake: 4, lowerFront: 0, engine: 1, twin: 0 }),
+    // The house forward of amidships, her working deck aft (owner, Oct 2026: as the trawler she
+    // was shown with; a raised foredeck then ends forward of the house or runs on under it).
+    // (A bowpicker has it right aft: housePos 0.)
+    defaults: fromSteps({ length: 8, beam: 8, depth: 8, bulwark: 3, bow: 2, housePos: 11, houseLength: 6, houseWidth: 7, headroom: 3, floor: 3, visor: 1, roofThickness: 0, roofEdge: 1, windowRake: 4, lowerFront: 0, engine: 1, twin: 0 }),
   },
   {
     name: 'Workboat: 12 m semi-displacement, hard chine, fine entry',

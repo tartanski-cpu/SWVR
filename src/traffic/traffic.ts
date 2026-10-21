@@ -38,6 +38,8 @@ export interface Ship {
   /** Course (rad, 0 = north, clockwise) and speed (m/s). */
   course: number;
   speed: number;
+  /** A course it is coming round to (rad), having found its water shoaling ahead (confined waters). */
+  want?: number;
   sighted: boolean;
   /** Last time it sounded its fog signal (s, world time). */
   hornAt: number;
@@ -86,13 +88,19 @@ export function bearingTo(ax: number, az: number, bx: number, bz: number): numbe
   return ((Math.atan2(bx - ax, -(bz - az)) * 180) / Math.PI + 360) % 360;
 }
 
-/** Is the straight track from (x, z) along `course` for `len` m in deep water? */
-function clearTrack(x: number, z: number, course: number, len: number): boolean {
-  for (let d = 0; d <= len; d += 100) {
-    if (groundHeight(x + Math.sin(course) * d, z - Math.cos(course) * d) > -8) return false;
+/** Is the straight track from (x, z) along `course` for `len` m in water deeper than `depth` m (sampled every 100 m, and at its end)? */
+function clearTrack(x: number, z: number, course: number, len: number, depth = 8): boolean {
+  for (let d = 0; d <= len + 99; d += 100) {
+    const s = Math.min(d, len);
+    if (groundHeight(x + Math.sin(course) * s, z - Math.cos(course) * s) > -depth) return false;
   }
   return true;
 }
+
+/** The least water a ship of this type keeps to (CONFIG.traffic.ships[type].minDepth). */
+const minDepth = (type: ShipType): number => CONFIG.traffic.ships[type].minDepth;
+
+const wrapAngle = (a: number): number => Math.atan2(Math.sin(a), Math.cos(a));
 
 /**
  * A new ship crossing ahead of the boat at (bx, bz) heading `hdg` (rad): its closest point
@@ -103,10 +111,16 @@ export function spawnShip(world: WorldState, t: TrafficState, v: VesselState, ne
   const [bx, , bz] = v.position;
   const [qx, qy, qz, qw] = v.orientation;
   const hdg = Math.atan2(-(2 * (qx * qz + qw * qy)), (1 - 2 * (qx * qx + qy * qy)));
+  const add = (n: number, type: ShipType, sx: number, sz: number, course: number): Ship => {
+    const st = c.ships[type];
+    const ship: Ship = { id: `ship${n}`, type, name: st.names[Math.floor(hash01(n + 0.7) * st.names.length) % st.names.length], x: sx, z: sz, course, speed: st.speed, sighted: false, hornAt: world.time - hash01(n + 0.8) * 120 };
+    t.ships.push(ship);
+    return ship;
+  };
+  // Open water: a straight track crossing ahead of us.
   for (let tries = 0; tries < 12; tries++) {
     const n = (t.seq += 1);
     const type = SHIP_TYPES[Math.floor(hash01(n) * SHIP_TYPES.length) % SHIP_TYPES.length];
-    const st = c.ships[type];
     // Closest approach point: ahead of the boat, off to one side.
     const ahead = near ? between(hash01(n + 0.1), [150, 450]) : between(hash01(n + 0.1), [300, 900]);
     const side = (hash01(n + 0.2) < 0.5 ? -1 : 1) * (near ? between(hash01(n + 0.3), [200, 450]) : between(hash01(n + 0.3), c.pass));
@@ -117,12 +131,64 @@ export function spawnShip(world: WorldState, t: TrafficState, v: VesselState, ne
     const back = near ? between(hash01(n + 0.6), [500, 900]) : between(hash01(n + 0.6), c.spawnDist);
     const sx = px - Math.sin(course) * back;
     const sz = pz + Math.cos(course) * back;
-    if (!clearTrack(sx, sz, course, back * 2)) continue;
-    const ship: Ship = { id: `ship${n}`, type, name: st.names[Math.floor(hash01(n + 0.7) * st.names.length) % st.names.length], x: sx, z: sz, course, speed: st.speed, sighted: false, hornAt: world.time - hash01(n + 0.8) * 120 };
-    t.ships.push(ship);
-    return ship;
+    if (!clearTrack(sx, sz, course, back * 2, minDepth(type))) continue;
+    return add(n, type, sx, sz, course);
+  }
+  // Confined waters (a loch, a bay): the longest clear run found through any point round us,
+  // for the type drawn, else for each type of less draught (a loch too shallow for the cargo
+  // ship still has yachts).
+  const n = (t.seq += 1);
+  const types = [...SHIP_TYPES].sort((a, b) => minDepth(b) - minDepth(a));
+  const first = Math.floor(hash01(n) * types.length) % types.length;
+  for (let i = first; i < types.length; i++) {
+    const run = confinedTrack(bx, bz, n + i, minDepth(types[i]), near);
+    if (run) return add(n, types[i], run.x, run.z, run.course);
   }
   return null;
+}
+
+/** How far (m) the water stays deeper than `depth` from (x, z) along `course`, up to `max`, by 100 m. */
+function clearRun(x: number, z: number, course: number, max: number, depth: number): number {
+  let d = 0;
+  while (d < max) {
+    const s = Math.min(d + 100, max);
+    if (groundHeight(x + Math.sin(course) * s, z - Math.cos(course) * s) > -depth) return d;
+    d = s;
+  }
+  return d;
+}
+
+/**
+ * In confined waters: of `tries` points on any bearing from the boat (CONFIG.traffic.confined:
+ * `minPass` to `maxPass` m off) on any of `courses` courses, the one with the longest clear
+ * run through it (its water deeper than `depth` m) that has at least `minBack` m each side;
+ * the ship starts at the back end (at most `spawnDist` from the point), `minStart` m from the
+ * boat at least (not in plain view) unless `near`. Null when there's none at all.
+ */
+export function confinedTrack(bx: number, bz: number, seed: number, depth: number, near = false): { x: number; z: number; course: number; length: number } | null {
+  const c = CONFIG.traffic;
+  const k = c.confined;
+  let best: { x: number; z: number; course: number; length: number } | null = null;
+  for (let i = 0; i < k.tries; i++) {
+    const a = hash01(seed + i * 0.37 + 0.1) * Math.PI * 2;
+    const r = between(hash01(seed + i * 0.37 + 0.3), [k.minPass, k.maxPass]);
+    const px = bx + Math.sin(a) * r;
+    const pz = bz - Math.cos(a) * r;
+    if (groundHeight(px, pz) > -depth) continue;
+    const c0 = hash01(seed + i * 0.37 + 0.5) * Math.PI * 2;
+    for (let j = 0; j < k.courses; j++) {
+      const course = wrapAngle(c0 + (j * Math.PI * 2) / k.courses);
+      const back = clearRun(px, pz, course + Math.PI, c.spawnDist[1], depth);
+      if (back < k.minBack) continue;
+      const fwd = clearRun(px, pz, course, c.spawnDist[1], depth);
+      if (fwd < k.minBack || back + fwd <= (best?.length ?? 0)) continue;
+      const sx = px - Math.sin(course) * back;
+      const sz = pz + Math.cos(course) * back;
+      if (!near && Math.hypot(sx - bx, sz - bz) < k.minStart) continue;
+      best = { x: sx, z: sz, course, length: back + fwd };
+    }
+  }
+  return best;
 }
 
 /** Floating debris somewhere ahead of the boat, off to one side, in open water. */
@@ -161,9 +227,26 @@ export function stepTraffic(world: WorldState, dt: number): void {
   const vis = visibilityAt(world.environment, bx, bz);
   const sight = Math.min(c.sightRange, vis * c.sightVis);
   const fog = vis < CONFIG.duties.fogVis;
+  const gone = new Set<Ship>();
   for (const s of t.ships) {
+    // Coming round to a new course (confined waters), at the turn rate.
+    if (s.want !== undefined) {
+      const diff = wrapAngle(s.want - s.course);
+      const step = (c.confined.turnRate * Math.PI * dt) / 180;
+      if (Math.abs(diff) <= step) {
+        s.course = s.want;
+        delete s.want;
+      } else s.course += Math.sign(diff) * step;
+    }
     s.x += Math.sin(s.course) * s.speed * dt;
     s.z -= Math.cos(s.course) * s.speed * dt;
+    // Its water shoaling ahead (along the course it's coming round to, while turning): alter
+    // course to the clearest turn, or go (nowhere to go).
+    if (!clearTrack(s.x, s.z, s.want ?? s.course, c.confined.lookAhead, minDepth(s.type))) {
+      const turn = steerClear(s);
+      if (turn === null) gone.add(s);
+      else if (turn !== s.want) s.want = turn;
+    }
     const d = Math.hypot(s.x - bx, s.z - bz);
     // Sighted (the lookout calls it), spaced out so calls don't pile up.
     const spaced = world.time - (t.sightAt ?? -Infinity) >= c.sightEvery;
@@ -178,8 +261,9 @@ export function stepTraffic(world: WorldState, dt: number): void {
       t.hornFrom = s.id;
     }
   }
-  // Gone: far off and opening.
+  // Gone: far off and opening, or with nowhere left to steer.
   t.ships = t.ships.filter((s) => {
+    if (gone.has(s)) return false;
     const d = Math.hypot(s.x - bx, s.z - bz);
     const opening = (s.x - bx) * Math.sin(s.course) - (s.z - bz) * Math.cos(s.course) > 0;
     return !(d > c.despawn && opening) && d < c.despawn * 1.6;
@@ -191,6 +275,24 @@ export function stepTraffic(world: WorldState, dt: number): void {
     d.z += dv.z * dt;
   }
   t.debris = t.debris.filter((d) => Math.hypot(d.x - bx, d.z - bz) < c.despawn);
+}
+
+/**
+ * A ship with its water shoaling ahead: of a few turns (either way, then wider, then right
+ * round) the one with the longest clear water along it (more than `lookAhead`, up to 4 x
+ * that), or null when there's none.
+ */
+export function steerClear(s: Ship): number | null {
+  const c = CONFIG.traffic.confined;
+  const depth = minDepth(s.type);
+  let best: number | null = null;
+  let bestRun = c.lookAhead;
+  for (const dev of [35, -35, 70, -70, 105, -105, 140, -140, 180]) {
+    const course = wrapAngle(s.course + (dev * Math.PI) / 180);
+    const run = clearRun(s.x, s.z, course, c.lookAhead * 4, depth);
+    if (run > bestRun) [best, bestRun] = [course, run];
+  }
+  return best;
 }
 
 /** A prolonged blast from us in fog: the nearest ship in hearing answers with its own. */

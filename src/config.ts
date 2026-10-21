@@ -2601,11 +2601,24 @@ export const CONFIG = {
     /** Shortest gap between two ship sightings the lookout calls (s). */
     sightEvery: 300,
     hornRange: 3000,
+    /** Each type's size, speed, names, and the least water it keeps to (m; the cargo ship needs a deep channel, a yacht gets about in the shallows). */
     ships: {
-      cargo: { length: 82, beam: 13, speed: 6.5, names: ['Hebridean Trader', 'Lorne Carrier', 'Skerry Star'] },
-      fishing: { length: 19, beam: 6, speed: 4, names: ['Morning Dew', 'Silver Harvest', 'Girl Isla'] },
-      yacht: { length: 12, beam: 3.8, speed: 3, names: ['Kittiwake', 'Blue Moon', 'Saorsa'] },
+      cargo: { length: 82, beam: 13, speed: 6.5, minDepth: 8, names: ['Hebridean Trader', 'Lorne Carrier', 'Skerry Star'] },
+      fishing: { length: 19, beam: 6, speed: 4, minDepth: 4, names: ['Morning Dew', 'Silver Harvest', 'Girl Isla'] },
+      yacht: { length: 12, beam: 3.8, speed: 3, minDepth: 3, names: ['Kittiwake', 'Blue Moon', 'Saorsa'] },
     },
+    /**
+     * Confined waters (owner, Oct 2026: traffic on the Voyage maps too; in a loch or a bay no
+     * ship can run a 4 km straight track in deep water). When no full-length track crossing
+     * ahead of us can be found, `tries` points on any bearing from the boat, `minPass` to
+     * `maxPass` m off, are each tried on `courses` courses (well under a millisecond), and the longest clear run (at
+     * least `minBack` m each side of the point) taken; the ship starts at its back end, at
+     * least `minStart` m from us (not appearing in plain view). Under way, a ship looks
+     * `lookAhead` m ahead each tick; with its water shoaling it alters course to the clearest
+     * of a few turns (its course easing round at `turnRate` deg/s), or, with nowhere to go,
+     * is gone (into a harbour, as far as anyone can tell).
+     */
+    confined: { tries: 96, courses: 8, minPass: 250, maxPass: 1500, minBack: 300, minStart: 500, lookAhead: 220, turnRate: 6 },
     debrisEvery: [300, 600] as [number, number],
   },
 
@@ -3048,15 +3061,17 @@ export const CONFIG = {
      */
     sheer: { from: 0.4 },
     /**
-     * A raised foredeck (owner, Oct 2026, from a photo of a trawler; the fishing boat's; build.ts
-     * raisedForedeck): her deck stepped up forward of a break, a vertical bulkhead across her,
-     * her sides and bulwarks stepping up with it. Steps up to it on her centreline aft of the
-     * break: each rise at most `stepRise` (you walk up them: layout.ts STEP_HEIGHT is 0.4),
-     * treads `tread` deep and `width` wide, `clear` of deck kept at their foot. Run on aft under
-     * the wheelhouse, it ends `landing` m aft of the house's aft wall: a landing across her
-     * from the raised side decks to the steps.
+     * A raised foredeck (owner, Oct 2026, from a photo of a trawler; the fishing boat's;
+     * shipyard/parts/house.ts raisedForedeck): her deck stepped up forward of a break, a
+     * vertical bulkhead across her, her sides and bulwarks stepping up with it. Reached as on a
+     * trawler or tug: a steep ship's ladder each side against the break, beside the bulwark
+     * (`fromSide` in from her deck edge, `width` wide), the middle of the working deck clear;
+     * each rise at most `stepRise` (you walk up them: layout.ts STEP_HEIGHT is 0.4), treads
+     * `tread` deep (about 55 degrees), a handrail on the inboard side `rail` high, `clear` of
+     * deck kept at their foot. Run on aft under the wheelhouse, it ends at least `landing` m
+     * aft of the house's aft wall (more for a raised cabin floor's door steps).
      */
-    foredeck: { stepRise: 0.3, tread: 0.3, clear: 0.3, width: 0.8, landing: 0.6 },
+    foredeck: { stepRise: 0.3, tread: 0.2, clear: 0.3, width: 0.6, fromSide: 0.3, rail: 0.9, landing: 0.6 },
     /** Windows raked out all round (owner: a tug's or supply vessel's bridge): the side and aft windows lean out this far from vertical (deg), from their sill up to the roof. */
     flareDeg: 15,
     /** The roof's visor: how far it reaches forward of the top of the front windows (m), overlapping them. One set length now (owner: no slider for it; it was 0.15 to 0.75). */
@@ -4574,11 +4589,29 @@ export const CONFIG = {
    */
   voyage: {
     boat: 'pilotBoat',
+    /**
+     * Where you are on a map is remembered between sessions (owner, Oct 2026: close the
+     * browser, come back to the map, and you're in the same place): the boat's position,
+     * heading and berth, and whether you were aboard, saved every `rememberEveryS` s and
+     * as the page closes (app/voyagePlace.ts, `swvr.voyage.<map>` in the browser's storage;
+     * by the host or alone, never by crew). `?start` on the address starts at the map's
+     * berth again (and forgets the place).
+     */
+    rememberEveryS: 5,
+    /** A remembered spot afloat is only taken with this much water there (m); else the map's start. */
+    rememberMinDepth: 2.5,
   },
 
+  /**
+   * The career's start: her berth, and the spot on the quay the player stands at (facing
+   * the boat). On any other berth (a Voyage map's start, a boat moored elsewhere) the spot
+   * ashore is worked out: `quayBack` m back from the berth's face beyond where she lies
+   * (world/startSpot.ts).
+   */
   start: {
     berthId: 'calder-cargo',
     quay: { x: 713, z: 661.5, yawDeg: 90 },
+    quayBack: 2,
   },
 
   /**
