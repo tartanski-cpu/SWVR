@@ -1,0 +1,334 @@
+/**
+ * The Shipyard's catalogue (P4, split out of build.ts): her hull types (DESIGN_HULLS) and the lines
+ * they're drawn from, the engine packages, the liveries and roof colours.
+ */
+import { CONFIG } from '../../config';
+import { DESIGNS } from '../../hulls/designs';
+import { curveAt, type HullDesign } from '../../hulls/loft';
+import { type HullDefinition } from '../../modular/hull';
+import type { Livery } from '../../vessel/vesselDef';
+import { fromSteps, SCALES, type ShipDesign } from '../design';
+
+/** A faceted front's middle pane: between the front windows' mullions (hullMesh.ts, at +-0.5 m). */
+export const FACET_CENTRE = 0.5;
+
+export const study = (id: string): HullDesign => {
+  const d = DESIGNS.find((x) => x.id === id);
+  if (!d) throw new Error(`the hull study has no '${id}' design`);
+  return d;
+};
+
+/**
+ * The Shipyard landing craft's lines (owner, Oct 2026, from a GA and a photo of aluminium
+ * landing craft): the hull study's landing craft, her bow redrawn. A V-bottomed planing hull
+ * whose bottom sweeps up in a steep, nearly straight rake (the beach plate, about 25 deg) from
+ * a third of her length back to just under the deck at the bow, keeping its V all the way
+ * (the chines held about 0.25 m over the keel as the depth closes); above the chines her
+ * slab sides run on to a square box section, 0.3 m deep, that carries the ramp. (The study's
+ * own bow: a gentle forefoot only up to the waterline, flat-bottomed, under a 1.2 m bow plate.)
+ */
+export const landingCraftLines = (): HullDesign => {
+  const d = study('landingCraft');
+  return {
+    ...d,
+    keel: [
+      [0, -0.45],
+      [0.55, -0.48],
+      [0.66, -0.42],
+      [1, 1.0],
+    ],
+    section: {
+      ...d.section,
+      chineHeight: [
+        [0, 0.12],
+        [0.6, 0.15],
+        [0.8, 0.22],
+        [0.92, 0.4],
+        [1, 0.8],
+      ],
+    },
+  };
+};
+
+/** A base hull the Shipyard starts from: its form (scaled) and the kind of boat she is. */
+export interface DesignHull {
+  name: string;
+  /** Her form, scaled (length, beam and depth factors), with her bow (its step: SCALES.bow, the stem's rake). */
+  form(L: number, B: number, D: number, bow: number): HullDefinition['form'];
+  /**
+   * How she rides at speed (CONFIG.shipyard.regimes): a planing hull (a fast boat's propeller,
+   * the landing craft's per-area damping), a semi-displacement one (part planing; the
+   * workboat's), or a displacement one. Her banking into turns and how she slams come from it
+   * and her own deadrise.
+   */
+  regime: 'planing' | 'semi' | 'displacement';
+  /** A square landing bow with its ramp (the landing craft's). */
+  ramp: boolean;
+  /**
+   * A tug's square push bow (the small tug's): her own bow, which the bow choice leaves as
+   * it is, faced with a rubber push fender (modules/pushFender).
+   */
+  pushBow?: boolean;
+  /**
+   * A landing bow (the landing craft, owner: a square platform on a planing hull): her own
+   * forefoot, the bottom sweeping up to a raked square bow plate at the waterline under her
+   * ramp, so she rides up a beach or a slipway. No bow choice: never plumb, never the deep stem.
+   */
+  landingBow?: boolean;
+  /**
+   * No longer offered (owner, Oct 2026: "the workboat is not really a class of hull, it's a
+   * role"): not in the Hull step nor the brief's hull types. Kept, and in her place in this
+   * list (a design code holds her index), so a design already on her still opens and builds.
+   */
+  retired?: boolean;
+  /** Minimum open deck (m) aft of the house (cockpit) and forward of it. */
+  cockpit: number;
+  foredeck: number;
+  /** Where the Shipyard page starts her when you pick her (her type's usual layout); the sliders move it all. */
+  defaults: Partial<ShipDesign>;
+  /**
+   * What she's built of, if her type settles it (owner, Oct 2026): the gillnetter and the tug
+   * steel, the landing craft and the pilot boat aluminium. Unset (the workboat), it's the
+   * design's choice (design.material).
+   */
+  material?: Material;
+  /** Her plating and framing heavier than the material's usual, by this factor (the tug's: built heavy, for pushing and towing). */
+  scantlings?: number;
+  /**
+   * Permanent ballast (kg), low in her hull: the tug's, so she sits down to grip the water
+   * and swing a big propeller (her propeller's size is bounded by her draught aft).
+   */
+  ballastKg?: number;
+  /**
+   * Her size range grows beyond the usual (owner, Oct 2026: the landing craft's layout
+   * "can actually extend to fairly big... proportionally in all directions"): the length
+   * slider's upper half takes her up to this many times her base size, her beam with it and
+   * her depth as its square root (see buildAt; the beam and depth sliders then tweak her
+   * proportions). Its lower half is as every hull's (SCALES.scale).
+   */
+  growsTo?: number;
+}
+
+/** What a hull and its houses are built of (CONFIG.shipyard.materials). */
+export type Material = 'aluminium' | 'steel';
+/**
+ * Her length as a factor of her type's base (the length slider's step `i`): every hull's
+ * 0.8 to 1.175 (SCALES.scale); a hull that `growsTo` more, the same up to her base size
+ * (step 8), then up in equal ratios to `growsTo` at the top (step 15).
+ */
+export function sizeScale(base: Pick<DesignHull, 'growsTo'>, i: number): number {
+  const top = base.growsTo;
+  if (!top || i <= 8) return SCALES.scale(i);
+  return Math.round(top ** ((i - 8) / 7) * 1000) / 1000;
+}
+
+/** What this design is built of: her hull type's own material, else her choice. */
+export function materialOf(d: Pick<ShipDesign, 'hull' | 'material'>): Material {
+  return DESIGN_HULLS[d.hull]?.material ?? (d.material ? 'steel' : 'aluminium');
+}
+
+/**
+ * Sections upright (no study rake): the game puts each station at its section's deck edge,
+ * so a leaning section with a deep keel pushed the deck forward and the bow choice changed
+ * her length. Her stem's rake is her keel's profile (bowKeel); her deck runs her length.
+ */
+export const UPRIGHT: [number, number][] = [
+  [0, 0],
+  [1, 0],
+];
+
+/**
+ * Lofted from the hull study, scaled (lengths along, half-breadths across, heights up), with
+ * her bow reshaped: the game's stations are upright sections, so a bow's rake is its stem
+ * line in profile, the keel meeting a raked stem under a deck that keeps its length (bowKeel).
+ * `chinesRunOn`: her chines are measured from the uncut keel line, so they run on smoothly to
+ * the stem and close in where the forefoot rises to them (a V hull: the pilot boat, owner).
+ * A flat-bottomed hull's chine sweeps up with her forefoot instead (the landing craft's
+ * square bow keeps its buoyancy that way).
+ */
+export function scaledStudy(d: HullDesign, L: number, B: number, D: number, bow: number | null, chinesRunOn = false): HullDesign {
+  const by = (c: [number, number][], k: number) => c.map(([t, v]) => [t, v * k] as [number, number]);
+  const sheer = by(d.sheer, D);
+  // No bow choice (a push bow): her own keel and forefoot, scaled.
+  if (bow === null) return { ...d, length: d.length * L, halfBeam: by(d.halfBeam, B), sheer, keel: by(d.keel, D), rake: UPRIGHT, wheelhouse: undefined, houses: undefined };
+  const bowed = bowKeel(by(d.keel, D), curveAt(sheer, 1), d.length * L, SCALES.bow(bow));
+  return { ...d, length: d.length * L, halfBeam: by(d.halfBeam, B), sheer, keel: bowed.keel, ...(chinesRunOn ? { chineKeel: bowed.base } : {}), rake: UPRIGHT, wheelhouse: undefined, houses: undefined };
+}
+
+/**
+ * Her keel line with her bow reshaped (the Shipyard's bow choice, SCALES.bow), and the
+ * uncut keel line her chines are measured from (`base`).
+ * - Her keel: her own keel line (her rocker, owner) aft of 60 % of her length; forward of
+ *   that, straight on along its slope there, at full depth to the stem (the study's own
+ *   forefoot is replaced). No change of slope anywhere (owner: a nick behind the forefoot,
+ *   when it was held level from 75 %).
+ * - Her stem runs from 0.15 m under the stem head down to that line, raked `deg` from
+ *   vertical overall (stem head to forefoot), and curved (owner, after a straight stem read
+ *   as too raked): full forward, like the hull study's pilot boat, steeper at the deck
+ *   (atan(tan deg / 2): 31 deg at 50) and running into the keel along it, with no knuckle.
+ *   In profile it's a parabola added to the keel line. 0 deg is a plumb stem. A 50 deg stem
+ *   on a 2 m deep bow reaches back ~2.4 m (owner: the keel not cut away further back).
+ * Drawn through samples every 1.25 % of her length.
+ */
+export function bowKeel(keel: [number, number][], stemDeckY: number, lengthM: number, deg: number): { keel: [number, number][]; base: [number, number][] } {
+  const own = (t: number) => curveAt(keel, t);
+  const from = 0.6;
+  const slope = (own(from + 1e-4) - own(from - 1e-4)) / 2e-4;
+  const line = (t: number) => (t < from ? own(t) : own(from) + slope * (t - from));
+  const top = stemDeckY - 0.15;
+  const rise = top - line(1);
+  // How far back from the stem head the stem meets the keel (m).
+  const reach = deg > 0.1 ? rise * Math.tan((deg * Math.PI) / 180) : 0;
+  const at = (t: number) => {
+    const d = (1 - t) * lengthM;
+    return reach > 0 && d < reach ? line(t) + rise * (1 - d / reach) ** 2 : line(t);
+  };
+  const ts = Array.from({ length: 81 }, (_, i) => i / 80);
+  // The forefoot, where the stem runs into the keel: sampled too.
+  if (reach > 0 && reach < lengthM) ts.push(1 - reach / lengthM);
+  ts.sort((a, b) => a - b);
+  return { keel: ts.map((t) => [t, at(t)]), base: ts.map((t) => [t, line(t)]) };
+}
+
+export const DESIGN_HULLS: DesignHull[] = [
+  {
+    name: 'Landing craft: 9 m aluminium, square landing bow with a ramp',
+    material: 'aluminium',
+    growsTo: 2.5,
+    // Her bow is her own: the landing bow (landingCraftLines), no bow choice.
+    form: (L, B, D) => ({ kind: 'lofted', design: scaledStudy(landingCraftLines(), L, B, D, null) }),
+    regime: 'planing',
+    ramp: true,
+    landingBow: true,
+    cockpit: 1.0,
+    foredeck: 1.6,
+    defaults: fromSteps({ length: 8, beam: 8, depth: 8, bulwark: 2, bow: 2, housePos: 4, houseLength: 2, houseWidth: 7, headroom: 3, floor: 2, visor: 1, roofThickness: 0, roofEdge: 1, windowRake: 4, lowerFront: 0, engine: 1, twin: 0 }),
+  },
+  {
+    name: 'Gillnetter: 9.75 m, beamy and shallow, flat open foredeck',
+    material: 'steel',
+    form: (L, B, D, bow) => ({ kind: 'lofted', design: scaledStudy(study('gillnetter'), L, B, D, bow) }),
+    regime: 'planing',
+    ramp: false,
+    cockpit: 1.0,
+    foredeck: 1.5,
+    // A bowpicker: the house right aft, the open foredeck for the net reel.
+    defaults: fromSteps({ length: 8, beam: 8, depth: 8, bulwark: 3, bow: 2, housePos: 0, houseLength: 6, houseWidth: 7, headroom: 3, floor: 3, visor: 1, roofThickness: 0, roofEdge: 1, windowRake: 4, lowerFront: 0, engine: 1, twin: 0 }),
+  },
+  {
+    name: 'Workboat: 12 m semi-displacement, hard chine, fine entry',
+    retired: true,
+    form: (L, B, D, bow) => {
+      const h = CONFIG.vessels.workboat.hull;
+      return {
+        kind: 'chine',
+        params: { ...h, length: h.length * L, beamDeck: h.beamDeck * B, beamChine: h.beamChine * B, keelY: h.keelY * D, chineYAft: h.chineYAft * D, chineYBow: h.chineYBow * D, deckYAft: h.deckYAft * D, deckYBow: h.deckYBow * D, forefoot: { from: 0.55, rise: 1, stemDeg: SCALES.bow(bow) } },
+      };
+    },
+    // (Semi-displacement, owner: part of her weight on her bottom's lift at speed.)
+    regime: 'semi',
+    ramp: false,
+    cockpit: 1.5,
+    foredeck: 2.0,
+    // As the game's workboat: the house a little forward of amidships, her working deck aft.
+    defaults: fromSteps({ length: 8, beam: 8, depth: 8, bulwark: 2, bow: 1, housePos: 9, houseLength: 5, houseWidth: 7, headroom: 3, floor: 3, visor: 2, roofThickness: 1, roofEdge: 1, windowRake: 6, lowerFront: 0, engine: 2, twin: 0 }),
+  },
+  // New hull types go on the end: a design's code holds its hull's place in this list.
+  {
+    name: 'Pilot boat: 14 m deep-V, spray chine, fine entry, well-raked stem',
+    material: 'aluminium',
+    form: (L, B, D, bow) => ({ kind: 'lofted', design: scaledStudy(study('pilot'), L, B, D, bow, true) }),
+    regime: 'planing',
+    ramp: false,
+    cockpit: 1.6,
+    foredeck: 2.6,
+    // A pilot / crew boat: a long house amidships with walkaround side decks (the Targa and
+    // Safehaven types), low bulwarks, a well-raked stem, twin engines.
+    defaults: fromSteps({ length: 8, beam: 8, depth: 8, bulwark: 0, bow: 4, housePos: 9, houseLength: 12, houseWidth: 6, headroom: 3, floor: 3, visor: 2, roofThickness: 1, roofEdge: 2, windowRake: 6, lowerFront: 0, engine: 2, twin: 1, paint: 1 }),
+  },
+  {
+    name: 'Small tug: 13 m, beamy and deep, a square push bow with a rubber push fender',
+    material: 'steel',
+    scantlings: 1.5,
+    ballastKg: 18000,
+    // Her bow is her own (a square push plate, the bottom sweeping up to it): no bow choice.
+    form: (L, B, D) => ({ kind: 'lofted', design: scaledStudy(study('pushTug'), L, B, D, null) }),
+    regime: 'displacement',
+    ramp: false,
+    pushBow: true,
+    // A long towing deck aft; the foredeck short, up to the push bow.
+    cockpit: 3.0,
+    foredeck: 1.6,
+    // The owner's reference: a short house forward of amidships, raised to see over the
+    // high bow, windows a little reverse-raked; a low towing deck aft; twin screws; a
+    // rubbing strake; red and grey. One slow-revving tug diesel (owner: an engine with the
+    // tug in mind; single only).
+    defaults: fromSteps({ length: 8, beam: 8, depth: 8, bulwark: 4, bow: 0, housePos: 11, houseLength: 4, houseWidth: 4, headroom: 3, floor: 5, visor: 1, roofThickness: 1, roofEdge: 2, windowRake: 5, lowerFront: 0, engine: 3, twin: 0, paint: 7, guard: 2 }),
+  },
+];
+
+/**
+ * Engine packages: power, weight, sound, and how quickly its governor adds fuel.
+ *   ratedRpm   its rated speed. The first three are high-speed diesels rated at 1800 rpm. The
+ *              tug's (owner, Oct 2026) is a slow-revving heavy-duty diesel: bigger cylinders
+ *              turning slower, so far more torque for its power (torque = power / shaft speed:
+ *              at 1000 rpm, 1.8 times a 1800 rpm engine's). Its torque curve, idle, governor
+ *              droop and starter are the 1800 rpm engine's with every rpm scaled to it, so it
+ *              is slower all through its range (owner): idling at 333 rpm, flat out near 1000.
+ *              It goes in singly only (design.ts SINGLE_ONLY_ENGINES; owner).
+ *   propMaxM   the biggest propeller it's given (m). Slow revs (and a lower gearbox ratio to
+ *              suit) turn a bigger, slower propeller: it throws more water slower, which pulls
+ *              harder for the same power, what a tug wants (see `propD` in buildDesign).
+ *   pricePerKw  GBP per kW (a slow, heavy engine costs more for its power).
+ *   size       its length (with the gearbox), width and height (m), about right for its power
+ *              and weight: what has to fit under the cabin floor (machinery.ts) and what the
+ *              Shipyard draws (enginePreview.ts). The tug diesel is tall: it wants a deep hull.
+ *   about      what the Engine step says about it, if more than its weight.
+ */
+export const ENGINES = [
+  { name: '150 kW diesel (straight six)', kw: 150, kg: 600, voice: 'inlineSix' as const, rackRise: 1.2, ratedRpm: 1800, propMaxM: 1.05, pricePerKw: 120, size: [1.47, 0.62, 0.78] as const },
+  { name: '280 kW turbo diesel (V8)', kw: 280, kg: 800, voice: 'v8' as const, rackRise: 2.0, ratedRpm: 1800, propMaxM: 1.05, pricePerKw: 120, size: [1.32, 0.86, 0.8] as const },
+  { name: '400 kW turbo diesel (V8)', kw: 400, kg: 1100, voice: 'v8' as const, rackRise: 2.0, ratedRpm: 1800, propMaxM: 1.05, pricePerKw: 120, size: [1.52, 0.96, 0.9] as const },
+  { name: '450 kW slow-revving tug diesel (big straight six, 1000 rpm; single only)', kw: 450, kg: 2200, voice: 'inlineSix' as const, /* owner, Oct 2026: tried the big-six voice (CONFIG.engineVoices.bigSix) and preferred this one */ rackRise: 1.0, ratedRpm: 1000, idleRpm: 450, propMaxM: 1.4, pricePerKw: 170, size: [2.65, 0.95, 1.35] as const, about: 'Slow-revving and heavy, for towing: more torque, turning a bigger propeller, so a harder pull for its power. Slower to answer the throttle.' },
+];
+
+/** Paints: the hull mesh's colours (vessel/view/hullMesh.ts); `{}` is the workboat's own. */
+export const LIVERIES: { name: string; livery: Livery }[] = [
+  { name: 'Aluminium grey', livery: { bottom: 0x2f3438, topsides: 0xb9bec2, deck: 0x8a9096, house: 0xc9cdcf, roof: 0xd3d6d8, rail: 0xaab0b4, floor: 0x8a9096 } },
+  { name: 'Workboat orange', livery: {} },
+  { name: 'Navy blue', livery: { bottom: 0x8c2a22, topsides: 0x1f3a5c, deck: 0x7d8a78, house: 0xeceae2, roof: 0xb9bdb6 } },
+  { name: 'Fishing green', livery: { bottom: 0x8c2a22, topsides: 0x2f5a3a, deck: 0x7d7a6a, house: 0xeceae2, roof: 0xb9bdb6 } },
+  { name: 'White', livery: { bottom: 0x8c2a22, topsides: 0xeeeeea, deck: 0x8a9096, house: 0xf4f4f0, roof: 0xd8d8d2 } },
+  { name: 'Black', livery: { bottom: 0x8c2a22, topsides: 0x22262a, deck: 0x6f746f, house: 0xe6e6df, roof: 0xb9bdb6 } },
+  { name: 'Pilot yellow', livery: { bottom: 0x2f3438, topsides: 0xe0b020, deck: 0x7d8a78, house: 0xeceae2, roof: 0xb9bdb6 } },
+  { name: 'Rescue red', livery: { bottom: 0x2f3438, topsides: 0xc0302a, deck: 0x7d8a78, house: 0xeceae2, roof: 0xb9bdb6 } },
+];
+
+/** Roof colours (owner): the hull's own topsides colour (null), or one of its own; an orange roof is common on workboats. */
+export const ROOF_PAINTS: { name: string; colour: number | null }[] = [
+  { name: 'Like hull', colour: null },
+  { name: 'Orange', colour: 0xe0661f },
+  { name: 'White', colour: 0xeeeeea },
+  { name: 'Grey', colour: 0xb9bdb6 },
+  { name: 'Black', colour: 0x22262a },
+];
+
+/**
+ * The roof's top (owner: the eyebrow, as on the Alaskan's tan roof with its light-grey top):
+ * one colour, or a panel set in from the edges in a second colour (hullMesh: `roofInset` in
+ * from the top's edge), so the roof's edge shows as a band round it.
+ */
+export const ROOF_TOPS: { name: string; colour: number | null }[] = [
+  { name: 'One colour', colour: null },
+  { name: 'Light grey', colour: 0xc9ccc4 },
+  { name: 'White', colour: 0xeeeeea },
+  { name: 'Sand', colour: 0xc8b48a },
+  { name: 'Dark grey', colour: 0x4a4f54 },
+];
+
+/** Her livery with the roof's colour chosen, and its top's (the workboat orange livery is `{}`: the workboat's own orange topsides), and the finish inside (none: the wood lining) and the floor (none: matting). */
+export function liveryOf(d: ShipDesign): Livery {
+  const l = LIVERIES[d.paint].livery;
+  const top = ROOF_TOPS[d.roofTop ?? 0]?.colour;
+  return { ...l, roof: ROOF_PAINTS[d.roofPaint].colour ?? l.topsides ?? 0xd9622b, ...(top != null ? { roofTop: top } : {}), ...(d.interior ? { interior: d.interior } : {}), ...(d.cabinFloor ? { cabinFloor: d.cabinFloor } : {}) };
+}

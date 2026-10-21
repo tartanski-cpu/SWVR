@@ -1,0 +1,284 @@
+/**
+ * The Shipyard's builder, part by part (P4; build.ts runs them in turn): Her machinery, and the engine hatch and space over it.
+ * Each part takes the design (`a`) and what the parts before it worked out (`p`), and gives
+ * what the parts after it need.
+ */
+import { bottomAt as bottomUnder, FLANGE_SHARE, halfSection, layShaft, sternDriveLine, twinEngineX } from '../machinery';
+import { CONFIG } from '../../config';
+import { outboardCount, SCALES, SINGLE_ONLY_ENGINES } from '../design';
+import type { BuildArgs, HatchZone, V3 } from './common';
+import { ENGINES, materialOf } from './catalog';
+import type { HullPart } from './hull';
+import type { HousePart, LayoutPart, OverheadPart } from './house';
+import type { TrimPart } from './trim';
+import type { PlacesPart } from './places';
+import type { DeckGearPart } from './deckGear';
+
+/** Her machinery: the engine (or twin engines, pod drives, stern drives or outboards), its shaft line placed for her balance, the propeller and gearbox, the rudder, her plating's area, and where the engine space and its hatch can go. */
+export function machineryPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & TrimPart) {
+  const { d } = a;
+  const { aft, base, beamDeck, deckhouse, dhArea, floorY, front, grownPlate, h, houseL, hw, lengthM, q, rnd, roofDrop, roofY, saloonL, shape, st, transom, warnings } = p;
+  // ── Machinery ──
+  const eng = ENGINES[d.engine];
+  const kw = eng.kw;
+  // Her engine's rated speed as a share of the 1800 rpm engines' (1 for those).
+  const rs = eng.ratedRpm / 1800;
+  // Twin engines: two of the package, their propellers set out ~28 % of her deck beam either
+  // side of the centreline (under her bottom, clear of each other), twin rudders behind them.
+  // (An engine that only goes in singly is built single, whatever the twin choice says.)
+  const singleOnly = SINGLE_ONLY_ENGINES.includes(d.engine);
+  if (d.twin && singleOnly) warnings.push(`The ${eng.name.split(' (')[0]} goes in singly: she has one.`);
+  // Pod drives (owner, Oct 2026; design.pods; CONFIG.modules.pods): two steerable pods under
+  // her bottom, each with its own engine (so always twin). For a planing hull (a fast boat's
+  // small, quick propellers); not the slow tug diesel; outboards, if chosen, instead.
+  const pdc = CONFIG.modules.pods;
+  if (d.pods && !outboardCount(d) && base.regime !== 'planing') warnings.push('Pod drives are for a planing hull (the landing craft, the gillnetter or the pilot boat): she has a shaft.');
+  else if (d.pods && !outboardCount(d) && singleOnly) warnings.push(`The ${eng.name.split(' (')[0]} goes on a shaft (its big slow propeller): no pod drives.`);
+  const pods = !!d.pods && !outboardCount(d) && base.regime === 'planing' && !singleOnly;
+  const twin = (!!d.twin || pods) && !singleOnly;
+  // Stern drives (owner, Oct 2026; design.sternDrive): the engine against the transom, a
+  // leg through it that swings to steer (CONFIG.modules.sternDrive). Not the slow tug
+  // diesel (its big slow propeller wants a shaft); outboards, if chosen, instead.
+  const sdc = CONFIG.modules.sternDrive;
+  if (d.sternDrive && singleOnly && !outboardCount(d)) warnings.push(`The ${eng.name.split(' (')[0]} goes on a shaft (its big slow propeller): no stern drive.`);
+  if (d.sternDrive && pods) warnings.push('Pod drives in place of the stern drives.');
+  const sd = !!d.sternDrive && !singleOnly && !outboardCount(d) && !pods;
+  // A Kort nozzle (owner, Oct 2026; design.nozzle; CONFIG.nozzle): on a shaft-driven propeller only.
+  if (d.nozzle && (sd || pods || outboardCount(d))) warnings.push(`A Kort nozzle goes round a shaft-driven propeller: none on ${outboardCount(d) ? 'outboards' : pods ? 'pod drives' : 'a stern drive'}.`);
+  const nozzle = !!d.nozzle && !sd && !pods && !outboardCount(d);
+  const n = twin ? 2 : 1;
+  const keelAft = st[0].polygon[2][1];
+  const draughtAft = -keelAft;
+  // The propeller: as big as her draught aft allows (tip clear below her keel by ~1/4 of
+  // it), and no bigger than her engine can turn (0.675 m at 150 kW .. 1.05 m at 400 kW). A
+  // slower engine turns a bigger one for its power (a propeller's best diameter grows as its
+  // revs fall): the 1000 rpm tug engine up to 1.4 m, as her draught allows (ENGINES propMaxM).
+  const twinX = Math.round(0.28 * 2 * Math.max(...st.map((s) => s.halfBeamDeck)) * 100) / 100;
+  const propD = Math.round(Math.max(0.45, Math.min(1.25 * draughtAft, 0.45 + (0.0015 * kw) / rs, eng.propMaxM, twin ? 2 * twinX - 0.15 : 9)) * 100) / 100;
+  // Her shaft and the engine on it (machinery.ts): the shaft rises forward from the
+  // propeller at a set angle and the engine sits on it where it clears her bottom. Its top
+  // must be under the cabin floor (under the house) or the deck (elsewhere): a tall engine in
+  // a shallow hull doesn't fit, which is a reason for more depth (owner).
+  // Her plating's area (every station's section all round, deck included, her transom and
+  // any square bow plate) and its centre (height y, place along her z): for her weights.
+  let shellM2 = 0;
+  let shellM2y = 0;
+  let shellM2z = 0;
+  const ring2 = (p: readonly (readonly [number, number])[]) => p.map((a, i) => [a, p[(i + 1) % p.length]] as const);
+  for (let i = 1; i < st.length; i++) {
+    const dz = Math.abs(st[i].z - st[i - 1].z) / 2;
+    for (const sec of [st[i - 1], st[i]])
+      for (const [a, b] of ring2(sec.polygon)) {
+        const m2 = Math.hypot(b[0] - a[0], b[1] - a[1]) * dz;
+        shellM2 += m2;
+        shellM2y += (m2 * (a[1] + b[1])) / 2;
+        shellM2z += m2 * (st[i - 1].z + st[i].z) / 2;
+      }
+  }
+  for (const end of [st[0], ...(st[st.length - 1].halfBeamDeck > 0.3 ? [st[st.length - 1]] : [])]) {
+    const p = end.polygon;
+    const m2 = Math.abs(p.reduce((a, [x, y], i) => a + x * p[(i + 1) % p.length][1] - p[(i + 1) % p.length][0] * y, 0)) / 2;
+    shellM2 += m2;
+    shellM2y += (m2 * p.reduce((a, [, y]) => a + y, 0)) / p.length;
+    shellM2z += m2 * end.z;
+  }
+  const material = materialOf(d);
+  const mat = CONFIG.shipyard.materials[material];
+  const wc = CONFIG.shipyard.weights;
+  // Where her balance wants the engine (owner, Oct 2026: "a place where the centre of gravity
+  // is good longitudinally"): her other main weights (plating, houses, fit-out, crew) and
+  // where they are; the engine, its shafting and the batteries placed so that, with them, her
+  // centre of gravity is over her centre of buoyancy (she floats level without ballast to
+  // trim her). Her fuel and ballast are taken to be about her centre of buoyancy; her deck
+  // gear isn't placed yet, and left out.
+  const restKgZ: [number, number][] = [
+    [shellM2 * mat.shellKgPerM2 * (base.scantlings ?? 1) * grownPlate, shellM2z / shellM2],
+    // (A lower saloon roof: its two side walls that much shorter; the step's riser and the lower aft wall cancel.)
+    [(2 * (houseL + 2 * hw) * (roofY - floorY) - 2 * saloonL * roofDrop + 4 * hw * houseL) * mat.houseKgPerM2, (front + aft) / 2],
+    [dhArea * mat.houseKgPerM2, deckhouse ? (deckhouse.z0 + deckhouse.z1) / 2 : 0],
+    [wc.outfitKgPerM2 * lengthM * beamDeck * 0.8, shellM2z / shellM2],
+    [wc.crewKg + wc.storesKg, (front + aft) / 2],
+  ];
+  const engineGroupKg = eng.kg * n * (1 + wc.machineryShare) + 2 * CONFIG.modules.batteryBank.massKg;
+  const restKg = restKgZ.reduce((a, [m]) => a + m, 0);
+  const balanceZ = (h.lcb * (restKg + engineGroupKg) - restKgZ.reduce((a, [m, z]) => a + m * z, 0)) / engineGroupKg;
+  const ceilingAt = (z: number) => (z >= front && z <= aft ? floorY : q.deckY(z));
+  // (Pods: the engine level as a stern drive's, its gearbox end over the pod's axis.)
+  const shaft = sd || pods
+    ? sternDriveLine(shape, eng.size, twin ? twinEngineX(twinX, eng.size[1]) : 0, transom, ceilingAt, pods ? pdc.forwardOfTransom : sdc.transomInset)
+    : layShaft(shape, eng.size, twin ? twinEngineX(twinX, eng.size[1]) : 0, { x: twin ? twinX : 0, z: transom - 0.65, d: propD }, ceilingAt, CONFIG.shipyard.shaftAngleDeg, CONFIG.shipyard.shaftAngleMaxDeg, balanceZ);
+  // A stern drive's legs: one behind each engine, through the transom; the top of each (its
+  // gimbal housing) over the engine's output, its anti-ventilation plate level with her
+  // bottom at the transom; its propeller a high-revving one, no bigger than `propMaxM`.
+  const sdPropD = Math.min(propD, sdc.propMaxM);
+  const sdLegs = sd
+    ? (() => {
+        const units = twin ? [-shaft.x, shaft.x].map(rnd) : [0];
+        const mount = { y: rnd(shaft.flangeY + 0.15), z: rnd(transom) };
+        const plateY = Math.max(...units.map((x) => bottomUnder(shape, x, transom))) - 0.02;
+        return { units, mount, look: { ...sdc.look, shaftLength: rnd(Math.max(0.3, mount.y - plateY)) } };
+      })()
+    : null;
+  // The pods: one under each engine's gearbox end, its strut down from her bottom there long
+  // enough that its propellers' tips clear her bottom (and never shorter than the look's).
+  const podPropD = Math.min(propD, pdc.propMaxM);
+  const podSet = pods
+    ? (() => {
+        const units = [-shaft.x, shaft.x].map(rnd);
+        const z = rnd(shaft.flangeZ);
+        const y = rnd(Math.max(...units.map((x) => bottomUnder(shape, x, z))));
+        return { units, mount: { y, z }, strut: rnd(Math.max(pdc.look.strutLength, podPropD / 2 + 0.12)) };
+      })()
+    : null;
+  // Outboards instead (owner, Oct 2026; design.outboards): 2 to 4 of the petrol V8s
+  // (CONFIG.modules.outboard) on a bracket off the transom, in place of the engine package,
+  // its shaft and the rudder (they steer by swinging). The engine choice above then only
+  // stands in the code. Their units set `spacing` apart, centred, closer if her transom is
+  // narrow; the bracket as wide as the row and a margin, aft of the transom by its length,
+  // its bottom at the waterline and its top just under the mount. The mount's height: their
+  // anti-ventilation plates about level with her keel (the bottom's water is clean there),
+  // up to 0.35 m under the water and no higher than 0.08 m under it, a 30 in shaft above.
+  const nOb = outboardCount(d);
+  const obc = CONFIG.modules.outboard;
+  // Her gearbox (or the outboards' lower units), the design's step: matched by trial
+  // (shipyard/trial.ts matchGear) so she reaches her rated revs flat out. (Outboards on a
+  // fixed 2.0 lower unit lugged on a heavy hull and ran hot: owner.)
+  const gear = Math.round(SCALES.gear(d.gear) * 100) / 100;
+  const outboards = (() => {
+    if (!nOb) return null;
+    const halfT = st[0].halfBeamDeck;
+    const spacing = nOb > 1 ? Math.min(obc.spacing, (2 * (halfT - 0.35)) / (nOb - 1)) : 0;
+    if (spacing < obc.spacing - 1e-6) warnings.push(`Her transom is narrow for ${nOb} outboards: they're ${Math.round(spacing * 100)} cm apart (they want ${Math.round(obc.spacing * 100)} cm to turn lock to lock). Give her more beam (Hull), or fit fewer.`);
+    const units = Array.from({ length: nOb }, (_, i) => Math.round((i - (nOb - 1) / 2) * spacing * 100) / 100);
+    const plateY = Math.round(Math.max(-0.35, Math.min(-0.08, keelAft + 0.35)) * 100) / 100;
+    const mount = { y: Math.round((plateY + obc.look.shaftLength) * 100) / 100, z: Math.round((transom + obc.bracket.length) * 100) / 100 };
+    const bracket = { z0: Math.round((transom - 0.02) * 100) / 100, z1: mount.z, y0: 0, y1: Math.round((mount.y - obc.bracket.belowMount) * 100) / 100, halfWidth: Math.round(Math.min(halfT - 0.05, Math.max(...units.map(Math.abs)) + obc.bracket.margin) * 100) / 100 };
+    // A lower unit only comes in a narrow range of ratios: a code matched for an inboard (or
+    // never matched) can't put a 1.2 on them (she'd lug and run hot).
+    const [gMin, gMax] = obc.engine.gearRange;
+    return { units, mount, bracket, engine: { ...obc.engine, gearRatio: Math.min(gMax, Math.max(gMin, gear)) } };
+  })();
+  if (!shaft.fits && !outboards) warnings.push(`The ${eng.name.split(' (')[0]} doesn't fit: ${sd ? 'against the transom' : pods ? 'over its pod' : 'on its shaft line'} it stands ${(shaft.shortM * 100).toFixed(0)} cm above the ${shaft.flangeZ - eng.size[0] / 2 >= front && shaft.flangeZ - eng.size[0] / 2 <= aft ? 'cabin floor' : 'deck'}. Give her more depth (Hull), raise the floor (Wheelhouse), or fit a smaller engine.`);
+
+  // ── The engine space and its hatch (owner, Oct 2026: the box under the wheelhouse "is not
+  // where the engine will go") ──
+  // Over the engine, where its shaft line puts it (the starboard one of a twin: the one whose
+  // oil is checked). Outboards have no engine inside: the hatch (her oil checks, as the
+  // Alaskan's lazarette) goes at the aft end. It's cut into whichever floor holds most of the
+  // engine, as close over its middle as fits: the cabin floor (aft of the helm, clear of the
+  // chart table and any steps inside; not on a deckhouse, its floor far above), or the open
+  // deck (clear of the house and its steps, the bow and the stern gear). As long as the
+  // engine and a little (CONFIG.shipyard.engineHatch), as wide as it and a hand's width each
+  // side for the dipstick and the oil can. The engine space under it goes down to just over
+  // her bottom (the highest of it under the hatch's corners: a V bottom rises to the chines).
+  const ehc = CONFIG.shipyard.engineHatch;
+  const [engL, engW, engH] = eng.size;
+  const engX = outboards ? 0 : twin ? shaft.x : 0;
+  const engZ0 = outboards ? transom - 0.6 - ehc.minLength : shaft.flangeZ - engL;
+  const engZ1 = outboards ? transom - 0.6 : shaft.flangeZ;
+  const engHalf = outboards ? 0.25 : engW / 2;
+  const engMid = (engZ0 + engZ1) / 2;
+  // (HatchZone: parts/common.ts.)
+  /** The engine's top (the model's) at z along her, on its tilted shaft line. */
+  const engTopAt = (z: number) => shaft.flangeY + (shaft.flangeZ - z) * Math.tan((shaft.angleDeg * Math.PI) / 180) + (1 - FLANGE_SHARE) * engH;
+  const propPos: V3 = [0, keelAft + 0.1, transom - 0.65];
+  const rudderPos: V3 = [0, keelAft + 0.15, transom - 0.25];
+  const prop = base.regime === 'planing' ? { kt0: 0.6, j0: 1.35, kq0: 0.1, jq0: 1.45, wake: 0.06, thrustDeduction: 0.08 } : { kt0: 0.57, j0: 1.15, kq0: 0.077, jq0: 1.25, wake: 0.18, thrustDeduction: 0.18 };
+  // One rudder (or twin rudders, as one of twice the area, each in its own propeller's wash).
+  const rudderArea = Math.round(0.07 * h.lwl * Math.max(0.3, draughtAft) * n * 100) / 100;
+  // Her installed power (the outboards': each one's, times their count).
+  const powerKw = nOb ? obc.engine.powerKw * nOb : kw * n;
+  const tankL = Math.max(200, Math.round((powerKw * 1.1) / 50) * 50);
+  const batteriesKg = 2 * CONFIG.modules.batteryBank.massKg;
+
+  return { batteriesKg, ehc, eng, engH, engHalf, engL, engMid, engTopAt, engW, engX, engZ0, engZ1, gear, kw, mat, material, n, nOb, nozzle, obc, outboards, pdc, podPropD, podSet, pods, powerKw, prop, propD, propPos, rs, rudderArea, rudderPos, sd, sdLegs, sdPropD, sdc, shaft, shellM2, shellM2y, shellM2z, singleOnly, tankL, twin, twinX, wc };
+}
+export type MachineryPart = ReturnType<typeof machineryPart>;
+
+/** The engine hatch and the space under it, now the deck gear has its places: in the deck or the cabin floor over most of the engine, the dipstick by it. */
+export function engineHatchPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & TrimPart & MachineryPart & PlacesPart & DeckGearPart & OverheadPart) {
+  const { d } = a;
+  const { aft, at, bowRamp, cf, deckhouse, ehc, engHalf, engMid, engTopAt, engX, engZ0, engZ1, floorY, foreEndAt, helmAft, hw, inside, layout, nSteps, outboards, q, rise, rnd, saloonDrop, shape, stem, taken, transom, tread, twin, wall } = p;
+  // Her engine hatch (planned above, with the engine), now the deck gear has its places.
+  const ctabW = d.chartTable ? CONFIG.modules.chartTable.width + 0.1 : 0;
+  const zones: HatchZone[] = [];
+  // (In the wheelhouse's floor: a saloon a step down has its own, at another height.)
+  if (!deckhouse) zones.push({ floor: true, z0: cf + 0.5 + ehc.helmRoom, z1: saloonDrop ? helmAft - 0.05 : aft - wall - inside - 0.05, x0: () => -(hw - wall) + 0.05 + ctabW, x1: () => hw - wall - 0.05 });
+  const houseZ0 = foreEndAt - 0.3;
+  const houseZ1 = aft + Math.max(0.7, (rise > 0 ? nSteps * tread : 0) + 0.3);
+  const deckX = (z: number) => q.halfBeam(z) - ehc.deckMargin;
+  zones.push({ floor: false, z0: stem + (bowRamp ? 1.8 : 1.0), z1: houseZ0, x0: (z) => -deckX(z), x1: deckX });
+  zones.push({ floor: false, z0: houseZ1, z1: transom - 0.35, x0: (z) => -deckX(z), x1: deckX });
+  const hatchLen = Math.max(ehc.minLength, Math.min(ehc.maxLength, engZ1 - engZ0 + 2 * ehc.endRoom));
+  // In each, the spots along it (5 cm apart) clear of the gear placed on deck (`taken`, with
+  // room to lift the lid: narrower or shorter if need be); the best is the one over most of
+  // the engine, then the nearest its middle.
+  const hatchesIn = (zone: HatchZone) => {
+    const out = [];
+    for (let len = Math.min(hatchLen, zone.z1 - zone.z0); len >= ehc.minLength - 1e-6; len -= 0.1) {
+      for (let k = 0; k <= Math.floor((zone.z1 - zone.z0 - len) / 0.05); k++) {
+        const mid = zone.z0 + len / 2 + k * 0.05;
+        const z0 = mid - len / 2;
+        const z1 = mid + len / 2;
+        let x0 = Math.max(zone.x0(z0), zone.x0(z1), engX - engHalf - ehc.sideRoom);
+        let x1 = Math.min(zone.x1(z0), zone.x1(z1), engX + engHalf + ehc.sideRoom);
+        // Narrower, clear of gear beside it (a crane at the deck edge): from whichever side it's on.
+        if (!zone.floor)
+          for (const o of taken)
+            if (o.z0 < z1 + 0.1 && o.z1 > z0 - 0.1) {
+              if ((o.x0 + o.x1) / 2 >= engX) x1 = Math.min(x1, o.x0 - 0.1);
+              else x0 = Math.max(x0, o.x1 + 0.1);
+            }
+        if (x1 - x0 < ehc.minWidth) continue;
+        out.push({ zone, x0, x1, z0, z1, over: Math.max(0, Math.min(z1, engZ1) - Math.max(z0, engZ0)), off: Math.abs(mid - engMid) });
+      }
+    }
+    return out;
+  };
+  const spot = zones.flatMap(hatchesIn).sort((a, b) => b.over - a.over || a.off - b.off)[0];
+  // (Never without one in practice: a hull too short for any of these keeps it in the cabin floor, aft to starboard.)
+  const hs = spot ?? { zone: zones[0] ?? { floor: true }, x0: 0.15, x1: Math.min(0.85, hw - 0.2), z0: aft - 1.125 - inside, z1: aft - 0.325 - inside };
+  const hatchZ = (hs.z0 + hs.z1) / 2;
+  /** The hatch's top: the cabin floor, or the deck there. */
+  const hatchTop = hs.zone.floor ? floorY : q.deckY(hatchZ);
+  // The engine space's floor plates: just over her bottom under the engine's sides (under
+  // the hatch's sides for outboards' lazarette), so the engine stands up through them on
+  // its bearers. The sea is kept out of it in the drawing (the diesel module's water stop).
+  const sideXs = outboards ? [hs.x0, hs.x1] : (twin ? [-1, 1] : [1]).flatMap((s) => [s * engX - engHalf, s * engX + engHalf]);
+  const soleY = Math.max(...[hs.z0, hatchZ, hs.z1].flatMap((z) => sideXs.map((x) => bottomUnder(shape, x, z)))) + ehc.soleClear;
+  /** Her hull's inside half-breadth at height y, at z (from her section there: keel, chine, deck edge). */
+  const insideHalf = (z: number, y: number) => {
+    const s = halfSection(shape, z);
+    for (let k = 1; k < s.length; k++)
+      if (y <= s[k][1]) return s[k - 1][0] + ((s[k][0] - s[k - 1][0]) * (y - s[k - 1][1])) / Math.max(1e-6, s[k][1] - s[k - 1][1]);
+    return s[s.length - 1][0];
+  };
+  // The space: across both engines of a twin (each on its own shaft, either side), otherwise
+  // the hatch's own width; no wider than her hull inside at the floor plates (less a frame).
+  // (In the cabin floor, inside the house's walls too: its walls stand on the floor's edge.)
+  const roomHalf = Math.min(insideHalf(hs.z0, soleY), insideHalf(hs.z1, soleY), hs.zone.floor ? hw - wall : 99) - 0.05;
+  const span = twin && !outboards ? engX + engHalf + ehc.sideRoom : 0;
+  const sx0 = Math.max(-roomHalf, Math.min(hs.x0, -span));
+  const sx1 = Math.min(roomHalf, Math.max(hs.x1, span));
+  const eh = {
+    x0: rnd(Math.max(hs.x0, sx0)),
+    x1: rnd(Math.min(hs.x1, sx1)),
+    z0: rnd(hs.z0),
+    z1: rnd(hs.z1),
+    pitDepth: rnd(hatchTop - soleY),
+    ...(hs.zone.floor ? {} : { y: rnd(hatchTop) }),
+    ...(sx0 < hs.x0 - 0.01 || sx1 > hs.x1 + 0.01 ? { space: { x0: rnd(sx0), x1: rnd(sx1) } } : {}),
+  };
+  layout.engineHatch = eh;
+  at.engineSpace = [rnd((eh.x0 + eh.x1) / 2), rnd(soleY + 0.15), rnd(hatchZ)];
+  // The dipstick on the engine's inboard side near its forward end, its ring a hand's depth
+  // under the hatch (in reach through it); outboards': in the space under the hatch.
+  const dipZ = Math.max(eh.z0 + 0.15, Math.min(eh.z1 - 0.15, engZ0 + 0.35));
+  const dip: V3 = outboards
+    ? [rnd(eh.x0 + 0.15), rnd(hatchTop - 0.32), rnd(eh.z0 + 0.2)]
+    : [rnd(Math.max(eh.x0 + 0.06, engX - engHalf - 0.04)), rnd(Math.min(hatchTop - 0.25, Math.max(soleY + 0.1, engTopAt(dipZ) - 0.3))), rnd(dipZ)];
+  const hatchIs = hs.zone.floor ? 'Cabin floor' : 'Deck';
+
+  return { dip, dipZ, eh, hatchIs, hatchTop, hatchZ, soleY, sx0, sx1 };
+}
+export type EngineHatchPart = ReturnType<typeof engineHatchPart>;
