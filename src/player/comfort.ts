@@ -125,6 +125,11 @@ export class ComfortOverlay {
   private black = 0;
   private vignette = 0;
   private fade = 0;
+  /** Hurt (player/health.ts): a red flash that fades (0..1). */
+  private flash = 0;
+  /** Lying in a berth: eyes closed, the view dimmed (0..1). */
+  private dim = 0;
+  private dimTarget = 0;
 
   constructor() {
     const material = new THREE.ShaderMaterial({
@@ -163,6 +168,8 @@ export class ComfortOverlay {
     const targetV = Math.min(1, moving) * CONFIG.comfort.vignette;
     this.vignette += (targetV - this.vignette) * Math.min(1, dt / (targetV > this.vignette ? 0.08 : 0.3));
     this.fade += ((inWall ? 1 : 0) - this.fade) * Math.min(1, dt / 0.15);
+    this.flash = Math.max(0, this.flash - dt / 0.6);
+    this.dim += (this.dimTarget - this.dim) * Math.min(1, dt / 0.8);
     this.apply();
   }
 
@@ -173,11 +180,22 @@ export class ComfortOverlay {
     this.apply();
   }
 
+  /** Hurt: a red flash, `amount` 0..1 (it fades over about half a second). */
+  hurt(amount: number): void {
+    this.flash = Math.max(this.flash, Math.min(1, amount));
+  }
+
+  /** Lying in a berth (eyes closed): the view dims to `level` 0..1, or back. */
+  rest(level: number): void {
+    this.dimTarget = level;
+  }
+
   private apply(): void {
     this.uniforms.uVignette.value = this.vignette;
-    // Red: a see-through wash (0.55 at full), deepening as it blacks out.
-    this.uniforms.uFade.value = Math.max(this.fade, this.black, 0.55 * this.red);
-    this.uniforms.uRed.value = this.red * (1 - this.black * 0.6);
+    // Red: a see-through wash (0.55 at full), deepening as it blacks out; a hurt's flash lighter.
+    const red = Math.max(this.red, 0.6 * this.flash);
+    this.uniforms.uFade.value = Math.max(this.fade, this.black, 0.55 * red, this.dim);
+    this.uniforms.uRed.value = red * (1 - this.black * 0.6);
     this.mesh.visible = this.vignette > 0.01 || this.uniforms.uFade.value > 0.01;
   }
 }

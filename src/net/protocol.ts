@@ -44,6 +44,8 @@ export interface PlayerPose {
   poses?: [number, number];
   /** In the water (a crew-mate sees them overboard). */
   swimming?: boolean;
+  /** Lying in a berth (player/health.ts): with everyone so, the host's clock runs on. */
+  resting?: boolean;
   /** A recording camera, not a figure (player/cameraMode.ts). */
   camera?: boolean;
   /** A chart table tool in one hand (pencil, eraser, rule), if any. */

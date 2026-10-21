@@ -184,6 +184,15 @@ export function furniturePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
     furnitureKg += size.kg;
     furniturePlaced[piece.key] = { x: mid[0], z: mid[2], moved: Math.hypot(mid[0] - px, mid[2] - pz) > fc.movedOver };
   }
+  // The cabin below's V-berth (drawn with her, hullMesh.ts): a place to lie down in it and rest
+  // (owner, Oct 2026: "the berth ... in the cabin which appears under the wheelhouse"; modules/furniture REST_SPOT).
+  if (cabin?.berth) {
+    const zm = (cabin.z0 + cabin.berth.z1) / 2;
+    const id = 'furniture.cabinBerth';
+    furnitureSockets.push({ id, type: 'cabin.furniture', transform: { position: [0, r2(cabin.berth.top), r2(zm)], rotationDeg: [0, 90, 0] }, label: 'The cabin below: the V-berth' });
+    const spot = { length: r2(cabin.berth.z1 - cabin.z0), width: r2(1.6 * planHalfWidth(cabin.plan, zm)), top: 0 };
+    furnitureMounts.push({ socket: id, module: 'furniture.restSpot', config: spot });
+  }
   // Her places include the furniture's (P4b: gathered into her hull definition).
   hull.sockets.push(...furnitureSockets);
   return { furnitureKg, furnitureMounts, furniturePlaced };

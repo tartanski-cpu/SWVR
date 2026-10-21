@@ -81,6 +81,7 @@ import { HelmPrompt } from '../ui/helmPrompt';
 import { YardBoard } from '../ui/yardBoard';
 import type { PlayerState } from '../player/playerState';
 import { struckByPropeller } from '../rescue/propStrike';
+import { fallHarm, fireExposure, stepHealth, wakeNow } from '../player/health';
 import { PropStrikeView } from '../rescue/propStrikeView';
 import { lookFromId, turnHands } from '../net/avatarOutfits';
 import { BoatView } from './boatView';
@@ -545,8 +546,23 @@ export class App {
   private readonly camPreview = new CameraPreview();
   /** The red spray when a swimmer goes into a propeller (everyone sees it). */
   private readonly propStrikeView = new PropStrikeView();
-  /** Us struck by a propeller: seconds since (red, black, back aboard), or -1. */
+  /** Us struck by a propeller, or blacked out (health): seconds since (red, black, back aboard), or -1. */
   private strikeT = -1;
+  /** What's said when we come round from it (the propeller's own words if empty). */
+  private knockoutSays = '';
+  /**
+   * Our health (player/health.ts: 1 well, 0 blacked out), kept by our own game as our body
+   * is; and lying in a berth to rest (its press, 'berthRest'), the view dimmed.
+   */
+  private health = 1;
+  private resting = false;
+  /** Lain down hurt (up by yourself once well by day), or to sleep (up at the morning); the clock a moment ago. */
+  private restHurt = false;
+  private restClock = 0;
+  /** Below CONFIG.health.warnBelow already (said once each time it falls past). */
+  private healthWarned = false;
+  /** The desktop's health readout (shown only when hurt). */
+  private healthEl: HTMLDivElement | null = null;
   /** Crew-mates in the water (to say so once when one goes in). */
   private readonly overboard = new Set<string>();
   private readonly waveV = new THREE.Vector3();
@@ -940,6 +956,7 @@ export class App {
     this.updateGestures(inXR);
     this.updateLocomotion(dt, inXR);
     this.updateStrike(dt);
+    this.updateHealth(dt);
     this.syncRigToPlayer(0);
     this.updateLaser(dt);
     this.camera.getWorldPosition(this.focus);
@@ -1811,9 +1828,14 @@ export class App {
       return true;
     }
     if (mode === 'air') {
+      // Falling this fast (down) as we land: the harm of the fall (player/health.ts).
+      const falling = -(p.velocity?.[1] ?? 0);
       const ev = updateAir(p, dt, headOffset, this.bodyVessels(), this.worldArea, this.renderWaves);
       if (ev) this.keepViewOnReparent = true;
-      if (ev === 'landedDeck' || ev === 'landedLand') pulseBoth(0.5, 50);
+      if (ev === 'landedDeck' || ev === 'landedLand') {
+        pulseBoth(0.5, 50);
+        this.hurt(fallHarm(falling), 'A hard landing');
+      }
       if (ev === 'splash') {
         pulseBoth(0.7, 120);
         this.sound.water.splash(1);
@@ -1829,6 +1851,7 @@ export class App {
       chest.y -= 0.6;
       if (struckByPropeller(this.world, chest)) {
         this.strikeT = 0;
+        this.health = Math.max(0, this.health - CONFIG.health.propHit);
         this.rescueCtx().push('rescuePropStrike', undefined, 1, [chest.x, chest.y, chest.z]);
         pulseBoth(1, 400);
       }
@@ -1890,6 +1913,16 @@ export class App {
     this.camera.getWorldDirection(this.headFwd);
     if (inXR && this.vrFlyOn) {
       this.updateVrFly(dt);
+      this.placeDebugPanel(inXR);
+      return;
+    }
+    // Lying in a berth: you stay put; a step (the stick, the keys) or a jump gets you up.
+    if (this.resting) {
+      const [lx, ly] = this.xrInput.hands.left.stick;
+      const w = this.desktop.walk;
+      const jump = inXR ? this.xrInput.wasPressed('right', XR_BUTTON.primary) : this.keyboard.actionPressed('jump');
+      if (Math.hypot(lx, ly) > 0.5 || Math.hypot(w.x, w.z) > 0.1 || jump) this.getUp('');
+      this.comfortOverlay.update(dt, 0, false);
       this.placeDebugPanel(inXR);
       return;
     }
@@ -2694,15 +2727,19 @@ export class App {
     if (this.camMode.on && this.world.players[this.localPlayerId]) return this.sendCameraPose(dt, this.world.players[this.localPlayerId]);
     if (!this.host && this.client?.status !== 'connected') {
       // Solo: no pose to send, but the simulation still needs your hand gear (the
-      // extinguisher on a fire), which it reads from your avatar like a crew-mate's.
+      // extinguisher on a fire) and whether you're lying in a berth (sleep: the clock runs
+      // on), which it reads from your avatar like a crew-mate's.
       const me = this.world.players[this.localPlayerId];
       if (!me) return;
       const frame = this.playerFrame();
       frame.updateMatrixWorld();
       this.invFrame.copy(frame.matrixWorld).invert();
       const gear = this.gear.map((g) => g.pose(this.invFrame)).find((x) => x) ?? null;
-      if (gear) me.avatar = { ...(me.avatar ?? { head: [0, 0, 0, 0, 0, 0, 1], left: null, right: null }), gear };
-      else if (me.avatar) me.avatar.gear = null;
+      if (gear || this.resting) me.avatar = { ...(me.avatar ?? { head: [0, 0, 0, 0, 0, 0, 1], left: null, right: null }), gear, resting: this.resting };
+      else if (me.avatar) {
+        me.avatar.gear = null;
+        me.avatar.resting = false;
+      }
       return;
     }
     const p = this.world.players[this.localPlayerId];
@@ -2756,6 +2793,7 @@ export class App {
       rightQ: handQ('right'),
       poses: inXR ? this.gestures.codes() : undefined,
       swimming: p.mode === 'swim',
+      resting: this.resting,
       tool: this.chartTools?.heldTool() ?? null,
       laser: this.laser.pose(this.invFrame),
       gear: this.gear.map((g) => g.pose(this.invFrame)).find((x) => x) ?? null,
@@ -2763,7 +2801,7 @@ export class App {
     };
     if (this.host) {
       p.name = pose.name;
-      p.avatar = { head: pose.head, left: pose.left, right: pose.right, leftQ: pose.leftQ, rightQ: pose.rightQ, poses: pose.poses, swimming: pose.swimming, tool: pose.tool, laser: pose.laser, gear: pose.gear, radio: pose.radio };
+      p.avatar = { head: pose.head, left: pose.left, right: pose.right, leftQ: pose.leftQ, rightQ: pose.rightQ, poses: pose.poses, swimming: pose.swimming, resting: pose.resting, tool: pose.tool, laser: pose.laser, gear: pose.gear, radio: pose.radio };
       return;
     }
     this.poseTimer += dt;
@@ -3295,6 +3333,8 @@ export class App {
       // (Boats that come later, the tows, have none.)
       [...[...this.boats.values()].flatMap((b) => b.controls), ...this.cranes.flatMap((d) => d.buttons), ...this.gear.filter((g) => g.aboard).map((g) => g.bracket)],
       (channel, value) => {
+        // A berth: lie down in it, or get up (yours, not the boat's: nothing goes to her).
+        if (channel === 'berthRest' || channel.endsWith(':berthRest')) return this.toggleRest();
         if (channel === 'engineStartStop') return this.requestEngineStartStop();
         // Console modules send bus keys ('ignition.start'); older controls their old names.
         if ((channel === 'start' || channel === 'ignition.start') && value > 0) this.startInGearHint();
@@ -3778,6 +3818,89 @@ export class App {
    * Struck by a propeller: the view red at once, fading to black; put back aboard our boat
    * (as if hauled out and patched up) while it's black; then the view clears.
    */
+  /**
+   * Our health this frame (player/health.ts): the cold in the water, a fire's flames and smoke
+   * where our head is, a berth's rest; running out, we black out (the propeller's fade, then
+   * aboard: updateStrike). Lying in a berth, we get up by ourselves once well by day.
+   */
+  private updateHealth(dt: number): void {
+    const p = this.world.players[this.localPlayerId];
+    if (!p) return;
+    const was = this.health;
+    const smoke = fireExposure(this.world, [this.headW.x, this.headW.y, this.headW.z]);
+    this.health = stepHealth(this.health, { swimming: p.mode === 'swim', fire: smoke.fire, smoke: smoke.smoke, resting: this.resting }, dt);
+    if (this.health < was) this.comfortOverlay.hurt(Math.min(1, (was - this.health) * 60));
+    this.afterHarm(was, smoke.fire ? 'The fire' : smoke.smoke ? 'The smoke' : 'The cold');
+    if (this.resting) {
+      const now = this.world.environment.timeOfDay;
+      if (wakeNow(this.health, this.restHurt, this.restClock, now)) this.getUp(this.restHurt ? 'Rested and well again: up you get.' : 'Morning: up you get.');
+      this.restClock = now;
+    }
+    this.showHealth();
+  }
+
+  /** Something hurts us at a blow (a fall): `harm` off our health, a red flash, and why. */
+  private hurt(harm: number, why: string): void {
+    if (harm <= 0) return;
+    const was = this.health;
+    this.health = Math.max(0, this.health - harm);
+    this.comfortOverlay.hurt(0.4 + harm * 2);
+    this.xrInput.pulse('left', 0.8, 150);
+    this.xrInput.pulse('right', 0.8, 150);
+    if (this.health > 0) this.overlay.notify(`${why}: hurt (health ${Math.round(this.health * 100)} %).`, 3);
+    this.afterHarm(was, why);
+  }
+
+  /** After harm: a warning past CONFIG.health.warnBelow; at nothing, black out (once). */
+  private afterHarm(was: number, why: string): void {
+    const c = CONFIG.health;
+    if (this.health >= c.warnBelow) this.healthWarned = false;
+    else if (!this.healthWarned && was >= c.warnBelow) {
+      this.healthWarned = true;
+      this.overlay.notify(`${why} is getting to you (health ${Math.round(this.health * 100)} %). Rest in a berth to recover.`, 5);
+    }
+    if (this.health <= 0 && was > 0 && this.strikeT < 0) {
+      this.strikeT = 0;
+      this.knockoutSays = `${why} was too much: you blacked out and came round aboard. Rest in a berth to recover.`;
+    }
+  }
+
+  /** A berth pressed: lie down in it (not from the water), or get up again. */
+  private toggleRest(): void {
+    if (this.resting) return this.getUp('');
+    const p = this.world.players[this.localPlayerId];
+    if (!p || (p.mode ?? 'walk') !== 'walk' || this.strikeT >= 0) return;
+    this.resting = true;
+    this.restHurt = this.health < 1;
+    this.restClock = this.world.environment.timeOfDay;
+    this.comfortOverlay.rest(0.85);
+    this.overlay.notify(`Resting in the berth (health ${Math.round(this.health * 100)} %). With everyone aboard in a berth you sleep and the hours pass. A step gets you up.`, 6);
+  }
+
+  /** Up out of the berth: the view comes back; `says`, if anything. */
+  private getUp(says: string): void {
+    if (!this.resting) return;
+    this.resting = false;
+    this.comfortOverlay.rest(0);
+    if (says) this.overlay.notify(says, 4);
+  }
+
+  /** On the desktop, a small health readout while we're hurt (or resting). In VR the warnings, the red flash and the dimming say it. */
+  private showHealth(): void {
+    const show = this.health < 0.995 || this.resting;
+    if (!show && !this.healthEl) return;
+    if (!this.healthEl) {
+      this.healthEl = document.createElement('div');
+      Object.assign(this.healthEl.style, { position: 'fixed', right: '12px', bottom: '12px', padding: '4px 10px', borderRadius: '6px', background: 'rgba(0,0,0,0.55)', color: '#fff', font: '600 14px system-ui, sans-serif', pointerEvents: 'none', zIndex: '20' });
+      document.body.appendChild(this.healthEl);
+    }
+    this.healthEl.hidden = !show;
+    const pc = Math.round(this.health * 100);
+    const text = `Health ${pc} %${this.resting ? ' · resting' : ''}`;
+    if (this.healthEl.textContent !== text) this.healthEl.textContent = text;
+    this.healthEl.style.color = this.health < CONFIG.health.warnBelow ? '#ff9a8a' : '#fff';
+  }
+
   private updateStrike(dt: number): void {
     if (this.strikeT < 0) return;
     const c = CONFIG.rescue.propStrike;
@@ -3786,7 +3909,10 @@ export class App {
     const t = this.strikeT;
     if (was < c.respawnAt && t >= c.respawnAt) {
       this.toggleBoardTo(true);
-      this.overlay.notify('Hauled out of the water and patched up. Neutral near swimmers!', 5);
+      // Blacked out (the health ran out): you come round aboard, weak.
+      if (this.health <= 0) this.health = CONFIG.health.wakeHealth;
+      this.overlay.notify(this.knockoutSays || 'Hauled out of the water and patched up. Neutral near swimmers!', 5);
+      this.knockoutSays = '';
     }
     const red = t < c.blackAt ? 1 : Math.max(0, 1 - (t - c.blackAt) / (c.clearAt - c.blackAt));
     const black = t < c.blackAt ? t / c.blackAt : t < c.respawnAt + 0.4 ? 1 : Math.max(0, 1 - (t - c.respawnAt - 0.4) / (c.clearAt - c.respawnAt - 0.4));

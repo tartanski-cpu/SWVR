@@ -3345,6 +3345,46 @@ export const CONFIG = {
    * Jumps start with the boat's own velocity at your feet, so leaping off a moving boat
    * carries you along with her, as it would.
    */
+  /**
+   * The player's health (player/health.ts; owner, Oct 2026: a berth "should have the function
+   * of healing the player"; hurt by cold water, a propeller, falls, and fire and smoke). One
+   * number, 1 well to 0 blacked out, kept by each player's own game. Game-paced, not real:
+   * at the sea's 14 C a person in the water keeps going for an hour or more; here the cold
+   * takes a full-health swimmer in about `coldMinutes`, so a swim is a risk but not a sentence.
+   */
+  health: {
+    /** In the water, from full health to blacked out (min, game-paced). */
+    coldMinutes: 8,
+    /** Standing in the flames (inside the fire's hitRadius, CONFIG.fire), at full blaze: health a second. */
+    firePerS: 0.2,
+    /** In thick smoke downwind of it, at full blaze: health a second. */
+    smokePerS: 0.03,
+    /** The smoke: downwind of the fire this far (m), widening this much a metre downwind (each side), thinning to nothing at the end. */
+    smokeReach: 40,
+    smokeSpread: 0.25,
+    /** Wind under this (m/s): the smoke rises round the fire, out to twice its radius. */
+    calmWind: 1,
+    /** A turning propeller: this much at a blow (the strike's fade and haul-out follow as before). */
+    propHit: 0.6,
+    /** A fall: no harm landing from this high (m), then this much health a metre more. */
+    safeFall: 2.5,
+    fallPerM: 0.2,
+    /** Lying in a berth: from nothing back to full in this long (s, real time). */
+    restFullS: 90,
+    /** Blacked out: you come round aboard, this well. */
+    wakeHealth: 0.5,
+    /** Below this, a warning (once each time it falls past). */
+    warnBelow: 0.35,
+    /**
+     * Sleep (owner: "Both": a berth heals, and sleeping in it passes time): with everyone aboard
+     * the game lying in a berth, the clock runs this many game hours a real second. Lain down
+     * hurt, you get up by yourself once well by day; else you sleep on until the clock comes
+     * round to `wakeHour`. A step gets you up any time. Night (no getting up well): `nightFrom` to `wakeHour`.
+     */
+    sleepHoursPerS: 0.25,
+    wakeHour: 7,
+    nightFrom: 20,
+  },
   body: {
     gravity: 9.81,
     /** Take-off speed up and along your view (m/s): ~0.55 m high, ~2 m long from standing. */
