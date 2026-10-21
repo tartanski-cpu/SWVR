@@ -3,7 +3,9 @@
  * big maps the plotter's map was "too low"; nav/chartLand.ts).
  */
 import { describe, expect, it } from 'vitest';
-import { aboveLevel, CHART_CELL, CHART_LEVELS, cellOutlines, chartCells } from '../src/nav/chartLand';
+import { aboveLevel, CHART_CELL, CHART_LEVELS, cellOutlines, chartCells, terrainMesh } from '../src/nav/chartLand';
+import { HOME } from '../src/world/regions/home';
+import { buildTerrainArrays } from '../src/world/view/terrainMesh';
 import type { CoastPiece } from '../src/world/coastTerrain';
 
 /** The signed area of polygon (x, z, ...) (+ anticlockwise in the canvas's x-right, z-down sense of `aboveLevel`'s rule). */
@@ -80,5 +82,22 @@ describe('the chartplotter cut from the mesh', () => {
     expect(s[0]).toMatch(/^M.*Z$/);
     expect(s[1]).toMatch(/^M.*Z$/);
     expect(s[2]).toBe('');
+  });
+
+  it("a hand-built region's drawn terrain cuts the same way: Calder Haven's square has a coastline and shallows (owner: the career map too)", () => {
+    const m = terrainMesh(buildTerrainArrays(HOME).position);
+    expect(m.F.length).toBe(m.V.length / 3);
+    const cells = chartCells(m);
+    expect(cells.length).toBeGreaterThanOrEqual(2);
+    // Calder Haven (708, 625) lies in the 2 km square at (0, 0).
+    const calder = cells.find((c) => c.x0 === 0 && c.z0 === 0)!;
+    expect(calder).toBeTruthy();
+    expect(calder.faces.length).toBeGreaterThan(100);
+    const paths = cellOutlines(m, calder);
+    expect(paths).toHaveLength(CHART_LEVELS.length);
+    for (const d of paths) expect(d.startsWith('M')).toBe(true);
+    // Deep squares out at sea hold no faces and give empty outlines.
+    const deep = cells.find((c) => c.faces.length === 0);
+    if (deep) expect(cellOutlines(m, deep).every((d) => d === '')).toBe(true);
   });
 });

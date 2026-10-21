@@ -3232,6 +3232,8 @@ export class App {
     // (how dark it is; its light goes to the ocean), the fire monitor's gauge (the fire job).
     this.windSock = home.api<MastApi>('mount.mast')?.windSock ?? null;
     this.searchlight = home.api<SearchlightApi>('deck.searchlight');
+    // The plotter cuts the hand-built regions' coast from the terrain their views build (nav/chartLand.ts).
+    home.chart?.setLandSource((id) => this.worldView.terrainPositions(id));
     this.fireGauge = home.api<FireMonitorApi>('deck.fire-monitor')?.gauge ?? null;
     this.dutyBoard = home.dutyBoard;
     this.chartTable = home.chartTable;

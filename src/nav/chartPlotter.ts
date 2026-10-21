@@ -13,8 +13,8 @@ import { CONFIG } from '../config';
 import type { ChartMarks } from '../chart/marks';
 import { towFast } from '../tow/tow';
 import { Button } from '../controls/Button';
-import { coastTerrains, type CoastPiece } from '../world/coastTerrain';
-import { CHART_LEVELS, cellOutlines, chartCells, type ChartCell } from './chartLand';
+import { coastTerrains } from '../world/coastTerrain';
+import { CHART_LEVELS, cellOutlines, chartCells, terrainMesh, type ChartCell, type MeshArrays } from './chartLand';
 
 const W = 512;
 const H = 384;
@@ -61,7 +61,16 @@ export class ChartPlotter {
   /** The land, shallows and sea of each region, sampled from the terrain once when first in view (regions). */
   private readonly lands = new Map<string, { canvas: HTMLCanvasElement; x0: number; z0: number; res: number }>();
   /** A coast map's mesh as outlines (chartLand.ts), square by square, and their canvas paths once drawn; kept while the mesh is loaded. */
-  private readonly outlines = new WeakMap<CoastPiece, { cells: ChartCell[]; paths: (Path2D[] | undefined)[] }>();
+  private readonly outlines = new WeakMap<MeshArrays, { cells: ChartCell[]; paths: (Path2D[] | undefined)[] }>();
+  /** A hand-built region's drawn terrain as a mesh to cut (owner: the same sharp coast on the career map), once its view has built it. */
+  private readonly landMeshes = new Map<string, MeshArrays>();
+  /** Where a hand-built region's built terrain comes from (the world view; App sets it). */
+  private landSource: ((regionId: string) => Float32Array | null) | null = null;
+
+  /** The world view's built terrains, for the career map's outlines (null until a region's view is built). */
+  setLandSource(source: (regionId: string) => Float32Array | null): void {
+    this.landSource = source;
+  }
   private dark = false;
   private since = Infinity;
   /** Debug: draw the targets too. */
@@ -194,8 +203,8 @@ export class ChartPlotter {
     const vz1 = sz + reachZ;
     const reach = 400; // how far a face may reach past its square (m)
     const meets = (c: ChartCell) => c.x0 + c.size + reach > vx0 && c.x0 - reach < vx1 && c.z0 + c.size + reach > vz0 && c.z0 - reach < vz1;
-    const shown: { piece: CoastPiece; paths: (Path2D[] | undefined)[]; cell: ChartCell; k: number }[] = [];
-    const add = (piece: CoastPiece, box?: { x0: number; z0: number; size: number }) => {
+    const shown: { piece: MeshArrays; paths: (Path2D[] | undefined)[]; cell: ChartCell; k: number }[] = [];
+    const add = (piece: MeshArrays, box?: { x0: number; z0: number; size: number }) => {
       let o = this.outlines.get(piece);
       if (!o) {
         const cells = chartCells(piece, box);
@@ -213,6 +222,23 @@ export class ChartPlotter {
           const c = t.chunked!.chunks[k];
           add(p, { x0: c.x0 + t.ox, z0: c.z0 + t.oz, size: c.size });
         }
+    }
+    // The hand-built regions the same, from the terrain their views have built (the world
+    // view builds a region's mesh as the boat nears it, well inside the plotter's reach); the
+    // sampled picture stays underneath until then, and for the far ones.
+    if (this.landSource) {
+      for (const r of REGIONS) {
+        if (r.coast) continue;
+        const b = r.bounds;
+        if (b.x1 < vx0 || b.x0 > vx1 || b.z1 < vz0 || b.z0 > vz1) continue;
+        let m = this.landMeshes.get(r.id);
+        if (!m) {
+          const pos = this.landSource(r.id);
+          if (!pos) continue;
+          this.landMeshes.set(r.id, (m = terrainMesh(pos)));
+        }
+        add(m);
+      }
     }
     if (!shown.length) return;
     // Make the missing outlines, nearest first, while there's time.
