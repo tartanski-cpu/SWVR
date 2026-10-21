@@ -2,6 +2,9 @@
  "warnings": [
   "only 3 buoys or beacons mapped (thin data?)",
   "4 patches where the coastline's sides disagree (check the coast there)",
+  "features: no fog signals mapped (C5 foghorns: none here)",
+  "features: no wrecks mapped (C6: none here)",
+  "features: 2 power-line spans over the water, none with a clearance tagged (C6: no strike rule for them)",
   "achladi-pier: no berth with room for a boat (best blocked at 5 points): not a port"
  ],
  "nav": {
@@ -242,7 +245,7 @@
    "Pyrgos",
    "Nisis Dhidhimi FlW.6s"
   ],
-  "bytes": 501540
+  "bytes": 506017
  },
  "houses": {
   "byType": {
@@ -276,5 +279,43 @@
   },
   "clearedCells": 5169,
   "bytes": 55958
+ },
+ "features": {
+  "farms": {},
+  "landmarks": {
+   "lighthouse": 6,
+   "turbine": 5,
+   "church": 75,
+   "mast": 1,
+   "monument": 1,
+   "tower": 4,
+   "chimney": 2
+  },
+  "shore": {
+   "rock": 72,
+   "sand": 8,
+   "beach": 43
+  },
+  "cliffs": 17,
+  "farmland": 256,
+  "names": {
+   "locality": 54,
+   "bay": 2,
+   "town": 2,
+   "village": 20,
+   "neighbourhood": 15,
+   "hamlet": 42,
+   "cape": 1,
+   "islet": 7,
+   "island": 2,
+   "archipelago": 1
+  },
+  "fogSignals": 0,
+  "wrecks": 0,
+  "cables": {},
+  "overhead": 2,
+  "overheadWithClearance": 0,
+  "ferryRoutes": 9,
+  "ferryTerminals": 2
  }
 }

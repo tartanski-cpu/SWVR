@@ -6515,7 +6515,7 @@ Owner (with a map picture of the Firth): "Next id like a bigger area, as its onl
 
 ### Coast extras: the plan (owner's list, not started)
 
-The owner's choice from the suggested additions to the map pipeline, all but tides: fish farms, sound from the map, the shore's material, place names, landmarks with lights, AI ferries on the real routes, charted hazards in play, and a check for overlapping piers. Order: after the harbour boats (settlements milestone 6). **Settlements milestone 7 (tuning across the regions) moves to the end of this plan**, so everything is tuned once together, not twice.
+The owner's choice from the suggested additions to the map pipeline, all but tides: fish farms, sound from the map, the shore's material, place names, landmarks with lights, AI ferries on the real routes, charted hazards in play, and a check for overlapping piers. Order: after the harbour boats (settlements milestone 6, done). **Settlements milestone 7 (tuning across the regions) moves to the end of this plan**, so everything is tuned once together, not twice.
 
 **Rules for all of it:**
 - From the map data only. Where the data is silent, nothing is guessed: a cable with no clearance given has no clearance rule; a coast with no wrecks in the data has none.
@@ -6571,6 +6571,58 @@ The owner's choice from the suggested additions to the map pipeline, all but tid
 **C8. Tuning across all maps (settlements milestone 7, moved here).**
 - Measure every map against the baseline, on Quest and desktop settings, at the same spots as before.
 - Trim what's over (distances, counts, merging), and fix what the owner's tests turn up.
+
+### Coast extras C1: read it all, check the piers (done)
+
+Owner: "Next milestone". **Nothing to see in the game:** this milestone gathers the data the next six use, and adds the check for piers drawn over each other.
+
+- **A new pipeline stage** (`tools/coast/src/features.ts`, after nav; `npm run features`) reads, in one pass over the map data already downloaded:
+  - **farms:** the marine farms' outlines (nav.ts already read them; never packaged), and their kind from `seamark:marine_farm:category`;
+  - **landmarks:** castles, towers, masts, chimneys, water towers, monuments, lighthouses, wind turbines and churches, with their height where tagged;
+  - **the shore:** beaches by surface (sand, shingle, pebbles; plain "beach" where untagged), shingle, bare rock, and cliff lines;
+  - **farmland:** each field's middle and area (the livestock heard in C5);
+  - **names:** towns, villages, hamlets, islands and islets, bays, headlands, straits and peninsulas, ranked for the chart (1 farthest out, 4 close in), Greek in Latin letters as before;
+  - **fog signals:** on lights, and on their own;
+  - **wrecks:** with their depth and category;
+  - **cables and pipelines** laid under the water;
+  - **power lines' spans over the water**, with their charted clearance where tagged;
+  - **ferry routes** (one copy each, however often they're mapped) and **ferry terminals**.
+  - Lines are thinned to 5 m. Everything is cut to the map's box.
+- **Written to `public/regions/<id>/features.json`.** The package names the file and its counts (`features: { file, counts }`). The game will fetch it when a milestone needs it, like the forest map; inlining it would have added about 70 kB to every copy of the game, career included, since Oban's and Tayvallich's packages are built in. Type: `src/world/coastFeatures.ts`.
+- **What the maps hold:**
+
+  | | Oban | Tayvallich | Syros | Clyde |
+  |---|---|---|---|---|
+  | Marine farms | 2 | 0 | 0 | 1 |
+  | Landmarks | 31 (3 castles, 7 masts, 3 turbines, 10 churches) | 5 | 94 (75 churches, 6 lighthouses, 5 turbines) | 197 (17 castles, 52 turbines, 34 masts, 67 churches) |
+  | Shore areas / cliff lines | 30 / 54 | 50 / 14 | 123 / 17 | 77 / 47 |
+  | Farmland fields | 59 | 5 | 256 | 812 |
+  | Names | 80 | 44 | 146 | 326 |
+  | Fog signals | 0 | 0 | 0 | 1 (a bell at Rothesay pier) |
+  | Wrecks | 0 | 0 | 0 | 1 (MV Captayannis, the "sugar boat") |
+  | Cables / pipelines under water | 3 (to Kerrera and Mull) | 1 | 0 | 5 / 1 (the Kintyre-Hunterston link) |
+  | Power-line spans over water | 0 | 0 | 0 | 0 |
+  | Ferry routes / terminals | 7 / 3 | 1 / 1 | 9 / 2 | 6 / 10 |
+
+- **Thin data, said plainly** (also in each map's report):
+  - **Fog signals** are barely mapped: one in four maps. C5's foghorns will be few unless more are mapped. Nothing is guessed.
+  - **Wrecks:** one.
+  - **Overhead power lines:** none cross the water on any of the four maps. C6's clearance rule will have nothing to act on here yet; it's for maps that have them.
+- **The overlapping-pier check** (owner's 8, in the package stage):
+  - Each pier and quay is sampled every 2 m. Wherever two overlap at decks more than 0.3 m apart over at least 40 m², the report warns, naming the nearest harbour, the place, both deck heights and the area.
+  - A pontoon's end resting on a quay's edge is smaller than that, and normal.
+  - **Found, all on the Clyde:** Rothesay's start spot (228 m², the one you met), Rhu marina (68 m²), and five at Sandbank, where the Holy Loch marina's pontoons run under a quay (44-216 m²).
+  - The game stands you on the higher deck in each case (the Rothesay fix). The worst can be tidied in the region's edits file if you meet one.
+  - **Also fixed:** the package's "not a port" warnings piled up in the report on each re-run. Each warning is now listed once.
+- **Re-run on all four maps:** only the package's new `features` reference changed (each package under 1 kB larger). Every port, berth and slipway id is identical, so saves and Voyage positions are unaffected.
+- **Tests:** `tests/coastFeatures.test.ts` (8):
+  - each map's file is where its package says, its counts match, and everything lies inside the map;
+  - Oban's three castles, its Craignure ferry, its Kerrera cables;
+  - the Clyde's Rothesay-Wemyss Bay route ending at Rothesay, the fog bell there, the Captayannis, its turbines and towns;
+  - Syros's names all in Latin letters, its ferries;
+  - the report names Rothesay's overlap, and lists each warning once.
+- **Checked:** the stage's output by name against the places (above). **Not checked:** in the game, since nothing is drawn from it yet.
+- **Test steps:** none in the game (no change you can see). C2 (fish farms and landmarks) is next.
 
 ### Fix: put ashore under the pier at Rothesay (owner)
 
@@ -6631,6 +6683,89 @@ Owner (a screenshot of Syros, the boat at Ermoupoli's cargo berth with her bow o
 - **Not changed:** some berths are shallow (ground just under the water at a few small piers). That's a separate question from rocks; tell me if a boat grounds at one.
 - **Test steps:**
   - **VR and desktop:** Voyage → Syros. You start at Ermoupoli with water ahead and astern along the quay. Then Oban and Lorn (moved along Oban's quay), and Debug → World → To port to the other harbours: no bow on the rocks.
+
+### Settlements, part C: harbour boats, milestone 6 (done, awaiting owner test)
+
+Owner: "Next milestone". The brief (as recorded in milestone 1): harbour boats, moored, alongside and at anchor, bobbing and swinging to the wind, within the Quest budget, the number shown near you capped.
+
+- **Where they lie: a new pipeline stage** (`tools/coast/src/boats.ts`, run after harbours; the package stage carries its output as the package's `boats`):
+  - **The map's own mooring buoys** where mapped (`seamark:type=mooring`). Hardly any are: two in the whole Clyde, none on the other maps.
+  - **So each harbour gets a mooring field laid by the stage**, as a harbour authority would lay one:
+    - on a 40 m grid (`spacing`), within 500 m of a harbour (`reach`; a pier's 280 m);
+    - in 2.5-14 m of water;
+    - 30 m off the shore, 40 m off any pier or quay, 60 m off any berth (the water in front of a face stays clear for coming alongside);
+    - not in a marina (those are pontoons);
+    - sheltered: land within 2.5 km in at least 7 of 16 directions;
+    - **out of every harbour's fairway:** 70 m either side of the line from the harbour, and from the middle of its berths, out along its most open way to sea. (Without it, Ermoupoli's open basin filled with moorings.)
+    - The most sheltered spots first, as many as `6 + 0.5 x berths` (at most 40; a pier 8).
+  - **Times the theme's share** (`themes.ts` `boats.moorings`): 1 in the West Highlands; 0.35 in the Aegean, where boats mostly lie stern-to along the quays.
+  - **At anchor:** 4 boats in each anchorage (the spine's, and any mapped anchorage area), 80 m apart, in up to 18 m of water.
+  - **The theme's mix** (`themes.ts` `BoatStyle`): which kinds lie alongside, on moorings and at anchor, and the hull colours.
+  - **Re-run of the package stage on all four maps:** checked that only the new `boats` field changed (ids, berths, everything else identical).
+- **Alongside:** the game fills a share of the berths it already finds along the pontoons and quays: `CONFIG.harbourBoats.pontoonShare` 0.55, `quayShare` 0.2.
+  - Each berth is picked by its id, so the same boats every time and on every player's machine.
+  - **None within `namedClear` 25 m of a named berth** (cargo, fuel, the start), so those stay free for you.
+  - A berth with a boat in it isn't offered for making fast (`vessel/physics/mooring.ts`).
+  - **They make way for players' boats:** a harbour boat alongside isn't there while a vessel is made fast over her stretch of quay. That covers a saved game moored in her berth, and the multiplayer launch (`world/slots.ts`, the other session's new work) putting a boat in a berth beside hers; an 80 m coaster still gets Oban's long quay.
+  - The launch's anchoring spot keeps clear of the moored and anchored harbour boats' swinging circles.
+- **The boats** (`world/harbourBoats.ts`, plain data and pure functions, the same on every machine; nothing extra sent over the network):
+
+  | | creel | yacht | cruiser | RIB | caique |
+  |---|---|---|---|---|---|
+  | Length × beam (m) | 9.5 × 3.6 | 10.5 × 3.4 | 9 × 3.2 | 5.8 × 2.3 | 9 × 3.2 |
+  | Draught / freeboard (m) | 1.2 / 1.3 | 1.7 / 1.1 | 0.9 / 1.4 | 0.4 / 0.8 | 1.1 / 1.2 |
+
+  - Sizes are in `CONFIG.harbourBoats.kinds`.
+  - **Swinging:** on a mooring or at anchor she lies bow to the wind, her middle downwind of the buoy (half her length plus the pennant, `pennant` 3 m) or of the anchor (`anchorScope` 3 × the depth).
+    - She yaws slowly about that lie (`wanderDeg` 14°, `wanderPeriod` 45 s).
+    - Below `calmWind` 3 m/s she lies more and more to her own whim (the tide's stand-in).
+  - **Solid:** each is a box (her length and beam, the forward part tapered to the stem, keel to deck) that your hull's points bump off like a fendered pier.
+    - Only those within `stepReach` 250 m of a vessel are worked out each tick.
+    - Tested: a boat driven at a moored yacht stops against her.
+- **Drawing** (`world/view/harbourBoatsView.ts`, `harbourBoatKit.ts`):
+  - **Five designs of the game's own:**
+    - a creel boat (wheelhouse forward, creels on the after deck);
+    - a sloop (mast, boom, sail cover);
+    - a motor cruiser (long cabin, flybridge);
+    - a RIB (grey tubes, console, outboard);
+    - a caique (painted hull, white sheer strake, tall stem, small wheelhouse aft).
+  - 92-148 triangles each. One instanced mesh per design, the hull taking each boat's own colour.
+  - **Shown:** the nearest `maxShown` 120 within `drawDistance` 1500 m, re-picked every `refresh` 1 s. On a desktop (the same device level as the trees, Settings → Trees) 400 within 3.5 km.
+  - **On the waves:** within `bobDistance` 400 m (desktop 900) they ride the waves: rise, pitch and roll from three wave samples, as the traffic's ships. Farther ones only rise and fall.
+  - A moored boat's buoy floats at its mooring. An anchored boat shows her white anchor light at the masthead after dark.
+  - **Cost on the Quest setting:** at most 7 draw calls (five designs, the buoys, the lights) and about 14,000 triangles for 120 boats.
+- **The numbers:**
+  - **Oban:** 227 boats (75 alongside, 148 moored, 4 at anchor).
+  - **Tayvallich:** 42.
+  - **Syros:** 83 (25 caiques).
+  - **Clyde:** 1,280 (420 alongside, 852 moored, 8 at anchor).
+  - **Whole scene, aboard, headless** (draw calls and triangles):
+    - Oban at Dunstaffnage, 90 boats shown: 68 calls, 179k triangles. The baseline at Oban's start was 76 calls, 171k.
+    - Syros at the start: 71 calls, 201k.
+    - Clyde at Rothesay: 72 calls, 187k (baseline 110 calls, 179k).
+- **Tests:** `tests/harbourBoats.test.ts` (8):
+  - every Voyage map's moorings over water in the game's own ground (the detailed mesh), clear of the piers and of the start berth;
+  - a share of the berths filled, none by a named berth, the same every time;
+  - a moored boat lies downwind of her buoy, bow to the wind, and swings when it backs;
+  - the collision box pushes a point out through her nearer side, clear past her stem and above her deck;
+  - a vessel driven at a boat stops against her.
+- **Checked headless:**
+  - Dunstaffnage's mooring field and marina pontoons;
+  - the five designs side by side;
+  - Oban's anchorage at night (anchor lights);
+  - Syros and the Clyde from their start berths.
+  - **Fixed on the way:** a boat alongside first stepped aside for any vessel within 7 m, so she vanished as you came close. Now she only steps aside for a vessel made fast in her berth (or put right on her spot).
+- **Not checked:** the Quest's frame time; the mooring fields' look in every harbour (four looked at, from above on the stage's own maps).
+- **Not done:** boats moving about the harbours (the traffic does that offshore); mooring pick-up lines (no ropes); the harbour boats on the chartplotter (they aren't on AIS).
+- **Test steps:**
+  - **VR and desktop:** Voyage → Oban and Lorn, then Debug → World → To port → Dunstaffnage Marina.
+    - Yachts and creel boats lie along the pontoons, and a field of yachts on moorings in the bay, all bows to the wind.
+    - Change the wind (Debug → weather presets, or wait) and watch them swing round.
+    - Nose gently into one: you stop against her (soft, like a fendered pier).
+    - Try to make fast in a pontoon berth with a boat in it: you can't. An empty one works.
+  - **Night:** set the time to 23:00 and look at the anchorage south of the marina: the anchored yachts show white masthead lights.
+  - **Syros:** caiques along Ermoupoli's quays and at Foinikas, few swinging moorings.
+  - **Clyde:** Rothesay and the Kyles' harbours busy with boats.
 
 ### Settlements, part B: trees, milestone 5: distance bands and the canopy (done, awaiting owner test)
 
@@ -7035,7 +7170,7 @@ Owner: "I went to pick up some cargo... the buttons and the joystick but not the
   3. ~~**Instruments: smaller screen text**~~ **Done** (the same).
   4. **Backlog: instruments as modules.** Simple single-function instruments (some analogue gauges), and LCD screens that become touchscreens with several pages you flick through, so a small wheelhouse (the landing craft's) can do with one screen. Stormworks makes its screens configurable with Lua scripts; the owner leaves the method to us. Suggested: a screen's pages described as data (which readings, laid out how), not a scripting language, since running Lua in the browser means a Lua engine as a new dependency and player scripts to secure. To agree with the owner before starting.
 
-- **Coast maps: more from the map data (owner, Oct 2026, planned, not started).** The owner chose seven of the eight suggestions, with no tides: "do 1, 2, 3, 4, 5, 6, 7, 8. No tides, and that's it." The plan is under "Coast extras: the plan" in "Real coastline regions" below. It starts after the harbour boats (settlements milestone 6). The owner says "Next milestone" to advance, as before.
+- **Coast maps: more from the map data (owner, Oct 2026, planned, not started).** The owner chose seven of the eight suggestions, with no tides: "do 1, 2, 3, 4, 5, 6, 7, 8. No tides, and that's it." The plan is under "Coast extras: the plan" in "Real coastline regions" below. The harbour boats (settlements milestone 6) and C1 are done; C2 is next. The owner says "Next milestone" to advance, as before.
 
 Everything on the lists above is done or noted as open below. What was open when last reviewed: the owner's VR test of the latest rounds; a moon (the night sea is very dark); whitecaps; harbour lights that don't grow as you near them; two upgrades suggested but not built (a bigger fuel tank, a second skiff motor). The older suggested order follows, kept for the record:
 

@@ -2,7 +2,10 @@
  "warnings": [
   "no charted rocks, reefs or wrecks in the sea in OpenStreetMap for this box, only skerries (thin data: check a chart)",
   "only 0 buoys or beacons mapped (thin data?)",
-  "23 patches where the coastline's sides disagree (check the coast there)"
+  "23 patches where the coastline's sides disagree (check the coast there)",
+  "features: no fog signals mapped (C5 foghorns: none here)",
+  "features: no wrecks mapped (C6: none here)",
+  "features: 2 power-line spans over the water, none with a clearance tagged (C6: no strike rule for them)"
  ],
  "nav": {
   "marks": 0,
@@ -225,7 +228,7 @@
   "landmarks": [
    "Cruach Lusach"
   ],
-  "bytes": 31598
+  "bytes": 35500
  },
  "houses": {
   "byType": {
@@ -258,5 +261,38 @@
   },
   "clearedCells": 9194,
   "bytes": 76556
+ },
+ "features": {
+  "farms": {},
+  "landmarks": {
+   "mast": 1,
+   "church": 2,
+   "castle": 2
+  },
+  "shore": {
+   "beach": 1,
+   "rock": 49
+  },
+  "cliffs": 14,
+  "farmland": 5,
+  "names": {
+   "village": 3,
+   "neighbourhood": 2,
+   "bay": 9,
+   "locality": 2,
+   "hamlet": 3,
+   "isolated_dwelling": 7,
+   "island": 8,
+   "islet": 10
+  },
+  "fogSignals": 0,
+  "wrecks": 0,
+  "cables": {
+   "cable": 1
+  },
+  "overhead": 2,
+  "overheadWithClearance": 0,
+  "ferryRoutes": 1,
+  "ferryTerminals": 1
  }
 }

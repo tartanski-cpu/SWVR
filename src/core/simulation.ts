@@ -1,3 +1,4 @@
+import { stepHarbourBoats } from '../world/harbourBoats';
 import { applySlipIntent, isSlipIntent, stepSlipway } from '../world/slipway';
 import { applyEnvironmentIntent, stepEnvironment } from '../environment/timeOfDay';
 import { stepWeather } from '../environment/weather';
@@ -149,6 +150,8 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
   simWaves = prepareWaves(world.environment.waves, world.time, simWaves);
   // Boat against boat (the tender alongside), from the start-of-tick states.
   // A tender in her cradle or on the crane rides her ship instead (stepped below, after it).
+  // The harbour boats near any vessel, posed for this tick's collisions (world/harbourBoats.ts).
+  stepHarbourBoats(world);
   const touching = vesselContacts(Object.values(world.vessels), (v) => VESSEL_DEFS[v.defId], onCrane);
   // The towline (towing missions): its pull on us and on the tow.
   for (const [id, f] of towlineForces(world)) touching.set(id, [...(touching.get(id) ?? []), ...f]);

@@ -7,7 +7,8 @@
  *
  * No code of the region's own: the region's file is its package plus where it goes.
  */
-import type { BerthDef, BlockDef, BuildingDef, CurrentZoneDef, FishingGroundDef, LampDef, LandmarkDef, LightDef, MarkDef, PortDef, PortFloodDef, PottingGround, RegionDef, ShelterDef, SlipwayDef } from './defs';
+import type { CoastFeaturesRef } from './coastFeatures';
+import type { BerthDef, BlockDef, BuildingDef, CurrentZoneDef, FishingGroundDef, HarbourBoatsDef, LampDef, LandmarkDef, LightDef, MarkDef, PortDef, PortFloodDef, PottingGround, RegionDef, ShelterDef, SlipwayDef } from './defs';
 import { registerChunkedCoast, registerCoastTerrain, type ChunkedCoastLayout, type CoastTerrainLayout } from './coastTerrain';
 import { registerForest, type ForestLayout } from './forest';
 
@@ -23,6 +24,10 @@ export interface CoastPackage {
   terrain: WholeCoastTerrain | ChunkedCoastTerrain;
   /** Its forest map (tools/coast trees.ts), for the trees; absent in an older package. */
   trees?: ForestLayout;
+  /** Its harbour boats' moorings and anchor spots (tools/coast boats.ts); absent in an older package. */
+  boats?: HarbourBoatsDef;
+  /** Its features file (tools/coast features.ts: farms, landmarks, shore, names...); fetched by the milestones that use it. */
+  features?: CoastFeaturesRef;
   box: { x0: number; x1: number; z0: number; z1: number };
   credits: string;
   licence: string;
@@ -95,6 +100,7 @@ export function fromCoastPackage(pkg: CoastPackage, at: CoastPlacement): RegionD
     ...(at.weather ? { weather: at.weather } : {}),
     ...(at.jobs ? { jobs: at.jobs } : {}),
     ...(at.theme ? { theme: at.theme } : {}),
+    ...(pkg.boats ? { harbourBoats: { style: pkg.boats.style, spots: shift(pkg.boats.spots, dx, dz) } } : {}),
     coast: { pkg, x: dx, z: dz },
   };
 }

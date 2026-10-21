@@ -19,7 +19,7 @@
  *              its tallest lighthouse).
  *   Terrain    where terrain.bin keeps what, the chunks, the box; the credits and licence.
  *
- * Run: node src/package.ts [requestId] (last, after mesh and trees).
+ * Run: node src/package.ts [requestId] (last, after mesh, trees, boats and features).
  */
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -107,6 +107,45 @@ const blocks = hb.blocks.map((b: { kind: string; x: number; z: number; halfLengt
   top: b.top,
   fendered: b.kind === 'pontoon' ? false : b.fendered, // a pontoon has a rubbing strip, not fenders
 }));
+// Piers drawn over each other at different deck heights (the coast extras plan, C1): the
+// game stands you on the higher (geography.ts blockTop), but the map is worth a look (Rothesay's
+// start spot had a low pier inside the harbour pier's outline). Sampled every 2 m over each
+// block; reported once a pair, by the nearest harbour, when they share at least 40 m².
+type Box = { x: number; z: number; halfLength: number; halfWidth: number; yawDeg: number; top: number };
+const insideBox = (o: Box, x: number, z: number) => {
+  const a = (o.yawDeg * Math.PI) / 180;
+  const dx = x - o.x;
+  const dz = z - o.z;
+  return Math.abs(dx * Math.sin(a) - dz * Math.cos(a)) <= o.halfLength && Math.abs(dx * Math.cos(a) + dz * Math.sin(a)) <= o.halfWidth;
+};
+const overlaps: string[] = [];
+for (let i = 0; i < blocks.length; i++) {
+  const A: Box = blocks[i];
+  const a = (A.yawDeg * Math.PI) / 180;
+  const [ux, uz, vx, vz] = [Math.sin(a), -Math.cos(a), Math.cos(a), Math.sin(a)];
+  for (let j = i + 1; j < blocks.length; j++) {
+    const B: Box = blocks[j];
+    if (Math.abs(A.top - B.top) < 0.3 || Math.hypot(A.x - B.x, A.z - B.z) > Math.hypot(A.halfLength, A.halfWidth) + Math.hypot(B.halfLength, B.halfWidth)) continue;
+    // The overlap's area (m², 2 m samples), and where it is: a pontoon's end resting on a quay's
+    // edge is a few square metres and normal; a pier inside another's outline is much more.
+    let n = 0;
+    let at: [number, number] = [0, 0];
+    for (let l = -A.halfLength; l <= A.halfLength; l += 2)
+      for (let w = -A.halfWidth; w <= A.halfWidth; w += 2) {
+        const x = A.x + ux * l + vx * w;
+        const z = A.z + uz * l + vz * w;
+        if (insideBox(B, x, z)) {
+          n++;
+          at = [at[0] + x, at[1] + z];
+        }
+      }
+    if (n * 4 < 40) continue;
+    const hit: [number, number] = [at[0] / n, at[1] / n];
+    const h = (hb.harbours as { id: string; x: number; z: number }[]).reduce((p, q) => (Math.hypot(q.x - hit[0], q.z - hit[1]) < Math.hypot(p.x - hit[0], p.z - hit[1]) ? q : p));
+    overlaps.push(`overlapping piers at ${h.id} (${Math.round(hit[0])}, ${Math.round(hit[1])}): decks ${Math.max(A.top, B.top)} m and ${Math.min(A.top, B.top)} m over ${n * 4} m²`);
+  }
+}
+warnings.push(...overlaps);
 const blockOf = new Map<string, { kind: string; halfWidth: number }>();
 for (const b of hb.blocks) blockOf.set(b.source, blockOf.get(b.source) ?? b);
 // The buildings for the game's house kit (world/view/houseKit.ts): what harbours.ts worked
@@ -320,6 +359,15 @@ const pkg = {
   box,
   /** The forest map (trees.ts), for the game's trees; absent if the trees stage hasn't run. */
   ...(existsSync(join(D.out, 'trees.json')) ? { trees: JSON.parse(readFileSync(join(D.out, 'trees.json'), 'utf8')) } : {}),
+  /** The harbour boats' moorings and anchor spots and the theme's boat mix (boats.ts); absent if that stage hasn't run. */
+  /**
+   * Everything else from the map the later milestones use (features.ts: farms, landmarks, the
+   * shore, names, fog signals, wrecks, cables, ferries): where its file is and what it holds.
+   * Fetched by the game when it needs it, like the forest map, so the package (built into the
+   * game for the smaller maps) stays small. Absent if that stage hasn't run.
+   */
+  ...(existsSync(join(D.out, 'features.json')) ? { features: { file: 'features.json', counts: JSON.parse(readFileSync(join(D.out, 'features.json'), 'utf8')).counts } } : {}),
+  ...(existsSync(join(D.out, 'boats.json')) ? { boats: (({ counts: _c, ...b }) => b)(JSON.parse(readFileSync(join(D.out, 'boats.json'), 'utf8'))) } : {}),
   credits: region.credits,
   licence: region.licence,
   landmarks,
@@ -344,7 +392,7 @@ writeFileSync(out, JSON.stringify(pkg));
 const reportPath = join(D.out, 'report.json');
 const report = existsSync(reportPath) ? JSON.parse(readFileSync(reportPath, 'utf8')) : {};
 report.package = { ports: ports.length, berths: berths.length, blocks: blocks.length, buildings: buildings.length, marks: marks.length, lights: lights.length, slipways: slipways.length, fishingGrounds: fishingGrounds.length, pottingGrounds: pottingGrounds.length, landmarks: landmarks.map((l) => (l as { name: string }).name), bytes: JSON.stringify(pkg).length };
-report.warnings = [...(report.warnings ?? []).filter((w: string) => !/fishing ground/.test(w)), ...warnings];
+report.warnings = [...(report.warnings ?? []).filter((w: string) => !/fishing ground|not a port|^overlapping piers/.test(w)), ...warnings];
 writeFileSync(reportPath, JSON.stringify(report, null, 1));
 console.log(`package: ${ports.length} ports (${[...portIds].join(', ')}), ${berths.length} berths, ${blocks.length} blocks, ${buildings.length} buildings, ${marks.length} marks, ${lights.length} lights, ${slipways.length} slipways, ${fishingGrounds.length} fishing grounds, ${pottingGrounds.length} potting grounds; landmarks ${report.package.landmarks.join(', ')}; ${(report.package.bytes / 1000).toFixed(0)} kB`);
 for (const w of warnings) console.log(`warning: ${w}`);

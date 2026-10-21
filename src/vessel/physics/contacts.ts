@@ -12,6 +12,7 @@
  * Penalty stiffness is chosen so k/m and k·r²/I stay well inside the 60 Hz step's
  * stability limit even with several points touching at once.
  */
+import { harbourBoatContact } from '../../world/harbourBoats';
 import { CONFIG } from '../../config';
 import { blockContact, type BlockHit } from '../../world/geography';
 import { groundHeight, groundNormal } from '../../world/terrain';
@@ -58,8 +59,8 @@ export function contactAt(px: number, py: number, pz: number, vx: number, vy: nu
   const c = CONFIG.contacts;
   let depth = 0;
   let fendered = false;
-  // Structures first (they stand on the terrain).
-  if (blockContact(px, py, pz, hit)) {
+  // Structures first (they stand on the terrain), and the boats lying in the harbours.
+  if (blockContact(px, py, pz, hit) || harbourBoatContact(px, py, pz, hit)) {
     depth = hit.depth;
     n.x = hit.nx;
     n.y = hit.ny;
@@ -96,7 +97,7 @@ export interface GuardMaterial {
  * Against a quay's own rubber fenders, the softer of the two springs, and the lower friction.
  */
 export function guardContactAt(px: number, py: number, pz: number, vx: number, vy: number, vz: number, mat: GuardMaterial, out: ContactResult): boolean {
-  if (!blockContact(px, py, pz, hit)) return false;
+  if (!blockContact(px, py, pz, hit) && !harbourBoatContact(px, py, pz, hit)) return false;
   const c = CONFIG.contacts;
   n.x = hit.nx;
   n.y = hit.ny;

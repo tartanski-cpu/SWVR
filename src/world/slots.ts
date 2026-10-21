@@ -15,6 +15,7 @@ import { hullPlan } from '../vessel/layout';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
 import { berthPose } from '../vessel/physics/mooring';
+import { harbourBoats } from './harbourBoats';
 import { groundHeight } from './terrain';
 
 /** The faces of a block, in its frame (as the world view and the berths walk them). */
@@ -122,6 +123,7 @@ export function freeBerthFor(vessels: Record<string, VesselState>, portId: strin
       if (!at) return false;
       return Math.abs(at.along - bf.along) < half + vesselLength(v.defId) / 2;
     });
+    // (A coast map's harbour boats alongside make way for her: world/harbourBoats.ts.)
     if (!taken) return berth;
   }
   return null;
@@ -153,6 +155,8 @@ export function anchorSpotFor(vessels: Record<string, VesselState>, port: PortDe
     for (let k = 0; k < 8 && ok; k++) if (groundHeight(p.x + Math.cos((k * Math.PI) / 4) * clear * 0.8, p.z + Math.sin((k * Math.PI) / 4) * clear * 0.8) > -2) ok = false;
     if (!ok) continue;
     if (Object.values(vessels).some((v) => Math.hypot(v.position[0] - p.x, v.position[2] - p.z) < clear)) continue;
+    // Clear of the harbour boats on their moorings and at anchor too (their swinging circles).
+    if (harbourBoats().some((b) => b.how !== 'alongside' && Math.hypot(b.x - p.x, b.z - p.z) < clear + b.r)) continue;
     return p;
   }
   return null;

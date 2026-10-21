@@ -15,6 +15,7 @@
  * A cleat with its line fast casts that end off; with neither end fast she's free. The menu's
  * Dock / Cast off does both ends at once (toggleDock).
  */
+import { berthTaken } from '../../world/harbourBoats';
 import * as THREE from 'three';
 import { CONFIG } from '../../config';
 import type { BerthDef } from '../../world/archipelago';
@@ -50,6 +51,8 @@ export function berthInRange(s: VesselState): { berth: BerthDef; reversed: boole
   for (const b of berthsNear(s.position[0], s.position[2])) {
     const d = Math.hypot(s.position[0] - b.x, s.position[2] - b.z);
     if (d > c.range || d >= bestDist) continue;
+    // A harbour boat lies there (world/harbourBoats.ts), unless she has stepped aside for this one.
+    if (berthTaken(b.id) && d > 5) continue;
     const a = berthAxis(b, false);
     const dot = bow.x * a.x + bow.z * a.z;
     if (Math.abs(dot) < cosMax) continue;
