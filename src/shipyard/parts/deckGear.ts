@@ -7,6 +7,7 @@ import { CONFIG } from '../../config';
 import { inertiaFromGyradius } from '../../modular/massProperties';
 import { deckhouseHalfWidth } from '../../vessel/deckhouse';
 import { PLACE_GRID, placeOf, type PlaceKey } from '../design';
+import type { Socket } from '../../modular/socket';
 import type { BuildArgs, V3 } from './common';
 import type { DesignedBoat } from '../build';
 import type { HullPart } from './hull';
@@ -18,7 +19,7 @@ import type { PlacesPart } from './places';
 /** Her deck gear, each piece where it stands, clear of what's already placed: the winch, the A-frame, the deck crane, the skiff and its crane, the searchlight and fire monitor, the fender basket, the anchor. */
 export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & TrimPart & MachineryPart & PlacesPart) {
   const { d } = a;
-  const { aft, at, bowRamp, cg, deckMid, deckhouse, foreEndAt, front, gyradius, hw, mass, prot, q, roofBack, roofFront, roofTopAt, saloonRoof, sb, stem, steps, transom, warnings, wl } = p;
+  const { aft, at, bowCleat, bowRamp, cg, cleat, deckMid, deckhouse, foreEndAt, front, gyradius, hw, mass, midCleat, prot, q, roofBack, roofFront, roofTopAt, saloonRoof, sb, stem, steps, sternCleat, transom, warnings, wl } = p;
   // ── Hull definition ──
   const weighed = { massKg: mass, cg, inertia: inertiaFromGyradius(mass, gyradius) };
   const freeboard = deckMid;
@@ -323,7 +324,50 @@ export function deckGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
   }
 
 
-  return { aFrame, ac, afc, anchorAt, basketAt, cr, craneAt, cranePlaced, craneYaw, deckWords, dg, dhW, dp, fenderZs, freeboard, hasLamp, hasMonitor, lampFoot, lampHand, lampOnRoof, lampRoof, monitorFoot, monitorOnRoof, monitorRoof, pc, placed, r2, skiffAt, sternRoller, taken, weighed, winchAt, winchFace };
+  // The places on deck (P4b): each piece of deck gear where it stands, the cleats on the bulwark tops.
+  const deckSockets: Socket[] = [
+    lampFoot
+      ? { id: 'searchlight', type: 'deck.equipment', transform: { position: lampFoot }, label: `${deckWords(lampFoot)}: the searchlight's pole` }
+      : { id: 'searchlight', type: 'roof.mount', transform: { position: lampRoof }, label: lampHand.roof ? 'Cabin roof: the searchlight' : 'Cabin roof, forward' },
+    ...(hasMonitor
+      ? [
+          monitorFoot
+            ? { id: 'fireMonitor', type: 'deck.equipment' as const, transform: { position: monitorFoot }, label: `${deckWords(monitorFoot)}: the fire monitor's pole` }
+            : { id: 'fireMonitor', type: 'roof.mount' as const, transform: { position: monitorRoof }, label: 'Cabin roof, aft of the masthead light: the fire monitor' },
+        ]
+      : []),
+    { id: 'cleatFwdPort', type: 'deck.fitting', transform: { position: cleat(-1, bowCleat) }, label: 'Bulwark top, forward, port' },
+    { id: 'cleatFwdStbd', type: 'deck.fitting', transform: { position: cleat(1, bowCleat) }, label: 'Bulwark top, forward, starboard' },
+    { id: 'cleatAftPort', type: 'deck.fitting', transform: { position: cleat(-1, sternCleat) }, label: 'Bulwark top, aft, port' },
+    { id: 'cleatAftStbd', type: 'deck.fitting', transform: { position: cleat(1, sternCleat) }, label: 'Bulwark top, aft, starboard' },
+    ...(midCleat !== null && skiffAt
+      ? ([
+          { id: 'cleatMidPort', type: 'deck.fitting', transform: { position: cleat(-1, midCleat) }, label: "Bulwark top, amidships, port (the skiff's painter)" },
+          { id: 'cleatMidStbd', type: 'deck.fitting', transform: { position: cleat(1, midCleat) }, label: "Bulwark top, amidships, starboard (the skiff's painter)" },
+        ] as Socket[])
+      : []),
+    // The working deck gear (version 10).
+    ...(winchAt ? [{ id: 'towWinch', type: 'deck.equipment' as const, transform: { position: winchAt, ...(winchFace ? { rotationDeg: [0, -90 * winchFace, 0] as V3 } : {}) }, label: `${deckWords(winchAt)}: the tow winch` }] : []),
+    ...(sternRoller ? [{ id: 'sternRoller', type: 'stern.gantry' as const, transform: { position: [0, q.deckY(transom), transom] as V3 }, label: 'Transom, centreline: the notch in the bulwark' }] : []),
+    ...(aFrame
+      ? [
+          { id: 'aFrame', type: 'stern.gantry' as const, transform: { position: [0, q.deckY(transom), transom] as V3 }, label: 'Transom, across the quarters: the A-frame' },
+          { id: 'trawl', type: 'deck.equipment' as const, transform: { position: winchAt! }, label: 'Aft deck: the net (nominal)' },
+        ]
+      : []),
+    ...(craneAt
+      ? [
+          // The aft one faces aft (its boom rests over the aft deck, not the house).
+          { id: 'deckCrane', type: 'deck.equipment' as const, transform: { position: craneAt, ...(craneYaw ? { rotationDeg: [0, craneYaw, 0] as V3 } : {}) }, capacity: { loadRatingKg: 1000 }, label: cranePlaced ? `${deckWords(craneAt)}: the deck crane` : d.deckCrane === 1 ? 'Foredeck, starboard edge: the deck crane' : 'Aft deck, port edge: the deck crane' },
+        ]
+      : []),
+    // Hull protection: the fender basket on deck; the strake or tyres along her sides.
+    ...(basketAt ? [{ id: 'fenders', type: 'deck.fitting' as const, transform: { position: [basketAt[0], q.deckY(basketAt[1]), basketAt[1]] as V3 }, label: `${deckWords([basketAt[0], 0, basketAt[1]])}: the fender basket` }] : []),
+    // The deck hydraulics' pump on the engine's power take-off, for the crane and the winch.
+    ...(anchorAt ? [{ id: 'anchor', type: (bowRamp ? 'deck.equipment' : 'bow.windlass') as 'deck.equipment', transform: { position: anchorAt.at, rotationDeg: [0, anchorAt.yaw, 0] as V3 }, label: bowRamp ? 'The stern roller for the kedge anchor, port quarter' : 'The bow roller and the windlass behind it' }] : []),
+    ...(skiffAt ? [{ id: 'tenderCrane', type: 'deck.equipment' as const, transform: { position: skiffAt }, label: 'The skiff crane\'s column (her cradle forward of it)' }] : []),
+  ];
+  return { deckSockets, aFrame, ac, afc, anchorAt, basketAt, cr, craneAt, cranePlaced, craneYaw, deckWords, dg, dhW, dp, fenderZs, freeboard, hasLamp, hasMonitor, lampFoot, lampHand, lampOnRoof, lampRoof, monitorFoot, monitorOnRoof, monitorRoof, pc, placed, r2, skiffAt, sternRoller, taken, weighed, winchAt, winchFace };
 }
 export type DeckGearPart = ReturnType<typeof deckGearPart>;
 
@@ -372,6 +416,16 @@ export function houseGearPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart
       rodRack = { rods, yawDeg: 0, bucket: [r2(xc + rodSide * (rackRow / 2 + 0.4)), r2(q.deckY(aft + 0.3)), r2(aft + 0.3)], side: rodSide };
     }
   }
-  return { ring, ringSide, rodRack };
+  // The places on the house outside (P4b): the life ring and the boat-hook clips, the rod rack.
+  const houseGearSockets: Socket[] = [
+    ...(rodRack ? [{ id: 'rodRack', type: 'deck.fitting' as const, transform: { position: rodRack.rods[0] }, label: `Wheelhouse ${rodRack.yawDeg ? (rodRack.side < 0 ? 'port' : 'starboard') : 'aft'} wall${rodRack.yawDeg ? '' : rodRack.side < 0 ? ', port of the door' : ', starboard of the door'}: the fishing rods' rack, the bucket beside it` }] : []),
+    ...(ring
+      ? [
+          { id: 'lifeRing', type: 'deck.fitting' as const, transform: { position: ring.stow }, label: `Wheelhouse aft wall, ${ringSide < 0 ? 'port' : 'starboard'}: the life ring (its line on that quarter's cleat)` },
+          { id: 'boatHook', type: 'deck.fitting' as const, transform: { position: [ring.hook[0], ring.hook[1], ring.hook[2]] as V3 }, label: `${ringSide < 0 ? 'Port' : 'Starboard'} bulwark, aft: the boat-hook clips` },
+        ]
+      : []),
+  ];
+  return { houseGearSockets, ring, ringSide, rodRack };
 }
 export type HouseGearPart = ReturnType<typeof houseGearPart>;

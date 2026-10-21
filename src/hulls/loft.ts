@@ -204,7 +204,10 @@ export function loft(d: HullDesign): LoftedHull {
   for (const t of ts) {
     const z = L / 2 - t * L;
     const keelY = curveAt(d.keel, t);
-    let deckY = curveAt(d.sheer, t);
+    // (A forecastle raises the deck forward of its break, not her chines: they're measured
+    // from her deck as drawn, so they run on straight under the step.)
+    const drawnDeckY = curveAt(d.sheer, t);
+    let deckY = drawnDeckY;
     if (d.forecastle && t >= d.forecastle.from) deckY += d.forecastle.raise;
     // The stem itself is a point; just before it the sections are narrow.
     // A pointed stem comes to nothing; a square (landing) bow keeps its width, closed by a bow plate.
@@ -213,7 +216,7 @@ export function loft(d: HullDesign): LoftedHull {
     // The chines' heights, from the keel (or the line given for them, chineKeel). Where the
     // keel rises to within a fifth of that depth of a chine, the chine closes in to it.
     const refY = d.chineKeel ? curveAt(d.chineKeel, t) : keelY;
-    const refDepth = Math.max(0.05, deckY - refY);
+    const refDepth = Math.max(0.05, drawnDeckY - refY);
     const chine = (frac: number, beam: number): [number, number] => {
       const y = refY + frac * refDepth;
       const close = Math.min(1, Math.max(0, (y - keelY) / (0.2 * refDepth)));

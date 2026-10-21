@@ -28,6 +28,8 @@ export type LayoutConfig = Omit<WorkboatLayout, 'wheelhouse' | 'roof' | 'ladder'
      * each within a stride (layout.ts STEP_HEIGHT) of its neighbours.
      */
     extraFloors?: FloorPatch[];
+    /** Steps up to a raised foredeck (Shipyard, owner Oct 2026): drawn as treads from her deck up; walked as extraFloors. */
+    deckSteps?: FloorPatch[];
     /**
      * Hollow volumes inside what would otherwise be solid (below the deck or the house
      * floor): the fore cabin, the companionway. Your head is in the open there.
@@ -187,7 +189,7 @@ export type BowRampLayout = (typeof CONFIG.vessels.landingCraft.layout)['bowRamp
  * CONFIG.interiors (none: the wood lining); `cabinFloor`: its floor, into CONFIG.cabinFloors
  * (none: matting).
  */
-export type Livery = Partial<Record<'bottom' | 'topsides' | 'deck' | 'house' | 'windows' | 'roof' | 'roofTop' | 'mast' | 'rail' | 'floor' | 'console' | 'panel' | 'interior' | 'cabinFloor', number>>;
+export type Livery = Partial<Record<'bottom' | 'topsides' | 'deck' | 'house' | 'windows' | 'roof' | 'roofTop' | 'mast' | 'rail' | 'floor' | 'console' | 'panel' | 'frame' | 'interior' | 'cabinFloor', number>>;
 
 /**
  * A wheelhouse: the workboat's, with what not every house has optional (M7): a port side
@@ -232,7 +234,18 @@ export type WheelhouseLayout = Omit<WorkboatLayout['wheelhouse'], 'sideDoor' | '
     consoleSpan?: { x0: number; x1: number };
     /** The aft door hinged on its port side, swinging out 90 deg onto the deck (owner: with the windows raked out all round a sliding door would clash with the leaning glass), not sliding. */
     doorHinged?: boolean;
+    /**
+     * The front windows' mullions across her (x, m, port to starboard; owner, Oct 2026: more
+     * panes on a wide house; build.ts frontMullions). A faceted front's include its facets'
+     * corners. Unset: the usual two, at +-0.5 m.
+     */
+    frontMullions?: number[];
   };
+
+/** A wheelhouse's front mullions (x, m, port to starboard): its own, or the usual two at +-0.5 m. */
+export function frontMullions(wh: { frontMullions?: number[] }): number[] {
+  return wh.frontMullions ?? [-0.5, 0.5];
+}
 
 /**
  * A shaped wheelhouse (owner, the Shipyard): the front below the windows leaning forward,

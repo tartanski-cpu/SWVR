@@ -4,6 +4,7 @@
  * what the parts after it need.
  */
 import { CONFIG } from '../../config';
+import type { Socket } from '../../modular/socket';
 import type { BuildArgs, V3 } from './common';
 import type { HullPart } from './hull';
 import type { HousePart, LayoutPart } from './house';
@@ -13,7 +14,7 @@ import type { MachineryPart } from './engineRoom';
 /** The places inside and on the wheelhouse (vessel axes), as the landing craft's are from her cabin: the helm, the wall panels, what hangs under the roof, the floods, the cleats. */
 export function placesPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & TrimPart & MachineryPart) {
   const { d } = a;
-  const { F, FA, aft, bowRamp, bulwarkHeight, cf, cx, engH, engMid, engTopAt, foreEndAt, front, hw, q, rnd, roofAt, roofFront, roofTopAt, roofY, sb, sill, stem, transom, wall } = p;
+  const { F, FA, aft, bowRamp, bulwarkHeight, cf, consoleHalf, cx, engH, engMid, engTopAt, foreEndAt, front, hw, q, rnd, roofAt, roofFront, roofTopAt, roofY, sb, sill, stem, transom, wall } = p;
   // ── Places (vessel axes), as the landing craft's are from her cabin ──
   /** Where a unit hung from the roof out to port / starboard goes: toward that side (`out` m from the centreline), no further than in view from the wheel. */
   const toPort = (out: number) => Math.round(Math.max(-out, cx - CONFIG.shipyard.helm.hungReach) * 1000) / 1000;
@@ -71,6 +72,35 @@ export function placesPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   const cleat = (side: number, z: number): V3 => [side * (q.halfBeam(z) - 0.03), q.deckY(z) + bulwarkHeight, z];
   const rampBow: V3 | null = bowRamp ? [-(q.halfBeam(bowRamp.button.z) - 0.06), q.deckY(bowRamp.button.z) + bowRamp.button.y, bowRamp.button.z] : null;
 
-  return { at, bowCleat, cleat, helmAssist, midCleat, rampBow, sternCleat, wl };
+  // The places the wheelhouse offers (P4b): the helm, the panels on its walls and by its door, what hangs under its roof, the lights and fittings on it.
+  const wheelhouseSockets: Socket[] = [
+    { id: 'helm', type: 'helm.console', transform: { position: at.console }, capacity: { size: [2 * consoleHalf - 0.04, 1.6, 1.0] }, label: 'Helm console, across the front of the cabin' },
+    { id: 'breakerPanel', type: 'wall.panel', transform: { position: at.breakerPanel, rotationDeg: [-40, -90, 0] }, label: 'Starboard wall, by the helm' },
+    ...(helmAssist ? [{ id: 'helmAssist', type: 'wall.panel' as const, transform: { position: at.helmAssist, rotationDeg: [-40, -90, 0] as V3 }, label: 'Starboard wall, aft of the breaker panel' }] : []),
+    { id: 'batteryMaster', type: 'wall.panel', transform: { position: at.batteryMaster, rotationDeg: [0, 180, 0] }, label: 'Aft wall, starboard of the door, low' },
+    { id: 'batterySelector', type: 'wall.panel', transform: { position: at.batterySelector, rotationDeg: [0, 180, 0] }, label: 'Aft wall, beside the battery master' },
+    { id: 'vhf', type: 'cabin.overhead', transform: { position: at.vhf, rotationDeg: [0, 20, 0] }, label: 'Under the roof, out to port' },
+    { id: 'fm', type: 'cabin.overhead', transform: { position: at.fm, rotationDeg: [0, -20, 0] }, label: 'Under the roof, out to starboard: the FM set' },
+    { id: 'chartplotter', type: 'cabin.overhead', transform: { position: at.chartplotter, rotationDeg: [0, -35, 0] }, label: 'Under the roof, out to starboard ahead of the helm' },
+    { id: 'navDisplay', type: 'cabin.overhead', transform: { position: at.navDisplay }, label: 'Overhead, on the centreline ahead of the helm' },
+    { id: 'whiteboard', type: 'cabin.overhead', transform: { position: at.whiteboard, rotationDeg: [0, 180, 0] }, label: 'Under the roof by the aft wall, port of the door: the pull-down whiteboard' },
+    { id: 'dutyBoard', type: 'wall.panel', transform: { position: at.dutyBoard, rotationDeg: [0, -90, 0] }, label: 'Starboard wall, aft' },
+    { id: 'doorIn', type: 'wall.panel', transform: { position: [0.45, FA + 1.1, aft - wall], rotationDeg: [-90, 0, 0] }, label: 'Door frame, inside' },
+    { id: 'doorOut', type: 'wall.panel', transform: { position: [0.45, FA + 1.1, aft], rotationDeg: [-90, 180, 0] }, label: 'Door frame, outside' },
+    ...(rampBow
+      ? ([
+          { id: 'rampCabin', type: 'wall.panel', transform: { position: at.rampButton, rotationDeg: [-90, -90, 0] }, label: 'Port wall, by the helm' },
+          { id: 'rampBow', type: 'wall.panel', transform: { position: rampBow, rotationDeg: [-90, -90, 0] }, label: 'Port bulwark, by the bow ramp' },
+        ] as Socket[])
+      : []),
+    { id: 'cabinLight', type: 'cabin.overhead', transform: { position: at.cabinLight }, label: 'Cabin ceiling' },
+    { id: 'overhead', type: 'cabin.overhead', transform: { position: at.overhead }, label: 'Under the roof, over the helm: the switch panel' },
+    { id: 'floodFore', type: 'hull.light', transform: { position: at.floodFore }, label: 'Roof edge, forward: the foredeck flood' },
+    { id: 'floodAft', type: 'hull.light', transform: { position: at.floodAft }, label: 'Roof edge, aft: the aft deck flood' },
+    { id: 'navLights', type: 'hull.light', transform: { position: at.navLights }, label: 'Cabin roof: the navigation lights' },
+    { id: 'horn', type: 'roof.mount', transform: { position: [0, roofTopAt(roofFront + 0.775), roofFront + 0.775] }, label: 'Cabin roof (nominal)' },
+    { id: 'wipers', type: 'window.wiper', transform: { position: [0, roofY - 0.2, front] }, label: 'Over the front windows (nominal)' },
+  ];
+  return { wheelhouseSockets, at, bowCleat, cleat, helmAssist, midCleat, rampBow, sternCleat, wl };
 }
 export type PlacesPart = ReturnType<typeof placesPart>;

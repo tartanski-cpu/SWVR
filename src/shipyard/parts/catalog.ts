@@ -12,6 +12,38 @@ import { fromSteps, SCALES, type ShipDesign } from '../design';
 /** A faceted front's middle pane: between the front windows' mullions (hullMesh.ts, at +-0.5 m). */
 export const FACET_CENTRE = 0.5;
 
+/**
+ * A three-facet front's middle facet, half its width (m) for a wheelhouse `hw` half wide: on
+ * a wide house the side facets are kept `sideFacet` across and the middle takes the rest
+ * (owner, Oct 2026), never narrower than the usual 1 m middle pane.
+ */
+export function facetCentre(hw: number): number {
+  return Math.round(Math.max(FACET_CENTRE, hw - CONFIG.shipyard.frontWindows.sideFacet) * 1000) / 1000;
+}
+
+/**
+ * The front windows' mullions (x, m, port to starboard) for a wheelhouse `hw` half wide with
+ * walls `wall` thick, flat or with a facet `centre` (owner, Oct 2026: "as you stretch, the
+ * windows should multiply"; CONFIG.shipyard.frontWindows). Flat: the usual two at +-0.5 m while
+ * the outer panes are no wider than `paneMax`, else an odd number of equal panes across. Faceted:
+ * the facets' corners at +-centre, and the middle facet split the same way.
+ */
+export function frontMullions(hw: number, wall: number, centre?: number): number[] {
+  const { paneMax, maxPanes } = CONFIG.shipyard.frontWindows;
+  const r = (x: number) => Math.round(x * 1000) / 1000;
+  /** `n` panes evenly from -half to +half: the mullions between them. */
+  const split = (half: number, most: number) => {
+    let n = Math.ceil((2 * half) / paneMax - 1e-9);
+    if (n % 2 === 0) n++; // a pane, not a mullion, in front of the helm
+    n = Math.min(n, most % 2 ? most : most - 1);
+    return Array.from({ length: n - 1 }, (_, i) => r(-half + (2 * half * (i + 1)) / n));
+  };
+  if (centre !== undefined) return [-centre, ...split(centre, maxPanes - 2), centre];
+  const inner = hw - wall;
+  if (inner - 0.5 <= paneMax) return [-0.5, 0.5];
+  return split(inner, maxPanes);
+}
+
 export const study = (id: string): HullDesign => {
   const d = DESIGNS.find((x) => x.id === id);
   if (!d) throw new Error(`the hull study has no '${id}' design`);
@@ -54,7 +86,9 @@ export const landingCraftLines = (): HullDesign => {
 export interface DesignHull {
   name: string;
   /** Her form, scaled (length, beam and depth factors), with her bow (its step: SCALES.bow, the stem's rake). */
-  form(L: number, B: number, D: number, bow: number): HullDefinition['form'];
+  form(L: number, B: number, D: number, bow: number, sheer: number, forecastle?: { from: number; raise: number }): HullDefinition['form'];
+  /** A raised foredeck can be chosen (design.fcLength; owner, Oct 2026: the fishing boat only, for now). */
+  raisedForedeck?: boolean;
   /**
    * How she rides at speed (CONFIG.shipyard.regimes): a planing hull (a fast boat's propeller,
    * the landing craft's per-area damping), a semi-displacement one (part planing; the
@@ -138,6 +172,20 @@ export const UPRIGHT: [number, number][] = [
 ];
 
 /**
+ * Her deck line with more sheer (owner, Oct 2026, from a photo of a trawler: "this bow has got
+ * quite a lot of sheer. The default one is quite flat"): `rise` m more at the stem, nothing
+ * from `CONFIG.shipyard.sheer.from` of her length aft, rising as the square of the distance
+ * forward of it (fair, steepest at the bow, as a sheer line is drawn). Resampled every 5 % of
+ * her length forward of where it starts, so the curve stays fair between the stations.
+ */
+export function withSheer(sheer: [number, number][], rise: number): [number, number][] {
+  if (!rise) return sheer;
+  const t0 = CONFIG.shipyard.sheer.from;
+  const ts = [...new Set([...sheer.map(([t]) => t), t0, ...Array.from({ length: 21 }, (_, i) => i / 20).filter((t) => t > t0)])].sort((a, b) => a - b);
+  return ts.map((t) => [t, Math.round((curveAt(sheer, t) + rise * Math.max(0, (t - t0) / (1 - t0)) ** 2) * 1000) / 1000]);
+}
+
+/**
  * Lofted from the hull study, scaled (lengths along, half-breadths across, heights up), with
  * her bow reshaped: the game's stations are upright sections, so a bow's rake is its stem
  * line in profile, the keel meeting a raked stem under a deck that keeps its length (bowKeel).
@@ -146,13 +194,14 @@ export const UPRIGHT: [number, number][] = [
  * A flat-bottomed hull's chine sweeps up with her forefoot instead (the landing craft's
  * square bow keeps its buoyancy that way).
  */
-export function scaledStudy(d: HullDesign, L: number, B: number, D: number, bow: number | null, chinesRunOn = false): HullDesign {
+export function scaledStudy(d: HullDesign, L: number, B: number, D: number, bow: number | null, chinesRunOn = false, sheerRise = 0, forecastle?: { from: number; raise: number }): HullDesign {
   const by = (c: [number, number][], k: number) => c.map(([t, v]) => [t, v * k] as [number, number]);
-  const sheer = by(d.sheer, D);
+  const sheer = withSheer(by(d.sheer, D), sheerRise);
   // No bow choice (a push bow): her own keel and forefoot, scaled.
-  if (bow === null) return { ...d, length: d.length * L, halfBeam: by(d.halfBeam, B), sheer, keel: by(d.keel, D), rake: UPRIGHT, wheelhouse: undefined, houses: undefined };
+  const fc = forecastle ? { forecastle } : {};
+  if (bow === null) return { ...d, length: d.length * L, halfBeam: by(d.halfBeam, B), sheer, keel: by(d.keel, D), rake: UPRIGHT, wheelhouse: undefined, houses: undefined, ...fc };
   const bowed = bowKeel(by(d.keel, D), curveAt(sheer, 1), d.length * L, SCALES.bow(bow));
-  return { ...d, length: d.length * L, halfBeam: by(d.halfBeam, B), sheer, keel: bowed.keel, ...(chinesRunOn ? { chineKeel: bowed.base } : {}), rake: UPRIGHT, wheelhouse: undefined, houses: undefined };
+  return { ...d, length: d.length * L, halfBeam: by(d.halfBeam, B), sheer, keel: bowed.keel, ...(chinesRunOn ? { chineKeel: bowed.base } : {}), rake: UPRIGHT, wheelhouse: undefined, houses: undefined, ...fc };
 }
 
 /**
@@ -196,7 +245,7 @@ export const DESIGN_HULLS: DesignHull[] = [
     material: 'aluminium',
     growsTo: 2.5,
     // Her bow is her own: the landing bow (landingCraftLines), no bow choice.
-    form: (L, B, D) => ({ kind: 'lofted', design: scaledStudy(landingCraftLines(), L, B, D, null) }),
+    form: (L, B, D, _bow, sheer) => ({ kind: 'lofted', design: scaledStudy(landingCraftLines(), L, B, D, null, false, sheer) }),
     regime: 'planing',
     ramp: true,
     landingBow: true,
@@ -207,7 +256,8 @@ export const DESIGN_HULLS: DesignHull[] = [
   {
     name: 'Gillnetter: 9.75 m, beamy and shallow, flat open foredeck',
     material: 'steel',
-    form: (L, B, D, bow) => ({ kind: 'lofted', design: scaledStudy(study('gillnetter'), L, B, D, bow) }),
+    form: (L, B, D, bow, sheer, forecastle) => ({ kind: 'lofted', design: scaledStudy(study('gillnetter'), L, B, D, bow, false, sheer, forecastle) }),
+    raisedForedeck: true,
     regime: 'planing',
     ramp: false,
     cockpit: 1.0,
@@ -218,11 +268,11 @@ export const DESIGN_HULLS: DesignHull[] = [
   {
     name: 'Workboat: 12 m semi-displacement, hard chine, fine entry',
     retired: true,
-    form: (L, B, D, bow) => {
+    form: (L, B, D, bow, sheer) => {
       const h = CONFIG.vessels.workboat.hull;
       return {
         kind: 'chine',
-        params: { ...h, length: h.length * L, beamDeck: h.beamDeck * B, beamChine: h.beamChine * B, keelY: h.keelY * D, chineYAft: h.chineYAft * D, chineYBow: h.chineYBow * D, deckYAft: h.deckYAft * D, deckYBow: h.deckYBow * D, forefoot: { from: 0.55, rise: 1, stemDeg: SCALES.bow(bow) } },
+        params: { ...h, length: h.length * L, beamDeck: h.beamDeck * B, beamChine: h.beamChine * B, keelY: h.keelY * D, chineYAft: h.chineYAft * D, chineYBow: h.chineYBow * D, deckYAft: h.deckYAft * D, deckYBow: h.deckYBow * D + sheer, forefoot: { from: 0.55, rise: 1, stemDeg: SCALES.bow(bow) } },
       };
     },
     // (Semi-displacement, owner: part of her weight on her bottom's lift at speed.)
@@ -237,7 +287,7 @@ export const DESIGN_HULLS: DesignHull[] = [
   {
     name: 'Pilot boat: 14 m deep-V, spray chine, fine entry, well-raked stem',
     material: 'aluminium',
-    form: (L, B, D, bow) => ({ kind: 'lofted', design: scaledStudy(study('pilot'), L, B, D, bow, true) }),
+    form: (L, B, D, bow, sheer) => ({ kind: 'lofted', design: scaledStudy(study('pilot'), L, B, D, bow, true, sheer) }),
     regime: 'planing',
     ramp: false,
     cockpit: 1.6,
@@ -252,7 +302,7 @@ export const DESIGN_HULLS: DesignHull[] = [
     scantlings: 1.5,
     ballastKg: 18000,
     // Her bow is her own (a square push plate, the bottom sweeping up to it): no bow choice.
-    form: (L, B, D) => ({ kind: 'lofted', design: scaledStudy(study('pushTug'), L, B, D, null) }),
+    form: (L, B, D, _bow, sheer) => ({ kind: 'lofted', design: scaledStudy(study('pushTug'), L, B, D, null, false, sheer) }),
     regime: 'displacement',
     ramp: false,
     pushBow: true,
@@ -305,6 +355,34 @@ export const LIVERIES: { name: string; livery: Livery }[] = [
 ];
 
 /** Roof colours (owner): the hull's own topsides colour (null), or one of its own; an orange roof is common on workboats. */
+/**
+ * The wheelhouse's colour (owner, Oct 2026: "an option to color the wheelhouse"; design.houseColour):
+ * her paint's own (null, the first), or one of these. Its walls, outside; its roof is the Roof's.
+ */
+export const HOUSE_PAINTS: { name: string; colour: number | null }[] = [
+  { name: 'Like her paint', colour: null },
+  { name: 'White', colour: 0xf2f2ee },
+  { name: 'Cream', colour: 0xe9e1c8 },
+  { name: 'Light grey', colour: 0xc4c8ca },
+  { name: 'Dark grey', colour: 0x4a4f54 },
+  { name: 'Red', colour: 0xc0302a },
+  { name: 'Blue', colour: 0x1f3a5c },
+  { name: 'Green', colour: 0x2f5a3a },
+  { name: 'Orange', colour: 0xe0661f },
+  { name: 'Yellow', colour: 0xe0b020 },
+];
+
+/**
+ * The window frames round the wheelhouse glass, and its mullions and posts (owner, Oct 2026:
+ * "whether the frames around the windows are black or white"; design.frames). The white is a
+ * shade off the house whites: the house's walls are told from its frames by their colour
+ * (hullMesh lineInside lines only the walls inside).
+ */
+export const FRAME_COLOURS: { name: string; colour: number }[] = [
+  { name: 'Black', colour: 0x16191b },
+  { name: 'White', colour: 0xfafaf7 },
+];
+
 export const ROOF_PAINTS: { name: string; colour: number | null }[] = [
   { name: 'Like hull', colour: null },
   { name: 'Orange', colour: 0xe0661f },
@@ -330,5 +408,14 @@ export const ROOF_TOPS: { name: string; colour: number | null }[] = [
 export function liveryOf(d: ShipDesign): Livery {
   const l = LIVERIES[d.paint].livery;
   const top = ROOF_TOPS[d.roofTop ?? 0]?.colour;
-  return { ...l, roof: ROOF_PAINTS[d.roofPaint].colour ?? l.topsides ?? 0xd9622b, ...(top != null ? { roofTop: top } : {}), ...(d.interior ? { interior: d.interior } : {}), ...(d.cabinFloor ? { cabinFloor: d.cabinFloor } : {}) };
+  const house = HOUSE_PAINTS[d.houseColour ?? 0]?.colour;
+  return {
+    ...l,
+    roof: ROOF_PAINTS[d.roofPaint].colour ?? l.topsides ?? 0xd9622b,
+    ...(top != null ? { roofTop: top } : {}),
+    ...(house != null ? { house } : {}),
+    ...(d.frames ? { frame: FRAME_COLOURS[d.frames].colour } : {}),
+    ...(d.interior ? { interior: d.interior } : {}),
+    ...(d.cabinFloor ? { cabinFloor: d.cabinFloor } : {}),
+  };
 }

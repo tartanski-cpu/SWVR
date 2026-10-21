@@ -3042,6 +3042,34 @@ export const CONFIG = {
      */
     /** A three-facet wheelhouse front (owner): its outer panes angled back this far from square across her (deg). */
     facetDeg: 30,
+    /**
+     * The front windows on a wide wheelhouse (owner, Oct 2026, from a photo of a big trawler's
+     * wheelhouse: "as you stretch, the windows should multiply"). A flat front keeps the usual
+     * three panes (the middle one 1 m, mullions at +-0.5 m) while its outer panes are no wider
+     * than `paneMax` (m); wider, it's split into an odd number of equal panes (a pane, not a
+     * mullion, in front of the helm), each no wider than `paneMax`, at most `maxPanes`. A
+     * three-facet front: the angled side facets `sideFacet` m across (in plan; owner: "the side
+     * facets should be shorter") once the house is wide enough, the middle facet the rest,
+     * split into panes the same way (never narrower than the usual 1 m middle pane).
+     */
+    frontWindows: { paneMax: 1.1, maxPanes: 7, sideFacet: 0.75 },
+    /**
+     * More sheer (owner, Oct 2026: "this bow has got quite a lot of sheer. The default one is
+     * quite flat"; Shipyard, Hull step, Sheer; build.ts withSheer): her deck line raised up to
+     * 1.2 m more at the stem (in 0.15 m steps, design.ts SCALES.sheer), nothing aft of `from`
+     * (a share of her length from the transom), rising as the square of the distance forward.
+     */
+    sheer: { from: 0.4 },
+    /**
+     * A raised foredeck (owner, Oct 2026, from a photo of a trawler; the fishing boat's; build.ts
+     * raisedForedeck): her deck stepped up forward of a break, a vertical bulkhead across her,
+     * her sides and bulwarks stepping up with it. Steps up to it on her centreline aft of the
+     * break: each rise at most `stepRise` (you walk up them: layout.ts STEP_HEIGHT is 0.4),
+     * treads `tread` deep and `width` wide, `clear` of deck kept at their foot. Run on aft under
+     * the wheelhouse, it ends `landing` m aft of the house's aft wall: a landing across her
+     * from the raised side decks to the steps.
+     */
+    foredeck: { stepRise: 0.3, tread: 0.3, clear: 0.3, width: 0.8, landing: 0.6 },
     /** Windows raked out all round (owner: a tug's or supply vessel's bridge): the side and aft windows lean out this far from vertical (deg), from their sill up to the roof. */
     flareDeg: 15,
     /** The roof's visor: how far it reaches forward of the top of the front windows (m), overlapping them. One set length now (owner: no slider for it; it was 0.15 to 0.75). */

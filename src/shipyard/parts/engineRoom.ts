@@ -6,6 +6,7 @@
 import { bottomAt as bottomUnder, FLANGE_SHARE, halfSection, layShaft, sternDriveLine, twinEngineX } from '../machinery';
 import { CONFIG } from '../../config';
 import { outboardCount, SCALES, SINGLE_ONLY_ENGINES } from '../design';
+import type { Socket } from '../../modular/socket';
 import type { BuildArgs, HatchZone, V3 } from './common';
 import { ENGINES, materialOf } from './catalog';
 import type { HullPart } from './hull';
@@ -198,7 +199,7 @@ export type MachineryPart = ReturnType<typeof machineryPart>;
 /** The engine hatch and the space under it, now the deck gear has its places: in the deck or the cabin floor over most of the engine, the dipstick by it. */
 export function engineHatchPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & TrimPart & MachineryPart & PlacesPart & DeckGearPart & OverheadPart) {
   const { d } = a;
-  const { aft, at, bowRamp, cf, deckhouse, ehc, engHalf, engMid, engTopAt, engX, engZ0, engZ1, floorY, foreEndAt, helmAft, hw, inside, layout, nSteps, outboards, q, rise, rnd, saloonDrop, shape, stem, taken, transom, tread, twin, wall } = p;
+  const { aft, at, bowRamp, cf, craneAt, deckhouse, ehc, engHalf, engMid, engTopAt, engX, engZ0, engZ1, floorY, foreEndAt, helmAft, hw, inside, layout, nSteps, outboards, pods, q, rise, rnd, rudderPos, saloonDrop, sd, shape, skiffAt, stem, taken, transom, tread, twin, wall, winchAt } = p;
   // Her engine hatch (planned above, with the engine), now the deck gear has its places.
   const ctabW = d.chartTable ? CONFIG.modules.chartTable.width + 0.1 : 0;
   const zones: HatchZone[] = [];
@@ -279,6 +280,22 @@ export function engineHatchPart(a: BuildArgs, p: HullPart & HousePart & LayoutPa
     : [rnd(Math.max(eh.x0 + 0.06, engX - engHalf - 0.04)), rnd(Math.min(hatchTop - 0.25, Math.max(soleY + 0.1, engTopAt(dipZ) - 0.3))), rnd(dipZ)];
   const hatchIs = hs.zone.floor ? 'Cabin floor' : 'Deck';
 
-  return { dip, dipZ, eh, hatchIs, hatchTop, hatchZ, soleY, sx0, sx1 };
+  // The places the engine room offers (P4b): the engine (or its drives) on her shaft line, the tank, batteries and bilge pump, the rudder, the hatch over it all with the dipstick and the oil can under it, and the deck hydraulics' pump.
+  const engineSockets: Socket[] = [
+    // (A stern drive: its engine and legs, weighed at the engine.)
+    ...(sd ? [{ id: 'sternDrive', type: 'transom.outboards' as const, transform: { position: at.engineBed }, label: 'Against the transom: her engine and its stern drive' }] : []),
+    ...(pods ? [{ id: 'pods', type: 'hull.pods' as const, transform: { position: at.engineBed }, label: 'Under her bottom: her pod drives, and their engines over them' }] : []),
+    ...(outboards ? [{ id: 'outboards', type: 'transom.outboards' as const, transform: { position: [0, outboards.mount.y, outboards.mount.z] as V3 }, label: 'The bracket off the transom: her outboards' }] : []),
+    { id: 'engineHatch', type: 'deck.fitting', transform: { position: [eh.x1, hatchTop, hatchZ] }, capacity: { size: [eh.x1 - eh.x0, 0.035, eh.z1 - eh.z0] }, label: `${hatchIs}, over the engine` },
+    { id: 'dipstick', type: 'deck.fitting', transform: { position: dip }, label: "Engine space, the engine's inboard side" },
+    { id: 'oilCan', type: 'deck.fitting', transform: { position: [eh.x1 - 0.08, hatchTop - 0.3, eh.z1 - 0.15], rotationDeg: [0, 90, 0] }, label: 'Engine space, the shelf' },
+    { id: 'engine', type: 'engine.bay', transform: { position: at.engineBed }, tags: ['inboard'], capacity: { maxPowerKw: 1000 }, label: 'Engine bed, on her shaft line' },
+    { id: 'fuelTank', type: 'engine.bay', transform: { position: at.engineSpace }, label: 'Engine space (nominal)' },
+    { id: 'batteries', type: 'engine.bay', transform: { position: at.engineSpace }, label: 'Engine space (nominal)' },
+    { id: 'bilgePump', type: 'engine.bay', transform: { position: [at.engineSpace[0], rnd(soleY), at.engineSpace[2]] }, label: 'Bottom of the engine space (nominal)' },
+    { id: 'rudder', type: 'hull.rudder', transform: { position: rudderPos }, label: 'Rudder stock, under the transom' },
+    ...(craneAt || winchAt || skiffAt ? [{ id: 'hydraulicPump', type: 'engine.bay' as const, transform: { position: at.engineSpace }, label: 'On the engine\'s power take-off (nominal)' }] : []),
+  ];
+  return { engineSockets, dip, dipZ, eh, hatchIs, hatchTop, hatchZ, soleY, sx0, sx1 };
 }
 export type EngineHatchPart = ReturnType<typeof engineHatchPart>;
