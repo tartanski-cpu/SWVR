@@ -1,9 +1,13 @@
 {
  "warnings": [
   "7 patches where the coastline's sides disagree (check the coast there)",
-  "ormidale-lodge-pier: no berth with room for a boat (best blocked at 12 points): not a port",
-  "kilchattan-bay-pier-2: no berth with room for a boat (best blocked at 4 points): not a port",
-  "the-lorn-pier-2: no berth with room for a boat (best blocked at 3 points): not a port",
+  "overlapping piers at rhu-marina (13233, -16303): decks 3.5 m and 0.5 m over 68 m²",
+  "overlapping piers at sandbank (2383, -13075): decks 2.4 m and 0.5 m over 48 m²",
+  "overlapping piers at sandbank (2392, -13106): decks 2.4 m and 0.5 m over 216 m²",
+  "overlapping piers at sandbank (2379, -13106): decks 2.4 m and 0.5 m over 144 m²",
+  "overlapping piers at sandbank (2404, -13148): decks 2.4 m and 0.5 m over 60 m²",
+  "overlapping piers at sandbank (2404, -13165): decks 2.4 m and 0.5 m over 44 m²",
+  "overlapping piers at rothesay-harbour (-4259, 2897): decks 2.4 m and 0.5 m over 228 m²",
   "ormidale-lodge-pier: no berth with room for a boat (best blocked at 12 points): not a port",
   "kilchattan-bay-pier-2: no berth with room for a boat (best blocked at 4 points): not a port",
   "the-lorn-pier-2: no berth with room for a boat (best blocked at 3 points): not a port"
@@ -1226,7 +1230,7 @@
    "Cruach nan Capull",
    "Cloch Point FlW.3s"
   ],
-  "bytes": 1454505
+  "bytes": 1455115
  },
  "houses": {
   "byType": {
@@ -1261,5 +1265,56 @@
   },
   "clearedCells": 136596,
   "bytes": 501046
+ },
+ "features": {
+  "farms": {
+   "other": 1
+  },
+  "landmarks": {
+   "monument": 12,
+   "lighthouse": 6,
+   "turbine": 52,
+   "chimney": 1,
+   "mast": 34,
+   "castle": 17,
+   "tower": 7,
+   "church": 67,
+   "water_tower": 1
+  },
+  "shore": {
+   "beach": 42,
+   "sand": 10,
+   "rock": 23,
+   "shingle": 2
+  },
+  "cliffs": 47,
+  "farmland": 812,
+  "names": {
+   "town": 8,
+   "village": 30,
+   "bay": 47,
+   "hamlet": 45,
+   "locality": 73,
+   "suburb": 28,
+   "neighbourhood": 5,
+   "strait": 5,
+   "cape": 15,
+   "isolated_dwelling": 40,
+   "farm": 8,
+   "quarter": 2,
+   "islet": 12,
+   "island": 6,
+   "archipelago": 2
+  },
+  "fogSignals": 1,
+  "wrecks": 1,
+  "cables": {
+   "pipeline": 1,
+   "cable": 5
+  },
+  "overhead": 0,
+  "overheadWithClearance": 0,
+  "ferryRoutes": 6,
+  "ferryTerminals": 10
  }
 }
