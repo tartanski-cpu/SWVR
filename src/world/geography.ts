@@ -99,26 +99,25 @@ export function fuelBerthAt(x: number, z: number): PortDef | null {
  * (Used to set buildings, pumps and cargo stacks down.)
  */
 export function standingHeight(x: number, z: number): number {
-  for (const b of NEAR.at(x, z)) {
-    const dx = x - b.def.x;
-    const dz = z - b.def.z;
-    const l = dx * b.ax + dz * b.az;
-    const w = -dx * b.az + dz * b.ax;
-    if (Math.abs(l) <= b.def.halfLength && Math.abs(w) <= b.def.halfWidth) return b.def.top;
-  }
-  return groundHeight(x, z);
+  return blockTop(x, z) ?? groundHeight(x, z);
 }
 
-/** Deck height of the quay or pier covering (x, z), or null if none does. */
+/**
+ * Deck height of the quay or pier covering (x, z), or null if none does. Where two overlap,
+ * the higher: a coast map's harbours can have a low pier drawn inside a high one's outline
+ * (Rothesay's start spot, owner: "I seem to be on a concrete pier underneath the big wooden
+ * one"), and you stand on the top deck, not inside it.
+ */
 export function blockTop(x: number, z: number): number | null {
+  let top: number | null = null;
   for (const b of NEAR.at(x, z)) {
     const dx = x - b.def.x;
     const dz = z - b.def.z;
     const l = dx * b.ax + dz * b.az;
     const w = -dx * b.az + dz * b.ax;
-    if (Math.abs(l) <= b.def.halfLength && Math.abs(w) <= b.def.halfWidth) return b.def.top;
+    if (Math.abs(l) <= b.def.halfLength && Math.abs(w) <= b.def.halfWidth && (top === null || b.def.top > top)) top = b.def.top;
   }
-  return null;
+  return top;
 }
 
 /**

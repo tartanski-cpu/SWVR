@@ -6466,6 +6466,47 @@ Owner (with a map picture of the Firth): "Next id like a bigger area, as its onl
   - **Desktop:** open https://tartanski-cpu.github.io/SWVR/next/, choose Voyage → The Firth of Clyde. You start moored at Rothesay. Sail out of Rothesay Bay and north up the Firth past Toward toward Dunoon. Watch the shore sharpen as you near it, with no holes or steps in the ground. Use Menu → Debug → World → To port to jump to Largs, Millport (Cumbrae ferry terminal), Greenock or Helensburgh, and look round each.
   - **VR:** the same, with the perf panel: watch the triangle count and frame time as chunks arrive while under way.
 
+### Fix: put ashore under the pier at Rothesay (owner)
+
+Owner (a screenshot on the Clyde, standing on concrete with the timber pier's deck, bollards and yellow edge at head height): "It spawned in on the Clyde, and I seem to be on a pier, a concrete one, but underneath the big wooden one."
+
+- **Why:** at Rothesay's start spot two quay blocks from the map data overlap: the harbour pier (deck 2.4 m, the berth's own) and a small low pier, deck 0.5 m, drawn inside its outline. The game's deck lookup (`src/world/geography.ts`, `blockTop` / `standingHeight`) took whichever block it found first, here the low one.
+- **Now:** where decks overlap, you stand on the highest. The same lookup sets buildings, pumps and cargo stacks down, so they also sit on the top deck now.
+- **Only Rothesay:** of the 110 berths on the four Voyage maps, Rothesay's cargo berth (the Clyde's start) was the only spot ashore with two decks over it.
+- **Test:** `tests/voyageBerths.test.ts`, a second set: every berth's spot ashore, on every Voyage map, has a deck over it, the highest at the berth's own deck height.
+- **Checked headless:** Clyde from a fresh start (`&start`): the player stands at 2.4 m on the timber deck, the boat's roof below, Rothesay's buildings along the pier.
+- **Test steps:**
+  - **VR and desktop:** open https://tartanski-cpu.github.io/SWVR/next/voyage.html?map=clyde&start (the `&start` starts at the harbour, not where you last left her). You're on the timber pier's deck beside the boat, not under it. Step aboard and back ashore (the same spot).
+
+### Trees to suit the device: far trees on a desktop (owner)
+
+Owner: "The Tree model should detect the hardware and render appropriately, the quest LOD is ok but on my desktop it should be able to render the trees from far away."
+
+- **Telling the device** (`src/render/device.ts`, `isStandaloneHeadset`): the browser's user-agent string names the Quest's browser (and Pico, any Android). A standalone headset draws on its own phone-class chip and keeps the milestone 5 settings unchanged. Anything else is a desktop, in VR through a cable or Air Link too, and draws on the PC's graphics card.
+- **Settings → Game → Trees:** **Auto** (the default; the button says which it chose, far or near), **Near (Quest)** or **Far (desktop)**, to override the guess. Saved on the device (`userSettings.treeDetail`: `auto` / `quest` / `desktop`). It takes effect at once.
+- **The desktop's reach** (`CONFIG.trees.desktop`, laid over `CONFIG.trees`):
+  - full trees to `nearDistance` 900 m (Quest 320), up to `maxNear` 12,000;
+  - the middle band's cheap trees to `midDistance` 3 km, up to `maxMid` 20,000, so woods a mile or two off are trees, not only canopy;
+  - the canopy from `canopyFrom` 870 m out to `canopyDistance` 9 km (the clearest day's haze hides all beyond 13.5 km);
+  - placed again after `moveAgain` 30 m / `midMoveAgain` 120 m;
+  - `placeBudgetMs` 4 ms a frame to place them in (Quest 2 ms).
+  - The middle band may now stand on a big map's coarse ground (it reaches past the detailed squares streamed in round the boat). The near band still waits for the detailed ground.
+- **Making it cheap enough** (it first cost 35 ms a frame with 65-85 ms pauses on the desktop setting):
+  - **Placing is spread over frames.** Each band has two sets of tree meshes. The new placing is written into the hidden set a few milliseconds a frame (`placeBudgetMs`) and then swapped in, so the trees in view never flicker or half-fill.
+  - **Each tree's ground height is looked up once and kept**, looked up again only when the detailed ground arrives under it. Placings run again when new ground streams in, so trees placed over the coarse ground settle onto the detailed one.
+  - **Scattering woods reuses patterns.** A tile of scattered wood took one of four patterns, made once and turned or mirrored by the tile's own seed, instead of working a fresh pattern each time (a millisecond or more a tile; a desktop's bands cover thousands of tiles). Tiles with no scattered wood skip it. Same trees each visit, as before.
+  - **The canopy's merge no longer works out normals** (its material is flat-shaded, so each face's own is worked out as it's drawn). This was the last big pause.
+- **Measured** (headless Chromium in software rendering, so slower than a real PC; at Dunstaffnage):
+  - **Desktop setting:** 12,000 near + 20,000 middle trees; the tree view about 2 ms a frame. The worst single frame while placing after a move is about 14 ms, mostly a new canopy square being made.
+  - **Desktop setting, a mile offshore:** 20,000 middle-band trees on the far shores; the whole scene about 330k triangles in 61 draw calls.
+  - **Quest setting:** unchanged in what it draws (725 near, about 2,200 middle); the worst frame while placing about 6 ms.
+  - On a real desktop the far bands fill in within a few seconds of arriving. Headless, at a few frames a second, they take far longer, so the screenshot script ran the placing to the end first.
+- **Tests:** `tests/trees.test.ts` (device: the Quest browser's user-agent string is a headset, desktop Chrome's isn't; the Far and Near settings give the desktop's and the Quest's reach). `tests/menu.test.ts` (the fake menu host has the Trees setting). Full suite pass; typecheck clean.
+- **Not checked:** a real desktop graphics card's frame rate (headless is software rendering); the Quest (it should be unchanged); the Quest browser's user-agent string in practice (the test uses its published form).
+- **Test steps:**
+  - **Desktop:** Voyage → Oban and Lorn. Settings → Game → Trees should say **Auto (far)**. Board, look across to Kerrera and the Lorn shore: woods a mile or two off are individual trees, and the far hills' woods read as forest out to about 9 km. Switch Trees to **Near (Quest)** to compare (the far trees go and the canopy comes in closer), then back. Watch for stutters as you motor along.
+  - **VR (Quest):** Settings → Game → Trees should say **Auto (near)**, and the woods look and run as before. (Choosing Far on the Quest will cost frame rate; it's there for a PC headset.)
+
 ### Fix: Voyage start berths too close to the rocks (owner)
 
 Owner (a screenshot of Syros, the boat at Ermoupoli's cargo berth with her bow on the rocks): "Some of the default starting positions on the voyage maps are too close to the rocks."

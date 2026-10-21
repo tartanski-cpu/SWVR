@@ -64,6 +64,7 @@ import { forgetPlace, placeOf, rememberPlace, restorePlace, savedPlace } from '.
 import { groundHeight } from '../world/terrain';
 import { coastStreamer } from '../world/coastStream';
 import { setPaintNight } from '../render/pixelPaint';
+import { treeLevel } from '../world/view/treesView';
 import { MAX_SHELTERS } from '../world/shelter';
 import type { ShelterDef } from '../world/defs';
 import { aboard, carriedBy, dropCarried, cargoLabel, cargoPortAt, kindOf, payloadMass, quickLoadable, quickPort, quickUnloadable, slotsUsed, type CargoItem } from '../cargo/cargo';
@@ -2294,6 +2295,13 @@ export class App {
       setWeatherFixed: (on) => this.pushEnvIntent('weatherFixed', on ? 1 : 0),
       weatherFast: () => (env().weather?.speed ?? 1) > 1,
       setWeatherFast: (on) => this.pushEnvIntent('weatherSpeed', on ? 10 : 1),
+      treeDetail: () => userSettings.treeDetail,
+      treeLevel: () => treeLevel(),
+      setTreeDetail: (d) => {
+        if (d !== 'auto' && d !== 'quest' && d !== 'desktop') return;
+        userSettings.treeDetail = d;
+        saveSettings();
+      },
       rainQuality: () => userSettings.rainQuality,
       setRainQuality: (q) => {
         if (q !== 'high' && q !== 'low' && q !== 'off') return;

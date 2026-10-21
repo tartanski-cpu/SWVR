@@ -107,3 +107,21 @@ describe('the far bands (milestone 5)', () => {
     expect(canopyArrays(f, f.layout.x0 - 4 * S, f.layout.z0 - 4 * S).position.length).toBe(0);
   });
 });
+
+describe('tree detail by device', () => {
+  it('a standalone headset is the Quest level; a desktop browser far; the setting overrides', async () => {
+    const { isStandaloneHeadset } = await import('../src/render/device');
+    const { treeLevel, treeSettings } = await import('../src/world/view/treesView');
+    const { userSettings } = await import('../src/player/userSettings');
+    const { CONFIG } = await import('../src/config');
+    expect(isStandaloneHeadset('Mozilla/5.0 (X11; Linux x86_64; Quest 3) AppleWebKit/537.36 OculusBrowser/35.0 Chrome/126 VR Safari/537.36')).toBe(true);
+    expect(isStandaloneHeadset('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126 Safari/537.36')).toBe(false);
+    userSettings.treeDetail = 'desktop';
+    expect(treeLevel()).toBe('desktop');
+    expect(treeSettings().nearDistance).toBe(CONFIG.trees.desktop.nearDistance);
+    expect(treeSettings().midDistance).toBeGreaterThan(CONFIG.trees.midDistance);
+    userSettings.treeDetail = 'quest';
+    expect(treeSettings().nearDistance).toBe(CONFIG.trees.nearDistance);
+    userSettings.treeDetail = 'auto';
+  });
+});

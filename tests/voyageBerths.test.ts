@@ -14,6 +14,7 @@ import { clearCoastTerrains, coastHeight, registerChunkedCoast, registerCoastTer
 import { CoastStreamer } from '../src/world/coastStream';
 import { mapRegion, VOYAGE_MAPS } from '../src/world/maps';
 import type { BerthDef, BlockDef } from '../src/world/defs';
+import { quaySpotByBerth } from '../src/world/startSpot';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const buf = (p: string) => {
@@ -76,5 +77,34 @@ describe('Voyage maps: room for a boat at the named berths', () => {
       expect(start, start).toBeUndefined();
       expect(problems.filter((p) => Number(p.split(': ')[1].split(' ')[0]) > 2), problems.join('\n')).toEqual([]);
     }, 120000);
+  }
+});
+
+/**
+ * Where you're put ashore beside a berth (startSpot.ts, a step back from its face) is on her
+ * quay's deck: the highest deck there, as geography.ts's blockTop takes it (owner, Oct 2026,
+ * on the Clyde: "I seem to be on a concrete pier, but underneath the big wooden one": at
+ * Rothesay a low pier lies inside the harbour pier's outline, and the game stood you on it).
+ */
+describe('Voyage maps: put ashore on the berth\'s own deck', () => {
+  for (const m of VOYAGE_MAPS) {
+    it(`${m.id}: every berth's spot ashore`, () => {
+      if (m.remote) setRemotePackage(JSON.parse(readFileSync(join(root, 'public', 'regions', m.id, 'package.json'), 'utf8')) as CoastPackage);
+      const r = mapRegion(m);
+      const covers = (k: BlockDef, x: number, z: number) => {
+        const a = (k.yawDeg * Math.PI) / 180;
+        const dx = x - k.x;
+        const dz = z - k.z;
+        return Math.abs(dx * Math.sin(a) - dz * Math.cos(a)) <= k.halfLength && Math.abs(dx * Math.cos(a) + dz * Math.sin(a)) <= k.halfWidth;
+      };
+      const wrong: string[] = [];
+      for (const b of r.berths) {
+        const q = quaySpotByBerth(b);
+        const tops = r.blocks.filter((k) => covers(k, q.x, q.z)).map((k) => k.top);
+        if (!tops.length) wrong.push(`${b.id}: no deck`);
+        else if (b.deckY !== undefined && Math.abs(Math.max(...tops) - b.deckY) > 0.01) wrong.push(`${b.id}: deck ${Math.max(...tops)}, berth's ${b.deckY}`);
+      }
+      expect(wrong).toEqual([]);
+    });
   }
 });

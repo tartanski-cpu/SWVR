@@ -4901,8 +4901,8 @@ export const CONFIG = {
    * A coast region's trees (the settlements brief, Part B; world/view/treesView.ts), scattered
    * from its forest map near the viewer: every tree within `nearDistance` (m), nearest first,
    * at most `maxNear` of them (the Quest's budget: each tree is 20-32 triangles), scattered
-   * a `tile` m square at a time, placed again when the viewer has moved `moveAgain` m or
-   * every `refresh` s (a chunk's ground streaming in). Each species: its height range (m),
+   * a `tile` m square at a time, placed again when the viewer has moved `moveAgain` m or a
+   * big map's ground has streamed in or out (looked at every `refresh` s). Each species: its height range (m),
    * its crown's width as a share of its height, and how far it may lean (deg).
    */
   trees: {
@@ -4911,6 +4911,8 @@ export const CONFIG = {
     tile: 100,
     moveAgain: 15,
     refresh: 2,
+    /** Placing the trees is spread over frames, this many milliseconds of it a frame (shown when done). */
+    placeBudgetMs: 2,
     /**
      * The middle band (milestone 5): from nearDistance out to `midDistance` (m) a sparser
      * scatter (one tree in about `midThin`² of the near band's: a jittered grid, cheap to
@@ -4940,6 +4942,16 @@ export const CONFIG = {
     canopyMinDensity: 6,
     canopyBump: 3,
     canopyHeight: { plantation: 14, broadleaf: 11, mixed: 12, natural: 9, scrub: 1.4, orchard: 4 } as Record<string, number>,
+    /**
+     * A desktop's graphics card (owner: "on my desktop it should be able to render the trees
+     * from far away"; render/device.ts, Settings > Trees): the bands reach much farther, the
+     * full trees to 900 m (up to 12,000 of them), the middle band to 3 km (up to 20,000: woods
+     * a mile or two off are trees, not only canopy), the canopy out to 9 km (the clearest
+     * day's haze hides all beyond 13.5 km); placed again after a longer move, there being
+     * more of them, with 4 ms a frame to place them in (a desktop processor has it to spare).
+     * The values above are the Quest's.
+     */
+    desktop: { nearDistance: 900, maxNear: 12000, midDistance: 3000, maxMid: 20000, canopyFrom: 870, canopyDistance: 9000, moveAgain: 30, midMoveAgain: 120, placeBudgetMs: 4 },
     species: {
       conifer: { height: [9, 17] as [number, number], width: [0.36, 0.48] as [number, number], lean: 2 },
       broadleaf: { height: [6, 13] as [number, number], width: [0.75, 1.0] as [number, number], lean: 5 },
