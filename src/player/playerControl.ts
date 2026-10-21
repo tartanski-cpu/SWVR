@@ -1,13 +1,13 @@
-import { CONFIG } from '../config';
 import { landFloor } from '../world/landWalkArea';
 import type { Intent } from '../core/intents';
 import type { WorldState } from '../core/world';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
+import { quaySpot } from '../world/startSpot';
 import type { PlayerState } from './playerState';
 
-/** Put a player ashore on the quay where a new game starts (CONFIG.start), facing the boat. */
-export function placeAshore(p: PlayerState): void {
-  const q = CONFIG.start.quay;
+/** Put a player ashore on the quay by a berth (the start's by default; world/startSpot.ts), facing the water. */
+export function placeAshore(p: PlayerState, berthId?: string | null): void {
+  const q = quaySpot(berthId);
   p.aboardVesselId = null;
   p.position = [q.x, landFloor(q.x, q.z) ?? 1.6, q.z];
   p.yaw = (q.yawDeg * Math.PI) / 180;
@@ -26,7 +26,9 @@ export function applyPlayerIntent(world: WorldState, p: PlayerState, intent: Int
       p.mode = 'walk';
       delete p.velocity;
       if (!vessel) {
-        placeAshore(p);
+        // Ashore: onto the quay by the boat's berth when she's moored, else the start's.
+        const home = world.homeVesselId ? world.vessels[world.homeVesselId] : undefined;
+        placeAshore(p, home?.mooring.phase === 'moored' ? home.mooring.berthId : null);
         break;
       }
       p.aboardVesselId = vessel.id;

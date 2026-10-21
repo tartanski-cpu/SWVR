@@ -39,7 +39,10 @@ async function main(): Promise<void> {
       if (chunked.length) {
         const { startCoastStreaming } = await import('./world/coastStream');
         const streamer = startCoastStreaming(base, (id) => REGIONS.find((r) => r.id === id)!.coast!.pkg.terrain.dir);
-        const berth = chunked.flatMap((r) => r.berths).find((b) => b.id === map?.startBerth) ?? chunked[0].ports[0];
+        // (Or round where you were last time on this map: app/voyagePlace.ts.)
+        const { savedPlace } = await import('./app/voyagePlace');
+        const remembered = map && !new URLSearchParams(location.search).has('start') ? savedPlace(map.id) : null;
+        const berth = remembered ?? chunked.flatMap((r) => r.berths).find((b) => b.id === map?.startBerth) ?? chunked[0].ports[0];
         if (berth) await streamer.preload([{ x: berth.x, z: berth.z }]);
       }
     }

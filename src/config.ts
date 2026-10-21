@@ -4549,11 +4549,29 @@ export const CONFIG = {
    */
   voyage: {
     boat: 'pilotBoat',
+    /**
+     * Where you are on a map is remembered between sessions (owner, Oct 2026: close the
+     * browser, come back to the map, and you're in the same place): the boat's position,
+     * heading and berth, and whether you were aboard, saved every `rememberEveryS` s and
+     * as the page closes (app/voyagePlace.ts, `swvr.voyage.<map>` in the browser's storage;
+     * by the host or alone, never by crew). `?start` on the address starts at the map's
+     * berth again (and forgets the place).
+     */
+    rememberEveryS: 5,
+    /** A remembered spot afloat is only taken with this much water there (m); else the map's start. */
+    rememberMinDepth: 2.5,
   },
 
+  /**
+   * The career's start: her berth, and the spot on the quay the player stands at (facing
+   * the boat). On any other berth (a Voyage map's start, a boat moored elsewhere) the spot
+   * ashore is worked out: `quayBack` m back from the berth's face beyond where she lies
+   * (world/startSpot.ts).
+   */
   start: {
     berthId: 'calder-cargo',
     quay: { x: 713, z: 661.5, yawDeg: 90 },
+    quayBack: 2,
   },
 
   /**

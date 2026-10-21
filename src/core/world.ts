@@ -24,8 +24,8 @@ import { createSalvageState, type SalvageState } from '../salvage/salvage';
 import { createFishingState, type FishingState } from '../fishing/fishing';
 import { createCareer, type CareerState } from '../career/career';
 import type { PottingState } from '../potting/potting';
-import { VOYAGE_MAP_ID } from '../mode';
-import { voyageMap } from '../world/maps';
+import { startBerthId } from '../world/startSpot';
+import type { BerthDef } from '../world/defs';
 
 /**
  * The complete simulation state. Plain, JSON-serializable data only: no class
@@ -165,14 +165,18 @@ export function createWorld(
 }
 
 /**
- * The game's start: lying alongside her berth in Calder Haven (CONFIG.start), bow along the
- * berth, afloat at her waterline, her mooring lines already fast (moored).
+ * The game's start: lying alongside her berth (CONFIG.start in the career, the map's own in
+ * Voyage mode; world/startSpot.ts), bow along the berth, afloat at her waterline, her mooring
+ * lines already fast (moored).
  */
 function mooredAtStart(v: VesselState): void {
-  // Voyage mode: the map's own start berth (world/maps.ts); career: Calder Haven (CONFIG.start).
-  const berthId = voyageMap(VOYAGE_MAP_ID)?.startBerth ?? CONFIG.start.berthId;
-  const b = BERTHS.find((x) => x.id === berthId);
+  const b = BERTHS.find((x) => x.id === startBerthId());
   if (!b) return dropVessel(v);
+  moorAtBerth(v, b);
+}
+
+/** Put her alongside a berth, moored, lines fast, as the game starts her. */
+export function moorAtBerth(v: VesselState, b: BerthDef): void {
   const at = berthPose(v, b);
   placeVessel(v, at.x, 0, at.z, at.headingDeg);
   v.mooring.phase = 'moored';

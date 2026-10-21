@@ -60,6 +60,7 @@ import { CURRENTS, FISHING_GROUNDS, GUSTS, PORTS } from '../world/archipelago';
 import { raceRoarLevel, raceStrength, setRaceClock } from '../world/currents';
 import { REGIONS, regionById } from '../world/regions';
 import { MODE, VOYAGE_MAP_ID } from '../mode';
+import { forgetPlace, placeOf, rememberPlace, restorePlace, savedPlace } from './voyagePlace';
 import { groundHeight } from '../world/terrain';
 import { coastStreamer } from '../world/coastStream';
 import { setPaintNight } from '../render/pixelPaint';
@@ -359,6 +360,8 @@ export class App {
   private touch: TouchControls | null = null;
   /** Board at the helm on the first frame (touch controls, CONFIG.touch.startAboard). */
   private boardOnStart = false;
+  /** Seconds since the voyage place was last remembered (rememberVoyagePlace). */
+  private rememberT = 0;
   private readonly trialsPanel = new TrialsPanel();
   /** Which vessel (if any) the local rig is currently parented to. */
   private rigParentId: EntityId | null | undefined = undefined;
@@ -648,6 +651,7 @@ export class App {
     this.localPlayerId = created.localPlayerId;
     this.soloPlayerId = created.localPlayerId;
     this.testVesselId = created.vesselId;
+    this.restoreVoyagePlace();
     // Our own working clothes, as crew who join will see us (net/avatarOutfits.ts).
     this.world.players[this.localPlayerId].look = randomLook();
 
@@ -4287,9 +4291,36 @@ export class App {
     });
   }
 
+  /**
+   * Voyage mode: back where you were on this map last time (app/voyagePlace.ts), unless the
+   * address says `?start` (the map's start berth again, the place forgotten).
+   */
+  private restoreVoyagePlace(): void {
+    if (MODE !== 'voyage' || !VOYAGE_MAP_ID) return;
+    if (START_PARAMS.has('start')) {
+      forgetPlace(VOYAGE_MAP_ID);
+      return;
+    }
+    const place = savedPlace(VOYAGE_MAP_ID);
+    const v = this.world.vessels[this.testVesselId];
+    if (place && v) restorePlace(this.world, v, this.localPlayerId, place);
+    window.addEventListener('pagehide', () => this.rememberVoyagePlace(Infinity));
+  }
+
+  /** Voyage mode: remember where we are on this map, every few seconds and as the page closes (alone or hosting). */
+  private rememberVoyagePlace(dt: number): void {
+    if (MODE !== 'voyage' || !VOYAGE_MAP_ID || this.client) return;
+    this.rememberT += dt;
+    if (this.rememberT < CONFIG.voyage.rememberEveryS) return;
+    this.rememberT = 0;
+    const v = this.world.vessels[this.testVesselId];
+    if (v) rememberPlace(VOYAGE_MAP_ID, placeOf(this.world, v, this.localPlayerId));
+  }
+
   /** Ships, debris and buoys on the waves; ships' fog horns; the lookout calls new ships. */
   private updateTraffic(v: VesselState | undefined, darkness: number, dt: number): void {
     this.trafficView.update(this.world, this.renderWaves, darkness, dt);
+    this.rememberVoyagePlace(dt);
     const t = this.world.traffic;
     if (!t) return;
     if (this.hornSeen >= 0 && t.hornSeq !== this.hornSeen && t.hornFrom) {
