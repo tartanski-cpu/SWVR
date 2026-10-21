@@ -8,6 +8,7 @@ import { hullQueries } from '../../modular/hull';
 import type { CabinBelow, DoorStep, FloorLevel, FloorPatch, Hollow, HouseShape, LayoutConfig, OverheadLayout } from '../../vessel/vesselDef';
 import { deckhouseHalfWidth, type DeckhouseLayout } from '../../vessel/deckhouse';
 import { MEASURES, SCALES } from '../design';
+import type { Socket } from '../../modular/socket';
 import { halfBreadthAt, type BuildArgs, type V3 } from './common';
 import { FACET_CENTRE } from './catalog';
 import type { HullPart } from './hull';
@@ -366,7 +367,7 @@ export type OverheadPart = ReturnType<typeof overheadPart>;
 /** Inside the wheelhouse: the chart table, the side door, and a cabin below the deckhouse with its companionway (P2c). */
 export function interiorPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & TrimPart & MachineryPart & PlacesPart & DeckGearPart & OverheadPart & EngineHatchPart) {
   const { d } = a;
-  const { F, FA, aft, at, bowRamp, cf, deckLo, deckhouse, dg, engZ0, engZ1, floorY, front, helmAft, hw, layout, levels, outboards, q, r2, rnd, roofY, saloonDrop, saloonL, sb, side, st, wall, warnings, windowHead } = p;
+  const { F, FA, aft, at, bowRamp, cf, deckLo, deckhouse, dg, engZ0, engZ1, floorY, front, helmAft, hw, layout, levels, outboards, q, r2, rnd, roofAt, roofY, saloonDrop, saloonL, sb, side, st, wall, warnings, windowHead } = p;
   // The chart table (owner: its own choice): along the port wall at the aft end, its hinge
   // corner forward, if her house is wide enough to pass inboard of it and long enough to
   // leave the helm clear.
@@ -507,6 +508,16 @@ export function interiorPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
     })();
     if (why) warnings.push(`There's no cabin below: ${why}.`);
   }
-  return { cabinM2, chartTableAt, ctab, sideDoor };
+  // The places inside it offers (P4b): the chart table, the side door's buttons.
+  const interiorSockets: Socket[] = [
+    ...(chartTableAt ? [{ id: 'chartTable', type: 'cabin.furniture' as const, transform: { position: chartTableAt }, capacity: { size: [ctab.width, roofAt(chartTableAt[2]) - chartTableAt[1], ctab.depth] as V3 }, label: 'Port wall, aft: the chart table' }] : []),
+    ...(sideDoor
+      ? ([
+          { id: 'sideDoorIn', type: 'wall.panel', transform: { position: [r2(-hw + wall), r2(F + sideDoor.buttonHeight), r2(sideDoor.z0 - 0.04)], rotationDeg: [-90, -90, 0] }, label: 'Side door jamb, inside' },
+          { id: 'sideDoorOut', type: 'wall.panel', transform: { position: [-hw, r2(F + sideDoor.buttonHeight), r2(sideDoor.z0 - 0.04)], rotationDeg: [-90, 90, 0] }, label: 'Side door jamb, outside' },
+        ] as Socket[])
+      : []),
+  ];
+  return { interiorSockets, cabinM2, chartTableAt, ctab, sideDoor };
 }
 export type InteriorPart = ReturnType<typeof interiorPart>;

@@ -6847,3 +6847,18 @@ Owner, Oct 2026: "Go P4". The plan's P4: each house part and hull feature offers
 - **Next (P4b):** the parts offer their own places (the house its helm, wall and roof places; the hull its bulwark tops and transom; the engine its hatch, dipstick and oil can), and the sockets are gathered from them.
 - **Test steps:** nothing should look or behave differently. Desktop: open the Shipyard, change a few things on each step, check her figures and warnings still update; start a career and a Shipyard boat. VR: start any boat and drive her as usual.
 
+### Parametric boats P4b: the parts offer their places (done; no visible change)
+
+The plan's P4: "each house part and hull feature offers its own sockets (the helm spot, wall panels, roof mounts, the transom), so modules find their place instead of the Shipyard working out offsets".
+
+- **What:** a Shipyard boat's places (sockets: where each module goes) used to be one long list in the builder, each entry's position worked out there. Now each part of the builder declares the places for what it places, next to where it works them out, and her hull definition gathers them (`parts/hullDef.ts`):
+  - **the wheelhouse** (`parts/places.ts`, `wheelhouseSockets`): the helm, the breaker and helm-assist panels, the battery switches and door buttons, the duty board and whiteboard, the VHF, chartplotter, nav display and FM set under the roof, the cabin light and overhead panel, the floods, nav lights, horn and wipers, the ramp's buttons;
+  - **the engine room** (`parts/engineRoom.ts`, `engineSockets`): the engine on her shaft line (or the stern drive, pods or outboards), the tank, batteries and bilge pump, the rudder, the engine hatch with the dipstick and the oil can under it, the deck hydraulics' pump;
+  - **inside the house** (`parts/house.ts`, `interiorSockets`): the chart table, the side door's buttons;
+  - **the deck** (`parts/deckGear.ts`, `deckSockets`): the searchlight and fire monitor (roof or pole), the cleats, the winch, stern roller, A-frame and net, the deck crane, the fender basket, the anchor, the skiff's crane;
+  - **outside the house** (`houseGearSockets`): the life ring and boat-hook clips, the rod rack;
+  - **the hull** itself: the rubbing strake or tyres, the push fender, the exhaust stacks.
+- **The dipstick and oil can** (the plan said "places the engine module offers"): they're the engine room's to offer, not the engine module's, because where they go depends on where the hatch can be cut clear of the deck gear, which the engine module doesn't know. The engine module still says where on the engine the oil is checked.
+- **Checked identical:** the same 171 designs as P4a build to the same boat, the same places at the same points with the same labels (only the list's order changed, which nothing reads). New `tests/shipyard/places.test.ts` (2): for every fleet boat and every hull type, as she comes and loaded with gear (a saloon, crane, winch, skiff, chart table, side door, advanced controls), each place offered once with a label and a position, the places every boat has there, and every module in her recipe finds its place. Full suite pass; typecheck clean; the build OK; the game (a Shipyard pilot boat, at the helm and from outside) and the Shipyard page as before.
+- **Test steps:** nothing should look or behave differently. Desktop and VR: start a Shipyard boat with plenty fitted (crane, winch, skiff, side door, chart table, advanced controls) and check everything is where it was: the panels, screens, buttons, the dipstick under the hatch.
+

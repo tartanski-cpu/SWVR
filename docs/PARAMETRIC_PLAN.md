@@ -107,6 +107,18 @@ definition and sockets (hullDef.ts), her recipe (recipe.ts) and her weights (wei
 types, engines and liveries in catalog.ts, shared geometry in common.ts. Checked identical: every
 fleet boat, every hull type and 160 random designs build to exactly the same boat as before.
 
+**P4b, done: the parts offer their places (no change to any boat).** Each part now declares the
+sockets for what it places, with their labels, and the hull definition gathers them
+(`parts/hullDef.ts`): the wheelhouse (places.ts) its helm, the panels on its walls and by its
+door, what hangs under its roof, its lights, horn and wipers; the engine room the engine (or its
+drives), tank, batteries, bilge pump, rudder, the hatch, the dipstick, the oil can and the deck
+hydraulics' pump; inside the house the chart table and the side door's buttons; the deck its
+gear and cleats; outside the house the life ring, boat hook and rod rack; the hull what protects
+her sides and the exhaust stacks. The hatch, dipstick and oil can are the engine room's to offer
+rather than the engine module's: where they go depends on where the hatch can be cut clear of
+the deck gear, which the engine doesn't know. Checked identical as P4a (the same places at the
+same points; only the list's order changed), and `tests/shipyard/places.test.ts`.
+
 ## P5. Interior parts (M)
 
 Berth, settee, galley run, seat, locker, head with a door: placed on a floor level, each a
