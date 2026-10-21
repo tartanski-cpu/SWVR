@@ -6459,6 +6459,18 @@ Owner (with a map picture of the Firth): "Next id like a bigger area, as its onl
   - **Desktop:** open https://tartanski-cpu.github.io/SWVR/next/, choose Voyage → The Firth of Clyde. You start moored at Rothesay. Sail out of Rothesay Bay and north up the Firth past Toward toward Dunoon. Watch the shore sharpen as you near it, with no holes or steps in the ground. Use Menu → Debug → World → To port to jump to Largs, Millport (Cumbrae ferry terminal), Greenock or Helensburgh, and look round each.
   - **VR:** the same, with the perf panel: watch the triangle count and frame time as chunks arrive while under way.
 
+### Fix: put ashore under the pier at Rothesay (owner)
+
+Owner (a screenshot on the Clyde, standing on concrete with the timber pier's deck, bollards and yellow edge at head height): "It spawned in on the Clyde, and I seem to be on a pier, a concrete one, but underneath the big wooden one."
+
+- **Why:** at Rothesay's start spot two quay blocks from the map data overlap: the harbour pier (deck 2.4 m, the berth's own) and a small low pier, deck 0.5 m, drawn inside its outline. The game's deck lookup (`src/world/geography.ts`, `blockTop` / `standingHeight`) took whichever block it found first, here the low one.
+- **Now:** where decks overlap, you stand on the highest. The same lookup sets buildings, pumps and cargo stacks down, so they also sit on the top deck now.
+- **Only Rothesay:** of the 110 berths on the four Voyage maps, Rothesay's cargo berth (the Clyde's start) was the only spot ashore with two decks over it.
+- **Test:** `tests/voyageBerths.test.ts`, a second set: every berth's spot ashore, on every Voyage map, has a deck over it, the highest at the berth's own deck height.
+- **Checked headless:** Clyde from a fresh start (`&start`): the player stands at 2.4 m on the timber deck, the boat's roof below, Rothesay's buildings along the pier.
+- **Test steps:**
+  - **VR and desktop:** open https://tartanski-cpu.github.io/SWVR/next/voyage.html?map=clyde&start (the `&start` starts at the harbour, not where you last left her). You're on the timber pier's deck beside the boat, not under it. Step aboard and back ashore (the same spot).
+
 ### Trees to suit the device: far trees on a desktop (owner)
 
 Owner: "The Tree model should detect the hardware and render appropriately, the quest LOD is ok but on my desktop it should be able to render the trees from far away."
