@@ -5259,6 +5259,14 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Tests:** `tests/boatTypes.test.ts` (+4): a token makes a type, the same id each time, her token on it, unknown tokens refused; two different Shipyard boats (one from a document token) in one world, both afloat, each her own type; a world from elsewhere with an unknown boat built from her token; a crew-mate's welcome and snapshots carry the token. The multiplayer, fleet, Shipyard-in-the-game, starter-boat and takeover tests as they were.
 - **Checked:** typecheck, `npm test`, headless: the career game started in a Shipyard boat by code (`career.html?design=CODE`) at Calder. **Not checked:** VR; a real two-page join across the broker with a boat from a file (the loopback test covers the token's travel).
 
+### Bollards where the lines tie; the owner's multi-boat answers (owner)
+
+- **The owner:** the bollards on the start quayside don't match where the mooring lines tie. And the multi-boat questions: the biggest boats anchor, which ones worked out from each quay face's length (fit the boats that fit); a boat goes with her player when they leave; there's no career in Voyage, so no pot. Recorded in `docs/MULTI_BOAT.md`.
+- **Why:** the lines are drawn to each berth's two tie points (6 m either side of her centre, half a metre in from the face), but the bollards were drawn on their own 12 m grid along every face. The hand-built regions' generated berths sit on that grid, so they matched; the named berths (Calder's) and a coast map's berths (every 16 m from the pipeline) didn't.
+- **Now** (`world/berths.ts` `faceBollards`, used by `worldView.buildBlock`): on a face with berths the bollards stand at every berth's tie points (a berth's own `bollardHalf` respected: a short pontoon's cleats); a face with none keeps the 12 m look. No change to where the lines go or to the mooring itself.
+- **Tests:** `tests/bollards.test.ts` (+3): Calder's cargo and fuel berths each have a bollard at both tie points, the landward face keeps the grid; a long pier's bollards still 12 m apart; Oban's start berth has bollards at its tie points.
+- **Checked:** typecheck, `npm test` (three timeouts in engine and weather tests while a headless run shared the machine; they pass on their own), headless: Oban's quay with the bollards beside the pilot boat. **Not checked:** VR; by eye at Calder (the headless camera wouldn't look down).
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

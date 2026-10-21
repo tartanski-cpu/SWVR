@@ -115,6 +115,55 @@ function generate(): BerthDef[] {
   return out;
 }
 
+/** A block's local axes in world: (lx, lz) = (dx, dz) projected on them (the inverse of toWorld). */
+function toLocal(b: BlockDef, x: number, z: number): { lx: number; lz: number } {
+  const yaw = (b.yawDeg * Math.PI) / 180;
+  const dx = x - b.x;
+  const dz = z - b.z;
+  return { lx: dx * Math.cos(yaw) + dz * Math.sin(yaw), lz: -dx * Math.sin(yaw) + dz * Math.cos(yaw) };
+}
+
+/** One face of a block, in its frame: its outward normal, half-length, how far out it stands, and whether it runs along local X. */
+export interface BlockFace {
+  nx: number;
+  nz: number;
+  half: number;
+  offset: number;
+  alongX: boolean;
+}
+
+/**
+ * Where the bollards stand along a face (positions along it, m from its middle): at the two
+ * tie points of every berth on that face (its centre ± its bollard half-spacing, where the
+ * mooring lines are drawn to: vessel/view/mooringLines.ts), and, on a face with no berth, one
+ * every 12 m from 3 m in as before. (The owner, Oct 2026: the bollards on the start quay
+ * didn't stand where the lines tied: a coast map's berths come every 16 m from the pipeline,
+ * the hand-built quays' named berths wherever they were put, and the bollards were drawn on
+ * their own 12 m grid.)
+ */
+export function faceBollards(b: BlockDef, f: BlockFace, berths: readonly BerthDef[] = BERTHS): number[] {
+  const at: number[] = [];
+  for (const berth of berths) {
+    // On this face: her shore side is the face's inward normal, she lies off the face by her
+    // shoreDist, and within its length.
+    const { lx, lz } = toLocal(b, berth.x, berth.z);
+    const along = f.alongX ? lx : lz;
+    const across = f.alongX ? lz : lx;
+    const outward = f.alongX ? f.nz : f.nx;
+    if (across * outward < f.offset - 0.5 || across * outward > f.offset + 8 || Math.abs(along) > f.half + 1) continue;
+    const { lx: sx, lz: sz } = toLocal({ ...b, x: 0, z: 0 }, berth.shoreX, berth.shoreZ);
+    if ((f.alongX ? sz : sx) * outward > -0.7) continue; // her shore isn't this way
+    const half = berth.bollardHalf ?? BOLLARD_HALF_SPACING;
+    for (const k of [-1, 1]) {
+      const s = along + k * half;
+      if (Math.abs(s) <= f.half - 0.3 && !at.some((t) => Math.abs(t - s) < 0.6)) at.push(s);
+    }
+  }
+  if (at.length) return at.sort((p, q) => p - q);
+  for (let s = -f.half + 3; s <= f.half - 3; s += 12) at.push(s);
+  return at;
+}
+
 /** A berth's bollards stand this far either side of its centre, along the face (half the 12 m spacing), and 0.5 m in from the edge. */
 export const BOLLARD_HALF_SPACING = 6;
 

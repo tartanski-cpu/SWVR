@@ -14,7 +14,7 @@ import type { TerrainRequest, TerrainResult } from './terrainWorker';
 import { glowSprite, LightPointsMaterial } from '../../render/lightPoints';
 import { CoastTerrainView, coastSilhouetteArrays } from './coastView';
 import { buildKitHouse, isKitBuilding } from './houseKit';
-import { shortCleat } from '../berths';
+import { faceBollards, shortCleat } from '../berths';
 
 /**
  * Everything static in the world, region by region (regions, milestone 2):
@@ -461,7 +461,8 @@ function buildBlock(b: BlockDef, parts: THREE.BufferGeometry[]): void {
       const z = f.alongX ? f.nz * (f.offset + 0.12) : s;
       if (b.fendered) add(new THREE.BoxGeometry(f.alongX ? 0.5 : 0.25, 1.6, f.alongX ? 0.25 : 0.5).translate(x, b.top - 0.9, z), FENDER);
     }
-    for (let s = -f.half + 3; s <= f.half - 3; s += 12) {
+    // Bollards where the berths' lines tie (world/berths.ts faceBollards).
+    for (const s of faceBollards(b, f)) {
       const x = f.alongX ? s : f.nx * (f.offset - 0.5);
       const z = f.alongX ? f.nz * (f.offset - 0.5) : s;
       add(new THREE.CylinderGeometry(0.16, 0.2, 0.5, 8).translate(x, b.top + 0.25, z), BOLLARD, 'worn');

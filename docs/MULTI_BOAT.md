@@ -50,9 +50,11 @@ Each lands on `/next/` for the owner to try, with tests, in this order. Rough si
 ### M5: gameplay and polish (1 session, then as found)
 - Several boats on one job (a rescue with two boats, a tow with an escort, pots in company), the VHF and name tags between boats, the duty board per boat, each player's boat choice remembered, docs and README.
 
-## Open questions for the owner
+## The owner's answers (21 Oct 2026)
 
-1. **Big boats:** anchor off above 12.5 m hull length (the pilot boat and the tug), or only the very largest? Which idea do you have for them?
-2. **A boat left behind:** when her player leaves the game, does she stay moored where she is until the game ends, or vanish?
-3. **The career:** one shared pot (the host's career) for the whole crew, or each player earns into their own career? The plan assumes one pot.
-4. **Where a game starts:** at the host's harbour (wherever the host is), with the slots there; a joiner who launches far from the host is sent to the host's harbour.
+1. **Big boats:** the biggest go to anchor. Which ones is worked out from the quay: look at each quay face's length and fit the boats that fit along it; the ones that don't anchor off. (Not a fixed length threshold.)
+2. **A boat left behind:** when her player leaves the game, she goes with them.
+3. **The career:** there is none in Voyage mode (the only mode with several boats), so no pot.
+4. **Where a game starts:** not answered yet; the plan's assumption stands (the host's harbour, a joiner sent there).
+
+Noted at the same time, to fix: the bollards on the start quayside don't stand where the mooring lines tie to.
