@@ -45,7 +45,7 @@ import { Keeper, newSessionId, sessionIdFrom, type DesignPatch, type Person, typ
 import { cleanDoc, diffFields, fork, MAIN, mergePatch, newDoc, promote, type Variant, type YardDoc } from './variants';
 import { LoopbackHost, randomRoomCode } from '../net/transport';
 import { fromFrac, inkOf, MAX_POINTS, noteId, sheetsOf, toFrac, todo, type Frac, type Ink, type Note, type Pin, type Sheet } from './notes';
-import { bareHull, checkBrief, engineOptions, JOBS, jobOf, newBrief, pickEngine, type Brief, type JobId, type Tried } from './brief';
+import { bareHull, checkBrief, engineOptions, JOBS, jobOf, newBrief, pickEngine, type Brief, type Check, type JobId, type Tried } from './brief';
 import { rankTypes } from './typeFit';
 import { deckRoom, sizeForDeck, type DeckRoom } from './deckRoom';
 import { trialCharts } from './trialCharts';
@@ -1009,31 +1009,88 @@ function syncControls(): void {
 function rows(el: HTMLElement, r: [string, string][]): void {
   el.innerHTML = r.map(([a, b]) => `<tr><td>${a}</td><td>${b}</td></tr>`).join('');
 }
+/**
+ * The groups on the right that fold (owner, Oct 2026: the right-hand side "a little bit too
+ * constrained"): each open or shut as you left it, kept in this browser. Its default if never
+ * touched: `open`.
+ */
+const FOLDS_KEY = 'swvr.shipyard.folds';
+const folds: Record<string, boolean> = (() => {
+  try {
+    return JSON.parse(storage()?.getItem(FOLDS_KEY) ?? '{}') as Record<string, boolean>;
+  } catch {
+    return {};
+  }
+})();
+function isOpen(name: string, open: boolean): boolean {
+  return folds[name] ?? open;
+}
+/** Keep a fold's open or shut when it's toggled (once for the page: the toggle event doesn't bubble). */
+document.addEventListener(
+  'toggle',
+  (e) => {
+    const el = e.target as HTMLElement;
+    if (!(el instanceof HTMLDetailsElement) || !el.dataset.fold) return;
+    folds[el.dataset.fold] = el.open;
+    try {
+      storage()?.setItem(FOLDS_KEY, JSON.stringify(folds));
+    } catch {
+      /* not kept: it still folds */
+    }
+  },
+  true,
+);
+document.querySelectorAll<HTMLDetailsElement>('details[data-fold]').forEach((el) => (el.open = isOpen(el.dataset.fold!, el.open)));
+/** A group of figures that folds: its name, a summary shown on its title (seen shut too), its rows ('sub' rows indented). */
+function figureGroup(key: string, title: string, sum: string, r: ([string, string] | [string, string, 'sub'])[], open = true, inner = ''): string {
+  const body = r.map(([a, b, sub]) => `<tr${sub ? ' class="sub"' : ''}><td>${a}</td><td>${b}</td></tr>`).join('');
+  return `<details class="fold" data-fold="${key}"${isOpen(key, open) ? ' open' : ''}><summary>${title}<span class="sum">${sum}</span></summary><table class="figs">${body}</table>${inner}</details>`;
+}
+const pounds = (x: number) => `£${Math.round(x).toLocaleString('en-GB')}`;
 function showFigures(): void {
   const f = boat.figures;
   const matched = matchedFor === matchKey(design);
-  rows($('figures'), [
-    ['Length overall x beam', `${f.lengthM.toFixed(2)} x ${f.beamM.toFixed(2)} m`],
-    ['Built of', f.material === 'steel' ? 'Steel' : 'Aluminium'],
-    ['Displacement', `${f.massT.toFixed(2)} t (her weight, as below)`],
-    ['Draught', `${f.draughtM.toFixed(2)} m`],
-    ['Freeboard', `${f.freeboardM.toFixed(2)} m amidships`],
-    ['Stability (GM)', `${f.gmM.toFixed(2)} m`],
+  const room = deckRoom();
+  const t = currentTrial();
+  const balance = Math.abs(boat.weights.balanceM) < 0.05 ? 'over her centre of buoyancy' : `${Math.abs(boat.weights.balanceM).toFixed(2)} m ${boat.weights.balanceM > 0 ? 'aft' : 'forward'} of her centre of buoyancy`;
+  const weights = boat.weights.items.map((it): [string, string, 'sub'] => [it.name, `${(it.kg / 1000).toFixed(2)} t`, 'sub']);
+  $('figures').innerHTML = [
+    figureGroup('size', 'Size &amp; form', `${f.lengthM.toFixed(2)} × ${f.beamM.toFixed(2)} m`, [
+      ['Length × beam', `${f.lengthM.toFixed(2)} × ${f.beamM.toFixed(2)} m`],
+      ['Built of', f.material === 'steel' ? 'Steel' : 'Aluminium'],
+      ['Displacement', `${f.massT.toFixed(2)} t`],
+      ['Draught', `${f.draughtM.toFixed(2)} m`],
+      ['Freeboard', `${f.freeboardM.toFixed(2)} m amidships`],
+    ]),
     // Where her weights put her centre of gravity, against her centre of buoyancy (her tanks and ballast trim the rest).
-    ['Balance (LCG)', Math.abs(boat.weights.balanceM) < 0.05 ? 'over her centre of buoyancy' : `${Math.abs(boat.weights.balanceM).toFixed(2)} m ${boat.weights.balanceM > 0 ? 'aft' : 'forward'} of her centre of buoyancy`],
-    ['Deck cargo', deckWords(deckRoom())],
-    ['Pots on deck', `${deckRoom().pots}`],
-    ['Engine', f.engine],
-    ['Propeller', `${f.propellerM.toFixed(2)} m`],
-    ['Gearbox', matched ? `${f.gear.toFixed(2)} : 1 (matched)` : 'matching...'],
-    ['Price', `£${f.price.toLocaleString('en-GB')}`],
+    figureGroup('stability', 'Stability &amp; balance', `GM ${f.gmM.toFixed(2)} m`, [
+      ['Stability (GM)', `${f.gmM.toFixed(2)} m`],
+      ['Balance (LCG)', balance],
+      ['Roll period', t ? `${t.motions.rollPeriod.toFixed(1)} s` : 'trial running…'],
+    ]),
+    figureGroup('deck', 'Deck', `${room.crates} crates`, [
+      ['Deck cargo', deckWords(room)],
+      ['Pots on deck', `${room.pots}`],
+    ]),
+    figureGroup('machinery', 'Machinery', f.engine.split(',')[0], [
+      ['Engine', f.engine],
+      ['Propeller', `${f.propellerM.toFixed(2)} m`],
+      ['Gearbox', matched ? `${f.gear.toFixed(2)} : 1 (matched)` : 'matching...'],
+    ], false),
     // Her weights, part by part (build.ts): she floats where they add up to.
-    ...boat.weights.items.map((it): [string, string] => [`&nbsp;&nbsp;${it.name}`, `${(it.kg / 1000).toFixed(2)} t`]),
-  ]);
+    figureGroup('cost', 'Price &amp; weight', pounds(f.price), [
+      ['Price', pounds(f.price)],
+      ['Weight', `${f.massT.toFixed(2)} t, as below`],
+      ...weights,
+    ], false),
+  ].join('');
   // A design on a retired hull type (build.ts DESIGN_HULLS `retired`) still builds; it says so.
   const retired = DESIGN_HULLS[design.hull].retired ? [`The ${DESIGN_HULLS[design.hull].name.split(':')[0].toLowerCase()} hull type is retired: start her again from another type (Brief).`] : [];
-  $('warnings').innerHTML = [...retired, ...boat.warnings].map((w) => `<div>${w}</div>`).join('');
-  showQuick();
+  const warnings = [...retired, ...boat.warnings];
+  $('warnings').innerHTML = warnings.map((w) => `<div>${w}</div>`).join('');
+  $('warnCount').textContent = String(warnings.length);
+  $('attention').hidden = !warnings.length;
+  showKeys();
   if (typeof showBriefCheck === 'function' && $('briefCheck')) showBriefCheck();
 }
 
@@ -1043,32 +1100,53 @@ function deckWords(r: DeckRoom): string {
   return r.crates < r.crateRoom ? `${r.crates} crates (room for ${r.crateRoom}; ${t})` : `${r.crates} crates (${t})`;
 }
 /**
- * The line of key figures on the 3D view (always in sight, also on a phone): her
- * stability, displacement and the trial's headline numbers, greyed while a new trial runs.
+ * Her key figures across the top, big, each against the brief's target (owner, Oct 2026: "I
+ * want to see the price and the speed ... or the main design criteria to be kind of more
+ * obvious"): price, top speed, range, stability, what she carries on deck (and her bollard
+ * pull when she's to tow), then how much of the brief she meets. A tick or cross with each
+ * target (never colour alone); the trial's figures greyed while a new trial runs.
  */
-function showQuick(): void {
+function showKeys(): void {
   const f = boat.figures;
   const t = trial;
-  const stale = trialFor !== matchKey(design);
-  const items: [string, string][] = [
-    ['GM', `${f.gmM.toFixed(2)} m`],
-    ['Disp.', `${f.massT.toFixed(1)} t`],
-    ['Draught', `${f.draughtM.toFixed(2)} m`],
-    ['Deck', `${deckRoom().crates} crates`],
+  const fresh = !!t && trialFor === matchKey(design);
+  const all = checkBrief(brief, measured());
+  const line = (test: (l: Check) => boolean) => all.find((l) => !l.na && test(l));
+  const room = deckRoom();
+  const pots = brief.jobs.includes('potting') && brief.pots > 0 && !(brief.jobs.includes('cargo') && brief.crates > 0);
+  const tiles: { k: string; v: string; busy?: boolean; l?: Check; none?: string }[] = [
+    { k: 'Price', v: pounds(f.price), l: line((l) => l.label === 'Price'), none: 'no limit set' },
+    { k: 'Top speed', v: t ? `${t.topSpeedKn.toFixed(1)} kn` : '…', busy: !fresh, l: line((l) => l.label === 'Top speed') },
+    { k: 'Range flat out', v: t ? `${(t.speedTable.at(-1)?.rangeNm ?? 0).toFixed(0)} nm` : '…', busy: !fresh, l: line((l) => l.label === 'Range flat out') },
+    { k: 'Stability (GM)', v: `${f.gmM.toFixed(2)} m`, l: line((l) => l.label === 'Stability (GM)') },
+    pots ? { k: 'Pots on deck', v: `${room.pots}`, l: line((l) => l.label.endsWith('pots on deck')) } : { k: 'Deck cargo', v: `${room.crates} crates`, l: line((l) => l.label.endsWith('crates on deck')) },
   ];
-  if (t) {
-    items.push(['Top', `${t.topSpeedKn.toFixed(1)} kn`], ['Turn', `${t.tacticalDiameter.toFixed(0)} m`], ['Stop', `${t.crashStopDistance.toFixed(0)} m`], ['Roll', `${t.motions.rollPeriod.toFixed(1)} s`]);
-  }
-  $('quick').innerHTML =
-    items.map(([k, v], i) => `<span${i >= 4 && stale ? ' class="busy"' : ''}>${k} <b>${v}</b></span>`).join('') + (stale || !t ? '<span class="busy">trial running…</span>' : '');
+  if (brief.jobs.includes('towing')) tiles.push({ k: 'Bollard pull', v: t ? `${(t.bollard.aheadKN / 9.81).toFixed(1)} t` : '…', busy: !fresh, l: line((l) => l.label.endsWith('bollard pull')) });
+  const state = (l?: Check) => (!l ? 'none' : l.ok === null ? 'wait' : l.ok ? 'ok' : 'bad');
+  const mark = (l: Check) => (l.ok === null ? '…' : l.ok ? '✓' : '✗');
+  let html = tiles
+    .map((x) => `<div class="key ${state(x.l)}${x.busy ? ' busy' : ''}"><div class="k">${x.k}</div><div class="v">${x.v}</div><div class="t">${x.l ? `<span class="mark">${mark(x.l)}</span>brief ${esc(x.l.target)}` : (x.none ?? 'no target set')}</div></div>`)
+    .join('');
+  const counted = all.filter((l) => !l.na);
+  const met = counted.filter((l) => l.ok).length;
+  const verdict = briefVerdict();
+  const vState = verdict === true ? 'ok' : verdict === false ? 'bad' : counted.length ? 'wait' : 'none';
+  const vText = !counted.length ? 'No brief yet' : verdict === null ? 'Checking…' : `${met} of ${counted.length} met`;
+  html += `<div class="key verdict ${vState}" id="keyVerdict" title="The brief, line by line"><div class="k">The brief</div><div class="v">${vText}</div><div class="t">${verdict === false ? `<span class="mark">✗</span>${counted.length - met} short: see them` : verdict === true ? '<span class="mark">✓</span>every line met' : 'set it at step 1'}</div></div>`;
+  $('keys').innerHTML = html;
+  $('keyVerdict').onclick = () => {
+    if (document.body.classList.contains('vsBig')) showPanel('results', true);
+    $('briefCheck').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 }
 function showTrial(): void {
   const t = trial;
-  showQuick();
+  showKeys();
   showBriefCheck();
   if (!t) {
     $('trial').innerHTML = '';
     $('charts').innerHTML = '';
+    $('trialSum').textContent = '';
     return;
   }
   // Greyed while it's the last design's trial and a new one is running.
@@ -1078,6 +1156,7 @@ function showTrial(): void {
   $('charts').innerHTML = trialCharts(t, boat.figures.lengthM, brief);
   const top = t.speedTable[t.speedTable.length - 1];
   const three = t.speedTable[2];
+  $('trialSum').textContent = `${t.topSpeedKn.toFixed(1)} kn`;
   rows($('trial'), [
     ['Top speed', `${t.topSpeedKn.toFixed(1)} kn at ${Math.round(top.rpm)} rpm`],
     ['Three-quarter lever', `${three.knots.toFixed(1)} kn`],
@@ -1088,6 +1167,46 @@ function showTrial(): void {
     ['Bollard pull', `${(t.bollard.aheadKN / 9.81).toFixed(2)} t`],
     ['Roll period', `${t.motions.rollPeriod.toFixed(1)} s`],
   ]);
+}
+
+// ── The view's size (owner, Oct 2026: the 3D view "much smaller, as long as you've got an
+// option to kind of make it bigger and push the other panels out of the way") ──
+type ViewSize = 'design' | 'balanced' | 'big';
+const VIEW_SIZE_KEY = 'swvr.shipyard.viewSize';
+function setViewSize(size: ViewSize): void {
+  const b = document.body;
+  b.classList.toggle('vsBalanced', size === 'balanced');
+  b.classList.toggle('vsBig', size === 'big');
+  b.classList.remove('showSide', 'showResults');
+  document.querySelectorAll<HTMLElement>('#viewSize [data-size]').forEach((el) => el.classList.toggle('on', el.dataset.size === size));
+  placePanels();
+  try {
+    storage()?.setItem(VIEW_SIZE_KEY, size);
+  } catch {
+    /* not kept: this visit only */
+  }
+}
+/** Big view: the panels slide in under the key figures, over the view. */
+function placePanels(): void {
+  document.body.style.setProperty('--panelTop', `${Math.round($('view').getBoundingClientRect().top + window.scrollY)}px`);
+}
+/** Big view: show or hide the step (left) or the brief and figures (right); `on` to show it whatever it was. */
+function showPanel(which: 'side' | 'results', on?: boolean): void {
+  const c = which === 'side' ? 'showSide' : 'showResults';
+  document.body.classList.toggle(c, on ?? !document.body.classList.contains(c));
+}
+document.querySelectorAll<HTMLElement>('#viewSize [data-size]').forEach((el) => (el.onclick = () => setViewSize(el.dataset.size as ViewSize)));
+$('sideTab').onclick = () => showPanel('side');
+$('resultsTab').onclick = () => showPanel('results');
+window.addEventListener('resize', placePanels);
+{
+  let size: string | null = null;
+  try {
+    size = storage()?.getItem(VIEW_SIZE_KEY) ?? null;
+  } catch {
+    /* none kept */
+  }
+  setViewSize(size === 'balanced' || size === 'big' ? size : 'design');
 }
 function showCode(): void {
   const matched = matchedFor === matchKey(design);
