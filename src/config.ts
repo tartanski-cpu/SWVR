@@ -4962,6 +4962,28 @@ export const CONFIG = {
    *                   out to this times the visibility
    */
   /**
+   * A coast map's skyline (the coast extras plan, C2; world/view/skylineView.ts): castles,
+   * towers, masts, chimneys, water towers, monuments, churches and wind turbines from the
+   * map data, drawn wherever the fog allows.
+   *   heights   how tall each kind stands where the map doesn't tag its height (m; a
+   *             turbine's is its hub's)
+   *   castleFootprint  a castle's keep is this share of its mapped span across, within
+   *             [min, max] m (a curtain wall's span is far wider than its tower house)
+   *   turbine   her blades turn from `cutIn` m/s, reach `rpm` at `rated`, and stop
+   *             (feathered) above `cutOut`; each blade `blade` x her hub height long.
+   *             She faces the wind.
+   *   lights    the red obstruction lights after dark (darkness over `from`): on masts,
+   *             turbines and chimneys over `chimneyLit` m tall; turbines' flashing
+   *             together every `flash` s (half on), masts' steady; `size` x a harbour
+   *             light's (CONFIG.lightPoints: bigger, being meant to be seen from afar).
+   */
+  skyline: {
+    heights: { castle: 14, tower: 14, mast: 45, chimney: 35, water_tower: 22, monument: 9, turbine: 65, church: 18 } as Record<string, number>,
+    castleFootprint: { share: 0.35, min: 8, max: 18 },
+    turbine: { cutIn: 3, rated: 12, cutOut: 25, rpm: 15, blade: 0.6 },
+    lights: { from: 0.35, chimneyLit: 35, flash: 2, size: 1.2 },
+  },
+  /**
    * Harbour boats (the settlements brief, Part C; world/harbourBoats.ts, drawn by
    * world/view/harbourBoatsView.ts): boats lying in a coast map's harbours, alongside, on
    * moorings and at anchor. Solid to a hull (a soft, fendered bump), not driven: they lie
@@ -5112,6 +5134,8 @@ export const CONFIG = {
     /** A coast region's harbour kit (piers, quays, slipways, lamps) in squares this big (m), each drawn only within coastStructureDistance (m) of the viewer; lighthouses always. */
     coastStructureCell: 1000,
     coastStructureDistance: 2500,
+    /** A mussel farm's long-line (a coast map's, the coast extras plan C2; worldView.buildFarm): one float every this many metres along it. */
+    lineFloat: 6,
     coastLoadDistance: 1500,
     coastUnloadDistance: 2600,
     coastLoadsAtOnce: 4,

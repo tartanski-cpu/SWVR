@@ -25,7 +25,7 @@
  *
  * Lines and outlines are thinned to `simplify` m (Douglas-Peucker) and cut to the box.
  * Writes public/regions/<id>/features.json. Run: node src/features.ts [requestId] (after
- * nav; the package stage puts it in the game's package).
+ * nav, before boats; the package stage names it in the game's package).
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -75,9 +75,20 @@ const middle = (ps: XZ[]): XZ => [ps.reduce((t, p) => t + p[0], 0) / ps.length, 
 const area = (ps: XZ[]) => Math.abs(ps.reduce((t, p, i) => t + p[0] * ps[(i + 1) % ps.length][1] - ps[(i + 1) % ps.length][0] * p[1], 0) / 2);
 const span = (ps: XZ[]) => Math.hypot(Math.max(...ps.map((p) => p[0])) - Math.min(...ps.map((p) => p[0])), Math.max(...ps.map((p) => p[1])) - Math.min(...ps.map((p) => p[1])));
 
-/** Douglas-Peucker: drop the points within `tol` m of the line through their neighbours. */
+/**
+ * Douglas-Peucker: drop the points within `tol` m of the line through their neighbours. A
+ * closed outline (its ends together) is split at its point farthest from the start and each
+ * half thinned, so it stays an outline.
+ */
 function simplify(ps: XZ[], tol = T.simplify): XZ[] {
-  if (ps.length < 3) return ps;
+  if (ps.length < 3) return ps.map(([x, z]) => [r1(x), r1(z)]);
+  const [sx, sz] = ps[0];
+  const [ex, ez] = ps[ps.length - 1];
+  if (Math.hypot(ex - sx, ez - sz) < 0.01) {
+    let far = 1;
+    for (let i = 1; i < ps.length - 1; i++) if (Math.hypot(ps[i][0] - sx, ps[i][1] - sz) > Math.hypot(ps[far][0] - sx, ps[far][1] - sz)) far = i;
+    return [...simplify(ps.slice(0, far + 1), tol).slice(0, -1), ...simplify(ps.slice(far), tol)];
+  }
   const keep = new Uint8Array(ps.length);
   keep[0] = keep[ps.length - 1] = 1;
   const stack: [number, number][] = [[0, ps.length - 1]];

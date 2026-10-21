@@ -293,6 +293,72 @@ const lights = (nav.lights as { name: string; x: number; z: number; height?: num
     const ground = Math.max(0, hAt(l.x, l.z));
     return { name: `${l.name || 'Light'} ${l.label}`, x: l.x, z: l.z, y: r1(Math.max(ground + 4, l.height ?? ground + 6)), color: colour, period: l.label.startsWith('F') && !l.label.startsWith('Fl') ? 0 : l.period ?? 4, tower: l.on === 'lighthouse' ? 'lighthouse' : 'post' };
   });
+// ── Fish farms and the skyline (the coast extras plan, C2; from features.ts) ──
+// A farm's mapped outline is its lease. Its smallest enclosing rectangle (tried along each of
+// the outline's edges) holds, `farmInset` m in from its edges: for a fish farm, cage rings
+// in a grid (as the Fjord's, FarmDef: 12 m rings 32 m apart, up to 2 rows of 6); for a
+// shellfish farm, or one whose kind isn't mapped, rows of mussel long-lines (floats on a line,
+// 25 m apart, up to 6). (A kind not mapped is drawn as the lines, the plainer of the two:
+// cages would claim a salmon farm the map doesn't say is there.) At each corner a yellow
+// special mark with its light, Fl Y 5s: farms are marked so, though the map doesn't chart
+// the marks themselves.
+const F = existsSync(join(D.out, 'features.json')) ? JSON.parse(readFileSync(join(D.out, 'features.json'), 'utf8')) : null;
+const farmInset = 30;
+function leaseRect(o: [number, number][]) {
+  let best: { a: number; x: number; z: number; L: number; W: number } | null = null;
+  for (let i = 0; i + 1 < o.length; i++) {
+    const a = Math.atan2(o[i + 1][0] - o[i][0], -(o[i + 1][1] - o[i][1]));
+    const [ux, uz, vx, vz] = [Math.sin(a), -Math.cos(a), Math.cos(a), Math.sin(a)];
+    const us = o.map(([x, z]) => x * ux + z * uz);
+    const vs = o.map(([x, z]) => x * vx + z * vz);
+    const [u0, u1, v0, v1] = [Math.min(...us), Math.max(...us), Math.min(...vs), Math.max(...vs)];
+    const L = u1 - u0;
+    const W = v1 - v0;
+    if (!best || L * W < best.L * best.W) {
+      const um = (u0 + u1) / 2;
+      const vm = (v0 + v1) / 2;
+      // The long side along the farm's bearing.
+      best = L >= W ? { a, x: um * ux + vm * vx, z: um * uz + vm * vz, L, W } : { a: a + Math.PI / 2, x: um * ux + vm * vx, z: um * uz + vm * vz, L: W, W: L };
+    }
+  }
+  return best!;
+}
+const farms: object[] = [];
+const farmLights: object[] = [];
+for (const f of (F?.farms ?? []) as { name: string; kind: string; outline: [number, number][] }[]) {
+  if (f.outline.length < 3) continue;
+  const r = leaseRect(f.outline);
+  const [ux, uz, vx, vz] = [Math.sin(r.a), -Math.cos(r.a), Math.cos(r.a), Math.sin(r.a)];
+  const L = Math.max(10, r.L - 2 * farmInset);
+  const W = Math.max(0, r.W - 2 * farmInset);
+  const name = f.name || (f.kind === 'fish' ? 'Fish farm' : f.kind === 'shellfish' ? 'Mussel farm' : 'Marine farm');
+  const yawDeg = Math.round(((r.a * 180) / Math.PI + 360) % 360);
+  const corners = [-1, 1].flatMap((su) => [-1, 1].map((sv) => [r1(r.x + ux * su * (r.L / 2) + vx * sv * (r.W / 2)), r1(r.z + uz * su * (r.L / 2) + vz * sv * (r.W / 2))]));
+  if (f.kind === 'fish') {
+    const spacing = 32;
+    const cols = Math.max(1, Math.min(6, Math.floor(L / spacing) + 1));
+    const rows = Math.max(1, Math.min(2, Math.floor(W / spacing) + 1));
+    // FarmDef's x, z is its first ring; the grid runs along the bearing and across to the right.
+    const x = r.x - ux * ((cols - 1) * spacing) / 2 - vx * ((rows - 1) * spacing) / 2;
+    const z = r.z - uz * ((cols - 1) * spacing) / 2 - vz * ((rows - 1) * spacing) / 2;
+    farms.push({ name, kind: 'cages', x: r1(x), z: r1(z), yawDeg, rows, cols, spacing, ringRadius: 12, corners });
+  } else {
+    const spacing = 25;
+    const rows = Math.max(1, Math.min(6, Math.floor(W / spacing) + 1));
+    const x = r.x - ux * (L / 2) - vx * ((rows - 1) * spacing) / 2;
+    const z = r.z - uz * (L / 2) - vz * ((rows - 1) * spacing) / 2;
+    farms.push({ name, kind: 'lines', x: r1(x), z: r1(z), yawDeg, rows, cols: 1, spacing, ringRadius: 0, lineLength: Math.round(L), corners });
+  }
+  for (const [x, z] of corners) farmLights.push({ name: `${name} Fl Y 5s`, x, z, y: 1.6, color: 'yellow', period: 5, tower: 'none' });
+}
+// The skyline: what stands up against the sky from the sea. Lighthouses are drawn from the
+// lights already; a church the house kit builds (its building in the package) isn't drawn twice.
+const kitChurch = (x: number, z: number) => buildings.some((b: { kind?: string; x: number; z: number }) => b.kind === 'church' && Math.hypot(b.x - x, b.z - z) < 40);
+const skyline = ((F?.landmarks ?? []) as { kind: string; name: string; x: number; z: number; height: number | null; size: number }[])
+  .filter((l) => l.kind !== 'lighthouse' && !(l.kind === 'church' && kitChurch(l.x, l.z)))
+  .map((l) => ({ kind: l.kind, name: l.name, x: l.x, z: l.z, ...(l.height ? { height: l.height } : {}), ...(l.size ? { size: l.size } : {}) }));
+const skylineStyle = req.theme;
+
 const currents = (nav.currents as { id: string; name: string; x: number; z: number; length: number; width: number; setDeg: number; peakKn: number; periodH: number }[]).map((c) => ({ id: c.id, name: c.name, x: c.x, z: c.z, length: c.length, width: c.width, setDeg: c.setDeg, peakKn: c.peakKn, periodH: c.periodH, phaseH: 0, waveFactor: 1.6, knocks: 3 }));
 
 // Fishing grounds: open water of the species' depth, clear of harbours and each other.
@@ -374,7 +440,10 @@ const pkg = {
   blocks,
   buildings,
   marks,
-  lights,
+  lights: [...lights, ...farmLights],
+  farms,
+  skyline,
+  skylineStyle,
   shelters,
   ports,
   berths,

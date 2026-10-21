@@ -3,7 +3,7 @@ import { fitPaint, flatVertexColorMaterial, mergeParts, paintLocal, part } from 
 import type { PaintName } from '../../render/pixelPaint';
 import { LAMPS, LIGHTS, PORT_FLOODS, type BlockDef, type BuildingDef, type CurrentZoneDef, type RegionDef, type ShelterDef, type SlipwayDef, type WreckDef } from '../archipelago';
 import type { FallDef, FarmDef, YardDef } from '../defs';
-import { ringCentres } from '../farms';
+import { lineEnds, ringCentres } from '../farms';
 import { CONFIG } from '../../config';
 import { groundHeight } from '../terrain';
 import { standingHeight } from '../geography';
@@ -704,7 +704,7 @@ function buildLightTower(x: number, z: number, lampY: number, color: string, tow
   if (tower === 'none') return;
   const ground = groundHeight(x, z);
   if (tower === 'post') {
-    const c = color === 'red' ? 0xc8281e : color === 'green' ? 0x1f8a3a : 0xe8e8e0;
+    const c = color === 'red' ? 0xc8281e : color === 'green' ? 0x1f8a3a : color === 'yellow' ? 0xe8c020 : 0xe8e8e0;
     const h = lampY - ground - 0.4;
     parts.push(part(new THREE.CylinderGeometry(0.45, 0.6, h, 8).translate(x, ground + h / 2, z), c, 'worn'));
     parts.push(part(new THREE.CylinderGeometry(0.3, 0.3, 0.6, 8).translate(x, lampY, z), 0xf0f0e8));
@@ -769,12 +769,31 @@ function buildFall(f: FallDef, parts: THREE.BufferGeometry[]): void {
 }
 
 /**
- * A fish farm (FarmDef): each cage ring a black float pipe with a handrail on stanchions
- * and the net's jump fence above the water, orange buoys at the grid's corners. Low-poly
- * (a couple of hundred triangles a ring). The rings' solid part is a low block each
- * (farms.ts), in the collision.
+ * A fish farm (FarmDef). Cages: each ring a black float pipe with a handrail on stanchions
+ * and the net's jump fence above the water, orange buoys at the grid's corners (a couple of
+ * hundred triangles a ring). Mussel lines (a coast map's, C2): a row of black floats every
+ * `lineFloat` m along each line, an orange buoy at each end. A coast map's lease also has a
+ * yellow special mark at each corner (a can with an X topmark; its light, Fl Y 5s, is one of
+ * the region's lights). The solid parts are low blocks (farms.ts), in the collision.
  */
 function buildFarm(f: FarmDef, parts: THREE.BufferGeometry[]): void {
+  for (const [x, z] of f.corners ?? []) {
+    parts.push(part(new THREE.CylinderGeometry(0.55, 0.65, 1.6, 8).translate(x, 0.6, z), 0xe8c020));
+    parts.push(part(new THREE.BoxGeometry(0.9, 0.12, 0.12).rotateZ(Math.PI / 4).translate(x, 1.75, z), 0xe8c020));
+    parts.push(part(new THREE.BoxGeometry(0.9, 0.12, 0.12).rotateZ(-Math.PI / 4).translate(x, 1.75, z), 0xe8c020));
+  }
+  if (f.kind === 'lines') {
+    for (const [[x0, z0], [x1, z1]] of lineEnds(f)) {
+      const L = Math.hypot(x1 - x0, z1 - z0);
+      const n = Math.max(2, Math.floor(L / CONFIG.regions.lineFloat));
+      for (let k = 0; k <= n; k++) {
+        const t = k / n;
+        const end = k === 0 || k === n;
+        parts.push(part(new THREE.CylinderGeometry(end ? 0.5 : 0.32, end ? 0.5 : 0.32, end ? 0.8 : 0.5, 6).translate(x0 + (x1 - x0) * t, 0.15, z0 + (z1 - z0) * t), end ? 0xe8701a : 0x1a1c1e));
+      }
+    }
+    return;
+  }
   const r = f.ringRadius;
   const centres = ringCentres(f);
   for (const [x, z] of centres) {
@@ -871,7 +890,7 @@ function buildWreck(w: WreckDef, parts: THREE.BufferGeometry[]): void {
 
 // ── Lights ───────────────────────────────────────────────────────────────────────
 
-const LIGHT_COLORS = { red: 0xff3020, green: 0x30ff60, white: 0xfff4d8 };
+const LIGHT_COLORS = { red: 0xff3020, green: 0x30ff60, white: 0xfff4d8, yellow: 0xffd020 };
 
 /**
  * Harbour and lighthouse lights: one Points draw call with a constant on-screen size (so a

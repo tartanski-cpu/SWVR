@@ -31,6 +31,7 @@ import { ChartTableView } from '../vessel/view/chartTable';
 import { dipstickReading } from '../vessel/maintenance';
 import { TrafficView } from '../traffic/trafficView';
 import { HarbourBoatsView } from '../world/view/harbourBoatsView';
+import { SkylineView } from '../world/view/skylineView';
 import { SHIP_NAMES } from '../traffic/traffic';
 import { ChartTools, type ChartToolsContext } from '../chart/chartTools';
 import { applyChartOp, createMarks, parseMarks, pointCount, serializeMarks, type ChartOp } from '../chart/marks';
@@ -57,7 +58,7 @@ import { WristMenu } from '../ui/wristMenu';
 import { mainMenu, type MenuHost } from '../ui/mainMenu';
 import { placeInFront } from '../ui/placeInFront';
 import { canRefuel, releaseHolds } from '../vessel/vesselControl';
-import { CURRENTS, FISHING_GROUNDS, GUSTS, PORTS } from '../world/archipelago';
+import { CURRENTS, FISHING_GROUNDS, GUSTS, PORTS, SKYLINE, SKYLINE_STYLE } from '../world/archipelago';
 import { raceRoarLevel, raceStrength, setRaceClock } from '../world/currents';
 import { REGIONS, regionById } from '../world/regions';
 import { MODE, VOYAGE_MAP_ID } from '../mode';
@@ -481,6 +482,8 @@ export class App {
   private readonly trafficView = new TrafficView();
   /** The boats lying in a coast map's harbours (world/harbourBoats.ts). */
   private readonly harbourBoatsView = new HarbourBoatsView();
+  /** A coast map's castles, masts, turbines... (world/view/skylineView.ts). */
+  private readonly skylineView = new SkylineView(SKYLINE, SKYLINE_STYLE === 'aegean');
   private hornSeen = -1;
   private readonly shipsCalled = new Set<string>();
   private readonly tableRef = new THREE.Vector3();
@@ -703,7 +706,7 @@ export class App {
     this.desktop = new DesktopController(this.camera, this.renderer.domElement, this.keyboard);
     this.environment = new EnvironmentView(this.scene);
     this.scene.add(this.sky.mesh, this.ocean.mesh, this.probes.mesh, this.worldView.root, this.navMarks.root, this.cargoView.root);
-    this.scene.add(this.targetsView.root, this.gearView.root, this.desktopHand.root, this.rain.mesh, this.trafficView.root, this.harbourBoatsView.root);
+    this.scene.add(this.targetsView.root, this.gearView.root, this.desktopHand.root, this.rain.mesh, this.trafficView.root, this.harbourBoatsView.root, this.skylineView.root);
     // A test (owner): an outside model, the dirt bike, on the Calder Haven quay by where you
     // start, only with `?bike` in the address (public/models/mx_gold_dirt.glb: the owner's
     // file slimmed with glTF Transform, weld + simplify + quantize, 120,568 -> 19,508
@@ -4592,6 +4595,7 @@ export class App {
   private updateTraffic(v: VesselState | undefined, darkness: number, dt: number): void {
     this.trafficView.update(this.world, this.renderWaves, darkness, dt);
     this.harbourBoatsView.update(this.world, this.renderWaves, darkness, this.focus);
+    this.skylineView.update(this.world, darkness, dt);
     this.rememberVoyagePlace(dt);
     const t = this.world.traffic;
     if (!t) return;

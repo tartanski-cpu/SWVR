@@ -6562,6 +6562,61 @@ The owner's choice from the suggested additions to the map pipeline, all but tid
 - Measure every map against the baseline, on Quest and desktop settings, at the same spots as before.
 - Trim what's over (distances, counts, merging), and fix what the owner's tests turn up.
 
+### Coast extras C2: fish farms and the skyline (done, awaiting owner test)
+
+Owner: "Next milestone".
+
+- **Fish farms from the map** (the package stage, from C1's features; drawn and solid through the Fjord's farm code, `world/farms.ts`, `worldView.buildFarm`):
+  - **The lease:** a farm's mapped outline is its lease. The package fits its smallest enclosing rectangle and keeps 30 m in from its edges.
+  - **A fish farm** gets cage rings in a grid: the Fjord's design, 12 m rings 32 m apart, up to 2 rows of 6. Oban's has 6 in a row off Kerrera.
+  - **A shellfish farm, or one whose kind isn't mapped,** gets rows of mussel long-lines: black floats every `CONFIG.regions.lineFloat` 6 m and an orange buoy at each end, lines 25 m apart, up to 6. This is the plainer choice where the map doesn't say: cages would claim a salmon farm that may not be there. Oban's second farm and the Clyde's one are unmapped kinds.
+  - **Solid:** each ring and each line is a low block (`FarmDef.kind` 'cages' / 'lines', `lineLength`). Farm blocks are marked `farm` and **offer no berth**; before, the berth finder would have made berths along the Fjord's cage rings.
+  - **Corner marks:** a yellow special mark at each corner of the lease (a can with an X topmark), lit **Fl Y 5s**. That's how farms are marked; the map doesn't chart the marks themselves. The lights are among the region's lights, so they flash with the others. **Yellow is a new light colour** (`LightDef.color`), and charts it as Y.
+  - **On the paper chart:** the lease in a magenta pecked line with "Fish farm (lit Fl Y 5s)". The four corner lights aren't labelled separately (they were clutter).
+  - **Harbour boats:** the boats stage now runs after the features stage and keeps its mooring fields 40 m clear of a farm lease. No mooring moved on the four maps.
+- **The skyline** (`world/view/skylineView.ts`; the package's `skyline`, `skylineStyle`): castles, towers, masts, chimneys, water towers, monuments, churches and wind turbines from the map.
+  - **Left out:** lighthouses (already drawn from the lights) and any church the house kit already builds.
+  - **Designs of the game's own:**
+    - a castle is a tower house with a corner turret;
+    - a church a harled nave with a slated roof and a tower and spire (in the Aegean, a white chapel with a blue dome and a little belfry);
+    - a mast a slim three-sided taper with a dish;
+    - a chimney a tapered stack; a water tower a tank on a column; a monument an obelisk.
+  - **Heights:** from the map where tagged, else the kind's own (`CONFIG.skyline.heights`): castle 14 m, mast 45, chimney 35, turbine hub 65 and so on. A castle's keep is a third of its mapped span across, 8-18 m (`castleFootprint`).
+  - **Wind turbines:** tower, nacelle and three blades (each 0.6 × the hub height, `turbine.blade`).
+    - **They face the wind and turn with it:** from 3 m/s (`cutIn`) up to 15 rpm at 12 m/s (`rated`), and stopped above 25 m/s (`cutOut`). Each turns a little out of step with its neighbours.
+  - **Red obstruction lights after dark:** steady on masts and on chimneys over 35 m; on turbines, flashing together every 2 s (`CONFIG.skyline.lights`). They're 1.2 × a harbour light's size, meant to be seen from afar. This is the usual practice, not charted in the map.
+  - **Cheap:** everything that stands still is one merged mesh (one draw call), remade when a big map's ground streams in under it so nothing floats. The turbines' nacelles and rotors are two instanced meshes (a few dozen matrices a frame), and the lights one set of points: **4 draw calls in all.**
+  - **On the paper chart,** as a chart prints landmarks: the position circle with its dot and Cas / Tr / Mast / Chy / Mon / Ch. Castles are named ("Dunollie Cas"). Turbines get their three-bladed sign, a group named once ("Wind farm"). Churches and monuments appear on the detail sheets only.
+  - **What each map has:**
+    - **Oban:** 22 (3 castles, 7 masts, 3 turbines, 4 churches, 3 towers, 2 monuments);
+    - **Tayvallich:** 4;
+    - **Syros:** 77 (64 chapels, 5 turbines);
+    - **Clyde:** 164 (17 castles, 52 turbines, 34 masts, 40 churches).
+- **Also fixed on the way:** the features stage's line thinning reduced every closed outline (farms, beaches) to two points. Closed outlines are now split at their farthest point and each half thinned.
+- **Re-run of features, boats and package on all four maps:** only farms, the farm lights, the skyline and the features reference changed. Every port, berth and slipway id is identical; packages grew 1-13 kB.
+- **Tests:** `tests/skyline.test.ts` (4):
+  - Oban's two farms: cages and lines, each with four lit corner marks, inside its lease;
+  - mussel lines as solid strips;
+  - no berth along any farm ring;
+  - Oban's skyline has its monument, masts and turbines, and no lighthouse or kit church twice;
+  - heights from the map or the kind.
+- **Checked headless:**
+  - Oban's six cages off Kerrera with a yellow corner mark;
+  - the mussel lines' floats;
+  - a turbine on the far shore and Dunollie's tower house;
+  - a Clyde turbine by day (blades turning between frames) and at night (its red light on the hub, small at 1.5 km);
+  - Oban's paper chart.
+  - Scene with the skyline in view: 68-78 draw calls (the 4 new ones included).
+- **Not checked:** the Quest's frame time.
+- **Test steps:**
+  - **VR and desktop:** Voyage → Oban and Lorn. Steer out of the bay to the north end of Kerrera and round to its west side (the paper chart marks "Fish farm" there): the six cages, the yellow corner marks flashing at dusk.
+    - Bump a ring: you stop.
+    - North of Oban, off Dunollie, the castle's tower house on its point. A small wind turbine stands on Kerrera by the marina (two more inland), facing the wind; change the weather and it swings round.
+    - At night: red lights on the masts, and on the turbines flashing together.
+    - The paper chart: the farms, "Dunollie Cas", masts and the wind turbine signs.
+  - **Clyde:** its 52 turbines (the paper chart shows where each group stands) and the castles along the shore.
+  - **Syros:** white chapels with blue domes on the hills.
+
 ### Coast extras C1: read it all, check the piers (done)
 
 Owner: "Next milestone". **Nothing to see in the game:** this milestone gathers the data the next six use, and adds the check for piers drawn over each other.
@@ -7160,7 +7215,7 @@ Owner: "I went to pick up some cargo... the buttons and the joystick but not the
   3. ~~**Instruments: smaller screen text**~~ **Done** (the same).
   4. **Backlog: instruments as modules.** Simple single-function instruments (some analogue gauges), and LCD screens that become touchscreens with several pages you flick through, so a small wheelhouse (the landing craft's) can do with one screen. Stormworks makes its screens configurable with Lua scripts; the owner leaves the method to us. Suggested: a screen's pages described as data (which readings, laid out how), not a scripting language, since running Lua in the browser means a Lua engine as a new dependency and player scripts to secure. To agree with the owner before starting.
 
-- **Coast maps: more from the map data (owner, Oct 2026, planned, not started).** The owner chose seven of the eight suggestions, with no tides: "do 1, 2, 3, 4, 5, 6, 7, 8. No tides, and that's it." The plan is under "Coast extras: the plan" in "Real coastline regions" below. The harbour boats (settlements milestone 6) and C1 are done; C2 is next. The owner says "Next milestone" to advance, as before.
+- **Coast maps: more from the map data (owner, Oct 2026, planned, not started).** The owner chose seven of the eight suggestions, with no tides: "do 1, 2, 3, 4, 5, 6, 7, 8. No tides, and that's it." The plan is under "Coast extras: the plan" in "Real coastline regions" below. The harbour boats (settlements milestone 6), C1 and C2 are done; C3 is next. The owner says "Next milestone" to advance, as before.
 
 Everything on the lists above is done or noted as open below. What was open when last reviewed: the owner's VR test of the latest rounds; a moon (the night sea is very dark); whitecaps; harbour lights that don't grow as you near them; two upgrades suggested but not built (a bigger fuel tank, a second skiff motor). The older suggested order follows, kept for the record:
 

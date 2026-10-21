@@ -10,7 +10,8 @@
  *              apart within `reach` m of the harbour, where there's `minDepth`-`maxDepth` m of
  *              water, `landClear` m from the shore, `blockClear` m from any pier or quay,
  *              `berthClear` m from any berth (the water in front of a face is kept clear for
- *              boats coming alongside), outside the marinas (leisure=marina: pontoons),
+ *              boats coming alongside), outside the marinas (leisure=marina: pontoons) and
+ *              `blockClear` m clear of the fish farms' leases (the features stage's),
  *              sheltered (land within `shelterRange` m in at least `minShelter` of 16
  *              directions), and out of every harbour's fairway (`fairwayHalf` m either side
  *              of the line out along its most open way to sea, from its middle and from the
@@ -20,10 +21,10 @@
  *              boats `anchorSpacing` m apart in `minDepth`-`anchorMaxDepth` m of water.
  *   Style      the theme's boat mix (themes.ts BoatStyle): which kinds lie where, and their colours.
  *
- * Writes public/regions/<id>/boats.json. Run: node src/boats.ts [requestId] (after harbours;
+ * Writes public/regions/<id>/boats.json. Run: node src/boats.ts [requestId] (after harbours and features;
  * the package stage puts it in the game's package).
  */
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { dirs, loadRequest, projection } from './common.ts';
 import { THEMES } from './themes.ts';
@@ -144,6 +145,15 @@ const polygons = (want: (t: Record<string, string>) => boolean) =>
     .filter((w) => w.tags && want(w.tags) && w.nodes.length > 3 && w.nodes[0] === w.nodes[w.nodes.length - 1])
     .map((w) => w.nodes.map(pt).filter((p): p is [number, number] => !!p));
 const marinas = polygons((t) => t.leisure === 'marina');
+// The fish farms' leases (the features stage, run first), kept clear by `blockClear`.
+const farmLeases: [number, number][][] = existsSync(join(D.out, 'features.json')) ? JSON.parse(readFileSync(join(D.out, 'features.json'), 'utf8')).farms.map((f: { outline: [number, number][] }) => f.outline) : [];
+const nearLease = (x: number, z: number) =>
+  farmLeases.some((o) => inside(o, x, z) || o.some((p, i) => i > 0 && segDist(o[i - 1], p, x, z) < T.blockClear));
+function segDist(a: [number, number], b: [number, number], x: number, z: number): number {
+  const [dx, dz] = [b[0] - a[0], b[1] - a[1]];
+  const t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / (dx * dx + dz * dz || 1)));
+  return Math.hypot(a[0] + dx * t - x, a[1] + dz * t - z);
+}
 const anchorAreas = polygons((t) => t['seamark:type'] === 'anchorage');
 function inside(poly: [number, number][], x: number, z: number): boolean {
   let c = false;
@@ -195,7 +205,7 @@ interface Spot {
 const spots: Spot[] = [];
 const taken = (x: number, z: number, r: number) => spots.some((s) => Math.hypot(s.x - x, s.z - z) < r);
 const clearOfHarbours = (x: number, z: number) =>
-  shoreDist(x, z) >= T.landClear && hb.blocks.every((b) => blockDist(b, x, z) >= T.blockClear) && hb.berths.every((b) => Math.hypot(b.x - x, b.z - z) >= T.berthClear) && !marinas.some((m) => inside(m, x, z)) && !inFairway(x, z);
+  shoreDist(x, z) >= T.landClear && hb.blocks.every((b) => blockDist(b, x, z) >= T.blockClear) && hb.berths.every((b) => Math.hypot(b.x - x, b.z - z) >= T.berthClear) && !marinas.some((m) => inside(m, x, z)) && !nearLease(x, z) && !inFairway(x, z);
 
 const nearestHarbour = (x: number, z: number) => hb.harbours.reduce((a, h) => (Math.hypot(h.x - x, h.z - z) < Math.hypot(a.x - x, a.z - z) ? h : a));
 for (const [x, z] of mapMoorings) spots.push({ x: r1(x), z: r1(z), depth: r1(depthAt(x, z)), harbour: nearestHarbour(x, z).id, kind: 'mooring', mapped: true });

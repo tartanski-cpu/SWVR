@@ -48,6 +48,7 @@ function generate(): BerthDef[] {
   const off = 2.5; // boat centreline to the face: half beam plus fenders
   let n = 0;
   for (const b of BLOCKS) {
+    if (b.farm) continue; // a fish farm's rings and lines: solid, but nowhere to tie up
     const faces = [
       { nx: 1, nz: 0, half: b.halfLength, offset: b.halfWidth, alongX: false },
       { nx: -1, nz: 0, half: b.halfLength, offset: b.halfWidth, alongX: false },
