@@ -2601,11 +2601,24 @@ export const CONFIG = {
     /** Shortest gap between two ship sightings the lookout calls (s). */
     sightEvery: 300,
     hornRange: 3000,
+    /** Each type's size, speed, names, and the least water it keeps to (m; the cargo ship needs a deep channel, a yacht gets about in the shallows). */
     ships: {
-      cargo: { length: 82, beam: 13, speed: 6.5, names: ['Hebridean Trader', 'Lorne Carrier', 'Skerry Star'] },
-      fishing: { length: 19, beam: 6, speed: 4, names: ['Morning Dew', 'Silver Harvest', 'Girl Isla'] },
-      yacht: { length: 12, beam: 3.8, speed: 3, names: ['Kittiwake', 'Blue Moon', 'Saorsa'] },
+      cargo: { length: 82, beam: 13, speed: 6.5, minDepth: 8, names: ['Hebridean Trader', 'Lorne Carrier', 'Skerry Star'] },
+      fishing: { length: 19, beam: 6, speed: 4, minDepth: 4, names: ['Morning Dew', 'Silver Harvest', 'Girl Isla'] },
+      yacht: { length: 12, beam: 3.8, speed: 3, minDepth: 3, names: ['Kittiwake', 'Blue Moon', 'Saorsa'] },
     },
+    /**
+     * Confined waters (owner, Oct 2026: traffic on the Voyage maps too; in a loch or a bay no
+     * ship can run a 4 km straight track in deep water). When no full-length track crossing
+     * ahead of us can be found, `tries` points on any bearing from the boat, `minPass` to
+     * `maxPass` m off, are each tried on `courses` courses (well under a millisecond), and the longest clear run (at
+     * least `minBack` m each side of the point) taken; the ship starts at its back end, at
+     * least `minStart` m from us (not appearing in plain view). Under way, a ship looks
+     * `lookAhead` m ahead each tick; with its water shoaling it alters course to the clearest
+     * of a few turns (its course easing round at `turnRate` deg/s), or, with nowhere to go,
+     * is gone (into a harbour, as far as anyone can tell).
+     */
+    confined: { tries: 96, courses: 8, minPass: 250, maxPass: 1500, minBack: 300, minStart: 500, lookAhead: 220, turnRate: 6 },
     debrisEvery: [300, 600] as [number, number],
   },
 

@@ -5208,6 +5208,14 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Tests:** `tests/chartLand.test.ts` (+1): home's terrain cut into squares, Calder Haven's square with faces and a path at every depth, deep squares empty.
 - **Checked:** typecheck, `npm test`, headless: the plotter's screen at Calder zoomed in, before (the sampled picture) and after (the outlines). **Not checked:** VR; the first-look cost of the biggest hand-built region's outlines (the fjord: 55,000 triangles, cut within the 4 ms budget over a few redraws).
 
+### AI traffic on the Voyage maps (owner)
+
+- **The owner:** there should be AI traffic on the Voyage maps as well.
+- **Why there was none:** the traffic was stepped on every map, but a ship was only ever put on a straight track of 3.6 to 5.2 km crossing ahead of the boat, every 100 m of it in 8 m of water or more. Out in the archipelago that's always found; at the Oban start (Oban Bay, 2.5 to 4 m deep, deep water 300 m off to the west) or in Loch Sween it never is, so `spawnShip` quietly gave up every time.
+- **Confined waters** (`traffic/traffic.ts` `confinedTrack`, `clearRun`; `CONFIG.traffic.confined`): when no open-water track is found, 96 points on any bearing from the boat, 250 to 1500 m off, are each tried on 8 courses, and the longest run of water deep enough through one of them (at least 300 m each side) is taken; the ship starts at its back end, at least 500 m from us, so none appears in plain view. Well under a millisecond, once every 20 to 45 s. Each type keeps to its own water (`CONFIG.traffic.ships[type].minDepth`: cargo 8 m, fishing 4, yacht 3); where the type drawn finds no run, the next of less draught is tried, so a shallow loch gets yachts and fishing boats rather than nothing. Under way every ship looks 220 m ahead each tick (`lookAhead`); with its water shoaling it comes round (`turnRate` 6°/s) to the clearest of a few turns (35° either way, then wider, then right round), and with nowhere to go it's gone, into a harbour as far as anyone can tell. The open-sea tracks are as they were.
+- **Tests:** `tests/trafficCoast.test.ts` (+3): at the Oban start a ship is called on every heading, in her water, 500 m off at least; twenty minutes there and no ship is ever aground; Loch Sween gets ships of less draught. `tests/traffic.test.ts` as before (the archipelago's tracks unchanged).
+- **Checked:** typecheck, `npm test`, headless: Voyage Oban with ships about after a minute. **Not checked:** VR; the Clyde and Syros (chunked maps: the search samples the coarse grid where chunks aren't in, 50 m cells, so a ship far off may cut a corner the fine mesh would not).
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

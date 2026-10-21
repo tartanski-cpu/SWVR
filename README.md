@@ -235,7 +235,7 @@ Above it, a lamp on the wall with its own small switch on the wooden batten the 
 
 ### Traffic and hazards
 
-- **Passing ships:** four AI ships (coasters, fishing boats, yachts) are always about, crossing ahead some way off on deep-water tracks; a new one comes along when one has passed.
+- **Passing ships:** four AI ships (coasters, fishing boats, yachts) are always about, crossing ahead some way off on deep-water tracks; a new one comes along when one has passed. On the Voyage maps too: in a bay or a loch they take the longest clear run of water about you (the coaster keeps to 8 m, a yacht gets by in 3) and alter course when it shoals ahead of them, or slip away where it ends.
   - They show on the chartplotter as **AIS** triangles with their name and a 6-minute course line, in any visibility.
   - They carry navigation lights at night.
   - The lookout calls each one out with a clock bearing and range.
