@@ -37,7 +37,7 @@ import { briefPaper } from './briefPaper';
 import { buildVesselMesh, buildVesselMeshParts } from '../vessel/view/hullMesh';
 import { DESIGN_HULLS, ENGINES, LIVERIES, FRAME_COLOURS, HOUSE_PAINTS, ROOF_PAINTS, ROOF_TOPS, type DesignedBoat } from './build';
 import { docFileName, docFileText, docToken, designToken, readDesign, shortCode } from './designDoc';
-import { ALL_FIELDS, CONSOLE_SIDES, STACK_STYLES, DEFAULT_DESIGN, GUARDS, MATERIALS, OUTBOARDS, RAILS, MEASURES, SILLS, type MeasureKey, SINGLE_ONLY_ENGINES, SKIFFS, outboardCount, placeOf, placeValue, SCALES, type FurnitureKey, type PlaceKey, type ShipDesign } from './design';
+import { ALL_FIELDS, CONSOLE_AUTO, CONSOLE_SIDES, DASH_SLOTS, dashValue, PANEL_SLOTS, STACK_STYLES, DEFAULT_DESIGN, GUARDS, MATERIALS, OUTBOARDS, RAILS, MEASURES, SILLS, type MeasureKey, SINGLE_ONLY_ENGINES, SKIFFS, outboardCount, placeOf, placeValue, SCALES, type FurnitureKey, type PlaceKey, type ShipDesign } from './design';
 import { hullPlan } from '../vessel/layout';
 import { UndoStack } from './undo';
 import { YardLink } from './yardLink';
@@ -491,6 +491,32 @@ function frameMachinery(): void {
   if (flat) flatBtn.click();
   look([at.x + 0.75 * r, at.y + 0.55 * r, at.z + 0.6 * r], at.toArray());
 }
+/**
+ * The Controls step's view: her console from behind the wheel, looking down on it, framed in
+ * the top of the view (the console editor's panel covers the bottom).
+ */
+function frameConsole(): void {
+  const wh = boat.hull.layout.wheelhouse;
+  if (!wh || !boatRoot) return;
+  boatRoot.updateMatrixWorld(true);
+  const cf = wh.front + (wh.consoleBack ?? 0) + wh.wall;
+  const cx = wh.consoleSpan ? (wh.consoleSpan.x0 + wh.consoleSpan.x1) / 2 : 0;
+  const half = wh.consoleSpan ? (wh.consoleSpan.x1 - wh.consoleSpan.x0) / 2 : 1;
+  // From inside the wheelhouse (under its roof, forward of its aft wall): standing eye height,
+  // as far back as there's room for (the view's 45 degrees takes in a long console from there),
+  // aimed a little below and aft of the console so it stands in the upper part of the view.
+  const back = Math.max(cf + 0.9, Math.min(cf + 1.4 + 0.3 * half, wh.aft - wh.wall - 0.15));
+  const eye = boatRoot.localToWorld(new THREE.Vector3(cx, Math.min(wh.floorY + 1.8, wh.roofY - 0.25), back));
+  const at = boatRoot.localToWorld(new THREE.Vector3(cx, wh.floorY + 0.55, cf + 0.2));
+  if (flat) flatBtn.click();
+  // (A wider lens than the usual 45 degrees: inside a wheelhouse there's no room to stand back.)
+  camera.fov = CONSOLE_FOV;
+  camera.updateProjectionMatrix();
+  look(eye.toArray(), at.toArray());
+}
+/** The Controls step's lens (deg), and the page's usual one. */
+const CONSOLE_FOV = 68;
+const USUAL_FOV = 45;
 function focusStep(): void {
   const step = stepEls()[stepAt]?.dataset.step ?? '';
   // The brief is written on paper, not shown on a boat.
@@ -904,6 +930,15 @@ choices('controls', [
 ]);
 // The helm assist panel (owner, Oct 2026): with the advanced controls (the instruments) only.
 options('helmAssist', 'Helm assist', ['None', 'Autopilot, dock, auto start']).dataset.when = 'controls';
+{
+  // Her console laid out by hand (dynamic console sockets CS3): in a panel under the view (showConsoleEditor).
+  const h = document.createElement('h2');
+  h.textContent = 'Console layout';
+  const p = document.createElement('p');
+  p.className = 'meta';
+  p.textContent = 'Under the view, her console from the helm: drag a screen or a switch group to where you want it. Your first move pins everything where it stands; Automatic puts it all back to the rules. Placed by hand, she travels as a link or file, not a code.';
+  controls.append(h, p);
+}
 const hex = (c: number) => `#${c.toString(16).padStart(6, '0')}`;
 section('7. Paint');
 {
@@ -1024,6 +1059,143 @@ function syncControls(): void {
   // The deckhouse as wide as the house: its width's other buttons aren't the one chosen.
   if (design.dhNarrow) document.querySelectorAll<HTMLElement>('[data-key="dhWidth"]').forEach((el) => el.classList.remove('on'));
   showOnHer();
+  showConsoleEditor();
+}
+
+// ── The console laid out by hand (dynamic console sockets CS3; owner, Oct 2026: "so we can
+// eventually place the instruments where we want") ──
+// Her console seen from the helm, flat: the dash's grid of quarter cells with its screens, the
+// switch panel's row of cells with its groups, the wheel drawn across the middle. Drag a screen
+// or a group to free cells (or click it, then click where it goes): the first move pins
+// everything where it stands, so the rest stay put; Automatic puts it all back to the rules.
+// What's placed goes in the design (DASH_SLOTS, PANEL_SLOTS); the builder keeps it if it fits.
+type DashGrid = { cap: number; rows: number; pitch: number; byHand: boolean; places: { id: string; col: number; row: number; w: number; h: number }[] };
+type PanelGrid = { cap: number; cell: number; byHand: boolean; runs: { key: string; title: string; color: number; members: string[]; n: number; start: number }[] };
+let consolePick: { kind: 'dash' | 'panel'; id: string } | null = null;
+function showConsoleEditor(): void {
+  const box = document.getElementById('consoleEditor');
+  if (!box) return;
+  const helm = boat.recipe.modules.find((m) => m.socket === 'helm');
+  const cc = helm?.config as { dashGrid?: DashGrid; panelGrid?: PanelGrid } | undefined;
+  const dg = cc?.dashGrid;
+  const pg = cc?.panelGrid;
+  if (!dg || !pg) {
+    box.innerHTML = '<p class="meta">This boat\u2019s console isn\u2019t laid out on a grid.</p>';
+    return;
+  }
+  // Scale: units a metre. The dash's grid and the panel's row, each centred on the wheel.
+  const U = 300;
+  const cellW = dg.pitch * U;
+  const cellH = 0.11 * U;
+  const dashW = dg.cap * cellW;
+  const panelW = pg.cap * pg.cell * U;
+  const W = Math.max(dashW, panelW) + 20;
+  const mid = W / 2;
+  const dashX = mid - dashW / 2;
+  const dashY = 10;
+  const panelX = mid - panelW / 2;
+  const panelY = dashY + dg.rows * cellH + 26;
+  const panelH = 34;
+  const H = panelY + panelH + 14;
+  const names: Record<string, string> = { speed: 'SPEED', anchorScreen: 'ANCHOR', heading: 'HEADING', rpm: 'ENGINE', engineMonitor: 'MONITOR', towline: 'TOW LINE' };
+  const picked = (kind: string, id: string) => consolePick?.kind === kind && consolePick.id === id;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" class="consoleSvg">`;
+  // The dash's cells, then its screens.
+  for (let c = 0; c < dg.cap; c++) for (let r = 0; r < dg.rows; r++) svg += `<rect class="cell" data-kind="dash" data-col="${c}" data-row="${r}" x="${dashX + c * cellW + 1}" y="${dashY + r * cellH + 1}" width="${cellW - 2}" height="${cellH - 2}"/>`;
+  for (const p of dg.places) svg += `<g class="item${picked('dash', p.id) ? ' picked' : ''}" data-kind="dash" data-id="${p.id}"><rect x="${dashX + p.col * cellW + 2}" y="${dashY + p.row * cellH + 2}" width="${p.w * cellW - 4}" height="${p.h * cellH - 4}" rx="3"/><text x="${dashX + (p.col + p.w / 2) * cellW}" y="${dashY + (p.row + p.h / 2) * cellH + 4}">${names[p.id] ?? p.id}</text></g>`;
+  // The panel's cells, then its groups.
+  const pc = pg.cell * U;
+  for (let k = 0; k < pg.cap; k++) svg += `<rect class="cell" data-kind="panel" data-cell="${k}" x="${panelX + k * pc + 1}" y="${panelY}" width="${pc - 2}" height="${panelH}"/>`;
+  for (const r of pg.runs) {
+    const x = panelX + r.start * pc + 2;
+    svg += `<g class="item${picked('panel', r.key) ? ' picked' : ''}" data-kind="panel" data-id="${r.key}"><rect x="${x}" y="${panelY + 2}" width="${r.n * pc - 4}" height="${panelH - 4}" rx="3"/><rect class="stripe" x="${x}" y="${panelY + 2}" width="${r.n * pc - 4}" height="5" fill="${r.title ? hex(r.color) : '#888'}"/><text x="${x + (r.n * pc - 4) / 2}" y="${panelY + panelH / 2 + 6}">${esc(r.title || 'HORN')}</text></g>`;
+  }
+  // The wheel, over the panel at the console's middle.
+  svg += `<circle class="wheel" cx="${mid}" cy="${panelY + panelH / 2}" r="${0.22 * U}"/>`;
+  svg += '</svg>';
+  box.innerHTML = `${svg}<div class="tools"><span class="meta">${dg.byHand || pg.byHand ? 'Placed by hand.' : 'Laid out by the rules.'}</span><button id="consoleAuto"${dg.byHand || pg.byHand ? '' : ' disabled'}>Automatic</button></div>`;
+  ($('consoleAuto') as HTMLButtonElement).onclick = () => {
+    consolePick = null;
+    change({ ...CONSOLE_AUTO });
+  };
+  const el = box.querySelector('svg')!;
+  /** The design change that moves one item, pinning all the others where they stand. */
+  const moveTo = (kind: 'dash' | 'panel', id: string, cell: { col: number; row: number } | number): void => {
+    const patch: Partial<ShipDesign> = {};
+    for (const p of dg.places) {
+      const to = kind === 'dash' && p.id === id ? (cell as { col: number; row: number }) : p;
+      // Free for it? (its cells on the grid, none of another's)
+      if (kind === 'dash' && p.id === id) {
+        if (to.col < 0 || to.row < 0 || to.col + p.w > dg.cap || to.row + p.h > dg.rows) return;
+        const hit = dg.places.some((q) => q.id !== id && to.col < q.col + q.w && q.col < to.col + p.w && to.row < q.row + q.h && q.row < to.row + p.h);
+        if (hit) return;
+      }
+      patch[DASH_SLOTS[p.id as keyof typeof DASH_SLOTS]] = dashValue(to.col, to.row);
+    }
+    for (const r of pg.runs) {
+      const k = kind === 'panel' && r.key === id ? (cell as number) : r.start;
+      if (kind === 'panel' && r.key === id) {
+        if (k < 0 || k + r.n > pg.cap) return;
+        if (pg.runs.some((q) => q.key !== id && k < q.start + q.n && q.start < k + r.n)) return;
+      }
+      patch[PANEL_SLOTS[r.key as keyof typeof PANEL_SLOTS]] = k + 1;
+    }
+    consolePick = null;
+    change(patch);
+  };
+  // Where a pointer is on the grids: a dash cell (its column and row) or a panel cell.
+  const pt = (e: PointerEvent) => {
+    const r = el.getBoundingClientRect();
+    const x = ((e.clientX - r.left) / r.width) * W;
+    const y = ((e.clientY - r.top) / r.height) * H;
+    return { x, y };
+  };
+  let drag: { kind: 'dash' | 'panel'; id: string; x0: number; y0: number; moved: boolean } | null = null;
+  el.onpointerdown = (e) => {
+    const g = (e.target as Element).closest('.item') as SVGGElement | null;
+    if (!g) return;
+    const { x, y } = pt(e);
+    drag = { kind: g.dataset.kind as 'dash' | 'panel', id: g.dataset.id!, x0: x, y0: y, moved: false };
+    el.setPointerCapture(e.pointerId);
+  };
+  el.onpointermove = (e) => {
+    if (!drag) return;
+    const { x, y } = pt(e);
+    if (Math.hypot(x - drag.x0, y - drag.y0) > 6) drag.moved = true;
+    const g = el.querySelector<SVGGElement>(`.item[data-kind="${drag.kind}"][data-id="${drag.id}"]`);
+    if (g && drag.moved) g.setAttribute('transform', `translate(${x - drag.x0} ${drag.kind === 'dash' ? y - drag.y0 : 0})`);
+  };
+  el.onpointerup = (e) => {
+    const { x, y } = pt(e);
+    if (drag && drag.moved) {
+      // Dropped: where its corner lands, snapped to the cells.
+      const d0 = drag;
+      drag = null;
+      if (d0.kind === 'dash') {
+        const p = dg.places.find((q) => q.id === d0.id)!;
+        moveTo('dash', d0.id, { col: Math.round(p.col + (x - d0.x0) / cellW), row: Math.round(p.row + (y - d0.y0) / cellH) });
+      } else {
+        const r = pg.runs.find((q) => q.key === d0.id)!;
+        moveTo('panel', d0.id, Math.round(r.start + (x - d0.x0) / pc));
+      }
+      showConsoleEditor();
+      return;
+    }
+    if (drag) {
+      // A click on an item: picked (or put down again).
+      consolePick = picked(drag.kind, drag.id) ? null : { kind: drag.kind, id: drag.id };
+      drag = null;
+      showConsoleEditor();
+      return;
+    }
+    // A click on a free cell with one picked: there.
+    const cellEl = (e.target as Element).closest('.cell') as SVGRectElement | null;
+    if (consolePick && cellEl && cellEl.dataset.kind === consolePick.kind) {
+      if (consolePick.kind === 'dash') moveTo('dash', consolePick.id, { col: Number(cellEl.dataset.col), row: Number(cellEl.dataset.row) });
+      else moveTo('panel', consolePick.id, Number(cellEl.dataset.cell));
+      showConsoleEditor();
+    }
+  };
 }
 
 // ── Figures, warnings, trial, code ──
@@ -2468,6 +2640,13 @@ function goStep(to: number | string, share = true): void {
   focusStep();
   // Arriving at Engine: look at her machinery.
   if (els[i].dataset.step === 'engine' && shownStep !== 'engine') frameMachinery();
+  // Arriving at Controls: her console from behind the wheel, laid out in a panel under the view (showConsoleEditor).
+  $('consolePanel').hidden = els[i].dataset.step !== 'controls';
+  if (els[i].dataset.step === 'controls' && shownStep !== 'controls') frameConsole();
+  if (els[i].dataset.step !== 'controls' && camera.fov !== USUAL_FOV) {
+    camera.fov = USUAL_FOV;
+    camera.updateProjectionMatrix();
+  }
   shownStep = els[i].dataset.step!;
   // The Furniture step: her from above, cut just over the floor, while it's open (furnitureView).
   if (tool && shownStep !== 'furniture') setTool(null);

@@ -15,6 +15,9 @@
  * Plain numbers: no drawing, tested (tests/shipyard/consoleGrid.test.ts).
  */
 
+/** The screens' names in words (the Shipyard's console editor, the warnings), by their console socket. */
+export const SCREEN_NAMES: Record<string, string> = { speed: 'Speed and depth', anchorScreen: 'Anchor', heading: 'Heading', rpm: 'Engine', engineMonitor: 'Engine monitor', towline: 'Tow line' };
+
 /** A thing for the dash: its id and its size in cells (across, down). */
 export interface GridItem {
   id: string;
@@ -70,13 +73,14 @@ export function packDash(items: GridItem[], rows = 2): { places: GridPlace[]; co
  * with nothing above or below it stands in the middle of the dash's height; a quarter with
  * nothing beside it in its pair of columns stands in the middle of the pair (over a strip).
  */
-export function placeOnDash(p: GridPlace, all: GridPlace[], cols: number, rows: number, pitch: number, gap: number, cellH: number): { x: number; rise: number; width: number; height: number } {
+export function placeOnDash(p: GridPlace, all: GridPlace[], cols: number, rows: number, pitch: number, gap: number, cellH: number, snap = true): { x: number; rise: number; width: number; height: number } {
   const at = (c: number, r: number) => all.some((q) => q !== p && c >= q.col && c < q.col + q.w && r >= q.row && r < q.row + q.h);
   let c0 = p.col;
   let w = p.w;
   // A lone quarter over (or under) a strip: across the pair.
   const pair = p.col - (p.col % 2);
-  if (p.w === 1 && pair + 1 < cols && !at(pair === p.col ? p.col + 1 : pair, p.row) && all.some((q) => q !== p && q.col <= pair && q.col + q.w >= pair + 2)) {
+  // (Not when placed by hand: it stays where it was put.)
+  if (snap && p.w === 1 && pair + 1 < cols && !at(pair === p.col ? p.col + 1 : pair, p.row) && all.some((q) => q !== p && q.col <= pair && q.col + q.w >= pair + 2)) {
     c0 = pair;
     w = 2;
   }
@@ -84,7 +88,7 @@ export function placeOnDash(p: GridPlace, all: GridPlace[], cols: number, rows: 
   let h = p.h;
   // Nothing above or below it in its columns: the middle of the dash's height.
   const cleanColumn = Array.from({ length: p.w }, (_, i) => p.col + i).every((c) => Array.from({ length: rows }, (_, r) => r).every((r) => (r >= p.row && r < p.row + p.h) || !at(c, r)));
-  if (p.h < rows && cleanColumn) {
+  if (snap && p.h < rows && cleanColumn) {
     r0 = 0;
     h = rows;
   }
@@ -134,5 +138,108 @@ export function packPanel(groups: PanelGroup[], half: number, pitch: number, whe
     runs.push({ group: g, x0, x1: x0 + len });
   }
   return { at, runs, pitch: p };
+}
+
+// ── Placed by hand (CS3) ──
+
+/**
+ * The dash's whole grid (for placing by hand): as many columns as the dash has room for at the
+ * full pitch, or the automatic row's if that's more (then all smaller together, as the row is).
+ */
+export function dashCap(room: number, pitch: number, gap: number, autoCols: number): { cap: number; pitch: number } {
+  const cap = Math.max(autoCols, Math.floor((room + gap) / pitch + 1e-9));
+  return { cap, pitch: Math.min(pitch, (room + gap) / cap) };
+}
+
+/**
+ * Screens placed by hand on the dash's whole grid (`cap` columns, `rows` high): each where it
+ * was put (`want`: its column and row) if it's on the grid and its cells are free, in order;
+ * the rest (new, or not fitting where they were put: `moved`) at the first free place nearest
+ * the middle, as the rules would.
+ */
+export function placeDashByHand(items: GridItem[], rows: number, cap: number, want: Record<string, { col: number; row: number } | null>): { places: GridPlace[]; moved: string[] } {
+  const used: boolean[][] = Array.from({ length: rows }, () => new Array<boolean>(cap).fill(false));
+  const free = (c: number, r: number, w: number, h: number) => {
+    if (c < 0 || r < 0 || c + w > cap || r + h > rows) return false;
+    for (let y = r; y < r + h; y++) for (let x = c; x < c + w; x++) if (used[y][x]) return false;
+    return true;
+  };
+  const take = (it: GridItem, c: number, r: number): GridPlace => {
+    for (let y = r; y < r + it.cells[1]; y++) for (let x = c; x < c + it.cells[0]; x++) used[y][x] = true;
+    return { id: it.id, col: c, row: r, w: it.cells[0], h: it.cells[1] };
+  };
+  const places: GridPlace[] = [];
+  const moved: string[] = [];
+  const later: GridItem[] = [];
+  for (const it of items) {
+    const w = want[it.id];
+    if (w && free(w.col, w.row, it.cells[0], it.cells[1])) places.push(take(it, w.col, w.row));
+    else {
+      if (w) moved.push(it.id);
+      later.push(it);
+    }
+  }
+  for (const it of later) {
+    const [w, h] = it.cells;
+    const mid = (cap - w) / 2;
+    const cols = Array.from({ length: Math.max(0, cap - w + 1) }, (_, c) => c).sort((a, b) => Math.abs(a - mid) - Math.abs(b - mid));
+    const tryRows = Array.from({ length: rows - h + 1 }, (_, i) => i);
+    if (w === 2 && h < rows) tryRows.reverse();
+    let placed = false;
+    for (const c of cols) {
+      for (const r of tryRows)
+        if (free(c, r, w, h)) {
+          places.push(take(it, c, r));
+          placed = true;
+          break;
+        }
+      if (placed) break;
+    }
+    // (No room anywhere: left off the grid; the caller says so.)
+    if (!placed && !moved.includes(it.id)) moved.push(it.id);
+  }
+  return { places, moved };
+}
+
+/** A switch group's key in the design (PANEL_SLOTS): its title, the searchlight's whatever it's called, the horn by name. */
+export const panelKey = (g: PanelGroup): string => (g.title === '' ? 'horn' : g.title.includes('SEARCH') || g.title === 'FIRE' ? 'SEARCH' : g.title);
+
+/**
+ * Switch groups placed by hand along the panel's `cap` cells: each from the cell it was put
+ * at (`want`, by panelKey) if its run is on the panel and free, in order; the rest (`moved`
+ * if they had a place) packed as the rules would, port ones from the port end, starboard ones
+ * from the starboard end, the horn nearest the middle, into the first free run.
+ */
+export function placePanelByHand(groups: PanelGroup[], cap: number, want: Record<string, number | null>): { starts: Record<string, number>; moved: string[] } {
+  const used = new Array<boolean>(cap).fill(false);
+  const free = (k: number, n: number) => k >= 0 && k + n <= cap && used.slice(k, k + n).every((u) => !u);
+  const n = (g: PanelGroup) => Math.max(g.cells ?? 0, g.members.length);
+  const starts: Record<string, number> = {};
+  const moved: string[] = [];
+  const later: PanelGroup[] = [];
+  for (const g of groups) {
+    if (!g.members.length) continue;
+    const k = want[panelKey(g)];
+    if (k !== null && k !== undefined && free(k, n(g))) {
+      used.fill(true, k, k + n(g));
+      starts[panelKey(g)] = k;
+    } else {
+      if (k !== null && k !== undefined) moved.push(panelKey(g));
+      later.push(g);
+    }
+  }
+  for (const g of later) {
+    const len = n(g);
+    const all = Array.from({ length: Math.max(0, cap - len + 1) }, (_, k) => k);
+    const order = g.side === 'port' ? all : g.side === 'starboard' ? all.reverse() : all.sort((a, b) => Math.abs(a + len / 2 - cap / 2) - Math.abs(b + len / 2 - cap / 2));
+    const k = order.find((c) => free(c, len));
+    if (k === undefined) {
+      if (!moved.includes(panelKey(g))) moved.push(panelKey(g));
+      continue;
+    }
+    used.fill(true, k, k + len);
+    starts[panelKey(g)] = k;
+  }
+  return { starts, moved };
 }
 

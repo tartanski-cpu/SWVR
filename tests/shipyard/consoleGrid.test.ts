@@ -122,3 +122,68 @@ describe('the switch panel grid (CS2)', () => {
     }
   });
 });
+
+import { CONSOLE_AUTO, DASH_SLOTS, dashValue, PANEL_SLOTS } from '../../src/shipyard/design';
+import { FLEET } from '../../src/boats/fleet';
+import { designToken, readDesign } from '../../src/shipyard/designDoc';
+import type { ShipDesign as SD } from '../../src/shipyard/design';
+
+describe('the console placed by hand (CS3)', () => {
+  const tug = FLEET.find((f) => f.id === 'smallTug')!.design as SD;
+  const helmOf = (d: SD) => {
+    const b = buildDesign(d);
+    const helm = b.recipe.modules.find((m) => m.socket === 'helm')!;
+    return { b, helm, cc: helm.config as { dashGrid: { cap: number; byHand: boolean; places: { id: string; col: number; row: number; w: number; h: number }[] }; panelGrid: { cap: number; byHand: boolean; runs: { key: string; start: number; n: number }[] }; slots: Record<string, { position: number[] }> } };
+  };
+  /** Every screen and group pinned where it stands (as the editor's first move does). */
+  const pinned = (d: SD): Partial<SD> => {
+    const { cc } = helmOf(d);
+    const patch: Partial<SD> = {};
+    for (const p of cc.dashGrid.places) patch[DASH_SLOTS[p.id as keyof typeof DASH_SLOTS]] = dashValue(p.col, p.row);
+    for (const r of cc.panelGrid.runs) patch[PANEL_SLOTS[r.key as keyof typeof PANEL_SLOTS]] = r.start + 1;
+    return patch;
+  };
+
+  it('pinned where it stands: the same console, near enough (within half a cell)', () => {
+    const auto = helmOf(tug).cc;
+    const hand = helmOf({ ...tug, ...pinned(tug) }).cc;
+    expect(hand.dashGrid.byHand).toBe(true);
+    expect(hand.panelGrid.byHand).toBe(true);
+    for (const id of ['speed', 'heading', 'start', 'navLights']) expect(Math.abs(hand.slots[id].position[0] - auto.slots[id].position[0]), id).toBeLessThan(0.11);
+  });
+
+  it('a switch group moved to free cells goes there; one put on another is put back by the rules, saying so', () => {
+    const pin = pinned(tug);
+    const { cc } = helmOf({ ...tug, ...pin });
+    const deck = cc.panelGrid.runs.find((r) => r.key === 'DECK')!;
+    const used = new Set(cc.panelGrid.runs.flatMap((r) => Array.from({ length: r.n }, (_, i) => r.start + i)));
+    const freeCell = Array.from({ length: cc.panelGrid.cap }, (_, k) => k).find((k) => !used.has(k))!;
+    expect(freeCell).toBeDefined();
+    const moved = helmOf({ ...tug, ...pin, panelDeck: freeCell + 1 });
+    expect(moved.cc.panelGrid.runs.find((r) => r.key === 'DECK')!.start).toBe(freeCell);
+    expect(moved.b.warnings.join(' ')).not.toMatch(/console/);
+    // On top of ENGINE: back by the rules, with a warning.
+    const engine = cc.panelGrid.runs.find((r) => r.key === 'ENGINE')!;
+    const clash = helmOf({ ...tug, ...pin, panelDeck: engine.start + 1 });
+    expect(clash.cc.panelGrid.runs.find((r) => r.key === 'DECK')!.start).not.toBe(engine.start);
+    expect(clash.b.warnings.join(' ')).toMatch(/DECK switches don't fit where they were placed/);
+    expect(deck).toBeDefined();
+  });
+
+  it('a screen moved to a free cell goes there; Automatic is the rules again; it travels in her link, not her code', () => {
+    const pin = pinned(tug);
+    const { cc } = helmOf({ ...tug, ...pin });
+    // A free cell on the dash, for the ANCHOR quarter.
+    const at = new Set(cc.dashGrid.places.flatMap((p) => Array.from({ length: p.w * p.h }, (_, i) => `${p.col + (i % p.w)},${p.row + Math.floor(i / p.w)}`)));
+    let free: { col: number; row: number } | null = null;
+    for (let c = 0; c < cc.dashGrid.cap && !free; c++) for (let r = 0; r < 2 && !free; r++) if (!at.has(`${c},${r}`)) free = { col: c, row: r };
+    expect(free).not.toBeNull();
+    const d = { ...tug, ...pin, dashAnchor: dashValue(free!.col, free!.row) };
+    const moved = helmOf(d).cc;
+    expect(moved.dashGrid.places.find((p) => p.id === 'anchorScreen')).toMatchObject(free!);
+    const back = helmOf({ ...d, ...CONSOLE_AUTO }).cc;
+    expect(back.dashGrid.byHand).toBe(false);
+    const read = readDesign(designToken(d));
+    expect('design' in read && read.design.dashAnchor).toBe(d.dashAnchor);
+  });
+});

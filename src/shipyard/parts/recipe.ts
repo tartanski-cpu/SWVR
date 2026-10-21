@@ -8,7 +8,8 @@ import landingCraftRecipe from '../../boats/landingCraft.json';
 import type { Mount, Recipe } from '../../modular/recipe';
 import { houseFlare } from '../../vessel/houseFlare';
 import { cellsOf, SCREENS, type ScreenName } from '../../controls/instruments';
-import { packDash, packPanel, placeOnDash, type PanelGroup } from './consoleGrid';
+import { dashCap, packDash, packPanel, panelKey, placeDashByHand, placeOnDash, placePanelByHand, SCREEN_NAMES, type GridPlace, type PanelGroup } from './consoleGrid';
+import { DASH_SLOTS, dashCell, PANEL_SLOTS } from '../design';
 import { BASE_TORQUE, type BuildArgs, type V3 } from './common';
 import type { HullPart } from './hull';
 import type { HousePart, LayoutPart, OverheadPart, InteriorPart } from './house';
@@ -231,23 +232,47 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   const gap = CONFIG.shipyard.helm.screenGap;
   const cellsFor = (id: string) => cellsOf(SCREENS[(consoleMount.modules!.find((x) => x.socket === id)!.config as { screen: ScreenName }).screen]) as [number, number];
   const ROWS = 2;
-  const grid = packDash(screens.map((id) => ({ id, cells: cellsFor(id) })), ROWS);
+  const items = screens.map((id) => ({ id, cells: cellsFor(id) }));
+  const grid = packDash(items, ROWS);
   const pitch = (sc.width + gap) / 2;
   const rowRoom = 2 * dashHalf - 2 * gap;
-  const shrink = Math.min(1, rowRoom / (grid.cols * pitch - gap));
-  // Her dash's grid, for the Shipyard (CS3: placing by hand) and the tests: its size and each screen's cells.
-  cc.dashGrid = { cols: grid.cols, rows: ROWS, pitch: r3(pitch * shrink), places: grid.places };
-  for (const gp of grid.places) {
-    const at = placeOnDash(gp, grid.places, grid.cols, ROWS, pitch * shrink, gap * shrink, (sc.height / 2) * shrink);
-    const slot = cc.slots[gp.id] as { position: V3 };
-    slot.position = [r3(at.x), slot.position[1], slot.position[2]];
-    // A strip or a quarter always says its size (and its rise, stacked); a full screen only when shrunk.
-    const full = gp.w === 2 && gp.h === ROWS;
-    if (shrink < 1 || !full || at.rise) {
-      const m = consoleMount.modules!.find((q) => q.socket === gp.id)!;
-      m.config = { ...m.config, width: r3(at.width), height: r3(at.height), ...(at.rise ? { rise: r3(at.rise) } : {}) };
+  // The dash's whole grid, for placing by hand (CS3): as many columns as it has room for.
+  const whole = dashCap(rowRoom, pitch, gap, grid.cols);
+  const want = Object.fromEntries(screens.map((id) => [id, dashCell(d[DASH_SLOTS[id as keyof typeof DASH_SLOTS]] ?? 0)]));
+  const byHand = screens.some((id) => want[id]);
+  /** Each screen at its place on the dash: the automatic row (centred, smaller together if it's long), or placed by hand on the whole grid. */
+  const fit = (places: GridPlace[], cols: number, p: number, snap: boolean) => {
+    const k = p / pitch;
+    for (const gp of places) {
+      const at = placeOnDash(gp, places, cols, ROWS, p, gap * k, (sc.height / 2) * k, snap);
+      const slot = cc.slots[gp.id] as { position: V3 };
+      slot.position = [r3(at.x), slot.position[1], slot.position[2]];
+      // A strip or a quarter always says its size (and its rise, stacked); a full screen only when smaller.
+      const full = gp.w === 2 && gp.h === ROWS;
+      if (k < 1 || !full || at.rise) {
+        const m = consoleMount.modules!.find((q) => q.socket === gp.id)!;
+        m.config = { ...m.config, width: r3(at.width), height: r3(at.height), ...(at.rise ? { rise: r3(at.rise) } : {}) };
+      }
     }
+  };
+  let shown: GridPlace[];
+  if (!byHand) {
+    const shrink = Math.min(1, rowRoom / (grid.cols * pitch - gap));
+    fit(grid.places, grid.cols, pitch * shrink, true);
+    // (On the whole grid, for the Shipyard: the row in its middle.)
+    const off = Math.floor((whole.cap - grid.cols) / 2);
+    shown = grid.places.map((gp) => ({ ...gp, col: gp.col + off }));
+  } else {
+    const put = placeDashByHand(items, ROWS, whole.cap, want);
+    fit(put.places, whole.cap, whole.pitch, false);
+    shown = put.places;
+    const named = (id: string) => (SCREEN_NAMES[id] ?? id).toLowerCase();
+    for (const id of put.moved) p.warnings.push(put.places.some((q) => q.id === id) ? `The ${named(id)} screen doesn't fit where it was placed on the dash: put where the rules would.` : `No room on the dash for the ${named(id)} screen.`);
+    // (No room at all: off the console.)
+    consoleMount.modules = consoleMount.modules!.filter((m) => !(m.module === 'instrument.screen' && screens.includes(m.socket) && !put.places.some((q) => q.id === m.socket)));
   }
+  // Her dash's grid, for the Shipyard (CS3) and the tests: its whole size, each screen's cells on it, whether placed by hand.
+  cc.dashGrid = { cap: whole.cap, rows: ROWS, pitch: r3(whole.pitch), places: shown, byHand };
   // A faceted front: the dash wraps round with it (console.standard's `wrap`), its wings set back as the outer windows are.
   // Its controls stay square to her (owner: forward is forward); its screens turn with the wings, flush with the dash's face.
   if (house.facet)
@@ -326,8 +351,37 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
       { title: 'ENGINE', color: colourOf.ENGINE, side: 'starboard', members: ['start', 'key'].filter(has) },
       { title: 'DECK', color: 0x8a6d2a, side: 'starboard', members: [...(anchorAt ? ['anchor'] : []), ...(skiffAt ? ['skiffCrane'] : [])] },
     ];
-    const laid = packPanel(panel, dashHalf, hc.switchPitch, hc.wheelClear, hc.groupClear, hc.minPitch);
     const r3 = (v: number) => Math.round(v * 1000) / 1000;
+    // The panel's whole row of cells, for placing by hand (CS3): as many as it has room for.
+    const cap = Math.max(1, Math.floor((2 * dashHalf) / hc.switchPitch + 1e-9));
+    const cellP = (2 * dashHalf) / cap;
+    const cellOf = (key: string) => {
+      const v = d[PANEL_SLOTS[key as keyof typeof PANEL_SLOTS]] ?? 0;
+      return v ? v - 1 : null;
+    };
+    const want = Object.fromEntries(panel.map((g) => [panelKey(g), cellOf(panelKey(g))]));
+    const byHand = panel.some((g) => g.members.length && want[panelKey(g)] !== null);
+    let laid: { at: Record<string, number>; runs: { group: PanelGroup; x0: number; x1: number }[]; pitch: number };
+    if (!byHand) laid = packPanel(panel, dashHalf, hc.switchPitch, hc.wheelClear, hc.groupClear, hc.minPitch);
+    else {
+      // Placed by hand: each group from its cell, its members a cell apart in the middle of its run.
+      const put = placePanelByHand(panel, cap, want);
+      const at: Record<string, number> = {};
+      const runs: { group: PanelGroup; x0: number; x1: number }[] = [];
+      for (const g of panel) {
+        const k = put.starts[panelKey(g)];
+        if (k === undefined || !g.members.length) continue;
+        const n = Math.max(g.cells ?? 0, g.members.length);
+        const x0 = -dashHalf + k * cellP;
+        g.members.forEach((id, i) => (at[id] = x0 + ((n - g.members.length) / 2 + i + 0.5) * cellP));
+        runs.push({ group: g, x0, x1: x0 + n * cellP });
+      }
+      for (const key of put.moved) p.warnings.push(put.starts[key] !== undefined ? `The ${key === 'horn' ? 'horn' : key} switches don't fit where they were placed on the console: put where the rules would.` : `No room on the console for the ${key === 'horn' ? 'horn' : key} switches.`);
+      // (No room at all: those switches off the console.)
+      const off = panel.filter((g) => put.starts[panelKey(g)] === undefined).flatMap((g) => g.members);
+      consoleMount.modules = consoleMount.modules!.filter((m) => !off.includes(m.socket));
+      laid = { at, runs, pitch: cellP };
+    }
     for (const [id, x] of Object.entries(laid.at)) {
       const was = cc.slots[id]?.position as V3 | undefined;
       cc.slots[id] = { position: [r3(x), was?.[1] ?? 0.01, was?.[2] ?? -0.2] };
@@ -338,8 +392,15 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
       const mid = r3((engine.x0 + engine.x1) / 2);
       for (const id of ['lamps', 'card']) if (cc.slots[id]) cc.slots[id].position = [mid, cc.slots[id].position[1], cc.slots[id].position[2]];
     }
-    // Her switch panel, for the Shipyard (CS3) and the tests: its pitch and each group's cells.
-    cc.panelGrid = { pitch: r3(laid.pitch), runs: laid.runs.map((r) => ({ title: r.group.title, members: r.group.members, x: [r3(r.x0), r3(r.x1)] })) };
+    // Her switch panel, for the Shipyard (CS3) and the tests: its whole row of cells, whether
+    // placed by hand, and each group's members, its run (m) and its first cell on the row.
+    cc.panelGrid = {
+      cap,
+      cell: r3(cellP),
+      pitch: r3(laid.pitch),
+      byHand,
+      runs: laid.runs.map((r) => ({ key: panelKey(r.group), title: r.group.title, color: r.group.color, members: r.group.members, n: Math.max(r.group.cells ?? 0, r.group.members.length), start: Math.max(0, Math.round((r.x0 + dashHalf) / cellP)), x: [r3(r.x0), r3(r.x1)] })),
+    };
   }
   // Low windows (owner): the console's upright panel comes off, so you see down past it; its
   // screens stay where they were, each on a stalk from the desk (console.standard's `bare`).
@@ -367,7 +428,7 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
       { socket: 'sideDoorOut', module: 'control.door-button', config: { label: 'Side door: open / shut' }, bind: { door: 'door.side.open' } },
     );
   if (anchorAt) recipe.modules.push({ socket: 'anchor', module: 'deck.anchor-windlass', ...(bowRamp ? { config: { aft: ac.kedgeAft } } : {}) });
-  if (skiffAt) {
+  if (skiffAt && cc.slots.skiffCrane) {
     // Its SKIFF CRANE button on the dash, starboard of the wheel (beside the ANCHOR switch).
     const [bx, , bz] = cc.slots.skiffCrane.position as V3;
     recipe.modules.push({ socket: 'tenderCrane', module: 'deck.tender-crane', config: { consoleButton: [r2(at.console[0] + bx), r2(at.console[1] + 0.01), r2(at.console[2] + bz + sb(bx))] } });

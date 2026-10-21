@@ -287,6 +287,18 @@
       .gearActs { grid-column: 2; display: flex; flex-wrap: wrap; gap: 6px; }
       .gearActs button { padding: 2px 9px; font-size: 12px; }
       .gearActs button.on { background: var(--accent-strong); color: var(--on-accent); border-color: var(--accent-strong); }
+      /* The console laid out by hand (page.ts showConsoleEditor): the dash's cells and screens, the panel's cells and groups, the wheel. */
+      #consolePanel { position: absolute; left: 10px; right: 10px; bottom: 10px; max-width: 980px; margin: 0 auto; background: var(--glass); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; z-index: 2; }
+      #consolePanel[hidden] { display: none; }
+      #consolePanel .liveHead { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+      .consoleSvg { width: 100%; height: auto; max-height: 34vh; display: block; margin: 6px 0; touch-action: none; user-select: none; }
+      .consoleSvg .cell { fill: var(--card); stroke: var(--line); stroke-width: 1; cursor: pointer; }
+      .consoleSvg .cell:hover { fill: var(--hover); }
+      .consoleSvg .item { cursor: grab; }
+      .consoleSvg .item > rect:first-child { fill: #0f1a1e; stroke: var(--accent); stroke-width: 1.5; }
+      .consoleSvg .item.picked > rect:first-child { stroke: #ffd36a; stroke-width: 3; }
+      .consoleSvg .item text { fill: var(--ink); font: 600 11px system-ui, sans-serif; text-anchor: middle; pointer-events: none; }
+      .consoleSvg .wheel { fill: none; stroke: #8a5a2e; stroke-width: 5; opacity: 0.55; pointer-events: none; }
       /* The Furniture step (page.ts showFurniture): a card a piece, each one on her listed under it. */
       #furnMenu { border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
       #furnMenu .gearCard:first-child { border-top: none; }
@@ -538,6 +550,8 @@
         <div id="liveResult"></div>
         <div class="meta liveKey">Physics debug, as in the game: <span style="color:#66ccff">blue</span> the slices of her hull the physics floats, <span style="color:#ffe14d">yellow</span> the buoyancy on each (10 kN to a metre), <span style="color:#ff5050">red</span> her centre of gravity.</div>
       </div>
+      <!-- The console laid out by hand, at the Controls step (page.ts showConsoleEditor). -->
+      <div id="consolePanel" hidden><div class="liveHead"><b>Console layout</b><span class="meta">her console from the helm: drag a screen or a switch group to free cells, or click it, then click where it goes</span></div><div id="consoleEditor"></div></div>
       <div id="pinEditor" hidden>
         <select id="pinGear" title="Equipment wanted here: placed for you at the Deck gear step"></select>
         <input id="pinText" placeholder="Note (optional with equipment)" maxlength="140" />
