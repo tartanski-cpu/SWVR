@@ -261,6 +261,13 @@
       #views button.tool.on { background: var(--accent-strong); color: var(--on-accent); border-color: var(--accent-strong); }
       #toolHint { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); background: var(--glass); padding: 4px 10px; border-radius: 6px; font-size: 12px; color: #fff; text-shadow: 0 0 3px #000; pointer-events: none; }
       #toolHint:empty { display: none; }
+      /* The section tool (page.ts sectionTool): which plane, the slider along her, flip, look, off. */
+      #sectionPanel { position: absolute; right: 10px; bottom: 10px; width: min(340px, calc(100% - 20px)); background: var(--glass); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; z-index: 2; display: flex; flex-direction: column; gap: 6px; }
+      #sectionPanel[hidden] { display: none; }
+      #sectionPanel .row { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+      #sectionPanel button.on { background: var(--accent-strong); color: var(--on-accent); border-color: var(--accent-strong); }
+      #sectionPanel input { width: 100%; }
+      #secLabel { font-size: 12px; }
       #pinEditor { position: absolute; width: 240px; background: var(--paper); border-radius: 8px; padding: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.5); border: 1px solid var(--line); z-index: 3; }
       #pinEditor input, #pinEditor select { width: 100%; box-sizing: border-box; font: inherit; padding: 5px; margin-bottom: 4px; }
       #fromPins { margin: 4px 0 10px; }
@@ -516,6 +523,12 @@
       <button id="sideTab" class="panelTab" title="Show or hide the step">Step</button>
       <button id="resultsTab" class="panelTab" title="Show or hide the brief and her figures">Brief &amp; figures</button>
       <div id="toolHint"></div>
+      <div id="sectionPanel" hidden>
+        <div class="row"><button data-cut="waterline" title="A level cut: her waterplane, or her decks and floors seen from above">Waterline</button><button data-cut="buttock" title="An upright cut fore and aft: her profile inside">Buttock</button><button data-cut="station" title="An upright cut across her: her body section">Station</button></div>
+        <input id="secAt" type="range" title="Slide the cut along her" />
+        <div id="secLabel"></div>
+        <div class="row"><button id="secFlip" title="Keep the other side of the cut">⇄ Flip</button><button id="secLook" title="Look square on at the cut, flat">Look at the cut</button><button id="secOff" title="Put her back whole">Off</button></div>
+      </div>
       <div id="briefPaper" hidden></div>
       <div id="livePanel" hidden>
         <div class="liveHead"><b>Live trials</b><span class="meta">the game’s physics, on her as designed, in calm water</span></div>

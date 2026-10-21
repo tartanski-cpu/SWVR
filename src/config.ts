@@ -3166,6 +3166,16 @@ export const CONFIG = {
      * over the wheelhouse floor (the roof and the top of the walls off).
      */
     furniture: { helmRoom: { halfWidth: 0.45, depth: 0.9 }, doorWay: { halfWidth: 0.5, depth: 0.9 }, chartRoom: 0.45, holeClear: 0.15, reach: 1.5, movedOver: 0.3, headroom: 1.9, pricePerKg: 40, planCut: 1.25 },
+    /**
+     * The Shipyard's section tool (owner: "cut the ship through as you want"): her drawing cut by
+     * a waterline (level), a buttock (fore and aft, upright) or a station (athwartships, upright)
+     * plane, set anywhere along her with a slider in steps of `step` (m). Each starts where a
+     * naval architect would look first: the waterline at the design waterline, the buttock on
+     * the centreline, the station `stationAt` of her length forward of the transom (amidships).
+     * What's cut shows its inside (her plating seen from within, as in a cut-away model); the
+     * cut faces aren't filled in solid, as a hatched section on a drawing would be.
+     */
+    section: { step: 0.05, stationAt: 0.5 },
     deckhouse: {
       kgPerM2: 35,
       pricePerM2: 450,
