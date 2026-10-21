@@ -3061,15 +3061,17 @@ export const CONFIG = {
      */
     sheer: { from: 0.4 },
     /**
-     * A raised foredeck (owner, Oct 2026, from a photo of a trawler; the fishing boat's; build.ts
-     * raisedForedeck): her deck stepped up forward of a break, a vertical bulkhead across her,
-     * her sides and bulwarks stepping up with it. Steps up to it on her centreline aft of the
-     * break: each rise at most `stepRise` (you walk up them: layout.ts STEP_HEIGHT is 0.4),
-     * treads `tread` deep and `width` wide, `clear` of deck kept at their foot. Run on aft under
-     * the wheelhouse, it ends `landing` m aft of the house's aft wall: a landing across her
-     * from the raised side decks to the steps.
+     * A raised foredeck (owner, Oct 2026, from a photo of a trawler; the fishing boat's;
+     * shipyard/parts/house.ts raisedForedeck): her deck stepped up forward of a break, a
+     * vertical bulkhead across her, her sides and bulwarks stepping up with it. Reached as on a
+     * trawler or tug: a steep ship's ladder each side against the break, beside the bulwark
+     * (`fromSide` in from her deck edge, `width` wide), the middle of the working deck clear;
+     * each rise at most `stepRise` (you walk up them: layout.ts STEP_HEIGHT is 0.4), treads
+     * `tread` deep (about 55 degrees), a handrail on the inboard side `rail` high, `clear` of
+     * deck kept at their foot. Run on aft under the wheelhouse, it ends at least `landing` m
+     * aft of the house's aft wall (more for a raised cabin floor's door steps).
      */
-    foredeck: { stepRise: 0.3, tread: 0.3, clear: 0.3, width: 0.8, landing: 0.6 },
+    foredeck: { stepRise: 0.3, tread: 0.2, clear: 0.3, width: 0.6, fromSide: 0.3, rail: 0.9, landing: 0.6 },
     /** Windows raked out all round (owner: a tug's or supply vessel's bridge): the side and aft windows lean out this far from vertical (deg), from their sill up to the roof. */
     flareDeg: 15,
     /** The roof's visor: how far it reaches forward of the top of the front windows (m), overlapping them. One set length now (owner: no slider for it; it was 0.15 to 0.75). */

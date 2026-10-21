@@ -22,46 +22,58 @@ import type { DeckGearPart } from './deckGear';
 /**
  * Where a raised foredeck's break goes (owner, Oct 2026, from a photo of a trawler: "a raised
  * foredeck as an option"; the fishing boat's; CONFIG.shipyard.foredeck), or null for none: `fcLength`
- * aft of the stem, but never under the wheelhouse (there it runs on aft to the house's aft
- * wall: the house stands on it, as on the photo's trawler) nor so close forward of it that its
- * steps won't fit between; and short of the transom by the steps' run. `t` is the break's place
- * along the hull study (0 transom, 1 stem: her deck runs from one to the other), `z` in hers.
+ * aft of the stem, but never under the wheelhouse nor so close forward of it that its ladders
+ * won't fit between: there it runs on aft past the house (which stands on it, as on the photo's
+ * trawler), leaving a landing aft of the house's door long enough for the door's own steps down
+ * from a raised cabin floor (`lift`, m above her deck) and a stride more. Short of the transom by
+ * the ladders' run. `t` is the break's place along the hull study (0 transom, 1 stem: her deck
+ * runs from one to the other), `z` in hers.
  */
-function raisedForedeck(d: ShipDesign, base: DesignHull, at: { transom: number; stem: number; front: number; aft: number }, warnings: string[]): { z: number; t: number; raise: number; steps: number } | null {
+function raisedForedeck(d: ShipDesign, base: DesignHull, at: { transom: number; stem: number; front: number; aft: number }, lift: number, warnings: string[]): { z: number; t: number; raise: number; steps: number } | null {
   if (!d.fcLength || !base.raisedForedeck) return null;
   const c = CONFIG.shipyard.foredeck;
   const raise = SCALES.fcHeight(d.fcHeight ?? 2);
   const steps = Math.ceil(raise / c.stepRise - 1e-9) - 1; // treads between her deck and the raised one
   const run = steps * c.tread + c.clear;
+  // The door's steps (as housePart lays them: a rise of 0.35 at most, 0.28 deep), then a stride.
+  const doorSteps = Math.max(0, Math.ceil((lift + 0.03) / 0.35 - 1e-9) - 1);
+  const landing = Math.max(c.landing, doorSteps * 0.28 + 0.5);
   let z = at.stem + SCALES.fcLength(d.fcLength);
-  if (z > at.front - run && z < at.aft + c.landing) {
-    z = at.aft + c.landing;
-    warnings.push('The raised foredeck would end under or just forward of the wheelhouse: run on aft past its aft wall (the house stands on it).');
+  if (z > at.front - run && z < at.aft + landing) {
+    z = at.aft + landing;
+    warnings.push('The raised foredeck would end under or just forward of the wheelhouse: run on aft past it (the house stands on it, with a landing aft of its door).');
   }
   if (z > at.transom - run - c.clear) {
     z = at.transom - run - c.clear;
-    warnings.push('The raised foredeck reaches too far aft: stopped short of the transom, with room for its steps.');
+    warnings.push('The raised foredeck reaches too far aft: stopped short of the transom, with room for its ladders.');
   }
   const r = (v: number) => Math.round(v * 1000) / 1000;
   return { z: r(z), t: (at.transom - z) / (at.transom - at.stem), raise, steps };
 }
 
 /**
- * The steps up to a raised foredeck (raisedForedeck): treads on her centreline aft of the
- * break, the highest against it, evenly spaced in height from her deck at their foot to the
- * raised deck.
+ * The ladders up to a raised foredeck (raisedForedeck; owner, Oct 2026: "how stairs are in real
+ * life arranged"): as on a trawler or tug, a steep steel ship's ladder each side against the
+ * break bulkhead, beside the bulwark, leaving the middle of the working deck clear. Each its
+ * treads running aft from the break, the highest against it, evenly spaced in height from her
+ * deck at their foot to the raised deck (a rise of at most `stepRise`, `tread` deep: about
+ * 55 degrees). Port's first, then starboard's.
  */
 function foredeckSteps(f: { z: number; raise: number; steps: number }, q: { deckY(z: number): number; halfBeam(z: number): number }): FloorPatch[] {
   const c = CONFIG.shipyard.foredeck;
   // Evenly from her deck at their foot (it falls a little aft, with her sheer) up to the raised deck.
   const foot = q.deckY(f.z + f.steps * c.tread + 0.05);
   const top = q.deckY(f.z + 0.05) + f.raise;
-  const half = Math.min(c.width / 2, q.halfBeam(f.z + 0.05) - 0.3);
+  // Against her side: in from the deck's edge by the bulwark's margin, the narrowest along the run.
+  const outer = Math.min(q.halfBeam(f.z + 0.02), q.halfBeam(f.z + f.steps * c.tread)) - c.fromSide;
   const r = (v: number) => Math.round(v * 1000) / 1000;
-  return Array.from({ length: f.steps }, (_, i) => {
-    const k = f.steps - i; // from the highest (k = steps, against the break) aft
-    return { x0: r(-half), x1: r(half), z0: r(f.z + i * c.tread), z1: r(f.z + (i + 1) * c.tread), y: r(foot + ((top - foot) * k) / (f.steps + 1)) };
-  });
+  return [-1, 1].flatMap((side) =>
+    Array.from({ length: f.steps }, (_, i) => {
+      const k = f.steps - i; // from the highest (k = steps, against the break) aft
+      const [x0, x1] = side < 0 ? [-outer, -outer + c.width] : [outer - c.width, outer];
+      return { x0: r(x0), x1: r(x1), z0: r(f.z + i * c.tread), z1: r(f.z + (i + 1) * c.tread), y: r(foot + ((top - foot) * k) / (f.steps + 1)) };
+    }),
+  );
 }
 
 /** The front windows' mullions: more panes on a wide house (the usual two, at +-0.5 m, left unset). */
@@ -106,7 +118,7 @@ export function housePart(a: BuildArgs, p: HullPart) {
   // A raised foredeck (owner, Oct 2026; the fishing boat's): now the house is placed, her hull
   // again with her deck stepped up forward of the break (its z: `foredeck`). The parts after
   // this take her hull from here.
-  const foredeck = raisedForedeck(d, base, { transom, stem, front, aft }, warnings);
+  const foredeck = raisedForedeck(d, base, { transom, stem, front, aft }, d.floor, warnings);
   if (foredeck) {
     form = p.loft({ from: foredeck.t, raise: foredeck.raise });
     shape = hullFormOf(form);
