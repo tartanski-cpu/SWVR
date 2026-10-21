@@ -443,6 +443,12 @@ export function stepVessel(
     // her mass, so k/m and c/m (what sets the step's stability) stay the same. Unscaled,
     // the 330 kg skiff would bounce off a beach and blow up.
     const scale = Math.min(1, def.mass / CONFIG.contacts.referenceMass);
+    // A bow-ramp boat beaching (the coast extras plan, C3): on soft ground (sand, shingle, a
+    // slip) only a landing faster than CONFIG.beaching.impactSafe counts as a hit, and only by
+    // the speed over it; sliding up the beach is no grinding. Elsewhere, as for every boat.
+    const beaches = !!def.layout.bowRamp;
+    const softAllow = CONFIG.beaching.impactSafe - CONFIG.wear.impactSafe;
+    let sliding = 0;
     for (const [lx, ly, lz] of hullContactPoints(def.hull)) {
       toWorld(lx, ly, lz, pt);
       pointVelocity(pt, ptV);
@@ -450,7 +456,12 @@ export function stepVessel(
       addForceAt(cf.set(contact.fx * scale, contact.fy * scale, contact.fz * scale), pt);
       touching++;
       c.force += contact.normal * scale;
+      if (beaches && contact.soft) {
+        c.impact = Math.max(c.impact, contact.approach - softAllow);
+        continue;
+      }
       c.slide += contact.slide;
+      sliding++;
       c.impact = Math.max(c.impact, contact.approach);
     }
     // Guards on her sides (vessel/physics/guards.ts): the crew's fenders while they're out, a
@@ -483,7 +494,7 @@ export function stepVessel(
       if (sideGuard) guard(sideGuard.probes, CONFIG.contacts.guards[sideGuard.kind]);
       if (pushFender) guard(pushFender.probes, CONFIG.contacts.guards.pushFender);
     }
-    if (touching > 0) c.slide /= touching;
+    if (sliding > 0) c.slide /= sliding;
     if (guardTouching > 0) c.guardSlide! /= guardTouching;
     // Her anchor (a module, M5a): the chain's pull at the hawse.
     machinery?.mooring(port, dt);

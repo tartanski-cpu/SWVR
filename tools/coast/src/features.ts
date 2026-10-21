@@ -25,7 +25,7 @@
  *
  * Lines and outlines are thinned to `simplify` m (Douglas-Peucker) and cut to the box.
  * Writes public/regions/<id>/features.json. Run: node src/features.ts [requestId] (after
- * nav, before boats; the package stage names it in the game's package).
+ * nav, before shore and boats; the package stage names it in the game's package).
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';

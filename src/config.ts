@@ -1866,6 +1866,18 @@ export const CONFIG = {
    * just touches the concrete); her ramp's toe flaps (`layout.bowRamp.flap`) rest on it.
    */
   slipway: { maxAngleDeg: 20, maxSpeed: 1.0, range: 4, across: 1.5, landSec: 2, landSpeed: 0.8, releaseLever: -0.25 },
+  /**
+   * Beaching (the coast extras plan, C3; vessel/physics/vesselPhysics.ts, world/slipway.ts):
+   * a boat with a bow ramp running onto soft ground (a coast map's sand or shingle,
+   * world/coastShore.ts, or a slipway's concrete) takes no harm up to `impactSafe` m/s; past
+   * it, only the speed over it counts as a hit (wear.ts). Grinding over it does nothing. Rock,
+   * cliff and other ground are as hard as ever, and every other boat grounds as before.
+   * With her ramp down, slower than `maxSpeed` m/s, her bow on soft ground and the lever not
+   * astern, she lands there and is held, as on a slipway; her ramp's toe flaps hang at
+   * `flapDeg` (below level) for the walk ashore. The lever astern (`slipway.releaseLever`)
+   * takes her off.
+   */
+  beaching: { impactSafe: 3, maxSpeed: 1.5, flapDeg: 25 },
 
   /**
    * The handheld fishing rod (owner, Oct 2026; fishing/rodGame.ts, modules/rodRack): a rod on

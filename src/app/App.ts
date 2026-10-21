@@ -48,7 +48,7 @@ import { VesselView } from '../vessel/view/vesselView';
 import { hullPlan, STEP_HEIGHT, vesselWalkArea, type WalkArea } from '../vessel/layout';
 import { standingHeight } from '../world/geography';
 import { climbOut, jump, swimArea, updateAir, updateSwim, yawOf, type BodyVessel } from '../player/body';
-import { rampCrossing, rampFloor, rampWalkable, slipOf } from '../world/slipway';
+import { beached, rampCrossing, rampFloor, rampWalkable, slipOf } from '../world/slipway';
 import { worldWalkArea } from '../world/landWalkArea';
 import { leverDemand } from '../vessel/physics/propulsion';
 import { Locomotion } from '../player/locomotion';
@@ -2492,6 +2492,7 @@ export class App {
       },
       dockStatus: () => {
         const slip = slipOf(boat());
+        if (beached(boat())) return { text: 'Beached (walk off down the ramp; go astern to come off)', ready: true, docked: true };
         if (slip) return { text: boat().slip!.phase === 'landed' ? `Landed: ${slip.name} (walk off down the ramp; go astern to come off)` : `Landing: ${slip.name}`, ready: true, docked: true };
         const m = boat().mooring;
         const b = berthById(m.berthId);
@@ -3148,9 +3149,10 @@ export class App {
     const was = this.slipWas;
     this.slipWas = now;
     const slip = slipOf(v);
-    if (slip && v!.slip!.phase === 'landing') this.overlay.notify(`Landing on the ${slip.name}`, 3);
+    if (beached(v)) this.overlay.notify('Beached: walk off down the ramp. Go astern to come off', 5);
+    else if (slip && v!.slip!.phase === 'landing') this.overlay.notify(`Landing on the ${slip.name}`, 3);
     else if (slip) this.overlay.notify(`Landed on the ${slip.name}: walk off down the ramp. Go astern to come off`, 5);
-    else if (was) this.overlay.notify('Off the slip', 2.5);
+    else if (was) this.overlay.notify(was.endsWith(':beach') ? 'Off the beach' : 'Off the slip', 2.5);
   }
 
   /** The equipment the career has not got (upgrade ids, comma-joined), or null if she isn't a boat the career kits out. */

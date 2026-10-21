@@ -19,7 +19,7 @@
  *              its tallest lighthouse).
  *   Terrain    where terrain.bin keeps what, the chunks, the box; the credits and licence.
  *
- * Run: node src/package.ts [requestId] (last, after mesh, trees, boats and features).
+ * Run: node src/package.ts [requestId] (last, after mesh, trees, boats, features and shore).
  */
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -433,6 +433,8 @@ const pkg = {
    * game for the smaller maps) stays small. Absent if that stage hasn't run.
    */
   ...(existsSync(join(D.out, 'features.json')) ? { features: { file: 'features.json', counts: JSON.parse(readFileSync(join(D.out, 'features.json'), 'utf8')).counts } } : {}),
+  /** What the shore is made of (shore.ts): its map's layout, for the game (a bow-ramp boat may beach on sand or shingle). Absent if that stage hasn't run. */
+  ...(existsSync(join(D.out, 'shore.json')) ? { shore: (({ counts: _c, mappedCells: _m, steepCells: _s, offshoreCells: _o, fieldCells: _f, ...l }) => l)(JSON.parse(readFileSync(join(D.out, 'shore.json'), 'utf8'))) } : {}),
   ...(existsSync(join(D.out, 'boats.json')) ? { boats: (({ counts: _c, ...b }) => b)(JSON.parse(readFileSync(join(D.out, 'boats.json'), 'utf8'))) } : {}),
   credits: region.credits,
   licence: region.licence,

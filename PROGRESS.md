@@ -6580,6 +6580,54 @@ The owner's choice from the suggested additions to the map pipeline, all but tid
 - Measure every map against the baseline, on Quest and desktop settings, at the same spots as before.
 - Trim what's over (distances, counts, merging), and fix what the owner's tests turn up.
 
+### Coast extras C3: what the shore is made of (done, awaiting owner test)
+
+Owner: "Next milestone".
+
+- **A new pipeline stage, the shore** (`tools/coast/src/shore.ts`, after features, before mesh; `npm run shore`). It writes `shore.bin`, a map on the 10 m grid of what the shore band is made of. The band is cells within 40 m of the coastline, from 3 m deep to 8 m high: where a hull meets the ground. **Nothing guessed:**
+  - **sand** where the map has a beach (no surface tagged counts as sand), **shingle** (shingle, pebbles, gravel), **rock** (bare rock);
+  - **cliff** within 12 m of a mapped cliff line;
+  - **rock** on steep ground (rise over run above 1, as the mesh draws it);
+  - **any other shore is "foreshore":** the map says nothing about it, so it's neither beach nor rock;
+  - **the shallow seabed off a classed shore** takes its class (within 30 m): the sand off a beach is where a beaching bow touches first.
+  - The same file marks the **mapped fields** (farmland, meadow).
+  - Run-length packed: 14-157 kB a map. The package carries its layout (`shore`), and the game fetches it with the terrain (`world/coastShore.ts`).
+- **What I changed and why:** the mesh used to draw every low, gentle shore as sand, a beige band along the whole coast. Classing all of that as sand would have let the landing craft beach almost anywhere on what is mostly a rocky West Highland coast. So:
+  - the mesh now draws **mapped beaches as sand** (or grey **shingle**), mapped **rock**, darker **cliff**;
+  - **the rest of the low shore in a neutral weed-brown "foreshore"** (`themes.ts` `foreshore`; pale stone on Syros), so a beach you can land on looks like one;
+  - **mapped fields** on open grassland are greener (`fields`).
+  - The mesh's shape is untouched: Oban's file differs only in its colours, and every chunk on the Clyde and Syros is the same size as before.
+- **What each map has:**
+
+  | | Oban | Tayvallich | Syros | Clyde |
+  |---|---|---|---|---|
+  | Sand (10 m cells) | 1,370 | 121 | 1,596 | 7,122 |
+  | Shingle | 0 | 0 | 0 | 32 |
+  | Rock | 283 | 104 | 7,271 | 3,854 |
+  | Cliff | 219 | 0 | 100 | 177 |
+
+  Syros is mostly rock, as the Cyclades are. The rest of each shore is foreshore.
+- **Beaching** (`CONFIG.beaching`; `vessel/physics/contacts.ts` marks each ground touch soft or not, `vesselPhysics.ts`):
+  - **A boat with a bow ramp** (the landing craft, a Shipyard landing craft) running onto **sand, shingle or a slipway's concrete** takes no harm up to `impactSafe` 3 m/s (about 6 knots). Past it, only the speed over 3 m/s counts as a hit (wear.ts). Sliding up the beach is no grinding.
+  - **Rock, cliff, foreshore and anything else** are as hard as ever: a hit over 1 m/s damages, and grinding wears. **Every other boat grounds exactly as before.**
+  - **Landing on a beach:** with her ramp down, slower than `maxSpeed` 1.5 m/s, her forefoot on sand or shingle and the lever not astern, she **lands and is held** where she ran up, as on a slipway (`world/slipway.ts` `onBeach`).
+    - Her ramp's toe flaps hang at `flapDeg` 25° for the walk ashore, and you walk off down the ramp onto the beach.
+    - The lever astern takes her off. The menu says "Beached (walk off down the ramp; go astern to come off)".
+    - Unlike a slipway, she lies at the angle she ran up at: a beach has no plane to lay her on.
+- **Tests:** `tests/beaching.test.ts` (4):
+  - Oban's shore map holds sand, rock and cliff, and nothing off the map;
+  - a ground contact says whether it's soft, a pier's never is;
+  - at 2.5 m/s the landing craft runs onto sand unharmed, is holed on rock, and the workboat is holed on sand;
+  - with her ramp down, slowly onto sand, she lands, is held for 20 s, and comes off astern; on rock she never lands.
+  - (In the career world with a stand-in shore map laid over it; a coast map's comes from its pipeline, and the rules are the same.)
+- **Checked headless:** Ganavan Bay from the water: pale sand on its mapped beaches, the foreshore weed-brown either side. **Not checked:** the landing craft beaching in the game itself (the tests drive the physics), and the Quest.
+- **Test steps:**
+  - **Desktop or VR:** Debug → Boat → Start in → the fast landing craft, then Voyage → Oban and Lorn.
+    - Ganavan Bay, north of Oban past Dunollie, has a sand beach (the pale strip). Lower the ramp and come in slowly, bow first, under 3 knots: she runs up and is held.
+    - Walk off down the ramp onto the sand. Back aboard, the lever astern takes her off.
+    - Try the brown foreshore or the rocks at speed: you're damaged there, as before.
+  - **Everyone:** look at the shores. Sand only where there's a mapped beach; grey-brown foreshore, grey rock and dark cliffs elsewhere; greener fields on the low ground.
+
 ### Coast extras C2: fish farms and the skyline (done, awaiting owner test)
 
 Owner: "Next milestone".
@@ -7233,7 +7281,7 @@ Owner: "I went to pick up some cargo... the buttons and the joystick but not the
   3. ~~**Instruments: smaller screen text**~~ **Done** (the same).
   4. **Backlog: instruments as modules.** Simple single-function instruments (some analogue gauges), and LCD screens that become touchscreens with several pages you flick through, so a small wheelhouse (the landing craft's) can do with one screen. Stormworks makes its screens configurable with Lua scripts; the owner leaves the method to us. Suggested: a screen's pages described as data (which readings, laid out how), not a scripting language, since running Lua in the browser means a Lua engine as a new dependency and player scripts to secure. To agree with the owner before starting.
 
-- **Coast maps: more from the map data (owner, Oct 2026, planned, not started).** The owner chose seven of the eight suggestions, with no tides: "do 1, 2, 3, 4, 5, 6, 7, 8. No tides, and that's it." The plan is under "Coast extras: the plan" in "Real coastline regions" below. The harbour boats (settlements milestone 6), C1 and C2 are done; C3 is next. The owner says "Next milestone" to advance, as before.
+- **Coast maps: more from the map data (owner, Oct 2026, planned, not started).** The owner chose seven of the eight suggestions, with no tides: "do 1, 2, 3, 4, 5, 6, 7, 8. No tides, and that's it." The plan is under "Coast extras: the plan" in "Real coastline regions" below. The harbour boats (settlements milestone 6), C1, C2 and C3 are done; C4 is next. The owner says "Next milestone" to advance, as before.
 
 Everything on the lists above is done or noted as open below. What was open when last reviewed: the owner's VR test of the latest rounds; a moon (the night sea is very dark); whitecaps; harbour lights that don't grow as you near them; two upgrades suggested but not built (a bigger fuel tank, a second skiff motor). The older suggested order follows, kept for the record:
 

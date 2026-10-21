@@ -67,6 +67,16 @@ export interface Theme {
   /** The seabed: shallow (sand) to deep. */
   shallow: number;
   deep: number;
+  /**
+   * The shore where the map says what it is (shore.ts; the coast extras plan, C3): shingle
+   * and pebbles, cliff faces; and the mapped fields (farmland, meadow) on open grassland.
+   * (Sand and rock are `sand` and `rock`.)
+   */
+  shingle: number;
+  cliff: number;
+  fields: number;
+  /** Low shore by the water the map says nothing about (not drawn as a beach: you can't count on landing there). */
+  foreshore: number;
   /** Buildings near harbours: colours, floors and roofs by type (houses.ts). */
   houses: HouseStyle;
   forest: ForestStyle;
@@ -92,6 +102,12 @@ const NORTH_HEBRIDEAN: Theme = {
   moor: { from: 40, to: 160, colour: 0x7a6e4e },
   shallow: 0xa99a70,
   deep: 0x3e5a58,
+  // Grey West Highland shingle; dark wet schist cliffs; improved pasture greener than the rough grazing.
+  shingle: 0x8e8a80,
+  cliff: 0x55524a,
+  fields: 0x6e9a46,
+  // Weed-brown, stony West Highland foreshore.
+  foreshore: 0x9a8e70,
   // West Highland towns: white and cream harling, grey granite, slate roofs; the odd painted
   // harbour front (Tobermory); grey, green or red corrugated sheds; cottages a storey and a
   // half under steep slate gables; terraces two or three storeys.
@@ -167,6 +183,12 @@ const AEGEAN: Theme = {
   moor: { from: 120, to: 380, colour: 0x9c8f78 },
   shallow: 0xd0c8a0,
   deep: 0x2f5f78,
+  // Pale marble shingle; sun-bleached schist cliffs; terraced fields, dry gold-green.
+  shingle: 0xb4ab96,
+  cliff: 0x8a7c66,
+  fields: 0x9c9858,
+  // Pale stony Aegean foreshore.
+  foreshore: 0xc6b994,
   // Ermoupoli's neoclassical town (ochre, cream, pink, terracotta hipped roofs) and the
   // Cyclades' white flat-roofed cubes with blue doors.
   houses: {

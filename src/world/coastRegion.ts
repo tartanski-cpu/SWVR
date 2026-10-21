@@ -8,6 +8,7 @@
  * No code of the region's own: the region's file is its package plus where it goes.
  */
 import type { CoastFeaturesRef } from './coastFeatures';
+import { registerShore, type ShoreLayout } from './coastShore';
 import type { BerthDef, BlockDef, BuildingDef, CurrentZoneDef, FarmDef, FishingGroundDef, HarbourBoatsDef, LampDef, LandmarkDef, LightDef, MarkDef, PortDef, PortFloodDef, PottingGround, RegionDef, ShelterDef, SkylineDef, SlipwayDef } from './defs';
 import { registerChunkedCoast, registerCoastTerrain, type ChunkedCoastLayout, type CoastTerrainLayout } from './coastTerrain';
 import { registerForest, type ForestLayout } from './forest';
@@ -32,6 +33,8 @@ export interface CoastPackage {
   skylineStyle?: string;
   /** Its features file (tools/coast features.ts: farms, landmarks, shore, names...); fetched by the milestones that use it. */
   features?: CoastFeaturesRef;
+  /** What its shore is made of (tools/coast shore.ts): the map's layout; absent in an older package. */
+  shore?: ShoreLayout;
   box: { x0: number; x1: number; z0: number; z1: number };
   credits: string;
   licence: string;
@@ -127,6 +130,12 @@ export async function loadCoastTerrains(regions: readonly RegionDef[], base: str
       const bin = await res.arrayBuffer();
       if (t.chunked) registerChunkedCoast(r.id, bin, t, c.pkg.box, c.x, c.z);
       else registerCoastTerrain(r.id, bin, t, c.pkg.box, c.x, c.z);
+      // What its shore is made of (the physics reads it: a bow-ramp boat beaches on sand).
+      const shore = c.pkg.shore;
+      if (shore) {
+        const f = await fetch(`${base}${t.dir}${shore.file}`).catch(() => null);
+        if (f?.ok) registerShore(r.id, await f.arrayBuffer(), shore, c.x, c.z);
+      }
       // Its woods (drawing only: a missing map just means no trees).
       const trees = c.pkg.trees;
       if (trees) {

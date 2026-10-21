@@ -12,10 +12,11 @@
  * Penalty stiffness is chosen so k/m and k·r²/I stay well inside the 60 Hz step's
  * stability limit even with several points touching at once.
  */
+import { softShore } from '../../world/coastShore';
 import { harbourBoatContact } from '../../world/harbourBoats';
 import { CONFIG } from '../../config';
 import { blockContact, type BlockHit } from '../../world/geography';
-import { groundHeight, groundNormal } from '../../world/terrain';
+import { groundHeight, groundNormal, slipSurface } from '../../world/terrain';
 import { coastGroundSolid } from '../../world/coastTerrain';
 import type { HullForm } from '../hullForm';
 
@@ -49,6 +50,13 @@ export interface ContactResult {
   slide: number;
   /** Approach speed along the normal (m/s, + = into the surface). */
   approach: number;
+  /**
+   * Soft ground a boat may beach on (the coast extras plan, C3): a coast map's sand or
+   * shingle (world/coastShore.ts), or a slipway's concrete. A bow-ramp boat takes no harm
+   * landing there at a beaching speed (vesselPhysics.ts, wear.ts). False on a quay, a pier, a
+   * boat, rock or any other ground.
+   */
+  soft?: boolean;
 }
 
 /**
@@ -66,6 +74,7 @@ export function contactAt(px: number, py: number, pz: number, vx: number, vy: nu
     n.y = hit.ny;
     n.z = hit.nz;
     fendered = hit.fendered;
+    out.soft = false;
   } else {
     // A big map's ground not streamed in yet is only its coarse grid: no contact there
     // until the detailed mesh arrives (coastTerrain.ts coastGroundSolid).
@@ -74,6 +83,7 @@ export function contactAt(px: number, py: number, pz: number, vx: number, vy: nu
     if (py >= h) return false;
     groundNormal(px, pz, n);
     depth = (h - py) * n.y; // distance to the local ground plane
+    out.soft = softShore(px, pz) || slipSurface(px, pz) !== null;
   }
   const k = fendered ? c.fenderStiffness : c.stiffness;
   const damp = fendered ? c.fenderDamping : c.damping;

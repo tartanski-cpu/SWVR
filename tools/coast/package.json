@@ -12,8 +12,9 @@
     "trees": "node src/trees.ts",
     "boats": "node src/boats.ts",
     "features": "node src/features.ts",
+    "shore": "node src/shore.ts",
     "package": "node src/package.ts",
-    "build": "node src/fetch.ts && node src/reconcile.ts && node src/nav.ts && node src/harbours.ts && node src/mesh.ts && node src/trees.ts && node src/features.ts && node src/boats.ts && node src/package.ts"
+    "build": "node src/fetch.ts && node src/reconcile.ts && node src/nav.ts && node src/harbours.ts && node src/features.ts && node src/shore.ts && node src/mesh.ts && node src/trees.ts && node src/boats.ts && node src/package.ts"
   },
   "devDependencies": {
     "geotiff": "2.1.3",
