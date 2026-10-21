@@ -33,9 +33,21 @@
  */
 import * as THREE from 'three';
 import { CONFIG } from '../../config';
-import { coastGroundSolid } from '../coastTerrain';
+import { coastGroundSolid, coastTerrains } from '../coastTerrain';
 import { forestCell, type Forest, type ForestLayout } from '../forest';
 import { groundHeight } from '../terrain';
+import { isStandaloneHeadset } from '../../render/device';
+import { userSettings } from '../../player/userSettings';
+
+/** The bands' reach for this device (or the player's choice, Settings > Trees): the Quest's, or a desktop's. */
+export function treeLevel(): 'quest' | 'desktop' {
+  const d = userSettings.treeDetail;
+  return d === 'auto' ? (isStandaloneHeadset() ? 'quest' : 'desktop') : d;
+}
+/** The tree settings in force: CONFIG.trees, with the desktop's reach over it on a desktop. */
+export function treeSettings(): typeof CONFIG.trees {
+  return treeLevel() === 'desktop' ? { ...CONFIG.trees, ...CONFIG.trees.desktop } : CONFIG.trees;
+}
 
 export type TreeModel = 'conifer' | 'broadleaf' | 'birch' | 'scrub' | 'pine';
 const MODELS: TreeModel[] = ['conifer', 'broadleaf', 'birch', 'scrub', 'pine'];
@@ -266,12 +278,11 @@ export function canopyArrays(f: Forest, x0: number, z0: number): { position: Flo
  * `canopyFrom` of the viewer (where the trees themselves stand), fading in over `canopyFade`
  * m by a dither (no transparency, so no sorting and no overdraw).
  */
-function canopyMaterial(): THREE.MeshLambertMaterial {
+function canopyMaterial(uniforms: { canopyFrom: { value: number }; canopyFade: { value: number } }): THREE.MeshLambertMaterial {
   const m = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, side: THREE.DoubleSide });
-  const c = CONFIG.trees;
   m.onBeforeCompile = (shader) => {
-    shader.uniforms.canopyFrom = { value: c.canopyFrom };
-    shader.uniforms.canopyFade = { value: c.canopyFade };
+    shader.uniforms.canopyFrom = uniforms.canopyFrom;
+    shader.uniforms.canopyFade = uniforms.canopyFade;
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', '#include <common>\nvarying vec3 vCanopyWorld;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvCanopyWorld = (modelMatrix * vec4(position, 1.0)).xyz;');
@@ -330,6 +341,9 @@ interface Tree {
   r: number;
   g: number;
   b: number;
+  /** Its ground (m), once looked up; and whether that was the detailed ground (else looked up again when it is). */
+  y?: number;
+  ySolid?: boolean;
 }
 
 type SpeciesSpec = { height: [number, number]; width: [number, number]; lean: number };
@@ -372,29 +386,30 @@ function plantTree(f: Forest, styles: ForestLayout['styles'][string][], r: () =>
   return { x, z, model: MODELS.indexOf(MODEL_OF[species] ?? 'broadleaf'), height: h, width: w, turn: r() * Math.PI * 2, leanX: (r() - 0.5) * 2 * lean, leanZ: (r() - 0.5) * 2 * lean, r: c.r * shade, g: c.g * shade, b: c.b * shade };
 }
 
-/** A tile's own random sequence (the region's seed and the tile's place; `salt` for another use of the same tile). */
-function tileRng(seed: number, tx: number, tz: number, size: number, salt = 0): () => number {
-  return rng(seed ^ Math.imul(Math.round(tx / size) + 7919, 73856093) ^ Math.imul(Math.round(tz / size) + 104729, 19349663) ^ salt);
+/** Does the forest map have, within the tile, any wooded cell whose kind passes `ok`? */
+function tileHas(f: Forest, tx: number, tz: number, size: number, ok: (kind: number) => boolean): boolean {
+  const c = f.layout.cell;
+  for (let z = tz + c / 2; z < tz + size; z += c)
+    for (let x = tx + c / 2; x < tx + size; x += c) {
+      const v = forestCell(f, x, z);
+      if (v & 15 && ok(v >> 4)) return true;
+    }
+  return false;
 }
 
+/** How many Poisson-disc patterns are made for each spacing (each tile takes one, turned and mirrored). */
+const POISSON_PATTERNS = 4;
+const PATTERNS = new Map<string, [number, number][][]>();
 /**
- * Scatter one tile (its south-west corner at world (tx, tz), `size` m a side) from the forest
- * map. Pure: the same tile gives the same trees.
+ * Poisson-disc patterns over a `size` m square, no two points closer than `rMin` (Bridson's
+ * method), made once for each spacing and kept.
  */
-export function scatterTile(f: Forest, seed: number, tx: number, tz: number, size: number): Tree[] {
-  const L = f.layout;
-  const styles = L.kinds.map((k) => L.styles[k]);
-  const out: Tree[] = [];
-  const r = tileRng(seed, tx, tz, size);
-  const keep = (x: number, z: number, rows: boolean, rMin: number): void => {
-    const t = plantTree(f, styles, r, x, z, rows, rMin);
-    if (t) out.push(t);
-  };
-
-  // Scattered woods: a Poisson-disc scatter (Bridson) at the closest spacing of the scattered kinds.
-  const scattered = styles.filter((s) => !s.rows);
-  if (scattered.length) {
-    const rMin = Math.min(...scattered.map((s) => s.spacing));
+function poissonPatterns(size: number, rMin: number): [number, number][][] {
+  const key = `${size}/${rMin}`;
+  let list = PATTERNS.get(key);
+  if (list) return list;
+  list = Array.from({ length: POISSON_PATTERNS }, (_, seed) => {
+    const r = rng(0x9e3779b9 + seed * 7919);
     const cs = rMin / Math.SQRT2;
     const n = Math.ceil(size / cs);
     const grid = new Int32Array(n * n).fill(-1);
@@ -435,7 +450,46 @@ export function scatterTile(f: Forest, seed: number, tx: number, tz: number, siz
       }
       if (!found) active.splice(ai, 1);
     }
-    for (const [x, z] of pts) keep(tx + x, tz + z, false, rMin);
+    return pts;
+  });
+  PATTERNS.set(key, list);
+  return list;
+}
+
+/** A tile's own random sequence (the region's seed and the tile's place; `salt` for another use of the same tile). */
+function tileRng(seed: number, tx: number, tz: number, size: number, salt = 0): () => number {
+  return rng(seed ^ Math.imul(Math.round(tx / size) + 7919, 73856093) ^ Math.imul(Math.round(tz / size) + 104729, 19349663) ^ salt);
+}
+
+/**
+ * Scatter one tile (its south-west corner at world (tx, tz), `size` m a side) from the forest
+ * map. Pure: the same tile gives the same trees.
+ */
+export function scatterTile(f: Forest, seed: number, tx: number, tz: number, size: number): Tree[] {
+  const L = f.layout;
+  const styles = L.kinds.map((k) => L.styles[k]);
+  const out: Tree[] = [];
+  const r = tileRng(seed, tx, tz, size);
+  const keep = (x: number, z: number, rows: boolean, rMin: number): void => {
+    const t = plantTree(f, styles, r, x, z, rows, rMin);
+    if (t) out.push(t);
+  };
+
+  // Scattered woods: a Poisson-disc scatter at the closest spacing of the scattered kinds:
+  // one of a few patterns made once (poissonPatterns), turned and mirrored by the tile's own
+  // seed. (Made afresh per tile it was a millisecond or more each, and a desktop's bands
+  // scatter thousands of tiles.) A tile with no scattered wood on the map skips it.
+  const scattered = styles.filter((s) => !s.rows);
+  if (scattered.length && tileHas(f, tx, tz, size, (k) => !styles[k - 1]?.rows)) {
+    const rMin = Math.min(...scattered.map((s) => s.spacing));
+    const pattern = poissonPatterns(size, rMin)[Math.floor(r() * POISSON_PATTERNS)];
+    const turn = Math.floor(r() * 4);
+    const flip = r() < 0.5;
+    for (const [px, pz] of pattern) {
+      let [x, z] = flip ? [size - px, pz] : [px, pz];
+      for (let q = 0; q < turn; q++) [x, z] = [size - z, x];
+      keep(tx + x, tz + z, false, rMin);
+    }
   }
   // Plantations and orchards: rows, all one way across the region, a little jitter.
   for (const st of styles.filter((s) => s.rows)) {
@@ -506,53 +560,100 @@ function instanced(geo: THREE.BufferGeometry, mat: THREE.Material, max: number, 
  * mesh per model); middle, sparser cheap ones (another per model); far, the canopy (one
  * merged mesh). See the header.
  */
+/**
+ * A band's trees: two sets of instanced meshes, one shown while the other is filled with the
+ * next placing, a few milliseconds a frame (CONFIG.trees.placeBudgetMs), then swapped in
+ * whole: no frame carries a whole placing (tens of thousands of trees on a desktop), and no
+ * half-placed wood is ever seen.
+ */
+interface Band {
+  sets: [THREE.InstancedMesh[], THREE.InstancedMesh[]];
+  front: 0 | 1;
+  job: Generator<void, void> | null;
+  /** Where it was last placed from (or is being placed from now). */
+  at: { x: number; z: number; t: number };
+  tris: number;
+}
+
+/**
+ * A region's trees round the viewer, in three bands: near, the full trees (one instanced
+ * mesh per model); middle, sparser cheap ones (another per model); far, the canopy (one
+ * merged mesh). See the header.
+ */
 export class TreesView {
   readonly root = new THREE.Group();
-  private readonly near: THREE.InstancedMesh[];
-  private readonly mid: THREE.InstancedMesh[];
+  private readonly near: Band;
+  private readonly mid: Band;
   private readonly tiles = new Map<string, Tree[]>();
   private readonly midTiles = new Map<string, Tree[]>();
   private readonly seed: number;
-  private nearAt = { x: Infinity, z: Infinity, t: -Infinity };
-  private midAt = { x: Infinity, z: Infinity, t: -Infinity };
   /** The canopy: each square's arrays (by "i,j"), the merged mesh, which squares it holds, when it was merged (ms). */
   private readonly squares = new Map<string, { position: Float32Array; color: Float32Array }>();
   private canopy: THREE.Mesh | null = null;
   private canopyKey = '';
   private canopyAt = -Infinity;
-  private readonly canopyMat = canopyMaterial();
+  private readonly canopyUniforms = { canopyFrom: { value: CONFIG.trees.canopyFrom }, canopyFade: { value: CONFIG.trees.canopyFade } };
+  private readonly canopyMat = canopyMaterial(this.canopyUniforms);
+  private level: 'quest' | 'desktop' | null = null;
+  private groundVersion = -1;
+  private groundAt = -Infinity;
   /** Trees drawn now, in the near and middle bands, and the triangles of all three (debug overlay, tests). */
   count = 0;
   midCount = 0;
   triangles = 0;
-  private nearTris = 0;
-  private midTris = 0;
 
   constructor(private readonly forest: Forest) {
     this.root.name = 'trees';
     this.seed = hashString(forest.id);
     const mat = treeMaterial();
+    // Room for the most either level draws (the level can change in Settings while sailing).
     const c = CONFIG.trees;
-    this.near = MODELS.map((m) => instanced(treeGeometry(m), mat, c.maxNear, `trees:${m}`));
-    this.mid = MODELS.map((m) => instanced(midTreeGeometry(m), mat, c.maxMid, `trees-mid:${m}`));
-    for (const mesh of [...this.near, ...this.mid]) this.root.add(mesh);
+    const band = (geo: (m: TreeModel) => THREE.BufferGeometry, max: number, name: string): Band => {
+      const set = () => MODELS.map((m) => instanced(geo(m), mat, max, `${name}:${m}`));
+      const b: Band = { sets: [set(), set()], front: 0, job: null, at: { x: Infinity, z: Infinity, t: -Infinity }, tris: 0 };
+      for (const mesh of [...b.sets[0], ...b.sets[1]]) this.root.add(mesh);
+      return b;
+    };
+    this.near = band(treeGeometry, Math.max(c.maxNear, c.desktop.maxNear), 'trees');
+    this.mid = band(midTreeGeometry, Math.max(c.maxMid, c.desktop.maxMid), 'trees-mid');
   }
 
   /** Once a frame: place the near trees, the middle band, and the canopy's squares, each when it's due. */
   update(x: number, z: number): void {
-    const c = CONFIG.trees;
+    const c = treeSettings();
     const now = performance.now();
-    const due = (at: { x: number; z: number; t: number }, move: number) => Math.hypot(x - at.x, z - at.z) >= move || now - at.t >= c.refresh * 1000;
-    if (due(this.nearAt, c.moveAgain)) {
-      this.nearAt = { x, z, t: now };
-      this.nearTris = this.place(this.near, x, z, 0, c.nearDistance, c.maxNear, 1, (i, j) => this.tile(this.tiles, i, j, scatterTile), (n) => (this.count = n));
+    // A change of level (Settings > Trees): place everything again now.
+    const level = treeLevel();
+    if (level !== this.level) {
+      this.level = level;
+      this.near.at.t = this.mid.at.t = -Infinity;
+      this.canopyKey = '';
+      this.canopyAt = -Infinity;
     }
-    if (due(this.midAt, c.midMoveAgain)) {
-      this.midAt = { x, z, t: now };
-      this.midTris = this.place(this.mid, x, z, c.nearDistance, c.midDistance, c.maxMid, c.midScale, (i, j) => this.tile(this.midTiles, i, j, scatterMid), (n) => (this.midCount = n));
+    this.canopyUniforms.canopyFrom.value = c.canopyFrom;
+    // Placed again after a move, or when a big map's ground has streamed in or out (its
+    // squares loaded now: their count), checked at most every `refresh` s. Not on a timer
+    // alone: a desktop's tens of thousands of trees are worth placing only when it changes.
+    let ground = this.groundVersion;
+    if (now - this.groundAt >= c.refresh * 1000) {
+      this.groundAt = now;
+      ground = coastTerrains().reduce((n, t) => n + t.pieces.size, 0);
     }
+    const groundChanged = ground !== this.groundVersion;
+    this.groundVersion = ground;
+    const start = (b: Band, move: number, job: () => Generator<void, void>) => {
+      // (A placing under way finishes first; the next starts from wherever the viewer is then.)
+      if (b.job || !(Math.hypot(x - b.at.x, z - b.at.z) >= move || b.at.t === -Infinity || groundChanged)) return;
+      b.at = { x, z, t: now };
+      b.job = job();
+    };
+    start(this.near, c.moveAgain, () => this.placeJob(this.near, x, z, 0, c.nearDistance, c.maxNear, 1, (i, j) => this.tile(this.tiles, i, j, scatterTile), (n) => (this.count = n), true, this.tiles));
+    start(this.mid, c.midMoveAgain, () => this.placeJob(this.mid, x, z, c.nearDistance, c.midDistance, c.maxMid, c.midScale, (i, j) => this.tile(this.midTiles, i, j, scatterMid), (n) => (this.midCount = n), false, this.midTiles));
+    // The placings under way, a few milliseconds' worth this frame (the near band first).
+    const t0 = performance.now();
+    for (const b of [this.near, this.mid]) while (b.job && performance.now() - t0 < c.placeBudgetMs) if (b.job.next().done) b.job = null;
     this.updateCanopy(x, z, now);
-    this.triangles = this.nearTris + this.midTris + (this.canopy ? this.canopy.geometry.attributes.position.count / 3 : 0);
+    this.triangles = this.near.tris + this.mid.tris + (this.canopy ? this.canopy.geometry.attributes.position.count / 3 : 0);
   }
 
   private tile(cache: Map<string, Tree[]>, i: number, j: number, scatter: typeof scatterTile): Tree[] {
@@ -562,19 +663,24 @@ export class TreesView {
       const size = CONFIG.trees.tile;
       t = scatter(this.forest, this.seed, i * size, j * size, size);
       cache.set(key, t);
-      // Keep the cache to the squares round the viewer: forget the oldest beyond a ring's worth.
-      if (cache.size > 900) for (const k of [...cache.keys()].slice(0, 200)) cache.delete(k);
+      // Keep the cache to the squares round the viewer: forget the oldest beyond about twice the middle band's worth.
+      const reach = treeSettings().midDistance / size;
+      const limit = Math.max(900, Math.ceil(Math.PI * reach * reach * 2));
+      if (cache.size > limit) for (const k of [...cache.keys()].slice(0, Math.ceil(limit / 4))) cache.delete(k);
     }
     return t;
   }
 
   /**
-   * Fill a band's meshes with the trees between `from` and `to` m of (x, z), nearest first,
-   * up to `max`, each scaled by `scale`. Returns the triangles drawn.
+   * Place a band's trees between `from` and `to` m of (x, z), nearest first, up to `max`,
+   * each scaled by `scale`, into its hidden set, a step at a time (each `yield` a chance to
+   * stop for this frame), then show it. `needSolid`: only on a big map's detailed ground.
    */
-  private place(meshes: THREE.InstancedMesh[], x: number, z: number, from: number, to: number, max: number, scale: number, tile: (i: number, j: number) => Tree[], counted: (n: number) => void): number {
+  private *placeJob(b: Band, x: number, z: number, from: number, to: number, max: number, scale: number, tile: (i: number, j: number) => Tree[], counted: (n: number) => void, needSolid: boolean, cache: Map<string, Tree[]>): Generator<void, void> {
     const size = CONFIG.trees.tile;
+    const meshes = b.sets[1 - b.front];
     const found: { t: Tree; d: number }[] = [];
+    let k = 0;
     for (let j = Math.floor((z - to) / size); j <= Math.floor((z + to) / size); j++)
       for (let i = Math.floor((x - to) / size); i <= Math.floor((x + to) / size); i++) {
         const dx = Math.max(i * size - x, 0, x - (i + 1) * size);
@@ -584,12 +690,25 @@ export class TreesView {
         const fx = Math.max(Math.abs(i * size - x), Math.abs((i + 1) * size - x));
         const fz = Math.max(Math.abs(j * size - z), Math.abs((j + 1) * size - z));
         if (Math.hypot(fx, fz) < from) continue;
+        // A tile not yet scattered is the costly part: a chance to stop after each; cached ones in batches.
+        const fresh = !cache.has(`${i},${j}`);
         for (const t of tile(i, j)) {
           const d = Math.hypot(t.x - x, t.z - z);
           if (d >= from && d <= to) found.push({ t, d });
         }
+        if (fresh || ++k % 64 === 0) yield;
       }
-    found.sort((a, b) => a.d - b.d);
+    // More than the band may draw: keep the nearest. (The distance the max-th tree stands at,
+    // from a native sort of the distances alone: quick even for the tens of thousands a
+    // desktop's middle band looks over.)
+    let cutoff = Infinity;
+    if (found.length > max) {
+      const ds = new Float32Array(found.length);
+      found.forEach((f, i) => (ds[i] = f.d));
+      ds.sort();
+      cutoff = ds[max - 1];
+      yield;
+    }
     const counts = MODELS.map(() => 0);
     const m = new THREE.Matrix4();
     const q = new THREE.Quaternion();
@@ -598,20 +717,28 @@ export class TreesView {
     const s = new THREE.Vector3();
     const col = new THREE.Color();
     let n = 0;
-    for (const { t } of found) {
+    for (const { t, d } of found) {
       if (n >= max) break;
-      // Only where the ground is the detailed mesh (a big map's square not yet streamed in is coarse: they'd float or sink).
-      if (!coastGroundSolid(t.x, t.z)) continue;
+      if (d > cutoff) continue;
+      // Near trees only where the ground is the detailed mesh (a big map's square not yet
+      // streamed in is coarse: they'd float or sink in sight). The middle band, far off and
+      // small, may stand on the coarse ground (on a desktop it reaches past the streaming).
+      if (needSolid && !coastGroundSolid(t.x, t.z)) continue;
+      // Its ground, looked up once (again if it was the coarse ground and the detailed has come).
+      if (t.y === undefined || (!t.ySolid && coastGroundSolid(t.x, t.z))) {
+        t.y = groundHeight(t.x, t.z);
+        t.ySolid = coastGroundSolid(t.x, t.z);
+      }
       const mesh = meshes[t.model];
-      const k = counts[t.model]++;
-      p.set(t.x, groundHeight(t.x, t.z) - 0.25, t.z);
+      const c = counts[t.model]++;
+      p.set(t.x, t.y - 0.25, t.z);
       q.setFromEuler(e.set(t.leanX, t.turn, t.leanZ, 'YXZ'));
       s.set(t.width * scale, t.height * Math.sqrt(scale), t.width * scale);
-      mesh.setMatrixAt(k, m.compose(p, q, s));
-      mesh.setColorAt(k, col.setRGB(t.r, t.g, t.b));
-      n++;
+      mesh.setMatrixAt(c, m.compose(p, q, s));
+      mesh.setColorAt(c, col.setRGB(t.r, t.g, t.b));
+      if (++n % 500 === 0) yield;
     }
-    counted(n);
+    // Done: show the new set, hide the old.
     let tris = 0;
     meshes.forEach((mesh, i) => {
       mesh.count = counts[i];
@@ -620,7 +747,10 @@ export class TreesView {
       mesh.visible = counts[i] > 0;
       tris += (counts[i] * mesh.geometry.attributes.position.count) / 3;
     });
-    return tris;
+    for (const mesh of b.sets[b.front]) mesh.visible = false;
+    b.front = (1 - b.front) as 0 | 1;
+    b.tris = tris;
+    counted(n);
   }
 
   /**
@@ -628,7 +758,7 @@ export class TreesView {
    * each), merged into one mesh again when the set has changed (at most every canopyRebuild s).
    */
   private updateCanopy(x: number, z: number, now: number): void {
-    const c = CONFIG.trees;
+    const c = treeSettings();
     const S = c.canopySquare;
     const want: { key: string; i: number; j: number; d: number }[] = [];
     for (let j = Math.floor((z - c.canopyDistance) / S); j <= Math.floor((z + c.canopyDistance) / S); j++)
@@ -665,7 +795,7 @@ export class TreesView {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(position, 3));
     geo.setAttribute('color', new THREE.BufferAttribute(color, 3));
-    geo.computeVertexNormals();
+    // (No normals: the material is flat-shaded, each face's own worked out as it's drawn.)
     geo.computeBoundingSphere();
     this.canopy = new THREE.Mesh(geo, this.canopyMat);
     this.canopy.name = 'trees-canopy';

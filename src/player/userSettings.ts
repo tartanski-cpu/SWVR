@@ -17,6 +17,12 @@ export interface UserSettings {
   playerName: string;
   /** Rain streaks: all, fewer (a slower headset), or none. */
   rainQuality: 'high' | 'low' | 'off';
+  /**
+   * How far the trees are drawn (world/view/treesView.ts): 'auto' picks by the device (a
+   * standalone headset, the Quest: the near settings; a desktop's graphics card: far), or
+   * set it yourself.
+   */
+  treeDetail: 'auto' | 'quest' | 'desktop';
   /** The boat hook telescopes out to the crate or bow eye you point it at (CONFIG.rescue.hookAutoReach). */
   hookAutoExtend: boolean;
   /** The menu's Debug tab (test and cheat tools) is shown. Off for players. */
@@ -50,6 +56,7 @@ function load(): UserSettings {
     snapTurnDeg: CONFIG.locomotion.snapTurnDeg,
     playerName: PLAYER_NAMES[Math.floor(Math.random() * PLAYER_NAMES.length)],
     rainQuality: 'high',
+    treeDetail: 'auto',
     hookAutoExtend: true,
     debugMenu: false,
     potting: false,
@@ -68,6 +75,7 @@ function load(): UserSettings {
       if (typeof saved.debugMenu === 'boolean') s.debugMenu = saved.debugMenu;
       if (typeof saved.potting === 'boolean') s.potting = saved.potting;
       if (typeof saved.voiceChat === 'boolean') s.voiceChat = saved.voiceChat;
+      if (saved.treeDetail === 'auto' || saved.treeDetail === 'quest' || saved.treeDetail === 'desktop') s.treeDetail = saved.treeDetail;
       if (saved.rainQuality === 'high' || saved.rainQuality === 'low' || saved.rainQuality === 'off') s.rainQuality = saved.rainQuality;
     } else {
       const legacy = localStorage.getItem(LEGACY_COUPLING_KEY);

@@ -31,6 +31,10 @@ export interface MenuHost {
   /** Rain streak quality (a local setting) and the debug bilge flood. */
   rainQuality(): string;
   setRainQuality(q: string): void;
+  /** Trees' reach: the setting ('auto', 'quest', 'desktop') and, for Auto, what the device was taken for. */
+  treeDetail(): string;
+  treeLevel(): string;
+  setTreeDetail(d: string): void;
   bilgeStatus(): string;
   floodBilge(): void;
   /** Chart marks: how many, clear them all; the plot-it-yourself rescue mode. */
@@ -599,6 +603,15 @@ export function mainMenu(h: MenuHost): MainMenu {
         {
           label: 'Rain effect',
           buttons: (['high', 'low', 'off'] as const).map((q) => ({ text: q === 'high' ? 'High' : q === 'low' ? 'Low' : 'None', active: () => h.rainQuality() === q, press: () => h.setRainQuality(q) })),
+        },
+        {
+          // How far the trees are drawn: Auto picks by the device (a Quest near, a desktop far).
+          label: 'Trees',
+          buttons: (['auto', 'quest', 'desktop'] as const).map((d) => ({
+            text: () => (d === 'auto' ? `Auto (${h.treeLevel() === 'desktop' ? 'far' : 'near'})` : d === 'quest' ? 'Near (Quest)' : 'Far (desktop)'),
+            active: () => h.treeDetail() === d,
+            press: () => h.setTreeDetail(d),
+          })),
         },
         {
           label: 'Rescue position',
