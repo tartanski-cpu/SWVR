@@ -43,7 +43,8 @@ describe('the helm in view on a wide wheelhouse', () => {
   it('with the basic controls, its two screens side by side over the wheel (the ANCHOR between)', () => {
     const { row } = helmOf(type(2, { beam: 15, houseWidth: 1, controls: 0 }));
     // Speed and rpm, the ANCHOR quarter between them.
-    expect(row.map((r) => r.w)).toEqual([pitch - CONFIG.shipyard.helm.screenGap, CONFIG.modules.screen.dash.width / 2, pitch - CONFIG.shipyard.helm.screenGap]);
+    // (A quarter: half a full screen, less half the gap, so two side by side keep the gap between.)
+    expect(row.map((r) => r.w)).toEqual([pitch - CONFIG.shipyard.helm.screenGap, (CONFIG.modules.screen.dash.width - CONFIG.shipyard.helm.screenGap) / 2, pitch - CONFIG.shipyard.helm.screenGap]);
     inRow(row);
   });
 
