@@ -6644,7 +6644,8 @@ Owner: "Next milestone". The brief (as recorded in milestone 1): harbour boats, 
   - Each berth is picked by its id, so the same boats every time and on every player's machine.
   - **None within `namedClear` 25 m of a named berth** (cargo, fuel, the start), so those stay free for you.
   - A berth with a boat in it isn't offered for making fast (`vessel/physics/mooring.ts`).
-  - If a saved game has your boat made fast in such a berth, that harbour boat steps aside until you leave.
+  - **They make way for players' boats:** a harbour boat alongside isn't there while a vessel is made fast over her stretch of quay. That covers a saved game moored in her berth, and the multiplayer launch (`world/slots.ts`, the other session's new work) putting a boat in a berth beside hers; an 80 m coaster still gets Oban's long quay.
+  - The launch's anchoring spot keeps clear of the moored and anchored harbour boats' swinging circles.
 - **The boats** (`world/harbourBoats.ts`, plain data and pure functions, the same on every machine; nothing extra sent over the network):
 
   | | creel | yacht | cruiser | RIB | caique |

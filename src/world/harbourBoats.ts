@@ -20,8 +20,8 @@
  * Solid: each boat is a box (her length and beam, the bow tapered; from her keel to her
  * deck) that a hull's points bump off like a fendered pier (vessel/physics/contacts.ts).
  * Only boats within `stepReach` of a vessel are posed each tick (stepHarbourBoats). One
- * alongside whose berth a vessel is made fast in (a saved game moored there) steps aside:
- * she isn't there until the vessel leaves.
+ * alongside makes way for a vessel made fast over her stretch of quay (a saved game moored
+ * in her berth, a player's boat put in beside her): she isn't there until the vessel leaves.
  */
 import { CONFIG } from '../config';
 import type { WorldState } from '../core/world';
@@ -29,6 +29,8 @@ import { BERTHS } from './archipelago';
 import { allBerths } from './berths';
 import type { BerthDef, HarbourBoatKind, RegionDef } from './defs';
 import type { BlockHit } from './geography';
+import { hullPlan } from '../vessel/layout';
+import { VESSEL_DEFS } from '../vessel/vesselDef';
 import { GridIndex } from './gridIndex';
 import { REGIONS } from './regions';
 
@@ -160,15 +162,30 @@ export function boatWind(world: WorldState): { from: number; speed: number } {
 }
 
 /**
- * Is a vessel lying where this boat would be? Made fast in her berth (a saved game moored
- * there), or right on her spot (within 2 m: put there, not sailed there, since her hull
- * would have stopped a boat sailing in). Then she steps aside until the vessel has gone.
+ * Is a vessel lying where this boat would be? She makes way, and isn't there until the
+ * vessel has gone:
+ *   - for a vessel made fast in her berth (a saved game moored there), or alongside the
+ *     same face over her stretch of it (a player's boat put in a berth beside hers: an 80 m
+ *     coaster takes a long stretch of quay, world/slots.ts);
+ *   - for one right on her spot (within 2 m: put there, not sailed there, since her hull
+ *     would have stopped a boat sailing in).
  */
 export function harbourBoatDisplaced(b: HarbourBoat, world: WorldState): boolean {
   if (b.how !== 'alongside') return false;
+  const L = CONFIG.harbourBoats.kinds[b.kind].length;
   for (const v of Object.values(world.vessels)) {
-    if (v.mooring.phase !== 'free' && v.mooring.berthId === b.berthId) return true;
-    if (Math.hypot(v.position[0] - b.x, v.position[2] - b.z) < 2) return true;
+    const dx = b.x - v.position[0];
+    const dz = b.z - v.position[2];
+    if (Math.hypot(dx, dz) < 2) return true;
+    if (v.mooring.phase === 'free' || !v.mooring.berthId) continue;
+    if (v.mooring.berthId === b.berthId) return true;
+    // Lying along the same line as her (within a few metres across), overlapping her length.
+    const def = VESSEL_DEFS[v.defId];
+    const plan = def ? hullPlan(def) : null;
+    const len = plan ? Math.abs(plan.transom - plan.stem) : 10;
+    const along = Math.abs(dx * Math.sin(b.heading) - dz * Math.cos(b.heading));
+    const across = Math.abs(dx * Math.cos(b.heading) + dz * Math.sin(b.heading));
+    if (across < 3 && along < len / 2 + L / 2) return true;
   }
   return false;
 }
