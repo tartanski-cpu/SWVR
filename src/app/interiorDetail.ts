@@ -85,6 +85,12 @@ export class InteriorDetail {
     return this.small.length;
   }
 
+  /** Every part shown again (she's no longer the boat whose detail is managed: multi-boat M2). */
+  showAll(): void {
+    this.shown = true;
+    for (const o of this.small) o.visible = true;
+  }
+
   /** @param viewer the viewer's eye in the vessel's frame (null: nowhere near her) */
   update(viewer: THREE.Vector3 | null): void {
     const wh = this.def.layout.wheelhouse;

@@ -25,6 +25,7 @@ import { stepHullWear } from '../vessel/wear';
 import { vesselRuntime } from '../boats/sims';
 import { stepForecast } from '../environment/forecast';
 import { applyTrafficIntent, stepTraffic } from '../traffic/traffic';
+import { applySpawnBoatIntent } from './spawnBoat';
 import { stepDuties } from '../duties/duties';
 import { applyCraneIntent, onCrane, stepTender } from '../vessel/tenderCrane';
 import { applyPainterIntent, painterForces } from '../vessel/physics/painter';
@@ -114,6 +115,8 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
       applyCraneIntent(world, intent);
     } else if (intent.control === 'trafficSpawn') {
       applyTrafficIntent(world, intent);
+    } else if (intent.control === 'spawnBoat') {
+      applySpawnBoatIntent(world, intent);
     } else if (isCargoIntent(intent.control)) {
       applyCargoIntent(world, intent);
     } else if (intent.targetId === ENVIRONMENT_ID) {

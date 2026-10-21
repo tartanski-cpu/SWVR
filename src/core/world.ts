@@ -107,6 +107,8 @@ export interface WorldState {
    * ringing still runs its course. Forecasts and harbour chatter carry on.
    */
   quietCalls?: boolean;
+  /** Boats put in the world by the spawnBoat intent so far (core/spawnBoat.ts): their ids count up. */
+  spawned?: number;
 }
 
 export function createWorld(

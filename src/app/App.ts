@@ -338,7 +338,14 @@ export class App {
   /** Our id when playing alone, restored after leaving a game. */
   private readonly soloPlayerId: EntityId;
   /** The vessel the bridge, debug keys and audio act on (the MVP has exactly one). */
-  readonly testVesselId: EntityId;
+  /**
+   * Your boat: the one you're aboard (multi-boat M2), as long as she has a wheelhouse to work
+   * her from; otherwise the last one you were. The dash, sounds, gear mounts, bridge wiring and
+   * interior detail follow it (becomeAboard). It starts as the boat the page was built for.
+   */
+  private testVesselId: EntityId;
+  /** The boat this page was built for (the career's, the one `?boat=` / `?design=` named). */
+  private readonly startVesselId: EntityId;
   readonly intents = new IntentQueue();
   private readonly loop = new FixedStepLoop(CONFIG.sim.tickRate, CONFIG.sim.maxTicksPerFrame);
 
@@ -670,6 +677,7 @@ export class App {
     this.localPlayerId = created.localPlayerId;
     this.soloPlayerId = created.localPlayerId;
     this.testVesselId = created.vesselId;
+    this.startVesselId = created.vesselId;
     this.restoreVoyagePlace();
     // Our own working clothes, as crew who join will see us (net/avatarOutfits.ts).
     this.world.players[this.localPlayerId].look = randomLook();
@@ -712,27 +720,8 @@ export class App {
     this.scene.add(this.wildlife.root);
     this.scene.add(this.propStrikeView.pool.points);
     for (const vessel of Object.values(this.world.vessels)) this.addVesselView(vessel);
-    const tugView = this.vesselViews.get(this.testVesselId);
-    // The towline's lead from the winch drum over the stern roller; the trawl's warps from
-    // the A-frame's blocks (the winch, roller and A-frame are her modules, on the bridge).
-    if (tugView) this.towline.attachLead(tugView.root, this.world.vessels[this.testVesselId]);
-    this.trawlView.setBoat(this.world.vessels[this.testVesselId]);
     this.binoculars = new Binoculars(this.camera);
-    // The hand gear's places aboard are her hull's (M7): gear she has no place for isn't aboard.
-    const stowage = VESSEL_DEFS[this.world.vessels[this.testVesselId].defId].stowage;
-    if (tugView && stowage?.binoculars) this.binoculars.stow(tugView.root, stowage.binoculars.at, stowage.binoculars.yawDeg);
-    // The rods stand upright in their rack (a module, deck.rod-rack): each in its own cup.
-    const rodRack = gearOf(this.world.vessels[this.testVesselId], 'rodRack');
-    const upright = new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.PI / 2, 0, 0)); // the rod's -z (its tip) up
-    if (tugView) {
-      for (const g of this.gear) {
-        if (g.kind === 'rod') {
-          const at = rodRack?.rods[g.slot];
-          if (at) g.mount(tugView.root, at, upright);
-        } else if (stowage?.[g.kind]) g.mount(tugView.root, stowage[g.kind]!);
-      }
-      if (rodRack) this.rodView.attachBucket(tugView.root);
-    }
+    this.mountOnHomeBoat();
     this.scene.add(this.handGearView.root, this.camPreview.screen, this.rodView.root, this.lineGunView.root);
     this.scene.add(this.towline.root, this.painter.root, this.fireView.root, this.jetView.root, this.logView.root, this.trawlView.root, this.potView.root, this.fuelView.root);
     this.setupBridge();
@@ -793,6 +782,8 @@ export class App {
       const boat = new BoatView(vessel.id, def, modules, vessel.id === this.testVesselId);
       view.root.add(boat.root);
       this.boats.set(vessel.id, boat);
+      // A boat that came after the start (multi-boat M2): her controls work from now.
+      this.interaction?.addControls(boat.controls);
     }
   }
 
@@ -811,6 +802,8 @@ export class App {
         if (m.isMesh) m.geometry.dispose();
       });
       this.effects.get(id)?.dispose();
+      const gone = this.boats.get(id);
+      if (gone) this.interaction?.removeControls(gone.controls);
       for (const map of [this.vesselViews, this.hydroViews, this.walkAreas, this.effects, this.vesselRoots, this.hullPlans, this.boats] as Map<EntityId, unknown>[]) map.delete(id);
     }
   }
@@ -1018,6 +1011,9 @@ export class App {
   /** The workboat's engine, horn and alarm sounds; her boat view, tender crane and wheelhouse; the other boats' views (the skiff's tiller). */
   private updateOwnBoat(dt: number, nowMs: number, darkness: number): void {
     const frame = { darkness, viewer: this.focus };
+    // Your boat is the one you're aboard (multi-boat M2).
+    const aboardNow = this.world.players[this.localPlayerId]?.aboardVesselId;
+    if (aboardNow && aboardNow !== this.testVesselId) this.becomeAboard(aboardNow);
     const testView = this.vesselViews.get(this.testVesselId);
     if (testView) {
       // Engine room sits roughly under the wheelhouse.
@@ -2178,8 +2174,24 @@ export class App {
       targetId: this.localPlayerId,
       control: 'board',
       value: aboard ? 0 : 1,
-      ref: aboard ? undefined : this.testVesselId,
+      ref: aboard ? undefined : this.nearestBoat(),
     });
+  }
+
+  /** The boat to board from where you stand (multi-boat M2): the nearest with a wheelhouse within reach, else your boat. */
+  private nearestBoat(): EntityId {
+    const p = this.world.players[this.localPlayerId];
+    const at = p?.aboardVesselId ? null : p?.position;
+    if (!at) return this.testVesselId;
+    let best = this.testVesselId;
+    let bd = CONFIG.spawn.boardReach;
+    for (const v of Object.values(this.world.vessels)) {
+      const def = VESSEL_DEFS[v.defId];
+      if (!def || !hasWheelhouse(def) || def.tow || !this.boats.has(v.id)) continue;
+      const d = Math.hypot(v.position[0] - at[0], v.position[2] - at[2]);
+      if (d < bd) [best, bd] = [v.id, d];
+    }
+    return best;
   }
 
   private toggleSeaTrials(): void {
@@ -2579,6 +2591,10 @@ export class App {
         return defId === 'workboat' && new URLSearchParams(location.search).get('fit') === 'all' ? 'workboat:all' : defId;
       },
       setHomeBoat: (defId) => this.restartPage(restartIn(defId)),
+      spawnBoat: (defId) => {
+        if (this.client) return this.overlay.notify('Only the host puts boats in the world', 3);
+        this.pushEnvIntent('spawnBoat', 1, defId);
+      },
       seaTrialsShown: () => this.trialsPanel.shown,
       toggleSeaTrials: () => this.toggleSeaTrials(),
       debugPanel: () => this.overlay.visible,
@@ -3128,7 +3144,7 @@ export class App {
       this.restartPage(url);
       return;
     }
-    if (this.client) return;
+    if (this.client || this.testVesselId !== this.startVesselId) return;
     const want = this.wantedFit();
     if (this.fitWanted === null || want === null) {
       this.fitWanted = want;
@@ -3152,7 +3168,7 @@ export class App {
     const b = world.build ?? {};
     // Her token: on her (multi-boat M1), or from an older host, on the world's build.
     const token = home?.build ?? b.design;
-    const ours = this.world.vessels[this.testVesselId]?.defId;
+    const ours = this.world.vessels[this.startVesselId]?.defId;
     const same = theirs === ours && (token ?? '') === (this.builtAs.design ?? '') && (b.without ?? []).join(',') === (this.builtAs.without ?? []).join(',');
     if (same) return true;
     // Already rebuilt for this game once (or her code can't be read): a different version.
@@ -3266,6 +3282,90 @@ export class App {
   }
 
   /** What the app feeds the home boat's modules, the interaction system (every boat's controls) and desktop mouse/reticle. */
+  /**
+   * What hangs on the home boat (multi-boat M2: done again when she changes): the towline's
+   * lead from the winch drum over the stern roller; the trawl's warps from the A-frame's
+   * blocks; the binoculars and the hand gear in her places (M7: gear she has no place for
+   * isn't aboard); the rods upright in her rack, each in its own cup.
+   */
+  private mountOnHomeBoat(): void {
+    const v = this.world.vessels[this.testVesselId];
+    const root = this.vesselViews.get(this.testVesselId)?.root;
+    if (!v || !root) return;
+    this.towline.attachLead(root, v);
+    this.trawlView.setBoat(v);
+    const stowage = VESSEL_DEFS[v.defId].stowage;
+    if (stowage?.binoculars) this.binoculars.stow(root, stowage.binoculars.at, stowage.binoculars.yawDeg);
+    const rodRack = gearOf(v, 'rodRack');
+    const upright = new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.PI / 2, 0, 0)); // the rod's -z (its tip) up
+    for (const g of this.gear) {
+      if (g.kind === 'rod') {
+        const at = rodRack?.rods[g.slot];
+        if (at) g.mount(root, at, upright);
+      } else if (stowage?.[g.kind]) g.mount(root, stowage[g.kind]!);
+    }
+    if (rodRack) this.rodView.attachBucket(root);
+  }
+
+  /**
+   * Her bridge wired to the app (multi-boat M2: done again when the home boat changes): her
+   * tender crane given the skiff it carries, her whiteboard, wind sock, searchlight, chart,
+   * fire gauge, duty board and chart table.
+   */
+  private wireHomeBoat(): void {
+    const v = this.world.vessels[this.testVesselId];
+    const home = this.homeView;
+    if (!v || !home) return;
+    const crane = home.api<TenderCraneView>('deck.tender-crane');
+    const tender = Object.values(this.world.vessels).find((t) => t.tender?.hostId === v.id);
+    if (crane && tender && !this.cranes.includes(crane)) {
+      crane.attach(tender.id, VESSEL_DEFS[tender.defId]);
+      this.vesselViews.get(tender.id)?.root.add(crane.remote);
+      this.cranes.push(crane);
+      this.interaction?.addControls(crane.buttons);
+    }
+    this.board?.rayLine.removeFromParent();
+    this.board = home.whiteboard;
+    if (this.board) this.scene.add(this.board.rayLine);
+    this.windSock = home.api<MastApi>('mount.mast')?.windSock ?? null;
+    this.searchlight = home.api<SearchlightApi>('deck.searchlight');
+    home.chart?.setLandSource((id) => this.worldView.terrainPositions(id));
+    this.fireGauge = home.api<FireMonitorApi>('deck.fire-monitor')?.gauge ?? null;
+    this.dutyBoard = home.dutyBoard;
+    this.chartTools?.root.removeFromParent();
+    this.chartTools = null;
+    this.chartTable = home.chartTable;
+    if (this.chartTable) {
+      this.chartTools = new ChartTools(this.chartTable);
+      // On the leaf: the marks and tools fold with it.
+      this.chartTable.leafFrame.add(this.chartTools.root);
+    }
+  }
+
+  /**
+   * Your boat is the one you're aboard (multi-boat M2): stepping onto another boat with a
+   * wheelhouse (not a tow, not the skiff) makes her the home boat: her controls send plain
+   * channels, the dash, sounds, gear and bridge wiring are hers, her interior detail is the
+   * one managed. The boat you left keeps her view and her controls, routed to her.
+   */
+  private becomeAboard(id: EntityId): void {
+    if (id === this.testVesselId) return;
+    const v = this.world.vessels[id];
+    const def = v && VESSEL_DEFS[v.defId];
+    if (!def || !hasWheelhouse(def) || def.tow || !this.boats.has(id) || !this.vesselViews.has(id)) return;
+    this.boats.get(this.testVesselId)?.setHome(false);
+    this.boats.get(id)?.setHome(true);
+    this.interior?.showAll();
+    this.interior = null;
+    this.testVesselId = id;
+    this.mountOnHomeBoat();
+    this.wireHomeBoat();
+    this.fitWanted = this.wantedFit();
+    this.slipWas = '';
+    const fleet = FLEET.find((f) => f.id === v.defId);
+    this.overlay.notify(`Aboard ${fleet ? `the ${fleet.name.toLowerCase()}` : 'her'}: she's your boat now`, 3);
+  }
+
   private setupBridge(): void {
     const v = this.world.vessels[this.testVesselId];
     const view = this.vesselViews.get(this.testVesselId);
@@ -3273,33 +3373,7 @@ export class App {
     // Her boat view (her modules, from her recipe) was built with her vessel view.
     const home = this.homeView;
     if (!home) throw new Error(`the home boat (${v.defId}) has no modules to work her by`);
-    // Her tender crane (a module) is given the skiff it carries: its LAUNCH / RECOVER
-    // buttons, her tarpaulin, and the remote that rides in her.
-    const crane = home.api<TenderCraneView>('deck.tender-crane');
-    const tender = Object.values(this.world.vessels).find((t) => t.tender?.hostId === v.id);
-    if (crane && tender) {
-      crane.attach(tender.id, VESSEL_DEFS[tender.defId]);
-      this.vesselViews.get(tender.id)?.root.add(crane.remote);
-      this.cranes.push(crane);
-    }
-    // The crew whiteboard, the duty board and the chart table are modules (M3c); the app
-    // hands them what isn't the boat's: the notes, the game's tasks, the pencil and dividers.
-    this.board = home.whiteboard;
-    if (this.board) this.scene.add(this.board.rayLine);
-    // The roof's modules the app feeds: the mast's wind sock (the weather), the searchlight
-    // (how dark it is; its light goes to the ocean), the fire monitor's gauge (the fire job).
-    this.windSock = home.api<MastApi>('mount.mast')?.windSock ?? null;
-    this.searchlight = home.api<SearchlightApi>('deck.searchlight');
-    // The plotter cuts the hand-built regions' coast from the terrain their views build (nav/chartLand.ts).
-    home.chart?.setLandSource((id) => this.worldView.terrainPositions(id));
-    this.fireGauge = home.api<FireMonitorApi>('deck.fire-monitor')?.gauge ?? null;
-    this.dutyBoard = home.dutyBoard;
-    this.chartTable = home.chartTable;
-    if (this.chartTable) {
-      this.chartTools = new ChartTools(this.chartTable);
-      // On the leaf: the marks and tools fold with it.
-      this.chartTable.leafFrame.add(this.chartTools.root);
-    }
+    this.wireHomeBoat();
     this.restoreBatteries();
     try {
       // The career (money, reputation, upgrades, her condition) carries on from the last
@@ -4701,7 +4775,7 @@ export class App {
 
   /** The next boat to start in after the one you're in (the touch controls' switch). */
   private nextStartBoat(): string | null {
-    const here = this.world.vessels[this.testVesselId]?.defId ?? 'workboat';
+    const here = this.world.vessels[this.startVesselId]?.defId ?? 'workboat';
     const i = START_BOATS.indexOf(here);
     const next = START_BOATS[(i + 1) % START_BOATS.length];
     return next !== here && RECIPES[next] ? next : null;

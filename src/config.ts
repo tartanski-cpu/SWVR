@@ -4642,6 +4642,13 @@ export const CONFIG = {
    * no career, no saves. `boat`: the boat it starts in (any other by Start in, a Shipyard
    * code or a design file), fitted out in full.
    */
+  /**
+   * A second boat put in the world beside the home boat (multi-boat M2: Debug > Boat > Second
+   * boat; core/spawnBoat.ts): this much clear water between their sides (m). `boardReach`: from
+   * ashore, the board button takes you to the nearest boat with a wheelhouse within this (m).
+   */
+  spawn: { abeam: 6, boardReach: 40 },
+
   voyage: {
     boat: 'pilotBoat',
     /**
