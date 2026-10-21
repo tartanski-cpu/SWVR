@@ -4772,6 +4772,35 @@ export const CONFIG = {
     tile: 100,
     moveAgain: 15,
     refresh: 2,
+    /**
+     * The middle band (milestone 5): from nearDistance out to `midDistance` (m) a sparser
+     * scatter (one tree in about `midThin`² of the near band's: a jittered grid, cheap to
+     * make) of cheaper models (5-8 triangles: no trunk; the canopy hides their feet), crowns
+     * `midScale` times bigger so the woods read as thick; at most `maxMid`; placed again after
+     * `midMoveAgain` m.
+     */
+    midDistance: 800,
+    maxMid: 2500,
+    midThin: 1.7,
+    midScale: 1.2,
+    midMoveAgain: 40,
+    /**
+     * The far woods: a canopy, a bumpy flat-shaded surface over the wooded ground (a height
+     * per kind of wood, m, falling to the ground at the wood's edge; none where the map is
+     * thinner than `canopyMinDensity` of 15), on a `canopyCell` m grid, in `canopySquare` m
+     * squares out to `canopyDistance` (m), all merged into one mesh (merged again at most
+     * every `canopyRebuild` s). It isn't drawn within `canopyFrom` (m) of the viewer, where
+     * the trees themselves stand, fading in over `canopyFade` m (dithered).
+     */
+    canopyDistance: 5000,
+    canopyCell: 40,
+    canopySquare: 2000,
+    canopyRebuild: 0.5,
+    canopyFrom: 290,
+    canopyFade: 50,
+    canopyMinDensity: 6,
+    canopyBump: 3,
+    canopyHeight: { plantation: 14, broadleaf: 11, mixed: 12, natural: 9, scrub: 1.4, orchard: 4 } as Record<string, number>,
     species: {
       conifer: { height: [9, 17] as [number, number], width: [0.36, 0.48] as [number, number], lean: 2 },
       broadleaf: { height: [6, 13] as [number, number], width: [0.75, 1.0] as [number, number], lean: 5 },
