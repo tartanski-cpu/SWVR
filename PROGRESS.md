@@ -5553,6 +5553,15 @@ Owner, Oct 2026: "On the big maps like Syros and the Firth of Clyde, the texture
 - **Not changed:** the career maps (their islands are drawn from formulas, already sampled at 8 m a pixel), the paper chart, the plotter's screen resolution (512 x 384).
 - **Checked:** tests/chartLand.test.ts (4): a triangle cut at the waterline (its dry part's corners and area), wholly above or below, always one way round; faces into squares, all-deep squares kept; each level's path, and a face wholly above the next level giving nothing for this one. Full suite passes. Headless Chromium, the plotter's screen before and after at Rothesay, and after at Ermoupoli, Oban, Tayvallich and out in the Clyde. **Not checked:** the Quest (watch for a stutter the first time a part of a map comes on the plotter).
 
+### A cabin below under the raised foredeck (done, awaiting owner test)
+
+Owner, Oct 2026: "it also looks like the cabin below the raised poop deck doesn't work at the moment." (Confirmed: a fo'c'sle cabin under the raised foredeck.) It only went under a deckhouse.
+
+- **Now** (shipyard/parts/house.ts interiorPart): the cabin below goes under a deckhouse as before, or under a raised foredeck the wheelhouse stands on (the break aft of the house). There its "trunk" is the raised foredeck: from `deckhouse.fromStem` aft of the stem to the wheelhouse, its ceiling the raised deck at its lowest along the cabin (her sheer rises forward) less 8 cm; its walls inside her sides; her deck not cut away (it's the ceiling: no `deckOpening`). The same companionway down from the wheelhouse beside the helm, the same V-berth, the same rules (the engine not under the wheelhouse: pod drives, stern drives or outboards put it aft).
+- **Shipyard:** Inside (A cabin below) shows with a deckhouse or a raised foredeck. With the raised foredeck forward of the house, it says the house must stand on it.
+- The cabin is drawn without a deckhouse too (hullMesh.ts).
+- **Checked:** tests/raisedForedeck.test.ts: the fishing boat with outboards, the house on a 9 m raised foredeck: a cabin, no deck cut away, standing headroom, its ceiling under the raised deck, its sole walked; the house forward of the break: none, saying why. Shipyard tests pass; full suite passes. Headless Chromium: inside the fo'c'sle cabin (the berth, its walls and ceiling), beside the deckhouse cabin for comparison. **Not checked:** the Quest (going down the companionway).
+
 ### Deckhouse: one Width slider; out to her sides it's a raised deck (done, awaiting owner test)
 
 Owner, Oct 2026: "the deck house implementation needs some rework. So when it comes up to the side, when you use the option to the side, you probably don't need railings... on the side, because you would kind of walk over the sides. And I think maybe having this slider might help with the width of it." (Confirmed: at full width her bulwarks and rails rise along it, no separate rail round its top's sides; the three width buttons become one slider.)

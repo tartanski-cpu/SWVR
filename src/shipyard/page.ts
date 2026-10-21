@@ -645,7 +645,7 @@ let syncDhWidth: () => void = () => {};
 
 /** When a row shown only where it applies (data-when / data-unless) is: a field set, or the deckhouse with side decks. */
 const rowApplies = (cond: string): boolean =>
-  cond === 'dhSideDecks' ? !!design.dhLength && !design.dhNarrow && design.dhWidth > 0 : cond === 'dhTopChoice' ? !!design.dhLength && !(!design.dhNarrow && design.dhWidth < 0.025) : cond === 'tugStacks' ? design.hull === 4 && !design.outboards : cond === 'raisedForedeck' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck : cond === 'foredeckHeight' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength : !!design[cond as keyof ShipDesign];
+  cond === 'dhSideDecks' ? !!design.dhLength && !design.dhNarrow && design.dhWidth > 0 : cond === 'cabinBelow' ? !!design.dhLength || (!!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength) : cond === 'dhTopChoice' ? !!design.dhLength && !(!design.dhNarrow && design.dhWidth < 0.025) : cond === 'tugStacks' ? design.hull === 4 && !design.outboards : cond === 'raisedForedeck' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck : cond === 'foredeckHeight' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength : !!design[cond as keyof ShipDesign];
 /** A few set options in a row, as buttons (for choices with only a handful of settings). */
 function options(key: keyof ShipDesign, label: string, names: string[]): HTMLElement {
   labels[key] ??= label;
@@ -815,7 +815,7 @@ section('2. Wheelhouse');
   // Its top walked (P2b): a rail round it and a ladder up from the deck.
   options('dhWalk', 'Top', ['Not walked', 'Walked: rail and ladder']).dataset.when = 'dhTopChoice'; // (out to her sides it's always walked)
   // A cabin below it (P2c): the deck cut away, the sole sunk into her, a companionway down from the wheelhouse.
-  options('foreCabin', 'Inside', ['Solid', 'A cabin below']).dataset.when = 'dhLength';
+  options('foreCabin', 'Inside', ['Solid', 'A cabin below']).dataset.when = 'cabinBelow'; // (under a deckhouse, or a raised foredeck)
 }
 section('3. Deck gear');
 {

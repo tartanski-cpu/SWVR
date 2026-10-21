@@ -248,9 +248,10 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
     const plan = hullPlan({ hull: form });
     // (A cabin below's companionway comes down through its top as well as the wheelhouse floor.)
     parts.push(buildDeckhouse(layout.deckhouse, (z) => plan.deckY(z) - 0.06, col.house, layout.cabin ? [layout.cabin.stair] : []));
-    if (layout.cabin) parts.push(...cabinParts(layout.cabin));
     if (layout.deckhouse.walk) parts.push(...deckhouseRail(layout.deckhouse, layout.wheelhouse?.halfWidth ?? 0, plan.deckY, col.rail));
   }
+  // A cabin below (P2c): under the deckhouse, or under a raised foredeck the wheelhouse stands on.
+  if (layout.cabin) parts.push(...cabinParts(layout.cabin));
   // Her houses (P2a: the list), the helm's first: each drawn as the helm's is, from a layout
   // that is its own (a further house has no engine hatch in its floor, no ladder to its roof).
   if (hasHouse(layout)) {

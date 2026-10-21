@@ -460,7 +460,7 @@ export type OverheadPart = ReturnType<typeof overheadPart>;
 /** Inside the wheelhouse: the chart table, the side door, and a cabin below the deckhouse with its companionway (P2c). */
 export function interiorPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & TrimPart & MachineryPart & PlacesPart & DeckGearPart & OverheadPart & EngineHatchPart) {
   const { d } = a;
-  const { F, FA, aft, at, bowRamp, cf, deckLo, deckhouse, dg, engZ0, engZ1, floorY, front, helmAft, hw, layout, levels, outboards, q, r2, rnd, roofAt, roofY, saloonDrop, saloonL, sb, side, st, wall, warnings, windowHead } = p;
+  const { F, FA, aft, at, bowRamp, cf, deckLo, deckhouse, dg, engZ0, engZ1, floorY, foredeck, front, helmAft, hw, layout, levels, outboards, q, r2, rnd, roofAt, roofY, saloonDrop, saloonL, sb, side, st, stem, wall, warnings, windowHead } = p;
   // The chart table (owner: its own choice): along the port wall at the aft end, its hinge
   // corner forward, if her house is wide enough to pass inboard of it and long enough to
   // leave the helm clear.
@@ -508,9 +508,14 @@ export function interiorPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
   // inside her sides at the sole (where a V hull is narrowest), so they're inside her
   // everywhere above. Walked through extraFloors, hollows, floorHoles and deckOpening (as the
   // Alaskan 38's cabin is); drawn by hullMesh.ts from layout.cabin.
+  //
+  // Or under a raised foredeck the wheelhouse stands on (owner, Oct 2026: "the cabin below the
+  // raised poop deck"; a fo'c'sle cabin, as on a trawler): the raised deck its ceiling (flat, at
+  // its lowest along the cabin), her sides its walls, her deck not cut away (it's the ceiling).
   let cabinM2 = 0;
-  if (d.foreCabin && !deckhouse) warnings.push('The cabin below needs a deckhouse forward of the wheelhouse, for its trunk: none.');
-  else if (d.foreCabin && deckhouse) {
+  const underForedeck = !deckhouse && !!foredeck && foredeck.z > aft;
+  if (d.foreCabin && !deckhouse && !underForedeck) warnings.push(foredeck ? 'The cabin below goes under a raised foredeck only when the wheelhouse stands on it (make the raised foredeck reach aft past the wheelhouse): none.' : 'The cabin below needs a deckhouse forward of the wheelhouse, or a raised foredeck the wheelhouse stands on, over it: none.');
+  else if (d.foreCabin && (deckhouse || underForedeck)) {
     const cc = CONFIG.shipyard.deckhouse.cabin;
     const why = (() => {
       // Her hull's half breadth at height y, at z between the stations either side; her bottom there.
@@ -522,11 +527,14 @@ export function interiorPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
       };
       const hullHalf = (z: number, y: number) => between(z, (p) => halfBreadthAt(p, y));
       const keelAt = (z: number) => between(z, (p) => p[2][1]);
-      // The trunk's top is flat aft of its front's rake (hullMesh.ts buildDeckhouse: the same slope).
-      const foot = q.deckY(deckhouse.z0) - 0.06;
-      const flat = deckhouse.z0 + (deckhouse.top - foot) * Math.tan((deckhouse.rakeDeg * Math.PI) / 180);
-      let zFront = Math.max(flat, deckhouse.z0 + 0.1) + cc.wall;
-      const trunkCeil = deckhouse.top - 0.05;
+      // Its trunk: the deckhouse, its top flat aft of its front's rake (hullMesh.ts buildDeckhouse:
+      // the same slope); or the raised foredeck from where her bow allows forward, its deck the
+      // ceiling at its lowest (her sheer rises forward) less the deck's thickness.
+      const fcFrom = stem + CONFIG.shipyard.deckhouse.fromStem;
+      const foot = deckhouse ? q.deckY(deckhouse.z0) - 0.06 : 0;
+      const flat = deckhouse ? deckhouse.z0 + (deckhouse.top - foot) * Math.tan((deckhouse.rakeDeg * Math.PI) / 180) : fcFrom;
+      let zFront = deckhouse ? Math.max(flat, deckhouse.z0 + 0.1) + cc.wall : fcFrom + cc.wall;
+      const trunkCeil = deckhouse ? deckhouse.top - 0.05 : rnd(Math.min(...Array.from({ length: 9 }, (_, i) => q.deckY(fcFrom + ((front - fcFrom) * i) / 8))) - 0.08);
       const houseCeil = floorY - 0.1;
       // The companionway: beside the helm, on the side away from a console against a wall.
       const comSide = side === 2 ? -1 : 1;
@@ -542,7 +550,7 @@ export function interiorPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
       sole = rnd(sole);
       if (trunkCeil - sole < cc.minHeadroom - 1e-6) return `there'd be only ${(trunkCeil - sole).toFixed(2)} m of headroom under the trunk (${cc.minHeadroom} m at least): make the deckhouse higher`;
       // Its half width at z: inside the trunk's walls (the wheelhouse's, under it), and her sides at the sole.
-      const half = (z: number) => Math.min(z < front ? deckhouseHalfWidth(deckhouse, Math.min(z, deckhouse.z1)) - cc.wall : hw - wall, hullHalf(z, sole + 0.02) - cc.hullClear);
+      const half = (z: number) => Math.min(z < front ? (deckhouse ? deckhouseHalfWidth(deckhouse, Math.min(z, deckhouse.z1)) : q.halfBeam(z)) - cc.wall : hw - wall, hullHalf(z, sole + 0.02) - cc.hullClear);
       // Its forward end: where it's wide enough to be worth having (the V-berth's narrow end).
       while (zFront < front && half(zFront) < 0.3) zFront += 0.05;
       // The steps: down from the wheelhouse floor to the sole, the opening just aft of the console.
@@ -587,8 +595,9 @@ export function interiorPart(a: BuildArgs, p: HullPart & HousePart & LayoutPart 
         hollows.push({ x0: -w, x1: w, y0: sole - 0.1, y1: (za + zb) / 2 < front ? trunkCeil : houseCeil, z0: za, z1: zb });
       }
       layout.hollows = [...(layout.hollows ?? []), ...hollows];
-      // The deck cut away over it (its plan), so it isn't across the cabin.
-      layout.deckOpening = { front: cabin.z0, inset: 0, plan };
+      // The deck cut away over it (its plan), so it isn't across the cabin (under a deckhouse:
+      // under a raised foredeck that deck is its ceiling, left as it is).
+      if (deckhouse) layout.deckOpening = { front: cabin.z0, inset: 0, plan };
       // Its lining (sole, sides, the bulkheads at each end) and the berth, for its weight.
       for (let i = 1; i < plan.length; i++) {
         const [za, wa] = plan[i - 1];

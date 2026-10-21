@@ -76,6 +76,24 @@ describe('a raised foredeck', () => {
     expect(b.warnings.join(' ')).not.toMatch(/undefined/);
   });
 
+  it("a cabin below under it, when the wheelhouse stands on it: the raised deck its ceiling (not cut away), standing headroom, walked down from the wheelhouse", () => {
+    const b = useDesign({ ...netter, housePos: 0.6, fcLength: 9, outboards: 1, foreCabin: 1 });
+    const l = VESSEL_DEFS.design.layout;
+    const c = l.cabin!;
+    expect(c).toBeDefined();
+    expect(b.warnings.join(' ')).not.toMatch(/no cabin/);
+    expect(l.deckOpening).toBeUndefined();
+    expect(c.ceiling.trunk - c.sole).toBeGreaterThan(CONFIG.shipyard.deckhouse.cabin.minHeadroom - 1e-6);
+    const plan = hullPlan(VESSEL_DEFS.design);
+    expect(c.ceiling.trunk).toBeLessThan(plan.deckY((c.z0 + c.ceiling.front) / 2));
+    const walk = vesselWalkArea(VESSEL_DEFS.design, l);
+    expect(walk.walkable(0, (c.z0 + c.ceiling.front) / 2 + 0.5, c.sole)).toBe(true);
+    // The house forward of the break, not on it: no cabin there, saying why.
+    const off = useDesign({ ...netter, fcLength: 3, outboards: 1, foreCabin: 1 });
+    expect(VESSEL_DEFS.design.layout.cabin).toBeUndefined();
+    expect(off.warnings.join(' ')).toMatch(/cabin below/);
+  });
+
   it('only the fishing boat offers it; not in the code', () => {
     const tug: ShipDesign = { ...DEFAULT_DESIGN, ...DESIGN_HULLS[4].defaults, hull: 4 };
     useDesign({ ...tug, fcLength: 5 });
