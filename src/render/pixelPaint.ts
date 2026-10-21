@@ -26,7 +26,7 @@ import { CONFIG } from '../config';
  * (`fitPaint`, render/geometryUtils); the others repeat every `tileMetres`. The last four dress
  * the wheelhouse inside (CONFIG.interiors and CONFIG.cabinFloors, chosen in the Shipyard).
  */
-export const PAINTS = ['nonSlip', 'wood', 'mat', 'chequer', 'crate', 'sacking', 'worn', 'boards', 'render', 'sheet', 'slates', 'concrete', 'stone', 'window', 'rust', 'teak', 'deckTeak', 'steel', 'brushed', 'facade'] as const;
+export const PAINTS = ['nonSlip', 'wood', 'mat', 'chequer', 'crate', 'sacking', 'worn', 'boards', 'render', 'sheet', 'slates', 'concrete', 'stone', 'window', 'rust', 'teak', 'deckTeak', 'steel', 'brushed', 'facade', 'beamsLight', 'beamsDark'] as const;
 export type PaintName = (typeof PAINTS)[number];
 
 /** A tile's index in the texture (0: none). */
@@ -81,8 +81,43 @@ const facadePane = (x: number, y: number) => {
 /** Tiles with glass that lights at night: which pixels are panes. */
 const GLASS: Partial<Record<PaintName, (x: number, y: number) => boolean>> = { facade: facadePane };
 
+/**
+ * A ceiling liner with varnished wooden beams across it, painted (owner, Oct 2026: "you can
+ * just paint those with textures, they don't need to be 3D"; CONFIG.cabinBeams). Unlike the
+ * other tiles it's in colour, made for one ceiling colour `ceiling` (the tile multiplies it,
+ * x2): the liner's pixels bring it to `liner` with a fine speckle, the beams' to the wood's
+ * colour with a little grain, a pixel of shadow on the liner beside each beam.
+ */
+function beamsTile(spec: { ceiling: number; liner: number }, seed: number): () => (x: number, y: number) => Pixel {
+  return () => {
+    const { colour, pitchPx, widthPx } = CONFIG.cabinBeams;
+    const r = rng(seed);
+    // In the renderer's (linear) colours, as the part's colour and the tile meet in the shader.
+    const base = new THREE.Color(spec.ceiling);
+    const ratio = (c: THREE.Color, k = 1): Pixel => [Math.min(1, (c.r * k) / (2 * base.r)), Math.min(1, (c.g * k) / (2 * base.g)), Math.min(1, (c.b * k) / (2 * base.b))];
+    const liner = new THREE.Color(spec.liner);
+    const wood = new THREE.Color(colour);
+    const speck = Array.from({ length: TILE * TILE }, () => 0.86 + 0.28 * r());
+    const grain = Array.from({ length: TILE }, () => 0.85 + 0.3 * r());
+    return (x, y) => {
+      const k = y % pitchPx;
+      if (k < widthPx) return ratio(wood, grain[(x + k * 23) % TILE] * (k === 0 ? 1.15 : 1));
+      if (k === widthPx) return ratio(liner, 0.55); // the beam's shadow
+      return ratio(liner, speck[y * TILE + x]);
+    };
+  };
+}
+
+/** A pixel: a brightness 0..1 (grey), or an r, g, b (the beamed liners). */
+type Pixel = number | readonly [number, number, number];
+
+/** The tiles in colour, made for one part colour each (they don't average to mid-grey). */
+export const TINTED: readonly PaintName[] = ['beamsLight', 'beamsDark'];
+
 /** Each tile's pixels: brightness 0..1 at (x, y), y up the face. Every tile repeats seamlessly. */
-const PAINTERS: Record<PaintName, () => (x: number, y: number) => number> = {
+const PAINTERS: Record<PaintName, () => (x: number, y: number) => Pixel> = {
+  beamsLight: beamsTile(CONFIG.cabinBeams.light, 151),
+  beamsDark: beamsTile(CONFIG.cabinBeams.dark, 157),
   /** Non-slip deck paint: a grit of raised flecks over a slightly mottled ground. */
   nonSlip: () => {
     const r = rng(23);
@@ -369,9 +404,10 @@ export function paintPixels(): Uint8Array {
     const base = (k + 1) * TILE * TILE * 4;
     for (let y = 0; y < TILE; y++)
       for (let x = 0; x < TILE; x++) {
-        const v = Math.round(255 * Math.min(1, Math.max(0, at(x, y))));
+        const p = at(x, y);
+        const [r, g, b] = (typeof p === 'number' ? [p, p, p] : p).map((c) => Math.round(255 * Math.min(1, Math.max(0, c))));
         // Alpha marks glass (0) for the night glow; everything else is opaque (255).
-        data.set([v, v, v, glass?.(x, y) ? 0 : 255], base + (y * TILE + x) * 4);
+        data.set([r, g, b, glass?.(x, y) ? 0 : 255], base + (y * TILE + x) * 4);
       }
   });
   return data;

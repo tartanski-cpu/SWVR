@@ -33,38 +33,16 @@ const COLORS = {
  * Every part's colour, for a hull's livery (`roofTop`: only a roof with an inset top in a
  * second colour has one), and the tiles the wheelhouse's lining wears inside.
  */
-type Paint = typeof COLORS & { roofTop?: number; liningTile: PaintName; ceilingTile: PaintName; floorTile: PaintName; beams: boolean };
+type Paint = typeof COLORS & { roofTop?: number; liningTile: PaintName; ceilingTile: PaintName; floorTile: PaintName };
 
 /** A hull's colours: her livery over the workboat's; inside, her interior finish (the wood lining if none) and floor (matting). */
 export function paintOf(livery?: Livery): Paint {
   const fin = CONFIG.interiors[livery?.interior ?? 0] ?? CONFIG.interiors[0];
   const fl = CONFIG.cabinFloors[livery?.cabinFloor ?? 0] ?? CONFIG.cabinFloors[0];
-  const paint: Paint = { ...COLORS, lining: fin.walls, ceiling: fin.ceiling, liningTile: fin.wallTile, ceilingTile: fin.ceilingTile, floorTile: fl.tile, beams: fin.beams };
+  const paint: Paint = { ...COLORS, lining: fin.walls, ceiling: fin.ceiling, liningTile: fin.wallTile, ceilingTile: fin.ceilingTile, floorTile: fl.tile };
   for (const [k, v] of Object.entries(livery ?? {})) if (v !== undefined && k !== 'interior' && k !== 'cabinFloor') (paint as unknown as Record<string, number>)[k] = v;
   if (fl.colour !== null) paint.floor = fl.colour;
   return paint;
-}
-
-/**
- * Varnished wooden battens across a ceiling (CONFIG.interiors' `beams`, CONFIG.cabinTrim),
- * hung under it at `y` over x0..x1 and z0..z1, and a wood trim strip round its edge where it
- * meets the walls (owner, Oct 2026, from a photo of an aluminium pilothouse). Merged with her
- * other fixed parts: no extra draw calls.
- */
-function ceilingBeams(col: Paint, x0: number, x1: number, y: number, z0: number, z1: number, parts: THREE.BufferGeometry[]): void {
-  if (!col.beams || x1 - x0 < 0.2 || z1 - z0 < 0.2) return;
-  const t = CONFIG.cabinTrim;
-  const n = Math.max(1, Math.round((z1 - z0) / t.beamPitch));
-  const pitch = (z1 - z0) / n;
-  for (let i = 1; i < n; i++) {
-    const z = z0 + i * pitch;
-    parts.push(box(x0, x1, y - t.beamDepth, y, z - t.beamWidth / 2, z + t.beamWidth / 2, t.colour, 'teak'));
-  }
-  const k = 0.02; // the trim's thickness off the wall
-  parts.push(box(x0, x0 + k, y - t.trimDepth, y, z0, z1, t.colour, 'teak'));
-  parts.push(box(x1 - k, x1, y - t.trimDepth, y, z0, z1, t.colour, 'teak'));
-  parts.push(box(x0, x1, y - t.trimDepth, y, z0, z0 + k, t.colour, 'teak'));
-  parts.push(box(x0, x1, y - t.trimDepth, y, z1 - k, z1, t.colour, 'teak'));
 }
 
 /**
@@ -738,16 +716,10 @@ function buildShapedHouse(layout: HouseLayout, col: Paint, base: number): THREE.
     if (sr) parts.push(planSlab([[-wi, zRoofEnd + k], [wi, zRoofEnd + k], [wi, zA + ov - k], [-wi, zA + ov - k]], roofS + t, roofS + t + 0.02, col.roofTop));
   }
   const ceilFrom = parts.length;
-  for (const [a, b] of spans) {
-    parts.push(box(Math.max(a, -hw + w), Math.min(b, hw - w), roofY - 0.012, roofY, Math.max(zF, zH) + w, zStep - w, col.ceiling, col.ceilingTile));
-    ceilingBeams(col, Math.max(a, -hw + w), Math.min(b, hw - w), roofY - 0.012, Math.max(zF, zH) + w, zStep - w, parts);
-  }
+  for (const [a, b] of spans) parts.push(box(Math.max(a, -hw + w), Math.min(b, hw - w), roofY - 0.012, roofY, Math.max(zF, zH) + w, zStep - w, col.ceiling, col.ceilingTile));
   // (Only its front: its aft end, at the step to a lower saloon roof or the aft wall, stays put.)
   if (sh.facet) setBack(parts.slice(ceilFrom), facetDz(wh), zStep - w - 0.01);
-  if (sr) {
-    parts.push(box(-hw + w, hw - w, roofS - 0.012, roofS, zStep, zA - w, col.ceiling, col.ceilingTile));
-    ceilingBeams(col, -hw + w, hw - w, roofS - 0.012, zStep, zA - w, parts);
-  }
+  if (sr) parts.push(box(-hw + w, hw - w, roofS - 0.012, roofS, zStep, zA - w, col.ceiling, col.ceilingTile));
   // Raked out all round: the roof and the ceiling go out with the walls' tops.
   if (fl) applyFlare(parts.slice(roofFrom), fl);
   // A cockpit overhead (P2b): the aft roof carried on aft over the working deck (its edges
@@ -1265,7 +1237,6 @@ function buildWheelhouse(layout: HouseLayout, col: Paint, base: number): THREE.B
   for (const g of parts.slice(wallsFrom)) lineInside(g, H, col.lining, col.liningTile, centre);
   // The ceiling, just under the roof.
   parts.push(box(-hw + w, hw - w, roof - 0.012, roof, wh.front + w, wh.aft - w, col.ceiling, col.ceilingTile));
-  ceilingBeams(col, -hw + w, hw - w, roof - 0.012, wh.front + w, wh.aft - w, parts);
   // Door sill.
   parts.push(box(-door, door, base, doorFloor + 0.02, wh.aft - w, wh.aft, col.floor));
 
