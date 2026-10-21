@@ -127,7 +127,26 @@ export interface BuildingDef {
    * What the walls are clad in, painted on (pixel paint): weatherboard, render, or corrugated
    * sheet (a shed: its roof is sheet too; the others are slated). Unset: render.
    */
-  cladding?: 'boards' | 'render' | 'sheet';
+  cladding?: 'boards' | 'render' | 'sheet' | 'stone';
+  /**
+   * The house kit (world/view/houseKit.ts; the coast pipeline's houses.ts): its type, roof
+   * shape, floors, a roof rise when tagged (m), its door's colour and a pub's or shop's sign,
+   * which long side faces the water (`front`, ±1 across) and which end (`gable`, ±1 along: a
+   * warehouse's or boathouse's doors), a terrace's houses (their front colours, in order
+   * along it), a seed for its small choices, and `plain` (a block: no chimneys, doors or
+   * signs). Unset: the old pitched box (the hand-built regions).
+   */
+  kind?: 'cottage' | 'house' | 'terrace' | 'shed' | 'church' | 'warehouse' | 'boathouse' | 'castle' | 'ruin';
+  roofShape?: 'gabled' | 'hipped' | 'flat' | 'pyramidal' | 'skillion';
+  roofRise?: number;
+  levels?: number;
+  door?: number;
+  sign?: number;
+  front?: 1 | -1;
+  gable?: 1 | -1;
+  units?: number[];
+  seed?: number;
+  plain?: boolean;
 }
 
 export interface LightDef {

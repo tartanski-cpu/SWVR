@@ -169,6 +169,21 @@
    "Càrn Breugach",
    "Dunollie Fl(2)GWR.6s"
   ],
-  "bytes": 116813
+  "bytes": 202362
+ },
+ "houses": {
+  "byType": {
+   "house": 467,
+   "church": 8,
+   "warehouse": 48,
+   "terrace": 165,
+   "cottage": 41,
+   "boathouse": 19,
+   "shed": 23,
+   "ruin": 3
+  },
+  "fromTags": 23,
+  "fromRules": 77,
+  "plain": 451
  }
 }

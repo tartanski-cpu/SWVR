@@ -6325,6 +6325,90 @@ Owner (with a map picture of the Firth): "Next id like a bigger area, as its onl
   - **Desktop:** open https://tartanski-cpu.github.io/SWVR/next/, choose Voyage → The Firth of Clyde. You start moored at Rothesay. Sail out of Rothesay Bay and north up the Firth past Toward toward Dunoon. Watch the shore sharpen as you near it, with no holes or steps in the ground. Use Menu → Debug → World → To port to jump to Largs, Millport (Cumbrae ferry terminal), Greenock or Helensburgh, and look round each.
   - **VR:** the same, with the perf panel: watch the triangle count and frame time as chunks arrive while under way.
 
+### Settlements, part A: houses (milestones 2 and 3, done, awaiting owner test)
+
+The owner's brief, resent: varied settlements instead of one house at every size. The open questions from milestone 1 were settled on my recommendations:
+- one draw call per chunk for the buildings, with lit windows marked in the same mesh;
+- the game's pixel paint, not plain flat colour.
+
+**Milestone 2: tags and rules** (`tools/coast/src/houses.ts`, called from `harbours.ts`). Each building within reach of a harbour (as before, `buildingReach` 400 m) gets a type: cottage, house, terrace, shed, church, warehouse, boathouse, castle or ruin.
+- **From its tags** where it has them:
+  - `building=*`, `building:levels`, `height`, `roof:height`, `roof:shape`;
+  - `building:colour`, `roof:colour`, `building:material`;
+  - `amenity` / `shop` / `tourism` / `historic` (a pub, shop, hotel or café gets a sign and a painted front; castles and ruins their own shapes).
+- **Else from the rules:**
+  - a big footprint on or beside a quay is a warehouse or fish store; a small one by the shore a boathouse;
+  - in a farmyard, a barn or the farmhouse; in an industrial area, a warehouse or shed;
+  - tiny: a shed;
+  - sharing walls with its neighbours (OpenStreetMap draws terraced houses on shared nodes), or long and thin in a residential street: a terrace;
+  - small and squarish: a cottage; very big: a warehouse; else a house.
+- **Defaults by theme** (`themes.ts` `houses`): floors, roof shapes and colours. Choices are seeded by the region and the building, the same every build.
+  - **Hebridean:** white and cream harling, slate, cottages a storey and a half, painted harbour-front terraces half the time, grey, green or red sheds.
+  - **Aegean:** white cubes with flat roofs and blue doors, Ermoupoli's ochre and pink fronts under terracotta hips.
+- **A terrace footprint** is split into houses about `terraceUnit` (6.5 m) long, each with its own front colour.
+- **Full detail or plain:** buildings within `fullReach` (200 m) of a harbour piece get full detail; farther ones are plain.
+
+| Map | Buildings | By type | Type from tags / rules |
+|---|---|---|---|
+| Oban | 774 | 467 houses, 165 terraces, 48 warehouses, 41 cottages, 23 sheds, 19 boathouses, 8 churches, 3 ruins | 23 % / 77 % |
+| Clyde | 5,415 | 3,782 houses, 764 terraces, 309 cottages, 270 warehouses, 133 sheds, 122 boathouses, 32 churches, 3 castles | 24 % / 76 % |
+| Syros | 2,108 | | 88 % / 12 % |
+| Tayvallich | 94 | | 80 % / 20 % |
+
+The report (`report.json` `houses`) records the counts by type and the tag/rule shares. Harbours, piers and berths are unchanged in all four maps; one Oban pier's id lost a stray dash (`cnoc-moine-pier`; not a port).
+
+**Milestone 3: the kit** (`world/view/houseKit.ts`): a generator per type, from the footprint.
+- **Shells:** each building is one closed shell. A gabled house is 14 triangles (the old box and prism was 20); hipped 14, pyramidal 12, flat 10, skillion 10.
+- **By type:**
+  - **Cottages:** a steep gable and two chimneys.
+  - **Houses:** a chimney.
+  - **Terraces:** a row of houses, each its own colour, the eaves stepping up or down. A party wall is drawn only where one house stands higher. A chimney stack on every third party wall.
+  - **Sheds:** low walls under a wide shallow sheet roof.
+  - **Churches:** a stone nave and a tower with a spire at the landward end; a chapel gets a bellcote.
+  - **Warehouses:** big doors in the gable facing the water.
+  - **Boathouses:** boarded, with a wide door to the water.
+  - **Castles:** a keep. **Ruins:** four roofless walls of uneven height.
+- **Plain buildings** (beyond 200 m) are the shell alone.
+- **Windows cost nothing:** a new pixel-paint tile, `facade` (`render/pixelPaint.ts`, `pixelPaint.tileMetres.facade` 3 m), puts a window in every bay and storey, laid out so each wall holds whole bays.
+- **Night:** the panes are marked in the tile, and at night `pixelPaint.litWindows` (35 %) of the windows glow `windowGlow`, coming on from `windowsFrom` (0.35) darkness. App calls `setPaintNight` each frame. No extra triangles or draw calls.
+- **Unchanged:** the hand-built regions keep their old houses.
+
+**The budget** (headless, every chunk's town built; against milestone 1's baseline):
+
+| | building triangles, whole map | heaviest chunk | draw calls |
+|---|---|---|---|
+| Oban | 15,480 -> 17,655 (+14 %) | 12,860 -> 14,888 (+16 %) | unchanged (one per chunk) |
+| Tayvallich | 1,880 -> 1,838 (-2 %) | 1,340 -> 1,426 | unchanged |
+| Clyde | 108,300 -> 107,173 (-1 %) | 9,540 -> 8,852 | unchanged |
+| Syros | ~42,000 -> 29,118 (flat roofs) | 8,263 | unchanged |
+
+The first try put Oban at +34 %. Trimmed by leaving out hidden party walls, chimneys without tops, a chimney stack on every third party wall in a terrace, and full detail within 200 m, not 250.
+
+**Tests:** `tests/houseKit.test.ts` (7):
+- tags read first, then each rule;
+- colours (a painted harbour front, sheds);
+- the triangle counts per shape;
+- every face turned outwards;
+- Oban's package carrying all the types.
+
+**Checked headless:**
+- **Moored at Oban, midday:** gabled terraces stepping up the hill, a window in every bay, slate roofs.
+- **At dusk:** the town across the bay lit with scattered windows.
+- **No page errors.**
+
+**Not checked:**
+- the Quest (the frame time; the windows' glow in the headset);
+- the church towers and painted fronts close up (none in view from the berth).
+
+**Not done** (later milestones or the owner's call):
+- trees (milestones 4-5) and harbour boats (6);
+- Norway and British Columbia palettes (7: no such maps yet);
+- footprints are drawn as their smallest box (an L-shaped house becomes a rectangle).
+
+**Test steps:**
+- **VR:** Voyage → Oban and Lorn. From the berth, look over the town: rows of terraces with stepped roofs and differently coloured fronts, windows in every wall, chimneys, a church tower behind. Menu → Voyage → time of day: wind it on to dusk (about 21:30) and watch windows light across the town. Perf panel: draw calls and frame time as before.
+- **Desktop:** the same; then Voyage → Syros (white flat-roofed houses, Ermoupoli's coloured fronts), and The Firth of Clyde (Rothesay's terraces and its castle).
+
 ### Fix: the Clyde's frame rate, and distant regions vanishing before the fog (owner, testing on the Quest)
 
 Owner: "the Firth of Clyde, I get quite low frame rates in the Quest, like 50... I'd be aiming for 75. Syros was better." And: "you could see the stuff in the distance... but they then disappeared and then the fog came... they didn't fade out properly."

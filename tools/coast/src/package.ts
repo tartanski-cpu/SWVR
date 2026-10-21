@@ -84,17 +84,9 @@ const blocks = hb.blocks.map((b: { kind: string; x: number; z: number; halfLengt
 }));
 const blockOf = new Map<string, { kind: string; halfWidth: number }>();
 for (const b of hb.blocks) blockOf.set(b.source, blockOf.get(b.source) ?? b);
-const buildings = hb.buildings.map((b: { x: number; z: number; width: number; depth: number; height: number; yawDeg: number; wall: number; roof: number; cladding: string }) => ({
-  x: b.x,
-  z: b.z,
-  width: b.width,
-  depth: b.depth,
-  height: b.height,
-  yawDeg: b.yawDeg,
-  wall: b.wall,
-  roof: b.roof,
-  cladding: b.cladding,
-}));
+// The buildings for the game's house kit (world/view/houseKit.ts): what harbours.ts worked
+// out, less its own bookkeeping (where it came from, its ground).
+const buildings = hb.buildings.map(({ source: _s, base: _b, tagged: _t, ...b }: Record<string, unknown>) => b);
 
 // ── Ports ──
 type HB = { id: string; name: string; kind: string; x: number; z: number; berths: number; fetch: number; role?: string };

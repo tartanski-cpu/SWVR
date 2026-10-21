@@ -1220,6 +1220,21 @@
    "Cruach nan Capull",
    "Cloch Point FlW.3s"
   ],
-  "bytes": 794123
+  "bytes": 1383466
+ },
+ "houses": {
+  "byType": {
+   "warehouse": 270,
+   "house": 3782,
+   "church": 32,
+   "terrace": 764,
+   "shed": 133,
+   "cottage": 309,
+   "boathouse": 122,
+   "castle": 3
+  },
+  "fromTags": 24,
+  "fromRules": 76,
+  "plain": 3928
  }
 }

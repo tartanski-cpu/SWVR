@@ -241,6 +241,21 @@
    "Pyrgos",
    "Nisis Dhidhimi FlW.6s"
   ],
-  "bytes": 289289
+  "bytes": 501582
+ },
+ "houses": {
+  "byType": {
+   "warehouse": 133,
+   "house": 1795,
+   "terrace": 60,
+   "boathouse": 21,
+   "shed": 74,
+   "church": 12,
+   "cottage": 10,
+   "ruin": 3
+  },
+  "fromTags": 88,
+  "fromRules": 12,
+  "plain": 1392
  }
 }

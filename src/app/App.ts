@@ -62,6 +62,7 @@ import { REGIONS, regionById } from '../world/regions';
 import { MODE, VOYAGE_MAP_ID } from '../mode';
 import { groundHeight } from '../world/terrain';
 import { coastStreamer } from '../world/coastStream';
+import { setPaintNight } from '../render/pixelPaint';
 import { MAX_SHELTERS } from '../world/shelter';
 import type { ShelterDef } from '../world/defs';
 import { aboard, carriedBy, dropCarried, cargoLabel, cargoPortAt, kindOf, payloadMass, quickLoadable, quickPort, quickUnloadable, slotsUsed, type CargoItem } from '../cargo/cargo';
@@ -824,6 +825,8 @@ export class App {
     this.updateSurroundings(renderTime);
     const darkness = Math.min(1, Math.max(0, (8 - sunElevation(this.world.environment.timeOfDay)) / 14));
     this.darkness = darkness;
+    // The house fronts' windows light up as it gets dark (render/pixelPaint.ts).
+    setPaintNight(darkness);
     this.updateOwnBoat(dt, nowMs, darkness);
     const { slam, lap } = this.updateBoatsAndJobs(dt, renderTime, darkness);
     this.updateSceneViews(dt, renderTime, darkness);

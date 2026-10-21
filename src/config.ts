@@ -95,7 +95,15 @@ export const CONFIG = {
      * corrugated sheet and slates on the houses and sheds, concrete on the quays, stone on
      * the breakwaters.
      */
-    tileMetres: { nonSlip: 1, wood: 2, mat: 1, chequer: 0.5, crate: 1, sacking: 2, worn: 1.5, boards: 2, render: 2, sheet: 2, slates: 2, concrete: 4, stone: 3, window: 1, rust: 2, teak: 1.5, deckTeak: 1.2, steel: 3, brushed: 2.4 },
+    tileMetres: { nonSlip: 1, wood: 2, mat: 1, chequer: 0.5, crate: 1, sacking: 2, worn: 1.5, boards: 2, render: 2, sheet: 2, slates: 2, concrete: 4, stone: 3, window: 1, rust: 2, teak: 1.5, deckTeak: 1.2, steel: 3, brushed: 2.4, facade: 3 },
+    /**
+     * The house fronts' windows at night (the house kit): the share of windows lit, their
+     * glow (colour, its brightness is the strength), and how dark it must be before they
+     * come on (0 day .. 1 night; full glow at night).
+     */
+    litWindows: 0.35,
+    windowGlow: 0xffc070,
+    windowsFrom: 0.35,
     /** Width of the black window frames round the wheelhouse glass (m). */
     frameWidth: 0.06,
   },

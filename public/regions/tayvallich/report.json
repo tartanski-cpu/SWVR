@@ -225,6 +225,21 @@
   "landmarks": [
    "Cruach Lusach"
   ],
-  "bytes": 21273
+  "bytes": 30747
+ },
+ "houses": {
+  "byType": {
+   "house": 75,
+   "church": 1,
+   "shed": 8,
+   "boathouse": 4,
+   "cottage": 3,
+   "terrace": 1,
+   "warehouse": 1,
+   "ruin": 1
+  },
+  "fromTags": 80,
+  "fromRules": 20,
+  "plain": 43
  }
 }

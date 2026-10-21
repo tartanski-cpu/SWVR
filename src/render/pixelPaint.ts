@@ -26,7 +26,7 @@ import { CONFIG } from '../config';
  * (`fitPaint`, render/geometryUtils); the others repeat every `tileMetres`. The last four dress
  * the wheelhouse inside (CONFIG.interiors and CONFIG.cabinFloors, chosen in the Shipyard).
  */
-export const PAINTS = ['nonSlip', 'wood', 'mat', 'chequer', 'crate', 'sacking', 'worn', 'boards', 'render', 'sheet', 'slates', 'concrete', 'stone', 'window', 'rust', 'teak', 'deckTeak', 'steel', 'brushed'] as const;
+export const PAINTS = ['nonSlip', 'wood', 'mat', 'chequer', 'crate', 'sacking', 'worn', 'boards', 'render', 'sheet', 'slates', 'concrete', 'stone', 'window', 'rust', 'teak', 'deckTeak', 'steel', 'brushed', 'facade'] as const;
 export type PaintName = (typeof PAINTS)[number];
 
 /** A tile's index in the texture (0: none). */
@@ -64,6 +64,22 @@ function noise(seed: number, cell: number): (x: number, y: number) => number {
     return (at(i, j) * (1 - u) + at(i + 1, j) * u) * (1 - v) + (at(i, j + 1) * (1 - u) + at(i + 1, j + 1) * u) * v;
   };
 }
+
+/**
+ * A house front (the house kit, world/view/houseKit.ts): rendered wall with one window in
+ * each bay and storey (the tile is a 3 m bay a storey high, `tileMetres.facade`), a pale
+ * frame and a cross of glazing bars, the panes dark. The panes are marked (`GLASS`): at
+ * night some of them glow (`setPaintNight`), so a town lights up at dusk at no cost in
+ * triangles or draw calls.
+ */
+const FACADE_WIN = { x0: 22, x1: 42, y0: 20, y1: 48 };
+const facadePane = (x: number, y: number) => {
+  const w = FACADE_WIN;
+  if (x < w.x0 + 2 || x >= w.x1 - 2 || y < w.y0 + 2 || y >= w.y1 - 2) return false;
+  return Math.abs(x - (w.x0 + w.x1) / 2 + 0.5) >= 1 && Math.abs(y - (w.y0 + w.y1) / 2 + 0.5) >= 1;
+};
+/** Tiles with glass that lights at night: which pixels are panes. */
+const GLASS: Partial<Record<PaintName, (x: number, y: number) => boolean>> = { facade: facadePane };
 
 /** Each tile's pixels: brightness 0..1 at (x, y), y up the face. Every tile repeats seamlessly. */
 const PAINTERS: Record<PaintName, () => (x: number, y: number) => number> = {
@@ -330,6 +346,18 @@ const PAINTERS: Record<PaintName, () => (x: number, y: number) => number> = {
       return 0.5 + row[y] + fleck[y * TILE + x];
     };
   },
+  facade: () => {
+    const r = rng(139);
+    const patch = noise(140, 16);
+    const wall = Array.from({ length: TILE * TILE }, (_, i) => 0.47 + 0.05 * patch(i % TILE, Math.floor(i / TILE)) + (r() < 0.1 ? -0.05 : 0) + (r() - 0.5) * 0.03);
+    const w = FACADE_WIN;
+    return (x, y) => {
+      if (facadePane(x, y)) return 0.24 + (Math.abs(x + y - 60) < 3 ? 0.12 : 0); // the glass, a glint across it
+      if (x >= w.x0 && x < w.x1 && y >= w.y0 && y < w.y1) return 0.84; // frame and bars
+      if (y >= w.y0 - 3 && y < w.y0 && x >= w.x0 - 2 && x < w.x1 + 2) return 0.7; // the sill
+      return wall[y * TILE + x];
+    };
+  },
 };
 
 /** Every tile's pixels as RGBA bytes, the tiles one after another (the texture's layers, after an empty layer 0). */
@@ -337,11 +365,13 @@ export function paintPixels(): Uint8Array {
   const data = new Uint8Array(TILE * TILE * 4 * (PAINTS.length + 1)).fill(128);
   PAINTS.forEach((name, k) => {
     const at = PAINTERS[name]();
+    const glass = GLASS[name];
     const base = (k + 1) * TILE * TILE * 4;
     for (let y = 0; y < TILE; y++)
       for (let x = 0; x < TILE; x++) {
         const v = Math.round(255 * Math.min(1, Math.max(0, at(x, y))));
-        data.set([v, v, v, 255], base + (y * TILE + x) * 4);
+        // Alpha marks glass (0) for the night glow; everything else is opaque (255).
+        data.set([v, v, v, glass?.(x, y) ? 0 : 255], base + (y * TILE + x) * 4);
       }
   });
   return data;
@@ -366,7 +396,16 @@ const uniforms = {
   paintTiles: { value: null as THREE.DataArrayTexture | null },
   paintMetres: { value: [1, ...PAINTS.map((p) => CONFIG.pixelPaint.tileMetres[p])] },
   paintStrength: { value: CONFIG.pixelPaint.strength },
+  /** How dark it is (0 day .. 1 night): the panes' glow (App, each frame). */
+  paintNight: { value: 0 },
+  paintLit: { value: CONFIG.pixelPaint.litWindows },
+  paintGlow: { value: new THREE.Color(CONFIG.pixelPaint.windowGlow) },
 };
+
+/** How dark it is (0 day .. 1 night), for the windows that light up (App, each frame). */
+export function setPaintNight(darkness: number): void {
+  uniforms.paintNight.value = Math.min(1, Math.max(0, (darkness - CONFIG.pixelPaint.windowsFrom) / (1 - CONFIG.pixelPaint.windowsFrom)));
+}
 
 /** Teaches a material to draw the tiles: reads each vertex's `paint` (tile) and `paintUv` (metres along the face). */
 export function withPixelPaint<M extends THREE.Material>(material: M): M {
@@ -383,6 +422,9 @@ export function withPixelPaint<M extends THREE.Material>(material: M): M {
 uniform highp sampler2DArray paintTiles;
 uniform float paintMetres[${PAINTS.length + 1}];
 uniform float paintStrength;
+uniform float paintNight;
+uniform float paintLit;
+uniform vec3 paintGlow;
 varying float vPaint;
 varying vec2 vPaintUv;`,
       )
@@ -400,8 +442,17 @@ varying vec2 vPaintUv;`,
     vec2 fw = max(abs(dx) + abs(dy), vec2(1e-4));
     vec2 cell = floor(px + 0.5);
     vec2 p = cell + clamp((px - cell) / fw, -0.5, 0.5);
-    vec3 t = textureGrad(paintTiles, vec3(p / ${TILE}.0, float(layer)), dx / ${TILE}.0, dy / ${TILE}.0).rgb;
-    diffuseColor.rgb *= mix(vec3(1.0), t * 2.0, paintStrength);
+    vec4 t4 = textureGrad(paintTiles, vec3(p / ${TILE}.0, float(layer)), dx / ${TILE}.0, dy / ${TILE}.0);
+    diffuseColor.rgb *= mix(vec3(1.0), t4.rgb * 2.0, paintStrength);
+    // Glass (alpha below 1, the house fronts' panes): at night some windows glow, each
+    // window (one repeat of the tile) lit or not by a hash of which one it is. Far off the
+    // panes average into the wall and the glow fades with them.
+    float glass = 1.0 - t4.a;
+    if (glass > 0.0 && paintNight > 0.0) {
+      vec2 win = floor(vPaintUv / paintMetres[layer]);
+      float h = fract(sin(dot(win, vec2(12.9898, 78.233))) * 43758.5453);
+      totalEmissiveRadiance += paintGlow * (glass * step(h, paintLit) * paintNight);
+    }
   }
 }`,
       );

@@ -13,6 +13,7 @@ import { buildSilhouetteArrays, buildTerrainArrays, hash, summitNear, treeSpots,
 import type { TerrainRequest, TerrainResult } from './terrainWorker';
 import { glowSprite, LightPointsMaterial } from '../../render/lightPoints';
 import { CoastTerrainView, coastSilhouetteArrays } from './coastView';
+import { buildKitHouse, isKitBuilding } from './houseKit';
 import { shortCleat } from '../berths';
 
 /**
@@ -563,6 +564,8 @@ function buildBuilding(bd: BuildingDef, parts: THREE.BufferGeometry[], plain = f
     const z = bd.z + cx * Math.sin(yaw) + cz * Math.cos(yaw);
     base = Math.min(base, Math.max(standingHeight(x, z), groundHeight(x, z)));
   }
+  // A coast region's buildings are the house kit's (by type, from the pipeline: houseKit.ts).
+  if (isKitBuilding(bd)) return buildKitHouse(bd, base, parts);
   const m = new THREE.Matrix4().makeRotationY(-yaw).setPosition(bd.x, base, bd.z);
   const walls = new THREE.BoxGeometry(bd.width, bd.height + 2, bd.depth).translate(0, bd.height / 2 - 1, 0);
   // Gable roof: a triangular prism along the width, with a little overhang.

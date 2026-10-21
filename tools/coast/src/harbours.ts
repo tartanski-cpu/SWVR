@@ -47,6 +47,7 @@ import { join } from 'node:path';
 import yaml from 'js-yaml';
 import { ROOT, dirs, latin, loadRequest, nameOf, projection, slug } from './common.ts';
 import { THEMES } from './themes.ts';
+import { classify, colours, type HouseType, type RoofShape } from './houses.ts';
 
 const T = {
   /** Deck heights above mean sea level (m): fixed piers and quays stand clear of high water; a pontoon floats. */
@@ -75,6 +76,15 @@ const T = {
   clusterGap: 250,
   /** Buildings this close to a harbour piece are built (m); smaller footprints are skipped (m²). */
   buildingReach: 400,
+  /** The house kit: full detail (chimneys, doors, signs) within this of a harbour piece (m), plain blocks beyond. */
+  fullReach: 200,
+  /** Terraces this close to a harbour piece are its painted front (m). */
+  frontReach: 120,
+  /** On or beside a quay: its edge this close to the footprint's (m); by the shore: water this far beyond it (m). */
+  quayReach: 25,
+  shoreReach: 30,
+  /** A terrace is split into houses about this long (m). */
+  terraceUnit: 6.5,
   minFootprint: 15,
   /** Fetch: bearings tried, the farthest counted (m; the box's edge counts as open sea). */
   fetchRays: 36,
@@ -478,8 +488,76 @@ const hash = (s: string) => {
   for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
   return (h >>> 0) / 4294967296;
 };
-const HEIGHT_BY_KIND: Record<string, number> = { house: 6, detached: 6, semidetached_house: 6, terrace: 8, residential: 7, apartments: 11, church: 11, cathedral: 14, hotel: 12, retail: 6, commercial: 8, industrial: 7, warehouse: 7, garage: 3, garages: 3, shed: 3, hut: 3, boathouse: 4, roof: 4, school: 8, yes: 6 };
-const buildings: { source: string; x: number; z: number; width: number; depth: number; height: number; yawDeg: number; base: number; wall: number; roof: number; cladding: 'boards' | 'render' | 'sheet' }[] = [];
+// The house kit (houses.ts): each footprint's type, floors, roof and colours, from its tags
+// or the rules, and what the game's generator needs besides (houses facing the water, the
+// door end of a warehouse or boathouse, a terrace's houses).
+// Landuse areas (closed ways, and multipolygons' closed outer ways) in 500 m buckets.
+const landuse: { tag: string; ring: [number, number][]; x0: number; z0: number; x1: number; z1: number }[] = [];
+{
+  const add = (tag: string, nodes: number[]) => {
+    if (nodes.length < 4 || nodes[0] !== nodes[nodes.length - 1]) return;
+    const ring = pts({ nodes });
+    if (ring.length < 4) return;
+    landuse.push({ tag, ring, x0: Math.min(...ring.map((p) => p[0])), z0: Math.min(...ring.map((p) => p[1])), x1: Math.max(...ring.map((p) => p[0])), z1: Math.max(...ring.map((p) => p[1])) });
+  };
+  for (const w of Object.values(osm.ways) as { nodes: number[]; tags?: Record<string, string> }[]) if (w.tags?.landuse) add(w.tags.landuse, w.nodes);
+  for (const r of Object.values(osm.relations ?? {}) as { members: { type: string; ref: number; role: string }[]; tags?: Record<string, string> }[]) {
+    if (!r.tags?.landuse) continue;
+    for (const m of r.members) if (m.type === 'way' && m.role === 'outer' && osm.ways[m.ref]) add(r.tags.landuse, osm.ways[m.ref].nodes);
+  }
+}
+const inRing = (ring: [number, number][], x: number, z: number) => {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, zi] = ring[i];
+    const [xj, zj] = ring[j];
+    if (zi > z !== zj > z && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) inside = !inside;
+  }
+  return inside;
+};
+const landuseAt = (x: number, z: number) => landuse.find((l) => x >= l.x0 && x <= l.x1 && z >= l.z0 && z <= l.z1 && inRing(l.ring, x, z))?.tag;
+// Terraced houses: OpenStreetMap draws them on shared nodes. How many building ways use each node.
+const nodeUse = new Map<number, number>();
+for (const w of Object.values(osm.ways) as { nodes: number[]; tags?: Record<string, string> }[]) {
+  if (!w.tags?.building || w.tags.building === 'no') continue;
+  for (const n of new Set(w.nodes)) nodeUse.set(n, (nodeUse.get(n) ?? 0) + 1);
+}
+/** Distance from (x, z) to a block's edge (0 inside it). */
+const toBlock = (b: Block, x: number, z: number) => {
+  const a = (b.yawDeg * Math.PI) / 180;
+  const dx = x - b.x;
+  const dz = z - b.z;
+  const along = Math.abs(dx * Math.sin(a) - dz * Math.cos(a)) - b.halfLength;
+  const across = Math.abs(dx * Math.cos(a) + dz * Math.sin(a)) - b.halfWidth;
+  return Math.hypot(Math.max(0, along), Math.max(0, across));
+};
+const buildings: {
+  source: string;
+  x: number;
+  z: number;
+  width: number;
+  depth: number;
+  height: number;
+  yawDeg: number;
+  base: number;
+  wall: number;
+  roof: number;
+  cladding: 'boards' | 'render' | 'sheet' | 'stone';
+  kind: HouseType;
+  roofShape: RoofShape;
+  roofRise?: number;
+  levels: number;
+  door: number;
+  sign?: number;
+  front: 1 | -1;
+  gable: 1 | -1;
+  units?: number[];
+  seed: number;
+  plain?: boolean;
+  tagged: boolean;
+}[] = [];
+const style = theme.houses;
+let houseReport: { byType: Record<string, number>; fromTags: number; fromRules: number; plain: number } | undefined;
 let skippedFar = 0;
 for (const [id, w] of Object.entries(osm.ways)) {
   const t = w.tags ?? {};
@@ -488,34 +566,67 @@ for (const [id, w] of Object.entries(osm.ways)) {
   if (p.length < 4) continue;
   const c = p.reduce(([sx, sz], [x, z]) => [sx + x / p.length, sz + z / p.length], [0, 0]);
   if (!inBox(c[0], c[1])) continue;
-  if (!pieces.some(([x, z]) => Math.hypot(x - c[0], z - c[1]) < T.buildingReach)) {
+  const toPiece = Math.min(...pieces.map(([x, z]) => Math.hypot(x - c[0], z - c[1])));
+  if (toPiece >= T.buildingReach) {
     skippedFar++;
     continue;
   }
   const b = minBox(p);
   if (b.area < T.minFootprint || b.area > 6000) continue;
-  const levels = Number.parseFloat(t['building:levels'] ?? '');
-  const height = Number.parseFloat(t.height ?? '') || (levels ? levels * 3 + 0.5 : HEIGHT_BY_KIND[t.building] ?? 6);
-  const ground = Math.min(...[[0, 0], [1, 1], [1, -1], [-1, 1], [-1, -1]].map(([sa, sc]) => {
-    const a = (b.yawDeg * Math.PI) / 180;
-    return hAt(b.x + Math.sin(a) * sa * b.halfLength - Math.cos(a) * sc * b.halfWidth, b.z - Math.cos(a) * sa * b.halfLength - Math.sin(a) * sc * b.halfWidth);
-  }));
-  const shed = ['industrial', 'warehouse', 'garage', 'garages', 'shed', 'roof', 'boathouse'].includes(t.building);
-  const pal = theme.buildings;
-  const k = hash(id);
+  const a = (b.yawDeg * Math.PI) / 180;
+  // The footprint's long axis (along) and across, as world offsets from its middle.
+  const at = (al: number, ac: number): [number, number] => [b.x + Math.sin(a) * al - Math.cos(a) * ac, b.z - Math.cos(a) * al - Math.sin(a) * ac];
+  const ground = Math.min(...[[0, 0], [1, 1], [1, -1], [-1, 1], [-1, -1]].map(([sa, sc]) => hAt(...at(sa * b.halfLength, sc * b.halfWidth))));
+  const shore = [0, 1, 2, 3, 4, 5, 6, 7].some((i) => hAt(b.x + Math.cos((i * Math.PI) / 4) * (T.shoreReach + b.halfLength), b.z + Math.sin((i * Math.PI) / 4) * (T.shoreReach + b.halfLength)) < 0);
+  const k = hash(`${req.id}/${id}`);
+  const fp = { area: b.area, length: b.halfLength * 2, width: b.halfWidth * 2 };
+  const sur = {
+    landuse: landuseAt(b.x, b.z),
+    nearQuay: blocks.some((q) => q.kind !== 'breakwater' && toBlock(q, b.x, b.z) < T.quayReach + b.halfLength),
+    nearShore: shore,
+    sharesWalls: w.nodes.filter((n: number) => (nodeUse.get(n) ?? 0) > 1).length >= 2,
+  };
+  const cl = classify(t, fp, sur, style, k);
+  const col = colours(cl, style, k, toPiece < T.frontReach);
+  // Which long side faces the water (lower ground 6 m out), and which end (a warehouse's or boathouse's doors).
+  const side = (sgn: number) => hAt(...at(0, sgn * (b.halfWidth + 6)));
+  const end = (sgn: number) => hAt(...at(sgn * (b.halfLength + 6), 0));
+  // A terrace long enough for two houses or more is split into them, each its own front colour.
+  const n = cl.type === 'terrace' && fp.length > T.terraceUnit * 1.4 ? Math.min(10, Math.round(fp.length / T.terraceUnit)) : 0;
+  const units = n > 1 ? Array.from({ length: n }, (_, i) => colours(cl, style, hash(`${req.id}/${id}/${i}`), toPiece < T.frontReach).wall) : undefined;
   buildings.push({
     source: `way/${id}`,
     x: r1(b.x),
     z: r1(b.z),
     width: r1(b.halfWidth * 2),
     depth: r1(b.halfLength * 2),
-    height: r1(Math.min(30, height)),
+    height: r1(cl.height),
     yawDeg: Math.round(b.yawDeg),
     base: r1(Math.max(0.3, ground)),
-    wall: shed ? pal.shedWalls[Math.floor(k * pal.shedWalls.length)] : pal.walls[Math.floor(k * pal.walls.length)],
-    roof: shed ? pal.shedRoof : pal.roofs[Math.floor(((k * 7) % 1) * pal.roofs.length)],
-    cladding: shed ? 'sheet' : 'render',
+    wall: col.wall,
+    roof: col.roof,
+    cladding: cl.material,
+    kind: cl.type,
+    roofShape: cl.roof,
+    roofRise: cl.roofHeight,
+    levels: cl.levels,
+    door: col.door,
+    sign: col.sign,
+    front: side(1) <= side(-1) ? 1 : -1,
+    gable: end(1) <= end(-1) ? 1 : -1,
+    units,
+    seed: Math.floor(((k * 101) % 1) * 1000),
+    // Beyond fullReach of the harbour, a plain block (no chimneys, doors or signs).
+    plain: toPiece > T.fullReach ? true : undefined,
+    tagged: cl.source === 'tag',
   });
+}
+{
+  const byType: Record<string, number> = {};
+  for (const bd of buildings) byType[bd.kind] = (byType[bd.kind] ?? 0) + 1;
+  const tagged = buildings.filter((bd) => bd.tagged).length;
+  houseReport = { byType, fromTags: Math.round((100 * tagged) / Math.max(1, buildings.length)), fromRules: Math.round((100 * (buildings.length - tagged)) / Math.max(1, buildings.length)), plain: buildings.filter((bd) => bd.plain).length };
+  console.log(`houses: ${Object.entries(byType).map(([t, n]) => `${n} ${t}`).join(', ')}; type from tags ${houseReport.fromTags} %, from the rules ${houseReport.fromRules} %; ${houseReport.plain} plain (beyond ${T.fullReach} m)`);
 }
 
 // ── Hand edits ──
@@ -562,6 +673,7 @@ if (existsSync(regionPath)) {
 if (!out.harbours.some((h) => h.kind !== 'anchorage')) warnings.push('no harbours found in OpenStreetMap for this box');
 const reportPath = join(D.out, 'report.json');
 const report = existsSync(reportPath) ? JSON.parse(readFileSync(reportPath, 'utf8')) : {};
+report.houses = houseReport;
 report.harbours = { harbours: out.harbours.length, blocks: out.blocks.length, berths: out.berths.length, slipways: out.slipways.length, buildings: out.buildings.length, edits: editCount, roles: Object.fromEntries(out.harbours.filter((h) => h.role).map((h) => [h.role, h.name])) };
 report.warnings = [...(report.warnings ?? []).filter((w: string) => !/^(spine|anchorage|edit|no harbours|no sheltered)/.test(w)), ...warnings];
 writeFileSync(reportPath, JSON.stringify(report, null, 1));
