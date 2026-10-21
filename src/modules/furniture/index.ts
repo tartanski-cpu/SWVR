@@ -118,6 +118,48 @@ class HeadDoor extends Control {
   }
 }
 
+/**
+ * A berth to lie in (owner, Oct 2026: a berth "should have the function of healing the
+ * player"): a press on its mattress lies you down to rest (player/health.ts; the app handles
+ * the 'berthRest' channel: it's yours, not the boat's), a press again or a step gets you up.
+ * Its hit area is an unseen box over the mattress, `length` along x by `width` across z,
+ * standing `top` up from its root.
+ */
+export class BerthRest extends Control {
+  readonly kind = 'press' as const;
+  readonly label = 'Berth: lie down and rest';
+  private pressed = false;
+  private readonly box: THREE.Mesh;
+
+  constructor(length: number, width: number, top: number) {
+    super('berthRest', 'berthRest');
+    this.box = new THREE.Mesh(new THREE.BoxGeometry(length, 0.3, width).translate(0, top + 0.15, 0), new THREE.MeshBasicMaterial());
+    // Unseen (the raycaster still finds it: Control.enabled's note).
+    this.box.visible = false;
+    this.root.add(this.box);
+    this.hitObjects.push(this.box);
+  }
+
+  distanceTo(world: THREE.Vector3): number {
+    const p = this.box.worldToLocal(world.clone());
+    this.box.geometry.computeBoundingBox();
+    return this.box.geometry.boundingBox!.distanceToPoint(p);
+  }
+
+  pressStart(): void {
+    if (this.pressed) return;
+    this.pressed = true;
+    this.ctx?.haptic(0.3, 30);
+    this.ctx?.emit(this.channel, 1);
+  }
+
+  pressEnd(): void {
+    this.pressed = false;
+  }
+
+  sync(): void {}
+}
+
 /** Its fixed parts, in its own axes. */
 function pieceParts(c: FurnitureConfig): THREE.BufferGeometry[] {
   const [L, D, H] = [c.length / 2, c.depth / 2, c.height];
@@ -195,6 +237,10 @@ export const FURNITURE: ModuleDefinition<FurnitureConfig> = {
     build({ config: c, keys }) {
       const controls: Control[] = [];
       const movingParts: THREE.Object3D[] = [];
+      if (c.kind === 'berth') {
+        // Along the wall (x), out from it (z): the mattress.
+        controls.push(new BerthRest(c.length, c.depth, F.berth.top + F.berth.cushion));
+      }
       if (c.kind === 'head') {
         const [d0, d1] = doorway(c);
         const door = new HeadDoor(d1 - d0, 1.93, { channel: keys.door, read: (s) => busOf(s).num(keys.door) });
@@ -204,6 +250,29 @@ export const FURNITURE: ModuleDefinition<FurnitureConfig> = {
         movingParts.push(door.root);
       }
       return { staticParts: pieceParts(c), movingParts, controls, update: () => {} };
+    },
+  },
+};
+
+/** A berth drawn as part of her (the V-berth in a Shipyard boat's cabin below): no parts of its own, only the press to lie down in it (BerthRest). */
+export interface RestSpotConfig {
+  /** Along her, across her (m), and the mattress's top over the socket (m). */
+  length: number;
+  width: number;
+  top: number;
+}
+export const REST_SPOT: ModuleDefinition<RestSpotConfig> = {
+  id: 'furniture.restSpot',
+  version: 1,
+  fits: ['cabin.furniture'],
+  defaults: { length: 1.8, width: 1.2, top: 0 },
+  validateConfig: (c) => (c.length > 0.3 && c.width > 0.3 ? [] : ['a berth at least 0.3 m each way']),
+  physical: () => ({ size: [0.1, 0.1, 0.1], massKg: 0 }),
+  ports: {},
+  view: {
+    build({ config: c }) {
+      // Its own x along the berth: turned by its socket to lie fore and aft.
+      return { staticParts: [], movingParts: [], controls: [new BerthRest(c.length, c.width, c.top)], update: () => {} };
     },
   },
 };

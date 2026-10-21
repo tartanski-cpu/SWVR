@@ -3,6 +3,7 @@ import type { EntityId } from '../core/ids';
 import { CONFIG } from '../config';
 import type { Quat, Vec3 } from '../core/math';
 import { freshModuleStates, gearOf, hasPullDownBoard } from '../boats/sims';
+import { vesselBuildToken } from './vesselDef';
 
 /** Control positions as set by players (via intents). */
 export interface VesselControls {
@@ -218,6 +219,11 @@ export interface EngineState {
 export interface VesselState {
   id: EntityId;
   defId: string;
+  /**
+   * The design token her type was built from (multi-boat M1: a `boat:` type, boats/library.ts):
+   * travels with her in every snapshot, so any page can build her type. Unset on the fixed types.
+   */
+  build?: string;
   /** World position of the vessel origin (centreline, amidships, DWL). */
   position: Vec3;
   /** Orientation, vessel -> world. */
@@ -326,9 +332,11 @@ export function createVesselState(id: EntityId, defId: string): VesselState {
   // What she carries decides what state she has (modular boats M6b: her modules' gear).
   const v = { defId };
   const diesel = gearOf(v, 'diesel');
+  const build = vesselBuildToken(defId);
   return {
     id,
     defId,
+    ...(build ? { build } : {}),
     position: [0, 0, 0],
     orientation: [0, 0, 0, 1],
     linearVelocity: [0, 0, 0],

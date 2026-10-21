@@ -119,6 +119,8 @@ let boatRoot: THREE.Object3D | null = null;
 type SectionKind = 'waterline' | 'buttock' | 'station';
 const cut: { kind: SectionKind | null; at: Record<SectionKind, number | null>; flip: boolean } = { kind: null, at: { waterline: null, buttock: null, station: null }, flip: false };
 const sectionPlane = new THREE.Plane();
+// (Her materials cut by the section plane: off unless asked for, so turned on for the page.)
+renderer.localClippingEnabled = true;
 
 function resize(): void {
   const w = view.clientWidth;
@@ -253,7 +255,6 @@ function drawBoat(): void {
   const machinery = addMachinery(root);
   scene.add(root);
   boatRoot = root;
-  recut();
   shown = { hull: parts.hull, house: parts.house, modules: modulesRoot, guard, skiff: root.children.find((c) => c.name === 'skiff') ?? null, machinery };
   focusStep();
   // A different engine (or one more) at the Engine step: look at it afresh.
@@ -542,7 +543,7 @@ const STEP_GUIDE: Record<string, string> = {
   Hull: 'Her type and proportions. Length and beam set her size and stability; depth her freeboard; a raked bow throws spray aside and takes a head sea more softly.',
   Wheelhouse: 'Where the crew stand and what they can see. Forward gives a long working deck aft; aft, a foredeck to work over. Keep it low and light for stability.',
   Engine: 'Power for the speed in the brief. The propeller and gearbox are matched to her by trial each time; twin engines add power and handling, and cost.',
-  Furniture: 'What’s inside her houses: berths, settees, a galley, seats, lockers and a head. <b>Add</b> a piece, then click where it goes, seen from above with the roof cut away (forward of the wheelhouse for the cabin below): it’s put against the nearest wall there, clear of the helm and the doorways. Add as many as fit, up to four of each (one head). Its weight and price are designed in.',
+  Furniture: 'What’s inside her houses: berths, settees, a galley, seats, lockers and a head. <b>Add</b> a piece, then click where it goes. The view looks down on her cut just over the floor by the section tool (✂ Section to move the cut or turn it off); for the cabin below, click forward of the wheelhouse: it’s put against the nearest wall there, clear of the helm and the doorways. Add as many as fit, up to four of each (one head). Its weight and price are designed in.',
   'Deck gear': 'Her equipment, by the work it’s for. <b>Place</b> it, then click on her where it goes: it’s put there (on the wheelhouse roof, the foredeck or the aft deck, whichever is nearest). Gear with only one place on any boat (the anchor, the stern roller, the A-frame, the side door) is simply <b>Fit</b>ted. Its weight is designed in.',
   Controls: 'What the skipper has at the helm.',
   Paint: 'Her colours, hull and roof.',
@@ -1833,32 +1834,30 @@ function setTool(t: typeof tool): void {
   $('toolHint').textContent = t === 'pin' ? 'Click on her where the pin goes' : t === 'sketch' ? 'Draw on the sheet: everyone with it open sees it as you draw. Port, Starboard, Plan, Bow or Stern for another view’s sketch; ✏ Sketch again to close' : '';
   drawInk();
   if (t !== 'pin') ($('pinEditor') as HTMLElement).hidden = true;
-  // (The Furniture step keeps her cut away, seen from above, the whole time it's open.)
-  if (t !== 'pin' && shownStep !== 'furniture') cutOpen(false);
   if (!t && shownStep === 'furniture') $('toolHint').textContent = FURNITURE_HINT;
 }
 /** What the view shows at the Furniture step, when nothing is being placed. */
-const FURNITURE_HINT = 'Seen from above with the roof cut away: Add a piece, then click where it goes';
+const FURNITURE_HINT = 'Seen from above, cut just over the floor (✂ Section to move the cut): Add a piece, then click where it goes';
 /**
- * Placing furniture (P5; owner: the roof is in the way): seen from straight above, flat, with
- * her cut away above a level just over the wheelhouse floor (CONFIG.shipyard.furniture.planCut),
- * so the floor, the console, the companionway and the furniture already there show and take the
- * click. The whole time the Furniture step is open (owner, Oct 2026: "keep the view from above
- * on the Furniture step"), so piece after piece goes in without the view moving; put back as it
- * was (view, flat or not) on leaving the step, or (another step's Place) once it's placed.
+ * The Furniture step's view (P5; owner: the roof is in the way): her seen from straight above,
+ * flat, cut by the section tool at a waterline just over the wheelhouse floor
+ * (CONFIG.shipyard.furniture.planCut), so the floor, the console, the companionway and the
+ * furniture already there show and take the click (owner, Oct 2026: "We could just use the
+ * section cut. But ... when you go to the furniture page, it should try to cut at the roof
+ * level by default"). It's the section tool's own cut, so its panel can slide it, flip it or
+ * turn it off while the step is open; leaving the step puts the cut and the view back as they
+ * were.
  */
-let cutAway: { y: number; eye: THREE.Vector3; at: THREE.Vector3; flat: boolean } | null = null;
-const cutPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), 0);
-renderer.localClippingEnabled = true;
-function cutOpen(on: boolean): void {
-  if (!boatRoot || on === !!cutAway) return;
+let beforeFurniture: { eye: THREE.Vector3; at: THREE.Vector3; flat: boolean; kind: SectionKind | null; cutAt: Record<SectionKind, number | null>; flip: boolean } | null = null;
+function furnitureView(on: boolean): void {
+  if (!boatRoot || on === !!beforeFurniture) return;
   if (on) {
+    beforeFurniture = { eye: camera.position.clone(), at: orbit.target.clone(), flat, kind: cut.kind, cutAt: { ...cut.at }, flip: cut.flip };
     const floor = boat.hull.layout.wheelhouse?.floorY ?? 1;
-    const y = boatRoot.localToWorld(new THREE.Vector3(0, floor + CONFIG.shipyard.furniture.planCut, 0)).y;
-    cutAway = { y, eye: camera.position.clone(), at: orbit.target.clone(), flat };
-    cutPlane.constant = y;
-    applyCuts();
-    setView('Plan');
+    cut.at.waterline = boatRoot.localToWorld(new THREE.Vector3(0, floor + CONFIG.shipyard.furniture.planCut, 0)).y;
+    cut.flip = false;
+    sectionTool('waterline');
+    lookAtCut();
     // Closer in: over her houses (and a deckhouse forward of them), filling most of the view.
     const wh = boat.hull.layout.wheelhouse;
     if (wh) {
@@ -1870,36 +1869,30 @@ function cutOpen(on: boolean): void {
       camera.position.set(at.x + 0.01, at.y + Math.max(0.9, 1.55 / camera.aspect) * span, at.z);
       orbit.update();
     }
-    if (!flat) flatBtn.click();
   } else {
-    const was = cutAway!;
-    cutAway = null;
-    applyCuts();
+    const was = beforeFurniture!;
+    beforeFurniture = null;
+    Object.assign(cut.at, was.cutAt);
+    cut.flip = was.flip;
+    sectionTool(was.kind);
     camera.position.copy(was.eye);
     orbit.target.copy(was.at);
     orbit.update();
     if (flat !== was.flat) flatBtn.click();
   }
 }
-/** She's been built again while cut away (a piece added at the Furniture step): cut the new her, at her floor as it is now. */
-function recut(): void {
-  if (!cutAway || !boatRoot) return;
-  const floor = boat.hull.layout.wheelhouse?.floorY ?? 1;
-  cutAway.y = cutPlane.constant = boatRoot.localToWorld(new THREE.Vector3(0, floor + CONFIG.shipyard.furniture.planCut, 0)).y;
-  applyCuts();
-}
 const noteRay = new THREE.Raycaster();
 function hitBoat(e: PointerEvent): THREE.Vector3 | null {
   if (!boatRoot) return null;
   const r = renderer.domElement.getBoundingClientRect();
   noteRay.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), viewCam());
-  // (Cut away, to place furniture or by the section tool: what's cut off isn't there to click.)
+  // (Cut by the section tool: what's cut off isn't there to click.)
   const planes = cutPlanes();
   return noteRay.intersectObject(boatRoot, true).find((h) => planes.every((pl) => pl.distanceToPoint(h.point) >= -0.01))?.point ?? null;
 }
-/** The planes she's cut by now: the section tool's, and the one over the floor placing furniture. */
+/** The planes she's cut by now: the section tool's (the Furniture step's too). */
 function cutPlanes(): THREE.Plane[] {
-  return [...(cut.kind ? [sectionPlane] : []), ...(cutAway ? [cutPlane] : [])];
+  return cut.kind ? [sectionPlane] : [];
 }
 /**
  * Cut her drawing by those planes (three.js clips what's on the far side of each). Cut, her
@@ -2221,14 +2214,13 @@ function showOnHer(): void {
 }
 /**
  * Click on her where a piece of furniture goes (its field `key`: a new one's, or one on her to
- * move it), seen from straight above with the roof cut away (cutOpen).
+ * move it), on the Furniture step's view from above (furnitureView).
  */
 function furnitureTool(key: FurnitureKey): void {
   setTool('pin');
   placingFurniture = key;
-  cutOpen(true);
   const { kind, i } = slotOf(key);
-  $('toolHint').textContent = `Seen from above with the roof cut away: click where the ${furnitureName(kind, i)} goes (forward of the wheelhouse for the cabin below)`;
+  $('toolHint').textContent = `Click where the ${furnitureName(kind, i)} goes (forward of the wheelhouse for the cabin below)`;
   showFurniture();
 }
 /** Where a piece of furniture is, in words (its place's label), or that it didn't fit. */
@@ -2477,9 +2469,9 @@ function goStep(to: number | string, share = true): void {
   // Arriving at Engine: look at her machinery.
   if (els[i].dataset.step === 'engine' && shownStep !== 'engine') frameMachinery();
   shownStep = els[i].dataset.step!;
-  // The Furniture step: her from above, cut away, while it's open (cutOpen).
+  // The Furniture step: her from above, cut just over the floor, while it's open (furnitureView).
   if (tool && shownStep !== 'furniture') setTool(null);
-  cutOpen(shownStep === 'furniture');
+  furnitureView(shownStep === 'furniture');
   if (shownStep === 'furniture' && !tool) $('toolHint').textContent = FURNITURE_HINT;
   else if (!tool && $('toolHint').textContent === FURNITURE_HINT) $('toolHint').textContent = '';
 }

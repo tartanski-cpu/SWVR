@@ -26,8 +26,8 @@ const mounted = () => flattenMounts(RECIPES.workboat, LIBRARY.hulls, LIBRARY.mod
 afterEach(() => useWorkboatFit([]));
 
 describe('the starter workboat', () => {
-  it('a new career has none of her equipment: the trawl gear, the skiff, the searchlight and the fire monitor are left off', () => {
-    expect(equipmentWithout(createCareer().upgrades)).toEqual(['trawlGear', 'skiff', 'searchlight', 'fireMonitor']);
+  it('a new career has none of her equipment: the trawl gear, the skiff, the searchlight, the fire monitor, fenders and the life ring are left off', () => {
+    expect(equipmentWithout(createCareer().upgrades)).toEqual(['trawlGear', 'skiff', 'searchlight', 'fireMonitor', 'fenders', 'lifeRing']);
     expect(socketsWithout(['trawlGear', 'skiff']).sort()).toEqual(['aFrame', 'helm/trawl', 'tenderCrane', 'trawl']);
     expect(socketsWithout(['searchlight', 'fireMonitor']).sort()).toEqual(['fireMonitor', 'helm/firePump', 'helm/monJoystick', 'helm/spotJoystick', 'helm/spotlight', 'searchlight']);
   });
@@ -111,11 +111,11 @@ describe('the starter workboat in the career', () => {
     expect(equipmentWithout(c.upgrades)).toEqual([]);
     expect(c.upgrades).toContain('radar');
     const fresh = parseCareer(serializeCareer(createCareer()))!;
-    expect(equipmentWithout(fresh.upgrades)).toEqual(['trawlGear', 'skiff', 'searchlight', 'fireMonitor']);
+    expect(equipmentWithout(fresh.upgrades)).toEqual(['trawlGear', 'skiff', 'searchlight', 'fireMonitor', 'fenders', 'lifeRing']);
     // Bought, it's kept.
     const later = createCareer();
     later.upgrades.push('skiff');
-    expect(equipmentWithout(parseCareer(serializeCareer(later))!.upgrades)).toEqual(['trawlGear', 'searchlight', 'fireMonitor']);
+    expect(equipmentWithout(parseCareer(serializeCareer(later))!.upgrades)).toEqual(['trawlGear', 'searchlight', 'fireMonitor', 'fenders', 'lifeRing']);
   });
 
   it('the yard sells it in port to the workboat; a bigger trawl or the ice machine needs the trawl gear aboard first', () => {

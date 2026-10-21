@@ -545,14 +545,35 @@ function defs(): Record<string, VesselDef> {
 }
 
 /**
- * Registry of vessel types, each built from her recipe (modular boats M6a: the hull plus her
- * modules, modular/vesselAssembly.ts). Built on first use. To add a boat: a hull, a recipe,
- * and its id here.
+ * A vessel type made at run time (multi-boat M1: a boat built from her design token,
+ * boats/library.ts `boatType`): added to the registry as it stands, or kept for when it's
+ * first built.
  */
-export const VESSEL_DEFS: Record<string, VesselDef> = Object.defineProperties(
-  {},
-  Object.fromEntries(VESSEL_IDS.map((id) => [id, { enumerable: true, get: () => defs()[id] }])),
-);
+export function putVesselDef(id: string, def: VesselDef, token?: string): void {
+  if (built) built[id] = def;
+  else if (builder) built = { ...builder(), [id]: def };
+  if (token) TOKENS.set(id, token);
+}
+
+const TOKENS = new Map<string, string>();
+
+/** The design token a run-time type was built from (null for the fixed types). Kept here, a leaf module, so vessel state can ask without importing the library. */
+export function vesselBuildToken(defId: string): string | null {
+  return TOKENS.get(defId) ?? null;
+}
+
+/**
+ * Registry of vessel types, each built from her recipe (modular boats M6a: the hull plus her
+ * modules, modular/vesselAssembly.ts). Built on first use. The fixed types are VESSEL_IDS;
+ * boats built from a design token at run time (`boat:...`, multi-boat M1) are in it too, so
+ * any id is looked up (an unknown one is undefined, as before).
+ */
+export const VESSEL_DEFS: Record<string, VesselDef> = new Proxy({} as Record<string, VesselDef>, {
+  get: (_t, id) => (typeof id === 'string' ? defs()[id] : undefined),
+  has: (_t, id) => typeof id === 'string' && id in defs(),
+  ownKeys: () => Object.keys(defs()),
+  getOwnPropertyDescriptor: (_t, id) => (typeof id === 'string' && id in defs() ? { enumerable: true, configurable: true, writable: false, value: defs()[id] } : undefined),
+});
 
 /** The towable kinds (towing missions), by def id. */
 export const TOW_DEFS = ['derelict', 'dory', 'logRaft', 'barge', 'yacht', 'trawler', 'pontoon', 'cage', 'coaster'] as const;

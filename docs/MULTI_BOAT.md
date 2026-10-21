@@ -2,7 +2,7 @@
 
 The owner's brief (Oct 2026): up to four players (three is the likely case, Quest and desktop mixed), each driving their own boat, joined with the one game code as today. A spawn menu where each player picks a boat: one of the fleet, or a boat of their own from the Shipyard (a saved design, a code, or a file on their disk). Harbours get at least four parking places; the biggest boats spawn anchored in the bay instead; the rest on marked slots along the quay. Anyone can board and drive anyone's boat, so the crew can play as one boat, or as three. Physics and effects get a level of detail by distance: boats near you move in the waves exactly, far ones are simulated cheaply.
 
-This document is the plan. Nothing in it is built yet; the owner says go.
+This document is the plan. M1 and M2 are built (Oct 2026, see PROGRESS "Multi-boat M1" and "M2"); M3 is next, on the owner's answers at the end.
 
 ## What the engine does today, and what blocks the brief
 
@@ -26,16 +26,18 @@ Facts from the code (file references for the next session):
 
 Each lands on `/next/` for the owner to try, with tests, in this order. Rough size in sessions of work.
 
-### M1: boats by token (foundation; 1 to 2 sessions)
+### M1: boats by token (foundation; 1 to 2 sessions) — done
 - `VesselState.build` token on every player boat; a runtime registry of vessel types built from a token (`boat:<token>`), used by host and crew; `HULLS`, `RECIPES` and the sim cache keyed by it.
 - The welcome and snapshots carry the tokens; a crew-mate builds the host's boat in memory, no reload. The page's `?boat=` / `?design=` restart stays for solo only.
 - Test: join a host who is in a Shipyard boat from a file, without a reload; two different custom boats in one world in a test.
+- **As built:** `boats/library.ts` `boatType(token)` makes a vessel type `boat:<hash of the token>` (the same id on every page), her token on `VesselState.build`, `ensureBoatTypes(world)` builds any boat a welcome or snapshot brings; the game's `?design=` starts in such a type (the Shipyard page keeps its own 'design' slot). The crew's page still reloads to become the host's boat when hers is another type: the home-boat wiring in App.ts (M2) is what needs it, not the type any more.
 
-### M2: your boat is the one you're aboard (2 sessions)
+### M2: your boat is the one you're aboard (2 sessions) — done, the app's side
 - `myVesselId` (aboard) replaces `testVesselId` through `App.ts`; the dash, sounds, gear mounts, binoculars, towline, bridge wiring and interior culling move with you when you board another boat. The interaction system takes a boat's controls as her view is created.
 - Game systems that need "the boat" take the player's boat (duties, rod, potting, extinguisher) or the vessel in question (rescue, tow, fire, salvage, career jobs per vessel; one shared career pot).
 - Debug: "Spawn a second boat" to test with, before the menu exists.
 - Test: walk from your boat to the host's, take the wheel, drive; the dash and sounds are hers.
+- **As built:** `App.becomeAboard` follows `aboardVesselId` (any boat with a wheelhouse, not a tow or the skiff): her controls send plain channels (`BoatView.setHome`), the other's are routed to her; the towline lead, trawl warps, binoculars, hand gear and rods move to her (`mountOnHomeBoat`); her crane, whiteboard, wind sock, searchlight, chart, fire gauge, duty board and chart table are wired (`wireHomeBoat`); the interior detail is hers. Boats that come after the start get their controls (`InteractionSystem.addControls`). The board button takes the nearest boat within reach. `Debug > Boat > Second boat` (`spawnBoat` intent, core/spawnBoat.ts) puts a fleet boat alongside to try it. **Left for M3/M5:** the game systems that take `homeVessel(world)` (duties, rescue, fire, tow calls, traffic, forecast) still mean the host's start boat; the crew's one reload to become the host's boat on joining stays until the launch flow replaces it.
 
 ### M3: slots and the launch menu (2 sessions)
 - Region data: four slots per default harbour (Calder Haven first, then Loch Tarsk, Kvassvik, Ashby; Oban later) and the big-boat anchorage; drawn slot marks; occupancy in the world; `CONFIG.spawn`.
@@ -49,9 +51,11 @@ Each lands on `/next/` for the owner to try, with tests, in this order. Rough si
 ### M5: gameplay and polish (1 session, then as found)
 - Several boats on one job (a rescue with two boats, a tow with an escort, pots in company), the VHF and name tags between boats, the duty board per boat, each player's boat choice remembered, docs and README.
 
-## Open questions for the owner
+## The owner's answers (21 Oct 2026)
 
-1. **Big boats:** anchor off above 12.5 m hull length (the pilot boat and the tug), or only the very largest? Which idea do you have for them?
-2. **A boat left behind:** when her player leaves the game, does she stay moored where she is until the game ends, or vanish?
-3. **The career:** one shared pot (the host's career) for the whole crew, or each player earns into their own career? The plan assumes one pot.
-4. **Where a game starts:** at the host's harbour (wherever the host is), with the slots there; a joiner who launches far from the host is sent to the host's harbour.
+1. **Big boats:** the biggest go to anchor. Which ones is worked out from the quay: look at each quay face's length and fit the boats that fit along it; the ones that don't anchor off. (Not a fixed length threshold.)
+2. **A boat left behind:** when her player leaves the game, she goes with them.
+3. **The career:** there is none in Voyage mode (the only mode with several boats), so no pot.
+4. **Where a game starts:** not answered yet; the plan's assumption stands (the host's harbour, a joiner sent there).
+
+Noted at the same time, to fix: the bollards on the start quayside don't stand where the mooring lines tie to.

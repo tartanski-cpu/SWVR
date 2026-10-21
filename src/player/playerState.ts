@@ -67,6 +67,8 @@ export interface PlayerState {
     poses?: [number, number];
     /** In the water: overboard (crew-mates are told, and can throw them the life ring). */
     swimming?: boolean;
+    /** Lying in a berth (player/health.ts): healing, and with everyone so, asleep (the clock runs on). */
+    resting?: boolean;
     /** A recording camera (player/cameraMode.ts): drawn as a camera at `head`, not a figure. */
     camera?: boolean;
     tool?: HeldTool | null;

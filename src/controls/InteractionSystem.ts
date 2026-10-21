@@ -58,6 +58,34 @@ export interface HoldRules {
 const NO_RULES: HoldRules = { lockedByOther: () => false, holdChanged: () => {} };
 
 export class InteractionSystem {
+  /**
+   * Controls that come later (a boat put in the world after the start, multi-boat M2): wired
+   * in as the first ones were. `list` false: they're in `controls` already (the constructor).
+   */
+  addControls(cs: readonly Control[], list = true): void {
+    for (const c of cs) {
+      if (list) {
+        if (this.controls.includes(c)) continue;
+        this.controls.push(c);
+      }
+      for (const o of c.hitObjects) {
+        this.owner.set(o, c);
+        this.hitObjects.push(o);
+        if (c.kind === 'press') this.pressHitObjects.push(o);
+      }
+    }
+  }
+
+  /** Controls of a boat that's gone: out of reach of every hand. */
+  removeControls(cs: readonly Control[]): void {
+    const gone = new Set(cs);
+    for (let i = this.controls.length - 1; i >= 0; i--) if (gone.has(this.controls[i])) this.controls.splice(i, 1);
+    for (const c of cs) for (const o of c.hitObjects) this.owner.delete(o);
+    const keep = (o: THREE.Object3D) => !gone.has(this.owner.get(o) as Control) && this.owner.has(o);
+    this.hitObjects.splice(0, this.hitObjects.length, ...this.hitObjects.filter(keep));
+    this.pressHitObjects.splice(0, this.pressHitObjects.length, ...this.pressHitObjects.filter(keep));
+  }
+
   /** Grab controls a local hand or the mouse holds, as last reported to `rules`. */
   private readonly localHolds = new Set<Control>();
   private readonly owner = new Map<THREE.Object3D, Control>();
@@ -83,13 +111,7 @@ export class InteractionSystem {
     private readonly pulse: (hand: Handedness, intensity: number, ms: number) => void,
     private readonly rules: HoldRules = NO_RULES,
   ) {
-    for (const c of controls) {
-      for (const o of c.hitObjects) {
-        this.owner.set(o, c);
-        this.hitObjects.push(o);
-        if (c.kind === 'press') this.pressHitObjects.push(o);
-      }
-    }
+    this.addControls(controls, false);
     const line = () => {
       const geo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3(0, 0, -1)]);
       const l = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0x9fe6ff, transparent: true, opacity: 0.8 }));

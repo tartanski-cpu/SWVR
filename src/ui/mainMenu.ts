@@ -207,6 +207,8 @@ export interface MenuHost {
   /** Which boat you start in (the fleet, the Alaskan); choosing one restarts the game in her. */
   homeBoat(): string;
   setHomeBoat(defId: string): void;
+  /** Debug: a second boat of this type put afloat beside the home boat (multi-boat M2; host or alone). */
+  spawnBoat(defId: string): void;
   debugPanel(): boolean;
   toggleDebugPanel(): void;
   hydroView(): boolean;
@@ -713,6 +715,11 @@ export function mainMenu(h: MenuHost): MainMenu {
           // workboat and landing craft are hidden (owner, Oct 2026; ?boat= still starts them).
           label: 'Start in',
           buttons: [...FLEET.map((f) => choice(f.name, f.id, () => h.homeBoat(), (v) => h.setHomeBoat(v))), choice('Alaskan 38', 'alaskan38', () => h.homeBoat(), (v) => h.setHomeBoat(v))],
+        },
+        {
+          // Multi-boat M2: another boat afloat beside yours, to walk across to and take her helm.
+          label: 'Second boat',
+          buttons: FLEET.map((f) => ({ text: f.name, press: () => h.spawnBoat(f.id) })),
         },
         {
           label: 'Hull',

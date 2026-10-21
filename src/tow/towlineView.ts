@@ -40,7 +40,9 @@ export class TowlineView {
    * roller, deck.tow-winch.) Nothing on a boat without a winch.
    */
   attachLead(root: THREE.Object3D, v: { defId: string }): void {
-    if (this.lead) return;
+    // Another boat's (multi-boat M2): the old lead goes.
+    this.lead?.removeFromParent();
+    this.lead = null;
     const from = winchLeadLocal(v);
     if (!from) return;
     const g = barGeometry(new THREE.Vector3(...from), new THREE.Vector3(...towPostLocal(v)), 0.022, 5, true);

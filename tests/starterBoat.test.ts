@@ -39,6 +39,14 @@ describe('a new career in the beginner boat', () => {
     for (const m of ['deck.tender-crane', 'deck.a-frame']) expect(modules()).not.toContain(m);
   });
 
+  it('fenders and a life ring (owner): none to start; bought, fitted, and the fender basket and ring station come with them', () => {
+    useStarterKit(equipmentWithout([]));
+    for (const m of ['deck.fenders', 'hull.guard', 'rescue.life-ring-station']) expect(modules()).not.toContain(m);
+    useStarterKit(equipmentWithout(['fenders', 'lifeRing']));
+    for (const m of ['deck.fenders', 'rescue.life-ring-station', 'rescue.boat-hook-rack']) expect(modules()).toContain(m);
+    expect(modules()).not.toContain('hull.guard'); // fenders only, no rubbing strake
+  });
+
   it('the yard sells her the searchlight and fire monitor; not the skiff or the trawl gear', () => {
     useStarterKit(equipmentWithout([]));
     const { world, vesselId, localPlayerId } = createWorld(new IdFactory(), 'starterBoat');
@@ -46,7 +54,7 @@ describe('a new career in the beginner boat', () => {
     send('teleportToPort', 'calder', vesselId);
     for (let i = 0; i < 0.5 / DT; i++) stepWorld(world, [], DT);
     send('careerDebugCash');
-    for (const id of ['searchlight', 'fireMonitor']) expect(buyBlocker(world, id), id).toBeNull();
+    for (const id of ['searchlight', 'fireMonitor', 'fenders', 'lifeRing']) expect(buyBlocker(world, id), id).toBeNull();
     for (const id of ['skiff', 'trawlGear']) expect(buyBlocker(world, id), id).toBe('Not on this boat');
   });
 

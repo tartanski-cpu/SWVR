@@ -9,6 +9,7 @@ import { prepareWaves, type PreparedWave } from '../ocean/waves';
 import { stepVessel, type HydroDebug } from '../vessel/physics/vesselPhysics';
 import { vesselContacts } from '../vessel/physics/vesselContact';
 import { applyPlayerIntent } from '../player/playerControl';
+import { sleepHours } from '../player/health';
 import { applyRescueIntent, isRescueIntent, stepRescue } from '../rescue/rescue';
 import { applySosIntent } from '../rescue/sos';
 import { applyBoardIntent, isBoardIntent } from '../board/board';
@@ -24,6 +25,7 @@ import { stepHullWear } from '../vessel/wear';
 import { vesselRuntime } from '../boats/sims';
 import { stepForecast } from '../environment/forecast';
 import { applyTrafficIntent, stepTraffic } from '../traffic/traffic';
+import { applySpawnBoatIntent } from './spawnBoat';
 import { stepDuties } from '../duties/duties';
 import { applyCraneIntent, onCrane, stepTender } from '../vessel/tenderCrane';
 import { applyPainterIntent, painterForces } from '../vessel/physics/painter';
@@ -113,6 +115,8 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
       applyCraneIntent(world, intent);
     } else if (intent.control === 'trafficSpawn') {
       applyTrafficIntent(world, intent);
+    } else if (intent.control === 'spawnBoat') {
+      applySpawnBoatIntent(world, intent);
     } else if (isCargoIntent(intent.control)) {
       applyCargoIntent(world, intent);
     } else if (intent.targetId === ENVIRONMENT_ID) {
@@ -127,6 +131,9 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
   stepCameraHolds(world);
   // 2. Integrate systems. Forces are evaluated at the start-of-tick time.
   stepEnvironment(world.environment, dt);
+  // Everyone lying in a berth: asleep, the clock runs on (player/health.ts).
+  const slept = sleepHours(world, dt);
+  if (slept) world.environment.timeOfDay = (world.environment.timeOfDay + slept) % 24;
   // The weather director follows the profile of the region the home boat is in.
   const hv = homeVessel(world);
   const hvRegion = hv ? regionAt(hv.position[0], hv.position[2]) : undefined;

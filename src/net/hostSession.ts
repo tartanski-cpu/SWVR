@@ -97,7 +97,7 @@ export class HostSession {
       // The VHF: a hand or the chest, and the talk button.
       const r = pose.radio;
       const radio = r && typeof r === 'object' ? { hand: r.hand === 'left' || r.hand === 'right' ? r.hand : null, tx: r.tx === true } : null;
-      p.avatar = { head: pose.head, left: pose.left, right: pose.right, leftQ: quat(pose.leftQ), rightQ: quat(pose.rightQ), poses, swimming: pose.swimming === true, camera: pose.camera === true, tool, laser, gear, radio };
+      p.avatar = { head: pose.head, left: pose.left, right: pose.right, leftQ: quat(pose.leftQ), rightQ: quat(pose.rightQ), poses, swimming: pose.swimming === true, resting: pose.resting === true, camera: pose.camera === true, tool, laser, gear, radio };
     }
   }
 

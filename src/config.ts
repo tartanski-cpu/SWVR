@@ -2143,6 +2143,10 @@ export const CONFIG = {
       { id: 'skiff', name: 'Skiff and her crane', price: 4000, minRep: 10, fit: ['tenderCrane'], desc: 'The electric skiff in her cradle on the foredeck, and the crane to launch her' },
       { id: 'searchlight', name: 'Searchlight', price: 1500, minRep: 5, fit: ['searchlight', 'helm/spotlight', 'helm/spotJoystick'], design: { searchlight: 1 }, desc: 'The searchlight on the wheelhouse roof, its SPOT switch and joystick at the helm' },
       { id: 'fireMonitor', name: 'Fire monitor', price: 3000, minRep: 10, fit: ['fireMonitor', 'helm/firePump', 'helm/monJoystick'], design: { fireMonitor: 1 }, desc: 'The fire monitor on the roof, the FIRE PUMP switch, its joystick and gauge: the fire calls come once she has it' },
+      // Owner, Oct 2026: the beginner boat comes without these, and the yard sells them. (`fit` empty:
+      // the old workboat has hers already and keeps them.)
+      { id: 'fenders', name: 'Fenders', price: 600, minRep: 0, fit: [], design: { guard: 1 }, desc: 'Fenders along her sides and a basket of spares: knocks alongside land on them, not her hull, and you can hang one between her and the quay by hand' },
+      { id: 'lifeRing', name: 'Life ring', price: 400, minRep: 0, fit: [], design: { lifeRing: 1 }, desc: 'A life ring and a boat hook on the wheelhouse aft wall: the rescue calls come once she has it' },
       { id: 'radar', name: 'Radar', price: 2400, minRep: 20, desc: 'Debris and floating crates on the plotter' },
       { id: 'ais', name: 'AIS receiver', price: 900, minRep: 0, desc: 'Passing ships on the plotter, by name and course, in any visibility' },
       { id: 'bigTank', name: 'Bigger fuel tank', price: 1400, minRep: 5, desc: 'Her fuel tank enlarged by 60 %: further between fills' },
@@ -3162,8 +3166,8 @@ export const CONFIG = {
      * from it), the companionway and other openings (`holeClear` round them). A piece slides
      * along its wall up to `reach` each way from its pin to fit; more than `movedOver` from it,
      * the Shipyard says it moved. A head wants `headroom` under the ceiling. Priced as fit-out
-     * (`pricePerKg`, GBP). Placing one, the Shipyard shows her from above cut away `planCut` (m)
-     * over the wheelhouse floor (the roof and the top of the walls off).
+     * (`pricePerKg`, GBP). The Furniture step opens with the section tool cut at a waterline
+     * `planCut` (m) over the wheelhouse floor, seen from above (the roof and the top of the walls off).
      */
     furniture: { helmRoom: { halfWidth: 0.45, depth: 0.9 }, doorWay: { halfWidth: 0.5, depth: 0.9 }, chartRoom: 0.45, holeClear: 0.15, reach: 1.5, movedOver: 0.3, headroom: 1.9, pricePerKg: 40, planCut: 1.25 },
     /**
@@ -3341,6 +3345,46 @@ export const CONFIG = {
    * Jumps start with the boat's own velocity at your feet, so leaping off a moving boat
    * carries you along with her, as it would.
    */
+  /**
+   * The player's health (player/health.ts; owner, Oct 2026: a berth "should have the function
+   * of healing the player"; hurt by cold water, a propeller, falls, and fire and smoke). One
+   * number, 1 well to 0 blacked out, kept by each player's own game. Game-paced, not real:
+   * at the sea's 14 C a person in the water keeps going for an hour or more; here the cold
+   * takes a full-health swimmer in about `coldMinutes`, so a swim is a risk but not a sentence.
+   */
+  health: {
+    /** In the water, from full health to blacked out (min, game-paced). */
+    coldMinutes: 8,
+    /** Standing in the flames (inside the fire's hitRadius, CONFIG.fire), at full blaze: health a second. */
+    firePerS: 0.2,
+    /** In thick smoke downwind of it, at full blaze: health a second. */
+    smokePerS: 0.03,
+    /** The smoke: downwind of the fire this far (m), widening this much a metre downwind (each side), thinning to nothing at the end. */
+    smokeReach: 40,
+    smokeSpread: 0.25,
+    /** Wind under this (m/s): the smoke rises round the fire, out to twice its radius. */
+    calmWind: 1,
+    /** A turning propeller: this much at a blow (the strike's fade and haul-out follow as before). */
+    propHit: 0.6,
+    /** A fall: no harm landing from this high (m), then this much health a metre more. */
+    safeFall: 2.5,
+    fallPerM: 0.2,
+    /** Lying in a berth: from nothing back to full in this long (s, real time). */
+    restFullS: 90,
+    /** Blacked out: you come round aboard, this well. */
+    wakeHealth: 0.5,
+    /** Below this, a warning (once each time it falls past). */
+    warnBelow: 0.35,
+    /**
+     * Sleep (owner: "Both": a berth heals, and sleeping in it passes time): with everyone aboard
+     * the game lying in a berth, the clock runs this many game hours a real second. Lain down
+     * hurt, you get up by yourself once well by day; else you sleep on until the clock comes
+     * round to `wakeHour`. A step gets you up any time. Night (no getting up well): `nightFrom` to `wakeHour`.
+     */
+    sleepHoursPerS: 0.25,
+    wakeHour: 7,
+    nightFrom: 20,
+  },
   body: {
     gravity: 9.81,
     /** Take-off speed up and along your view (m/s): ~0.55 m high, ~2 m long from standing. */
@@ -4598,6 +4642,13 @@ export const CONFIG = {
    * no career, no saves. `boat`: the boat it starts in (any other by Start in, a Shipyard
    * code or a design file), fitted out in full.
    */
+  /**
+   * A second boat put in the world beside the home boat (multi-boat M2: Debug > Boat > Second
+   * boat; core/spawnBoat.ts): this much clear water between their sides (m). `boardReach`: from
+   * ashore, the board button takes you to the nearest boat with a wheelhouse within this (m).
+   */
+  spawn: { abeam: 6, boardReach: 40 },
+
   voyage: {
     boat: 'pilotBoat',
     /**

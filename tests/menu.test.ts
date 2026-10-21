@@ -34,6 +34,7 @@ function fakeHost() {
     timeOfDay: () => state.time,
     homeBoat: () => 'workboat',
     setHomeBoat: (id) => calls.push(`boat ${id}`),
+    spawnBoat: (id) => calls.push(`spawn ${id}`),
     shiftTime: (h) => calls.push(`shift ${h.toFixed(3)}`),
     timeScale: () => state.scale,
     setTimeScale: (v) => (state.scale = v),

@@ -72,7 +72,7 @@ export class BoatView {
     readonly vesselId: string,
     private readonly def: VesselDef,
     private readonly modules: AssembledView,
-    private readonly home: boolean,
+    private home: boolean,
   ) {
     this.root.name = home ? 'bridge' : `boat:${vesselId}`;
     for (const m of modules.modules) this.root.add(m.root);
@@ -128,7 +128,6 @@ export class BoatView {
     }
     for (const c of this.controls) if (!c.root.parent) this.root.add(c.root);
     if (!home) for (const c of this.controls) c.route = vesselId;
-
     // Her modules' fixed parts in one mesh, their labels in another, the screens, the
     // shared bats and caps.
     this.dashAnchor = this.root.getObjectByName('dashAnchor') ?? null;
@@ -137,6 +136,17 @@ export class BoatView {
     if (modules.labels.length) this.root.add(buildLabels(modules.labels));
     if (modules.screens) this.root.add(modules.screens);
     for (const m of modules.shared) this.root.add(m);
+  }
+
+  /**
+   * Make her the home boat, or not (multi-boat M2: your boat is the one you're aboard): her
+   * controls send plain channels as the home boat's, routed to her as any other boat's.
+   */
+  setHome(home: boolean): void {
+    if (home === this.home) return;
+    this.home = home;
+    this.root.name = home ? 'bridge' : `boat:${this.vesselId}`;
+    for (const c of this.controls) c.route = home ? null : this.vesselId;
   }
 
   /** A control the app makes for her: it rides and routes with her. */
