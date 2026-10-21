@@ -14,24 +14,37 @@ const helmOf = (d: ShipDesign) => {
   const b = buildDesign(d);
   const helm = b.recipe.modules.find((m) => m.socket === 'helm')!;
   const cfg = helm.config as { dash: { halfWidth: number }; slots: Record<string, { position: [number, number, number] }> };
-  const screens = helm.modules!.filter((m) => m.module === 'instrument.screen').map((m) => cfg.slots[m.socket].position[0]);
-  return { b, cfg, helm, screens };
+  const all = helm.modules!.filter((m) => m.module === 'instrument.screen');
+  const screens = all.map((m) => cfg.slots[m.socket].position[0]);
+  // Each with its width (a strip or a quarter says its own: the ANCHOR's), left to right.
+  const row = all.map((m) => ({ x: cfg.slots[m.socket].position[0], w: (m.config as { width?: number }).width ?? CONFIG.modules.screen.dash.width })).sort((p, q) => p.x - q.x);
+  return { b, cfg, helm, screens, row };
 };
+/** The row as on the reference console: each screen its width and the gap from the next, centred over the wheel. */
+function inRow(row: { x: number; w: number }[]): void {
+  const gap = CONFIG.shipyard.helm.screenGap;
+  for (let i = 1; i < row.length; i++) expect(row[i].x - row[i - 1].x).toBeCloseTo((row[i].w + row[i - 1].w) / 2 + gap, 2);
+  expect(row[0].x - row[0].w / 2 + row[row.length - 1].x + row[row.length - 1].w / 2).toBeCloseTo(0, 2);
+}
 /** The screen's width and the gap: the row's pitch. */
 const pitch = CONFIG.modules.screen.dash.width + CONFIG.shipyard.helm.screenGap;
 
 describe('the helm in view on a wide wheelhouse', () => {
   it('the screens stand in one row over the wheel, as on the reference console, however wide the dash', () => {
     for (const d of [type(2, { beam: 15, houseWidth: 1 }), type(4, { beam: 15, houseWidth: 1 }), type(2)]) {
-      const { cfg, screens } = helmOf(d);
-      expect(screens.sort((a, c) => a - c)).toEqual([-1.5, -0.5, 0.5, 1.5].map((k) => Math.round(k * pitch * 1000) / 1000));
+      const { cfg, row } = helmOf(d);
+      // Speed, the ANCHOR quarter, heading, rpm, the engine monitor.
+      expect(row).toHaveLength(5);
+      inRow(row);
       expect(cfg.dash.halfWidth).toBeLessThanOrEqual(CONFIG.shipyard.helm.maxConsole / 2); // (cut short on a wide one)
     }
   });
 
-  it('with the basic controls, its two screens side by side over the wheel', () => {
-    const { screens } = helmOf(type(2, { beam: 15, houseWidth: 1, controls: 0 }));
-    expect(screens.sort((a, c) => a - c)).toEqual([-0.5, 0.5].map((k) => Math.round(k * pitch * 1000) / 1000));
+  it('with the basic controls, its two screens side by side over the wheel (the ANCHOR between)', () => {
+    const { row } = helmOf(type(2, { beam: 15, houseWidth: 1, controls: 0 }));
+    // Speed and rpm, the ANCHOR quarter between them.
+    expect(row.map((r) => r.w)).toEqual([pitch - CONFIG.shipyard.helm.screenGap, CONFIG.modules.screen.dash.width / 2, pitch - CONFIG.shipyard.helm.screenGap]);
+    inRow(row);
   });
 
   it('a wide wheelhouse’s console is cut short, with floor beside it; to port or starboard against that wall, its helm with it', () => {
@@ -51,7 +64,7 @@ describe('the helm in view on a wide wheelhouse', () => {
       expect(b.hull.helm.stand[0]).toBeCloseTo(cx, 3);
       expect(sock('navDisplay')?.[0] ?? cx).toBeCloseTo(cx, 3);
       expect(cfg.dash.halfWidth).toBeCloseTo(CONFIG.shipyard.helm.maxConsole / 2 - 0.11, 3);
-      expect(screens).toHaveLength(4);
+      expect(screens).toHaveLength(5);
       for (const id of ['vhf', 'chartplotter', 'fm']) {
         const p = sock(id);
         if (p) expect(Math.abs(p[0] - cx), id).toBeLessThanOrEqual(CONFIG.shipyard.helm.hungReach + 1e-6);

@@ -2,7 +2,8 @@
  * Module instrument.screen: one screen on the boat's shared display atlas (modular boats
  * M3): speed and echo sounder, heading, rpm, rudder, the engine monitor, or NAV / WIND
  * (controls/instruments.ts SCREENS). All of a boat's screens share one texture and one draw
- * call; this module only says which screen, where, and how it's mounted:
+ * call; this module only says which screen, where, and how it's mounted (its size, full, a
+ * strip or a quarter, is the screen's own: instruments.ts `cells`):
  *   dash  on a dash face, tilted back, standing just proud of it
  *   hung  under the roof on a bracket, face tilted down toward the helm, in a housing
  * (CONFIG.modules.screen has each mount's size and tilt; a recipe may override them.)
@@ -12,7 +13,7 @@
  */
 import * as THREE from 'three';
 import { CONFIG } from '../../config';
-import { SCREENS, type ScreenName } from '../../controls/instruments';
+import { cellsOf, SCREENS, type ScreenName } from '../../controls/instruments';
 import type { ModuleDefinition } from '../../modular/module';
 import { part } from '../../render/geometryUtils';
 
@@ -40,8 +41,10 @@ export const SCREEN: ModuleDefinition<ScreenConfig> = {
   view: {
     build({ config, display }) {
       const d = config.mount === 'hung' ? CONFIG.modules.screen.hung : CONFIG.modules.screen.dash;
-      const w = config.width ?? d.width;
-      const h = config.height ?? d.height;
+      // A strip or a quarter screen (instruments.ts: in quarter cells) is that part of a full one.
+      const [cw, ch] = cellsOf(SCREENS[config.screen]);
+      const w = config.width ?? (d.width * cw) / 2;
+      const h = config.height ?? (d.height * ch) / 2;
       const tilt = ((config.tiltDeg ?? d.tiltDeg) * Math.PI) / 180;
       const staticParts: THREE.BufferGeometry[] = [];
       let plane: THREE.BufferGeometry;
