@@ -1691,13 +1691,65 @@ function setTool(t: typeof tool): void {
   $('toolHint').textContent = t === 'pin' ? 'Click on her where the pin goes' : t === 'sketch' ? 'Draw on the sheet: everyone with it open sees it as you draw. Port, Starboard, Plan, Bow or Stern for another view’s sketch; ✏ Sketch again to close' : '';
   drawInk();
   if (t !== 'pin') ($('pinEditor') as HTMLElement).hidden = true;
+  if (t !== 'pin') cutOpen(false);
+}
+/**
+ * Placing furniture (P5; owner: the roof is in the way): seen from straight above, flat, with
+ * her cut away above a level just over the wheelhouse floor (CONFIG.shipyard.furniture.planCut),
+ * so the floor, the console, the companionway and the furniture already there show and take the
+ * click. Put back as it was (view, flat or not) when the pin is placed or the tool put down.
+ */
+let cutAway: { y: number; eye: THREE.Vector3; at: THREE.Vector3; flat: boolean } | null = null;
+const cutPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), 0);
+renderer.localClippingEnabled = true;
+function cutOpen(on: boolean): void {
+  if (!boatRoot || on === !!cutAway) return;
+  const meshes: THREE.Mesh[] = [];
+  boatRoot.traverse((o) => {
+    if ((o as THREE.Mesh).isMesh) meshes.push(o as THREE.Mesh);
+  });
+  const setPlanes = (planes: THREE.Plane[] | null) => {
+    for (const m of meshes) for (const mat of Array.isArray(m.material) ? m.material : [m.material]) {
+      mat.clippingPlanes = planes;
+      mat.needsUpdate = true;
+    }
+  };
+  if (on) {
+    const floor = boat.hull.layout.wheelhouse?.floorY ?? 1;
+    const y = boatRoot.localToWorld(new THREE.Vector3(0, floor + CONFIG.shipyard.furniture.planCut, 0)).y;
+    cutAway = { y, eye: camera.position.clone(), at: orbit.target.clone(), flat };
+    cutPlane.constant = y;
+    setPlanes([cutPlane]);
+    setView('Plan');
+    // Closer in: over her houses (and a deckhouse forward of them), filling most of the view.
+    const wh = boat.hull.layout.wheelhouse;
+    if (wh) {
+      const dh = boat.hull.layout.deckhouse;
+      const z0 = Math.min(wh.front, dh?.z0 ?? wh.front);
+      const at = boatRoot.localToWorld(new THREE.Vector3(0, floor, (z0 + wh.aft) / 2));
+      const span = (wh.aft - z0) * 1.35;
+      orbit.target.copy(at);
+      camera.position.set(at.x + 0.01, at.y + Math.max(0.9, 1.55 / camera.aspect) * span, at.z);
+      orbit.update();
+    }
+    if (!flat) flatBtn.click();
+  } else {
+    const was = cutAway!;
+    cutAway = null;
+    setPlanes(null);
+    camera.position.copy(was.eye);
+    orbit.target.copy(was.at);
+    orbit.update();
+    if (flat !== was.flat) flatBtn.click();
+  }
 }
 const noteRay = new THREE.Raycaster();
 function hitBoat(e: PointerEvent): THREE.Vector3 | null {
   if (!boatRoot) return null;
   const r = renderer.domElement.getBoundingClientRect();
   noteRay.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), viewCam());
-  return noteRay.intersectObject(boatRoot, true)[0]?.point ?? null;
+  // (Cut away to place furniture: what's cut off isn't there to click.)
+  return noteRay.intersectObject(boatRoot, true).find((h) => !cutAway || h.point.y <= cutAway.y + 0.01)?.point ?? null;
 }
 let pendingPin: Frac | null = null;
 let downAt: { x: number; y: number } | null = null;
@@ -1751,7 +1803,11 @@ function pinGearTool(id: string): void {
   setTool('pin');
   presetGear = id;
   document.querySelectorAll<HTMLElement>('#gearMenu [data-place]').forEach((b) => b.classList.toggle('on', b.dataset.place === id));
-  $('toolHint').textContent = `Click on her where the ${equipmentOf(id)!.name.toLowerCase()} goes`;
+  const eq = equipmentOf(id)!;
+  $('toolHint').textContent = `Click on her where the ${eq.name.toLowerCase()} goes`;
+  // Furniture: from above with the roof cut away (cutOpen); other gear as she's seen.
+  cutOpen(eq.how === 'inside');
+  if (eq.how === 'inside') $('toolHint').textContent = `Seen from above with the roof cut away: click where the ${eq.name.toLowerCase()} goes (over the deckhouse for the cabin below)`;
 }
 function addPin(gearPicked?: string): void {
   if (!pendingPin) return;
