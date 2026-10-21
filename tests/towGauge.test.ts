@@ -96,10 +96,14 @@ describe('the TOW LINE screen in the Shipyard', () => {
     const slots = (helm.config as { slots: Record<string, { position: number[] }> }).slots;
     return helm.modules!.filter((m) => m.module === 'instrument.screen').sort((p, q) => slots[p.socket].position[0] - slots[q.socket].position[0]).map((m) => (m.config as { screen: string }).screen);
   };
-  it('on a boat that can tow (a stern roller), with the advanced instruments: last in the row', () => {
+  it('on a boat that can tow (a stern roller), with the advanced instruments: a strip along the bottom of the place beside the speed screen, the ANCHOR quarter above it', () => {
     const tug = FLEET.find((f) => f.id === 'smallTug')!.design;
     expect(tug.sternRoller).toBeTruthy();
-    expect(screens(tug).at(-1)).toBe('towline');
+    expect(screens(tug).slice(0, 3).sort()).toEqual(['anchor', 'speed', 'towline']);
+    const helm = buildDesign(tug).recipe.modules.find((m) => m.socket === 'helm')!;
+    const rise = (id: string) => (helm.modules!.find((m) => m.socket === id)!.config as { rise?: number }).rise ?? 0;
+    expect(rise('towline')).toBeLessThan(0);
+    expect(rise('anchorScreen')).toBeGreaterThan(0);
   });
   it('not without a stern roller, nor with the basic instruments', () => {
     const tug = FLEET.find((f) => f.id === 'smallTug')!.design;

@@ -25,6 +25,11 @@ export interface ScreenConfig {
   height?: number;
   tiltDeg?: number;
   bracket?: number;
+  /**
+   * Up (+) or down along the dash's face from its slot (m; dash mount): two half-height screens
+   * stacked in one full screen's place (owner, Oct 2026: "use the space above as well").
+   */
+  rise?: number;
 }
 
 export const SCREEN: ModuleDefinition<ScreenConfig> = {
@@ -51,7 +56,11 @@ export const SCREEN: ModuleDefinition<ScreenConfig> = {
       if (config.mount === 'dash') {
         // Tilted back, the screen's top edge leans toward the dash: stand it off the face
         // far enough that the whole screen stays in front of it.
-        plane = new THREE.PlaneGeometry(w, h).rotateX(-tilt).translate(0, 0, 0.006 + (h / 2) * Math.sin(tilt));
+        // (Raised along the tilted face: up, and back toward the dash as the face leans.)
+        const rise = config.rise ?? 0;
+        plane = new THREE.PlaneGeometry(w, h)
+          .rotateX(-tilt)
+          .translate(0, rise * Math.cos(tilt), 0.006 + (h / 2) * Math.sin(tilt) - rise * Math.sin(tilt));
       } else {
         const bracket = config.bracket ?? CONFIG.modules.screen.hung.bracket;
         plane = new THREE.PlaneGeometry(w, h).rotateX(tilt);
