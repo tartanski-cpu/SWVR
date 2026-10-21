@@ -5237,6 +5237,12 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **The owner:** an updated release note since version one, summarised well because it's getting long.
 - `docs/RELEASE_NOTES_next.md` rewritten to cover 16 to 21 October in full, by theme (three modes, the real maps, the fleet, the Shipyard, the archipelago, jobs and gear, boats and water, looks and sound, controls, playing together, known limits, next), from every commit since the `V1.0` tag. The live game is still v1.0 with the first weekend's fixes, so the note says plainly that everything in it is on the test build.
 
+### Everything on next moved to the live game (owner, 21 Oct 2026)
+
+- **The owner:** move everything on `next` to the live game.
+- The dev branch (`claude/admiring-dirac-v9wwih`, which deploys https://tartanski-cpu.github.io/SWVR/) had sat at 17 October (the FM radio change and its revert, no net change) while `next` ran on to 21 October: the three modes, the real maps, the fleet, the Shipyard's growth, the regions, and the rest of `docs/RELEASE_NOTES_next.md`. `next` was merged with the dev branch (nothing to resolve) and pushed to both. The README's status line says so; the release note's "what's where" too.
+- **Checked:** typecheck, `npm test` on the merged head; the publishing run for the dev branch succeeded and the live build reports the commit. **Not checked:** the owner's own careers against the new build (the save format is as it was; new careers start in the beginner boat, existing ones keep their boat).
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

@@ -4,7 +4,7 @@
 
 **Try it:** https://tartanski-cpu.github.io/SWVR/next/ (the test build: its menu says NEXT). It runs in the Meta Quest 3 browser (press Enter VR), on a desktop browser or on a phone. Nothing to install.
 
-**What's where:** the live game at https://tartanski-cpu.github.io/SWVR/ is still v1.0 with the first weekend's fixes. Everything below is on the test build, waiting for your OK to move across. Both addresses share one browser storage, so your careers and settings are the same on both.
+**What's where:** on 21 October all of this moved from the test build to the live game at https://tartanski-cpu.github.io/SWVR/ (the owner's call). The test build carries the same, plus whatever comes next. Both addresses share one browser storage, so your careers and settings are the same on both.
 
 ## Highlights
 
