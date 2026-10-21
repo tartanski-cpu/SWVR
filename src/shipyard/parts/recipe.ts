@@ -8,6 +8,7 @@ import landingCraftRecipe from '../../boats/landingCraft.json';
 import type { Mount, Recipe } from '../../modular/recipe';
 import { houseFlare } from '../../vessel/houseFlare';
 import { cellsOf, SCREENS, type ScreenName } from '../../controls/instruments';
+import { packDash, packPanel, placeOnDash, type PanelGroup } from './consoleGrid';
 import { BASE_TORQUE, type BuildArgs, type V3 } from './common';
 import type { HullPart } from './hull';
 import type { HousePart, LayoutPart, OverheadPart, InteriorPart } from './house';
@@ -166,33 +167,22 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   // place to work it from); for one on a pole (which has its own) with the advanced controls.
   const lampAtHelm = lampOnRoof || (!!lampFoot && !!d.controls);
   const monitorAtHelm = monitorOnRoof || (!!monitorFoot && !!d.controls);
-  const searchGroup = cc.groups.find((gp: { title: string }) => gp.title === 'SEARCH');
-  if (!lampAtHelm) {
-    consoleMount.modules = consoleMount.modules!.filter((m) => m.socket !== 'spotlight' && m.socket !== 'spotJoystick');
-    cc.groups = cc.groups.filter((gp: { title: string }) => gp !== searchGroup);
-  }
+  // The panel's group colours (the reference console's), for the switch panel below (CS2).
+  const colourOf = Object.fromEntries((cc.groups as { title: string; color: number }[]).map((gp) => [gp.title, gp.color]));
+  if (!lampAtHelm) consoleMount.modules = consoleMount.modules!.filter((m) => m.socket !== 'spotlight' && m.socket !== 'spotJoystick');
   if (monitorAtHelm) {
     // FIRE PUMP beside SPOT (or in its place), the monitor's joystick aft on the same pedestal
     // as the searchlight's, and its FIRE gauge between them.
     const [px] = cc.pedestals.x.filter((x: number) => x < 0);
-    cc.slots.firePump = { position: [lampAtHelm ? -0.3 : -0.39, 0.01, -0.2] };
     cc.slots.monJoystick = { position: [px, 0.01, 0.23] };
     if (lampAtHelm) cc.slots.spotJoystick.position = [px, 0.01, -0.01];
     consoleMount.modules!.push(
       { socket: 'firePump', module: 'control.toggle', config: { label: 'FIRE PUMP (needs the engine running)', engrave: 'FIRE PUMP' }, bind: { value: 'firePump.on' } },
       { socket: 'monJoystick', module: 'control.joystick', config: { label: 'Fire monitor joystick', engrave: 'MONITOR', knob: '#d8301a', panRateDeg: 40 }, bind: { pan: 'monitor.pan', tilt: 'monitor.tilt' } },
     );
-    if (lampAtHelm) Object.assign(searchGroup, { title: 'SEARCH · FIRE', x: [-0.48, -0.24] });
-    else cc.groups.push({ ...searchGroup, title: 'FIRE' });
   }
-  // The ANCHOR switch, and the skiff crane's button's place, starboard of the wheel (the
-  // gap between the SEARCH and ENGINE groups), in a DECK group.
-  if (anchorAt || d.skiff) {
-    cc.slots.anchor = { position: [0.12, 0.01, -0.2] };
-    cc.slots.skiffCrane = { position: [0.27, 0.01, -0.2] };
-    cc.groups.push({ title: 'DECK', x: [0.04, 0.35], color: 0x8a6d2a });
-    if (anchorAt) consoleMount.modules!.push({ socket: 'anchor', module: 'control.toggle', config: { label: 'Anchor: let go / heave in', engrave: 'ANCHOR' }, bind: { value: 'anchor.letGo' } });
-  }
+  // The ANCHOR switch (in the DECK group with the skiff crane's button: the switch panel, below).
+  if (anchorAt) consoleMount.modules!.push({ socket: 'anchor', module: 'control.toggle', config: { label: 'Anchor: let go / heave in', engrave: 'ANCHOR' }, bind: { value: 'anchor.letGo' } });
   // The dash along the console (cut short on a wide wheelhouse: consoleHalf), what's on it spread or closed up with it.
   const dashHalf = consoleHalf - 0.11;
   const sx = dashHalf / cc.dash.halfWidth;
@@ -202,7 +192,6 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
   const throttleX = cc.slots.throttle.position[0] as number;
   const throttleAt = Math.round(throttleX * Math.min(1, sx) * 1000) / 1000;
   cc.pedestals.x = cc.pedestals.x.map((x: number) => (x === throttleX ? throttleAt : Math.round(x * sx * 1000) / 1000));
-  cc.groups = cc.groups.map((gp: { x: [number, number] }) => ({ ...gp, x: gp.x.map((x) => Math.round(x * sx * 1000) / 1000) }));
   for (const slot of Object.values(cc.slots) as { position: V3 }[]) slot.position = [Math.round(slot.position[0] * sx * 1000) / 1000, slot.position[1], slot.position[2]];
   cc.slots.throttle.position = [throttleAt, cc.slots.throttle.position[1], cc.slots.throttle.position[2]];
   if (pods) {
@@ -230,68 +219,34 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
     consoleMount.modules!.push({ socket: 'anchorScreen', module: 'instrument.screen', config: { screen: 'anchor' } });
   }
   const screens = ['speed', 'anchorScreen', 'heading', 'rpm', 'engineMonitor', 'towline'].filter((id) => consoleMount.modules!.some((m) => m.socket === id && m.module === 'instrument.screen') && (d.controls || ['speed', 'anchorScreen', 'rpm'].includes(id)));
-  // Each its own size (a full screen, a strip or a quarter: instruments.ts `cells`), side by
-  // side, if the row fits along the dash; if not (a small wheelhouse: owner, Oct 2026, the
-  // smallest landing craft's overlapped), all of them smaller together until it does.
-  // (Spacing them closer without shrinking them overlapped them.)
-  // The half-height ones (owner, Oct 2026: "use the space above as well for the half height
-  // ones") share full screens' places, stacked two high: strips along the bottom first, then
-  // quarters, side by side, above; their places stand where the first of them is in the row.
+  // The dash as a grid of quarter cells (consoleGrid.ts; dynamic console sockets CS1): each
+  // screen its own size (a full screen, a strip or a quarter: instruments.ts `cells`), placed
+  // by its rules in this order, the half-height ones stacked two high in one screen's place
+  // (owner, Oct 2026: "use the space above as well"), the row centred over the wheel. If the
+  // row is longer than the dash (a small wheelhouse: owner, Oct 2026, the smallest landing
+  // craft's overlapped), all of it smaller together until it fits. (Spacing them closer
+  // without shrinking them overlapped them.)
+  const r3 = (v: number) => Math.round(v * 1000) / 1000;
   const sc = CONFIG.modules.screen.dash;
   const gap = CONFIG.shipyard.helm.screenGap;
-  const sizeOf = (id: string) => {
-    const name = (consoleMount.modules!.find((x) => x.socket === id)!.config as { screen: ScreenName }).screen;
-    const [cw, ch] = cellsOf(SCREENS[name]);
-    return { id, w: (sc.width * cw) / 2, h: (sc.height * ch) / 2, full: cw === 2 && ch === 2 };
-  };
-  type Placed = { id: string; w: number; h: number; full: boolean; dx: number; rise: number };
-  /** A place in the row: a full screen, or half-height ones stacked; its width. */
-  const places: { w: number; screens: Placed[] }[] = [];
-  const halves = screens.map(sizeOf).filter((z) => !z.full).sort((a, b) => b.w - a.w);
-  /** The stacks of half-height screens: each up to two layers of a full screen's width. */
-  const stacks: { layers: Placed[][] }[] = [];
-  for (const z of halves) {
-    const layerW = (l: Placed[]) => l.reduce((a, q) => a + q.w, 0);
-    let stack = stacks.find((st) => st.layers.length < 2 || st.layers.some((l) => layerW(l) + z.w <= sc.width + 1e-6));
-    if (!stack) stacks.push((stack = { layers: [] }));
-    let layer = stack.layers.find((l) => layerW(l) + z.w <= sc.width + 1e-6);
-    if (!layer) stack.layers.push((layer = []));
-    layer.push({ ...z, dx: layerW(layer), rise: 0 });
-  }
-  let stacked = false;
-  for (const id of screens) {
-    const z = sizeOf(id);
-    if (z.full) places.push({ w: z.w, screens: [{ ...z, dx: 0, rise: 0 }] });
-    else if (!stacked) {
-      // (Once, where the first half-height screen is.)
-      stacked = true;
-      for (const st of stacks) {
-        const w = Math.max(...st.layers.map((l) => l.reduce((a, q) => a + q.w, 0)));
-        // Two layers: the first along the bottom, the second above; one alone: in the middle.
-        const two = st.layers.length === 2;
-        const list = st.layers.flatMap((l, k) => {
-          const lw = l.reduce((a, q) => a + q.w, 0);
-          return l.map((q) => ({ ...q, dx: q.dx + (w - lw) / 2, rise: two ? (k === 0 ? -1 : 1) * (sc.height / 4) : 0 }));
-        });
-        places.push({ w, screens: list });
-      }
-    }
-  }
+  const cellsFor = (id: string) => cellsOf(SCREENS[(consoleMount.modules!.find((x) => x.socket === id)!.config as { screen: ScreenName }).screen]) as [number, number];
+  const ROWS = 2;
+  const grid = packDash(screens.map((id) => ({ id, cells: cellsFor(id) })), ROWS);
+  const pitch = (sc.width + gap) / 2;
   const rowRoom = 2 * dashHalf - 2 * gap;
-  const rowWidth = places.reduce((a, p) => a + p.w, 0) + (places.length - 1) * gap;
-  const shrink = Math.min(1, rowRoom / rowWidth);
-  let x = (-rowWidth * shrink) / 2;
-  for (const p of places) {
-    for (const z of p.screens) {
-      const slot = cc.slots[z.id] as { position: V3 };
-      slot.position = [Math.round((x + (z.dx + z.w / 2) * shrink) * 1000) / 1000, slot.position[1], slot.position[2]];
-      // A strip or a quarter always says its size (the row test reads it), and its rise if stacked; a full screen only when shrunk.
-      if (shrink < 1 || !z.full) {
-        const m = consoleMount.modules!.find((q) => q.socket === z.id)!;
-        m.config = { ...m.config, width: Math.round(z.w * shrink * 1000) / 1000, height: Math.round(z.h * shrink * 1000) / 1000, ...(z.rise ? { rise: Math.round(z.rise * shrink * 1000) / 1000 } : {}) };
-      }
+  const shrink = Math.min(1, rowRoom / (grid.cols * pitch - gap));
+  // Her dash's grid, for the Shipyard (CS3: placing by hand) and the tests: its size and each screen's cells.
+  cc.dashGrid = { cols: grid.cols, rows: ROWS, pitch: r3(pitch * shrink), places: grid.places };
+  for (const gp of grid.places) {
+    const at = placeOnDash(gp, grid.places, grid.cols, ROWS, pitch * shrink, gap * shrink, (sc.height / 2) * shrink);
+    const slot = cc.slots[gp.id] as { position: V3 };
+    slot.position = [r3(at.x), slot.position[1], slot.position[2]];
+    // A strip or a quarter always says its size (and its rise, stacked); a full screen only when shrunk.
+    const full = gp.w === 2 && gp.h === ROWS;
+    if (shrink < 1 || !full || at.rise) {
+      const m = consoleMount.modules!.find((q) => q.socket === gp.id)!;
+      m.config = { ...m.config, width: r3(at.width), height: r3(at.height), ...(at.rise ? { rise: r3(at.rise) } : {}) };
     }
-    x += (p.w + gap) * shrink;
   }
   // A faceted front: the dash wraps round with it (console.standard's `wrap`), its wings set back as the outer windows are.
   // Its controls stay square to her (owner: forward is forward); its screens turn with the wings, flush with the dash's face.
@@ -352,9 +307,39 @@ export function recipePart(a: BuildArgs, p: HullPart & HousePart & LayoutPart & 
     // engine monitor or FM radio. The searchlight's and monitor's controls stay if they're worked from here.
     const keep = ['wheel', 'throttle', 'podJoystick', 'start', 'key', 'lamps', 'card', 'speed', 'anchorScreen', 'rpm', 'spotlight', 'spotJoystick', 'firePump', 'monJoystick', 'anchor'];
     consoleMount.modules = consoleMount.modules!.filter((m) => keep.includes(m.socket));
-    cc.groups = cc.groups.filter((gp: { title: string }) => ['ENGINE', 'SEARCH', 'FIRE', 'SEARCH · FIRE', 'DECK'].includes(gp.title));
     // (The FM set and the advanced instruments come with the advanced controls, owner.)
     recipe.modules = recipe.modules.filter((m) => !['cabinLight', 'horn', 'wipers', 'fm', 'navLights', 'chartplotter', 'navDisplay', 'whiteboard', 'dutyBoard', 'overhead', 'floodFore', 'floodAft'].includes(m.socket));
+  }
+  // The switch panel as a row of switch cells (dynamic console sockets CS2; consoleGrid.ts
+  // packPanel): LIGHTS, then SEARCH / FIRE, in from the port end; ENGINE, then DECK (the
+  // ANCHOR switch, the skiff crane's button), in from the starboard end; the horn just port of
+  // the wheel. Each group's members side by side in the middle of its run of cells, under its
+  // coloured plate; the warning lamps and the start-up card in the middle of ENGINE's.
+  {
+    const hc = CONFIG.shipyard.helm;
+    const has = (id: string) => consoleMount.modules!.some((m) => m.socket === id);
+    const search = ['spotlight', 'firePump'].filter(has);
+    const panel: PanelGroup[] = [
+      { title: 'LIGHTS', color: colourOf.LIGHTS, side: 'port', members: ['navLights', 'cabinLight', 'wipers'].filter(has) },
+      { title: search.length === 2 ? 'SEARCH · FIRE' : search[0] === 'firePump' ? 'FIRE' : 'SEARCH', color: colourOf.SEARCH, side: 'port', members: search },
+      { title: '', color: 0, side: 'wheelPort', members: ['horn'].filter(has) },
+      { title: 'ENGINE', color: colourOf.ENGINE, side: 'starboard', members: ['start', 'key'].filter(has) },
+      { title: 'DECK', color: 0x8a6d2a, side: 'starboard', members: [...(anchorAt ? ['anchor'] : []), ...(skiffAt ? ['skiffCrane'] : [])] },
+    ];
+    const laid = packPanel(panel, dashHalf, hc.switchPitch, hc.wheelClear, hc.groupClear, hc.minPitch);
+    const r3 = (v: number) => Math.round(v * 1000) / 1000;
+    for (const [id, x] of Object.entries(laid.at)) {
+      const was = cc.slots[id]?.position as V3 | undefined;
+      cc.slots[id] = { position: [r3(x), was?.[1] ?? 0.01, was?.[2] ?? -0.2] };
+    }
+    cc.groups = laid.runs.filter((r) => r.group.title).map((r) => ({ title: r.group.title, color: r.group.color, x: [r3(r.x0 + hc.plateInset), r3(r.x1 - hc.plateInset)] }));
+    const engine = laid.runs.find((r) => r.group.title === 'ENGINE');
+    if (engine) {
+      const mid = r3((engine.x0 + engine.x1) / 2);
+      for (const id of ['lamps', 'card']) if (cc.slots[id]) cc.slots[id].position = [mid, cc.slots[id].position[1], cc.slots[id].position[2]];
+    }
+    // Her switch panel, for the Shipyard (CS3) and the tests: its pitch and each group's cells.
+    cc.panelGrid = { pitch: r3(laid.pitch), runs: laid.runs.map((r) => ({ title: r.group.title, members: r.group.members, x: [r3(r.x0), r3(r.x1)] })) };
   }
   // Low windows (owner): the console's upright panel comes off, so you see down past it; its
   // screens stay where they were, each on a stalk from the desk (console.standard's `bare`).

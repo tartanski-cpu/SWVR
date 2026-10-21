@@ -3120,6 +3120,15 @@ export const CONFIG = {
      * With pod drives (`podJoystick`, the console's axes, m, z aft): the throttle forward on its
      * pedestal (`throttleZ`), the helm joystick aft of it (`stickZ`), its JOYSTICK button
      * `button` [x, z] from the stick (between the two, outboard).
+     * The switch panel (dynamic console sockets CS2; shipyard/parts/consoleGrid.ts packPanel):
+     * a row of switch cells `switchPitch` (m) apart along the console; each group of switches a
+     * run of them under its coloured plate (inset `plateInset` m at each end), the horn alone
+     * `wheelClear` m port of the wheel's middle (under its rim, beside the hub), the groups no
+     * nearer the wheel's middle than `groupClear` m (behind its rim a switch is hard to see and
+     * reach: the rim is 0.22 m, but the panel lies further from the eye than the wheel, so seen
+     * from the helm the rim covers about 1.4 times that, and a switch's half width more);
+     * closer together if there isn't room, but never under `minPitch` m apart (then the
+     * nearest group to the wheel reaches in under it).
      */
     /**
      * A tug's dry exhaust stacks (owner, Oct 2026: "a nice beefy pipe... it comes out the roof...
@@ -3138,7 +3147,7 @@ export const CONFIG = {
      * side for each, abreast of her engines (CONFIG.effects.exhaust.water).
      */
     exhaustStack: { radius: 0.14, inset: 0.05, below: 0.5, aboveRoof: 1.9, waterAbove: 0.3, rakedShare: 0.3, rakeDeg: 25, cutDeg: 35, taper: 0.88, colour: 0x7a5236, casing: 0xd8d6d0 },
-    helm: { maxConsole: 2.2, screenGap: 0.02, hungReach: 1.0, podJoystick: { throttleZ: 0.0, stickZ: 0.225, button: [0.085, -0.08] as [number, number] } },
+    helm: { maxConsole: 2.2, screenGap: 0.02, hungReach: 1.0, switchPitch: 0.14, minPitch: 0.1, plateInset: 0.02, wheelClear: 0.11, groupClear: 0.36, podJoystick: { throttleZ: 0.0, stickZ: 0.225, button: [0.085, -0.08] as [number, number] } },
     /**
      * The advanced interior's working lights (owner): the overhead switch panel (panel.overhead)
      * and the foredeck and aft deck floodlights (light.flood). No rail lights for now (owner).
