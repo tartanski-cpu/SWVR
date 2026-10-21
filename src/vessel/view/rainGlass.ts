@@ -1,12 +1,13 @@
 import * as THREE from 'three';
 import { CONFIG } from '../../config';
-import type { WheelhouseDef } from '../vesselDef';
+import { frontMullions, type WheelhouseDef } from '../vesselDef';
 import { facetDz, frontRake } from './hullMesh';
 import { houseFlare } from '../houseFlare';
 
 /**
  * Rain on the wheelhouse front windows, and the wipers. The windows are open frames until
- * it rains; then a transparent "wet glass" plane fills the three front panes:
+ * it rains; then a transparent "wet glass" plane fills the front panes (three, or more on a
+ * wide house: frontMullions):
  *
  *   - drops: a grid of cells (`glassCell`), each with a hashed chance of a drop; the share
  *     of cells with a drop rises with the rain and with the time since that spot was last
@@ -29,6 +30,8 @@ import { houseFlare } from '../houseFlare';
 /** Parts per wiper (two links, carrier, blade, boss), and the links' spacing (m). */
 const PARTS = 5;
 const LINK = 0.07;
+/** The most front panes the shader takes (CONFIG.shipyard.frontWindows.maxPanes). */
+const MAX_PANES = 7;
 
 /**
  * A pantograph wiper sized to its pane (h high from sill to head, `half` wide each side of
@@ -53,6 +56,9 @@ export function wiperFit(h: number, half: number): { arm: number; blade: number;
   const blade = Math.max(0.1, 2 * (L * Math.cos(A) - p - c.wiperMargin));
   return { arm: L, blade, sweep: A };
 }
+
+/** A list padded with zeros to MAX_PANES (the shader's arrays). */
+const pad = (a: number[]): number[] => [...a, ...Array<number>(Math.max(0, MAX_PANES - a.length)).fill(0)].slice(0, MAX_PANES);
 
 export class RainGlass {
   readonly root = new THREE.Group();
@@ -86,9 +92,12 @@ export class RainGlass {
     const head = wh.floorY + wh.windowHead;
     const x0 = -wh.halfWidth + wh.wall;
     const x1 = wh.halfWidth - wh.wall;
-    // Pane centres between the corner posts and the mullions at x = +-0.5, and each pane's wiper.
-    const paneX = [(x0 + -0.5) / 2, 0, (x1 + 0.5) / 2];
-    const paneHalf = [(-0.5 - x0) / 2, 0.5, (x1 - 0.5) / 2];
+    // The panes' edges: the corner posts and the mullions between (at most MAX_PANES panes);
+    // each pane's centre and half-width, and its wiper.
+    const xs = [x0, ...frontMullions(wh).slice(0, MAX_PANES - 1), x1];
+    const panes = xs.length - 1;
+    const paneX = xs.slice(1).map((b, i) => (xs[i] + b) / 2);
+    const paneHalf = xs.slice(1).map((b, i) => (b - xs[i]) / 2);
     // Each sized to the glass you look through: from the top of the dash in front of it (viewSill) up.
     const view = Math.max(sill, wh.floorY + (wh.viewSill ?? 0));
     this.fit = paneHalf.map((half) => wiperFit(head - view, half - 0.04)); // less half a mullion
@@ -104,15 +113,14 @@ export class RainGlass {
     this.dz = facetDz(wh);
     this.pivots = paneX.map((x) => new THREE.Vector3(x, pivotY, wh.front - 0.015 + this.dz(x)));
 
-    // Three across (its columns at the mullions), each pane's glass set back with its pane.
-    const geo = new THREE.PlaneGeometry(1, head - sill, 3, 1).translate(0, (sill + head) / 2, wh.front + wh.wall * 0.5);
-    const xs = [x0, -0.5, 0.5, x1];
+    // A column a pane (its edges at the mullions), each pane's glass set back with its pane.
+    const geo = new THREE.PlaneGeometry(1, head - sill, panes, 1).translate(0, (sill + head) / 2, wh.front + wh.wall * 0.5);
     const pos = geo.attributes.position;
     // The shader works in the panes' own (upright, unflared) coordinates: kept in `aPane`.
     const pane = new Float32Array(pos.count * 2);
     const v = new THREE.Vector3();
     for (let i = 0; i < pos.count; i++) {
-      const x = xs[i % 4];
+      const x = xs[i % (panes + 1)];
       pane[2 * i] = x;
       pane[2 * i + 1] = pos.getY(i);
       this.flared(v.set(x, pos.getY(i), pos.getZ(i) + this.dz(x)));
@@ -128,12 +136,15 @@ export class RainGlass {
         uClock: { value: 0 },
         uIdle: { value: 1000 },
         uPeriod: { value: c.wiperPeriod },
-        uSweep: { value: new THREE.Vector3(...this.fit.map((f) => f.sweep)) },
-        uArm: { value: new THREE.Vector3(...this.fit.map((f) => f.arm)) },
-        uBlade: { value: new THREE.Vector3(...this.fit.map((f) => f.blade)) },
+        // Per pane (padded to MAX_PANES), and the mullions between them.
+        uSweep: { value: pad(this.fit.map((f) => f.sweep)) },
+        uArm: { value: pad(this.fit.map((f) => f.arm)) },
+        uBlade: { value: pad(this.fit.map((f) => f.blade)) },
+        uMullion: { value: pad(xs.slice(1, -1)) },
+        uPanes: { value: panes },
         uRefill: { value: c.glassRefill },
         uCell: { value: c.glassCell },
-        uPaneX: { value: new THREE.Vector3(...paneX) },
+        uPaneX: { value: pad(paneX) },
         uPivotY: { value: pivotY },
         uLight: { value: 1 },
       },
@@ -146,18 +157,19 @@ export class RainGlass {
         }`,
       fragmentShader: /* glsl */ `
         uniform float uRain, uClock, uIdle, uPeriod, uRefill, uCell, uPivotY, uLight;
-        uniform vec3 uPaneX, uSweep, uArm, uBlade;
+        uniform float uPaneX[${MAX_PANES}], uSweep[${MAX_PANES}], uArm[${MAX_PANES}], uBlade[${MAX_PANES}], uMullion[${MAX_PANES}];
+        uniform int uPanes;
         varying vec2 vPos;
         float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
         // Seconds since the upright blade last passed this point (large if it never does).
         float sinceWiped(vec2 p) {
-          // This pane's wiper (each sized to its pane).
-          bool port = p.x < -0.5;
-          bool stbd = p.x > 0.5;
-          float px = port ? uPaneX.x : (stbd ? uPaneX.z : uPaneX.y);
-          float arm = port ? uArm.x : (stbd ? uArm.z : uArm.y);
-          float blade = port ? uBlade.x : (stbd ? uBlade.z : uBlade.y);
-          float A = port ? uSweep.x : (stbd ? uSweep.z : uSweep.y);
+          // This pane's wiper (each sized to its pane): the pane is past as many mullions.
+          int k = 0;
+          for (int i = 0; i < ${MAX_PANES - 1}; i++) if (i < uPanes - 1 && p.x > uMullion[i]) k = i + 1;
+          float px = uPaneX[k];
+          float arm = uArm[k];
+          float blade = uBlade[k];
+          float A = uSweep[k];
           vec2 d = p - vec2(px, uPivotY);
           float s = d.x / arm;
           if (abs(s) > sin(A)) return 1000.0;

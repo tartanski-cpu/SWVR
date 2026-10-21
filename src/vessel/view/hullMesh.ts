@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { HullForm } from '../hullForm';
 import { hullPlan, type LayoutConfig } from '../layout';
-import { houseFloorAt, houseFloorLow, housesOf, planHalfWidth, wingCurveY, type CabinBelow, type Livery } from '../vesselDef';
+import { frontMullions, houseFloorAt, houseFloorLow, housesOf, planHalfWidth, wingCurveY, type CabinBelow, type Livery } from '../vesselDef';
 import { flatVertexColorMaterial, mergeParts, part } from '../../render/geometryUtils';
 import { CONFIG } from '../../config';
 import { paintIndex, type PaintName } from '../../render/pixelPaint';
@@ -217,6 +217,11 @@ function buildParts(form: HullForm, layout: LayoutConfig, exhaustOutlet: [number
   // Wet-exhaust outlet: a short pipe stub through the transom.
   const ex = exhaustOutlet;
   if (ex) parts.push(bar(new THREE.Vector3(ex[0], ex[1], ex[2] - 0.12), new THREE.Vector3(ex[0], ex[1], ex[2]), 0.13, 0.13, col.mast));
+  // Steps up to a raised foredeck (Shipyard): each tread a block from her deck up, in the deck's colour, non-slip.
+  if (layout.deckSteps?.length) {
+    const plan = hullPlan({ hull: form });
+    for (const t of layout.deckSteps) parts.push(box(t.x0, t.x1, plan.deckY(t.z1) - 0.02, t.y, t.z0, t.z1, col.deck, 'nonSlip'));
+  }
   // The house's parts from here on (buildVesselMeshParts).
   if (at) at.house = parts.length;
   // A deckhouse under the wheelhouse (vessel/deckhouse.ts), from a little below the deck
@@ -584,8 +589,8 @@ function buildShapedHouse(layout: HouseLayout, col: Paint, base: number): THREE.
     return gs;
   };
 
-  // Front: below the windows (upright up to L0, leaning above it), the two mullions between
-  // the panes, and the header above them up to the roof. A faceted front is built in three
+  // Front: below the windows (upright up to L0, leaning above it), the mullions between the
+  // panes (two, or more on a wide house: frontMullions), and the header above them up to the roof. A faceted front is built in three
   // across (split at the mullions) and its outer two set back below (facetDz).
   const fc = sh.facet?.centre;
   const spans: [number, number][] = fc ? [[-hw, -fc], [-fc, fc], [fc, hw]] : [[-hw, hw]];
@@ -594,7 +599,7 @@ function buildShapedHouse(layout: HouseLayout, col: Paint, base: number): THREE.
     parts.push(...framed(a, b, L0, S, zF, zF + w, 'top').map((g) => g.applyMatrix4(lean)));
     parts.push(...framed(a, b, head, roofY + 0.02, zH, zH + w, 'bottom'));
   }
-  for (const x of [-0.5, 0.5]) parts.push(raked(fbox(x - 0.04, x + 0.04, S, head, zF, zF + w)));
+  for (const x of frontMullions(wh)) parts.push(raked(fbox(x - 0.04, x + 0.04, S, head, zF, zF + w)));
 
   // Side walls: below the band, following the front's lower lean; the band's posts (the
   // front one raked with the windows) and a mullion; above it, up to the raked roof.
@@ -1165,7 +1170,7 @@ function buildWheelhouse(layout: HouseLayout, col: Paint, base: number): THREE.B
   const fwdAtRoof = (roof - fSill) * rake.tan;
   parts.push(...framed(-hw, hw, base, fSill, wh.front, wh.front + w, 'top'));
   parts.push(...framed(-hw, hw, head, roof, wh.front, wh.front + w, 'bottom').map(raked));
-  for (const x of [-0.5, 0.5]) parts.push(raked(fbox(x - 0.04, x + 0.04, fSill, head, wh.front, wh.front + w)));
+  for (const x of frontMullions(wh)) parts.push(raked(fbox(x - 0.04, x + 0.04, fSill, head, wh.front, wh.front + w)));
   // Side walls, each with one mullion. Alongside the console the wall stands up to the
   // console top (`sideRaise`, owner sketch), sloping back down to the sill aft of it. The
   // port wall has a sliding door between the console and the chart table (`sideDoor`).

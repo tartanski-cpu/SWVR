@@ -44,7 +44,7 @@ import { recipePart } from './parts/recipe';
 import { weightsPart } from './parts/weights';
 import { atDWL, type BuildArgs } from './parts/common';
 import type { Material } from './parts/catalog';
-export { DESIGN_HULLS, ENGINES, LIVERIES, ROOF_PAINTS, ROOF_TOPS, bowKeel, materialOf, sizeScale, type DesignHull, type Material } from './parts/catalog';
+export { DESIGN_HULLS, ENGINES, LIVERIES, ROOF_PAINTS, ROOF_TOPS, bowKeel, facetCentre, frontMullions, materialOf, sizeScale, withSheer, type DesignHull, type Material } from './parts/catalog';
 
 /** The designed boat: her hull and recipe, her main figures, and anything to warn about. */
 export interface DesignedBoat {

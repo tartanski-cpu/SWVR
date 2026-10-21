@@ -149,7 +149,8 @@ export function buildHullForm(p: HullParams): HullForm {
  * game's own, from these stations: the boat's mass is set to float her at her design waterline.
  */
 export function hullFormFromDesign(d: HullDesign): HullForm {
-  if (d.section.round || d.catamaran || d.forecastle) throw new Error(`hull design '${d.id}': the game's stations take hard chines (no rounding, forecastle or second hull)`);
+  // (A forecastle is a doubled station at its break, the deck stepped up forward of it: loft.)
+  if (d.section.round || d.catamaran) throw new Error(`hull design '${d.id}': the game's stations take hard chines (no rounding or second hull)`);
   const sections = loft(d).sections;
   // Each section's z where its deck edge is (the last point: keel, chine, deck edge), moved
   // so the deck's ends are at +-length/2, as the game has it (origin amidships).

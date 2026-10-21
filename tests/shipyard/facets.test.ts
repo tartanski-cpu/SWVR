@@ -4,7 +4,7 @@ import { useDesign } from '../../src/boats/sims';
 import { LIBRARY, RECIPES } from '../../src/boats/library';
 import { validateRecipe } from '../../src/modular/recipe';
 import { CONFIG } from '../../src/config';
-import { DESIGN_HULLS } from '../../src/shipyard/build';
+import { DESIGN_HULLS, facetCentre } from '../../src/shipyard/build';
 import { decodeDesign, DEFAULT_DESIGN, encodeDesign, type ShipDesign } from '../../src/shipyard/design';
 import { facetDz } from '../../src/vessel/view/hullMesh';
 import { CONSOLE, type ConsoleConfig } from '../../src/modules/console';
@@ -26,34 +26,38 @@ describe('a three-facet front', () => {
 
   it('the middle pane square across, the outer two angled back to the sides; the dash wraps round with them, the helm where it was', () => {
     for (const hull of [2, 3]) {
-      const flat = useDesign(typeOf(hull));
+      // A usual-width house (a wide one's middle facet takes the whole console: nothing to wrap).
+      const usual = { ...typeOf(hull), houseWidth: 0.5 };
+      const flat = useDesign(usual);
       const flatStand = flat.hull.helm.stand[2];
-      const b = useDesign({ ...typeOf(hull), facets: 1 });
+      const b = useDesign({ ...usual, facets: 1 });
       expect(b.warnings, `${hull}`).toEqual([]);
       expect(validateRecipe(RECIPES.design, LIBRARY)).toEqual([]);
       const wh = VESSEL_DEFS.design.layout.wheelhouse!;
       const f = wh.shape!.facet!;
-      expect(f.centre).toBe(0.5);
-      expect(f.depth).toBeCloseTo((wh.halfWidth - 0.5) * Math.tan((CONFIG.shipyard.facetDeg * Math.PI) / 180), 2);
+      // The middle facet: 1 m across on a usual house, more on a wide one (its side facets kept short).
+      const c = facetCentre(wh.halfWidth);
+      expect(f.centre).toBe(c);
+      expect(f.depth).toBeCloseTo((wh.halfWidth - c) * Math.tan((CONFIG.shipyard.facetDeg * Math.PI) / 180), 2);
       const dz = facetDz(wh);
       expect(dz(0)).toBe(0);
-      expect(dz(0.5)).toBe(0);
+      expect(dz(c)).toBe(0);
       expect(dz(wh.halfWidth)).toBeCloseTo(f.depth, 6);
       expect(b.hull.helm.stand[2]).toBeCloseTo(flatStand, 6);
       // The console's wings: set back as the windows are; their controls NOT turned (owner: square to the boat), their screens turned flush with the dash.
       const helm = RECIPES.design.modules.find((m) => m.socket === 'helm')!;
       const cc = helm.config as ConsoleConfig;
-      expect(cc.wrap!.centre).toBe(0.5);
-      expect(cc.wrap!.k).toBeCloseTo(f.depth / (wh.halfWidth - 0.5), 3);
+      expect(cc.wrap!.centre).toBe(c);
+      expect(cc.wrap!.k).toBeCloseTo(f.depth / (wh.halfWidth - c), 3);
       const flatSlots = Object.fromEntries(CONSOLE.sockets!({ ...cc, wrap: undefined }).map((s) => [s.id, s.transform]));
       let wings = 0;
       for (const s of CONSOLE.sockets!(cc)) {
         const [x, , z] = s.transform.position;
         const flatZ = flatSlots[s.id].position[2];
-        if (Math.abs(x) <= 0.5 || s.id === 'throttle') expect(z, s.id).toBeCloseTo(flatZ, 6); // (the throttle stays by the wheel, owner)
+        if (Math.abs(x) <= c || s.id === 'throttle') expect(z, s.id).toBeCloseTo(flatZ, 6); // (the throttle stays by the wheel, owner)
         else {
           wings++;
-          expect(z, s.id).toBeCloseTo(flatZ + (Math.abs(x) - 0.5) * cc.wrap!.k, 6);
+          expect(z, s.id).toBeCloseTo(flatZ + (Math.abs(x) - c) * cc.wrap!.k, 6);
           if (cc.wrap!.turn!.includes(s.id)) expect(Math.sign(s.transform.rotationDeg![1]), s.id).toBe(x < 0 ? 1 : -1);
           else expect(s.transform.rotationDeg ?? [0, 0, 0], s.id).toEqual(flatSlots[s.id].rotationDeg ?? [0, 0, 0]);
         }
@@ -83,8 +87,10 @@ describe('a deckhouse under a faceted house', () => {
       const wh = l.wheelhouse!;
       const tan = Math.tan((CONFIG.shipyard.facetDeg * Math.PI) / 180);
       // At its front, the middle only; along the cut, the angle.
-      expect(dh.plan[0][1]).toBeCloseTo(0.5, 2);
-      for (const [z, w] of dh.plan) expect(w).toBeLessThanOrEqual(0.5 + (z - dh.z0) / tan + 0.01);
+      const c = wh.shape!.facet!.centre;
+      // (Or her own breadth there, if that's less: a wide house's middle facet can be wider than her bow.)
+      expect(dh.plan[0][1]).toBeLessThanOrEqual(c + 0.01);
+      for (const [z, w] of dh.plan) expect(w).toBeLessThanOrEqual(c + (z - dh.z0) / tan + 0.01);
       // Under the house: at least as wide as its faceted outline.
       const dz = facetDz(wh);
       for (const [z, w] of dh.plan) if (z >= wh.front) for (let x = 0; x <= wh.halfWidth; x += 0.1) if (z >= wh.front + dz(x)) expect(w, `${dhNarrow} ${z}`).toBeGreaterThanOrEqual(Math.min(x, wh.halfWidth) - 0.01);

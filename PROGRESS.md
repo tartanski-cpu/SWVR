@@ -5537,6 +5537,34 @@ Owner, Oct 2026: "On the big maps like Syros and the Firth of Clyde, the texture
 - **Not changed:** the career maps (their islands are drawn from formulas, already sampled at 8 m a pixel), the paper chart, the plotter's screen resolution (512 x 384).
 - **Checked:** tests/chartLand.test.ts (4): a triangle cut at the waterline (its dry part's corners and area), wholly above or below, always one way round; faces into squares, all-deep squares kept; each level's path, and a face wholly above the next level giving nothing for this one. Full suite passes. Headless Chromium, the plotter's screen before and after at Rothesay, and after at Ermoupoli, Oban, Tayvallich and out in the Clyde. **Not checked:** the Quest (watch for a stutter the first time a part of a map comes on the plotter).
 
+### A raised foredeck on the fishing boat (done, awaiting owner test)
+
+Owner, Oct 2026 (same photo): "the ability on the fishing vessel only at the moment to have a kind of poop deck like this, or a raised foredeck as an option."
+
+- **Shipyard, Hull step** (fishing boat hull only: `DesignHull.raisedForedeck`): **Raised foredeck** `design.fcLength` (0 none, 1 to 8 m aft of the bow in half metres, SCALES.fcLength) and **Its height** `design.fcHeight` (0.5, 0.65, 0.8, 1.0 m). Not in the code.
+- **The hull:** the hull study's own forecastle (hulls/loft.ts: a doubled station at the break, her deck raised forward of it), now taken by the game (hullForm.ts no longer refuses it); her chines measured from her deck as drawn, so they run on straight under the step (they jumped with it). The step is a vertical bulkhead across her; her sides and bulwarks step up with it; everything on her deck forward follows the raised deck.
+- **Where the break goes** (build.ts `raisedForedeck`): never under the wheelhouse nor so close forward of it that the steps won't fit; there it runs on aft past the house (which then stands on it, as on the photo's trawler), `landing` 0.6 m past its aft wall, a landing across her from the raised side decks to the steps. Short of the transom by the steps' run. The house is placed first, then her hull lofted again with the break.
+- **The steps** (`CONFIG.shipyard.foredeck`): treads on her centreline aft of the break, `width` 0.8 m, `tread` 0.3 m deep, evenly from her deck at their foot to the raised deck, each rise at most ~0.3 m (you walk up: the walker's limit is 0.4); `layout.deckSteps` (drawn as non-slip blocks in the hull mesh) and walked as `extraFloors`. Off the steps the break is a wall (too high a step).
+- Also: the design-document test lists sheer and the raised foredeck as not in the code.
+- **Checked:** tests/raisedForedeck.test.ts (4): her deck up by the height forward of the break and unchanged aft; every rise up the steps positive and within a stride, each tread stood on, the break a wall beside them; the break never under the house; only the fishing boat, not in the code. Full suite passes. Headless Chromium: the fishing boat with a 4 m raised foredeck from her quarter, the photo-like layout (house forward on the raised deck, extra sheer, working deck aft), and the break and steps from aft of the house. **Not checked:** the Quest (walking up the steps and along the raised side decks); deck cargo on a raised foredeck.
+
+### Sheer: her deck line sweeping up to the bow (done, awaiting owner test)
+
+Owner, Oct 2026 (same photo): "the other option I would like on... all of the vessels actually, would be shear. So as you can see here, this bow has got quite a lot of shear. The default one is quite flat."
+
+- **Shipyard, Hull step, Sheer:** `design.sheer`, 0 (her type's own line) to 8 steps of 0.15 m (SCALES.sheer): that much more deck height at the stem. Not in the code (a boat with it travels as a link or file, as the overhead does).
+- **The line** (shipyard/build.ts `withSheer`, `CONFIG.shipyard.sheer.from` 0.4): unchanged aft of 40 % of her length from the transom, rising as the square of the distance forward of it (fair, steepest at the bow, as a sheer line is drawn), resampled every 5 % of her length so it stays fair between stations. Applied to the hull study's sheer curve before the stem is shaped (bowKeel), so a raised bow keeps a proper raked stem; on every hull type (the retired workboat's chine form: its bow deck height).
+- Everything that sits on her deck follows it (it reads the hull's deck height): bulwarks, rails, bow gear, cleats, the anchor.
+- **Checked:** tests/sheer.test.ts (3): the line as drawn aft, the whole rise at the stem, steeper forward; on every hull type her deck at the bow up by about the rise and amidships unchanged, the boat building clean (recipe valid); not in the code. Full suite passes. Headless Chromium: the fishing boat from abeam with no extra sheer, +0.6 m and +1.2 m. **Not checked:** the Quest; how she pitches in a head sea (her waterplane is the same; only freeboard forward changes).
+
+### More front windows on a wide wheelhouse (done, awaiting owner test)
+
+Owner, Oct 2026 (a photo of a big trawler's wheelhouse with many panes across): "when they have a very wide wheelhouse... there's more than three windows on the front... as you stretch, the windows should multiply. The three facets should stay as the option... You just spread the windows out over the middle part. The side facets... should be shorter."
+
+- **The rule** (shipyard/build.ts `frontMullions`, `facetCentre`; `CONFIG.shipyard.frontWindows`): a flat front keeps the usual three panes (mullions at +-0.5 m) while its outer panes are no wider than `paneMax` (1.1 m), so every boat so far is unchanged; wider, it's split into an odd number of equal panes (a pane, not a mullion, in front of the helm), none wider than `paneMax`, at most `maxPanes` (7). A three-facet front: its side facets `sideFacet` (0.75 m across, in plan) once the house is wide enough, the middle facet the rest (never under the usual 1 m), split into panes the same way.
+- **Plumbing:** the wheelhouse layout's `frontMullions` (vesselDef.ts; unset: the usual two); the house builders draw a mullion at each; the rain on the glass and the wipers (rainGlass.ts) take a pane list now (up to 7; one wiper a pane, all still one instanced draw call).
+- **Checked:** tests/frontWindows.test.ts (4): the usual house keeps +-0.5; wider, odd equal panes within `paneMax` and `maxPanes`; faceted, short side facets and the middle split; a wide Shipyard house carries its mullions, a usual one doesn't. Full suite passes. Headless Chromium: the fishing boat's wheelhouse at usual width, full width flat (5 panes) and full width faceted (3 + 2). **Not checked:** the Quest; the rain on a 5-pane front.
+
 ### Ceiling beams painted, not built (done, awaiting owner test)
 
 Owner, Oct 2026: "just something to improve performance a bit and make things simpler. The ceiling liner, which has beams, you can just paint those with textures. They don't need to be 3D."

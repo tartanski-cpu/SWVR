@@ -566,7 +566,7 @@ const outputs: Partial<Record<keyof ShipDesign, (v: number) => string>> = {};
 /** Each field's label and, for a few set options, their names (the compare list shows them). */
 const labels: Partial<Record<keyof ShipDesign, string>> = { hull: 'Hull', engine: 'Engine', twin: 'Engines', outboards: 'Outboards', sternDrive: 'Stern drive', pods: 'Pod drives', nozzle: 'Kort nozzle', material: 'Built of', controls: 'Controls', paint: 'Paint', roofPaint: 'Roof colour' };
 const optionNames: Partial<Record<keyof ShipDesign, string[]>> = {};
-function slider(key: keyof ShipDesign, label: string, show: (v: number) => string): void {
+function slider(key: keyof ShipDesign, label: string, show: (v: number) => string): HTMLElement {
   labels[key] ??= label;
   const row = document.createElement('div');
   row.className = 'row';
@@ -578,6 +578,7 @@ function slider(key: keyof ShipDesign, label: string, show: (v: number) => strin
   input.addEventListener('change', () => link?.side?.presence({ holding: null }));
   outputs[key] = show;
   controls.appendChild(row);
+  return row;
 }
 const pct = (k: number) => `${Math.round(k * 100)} %`;
 /**
@@ -641,7 +642,7 @@ function group(title: string, note = ''): void {
 const dhKinds: [HTMLElement, (d: ShipDesign) => boolean][] = [];
 /** When a row shown only where it applies (data-when / data-unless) is: a field set, or the deckhouse with side decks. */
 const rowApplies = (cond: string): boolean =>
-  cond === 'dhSideDecks' ? !!design.dhLength && !design.dhNarrow && design.dhWidth > 0 : cond === 'tugStacks' ? design.hull === 4 && !design.outboards : !!design[cond as keyof ShipDesign];
+  cond === 'dhSideDecks' ? !!design.dhLength && !design.dhNarrow && design.dhWidth > 0 : cond === 'tugStacks' ? design.hull === 4 && !design.outboards : cond === 'raisedForedeck' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck : cond === 'foredeckHeight' ? !!DESIGN_HULLS[design.hull]?.raisedForedeck && !!design.fcLength : !!design[cond as keyof ShipDesign];
 /** A few set options in a row, as buttons (for choices with only a handful of settings). */
 function options(key: keyof ShipDesign, label: string, names: string[]): HTMLElement {
   labels[key] ??= label;
@@ -690,6 +691,11 @@ slider('beam', 'Beam', () => `${boat.figures.beamM.toFixed(2)} m`);
 slider('depth', 'Depth', (v) => pct(SCALES.scale(v)));
 slider('bulwark', 'Bulwarks', (v) => `${SCALES.bulwark(v).toFixed(1)} m`);
 slider('bow', 'Bow rake', (v) => (DESIGN_HULLS[design.hull].pushBow ? 'push bow' : DESIGN_HULLS[design.hull].landingBow ? 'landing bow' : v === 0 ? 'plumb' : `${SCALES.bow(v)}\u00b0`));
+// More sheer (owner, Oct 2026): her deck line sweeping up to the bow.
+slider('sheer', 'Sheer', (v) => (v ? `+${SCALES.sheer(v).toFixed(2)} m at the bow` : 'as drawn'));
+// A raised foredeck (owner, Oct 2026; the fishing boat only, for now): her deck stepped up forward of a break, steps up to it.
+slider('fcLength', 'Raised foredeck', (v) => (v ? `${SCALES.fcLength(v).toFixed(1)} m from the bow` : 'none')).dataset.when = 'raisedForedeck';
+slider('fcHeight', 'Its height', (v) => `${SCALES.fcHeight(v).toFixed(2)} m up`).dataset.when = 'foredeckHeight';
 {
   // Hull protection (owner): what keeps her sides off a quay.
   const h = document.createElement('h2');
