@@ -348,7 +348,11 @@ export function mainMenu(h: MenuHost): MainMenu {
               const p = h.ports()[i];
               return p ? `${p.name}   ${p.bearingDeg.toFixed(0).padStart(3, '0')}°  ${p.rangeNm.toFixed(2)} nm` : '';
             },
+            weight: 3,
           },
+          // Voyage mode (owner, Oct 2026: a way to get about the map that isn't the Debug menu):
+          // Go puts your boat at that port, at its cargo berth or in its bay.
+          ...(MODE === 'voyage' ? [{ text: () => (h.ports()[i] ? 'Go' : ''), press: () => h.teleportToPort(i) }] : []),
         ],
       })),
     },

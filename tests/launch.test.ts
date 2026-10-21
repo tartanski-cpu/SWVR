@@ -129,6 +129,10 @@ describe('launching your own boat (multi-boat M3)', { timeout: 90000 }, () => {
     expect(big && m.slots.berthFace(big)!.face.half * 2).toBeGreaterThan(m.slots.vesselLength('coaster'));
     const spot = m.slots.anchorSpotFor(world.vessels, port, 12)!;
     expect(spot).toBeTruthy();
+    // The fallback: off any point (the home boat, wherever she is), no port needed.
+    const off = m.slots.anchorSpotFor(world.vessels, { x: 3900, z: -6400 }, 12)!;
+    expect(off).toBeTruthy();
+    expect(-m.terrain.groundHeight(off.x, off.z)).toBeGreaterThanOrEqual(m.config.CONFIG.spawn.anchorDepth[0]);
     const depth = -m.terrain.groundHeight(spot.x, spot.z);
     expect(depth).toBeGreaterThanOrEqual(m.config.CONFIG.spawn.anchorDepth[0]);
     for (const v of Object.values(world.vessels)) expect(Math.hypot(v.position[0] - spot.x, v.position[2] - spot.z)).toBeGreaterThanOrEqual(m.config.CONFIG.spawn.anchorClear);

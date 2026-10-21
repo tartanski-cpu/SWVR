@@ -4695,6 +4695,8 @@ export const CONFIG = {
     anchorOff: [80, 240] as [number, number],
     anchorDepth: [4, 30] as [number, number],
     anchorClear: 35,
+    /** A launch asked for and no boat come in this long (s): the asker is told there was no room. */
+    launchWaitS: 12,
   },
 
   voyage: {

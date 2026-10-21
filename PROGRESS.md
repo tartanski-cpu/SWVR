@@ -5305,6 +5305,14 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - **Tests:** `tests/flyCamera.test.ts` (+1): with a floor under the head 1.4 m lower, the rig settles to it walking and stays put with `noFloor`.
 - **Checked:** typecheck, `npm test`, headless: the career start, J, the camera flown 40 m over the harbour: the feet stayed at the quay's 1.6 m (they went to 0.2 m before). **Not checked:** VR (unchanged).
 
+### The owner's two-browser test; Go to a port in Voyage; a launch that finds no room says so (owner)
+
+- **The owner's test:** two browsers on one machine; the host in the pilot boat teleported elsewhere by the Debug menu, then hosted and shared the address; the second browser joined, launched a different boat and could see the pilot boat, but the host's driving didn't show in it. And: a way to get about the map that isn't the Debug menu.
+- **Reproduced headlessly through the real broker** (two pages, the host teleported to Brandy Rock pier by the Debug menu, hosting; the second page joined by the address): the join works, the crew's launch request reaches the host and the boat comes back in the snapshot moored at that port, and the host's boat driven on (the host's world stepped by hand, the headless frame loop being far below real time) moves in the crew's copy. So no fault found in that path; the crew's page in the owner's test may not have been in the game (the Crew tab's first line says "In game CODE" or "Playing alone"). One thing was silent: a launch the harbour has no room for told nobody. The owner will test again.
+- **Go** (Menu → Voyage → the ports list, Voyage mode only): a Go button per port puts your boat there (the `teleportToPort` intent, as the Debug menu's), at its cargo berth or in its bay; a crew-mate's goes to the host like any other intent. (With several boats it doesn't yet check the berth is free: the launch's slot logic is next for it.)
+- **A launch with no room** (`core/launch.ts`; `CONFIG.spawn.launchWaitS` 12): no free berth and no anchorage spot at the harbour, she anchors off the home boat herself (`anchorSpotFor` takes any point now); still nothing, or nothing come in 12 s (`App.followOwnBoat`), the asker is told: no room, or not in the game.
+- **Tests:** `tests/launch.test.ts`: the anchor spot off any point. **Checked:** typecheck, `npm test`, the two-page headless runs above. **Not checked:** two real devices.
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**

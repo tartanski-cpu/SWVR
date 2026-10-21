@@ -68,7 +68,9 @@ export function launchBoat(world: WorldState, playerId: EntityId, ref: string): 
     world.vessels[v.id] = v;
     return { vessel: v, how: 'moored' };
   }
-  const spot = anchorSpotFor(world.vessels, port, L);
+  // No room at the harbour nor off it: off the home boat herself, wherever she is.
+  const home = homeVessel(world)!;
+  const spot = anchorSpotFor(world.vessels, port, L) ?? anchorSpotFor(world.vessels, { x: home.position[0], z: home.position[2] }, L);
   if (!spot) return { error: 'no room at the harbour or its anchorage' };
   // Anchored: lying to her anchor, set ahead of her, the chain out to the usual scope, the
   // windlass left down so it holds (vessel/physics/anchor.ts).

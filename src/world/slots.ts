@@ -134,9 +134,9 @@ export function freeBerthFor(vessels: Record<string, VesselState>, portId: strin
  * it has one, else `CONFIG.spawn.anchorOff` m off the port in deep enough water
  * (`anchorDepth`), clear of land around her and `anchorClear` m from every other boat.
  */
-export function anchorSpotFor(vessels: Record<string, VesselState>, port: PortDef, lengthM: number): { x: number; z: number } | null {
+export function anchorSpotFor(vessels: Record<string, VesselState>, port: Pick<PortDef, 'x' | 'z'> & { cargo?: { anchorage?: { x: number; z: number; radius: number } } }, lengthM: number): { x: number; z: number } | null {
   const c = CONFIG.spawn;
-  const a = port.cargo.anchorage;
+  const a = port.cargo?.anchorage;
   const candidates: { x: number; z: number }[] = [];
   if (a) {
     for (let i = 0; i < 24; i++) {

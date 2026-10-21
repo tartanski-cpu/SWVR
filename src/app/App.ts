@@ -2616,6 +2616,7 @@ export class App {
       },
       launchBoat: (ref) => {
         this.pushEnvIntent('launchBoat', 1, ref);
+        this.launchAskedAt = performance.now();
         this.overlay.notify('Asking the harbour for a berth for her...', 3);
       },
       withdrawBoat: () => this.pushEnvIntent('withdrawBoat', 1),
@@ -3390,6 +3391,8 @@ export class App {
 
   /** The boat you launched last (multi-boat M3), so a new one is boarded once. */
   private ownedSeen: EntityId | null = null;
+  /** When you last asked for a boat (ms): nothing come in CONFIG.spawn.launchWaitS, you're told. */
+  private launchAskedAt = 0;
 
   /**
    * Your own boat (multi-boat M3): when the host puts her in the world, board her (your body
@@ -3400,6 +3403,11 @@ export class App {
     const me = this.world.players[this.localPlayerId];
     if (!me) return;
     const mine = ownedBoat(this.world, this.localPlayerId);
+    if (this.launchAskedAt && mine && mine.id !== this.ownedSeen) this.launchAskedAt = 0;
+    if (this.launchAskedAt && performance.now() - this.launchAskedAt > CONFIG.spawn.launchWaitS * 1000) {
+      this.launchAskedAt = 0;
+      this.overlay.notify(this.client && this.client.status !== 'connected' ? 'Not in the game: the host never got the request' : 'No room for her: no berth her length fits, and nowhere to anchor off', 5);
+    }
     if (mine && mine.id !== this.ownedSeen) {
       this.ownedSeen = mine.id;
       if (me.aboardVesselId !== mine.id && this.boats.has(mine.id)) {

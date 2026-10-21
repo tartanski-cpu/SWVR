@@ -145,7 +145,7 @@ The menu is laid out for playing. Some tabs have sections, picked from a second 
 
 | Tab | What's on it |
 |---|---|
-| Voyage | The job you're on (contract, cargo run or rescue, with **Abandon**), what you've done; the **weather** now and what's coming; time of day ±1 h and time flow stopped / ×60 / ×600; bearing and range to each port (a scrolling list: ▲ / ▼ at its side, or the mouse wheel); the paper chart's marks, with **Clear marks** |
+| Voyage | The job you're on (contract, cargo run or rescue, with **Abandon**), what you've done; the **weather** now and what's coming; time of day ±1 h and time flow stopped / ×60 / ×600; bearing and range to each port (a scrolling list: ▲ / ▼ at its side, or the mouse wheel), and in Voyage mode a **Go** button per port that puts your boat there, at its cargo berth or in its bay; the paper chart's marks, with **Clear marks** |
 | Boat | **Deck:** tow (**Make fast** / **Cast off**), docking (**Dock** / **Cast off**), anchor status. **Skiff:** board, **LAUNCH** / **RECOVER**, battery. **Fuel** and **Refuel** (at a fuel berth). **FM radio:** power and station |
 | Cargo | Where you are, payload, deliveries; cargo aboard (lashed or loose), and what's in the skiff (up to five crates or two drums, 300 kg) |
 | Office | **Jobs:** balance, the contract on, the harbour office's job board, the first voyage (**Skip** / **Again**). **Career:** balance, reputation, ledger, the three save slots |
