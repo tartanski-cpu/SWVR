@@ -25,14 +25,16 @@ export function hullPart(a: BuildArgs) {
   const grownPlate = Math.sqrt(grown);
   const B = SCALES.scale(d.beam) * grown;
   const D = SCALES.scale(d.depth) * grownPlate;
-  const form = raised(base.form(L, B, D, d.bow), raise);
+  /** Her form lofted (with her extra sheer), and with a raised foredeck once the house part knows where its break goes (`forecastle`). */
+  const loft = (forecastle?: { from: number; raise: number }) => raised(base.form(L, B, D, d.bow, SCALES.sheer(d.sheer ?? 0), forecastle), raise);
+  const form = loft();
   const shape = hullFormOf(form);
   const st = shape.stations;
   const transom = st[0].z;
   const stem = st[st.length - 1].z;
   const bulwarkHeight = Math.round(SCALES.bulwark(d.bulwark) * 100) / 100;
 
-  return { base, bulwarkHeight, form, grownPlate, shape, st, stem, transom, warnings };
+  return { base, bulwarkHeight, form, grownPlate, loft, shape, st, stem, transom, warnings };
 }
 export type HullPart = ReturnType<typeof hullPart>;
 

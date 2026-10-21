@@ -9,19 +9,74 @@ import type { CabinBelow, DoorStep, FloorLevel, FloorPatch, Hollow, HouseShape, 
 import { deckhouseHalfWidth, type DeckhouseLayout } from '../../vessel/deckhouse';
 import { MEASURES, SCALES } from '../design';
 import { halfBreadthAt, type BuildArgs, type V3 } from './common';
-import { FACET_CENTRE } from './catalog';
+import { facetCentre, frontMullions, type DesignHull } from './catalog';
+import { hullFormOf } from '../../modular/hull';
+import type { ShipDesign } from '../design';
 import type { HullPart } from './hull';
 import type { TrimPart } from './trim';
 import type { MachineryPart, EngineHatchPart } from './engineRoom';
 import type { PlacesPart } from './places';
 import type { DeckGearPart } from './deckGear';
 
+/**
+ * Where a raised foredeck's break goes (owner, Oct 2026, from a photo of a trawler: "a raised
+ * foredeck as an option"; the fishing boat's; CONFIG.shipyard.foredeck), or null for none: `fcLength`
+ * aft of the stem, but never under the wheelhouse (there it runs on aft to the house's aft
+ * wall: the house stands on it, as on the photo's trawler) nor so close forward of it that its
+ * steps won't fit between; and short of the transom by the steps' run. `t` is the break's place
+ * along the hull study (0 transom, 1 stem: her deck runs from one to the other), `z` in hers.
+ */
+function raisedForedeck(d: ShipDesign, base: DesignHull, at: { transom: number; stem: number; front: number; aft: number }, warnings: string[]): { z: number; t: number; raise: number; steps: number } | null {
+  if (!d.fcLength || !base.raisedForedeck) return null;
+  const c = CONFIG.shipyard.foredeck;
+  const raise = SCALES.fcHeight(d.fcHeight ?? 2);
+  const steps = Math.ceil(raise / c.stepRise - 1e-9) - 1; // treads between her deck and the raised one
+  const run = steps * c.tread + c.clear;
+  let z = at.stem + SCALES.fcLength(d.fcLength);
+  if (z > at.front - run && z < at.aft + c.landing) {
+    z = at.aft + c.landing;
+    warnings.push('The raised foredeck would end under or just forward of the wheelhouse: run on aft past its aft wall (the house stands on it).');
+  }
+  if (z > at.transom - run - c.clear) {
+    z = at.transom - run - c.clear;
+    warnings.push('The raised foredeck reaches too far aft: stopped short of the transom, with room for its steps.');
+  }
+  const r = (v: number) => Math.round(v * 1000) / 1000;
+  return { z: r(z), t: (at.transom - z) / (at.transom - at.stem), raise, steps };
+}
+
+/**
+ * The steps up to a raised foredeck (raisedForedeck): treads on her centreline aft of the
+ * break, the highest against it, evenly spaced in height from her deck at their foot to the
+ * raised deck.
+ */
+function foredeckSteps(f: { z: number; raise: number; steps: number }, q: { deckY(z: number): number; halfBeam(z: number): number }): FloorPatch[] {
+  const c = CONFIG.shipyard.foredeck;
+  // Evenly from her deck at their foot (it falls a little aft, with her sheer) up to the raised deck.
+  const foot = q.deckY(f.z + f.steps * c.tread + 0.05);
+  const top = q.deckY(f.z + 0.05) + f.raise;
+  const half = Math.min(c.width / 2, q.halfBeam(f.z + 0.05) - 0.3);
+  const r = (v: number) => Math.round(v * 1000) / 1000;
+  return Array.from({ length: f.steps }, (_, i) => {
+    const k = f.steps - i; // from the highest (k = steps, against the break) aft
+    return { x0: r(-half), x1: r(half), z0: r(f.z + i * c.tread), z1: r(f.z + (i + 1) * c.tread), y: r(foot + ((top - foot) * k) / (f.steps + 1)) };
+  });
+}
+
+/** The front windows' mullions: more panes on a wide house (the usual two, at +-0.5 m, left unset). */
+function mullionsOf(hw: number, wall: number, house: HouseShape): { frontMullions?: number[] } {
+  const m = frontMullions(hw, wall, house.facet?.centre);
+  return m.length === 2 && Math.abs(m[1] - 0.5) < 1e-6 ? {} : { frontMullions: m };
+}
+
 /** Her wheelhouse within the deck that's free for it (and a saloon aft of it), the deckhouse it may stand on and that deckhouse's walked top, its floor, roof and windows, the console's line, the steps at its aft door. */
 export function housePart(a: BuildArgs, p: HullPart) {
   const { d } = a;
-  const { base, bulwarkHeight, shape, st, stem, transom, warnings } = p;
+  const { base, bulwarkHeight, stem, transom, warnings } = p;
+  let { form, shape, st } = p;
   // ── The wheelhouse, within the deck free for it ──
-  const q = hullQueries({ hull: shape, layout: { bulwarkHeight, railHeight: 0, deckEdgeMargin: 0.25, bodyRadius: BODY_RADIUS } as LayoutConfig });
+  const queries = () => hullQueries({ hull: shape, layout: { bulwarkHeight, railHeight: 0, deckEdgeMargin: 0.25, bodyRadius: BODY_RADIUS } as LayoutConfig });
+  let q = queries();
   const zAft = transom - base.cockpit;
   const zFwd = stem + base.foredeck + (base.ramp ? 0.6 : 0);
   let houseL = d.houseLength;
@@ -47,6 +102,16 @@ export function housePart(a: BuildArgs, p: HullPart) {
   const front = aft - houseL;
   /** Where the wheelhouse ends and the saloon begins (the house's aft, without one). */
   const helmAft = front + helmL;
+  // A raised foredeck (owner, Oct 2026; the fishing boat's): now the house is placed, her hull
+  // again with her deck stepped up forward of the break (its z: `foredeck`). The parts after
+  // this take her hull from here.
+  const foredeck = raisedForedeck(d, base, { transom, stem, front, aft }, warnings);
+  if (foredeck) {
+    form = p.loft({ from: foredeck.t, raise: foredeck.raise });
+    shape = hullFormOf(form);
+    st = shape.stations;
+    q = queries();
+  }
   const along = (n: number) => Array.from({ length: n + 1 }, (_, i) => front + ((aft - front) * i) / n);
   const narrowest = Math.min(...along(8).map((z) => q.halfBeam(z)));
   const sideDeck = 0.28;
@@ -77,10 +142,11 @@ export function housePart(a: BuildArgs, p: HullPart) {
   const facetTan = Math.tan((CONFIG.shipyard.facetDeg * Math.PI) / 180);
   let facet: { centre: number; depth: number } | null = null;
   if (d.facets) {
-    const depth = Math.round((hw - FACET_CENTRE) * facetTan * 1000) / 1000;
-    if (hw - FACET_CENTRE < 0.25) warnings.push('Her wheelhouse is too narrow for a faceted front (its middle pane would be all of it): left flat.');
+    const centre = facetCentre(hw);
+    const depth = Math.round((hw - centre) * facetTan * 1000) / 1000;
+    if (hw - centre < 0.25) warnings.push('Her wheelhouse is too narrow for a faceted front (its middle pane would be all of it): left flat.');
     else if (aft - front - depth < 1.6) warnings.push('Her wheelhouse is too short for a faceted front (the console\'s wings would reach too far aft): left flat.');
-    else facet = { centre: FACET_CENTRE, depth };
+    else facet = { centre, depth };
   }
   let deckhouse: DeckhouseLayout | null = null;
   let dhArea = 0;
@@ -282,14 +348,14 @@ export function housePart(a: BuildArgs, p: HullPart) {
   const roofTopAt = (z: number) => roofAt(z) + roofThickness;
   // On the roof, forward: clear of its front edge (the visor's top, set back by its rake) whichever way the windows rake.
   const roofFront = Math.max(front, zHead - house.visor + roofThickness * Math.tan((house.roofEdgeDeg * Math.PI) / 180));
-  return { F, FA, aft, ahead, along, cf, consoleBack, consoleHalf, cx, deckHi, deckLo, deckhouse, dhArea, dhRailM, dhc, doorHeight, floorY, foreEndAt, front, headroom, helmAft, house, houseL, hw, inside, level, levels, nSteps, onTop, q, rise, rnd, roofAt, roofBack, roofDrop, roofFront, roofThickness, roofTopAt, roofY, saloonDrop, saloonL, saloonRoof, sb, short, side, sill, steps, tread, wall, windowHead, windowRake, zHead };
+  return { F, FA, aft, ahead, along, cf, consoleBack, consoleHalf, cx, deckHi, deckLo, deckhouse, dhArea, dhRailM, dhc, doorHeight, floorY, foreEndAt, foredeck, form, front, headroom, shape, st, helmAft, house, houseL, hw, inside, level, levels, nSteps, onTop, q, rise, rnd, roofAt, roofBack, roofDrop, roofFront, roofThickness, roofTopAt, roofY, saloonDrop, saloonL, saloonRoof, sb, short, side, sill, steps, tread, wall, windowHead, windowRake, zHead };
 }
 export type HousePart = ReturnType<typeof housePart>;
 
 /** Her bow ramp, if she has one, and her deck layout (the wheelhouse, roof, deckhouse, bulwarks and rails) for walking and drawing. */
 export function layoutPart(a: BuildArgs, p: HullPart & HousePart) {
   const { d } = a;
-  const { aft, base, bulwarkHeight, consoleBack, consoleHalf, cx, deckHi, deckhouse, doorHeight, floorY, front, grownPlate, house, hw, levels, rnd, roofThickness, roofY, saloonDrop, saloonRoof, short, sill, st, stem, steps, wall, warnings, windowHead, windowRake } = p;
+  const { aft, base, bulwarkHeight, consoleBack, consoleHalf, cx, deckHi, deckhouse, doorHeight, floorY, foredeck, front, grownPlate, q, house, hw, levels, rnd, roofThickness, roofY, saloonDrop, saloonRoof, short, sill, st, stem, steps, wall, warnings, windowHead, windowRake } = p;
 
   // Her bow ramp (the landing craft's), across her square bow.
   const bowHalf = st[st.length - 1].halfBeamDeck;
@@ -303,7 +369,7 @@ export function layoutPart(a: BuildArgs, p: HullPart & HousePart) {
 
   const layout = {
     // No roof rail or ladder (owner: simpler): the roof isn't walked.
-    wheelhouse: { halfWidth: hw, front, aft, floorY, roofY, wall, doorWidth: 0.7, doorHeight, windowSill: sill, windowHead, frontSill: sill, frontRakeDeg: windowRake, ...(d.flare ? { doorHinged: true } : {}), consoleDepth: 0.5, ...(consoleBack ? { consoleBack } : {}), consoleHeight: 0.9, viewSill: d.sills ? 0.9 : Math.max(sill, 0.9 + CONFIG.modules.helmConsole.dash.top), shape: house, ...(short ? { consoleSpan: { x0: Math.round((cx - consoleHalf) * 1000) / 1000, x1: Math.round((cx + consoleHalf) * 1000) / 1000 } } : {}), ...(steps.length ? { steps } : {}), ...(levels.length ? { levels } : {}), ...(saloonRoof ? { saloonRoof } : {}) },
+    wheelhouse: { halfWidth: hw, front, aft, floorY, roofY, wall, doorWidth: 0.7, doorHeight, windowSill: sill, windowHead, frontSill: sill, frontRakeDeg: windowRake, ...(d.flare ? { doorHinged: true } : {}), consoleDepth: 0.5, ...(consoleBack ? { consoleBack } : {}), consoleHeight: 0.9, viewSill: d.sills ? 0.9 : Math.max(sill, 0.9 + CONFIG.modules.helmConsole.dash.top), shape: house, ...mullionsOf(hw, wall, house), ...(short ? { consoleSpan: { x0: Math.round((cx - consoleHalf) * 1000) / 1000, x1: Math.round((cx + consoleHalf) * 1000) / 1000 } } : {}), ...(steps.length ? { steps } : {}), ...(levels.length ? { levels } : {}), ...(saloonRoof ? { saloonRoof } : {}) },
     roof: { thickness: roofThickness, overhang: 0.15, railHeight: 0, edgeMargin: 0.25 },
     // A cockpit overhead (design.overhead): fitted below, once the deck gear has its places.
     overhead: undefined as OverheadLayout | undefined,
@@ -319,6 +385,12 @@ export function layoutPart(a: BuildArgs, p: HullPart & HousePart) {
     deckEdgeMargin: 0.25,
     bodyRadius: BODY_RADIUS,
   } as LayoutConfig;
+  // A raised foredeck's steps (walked as floors; drawn by the hull mesh).
+  if (foredeck) {
+    const treads = foredeckSteps(foredeck, q);
+    layout.deckSteps = treads;
+    layout.extraFloors = [...(layout.extraFloors ?? []), ...treads];
+  }
   if (layout.wheelhouse && roofY - deckHi < 1.8) warnings.push('Her wheelhouse roof is low over the deck outside: the doorway will be a squeeze.');
 
   return { bowRamp, layout };
