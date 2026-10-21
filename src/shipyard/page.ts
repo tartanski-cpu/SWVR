@@ -35,7 +35,7 @@ import { flatVertexColorMaterial, mergeParts } from '../render/geometryUtils';
 import { HydroDebugView } from '../debug/hydroDebugView';
 import { briefPaper } from './briefPaper';
 import { buildVesselMesh, buildVesselMeshParts } from '../vessel/view/hullMesh';
-import { DESIGN_HULLS, ENGINES, LIVERIES, ROOF_PAINTS, ROOF_TOPS, type DesignedBoat } from './build';
+import { DESIGN_HULLS, ENGINES, LIVERIES, FRAME_COLOURS, HOUSE_PAINTS, ROOF_PAINTS, ROOF_TOPS, type DesignedBoat } from './build';
 import { docFileName, docFileText, docToken, designToken, readDesign, shortCode } from './designDoc';
 import { ALL_FIELDS, CONSOLE_SIDES, STACK_STYLES, DEFAULT_DESIGN, GUARDS, MATERIALS, OUTBOARDS, RAILS, MEASURES, SILLS, type MeasureKey, SINGLE_ONLY_ENGINES, SKIFFS, outboardCount, placeOf, placeValue, SCALES, type PlaceKey, type ShipDesign } from './design';
 import { hullPlan } from '../vessel/layout';
@@ -564,7 +564,7 @@ function choices(key: keyof ShipDesign, items: { name: string; note?: string }[]
 }
 const outputs: Partial<Record<keyof ShipDesign, (v: number) => string>> = {};
 /** Each field's label and, for a few set options, their names (the compare list shows them). */
-const labels: Partial<Record<keyof ShipDesign, string>> = { hull: 'Hull', engine: 'Engine', twin: 'Engines', outboards: 'Outboards', sternDrive: 'Stern drive', pods: 'Pod drives', nozzle: 'Kort nozzle', material: 'Built of', controls: 'Controls', paint: 'Paint', roofPaint: 'Roof colour' };
+const labels: Partial<Record<keyof ShipDesign, string>> = { hull: 'Hull', engine: 'Engine', twin: 'Engines', outboards: 'Outboards', sternDrive: 'Stern drive', pods: 'Pod drives', nozzle: 'Kort nozzle', material: 'Built of', controls: 'Controls', paint: 'Paint', roofPaint: 'Roof colour', houseColour: 'Wheelhouse colour' };
 const optionNames: Partial<Record<keyof ShipDesign, string[]>> = {};
 function slider(key: keyof ShipDesign, label: string, show: (v: number) => string): HTMLElement {
   labels[key] ??= label;
@@ -918,11 +918,36 @@ section('6. Paint');
 }
 // The roof's top (owner: the eyebrow): one colour, or a panel in a second colour set in from its edges.
 options('roofTop', 'Roof top', ROOF_TOPS.map((t) => t.name));
+{
+  // The wheelhouse's colour (owner, Oct 2026): her paint's own (its swatch follows her paint), or one of its own.
+  const row = document.createElement('div');
+  row.className = 'row opts';
+  row.innerHTML = '<label>Wheelhouse</label><div class="swatches"></div>';
+  const box = row.querySelector('div')!;
+  HOUSE_PAINTS.forEach((p, i) => {
+    const s = document.createElement('div');
+    s.className = 'swatch';
+    s.title = p.name;
+    s.dataset.key = 'houseColour';
+    s.dataset.i = String(i);
+    if (p.colour === null) {
+      s.classList.add('likeHouse');
+      s.textContent = '=';
+    } else s.style.background = hex(p.colour);
+    s.onclick = () => change({ houseColour: i });
+    box.appendChild(s);
+  });
+  controls.appendChild(row);
+}
+// Its window frames, mullions and posts (owner, Oct 2026): black or white.
+options('frames', 'Window frames', FRAME_COLOURS.map((f) => f.name));
 
 /** Show the design in the controls. */
 function syncControls(): void {
   const likeHull = document.querySelector<HTMLElement>('.swatch.likeHull');
   if (likeHull) likeHull.style.background = hex(LIVERIES[design.paint].livery.topsides ?? 0xd9622b);
+  const likeHouse = document.querySelector<HTMLElement>('.swatch.likeHouse');
+  if (likeHouse) likeHouse.style.background = hex(LIVERIES[design.paint].livery.house ?? 0xe6e6df);
   document.querySelectorAll<HTMLElement>('[data-key][data-i]').forEach((el) => el.classList.toggle('on', design[el.dataset.key as keyof ShipDesign] === Number(el.dataset.i)));
   // A retired hull type (build.ts DESIGN_HULLS `retired`: the workboat) shows only on a design already on her.
   document.querySelectorAll<HTMLElement>('[data-key=hull][data-i]').forEach((el) => (el.style.display = DESIGN_HULLS[Number(el.dataset.i)].retired && design.hull !== Number(el.dataset.i) ? 'none' : ''));
@@ -2578,6 +2603,7 @@ function describe(k: keyof ShipDesign, d: ShipDesign, b: DesignedBoat): string {
   if (k === 'controls') return v ? 'Advanced' : 'Basic';
   if (k === 'paint') return LIVERIES[v]?.name ?? String(v);
   if (k === 'roofPaint') return ROOF_PAINTS[v]?.name ?? String(v);
+  if (k === 'houseColour') return HOUSE_PAINTS[v]?.name ?? String(v);
   if (optionNames[k]) return optionNames[k]![v] || String(v);
   const show = outputs[k];
   if (!show) return String(v);

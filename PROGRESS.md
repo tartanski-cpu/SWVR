@@ -5537,6 +5537,15 @@ Owner, Oct 2026: "On the big maps like Syros and the Firth of Clyde, the texture
 - **Not changed:** the career maps (their islands are drawn from formulas, already sampled at 8 m a pixel), the paper chart, the plotter's screen resolution (512 x 384).
 - **Checked:** tests/chartLand.test.ts (4): a triangle cut at the waterline (its dry part's corners and area), wholly above or below, always one way round; faces into squares, all-deep squares kept; each level's path, and a face wholly above the next level giving nothing for this one. Full suite passes. Headless Chromium, the plotter's screen before and after at Rothesay, and after at Ermoupoli, Oban, Tayvallich and out in the Clyde. **Not checked:** the Quest (watch for a stutter the first time a part of a map comes on the plotter).
 
+### The wheelhouse's colour, and white or black window frames (done, awaiting owner test)
+
+Owner, Oct 2026 (after the trawler photo: a red hull, a white wheelhouse with white frames): "I also need to add a option to color the wheelhouse and whether the frames around the windows are black or white like in this vessel."
+
+- **Paint step, Wheelhouse:** swatches, `design.houseColour` (catalog.ts `HOUSE_PAINTS`): like her paint (first: her livery's house colour, its swatch following it), white, cream, light grey, dark grey, red, blue, green, orange, yellow. The house's walls outside, the deckhouse with it; the roof keeps its own choice.
+- **Paint step, Window frames:** Black (as before) or White, `design.frames` (`FRAME_COLOURS`): the frames round the glass, the mullions and the posts (livery key `frame`, new). The white is a shade off the house whites (0xfafaf7): the inside lining is laid on what's in the house's colour, so frames the same white as the walls would have been lined with wood inside.
+- In the code: **version 32**, both packed at the top (older codes read as her paint and black frames).
+- **Checked:** tests/houseColours.test.ts (3): the lists match the code's steps; a red house is painted red with black frames; a white house with white frames has no black left and is still lined inside; both round-trip through the code. Full suite passes. Headless Chromium: the fishing boat in red with a white house, white frames and black, set up like the photo. **Not checked:** the Quest.
+
 ### A raised foredeck on the fishing boat (done, awaiting owner test)
 
 Owner, Oct 2026 (same photo): "the ability on the fishing vessel only at the moment to have a kind of poop deck like this, or a raised foredeck as an option."

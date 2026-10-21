@@ -355,6 +355,34 @@ export const LIVERIES: { name: string; livery: Livery }[] = [
 ];
 
 /** Roof colours (owner): the hull's own topsides colour (null), or one of its own; an orange roof is common on workboats. */
+/**
+ * The wheelhouse's colour (owner, Oct 2026: "an option to color the wheelhouse"; design.houseColour):
+ * her paint's own (null, the first), or one of these. Its walls, outside; its roof is the Roof's.
+ */
+export const HOUSE_PAINTS: { name: string; colour: number | null }[] = [
+  { name: 'Like her paint', colour: null },
+  { name: 'White', colour: 0xf2f2ee },
+  { name: 'Cream', colour: 0xe9e1c8 },
+  { name: 'Light grey', colour: 0xc4c8ca },
+  { name: 'Dark grey', colour: 0x4a4f54 },
+  { name: 'Red', colour: 0xc0302a },
+  { name: 'Blue', colour: 0x1f3a5c },
+  { name: 'Green', colour: 0x2f5a3a },
+  { name: 'Orange', colour: 0xe0661f },
+  { name: 'Yellow', colour: 0xe0b020 },
+];
+
+/**
+ * The window frames round the wheelhouse glass, and its mullions and posts (owner, Oct 2026:
+ * "whether the frames around the windows are black or white"; design.frames). The white is a
+ * shade off the house whites: the house's walls are told from its frames by their colour
+ * (hullMesh lineInside lines only the walls inside).
+ */
+export const FRAME_COLOURS: { name: string; colour: number }[] = [
+  { name: 'Black', colour: 0x16191b },
+  { name: 'White', colour: 0xfafaf7 },
+];
+
 export const ROOF_PAINTS: { name: string; colour: number | null }[] = [
   { name: 'Like hull', colour: null },
   { name: 'Orange', colour: 0xe0661f },
@@ -380,5 +408,14 @@ export const ROOF_TOPS: { name: string; colour: number | null }[] = [
 export function liveryOf(d: ShipDesign): Livery {
   const l = LIVERIES[d.paint].livery;
   const top = ROOF_TOPS[d.roofTop ?? 0]?.colour;
-  return { ...l, roof: ROOF_PAINTS[d.roofPaint].colour ?? l.topsides ?? 0xd9622b, ...(top != null ? { roofTop: top } : {}), ...(d.interior ? { interior: d.interior } : {}), ...(d.cabinFloor ? { cabinFloor: d.cabinFloor } : {}) };
+  const house = HOUSE_PAINTS[d.houseColour ?? 0]?.colour;
+  return {
+    ...l,
+    roof: ROOF_PAINTS[d.roofPaint].colour ?? l.topsides ?? 0xd9622b,
+    ...(top != null ? { roofTop: top } : {}),
+    ...(house != null ? { house } : {}),
+    ...(d.frames ? { frame: FRAME_COLOURS[d.frames].colour } : {}),
+    ...(d.interior ? { interior: d.interior } : {}),
+    ...(d.cabinFloor ? { cabinFloor: d.cabinFloor } : {}),
+  };
 }
