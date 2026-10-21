@@ -98,6 +98,15 @@ wheelhouse is gone from Shipyard boats (the built-in workboat and landing craft 
 What's left for P4: the hatch, dipstick and oil can as places the engine module offers, not
 offsets build.ts works out.
 
+**P4a, done: the build split by part (no change to any boat).** build.ts's one long build is now a
+row of parts in `src/shipyard/parts/`, run in turn by `buildAt`, each given the design and what
+the parts before it worked out: her lines (hull.ts), her houses (house.ts: wheelhouse and saloon,
+deckhouse, deck layout, cockpit overhead, inside), how she floats (trim.ts), her engine room
+(engineRoom.ts), the places in her wheelhouse (places.ts), her deck gear (deckGear.ts), her hull
+definition and sockets (hullDef.ts), her recipe (recipe.ts) and her weights (weights.ts); the hull
+types, engines and liveries in catalog.ts, shared geometry in common.ts. Checked identical: every
+fleet boat, every hull type and 160 random designs build to exactly the same boat as before.
+
 ## P5. Interior parts (M)
 
 Berth, settee, galley run, seat, locker, head with a door: placed on a floor level, each a

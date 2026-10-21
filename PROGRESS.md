@@ -6779,3 +6779,16 @@ Owner, Oct 2026: "Go p2c". The plan's P2c: the deckhouse becomes a walkable trun
   - **Desktop:** Shipyard, pilot boat, Wheelhouse step, Deckhouse: Forward 2.5 m, Height 1.0 m, Width To her sides, **Inside: A cabin below**. Turn the wheelhouse see-through to see the steps. Try the gillnetter: she says why not (her engine). Trials & handover, play her: in the wheelhouse walk aft of the console on the starboard side, down the steps, forward to the berth, and back up.
   - **VR:** the same: walk (or pull yourself) down the companionway, stand up in the cabin, look round at the berth and the lining, come back up.
 
+### Parametric boats P4a: the Shipyard's builder split by part (done; no visible change)
+
+Owner, Oct 2026: "Go P4". The plan's P4: each house part and hull feature offers its own places, so modules find their place instead of the Shipyard working out offsets; "also when the Shipyard's one long build function is broken up by part". This first step does the breaking up, with no change to any boat.
+
+- **What:** `src/shipyard/build.ts` was ~2,300 lines, ~1,800 of them one function. It's now ~150: `buildDesign` and `buildAt`, which runs the parts in turn. The parts, in `src/shipyard/parts/`:
+  - `hull.ts` her lines and stations; `house.ts` the wheelhouse and saloon, the deckhouse and its walked top, the deck layout, the cockpit overhead, and inside (chart table, side door, cabin below); `trim.ts` how she floats (weight, centre of gravity, inertia, damping); `engineRoom.ts` her machinery and the engine hatch and space; `places.ts` the places in her wheelhouse; `deckGear.ts` her deck gear and what hangs on the house; `hullDef.ts` her hull definition and sockets; `recipe.ts` her recipe; `weights.ts` her weights, price and the designed boat.
+  - `catalog.ts` the hull types, engines, liveries and roof colours (build.ts still exports them, so nothing that used them changed); `common.ts` geometry they share.
+  - Each part is a function taking the design and what the earlier parts worked out, and returning what later ones need. The lines inside each are the old ones, unchanged.
+- **For anyone changing the Shipyard:** a choice's building now goes in its part's file, not build.ts.
+- **Checked identical:** before the split, every fleet boat, every hull type as she comes and 160 random designs (options and measurements mixed at random) were built and fingerprinted; after it, all 171 build to exactly the same hull, recipe, figures, weights and warnings. Typecheck clean, full suite pass, the build OK; the Shipyard page and the game (a Shipyard pilot boat) load and look as before. (The fingerprint check was a scratch test for this work, not kept: other chats change the Shipyard's boats on purpose.)
+- **Next (P4b):** the parts offer their own places (the house its helm, wall and roof places; the hull its bulwark tops and transom; the engine its hatch, dipstick and oil can), and the sockets are gathered from them.
+- **Test steps:** nothing should look or behave differently. Desktop: open the Shipyard, change a few things on each step, check her figures and warnings still update; start a career and a Shipyard boat. VR: start any boat and drive her as usual.
+
