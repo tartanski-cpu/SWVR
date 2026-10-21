@@ -5243,6 +5243,13 @@ Every later milestone must reproduce them to a millionth. The trawl run was re-r
 - The dev branch (`claude/admiring-dirac-v9wwih`, which deploys https://tartanski-cpu.github.io/SWVR/) had sat at 17 October (the FM radio change and its revert, no net change) while `next` ran on to 21 October: the three modes, the real maps, the fleet, the Shipyard's growth, the regions, and the rest of `docs/RELEASE_NOTES_next.md`. `next` was merged with the dev branch (nothing to resolve) and pushed to both. The README's status line says so; the release note's "what's where" too.
 - **Checked:** typecheck, `npm test` on the merged head; the publishing run for the dev branch succeeded and the live build reports the commit. **Not checked:** the owner's own careers against the new build (the save format is as it was; new careers start in the beginner boat, existing ones keep their boat).
 
+### Fenders and a life ring at the yard (owner)
+
+- **The owner:** add fenders and a life ring to the yard upgrades (flagged when the beginner boat became the owner's Gillnetter 7.8 m: she has neither, and the yard sold neither).
+- `CONFIG.career.upgrades`: **Fenders** (£600, no reputation needed; `design` `guard` 1: fenders along her sides and the basket, so knocks alongside land on them and the roving fender works) and **Life ring** (£400; `lifeRing` 1: the ring and the boat hook on the aft wall, and with it the rescue calls). Both are add-ons (the game starts again with her refitted, as the searchlight) with an empty `fit`: the old workboat has hers in her recipe and keeps them, so nothing changes on a workboat career; on the beginner boat they go into her design as the searchlight and fire monitor do. A career saved before the yard kit existed still gets everything, as before.
+- **Tests:** `tests/starterBoat.test.ts` (+1): none to start; bought, the fenders, ring station and boat hook rack are aboard, no rubbing strake. `tests/starterWorkboat.test.ts`: the equipment list has the two more.
+- **Checked:** typecheck, `npm test`, headless: the beginner boat at Calder with fenders and the ring fitted (screenshot). **Not checked:** VR; buying them through the board in a live career (the same code path as the searchlight).
+
 ### Test address for work in progress (owner request)
 
 - **Two addresses, one site:**
