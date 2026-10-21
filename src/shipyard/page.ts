@@ -253,6 +253,7 @@ function drawBoat(): void {
   const machinery = addMachinery(root);
   scene.add(root);
   boatRoot = root;
+  recut();
   shown = { hull: parts.hull, house: parts.house, modules: modulesRoot, guard, skiff: root.children.find((c) => c.name === 'skiff') ?? null, machinery };
   focusStep();
   // A different engine (or one more) at the Engine step: look at it afresh.
@@ -1832,13 +1833,19 @@ function setTool(t: typeof tool): void {
   $('toolHint').textContent = t === 'pin' ? 'Click on her where the pin goes' : t === 'sketch' ? 'Draw on the sheet: everyone with it open sees it as you draw. Port, Starboard, Plan, Bow or Stern for another view’s sketch; ✏ Sketch again to close' : '';
   drawInk();
   if (t !== 'pin') ($('pinEditor') as HTMLElement).hidden = true;
-  if (t !== 'pin') cutOpen(false);
+  // (The Furniture step keeps her cut away, seen from above, the whole time it's open.)
+  if (t !== 'pin' && shownStep !== 'furniture') cutOpen(false);
+  if (!t && shownStep === 'furniture') $('toolHint').textContent = FURNITURE_HINT;
 }
+/** What the view shows at the Furniture step, when nothing is being placed. */
+const FURNITURE_HINT = 'Seen from above with the roof cut away: Add a piece, then click where it goes';
 /**
  * Placing furniture (P5; owner: the roof is in the way): seen from straight above, flat, with
  * her cut away above a level just over the wheelhouse floor (CONFIG.shipyard.furniture.planCut),
  * so the floor, the console, the companionway and the furniture already there show and take the
- * click. Put back as it was (view, flat or not) when the pin is placed or the tool put down.
+ * click. The whole time the Furniture step is open (owner, Oct 2026: "keep the view from above
+ * on the Furniture step"), so piece after piece goes in without the view moving; put back as it
+ * was (view, flat or not) on leaving the step, or (another step's Place) once it's placed.
  */
 let cutAway: { y: number; eye: THREE.Vector3; at: THREE.Vector3; flat: boolean } | null = null;
 const cutPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), 0);
@@ -1873,6 +1880,13 @@ function cutOpen(on: boolean): void {
     orbit.update();
     if (flat !== was.flat) flatBtn.click();
   }
+}
+/** She's been built again while cut away (a piece added at the Furniture step): cut the new her, at her floor as it is now. */
+function recut(): void {
+  if (!cutAway || !boatRoot) return;
+  const floor = boat.hull.layout.wheelhouse?.floorY ?? 1;
+  cutAway.y = cutPlane.constant = boatRoot.localToWorld(new THREE.Vector3(0, floor + CONFIG.shipyard.furniture.planCut, 0)).y;
+  applyCuts();
 }
 const noteRay = new THREE.Raycaster();
 function hitBoat(e: PointerEvent): THREE.Vector3 | null {
@@ -2463,6 +2477,11 @@ function goStep(to: number | string, share = true): void {
   // Arriving at Engine: look at her machinery.
   if (els[i].dataset.step === 'engine' && shownStep !== 'engine') frameMachinery();
   shownStep = els[i].dataset.step!;
+  // The Furniture step: her from above, cut away, while it's open (cutOpen).
+  if (tool && shownStep !== 'furniture') setTool(null);
+  cutOpen(shownStep === 'furniture');
+  if (shownStep === 'furniture' && !tool) $('toolHint').textContent = FURNITURE_HINT;
+  else if (!tool && $('toolHint').textContent === FURNITURE_HINT) $('toolHint').textContent = '';
 }
 function showStepNav(): void {
   const nav = $('stepNav');
