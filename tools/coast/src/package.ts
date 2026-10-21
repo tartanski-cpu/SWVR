@@ -24,9 +24,17 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { ROOT, dirs, latin, loadRequest, nameOf, projection, slug } from './common.ts';
+import { addCoastChunk, coastHeight, coastTerrain, registerChunkedCoast, registerCoastTerrain } from '../../../src/world/coastTerrain.ts';
 
 const T = {
   berthsPerPort: 10,
+  /**
+   * A named berth must have room for a whole boat: clear water this far either way along the
+   * face from the berth (m: the biggest boats are about 14 m long, and a margin) and out to
+   * `berthBeam` m from it. Checked every 2 m against the land and the other piers.
+   */
+  berthClear: 11,
+  berthBeam: 5,
   /** Port colours for cargo bound there (the game's palette style). */
   colours: [0x3f7fd0, 0xd06a2f, 0x2f9a5a, 0xc8a030, 0x9a3fb0, 0x30a8b8, 0xb83040, 0x7a8a30, 0x606870],
   /** Fishing grounds: depth range by species (m), radius (m), kept this far from harbours and each other (m). */
@@ -42,6 +50,23 @@ const D = dirs(req.id);
 const P = projection(req.bbox);
 const read = (f: string) => JSON.parse(readFileSync(join(D.out, f), 'utf8'));
 const region = read('region.json');
+// The region's ground as the game will have it (its mesh, through the game's own lookup,
+// src/world/coastTerrain.ts): the named berths are checked against it, not the coarser
+// 10 m grid. A chunked region's chunks are read as the checks need them.
+const ab = (f: string) => {
+  const b = readFileSync(join(D.out, f));
+  return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer;
+};
+if (region.terrain.chunked) registerChunkedCoast(req.id, ab(region.terrain.coarse.file), region.terrain, region.box, 0, 0);
+else registerCoastTerrain(req.id, ab(region.terrain.file), { ...region.terrain, chunks: region.chunks }, region.box, 0, 0);
+const meshHeight = (x: number, z: number): number => {
+  const t = coastTerrain(req.id)!;
+  if (t.chunked) {
+    const k = t.chunked.chunks.findIndex((c: { x0: number; z0: number; size: number }) => x >= c.x0 && x < c.x0 + c.size && z >= c.z0 && z < c.z0 + c.size);
+    if (k >= 0 && !t.pieces.has(k)) addCoastChunk(req.id, k, ab(t.chunked.chunks[k].file));
+  }
+  return coastHeight(x, z) ?? -40;
+};
 const nav = read('nav.json');
 const hb = read('harbours.json');
 const grid = JSON.parse(readFileSync(join(D.work, 'grid.json'), 'utf8'));
@@ -107,10 +132,51 @@ const onDeck = (b: Berth, back: number) => {
 // Each harbour's own berths: those whose piece is one of its pieces.
 const pieceOf = new Map<string, string>();
 for (const h of hb.harbours) for (const p of h.pieces ?? []) pieceOf.set(p, h.id);
+type KitBlock = { x: number; z: number; halfLength: number; halfWidth: number; yawDeg: number };
+const insideBlock = (k: KitBlock, x: number, z: number) => {
+  const a = (k.yawDeg * Math.PI) / 180;
+  const dx = x - k.x;
+  const dz = z - k.z;
+  return Math.abs(dx * Math.sin(a) - dz * Math.cos(a)) < k.halfLength && Math.abs(dx * Math.cos(a) + dz * Math.sin(a)) < k.halfWidth;
+};
+/**
+ * Inside a kit block other than the ones the berth lies against (those under a point just
+ * inside its face)? (Not "other than its own pier": a pier drawn as one line is several
+ * boxes, and an L-shaped one's arm can stand right across a berth on its stem.)
+ */
+const inOtherBlock = (x: number, z: number, b: Berth) => {
+  const fx = b.x + b.shoreX * (b.shoreDist + 0.5);
+  const fz = b.z + b.shoreZ * (b.shoreDist + 0.5);
+  return (hb.blocks as KitBlock[]).some((k) => !insideBlock(k, fx, fz) && insideBlock(k, x, z));
+};
+/**
+ * How much of a boat's berth is blocked: of the points every 2 m along the face from
+ * `berthClear` m one way to as far the other, at the berth and out to `berthBeam` m from the
+ * face, those where the ground (the game's mesh) stands above the water, or inside another
+ * pier. 0: a whole boat fits.
+ */
+const blocked = (b: Berth) => {
+  const ax = -b.shoreZ;
+  const az = b.shoreX;
+  let n = 0;
+  for (let s = -T.berthClear; s <= T.berthClear; s += 2)
+    for (const out of [0, T.berthBeam - b.shoreDist]) {
+      const x = b.x + ax * s - b.shoreX * out;
+      const z = b.z + az * s - b.shoreZ * out;
+      if (meshHeight(x, z) > -0.3 || inOtherBlock(x, z, b)) n++;
+    }
+  return n;
+};
+const roomRank = (b: Berth) => {
+  const n = blocked(b);
+  return n === 0 ? 0 : n <= 2 ? 1 : 2;
+};
 harbours.forEach((h, n) => {
   const own = (hb.berths as Berth[]).filter((b) => pieceOf.get(b.source) === h.id);
-  // Fixed faces first (cargo wants a quay or a pier), then the pontoons; spread along.
-  own.sort((a, b) => Number(blockOf.get(a.source)?.kind === 'pontoon') - Number(blockOf.get(b.source)?.kind === 'pontoon') || near(h, a) - near(h, b));
+  // Room for a whole boat first (no bow on the rocks), then fixed faces (cargo wants a quay
+  // or a pier) before pontoons, then nearest the harbour's middle.
+  const rank = new Map(own.map((b) => [b, roomRank(b)]));
+  own.sort((a, b) => rank.get(a)! - rank.get(b)! || Number(blockOf.get(a.source)?.kind === 'pontoon') - Number(blockOf.get(b.source)?.kind === 'pontoon') || near(h, a) - near(h, b));
   const pick = own.slice(0, T.berthsPerPort);
   const color = T.colours[n % T.colours.length];
   const economy = req.economy?.[h.id];
@@ -131,6 +197,11 @@ harbours.forEach((h, n) => {
     return;
   }
   if (!pick.length) return;
+  // No berth with room for a boat (a drying pier, say): drawn, but not a port the game sends work to.
+  if (rank.get(pick[0]) === 2) {
+    warnings.push(`${h.id}: no berth with room for a boat (best blocked at ${blocked(pick[0])} points): not a port`);
+    return;
+  }
   const cargo = pick[0];
   const fuel = h.kind === 'harbour' && pick.length > 1 ? pick[1] : null;
   const stack = onDeck(cargo, 3);

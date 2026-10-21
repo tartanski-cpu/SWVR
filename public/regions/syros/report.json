@@ -1,7 +1,8 @@
 {
  "warnings": [
   "only 3 buoys or beacons mapped (thin data?)",
-  "4 patches where the coastline's sides disagree (check the coast there)"
+  "4 patches where the coastline's sides disagree (check the coast there)",
+  "achladi-pier: no berth with room for a boat (best blocked at 5 points): not a port"
  ],
  "nav": {
   "marks": 3,
@@ -228,8 +229,8 @@
  "shoreBandPoints": 11166,
  "chunkBudget": 12000,
  "package": {
-  "ports": 10,
-  "berths": 14,
+  "ports": 9,
+  "berths": 12,
   "blocks": 38,
   "buildings": 2108,
   "marks": 0,
@@ -241,7 +242,7 @@
    "Pyrgos",
    "Nisis Dhidhimi FlW.6s"
   ],
-  "bytes": 502308
+  "bytes": 501540
  },
  "houses": {
   "byType": {

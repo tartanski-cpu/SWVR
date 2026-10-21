@@ -1,6 +1,9 @@
 {
  "warnings": [
-  "7 patches where the coastline's sides disagree (check the coast there)"
+  "7 patches where the coastline's sides disagree (check the coast there)",
+  "ormidale-lodge-pier: no berth with room for a boat (best blocked at 12 points): not a port",
+  "kilchattan-bay-pier-2: no berth with room for a boat (best blocked at 4 points): not a port",
+  "the-lorn-pier-2: no berth with room for a boat (best blocked at 3 points): not a port"
  ],
  "nav": {
   "marks": 97,
@@ -1207,8 +1210,8 @@
  "shoreBandPoints": 36314,
  "chunkBudget": 12000,
  "package": {
-  "ports": 59,
-  "berths": 85,
+  "ports": 56,
+  "berths": 82,
   "blocks": 219,
   "buildings": 5415,
   "marks": 81,
@@ -1220,7 +1223,7 @@
    "Cruach nan Capull",
    "Cloch Point FlW.3s"
   ],
-  "bytes": 1384321
+  "bytes": 1382567
  },
  "houses": {
   "byType": {

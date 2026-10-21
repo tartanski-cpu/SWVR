@@ -6443,6 +6443,25 @@ Owner (with a map picture of the Firth): "Next id like a bigger area, as its onl
   - **Desktop:** open https://tartanski-cpu.github.io/SWVR/next/, choose Voyage → The Firth of Clyde. You start moored at Rothesay. Sail out of Rothesay Bay and north up the Firth past Toward toward Dunoon. Watch the shore sharpen as you near it, with no holes or steps in the ground. Use Menu → Debug → World → To port to jump to Largs, Millport (Cumbrae ferry terminal), Greenock or Helensburgh, and look round each.
   - **VR:** the same, with the perf panel: watch the triangle count and frame time as chunks arrive while under way.
 
+### Fix: Voyage start berths too close to the rocks (owner)
+
+Owner (a screenshot of Syros, the boat at Ermoupoli's cargo berth with her bow on the rocks): "Some of the default starting positions on the voyage maps are too close to the rocks."
+
+- **Why:** the package picked each harbour's named berths (cargo, fuel; the cargo berth is where a map starts) as the fixed faces nearest the harbour's middle. Nothing checked that a whole boat fits there. Ermoupoli's was at the inner corner of the big quay, where the quay meets the rocky shore.
+- **Now** (`tools/coast/src/package.ts`): a berth must have room for a boat.
+  - **The check:** points every 2 m along the face, `berthClear` (11 m) either way from the berth, at the berth and out to `berthBeam` (5 m) from the face. Each must be over water and clear of other piers.
+  - **Against the game's own ground:** the package reads the region's mesh through the game's terrain lookup (`src/world/coastTerrain.ts`, chunks read as needed), not the pipeline's coarser 10 m grid.
+  - **Ranking:** berths with room come first, then fixed faces before pontoons, then nearest the middle.
+  - **Fixed on the way:** a pier drawn as one line is several boxes, and an L-shaped pier's arm can lie right across a berth on its stem. Only the boxes under the berth's own face count as her pier.
+  - **No room anywhere:** a harbour where no berth has room (a drying pier) is drawn but is no longer a port. Achladi on Syros; Ormidale Lodge, the second Kilchattan Bay pier and the second Lorn pier on the Clyde. They're listed in the report's warnings.
+- **What moved:** Ermoupoli's cargo berth moved 16 m along the quay, clear of the corner; Oban's 18 m. Tayvallich's and Rothesay's were already clear.
+- **Test:** `tests/voyageBerths.test.ts` checks every Voyage map's start berth and every cargo berth against the game's ground (streamed in for the big maps): a 14 m boat centred on the berth, out 2 m from her line, over water and clear of other piers.
+  - The tests run in the career world, so it reads the coast's own ground: the hand-built islands lie where the maps are placed, and the first try mistook one for Oban's ground.
+- **Checked headless:** moored at Ermoupoli, open water ahead along the quay, the shore well astern.
+- **Not changed:** some berths are shallow (ground just under the water at a few small piers). That's a separate question from rocks; tell me if a boat grounds at one.
+- **Test steps:**
+  - **VR and desktop:** Voyage → Syros. You start at Ermoupoli with water ahead and astern along the quay. Then Oban and Lorn (moved along Oban's quay), and Debug → World → To port to the other harbours: no bow on the rocks.
+
 ### Settlements, part B: trees, milestone 5: distance bands and the canopy (done, awaiting owner test)
 
 Owner: "Next milestone". The brief's milestone 5. Test: a forested hillside reads as forest from a mile offshore, at budget.
