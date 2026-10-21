@@ -6503,6 +6503,65 @@ Owner (with a map picture of the Firth): "Next id like a bigger area, as its onl
   - **Desktop:** open https://tartanski-cpu.github.io/SWVR/next/, choose Voyage → The Firth of Clyde. You start moored at Rothesay. Sail out of Rothesay Bay and north up the Firth past Toward toward Dunoon. Watch the shore sharpen as you near it, with no holes or steps in the ground. Use Menu → Debug → World → To port to jump to Largs, Millport (Cumbrae ferry terminal), Greenock or Helensburgh, and look round each.
   - **VR:** the same, with the perf panel: watch the triangle count and frame time as chunks arrive while under way.
 
+### Coast extras: the plan (owner's list, not started)
+
+The owner's choice from the suggested additions to the map pipeline, all but tides: fish farms, sound from the map, the shore's material, place names, landmarks with lights, AI ferries on the real routes, charted hazards in play, and a check for overlapping piers. Order: after the harbour boats (settlements milestone 6). **Settlements milestone 7 (tuning across the regions) moves to the end of this plan**, so everything is tuned once together, not twice.
+
+**Rules for all of it:**
+- From the map data only. Where the data is silent, nothing is guessed: a cable with no clearance given has no clearance rule; a coast with no wrecks in the data has none.
+- Every map, every harbour, as before.
+- **Within the baseline budget on the Quest** (settlements milestone 1's numbers). Each milestone measures draw calls, triangles and frame time at the same spots as the baseline, and says so.
+- **Original designs:** the ferries, farms and landmarks are the game's own models. The ferries carry no real operator's name or colours. A castle is a generic tower house, not a copy of Dunstaffnage.
+- Saves keep working: re-running the maps keeps berth and harbour ids (a Voyage remembers where you are by berth). Each re-run checks the ids against the last.
+
+**C1. Pipeline: read it all, check the piers (owner's 8).**
+- One pass of the fetch stage gets everything the later milestones need:
+  - marine farms (already read, not yet packaged);
+  - fog signals on the lights;
+  - shore and land cover (beach, shingle, rock, cliff; farmland, moor);
+  - place names (bays, headlands, sounds, islands, villages);
+  - landmarks (castles, towers, masts, churches with towers, wind turbines);
+  - ferry routes and terminals;
+  - wrecks;
+  - submarine and overhead cables and pipelines, with any charted clearance.
+- The package carries them; the game ignores what it doesn't use yet.
+- **The overlap check:** the report warns where quay or pier blocks overlap at different deck heights (Rothesay's start spot). The worst cases can be fixed in the region's edits file.
+- Re-run all four maps; compare the ids.
+- **Nothing to see in the game** except where a re-run moves a pier. The report lists what each map holds.
+
+**C2. Fish farms and landmarks (owner's 1 and 5).**
+- **Farms:** the round pens or long mussel lines the data shows, from the Fjord's farm models (`src/world/farms.ts`), instanced, with their yellow marker buoys and lights. They are solid to a boat, and on the charts.
+- **Landmarks:** a small kit (tower house, church tower, lattice mast, wind turbine with turning blades, monument), instanced, with fixed red lights at night on the masts and turbines. Seen from far off like the hills; on the paper chart as the symbols a chart uses.
+
+**C3. What the shore is made of (owner's 3).**
+- Sand, shingle, rock and cliff tint the land mesh along the waterline (colour only, no extra drawing). Farmland and moor tint the land behind.
+- **Beaching:** a bow-ramp boat may land on sand or shingle as on a slipway. Running onto rock or cliff damages the hull, scaled by speed. Every other boat grounds as now.
+
+**C4. Place names (owner's 4).**
+- Names on the chartplotter and the paper chart, thinned out by zoom (sounds and islands first, then bays and villages, then headlands and skerries), kept clear of the soundings and marks.
+- Radio calls and job messages give the nearest name ("a dinghy adrift off Toward Point") as well as the position.
+
+**C5. Sound from the map (owner's 2).**
+- **Foghorns:** at lights the data says have a fog signal, sounding their charted pattern in fog, heard miles off.
+- **A church bell on the hour:** from the church buildings, heard across a calm harbour.
+- **Gulls and shore sounds:** gulls over harbours and fish quays; surf on exposed rocky shores (from C3's rock) in a swell; livestock faintly from farmland, where the wind carries it.
+- Only the few nearest sources play; nothing is drawn. The game makes all its sounds in code, so this needs no sound files.
+- If the sheep and cattle don't sound convincing in code, they're left out rather than fake. Any small recorded clip would come to you first.
+
+**C6. Charted hazards in play (owner's 7).**
+- **Wrecks:** on the charts as a chart shows them (dangerous or not, the depth over them where known). A shallow one grounds a boat like a rock. Wrecks hold fish, so the fishing finds better catches over one.
+- **Cables and pipelines:** charted areas on the plotter and the paper chart. Anchor in one and the anchor fouls: it won't come up until you work it free (a slow, careful heave, or slip the anchor).
+- **Overhead power cables** across narrows, with their charted clearance: a boat whose mast or gear stands higher than the clearance strikes the cable (damage, a VHF call). Her height comes from her design. The plotter warns as you approach.
+
+**C7. Ferries on the real routes (owner's 6).**
+- Each ferry route in the data gets the game's own ferry design (a small open-deck island ferry, or a larger drive-through one by the route's length). She runs to a timetable between the real terminals, slows into port and lies at the linkspan.
+- **Kept cheap:** a ferry follows her route as the traffic ships do (no full physics), with her bow wave and wake. At most the two or three nearest are sailing; the rest only keep time on paper.
+- On AIS and the plotter. She calls on the VHF leaving and arriving. She keeps her course and expects you to keep clear, as a ferry would, but stops rather than run you down.
+
+**C8. Tuning across all maps (settlements milestone 7, moved here).**
+- Measure every map against the baseline, on Quest and desktop settings, at the same spots as before.
+- Trim what's over (distances, counts, merging), and fix what the owner's tests turn up.
+
 ### Fix: put ashore under the pier at Rothesay (owner)
 
 Owner (a screenshot on the Clyde, standing on concrete with the timber pier's deck, bollards and yellow edge at head height): "It spawned in on the Clyde, and I seem to be on a pier, a concrete one, but underneath the big wooden one."
@@ -6965,6 +7024,8 @@ Owner: "I went to pick up some cargo... the buttons and the joystick but not the
   2. ~~**Switches a little smaller**~~ **Done** (see "Smaller switches and screen lettering").
   3. ~~**Instruments: smaller screen text**~~ **Done** (the same).
   4. **Backlog: instruments as modules.** Simple single-function instruments (some analogue gauges), and LCD screens that become touchscreens with several pages you flick through, so a small wheelhouse (the landing craft's) can do with one screen. Stormworks makes its screens configurable with Lua scripts; the owner leaves the method to us. Suggested: a screen's pages described as data (which readings, laid out how), not a scripting language, since running Lua in the browser means a Lua engine as a new dependency and player scripts to secure. To agree with the owner before starting.
+
+- **Coast maps: more from the map data (owner, Oct 2026, planned, not started).** The owner chose seven of the eight suggestions, with no tides: "do 1, 2, 3, 4, 5, 6, 7, 8. No tides, and that's it." The plan is under "Coast extras: the plan" in "Real coastline regions" below. It starts after the harbour boats (settlements milestone 6). The owner says "Next milestone" to advance, as before.
 
 Everything on the lists above is done or noted as open below. What was open when last reviewed: the owner's VR test of the latest rounds; a moon (the night sea is very dark); whitecaps; harbour lights that don't grow as you near them; two upgrades suggested but not built (a bigger fuel tank, a second skiff motor). The older suggested order follows, kept for the record:
 
