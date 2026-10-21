@@ -29,7 +29,7 @@ const ROOM = 4;
 const isPontoon = (b: BlockDef) => b.kind === 'pier' && b.top < 1;
 
 /** Is (x, z) on the block (its deck's footprint, with `grace` m to spare)? */
-function inBlock(b: BlockDef, x: number, z: number, grace = 0.5): boolean {
+export function inBlock(b: BlockDef, x: number, z: number, grace = 0.5): boolean {
   const yaw = (b.yawDeg * Math.PI) / 180;
   const dx = x - b.x;
   const dz = z - b.z;
@@ -116,7 +116,7 @@ function generate(): BerthDef[] {
 }
 
 /** A block's local axes in world: (lx, lz) = (dx, dz) projected on them (the inverse of toWorld). */
-function toLocal(b: BlockDef, x: number, z: number): { lx: number; lz: number } {
+export function toLocal(b: BlockDef, x: number, z: number): { lx: number; lz: number } {
   const yaw = (b.yawDeg * Math.PI) / 180;
   const dx = x - b.x;
   const dz = z - b.z;

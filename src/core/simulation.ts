@@ -26,6 +26,7 @@ import { vesselRuntime } from '../boats/sims';
 import { stepForecast } from '../environment/forecast';
 import { applyTrafficIntent, stepTraffic } from '../traffic/traffic';
 import { applySpawnBoatIntent } from './spawnBoat';
+import { applyLaunchIntent, isLaunchIntent, stepLaunched } from './launch';
 import { stepDuties } from '../duties/duties';
 import { applyCraneIntent, onCrane, stepTender } from '../vessel/tenderCrane';
 import { applyPainterIntent, painterForces } from '../vessel/physics/painter';
@@ -117,6 +118,8 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
       applyTrafficIntent(world, intent);
     } else if (intent.control === 'spawnBoat') {
       applySpawnBoatIntent(world, intent);
+    } else if (isLaunchIntent(intent.control)) {
+      applyLaunchIntent(world, intent);
     } else if (isCargoIntent(intent.control)) {
       applyCargoIntent(world, intent);
     } else if (intent.targetId === ENVIRONMENT_ID) {
@@ -190,6 +193,7 @@ export function stepWorld(world: WorldState, intents: readonly Intent[], dt: num
 
   stepForecast(world);
   stepTraffic(world, dt);
+  stepLaunched(world);
   stepDuties(world);
   stepRescue(world, dt, simWaves);
   stepTow(world, dt);

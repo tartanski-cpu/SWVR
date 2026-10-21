@@ -224,6 +224,8 @@ export interface VesselState {
    * travels with her in every snapshot, so any page can build her type. Unset on the fixed types.
    */
   build?: string;
+  /** The player she belongs to (multi-boat M3: launched by them, core/launch.ts); unset on the game's own boats. */
+  owner?: EntityId;
   /** World position of the vessel origin (centreline, amidships, DWL). */
   position: Vec3;
   /** Orientation, vessel -> world. */

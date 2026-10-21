@@ -16,7 +16,7 @@ import { placeAshore } from '../player/playerControl';
 import { placeVessel } from '../vessel/vesselControl';
 import { VESSEL_DEFS } from '../vessel/vesselDef';
 import type { VesselState } from '../vessel/vesselState';
-import { BERTHS } from '../world/archipelago';
+import { berthWithId } from '../world/berths';
 import { groundHeight } from '../world/terrain';
 
 export interface VoyagePlace {
@@ -77,7 +77,7 @@ export function forgetPlace(mapId: string, storage: Pick<Storage, 'removeItem'> 
 export function restorePlace(world: WorldState, v: VesselState, playerId: string, place: VoyagePlace): boolean {
   const p = world.players[playerId];
   if (place.berthId) {
-    const b = BERTHS.find((x) => x.id === place.berthId);
+    const b = berthWithId(place.berthId);
     if (!b) return false;
     moorAtBerth(v, b);
   } else {

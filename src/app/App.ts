@@ -61,6 +61,8 @@ import { raceRoarLevel, raceStrength, setRaceClock } from '../world/currents';
 import { REGIONS, regionById } from '../world/regions';
 import { MODE, VOYAGE_MAP_ID } from '../mode';
 import { forgetPlace, placeOf, rememberPlace, restorePlace, savedPlace } from './voyagePlace';
+import { ownedBoat } from '../core/launch';
+import { berthWithId } from '../world/berths';
 import { groundHeight } from '../world/terrain';
 import { coastStreamer } from '../world/coastStream';
 import { setPaintNight } from '../render/pixelPaint';
@@ -1011,7 +1013,8 @@ export class App {
   /** The workboat's engine, horn and alarm sounds; her boat view, tender crane and wheelhouse; the other boats' views (the skiff's tiller). */
   private updateOwnBoat(dt: number, nowMs: number, darkness: number): void {
     const frame = { darkness, viewer: this.focus };
-    // Your boat is the one you're aboard (multi-boat M2).
+    // Your boat is the one you're aboard (multi-boat M2); your own launched boat (M3).
+    this.followOwnBoat();
     const aboardNow = this.world.players[this.localPlayerId]?.aboardVesselId;
     if (aboardNow && aboardNow !== this.testVesselId) this.becomeAboard(aboardNow);
     const testView = this.vesselViews.get(this.testVesselId);
@@ -2595,6 +2598,18 @@ export class App {
         if (this.client) return this.overlay.notify('Only the host puts boats in the world', 3);
         this.pushEnvIntent('spawnBoat', 1, defId);
       },
+      launchBoat: (ref) => {
+        this.pushEnvIntent('launchBoat', 1, ref);
+        this.overlay.notify('Asking the harbour for a berth for her...', 3);
+      },
+      withdrawBoat: () => this.pushEnvIntent('withdrawBoat', 1),
+      myBoat: () => {
+        const mine = ownedBoat(this.world, this.localPlayerId);
+        if (!mine) return 'None: you sail with the host';
+        const name = this.boatLabel(mine.defId);
+        if (mine.mooring.phase === 'moored') return `${name}, moored at ${(mine.mooring.berthId && berthWithId(mine.mooring.berthId)?.name) ?? 'the quay'}`;
+        return mine.anchor.phase === 'set' ? `${name}, at anchor off the harbour` : `${name}, under way`;
+      },
       seaTrialsShown: () => this.trialsPanel.shown,
       toggleSeaTrials: () => this.toggleSeaTrials(),
       debugPanel: () => this.overlay.visible,
@@ -3340,6 +3355,43 @@ export class App {
       // On the leaf: the marks and tools fold with it.
       this.chartTable.leafFrame.add(this.chartTools.root);
     }
+  }
+
+  /** A boat's name for the menu: a fleet boat's, a Shipyard design's, or her type. */
+  private boatLabel(defId: string): string {
+    const fleet = FLEET.find((f) => f.id === defId);
+    if (fleet) return `The ${fleet.name.toLowerCase()}`;
+    if (!isBoatType(defId)) return defId;
+    const token = boatTokenOf(defId) ?? '';
+    const fav = this.shipyardCodes.favourites().find((f) => sameDesign(f.code, token));
+    const read = readDesign(token);
+    return fav ? fav.name : 'design' in read && read.name ? read.name : `Shipyard boat ${groupCode(token)}`;
+  }
+
+  /** The boat you launched last (multi-boat M3), so a new one is boarded once. */
+  private ownedSeen: EntityId | null = null;
+
+  /**
+   * Your own boat (multi-boat M3): when the host puts her in the world, board her (your body
+   * is your page's). A boat gone from under you (handed back, her player gone): back aboard
+   * the host's boat, and the home boat the host's again.
+   */
+  private followOwnBoat(): void {
+    const me = this.world.players[this.localPlayerId];
+    if (!me) return;
+    const mine = ownedBoat(this.world, this.localPlayerId);
+    if (mine && mine.id !== this.ownedSeen) {
+      this.ownedSeen = mine.id;
+      if (me.aboardVesselId !== mine.id && this.boats.has(mine.id)) {
+        this.intents.push({ playerId: this.localPlayerId, targetId: this.localPlayerId, control: 'board', value: 1, ref: mine.id });
+        this.overlay.notify(`${this.boatLabel(mine.defId)} is yours: ${mine.mooring.phase === 'moored' ? 'moored at the quay' : 'at anchor off the harbour'}`, 4);
+      }
+    } else if (!mine) this.ownedSeen = null;
+    const home = this.world.homeVesselId;
+    if (me.aboardVesselId && !this.world.vessels[me.aboardVesselId] && home && this.world.vessels[home]) {
+      this.intents.push({ playerId: this.localPlayerId, targetId: this.localPlayerId, control: 'board', value: 1, ref: home });
+    }
+    if (!this.world.vessels[this.testVesselId] && home && this.world.vessels[home] && this.boats.has(home)) this.becomeAboard(home);
   }
 
   /**

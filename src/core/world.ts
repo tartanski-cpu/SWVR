@@ -109,6 +109,8 @@ export interface WorldState {
   quietCalls?: boolean;
   /** Boats put in the world by the spawnBoat intent so far (core/spawnBoat.ts): their ids count up. */
   spawned?: number;
+  /** Boats players have launched so far (core/launch.ts): their ids count up. */
+  launched?: number;
 }
 
 export function createWorld(

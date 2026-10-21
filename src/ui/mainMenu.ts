@@ -209,6 +209,10 @@ export interface MenuHost {
   setHomeBoat(defId: string): void;
   /** Debug: a second boat of this type put afloat beside the home boat (multi-boat M2; host or alone). */
   spawnBoat(defId: string): void;
+  /** Your own boat in a Voyage game (multi-boat M3): launch one (a fleet id or a design token), hand her back, and where she is. */
+  launchBoat(ref: string): void;
+  withdrawBoat(): void;
+  myBoat(): string;
   debugPanel(): boolean;
   toggleDebugPanel(): void;
   hydroView(): boolean;
@@ -505,6 +509,7 @@ export function mainMenu(h: MenuHost): MainMenu {
     { heading: 'Crew (multiplayer)' },
     { label: '', buttons: [{ text: () => h.netStatus() }] },
     { label: '', buttons: [{ text: () => h.crewList() }] },
+    ...(MODE === 'voyage' ? yourBoat(h) : []),
     { label: 'Your name', buttons: [{ text: () => h.playerName(), weight: 1.6 }, { text: 'Change', press: () => h.nextPlayerName() }] },
     { label: 'Voice chat', buttons: [choice('On', true, () => h.voiceChat(), (v) => h.setVoiceChat(v)), choice('Off', false, () => h.voiceChat(), (v) => h.setVoiceChat(v))] },
     { label: 'Voice', buttons: [{ text: () => h.voiceStatus(), weight: 2 }] },
@@ -717,9 +722,10 @@ export function mainMenu(h: MenuHost): MainMenu {
           buttons: [...FLEET.map((f) => choice(f.name, f.id, () => h.homeBoat(), (v) => h.setHomeBoat(v))), choice('Alaskan 38', 'alaskan38', () => h.homeBoat(), (v) => h.setHomeBoat(v))],
         },
         {
-          // Multi-boat M2: another boat afloat beside yours, to walk across to and take her helm.
+          // Multi-boat M2: another boat afloat beside yours, to walk across to and take her helm
+          // (Voyage mode only: the owner, Oct 2026: multi-boat is Voyage's to begin with).
           label: 'Second boat',
-          buttons: FLEET.map((f) => ({ text: f.name, press: () => h.spawnBoat(f.id) })),
+          buttons: FLEET.map((f) => ({ text: () => (MODE === 'voyage' ? f.name : ''), press: () => MODE === 'voyage' && h.spawnBoat(f.id) })),
         },
         {
           label: 'Hull',
@@ -855,6 +861,37 @@ export function mainMenu(h: MenuHost): MainMenu {
       { name: 'Debug', sections: debug, hidden: () => !h.debugMenu() },
     ],
   };
+}
+
+/**
+ * Crew > Your boat (multi-boat M3, Voyage mode): launch a boat of your own into the game, one
+ * of the fleet or a Shipyard favourite (or her code, typed or pasted), and hand her back. The
+ * host puts her at the harbour: moored where her length fits, else at anchor.
+ */
+function yourBoat(h: MenuHost): MenuRow[] {
+  const c = () => h.shipyardCodes();
+  const fav = (i: number): MenuRow => ({
+    label: '',
+    buttons: [
+      { text: () => (c().favouriteAt(i) ? `${c().favouriteAt(i)!.name}${c().favouriteAt(i)!.summary ? ` · ${c().favouriteAt(i)!.summary}` : ''}` : i === 0 ? 'None saved in this browser' : ''), weight: 2.6 },
+      { text: () => (c().favouriteAt(i) ? 'Launch' : ''), press: () => c().favouriteAt(i) && h.launchBoat(c().favouriteAt(i)!.code) },
+    ],
+  });
+  return [
+    { heading: 'Your boat' },
+    { label: '', buttons: [{ text: () => h.myBoat(), weight: 2.6 }, { text: () => (h.myBoat().startsWith('None') ? '' : 'Hand her back'), press: () => h.withdrawBoat() }] },
+    { label: 'Launch', buttons: FLEET.map((f) => ({ text: f.name, press: () => h.launchBoat(f.id) })) },
+    { heading: 'Or a Shipyard favourite' },
+    ...Array.from({ length: PER_PAGE }, (_, i) => fav(i)),
+    {
+      label: 'Code',
+      buttons: [
+        { text: () => groupCode(c().code) || '_ (type it in Office > Your boats, or Paste)', weight: 3.2 },
+        { text: 'Paste', press: () => h.pasteCode() },
+        { text: () => (c().check().ok ? 'Launch' : ''), active: () => c().check().ok, press: () => c().check().ok && h.launchBoat(c().code) },
+      ],
+    },
+  ];
 }
 
 /**
